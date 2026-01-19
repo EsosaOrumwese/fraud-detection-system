@@ -1,0 +1,60 @@
+policy_id: validation_policy_5A
+version: v1
+
+tolerances:
+  s2_shape_sum_abs_warn: 0.000001
+  s2_shape_sum_abs_fail: 0.000010
+
+  s3_weekly_sum_rel_fail: 0.000001
+  s3_weekly_sum_abs_fail: 0.000001
+  s3_rel_denominator_floor: 1.0
+
+  s4_recompose_rel_fail: 0.000001
+  s4_recompose_abs_fail: 0.000001
+  s4_recompose_rel_denominator_floor: 1.0
+
+bounds:
+  overlay_factor_min_warn: 0.20
+  overlay_factor_max_warn: 3.50
+  overlay_low_warn_exempt_types: [OUTAGE]
+
+  lambda_scenario_max_per_bucket_warn: 10000000.0
+  lambda_scenario_max_per_bucket_fail: 25000000.0
+
+sampling:
+  recompose_sample_mode: minhash_top_n_v1
+  recompose_sample_n: 2048
+  recompose_hash_law: 'hash64 = uint64_be(SHA256("5A.S5.recompose|" + manifest_fingerprint + "|" + parameter_hash + "|" + scenario_id + "|" + merchant_id + "|" + zone_key + "|" + horizon_bucket_key)[0:8])'
+
+blocking:
+  blocking_check_ids:
+    - S0_PRESENT
+    - S0_DIGEST_MATCH
+    - UPSTREAM_ALL_PASS
+    - S1_PRESENT
+    - S1_PK_VALID
+    - S1_REQUIRED_FIELDS
+    - S1_SCALE_NONNEG_FINITE
+    - S2_PRESENT
+    - S2_GRID_VALID
+    - S2_SHAPES_NONNEG
+    - S2_SHAPES_SUM_TO_ONE
+    - S2_DOMAIN_COVERS_S1
+    - S3_PRESENT
+    - S3_DOMAIN_PARITY
+    - S3_LAMBDA_NONNEG_FINITE
+    - S3_WEEKLY_SUM_VS_SCALE
+    - S4_PRESENT
+    - S4_DOMAIN_PARITY
+    - S4_HORIZON_COVERAGE
+    - S4_LAMBDA_NONNEG_FINITE
+    - S4_OVERLAY_FACTOR_HARD_BOUNDS
+  nonblocking_check_ids:
+    - S4_OVERLAY_FACTOR_WARN_BOUNDS
+    - S4_RECOMPOSITION_SAMPLE
+    - S4_LAMBDA_SCENARIO_GUARDRAIL
+    - S4_LOCAL_VS_UTC_TOTAL
+  warn_is_blocking_check_ids: []
+  unknown_check_id_posture: fail_closed
+
+notes: "S5 validation strictness knobs (tolerances, warn corridors, blocking vs warning). Token-less; sealed by S0."

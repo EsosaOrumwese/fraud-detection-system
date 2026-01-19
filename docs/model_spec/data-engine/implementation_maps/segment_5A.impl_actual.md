@@ -392,6 +392,126 @@ Execution notes:
 
 ---
 
+### Entry: 2026-01-19 13:58
+
+Plan to author optional 5A configs so S0 can seal them.
+
+Design problem summary:
+- S0 currently skips optional configs because the contracted files are missing:
+  `zone_shape_modifiers_5A`, `overlay_ordering_policy_5A`,
+  `scenario_overlay_validation_policy_5A`, `validation_policy_5A`,
+  `spec_compatibility_config_5A`. We need concrete, schema-valid YAMLs that
+  follow the authoring guides and are token-less.
+
+Decision path and options considered:
+1) **Minimal schema-only stubs** (just enough keys to pass validation).
+   - Downside: risks violating realism floors or pinned semantics in the guides.
+2) **Use the recommended guide examples** with slight normalization:
+   - Set `version` to `v1` to match the dataset dictionary (as with other 5A
+     policies).
+   - For `zone_shape_modifiers_5A`, generate the full `zg0..zg7` profiles
+     required by the realism floors, using mild but distinct patterns.
+   - Keep all values within documented bounds and use bucket-aligned windows.
+
+Decision:
+- Proceed with option (2). Populate each optional config using the authoring
+  guide’s recommended v1 payloads, adjusting only the `version` strings to `v1`
+  and ensuring zone-shape profiles cover all buckets with non-trivial variety.
+
+Planned steps (exact):
+1) Create `config/layer2/5A/policy/zone_shape_modifiers_5A.v1.yaml`:
+   - `mode: bucket_profiles_v1`, `zone_group_mode` pinned string.
+   - `profiles`: eight entries `zg0..zg7` with mild-but-distinct
+     `dow_multipliers` and bucket-aligned `time_window_multipliers`.
+   - Include one deterministic `override` (e.g., Gulf weekend style) and set
+     `defaults.neutral_profile_id=zg0`.
+2) Create `config/layer2/5A/scenario/overlay_ordering_policy_5A.v1.yaml`
+   using the guide’s recommended priorities, aggregation, and masking rules.
+3) Create `config/layer2/5A/scenario/scenario_overlay_validation_policy_5A.v1.yaml`
+   using the guide’s recommended numeric thresholds and gating.
+4) Create `config/layer2/5A/validation/validation_policy_5A.v1.yaml`
+   using the guide’s recommended tolerances, bounds, sampling, and blocking IDs.
+5) Create `config/layer2/5A/validation/spec_compatibility_config_5A.v1.yaml`
+   using the guide’s recommended major-matrix defaults.
+6) Re-run `make segment5a-s0 SEG5A_S0_RUN_ID=d61f08e2e45ef1bc28884034de4c1b68`
+   to confirm all optional configs are sealed.
+
+---
+
+### Entry: 2026-01-19 14:00
+
+Implemented optional 5A configs for sealing.
+
+What I changed (stepwise, as executed):
+1) Created `config/layer2/5A/policy/zone_shape_modifiers_5A.v1.yaml`:
+   - `zone_group_mode` uses the pinned hash law and `buckets: 8`, `prefix: zg`.
+   - `profiles` include `zg0..zg7` with bucket-aligned windows and bounded
+     multipliers (0.80–1.30) to satisfy realism floors.
+   - Added one deterministic override for Gulf-weekend style using `zg4`.
+2) Created `config/layer2/5A/scenario/overlay_ordering_policy_5A.v1.yaml`
+   following the guide’s recommended priorities, aggregation, and masking rules.
+3) Created `config/layer2/5A/scenario/scenario_overlay_validation_policy_5A.v1.yaml`
+   with numeric checks and gating values from the guide.
+4) Created `config/layer2/5A/validation/validation_policy_5A.v1.yaml`
+   using the guide’s recommended tolerances, bounds, sampling, and blocking IDs.
+5) Created `config/layer2/5A/validation/spec_compatibility_config_5A.v1.yaml`
+   with the v1 major matrix and fail-closed enforcement.
+
+Notes / rationale:
+- All optional configs use `version: v1` to match the dataset dictionary.
+- `zone_shape_modifiers_5A` profiles cover all bucket IDs and remain within
+  the guide’s [0.6, 1.6] multiplier bounds while providing heterogeneity.
+
+Follow-up:
+- Re-run `make segment5a-s0 SEG5A_S0_RUN_ID=d61f08e2e45ef1bc28884034de4c1b68`
+  to ensure the new optional configs are sealed.
+
+---
+
+### Entry: 2026-01-19 14:01
+
+Run outcome + remediation plan for resealing S0 outputs.
+
+Observed failure:
+- `make segment5a-s0 SEG5A_S0_RUN_ID=d61f08e2e45ef1bc28884034de4c1b68`
+  now fails with `S0_OUTPUT_CONFLICT` because `sealed_inputs_5A` already exists
+  for the same run/manifest (old digest `a0ed...`), while the newly authored
+  optional configs change the digest (`8089...`).
+
+Decision and rationale:
+- To reseal with the new optional configs, remove the prior S0 outputs
+  (`sealed_inputs_5A`, `s0_gate_receipt_5A`, `scenario_manifest_5A`) for this
+  run/manifest and re-run S0. This follows the existing S0 conflict rules
+  without altering manifest identity.
+
+Planned steps (exact):
+1) Delete the prior outputs under
+   `runs/local_full_run-5/d61f08e2e45ef1bc28884034de4c1b68/data/layer2/5A/`
+   for the current manifest fingerprint.
+2) Re-run `make segment5a-s0 SEG5A_S0_RUN_ID=d61f08e2e45ef1bc28884034de4c1b68`.
+
+---
+
+### Entry: 2026-01-19 14:07
+
+Resealed S0 outputs with optional configs and confirmed green run.
+
+What I did:
+1) Deleted prior S0 outputs for the manifest:
+   - `runs/local_full_run-5/d61f08e2e45ef1bc28884034de4c1b68/data/layer2/5A/s0_gate_receipt/manifest_fingerprint=1cb60481d69b836ee24505ec9a6ec231c8f18523ee9b7dabbd38c0a33bf15765`
+   - `runs/local_full_run-5/d61f08e2e45ef1bc28884034de4c1b68/data/layer2/5A/sealed_inputs/manifest_fingerprint=1cb60481d69b836ee24505ec9a6ec231c8f18523ee9b7dabbd38c0a33bf15765`
+   - `runs/local_full_run-5/d61f08e2e45ef1bc28884034de4c1b68/data/layer2/5A/scenario_manifest/manifest_fingerprint=1cb60481d69b836ee24505ec9a6ec231c8f18523ee9b7dabbd38c0a33bf15765`
+2) Re-ran `make segment5a-s0 SEG5A_S0_RUN_ID=d61f08e2e45ef1bc28884034de4c1b68`.
+
+Outcome:
+- S0 completed successfully with all optional configs sealed.
+- New sealed inputs digest: `8089e436e52df939fa9cd05c8148363b42105579c67f4a803ce7eeb33a3a3663`.
+- Sealed inputs count: total=43; by role
+  `{'upstream_egress': 16, 'validation_bundle': 6, 'validation_flag': 6,
+  'reference_data': 1, 'policy': 11, 'scenario_config': 3}`.
+
+---
+
 ## S0 - Gate & sealed inputs
 
 ### Entry: 2026-01-19 11:23

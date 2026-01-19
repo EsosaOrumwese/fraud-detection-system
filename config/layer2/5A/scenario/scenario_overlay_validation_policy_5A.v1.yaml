@@ -1,0 +1,34 @@
+policy_id: scenario_overlay_validation_policy_5A
+version: v1
+
+numeric:
+  finite_required: true
+  nonnegative_required: true
+  hard_bounds_source: scenario_overlay_policy_5A.combination
+  comparison_epsilon: 1.0e-12
+
+warnings:
+  warn_bounds_total:
+    apply_to: overlay_factor_total
+    min_warn: 0.20
+    max_warn: 3.50
+    exceptions:
+      suppress_low_warn_when_type_active: [OUTAGE]
+
+  aggregate_warn_checks:
+    - name: baseline_mean_factor_reasonable
+      selector: { scenario_type: baseline }
+      metric: mean
+      bounds: [0.85, 1.25]
+    - name: stress_p95_not_extreme
+      selector: { scenario_type: stress }
+      metric: p95
+      bounds: [null, 3.50]
+
+gating:
+  warn_violation_is_fatal: false
+  max_warn_violations_fraction_warn: 0.001
+  max_warn_violations_fraction_fail: 0.01
+  fraction_denominator: domain_horizon_points
+
+notes: "Optional numeric warning thresholds for S4 overlays; hard bounds come from scenario_overlay_policy_5A clamp."

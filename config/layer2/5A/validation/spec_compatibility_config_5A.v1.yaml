@@ -1,0 +1,25 @@
+config_id: spec_compatibility_config_5A
+version: v1
+mode: major_matrix_v1
+
+supported_majors:
+  s1: [1]
+  s2: [1]
+  s3: [1]
+  s4: [1]
+
+allowed_major_tuples:
+  - name: stack_v1
+    s1_major: 1
+    s2_major: 1
+    s3_major: 1
+    s4_major: 1
+
+enforcement:
+  on_missing_version_field: FAIL_CLOSED
+  on_unparseable_version: FAIL_CLOSED
+  on_unsupported_major: FAIL_VALIDATION
+  on_unsupported_tuple: FAIL_VALIDATION
+  failure_check_id: SPEC_COMPATIBILITY
+
+notes: "S5 upstream spec compatibility matrix for S1-S4; MAJOR-gated v1."

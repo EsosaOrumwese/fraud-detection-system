@@ -1,0 +1,94 @@
+policy_id: zone_shape_modifiers_5A
+version: v1
+mode: bucket_profiles_v1
+
+zone_group_mode:
+  mode: tzid_hash_bucket_v1
+  buckets: 8
+  zone_group_id_prefix: zg
+  zone_group_id_law: 'msg=UTF8("5A.S2.template|" + demand_class + "|" + channel_group + "|" + tzid + "|" + parameter_hash_hex); x=uint64_be(SHA256(msg)[0:8]); zone_group_id=zone_group_id_prefix + str(x % buckets)'
+
+overrides:
+  - override_id: gulf_weekend_style
+    match:
+      legal_country_iso_in: ["AE", "SA", "QA", "KW", "BH", "OM"]
+    force_profile_id: zg4
+    notes: "Fri-Sat weekend emphasis profile."
+
+profiles:
+  - profile_id: zg0
+    description: "Neutral zone profile."
+    dow_multipliers: [1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0]
+    time_window_multipliers: []
+
+  - profile_id: zg1
+    description: "Evening tilt."
+    dow_multipliers: [1.0, 1.0, 1.0, 1.0, 1.0, 1.05, 1.05]
+    time_window_multipliers:
+      - window_id: evening_boost
+        days: "*"
+        start_minute: 1080
+        end_minute_exclusive: 1380
+        multiplier: 1.25
+
+  - profile_id: zg2
+    description: "Night economy tilt."
+    dow_multipliers: [0.95, 0.95, 0.95, 0.95, 0.95, 1.05, 1.05]
+    time_window_multipliers:
+      - window_id: night_boost
+        days: "*"
+        start_minute: 0
+        end_minute_exclusive: 240
+        multiplier: 1.30
+
+  - profile_id: zg3
+    description: "Early bird morning tilt."
+    dow_multipliers: [1.05, 1.05, 1.05, 1.05, 1.05, 1.0, 1.0]
+    time_window_multipliers:
+      - window_id: morning_boost
+        days: "*"
+        start_minute: 360
+        end_minute_exclusive: 600
+        multiplier: 1.20
+
+  - profile_id: zg4
+    description: "Weekend emphasis."
+    dow_multipliers: [0.95, 0.95, 0.95, 0.95, 1.0, 1.15, 1.15]
+    time_window_multipliers: []
+
+  - profile_id: zg5
+    description: "Weekday office hours bias."
+    dow_multipliers: [1.1, 1.1, 1.1, 1.1, 1.05, 0.9, 0.9]
+    time_window_multipliers:
+      - window_id: office_hours
+        days: [1, 2, 3, 4, 5]
+        start_minute: 480
+        end_minute_exclusive: 1020
+        multiplier: 1.25
+
+  - profile_id: zg6
+    description: "Late-night dampening."
+    dow_multipliers: [1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0]
+    time_window_multipliers:
+      - window_id: late_night_dampen
+        days: "*"
+        start_minute: 0
+        end_minute_exclusive: 300
+        multiplier: 0.80
+
+  - profile_id: zg7
+    description: "Midday lull."
+    dow_multipliers: [1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0]
+    time_window_multipliers:
+      - window_id: midday_lull
+        days: "*"
+        start_minute: 720
+        end_minute_exclusive: 840
+        multiplier: 0.85
+
+defaults:
+  neutral_profile_id: zg0
+  on_missing_profile_id: FAIL_CLOSED
+  emit_adjustment_flags: true
+
+notes: "Zone-level deterministic modifiers; bucket-aligned; mild heterogeneity."
