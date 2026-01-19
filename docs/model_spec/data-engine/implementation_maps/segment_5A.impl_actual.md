@@ -1949,3 +1949,241 @@ Actions taken:
    - `class_zone_shape_5A`
    - `class_shape_catalogue_5A`
    and a PASS run-report for `manifest_fingerprint=1cb60481...`.
+
+---
+
+### Entry: 2026-01-19 18:33
+
+5A.S3 spec review + implementation plan (pre-coding).
+
+References read:
+- `docs/model_spec/data-engine/layer-2/specs/state-flow/5A/state.5A.s3.expanded.md`
+- `docs/model_spec/data-engine/layer-2/specs/contracts/5A/dataset_dictionary.layer2.5A.yaml`
+- `docs/model_spec/data-engine/layer-2/specs/contracts/5A/schemas.5A.yaml`
+- `docs/model_spec/data-engine/layer-2/specs/data-intake/5A/baseline_intensity_policy_5A_authoring-guide.md`
+- `docs/model_spec/data-engine/layer-2/specs/data-intake/5A/baseline_validation_policy_5A_authoring-guide.md`
+- `config/layer2/5A/policy/baseline_intensity_policy_5A.v1.yaml`
+
+Key observations / questions to resolve before coding:
+1) **Sealed-input gating vs S1/S2 outputs**: S3 spec says `merchant_zone_profile_5A`,
+   `shape_grid_definition_5A`, and `class_zone_shape_5A` are found via `sealed_inputs_5A`,
+   but current S0 does not seal S1/S2 outputs. Plan is to resolve those outputs directly via
+   dictionary (as done in S2) and log this as a spec deviation unless we choose to extend
+   S0 sealing to include S1/S2 outputs.
+2) **Baseline validation policy**: `baseline_validation_policy_5A` is referenced in S3 but
+   is not present in the dataset dictionary or config. Decide whether to author this policy
+   and add it to S0 sealing, or to use `baseline_intensity_policy_5A.weekly_sum_rel_tol`
+   as the tolerance source (with a documented deviation).
+3) **Optional outputs**: `class_zone_baseline_local_5A` and `merchant_zone_baseline_utc_5A`
+   are optional. `baseline_intensity_policy_5A.utc_projection.emit_utc_baseline=false` in
+   current config, so default is to skip UTC output. Confirm whether we should always emit
+   the class-level aggregate (cheap) or leave it off.
+4) **Channel dimension**: S1 output lacks `channel_group`; S2 outputs were generated with
+   `channel_group="mixed"`. Plan is to join on `(demand_class, legal_country_iso, tzid)`
+   with fixed `channel_group="mixed"` and emit that value in S3 outputs.
+
+Implementation plan (stepwise, policy-driven):
+1) **Gate + sealed inputs**: Load `s0_gate_receipt_5A` + `sealed_inputs_5A`, validate schema,
+   check parameter/hash identity, recompute sealed_inputs digest, and enforce upstream PASS
+   statuses. Accept `scenario_id` as single string (or length-1 list).
+2) **Resolve inputs**:
+   - Required: `merchant_zone_profile_5A` (S1), `shape_grid_definition_5A` (S2),
+     `class_zone_shape_5A` (S2), `baseline_intensity_policy_5A` (policy).
+   - Optional: `merchant_class_profile_5A` (S1), `class_shape_catalogue_5A` (S2), and
+     `baseline_validation_policy_5A` if present in contracts.
+3) **Domain**: Build `D_S3` from `merchant_zone_profile_5A` using `(merchant_id,
+   legal_country_iso, tzid)` and `demand_class`. Validate no duplicate merchant×zone rows.
+4) **Shape join**: Join `merchant_zone_profile_5A` to `class_zone_shape_5A` on
+   `(demand_class, legal_country_iso, tzid)` plus `channel_group="mixed"` to get
+   `shape_value` for each bucket. Fail with `S3_SHAPE_JOIN_FAILED` if any shape missing.
+5) **Compute baseline**:
+   - Use `baseline_intensity_policy_5A.scale_source_field` (v1 = `weekly_volume_expected`)
+     and compute `lambda_local_base = weekly_volume_expected * shape_value`.
+   - Enforce `weekly_volume_expected <= hard_limits.max_weekly_volume_expected` and
+     `lambda_local_base <= hard_limits.max_lambda_per_bucket` (`clip_mode=hard_fail`).
+   - Enforce sum-to-weekly-scale with `weekly_sum_rel_tol` or the optional baseline
+     validation policy if present.
+6) **Optional aggregates**:
+   - `class_zone_baseline_local_5A` = sum `lambda_local_base` over merchants by
+     `(demand_class, legal_country_iso, tzid, bucket_index)`.
+   - `merchant_zone_baseline_utc_5A` only if `emit_utc_baseline=true` (would require a
+     defined UTC grid + mapping law; skip when false).
+7) **Write outputs**: Use idempotent parquet publish with conflict detection
+   (`S3_OUTPUT_CONFLICT`). Emit run-report with counts + weekly-sum error stats.
+8) **Logging**: Story header log with objective and gated inputs; progress logs for join
+   and bucket expansion with elapsed time, rate, ETA; per-phase summary logs for
+   lambda stats and weekly-sum error distribution.
+
+Performance/resumability notes:
+- Use Polars joins + vectorised arithmetic to avoid Python loops over `|D_S3|*T_week`.
+- Output size is ~2.5M rows in current data; keep only necessary columns in-memory.
+- Outputs are deterministic by `(parameter_hash, manifest_fingerprint, scenario_id)` and
+  must be idempotent; any mismatch raises `S3_OUTPUT_CONFLICT`.
+
+---
+
+### Entry: 2026-01-19 18:44
+
+5A.S3 decisions approved by user (ready to implement).
+
+Confirmed decisions:
+1) **Resolve S1/S2 outputs via dictionary** (not sealed inputs), consistent with S2:
+   `merchant_zone_profile_5A`, `shape_grid_definition_5A`, `class_zone_shape_5A`.
+   Document this as a spec deviation unless S0 sealing is extended later.
+2) **Weekly-sum tolerance**: use `baseline_intensity_policy_5A.weekly_sum_rel_tol` as the
+   enforcement tolerance; log that `baseline_validation_policy_5A` is absent.
+3) **Optional outputs**: emit `class_zone_baseline_local_5A`; do **not** emit
+   `merchant_zone_baseline_utc_5A` because `emit_utc_baseline=false`.
+4) **Channel handling**: treat channel_group as `"mixed"` for joins and emit it in outputs.
+5) **Traceability fields**: include `scale_source`, `weekly_volume_expected`, `scale_factor`,
+   and `baseline_clip_applied=false` in `merchant_zone_baseline_local_5A`.
+
+---
+
+### Entry: 2026-01-19 18:51
+
+5A.S3 implementation checkpoint: runner review + fix plan before finalising code.
+
+Observed issues in the current `s3_baseline_intensity` runner draft:
+1) **Class baseline grouping bug**: `class_zone_baseline_local_5A` is grouped on
+   `demand_class`, but `baseline_local_df` does not include `demand_class`, so the
+   aggregation will fail at runtime.
+2) **Bucket completeness validation gap**: the join uses `(demand_class, legal_country_iso,
+   tzid, channel_group)` only, so missing bucket rows in `class_zone_shape_5A` will not
+   produce nulls; they simply reduce the joined row count. We need an explicit
+   bucket-coverage check against `shape_grid_definition_5A`.
+3) **Sealed inputs identity check missing**: `sealed_inputs_5A` rows require
+   `parameter_hash` and `manifest_fingerprint` consistency but the runner only validates the
+   digest; we should enforce row-wise identity to align with §2.2.
+4) **Finite-number enforcement**: `lambda_local_base` should reject NaN/Inf values in
+   addition to negative/too-large checks.
+5) **Domain alignment**: we should assert that every merchantxzone has exactly `T_week`
+   buckets (no missing or duplicate buckets) and that total row counts align with the
+   expected `|D_S3| * T_week`.
+
+Plan (pre-change):
+1) Derive `class_zone_baseline_local_5A` from the pre-projection `joined` table (which still
+   contains `demand_class`), keeping the merchant-level output minimal.
+2) Add a `shape_df` bucket completeness check:
+   - group by `(demand_class, legal_country_iso, tzid, channel_group)` and verify
+     `n_unique(bucket_index) == T_week` and `rows == T_week` (no duplicates).
+3) Enforce per-row identity in `sealed_inputs_5A` for `parameter_hash` and
+   `manifest_fingerprint`.
+4) Add `is_finite` checks for `base_scale` and `lambda_local_base`.
+5) Add domain alignment checks on `joined` bucket counts per merchantxzone and total rows.
+6) Keep logging narrative: emit a short story header plus count-based phase logs after
+   grid/shape filters, join, and baseline computation.
+
+These fixes keep the approved deviations intact (S1/S2 outputs resolved via dictionary,
+weekly sum tolerance from baseline policy, UTC baseline skipped).
+
+---
+
+### Entry: 2026-01-19 18:59
+
+5A.S3 fixes applied to align runner with spec invariants.
+
+Changes applied:
+1) **Sealed-input identity enforcement**: added row-wise checks that every
+   `sealed_inputs_5A` entry matches the current `parameter_hash` and
+   `manifest_fingerprint` (abort `S3_GATE_OR_S2_INVALID` on mismatch).
+2) **Shape bucket coverage validation**:
+   - reject shape rows with `bucket_index` outside the grid,
+   - enforce per `(demand_class, legal_country_iso, tzid, channel_group)` bucket coverage
+     of exactly `T_week` rows with no duplicates.
+3) **Domain alignment checks**:
+   - assert `joined_rows == |D_S3| * T_week`,
+   - enforce that each merchantxzone has exactly `T_week` buckets (abort
+     `S3_DOMAIN_ALIGNMENT_FAILED` on mismatch).
+4) **Finite-number validation**: added NaN/Inf checks for `base_scale` and
+   `lambda_local_base` before downstream aggregation.
+5) **Class baseline aggregation fix**: derive `class_zone_baseline_local_5A` directly from
+   `joined` (which still has `demand_class`), include `channel_group` for traceability, and
+   keep merchant-level output minimal.
+6) **Narrative logs**: added story header + join/grid/baseline phase logs to keep operator
+   flow readable.
+
+Supporting wiring:
+- Added CLI entrypoint `packages/engine/src/engine/cli/s3_baseline_intensity_5a.py`.
+- Added Makefile command/target `segment5a-s3` and updated `segment5a` aggregate.
+
+---
+
+### Entry: 2026-01-19 19:01
+
+S3 run failure analysis + fix (schema validation on `class_zone_shape_5A`).
+
+Observed failure:
+- `make segment5a-s3` failed in `input_resolution` with
+  `Schema validation failed: 's2_spec_version' is a required property` for
+  `class_zone_shape_5A`.
+- Root cause: the runner read only a subset of columns from the parquet file before
+  validating against the schema, so required fields (including `s2_spec_version`) were
+  missing in the row dictionaries passed to the validator.
+
+Resolution:
+1) Read the full `class_zone_shape_5A` parquet for schema validation.
+2) After validation, project down to the join columns
+   (`parameter_hash`, `scenario_id`, `demand_class`, `legal_country_iso`, `tzid`,
+   `channel_group`, `bucket_index`, `shape_value`) for downstream computation.
+
+Rationale:
+- Keeps schema validation faithful to the contract while retaining the lightweight
+  join footprint required for S3 performance.
+
+---
+
+### Entry: 2026-01-19 19:08
+
+5A.S3 run completed after fixes.
+
+Run outcome:
+- `make segment5a-s3` completed with PASS for
+  `run_id=d61f08e2e45ef1bc28884034de4c1b68`,
+  `parameter_hash=56d45126eaabedd083a1d8428a763e0278c89efec5023cfd6cf3cab7fc8dd2d7`,
+  `manifest_fingerprint=1cb60481d69b836ee24505ec9a6ec231c8f18523ee9b7dabbd38c0a33bf15765`.
+- Outputs published:
+  - `merchant_zone_baseline_local_5A`
+  - `class_zone_baseline_local_5A`
+- Run-report written under
+  `runs/local_full_run-5/.../reports/layer2/5A/state=S3/.../run_report.json`.
+
+Notes:
+- Validation + output publish took several minutes due to full-row schema checks on the
+  ~2.46M-row merchant-zone baseline output; logs now reflect each phase boundary.
+
+---
+
+### Entry: 2026-01-19 19:11
+
+Added progress logging to long-running schema validation loops in S3.
+
+Decision:
+- The `merchant_zone_baseline_local_5A` and `class_zone_baseline_local_5A` validators loop
+  over millions of rows; per AGENTS logging rules, these loops need elapsed/rate/ETA
+  progress logs so operators can tell the run is alive.
+
+Implementation:
+1) Extended `_validate_array_rows` with optional `logger`, `label`, and `total_rows`, plus a
+   `progress_min_rows` threshold (50k) to avoid noisy logs on tiny datasets.
+2) Wired validation calls in S3 to pass the logger + row counts for profile/grid/shape and
+   baseline outputs; progress logging only triggers for large tables.
+
+Next:
+- Re-run `make segment5a-s3` to ensure the logging changes do not alter outputs and the
+  run remains green (idempotent publish expected).
+
+---
+
+### Entry: 2026-01-19 19:18
+
+S3 re-run after progress-log instrumentation.
+
+Outcome:
+- `make segment5a-s3` completed with PASS for the same run_id.
+- Progress logs emitted during validation of:
+  - `class_zone_shape_5A`
+  - `merchant_zone_baseline_local_5A`
+  - `class_zone_baseline_local_5A`
+- Outputs were byte-identical to the prior run, so publish steps were skipped and
+  idempotency confirmed.
