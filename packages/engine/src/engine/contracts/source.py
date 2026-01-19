@@ -19,23 +19,42 @@ class ContractSource:
     def _contracts_root(self) -> Path:
         return self.root / "contracts"
 
+    def _layer_for_segment(self, segment: str) -> str:
+        if not segment:
+            raise ContractError("Segment is required for contract resolution.")
+        prefix = str(segment).strip()
+        if not prefix:
+            raise ContractError("Segment is required for contract resolution.")
+        if prefix[0] in {"1", "2", "3", "4"}:
+            return "layer-1"
+        if prefix[0] == "5":
+            return "layer-2"
+        if prefix[0] == "6":
+            return "layer-3"
+        raise ContractError(f"Unknown segment for contract resolution: {segment}")
+
+    def _layer_tag(self, layer: str) -> str:
+        return layer.replace("-", "")
+
     def resolve_dataset_dictionary(self, segment: str) -> Path:
+        layer = self._layer_for_segment(segment)
+        layer_tag = self._layer_tag(layer)
         if self.layout == "model_spec":
             return (
                 self._model_spec_root()
-                / "layer-1"
+                / layer
                 / "specs"
                 / "contracts"
                 / segment
-                / f"dataset_dictionary.layer1.{segment}.yaml"
+                / f"dataset_dictionary.{layer_tag}.{segment}.yaml"
             )
         if self.layout == "contracts":
             return (
                 self._contracts_root()
                 / "dataset_dictionary"
-                / "l1"
+                / layer_tag.replace("layer", "l")
                 / f"seg_{segment}"
-                / f"layer1.{segment}.yaml"
+                / f"{layer_tag}.{segment}.yaml"
             )
         raise ContractError(f"Unknown contracts layout: {self.layout}")
 
@@ -43,7 +62,7 @@ class ContractSource:
         if self.layout == "model_spec":
             return (
                 self._model_spec_root()
-                / "layer-1"
+                / self._layer_for_segment(segment)
                 / "specs"
                 / "contracts"
                 / segment
@@ -54,15 +73,17 @@ class ContractSource:
         raise ContractError(f"Unknown contracts layout: {self.layout}")
 
     def resolve_schema_pack(self, segment: str, kind: str) -> Path:
+        layer = self._layer_for_segment(segment)
         if self.layout == "model_spec":
             return (
                 self._model_spec_root()
-                / "layer-1"
+                / layer
                 / "specs"
                 / "contracts"
                 / segment
                 / f"schemas.{kind}.yaml"
             )
         if self.layout == "contracts":
-            return self._contracts_root() / "schemas" / "layer1" / f"schemas.{kind}.yaml"
+            layer_tag = self._layer_tag(layer)
+            return self._contracts_root() / "schemas" / layer_tag / f"schemas.{kind}.yaml"
         raise ContractError(f"Unknown contracts layout: {self.layout}")
