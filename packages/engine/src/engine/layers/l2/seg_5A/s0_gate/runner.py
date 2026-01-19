@@ -709,7 +709,7 @@ def _resolve_dataset_path(
     path_template = entry.get("path")
     if not path_template:
         raise InputResolutionError("Dataset entry missing path.")
-    resolved = path_template
+    resolved = str(path_template).strip()
     for key, value in tokens.items():
         resolved = resolved.replace(f"{{{key}}}", value)
     if resolved.startswith(("data/", "logs/", "reports/")):
@@ -721,7 +721,7 @@ def _resolve_dataset_path(
 
 def _render_catalog_path(entry: dict, tokens: dict[str, str]) -> str:
     path_template = entry.get("path") or ""
-    rendered = path_template
+    rendered = str(path_template).strip()
     for key, value in tokens.items():
         rendered = rendered.replace(f"{{{key}}}", value)
     return rendered

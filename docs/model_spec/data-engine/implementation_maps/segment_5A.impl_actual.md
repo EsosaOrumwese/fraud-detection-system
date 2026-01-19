@@ -1731,3 +1731,221 @@ Validation / testing plan:
 - Domain alignment: every `(class, zone[, channel])` has exactly `T_week` buckets.
 - Normalisation: sum within epsilon for each class/zone.
 - Idempotency: re-run with same inputs yields identical hashes.
+
+---
+
+### Entry: 2026-01-19 16:21
+
+Decisions for 5A.S2 implementation (approved by user).
+
+Decisions:
+1) **Scenario handling**: Use `scenario_id` from `s0_gate_receipt_5A` only; validate it exists
+   in `scenario_metadata.scenario_ids`. Do not emit shapes for every scenario in metadata when
+   `shape_library_5A.scenario_mode=scenario_agnostic`.
+2) **Channel dimension**: S1 outputs do not include `channel_group`; S2 will not expand across
+   all channel groups. Template selection will use `channel_group="mixed"` and outputs will omit
+   the `channel_group` field (optional schema field).
+3) **Template selection law**: Implement `u_det_pick_index_v1` per authoring guide using
+   `SHA256("5A.S2.template|{demand_class}|{channel_group}|{tzid}|{parameter_hash_hex}")` and
+   `idx=floor(u_det*K)`.
+4) **Bucket reference**: Use **bucket midpoint** (`start_minute + 0.5*bucket_duration`) when
+   evaluating gaussian peaks and when applying time-window modifiers.
+5) **Normalisation tolerance**: Use `epsilon=1e-6` for `|sum-1|` checks.
+6) **Degenerate totals**: If total mass == 0 after modifiers, fail closed
+   (`S2_SHAPE_NORMALISATION_FAILED`) rather than assigning a flat fallback.
+7) **Class shape catalogue**: Emit `class_shape_catalogue_5A` with one row per `demand_class`
+   using the `mixed` channel selection info (candidate templates + selection law in `template_params`).
+8) **Constraints enforcement**: Enforce `shape_library_5A.constraints` and `realism_floors` on
+   generated shapes; class-specific floors apply to `online_24h`, `evening_weekend`, and
+   `office_hours` demand classes. For `min_weekend_mass_for_weekend_classes`, treat any
+   demand_class containing `"weekend"` as in-scope.
+
+### Entry: 2026-01-19 16:52
+
+Decision update before 5A.S2 implementation (align with authoring guide + catalogue consistency).
+
+Context:
+- The prior decision log (16:21) chose bucket midpoints for Gaussian evaluation and time-window
+  modifiers, and assumed a catalogue row per demand_class with mixed-channel selection info.
+- While drafting the S2 runner, I re-checked the authoring guide and catalogue invariants.
+
+Updated decisions:
+1) **Bucket reference**: Switch to **bucket start minute** (not midpoint) for both template
+   evaluation and time-window modifier checks to align with the authoring guide's pinned law:
+   `minute = (k % T_day) * bucket_duration_minutes`. This keeps S2 consistent with the policy
+   authoring semantics and avoids a spec drift.
+2) **Scenario_id list handling**: If `s0_gate_receipt_5A.scenario_id` is a list, accept only
+   length-1 lists; otherwise fail closed as unsupported for a single S2 run.
+3) **Catalogue consistency**: Keep `class_shape_catalogue_5A` enabled, but **omit `template_id`
+   from `class_zone_shape_5A`** to avoid contradicting the catalogue when deterministic
+   selection yields different templates per tzid. For the catalogue row, use the first
+   candidate from the policy rule as the canonical `template_id` and include the full
+   candidate list + selection law inside `template_params` so operators can trace the rule.
+4) **Adjustment flags**: When zone modifiers are present and `emit_adjustment_flags=true`,
+   emit an `adjustment_flags` list for every shape row (empty list when nothing applies).
+   Include `zone_profile:{profile_id}` for non-neutral profiles, `zone_override:{override_id}`
+   when overrides match, and `zone_window:{window_id}` for buckets where time-window
+   multipliers apply.
+
+Rationale:
+- The bucket-start switch is the smallest change that keeps template math consistent with the
+  authored policy. Midpoint evaluation would be a silent behavioral deviation.
+- Catalogue + template_id alignment is otherwise impossible when template selection varies by
+  tzid and the catalogue primary key lacks template_id; omitting the per-row template_id
+  avoids that contradiction while still exposing selection parameters via the catalogue.
+
+Next:
+- Implement S2 runner + CLI using the updated choices and document any additional adjustments
+  as they arise.
+
+---
+
+### Entry: 2026-01-19 17:39
+
+5A.S2 implementation continuation - update plan before coding and record newly read references.
+
+References read (state + authoring detail):
+- `docs/model_spec/data-engine/layer-2/specs/state-flow/5A/state.5A.s2.expanded.md` (re-scan for error codes + output invariants)
+- `docs/model_spec/data-engine/layer-2/specs/data-intake/5A/shape_library_5A_authoring-guide.md`
+- `docs/model_spec/data-engine/layer-2/specs/data-intake/5A/zone_shape_modifiers_5A-_authoring-guide.md`
+- `docs/model_spec/data-engine/layer-2/specs/data-intake/5A/baseline_intensity_policy_5A_authoring-guide.md`
+- `config/layer2/5A/policy/baseline_intensity_policy_5A.v1.yaml`
+- `config/layer2/5A/validation/validation_policy_5A.v1.yaml`
+
+Clarifications / decisions (new or refined):
+1) **Shape sum tolerance**: Read `baseline_intensity_policy_5A.shape_sum_abs_tol` from sealed
+   inputs and use it as the per-shape `|sum-1|` tolerance. Fall back to `1e-6` only if the
+   policy is missing (but policy is required, so that fallback should never execute).
+2) **Channel_group field emission**: Emit `channel_group="mixed"` in `class_zone_shape_5A`
+   and `class_shape_catalogue_5A` for clarity, since template resolution uses the mixed
+   channel rule and the schema allows this optional dimension.
+3) **Grid derived flags**: Emit `is_weekend` and `is_nominal_open_hours` when the grid policy
+   includes `derived_flags`; omit `is_nominal_open_hours` if the policy does not define it
+   (never write nulls for optional boolean fields).
+4) **Zone modifier profile application**: Precompute per-profile multipliers per bucket using
+   `dow_multipliers` and time windows aligned to `bucket_duration_minutes`. Enforce alignment
+   and fail closed if a window boundary is not bucket-aligned.
+5) **Scenario manifest check**: If `scenario_manifest_5A` is sealed and present, verify the
+   requested `scenario_id` exists in its rows; otherwise proceed without it.
+
+Implementation plan (stepwise):
+1) Append `run_s2()` to `packages/engine/src/engine/layers/l2/seg_5A/s2_weekly_shape_library/runner.py`
+   in small patches to avoid Windows command-length limits; mirror S1 structure (phases,
+   run-report, error handling, progress logs).
+2) In `run_s2()`, gate on `s0_gate_receipt_5A` + `sealed_inputs_5A`; validate schema and
+   digest; enforce `scenario_id` list length <= 1; ensure upstream segments PASS.
+3) Resolve and validate required inputs:
+   - `merchant_zone_profile_5A` (ROW_LEVEL, required)
+   - `baseline_intensity_policy_5A`, `shape_library_5A`, `shape_time_grid_policy_5A` (policy)
+   - `scenario_metadata` (required config)
+   - `zone_shape_modifiers_5A` (optional policy)
+   - `scenario_manifest_5A` (optional, row-level)
+4) Build the time grid from `shape_time_grid_policy_5A` and validate against
+   `schemas.5A.yaml#/model/shape_grid_definition_5A`. Enforce grid invariants
+   (`bucket_duration_minutes * buckets_per_day == minutes_per_day` and
+   `days_per_week * buckets_per_day == T_week`).
+5) Scan `merchant_zone_profile_5A` (read only needed columns) to derive the domain
+   `DOMAIN_S1 = {(demand_class, legal_country_iso, tzid)}` and validate its
+   `parameter_hash`/`manifest_fingerprint` consistency.
+6) Compile shape templates:
+   - validate template uniqueness and resolution rules;
+   - evaluate base week vectors per template using bucket **start minute**;
+   - compute nonflat ratio + night/weekend/office mass metrics for realism floors.
+7) Apply zone modifiers (if present): compute profile multipliers + per-bucket adjustment flags
+   (profile id, override id, window ids). Apply modifiers before normalisation.
+8) For each domain element, resolve a template deterministically (`u_det_pick_index_v1`),
+   apply modifiers, normalise, and validate constraints + sum-to-1 tolerance. Emit
+   `class_zone_shape_5A` rows with `s2_spec_version`.
+9) Build optional `class_shape_catalogue_5A` rows (per demand_class + mixed channel) using
+   the first candidate as canonical `template_id` and store full candidate list + selection
+   law in `template_params`.
+10) Publish outputs via idempotent parquet write; if existing outputs differ, fail with
+    `S2_OUTPUT_CONFLICT`. Write run-report with counts, policy versions, and scenario info.
+
+Risks / guardrails:
+- Output identity is `(parameter_hash, scenario_id)` only; any domain change across manifests
+  must surface as `S2_OUTPUT_CONFLICT` rather than overwrite.
+- Emit narrative progress logs with elapsed time/rate for the domain loop.
+
+---
+
+### Entry: 2026-01-19 17:55
+
+5A.S2 implementation in progress - runner + CLI + makefile wiring.
+
+Implementation actions:
+1) Implemented `run_s2()` in
+   `packages/engine/src/engine/layers/l2/seg_5A/s2_weekly_shape_library/runner.py`:
+   - Gated on `s0_gate_receipt_5A` + `sealed_inputs_5A`, enforced scenario_id list length
+     handling, upstream PASS checks, and sealed-input digest match.
+   - Loaded and schema-validated `baseline_intensity_policy_5A`, `shape_library_5A`,
+     `shape_time_grid_policy_5A`, `scenario_metadata`, and optional `zone_shape_modifiers_5A`;
+     verified scenario_id existence in `scenario_metadata` and optional `scenario_manifest_5A`.
+   - Built and validated `shape_grid_definition_5A`, then scanned `merchant_zone_profile_5A`
+     to derive the class/zone domain and validate `parameter_hash`/`manifest_fingerprint`.
+   - Compiled base template vectors, enforced realism floors and coverage rules, then applied
+     deterministic template selection + zone modifiers to emit `class_zone_shape_5A` with
+     `s2_spec_version` and optional `adjustment_flags`.
+   - Emitted optional `class_shape_catalogue_5A` with mixed-channel selection metadata.
+   - Implemented idempotent parquet publish and run-report writing.
+2) Added CLI entrypoint
+   `packages/engine/src/engine/cli/s2_weekly_shape_library_5a.py`.
+3) Wired `make segment5a-s2` and `SEG5A_S2_CMD` in `makefile`, and extended `.PHONY` and
+   `segment5a` aggregate target.
+
+Small decisions made during coding:
+- **Empty domain output**: When `merchant_zone_profile_5A` is empty, emit an empty
+  `class_zone_shape_5A` parquet with the expected columns/types (including optional
+  `adjustment_flags` only when enabled) so idempotent write and schema validation succeed
+  without missing-column errors.
+- **Progress logs**: Labels now explicitly tie loops to their gated inputs
+  (`shape_library_5A` for template compilation and `merchant_zone_profile_5A` for shape rows).
+
+Next:
+- Run `make segment5a-s2`, resolve any runtime issues, and log fixes.
+
+---
+
+### Entry: 2026-01-19 17:59
+
+5A.S2 runtime fixes after first execution attempt.
+
+Observed issues:
+1) **S2_REQUIRED_INPUT_MISSING for `merchant_zone_profile_5A`**: S2 was checking for
+   `merchant_zone_profile_5A` inside `sealed_inputs_5A`, but S0 does not seal S1 outputs
+   (as expected). This caused an immediate precondition failure.
+2) **S2_IO_READ_FAILED during output_write**: Polars raised `os error 123` when writing
+   `shape_grid_definition_5A` because the resolved path contained a trailing newline
+   (from `path: |` YAML block in the dataset dictionary). This produced an invalid
+   Windows path when creating the `_tmp.*` staging folder.
+
+Decisions / fixes:
+1) **S1 output gating**: Remove the sealed-input requirement for `merchant_zone_profile_5A`;
+   instead resolve it directly from the dataset dictionary and fail with
+   `S2_REQUIRED_INPUT_MISSING` if the file is absent.
+2) **Path sanitisation**: Strip leading/trailing whitespace from dataset `path` templates
+   in `_resolve_dataset_path` / `_render_catalog_path` so multiline YAML values cannot
+   introduce newline characters into output paths. This keeps Windows path syntax valid
+   and removes stray newlines in run-report output paths.
+
+Next:
+- Apply the path sanitisation change and re-run `make segment5a-s2`.
+
+---
+
+### Entry: 2026-01-19 18:00
+
+5A.S2 fixes applied and run completed.
+
+Actions taken:
+1) **S2 gating adjustment**: removed the sealed-input requirement for
+   `merchant_zone_profile_5A` and added explicit path resolution + existence check in
+   `run_s2()`; missing file now raises `S2_REQUIRED_INPUT_MISSING`.
+2) **Path sanitisation**: updated `_resolve_dataset_path` and `_render_catalog_path` in
+   `packages/engine/src/engine/layers/l2/seg_5A/s0_gate/runner.py` to `strip()` the
+   path template, preventing newline artifacts from multiline YAML `path: |` entries.
+3) **Re-run**: `make segment5a-s2` now completes with published outputs:
+   - `shape_grid_definition_5A`
+   - `class_zone_shape_5A`
+   - `class_shape_catalogue_5A`
+   and a PASS run-report for `manifest_fingerprint=1cb60481...`.
