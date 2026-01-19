@@ -2,8 +2,10 @@
 
 from __future__ import annotations
 
+import gc
 import json
 import math
+import os
 import time
 import uuid
 from dataclasses import dataclass
@@ -79,18 +81,19 @@ class _StepTimer:
 
 
 class _ProgressTracker:
-    def __init__(self, total: int, logger, label: str) -> None:
+    def __init__(self, total: int, logger, label: str, min_interval_seconds: float = 5.0) -> None:
         self._total = max(int(total), 0)
         self._logger = logger
         self._label = label
         self._start = time.monotonic()
         self._last_log = self._start
         self._processed = 0
+        self._min_interval = float(min_interval_seconds)
 
     def update(self, count: int) -> None:
         self._processed += int(count)
         now = time.monotonic()
-        if now - self._last_log < 0.5 and self._processed < self._total:
+        if now - self._last_log < self._min_interval and self._processed < self._total:
             return
         self._last_log = now
         elapsed = now - self._start
@@ -225,6 +228,101 @@ def _validate_array_rows(
             for item in errors
         ]
         raise SchemaValidationError("Schema validation failed:\n" + "\n".join(lines), errors)
+
+
+def _env_flag(name: str) -> bool:
+    value = os.environ.get(name)
+    if value is None:
+        return False
+    return value.strip().lower() in {"1", "true", "yes", "y"}
+
+
+def _schema_items(schema_pack: dict, schema_layer1: dict, schema_layer2: dict, anchor: str) -> dict:
+    schema = _schema_for_payload(schema_pack, schema_layer1, schema_layer2, anchor)
+    if schema.get("type") != "array":
+        raise ContractError(f"Expected array schema at {anchor}, found {schema.get('type')}")
+    items_schema = schema.get("items")
+    if not isinstance(items_schema, dict):
+        raise ContractError(f"Array schema missing items object at {anchor}")
+    return items_schema
+
+
+def _property_allows_null(schema: dict) -> bool:
+    schema_type = schema.get("type")
+    if isinstance(schema_type, list):
+        return "null" in schema_type
+    if isinstance(schema_type, str):
+        return schema_type == "null"
+    for key in ("anyOf", "oneOf", "allOf"):
+        options = schema.get(key)
+        if isinstance(options, list):
+            for option in options:
+                if isinstance(option, dict) and _property_allows_null(option):
+                    return True
+    return False
+
+
+def _validate_dataframe_fast(
+    df: pl.DataFrame,
+    schema_pack: dict,
+    schema_layer1: dict,
+    schema_layer2: dict,
+    anchor: str,
+    *,
+    logger,
+    label: str,
+    sample_rows: int,
+) -> None:
+    items_schema = _schema_items(schema_pack, schema_layer1, schema_layer2, anchor)
+    properties = items_schema.get("properties")
+    if not isinstance(properties, dict):
+        raise ContractError(f"Schema items missing properties at {anchor}")
+    required = items_schema.get("required") or []
+    if not isinstance(required, list):
+        raise ContractError(f"Schema items required is not a list at {anchor}")
+    required_set = {str(name) for name in required}
+    columns = set(df.columns)
+    missing = sorted(required_set - columns)
+    if missing:
+        raise SchemaValidationError(f"Missing required columns at {anchor}: {missing}", [])
+    additional_props = items_schema.get("additionalProperties", True)
+    extra = sorted(columns - set(properties.keys()))
+    if extra and additional_props is False:
+        raise SchemaValidationError(f"Unexpected columns at {anchor}: {extra}", [])
+
+    for name, prop_schema in properties.items():
+        if name not in columns or not isinstance(prop_schema, dict):
+            continue
+        if _property_allows_null(prop_schema):
+            continue
+        nulls = int(df.select(pl.col(name).null_count()).item())
+        if nulls:
+            raise SchemaValidationError(
+                f"Non-nullable column {name} has {nulls} nulls at {anchor}",
+                [],
+            )
+
+    sample_rows = max(int(sample_rows), 0)
+    sample_rows = min(sample_rows, df.height)
+    if sample_rows:
+        sample_df = df.head(sample_rows)
+        _validate_array_rows(
+            sample_df.iter_rows(named=True),
+            schema_pack,
+            schema_layer1,
+            schema_layer2,
+            anchor,
+            logger=logger,
+            label=f"{label} sample",
+            total_rows=sample_df.height,
+            progress_min_rows=sample_rows + 1,
+        )
+    logger.info(
+        "S4: %s schema validated (mode=fast sample_rows=%s total_rows=%s)",
+        label,
+        sample_rows,
+        df.height,
+    )
 
 
 def _resolve_sealed_row(
@@ -379,6 +477,13 @@ def run_s4(config: EngineConfig, run_id: Optional[str] = None) -> S4Result:
     started_monotonic = time.monotonic()
     started_utc = utc_now_rfc3339_micro()
     timer = _StepTimer(logger)
+    output_validate_full = _env_flag("ENGINE_S4_VALIDATE_FULL")
+    output_sample_rows_env = os.environ.get("ENGINE_S4_VALIDATE_SAMPLE_ROWS", "5000")
+    try:
+        output_sample_rows = max(int(output_sample_rows_env), 0)
+    except ValueError:
+        output_sample_rows = 5000
+    output_validation_mode = "full" if output_validate_full else "fast_sampled"
     current_phase = "init"
     status = "FAIL"
     error_code: Optional[str] = None
@@ -473,6 +578,11 @@ def run_s4(config: EngineConfig, run_id: Optional[str] = None) -> S4Result:
             "S4: story=overlay baselines gate_inputs=s0_gate_receipt_5A,sealed_inputs_5A,"
             "merchant_zone_profile_5A,shape_grid_definition_5A,merchant_zone_baseline_local_5A,"
             "scenario_calendar_5A outputs=merchant_zone_scenario_local_5A,merchant_zone_overlay_factors_5A"
+        )
+        logger.info(
+            "S4: output schema validation mode=%s sample_rows=%s",
+            output_validation_mode,
+            output_sample_rows,
         )
 
         tokens = {
@@ -1636,19 +1746,34 @@ def run_s4(config: EngineConfig, run_id: Optional[str] = None) -> S4Result:
         )
         counts["scenario_rows"] = scenario_local_df.height
 
-        _validate_array_rows(
-            scenario_local_df.iter_rows(named=True),
-            schema_5a,
-            schema_layer1,
-            schema_layer2,
-            "model/merchant_zone_scenario_local_5A",
-            logger=logger,
-            label="S4: validate merchant_zone_scenario_local_5A rows",
-            total_rows=scenario_local_df.height,
-            progress_min_rows=200000,
-        )
+        if output_validate_full:
+            _validate_array_rows(
+                scenario_local_df.iter_rows(named=True),
+                schema_5a,
+                schema_layer1,
+                schema_layer2,
+                "model/merchant_zone_scenario_local_5A",
+                logger=logger,
+                label="S4: validate merchant_zone_scenario_local_5A rows",
+                total_rows=scenario_local_df.height,
+                progress_min_rows=200000,
+            )
+        else:
+            _validate_dataframe_fast(
+                scenario_local_df,
+                schema_5a,
+                schema_layer1,
+                schema_layer2,
+                "model/merchant_zone_scenario_local_5A",
+                logger=logger,
+                label="merchant_zone_scenario_local_5A",
+                sample_rows=output_sample_rows,
+            )
 
-        overlay_factors_df = overlay_df.select(
+        del overlay_df
+        gc.collect()
+
+        overlay_factors_df = scenario_local_df.select(
             [
                 "manifest_fingerprint",
                 "parameter_hash",
@@ -1658,29 +1783,39 @@ def run_s4(config: EngineConfig, run_id: Optional[str] = None) -> S4Result:
                 "tzid",
                 "local_horizon_bucket_index",
                 "overlay_factor_total",
+                "s4_spec_version",
             ]
-            + ([col for col in ["channel_group"] if col in overlay_df.columns])
-        ).with_columns(pl.lit(S4_SPEC_VERSION).alias("s4_spec_version"))
-        overlay_factors_df = overlay_factors_df.sort(
-            ["merchant_id", "legal_country_iso", "tzid", "local_horizon_bucket_index"]
+            + ([col for col in ["channel_group"] if col in scenario_local_df.columns])
         )
         counts["overlay_rows"] = overlay_factors_df.height
 
-        _validate_array_rows(
-            overlay_factors_df.iter_rows(named=True),
-            schema_5a,
-            schema_layer1,
-            schema_layer2,
-            "model/merchant_zone_overlay_factors_5A",
-            logger=logger,
-            label="S4: validate merchant_zone_overlay_factors_5A rows",
-            total_rows=overlay_factors_df.height,
-            progress_min_rows=200000,
-        )
+        if output_validate_full:
+            _validate_array_rows(
+                overlay_factors_df.iter_rows(named=True),
+                schema_5a,
+                schema_layer1,
+                schema_layer2,
+                "model/merchant_zone_overlay_factors_5A",
+                logger=logger,
+                label="S4: validate merchant_zone_overlay_factors_5A rows",
+                total_rows=overlay_factors_df.height,
+                progress_min_rows=200000,
+            )
+        else:
+            _validate_dataframe_fast(
+                overlay_factors_df,
+                schema_5a,
+                schema_layer1,
+                schema_layer2,
+                "model/merchant_zone_overlay_factors_5A",
+                logger=logger,
+                label="merchant_zone_overlay_factors_5A",
+                sample_rows=output_sample_rows,
+            )
 
         scenario_utc_df = None
         if emit_utc_intensities:
-            scenario_utc_df = overlay_df.select(
+            scenario_utc_df = scenario_local_df.select(
                 [
                     "manifest_fingerprint",
                     "parameter_hash",
@@ -1690,23 +1825,33 @@ def run_s4(config: EngineConfig, run_id: Optional[str] = None) -> S4Result:
                     "tzid",
                     pl.col("local_horizon_bucket_index").alias("utc_horizon_bucket_index"),
                     pl.col("lambda_local_scenario").alias("lambda_utc_scenario"),
+                    "s4_spec_version",
                 ]
-                + ([col for col in ["channel_group"] if col in overlay_df.columns])
-            ).with_columns(pl.lit(S4_SPEC_VERSION).alias("s4_spec_version"))
-            scenario_utc_df = scenario_utc_df.sort(
-                ["merchant_id", "legal_country_iso", "tzid", "utc_horizon_bucket_index"]
+                + ([col for col in ["channel_group"] if col in scenario_local_df.columns])
             )
-            _validate_array_rows(
-                scenario_utc_df.iter_rows(named=True),
-                schema_5a,
-                schema_layer1,
-                schema_layer2,
-                "model/merchant_zone_scenario_utc_5A",
-                logger=logger,
-                label="S4: validate merchant_zone_scenario_utc_5A rows",
-                total_rows=scenario_utc_df.height,
-                progress_min_rows=200000,
-            )
+            if output_validate_full:
+                _validate_array_rows(
+                    scenario_utc_df.iter_rows(named=True),
+                    schema_5a,
+                    schema_layer1,
+                    schema_layer2,
+                    "model/merchant_zone_scenario_utc_5A",
+                    logger=logger,
+                    label="S4: validate merchant_zone_scenario_utc_5A rows",
+                    total_rows=scenario_utc_df.height,
+                    progress_min_rows=200000,
+                )
+            else:
+                _validate_dataframe_fast(
+                    scenario_utc_df,
+                    schema_5a,
+                    schema_layer1,
+                    schema_layer2,
+                    "model/merchant_zone_scenario_utc_5A",
+                    logger=logger,
+                    label="merchant_zone_scenario_utc_5A",
+                    sample_rows=output_sample_rows,
+                )
             logger.info("S4: UTC scenario intensities emitted (identity mapping to local horizon index).")
         else:
             logger.info("S4: UTC scenario intensities disabled by scenario_horizon_config.")
@@ -1775,6 +1920,10 @@ def run_s4(config: EngineConfig, run_id: Optional[str] = None) -> S4Result:
                     "durations": {"wall_ms": int((time.monotonic() - started_monotonic) * 1000)},
                     "policy": dict(policy_versions),
                     "scenario_id": scenario_id,
+                    "validation": {
+                        "output_schema_mode": output_validation_mode,
+                        "output_sample_rows": None if output_validate_full else int(output_sample_rows),
+                    },
                     "counts": counts,
                     "metrics": metrics,
                     "warnings": warnings,

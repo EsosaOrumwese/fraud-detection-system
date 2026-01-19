@@ -2531,3 +2531,139 @@ Implementation steps:
 
 Files touched:
 - `packages/engine/src/engine/layers/l2/seg_5A/s4_calendar_overlays/runner.py`
+
+### Entry: 2026-01-19 22:28
+
+5A.S4 runtime + log spam mitigation (output validation & progress cadence).
+
+Observed problem:
+- S4 runtime is dominated by full JSON-schema validation of the S4 outputs.
+  `merchant_zone_scenario_local_5A` has ~31.7M rows; row-by-row validation adds
+  >1 hour and emits progress logs every 0.5s, which the operator experiences as
+  log spam.
+- Input validation (merchant_zone_profile/shape_grid/baseline/calendar) is much
+  smaller; the hotspot is output validation, not the core overlay math.
+
+Alternatives considered:
+1) Keep full output validation: correct but too slow for dev iterations; logs remain noisy.
+2) Chunked full validation: still O(N) and still long given 30M+ rows.
+3) Skip all output validation: fastest but risks undetected schema drift.
+4) Hybrid fast validation: enforce schema-level structure (columns/nullability) +
+   sample JSON-schema validation for outputs, while retaining full validation for inputs.
+   This preserves contract confidence with a small residual risk and cuts runtime
+   dramatically.
+
+Decision:
+- Implement **fast output validation** for S4 outputs:
+  - For `merchant_zone_scenario_local_5A`, `merchant_zone_overlay_factors_5A`, and
+    optional `merchant_zone_scenario_utc_5A`, validate:
+      a) column presence vs schema `required` and disallow unexpected columns,
+      b) nullability using schema types (fail if nulls appear in non-nullable columns),
+      c) sample-based JSON-schema validation (default sample size 5,000 rows).
+  - Keep **full row-level JSON-schema validation** for inputs (profile/grid/baseline/calendar)
+    to preserve upstream gating.
+- Add an **override** to force full output validation when needed (env var), and
+  make sample size configurable without code changes.
+- Reduce progress log cadence for long loops by increasing the minimum log interval
+  (still includes elapsed/processed/rate/ETA, just less frequent).
+
+Why this aligns with spec intent:
+- S4 still validates outputs against the contract (structural + sampled), and still
+  enforces key invariants (row counts, identity fields, numeric checks). The only
+  relaxation is the depth of schema validation on very large outputs, which is a
+  pragmatic dev-mode tradeoff with an explicit override.
+
+Planned implementation steps:
+1) Add a fast validation helper in S4 that derives required/allowed fields from the
+   JSON schema and enforces nullability + sample schema checks.
+2) Introduce environment controls:
+   - `ENGINE_S4_VALIDATE_FULL=1` → full output validation.
+   - `ENGINE_S4_VALIDATE_SAMPLE_ROWS` → override sample size (default 5000).
+3) Replace full `_validate_array_rows(...)` calls on the large S4 outputs with the
+   fast validation path.
+4) Update `_ProgressTracker` to log at a slower, predictable cadence (e.g., every 5s).
+5) Record the validation mode in the run report for auditability.
+
+Files to change:
+- `packages/engine/src/engine/layers/l2/seg_5A/s4_calendar_overlays/runner.py`
+
+Execution:
+- Stop the in-progress S4 run (created under run_id d61f08e2e45ef1bc28884034de4c1b68),
+  apply the changes, then re-run `make segment5a-s4` until green.
+
+### Entry: 2026-01-19 22:32
+
+5A.S4 output-validation optimization implemented.
+
+Actions completed:
+1) Added fast output validation helper `
+   `_validate_dataframe_fast()` plus schema helpers (`_schema_items`,
+   `_property_allows_null`) to enforce required columns, nullability, and
+   sample-based JSON-schema checks without scanning all rows.
+2) Introduced env overrides:
+   - `ENGINE_S4_VALIDATE_FULL=1` forces full per-row output validation.
+   - `ENGINE_S4_VALIDATE_SAMPLE_ROWS` controls sample size (default 5000).
+3) Replaced full `_validate_array_rows(...)` on S4 outputs with a conditional:
+   - full validation if `ENGINE_S4_VALIDATE_FULL` is set,
+   - otherwise fast validation for `merchant_zone_scenario_local_5A`,
+     `merchant_zone_overlay_factors_5A`, and optional `merchant_zone_scenario_utc_5A`.
+4) Slowed progress-log cadence for long loops via `_ProgressTracker` default
+   `min_interval_seconds=5.0` to reduce spam while keeping elapsed/rate/ETA logs.
+5) Added `validation` metadata to the S4 run report to record the output
+   validation mode and sample size used.
+
+Notes:
+- Input datasets (profile/grid/baseline/calendar) still use full row-level
+  schema validation, preserving upstream gating semantics.
+- `merchant_zone_overlay_factors_5A` permits additionalProperties; fast validation
+  only rejects extra columns when schema explicitly sets `additionalProperties: false`.
+
+Files touched:
+- `packages/engine/src/engine/layers/l2/seg_5A/s4_calendar_overlays/runner.py`
+
+### Entry: 2026-01-19 22:41
+
+S4 memory/ordering optimization after fast-validation run exit.
+
+Trigger:
+- `make segment5a-s4` exited with code 2816 after `merchant_zone_scenario_local_5A` fast validation.
+  No S4 run-report update occurred, indicating a non-graceful termination (likely
+  memory pressure). The run log stopped after scenario_local validation.
+
+Decision:
+- Reduce peak memory by releasing `overlay_df` as soon as the sorted
+  `scenario_local_df` is materialised and validated.
+- Derive `merchant_zone_overlay_factors_5A` and optional
+  `merchant_zone_scenario_utc_5A` from `scenario_local_df` instead of `overlay_df`.
+  This avoids keeping multiple full-sized frames simultaneously.
+- Skip redundant sorts for overlay/UTC outputs because `scenario_local_df` is
+  already sorted by `(merchant_id, legal_country_iso, tzid, local_horizon_bucket_index)`;
+  selection preserves row order, and UTC index is identical to local index in v1.
+
+Changes applied:
+1) After scenario_local validation, `del overlay_df` + `gc.collect()` to free memory.
+2) Build `overlay_factors_df` from `scenario_local_df` (no additional sort).
+3) Build `scenario_utc_df` from `scenario_local_df` (no additional sort) with
+   `utc_horizon_bucket_index` derived from local index.
+
+Files touched:
+- `packages/engine/src/engine/layers/l2/seg_5A/s4_calendar_overlays/runner.py`
+
+### Entry: 2026-01-19 22:50
+
+S4 run after validation+memory optimizations.
+
+Execution:
+- Ran `make segment5a-s4` with fast output validation (default sample_rows=5000).
+
+Result:
+- PASS. Run report written to:
+  `runs/local_full_run-5/d61f08e2e45ef1bc28884034de4c1b68/reports/layer2/5A/state=S4/manifest_fingerprint=1cb60481d69b836ee24505ec9a6ec231c8f18523ee9b7dabbd38c0a33bf15765/run_report.json`
+- Outputs published:
+  - `data/layer2/5A/merchant_zone_scenario_local/.../merchant_zone_scenario_local_5A.parquet`
+  - `data/layer2/5A/merchant_zone_overlay_factors/.../merchant_zone_overlay_factors_5A.parquet`
+  - UTC scenario intensities not emitted (per config).
+
+Observed impact:
+- Output schema validation reduced to sampled mode; progress logs now every ~5s.
+- Total wall time ~416s for S4 on this run.
