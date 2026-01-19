@@ -1118,3 +1118,25 @@ Pending decision (needs user direction):
 3) Revert the RNG policy change and keep the existing seal (not preferred).
 
 ---
+
+### Entry: 2026-01-18 22:37
+
+Dev-mode reseal unblock for 3B.S0 after policy change.
+
+Decision:
+- Move the existing `sealed_inputs_3B.json` and `s0_gate_receipt_3B.json` for the
+  current manifest/run into a run-local backup folder so S0 can reseal with the
+  updated RNG policy.
+
+Rationale:
+- Immutability correctly blocks overwriting under the same manifest, but the user
+  explicitly requested clearing blockers to reseal in dev mode. Moving preserves
+  a recoverable copy for audit while removing the blockers from canonical paths.
+
+Plan:
+- Locate current `sealed_inputs_3B.json` and `s0_gate_receipt_3B.json` under
+  `runs/local_full_run-5/970b0bd6833be3a0f08df8e8abf0364c/`.
+- Move both files into `runs/local_full_run-5/970b0bd6833be3a0f08df8e8abf0364c/dev_overrides/3B_S0_reseal_2026-01-18_2237/`.
+- Re-run `make segment3b-s0`, then `make segment3b-s2`.
+
+---
