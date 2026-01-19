@@ -275,6 +275,23 @@ subsegments:
         cross_layer: true
         notes:
 
+      - manifest_key: mlr.input.transaction_schema.merchant_ids
+        name: transaction_schema_merchant_ids
+        type: dataset
+        category: input
+        path: reference/layer1/transaction_schema_merchant_ids/{version}/
+        schema: schemas.ingress.layer1.yaml#/merchant_ids
+        semver: '{semver}'
+        version: '{version}'
+        digest:
+        dependencies: []
+        source: external
+        owner: { owner_team: null }
+        last_updated:
+        environment: [runtime]
+        cross_layer: true
+        notes:
+
       - manifest_key: mlr.1A.output.outlet_catalogue
         name: outlet_catalogue
         type: dataset

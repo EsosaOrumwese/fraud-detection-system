@@ -896,3 +896,721 @@ Why this matches the spec:
   augmentation to enforce the max-overlap guardrail.
 
 ---
+
+---
+
+### Entry: 2026-01-19 14:13
+
+5A.S1 planning notes (merchant & zone demand classification).
+
+Context + files read (for traceability):
+- `docs/model_spec/data-engine/layer-2/specs/state-flow/5A/state.5A.s1.expanded.md`
+- `docs/model_spec/data-engine/layer-2/specs/contracts/5A/dataset_dictionary.layer2.5A.yaml`
+- `docs/model_spec/data-engine/layer-2/specs/contracts/5A/schemas.5A.yaml`
+- `docs/model_spec/data-engine/layer-2/specs/contracts/5A/artefact_registry_5A.yaml`
+- `docs/model_spec/data-engine/layer-2/specs/data-intake/5A/merchant_class_policy_5A_authoring-guide.md`
+- `docs/model_spec/data-engine/layer-2/specs/data-intake/5A/demand_scale_policy_5A_authoring-guide.md`
+- `config/layer2/5A/policy/merchant_class_policy_5A.v1.yaml`
+- `config/layer2/5A/policy/demand_scale_policy_5A.v1.yaml`
+- `docs/model_spec/data-engine/layer-1/specs/contracts/3A/schemas.3A.yaml` (zone_alloc schema)
+- `docs/model_spec/data-engine/layer-1/specs/contracts/3B/schemas.3B.yaml` (virtual_classification_3B)
+- `docs/model_spec/data-engine/layer-1/specs/contracts/1A/schemas.1A.yaml` (outlet_catalogue schema)
+- `docs/model_spec/data-engine/layer-1/specs/contracts/1B/schemas.1B.yaml` (site_locations schema)
+- `docs/model_spec/data-engine/layer-1/specs/contracts/2B/schemas.2B.yaml` (s1_site_weights schema)
+
+Problem / scope:
+- Implement 5A.S1 per spec: deterministic classing + base scale per (merchant_id, legal_country_iso, tzid), RNG-free, sealed-inputs only, idempotent outputs, optional merchant_class_profile_5A.
+
+Open questions / decisions to confirm (need user input):
+1) Merchant attributes source. S1 requires `mcc`, `channel`, `home_country_iso` etc, but 5A.S0 currently seals only `outlet_catalogue`, `site_locations`, `site_timezones`, `zone_alloc`, `virtual_classification_3B`, etc. None of those include `mcc`/`channel`.
+   - Option A: add `transaction_schema_merchant_ids` (ingress merchant universe) into 5A dictionary/registry and S0 required_ids so it is sealed and available to S1.
+   - Option B: add another authoritative merchant-attributes dataset if you prefer (but must be in sealed_inputs_5A).
+   - If we do nothing, S1 cannot follow policy (classing uses MCC/channel) and must fail closed.
+2) Optional output `merchant_class_profile_5A`: do you want it emitted? If yes, I need a deterministic rule for `primary_demand_class` (e.g., max weekly_volume_expected share; tie-break by class name) since no explicit precedence list exists in config.
+3) Domain filter: no explicit inclusion/exclusion policy exists in `merchant_class_policy_5A` for `zone_alloc` rows; assume full `zone_alloc` domain unless you want a filter policy added.
+
+Implementation plan (stepwise, detailed):
+1) **Scaffold state modules + CLI**
+   - Create `packages/engine/src/engine/layers/l2/seg_5A/s1_demand_classification/runner.py` (name aligned to S1 purpose).
+   - Add CLI entry `packages/engine/src/engine/cli/s1_demand_classification_5a.py` mirroring existing CLI patterns (parse run_id, call runner).
+   - Wire makefile target `segment5a-s1` to call CLI with `SEG5A_S1_RUN_ID`.
+2) **Load contracts and validate S0 control-plane inputs**
+   - Use `ContractSource` from EngineConfig (dev: model_spec) and reuse helper utilities from `seg_5A.s0_gate.runner` (`_schema_from_pack`, `_inline_external_refs`, `_resolve_dataset_path`, `_load_json`, `_load_yaml`, `_validate_payload` patterns).
+   - Resolve + validate `s0_gate_receipt_5A` and `sealed_inputs_5A` per `schemas.5A.yaml`.
+   - Recompute `sealed_inputs_digest` and compare to receipt; abort on mismatch.
+   - Enforce `verified_upstream_segments` status PASS for 1A-3B; abort on FAIL/MISSING.
+3) **Resolve S1 inputs from sealed_inputs_5A**
+   - Build `sealed_by_id` and `sealed_by_role` indexes; reject any required artefact missing or wrong `read_scope`.
+   - Required: `zone_alloc`, `merchant_class_policy_5A`, `demand_scale_policy_5A`.
+   - Optional: `virtual_classification_3B`, `virtual_settlement_3B`, `site_timezones`, `scenario_manifest_5A`.
+   - Pending confirmation: merchant attributes dataset (see open question 1).
+4) **Load and validate policy payloads**
+   - Parse YAML for `merchant_class_policy_5A` and `demand_scale_policy_5A`.
+   - Validate against schema anchors; enforce class catalog completeness vs `demand_scale_policy_5A.class_params` coverage.
+5) **Construct domain D from zone_alloc**
+   - Read `zone_alloc` via polars, select required columns: `merchant_id`, `legal_country_iso`, `tzid`, `zone_site_count`, `zone_site_count_sum`, `site_count`.
+   - Treat `zone_site_count_sum` as `merchant_country_site_count` for zone_share; fail closed if null/zero where policy requires.
+   - Domain D = all rows; optional filters only if a policy is added (none today).
+   - Enforce uniqueness on (merchant_id, legal_country_iso, tzid) and non-negative counts.
+6) **Assemble feature table**
+   - Join merchant attributes on `merchant_id` (pending dataset decision).
+   - Join `virtual_classification_3B` if present; default virtual_mode=NON_VIRTUAL if absent (policy allows fallback).
+   - Derive `zone_site_share = zone_site_count / merchant_country_site_count` with safe zero handling; derive `zone_role` via policy thresholds.
+   - Derive `mcc_sector` from policy map; derive `channel_group` from policy map.
+7) **Class assignment (deterministic)**
+   - Apply policy decision tree:
+     - If virtual_mode in {VIRTUAL_ONLY, HYBRID}, choose virtual branch class.
+     - Else choose nonvirtual branch: channel_group -> mcc_sector -> class.
+   - Fail closed if unknown MCC or channel or no mapping, unless policy provides explicit fallback.
+   - Emit optional `demand_subclass` (zone_role) and `profile_id` (class.subclass.channel_group) following authoring guide; set `class_source` to branch id for traceability.
+8) **Scale assignment (deterministic)**
+   - Implement `u_det` hash-mix per authoring guide using `sha256` over `5A.scale|{stage}|merchant_id|legal_country_iso|tzid|parameter_hash`.
+   - Compute per-site weekly using Pareto quantile + clip; then compute `weekly_volume_expected` with multipliers.
+   - Emit `weekly_volume_unit`, `scale_factor`, `high_variability_flag`, `low_volume_flag`, `virtual_preferred_flag` as per policy.
+   - Enforce non-negative finite values and guardrails (policy thresholds).
+9) **Materialize outputs**
+   - Build `merchant_zone_profile_5A` (parquet) with required identity columns, classification, and scale fields.
+   - Optional `merchant_class_profile_5A`: aggregate by merchant_id (pending decision), compute primary class and totals.
+   - Validate against schema anchors using jsonschema adapter.
+   - Idempotency: if output exists, compare content (sorted) and fail on mismatch; otherwise atomic publish via staging dir.
+10) **Run-report + logging**
+   - Emit story header log: objectives, gated inputs, outputs.
+   - Log domain sizes and join coverage (counts with meaning and gates).
+   - For any per-row hashing loop, use progress tracker with elapsed, processed/total, rate, ETA.
+   - Emit run_report JSON in `runs/.../reports/layer2/5A/state=S1/...` (matching layer-1 patterns).
+
+Performance + memory notes:
+- Prefer polars joins/expressions; avoid Python per-row loops except for SHA256 (chunked with progress logs).
+- Use chunked hashing if row count is large to keep memory stable.
+- Validate domain uniqueness with groupby counts rather than building large Python sets when possible.
+
+Resumability / idempotency:
+- Output paths are manifest_fingerprint-scoped only; never overwrite differing data. If identical, no-op.
+- Use staging directory and atomic rename to avoid partial visibility.
+
+Validation / testing plan:
+- Schema validation for s0_gate_receipt_5A, sealed_inputs_5A, and outputs.
+- Domain alignment: output row count equals zone_alloc rows (after policy filters) with no duplicates.
+- Determinism: re-run S1 on same inputs yields identical outputs.
+- Optional class_profile (if implemented) must be a pure aggregate of zone profiles.
+
+Next action before coding:
+- Await confirmation on merchant attributes source + whether to emit merchant_class_profile_5A.
+
+---
+
+### Entry: 2026-01-19 15:21
+
+Decision: seal `transaction_schema_merchant_ids` for 5A.S1 and resolve its version deterministically in 5A.S0.
+
+Reasoning and constraints:
+- S1 classing requires `mcc`, `channel`, and `home_country_iso`, which are only present in the ingress merchant snapshot (`transaction_schema_merchant_ids`).
+- The 5A dataset dictionary previously lacked a merchant-attributes input; without sealing it, S1 would have to guess or violate the sealed-inputs boundary.
+- The path is version-scoped (`{version}`), so S0 must resolve the exact version from upstream sealed inputs to avoid non-deterministic directory picks.
+
+Implementation plan (stepwise):
+1) Add `transaction_schema_merchant_ids` to `docs/model_spec/data-engine/layer-2/specs/contracts/5A/dataset_dictionary.layer2.5A.yaml`:
+   - `owner_subsegment: ingress`, `schema_ref: schemas.ingress.layer1.yaml#/merchant_ids`.
+   - `path: reference/layer1/transaction_schema_merchant_ids/{version}/`, `partitioning: [version]`.
+2) Add an artefact registry entry in `docs/model_spec/data-engine/layer-2/specs/contracts/5A/artefact_registry_5A.yaml`:
+   - `manifest_key: mlr.input.transaction_schema.merchant_ids`, `source: external`, `version: {version}`.
+3) Extend 5A.S0 required_ids to include `transaction_schema_merchant_ids` so it is sealed for each manifest.
+4) Add `_resolve_merchant_ids_version` to `packages/engine/src/engine/layers/l2/seg_5A/s0_gate/runner.py`:
+   - Load `sealed_inputs_1A` via the 1A dictionary and validate against `schemas.1A.yaml#/validation/sealed_inputs_1A`.
+   - Extract `partition.version` for `asset_id == transaction_schema_merchant_ids`.
+   - Fail closed if missing or invalid (use `S0_IO_READ_FAILED` and validator `V-02A`).
+5) Inject `tokens["version"] = merchant_version` before any dataset path resolution in S0.
+
+Logging and validation points:
+- Log the resolved version once per run (`S0: resolved transaction_schema_merchant_ids version=...`).
+- If the version cannot be resolved, abort before sealing any inputs.
+
+Resumability / determinism:
+- Version is taken from the already-sealed 1A manifest, so the S0 inventory is deterministic and reproducible.
+- This ensures all downstream reads for S1 are locked to a single merchant snapshot without heuristics.
+
+Testing:
+- Re-run `make segment5a-s0` after changes; verify sealed_inputs_5A now includes `transaction_schema_merchant_ids` with concrete `version` and `sha256_hex`.
+
+---
+
+### Entry: 2026-01-19 15:34
+
+5A.S1 implementation decisions (merchant & zone demand classification).
+
+What I implemented (stepwise, with reasoning):
+1) **New state module + CLI**
+   - Added `packages/engine/src/engine/layers/l2/seg_5A/s1_demand_classification/runner.py` and
+     `packages/engine/src/engine/cli/s1_demand_classification_5a.py`.
+   - Chose a state name aligned to the spec (demand classification) and matched the CLI patterns used by 3B/2B.
+   - Added makefile target `segment5a-s1` and extended `segment5a` to run S0->S1.
+
+2) **Sealed inputs validation and gating**
+   - S1 loads `s0_gate_receipt_5A` + `sealed_inputs_5A` from run-local paths and validates against `schemas.5A.yaml`.
+   - Recomputes `sealed_inputs_digest` using the same ordering + hash law as S0 (`_sealed_inputs_digest`).
+   - Enforces upstream PASS for all 1A-3B segments using the S0 receipt as the sole authority.
+
+3) **Merchant attributes source (approved by user)**
+   - Uses `transaction_schema_merchant_ids` as the authoritative merchant attributes table (`merchant_id`, `mcc`, `channel`, `home_country_iso`).
+   - Version is resolved from the sealed row (`sealed_inputs_5A.version`), not by filesystem heuristics.
+   - Validates the merchant table against `schemas.ingress.layer1.yaml#/merchant_ids` before joining.
+
+4) **Domain construction**
+   - Domain is the full `zone_alloc` egress (no additional filtering), aligned to spec for a 1:1 overlay.
+   - Uses `zone_site_count_sum` as `merchant_country_site_count` and derives:
+     `zone_site_share` and `zone_role` via policy thresholds.
+   - Validates `zone_alloc` against `schemas.3A.yaml#/egress/zone_alloc` and logs domain counts.
+
+5) **Classing rules (deterministic)**
+   - Applies the `decision_tree_v1` from `merchant_class_policy_5A`:
+     - Virtual merchants (`VIRTUAL_ONLY`, `HYBRID`) use the virtual branch classes.
+     - Non-virtuals use `by_channel_group` -> `mcc_sector` lookup (supports both flat and `by_sector` structures).
+   - Fails closed if a class is not in the class_params map.
+   - Emits `demand_subclass` as `zone_role` and `profile_id` as `demand_class.demand_subclass.channel_group`.
+   - `class_source` records the branch used (virtual vs nonvirtual.<channel>.<sector>) for audit/debug.
+
+6) **Scale model (deterministic, RNG-free)**
+   - Implements `u_det` hash-mix per authoring guide:
+     `SHA256("5A.scale|stage|merchant|country|tzid|parameter_hash")`.
+   - Uses Pareto quantile + clip with `median_per_site_weekly`, `pareto_alpha`, `clip_max_per_site_weekly`.
+   - Computes `weekly_volume_expected` using policy multipliers:
+     zone_role, brand_size (`S^exponent`), virtual_mode, channel_group, and `global_multiplier`.
+   - Emits `weekly_volume_unit`, `scale_factor`, `high_variability_flag`, `low_volume_flag`, `virtual_preferred_flag`.
+   - Enforces finite, non-negative scale and optional max bound from `realism_targets.max_weekly_volume_expected`.
+
+7) **Optional merchant_class_profile_5A (approved rule)**
+   - Materializes the optional merchant-level aggregate view.
+   - Primary class is chosen by max `weekly_volume_expected` share per merchant; ties break by class catalog order.
+   - If total volume is zero, the tie-break uses per-merchant class counts.
+   - Emits `classes_seen` sorted by catalog order and `weekly_volume_total_expected`.
+
+8) **Output discipline and idempotency**
+   - Writes outputs to staging and compares SHA256 of existing files; if identical, skips publish.
+   - If different content exists, aborts with `S1_OUTPUT_CONFLICT` (no overwrite).
+   - Ensures `merchant_zone_profile_5A` is published before `merchant_class_profile_5A`.
+
+9) **Logging + run-report**
+   - Story header log for objective + gates + outputs.
+   - Progress logs for classify+scale and class_profile aggregation include elapsed, processed, rate, ETA.
+   - Run report written to `reports/layer2/5A/state=S1/.../run_report.json` with policy versions, counts, status.
+
+Known deviations / clarifications:
+- Default class fallback is used only if the policy branch lookup yields no match; we still fail if the resulting class is absent from `class_params`.
+- Virtual classification is treated as optional if not sealed; if sealed, missing merchant rows fail closed.
+
+Files touched:
+- `packages/engine/src/engine/layers/l2/seg_5A/s1_demand_classification/runner.py`
+- `packages/engine/src/engine/cli/s1_demand_classification_5a.py`
+- `makefile`
+
+---
+
+### Entry: 2026-01-19 15:35
+
+Adjustment during implementation: enforce fail-closed class assignment (no default_class fallback).
+
+Why:
+- The S1 spec and policy authoring guide require exactly one rule match per row and fail-closed on missing/ambiguous matches.
+- Using `default_class` as an implicit fallback could hide incomplete MCC/channel maps and drift from the sealed policy intent.
+
+Change applied:
+- In the classify+scale loop, if the non-virtual branch lookup yields no class for `(channel_group, mcc_sector)`, S1 now aborts with `S1_CLASS_ASSIGNMENT_FAILED` and logs the missing keys.
+- `default_class` is still validated as present in the policy, but not used as an implicit fallback.
+
+---
+
+### Entry: 2026-01-19 15:43
+
+S0 re-seal attempt after adding transaction_schema_merchant_ids.
+
+Action taken:
+- Ran `make segment5a-s0 SEG5A_S0_RUN_ID=d61f08e2e45ef1bc28884034de4c1b68`.
+
+Observed:
+- S0 resolved merchant_ids version = `2026-01-03` from sealed_inputs_1A and recomputed sealed_inputs_digest =
+  `bd46592e...` (includes new `transaction_schema_merchant_ids` row).
+- Existing sealed outputs were for the previous digest `8089e436...`.
+- S0 aborted with `S0_OUTPUT_CONFLICT` (V-13 sealed_inputs_digest_mismatch).
+
+Decision needed:
+- To reseal, we must delete the prior S0 outputs for this manifest:
+  - `runs/local_full_run-5/d61f08e2e45ef1bc28884034de4c1b68/data/layer2/5A/s0_gate_receipt/manifest_fingerprint=1cb60481d69b836ee24505ec9a6ec231c8f18523ee9b7dabbd38c0a33bf15765/`
+  - `runs/local_full_run-5/d61f08e2e45ef1bc28884034de4c1b68/data/layer2/5A/sealed_inputs/manifest_fingerprint=1cb60481d69b836ee24505ec9a6ec231c8f18523ee9b7dabbd38c0a33bf15765/`
+  - `runs/local_full_run-5/d61f08e2e45ef1bc28884034de4c1b68/data/layer2/5A/scenario_manifest/manifest_fingerprint=1cb60481d69b836ee24505ec9a6ec231c8f18523ee9b7dabbd38c0a33bf15765/`
+- Waiting on user approval before deleting and re-running S0.
+
+---
+
+### Entry: 2026-01-19 15:47
+
+S0 failure during `make segment5a`: missing scenario_calendar_5A in run-local data root.
+
+Observation:
+- `make segment5a` failed in S0 at `_hash_scenario_calendars` with `S0_REQUIRED_SCENARIO_MISSING`.
+- The error indicates `scenario_calendar_5A` is not present under the run-local path:
+  `runs/local_full_run-5/d61f08e2e45ef1bc28884034de4c1b68/data/layer2/5A/scenario_calendar/manifest_fingerprint=.../scenario_id=baseline_v1/`.
+
+Likely cause:
+- `make scenario_calendar_5a` writes to `RUN_ROOT`, which defaults to `runs/local_full_run-5` unless `RUN_ID` (or
+  `SCENARIO_CAL_RUN_ROOT`) is set. The calendar may exist under the runs root but not inside the specific run.
+- S0 resolves `data/` paths via `RunPaths.run_root`, so it requires the calendar to exist under the specific run_id.
+
+Planned fix:
+1) Generate the scenario calendar under the run root for `d61f08e2e45ef1bc28884034de4c1b68`:
+   - `make scenario_calendar_5a RUN_ID=d61f08e2e45ef1bc28884034de4c1b68`
+   - (or set `SCENARIO_CAL_RUN_ROOT` explicitly to that run root).
+2) Re-run `make segment5a` (or at least `segment5a-s0`, then `segment5a-s1`).
+
+Logging:
+- This entry documents the failure and the path resolution rationale before proceeding.
+
+---
+
+### Entry: 2026-01-19 15:56
+
+Plan to fix 5A.S1 schema validation failure (external ref inlining for table packs).
+
+Design problem summary:
+- `make segment5a` failed in 5A.S1 during the `domain_build` phase with
+  `S1_IO_READ_FAILED` and `detail: Unresolvable: schemas.layer1.yaml#/$defs/id64`.
+- The failure occurs while validating `zone_alloc` rows via `validate_dataframe`.
+  The table pack produced by `_table_pack(schema_3a, "egress/zone_alloc")` embeds
+  `$ref: schemas.layer1.yaml#/$defs/id64`, but `validate_dataframe` uses
+  `Draft202012Validator` without a resolver. This matches the known pattern in
+  3A/3B validation blocks where external refs are inlined explicitly.
+
+Decision path and options considered:
+1) **Inline external refs for table packs before validation** (preferred).
+   - Mirrors 3A.S6 and other runners: call `_inline_external_refs` on the pack
+     with `schema_layer1` so `$defs` are embedded locally.
+   - Low risk, deterministic, no contract changes.
+2) **Change jsonschema adapter to resolve external refs**.
+   - Higher impact across the engine, risk of unintended remote resolution.
+3) **Remove schema validation for zone_alloc**.
+   - Violates contract and would mask real mismatches.
+
+Decision:
+- Proceed with option (1). Inline `schemas.layer1.yaml#` refs for every table
+  pack validated in S1 (zone_alloc, merchant_ids, virtual_classification_3B,
+  and both output schemas), matching existing style in Layer-1 validators.
+
+Planned steps (exact):
+1) In `packages/engine/src/engine/layers/l2/seg_5A/s1_demand_classification/runner.py`,
+   add `_inline_external_refs(pack, schema_layer1, "schemas.layer1.yaml#")`
+   immediately after each `_table_pack(...)` call used for `validate_dataframe`.
+2) Re-run `make segment5a` (or `make segment5a-s1`) for run
+   `d61f08e2e45ef1bc28884034de4c1b68` and verify S1 passes schema validation.
+3) Record outcomes and any further adjustments in this map + logbook.
+
+---
+
+### Entry: 2026-01-19 15:58
+
+Implemented Layer-1 ref inlining for 5A.S1 table-pack validation.
+
+What I changed (stepwise, as executed):
+1) Added `_inline_external_refs(..., schema_layer1, "schemas.layer1.yaml#")`
+   after `_table_pack(...)` for each dataframe validation in
+   `packages/engine/src/engine/layers/l2/seg_5A/s1_demand_classification/runner.py`:
+   - `zone_alloc` (schema_3A egress)
+   - `transaction_schema_merchant_ids` (ingress layer1)
+   - `virtual_classification_3B` (schema_3B plan)
+   - `merchant_zone_profile_5A` output
+   - `merchant_class_profile_5A` output
+
+Notes / rationale:
+- `validate_dataframe` does not resolve external refs, so inlining Layer-1
+  `$defs` keeps schema validation deterministic and aligned with 3A/3B
+  validation patterns.
+
+Follow-up:
+- Re-run `make segment5a` for run `d61f08e2e45ef1bc28884034de4c1b68` and
+  capture the S1 outcome (PASS or next failure).
+
+---
+
+### Entry: 2026-01-19 16:00
+
+Plan to fix 5A.S1 zone_alloc/virtual_classification schema validation mismatch.
+
+Design problem summary:
+- After inlining Layer-1 refs, `make segment5a` now fails in S1 `domain_build`
+  with `Ingress schema validation failed` for `zone_alloc` rows, reporting
+  missing required fields (`seed`, `manifest_fingerprint`, `site_count`,
+  `prior_pack_id`, `prior_pack_version`).
+- Root cause: S1 reads `zone_alloc` and immediately `.select(...)` a subset of
+  columns before calling `validate_dataframe`. The schema requires the full
+  table (columns_strict = true), so validation fails on the trimmed view.
+- A similar issue will occur when validating `virtual_classification_3B`, since
+  the schema requires `seed` and `manifest_fingerprint`, but S1 selects only
+  `merchant_id`, `virtual_mode`, and `is_virtual`.
+
+Decision path and options considered:
+1) **Validate full input tables, then project to required columns** (preferred).
+   - Maintains strict schema validation without changing the contracts.
+   - Keeps the downstream logic unchanged (uses a trimmed DataFrame after validation).
+2) **Relax validation to allow partial columns**.
+   - Would undermine contract guarantees and diverge from validation patterns
+     used in other segments.
+3) **Disable validation for zone_alloc/virtual inputs**.
+   - Not acceptable; would mask upstream drift.
+
+Decision:
+- Proceed with option (1). Read full `zone_alloc` and `virtual_classification_3B`,
+  validate against their schemas, then `select(...)` the subset used for
+  downstream feature building.
+
+Planned steps (exact):
+1) Update `packages/engine/src/engine/layers/l2/seg_5A/s1_demand_classification/runner.py`:
+   - For `zone_alloc`, read full parquet, validate, then select the subset.
+   - For `virtual_classification_3B`, read full parquet, validate, then select the subset.
+2) Re-run `make segment5a SEG5A_S0_RUN_ID=d61f08e2e45ef1bc28884034de4c1b68 SEG5A_S1_RUN_ID=d61f08e2e45ef1bc28884034de4c1b68`.
+3) Record the outcome and any further adjustments.
+
+---
+
+### Entry: 2026-01-19 16:02
+
+Implemented full-table validation before column projection in 5A.S1.
+
+What I changed (stepwise, as executed):
+1) For `zone_alloc`, switched the read sequence to:
+   - `pl.read_parquet(...)` (full table),
+   - validate against `schemas.3A.yaml#/egress/zone_alloc`,
+   - then `.select(...)` the columns required for domain construction.
+2) For `virtual_classification_3B`, applied the same pattern:
+   - read full table,
+   - validate against `schemas.3B.yaml#/plan/virtual_classification_3B`,
+   - then project `merchant_id`, `virtual_mode`, `is_virtual` for joins.
+
+Notes / rationale:
+- Keeps schema validation strict while allowing S1 to work with a minimal
+  in-memory column set downstream.
+- Aligns with other segment validators that check the full egress tables before
+  slicing.
+
+Follow-up:
+- Re-run `make segment5a` for run `d61f08e2e45ef1bc28884034de4c1b68` and capture
+  the S1 outcome.
+
+---
+
+### Entry: 2026-01-19 16:06
+
+Plan to fix 5A.S0 sealed_inputs version rendering for transaction_schema_merchant_ids.
+
+Design problem summary:
+- S1 now fails in `merchant_attributes` with
+  `Input not found ... transaction_schema_merchant_ids/{semver}/` because the
+  sealed input row carries `version: {semver}` instead of the resolved
+  `version=2026-01-03`.
+- Root cause: `_render_version` in 5A.S0 treats any placeholder (including
+  `{version}` and `{manifest_fingerprint}`) as a signal to replace with the
+  registry semver. Since the registry semver is also `{semver}`, the sealed
+  row retains the placeholder and S1 cannot resolve the path template.
+
+Decision path and options considered:
+1) **Fix `_render_version` to apply tokens first, then fall back to registry semver.**
+   - Produces concrete versions for entries whose version is tokenized.
+   - Keeps registry semver as fallback for true placeholders like "TBD".
+2) **Patch S1 to resolve version from external sources** (e.g., re-read 1A sealed inputs).
+   - Breaks the sealed-inputs boundary and adds extra dependencies.
+3) **Hardcode the merchant_ids version in S1**.
+   - Not deterministic or contract-driven.
+
+Decision:
+- Proceed with option (1). Update `_render_version` so token substitution
+  happens before placeholder detection; only if the result is still a
+  placeholder do we fall back to registry semver. This will populate a concrete
+  `version` for `transaction_schema_merchant_ids` (and other tokenized entries).
+
+Planned steps (exact):
+1) Update `_render_version` in
+   `packages/engine/src/engine/layers/l2/seg_5A/s0_gate/runner.py` to:
+   - substitute tokens in `entry.version` first,
+   - check `_is_placeholder` after substitution,
+   - fallback to registry `semver` only if still a placeholder.
+2) Re-run `make segment5a-s0` for run `d61f08e2e45ef1bc28884034de4c1b68`.
+   - Expect `sealed_inputs_digest` to change; delete prior S0 outputs if conflict.
+3) Re-run `make segment5a` (S0 + S1) to confirm merchant_ids path resolves.
+
+---
+
+### Entry: 2026-01-19 16:08
+
+Implemented token-first version rendering in 5A.S0.
+
+What I changed (stepwise, as executed):
+1) Updated `_render_version` in
+   `packages/engine/src/engine/layers/l2/seg_5A/s0_gate/runner.py` to:
+   - replace token placeholders (e.g., `{version}`, `{manifest_fingerprint}`)
+     before placeholder detection,
+   - fall back to registry `semver` only if the substituted version is still
+     a placeholder, and apply tokens to the fallback too.
+
+Notes / rationale:
+- Ensures `transaction_schema_merchant_ids` carries the concrete version from
+  sealed_inputs_1A (e.g., `2026-01-03`), allowing S1 to resolve its path.
+- Also makes tokenized versions for other sealed inputs concrete (expected to
+  change the sealed_inputs_digest).
+
+Follow-up:
+- Re-run `make segment5a-s0` for `d61f08e2e45ef1bc28884034de4c1b68` and reseal
+  after deleting the prior S0 outputs if `S0_OUTPUT_CONFLICT` occurs.
+
+---
+
+### Entry: 2026-01-19 16:10
+
+Reseal step: remove prior 5A.S0 outputs after version rendering change.
+
+Decision and rationale:
+- The `_render_version` fix changes the sealed_inputs version strings (and thus
+  `sealed_inputs_digest`). Existing `s0_gate_receipt_5A` and `sealed_inputs_5A`
+  on disk are now stale and will trigger `S0_OUTPUT_CONFLICT`.
+- To allow a clean reseal for the current manifest, delete the previous S0
+  outputs under the run-local path.
+
+Action (planned and executed next):
+1) Remove:
+   - `runs/local_full_run-5/d61f08e2e45ef1bc28884034de4c1b68/data/layer2/5A/s0_gate_receipt/manifest_fingerprint=1cb60481d69b836ee24505ec9a6ec231c8f18523ee9b7dabbd38c0a33bf15765/`
+   - `runs/local_full_run-5/d61f08e2e45ef1bc28884034de4c1b68/data/layer2/5A/sealed_inputs/manifest_fingerprint=1cb60481d69b836ee24505ec9a6ec231c8f18523ee9b7dabbd38c0a33bf15765/`
+   - `runs/local_full_run-5/d61f08e2e45ef1bc28884034de4c1b68/data/layer2/5A/scenario_manifest/manifest_fingerprint=1cb60481d69b836ee24505ec9a6ec231c8f18523ee9b7dabbd38c0a33bf15765/`
+
+---
+
+### Entry: 2026-01-19 16:11
+
+Executed reseal cleanup for 5A.S0 outputs.
+
+What I did:
+- Deleted the prior S0 output directories listed in the 16:10 entry so the
+  reseal can write updated `sealed_inputs_5A` and `s0_gate_receipt_5A` with the
+  corrected version rendering.
+
+Next:
+- Re-run `make segment5a` for `d61f08e2e45ef1bc28884034de4c1b68`.
+
+---
+
+### Entry: 2026-01-19 16:13
+
+Plan to fix 5A.S1 merchant_ids read when directory contains mixed file types.
+
+Design problem summary:
+- After resealing, S1 fails in `merchant_attributes` with a Polars error:
+  directory contains mixed file extensions (CSV, SHA256SUMS, parquet).
+- `transaction_schema_merchant_ids` resolves to a directory containing
+  `transaction_schema_merchant_ids.parquet` alongside CSV/manifest files.
+- `pl.read_parquet(dir)` attempts to read all files and aborts on non-parquet.
+
+Decision path and options considered:
+1) **Read only parquet files via an explicit glob helper** (preferred).
+   - Matches patterns used in 3B runners (`_resolve_parquet_files`).
+2) **Point the dataset dictionary at the parquet filename directly**.
+   - Would hardcode the artefact filename and reduce flexibility.
+3) **Strip non-parquet files from the reference directory**.
+   - Not acceptable; those files are part of the sealed reference data.
+
+Decision:
+- Proceed with option (1). Add a local `_resolve_parquet_files` helper in S1,
+  use it for `transaction_schema_merchant_ids`, and read only the `.parquet`
+  files to avoid mixed-extension errors.
+
+Planned steps (exact):
+1) Add `_resolve_parquet_files(root: Path)` to
+   `packages/engine/src/engine/layers/l2/seg_5A/s1_demand_classification/runner.py`.
+2) Replace `pl.read_parquet(merchant_ids_path)` with:
+   - `merchant_files = _resolve_parquet_files(merchant_ids_path)`
+   - `pl.read_parquet(merchant_files)`
+3) Re-run `make segment5a` for `d61f08e2e45ef1bc28884034de4c1b68` and verify S1
+   proceeds past merchant_attributes.
+
+---
+
+### Entry: 2026-01-19 16:15
+
+Implemented parquet-only read for transaction_schema_merchant_ids in 5A.S1.
+
+What I changed (stepwise, as executed):
+1) Added `_resolve_parquet_files(...)` helper in
+   `packages/engine/src/engine/layers/l2/seg_5A/s1_demand_classification/runner.py`
+   to return only `*.parquet` files from a directory (or the file itself).
+2) Switched merchant_ids ingestion to:
+   - resolve parquet files via the helper,
+   - read them with `pl.read_parquet(merchant_files)` before validation.
+
+Notes / rationale:
+- Prevents Polars from trying to read CSV/manifest files that share the same
+  directory, while keeping the dataset contract intact.
+
+Follow-up:
+- Re-run `make segment5a` for `d61f08e2e45ef1bc28884034de4c1b68` and confirm S1
+  proceeds past `merchant_attributes`.
+
+---
+
+### Entry: 2026-01-19 16:18
+
+Plan to validate 5A.S1 output schemas that are array-typed (merchant_zone_profile_5A).
+
+Design problem summary:
+- S1 now proceeds through classification but fails during output validation with
+  `Unsupported schema type for 'merchant_zone_profile_5A': array`.
+- The `schemas.5A.yaml#/model/merchant_zone_profile_5A` (and class profile) are
+  defined as `type: array` with `items` object schemas, not `type: table`.
+- `validate_dataframe` assumes `type: table` and throws on `array`.
+
+Decision path and options considered:
+1) **Add a local array-row validator in S1** (preferred).
+   - Build schema via `_schema_for_payload`, then validate each row against the
+     `items` schema with `Draft202012Validator`.
+   - Keeps change local to S1; avoids modifying global adapter.
+2) **Extend `jsonschema_adapter.validate_dataframe` to accept array schemas**.
+   - Broader change; risks unintended side effects in other segments.
+3) **Skip schema validation for outputs**.
+   - Not acceptable; violates contract enforcement.
+
+Decision:
+- Proceed with option (1). Introduce `_validate_array_rows(...)` in S1 and use
+  it for `merchant_zone_profile_5A` and `merchant_class_profile_5A`.
+
+Planned steps (exact):
+1) Add `_validate_array_rows` helper to
+   `packages/engine/src/engine/layers/l2/seg_5A/s1_demand_classification/runner.py`
+   that:
+   - loads the schema via `_schema_for_payload`,
+   - checks `type: array` and `items`,
+   - validates rows with `Draft202012Validator(items_schema)`,
+   - raises `SchemaValidationError` with row-index context.
+2) Replace `validate_dataframe(...)` calls for the two output tables with
+   `_validate_array_rows(...)`.
+3) Re-run `make segment5a` for the current run id and verify S1 completes.
+
+---
+
+### Entry: 2026-01-19 16:20
+
+Implemented array-row validation for 5A.S1 output schemas.
+
+What I changed (stepwise, as executed):
+1) Added `_validate_array_rows(...)` in
+   `packages/engine/src/engine/layers/l2/seg_5A/s1_demand_classification/runner.py`
+   to validate rows against the `items` schema from array-typed definitions.
+2) Replaced `validate_dataframe` for `merchant_zone_profile_5A` and
+   `merchant_class_profile_5A` with `_validate_array_rows(...)`.
+
+Notes / rationale:
+- The 5A model schemas are arrays of objects; per-row validation against
+  `items` preserves contract enforcement without changing the global adapter.
+
+Follow-up:
+- Re-run `make segment5a` for `d61f08e2e45ef1bc28884034de4c1b68`.
+
+---
+
+### Entry: 2026-01-19 16:23
+
+Plan to inline $defs into array item schema for 5A.S1 output validation.
+
+Design problem summary:
+- `_validate_array_rows` now fails with `PointerToNowhere: '/$defs/hex64'`
+  because the `items` schema references `#/$defs/...` but the item-level schema
+  passed to `Draft202012Validator` does not carry the parent `$defs`.
+- The array schema from `_schema_for_payload` includes `$defs`, but they are
+  not attached to the item schema.
+
+Decision path and options considered:
+1) **Merge parent `$defs` into the item schema before validation** (preferred).
+   - Keeps per-row validation and resolves `$ref` targets.
+2) **Validate the full array schema against a list of rows**.
+   - Requires materializing the full list (memory cost).
+3) **Inline refs by rewriting the item schema**.
+   - More complex than necessary.
+
+Decision:
+- Proceed with option (1). Copy `items` and inject/merge `$defs` from the
+  parent schema before building the validator.
+
+Planned steps (exact):
+1) Update `_validate_array_rows` in
+   `packages/engine/src/engine/layers/l2/seg_5A/s1_demand_classification/runner.py`
+   to merge `schema["$defs"]` into the item schema before validation.
+2) Re-run `make segment5a` for the current run id and verify S1 completes.
+
+---
+
+### Entry: 2026-01-19 16:25
+
+Implemented parent-$defs merge for array item validation.
+
+What I changed (stepwise, as executed):
+1) Updated `_validate_array_rows` to copy `items` into `item_schema` and merge
+   `schema["$defs"]` into `item_schema["$defs"]` before building the validator.
+
+Notes / rationale:
+- Allows `$ref: #/$defs/...` inside item schemas to resolve correctly during
+  per-row validation.
+
+Follow-up:
+- Re-run `make segment5a` for `d61f08e2e45ef1bc28884034de4c1b68`.
+
+---
+
+### Entry: 2026-01-19 16:28
+
+Plan to fix 5A.S1 class_profile DataFrame overflow (merchant_id > int64).
+
+Design problem summary:
+- S1 now reaches class profile aggregation but fails when building
+  `class_profile_df` with:
+  `could not append value ... make sure that all rows have the same schema ...`
+  and a large merchant_id value (> 2^63-1).
+- Polars infers `merchant_id` as signed int64 from early rows; later rows
+  include uint64 values (schema allows up to 2^64-1), causing overflow.
+
+Decision path and options considered:
+1) **Explicitly override merchant_id dtype to UInt64 on DataFrame creation** (preferred).
+   - Low impact, local to class profile.
+2) Cast merchant_id after DataFrame creation.
+   - Too late; error occurs during construction.
+3) Clamp or string-encode merchant_id.
+   - Violates schema and downstream expectations.
+
+Decision:
+- Proceed with option (1). Use `schema_overrides={"merchant_id": pl.UInt64}`
+  when building `class_profile_df` so large ids are accepted.
+
+Planned steps (exact):
+1) Update `class_profile_df = pl.DataFrame(...` in
+   `packages/engine/src/engine/layers/l2/seg_5A/s1_demand_classification/runner.py`
+   to pass `schema_overrides={"merchant_id": pl.UInt64}`.
+2) Re-run `make segment5a` and verify S1 completes.
+
+---
+
+### Entry: 2026-01-19 16:30
+
+Implemented UInt64 override for class profile merchant_id.
+
+What I changed (stepwise, as executed):
+1) Updated `class_profile_df` construction to use
+   `pl.DataFrame(..., schema_overrides={"merchant_id": pl.UInt64})`, preventing
+   overflow when merchant_id exceeds signed int64.
+
+Follow-up:
+- Re-run `make segment5a` for `d61f08e2e45ef1bc28884034de4c1b68`.
+
+---
+
+### Entry: 2026-01-19 16:33
+
+Run outcome: `make segment5a` passes for the current run.
+
+Execution notes:
+- `make segment5a SEG5A_S0_RUN_ID=d61f08e2e45ef1bc28884034de4c1b68 SEG5A_S1_RUN_ID=d61f08e2e45ef1bc28884034de4c1b68`
+  completed successfully.
+- S0 skipped publish (outputs identical) and S1 wrote:
+  - `data/layer2/5A/merchant_zone_profile/manifest_fingerprint=1cb60481d69b836ee24505ec9a6ec231c8f18523ee9b7dabbd38c0a33bf15765/merchant_zone_profile_5A.parquet`
+  - `data/layer2/5A/merchant_class_profile/manifest_fingerprint=1cb60481d69b836ee24505ec9a6ec231c8f18523ee9b7dabbd38c0a33bf15765/merchant_class_profile_5A.parquet`
+  - run report at `reports/layer2/5A/state=S1/manifest_fingerprint=1cb60481d69b836ee24505ec9a6ec231c8f18523ee9b7dabbd38c0a33bf15765/run_report.json`

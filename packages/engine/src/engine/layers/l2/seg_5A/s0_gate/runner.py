@@ -650,6 +650,56 @@ def _resolve_run_receipt(runs_root: Path, run_id: Optional[str]) -> tuple[Path, 
     return receipt_path, receipt
 
 
+def _resolve_merchant_ids_version(
+    dictionary_1a: dict,
+    schema_1a: dict,
+    schema_layer1: dict,
+    run_paths: RunPaths,
+    external_roots: Iterable[Path],
+    tokens: dict[str, str],
+    manifest_fingerprint: str,
+) -> str:
+    entry = find_dataset_entry(dictionary_1a, "sealed_inputs_1A").entry
+    sealed_path = _resolve_dataset_path(entry, run_paths, external_roots, tokens)
+    payload = _load_json(sealed_path)
+    schema = _schema_from_pack(schema_1a, "validation/sealed_inputs_1A")
+    _inline_external_refs(schema, schema_layer1, "schemas.layer1.yaml#")
+    errors = list(Draft202012Validator(schema).iter_errors(payload))
+    if errors:
+        _abort(
+            "S0_IO_READ_FAILED",
+            "V-02A",
+            "sealed_inputs_1a_schema_invalid",
+            {"detail": str(errors[0]), "path": str(sealed_path)},
+            manifest_fingerprint,
+        )
+    if not isinstance(payload, list):
+        _abort(
+            "S0_IO_READ_FAILED",
+            "V-02A",
+            "sealed_inputs_1a_invalid",
+            {"detail": "sealed_inputs_1A payload is not a list", "path": str(sealed_path)},
+            manifest_fingerprint,
+        )
+    for row in payload:
+        if not isinstance(row, dict):
+            continue
+        if row.get("asset_id") != "transaction_schema_merchant_ids":
+            continue
+        partition = row.get("partition") if isinstance(row.get("partition"), dict) else {}
+        version = partition.get("version")
+        if version:
+            return str(version)
+    _abort(
+        "S0_IO_READ_FAILED",
+        "V-02A",
+        "merchant_ids_version_missing",
+        {"detail": "transaction_schema_merchant_ids version missing from sealed_inputs_1A"},
+        manifest_fingerprint,
+    )
+    return "unknown"
+
+
 def _resolve_dataset_path(
     entry: dict,
     run_paths: RunPaths,
@@ -678,12 +728,13 @@ def _render_catalog_path(entry: dict, tokens: dict[str, str]) -> str:
 
 
 def _render_version(entry: dict, tokens: dict[str, str], registry_entry: dict) -> str:
-    version = entry.get("version")
-    if _is_placeholder(version):
-        version = registry_entry.get("semver") or "unknown"
-    version = str(version)
+    version = str(entry.get("version") or "")
     for key, value in tokens.items():
         version = version.replace(f"{{{key}}}", value)
+    if _is_placeholder(version):
+        version = str(registry_entry.get("semver") or "unknown")
+        for key, value in tokens.items():
+            version = version.replace(f"{{{key}}}", value)
     return version
 
 
@@ -1042,6 +1093,21 @@ def run_s0(config: EngineConfig, run_id: Optional[str] = None) -> S0GateResult:
         "run_id": run_id_value,
     }
 
+    merchant_version = _resolve_merchant_ids_version(
+        dictionary_1a,
+        schema_1a,
+        schema_layer1,
+        run_paths,
+        config.external_roots,
+        tokens,
+        manifest_fingerprint,
+    )
+    tokens["version"] = merchant_version
+    logger.info(
+        "S0: resolved transaction_schema_merchant_ids version=%s from sealed_inputs_1A",
+        merchant_version,
+    )
+
     _check_catalogue_consistency(
         dictionary_5a,
         {
@@ -1267,6 +1333,7 @@ def run_s0(config: EngineConfig, run_id: Optional[str] = None) -> S0GateResult:
         "validation_passed_flag_3A",
         "validation_bundle_3B",
         "validation_passed_flag_3B",
+        "transaction_schema_merchant_ids",
         "outlet_catalogue",
         "site_locations",
         "site_timezones",

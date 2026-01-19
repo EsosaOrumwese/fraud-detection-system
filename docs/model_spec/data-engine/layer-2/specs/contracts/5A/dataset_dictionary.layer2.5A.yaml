@@ -233,6 +233,24 @@ reference_data:
     pii: false
     licence: Proprietary-Internal
 
+  - id: transaction_schema_merchant_ids
+    status: approved
+    owner_subsegment: ingress
+    description: Authoritative merchant ID seed list derived from transaction schema.
+    version: '{version}'
+    format: parquet
+    path: reference/layer1/transaction_schema_merchant_ids/{version}/
+    partitioning: [version]
+    ordering: []
+    schema_ref: schemas.ingress.layer1.yaml#/merchant_ids
+    lineage:
+      produced_by:
+      consumed_by: [1A, 3B, 5A]
+      final_in_layer: false
+    retention_days: 365
+    pii: false
+    licence: Proprietary-Internal
+
   - id: outlet_catalogue
     status: approved
     owner_subsegment: 1A
