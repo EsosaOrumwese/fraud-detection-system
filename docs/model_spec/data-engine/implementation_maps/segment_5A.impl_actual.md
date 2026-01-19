@@ -2300,3 +2300,234 @@ Testing/validation plan:
 - Run `make segment5a-s4` on the current run id and inspect run-report metrics + overlay
   warnings.
 - Verify idempotent re-run (no output conflicts).
+
+---
+
+### Entry: 2026-01-19 19:55
+
+5A.S0 sealing correction approved (remove S1-S3 sealed-input deviation) — detailed plan.
+
+Decision:
+- Stop bypassing `sealed_inputs_5A` for S1/S2/S3 outputs. S0 must seal S1/S2/S3 outputs,
+  and S2/S3/S4 must require their presence in `sealed_inputs_5A` (status REQUIRED).
+- This will require resealing S0 after upstream outputs exist. We will follow a reseal
+  sequence for the current run and document the deviations that existed prior.
+
+Design considerations / constraints:
+1) **Circularity**: S1 requires S0, but S0 will now require S1/S2/S3 outputs. This means
+   S0 cannot serve as an initial "bootstrap" gate; it must be re-run after those outputs
+   exist. We will reseal S0 in-place for the current run and then re-run S2/S3/S4 against
+   the updated sealed_inputs.
+2) **Scenario-scoped outputs**: S2 outputs and S3 outputs are partitioned by
+   `{scenario_id}` (plus `{parameter_hash}` / `{manifest_fingerprint}`), so S0 must hash
+   all scenario partitions listed in `scenario_horizon_config_5A` and record one combined
+   digest in `sealed_inputs_5A`.
+3) **Required vs optional**:
+   - Required to seal: `merchant_zone_profile_5A`, `shape_grid_definition_5A`,
+     `class_zone_shape_5A`, `merchant_zone_baseline_local_5A`.
+   - Optional to seal if present: `merchant_class_profile_5A`, `class_shape_catalogue_5A`,
+     `class_zone_baseline_local_5A`, `merchant_zone_baseline_utc_5A`.
+4) **Read scopes and roles**: S0 should keep `read_scope=ROW_LEVEL` for these model
+   outputs; role can remain `upstream_egress` unless we decide to formalise a dedicated
+   `model` role later (schema allows arbitrary strings).
+
+Stepwise implementation plan:
+1) **Update S0 sealing list**:
+   - Add S1/S2/S3 outputs to `required_ids` / `optional_ids` as listed above.
+   - Ensure `scenario_horizon_config_5A` is processed before scenario-scoped outputs so
+     `scenario_ids` are known for hashing.
+2) **Scenario-scoped digest handling**:
+   - Implement a helper to hash all `{scenario_id}` partitions for a dataset ID:
+     resolve each scenario path with `tokens + scenario_id`, collect file bytes
+     deterministically, and hash them into a single digest.
+   - Use this helper for `scenario_calendar_5A`, `shape_grid_definition_5A`,
+     `class_zone_shape_5A`, `class_shape_catalogue_5A`, `merchant_zone_baseline_local_5A`,
+     `class_zone_baseline_local_5A`, `merchant_zone_baseline_utc_5A` (where present).
+3) **Reintroduce sealed-input gating in S2**:
+   - Require `merchant_zone_profile_5A` in `sealed_inputs_5A` with `status=REQUIRED` and
+     `read_scope=ROW_LEVEL` before reading the parquet.
+4) **Reintroduce sealed-input gating in S3**:
+   - Require `merchant_zone_profile_5A`, `shape_grid_definition_5A`,
+     `class_zone_shape_5A` in `sealed_inputs_5A` with `status=REQUIRED`.
+5) **S4 plan alignment**:
+   - S4 will require sealed rows for `merchant_zone_baseline_local_5A`,
+     `shape_grid_definition_5A`, and `merchant_zone_profile_5A` (plus policies/calendar).
+6) **Reseal + re-run sequence (current run)**:
+   - Remove existing 5A S0 outputs for the manifest.
+   - Run `make segment5a-s0` to reseal with S1/S2/S3 outputs.
+   - Re-run `make segment5a-s2` and `make segment5a-s3` to ensure they accept the
+     updated sealed_inputs.
+   - Implement S4, then run `make segment5a-s4` to confirm a clean PASS.
+
+Logging and documentation:
+- Log every change and reseal action in the logbook with timestamps.
+- Append implementation-map entries for each fix and any deviations discovered.
+
+---
+
+### Entry: 2026-01-19 20:00
+
+Applied the S0 sealing correction + sealed-input gating updates.
+
+Changes implemented:
+1) **S0 sealing list expanded** to include internal 5A outputs:
+   - Required: `merchant_zone_profile_5A`, `shape_grid_definition_5A`,
+     `class_zone_shape_5A`, `merchant_zone_baseline_local_5A`.
+   - Optional: `merchant_class_profile_5A`, `class_shape_catalogue_5A`,
+     `class_zone_baseline_local_5A`, `merchant_zone_baseline_utc_5A`.
+2) **Scenario-partition hashing helper** `_hash_scenario_partitions` added to hash all
+   `{scenario_id}` partitions for scenario-scoped datasets (including scenario calendar
+   and S2/S3 outputs). Uses deterministic file ordering with progress logs.
+3) **Missing-input classification**: introduced `S0_REQUIRED_INPUT_MISSING` for missing
+   S1/S2/S3 outputs when sealing.
+4) **S2 sealed-input gating restored**: `merchant_zone_profile_5A` now required in
+   `sealed_inputs_5A` with `read_scope=ROW_LEVEL`.
+5) **S3 sealed-input gating restored**: `merchant_zone_profile_5A`,
+   `shape_grid_definition_5A`, and `class_zone_shape_5A` now required in
+   `sealed_inputs_5A` with `read_scope=ROW_LEVEL`.
+
+Files touched:
+- `packages/engine/src/engine/layers/l2/seg_5A/s0_gate/runner.py`
+- `packages/engine/src/engine/layers/l2/seg_5A/s2_weekly_shape_library/runner.py`
+- `packages/engine/src/engine/layers/l2/seg_5A/s3_baseline_intensity/runner.py`
+
+Next steps (execution order for current run):
+1) Delete prior 5A S0 outputs for the manifest.
+2) Re-run `make segment5a-s0` to seal S1/S2/S3 outputs.
+3) Re-run `make segment5a-s2` and `make segment5a-s3` (idempotent publish expected).
+4) Implement S4 and run `make segment5a-s4` to confirm green.
+
+Known follow-up:
+- With S0 now requiring S1/S2/S3 outputs, a fresh run cannot bootstrap from S0 before
+  S1. For production orchestration we may need a staged sealing mode (bootstrap → full)
+  or a dedicated reseal step; document once we define the final pipeline.
+
+### Entry: 2026-01-19 20:13
+
+5A.S4 implementation decisions before coding (overlay mechanics, horizon mapping, output policy).
+
+Design problem summary:
+- Need a concrete, efficient S4 overlay implementation that respects the overlay policies and scenario calendar without exploding memory (domain x horizon) or drifting from S4 spec semantics.
+
+Decisions and reasoning (detailed):
+1) Horizon grid + weekly mapping:
+   - Use `scenario_horizon_config_5A` as the authority for UTC horizon start/end and bucket size.
+   - Enforce `(horizon_end - horizon_start)` divisible by `bucket_duration_minutes`; abort `S4_HORIZON_GRID_INVALID` otherwise.
+   - Map each `(tzid, local_horizon_bucket_index)` to S2 weekly bucket `k` by converting the UTC bucket start to local time via Python `zoneinfo` and then looking up `(local_day_of_week, local_minutes_since_midnight)` in `shape_grid_definition_5A`.
+   - Validate grid uniqueness: each `(day, minute)` maps to a single `bucket_index`; ensure grid bucket duration matches horizon bucket duration.
+   - Note: this uses `zoneinfo` instead of 2A `tz_timetable_cache`. It is deterministic and DST-aware, but it does not consume the 2A cache; document as a dev-mode deviation for now.
+
+2) Event expansion + scope matching:
+   - Expand `scenario_calendar_5A` events into per-bucket factors using UTC bucket indices derived from event `start_utc`/`end_utc`.
+   - Validate calendar rows against overlay policy: event type vocabulary, scope rules (`global_cannot_combine`, `merchant_scope_is_exclusive`, `require_at_least_one_predicate`), and amplitude/ramp bounds.
+   - For ramp events, compute per-bucket factors with a linear ramp to `amplitude_peak` across `ramp_in_buckets`, plateau, then linear ramp down across `ramp_out_buckets` (reaching 1.0 at the end bucket). For constant events, use `amplitude`. Default to event-type `default_amplitude`/`default_shape_kind` when fields are null.
+
+3) Overlay aggregation strategy (performance + correctness):
+   - Build a `scope_key` for each event based on the exact predicate set (global/country/tzid/demand_class/merchant) and expand events to `(scope_key, local_horizon_bucket_index, event_type, factor, specificity_rank)` rows.
+   - For domain rows, generate only the `scope_key` combinations that appear in the calendar (plus `global`), avoiding a full predicate cross-product.
+   - Join events to domain via `scope_key`, then per `event_type`:
+     - aggregate overlapping events at the same specificity using the policy’s `within_type_aggregation` mode (MIN or MAX),
+     - select only the highest-specificity group when `selection=MOST_SPECIFIC_ONLY`.
+   - Apply `overlay_ordering_policy_5A` masking rules (NEUTRALIZE / CAP_AT_ONE / FLOOR_AT_ONE) based on active event types.
+   - Multiply per-type factors to get `overlay_factor_total`, then clamp to `scenario_overlay_policy_5A.combination` min/max.
+
+4) Scenario intensity outputs:
+   - Join `merchant_zone_baseline_local_5A` to horizon mapping via `(tzid, bucket_index)` to produce one row per `(m,z,h)`.
+   - Apply `lambda_local_scenario = lambda_local_base * overlay_factor_total`; enforce finite and nonnegative.
+   - Emit `merchant_zone_overlay_factors_5A` as diagnostics (optional contract allows it; useful for S5 validation).
+   - If `emit_utc_intensities=true`, emit `merchant_zone_scenario_utc_5A` by reusing the same UTC bucket indices (identity mapping to local_horizon_bucket_index). This reflects the UTC-aligned horizon grid but should be flagged as a simple projection until 2A-cache-based projection is wired.
+
+5) Validation + warnings:
+   - Use `scenario_overlay_validation_policy_5A` if present to compute warn bounds on `overlay_factor_total` and enforce warn fraction thresholds (warn vs fail).
+   - Record warning counts and factor statistics (min/median/p95/max) in the run report.
+
+Planned steps (exact):
+1) Create new module `packages/engine/src/engine/layers/l2/seg_5A/s4_calendar_overlays/runner.py` with S4 pipeline (gate, horizon map, event expansion, overlay aggregation, output publish, run report).
+2) Add CLI entrypoint `packages/engine/src/engine/cli/s4_calendar_overlays_5a.py` mirroring S1-S3 CLI patterns.
+3) Update `makefile` with `SEG5A_S4_CMD`, `segment5a-s4` target, and include S4 in the `segment5a` aggregate.
+4) Reseal S0 (delete old S0 outputs), re-run `segment5a-s0`, then `segment5a-s2`, `segment5a-s3`, and finally `segment5a-s4` until green.
+5) Log decisions and any deviations in the logbook and implementation map as we go.
+
+### Entry: 2026-01-19 20:36
+
+5A.S4 implementation - runner, CLI, and Makefile wiring.
+
+What I implemented (stepwise, as executed):
+1) **S4 runner** (`packages/engine/src/engine/layers/l2/seg_5A/s4_calendar_overlays/runner.py`):
+   - Gate checks: validate `s0_gate_receipt_5A` + `sealed_inputs_5A`, enforce parameter/hash identity, sealed digest, and upstream PASS.
+   - Sealed input enforcement: require `merchant_zone_profile_5A`, `shape_grid_definition_5A`, `class_zone_shape_5A`, `merchant_zone_baseline_local_5A`, `scenario_calendar_5A`, `scenario_horizon_config_5A`, `scenario_overlay_policy_5A`; optional ordering + validation policy + scenario_metadata.
+   - Horizon mapping: build `WEEK_MAP` via `zoneinfo` conversion of UTC buckets to local `(day_of_week, minutes)` and lookup against `shape_grid_definition_5A` (reject mismatches).
+   - Event expansion: convert each calendar event into per-bucket factors (constant or ramp), validate scope rules + amplitude bounds, and aggregate overlaps with `overlay_ordering_policy_5A` (`MOST_SPECIFIC_ONLY` + min/max).
+   - Masking rules + combination clamp from overlay policies; compute `overlay_factor_total` and apply validation-policy warnings/gates.
+   - Compose scenario intensities: `lambda_local_scenario = lambda_local_base * overlay_factor_total` with finite/nonnegative checks.
+   - Outputs: emit `merchant_zone_scenario_local_5A` and `merchant_zone_overlay_factors_5A`; optionally emit `merchant_zone_scenario_utc_5A` when `emit_utc_intensities=true` (identity mapping to UTC bucket index).
+   - Run-report with counts, factor stats, warning counts, and failure context.
+
+2) **CLI entrypoint** (`packages/engine/src/engine/cli/s4_calendar_overlays_5a.py`):
+   - Added standard args for contracts layout/root, runs root, external roots, and run-id; calls `run_s4`.
+
+3) **Makefile wiring**:
+   - Added `SEG5A_S4_CMD` and `segment5a-s4` target; updated `segment5a` aggregate and `.PHONY` to include S4.
+
+Implementation notes / deviations to track:
+- **Time-zone mapping** uses Python `zoneinfo` instead of 2A `tz_timetable_cache` (deterministic, DST-aware; flagged as dev-mode substitution).
+- **UTC scenario output** uses identity mapping (`utc_horizon_bucket_index == local_horizon_bucket_index`) when enabled; still produces UTC-aligned buckets but does not redistribute via 2A surfaces.
+
+Next run actions (pending):
+- Reseal S0 (delete prior S0 outputs), then re-run `segment5a-s0`, `segment5a-s2`, `segment5a-s3`, and `segment5a-s4` to validate end-to-end.
+
+### Entry: 2026-01-19 20:37
+
+Reseal prep: removed existing 5A S0 outputs for the active manifest.
+
+Action taken:
+- Deleted prior 5A S0 outputs under `runs/local_full_run-5/d61f08e2e45ef1bc28884034de4c1b68/data/layer2/5A/` for
+  `manifest_fingerprint=1cb60481d69b836ee24505ec9a6ec231c8f18523ee9b7dabbd38c0a33bf15765`:
+  - `s0_gate_receipt/.../s0_gate_receipt_5A.json`
+  - `sealed_inputs/.../sealed_inputs_5A.json`
+  - `scenario_manifest/.../scenario_manifest_5A.parquet`
+
+Rationale:
+- S0 now seals S1/S2/S3 outputs, so resealing is required. Deleting the existing outputs avoids S0 idempotency conflict and allows the updated sealed_inputs digest to be written.
+
+### Entry: 2026-01-19 20:38
+
+5A.S0 reseal run executed after deleting prior outputs.
+
+Outcome:
+- `make segment5a-s0` completed PASS for run_id `d61f08e2e45ef1bc28884034de4c1b68`.
+- New `sealed_inputs_digest` recorded; sealed_inputs_count_total=51.
+- Optional input still missing (not sealed): `merchant_zone_baseline_utc_5A`.
+
+### Entry: 2026-01-19 20:55
+
+5A.S4 horizon grid fix after failure on non-hour tz offsets.
+
+Trigger / observed failure:
+- Running `make segment5a-s4` produced `S4_HORIZON_GRID_INVALID` with context
+  `{tzid: "Pacific/Chatham", local_day_of_week: 4, local_minutes: 825}`.
+- The horizon grid uses 60-minute buckets, but `Pacific/Chatham` offsets are +12:45,
+  so UTC bucket anchors map to local minutes (e.g., 13:45) that do not exist in the
+  S2 grid (which only has multiples of 60). The mapping lookup failed accordingly.
+
+Spec confirmation (authoring guide):
+- `scenario_horizon_config_5A_authoring-guide.md` requires:
+  `local_minutes_since_midnight = floor_to_grid(anchor_local_minutes, bucket_duration_minutes)`
+  before mapping to S2. I had used raw local minutes, so I was violating the pinned
+  mapping law.
+
+Decision + rationale:
+- Apply the required `floor_to_grid` rule during horizon mapping so that non-hour
+  offsets map deterministically to the nearest lower bucket boundary, matching the
+  S2 grid semantics and the authoring guide.
+- Keep the dev-mode `zoneinfo` mapping for now (still a logged deviation from 2A
+  `tz_timetable_cache`), but ensure the mapping law is correct and deterministic.
+
+Implementation steps:
+1) In S4 horizon mapping, compute `local_minutes = (local_minutes // bucket_minutes) * bucket_minutes`
+   before building the `(local_day_of_week, local_minutes)` lookup key.
+2) Re-run `make segment5a-s4` and confirm run report shows PASS.
+3) If any further mismatches occur, log them with the failing `(tzid, local_day, local_minutes)`.
+
+Files touched:
+- `packages/engine/src/engine/layers/l2/seg_5A/s4_calendar_overlays/runner.py`

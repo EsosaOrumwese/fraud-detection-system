@@ -154,6 +154,44 @@ def _abort(code: str, validator_id: str, message: str, context: dict, manifest_f
     raise EngineFailure("F4", code, STATE, MODULE_NAME, context)
 
 
+def _resolve_sealed_row(
+    sealed_by_id: dict[str, dict],
+    artifact_id: str,
+    manifest_fingerprint: str,
+    read_scopes: set[str],
+    required: bool,
+    error_code: str,
+) -> Optional[dict]:
+    row = sealed_by_id.get(artifact_id)
+    if not row or row.get("status") == "IGNORED":
+        if required:
+            _abort(
+                error_code,
+                "V-04",
+                "required_input_missing",
+                {"artifact_id": artifact_id},
+                manifest_fingerprint,
+            )
+        return None
+    if required and row.get("status") != "REQUIRED":
+        _abort(
+            error_code,
+            "V-04",
+            "required_input_unusable",
+            {"artifact_id": artifact_id, "status": row.get("status")},
+            manifest_fingerprint,
+        )
+    if row.get("read_scope") not in read_scopes:
+        _abort(
+            error_code,
+            "V-04",
+            "read_scope_invalid",
+            {"artifact_id": artifact_id, "read_scope": row.get("read_scope")},
+            manifest_fingerprint,
+        )
+    return row
+
+
 def _schema_for_payload(schema_pack: dict, schema_layer1: dict, schema_layer2: dict, anchor: str) -> dict:
     schema = _schema_from_pack(schema_pack, anchor)
     _inline_external_refs(schema, schema_layer1, "schemas.layer1.yaml#")
@@ -493,6 +531,30 @@ def run_s3(config: EngineConfig, run_id: Optional[str] = None) -> S3Result:
         sealed_by_id = {row.get("artifact_id"): row for row in sealed_sorted if isinstance(row, dict)}
 
         current_phase = "policy_load"
+        _resolve_sealed_row(
+            sealed_by_id,
+            "merchant_zone_profile_5A",
+            manifest_fingerprint,
+            {"ROW_LEVEL"},
+            True,
+            "S3_REQUIRED_INPUT_MISSING",
+        )
+        _resolve_sealed_row(
+            sealed_by_id,
+            "shape_grid_definition_5A",
+            manifest_fingerprint,
+            {"ROW_LEVEL"},
+            True,
+            "S3_REQUIRED_INPUT_MISSING",
+        )
+        _resolve_sealed_row(
+            sealed_by_id,
+            "class_zone_shape_5A",
+            manifest_fingerprint,
+            {"ROW_LEVEL"},
+            True,
+            "S3_REQUIRED_INPUT_MISSING",
+        )
         baseline_policy_row = sealed_by_id.get("baseline_intensity_policy_5A")
         demand_scale_row = sealed_by_id.get("demand_scale_policy_5A")
         if not baseline_policy_row:

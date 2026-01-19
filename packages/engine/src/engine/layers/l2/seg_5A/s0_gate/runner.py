@@ -941,6 +941,67 @@ def _hash_scenario_calendars(
     return hasher.hexdigest(), processed
 
 
+def _hash_scenario_partitions(
+    entry: dict,
+    scenario_ids: list[str],
+    run_paths: RunPaths,
+    external_roots: Iterable[Path],
+    tokens: dict[str, str],
+    logger,
+    label: str,
+    required: bool,
+    missing_code: str,
+) -> Optional[tuple[str, int]]:
+    if not scenario_ids:
+        raise EngineFailure(
+            "F4",
+            "S0_INTERNAL_INVARIANT_VIOLATION",
+            STATE,
+            MODULE_NAME,
+            {"detail": "scenario_ids missing while hashing scenario-scoped dataset"},
+        )
+    file_entries: list[tuple[str, str, Path]] = []
+    for scenario_id in sorted(set(scenario_ids)):
+        tokens_with_scenario = dict(tokens)
+        tokens_with_scenario["scenario_id"] = scenario_id
+        resolved = _resolve_dataset_path(entry, run_paths, external_roots, tokens_with_scenario)
+        if not resolved.exists():
+            if required:
+                raise EngineFailure(
+                    "F4",
+                    missing_code,
+                    STATE,
+                    MODULE_NAME,
+                    {"detail": "scenario partition missing", "path": str(resolved), "scenario_id": scenario_id},
+                )
+            return None
+        if resolved.is_dir():
+            files = sorted(
+                [path for path in resolved.rglob("*") if path.is_file()],
+                key=lambda path: path.relative_to(resolved).as_posix(),
+            )
+            if not files:
+                raise HashingError(f"No files found under dataset path: {resolved}")
+            for path in files:
+                file_entries.append((scenario_id, path.relative_to(resolved).as_posix(), path))
+        else:
+            file_entries.append((scenario_id, resolved.name, resolved))
+    total_bytes = sum(path.stat().st_size for _, _, path in file_entries)
+    tracker = _ProgressTracker(total_bytes, logger, label)
+    hasher = hashlib.sha256()
+    processed = 0
+    for _, _, path in sorted(file_entries):
+        with path.open("rb") as handle:
+            while True:
+                chunk = handle.read(1024 * 1024)
+                if not chunk:
+                    break
+                processed += len(chunk)
+                hasher.update(chunk)
+                tracker.update(len(chunk))
+    return hasher.hexdigest(), processed
+
+
 def _sealed_inputs_digest(rows: list[dict]) -> str:
     ordered_fields = (
         "manifest_fingerprint",
@@ -1349,25 +1410,48 @@ def run_s0(config: EngineConfig, run_id: Optional[str] = None) -> S0GateResult:
         "edge_alias_index_3B",
         "edge_alias_blob_3B",
         "edge_universe_hash_3B",
+        "scenario_horizon_config_5A",
+        "scenario_metadata",
+        "scenario_calendar_5A",
         "merchant_class_policy_5A",
         "demand_scale_policy_5A",
         "baseline_intensity_policy_5A",
         "shape_library_5A",
         "shape_time_grid_policy_5A",
-        "scenario_horizon_config_5A",
-        "scenario_metadata",
-        "scenario_calendar_5A",
         "scenario_overlay_policy_5A",
+        "merchant_zone_profile_5A",
+        "shape_grid_definition_5A",
+        "class_zone_shape_5A",
+        "merchant_zone_baseline_local_5A",
     ]
     optional_ids = [
         "tz_timetable_cache",
         "virtual_settlement_3B",
         "zone_shape_modifiers_5A",
+        "merchant_class_profile_5A",
+        "class_shape_catalogue_5A",
+        "class_zone_baseline_local_5A",
+        "merchant_zone_baseline_utc_5A",
         "overlay_ordering_policy_5A",
         "scenario_overlay_validation_policy_5A",
         "validation_policy_5A",
         "spec_compatibility_config_5A",
     ]
+    scenario_partitioned_ids = {
+        "scenario_calendar_5A",
+        "shape_grid_definition_5A",
+        "class_zone_shape_5A",
+        "class_shape_catalogue_5A",
+        "merchant_zone_baseline_local_5A",
+        "class_zone_baseline_local_5A",
+        "merchant_zone_baseline_utc_5A",
+    }
+    required_input_ids = {
+        "merchant_zone_profile_5A",
+        "shape_grid_definition_5A",
+        "class_zone_shape_5A",
+        "merchant_zone_baseline_local_5A",
+    }
 
     sealed_rows: list[dict] = []
     digest_map: dict[str, str] = {}
@@ -1403,23 +1487,25 @@ def run_s0(config: EngineConfig, run_id: Optional[str] = None) -> S0GateResult:
                 manifest_fingerprint,
             )
 
-        if dataset_id == "scenario_calendar_5A":
-            if not scenario_ids:
-                _abort(
-                    "S0_REQUIRED_SCENARIO_MISSING",
-                    "V-05",
-                    "scenario_ids_missing",
-                    {"dataset_id": dataset_id},
-                    manifest_fingerprint,
-                )
-            digest_hex, _ = _hash_scenario_calendars(
+        if dataset_id in scenario_partitioned_ids:
+            missing_code = "S0_REQUIRED_INPUT_MISSING"
+            if dataset_id == "scenario_calendar_5A":
+                missing_code = "S0_REQUIRED_SCENARIO_MISSING"
+            digest_result = _hash_scenario_partitions(
                 entry,
                 scenario_ids,
                 run_paths,
                 config.external_roots,
                 tokens,
                 logger,
+                f"S0: hash {dataset_id} bytes",
+                dataset_id in required_ids,
+                missing_code,
             )
+            if digest_result is None:
+                sealed_optional_missing.append(dataset_id)
+                continue
+            digest_hex, _ = digest_result
         else:
             try:
                 resolved_path = _resolve_dataset_path(entry, run_paths, config.external_roots, tokens)
@@ -1434,6 +1520,8 @@ def run_s0(config: EngineConfig, run_id: Optional[str] = None) -> S0GateResult:
                     "scenario_calendar_5A",
                 }:
                     error_code = "S0_REQUIRED_SCENARIO_MISSING"
+                if dataset_id in required_input_ids:
+                    error_code = "S0_REQUIRED_INPUT_MISSING"
                 _abort(
                     error_code,
                     "V-05",
@@ -1452,6 +1540,8 @@ def run_s0(config: EngineConfig, run_id: Optional[str] = None) -> S0GateResult:
                     "scenario_calendar_5A",
                 }:
                     error_code = "S0_REQUIRED_SCENARIO_MISSING"
+                if dataset_id in required_input_ids:
+                    error_code = "S0_REQUIRED_INPUT_MISSING"
                 _abort(
                     error_code,
                     "V-05",
