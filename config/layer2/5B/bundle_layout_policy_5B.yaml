@@ -1,0 +1,3 @@
+policy_id: bundle_layout_policy_5B
+version: v1.0.0
+notes: "Optional policy shell for 5B.S5 bundle assembly; default layout applies unless overridden."

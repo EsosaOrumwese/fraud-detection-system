@@ -401,3 +401,82 @@ Outcome:
   scenario partition) and `bundle_layout_policy_5B` (no config file).
 - `sealed_inputs_5B` and `s0_gate_receipt_5B` were published, with
   `sealed_inputs_digest=776e55da6292490b60ce6525780bdff99e0be9a84c902d0f89f75eca1d92fd1f`.
+
+### Entry: 2026-01-20 05:36
+
+5B.S0 optional config alignment (bundle_layout_policy_5B).
+
+Design problem summary:
+- `bundle_layout_policy_5B` is optional per the dataset dictionary but missing
+  on disk, so S0 logs it as an optional-missing input. The operator wants a
+  clean, fully sealed policy set without optional-missing warnings.
+
+Options considered:
+1. Leave the config missing and accept the warning (least effort, but noisy).
+2. Write an empty YAML object `{}` (valid but inconsistent with other 5B
+   policy files).
+3. Add a minimal policy file with metadata fields (`policy_id`, `version`,
+   `notes`) that matches existing 5B config style and keeps schema flexibility.
+
+Decision:
+- Proceed with option 3: create a minimal policy file at
+  `config/layer2/5B/bundle_layout_policy_5B.yaml` with metadata-only content.
+  The schema allows arbitrary properties, so this keeps future layout fields
+  extensible without overcommitting to a spec we have not yet implemented in
+  S5.
+- Do not attempt to populate `merchant_zone_scenario_utc_5A` here; that is an
+  upstream 5A data artefact and should remain optional/missing unless explicitly
+  requested for a full-data run.
+
+Plan:
+- Author `config/layer2/5B/bundle_layout_policy_5B.yaml` (policy_id, version,
+  notes).
+- Re-run `make segment5b-s0` to confirm the optional-missing warning for
+  `bundle_layout_policy_5B` is cleared (any remaining warning should only be
+  for `merchant_zone_scenario_utc_5A`).
+
+### Entry: 2026-01-20 05:37
+
+5B.S0 bundle_layout_policy_5B config authored.
+
+Action taken:
+- Added `config/layer2/5B/bundle_layout_policy_5B.yaml` with minimal metadata
+  fields (`policy_id`, `version`, `notes`) to remove the optional-missing
+  warning while leaving layout semantics to S5 defaults.
+
+Next validation:
+- Re-run `make segment5b-s0` to confirm the optional-missing warning for
+  `bundle_layout_policy_5B` is cleared.
+
+### Entry: 2026-01-20 05:38
+
+5B.S0 reseal required after adding bundle_layout_policy_5B.
+
+Observation:
+- Re-running `make segment5b-s0` now computes a different
+  `sealed_inputs_digest` because the new `bundle_layout_policy_5B` config is
+  included, but the previous `sealed_inputs_5B.json` exists on disk for the
+  same `manifest_fingerprint`.
+- The run fails with `F4:5B.S0.IO_WRITE_CONFLICT`, reporting expected digest
+  `41b13b85...` vs existing `776e55da...`.
+
+Decision:
+- Remove the prior S0 outputs for this fingerprint so the run can reseal with
+  the updated inputs:
+  - `runs/local_full_run-5/d61f08e2e45ef1bc28884034de4c1b68/data/layer2/5B/sealed_inputs/manifest_fingerprint=1cb60481d69b836ee24505ec9a6ec231c8f18523ee9b7dabbd38c0a33bf15765/sealed_inputs_5B.json`
+  - `runs/local_full_run-5/d61f08e2e45ef1bc28884034de4c1b68/data/layer2/5B/s0_gate_receipt/manifest_fingerprint=1cb60481d69b836ee24505ec9a6ec231c8f18523ee9b7dabbd38c0a33bf15765/s0_gate_receipt_5B.json`
+- Re-run `make segment5b-s0` after deletion to reseal.
+
+### Entry: 2026-01-20 05:39
+
+5B.S0 reseal completed after bundle_layout_policy_5B addition.
+
+Action taken:
+- Deleted the prior S0 outputs for the fingerprint (sealed inputs + gate receipt)
+  and re-ran `make segment5b-s0`.
+
+Outcome:
+- S0 completed successfully with `sealed_inputs_digest=41b13b85fa4cd78d44635c07f29e2849256f08a3927bda098643d57d8e114bf7`.
+- The optional-missing warning for `bundle_layout_policy_5B` is gone.
+- Only remaining optional-missing input is `merchant_zone_scenario_utc_5A`
+  (missing partition `baseline_v1`), which remains intentionally optional.
