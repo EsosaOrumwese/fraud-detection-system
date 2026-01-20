@@ -199,6 +199,177 @@ Decision updates:
    - Still perform existence checks (path exists for the current run/seed and
      scenario_set) so missing outputs fail fast without reading row-level data.
 
+### Entry: 2026-01-20 10:00
+
+5B.S2 latent intensity fields (implementation plan before coding).
+
+Design problem summary:
+- Implement 5B.S2 as the latent LGCP layer that joins S1 grid + grouping with
+  5A scenario intensities, samples per-group latent Gaussian vectors using the
+  sealed arrival RNG policy, and outputs `s2_realised_intensity_5B` (plus
+  optional `s2_latent_field_5B`) with deterministic outputs under `(ph,mf,seed)`.
+- Must obey the 5B RNG policy (Philox2x64-10, open-interval uniforms) and emit
+  `rng_event_arrival_lgcp_gaussian`, `rng_trace_log`, and `rng_audit_log` with
+  correct counters, draws, and blocks.
+
+Inputs/authorities (exact files/IDs to resolve):
+- 5B S0: `s0_gate_receipt_5B` + `sealed_inputs_5B` (dataset dictionary 5B).
+- 5B S1 outputs: `s1_time_grid_5B` + `s1_grouping_5B` per scenario.
+- 5A S4 outputs: `merchant_zone_scenario_local_5A` (authoritative lambda target).
+- Sealed configs: `arrival_lgcp_config_5B` + `arrival_rng_policy_5B` from
+  `config/layer2/5B/` (sealed_inputs required).
+- Optional 5A inputs (if present): `merchant_zone_overlay_factors_5A` is read
+  only for schema validation; lambda target remains the scenario local surface.
+
+Key decisions and rationale:
+1) **Lambda target source**
+   - Use `merchant_zone_scenario_local_5A.lambda_local_scenario` as the sole
+     λ_target authority (per contract card), not `merchant_zone_scenario_utc_5A`.
+   - Map `local_horizon_bucket_index -> bucket_index` directly (1:1), since S1
+     time grid uses the same bucket index ordering (no remapping in S2).
+
+2) **RNG derivation law (policy-aligned)**
+   - Implement policy v1 exactly: `msg = UER(domain_sep) || UER(family_id) ||
+     UER(manifest_fingerprint) || UER(parameter_hash) || LE64(seed) ||
+     UER(scenario_id) || UER(domain_key)`, with UER = u32be length prefix.
+   - Derive key/counters from SHA256 bytes [0:8], [8:16], [16:24], BE64.
+   - Use open-interval mapping `u = (x + 0.5) / 2^64`, Box-Muller using 2
+     uniforms per standard normal, discarding the second normal (draws = 2*H).
+   - One RNG event per `(scenario_id, group_id)` with
+     `family_id=S2.latent_vector.v1`, `domain_key=group_id=<group_id>`.
+
+3) **Latent model implementation**
+   - `latent_model_id=none`: emit no RNG, `lambda_realised=lambda_target`
+     (plus optional `lambda_max` clipping).
+   - `log_gaussian_ou_v1`: OU/AR(1) over buckets with
+     `phi=exp(-1/L)`, `Z0~N(0,sigma^2)`, `Zt=phi*Zt-1+eps` where
+     `eps~N(0,sigma^2*(1-phi^2))`.
+   - `log_gaussian_iid_v1`: `Zt~N(0,sigma^2)` independent.
+   - Transform: `factor=exp(Z - 0.5*sigma^2)` with clipping
+     `[min_factor,max_factor]` and optional `lambda_max` cap.
+
+4) **Group hyper-parameter derivation**
+   - Extract group features from `s1_grouping_5B` (scenario_band, demand_class,
+     channel_group, virtual_band, zone_group_id).
+   - Compute sigma and length-scale per group using config multipliers with
+     clamping; abort if required multipliers are missing.
+   - Enforce realism floors from config (distinct sigma count, stress fraction
+     >= 0.35 threshold, baseline median L bounds, transform kind, clip range).
+
+5) **Join strategy & performance**
+   - Compute per-group latent vectors once per `(scenario_id, group_id)` and
+     store as list columns; join to row-level surface and use list.get with
+     `bucket_index` to map factors without constructing a group×bucket table.
+   - Use batch/parquet scans for large inputs; avoid loading entire surfaces
+     into RAM. Validate joins by comparing row counts and checking for null
+     `group_id` or factor values.
+
+Planned implementation steps (stepwise):
+1) Add `packages/engine/src/engine/layers/l2/seg_5B/s2_latent_intensity/runner.py`
+   and `__init__.py`; pattern after 5B.S1 and 3B.S2 for logging + RNG helpers.
+2) Add CLI entrypoint `packages/engine/src/engine/cli/s2_latent_intensity_5b.py`
+   and Makefile target `segment5b-s2` with args/vars mirroring S1.
+3) In runner:
+   - Resolve run receipt, load dictionaries + schema packs (5B, 5A, layer2,
+     layer1); log story header (objective, gated inputs, outputs).
+   - Validate S0 receipt + sealed_inputs, enforce upstream PASS and required
+     sealed configs (arrival_lgcp_config_5B, arrival_rng_policy_5B).
+   - Load S1 time grid + grouping for each scenario; validate bucket_index set,
+     group uniqueness, and scenario_band alignment.
+   - Compute group hyperparams and latent vectors; emit RNG events + trace +
+     audit (idempotent when log already exists).
+   - Join 5A scenario local surface to grouping + latent factors; compute
+     lambda_realised; validate schema (fast sampled by default).
+   - Publish `s2_realised_intensity_5B` and optional `s2_latent_field_5B`
+     using idempotent parquet publish with hash checks.
+4) Emit run-report record with counts (groups, buckets, latent values, RNG
+   draws/blocks, min/max λ) and first failure phase.
+
+Logging/observability plan:
+- Story header log with objective, gated inputs (S0 receipt + S1 + 5A surface +
+  configs), and outputs (`s2_realised_intensity_5B`, optional latent field, RNG logs).
+- Progress logs for per-scenario loops and per-group latent sampling:
+  include elapsed, processed/total, rate, ETA.
+- Log hyperparam summaries (sigma range, median L) per scenario band and clipping
+  counts; log RNG event totals and draws/blocks totals.
+
+Validation/testing steps:
+- Run `make segment5b-s2` and fix any schema or IO failures.
+- Confirm outputs are deterministic across reruns for same `(ph,mf,seed)`.
+- Verify RNG logs exist and trace entries reconcile with event counts.
+
+### Entry: 2026-01-20 10:33
+
+5B.S2 implementation decisions during coding (runtime mechanics + logging).
+
+Design problem summary:
+- Implement the S2 runner with deterministic Philox usage, per-group latent
+  vectors, and streaming-friendly output writes while preserving narrative
+  logging requirements and RNG log idempotence.
+
+Decision path and adjustments captured during coding:
+1) **Chunked processing for lambda_target**
+   - Option A: build a single giant LazyFrame join and `collect` to write
+     `s2_realised_intensity_5B` (simpler, but no progress logs).
+   - Option B: chunk the scenario-local parquet files (row groups) so we can
+     emit progress logs with elapsed/rate/ETA and avoid RAM blowups.
+   - Decision: implement chunked processing using pyarrow row groups when
+     available, with a polars fallback; each chunk joins grouping + latent
+     factors and writes to a ParquetWriter incrementally.
+
+2) **RNG derivation encoding**
+   - Option A: reuse `uer_string` from 1A RNG helpers (little-endian length).
+   - Option B: implement a new UER with u32 big-endian length prefix per
+     `arrival_rng_policy_5B.yaml` (u32be_len_prefix).
+   - Decision: implement a 5B-local UER (`>I`) to match the policy and avoid
+     cross-segment drift in key/counter derivation.
+
+3) **RNG log idempotence**
+   - Option A: always emit new RNG event/trace logs, overwriting existing ones.
+   - Option B: detect existing event/trace logs and either skip or append trace
+     entries from existing events (like 3B.S2).
+   - Decision: mirror 3B.S2 behavior. If events already exist, skip emitting new
+     events and (if needed) append trace rows from existing events; if trace
+     exists without events, abort with RNG accounting mismatch.
+
+4) **Latent diagnostics**
+   - Option A: always emit `s2_latent_field_5B`.
+   - Option B: emit only when `diagnostics.emit_latent_field_diagnostic=true`.
+   - Decision: respect the diagnostics flag; otherwise skip the latent field
+     output and only publish `s2_realised_intensity_5B`.
+
+5) **Output idempotence**
+   - Option A: write directly to final output paths.
+   - Option B: write to temp files, hash-compare if final exists, then
+     atomically move.
+   - Decision: adopt Option B with `sha256` hash comparison to enforce
+     immutability and surface `IO_WRITE_CONFLICT` on mismatch.
+
+Implementation notes (where + why):
+- `packages/engine/src/engine/layers/l2/seg_5B/s2_latent_intensity/runner.py`:
+  * Added Philox open-interval u01 mapping `(x+0.5)/2^64` and Box-Muller
+    normal draws; OU and IID latent laws per config.
+  * Per-scenario chunk processing for `merchant_zone_scenario_local_5A`,
+    using progress trackers to keep the run log narrative alive.
+  * RNG event logging uses `rng_event_arrival_lgcp_gaussian` + trace/audit
+    schemas from layer1 and idempotent log behavior.
+  * Run-report includes per-scenario row counts, latent totals, RNG totals,
+    and clipping metrics.
+- `packages/engine/src/engine/cli/s2_latent_intensity_5b.py`:
+  * Added CLI entrypoint mirroring S1 contract/root/external/run-id args.
+- `makefile`:
+  * Added SEG5B_S2 args/cmd variables and `segment5b-s2` target.
+
+Logging/observability updates:
+- Story header logs the objective and gated inputs.
+- Per-scenario progress logs include elapsed, rate, and ETA for both group
+  hyperparam derivation and scenario-local row processing.
+
+Validation/testing steps (next):
+- Run `make segment5b-s2` and fix any schema/IO/RNG accounting failures.
+- Validate RNG logs (`rng_event_arrival_lgcp_gaussian`, `rng_trace_log`,
+  `rng_audit_log`) are consistent with draw/block counts.
+
 ### Entry: 2026-01-20 03:58
 
 5B.S0 implementation alignment updates (pre-code clarifications).
@@ -1178,4 +1349,82 @@ Testing plan:
 - Run `make segment5b-s2` on `run_id=d61f08e2e45ef1bc28884034de4c1b68`.
 - If intensity-source choice changes read_scope (UTC), update S0 read_scope,
   reseal S0, and rerun S1+S2 as required.
+
+
+### Entry: 2026-01-20 09:42
+
+5B.S2 implementation kickoff with confirmed intensity source + bucket mapping.
+
+Confirmed decisions:
+- Use `merchant_zone_scenario_local_5A` as the lambda_target source for S2.
+- Map `local_horizon_bucket_index` directly to S1 `bucket_index` (1:1) and
+  enforce strict alignment checks (contiguous indices and exact row coverage).
+
+Rationale:
+- This matches the S2 spec default, avoids resealing S0, and aligns with the
+  S1 time-grid horizon used in the current world.
+
+Next:
+- Implement 5B.S2 runner + CLI + make target per the plan entry (09:12).
+
+
+### Entry: 2026-01-20 10:41
+
+S2 memory failure analysis + fix plan (lambda factor lookup).
+
+Observed issue:
+- `make segment5b-s2` fails with a ~4.5 GB allocation error while joining
+  `factor_df` (list column of per-group factors) into the 31,667,760-row
+  `merchant_zone_scenario_local_5A` stream. The join materializes the list
+  column across all rows, exploding memory.
+
+Decision + rationale:
+- **Remove list-column join** and compute `lambda_random_component` without
+  creating a per-row list column.
+- Precompute a compact `factor_matrix[group_idx, bucket_idx]` and use
+  vectorized numpy indexing per batch. This avoids the huge list column
+  replication but keeps the factor values deterministic.
+- Add `group_idx` into `grouping_lookup` once (cheap int column) so each batch
+  has the integer index for lookup. This preserves the existing join semantics
+  and makes the mapping explicit.
+
+Planned mechanics (to implement immediately):
+1) After generating `group_factor_lists`, build
+   `factor_matrix = np.asarray(group_factor_lists, dtype=float64)` and validate
+   its shape `(group_count, bucket_count)`; clear `group_factor_lists` to free
+   memory.
+2) Build `group_index_df = {group_id -> group_idx}` and left-join it into
+   `grouping_lookup`; abort if any `group_idx` is null.
+3) In the per-batch loop, validate `bucket_index` range **before** lookup.
+4) For `latent_model_id != none`, compute
+   `lambda_values = factor_matrix[group_idx, bucket_idx]` via numpy advanced
+   indexing and attach a float column `lambda_random_component`.
+5) Preserve existing invariants and failure codes:
+   - `group_idx_missing` / `latent_factor_missing` -> V-08
+   - `bucket_index_out_of_range` -> V-08
+6) Keep logs and progress cadence unchanged; only change the lookup path.
+
+Validation plan:
+- Re-run `make segment5b-s2` on the current run id.
+- Confirm row counts, clipping counts, and `lambda_realised` statistics match
+  expectations without memory blow-ups.
+
+
+### Entry: 2026-01-20 10:45
+
+S2 fix applied + validation run.
+
+What changed:
+- Added `import numpy as np` to `s2_latent_intensity/runner.py` to support the
+  `factor_matrix` lookup path (previous run failed with `name 'np' is not defined`).
+
+Run outcome:
+- `make segment5b-s2` completed PASS for `run_id=d61f08e2e45ef1bc28884034de4c1b68`.
+- Scenario `baseline_v1` processed `31,667,760` rows with no memory blow-up.
+- Realised intensity output published:
+  `runs/local_full_run-5/d61f08e2e45ef1bc28884034de4c1b68/data/layer2/5B/s2_realised_intensity/.../s2_realised_intensity_5B.parquet`.
+
+Notes:
+- Progress cadence and schema validation remained intact (fast sampled).
+- Deduplication warning for grouping rows remains in place (approved prior deviation).
 
