@@ -83,5 +83,6 @@ Read these in order before touching code so you align with the frozen specs. Not
 - **Operational visibility.** Instrument long-running steps with structured logging (progress counts, ETA-style checkpoints, RNG envelopes) so smoke tests and production monitors never look "stuck".
 - **Narrative log context.** Any log line that reports counts/progress must explain what the count represents, the gating criteria that define the scope, and the stage/output being produced so operators can follow the state flow.
 - **Deterministic artefacts only.** All seeded outputs (parquet partitions, manifests, contract bundles) must hash identically across reruns. Any volatile metadata (timestamps, `run_id`, temp paths, live telemetry) should be isolated from validation surfaces or normalised by tooling.
+- **Lightweight RNG observability by default.** Per-event RNG logs are opt-in for dev runs (use `ENGINE_5B_S{2,3,4}_RNG_EVENTS=1` or future layer-3 equivalents when a deep audit is needed). Default posture is `rng_trace_log` + run reports + deterministic outputs. Apply this same mindset for 5B + layer-3 states unless explicitly overridden.
 
 _This router remains command-free by design. Execution strategy, test harness, and internal folder improvements stay up to you while respecting the governing specs._

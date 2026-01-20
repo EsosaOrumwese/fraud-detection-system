@@ -1108,6 +1108,7 @@ def run_s3(config: EngineConfig, run_id: Optional[str] = None) -> S3Result:
         validate_events_limit = max(int(validate_events_limit_env), 0)
     except ValueError:
         validate_events_limit = 1000
+    enable_rng_events = _env_flag("ENGINE_5B_S3_RNG_EVENTS")
     event_buffer_env = os.environ.get("ENGINE_5B_S3_EVENT_BUFFER", "5000")
     try:
         event_buffer_size = max(int(event_buffer_env), 1)
@@ -1204,6 +1205,10 @@ def run_s3(config: EngineConfig, run_id: Optional[str] = None) -> S3Result:
 
         logger.info(
             "S3: objective=realise bucket-level arrival counts (gate S0+S1+S2+configs; output s3_bucket_counts_5B + rng logs)"
+        )
+        logger.info(
+            "S3: rng_event logging=%s (set ENGINE_5B_S3_RNG_EVENTS=1 to enable)",
+            "on" if enable_rng_events else "off",
         )
         if not strict_ordering:
             logger.warning(
@@ -1629,7 +1634,11 @@ def run_s3(config: EngineConfig, run_id: Optional[str] = None) -> S3Result:
         event_path = _resolve_dataset_path(event_entry, run_paths, config.external_roots, tokens)
         event_root = _event_root_from_path(event_path)
         event_paths = _iter_jsonl_paths(event_root) if event_root.exists() else []
-        event_enabled = not event_paths
+        event_enabled = enable_rng_events and not event_paths
+        if not enable_rng_events:
+            logger.info("S3: rng_event logging disabled; emitting rng_trace_log only")
+        elif event_paths:
+            logger.info("S3: rng_event logs already exist; skipping new emission")
 
         trace_path = _resolve_dataset_path(trace_entry, run_paths, config.external_roots, tokens)
         trace_mode = "create"
@@ -1663,7 +1672,7 @@ def run_s3(config: EngineConfig, run_id: Optional[str] = None) -> S3Result:
                 trace_acc = RngTraceAccumulator()
         logger.info("S3: rng_trace_log mode=%s", trace_mode)
 
-        if not event_enabled and trace_mode == "append" and trace_acc is not None:
+        if event_paths and trace_mode == "append" and trace_acc is not None:
             _append_trace_from_events(event_root, trace_handle, trace_acc, logger)
 
         audit_payload = {
@@ -1683,9 +1692,12 @@ def run_s3(config: EngineConfig, run_id: Optional[str] = None) -> S3Result:
         _validate_payload(schema_layer1, schema_layer1, schema_layer1, "rng/core/rng_audit_log/record", audit_payload)
         _ensure_rng_audit(_resolve_dataset_path(audit_entry, run_paths, config.external_roots, tokens), audit_payload, logger)
 
-        event_schema = _schema_from_pack(schema_layer1, "rng/events/arrival_bucket_count")
-        event_schema = normalize_nullable_schema(event_schema)
-        event_validator = Draft202012Validator(event_schema)
+        event_schema = None
+        event_validator = None
+        if event_enabled:
+            event_schema = _schema_from_pack(schema_layer1, "rng/events/arrival_bucket_count")
+            event_schema = normalize_nullable_schema(event_schema)
+            event_validator = Draft202012Validator(event_schema)
 
         event_tmp_dir = None
         event_handle = None

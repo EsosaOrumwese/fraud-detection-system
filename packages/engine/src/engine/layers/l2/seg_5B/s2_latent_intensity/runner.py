@@ -761,6 +761,7 @@ def run_s2(config: EngineConfig, run_id: Optional[str] = None) -> S2Result:
     except ValueError:
         output_sample_rows = 5000
     output_validation_mode = "full" if output_validate_full else "fast_sampled"
+    enable_rng_events = _env_flag("ENGINE_5B_S2_RNG_EVENTS")
     current_phase = "init"
     status = "FAIL"
     error_code: Optional[str] = None
@@ -834,6 +835,10 @@ def run_s2(config: EngineConfig, run_id: Optional[str] = None) -> S2Result:
 
         logger.info(
             "S2: objective=sample latent intensity fields and realise lambda (gate S0+S1+5A+configs; output s2_realised_intensity_5B + rng logs)"
+        )
+        logger.info(
+            "S2: rng_event logging=%s (set ENGINE_5B_S2_RNG_EVENTS=1 to enable)",
+            "on" if enable_rng_events else "off",
         )
 
         tokens = {
@@ -1274,7 +1279,11 @@ def run_s2(config: EngineConfig, run_id: Optional[str] = None) -> S2Result:
         event_path = _resolve_dataset_path(event_entry, run_paths, config.external_roots, tokens)
         event_root = _event_root_from_path(event_path)
         event_paths = _iter_jsonl_paths(event_root) if event_root.exists() else []
-        event_enabled = not event_paths
+        event_enabled = enable_rng_events and not event_paths
+        if not enable_rng_events:
+            logger.info("S2: rng_event logging disabled; emitting rng_trace_log only")
+        elif event_paths:
+            logger.info("S2: rng_event logs already exist; skipping new emission")
 
         trace_path = _resolve_dataset_path(trace_entry, run_paths, config.external_roots, tokens)
         trace_mode = "create"
@@ -1318,7 +1327,7 @@ def run_s2(config: EngineConfig, run_id: Optional[str] = None) -> S2Result:
             trace_acc = RngTraceAccumulator()
         logger.info("S2: rng_trace_log mode=%s", trace_mode)
 
-        if not event_enabled and trace_mode == "append":
+        if event_paths and trace_mode == "append" and trace_acc is not None:
             _append_trace_from_events(event_root, trace_handle, trace_acc, logger)
 
         audit_payload = {
@@ -1338,9 +1347,11 @@ def run_s2(config: EngineConfig, run_id: Optional[str] = None) -> S2Result:
         _validate_payload(schema_layer1, schema_layer1, schema_layer1, "rng/core/rng_audit_log/record", audit_payload)
         _ensure_rng_audit(_resolve_dataset_path(audit_entry, run_paths, config.external_roots, tokens), audit_payload, logger)
 
-        event_schema = _schema_from_pack(schema_layer1, "rng/events/arrival_lgcp_gaussian")
-        event_schema = normalize_nullable_schema(event_schema)
-        event_validator = Draft202012Validator(event_schema)
+        event_validator = None
+        if event_enabled:
+            event_schema = _schema_from_pack(schema_layer1, "rng/events/arrival_lgcp_gaussian")
+            event_schema = normalize_nullable_schema(event_schema)
+            event_validator = Draft202012Validator(event_schema)
 
         event_tmp_dir = None
         event_handle = None
@@ -1770,7 +1781,7 @@ def run_s2(config: EngineConfig, run_id: Optional[str] = None) -> S2Result:
                     rng_draws_total += draws
                     rng_blocks_total += blocks
 
-                    if event_handle is not None and trace_handle is not None and trace_acc is not None:
+                    if event_handle is not None or (trace_handle is not None and trace_acc is not None):
                         event_payload = {
                             "ts_utc": utc_now_rfc3339_micro(),
                             "run_id": str(run_id),
@@ -1788,20 +1799,23 @@ def run_s2(config: EngineConfig, run_id: Optional[str] = None) -> S2Result:
                             "draws": str(draws),
                             "blocks": int(blocks),
                         }
-                        errors = list(event_validator.iter_errors(event_payload))
-                        if errors:
-                            _abort(
-                                "5B.S2.RNG_ACCOUNTING_MISMATCH",
-                                "V-12",
-                                "rng_event_schema_invalid",
-                                {"scenario_id": scenario_id, "group_id": group_id, "error": str(errors[0])},
-                                manifest_fingerprint,
-                            )
-                        event_handle.write(json.dumps(event_payload, ensure_ascii=True, sort_keys=True))
-                        event_handle.write("\n")
-                        trace_row = trace_acc.append_event(event_payload)
-                        trace_handle.write(json.dumps(trace_row, ensure_ascii=True, sort_keys=True))
-                        trace_handle.write("\n")
+                        if event_handle is not None:
+                            if event_validator is not None:
+                                errors = list(event_validator.iter_errors(event_payload))
+                                if errors:
+                                    _abort(
+                                        "5B.S2.RNG_ACCOUNTING_MISMATCH",
+                                        "V-12",
+                                        "rng_event_schema_invalid",
+                                        {"scenario_id": scenario_id, "group_id": group_id, "error": str(errors[0])},
+                                        manifest_fingerprint,
+                                    )
+                            event_handle.write(json.dumps(event_payload, ensure_ascii=True, sort_keys=True))
+                            event_handle.write("\n")
+                        if trace_handle is not None and trace_acc is not None:
+                            trace_row = trace_acc.append_event(event_payload)
+                            trace_handle.write(json.dumps(trace_row, ensure_ascii=True, sort_keys=True))
+                            trace_handle.write("\n")
             else:
                 group_factor_lists = [[1.0] * bucket_count for _ in group_ids]
                 if bool(lgcp_config.get("diagnostics", {}).get("emit_latent_field_diagnostic")):

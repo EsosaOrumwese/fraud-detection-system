@@ -2416,3 +2416,59 @@ Next step decision:
 - Confirm whether to proceed with (1) spec-preserving parallelization, (2)
   a dev-mode throttle, or a combination. Both options will be logged in the
   logbook before implementation once approved.
+
+### Entry: 2026-01-20 19:58
+
+5B RNG observability posture change (per-event logs opt-in; trace-only by default).
+
+Design problem summary:
+- Per-arrival RNG event logs are expensive in time/space and were driving multi-hour
+  ETAs in 5B.S4. The data volume is massive (116M+ arrivals), and JSONL RNG logging
+  adds a large I/O multiplier with limited day-to-day value.
+- We need a pragmatic dev posture: keep deterministic outputs and lightweight RNG
+  accounting by default, while preserving an opt-in path for deep audits.
+
+Decisions and reasoning:
+1) **Per-event RNG logs become opt-in for 5B states (S2/S3/S4).**
+   - Default: emit `rng_trace_log` + run reports; skip `rng_event_*` logs unless
+     explicitly enabled via environment flags.
+   - This keeps observability lightweight while preserving deterministic outputs
+     and aggregate RNG accounting for audit.
+   - Deep audits remain possible by enabling per-event logs on demand.
+
+2) **Implementation mechanism**
+   - Introduce `ENGINE_5B_S2_RNG_EVENTS`, `ENGINE_5B_S3_RNG_EVENTS`,
+     `ENGINE_5B_S4_RNG_EVENTS` (default off).
+   - When disabled, event log writers are not created; trace logs are still
+     emitted and validated via in-process counters.
+   - If event logs already exist, they are left untouched; trace append will
+     reuse existing event logs only when present.
+
+3) **Documentation + policy alignment**
+   - Update `packages/engine/AGENTS.md` to codify the new default posture and
+     carry the same mindset forward into layer-3 states.
+   - Treat this as a deliberate spec deviation for dev velocity; logbook and
+     implementation map capture rationale and mechanics.
+
+Implementation impact (applied now):
+- `packages/engine/src/engine/layers/l2/seg_5B/s2_latent_intensity/runner.py`
+  now gates event logs on `ENGINE_5B_S2_RNG_EVENTS`, keeps trace logging even
+  when event logs are off, and avoids trace reconstruction attempts when no
+  event logs exist.
+- `packages/engine/src/engine/layers/l2/seg_5B/s3_bucket_counts/runner.py`
+  now gates event logs on `ENGINE_5B_S3_RNG_EVENTS`, skips event schema prep
+  when disabled, and only backfills trace from event logs when they exist.
+- `packages/engine/src/engine/layers/l2/seg_5B/s4_arrival_events/runner.py`
+  now gates all per-event RNG writers/validators on `ENGINE_5B_S4_RNG_EVENTS`
+  while still emitting `rng_trace_log` from aggregated counters.
+- `makefile` now exposes the new env defaults and wires them into S2/S3/S4
+  commands for easy toggling.
+
+### Entry: 2026-01-20 20:00
+
+Corrective note on sequencing:
+- The opt-in RNG logging change was implemented before the detailed plan entry
+  above was recorded. This entry acknowledges the timing mismatch and preserves
+  the reasoning trail without rewriting history. Future state changes will
+  capture the plan entry *before* code edits as required by the implementation
+  discipline.

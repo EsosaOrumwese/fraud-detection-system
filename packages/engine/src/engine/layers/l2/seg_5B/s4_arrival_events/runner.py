@@ -935,6 +935,7 @@ def run_s4(config: EngineConfig, run_id: Optional[str] = None) -> S4Result:
         validate_events_limit = max(int(validate_events_limit_env), 0)
     except ValueError:
         validate_events_limit = 1000
+    enable_rng_events = _env_flag("ENGINE_5B_S4_RNG_EVENTS")
     event_buffer_env = os.environ.get("ENGINE_5B_S4_EVENT_BUFFER", "5000")
     try:
         event_buffer_size = max(int(event_buffer_env), 1)
@@ -1021,6 +1022,10 @@ def run_s4(config: EngineConfig, run_id: Optional[str] = None) -> S4Result:
 
         logger.info(
             "S4: objective=expand bucket counts into arrival events (gate S0-S3 + routing inputs; output arrival_events_5B + rng logs)"
+        )
+        logger.info(
+            "S4: rng_event logging=%s (set ENGINE_5B_S4_RNG_EVENTS=1 to enable)",
+            "on" if enable_rng_events else "off",
         )
         if not strict_ordering:
             logger.warning(
@@ -1706,12 +1711,14 @@ def run_s4(config: EngineConfig, run_id: Optional[str] = None) -> S4Result:
         event_roots: dict[str, Path] = {}
         event_tmp_dirs: dict[str, Path] = {}
         event_enabled: dict[str, bool] = {}
+        event_has_data: dict[str, bool] = {}
         for label, entry in event_entries.items():
             path = _resolve_dataset_path(entry, run_paths, config.external_roots, tokens)
             root = _event_root_from_path(path)
             event_roots[label] = root
             event_paths_existing = _iter_jsonl_paths(root) if root.exists() else []
-            if event_paths_existing:
+            event_has_data[label] = bool(event_paths_existing)
+            if not enable_rng_events or event_paths_existing:
                 event_enabled[label] = False
             else:
                 event_enabled[label] = True
@@ -1721,6 +1728,12 @@ def run_s4(config: EngineConfig, run_id: Optional[str] = None) -> S4Result:
                 event_path = _event_file_from_root(tmp_dir)
                 event_handles[label] = event_path.open("w", encoding="utf-8")
                 event_buffers[label] = []
+        if not enable_rng_events:
+            logger.info("S4: rng_event logging disabled; emitting rng_trace_log only")
+        else:
+            existing_labels = sorted([label for label, present in event_has_data.items() if present])
+            if existing_labels:
+                logger.info("S4: rng_event logs already exist for labels=%s; skipping new emission", existing_labels)
 
         trace_entry = find_dataset_entry(dictionary_5b, "rng_trace_log").entry
         trace_path = _resolve_dataset_path(trace_entry, run_paths, config.external_roots, tokens)
@@ -1732,7 +1745,7 @@ def run_s4(config: EngineConfig, run_id: Optional[str] = None) -> S4Result:
             }
             trace_mode = "skip" if not trace_missing else "append"
 
-        if trace_mode == "skip":
+        if trace_mode == "skip" and enable_rng_events:
             for label, enabled in event_enabled.items():
                 if enabled:
                     _abort(
@@ -1756,8 +1769,8 @@ def run_s4(config: EngineConfig, run_id: Optional[str] = None) -> S4Result:
         logger.info("S4: rng_trace_log mode=%s", trace_mode)
 
         if trace_mode == "append" and trace_acc is not None:
-            for label, enabled in event_enabled.items():
-                if not enabled and label in trace_missing:
+            for label in event_specs.keys():
+                if event_has_data.get(label) and label in trace_missing:
                     _append_trace_from_events(event_roots[label], trace_handle, trace_acc, logger, label)
 
         audit_entry = find_dataset_entry(dictionary_5b, "rng_audit_log").entry
@@ -1780,13 +1793,15 @@ def run_s4(config: EngineConfig, run_id: Optional[str] = None) -> S4Result:
             _resolve_dataset_path(audit_entry, run_paths, config.external_roots, tokens), audit_payload, logger
         )
 
-        event_validators = {
-            label: Draft202012Validator(_schema_for_event(schema_layer1, f"rng/events/{label}"))
-            for label in event_specs.keys()
-        }
+        event_validators: dict[str, Draft202012Validator] = {}
         validate_remaining: dict[str, Optional[int]] = {}
-        for label in event_specs.keys():
-            validate_remaining[label] = None if validate_events_full else validate_events_limit
+        if enable_rng_events:
+            event_validators = {
+                label: Draft202012Validator(_schema_for_event(schema_layer1, f"rng/events/{label}"))
+                for label in event_specs.keys()
+            }
+            for label in event_specs.keys():
+                validate_remaining[label] = None if validate_events_full else validate_events_limit
 
         event_schema = _schema_items(schema_5b, schema_layer1, schema_layer2, "egress/s4_arrival_events_5B")
         event_row_validator = Draft202012Validator(event_schema)
