@@ -1044,3 +1044,138 @@ Notes:
   `min_groups_per_scenario` (100) below guide floors; these are logged as
   warnings per earlier decision.
 
+
+### Entry: 2026-01-20 09:12
+
+5B.S2 spec review + implementation plan (latent intensity fields).
+
+Docs read (expanded + contracts):
+- `docs/model_spec/data-engine/layer-2/specs/state-flow/5B/state.5B.s2.expanded.md`
+- `docs/model_spec/data-engine/layer-2/specs/data-intake/5B/arrival_lgcp_config_5B_authoring-guide.md`
+- `docs/model_spec/data-engine/layer-2/specs/data-intake/5B/arrival_rng_policy_5B_authoring-guide.md`
+- `docs/model_spec/data-engine/layer-2/specs/contracts/5B/schemas.5B.yaml`
+- `docs/model_spec/data-engine/layer-2/specs/contracts/5B/dataset_dictionary.layer2.5B.yaml`
+- `docs/model_spec/data-engine/layer-2/specs/contracts/5A/schemas.5A.yaml`
+
+Key constraints extracted:
+- S2 is RNG-bearing, must validate S0/S1, and must not alter grid/grouping or
+  deterministic lambda_target from 5A.
+- Inputs: `s1_time_grid_5B`, `s1_grouping_5B`, `merchant_zone_scenario_local_5A`
+  (and optional UTC surface), `arrival_lgcp_config_5B`, `arrival_rng_policy_5B`.
+- Outputs: `s2_realised_intensity_5B` (required), `s2_latent_field_5B`
+  (optional if `emit_latent_field_diagnostic=true`), plus RNG event/trace/audit.
+- RNG policy requires Philox2x64-10, open-interval uniform mapping, and
+  per-(scenario, group) events with `draws_u64 = 2 * H` (Box-Muller U2).
+
+Open questions to confirm before coding:
+1) Which 5A intensity surface should S2 treat as lambda_target?
+   - Default per spec is `merchant_zone_scenario_local_5A` using
+     `local_horizon_bucket_index` + `lambda_local_scenario`.
+   - If you want UTC (`merchant_zone_scenario_utc_5A` / `utc_horizon_bucket_index`
+     + `lambda_utc_scenario`), S0 read_scope must be upgraded to ROW_LEVEL and
+     S0 resealed.
+2) Bucket-index mapping: confirm that `local_horizon_bucket_index` maps
+   1:1 to S1 `bucket_index` for the current world (no offset).
+
+Design decisions (current proposal, pending confirmation):
+- Use `merchant_zone_scenario_local_5A` as the lambda_target source.
+- Map `local_horizon_bucket_index` directly to `bucket_index`.
+- Honor `arrival_lgcp_config_5B.diagnostics.emit_latent_field_diagnostic`
+  to decide whether to emit `s2_latent_field_5B` (currently false).
+
+Implementation plan (stepwise, detailed):
+1) **Create state module + CLI + make target**
+   - New runner at `packages/engine/src/engine/layers/l2/seg_5B/s2_latent_intensity/runner.py`.
+   - New CLI at `packages/engine/src/engine/cli/s2_latent_intensity_5b.py`.
+   - Makefile: add `segment5b-s2` target and args (mirroring S1/S0).
+
+2) **Load contracts + resolve run paths**
+   - Use `ContractSource` (model_spec layout) to load:
+     `dataset_dictionary.layer2.5B.yaml`, `schemas.5B.yaml`,
+     `schemas.layer2.yaml` (from segment 5A), `schemas.5A.yaml`,
+     `schemas.layer1.yaml`.
+   - Resolve paths with `_resolve_dataset_path` (copy from S1 or S0 helpers).
+
+3) **Validate S0 outputs**
+   - Load `s0_gate_receipt_5B` + `sealed_inputs_5B` for `mf`.
+   - Recompute sealed digest; validate upstream PASS map.
+   - Enforce `parameter_hash`/`manifest_fingerprint` match.
+
+4) **Validate S1 outputs**
+   - For each `scenario_id` in `scenario_set`:
+     - Load + schema-validate `s1_time_grid_5B` and `s1_grouping_5B`.
+     - Enforce `(mf, ph)` columns match; check contiguous `bucket_index`;
+       assert grouping PK is unique.
+
+5) **Load S2 configs & RNG policy**
+   - Read + validate `arrival_lgcp_config_5B` and `arrival_rng_policy_5B`.
+   - Extract:
+     - latent model (`latent_model_id`),
+     - kernel kind and bounds,
+     - hyperparam laws and bounds,
+     - clipping rules,
+     - RNG family `S2.latent_vector.v1` settings (domain key law, draws law).
+
+6) **Assemble grouping feature map + hyperparams**
+   - Build `group_features` per `(scenario_id, group_id)` from `s1_grouping_5B`
+     (demand_class, channel_group, virtual_band, zone_group_id).
+   - Validate per-group consistency (no mixed labels).
+   - Derive `scenario_band` from `s1_time_grid_5B` flags or `scenario_manifest_5A`
+     if flags absent.
+   - Compute `sigma` and `length_scale` per group per config; clamp to bounds.
+   - Validate realism floors from `arrival_lgcp_config_5B` (distinct sigma
+     counts, stress fraction, median L bounds, transform kind).
+
+7) **RNG derivation + latent sampling**
+   - Implement Philox key+counter derivation per RNG policy:
+     `msg = UER(domain_sep) || UER(family_id) || UER(mf) || UER(ph) || LE64(seed)
+      || UER(scenario_id) || UER("group_id=<group_id>")`, then SHA256 -> key/ctr.
+   - Use `philox2x64_10`, `uer_string`, `ser_u64` from
+     `engine.layers.l1.seg_1A.s1_hurdle.rng` to avoid re-implementations.
+   - Implement open-interval uniform mapping: `u = (x + 0.5) / 2^64`.
+   - For Box-Muller-U2: consume **two uniforms per normal** so draws match
+     `2 * H` exactly; ignore the second normal to keep accounting consistent.
+   - OU kernel: `phi = exp(-1 / L)`, `Z0 ~ N(0, sigma^2)`,
+     `Zt = phi * Zt-1 + eps`, `eps ~ N(0, sigma^2 * (1 - phi^2))`.
+   - IID kernel: `Zt ~ N(0, sigma^2)` i.i.d.
+   - If `latent_model_id == none`: skip RNG, set factor = 1.0.
+
+8) **Compute factors + realised lambda**
+   - `factor = exp(Z - 0.5 * sigma^2)`; clamp to `[min_factor, max_factor]`.
+   - `lambda_realised = lambda_baseline * factor`; cap by `lambda_max` if enabled.
+   - Enforce finite/positive invariants; fail fast on NaN/Inf.
+
+9) **Join intensity surface to grouping + grid**
+   - Load `merchant_zone_scenario_local_5A` rows for scenario; join to
+     `s1_grouping_5B` on `(scenario_id, merchant_id, tzid, channel_group)` and
+     map `local_horizon_bucket_index -> bucket_index`.
+   - Join to `s1_time_grid_5B` on `(scenario_id, bucket_index)` to validate grid.
+   - Fail if any row lacks group or bucket alignment.
+   - Use group factor lookup to compute `lambda_random_component` and
+     `lambda_realised` in a vectorized way (Polars join + list.get or map).
+
+10) **Outputs + RNG logs**
+   - Write `s2_realised_intensity_5B` parquet (idempotent publish).
+   - If diagnostics enabled, write `s2_latent_field_5B` parquet.
+   - Emit `rng_event_arrival_lgcp_gaussian` (jsonl, part files),
+     `rng_trace_log` (append), `rng_audit_log` (append if missing)
+     using patterns from `seg_3B.s2_edge_catalogue` / `seg_3A.s3_zone_shares`.
+
+11) **Run-report + validation mode**
+   - Add `segment_state_runs` entry with counts:
+     scenarios succeeded, groups, buckets, draws/blocks, min/max lambda,
+     clipping counts.
+   - Provide fast-sampled schema validation with env toggles
+     (mirroring S1 patterns).
+
+12) **Resumability + performance**
+   - Idempotent writes for parquet and RNG logs; fail on mismatched existing
+     outputs.
+   - Stream/scan 5A surfaces per scenario to avoid full-world memory spikes.
+   - Progress logs on group sampling and intensity rows with elapsed/rate/ETA.
+
+Testing plan:
+- Run `make segment5b-s2` on `run_id=d61f08e2e45ef1bc28884034de4c1b68`.
+- If intensity-source choice changes read_scope (UTC), update S0 read_scope,
+  reseal S0, and rerun S1+S2 as required.
+
