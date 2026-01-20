@@ -50,6 +50,7 @@ from engine.layers.l2.seg_5A.s0_gate.runner import (
 MODULE_NAME = "5A.s1_demand_classification"
 SEGMENT = "5A"
 STATE = "S1"
+S1_SPEC_VERSION = "1.0.0"
 
 
 @dataclass(frozen=True)
@@ -910,25 +911,29 @@ def run_s1(config: EngineConfig, run_id: Optional[str] = None) -> S1Result:
 
         counts["classes_total"] = len(set(demand_classes))
 
-        profile_df = pl.DataFrame(
-            {
-                "manifest_fingerprint": [manifest_fingerprint] * total_rows,
-                "parameter_hash": [parameter_hash] * total_rows,
-                "merchant_id": merchant_ids,
-                "legal_country_iso": countries,
-                "tzid": tzids,
-                "demand_class": demand_classes,
-                "demand_subclass": demand_subclasses,
-                "profile_id": profile_ids,
-                "weekly_volume_expected": weekly_volume_expected,
-                "weekly_volume_unit": [weekly_volume_unit] * total_rows,
-                "scale_factor": scale_factors,
-                "high_variability_flag": high_variability_flags,
-                "low_volume_flag": low_volume_flags,
-                "virtual_preferred_flag": virtual_preferred_flags,
-                "class_source": class_sources,
-            }
-        ).sort(["merchant_id", "legal_country_iso", "tzid"])
+        profile_df = (
+            pl.DataFrame(
+                {
+                    "manifest_fingerprint": [manifest_fingerprint] * total_rows,
+                    "parameter_hash": [parameter_hash] * total_rows,
+                    "merchant_id": merchant_ids,
+                    "legal_country_iso": countries,
+                    "tzid": tzids,
+                    "demand_class": demand_classes,
+                    "demand_subclass": demand_subclasses,
+                    "profile_id": profile_ids,
+                    "weekly_volume_expected": weekly_volume_expected,
+                    "weekly_volume_unit": [weekly_volume_unit] * total_rows,
+                    "scale_factor": scale_factors,
+                    "high_variability_flag": high_variability_flags,
+                    "low_volume_flag": low_volume_flags,
+                    "virtual_preferred_flag": virtual_preferred_flags,
+                    "class_source": class_sources,
+                }
+            )
+            .with_columns(pl.lit(S1_SPEC_VERSION).alias("s1_spec_version"))
+            .sort(["merchant_id", "legal_country_iso", "tzid"])
+        )
 
         _validate_array_rows(
             profile_df.iter_rows(named=True),

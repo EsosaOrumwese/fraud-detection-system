@@ -2667,3 +2667,460 @@ Result:
 Observed impact:
 - Output schema validation reduced to sampled mode; progress logs now every ~5s.
 - Total wall time ~416s for S4 on this run.
+
+---
+
+### Entry: 2026-01-19 23:15
+
+5A.S5 pre-implementation plan (validation bundle + HashGate for Layer-2 / Segment 5A).
+
+Design problem summary:
+- We need an S5 implementation that validates S0 and S1-S4 outputs for a manifest_fingerprint, produces a deterministic validation bundle (report + issues + index), and emits `_passed.flag` only when the world is truly PASS. The spec also requires S5 to run even if S1-S4 are missing, producing a FAILED bundle for diagnostics, while still enforcing "no PASS, no read".
+
+Alternatives considered:
+1) **Strict abort on any missing S1-S4 output**:
+   - Simple to implement, but violates S5 spec which says to produce a FAILED bundle even when modelling outputs are incomplete. It also prevents diagnostics from being published.
+2) **Always produce bundle, never abort**:
+   - Keeps diagnostics, but conflicts with spec for S0: if `s0_gate_receipt_5A` or `sealed_inputs_5A` are missing or invalid, S5 must fail immediately and not proceed.
+3) **Hybrid** (chosen):
+   - Abort only when S0/sealed inputs are missing or unparseable.
+   - Treat missing S1-S4 outputs as validation failures, record issues, and still emit a FAILED bundle (no `_passed.flag`).
+
+Key decisions (with rationale):
+- **Use sealed_inputs_5A as the universe of admissible inputs** and only resolve datasets that are sealed (status REQUIRED/OPTIONAL). This enforces the closed-world boundary and avoids directory scanning.
+- **Scenario discovery**: read `scenario_manifest_5A` if present; if missing or invalid, fall back to `scenario_horizon_config_5A` (required, sealed policy) for scenario_ids. This keeps S5 functional even if optional manifest is absent.
+- **Validation policy source**: load `validation_policy_5A` if sealed; if missing, fall back to the repo's v1 defaults (same as authoring guide) and record a warning in the report. This honors the guide's "strict fallback" requirement.
+- **Spec compatibility**: implement `spec_compatibility_config_5A` enforcement using S2/S3/S4 spec version fields in outputs; for S1, use registry semver as a proxy (S1 outputs do not carry `s1_spec_version`). Missing/unparseable versions are treated according to config `enforcement` (fail-closed by default).
+- **Output validation posture**: full row-level JSON-schema validation for control-plane inputs; for large modelling outputs (S3/S4), use structural checks + deterministic sample-row schema validation to control runtime, with `ENGINE_S5_VALIDATE_FULL=1` to force full validation and `ENGINE_S5_VALIDATE_SAMPLE_ROWS` to adjust sample size. This mirrors the S4 output-validation tradeoff while preserving contract checking.
+- **Recomposition check**: implement the pinned deterministic min-hash sampler using SHA256 over
+  `"5A.S5.recompose|{manifest_fingerprint}|{parameter_hash}|{scenario_id}|{merchant_id}|{zone_key}|{horizon_bucket_key}"`.
+  Use `zone_key = legal_country_iso|tzid` and `horizon_bucket_key = local_horizon_bucket_index`.
+  This is RNG-free and matches the validation-policy law.
+- **Bundle semantics**:
+  - Bundle members: `validation_report_5A.json` + `issues/validation_issue_table_5A.parquet` (even if empty).
+  - Index entries sorted ASCII by `path`.
+  - Bundle digest = SHA256(concat(file bytes in index order)).
+  - Write `_passed.flag` JSON only when overall_status=PASS; otherwise omit the flag.
+  - If bundle already exists, verify index + flag consistency and skip publish if identical; otherwise raise `S5_OUTPUT_CONFLICT`.
+
+Planned implementation steps (exact, stepwise):
+1) Create `packages/engine/src/engine/layers/l2/seg_5A/s5_validation_bundle/runner.py` with:
+   - S0/sealed_inputs validation and digest verification.
+   - Input discovery via sealed inputs + dataset dictionary.
+   - Per-state validation checks (S1-S4) with deterministic progress logs.
+   - Deterministic sampling and recomposition checks per validation policy.
+   - Bundle assembly, index hashing, `_passed.flag` emission logic.
+   - Run-report writing aligned to existing S4 patterns.
+2) Add CLI entrypoint `packages/engine/src/engine/cli/s5_validation_bundle_5a.py`.
+3) Update Makefile with `SEG5A_S5_CMD` + `segment5a-s5` target and include S5 in `segment5a` aggregate + `.PHONY`.
+4) Log every implementation decision and any mid-course changes in this file and in the logbook.
+5) Run `make segment5a-s5` until green; capture failures, fixes, and final PASS in the logbook + implementation map.
+
+---
+
+### Entry: 2026-01-20 00:07
+
+5A.S5 implementation decisions (continuation; pre-coding refresh).
+
+Context updates observed:
+- `sealed_inputs_5A` rows include `artifact_id`, `parameter_hash`, `path_template`, and `partition_keys` but do not include concrete `scenario_id` values; scenario discovery must come from other sealed artefacts.
+- `merchant_zone_profile_5A` output (S1) does NOT currently include `s1_spec_version` in data (verified from the latest run). S2-S4 outputs do include `s*_spec_version` fields.
+
+Decision trail (alternatives + reasoning):
+1) Scenario discovery source
+   - Options: (a) rely on `scenario_manifest_5A` dataset; (b) fall back to `scenario_horizon_config_5A` config; (c) fall back to `s0_gate_receipt_5A.scenario_id`.
+   - Decision: use (a) when present/valid, else (b), else (c). This stays within sealed inputs and uses the most authoritative explicit list before falling back to gate metadata.
+
+2) Parameter hash scope
+   - Options: (a) use `run_receipt.parameter_hash` only; (b) use `s0_gate_receipt_5A.parameter_hash` as canonical; (c) accept any distinct `parameter_hash` in sealed inputs and validate each.
+   - Decision: treat `s0_gate_receipt_5A.parameter_hash` as the canonical parameter pack for S5 runs, but record any mismatching `parameter_hash` rows in `sealed_inputs_5A` as failures/issue rows. This keeps S5 aligned with S0 as the authority while surfacing inconsistencies explicitly.
+
+3) Spec compatibility enforcement
+   - Options: (a) enforce `spec_compatibility_config_5A` when present, fail-closed on missing spec fields; (b) ignore compatibility if `s1_spec_version` is missing to avoid hard failure; (c) treat missing spec fields as WARN.
+   - Decision: enforce when config exists; use the config’s `failure_check_id` and `FAIL_CLOSED` posture for missing/unparseable fields. This matches the authoring guide and gives a strong signal that S1 needs spec version metadata. Documented as a known failure trigger if S1 lacks `s1_spec_version`.
+
+4) Domain keying for checks
+   - Options: (a) use `legal_country_iso|tzid` as zone key everywhere; (b) include `channel_group` when present in outputs; (c) use `zone_id` if present.
+   - Decision: treat zone keys as `(legal_country_iso, tzid)` by default and include `channel_group` in keys when it exists in the data. `zone_id` is ignored for now because S1 does not emit it. This mirrors actual output shapes and avoids false negatives.
+
+5) S2 domain coverage check with channel groups
+   - Options: (a) require S2 channel groups to exactly match S1 (which has no channel field); (b) drop channel groups from S2 domain before comparison; (c) inject default channel group for S1.
+   - Decision: compare S1 `(demand_class, legal_country_iso, tzid)` to S2 domain with `channel_group` dropped if S1 lacks it. This matches S2’s own behavior (expanding shapes per channel group) while preserving the “S2 covers S1 domain” invariant.
+
+6) S3 domain parity
+   - Options: (a) use S1 keys directly; (b) add `channel_group='mixed'` when baseline outputs include channel groups; (c) ignore channel groups entirely.
+   - Decision: add `channel_group='mixed'` to S1 domain when baseline outputs include channel groups, matching S3’s own emission pattern. This avoids incorrect “missing domain” flags.
+
+7) Overlay warning bounds exemptions
+   - Options: (a) fully honor `overlay_low_warn_exempt_types` (needs overlay-type attribution per row); (b) ignore exemptions and warn on raw min/max; (c) skip warn check entirely.
+   - Decision: warn based on `overlay_factor_total` bounds without exemptions, because overlay-type attribution is not present in the emitted overlay factors dataset. Record this limitation in the report metrics and issues so it’s auditable.
+
+8) Horizon mapping checks
+   - Options: (a) map every S4 row to weekly grid; (b) compute mapping per tzid x horizon bucket and treat missing mappings as failures; (c) skip mapping for scale reasons.
+   - Decision: compute mappings per tzid x horizon bucket via `scenario_horizon_config_5A` + `shape_grid_definition_5A`. This is deterministic and avoids full row scans, while still validating all relevant buckets.
+
+9) Recompositon sample strategy
+   - Options: (a) full recomposition check (expensive); (b) deterministic minhash sample (spec); (c) random sample.
+   - Decision: implement deterministic minhash top-N sampling per `validation_policy_5A` and recomposition against baseline via filtered join on sampled keys. This matches the spec and keeps scale manageable.
+
+Planned code edits:
+- Complete `packages/engine/src/engine/layers/l2/seg_5A/s5_validation_bundle/runner.py` with run logic for S0–S4 checks, report/issue/index/flag outputs, and idempotent publish logic.
+- Add `packages/engine/src/engine/layers/l2/seg_5A/s5_validation_bundle/__init__.py` docstring.
+- Add `packages/engine/src/engine/cli/s5_validation_bundle_5a.py` and wire into the `makefile` (`segment5a-s5` target + SEG5A_S5_CMD args).
+
+Validation/testing notes to record during implementation:
+- Ensure S5 still writes a failed bundle when inputs are missing or invalid.
+- Confirm `_passed.flag` is only emitted when overall status is PASS.
+- Confirm index/report/issue table validate against `schemas.layer2.yaml`.
+
+---
+
+### Entry: 2026-01-20 00:36
+
+5A.S5 validation bundle fix for Polars streaming failure (pre-coding plan).
+
+Observed failure:
+- `make segment5a-s5` fails with `Parquet no longer supported for old streaming engine` during S3/S4 domain checks.
+- The error fires when calling `LazyFrame.collect(streaming=True)` on lazy scans (baseline/scenario parquet).
+- Even after removing explicit streaming in one spot, the engine still appears to be in "old streaming" mode.
+
+Decision trail (alternatives + reasoning):
+1) Disable streaming engine globally in S5
+   - Option A: keep lazy scans but force `pl.Config.set_streaming(False)` at S5 entry.
+   - Option B: keep streaming enabled but replace all `collect(streaming=True)` with `collect()` and rely on defaults.
+   - Option C: bypass lazy entirely by switching to eager `pl.read_parquet` for all checks.
+   - Decision: use A + remove explicit streaming flags (B) so we avoid the deprecated streaming engine while keeping lazy scans for scale. C is avoided because S5 reads large parquet outputs and eager loads could regress memory use.
+
+2) Defensive compatibility
+   - Option A: assume `pl.Config.set_streaming` exists and call directly.
+   - Option B: guard the call and log if unavailable.
+   - Decision: guard with `hasattr(pl.Config, "set_streaming")` to avoid hard failures on older Polars builds, but still remove `streaming=True` flags so the code path is safe either way.
+
+Planned edits:
+1) Add a small S5 entry log + guard to disable Polars streaming at the start of `run_s5`.
+2) Replace remaining `collect(streaming=True)` calls with `collect()` (non-streaming) in S3/S4 checks.
+3) Re-run `make segment5a-s5` and log the outcome; if further failures appear, capture the next decision thread here and in the logbook.
+
+---
+
+### Entry: 2026-01-20 00:38
+
+5A.S5 streaming fix implementation notes (post-change check-in).
+
+Edits completed:
+- Added a guarded `pl.Config.set_streaming(False)` at the start of `run_s5` with a narrative log
+  to force non-streaming parquet scans and avoid the deprecated streaming engine.
+- Removed `collect(streaming=True)` usage in S3/S4 domain/bucket checks and replaced with
+  `collect()` to ensure non-streaming evaluation.
+
+Immediate validation plan:
+- Run `make segment5a-s5` to confirm the Polars streaming error is resolved.
+- If any new failure emerges, document the new decision thread and adjust only within S5
+  (no cross-state behavior changes unless required by spec).
+
+---
+
+### Entry: 2026-01-20 00:39
+
+5A.S5 bundle index contract failure (pre-coding plan).
+
+Observed failure:
+- `make segment5a-s5` now reaches bundle write but fails schema validation:
+  `F4:S5_CONTRACT_INVALID` with `entries[0].sha256_hex` being a `FileDigest` object
+  instead of a lowercase hex string.
+- The index payload uses `sha256_file(...)` directly, which returns a dataclass; JSON schema
+  requires a string matching `^[a-f0-9]{64}$`.
+
+Decision trail (alternatives + reasoning):
+1) Fix the index entry digest field
+   - Option A: use `sha256_file(...).sha256_hex` in the index entries.
+   - Option B: wrap `sha256_file` with a helper that returns hex string only.
+   - Option C: serialize the dataclass and extract `sha256_hex` during JSON write.
+   - Decision: Option A for minimal surface area and explicitness. It is consistent with
+     how other indices represent digest values and aligns directly with the schema.
+
+Planned edits:
+1) Update S5 index entry assembly to use `sha256_file(...).sha256_hex` for both report
+   and issues parquet entries.
+2) Re-run `make segment5a-s5`; if further schema issues arise, capture the exact
+   field mismatch in a new entry before changing code.
+
+---
+
+### Entry: 2026-01-20 00:39
+
+5A.S5 bundle index contract fix (post-change check-in).
+
+Edits completed:
+- Reworked bundle index entry assembly to use `sha256_file(...).sha256_hex` so
+  `entries[].sha256_hex` is a lowercase hex string per schema.
+- Avoided duplicate hashing by storing `report_digest` and `issues_digest`.
+
+Immediate validation plan:
+- Re-run `make segment5a-s5` to confirm the index schema passes and the bundle writes cleanly.
+
+---
+
+### Entry: 2026-01-20 00:40
+
+5A.S5 timer logging failure (pre-coding plan).
+
+Observed failure:
+- `make segment5a-s5` now completes bundle publish but fails with
+  `F4:S5_VALIDATION_FAILED` because `_StepTimer.info()` was called with
+  three arguments (`message`, `len(entries)`, `bundle_digest`) instead of a single
+  message string.
+- The error originates at `timer.info("S5: bundle complete (entries=%s, digest=%s)", ...)`
+  in the publish phase.
+
+Decision trail (alternatives + reasoning):
+1) Fix timer log formatting
+   - Option A: change `timer.info` signature to accept `*args` like a logger.
+   - Option B: pre-format the message string before calling `timer.info`.
+   - Decision: Option B to keep `_StepTimer` minimal and consistent with other
+     uses (single message string).
+
+Planned edits:
+1) Replace the `timer.info` call in publish phase with an f-string.
+2) Re-run `make segment5a-s5` and record the outcome.
+
+---
+
+### Entry: 2026-01-20 00:41
+
+5A.S5 timer logging fix (post-change check-in).
+
+Edits completed:
+- Updated the publish-phase `timer.info` call to pre-format the message string,
+  avoiding the argument mismatch in `_StepTimer.info()`.
+
+Immediate validation plan:
+- Re-run `make segment5a-s5` to confirm the publish phase completes without errors.
+
+---
+
+### Entry: 2026-01-20 00:41
+
+5A.S5 publish conflict (pre-action plan).
+
+Observed failure:
+- After fixing S5, re-running `make segment5a-s5` now fails with
+  `F4:S5_OUTPUT_CONFLICT` because a prior run already published
+  `runs/local_full_run-5/.../data/layer2/5A/validation/manifest_fingerprint=...`
+  with a now-stale index digest.
+
+Decision trail (alternatives + reasoning):
+1) Resolve output conflict
+   - Option A: allow overwrite in code when bundle exists.
+   - Option B: leave code strict and manually remove the stale bundle path for
+     this run_id + manifest_fingerprint before re-running.
+   - Decision: Option B to preserve the spec's output conflict guard and keep
+     idempotency protections intact.
+
+Planned action:
+1) Remove the existing bundle directory under
+   `runs/local_full_run-5/d61f08e2e45ef1bc28884034de4c1b68/data/layer2/5A/validation/manifest_fingerprint=...`.
+2) Re-run `make segment5a-s5` and document the result.
+
+---
+
+### Entry: 2026-01-20 00:42
+
+5A.S5 publish conflict resolution (action taken).
+
+Action performed:
+- Removed the stale bundle directory at
+  `runs/local_full_run-5/d61f08e2e45ef1bc28884034de4c1b68/data/layer2/5A/validation/manifest_fingerprint=1cb60481d69b836ee24505ec9a6ec231c8f18523ee9b7dabbd38c0a33bf15765`
+  to allow re-sealing with updated index digest.
+
+Next step:
+- Re-run `make segment5a-s5` and verify a clean publish.
+
+---
+
+### Entry: 2026-01-20 00:47
+
+5A.S5 validation failures after successful publish (pre-coding plan).
+
+Observed failures (from `validation_issue_table_5A.parquet`):
+- `UPSTREAM_ALL_PASS` failed because S5 looked for keys named `segment_1A` etc.,
+  but `s0_gate_receipt_5A.verified_upstream_segments` uses keys `1A`, `1B`, ...,
+  so all statuses read as `None`.
+- `S4_PRESENT` failed because `merchant_zone_scenario_local_5A` is not listed in
+  `sealed_inputs_5A`, even though it is a run output (S4) under `data/layer2/5A/...`.
+- `SPEC_COMPATIBILITY` failed due to missing `s1_spec_version` (S1 output lacks it)
+  and missing `s4_spec_version` because the S4 output was not loaded.
+
+Decision trail (alternatives + reasoning):
+1) Upstream status keying
+   - Option A: hard-code `segment_1A` keys and require S0 to change.
+   - Option B: accept both `1A` and `segment_1A` keys and treat either as valid.
+   - Decision: Option B to stay compatible with the current S0 receipt format and
+     preserve forwards-compatibility if keys ever change.
+
+2) Output discovery for S1-S4 datasets
+   - Option A: require S0 to seal S1-S4 outputs (not possible because S0 runs first).
+   - Option B: allow S5 to resolve run-local output paths for S1-S4 datasets even
+     when not sealed, while still using sealed inputs when present.
+   - Decision: Option B; S5 is a validation state and should read run outputs directly.
+
+3) Spec compatibility version fields
+   - Option A: relax spec-compat enforcement to WARN on missing versions.
+   - Option B: add `s1_spec_version` to S1 output so compatibility can be enforced
+     as configured; rely on S4 output to provide `s4_spec_version` once S4 is loaded.
+   - Decision: Option B to honor the spec_compatibility_config_5A's FAIL_CLOSED policy.
+
+Planned edits:
+1) Update S5 upstream check to read `verified_upstream_segments` using either
+   `1A`/`1B`/… or `segment_1A`/… keys.
+2) Add a fallback path resolver for S1-S4 outputs so S5 can load them even if they
+   are not in sealed_inputs_5A.
+3) Add `S1_SPEC_VERSION = "1.0.0"` and emit `s1_spec_version` in S1 outputs.
+4) Re-run from S1 onward (S1 -> S5) and clear any stale output bundles as needed.
+
+---
+
+### Entry: 2026-01-20 00:54
+
+5A.S5 validation fixes applied (post-change check-in).
+
+Edits completed:
+- S5 upstream check now accepts `1A`/`1B`/… keys and falls back to `segment_1A`/…,
+  preventing false `UPSTREAM_ALL_PASS` failures.
+- S5 now resolves run-local output paths for S2/S3/S4 datasets via a shared
+  `_resolve_output_path` helper (with an info log when outputs were not sealed),
+  instead of failing when outputs are absent from `sealed_inputs_5A`.
+- S1 runner now emits `s1_spec_version` (constant `S1_SPEC_VERSION = "1.0.0"`)
+  in `merchant_zone_profile_5A` to satisfy spec compatibility checks.
+
+Immediate validation plan:
+- Re-run S1 -> S5 to regenerate S1 outputs with spec version and validate S5.
+- Remove stale S5 bundle outputs if `S5_OUTPUT_CONFLICT` occurs.
+
+---
+
+### Entry: 2026-01-20 00:55
+
+5A.S1 output refresh + S5 reseal (pre-action plan).
+
+Observed need:
+- S1 outputs on disk predate the `s1_spec_version` column change, so S1 must be
+  re-run to emit the new field.
+- S5 bundle already exists for the current manifest, so rerunning S5 will trigger
+  `S5_OUTPUT_CONFLICT` unless the stale bundle is removed.
+
+Planned actions:
+1) Remove S1 output directories under
+   `runs/local_full_run-5/d61f08e2e45ef1bc28884034de4c1b68/data/layer2/5A/merchant_zone_profile/...`
+   (and `merchant_class_profile` if present) so S1 can re-publish.
+2) Remove the existing S5 validation bundle directory for the same manifest.
+3) Run `make segment5a-s1`, then `make segment5a-s5` and capture results.
+
+---
+
+### Entry: 2026-01-20 00:55
+
+5A.S1 output refresh + S5 reseal (action taken).
+
+Action performed:
+- Removed the S1 output directories and S5 validation bundle directory for
+  manifest `1cb60481d69b836ee24505ec9a6ec231c8f18523ee9b7dabbd38c0a33bf15765` under:
+  - `runs/local_full_run-5/d61f08e2e45ef1bc28884034de4c1b68/data/layer2/5A/merchant_zone_profile/...`
+  - `runs/local_full_run-5/d61f08e2e45ef1bc28884034de4c1b68/data/layer2/5A/merchant_class_profile/...`
+  - `runs/local_full_run-5/d61f08e2e45ef1bc28884034de4c1b68/data/layer2/5A/validation/...`
+
+Next step:
+- Run `make segment5a-s1`, then `make segment5a-s5`.
+
+---
+
+### Entry: 2026-01-20 00:57
+
+5A.S5 indentation fix (corrective entry).
+
+Issue observed:
+- `make segment5a-s5` failed with `IndentationError` in the S3 block after recent
+  edits, due to mis-indented `baseline_columns` and subsequent lines.
+
+Action taken:
+- Realigned the S3 `baseline_scan` block indentation to restore valid Python
+  syntax before re-running S5.
+
+---
+
+### Entry: 2026-01-20 00:59
+
+5A.S5 indentation fix (S2 block).
+
+Issue observed:
+- Another `IndentationError` remained in the S2 check block after earlier edits.
+
+Action taken:
+- Re-indented the entire S2 grid/shape validation block to ensure the `try/except`
+  structure aligns correctly under `if grid_path and shape_path:`.
+
+---
+
+### Entry: 2026-01-20 01:00
+
+5A.S5 indentation fix (S3 except block).
+
+Issue observed:
+- A `SyntaxError` remained because the S3 `except Exception` block was indented
+  one level too deep relative to its `try`.
+
+Action taken:
+- Re-aligned the S3 `except` block to match the `try` indentation.
+
+---
+
+### Entry: 2026-01-20 01:02
+
+5A.S5 indentation fix (S4 block).
+
+Issue observed:
+- `IndentationError` in the S4 scenario-local block (`scenario_columns` and the
+  local-vs-UTC sub-block had mis-indented `else`/`except` lines).
+
+Action taken:
+- Re-indented the S4 `scenario_columns` section and the `local_vs_utc` status
+  calculation, and aligned the S4 `except` block to its `try`.
+
+---
+
+### Entry: 2026-01-20 01:08
+
+5A.S5 try/else cleanup (S3/S4 present checks).
+
+Issue observed:
+- S3 and S4 `CHECK_*_PRESENT` were failing despite outputs existing because
+  `try/except/else` blocks were still emitting the "output missing" path on
+  successful reads.
+
+Action taken:
+- Removed the `try`-`else` branches in S3 and S4 so missing-output checks only
+  fire when the output path is absent (the `if baseline_path:` / `if scenario_path:`
+  `else` blocks).
+
+---
+
+### Entry: 2026-01-20 01:09
+
+5A.S5 bundle cleanup (re-run prep).
+
+Action performed:
+- Removed the existing S5 validation bundle directory for manifest
+  `1cb60481d69b836ee24505ec9a6ec231c8f18523ee9b7dabbd38c0a33bf15765`
+  to avoid `S5_OUTPUT_CONFLICT` on re-run.
+
+---
+
+### Entry: 2026-01-20 01:13
+
+5A.S1/S5 re-run results.
+
+Outcome:
+- `make segment5a-s1` completed successfully and re-published S1 outputs with
+  `s1_spec_version` populated.
+- `make segment5a-s5` completed successfully after recomposition sampling and
+  wrote the validation bundle; `run_report.json` reports `overall_status=PASS`.
