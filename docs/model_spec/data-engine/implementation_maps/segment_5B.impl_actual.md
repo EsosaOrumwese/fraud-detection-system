@@ -520,3 +520,142 @@ Outcome:
   richer `bundle_layout_policy_5B` (new digest
   `9fb0d8641897e0c855a5fedcbf681c6739f401aa0ca7c46238a91cced06fa5dc`).
 - Optional-missing warning for `merchant_zone_scenario_utc_5A` cleared.
+
+### Entry: 2026-01-20 06:19
+
+5B.S1 contract/spec review and implementation plan (time grid + grouping).
+
+Docs read for this state (expanded + contracts):
+- `docs/model_spec/data-engine/layer-2/specs/state-flow/5B/state.5B.s1.expanded.md`
+- `docs/model_spec/data-engine/layer-2/specs/contracts/5B/schemas.5B.yaml` (anchors: `model/s1_time_grid_5B`, `model/s1_grouping_5B`)
+- `docs/model_spec/data-engine/layer-2/specs/contracts/5B/dataset_dictionary.layer2.5B.yaml` (entries: `s1_time_grid_5B`, `s1_grouping_5B`)
+- `docs/model_spec/data-engine/layer-2/specs/data-intake/5B/time_grid_policy_5B_authoring-guide.md`
+- `docs/model_spec/data-engine/layer-2/specs/data-intake/5B/grouping_policy_5B_authoring-guide.md`
+
+Design problem summary:
+- Implement 5B.S1 as an RNG-free state that:
+  - builds a deterministic per-scenario time grid (`s1_time_grid_5B`) from
+    `scenario_manifest_5A` + `time_grid_policy_5B`, and
+  - builds a deterministic grouping plan (`s1_grouping_5B`) over the
+    scenario-local intensity domain using `grouping_policy_5B`.
+- Must honour S0 sealed inputs, upstream PASS gate statuses, and strict
+  idempotent/atomic write discipline.
+
+Key interpretation decisions (explicit):
+1) **Zone representation**
+   - Use `tzid` as the `zone_representation` string for 5B.S1 outputs.
+   - Rationale: `merchant_zone_scenario_local_5A` and `merchant_zone_profile_5A`
+     both carry `tzid`, and the grouping policy’s `zone_group_id` hash is
+     defined over tzid (authoring guide §5.2). Using tzid avoids ambiguity.
+2) **Scenario horizon source**
+   - Use `scenario_manifest_5A` (parquet) as the sole authority for
+     `horizon_start_utc` and `horizon_end_utc`, per spec + time-grid guide.
+3) **Virtual band source**
+   - Use `virtual_classification_3B` (sealed input) for `virtual_mode` so the
+     grouping policy’s `virtual_band` law can be applied consistently.
+   - Note: `virtual_classification_3B` is sealed with `read_scope=METADATA_ONLY`
+     even though the grouping policy requires per-merchant values. Plan is to
+     allow reading this dataset in S1; if this violates read-scope intent, we
+     will log a deviation and/or request confirmation before finalizing.
+4) **Zone group ID formatting**
+   - Follow the authoring guide formula verbatim:
+     `zone_group_id = "zg" + str(SHA256("5B.zone_group|" + tzid)[0] % zone_group_buckets)`.
+     This yields `zg0..zg15` for v1. If zero-padding is desired (e.g. `zg03`),
+     we will note it as a follow-up adjustment.
+
+Implementation plan (stepwise, auditable):
+1) **Scaffold S1 state**
+   - Create `packages/engine/src/engine/layers/l2/seg_5B/s1_time_grid/`
+     (or equivalent) with `runner.py` and module init.
+   - Add CLI entry `engine.cli.s1_time_grid_5b` and a Makefile target
+     `segment5b-s1` mirroring S0 conventions.
+2) **Load S0 + sealed inputs**
+   - Read `s0_gate_receipt_5B` and `sealed_inputs_5B` for `mf`.
+   - Validate schemas, check receipt identity (`mf`, `ph`, `scenario_set`)
+     and recompute sealed-inputs digest (must match receipt).
+   - Assert upstream PASS status for `{1A,1B,2A,2B,3A,3B,5A}` in receipt.
+3) **Resolve policies**
+   - Resolve + validate `time_grid_policy_5B` and `grouping_policy_5B` from
+     sealed inputs.
+   - Enforce pinned constraints from authoring guides:
+     - `time_grid_policy_5B`: `alignment_mode=require_aligned_v1`,
+       `bucket_duration_seconds` in {900,1800,3600}, `bucket_index_base=0`,
+       `bucket_index_origin=horizon_start_utc`, guardrails present, and
+       (if local annotations emit) `reference_tzid=Etc/UTC`.
+     - `grouping_policy_5B`: `mode=stratified_bucket_hash_v1`,
+       `zone_group_buckets=16`, `in_stratum_buckets=32`,
+       pinned stratum fields and laws as per guide §6.
+4) **Scenario horizon derivation**
+   - Load `scenario_manifest_5A@mf` (parquet) and map rows by `scenario_id`.
+   - Ensure every `scenario_id` in `scenario_set_5B` is present exactly once.
+   - For each scenario:
+     - Parse `horizon_start_utc`, `horizon_end_utc` (RFC3339 micros).
+     - Enforce alignment to `bucket_duration_seconds` (fail closed).
+     - Compute bucket count `H` and guardrail checks.
+5) **Build `s1_time_grid_5B`**
+   - For each scenario:
+     - Generate `bucket_index = 0..H-1` and UTC boundaries.
+     - Carry required scenario flags (`scenario_is_baseline`, `scenario_is_stress`)
+       and optional `scenario_labels` if policy lists them.
+     - If local annotations enabled, compute `local_day_of_week`,
+       `local_minutes_since_midnight`, `is_weekend` using `reference_tzid`:
+       for v1 this is `Etc/UTC`, so UTC-to-local is identity.
+     - Add `bucket_duration_seconds`, `parameter_hash`, `manifest_fingerprint`,
+       and `s1_spec_version` (use `s0_gate_receipt_5B.spec_version`).
+   - Sort by `bucket_index` and validate against schema anchor.
+6) **Discover grouping domain**
+   - For each scenario:
+     - Stream `merchant_zone_scenario_local_5A@mf/scenario_id=...` and
+       derive unique keys:
+       `(merchant_id, legal_country_iso, tzid, channel_group)`.
+     - Join with `merchant_zone_profile_5A` to attach `demand_class`.
+     - Join with `virtual_classification_3B` (seed-scoped) to attach
+       `virtual_mode` (or `is_virtual`).
+     - Build `zone_representation = tzid`.
+     - Sort keys deterministically (merchant_id, zone_representation, channel_group).
+7) **Assign group IDs (deterministic hash)**
+   - Derive `scenario_band` from scenario flags:
+     - baseline if `scenario_is_baseline=true`, stress if `scenario_is_stress=true`,
+       otherwise fail.
+   - Derive `virtual_band` per policy law from `virtual_mode`.
+   - Compute `zone_group_id` via SHA256 first-byte mod `zone_group_buckets`.
+   - Compute `b` using SHA256 of the pinned message string (authoring guide §5.3),
+     `b = uint64_be(hash[0:8]) % in_stratum_buckets`.
+   - Build `group_id` via `group_id_format` and optionally record
+     `grouping_key` for audit.
+8) **Realism checks (grouping policy)**
+   - Compute `groups_per_scenario`, `median_members_per_group`,
+     `max_group_share`, and the fraction of groups with >1 member.
+   - Fail closed if any constraint in `realism_targets` is violated.
+9) **Write outputs atomically**
+   - Per scenario write:
+     - `s1_time_grid_5B` at
+       `data/layer2/5B/s1_time_grid/manifest_fingerprint=mf/scenario_id={scenario_id}/...`
+     - `s1_grouping_5B` at
+       `data/layer2/5B/s1_grouping/manifest_fingerprint=mf/scenario_id={scenario_id}/...`
+   - Use temp file + replace; if file exists, compare hashes and only accept
+     byte-identical outputs (else `5B.S1.IO_WRITE_CONFLICT`).
+10) **Run-report integration**
+   - Emit one run-report record per run with metrics required by §10:
+     scenario counts, bucket counts, grouping sizes, and optional detail payload.
+   - Do not emit RNG metrics (S1 is RNG-free).
+
+Logging / observability plan:
+- Story header log: objective + gated inputs + outputs.
+- Log S0 digest verification and upstream PASS status.
+- Log per scenario: horizon start/end, bucket count, guardrail checks.
+- For grouping domain and group assignment, emit progress logs if chunked
+  processing is used (elapsed, processed/total, rate, ETA).
+- Log final counts and group realism metrics before writing outputs.
+
+Resumability hooks:
+- Idempotent output publishing with byte-identical check.
+- Re-run requires prior outputs to match or fail with explicit conflict.
+
+Validation / tests:
+- Run `make segment5b-s1` after implementation.
+- Verify:
+  - `s1_time_grid_5B` bucket indices contiguous and aligned.
+  - `s1_grouping_5B` PK uniqueness and group realism thresholds.
+  - `s1_spec_version` matches S0 `spec_version`.
+  - S1 outputs are identical across re-run (no RNG).
