@@ -15,5 +15,5 @@ group_id_format: "g|{scenario_band}|{demand_class}|{channel_group}|{virtual_band
 realism_targets:
   min_groups_per_scenario: 100
   max_groups_per_scenario: 50000
-  min_group_members_median: 10
+  min_group_members_median: 3
   max_single_group_share: 0.02

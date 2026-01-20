@@ -786,6 +786,9 @@ def _read_scope_for_dataset(dataset_id: str) -> str:
         "bundle_layout_policy_5B",
         "validation_policy_5B",
         "scenario_manifest_5A",
+        "merchant_zone_profile_5A",
+        "merchant_zone_scenario_local_5A",
+        "virtual_classification_3B",
     }:
         return "ROW_LEVEL"
     return "METADATA_ONLY"
