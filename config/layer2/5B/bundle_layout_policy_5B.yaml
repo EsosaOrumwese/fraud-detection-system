@@ -1,3 +1,78 @@
 policy_id: bundle_layout_policy_5B
 version: v1.0.0
-notes: "Optional policy shell for 5B.S5 bundle assembly; default layout applies unless overridden."
+layout_version: v1
+
+bundle_root_template: "data/layer2/5B/validation/manifest_fingerprint={manifest_fingerprint}/"
+index_filename: "index.json"
+passed_flag_filename: "_passed.flag"
+index_schema_ref: "schemas.layer2.yaml#/validation/validation_bundle_index_5B"
+index_ordering: "path_ascii_lex"
+
+evidence_groups:
+  core_validation:
+    required: true
+    members:
+      - dataset_id: validation_report_5B
+        role: report
+        path: "validation_report_5B.json"
+      - dataset_id: validation_issue_table_5B
+        role: issues
+        path: "validation_issue_table_5B.parquet"
+
+  gate_receipts:
+    required: false
+    members:
+      - dataset_id: s0_gate_receipt_5B
+        role: receipt
+        path: "receipts/s0_gate_receipt_5B.json"
+      - dataset_id: sealed_inputs_5B
+        role: receipt
+        path: "receipts/sealed_inputs_5B.json"
+
+  rng_evidence:
+    required: false
+    members:
+      - dataset_id: rng_audit_log
+        role: rng_audit
+        path: "rng/rng_audit_log.jsonl"
+      - dataset_id: rng_trace_log
+        role: rng_trace
+        path: "rng/rng_trace_log.jsonl"
+      - dataset_id: rng_event_arrival_lgcp_gaussian
+        role: rng_event
+        path: "rng/rng_event_arrival_lgcp_gaussian.parquet"
+      - dataset_id: rng_event_arrival_time_jitter
+        role: rng_event
+        path: "rng/rng_event_arrival_time_jitter.parquet"
+      - dataset_id: rng_event_arrival_site_pick
+        role: rng_event
+        path: "rng/rng_event_arrival_site_pick.parquet"
+      - dataset_id: rng_event_arrival_edge_pick
+        role: rng_event
+        path: "rng/rng_event_arrival_edge_pick.parquet"
+
+  run_reports:
+    required: false
+    members:
+      - dataset_id: s1_run_report_5B
+        role: run_report
+        path: "reports/s1_run_report_5B.json"
+      - dataset_id: s2_run_report_5B
+        role: run_report
+        path: "reports/s2_run_report_5B.json"
+      - dataset_id: s3_run_report_5B
+        role: run_report
+        path: "reports/s3_run_report_5B.json"
+      - dataset_id: s4_run_report_5B
+        role: run_report
+        path: "reports/s4_run_report_5B.json"
+      - dataset_id: s5_run_report_5B
+        role: run_report
+        path: "reports/s5_run_report_5B.json"
+
+member_rules:
+  require_relative_paths: true
+  forbid_parent_segments: true
+  role_field: "role"
+
+notes: "Default bundle layout for 5B.S5. Evidence groups are optional unless marked required; S5 may ignore groups it does not emit."

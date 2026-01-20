@@ -8,4 +8,4 @@ scenarios:
     horizon_start_utc: "2026-01-01T00:00:00.000000Z"
     horizon_end_utc: "2026-04-01T00:00:00.000000Z"
     bucket_duration_minutes: 60
-    emit_utc_intensities: false
+    emit_utc_intensities: true

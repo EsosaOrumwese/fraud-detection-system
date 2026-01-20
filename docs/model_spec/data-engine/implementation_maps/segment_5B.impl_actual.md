@@ -480,3 +480,43 @@ Outcome:
 - The optional-missing warning for `bundle_layout_policy_5B` is gone.
 - Only remaining optional-missing input is `merchant_zone_scenario_utc_5A`
   (missing partition `baseline_v1`), which remains intentionally optional.
+
+### Entry: 2026-01-20 05:49
+
+bundle_layout_policy_5B content upgrade.
+
+Design problem summary:
+- The initial `bundle_layout_policy_5B.yaml` was a minimal metadata shell.
+  The user expects a more thoughtful policy outline that captures default
+  bundle layout, member roles, and optional evidence groups (even if S5 does
+  not yet consume the policy).
+
+Decision:
+- Expand the policy file to define:
+  - bundle root / index / flag defaults,
+  - a core evidence set (report + issues),
+  - optional evidence groups (S0 receipts, RNG logs, per-state run reports),
+  - naming conventions and role metadata.
+
+Plan:
+- Rewrite `config/layer2/5B/bundle_layout_policy_5B.yaml` with explicit
+  layout and evidence-group fields while keeping schema flexibility.
+- Reseal 5B.S0 after the policy file change (handled alongside the
+  `merchant_zone_scenario_utc_5A` enablement workflow).
+
+### Entry: 2026-01-20 06:05
+
+bundle_layout_policy_5B upgraded and 5B.S0 resealed.
+
+Actions taken:
+- Rewrote `config/layer2/5B/bundle_layout_policy_5B.yaml` with explicit layout
+  fields (bundle root, index/flag filenames, ordering) and evidence groups
+  (core validation, gate receipts, RNG evidence, run reports).
+- After 5A UTC surface + 5A validation bundle updates, deleted the prior 5B S0
+  outputs and re-ran `make segment5b-s0`.
+
+Outcome:
+- 5B.S0 sealed inputs now include `merchant_zone_scenario_utc_5A` and the
+  richer `bundle_layout_policy_5B` (new digest
+  `9fb0d8641897e0c855a5fedcbf681c6739f401aa0ca7c46238a91cced06fa5dc`).
+- Optional-missing warning for `merchant_zone_scenario_utc_5A` cleared.

@@ -3124,3 +3124,83 @@ Outcome:
   `s1_spec_version` populated.
 - `make segment5a-s5` completed successfully after recomposition sampling and
   wrote the validation bundle; `run_report.json` reports `overall_status=PASS`.
+
+---
+
+### Entry: 2026-01-20 05:49
+
+5A.S4 optional UTC projection enablement (merchant_zone_scenario_utc_5A).
+
+Design problem summary:
+- 5B.S0 currently logs `merchant_zone_scenario_utc_5A` as optional-missing.
+  The user wants the UTC-projected scenario surface present so S0 seals it and
+  the warning disappears.
+- 5A.S4 already supports emitting `merchant_zone_scenario_utc_5A` when
+  `scenario_horizon_config_5A.scenarios[].emit_utc_intensities = true`, using
+  an identity mapping from `local_horizon_bucket_index` to
+  `utc_horizon_bucket_index` (explicitly logged in S4).
+
+Options considered:
+1. Leave UTC intensities disabled and accept the optional-missing warning.
+2. Enable UTC emission via `scenario_horizon_config_5A` and rerun S4.
+3. Generate a synthetic UTC surface outside S4 (would violate the state
+   contract and bypass sealed inputs).
+
+Decision:
+- Proceed with option 2. Flip `emit_utc_intensities` to `true` for the active
+  scenario(s) in `config/layer2/5A/scenario/scenario_horizon_config_5A.v1.yaml`
+  and rely on the existing S4 identity mapping to emit
+  `merchant_zone_scenario_utc_5A`.
+
+Plan (stepwise, auditable):
+1. Update `scenario_horizon_config_5A.v1.yaml` to set
+   `emit_utc_intensities: true` for `baseline_v1`.
+2. Reseal 5A S0 because the config content changed:
+   - Delete existing `sealed_inputs_5A.json` and `s0_gate_receipt_5A.json`
+     for the current `manifest_fingerprint`.
+   - Re-run `make segment5a-s0` with the same run id.
+3. Re-run `make segment5a-s4` to emit
+   `merchant_zone_scenario_utc_5A` (new parquet) while idempotently reusing
+   existing local/overlay outputs.
+4. Refresh 5A validation bundle to keep S5 aligned with the new optional
+   output and updated S0 sealing:
+   - Remove the existing `data/layer2/5A/validation/manifest_fingerprint=...`
+     bundle directory (otherwise `S5_OUTPUT_CONFLICT` will occur).
+   - Re-run `make segment5a-s5`.
+5. Reseal 5B.S0 after upstream 5A changes and new optional dataset:
+   - Delete existing 5B `sealed_inputs_5B.json` + `s0_gate_receipt_5B.json`,
+     then re-run `make segment5b-s0`.
+
+Invariants / validation:
+- `merchant_zone_scenario_utc_5A` must validate against
+  `schemas.5A.yaml#/model/merchant_zone_scenario_utc_5A`.
+- UTC projection must be an identity mapping of horizon index (no reweighting).
+- S4/S5 run-reports should remain PASS for the same `manifest_fingerprint`.
+
+Logging & resumability:
+- S4 already logs whether UTC emission is enabled and its mapping choice.
+- Any rerun conflict should be resolved by clearing prior sealed inputs or
+  validation bundles before re-run, with actions logged in the logbook.
+
+---
+
+### Entry: 2026-01-20 06:05
+
+5A.S4 UTC projection enabled and emitted.
+
+Actions taken:
+- Updated `config/layer2/5A/scenario/scenario_horizon_config_5A.v1.yaml` to set
+  `emit_utc_intensities: true` for `baseline_v1`.
+- Deleted prior 5A S0 outputs for the fingerprint and re-ran `make segment5a-s0`
+  (new `sealed_inputs_digest=2bc88d72057cbdb0ebada8ed9fa7816aa719ab7b37b80ecb1805a3324d39b014`).
+- Ran `make segment5a-s4`; S4 emitted
+  `merchant_zone_scenario_utc_5A` (identity mapping to local horizon index),
+  while other outputs were unchanged and idempotently skipped.
+- Removed the existing 5A validation bundle directory to avoid
+  `S5_OUTPUT_CONFLICT`, then re-ran `make segment5a-s5` to regenerate the
+  validation bundle (new digest `705c4a056c92adf7d5a36bcbe464f3cea115e1e08b1e1bc97f1846af87967335`).
+
+Outcome:
+- `merchant_zone_scenario_utc_5A` now exists under
+  `data/layer2/5A/merchant_zone_scenario_utc/manifest_fingerprint=.../scenario_id=baseline_v1/`.
+- 5A validation bundle re-published and PASS for the updated world.
