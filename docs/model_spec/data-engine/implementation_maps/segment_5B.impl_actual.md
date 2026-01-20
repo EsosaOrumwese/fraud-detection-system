@@ -170,3 +170,234 @@ Logging/observability plan:
 - Log sealed_inputs counts by status/role and emit the sealed_inputs_digest.
 - For loops over dictionary entries, use a progress tracker if rows are large
   (>50) to keep the console alive without noisy spam.
+
+### Entry: 2026-01-20 03:45
+
+5B.S0 upstream gate details & hashing edge cases (pre-implementation check).
+
+New observations:
+- `validation_passed_flag_5A` is JSON (contains `bundle_digest_sha256`), not the
+  `sha256_hex = ...` text format used by 1A-3B. Example from the current run:
+  `data/layer2/5A/validation/.../_passed.flag` holds a JSON object with
+  `bundle_digest_sha256`.
+- 5A’s bundle index file is named `validation_bundle_index_5A.json` (per the
+  dataset dictionary), and its schema expects a dict with an `entries` list.
+
+Decision updates:
+1) **5A gate verification**
+   - Use the dataset dictionary entry for `validation_bundle_index_5A` to load
+     the index file, validate it against `schemas.layer2.yaml#/validation/validation_bundle_index_5A`,
+     and compute the bundle digest by hashing the indexed files.
+   - Parse `validation_passed_flag_5A` as JSON and compare its
+     `bundle_digest_sha256` to the computed digest.
+   - Rationale: this matches the 5A.S5 emission format and preserves HashGate
+     semantics for the 5A bundle.
+
+2) **Data-plane digest posture (reaffirmed)**
+   - Avoid hashing bulk data-plane outputs (parquet/blobs). Use structural
+     digests derived from catalogue metadata and annotate rows with notes.
+   - Still perform existence checks (path exists for the current run/seed and
+     scenario_set) so missing outputs fail fast without reading row-level data.
+
+### Entry: 2026-01-20 03:58
+
+5B.S0 implementation alignment updates (pre-code clarifications).
+
+Design problem summary:
+- Resolve two remaining mismatches before coding: (a) the 5B spec says
+  `scenario_manifest_5A` is required for S0, but the dataset dictionary marks
+  it optional; (b) the 5B spec says `sealed_inputs_digest` should be computed
+  from raw file bytes, while existing layer-2 gates (5A.S0) use a canonical
+  row-based digest for determinism and re-checks.
+
+Decision path and options considered:
+1) **`scenario_manifest_5A` requiredness**
+   - Option A: honor the dataset dictionary and treat it as optional; allow S0
+     to proceed without a scenario manifest.
+   - Option B: follow the S0 expanded spec and treat `scenario_manifest_5A` as
+     required because it is the canonical source for `scenario_set_5B`.
+   - Decision: Option B. 5B.S0 will require `scenario_manifest_5A` to exist and
+     abort if it is missing or empty. This is a deliberate choice to align with
+     the S0 spec and avoid a world where `scenario_set_5B` is undefined.
+
+2) **`sealed_inputs_digest` hashing law**
+   - Option A: compute the digest from raw JSON bytes after writing, exactly as
+     the spec describes.
+   - Option B: compute a deterministic digest from a canonical row projection
+     (as done in 5A.S0), avoiding dependence on JSON formatting and making
+     re-validation deterministic across writers.
+   - Decision: Option B. 5B.S0 will use a row-based digest over a fixed set of
+     fields, mirroring 5A.S0. This is a documented deviation from the spec’s
+     raw-bytes rule, chosen for consistency with existing layer-2 gates and to
+     avoid checksum drift due to JSON formatting changes.
+
+Planned implementation adjustments:
+- Add `scenario_manifest_5A` to the required input list and raise a required
+  scenario error if the manifest is missing or yields zero `scenario_id` values.
+- Implement `_sealed_inputs_digest` for 5B using a canonical JSON projection,
+  and ensure downstream checks reuse the same function when 5B states are added.
+
+### Entry: 2026-01-20 04:03
+
+5B.S0 config version matching (policy/config vs dictionary).
+
+Design problem summary:
+- The 5B config YAML files in `config/layer2/5B` declare patch versions
+  (e.g., `v1.0.1`), while the dataset dictionary entries for those configs
+  declare coarse `version: 'v1'`. The strict equality check used in 5A.S0
+  would reject these configs and block S0.
+
+Decision path and options considered:
+1) **Strict equality (5A behavior)**
+   - Pro: matches the exact contract field.
+   - Con: fails all current 5B configs and forces contract edits or config rewrites.
+2) **Relaxed semver prefix match**
+   - Treat dictionary `v1` as a major version gate and accept `v1.x.y`.
+   - Still reject cross-major mismatches.
+3) **Disable version checks entirely**
+   - Pro: avoids failures.
+   - Con: loses an important safety signal for policy drift.
+
+Decision:
+- Adopt Option 2. Implement a semver-prefix match:
+  - If the dictionary version is a bare major (`v1`), accept any config with
+    `v1.*` and log that the version is compatible.
+  - If the dictionary specifies `v1.2`, require the config to match `v1.2.*`.
+  - If the dictionary is fully specified (`v1.2.3`), require exact match.
+- Rationale: this preserves a guardrail on major/minor changes while aligning
+  with the current config files without rewriting contracts.
+
+Planned implementation adjustments:
+- Add `_policy_version_matches()` helper and replace the strict equality check
+  with prefix-based semver matching for 5B policy/config entries.
+
+### Entry: 2026-01-20 04:28
+
+5B.S0 optional surface handling & scenario-bound structural notes.
+
+Design problem summary:
+- The S0 spec text contains mixed cues on whether `merchant_zone_scenario_utc_5A`
+  is required, while the dataset dictionary marks it optional. We also need a
+  way to make scenario-set changes visible in `sealed_inputs_5B` when using
+  structural digests for scenario-partitioned outputs.
+
+Decision path and options considered:
+1) **`merchant_zone_scenario_utc_5A` required vs optional**
+   - Option A: treat it as required (strict reading of §6 candidate list).
+   - Option B: treat it as optional, consistent with the dataset dictionary and
+     the later spec note that optional surfaces may be absent.
+   - Decision: Option B. We will treat `merchant_zone_scenario_utc_5A` as
+     optional and skip sealing if missing, logging it as an optional omission.
+
+2) **Scenario-set visibility in structural digests**
+   - Option A: keep structural digests purely on path/schema metadata.
+   - Option B: add scenario-set metadata into `notes` for scenario-partitioned
+     datasets so the overall `sealed_inputs_digest` changes when the scenario
+     set changes.
+   - Decision: Option B. For scenario-partitioned datasets, include
+     `scenario_ids=<...>` in `notes` alongside the structural digest marker.
+
+Planned implementation adjustments:
+- Keep `merchant_zone_overlay_factors_5A` and `merchant_zone_scenario_utc_5A`
+  in the optional input list.
+- Embed `scenario_ids` into `notes` for scenario-partitioned datasets so
+  scenario-set changes affect `sealed_inputs_digest`.
+
+### Entry: 2026-01-20 04:29
+
+5B.S0 run failure: schema pack parse error (schemas.5B.yaml).
+
+Design problem summary:
+- `make segment5b-s0` failed before any gating because YAML parsing of
+  `docs/model_spec/data-engine/layer-2/specs/contracts/5B/schemas.5B.yaml`
+  raised a `ParserError` near the `s1_grouping_5B` schema.
+
+Observation:
+- The `properties` map for `s1_grouping_5B` contains a mis-indented
+  `group_id` entry under `channel_group`, which breaks YAML structure.
+
+Decision and fix plan:
+- Correct the indentation so `group_id` is a sibling of `channel_group`
+  (both under `properties:`). This restores valid YAML without altering
+  semantics.
+- Re-run `make segment5b-s0` after the schema fix to validate the gate.
+
+### Entry: 2026-01-20 04:30
+
+5B.S0 schema pack fix applied (schemas.5B.yaml).
+
+Action taken:
+- Fixed the indentation error in `schemas.5B.yaml` under
+  `s1_grouping_5B.properties` so `group_id` is aligned with `channel_group`.
+
+Outcome:
+- YAML now parses; re-run of `make segment5b-s0` can proceed.
+
+### Entry: 2026-01-20 04:31
+
+5B.S0 schema pack fix applied (schemas.5B.yaml, s2_latent_field_5B).
+
+Observation:
+- `make segment5b-s0` surfaced a second YAML parse error under
+  `s2_latent_field_5B.properties` where `group_id` was mis-indented beneath
+  `scenario_id`.
+
+Action taken:
+- Aligned `group_id` with `scenario_id` in the `properties:` block to restore
+  valid YAML structure.
+
+### Entry: 2026-01-20 04:32
+
+5B.S0 scenario manifest validation adjustment.
+
+Design problem summary:
+- `make segment5b-s0` failed while validating `scenario_manifest_5A` because
+  `validate_dataframe()` only supports table/object schemas, while the
+  `scenario_manifest_5A` schema is defined as an `array` of objects.
+
+Decision and fix plan:
+- Replace `validate_dataframe()` with direct JSON Schema validation using
+  `Draft202012Validator` on the array payload. Inline external refs as needed.
+- This keeps schema enforcement while respecting the array schema shape.
+
+### Entry: 2026-01-20 04:32
+
+5B.S0 scenario manifest validation fix applied.
+
+Action taken:
+- Switched `scenario_manifest_5A` validation to `Draft202012Validator` against
+  the array schema, with external refs inlined, instead of `validate_dataframe()`.
+
+### Entry: 2026-01-20 04:33
+
+5B.S0 optional input resolution guard.
+
+Design problem summary:
+- `bundle_layout_policy_5B` is optional but missing on disk; the current loop
+  calls `_resolve_partitioned_paths`, which raises `InputResolutionError`
+  before optional handling can skip it.
+
+Decision and fix plan:
+- Wrap `_resolve_partitioned_paths` in a try/except. If the dataset is optional,
+  log and skip; if required, raise `5B.S0.SEALED_INPUTS_INCOMPLETE`.
+
+### Entry: 2026-01-20 04:33
+
+5B.S0 optional input resolution guard applied.
+
+Action taken:
+- Added `InputResolutionError` handling around `_resolve_partitioned_paths` to
+  skip missing optional inputs (e.g., `bundle_layout_policy_5B`) while still
+  failing fast for required artefacts.
+
+### Entry: 2026-01-20 04:34
+
+5B.S0 run completed (segment5b-s0).
+
+Outcome:
+- `make segment5b-s0` completed successfully for run
+  `d61f08e2e45ef1bc28884034de4c1b68` with `status=PASS`.
+- Optional inputs absent and logged: `merchant_zone_scenario_utc_5A` (missing
+  scenario partition) and `bundle_layout_policy_5B` (no config file).
+- `sealed_inputs_5B` and `s0_gate_receipt_5B` were published, with
+  `sealed_inputs_digest=776e55da6292490b60ce6525780bdff99e0be9a84c902d0f89f75eca1d92fd1f`.

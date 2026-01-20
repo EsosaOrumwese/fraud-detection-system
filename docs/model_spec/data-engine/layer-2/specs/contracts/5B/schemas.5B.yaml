@@ -151,7 +151,7 @@ model:
         merchant_id: { $ref: '#/$defs/id64' }
         zone_representation: { $ref: '#/$defs/zone_representation' }
         channel_group: { type: string }
-          group_id: { type: string }
+        group_id: { type: string }
         grouping_key: { type: string }
         s1_spec_version: { type: string }
 
@@ -203,7 +203,7 @@ model:
         parameter_hash: { $ref: '#/$defs/hex64' }
         seed: { $ref: '#/$defs/seed' }
         scenario_id: { $ref: '#/$defs/scenario_id' }
-          group_id: { type: string }
+        group_id: { type: string }
         bucket_index: { type: integer, minimum: 0 }
         latent_value: { type: number }
         latent_mean: { type: number }
