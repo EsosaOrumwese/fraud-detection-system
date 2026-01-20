@@ -1877,3 +1877,81 @@ Changes in `packages/engine/src/engine/layers/l2/seg_5B/s3_bucket_counts/runner.
 Next:
 - Re-run `make segment5b-s3` and stop early if ETA remains > 9 minutes.
 
+
+### Entry: 2026-01-20 15:16
+
+5B.S3 performance plan update: parallel row-group processing + orjson install (target 5-9 minutes).
+
+Problem:
+- S3 runtime still ~27 minutes; per-row RNG + JSON serialization is CPU-bound.
+- Serial batch loop cannot utilize multiple cores.
+
+Decision:
+- Use `ProcessPoolExecutor` for per-batch RNG draw + count computation.
+- Preserve deterministic output by processing results in submission order.
+- Cap in-flight batches (`ENGINE_5B_S3_INFLIGHT_BATCHES`, default 2x workers) to bound memory usage.
+- Keep event logs per batch (`part-XXXXXX.jsonl`) to avoid concurrent writes.
+- Install `orjson` and use it for RNG event/trace dumps when available.
+
+Plan steps:
+1) Adjust `_batch_payloads()` to yield `(batch_id, payload, joined_df, mu_array)`.
+2) Submit payloads with `executor.submit`, drain in-order once `max_inflight` is hit, then flush remaining.
+3) Keep strict batch_id checks to guard deterministic ordering and domain alignment.
+4) Install `orjson` and validate import path; keep stdlib fallback.
+5) Re-run `make segment5b-s3` with parallel workers and observe ETA; abort if >9 minutes.
+
+### Entry: 2026-01-20 15:20
+
+5B.S3 parallel batch processing implemented + orjson installed.
+
+Changes in `packages/engine/src/engine/layers/l2/seg_5B/s3_bucket_counts/runner.py`:
+- `_batch_payloads()` now yields `(batch_id, payload, joined, mu_array)` and normalizes `mu_array` to float64 once.
+- Added `_handle_result()` helper to keep output write + stats logic consistent.
+- Replaced `executor.map` with bounded `executor.submit` + `deque` drain to prevent eager submission and keep deterministic order.
+- Enforced batch_id checks in both parallel and serial paths.
+- Removed unused `validate_events_remaining` local.
+
+Environment:
+- Installed `orjson` (pip) to activate the fast JSON encoder path.
+- `ENGINE_5B_S3_WORKERS` and `ENGINE_5B_S3_INFLIGHT_BATCHES` now control parallelism + buffering.
+
+Next:
+- Run `make segment5b-s3` with parallel workers; kill early if ETA >9 minutes and iterate.
+
+### Entry: 2026-01-20 15:21
+
+5B.S3 rerun failed early due to RNG trace/event mismatch; trace log cleaned.
+
+Observation:
+- `make segment5b-s3` failed before processing data with
+  `5B.S3.RNG_ACCOUNTING_MISMATCH` (V-05) because the RNG trace already
+  contained `5B.S3/bucket_count` entries while event logs were missing.
+- Root cause: previous cleanup removed event logs but did not fully remove
+  `5B.S3` substream entries from the trace log.
+
+Action:
+- Filtered `rng_trace_log.jsonl` for run `d61f08e2e45ef1bc28884034de4c1b68`
+  to remove all lines with `module=5B.S3` or `substream_label=bucket_count`
+  (removed 2,840,000 lines, kept 2,070).
+- Installed `orjson` inside `.venv` because `make` uses `.venv/Scripts/python.exe`
+  (ensures `_HAVE_ORJSON=True` in S3 logs).
+
+Next:
+- Re-run `make segment5b-s3` with parallel workers and confirm the ETA.
+
+### Entry: 2026-01-20 15:23
+
+5B.S3 rerun succeeded with parallel workers + orjson (runtime ~58s).
+
+Run details:
+- Command: `make segment5b-s3` with
+  `ENGINE_5B_S3_WORKERS=6`, `ENGINE_5B_S3_INFLIGHT_BATCHES=12`,
+  `ENGINE_5B_S3_EVENT_BUFFER=10000`, `ENGINE_5B_S3_VALIDATE_EVENTS_LIMIT=1000`.
+- Trace mode: append; RNG audit row already present.
+- Progress: 31,667,760 rows processed in ~54.6s with ETA dropping to <10s.
+- Output: `s3_bucket_counts_5B` already existed and matched; publish skipped.
+- Wall time reported by step timer: ~57.9s for scenario completion.
+
+Outcome:
+- Performance target achieved (<< 5-9 minutes) while preserving deterministic
+  output ordering and RNG accounting.

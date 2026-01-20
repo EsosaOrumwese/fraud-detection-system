@@ -18,6 +18,8 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Iterable, Iterator, Optional
 
+import concurrent.futures
+from collections import deque
 try:  # Faster JSON when available.
     import orjson
 
@@ -685,6 +687,221 @@ def _derive_rng_seed_from_hasher(base_hasher: "hashlib._Hash", domain_key: str) 
     return key, counter_hi, counter_lo
 
 
+def _process_counts_batch(
+    batch_index: int,
+    scenario_id: str,
+    manifest_fingerprint: str,
+    parameter_hash: str,
+    seed: int,
+    run_id: str,
+    count_law_id: str,
+    lambda_zero_eps: float,
+    max_count_per_bucket: int,
+    poisson_exact_lambda_max: float,
+    poisson_n_cap_exact: int,
+    domain_sep: str,
+    family_id: str,
+    mu_array: np.ndarray,
+    merchant_ids: np.ndarray,
+    zone_values: list[str],
+    bucket_indices: np.ndarray,
+    group_ids: list[str],
+    kappa_values: Optional[np.ndarray],
+    event_dir: Optional[str],
+    draws_per_row: int,
+    blocks_per_row: int,
+    event_buffer_size: int,
+    validate_events_full: bool,
+    validate_events_limit: int,
+    event_schema: Optional[dict],
+) -> dict:
+    mu_array = np.asarray(mu_array, dtype=np.float64)
+    zero_mask = mu_array <= lambda_zero_eps
+    nonzero_indices = np.flatnonzero(~zero_mask)
+    count_array = np.zeros(mu_array.size, dtype=np.int64)
+    capped_array = np.zeros(mu_array.size, dtype=bool)
+
+    rng_prefix = _rng_prefix(
+        domain_sep,
+        family_id,
+        str(manifest_fingerprint),
+        str(parameter_hash),
+        int(seed),
+        str(scenario_id),
+    )
+    base_hasher = hashlib.sha256(rng_prefix)
+    domain_prefix_cache: dict[tuple[int, str], str] = {}
+
+    event_validator = Draft202012Validator(event_schema) if event_schema is not None else None
+    validate_remaining = None if validate_events_full else max(int(validate_events_limit), 0)
+
+    event_handle = None
+    if event_dir:
+        event_path = Path(event_dir) / f"part-{batch_index:06d}.jsonl"
+        event_handle = event_path.open("w", encoding="utf-8")
+    event_buffer: list[str] = []
+
+    rng_events = 0
+    rng_draws = 0
+    rng_blocks = 0
+    last_counters: Optional[tuple[int, int, int, int]] = None
+
+    derive_seed = _derive_rng_seed_from_hasher
+    draw_philox = _draw_philox_u64
+    open_u01 = _open_interval_u01
+    poisson_one_u = _poisson_one_u
+    gamma_one_u = _gamma_one_u_approx
+    add_u128_local = add_u128
+    counter_wrapped = _counter_wrapped
+
+    for idx in nonzero_indices:
+        merchant_id = int(merchant_ids[idx])
+        zone_rep = str(zone_values[idx])
+        bucket_index = int(bucket_indices[idx])
+        mu = float(mu_array[idx])
+
+        cache_key = (merchant_id, zone_rep)
+        domain_prefix = domain_prefix_cache.get(cache_key)
+        if domain_prefix is None:
+            domain_prefix = f"merchant_id={merchant_id}|zone={zone_rep}|bucket_index="
+            domain_prefix_cache[cache_key] = domain_prefix
+        domain_key = f"{domain_prefix}{bucket_index}"
+
+        key, counter_hi, counter_lo = derive_seed(base_hasher, domain_key)
+        values, blocks, after_hi, after_lo = draw_philox(
+            key, counter_hi, counter_lo, draws_per_row, manifest_fingerprint
+        )
+        if blocks != blocks_per_row:
+            raise EngineFailure(
+                "F4",
+                "5B.S3.RNG_ACCOUNTING_MISMATCH",
+                STATE,
+                MODULE_NAME,
+                {"scenario_id": scenario_id, "blocks": blocks},
+            )
+        expected_hi, expected_lo = add_u128_local(counter_hi, counter_lo, blocks)
+        if counter_wrapped(counter_hi, counter_lo, expected_hi, expected_lo):
+            raise EngineFailure(
+                "F4",
+                "5B.S3.RNG_ACCOUNTING_MISMATCH",
+                STATE,
+                MODULE_NAME,
+                {"scenario_id": scenario_id, "detail": "counter_wrap"},
+            )
+
+        u1 = open_u01(values[0])
+        if count_law_id == "poisson":
+            count, capped = poisson_one_u(
+                mu,
+                u1,
+                poisson_exact_lambda_max,
+                poisson_n_cap_exact,
+                max_count_per_bucket,
+            )
+        else:
+            kappa = float(kappa_values[idx]) if kappa_values is not None else None
+            if kappa is None or not math.isfinite(kappa) or kappa <= 0.0:
+                raise EngineFailure(
+                    "F4",
+                    "5B.S3.COUNT_CONFIG_INVALID",
+                    STATE,
+                    MODULE_NAME,
+                    {"scenario_id": scenario_id, "group_id": group_ids[idx]},
+                )
+            u2 = open_u01(values[1])
+            gamma_lambda = gamma_one_u(mu, kappa, u1)
+            if not math.isfinite(gamma_lambda) or gamma_lambda < 0.0:
+                raise EngineFailure(
+                    "F4",
+                    "5B.S3.COUNTS_NUMERIC_INVALID",
+                    STATE,
+                    MODULE_NAME,
+                    {"scenario_id": scenario_id, "value": gamma_lambda},
+                )
+            count, capped = poisson_one_u(
+                gamma_lambda,
+                u2,
+                poisson_exact_lambda_max,
+                poisson_n_cap_exact,
+                max_count_per_bucket,
+            )
+
+        if count < 0 or count > max_count_per_bucket:
+            raise EngineFailure(
+                "F4",
+                "5B.S3.COUNTS_NUMERIC_INVALID",
+                STATE,
+                MODULE_NAME,
+                {"scenario_id": scenario_id, "count": int(count), "max": max_count_per_bucket},
+            )
+
+        count_array[idx] = int(count)
+        capped_array[idx] = bool(capped)
+
+        rng_events += 1
+        rng_draws += draws_per_row
+        rng_blocks += blocks
+        last_counters = (counter_hi, counter_lo, expected_hi, expected_lo)
+
+        if event_handle is not None:
+            event_payload = {
+                "ts_utc": utc_now_rfc3339_micro(),
+                "run_id": str(run_id),
+                "seed": int(seed),
+                "parameter_hash": str(parameter_hash),
+                "manifest_fingerprint": str(manifest_fingerprint),
+                "module": "5B.S3",
+                "substream_label": "bucket_count",
+                "scenario_id": str(scenario_id),
+                "bucket_index": int(bucket_index),
+                "merchant_id": int(merchant_id),
+                "rng_counter_before_lo": int(counter_lo),
+                "rng_counter_before_hi": int(counter_hi),
+                "rng_counter_after_lo": int(expected_lo),
+                "rng_counter_after_hi": int(expected_hi),
+                "draws": str(draws_per_row),
+                "blocks": int(blocks),
+            }
+            if event_validator is not None and (validate_remaining is None or validate_remaining > 0):
+                errors = list(event_validator.iter_errors(event_payload))
+                if errors:
+                    raise EngineFailure(
+                        "F4",
+                        "5B.S3.RNG_ACCOUNTING_MISMATCH",
+                        STATE,
+                        MODULE_NAME,
+                        {"scenario_id": scenario_id, "error": str(errors[0])},
+                    )
+                if validate_remaining is not None:
+                    validate_remaining -= 1
+            event_buffer.append(_json_dumps(event_payload))
+            if len(event_buffer) >= event_buffer_size:
+                event_handle.write("\n".join(event_buffer))
+                event_handle.write("\n")
+                event_buffer.clear()
+
+    if event_handle is not None and event_buffer:
+        event_handle.write("\n".join(event_buffer))
+        event_handle.write("\n")
+        event_buffer.clear()
+    if event_handle is not None:
+        event_handle.close()
+
+    return {
+        "batch_index": batch_index,
+        "count_array": count_array,
+        "capped_array": capped_array,
+        "rng_events": rng_events,
+        "rng_draws": rng_draws,
+        "rng_blocks": rng_blocks,
+        "last_counters": last_counters,
+    }
+
+
+def _process_counts_batch_star(args: tuple) -> dict:
+    return _process_counts_batch(*args)
+
+
 def _draw_philox_u64(
     key: int,
     counter_hi: int,
@@ -891,12 +1108,30 @@ def run_s3(config: EngineConfig, run_id: Optional[str] = None) -> S3Result:
         validate_events_limit = max(int(validate_events_limit_env), 0)
     except ValueError:
         validate_events_limit = 1000
-    validate_events_remaining = None if validate_events_full else validate_events_limit
     event_buffer_env = os.environ.get("ENGINE_5B_S3_EVENT_BUFFER", "5000")
     try:
         event_buffer_size = max(int(event_buffer_env), 1)
     except ValueError:
         event_buffer_size = 5000
+    workers_env = os.environ.get("ENGINE_5B_S3_WORKERS", "").strip()
+    if workers_env:
+        try:
+            worker_count = max(int(workers_env), 1)
+        except ValueError:
+            worker_count = 1
+    else:
+        worker_count = max(1, min(os.cpu_count() or 1, 4))
+    max_inflight_env = os.environ.get("ENGINE_5B_S3_INFLIGHT_BATCHES", "").strip()
+    if max_inflight_env:
+        try:
+            max_inflight = max(int(max_inflight_env), 1)
+        except ValueError:
+            max_inflight = max(2, worker_count * 2)
+    else:
+        max_inflight = max(2, worker_count * 2)
+    use_parallel = worker_count > 1
+    if use_parallel:
+        ordering_stats_enabled = strict_ordering
     current_phase = "init"
     status = "FAIL"
     error_code: Optional[str] = None
@@ -981,6 +1216,12 @@ def run_s3(config: EngineConfig, run_id: Optional[str] = None) -> S3Result:
             "full" if validate_events_full else "sampled",
             "all" if validate_events_full else validate_events_limit,
             "orjson" if _HAVE_ORJSON else "json",
+        )
+        logger.info(
+            "S3: parallel_mode=%s workers=%d inflight_batches=%d",
+            "on" if use_parallel else "off",
+            worker_count,
+            max_inflight,
         )
 
         tokens = {
@@ -1414,13 +1655,15 @@ def run_s3(config: EngineConfig, run_id: Optional[str] = None) -> S3Result:
         if trace_mode == "create":
             trace_tmp_path = run_paths.tmp_root / f"s3_trace_{uuid.uuid4().hex}.jsonl"
             trace_handle = trace_tmp_path.open("w", encoding="utf-8")
-            trace_acc = RngTraceAccumulator()
+            if not use_parallel:
+                trace_acc = RngTraceAccumulator()
         elif trace_mode == "append":
             trace_handle = trace_path.open("a", encoding="utf-8")
-            trace_acc = RngTraceAccumulator()
+            if not use_parallel:
+                trace_acc = RngTraceAccumulator()
         logger.info("S3: rng_trace_log mode=%s", trace_mode)
 
-        if not event_enabled and trace_mode == "append":
+        if not event_enabled and trace_mode == "append" and trace_acc is not None:
             _append_trace_from_events(event_root, trace_handle, trace_acc, logger)
 
         audit_payload = {
@@ -1449,8 +1692,9 @@ def run_s3(config: EngineConfig, run_id: Optional[str] = None) -> S3Result:
         if event_enabled:
             event_tmp_dir = run_paths.tmp_root / f"s3_rng_events_{uuid.uuid4().hex}"
             event_tmp_dir.mkdir(parents=True, exist_ok=True)
-            event_tmp_path = _event_file_from_root(event_tmp_dir)
-            event_handle = event_tmp_path.open("w", encoding="utf-8")
+            if not use_parallel:
+                event_tmp_path = _event_file_from_root(event_tmp_dir)
+                event_handle = event_tmp_path.open("w", encoding="utf-8")
 
         event_buffer: list[str] = []
         trace_buffer: list[str] = []
@@ -1761,16 +2005,6 @@ def run_s3(config: EngineConfig, run_id: Optional[str] = None) -> S3Result:
                 .sort("bucket_index")
             )
 
-            rng_prefix = _rng_prefix(
-                domain_sep,
-                family_id,
-                str(manifest_fingerprint),
-                str(parameter_hash),
-                int(seed),
-                str(scenario_id),
-            )
-            base_hasher = hashlib.sha256(rng_prefix)
-            domain_prefix_cache: dict[tuple[int, str], str] = {}
             draws_per_row = 1 if count_law_id == "poisson" else 2
             blocks_per_row = int((draws_per_row + 1) // 2)
 
@@ -1807,262 +2041,170 @@ def run_s3(config: EngineConfig, run_id: Optional[str] = None) -> S3Result:
 
             sample_remaining = output_sample_rows
 
-            last_key: Optional[tuple] = None if ordering_stats_enabled else None
+            last_key: Optional[tuple] = None
             ordering_violations = 0
             ordering_violation_sample: Optional[tuple[tuple, tuple]] = None
-            for batch in _iter_parquet_batches(
-                realised_files,
-                ["scenario_id", "merchant_id", "zone_representation", "channel_group", "bucket_index", "lambda_realised"],
-            ):
-                if _HAVE_PYARROW and hasattr(batch, "column"):
-                    batch_df = pl.from_arrow(batch)
-                else:
-                    batch_df = batch
-                if batch_df.is_empty():
-                    continue
-                tracker.update(batch_df.height)
 
-                if batch_df.filter(pl.col("scenario_id") != scenario_id).height:
-                    _abort(
-                        "5B.S3.DOMAIN_ALIGN_FAILED",
-                        "V-08",
-                        "scenario_id_mismatch",
-                        {"scenario_id": scenario_id},
-                        manifest_fingerprint,
-                    )
-                if batch_df.filter(pl.col("channel_group").is_null()).height:
-                    _abort(
-                        "5B.S3.DOMAIN_ALIGN_FAILED",
-                        "V-08",
-                        "channel_group_missing",
-                        {"scenario_id": scenario_id},
-                        manifest_fingerprint,
-                    )
+            batch_index = 0
+            event_schema_payload = event_schema if (validate_events_full or validate_events_limit > 0) else None
+            event_dir = str(event_tmp_dir) if event_tmp_dir is not None else None
 
-                batch_df = batch_df.with_columns(
-                    pl.col("merchant_id").cast(pl.UInt64),
-                    pl.col("zone_representation").cast(pl.Utf8),
-                    pl.col("channel_group").cast(pl.Utf8),
-                    pl.col("bucket_index").cast(pl.Int64),
-                    pl.col("lambda_realised").cast(pl.Float64),
-                )
-                joined = batch_df.join(
-                    grouping_lookup,
-                    on=["scenario_id", "merchant_id", "zone_representation", "channel_group"],
-                    how="left",
-                )
-                if joined.height != batch_df.height:
-                    _abort(
-                        "5B.S3.DOMAIN_ALIGN_FAILED",
-                        "V-08",
-                        "grouping_join_mismatch",
-                        {"scenario_id": scenario_id, "rows": batch_df.height, "joined": joined.height},
-                        manifest_fingerprint,
-                    )
-                if joined.filter(pl.col("group_id").is_null()).height:
-                    _abort(
-                        "5B.S3.COUNTS_DOMAIN_INCOMPLETE",
-                        "V-08",
-                        "group_id_missing",
-                        {"scenario_id": scenario_id},
-                        manifest_fingerprint,
-                    )
-                joined = joined.join(time_grid_lookup, on="bucket_index", how="left")
-                if joined.filter(pl.col("bucket_duration_seconds").is_null()).height:
-                    _abort(
-                        "5B.S3.BUCKET_SET_INCONSISTENT",
-                        "V-08",
-                        "bucket_index_missing",
-                        {"scenario_id": scenario_id},
-                        manifest_fingerprint,
-                    )
+            def _batch_payloads() -> Iterator[tuple[int, tuple, pl.DataFrame, np.ndarray]]:
+                nonlocal batch_index
+                for batch in _iter_parquet_batches(
+                    realised_files,
+                    [
+                        "scenario_id",
+                        "merchant_id",
+                        "zone_representation",
+                        "channel_group",
+                        "bucket_index",
+                        "lambda_realised",
+                    ],
+                ):
+                    if _HAVE_PYARROW and hasattr(batch, "column"):
+                        batch_df = pl.from_arrow(batch)
+                    else:
+                        batch_df = batch
+                    if batch_df.is_empty():
+                        continue
+                    tracker.update(batch_df.height)
 
-                lambda_values = joined.get_column("lambda_realised").to_numpy()
-                merchant_ids = joined.get_column("merchant_id").to_numpy()
-                zone_values = joined.get_column("zone_representation").to_list()
-                bucket_indices_batch = joined.get_column("bucket_index").to_numpy()
-                group_ids_batch = joined.get_column("group_id").to_list()
-                if count_law_id == "nb2":
-                    kappa_values = joined.get_column("kappa").to_numpy()
-                else:
-                    kappa_values = None
-
-                mu_array = np.asarray(lambda_values, dtype=np.float64)
-                if not np.isfinite(mu_array).all():
-                    _abort(
-                        "5B.S3.COUNTS_NUMERIC_INVALID",
-                        "V-08",
-                        "lambda_realised_invalid",
-                        {"scenario_id": scenario_id},
-                        manifest_fingerprint,
-                    )
-                if (mu_array < 0.0).any():
-                    _abort(
-                        "5B.S3.COUNTS_NUMERIC_INVALID",
-                        "V-08",
-                        "lambda_realised_negative",
-                        {"scenario_id": scenario_id},
-                        manifest_fingerprint,
-                    )
-
-                zero_mask = mu_array <= lambda_zero_eps
-                nonzero_indices = np.flatnonzero(~zero_mask)
-                count_array = np.zeros(joined.height, dtype=np.int64)
-                capped_array = np.zeros(joined.height, dtype=bool)
-
-                if nonzero_indices.size:
-                    derive_seed = _derive_rng_seed_from_hasher
-                    draw_philox = _draw_philox_u64
-                    open_u01 = _open_interval_u01
-                    poisson_one_u = _poisson_one_u
-                    gamma_one_u = _gamma_one_u_approx
-                    add_u128_local = add_u128
-                    counter_wrapped = _counter_wrapped
-
-                for idx in nonzero_indices:
-                    merchant_id = int(merchant_ids[idx])
-                    zone_rep = str(zone_values[idx])
-                    bucket_index = int(bucket_indices_batch[idx])
-                    mu = float(mu_array[idx])
-                    cache_key = (merchant_id, zone_rep)
-                    domain_prefix = domain_prefix_cache.get(cache_key)
-                    if domain_prefix is None:
-                        domain_prefix = f"merchant_id={merchant_id}|zone={zone_rep}|bucket_index="
-                        domain_prefix_cache[cache_key] = domain_prefix
-                    domain_key = f"{domain_prefix}{bucket_index}"
-                    key, counter_hi, counter_lo = derive_seed(base_hasher, domain_key)
-                    values, blocks, after_hi, after_lo = draw_philox(
-                        key, counter_hi, counter_lo, draws_per_row, manifest_fingerprint
-                    )
-                    if blocks != blocks_per_row:
+                    if batch_df.filter(pl.col("scenario_id") != scenario_id).height:
                         _abort(
-                            "5B.S3.RNG_ACCOUNTING_MISMATCH",
-                            "V-12",
-                            "blocks_mismatch",
-                            {"scenario_id": scenario_id, "blocks": blocks},
-                            manifest_fingerprint,
-                        )
-                    expected_hi, expected_lo = add_u128_local(counter_hi, counter_lo, blocks)
-                    if counter_wrapped(counter_hi, counter_lo, expected_hi, expected_lo):
-                        _abort(
-                            "5B.S3.RNG_ACCOUNTING_MISMATCH",
-                            "V-12",
-                            "counter_wrap",
+                            "5B.S3.DOMAIN_ALIGN_FAILED",
+                            "V-08",
+                            "scenario_id_mismatch",
                             {"scenario_id": scenario_id},
                             manifest_fingerprint,
                         )
-                    u1 = open_u01(values[0])
-                    if count_law_id == "poisson":
-                        count, capped = poisson_one_u(
-                            mu,
-                            u1,
-                            poisson_exact_lambda_max,
-                            poisson_n_cap_exact,
-                            max_count_per_bucket,
-                        )
-                    else:
-                        kappa = float(kappa_values[idx]) if kappa_values is not None else None
-                        if kappa is None or not math.isfinite(kappa) or kappa <= 0.0:
-                            _abort(
-                                "5B.S3.COUNT_CONFIG_INVALID",
-                                "V-08",
-                                "kappa_invalid",
-                                {"scenario_id": scenario_id, "group_id": group_ids_batch[idx]},
-                                manifest_fingerprint,
-                            )
-                        u2 = open_u01(values[1])
-                        try:
-                            gamma_lambda = gamma_one_u(mu, kappa, u1)
-                        except ValueError as exc:
-                            _abort(
-                                "5B.S3.COUNTS_NUMERIC_INVALID",
-                                "V-08",
-                                "gamma_invalid",
-                                {"scenario_id": scenario_id, "error": str(exc)},
-                                manifest_fingerprint,
-                            )
-                        if not math.isfinite(gamma_lambda) or gamma_lambda < 0.0:
-                            _abort(
-                                "5B.S3.COUNTS_NUMERIC_INVALID",
-                                "V-08",
-                                "gamma_lambda_invalid",
-                                {"scenario_id": scenario_id, "value": gamma_lambda},
-                                manifest_fingerprint,
-                            )
-                        count, capped = poisson_one_u(
-                            gamma_lambda,
-                            u2,
-                            poisson_exact_lambda_max,
-                            poisson_n_cap_exact,
-                            max_count_per_bucket,
+                    if batch_df.filter(pl.col("channel_group").is_null()).height:
+                        _abort(
+                            "5B.S3.DOMAIN_ALIGN_FAILED",
+                            "V-08",
+                            "channel_group_missing",
+                            {"scenario_id": scenario_id},
+                            manifest_fingerprint,
                         )
 
-                    if count < 0 or count > max_count_per_bucket:
+                    batch_df = batch_df.with_columns(
+                        pl.col("merchant_id").cast(pl.UInt64),
+                        pl.col("zone_representation").cast(pl.Utf8),
+                        pl.col("channel_group").cast(pl.Utf8),
+                        pl.col("bucket_index").cast(pl.Int64),
+                        pl.col("lambda_realised").cast(pl.Float64),
+                    )
+                    joined = batch_df.join(
+                        grouping_lookup,
+                        on=["scenario_id", "merchant_id", "zone_representation", "channel_group"],
+                        how="left",
+                    )
+                    if joined.height != batch_df.height:
+                        _abort(
+                            "5B.S3.DOMAIN_ALIGN_FAILED",
+                            "V-08",
+                            "grouping_join_mismatch",
+                            {"scenario_id": scenario_id, "rows": batch_df.height, "joined": joined.height},
+                            manifest_fingerprint,
+                        )
+                    if joined.filter(pl.col("group_id").is_null()).height:
+                        _abort(
+                            "5B.S3.COUNTS_DOMAIN_INCOMPLETE",
+                            "V-08",
+                            "group_id_missing",
+                            {"scenario_id": scenario_id},
+                            manifest_fingerprint,
+                        )
+                    joined = joined.join(time_grid_lookup, on="bucket_index", how="left")
+                    if joined.filter(pl.col("bucket_duration_seconds").is_null()).height:
+                        _abort(
+                            "5B.S3.BUCKET_SET_INCONSISTENT",
+                            "V-08",
+                            "bucket_index_missing",
+                            {"scenario_id": scenario_id},
+                            manifest_fingerprint,
+                        )
+
+                    mu_array = np.asarray(joined.get_column("lambda_realised").to_numpy(), dtype=np.float64)
+                    if not np.isfinite(mu_array).all():
                         _abort(
                             "5B.S3.COUNTS_NUMERIC_INVALID",
                             "V-08",
-                            "count_out_of_bounds",
-                            {"scenario_id": scenario_id, "count": count, "max": max_count_per_bucket},
+                            "lambda_realised_invalid",
+                            {"scenario_id": scenario_id},
                             manifest_fingerprint,
                         )
-                    count_array[idx] = int(count)
-                    capped_array[idx] = bool(capped)
+                    if (mu_array < 0.0).any():
+                        _abort(
+                            "5B.S3.COUNTS_NUMERIC_INVALID",
+                            "V-08",
+                            "lambda_realised_negative",
+                            {"scenario_id": scenario_id},
+                            manifest_fingerprint,
+                        )
 
-                    rng_events_total += 1
-                    rng_draws_total += draws_per_row
-                    rng_blocks_total += blocks
-                    if event_handle is not None and trace_handle is not None and trace_acc is not None:
-                        event_payload = {
-                            "ts_utc": utc_now_rfc3339_micro(),
-                            "run_id": str(run_id),
-                            "seed": int(seed),
-                            "parameter_hash": str(parameter_hash),
-                            "manifest_fingerprint": str(manifest_fingerprint),
-                            "module": "5B.S3",
-                            "substream_label": "bucket_count",
-                            "scenario_id": str(scenario_id),
-                            "bucket_index": int(bucket_index),
-                            "merchant_id": int(merchant_id),
-                            "rng_counter_before_lo": int(counter_lo),
-                            "rng_counter_before_hi": int(counter_hi),
-                            "rng_counter_after_lo": int(expected_lo),
-                            "rng_counter_after_hi": int(expected_hi),
-                            "draws": str(draws_per_row),
-                            "blocks": int(blocks),
-                        }
-                        if validate_events_remaining is None or validate_events_remaining > 0:
-                            errors = list(event_validator.iter_errors(event_payload))
-                            if errors:
-                                _abort(
-                                    "5B.S3.RNG_ACCOUNTING_MISMATCH",
-                                    "V-12",
-                                    "rng_event_schema_invalid",
-                                    {"scenario_id": scenario_id, "error": str(errors[0])},
-                                    manifest_fingerprint,
-                                )
-                            if validate_events_remaining is not None:
-                                validate_events_remaining -= 1
-                        event_buffer.append(_json_dumps(event_payload))
-                        trace_row = trace_acc.append_event(event_payload)
-                        trace_buffer.append(_json_dumps(trace_row))
-                        if len(event_buffer) >= event_buffer_size:
-                            _flush_rng_buffers()
+                    merchant_ids = joined.get_column("merchant_id").to_numpy()
+                    zone_values = joined.get_column("zone_representation").to_list()
+                    bucket_indices_batch = joined.get_column("bucket_index").to_numpy()
+                    group_ids_batch = joined.get_column("group_id").to_list()
+                    if count_law_id == "nb2":
+                        kappa_values = joined.get_column("kappa").to_numpy()
+                    else:
+                        kappa_values = None
 
-                    if ordering_stats_enabled:
-                        key_tuple = (scenario_id, merchant_id, zone_rep, bucket_index)
-                        if last_key is not None and key_tuple < last_key:
-                            ordering_violations += 1
-                            if ordering_violation_sample is None:
-                                ordering_violation_sample = (last_key, key_tuple)
-                            if strict_ordering:
-                                _abort(
-                                    "5B.S3.DOMAIN_ALIGN_FAILED",
-                                    "V-08",
-                                    "ordering_violation",
-                                    {"scenario_id": scenario_id},
-                                    manifest_fingerprint,
-                                )
-                        last_key = key_tuple
+                    payload = (
+                        batch_index,
+                        str(scenario_id),
+                        str(manifest_fingerprint),
+                        str(parameter_hash),
+                        int(seed),
+                        str(run_id),
+                        str(count_law_id),
+                        float(lambda_zero_eps),
+                        int(max_count_per_bucket),
+                        float(poisson_exact_lambda_max),
+                        int(poisson_n_cap_exact),
+                        str(domain_sep),
+                        str(family_id),
+                        np.asarray(mu_array, dtype=np.float64),
+                        merchant_ids,
+                        zone_values,
+                        bucket_indices_batch,
+                        group_ids_batch,
+                        kappa_values,
+                        event_dir,
+                        int(draws_per_row),
+                        int(blocks_per_row),
+                        int(event_buffer_size),
+                        bool(validate_events_full),
+                        int(validate_events_limit),
+                        event_schema_payload,
+                    )
+                    current_index = batch_index
+                    batch_index += 1
+                    yield current_index, payload, joined, mu_array
+
+            def _handle_result(result: dict, joined: pl.DataFrame, mu_array: np.ndarray) -> None:
+                nonlocal counts_rows
+                nonlocal total_rows_written
+                nonlocal counts_sum
+                nonlocal counts_capped
+                nonlocal scenario_count_min
+                nonlocal scenario_count_max
+                nonlocal scenario_mu_min
+                nonlocal scenario_mu_max
+                nonlocal writer
+                nonlocal counts_chunks
+                nonlocal rng_events_total
+                nonlocal rng_draws_total
+                nonlocal rng_blocks_total
+                nonlocal sample_remaining
+                nonlocal last_key
+                nonlocal ordering_violations
+                nonlocal ordering_violation_sample
+
+                count_array = np.asarray(result.get("count_array"), dtype=np.int64)
+                capped_array = np.asarray(result.get("capped_array"), dtype=bool)
 
                 output_df = joined.select(
                     pl.lit(str(manifest_fingerprint)).alias("manifest_fingerprint"),
@@ -2136,6 +2278,102 @@ def run_s3(config: EngineConfig, run_id: Optional[str] = None) -> S3Result:
                     writer.write_table(table)
                 else:
                     counts_chunks.append(output_df)
+
+                rng_events_total += int(result.get("rng_events") or 0)
+                rng_draws_total += int(result.get("rng_draws") or 0)
+                rng_blocks_total += int(result.get("rng_blocks") or 0)
+                last_counters = result.get("last_counters")
+                if trace_handle is not None and last_counters:
+                    counter_hi, counter_lo, expected_hi, expected_lo = last_counters
+                    trace_row = {
+                        "ts_utc": utc_now_rfc3339_micro(),
+                        "run_id": str(run_id),
+                        "seed": int(seed),
+                        "module": "5B.S3",
+                        "substream_label": "bucket_count",
+                        "rng_counter_before_lo": int(counter_lo),
+                        "rng_counter_before_hi": int(counter_hi),
+                        "rng_counter_after_lo": int(expected_lo),
+                        "rng_counter_after_hi": int(expected_hi),
+                        "draws_total": int(rng_draws_total),
+                        "blocks_total": int(rng_blocks_total),
+                        "events_total": int(rng_events_total),
+                    }
+                    trace_handle.write(_json_dumps(trace_row))
+                    trace_handle.write("\n")
+
+                if ordering_stats_enabled:
+                    merchants = output_df.get_column("merchant_id").to_numpy()
+                    zones = output_df.get_column("zone_representation").to_list()
+                    buckets = output_df.get_column("bucket_index").to_numpy()
+                    for idx in range(output_df.height):
+                        key_tuple = (
+                            scenario_id,
+                            int(merchants[idx]),
+                            str(zones[idx]),
+                            int(buckets[idx]),
+                        )
+                        if last_key is not None and key_tuple < last_key:
+                            ordering_violations += 1
+                            if ordering_violation_sample is None:
+                                ordering_violation_sample = (last_key, key_tuple)
+                            if strict_ordering:
+                                _abort(
+                                    "5B.S3.DOMAIN_ALIGN_FAILED",
+                                    "V-08",
+                                    "ordering_violation",
+                                    {"scenario_id": scenario_id},
+                                    manifest_fingerprint,
+                                )
+                        last_key = key_tuple
+
+            executor = None
+            pending: deque[tuple[int, pl.DataFrame, np.ndarray, concurrent.futures.Future]] = deque()
+            try:
+                if use_parallel:
+                    executor = concurrent.futures.ProcessPoolExecutor(max_workers=worker_count)
+                    for batch_id, payload, joined, mu_array in _batch_payloads():
+                        future = executor.submit(_process_counts_batch_star, payload)
+                        pending.append((batch_id, joined, mu_array, future))
+                        if len(pending) >= max_inflight:
+                            queued_id, queued_joined, queued_mu, queued_future = pending.popleft()
+                            result = queued_future.result()
+                            if result.get("batch_index") != queued_id:
+                                _abort(
+                                    "5B.S3.DOMAIN_ALIGN_FAILED",
+                                    "V-08",
+                                    "batch_index_mismatch",
+                                    {"scenario_id": scenario_id, "expected": queued_id, "actual": result.get("batch_index")},
+                                    manifest_fingerprint,
+                                )
+                            _handle_result(result, queued_joined, queued_mu)
+                    while pending:
+                        queued_id, queued_joined, queued_mu, queued_future = pending.popleft()
+                        result = queued_future.result()
+                        if result.get("batch_index") != queued_id:
+                            _abort(
+                                "5B.S3.DOMAIN_ALIGN_FAILED",
+                                "V-08",
+                                "batch_index_mismatch",
+                                {"scenario_id": scenario_id, "expected": queued_id, "actual": result.get("batch_index")},
+                                manifest_fingerprint,
+                            )
+                        _handle_result(result, queued_joined, queued_mu)
+                else:
+                    for batch_id, payload, joined, mu_array in _batch_payloads():
+                        result = _process_counts_batch_star(payload)
+                        if result.get("batch_index") != batch_id:
+                            _abort(
+                                "5B.S3.DOMAIN_ALIGN_FAILED",
+                                "V-08",
+                                "batch_index_mismatch",
+                                {"scenario_id": scenario_id, "expected": batch_id, "actual": result.get("batch_index")},
+                                manifest_fingerprint,
+                            )
+                        _handle_result(result, joined, mu_array)
+            finally:
+                if executor is not None:
+                    executor.shutdown(wait=True, cancel_futures=False)
             if writer is not None:
                 writer.close()
             elif counts_chunks:
