@@ -18,6 +18,21 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Iterable, Iterator, Optional
 
+try:  # Faster JSON when available.
+    import orjson
+
+    def _json_dumps(payload: object) -> str:
+        return orjson.dumps(payload, option=orjson.OPT_SORT_KEYS).decode("utf-8")
+
+    _HAVE_ORJSON = True
+except Exception:  # pragma: no cover - fallback when orjson missing.
+
+    def _json_dumps(payload: object) -> str:
+        return json.dumps(payload, ensure_ascii=True, sort_keys=True)
+
+    _HAVE_ORJSON = False
+
+import numpy as np
 import polars as pl
 from jsonschema import Draft202012Validator
 
@@ -633,6 +648,43 @@ def _derive_rng_seed(
     return key, counter_hi, counter_lo
 
 
+def _rng_prefix(
+    domain_sep: str,
+    family_id: str,
+    manifest_fingerprint: str,
+    parameter_hash: str,
+    seed: int,
+    scenario_id: str,
+) -> bytes:
+    return (
+        _uer_string(domain_sep)
+        + _uer_string(family_id)
+        + _uer_string(manifest_fingerprint)
+        + _uer_string(parameter_hash)
+        + _ser_u64_le(seed)
+        + _uer_string(scenario_id)
+    )
+
+
+def _derive_rng_seed_from_prefix(prefix: bytes, domain_key: str) -> tuple[int, int, int]:
+    msg = prefix + _uer_string(domain_key)
+    digest = hashlib.sha256(msg).digest()
+    key = int.from_bytes(digest[0:8], "big", signed=False)
+    counter_hi = int.from_bytes(digest[8:16], "big", signed=False)
+    counter_lo = int.from_bytes(digest[16:24], "big", signed=False)
+    return key, counter_hi, counter_lo
+
+
+def _derive_rng_seed_from_hasher(base_hasher: "hashlib._Hash", domain_key: str) -> tuple[int, int, int]:
+    hasher = base_hasher.copy()
+    hasher.update(_uer_string(domain_key))
+    digest = hasher.digest()
+    key = int.from_bytes(digest[0:8], "big", signed=False)
+    counter_hi = int.from_bytes(digest[8:16], "big", signed=False)
+    counter_lo = int.from_bytes(digest[16:24], "big", signed=False)
+    return key, counter_hi, counter_lo
+
+
 def _draw_philox_u64(
     key: int,
     counter_hi: int,
@@ -832,6 +884,19 @@ def run_s3(config: EngineConfig, run_id: Optional[str] = None) -> S3Result:
         output_sample_rows = 5000
     output_validation_mode = "full" if output_validate_full else "fast_sampled"
     strict_ordering = _env_flag("ENGINE_5B_S3_STRICT_ORDERING")
+    ordering_stats_enabled = strict_ordering or _env_flag("ENGINE_5B_S3_ORDERING_STATS")
+    validate_events_full = _env_flag("ENGINE_5B_S3_VALIDATE_EVENTS_FULL")
+    validate_events_limit_env = os.environ.get("ENGINE_5B_S3_VALIDATE_EVENTS_LIMIT", "1000")
+    try:
+        validate_events_limit = max(int(validate_events_limit_env), 0)
+    except ValueError:
+        validate_events_limit = 1000
+    validate_events_remaining = None if validate_events_full else validate_events_limit
+    event_buffer_env = os.environ.get("ENGINE_5B_S3_EVENT_BUFFER", "5000")
+    try:
+        event_buffer_size = max(int(event_buffer_env), 1)
+    except ValueError:
+        event_buffer_size = 5000
     current_phase = "init"
     status = "FAIL"
     error_code: Optional[str] = None
@@ -909,6 +974,14 @@ def run_s3(config: EngineConfig, run_id: Optional[str] = None) -> S3Result:
             logger.warning(
                 "S3: strict ordering disabled; output order follows input stream (set ENGINE_5B_S3_STRICT_ORDERING=1 to enforce)"
             )
+        if not ordering_stats_enabled:
+            logger.info("S3: ordering stats disabled (set ENGINE_5B_S3_ORDERING_STATS=1 to collect)")
+        logger.info(
+            "S3: rng_event validation mode=%s limit=%s json_encoder=%s",
+            "full" if validate_events_full else "sampled",
+            "all" if validate_events_full else validate_events_limit,
+            "orjson" if _HAVE_ORJSON else "json",
+        )
 
         tokens = {
             "seed": str(seed),
@@ -1379,6 +1452,19 @@ def run_s3(config: EngineConfig, run_id: Optional[str] = None) -> S3Result:
             event_tmp_path = _event_file_from_root(event_tmp_dir)
             event_handle = event_tmp_path.open("w", encoding="utf-8")
 
+        event_buffer: list[str] = []
+        trace_buffer: list[str] = []
+
+        def _flush_rng_buffers() -> None:
+            if event_handle is not None and event_buffer:
+                event_handle.write("\n".join(event_buffer))
+                event_handle.write("\n")
+                event_buffer.clear()
+            if trace_handle is not None and trace_buffer:
+                trace_handle.write("\n".join(trace_buffer))
+                trace_handle.write("\n")
+                trace_buffer.clear()
+
         for scenario_id in scenario_set:
             current_phase = f"scenario:{scenario_id}"
             logger.info(
@@ -1675,6 +1761,19 @@ def run_s3(config: EngineConfig, run_id: Optional[str] = None) -> S3Result:
                 .sort("bucket_index")
             )
 
+            rng_prefix = _rng_prefix(
+                domain_sep,
+                family_id,
+                str(manifest_fingerprint),
+                str(parameter_hash),
+                int(seed),
+                str(scenario_id),
+            )
+            base_hasher = hashlib.sha256(rng_prefix)
+            domain_prefix_cache: dict[tuple[int, str], str] = {}
+            draws_per_row = 1 if count_law_id == "poisson" else 2
+            blocks_per_row = int((draws_per_row + 1) // 2)
+
             realised_files = _list_parquet_files(realised_path)
             rows_total = _count_parquet_rows(realised_files)
             logger.info(
@@ -1708,7 +1807,7 @@ def run_s3(config: EngineConfig, run_id: Optional[str] = None) -> S3Result:
 
             sample_remaining = output_sample_rows
 
-            last_key: Optional[tuple] = None
+            last_key: Optional[tuple] = None if ordering_stats_enabled else None
             ordering_violations = 0
             ordering_violation_sample: Optional[tuple[tuple, tuple]] = None
             for batch in _iter_parquet_batches(
@@ -1782,150 +1881,121 @@ def run_s3(config: EngineConfig, run_id: Optional[str] = None) -> S3Result:
                 merchant_ids = joined.get_column("merchant_id").to_numpy()
                 zone_values = joined.get_column("zone_representation").to_list()
                 bucket_indices_batch = joined.get_column("bucket_index").to_numpy()
-                channel_values = joined.get_column("channel_group").to_list()
                 group_ids_batch = joined.get_column("group_id").to_list()
-                bucket_duration = joined.get_column("bucket_duration_seconds").to_numpy()
                 if count_law_id == "nb2":
                     kappa_values = joined.get_column("kappa").to_numpy()
                 else:
                     kappa_values = None
 
-                count_list = [0] * joined.height
-                mu_list = [0.0] * joined.height
-                capped_list = [False] * joined.height
-                for idx in range(joined.height):
+                mu_array = np.asarray(lambda_values, dtype=np.float64)
+                if not np.isfinite(mu_array).all():
+                    _abort(
+                        "5B.S3.COUNTS_NUMERIC_INVALID",
+                        "V-08",
+                        "lambda_realised_invalid",
+                        {"scenario_id": scenario_id},
+                        manifest_fingerprint,
+                    )
+                if (mu_array < 0.0).any():
+                    _abort(
+                        "5B.S3.COUNTS_NUMERIC_INVALID",
+                        "V-08",
+                        "lambda_realised_negative",
+                        {"scenario_id": scenario_id},
+                        manifest_fingerprint,
+                    )
+
+                zero_mask = mu_array <= lambda_zero_eps
+                nonzero_indices = np.flatnonzero(~zero_mask)
+                count_array = np.zeros(joined.height, dtype=np.int64)
+                capped_array = np.zeros(joined.height, dtype=bool)
+
+                if nonzero_indices.size:
+                    derive_seed = _derive_rng_seed_from_hasher
+                    draw_philox = _draw_philox_u64
+                    open_u01 = _open_interval_u01
+                    poisson_one_u = _poisson_one_u
+                    gamma_one_u = _gamma_one_u_approx
+                    add_u128_local = add_u128
+                    counter_wrapped = _counter_wrapped
+
+                for idx in nonzero_indices:
                     merchant_id = int(merchant_ids[idx])
                     zone_rep = str(zone_values[idx])
                     bucket_index = int(bucket_indices_batch[idx])
-                    mu = float(lambda_values[idx])
-                    mu_list[idx] = mu
-                    if not math.isfinite(mu) or mu < 0.0:
+                    mu = float(mu_array[idx])
+                    cache_key = (merchant_id, zone_rep)
+                    domain_prefix = domain_prefix_cache.get(cache_key)
+                    if domain_prefix is None:
+                        domain_prefix = f"merchant_id={merchant_id}|zone={zone_rep}|bucket_index="
+                        domain_prefix_cache[cache_key] = domain_prefix
+                    domain_key = f"{domain_prefix}{bucket_index}"
+                    key, counter_hi, counter_lo = derive_seed(base_hasher, domain_key)
+                    values, blocks, after_hi, after_lo = draw_philox(
+                        key, counter_hi, counter_lo, draws_per_row, manifest_fingerprint
+                    )
+                    if blocks != blocks_per_row:
                         _abort(
-                            "5B.S3.COUNTS_NUMERIC_INVALID",
-                            "V-08",
-                            "lambda_realised_invalid",
-                            {"scenario_id": scenario_id, "merchant_id": merchant_id, "bucket_index": bucket_index},
+                            "5B.S3.RNG_ACCOUNTING_MISMATCH",
+                            "V-12",
+                            "blocks_mismatch",
+                            {"scenario_id": scenario_id, "blocks": blocks},
                             manifest_fingerprint,
                         )
-                    if mu <= lambda_zero_eps:
-                        count = 0
-                        capped = False
+                    expected_hi, expected_lo = add_u128_local(counter_hi, counter_lo, blocks)
+                    if counter_wrapped(counter_hi, counter_lo, expected_hi, expected_lo):
+                        _abort(
+                            "5B.S3.RNG_ACCOUNTING_MISMATCH",
+                            "V-12",
+                            "counter_wrap",
+                            {"scenario_id": scenario_id},
+                            manifest_fingerprint,
+                        )
+                    u1 = open_u01(values[0])
+                    if count_law_id == "poisson":
+                        count, capped = poisson_one_u(
+                            mu,
+                            u1,
+                            poisson_exact_lambda_max,
+                            poisson_n_cap_exact,
+                            max_count_per_bucket,
+                        )
                     else:
-                        if count_law_id == "poisson":
-                            draws = 1
-                        else:
-                            draws = 2
-                        domain_key = f"merchant_id={merchant_id}|zone={zone_rep}|bucket_index={bucket_index}"
-                        key, counter_hi, counter_lo = _derive_rng_seed(
-                            domain_sep,
-                            family_id,
-                            str(manifest_fingerprint),
-                            str(parameter_hash),
-                            int(seed),
-                            str(scenario_id),
-                            domain_key,
-                        )
-                        values, blocks, after_hi, after_lo = _draw_philox_u64(
-                            key, counter_hi, counter_lo, draws, manifest_fingerprint
-                        )
-                        if blocks != int((draws + 1) // 2):
+                        kappa = float(kappa_values[idx]) if kappa_values is not None else None
+                        if kappa is None or not math.isfinite(kappa) or kappa <= 0.0:
                             _abort(
-                                "5B.S3.RNG_ACCOUNTING_MISMATCH",
-                                "V-12",
-                                "blocks_mismatch",
-                                {"scenario_id": scenario_id, "blocks": blocks},
+                                "5B.S3.COUNT_CONFIG_INVALID",
+                                "V-08",
+                                "kappa_invalid",
+                                {"scenario_id": scenario_id, "group_id": group_ids_batch[idx]},
                                 manifest_fingerprint,
                             )
-                        expected_hi, expected_lo = add_u128(counter_hi, counter_lo, blocks)
-                        if _counter_wrapped(counter_hi, counter_lo, expected_hi, expected_lo):
+                        u2 = open_u01(values[1])
+                        try:
+                            gamma_lambda = gamma_one_u(mu, kappa, u1)
+                        except ValueError as exc:
                             _abort(
-                                "5B.S3.RNG_ACCOUNTING_MISMATCH",
-                                "V-12",
-                                "counter_wrap",
-                                {"scenario_id": scenario_id},
+                                "5B.S3.COUNTS_NUMERIC_INVALID",
+                                "V-08",
+                                "gamma_invalid",
+                                {"scenario_id": scenario_id, "error": str(exc)},
                                 manifest_fingerprint,
                             )
-                        u1 = _open_interval_u01(values[0])
-                        if count_law_id == "poisson":
-                            count, capped = _poisson_one_u(
-                                mu,
-                                u1,
-                                poisson_exact_lambda_max,
-                                poisson_n_cap_exact,
-                                max_count_per_bucket,
+                        if not math.isfinite(gamma_lambda) or gamma_lambda < 0.0:
+                            _abort(
+                                "5B.S3.COUNTS_NUMERIC_INVALID",
+                                "V-08",
+                                "gamma_lambda_invalid",
+                                {"scenario_id": scenario_id, "value": gamma_lambda},
+                                manifest_fingerprint,
                             )
-                        else:
-                            kappa = float(kappa_values[idx]) if kappa_values is not None else None
-                            if kappa is None or not math.isfinite(kappa) or kappa <= 0.0:
-                                _abort(
-                                    "5B.S3.COUNT_CONFIG_INVALID",
-                                    "V-08",
-                                    "kappa_invalid",
-                                    {"scenario_id": scenario_id, "group_id": group_ids_batch[idx]},
-                                    manifest_fingerprint,
-                                )
-                            u2 = _open_interval_u01(values[1])
-                            try:
-                                gamma_lambda = _gamma_one_u_approx(mu, kappa, u1)
-                            except ValueError as exc:
-                                _abort(
-                                    "5B.S3.COUNTS_NUMERIC_INVALID",
-                                    "V-08",
-                                    "gamma_invalid",
-                                    {"scenario_id": scenario_id, "error": str(exc)},
-                                    manifest_fingerprint,
-                                )
-                            if not math.isfinite(gamma_lambda) or gamma_lambda < 0.0:
-                                _abort(
-                                    "5B.S3.COUNTS_NUMERIC_INVALID",
-                                    "V-08",
-                                    "gamma_lambda_invalid",
-                                    {"scenario_id": scenario_id, "value": gamma_lambda},
-                                    manifest_fingerprint,
-                                )
-                            count, capped = _poisson_one_u(
-                                gamma_lambda,
-                                u2,
-                                poisson_exact_lambda_max,
-                                poisson_n_cap_exact,
-                                max_count_per_bucket,
-                            )
-                        rng_events_total += 1
-                        rng_draws_total += draws
-                        rng_blocks_total += blocks
-                        if event_handle is not None and trace_handle is not None and trace_acc is not None:
-                            event_payload = {
-                                "ts_utc": utc_now_rfc3339_micro(),
-                                "run_id": str(run_id),
-                                "seed": int(seed),
-                                "parameter_hash": str(parameter_hash),
-                                "manifest_fingerprint": str(manifest_fingerprint),
-                                "module": "5B.S3",
-                                "substream_label": "bucket_count",
-                                "scenario_id": str(scenario_id),
-                                "bucket_index": int(bucket_index),
-                                "merchant_id": int(merchant_id),
-                                "rng_counter_before_lo": int(counter_lo),
-                                "rng_counter_before_hi": int(counter_hi),
-                                "rng_counter_after_lo": int(expected_lo),
-                                "rng_counter_after_hi": int(expected_hi),
-                                "draws": str(draws),
-                                "blocks": int(blocks),
-                            }
-                            errors = list(event_validator.iter_errors(event_payload))
-                            if errors:
-                                _abort(
-                                    "5B.S3.RNG_ACCOUNTING_MISMATCH",
-                                    "V-12",
-                                    "rng_event_schema_invalid",
-                                    {"scenario_id": scenario_id, "error": str(errors[0])},
-                                    manifest_fingerprint,
-                                )
-                            event_handle.write(json.dumps(event_payload, ensure_ascii=True, sort_keys=True))
-                            event_handle.write("\n")
-                            trace_row = trace_acc.append_event(event_payload)
-                            trace_handle.write(json.dumps(trace_row, ensure_ascii=True, sort_keys=True))
-                            trace_handle.write("\n")
+                        count, capped = poisson_one_u(
+                            gamma_lambda,
+                            u2,
+                            poisson_exact_lambda_max,
+                            poisson_n_cap_exact,
+                            max_count_per_bucket,
+                        )
 
                     if count < 0 or count > max_count_per_bucket:
                         _abort(
@@ -1935,23 +2005,64 @@ def run_s3(config: EngineConfig, run_id: Optional[str] = None) -> S3Result:
                             {"scenario_id": scenario_id, "count": count, "max": max_count_per_bucket},
                             manifest_fingerprint,
                         )
-                    count_list[idx] = int(count)
-                    capped_list[idx] = bool(capped)
+                    count_array[idx] = int(count)
+                    capped_array[idx] = bool(capped)
 
-                    key_tuple = (scenario_id, merchant_id, zone_rep, bucket_index)
-                    if last_key is not None and key_tuple < last_key:
-                        ordering_violations += 1
-                        if ordering_violation_sample is None:
-                            ordering_violation_sample = (last_key, key_tuple)
-                        if strict_ordering:
-                            _abort(
-                                "5B.S3.DOMAIN_ALIGN_FAILED",
-                                "V-08",
-                                "ordering_violation",
-                                {"scenario_id": scenario_id},
-                                manifest_fingerprint,
-                            )
-                    last_key = key_tuple
+                    rng_events_total += 1
+                    rng_draws_total += draws_per_row
+                    rng_blocks_total += blocks
+                    if event_handle is not None and trace_handle is not None and trace_acc is not None:
+                        event_payload = {
+                            "ts_utc": utc_now_rfc3339_micro(),
+                            "run_id": str(run_id),
+                            "seed": int(seed),
+                            "parameter_hash": str(parameter_hash),
+                            "manifest_fingerprint": str(manifest_fingerprint),
+                            "module": "5B.S3",
+                            "substream_label": "bucket_count",
+                            "scenario_id": str(scenario_id),
+                            "bucket_index": int(bucket_index),
+                            "merchant_id": int(merchant_id),
+                            "rng_counter_before_lo": int(counter_lo),
+                            "rng_counter_before_hi": int(counter_hi),
+                            "rng_counter_after_lo": int(expected_lo),
+                            "rng_counter_after_hi": int(expected_hi),
+                            "draws": str(draws_per_row),
+                            "blocks": int(blocks),
+                        }
+                        if validate_events_remaining is None or validate_events_remaining > 0:
+                            errors = list(event_validator.iter_errors(event_payload))
+                            if errors:
+                                _abort(
+                                    "5B.S3.RNG_ACCOUNTING_MISMATCH",
+                                    "V-12",
+                                    "rng_event_schema_invalid",
+                                    {"scenario_id": scenario_id, "error": str(errors[0])},
+                                    manifest_fingerprint,
+                                )
+                            if validate_events_remaining is not None:
+                                validate_events_remaining -= 1
+                        event_buffer.append(_json_dumps(event_payload))
+                        trace_row = trace_acc.append_event(event_payload)
+                        trace_buffer.append(_json_dumps(trace_row))
+                        if len(event_buffer) >= event_buffer_size:
+                            _flush_rng_buffers()
+
+                    if ordering_stats_enabled:
+                        key_tuple = (scenario_id, merchant_id, zone_rep, bucket_index)
+                        if last_key is not None and key_tuple < last_key:
+                            ordering_violations += 1
+                            if ordering_violation_sample is None:
+                                ordering_violation_sample = (last_key, key_tuple)
+                            if strict_ordering:
+                                _abort(
+                                    "5B.S3.DOMAIN_ALIGN_FAILED",
+                                    "V-08",
+                                    "ordering_violation",
+                                    {"scenario_id": scenario_id},
+                                    manifest_fingerprint,
+                                )
+                        last_key = key_tuple
 
                 output_df = joined.select(
                     pl.lit(str(manifest_fingerprint)).alias("manifest_fingerprint"),
@@ -1962,10 +2073,10 @@ def run_s3(config: EngineConfig, run_id: Optional[str] = None) -> S3Result:
                     pl.col("zone_representation").cast(pl.Utf8),
                     pl.col("channel_group").cast(pl.Utf8),
                     pl.col("bucket_index").cast(pl.Int64),
-                    pl.Series("lambda_realised", mu_list).cast(pl.Float64),
-                    pl.Series("mu", mu_list).cast(pl.Float64),
-                    pl.Series("count_N", count_list).cast(pl.Int64),
-                    pl.Series("count_capped", capped_list).cast(pl.Boolean),
+                    pl.Series("lambda_realised", mu_array).cast(pl.Float64),
+                    pl.Series("mu", mu_array).cast(pl.Float64),
+                    pl.Series("count_N", count_array).cast(pl.Int64),
+                    pl.Series("count_capped", capped_array).cast(pl.Boolean),
                     pl.col("bucket_duration_seconds").cast(pl.Int64),
                     pl.lit(count_law_id).alias("count_law_id"),
                     pl.lit(spec_version).cast(pl.Utf8).alias("s3_spec_version"),
@@ -1999,19 +2110,23 @@ def run_s3(config: EngineConfig, run_id: Optional[str] = None) -> S3Result:
                 if output_df.height:
                     counts_rows += output_df.height
                     total_rows_written += output_df.height
-                    counts_sum += int(sum(count_list))
-                    counts_capped += int(sum(1 for value in capped_list if value))
+                    counts_sum += int(count_array.sum())
+                    counts_capped += int(capped_array.sum())
+                    batch_count_min = int(count_array.min()) if count_array.size else 0
+                    batch_count_max = int(count_array.max()) if count_array.size else 0
+                    batch_mu_min = float(mu_array.min()) if mu_array.size else 0.0
+                    batch_mu_max = float(mu_array.max()) if mu_array.size else 0.0
                     scenario_count_min = (
-                        min(count_list) if scenario_count_min is None else min(scenario_count_min, min(count_list))
+                        batch_count_min if scenario_count_min is None else min(scenario_count_min, batch_count_min)
                     )
                     scenario_count_max = (
-                        max(count_list) if scenario_count_max is None else max(scenario_count_max, max(count_list))
+                        batch_count_max if scenario_count_max is None else max(scenario_count_max, batch_count_max)
                     )
                     scenario_mu_min = (
-                        min(mu_list) if scenario_mu_min is None else min(scenario_mu_min, min(mu_list))
+                        batch_mu_min if scenario_mu_min is None else min(scenario_mu_min, batch_mu_min)
                     )
                     scenario_mu_max = (
-                        max(mu_list) if scenario_mu_max is None else max(scenario_mu_max, max(mu_list))
+                        batch_mu_max if scenario_mu_max is None else max(scenario_mu_max, batch_mu_max)
                     )
 
                 if _HAVE_PYARROW:
@@ -2046,13 +2161,15 @@ def run_s3(config: EngineConfig, run_id: Optional[str] = None) -> S3Result:
             )
             counts_paths.append(counts_path)
 
-            if ordering_violations:
+            if ordering_stats_enabled and ordering_violations:
                 logger.warning(
                     "S3: input ordering not sorted; preserving stream order (scenario_id=%s violations=%d first_violation=%s)",
                     scenario_id,
                     ordering_violations,
                     ordering_violation_sample,
                 )
+            elif ordering_stats_enabled:
+                logger.info("S3: input ordering check passed (scenario_id=%s)", scenario_id)
 
             total_counts += counts_sum
             count_capped_total += counts_capped
@@ -2077,14 +2194,18 @@ def run_s3(config: EngineConfig, run_id: Optional[str] = None) -> S3Result:
                 "mu_min": scenario_mu_min,
                 "mu_max": scenario_mu_max,
                 "count_capped": counts_capped,
-                "ordering_violations": ordering_violations,
+                "ordering_violations": ordering_violations if ordering_stats_enabled else None,
             }
             scenario_count_succeeded += 1
             timer.info("S3: scenario %s completed (rows=%d)", scenario_id, counts_rows)
 
+            _flush_rng_buffers()
+
         if event_handle is not None:
+            _flush_rng_buffers()
             event_handle.close()
         if trace_handle is not None:
+            _flush_rng_buffers()
             trace_handle.close()
 
         if event_enabled and event_tmp_dir is not None:

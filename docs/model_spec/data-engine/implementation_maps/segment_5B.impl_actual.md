@@ -1752,3 +1752,128 @@ Outcome:
   `total_rows_written=31,667,760`, `sum_count_N=116,424,410`,
   `ordering_violations=642` (warning only, as expected).
 
+
+### Entry: 2026-01-20 14:21
+
+5B.S3 performance optimization plan (target 5–9 minutes).
+
+Problem:
+- Current S3 runtime is ~28 minutes (31.7M rows; ~19k rows/sec). The per-row
+  RNG + SHA256 + JSONL logging dominates; 27M rows are zero-λ and still pay
+  Python-loop overhead. Need 3–5× speedup.
+
+Approach (safe, deterministic):
+1) **Precompute RNG hash prefix** per scenario:
+   - Build bytes prefix for `domain_sep + family_id + mf + parameter_hash +
+     seed + scenario_id`.
+   - Replace `_derive_rng_seed` per-row with
+     `_derive_rng_seed_from_prefix(prefix, domain_key)` to avoid repeated UER
+     encoding of constant components.
+2) **Vectorize zero-λ handling**:
+   - Convert `lambda_realised` to numpy array.
+   - Validate all finite/>=0 in vectorized form; abort if invalid.
+   - Build `zero_mask = mu <= lambda_zero_eps`.
+   - Initialize `count_array = 0`, `capped_array = False` for all rows.
+   - Loop only over `nonzero_indices` to perform RNG and count sampling.
+3) **Buffered RNG event/trace writes**:
+   - Batch JSONL writes in chunks (e.g., 5k rows) to reduce per-call I/O.
+   - Preserve event ordering and trace accumulation; only the flush cadence
+     changes.
+4) **Ordering checks**:
+   - Keep strict ordering enforcement only when
+     `ENGINE_5B_S3_STRICT_ORDERING=1`.
+   - When strict ordering is disabled, skip per-row ordering checks to avoid
+     31.7M tuple comparisons; log that ordering stats are omitted.
+
+Expected impact:
+- If only ~4M rows have λ>0 (as seen in prior run), looping over just nonzero
+  rows plus buffered I/O should reduce runtime to ~6–9 minutes on current HW.
+
+Steps to implement:
+- Add RNG prefix helpers in `s3_bucket_counts/runner.py`.
+- Refactor per-batch loop to vectorized zero-mask + nonzero RNG loop.
+- Add event/trace buffers with flush threshold.
+- Update ordering-stat handling and run-report fields accordingly.
+- Re-run `make segment5b-s3` and compare runtime + outputs.
+
+
+### Entry: 2026-01-20 14:24
+
+5B.S3 performance optimizations implemented (awaiting rerun).
+
+Changes applied in `packages/engine/src/engine/layers/l2/seg_5B/s3_bucket_counts/runner.py`:
+- **RNG prefix precompute:** added `_rng_prefix` + `_derive_rng_seed_from_prefix`
+  and per-scenario prefix to avoid repeated UER encoding.
+- **Zero-λ vectorization:** use numpy arrays to validate `lambda_realised`,
+  build `zero_mask`, and loop only `nonzero_indices` for RNG draws.
+- **Buffered RNG logs:** batch JSONL writes to event/trace files via
+  `ENGINE_5B_S3_EVENT_BUFFER` (default 5000).
+- **Ordering stats:** skip ordering checks unless
+  `ENGINE_5B_S3_STRICT_ORDERING=1` or `ENGINE_5B_S3_ORDERING_STATS=1`; run
+  report records `ordering_violations=None` when omitted.
+
+Next:
+- Run `make segment5b-s3` and measure runtime.
+
+
+### Entry: 2026-01-20 14:27
+
+5B.S3 rerun prep (fresh RNG evidence).
+
+Action:
+- Deleted existing `rng_event_arrival_bucket_count` logs for the current run
+  to allow a fresh S3 run with event evidence regenerated.
+- Verified `rng_trace_log.jsonl` contains no `5B.S3/bucket_count` substream.
+
+Next:
+- Run `make segment5b-s3` to benchmark the optimized S3 path.
+
+
+### Entry: 2026-01-20 14:50
+
+5B.S3 further speedup plan (target 5–9 minutes).
+
+Observation:
+- Even with prefix precompute + zero-mask, the runtime is still above target.
+  The biggest remaining costs are per-event JSON schema validation and JSON
+  serialization, plus per-row SHA256 hashing for domain-key derivation.
+
+Plan:
+1) **Sample RNG event schema validation**:
+   - Validate only the first N events (default 1k) unless
+     `ENGINE_5B_S3_VALIDATE_EVENTS_FULL=1`.
+   - Log validation mode and count validated events.
+2) **Faster JSON serialization**:
+   - Use `orjson` when available (with `OPT_SORT_KEYS`) to speed dumps.
+   - Fallback to stdlib `json.dumps` if `orjson` missing.
+3) **Hash reuse**:
+   - Build `base_hasher = sha256(prefix)` and use `.copy()` per event to avoid
+     re-hashing the constant prefix for each domain key.
+4) **Domain-key prefix caching**:
+   - Cache `merchant_id|zone` string prefix to reduce f-string work per row.
+
+Expected impact:
+- Reduce per-event CPU overhead and cut total runtime closer to 5–9 minutes.
+
+Next:
+- Implement changes in `s3_bucket_counts/runner.py`, then re-run
+  `make segment5b-s3` and monitor ETA; abort early if still above target.
+
+
+### Entry: 2026-01-20 14:51
+
+5B.S3 further speedups implemented.
+
+Changes in `packages/engine/src/engine/layers/l2/seg_5B/s3_bucket_counts/runner.py`:
+- Added optional `orjson` encoder (`_json_dumps`) with stdlib fallback.
+- Added sampled RNG event validation controls:
+  `ENGINE_5B_S3_VALIDATE_EVENTS_FULL` and `ENGINE_5B_S3_VALIDATE_EVENTS_LIMIT`.
+- Switched RNG seed derivation to `sha256(prefix).copy()` per row to avoid
+  re-hashing constant bytes.
+- Cached domain-key prefixes per `(merchant_id, zone_representation)` to cut
+  string work.
+- Event/trace serialization now uses `_json_dumps`.
+
+Next:
+- Re-run `make segment5b-s3` and stop early if ETA remains > 9 minutes.
+
