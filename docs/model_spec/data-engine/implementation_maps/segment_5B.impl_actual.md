@@ -1955,3 +1955,21 @@ Run details:
 Outcome:
 - Performance target achieved (<< 5-9 minutes) while preserving deterministic
   output ordering and RNG accounting.
+
+### Entry: 2026-01-20 15:46
+
+Makefile defaults for 5B.S3 parallel execution.
+
+Decision:
+- Bake the S3 performance env defaults into the Makefile so `make segment5b-s3`
+  runs with the tuned worker/inflight/event settings by default.
+
+Change:
+- Added Makefile variables `ENGINE_5B_S3_WORKERS`,
+  `ENGINE_5B_S3_INFLIGHT_BATCHES`, `ENGINE_5B_S3_EVENT_BUFFER`,
+  `ENGINE_5B_S3_VALIDATE_EVENTS_LIMIT` with the tuned defaults.
+- Prefixed `SEG5B_S3_CMD` with those env assignments.
+
+Rationale:
+- Keeps performance defaults consistent across runs without manual env export.
+- Still allows overrides by passing different values on the command line.
