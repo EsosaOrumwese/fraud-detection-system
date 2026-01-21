@@ -16,6 +16,7 @@ import re
 import struct
 import subprocess
 import time
+import traceback
 import uuid
 from dataclasses import dataclass
 from pathlib import Path
@@ -129,6 +130,8 @@ _S4_SUMMARY_SCHEMA = [
     ("count_virtual", pl.Int64),
     ("s4_spec_version", pl.Utf8),
 ]
+_VIRTUAL_MODE_BY_CODE = ("NON_VIRTUAL", "HYBRID", "VIRTUAL_ONLY")
+_VIRTUAL_MODE_CODE = {name: idx for idx, name in enumerate(_VIRTUAL_MODE_BY_CODE)}
 
 
 @dataclass(frozen=True)
@@ -724,6 +727,221 @@ def _decode_tz_cache(cache_root: Path, logger) -> dict[str, tuple[list[int], lis
     return tz_map
 
 
+def _save_shared_array(shared_root: Path, name: str, array: np.ndarray) -> str:
+    filename = f"{name}.npy"
+    np.save(shared_root / filename, array, allow_pickle=False)
+    return filename
+
+
+def _load_shared_array(shared_root: Path, filename: str) -> np.ndarray:
+    return np.load(shared_root / filename, mmap_mode="r", allow_pickle=False)
+
+
+def _lookup_sorted_key(keys: np.ndarray, value: int) -> int:
+    if keys.size == 0:
+        return -1
+    idx = int(np.searchsorted(keys, value))
+    if idx < int(keys.size) and int(keys[idx]) == int(value):
+        return idx
+    return -1
+
+
+def _lookup_structured_key(keys: np.ndarray, merchant_id: int, second: int, second_field: str) -> int:
+    if keys.size == 0:
+        return -1
+    key = np.array((int(merchant_id), int(second)), dtype=keys.dtype)
+    idx = int(np.searchsorted(keys, key))
+    if idx < int(keys.size):
+        entry = keys[idx]
+        if int(entry["merchant_id"]) == int(merchant_id) and int(entry[second_field]) == int(second):
+            return idx
+    return -1
+
+
+def _build_shared_maps(
+    run_paths: RunPaths,
+    manifest_fingerprint: str,
+    tz_cache: dict[str, tuple[list[int], list[int]]],
+    classification_map: dict[int, dict[str, object]],
+    settlement_map: dict[int, str],
+    edge_map: dict[int, tuple[list[int], list[str]]],
+    edge_alias_meta: dict[int, dict[str, object]],
+    site_alias_map: dict[tuple[int, str], tuple[np.ndarray, np.ndarray, list[int]]],
+    fallback_alias_map: dict[int, tuple[np.ndarray, np.ndarray, list[int]]],
+    site_tz_lookup: dict[tuple[int, int], str],
+    logger,
+) -> Path:
+    shared_root = run_paths.tmp_root / f"s4_shared_maps_{uuid.uuid4().hex}"
+    shared_root.mkdir(parents=True, exist_ok=True)
+
+    tzid_list = sorted(tz_cache.keys())
+    tzid_to_index = {tzid: idx for idx, tzid in enumerate(tzid_list)}
+
+    def _tz_index(tzid: str) -> int:
+        idx = tzid_to_index.get(tzid)
+        if idx is None:
+            _abort(
+                "5B.S4.ROUTING_POLICY_INVALID",
+                "V-06",
+                "tzid_not_in_cache",
+                {"tzid": tzid},
+                manifest_fingerprint,
+            )
+        return int(idx)
+
+    arrays: dict[str, str] = {}
+
+    classification_items = sorted(classification_map.items(), key=lambda item: item[0])
+    classification_keys = np.array([item[0] for item in classification_items], dtype=np.uint64)
+    classification_modes = np.array(
+        [_VIRTUAL_MODE_CODE.get(str(item[1].get("virtual_mode")), -1) for item in classification_items],
+        dtype=np.int8,
+    )
+    if np.any(classification_modes < 0):
+        _abort(
+            "5B.S4.ROUTING_POLICY_INVALID",
+            "V-06",
+            "virtual_mode_invalid",
+            {"detail": "classification contains unsupported virtual_mode"},
+            manifest_fingerprint,
+        )
+    arrays["classification_keys"] = _save_shared_array(shared_root, "classification_keys", classification_keys)
+    arrays["classification_modes"] = _save_shared_array(shared_root, "classification_modes", classification_modes)
+
+    settlement_items = sorted(settlement_map.items(), key=lambda item: item[0])
+    settlement_keys = np.array([item[0] for item in settlement_items], dtype=np.uint64)
+    settlement_tz_index = np.array([_tz_index(item[1]) for item in settlement_items], dtype=np.int32)
+    arrays["settlement_keys"] = _save_shared_array(shared_root, "settlement_keys", settlement_keys)
+    arrays["settlement_tz_index"] = _save_shared_array(shared_root, "settlement_tz_index", settlement_tz_index)
+
+    edge_items = sorted(edge_map.items(), key=lambda item: item[0])
+    edge_keys = np.array([item[0] for item in edge_items], dtype=np.uint64)
+    edge_offsets = np.zeros(len(edge_items), dtype=np.int64)
+    edge_counts = np.zeros(len(edge_items), dtype=np.int32)
+    edge_ids: list[int] = []
+    edge_tz_idx: list[int] = []
+    offset = 0
+    for idx, (merchant_id, (edge_ids_list, tzids_list)) in enumerate(edge_items):
+        count = len(edge_ids_list)
+        edge_offsets[idx] = offset
+        edge_counts[idx] = count
+        for edge_id, tzid in zip(edge_ids_list, tzids_list):
+            edge_ids.append(int(edge_id))
+            edge_tz_idx.append(_tz_index(str(tzid)))
+        offset += count
+    arrays["edge_keys"] = _save_shared_array(shared_root, "edge_keys", edge_keys)
+    arrays["edge_offsets"] = _save_shared_array(shared_root, "edge_offsets", edge_offsets)
+    arrays["edge_counts"] = _save_shared_array(shared_root, "edge_counts", edge_counts)
+    arrays["edge_ids"] = _save_shared_array(shared_root, "edge_ids", np.array(edge_ids, dtype=np.uint64))
+    arrays["edge_tz_index"] = _save_shared_array(shared_root, "edge_tz_index", np.array(edge_tz_idx, dtype=np.int32))
+
+    edge_alias_items = sorted(edge_alias_meta.items(), key=lambda item: item[0])
+    edge_alias_keys = np.array([item[0] for item in edge_alias_items], dtype=np.uint64)
+    edge_alias_offsets = np.array([int(item[1]["offset"]) for item in edge_alias_items], dtype=np.int64)
+    edge_alias_lengths = np.array([int(item[1]["length"]) for item in edge_alias_items], dtype=np.int64)
+    edge_alias_counts = np.array([int(item[1]["edge_count"]) for item in edge_alias_items], dtype=np.int32)
+    edge_alias_table_lengths = np.array([int(item[1]["alias_length"]) for item in edge_alias_items], dtype=np.int32)
+    arrays["edge_alias_keys"] = _save_shared_array(shared_root, "edge_alias_keys", edge_alias_keys)
+    arrays["edge_alias_offsets"] = _save_shared_array(shared_root, "edge_alias_offsets", edge_alias_offsets)
+    arrays["edge_alias_lengths"] = _save_shared_array(shared_root, "edge_alias_lengths", edge_alias_lengths)
+    arrays["edge_alias_counts"] = _save_shared_array(shared_root, "edge_alias_counts", edge_alias_counts)
+    arrays["edge_alias_table_lengths"] = _save_shared_array(
+        shared_root, "edge_alias_table_lengths", edge_alias_table_lengths
+    )
+
+    fallback_items = sorted(fallback_alias_map.items(), key=lambda item: item[0])
+    fallback_keys = np.array([item[0] for item in fallback_items], dtype=np.uint64)
+    fallback_offsets = np.zeros(len(fallback_items), dtype=np.int64)
+    fallback_counts = np.zeros(len(fallback_items), dtype=np.int32)
+    fallback_prob: list[float] = []
+    fallback_alias: list[int] = []
+    fallback_site_orders: list[int] = []
+    offset = 0
+    for idx, (merchant_id, (prob, alias, site_orders)) in enumerate(fallback_items):
+        count = len(site_orders)
+        fallback_offsets[idx] = offset
+        fallback_counts[idx] = count
+        fallback_prob.extend([float(val) for val in prob])
+        fallback_alias.extend([int(val) for val in alias])
+        fallback_site_orders.extend([int(val) for val in site_orders])
+        offset += count
+    arrays["fallback_keys"] = _save_shared_array(shared_root, "fallback_keys", fallback_keys)
+    arrays["fallback_offsets"] = _save_shared_array(shared_root, "fallback_offsets", fallback_offsets)
+    arrays["fallback_counts"] = _save_shared_array(shared_root, "fallback_counts", fallback_counts)
+    arrays["fallback_prob"] = _save_shared_array(
+        shared_root, "fallback_prob", np.array(fallback_prob, dtype=np.float64)
+    )
+    arrays["fallback_alias"] = _save_shared_array(
+        shared_root, "fallback_alias", np.array(fallback_alias, dtype=np.int64)
+    )
+    arrays["fallback_site_orders"] = _save_shared_array(
+        shared_root, "fallback_site_orders", np.array(fallback_site_orders, dtype=np.int64)
+    )
+
+    site_items: list[tuple[tuple[int, int], tuple[np.ndarray, np.ndarray, list[int]]]] = []
+    for (merchant_id, tzid), value in site_alias_map.items():
+        site_items.append(((int(merchant_id), _tz_index(str(tzid))), value))
+    site_items.sort(key=lambda item: (item[0][0], item[0][1]))
+    site_key_dtype = np.dtype([("merchant_id", "<u8"), ("tz_idx", "<i4")])
+    site_keys = np.array([item[0] for item in site_items], dtype=site_key_dtype)
+    site_offsets = np.zeros(len(site_items), dtype=np.int64)
+    site_counts = np.zeros(len(site_items), dtype=np.int32)
+    site_prob: list[float] = []
+    site_alias: list[int] = []
+    site_orders_flat: list[int] = []
+    offset = 0
+    for idx, (_, (prob, alias, site_orders)) in enumerate(site_items):
+        count = len(site_orders)
+        site_offsets[idx] = offset
+        site_counts[idx] = count
+        site_prob.extend([float(val) for val in prob])
+        site_alias.extend([int(val) for val in alias])
+        site_orders_flat.extend([int(val) for val in site_orders])
+        offset += count
+    arrays["site_keys"] = _save_shared_array(shared_root, "site_keys", site_keys)
+    arrays["site_offsets"] = _save_shared_array(shared_root, "site_offsets", site_offsets)
+    arrays["site_counts"] = _save_shared_array(shared_root, "site_counts", site_counts)
+    arrays["site_prob"] = _save_shared_array(shared_root, "site_prob", np.array(site_prob, dtype=np.float64))
+    arrays["site_alias"] = _save_shared_array(shared_root, "site_alias", np.array(site_alias, dtype=np.int64))
+    arrays["site_site_orders"] = _save_shared_array(
+        shared_root, "site_site_orders", np.array(site_orders_flat, dtype=np.int64)
+    )
+
+    site_tz_items = sorted(site_tz_lookup.items(), key=lambda item: (item[0][0], item[0][1]))
+    site_tz_key_dtype = np.dtype([("merchant_id", "<u8"), ("site_id", "<i8")])
+    site_tz_keys = np.array([item[0] for item in site_tz_items], dtype=site_tz_key_dtype)
+    site_tz_values = np.array([_tz_index(str(item[1])) for item in site_tz_items], dtype=np.int32)
+    arrays["site_tz_keys"] = _save_shared_array(shared_root, "site_tz_keys", site_tz_keys)
+    arrays["site_tz_values"] = _save_shared_array(shared_root, "site_tz_values", site_tz_values)
+
+    tzid_list_path = shared_root / "tzid_list.json"
+    tzid_list_path.write_text(json.dumps(tzid_list, ensure_ascii=True), encoding="utf-8")
+    manifest = {"arrays": arrays, "tzid_list": tzid_list_path.name}
+    manifest_path = shared_root / "manifest.json"
+    manifest_path.write_text(json.dumps(manifest, ensure_ascii=True), encoding="utf-8")
+    logger.info(
+        "S4: shared_maps built root=%s merchants=%d site_alias=%d edge_alias=%d",
+        shared_root,
+        len(classification_keys),
+        len(site_keys),
+        len(edge_alias_keys),
+    )
+    return shared_root
+
+
+def _load_shared_maps(shared_root: Path) -> dict[str, object]:
+    manifest_path = shared_root / "manifest.json"
+    manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+    arrays = {
+        name: _load_shared_array(shared_root, filename)
+        for name, filename in (manifest.get("arrays") or {}).items()
+    }
+    tzid_list_path = shared_root / manifest.get("tzid_list", "tzid_list.json")
+    tzid_list = json.loads(tzid_list_path.read_text(encoding="utf-8"))
+    arrays["tzid_list"] = tzid_list
+    return arrays
+
+
 def _tz_offset_minutes(entry: tuple[list[int], list[int]], instant_seconds: int) -> int:
     instants, offsets = entry
     idx = bisect.bisect_right(instants, int(instant_seconds)) - 1
@@ -828,10 +1046,32 @@ def _draw_philox_u64(
 def _init_s4_worker(context: dict) -> None:
     global _S4_WORKER_CONTEXT
     ctx = dict(context)
+    shared_root = ctx.get("shared_maps_root")
+    if shared_root:
+        ctx["shared_maps"] = _load_shared_maps(Path(shared_root))
+    if ctx.get("shared_maps"):
+        tzid_list = ctx["shared_maps"].get("tzid_list")
+        if tzid_list is not None:
+            ctx["tzid_to_index"] = {tzid: idx for idx, tzid in enumerate(tzid_list)}
     blob_path = ctx.get("edge_alias_blob_path")
     if blob_path:
         ctx["blob_view"] = _BlobView(Path(blob_path))
     ctx["edge_alias_cache"] = {}
+    time_prefix = ctx.get("time_prefix")
+    if time_prefix:
+        time_hasher = hashlib.sha256()
+        time_hasher.update(time_prefix)
+        ctx["time_hasher"] = time_hasher
+    site_prefix = ctx.get("site_prefix")
+    if site_prefix:
+        site_hasher = hashlib.sha256()
+        site_hasher.update(site_prefix)
+        ctx["site_hasher"] = site_hasher
+    edge_prefix = ctx.get("edge_prefix")
+    if edge_prefix:
+        edge_hasher = hashlib.sha256()
+        edge_hasher.update(edge_prefix)
+        ctx["edge_hasher"] = edge_hasher
     event_schema = ctx.get("event_schema")
     summary_schema = ctx.get("summary_schema")
     if event_schema is not None:
@@ -842,6 +1082,29 @@ def _init_s4_worker(context: dict) -> None:
 
 
 def _process_s4_batch(payload: dict) -> dict:
+    batch_id = int(payload.get("batch_id") or 0)
+    try:
+        return _process_s4_batch_impl(payload)
+    except Exception as exc:
+        error_payload = {
+            "type": type(exc).__name__,
+            "message": str(exc),
+            "traceback": traceback.format_exc(),
+        }
+        if isinstance(exc, EngineFailure):
+            error_payload.update(
+                {
+                    "failure_class": exc.failure_class,
+                    "failure_code": exc.failure_code,
+                    "detail": exc.detail,
+                    "dataset_id": exc.dataset_id,
+                    "merchant_id": exc.merchant_id,
+                }
+            )
+        return {"batch_id": batch_id, "error": error_payload}
+
+
+def _process_s4_batch_impl(payload: dict) -> dict:
     ctx = _S4_WORKER_CONTEXT
     if not ctx:
         raise EngineFailure(
@@ -867,6 +1130,10 @@ def _process_s4_batch(payload: dict) -> dict:
     output_buffer_rows = int(ctx.get("output_buffer_rows") or 50000)
     event_row_validator = ctx.get("event_row_validator")
     summary_row_validator = ctx.get("summary_row_validator")
+    ordering_required = bool(ctx.get("ordering_required"))
+    time_hasher = ctx.get("time_hasher")
+    site_hasher = ctx.get("site_hasher")
+    edge_hasher = ctx.get("edge_hasher")
 
     events_tmp_dir = Path(ctx["events_tmp_dir"])
     summary_tmp_dir = Path(ctx["summary_tmp_dir"])
@@ -886,18 +1153,59 @@ def _process_s4_batch(payload: dict) -> dict:
 
     bucket_map = ctx["bucket_map"]
     tz_cache = ctx["tz_cache"]
-    site_alias_map = ctx["site_alias_map"]
-    fallback_alias_map = ctx["fallback_alias_map"]
-    site_tz_lookup = ctx["site_tz_lookup"]
-    edge_alias_meta = ctx["edge_alias_meta"]
-    edge_map = ctx["edge_map"]
+    shared_maps = ctx.get("shared_maps")
+    tzid_list = shared_maps.get("tzid_list") if shared_maps else None
+    tzid_to_index = ctx.get("tzid_to_index")
+    if tzid_to_index is None and tzid_list is not None:
+        tzid_to_index = {tzid: idx for idx, tzid in enumerate(tzid_list)}
+    site_alias_map = ctx.get("site_alias_map") if not shared_maps else None
+    fallback_alias_map = ctx.get("fallback_alias_map") if not shared_maps else None
+    site_tz_lookup = ctx.get("site_tz_lookup") if not shared_maps else None
+    edge_alias_meta = ctx.get("edge_alias_meta") if not shared_maps else None
+    edge_map = ctx.get("edge_map") if not shared_maps else None
+    settlement_map = ctx.get("settlement_map") if not shared_maps else None
+    classification_map = ctx.get("classification_map") if not shared_maps else None
     blob_view = ctx.get("blob_view")
     edge_alias_cache = ctx["edge_alias_cache"]
     alias_endianness = ctx["alias_endianness"]
-    settlement_map = ctx["settlement_map"]
-    classification_map = ctx["classification_map"]
     group_weights_map = ctx["group_weights_map"]
     skip_group_weight_check = bool(ctx["skip_group_weight_check"])
+    classification_keys = classification_modes = None
+    settlement_keys = settlement_tz_index = None
+    edge_keys = edge_offsets = edge_counts = edge_ids_arr = edge_tz_index = None
+    edge_alias_keys = edge_alias_offsets = edge_alias_lengths = edge_alias_counts = edge_alias_table_lengths = None
+    site_keys = site_offsets = site_counts = site_prob = site_alias = site_site_orders = None
+    fallback_keys = fallback_offsets = fallback_counts = fallback_prob = fallback_alias = fallback_site_orders = None
+    site_tz_keys = site_tz_values = None
+    if shared_maps:
+        classification_keys = shared_maps["classification_keys"]
+        classification_modes = shared_maps["classification_modes"]
+        settlement_keys = shared_maps["settlement_keys"]
+        settlement_tz_index = shared_maps["settlement_tz_index"]
+        edge_keys = shared_maps["edge_keys"]
+        edge_offsets = shared_maps["edge_offsets"]
+        edge_counts = shared_maps["edge_counts"]
+        edge_ids_arr = shared_maps["edge_ids"]
+        edge_tz_index = shared_maps["edge_tz_index"]
+        edge_alias_keys = shared_maps["edge_alias_keys"]
+        edge_alias_offsets = shared_maps["edge_alias_offsets"]
+        edge_alias_lengths = shared_maps["edge_alias_lengths"]
+        edge_alias_counts = shared_maps["edge_alias_counts"]
+        edge_alias_table_lengths = shared_maps["edge_alias_table_lengths"]
+        site_keys = shared_maps["site_keys"]
+        site_offsets = shared_maps["site_offsets"]
+        site_counts = shared_maps["site_counts"]
+        site_prob = shared_maps["site_prob"]
+        site_alias = shared_maps["site_alias"]
+        site_site_orders = shared_maps["site_site_orders"]
+        fallback_keys = shared_maps["fallback_keys"]
+        fallback_offsets = shared_maps["fallback_offsets"]
+        fallback_counts = shared_maps["fallback_counts"]
+        fallback_prob = shared_maps["fallback_prob"]
+        fallback_alias = shared_maps["fallback_alias"]
+        fallback_site_orders = shared_maps["fallback_site_orders"]
+        site_tz_keys = shared_maps["site_tz_keys"]
+        site_tz_values = shared_maps["site_tz_values"]
     zone_alloc_universe_hash = ctx["zone_alloc_universe_hash"]
     edge_universe_hash = ctx["edge_universe_hash"]
     max_arrivals_per_bucket = int(ctx["max_arrivals_per_bucket"])
@@ -907,6 +1215,11 @@ def _process_s4_batch(payload: dict) -> dict:
     site_prefix = ctx["site_prefix"]
     edge_prefix = ctx["edge_prefix"]
     draws_per_arrival = int(ctx["draws_per_arrival"])
+
+    def _derive_seed(prefix_hasher, prefix_bytes, domain_key: str) -> tuple[int, int, int]:
+        if prefix_hasher is not None:
+            return _derive_rng_seed(prefix_hasher, domain_key)
+        return _derive_rng_seed_from_prefix(prefix_bytes, domain_key)
 
     rng_stats = {
         "arrival_time_jitter": {"events": 0, "draws": 0, "blocks": 0, "last": None},
@@ -944,12 +1257,40 @@ def _process_s4_batch(payload: dict) -> dict:
                 f"Schema validation failed ({label}):\n" + "\n".join(lines), errors
             )
 
-    def _write_events(rows: list[dict]) -> None:
+    event_schema_names = [name for name, _ in _S4_EVENT_SCHEMA]
+
+    def _sample_rows_from_tuples(rows: list[tuple], limit: int) -> list[dict]:
+        sample: list[dict] = []
+        for idx in range(limit):
+            row = rows[idx]
+            row_map: dict[str, object] = {}
+            for col_idx, col_name in enumerate(event_schema_names):
+                value = row[col_idx]
+                if value is None:
+                    continue
+                row_map[col_name] = value
+            sample.append(row_map)
+        return sample
+
+    def _write_events(rows: list) -> None:
         nonlocal events_writer
         if not rows:
             return
-        _validate_rows(rows, event_row_validator, "arrival_events")
-        df = pl.DataFrame(rows, schema=_S4_EVENT_SCHEMA)
+        if isinstance(rows[0], dict):
+            _validate_rows(rows, event_row_validator, "arrival_events")
+            df = pl.DataFrame(rows, schema=_S4_EVENT_SCHEMA)
+        else:
+            if event_row_validator is not None:
+                if output_validate_full:
+                    sample_limit = len(rows)
+                elif output_sample_rows > 0:
+                    sample_limit = min(output_sample_rows, len(rows))
+                else:
+                    sample_limit = 0
+                if sample_limit:
+                    sample_rows = _sample_rows_from_tuples(rows, sample_limit)
+                    _validate_rows(sample_rows, event_row_validator, "arrival_events")
+            df = pl.DataFrame(rows, schema=_S4_EVENT_SCHEMA, orient="row")
         df = _coerce_int_columns(df, _S4_EVENT_UINT64_COLUMNS, _S4_EVENT_INT64_COLUMNS)
         if _HAVE_PYARROW and pq is not None:
             table = df.to_arrow()
@@ -979,7 +1320,7 @@ def _process_s4_batch(payload: dict) -> dict:
     total_physical = 0
     total_virtual = 0
 
-    event_rows: list[dict] = []
+    event_rows: list = []
     summary_rows: list[dict] = []
 
     for idx in range(len(merchants)):
@@ -1012,32 +1353,57 @@ def _process_s4_batch(payload: dict) -> dict:
 
         utc_day = str(bucket_info["utc_day"])
         group_key = (merchant_id, utc_day)
-        if not skip_group_weight_check and zone_representation not in group_weights_map.get(group_key, set()):
+        if (
+            not skip_group_weight_check
+            and group_weights_map is not None
+            and zone_representation not in group_weights_map.get(group_key, set())
+        ):
             missing_group_keys.add((merchant_id, utc_day, zone_representation))
 
-        classification = classification_map.get(merchant_id)
-        if not classification:
-            raise EngineFailure(
-                "F4",
-                "5B.S4.ROUTING_POLICY_INVALID",
-                STATE,
-                MODULE_NAME,
-                {"merchant_id": merchant_id},
-            )
-        virtual_mode = str(classification.get("virtual_mode") or "")
-        if virtual_mode not in {"NON_VIRTUAL", "HYBRID", "VIRTUAL_ONLY"}:
-            raise EngineFailure(
-                "F4",
-                "5B.S4.ROUTING_POLICY_INVALID",
-                STATE,
-                MODULE_NAME,
-                {"merchant_id": merchant_id, "virtual_mode": virtual_mode},
-            )
+        if shared_maps:
+            class_idx = _lookup_sorted_key(classification_keys, merchant_id)
+            if class_idx < 0:
+                raise EngineFailure(
+                    "F4",
+                    "5B.S4.ROUTING_POLICY_INVALID",
+                    STATE,
+                    MODULE_NAME,
+                    {"merchant_id": merchant_id},
+                )
+            virtual_mode_code = int(classification_modes[class_idx])
+            if virtual_mode_code < 0 or virtual_mode_code >= len(_VIRTUAL_MODE_BY_CODE):
+                raise EngineFailure(
+                    "F4",
+                    "5B.S4.ROUTING_POLICY_INVALID",
+                    STATE,
+                    MODULE_NAME,
+                    {"merchant_id": merchant_id, "virtual_mode": virtual_mode_code},
+                )
+            virtual_mode = _VIRTUAL_MODE_BY_CODE[virtual_mode_code]
+        else:
+            classification = classification_map.get(merchant_id)
+            if not classification:
+                raise EngineFailure(
+                    "F4",
+                    "5B.S4.ROUTING_POLICY_INVALID",
+                    STATE,
+                    MODULE_NAME,
+                    {"merchant_id": merchant_id},
+                )
+            virtual_mode = str(classification.get("virtual_mode") or "")
+            if virtual_mode not in {"NON_VIRTUAL", "HYBRID", "VIRTUAL_ONLY"}:
+                raise EngineFailure(
+                    "F4",
+                    "5B.S4.ROUTING_POLICY_INVALID",
+                    STATE,
+                    MODULE_NAME,
+                    {"merchant_id": merchant_id, "virtual_mode": virtual_mode},
+                )
 
         prefix = f"{merchant_id}|{zone_representation}|{bucket_index}|"
         start_seq = int(arrival_seq_start[idx])
 
-        bucket_events: list[dict] = []
+        bucket_events = [] if ordering_required else None
         count_physical = 0
         count_virtual = 0
 
@@ -1045,7 +1411,9 @@ def _process_s4_batch(payload: dict) -> dict:
             arrival_seq = start_seq + offset
             domain_key = f"{prefix}{arrival_seq}"
 
-            time_key, time_counter_hi, time_counter_lo = _derive_rng_seed_from_prefix(time_prefix, domain_key)
+            time_key, time_counter_hi, time_counter_lo = _derive_seed(
+                time_hasher, time_prefix, domain_key
+            )
             time_values, time_blocks, time_next_hi, time_next_lo = _draw_philox_u64(
                 time_key,
                 time_counter_hi,
@@ -1075,7 +1443,9 @@ def _process_s4_batch(payload: dict) -> dict:
             u_site_secondary = None
             use_site_pick = virtual_mode != "VIRTUAL_ONLY"
             if use_site_pick:
-                site_key, site_counter_hi, site_counter_lo = _derive_rng_seed_from_prefix(site_prefix, domain_key)
+                site_key, site_counter_hi, site_counter_lo = _derive_seed(
+                    site_hasher, site_prefix, domain_key
+                )
                 site_values, site_blocks, site_next_hi, site_next_lo = _draw_philox_u64(
                     site_key,
                     site_counter_hi,
@@ -1111,16 +1481,39 @@ def _process_s4_batch(payload: dict) -> dict:
             routing_universe_hash = None
 
             if is_virtual:
-                edge_meta = edge_alias_meta.get(merchant_id)
-                edge_list = edge_map.get(merchant_id)
-                if edge_meta is None or edge_list is None:
-                    raise EngineFailure(
-                        "F4",
-                        "5B.S4.ROUTING_POLICY_INVALID",
-                        STATE,
-                        MODULE_NAME,
-                        {"merchant_id": merchant_id},
-                    )
+                if shared_maps:
+                    edge_idx = _lookup_sorted_key(edge_keys, merchant_id)
+                    alias_idx = _lookup_sorted_key(edge_alias_keys, merchant_id)
+                    if edge_idx < 0 or alias_idx < 0:
+                        raise EngineFailure(
+                            "F4",
+                            "5B.S4.ROUTING_POLICY_INVALID",
+                            STATE,
+                            MODULE_NAME,
+                            {"merchant_id": merchant_id},
+                        )
+                    edge_offset = int(edge_offsets[edge_idx])
+                    edge_count = int(edge_counts[edge_idx])
+                    edge_ids = edge_ids_arr[edge_offset : edge_offset + edge_count]
+                    edge_tzids = edge_tz_index[edge_offset : edge_offset + edge_count]
+                    edge_meta = {
+                        "offset": int(edge_alias_offsets[alias_idx]),
+                        "length": int(edge_alias_lengths[alias_idx]),
+                        "edge_count": int(edge_alias_counts[alias_idx]),
+                        "alias_length": int(edge_alias_table_lengths[alias_idx]),
+                    }
+                else:
+                    edge_meta = edge_alias_meta.get(merchant_id)
+                    edge_list = edge_map.get(merchant_id)
+                    if edge_meta is None or edge_list is None:
+                        raise EngineFailure(
+                            "F4",
+                            "5B.S4.ROUTING_POLICY_INVALID",
+                            STATE,
+                            MODULE_NAME,
+                            {"merchant_id": merchant_id},
+                        )
+                    edge_ids, edge_tzids = edge_list
                 if merchant_id not in edge_alias_cache:
                     if blob_view is None:
                         raise EngineFailure(
@@ -1150,7 +1543,6 @@ def _process_s4_batch(payload: dict) -> dict:
                         )
                     edge_alias_cache[merchant_id] = (prob, alias, edge_count)
                 prob, alias, edge_count = edge_alias_cache[merchant_id]
-                edge_ids, edge_tzids = edge_list
                 if edge_count != len(edge_ids):
                     raise EngineFailure(
                         "F4",
@@ -1163,7 +1555,9 @@ def _process_s4_batch(payload: dict) -> dict:
                             "edge_catalogue_count": len(edge_ids),
                         },
                     )
-                edge_key, edge_counter_hi, edge_counter_lo = _derive_rng_seed_from_prefix(edge_prefix, domain_key)
+                edge_key, edge_counter_hi, edge_counter_lo = _derive_seed(
+                    edge_hasher, edge_prefix, domain_key
+                )
                 edge_values, edge_blocks, edge_next_hi, edge_next_lo = _draw_philox_u64(
                     edge_key,
                     edge_counter_hi,
@@ -1182,8 +1576,19 @@ def _process_s4_batch(payload: dict) -> dict:
                         {"merchant_id": merchant_id, "edge_index": edge_index},
                     )
                 edge_id = int(edge_ids[edge_index])
-                tzid_operational = edge_tzids[edge_index]
-                tzid_settlement = settlement_map.get(merchant_id)
+                if shared_maps:
+                    tzid_operational = tzid_list[int(edge_tzids[edge_index])]
+                else:
+                    tzid_operational = edge_tzids[edge_index]
+                if shared_maps:
+                    settlement_idx = _lookup_sorted_key(settlement_keys, merchant_id)
+                    tzid_settlement = (
+                        tzid_list[int(settlement_tz_index[settlement_idx])]
+                        if settlement_idx >= 0
+                        else None
+                    )
+                else:
+                    tzid_settlement = settlement_map.get(merchant_id)
                 if tzid_operational not in tz_cache:
                     raise EngineFailure(
                         "F4",
@@ -1227,10 +1632,42 @@ def _process_s4_batch(payload: dict) -> dict:
                 count_virtual += 1
             else:
                 alias_key = (merchant_id, zone_representation)
-                alias_entry = site_alias_map.get(alias_key)
-                if alias_entry is None:
-                    missing_alias_keys.add(alias_key)
-                    alias_entry = fallback_alias_map.get(merchant_id)
+                alias_entry = None
+                if shared_maps:
+                    tz_idx = tzid_to_index.get(zone_representation) if tzid_to_index else None
+                    if tz_idx is None:
+                        raise EngineFailure(
+                            "F4",
+                            "5B.S4.ROUTING_POLICY_INVALID",
+                            STATE,
+                            MODULE_NAME,
+                            {"tzid_primary": zone_representation},
+                        )
+                    site_idx = _lookup_structured_key(site_keys, merchant_id, tz_idx, "tz_idx")
+                    if site_idx >= 0:
+                        offset = int(site_offsets[site_idx])
+                        count = int(site_counts[site_idx])
+                        alias_entry = (
+                            site_prob[offset : offset + count],
+                            site_alias[offset : offset + count],
+                            site_site_orders[offset : offset + count],
+                        )
+                    else:
+                        missing_alias_keys.add(alias_key)
+                        fallback_idx = _lookup_sorted_key(fallback_keys, merchant_id)
+                        if fallback_idx >= 0:
+                            offset = int(fallback_offsets[fallback_idx])
+                            count = int(fallback_counts[fallback_idx])
+                            alias_entry = (
+                                fallback_prob[offset : offset + count],
+                                fallback_alias[offset : offset + count],
+                                fallback_site_orders[offset : offset + count],
+                            )
+                else:
+                    alias_entry = site_alias_map.get(alias_key)
+                    if alias_entry is None:
+                        missing_alias_keys.add(alias_key)
+                        alias_entry = fallback_alias_map.get(merchant_id)
                 if alias_entry is None:
                     raise EngineFailure(
                         "F4",
@@ -1259,15 +1696,27 @@ def _process_s4_batch(payload: dict) -> dict:
                         {"merchant_id": merchant_id, "site_index": site_index},
                     )
                 site_id = int(site_orders[site_index])
-                tzid_primary = site_tz_lookup.get((merchant_id, site_id))
-                if tzid_primary is None:
-                    raise EngineFailure(
-                        "F4",
-                        "5B.S4.ROUTING_POLICY_INVALID",
-                        STATE,
-                        MODULE_NAME,
-                        {"merchant_id": merchant_id, "site_id": site_id},
-                    )
+                if shared_maps:
+                    tz_idx = _lookup_structured_key(site_tz_keys, merchant_id, site_id, "site_id")
+                    if tz_idx < 0:
+                        raise EngineFailure(
+                            "F4",
+                            "5B.S4.ROUTING_POLICY_INVALID",
+                            STATE,
+                            MODULE_NAME,
+                            {"merchant_id": merchant_id, "site_id": site_id},
+                        )
+                    tzid_primary = tzid_list[int(site_tz_values[tz_idx])]
+                else:
+                    tzid_primary = site_tz_lookup.get((merchant_id, site_id))
+                    if tzid_primary is None:
+                        raise EngineFailure(
+                            "F4",
+                            "5B.S4.ROUTING_POLICY_INVALID",
+                            STATE,
+                            MODULE_NAME,
+                            {"merchant_id": merchant_id, "site_id": site_id},
+                        )
                 if tzid_primary not in tz_cache:
                     raise EngineFailure(
                         "F4",
@@ -1308,54 +1757,100 @@ def _process_s4_batch(payload: dict) -> dict:
                     {"merchant_id": merchant_id, "bucket_index": bucket_index},
                 )
 
-            event_row = {
-                "manifest_fingerprint": manifest_fingerprint,
-                "parameter_hash": parameter_hash,
-                "seed": int(seed),
-                "scenario_id": str(scenario_id),
-                "merchant_id": int(merchant_id),
-                "zone_representation": str(zone_representation),
-                "bucket_index": int(bucket_index),
-                "arrival_seq": int(arrival_seq),
-                "ts_utc": ts_utc,
-                "tzid_primary": str(tzid_primary),
-                "ts_local_primary": str(ts_local_primary),
-                "is_virtual": bool(is_virtual),
-                "routing_universe_hash": str(routing_universe_hash),
-                "s4_spec_version": str(spec_version),
-                "_ts_utc_micros": ts_utc_micros,
-            }
-            if channel_group is not None:
-                event_row["channel_group"] = str(channel_group)
-            if tzid_operational:
-                event_row["tzid_operational"] = str(tzid_operational)
-            if ts_local_operational:
-                event_row["ts_local_operational"] = str(ts_local_operational)
-            if tzid_settlement:
-                event_row["tzid_settlement"] = str(tzid_settlement)
-            if ts_local_settlement:
-                event_row["ts_local_settlement"] = str(ts_local_settlement)
-            if site_id is not None:
-                event_row["site_id"] = int(site_id)
-            if edge_id is not None:
-                event_row["edge_id"] = int(edge_id)
-            if lambda_realised is not None:
-                event_row["lambda_realised"] = float(lambda_realised)
-            event_row["tz_group_id"] = str(tzid_primary)
+            channel_group_value = str(channel_group) if channel_group is not None else None
+            tzid_operational_value = str(tzid_operational) if tzid_operational else None
+            ts_local_operational_value = (
+                str(ts_local_operational) if ts_local_operational else None
+            )
+            tzid_settlement_value = str(tzid_settlement) if tzid_settlement else None
+            ts_local_settlement_value = str(ts_local_settlement) if ts_local_settlement else None
+            site_id_value = int(site_id) if site_id is not None else None
+            edge_id_value = int(edge_id) if edge_id is not None else None
+            lambda_realised_value = float(lambda_realised) if lambda_realised is not None else None
 
-            bucket_events.append(event_row)
+            if ordering_required:
+                event_row = {
+                    "manifest_fingerprint": manifest_fingerprint,
+                    "parameter_hash": parameter_hash,
+                    "seed": int(seed),
+                    "scenario_id": str(scenario_id),
+                    "merchant_id": int(merchant_id),
+                    "zone_representation": str(zone_representation),
+                    "bucket_index": int(bucket_index),
+                    "arrival_seq": int(arrival_seq),
+                    "ts_utc": ts_utc,
+                    "tzid_primary": str(tzid_primary),
+                    "ts_local_primary": str(ts_local_primary),
+                    "is_virtual": bool(is_virtual),
+                    "routing_universe_hash": str(routing_universe_hash),
+                    "s4_spec_version": str(spec_version),
+                    "_ts_utc_micros": ts_utc_micros,
+                }
+                if channel_group_value is not None:
+                    event_row["channel_group"] = channel_group_value
+                if tzid_operational_value:
+                    event_row["tzid_operational"] = tzid_operational_value
+                if ts_local_operational_value:
+                    event_row["ts_local_operational"] = ts_local_operational_value
+                if tzid_settlement_value:
+                    event_row["tzid_settlement"] = tzid_settlement_value
+                if ts_local_settlement_value:
+                    event_row["ts_local_settlement"] = ts_local_settlement_value
+                if site_id_value is not None:
+                    event_row["site_id"] = site_id_value
+                if edge_id_value is not None:
+                    event_row["edge_id"] = edge_id_value
+                if lambda_realised_value is not None:
+                    event_row["lambda_realised"] = lambda_realised_value
+                event_row["tz_group_id"] = str(tzid_primary)
+                bucket_events.append(event_row)
+            else:
+                event_row = (
+                    manifest_fingerprint,
+                    parameter_hash,
+                    int(seed),
+                    str(scenario_id),
+                    int(merchant_id),
+                    str(zone_representation),
+                    channel_group_value,
+                    int(bucket_index),
+                    int(arrival_seq),
+                    ts_utc,
+                    str(tzid_primary),
+                    str(ts_local_primary),
+                    tzid_settlement_value,
+                    ts_local_settlement_value,
+                    tzid_operational_value,
+                    ts_local_operational_value,
+                    str(tzid_primary),
+                    site_id_value,
+                    edge_id_value,
+                    str(routing_universe_hash),
+                    lambda_realised_value,
+                    bool(is_virtual),
+                    str(spec_version),
+                )
+                total_rows_written += 1
+                total_arrivals += 1
+                total_physical += 1 if not is_virtual else 0
+                total_virtual += 1 if is_virtual else 0
+                event_rows.append(event_row)
+                if len(event_rows) >= output_buffer_rows:
+                    _write_events(event_rows)
+                    event_rows = []
 
-        bucket_events.sort(key=lambda item: (item["_ts_utc_micros"], item["arrival_seq"]))
-        for event_row in bucket_events:
-            event_row.pop("_ts_utc_micros", None)
-            total_rows_written += 1
-            total_arrivals += 1
-            total_physical += 1 if not event_row["is_virtual"] else 0
-            total_virtual += 1 if event_row["is_virtual"] else 0
-            event_rows.append(event_row)
-            if len(event_rows) >= output_buffer_rows:
-                _write_events(event_rows)
-                event_rows = []
+        if ordering_required and bucket_events:
+            bucket_events.sort(key=lambda item: (item["_ts_utc_micros"], item["arrival_seq"]))
+            for event_row in bucket_events:
+                event_row.pop("_ts_utc_micros", None)
+                total_rows_written += 1
+                total_arrivals += 1
+                total_physical += 1 if not event_row["is_virtual"] else 0
+                total_virtual += 1 if event_row["is_virtual"] else 0
+                event_rows.append(event_row)
+                if len(event_rows) >= output_buffer_rows:
+                    _write_events(event_rows)
+                    event_rows = []
 
         summary_row = {
             "manifest_fingerprint": manifest_fingerprint,
@@ -1635,11 +2130,17 @@ def run_s4(config: EngineConfig, run_id: Optional[str] = None) -> S4Result:
         use_parallel = False
     if use_parallel:
         ordering_stats_enabled = strict_ordering
+    ordering_required = ordering_stats_enabled
     output_buffer_env = os.environ.get("ENGINE_5B_S4_OUTPUT_BUFFER_ROWS", "50000")
     try:
         output_buffer_rows = max(int(output_buffer_env), 1000)
     except ValueError:
         output_buffer_rows = 50000
+    shared_maps_env = os.environ.get("ENGINE_5B_S4_SHARED_MAPS")
+    if shared_maps_env is None:
+        shared_maps_enabled = True
+    else:
+        shared_maps_enabled = shared_maps_env.strip().lower() in {"1", "true", "yes", "y"}
 
     current_phase = "init"
     status = "FAIL"
@@ -2658,8 +3159,22 @@ def run_s4(config: EngineConfig, run_id: Optional[str] = None) -> S4Result:
         if fallback_sites:
             logger.warning("S4: %d site alias tables used fallback weights due to invalid inputs", fallback_sites)
 
-        group_weights_df = pl.read_parquet(group_weights_path)
-        if group_weights_df.is_empty():
+        if not group_weights_path.exists():
+            _abort(
+                "5B.S4.S1_OUTPUT_MISSING",
+                "V-06",
+                "group_weights_missing",
+                {"path": str(group_weights_path)},
+                manifest_fingerprint,
+            )
+        group_weight_years: set[str] = set(
+            pl.scan_parquet(group_weights_path)
+            .select(pl.col("utc_day").cast(pl.Utf8).str.slice(0, 4).unique())
+            .collect()
+            .get_column("utc_day")
+            .to_list()
+        )
+        if not group_weight_years:
             _abort(
                 "5B.S4.S1_OUTPUT_MISSING",
                 "V-06",
@@ -2667,19 +3182,8 @@ def run_s4(config: EngineConfig, run_id: Optional[str] = None) -> S4Result:
                 {"path": str(group_weights_path)},
                 manifest_fingerprint,
             )
-        group_weights_df = group_weights_df.with_columns(
-            pl.col("merchant_id").cast(pl.UInt64),
-            pl.col("utc_day").cast(pl.Utf8),
-            pl.col("tz_group_id").cast(pl.Utf8),
-        )
-        group_weight_years: set[str] = set()
-        group_weights_map: dict[tuple[int, str], set[str]] = {}
-        for merchant_id, utc_day, tz_group in group_weights_df.select(
-            ["merchant_id", "utc_day", "tz_group_id"]
-        ).iter_rows():
-            key = (int(merchant_id), str(utc_day))
-            group_weights_map.setdefault(key, set()).add(str(tz_group))
-            group_weight_years.add(str(utc_day)[:4])
+        group_weights_cache_years: set[str] = set()
+        group_weights_map: Optional[dict[tuple[int, str], set[str]]] = None
 
         classification_entry = find_dataset_entry(dictionary_5b, "virtual_classification_3B").entry
         classification_path = _resolve_dataset_path(classification_entry, run_paths, config.external_roots, tokens)
@@ -2814,6 +3318,31 @@ def run_s4(config: EngineConfig, run_id: Optional[str] = None) -> S4Result:
         edge_alias_cache: dict[int, tuple[np.ndarray, np.ndarray, int]] = {}
         alias_endianness = str(alias_layout_policy.get("endianness") or "little")
 
+        if use_parallel and shared_maps_enabled:
+            shared_maps_root = _build_shared_maps(
+                run_paths,
+                str(manifest_fingerprint),
+                tz_cache,
+                classification_map,
+                settlement_map,
+                edge_map,
+                edge_alias_meta,
+                site_alias_map,
+                fallback_alias_map,
+                site_tz_lookup,
+                logger,
+            )
+            logger.info("S4: shared_maps=on root=%s", shared_maps_root)
+            classification_map = {}
+            settlement_map = {}
+            edge_map = {}
+            edge_alias_meta = {}
+            site_alias_map = {}
+            fallback_alias_map = {}
+            site_tz_lookup = {}
+        elif use_parallel:
+            logger.info("S4: shared_maps=off (set ENGINE_5B_S4_SHARED_MAPS=1 to enable)")
+
         try:
             for scenario_id in scenario_set:
                 scenario_start = time.monotonic()
@@ -2941,11 +3470,56 @@ def run_s4(config: EngineConfig, run_id: Optional[str] = None) -> S4Result:
                 bucket_years = {info["utc_day"][:4] for info in bucket_map.values()}
                 skip_group_weight_check = not bool(bucket_years & group_weight_years)
                 if skip_group_weight_check:
+                    group_weights_map = None
+                    group_weights_cache_years.clear()
                     logger.warning(
                         "S4: group_weights years=%s do not cover time_grid years=%s; skipping group-weight validation.",
                         sorted(group_weight_years),
                         sorted(bucket_years),
                     )
+                else:
+                    if group_weights_map is None:
+                        group_weights_map = {}
+                    missing_years = bucket_years - group_weights_cache_years
+                    if missing_years:
+                        group_weights_scan = pl.scan_parquet(group_weights_path).filter(
+                            pl.col("utc_day")
+                            .cast(pl.Utf8)
+                            .str.slice(0, 4)
+                            .is_in(sorted(missing_years))
+                        )
+                        group_weights_df = group_weights_scan.select(
+                            ["merchant_id", "utc_day", "tz_group_id"]
+                        ).collect()
+                        if group_weights_df.is_empty():
+                            logger.warning(
+                                "S4: group_weights missing for years=%s (path=%s); skipping group-weight validation.",
+                                sorted(missing_years),
+                                str(group_weights_path),
+                            )
+                            skip_group_weight_check = True
+                            group_weights_map = None
+                            group_weights_cache_years.clear()
+                        else:
+                            for row in (
+                                group_weights_df.group_by(["merchant_id", "utc_day"])
+                                .agg(pl.col("tz_group_id").alias("tz_group_ids"))
+                                .iter_rows(named=True)
+                            ):
+                                group_key = (int(row["merchant_id"]), str(row["utc_day"]))
+                                tz_ids = {str(val) for val in row["tz_group_ids"]}
+                                existing = group_weights_map.get(group_key)
+                                if existing is None:
+                                    group_weights_map[group_key] = tz_ids
+                                else:
+                                    existing.update(tz_ids)
+                            group_weights_cache_years.update(missing_years)
+                            logger.info(
+                                "S4: group_weights loaded years=%s rows=%d keys=%d",
+                                sorted(missing_years),
+                                int(group_weights_df.height),
+                                len(group_weights_map),
+                            )
 
                 counts_files = _list_parquet_files(counts_path)
                 total_rows = _count_parquet_rows(counts_files) or 0
@@ -3034,15 +3608,8 @@ def run_s4(config: EngineConfig, run_id: Optional[str] = None) -> S4Result:
                         "spec_version": str(spec_version),
                         "bucket_map": bucket_map,
                         "tz_cache": tz_cache,
-                        "site_alias_map": site_alias_map,
-                        "fallback_alias_map": fallback_alias_map,
-                        "site_tz_lookup": site_tz_lookup,
-                        "edge_alias_meta": edge_alias_meta,
-                        "edge_map": edge_map,
                         "edge_alias_blob_path": str(edge_alias_blob_path),
                         "alias_endianness": alias_endianness,
-                        "settlement_map": settlement_map,
-                        "classification_map": classification_map,
                         "group_weights_map": group_weights_map,
                         "skip_group_weight_check": skip_group_weight_check,
                         "zone_alloc_universe_hash": zone_alloc_universe_hash,
@@ -3056,11 +3623,26 @@ def run_s4(config: EngineConfig, run_id: Optional[str] = None) -> S4Result:
                         "output_validate_full": output_validate_full,
                         "output_sample_rows": output_sample_rows,
                         "output_buffer_rows": output_buffer_rows,
+                        "ordering_required": ordering_required,
                         "event_schema": event_schema,
                         "summary_schema": summary_schema,
                         "events_tmp_dir": str(events_tmp_dir),
                         "summary_tmp_dir": str(summary_tmp_dir),
                     }
+                    if shared_maps_root is not None:
+                        worker_context["shared_maps_root"] = str(shared_maps_root)
+                    else:
+                        worker_context.update(
+                            {
+                                "site_alias_map": site_alias_map,
+                                "fallback_alias_map": fallback_alias_map,
+                                "site_tz_lookup": site_tz_lookup,
+                                "edge_alias_meta": edge_alias_meta,
+                                "edge_map": edge_map,
+                                "settlement_map": settlement_map,
+                                "classification_map": classification_map,
+                            }
+                        )
 
                     def _handle_result(result: dict, expected_batch_id: int) -> None:
                         nonlocal scenario_rows_written
@@ -3071,6 +3653,18 @@ def run_s4(config: EngineConfig, run_id: Optional[str] = None) -> S4Result:
                         nonlocal total_arrivals
                         nonlocal total_physical
                         nonlocal total_virtual
+                        if result.get("error"):
+                            _abort(
+                                result["error"].get("failure_code") or "5B.S4.IO_WRITE_FAILED",
+                                "V-06",
+                                "worker_exception",
+                                {
+                                    "scenario_id": scenario_id,
+                                    "batch_id": expected_batch_id,
+                                    "error": result["error"],
+                                },
+                                manifest_fingerprint,
+                            )
                         if result.get("batch_id") != expected_batch_id:
                             _abort(
                                 "5B.S4.DOMAIN_ALIGN_FAILED",
@@ -3411,7 +4005,11 @@ def run_s4(config: EngineConfig, run_id: Optional[str] = None) -> S4Result:
 
                         utc_day = str(bucket_info["utc_day"])
                         group_key = (merchant_id, utc_day)
-                        if not skip_group_weight_check and zone_representation not in group_weights_map.get(group_key, set()):
+                        if (
+                            not skip_group_weight_check
+                            and group_weights_map is not None
+                            and zone_representation not in group_weights_map.get(group_key, set())
+                        ):
                             missing_key = (merchant_id, utc_day, zone_representation)
                             if missing_key not in missing_group_keys:
                                 logger.warning(
@@ -3442,7 +4040,7 @@ def run_s4(config: EngineConfig, run_id: Optional[str] = None) -> S4Result:
                                 manifest_fingerprint,
                             )
 
-                        bucket_events: list[dict] = []
+                        bucket_events = [] if ordering_stats_enabled else None
                         count_physical = 0
                         count_virtual = 0
 
@@ -3834,8 +4432,9 @@ def run_s4(config: EngineConfig, run_id: Optional[str] = None) -> S4Result:
                                 "is_virtual": bool(is_virtual),
                                 "routing_universe_hash": str(routing_universe_hash),
                                 "s4_spec_version": str(spec_version),
-                                "_ts_utc_micros": ts_utc_micros,
                             }
+                            if ordering_stats_enabled:
+                                event_row["_ts_utc_micros"] = ts_utc_micros
                             if channel_group is not None:
                                 event_row["channel_group"] = str(channel_group)
                             if tzid_operational:
@@ -3854,45 +4453,61 @@ def run_s4(config: EngineConfig, run_id: Optional[str] = None) -> S4Result:
                                 event_row["lambda_realised"] = float(lambda_realised)
                             event_row["tz_group_id"] = str(tzid_primary)
 
-                            bucket_events.append(event_row)
-                        bucket_events.sort(key=lambda item: (item["_ts_utc_micros"], item["arrival_seq"]))
-                        for event_row in bucket_events:
-                            event_row.pop("_ts_utc_micros", None)
-                            total_rows_written += 1
-                            scenario_rows_written += 1
-                            total_arrivals += 1
-                            scenario_arrivals += 1
-                            total_physical += 1 if not event_row["is_virtual"] else 0
-                            scenario_physical += 1 if not event_row["is_virtual"] else 0
-                            total_virtual += 1 if event_row["is_virtual"] else 0
-                            scenario_virtual += 1 if event_row["is_virtual"] else 0
+                            if ordering_stats_enabled:
+                                bucket_events.append(event_row)
+                            else:
+                                total_rows_written += 1
+                                scenario_rows_written += 1
+                                total_arrivals += 1
+                                scenario_arrivals += 1
+                                total_physical += 1 if not event_row["is_virtual"] else 0
+                                scenario_physical += 1 if not event_row["is_virtual"] else 0
+                                total_virtual += 1 if event_row["is_virtual"] else 0
+                                scenario_virtual += 1 if event_row["is_virtual"] else 0
 
-                            key_tuple = (
-                                scenario_id,
-                                int(event_row["merchant_id"]),
-                                str(event_row["zone_representation"]),
-                                int(event_row["bucket_index"]),
-                                str(event_row["ts_utc"]),
-                                int(event_row["arrival_seq"]),
-                            )
-                            if last_key is not None and key_tuple < last_key:
-                                ordering_violations += 1
-                                if ordering_violation_sample is None:
-                                    ordering_violation_sample = (last_key, key_tuple)
-                                if strict_ordering:
-                                    _abort(
-                                        "5B.S4.DOMAIN_ALIGN_FAILED",
-                                        "V-08",
-                                        "ordering_violation",
-                                        {"scenario_id": scenario_id},
-                                        manifest_fingerprint,
-                                    )
-                            last_key = key_tuple
+                                event_rows.append(event_row)
+                                if len(event_rows) >= output_buffer_rows:
+                                    _write_events(event_rows)
+                                    event_rows = []
+                        if ordering_stats_enabled and bucket_events:
+                            bucket_events.sort(key=lambda item: (item["_ts_utc_micros"], item["arrival_seq"]))
+                            for event_row in bucket_events:
+                                event_row.pop("_ts_utc_micros", None)
+                                total_rows_written += 1
+                                scenario_rows_written += 1
+                                total_arrivals += 1
+                                scenario_arrivals += 1
+                                total_physical += 1 if not event_row["is_virtual"] else 0
+                                scenario_physical += 1 if not event_row["is_virtual"] else 0
+                                total_virtual += 1 if event_row["is_virtual"] else 0
+                                scenario_virtual += 1 if event_row["is_virtual"] else 0
 
-                            event_rows.append(event_row)
-                            if len(event_rows) >= output_buffer_rows:
-                                _write_events(event_rows)
-                                event_rows = []
+                                key_tuple = (
+                                    scenario_id,
+                                    int(event_row["merchant_id"]),
+                                    str(event_row["zone_representation"]),
+                                    int(event_row["bucket_index"]),
+                                    str(event_row["ts_utc"]),
+                                    int(event_row["arrival_seq"]),
+                                )
+                                if last_key is not None and key_tuple < last_key:
+                                    ordering_violations += 1
+                                    if ordering_violation_sample is None:
+                                        ordering_violation_sample = (last_key, key_tuple)
+                                    if strict_ordering:
+                                        _abort(
+                                            "5B.S4.DOMAIN_ALIGN_FAILED",
+                                            "V-08",
+                                            "ordering_violation",
+                                            {"scenario_id": scenario_id},
+                                            manifest_fingerprint,
+                                        )
+                                last_key = key_tuple
+
+                                event_rows.append(event_row)
+                                if len(event_rows) >= output_buffer_rows:
+                                    _write_events(event_rows)
+                                    event_rows = []
 
                         summary_row = {
                             "manifest_fingerprint": str(manifest_fingerprint),

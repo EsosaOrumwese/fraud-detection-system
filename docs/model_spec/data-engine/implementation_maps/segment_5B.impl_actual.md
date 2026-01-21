@@ -2755,3 +2755,526 @@ Interpretation:
 Next step:
 - Reduce worker count further or switch to a shared-memory / threaded approach
   to avoid duplicating the large routing maps per process.
+
+### Entry: 2026-01-21 03:15
+
+Plan: shared-memory (memory-mapped) routing maps for S4 to cut worker duplication.
+
+Problem:
+- ProcessPool workers duplicate large Python dicts (site/edge alias maps, classification,
+  settlement, site tz lookup), causing memory pressure and worker crashes.
+- We need multi-core speed without per-worker copies.
+
+Options considered:
+1) Thread pool + vectorization: memory-safe, but limited by the GIL unless most of
+   the per-arrival logic can be moved into NumPy/Polars kernels (large rewrite).
+2) Shared-memory process pool: keep multi-core scaling while sharing read-only data
+   across workers to avoid duplication.
+
+Decision:
+- Implement shared-memory via **memory-mapped NumPy arrays** stored on disk in
+  `runs/<run_id>/tmp/s4_shared_maps_*`. Each worker loads arrays with `mmap_mode="r"`
+  so the OS page cache is shared across processes.
+
+Scope of shared maps:
+- `classification`: merchant_id -> virtual_mode_code
+- `settlement`: merchant_id -> tzid_index (or -1)
+- `edge_map`: merchant_id -> edge_ids + edge_tz_idx (offset+count arrays)
+- `edge_alias_meta`: merchant_id -> blob offset/length/count/alias_length
+- `site_alias`: (merchant_id, tzid_index) -> alias table (prob/alias/site_orders)
+- `fallback_alias`: merchant_id -> alias table (prob/alias/site_orders)
+- `site_tz_lookup`: (merchant_id, site_id) -> tzid_index
+- `tzid_list`: array of tzid strings for index→tzid expansion
+
+Algorithm sketch:
+1) Build normal dicts in the main process (as today).
+2) Convert each dict to **sorted key arrays** plus flat value arrays:
+   - Structured arrays for composite keys (merchant_id, tzid_idx) and
+     (merchant_id, site_id).
+   - Flat arrays for alias tables with offset+count index per key.
+3) Save arrays to `.npy` in a shared temp dir and write a JSON manifest.
+4) Worker initializer loads arrays via `np.load(..., mmap_mode="r")`,
+   stores them in `_S4_WORKER_CONTEXT["shared_maps"]`.
+5) Replace dict lookups in `_process_s4_batch` with `np.searchsorted` against
+   the sorted key arrays, then slice into the flat arrays.
+
+Invariants + checks:
+- Maintain existing validation and abort behavior (missing classification, missing
+  alias data, tzid not in cache).
+- Ensure alias table counts and edge counts still match expectations.
+- Output determinism unchanged; only lookup mechanics change.
+
+Performance considerations:
+- OS-backed mmap avoids duplicating large tables per worker.
+- Searchsorted is O(logN) per bucket row (not per arrival); acceptable compared
+  to per-arrival loops.
+- Keep RNG trace accounting unchanged.
+
+Resumability:
+- Shared map files live under run tmp and can be re-used if present; do not
+  delete on failure.
+
+Testing plan:
+- Re-run `make segment5b-s4` and verify:
+  * no `BrokenProcessPool`,
+  * ETA within 5–9 minutes,
+  * outputs are published and validation passes.
+
+## 2026-01-21 03:41:40 — 5B.S4 group-weights map: incremental year-scoped load to cut memory + fix missing map
+
+Decision snapshot
+- Problem: I removed the eager `group_weights_map` build but did not replace it, so `run_s4` no longer defines the map before passing it into worker context. This risks NameError and also forces full in-memory load when I re-add it. S4 has been hitting memory pressure with process pools, so the group-weights map must be built more carefully.
+- Constraints: Must preserve validation intent (group-weight presence per merchant/day/tz-group), keep determinism, and avoid per-arrival random logic changes. Must not read full `s4_group_weights` if scenario years do not overlap it (avoid wasted I/O and memory).
+- Alternatives considered:
+  1) Revert to eager full-map build: simplest, but largest memory footprint and contributes to worker duplication.
+  2) Build per scenario using full dataset: avoids duplication across scenarios but still loads full dataset each time (slow/large).
+  3) Incremental, year-scoped map: compute `group_weight_years` once; for each scenario, only load rows for missing years and merge into map; skip entirely if no overlap. This keeps memory to only the needed year subset and avoids repeat scans for same years across scenarios.
+- Decision: implement (3). It preserves validation for relevant years while minimizing memory and I/O.
+
+Planned mechanics (stepwise)
+1) Keep existing `group_weight_years` scan (uses `utc_day` year extraction) to quickly detect year overlap.
+2) Introduce `group_weights_cache_years: set[str] = set()` and `group_weights_map: dict[tuple[int,str], set[str]] | None = None` before the scenario loop.
+3) For each scenario after `bucket_map` creation:
+   - Compute `bucket_years` from `utc_day` values.
+   - If `bucket_years` has no overlap with `group_weight_years`, set `skip_group_weight_check=True` and `group_weights_map=None` for that scenario; log a warning that validation is skipped for those years.
+   - Else, ensure `group_weights_map` exists and load only missing years:
+     - `missing_years = bucket_years - group_weights_cache_years`.
+     - If non-empty, scan `group_weights_path` with a year filter and collect only `merchant_id`, `utc_day`, `tz_group_id`.
+     - Update `group_weights_map[(merchant_id, utc_day)]` with `tz_group_id` membership.
+     - Update `group_weights_cache_years` and log rows/keys loaded and the year set.
+4) Pass `group_weights_map` and `skip_group_weight_check` into worker context (parallel) and use them in serial path as before.
+5) Ensure logs are narrative: include scenario id, bucket years, group-weight years coverage, and whether validation is active.
+
+Inputs/authorities
+- Dataset: `s4_group_weights` at dictionary path `data/layer1/2B/s4_group_weights/seed={seed}/manifest_fingerprint={manifest_fingerprint}/` (schema `schemas.2B.yaml#/plan/s4_group_weights`).
+- Time-grid input: `s1_time_grid_5B` for scenario-specific bucket years.
+- Validation intent: detect missing tz-group coverage where applicable; allow skip when upstream has no matching years (consistent with earlier warnings).
+
+Invariants to enforce
+- Never run group-weight validation if the dataset lacks the time-grid year; log the skip.
+- If validation is active, `group_weights_map` must be non-None and keyed by `(merchant_id, utc_day)`.
+- Determinism: the map is constructed from deterministic parquet reads; no RNG or ordering dependence.
+
+Logging points
+- `S4: group_weights years=... do not cover time_grid years=...; skipping...`
+- `S4: group_weights loaded years=... rows=... keys=...` (only when we load missing years).
+
+Resumability hooks
+- This is purely in-memory lookup state; no new artefacts written, so resume semantics unchanged.
+
+Performance considerations
+- Year filtering on `utc_day` avoids scanning full dataset for non-overlapping scenarios and limits map size.
+- Incremental caching avoids repeated scans for identical year sets across scenarios.
+
+Validation/testing plan
+- Run `make segment5b-s4` after change; verify no NameError, skip log appears if years don’t match, and runtime/memory are reduced.
+- If `group_weight_years` overlaps, ensure no `group_weights_missing` spam beyond expected for genuinely missing tz-group coverage.
+
+Next action
+- Apply code edits in `packages/engine/src/engine/layers/l2/seg_5B/s4_arrival_events/runner.py` per the plan, then log decisions/actions in `docs/logbook/01-2026/2026-01-21.md`.
+
+## 2026-01-21 03:43:50 — 5B.S4 group-weights incremental load (implemented)
+
+What changed
+- Added `group_weights_cache_years` and `group_weights_map` initialization right after the `group_weight_years` scan so the map exists and can be built lazily per scenario.
+- In each scenario, compute `bucket_years` and decide:
+  - If no overlap with `group_weight_years`, set `skip_group_weight_check=True`, clear the cached map/years, and log a narrative warning. This prevents serializing a large map into workers when it won’t be used.
+  - If overlap exists, load only missing years by scanning `s4_group_weights` with a year filter and materializing `{(merchant_id, utc_day) -> set(tz_group_id)}`; merge into the existing map and log rows/keys loaded.
+- If a filtered scan returns no rows, log a warning and disable group-weight validation for that scenario (clears cache/map) to avoid spamming missing-group warnings.
+
+Why
+- Fixes the missing map regression that would have caused NameError in worker context.
+- Reduces memory and I/O by avoiding full dataset loads and by not passing a large map to workers when validation is skipped.
+
+Notes
+- This keeps the validation semantics unchanged when group-weight years overlap the time grid; only skips when coverage is absent or the filtered scan is empty.
+- No output contract changes; purely in-memory validation behavior and logging.
+
+Files touched
+- `packages/engine/src/engine/layers/l2/seg_5B/s4_arrival_events/runner.py`
+
+## 2026-01-21 03:46:30 — 5B.S4 default tuning after BrokenProcessPool
+
+Observation
+- `make segment5b-s4` failed quickly with `5B.S4.IO_WRITE_FAILED` and run-report detail
+  “A child process terminated abruptly, the process pool is not usable anymore”.
+- Shared maps were enabled and group-weight validation was skipped due to year mismatch,
+  so the failure likely stems from per-worker memory pressure during batch processing.
+
+Decision
+- Reduce the default process-pool and buffering settings in `makefile` to cut
+  peak RAM per worker while preserving parallelism:
+  - workers: 12 → 8
+  - inflight batches: 12 → 8
+  - output_buffer_rows: 100000 → 20000
+
+Why
+- Output buffering and many inflight batches multiply resident memory; trimming
+  these defaults should prevent OS-level worker termination while keeping enough
+  parallelism to stay within the 5–9 minute target.
+
+Alternatives considered
+- Lower workers only (less impact on buffering; still large per-worker memory).
+- Keep workers high and only reduce buffer rows (might still overrun with 12 processes).
+- Implement row-group micro-batching (larger code change; defer until needed).
+
+Next checks
+- Re-run `make segment5b-s4` and watch for stable throughput and no BrokenProcessPool.
+- If still failing, consider row-group micro-batching or further reduce buffer size.
+
+Files touched
+- `makefile`
+
+## 2026-01-21 03:54:40 — 5B.S4 worker-crash diagnostics plan
+
+Problem
+- Parallel runs still fail with `BrokenProcessPool` (child terminated abruptly), and serial runs now surface a `bucket_missing` alignment error. We need more actionable error context from worker processes to confirm whether failures are Python exceptions or native crashes (OOM/segfault).
+
+Plan
+- Wrap `_process_s4_batch` body in a top-level `try/except` and return a structured error payload (`type`, `message`, `traceback`) instead of letting the worker die silently.
+- Update the main `_handle_result` to detect `result.error` and abort with `5B.S4.IO_WRITE_FAILED` plus the worker error context (scenario_id, batch_id, traceback).
+- Add `traceback` import.
+
+Why
+- If the failure is a Python exception, this will convert a `BrokenProcessPool` into a precise, logged error so we can fix the underlying bug.
+- If the failure remains a BrokenProcessPool, we can treat it as a native crash/OOM and pivot to memory/IO mitigations.
+
+Scope
+- `packages/engine/src/engine/layers/l2/seg_5B/s4_arrival_events/runner.py` only. No contract or output changes.
+
+## 2026-01-21 03:58:20 — 5B.S4 worker error capture implemented
+
+Changes
+- Added a lightweight wrapper `def _process_s4_batch(...)` that calls
+  `_process_s4_batch_impl` and catches exceptions to return a structured error
+  payload (type/message/traceback; EngineFailure metadata when applicable).
+- Inserted parent-side check in `_handle_result` to abort with
+  `5B.S4.IO_WRITE_FAILED` (or the worker’s failure_code) and emit the error
+  context into the validation log/run-report.
+- Imported `traceback` for formatting worker stack traces.
+
+Purpose
+- Convert silent worker exits into actionable diagnostics; if crashes persist
+  as `BrokenProcessPool`, we can treat them as native/OOM faults.
+
+Files touched
+- `packages/engine/src/engine/layers/l2/seg_5B/s4_arrival_events/runner.py`
+
+## 2026-01-21 04:05:10 — Restore + reapply S4 fixes after indentation corruption
+
+Incident
+- A scripted indentation fix unintentionally de-indented large sections of
+  `runner.py`, producing syntax errors (e.g., broken `try/except` blocks).
+
+Corrective action
+- Restored `packages/engine/src/engine/layers/l2/seg_5B/s4_arrival_events/runner.py`
+  to the last committed version to recover a valid baseline.
+- Re-applied the worker error wrapper (`_process_s4_batch` → `_process_s4_batch_impl`)
+  and parent-side error handling, plus the incremental `group_weights_map` load
+  with year filtering and skip logic.
+
+Reasoning
+- Restoring was the safest way to recover a syntactically valid file without
+  risking partial fixes across hundreds of lines.
+
+Next checks
+- Re-run `make segment5b-s4` to verify syntax, then confirm whether worker errors
+  are now surfaced (instead of `BrokenProcessPool`).
+
+## 2026-01-21 04:08:00 — S4 performance tuning follow-up
+
+Observation
+- With workers=8, early progress shows ETA ~12–13 minutes (above the 5–9 min target).
+
+Candidate adjustment
+- Test workers=12/inflight=12 (keeping output_buffer_rows=20000) to increase throughput.
+- If stable, update makefile defaults back to 12; if not, revert and consider
+  row-group micro-batching or further algorithmic changes.
+
+Rationale
+- Throughput appears roughly proportional to worker count; a 1.5× increase should
+  bring ETA into the target range without large code changes.
+
+## 2026-01-21 04:10:30 — Workers=12 test outcome
+
+Result
+- Increasing to workers=12/inflight=12 initially looked faster but sustained
+  throughput degraded (ETA drifted to ~11–13 minutes). The run was terminated
+  to avoid a long execution.
+
+Implication
+- Scaling workers alone does not meet the 5–9 minute target; we need algorithmic
+  or I/O optimisations (e.g., shared maps/lookup vectorisation, row-group
+  micro-batching, or lighter per-event object creation).
+
+## 2026-01-21 04:17:30 — Reapply shared-maps acceleration in 5B.S4
+
+Context
+- Worker scaling alone did not hit the 5–9 min target; throughput degraded after
+  ~1–2 minutes. To reduce per-event lookup overhead, reintroduce shared-maps
+  (memory-mapped numpy arrays) for hot routing lookups.
+
+Implementation notes
+- Added `_VIRTUAL_MODE_BY_CODE`/`_VIRTUAL_MODE_CODE` constants.
+- Added helpers: `_save_shared_array`, `_load_shared_array`, `_lookup_sorted_key`,
+  `_lookup_structured_key`, `_build_shared_maps`, `_load_shared_maps`.
+- `_build_shared_maps` writes arrays for:
+  - classification (merchant_id → virtual_mode code)
+  - settlement tzid index
+  - edge catalogue (offset/count + flattened ids + tz indexes)
+  - edge alias metadata (offset/length/edge_count/alias_len)
+  - site alias tables (per merchant+tz_idx)
+  - fallback alias tables (merchant-wide)
+  - site → tzid mapping (merchant_id+site_id)
+  - tzid list (JSON)
+- `run_s4` now builds shared maps when `use_parallel` and `ENGINE_5B_S4_SHARED_MAPS` is
+  true, logs root, and clears the dict-based maps to save memory. The worker context
+  carries `shared_maps_root` instead of raw dicts.
+- `_init_s4_worker` loads memmap arrays via `_load_shared_maps` when root is provided.
+- `_process_s4_batch_impl` switches to array lookups when shared maps are present:
+  - classification → virtual_mode code
+  - edge map / alias meta via sorted key + offsets
+  - settlement tzid via lookup
+  - site alias via structured key + offsets, fallback via merchant key
+  - site → tzid lookup via structured key
+
+Logging
+- `S4: shared_maps built ...` and `S4: shared_maps=on root=...` are emitted so operators
+  can confirm the fast path is in use.
+
+Next check
+- Re-run `make segment5b-s4` with shared maps enabled and capture ETA; if still above
+  target, consider row-group micro-batching or event-row vectorization.
+
+## 2026-01-21 04:19:40 — OOM during shared-maps run
+
+Observation
+- With shared maps + workers=8, the run progressed quickly but the host shell
+  crashed with an out-of-memory error within ~7 seconds. This indicates peak
+  memory from worker buffers/inflight batches is still too high.
+
+Next plan
+- Test lower concurrency/buffer settings (e.g., workers=6, inflight=6,
+  output_buffer_rows=5000) to balance throughput with RAM.
+- If stable and ETA stays within 5–9 minutes, update makefile defaults to match.
+
+## 2026-01-21 04:34:00 - S4 safe defaults after host OOM
+
+Trigger
+- The last shared-maps run with workers=8 caused a host OOM crash. The user asked for a conservative baseline to avoid repeats.
+
+Options considered
+- Option A: keep shared maps enabled but reduce worker count, inflight batches, and output buffer size (lower peak RAM, higher stability).
+- Option B: disable shared maps entirely (unknown memory impact; likely higher per-worker memory for dicts).
+- Option C: keep workers high and refactor the event write pipeline (larger change; slower to verify).
+
+Decision
+- Apply Option A first: reduce defaults in `makefile` to a safe baseline and re-run S4. This preserves the shared-map acceleration path while reducing peak memory. If ETA is still too high, we can then pursue Option C (parallel batching + vectorized output) with a smaller, controlled change set.
+
+Planned changes (before coding)
+- Update `makefile` defaults:
+  - `ENGINE_5B_S4_WORKERS` -> 4
+  - `ENGINE_5B_S4_INFLIGHT_BATCHES` -> 4
+  - `ENGINE_5B_S4_OUTPUT_BUFFER_ROWS` -> 5000
+- Keep `ENGINE_5B_S4_SHARED_MAPS` enabled so workers reuse memory-mapped lookups.
+- Re-run `make segment5b-s4` and watch early ETA; terminate if it exceeds the 5-9 minute target.
+
+Validation steps
+- Confirm no lingering `s4_arrival_events_5b` processes before running.
+- Observe the first progress logs and ETA (must stay within target range); kill if it drifts high.
+- Record run outcomes in the logbook and append any follow-up adjustments here.
+
+## 2026-01-21 04:36:10 - Applied S4 safe defaults
+
+Action
+- Updated `makefile` defaults for 5B.S4 to reduce peak memory while keeping shared maps on:
+  - `ENGINE_5B_S4_WORKERS` = 4
+  - `ENGINE_5B_S4_INFLIGHT_BATCHES` = 4
+  - `ENGINE_5B_S4_OUTPUT_BUFFER_ROWS` = 5000
+
+Rationale
+- The host OOM indicates per-worker buffers/inflight batches were too large at higher concurrency. Lowering these defaults should keep RAM stable while we measure ETA. We can scale back up once stability is confirmed.
+
+Next check
+- Run `make segment5b-s4` and watch the early ETA. If ETA exceeds the 5-9 minute target, terminate and return to algorithmic optimizations (parallel batch expansion + vectorized output).
+
+## 2026-01-21 04:38:40 - Safe-defaults run outcome
+
+Observation
+- Running S4 with shared maps + workers=4/inflight=4/output_buffer_rows=5000 started fast but degraded after ~145s.
+- Throughput dropped to ~7k bucket rows/sec and ~10k arrivals/sec, pushing ETA into multi-hour territory.
+- Terminated the run to avoid a long execution.
+
+Interpretation
+- The low concurrency + smaller output buffer likely increased I/O overhead and per-batch overhead, causing the sustained slowdown.
+
+Next options under consideration
+- Option 1: raise workers back to 6-8 while keeping output_buffer_rows at 5000 to see if speed returns without OOM.
+- Option 2: increase output_buffer_rows (e.g., 10000-20000) with shared maps and moderate workers to reduce I/O churn.
+- Option 3: implement algorithmic changes (parallel batch expansion + vectorized per-bucket generation) to hit 5-9 min without high concurrency.
+
+Decision (pending)
+- Awaiting selection; will log the chosen adjustment before re-running.
+
+## 2026-01-21 04:40:10 - Next run tuning (override test)
+
+Why
+- The safe defaults (4/4/5000) are too slow after the initial burst. We need to raise throughput without returning to the OOM conditions seen at 8/8/20000.
+
+Planned test (override only)
+- Run S4 with shared maps enabled and overrides:
+  - `ENGINE_5B_S4_WORKERS=6`
+  - `ENGINE_5B_S4_INFLIGHT_BATCHES=6`
+  - `ENGINE_5B_S4_OUTPUT_BUFFER_ROWS=10000`
+- Keep the makefile defaults unchanged for now; only promote these values if the run meets the 5-9 minute target and does not exceed memory.
+
+Success criteria
+- ETA remains within 5-9 minutes beyond the initial warmup.
+- No OOM or BrokenProcessPool errors.
+
+Failure response
+- If ETA drifts above 9 minutes, terminate the run and test an alternative (e.g., 8/6/10000 or algorithmic changes).
+
+## 2026-01-21 04:42:30 - Override test outcome (6/6/10000)
+
+Result
+- S4 with shared maps + workers=6/inflight=6/output_buffer_rows=10000 initially showed fast rates but degraded after ~115s.
+- Bucket ETA rose to ~36 minutes and arrivals ETA ~37 minutes. Terminated the run.
+
+Inference
+- Increasing workers without addressing downstream I/O or per-event overhead still leads to sustained slow throughput. The slowdown is not just initial warmup; it is structural (likely per-event processing and write overhead).
+
+Next direction
+- Move to algorithmic changes: reduce per-event Python work and I/O churn (vectorized per-bucket expansion, batch writing, or a dedicated writer process). Will log a new plan before changes.
+
+## 2026-01-21 04:44:30 - Plan: reduce per-arrival overhead in S4 workers
+
+Motivation
+- Tuning workers/buffers alone still yields multi-hour ETA. Profiling via logs suggests worker throughput is the limiter.
+
+Planned optimizations (code changes)
+1) **Skip per-bucket sorting when ordering checks are disabled**
+   - In worker and serial paths, only build `bucket_events` + sort when `ordering_required` is true.
+   - Default mode has `ENGINE_5B_S4_STRICT_ORDERING=0` and `ENGINE_5B_S4_ORDERING_STATS=0`, so sorting is unnecessary overhead.
+   - This reduces `O(N log N)` work per bucket and avoids extra list allocations.
+
+2) **Cache RNG prefix hashing in worker context**
+   - Create `time_hasher`, `site_hasher`, `edge_hasher` in `_init_s4_worker` by hashing the prefix bytes once.
+   - Replace `_derive_rng_seed_from_prefix` with `_derive_rng_seed` using the cached hasher copy per arrival.
+   - This preserves the exact SHA256 derivation law but avoids rehashing prefix bytes each event.
+
+3) **Cache tzid index lookup once per worker**
+   - Build `tzid_to_index` in `_init_s4_worker` when shared maps are used; avoid rebuilding per batch.
+
+Validation
+- Re-run S4 with shared maps enabled and moderate workers (e.g., 6/6/10000) and watch ETA.
+- Terminate if ETA exceeds target; capture logs in run log and logbook.
+
+## 2026-01-21 04:48:20 - Implemented S4 worker optimizations
+
+Changes applied
+- `_init_s4_worker`: pre-hash RNG prefixes (`time_prefix`, `site_prefix`, `edge_prefix`) into reusable hashers; cached `tzid_to_index` from shared maps.
+- `_process_s4_batch_impl`: replaced `_derive_rng_seed_from_prefix` with `_derive_rng_seed` using cached hashers (identical SHA256 derivation law, less per-event hashing overhead).
+- `_process_s4_batch_impl` + serial path: when ordering stats are disabled (default), skip per-bucket sorting and emit events in arrival-seq order; only sort when `ordering_required` is true.
+- `ordering_required` is passed into worker context to control the sorting path explicitly.
+
+Expected effect
+- Lower per-arrival overhead and fewer per-bucket allocations; should improve sustained throughput without changing RNG semantics or output content (ordering remains non-strict by default).
+
+Next step
+- Re-run S4 with shared maps and moderate workers to verify ETA and memory stability; stop early if ETA exceeds target.
+
+## 2026-01-21 04:53:40 - Post-optimization run outcome
+
+Result
+- With cached hashers + skipped bucket sorting (ordering stats disabled), S4 still degraded to ~13k bucket rows/sec and ~47k arrivals/sec (ETA ~38 minutes). Terminated the run.
+
+Conclusion
+- Per-arrival Python work and write overhead remain the dominant bottlenecks. Further tuning of worker counts/buffer sizes is insufficient; we need a larger algorithmic change (vectorized event expansion or a lower-level writer).
+
+Next step (pending)
+- Design a vectorized expansion path that reduces per-arrival Python dict creation and minimizes per-event conversions, while preserving RNG law and per-arrival determinism.
+
+## 2026-01-21 04:56:30 - Corrective note: tuple-based event buffering
+
+Correction
+- I implemented an additional optimization (tuple-based event buffering) without first logging a dedicated plan entry. This entry documents the reasoning and change to keep the audit trail complete.
+
+Change summary
+- In the S4 worker path, events are now buffered as tuples (ordered per `_S4_EVENT_SCHEMA`) when ordering stats are disabled. This avoids per-event dict construction.
+- `_write_events` now accepts list-of-tuples as well as list-of-dicts and validates a sampled subset by reconstructing dict rows when needed.
+- The ordering-required path still uses dicts (with `_ts_utc_micros`) so sorting and strict-ordering checks are unchanged.
+
+Rationale
+- Per-event dict creation is a significant overhead at 100M+ events. Using tuples reduces object allocation and should improve sustained throughput without changing event content or RNG semantics.
+
+Next step
+- Re-run S4 to measure ETA and memory; if still above target, proceed to larger algorithmic changes.
+
+## 2026-01-21 04:58:20 - Tuple-buffer validation run plan
+
+Plan
+- Re-run S4 with shared maps and overrides (workers=6, inflight=6, output_buffer_rows=10000) to measure impact of tuple buffering on sustained throughput.
+- Terminate early if ETA exceeds the 5-9 minute target.
+
+## 2026-01-21 05:00:10 - Fix tuple-buffer validation for optional fields
+
+Issue
+- The first tuple-buffer run failed schema validation because the sample rows included `None` values for optional fields (e.g., `tzid_settlement`, `edge_id`). With dict rows, those keys were omitted, so validation passed.
+
+Fix
+- Updated `_sample_rows_from_tuples` to omit keys whose value is `None`, matching prior dict-row behavior while keeping the DataFrame output unchanged (Polars still writes nulls for missing optional fields).
+
+Next step
+- Re-run S4 with the same overrides to verify the validation fix and measure ETA.
+
+## 2026-01-21 05:02:30 - Tuple-buffer run outcome
+
+Result
+- Tuple-buffer validation passed, but sustained throughput remained ~55k arrivals/sec (ETA ~32 minutes). Run terminated.
+- Polars emitted DataOrientationWarning for tuple input; needs `orient="row"` for tuple buffers.
+
+Next options
+- Increase output buffer size (e.g., 30000-50000) to reduce write overhead.
+- Consider higher worker counts now that per-event memory is lower.
+- Add `orient="row"` for tuple DataFrame construction to reduce warnings and potential overhead.
+
+## 2026-01-21 05:03:40 - Plan: tuple-orientation fix + buffer test
+
+Plan
+- Update `_write_events` to pass `orient="row"` when constructing a DataFrame from tuple rows to silence warnings and avoid extra inference overhead.
+- Re-run S4 with a higher output buffer (e.g., `ENGINE_5B_S4_OUTPUT_BUFFER_ROWS=50000`) at workers=6 to evaluate if write overhead is the limiting factor.
+- Terminate early if ETA remains above target; consider higher worker counts next if memory allows.
+
+## 2026-01-21 05:04:50 - Applied tuple-orientation fix
+
+Action
+- Updated `_write_events` to pass `orient="row"` when constructing a DataFrame from tuple rows; dict rows keep the default path.
+
+Effect
+- Removes Polars row-orientation warnings and avoids extra inference overhead when using tuple buffers.
+
+## 2026-01-21 05:05:40 - Higher output buffer test (50000)
+
+Result
+- With output_buffer_rows=50000 (workers=6), throughput improved to ~98k arrivals/sec but ETA still ~18 minutes. Run terminated.
+
+Implication
+- Larger buffers reduce write overhead but do not close the gap to 5-9 minutes. We likely need more CPU parallelism and/or a lower-level generation path.
+
+## 2026-01-21 05:06:40 - Plan: scale workers with larger buffer
+
+Plan
+- Test whether higher parallelism can reach the 5-9 minute target now that per-event overhead is reduced:
+  - `ENGINE_5B_S4_WORKERS=12`
+  - `ENGINE_5B_S4_INFLIGHT_BATCHES=12`
+  - `ENGINE_5B_S4_OUTPUT_BUFFER_ROWS=50000`
+- Monitor ETA after ~1-2 minutes; terminate if it drifts above target or memory pressure appears.
+
+## 2026-01-21 05:08:40 - High-parallelism test (12 workers)
+
+Result
+- With workers=12/inflight=12/output_buffer_rows=50000, sustained throughput reached ~118k arrivals/sec; ETA ~14-15 minutes. Run terminated.
+
+Conclusion
+- Even with higher parallelism and larger buffers, we are still above the 5-9 minute target. Further improvements likely require a lower-level generation path (e.g., compiled/numba kernel) or a change in how per-arrival RNG derivation is computed.
