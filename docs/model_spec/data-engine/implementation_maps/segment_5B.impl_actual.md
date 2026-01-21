@@ -2472,3 +2472,286 @@ Corrective note on sequencing:
   the reasoning trail without rewriting history. Future state changes will
   capture the plan entry *before* code edits as required by the implementation
   discipline.
+
+### Entry: 2026-01-20 20:08
+
+5B.S4 performance plan — parallel batch expansion + vectorized per-bucket generation.
+
+Design problem summary:
+- Even with per-event RNG logs disabled, S4 still expands ~116M arrivals using
+  per-arrival RNG + routing, which is too slow in single-threaded Python.
+- We need a spec-preserving parallelization that keeps deterministic ordering
+  and correct RNG accounting while cutting wall time to minutes on dev hardware.
+
+Alternatives considered:
+1) **Parallel batch processing with deterministic batch order (chosen)**
+   - Precompute `arrival_seq_start` per bucket row in main thread (keeps the
+     global per-merchant sequence deterministic), then dispatch batch payloads
+     to workers. Each worker writes its own `part-*.parquet`.
+   - Main thread publishes parts in `batch_id` order, preserving deterministic
+     stream ordering without a global re-sort.
+2) **Full vectorized RNG generation**
+   - Would require a vectorized Philox implementation; too heavy for current
+     scope. Not chosen.
+3) **Thread pool**
+   - Lower memory overhead but likely smaller speedups due to GIL on Python
+     loops; not chosen for primary path.
+
+Decision (to implement now):
+- Implement a **process pool** for S4 when RNG event logging is disabled
+  (`ENGINE_5B_S4_RNG_EVENTS=0`), with configurable `ENGINE_5B_S4_WORKERS`
+  and `ENGINE_5B_S4_INFLIGHT_BATCHES`. If RNG event logs are enabled, S4
+  will fall back to the serial path to preserve audit fidelity.
+
+Implementation plan (stepwise):
+1) **Add worker config knobs**
+   - Read `ENGINE_5B_S4_WORKERS` and `ENGINE_5B_S4_INFLIGHT_BATCHES`.
+   - Default workers to `min(os.cpu_count(), 4)` when unset; inflight defaults
+     to `2 * workers`.
+   - Log `parallel_mode` and reason if disabled (e.g., RNG events enabled).
+
+2) **Create worker context + initializer**
+   - Add module-level `_S4_WORKER_CONTEXT`.
+   - `initializer` loads heavy routing caches once per worker:
+     `tz_cache`, `site_alias_map`, `fallback_alias_map`, `site_tz_lookup`,
+     `edge_alias_meta`, `edge_map`, `edge_alias_blob` (mmap), and configs.
+   - Precompute RNG prefix bytes per scenario and store in context.
+
+3) **Batch payload generation (main thread)**
+   - Iterate `s3_bucket_counts_5B` in deterministic order.
+   - For each row with `count_N > 0`, compute `arrival_seq_start` using a
+     per-merchant counter; store per-row `arrival_seq_start` in the batch
+     payload.
+   - Update progress trackers in main thread using row count + `count_N` so
+     ETA remains live during parallel execution.
+
+4) **Worker batch processing**
+   - For each batch, generate arrivals by iterating `arrival_seq` range per
+     row, compute RNG draws, route physical/virtual, and build event rows.
+   - Use per-bucket ordering `(ts_utc, arrival_seq)` and emit events in input
+     row order to preserve global ordering.
+   - Write `arrival_events_5B` to `part-{batch_id}.parquet`.
+   - Write summary rows to `summary/part-{batch_id}.parquet`.
+   - Return per-batch counts and RNG totals (events/draws/blocks + last counters).
+
+5) **Main thread reduction + publish**
+   - Consume futures **in batch order** to keep deterministic trace ordering.
+   - Aggregate counts and RNG stats; update `rng_trace_log` once per scenario.
+   - Concatenate summary parts into a single parquet file and publish.
+   - Publish arrival event parts by atomically moving the temp dir.
+
+6) **Validation + invariants**
+   - Keep per-row schema validation sample/full (unchanged) inside worker.
+   - Enforce guardrails (max arrivals per bucket, missing routing inputs).
+   - Preserve `arrival_seq` global-per-merchant law and domain key semantics.
+
+7) **Logging**
+   - Story header unchanged; add `parallel_mode` info and reasons when disabled.
+   - Preserve progress logs with elapsed/rate/ETA based on pre-counted totals.
+
+Testing plan:
+- Run `make segment5b-s4` with RNG events off (default) and verify:
+  * run completes without ordering violations,
+  * arrival counts match `s3_bucket_counts_5B` totals,
+  * `rng_trace_log` entries present for all S4 families,
+  * output paths and manifests are published correctly.
+- If ETA still high, tune `ENGINE_5B_S4_WORKERS`/`INFLIGHT` and record results.
+
+### Entry: 2026-01-20 20:16
+
+5B.S4 parallel batch expansion implemented (process pool, deterministic ordering).
+
+Actions taken:
+1) **Process pool + inflight batching**
+   - Added `ENGINE_5B_S4_WORKERS` and `ENGINE_5B_S4_INFLIGHT_BATCHES` with defaults
+     in `makefile`, and wired them into `SEG5B_S4_CMD`.
+   - S4 now enables process-pool parallelism when RNG event logging is **off**
+     and pyarrow is available; otherwise it falls back to the serial path and logs why.
+
+2) **Worker context + deterministic batch ordering**
+   - Added module-level `_S4_WORKER_CONTEXT` plus `_init_s4_worker` to hydrate
+     routing caches, tz cache, alias blob view, and schema validators per worker.
+   - Precompute RNG prefix bytes per scenario and send them to workers to avoid
+     recomputing SHA prefix state per arrival.
+   - Main thread iterates bucket-count batches in order, computes `arrival_seq_start`
+     per row (global per-merchant sequence), and submits batch payloads.
+   - Results are drained **in batch order** (queue discipline) to keep deterministic
+     ordering and trace accounting.
+
+3) **Parallel worker expansion path**
+   - Implemented `_process_s4_batch` to expand arrivals for a batch and write
+     `part-{batch_id}.parquet` into a temp directory.
+   - Summary rows are written to `summary_parts/part-{batch_id}.parquet` and then
+     concatenated into the single summary file after all batches complete.
+   - RNG trace totals are aggregated from per-batch stats; last counters are
+     taken from the last batch (in order) to preserve trace determinism.
+
+4) **Safety + invariants**
+   - Guardrails still enforced (bucket count cap, missing routing inputs).
+   - `arrival_seq` remains global per merchant; domain key law unchanged.
+   - Warnings for missing group weights / alias keys are now logged in main thread
+     using the batch-returned sets (avoids duplicate warnings from workers).
+
+Implementation impact:
+- `packages/engine/src/engine/layers/l2/seg_5B/s4_arrival_events/runner.py` now
+  supports parallel batch expansion with deterministic ordering and trace accounting.
+- `makefile` exposes the new S4 parallel knobs.
+
+### Entry: 2026-01-20 20:37
+
+5B.S4 failure triage: `_pli128` (Polars Int128) during Parquet writes.
+
+What we saw:
+- `make segment5b-s4` failed with `Invalid or unsupported format string: '_pli128'`
+  (raised from Polars `to_arrow()` when the frame contains Int128/UInt128).
+- Quick reproduction confirmed Polars emits `_pli128`/`_plu128` when it attempts to
+  export a frame that includes 128-bit integer dtypes.
+- `s3_bucket_counts_5B` contains `merchant_id` values above signed int64
+  (max ~1.84e19), so any path that infers signed dtypes can trip into Int128.
+
+Decision:
+- Enforce explicit dtype casts before Parquet writes so all `id64` columns are
+  `UInt64` and all count/index fields are `Int64`. This preserves contract
+  semantics (id64 is uint64) and prevents Polars from inferring Int128.
+
+Implementation (stepwise):
+1) Add `_coerce_int_columns(df, uint64_cols, int64_cols)` to cast any present
+   columns to the expected integer widths (no-op if columns missing).
+2) Define column sets for S4 event + summary writers:
+   - Events: `seed`, `merchant_id`, `site_id`, `edge_id` -> UInt64;
+     `bucket_index`, `arrival_seq` -> Int64.
+   - Summary: `seed`, `merchant_id` -> UInt64;
+     `bucket_index`, `count_N`, `count_physical`, `count_virtual` -> Int64.
+3) Apply the casting in **both** write paths:
+   - `_process_s4_batch` worker writers (per-batch parquet parts).
+   - Serial fallback writers in the main loop.
+
+Why this approach:
+- Keeps the schema aligned with `schemas.layer1.yaml#/id64` (uint64).
+- Avoids introducing new dependencies or changing output semantics.
+- Provides a single place to adjust if additional int fields are added later.
+
+Validation plan:
+- Re-run `make segment5b-s4` and confirm the run completes without `_pli128`,
+  outputs are written, and `s4_arrival_summary_5B` is published.
+
+### Entry: 2026-01-20 20:40
+
+Follow-up fix: restored serial S4 helper indentation after cast insertion.
+
+Observation:
+- `make segment5b-s4` raised `SyntaxError: expected 'except' or 'finally' block`.
+- Root cause was the serial-path `_write_events` and `_write_summary` blocks being
+  unindented out of the `try`/scenario loop after the earlier patch.
+
+Action:
+- Re-indented the serial writer helper definitions to live under the scenario
+  loop (same scope as `_flush_event_buffers`), restoring the intended control
+  flow without changing logic.
+
+Next step:
+- Re-run S4 to verify the syntax error is resolved and `_pli128` no longer occurs.
+
+### Entry: 2026-01-20 20:48
+
+5B.S4 Parquet schema mismatch fix (optional columns).
+
+What happened:
+- After the Int128 cast fix, S4 failed with
+  `Table schema does not match schema used to create file`.
+- The file schema was created from a batch that only had `site_id` rows; later
+  batches included `edge_id` and tz settlement/operational columns. ParquetWriter
+  requires a stable schema within a file, so mixed optional columns caused a hard
+  failure.
+
+Decision:
+- Force a **fixed event schema** and **fixed summary schema** so every chunk
+  contains the full column set (missing values become null), keeping the writer
+  schema stable across all batches.
+
+Implementation steps:
+1) Add `_S4_EVENT_SCHEMA` with all required + optional columns for
+   `s4_arrival_events_5B` (including optional routing/tz/site/edge fields).
+2) Add `_S4_SUMMARY_SCHEMA` with required + optional columns for
+   `s4_arrival_summary_5B` (including optional `channel_group`).
+3) Use `pl.DataFrame(rows, schema=...)` in both worker and serial writers and
+   keep `_coerce_int_columns` to enforce uint64/int64 on id/count fields.
+
+Validation plan:
+- Re-run `make segment5b-s4` and confirm the schema mismatch is resolved and
+  arrivals + summary outputs publish successfully.
+
+### Entry: 2026-01-20 20:59
+
+S4 run still exceeds target runtime after schema fix.
+
+What we observed:
+- `make segment5b-s4` ran with parallel mode on (4 workers, inflight=8) and
+  progressed to ~20M arrivals in ~6 minutes with ETA still ~20-30 minutes.
+- This exceeds the 5-9 minute target window, so the run was terminated to avoid
+  long wall time.
+
+Implication:
+- Current process-pool parallelism is insufficient; further optimization or
+  scaling is required (e.g., higher worker count, larger batches, or faster
+  per-bucket expansion).
+
+Next step:
+- Propose and implement additional speedups, then re-run S4 to validate runtime.
+
+### Entry: 2026-01-20 21:02
+
+S4 performance tuning: increase parallelism + buffer size.
+
+Decision:
+- Scale up default worker count/inflight batching and increase the row buffer
+  size to cut per-write overhead, aiming to reach the 5-9 minute target.
+
+Changes made:
+1) Makefile defaults:
+   - `ENGINE_5B_S4_WORKERS=12`
+   - `ENGINE_5B_S4_INFLIGHT_BATCHES=24`
+   - `ENGINE_5B_S4_OUTPUT_BUFFER_ROWS=200000`
+2) Runner: read `ENGINE_5B_S4_OUTPUT_BUFFER_ROWS` and pass it into worker
+   context so both serial and parallel writers flush larger chunks.
+
+Validation plan:
+- Re-run `make segment5b-s4` and compare throughput/ETA against the prior run.
+
+### Entry: 2026-01-20 21:07
+
+S4 worker crash mitigation + better error context.
+
+Observation:
+- With 12 workers + inflight=24 + buffer=200k, S4 failed quickly and the run
+  report had an empty `error_context.detail`, consistent with
+  `BrokenProcessPool` (stringifies to empty).
+
+Actions:
+1) Capture exception type when `str(exc)` is empty to improve diagnostics.
+2) Reduce memory pressure by lowering inflight batching and buffer size while
+   keeping worker count high for speed.
+
+Updated defaults:
+- `ENGINE_5B_S4_INFLIGHT_BATCHES=12`
+- `ENGINE_5B_S4_OUTPUT_BUFFER_ROWS=100000`
+
+Validation plan:
+- Re-run `make segment5b-s4` and confirm worker stability + acceptable ETA.
+
+### Entry: 2026-01-20 21:15
+
+S4 run outcome with adjusted inflight/buffer.
+
+Result:
+- `make segment5b-s4` still failed with `BrokenProcessPool`
+  ("A process in the process pool was terminated abruptly").
+- Run report captured ~21.1M arrivals written before failure.
+
+Interpretation:
+- Worker termination is consistent with memory pressure or an OS-level crash
+  in one of the process-pool workers on Windows (spawned copies of large maps).
+
+Next step:
+- Reduce worker count further or switch to a shared-memory / threaded approach
+  to avoid duplicating the large routing maps per process.

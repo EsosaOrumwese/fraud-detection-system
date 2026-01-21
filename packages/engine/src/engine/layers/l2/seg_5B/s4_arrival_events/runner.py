@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import bisect
+import concurrent.futures
 import calendar
 import datetime
 import hashlib
@@ -19,6 +20,8 @@ import uuid
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Iterable, Iterator, Optional
+
+from collections import deque
 
 try:  # Faster JSON when available.
     import orjson
@@ -83,6 +86,49 @@ _MICROS_PER_SECOND = 1_000_000
 _EPOCH = datetime.datetime(1970, 1, 1, tzinfo=datetime.timezone.utc)
 _TZ_CACHE_MAGIC = b"TZC1"
 _HEX64_PATTERN = re.compile(r"^[a-f0-9]{64}$")
+_S4_EVENT_UINT64_COLUMNS = {"seed", "merchant_id", "site_id", "edge_id"}
+_S4_EVENT_INT64_COLUMNS = {"bucket_index", "arrival_seq"}
+_S4_SUMMARY_UINT64_COLUMNS = {"seed", "merchant_id"}
+_S4_SUMMARY_INT64_COLUMNS = {"bucket_index", "count_N", "count_physical", "count_virtual"}
+_S4_EVENT_SCHEMA = [
+    ("manifest_fingerprint", pl.Utf8),
+    ("parameter_hash", pl.Utf8),
+    ("seed", pl.UInt64),
+    ("scenario_id", pl.Utf8),
+    ("merchant_id", pl.UInt64),
+    ("zone_representation", pl.Utf8),
+    ("channel_group", pl.Utf8),
+    ("bucket_index", pl.Int64),
+    ("arrival_seq", pl.Int64),
+    ("ts_utc", pl.Utf8),
+    ("tzid_primary", pl.Utf8),
+    ("ts_local_primary", pl.Utf8),
+    ("tzid_settlement", pl.Utf8),
+    ("ts_local_settlement", pl.Utf8),
+    ("tzid_operational", pl.Utf8),
+    ("ts_local_operational", pl.Utf8),
+    ("tz_group_id", pl.Utf8),
+    ("site_id", pl.UInt64),
+    ("edge_id", pl.UInt64),
+    ("routing_universe_hash", pl.Utf8),
+    ("lambda_realised", pl.Float64),
+    ("is_virtual", pl.Boolean),
+    ("s4_spec_version", pl.Utf8),
+]
+_S4_SUMMARY_SCHEMA = [
+    ("manifest_fingerprint", pl.Utf8),
+    ("parameter_hash", pl.Utf8),
+    ("seed", pl.UInt64),
+    ("scenario_id", pl.Utf8),
+    ("merchant_id", pl.UInt64),
+    ("zone_representation", pl.Utf8),
+    ("channel_group", pl.Utf8),
+    ("bucket_index", pl.Int64),
+    ("count_N", pl.Int64),
+    ("count_physical", pl.Int64),
+    ("count_virtual", pl.Int64),
+    ("s4_spec_version", pl.Utf8),
+]
 
 
 @dataclass(frozen=True)
@@ -93,6 +139,9 @@ class S4Result:
     event_paths: list[Path]
     summary_paths: list[Path]
     run_report_path: Path
+
+
+_S4_WORKER_CONTEXT: dict[str, object] = {}
 
 
 class _StepTimer:
@@ -200,6 +249,20 @@ def _emit_validation(
     if detail is not None:
         payload["detail"] = detail
     _emit_event(logger, "VALIDATION", manifest_fingerprint, severity, **payload)
+
+
+def _coerce_int_columns(df: pl.DataFrame, uint64_cols: set[str], int64_cols: set[str]) -> pl.DataFrame:
+    casts: list[pl.Expr] = []
+    columns = set(df.columns)
+    for name in uint64_cols:
+        if name in columns:
+            casts.append(pl.col(name).cast(pl.UInt64))
+    for name in int64_cols:
+        if name in columns:
+            casts.append(pl.col(name).cast(pl.Int64))
+    if not casts:
+        return df
+    return df.with_columns(casts)
 
 
 def _abort(code: str, validator_id: str, message: str, context: dict, manifest_fingerprint: Optional[str]) -> None:
@@ -674,6 +737,32 @@ def _uer_string_be(value: str) -> bytes:
     return struct.pack(">I", len(encoded)) + encoded
 
 
+def _rng_prefix_bytes(
+    domain_sep: str,
+    family_id: str,
+    manifest_fingerprint: str,
+    parameter_hash: str,
+    seed: int,
+    scenario_id: str,
+) -> bytes:
+    return (
+        _uer_string_be(domain_sep)
+        + _uer_string_be(family_id)
+        + _uer_string_be(manifest_fingerprint)
+        + _uer_string_be(parameter_hash)
+        + struct.pack("<Q", int(seed) & UINT64_MASK)
+        + _uer_string_be(scenario_id)
+    )
+
+
+def _derive_rng_seed_from_prefix(prefix: bytes, domain_key: str) -> tuple[int, int, int]:
+    digest = hashlib.sha256(prefix + _uer_string_be(domain_key)).digest()
+    key = int.from_bytes(digest[0:8], "big", signed=False)
+    counter_hi = int.from_bytes(digest[8:16], "big", signed=False)
+    counter_lo = int.from_bytes(digest[16:24], "big", signed=False)
+    return key, counter_hi, counter_lo
+
+
 def _derive_rng_seed(prefix_hasher: hashlib._Hash, domain_key: str) -> tuple[int, int, int]:
     hasher = prefix_hasher.copy()
     hasher.update(_uer_string_be(domain_key))
@@ -735,6 +824,588 @@ def _draw_philox_u64(
         cur_hi, cur_lo = next_hi, next_lo
     return values, blocks, cur_hi, cur_lo
 
+
+def _init_s4_worker(context: dict) -> None:
+    global _S4_WORKER_CONTEXT
+    ctx = dict(context)
+    blob_path = ctx.get("edge_alias_blob_path")
+    if blob_path:
+        ctx["blob_view"] = _BlobView(Path(blob_path))
+    ctx["edge_alias_cache"] = {}
+    event_schema = ctx.get("event_schema")
+    summary_schema = ctx.get("summary_schema")
+    if event_schema is not None:
+        ctx["event_row_validator"] = Draft202012Validator(event_schema)
+    if summary_schema is not None:
+        ctx["summary_row_validator"] = Draft202012Validator(summary_schema)
+    _S4_WORKER_CONTEXT = ctx
+
+
+def _process_s4_batch(payload: dict) -> dict:
+    ctx = _S4_WORKER_CONTEXT
+    if not ctx:
+        raise EngineFailure(
+            "F4",
+            "5B.S4.IO_WRITE_FAILED",
+            STATE,
+            MODULE_NAME,
+            {"detail": "worker context not initialised"},
+        )
+
+    batch_id = int(payload["batch_id"])
+    scenario_id = str(payload["scenario_id"])
+    merchants = payload["merchant_id"]
+    zones = payload["zone_representation"]
+    channels = payload["channel_group"]
+    buckets = payload["bucket_index"]
+    counts = payload["count_N"]
+    lambdas = payload["lambda_realised"]
+    arrival_seq_start = payload["arrival_seq_start"]
+
+    output_validate_full = bool(ctx.get("output_validate_full"))
+    output_sample_rows = int(ctx.get("output_sample_rows") or 0)
+    output_buffer_rows = int(ctx.get("output_buffer_rows") or 50000)
+    event_row_validator = ctx.get("event_row_validator")
+    summary_row_validator = ctx.get("summary_row_validator")
+
+    events_tmp_dir = Path(ctx["events_tmp_dir"])
+    summary_tmp_dir = Path(ctx["summary_tmp_dir"])
+
+    events_path = events_tmp_dir / f"part-{batch_id:06d}.parquet"
+    summary_path = summary_tmp_dir / f"part-{batch_id:06d}.parquet"
+
+    events_writer = None
+    summary_writer = None
+    events_chunks: list[pl.DataFrame] = []
+    summary_chunks: list[pl.DataFrame] = []
+
+    manifest_fingerprint = str(ctx["manifest_fingerprint"])
+    parameter_hash = str(ctx["parameter_hash"])
+    seed = int(ctx["seed"])
+    spec_version = str(ctx["spec_version"])
+
+    bucket_map = ctx["bucket_map"]
+    tz_cache = ctx["tz_cache"]
+    site_alias_map = ctx["site_alias_map"]
+    fallback_alias_map = ctx["fallback_alias_map"]
+    site_tz_lookup = ctx["site_tz_lookup"]
+    edge_alias_meta = ctx["edge_alias_meta"]
+    edge_map = ctx["edge_map"]
+    blob_view = ctx.get("blob_view")
+    edge_alias_cache = ctx["edge_alias_cache"]
+    alias_endianness = ctx["alias_endianness"]
+    settlement_map = ctx["settlement_map"]
+    classification_map = ctx["classification_map"]
+    group_weights_map = ctx["group_weights_map"]
+    skip_group_weight_check = bool(ctx["skip_group_weight_check"])
+    zone_alloc_universe_hash = ctx["zone_alloc_universe_hash"]
+    edge_universe_hash = ctx["edge_universe_hash"]
+    max_arrivals_per_bucket = int(ctx["max_arrivals_per_bucket"])
+    p_virtual_hybrid = float(ctx["p_virtual_hybrid"])
+
+    time_prefix = ctx["time_prefix"]
+    site_prefix = ctx["site_prefix"]
+    edge_prefix = ctx["edge_prefix"]
+    draws_per_arrival = int(ctx["draws_per_arrival"])
+
+    rng_stats = {
+        "arrival_time_jitter": {"events": 0, "draws": 0, "blocks": 0, "last": None},
+        "arrival_site_pick": {"events": 0, "draws": 0, "blocks": 0, "last": None},
+        "arrival_edge_pick": {"events": 0, "draws": 0, "blocks": 0, "last": None},
+    }
+
+    missing_group_keys: set[tuple[int, str, str]] = set()
+    missing_alias_keys: set[tuple[int, str]] = set()
+
+    def _validate_rows(rows: list[dict], validator, label: str) -> None:
+        if validator is None:
+            return
+        if output_validate_full:
+            sample = rows
+        elif output_sample_rows > 0:
+            sample = rows[: min(output_sample_rows, len(rows))]
+        else:
+            return
+        errors: list[dict[str, object]] = []
+        for index, row in enumerate(sample):
+            for error in validator.iter_errors(row):
+                field = ".".join(str(part) for part in error.path) if error.path else ""
+                errors.append({"row_index": index, "field": field, "message": error.message})
+                if len(errors) >= 5:
+                    break
+            if errors and len(errors) >= 5:
+                break
+        if errors:
+            lines = [
+                f"row {item['row_index']}: {item['field']} {item['message']}".strip()
+                for item in errors
+            ]
+            raise SchemaValidationError(
+                f"Schema validation failed ({label}):\n" + "\n".join(lines), errors
+            )
+
+    def _write_events(rows: list[dict]) -> None:
+        nonlocal events_writer
+        if not rows:
+            return
+        _validate_rows(rows, event_row_validator, "arrival_events")
+        df = pl.DataFrame(rows, schema=_S4_EVENT_SCHEMA)
+        df = _coerce_int_columns(df, _S4_EVENT_UINT64_COLUMNS, _S4_EVENT_INT64_COLUMNS)
+        if _HAVE_PYARROW and pq is not None:
+            table = df.to_arrow()
+            if events_writer is None:
+                events_writer = pq.ParquetWriter(events_path, table.schema, compression="zstd")
+            events_writer.write_table(table)
+        else:
+            events_chunks.append(df)
+
+    def _write_summary(rows: list[dict]) -> None:
+        nonlocal summary_writer
+        if not rows:
+            return
+        _validate_rows(rows, summary_row_validator, "arrival_summary")
+        df = pl.DataFrame(rows, schema=_S4_SUMMARY_SCHEMA)
+        df = _coerce_int_columns(df, _S4_SUMMARY_UINT64_COLUMNS, _S4_SUMMARY_INT64_COLUMNS)
+        if _HAVE_PYARROW and pq is not None:
+            table = df.to_arrow()
+            if summary_writer is None:
+                summary_writer = pq.ParquetWriter(summary_path, table.schema, compression="zstd")
+            summary_writer.write_table(table)
+        else:
+            summary_chunks.append(df)
+
+    total_rows_written = 0
+    total_arrivals = 0
+    total_physical = 0
+    total_virtual = 0
+
+    event_rows: list[dict] = []
+    summary_rows: list[dict] = []
+
+    for idx in range(len(merchants)):
+        merchant_id = int(merchants[idx])
+        zone_representation = str(zones[idx])
+        channel_group = str(channels[idx]) if channels[idx] is not None else None
+        bucket_index = int(buckets[idx])
+        count_n = int(counts[idx] or 0)
+        lambda_realised = lambdas[idx]
+        if count_n <= 0:
+            continue
+        if count_n > max_arrivals_per_bucket:
+            raise EngineFailure(
+                "F4",
+                "5B.S4.PLACEMENT_POLICY_INVALID",
+                STATE,
+                MODULE_NAME,
+                {"bucket_index": bucket_index, "count_N": count_n, "max": max_arrivals_per_bucket},
+            )
+
+        bucket_info = bucket_map.get(bucket_index)
+        if not bucket_info:
+            raise EngineFailure(
+                "F4",
+                "5B.S4.DOMAIN_ALIGN_FAILED",
+                STATE,
+                MODULE_NAME,
+                {"scenario_id": scenario_id, "bucket_index": bucket_index},
+            )
+
+        utc_day = str(bucket_info["utc_day"])
+        group_key = (merchant_id, utc_day)
+        if not skip_group_weight_check and zone_representation not in group_weights_map.get(group_key, set()):
+            missing_group_keys.add((merchant_id, utc_day, zone_representation))
+
+        classification = classification_map.get(merchant_id)
+        if not classification:
+            raise EngineFailure(
+                "F4",
+                "5B.S4.ROUTING_POLICY_INVALID",
+                STATE,
+                MODULE_NAME,
+                {"merchant_id": merchant_id},
+            )
+        virtual_mode = str(classification.get("virtual_mode") or "")
+        if virtual_mode not in {"NON_VIRTUAL", "HYBRID", "VIRTUAL_ONLY"}:
+            raise EngineFailure(
+                "F4",
+                "5B.S4.ROUTING_POLICY_INVALID",
+                STATE,
+                MODULE_NAME,
+                {"merchant_id": merchant_id, "virtual_mode": virtual_mode},
+            )
+
+        prefix = f"{merchant_id}|{zone_representation}|{bucket_index}|"
+        start_seq = int(arrival_seq_start[idx])
+
+        bucket_events: list[dict] = []
+        count_physical = 0
+        count_virtual = 0
+
+        for offset in range(count_n):
+            arrival_seq = start_seq + offset
+            domain_key = f"{prefix}{arrival_seq}"
+
+            time_key, time_counter_hi, time_counter_lo = _derive_rng_seed_from_prefix(time_prefix, domain_key)
+            time_values, time_blocks, time_next_hi, time_next_lo = _draw_philox_u64(
+                time_key,
+                time_counter_hi,
+                time_counter_lo,
+                draws_per_arrival,
+                manifest_fingerprint,
+            )
+            u_time = _u01_from_u64(time_values[0])
+            offset_micros = int(math.floor(u_time * float(bucket_info["duration_seconds"]) * _MICROS_PER_SECOND))
+            max_offset = int(bucket_info["duration_micros"]) - 1
+            if offset_micros > max_offset:
+                offset_micros = max_offset if max_offset > 0 else 0
+            ts_utc_micros = int(bucket_info["start_micros"]) + offset_micros
+            ts_utc = _format_rfc3339_micros(ts_utc_micros)
+
+            rng_stats["arrival_time_jitter"]["events"] += 1
+            rng_stats["arrival_time_jitter"]["draws"] += draws_per_arrival
+            rng_stats["arrival_time_jitter"]["blocks"] += int(time_blocks)
+            rng_stats["arrival_time_jitter"]["last"] = (
+                time_counter_hi,
+                time_counter_lo,
+                time_next_hi,
+                time_next_lo,
+            )
+
+            u_site_primary = None
+            u_site_secondary = None
+            use_site_pick = virtual_mode != "VIRTUAL_ONLY"
+            if use_site_pick:
+                site_key, site_counter_hi, site_counter_lo = _derive_rng_seed_from_prefix(site_prefix, domain_key)
+                site_values, site_blocks, site_next_hi, site_next_lo = _draw_philox_u64(
+                    site_key,
+                    site_counter_hi,
+                    site_counter_lo,
+                    2,
+                    manifest_fingerprint,
+                )
+                u_site_primary = _u01_from_u64(site_values[0])
+                u_site_secondary = _u01_from_u64(site_values[1])
+
+                rng_stats["arrival_site_pick"]["events"] += 1
+                rng_stats["arrival_site_pick"]["draws"] += 2
+                rng_stats["arrival_site_pick"]["blocks"] += int(site_blocks)
+                rng_stats["arrival_site_pick"]["last"] = (
+                    site_counter_hi,
+                    site_counter_lo,
+                    site_next_hi,
+                    site_next_lo,
+                )
+
+            is_virtual = virtual_mode == "VIRTUAL_ONLY"
+            if virtual_mode == "HYBRID":
+                is_virtual = bool(u_site_primary is not None and u_site_primary < p_virtual_hybrid)
+
+            tzid_primary = None
+            ts_local_primary = None
+            tzid_operational = None
+            ts_local_operational = None
+            tzid_settlement = None
+            ts_local_settlement = None
+            site_id = None
+            edge_id = None
+            routing_universe_hash = None
+
+            if is_virtual:
+                edge_meta = edge_alias_meta.get(merchant_id)
+                edge_list = edge_map.get(merchant_id)
+                if edge_meta is None or edge_list is None:
+                    raise EngineFailure(
+                        "F4",
+                        "5B.S4.ROUTING_POLICY_INVALID",
+                        STATE,
+                        MODULE_NAME,
+                        {"merchant_id": merchant_id},
+                    )
+                if merchant_id not in edge_alias_cache:
+                    if blob_view is None:
+                        raise EngineFailure(
+                            "F4",
+                            "5B.S4.ROUTING_POLICY_INVALID",
+                            STATE,
+                            MODULE_NAME,
+                            {"detail": "edge alias blob not loaded"},
+                        )
+                    prob, alias, edge_count = _decode_alias_slice(
+                        blob_view,
+                        edge_meta["offset"],
+                        edge_meta["length"],
+                        alias_endianness,
+                    )
+                    if edge_count != edge_meta["edge_count"]:
+                        raise EngineFailure(
+                            "F4",
+                            "5B.S4.ROUTING_POLICY_INVALID",
+                            STATE,
+                            MODULE_NAME,
+                            {
+                                "merchant_id": merchant_id,
+                                "alias_count": edge_count,
+                                "edge_count": edge_meta["edge_count"],
+                            },
+                        )
+                    edge_alias_cache[merchant_id] = (prob, alias, edge_count)
+                prob, alias, edge_count = edge_alias_cache[merchant_id]
+                edge_ids, edge_tzids = edge_list
+                if edge_count != len(edge_ids):
+                    raise EngineFailure(
+                        "F4",
+                        "5B.S4.ROUTING_POLICY_INVALID",
+                        STATE,
+                        MODULE_NAME,
+                        {
+                            "merchant_id": merchant_id,
+                            "alias_count": edge_count,
+                            "edge_catalogue_count": len(edge_ids),
+                        },
+                    )
+                edge_key, edge_counter_hi, edge_counter_lo = _derive_rng_seed_from_prefix(edge_prefix, domain_key)
+                edge_values, edge_blocks, edge_next_hi, edge_next_lo = _draw_philox_u64(
+                    edge_key,
+                    edge_counter_hi,
+                    edge_counter_lo,
+                    1,
+                    manifest_fingerprint,
+                )
+                u_edge = _u01_from_u64(edge_values[0])
+                edge_index = _alias_pick(prob, alias, u_edge)
+                if edge_index >= len(edge_ids):
+                    raise EngineFailure(
+                        "F4",
+                        "5B.S4.ROUTING_POLICY_INVALID",
+                        STATE,
+                        MODULE_NAME,
+                        {"merchant_id": merchant_id, "edge_index": edge_index},
+                    )
+                edge_id = int(edge_ids[edge_index])
+                tzid_operational = edge_tzids[edge_index]
+                tzid_settlement = settlement_map.get(merchant_id)
+                if tzid_operational not in tz_cache:
+                    raise EngineFailure(
+                        "F4",
+                        "5B.S4.ROUTING_POLICY_INVALID",
+                        STATE,
+                        MODULE_NAME,
+                        {"tzid_operational": tzid_operational},
+                    )
+                tzid_primary = tzid_operational
+                offset_min = _tz_offset_minutes(tz_cache[tzid_primary], ts_utc_micros // _MICROS_PER_SECOND)
+                ts_local_primary = _format_rfc3339_micros(
+                    ts_utc_micros + offset_min * 60 * _MICROS_PER_SECOND
+                )
+                ts_local_operational = ts_local_primary
+                if tzid_settlement:
+                    if tzid_settlement not in tz_cache:
+                        raise EngineFailure(
+                            "F4",
+                            "5B.S4.ROUTING_POLICY_INVALID",
+                            STATE,
+                            MODULE_NAME,
+                            {"tzid_settlement": tzid_settlement},
+                        )
+                    settlement_offset = _tz_offset_minutes(
+                        tz_cache[tzid_settlement], ts_utc_micros // _MICROS_PER_SECOND
+                    )
+                    ts_local_settlement = _format_rfc3339_micros(
+                        ts_utc_micros + settlement_offset * 60 * _MICROS_PER_SECOND
+                    )
+                routing_universe_hash = edge_universe_hash
+
+                rng_stats["arrival_edge_pick"]["events"] += 1
+                rng_stats["arrival_edge_pick"]["draws"] += 1
+                rng_stats["arrival_edge_pick"]["blocks"] += int(edge_blocks)
+                rng_stats["arrival_edge_pick"]["last"] = (
+                    edge_counter_hi,
+                    edge_counter_lo,
+                    edge_next_hi,
+                    edge_next_lo,
+                )
+                count_virtual += 1
+            else:
+                alias_key = (merchant_id, zone_representation)
+                alias_entry = site_alias_map.get(alias_key)
+                if alias_entry is None:
+                    missing_alias_keys.add(alias_key)
+                    alias_entry = fallback_alias_map.get(merchant_id)
+                if alias_entry is None:
+                    raise EngineFailure(
+                        "F4",
+                        "5B.S4.ROUTING_POLICY_INVALID",
+                        STATE,
+                        MODULE_NAME,
+                        {"merchant_id": merchant_id, "tzid": zone_representation},
+                    )
+                prob, alias, site_orders = alias_entry
+                u_site = u_site_secondary if virtual_mode == "HYBRID" else u_site_primary
+                if u_site is None:
+                    raise EngineFailure(
+                        "F4",
+                        "5B.S4.ROUTING_POLICY_INVALID",
+                        STATE,
+                        MODULE_NAME,
+                        {"merchant_id": merchant_id, "detail": "site draw missing"},
+                    )
+                site_index = _alias_pick(prob, alias, u_site)
+                if site_index >= len(site_orders):
+                    raise EngineFailure(
+                        "F4",
+                        "5B.S4.ROUTING_POLICY_INVALID",
+                        STATE,
+                        MODULE_NAME,
+                        {"merchant_id": merchant_id, "site_index": site_index},
+                    )
+                site_id = int(site_orders[site_index])
+                tzid_primary = site_tz_lookup.get((merchant_id, site_id))
+                if tzid_primary is None:
+                    raise EngineFailure(
+                        "F4",
+                        "5B.S4.ROUTING_POLICY_INVALID",
+                        STATE,
+                        MODULE_NAME,
+                        {"merchant_id": merchant_id, "site_id": site_id},
+                    )
+                if tzid_primary not in tz_cache:
+                    raise EngineFailure(
+                        "F4",
+                        "5B.S4.ROUTING_POLICY_INVALID",
+                        STATE,
+                        MODULE_NAME,
+                        {"tzid_primary": tzid_primary},
+                    )
+                offset_min = _tz_offset_minutes(tz_cache[tzid_primary], ts_utc_micros // _MICROS_PER_SECOND)
+                ts_local_primary = _format_rfc3339_micros(
+                    ts_utc_micros + offset_min * 60 * _MICROS_PER_SECOND
+                )
+                routing_universe_hash = zone_alloc_universe_hash
+                count_physical += 1
+
+            if tzid_primary is None or ts_local_primary is None or routing_universe_hash is None:
+                raise EngineFailure(
+                    "F4",
+                    "5B.S4.ROUTING_POLICY_INVALID",
+                    STATE,
+                    MODULE_NAME,
+                    {"merchant_id": merchant_id, "bucket_index": bucket_index},
+                )
+            if is_virtual and edge_id is None:
+                raise EngineFailure(
+                    "F4",
+                    "5B.S4.ROUTING_POLICY_INVALID",
+                    STATE,
+                    MODULE_NAME,
+                    {"merchant_id": merchant_id, "bucket_index": bucket_index},
+                )
+            if not is_virtual and site_id is None:
+                raise EngineFailure(
+                    "F4",
+                    "5B.S4.ROUTING_POLICY_INVALID",
+                    STATE,
+                    MODULE_NAME,
+                    {"merchant_id": merchant_id, "bucket_index": bucket_index},
+                )
+
+            event_row = {
+                "manifest_fingerprint": manifest_fingerprint,
+                "parameter_hash": parameter_hash,
+                "seed": int(seed),
+                "scenario_id": str(scenario_id),
+                "merchant_id": int(merchant_id),
+                "zone_representation": str(zone_representation),
+                "bucket_index": int(bucket_index),
+                "arrival_seq": int(arrival_seq),
+                "ts_utc": ts_utc,
+                "tzid_primary": str(tzid_primary),
+                "ts_local_primary": str(ts_local_primary),
+                "is_virtual": bool(is_virtual),
+                "routing_universe_hash": str(routing_universe_hash),
+                "s4_spec_version": str(spec_version),
+                "_ts_utc_micros": ts_utc_micros,
+            }
+            if channel_group is not None:
+                event_row["channel_group"] = str(channel_group)
+            if tzid_operational:
+                event_row["tzid_operational"] = str(tzid_operational)
+            if ts_local_operational:
+                event_row["ts_local_operational"] = str(ts_local_operational)
+            if tzid_settlement:
+                event_row["tzid_settlement"] = str(tzid_settlement)
+            if ts_local_settlement:
+                event_row["ts_local_settlement"] = str(ts_local_settlement)
+            if site_id is not None:
+                event_row["site_id"] = int(site_id)
+            if edge_id is not None:
+                event_row["edge_id"] = int(edge_id)
+            if lambda_realised is not None:
+                event_row["lambda_realised"] = float(lambda_realised)
+            event_row["tz_group_id"] = str(tzid_primary)
+
+            bucket_events.append(event_row)
+
+        bucket_events.sort(key=lambda item: (item["_ts_utc_micros"], item["arrival_seq"]))
+        for event_row in bucket_events:
+            event_row.pop("_ts_utc_micros", None)
+            total_rows_written += 1
+            total_arrivals += 1
+            total_physical += 1 if not event_row["is_virtual"] else 0
+            total_virtual += 1 if event_row["is_virtual"] else 0
+            event_rows.append(event_row)
+            if len(event_rows) >= output_buffer_rows:
+                _write_events(event_rows)
+                event_rows = []
+
+        summary_row = {
+            "manifest_fingerprint": manifest_fingerprint,
+            "parameter_hash": parameter_hash,
+            "seed": int(seed),
+            "scenario_id": str(scenario_id),
+            "merchant_id": int(merchant_id),
+            "zone_representation": str(zone_representation),
+            "bucket_index": int(bucket_index),
+            "count_N": int(count_n),
+            "count_physical": int(count_physical),
+            "count_virtual": int(count_virtual),
+            "s4_spec_version": str(spec_version),
+        }
+        if channel_group is not None:
+            summary_row["channel_group"] = str(channel_group)
+        summary_rows.append(summary_row)
+        if len(summary_rows) >= output_buffer_rows:
+            _write_summary(summary_rows)
+            summary_rows = []
+
+    if event_rows:
+        _write_events(event_rows)
+        event_rows = []
+    if summary_rows:
+        _write_summary(summary_rows)
+        summary_rows = []
+
+    if events_writer is not None:
+        events_writer.close()
+    elif events_chunks:
+        events_all = pl.concat(events_chunks)
+        events_all.write_parquet(events_path, compression="zstd")
+
+    if summary_writer is not None:
+        summary_writer.close()
+    elif summary_chunks:
+        summary_all = pl.concat(summary_chunks)
+        summary_all.write_parquet(summary_path, compression="zstd")
+
+    return {
+        "batch_id": batch_id,
+        "rows_written": total_rows_written,
+        "arrivals": total_arrivals,
+        "physical": total_physical,
+        "virtual": total_virtual,
+        "rng_stats": rng_stats,
+        "missing_group_keys": list(missing_group_keys),
+        "missing_alias_keys": list(missing_alias_keys),
+    }
 
 def _u01_from_u64(value: int) -> float:
     return (float(value) + 0.5) * TWO_NEG_64
@@ -941,7 +1612,34 @@ def run_s4(config: EngineConfig, run_id: Optional[str] = None) -> S4Result:
         event_buffer_size = max(int(event_buffer_env), 1)
     except ValueError:
         event_buffer_size = 5000
-    output_buffer_rows = 50000
+    workers_env = os.environ.get("ENGINE_5B_S4_WORKERS", "").strip()
+    if workers_env:
+        try:
+            worker_count = max(int(workers_env), 1)
+        except ValueError:
+            worker_count = 1
+    else:
+        worker_count = max(1, min(os.cpu_count() or 1, 4))
+    max_inflight_env = os.environ.get("ENGINE_5B_S4_INFLIGHT_BATCHES", "").strip()
+    if max_inflight_env:
+        try:
+            max_inflight = max(int(max_inflight_env), 1)
+        except ValueError:
+            max_inflight = max(2, worker_count * 2)
+    else:
+        max_inflight = max(2, worker_count * 2)
+    use_parallel = worker_count > 1
+    if use_parallel and enable_rng_events:
+        use_parallel = False
+    if use_parallel and not _HAVE_PYARROW:
+        use_parallel = False
+    if use_parallel:
+        ordering_stats_enabled = strict_ordering
+    output_buffer_env = os.environ.get("ENGINE_5B_S4_OUTPUT_BUFFER_ROWS", "50000")
+    try:
+        output_buffer_rows = max(int(output_buffer_env), 1000)
+    except ValueError:
+        output_buffer_rows = 50000
 
     current_phase = "init"
     status = "FAIL"
@@ -1039,6 +1737,19 @@ def run_s4(config: EngineConfig, run_id: Optional[str] = None) -> S4Result:
             "all" if validate_events_full else validate_events_limit,
             "orjson" if _HAVE_ORJSON else "json",
         )
+        if use_parallel:
+            logger.info(
+                "S4: parallel_mode=on workers=%d inflight_batches=%d",
+                worker_count,
+                max_inflight,
+            )
+        else:
+            if worker_count > 1 and enable_rng_events:
+                logger.info("S4: parallel_mode=off (rng_event logging enabled)")
+            elif worker_count > 1 and not _HAVE_PYARROW:
+                logger.info("S4: parallel_mode=off (pyarrow unavailable)")
+            else:
+                logger.info("S4: parallel_mode=off")
 
         tokens = {
             "seed": str(seed),
@@ -2252,13 +2963,17 @@ def run_s4(config: EngineConfig, run_id: Optional[str] = None) -> S4Result:
 
                 events_tmp_dir = run_paths.tmp_root / f"s4_events_{uuid.uuid4().hex}"
                 events_tmp_dir.mkdir(parents=True, exist_ok=True)
-                events_tmp_path = events_tmp_dir / "part-00000.parquet"
-
                 summary_tmp_path = run_paths.tmp_root / f"s4_summary_{uuid.uuid4().hex}.parquet"
+                summary_tmp_dir = None
                 events_writer = None
                 summary_writer = None
                 events_chunks: list[pl.DataFrame] = []
                 summary_chunks: list[pl.DataFrame] = []
+                if use_parallel:
+                    summary_tmp_dir = run_paths.tmp_root / f"s4_summary_parts_{uuid.uuid4().hex}"
+                    summary_tmp_dir.mkdir(parents=True, exist_ok=True)
+                else:
+                    events_tmp_path = events_tmp_dir / "part-00000.parquet"
 
                 last_key: Optional[tuple] = None
                 ordering_violations = 0
@@ -2275,6 +2990,281 @@ def run_s4(config: EngineConfig, run_id: Optional[str] = None) -> S4Result:
                     "arrival_edge_pick": {"events": 0, "draws": 0, "blocks": 0, "last": None},
                 }
 
+                if use_parallel:
+                    if summary_tmp_dir is None:
+                        _abort(
+                            "5B.S4.IO_WRITE_FAILED",
+                            "V-06",
+                            "summary_tmp_dir_missing",
+                            {"scenario_id": scenario_id},
+                            manifest_fingerprint,
+                        )
+                    missing_group_keys = set()
+                    arrival_seq_by_merchant: dict[int, int] = {}
+
+                    time_prefix = _rng_prefix_bytes(
+                        domain_sep,
+                        time_family_id,
+                        str(manifest_fingerprint),
+                        str(parameter_hash),
+                        seed,
+                        str(scenario_id),
+                    )
+                    site_prefix = _rng_prefix_bytes(
+                        domain_sep,
+                        site_family_id,
+                        str(manifest_fingerprint),
+                        str(parameter_hash),
+                        seed,
+                        str(scenario_id),
+                    )
+                    edge_prefix = _rng_prefix_bytes(
+                        domain_sep,
+                        edge_family_id,
+                        str(manifest_fingerprint),
+                        str(parameter_hash),
+                        seed,
+                        str(scenario_id),
+                    )
+
+                    worker_context = {
+                        "manifest_fingerprint": str(manifest_fingerprint),
+                        "parameter_hash": str(parameter_hash),
+                        "seed": int(seed),
+                        "spec_version": str(spec_version),
+                        "bucket_map": bucket_map,
+                        "tz_cache": tz_cache,
+                        "site_alias_map": site_alias_map,
+                        "fallback_alias_map": fallback_alias_map,
+                        "site_tz_lookup": site_tz_lookup,
+                        "edge_alias_meta": edge_alias_meta,
+                        "edge_map": edge_map,
+                        "edge_alias_blob_path": str(edge_alias_blob_path),
+                        "alias_endianness": alias_endianness,
+                        "settlement_map": settlement_map,
+                        "classification_map": classification_map,
+                        "group_weights_map": group_weights_map,
+                        "skip_group_weight_check": skip_group_weight_check,
+                        "zone_alloc_universe_hash": zone_alloc_universe_hash,
+                        "edge_universe_hash": edge_universe_hash,
+                        "max_arrivals_per_bucket": max_arrivals_per_bucket,
+                        "p_virtual_hybrid": p_virtual_hybrid,
+                        "time_prefix": time_prefix,
+                        "site_prefix": site_prefix,
+                        "edge_prefix": edge_prefix,
+                        "draws_per_arrival": draws_per_arrival,
+                        "output_validate_full": output_validate_full,
+                        "output_sample_rows": output_sample_rows,
+                        "output_buffer_rows": output_buffer_rows,
+                        "event_schema": event_schema,
+                        "summary_schema": summary_schema,
+                        "events_tmp_dir": str(events_tmp_dir),
+                        "summary_tmp_dir": str(summary_tmp_dir),
+                    }
+
+                    def _handle_result(result: dict, expected_batch_id: int) -> None:
+                        nonlocal scenario_rows_written
+                        nonlocal scenario_arrivals
+                        nonlocal scenario_physical
+                        nonlocal scenario_virtual
+                        nonlocal total_rows_written
+                        nonlocal total_arrivals
+                        nonlocal total_physical
+                        nonlocal total_virtual
+                        if result.get("batch_id") != expected_batch_id:
+                            _abort(
+                                "5B.S4.DOMAIN_ALIGN_FAILED",
+                                "V-08",
+                                "batch_index_mismatch",
+                                {"scenario_id": scenario_id, "expected": expected_batch_id, "actual": result.get("batch_id")},
+                                manifest_fingerprint,
+                            )
+                        batch_rows = int(result.get("rows_written") or 0)
+                        batch_arrivals = int(result.get("arrivals") or 0)
+                        batch_physical = int(result.get("physical") or 0)
+                        batch_virtual = int(result.get("virtual") or 0)
+                        scenario_rows_written += batch_rows
+                        scenario_arrivals += batch_arrivals
+                        scenario_physical += batch_physical
+                        scenario_virtual += batch_virtual
+                        total_rows_written += batch_rows
+                        total_arrivals += batch_arrivals
+                        total_physical += batch_physical
+                        total_virtual += batch_virtual
+
+                        for label, stats in (result.get("rng_stats") or {}).items():
+                            if label not in rng_stats:
+                                continue
+                            rng_stats[label]["events"] += int(stats.get("events") or 0)
+                            rng_stats[label]["draws"] += int(stats.get("draws") or 0)
+                            rng_stats[label]["blocks"] += int(stats.get("blocks") or 0)
+                            if stats.get("last") is not None:
+                                rng_stats[label]["last"] = stats.get("last")
+
+                        for key in result.get("missing_group_keys") or []:
+                            if key not in missing_group_keys:
+                                logger.warning(
+                                    "S4: group_weights missing (merchant_id=%s utc_day=%s tz_group_id=%s); "
+                                    "continuing with zone_representation routing.",
+                                    key[0],
+                                    key[1],
+                                    key[2],
+                                )
+                                missing_group_keys.add(key)
+
+                        for key in result.get("missing_alias_keys") or []:
+                            if key not in missing_alias_keys:
+                                logger.warning(
+                                    "S4: site alias missing for merchant_id=%s tzid=%s; using fallback merchant alias",
+                                    key[0],
+                                    key[1],
+                                )
+                                missing_alias_keys.add(key)
+
+                    executor = None
+                    pending: deque[tuple[int, concurrent.futures.Future]] = deque()
+                    batch_id = 0
+                    try:
+                        executor = concurrent.futures.ProcessPoolExecutor(
+                            max_workers=worker_count,
+                            initializer=_init_s4_worker,
+                            initargs=(worker_context,),
+                        )
+                        for batch in _iter_parquet_batches(
+                            counts_files,
+                            ["merchant_id", "zone_representation", "channel_group", "bucket_index", "count_N", "lambda_realised"],
+                        ):
+                            if _HAVE_PYARROW and pa and isinstance(batch, pa.Table):
+                                df = pl.from_arrow(batch)
+                            else:
+                                df = batch
+                            merchants = df.get_column("merchant_id").to_list()
+                            zones = df.get_column("zone_representation").to_list()
+                            channels = df.get_column("channel_group").to_list()
+                            buckets = df.get_column("bucket_index").to_list()
+                            counts = df.get_column("count_N").to_list()
+                            lambdas = (
+                                df.get_column("lambda_realised").to_list()
+                                if "lambda_realised" in df.columns
+                                else [None] * df.height
+                            )
+                            arrival_seq_start = [0] * df.height
+                            for idx in range(df.height):
+                                row_tracker.update(1)
+                                count_n = int(counts[idx] or 0)
+                                if count_n <= 0:
+                                    continue
+                                merchant_id = int(merchants[idx])
+                                start_seq = arrival_seq_by_merchant.get(merchant_id, 0) + 1
+                                arrival_seq_start[idx] = start_seq
+                                arrival_seq_by_merchant[merchant_id] = start_seq + count_n - 1
+                                arrival_tracker.update(count_n)
+
+                            payload = {
+                                "batch_id": batch_id,
+                                "scenario_id": scenario_id,
+                                "merchant_id": merchants,
+                                "zone_representation": zones,
+                                "channel_group": channels,
+                                "bucket_index": buckets,
+                                "count_N": counts,
+                                "lambda_realised": lambdas,
+                                "arrival_seq_start": arrival_seq_start,
+                            }
+                            future = executor.submit(_process_s4_batch, payload)
+                            pending.append((batch_id, future))
+                            if len(pending) >= max_inflight:
+                                queued_id, queued_future = pending.popleft()
+                                result = queued_future.result()
+                                _handle_result(result, queued_id)
+                            batch_id += 1
+                        while pending:
+                            queued_id, queued_future = pending.popleft()
+                            result = queued_future.result()
+                            _handle_result(result, queued_id)
+                    finally:
+                        if executor is not None:
+                            executor.shutdown(wait=True, cancel_futures=False)
+
+                    summary_parts = sorted(summary_tmp_dir.glob("part-*.parquet"))
+                    if summary_parts:
+                        summary_writer = None
+                        for part_path in summary_parts:
+                            parquet = pq.ParquetFile(part_path)
+                            for rg in range(parquet.num_row_groups):
+                                table = parquet.read_row_group(rg)
+                                if summary_writer is None:
+                                    summary_writer = pq.ParquetWriter(
+                                        summary_tmp_path, table.schema, compression="zstd"
+                                    )
+                                summary_writer.write_table(table)
+                        if summary_writer is not None:
+                            summary_writer.close()
+
+                    if scenario_rows_written == 0:
+                        _abort(
+                            "5B.S4.DOMAIN_ALIGN_FAILED",
+                            "V-08",
+                            "arrival_events_empty",
+                            {"scenario_id": scenario_id},
+                            manifest_fingerprint,
+                        )
+
+                    _atomic_publish_dir(events_tmp_dir, events_root, logger, f"arrival_events_5B scenario_id={scenario_id}")
+                    if summary_parts:
+                        _atomic_publish_file(
+                            summary_tmp_path,
+                            summary_path,
+                            logger,
+                            f"s4_arrival_summary_5B scenario_id={scenario_id}",
+                        )
+                        summary_paths.append(summary_path)
+                    event_paths.append(events_root)
+
+                    if trace_handle is not None:
+                        for label, stats in rng_stats.items():
+                            last_counters = stats.get("last")
+                            if not last_counters:
+                                continue
+                            counter_hi, counter_lo, next_hi, next_lo = last_counters
+                            trace_row = {
+                                "ts_utc": utc_now_rfc3339_micro(),
+                                "run_id": str(run_id),
+                                "seed": int(seed),
+                                "module": "5B.S4",
+                                "substream_label": label,
+                                "rng_counter_before_lo": int(counter_lo),
+                                "rng_counter_before_hi": int(counter_hi),
+                                "rng_counter_after_lo": int(next_lo),
+                                "rng_counter_after_hi": int(next_hi),
+                                "draws_total": int(stats.get("draws") or 0),
+                                "blocks_total": int(stats.get("blocks") or 0),
+                                "events_total": int(stats.get("events") or 0),
+                            }
+                            trace_handle.write(_json_dumps(trace_row))
+                            trace_handle.write("\n")
+
+                    scenario_details[str(scenario_id)] = {
+                        "arrival_rows": int(scenario_rows_written),
+                        "arrival_total": int(scenario_arrivals),
+                        "arrival_physical": int(scenario_physical),
+                        "arrival_virtual": int(scenario_virtual),
+                        "ordering_violations": int(ordering_violations),
+                        "duration_s": int(time.monotonic() - scenario_start),
+                    }
+                    ordering_violations_total += ordering_violations
+                    scenario_count_succeeded += 1
+
+                    logger.info(
+                        "S4: scenario=%s completed arrivals=%d physical=%d virtual=%d ordering_violations=%d",
+                        scenario_id,
+                        scenario_arrivals,
+                        scenario_physical,
+                        scenario_virtual,
+                        ordering_violations,
+                    )
+                    continue
+
                 def _flush_event_buffers() -> None:
                     for label, handle in event_handles.items():
                         buffer = event_buffers.get(label)
@@ -2288,7 +3278,8 @@ def run_s4(config: EngineConfig, run_id: Optional[str] = None) -> S4Result:
                     nonlocal events_writer
                     if not rows:
                         return
-                    df = pl.DataFrame(rows)
+                    df = pl.DataFrame(rows, schema=_S4_EVENT_SCHEMA)
+                    df = _coerce_int_columns(df, _S4_EVENT_UINT64_COLUMNS, _S4_EVENT_INT64_COLUMNS)
                     if output_validate_full:
                         _validate_array_rows(
                             df.iter_rows(named=True),
@@ -2318,7 +3309,8 @@ def run_s4(config: EngineConfig, run_id: Optional[str] = None) -> S4Result:
                     nonlocal summary_writer
                     if not rows:
                         return
-                    df = pl.DataFrame(rows)
+                    df = pl.DataFrame(rows, schema=_S4_SUMMARY_SCHEMA)
+                    df = _coerce_int_columns(df, _S4_SUMMARY_UINT64_COLUMNS, _S4_SUMMARY_INT64_COLUMNS)
                     if output_validate_full:
                         _validate_array_rows(
                             df.iter_rows(named=True),
@@ -3029,14 +4021,16 @@ def run_s4(config: EngineConfig, run_id: Optional[str] = None) -> S4Result:
         status = "FAIL"
         error_code = error_code or "5B.S4.IO_WRITE_FAILED"
         error_class = "F4"
-        error_context = {"detail": str(exc), "phase": current_phase}
+        detail = str(exc) or type(exc).__name__
+        error_context = {"detail": detail, "phase": current_phase}
         if not first_failure_phase:
             first_failure_phase = current_phase
     except Exception as exc:  # pragma: no cover
         status = "FAIL"
         error_code = error_code or "5B.S4.IO_WRITE_FAILED"
         error_class = "F4"
-        error_context = {"detail": str(exc), "phase": current_phase}
+        detail = str(exc) or type(exc).__name__
+        error_context = {"detail": detail, "phase": current_phase}
         if not first_failure_phase:
             first_failure_phase = current_phase
     finally:
