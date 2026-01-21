@@ -1,7 +1,7 @@
 $schema: "https://json-schema.org/draft/2020-12/schema"
 $id: schemas.5B.yaml
 $comment: "Layer-2 · Segment 5B schema pack. JSON-Schema is the shape authority for 5B datasets."
-version: '1.0.0'
+version: '1.0.1'
 
 $defs:
   hex64:
@@ -150,7 +150,7 @@ model:
         scenario_id: { $ref: '#/$defs/scenario_id' }
         merchant_id: { $ref: '#/$defs/id64' }
         zone_representation: { $ref: '#/$defs/zone_representation' }
-        channel_group: { type: string }
+        channel_group: { type: string, nullable: true }
         group_id: { type: string }
         grouping_key: { type: string }
         s1_spec_version: { type: string }
@@ -268,13 +268,13 @@ egress:
         ts_utc: { $ref: '#/$defs/rfc3339_micros' }
         tzid_primary: { $ref: '#/$defs/iana_tzid' }
         ts_local_primary: { $ref: '#/$defs/rfc3339_micros' }
-        tzid_settlement: { $ref: '#/$defs/iana_tzid' }
-        ts_local_settlement: { $ref: '#/$defs/rfc3339_micros' }
-        tzid_operational: { $ref: '#/$defs/iana_tzid' }
-        ts_local_operational: { $ref: '#/$defs/rfc3339_micros' }
+        tzid_settlement: { $ref: '#/$defs/iana_tzid', nullable: true }
+        ts_local_settlement: { $ref: '#/$defs/rfc3339_micros', nullable: true }
+        tzid_operational: { $ref: '#/$defs/iana_tzid', nullable: true }
+        ts_local_operational: { $ref: '#/$defs/rfc3339_micros', nullable: true }
         tz_group_id: { type: string }
-        site_id: { $ref: '#/$defs/id64' }
-        edge_id: { $ref: '#/$defs/id64' }
+        site_id: { $ref: '#/$defs/id64', nullable: true }
+        edge_id: { $ref: '#/$defs/id64', nullable: true }
         routing_universe_hash: { $ref: '#/$defs/hex64' }
         lambda_realised: { type: number, minimum: 0 }
         is_virtual: { type: boolean }

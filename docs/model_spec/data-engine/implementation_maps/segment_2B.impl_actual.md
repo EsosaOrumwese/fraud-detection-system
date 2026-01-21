@@ -4482,3 +4482,90 @@ Run outcome after index-only change + bundle reset.
 - Run logs include the explicit WARN about index paths referencing run_root
   (documented deviation).
 
+### Entry: 2026-01-21 14:17
+
+Design problem summary:
+- 5B.S4 reported missing `s4_group_weights` coverage for many `(merchant_id,
+  utc_day)` rows. Investigation shows 5B time-grid buckets span 2026-01-01 to
+  2026-03-31, while `day_effect_policy_v1` is currently configured for the
+  2024-01-01 to 2024-12-31 day range. As a result, 2B.S3 only generates day
+  effects for 2024, and 2B.S4 cannot provide group weights for 2026 days.
+- The fix is to align the 2B day-effect policy with the 5B horizon so S3/S4
+  produce group weights for the same day grid 5B consumes.
+
+Decision path and options considered:
+1) **Change 5B time grid to 2024** to match the existing policy.
+   - Pros: no policy update required.
+   - Cons: ripples across 5B/6A/6B assumptions, changes scenario semantics,
+     and is not the minimal fix.
+2) **Update `day_effect_policy_v1` day_range to 2026-01-01..2026-03-31** and
+   re-run 2B.S3/S4 to regenerate day effects and group weights.
+   - Pros: minimal, policy-only change; aligns with the actual 5B horizon;
+     respects S3/S4 contract (day_range is policy-driven).
+3) **Let 2B.S4 extrapolate missing days** or 5B.S4 fall back silently.
+   - Pros: avoids policy edits.
+   - Cons: violates 2B.S4 contract (day grid must come from S3) and hides a
+     real coverage error.
+Decision: Option 2 (policy update + rerun S3/S4).
+
+Contract authority source and evolution posture:
+- Policy is sourced from `config/layer1/2B/policy/day_effect_policy_v1.json`
+  (model_spec contracts in dev). This keeps production migration simple:
+  only the contract root needs to switch, not code paths.
+
+Planned implementation outline (stepwise, before coding):
+1) Update `config/layer1/2B/policy/day_effect_policy_v1.json`:
+   - `day_range.start_day = 2026-01-01`
+   - `day_range.end_day = 2026-03-31`
+   - bump `policy_version` and `version_tag` to `1.0.2`.
+2) Recompute `sha256_hex` using canonical JSON hashing:
+   - remove `sha256_hex`, serialize with `sort_keys=true` and
+     `separators=(",", ":")`, hash bytes with SHA-256, then write the new
+     `sha256_hex` back into the file.
+3) Re-run `make segment2b-s3` then `make segment2b-s4` for the active run_id
+   to regenerate day effects and group weights for the 2026 horizon.
+4) Re-run `make segment5b-s4` and confirm missing group weights no longer
+   appear for 2026 days.
+
+Invariants and checks to enforce:
+- Day range remains inclusive and UTC date-based per S3 spec.
+- S3/S4 still partition strictly by `{seed, manifest_fingerprint}` and remain
+  deterministic for the same sealed inputs.
+- 5B consumes group weights without fallback once coverage aligns.
+
+Logging/observability plan:
+- Log the policy update (old/new day_range, new sha256) in the logbook.
+- Watch S3/S4 run-report coverage counters for `days_total` and `rows_written`
+  to confirm 2026 coverage; log any mismatch immediately.
+
+### Entry: 2026-01-21 14:23
+
+Observed failure during re-run:
+- `make segment2b-s3` aborted with `2B-S3-070` (`policy_digest_mismatch`).
+- Computed policy digest for `day_effect_policy_v1` no longer matches the
+  digest recorded in `sealed_inputs_2B` (expected after updating policy bytes).
+
+Decision and immediate remediation:
+- Re-run **2B.S0** for the same `manifest_fingerprint` and `run_id` to refresh
+  `sealed_inputs_2B` and `s0_gate_receipt_2B` with the new policy digest.
+- Then re-run **2B.S3** and **2B.S4** to regenerate day effects + group weights
+  under the updated sealed inputs.
+- No schema/algorithm changes required; this is an operational gating update
+  required by the S0-evidence rule.
+
+### Entry: 2026-01-21 14:24
+
+Observed failure during S0 re-run:
+- `make segment2b-s0` aborted with `2B-S0-080` (immutability) because the
+  existing `s0_gate_receipt_2B`/`sealed_inputs_2B` outputs for this run_id
+  already exist and differ after the policy update.
+
+Decision options:
+1) **Delete the existing S0 outputs** for the current run_id and rerun S0,
+   then proceed with S3/S4.
+2) **Use a new run_id** so the updated policy seals to a fresh run root.
+
+Pending action:
+- Await user approval for the chosen remediation before deleting any
+  run-scoped outputs.
+

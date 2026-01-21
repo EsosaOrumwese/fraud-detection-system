@@ -4559,3 +4559,77 @@ Outcome:
 - Totals: arrivals=116,424,410; bucket_rows=31,667,760; virtual=2,137,989.
 - Missing group weights recorded: 3,421,657 bucket rows (logged + counted).
 - Run-report row recorded in `runs/local_full_run-5/d61f08e2e45ef1bc28884034de4c1b68/reports/layer2/segment_state_runs/segment=5B/utc_day=2026-01-21/segment_state_runs.jsonl`.
+
+### Entry: 2026-01-21 14:17
+
+Design problem summary:
+- The current S4 output contains `None` for optional routing/time fields
+  (`site_id`, `edge_id`, `tzid_settlement`, `ts_local_settlement`,
+  `tzid_operational`, `ts_local_operational`, and `channel_group`). The schema
+  anchor for `s4_arrival_events_5B` does not permit nulls, so we introduced a
+  temporary validation workaround that strips `None` fields before validation.
+- This workaround hides true schema mismatches and weakens contract checks.
+  The minimal, backwards-compatible fix is to relax the schema to allow nulls
+  for those optional fields and remove the workaround so validation uses the
+  real payload.
+
+Decision path and options considered:
+1) **Keep the None-stripping workaround** (status quo).
+   - Pros: no contract changes.
+   - Cons: hides schema violations, allows silent drift, and does not match
+     the stated JSON-Schema authority.
+2) **Relax the schema with nullable fields + remove workaround**.
+   - Pros: keeps JSON-Schema authority, still enforces required fields,
+     and makes `None` vs missing fields explicit. Backwards-compatible.
+3) **Replace nulls with sentinel values** (e.g., `0` or empty strings).
+   - Pros: avoids schema changes.
+   - Cons: changes semantics, risks misinterpretation downstream, and would
+     be a breaking change requiring a major bump.
+Decision: Option 2. This is the minimal relaxation path that preserves intent
+while keeping validation honest.
+
+Contract authority source and evolution posture:
+- Current contract source remains `model_spec` (dev posture), with the engine
+  already using ContractSource/EngineConfig so switching to root contracts in
+  production remains a config-only change (no code break).
+
+Planned implementation outline (stepwise, before coding):
+1) Update contract files to allow nullable optional fields for S4 arrivals:
+   - `docs/model_spec/data-engine/layer-2/specs/contracts/5B/schemas.5B.yaml`
+     add `nullable: true` to `channel_group`, `tzid_settlement`,
+     `ts_local_settlement`, `tzid_operational`, `ts_local_operational`,
+     `site_id`, `edge_id` in `egress/s4_arrival_events_5B`.
+   - Bump schema pack `version: 1.0.1` (patch, backward-compatible).
+2) Update catalog versions to reflect the patch:
+   - `docs/model_spec/data-engine/layer-2/specs/contracts/5B/dataset_dictionary.layer2.5B.yaml`
+     bump header `version: 1.0.1`.
+   - `docs/model_spec/data-engine/layer-2/specs/contracts/5B/artefact_registry_5B.yaml`
+     bump `arrival_events_5B` semver to `1.0.1` (keep other datasets unchanged).
+3) Remove the validation workaround:
+   - `packages/engine/src/engine/layers/l2/seg_5B/s4_arrival_events/runner.py`
+     stop dropping `None` fields in `_validate_array_rows`, and validate the
+     row as emitted; continue to use `normalize_nullable_schema`.
+4) Re-run S4 after regenerating 2B group weights (tracked separately in 2B
+   plan) and confirm the ETA and schema validation are healthy.
+
+Invariants and checks to enforce:
+- Required fields remain required (manifest_fingerprint, parameter_hash, seed,
+  scenario_id, merchant_id, zone_representation, bucket_index, arrival_seq,
+  ts_utc, tzid_primary, ts_local_primary, is_virtual).
+- Optional fields may be present as `null` but must be valid when non-null.
+- `s4_arrival_events_5B` semantics and PK stay unchanged; this is a patch-level
+  compatibility update only.
+
+Logging/observability plan:
+- Keep S4 story header + progress logs unchanged.
+- Validation logs should report true schema mismatches instead of silent
+  omissions (workaround removed).
+
+Performance considerations:
+- Schema validation remains O(n) in validated rows; removing the dict
+  comprehension reduces per-row overhead slightly.
+
+Validation/testing steps:
+- Run `make segment2b-s3` and `make segment2b-s4` to regenerate group weights
+  for the correct day range.
+- Run `make segment5b-s4` and monitor ETA; terminate if ETA is high and revisit.

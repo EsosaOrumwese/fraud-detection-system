@@ -848,8 +848,7 @@ def _validate_array_rows(
     validator = Draft202012Validator(items_schema)
     checked = 0
     for row in rows:
-        row_payload = {key: value for key, value in row.items() if value is not None}
-        errors = list(validator.iter_errors(row_payload))
+        errors = list(validator.iter_errors(row))
         if errors:
             _abort(
                 "5B.S4.SCHEMA_INVALID",

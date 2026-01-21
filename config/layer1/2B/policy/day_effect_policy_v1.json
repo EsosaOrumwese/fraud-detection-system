@@ -1,12 +1,12 @@
 {
   "created_utc_policy_echo": true,
   "day_range": {
-    "end_day": "2024-12-31",
-    "start_day": "2024-01-01"
+    "start_day": "2026-01-01",
+    "end_day": "2026-03-31"
   },
   "draws_per_row": 1,
   "policy_id": "day_effect_policy_v1",
-  "policy_version": "1.0.1",
+  "policy_version": "1.0.2",
   "record_fields": [
     "gamma",
     "log_gamma",
@@ -34,7 +34,7 @@
   },
   "rng_engine": "philox2x64-10",
   "rng_stream_id": "2B.day_effects.gamma",
-  "sha256_hex": "a84875f0237efaefaf2cbb130323659626f5d4a85e74e5a3c18a204925783e4e",
+  "sha256_hex": "f98ca0621eea84fb5f7054e81766b27aaa32f1ace136a256ffddae191dd5406a",
   "sigma_gamma": 0.12,
-  "version_tag": "1.0.1"
+  "version_tag": "1.0.2"
 }

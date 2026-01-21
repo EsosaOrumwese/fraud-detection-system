@@ -902,7 +902,7 @@ subsegments:
         category: egress
         path: data/layer2/5B/arrival_events/seed={seed}/manifest_fingerprint={manifest_fingerprint}/scenario_id={scenario_id}/part-*.parquet
         schema: schemas.5B.yaml#/egress/s4_arrival_events_5B
-        semver: '1.0.0'
+        semver: '1.0.1'
         version: '{seed}.{manifest_fingerprint}.{scenario_id}'
         digest:
         dependencies:

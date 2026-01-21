@@ -1,5 +1,5 @@
 # dataset_dictionary.layer2.5B.yaml — Layer-2 Segment 5B contracts
-version: '1.0.0'
+version: '1.0.1'
 
 lifecycle:
   phase: planning
