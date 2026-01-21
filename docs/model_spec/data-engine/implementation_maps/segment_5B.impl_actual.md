@@ -3598,3 +3598,34 @@ Observation
 Next options (pending approval)
 - Chunk the compiled kernel call into smaller slices and log between slices (most reliable).
 - Log progress from the parent process while waiting on futures (coarser but simpler).
+
+## 2026-01-21 07:58:50 - Plan: parent-process heartbeat while awaiting futures
+
+Problem
+- Worker-side progress logs are not emitting, even with `nogil`, so the run log appears frozen while the parent waits on futures.
+
+Decision
+- Add a parent-process heartbeat that logs every N seconds while waiting for the oldest pending batch future.
+- This does not touch the compiled kernel or per-row work, so it should not reduce the observed speedup.
+
+Planned changes
+- Track per-batch metadata in `pending` (submit time, bucket_rows, arrivals_expected).
+- Replace the blocking `future.result()` calls with `concurrent.futures.wait(..., timeout=heartbeat_s)` and emit a heartbeat log if not done.
+- Add `ENGINE_5B_S4_WORKER_HEARTBEAT_S` (default 30s) to control cadence.
+
+Log content
+- `scenario`, `batch_id`, `bucket_rows`, `arrivals_expected`, `elapsed`, `rate=unknown`, `eta=unknown`, `inflight`, `output=arrival_events_5B`.
+
+Validation
+- Run S4 and confirm the run log shows heartbeat lines every ~30s while futures are still running.
+
+## 2026-01-21 08:06:58 - Implemented: parent-process heartbeat
+
+Changes applied
+- Added `ENGINE_5B_S4_WORKER_HEARTBEAT_S` (default 30s) and logged its value on startup.
+- Replaced blocking `future.result()` calls with `concurrent.futures.wait(..., timeout=heartbeat_s)` and emitted `S4: awaiting worker batch ...` logs when the oldest batch is still running.
+- Tracked per-batch metadata (`submit_time`, `bucket_rows`, `arrivals_expected`) to include in heartbeat logs.
+
+Validation
+- Ran S4 and observed heartbeat lines in the run log at ~30s cadence:
+  - `S4: awaiting worker batch scenario=baseline_v1 batch_id=0 bucket_rows=200000 arrivals_expected=301515 processed=unknown/301515 rate=unknown eta=unknown inflight=6 elapsed=... output=arrival_events_5B`.

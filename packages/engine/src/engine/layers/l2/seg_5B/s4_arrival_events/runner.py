@@ -2698,6 +2698,11 @@ def run_s4(config: EngineConfig, run_id: Optional[str] = None) -> S4Result:
             max_inflight = max(2, worker_count * 2)
     else:
         max_inflight = max(2, worker_count * 2)
+    heartbeat_env = os.environ.get("ENGINE_5B_S4_WORKER_HEARTBEAT_S", "30").strip()
+    try:
+        worker_heartbeat_s = max(float(heartbeat_env), 5.0)
+    except ValueError:
+        worker_heartbeat_s = 30.0
     use_parallel = worker_count > 1
     if use_parallel and enable_rng_events:
         use_parallel = False
@@ -2824,6 +2829,10 @@ def run_s4(config: EngineConfig, run_id: Optional[str] = None) -> S4Result:
                 "S4: parallel_mode=on workers=%d inflight_batches=%d",
                 worker_count,
                 max_inflight,
+            )
+            logger.info(
+                "S4: worker_heartbeat=%.0fs (set ENGINE_5B_S4_WORKER_HEARTBEAT_S to override)",
+                worker_heartbeat_s,
             )
         else:
             if worker_count > 1 and enable_rng_events:
@@ -4316,7 +4325,9 @@ def run_s4(config: EngineConfig, run_id: Optional[str] = None) -> S4Result:
                                 missing_alias_keys.add(key)
 
                     executor = None
-                    pending: deque[tuple[int, concurrent.futures.Future]] = deque()
+                    pending: deque[
+                        tuple[int, concurrent.futures.Future, float, int, int]
+                    ] = deque()
                     batch_id = 0
                     try:
                         executor = concurrent.futures.ProcessPoolExecutor(
@@ -4343,6 +4354,7 @@ def run_s4(config: EngineConfig, run_id: Optional[str] = None) -> S4Result:
                                 else [None] * df.height
                             )
                             arrival_seq_start = [0] * df.height
+                            batch_arrivals_expected = 0
                             for idx in range(df.height):
                                 row_tracker.update(1)
                                 count_n = int(counts[idx] or 0)
@@ -4353,6 +4365,7 @@ def run_s4(config: EngineConfig, run_id: Optional[str] = None) -> S4Result:
                                 arrival_seq_start[idx] = start_seq
                                 arrival_seq_by_merchant[merchant_id] = start_seq + count_n - 1
                                 arrival_tracker.update(count_n)
+                                batch_arrivals_expected += count_n
 
                             payload = {
                                 "batch_id": batch_id,
@@ -4366,16 +4379,72 @@ def run_s4(config: EngineConfig, run_id: Optional[str] = None) -> S4Result:
                                 "arrival_seq_start": arrival_seq_start,
                             }
                             future = executor.submit(_process_s4_batch, payload)
-                            pending.append((batch_id, future))
-                            if len(pending) >= max_inflight:
-                                queued_id, queued_future = pending.popleft()
-                                result = queued_future.result()
-                                _handle_result(result, queued_id)
+                            pending.append(
+                                (
+                                    batch_id,
+                                    future,
+                                    time.monotonic(),
+                                    df.height,
+                                    batch_arrivals_expected,
+                                )
+                            )
+                            while len(pending) >= max_inflight:
+                                (
+                                    queued_id,
+                                    queued_future,
+                                    queued_at,
+                                    queued_rows,
+                                    queued_arrivals,
+                                ) = pending[0]
+                                done, _ = concurrent.futures.wait(
+                                    [queued_future], timeout=worker_heartbeat_s
+                                )
+                                if done:
+                                    pending.popleft()
+                                    result = queued_future.result()
+                                    _handle_result(result, queued_id)
+                                    continue
+                                elapsed = time.monotonic() - queued_at
+                                logger.info(
+                                    "S4: awaiting worker batch scenario=%s batch_id=%d bucket_rows=%d arrivals_expected=%d "
+                                    "processed=unknown/%d rate=unknown eta=unknown inflight=%d elapsed=%.2fs output=arrival_events_5B",
+                                    scenario_id,
+                                    queued_id,
+                                    queued_rows,
+                                    queued_arrivals,
+                                    queued_arrivals,
+                                    len(pending),
+                                    elapsed,
+                                )
                             batch_id += 1
                         while pending:
-                            queued_id, queued_future = pending.popleft()
-                            result = queued_future.result()
-                            _handle_result(result, queued_id)
+                            (
+                                queued_id,
+                                queued_future,
+                                queued_at,
+                                queued_rows,
+                                queued_arrivals,
+                            ) = pending[0]
+                            done, _ = concurrent.futures.wait(
+                                [queued_future], timeout=worker_heartbeat_s
+                            )
+                            if done:
+                                pending.popleft()
+                                result = queued_future.result()
+                                _handle_result(result, queued_id)
+                                continue
+                            elapsed = time.monotonic() - queued_at
+                            logger.info(
+                                "S4: awaiting worker batch scenario=%s batch_id=%d bucket_rows=%d arrivals_expected=%d "
+                                "processed=unknown/%d rate=unknown eta=unknown inflight=%d elapsed=%.2fs output=arrival_events_5B",
+                                scenario_id,
+                                queued_id,
+                                queued_rows,
+                                queued_arrivals,
+                                queued_arrivals,
+                                len(pending),
+                                elapsed,
+                            )
                     finally:
                         if executor is not None:
                             executor.shutdown(wait=True, cancel_futures=False)
