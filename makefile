@@ -80,6 +80,7 @@ SEG5B_S1_RUN_ID ?= $(RUN_ID)
 SEG5B_S2_RUN_ID ?= $(RUN_ID)
 SEG5B_S3_RUN_ID ?= $(RUN_ID)
 SEG5B_S4_RUN_ID ?= $(RUN_ID)
+SEG5B_S5_RUN_ID ?= $(RUN_ID)
 SEG1B_S1_PREDICATE ?= center
 
 # ---------------------------------------------------------------------------
@@ -1008,6 +1009,21 @@ SEG5B_S4_CMD = \
 	ENGINE_5B_S4_STRICT_ORDERING=$(ENGINE_5B_S4_STRICT_ORDERING) \
 	$(PY_ENGINE) -m engine.cli.s4_arrival_events_5b $(SEG5B_S4_ARGS)
 
+SEG5B_S5_ARGS = --contracts-layout $(ENGINE_CONTRACTS_LAYOUT)
+ifneq ($(strip $(ENGINE_CONTRACTS_ROOT)),)
+SEG5B_S5_ARGS += --contracts-root $(ENGINE_CONTRACTS_ROOT)
+endif
+ifneq ($(strip $(ENGINE_EXTERNAL_ROOTS)),)
+SEG5B_S5_ARGS += $(foreach root,$(ENGINE_EXTERNAL_ROOTS),--external-root $(root))
+endif
+ifneq ($(strip $(ENGINE_RUNS_ROOT)),)
+SEG5B_S5_ARGS += --runs-root $(ENGINE_RUNS_ROOT)
+endif
+ifneq ($(strip $(SEG5B_S5_RUN_ID)),)
+SEG5B_S5_ARGS += --run-id $(SEG5B_S5_RUN_ID)
+endif
+SEG5B_S5_CMD = $(PY_ENGINE) -m engine.cli.s5_validation_bundle_5b $(SEG5B_S5_ARGS)
+
 
 SEG5A_S1_ARGS = --contracts-layout $(ENGINE_CONTRACTS_LAYOUT)
 ifneq ($(strip $(ENGINE_CONTRACTS_ROOT)),)
@@ -1762,7 +1778,7 @@ PELIAS_CACHED_CMD = $(PY_SCRIPT) scripts/build_pelias_cached_sqlite_3b.py --peli
 VIRTUAL_SETTLEMENT_CMD = $(PY_SCRIPT) scripts/build_virtual_settlement_coords_3b.py
 
 
-.PHONY: all preflight-seg1a segment1a segment1a-s0 segment1a-s1 segment1a-s2 segment1a-s3 segment1a-s4 segment1a-s5 segment1a-s6 segment1a-s7 segment1a-s8 segment1a-s9 segment1a-s9-archive segment1b segment1b-s0 segment1b-s1 segment1b-s2 segment1b-s3 segment1b-s4 segment1b-s5 segment1b-s6 segment1b-s7 segment1b-s8 segment1b-s9 segment1b-s9-archive segment2a-s0 segment2a-s1 segment2a-s2 segment2a-s3 segment2a-s4 segment2a-s5 segment2b segment2b-s0 segment2b-s1 segment2b-s2 segment2b-s3 segment2b-s4 segment2b-s5 segment2b-s6 segment2b-s7 segment2b-s8 segment2b-arrival-roster segment3a segment3a-s0 segment3a-s1 segment3a-s2 segment3a-s3 segment3a-s4 segment3a-s5 segment3a-s6 segment3a-s7 segment3b-s0 segment3b-s1 segment3b-s2 segment3b-s3 segment3b-s4 segment3b-s5 segment5a segment5a-s0 segment5a-s1 segment5a-s2 segment5a-s3 segment5a-s4 segment5a-s5 segment5b-s0 segment5b-s1 segment5b-s2 segment5b-s3 segment5b-s4 merchant_ids hurdle_exports refresh_merchant_deps currency_refs virtual_edge_policy zone_floor_policy country_zone_alphas crossborder_features merchant_class_policy_5a demand_scale_policy_5a shape_library_5a scenario_calendar_5a policies_5a cdn_weights_ext mcc_channel_rules cdn_country_weights virtual_validation cdn_key_digest hrsl_raster pelias_cached virtual_settlement_coords profile-all profile-seg1b clean-results
+.PHONY: all preflight-seg1a segment1a segment1a-s0 segment1a-s1 segment1a-s2 segment1a-s3 segment1a-s4 segment1a-s5 segment1a-s6 segment1a-s7 segment1a-s8 segment1a-s9 segment1a-s9-archive segment1b segment1b-s0 segment1b-s1 segment1b-s2 segment1b-s3 segment1b-s4 segment1b-s5 segment1b-s6 segment1b-s7 segment1b-s8 segment1b-s9 segment1b-s9-archive segment2a-s0 segment2a-s1 segment2a-s2 segment2a-s3 segment2a-s4 segment2a-s5 segment2b segment2b-s0 segment2b-s1 segment2b-s2 segment2b-s3 segment2b-s4 segment2b-s5 segment2b-s6 segment2b-s7 segment2b-s8 segment2b-arrival-roster segment3a segment3a-s0 segment3a-s1 segment3a-s2 segment3a-s3 segment3a-s4 segment3a-s5 segment3a-s6 segment3a-s7 segment3b-s0 segment3b-s1 segment3b-s2 segment3b-s3 segment3b-s4 segment3b-s5 segment5a segment5a-s0 segment5a-s1 segment5a-s2 segment5a-s3 segment5a-s4 segment5a-s5 segment5b-s0 segment5b-s1 segment5b-s2 segment5b-s3 segment5b-s4 segment5b-s5 merchant_ids hurdle_exports refresh_merchant_deps currency_refs virtual_edge_policy zone_floor_policy country_zone_alphas crossborder_features merchant_class_policy_5a demand_scale_policy_5a shape_library_5a scenario_calendar_5a policies_5a cdn_weights_ext mcc_channel_rules cdn_country_weights virtual_validation cdn_key_digest hrsl_raster pelias_cached virtual_settlement_coords profile-all profile-seg1b clean-results
 .ONESHELL: segment1a segment1b 
 
 all: segment1a segment1b segment2a segment2b segment3a segment3b segment5a
@@ -2180,6 +2196,10 @@ segment5b-s3:
 segment5b-s4:
 	@echo "Running Segment 5B S4 arrival events"
 	@$(SEG5B_S4_CMD)
+
+segment5b-s5:
+	@echo "Running Segment 5B S5 validation bundle"
+	@$(SEG5B_S5_CMD)
 
 segment5a: segment5a-s0 segment5a-s1 segment5a-s2 segment5a-s3 segment5a-s4 segment5a-s5
 
