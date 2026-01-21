@@ -2,9 +2,8 @@ $schema: "https://json-schema.org/draft/2020-12/schema"
 $id: schemas.6A.yaml
 title: "Layer-3 / Segment 6A — business dataset schemas"
 description: >-
-  Anchors for the Layer-3 / Segment 6A business datasets. Each anchor is a
-  placeholder; implementation work will extend these schema nodes with the
-  concrete field definitions derived from the state specs.
+  Anchors for the Layer-3 / Segment 6A business datasets. Each anchor provides
+  the concrete field definitions required by the 6A state specifications.
 type: object
 additionalProperties: false
 

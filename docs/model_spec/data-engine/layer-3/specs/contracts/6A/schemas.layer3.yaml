@@ -40,6 +40,10 @@ $defs:
     minimum: 0
     maximum: 18446744073709551615
     description: Unsigned 64-bit integer.
+  contract_file:
+    type: object
+    additionalProperties: true
+    description: Generic schema placeholder for contract files (dictionary, registry, schema packs).
   rng_envelope_v1:
     type: object
     required:
