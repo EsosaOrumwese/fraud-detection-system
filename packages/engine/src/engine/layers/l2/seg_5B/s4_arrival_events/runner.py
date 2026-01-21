@@ -15,6 +15,7 @@ import platform
 import re
 import struct
 import subprocess
+import threading
 import time
 import traceback
 import uuid
@@ -494,8 +495,8 @@ def _iter_parquet_batches(paths: Iterable[Path], columns: list[str]) -> Iterator
     if _HAVE_PYARROW:
         for path in paths:
             pf = pq.ParquetFile(path)
-            for rg in range(pf.num_row_groups):
-                yield pf.read_row_group(rg, columns=columns)
+            for batch in pf.iter_batches(batch_size=BATCH_SIZE, columns=columns):
+                yield batch
     else:
         for path in paths:
             df = pl.read_parquet(path, columns=columns)
@@ -1067,6 +1068,13 @@ def _draw_philox_u64(
 def _init_s4_worker(context: dict) -> None:
     global _S4_WORKER_CONTEXT
     ctx = dict(context)
+    worker_logger = None
+    run_log_path = ctx.get("run_log_path")
+    if run_log_path:
+        add_file_handler(Path(run_log_path))
+        worker_logger = get_logger("engine.layers.l2.seg_5B.s4_arrival_events.worker")
+    else:
+        worker_logger = get_logger("engine.layers.l2.seg_5B.s4_arrival_events.worker")
     shared_root = ctx.get("shared_maps_root")
     if shared_root:
         ctx["shared_maps"] = _load_shared_maps(Path(shared_root))
@@ -1100,6 +1108,15 @@ def _init_s4_worker(context: dict) -> None:
     if summary_schema is not None:
         ctx["summary_row_validator"] = Draft202012Validator(summary_schema)
     if ctx.get("compiled_kernel"):
+        def _coerce_key_matrix(array: np.ndarray, field_a: str, field_b: str) -> np.ndarray:
+            if array.ndim == 2:
+                return np.ascontiguousarray(array, dtype=np.int64)
+            if array.dtype.fields is None:
+                return np.ascontiguousarray(array, dtype=np.int64)
+            col_a = np.asarray(array[field_a], dtype=np.int64)
+            col_b = np.asarray(array[field_b], dtype=np.int64)
+            return np.ascontiguousarray(np.column_stack((col_a, col_b)), dtype=np.int64)
+
         shared_maps = ctx.get("shared_maps")
         tzid_list = shared_maps.get("tzid_list") if shared_maps else None
         if tzid_list is not None:
@@ -1123,6 +1140,26 @@ def _init_s4_worker(context: dict) -> None:
         edge_prefix = ctx.get("edge_prefix")
         if edge_prefix:
             ctx["edge_prefix_bytes"] = np.frombuffer(edge_prefix, dtype=np.uint8)
+        if shared_maps:
+            site_keys = shared_maps.get("site_keys")
+            if site_keys is not None:
+                ctx["site_keys_compiled"] = _coerce_key_matrix(site_keys, "merchant_id", "tz_idx")
+            site_tz_keys = shared_maps.get("site_tz_keys")
+            if site_tz_keys is not None:
+                ctx["site_tz_keys_compiled"] = _coerce_key_matrix(site_tz_keys, "merchant_id", "site_id")
+        if s4_numba.numba_available():
+            warmup_start = time.monotonic()
+            if worker_logger:
+                worker_logger.info(
+                    "S4: compiled-kernel warmup start (worker_pid=%s)", os.getpid()
+                )
+            s4_numba.warmup_compiled_kernel()
+            if worker_logger:
+                worker_logger.info(
+                    "S4: compiled-kernel warmup complete (worker_pid=%s elapsed=%.2fs)",
+                    os.getpid(),
+                    time.monotonic() - warmup_start,
+                )
     _S4_WORKER_CONTEXT = ctx
 
 
@@ -1190,6 +1227,8 @@ def _process_s4_batch_impl(payload: dict) -> dict:
     summary_writer = None
     events_chunks: list[pl.DataFrame] = []
     summary_chunks: list[pl.DataFrame] = []
+
+    worker_logger = get_logger("engine.layers.l2.seg_5B.s4_arrival_events.worker")
 
     manifest_fingerprint = str(ctx["manifest_fingerprint"])
     parameter_hash = str(ctx["parameter_hash"])
@@ -1393,6 +1432,8 @@ def _process_s4_batch_impl(payload: dict) -> dict:
         edge_alias_alias = shared_maps.get("edge_alias_alias")
         edge_alias_prob_offsets = shared_maps.get("edge_alias_prob_offsets")
         edge_alias_prob_counts = shared_maps.get("edge_alias_prob_counts")
+        site_keys_compiled = ctx.get("site_keys_compiled")
+        site_tz_keys_compiled = ctx.get("site_tz_keys_compiled")
         required_arrays = [
             tz_instants_flat,
             tz_offsets_flat,
@@ -1411,6 +1452,8 @@ def _process_s4_batch_impl(payload: dict) -> dict:
             edge_alias_alias,
             edge_alias_prob_offsets,
             edge_alias_prob_counts,
+            site_keys_compiled,
+            site_tz_keys_compiled,
         ]
         if any(item is None for item in required_arrays):
             compiled_kernel_ready = False
@@ -1435,6 +1478,51 @@ def _process_s4_batch_impl(payload: dict) -> dict:
 
         total_events = int(np.sum(counts_arr[counts_arr > 0]))
         if total_events > 0:
+            progress = np.zeros(2, dtype=np.int64)
+            progress_stride = max(1, int(len(merchants_arr) / 50))
+            progress_interval = 30.0
+            progress_stop = threading.Event()
+
+            def _log_progress() -> None:
+                start = time.monotonic()
+                while not progress_stop.wait(progress_interval):
+                    elapsed = time.monotonic() - start
+                    rows_done = int(progress[0])
+                    events_done = int(progress[1])
+                    if events_done <= 0:
+                        rate = 0.0
+                        eta = None
+                    else:
+                        rate = events_done / elapsed if elapsed > 0 else 0.0
+                        eta = (
+                            float(total_events - events_done) / rate
+                            if rate > 0.0
+                            else None
+                        )
+                    worker_logger.info(
+                        "S4: batch progress scenario=%s batch_id=%d bucket_rows=%d/%d arrivals=%d/%d output=arrival_events_5B elapsed=%.2fs rate=%.2f arrivals/s eta=%s",
+                        scenario_id,
+                        batch_id,
+                        rows_done,
+                        len(merchants_arr),
+                        events_done,
+                        total_events,
+                        elapsed,
+                        rate,
+                        f"{eta:.2f}s" if eta is not None else "unknown",
+                    )
+
+            worker_logger.info(
+                "S4: batch start scenario=%s batch_id=%d bucket_rows=%d arrivals=%d (bucket_counts->arrival_events_5B progress_interval=%.0fs)",
+                scenario_id,
+                batch_id,
+                len(merchants_arr),
+                total_events,
+                progress_interval,
+            )
+            progress_thread = threading.Thread(target=_log_progress, daemon=True)
+            progress_thread.start()
+
             out_arrival_seq = np.zeros(total_events, dtype=np.int64)
             out_ts_utc_micros = np.zeros(total_events, dtype=np.int64)
             out_tzid_primary_idx = np.full(total_events, -1, dtype=np.int32)
@@ -1452,72 +1540,78 @@ def _process_s4_batch_impl(payload: dict) -> dict:
             rng_last = np.zeros((3, 2), dtype=np.int64)
             error_state = np.zeros(2, dtype=np.int64)
 
-            out_size = s4_numba.expand_batch_kernel(
-                merchants_arr,
-                zone_idx_arr,
-                bucket_idx_arr,
-                counts_arr,
-                arrival_seq_arr,
-                bucket_start_micros,
-                bucket_duration_micros,
-                bucket_duration_seconds,
-                classification_keys,
-                classification_modes,
-                settlement_keys,
-                settlement_tz_index,
-                edge_keys,
-                edge_offsets,
-                edge_counts,
-                edge_ids_arr,
-                edge_tz_index,
-                edge_alias_prob,
-                edge_alias_alias,
-                edge_alias_prob_offsets,
-                edge_alias_prob_counts,
-                site_keys,
-                site_offsets,
-                site_counts,
-                site_prob,
-                site_alias,
-                site_site_orders,
-                fallback_keys,
-                fallback_offsets,
-                fallback_counts,
-                fallback_prob,
-                fallback_alias,
-                fallback_site_orders,
-                site_tz_keys,
-                site_tz_values,
-                tz_instants_flat,
-                tz_offsets_flat,
-                tz_offset_offsets,
-                tz_offset_counts,
-                tzid_bytes,
-                tzid_offsets,
-                tzid_lengths,
-                time_prefix_bytes,
-                site_prefix_bytes,
-                edge_prefix_bytes,
-                max_arrivals_per_bucket,
-                p_virtual_hybrid,
-                draws_per_arrival,
-                out_arrival_seq,
-                out_ts_utc_micros,
-                out_tzid_primary_idx,
-                out_ts_local_primary_micros,
-                out_tzid_operational_idx,
-                out_ts_local_operational_micros,
-                out_tzid_settlement_idx,
-                out_ts_local_settlement_micros,
-                out_site_id,
-                out_edge_id,
-                out_is_virtual,
-                summary_physical,
-                summary_virtual,
-                missing_alias_flags,
-                rng_last,
-                error_state,
-            )
+            try:
+                out_size = s4_numba.expand_batch_kernel(
+                    merchants_arr,
+                    zone_idx_arr,
+                    bucket_idx_arr,
+                    counts_arr,
+                    arrival_seq_arr,
+                    bucket_start_micros,
+                    bucket_duration_micros,
+                    bucket_duration_seconds,
+                    classification_keys,
+                    classification_modes,
+                    settlement_keys,
+                    settlement_tz_index,
+                    edge_keys,
+                    edge_offsets,
+                    edge_counts,
+                    edge_ids_arr,
+                    edge_tz_index,
+                    edge_alias_prob,
+                    edge_alias_alias,
+                    edge_alias_prob_offsets,
+                    edge_alias_prob_counts,
+                    site_keys_compiled,
+                    site_offsets,
+                    site_counts,
+                    site_prob,
+                    site_alias,
+                    site_site_orders,
+                    fallback_keys,
+                    fallback_offsets,
+                    fallback_counts,
+                    fallback_prob,
+                    fallback_alias,
+                    fallback_site_orders,
+                    site_tz_keys_compiled,
+                    site_tz_values,
+                    tz_instants_flat,
+                    tz_offsets_flat,
+                    tz_offset_offsets,
+                    tz_offset_counts,
+                    tzid_bytes,
+                    tzid_offsets,
+                    tzid_lengths,
+                    time_prefix_bytes,
+                    site_prefix_bytes,
+                    edge_prefix_bytes,
+                    max_arrivals_per_bucket,
+                    p_virtual_hybrid,
+                    draws_per_arrival,
+                    out_arrival_seq,
+                    out_ts_utc_micros,
+                    out_tzid_primary_idx,
+                    out_ts_local_primary_micros,
+                    out_tzid_operational_idx,
+                    out_ts_local_operational_micros,
+                    out_tzid_settlement_idx,
+                    out_ts_local_settlement_micros,
+                    out_site_id,
+                    out_edge_id,
+                    out_is_virtual,
+                    summary_physical,
+                    summary_virtual,
+                    missing_alias_flags,
+                    rng_last,
+                    error_state,
+                    progress,
+                    np.int64(progress_stride),
+                )
+            finally:
+                progress_stop.set()
+                progress_thread.join(timeout=5)
             if int(error_state[0]) != 0:
                 raise EngineFailure(
                     "F4",
@@ -1602,15 +1696,15 @@ def _process_s4_batch_impl(payload: dict) -> dict:
             )
             events_df = events_df.with_columns(
                 pl.from_epoch("ts_utc_micros", time_unit="us")
-                .dt.strftime("%Y-%m-%dT%H:%M:%S.%fZ")
+                .dt.strftime("%Y-%m-%dT%H:%M:%S.%6fZ")
                 .alias("ts_utc"),
                 pl.from_epoch("ts_local_primary_micros", time_unit="us")
-                .dt.strftime("%Y-%m-%dT%H:%M:%S.%fZ")
+                .dt.strftime("%Y-%m-%dT%H:%M:%S.%6fZ")
                 .alias("ts_local_primary"),
                 pl.when(pl.col("tzid_operational").is_not_null())
                 .then(
                     pl.from_epoch("ts_local_operational_micros", time_unit="us").dt.strftime(
-                        "%Y-%m-%dT%H:%M:%S.%fZ"
+                        "%Y-%m-%dT%H:%M:%S.%6fZ"
                     )
                 )
                 .otherwise(None)
@@ -1618,7 +1712,7 @@ def _process_s4_batch_impl(payload: dict) -> dict:
                 pl.when(pl.col("tzid_settlement").is_not_null())
                 .then(
                     pl.from_epoch("ts_local_settlement_micros", time_unit="us").dt.strftime(
-                        "%Y-%m-%dT%H:%M:%S.%fZ"
+                        "%Y-%m-%dT%H:%M:%S.%6fZ"
                     )
                 )
                 .otherwise(None)
@@ -1644,7 +1738,10 @@ def _process_s4_batch_impl(payload: dict) -> dict:
 
             if event_row_validator is not None:
                 sample_df = events_df if output_validate_full else events_df.head(output_sample_rows)
-                sample_rows = sample_df.to_dicts()
+                sample_rows = [
+                    {key: value for key, value in row.items() if value is not None}
+                    for row in sample_df.to_dicts()
+                ]
                 _validate_rows(sample_rows, event_row_validator, "arrival_events")
 
             if _HAVE_PYARROW and pq is not None:
@@ -4104,6 +4201,7 @@ def run_s4(config: EngineConfig, run_id: Optional[str] = None) -> S4Result:
                         "parameter_hash": str(parameter_hash),
                         "seed": int(seed),
                         "spec_version": str(spec_version),
+                        "run_log_path": str(run_log_path),
                         "bucket_map": bucket_map,
                         "bucket_start_micros": bucket_start_micros,
                         "bucket_duration_micros": bucket_duration_micros,
@@ -4230,7 +4328,7 @@ def run_s4(config: EngineConfig, run_id: Optional[str] = None) -> S4Result:
                             counts_files,
                             ["merchant_id", "zone_representation", "channel_group", "bucket_index", "count_N", "lambda_realised"],
                         ):
-                            if _HAVE_PYARROW and pa and isinstance(batch, pa.Table):
+                            if _HAVE_PYARROW and pa and isinstance(batch, (pa.Table, pa.RecordBatch)):
                                 df = pl.from_arrow(batch)
                             else:
                                 df = batch
@@ -4465,7 +4563,7 @@ def run_s4(config: EngineConfig, run_id: Optional[str] = None) -> S4Result:
                     counts_files,
                     ["merchant_id", "zone_representation", "channel_group", "bucket_index", "count_N", "lambda_realised"],
                 ):
-                    if _HAVE_PYARROW and pa and isinstance(batch, pa.Table):
+                    if _HAVE_PYARROW and pa and isinstance(batch, (pa.Table, pa.RecordBatch)):
                         df = pl.from_arrow(batch)
                     else:
                         df = batch

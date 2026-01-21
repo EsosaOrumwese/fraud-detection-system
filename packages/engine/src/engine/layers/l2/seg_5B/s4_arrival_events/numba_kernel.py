@@ -113,6 +113,146 @@ def build_edge_alias_arrays(
     )
 
 
+def warmup_compiled_kernel() -> None:
+    if not _NUMBA_AVAILABLE:
+        return
+    merchants = np.zeros(1, dtype=np.uint64)
+    zone_idx = np.zeros(1, dtype=np.int32)
+    bucket_index = np.zeros(1, dtype=np.int64)
+    count_n = np.zeros(1, dtype=np.int64)
+    arrival_seq_start = np.zeros(1, dtype=np.int64)
+    bucket_start_micros = np.zeros(1, dtype=np.int64)
+    bucket_duration_micros = np.ones(1, dtype=np.int64)
+    bucket_duration_seconds = np.ones(1, dtype=np.float64)
+    class_keys = np.zeros(1, dtype=np.uint64)
+    class_modes = np.zeros(1, dtype=np.int8)
+    settlement_keys = np.zeros(1, dtype=np.uint64)
+    settlement_tz_index = np.zeros(1, dtype=np.int32)
+    edge_keys = np.zeros(1, dtype=np.uint64)
+    edge_offsets = np.zeros(1, dtype=np.int64)
+    edge_counts = np.zeros(1, dtype=np.int32)
+    edge_ids = np.zeros(1, dtype=np.int64)
+    edge_tz_index = np.zeros(1, dtype=np.int32)
+    edge_alias_prob = np.zeros(1, dtype=np.float64)
+    edge_alias_alias = np.zeros(1, dtype=np.int64)
+    edge_alias_offsets = np.zeros(1, dtype=np.int64)
+    edge_alias_counts = np.zeros(1, dtype=np.int32)
+    site_keys = np.zeros((1, 2), dtype=np.int64)
+    site_offsets = np.zeros(1, dtype=np.int64)
+    site_counts = np.zeros(1, dtype=np.int32)
+    site_prob = np.zeros(1, dtype=np.float64)
+    site_alias = np.zeros(1, dtype=np.int64)
+    site_site_orders = np.zeros(1, dtype=np.int64)
+    fallback_keys = np.zeros(1, dtype=np.uint64)
+    fallback_offsets = np.zeros(1, dtype=np.int64)
+    fallback_counts = np.zeros(1, dtype=np.int32)
+    fallback_prob = np.zeros(1, dtype=np.float64)
+    fallback_alias = np.zeros(1, dtype=np.int64)
+    fallback_site_orders = np.zeros(1, dtype=np.int64)
+    site_tz_keys = np.zeros((1, 2), dtype=np.int64)
+    site_tz_values = np.zeros(1, dtype=np.int32)
+    tz_instants_flat = np.zeros(1, dtype=np.int64)
+    tz_offsets_flat = np.zeros(1, dtype=np.int32)
+    tz_offset_offsets = np.zeros(1, dtype=np.int64)
+    tz_offset_counts = np.zeros(1, dtype=np.int32)
+    tzid_bytes = np.zeros(1, dtype=np.uint8)
+    tzid_offsets = np.zeros(1, dtype=np.int64)
+    tzid_lengths = np.zeros(1, dtype=np.int32)
+    time_prefix = np.zeros(1, dtype=np.uint8)
+    site_prefix = np.zeros(1, dtype=np.uint8)
+    edge_prefix = np.zeros(1, dtype=np.uint8)
+    max_arrivals_per_bucket = 1
+    p_virtual_hybrid = 0.0
+    draws_per_arrival = 1
+    out_arrival_seq = np.zeros(1, dtype=np.int64)
+    out_ts_utc_micros = np.zeros(1, dtype=np.int64)
+    out_tzid_primary_idx = np.zeros(1, dtype=np.int32)
+    out_ts_local_primary_micros = np.zeros(1, dtype=np.int64)
+    out_tzid_operational_idx = np.zeros(1, dtype=np.int32)
+    out_ts_local_operational_micros = np.zeros(1, dtype=np.int64)
+    out_tzid_settlement_idx = np.zeros(1, dtype=np.int32)
+    out_ts_local_settlement_micros = np.zeros(1, dtype=np.int64)
+    out_site_id = np.zeros(1, dtype=np.int64)
+    out_edge_id = np.zeros(1, dtype=np.int64)
+    out_is_virtual = np.zeros(1, dtype=np.uint8)
+    summary_physical = np.zeros(1, dtype=np.int64)
+    summary_virtual = np.zeros(1, dtype=np.int64)
+    missing_alias_flags = np.zeros(1, dtype=np.uint8)
+    rng_last = np.zeros((3, 2), dtype=np.int64)
+    error_state = np.zeros(2, dtype=np.int64)
+    progress = np.zeros(2, dtype=np.int64)
+    progress_stride = np.int64(1)
+
+    expand_batch_kernel(
+        merchants,
+        zone_idx,
+        bucket_index,
+        count_n,
+        arrival_seq_start,
+        bucket_start_micros,
+        bucket_duration_micros,
+        bucket_duration_seconds,
+        class_keys,
+        class_modes,
+        settlement_keys,
+        settlement_tz_index,
+        edge_keys,
+        edge_offsets,
+        edge_counts,
+        edge_ids,
+        edge_tz_index,
+        edge_alias_prob,
+        edge_alias_alias,
+        edge_alias_offsets,
+        edge_alias_counts,
+        site_keys,
+        site_offsets,
+        site_counts,
+        site_prob,
+        site_alias,
+        site_site_orders,
+        fallback_keys,
+        fallback_offsets,
+        fallback_counts,
+        fallback_prob,
+        fallback_alias,
+        fallback_site_orders,
+        site_tz_keys,
+        site_tz_values,
+        tz_instants_flat,
+        tz_offsets_flat,
+        tz_offset_offsets,
+        tz_offset_counts,
+        tzid_bytes,
+        tzid_offsets,
+        tzid_lengths,
+        time_prefix,
+        site_prefix,
+        edge_prefix,
+        max_arrivals_per_bucket,
+        p_virtual_hybrid,
+        draws_per_arrival,
+        out_arrival_seq,
+        out_ts_utc_micros,
+        out_tzid_primary_idx,
+        out_ts_local_primary_micros,
+        out_tzid_operational_idx,
+        out_ts_local_operational_micros,
+        out_tzid_settlement_idx,
+        out_ts_local_settlement_micros,
+        out_site_id,
+        out_edge_id,
+        out_is_virtual,
+        summary_physical,
+        summary_virtual,
+        missing_alias_flags,
+        rng_last,
+        error_state,
+        progress,
+        progress_stride,
+    )
+
+
 _PREFIX_MERCHANT = np.frombuffer(b"merchant_id=", dtype=np.uint8)
 _PREFIX_ZONE = np.frombuffer(b"|zone=", dtype=np.uint8)
 _PREFIX_BUCKET = np.frombuffer(b"|bucket_index=", dtype=np.uint8)
@@ -203,11 +343,11 @@ if _NUMBA_AVAILABLE:
         dtype=np.uint32,
     )
 
-    @nb.njit(cache=True)
+    @nb.njit(cache=True, nogil=True)
     def _rotr(value: np.uint32, shift: int) -> np.uint32:
         return ((value >> shift) | (value << (32 - shift))) & np.uint32(0xFFFFFFFF)
 
-    @nb.njit(cache=True)
+    @nb.njit(cache=True, nogil=True)
     def _sha256_compress(state: np.ndarray, block: np.ndarray) -> None:
         w = np.empty(64, dtype=np.uint32)
         for i in range(16):
@@ -254,7 +394,7 @@ if _NUMBA_AVAILABLE:
         state[6] = (state[6] + g) & np.uint32(0xFFFFFFFF)
         state[7] = (state[7] + h) & np.uint32(0xFFFFFFFF)
 
-    @nb.njit(cache=True)
+    @nb.njit(cache=True, nogil=True)
     def _sha256_update(state, buffer, buffer_len, data, data_len, total_len):
         for i in range(data_len):
             buffer[buffer_len] = data[i]
@@ -265,7 +405,7 @@ if _NUMBA_AVAILABLE:
         total_len += data_len
         return buffer_len, total_len
 
-    @nb.njit(cache=True)
+    @nb.njit(cache=True, nogil=True)
     def sha256_digest(prefix_bytes, prefix_len, msg_bytes, msg_len, digest_out):
         state = _H0.copy()
         buffer = np.zeros(64, dtype=np.uint8)
@@ -299,21 +439,21 @@ if _NUMBA_AVAILABLE:
             digest_out[i * 4 + 2] = np.uint8((val >> 8) & np.uint32(0xFF))
             digest_out[i * 4 + 3] = np.uint8(val & np.uint32(0xFF))
 
-    @nb.njit(cache=True)
+    @nb.njit(cache=True, nogil=True)
     def _u64_from_digest_be(digest, start):
         val = np.uint64(0)
         for i in range(8):
             val = (val << np.uint64(8)) | np.uint64(digest[start + i])
         return val
 
-    @nb.njit(cache=True)
+    @nb.njit(cache=True, nogil=True)
     def _mul_hi_lo(a: np.uint64, b: np.uint64) -> Tuple[np.uint64, np.uint64]:
         product = a * b
         lo = product & np.uint64(0xFFFFFFFFFFFFFFFF)
         hi = (product >> np.uint64(64)) & np.uint64(0xFFFFFFFFFFFFFFFF)
         return hi, lo
 
-    @nb.njit(cache=True)
+    @nb.njit(cache=True, nogil=True)
     def philox2x64_10(counter_hi, counter_lo, key):
         c0 = counter_lo & np.uint64(0xFFFFFFFFFFFFFFFF)
         c1 = counter_hi & np.uint64(0xFFFFFFFFFFFFFFFF)
@@ -325,7 +465,7 @@ if _NUMBA_AVAILABLE:
             k0 = (k0 + np.uint64(0x9E3779B97F4A7C15)) & np.uint64(0xFFFFFFFFFFFFFFFF)
         return c0, c1
 
-    @nb.njit(cache=True)
+    @nb.njit(cache=True, nogil=True)
     def add_u128(counter_hi, counter_lo, increment):
         total_lo = counter_lo + increment
         new_lo = total_lo & np.uint64(0xFFFFFFFFFFFFFFFF)
@@ -333,11 +473,13 @@ if _NUMBA_AVAILABLE:
         new_hi = (counter_hi + carry) & np.uint64(0xFFFFFFFFFFFFFFFF)
         return new_hi, new_lo
 
-    @nb.njit(cache=True)
-    def u01_from_u64(value):
-        return (float(value) + 0.5) * (1.0 / float(2**64))
+    _INV_TWO_POW_64 = 1.0 / 18446744073709551616.0
 
-    @nb.njit(cache=True)
+    @nb.njit(cache=True, nogil=True)
+    def u01_from_u64(value):
+        return (float(value) + 0.5) * _INV_TWO_POW_64
+
+    @nb.njit(cache=True, nogil=True)
     def alias_pick(prob, alias, u):
         n = prob.shape[0]
         if n == 0:
@@ -350,7 +492,7 @@ if _NUMBA_AVAILABLE:
             return idx
         return int(alias[idx])
 
-    @nb.njit(cache=True)
+    @nb.njit(cache=True, nogil=True)
     def write_uint_decimal(value, buf, pos):
         if value == 0:
             buf[pos] = 48
@@ -367,7 +509,7 @@ if _NUMBA_AVAILABLE:
             pos += 1
         return pos
 
-    @nb.njit(cache=True)
+    @nb.njit(cache=True, nogil=True)
     def build_domain_key(
         merchant_id,
         zone_bytes,
@@ -399,7 +541,7 @@ if _NUMBA_AVAILABLE:
         pos = write_uint_decimal(arrival_seq, out_buf, pos)
         return pos
 
-    @nb.njit(cache=True)
+    @nb.njit(cache=True, nogil=True)
     def lookup_sorted_key(keys, key):
         lo = 0
         hi = keys.shape[0] - 1
@@ -414,7 +556,7 @@ if _NUMBA_AVAILABLE:
                 hi = mid - 1
         return -1
 
-    @nb.njit(cache=True)
+    @nb.njit(cache=True, nogil=True)
     def lookup_structured_key(keys, key1, key2):
         lo = 0
         hi = keys.shape[0] - 1
@@ -430,7 +572,7 @@ if _NUMBA_AVAILABLE:
                 hi = mid - 1
         return -1
 
-    @nb.njit(cache=True)
+    @nb.njit(cache=True, nogil=True)
     def tz_offset_minutes(
         instants_flat,
         offsets_flat,
@@ -457,7 +599,7 @@ if _NUMBA_AVAILABLE:
             idx = 0
         return int(offsets_flat[start + idx])
 
-    @nb.njit(cache=True)
+    @nb.njit(cache=True, nogil=True)
     def expand_batch_kernel(
         merchants,
         zone_idx,
@@ -523,6 +665,8 @@ if _NUMBA_AVAILABLE:
         missing_alias_flags,
         rng_last,
         error_state,
+        progress,
+        progress_stride,
     ):
         pos = 0
         rng_time_events = 0
@@ -734,6 +878,12 @@ if _NUMBA_AVAILABLE:
                 out_edge_id[pos] = edge_id
                 out_is_virtual[pos] = 1 if is_virtual else 0
                 pos += 1
+            if progress_stride > 0 and (i % progress_stride) == 0:
+                progress[0] = i + 1
+                progress[1] = pos
+
+        progress[0] = merchants.shape[0]
+        progress[1] = pos
 
         rng_last[0, 0] = rng_time_events
         rng_last[1, 0] = rng_site_events

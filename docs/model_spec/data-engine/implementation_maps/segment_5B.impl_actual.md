@@ -3356,3 +3356,245 @@ Risk notes
 
 Next validation
 - Run S4 with `ENGINE_5B_S4_COMPILED_KERNEL=1` and confirm ETA, outputs, and RNG trace log rows; fallback to Python if errors appear.
+
+## 2026-01-21 05:30:00 - Plan: install numba + run full S4 benchmark
+
+Objective
+- Install numba so the compiled S4 kernel can execute, then run a full S4 benchmark (`make segment5b-s4`) with the compiled path enabled.
+
+Considerations
+- Python version must be compatible with the numba pin in `pyproject.toml`.
+- If the local interpreter is Python 3.12, numba 0.59 may not install; adjust dependency if needed and document the change.
+
+Steps
+1) Identify the active interpreter version (prefer `.venv` if present).
+2) Install numba into the active environment (pip/poetry as appropriate).
+3) Confirm `numba_available=True` for `s4_arrival_events.numba_kernel`.
+4) Run `make segment5b-s4` with `ENGINE_5B_S4_COMPILED_KERNEL=1` and capture completion status/ETA.
+
+Validation
+- Use log output to confirm `compiled_kernel=on` and record the observed runtime in the logbook.
+- If the run fails, record the error and adjust as needed.
+
+## 2026-01-21 05:31:20 - Dependency adjustment for Python 3.12
+
+Observation
+- The active interpreter is Python 3.12.7. The current numba pin (`>=0.59,<0.60`) does not support Python 3.12, so installation will fail.
+
+Decision
+- Update the numba constraint to `>=0.60,<0.61` so we can install a Py3.12-compatible build. This keeps the dependency bounded while enabling the compiled kernel.
+
+Next steps
+- Patch `pyproject.toml`, install numba into the `.venv`, then re-run the numba availability check before running S4.
+
+## 2026-01-21 05:33:20 - Resolve numpy version conflict
+
+Issue
+- Installing numba 0.60 pulled in numpy 2.0.2, but `feast` requires `numpy < 2`. This is a dependency conflict.
+
+Decision
+- Explicitly add a numpy constraint in `pyproject.toml` (`>=1.26.4,<2.0.0`) and downgrade numpy in the active environment to satisfy feast and numba.
+
+Steps
+- Patch `pyproject.toml` to include numpy constraint.
+- `pip install "numpy<2.0"` in the `.venv`.
+- Re-check numba availability.
+
+## 2026-01-21 05:51:20 - Corrective entry: fix numba u01 constant overflow
+
+Context
+- Ran the full 5B.S4 benchmark with `ENGINE_5B_S4_COMPILED_KERNEL=1`; the compiled kernel started but failed during numba compilation.
+- Error: `TypingError` in `u01_from_u64` caused by `2**64` being interpreted as an oversized integer constant in nopython mode.
+
+Decision
+- Replace `2**64` with a precomputed float constant (`1.0 / 18446744073709551616.0`) so numba treats the scale as a float literal and avoids the overflow check.
+- Keep the scaling logic identical to the Python path (uniform in (0,1)), just expressed in a numba-safe form.
+
+Corrective note
+- This entry is appended after the change because the fix was applied before logging. This note captures the decision path that should have been written first.
+
+Steps
+1) Patch `packages/engine/src/engine/layers/l2/seg_5B/s4_arrival_events/numba_kernel.py` in `u01_from_u64` to use `_INV_TWO_POW_64` float constant.
+2) Re-run `make segment5b-s4` with the compiled kernel enabled to validate that numba compilation succeeds.
+
+Validation
+- Confirm `compiled_kernel=on` in the logs and that the run proceeds without numba TypingError.
+
+## 2026-01-21 05:52:20 - Corrective entry: fix decorator placement for constant
+
+Context
+- After patching `_INV_TWO_POW_64`, a syntax error surfaced because the `@nb.njit` decorator was accidentally applied to the constant assignment.
+
+Decision
+- Keep `_INV_TWO_POW_64` as a plain module constant and attach the `@nb.njit` decorator to `u01_from_u64` only.
+
+Steps
+1) Remove the stray `@nb.njit` decorator above `_INV_TWO_POW_64`.
+2) Add `@nb.njit(cache=True)` above `u01_from_u64`.
+
+Validation
+- Re-run `make segment5b-s4` with compiled kernel enabled to confirm the module imports cleanly and S4 proceeds.
+
+## 2026-01-21 05:55:00 - Corrective entry: coerce structured keys for numba lookup
+
+Context
+- S4 compiled kernel failed with numba TypingError when indexing structured arrays (`site_keys`, `site_tz_keys`) using `keys[mid, 0]` in `lookup_structured_key`.
+- Numba does not support 2D indexing on record arrays, so the lookup must operate on a numeric 2D key matrix instead.
+
+Decision
+- Keep structured arrays for the Python path and shared maps, but build 2-column int64 matrices for the compiled kernel only.
+- Perform the conversion once per worker during `_init_s4_worker` and stash in the worker context to avoid per-batch overhead.
+
+Corrective note
+- This entry is appended after applying the fix because the patch was made before logging the plan; it records the decision path retroactively.
+
+Steps
+1) Add `_coerce_key_matrix` helper inside `_init_s4_worker` to convert structured key arrays to `Nx2` int64 matrices.
+2) Store `site_keys_compiled` and `site_tz_keys_compiled` in the worker context when compiled kernel is enabled.
+3) Require these arrays for the compiled kernel fast path and pass them into `expand_batch_kernel` instead of the structured arrays.
+
+Validation
+- Re-run `make segment5b-s4` with compiled kernel enabled and confirm numba compilation succeeds and the run proceeds.
+
+## 2026-01-21 05:57:30 - Corrective entry: fix timestamp formatting + optional fields in validation
+
+Context
+- Compiled kernel run progressed but failed schema validation because:
+  - `ts_utc`/`ts_local_*` strings contained 9 fractional digits (nanosecond-style), while the schema requires 6 microseconds.
+  - Optional fields (`tzid_settlement`, `tzid_operational`, `ts_local_*`) were present with `None` values in sample rows, which the validator rejects when type is `string`.
+
+Decision
+- Use Polars `strftime` with `%6f` to force microsecond precision in timestamps.
+- Keep `None` values in the DataFrame (matching the existing tuple path), but drop `None` keys from sample rows before validation so optional fields are omitted when absent.
+
+Corrective note
+- This entry is appended after applying the patch; it documents the decision path retroactively.
+
+Steps
+1) Update compiled-path timestamp formatting to `%Y-%m-%dT%H:%M:%S.%6fZ`.
+2) Filter `sample_rows` in compiled-path validation to remove `None` values before `_validate_rows`.
+
+Validation
+- Re-run `make segment5b-s4` with compiled kernel enabled and confirm validation passes for sample rows.
+
+## 2026-01-21 06:10:00 - Corrective entry: enforce batch sizing for pyarrow reads
+
+Context
+- The compiled kernel path can allocate output arrays sized to the total arrivals in a batch.
+- With pyarrow, `_iter_parquet_batches` was yielding full row groups, which can be very large; this caused high memory usage (several GB) and stalled progress on S4.
+
+Decision
+- Use pyarrow `iter_batches` with `BATCH_SIZE` to cap batch size even when pyarrow is available.
+- Teach the batch conversion path to accept `pa.RecordBatch` objects to avoid unnecessary conversions.
+
+Corrective note
+- This entry is appended after the patch; it documents the reasoning path retroactively.
+
+Steps
+1) Change `_iter_parquet_batches` to use `pf.iter_batches(batch_size=BATCH_SIZE, columns=columns)` when pyarrow is available.
+2) Update `isinstance` checks to accept `pa.RecordBatch` (in addition to `pa.Table`) when converting to Polars.
+
+Validation
+- Re-run `make segment5b-s4` with the compiled kernel enabled and observe memory usage and ETA.
+
+## 2026-01-21 06:40:24 - Plan: compiled-kernel warmup in worker init
+
+Problem
+- The compiled-kernel path stalls after the first few batch logs; likely the first batch triggers heavy Numba JIT compilation inside the worker, during which no progress logs appear.
+- This looks like a hang and risks another forced abort.
+
+Options considered
+1) Warm up the compiled kernel inside `_init_s4_worker` using a tiny dummy batch to force JIT compilation before real work begins.
+2) Add a pre-run serial warmup in the main process and keep worker init unchanged.
+3) Do nothing and accept the JIT stall as a one-time cost.
+
+Decision
+- Implement option 1. Warming up per worker makes the compile cost explicit and keeps the first real batch from stalling silently. Option 2 does not compile the worker process codepath because each process JITs separately. Option 3 is not acceptable given the operator experience.
+
+Planned changes
+- Add `warmup_compiled_kernel()` in `s4_arrival_events/numba_kernel.py` that calls `expand_batch_kernel()` with tiny dummy arrays (count=0) to compile without doing work.
+- In `_init_s4_worker`, when `compiled_kernel` is enabled and numba is available, call the warmup and log start/finish with elapsed time and worker PID.
+- Pass `run_log_path` into `worker_context` so the worker can attach the same run log file and emit narrative warmup logs.
+
+Invariants / checks
+- Dummy arrays must match dtypes expected by the kernel (uint64/int64/int32/float64) and include required shapes (e.g., `site_keys` as Nx2 int64).
+- Warmup must not mutate any real state or rely on run-specific data.
+
+Validation
+- Run `make segment5b-s4` with `ENGINE_5B_S4_COMPILED_KERNEL=1`; confirm the run log shows warmup start/complete lines before batch processing.
+
+## 2026-01-21 06:41:53 - Implemented: compiled-kernel warmup + worker logging
+
+Changes applied
+- Added `warmup_compiled_kernel()` in `packages/engine/src/engine/layers/l2/seg_5B/s4_arrival_events/numba_kernel.py` to JIT-compile the kernel with dummy arrays (count=0) and avoid heavy first-batch compilation.
+- Extended `_init_s4_worker` to attach the run log file (via `run_log_path`) and emit narrative warmup logs with elapsed time and worker PID.
+- Added `run_log_path` to the worker context so each worker can log warmup progress to the run log.
+
+Expected effect
+- The first compiled-kernel run should show a brief warmup log and then proceed to real batches without a silent stall; compilation cost becomes visible and predictable.
+
+Validation
+- Re-run `make segment5b-s4` with the compiled kernel enabled and verify warmup logs appear before the first batch; monitor ETA and memory usage.
+
+## 2026-01-21 06:58:13 - Validation note: warmup visible, run still stalls
+
+Observation
+- Warmup logs now appear for each worker (`S4: compiled-kernel warmup start/complete`), confirming the JIT cost is explicit.
+- After warmup, the run stops emitting progress logs and does not complete within 15 minutes; the process had to be terminated to avoid runaway usage.
+
+Implication
+- The stall is now likely due to per-batch work (large output arrays / heavy kernel execution) rather than silent compilation.
+
+Next options (pending approval)
+- Reduce batch size (introduce `ENGINE_5B_S4_BATCH_SIZE`) to bound per-batch runtime/memory.
+- Add coarse worker-side progress logs for long batches (elapsed, arrivals, ETA) so the operator sees forward motion even when the main process is waiting on futures.
+
+## 2026-01-21 07:31:55 - Implemented: worker-side batch progress logs
+
+Changes applied
+- Added progress tracking inside the compiled kernel (`progress` array + `progress_stride` updates).
+- Added a worker-side progress logger thread that emits a narrative progress line every 30 seconds while a batch is running, including elapsed time, rows/arrivals processed, rate, and ETA.
+- Logged a batch-start line per batch in the worker log so operators see immediate activity even when futures are running.
+
+Why this approach
+- Keeps logs light (time-based cadence) while satisfying the requirement for long-running loop progress reporting.
+- Progress is derived from kernel-updated counters, so it reflects actual work done instead of just wall-time.
+
+Validation
+- Re-run `make segment5b-s4` with `ENGINE_5B_S4_COMPILED_KERNEL=1` and confirm the run log contains `S4: batch start` and `S4: batch progress` lines from worker processes during long batches.
+
+## 2026-01-21 07:33:04 - Corrective entry: progress log wording/format
+
+Context
+- The initial progress log message used generic row labels and had a formatting typo in the ETA string.
+
+Decision
+- Update the log text to be narrative and state-aware (bucket_rows + arrival_events_5B), and fix the ETA formatting.
+
+Validation
+- Re-run S4 and verify progress lines read as expected.
+
+## 2026-01-21 07:48:02 - Corrective entry: ensure progress thread can run (nogil helpers)
+
+Context
+- The run log stopped updating after batch start lines; no worker progress logs appeared even after 30+ seconds.
+- This suggests the worker progress thread could not execute while the compiled kernel was running, likely due to the GIL being held by helper functions compiled without `nogil`.
+
+Decision
+- Apply `nogil=True` to all helper functions in `numba_kernel.py` so the compiled kernel can run without holding the GIL throughout, allowing the progress thread to emit logs during long batches.
+
+Corrective note
+- This change was applied immediately to unblock observability; this entry documents the decision path after the edit.
+
+Validation
+- Re-run `make segment5b-s4` and confirm worker progress logs appear at the 30s cadence during long batch execution.
+
+## 2026-01-21 07:58:01 - Validation note: progress still stalled after nogil
+
+Observation
+- Re-ran S4 with `nogil` on all numba helpers; warmup and batch-start logs appeared, but the run log stopped at 07:50:52 with no `S4: batch progress` lines even after waiting >30s.
+- This suggests the worker thread still cannot execute during the kernel call, so the progress-thread approach is ineffective.
+
+Next options (pending approval)
+- Chunk the compiled kernel call into smaller slices and log between slices (most reliable).
+- Log progress from the parent process while waiting on futures (coarser but simpler).
