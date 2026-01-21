@@ -338,3 +338,105 @@ Contract/prior digest encoding:
 - Applied fixes for `$defs` injection, sealed_inputs list validation, digest alignment, `path_template` resolution, and RNG temp file naming.
 - `make segment6a-s1` completes successfully for run_id `d61f08e2e45ef1bc28884034de4c1b68` (outputs: `s1_party_base_6A`, `s1_party_summary_6A`, RNG logs + event JSONL).
 - Noted warnings: `min_parties_per_country` below threshold in several countries; Polars `DataOrientationWarning` during buffer DataFrame creation (non-fatal).
+
+### Entry: 2026-01-21 19:10
+
+6A.S2 expanded spec review (lean path focus):
+- Read `docs/model_spec/data-engine/layer-3/specs/state-flow/6A/state.6A.s2.expanded.md`.
+- Potential heavy / unrealistic bindings identified:
+  - **Run-report dependencies (S0 & S1)**: spec requires latest run-report PASS for both 6A.S0 and 6A.S1, but Layer-3 run-report datasets are not yet defined in contracts. This is a practical blocker if enforced literally.
+  - **Per-account RNG event logging**: spec implies detailed `rng_event_*` emissions for count/allocation/attribute sampling; logging per-account would be prohibitive at scale.
+  - **Strict per-cell/account validation**: full FK checks and per-cell plan/base equality across all outputs can double IO unless done incrementally.
+  - **Mandatory product linkage rules**: spec treats `product_linkage_rules_6A` and `product_eligibility_config_6A` as required, but S0 currently allows optional missing; S2 would fail unless we relax or provide defaults.
+  - **Account_id derivation**: hashing per account for deterministic IDs may be expensive; sequential deterministic IDs within canonical order could be acceptable if injective and stable.
+- Lean implementation stance to propose:
+  1. **Gating**: require `s0_gate_receipt_6A` + `sealed_inputs_6A` + digest match; treat missing S0/S1 run-report as WARN-only; validate S1 base exists + schema-valid.
+  2. **RNG logging**: emit aggregated `rng_event_account_*` per cell or per batch (not per-account); `rng_trace_log` only per substream with totals.
+  3. **Validation**: enforce schema + uniqueness, but compute holdings/summary from streaming counters to avoid re-scans; sample FK validation instead of full join if needed.
+  4. **Product linkage rules**: if linkage configs absent but sealed inputs mark them optional, allow a permissive default (log WARN) rather than hard fail.
+  5. **Account_id**: deterministic sequential IDs in canonical order (country/segment/account_type/party) to avoid hash cost while remaining injective.
+- Questions for approval (lean relaxations):
+  - Allow run-report checks to be WARN-only if run-report datasets are absent in contracts?
+  - Accept aggregated RNG logs (per-cell/batch) instead of per-account events?
+  - If linkage configs are missing but sealed as optional, allow permissive default rules?
+- Permit deterministic sequential `account_id` instead of per-account hash IDs?
+
+### Entry: 2026-01-21 19:20
+
+6A.S2 implementation plan (lean path, approved recommendations):
+- **Problem framing:** Implement 6A.S2 account/product realisation with lean relaxations (run-report WARN-only if contracts missing; aggregated RNG logs; streaming outputs; permissive defaults for missing linkage configs) while honoring contracts and determinism.
+- **Contracts source:** `ContractSource(config.contracts_root, config.contracts_layout)` to keep dev/prod switchable without code changes.
+- **Inputs / authorities (sealed):**
+  - Gate/control: `s0_gate_receipt_6A`, `sealed_inputs_6A` (schemas.layer3.yaml anchors; digest law must match S0).
+  - Party base: `s1_party_base_6A` (schemas.6A.yaml#/s1/party_base).
+  - Priors/taxonomy: `prior_product_mix_6A`, `prior_account_per_party_6A`, `taxonomy_account_types_6A`, `taxonomy_party_6A`, `prior_segmentation_6A` (for segment profiles).
+  - Optional policies: `product_linkage_rules_6A`, `product_eligibility_config_6A` (if missing but sealed optional, apply permissive default).
+  - Contracts: dataset dictionary, artefact registry, schemas packs (metadata-only).
+- **Gating / preconditions (lean):**
+  - Require S0 gate receipt + sealed_inputs + digest match; verify upstream segments PASS per S0 receipt.
+  - S0/S1 run-reports: WARN-only if run-report datasets are not present in contracts.
+  - Require `s1_party_base_6A` partition exists + schema-valid; no run-report dependency.
+- **Domain & planning (RNG-free):**
+  - Base cell `b=(region_id, party_type, segment_id)` from S1 party base.
+  - Account cell `c=(b, account_type)` using product_mix `party_account_domain`:
+    - Allowed types by party_type (and by segment if `explicit_by_party_type_and_segment`).
+    - Enforce `constraints.disallow_zero_domain_cells` and `constraints.enforce_required_types`.
+    - Cross-check against account taxonomy eligibility (`owner_kind=PARTY`, `allowed_party_types`).
+  - Compute `lambda_acc_per_party(c)`:
+    - Base from `party_lambda_model.base_lambda_by_party_type`.
+    - Segment tilt from `segment_profiles` in segmentation prior if configured; otherwise log WARN and use base only.
+    - Context scaling ignored unless enabled + resolvable (lean default: `s_context=1`).
+  - Continuous targets: `N_acc_target(c)=N_party(b)*lambda_acc_per_party(c)`.
+- **Integerisation (RNG-bearing, aggregated event):**
+  - Use largest-remainder with Philox-based tie-breaks to allocate `N_acc_world_int` across all account cells.
+  - Emit one `rng_event_account_count_realisation` per world (context: total cells, totals), not per account.
+  - Invariant: `sum_c N_acc(c) == N_acc_world_int`, `N_acc(c) >= 0`.
+- **Allocation to parties (RNG-bearing, aggregated per cell):**
+  - For each base cell + account_type:
+    - Build deterministic weights `w_p` per party using account_per_party rules:
+      - Deterministic hash → `u0`/`u1` for zero-gate + lognormal weight.
+      - Apply tag adjustments using party taxonomy tags for the segment.
+      - Fail if `W_total=0` and `N_acc(c)>0`.
+    - Allocate integer counts per party using largest-remainder on `N_acc(c) * w_p / W_total` with RNG tie-breaks.
+    - Emit one `rng_event_account_allocation_sampling` per cell/account_type.
+  - Invariants: per-cell counts conserved; no negative counts.
+- **Attribute sampling (lean):**
+  - Output schema has no attribute columns; emit `rng_event_account_attribute_sampling` with `draws=0` and log that attributes are not materialised in v1 (schema-accurate).
+- **Outputs (streaming, idempotent):**
+  - `s2_account_base_6A`: generate rows in canonical order `[country_iso, account_type, owner_party_id, account_id]`; assign deterministic sequential `account_id` (injective in world+seed+parameter).
+  - `s2_party_product_holdings_6A`: derive from allocation counts; no re-scan required.
+  - Optional `s2_merchant_account_base_6A`: skip if `merchant_mode.enabled=false` (log skip).
+  - Optional `s2_account_summary_6A`: aggregate from counts (no re-scan).
+  - Publish via tmp → atomic replace; fail on output conflict.
+- **Logging/observability:**
+  - Story header log with objective, gated inputs, outputs.
+  - Phase logs for gating, input loading, planning, integerisation, allocation, and materialisation.
+  - Progress logs for per-cell/account loops with elapsed, processed/total, rate, ETA.
+- **Resumability:**
+  - Fail on output conflicts to avoid mixed worlds; rely on orchestrator to clean or version.
+- **Validation/testing:**
+  - Validate priors/taxonomies against schema anchors.
+  - Sample output rows for schema validation; verify counts conserved.
+  - Run `python -m py_compile` for new S2 modules.
+  - Run `make segment6a-s2`; abort if ETA exceeds target or if memory spikes.
+
+### Entry: 2026-01-21 19:35
+
+6A.S2 implementation kickoff (lean path confirmation and refinements):
+- Proceed with `ContractSource(config.contracts_root, config.contracts_layout)` so contract roots can switch from `model_spec` to repo root without code changes.
+- Keep S0 receipt + sealed_inputs digest + upstream PASS gating strict; treat missing Layer-3 run-report datasets as WARN-only (no contracts exist yet).
+- Enforce `disallow_zero_domain_cells` and `enforce_required_types`; treat `min_nonzero_account_types_in_domain` and `max_total_lambda_per_party_by_party_type` as WARN-only in lean mode to avoid blocking on overly strict priors (log the violating cells/party_types).
+- If `merchant_mode.enabled=true` in `product_mix_priors_6A`, fail fast with an explicit `MERCHANT_MODE_UNSUPPORTED` error (no merchant inputs wired for lean S2 yet).
+- If `party_id` is not contiguous, build sparse arrays sized to `max(party_id)` and log a WARN; allocation and output ordering still use party_id for determinism.
+- Use deterministic hash-based `u01` for weight construction (zero-gate + lognormal) and reserve RNG draws for largest-remainder tie breaks only; emit aggregated RNG events per cell/account_type.
+- Stream Parquet outputs using pyarrow when available; fallback to Polars with `orient="row"` to avoid `DataOrientationWarning`.
+
+### Entry: 2026-01-21 19:59
+
+6A.S2 implementation completed (lean path):
+- Implemented `packages/engine/src/engine/layers/l3/seg_6A/s2_accounts/runner.py` with S0 gate + sealed_inputs digest checks, S1 party base validation, and schema-validated priors/taxonomy loading via `ContractSource`.
+- Product-mix planning uses base lambdas + segment tilt (if available); context scaling is logged and ignored in lean mode. Enforces required types + disallow-zero-domain; warns on lambda caps and min-nonzero constraints.
+- Allocation uses deterministic hash weights + largest-remainder tie-breaks on Philox streams, emitting aggregated RNG event rows per cell (count + allocation) and a zero-draw attribute event; `rng_trace_log` includes one row per substream.
+- Outputs stream to Parquet with pyarrow when available, use `orient="row"` to avoid Polars DataOrientationWarning, and publish idempotently with conflict checks.
+- Optional linkage/eligibility configs are loaded when present but not applied (logged as permissive defaults); merchant_mode enabled fails fast with `MERCHANT_MODE_UNSUPPORTED`.
+- Added CLI `engine.cli.s2_account_base_6a` and Makefile target `segment6a-s2` for execution.
