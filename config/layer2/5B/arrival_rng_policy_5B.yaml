@@ -1,5 +1,5 @@
 policy_id: arrival_rng_policy_5B
-version: v1.0.0
+version: v1.1.0
 
 rng_engine: philox2x64-10
 block_outputs_u64: 2
@@ -40,19 +40,19 @@ families:
   - family_id: S4.arrival_time_jitter.v1
     module: 5B.S4
     substream_label: arrival_time_jitter
-    domain_key_law: arrival_identity
+    domain_key_law: merchant_zone_bucket
     draws_u64_law: { kind: fixed, draws_u64: 1 }
 
   - family_id: S4.arrival_site_pick.v1
     module: 5B.S4
     substream_label: arrival_site_pick
-    domain_key_law: arrival_identity
+    domain_key_law: merchant_zone_bucket
     draws_u64_law: { kind: fixed, draws_u64: 2 }
 
   - family_id: S4.arrival_edge_pick.v1
     module: 5B.S4
     substream_label: arrival_edge_pick
-    domain_key_law: arrival_identity
+    domain_key_law: merchant_zone_bucket
     draws_u64_law: { kind: fixed, draws_u64: 1 }
 
 derivation:

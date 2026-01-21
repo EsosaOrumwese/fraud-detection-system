@@ -3629,3 +3629,374 @@ Changes applied
 Validation
 - Ran S4 and observed heartbeat lines in the run log at ~30s cadence:
   - `S4: awaiting worker batch scenario=baseline_v1 batch_id=0 bucket_rows=200000 arrivals_expected=301515 processed=unknown/301515 rate=unknown eta=unknown inflight=6 elapsed=... output=arrival_events_5B`.
+
+## 2026-01-21 09:01:30 - 5B.S4 quick stabilization plan (disable compiled kernel by default + batch size control)
+
+Problem observed
+- 5B.S4 stalls in the compiled-kernel path: workers warm up and start batch 0 but never emit `S4: batch progress` logs, while the parent only logs `awaiting worker batch` heartbeats. This indicates the compiled kernel is not returning (stuck or deadlocked) and prevents completion. The priority is to get S4 to complete reliably, even if slower, with clear progress logs.
+
+Decision
+- Disable the compiled kernel by default and fall back to the Python/Polars path (still parallel + shared maps) to ensure S4 completes.
+- Add an explicit batch-size knob for parquet scans so we can shrink batch payloads to avoid stalls and reduce worker memory spikes.
+
+Alternatives considered
+1) Keep compiled kernel on and debug stalls (numba tracing, watchdog fallback, perf profiling).
+   - Rejected for now because it delays completion and has already consumed multiple cycles without progress.
+2) Force serial mode to ensure completion.
+   - Rejected because it is too slow for 116M arrivals and not aligned with the “record time” goal.
+3) Disable compiled kernel by default + add smaller batch sizing (chosen).
+   - Preserves parallelism and shared maps, keeps deterministic logic intact, and gives us controllable memory/throughput tradeoffs.
+
+Exact changes planned (stepwise)
+1) Runner defaults
+   - In `packages/engine/src/engine/layers/l2/seg_5B/s4_arrival_events/runner.py`:
+     - Change compiled-kernel default to **off** when `ENGINE_5B_S4_COMPILED_KERNEL` is unset.
+     - Add a new env-controlled batch size (e.g., `ENGINE_5B_S4_BATCH_SIZE`), with a safe default (50_000) and lower bound (>=1_000).
+     - Use this batch size in `_iter_parquet_batches` (pyarrow iter_batches and polars slicing).
+     - Log the batch size and compiled-kernel setting at S4 start so operators see the mode in the run log.
+
+2) Makefile defaults
+   - Update `makefile`:
+     - Set `ENGINE_5B_S4_COMPILED_KERNEL ?= 0` (default off).
+     - Add `ENGINE_5B_S4_BATCH_SIZE ?= 50000` and wire it into `SEG5B_S4_CMD`.
+
+3) Logging and observability
+   - Ensure the S4 story header includes the batch size and whether the compiled kernel is enabled/disabled.
+   - Keep the parent heartbeat logs (already added) so operators can see progress even when workers are busy.
+
+Inputs/authorities impacted
+- No contract or schema changes; only execution knobs.
+- Uses existing sealed inputs and routing surfaces unchanged.
+
+Invariants to preserve
+- Determinism of arrival outputs for a fixed `(parameter_hash, manifest_fingerprint, scenario_id, seed)`.
+- Exact preservation of `count_N` from S3.
+- No use of `run_id` in RNG derivation.
+
+Resumability hooks
+- No change to output paths or publish behavior; only runtime defaults.
+- If a run stalls, operators can toggle `ENGINE_5B_S4_COMPILED_KERNEL=1` for experiments without code changes.
+
+Performance considerations
+- Smaller batches may reduce throughput but should avoid worker stalls and memory spikes.
+- Disabling compiled kernel increases per-arrival cost, but parallel workers + shared maps remain, targeting completion rather than optimal speed.
+
+Validation/test plan
+- Run `make segment5b-s4` with defaults (compiled kernel off) and confirm:
+  - workers emit batch progress logs,
+  - parent heartbeat logs continue,
+  - run completes without stalling.
+- If still slow, adjust `ENGINE_5B_S4_BATCH_SIZE` and `ENGINE_5B_S4_OUTPUT_BUFFER_ROWS` to find a stable throughput/ETA balance.
+
+## 2026-01-21 09:03:45 - 5B.S4 quick stabilization implemented (compiled kernel default off + batch size knob)
+
+Actions taken
+1) Runner defaults + batch sizing
+   - `packages/engine/src/engine/layers/l2/seg_5B/s4_arrival_events/runner.py`:
+     - Introduced `DEFAULT_BATCH_SIZE = 50_000` and `_env_int()` helper.
+     - Added `batch_size = _env_int("ENGINE_5B_S4_BATCH_SIZE", DEFAULT_BATCH_SIZE, 1000)` in `run_s4`.
+     - Logged `S4: batch_size=...` at run start for operator visibility.
+     - Updated `_iter_parquet_batches` to accept `batch_size` and use it for both pyarrow `iter_batches` and Polars slicing.
+     - Passed `batch_size` into both parallel and serial calls to `_iter_parquet_batches`.
+     - Changed compiled-kernel default to **off** when `ENGINE_5B_S4_COMPILED_KERNEL` is unset.
+
+2) Makefile defaults
+   - `makefile`:
+     - Set `ENGINE_5B_S4_COMPILED_KERNEL ?= 0`.
+     - Added `ENGINE_5B_S4_BATCH_SIZE ?= 50000` and wired it into `SEG5B_S4_CMD`.
+
+Why this matches the plan
+- Disables the stalled compiled-kernel path by default, while still allowing opt-in via env for future profiling.
+- Adds a controllable batch size to reduce worker payloads and memory spikes without changing any contracts or output semantics.
+
+Invariants checked
+- No schema or contract changes.
+- Output determinism unaffected (batch size changes only the scan chunking, not RNG derivation or ordering laws).
+- Run log now explicitly states batch size and compiled-kernel mode.
+
+Next validation
+- Run `make segment5b-s4` with defaults and confirm:
+  - worker progress logs appear,
+  - no `awaiting worker batch` stall on batch 0,
+  - run completes for baseline_v1 scenario.
+- If runtime is still high, adjust `ENGINE_5B_S4_BATCH_SIZE` and `ENGINE_5B_S4_OUTPUT_BUFFER_ROWS` (log the outcomes).
+
+### Entry: 2026-01-21 09:38
+
+5B.S4 minimal-relaxation redesign plan (throughput target ~15 minutes without contract break).
+
+Design problem summary:
+- The current S4 implementation is too slow and hard to monitor, but the user wants a path that does **not** break
+  the S4 contracts. The state-expanded spec is restrictive; we need to keep `arrival_events_5B` schema/paths intact
+  while removing non-binding bottlenecks (notably global ordering and per-arrival Python loops).
+- The target is to generate ~116M arrivals in ~15 minutes by adopting a vectorized/compiled pipeline, while preserving
+  the core invariants: counts from S3, time-grid boundaries, routing semantics, and RNG accounting.
+
+Decision path and options considered:
+1) **Keep contracts, optimize implementation only (minimal relaxation).**
+   - Keep `arrival_events_5B` schema/paths and RNG envelopes.
+   - Treat dataset ordering as best-effort (no global sort), and relax S5 ordering checks accordingly.
+   - Implement a vectorized/compiled pipeline with per-worker shard writes and aggregated RNG events.
+   - Decision: **Chosen**. This preserves downstream compatibility and avoids a major spec bump.
+2) **Introduce a compact dataset (bucket offsets or RNG seed per bucket).**
+   - Would reduce output size dramatically, but is a breaking change for 6A/6B and S5.
+   - Rejected for now (major bump required).
+3) **Drop local-time outputs and defer to downstream.**
+   - Would be a schema change (breaking) and violates current S4 contract.
+   - Rejected for now.
+
+Contract source & authority posture:
+- Use `ContractSource` with `contracts_layout=model_spec` for dev (current mode), and keep the same loader paths so
+  switching to repo-root contracts in production requires **no code changes**.
+- Authoritative inputs and outputs remain those in:
+  `docs/model_spec/data-engine/layer-2/specs/state-flow/5B/state.5B.s4.expanded.md`,
+  `docs/model_spec/data-engine/layer-2/specs/contracts/5B/dataset_dictionary.layer2.5B.yaml`,
+  `docs/model_spec/data-engine/layer-2/specs/contracts/5B/schemas.5B.yaml`,
+  `docs/model_spec/data-engine/layer-2/specs/contracts/5B/artefact_registry_5B.yaml`.
+
+Minimal-relaxation commitments (no contract changes):
+- Preserve `arrival_events_5B` schema and partitioning; keep one-row-per-arrival.
+- Do **not** change RNG families or counts; only optimize how draws are generated.
+- Treat ordering as best-effort: S4 will no longer sort globally; S5 must not fail solely on ordering.
+- Continue emitting RNG logs, run-report metrics, and all required fields.
+
+Implementation plan (stepwise, detail-first):
+1) **Sharding & determinism**
+   - Define a deterministic shard function over S3 domain keys (e.g., hash of `merchant_id|zone_representation|channel_group`
+     or stable split by S3 parquet row-groups).
+   - Each shard owns a **disjoint** RNG substream using `(scenario_id, shard_id, bucket_index)` in the domain key to keep
+     RNG replay deterministic.
+   - Each worker writes its own `part-<shard>-<batch>.parquet` files directly under
+     `data/layer2/5B/arrival_events/seed=.../manifest_fingerprint=.../scenario_id=.../`.
+
+2) **Batch-driven data flow**
+   - Scan `s3_bucket_counts_5B` in bounded batches (pyarrow `iter_batches`) with a stable batch size (50k-200k rows).
+   - Preload `s1_time_grid_5B` for the scenario into a small in-memory table (bucket_start/end, duration).
+   - Join batch rows to time-grid metadata in memory (vectorized join) with strict validation of bucket coverage.
+
+3) **Routing precompute (shared maps)**
+   - Convert routing surfaces into array-friendly, shared-memory structures:
+     - `s1_site_weights`, `s2_alias_index/blob`, `s4_group_weights` for physical routing.
+     - `virtual_classification_3B`, `edge_catalogue_3B`, `edge_alias_index/blob`, `virtual_routing_policy_3B` for virtual routing.
+   - Store as NumPy/Arrow arrays or memory-mapped buffers so workers avoid dict lookups.
+   - Build lookup matrices keyed by `(merchant_id, tz_group_id)` and `(edge_id)` to enable O(1) vectorized selection.
+
+4) **Vectorized time placement**
+   - For each batch row `(merchant, zone, bucket_index, count_N)`, compute:
+     - `bucket_start_utc_micros`, `bucket_duration_micros`.
+   - Use a vectorized Philox implementation (Numba or C-accelerated) to generate
+     `count_N` uniforms and scale to offsets in `[0, duration)`.
+   - Avoid per-arrival Python loops by precomputing prefix sums and filling arrays in bulk.
+   - For large `count_N`, slice into chunked sub-batches to bound temporary array size.
+
+5) **Vectorized routing**
+   - Determine `is_virtual` via vectorized lookup against `virtual_classification_3B`.
+   - For physical rows: use alias tables + group weights to select `site_id` in bulk.
+   - For virtual rows: use edge alias tables to select `edge_id` in bulk.
+   - Keep routing semantics identical to existing 2B/3B rules; only replace per-row logic with vectorized kernels.
+
+6) **Local time mapping**
+   - Precompute tz offset tables per `tzid` and bucket (fast path).
+   - For DST transition buckets, fall back to a precise conversion (using timetable cache) on the smaller subset only.
+   - Emit `tzid_primary` and `ts_local_primary` always; optional settlement/operational fields only when virtual policy requires.
+
+7) **Arrival sequence assignment**
+   - Assign `arrival_seq` as a deterministic, monotonic counter **per shard**, starting at 1.
+   - Ensure uniqueness within `(seed, manifest_fingerprint, scenario_id)` by incorporating `shard_id` into the sequence
+     range (e.g., block ranges per shard) to avoid collisions without global coordination.
+   - This keeps schema valid while avoiding global ordering constraints.
+
+8) **Output writing**
+   - Each worker writes to Parquet with large row-groups (250k-1M) and low-cost compression.
+   - Use idempotent publish: write to temp files and atomically move; skip if identical hash already exists.
+   - Do not sort globally; maintain stable per-shard order (bucket_index then arrival_seq) to maximize determinism.
+
+9) **RNG accounting & logs**
+   - Emit RNG events aggregated per shard and per scenario (time, site, edge streams).
+   - Track `draws_total`, `blocks_total`, and validate against expected counts derived from `s3_bucket_counts_5B`.
+   - Write `rng_trace_log` and `rng_audit_log` once per run (idempotent append if already present).
+
+10) **S5 validation adjustments (minimal relaxation)**
+   - Update S5 ordering checks to be **non-fatal** (log warnings if unordered).
+   - Keep strict checks for counts, RNG accounting, schema validity, and null/consistency rules.
+   - No schema or dictionary changes; only the validation posture is relaxed.
+
+11) **Logging & observability**
+   - Story header: objective, gated inputs, outputs, shard count, batch size, compiled-kernel mode.
+   - Per-batch progress logs: processed bucket rows/total, arrivals generated/total, rate, ETA.
+   - Per-worker heartbeat while computing large batches to avoid silent stalls.
+
+12) **Resumability hooks**
+   - On resume, detect existing shard outputs and skip re-generation if hashes match.
+   - Maintain per-shard receipts to allow partial completion without redoing completed shards.
+
+13) **Performance targets**
+   - Aim for sustained >130k arrivals/sec (aggregate) to meet ~15-minute target for 116M arrivals.
+   - Use `ENGINE_5B_S4_BATCH_SIZE` and output buffer settings to tune throughput vs memory.
+
+Validation/testing steps:
+- Run a small dev scenario (short horizon) and verify:
+  - exact `sum(count_N)` arrivals,
+  - schema validity on sampled rows,
+  - RNG accounting matches expected draws,
+  - deterministic output for repeated runs.
+- Run a full scenario and record throughput + ETA; adjust shard count and batch size to meet target.
+- Update S5 to treat ordering as warn-only and confirm PASS on a full run.
+
+### Entry: 2026-01-21 09:42
+
+5B.S4 reimplementation plan (scrap current path, bucket-stream RNG + vectorized compiled kernel).
+
+Design problem summary:
+- The current S4 implementation is too slow and opaque. The dominant cost is per-arrival SHA256 hashing and
+  Python-level loops. We need to scrap the current arrival expansion path and replace it with a compiled,
+  batch-streaming pipeline that reduces hashing to **per-bucket** and uses Philox counters per arrival.
+- This must stay within existing contracts: `arrival_events_5B` schema/path, S3 counts preserved, time-grid
+  boundaries honored, routing semantics from 2B/3B preserved, RNG accounting and logs emitted.
+
+Decision path and options:
+1) **Keep per-arrival SHA256** (strict reading of arrival_identity).
+   - Rejected: costs explode at 116M arrivals; fails the 15-minute target.
+2) **Bucket-stream RNG derivation** (hash once per (merchant, zone, bucket), advance counter per arrival).
+   - Chosen: still deterministic and policy-driven, but eliminates per-arrival hashing.
+   - Requires updating the S4 families in `arrival_rng_policy_5B.yaml` to use `domain_key_law=merchant_zone_bucket`.
+3) **Rewrite in pure Python**.
+   - Rejected: even with vectorization, Python loops remain too slow for the target.
+
+Deviation note (logged before coding):
+- We will relax the RNG domain-key law for S4 families from `arrival_identity` to `merchant_zone_bucket`.
+  This is allowed by the schema enum and keeps contracts intact, but deviates from the previous policy intent.
+  The change is logged here and will be reflected in the policy file version bump.
+- Ordering enforcement will become warn-only (no hard failure); this is a minimal relaxation to keep throughput.
+
+Exact inputs/authorities (no change):
+- S0 receipt + sealed inputs; S1 time grid + grouping; S3 bucket counts; routing artefacts from 2B/3B;
+  2A time/tz surfaces; S4 policies and RNG policy.
+
+Implementation plan (stepwise, detailed):
+1) **Update RNG policy (config)**
+   - Edit `config/layer2/5B/arrival_rng_policy_5B.yaml`:
+     - Set S4 families (`arrival_time_jitter`, `arrival_site_pick`, `arrival_edge_pick`) `domain_key_law` to
+       `merchant_zone_bucket`.
+     - Bump policy version (e.g., v1.1.0) to reflect behavior change.
+   - Keep encoding/hash law identical (SHA256, u32be len prefix).
+
+2) **Runner: per-bucket RNG seed derivation**
+   - Add helper to build bucket domain keys: `merchant_id`, `zone_representation`, `bucket_index`, optional `channel_group`.
+   - In `_process_s4_batch_impl`, compute **per-row** base `(key, counter_hi, counter_lo)` for time/site/edge
+     from the bucket domain key, using cached prefix hashers.
+   - Remove per-arrival domain-key construction.
+
+3) **Numba kernel rewrite**
+   - Replace per-arrival SHA256 and domain-key building with precomputed base keys/counters.
+   - Update `expand_batch_kernel` signature to accept:
+     - `time_key`, `time_counter_hi`, `time_counter_lo`
+     - `site_key`, `site_counter_hi`, `site_counter_lo`
+     - `edge_key`, `edge_counter_hi`, `edge_counter_lo`
+   - For each arrival offset `k` in a bucket:
+     - counter = base_counter + k (u128 add), run Philox once per arrival.
+     - time: use first u64; site: use both u64s; edge: use first u64.
+   - Keep routing logic and tz conversion identical to current kernel.
+   - Update warmup to match the new kernel signature.
+
+4) **Output buffers + memory**
+   - Keep batch size controlled by `ENGINE_5B_S4_BATCH_SIZE` and output buffer rows.
+   - Avoid large intermediate lists in Python; rely on NumPy arrays populated by kernel.
+
+5) **Ordering relaxation**
+   - Remove hard abort on ordering violations (always warn and count).
+   - Keep ordering stats optional and disabled by default; do not sort globally.
+
+6) **RNG accounting updates**
+   - Update RNG stats for S4 families:
+     - `events_total = total_arrivals`.
+     - `draws_total = total_arrivals * draws_per_arrival`.
+     - `blocks_total = total_arrivals` (one block per arrival).
+   - Update “last counter” computation using the **last bucket row + last arrival offset**, not per-arrival hash.
+
+7) **Logging & observability**
+   - Story header logs include: compiled-kernel mode, batch size, ordering mode, RNG policy version.
+   - Per-batch logs include bucket rows, arrivals, rate, ETA.
+
+8) **Resumability**
+   - Preserve idempotent writes and atomic publish; skip when output identical.
+
+Validation/testing steps:
+- Run `make segment5b-s4` with compiled kernel enabled and observe ETA.
+- If ETA > 15 minutes after ~2-3 minutes, terminate and revisit (per user request).
+- Verify schema validation on sampled rows and RNG accounting totals.
+
+### Entry: 2026-01-21 10:08
+
+5B.S4 minimal-relaxation reimplementation execution plan (restart with bucket-stream RNG + compiled kernel v2).
+
+Design problem summary:
+- S4 is still too slow (ETA hours) and opaque. Per-arrival SHA256 derivation dominates cost and prevents a 15-minute envelope.
+- The compiled kernel path is partially refactored but still calls the old kernel signature and retains per-arrival hashing in the
+  Python fallback. We need to finish the refactor and remove per-arrival hashing everywhere while keeping contracts intact.
+
+Sources & contracts:
+- Binding spec: `docs/model_spec/data-engine/layer-2/specs/state-flow/5B/state.5B.s4.expanded.md`
+- Contracts: `docs/model_spec/data-engine/layer-2/specs/contracts/5B/{dataset_dictionary.layer2.5B.yaml,schemas.5B.yaml,artefact_registry_5B.yaml}`
+- Contract source in code stays `ContractSource(config.contracts_root, config.contracts_layout)` so dev can use model_spec and
+  prod can point to repo root without code changes.
+
+Decision & minimal relaxation:
+- Keep all schemas, dictionary paths, and output semantics unchanged.
+- Relax ordering enforcement to **warn-only** (no abort). Ordering stats remain optional; if enabled, they log violations but do
+  not gate outputs. This reduces overhead and aligns with the user’s minimal relaxation request.
+- Use `domain_key_law=merchant_zone_bucket` for S4 RNG families (already in policy v1.1.0) so we can hash once per bucket row and
+  advance the Philox counter per arrival.
+
+Implementation steps (detailed):
+1) **Runner compiled path (primary)**
+   - Update `packages/engine/src/engine/layers/l2/seg_5B/s4_arrival_events/runner.py` to call
+     `s4_numba.expand_batch_kernel_v2` with per-row base keys/counters:
+       - Inputs: `time_key/time_counter_hi/lo`, `site_key/site_counter_hi/lo`, `edge_key/edge_counter_hi/lo`.
+       - Remove `tzid_bytes`, `tzid_offsets`, `tzid_lengths`, `time_prefix_bytes`, `site_prefix_bytes`, `edge_prefix_bytes`,
+         `bucket_duration_seconds`, and `draws_per_arrival` from the kernel call and readiness checks.
+   - Precompute base keys/counters per bucket row using `_bucket_domain_key` and `_derive_seed`.
+   - Keep tz-cache arrays and routing arrays unchanged (authority surfaces).
+
+2) **Runner Python fallback path**
+   - Replace per-arrival hashing (`arrival_identity`) with bucket-level base seeds.
+   - For each arrival offset, compute counters via `add_u128(base_hi, base_lo, offset)` and call Philox once per arrival.
+   - Maintain draws per policy: time=1 u64, site=2 u64, edge=1 u64.
+
+3) **RNG accounting + last counters**
+   - `arrival_time_jitter`: `events = total_arrivals`, `draws = total_arrivals * 1`, `blocks = total_arrivals`.
+   - `arrival_site_pick`: `events = total_arrivals_for_non_virtual_merchants`, `draws = events * 2`, `blocks = events`.
+   - `arrival_edge_pick`: `events = total_virtual_arrivals`, `draws = events * 1`, `blocks = events`.
+   - Compute `last` counters by locating the last applicable bucket row + offset and using `add_u128` to advance by 1 block.
+
+4) **Ordering checks**
+   - Remove abort on ordering violations; keep counters and a warning sample (optional).
+   - Skip per-bucket sorting when ordering stats are disabled.
+
+5) **Logging & progress**
+   - Keep story header logs and worker progress logs with elapsed/rate/ETA.
+   - Ensure compiled kernel progress logs use arrival counts and bucket rows to show throughput.
+
+6) **Validation/testing**
+   - Run `make segment5b-s4` with compiled kernel enabled; observe ETA for 2-3 minutes.
+   - If ETA > 15 minutes, terminate and revisit kernel/profile.
+   - Confirm schema validation on sampled rows and RNG accounting totals.
+
+### Entry: 2026-01-21 10:34
+
+Implementation update (completed wiring of bucket-stream RNG + compiled kernel v2).
+
+Decisions/actions recorded:
+- Removed per-arrival SHA256 derivation in S4 runner; bucket-level domain keys now drive base Philox counters and per-arrival counter
+  offsets (`add_u128`) in both worker and non-parallel flows.
+- Switched compiled kernel invocation to `expand_batch_kernel_v2` and removed tzid/prefix byte arrays from worker init and call sites.
+- RNG accounting now assumes one block per arrival for time/site/edge draws (site uses both u64s in the block).
+- Ordering violations are warn-only; no abort path remains.
+- Defaulted compiled kernel to on (`ENGINE_5B_S4_COMPILED_KERNEL=1`) in `runner.py` and `makefile`.
+
+Files updated:
+- `packages/engine/src/engine/layers/l2/seg_5B/s4_arrival_events/runner.py`
+- `makefile`
+
+Next validation step:
+- Run `make segment5b-s4` and monitor ETA; terminate if still above 15 minutes.
