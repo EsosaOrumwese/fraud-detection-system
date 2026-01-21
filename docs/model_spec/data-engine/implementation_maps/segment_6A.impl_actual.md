@@ -440,3 +440,139 @@ Contract/prior digest encoding:
 - Outputs stream to Parquet with pyarrow when available, use `orient="row"` to avoid Polars DataOrientationWarning, and publish idempotently with conflict checks.
 - Optional linkage/eligibility configs are loaded when present but not applied (logged as permissive defaults); merchant_mode enabled fails fast with `MERCHANT_MODE_UNSUPPORTED`.
 - Added CLI `engine.cli.s2_account_base_6a` and Makefile target `segment6a-s2` for execution.
+
+### Entry: 2026-01-21 20:10
+
+6A.S3 expanded spec review (lean-path framing; no code changes yet):
+- **Docs read (authority):**
+  - `docs/model_spec/data-engine/layer-3/specs/state-flow/6A/state.6A.s3.expanded.md`
+  - `docs/model_spec/data-engine/layer-3/specs/data-intake/6A/prior.instrument_mix_authoring-guide.md`
+  - `docs/model_spec/data-engine/layer-3/specs/data-intake/6A/prior.instrument_per_account_authoring-guide.md`
+  - `docs/model_spec/data-engine/layer-3/specs/data-intake/6A/taxonomy.instrument_types_authoring-guide.md`
+  - Contracts: `schemas.6A.yaml`, `dataset_dictionary.layer3.6A.yaml`, `artefact_registry_6A.yaml`
+- **Heavy / unrealistic bindings to temper (lean lens):**
+  - Instrument planning is defined over `(region, party_type, segment, account_type, instrument_type[, scheme])` with per-instrument attribute sampling. This can explode to very large instrument counts and per-instrument loops.
+  - Priors expect dense, per-cell rules (mix + per-account distributions) and enforce strict realism corridors; building a full per-cell map for every region/segment is expensive and brittle.
+  - Spec marks `instrument_linkage_rules_6A` / `product_linkage_rules_6A` as required, but dataset dictionary marks them **optional**; strict enforcement could block lean runs when those configs are absent.
+  - Taxonomy path inconsistency: authoring guide path `config/layer3/6A/taxonomy/taxonomy.instrument_types.v1.yaml` vs registry path `config/layer3/6A/taxonomy/instrument_taxonomy_6A.v1.yaml`. Needs a decision on which path is canonical.
+- **Contract surface (what must be produced):**
+  - Required outputs: `s3_instrument_base_6A` and `s3_account_instrument_links_6A`.
+  - Optional outputs: `s3_party_instrument_holdings_6A`, `s3_instrument_summary_6A` (ok to skip in lean mode).
+  - Schema requirements for S3 outputs are minimal (id fields, instrument_type, scheme, seed, manifest_fingerprint, parameter_hash); no required masked identifiers or expiry fields in v1.
+- **Lean-path approach under consideration (pending approval):**
+  1. **Gating:** strict S0 receipt + sealed_inputs digest match + upstream PASS via S0; S1/S2 run-report checks as WARN-only if run-report datasets are not defined in Layer-3 contracts (same posture as S2).
+  2. **Inputs:** require `s1_party_base_6A`, `s2_account_base_6A`, `prior_instrument_mix_6A`, `prior_instrument_per_account_6A`, `taxonomy_instrument_types_6A`; treat linkage rules as optional if sealed status is optional.
+  3. **Cell model:** force `scheme_mode=ATTRIBUTE_ONLY` regardless of prior declaration (if needed, map scheme to attribute sampling only) to avoid exploding instrument planning cells.
+  4. **Counts planning:** compute `N_instr_target` from mix priors at the **account_type + party_type** granularity; ignore segment/region tilts in lean mode unless explicitly requested.
+  5. **Integerisation:** largest-remainder with Philox tie-breaks at the **cell** level, emitting aggregated RNG events per cell or per world (no per-instrument RNG logs).
+  6. **Allocation to accounts:** use `instrument_per_account_priors_6A` deterministic weight recipe (hash-based `u0/u1`, lognormal) per account/instrument_type; allocate counts via largest-remainder to avoid per-instrument sampling loops. Fail if `sum(weights)==0` with positive targets.
+  7. **Attributes:** emit only required columns; if `scheme_mode=ATTRIBUTE_ONLY`, sample scheme via categorical from mix priors (or use default scheme per instrument_type); skip brand_tier/token/expiry fields since schema does not require them and to keep runtime lean.
+  8. **Outputs:** stream base rows and link rows; optionally skip party holdings and summary unless explicitly requested.
+  9. **Logging:** story header + per-phase logs; progress logs for per-cell/account loops with elapsed, processed/total, rate, ETA (monotonic).
+  10. **Resumability:** fail on output conflicts; rely on orchestrator to clean or new run_id.
+- **Open decisions for approval (before coding):**
+  - Treat `instrument_linkage_rules_6A` and `product_linkage_rules_6A` as **optional** when sealed inputs mark them optional (WARN-only if missing)?
+  - Accept `scheme_mode=ATTRIBUTE_ONLY` even if priors declare `IN_CELL`, to keep the plan lean and fast?
+  - Skip optional outputs (`s3_party_instrument_holdings_6A`, `s3_instrument_summary_6A`) in the first lean pass?
+  - Resolve taxonomy instrument path mismatch: use registry path (`instrument_taxonomy_6A.v1.yaml`) as canonical?
+- Allow aggregated RNG event rows (per world/cell) instead of per-instrument sampling events?
+
+### Entry: 2026-01-21 20:26
+
+6A.S3 implementation plan (approved lean path; proceed to build):
+- **Decision recap (user-approved lean relaxations):**
+  - Treat `instrument_linkage_rules_6A` and `product_linkage_rules_6A` as optional when sealed inputs mark them optional; warn if missing, do not fail.
+  - Force `scheme_mode=ATTRIBUTE_ONLY` even if priors declare `IN_CELL`, to keep planning cells small.
+  - Skip optional outputs (`s3_party_instrument_holdings_6A`, `s3_instrument_summary_6A`) for the first pass.
+  - Use registry taxonomy path `config/layer3/6A/taxonomy/instrument_taxonomy_6A.v1.yaml` as canonical (resolve via sealed_inputs + dictionary).
+  - Emit aggregated RNG event rows (per cell/instrument_type), not per-instrument.
+- **Contracts source / switching:**
+  - Use `ContractSource(config.contracts_root, config.contracts_layout)` so dev uses model_spec and prod can switch to repo root without code changes.
+- **Inputs / authorities (sealed):**
+  - Gate/control: `s0_gate_receipt_6A`, `sealed_inputs_6A` (validate schema, digest, upstream PASS via S0).
+  - Bases: `s1_party_base_6A`, `s2_account_base_6A` (schema-validate samples).
+  - Priors/taxonomy: `prior_instrument_mix_6A`, `prior_instrument_per_account_6A`, `taxonomy_instrument_types_6A`.
+  - Optional policy: `instrument_linkage_rules_6A` (load if present; ignore in lean mode).
+  - Contracts: dataset dictionary, schema packs, artefact registry (metadata-only).
+- **Cell model (lean):**
+  - Collapse planning to `(party_type, account_type, instrument_type)`; ignore region/segment tilts for speed.
+  - Treat scheme as attribute-only; assign scheme by scheme_kind defaults (no region overrides).
+- **Count planning + integerisation:**
+  - For each `(party_type, account_type)` cell with accounts:
+    - `total_target = n_accounts * lambda_total` from mix priors.
+    - Split across instrument types using `pi_instr`.
+    - Integerize via largest-remainder per cell; RNG tie-break using `instrument_count_realisation` stream.
+  - Enforce feasibility: if `n_instr > hard_max * n_accounts` for a rule, fail fast with a linkage/feasibility error.
+- **Account allocation (lean, deterministic weights):**
+  - Use `instrument_per_account_priors_6A` rules for `p_zero_weight`, `sigma`, `weight_floor_eps`.
+  - Deterministic hash -> `u0` (zero gate) + `u1` (lognormal weight) per `(account_id, instrument_type)`.
+  - Allocate counts to accounts using largest-remainder; RNG tie-break via `instrument_allocation_sampling`.
+  - Apply per-account hard caps via a bounded redistribution loop (cap, compute overflow, reallocate to remaining capacity).
+- **Scheme assignment (attribute sampling):**
+  - Determine scheme_kind from instrument taxonomy `default_scheme_kind`.
+  - Use `instrument_mix_priors_6A.attribute_models.scheme_model.defaults` for scheme shares by kind; if missing, fallback to equal shares across taxonomy schemes of that kind (warn).
+  - Allocate scheme counts via largest-remainder (RNG tie-break via `instrument_attribute_sampling`) and assign deterministically when emitting instruments.
+- **Outputs (streamed, minimal columns):**
+  - `s3_instrument_base_6A`: columns `[instrument_id, account_id, owner_party_id, instrument_type, scheme, seed, manifest_fingerprint, parameter_hash]`.
+  - `s3_account_instrument_links_6A`: columns `[account_id, instrument_id, instrument_type, scheme]`.
+  - Skip optional holdings/summary (log skip).
+  - Use pyarrow streaming if available; fallback to Polars with `orient="row"` to avoid warnings.
+- **Logging / observability:**
+  - Story header: objective, gated inputs, outputs.
+  - Phase logs for gating, priors/taxonomy load, planning, allocation, emission, publish.
+  - Progress logs (elapsed, processed/total, rate, ETA) for:
+    - cell planning,
+    - per-instrument-type allocations,
+    - instrument emission rows.
+- **Resumability / idempotency:**
+  - Fail on output conflicts; rely on orchestrator cleanup/new run_id.
+- **Validation / testing:**
+  - Validate priors/taxonomy against schema anchors.
+  - Sample-validate output rows with Draft202012Validator.
+  - Run `python -m py_compile` for new runner + CLI.
+- Run `make segment6a-s3`; terminate early if ETA inflates beyond target.
+
+### Entry: 2026-01-21 20:55
+
+6A.S3 implementation completed (lean path):
+- **Runner**: added `packages/engine/src/engine/layers/l3/seg_6A/s3_instruments/runner.py`.
+  - Gate checks: S0 receipt + sealed_inputs schema + digest; upstream PASS via S0; run-report check WARN-only (no L3 contract).
+  - Inputs: `prior_instrument_mix_6A`, `prior_instrument_per_account_6A`, `taxonomy_instrument_types_6A` (validated). Optional linkage rules warned and ignored.
+  - Cell planning: collapse to `(party_type, account_type, instrument_type)`; ignore segment/region tilts; force `scheme_mode=ATTRIBUTE_ONLY`.
+  - Integerisation: per account-cell largest-remainder with Philox tie-breaks; **rng_event_instrument_count_realisation** emitted per `(party_type, account_type)` (aggregated context).
+  - Allocation: deterministic hash weights per `(account_id, instrument_type)`; largest-remainder allocation; enforce `hard_max_per_account` with overflow redistribution (fail if capacity insufficient).
+  - Scheme assignment: scheme_kind from taxonomy default; scheme shares from mix priors defaults; fallback to equal shares for kind if missing.
+  - Outputs: stream `s3_instrument_base_6A` + `s3_account_instrument_links_6A` only; optional holdings/summary skipped (logged).
+  - RNG logs: aggregated event JSONL for count/allocation/attribute + `rng_trace_log` + `rng_audit_log`.
+- **CLI**: added `packages/engine/src/engine/cli/s3_instrument_base_6a.py`.
+- **Makefile**: added `SEG6A_S3_*` args/command, `segment6a-s3` target, `.PHONY` update.
+- **Decision note**: count RNG events are per account-cell rather than per-instrument to keep logging volume lean and deterministic; scheme allocation uses attribute stream draws only for largest-remainder ties.
+
+### Entry: 2026-01-21 20:59
+
+6A.S3 gate receipt compatibility fix plan (lean path, pre-implementation):
+- **Problem observed:** `s0_gate_receipt_6A.json` in the current run uses `upstream_segments` with `status` fields, but the S3 runner currently expects `upstream_gates[*].gate_status`. This yields `status=None` and aborts with `6A.S3.S0_S1_S2_GATE_FAILED` even though the upstream segments are PASS.
+- **Contracts/authorities involved:** S0 gate receipt schema anchor `#/gate/6A/s0_gate_receipt_6A` (layer-3 schema pack), run-local receipt at `data/layer3/6A/s0_gate_receipt/.../s0_gate_receipt_6A.json`.
+- **Alternatives considered:**
+  1) Update S0 to emit `upstream_gates` (re-run S0 and downstream). Rejected: heavier change and requires re-run of S0.
+  2) Update S3 to accept `upstream_segments` as the canonical status source when `upstream_gates` is missing. Preferred: minimal change, compatible with current receipt format.
+  3) Skip upstream gating entirely. Rejected: too permissive; still want basic PASS checks.
+- **Decision:** In S3, resolve upstream status by checking `upstream_gates[*].gate_status` first; if missing, fall back to `upstream_segments[*].status`. If a required segment lacks a status entry entirely, log a WARN and proceed in lean mode (do not fail), but continue to fail fast on any explicit non-PASS status.
+- **Planned edits (exact steps):**
+  - Update upstream gate check block in `packages/engine/src/engine/layers/l3/seg_6A/s3_instruments/runner.py` to support `upstream_segments`.
+- Emit explicit WARN logs for missing statuses and an INFO log when all required segments are PASS.
+- Append a post-change implementation note in this map and logbook with the reasoning/outcome.
+
+### Entry: 2026-01-21 21:00
+
+6A.S3 gate receipt compatibility fix (implemented):
+- Updated upstream gate validation in `packages/engine/src/engine/layers/l3/seg_6A/s3_instruments/runner.py` to resolve status from `upstream_gates[*].gate_status` first, then fallback to `upstream_segments[*].status` when the gate map is missing.
+- If a required segment has no status in either map, emit a WARN and proceed in lean mode; still fail fast on explicit non-PASS statuses.
+- Added a WARN log listing missing statuses and retained the INFO log when all required segments are PASS.
+
+### Entry: 2026-01-21 21:01
+
+6A.S3 UnboundLocalError fix (corrective log; change already applied):
+- **Issue encountered:** `rng_event_rows_count` referenced during count planning before initialization, causing `UnboundLocalError` during `make segment6a-s3` after loading the account base.
+- **Decision:** Initialize RNG event row lists (`rng_event_rows_count`, `rng_event_rows_alloc`, `rng_event_rows_attr`) before any loops that append to them.
+- **Edit applied:** Moved the list initializations above the count planning loop in `packages/engine/src/engine/layers/l3/seg_6A/s3_instruments/runner.py`.
