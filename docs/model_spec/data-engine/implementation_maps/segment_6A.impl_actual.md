@@ -133,3 +133,48 @@ Contract schema anchor validation:
 
 Sealed-inputs observability:
 - Added a dedicated status-count log (`REQUIRED`/`OPTIONAL`/`IGNORED`) after computing `sealed_inputs_6A` to make gate outcomes clearer in run logs.
+
+### Entry: 2026-01-21 17:11
+
+Contract registry fix:
+- Fixed YAML indentation for `sealed_inputs_6A` in `artefact_registry_6A.yaml` so it is correctly nested under the 6A artifacts list.
+
+### Entry: 2026-01-21 17:11
+
+Schema pack YAML fix:
+- Repaired missing spaces in inline map entries (`thresholds:{...}`) in `schemas.layer3.yaml` so the schema pack parses correctly.
+
+### Entry: 2026-01-21 17:12
+
+Schema defs compatibility:
+- Relaxed `_assert_schema_defs_consistent` to treat `$defs` entries in `schemas.6A.yaml` that are pure `$ref` links to `schemas.layer3.yaml` as compatible (e.g., `hex64`).
+
+### Entry: 2026-01-21 17:14
+
+Upstream index validation:
+- Switched `_validate_index` to use `validate_dataframe` (table-to-JSON-schema adapter) when index payloads are lists, matching the 5B S0 gate and avoiding `type: table` validator errors.
+
+### Entry: 2026-01-21 17:15
+
+HashGate flag parsing:
+- Added BOM stripping in `_parse_pass_flag_any` so `_passed.flag` files with UTF-8 BOM parse correctly.
+
+### Entry: 2026-01-21 17:16
+
+HashGate regex fix:
+- Corrected `_FLAG_PATTERN` to use `\s*` instead of a literal `\\s*` so `_passed.flag` lines match as intended.
+
+### Entry: 2026-01-21 17:18
+
+5B HashGate index path:
+- Updated 5B HashGate verification to read `index.json` (per dataset dictionary path) instead of `validation_bundle_index_5B.json`.
+
+### Entry: 2026-01-21 17:20
+
+5B HashGate digest law:
+- Switched 5B bundle digest derivation to hash bundle file contents (same law as 5B.S5) instead of hashing the `sha256_hex` list from the index.
+
+### Entry: 2026-01-21 17:21
+
+Schema anchor traversal:
+- Updated `_schema_from_pack` and `_schema_anchor_exists` to traverse into `properties` when resolving anchors like `#/prior/population_priors_6A` or `#/gate/6A/...` so grouped schema packs validate correctly.

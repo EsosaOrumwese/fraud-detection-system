@@ -15,7 +15,7 @@ from typing import Iterable, Optional
 import yaml
 from jsonschema import Draft202012Validator
 
-from engine.contracts.jsonschema_adapter import normalize_nullable_schema
+from engine.contracts.jsonschema_adapter import normalize_nullable_schema, validate_dataframe
 from engine.contracts.loader import (
     find_artifact_entry,
     find_dataset_entry,
@@ -25,7 +25,13 @@ from engine.contracts.loader import (
 )
 from engine.contracts.source import ContractSource
 from engine.core.config import EngineConfig
-from engine.core.errors import ContractError, EngineFailure, HashingError, InputResolutionError
+from engine.core.errors import (
+    ContractError,
+    EngineFailure,
+    HashingError,
+    InputResolutionError,
+    SchemaValidationError,
+)
 from engine.core.hashing import sha256_file
 from engine.core.logging import add_file_handler, get_logger
 from engine.core.paths import RunPaths, resolve_input_path
@@ -35,7 +41,7 @@ from engine.core.time import utc_now_rfc3339_micro
 MODULE_NAME = "6A.s0_gate"
 SEGMENT = "6A"
 STATE = "S0"
-_FLAG_PATTERN = re.compile(r"^sha256_hex = ([a-f0-9]{64})\\s*$")
+_FLAG_PATTERN = re.compile(r"^sha256_hex = ([a-f0-9]{64})\s*$")
 _HEX64_PATTERN = re.compile(r"^[a-f0-9]{64}$")
 _PLACEHOLDER_MARKERS = {"TBD", "null", "unknown", ""}
 
@@ -161,9 +167,14 @@ def _load_yaml(path: Path) -> object:
 def _schema_from_pack(schema_pack: dict, path: str) -> dict:
     node: dict = schema_pack
     for part in path.split("/"):
-        if part not in node:
-            raise ContractError(f"Schema section not found: {path}")
-        node = node[part]
+        if part in node:
+            node = node[part]
+            continue
+        props = node.get("properties") if isinstance(node, dict) else None
+        if isinstance(props, dict) and part in props:
+            node = props[part]
+            continue
+        raise ContractError(f"Schema section not found: {path}")
     schema = {
         "$schema": "https://json-schema.org/draft/2020-12/schema",
         "$id": schema_pack.get("$id", ""),
@@ -189,9 +200,14 @@ def _schema_anchor_exists(schema_pack: dict, ref: str) -> None:
     path = ref.split("#", 1)[1]
     node: dict = schema_pack
     for part in path.strip("/").split("/"):
-        if part not in node:
-            raise ContractError(f"Schema section not found: {ref}")
-        node = node[part]
+        if part in node:
+            node = node[part]
+            continue
+        props = node.get("properties") if isinstance(node, dict) else None
+        if isinstance(props, dict) and part in props:
+            node = props[part]
+            continue
+        raise ContractError(f"Schema section not found: {ref}")
 
 
 def _inline_external_refs(schema: object, external_pack: dict, prefix: str) -> None:
@@ -296,6 +312,7 @@ def _parse_pass_flag_any(path: Path) -> str:
             if isinstance(digest, str) and _HEX64_PATTERN.match(digest):
                 return digest
     line = content.splitlines()[0] if content else ""
+    line = line.lstrip("\ufeff")
     match = _FLAG_PATTERN.match(line)
     if not match:
         raise InputResolutionError(f"Invalid _passed.flag format: {path}")
@@ -457,17 +474,17 @@ def _validate_index(
     entries: list[dict]
     if isinstance(payload, list):
         pack, table_name = _table_pack(schema_pack, schema_anchor)
-        schema = _schema_from_pack(pack, table_name)
-        _inline_external_refs(schema, schema_layer1, "schemas.layer1.yaml#")
-        errors = list(Draft202012Validator(schema).iter_errors(payload))
-        if errors:
+        try:
+            validate_dataframe(payload, pack, table_name)
+        except SchemaValidationError as exc:
+            detail = exc.errors[0] if exc.errors else {}
             raise EngineFailure(
                 "F4",
                 "6A.S0.UPSTREAM_HASHGATE_SCHEMA_INVALID",
                 STATE,
                 MODULE_NAME,
-                {"detail": str(errors[0]), "path": str(index_path)},
-            )
+                {"detail": detail, "path": str(index_path)},
+            ) from exc
         entries = payload
     elif isinstance(payload, dict) and isinstance(payload.get("files"), list):
         schema = _schema_from_pack(schema_pack, schema_anchor)
@@ -797,8 +814,16 @@ def _assert_schema_defs_consistent(schema_layer3: dict, schema_6a: dict) -> None
     defs_6a = schema_6a.get("$defs") or {}
     conflicts = []
     for key in sorted(set(defs_layer3) & set(defs_6a)):
-        if json.dumps(defs_layer3[key], sort_keys=True) != json.dumps(defs_6a[key], sort_keys=True):
-            conflicts.append(key)
+        left = defs_layer3[key]
+        right = defs_6a[key]
+        if json.dumps(left, sort_keys=True) == json.dumps(right, sort_keys=True):
+            continue
+        ref_target = f"schemas.layer3.yaml#/$defs/{key}"
+        if isinstance(left, dict) and left.get("$ref") == ref_target and len(left) == 1:
+            continue
+        if isinstance(right, dict) and right.get("$ref") == ref_target and len(right) == 1:
+            continue
+        conflicts.append(key)
     if conflicts:
         raise ContractError(f"Conflicting $defs between layer3 and 6A schemas: {conflicts}")
 
@@ -1322,7 +1347,7 @@ def run_s0(config: EngineConfig, run_id: Optional[str] = None) -> S0GateResult:
                 {"bundle_id": "validation_bundle_5B", "path": str(bundle_root)},
                 manifest_fingerprint,
             )
-        index_path = bundle_root / "validation_bundle_index_5B.json"
+        index_path = bundle_root / "index.json"
         try:
             index_payload = _load_json(index_path)
             schema = _schema_from_pack(schema_layer2, "validation/validation_bundle_index_5B")
@@ -1346,7 +1371,7 @@ def run_s0(config: EngineConfig, run_id: Optional[str] = None) -> S0GateResult:
                     {"detail": "validation_bundle_index_5B missing entries", "path": str(index_path)},
                 )
             _validate_index_entries(entries, index_path)
-            bundle_digest = _bundle_digest_from_entries_with_sha(entries, index_path)
+            bundle_digest, _ = _bundle_hash(bundle_root, entries)
             flag_digest = _parse_pass_flag_any(flag_path)
         except (EngineFailure, InputResolutionError) as exc:
             _abort(

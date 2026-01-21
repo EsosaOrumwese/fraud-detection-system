@@ -305,7 +305,7 @@ validation:
                   severity:  { type: string, enum: [REQUIRED, WARN_ONLY, INFO] }
                   result:    { type: string, enum: [PASS, WARN, FAIL] }
                   metrics:   { type: object, additionalProperties: true }
-                  thresholds:{ type: object, additionalProperties: true }
+                  thresholds: { type: object, additionalProperties: true }
 
         validation_issue_table_6A:
           type: object
@@ -403,7 +403,7 @@ validation:
                   severity:  { type: string, enum: [REQUIRED, WARN_ONLY, INFO] }
                   result:    { type: string, enum: [PASS, WARN, FAIL] }
                   metrics:   { type: object, additionalProperties: true }
-                  thresholds:{ type: object, additionalProperties: true }
+                  thresholds: { type: object, additionalProperties: true }
 
         s5_issue_table:
           type: object
