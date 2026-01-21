@@ -208,3 +208,133 @@ Plan to repair failing prior packs (starting with `prior_ip_counts_6A`):
 
 Contract/prior digest encoding:
 - Fixed `sha256_file` usage in 6A.S0 so `sha256_hex` stores the digest string (not the `FileDigest` object) for contract rows and prior-pack rows.
+
+### Entry: 2026-01-21 17:37
+
+6A.S1 expanded spec review (lean path focus):
+- Read `docs/model_spec/data-engine/layer-3/specs/state-flow/6A/state.6A.s1.expanded.md` to identify heavy or unrealistic requirements and capture a minimal-relaxation plan before implementation.
+- Potentially heavy / unrealistic bindings that can slow S1 or block runs:
+  - **Run-report dependency on S0** (Section 2.2): requires a "latest 6A.S0 run-report" PASS, but Layer-3 contracts do not define `segment_state_runs` or any run-report dataset for 6A. This is a blocking requirement in practice. Lean option: treat missing run-report as WARN and accept S0 gate receipt + sealed-inputs digest as sufficient.
+  - **RNG trace/audit verbosity**: spec implies detailed `rng_audit_log` + `rng_trace_log` per event. At large N this is prohibitive IO. Lean option: emit aggregated events per cell/batch (counts + counter range) and keep `rng_trace_log` as sparse sampling (or per-batch only), not per-party.
+  - **Canonical ordering constraints**: strict ordering can force global materialisation or expensive sorting. Lean option: deterministic cell ordering + deterministic intra-cell generation, but avoid any global sort; rely on canonical writer order via streaming batches per cell.
+  - **Digest recomputation**: recomputing `sealed_inputs_digest_6A` is required; that is fine, but avoid re-hashing large upstream bundles (S0 already did) and treat sealed_inputs rows as the authority.
+  - **Summary tables and full cross-checks**: full summary table creation and full-table validations can double IO. Lean option: make `s1_party_summary_6A` optional and compute summary from streaming counters rather than re-scanning the base table.
+- Minimal-relaxation implementation approach (to propose/confirm with user):
+  1. **Eligibility gating**: require `s0_gate_receipt_6A` + `sealed_inputs_6A` + digest match; treat S0 run-report as optional (warn if missing).
+  2. **Population planning**: compute `N_cell` in-memory (small) and stream party generation per cell in canonical order; no global sort or full buffering.
+  3. **RNG logging**: emit two event logs (`party_count_realisation`, `party_attribute_sampling`) at cell/batch granularity with counter ranges; keep `rng_audit_log` as a concise summary row; `rng_trace_log` optional/sampled.
+  4. **Output summary**: maintain counters during streaming; if `s1_party_summary_6A` is requested, write from counters (no re-read).
+  5. **Performance guardrails**: enforce a hard cap on total parties and expose a parameter-hash-backed scale factor to keep dev runs fast.
+- Questions for approval:
+  - Allow missing S0 run-report to be WARN-only (since L3 has no run-report contract)?
+  - Accept aggregated RNG logs (per-cell/batch) instead of per-party trace/audit rows?
+  - Keep `s1_party_summary_6A` optional and derived from counters only?
+
+### Entry: 2026-01-21 17:55
+
+6A.S1 implementation plan (lean path, decisions confirmed):
+- **Contracts source:** use `ContractSource(config.contracts_root, config.contracts_layout)` so dev can run from `model_spec` and production can switch to root packs without code changes.
+- **Gating decisions (approved relaxations):**
+  - Require `s0_gate_receipt_6A` + `sealed_inputs_6A` + digest match; treat missing S0 run-report as WARN-only because L3 contracts do not define `segment_state_runs`.
+  - Enforce strict schema compliance for S1 outputs (schema-validated, columns strict).
+  - RNG logs: emit aggregated `rng_event_*` rows per country/party_type (count realisation + attribute sampling) and write a single `rng_trace_log` row per substream with totals; no per-party tracing.
+  - Summary: emit `s1_party_summary_6A` from streaming counters only (no re-scan of base).
+- **Inputs / authorities:**
+  - Required sealed inputs (ROW_LEVEL): `prior_population_6A`, `prior_segmentation_6A`, `taxonomy_party_6A`, `outlet_catalogue` (for country weights), `merchant_zone_profile_5A` (for expected arrivals by country).
+  - Contracts (METADATA_ONLY): `schemas.layer3.yaml`, `schemas.6A.yaml`, `dataset_dictionary.layer3.6A.yaml`, `artefact_registry_6A.yaml`.
+  - Any hint required by `population_priors.inputs_allowed.required_hints` but missing -> WARN + fallback (approved relaxation).
+- **Region mapping decision (lean):**
+  - No sealed country→region mapping exists; derive `region_id` deterministically by hashing `country_iso` into the region list defined in `segmentation_priors_6A.region_party_type_mix`.
+  - Log mapping rule and per-region counts; treat as a relaxation until a sealed region taxonomy is added.
+- **Population planning algorithm:**
+  1. Load priors/taxonomy (validate against schema refs).
+  2. Compute country weights from outlet counts and merchant_zone_profile expected arrivals:
+     - `weight = (outlet_count + outlet_offset)^outlet_exponent * (arrivals + arrival_offset)^arrival_exponent` per country; apply `country_weight_floor`.
+     - If arrivals data missing or totals zero in `arrivals_based_v1`, fallback to outlet-only estimate and log WARN.
+  3. Compute `N_world_target`:
+     - `arrivals_based_v1`: `expected_arrivals_total / (arrivals_per_active_party_per_week * active_fraction)`.
+     - `outlets_based_v1`: `outlets_total * parties_per_outlet`.
+     - Apply seed-scale lognormal if configured; clamp to `[N_world_min, N_world_max]`.
+  4. Integerise country totals via largest-remainder (deterministic tie by country code).
+  5. Split each country into party_type counts using region-level mixes; split each country+party_type into segment counts via region-type segment mixes (largest-remainder + RNG tie-break).
+- **RNG envelope (lean but auditable):**
+  - Use Philox2x64-10 from `engine.layers.l1.seg_1A.s1_hurdle.rng` with a 6A-specific hash prefix; allocate counters per substream (`party_count_realisation`, `party_attribute_sampling`).
+  - Emit envelope fields (`rng_counter_before_*`, `rng_counter_after_*`, `draws`, `blocks`) at country/party_type granularity.
+- **Output writing (streaming, idempotent):**
+  - Write `s1_party_base_6A.parquet` via `pyarrow.ParquetWriter` (row-group streaming), then publish atomically; fail on output conflict.
+  - Generate parties in canonical order: `country_iso` → `segment_id` → `party_type` → `party_id` with sequential IDs for determinism.
+  - Use in-loop counters to assemble `s1_party_summary_6A` and write a single parquet file.
+- **Logging/observability:**
+  - Story header log; phase logs for gating, input loading, population planning, integerisation, generation, and outputs.
+  - Progress logs for long loops with elapsed/processed/rate/ETA (monotonic).
+- **Validation/testing:**
+  - Validate priors/taxonomy with schema pack anchors.
+  - Schema-check a sample of output rows plus summary frame.
+- Run `python -m py_compile` and `make segment6a-s1` after implementation; terminate early if ETA exceeds target.
+
+### Entry: 2026-01-21 18:19
+
+6A.S1 integration + execution plan (post-implementation wiring):
+- Add Makefile wiring for S1 (`SEG6A_S1_RUN_ID`, args, CLI command, target, .PHONY).
+- Verify S1 runner/CLI files are complete; avoid functional changes unless a blocker is found.
+- Run `python -m py_compile` for new S1 modules to catch syntax errors early.
+- Execute `make segment6a-s1` and monitor progress logs for ETA; abort if it exceeds target run time.
+- Log execution outcomes in logbook with timestamp and note any additional decisions or deviations.
+
+### Entry: 2026-01-21 18:21
+
+6A.S1 runtime error fix (StepTimer logging):
+- Observed `TypeError: _StepTimer.info() takes 2 positional arguments but 6 were given` during `make segment6a-s1`.
+- Decision: allow `_StepTimer.info` to accept `*args` and pass them through to `logger.info`, matching other logging calls that use format strings.
+- Plan: update `_StepTimer.info(self, message: str, *args)` and leave call sites unchanged; re-run `make segment6a-s1`.
+
+### Entry: 2026-01-21 18:22
+
+6A.S1 schema $defs resolution fix:
+- Observed `jsonschema.exceptions._WrappedReferencingError` due to `$ref: "#/$defs/hex64"` inside subschema without `$defs`.
+- Root cause: `_schema_from_pack` returns a nested schema node without carrying top-level `$defs`, so local `$ref` lookups fail.
+- Decision: inject root `$defs` into the returned subschema when missing.
+- Plan: after `_schema_from_pack` resolves and normalizes the node, attach `$defs` from the schema pack if present and not already defined; re-run `make segment6a-s1`.
+
+### Entry: 2026-01-21 18:25
+
+6A.S1 sealed_inputs schema validation fix:
+- Observed `sealed_inputs_6A.json` is a list of rows, but schema anchor `#/gate/6A/sealed_inputs_6A` defines a single row object.
+- Decision: treat list payloads as arrays-of-row when schema type is `object` by wrapping the schema in `{"type":"array","items":schema}` before validation.
+- Plan: update `_validate_payload` to detect list payload + object schema and validate as an array; re-run `make segment6a-s1`.
+
+### Entry: 2026-01-21 18:26
+
+6A.S1 array wrapper $defs fix:
+- New error: after wrapping the sealed_inputs schema into an array, `$defs` lived inside `items`, so `#/$defs/...` references still failed.
+- Decision: when wrapping object schema into array, hoist `$defs` to the root of the wrapper and keep `items` clean.
+- Plan: modify `_validate_payload` to extract `$defs` from the object schema and attach it at the array root before validation.
+
+### Entry: 2026-01-21 18:27
+
+6A.S1 sealed_inputs digest alignment:
+- Observed `sealed_inputs_digest_mismatch` between S1 recompute and S0 receipt.
+- Root cause: S1 digest logic uses different field order/set and sorts differently than S0.
+- Decision: match S0 digest law: sort rows by `(owner_layer, owner_segment, manifest_key, path_template)` and hash canonical rows with ordered fields including `schema_ref` + `notes`.
+- Plan: update `_sealed_inputs_digest` in S1 to mirror S0’s implementation and re-run `make segment6a-s1`.
+
+### Entry: 2026-01-21 18:28
+
+6A.S1 sealed input path resolution:
+- New failure: `Dataset entry missing path` when resolving sealed input entries, because sealed inputs use `path_template` (not `path`).
+- Decision: allow `_resolve_dataset_path` to fall back to `path_template` when `path` is missing.
+- Plan: update `_resolve_dataset_path` to accept either field, then re-run `make segment6a-s1`.
+
+### Entry: 2026-01-21 18:29
+
+6A.S1 RNG event temp file collision:
+- Failure: `rng_event_party_attribute_sampling` publish failed because temp file was already moved when publishing `rng_event_party_count_realisation` (both used `part-00000.jsonl` in the same tmp dir).
+- Decision: ensure distinct temp filenames for count vs attribute event JSONL in the temp directory.
+- Plan: if `rng_count_path.name == rng_attr_path.name`, override temp names to `party_count_realisation.jsonl` and `party_attribute_sampling.jsonl` before publishing.
+
+### Entry: 2026-01-21 18:31
+
+6A.S1 stabilization outcome:
+- Applied fixes for `$defs` injection, sealed_inputs list validation, digest alignment, `path_template` resolution, and RNG temp file naming.
+- `make segment6a-s1` completes successfully for run_id `d61f08e2e45ef1bc28884034de4c1b68` (outputs: `s1_party_base_6A`, `s1_party_summary_6A`, RNG logs + event JSONL).
+- Noted warnings: `min_parties_per_country` below threshold in several countries; Polars `DataOrientationWarning` during buffer DataFrame creation (non-fatal).
