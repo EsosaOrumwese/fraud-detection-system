@@ -4633,3 +4633,105 @@ Validation/testing steps:
 - Run `make segment2b-s3` and `make segment2b-s4` to regenerate group weights
   for the correct day range.
 - Run `make segment5b-s4` and monitor ETA; terminate if ETA is high and revisit.
+
+### Entry: 2026-01-21 14:30
+
+Design problem summary:
+- Implement 5B.S5 (validation bundle + HashGate) for Segment 5B. S5 must
+  validate S0-S4 outputs, RNG accounting, and bundle integrity for a given
+  `manifest_fingerprint`, then publish `validation_bundle_5B` + `_passed.flag`.
+- The state-expanded spec is heavy; in practice we need a **fast, streaming**
+  validator that avoids full-table sorts and still provides strong, auditable
+  evidence for PASS/FAIL. The design should therefore respect the policy
+  contract but use efficient checks and bounded sampling where possible.
+
+Decision path and options considered (efficiency-focused):
+1) **Full re-computation of invariants (strict, expensive).**
+   - E.g., rebuild per-bucket counts from full S4 scans, full civil-time
+     conversions, and per-row routing checks.
+   - Rejected as default because it scales poorly for high-volume runs.
+2) **Streaming + summary-based validation (fast, auditable).**
+   - Use `s4_arrival_summary_5B` for bucket-level counts if present; fall back
+     to streaming scans when summary is missing.
+   - Use distinct-id membership checks for routing (validate the set of
+     `site_id`/`edge_id` references rather than per-row joins).
+   - Use deterministic sampling for civil-time checks and time-in-bucket
+     checks when full scans are prohibitive; sample size is policy-driven.
+3) **Trust upstream run-reports only (too weak).**
+   - Rejected because S5 is the HashGate authority; it must compute its own
+     checks, not just echo prior run-reports.
+
+Decision: adopt Option 2 as the default. Implement a **tiered validator**:
+- If summary/issue evidence exists, use it for exact counts.
+- If not, stream lightweight columns and compute exact aggregates without
+  sorting; for the most expensive checks, use deterministic samples and log
+  that a bounded check was used (explicitly recorded in the report).
+
+Planned relaxations (explicit, minimal-impact):
+1) **Count conservation**: exact counts via `s4_arrival_summary_5B` when present,
+   otherwise stream `arrival_events_5B` and aggregate `bucket_index` counts
+   (no full sort).
+2) **Civil-time correctness**: deterministic sample of arrivals (hash-based
+   selection) instead of full scan, to avoid costly per-row tz conversions.
+3) **Routing validity**: validate the distinct set of `site_id` / `edge_id`
+   references against `site_locations` / `edge_catalogue_3B` rather than
+   per-row joins. This catches out-of-universe IDs with much less cost.
+4) **Sorted-within-bucket**: if the dataset is not ordered by bucket, enforce
+   a sample-based monotonicity check instead of a full sort (not feasible at
+   scale). This deviation will be logged.
+
+Contract authority source & production posture:
+- Use `ContractSource` for 5B contracts (model_spec in dev). The same runner
+  should accept root-level contracts without code changes by config switch.
+
+Planned implementation outline (stepwise, before coding):
+1) **Scaffold S5**:
+   - Create `packages/engine/src/engine/layers/l2/seg_5B/s5_validation_bundle/`
+     with `runner.py`, modeled on 5A.S5 but simplified for 5B data shapes.
+   - Add CLI `packages/engine/src/engine/cli/s5_validation_bundle_5b.py`.
+   - Wire `segment5b-s5` target in `makefile`.
+2) **Input resolution**:
+   - Load 5B dictionaries/registries + schemas (5B, layer2, layer1).
+   - Read `s0_gate_receipt_5B` and `sealed_inputs_5B`.
+   - Discover the domain `(parameter_hash, scenario_id, seed)` from S3/S4
+     parquet partitions via dictionary-resolved paths (no ad-hoc scans).
+3) **Policy-driven validation** (with fast paths):
+   - Use `validation_policy_5B` toggles to select checks (respect booleans).
+   - For each `(ph, sid, seed)`:
+     - Validate S3 bucket counts vs S4 arrivals (summary-first, streaming fallback).
+     - Validate `ts_utc` within bucket windows (stream or sample).
+     - Validate civil-time mapping by deterministic sample using
+       `tz_timetable_cache` and `site_timezones`.
+     - Validate routing: distinct `site_id` vs `site_locations` and
+       `edge_id` vs `edge_catalogue_3B`.
+     - Validate schema presence of required fields (sample-based if needed).
+4) **RNG accounting**:
+   - Prefer `rng_trace_log` for aggregated draws/blocks per family.
+   - If policy requests, cross-check event tables where present; otherwise
+     mark missing event tables as WARN-only if policy allows (fail if required).
+5) **Bundle assembly**:
+   - Follow `bundle_layout_policy_5B` for file list, roles, and paths.
+   - Emit `validation_report_5B.json` and optional `validation_issue_table_5B`.
+   - Build `index.json` with sha256 per file; compute bundle digest and write
+     `_passed.flag` on PASS.
+6) **Run-report emission**:
+   - Emit a single S5 run-report entry in `segment_state_runs` with required
+     counters, booleans, and bundle paths/digest.
+
+Invariants to enforce (even under relaxed checks):
+- S3 counts must equal S4 arrivals (exact at bucket level when summary exists,
+  exact totals via streaming otherwise).
+- Any non-null `site_id`/`edge_id` must belong to the respective universe.
+- All arrivals must fall within their bucket time window (checked for samples
+  when full scan is prohibitive; a mismatch fails).
+- Bundle index + flag digest must match actual files.
+
+Logging/observability plan:
+- Story header: objective, gated inputs, outputs.
+- Progress logs with elapsed/rate/ETA for any long scans (arrivals, RNG logs).
+- Log when a check is **sampled** vs **full**, including sample size and seed
+  for deterministic selection.
+
+Validation/testing steps:
+- Run `make segment5b-s5` after S4 outputs exist for at least one run_id.
+- If ETA is high, terminate per guidance and tighten fast-path checks.
