@@ -63,6 +63,7 @@ from engine.core.paths import RunPaths
 from engine.core.time import utc_now_rfc3339_micro
 from engine.layers.l1.seg_1A.s0_foundations.rng import RngTraceAccumulator
 from engine.layers.l1.seg_1A.s1_hurdle.rng import add_u128, philox2x64_10
+from engine.layers.l2.seg_5B.s4_arrival_events import numba_kernel as s4_numba
 from engine.layers.l2.seg_5B.s0_gate.runner import (
     _append_jsonl,
     _inline_external_refs,
@@ -766,6 +767,8 @@ def _build_shared_maps(
     settlement_map: dict[int, str],
     edge_map: dict[int, tuple[list[int], list[str]]],
     edge_alias_meta: dict[int, dict[str, object]],
+    edge_alias_blob_path: Optional[Path],
+    alias_endianness: str,
     site_alias_map: dict[tuple[int, str], tuple[np.ndarray, np.ndarray, list[int]]],
     fallback_alias_map: dict[int, tuple[np.ndarray, np.ndarray, list[int]]],
     site_tz_lookup: dict[tuple[int, int], str],
@@ -848,6 +851,24 @@ def _build_shared_maps(
     arrays["edge_alias_table_lengths"] = _save_shared_array(
         shared_root, "edge_alias_table_lengths", edge_alias_table_lengths
     )
+    if edge_alias_blob_path and s4_numba.numba_available():
+        blob_view = _BlobView(edge_alias_blob_path)
+        try:
+            edge_alias_prob, edge_alias_alias, edge_alias_prob_offsets, edge_alias_prob_counts = (
+                s4_numba.build_edge_alias_arrays(
+                    edge_keys, edge_alias_meta, blob_view, alias_endianness
+                )
+            )
+        finally:
+            blob_view.close()
+        arrays["edge_alias_prob"] = _save_shared_array(shared_root, "edge_alias_prob", edge_alias_prob)
+        arrays["edge_alias_alias"] = _save_shared_array(shared_root, "edge_alias_alias", edge_alias_alias)
+        arrays["edge_alias_prob_offsets"] = _save_shared_array(
+            shared_root, "edge_alias_prob_offsets", edge_alias_prob_offsets
+        )
+        arrays["edge_alias_prob_counts"] = _save_shared_array(
+            shared_root, "edge_alias_prob_counts", edge_alias_prob_counts
+        )
 
     fallback_items = sorted(fallback_alias_map.items(), key=lambda item: item[0])
     fallback_keys = np.array([item[0] for item in fallback_items], dtype=np.uint64)
@@ -1078,6 +1099,30 @@ def _init_s4_worker(context: dict) -> None:
         ctx["event_row_validator"] = Draft202012Validator(event_schema)
     if summary_schema is not None:
         ctx["summary_row_validator"] = Draft202012Validator(summary_schema)
+    if ctx.get("compiled_kernel"):
+        shared_maps = ctx.get("shared_maps")
+        tzid_list = shared_maps.get("tzid_list") if shared_maps else None
+        if tzid_list is not None:
+            instants, offsets, offset_offsets, offset_counts = s4_numba.build_tz_cache_arrays(
+                tzid_list, ctx.get("tz_cache") or {}
+            )
+            tz_bytes, tz_offsets, tz_lengths = s4_numba.build_tzid_bytes(tzid_list)
+            ctx["tz_instants_flat"] = instants
+            ctx["tz_offsets_flat"] = offsets
+            ctx["tz_offset_offsets"] = offset_offsets
+            ctx["tz_offset_counts"] = offset_counts
+            ctx["tzid_bytes"] = tz_bytes
+            ctx["tzid_offsets"] = tz_offsets
+            ctx["tzid_lengths"] = tz_lengths
+        time_prefix = ctx.get("time_prefix")
+        if time_prefix:
+            ctx["time_prefix_bytes"] = np.frombuffer(time_prefix, dtype=np.uint8)
+        site_prefix = ctx.get("site_prefix")
+        if site_prefix:
+            ctx["site_prefix_bytes"] = np.frombuffer(site_prefix, dtype=np.uint8)
+        edge_prefix = ctx.get("edge_prefix")
+        if edge_prefix:
+            ctx["edge_prefix_bytes"] = np.frombuffer(edge_prefix, dtype=np.uint8)
     _S4_WORKER_CONTEXT = ctx
 
 
@@ -1229,6 +1274,7 @@ def _process_s4_batch_impl(payload: dict) -> dict:
 
     missing_group_keys: set[tuple[int, str, str]] = set()
     missing_alias_keys: set[tuple[int, str]] = set()
+    compiled_kernel_enabled = bool(ctx.get("compiled_kernel")) and s4_numba.numba_available()
 
     def _validate_rows(rows: list[dict], validator, label: str) -> None:
         if validator is None:
@@ -1322,6 +1368,438 @@ def _process_s4_batch_impl(payload: dict) -> dict:
 
     event_rows: list = []
     summary_rows: list[dict] = []
+
+    compiled_kernel_ready = (
+        compiled_kernel_enabled
+        and shared_maps is not None
+        and skip_group_weight_check
+        and group_weights_map is None
+    )
+    if compiled_kernel_ready:
+        tz_instants_flat = ctx.get("tz_instants_flat")
+        tz_offsets_flat = ctx.get("tz_offsets_flat")
+        tz_offset_offsets = ctx.get("tz_offset_offsets")
+        tz_offset_counts = ctx.get("tz_offset_counts")
+        tzid_bytes = ctx.get("tzid_bytes")
+        tzid_offsets = ctx.get("tzid_offsets")
+        tzid_lengths = ctx.get("tzid_lengths")
+        time_prefix_bytes = ctx.get("time_prefix_bytes")
+        site_prefix_bytes = ctx.get("site_prefix_bytes")
+        edge_prefix_bytes = ctx.get("edge_prefix_bytes")
+        bucket_start_micros = ctx.get("bucket_start_micros")
+        bucket_duration_micros = ctx.get("bucket_duration_micros")
+        bucket_duration_seconds = ctx.get("bucket_duration_seconds")
+        edge_alias_prob = shared_maps.get("edge_alias_prob")
+        edge_alias_alias = shared_maps.get("edge_alias_alias")
+        edge_alias_prob_offsets = shared_maps.get("edge_alias_prob_offsets")
+        edge_alias_prob_counts = shared_maps.get("edge_alias_prob_counts")
+        required_arrays = [
+            tz_instants_flat,
+            tz_offsets_flat,
+            tz_offset_offsets,
+            tz_offset_counts,
+            tzid_bytes,
+            tzid_offsets,
+            tzid_lengths,
+            time_prefix_bytes,
+            site_prefix_bytes,
+            edge_prefix_bytes,
+            bucket_start_micros,
+            bucket_duration_micros,
+            bucket_duration_seconds,
+            edge_alias_prob,
+            edge_alias_alias,
+            edge_alias_prob_offsets,
+            edge_alias_prob_counts,
+        ]
+        if any(item is None for item in required_arrays):
+            compiled_kernel_ready = False
+
+    if compiled_kernel_ready:
+        merchants_arr = np.asarray(merchants, dtype=np.uint64)
+        bucket_idx_arr = np.asarray(buckets, dtype=np.int64)
+        counts_arr = np.asarray(counts, dtype=np.int64)
+        arrival_seq_arr = np.asarray(arrival_seq_start, dtype=np.int64)
+        zone_idx_arr = np.empty(len(zones), dtype=np.int32)
+        for idx in range(len(zones)):
+            tz_idx = tzid_to_index.get(zones[idx]) if tzid_to_index else None
+            if tz_idx is None:
+                raise EngineFailure(
+                    "F4",
+                    "5B.S4.ROUTING_POLICY_INVALID",
+                    STATE,
+                    MODULE_NAME,
+                    {"tzid_primary": zones[idx]},
+                )
+            zone_idx_arr[idx] = int(tz_idx)
+
+        total_events = int(np.sum(counts_arr[counts_arr > 0]))
+        if total_events > 0:
+            out_arrival_seq = np.zeros(total_events, dtype=np.int64)
+            out_ts_utc_micros = np.zeros(total_events, dtype=np.int64)
+            out_tzid_primary_idx = np.full(total_events, -1, dtype=np.int32)
+            out_ts_local_primary_micros = np.zeros(total_events, dtype=np.int64)
+            out_tzid_operational_idx = np.full(total_events, -1, dtype=np.int32)
+            out_ts_local_operational_micros = np.zeros(total_events, dtype=np.int64)
+            out_tzid_settlement_idx = np.full(total_events, -1, dtype=np.int32)
+            out_ts_local_settlement_micros = np.zeros(total_events, dtype=np.int64)
+            out_site_id = np.full(total_events, -1, dtype=np.int64)
+            out_edge_id = np.full(total_events, -1, dtype=np.int64)
+            out_is_virtual = np.zeros(total_events, dtype=np.uint8)
+            summary_physical = np.zeros(len(merchants), dtype=np.int64)
+            summary_virtual = np.zeros(len(merchants), dtype=np.int64)
+            missing_alias_flags = np.zeros(len(merchants), dtype=np.uint8)
+            rng_last = np.zeros((3, 2), dtype=np.int64)
+            error_state = np.zeros(2, dtype=np.int64)
+
+            out_size = s4_numba.expand_batch_kernel(
+                merchants_arr,
+                zone_idx_arr,
+                bucket_idx_arr,
+                counts_arr,
+                arrival_seq_arr,
+                bucket_start_micros,
+                bucket_duration_micros,
+                bucket_duration_seconds,
+                classification_keys,
+                classification_modes,
+                settlement_keys,
+                settlement_tz_index,
+                edge_keys,
+                edge_offsets,
+                edge_counts,
+                edge_ids_arr,
+                edge_tz_index,
+                edge_alias_prob,
+                edge_alias_alias,
+                edge_alias_prob_offsets,
+                edge_alias_prob_counts,
+                site_keys,
+                site_offsets,
+                site_counts,
+                site_prob,
+                site_alias,
+                site_site_orders,
+                fallback_keys,
+                fallback_offsets,
+                fallback_counts,
+                fallback_prob,
+                fallback_alias,
+                fallback_site_orders,
+                site_tz_keys,
+                site_tz_values,
+                tz_instants_flat,
+                tz_offsets_flat,
+                tz_offset_offsets,
+                tz_offset_counts,
+                tzid_bytes,
+                tzid_offsets,
+                tzid_lengths,
+                time_prefix_bytes,
+                site_prefix_bytes,
+                edge_prefix_bytes,
+                max_arrivals_per_bucket,
+                p_virtual_hybrid,
+                draws_per_arrival,
+                out_arrival_seq,
+                out_ts_utc_micros,
+                out_tzid_primary_idx,
+                out_ts_local_primary_micros,
+                out_tzid_operational_idx,
+                out_ts_local_operational_micros,
+                out_tzid_settlement_idx,
+                out_ts_local_settlement_micros,
+                out_site_id,
+                out_edge_id,
+                out_is_virtual,
+                summary_physical,
+                summary_virtual,
+                missing_alias_flags,
+                rng_last,
+                error_state,
+            )
+            if int(error_state[0]) != 0:
+                raise EngineFailure(
+                    "F4",
+                    "5B.S4.ROUTING_POLICY_INVALID",
+                    STATE,
+                    MODULE_NAME,
+                    {"error_code": int(error_state[0]), "row_index": int(error_state[1])},
+                )
+            if out_size != total_events:
+                total_events = int(out_size)
+                out_arrival_seq = out_arrival_seq[:total_events]
+                out_ts_utc_micros = out_ts_utc_micros[:total_events]
+                out_tzid_primary_idx = out_tzid_primary_idx[:total_events]
+                out_ts_local_primary_micros = out_ts_local_primary_micros[:total_events]
+                out_tzid_operational_idx = out_tzid_operational_idx[:total_events]
+                out_ts_local_operational_micros = out_ts_local_operational_micros[:total_events]
+                out_tzid_settlement_idx = out_tzid_settlement_idx[:total_events]
+                out_ts_local_settlement_micros = out_ts_local_settlement_micros[:total_events]
+                out_site_id = out_site_id[:total_events]
+                out_edge_id = out_edge_id[:total_events]
+                out_is_virtual = out_is_virtual[:total_events]
+
+            repeat_counts = counts_arr.copy()
+            repeat_counts[repeat_counts < 0] = 0
+            merchants_rep = np.repeat(merchants_arr, repeat_counts)
+            bucket_rep = np.repeat(bucket_idx_arr, repeat_counts)
+            zone_rep = np.repeat(np.asarray(zones, dtype=object), repeat_counts)
+            channel_rep = np.repeat(np.asarray(channels, dtype=object), repeat_counts)
+            lambda_vals = np.array(
+                [np.nan if value is None else float(value) for value in lambdas],
+                dtype=np.float64,
+            )
+            lambda_rep = np.repeat(lambda_vals, repeat_counts)
+
+            tzid_array = np.asarray(tzid_list, dtype=object)
+            tzid_primary_vals = tzid_array[out_tzid_primary_idx]
+            tzid_operational_vals = np.empty(total_events, dtype=object)
+            tzid_settlement_vals = np.empty(total_events, dtype=object)
+            mask_operational = out_tzid_operational_idx >= 0
+            mask_settlement = out_tzid_settlement_idx >= 0
+            tzid_operational_vals[mask_operational] = tzid_array[
+                out_tzid_operational_idx[mask_operational]
+            ]
+            tzid_operational_vals[~mask_operational] = None
+            tzid_settlement_vals[mask_settlement] = tzid_array[
+                out_tzid_settlement_idx[mask_settlement]
+            ]
+            tzid_settlement_vals[~mask_settlement] = None
+
+            routing_universe_vals = np.where(
+                out_is_virtual.astype(bool),
+                str(edge_universe_hash),
+                str(zone_alloc_universe_hash),
+            )
+
+            events_df = pl.DataFrame(
+                {
+                    "manifest_fingerprint": np.full(total_events, manifest_fingerprint, dtype=object),
+                    "parameter_hash": np.full(total_events, parameter_hash, dtype=object),
+                    "seed": np.full(total_events, int(seed), dtype=np.uint64),
+                    "scenario_id": np.full(total_events, scenario_id, dtype=object),
+                    "merchant_id": merchants_rep.astype(np.uint64),
+                    "zone_representation": zone_rep,
+                    "channel_group": channel_rep,
+                    "bucket_index": bucket_rep.astype(np.int64),
+                    "arrival_seq": out_arrival_seq.astype(np.int64),
+                    "tzid_primary": tzid_primary_vals,
+                    "tzid_settlement": tzid_settlement_vals,
+                    "tzid_operational": tzid_operational_vals,
+                    "tz_group_id": tzid_primary_vals,
+                    "site_id": out_site_id.astype(np.int64),
+                    "edge_id": out_edge_id.astype(np.int64),
+                    "routing_universe_hash": routing_universe_vals,
+                    "lambda_realised": lambda_rep,
+                    "is_virtual": out_is_virtual.astype(bool),
+                    "s4_spec_version": np.full(total_events, spec_version, dtype=object),
+                    "ts_utc_micros": out_ts_utc_micros,
+                    "ts_local_primary_micros": out_ts_local_primary_micros,
+                    "ts_local_operational_micros": out_ts_local_operational_micros,
+                    "ts_local_settlement_micros": out_ts_local_settlement_micros,
+                }
+            )
+            events_df = events_df.with_columns(
+                pl.from_epoch("ts_utc_micros", time_unit="us")
+                .dt.strftime("%Y-%m-%dT%H:%M:%S.%fZ")
+                .alias("ts_utc"),
+                pl.from_epoch("ts_local_primary_micros", time_unit="us")
+                .dt.strftime("%Y-%m-%dT%H:%M:%S.%fZ")
+                .alias("ts_local_primary"),
+                pl.when(pl.col("tzid_operational").is_not_null())
+                .then(
+                    pl.from_epoch("ts_local_operational_micros", time_unit="us").dt.strftime(
+                        "%Y-%m-%dT%H:%M:%S.%fZ"
+                    )
+                )
+                .otherwise(None)
+                .alias("ts_local_operational"),
+                pl.when(pl.col("tzid_settlement").is_not_null())
+                .then(
+                    pl.from_epoch("ts_local_settlement_micros", time_unit="us").dt.strftime(
+                        "%Y-%m-%dT%H:%M:%S.%fZ"
+                    )
+                )
+                .otherwise(None)
+                .alias("ts_local_settlement"),
+            ).drop(
+                [
+                    "ts_utc_micros",
+                    "ts_local_primary_micros",
+                    "ts_local_operational_micros",
+                    "ts_local_settlement_micros",
+                ]
+            )
+
+            events_df = events_df.with_columns(
+                pl.when(pl.col("site_id") < 0).then(None).otherwise(pl.col("site_id")).alias("site_id"),
+                pl.when(pl.col("edge_id") < 0).then(None).otherwise(pl.col("edge_id")).alias("edge_id"),
+                pl.when(pl.col("lambda_realised").is_nan())
+                .then(None)
+                .otherwise(pl.col("lambda_realised"))
+                .alias("lambda_realised"),
+            )
+            events_df = _coerce_int_columns(events_df, _S4_EVENT_UINT64_COLUMNS, _S4_EVENT_INT64_COLUMNS)
+
+            if event_row_validator is not None:
+                sample_df = events_df if output_validate_full else events_df.head(output_sample_rows)
+                sample_rows = sample_df.to_dicts()
+                _validate_rows(sample_rows, event_row_validator, "arrival_events")
+
+            if _HAVE_PYARROW and pq is not None:
+                table = events_df.to_arrow()
+                if events_writer is None:
+                    events_writer = pq.ParquetWriter(events_path, table.schema, compression="zstd")
+                events_writer.write_table(table)
+            else:
+                events_chunks.append(events_df)
+
+            summary_df = pl.DataFrame(
+                {
+                    "manifest_fingerprint": np.full(len(merchants_arr), manifest_fingerprint, dtype=object),
+                    "parameter_hash": np.full(len(merchants_arr), parameter_hash, dtype=object),
+                    "seed": np.full(len(merchants_arr), int(seed), dtype=np.uint64),
+                    "scenario_id": np.full(len(merchants_arr), scenario_id, dtype=object),
+                    "merchant_id": merchants_arr.astype(np.uint64),
+                    "zone_representation": np.asarray(zones, dtype=object),
+                    "channel_group": np.asarray(channels, dtype=object),
+                    "bucket_index": bucket_idx_arr.astype(np.int64),
+                    "count_N": counts_arr.astype(np.int64),
+                    "count_physical": summary_physical.astype(np.int64),
+                    "count_virtual": summary_virtual.astype(np.int64),
+                    "s4_spec_version": np.full(len(merchants_arr), spec_version, dtype=object),
+                }
+            )
+            summary_df = _coerce_int_columns(summary_df, _S4_SUMMARY_UINT64_COLUMNS, _S4_SUMMARY_INT64_COLUMNS)
+            if summary_row_validator is not None:
+                sample_df = summary_df if output_validate_full else summary_df.head(output_sample_rows)
+                sample_rows = sample_df.to_dicts()
+                _validate_rows(sample_rows, summary_row_validator, "arrival_summary")
+
+            if _HAVE_PYARROW and pq is not None:
+                table = summary_df.to_arrow()
+                if summary_writer is None:
+                    summary_writer = pq.ParquetWriter(summary_path, table.schema, compression="zstd")
+                summary_writer.write_table(table)
+            else:
+                summary_chunks.append(summary_df)
+
+            for idx in range(len(missing_alias_flags)):
+                if missing_alias_flags[idx] and (merchants[idx], zones[idx]) not in missing_alias_keys:
+                    logger.warning(
+                        "S4: site alias missing for merchant_id=%s tzid=%s; using fallback merchant alias",
+                        merchants[idx],
+                        zones[idx],
+                    )
+                    missing_alias_keys.add((merchants[idx], zones[idx]))
+
+            total_rows_written = int(total_events)
+            total_arrivals = int(total_events)
+            total_physical = int(summary_physical.sum())
+            total_virtual = int(summary_virtual.sum())
+
+            rng_stats["arrival_time_jitter"]["events"] = int(total_events)
+            rng_stats["arrival_time_jitter"]["draws"] = int(total_events * draws_per_arrival)
+            rng_stats["arrival_time_jitter"]["blocks"] = int(
+                math.ceil(float(draws_per_arrival) / 2.0) * total_events
+            )
+            rng_stats["arrival_site_pick"]["events"] = int(rng_last[1, 0])
+            rng_stats["arrival_site_pick"]["draws"] = int(rng_last[1, 0] * 2)
+            rng_stats["arrival_site_pick"]["blocks"] = int(rng_last[1, 0])
+            rng_stats["arrival_edge_pick"]["events"] = int(rng_last[2, 0])
+            rng_stats["arrival_edge_pick"]["draws"] = int(rng_last[2, 0])
+            rng_stats["arrival_edge_pick"]["blocks"] = int(rng_last[2, 0])
+
+            last_row_time = None
+            for idx in range(len(counts_arr) - 1, -1, -1):
+                if counts_arr[idx] > 0:
+                    last_row_time = idx
+                    break
+            if last_row_time is not None:
+                arrival_seq_last = int(arrival_seq_arr[last_row_time] + counts_arr[last_row_time] - 1)
+                domain_key = (
+                    f"merchant_id={merchants[last_row_time]}|zone={zones[last_row_time]}|"
+                    f"bucket_index={bucket_idx_arr[last_row_time]}|arrival_seq={arrival_seq_last}"
+                )
+                time_key, time_hi, time_lo = _derive_seed(time_hasher, time_prefix, domain_key)
+                _, time_blocks, time_next_hi, time_next_lo = _draw_philox_u64(
+                    time_key,
+                    time_hi,
+                    time_lo,
+                    draws_per_arrival,
+                    manifest_fingerprint,
+                )
+                rng_stats["arrival_time_jitter"]["last"] = (
+                    time_hi,
+                    time_lo,
+                    time_next_hi,
+                    time_next_lo,
+                )
+
+            class_idx = np.searchsorted(classification_keys, merchants_arr)
+            vmodes = classification_modes[class_idx]
+            last_row_site = None
+            for idx in range(len(counts_arr) - 1, -1, -1):
+                if counts_arr[idx] > 0 and int(vmodes[idx]) != 2:
+                    last_row_site = idx
+                    break
+            if last_row_site is not None:
+                arrival_seq_last = int(arrival_seq_arr[last_row_site] + counts_arr[last_row_site] - 1)
+                domain_key = (
+                    f"merchant_id={merchants[last_row_site]}|zone={zones[last_row_site]}|"
+                    f"bucket_index={bucket_idx_arr[last_row_site]}|arrival_seq={arrival_seq_last}"
+                )
+                site_key, site_hi, site_lo = _derive_seed(site_hasher, site_prefix, domain_key)
+                _, site_blocks, site_next_hi, site_next_lo = _draw_philox_u64(
+                    site_key,
+                    site_hi,
+                    site_lo,
+                    2,
+                    manifest_fingerprint,
+                )
+                rng_stats["arrival_site_pick"]["last"] = (
+                    site_hi,
+                    site_lo,
+                    site_next_hi,
+                    site_next_lo,
+                )
+
+            last_edge_idx = None
+            for idx in range(total_events - 1, -1, -1):
+                if out_is_virtual[idx]:
+                    last_edge_idx = idx
+                    break
+            if last_edge_idx is not None:
+                domain_key = (
+                    f"merchant_id={merchants_rep[last_edge_idx]}|zone={zone_rep[last_edge_idx]}|"
+                    f"bucket_index={bucket_rep[last_edge_idx]}|arrival_seq={int(out_arrival_seq[last_edge_idx])}"
+                )
+                edge_key, edge_hi, edge_lo = _derive_seed(edge_hasher, edge_prefix, domain_key)
+                _, edge_blocks, edge_next_hi, edge_next_lo = _draw_philox_u64(
+                    edge_key,
+                    edge_hi,
+                    edge_lo,
+                    1,
+                    manifest_fingerprint,
+                )
+                rng_stats["arrival_edge_pick"]["last"] = (
+                    edge_hi,
+                    edge_lo,
+                    edge_next_hi,
+                    edge_next_lo,
+                )
+
+            return {
+                "batch_id": batch_id,
+                "rows_written": total_rows_written,
+                "arrivals": total_arrivals,
+                "physical": total_physical,
+                "virtual": total_virtual,
+                "rng_stats": rng_stats,
+                "missing_group_keys": list(missing_group_keys),
+                "missing_alias_keys": list(missing_alias_keys),
+            }
 
     for idx in range(len(merchants)):
         merchant_id = int(merchants[idx])
@@ -2141,6 +2619,12 @@ def run_s4(config: EngineConfig, run_id: Optional[str] = None) -> S4Result:
         shared_maps_enabled = True
     else:
         shared_maps_enabled = shared_maps_env.strip().lower() in {"1", "true", "yes", "y"}
+    compiled_kernel_env = os.environ.get("ENGINE_5B_S4_COMPILED_KERNEL", "").strip()
+    if compiled_kernel_env:
+        compiled_kernel_enabled = compiled_kernel_env.lower() in {"1", "true", "yes", "y"}
+    else:
+        compiled_kernel_enabled = True
+    compiled_kernel_enabled = compiled_kernel_enabled and s4_numba.numba_available()
 
     current_phase = "init"
     status = "FAIL"
@@ -2251,6 +2735,10 @@ def run_s4(config: EngineConfig, run_id: Optional[str] = None) -> S4Result:
                 logger.info("S4: parallel_mode=off (pyarrow unavailable)")
             else:
                 logger.info("S4: parallel_mode=off")
+        logger.info(
+            "S4: compiled_kernel=%s (set ENGINE_5B_S4_COMPILED_KERNEL=0 to disable)",
+            "on" if compiled_kernel_enabled else "off",
+        )
 
         tokens = {
             "seed": str(seed),
@@ -3327,6 +3815,8 @@ def run_s4(config: EngineConfig, run_id: Optional[str] = None) -> S4Result:
                 settlement_map,
                 edge_map,
                 edge_alias_meta,
+                edge_alias_blob_path,
+                alias_endianness,
                 site_alias_map,
                 fallback_alias_map,
                 site_tz_lookup,
@@ -3466,6 +3956,14 @@ def run_s4(config: EngineConfig, run_id: Optional[str] = None) -> S4Result:
                         "duration_seconds": duration_seconds,
                         "utc_day": _utc_day_from_micros(start_micros),
                     }
+                bucket_start_micros = np.zeros(bucket_count, dtype=np.int64)
+                bucket_duration_micros = np.zeros(bucket_count, dtype=np.int64)
+                bucket_duration_seconds = np.zeros(bucket_count, dtype=np.float64)
+                for idx in range(bucket_count):
+                    info = bucket_map[idx]
+                    bucket_start_micros[idx] = int(info["start_micros"])
+                    bucket_duration_micros[idx] = int(info["duration_micros"])
+                    bucket_duration_seconds[idx] = float(info["duration_seconds"])
 
                 bucket_years = {info["utc_day"][:4] for info in bucket_map.values()}
                 skip_group_weight_check = not bool(bucket_years & group_weight_years)
@@ -3607,6 +4105,9 @@ def run_s4(config: EngineConfig, run_id: Optional[str] = None) -> S4Result:
                         "seed": int(seed),
                         "spec_version": str(spec_version),
                         "bucket_map": bucket_map,
+                        "bucket_start_micros": bucket_start_micros,
+                        "bucket_duration_micros": bucket_duration_micros,
+                        "bucket_duration_seconds": bucket_duration_seconds,
                         "tz_cache": tz_cache,
                         "edge_alias_blob_path": str(edge_alias_blob_path),
                         "alias_endianness": alias_endianness,
@@ -3628,6 +4129,7 @@ def run_s4(config: EngineConfig, run_id: Optional[str] = None) -> S4Result:
                         "summary_schema": summary_schema,
                         "events_tmp_dir": str(events_tmp_dir),
                         "summary_tmp_dir": str(summary_tmp_dir),
+                        "compiled_kernel": bool(compiled_kernel_enabled),
                     }
                     if shared_maps_root is not None:
                         worker_context["shared_maps_root"] = str(shared_maps_root)

@@ -3278,3 +3278,81 @@ Result
 
 Conclusion
 - Even with higher parallelism and larger buffers, we are still above the 5-9 minute target. Further improvements likely require a lower-level generation path (e.g., compiled/numba kernel) or a change in how per-arrival RNG derivation is computed.
+
+## 2026-01-21 05:12:00 - Plan: compiled kernel refactor for S4
+
+Goal
+- Achieve 2-3x speedup in 5B.S4 by moving the per-arrival hot loop into a compiled path while preserving RNG determinism and routing semantics.
+
+Constraints & invariants
+- Must preserve the 5B RNG policy: SHA256-based derivation on `prefix + UER(domain_key)` per arrival.
+- Must preserve routing logic (virtual vs physical, alias selection, tz handling) and output schema.
+- Keep default RNG event logging off and avoid breaking validation.
+
+Options considered
+- Numba: JIT compile the inner loop with custom SHA256 + Philox + routing in nopython mode. Pros: no C build; can ship with Python. Cons: heavier implementation (SHA256 in numba).
+- Cython: implement SHA256 + Philox + routing in C/Cython. Pros: maximum speed. Cons: build toolchain complexity and longer integration.
+
+Decision
+- Implement a Numba-based compiled kernel first. If numba is unavailable or fails, fall back to the current Python loop. This preserves correctness while allowing fast path in supported environments.
+
+Plan outline
+1) Add `numba` to `pyproject.toml` (and document the dependency) so the compiled path can be used consistently.
+2) Implement numba helpers:
+   - `sha256_update` + `sha256_digest` for arbitrary bytes (prefix + UER(domain_key)).
+   - `philox2x64_10` and `add_u128` in numba.
+   - Domain-key construction in numba using a fixed-size byte buffer (e.g., 256 bytes) and direct digit formatting for merchant_id/bucket_index/arrival_seq; embed `zone_rep` bytes via precomputed UTF-8 arrays + lengths.
+3) Create a numba `expand_arrivals` kernel that:
+   - Iterates over bucket rows, expands `count_N` arrivals, computes RNG draws (time/site/edge), and returns arrays/records for events.
+   - Uses shared-map numeric arrays (classification, settlement tzid index, edge alias tables, site alias tables) to avoid Python dict access.
+   - Emits event rows in the same logical order as the Python loop (arrival_seq order when ordering stats are off; optional ordering check stays in Python).
+4) Integrate into `_process_s4_batch_impl` with a guarded fast path:
+   - Build numeric inputs (zone_rep tz index, bucket start/duration arrays, alias arrays) once per batch.
+   - Call the numba kernel to fill column arrays; convert to Polars DataFrame directly (column-wise) to avoid dict/tuple overhead.
+   - If numba is unavailable or raises, log and fall back to the Python path.
+5) Update logging and run reports to note `compiled_kernel=on/off`.
+6) Re-run `make segment5b-s4` with tuned workers/buffers; terminate early if ETA exceeds target. Record results.
+
+Validation
+- Ensure RNG accounting, output schema, and counts match the previous implementation for a small sample (e.g., sample rows validation, compare counts in run report).
+- Ensure deterministic output under fixed seed (no run_id influence).
+
+Risks
+- Numba support for Python 3.12 may be limited; keep fallback path and log warnings if numba cannot be imported.
+- SHA256 implementation must match hashlib exactly; use test vectors and compare against hashlib for sanity (small, internal tests).
+
+## 2026-01-21 05:13:20 - Dependency update (numba)
+
+Action
+- Added `numba` to `pyproject.toml` to enable a compiled kernel path for S4.
+
+Note
+- The kernel remains guarded by a runtime availability check; if numba cannot import, the Python path remains active.
+
+## 2026-01-21 05:16:30 - Path correction for numba kernel
+
+Action
+- Relocated the new `numba_kernel.py` into `packages/engine/src/engine/layers/l2/seg_5B/s4_arrival_events/` after initially placing it under a missing `layers/` prefix.
+
+## 2026-01-21 05:25:00 - Implemented compiled-kernel path (Numba)
+
+Key changes
+- Added `numba_kernel.py` under `packages/engine/src/engine/layers/l2/seg_5B/s4_arrival_events/` with:
+  - Numba SHA256 implementation for the `prefix + UER(domain_key)` derivation law.
+  - Philox2x64-10 + alias-pick helpers.
+  - A batch expansion kernel that emits per-arrival arrays (timestamps, tz indices, site/edge ids, is_virtual) plus per-row summary counts and missing-alias flags.
+  - Python helpers to flatten tz cache and tzid bytes, and to decode edge alias tables into flat arrays.
+- Integrated a compiled-kernel fast path in `_process_s4_batch_impl`:
+  - Enabled when `ENGINE_5B_S4_COMPILED_KERNEL` is true, numba is available, shared maps exist, and group-weight checks are skipped.
+  - Builds numeric arrays for the batch, invokes the kernel, then constructs Polars DataFrames using vectorized timestamp formatting.
+  - Restores RNG traceability by computing last counters for time/site/edge streams based on the final relevant arrivals.
+  - Falls back to the existing Python loop if any required arrays are missing.
+- Extended shared maps to include decoded edge alias tables (prob/alias arrays + offsets/counts) when numba is available, so the kernel can avoid blob decoding.
+- Added per-worker preparation of tz cache arrays and tzid byte buffers to support kernel domain-key construction and timezone offset lookup.
+
+Risk notes
+- The compiled path is guarded and will auto-disable if numba cannot import or if shared arrays are missing.
+- The kernel still relies on the same RNG derivation law and alias tables; any mismatch should surface via validation and RNG trace logging.
+
+Next validation
+- Run S4 with `ENGINE_5B_S4_COMPILED_KERNEL=1` and confirm ETA, outputs, and RNG trace log rows; fallback to Python if errors appear.
