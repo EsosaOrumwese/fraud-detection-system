@@ -13,7 +13,7 @@ from engine.layers.l2.seg_5B.s4_arrival_events.runner import run_s4
 
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
-        description="Run Segment 5B S4 arrival events."
+        description="Run Segment 5B S4 arrival events expansion."
     )
     parser.add_argument("--contracts-layout", default=os.getenv("ENGINE_CONTRACTS_LAYOUT", "model_spec"))
     parser.add_argument("--contracts-root", default=os.getenv("ENGINE_CONTRACTS_ROOT"))
