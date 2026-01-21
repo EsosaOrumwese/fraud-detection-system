@@ -43,6 +43,14 @@ ip_edge_demand_model:
     SERVER_BACKEND: 1.8
   region_multiplier:
     enabled: false
+    mode: by_region_score_v1
+    region_scores:
+      - { region_id: REGION_AFRICA, score: 1.0 }
+      - { region_id: REGION_AMER, score: 1.0 }
+      - { region_id: REGION_APAC, score: 1.0 }
+      - { region_id: REGION_EMEA, score: 1.0 }
+      - { region_id: REGION_LATAM, score: 1.0 }
+    clip_multiplier: { min: 0.8, max: 1.2 }
 
 ip_type_mix_model:
   mode: by_region_v1

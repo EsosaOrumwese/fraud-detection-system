@@ -81,7 +81,6 @@ owner_policy:
     IOT_OTHER: PARTY
     MERCHANT_TERMINAL: MERCHANT
   primary_owner_role_id: PRIMARY_OWNER
-  merchant_owner_role_id: MERCHANT_TERMINAL
   selection_scope: WITHIN_DEVICE_CELL_ONLY
 
 sharing_policy:

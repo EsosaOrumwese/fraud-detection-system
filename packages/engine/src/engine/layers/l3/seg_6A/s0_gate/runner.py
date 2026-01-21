@@ -1431,7 +1431,7 @@ def run_s0(config: EngineConfig, run_id: Optional[str] = None) -> S0GateResult:
         contracts_6a: dict[str, dict] = {}
         for logical_id, contract_path in contract_specs:
             try:
-                digest_hex = sha256_file(contract_path)
+                digest_hex = sha256_file(contract_path).sha256_hex
             except (HashingError, OSError) as exc:
                 _abort(
                     "6A.S0.L3_SCHEMA_MISSING_OR_INVALID",
@@ -1608,7 +1608,7 @@ def run_s0(config: EngineConfig, run_id: Optional[str] = None) -> S0GateResult:
                         manifest_fingerprint,
                     )
                 try:
-                    digest_hex = sha256_file(resolved_path)
+                    digest_hex = sha256_file(resolved_path).sha256_hex
                 except (HashingError, OSError) as exc:
                     _abort(
                         "6A.S0.IO_READ_FAILED",

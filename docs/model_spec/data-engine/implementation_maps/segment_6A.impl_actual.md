@@ -178,3 +178,33 @@ HashGate regex fix:
 
 Schema anchor traversal:
 - Updated `_schema_from_pack` and `_schema_anchor_exists` to traverse into `properties` when resolving anchors like `#/prior/population_priors_6A` or `#/gate/6A/...` so grouped schema packs validate correctly.
+
+### Entry: 2026-01-21 17:26
+
+Plan to repair failing prior packs (starting with `prior_ip_counts_6A`):
+- Observed 6A.S0 fails on `prior_ip_counts_6A` schema validation after upstream HashGates pass.
+- Approach:
+  - Validate `config/layer3/6A/priors/ip_count_priors_6A.v1.yaml` against `schemas.6A.yaml#/prior/ip_count_priors_6A` to capture precise missing/invalid fields.
+  - Patch the prior pack minimally to satisfy required fields while preserving intended semantics (no behavior changes beyond completing required fields).
+  - Re-validate via the same schema anchor and re-run `make segment6a-s0` to surface any additional prior-pack failures.
+- Expected edits:
+  - `ip_edge_demand_model.region_multiplier` currently has only `enabled`; schema requires `mode`, `region_scores`, `clip_multiplier`. Add neutral defaults with consistent region ids and a safe clip range.
+  - Keep other sections unchanged unless validation exposes further schema mismatches.
+- Repeat loop for any other prior packs that fail after this fix (validate -> patch -> re-run).
+
+### Entry: 2026-01-21 17:27
+
+`prior_ip_counts_6A` repair:
+- Added required `region_multiplier` fields (`mode`, `region_scores`, `clip_multiplier`) with neutral defaults to satisfy `schemas.6A.yaml#/prior/ip_count_priors_6A`.
+- Verified schema validation passes for `config/layer3/6A/priors/ip_count_priors_6A.v1.yaml`.
+
+### Entry: 2026-01-21 17:28
+
+`device_linkage_rules_6A` repair:
+- Removed unsupported `merchant_owner_role_id` from `owner_policy` to satisfy `schemas.6A.yaml#/policy/device_linkage_rules_6A` (schema only allows `owner_kind_by_group`, `primary_owner_role_id`, `selection_scope`).
+- Verified schema validation passes for `config/layer3/6A/policy/device_linkage_rules_6A.v1.yaml`.
+
+### Entry: 2026-01-21 17:30
+
+Contract/prior digest encoding:
+- Fixed `sha256_file` usage in 6A.S0 so `sha256_hex` stores the digest string (not the `FileDigest` object) for contract rows and prior-pack rows.
