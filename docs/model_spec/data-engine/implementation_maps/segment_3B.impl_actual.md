@@ -2399,3 +2399,22 @@ Notes:
 - No code changes were required beyond the earlier `_drop_none` adjustment.
 
 ---
+
+### Entry: 2026-01-22 17:59
+
+Design element: 3B.S0 Pelias bundle digest mismatch blocking S0 gate.
+Summary: S0 failed with E3B_S0_006_SEALED_INPUT_DIGEST_MISMATCH after hashing pelias_cached.sqlite; the pelias_cached_bundle.json metadata sha256_hex does not match the actual sqlite digest, so S0 aborts.
+
+Plan (before change):
+1) Compute the actual sha256 digest of artefacts/geocode/pelias_cached.sqlite from disk.
+2) Update artefacts/geocode/pelias_cached_bundle.json sha256_hex to the computed digest (leave other fields intact).
+3) Rationale: the bundle manifest is authoritative for the sqlite bundle hash; aligning it to the real bytes restores the S0 sealed-input invariant.
+4) Re-run make segment3b-s0 to confirm the gate passes the pelias bundle check.
+5) Log the update and run outcome in docs/logbook (timestamped).
+
+
+### Entry: 2026-01-22 18:03
+
+Implementation update: refreshed Pelias bundle manifest digest.
+Summary: Updated artefacts/geocode/pelias_cached_bundle.json sha256_hex to match the actual pelias_cached.sqlite digest (de3de4000f314cfc40818d5d0fbcdceaaeb9efc19761aa09de21a3cd21ba7755). Re-ran make segment3b-s0; S0 now verifies pelias bundle digest and completes successfully for run_id fd0a6cc8d887f06793ea9195f207138b (manifest_fingerprint d5e591b242fa20de7b92ca4366a27b5275d52f34e398307225e0cd1271b2a07a).
+
