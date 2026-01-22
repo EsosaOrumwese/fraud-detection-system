@@ -882,3 +882,129 @@ Contract/prior digest encoding:
 - **Result:** S4 completed successfully in ~106s and published `s4_device_base_6A`, `s4_ip_base_6A`, `s4_device_links_6A`, `s4_ip_links_6A` plus RNG event logs under `runs/local_full_run-5/d61f08e2e45ef1bc28884034de4c1b68/logs/layer3/6A/rng/events/`.
 - **Status:** Segment 6A is green through S4 for run_id `d61f08e2e45ef1bc28884034de4c1b68`.
 - **Next step:** proceed to 6A.S5 validation (user-directed).
+### Entry: 2026-01-22 02:16
+
+6A.S5 review + lean plan (static fraud posture + HashGate):
+- **Docs reviewed:** `docs/model_spec/data-engine/layer-3/specs/state-flow/6A/state.6A.s5.expanded.md`, `docs/model_spec/data-engine/layer-3/specs/contracts/6A/schemas.6A.yaml`, `docs/model_spec/data-engine/layer-3/specs/contracts/6A/dataset_dictionary.layer3.6A.yaml`, `config/layer3/6A/policy/validation_policy_6A.v1.yaml`.
+- **Problem framing:** S5 must assign static fraud roles across large S1–S4 outputs and emit a 6A validation bundle + `_passed.flag`. The spec references graph-driven heuristics and run-report checks that can be heavy or unavailable (no layer-3 run-report contract in current code). Need a lean, deterministic posture that is fast and audit-safe, while still meeting contract outputs and HashGate requirements.
+- **Lean decision direction:** 
+  - Use **deterministic hash-based sampling** per entity id to assign roles that match priors (party/account/merchant/device/ip) without expensive graph feature computation.
+  - Incorporate only **lightweight signals** that are already in S1–S4 outputs (e.g., device/IP type or simple degree counts from link tables) if needed, but avoid multi-hop graph metrics or global clustering.
+  - For validation, implement **policy-driven structural checks** (presence, role vocab vs taxonomy, linkage caps) and **role distribution bounds** from `validation_policy_6A.v1.yaml`. Skip expensive cross-graph validations unless explicitly required by policy.
+  - Treat missing run-report contracts as **non-blocking**: log WARN and proceed using schema validation + row counts from data as the authoritative checks (consistent with lean posture in earlier states).
+- **Algorithm sketch (seed-scoped roles):**
+  1. Load S1–S4 bases + links (streamed with polars lazy scans).
+  2. Load priors (`*_role_priors_6A.v1.yaml`) + `fraud_role_taxonomy_6A.v1.yaml`.
+  3. For each entity table, compute a **cell key** (e.g., region/segment if available; otherwise default cell) and sample role assignments using deterministic hash `u = hash(manifest_fingerprint, parameter_hash, entity_id, role_stream)` to meet target proportions.
+  4. Emit per-entity fraud role tables with required columns (`*_id`, `fraud_role_*`, `risk_tier`, `seed`, `manifest_fingerprint`, `parameter_hash`).
+- **Validation + HashGate (world-scoped):**
+  - Build `s5_validation_report_6A` from policy checks and computed metrics.
+  - Optionally emit `s5_issue_table_6A` only when checks fail/warn (to keep lean runtime).
+  - Assemble `validation_bundle_index_6A`, compute `bundle_digest_sha256`, and emit `_passed.flag` if and only if policy allows.
+  - Idempotency: if outputs exist and digest differs, fail with output conflict (do not overwrite).
+- **Logging plan:** story header log with objective + gated inputs; per-entity role assignment progress with counts/ETA; validation section logs with explicit check names and PASS/WARN/FAIL; bundle/flag digest logs.
+- **Testing/validation plan:** run `make segment6a-s5`, verify `_passed.flag` digest recomputation, and confirm S5 outputs match schema anchors in `schemas.6A.yaml#/s5/*`.
+### Entry: 2026-01-22 02:42
+
+6A.S5 implementation plan (lean posture, taxonomy-aligned):
+- **Decision:** implement a deterministic, hash-based role assignment that respects priors at the group+risk_tier level while avoiding heavy graph features, clustering, or per-row Python loops. This stays within the expanded spec outputs but relaxes computational requirements to hit runtime targets.
+- **Decision:** enforce contract compatibility by mapping any prior role ids that are not present in `fraud_role_taxonomy_6A.v1.yaml` to the closest taxonomy role (e.g., `NORMAL_DEVICE` -> `CLEAN_DEVICE`, `RISKY_DEVICE` -> `HIGH_RISK_DEVICE`, `SHARED_SUSPICIOUS_DEVICE` -> `REUSED_DEVICE`, `PROXY_IP`/`DATACENTRE_IP` -> `HIGH_RISK_IP`, `CORPORATE_NAT_IP`/`MOBILE_CARRIER_IP`/`PUBLIC_SHARED_IP` -> `SHARED_IP`). This resolves the current taxonomy/prior mismatch without editing contracts.
+- **Decision:** skip graph-derived features and nudges from priors; use only columns already present in S1-S4 bases (party_type/segment/region, account_type, device_type, ip_type/asn_class, merchant mcc). Document this as a lean relaxation, but keep the probability tables and risk-tier thresholds intact.
+- **Decision:** for RNG telemetry, emit one RNG event per entity type with deterministic draw counts derived from row counts (risk + role draws), and append a minimal `rng_trace_log` entry per substream. Use existing `rng_audit_log` if present; do not introduce new RNG algorithms or dependencies.
+- **Contracts source:** use `ContractSource` with `EngineConfig.contracts_root` + `contracts_layout` (default `model_spec`) so switching to root contracts requires no code changes.
+
+**Implementation plan (stepwise):**
+1. Add new module `packages/engine/src/engine/layers/l3/seg_6A/s5_fraud_posture/runner.py` and `__init__.py`, plus CLI `packages/engine/src/engine/cli/s5_fraud_posture_6a.py`.
+2. Resolve run receipt (run_id/seed/manifest_fingerprint/parameter_hash) and set `RunPaths`; add run log handler.
+3. Load contracts (dataset dictionary, schema packs, artefact registry) via `ContractSource` using configured root/layout.
+4. Read `s0_gate_receipt_6A` and `sealed_inputs_6A`; validate schemas; recompute sealed_inputs digest and verify against receipt; enforce upstream gates per `validation_policy_6A.require_upstream_pass`.
+5. Resolve sealed inputs for S5 priors/taxonomy/policy via manifest_key and confirm `read_scope == ROW_LEVEL`.
+6. Load + schema-validate priors (`party/account/merchant/device/ip`), taxonomy, and validation policy.
+7. Role assignment (seed-scoped):
+   - Party: map `party_type` + risk_tier thresholds; role distribution via priors table; output `s5_party_fraud_roles_6A`.
+   - Account: map `account_type` -> account_group; risk_tier via thresholds; role distribution via priors table; output `s5_account_fraud_roles_6A`.
+   - Merchant: derive `mcc_class` from outlet_catalogue (per-merchant); risk_tier via thresholds; role distribution via priors table; output `s5_merchant_fraud_roles_6A`.
+   - Device: map `device_type` -> device_group; risk_tier via thresholds; role distribution via priors table; output `s5_device_fraud_roles_6A`.
+   - IP: map `ip_type` -> ip_group; risk_tier via thresholds; role distribution via priors table; output `s5_ip_fraud_roles_6A`.
+   - Apply taxonomy-alignment mapping before writing outputs.
+8. Validation (manifest-scoped):
+   - Structural checks on S1-S4 bases (required non-null fields + party_id uniqueness).
+   - Linkage caps using S3 account_instrument_links + S4 device_links/ip_links.
+   - Role distribution checks against `validation_policy_6A` min/max bounds (clean vs non-clean/risky fractions).
+   - Consistency checks: role vocab subset of taxonomy; link_role values subset of graph_linkage_rules policy.
+   - Log each check with metrics + thresholds; classify check severity (REQUIRED/INFO) to honor fail_closed + max_warnings=0.
+9. HashGate: write `s5_validation_report_6A` and optional `s5_issue_table_6A`, build `validation_bundle_index_6A` with sha256 per evidence file, compute `bundle_digest_sha256` as concatenated file bytes, and emit `_passed.flag` (`sha256_hex = ...`) only if overall PASS.
+10. Idempotency: if any target output exists, fail with IO_WRITE_CONFLICT; if validation bundle exists and matches, skip publish; otherwise fail on mismatch.
+11. Emit RNG event JSONL files for fraud_role_sampling_{party,account,merchant,device,ip} plus minimal rng_trace_log entries; re-use existing rng_audit_log.
+12. Update Makefile: add `SEG6A_S5_RUN_ID`, CLI args, `segment6a-s5` target, and include S5 in `segment6a`.
+13. Log all actions and outcomes in `docs/logbook/01-2026/2026-01-22.md` with timestamps and cross-reference this entry.
+
+**Testing/validation steps:**
+- Run `make segment6a-s5`.
+- Confirm `s5_*_fraud_roles_6A` outputs match schema anchors in `schemas.6A.yaml#/s5/*`.
+- Verify `validation_bundle_index_6A` + `_passed.flag` digest reproduces on re-run; if ETA is high, terminate and revisit strategy.
+### Entry: 2026-01-22 03:01
+
+6A.S5 implementation refinement (lean hashing + minimal bundle evidence):
+- **Decision:** implement deterministic role sampling with `polars` expressions using `pl.hash([...], seed=...)` to avoid per-row Python loops and keep runtime bound to scan/sink operations. Each entity type uses two substream labels (risk_tier + role) to keep draws deterministic and independent.
+- **Decision:** risk_tier assignment uses uniform hash → tier thresholds only; skip risk_score model features (segment profile, graph-derived degrees, nudges) to keep runtime lean. This is recorded as an explicit relaxation versus the expanded spec’s feature pipeline.
+- **Decision:** merchant role assignment defaults `mcc_class=GENERAL_RETAIL` because upstream 6A inputs do not carry MCC or MCC-class columns (outlet_catalogue lacks MCC fields; merchant_account_base has only merchant_id). This keeps S5 functional without fabricating external features and will be logged as a lean simplification.
+- **Decision:** validation bundle will include only `s5_validation_report_6A` and `s5_issue_table_6A` as evidence members under the validation directory. Role tables remain in their egress locations; we will not copy them into the bundle root to avoid heavy IO. The bundle digest is computed over the in-bundle evidence in deterministic path order.
+- **Decision:** output publish is idempotent for the validation bundle (skip if identical digest); role parquet outputs are treated as immutable (existing path → IO_WRITE_CONFLICT) to align with non-overwrite semantics.
+- **Decision:** emit RNG event logs for fraud_role_sampling_{party,account,merchant,device,ip} with draws set to row counts and counters/blocks=0 to document deterministic hash usage; append minimal rng_trace_log entries with draws_total and events_total (counters left at 0) for audit continuity.
+
+Immediate implementation steps:
+1. Create `packages/engine/src/engine/layers/l3/seg_6A/s5_fraud_posture/runner.py` with helper utilities (hash-to-unit, risk_tier mapping, role assignment expressions, bundle digest, idempotent publish, RNG event emission).
+2. Add CLI entry point `packages/engine/src/engine/cli/s5_fraud_posture_6a.py` following the S4 CLI pattern.
+3. Update Makefile variables/targets to add `segment6a-s5` and include it in `segment6a` workflow.
+4. Run `make segment6a-s5` and verify runtime + validation bundle digest; stop early if ETAs exceed lean expectations.
+### Entry: 2026-01-22 03:28
+
+6A.S5 implementation landed (runner + CLI + Makefile):
+- **Implemented:** new runner `packages/engine/src/engine/layers/l3/seg_6A/s5_fraud_posture/runner.py` with hash-based role assignment for party/account/merchant/device/ip, sample schema validation per role table, validation policy checks (structural + linkage caps + role distributions + vocab checks), and validation bundle assembly.
+- **Implemented:** RNG logging for fraud-role sampling (event JSONL + trace rows) plus rng_audit_log append (philox audit metadata) to keep audit continuity even though role draws are deterministic-hash-based.
+- **Decision:** emit `_passed.flag` only when `overall_status == PASS`; FAIL/WARN runs publish report + issue table + index but do not emit the PASS flag.
+- **Decision:** validation bundle evidence includes only `s5_validation_report_6A` + `s5_issue_table_6A` to avoid copying large role tables into the bundle root; bundle digest uses deterministic path order.
+- **Adjustment:** added `s3_instrument_base_6A` to required inputs (needed for structural checks) and used `s2_merchant_account_base_6A` with fallback to `outlet_catalogue` for merchant IDs.
+- **Makefile/CLI:** added `engine.cli.s5_fraud_posture_6a` and `segment6a-s5` target + wiring in `makefile`.
+### Entry: 2026-01-22 03:30
+
+6A.S5 follow-up adjustments:
+- **Decision:** validate a sample of each fraud-role parquet against its schema anchor immediately after writing the tmp parquet to catch schema drift before publish.
+- **Decision:** `_passed.flag` emission is conditional on `overall_status == PASS`; WARN/FAIL runs still publish report + issue table + index for diagnostics but omit the flag to enforce HashGate semantics.
+- **Adjustment:** added `s3_instrument_base_6A` to the required input existence checks to match structural validation coverage.
+- **Adjustment:** exported `run_s5` and `S5Result` from `s5_fraud_posture/__init__.py` for consistent module access.
+
+### Entry: 2026-01-22 03:41
+
+6A.S5 stabilization plan - resume outputs + upstream_segments schema alignment:
+- **Problem:** `make segment6a-s5` produced role tables but stopped before the validation bundle; the run log ends at “fraud-role tables published.” Review of `s0_gate_receipt_6A.json` shows `upstream_segments` includes `bundle_path`, which violates `schemas.layer3.yaml#/validation/6A/validation_report_6A` (only `status`, `bundle_sha256`, `flag_path` allowed). `_validate_payload` raises `6A.S5.SCHEMA_INVALID` without logging, so the bundle isn’t written.
+- **Decision:** sanitize `upstream_segments` for the report payload to include only `{status,bundle_sha256,flag_path}` and abort with a clear error if any required field is missing or not a string/hex. Authority: `docs/model_spec/data-engine/layer-3/specs/contracts/6A/schemas.layer3.yaml` and the S0 receipt in `runs/<run_id>/data/layer3/6A/s0_gate_receipt/...`.
+- **Decision:** add resumability for S5 role outputs: if any `s5_*_fraud_roles_6A` parquet already exists, skip recompute, validate a small sample against the schema anchor, log reuse, and proceed to the validation bundle (avoids IO_WRITE_CONFLICT and allows completing validation without deleting outputs).
+- **Inputs/authorities:** `s0_gate_receipt_6A.json`, `schemas.layer3.yaml#/validation/6A/validation_report_6A`, `schemas.6A.yaml#/s5/*` for schema sample validation, dataset dictionary paths for output locations.
+- **Resumability hooks:** per-role output reuse checks; no overwrite of existing parquets; continue to validation bundle and RNG events if outputs are already present.
+- **Logging points:** reuse notice per role table; upstream report map size; abort details if upstream segment fields are missing/invalid.
+- **Performance notes:** skip heavy role assignment when outputs exist; only small sample reads for schema validation.
+- **Validation/testing:** rerun `make segment6a-s5`; confirm `data/layer3/6A/validation/manifest_fingerprint=.../` contains `s5_validation_report_6A.json`, `s5_issue_table_6A.parquet`, `validation_bundle_index_6A.json`, and `_passed.flag` on PASS.
+
+### Entry: 2026-01-22 03:45
+
+6A.S5 stabilization implemented (resume + schema-compliant report):
+- **Implemented:** `_sanitize_upstream_segments` to project `s0_gate_receipt_6A.upstream_segments` down to `{status,bundle_sha256,flag_path}` and abort with `6A.S5.UPSTREAM_RECEIPT_INVALID` if required fields are missing or invalid (prevents `validation_report_6A` schema failures).
+- **Implemented:** `_reuse_existing_parquet` helper and wrapped party/account/merchant/device/ip role assignments to reuse existing `s5_*_fraud_roles_6A` outputs with sample schema validation, avoiding `IO_WRITE_CONFLICT` on reruns.
+- **Logging:** added reuse logs per role table and kept the assignment logs when recompute is required.
+- **Files touched:** `packages/engine/src/engine/layers/l3/seg_6A/s5_fraud_posture/runner.py`.
+- **Next step:** rerun `make segment6a-s5` and verify validation bundle outputs + `_passed.flag` behavior.
+
+### Entry: 2026-01-22 03:49
+
+6A.S5 run outcome (validation bundle published, overall FAIL):
+- **Run:** `make segment6a-s5` reused existing role outputs and completed validation bundle + RNG logs in ~5s.
+- **Outputs:** `s5_validation_report_6A.json`, `s5_issue_table_6A.parquet`, and `validation_bundle_index_6A.json` published under `runs/local_full_run-5/d61f08e2e45ef1bc28884034de4c1b68/data/layer3/6A/validation/manifest_fingerprint=1cb60481d69b836ee24505ec9a6ec231c8f18523ee9b7dabbd38c0a33bf15765/`.
+- **Status:** `overall_status=FAIL`, so `_passed.flag` not emitted.
+- **Failing checks (from report):**
+  - `LINKAGE_ACCOUNT_INSTRUMENT`: max_instruments_per_account=12 > policy max=8.
+  - `LINKAGE_DEVICE_LINKS`: max_devices_per_party=14 > policy max=12.
+  - `LINKAGE_IP_LINKS`: max_devices_per_ip=6080 > policy max=500.
+  - `ROLE_DISTRIBUTION_IP`: risky_fraction=0.969 > policy max=0.25.
+- **Next decision needed:** relax linkage/role thresholds in `config/layer3/6A/policy/validation_policy_6A.v1.yaml` or adjust upstream generators/priors to bring metrics within current caps.
