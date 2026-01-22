@@ -9,6 +9,7 @@ import json
 import math
 import os
 import re
+import shutil
 import subprocess
 import time
 from dataclasses import dataclass
@@ -557,6 +558,140 @@ def _publish_parquet_parts(
         logger.info("S1: published %s parts to %s", label, final_dir)
     except Exception as exc:
         _abort(failure_code, "V-01", "io_write_failed", {"path": str(final_dir), "error": str(exc)}, None)
+
+
+def _parquet_writer_compression(parquet_compression: str) -> Optional[str]:
+    if not parquet_compression or parquet_compression in {"uncompressed", "none", "null"}:
+        return None
+    return parquet_compression
+
+
+def _consolidate_session_index_bucketed(
+    session_tmp_dir: Path,
+    bucket_root: Path,
+    session_tmp: Path,
+    empty_session_index: pl.DataFrame,
+    bucket_count: int,
+    parquet_compression: str,
+    logger,
+) -> tuple[int, Optional[dict]]:
+    part_paths = sorted(session_tmp_dir.glob("part-*.parquet"))
+    if not part_paths:
+        empty_session_index.write_parquet(session_tmp, compression=parquet_compression)
+        return 0, None
+
+    if bucket_root.exists():
+        shutil.rmtree(bucket_root)
+    bucket_root.mkdir(parents=True, exist_ok=True)
+
+    logger.info(
+        "S1: session_index bucketization start parts=%s buckets=%s compression=%s",
+        len(part_paths),
+        bucket_count,
+        parquet_compression,
+    )
+    bucket_start = time.monotonic()
+    bucket_last = bucket_start
+    for idx, part_path in enumerate(part_paths, start=1):
+        part_df = pl.read_parquet(part_path)
+        if part_df.height > 0:
+            part_df = part_df.with_columns(
+                (((pl.col("session_id") % bucket_count) + bucket_count) % bucket_count)
+                .cast(pl.Int32)
+                .alias("bucket_id")
+            )
+            for bucket_key, bucket_df in part_df.group_by("bucket_id", maintain_order=False):
+                bucket_value = bucket_key[0] if isinstance(bucket_key, tuple) else bucket_key
+                bucket_dir = bucket_root / f"bucket={int(bucket_value):04d}"
+                bucket_dir.mkdir(parents=True, exist_ok=True)
+                bucket_path = bucket_dir / f"{part_path.stem}.parquet"
+                bucket_df.drop("bucket_id").write_parquet(bucket_path, compression=parquet_compression)
+
+        now = time.monotonic()
+        if idx == len(part_paths) or (now - bucket_last) >= 5.0:
+            elapsed = now - bucket_start
+            rate = idx / elapsed if elapsed > 0 else 0.0
+            eta = (len(part_paths) - idx) / rate if rate > 0 else 0.0
+            logger.info(
+                "S1: session_index bucketization parts_processed=%s/%s (elapsed=%.2fs, rate=%.2f parts/s, eta=%.2fs)",
+                idx,
+                len(part_paths),
+                elapsed,
+                rate,
+                eta,
+            )
+            bucket_last = now
+
+    bucket_dirs = sorted(bucket_root.glob("bucket=*"))
+    if not bucket_dirs:
+        empty_session_index.write_parquet(session_tmp, compression=parquet_compression)
+        return 0, None
+
+    logger.info("S1: session_index bucket aggregation start buckets=%s", len(bucket_dirs))
+    agg_start = time.monotonic()
+    agg_last = agg_start
+    writer = None
+    session_index_height = 0
+    sample_session = None
+    writer_compression = _parquet_writer_compression(parquet_compression)
+    try:
+        for bucket_idx, bucket_dir in enumerate(bucket_dirs, start=1):
+            bucket_parts = sorted(bucket_dir.glob("part-*.parquet"))
+            if not bucket_parts:
+                continue
+            bucket_df = (
+                pl.scan_parquet([str(path) for path in bucket_parts])
+                .group_by("session_id")
+                .agg(
+                    pl.sum("arrival_count").alias("arrival_count"),
+                    pl.min("session_start_utc").alias("session_start_utc"),
+                    pl.max("session_end_utc").alias("session_end_utc"),
+                    pl.first("seed").alias("seed"),
+                    pl.first("manifest_fingerprint").alias("manifest_fingerprint"),
+                    pl.first("scenario_id").alias("scenario_id"),
+                    pl.first("party_id").alias("party_id"),
+                    pl.first("device_id").alias("device_id"),
+                    pl.first("account_id").alias("account_id"),
+                    pl.first("instrument_id").alias("instrument_id"),
+                    pl.first("merchant_id").alias("merchant_id"),
+                )
+                .collect()
+            )
+            if bucket_df.height == 0:
+                continue
+            if sample_session is None:
+                sample_session = bucket_df.head(1).to_dicts()[0]
+            table = bucket_df.to_arrow()
+            if writer is None:
+                session_tmp.unlink(missing_ok=True)
+                writer = pq.ParquetWriter(str(session_tmp), table.schema, compression=writer_compression)
+            writer.write_table(table)
+            session_index_height += bucket_df.height
+
+            now = time.monotonic()
+            if bucket_idx == len(bucket_dirs) or (now - agg_last) >= 5.0:
+                elapsed = now - agg_start
+                rate = bucket_idx / elapsed if elapsed > 0 else 0.0
+                eta = (len(bucket_dirs) - bucket_idx) / rate if rate > 0 else 0.0
+                logger.info(
+                    "S1: session_index bucket aggregation buckets_processed=%s/%s (elapsed=%.2fs, rate=%.2f buckets/s, eta=%.2fs, sessions_written=%s)",
+                    bucket_idx,
+                    len(bucket_dirs),
+                    elapsed,
+                    rate,
+                    eta,
+                    session_index_height,
+                )
+                agg_last = now
+    finally:
+        if writer is not None:
+            writer.close()
+
+    if writer is None:
+        empty_session_index.write_parquet(session_tmp, compression=parquet_compression)
+        session_index_height = 0
+
+    return session_index_height, sample_session
 
 def run_s1(
     config: EngineConfig,
@@ -1151,6 +1286,10 @@ def run_s1(
                 (sessionisation_policy.get("session_id") or {}).get("domain_tag") or "mlr:6B.session_id.v1"
             )
             session_seed = int.from_bytes(hashlib.sha256(domain_tag.encode("utf-8")).digest()[:8], "little")
+            bucket_count = int((sessionisation_policy.get("session_index_buckets") or 128))
+            if bucket_count < 1:
+                bucket_count = 128
+                logger.warning("S1: session_index_buckets invalid; defaulting to %s", bucket_count)
 
             part_index = 0
             sample_arrival = None
@@ -1429,7 +1568,10 @@ def run_s1(
             if part_index == 0:
                 arrival_part = arrival_tmp_dir / "part-00000.parquet"
                 empty_arrival_entities.write_parquet(arrival_part, compression=parquet_compression)
-                session_index = empty_session_index
+                session_tmp = tmp_root / f"s1_session_index_6B_{scenario_id}.parquet"
+                empty_session_index.write_parquet(session_tmp, compression=parquet_compression)
+                session_index_height = 0
+                session_index_sample = None
             else:
                 if sample_arrival is not None:
                     _validate_payload(
@@ -1441,28 +1583,35 @@ def run_s1(
                         {"scenario_id": scenario_id},
                     )
 
-                session_index = (
-                    pl.scan_parquet(str(session_tmp_dir / "part-*.parquet"))
-                    .group_by("session_id")
-                    .agg(
-                        pl.sum("arrival_count").alias("arrival_count"),
-                        pl.min("session_start_utc").alias("session_start_utc"),
-                        pl.max("session_end_utc").alias("session_end_utc"),
-                        pl.first("seed").alias("seed"),
-                        pl.first("manifest_fingerprint").alias("manifest_fingerprint"),
-                        pl.first("scenario_id").alias("scenario_id"),
-                        pl.first("party_id").alias("party_id"),
-                        pl.first("device_id").alias("device_id"),
-                        pl.first("account_id").alias("account_id"),
-                        pl.first("instrument_id").alias("instrument_id"),
-                        pl.first("merchant_id").alias("merchant_id"),
+                session_tmp = tmp_root / f"s1_session_index_6B_{scenario_id}.parquet"
+                bucket_root = tmp_root / f"s1_session_index_6B_{scenario_id}_buckets"
+                try:
+                    session_index_height, session_index_sample = _consolidate_session_index_bucketed(
+                        session_tmp_dir,
+                        bucket_root,
+                        session_tmp,
+                        empty_session_index,
+                        bucket_count,
+                        parquet_compression,
+                        logger,
                     )
-                    .collect()
-                )
+                except Exception as exc:
+                    logger.exception(
+                        "S1: session_index consolidation failed (scenario_id=%s, buckets=%s)",
+                        scenario_id,
+                        bucket_count,
+                    )
+                    _abort(
+                        "6B.S1.SESSION_INDEX_FAILED",
+                        "V-01",
+                        "session_index_consolidation_failed",
+                        {"scenario_id": scenario_id, "bucket_count": bucket_count, "error": str(exc)},
+                        manifest_fingerprint,
+                    )
 
-                if session_index.height > 0:
+                if session_index_sample is not None:
                     _validate_payload(
-                        session_index.head(1).to_dicts()[0],
+                        session_index_sample,
                         schema_6b,
                         schema_layer3,
                         "#/s1/session_index_6B",
@@ -1474,11 +1623,10 @@ def run_s1(
                     "S1: scenario_id=%s attachments_complete arrivals=%s sessions=%s",
                     scenario_id,
                     total_rows,
-                    session_index.height,
+                    session_index_height,
                 )
 
         session_tmp = tmp_root / f"s1_session_index_6B_{scenario_id}.parquet"
-        session_index.write_parquet(session_tmp, compression=parquet_compression)
 
         arrival_out_dir = _materialize_parquet_path(arrival_out_path).parent
         session_out_file = _materialize_parquet_path(session_out_path)

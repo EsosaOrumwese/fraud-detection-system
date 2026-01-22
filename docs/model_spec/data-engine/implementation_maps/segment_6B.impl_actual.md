@@ -662,3 +662,72 @@ Open considerations:
 - Added explicit handling for the case where S1 arrival partitions exist but contain zero rows.
 - If `total_rows == 0`, S2 now emits empty flow/event outputs (part-00000) for the partition instead of failing due to missing parts.
 - Rationale: aligns with spec zero-arrival semantics and prevents false IO write conflicts.
+
+### Entry: 2026-01-22 12:01
+
+6B.S1 consolidation failure (post-arrivals) — plan for bucketed session_index aggregation + error logging:
+- Problem observed:
+  - `make segment6b-s1` completes the arrivals loop (116,424,410 arrivals, ~939s) but exits with a non-zero error after the final arrivals log line.
+  - The run log contains no error text, implying the crash is likely in the session_index consolidation stage and stderr is not being captured.
+  - Current code uses `pl.scan_parquet(...).group_by(...).collect()` over *all* session summary parts in one shot, which is memory fragile at this scale.
+- Goals:
+  - Avoid monolithic in-memory aggregation while preserving deterministic outputs.
+  - Ensure any failure during consolidation is logged to the run log with narrative context.
+  - Keep output schema identical (`s1_session_index_6B`) and maintain idempotent publish semantics.
+
+Contracts + inputs (authoritative sources):
+- Contracts: `docs/model_spec/data-engine/layer-3/specs/contracts/6B/schemas.6B.yaml` + `docs/model_spec/data-engine/layer-3/specs/contracts/6B/schemas.layer3.yaml`
+- Dataset dictionary / registry: `docs/model_spec/data-engine/layer-3/specs/contracts/6B/dataset_dictionary.layer3.6B.yaml`, `docs/model_spec/data-engine/layer-3/specs/contracts/6B/artefact_registry_6B.yaml`
+- Runtime inputs: session summary parts already written to `runs/<run_id>/tmp/s1_session_index_6B_<scenario_id>_summaries/part-*.parquet`
+
+Alternatives considered:
+1) Re-run with `PYTHONFAULTHANDLER=1` + `RUST_BACKTRACE=1` to find the exact failing line.
+   - Useful for diagnosis but does not address memory fragility in production-scale runs.
+2) Use Polars streaming aggregation.
+   - Rejected: streaming + parquet is not supported for the old streaming engine (prior crash).
+3) Use pyarrow.dataset with partitioning + group-by.
+   - Possible, but more complex; may still require full materialization during group-by.
+Decision: implement bucketed consolidation by `session_id % N` to guarantee each aggregation unit fits in memory, and write the final parquet via incremental row-group writes.
+
+Planned mechanics (stepwise):
+1) After the arrivals loop and per-batch `session_summary` outputs are written, enumerate all `part-*.parquet` in the session summaries temp dir.
+2) **Bucketization pass**:
+   - Choose `bucket_count` (default 128, overridable via `sessionisation_policy_6B.session_index_buckets`).
+   - For each session summary part:
+     - Read the part (`pl.read_parquet`), compute `bucket_id = ((session_id % bucket_count) + bucket_count) % bucket_count`.
+     - Split by `bucket_id` and write each non-empty subset to `tmp/s1_session_index_6B_<scenario_id>_buckets/bucket=####/part-<orig>.parquet`.
+   - Log progress: processed parts / total, elapsed, rate (parts/sec), ETA.
+3) **Bucketed aggregation**:
+   - For each bucket directory (sorted):
+     - Scan all bucket parts with `pl.scan_parquet`, group_by `session_id` with the same aggregations as before.
+     - Collect and append to the final `s1_session_index_6B_<scenario_id>.parquet` via `pyarrow.parquet.ParquetWriter` (row-group writes).
+   - Validate one sample row (first bucket with data) against `#/s1/session_index_6B` schema anchor.
+   - Log progress: processed buckets / total, elapsed, rate (buckets/sec), ETA, cumulative sessions written.
+4) **Error logging**:
+   - Wrap bucketization + aggregation in `try/except`; on failure `logger.exception(...)` with scenario_id + bucket_count + part counts.
+   - Call `_abort("6B.S1.SESSION_INDEX_FAILED", "V-01", "session_index_consolidation_failed", {...})` so failure is visible in the run log.
+
+Invariants to enforce:
+- Deterministic output for the same `(seed, manifest_fingerprint, parameter_hash, scenario_id)` regardless of bucket count.
+- `session_id` aggregation semantics identical to the current `group_by` logic.
+- Output schema unchanged; sample validation still performed.
+- Idempotent publish remains unchanged (tmp -> final move).
+
+Logging points:
+- “S1: session_index bucketization start” (bucket_count, parts, compression).
+- Progress logs for part bucketing and bucket aggregation with elapsed/rate/ETA.
+- “S1: session_index bucket aggregation complete” with total sessions written.
+- Error log with exception stack trace and context.
+
+Resumability / cleanup considerations:
+- Bucket dir is under `tmp/`; safe to rebuild on each run. If pre-existing, it can be cleared at start of consolidation to avoid mixed part files.
+- Final tmp parquet is recreated each run; if present, delete before `ParquetWriter`.
+
+Performance expectations:
+- Linear pass over session summary parts with bounded memory per bucket.
+- Avoids global collect that caused crashes; bucket_count can be tuned if a bucket is still too large.
+
+Validation/testing:
+- Ensure sample payload validation still runs.
+- Run `python -m py_compile` after code changes.
+- Run `make segment6b-s1` to confirm session_index publish completes without crash.
