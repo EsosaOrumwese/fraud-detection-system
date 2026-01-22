@@ -783,3 +783,88 @@ Planned change:
 - Planned change:
   - Replace `(pl.col("amount_minor") / ...)` with `pl.Series("amount", amount_minor / 100.0)` so no intra-call dependency exists.
   - Re-run `make segment6b-s2`.
+
+### Entry: 2026-01-22 12:42
+
+6B.S3 lean fraud overlay (tagging + minimal amount shift) — implementation plan:
+- Context / goal:
+  - S3 should introduce fraud/abuse patterns so downstream models can learn signal, but must remain lean and fast.
+  - We will avoid heavy event reshaping and new flow creation, and instead produce **campaign tags + fraud_flag** plus a **small bounded amount upshift** for targeted flows/events.
+  - This keeps realism at the “signal injection” level and maintains high throughput for 116M+ flows.
+
+Contracts + authorities:
+- Expanded spec: `docs/model_spec/data-engine/layer-3/specs/state-flow/6B/state.6B.s3.expanded.md`
+- Schema anchors: `docs/model_spec/data-engine/layer-3/specs/contracts/6B/schemas.6B.yaml` (`#/s3/campaign_catalogue_6B`, `#/s3/flow_anchor_with_fraud_6B`, `#/s3/event_stream_with_fraud_6B`)
+- Registry/dictionary: `docs/model_spec/data-engine/layer-3/specs/contracts/6B/artefact_registry_6B.yaml`, `docs/model_spec/data-engine/layer-3/specs/contracts/6B/dataset_dictionary.layer3.6B.yaml`
+- Policy inputs: `config/layer3/6B/fraud_campaign_catalogue_config_6B.yaml`, `config/layer3/6B/fraud_overlay_policy_6B.yaml`, `config/layer3/6B/fraud_rng_policy_6B.yaml`
+
+Lean decisions (explicit relaxations):
+- No new flows or extra events; S3 overlays are **tags + optional amount shifts** only.
+- No timing/routing/device/IP swaps; skip structure/identity/routing/timing tactics.
+- Campaign activation simplified to “one instance per template” (if feasible), with deterministic hash selection; RNG events emitted with non‑consuming budgets (draws=0) for accounting.
+- If targeting filters reference missing fields (e.g., `flow_type`, `channel_group`), **skip those filters** with a warning instead of failing.
+- If insufficient targets exist, **soft‑skip** campaign (catalogue row with fraud_rate=0, zero targets), no partition failure.
+
+Algorithm (stepwise):
+1) Preconditions:
+   - Load S0 receipt + sealed_inputs; verify digest.
+   - Accept missing sealed_inputs rows for **run‑local** S2 outputs (warn + proceed).
+   - Accept policy rows marked `OPTIONAL` (warn + proceed).
+2) Read configs:
+   - Parse campaign templates from `fraud_campaign_catalogue_config_6B.yaml`.
+   - Read guardrails from `fraud_overlay_policy_6B.yaml` (use `max_targets_total_per_seed_scenario`, `max_amount_multiplier` for clamps).
+   - Read `fraud_rng_policy_6B.yaml` for RNG families to log.
+3) Campaign instance setup (per scenario_id):
+   - For each template, create one deterministic campaign instance:
+     - `campaign_id = sha256("6B.S3|template_id|seed|scenario_id|parameter_hash|manifest_fingerprint")` (hex string).
+     - `campaign_label = template_id`.
+   - Determine target budget:
+     - Use `quota_models[template.quota_model_id].targets_per_day` and `schedule_models[template.schedule_model_id]` to estimate `duration_days` (fixed window or multi‑window; FULL_SCENARIO => default 7 days).
+     - `target_count = clamp(int(targets_per_day * duration_days), min_targets_per_instance, max_targets_per_instance)`.
+   - Convert `target_count` to `target_rate = target_count / total_flows` (cap by `max_targets_total_per_seed_scenario`).
+4) Flow overlay (streaming):
+   - Iterate S2 flow anchors in batches (pyarrow iter_batches).
+   - For each campaign in deterministic order, compute mask:
+     - `mask = hash(flow_id, campaign_id, seed, scenario_id) % 1_000_000 < floor(target_rate * 1_000_000)`
+     - Assign `campaign_id` only where not already assigned (no multi‑campaign stacking).
+   - `fraud_flag = campaign_id != null`.
+   - Amount upshift for fraud flows:
+     - Factor = uniform in [1.10, 1.50], derived from deterministic hash of `(flow_id, campaign_id)`; clamp by overlay policy `max_amount_multiplier`.
+     - Apply to `amount` for fraud flows only.
+   - Write `s3_flow_anchor_with_fraud_6B` as partitioned parts (idempotent publish).
+   - Track `campaign_flow_counts` (increment per fraud flow) for catalogue fraud_rate.
+5) Event overlay (streaming):
+   - Iterate S2 event stream in batches.
+   - Recompute campaign assignment from `flow_id` with same deterministic logic (ensures match with flow anchors).
+   - `fraud_flag` and amount upshift consistent with flow anchor for the same flow_id.
+   - Write `s3_event_stream_with_fraud_6B` parts.
+6) Campaign catalogue:
+   - For each campaign, write a row with:
+     - `campaign_id`, `campaign_label`, `fraud_rate = campaign_flow_count / total_flows`, identity axes.
+   - Single parquet file per scenario_id.
+7) RNG logging:
+   - Emit `rng_audit_log` and `rng_trace_log` rows for `6B.S3` with **non‑consuming** draws (0) and counts of campaigns/targets.
+   - Emit `rng_event_fraud_campaign_pick` and `rng_event_fraud_overlay_apply` JSONL envelopes with draws=0, blocks=0, context notes “deterministic hash selection.”
+
+Invariants / checks:
+- Outputs preserve S2 rows and keys; no mutation of IDs or event_seq.
+- Every flow/event has `fraud_flag` and `campaign_id` (null when not fraud).
+- `s3_event_stream_with_fraud_6B` and `s3_flow_anchor_with_fraud_6B` are consistent by deterministic assignment.
+- Amounts remain non‑negative and within `max_amount_multiplier`.
+
+Logging requirements:
+- Story header: objective + gated inputs + outputs.
+- Per‑batch progress logs with elapsed, processed/total, rate, ETA.
+- Warnings for skipped filters or inactive campaigns.
+- Campaign summary log with counts and fraud_rate.
+
+Resumability:
+- Use tmp dirs under `runs/<run_id>/tmp` and idempotent publish.
+- Clear tmp parts before write; do not overwrite existing final outputs unless identical.
+
+Validation/testing:
+- Validate sample rows against S3 schema anchors.
+- Run `python -m py_compile` for new runner + CLI.
+- Run `make segment6b-s3` and watch ETA; terminate if abnormal.
+\n---\n## 6B.S3 — Implementation notes (2026-01-22 13:14 local)\n- Decision: create s3_fraud_overlay/runner.py as a new file, then write contents in chunks to avoid prior Windows path length/command size errors.\n- Rationale: New-Item succeeds; previous pply_patch/Set-Content attempts failed with Win32 error 206. Chunked Add-Content should avoid command-size/path issues while preserving the new-from-scratch requirement.\n- Action plan: write runner in 4–6 chunks; verify file size; run python -m py_compile on new runner + CLI; then make segment6b-s3.\n
+\n---\n## 6B.S3 — Implementation decisions (2026-01-22 13:26 local)\n- Implemented lean overlay runner at packages/engine/src/engine/layers/l3/seg_6B/s3_fraud_overlay/runner.py with deterministic hash-based campaign assignment (flow_id + campaign_id), no per-row loops.\n- Campaign planning: one instance per template; target_count derived from quota targets_per_day × schedule duration_days; clamped by template min/max and overlay guardrail max_targets_total_per_seed_scenario (scaled down if needed).\n- Overlay mechanics: no new flows/events; inject campaign_id + raud_flag; apply bounded amount upshift to all events for fraud flows using deterministic hash factor in [min,max] capped by guardrail max_amount_multiplier.\n- Filters/tactics: targeting filters from config not enforced (logged); we treat campaigns as deterministic sampling against all flows for speed and reproducibility.\n- Outputs: streaming batch writes for s3_flow_anchor_with_fraud_6B and s3_event_stream_with_fraud_6B, campaign catalogue per scenario, RNG audit/trace + non-consuming RNG event logs.\n- Added CLI packages/engine/src/engine/cli/s3_fraud_overlay_6b.py and make target segment6b-s3 with batch_rows/compression defaults.\n
