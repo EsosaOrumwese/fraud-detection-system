@@ -495,6 +495,23 @@ def _select_sealed_row(sealed_inputs: list[dict], manifest_key: str) -> dict:
     return matches[0]
 
 
+def _select_sealed_row_optional(
+    sealed_inputs: list[dict],
+    manifest_key: str,
+    logger,
+    dataset_id: str,
+) -> Optional[dict]:
+    try:
+        return _select_sealed_row(sealed_inputs, manifest_key)
+    except InputResolutionError:
+        logger.warning(
+            "S2: sealed_inputs missing for %s (manifest_key=%s); using run-local output path",
+            dataset_id,
+            manifest_key,
+        )
+        return None
+
+
 def _publish_file_idempotent(
     tmp_path: Path,
     final_path: Path,
@@ -726,7 +743,9 @@ def run_s2(
         )
 
     for dataset_id, manifest_key in manifest_keys.items():
-        row = _select_sealed_row(sealed_inputs, manifest_key)
+        row = _select_sealed_row_optional(sealed_inputs, manifest_key, logger, dataset_id)
+        if row is None:
+            continue
         status = row.get("status")
         read_scope = row.get("read_scope")
         if status != "REQUIRED" or read_scope != "ROW_LEVEL":
@@ -757,13 +776,18 @@ def run_s2(
     def _load_policy(policy_id: str) -> object:
         row = policy_rows[policy_id]
         status = row.get("status")
-        if status != "REQUIRED":
+        if status not in {"REQUIRED", "OPTIONAL"}:
             _abort(
                 "S2_PRECONDITION_SEALED_INPUTS_INCOMPLETE",
                 "V-01",
                 "policy_status_invalid",
                 {"policy_id": policy_id, "status": status},
                 manifest_fingerprint,
+            )
+        if status == "OPTIONAL":
+            logger.warning(
+                "S2: policy %s marked OPTIONAL in sealed_inputs; proceeding with provided config",
+                policy_id,
             )
         path = _resolve_sealed_path(row, tokens, run_paths, config.external_roots)
         return _load_yaml(path)
@@ -1053,9 +1077,10 @@ def run_s2(
 
                     amount_index = arrivals.get_column("amount_index").to_numpy()
                     amount_minor = price_points_array[amount_index]
+                    amount_major = amount_minor / 100.0
                     arrivals = arrivals.with_columns(
                         pl.Series("amount_minor", amount_minor),
-                        (pl.col("amount_minor") / pl.lit(100.0)).alias("amount"),
+                        pl.Series("amount", amount_major),
                         pl.lit(seed).cast(pl.Int64).alias("seed"),
                         pl.lit(manifest_fingerprint).alias("manifest_fingerprint"),
                         pl.lit(parameter_hash).alias("parameter_hash"),

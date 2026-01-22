@@ -731,3 +731,55 @@ Validation/testing:
 - Ensure sample payload validation still runs.
 - Run `python -m py_compile` after code changes.
 - Run `make segment6b-s1` to confirm session_index publish completes without crash.
+
+### Entry: 2026-01-22 12:34
+
+6B.S2 sealed_inputs gap for S1 outputs — plan to relax precondition (internal outputs are run-local):
+- Problem observed:
+  - After S0 PASS, `sealed_inputs_6B` does not include `mlr.6B.s1.arrival_entities` or `mlr.6B.s1.session_index` keys.
+  - S2 currently *requires* those keys in sealed_inputs and fails fast (`InputResolutionError`).
+  - S1 outputs are run-local (same segment), not external inputs; sealed_inputs is intended for external roots and upstream egress.
+- Decision:
+  - Treat missing sealed_inputs rows for S1 outputs as acceptable.
+  - Keep strict sealed_inputs checks for policies and other external inputs.
+  - Log a warning when sealed_inputs entries are missing for `s1_arrival_entities_6B` / `s1_session_index_6B`, and continue using the dataset dictionary/registry paths.
+
+Planned change (stepwise):
+1) Add helper to attempt sealed_inputs lookup with graceful fallback for S1 outputs.
+2) In the precondition loop for `required_dataset_ids`, catch missing keys and log:
+   - “S2: sealed_inputs missing for {dataset_id}; using run-local output path.”
+3) Only enforce `status=REQUIRED` + `read_scope=ROW_LEVEL` when the sealed_inputs row is present.
+4) Leave all policy sealed_inputs validation unchanged and still required.
+
+Invariants:
+- S2 still uses dictionary/registry for actual path resolution.
+- No change to outputs, schema validation, or RNG logging.
+
+Validation/testing:
+- Re-run `make segment6b-s2` after the change.
+
+### Entry: 2026-01-22 12:36
+
+6B.S2 policy status OPTIONAL — plan to accept optional policies when present:
+- Problem observed:
+  - `sealed_inputs_6B` marks `mlr.6B.policy.behaviour_config` as `OPTIONAL`, which causes S2 to abort because `_load_policy` requires `status == REQUIRED`.
+- Decision:
+  - Accept `OPTIONAL` for policy rows when the row is present; log a warning but continue.
+  - Keep failure for unexpected statuses or missing rows.
+
+Planned change:
+1) Update `_load_policy` in `packages/engine/src/engine/layers/l3/seg_6B/s2_baseline_flow/runner.py`:
+   - Allow `status in {"REQUIRED", "OPTIONAL"}`.
+   - If `OPTIONAL`, log a warning and proceed with the provided config.
+2) Re-run `make segment6b-s2`.
+
+### Entry: 2026-01-22 12:37
+
+6B.S2 amount_minor ColumnNotFound — plan to split amount derivation into explicit series:
+- Problem observed:
+  - S2 failed with `polars.exceptions.ColumnNotFoundError: amount_minor` when adding `amount` in the same `with_columns` call that defines `amount_minor`.
+- Decision:
+  - Compute `amount_minor` and `amount` as numpy arrays and attach both as `pl.Series` in a single `with_columns` call, avoiding self-references.
+- Planned change:
+  - Replace `(pl.col("amount_minor") / ...)` with `pl.Series("amount", amount_minor / 100.0)` so no intra-call dependency exists.
+  - Re-run `make segment6b-s2`.
