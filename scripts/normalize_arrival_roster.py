@@ -13,6 +13,26 @@ import polars as pl
 VIRTUAL_PERCENT = 10
 
 
+def _find_repo_root(start: Path) -> Path:
+    for parent in [start] + list(start.parents):
+        if (parent / "pyproject.toml").exists():
+            return parent
+    return start
+
+
+def _resolve_utc_day(explicit_day: str | None) -> str:
+    if explicit_day:
+        return explicit_day
+    repo_root = _find_repo_root(Path(__file__).resolve())
+    policy_path = repo_root / "config" / "layer1" / "2B" / "policy" / "day_effect_policy_v1.json"
+    if policy_path.exists():
+        payload = json.loads(policy_path.read_text(encoding="utf-8"))
+        start_day = str(payload.get("start_day") or "").strip()
+        if start_day:
+            return start_day
+    return "2026-01-01"
+
+
 def _virtual_bucket(merchant_id: int, seed: int) -> int:
     token = f"{merchant_id}:{seed}".encode("utf-8")
     digest = hashlib.sha256(token).digest()
@@ -27,6 +47,7 @@ def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("--run-id", required=True)
     parser.add_argument("--runs-root", default="runs/local_full_run-5")
+    parser.add_argument("--utc-day", default=None, help="Override UTC day for roster rows (YYYY-MM-DD).")
     args = parser.parse_args()
 
     run_id = args.run_id.strip()
@@ -40,6 +61,9 @@ def main() -> None:
     parameter_hash = receipt.get("parameter_hash")
     if seed is None or not parameter_hash:
         raise SystemExit(f"Missing seed or parameter_hash in receipt: {receipt_path}")
+
+    utc_day = _resolve_utc_day(args.utc_day)
+    utc_timestamp = f"{utc_day}T00:00:00.000000Z"
 
     roster_path = (
         runs_root
@@ -74,8 +98,6 @@ def main() -> None:
         if not site_paths:
             raise SystemExit(f"site_locations parquet not found under: {site_root}")
 
-        utc_day = "2024-01-01"
-        utc_timestamp = "2024-01-01T00:00:00.000000Z"
         roster_path.parent.mkdir(parents=True, exist_ok=True)
         tmp_path = roster_path.with_suffix(".jsonl.tmp")
 
@@ -105,6 +127,7 @@ def main() -> None:
     tmp_path = roster_path.with_suffix(".jsonl.tmp")
     total = 0
     updated = 0
+    updated_day = 0
     kept = 0
 
     with roster_path.open("r", encoding="utf-8") as handle, tmp_path.open(
@@ -121,6 +144,11 @@ def main() -> None:
                 updated += 1
             else:
                 kept += 1
+            if str(payload.get("utc_day")) != utc_day:
+                payload["utc_day"] = utc_day
+                updated_day += 1
+            if str(payload.get("utc_timestamp")) != utc_timestamp:
+                payload["utc_timestamp"] = utc_timestamp
             tmp_handle.write(json.dumps(payload, ensure_ascii=True, sort_keys=True))
             tmp_handle.write("\n")
 
@@ -131,6 +159,8 @@ def main() -> None:
         f"rows={total}",
         f"added_is_virtual={updated}",
         f"kept_existing={kept}",
+        f"updated_day={updated_day}",
+        f"utc_day={utc_day}",
         f"virtual_percent={VIRTUAL_PERCENT}",
         f"seed={seed}",
     )

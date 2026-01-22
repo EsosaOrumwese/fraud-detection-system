@@ -4569,3 +4569,30 @@ Pending action:
 - Await user approval for the chosen remediation before deleting any
   run-scoped outputs.
 
+### Entry: 2026-01-22 17:46
+
+Design element: 2B.S5 arrival roster day alignment (group_weights_missing).
+Summary: 2B.S5 failed with `group_weights_missing` for `(merchant_id, utc_day=2024-01-01)` while the 2B day-effect policy and downstream 5B horizon are aligned to 2026. The arrival roster normalizer/generator currently hardcodes a day and can silently drift away from policy days, causing day-grid mismatches that surface as missing group weights.
+
+Corrective plan (documenting the real-time change already applied in working tree):
+1) **Source of authority:** derive the arrival roster `utc_day` from the 2B policy pack, not a hardcoded literal.
+   - Read `config/layer1/2B/policy/day_effect_policy_v1.json`.
+   - Use `start_day` as the default `utc_day` for roster rows (policy-driven day anchor).
+   - Rationale: day_effect policy is the canonical authority for day grid; aligning to it keeps S3/S4/S5 consistent and avoids hidden drift.
+2) **Override hook:** add a CLI override to support manual day selection for ad‑hoc runs.
+   - Add `--utc-day` flag to `scripts/normalize_arrival_roster.py`.
+   - If provided, it overrides the policy `start_day`; otherwise default to policy `start_day`.
+3) **Roster normalization behavior:**
+   - When normalizing existing `arrival_roster.jsonl`, update both `utc_day` and `utc_timestamp` to the resolved day (not just `is_virtual`).
+   - Track `updated_day` count in the summary to make the change visible.
+4) **Operational follow‑through (run fix):**
+   - Run `scripts/normalize_arrival_roster.py --run-id <run_id>` for the failed run to update the roster day to 2026 (policy start_day).
+   - Re-run `make segment2b-s5` to confirm the validation error clears.
+5) **Determinism + invariants:**
+   - Keep `is_virtual` deterministic by hashing `merchant_id + seed`.
+   - Ensure no other fields change except `utc_day`/`utc_timestamp` and missing `is_virtual`.
+   - No additional dependencies introduced; remains policy-driven with deterministic outputs.
+
+Notes:
+- This entry is a corrective log: the script change was applied before the formal map entry, and this record captures the reasoning + steps now for auditability.
+
