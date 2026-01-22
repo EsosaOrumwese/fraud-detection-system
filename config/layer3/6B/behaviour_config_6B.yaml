@@ -45,7 +45,3 @@ degrade_posture:
   on_scope_filter_miss: SKIP_PARTITION
   on_guardrail_exceeded: CLAMP_AND_WARN
   on_optional_policy_missing: DISABLE_FEATURE
-
-notes: >
-  Restrictive-only behaviour flags for the baseline_v1 scenario. Limits are
-  guardrails only; primary semantics remain in the 6B policy packs.

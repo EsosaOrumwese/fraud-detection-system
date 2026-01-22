@@ -8,7 +8,8 @@ seal_rules:
   warn_still_pass_max_fraction: 0.02
   info_never_blocks_pass: true
   required_check_min_coverage: 1.0
-  bundle_hashing_law: index_json_ascii_lex_raw_bytes_excluding_passed_flag
+  bundle_hashing_law:
+    mode: index_json_ascii_lex_raw_bytes_excluding_passed_flag
 
 check_groups:
   - { group_id: UPSTREAM_GATES, description: "Upstream HashGates and sealed inputs." }

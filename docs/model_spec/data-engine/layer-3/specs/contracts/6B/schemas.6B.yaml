@@ -533,7 +533,7 @@ policy:
             max_events_per_flow: { type: integer }
             max_campaigns_active_per_day: { type: integer }
             max_cases_per_seed_scenario: { type: integer }
-        notes: { type: string }
+          notes: { type: string }
     behaviour_config_6B:
       $id: "#/policy/behaviour_config_6B"
       type: object
@@ -652,8 +652,8 @@ policy:
             on_optional_policy_missing:
               type: string
               enum: [DISABLE_FEATURE, FAIL]
-        notes: { type: string }
-        behaviour_prior_pack_6B:
+          notes: { type: string }
+    behaviour_prior_pack_6B:
       $id: "#/policy/behaviour_prior_pack_6B"
       type: object
       description: "Behaviour priors pack for 6B (sealed by S0; used by S1-S4)."
@@ -1704,7 +1704,7 @@ policy:
         - targeting_filters
         - guardrails
         - realism_targets
-        properties:
+      properties:
           schema_version: { type: integer, const: 1 }
           config_id: { type: string, const: fraud_campaign_catalogue_config_6B }
           config_version: { type: string, const: v1 }
@@ -1862,7 +1862,7 @@ policy:
           realism_targets:
             type: object
             additionalProperties: true
-        notes: { type: string }
+          notes: { type: string }
     fraud_overlay_policy_6B:
       $id: "#/policy/fraud_overlay_policy_6B"
       type: object

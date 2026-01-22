@@ -5,7 +5,6 @@ policy_version: v1
 dependencies:
   rng_profile_layer3: { policy_id: rng_profile_layer3, required: true }
   rng_policy_6B: { policy_id: rng_policy_6B, required: true }
-  sessionisation_policy_6B: { policy_id: sessionisation_policy_6B, required: true }
   behaviour_config_6B: { policy_id: behaviour_config_6B, required: false }
 
 attachment_steps_order: [PARTY, ACCOUNT, INSTRUMENT, DEVICE, IP]
@@ -99,12 +98,3 @@ provenance:
   attach_rule_id_enabled: true
   attach_score_enabled: true
   attach_rng_family_field: attach_rng_family
-  attach_rule_id_vocab:
-    - PARTY_HOME_PRIMARY
-    - PARTY_GLOBAL_FALLBACK
-    - ACCOUNT_OWNER
-    - INSTRUMENT_LINKED
-    - DEVICE_CUSTOMER
-    - DEVICE_TERMINAL
-    - IP_DEVICE
-    - IP_MERCHANT

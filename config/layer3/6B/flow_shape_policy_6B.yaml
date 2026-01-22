@@ -26,9 +26,7 @@ arrival_to_flow_model:
   mode: multi_flow_orders_v1
   max_flows_per_session: 4
   order_key_fields: [merchant_id, channel_group]
-  tie_break_order:
-    arrivals: [ts_utc, merchant_id, arrival_seq]
-    flows: [flow_index_within_session]
+  tie_break_order: [ts_utc, merchant_id, arrival_seq, flow_index_within_session]
   stochastic_assignment:
     enabled: false
 

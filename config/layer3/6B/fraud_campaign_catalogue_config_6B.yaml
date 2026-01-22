@@ -27,7 +27,6 @@ templates:
     max_instances_per_seed: 5
     min_targets_per_instance: 50
     max_targets_per_instance: 2000
-    on_no_candidates: SKIP_INSTANCE
 
   - template_id: T_ATO_ACCOUNT_SWEEP
     campaign_type: ATO
@@ -46,14 +45,13 @@ templates:
     max_instances_per_seed: 3
     min_targets_per_instance: 100
     max_targets_per_instance: 5000
-    on_no_candidates: SKIP_INSTANCE
 
   - template_id: T_REFUND_ABUSE
     campaign_type: REFUND_ABUSE
     fraud_family: REFUND_ABUSE
     description: "Refund abuse concentrated on cleared purchase flows."
     target_kind: FLOW
-    target_flow_scope: { flow_type_ids: [CARD_AUTH_CLEAR, CARD_AUTH_STEPUP_CLEAR] }
+    target_flow_scope: "flow_type_ids:[CARD_AUTH_CLEAR,CARD_AUTH_STEPUP_CLEAR]"
     activation_model_id: ACT_POISSON_LOW
     schedule_model_id: SCH_FIXED_7D
     quota_model_id: QUOTA_FIXED_SMALL
@@ -65,7 +63,6 @@ templates:
     max_instances_per_seed: 4
     min_targets_per_instance: 100
     max_targets_per_instance: 4000
-    on_no_candidates: SKIP_INSTANCE
 
   - template_id: T_MERCHANT_COLLUSION
     campaign_type: MERCHANT_COLLUSION
@@ -84,14 +81,13 @@ templates:
     max_instances_per_seed: 2
     min_targets_per_instance: 20
     max_targets_per_instance: 1000
-    on_no_candidates: SKIP_INSTANCE
 
   - template_id: T_PROMO_FRAUD_EVENTS
     campaign_type: PROMO_FRAUD
     fraud_family: ABUSE_OTHER
     description: "Promotion abuse targeting specific event templates."
     target_kind: EVENT
-    target_flow_scope: { flow_type_ids: [CARD_AUTH_CLEAR, CARD_AUTH_STEPUP_CLEAR] }
+    target_flow_scope: "flow_type_ids:[CARD_AUTH_CLEAR,CARD_AUTH_STEPUP_CLEAR]"
     activation_model_id: ACT_CATEGORICAL_SMALL
     schedule_model_id: SCH_FIXED_7D
     quota_model_id: QUOTA_FIXED_SMALL
@@ -103,14 +99,13 @@ templates:
     max_instances_per_seed: 3
     min_targets_per_instance: 200
     max_targets_per_instance: 6000
-    on_no_candidates: SKIP_INSTANCE
 
   - template_id: T_BONUS_ABUSE_FLOW
     campaign_type: BONUS_ABUSE
     fraud_family: ABUSE_OTHER
     description: "Bonus abuse focused on rapid repeat flows."
     target_kind: FLOW
-    target_flow_scope: { flow_type_ids: [CARD_AUTH_CLEAR] }
+    target_flow_scope: "flow_type_ids:[CARD_AUTH_CLEAR]"
     activation_model_id: ACT_POISSON_LOW
     schedule_model_id: SCH_FIXED_2D
     quota_model_id: QUOTA_RATE_BURSTY
@@ -122,12 +117,13 @@ templates:
     max_instances_per_seed: 4
     min_targets_per_instance: 100
     max_targets_per_instance: 3000
-    on_no_candidates: SKIP_INSTANCE
 
 activation_models:
   ACT_DETERMINISTIC_ONE:
     mode: DETERMINISTIC
     n_instances: 1
+    rng_family: rng_event_campaign_activation
+    key_ids: [manifest_fingerprint, parameter_hash, seed, scenario_id, template_id]
 
   ACT_POISSON_LOW:
     mode: POISSON_V1
@@ -176,16 +172,16 @@ quota_models:
     key_ids: [manifest_fingerprint, parameter_hash, seed, scenario_id, campaign_id]
 
   QUOTA_FRACTION_SMALL:
-    mode: FRACTION_OF_DOMAIN_V1
-    fraction: 0.002
-    min_targets: 50
-    max_targets: 5000
+    mode: RATE_PER_DAY_V1
+    targets_per_day: 50
     rng_family: rng_event_campaign_targeting
     key_ids: [manifest_fingerprint, parameter_hash, seed, scenario_id, campaign_id]
 
   QUOTA_FIXED_SMALL:
-    mode: FIXED_V1
-    n_targets: 200
+    mode: RATE_PER_DAY_V1
+    targets_per_day: 200
+    rng_family: rng_event_campaign_targeting
+    key_ids: [manifest_fingerprint, parameter_hash, seed, scenario_id, campaign_id]
 
 targeting_filters:
   F_ECOM_CARDLIKE:

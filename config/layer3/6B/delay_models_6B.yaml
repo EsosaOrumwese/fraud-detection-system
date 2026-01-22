@@ -76,7 +76,8 @@ delay_models:
 sampling_contract:
   draws_per_delay_sample: "1"
   forbid_rejection_sampling: true
-  mixture_sampling: deterministic_split_remap_v1
+  mixture_sampling:
+    mode: deterministic_split_remap_v1
   quantile_inputs_open_interval_only: true
 
 guardrails:

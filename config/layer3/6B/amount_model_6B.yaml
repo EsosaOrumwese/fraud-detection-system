@@ -3,22 +3,12 @@ policy_id: amount_model_6B
 policy_version: v1
 
 bindings:
-  channel_groups: [ECOM, POS, ATM, BANK_RAIL, HYBRID]
-  event_type_vocab:
-    - AUTH_REQUEST
-    - AUTH_RESPONSE
-    - STEP_UP_CHALLENGE
-    - STEP_UP_COMPLETE
-    - CLEARING
-    - REFUND
-    - REVERSAL
   rng_family_for_amount_base_draw: rng_event_amount_draw
   rng_family_for_amount_jitter_draw: rng_event_amount_draw
   rng_family_for_currency_cross_draw: rng_event_amount_draw
 
 currency_policy:
   mode: MERCHANT_PRIMARY_ONLY
-  require_merchant_primary_ccy: true
 
 amount_families:
   PURCHASE:
@@ -124,4 +114,5 @@ realism_targets:
   fraction_round_price_points_min:
     PURCHASE: 0.20
     CASH_WITHDRAWAL: 0.60
+  decline_amount_distribution_same_as_approved: true
 notes: "Baseline amounts are in merchant primary currency; cross-currency disabled in v1."

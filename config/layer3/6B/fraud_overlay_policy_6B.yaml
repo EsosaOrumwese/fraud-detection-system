@@ -166,7 +166,6 @@ provenance:
   require_tactic_id: true
   require_mutation_rule_id: true
   require_rng_family_and_decision_id: true
-  preserve_baseline_ids: true
 
 guardrails:
   max_targets_total_per_seed_scenario: 200000
@@ -178,7 +177,6 @@ guardrails:
   max_time_multiplier: 5.0
 
 realism_targets:
-  min_fraction_of_campaigns_with_any_mutation: 0.70
   mutation_axis_coverage_min: 3
   amount_shift_factor_range: { min: 1.05, max: 3.5 }
   routing_anomaly_fraction_range: { min: 0.0005, max: 0.05 }

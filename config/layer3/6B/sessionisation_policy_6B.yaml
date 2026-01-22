@@ -17,15 +17,7 @@ boundary_rules:
 
 stochastic_boundary:
   enabled: true
-  ambiguity_band: (hard_timeout_seconds, hard_break_seconds)
-  decision_law:
-    mode: linear_ramp_pbreak_v1
-    pbreak_formula: "clamp((gap - hard_timeout)/(hard_break - hard_timeout), 0, 1)"
-    rng_family: rng_event_session_boundary
-    draws_per_ambiguous_boundary: 1
-  keying:
-    forbid_run_id: true
-    ids: [manifest_fingerprint, seed, scenario_id, session_key_base, arrival_seq_left, arrival_seq_right]
+  key_ids: [manifest_fingerprint, seed, scenario_id, session_key_base, arrival_seq_left, arrival_seq_right]
 
 session_id:
   mode: anchored_hash64_v1
@@ -43,6 +35,5 @@ session_summary:
     - { name: primary_merchant_id, mode: dominant_by_arrival_count, tie_break: id_asc }
 
 guardrails:
-  max_arrivals_per_session: 800
-  max_session_duration_seconds: 43200
-  max_sessions_per_session_key: 50000
+  max_events_per_flow: 800
+  max_sessions_per_seed_scenario: 50000

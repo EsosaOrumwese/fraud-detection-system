@@ -18,7 +18,6 @@ vocabulary:
 inputs_allowed:
   required_sources: [s4_flow_truth_labels_6B, s3_flow_anchor_with_fraud_6B, s3_event_stream_with_fraud_6B]
   optional_sources: [s5_party_fraud_roles_6A, s5_account_fraud_roles_6A, s5_device_fraud_roles_6A]
-  forbid_arrival_row_level_use: true
 
 auth_decision_model:
   mode: DETERMINISTIC_PLUS_MIXTURE_V1
@@ -163,7 +162,6 @@ constraints:
   require_one_row_per_flow: true
   require_timestamps_consistent_with_events: true
   forbid_time_travel: true
-  forbid_bank_confirmed_fraud_when_truth_legit_without_dispute: true
 
 realism_targets:
   false_positive_rate_range: { min: 0.0005, max: 0.02 }
@@ -171,17 +169,4 @@ realism_targets:
     FRAUD: { min: 0.05, max: 0.95 }
     ABUSE: { min: 0.01, max: 0.60 }
     LEGIT: { min: 0.0001, max: 0.05 }
-  detection_at_auth_fraction_range: { min: 0.05, max: 0.80 }
-  dispute_rate_range_by_truth_label:
-    FRAUD: { min: 0.01, max: 0.60 }
-    ABUSE: { min: 0.01, max: 0.60 }
-    LEGIT: { min: 0.0005, max: 0.05 }
-  chargeback_rate_range_given_dispute: { min: 0.05, max: 0.70 }
-  bank_win_rate_range_on_chargeback_by_truth_label:
-    FRAUD: { min: 0.05, max: 0.40 }
-    ABUSE: { min: 0.20, max: 0.80 }
-    LEGIT: { min: 0.70, max: 0.98 }
-  mean_detection_delay_range_seconds: { min: 60.0, max: 43200.0 }
-  mean_dispute_delay_range_seconds: { min: 86400.0, max: 1728000.0 }
-  mean_chargeback_delay_range_seconds: { min: 604800.0, max: 5184000.0 }
 notes: "Bank-view outcomes are probabilistic via label_rng_policy_6B only."

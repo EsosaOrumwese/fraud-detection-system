@@ -1666,15 +1666,20 @@ ip_preferences:
         HOSTING_DATACENTRE: 0.05
         ANONYMIZER_PROXY: 0.05
 guardrails:
-  require_all_probs_sum_to_one: true
-  forbid_zero_total_weight: true
-  max_anonymizer_weight_any_cell: 0.12
-  max_hosting_weight_any_cell: 0.18
-  min_home_geo_prob_any_cell: 0.65
+  max_total_campaign_instances_per_seed_scenario: 50
+  max_total_targets_per_seed_scenario: 200000
+  max_targets_per_campaign_instance: 100000
+  max_windows_per_campaign_instance: 20
 realism_targets:
-  require_nonzero_public_shared_somewhere: true
-  require_nonzero_anonymizer_somewhere: true
-  require_channel_differentiation: true
+  min_templates_total: 6
+  min_fraud_family_coverage: 3
+  targeting_diversity_min: 3
+  proxy_usage_presence: true
+  campaign_prevalence_ranges:
+    CARD_TESTING: { min: 0.0005, max: 0.03 }
+    ATO: { min: 0.0001, max: 0.01 }
+    REFUND_ABUSE: { min: 0.0001, max: 0.02 }
+    MERCHANT_COLLUSION: { min: 0.00001, max: 0.002 }
 notes: Behaviour priors cover all party segments from taxonomy.party.v1 and provide
   channel-specific preferences to steer S1 selection without introducing new behaviours
   outside the attachment and session policies.

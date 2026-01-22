@@ -15,29 +15,18 @@ vocabulary:
   case_outcome_vocab: [CONFIRMED_FRAUD, CONFIRMED_LEGIT, BANK_LOSS, BANK_WIN, UNKNOWN]
 
 case_involvement:
-  mode: bank_view_driven_v1
-  predicate:
-    any_of:
-      - { field: case_opened_ts_utc, op: NOT_NULL }
-      - { field: bank_view_label, op: IN, values: [BANK_CONFIRMED_FRAUD, CUSTOMER_DISPUTE_REJECTED, CHARGEBACK_WRITTEN_OFF] }
+  case_trigger_labels: [BANK_CONFIRMED_FRAUD, CUSTOMER_DISPUTE_REJECTED, CHARGEBACK_WRITTEN_OFF]
+  predicate: "case_opened_ts_utc != null OR bank_view_label in [BANK_CONFIRMED_FRAUD,CUSTOMER_DISPUTE_REJECTED,CHARGEBACK_WRITTEN_OFF]"
 
 case_key_model:
-  mode: precedence_v1
   precedence: [INSTRUMENT, ACCOUNT, PARTY, MERCHANT]
-  fields:
-    INSTRUMENT: instrument_id
-    ACCOUNT: account_id
-    PARTY: party_id
-    MERCHANT: merchant_id
-  encode:
-    mode: concat_v1
-    format: "{case_key_type}|{case_key_value}"
+  encoding: concat_v1
 
 case_grouping_model:
   case_anchor_ts_source: MIN_NON_NULL
   group_window_seconds: 259200
   reopen_gap_seconds: 604800
-  sort_member_flows_by: [case_anchor_ts_utc, flow_id]
+  order_by: [case_anchor_ts_utc, flow_id]
 
 case_id_model:
   mode: hash64_v1
@@ -46,21 +35,14 @@ case_id_model:
   output_format: id64_hex_le
 
 case_event_model:
-  allow_open_cases: false
-  event_ts_sources:
-    CASE_OPENED: { mode: MIN_CASE_OPENED_TS }
-    DETECTION_EVENT_ATTACHED: { mode: MIN_DETECTION_TS }
-    CUSTOMER_DISPUTE_FILED: { mode: MIN_DISPUTE_TS }
-    CHARGEBACK_INITIATED: { mode: MIN_CHARGEBACK_TS }
-    CHARGEBACK_DECISION: { mode: CASE_CLOSED_TS }
-    CASE_CLOSED:
-      mode: FROM_BANK_VIEW_IF_PRESENT_ELSE_DELAY_MODEL
-      delay_model_id: CASE_CLOSE_DELAY_V1
-      rng_family: rng_event_case_timeline
-      decision_id: case_close_delay
-  linkage:
-    trigger_flow_tie_break: [min_event_ts, flow_id_asc]
-    include_flow_id_on_events: true
+  event_order: [CASE_OPENED, DETECTION_EVENT_ATTACHED, CUSTOMER_DISPUTE_FILED, CHARGEBACK_INITIATED, CHARGEBACK_DECISION, CASE_CLOSED]
+  timestamp_sources:
+    CASE_OPENED: MIN_CASE_OPENED_TS
+    DETECTION_EVENT_ATTACHED: MIN_DETECTION_TS
+    CUSTOMER_DISPUTE_FILED: MIN_DISPUTE_TS
+    CHARGEBACK_INITIATED: MIN_CHARGEBACK_TS
+    CHARGEBACK_DECISION: CASE_CLOSED_TS
+    CASE_CLOSED: FROM_BANK_VIEW_IF_PRESENT_ELSE_DELAY_MODEL:CASE_CLOSE_DELAY_V1
 
 state_machine:
   mode: v1_table

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import copy
+import glob
 import hashlib
 import json
 import re
@@ -253,6 +254,15 @@ def _parse_pass_flag_any(path: Path) -> str:
     return match.group(1)
 
 
+def _bundle_index_path(bundle_path: Path, segment_id: str) -> Path:
+    if bundle_path.is_file():
+        return bundle_path
+    index_path = bundle_path / "index.json"
+    if index_path.exists():
+        return index_path
+    return bundle_path / f"validation_bundle_index_{segment_id}.json"
+
+
 def _pick_latest_run_receipt(runs_root: Path) -> Path:
     receipts = sorted(
         runs_root.glob("*/run_receipt.json"),
@@ -305,8 +315,9 @@ def _render_catalog_path(entry: dict, tokens: dict[str, str]) -> str:
 
 
 def _path_has_content(path: Path) -> bool:
-    if "*" in str(path) or "?" in str(path):
-        return bool(list(path.parent.glob(path.name)))
+    path_str = str(path)
+    if "*" in path_str or "?" in path_str:
+        return bool(glob.glob(path_str))
     if not path.exists():
         return False
     if path.is_dir():
@@ -666,7 +677,7 @@ def run_s0(config: EngineConfig, run_id: Optional[str] = None) -> S0GateResult:
                     {"segment": segment_id, "flag_id": flag_id, "path": str(flag_path)},
                     manifest_fingerprint,
                 )
-            index_path = bundle_path if bundle_path.is_file() else bundle_path / "index.json"
+            index_path = _bundle_index_path(bundle_path, segment_id)
             if not index_path.exists():
                 _abort(
                     "6B.S0.UPSTREAM_HASHGATE_INVALID",
@@ -726,16 +737,20 @@ def run_s0(config: EngineConfig, run_id: Optional[str] = None) -> S0GateResult:
                     manifest_fingerprint,
                 )
             try:
-                _validate_payload(
-                    payload,
-                    schema_pack,
-                    external_pack,
-                    anchor,
-                    "6B.S0.UPSTREAM_SEALED_INPUTS_INVALID",
-                    manifest_fingerprint,
-                    {"dataset_id": dataset_id, "path": str(path)},
-                    prefix,
-                )
+                schema = _schema_from_pack(schema_pack, anchor)
+                if external_pack:
+                    _inline_external_refs(schema, external_pack, prefix)
+                if dataset_id == "sealed_inputs_6A" and schema.get("type") != "array":
+                    schema = {"type": "array", "items": schema}
+                errors = list(Draft202012Validator(schema).iter_errors(payload))
+                if errors:
+                    raise EngineFailure(
+                        "F4",
+                        "6B.S0.UPSTREAM_SEALED_INPUTS_INVALID",
+                        STATE,
+                        MODULE_NAME,
+                        {"detail": str(errors[0]), "dataset_id": dataset_id},
+                    )
             except EngineFailure as exc:
                 _abort(
                     "6B.S0.UPSTREAM_SEALED_INPUTS_INVALID",
@@ -989,25 +1004,52 @@ def run_s0(config: EngineConfig, run_id: Optional[str] = None) -> S0GateResult:
                     upstream_index = upstream_index_5b
                 elif owner_segment == "6A":
                     upstream_index = upstream_index_6a
+                matches = False
                 if upstream_index is not None:
                     matches = (
                         dataset_id in upstream_index["artifact_id"]
                         or manifest_key in upstream_index["manifest_key"]
                         or (owner_segment, catalog_path) in upstream_index["path_template"]
                     )
-                    if not matches:
+                if not matches:
+                    try:
+                        resolved_path = _resolve_dataset_path(
+                            entry,
+                            run_paths,
+                            config.external_roots,
+                            tokens,
+                            allow_wildcards=True,
+                        )
+                    except InputResolutionError as exc:
                         if status_value == "OPTIONAL":
                             optional_missing.append(dataset_id)
                             logger.info(
-                                "S0: optional upstream input missing dataset_id=%s owner_segment=%s",
+                                "S0: optional upstream input missing dataset_id=%s owner_segment=%s detail=%s",
                                 dataset_id,
                                 owner_segment,
+                                str(exc),
                             )
                             continue
                         _abort(
                             "6B.S0.SEALED_INPUTS_REQUIRED_ARTIFACT_MISSING",
                             "upstream_input_missing",
-                            {"dataset_id": dataset_id, "owner_segment": owner_segment},
+                            {"dataset_id": dataset_id, "owner_segment": owner_segment, "detail": str(exc)},
+                            manifest_fingerprint,
+                        )
+                    if not _path_has_content(resolved_path):
+                        if status_value == "OPTIONAL":
+                            optional_missing.append(dataset_id)
+                            logger.info(
+                                "S0: optional upstream input missing dataset_id=%s owner_segment=%s path=%s",
+                                dataset_id,
+                                owner_segment,
+                                resolved_path,
+                            )
+                            continue
+                        _abort(
+                            "6B.S0.SEALED_INPUTS_REQUIRED_ARTIFACT_MISSING",
+                            "upstream_input_missing",
+                            {"dataset_id": dataset_id, "owner_segment": owner_segment, "path": str(resolved_path)},
                             manifest_fingerprint,
                         )
                 digest_hex = _structural_digest(
