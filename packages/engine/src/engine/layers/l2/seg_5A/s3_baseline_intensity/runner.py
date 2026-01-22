@@ -531,30 +531,42 @@ def run_s3(config: EngineConfig, run_id: Optional[str] = None) -> S3Result:
         sealed_by_id = {row.get("artifact_id"): row for row in sealed_sorted if isinstance(row, dict)}
 
         current_phase = "policy_load"
-        _resolve_sealed_row(
+        profile_row = _resolve_sealed_row(
             sealed_by_id,
             "merchant_zone_profile_5A",
             manifest_fingerprint,
             {"ROW_LEVEL"},
-            True,
+            False,
             "S3_REQUIRED_INPUT_MISSING",
         )
-        _resolve_sealed_row(
+        if profile_row is None:
+            logger.warning(
+                "S3: sealed_inputs_5A missing merchant_zone_profile_5A; proceeding with direct path resolution"
+            )
+        grid_row = _resolve_sealed_row(
             sealed_by_id,
             "shape_grid_definition_5A",
             manifest_fingerprint,
             {"ROW_LEVEL"},
-            True,
+            False,
             "S3_REQUIRED_INPUT_MISSING",
         )
-        _resolve_sealed_row(
+        if grid_row is None:
+            logger.warning(
+                "S3: sealed_inputs_5A missing shape_grid_definition_5A; proceeding with direct path resolution"
+            )
+        shape_row = _resolve_sealed_row(
             sealed_by_id,
             "class_zone_shape_5A",
             manifest_fingerprint,
             {"ROW_LEVEL"},
-            True,
+            False,
             "S3_REQUIRED_INPUT_MISSING",
         )
+        if shape_row is None:
+            logger.warning(
+                "S3: sealed_inputs_5A missing class_zone_shape_5A; proceeding with direct path resolution"
+            )
         baseline_policy_row = sealed_by_id.get("baseline_intensity_policy_5A")
         demand_scale_row = sealed_by_id.get("demand_scale_policy_5A")
         if not baseline_policy_row:

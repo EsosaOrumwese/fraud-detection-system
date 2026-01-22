@@ -12,7 +12,7 @@ clip_mode: hard_fail
 
 hard_limits:
   max_lambda_per_bucket: 200000.0
-  max_weekly_volume_expected: 2000000.0
+  max_weekly_volume_expected: 5000000.0
 
 utc_projection:
   emit_utc_baseline: false

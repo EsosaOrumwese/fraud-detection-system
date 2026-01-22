@@ -1023,149 +1023,137 @@ def run_s5(config: EngineConfig, run_id: Optional[str] = None) -> S5Result:
         s1_domain_class: Optional[pl.LazyFrame] = None
         s1_domain_zone: Optional[pl.LazyFrame] = None
         s1_profile_scan: Optional[pl.LazyFrame] = None
-        if _is_sealed(DATASET_MERCHANT_PROFILE):
-            profile_entry = find_dataset_entry(dictionary_5a, DATASET_MERCHANT_PROFILE).entry
-            profile_path = _resolve_dataset_path(profile_entry, run_paths, config.external_roots, tokens)
-            if profile_path.exists():
-                profile_paths = _resolve_parquet_files(profile_path)
-                s1_profile_scan = pl.scan_parquet([str(path) for path in profile_paths])
-                columns = list(s1_profile_scan.columns)
-                required_fields = _array_required_fields(
-                    schema_5a, schema_layer1, schema_layer2, "model/merchant_zone_profile_5A"
-                )
-                missing_cols = _ensure_required_columns(columns, required_fields)
-                row_summary = s1_profile_scan.select(
-                    [
-                        pl.count().alias("row_count"),
-                        pl.struct(["merchant_id", "legal_country_iso", "tzid"]).n_unique().alias("pk_unique"),
-                        pl.col("merchant_id").n_unique().alias("merchant_count"),
-                        pl.col("legal_country_iso").n_unique().alias("country_count"),
-                        pl.col("tzid").n_unique().alias("tz_count"),
-                        pl.col("demand_class").is_null().sum().alias("demand_nulls"),
-                        pl.col("weekly_volume_expected").is_null().sum().alias("weekly_nulls"),
-                        (~pl.col("weekly_volume_expected").is_finite()).sum().alias("weekly_nonfinite"),
-                        (pl.col("weekly_volume_expected") < 0).sum().alias("weekly_negative"),
-                        pl.col("scale_factor").is_null().sum().alias("scale_nulls"),
-                        (~pl.col("scale_factor").is_finite()).sum().alias("scale_nonfinite"),
-                        (pl.col("scale_factor") < 0).sum().alias("scale_negative"),
-                    ]
-                ).collect()
-                row_count = int(row_summary["row_count"][0])
-                pk_unique = int(row_summary["pk_unique"][0])
-                demand_nulls = int(row_summary["demand_nulls"][0])
-                weekly_nulls = int(row_summary["weekly_nulls"][0])
-                weekly_nonfinite = int(row_summary["weekly_nonfinite"][0])
-                weekly_negative = int(row_summary["weekly_negative"][0])
-                scale_nulls = int(row_summary["scale_nulls"][0])
-                scale_nonfinite = int(row_summary["scale_nonfinite"][0])
-                scale_negative = int(row_summary["scale_negative"][0])
+        profile_path = _resolve_output_path(DATASET_MERCHANT_PROFILE, tokens)
+        if profile_path:
+            profile_paths = _resolve_parquet_files(profile_path)
+            s1_profile_scan = pl.scan_parquet([str(path) for path in profile_paths])
+            columns = list(s1_profile_scan.columns)
+            required_fields = _array_required_fields(
+                schema_5a, schema_layer1, schema_layer2, "model/merchant_zone_profile_5A"
+            )
+            missing_cols = _ensure_required_columns(columns, required_fields)
+            row_summary = s1_profile_scan.select(
+                [
+                    pl.count().alias("row_count"),
+                    pl.struct(["merchant_id", "legal_country_iso", "tzid"]).n_unique().alias("pk_unique"),
+                    pl.col("merchant_id").n_unique().alias("merchant_count"),
+                    pl.col("legal_country_iso").n_unique().alias("country_count"),
+                    pl.col("tzid").n_unique().alias("tz_count"),
+                    pl.col("demand_class").is_null().sum().alias("demand_nulls"),
+                    pl.col("weekly_volume_expected").is_null().sum().alias("weekly_nulls"),
+                    (~pl.col("weekly_volume_expected").is_finite()).sum().alias("weekly_nonfinite"),
+                    (pl.col("weekly_volume_expected") < 0).sum().alias("weekly_negative"),
+                    pl.col("scale_factor").is_null().sum().alias("scale_nulls"),
+                    (~pl.col("scale_factor").is_finite()).sum().alias("scale_nonfinite"),
+                    (pl.col("scale_factor") < 0).sum().alias("scale_negative"),
+                ]
+            ).collect()
+            row_count = int(row_summary["row_count"][0])
+            pk_unique = int(row_summary["pk_unique"][0])
+            demand_nulls = int(row_summary["demand_nulls"][0])
+            weekly_nulls = int(row_summary["weekly_nulls"][0])
+            weekly_nonfinite = int(row_summary["weekly_nonfinite"][0])
+            weekly_negative = int(row_summary["weekly_negative"][0])
+            scale_nulls = int(row_summary["scale_nulls"][0])
+            scale_nonfinite = int(row_summary["scale_nonfinite"][0])
+            scale_negative = int(row_summary["scale_negative"][0])
 
-                counts["s1_rows"] = row_count
-                counts["s1_merchants"] = int(row_summary["merchant_count"][0])
-                counts["s1_countries"] = int(row_summary["country_count"][0])
-                counts["s1_tzids"] = int(row_summary["tz_count"][0])
+            counts["s1_rows"] = row_count
+            counts["s1_merchants"] = int(row_summary["merchant_count"][0])
+            counts["s1_countries"] = int(row_summary["country_count"][0])
+            counts["s1_tzids"] = int(row_summary["tz_count"][0])
 
-                if missing_cols:
-                    record_check(CHECK_S1_REQUIRED, "FAIL", {"missing_columns": missing_cols})
-                    record_issue(
-                        CHECK_S1_REQUIRED,
-                        "S1_SCHEMA_MISSING_FIELDS",
-                        "ERROR",
-                        "merchant_zone_profile_5A missing required columns",
-                        {"missing_columns": missing_cols},
-                        segment="S1",
-                    )
-                else:
-                    s1_checks[CHECK_S1_REQUIRED] = "PASS" if demand_nulls == 0 else "FAIL"
-                    record_check(
-                        CHECK_S1_REQUIRED,
-                        s1_checks[CHECK_S1_REQUIRED],
-                        {"demand_nulls": demand_nulls},
-                    )
-                    if demand_nulls:
-                        record_issue(
-                            CHECK_S1_REQUIRED,
-                            "S1_REQUIRED_FIELD_NULL",
-                            "ERROR",
-                            "merchant_zone_profile_5A demand_class null",
-                            {"null_count": demand_nulls},
-                            segment="S1",
-                        )
-
-                pk_duplicates = max(row_count - pk_unique, 0)
-                s1_checks[CHECK_S1_PK] = "PASS" if pk_duplicates == 0 else "FAIL"
-                record_check(CHECK_S1_PK, s1_checks[CHECK_S1_PK], {"duplicate_pk": pk_duplicates})
-                if pk_duplicates:
-                    record_issue(
-                        CHECK_S1_PK,
-                        "S1_PK_DUPLICATE",
-                        "ERROR",
-                        "merchant_zone_profile_5A PK duplicates",
-                        {"duplicate_pk": pk_duplicates},
-                        segment="S1",
-                    )
-
-                both_missing = _count_invalid(
-                    s1_profile_scan,
-                    pl.col("weekly_volume_expected").is_null() & pl.col("scale_factor").is_null(),
-                )
-                scale_invalid = weekly_nonfinite + weekly_negative + scale_nonfinite + scale_negative + both_missing
-                s1_checks[CHECK_S1_SCALE] = "PASS" if scale_invalid == 0 else "FAIL"
-                record_check(
-                    CHECK_S1_SCALE,
-                    s1_checks[CHECK_S1_SCALE],
-                    {
-                        "weekly_nulls": weekly_nulls,
-                        "weekly_nonfinite": weekly_nonfinite,
-                        "weekly_negative": weekly_negative,
-                        "scale_nulls": scale_nulls,
-                        "scale_nonfinite": scale_nonfinite,
-                        "scale_negative": scale_negative,
-                        "scale_missing_both": both_missing,
-                    },
-                )
-                if scale_invalid:
-                    record_issue(
-                        CHECK_S1_SCALE,
-                        "S1_SCALE_INVALID",
-                        "ERROR",
-                        "merchant_zone_profile_5A scale fields invalid",
-                        {
-                            "weekly_negative": weekly_negative,
-                            "scale_negative": scale_negative,
-                            "weekly_nonfinite": weekly_nonfinite,
-                            "scale_nonfinite": scale_nonfinite,
-                            "missing_both": both_missing,
-                        },
-                        segment="S1",
-                    )
-
-                s1_checks[CHECK_S1_PRESENT] = "PASS"
-                record_check(CHECK_S1_PRESENT, "PASS", {"path": str(profile_path)})
-
-                s1_domain_class = s1_profile_scan.select(
-                    ["demand_class", "legal_country_iso", "tzid"]
-                ).unique()
-                s1_domain_zone = s1_profile_scan.select(
-                    ["merchant_id", "legal_country_iso", "tzid"]
-                ).unique()
-            else:
-                record_check(CHECK_S1_PRESENT, "FAIL", {"detail": "merchant_zone_profile_5A missing"})
+            if missing_cols:
+                record_check(CHECK_S1_REQUIRED, "FAIL", {"missing_columns": missing_cols})
                 record_issue(
-                    CHECK_S1_PRESENT,
-                    "S1_MISSING",
+                    CHECK_S1_REQUIRED,
+                    "S1_SCHEMA_MISSING_FIELDS",
                     "ERROR",
-                    "merchant_zone_profile_5A missing",
-                    {"path": str(profile_path)},
+                    "merchant_zone_profile_5A missing required columns",
+                    {"missing_columns": missing_cols},
                     segment="S1",
                 )
+            else:
+                s1_checks[CHECK_S1_REQUIRED] = "PASS" if demand_nulls == 0 else "FAIL"
+                record_check(
+                    CHECK_S1_REQUIRED,
+                    s1_checks[CHECK_S1_REQUIRED],
+                    {"demand_nulls": demand_nulls},
+                )
+                if demand_nulls:
+                    record_issue(
+                        CHECK_S1_REQUIRED,
+                        "S1_REQUIRED_FIELD_NULL",
+                        "ERROR",
+                        "merchant_zone_profile_5A demand_class null",
+                        {"null_count": demand_nulls},
+                        segment="S1",
+                    )
+
+            pk_duplicates = max(row_count - pk_unique, 0)
+            s1_checks[CHECK_S1_PK] = "PASS" if pk_duplicates == 0 else "FAIL"
+            record_check(CHECK_S1_PK, s1_checks[CHECK_S1_PK], {"duplicate_pk": pk_duplicates})
+            if pk_duplicates:
+                record_issue(
+                    CHECK_S1_PK,
+                    "S1_PK_DUPLICATE",
+                    "ERROR",
+                    "merchant_zone_profile_5A PK duplicates",
+                    {"duplicate_pk": pk_duplicates},
+                    segment="S1",
+                )
+
+            both_missing = _count_invalid(
+                s1_profile_scan,
+                pl.col("weekly_volume_expected").is_null() & pl.col("scale_factor").is_null(),
+            )
+            scale_invalid = weekly_nonfinite + weekly_negative + scale_nonfinite + scale_negative + both_missing
+            s1_checks[CHECK_S1_SCALE] = "PASS" if scale_invalid == 0 else "FAIL"
+            record_check(
+                CHECK_S1_SCALE,
+                s1_checks[CHECK_S1_SCALE],
+                {
+                    "weekly_nulls": weekly_nulls,
+                    "weekly_nonfinite": weekly_nonfinite,
+                    "weekly_negative": weekly_negative,
+                    "scale_nulls": scale_nulls,
+                    "scale_nonfinite": scale_nonfinite,
+                    "scale_negative": scale_negative,
+                    "scale_missing_both": both_missing,
+                },
+            )
+            if scale_invalid:
+                record_issue(
+                    CHECK_S1_SCALE,
+                    "S1_SCALE_INVALID",
+                    "ERROR",
+                    "merchant_zone_profile_5A scale fields invalid",
+                    {
+                        "weekly_negative": weekly_negative,
+                        "scale_negative": scale_negative,
+                        "weekly_nonfinite": weekly_nonfinite,
+                        "scale_nonfinite": scale_nonfinite,
+                        "missing_both": both_missing,
+                    },
+                    segment="S1",
+                )
+
+            s1_checks[CHECK_S1_PRESENT] = "PASS"
+            record_check(CHECK_S1_PRESENT, "PASS", {"path": str(profile_path)})
+
+            s1_domain_class = s1_profile_scan.select(
+                ["demand_class", "legal_country_iso", "tzid"]
+            ).unique()
+            s1_domain_zone = s1_profile_scan.select(
+                ["merchant_id", "legal_country_iso", "tzid"]
+            ).unique()
         else:
-            record_check(CHECK_S1_PRESENT, "FAIL", {"detail": "merchant_zone_profile_5A not sealed"})
+            record_check(CHECK_S1_PRESENT, "FAIL", {"detail": "merchant_zone_profile_5A missing"})
             record_issue(
                 CHECK_S1_PRESENT,
                 "S1_MISSING",
                 "ERROR",
-                "merchant_zone_profile_5A not sealed in sealed_inputs_5A",
+                "merchant_zone_profile_5A missing",
                 segment="S1",
             )
 
@@ -1918,23 +1906,17 @@ def run_s5(config: EngineConfig, run_id: Optional[str] = None) -> S5Result:
                     s4_version = None
                 s2_version = None
                 s3_version = None
-                if _is_sealed(DATASET_CLASS_ZONE_SHAPE):
-                    shape_path = _resolve_dataset_path(
-                        find_dataset_entry(dictionary_5a, DATASET_CLASS_ZONE_SHAPE).entry,
-                        run_paths,
-                        config.external_roots,
-                        run_tokens,
-                    )
-                    if shape_path.exists():
-                        shape_paths = _resolve_parquet_files(shape_path)
-                        shape_scan = pl.scan_parquet([str(path) for path in shape_paths])
-                        if "s2_spec_version" in shape_scan.columns:
-                            values = (
-                                shape_scan.select(pl.col("s2_spec_version").unique())
-                                .collect()
-                                .get_column("s2_spec_version")
-                            )
-                            s2_version = str(values[0]) if len(values) else None
+                shape_path = _resolve_output_path(DATASET_CLASS_ZONE_SHAPE, run_tokens)
+                if shape_path:
+                    shape_paths = _resolve_parquet_files(shape_path)
+                    shape_scan = pl.scan_parquet([str(path) for path in shape_paths])
+                    if "s2_spec_version" in shape_scan.columns:
+                        values = (
+                            shape_scan.select(pl.col("s2_spec_version").unique())
+                            .collect()
+                            .get_column("s2_spec_version")
+                        )
+                        s2_version = str(values[0]) if len(values) else None
                 if baseline_scan is not None and "s3_spec_version" in baseline_scan.columns:
                     values = (
                         baseline_scan.select(pl.col("s3_spec_version").unique())

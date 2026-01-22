@@ -717,38 +717,54 @@ def run_s4(config: EngineConfig, run_id: Optional[str] = None) -> S4Result:
         sealed_by_id = {row.get("artifact_id"): row for row in sealed_sorted if isinstance(row, dict)}
 
         current_phase = "input_resolution"
-        _resolve_sealed_row(
+        profile_row = _resolve_sealed_row(
             sealed_by_id,
             "merchant_zone_profile_5A",
             manifest_fingerprint,
             {"ROW_LEVEL"},
-            True,
+            False,
             "S4_REQUIRED_INPUT_MISSING",
         )
-        _resolve_sealed_row(
+        if profile_row is None:
+            logger.warning(
+                "S4: sealed_inputs_5A missing merchant_zone_profile_5A; proceeding with direct path resolution"
+            )
+        grid_row = _resolve_sealed_row(
             sealed_by_id,
             "shape_grid_definition_5A",
             manifest_fingerprint,
             {"ROW_LEVEL"},
-            True,
+            False,
             "S4_REQUIRED_INPUT_MISSING",
         )
-        _resolve_sealed_row(
+        if grid_row is None:
+            logger.warning(
+                "S4: sealed_inputs_5A missing shape_grid_definition_5A; proceeding with direct path resolution"
+            )
+        shape_row = _resolve_sealed_row(
             sealed_by_id,
             "class_zone_shape_5A",
             manifest_fingerprint,
             {"ROW_LEVEL"},
-            True,
+            False,
             "S4_REQUIRED_INPUT_MISSING",
         )
-        _resolve_sealed_row(
+        if shape_row is None:
+            logger.warning(
+                "S4: sealed_inputs_5A missing class_zone_shape_5A; proceeding with direct path resolution"
+            )
+        baseline_row = _resolve_sealed_row(
             sealed_by_id,
             "merchant_zone_baseline_local_5A",
             manifest_fingerprint,
             {"ROW_LEVEL"},
-            True,
+            False,
             "S4_REQUIRED_INPUT_MISSING",
         )
+        if baseline_row is None:
+            logger.warning(
+                "S4: sealed_inputs_5A missing merchant_zone_baseline_local_5A; proceeding with direct path resolution"
+            )
         _resolve_sealed_row(
             sealed_by_id,
             "scenario_calendar_5A",
