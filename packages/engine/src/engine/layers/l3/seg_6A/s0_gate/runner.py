@@ -789,6 +789,10 @@ def _role_for_dataset(dataset_id: str, owner_segment: str, schema_ref: str) -> s
     if schema_ref.startswith("schemas.6A.yaml#/prior/segmentation"):
         return "SEGMENT_PRIOR"
     if schema_ref.startswith("schemas.6A.yaml#/prior/"):
+        if dataset_id == "prior_device_counts_6A":
+            return "DEVICE_PRIOR"
+        if dataset_id == "prior_ip_counts_6A":
+            return "IP_PRIOR"
         if "device" in dataset_id or "ip" in dataset_id:
             return "DEVICE_IP_PRIOR"
         if "role" in dataset_id:
@@ -797,6 +801,10 @@ def _role_for_dataset(dataset_id: str, owner_segment: str, schema_ref: str) -> s
     if schema_ref.startswith("schemas.6A.yaml#/taxonomy/"):
         return "TAXONOMY"
     if schema_ref.startswith("schemas.6A.yaml#/policy/"):
+        if dataset_id == "device_linkage_rules_6A":
+            return "DEVICE_LINKAGE_RULES"
+        if dataset_id == "graph_linkage_rules_6A":
+            return "GRAPH_LINKAGE_RULES"
         return "POLICY"
     if owner_segment in {"1A", "1B", "2A", "2B", "3A", "3B", "5A", "5B"}:
         return "UPSTREAM_EGRESS"

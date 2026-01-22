@@ -2308,6 +2308,8 @@ segment6a-s4:
 	@echo "Running Segment 6A S4 device/IP graph"
 	@$(SEG6A_S4_CMD)
 
+segment6a: segment6a-s0 segment6a-s1 segment6a-s2 segment6a-s3 segment6a-s4
+
 paths-tree:
 	@$(PY_SCRIPT) scripts/build_paths_tree.py
 

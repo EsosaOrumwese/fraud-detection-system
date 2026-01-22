@@ -820,3 +820,65 @@ Contract/prior digest encoding:
 - **RNG event logs published:** device_count_realisation, device_allocation_sampling, device_attribute_sampling, ip_count_realisation, ip_allocation_sampling, ip_attribute_sampling under `runs/local_full_run-5/d61f08e2e45ef1bc28884034de4c1b68/logs/layer3/6A/rng/events/...`.
 - **Warnings observed:** sealed input rows for `mlr.6A.prior.device_counts`, `mlr.6A.prior.ip_counts`, `mlr.6A.policy.device_linkage_rules`, and `mlr.6A.policy.graph_linkage_rules` were missing; fallbacks to repo config paths were used (per lean dev policy).
 - **Follow-up (non-blocking):** fix S0 sealed_inputs coverage for these packs so the WARNs disappear on future runs.
+### Entry: 2026-01-22 01:46
+
+6A.S0 plan - align sealed_inputs roles for device/IP priors and linkage rules:
+- **Problem observed:** 6A.S4 warns that sealed inputs are missing for `mlr.6A.prior.device_counts`, `mlr.6A.prior.ip_counts`, `mlr.6A.policy.device_linkage_rules`, and `mlr.6A.policy.graph_linkage_rules`, even though the S0 sealed_inputs file contains these manifest keys. The root cause is a **role mismatch**: S0 currently assigns `DEVICE_IP_PRIOR` for device/ip priors and `POLICY` for linkage rules, while 6A.S4 filters on roles `DEVICE_PRIOR`, `IP_PRIOR`, `DEVICE_LINKAGE_RULES`, and `GRAPH_LINKAGE_RULES`.
+- **Decision:** update S0 role assignment to produce the roles expected by S4 for these specific datasets (without changing roles for unrelated policies or priors). This keeps sealed_inputs authoritative and eliminates the WARN+fallback path in S4.
+- **Alternatives considered:**
+  - Change S4 to not filter by role or accept multiple roles: rejected because the S0 contract should declare precise roles for sealed inputs, and other states rely on role scoping.
+  - Leave S0 as-is and silence warnings in S4: rejected because it would hide a contract mismatch.
+- **Implementation plan (stepwise):**
+  1. Update `_role_for_dataset()` in `packages/engine/src/engine/layers/l3/seg_6A/s0_gate/runner.py`:
+     - Map `prior_device_counts_6A` -> `DEVICE_PRIOR`.
+     - Map `prior_ip_counts_6A` -> `IP_PRIOR`.
+     - Map `device_linkage_rules_6A` -> `DEVICE_LINKAGE_RULES`.
+     - Map `graph_linkage_rules_6A` -> `GRAPH_LINKAGE_RULES`.
+     - Keep existing role mapping for all other priors/taxonomies/policies.
+  2. Re-run 6A.S0 to regenerate sealed_inputs with the updated roles; this changes the sealed_inputs digest and will require clearing existing S0 outputs for the run or using a fresh run_id.
+  3. (Optional) Re-run 6A.S4 after S0 to confirm WARNs disappear and sealed inputs are resolved without fallback.
+- **Inputs/authorities:** 6A contracts from `docs/model_spec/data-engine/layer-3/specs/contracts/6A/*`, and S0 expanded spec `docs/model_spec/data-engine/layer-3/specs/state-flow/6A/state.6A.s0.expanded.md`.
+- **Invariants:** role assignments must be deterministic and consistent with S4 expectations; sealed_inputs digest changes are expected and must be recorded; no schema changes.
+- **Logging/validation:** log role-mapping change in S0; re-run `make segment6a-s0` and capture results in logbook; if outputs pre-exist, document the required cleanup or use a new run.
+### Entry: 2026-01-22 01:48
+
+6A.S0 implementation - role mapping aligned with S4 expectations:
+- **Change applied:** updated `_role_for_dataset()` to emit targeted roles for the four S4-critical sealed inputs:
+  - `prior_device_counts_6A` -> `DEVICE_PRIOR`
+  - `prior_ip_counts_6A` -> `IP_PRIOR`
+  - `device_linkage_rules_6A` -> `DEVICE_LINKAGE_RULES`
+  - `graph_linkage_rules_6A` -> `GRAPH_LINKAGE_RULES`
+- **Why:** S4 filters sealed inputs by role; prior roles were too coarse (`DEVICE_IP_PRIOR`/`POLICY`), causing false "missing sealed input" WARNs despite the manifest keys being present.
+- **Scope:** only these four dataset ids are special-cased; all other priors/taxonomies/policies retain existing role classifications.
+- **Expected outcome:** S0 sealed_inputs will include the manifest keys with roles S4 expects, eliminating WARN+fallback paths on future runs.
+- **Next step:** re-run `make segment6a-s0` after clearing existing S0 outputs (or use a fresh run_id) to regenerate `sealed_inputs_6A` with the updated roles; then re-run S4 to verify no warnings.
+### Entry: 2026-01-22 01:54
+
+6A segment rerun - S0 PASS, S1 RNG event conflict:
+- **Action:** ran `make segment6a` after user cleared `runs/.../data/layer3/6A/` for the run.
+- **S0 result:** PASS; sealed_inputs regenerated with new role counts including `DEVICE_PRIOR`, `IP_PRIOR`, `DEVICE_LINKAGE_RULES`, `GRAPH_LINKAGE_RULES`. Sealed inputs digest recorded in run log (af0cc4d0...).
+- **S1 failure:** `6A.S1.IO_WRITE_CONFLICT` because RNG event log already exists at `runs/local_full_run-5/d61f08e2e45ef1bc28884034de4c1b68/logs/layer3/6A/rng/events/party_count_realisation/.../part-00000.jsonl`.
+- **Root cause:** data outputs were deleted, but RNG event logs for the same run_id/seed/parameter_hash were not cleared, so idempotent publish failed.
+- **Next step:** delete the `logs/layer3/6A/rng/events/*` tree for this run (or use a fresh run_id) and rerun `make segment6a` to proceed through S1+.
+### Entry: 2026-01-22 01:55
+
+6A segment rerun - S1 output conflict after clearing RNG events:
+- **Action:** deleted `runs/.../logs/layer3/6A/rng/events/` and reran `make segment6a`.
+- **S0:** PASS; outputs already existed and were identical, so publish skipped.
+- **S1 failure:** `6A.S1.IO_WRITE_CONFLICT` because `s1_party_base_6A` already exists at `runs/local_full_run-5/d61f08e2e45ef1bc28884034de4c1b68/data/layer3/6A/s1_party_base_6A/seed=42/parameter_hash=56d45126eaabedd083a1d8428a763e0278c89efec5023cfd6cf3cab7fc8dd2d7/manifest_fingerprint=1cb60481d69b836ee24505ec9a6ec231c8f18523ee9b7dabbd38c0a33bf15765/s1_party_base_6A.parquet`.
+- **Root cause:** only RNG events were cleared; prior S1 data outputs remained, so idempotent publish failed.
+- **Next step:** delete the S1 outputs (`s1_party_base_6A` and `s1_party_summary_6A` under the run) or use a fresh run_id, then rerun `make segment6a`.
+### Entry: 2026-01-22 02:01
+
+6A segment rerun - S1 outputs cleared; run in progress:
+- **Action:** removed `runs/local_full_run-5/d61f08e2e45ef1bc28884034de4c1b68/data/layer3/6A/s1_party_base_6A/` and `.../s1_party_summary_6A/`, then reran `make segment6a`.
+- **Observed progress (run log):** S0 PASS (existing outputs identical); S1 completed and published outputs + RNG events; S2 completed and published account base, holdings, summary + RNG events; S3 started instrument planning/emission.
+- **Note:** the CLI call hit a local timeout while the run continued in background; progress is being tracked via `runs/local_full_run-5/d61f08e2e45ef1bc28884034de4c1b68/run_log_d61f08e2e45ef1bc28884034de4c1b68.log`.
+- **Next step:** wait for S3/S4/S5 completion; confirm `segment6a` finishes cleanly or address any new conflicts/errors.
+### Entry: 2026-01-22 02:11
+
+6A segment completion - S4 run finished cleanly:
+- **Action:** after S3 completed, ran `make segment6a-s4` to finish Segment 6A (S0-S4).
+- **Result:** S4 completed successfully in ~106s and published `s4_device_base_6A`, `s4_ip_base_6A`, `s4_device_links_6A`, `s4_ip_links_6A` plus RNG event logs under `runs/local_full_run-5/d61f08e2e45ef1bc28884034de4c1b68/logs/layer3/6A/rng/events/`.
+- **Status:** Segment 6A is green through S4 for run_id `d61f08e2e45ef1bc28884034de4c1b68`.
+- **Next step:** proceed to 6A.S5 validation (user-directed).
