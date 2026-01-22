@@ -4823,3 +4823,22 @@ Operational decision (rerun unblock):
 Lean relaxation (RNG trace gating):
 - Observed `rng_trace_log` not being resolved by S5 despite files on disk, causing `rng_accounting_ok=false` and FAIL.
 - For lean mode, treat missing rng_trace as WARN-only (do not gate PASS). Keep issue in `validation_issue_table_5B` but set `rng_accounting_ok=True` so bundle can PASS.
+
+### Entry: 2026-01-22 19:45
+
+Run failure triage (NUMBA_REQUIRED):
+- Observed 5B.S4 abort with EngineFailure 5B.S4.NUMBA_REQUIRED. Runner requires numba by default (ENGINE_5B_S4_REQUIRE_NUMBA=1) to keep arrival expansion fast.
+- Verified in venv: numba import fails because NumPy is 2.3.5; pyproject requires numpy <2.0 and numba<0.61. The dependency set is out of sync, so S4 treats numba as unavailable.
+- Decision: align runtime with declared constraints instead of disabling numba. Downgrade numpy to 1.26.4 (or any <2.0.0) and reinstall numba if needed so NUMBA_AVAILABLE becomes true.
+- Steps:
+  1) python -m pip install "numpy<2.0.0" inside the repo venv.
+  2) Re-check import numba success/version.
+  3) Re-run make segment5b-s4 RUN_ID=fd0a6cc8d887f06793ea9195f207138b.
+- If constraints still conflict, fall back to setting ENGINE_5B_S4_REQUIRE_NUMBA=0 for a pure-Python run, but this is not preferred for performance.
+
+### Entry: 2026-01-22 19:48
+
+Execution update (numba enabled):
+- Downgraded numpy to 1.26.4 in the repo venv; numba 0.60.0 import now succeeds.
+- Pip reported rioxarray requires numpy>=2; leave as-is since 5B.S4 does not depend on rioxarray, but note for future env hygiene.
+- Re-ran segment5b-s4 for run_id fd0a6cc8d887f06793ea9195f207138b; arrivals emission progressing with ETA ~10 minutes (based on log rates).

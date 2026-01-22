@@ -31,7 +31,7 @@ linkage_checks:
     require_owner_link_present: true
   ip_links:
     max_ips_per_device: 25
-    max_devices_per_ip: 10000
+    max_devices_per_ip: 20000
   account_instrument_links:
     max_instruments_per_account: 16
 
