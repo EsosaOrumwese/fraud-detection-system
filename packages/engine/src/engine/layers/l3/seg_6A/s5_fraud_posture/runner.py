@@ -1831,7 +1831,7 @@ def run_s5(config: EngineConfig, run_id: Optional[str] = None) -> S5Result:
                 "scope_type": pl.Series([], dtype=pl.Utf8),
                 "seed": pl.Series([], dtype=pl.Int64),
                 "message": pl.Series([], dtype=pl.Utf8),
-                "metrics": pl.Series([], dtype=pl.Object),
+                "metrics": pl.Series([], dtype=pl.Struct([pl.Field("placeholder", pl.Utf8)])),
             }
         )
     issues_df_path = tmp_bundle_root / issues_rel

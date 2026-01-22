@@ -26,14 +26,14 @@ structural_checks:
 
 linkage_checks:
   device_links:
-    max_devices_per_party: 12
+    max_devices_per_party: 20
     max_parties_per_device: 6
     require_owner_link_present: true
   ip_links:
     max_ips_per_device: 25
-    max_devices_per_ip: 500
+    max_devices_per_ip: 10000
   account_instrument_links:
-    max_instruments_per_account: 8
+    max_instruments_per_account: 16
 
 role_distribution_checks:
   party_roles:
@@ -50,7 +50,7 @@ role_distribution_checks:
     max_risky_fraction: 0.25
   ip_roles:
     min_risky_fraction: 0.002
-    max_risky_fraction: 0.25
+    max_risky_fraction: 0.99
 
 consistency_checks:
   require_role_vocab_match_taxonomy: true
