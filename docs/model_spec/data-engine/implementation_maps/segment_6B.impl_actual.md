@@ -510,3 +510,14 @@ Corrective notes after S1 run failures (logged after-the-fact; should have been 
   - Logging: story header retained; per-batch progress via `_ProgressTracker`; warnings for session bucket relaxation.
   - Files updated: `packages/engine/src/engine/layers/l3/seg_6B/s1_attachment_session/runner.py`, `packages/engine/src/engine/cli/s1_attachment_session_6b.py`, `Makefile` (added `ENGINE_6B_S1_BATCH_ROWS` + `--batch-rows`).
   - Validation/testing: validate one sample row for arrival_entities + session_index after aggregation; rerun `make segment6b-s1` and observe ETA; if still too high, revisit batch_rows or session_key fields.
+
+
+### Entry: 2026-01-22 10:10
+
+S1 failure (post-run) and immediate fix plan:
+- Failure: Polars panic on `scan_parquet(...).collect(streaming=True)` with error "Parquet no longer supported for old streaming engine".
+- Decision: remove `streaming=True` to avoid invoking the old streaming engine; fall back to standard collect for the session summary aggregation. The session summary parts are already reduced (per-batch), so memory risk is acceptable. If memory spikes, next alternative is to aggregate via pyarrow dataset and groupby in chunks.
+- Steps:
+  1) Update `packages/engine/src/engine/layers/l3/seg_6B/s1_attachment_session/runner.py` to use `.collect()` (no streaming flag) for session_index aggregation.
+  2) Re-run `python -m py_compile` on the runner and CLI.
+  3) Re-run `make segment6b-s1` and monitor ETA; if failure persists, switch to pyarrow aggregation.

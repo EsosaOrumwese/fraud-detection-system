@@ -1431,7 +1431,7 @@ def run_s1(config: EngineConfig, run_id: Optional[str] = None, batch_rows: int =
                         pl.first("instrument_id").alias("instrument_id"),
                         pl.first("merchant_id").alias("merchant_id"),
                     )
-                    .collect(streaming=True)
+                    .collect()
                 )
 
                 if session_index.height > 0:
