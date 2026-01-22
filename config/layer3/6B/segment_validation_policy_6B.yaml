@@ -171,7 +171,6 @@ reporting:
   include_issue_table: true
   issue_table_max_rows: 20000
   validation_bundle_contents:
-    - validation_report_6B.json
-    - validation_issue_table_6B.parquet
-    - _passed.flag
+    - s5_validation_report_6B.json
+    - s5_issue_table_6B.parquet
 notes: "S5 validation is fail-closed on required checks; realism corridors emit WARN by default."

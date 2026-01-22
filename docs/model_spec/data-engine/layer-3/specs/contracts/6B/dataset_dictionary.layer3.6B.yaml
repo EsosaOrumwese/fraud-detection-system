@@ -1268,7 +1268,7 @@ datasets:
     schema_ref: schemas.6B.yaml#/s3/campaign_catalogue_6B
     lineage:
       produced_by: [ '6B.S3' ]
-      consumed_by: [ '6B.S4', '6B.S5' ]
+      consumed_by: [ '6B.S0', '6B.S4', '6B.S5' ]
 
   - id: s3_flow_anchor_with_fraud_6B
     owner_layer: 3
@@ -1289,7 +1289,7 @@ datasets:
     schema_ref: schemas.6B.yaml#/s3/flow_anchor_with_fraud_6B
     lineage:
       produced_by: [ '6B.S3' ]
-      consumed_by: [ '6B.S4', '6B.S5' ]
+      consumed_by: [ '6B.S0', '6B.S4', '6B.S5' ]
 
   - id: s3_event_stream_with_fraud_6B
     owner_layer: 3
@@ -1312,7 +1312,7 @@ datasets:
     schema_ref: schemas.6B.yaml#/s3/event_stream_with_fraud_6B
     lineage:
       produced_by: [ '6B.S3' ]
-      consumed_by: [ '6B.S4', '6B.S5' ]
+      consumed_by: [ '6B.S0', '6B.S4', '6B.S5' ]
 
   # --- S4: truth labels, bank view, case timeline ---
 

@@ -871,3 +871,94 @@ Validation/testing:
 \n---\n## 6B.S4 — Lean implementation plan (2026-01-22 13:46 local)\nProblem framing:\n- S4 must label every S3 flow/event and emit case timelines. Spec is heavy (collateral windows, posture joins, stochastic delays, cross-flow case grouping). Goal is fast, deterministic, realistic-enough labels without per-row loops or massive joins.\n\nInputs/authorities to use (contract source must remain switchable):\n- Contracts loaded via ContractSource(layout=ENGINE_CONTRACTS_LAYOUT, root=ENGINE_CONTRACTS_ROOT or repo_root) so dev uses model_spec but can switch to contracts mirror without code changes.\n- Authoritative inputs: s0_gate_receipt_6B, sealed_inputs_6B, s3_flow_anchor_with_fraud_6B, s3_event_stream_with_fraud_6B, plus config packs: 	ruth_labelling_policy_6B, ank_view_policy_6B, delay_models_6B, case_policy_6B, label_rng_policy_6B.\n- Optional posture inputs ignored for now (lean path).\n\nAlternatives considered:\n- Full spec: collateral rules + posture overrides + stochastic delay sampling + cross-flow case grouping. Rejected for time/CPU/memory and likely >15min on large runs.\n- Lean deterministic: campaign-driven truth labels; bank-view probabilities via hash-derived uniforms; fixed delays; 1-case-per-flow. Selected as minimal viable realism with deterministic reproducibility.\n\nDecisions (lean relaxations):\n- Truth labels: derive solely from S3 campaign_id using campaign catalogue + template->campaign_type mapping; map to truth_label via 	ruth_labelling_policy_6B.direct_pattern_map. LEGIT if no campaign. Skip collateral rules and posture overrides.\n- Bank-view: compute auth/detect/dispute/chargeback flags using deterministic hash-uniform draws keyed by (flow_id, decision_id); apply policy probabilities without RNG state. Use simplified auth rule: CARD_TESTING => DECLINE regardless of channel (channel_group not available in flow anchor).\n- Delays: use fixed min_seconds from delay_models_6B for detection/dispute/chargeback/case_close. Apply only when emitting case timeline timestamps.\n- Case grouping: 1-case-per-flow when case_opened; no cross-flow grouping or reopen logic. case_id is deterministic hash of (manifest_fingerprint, seed, flow_id, domain_tag).\n- RNG logs: emit non-consuming ng_event_truth_label + ng_event_bank_view_label envelopes with draws=0; append rng_trace rows for S4 substreams.\n\nAlgorithm/data-flow (per scenario_id):\n1) Validate S0 receipt + sealed_inputs; enforce upstream PASS; verify sealed_inputs digest.\n2) Resolve S3 flow/event outputs and S3 campaign catalogue for scenario_id. Build mapping: campaign_id -> campaign_type (via campaign_label/template_id + config templates). Build mapping: campaign_type -> truth_label (from truth policy).\n3) Stream flows in batches (parquet):\n   - Columns: flow_id, ts_utc, campaign_id, seed, manifest_fingerprint, parameter_hash, scenario_id.\n   - Derive campaign_type, truth_label, is_fraud_truth.\n   - Compute auth_decision, detect_flag, dispute_flag, chargeback_flag, chargeback_outcome with deterministic hash uniforms and policy probabilities.\n   - Compute bank_label via final_label_map rules; set is_fraud_bank_view from bank_label.\n   - Write s4_flow_truth_labels_6B and s4_flow_bank_view_6B parts.\n   - For case_opened flows (detected/review/dispute), emit case timeline rows with fixed delays and ordered case_event_seq.\n4) Stream events in batches: derive truth/bank flags using same deterministic decisions from flow_id + campaign_id; write s4_event_labels_6B parts (no joins).\n5) Publish parts to final output dirs; idempotent publish; write rng logs.\n\nInvariants to enforce:\n- One row per flow/event in S4 outputs; flow_id/event_seq preserved.\n- campaign_id presence -> truth_label != LEGIT.\n- Outputs contain required columns per schema anchors #/s4/flow_truth_labels_6B, #/s4/flow_bank_view_6B, #/s4/event_labels_6B, #/s4/case_timeline_6B.\n- Case timeline events ordered by case_event_seq; case_id deterministic and stable.\n\nLogging points (narrative, state-aware):\n- Story header: objective + gated inputs + outputs.\n- Per-scenario summary: total flows/events, campaigns mapped, label rates (fraud/abuse/legit, bank_view flags).\n- Progress logs for flow/event batches with elapsed, processed/total, rate, ETA (monotonic).\n- Case timeline counts per batch.\n\nResumability/IO:\n- Write to tmp dirs under runs/<run_id>/tmp; clean temp parts before write.\n- Idempotent publish: if final dir exists, skip.\n\nPerformance considerations:\n- Avoid joins by recomputing labels for events via deterministic hashing.\n- Keep polars expressions vectorized; no per-row Python loops.\n- Case timeline generated only for subset flows (case_opened) per batch.\n\nValidation/testing:\n- Validate sample row for each output against schema anchors.\n- python -m py_compile for runner + CLI.\n- Run make segment6b-s4; monitor ETA; terminate if abnormal.\n
 \n---\n## 6B.S4 — Implementation notes (2026-01-22 13:58 local)\n- Implemented s4_truth_bank_labels/runner.py with deterministic hash-based probabilities for auth/detect/dispute/chargeback; no RNG state consumed.\n- Truth label mapping uses campaign catalogue (campaign_id -> template_id) and fraud_campaign_catalogue_config_6B templates -> campaign_type; then truth_labelling_policy direct_pattern_map to truth_label/subtype. Unknown templates abort if policy constraint fail_on_unknown_fraud_pattern_type=true.\n- Bank-view label computed via simplified final_label_map rules; is_fraud_bank_view true for BANK_CONFIRMED_FRAUD/CHARGEBACK_WRITTEN_OFF.\n- Case timeline is 1-case-per-flow when case_opened (detect OR dispute OR auth_decision review/challenge). Case_id = hash64(domain_tag, manifest_fingerprint, seed, flow_id). Timeline emits ordered events with fixed min delays from delay_models_6B.\n- Event labels recompute truth/bank flags directly from flow_id + campaign_id to avoid joins; ensures deterministic consistency with flow labels.\n- RNG logs emitted as non-consuming envelopes in rng_event_truth_label + rng_event_bank_view_label; rng_trace rows appended for 6B.S4 substreams.\n
 \n---\n## 6B.S4 — Fixups after first run (2026-01-22 14:10 local)\n- Replaced Polars map_dict (not available) with left-join to a campaign_id->campaign_type lookup DataFrame; fill nulls to NONE to keep deterministic defaults.\n- Normalized chargeback outcome probability tables from policy YAML into (label, prob) tuples before feeding into choice_expr.\n- Re-ran make segment6b-s4; completed green with acceptable ETAs.\n
+\n---\n## 6B.S0 — sealed_inputs coverage for S3 outputs (2026-01-22 14:16 local)\nProblem: S4 logs WARN because sealed_inputs_6B lacks entries for S3 outputs (s3_flow_anchor_with_fraud_6B, s3_event_stream_with_fraud_6B, s3_campaign_catalogue_6B). This can break S5 validations expecting sealed coverage.\n\nDecision: Add 6B.S0 to the consumed_by list for these S3 datasets in docs/model_spec/data-engine/layer-3/specs/contracts/6B/dataset_dictionary.layer3.6B.yaml. S0 pulls sealed inputs from dictionary entries consumed_by 6B.S0; for owner_segment=6B it records structural digests only (no existence check), so this is safe pre-run and avoids needing S3 outputs at S0 time.\n\nPlan steps:\n1) Edit dataset dictionary entries for s3_campaign_catalogue_6B, s3_flow_anchor_with_fraud_6B, and s3_event_stream_with_fraud_6B to append 6B.S0 to lineage.consumed_by.\n2) Log action in docs/logbook with local time and reference this entry.\n3) (Optional later) rerun make segment6b-s0 to regenerate sealed_inputs_6B if we want the WARNs gone on this run; otherwise new runs will be clean.\n
+
+---
+## 6B.S5 — Lean validation gate plan (2026-01-22 14:55 local)
+Problem framing:
+- S5 is the final 6B HashGate. The expanded spec is heavy (full data-plane scans, strict parity/realism/RNG enforcement), which is not feasible for fast runs on 100M+ rows.
+- Goal: implement a lean but deterministic validator that preserves contract shapes, enforces the true gates (S0 receipt + sealed_inputs digest), and performs *cheap* sanity checks that are still useful for production readiness.
+
+Contract sources (must stay switchable dev/prod):
+- Use ContractSource(layout=ENGINE_CONTRACTS_LAYOUT, root=ENGINE_CONTRACTS_ROOT or repo_root) to load:
+  - dataset_dictionary.layer3.6B.yaml
+  - artefact_registry_6B.yaml
+  - schemas.6B.yaml and schemas.layer3.yaml
+- This keeps dev on model_spec while making a contracts/ mirror swap zero-code-change.
+
+Lean decisions / relaxations (explicit):
+- Upstream HashGates: re-check upstream PASS via S0 receipt + sealed_inputs flag presence. Do NOT recompute full bundle digests (too heavy); parse _passed.flag and compare to sealed_inputs sha256 where available.
+- Sealed inputs: strict on policy/config rows + upstream gate rows. Allow missing sealed_inputs rows for *run-local* S1/S2/S3/S4 outputs (warn + continue) so S5 can proceed based on dictionary paths.
+- PK uniqueness: sample-based check only (first N rows from one parquet part per dataset per scenario). Record sample_size + duplicates_in_sample in metrics.
+- Flow/event parity + label coverage: use parquet metadata row counts (no full scans). Check flow counts align across S2/S3/S4 and event counts align across S2/S3/S4.
+- Time monotonicity + horizon: sample-based monotonic check on S2 event streams (event_seq order), and timestamp parseability only; no full horizon evaluation.
+- RNG accounting: verify rng_trace_log exists and contains entries for required modules/substreams; no budget arithmetic beyond presence and non-negative counters.
+- Realism corridors: compute light-weight proxies from samples (fraud fraction from s3 flows; bank-view flag rate from s4 flow bank view; case-event count ratio from s4 case timeline). Treat corridor violations as WARN only.
+
+Policy alignment fix:
+- Update config/layer3/6B/segment_validation_policy_6B.yaml to remove _passed.flag from validation_bundle_contents and to use actual filenames (s5_validation_report_6B.json, s5_issue_table_6B.parquet). S5 will still exclude _passed.flag from the index per hashing law.
+- Normalize policy severities: map WARN -> WARN_ONLY in code for schema compliance.
+
+Planned mechanics (stepwise):
+1) Resolve run_receipt (manifest_fingerprint, parameter_hash, seed) and set RunPaths/run_log.
+2) Load contracts + schema packs (6B + layer3). Log sources and layout.
+3) Load S0 receipt + sealed_inputs_6B; validate both against schema anchors; verify sealed_inputs_digest_6B.
+4) Load segment_validation_policy_6B from sealed_inputs (schema validate). Extract checks + thresholds + reporting settings.
+5) Discover scenario_ids by scanning S2 flow anchor path prefix (scenario_id=...) with seed/parameter_hash tokens.
+6) Resolve required dataset paths for S1–S4 using dictionary; confirm existence (warn for missing run-local outputs).
+7) Execute lean checks:
+   - Upstream HashGates: PASS if S0 receipt upstream statuses are PASS and _passed.flag files exist/parse.
+   - Sealed inputs present: PASS if policy row exists and required upstream gate rows exist; warn for run-local output rows missing.
+   - PK uniqueness (sample): read sample rows from 1 parquet part per dataset; count duplicate PKs.
+   - Flow/event parity: sum parquet metadata row counts; check S2/S3/S4 flow and event counts align; check S4 flow label counts match S3 flows.
+   - RNG accounting: stream rng_trace_log to confirm entries for S1–S4 modules; record counts.
+   - Time monotone/horizon: sample S2 events per flow_id to confirm non-decreasing ts_utc; parseability only for horizon.
+   - Realism WARNs: sample-based fraud fraction, bank-view flag rate, case-event/flow ratio.
+8) Build s5_validation_report_6B (strict schema). Include only required fields + checks array (with metrics/thresholds).
+9) Build s5_issue_table_6B from WARN/FAIL checks (bounded by policy issue_table_max_rows). Write parquet.
+10) Build validation bundle index: entries for report + issue table only, sorted by path, include role/schema_ref. Compute bundle digest by concatenating file bytes in ASCII-lex order; write _passed.flag with `sha256_hex = <digest>`.
+11) Idempotence: if bundle exists, compare index bytes and flag digest; if mismatch -> S5_IDEMPOTENCE_VIOLATION. If identical, skip publish.
+
+Invariants:
+- Deterministic outputs for same manifest_fingerprint + parameter_hash.
+- _passed.flag excluded from bundle index and digest (spec law).
+- Index items sorted ASCII-lex by path.
+- Report/index schemas validated before publish.
+
+Logging points:
+- Story header (objective + gated inputs + outputs).
+- Scenario discovery summary (n_scenarios, dataset path roots).
+- Per-check logs with metrics and pass/warn/fail results.
+- Bundle digest + publish status.
+
+Performance considerations:
+- Only metadata scans and small samples. No full-table scans.
+- Use pyarrow parquet metadata for counts.
+- Limit samples to configurable size (policy or hard cap).
+
+Validation/testing:
+- python -m py_compile on new runner + CLI.
+- Run make segment6b-s5; watch ETA (should be minutes). If abnormal, abort and re-assess sampling/metadata reads.
+
+---
+## 6B.S5 — Implementation decisions (2026-01-22 15:13 local)
+- Implemented lean S5 validation gate runner at packages/engine/src/engine/layers/l3/seg_6B/s5_validation_gate/runner.py with deterministic, metadata-first checks and sampled validation.
+- Input gate enforcement: validate s0_gate_receipt_6B and sealed_inputs_6B against schemas; compute sealed_inputs digest and compare to S0 receipt; fail fast on mismatch.
+- Policy handling: load segment_validation_policy_6B via sealed_inputs manifest_key; validate against schemas. Normalize policy severities (WARN -> WARN_ONLY) to fit report schema.
+- Upstream HashGate check: rely on S0 receipt PASS statuses + existence/format of upstream _passed.flag files; compare parsed digest to sealed_inputs sha256 when available (no bundle digest recomputation).
+- Dataset presence check: resolve S1–S4 output paths via dataset dictionary; missing files fail required check; missing sealed_inputs rows for run-local outputs recorded in metrics but do not fail if data exists.
+- PK uniqueness: sample-only (first parquet part per dataset for one scenario), count duplicate PKs vs threshold; report sample size + duplicates.
+- Flow/event parity + label coverage: use parquet metadata row counts (pyarrow) to compare S2/S3/S4 flows and events; S4 truth/bank flow counts must match S3 flows.
+- RNG accounting: verify rng_trace_log/rng_audit_log presence and required modules (6B.S1–6B.S4) appear; no full budget arithmetic.
+- Temporal checks: sample S2 events to validate monotonic ts_utc per flow_id; scenario OOB check reduced to timestamp parseability (no horizon config).
+- Realism WARNs: sample-based fraud fraction, bank-view rate, and case-event rate vs corridor ranges; baseline realism logs note due to AUTH_REQUEST/RESPONSE-only event types.
+- Outputs: write s5_validation_report_6B (schema-validated), s5_issue_table_6B (schema-validated per row), validation_bundle_index_6B (path-sorted), and _passed.flag (text) only on PASS. Bundle digest excludes _passed.flag.
+- Idempotence: if bundle exists, require index + flag digest match, otherwise raise S5_IDEMPOTENCE_VIOLATION.
+- CLI added: packages/engine/src/engine/cli/s5_validation_gate_6b.py; Makefile updated with SEG6B_S5 args/target and segment6b includes S5.
+
+Policy alignment change:
+- Updated config/layer3/6B/segment_validation_policy_6B.yaml validation_bundle_contents to use s5_validation_report_6B.json + s5_issue_table_6B.parquet and removed _passed.flag (hashing law excludes it).
+
+---
+## 6B.S5 — Follow-up decision (2026-01-22 15:29 local)
+- Gate semantics updated so overall_status WARN still emits _passed.flag and counts as PASS (consistent with seal_rules.fail_on_any_warn_failure=false). This avoids blocking worlds on WARN-only corridor checks while preserving FAIL for required checks.
