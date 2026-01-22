@@ -28,6 +28,11 @@ def build_parser() -> argparse.ArgumentParser:
         default=int(os.getenv("ENGINE_6B_S1_BATCH_ROWS", "250000")),
         help="Rows per parquet batch when streaming arrivals.",
     )
+    parser.add_argument(
+        "--parquet-compression",
+        default=os.getenv("ENGINE_6B_S1_PARQUET_COMPRESSION", "zstd"),
+        help="Parquet compression codec: zstd, lz4, snappy, uncompressed.",
+    )
     parser.add_argument("--run-id", default=None, help="Select a run_id (defaults to latest run_receipt.json).")
     return parser
 
@@ -56,7 +61,12 @@ def main() -> None:
     external_roots = [Path(root) for root in args.external_root if root]
     if external_roots:
         cfg = cfg.with_external_roots(external_roots)
-    result = run_s1(cfg, run_id=args.run_id, batch_rows=args.batch_rows)
+    result = run_s1(
+        cfg,
+        run_id=args.run_id,
+        batch_rows=args.batch_rows,
+        parquet_compression=args.parquet_compression,
+    )
     logger.info(
         "S1 6B complete: run_id=%s parameter_hash=%s manifest_fingerprint=%s scenarios=%s",
         result.run_id,

@@ -558,7 +558,12 @@ def _publish_parquet_parts(
     except Exception as exc:
         _abort(failure_code, "V-01", "io_write_failed", {"path": str(final_dir), "error": str(exc)}, None)
 
-def run_s1(config: EngineConfig, run_id: Optional[str] = None, batch_rows: int = 250000) -> S1Result:
+def run_s1(
+    config: EngineConfig,
+    run_id: Optional[str] = None,
+    batch_rows: int = 250000,
+    parquet_compression: str = "zstd",
+) -> S1Result:
     logger = get_logger("engine.layers.l3.seg_6B.s1_attachment_session.runner")
     timer = _StepTimer(logger)
 
@@ -992,7 +997,28 @@ def run_s1(config: EngineConfig, run_id: Optional[str] = None, batch_rows: int =
     processed_scenarios: list[str] = []
 
     batch_rows = max(int(batch_rows or 0), 1000)
-    logger.info("S1: batch_rows=%s for arrival processing", batch_rows)
+    compression = str(parquet_compression or "zstd").lower()
+    compression_map = {
+        "zstd": "zstd",
+        "lz4": "lz4",
+        "snappy": "snappy",
+        "uncompressed": "uncompressed",
+        "none": "uncompressed",
+    }
+    if compression not in compression_map:
+        _abort(
+            "S1_CONFIG_INVALID",
+            "V-01",
+            "parquet_compression_invalid",
+            {"value": parquet_compression},
+            manifest_fingerprint,
+        )
+    parquet_compression = compression_map[compression]
+    logger.info(
+        "S1: batch_rows=%s parquet_compression=%s for arrival processing",
+        batch_rows,
+        parquet_compression,
+    )
 
     for scenario_id in scenario_ids:
         if not _scenario_in_scope(scenario_id):
@@ -1069,7 +1095,7 @@ def run_s1(config: EngineConfig, run_id: Optional[str] = None, batch_rows: int =
                 "S1: scenario_id=%s has no arrival parquet files; emitting empty outputs", scenario_id
             )
             arrival_part = arrival_tmp_dir / "part-00000.parquet"
-            empty_arrival_entities.write_parquet(arrival_part, compression="zstd")
+            empty_arrival_entities.write_parquet(arrival_part, compression=parquet_compression)
             session_index = empty_session_index
         else:
             total_rows = _count_parquet_rows(arrivals_files)
@@ -1379,7 +1405,7 @@ def run_s1(config: EngineConfig, run_id: Optional[str] = None, batch_rows: int =
                     sample_arrival = arrival_entities.head(1).to_dicts()[0]
 
                 arrival_part = arrival_tmp_dir / f"part-{part_index:05d}.parquet"
-                arrival_entities.write_parquet(arrival_part, compression="zstd")
+                arrival_entities.write_parquet(arrival_part, compression=parquet_compression)
 
                 session_summary = arrival_entities.group_by("session_id").agg(
                     pl.len().alias("arrival_count"),
@@ -1395,14 +1421,14 @@ def run_s1(config: EngineConfig, run_id: Optional[str] = None, batch_rows: int =
                     pl.first("merchant_id").alias("merchant_id"),
                 )
                 session_part = session_tmp_dir / f"part-{part_index:05d}.parquet"
-                session_summary.write_parquet(session_part, compression="zstd")
+                session_summary.write_parquet(session_part, compression=parquet_compression)
 
                 part_index += 1
                 progress.update(batch_count)
 
             if part_index == 0:
                 arrival_part = arrival_tmp_dir / "part-00000.parquet"
-                empty_arrival_entities.write_parquet(arrival_part, compression="zstd")
+                empty_arrival_entities.write_parquet(arrival_part, compression=parquet_compression)
                 session_index = empty_session_index
             else:
                 if sample_arrival is not None:
@@ -1452,7 +1478,7 @@ def run_s1(config: EngineConfig, run_id: Optional[str] = None, batch_rows: int =
                 )
 
         session_tmp = tmp_root / f"s1_session_index_6B_{scenario_id}.parquet"
-        session_index.write_parquet(session_tmp, compression="zstd")
+        session_index.write_parquet(session_tmp, compression=parquet_compression)
 
         arrival_out_dir = _materialize_parquet_path(arrival_out_path).parent
         session_out_file = _materialize_parquet_path(session_out_path)

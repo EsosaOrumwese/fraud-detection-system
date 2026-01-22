@@ -521,3 +521,15 @@ S1 failure (post-run) and immediate fix plan:
   1) Update `packages/engine/src/engine/layers/l3/seg_6B/s1_attachment_session/runner.py` to use `.collect()` (no streaming flag) for session_index aggregation.
   2) Re-run `python -m py_compile` on the runner and CLI.
   3) Re-run `make segment6b-s1` and monitor ETA; if failure persists, switch to pyarrow aggregation.
+
+
+### Entry: 2026-01-22 10:13
+
+Compression tuning decision:
+- Problem: ETA still above 15 min; need lower I/O cost per batch.
+- Decision: expose parquet compression as a configurable knob (CLI + Makefile). Default remains zstd for size; for speed use lz4 or snappy.
+- Implementation:
+  - Add `parquet_compression` arg to `run_s1` and validate allowed codecs (zstd/lz4/snappy/uncompressed).
+  - Thread `--parquet-compression` through CLI (`ENGINE_6B_S1_PARQUET_COMPRESSION`) and Makefile.
+  - Apply compression setting to all S1 parquet writes (arrival parts, session summaries, final session_index).
+- Next run: `make segment6b-s1 ENGINE_6B_S1_BATCH_ROWS=1000000 ENGINE_6B_S1_PARQUET_COMPRESSION=lz4` and monitor ETA; if still > 15 min, consider larger batch_rows or reduced session_key fields.
