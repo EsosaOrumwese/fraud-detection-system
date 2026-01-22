@@ -533,3 +533,132 @@ Compression tuning decision:
   - Thread `--parquet-compression` through CLI (`ENGINE_6B_S1_PARQUET_COMPRESSION`) and Makefile.
   - Apply compression setting to all S1 parquet writes (arrival parts, session summaries, final session_index).
 - Next run: `make segment6b-s1 ENGINE_6B_S1_BATCH_ROWS=1000000 ENGINE_6B_S1_PARQUET_COMPRESSION=lz4` and monitor ETA; if still > 15 min, consider larger batch_rows or reduced session_key fields.
+
+
+### Entry: 2026-01-22 10:29
+
+6B.S2 spec review + lean plan (pre-implementation)
+
+Spec review highlights (binding vs heavy):
+- Binding: must gate on S0 PASS + upstream PASS + S1 PASS for each (seed, parameter_hash, scenario_id); must resolve all inputs via sealed_inputs_6B; must emit only `s2_flow_anchor_baseline_6B` + `s2_event_stream_baseline_6B` with required schema fields and no orphan flows/events.
+- Heavy portions (relaxed for performance): full flow-shape stochasticity (multi-flow per session), event timing distributions, per-branch RNG decisions, session-level planning. These are valid but too expensive for the current throughput goal.
+
+Lean compromises agreed (speed-first, deterministic, auditable):
+1) Flow mapping: one-flow-per-arrival (not per session). Rationale: S1 already produced arrival-level canon; this avoids cross-arrival grouping and keeps O(N) streaming.
+2) Event template: only AUTH_REQUEST + AUTH_RESPONSE. No clearing/refund/step-up/reversal. Rationale: minimal event count (2x), avoids complex branching and timing budgets.
+3) Timing: use arrival ts_utc for both events (no parsing/offset distributions). Rationale: avoids heavy timestamp parsing and RNG timing draws. Event order still enforced via event_seq.
+4) Amounts: deterministic hash-based amount draw from amount_model_6B price points; no tail sampling. Rationale: O(1) per row and still tied to the policy pack; tail ignored for speed.
+5) Context joins: skip optional 6A/5B joins. Rationale: avoid large joins and memory overhead.
+6) RNG accounting: emit aggregated RNG envelopes for `flow_anchor_baseline` and `event_stream_baseline` + rng_trace_log rows; budgets recorded but draws may be non-consuming for flow-shape/timing. Rationale: keep deterministic accounting without per-row logs.
+
+Algorithm plan (streaming):
+- Preconditions: verify S0 receipt + upstream PASS; verify S1 PASS for each scenario; verify sealed_inputs rows for S1 + S2 policies (flow_shape_policy_6B, amount_model_6B, timing_policy_6B, flow_rng_policy_6B, rng_profile_layer3).
+- Discover scenario_ids by scanning S1 arrival_entities partitions (sealed_inputs path).
+- For each scenario_id:
+  - Ensure S1 arrival_entities + session_index partitions exist.
+  - Stream arrival_entities parquet in batches (pyarrow iter_batches) with required columns.
+  - For each batch:
+    - Compute flow_id = hash(manifest_fingerprint, parameter_hash, seed, scenario_id, merchant_id, arrival_seq).
+    - Compute amount from price_points_minor in amount_model_6B (default PURCHASE) using deterministic hash; convert to major units.
+    - Write flow_anchor rows to part-*.parquet.
+    - Build event_stream rows by duplicating per-flow rows into two events with event_seq={0,1}, event_type={AUTH_REQUEST, AUTH_RESPONSE}, ts_utc unchanged, amount same.
+  - Publish part files to final output directories (idempotent; clear prior parts in dir).
+- Emit rng_event_flow_anchor_baseline and rng_event_event_stream_baseline jsonl envelopes (one row each) with draws/blocks based on total flows/events; emit rng_trace_log + rng_audit_log rows.
+
+Invariants to enforce:
+- Each flow_id unique within partition; no orphan events (event_stream only built from flow anchors).
+- Required schema fields present; manifest_fingerprint, parameter_hash, seed, scenario_id match partition tokens.
+- Deterministic outputs for fixed inputs (hash-based IDs, deterministic amounts).
+
+Performance considerations:
+- Streaming batch processing to keep memory bounded; batch_rows configurable via CLI.
+- No global sorts or joins; minimal per-row transformations.
+
+Logging/observability:
+- Story header for S2; per-batch progress logs include elapsed, rate, ETA; log the lean relaxations explicitly.
+
+Next steps:
+- Implement S2 runner + CLI + Makefile target; wire batch_rows/compression; update logbook with files read and decisions.
+
+### Entry: 2026-01-22 10:37
+
+6B.S2 implementation kickoff (pre-code, lean + deterministic):
+- Docs re-read for this implementation pass (before coding):
+  - `docs/references/closed-world-fraud-enterprise-conceptual-design.md`
+  - `docs/model_spec/data-engine/layer-1/narrative/narrative_1A-to-3B.md`
+  - `docs/model_spec/data-engine/layer-2/narrative/narrative_5A-and-5B.md`
+  - `docs/model_spec/data-engine/layer-3/narrative/narrative_6A-and-6B.md`
+  - `packages/engine/AGENTS.md`
+  - `docs/model_spec/data-engine/layer-3/specs/state-flow/6B/state.6B.s2.expanded.md`
+  - `docs/model_spec/data-engine/layer-3/specs/contracts/6B/dataset_dictionary.layer3.6B.yaml`
+  - `docs/model_spec/data-engine/layer-3/specs/contracts/6B/artefact_registry_6B.yaml`
+  - `docs/model_spec/data-engine/layer-3/specs/contracts/6B/schemas.6B.yaml`
+  - `docs/model_spec/data-engine/layer-3/specs/contracts/6B/schemas.layer3.yaml`
+- Contract source posture:
+  - Use `ContractSource(config.contracts_root, config.contracts_layout)` so dev uses `model_spec` and prod can switch to root contracts without code changes (via `ENGINE_CONTRACTS_ROOT` / `ENGINE_CONTRACTS_LAYOUT`).
+- Lean path confirmation (per user): one-flow-per-arrival, two events (AUTH_REQUEST/AUTH_RESPONSE), no clearing/refund/3DS; timestamps from arrival; deterministic amount draw from `amount_model_6B.price_points`; skip optional joins; aggregated RNG envelopes only.
+
+Planned mechanics (stepwise):
+1) Preconditions + gate checks:
+   - Load run_receipt for `run_id`, `seed`, `manifest_fingerprint`, `parameter_hash`.
+   - Validate `s0_gate_receipt_6B` + upstream PASS statuses; enforce S1 PASS for each `(seed, scenario_id)`.
+   - Load + validate `sealed_inputs_6B` and assert required rows for `s1_arrival_entities_6B`, `s1_session_index_6B`, and S2 policies (`flow_shape_policy_6B`, `amount_model_6B`, `timing_policy_6B`, `flow_rng_policy_6B`, `rng_profile_layer3`).
+2) Scenario discovery:
+   - Resolve S1 arrival_entities path via dictionary/registry; list scenario_id partitions from the path tree.
+3) Streaming synthesis (per scenario_id):
+   - Verify S1 partition presence for arrival_entities + session_index.
+   - Iterate arrival_entities parquet via pyarrow dataset `iter_batches` with configurable `batch_rows`.
+   - For each batch:
+     - Compute `flow_id` deterministically from `(manifest_fingerprint, parameter_hash, seed, scenario_id, merchant_id, arrival_seq)` (hash to uint64).
+     - Compute `amount` from `amount_model_6B.price_points_minor` using deterministic hash-based index; convert to major units.
+     - Build flow anchors (schema-required fields only) and write part parquet (compression configurable).
+     - Build event stream rows by duplicating per-flow rows into 2 events with `event_seq=0/1`, `event_type`={AUTH_REQUEST, AUTH_RESPONSE}, `ts_utc` same as arrival; write part parquet.
+   - Clear existing output part files in target dirs before write; publish via tmp+atomic move to preserve idempotence.
+4) RNG logging (lean):
+   - Emit `rng_audit_log` and `rng_trace_log` once per run (aggregate draws/blocks/events for `flow_anchor_baseline` + `event_stream_baseline`).
+   - Emit one JSONL envelope for `rng_event_flow_anchor_baseline` and `rng_event_event_stream_baseline` with counts only (no per-row events).
+5) Logging + monitoring:
+   - Story header log with objective + gated inputs + outputs.
+   - Per-batch progress logs with elapsed, processed/total, rate, ETA; narrative counts and stage/output context.
+6) Validation/testing:
+   - Validate sample rows for flow_anchor/event_stream against `schemas.6B.yaml` anchors.
+   - Ensure coverage: events only from anchors; counts tracked; zero-arrival partitions emit empty outputs deterministically.
+
+Files to add/update:
+- `packages/engine/src/engine/layers/l3/seg_6B/s2_baseline_flow/runner.py`
+- `packages/engine/src/engine/layers/l3/seg_6B/s2_baseline_flow/__init__.py` (export `run_s2`)
+- `packages/engine/src/engine/cli/s2_baseline_flow_6b.py`
+- `makefile` (segment6b-s2 target + `ENGINE_6B_S2_BATCH_ROWS`, `ENGINE_6B_S2_PARQUET_COMPRESSION`)
+
+Open considerations:
+- If `amount_model_6B` lacks `price_points_minor`, fall back to a small default list from config (logged) to avoid blocking runs.
+- If S1 partitions exist but are empty, emit empty S2 outputs with PASS semantics; log explicitly.
+
+### Entry: 2026-01-22 11:02
+
+6B.S2 implementation decisions during coding (lean path, determinism-first):
+- Implemented new runner: `packages/engine/src/engine/layers/l3/seg_6B/s2_baseline_flow/runner.py`.
+  - Streaming batch approach using pyarrow `iter_batches` over `s1_arrival_entities_6B` with configurable `batch_rows`; no global sorts or joins.
+  - Flow mapping: one flow per arrival. `flow_id` derived via deterministic hash of `(manifest_fingerprint, parameter_hash, seed, scenario_id, merchant_id, arrival_seq)` to keep idempotence.
+  - Event stream: exactly two events per flow (`AUTH_REQUEST`, `AUTH_RESPONSE`) with `event_seq` {0,1}; timestamps copied from arrival `ts_utc` (no timing RNG).
+  - Amounts: deterministic hash-index into `amount_model_6B.amount_families.PURCHASE.base_distribution.price_points_minor`; convert minor -> major units by /100. If missing, fallback to default list and log warning (prevents hard failure but recorded).
+  - Skip heavy flow-shape + timing logic: `flow_shape_policy_6B` and `timing_policy_6B` are loaded/validated but not used; this is a deliberate performance relaxation.
+  - Schema validation: validate sample rows against `schemas.6B.yaml` anchors for flow anchor and event stream.
+  - Preconditions: enforce S0 receipt + sealed_inputs schema validity, upstream PASS statuses, sealed_inputs digest match, S1 arrival/session partitions presence.
+  - Scope filters: respect `behaviour_config_6B.scope_filters` allow/block lists; on_scope_miss obeys `degrade_posture.on_scope_filter_miss` (skip vs fail).
+  - Zero-arrival handling: emit empty parquet outputs for that partition to keep downstream deterministic.
+  - RNG logs: aggregated `rng_audit_log` + `rng_trace_log` rows for `flow_anchor_baseline` and `event_stream_baseline` (draws = flows/events, blocks = ceil(draws/2)). Emit one JSONL envelope per RNG event family with deterministic counts.
+  - Idempotence: outputs use tmp dirs + part file publish; RNG event JSONL uses content-hash guard (skip if identical, error on drift).
+- Added CLI: `packages/engine/src/engine/cli/s2_baseline_flow_6b.py` with `--batch-rows` and `--parquet-compression`.
+- Updated Makefile:
+  - Added `ENGINE_6B_S2_BATCH_ROWS`, `ENGINE_6B_S2_PARQUET_COMPRESSION`, `SEG6B_S2_RUN_ID`.
+  - Added `SEG6B_S2_*` args/cmd and `segment6b-s2` target; `segment6b` now runs S0/S1/S2.
+  - Added `segment6b-s2` to `.PHONY`.
+- Compiled new runner + CLI with `python -m py_compile`.
+
+### Entry: 2026-01-22 11:04
+
+6B.S2 zero-row partition guard:
+- Added explicit handling for the case where S1 arrival partitions exist but contain zero rows.
+- If `total_rows == 0`, S2 now emits empty flow/event outputs (part-00000) for the partition instead of failing due to missing parts.
+- Rationale: aligns with spec zero-arrival semantics and prevents false IO write conflicts.
