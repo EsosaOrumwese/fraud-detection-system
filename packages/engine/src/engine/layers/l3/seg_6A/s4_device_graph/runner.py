@@ -10,6 +10,8 @@ import re
 import subprocess
 import time
 import uuid
+from bisect import bisect_left
+from concurrent.futures import ProcessPoolExecutor, as_completed
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Iterable, Optional
@@ -42,6 +44,7 @@ from engine.layers.l1.seg_1A.s1_hurdle.rng import (
 
 try:  # pragma: no cover - optional dependency
     import pyarrow as pa
+    import pyarrow.dataset as ds
     import pyarrow.parquet as pq
 
     _HAVE_PYARROW = True
@@ -58,6 +61,10 @@ _HEX64_PATTERN = re.compile(r"^[a-f0-9]{64}$")
 
 _DEFAULT_BATCH_ROWS = 50_000
 _BUFFER_MAX_ROWS = 50_000
+_HASH_MASK_64 = 0xFFFFFFFFFFFFFFFF
+_HASH_CONST_A = 0x9E3779B97F4A7C15
+_HASH_CONST_B = 0xBF58476D1CE4E5B9
+_HASH_CONST_C = 0x94D049BB133111EB
 
 
 @dataclass(frozen=True)
@@ -533,6 +540,66 @@ def _deterministic_uniform(
     return u01(low64(digest))
 
 
+def _mix64(value: int) -> int:
+    value = (value ^ (value >> 30)) * _HASH_CONST_B & _HASH_MASK_64
+    value = (value ^ (value >> 27)) * _HASH_CONST_C & _HASH_MASK_64
+    value ^= value >> 31
+    return value & _HASH_MASK_64
+
+
+def _seed_for_label(manifest_fingerprint: str, parameter_hash: str, label: str) -> int:
+    payload = (
+        uer_string("mlr:6A")
+        + uer_string("s4")
+        + uer_string(label)
+        + uer_string(manifest_fingerprint)
+        + uer_string(parameter_hash)
+    )
+    digest = hashlib.sha256(payload).digest()
+    return low64(digest)
+
+
+def _stable_u64_from_str(value: str) -> int:
+    digest = hashlib.sha256(uer_string(str(value))).digest()
+    return low64(digest)
+
+
+def _u01_from_u64(value: int) -> float:
+    return (value & _HASH_MASK_64) / float(1 << 64)
+
+
+def _fast_u01(seed: int, key: int, extra: int = 0) -> float:
+    mixed = seed ^ ((key * _HASH_CONST_A) & _HASH_MASK_64)
+    if extra:
+        mixed ^= ((extra * _HASH_CONST_B) & _HASH_MASK_64)
+    return _u01_from_u64(_mix64(mixed))
+
+
+def _build_cumulative(items: list[tuple[str, float]]) -> tuple[list[str], list[float], float]:
+    total = sum(weight for _, weight in items)
+    if total <= 0:
+        return [items[0][0]] if items else [], [1.0] if items else [], 1.0
+    cells: list[str] = []
+    cumulative: list[float] = []
+    running = 0.0
+    for value, weight in items:
+        running += weight
+        cells.append(value)
+        cumulative.append(running)
+    return cells, cumulative, total
+
+
+def _pick_from_cumulative(cells: list[str], cumulative: list[float], total: float, u: float) -> str:
+    if not cells:
+        return ""
+    u = min(max(u, 0.0), 1.0 - 1.0e-12)
+    target = u * total
+    idx = bisect_left(cumulative, target)
+    if idx >= len(cells):
+        idx = len(cells) - 1
+    return cells[idx]
+
+
 def _normal_icdf(p: float) -> float:
     if p <= 0.0 or p >= 1.0:
         raise ValueError("p must be in (0,1)")
@@ -729,6 +796,490 @@ def _allocate_with_caps(
     if remaining > 0:
         raise ValueError("allocation_with_caps failed to place all counts")
     return alloc
+
+
+def _merge_parquet_parts(part_paths: list[Path], output_path: Path, logger, label: str) -> None:
+    if not part_paths:
+        logger.warning("S4: no parquet parts found for %s (output=%s)", label, output_path)
+        return
+    if not _HAVE_PYARROW:
+        if len(part_paths) == 1:
+            part_paths[0].replace(output_path)
+        else:
+            frames = [pl.read_parquet(path) for path in part_paths]
+            pl.concat(frames, how="vertical").write_parquet(output_path, compression="zstd")
+        logger.info("S4: merged %s parts=%s -> %s (polars fallback)", label, len(part_paths), output_path)
+        return
+    schema = pq.read_schema(part_paths[0])
+    writer = pq.ParquetWriter(output_path, schema, compression="zstd")
+    try:
+        for part_path in part_paths:
+            parquet_file = pq.ParquetFile(part_path)
+            for batch in parquet_file.iter_batches(batch_size=_DEFAULT_BATCH_ROWS):
+                writer.write_table(pa.Table.from_batches([batch], schema=schema))
+    finally:
+        writer.close()
+    logger.info("S4: merged %s parts=%s -> %s", label, len(part_paths), output_path)
+
+
+def _emit_region_parts(
+    region_id: str,
+    party_base_path: Path,
+    device_counts_by_party_type: dict[str, dict[str, int]],
+    device_type_to_group: dict[str, str],
+    group_to_types: dict[str, list[str]],
+    os_mix_by_type: dict[str, list[tuple[str, float]]],
+    p_zero_by_group: dict[str, float],
+    sigma_by_group: dict[str, float],
+    weight_floor_eps: float,
+    max_devices_per_party: int,
+    device_id_stride: int,
+    ip_cell_weights: list[tuple[str, str, float]],
+    ip_cell_ranges: dict[tuple[str, str], tuple[int, int]],
+    lambda_ip_by_group: dict[str, float],
+    max_ips_per_device: int,
+    manifest_fingerprint: str,
+    parameter_hash: str,
+    seed: int,
+    run_log_path: Path,
+    tmp_dir: Path,
+    buffer_max_rows: int,
+    device_schema: dict,
+    device_links_schema: dict,
+    ip_links_schema: dict,
+) -> dict:
+    add_file_handler(run_log_path)
+    logger = get_logger("engine.layers.l3.seg_6A.s4_device_graph.runner")
+    region_label = f"region={region_id}"
+    timer = _StepTimer(logger)
+
+    frame = (
+        pl.scan_parquet(party_base_path)
+        .select(["party_id", "party_type", "region_id", "country_iso"])
+        .filter(pl.col("region_id") == region_id)
+        .collect()
+    )
+    if frame.is_empty():
+        logger.warning("S4: %s has no parties; emitting empty outputs", region_label)
+
+    party_ids = frame["party_id"].to_list()
+    party_types = frame["party_type"].to_list()
+    country_isos = frame["country_iso"].to_list()
+    party_ids_by_type: dict[str, list[int]] = {}
+    party_country_by_id: dict[int, str] = {}
+    for party_id, party_type, country_iso in zip(party_ids, party_types, country_isos):
+        pid = int(party_id)
+        party_ids_by_type.setdefault(str(party_type), []).append(pid)
+        party_country_by_id[pid] = str(country_iso)
+
+    device_validator = Draft202012Validator(device_schema)
+    device_links_validator = Draft202012Validator(device_links_schema)
+    ip_links_validator = Draft202012Validator(ip_links_schema)
+
+    device_part = tmp_dir / f"s4_device_base_6A.region={region_id}.parquet"
+    device_links_part = tmp_dir / f"s4_device_links_6A.region={region_id}.parquet"
+    ip_links_part = tmp_dir / f"s4_ip_links_6A.region={region_id}.parquet"
+
+    device_frames: list[pl.DataFrame] = []
+    device_links_frames: list[pl.DataFrame] = []
+    ip_links_frames: list[pl.DataFrame] = []
+
+    device_writer = None
+    device_links_writer = None
+    ip_links_writer = None
+    if _HAVE_PYARROW:
+        device_writer = pq.ParquetWriter(
+            device_part,
+            pa.schema(
+                [
+                    ("device_id", pa.int64()),
+                    ("device_type", pa.string()),
+                    ("os_family", pa.string()),
+                    ("primary_party_id", pa.int64()),
+                    ("home_region_id", pa.string()),
+                    ("home_country_iso", pa.string()),
+                    ("manifest_fingerprint", pa.string()),
+                    ("parameter_hash", pa.string()),
+                    ("seed", pa.int64()),
+                ]
+            ),
+            compression="zstd",
+        )
+        device_links_writer = pq.ParquetWriter(
+            device_links_part,
+            pa.schema(
+                [
+                    ("device_id", pa.int64()),
+                    ("party_id", pa.int64()),
+                    ("account_id", pa.int64()),
+                    ("instrument_id", pa.int64()),
+                    ("link_role", pa.string()),
+                    ("manifest_fingerprint", pa.string()),
+                    ("parameter_hash", pa.string()),
+                    ("seed", pa.int64()),
+                ]
+            ),
+            compression="zstd",
+        )
+        ip_links_writer = pq.ParquetWriter(
+            ip_links_part,
+            pa.schema(
+                [
+                    ("ip_id", pa.int64()),
+                    ("device_id", pa.int64()),
+                    ("party_id", pa.int64()),
+                    ("link_role", pa.string()),
+                    ("manifest_fingerprint", pa.string()),
+                    ("parameter_hash", pa.string()),
+                    ("seed", pa.int64()),
+                ]
+            ),
+            compression="zstd",
+        )
+
+    device_buffer: list[tuple] = []
+    device_links_buffer: list[tuple] = []
+    ip_links_buffer: list[tuple] = []
+    validated_device = False
+    validated_device_links = False
+    validated_ip_links = False
+
+    def _flush_device_buffers() -> None:
+        nonlocal validated_device, validated_device_links
+        if not device_buffer:
+            return
+        device_frame = pl.DataFrame(
+            device_buffer,
+            schema=[
+                "device_id",
+                "device_type",
+                "os_family",
+                "primary_party_id",
+                "home_region_id",
+                "home_country_iso",
+                "manifest_fingerprint",
+                "parameter_hash",
+                "seed",
+            ],
+            orient="row",
+        )
+        links_frame = pl.DataFrame(
+            device_links_buffer,
+            schema=[
+                "device_id",
+                "party_id",
+                "account_id",
+                "instrument_id",
+                "link_role",
+                "manifest_fingerprint",
+                "parameter_hash",
+                "seed",
+            ],
+            orient="row",
+        )
+        if not validated_device:
+            _validate_sample_rows(device_frame, device_validator, manifest_fingerprint, "s4_device_base_6A")
+            validated_device = True
+        if not validated_device_links:
+            _validate_sample_rows(links_frame, device_links_validator, manifest_fingerprint, "s4_device_links_6A")
+            validated_device_links = True
+        if _HAVE_PYARROW:
+            device_table = device_frame.to_arrow()
+            link_table = links_frame.to_arrow()
+            if device_table.schema != device_writer.schema:
+                device_table = device_table.cast(device_writer.schema)
+            if link_table.schema != device_links_writer.schema:
+                link_table = link_table.cast(device_links_writer.schema)
+            device_writer.write_table(device_table)
+            device_links_writer.write_table(link_table)
+        else:
+            device_frames.append(device_frame)
+            device_links_frames.append(links_frame)
+        device_buffer.clear()
+        device_links_buffer.clear()
+
+    def _flush_ip_links() -> None:
+        nonlocal validated_ip_links
+        if not ip_links_buffer:
+            return
+        links_frame = pl.DataFrame(
+            ip_links_buffer,
+            schema=[
+                "ip_id",
+                "device_id",
+                "party_id",
+                "link_role",
+                "manifest_fingerprint",
+                "parameter_hash",
+                "seed",
+            ],
+            orient="row",
+        )
+        if not validated_ip_links:
+            _validate_sample_rows(links_frame, ip_links_validator, manifest_fingerprint, "s4_ip_links_6A")
+            validated_ip_links = True
+        if _HAVE_PYARROW:
+            link_table = links_frame.to_arrow()
+            if link_table.schema != ip_links_writer.schema:
+                link_table = link_table.cast(ip_links_writer.schema)
+            ip_links_writer.write_table(link_table)
+        else:
+            ip_links_frames.append(links_frame)
+        ip_links_buffer.clear()
+
+    total_devices_region = sum(
+        sum(type_counts.values()) for type_counts in device_counts_by_party_type.values()
+    )
+    estimated_ip_links = 0
+    for party_type, type_counts in device_counts_by_party_type.items():
+        for device_type, count in type_counts.items():
+            group_id = device_type_to_group.get(device_type, "")
+            estimated_ip_links += int(round(count * float(lambda_ip_by_group.get(group_id) or 0.0)))
+
+    alloc_total = max(
+        sum(len(types) for types in group_to_types.values()) * max(len(party_ids_by_type), 1),
+        1,
+    )
+    alloc_tracker = _ProgressTracker(
+        alloc_total,
+        logger,
+        f"S4: allocate devices to parties ({region_label})",
+    )
+    emit_tracker = _ProgressTracker(
+        max(total_devices_region, 1),
+        logger,
+        f"S4: emit s4_device_base_6A ({region_label})",
+    )
+    ip_link_tracker = _ProgressTracker(
+        max(estimated_ip_links, 1),
+        logger,
+        f"S4: emit s4_ip_links_6A ({region_label})",
+    )
+
+    seed_zero = _seed_for_label(manifest_fingerprint, parameter_hash, f"zero_gate|{region_id}")
+    seed_weight = _seed_for_label(manifest_fingerprint, parameter_hash, f"weight|{region_id}")
+    seed_os = _seed_for_label(manifest_fingerprint, parameter_hash, f"os_family|{region_id}")
+    seed_ip_count = _seed_for_label(manifest_fingerprint, parameter_hash, f"ip_edge_count|{region_id}")
+    seed_ip_cell = _seed_for_label(manifest_fingerprint, parameter_hash, f"ip_cell|{region_id}")
+    seed_ip_id = _seed_for_label(manifest_fingerprint, parameter_hash, f"ip_id|{region_id}")
+
+    os_cumulative: dict[str, tuple[list[str], list[float], float]] = {}
+    for device_type, mix in os_mix_by_type.items():
+        os_cumulative[device_type] = _build_cumulative(mix)
+
+    ip_cells = [(f"{ip_type}|{asn}", weight) for ip_type, asn, weight in ip_cell_weights]
+    ip_cell_values, ip_cell_cumulative, ip_cell_total = _build_cumulative(ip_cells)
+
+    party_device_totals: dict[int, int] = {}
+
+    for party_type in sorted(party_ids_by_type.keys()):
+        parties = sorted(party_ids_by_type[party_type])
+        if not parties:
+            continue
+        for group_id, device_types_in_group in sorted(group_to_types.items()):
+            eligible_parties: list[int] = []
+            weights: list[float] = []
+            p_zero = float(p_zero_by_group.get(group_id) or 0.0)
+            sigma = float(sigma_by_group.get(group_id) or 0.0)
+            group_hash = _stable_u64_from_str(group_id)
+            for party_id in parties:
+                current = party_device_totals.get(party_id, 0)
+                if current >= max_devices_per_party:
+                    continue
+                u0 = _fast_u01(seed_zero, party_id, group_hash)
+                if u0 < p_zero:
+                    continue
+                u1 = _fast_u01(seed_weight, party_id, group_hash)
+                u1 = min(max(u1, 1.0e-12), 1.0 - 1.0e-12)
+                if sigma > 0:
+                    z = _normal_icdf(u1)
+                    weight = math.exp(sigma * z - 0.5 * sigma * sigma)
+                else:
+                    weight = 1.0
+                weight = max(weight_floor_eps, weight)
+                eligible_parties.append(party_id)
+                weights.append(weight)
+
+            for device_type in device_types_in_group:
+                n_devices = int(device_counts_by_party_type.get(party_type, {}).get(device_type, 0))
+                if n_devices <= 0:
+                    alloc_tracker.update(1)
+                    continue
+                if not eligible_parties:
+                    raise ValueError(f"No eligible parties for {region_id}/{party_type}/{device_type}")
+                caps = [max_devices_per_party - party_device_totals.get(pid, 0) for pid in eligible_parties]
+                alloc_counts = _allocate_with_caps(n_devices, weights, caps, _RngStream(
+                    f"device_alloc|{region_id}|{party_type}|{group_id}|{device_type}",
+                    manifest_fingerprint,
+                    parameter_hash,
+                    int(seed),
+                ))
+
+                for party_id, count in zip(eligible_parties, alloc_counts):
+                    if count <= 0:
+                        continue
+                    start_idx = party_device_totals.get(party_id, 0)
+                    end_idx = start_idx + count
+                    party_device_totals[party_id] = end_idx
+                    device_ids = [
+                        party_id * device_id_stride + idx for idx in range(start_idx + 1, end_idx + 1)
+                    ]
+
+                    os_values, os_cum, os_total = os_cumulative.get(device_type, ([], [], 1.0))
+                    if not os_values:
+                        os_values = ["EMBEDDED"]
+                        os_cum = [1.0]
+                        os_total = 1.0
+
+                    os_families = [
+                        _pick_from_cumulative(
+                            os_values,
+                            os_cum,
+                            os_total,
+                            _fast_u01(seed_os, device_id),
+                        )
+                        for device_id in device_ids
+                    ]
+
+                    region_str = str(region_id)
+                    country_iso = party_country_by_id.get(party_id, "")
+                    total_ip_links_added = 0
+                    for device_id, os_family in zip(device_ids, os_families):
+                        device_buffer.append(
+                            (
+                                device_id,
+                                device_type,
+                                os_family,
+                                party_id,
+                                region_str,
+                                country_iso,
+                                manifest_fingerprint,
+                                parameter_hash,
+                                int(seed),
+                            )
+                        )
+                        device_links_buffer.append(
+                            (
+                                device_id,
+                                party_id,
+                                None,
+                                None,
+                                "PRIMARY_OWNER",
+                                manifest_fingerprint,
+                                parameter_hash,
+                                int(seed),
+                            )
+                        )
+
+                        group_lambda = float(lambda_ip_by_group.get(group_id) or 0.0)
+                        base_ip = int(math.floor(group_lambda))
+                        frac = max(group_lambda - base_ip, 0.0)
+                        k_ip = base_ip
+                        if frac > 0:
+                            u_ip = _fast_u01(seed_ip_count, device_id)
+                            if u_ip < frac:
+                                k_ip += 1
+                        if max_ips_per_device > 0:
+                            k_ip = min(k_ip, max_ips_per_device)
+
+                        for edge_idx in range(k_ip):
+                            if not ip_cell_values:
+                                break
+                            cell_key = _pick_from_cumulative(
+                                ip_cell_values,
+                                ip_cell_cumulative,
+                                ip_cell_total,
+                                _fast_u01(seed_ip_cell, device_id, edge_idx),
+                            )
+                            ip_type, asn_class = cell_key.split("|", 1)
+                            cell_range = ip_cell_ranges.get((ip_type, asn_class))
+                            if not cell_range:
+                                continue
+                            start_id, end_id = cell_range
+                            span = max(end_id - start_id, 1)
+                            ip_id = start_id + int(_fast_u01(seed_ip_id, device_id, edge_idx) * span)
+                            ip_links_buffer.append(
+                                (
+                                    ip_id,
+                                    device_id,
+                                    party_id,
+                                    "TYPICAL_DEVICE_IP",
+                                    manifest_fingerprint,
+                                    parameter_hash,
+                                    int(seed),
+                                )
+                            )
+                        total_ip_links_added += k_ip
+                        if len(device_buffer) >= buffer_max_rows or len(device_links_buffer) >= buffer_max_rows:
+                            _flush_device_buffers()
+                        if len(ip_links_buffer) >= buffer_max_rows:
+                            _flush_ip_links()
+                    emit_tracker.update(len(device_ids))
+                    ip_link_tracker.update(total_ip_links_added)
+                alloc_tracker.update(1)
+
+    _flush_device_buffers()
+    _flush_ip_links()
+
+    if _HAVE_PYARROW:
+        device_writer.close()
+        device_links_writer.close()
+        ip_links_writer.close()
+    else:
+        if device_frames:
+            pl.concat(device_frames, how="vertical").write_parquet(device_part, compression="zstd")
+            pl.concat(device_links_frames, how="vertical").write_parquet(device_links_part, compression="zstd")
+        else:
+            pl.DataFrame(
+                [],
+                schema=[
+                    "device_id",
+                    "device_type",
+                    "os_family",
+                    "primary_party_id",
+                    "home_region_id",
+                    "home_country_iso",
+                    "manifest_fingerprint",
+                    "parameter_hash",
+                    "seed",
+                ],
+            ).write_parquet(device_part, compression="zstd")
+            pl.DataFrame(
+                [],
+                schema=[
+                    "device_id",
+                    "party_id",
+                    "account_id",
+                    "instrument_id",
+                    "link_role",
+                    "manifest_fingerprint",
+                    "parameter_hash",
+                    "seed",
+                ],
+            ).write_parquet(device_links_part, compression="zstd")
+        if ip_links_frames:
+            pl.concat(ip_links_frames, how="vertical").write_parquet(ip_links_part, compression="zstd")
+        else:
+            pl.DataFrame(
+                [],
+                schema=[
+                    "ip_id",
+                    "device_id",
+                    "party_id",
+                    "link_role",
+                    "manifest_fingerprint",
+                    "parameter_hash",
+                    "seed",
+                ],
+            ).write_parquet(ip_links_part, compression="zstd")
+    timer.info("S4: region emit complete (%s)", region_label)
+    return {
+        "region_id": region_id,
+        "device_part": str(device_part),
+        "device_links_part": str(device_links_part),
+        "ip_links_part": str(ip_links_part),
+        "total_devices": total_devices_region,
+    }
 
 
 def run_s3(config: EngineConfig, run_id: Optional[str] = None) -> S4Result:
@@ -1522,7 +2073,6 @@ def run_s4(config: EngineConfig, run_id: Optional[str] = None) -> S4Result:
         schema_6a, _anchor_from_ref(device_base_entry.get("schema_ref") or "#/s4/device_base")
     )
     _inline_external_refs(device_schema, schema_layer3, "schemas.layer3.yaml#")
-    device_validator = Draft202012Validator(device_schema)
 
     ip_schema = _schema_from_pack(schema_6a, _anchor_from_ref(ip_base_entry.get("schema_ref") or "#/s4/ip_base"))
     _inline_external_refs(ip_schema, schema_layer3, "schemas.layer3.yaml#")
@@ -1532,86 +2082,23 @@ def run_s4(config: EngineConfig, run_id: Optional[str] = None) -> S4Result:
         schema_6a, _anchor_from_ref(device_links_entry.get("schema_ref") or "#/s4/device_links")
     )
     _inline_external_refs(device_links_schema, schema_layer3, "schemas.layer3.yaml#")
-    device_links_validator = Draft202012Validator(device_links_schema)
 
     ip_links_schema = _schema_from_pack(
         schema_6a, _anchor_from_ref(ip_links_entry.get("schema_ref") or "#/s4/ip_links")
     )
     _inline_external_refs(ip_links_schema, schema_layer3, "schemas.layer3.yaml#")
-    ip_links_validator = Draft202012Validator(ip_links_schema)
 
     tmp_device = tmp_dir / device_base_path.name
     tmp_device_links = tmp_dir / device_links_path.name
     tmp_ip = tmp_dir / ip_base_path.name
     tmp_ip_links = tmp_dir / ip_links_path.name
 
-    device_writer = None
-    device_links_writer = None
     ip_writer = None
-    ip_links_writer = None
-
-    device_frames: list[pl.DataFrame] = []
-    device_links_frames: list[pl.DataFrame] = []
     ip_frames: list[pl.DataFrame] = []
-    ip_links_frames: list[pl.DataFrame] = []
-
-    device_buffer: list[tuple] = []
-    device_links_buffer: list[tuple] = []
     ip_buffer: list[tuple] = []
-    ip_links_buffer: list[tuple] = []
-
-    def _flush_device_buffers() -> None:
-        nonlocal device_writer, device_links_writer
-        if not device_buffer:
-            return
-        device_frame = pl.DataFrame(
-            device_buffer,
-            schema=[
-                "device_id",
-                "device_type",
-                "os_family",
-                "primary_party_id",
-                "home_region_id",
-                "home_country_iso",
-                "manifest_fingerprint",
-                "parameter_hash",
-                "seed",
-            ],
-            orient="row",
-        )
-        links_frame = pl.DataFrame(
-            device_links_buffer,
-            schema=[
-                "device_id",
-                "party_id",
-                "account_id",
-                "instrument_id",
-                "link_role",
-                "manifest_fingerprint",
-                "parameter_hash",
-                "seed",
-            ],
-            orient="row",
-        )
-        _validate_sample_rows(device_frame, device_validator, manifest_fingerprint, "s4_device_base_6A")
-        _validate_sample_rows(links_frame, device_links_validator, manifest_fingerprint, "s4_device_links_6A")
-        if _HAVE_PYARROW:
-            dev_table = device_frame.to_arrow()
-            link_table = links_frame.to_arrow()
-            if device_writer is None:
-                device_writer = pq.ParquetWriter(tmp_device, dev_table.schema, compression="zstd")
-            if device_links_writer is None:
-                device_links_writer = pq.ParquetWriter(tmp_device_links, link_table.schema, compression="zstd")
-            device_writer.write_table(dev_table)
-            device_links_writer.write_table(link_table)
-        else:
-            device_frames.append(device_frame)
-            device_links_frames.append(links_frame)
-        device_buffer.clear()
-        device_links_buffer.clear()
 
     def _flush_ip_buffers() -> None:
-        nonlocal ip_writer, ip_links_writer
+        nonlocal ip_writer
         if not ip_buffer:
             return
         ip_frame = pl.DataFrame(
@@ -1627,35 +2114,15 @@ def run_s4(config: EngineConfig, run_id: Optional[str] = None) -> S4Result:
             ],
             orient="row",
         )
-        links_frame = pl.DataFrame(
-            ip_links_buffer,
-            schema=[
-                "ip_id",
-                "device_id",
-                "party_id",
-                "link_role",
-                "manifest_fingerprint",
-                "parameter_hash",
-                "seed",
-            ],
-            orient="row",
-        )
         _validate_sample_rows(ip_frame, ip_validator, manifest_fingerprint, "s4_ip_base_6A")
-        _validate_sample_rows(links_frame, ip_links_validator, manifest_fingerprint, "s4_ip_links_6A")
         if _HAVE_PYARROW:
             ip_table = ip_frame.to_arrow()
-            link_table = links_frame.to_arrow()
             if ip_writer is None:
                 ip_writer = pq.ParquetWriter(tmp_ip, ip_table.schema, compression="zstd")
-            if ip_links_writer is None:
-                ip_links_writer = pq.ParquetWriter(tmp_ip_links, link_table.schema, compression="zstd")
             ip_writer.write_table(ip_table)
-            ip_links_writer.write_table(link_table)
         else:
             ip_frames.append(ip_frame)
-            ip_links_frames.append(links_frame)
         ip_buffer.clear()
-        ip_links_buffer.clear()
 
     ip_id_counter = 1
     ip_cell_ranges: dict[tuple[str, str, str], tuple[int, int]] = {}
@@ -1687,268 +2154,10 @@ def run_s4(config: EngineConfig, run_id: Optional[str] = None) -> S4Result:
     _flush_ip_buffers()
 
     device_id_stride = max_devices_per_party + 1
-    party_device_totals: dict[int, int] = {}
-
-    alloc_tracker = _ProgressTracker(len(device_counts_by_cell), logger, "S4: allocate devices to parties")
-    emit_tracker = _ProgressTracker(total_devices, logger, "S4: emit s4_device_base_6A")
-    ip_link_tracker = _ProgressTracker(
-        max(int(round(sum(value for value in device_counts_by_cell.values()))), 1),
-        logger,
-        "S4: emit s4_ip_links_6A",
-    )
-
-    group_to_types: dict[str, list[str]] = {}
-    for device_type, group_id in device_type_to_group.items():
-        group_to_types.setdefault(group_id, []).append(device_type)
-    for types in group_to_types.values():
-        types.sort()
-
-    for (region_id, party_type), parties in sorted(party_cells.items()):
-        if not parties:
-            continue
-        parties_sorted = sorted(parties)
-        for group_id, device_types_in_group in sorted(group_to_types.items()):
-            eligible_parties: list[int] = []
-            weights: list[float] = []
-            for party_id in parties_sorted:
-                current = party_device_totals.get(party_id, 0)
-                if current >= max_devices_per_party:
-                    continue
-                p_zero = float(p_zero_by_group.get(group_id) or 0.0)
-                sigma = float(sigma_by_group.get(group_id) or 0.0)
-                u0 = _deterministic_uniform(manifest_fingerprint, parameter_hash, party_id, group_id, "zero_gate")
-                if u0 < p_zero:
-                    continue
-                u1 = _deterministic_uniform(manifest_fingerprint, parameter_hash, party_id, group_id, "weight")
-                u1 = min(max(u1, 1.0e-12), 1.0 - 1.0e-12)
-                if sigma > 0:
-                    z = _normal_icdf(u1)
-                    weight = math.exp(sigma * z - 0.5 * sigma * sigma)
-                else:
-                    weight = 1.0
-                weight = max(weight_floor_eps, weight)
-                eligible_parties.append(party_id)
-                weights.append(weight)
-
-            for device_type in device_types_in_group:
-                n_devices = int(device_counts_by_cell.get((region_id, party_type, device_type), 0))
-                if n_devices <= 0:
-                    alloc_tracker.update(1)
-                    continue
-                if not eligible_parties:
-                    _abort(
-                        "6A.S4.ALLOCATION_FAILED",
-                        "V-07",
-                        "allocation_weights_zero",
-                        {"region_id": region_id, "party_type": party_type, "device_type": device_type},
-                        manifest_fingerprint,
-                    )
-                caps = [max_devices_per_party - party_device_totals.get(pid, 0) for pid in eligible_parties]
-                try:
-                    before_hi = rng_device_alloc.counter_hi
-                    before_lo = rng_device_alloc.counter_lo
-                    draws_before = rng_device_alloc.draws_total
-                    blocks_before = rng_device_alloc.blocks_total
-                    alloc_counts = _allocate_with_caps(n_devices, weights, caps, rng_device_alloc)
-                    draws = rng_device_alloc.draws_total - draws_before
-                    blocks = rng_device_alloc.blocks_total - blocks_before
-                    after_hi = rng_device_alloc.counter_hi
-                    after_lo = rng_device_alloc.counter_lo
-                    rng_device_alloc.record_event()
-                    rng_event_rows_device_alloc.append(
-                        {
-                            "ts_utc": utc_now_rfc3339_micro(),
-                            "run_id": run_id_value,
-                            "seed": int(seed),
-                            "parameter_hash": parameter_hash,
-                            "manifest_fingerprint": manifest_fingerprint,
-                            "module": "6A.S4",
-                            "substream_label": "device_allocation_sampling",
-                            "rng_counter_before_lo": int(before_lo),
-                            "rng_counter_before_hi": int(before_hi),
-                            "rng_counter_after_lo": int(after_lo),
-                            "rng_counter_after_hi": int(after_hi),
-                            "draws": str(draws),
-                            "blocks": int(blocks),
-                            "context": {
-                                "region_id": region_id,
-                                "party_type": party_type,
-                                "device_type": device_type,
-                                "targets": n_devices,
-                                "eligible_parties": len(eligible_parties),
-                            },
-                        }
-                    )
-                except ValueError as exc:
-                    _abort(
-                        "6A.S4.ALLOCATION_FAILED",
-                        "V-07",
-                        "allocation_capacity_error",
-                        {
-                            "region_id": region_id,
-                            "party_type": party_type,
-                            "device_type": device_type,
-                            "error": str(exc),
-                        },
-                        manifest_fingerprint,
-                    )
-
-                os_mix = os_mix_by_type.get(device_type) or []
-                for party_id, count in zip(eligible_parties, alloc_counts):
-                    if count <= 0:
-                        continue
-                    region_meta, country_iso, _ = party_meta[party_id]
-                    for _ in range(int(count)):
-                        current = party_device_totals.get(party_id, 0) + 1
-                        party_device_totals[party_id] = current
-                        device_id = party_id * device_id_stride + current
-                        u_os = _deterministic_uniform(
-                            manifest_fingerprint, parameter_hash, device_id, device_type, "os_family"
-                        )
-                        os_family = _categorical_pick(os_mix, u_os)
-                        device_buffer.append(
-                            (
-                                device_id,
-                                device_type,
-                                os_family,
-                                party_id,
-                                region_meta,
-                                country_iso,
-                                manifest_fingerprint,
-                                parameter_hash,
-                                int(seed),
-                            )
-                        )
-                        device_links_buffer.append(
-                            (
-                                device_id,
-                                party_id,
-                                None,
-                                None,
-                                "PRIMARY_OWNER",
-                                manifest_fingerprint,
-                                parameter_hash,
-                                int(seed),
-                            )
-                        )
-
-                        group_lambda = float(lambda_ip_by_group.get(group_id) or 1.0)
-                        base_ip = int(math.floor(group_lambda))
-                        frac = max(group_lambda - base_ip, 0.0)
-                        k_ip = base_ip
-                        if frac > 0:
-                            u_ip = _deterministic_uniform(
-                                manifest_fingerprint, parameter_hash, device_id, group_id, "ip_edge_count"
-                            )
-                            if u_ip < frac:
-                                k_ip += 1
-                        k_ip = min(k_ip, max_ips_per_device)
-
-                        ip_cells = ip_cell_weights_by_region.get(region_meta) or []
-                        if not ip_cells and k_ip > 0:
-                            logger.warning("S4: no IP cells available for region %s", region_meta)
-                            k_ip = 0
-                        if k_ip > 0:
-                            rng_device_attr.record_event()
-                            rng_event_rows_device_attr.append(
-                                {
-                                    "ts_utc": utc_now_rfc3339_micro(),
-                                    "run_id": run_id_value,
-                                    "seed": int(seed),
-                                    "parameter_hash": parameter_hash,
-                                    "manifest_fingerprint": manifest_fingerprint,
-                                    "module": "6A.S4",
-                                    "substream_label": "device_attribute_sampling",
-                                    "rng_counter_before_lo": int(rng_device_attr.counter_lo),
-                                    "rng_counter_before_hi": int(rng_device_attr.counter_hi),
-                                    "rng_counter_after_lo": int(rng_device_attr.counter_lo),
-                                    "rng_counter_after_hi": int(rng_device_attr.counter_hi),
-                                    "draws": "0",
-                                    "blocks": 0,
-                                    "context": {"device_type": device_type},
-                                }
-                            )
-                        for edge_idx in range(k_ip):
-                            u_cell = _deterministic_uniform(
-                                manifest_fingerprint, parameter_hash, device_id, edge_idx, "ip_cell"
-                            )
-                            selected = _categorical_pick(
-                                [(f"{ip_type}|{asn}", weight) for ip_type, asn, weight in ip_cells], u_cell
-                            )
-                            if not selected:
-                                continue
-                            ip_type, asn_class = selected.split("|", 1)
-                            cell_range = ip_cell_ranges.get((region_meta, ip_type, asn_class))
-                            if not cell_range:
-                                continue
-                            start_id, end_id = cell_range
-                            u_id = _deterministic_uniform(
-                                manifest_fingerprint, parameter_hash, device_id, edge_idx, "ip_id"
-                            )
-                            ip_id = start_id + int(u_id * (end_id - start_id))
-                            ip_links_buffer.append(
-                                (
-                                    ip_id,
-                                    device_id,
-                                    party_id,
-                                    "TYPICAL_DEVICE_IP",
-                                    manifest_fingerprint,
-                                    parameter_hash,
-                                    int(seed),
-                                )
-                            )
-                            ip_link_tracker.update(1)
-
-                        if len(device_buffer) >= _BUFFER_MAX_ROWS:
-                            _flush_device_buffers()
-                        if len(ip_links_buffer) >= _BUFFER_MAX_ROWS:
-                            _flush_ip_buffers()
-                        emit_tracker.update(1)
-                alloc_tracker.update(1)
-
-    _flush_device_buffers()
-    _flush_ip_buffers()
-
-    if device_writer is None:
-        if device_frames:
-            pl.concat(device_frames, how="vertical").write_parquet(tmp_device, compression="zstd")
-            pl.concat(device_links_frames, how="vertical").write_parquet(tmp_device_links, compression="zstd")
-        else:
-            pl.DataFrame(
-                [],
-                schema=[
-                    "device_id",
-                    "device_type",
-                    "os_family",
-                    "primary_party_id",
-                    "home_region_id",
-                    "home_country_iso",
-                    "manifest_fingerprint",
-                    "parameter_hash",
-                    "seed",
-                ],
-            ).write_parquet(tmp_device, compression="zstd")
-            pl.DataFrame(
-                [],
-                schema=[
-                    "device_id",
-                    "party_id",
-                    "account_id",
-                    "instrument_id",
-                    "link_role",
-                    "manifest_fingerprint",
-                    "parameter_hash",
-                    "seed",
-                ],
-            ).write_parquet(tmp_device_links, compression="zstd")
-    else:
-        device_writer.close()
-        device_links_writer.close()
 
     if ip_writer is None:
         if ip_frames:
             pl.concat(ip_frames, how="vertical").write_parquet(tmp_ip, compression="zstd")
-            pl.concat(ip_links_frames, how="vertical").write_parquet(tmp_ip_links, compression="zstd")
         else:
             pl.DataFrame(
                 [],
@@ -1962,21 +2171,206 @@ def run_s4(config: EngineConfig, run_id: Optional[str] = None) -> S4Result:
                     "seed",
                 ],
             ).write_parquet(tmp_ip, compression="zstd")
-            pl.DataFrame(
-                [],
-                schema=[
-                    "ip_id",
-                    "device_id",
-                    "party_id",
-                    "link_role",
-                    "manifest_fingerprint",
-                    "parameter_hash",
-                    "seed",
-                ],
-            ).write_parquet(tmp_ip_links, compression="zstd")
     else:
         ip_writer.close()
-        ip_links_writer.close()
+
+    group_to_types: dict[str, list[str]] = {}
+    for device_type, group_id in device_type_to_group.items():
+        group_to_types.setdefault(group_id, []).append(device_type)
+    for types in group_to_types.values():
+        types.sort()
+
+    region_ids = sorted({region_id for (region_id, _, _) in device_counts_by_cell.keys()})
+    device_counts_by_region: dict[str, dict[str, dict[str, int]]] = {}
+    for (region_id, party_type, device_type), count in device_counts_by_cell.items():
+        device_counts_by_region.setdefault(region_id, {}).setdefault(party_type, {})[device_type] = int(count)
+
+    ip_cell_ranges_by_region: dict[str, dict[tuple[str, str], tuple[int, int]]] = {}
+    for (region_id, ip_type, asn_class), range_tuple in ip_cell_ranges.items():
+        ip_cell_ranges_by_region.setdefault(region_id, {})[(ip_type, asn_class)] = range_tuple
+
+    part_dir = tmp_dir / "region_parts"
+    part_dir.mkdir(parents=True, exist_ok=True)
+
+    workers_env = os.getenv("ENGINE_6A_S4_WORKERS")
+    if workers_env:
+        try:
+            worker_count = max(int(workers_env), 1)
+        except ValueError:
+            worker_count = max(os.cpu_count() or 1, 1)
+    else:
+        worker_count = max(os.cpu_count() or 1, 1)
+    worker_count = min(worker_count, max(len(region_ids), 1))
+    use_parallel = _HAVE_PYARROW and worker_count > 1 and len(region_ids) > 1
+    if not _HAVE_PYARROW:
+        logger.warning("S4: pyarrow not available; parallel merge disabled (falling back to single worker)")
+        use_parallel = False
+        worker_count = 1
+
+    logger.info(
+        "S4: emission strategy (regions=%s workers=%s parallel=%s buffer_rows=%s)",
+        len(region_ids),
+        worker_count,
+        use_parallel,
+        _BUFFER_MAX_ROWS,
+    )
+
+    results: list[dict] = []
+    if use_parallel:
+        with ProcessPoolExecutor(max_workers=worker_count) as executor:
+            futures = {}
+            for region_id in region_ids:
+                futures[
+                    executor.submit(
+                        _emit_region_parts,
+                        region_id,
+                        party_base_path,
+                        device_counts_by_region.get(region_id, {}),
+                        device_type_to_group,
+                        group_to_types,
+                        os_mix_by_type,
+                        p_zero_by_group,
+                        sigma_by_group,
+                        weight_floor_eps,
+                        max_devices_per_party,
+                        device_id_stride,
+                        ip_cell_weights_by_region.get(region_id, []),
+                        ip_cell_ranges_by_region.get(region_id, {}),
+                        lambda_ip_by_group,
+                        max_ips_per_device,
+                        manifest_fingerprint,
+                        parameter_hash,
+                        int(seed),
+                        run_log_path,
+                        part_dir,
+                        _BUFFER_MAX_ROWS,
+                        device_schema,
+                        device_links_schema,
+                        ip_links_schema,
+                    )
+                ] = region_id
+            for future in as_completed(futures):
+                results.append(future.result())
+    else:
+        for region_id in region_ids:
+            results.append(
+                _emit_region_parts(
+                    region_id,
+                    party_base_path,
+                    device_counts_by_region.get(region_id, {}),
+                    device_type_to_group,
+                    group_to_types,
+                    os_mix_by_type,
+                    p_zero_by_group,
+                    sigma_by_group,
+                    weight_floor_eps,
+                    max_devices_per_party,
+                    device_id_stride,
+                    ip_cell_weights_by_region.get(region_id, []),
+                    ip_cell_ranges_by_region.get(region_id, {}),
+                    lambda_ip_by_group,
+                    max_ips_per_device,
+                    manifest_fingerprint,
+                    parameter_hash,
+                    int(seed),
+                    run_log_path,
+                    part_dir,
+                    _BUFFER_MAX_ROWS,
+                    device_schema,
+                    device_links_schema,
+                    ip_links_schema,
+                )
+            )
+
+    if not results:
+        pl.DataFrame(
+            [],
+            schema=[
+                "device_id",
+                "device_type",
+                "os_family",
+                "primary_party_id",
+                "home_region_id",
+                "home_country_iso",
+                "manifest_fingerprint",
+                "parameter_hash",
+                "seed",
+            ],
+        ).write_parquet(tmp_device, compression="zstd")
+        pl.DataFrame(
+            [],
+            schema=[
+                "device_id",
+                "party_id",
+                "account_id",
+                "instrument_id",
+                "link_role",
+                "manifest_fingerprint",
+                "parameter_hash",
+                "seed",
+            ],
+        ).write_parquet(tmp_device_links, compression="zstd")
+        pl.DataFrame(
+            [],
+            schema=[
+                "ip_id",
+                "device_id",
+                "party_id",
+                "link_role",
+                "manifest_fingerprint",
+                "parameter_hash",
+                "seed",
+            ],
+        ).write_parquet(tmp_ip_links, compression="zstd")
+    else:
+        device_part_paths = sorted(Path(result["device_part"]) for result in results)
+        device_links_part_paths = sorted(Path(result["device_links_part"]) for result in results)
+        ip_links_part_paths = sorted(Path(result["ip_links_part"]) for result in results)
+        _merge_parquet_parts(device_part_paths, tmp_device, logger, "s4_device_base_6A")
+        _merge_parquet_parts(device_links_part_paths, tmp_device_links, logger, "s4_device_links_6A")
+        _merge_parquet_parts(ip_links_part_paths, tmp_ip_links, logger, "s4_ip_links_6A")
+
+    if not rng_event_rows_device_alloc:
+        rng_device_alloc.record_event()
+        rng_event_rows_device_alloc.append(
+            {
+                "ts_utc": utc_now_rfc3339_micro(),
+                "run_id": run_id_value,
+                "seed": int(seed),
+                "parameter_hash": parameter_hash,
+                "manifest_fingerprint": manifest_fingerprint,
+                "module": "6A.S4",
+                "substream_label": "device_allocation_sampling",
+                "rng_counter_before_lo": int(rng_device_alloc.counter_lo),
+                "rng_counter_before_hi": int(rng_device_alloc.counter_hi),
+                "rng_counter_after_lo": int(rng_device_alloc.counter_lo),
+                "rng_counter_after_hi": int(rng_device_alloc.counter_hi),
+                "draws": "0",
+                "blocks": 0,
+                "context": {"method": "region_parallel", "regions": len(region_ids)},
+            }
+        )
+
+    if not rng_event_rows_device_attr:
+        rng_device_attr.record_event()
+        rng_event_rows_device_attr.append(
+            {
+                "ts_utc": utc_now_rfc3339_micro(),
+                "run_id": run_id_value,
+                "seed": int(seed),
+                "parameter_hash": parameter_hash,
+                "manifest_fingerprint": manifest_fingerprint,
+                "module": "6A.S4",
+                "substream_label": "device_attribute_sampling",
+                "rng_counter_before_lo": int(rng_device_attr.counter_lo),
+                "rng_counter_before_hi": int(rng_device_attr.counter_hi),
+                "rng_counter_after_lo": int(rng_device_attr.counter_lo),
+                "rng_counter_after_hi": int(rng_device_attr.counter_hi),
+                "draws": "0",
+                "blocks": 0,
+                "context": {"method": "deterministic_hash", "regions": len(region_ids)},
+            }
+        )
 
     _publish_parquet_file_idempotent(
         tmp_device,

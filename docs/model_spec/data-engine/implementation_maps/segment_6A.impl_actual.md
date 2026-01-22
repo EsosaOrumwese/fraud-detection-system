@@ -729,3 +729,94 @@ Contract/prior digest encoding:
 - **Run observation:** S4 progressed through planning and IP base emission, then device/IP link emission showed high ETA: `s4_device_base_6A` ETA ~2064s (~34m) at 84k/7.18M; `s4_ip_links_6A` ETA ~1501s (~25m) initially, later trending down but still >10m.
 - **Action:** terminated the in-flight `engine.cli.s4_device_graph_6a` process to avoid long runtime (per user instruction when ETA is high).
 - **Implication:** current per-device emission loop is too slow for the 15-minute target; need to revisit emission strategy (vectorized batch generation, chunked partitioning, or alternative allocation strategy) before proceeding.
+### Entry: 2026-01-21 22:28
+
+6A.S4 optimization plan — vectorized emission + region-parallel workers:
+- **Problem:** Current S4 emission loop is too slow (~25–34 min ETA). Need to hit ~15 min.
+- **Decision:** combine two changes:
+  1) **Vectorized batch emission**: build device_base / device_links / ip_links in chunked batches (list comprehensions + column repeats) rather than per-row append loops.
+  2) **Region-parallel execution**: split by `region_id` and process in parallel worker processes; write region-part files and deterministically merge to final parquet outputs.
+- **Alternatives considered:**
+  - Threading: rejected due to GIL and heavy Python loops.
+  - Re-reading party base per worker vs. pickling party lists: choose re-read with predicate pushdown to avoid large IPC overhead.
+  - Pure RNG stream for per-device sampling: rejected because sequential draws depend on ordering; deterministic hash per device remains preferred.
+- **Key mechanics (lean + deterministic):**
+  - **Stable hash fast-path:** replace per-call sha256 for hot loops with a lightweight 64-bit mix function using a per-label base seed derived from `(manifest_fingerprint, parameter_hash, label)`. For each device/edge, compute `u` via `mix64(seed ^ device_id ^ (edge_idx * CONST)) / 2**64` to drive categorical picks (os family, ip cell, ip id). This keeps determinism while reducing hash cost.
+  - **Worker inputs:** each worker receives `region_id`, priors-derived counts by `(party_type, device_type)`, ip cell weights for the region, ip_id ranges for region cells, and config constants (max_devices_per_party, device_id_stride, lambda_ip_by_group, etc.).
+  - **Worker processing:**
+    - Read party base for the region with predicate pushdown (`pyarrow.dataset` when available, else polars filter). Build `party_ids_by_type` and `party_country_by_id`.
+    - Allocate device counts per party using `_allocate_with_caps` and weights (p_zero gate + lognormal weight); keep party caps.
+    - Emit **batched** device rows: generate `device_id` ranges per party, use list comprehensions for `os_family` and repeated scalars for other columns; flush via Arrow/Parquet writer in chunks (`_BUFFER_MAX_ROWS`).
+    - Emit `s4_device_links_6A` with `PRIMARY_OWNER` in same batches.
+    - Emit `s4_ip_links_6A` by generating per-device `k_ip` and ip_id selections using deterministic hash and region cell ranges; buffer and flush in chunks.
+  - **Merging:** main process collects region-part parquet files and writes final outputs in deterministic order (sorted by region_id), using `ParquetWriter` to avoid loading all parts into memory.
+  - **Logging:** each worker logs progress with region-scoped labels; keep elapsed/rate/ETA for long loops. Main logs worker start/finish and merge progress.
+  - **Resumability:** region-part temp files are stored under run tmp; final publish remains idempotent and fails if outputs exist.
+- **Contracts & determinism:** schemas unchanged; RNG audit/trace still emitted (device/ip attribute events remain deterministic hash-driven, with zero-draw events where applicable).
+- **Validation/testing:** re-run `python -m py_compile` and `make segment6a-s4`. If ETA > 15 min, stop and re-plan.
+### Entry: 2026-01-22 01:20
+
+6A.S4 implementation update — vectorized + region-parallel emission:
+- **Emission strategy implemented:** replaced the per-device global loop with region-scoped workers that read `s1_party_base_6A` filtered by region, allocate device counts per party, and emit `s4_device_base_6A`, `s4_device_links_6A`, and `s4_ip_links_6A` in chunked batches. Each region writes its own part files under `runs/<run_id>/tmp/s4_device_graph_<uuid>/region_parts/` and the main process merges parts deterministically into the final temp parquet outputs.
+- **Fast deterministic sampling:** added a lightweight 64‑bit mix hash (`_mix64`) with per-label seeds derived from `(manifest_fingerprint, parameter_hash, label)` to replace repeated sha256 calls in hot loops. This keeps determinism while significantly reducing hash overhead for `os_family`, `ip_edge_count`, `ip_cell`, and `ip_id` sampling.
+- **Chunked + vectorized emission:** device rows are generated in batch per party/device_type using list comprehensions and repeated scalars, with flush thresholds controlled by `_BUFFER_MAX_ROWS`. Progress trackers now update by batch counts instead of per row to reduce overhead.
+- **Parallel control + fallback:** `ENGINE_6A_S4_WORKERS` controls worker count; if `pyarrow` is unavailable, the code falls back to single-worker mode and polars-based merge/write. This is logged in the run output.
+- **RNG events:** device allocation/attribute RNG events are now recorded as deterministic-hash events with zero draws if no per-allocation RNG rows are generated in workers (keeps logs schema-compliant and traceable).
+- **Merge determinism:** main process merges region parts in sorted region order using `ParquetWriter` batch streaming to avoid large memory spikes.
+### Entry: 2026-01-22 01:25
+
+6A.S4 run fix — polars filter compatibility:
+- **Issue:** worker failed with `TypeError: read_parquet() got an unexpected keyword argument 'filters'` (polars version lacks `filters=` on `read_parquet`).
+- **Fix:** switched to `pl.scan_parquet(...).filter(...).collect()` for region filtering in `_emit_region_parts`, preserving predicate pushdown while remaining version-compatible.
+- **Next step:** re-run `make segment6a-s4` and monitor region worker progress/ETA.
+### Entry: 2026-01-22 01:28
+
+6A.S4 run fix — polars scan compatibility:
+- **Issue:** worker failed with `TypeError: scan_parquet() got an unexpected keyword argument 'columns'` on older polars.
+- **Fix:** switched to `pl.scan_parquet(...).select([...]).filter(...).collect()` to avoid unsupported keyword args.
+- **Next step:** re-run `make segment6a-s4` and monitor worker progress/ETA.
+### Entry: 2026-01-22 01:32
+
+6A.S4 run fix — pyarrow schema cast:
+- **Issue:** worker failed when writing device_base parts because `polars.to_arrow()` produced `large_string` columns, mismatching the `string` schema used by the ParquetWriter.
+- **Fix:** cast Arrow tables to the writer schema before writing (`table.cast(device_writer.schema)`), applied to device_base, device_links, and ip_links parts.
+- **Next step:** re-run `make segment6a-s4` and monitor worker ETAs.
+### Entry: 2026-01-22 01:36
+
+6A.S4 logging adjustment — worker file handler:
+- **Issue:** region worker logs were only visible on console because child processes did not inherit the run log file handler.
+- **Fix:** pass `run_log_path` into `_emit_region_parts` and call `add_file_handler(run_log_path)` inside each worker so progress/ETA logs are captured in the run log.
+### Entry: 2026-01-22 01:40
+
+6A.S4 run observation — performance achieved, publish conflict:
+- **Result:** region-parallel emission completed for all 5 regions in ~82s; merge finished shortly after (~3–5s per dataset), well below the 15-minute target.
+- **Failure:** publish step aborted with `6A.S4.IO_WRITE_CONFLICT` because `s4_device_base_6A` already exists under `runs/local_full_run-5/d61f.../data/layer3/6A/s4_device_base_6A/...` from a prior attempt.
+- **Implication:** runtime target appears met; next action is to delete existing S4 outputs (or use a new seed/parameter_hash) before re-running so publish can succeed.
+### Entry: 2026-01-22 01:44
+
+6A.S4 logging fix — allocation progress total:
+- **Issue:** allocation progress tracker could exceed its total (e.g., `21/15`) because total was computed as `len(group_to_types) * len(party_types)` while updates were per device_type.
+- **Fix:** set `alloc_total = sum(len(device_types) for group) * len(party_types)` so progress counts match the loop increments.
+### Entry: 2026-01-22 01:35
+
+6A.S4 run preparation - cleared conflicting outputs:
+- **Action:** removed existing S4 outputs for seed=42 / parameter_hash=56d45126eaabedd083a1d8428a763e0278c89efec5023cfd6cf3cab7fc8dd2d7 / manifest_fingerprint=1cb60481d69b836ee24505ec9a6ec231c8f18523ee9b7dabbd38c0a33bf15765 to allow publish.
+- **Deleted:**
+  - `runs/local_full_run-5/d61f08e2e45ef1bc28884034de4c1b68/data/layer3/6A/s4_device_base_6A/seed=42/parameter_hash=.../manifest_fingerprint=...`
+  - `runs/local_full_run-5/d61f08e2e45ef1bc28884034de4c1b68/data/layer3/6A/s4_device_links_6A/seed=42/parameter_hash=.../manifest_fingerprint=...`
+  - `runs/local_full_run-5/d61f08e2e45ef1bc28884034de4c1b68/data/layer3/6A/s4_ip_base_6A/seed=42/parameter_hash=.../manifest_fingerprint=...`
+  - `runs/local_full_run-5/d61f08e2e45ef1bc28884034de4c1b68/data/layer3/6A/s4_ip_links_6A/seed=42/parameter_hash=.../manifest_fingerprint=...`
+- **Next step:** rerun `make segment6a-s4` to publish outputs.
+### Entry: 2026-01-22 01:40
+
+6A.S4 rerun success - outputs + RNG events published:
+- **Action:** reran `make segment6a-s4` after clearing outputs; region-parallel emission + merges completed and publish succeeded.
+- **Runtime:** ~97.6s total wall clock (comfortably under the 15-minute target).
+- **Outputs published:** 
+  - `runs/local_full_run-5/d61f08e2e45ef1bc28884034de4c1b68/data/layer3/6A/s4_device_base_6A/seed=42/parameter_hash=56d45126eaabedd083a1d8428a763e0278c89efec5023cfd6cf3cab7fc8dd2d7/manifest_fingerprint=1cb60481d69b836ee24505ec9a6ec231c8f18523ee9b7dabbd38c0a33bf15765/s4_device_base_6A.parquet`
+  - `runs/local_full_run-5/d61f08e2e45ef1bc28884034de4c1b68/data/layer3/6A/s4_ip_base_6A/seed=42/parameter_hash=56d45126eaabedd083a1d8428a763e0278c89efec5023cfd6cf3cab7fc8dd2d7/manifest_fingerprint=1cb60481d69b836ee24505ec9a6ec231c8f18523ee9b7dabbd38c0a33bf15765/s4_ip_base_6A.parquet`
+  - `runs/local_full_run-5/d61f08e2e45ef1bc28884034de4c1b68/data/layer3/6A/s4_device_links_6A/seed=42/parameter_hash=56d45126eaabedd083a1d8428a763e0278c89efec5023cfd6cf3cab7fc8dd2d7/manifest_fingerprint=1cb60481d69b836ee24505ec9a6ec231c8f18523ee9b7dabbd38c0a33bf15765/s4_device_links_6A.parquet`
+  - `runs/local_full_run-5/d61f08e2e45ef1bc28884034de4c1b68/data/layer3/6A/s4_ip_links_6A/seed=42/parameter_hash=56d45126eaabedd083a1d8428a763e0278c89efec5023cfd6cf3cab7fc8dd2d7/manifest_fingerprint=1cb60481d69b836ee24505ec9a6ec231c8f18523ee9b7dabbd38c0a33bf15765/s4_ip_links_6A.parquet`
+- **RNG event logs published:** device_count_realisation, device_allocation_sampling, device_attribute_sampling, ip_count_realisation, ip_allocation_sampling, ip_attribute_sampling under `runs/local_full_run-5/d61f08e2e45ef1bc28884034de4c1b68/logs/layer3/6A/rng/events/...`.
+- **Warnings observed:** sealed input rows for `mlr.6A.prior.device_counts`, `mlr.6A.prior.ip_counts`, `mlr.6A.policy.device_linkage_rules`, and `mlr.6A.policy.graph_linkage_rules` were missing; fallbacks to repo config paths were used (per lean dev policy).
+- **Follow-up (non-blocking):** fix S0 sealed_inputs coverage for these packs so the WARNs disappear on future runs.
