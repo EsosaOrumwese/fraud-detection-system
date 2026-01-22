@@ -1419,10 +1419,6 @@ def run_s0(config: EngineConfig, run_id: Optional[str] = None) -> S0GateResult:
         "shape_library_5A",
         "shape_time_grid_policy_5A",
         "scenario_overlay_policy_5A",
-        "merchant_zone_profile_5A",
-        "shape_grid_definition_5A",
-        "class_zone_shape_5A",
-        "merchant_zone_baseline_local_5A",
     ]
     optional_ids = [
         "tz_timetable_cache",
@@ -1439,18 +1435,11 @@ def run_s0(config: EngineConfig, run_id: Optional[str] = None) -> S0GateResult:
     ]
     scenario_partitioned_ids = {
         "scenario_calendar_5A",
-        "shape_grid_definition_5A",
-        "class_zone_shape_5A",
         "class_shape_catalogue_5A",
-        "merchant_zone_baseline_local_5A",
         "class_zone_baseline_local_5A",
         "merchant_zone_baseline_utc_5A",
     }
     required_input_ids = {
-        "merchant_zone_profile_5A",
-        "shape_grid_definition_5A",
-        "class_zone_shape_5A",
-        "merchant_zone_baseline_local_5A",
     }
 
     sealed_rows: list[dict] = []

@@ -2019,14 +2019,31 @@ shape_library_5a:
 scenario_calendar_5a:
 	@run_root="$${SCENARIO_CAL_RUN_ROOT:-$(RUN_ROOT)}"; \
 	manifest="$${SCENARIO_CAL_FINGERPRINT:-}"; \
+	seed="$${SCENARIO_CAL_SEED:-}"; \
+	if [ ! -f "$$run_root/run_receipt.json" ] && [ "$$run_root" = "$(RUNS_ROOT)" ] && [ -n "$(LATEST_RUN_ID)" ]; then \
+		run_root="$(RUNS_ROOT)/$(LATEST_RUN_ID)"; \
+	fi; \
 	if [ -z "$$manifest" ]; then \
 		if [ ! -f "$(SEG3A_RESULT_JSON)" ]; then \
-			echo "Segment 3A summary '$(SEG3A_RESULT_JSON)' not found. Set SCENARIO_CAL_FINGERPRINT or run segment3a first." >&2; \
-			exit 1; \
+			if [ -f "$$run_root/run_receipt.json" ]; then \
+				manifest=$$($(PY) -c "import json; print(json.load(open('$$run_root/run_receipt.json')).get('manifest_fingerprint',''))"); \
+			else \
+				echo "Segment 3A summary '$(SEG3A_RESULT_JSON)' not found and run_receipt.json missing under $$run_root. Set SCENARIO_CAL_FINGERPRINT or run segment3a first." >&2; \
+				exit 1; \
+			fi; \
+		else \
+			manifest=$$($(PY) -c "import json; print(json.load(open('$(SEG3A_RESULT_JSON)'))['manifest_fingerprint'])"); \
 		fi; \
-		manifest=$$($(PY) -c "import json; print(json.load(open('$(SEG3A_RESULT_JSON)'))['manifest_fingerprint'])"); \
 	fi; \
-	zone_alloc_dir="$$run_root/data/layer1/3A/zone_alloc/seed=$(SEED)/manifest_fingerprint=$$manifest"; \
+	if [ -z "$$seed" ]; then \
+		if [ -f "$$run_root/run_receipt.json" ]; then \
+			seed=$$($(PY) -c "import json; print(json.load(open('$$run_root/run_receipt.json')).get('seed',''))"); \
+		fi; \
+	fi; \
+	if [ -z "$$seed" ]; then \
+		seed="$(SEED)"; \
+	fi; \
+	zone_alloc_dir="$$run_root/data/layer1/3A/zone_alloc/seed=$$seed/manifest_fingerprint=$$manifest"; \
 	zone_alloc_path=$$(ls "$$zone_alloc_dir"/part-*.parquet 2>/dev/null | head -n 1); \
 	if [ -z "$$zone_alloc_path" ]; then \
 		echo "zone_alloc parquet not found under $$zone_alloc_dir" >&2; \
@@ -2345,6 +2362,12 @@ segment3b: segment3b-s0 segment3b-s1 segment3b-s2 segment3b-s3 segment3b-s4 segm
 
 segment5a-s0:
 	@echo "Running Segment 5A S0 gate-in"
+	@run_id="$(if $(strip $(SEG5A_S0_RUN_ID)),$(SEG5A_S0_RUN_ID),$(if $(strip $(RUN_ID)),$(RUN_ID),$(LATEST_RUN_ID)))"; \
+	if [ -n "$$run_id" ]; then \
+		$(MAKE) scenario_calendar_5a RUN_ID="$$run_id"; \
+	else \
+		$(MAKE) scenario_calendar_5a; \
+	fi
 	@$(SEG5A_S0_CMD)
 
 segment5a-s1:

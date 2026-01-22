@@ -527,14 +527,18 @@ def run_s2(config: EngineConfig, run_id: Optional[str] = None) -> S2Result:
         sealed_by_id = {row.get("artifact_id"): row for row in sealed_sorted if isinstance(row, dict)}
 
         current_phase = "input_resolution"
-        _resolve_sealed_row(
+        profile_row = _resolve_sealed_row(
             sealed_by_id,
             "merchant_zone_profile_5A",
             manifest_fingerprint,
             {"ROW_LEVEL"},
-            True,
+            False,
             "S2_REQUIRED_INPUT_MISSING",
         )
+        if profile_row is None:
+            logger.warning(
+                "S2: sealed_inputs_5A missing merchant_zone_profile_5A; proceeding with direct path resolution"
+            )
         baseline_policy_row = _resolve_sealed_row(
             sealed_by_id,
             "baseline_intensity_policy_5A",
