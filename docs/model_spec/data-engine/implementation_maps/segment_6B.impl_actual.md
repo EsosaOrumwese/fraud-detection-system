@@ -338,3 +338,175 @@ Segment validation policy fix (decision):
 
 6B.S0 status:
 - `make segment6b-s0` now passes; sealed_inputs and gate receipt emitted for manifest_fingerprint 1cb60481d69b836ee24505ec9a6ec231c8f18523ee9b7dabbd38c0a33bf15765.
+
+### Entry: 2026-01-22 07:37
+
+6B.S1 review + lean implementation plan (pending approval):
+- Problem: Implement 6B.S1 (arrival→entity attachment + sessionisation) with strict contracts but lean/runtime-safe behavior. Specs are heavy on scoring/RNG; we need a pragmatic, deterministic attachment/session model that stays within required invariants and outputs.
+- Contracts source (dev→prod switch): use `ContractSource(config.contracts_root, config.contracts_layout)` (default `model_spec` per `engine.core.config`). This keeps dev reading from `docs/model_spec/...` and allows production by setting `ENGINE_CONTRACTS_LAYOUT=contracts` and `ENGINE_CONTRACTS_ROOT=<repo_root>` without code changes.
+- Alternatives considered:
+  - A) Full spec scoring/priors (multi-feature weights, stochastic boundary law). Accurate but heavy and slow.
+  - B) Deterministic hash-based selection within valid 6A candidate sets (uniform weights + optional home-country bias). Lean and vectorizable; still respects 6A linkage constraints.
+  - C) Row-by-row Python loops for attachment/sessionisation (simpler but slow/ETA risk).
+- Decision (lean path): adopt B with vectorized Polars + deterministic hash → index selection; keep strict invariants but relax heavy scoring features; optionally disable stochastic session boundary if allowed.
+
+Planned mechanics (high-level):
+1) Preconditions/gates:
+   - Validate `s0_gate_receipt_6B` and upstream PASS status.
+   - Load `sealed_inputs_6B` and resolve all required input paths via dataset dictionary + artefact registry (no manual paths).
+2) Input load (per seed/scenario partition):
+   - Load `arrival_events_5B` columns needed for attachment + session key (arrival_seq, merchant_id, ts_utc, channel_group, scenario_id, legal_country_iso if present).
+   - Load 6A bases + links for same seed/manifest/parameter_hash: party_base, account_base, instrument_base, account_instrument_links, device_base, ip_base, device_links, ip_links.
+3) Build candidate indices (vectorized):
+   - Party pools: global list; optional home-country list (if arrival has country field and party_base has country).
+   - Account lists per party; instrument lists per account; device lists per party and per merchant (if available); IP lists per device and per merchant.
+4) Attachment (vectorized, deterministic):
+   - Compute deterministic `u` via hash on stable keys (manifest_fingerprint, parameter_hash, seed, scenario_id, merchant_id, arrival_seq, dimension tag).
+   - Use policy mix (e.g., home vs global) with single `u` per dimension; choose candidate index via `floor(u * n)`; if `n==0` and required → fail fast.
+   - Channel-aware requiredness + device mode per policy (customer vs terminal); fallback rules when candidate list empty (if allowed by policy).
+5) Sessionisation:
+   - Build `session_key_base` from policy fields; group by key, sort by ts_utc+arrival_seq; compute gaps; apply deterministic boundary rules (hard_timeout/hard_break; optionally stochastic ramp if enabled).
+   - Assign session ids deterministically (anchored hash on first arrival in session + key fields) to avoid order dependence.
+   - Build session_index with required fields (session_id, arrival_count, start/end); include optional fields if cheap (party_id/device_id/merchant_id).
+6) Outputs:
+   - Write `s1_arrival_entities_6B` and `s1_session_index_6B` to partitioned Parquet per dictionary paths.
+   - Emit `rng_trace_log` + `rng_audit_log` entries (counts per RNG family and substream label) following layer3 schemas; re-use append/atomic helpers from existing runners.
+7) Logging + monitoring:
+   - Story header log describing objective, gated inputs, outputs.
+   - Per-partition progress logs with elapsed, count/total, rate, ETA for attachments + sessionisation loops.
+   - Log candidate set sizes and fallback usage (narrative counts/gates).
+8) Resumability + determinism:
+   - If outputs exist and match deterministic hashes, skip; otherwise overwrite via tmp+atomic publish.
+   - Ensure stable sort keys and hash inputs to keep deterministic outputs.
+9) Validation/testing:
+   - Schema validate sample rows for outputs.
+   - Cross-check arrival coverage (1:1 with arrivals), session coverage (all session_ids present in index), and FK existence in 6A bases.
+
+Open questions / approval gates:
+- Stochastic boundary: set `sessionisation_policy_6B.stochastic_boundary.enabled=false` for lean determinism, or implement the ramped RNG (1 draw per ambiguous gap)?
+- Party selection: use home-country bias when `arrival_events_5B` exposes `legal_country_iso` (if absent, fall back to global pool only)?
+- Device/IP selection: if merchant-side device/IP links are missing in 6A, is it acceptable to always use party-linked devices/IPs (even for POS/ATM)?
+- Output fields: OK to emit only schema-required columns (plus optional ids), or do you want extra diagnostics (attach scores, rule ids)?
+
+### Entry: 2026-01-22 07:48
+
+6B.S1 implementation decision (approved lean defaults):
+- Adopt deterministic, vectorized attachment + sessionisation path (no per-row Python loops).
+- Stochastic boundary disabled: use only hard_timeout/hard_break rules (no RNG for session splits) to keep runtime predictable.
+- Party selection: use home-country bias only when both arrival country and party country fields exist; otherwise use global pool only.
+- Device/IP: prefer merchant-linked candidates when available for POS/ATM; otherwise fall back to party-linked candidates and log fallback counts. Requiredness enforced; missing candidates → hard failure.
+- Outputs: emit only schema-required fields + optional ids; skip attach scores/rule ids to keep lean.
+- RNG logging: emit aggregate rng_trace_log/rng_audit_log rows (families used + counts), no per-row spam.
+- Proceed to implement S1 runner + CLI + Makefile target; run `make segment6b-s1` until green, logging fixes as they occur.
+
+### Entry: 2026-01-22 08:06
+
+6B.S1 lean re-implementation plan (pre-code, refresh for current session):
+- Problem: implement 6B.S1 from scratch to attach arrivals to entities + sessionise with deterministic, fast kernels that respect contracts but avoid heavy/slow scoring and per-row RNG noise.
+- Alternatives considered:
+  - A) Full spec scoring + per-step Philox draws + stochastic boundaries (high fidelity, high cost).
+  - B) Deterministic hash-based selection within valid 6A candidate sets using vectorized Polars (lean, fast).
+  - C) Python per-row loops (simple but too slow).
+- Decision: use B with guarded relaxations: skip heavy prior scoring, apply minimal eligibility filters, disable stochastic boundary, and log deviations; keep strict coverage and FK invariants.
+
+Inputs/authorities (resolved via sealed_inputs_6B + dictionaries/registries; no manual paths):
+- Control: `s0_gate_receipt_6B`, `sealed_inputs_6B` (schemas.layer3.yaml#/gate/6B/*).
+- Arrivals: `arrival_events_5B` (schemas.5B.yaml s4_arrival_events_5B).
+- Entities: `s1_party_base_6A`, `s2_account_base_6A`, `s3_instrument_base_6A`, `s3_account_instrument_links_6A`,
+  `s4_device_base_6A`, `s4_ip_base_6A`, `s4_device_links_6A`, `s4_ip_links_6A`, plus fraud roles (read-only).
+- Policies: `attachment_policy_6B`, `sessionisation_policy_6B`, `behaviour_config_6B`, `behaviour_prior_pack_6B`,
+  `rng_policy_6B`, `rng_profile_layer3` (use ContractSource for model_spec → contracts switch).
+
+Planned mechanics (stepwise):
+1) Preconditions:
+   - Load run_receipt → run_id, seed, manifest_fingerprint, parameter_hash.
+   - Validate `s0_gate_receipt_6B` + upstream PASS statuses.
+   - Load + validate `sealed_inputs_6B`; ensure required rows exist with status=REQUIRED.
+2) Policy scope:
+   - Respect `behaviour_config_6B.scope_filters.scenario_id_allowlist`; if scenario not allowed → skip partition per degrade_posture.
+3) Candidate index build (deterministic, minimal eligibility):
+   - Accounts: restrict to accounts with ≥1 instrument link; sort by (owner_party_id, account_id); assign per-party index/count.
+   - Devices: restrict to devices with ≥1 IP link; derive per-party device lists from device_links; sort + index.
+   - Parties: eligible if account_count>0 and device_count>0; use global party pool (home-country bias disabled because
+     arrival_events_5B lacks legal_country_iso).
+   - Instruments: per-account list from account_instrument_links; sort + index.
+   - IPs: per-device list from ip_links; sort + index.
+4) Attachment (vectorized, deterministic hash → index):
+   - Compute u01 via Polars hash on stable keys + step tag; map to indices via floor(u * count).
+   - Attach party → account → instrument → device → ip; enforce requiredness; fail fast on missing candidates.
+5) Sessionisation:
+   - Build session_key_base per sessionisation_policy fields; normalise channel_group to ASCII uppercase.
+   - Sort by (session_key_base, ts_utc, arrival_seq); compute gaps; new session on hard_timeout/hard_break.
+   - Stochastic boundary disabled even if policy says enabled (lean relaxation); log this decision.
+   - Compute session_id via sha256(anchor=first arrival in session + domain tag), int.from_bytes(..., "little").
+6) Outputs + RNG:
+   - Write `s1_arrival_entities_6B` (required fields only) and `s1_session_index_6B` (required + optional ids).
+   - Emit rng_audit_log + rng_trace_log with aggregated counts for `rng_event_entity_attach` and `rng_event_session_boundary`
+     (boundary draws expected 0 due to disabled stochastic boundary); counters advanced by blocks=ceil(draws/2).
+7) Resumability:
+   - Use idempotent publish (tmp write + sha256 compare) to skip identical outputs; abort on conflict.
+8) Logging/monitoring:
+   - Story header: objective + gated inputs + outputs.
+   - Per-scenario progress logs with elapsed/count/rate/ETA.
+   - Narrative counts: arrivals_in_scope, eligible_parties, accounts_with_instruments, devices_with_ips, sessions_produced.
+9) Validation/tests:
+   - Ensure arrival coverage 1:1 and session coverage 1:1 (arrival sessions ↔ session_index).
+   - Verify required fields non-null; abort on mismatches; run `make segment6b-s1` until PASS.
+
+Edge cases to capture:
+- arrival_events_5B missing channel_group → fill default from attachment_policy.
+- zero arrivals for scenario → emit empty outputs (consistent with spec default).
+- missing eligible parties/devices/accounts → hard failure with S1_PRECONDITION_* error.
+
+### Entry: 2026-01-22 08:29
+
+6B.S1 implementation kickoff (pre-code, current session):
+- Re-confirmed lean path decisions: deterministic, vectorized attachment/sessionisation; skip heavy priors/scoring; disable stochastic session boundary; enforce requiredness and coverage; log relaxations explicitly.
+- Contract source: continue using `ContractSource(config.contracts_root, config.contracts_layout)` so dev uses `model_spec`, prod can switch to repo-root contracts without code changes (via `ENGINE_CONTRACTS_LAYOUT` / `ENGINE_CONTRACTS_ROOT`).
+- RNG posture (lean): use deterministic hash-based U(0,1) (open interval) for attachment selection; record aggregate draws/events to `rng_trace_log` and `rng_audit_log` without per-row event logs; session boundary draws set to zero (stochastic disabled).
+- Implementation steps (immediate):
+  1) Build `packages/engine/src/engine/layers/l3/seg_6B/s1_attachment_session/runner.py` with: gate checks, sealed_inputs resolution, candidate indices, vectorized attachments, deterministic sessionisation, idempotent outputs, RNG audit/trace writes, and narrative progress logs.
+  2) Add CLI entry `packages/engine/src/engine/cli/s1_attachment_session_6b.py`.
+  3) Update Makefile with `segment6b-s1` target and include in `segment6b`.
+- Invariants to enforce: arrivals 1:1, all entity ids exist in 6A bases/links, session index coverage 1:1, schema-required fields only, deterministic outputs for fixed `(manifest_fingerprint, parameter_hash, seed, scenario_id)`.
+- Potential deviations to log if encountered:
+  - `attachment_policy_6B` references `arrival.legal_country_iso` (not in 5B schema) → global party pool only.
+  - `device_policy` merchant-terminal mode (POS/ATM) not supported by 6A links → party-linked devices only.
+
+### Entry: 2026-01-22 08:47
+
+6B.S1 implementation (coding decisions + outcomes):
+- Implemented runner at `packages/engine/src/engine/layers/l3/seg_6B/s1_attachment_session/runner.py` using deterministic hash-based attachment and vectorized Polars joins; sessionisation via hard_timeout/hard_break only (stochastic boundary disabled by design).
+- Resolved candidate selection with per-entity index tables to avoid duplicate join columns:
+  - Built `account_counts` + `account_index_df`, `instrument_counts` + `instrument_index_df`, `device_counts` + `device_index_df`, `ip_counts` + `ip_index_df` and joined using (party_id/account_id/device_id + index) to guarantee one-to-one selection.
+  - Ensured device candidates are limited to devices with IP links (devices_with_ips) so IP attachment is always feasible (requiredness enforced).
+- Hash selection: used `pl.struct(...).hash(seed)` with open-interval mapping `(hash+0.5)/2^64` to get deterministic U(0,1) for each attachment step; steps keyed by `(manifest_fingerprint, parameter_hash, seed, scenario_id, merchant_id, arrival_seq, step_tag)` for stability.
+- Session IDs: hash derived from `domain_tag + session_key_base + first_arrival_seq + session_start_utc`, mapped into positive id64 range via modulo; session_index only includes schema-allowed fields (no parameter_hash).
+- RNG logs: aggregated `rng_trace_log` rows for `rng_event_entity_attach` and `rng_event_session_boundary` (boundary draws=0), counters set to block counts; `rng_audit_log` emitted once per run. No per-row event logs to keep lean.
+- Added CLI `packages/engine/src/engine/cli/s1_attachment_session_6b.py`, exported `run_s1` in `packages/engine/src/engine/layers/l3/seg_6B/s1_attachment_session/__init__.py`, and wired Makefile `segment6b-s1` + `segment6b` target.
+
+
+### Entry: 2026-01-22 09:15
+
+Corrective notes after S1 run failures (logged after-the-fact; should have been captured before edits):
+- Failure: 6B.S1 aborted on missing artifact registry entry for `s4_ip_links_6A` (ContractError) and later on missing sealed_inputs manifest key `mlr.6A.s4.ip_links`.
+  - Decision: treat as contract omission for 6B; add `s4_ip_links_6A` to 6B dataset dictionary and 6B artefact registry with the same path/schema/manifest_key as 6A.
+  - Files updated: `docs/model_spec/data-engine/layer-3/specs/contracts/6B/dataset_dictionary.layer3.6B.yaml`, `docs/model_spec/data-engine/layer-3/specs/contracts/6B/artefact_registry_6B.yaml`.
+  - Action: delete `runs/<run_id>/data/layer3/6B/s0_gate_receipt` + `sealed_inputs` for this run and rerun `make segment6b-s0` so S0 re-seals inputs with the new entry.
+- Failure: `merchant_id` cast overflow (u64 -> i64) during S1. The 5B schema uses id64 (uint64), so Int64 is incorrect.
+  - Decision: cast `merchant_id` to `pl.UInt64` and keep unsigned when reading arrivals; ensure empty schemas use UInt64 for merchant_id to avoid dtype collisions.
+  - File updated: `packages/engine/src/engine/layers/l3/seg_6B/s1_attachment_session/runner.py`.
+- Failure: S1 crashed after `arrivals_in_scope=116,424,410` (process exit 2816). Root cause is full in-memory read + global sort.
+  - Decision: switch to streaming batch processing for arrivals and relax sessionisation to fixed time buckets to avoid global sort.
+  - Inputs/authorities: `arrival_events_5B` is ordered by scenario_id/merchant_id/ts_utc; use `hard_timeout_seconds` to bucket sessions; keep deterministic attachment via hash.
+  - Algorithm changes:
+    1) Replace `pl.read_parquet` with pyarrow `iter_batches` (batch_rows) per file.
+    2) For each batch: attach party/account/instrument/device/ip via deterministic hash indices; write `s1_arrival_entities_6B` parts directly to tmp.
+    3) Sessionisation: compute `session_key_base` from policy fields, parse `ts_utc` to epoch seconds, bucket by `floor(epoch / hard_timeout_seconds)`; session_id = hash(domain_tag + session_key_base + session_bucket). Ignore hard_break/day-boundary and stochastic boundary.
+    4) Write per-batch session summaries; after all batches, aggregate summaries to build `s1_session_index_6B` (sum count, min/max ts, first ids).
+    5) Publish parts to final output directory using a new helper that clears existing part files.
+  - Performance considerations: bounded memory, batch_rows default 250k (tunable) and progress logs include elapsed/rate/ETA.
+  - Resumability: clears tmp part dirs before run; output directories are cleared per scenario to avoid mixing; still run-id scoped.
+  - Logging: story header retained; per-batch progress via `_ProgressTracker`; warnings for session bucket relaxation.
+  - Files updated: `packages/engine/src/engine/layers/l3/seg_6B/s1_attachment_session/runner.py`, `packages/engine/src/engine/cli/s1_attachment_session_6b.py`, `Makefile` (added `ENGINE_6B_S1_BATCH_ROWS` + `--batch-rows`).
+  - Validation/testing: validate one sample row for arrival_entities + session_index after aggregation; rerun `make segment6b-s1` and observe ETA; if still too high, revisit batch_rows or session_key fields.

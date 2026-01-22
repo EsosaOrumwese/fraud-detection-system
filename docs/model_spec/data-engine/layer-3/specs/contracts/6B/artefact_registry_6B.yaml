@@ -715,6 +715,31 @@ subsegments:
         schema: schemas.6A.yaml#/s4/device_links
         cross_layer: true
         notes: retention_class=core_entity; pii_class=synthetic_customer
+      - name: s4_ip_links_6A
+        path: data/layer3/6A/s4_ip_links_6A/seed={seed}/parameter_hash={parameter_hash}/manifest_fingerprint={manifest_fingerprint}/s4_ip_links_6A.parquet
+        type: dataset
+        category: output
+        semver: 1.0.0
+        version: '{seed}.{manifest_fingerprint}.{parameter_hash}'
+        digest: null
+        manifest_key: mlr.6A.s4.ip_links
+        license: null
+        role: IP-to-device/entity edges for Layer-3 / Segment 6A. Links each ip_id to one
+          or more devices/parties/merchants with a link_role describing the semantics.
+        dependencies:
+        - mlr.6A.s4.ip_base
+        - mlr.6A.s4.device_base
+        - mlr.6A.s1.party_base
+        - mlr.6A.policy.graph_linkage_rules
+        source: internal
+        owner:
+          owner_team: null
+        last_updated: '{iso8601_timestamp}'
+        environment:
+        - runtime
+        schema: schemas.6A.yaml#/s4/ip_links
+        cross_layer: true
+        notes: retention_class=core_entity; pii_class=synthetic_customer
       - name: s5_party_fraud_roles_6A
         path: data/layer3/6A/s5_party_fraud_roles_6A/seed={seed}/parameter_hash={parameter_hash}/manifest_fingerprint={manifest_fingerprint}/s5_party_fraud_roles_6A.parquet
         type: dataset

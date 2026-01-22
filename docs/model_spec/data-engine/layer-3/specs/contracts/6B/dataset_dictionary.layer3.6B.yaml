@@ -574,6 +574,29 @@ reference_data:
     pii_class: synthetic_customer
     retention_class: core_entity
 
+  - id: s4_ip_links_6A
+    owner_layer: 3
+    owner_segment: 6A
+    status: required
+    description: >
+      IP-to-device/entity edges for Layer-3 / Segment 6A. Links each ip_id
+      to one or more devices/parties/merchants with a link_role
+      describing the semantics.
+    version: '{seed}.{manifest_fingerprint}.{parameter_hash}'
+    path: data/layer3/6A/s4_ip_links_6A/seed={seed}/parameter_hash={parameter_hash}/manifest_fingerprint={manifest_fingerprint}/s4_ip_links_6A.parquet
+    partitioning: [seed, manifest_fingerprint, parameter_hash]
+    ordering: [ip_id, device_id, party_id, merchant_id, link_role]
+    schema_ref: schemas.6A.yaml#/s4/ip_links
+    columns_strict: true
+    lineage:
+      produced_by: [ '6A.S4' ]
+      consumed_by:
+        - '6A.S5'
+        - '6B.S0'
+        - '6B.S1'
+    pii_class: synthetic_customer
+    retention_class: core_entity
+
   - id: s5_party_fraud_roles_6A
     owner_layer: 3
     owner_segment: 6A
