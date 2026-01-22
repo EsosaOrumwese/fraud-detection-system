@@ -3276,3 +3276,19 @@ Changes applied (explicit, step-by-step):
 
 Expected effect:
  - 1A S9 now mirrors 1B’s immutability posture and requires explicit archive/removal for reruns.
+
+### Entry: 2026-01-22 21:58
+
+Plan (resolve libm_profile_mismatch after numpy downgrade):
+- Failure: 1A.S0 numeric self-test rejects math_profile_manifest because it pins numpy=2.3.5 (2026-01-11 manifest), while runtime now uses numpy=1.26.4 (to satisfy numba for 5B.S4) and scipy=1.15.3.
+- Decision: create a new dated math_profile manifest (2026-01-22) that matches the current runtime (numpy-1.26.4 + scipy-1.15.3). This keeps determinism explicit while avoiding rollback of numpy.
+- Steps:
+  1) Create reference/governance/math_profile/2026-01-22/math_profile_manifest.json with updated artifacts list and new math_profile_id/version.
+  2) Re-run segment1a-s0 to confirm numeric self-tests pass (libm_profile_ok).
+- Notes: _resolve_registry_path selects latest date-stamped version; new 2026-01-22 manifest will be picked automatically.
+
+### Entry: 2026-01-22 22:00
+
+Result:
+- Added new math_profile manifest at reference/governance/math_profile/2026-01-22/math_profile_manifest.json (numpy-1.26.4 + scipy-1.15.3).
+- Re-ran segment1a-s0; numeric self-tests passed and S0 completed successfully (run_id=581b51640a80dab799c5399a57374616, manifest_fingerprint=53e5f4b3ebb6c692fed11827ff89b0c74611709e714712e83e81027e49f0de4f).
