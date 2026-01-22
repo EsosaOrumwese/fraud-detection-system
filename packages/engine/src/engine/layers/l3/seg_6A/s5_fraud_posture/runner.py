@@ -509,6 +509,98 @@ def _bundle_digest_for_members(bundle_root: Path, members: list[dict]) -> str:
     return hasher.hexdigest()
 
 
+def _existing_bundle_identical(
+    validation_root: Path,
+    report_path: Path,
+    issues_path: Path,
+    index_path: Path,
+    flag_path: Path,
+    tmp_bundle_root: Path,
+    report_rel: Path,
+    issues_rel: Path,
+    index_rel: Path,
+    flag_payload: str | None,
+    expected_digest: str,
+    logger,
+    manifest_fingerprint: str,
+) -> bool:
+    if not index_path.exists():
+        return False
+    try:
+        existing_index = json.loads(index_path.read_text(encoding="utf-8"))
+    except Exception as exc:
+        _abort(
+            "6A.S5.IO_WRITE_CONFLICT",
+            "V-01",
+            "validation_bundle_index_read_failed",
+            {"path": str(index_path), "error": str(exc)},
+            manifest_fingerprint,
+        )
+    existing_entries = existing_index.get("items") or []
+    existing_digest = _bundle_digest_for_members(validation_root, existing_entries)
+    if existing_digest != expected_digest:
+        _abort(
+            "6A.S5.IO_WRITE_CONFLICT",
+            "V-01",
+            "validation_bundle_digest_mismatch",
+            {"expected": expected_digest, "actual": existing_digest},
+            manifest_fingerprint,
+        )
+    if report_path.read_bytes() != (tmp_bundle_root / report_rel).read_bytes():
+        _abort(
+            "6A.S5.IO_WRITE_CONFLICT",
+            "V-01",
+            "validation_report_mismatch",
+            {"path": str(report_path)},
+            manifest_fingerprint,
+        )
+    if issues_path.read_bytes() != (tmp_bundle_root / issues_rel).read_bytes():
+        _abort(
+            "6A.S5.IO_WRITE_CONFLICT",
+            "V-01",
+            "validation_issue_table_mismatch",
+            {"path": str(issues_path)},
+            manifest_fingerprint,
+        )
+    if index_path.read_bytes() != (tmp_bundle_root / index_rel).read_bytes():
+        _abort(
+            "6A.S5.IO_WRITE_CONFLICT",
+            "V-01",
+            "validation_index_mismatch",
+            {"path": str(index_path)},
+            manifest_fingerprint,
+        )
+    if flag_payload is None:
+        if flag_path.exists():
+            _abort(
+                "6A.S5.IO_WRITE_CONFLICT",
+                "V-01",
+                "validation_flag_unexpected",
+                {"path": str(flag_path)},
+                manifest_fingerprint,
+            )
+    else:
+        if not flag_path.exists():
+            _abort(
+                "6A.S5.IO_WRITE_CONFLICT",
+                "V-01",
+                "validation_flag_missing",
+                {"path": str(flag_path)},
+                manifest_fingerprint,
+            )
+        existing_flag = flag_path.read_text(encoding="ascii").strip()
+        if existing_flag != flag_payload:
+            _abort(
+                "6A.S5.IO_WRITE_CONFLICT",
+                "V-01",
+                "validation_flag_mismatch",
+                {"expected": flag_payload, "actual": existing_flag},
+                manifest_fingerprint,
+            )
+    logger.info("S5: validation bundle already exists and is identical; skipping publish.")
+    return True
+
+
 def _hash_to_unit(exprs: list[pl.Expr], seed: int) -> pl.Expr:
     if not exprs:
         return pl.lit(0.0)
@@ -1871,48 +1963,74 @@ def run_s5(config: EngineConfig, run_id: Optional[str] = None) -> S5Result:
 
     emit_flag = overall_status == "PASS"
     flag_file_path = None
+    flag_payload = None
     if emit_flag:
         passed_flag_payload = f"sha256_hex = {bundle_digest}"
+        flag_payload = passed_flag_payload
         flag_file_path = tmp_bundle_root / flag_rel
         flag_file_path.parent.mkdir(parents=True, exist_ok=True)
         flag_file_path.write_text(passed_flag_payload + "\n", encoding="utf-8")
 
-    _publish_json_file_idempotent(
-        tmp_bundle_root / report_rel,
+    if report_path.exists() or issues_path.exists() or flag_path.exists():
+        if not index_path.exists():
+            _abort(
+                "6A.S5.IO_WRITE_CONFLICT",
+                "V-01",
+                "validation_bundle_partial_exists",
+                {"report_path": str(report_path), "issues_path": str(issues_path), "flag_path": str(flag_path)},
+                manifest_fingerprint,
+            )
+    if not _existing_bundle_identical(
+        validation_root,
         report_path,
-        logger,
-        "s5_validation_report_6A",
-        "6A.S5.IO_WRITE_CONFLICT",
-        "6A.S5.IO_WRITE_FAILED",
-    )
-    _publish_parquet_file_idempotent(
-        tmp_bundle_root / issues_rel,
         issues_path,
-        logger,
-        "s5_issue_table_6A",
-        "6A.S5.IO_WRITE_CONFLICT",
-        "6A.S5.IO_WRITE_FAILED",
-    )
-    _publish_json_file_idempotent(
-        tmp_bundle_root / index_rel,
         index_path,
+        flag_path,
+        tmp_bundle_root,
+        report_rel,
+        issues_rel,
+        index_rel,
+        flag_payload,
+        bundle_digest,
         logger,
-        "validation_bundle_index_6A",
-        "6A.S5.IO_WRITE_CONFLICT",
-        "6A.S5.IO_WRITE_FAILED",
-    )
-    if emit_flag and flag_file_path is not None:
+        manifest_fingerprint,
+    ):
         _publish_json_file_idempotent(
-            flag_file_path,
-            flag_path,
+            tmp_bundle_root / report_rel,
+            report_path,
             logger,
-            "validation_passed_flag_6A",
+            "s5_validation_report_6A",
             "6A.S5.IO_WRITE_CONFLICT",
             "6A.S5.IO_WRITE_FAILED",
         )
-    else:
-        logger.info("S5: overall_status=%s; passed flag not emitted", overall_status)
-    timer.info("S5: validation bundle published (digest=%s)", bundle_digest)
+        _publish_parquet_file_idempotent(
+            tmp_bundle_root / issues_rel,
+            issues_path,
+            logger,
+            "s5_issue_table_6A",
+            "6A.S5.IO_WRITE_CONFLICT",
+            "6A.S5.IO_WRITE_FAILED",
+        )
+        _publish_json_file_idempotent(
+            tmp_bundle_root / index_rel,
+            index_path,
+            logger,
+            "validation_bundle_index_6A",
+            "6A.S5.IO_WRITE_CONFLICT",
+            "6A.S5.IO_WRITE_FAILED",
+        )
+        if emit_flag and flag_file_path is not None:
+            _publish_json_file_idempotent(
+                flag_file_path,
+                flag_path,
+                logger,
+                "validation_passed_flag_6A",
+                "6A.S5.IO_WRITE_CONFLICT",
+                "6A.S5.IO_WRITE_FAILED",
+            )
+        else:
+            logger.info("S5: overall_status=%s; passed flag not emitted", overall_status)
+        timer.info("S5: validation bundle published (digest=%s)", bundle_digest)
 
     rng_audit_entry = {
         "ts_utc": utc_now_rfc3339_micro(),
@@ -1930,6 +2048,24 @@ def run_s5(config: EngineConfig, run_id: Optional[str] = None) -> S5Result:
 
     rng_trace_path = _select_dataset_path(dictionary_6a, "rng_trace_log", run_paths, config.external_roots, tokens)
     rng_trace_path.parent.mkdir(parents=True, exist_ok=True)
+    existing_substreams = set()
+    if rng_trace_path.exists():
+        with rng_trace_path.open("r", encoding="utf-8") as handle:
+            for line in handle:
+                if not line.strip():
+                    continue
+                try:
+                    payload = json.loads(line)
+                except json.JSONDecodeError:
+                    continue
+                if (
+                    payload.get("run_id") == run_id_value
+                    and payload.get("seed") == int(seed)
+                    and payload.get("module") == "6A.S5"
+                ):
+                    substream = payload.get("substream_label")
+                    if substream:
+                        existing_substreams.add(substream)
     trace_rows = [
         {
             "ts_utc": utc_now_rfc3339_micro(),
@@ -1953,11 +2089,15 @@ def run_s5(config: EngineConfig, run_id: Optional[str] = None) -> S5Result:
             ("fraud_role_sampling_ip", ip_total),
         )
     ]
-    with rng_trace_path.open("a", encoding="utf-8") as handle:
-        for row in trace_rows:
-            handle.write(json.dumps(row, ensure_ascii=True, sort_keys=True))
-            handle.write("\n")
-    logger.info("S5: appended rng_trace_log rows for fraud-role sampling")
+    trace_rows = [row for row in trace_rows if row.get("substream_label") not in existing_substreams]
+    if trace_rows:
+        with rng_trace_path.open("a", encoding="utf-8") as handle:
+            for row in trace_rows:
+                handle.write(json.dumps(row, ensure_ascii=True, sort_keys=True))
+                handle.write("\n")
+        logger.info("S5: appended rng_trace_log rows for fraud-role sampling")
+    else:
+        logger.info("S5: rng_trace_log already contains fraud-role sampling rows; skipping append")
 
     rng_event_map = {
         "rng_event_fraud_role_sampling_party": party_total,
@@ -1986,7 +2126,32 @@ def run_s5(config: EngineConfig, run_id: Optional[str] = None) -> S5Result:
             "blocks": 0,
             "context": {"method": "deterministic_hash", "rows": int(draws)},
         }
-        tmp_event_path.write_text(json.dumps(payload, ensure_ascii=True, sort_keys=True) + "\n", encoding="utf-8")
+        payload_text = json.dumps(payload, ensure_ascii=True, sort_keys=True) + "\n"
+        if event_path.exists():
+            try:
+                existing_payload = json.loads(event_path.read_text(encoding="utf-8").strip())
+            except Exception as exc:
+                _abort(
+                    "6A.S5.IO_WRITE_CONFLICT",
+                    "V-01",
+                    "rng_event_read_failed",
+                    {"path": str(event_path), "error": str(exc)},
+                    manifest_fingerprint,
+                )
+            existing_payload.pop("ts_utc", None)
+            compare_payload = dict(payload)
+            compare_payload.pop("ts_utc", None)
+            if existing_payload == compare_payload:
+                logger.info("S5: %s already exists and is identical; skipping publish.", dataset_id)
+                continue
+            _abort(
+                "6A.S5.IO_WRITE_CONFLICT",
+                "V-01",
+                f"{dataset_id} already exists",
+                {"path": str(event_path)},
+                manifest_fingerprint,
+            )
+        tmp_event_path.write_text(payload_text, encoding="utf-8")
         _publish_jsonl_file_idempotent(
             tmp_event_path,
             event_path,

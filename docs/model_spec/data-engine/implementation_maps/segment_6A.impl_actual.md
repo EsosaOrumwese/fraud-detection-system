@@ -1037,3 +1037,26 @@ Immediate implementation steps:
 - **Implemented:** empty-issues metrics column now uses `pl.Struct([pl.Field("placeholder", pl.Utf8)])` to allow Parquet writes.
 - **Run hygiene:** removed prior validation bundle and fraud_role_sampling RNG event outputs for the run to avoid IO_WRITE_CONFLICT on re-run.
 - **Result:** `make segment6a-s5` completed successfully; validation bundle published and `_passed.flag` emitted at `runs/local_full_run-5/d61f08e2e45ef1bc28884034de4c1b68/data/layer3/6A/validation/manifest_fingerprint=1cb60481d69b836ee24505ec9a6ec231c8f18523ee9b7dabbd38c0a33bf15765/_passed.flag`.
+
+### Entry: 2026-01-22 05:48
+
+6A.S5 rerun guard implementation (bundle + RNG):
+- **Decision:** mirror other validation bundle states by skipping publish when an identical bundle already exists; treat partial bundles (report/issues/flag without index) as conflicts.
+- **Decision:** skip fraud-role RNG event writes when the event file already exists with identical payload; otherwise raise IO_WRITE_CONFLICT to preserve determinism.
+- **Decision:** avoid duplicate rng_trace_log rows by detecting existing substreams for the same run_id/seed/module.
+- **Implementation:** added `_existing_bundle_identical` helper and integrated it into S5 bundle publish flow; added rng_trace de-duplication and RNG event skip-if-identical in `packages/engine/src/engine/layers/l3/seg_6A/s5_fraud_posture/runner.py`.
+- **Next step:** rerun `make segment6a-s5` to confirm no conflicts on rerun with existing bundle + RNG artifacts.
+
+### Entry: 2026-01-22 05:50
+
+6A.S5 RNG idempotency refinement (stable comparison):
+- **Problem:** rerun still failed on RNG event IO_WRITE_CONFLICT because `ts_utc` changes made payloads differ byte-for-byte.
+- **Decision:** treat RNG event payloads as identical if all stable fields match, ignoring `ts_utc`.
+- **Implementation:** parse existing JSONL payload, drop `ts_utc` from both existing and new payload before comparison; skip publish if equal, otherwise conflict.
+- **Files touched:** `packages/engine/src/engine/layers/l3/seg_6A/s5_fraud_posture/runner.py`.
+
+### Entry: 2026-01-22 05:50
+
+6A.S5 rerun verification (bundle/RNG reuse):
+- **Run:** `make segment6a-s5` with existing validation bundle + RNG artifacts present.
+- **Outcome:** bundle publish skipped as identical, rng_trace append skipped, RNG event publishes skipped as identical, and S5 completed cleanly.
