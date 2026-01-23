@@ -2,8 +2,8 @@
   "dataset_id": "virtual_settlement_coords",
   "coordinate_batch": "2026-01-03",
   "inputs": {
-    "merchant_snapshot": "reference\\layer1\\transaction_schema_merchant_ids\\2026-01-03\\transaction_schema_merchant_ids.parquet",
-    "pelias_cached_sqlite": "artefacts\\geocode\\pelias_cached.sqlite"
+    "merchant_snapshot": "reference/layer1/transaction_schema_merchant_ids/2026-01-03/transaction_schema_merchant_ids.parquet",
+    "pelias_cached_sqlite": "artefacts/geocode/pelias_cached.sqlite"
   },
   "algorithm": {
     "bucket_ranges": [
