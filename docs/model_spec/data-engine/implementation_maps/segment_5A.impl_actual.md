@@ -3382,3 +3382,137 @@ Plan (before change):
    - Use fresh run_id or delete 5A S0 outputs for the active run_id.
 7) **Validation / testing**
    - Re-run segment5a-s0 then segment5a-s3 for the active run_id and confirm S3 passes.
+
+---
+
+### Entry: 2026-01-23 11:23
+
+Design element: 5A.S1 demand-scale guardrail revert + soft-cap compression.
+Summary: Arrival volume doubled (~2.21x) after raising demand_scale_policy_5A and baseline_intensity_policy_5A caps from 5,000,000 to 10,000,000. Runtime for 5B.S4 and 6B.S1 regressed to ~2 hours. We need to restore previous runtime while avoiding hard failures when occasional merchants exceed the cap.
+
+Decision path and options considered:
+1) **Keep 10,000,000 caps and optimize downstream** (parallelism/IO). Rejected: volume itself drives run time; better to constrain volume upstream.
+2) **Revert caps to 5,000,000** and accept hard-fail on rare spikes. Rejected: S1 previously failed when weekly_volume_expected slightly exceeded the cap (e.g., ~6.05M).
+3) **Revert caps to 5,000,000 + add soft-cap compression** in S1 to prevent hard-fail while suppressing tail spikes. Accepted: preserves baseline runtime envelope and keeps weekly_volume_expected finite + deterministic while still honoring the cap intent.
+
+Decision:
+- Implement a deterministic soft-cap in 5A.S1 demand scale: if weekly_volume_expected exceeds max_weekly_volume_expected, compress the excess linearly with a configurable ratio and optional hard multiplier ceiling.
+- Revert max_weekly_volume_expected to 5,000,000 in both demand_scale_policy_5A and baseline_intensity_policy_5A.
+- Add policy fields to control the soft-cap behavior (ratio + hard multiplier), and extend the schema/authoring guide accordingly.
+
+Planned steps (exact, auditable):
+1) **Contracts/schema update**
+   - Update `docs/model_spec/data-engine/layer-2/specs/contracts/5A/schemas.5A.yaml` under
+     `policy/demand_scale_policy_5A/realism_targets` to allow optional fields:
+     `soft_cap_ratio` (0..1) and `soft_cap_multiplier` (>=1).
+2) **Policy changes**
+   - `config/layer2/5A/policy/demand_scale_policy_5A.v1.yaml`:
+     - set `max_weekly_volume_expected: 5000000`
+     - add `soft_cap_ratio: 0.15`
+     - add `soft_cap_multiplier: 1.5`
+   - `config/layer2/5A/policy/baseline_intensity_policy_5A.v1.yaml`:
+     - set `hard_limits.max_weekly_volume_expected: 5000000`
+3) **S1 algorithm change**
+   - In `packages/engine/src/engine/layers/l2/seg_5A/s1_demand_classification/runner.py`,
+     compute weekly_volume_expected as before, then if it exceeds the cap:
+       - weekly = cap + (weekly - cap) * soft_cap_ratio
+       - weekly = min(weekly, cap * soft_cap_multiplier)
+     - Recompute scale_factor based on the post-cap weekly value.
+     - Collect stats: count clipped, max raw, max final, total reduction.
+     - Log a narrative summary of soft-cap activity once per run.
+4) **Docs**
+   - Update `docs/model_spec/data-engine/layer-2/specs/data-intake/5A/demand_scale_policy_5A_authoring-guide.md`
+     example to reflect 5,000,000 cap + soft-cap fields.
+5) **Reseal / validation**
+   - Rerun `make segment5a-s0` to reseal inputs (policy hash changes).
+   - Rerun `make segment5a-s1` and confirm the soft-cap log appears and no scale_exceeds_max failure occurs.
+
+Inputs / authorities:
+- Run logs: 5B.S4 counts show arrivals_total jump (151,123,792 → 334,204,425).
+- Policy files (5A demand_scale + baseline_intensity).
+- Contract schema `schemas.5A.yaml`.
+
+Invariants to enforce:
+- weekly_volume_expected remains finite, non-negative, and deterministic.
+- Soft-cap only applies when weekly > max_weekly_volume_expected.
+- Cap parameters are validated (ratio in [0,1], multiplier >=1).
+
+Logging points:
+- Emit a single S1 log summarizing soft-cap usage:
+  rows clipped / total, max raw, max final, total reduction, cap + ratio + multiplier.
+
+Resumability hooks:
+- No new output shape; only policy + S1 logic changed.
+- Requires resealing S0 due to policy hash change.
+
+Performance considerations:
+- Soft-cap avoids runaway arrival volume and restores earlier runtime envelope.
+
+Validation/testing:
+- Rerun `segment5a-s0` and `segment5a-s1` on the active run_id.
+- Verify downstream 5B.S4 arrival counts shrink to near the previous baseline.
+
+---
+
+### Entry: 2026-01-23 11:30
+
+Implementation update: soft-cap compression + policy cap revert for 5A.S1/S3.
+
+What changed (stepwise):
+1) Updated demand-scale policy schema to allow soft-cap controls:
+   - `docs/model_spec/data-engine/layer-2/specs/contracts/5A/schemas.5A.yaml`
+     now permits `soft_cap_ratio` and `soft_cap_multiplier` under
+     `policy/demand_scale_policy_5A/realism_targets`.
+2) Reverted policy caps and added soft-cap settings:
+   - `config/layer2/5A/policy/demand_scale_policy_5A.v1.yaml`:
+     `max_weekly_volume_expected` back to 5,000,000, plus
+     `soft_cap_ratio: 0.15` and `soft_cap_multiplier: 1.5`.
+   - `config/layer2/5A/policy/baseline_intensity_policy_5A.v1.yaml`:
+     `hard_limits.max_weekly_volume_expected` back to 5,000,000.
+3) Added soft-cap logic in 5A.S1:
+   - `packages/engine/src/engine/layers/l2/seg_5A/s1_demand_classification/runner.py`
+     now compresses weekly_volume_expected when it exceeds the cap:
+       `weekly = cap + (weekly-cap)*soft_cap_ratio`, then `min` with
+       `cap*soft_cap_multiplier`.
+   - Emits a narrative summary log (rows clipped, max raw/final, total
+     reduction, cap/ratio/multiplier) and records these stats in `counts` for
+     the run report.
+4) Updated the authoring guide example to reflect the 5,000,000 cap and
+   soft-cap fields:
+   - `docs/model_spec/data-engine/layer-2/specs/data-intake/5A/demand_scale_policy_5A_authoring-guide.md`.
+
+Notes / rationale:
+- This keeps weekly_volume_expected deterministic and bounded while avoiding
+  hard-fail spikes; the cap remains explicit but the tail is smoothed.
+- Downstream run time should return close to the prior baseline due to reduced
+  arrivals_total.
+
+Next steps:
+- Rerun `segment5a-s0` (policy hash change) and `segment5a-s1` for the active
+  run_id, then check 5B.S4 arrival totals vs prior baseline.
+
+---
+
+### Entry: 2026-01-23 11:34
+
+Corrective adjustment: align soft-cap hard ceiling with baseline_intensity cap.
+
+Issue noticed:
+- The initial soft-cap plan used `soft_cap_multiplier: 1.5`, which permits
+  weekly_volume_expected to exceed 5,000,000. That would immediately trip
+  5A.S3’s hard limit (now reverted to 5,000,000) and reintroduce S3 failures.
+
+Decision:
+- Set `soft_cap_multiplier` to 1.0 so the soft-cap compression never exceeds
+  the 5,000,000 hard cap. This restores the previous runtime envelope and
+  keeps S3 aligned without raising its guardrail.
+
+Change applied:
+- `config/layer2/5A/policy/demand_scale_policy_5A.v1.yaml`:
+  `soft_cap_multiplier: 1.0`.
+- Updated the authoring guide example to match.
+
+Future option:
+- If we need headroom above 5,000,000, raise both
+  `soft_cap_multiplier` and `baseline_intensity_policy_5A.hard_limits.max_weekly_volume_expected`
+  together (and accept the runtime trade-off).

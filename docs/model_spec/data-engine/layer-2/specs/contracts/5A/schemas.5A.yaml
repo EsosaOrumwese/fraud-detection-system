@@ -600,6 +600,8 @@ policy:
           p99_p50_ratio_min: { type: number, minimum: 0 }
           max_class_volume_share: { type: number, minimum: 0 }
           max_weekly_volume_expected: { type: number, exclusiveMinimum: 0 }
+          soft_cap_ratio: { type: number, minimum: 0, maximum: 1 }
+          soft_cap_multiplier: { type: number, minimum: 1 }
 
   baseline_intensity_policy_5A:
     type: object

@@ -203,6 +203,19 @@ Each entry:
 `low_volume_flag = (weekly_volume_expected < low_volume_weekly_lt)`
 `virtual_preferred_flag = (virtual_mode != NON_VIRTUAL)` (or `false` if no virtual feature)
 
+### 6.3 `realism_targets` (MUST)
+
+Required:
+* `target_mean_per_site_weekly`
+* `mean_per_site_bounds`
+* `p99_p50_ratio_min`
+* `max_class_volume_share`
+* `max_weekly_volume_expected`
+
+Optional soft-cap controls (recommended to avoid hard-fail spikes):
+* `soft_cap_ratio` (0..1): compresses the excess above `max_weekly_volume_expected`.
+* `soft_cap_multiplier` (>=1): hard ceiling as a multiple of the cap.
+
 ---
 
 ## 7) Deterministic authoring algorithm (Codex-no-input)
@@ -385,7 +398,9 @@ realism_targets:
   mean_per_site_bounds: [150, 900]
   p99_p50_ratio_min: 6
   max_class_volume_share: 0.60
-  max_weekly_volume_expected: 10000000
+  max_weekly_volume_expected: 5000000
+  soft_cap_ratio: 0.15
+  soft_cap_multiplier: 1.0
 ```
 
 Codex MUST replace `global_multiplier` after running the deterministic calibration step (§7D). No timestamps.

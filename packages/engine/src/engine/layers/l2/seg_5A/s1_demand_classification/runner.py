@@ -640,6 +640,20 @@ def run_s1(config: EngineConfig, run_id: Optional[str] = None) -> S1Result:
         brand_size_exponent = float(scale_policy.get("brand_size_exponent") or 0.0)
         low_volume_threshold = float(thresholds.get("low_volume_weekly_lt") or 0.0)
         max_weekly_volume = realism_targets.get("max_weekly_volume_expected")
+        soft_cap_ratio = float(realism_targets.get("soft_cap_ratio") or 0.15)
+        soft_cap_multiplier = float(realism_targets.get("soft_cap_multiplier") or 1.5)
+        if soft_cap_ratio < 0.0 or soft_cap_ratio > 1.0:
+            logger.warning(
+                "S1: soft_cap_ratio out of bounds; clamping to [0,1] (value=%.4f)",
+                soft_cap_ratio,
+            )
+            soft_cap_ratio = min(max(soft_cap_ratio, 0.0), 1.0)
+        if soft_cap_multiplier < 1.0:
+            logger.warning(
+                "S1: soft_cap_multiplier < 1; clamping to 1.0 (value=%.4f)",
+                soft_cap_multiplier,
+            )
+            soft_cap_multiplier = 1.0
 
         current_phase = "domain_build"
         zone_alloc_entry = find_dataset_entry(dictionary_5a, "zone_alloc").entry
@@ -785,6 +799,10 @@ def run_s1(config: EngineConfig, run_id: Optional[str] = None) -> S1Result:
         high_variability_flags: list[bool] = []
         low_volume_flags: list[bool] = []
         virtual_preferred_flags: list[bool] = []
+        soft_cap_rows = 0
+        soft_cap_max_raw = 0.0
+        soft_cap_max_final = 0.0
+        soft_cap_total_reduction = 0.0
 
         for idx in range(total_rows):
             tracker.update(1)
@@ -869,7 +887,6 @@ def run_s1(config: EngineConfig, run_id: Optional[str] = None) -> S1Result:
 
             if zone_site_count <= 0:
                 weekly = 0.0
-                scale_factor = 0.0
             else:
                 weekly = (
                     global_multiplier
@@ -880,7 +897,6 @@ def run_s1(config: EngineConfig, run_id: Optional[str] = None) -> S1Result:
                     * virtual_mult
                     * channel_mult
                 )
-                scale_factor = weekly / (zone_site_count * ref_per_site) if ref_per_site > 0 else 0.0
 
             if weekly < 0 or math.isnan(weekly) or math.isinf(weekly):
                 _abort(
@@ -890,14 +906,25 @@ def run_s1(config: EngineConfig, run_id: Optional[str] = None) -> S1Result:
                     {"merchant_id": merchant_id, "weekly_volume_expected": weekly},
                     manifest_fingerprint,
                 )
-            if max_weekly_volume is not None and weekly > float(max_weekly_volume):
-                _abort(
-                    "S1_SCALE_ASSIGNMENT_FAILED",
-                    "V-08",
-                    "scale_exceeds_max",
-                    {"merchant_id": merchant_id, "weekly_volume_expected": weekly},
-                    manifest_fingerprint,
-                )
+            if max_weekly_volume is not None:
+                cap = float(max_weekly_volume)
+                if cap > 0 and weekly > cap:
+                    raw_weekly = weekly
+                    softened = cap + (weekly - cap) * soft_cap_ratio
+                    hard_cap = cap * soft_cap_multiplier
+                    if hard_cap < cap:
+                        hard_cap = cap
+                    weekly = min(softened, hard_cap)
+                    soft_cap_rows += 1
+                    soft_cap_max_raw = max(soft_cap_max_raw, raw_weekly)
+                    soft_cap_max_final = max(soft_cap_max_final, weekly)
+                    soft_cap_total_reduction += max(raw_weekly - weekly, 0.0)
+
+            scale_factor = (
+                weekly / (zone_site_count * ref_per_site)
+                if ref_per_site > 0 and zone_site_count > 0
+                else 0.0
+            )
 
             demand_classes.append(demand_class)
             demand_subclasses.append(demand_subclass)
@@ -910,6 +937,25 @@ def run_s1(config: EngineConfig, run_id: Optional[str] = None) -> S1Result:
             virtual_preferred_flags.append(virtual_mode != "NON_VIRTUAL")
 
         counts["classes_total"] = len(set(demand_classes))
+        counts["soft_cap_rows"] = soft_cap_rows
+        counts["soft_cap_ratio"] = soft_cap_ratio
+        counts["soft_cap_multiplier"] = soft_cap_multiplier
+        counts["soft_cap_max_raw"] = soft_cap_max_raw
+        counts["soft_cap_max_final"] = soft_cap_max_final
+        counts["soft_cap_total_reduction"] = soft_cap_total_reduction
+        if max_weekly_volume is not None and soft_cap_rows:
+            logger.info(
+                "S1: soft-cap applied to weekly_volume_expected "
+                "(cap=%.2f ratio=%.2f hard_mult=%.2f rows_clipped=%d/%d max_raw=%.2f max_final=%.2f total_reduction=%.2f)",
+                float(max_weekly_volume),
+                soft_cap_ratio,
+                soft_cap_multiplier,
+                soft_cap_rows,
+                total_rows,
+                soft_cap_max_raw,
+                soft_cap_max_final,
+                soft_cap_total_reduction,
+            )
 
         profile_df = (
             pl.DataFrame(
