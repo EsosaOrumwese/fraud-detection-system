@@ -1,6 +1,6 @@
 # Closed-World Enterprise Fraud Platform — Concept Overview
 
-> **Status:** Data Engine specs sealed; implementation phase next.  
+> **Status:** Data Engine specs sealed; implementation complete; final full-run validation in progress.  
 > **Mission:** Build a bank-grade, closed-world fraud platform. All data (train/test/stream/labels) comes **only** from the **Data Engine**. No third-party enrichment. Everything is governed by contracts, lineage, validation gates, and reproducible runs.
 > *Refer to `docs/references/closed-world-synthetic-data-engine-with-realism-conceptual-design.md` for more information*
 
@@ -10,32 +10,39 @@
 - **Closed world:** the Data Engine is the single source of truth.  
 - **Contracts-first:** JSON-Schema is the authority; consumers must pass validation (**no PASS → no read**).  
 - **Reproducible:** every run is identified by `{ seed, parameter_hash, manifest_fingerprint }`.  
+- **Black-box interface:** platform components integrate via `docs/model_spec/data-engine/interface_pack/` (catalogue + gate map + boundary schemas).  
 - **Two feature planes:** online (low-latency, freshness SLOs) and offline (training/replay) with **identical transforms**.  
 - **Decision fabric:** guardrails → primary ML → optional 2nd stage; returns **ACTION + reasons + provenance** with a **degrade ladder** to keep latency SLOs.  
 - **Auditability:** immutable decision log + label store; deterministic replay/DR from lineage.
 
-### Current build status (2025-11-27)
+### Current build status (2026-01-23)
 | Segment | States | Status | Notes |
 |---------|--------|--------|-------|
-| 1A | S0-S9 | **Pending** | Authority surface for downstream segments |
-| 1B | S0-S9 | **Pending** | Production-ready Layer-1 world realism |
-| 2A | S0-S5 | **Pending** | Gate, TZ pipeline, timetable, legality, bundle |
-| 2B | S0-S8 | **Pending** | Alias build, router core, audits, PASS bundle |
-| 3A | S0-S7 | **Pending** | Layer-1 cross-zone merchants; PASS bundle and `_passed.flag_3A` emitted |
-| 3B | S0-S5 | **Pending** | Layer-1 virtual merchants & CDN; PASS bundle and `_passed.flag_3B` emitted |
-| 5A | S0-S5 | **Pending** | Layer-2 arrival surfaces & calendar |
-| 5B | S0-S5 | **Pending** | Layer-2 arrival realisation (LGCP + routing) |
-| 6A | S0-S5 | **Pending** | Layer-3 entity & product world |
-| 6B | S0-S5 | **Pending** | Layer-3 behaviour & fraud cascades |
+| 1A | S0-S9 | **Implemented** | Authority surface for downstream segments |
+| 1B | S0-S9 | **Implemented** | Production-ready Layer-1 world realism |
+| 2A | S0-S5 | **Implemented** | Gate, TZ pipeline, timetable, legality, bundle |
+| 2B | S0-S8 | **Implemented** | Alias build, router core, audits, PASS bundle |
+| 3A | S0-S7 | **Implemented** | Layer-1 cross-zone merchants; PASS bundle and `_passed.flag_3A` emitted |
+| 3B | S0-S5 | **Implemented** | Layer-1 virtual merchants & CDN; PASS bundle and `_passed.flag_3B` emitted |
+| 5A | S0-S5 | **Implemented** | Layer-2 arrival surfaces & calendar |
+| 5B | S0-S5 | **Implemented** | Layer-2 arrival realisation (LGCP + routing) |
+| 6A | S0-S5 | **Implemented** | Layer-3 entity & product world |
+| 6B | S0-S5 | **Implemented** | Layer-3 behaviour & fraud cascades |
 
-Implementation sequence (next): Layer-1 is first (1A-3B). Next build frontier is Layer-2: 5A followed by 5B (segments remain locked until explicitly opened).
+Current focus: full end-to-end validation run across 1A.S0 → 6B.S5.
 
 ### Spec sources (repo layout)
 - **Layer-1** - `docs/model_spec/data-engine/layer-1/.` holds all Layer-1 narratives, contracts, and state-flow docs (Segments 1A-3B) - **sealed**.
-- **Layer-2** - `docs/model_spec/data-engine/layer-2/.` mirrors the same structure for Segments 5A/5B - **specs sealed; implementation next**.
-- **Layer-3** - `docs/model_spec/data-engine/layer-3/.` carries Segments 6A/6B - **specs sealed; implementation next**.
+- **Layer-2** - `docs/model_spec/data-engine/layer-2/.` mirrors the same structure for Segments 5A/5B - **sealed**.
+- **Layer-3** - `docs/model_spec/data-engine/layer-3/.` carries Segments 6A/6B - **sealed**.
 
 All layers reference upstream authorities explicitly (via schemas, dataset dictionaries, and artefact registries); no ad-hoc paths.
+
+### Black-box integration (platform-facing)
+Use the interface pack (no segment/state internals):
+- `docs/model_spec/data-engine/interface_pack/data_engine_interface.md`
+- `docs/model_spec/data-engine/interface_pack/engine_outputs.catalogue.yaml`
+- `docs/model_spec/data-engine/interface_pack/engine_gates.map.yaml`
 
 ---
 
