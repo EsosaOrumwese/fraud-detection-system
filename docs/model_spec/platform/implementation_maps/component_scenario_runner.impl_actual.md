@@ -171,3 +171,79 @@ Updated `config/platform/sr/policy_v0.yaml` content_digest after editing the fil
 Keep policy_rev non-empty for provenance; digest verification is deferred until a formal policy artifact pipeline exists.
 
 ---
+## Entry: 2026-01-23 22:08:08 — SR production‑ready roadmap (design intent + execution plan)
+
+### Purpose
+Lock a production‑grade execution roadmap for Scenario Runner (SR) that follows the design intent but is not constrained by any single doc. This entry is the canonical plan to prevent drift as we scale from v0 skeleton to production‑ready SR.
+
+### Design intent (non‑negotiable outcomes)
+SR must:
+- be the **run readiness authority** and only publisher of READY for a run.
+- publish the **join surface** (`run_facts_view`) that is the single downstream entrypoint.
+- enforce **no‑PASS‑no‑read** by verifying required HashGates before READY.
+- remain **idempotent** and correct under at‑least‑once and duplicate submissions.
+- make **provenance first‑class** (pins + policy_rev + evidence refs everywhere).
+- be **fail‑closed** (missing/unknown gate evidence → WAITING/FAIL/QUARANTINE, never READY).
+
+### Production roadmap (phased, explicit)
+
+**Phase 1 — Contracts + Truth Surfaces (stabilize the meaning)**
+- Define canonical schemas for:
+  - RunRequest (ingress), RunPlan (intended actions), RunRecord (append‑only ledger), RunStatus (monotonic snapshot), RunFactsView (join surface), RunReadySignal (control bus trigger).
+- Validate schemas at N1 ingress and at N6 commit boundaries.
+- Canonicalize pins and scenario binding; freeze `run_id` + `attempt_id` derivation.
+
+**Phase 2 — Durable storage + idempotency (truth, not demos)**
+- Implement object‑store abstraction with atomic writes and by‑ref artifact refs.
+- Implement real idempotency binding + lease manager (SQLite/Postgres for local; Postgres for dev/prod).
+- Ensure run_record append‑only + idempotent event IDs; run_status monotonic only.
+
+**Phase 3 — Evidence + gate verification completeness (fail‑closed)**
+- Implement N5 fully: output intent → required gate closure; gate verification by gate‑specific method.
+- Enforce instance‑proof binding where scope includes seed/scenario_id/parameter_hash/run_id.
+- Classify COMPLETE / WAITING / FAIL / CONFLICT deterministically.
+
+**Phase 4 — Engine invocation integration (true IP1)**
+- Implement N4 job runner adapter with attempt idempotency and retry budget.
+- Record attempt lifecycle in run_record; ensure lease loss halts writes.
+- Return normalized AttemptResult for evidence harvesting.
+
+**Phase 5 — Control bus + re‑emit (operational truth)**
+- Wire to real bus (Kafka/Redpanda). Ensure READY publish idempotency key = (run_id, facts_view_hash).
+- Implement N7 re‑emit with ops micro‑lease and strict “read truth → re‑publish” behavior.
+
+**Phase 6 — Observability + governance (audit‑ready)**
+- Implement N8 normalized event taxonomy; emit metrics, traces, and governance facts.
+- Stamp policy_rev + plan hash + evidence hash on all runs.
+- Enforce telemetry never blocks truth commits (drop DEBUG first, keep governance facts).
+
+**Phase 7 — Security + ops hardening**
+- AuthN/AuthZ for run submit, re‑emit, correction.
+- Secrets never in artifacts; only key IDs.
+- Quarantine path + operator inspection tooling.
+
+**Phase 8 — Integration tests + CI gates**
+- Golden path, duplicate, reuse, fail‑closed, re‑emit, correction.
+- Contract compliance tests.
+- CI checks for schema compatibility + invariant tests.
+
+### Mapping to SR subnetworks
+- N1: ingress validation, scenario normalization, run_equivalence_key enforcement.
+- N2: idempotency binding + lease authority.
+- N3: plan compilation + policy_rev stamping.
+- N4: engine attempt lifecycle with idempotency.
+- N5: evidence + gate verification (COMPLETE/WAITING/FAIL/CONFLICT).
+- N6: ledger + facts_view + READY ordering and immutability.
+- N7: re‑emit control facts (no recompute).
+- N8: observability + governance emission (never truth).
+
+### Guardrails against drift
+- READY without admissible PASS evidence is forbidden.
+- Downstream must start from READY → run_facts_view; scanning “latest” is forbidden.
+- run_plan and run_facts_view are immutable after commit; corrections use supersede.
+- Evidence decisions are deterministic, no “best effort.”
+
+### Immediate next work item (if not overridden)
+Proceed to **Phase 1: Contracts + Truth Surfaces** (schemas + validation wiring), then Phase 2 (durable idempotency/lease store).
+
+---
