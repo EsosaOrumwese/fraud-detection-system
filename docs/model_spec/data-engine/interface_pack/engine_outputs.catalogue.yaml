@@ -32,8 +32,8 @@ outputs:
   read_requires_gates: []
   immutability:
     immutable_once_written: true
-  description: Legacy RNG-dependent allocation set; superseded by S3 ordered candidate set. Not authoritative for inter-country
-    order.
+  description: Legacy RNG-dependent allocation set; superseded by S3 ordered candidate
+    set. Not authoritative for inter-country order.
 - output_id: crossborder_eligibility_flags
   class: surface
   exposure: internal
@@ -65,7 +65,8 @@ outputs:
   read_requires_gates: []
   immutability:
     immutable_once_written: true
-  description: 'Per-merchant deterministic features used by cross-border K (currently: openness scalar X_m in [0,1]).'
+  description: 'Per-merchant deterministic features used by cross-border K (currently:
+    openness scalar X_m in [0,1]).'
 - output_id: hurdle_design_matrix
   class: surface
   exposure: internal
@@ -163,8 +164,9 @@ outputs:
   - gate.layer1.1A.validation
   immutability:
     immutable_once_written: true
-  description: Immutable outlet stubs per merchant x legal_country. Does NOT encode cross-country order; consumers MUST join
-    `s3_candidate_set.candidate_rank` for that. Consumers MUST only read after verifying `_passed.flag` matches SHA256(`validation_bundle_1A`)
+  description: Immutable outlet stubs per merchant x legal_country. Does NOT encode
+    cross-country order; consumers MUST join `s3_candidate_set.candidate_rank` for
+    that. Consumers MUST only read after verifying `_passed.flag` matches SHA256(`validation_bundle_1A`)
     for the same fingerprint (see S9.9).
 - output_id: ranking_residual_cache_1A
   class: surface
@@ -182,8 +184,9 @@ outputs:
   read_requires_gates: []
   immutability:
     immutable_once_written: true
-  description: Legacy residual cache for RNG integerisation; superseded by S3 deterministic integerised counts (parameter-scoped).
-- output_id: rng_audit_log
+  description: Legacy residual cache for RNG integerisation; superseded by S3 deterministic
+    integerised counts (parameter-scoped).
+- output_id: rng_audit_log_1A
   class: stream
   exposure: internal
   scope: scope_seed_parameter_hash_run_id
@@ -218,7 +221,8 @@ outputs:
   read_requires_gates: []
   immutability:
     immutable_once_written: true
-  description: 'Event stream: Dirichlet gamma vectors for splitting outlets across countries.'
+  description: 'Event stream: Dirichlet gamma vectors for splitting outlets across
+    countries.'
 - output_id: rng_event_gamma_component
   class: stream
   exposure: internal
@@ -308,7 +312,8 @@ outputs:
   read_requires_gates: []
   immutability:
     immutable_once_written: true
-  description: 'Event stream: standard normal draws via Box-Muller (Z only; sine mate discarded).'
+  description: 'Event stream: standard normal draws via Box-Muller (Z only; sine mate
+    discarded).'
 - output_id: rng_event_poisson_component
   class: stream
   exposure: internal
@@ -344,7 +349,8 @@ outputs:
   read_requires_gates: []
   immutability:
     immutable_once_written: true
-  description: 'Event stream: deterministic ranks of largest-remainder residuals for per-country integerisation.'
+  description: 'Event stream: deterministic ranks of largest-remainder residuals for
+    per-country integerisation.'
 - output_id: rng_event_sequence_finalize
   class: stream
   exposure: internal
@@ -416,7 +422,8 @@ outputs:
   read_requires_gates: []
   immutability:
     immutable_once_written: true
-  description: 'Event stream: S4 single acceptance record per resolved merchant (fixes K_target and run facts).'
+  description: 'Event stream: S4 single acceptance record per resolved merchant (fixes
+    K_target and run facts).'
 - output_id: rng_event_ztp_rejection
   class: stream
   exposure: internal
@@ -453,7 +460,7 @@ outputs:
   immutability:
     immutable_once_written: true
   description: 'Event stream: ZTP retry exhaustion (diagnostic hard events).'
-- output_id: rng_trace_log
+- output_id: rng_trace_log_1A
   class: stream
   exposure: internal
   scope: scope_seed_parameter_hash_run_id
@@ -470,9 +477,10 @@ outputs:
   read_requires_gates: []
   immutability:
     immutable_once_written: true
-  description: Structured per-(module,substream_label) RNG trace (saturating totals for draws/blocks/events; `draws_total`
-    equals the sum of event-level draws; `blocks_total` reconciled via counters). Emit exactly one cumulative row after each
-    RNG event append (per S4 2A).
+  description: Structured per-(module,substream_label) RNG trace (saturating totals
+    for draws/blocks/events; `draws_total` equals the sum of event-level draws; `blocks_total`
+    reconciled via counters). Emit exactly one cumulative row after each RNG event
+    append (per S4 2A).
 - output_id: s0_gate_receipt_1A
   class: gate
   exposure: internal
@@ -488,7 +496,8 @@ outputs:
   read_requires_gates: []
   immutability:
     immutable_once_written: true
-  description: Root sealing receipt for 1A; records run lineage and the sealed input inventory.
+  description: Root sealing receipt for 1A; records run lineage and the sealed input
+    inventory.
 - output_id: s3_base_weight_priors
   class: surface
   exposure: internal
@@ -504,7 +513,8 @@ outputs:
   read_requires_gates: []
   immutability:
     immutable_once_written: true
-  description: Deterministic base-weight priors (fixed-dp strings) per candidate; not probabilities.
+  description: Deterministic base-weight priors (fixed-dp strings) per candidate;
+    not probabilities.
 - output_id: s3_candidate_set
   class: surface
   exposure: internal
@@ -520,7 +530,8 @@ outputs:
   read_requires_gates: []
   immutability:
     immutable_once_written: true
-  description: Deterministic ordered candidate set per merchant; single authority for inter-country order (`candidate_rank`).
+  description: Deterministic ordered candidate set per merchant; single authority
+    for inter-country order (`candidate_rank`).
 - output_id: s3_integerised_counts
   class: surface
   exposure: internal
@@ -569,8 +580,8 @@ outputs:
   read_requires_gates: []
   immutability:
     immutable_once_written: true
-  description: Optional convenience surface of selected foreign ISO2s per merchant; authority remains S6 RNG events; no inter-country
-    order encoded.
+  description: Optional convenience surface of selected foreign ISO2s per merchant;
+    authority remains S6 RNG events; no inter-country order encoded.
 - output_id: s6_validation_receipt
   class: surface
   exposure: internal
@@ -605,7 +616,7 @@ outputs:
   immutability:
     immutable_once_written: true
   description: Authoritative inventory of every asset sealed by 1A.S0 for the manifest.
-- output_id: segment_state_runs
+- output_id: segment_state_runs_1A
   class: surface
   exposure: internal
   scope: scope_global
@@ -698,9 +709,9 @@ outputs:
   read_requires_gates: []
   immutability:
     immutable_once_written: true
-  description: "RESERVED (VNext). Gaussian jitter \u03C3 (deg) policy by latitude band / merchant class. Not consumed by 1B\
-    \ v1 uniform lane."
-- output_id: rng_audit_log
+  description: "RESERVED (VNext). Gaussian jitter \u03C3 (deg) policy by latitude\
+    \ band / merchant class. Not consumed by 1B v1 uniform lane."
+- output_id: rng_audit_log_1B
   class: stream
   exposure: internal
   scope: scope_seed_parameter_hash_run_id
@@ -735,7 +746,8 @@ outputs:
   read_requires_gates: []
   immutability:
     immutable_once_written: true
-  description: "RNG events for S6 in-cell jitter (\u22651 event per site; one per attempt; per-event budget; blocks=1, draws=2)."
+  description: "RNG events for S6 in-cell jitter (\u22651 event per site; one per\
+    \ attempt; per-event budget; blocks=1, draws=2)."
 - output_id: rng_event_site_tile_assign
   class: stream
   exposure: internal
@@ -754,7 +766,7 @@ outputs:
   immutability:
     immutable_once_written: true
   description: "RNG events for site\u2192tile assignment (one event per assigned site)."
-- output_id: rng_trace_log
+- output_id: rng_trace_log_1B
   class: stream
   exposure: internal
   scope: scope_seed_parameter_hash_run_id
@@ -771,7 +783,8 @@ outputs:
   read_requires_gates: []
   immutability:
     immutable_once_written: true
-  description: "RNG cumulative trace \u2014 append exactly one row after each event append."
+  description: "RNG cumulative trace \u2014 append exactly one row after each event\
+    \ append."
 - output_id: s0_gate_receipt_1B
   class: gate
   exposure: internal
@@ -787,7 +800,8 @@ outputs:
   read_requires_gates: []
   immutability:
     immutable_once_written: true
-  description: Fingerprint-scoped receipt proving 1A PASS verification; enumerates sealed inputs for 1B.
+  description: Fingerprint-scoped receipt proving 1A PASS verification; enumerates
+    sealed inputs for 1B.
 - output_id: s1_run_report
   class: surface
   exposure: internal
@@ -838,7 +852,8 @@ outputs:
   - gate.layer1.1B.validation
   immutability:
     immutable_once_written: true
-  description: Deterministic site counts per (merchant_id, legal_country_iso) for this run.
+  description: Deterministic site counts per (merchant_id, legal_country_iso) for
+    this run.
 - output_id: s3_run_report
   class: surface
   exposure: internal
@@ -875,7 +890,8 @@ outputs:
   - gate.layer1.1B.validation
   immutability:
     immutable_once_written: true
-  description: Per-tile integer allocations that sum to S3 n_sites (RNG-free; positives only).
+  description: Per-tile integer allocations that sum to S3 n_sites (RNG-free; positives
+    only).
 - output_id: s4_run_report
   class: surface
   exposure: internal
@@ -911,7 +927,8 @@ outputs:
   read_requires_gates: []
   immutability:
     immutable_once_written: true
-  description: "Control-plane counters and receipts for S5 site\u2192tile assignment publish."
+  description: "Control-plane counters and receipts for S5 site\u2192tile assignment\
+    \ publish."
 - output_id: s5_site_tile_assignment
   class: surface
   exposure: internal
@@ -967,7 +984,8 @@ outputs:
   - gate.layer1.1B.validation
   immutability:
     immutable_once_written: true
-  description: Per-site in-pixel jitter; effective deltas (projection into country); one row per site.
+  description: Per-site in-pixel jitter; effective deltas (projection into country);
+    one row per site.
 - output_id: s7_run_summary
   class: surface
   exposure: internal
@@ -1004,8 +1022,8 @@ outputs:
   - gate.layer1.1B.validation
   immutability:
     immutable_once_written: true
-  description: Deterministic stitch of S5 (tile) + S6 (effective deltas) + S1 geometry into per-site absolutes; RNG-free;
-    1:1 with outlet_catalogue.
+  description: Deterministic stitch of S5 (tile) + S6 (effective deltas) + S1 geometry
+    into per-site absolutes; RNG-free; 1:1 with outlet_catalogue.
 - output_id: s8_run_summary
   class: surface
   exposure: internal
@@ -1053,27 +1071,12 @@ outputs:
   dictionary_ref: docs/model_spec/data-engine/layer-1/specs/contracts/1B/dataset_dictionary.layer1.1B.yaml#site_locations
   primary_key: []
   join_keys: []
-  read_requires_gates: &id001
+  read_requires_gates:
   - gate.layer1.1B.validation
-  immutability: &id002
+  immutability:
     immutable_once_written: true
-  description: Site locations with absolute lat/lon (post jitter + geometry stitch); partitioned by seed/fingerprint.
-- output_id: site_locations
-  class: surface
-  exposure: external
-  scope: scope_seed_manifest_fingerprint
-  owner_segment: 1B
-  path_template: data/layer1/1B/site_locations/seed={seed}/manifest_fingerprint={manifest_fingerprint}/
-  partitions:
-  - seed
-  - manifest_fingerprint
-  schema_ref: schemas.1B.yaml#/egress/site_locations
-  dictionary_ref: docs/model_spec/data-engine/layer-1/specs/contracts/2B/dataset_dictionary.layer1.2B.yaml#site_locations
-  primary_key: []
-  join_keys: []
-  read_requires_gates: *id001
-  immutability: *id002
-  description: Immutable per-site lon/lat coordinates emitted by Segment 1B.
+  description: Site locations with absolute lat/lon (post jitter + geometry stitch);
+    partitioned by seed/fingerprint.
 - output_id: tile_bounds
   class: surface
   exposure: internal
@@ -1134,25 +1137,10 @@ outputs:
   dictionary_ref: docs/model_spec/data-engine/layer-1/specs/contracts/1B/dataset_dictionary.layer1.1B.yaml#validation_bundle_1B
   primary_key: []
   join_keys: []
-  read_requires_gates: &id003 []
-  immutability: &id004
+  read_requires_gates: []
+  immutability:
     immutable_once_written: true
   description: Validation bundle for a 1B publish (one per manifest_fingerprint).
-- output_id: validation_bundle_1B
-  class: gate
-  exposure: internal
-  scope: scope_manifest_fingerprint
-  owner_segment: 1B
-  path_template: data/layer1/1B/validation/manifest_fingerprint={manifest_fingerprint}/
-  partitions:
-  - manifest_fingerprint
-  schema_ref: schemas.layer1.yaml#/validation/validation_bundle/index_schema
-  dictionary_ref: docs/model_spec/data-engine/layer-1/specs/contracts/2B/dataset_dictionary.layer1.2B.yaml#validation_bundle_1B
-  primary_key: []
-  join_keys: []
-  read_requires_gates: *id003
-  immutability: *id004
-  description: Fingerprint-scoped PASS bundle for Segment 1B; 2B verifies it before any read.
 - output_id: validation_bundle_index_1B
   class: gate
   exposure: internal
@@ -1181,25 +1169,10 @@ outputs:
   dictionary_ref: docs/model_spec/data-engine/layer-1/specs/contracts/1B/dataset_dictionary.layer1.1B.yaml#validation_passed_flag_1B
   primary_key: []
   join_keys: []
-  read_requires_gates: &id005 []
-  immutability: &id006
+  read_requires_gates: []
+  immutability:
     immutable_once_written: true
   description: PASS gate flag; equals SHA-256 of the bundle per S9 hashing rule.
-- output_id: validation_passed_flag_1B
-  class: gate
-  exposure: internal
-  scope: scope_manifest_fingerprint
-  owner_segment: 1B
-  path_template: data/layer1/1B/validation/manifest_fingerprint={manifest_fingerprint}/_passed.flag
-  partitions:
-  - manifest_fingerprint
-  schema_ref: schemas.1B.yaml#/validation/passed_flag
-  dictionary_ref: docs/model_spec/data-engine/layer-1/specs/contracts/2B/dataset_dictionary.layer1.2B.yaml#validation_passed_flag_1B
-  primary_key: []
-  join_keys: []
-  read_requires_gates: *id005
-  immutability: *id006
-  description: Companion single-line flag carrying the SHA-256 digest of the 1B validation bundle.
 - output_id: s0_gate_receipt_2A
   class: gate
   exposure: internal
@@ -1215,7 +1188,8 @@ outputs:
   read_requires_gates: []
   immutability:
     immutable_once_written: true
-  description: Fingerprint-scoped receipt proving 1B PASS and recording sealed inputs for 2A.
+  description: Fingerprint-scoped receipt proving 1B PASS and recording sealed inputs
+    for 2A.
 - output_id: s1_tz_lookup
   class: surface
   exposure: internal
@@ -1282,27 +1256,11 @@ outputs:
   dictionary_ref: docs/model_spec/data-engine/layer-1/specs/contracts/2A/dataset_dictionary.layer1.2A.yaml#site_timezones
   primary_key: []
   join_keys: []
-  read_requires_gates: &id007
+  read_requires_gates:
   - gate.layer1.2A.validation
-  immutability: &id008
+  immutability:
     immutable_once_written: true
   description: Final per-site IANA tzid with provenance; order-free egress.
-- output_id: site_timezones
-  class: surface
-  exposure: external
-  scope: scope_seed_manifest_fingerprint
-  owner_segment: 2A
-  path_template: data/layer1/2A/site_timezones/seed={seed}/manifest_fingerprint={manifest_fingerprint}/
-  partitions:
-  - seed
-  - manifest_fingerprint
-  schema_ref: schemas.2A.yaml#/egress/site_timezones
-  dictionary_ref: docs/model_spec/data-engine/layer-1/specs/contracts/2B/dataset_dictionary.layer1.2B.yaml#site_timezones
-  primary_key: []
-  join_keys: []
-  read_requires_gates: *id007
-  immutability: *id008
-  description: Per-site IANA tzid assignments emitted by 2A; REQUIRED input for 2B v1 tz-grouping + day-effects.
 - output_id: tz_nudge
   class: surface
   exposure: internal
@@ -1345,26 +1303,11 @@ outputs:
   dictionary_ref: docs/model_spec/data-engine/layer-1/specs/contracts/2A/dataset_dictionary.layer1.2A.yaml#tz_timetable_cache
   primary_key: []
   join_keys: []
-  read_requires_gates: &id009
+  read_requires_gates:
   - gate.layer1.2A.validation
-  immutability: &id010
+  immutability:
     immutable_once_written: true
   description: Fingerprint-scoped cache manifest for tz transitions.
-- output_id: tz_timetable_cache
-  class: surface
-  exposure: internal
-  scope: scope_manifest_fingerprint
-  owner_segment: 2A
-  path_template: data/layer1/2A/tz_timetable_cache/manifest_fingerprint={manifest_fingerprint}/
-  partitions:
-  - manifest_fingerprint
-  schema_ref: schemas.2A.yaml#/cache/tz_timetable_cache
-  dictionary_ref: docs/model_spec/data-engine/layer-1/specs/contracts/2B/dataset_dictionary.layer1.2B.yaml#tz_timetable_cache
-  primary_key: []
-  join_keys: []
-  read_requires_gates: *id009
-  immutability: *id010
-  description: Fingerprint-scoped cache of tz transitions compiled by 2A.
 - output_id: tzdb_release
   class: surface
   exposure: internal
@@ -1457,8 +1400,9 @@ outputs:
   read_requires_gates: []
   immutability:
     immutable_once_written: true
-  description: Daily modulation cadence, variance, and clipping configuration for S3.
-- output_id: rng_audit_log
+  description: Daily modulation cadence, variance, and clipping configuration for
+    S3.
+- output_id: rng_audit_log_2B
   class: stream
   exposure: internal
   scope: scope_seed_parameter_hash_run_id
@@ -1475,7 +1419,8 @@ outputs:
   read_requires_gates: []
   immutability:
     immutable_once_written: true
-  description: RNG run audit (identity/config) - one row at run start for 2B routing runs.
+  description: RNG run audit (identity/config) - one row at run start for 2B routing
+    runs.
 - output_id: rng_event_alias_pick_group
   class: stream
   exposure: internal
@@ -1530,7 +1475,7 @@ outputs:
   immutability:
     immutable_once_written: true
   description: RNG events for 2B.S6 virtual-edge pick (single-uniform).
-- output_id: rng_trace_log
+- output_id: rng_trace_log_2B
   class: stream
   exposure: internal
   scope: scope_seed_parameter_hash_run_id
@@ -1547,7 +1492,8 @@ outputs:
   read_requires_gates: []
   immutability:
     immutable_once_written: true
-  description: RNG cumulative trace - append exactly one row after each event append for 2B routing runs.
+  description: RNG cumulative trace - append exactly one row after each event append
+    for 2B routing runs.
 - output_id: route_rng_policy_v1
   class: surface
   exposure: internal
@@ -1578,7 +1524,8 @@ outputs:
   read_requires_gates: []
   immutability:
     immutable_once_written: true
-  description: Gate receipt attesting upstream verification, identity, and catalogue-only resolution.
+  description: Gate receipt attesting upstream verification, identity, and catalogue-only
+    resolution.
 - output_id: s1_site_weights
   class: surface
   exposure: internal
@@ -1668,7 +1615,8 @@ outputs:
   - gate.layer1.2B.validation
   immutability:
     immutable_once_written: true
-  description: Per-merchant x UTC-day x tz-group mix used to pick tz-group prior to static alias.
+  description: Per-merchant x UTC-day x tz-group mix used to pick tz-group prior to
+    static alias.
 - output_id: s5_selection_log
   class: surface
   exposure: internal
@@ -1687,7 +1635,8 @@ outputs:
   read_requires_gates: []
   immutability:
     immutable_once_written: true
-  description: Optional per-arrival trace for routing selections; arrival-ordered JSONL.
+  description: Optional per-arrival trace for routing selections; arrival-ordered
+    JSONL.
 - output_id: s6_edge_log
   class: stream
   exposure: internal
@@ -1724,7 +1673,8 @@ outputs:
   - gate.layer1.2B.validation
   immutability:
     immutable_once_written: true
-  description: Deterministic audit report emitted by S7 (validators, evidence, run metadata).
+  description: Deterministic audit report emitted by S7 (validators, evidence, run
+    metadata).
 - output_id: sealed_inputs_2B
   class: surface
   exposure: internal
@@ -1805,7 +1755,7 @@ outputs:
   immutability:
     immutable_once_written: true
   description: Sealed virtual-edge catalogue containing edges, weights, and attributes.
-- output_id: rng_audit_log
+- output_id: rng_audit_log_3A
   class: stream
   exposure: internal
   scope: scope_seed_parameter_hash_run_id
@@ -1822,7 +1772,8 @@ outputs:
   read_requires_gates: []
   immutability:
     immutable_once_written: true
-  description: RNG run audit (identity/config) - one row at run start for 3A routing runs.
+  description: RNG run audit (identity/config) - one row at run start for 3A routing
+    runs.
 - output_id: rng_event_zone_dirichlet
   class: stream
   exposure: internal
@@ -1840,8 +1791,9 @@ outputs:
   read_requires_gates: []
   immutability:
     immutable_once_written: true
-  description: RNG events for 3A.S3 Dirichlet draws (one per escalated merchant x country).
-- output_id: rng_trace_log
+  description: RNG events for 3A.S3 Dirichlet draws (one per escalated merchant x
+    country).
+- output_id: rng_trace_log_3A
   class: stream
   exposure: internal
   scope: scope_seed_parameter_hash_run_id
@@ -1858,7 +1810,8 @@ outputs:
   read_requires_gates: []
   immutability:
     immutable_once_written: true
-  description: RNG cumulative trace - append exactly one row after each event append for 3A S3 runs.
+  description: RNG cumulative trace - append exactly one row after each event append
+    for 3A S3 runs.
 - output_id: s0_gate_receipt_3A
   class: gate
   exposure: internal
@@ -2131,7 +2084,7 @@ outputs:
   immutability:
     immutable_once_written: true
   description: Sealed inventory of artefacts authorised for Segment 3A.
-- output_id: segment_state_runs
+- output_id: segment_state_runs_3A
   class: surface
   exposure: internal
   scope: scope_global
@@ -2248,7 +2201,8 @@ outputs:
   - gate.layer1.3B.validation
   immutability:
     immutable_once_written: true
-  description: Index and checksum metadata for locating merchant alias segments inside the blob.
+  description: Index and checksum metadata for locating merchant alias segments inside
+    the blob.
 - output_id: edge_catalogue_3B
   class: surface
   exposure: internal
@@ -2301,7 +2255,8 @@ outputs:
   - gate.layer1.3B.validation
   immutability:
     immutable_once_written: true
-  description: Fingerprint-scoped hash tying cdn weights, edge catalogue/index and alias outputs.
+  description: Fingerprint-scoped hash tying cdn weights, edge catalogue/index and
+    alias outputs.
 - output_id: gamma_draw_log_3B
   class: stream
   exposure: internal
@@ -2320,7 +2275,7 @@ outputs:
   immutability:
     immutable_once_written: true
   description: Structured Philox audit for any gamma draws in the virtual pipeline.
-- output_id: rng_audit_log
+- output_id: rng_audit_log_3B
   class: stream
   exposure: internal
   scope: scope_seed_parameter_hash_run_id
@@ -2374,7 +2329,7 @@ outputs:
   immutability:
     immutable_once_written: true
   description: RNG events for S2 edge tile assignment (one per expanded edge slot).
-- output_id: rng_trace_log
+- output_id: rng_trace_log_3B
   class: stream
   exposure: internal
   scope: scope_seed_parameter_hash_run_id
@@ -2391,7 +2346,8 @@ outputs:
   read_requires_gates: []
   immutability:
     immutable_once_written: true
-  description: RNG cumulative trace - append exactly one row after each event append for 3B S2 runs.
+  description: RNG cumulative trace - append exactly one row after each event append
+    for 3B S2 runs.
 - output_id: s0_gate_receipt_3B
   class: gate
   exposure: internal
@@ -2407,7 +2363,8 @@ outputs:
   read_requires_gates: []
   immutability:
     immutable_once_written: true
-  description: Gate receipt capturing upstream PASS status, sealed policy set and authoritative digests.
+  description: Gate receipt capturing upstream PASS status, sealed policy set and
+    authoritative digests.
 - output_id: s1_run_report_3B
   class: surface
   exposure: internal
@@ -2508,7 +2465,8 @@ outputs:
   - gate.layer1.3B.validation
   immutability:
     immutable_once_written: true
-  description: Optional S5 manifest summarising identity, digests and validator outcomes; lives inside the bundle.
+  description: Optional S5 manifest summarising identity, digests and validator outcomes;
+    lives inside the bundle.
 - output_id: s5_run_report_3B
   class: surface
   exposure: internal
@@ -2558,7 +2516,8 @@ outputs:
   read_requires_gates: []
   immutability:
     immutable_once_written: true
-  description: Directory artefact containing manifest, digests and structural or RNG evidence.
+  description: Directory artefact containing manifest, digests and structural or RNG
+    evidence.
 - output_id: validation_bundle_index_3B
   class: gate
   exposure: internal
@@ -2608,7 +2567,8 @@ outputs:
   - gate.layer1.3B.validation
   immutability:
     immutable_once_written: true
-  description: Merchant-level classification surface with closed vocabulary reason codes.
+  description: Merchant-level classification surface with closed vocabulary reason
+    codes.
 - output_id: virtual_routing_policy_3B
   class: surface
   exposure: external
@@ -2643,7 +2603,8 @@ outputs:
   - gate.layer1.3B.validation
   immutability:
     immutable_once_written: true
-  description: One settlement node per virtual merchant with tzid semantics and evidence URLs.
+  description: One settlement node per virtual merchant with tzid semantics and evidence
+    URLs.
 - output_id: virtual_validation_contract_3B
   class: surface
   exposure: external
@@ -2660,7 +2621,8 @@ outputs:
   - gate.layer1.3B.validation
   immutability:
     immutable_once_written: true
-  description: Declarative suite of validation tests (IP mix, cut-offs, alias health) scoped to the manifest.
+  description: Declarative suite of validation tests (IP mix, cut-offs, alias health)
+    scoped to the manifest.
 - output_id: baseline_intensity_policy_5A
   class: surface
   exposure: internal
@@ -2675,8 +2637,8 @@ outputs:
   read_requires_gates: []
   immutability:
     immutable_once_written: true
-  description: 'Baseline intensity semantics policy for 5A.S3. Defines how S1 scale fields are interpreted (units/constraints)
-    and any clipping/zero-handling rules.
+  description: 'Baseline intensity semantics policy for 5A.S3. Defines how S1 scale
+    fields are interpreted (units/constraints) and any clipping/zero-handling rules.
 
     '
 - output_id: class_shape_catalogue_5A
@@ -2700,7 +2662,8 @@ outputs:
   read_requires_gates: []
   immutability:
     immutable_once_written: true
-  description: Optional base shape catalogue per class (and optional channel) for each scenario.
+  description: Optional base shape catalogue per class (and optional channel) for
+    each scenario.
 - output_id: class_zone_baseline_local_5A
   class: surface
   exposure: internal
@@ -2751,7 +2714,8 @@ outputs:
   read_requires_gates: []
   immutability:
     immutable_once_written: true
-  description: Normalised weekly shape vectors per classxzone (and optional channel) for each scenario.
+  description: Normalised weekly shape vectors per classxzone (and optional channel)
+    for each scenario.
 - output_id: demand_scale_policy_5A
   class: surface
   exposure: internal
@@ -2766,7 +2730,8 @@ outputs:
   read_requires_gates: []
   immutability:
     immutable_once_written: true
-  description: 'Demand scale policy for 5A.S1/S3. Maps demand_class and merchant features to baseline weekly volume / scale_factor.
+  description: 'Demand scale policy for 5A.S1/S3. Maps demand_class and merchant features
+    to baseline weekly volume / scale_factor.
 
     '
 - output_id: merchant_class_policy_5A
@@ -2783,8 +2748,8 @@ outputs:
   read_requires_gates: []
   immutability:
     immutable_once_written: true
-  description: 'Classing policy for 5A.S1. Maps merchantxzone features to demand_class and optional demand_subclass/profile
-    IDs.
+  description: 'Classing policy for 5A.S1. Maps merchantxzone features to demand_class
+    and optional demand_subclass/profile IDs.
 
     '
 - output_id: merchant_class_profile_5A
@@ -2804,7 +2769,8 @@ outputs:
   - gate.layer2.5A.validation
   immutability:
     immutable_once_written: true
-  description: Merchant-level aggregate class profile derived deterministically from zone profiles.
+  description: Merchant-level aggregate class profile derived deterministically from
+    zone profiles.
 - output_id: merchant_zone_baseline_local_5A
   class: surface
   exposure: internal
@@ -2902,7 +2868,8 @@ outputs:
   - gate.layer2.5A.validation
   immutability:
     immutable_once_written: true
-  description: Merchantxzone demand profile including class and scale for the local week.
+  description: Merchantxzone demand profile including class and scale for the local
+    week.
 - output_id: merchant_zone_scenario_local_5A
   class: surface
   exposure: internal
@@ -2928,7 +2895,8 @@ outputs:
   - gate.layer2.5A.validation
   immutability:
     immutable_once_written: true
-  description: Scenario-adjusted local-week intensities per merchantxzonexhorizon bucket.
+  description: Scenario-adjusted local-week intensities per merchantxzonexhorizon
+    bucket.
 - output_id: merchant_zone_scenario_utc_5A
   class: surface
   exposure: internal
@@ -2969,7 +2937,8 @@ outputs:
   read_requires_gates: []
   immutability:
     immutable_once_written: true
-  description: 'Optional overlay ordering policy for 5A.S4 to define precedence between overlapping scenario events.
+  description: 'Optional overlay ordering policy for 5A.S4 to define precedence between
+    overlapping scenario events.
 
     '
 - output_id: s0_gate_receipt_5A
@@ -2988,7 +2957,8 @@ outputs:
   read_requires_gates: []
   immutability:
     immutable_once_written: true
-  description: Fingerprint-scoped S0 receipt confirming upstream gates and sealed inputs.
+  description: Fingerprint-scoped S0 receipt confirming upstream gates and sealed
+    inputs.
 - output_id: s1_run_report_5A
   class: surface
   exposure: internal
@@ -3088,8 +3058,8 @@ outputs:
   read_requires_gates: []
   immutability:
     immutable_once_written: true
-  description: 'Scenario calendar for 5A.S4. Defines dated events (holidays, campaigns, outages, stress scenarios) and their
-    scope.
+  description: 'Scenario calendar for 5A.S4. Defines dated events (holidays, campaigns,
+    outages, stress scenarios) and their scope.
 
     '
 - output_id: scenario_horizon_config_5A
@@ -3106,7 +3076,8 @@ outputs:
   read_requires_gates: []
   immutability:
     immutable_once_written: true
-  description: 'Horizon and grid configuration for 5A.S4 scenario overlays (local and UTC).
+  description: 'Horizon and grid configuration for 5A.S4 scenario overlays (local
+    and UTC).
 
     '
 - output_id: scenario_manifest_5A
@@ -3142,7 +3113,8 @@ outputs:
   read_requires_gates: []
   immutability:
     immutable_once_written: true
-  description: 'Scenario metadata pack (scenario IDs, labels, types, and horizon range) sealed by S0.
+  description: 'Scenario metadata pack (scenario IDs, labels, types, and horizon range)
+    sealed by S0.
 
     '
 - output_id: scenario_overlay_policy_5A
@@ -3159,8 +3131,8 @@ outputs:
   read_requires_gates: []
   immutability:
     immutable_once_written: true
-  description: 'Overlay policy for 5A.S4. Maps scenario events to multiplicative factors and defines precedence/combination
-    rules.
+  description: 'Overlay policy for 5A.S4. Maps scenario events to multiplicative factors
+    and defines precedence/combination rules.
 
     '
 - output_id: scenario_overlay_validation_policy_5A
@@ -3177,7 +3149,8 @@ outputs:
   read_requires_gates: []
   immutability:
     immutable_once_written: true
-  description: 'Optional overlay validation policy for 5A.S4 to define bounds or warnings for overlay factors.
+  description: 'Optional overlay validation policy for 5A.S4 to define bounds or warnings
+    for overlay factors.
 
     '
 - output_id: sealed_inputs_5A
@@ -3200,7 +3173,7 @@ outputs:
   immutability:
     immutable_once_written: true
   description: Inventory of sealed artefacts 5A is allowed to read for a fingerprint.
-- output_id: segment_state_runs
+- output_id: segment_state_runs_5A
   class: surface
   exposure: internal
   scope: scope_global
@@ -3236,7 +3209,8 @@ outputs:
   read_requires_gates: []
   immutability:
     immutable_once_written: true
-  description: Local-week time grid definition for shapes under a parameter pack and scenario.
+  description: Local-week time grid definition for shapes under a parameter pack and
+    scenario.
 - output_id: shape_library_5A
   class: surface
   exposure: internal
@@ -3251,8 +3225,8 @@ outputs:
   read_requires_gates: []
   immutability:
     immutable_once_written: true
-  description: 'Shape library for 5A.S2. Defines unit-mass shape templates per demand_classxzonexchannel_group (grid lives
-    in shape_time_grid_policy_5A).
+  description: 'Shape library for 5A.S2. Defines unit-mass shape templates per demand_classxzonexchannel_group
+    (grid lives in shape_time_grid_policy_5A).
 
     '
 - output_id: shape_time_grid_policy_5A
@@ -3269,7 +3243,8 @@ outputs:
   read_requires_gates: []
   immutability:
     immutable_once_written: true
-  description: 'Local-week time grid policy for 5A.S2 (bucket size, buckets per week, and bucket_index mapping).
+  description: 'Local-week time grid policy for 5A.S2 (bucket size, buckets per week,
+    and bucket_index mapping).
 
     '
 - output_id: spec_compatibility_config_5A
@@ -3304,7 +3279,8 @@ outputs:
   read_requires_gates: []
   immutability:
     immutable_once_written: true
-  description: Directory artefact containing the 5A validation bundle and evidence outputs.
+  description: Directory artefact containing the 5A validation bundle and evidence
+    outputs.
 - output_id: validation_bundle_index_5A
   class: gate
   exposure: internal
@@ -3368,7 +3344,8 @@ outputs:
   read_requires_gates: []
   immutability:
     immutable_once_written: true
-  description: 'Optional S5 validation strictness config (tolerances, warn corridors, blocking rules).
+  description: 'Optional S5 validation strictness config (tolerances, warn corridors,
+    blocking rules).
 
     '
 - output_id: validation_report_5A
@@ -3402,7 +3379,8 @@ outputs:
   read_requires_gates: []
   immutability:
     immutable_once_written: true
-  description: 'Optional deterministic zone-level modifiers applied after base templates and before normalization in 5A.S2.
+  description: 'Optional deterministic zone-level modifiers applied after base templates
+    and before normalization in 5A.S2.
 
     '
 - output_id: arrival_count_config_5B
@@ -3536,7 +3514,7 @@ outputs:
   immutability:
     immutable_once_written: true
   description: Deterministic grouping policy for 5B.S1.
-- output_id: rng_audit_log
+- output_id: rng_audit_log_5B
   class: stream
   exposure: internal
   scope: scope_seed_parameter_hash_run_id
@@ -3553,7 +3531,8 @@ outputs:
   read_requires_gates: []
   immutability:
     immutable_once_written: true
-  description: Run-scoped RNG audit envelope for 5B runs (seed, parameters, build metadata).
+  description: Run-scoped RNG audit envelope for 5B runs (seed, parameters, build
+    metadata).
 - output_id: rng_event_arrival_edge_pick
   class: stream
   exposure: internal
@@ -3626,7 +3605,7 @@ outputs:
   immutability:
     immutable_once_written: true
   description: RNG event table for 5B.S4 time-placement jitter draws.
-- output_id: rng_trace_log
+- output_id: rng_trace_log_5B
   class: stream
   exposure: internal
   scope: scope_seed_parameter_hash_run_id
@@ -3660,7 +3639,8 @@ outputs:
   read_requires_gates: []
   immutability:
     immutable_once_written: true
-  description: Fingerprint-scoped receipt confirming upstream PASS gates and sealed inputs.
+  description: Fingerprint-scoped receipt confirming upstream PASS gates and sealed
+    inputs.
 - output_id: s1_grouping_5B
   class: surface
   exposure: internal
@@ -3864,7 +3844,7 @@ outputs:
   immutability:
     immutable_once_written: true
   description: Inventory of artefacts 5B is allowed to read for a fingerprint.
-- output_id: segment_state_runs
+- output_id: segment_state_runs_5B
   class: surface
   exposure: internal
   scope: scope_global
@@ -4005,7 +3985,8 @@ outputs:
   read_requires_gates: []
   immutability:
     immutable_once_written: true
-  description: Device-specific linkage rules for 6A.S4 (sharing patterns and degree caps).
+  description: Device-specific linkage rules for 6A.S4 (sharing patterns and degree
+    caps).
 - output_id: graph_linkage_rules_6A
   class: surface
   exposure: internal
@@ -4020,7 +4001,8 @@ outputs:
   read_requires_gates: []
   immutability:
     immutable_once_written: true
-  description: Graph/linkage rules for 6A.S4 (device/IP sharing, degree caps, deterministic tie-breaks).
+  description: Graph/linkage rules for 6A.S4 (device/IP sharing, degree caps, deterministic
+    tie-breaks).
 - output_id: instrument_linkage_rules_6A
   class: surface
   exposure: internal
@@ -4245,7 +4227,8 @@ outputs:
   read_requires_gates: []
   immutability:
     immutable_once_written: true
-  description: Optional product eligibility config for 6A.S2 (account/product admissibility rules).
+  description: Optional product eligibility config for 6A.S2 (account/product admissibility
+    rules).
 - output_id: product_linkage_rules_6A
   class: surface
   exposure: internal
@@ -4261,7 +4244,7 @@ outputs:
   immutability:
     immutable_once_written: true
   description: Optional product linkage rules for 6A.S2 (account/product wiring constraints).
-- output_id: rng_audit_log
+- output_id: rng_audit_log_6A
   class: stream
   exposure: internal
   scope: scope_seed_parameter_hash_run_id
@@ -4621,7 +4604,7 @@ outputs:
   immutability:
     immutable_once_written: true
   description: RNG events for 6A.S1 party count realisation.
-- output_id: rng_trace_log
+- output_id: rng_trace_log_6A
   class: stream
   exposure: internal
   scope: scope_seed_parameter_hash_run_id
@@ -4654,8 +4637,8 @@ outputs:
   read_requires_gates: []
   immutability:
     immutable_once_written: true
-  description: 'Layer-3 / Segment 6A gate receipt. One row per manifest_fingerprint, summarising upstream gates and the sealed
-    input universe for 6A.
+  description: 'Layer-3 / Segment 6A gate receipt. One row per manifest_fingerprint,
+    summarising upstream gates and the sealed input universe for 6A.
 
     '
 - output_id: s1_party_base_6A
@@ -4676,8 +4659,9 @@ outputs:
   - gate.layer3.6A.validation
   immutability:
     immutable_once_written: true
-  description: 'Base party/customer universe for Layer-3 / Segment 6A. One row per party per (manifest_fingerprint, seed),
-    including type, home geography and static segment attributes.
+  description: 'Base party/customer universe for Layer-3 / Segment 6A. One row per
+    party per (manifest_fingerprint, seed), including type, home geography and static
+    segment attributes.
 
     '
 - output_id: s1_party_summary_6A
@@ -4698,8 +4682,8 @@ outputs:
   - gate.layer3.6A.validation
   immutability:
     immutable_once_written: true
-  description: 'Aggregate view of the 6A party base, providing party counts by geography, segment and type for diagnostics
-    and downstream sizing.
+  description: 'Aggregate view of the 6A party base, providing party counts by geography,
+    segment and type for diagnostics and downstream sizing.
 
     '
 - output_id: s2_account_base_6A
@@ -4720,8 +4704,9 @@ outputs:
   - gate.layer3.6A.validation
   immutability:
     immutable_once_written: true
-  description: 'Account and product universe for Layer-3 / Segment 6A. One row per account per (manifest_fingerprint, seed),
-    including owner references, account type, currency and static account attributes.
+  description: 'Account and product universe for Layer-3 / Segment 6A. One row per
+    account per (manifest_fingerprint, seed), including owner references, account
+    type, currency and static account attributes.
 
     '
 - output_id: s2_account_summary_6A
@@ -4742,8 +4727,8 @@ outputs:
   - gate.layer3.6A.validation
   immutability:
     immutable_once_written: true
-  description: 'Aggregate view of the 6A account base, providing account counts by geography, segment and account type for
-    diagnostics and sizing.
+  description: 'Aggregate view of the 6A account base, providing account counts by
+    geography, segment and account type for diagnostics and sizing.
 
     '
 - output_id: s2_merchant_account_base_6A
@@ -4764,8 +4749,8 @@ outputs:
   - gate.layer3.6A.validation
   immutability:
     immutable_once_written: true
-  description: 'Merchant-centric view of accounts where a merchant is an owner (e.g. settlement or acquiring accounts). Pure
-    subset of s2_account_base_6A.
+  description: 'Merchant-centric view of accounts where a merchant is an owner (e.g.
+    settlement or acquiring accounts). Pure subset of s2_account_base_6A.
 
     '
 - output_id: s2_party_product_holdings_6A
@@ -4786,8 +4771,9 @@ outputs:
   - gate.layer3.6A.validation
   immutability:
     immutable_once_written: true
-  description: 'Per-party product holdings for Layer-3 / Segment 6A, derived from s2_account_base_6A and s1_party_base_6A.
-    One row per party and product grouping (e.g. account_type), with account counts.
+  description: 'Per-party product holdings for Layer-3 / Segment 6A, derived from
+    s2_account_base_6A and s1_party_base_6A. One row per party and product grouping
+    (e.g. account_type), with account counts.
 
     '
 - output_id: s3_account_instrument_links_6A
@@ -4808,8 +4794,9 @@ outputs:
   - gate.layer3.6A.validation
   immutability:
     immutable_once_written: true
-  description: 'Per-account instrument linkage surface for Layer-3 / Segment 6A. Derived from s3_instrument_base_6A and s2_account_base_6A;
-    provides either per-instrument or aggregated per-account, per-instrument-type views of instrument ownership.
+  description: 'Per-account instrument linkage surface for Layer-3 / Segment 6A. Derived
+    from s3_instrument_base_6A and s2_account_base_6A; provides either per-instrument
+    or aggregated per-account, per-instrument-type views of instrument ownership.
 
     '
 - output_id: s3_instrument_base_6A
@@ -4830,8 +4817,9 @@ outputs:
   - gate.layer3.6A.validation
   immutability:
     immutable_once_written: true
-  description: 'Instrument and payment-credential universe for Layer-3 / Segment 6A. One row per instrument per (manifest_fingerprint,
-    seed), including owner account, owner party/merchant (if modelled), instrument type, scheme/network, masked identifier,
+  description: 'Instrument and payment-credential universe for Layer-3 / Segment 6A.
+    One row per instrument per (manifest_fingerprint, seed), including owner account,
+    owner party/merchant (if modelled), instrument type, scheme/network, masked identifier,
     expiry, and static flags.
 
     '
@@ -4853,8 +4841,8 @@ outputs:
   - gate.layer3.6A.validation
   immutability:
     immutable_once_written: true
-  description: 'Aggregate instrument diagnostics for Layer-3 / Segment 6A, providing instrument counts by geography, segment,
-    account_type and instrument_type.
+  description: 'Aggregate instrument diagnostics for Layer-3 / Segment 6A, providing
+    instrument counts by geography, segment, account_type and instrument_type.
 
     '
 - output_id: s3_party_instrument_holdings_6A
@@ -4875,8 +4863,9 @@ outputs:
   - gate.layer3.6A.validation
   immutability:
     immutable_once_written: true
-  description: 'Per-party instrument holdings for Layer-3 / Segment 6A, derived from s3_instrument_base_6A and s1_party_base_6A;
-    one row per (party_id, instrument grouping) with instrument_count.
+  description: 'Per-party instrument holdings for Layer-3 / Segment 6A, derived from
+    s3_instrument_base_6A and s1_party_base_6A; one row per (party_id, instrument
+    grouping) with instrument_count.
 
     '
 - output_id: s4_device_base_6A
@@ -4897,8 +4886,9 @@ outputs:
   - gate.layer3.6A.validation
   immutability:
     immutable_once_written: true
-  description: 'Device universe for Layer-3 / Segment 6A. One row per device per (manifest_fingerprint, seed), with device
-    classification, primary owner context and static device risk/capability flags.
+  description: 'Device universe for Layer-3 / Segment 6A. One row per device per (manifest_fingerprint,
+    seed), with device classification, primary owner context and static device risk/capability
+    flags.
 
     '
 - output_id: s4_device_links_6A
@@ -4919,8 +4909,9 @@ outputs:
   - gate.layer3.6A.validation
   immutability:
     immutable_once_written: true
-  description: 'Device-to-entity edges for Layer-3 / Segment 6A. Links each device_id to one or more parties/accounts/instruments/merchants
-    with a link_role describing the semantics.
+  description: 'Device-to-entity edges for Layer-3 / Segment 6A. Links each device_id
+    to one or more parties/accounts/instruments/merchants with a link_role describing
+    the semantics.
 
     '
 - output_id: s4_entity_neighbourhoods_6A
@@ -4941,8 +4932,9 @@ outputs:
   - gate.layer3.6A.validation
   immutability:
     immutable_once_written: true
-  description: 'Per-entity graph neighbourhood metrics for Layer-3 / Segment 6A (devices per party, IPs per device, shared-device/shared-IP
-    degrees, etc.), derived from S4 base and link datasets.
+  description: 'Per-entity graph neighbourhood metrics for Layer-3 / Segment 6A (devices
+    per party, IPs per device, shared-device/shared-IP degrees, etc.), derived from
+    S4 base and link datasets.
 
     '
 - output_id: s4_ip_base_6A
@@ -4963,8 +4955,9 @@ outputs:
   - gate.layer3.6A.validation
   immutability:
     immutable_once_written: true
-  description: 'IP / network endpoint universe for Layer-3 / Segment 6A. One row per IP/endpoint per (manifest_fingerprint,
-    seed), including masked representation, ip_type, asn_class, geo hints and static risk tags.
+  description: 'IP / network endpoint universe for Layer-3 / Segment 6A. One row per
+    IP/endpoint per (manifest_fingerprint, seed), including masked representation,
+    ip_type, asn_class, geo hints and static risk tags.
 
     '
 - output_id: s4_ip_links_6A
@@ -4985,8 +4978,8 @@ outputs:
   - gate.layer3.6A.validation
   immutability:
     immutable_once_written: true
-  description: 'IP-to-device/entity edges for Layer-3 / Segment 6A. Links each ip_id to one or more devices/parties/merchants
-    with a link_role describing the semantics.
+  description: 'IP-to-device/entity edges for Layer-3 / Segment 6A. Links each ip_id
+    to one or more devices/parties/merchants with a link_role describing the semantics.
 
     '
 - output_id: s4_network_summary_6A
@@ -5007,8 +5000,8 @@ outputs:
   - gate.layer3.6A.validation
   immutability:
     immutable_once_written: true
-  description: 'Aggregate graph diagnostics for Layer-3 / Segment 6A: degree distributions and sharing summaries per region/segment/account_type
-    and globally.
+  description: 'Aggregate graph diagnostics for Layer-3 / Segment 6A: degree distributions
+    and sharing summaries per region/segment/account_type and globally.
 
     '
 - output_id: s5_account_fraud_roles_6A
@@ -5029,8 +5022,8 @@ outputs:
   - gate.layer3.6A.validation
   immutability:
     immutable_once_written: true
-  description: 'Static fraud posture for accounts in Layer-3 / Segment 6A. One row per account per (manifest_fingerprint,
-    seed).
+  description: 'Static fraud posture for accounts in Layer-3 / Segment 6A. One row
+    per account per (manifest_fingerprint, seed).
 
     '
 - output_id: s5_device_fraud_roles_6A
@@ -5051,7 +5044,8 @@ outputs:
   - gate.layer3.6A.validation
   immutability:
     immutable_once_written: true
-  description: 'Static fraud posture for devices in Layer-3 / Segment 6A. One row per device per (manifest_fingerprint, seed).
+  description: 'Static fraud posture for devices in Layer-3 / Segment 6A. One row
+    per device per (manifest_fingerprint, seed).
 
     '
 - output_id: s5_ip_fraud_roles_6A
@@ -5072,8 +5066,8 @@ outputs:
   - gate.layer3.6A.validation
   immutability:
     immutable_once_written: true
-  description: 'Static fraud posture for IPs/endpoints in Layer-3 / Segment 6A. One row per ip_id per (manifest_fingerprint,
-    seed).
+  description: 'Static fraud posture for IPs/endpoints in Layer-3 / Segment 6A. One
+    row per ip_id per (manifest_fingerprint, seed).
 
     '
 - output_id: s5_issue_table_6A
@@ -5092,7 +5086,8 @@ outputs:
   - gate.layer3.6A.validation
   immutability:
     immutable_once_written: true
-  description: 'Row-level issue table for 6A validation, containing one row per failing/borderline check instance.
+  description: 'Row-level issue table for 6A validation, containing one row per failing/borderline
+    check instance.
 
     '
 - output_id: s5_merchant_fraud_roles_6A
@@ -5113,7 +5108,8 @@ outputs:
   - gate.layer3.6A.validation
   immutability:
     immutable_once_written: true
-  description: 'Static fraud posture for merchants in Layer-3 / Segment 6A. One row per merchant, keyed by merchant_id.
+  description: 'Static fraud posture for merchants in Layer-3 / Segment 6A. One row
+    per merchant, keyed by merchant_id.
 
     '
 - output_id: s5_party_fraud_roles_6A
@@ -5134,7 +5130,8 @@ outputs:
   - gate.layer3.6A.validation
   immutability:
     immutable_once_written: true
-  description: 'Static fraud posture for parties in Layer-3 / Segment 6A. One row per party per (manifest_fingerprint, seed).
+  description: 'Static fraud posture for parties in Layer-3 / Segment 6A. One row
+    per party per (manifest_fingerprint, seed).
 
     '
 - output_id: s5_validation_report_6A
@@ -5153,8 +5150,8 @@ outputs:
   - gate.layer3.6A.validation
   immutability:
     immutable_once_written: true
-  description: 'Segment-level validation report for Layer-3 / Segment 6A, summarising the results of S5 checks across S1-S4
-    and S5 fraud roles.
+  description: 'Segment-level validation report for Layer-3 / Segment 6A, summarising
+    the results of S5 checks across S1-S4 and S5 fraud roles.
 
     '
 - output_id: sealed_inputs_6A
@@ -5173,8 +5170,8 @@ outputs:
   - gate.layer3.6A.validation
   immutability:
     immutable_once_written: true
-  description: 'Manifest of all artefacts 6A is authorised to depend on for a given manifest_fingerprint, with roles, digests,
-    and read scopes.
+  description: 'Manifest of all artefacts 6A is authorised to depend on for a given
+    manifest_fingerprint, with roles, digests, and read scopes.
 
     '
 - output_id: taxonomy_account_types_6A
@@ -5275,15 +5272,15 @@ outputs:
   path_template: data/layer3/6A/validation/manifest_fingerprint={manifest_fingerprint}/
   partitions:
   - manifest_fingerprint
-  schema_ref: null
+  schema_ref: schemas.layer3.yaml#/validation/6A/validation_bundle_index_6A
   dictionary_ref: docs/model_spec/data-engine/layer-3/specs/contracts/6A/dataset_dictionary.layer3.6A.yaml#validation_bundle_6A
   primary_key: []
   join_keys: []
   read_requires_gates: []
   immutability:
     immutable_once_written: true
-  description: 'Validation bundle directory for Layer-3 / Segment 6A, containing the evidence index and HashGate outputs for
-    this manifest_fingerprint.
+  description: 'Validation bundle directory for Layer-3 / Segment 6A, containing the
+    evidence index and HashGate outputs for this manifest_fingerprint.
 
     '
 - output_id: validation_bundle_index_6A
@@ -5301,7 +5298,8 @@ outputs:
   read_requires_gates: []
   immutability:
     immutable_once_written: true
-  description: 'Index for the Layer-3 / Segment 6A validation bundle, listing all evidence files and their SHA-256 digests.
+  description: 'Index for the Layer-3 / Segment 6A validation bundle, listing all
+    evidence files and their SHA-256 digests.
 
     '
 - output_id: validation_passed_flag_6A
@@ -5319,7 +5317,8 @@ outputs:
   read_requires_gates: []
   immutability:
     immutable_once_written: true
-  description: 'HashGate flag for Layer-3 / Segment 6A. Contains the SHA-256 digest over the validation bundle for this manifest_fingerprint.
+  description: 'HashGate flag for Layer-3 / Segment 6A. Contains the SHA-256 digest
+    over the validation bundle for this manifest_fingerprint.
 
     '
 - output_id: validation_policy_6A
@@ -5336,7 +5335,8 @@ outputs:
   read_requires_gates: []
   immutability:
     immutable_once_written: true
-  description: Validation policy/checklist for 6A.S5 (PASS/WARN/FAIL thresholds and required checks).
+  description: Validation policy/checklist for 6A.S5 (PASS/WARN/FAIL thresholds and
+    required checks).
 - output_id: amount_model_6B
   class: surface
   exposure: internal
@@ -5411,7 +5411,8 @@ outputs:
   read_requires_gates: []
   immutability:
     immutable_once_written: true
-  description: Behaviour priors pack for 6B (distributions/parameters used by S1-S4; sealed by S0).
+  description: Behaviour priors pack for 6B (distributions/parameters used by S1-S4;
+    sealed by S0).
 - output_id: case_policy_6B
   class: surface
   exposure: internal
@@ -5532,7 +5533,7 @@ outputs:
   immutability:
     immutable_once_written: true
   description: RNG policy for S4 labelling.
-- output_id: rng_audit_log
+- output_id: rng_audit_log_6B
   class: stream
   exposure: internal
   scope: scope_seed_parameter_hash_run_id
@@ -5688,7 +5689,7 @@ outputs:
   immutability:
     immutable_once_written: true
   description: Layer-3 RNG profile (Philox parameters and invariants).
-- output_id: rng_trace_log
+- output_id: rng_trace_log_6B
   class: stream
   exposure: internal
   scope: scope_seed_parameter_hash_run_id
@@ -5722,8 +5723,8 @@ outputs:
   read_requires_gates: []
   immutability:
     immutable_once_written: true
-  description: 'Behavioural gate receipt for 6B; one JSON object per manifest_fingerprint summarising upstream gates, contracts_6B
-    and sealed_inputs_digest_6B.
+  description: 'Behavioural gate receipt for 6B; one JSON object per manifest_fingerprint
+    summarising upstream gates, contracts_6B and sealed_inputs_digest_6B.
 
     '
 - output_id: s1_arrival_entities_6B
@@ -5750,8 +5751,8 @@ outputs:
   - gate.layer3.6B.validation
   immutability:
     immutable_once_written: true
-  description: 'Arrival events from 5B enriched with entity attachments and session identifiers for Layer-3 behaviour; one
-    row per arrival.
+  description: 'Arrival events from 5B enriched with entity attachments and session
+    identifiers for Layer-3 behaviour; one row per arrival.
 
     '
 - output_id: s1_session_index_6B
@@ -5777,7 +5778,8 @@ outputs:
   - gate.layer3.6B.validation
   immutability:
     immutable_once_written: true
-  description: 'Session index for 6B arrivals; one row per session with party/device/IP relationships and anchor metadata.
+  description: 'Session index for 6B arrivals; one row per session with party/device/IP
+    relationships and anchor metadata.
 
     '
 - output_id: s2_event_stream_baseline_6B
@@ -5830,7 +5832,8 @@ outputs:
   - gate.layer3.6B.validation
   immutability:
     immutable_once_written: true
-  description: 'Baseline flow anchors (all-legit) for 6B. One row per flow_id per (seed, manifest_fingerprint, scenario_id).
+  description: 'Baseline flow anchors (all-legit) for 6B. One row per flow_id per
+    (seed, manifest_fingerprint, scenario_id).
 
     '
 - output_id: s3_campaign_catalogue_6B
@@ -5856,7 +5859,8 @@ outputs:
   - gate.layer3.6B.validation
   immutability:
     immutable_once_written: true
-  description: 'Catalogue of realised fraud/abuse campaigns with campaign_id, fraud_type, parameters and the flows affected.
+  description: 'Catalogue of realised fraud/abuse campaigns with campaign_id, fraud_type,
+    parameters and the flows affected.
 
     '
 - output_id: s3_event_stream_with_fraud_6B
@@ -5883,7 +5887,8 @@ outputs:
   - gate.layer3.6B.validation
   immutability:
     immutable_once_written: true
-  description: 'Event stream after fraud overlays. Contains synthetic fraud behaviours for training/labelling flows.
+  description: 'Event stream after fraud overlays. Contains synthetic fraud behaviours
+    for training/labelling flows.
 
     '
 - output_id: s3_flow_anchor_with_fraud_6B
@@ -5936,7 +5941,8 @@ outputs:
   - gate.layer3.6B.validation
   immutability:
     immutable_once_written: true
-  description: 'Case timeline events for flows promoted to manual review or automated cases.
+  description: 'Case timeline events for flows promoted to manual review or automated
+    cases.
 
     '
 - output_id: s4_event_labels_6B
@@ -5989,7 +5995,8 @@ outputs:
   - gate.layer3.6B.validation
   immutability:
     immutable_once_written: true
-  description: 'Bank-view classification of each flow (what the institution sees / would act on).
+  description: 'Bank-view classification of each flow (what the institution sees /
+    would act on).
 
     '
 - output_id: s4_flow_truth_labels_6B
@@ -6037,7 +6044,8 @@ outputs:
   - gate.layer3.6B.validation
   immutability:
     immutable_once_written: true
-  description: 'Structured list of validation issues for 6B (one row per failing/warning check).
+  description: 'Structured list of validation issues for 6B (one row per failing/warning
+    check).
 
     '
 - output_id: s5_validation_report_6B
@@ -6057,8 +6065,8 @@ outputs:
   - gate.layer3.6B.validation
   immutability:
     immutable_once_written: true
-  description: 'Segment 6B world-level validation report; one JSON document summarising the results of S5 checks across S1-S4
-    artefacts.
+  description: 'Segment 6B world-level validation report; one JSON document summarising
+    the results of S5 checks across S1-S4 artefacts.
 
     '
 - output_id: sealed_inputs_6B
@@ -6081,8 +6089,8 @@ outputs:
   - gate.layer3.6B.validation
   immutability:
     immutable_once_written: true
-  description: 'Sealed list of all artefacts 6B is allowed to read for a given manifest_fingerprint, with roles, schema_refs
-    and digests.
+  description: 'Sealed list of all artefacts 6B is allowed to read for a given manifest_fingerprint,
+    with roles, schema_refs and digests.
 
     '
 - output_id: segment_validation_policy_6B
@@ -6153,7 +6161,7 @@ outputs:
   path_template: data/layer3/6B/validation/manifest_fingerprint={manifest_fingerprint}/
   partitions:
   - manifest_fingerprint
-  schema_ref: null
+  schema_ref: schemas.layer3.yaml#/validation/6B/validation_bundle_index_6B
   dictionary_ref: docs/model_spec/data-engine/layer-3/specs/contracts/6B/dataset_dictionary.layer3.6B.yaml#validation_bundle_6B
   primary_key:
   - manifest_fingerprint
@@ -6161,7 +6169,8 @@ outputs:
   read_requires_gates: []
   immutability:
     immutable_once_written: true
-  description: 'World-level validation bundle for Segment 6B; directory of validation artefacts plus index.json and _passed.flag.
+  description: 'World-level validation bundle for Segment 6B; directory of validation
+    artefacts plus index.json and _passed.flag.
 
     '
 - output_id: validation_bundle_index_6B
@@ -6180,7 +6189,8 @@ outputs:
   read_requires_gates: []
   immutability:
     immutable_once_written: true
-  description: 'Index for the Segment 6B validation bundle, listing evidence files and their SHA-256 digests.
+  description: 'Index for the Segment 6B validation bundle, listing evidence files
+    and their SHA-256 digests.
 
     '
 - output_id: validation_passed_flag_6B
@@ -6199,6 +6209,7 @@ outputs:
   read_requires_gates: []
   immutability:
     immutable_once_written: true
-  description: 'Segment 6B HashGate flag; encodes SHA-256 digest over the 6B validation bundle.
+  description: 'Segment 6B HashGate flag; encodes SHA-256 digest over the 6B validation
+    bundle.
 
     '

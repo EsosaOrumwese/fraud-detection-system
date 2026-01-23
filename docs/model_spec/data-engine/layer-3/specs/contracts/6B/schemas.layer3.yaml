@@ -180,6 +180,7 @@ gate:
       additionalProperties: false
       properties:
         s0_gate_receipt_6B:
+          $id: "#/gate/6B/s0_gate_receipt_6B"
           type: object
           additionalProperties: false
           required:
@@ -219,6 +220,7 @@ gate:
             sealed_inputs_digest_6B: { $ref: "#/$defs/hex64" }
 
         sealed_inputs_6B:
+          $id: "#/gate/6B/sealed_inputs_6B"
           type: object
           additionalProperties: false
           required:
@@ -364,6 +366,7 @@ validation:
       additionalProperties: false
       properties:
         s5_validation_report:
+          $id: "#/validation/6B/s5_validation_report"
           type: object
           additionalProperties: false
           required:
@@ -406,6 +409,7 @@ validation:
                   thresholds: { type: object, additionalProperties: true }
 
         s5_issue_table:
+          $id: "#/validation/6B/s5_issue_table"
           type: object
           additionalProperties: false
           required:
@@ -430,6 +434,7 @@ validation:
             metrics:              { type: object, additionalProperties: true }
 
         validation_bundle_index_6B:
+          $id: "#/validation/6B/validation_bundle_index_6B"
           type: object
           additionalProperties: false
           required:
@@ -454,6 +459,7 @@ validation:
                   schema_ref: { type: ["null", "string"] }
 
         passed_flag_6B:
+          $id: "#/validation/6B/passed_flag_6B"
           type: string
           pattern: "^sha256_hex = [0-9a-f]{64}$"
 

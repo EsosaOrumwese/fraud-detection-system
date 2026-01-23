@@ -1075,3 +1075,22 @@ Corrective action (bundle digest mismatch after policy change):
 - Decision: remove existing 6A validation bundle directory for this run_id/manifest so S5 can publish the new bundle + _passed.flag.
 - Target: runs/local_full_run-5/fd0a6cc8d887f06793ea9195f207138b/data/layer3/6A/validation/manifest_fingerprint=d5e591b242fa20de7b92ca4366a27b5275d52f34e398307225e0cd1271b2a07a
 - Then rerun segment6a-s5 and continue to segment6b-s0.
+
+### Entry: 2026-01-23 03:47
+
+Interface-pack/schema alignment:
+- Cross-check found schema_ref pointers (gate/validation anchors) that did not resolve in layer-3 schema packs.
+- Added $id anchors in docs/model_spec/data-engine/layer-3/specs/contracts/6A/schemas.layer3.yaml for:
+  - #/gate/6A/s0_gate_receipt_6A
+  - #/gate/6A/sealed_inputs_6A
+  - #/validation/6A/validation_report_6A
+  - #/validation/6A/validation_issue_table_6A
+  - #/validation/6A/validation_bundle_index_6A
+  - #/validation/6A/passed_flag_6A
+  - #/gate/6B/s0_gate_receipt_6B
+  - #/gate/6B/sealed_inputs_6B
+  - #/validation/6B/s5_validation_report
+  - #/validation/6B/s5_issue_table
+  - #/validation/6B/validation_bundle_index_6B
+  - #/validation/6B/passed_flag_6B
+- Purpose: make schema_ref anchors resolvable for interface_pack consumers; no behavioral change to engine runtime.
