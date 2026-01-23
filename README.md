@@ -1,6 +1,6 @@
 # Closed-World Enterprise Fraud Platform — Concept Overview
 
-> **Status:** Data Engine specs sealed; implementation complete; final full-run validation in progress.  
+> **Status:** Data Engine specs sealed; implementation complete; final full-run validation complete. Now to build the other components in the platform.
 > **Mission:** Build a bank-grade, closed-world fraud platform. All data (train/test/stream/labels) comes **only** from the **Data Engine**. No third-party enrichment. Everything is governed by contracts, lineage, validation gates, and reproducible runs.
 > *Refer to `docs/references/closed-world-synthetic-data-engine-with-realism-conceptual-design.md` for more information*
 
@@ -22,14 +22,13 @@
 | 1B | S0-S9 | **Implemented** | Production-ready Layer-1 world realism |
 | 2A | S0-S5 | **Implemented** | Gate, TZ pipeline, timetable, legality, bundle |
 | 2B | S0-S8 | **Implemented** | Alias build, router core, audits, PASS bundle |
-| 3A | S0-S7 | **Implemented** | Layer-1 cross-zone merchants; PASS bundle and `_passed.flag_3A` emitted |
-| 3B | S0-S5 | **Implemented** | Layer-1 virtual merchants & CDN; PASS bundle and `_passed.flag_3B` emitted |
+| 3A | S0-S7 | **Implemented** | Layer-1 cross-zone merchants; PASS bundle emitted |
+| 3B | S0-S5 | **Implemented** | Layer-1 virtual merchants & CDN; PASS bundle emitted |
 | 5A | S0-S5 | **Implemented** | Layer-2 arrival surfaces & calendar |
 | 5B | S0-S5 | **Implemented** | Layer-2 arrival realisation (LGCP + routing) |
 | 6A | S0-S5 | **Implemented** | Layer-3 entity & product world |
 | 6B | S0-S5 | **Implemented** | Layer-3 behaviour & fraud cascades |
 
-Current focus: full end-to-end validation run across 1A.S0 → 6B.S5.
 
 ### Spec sources (repo layout)
 - **Layer-1** - `docs/model_spec/data-engine/layer-1/.` holds all Layer-1 narratives, contracts, and state-flow docs (Segments 1A-3B) - **sealed**.
@@ -290,16 +289,13 @@ fraud-enterprise/
 
 ---
 
-> **Note:** This README describes the **destination**. Many folders are intentionally **conceptual** until unlocked. The **Data Engine** now has Layer-1 Segments 1A–3B sealed and deterministic; the next build frontier is Layer-2 (Segments 5A then 5B) once unlocked.
-
 ## Data Engine Progress
 
 ```
 ============================ DATA ENGINE (progress) ============================
-[ Merchant-Location Realism ] | [ Arrival Mechanics ]            | [ Flow Dynamics ]
-            [  ONLINE  ]      | [ SPECS SEALED - NEXT UP ]      | [ SPECS SEALED - NEXT UP ]
+[ Merchant-Location Realism ] | [ Arrival Mechanics ] | [ Flow Dynamics ]
+       [  ONLINE  ]           |     [ ONLINE ]        |     [ ONLINE ]
 
-                  ^ implementation focus: 5A/5B and 6A/6B
 -------------------------------------------------------------------------------
 | 4A Reproducibility + 4B Validation = CROSS-CUTTING (baked into every box)   |
 | VALIDATION HARNESS: ON FROM DAY 0 (spans all layers; not a tail-end step)   |
@@ -307,14 +303,14 @@ fraud-enterprise/
 ```
 
 ```
-=========== Merchant-Location Realism (open) ===========
+=========== Merchant-Location Realism ===========
 Sub-segments:
   1A  Merchants → Physical Sites  ............. [ ONLINE ]
   1B  Place Sites on Planet ................... [ ONLINE ]
   2A  Civil Time Zone (IANA/DST) .............. [ ONLINE ]
   2B  Routing Through Sites ................... [ ONLINE ]
-  3A  Cross-Zone Merchants .................... [ BUILDING ]
-  3B  Purely Virtual Merchants ................ [ LOCKED ]
+  3A  Cross-Zone Merchants .................... [ ONLINE ]
+  3B  Purely Virtual Merchants ................ [ ONLINE ]
 
 [4A/4B overlay]  >>> applied to every sub-segment above (inputs/outputs, RNG,
                    manifests, schema checks, and per-state validation gates)
@@ -356,7 +352,7 @@ S3 Day Effects (γ draws)       S4 Group Weights (Σ=1)         S5 Router Core (
 S6 Virtual Edge Routing        S7 Audits & CI Gate            S8 Validation Bundle & `_passed.flag`
 
 
-=========== 3A state-flow (8 states; specs sealed) ===========
+=========== 3A state-flow (8 states; live) ===========
 S0 -> S1 -> S2 -> S3 -> S4 -> S5 -> S6 -> S7
 
 Where (short labels just to anchor the flow):
@@ -366,7 +362,7 @@ S4 Integerise w/ Floors & Bump S5 Bind Allocation + Universe Hash
 S6 Structural Validation       S7 Validation Bundle & `_passed.flag`
 
 
-=========== 3B state-flow (6 states; specs sealed) ===========
+=========== 3B state-flow (6 states; live) ===========
 S0 -> S1 -> S2 -> S3 -> S4 -> S5
 
 Where (short labels just to anchor the flow):
@@ -382,10 +378,10 @@ Legend:
 ```
 
 ```markdown
-=========== Arrival Mechanics (Layer 2 - specs sealed) ===========
+=========== Arrival Mechanics (Layer 2) ===========
 Sub-segments:
-  5A  Arrival Surfaces & Calendar              [ SPECS SEALED - IMPLEMENTATION NEXT ]
-  5B  Arrival Realisation (LGCP + Routing)     [ SPECS SEALED - IMPLEMENTATION NEXT ]
+  5A  Arrival Surfaces & Calendar              [ ONLINE ]
+  5B  Arrival Realisation (LGCP + Routing)     [ ONLINE]
 
 Notes:
   - 5A defines deterministic intensity surfaces per merchant/zone/time bucket,
@@ -397,10 +393,10 @@ Notes:
                    (same run sealing, RNG, and HashGate discipline as Layer 1)
 
 
-=========== Flow Dynamics (Layer 3 - specs sealed) ===========
+=========== Flow Dynamics (Layer 3) ===========
 Sub-segments:
-  6A  Entity & Product World                   [ SPECS SEALED - IMPLEMENTATION NEXT ]
-  6B  Behaviour & Fraud Cascades               [ SPECS SEALED - IMPLEMENTATION NEXT ]
+  6A  Entity & Product World                   [ ONLINE ]
+  6B  Behaviour & Fraud Cascades               [ ONLINE ]
 
 Notes:
   - 6A builds the entity graph: customers, accounts, instruments, devices, IPs,
