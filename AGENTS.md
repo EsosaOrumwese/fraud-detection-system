@@ -1,12 +1,14 @@
 # AGENTS.md - Router for the Closed-World Enterprise Fraud System
-_As of 2026-01-10_
+_As of 2026-01-23_
 
 Use this to orient yourself before touching code. It captures what is in scope, what to read first, and where the detailed routers live.
 
 ---
 
 ## 0) Scope (current focus)
-- **Build sequencing:** Engine specs are complete for layer-1 (1A-3B), layer-2 (5A-5B), and layer-3 (6A-6B). After the conceptual reading order, follow `packages\engine\AGENTS.md`.
+- **Build status:** Engine specs are sealed and implementation is complete for layer-1 (1A-3B), layer-2 (5A-5B), and layer-3 (6A-6B). Current focus is the full end-to-end validation run (1A.S0 → 6B.S5).
+- After the conceptual reading order, follow `packages\engine\AGENTS.md` for engine implementation routing.
+- For platform integration, treat the engine as a black box and use `docs\model_spec\data-engine\interface_pack\` as the boundary contract.
 - For now, all other components of the fraud enterprise platform are not yet built.
 
 ---
