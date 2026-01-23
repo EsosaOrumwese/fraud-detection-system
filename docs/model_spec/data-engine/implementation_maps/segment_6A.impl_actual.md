@@ -1094,3 +1094,31 @@ Interface-pack/schema alignment:
   - #/validation/6B/validation_bundle_index_6B
   - #/validation/6B/passed_flag_6B
 - Purpose: make schema_ref anchors resolvable for interface_pack consumers; no behavioral change to engine runtime.
+
+### Entry: 2026-01-23 09:12
+
+6A.S1 schema validation failure (sealed_inputs_6A $defs scope):
+- **Problem:** 6A.S1 failed with `PointerToNowhere: '/$defs/hex64'` in sealed_inputs_6A during schema validation. The subschema uses `$id: "#/gate/6A/sealed_inputs_6A"` and references `#/$defs/hex64`, but the local `$defs` map is missing under that `$id` scope.
+- **Decision:** mirror the 6B fix by adding a local `$defs.hex64` to both `s0_gate_receipt_6A` and `sealed_inputs_6A` schemas in `docs/model_spec/data-engine/layer-3/specs/contracts/6A/schemas.layer3.yaml`. This keeps refs stable under the subschema `$id` without changing payload shape.
+- **Reasoning:** avoids ref resolution ambiguity in Draft2020-12 when `$id` resets the base URI; minimal change; keeps engine logic intact.
+- **Next step:** rerun `make segment6a-s1` for the active run_id.
+
+### Entry: 2026-01-23 09:17
+
+6A.S1 schema failure persists (array-wrapping drops $defs from items schema):
+- **Observation:** Even after adding local `$defs` to sealed_inputs_6A, 6A.S1 still fails with PointerToNowhere for `#/$defs/hex64`. The error shows the *items* schema (with `$id` set to the sealed_inputs_6A anchor) lacks `$defs`, so `$ref` resolution fails inside the items object.
+- **Root cause:** `_validate_payload` in `seg_6A/s1_party_base/runner.py` wraps object schemas into an array by stripping `$defs` from the items schema (`items_schema = {.. if key != "$defs"}`) and only places `$defs` on the array root. Because the items schema has its own `$id`, `$ref #/$defs/...` resolves against the items scope, not the array root.
+- **Decision:** Align 6A with the 6B fix: preserve `$defs` inside the items schema when wrapping list payloads. This keeps `$defs` available in the `$id` scope and preserves existing ref behavior.
+- **Steps:**
+  1) Update `_validate_payload` in `packages/engine/src/engine/layers/l3/seg_6A/s1_party_base/runner.py` to keep `$defs` in `items_schema` (use `items_schema = dict(schema)`).
+  2) Leave the array-level `$defs` copy in place (benign redundancy).
+  3) Rerun `make segment6a-s1` for the active run_id.
+
+### Entry: 2026-01-23 09:23
+
+6A.S2 schema failure mirrors S1 (array-wrapping drops $defs in items schema):
+- **Observation:** 6A.S2 failed with the same PointerToNowhere for `#/$defs/hex64` when validating sealed_inputs_6A. This indicates the same `$defs`-dropping behavior in `seg_6A/s2_accounts/runner.py`.
+- **Decision:** Apply the same fix as S1—preserve `$defs` within items schema when wrapping list payloads.
+- **Steps:**
+  1) Update `_validate_payload` in `packages/engine/src/engine/layers/l3/seg_6A/s2_accounts/runner.py` to keep `$defs` in `items_schema`.
+  2) Rerun `make segment6a-s2` for the active run_id.
