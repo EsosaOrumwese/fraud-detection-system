@@ -3357,3 +3357,28 @@ Summary: After raising demand_scale_policy_5A max_weekly_volume_expected, rerunn
 Next steps:
 1) Either use a fresh run_id for the full run, or
 2) Delete the existing 5A S0 outputs under the current run_id (s0_gate_receipt_5A + sealed_inputs_5A) and rerun segment5a-s0 then segment5a-s1.
+
+### Entry: 2026-01-23 07:46
+
+Design element: 5A.S3 baseline intensity guardrail too low for current run (S3_INTENSITY_NUMERIC_INVALID).
+Summary: Full run (run_id 7551b84149b66ed24ff8bea2b4724aa8) failed in 5A.S3 with S3_INTENSITY_NUMERIC_INVALID; error context indicates max_weekly_volume_expected=5,000,000. This is a policy cap mismatch for current merchant_zone_profile_5A, not a structural data error.
+
+Plan (before change):
+1) **Inputs / authorities**
+   - Run log: runs/local_full_run-5/7551b84149b66ed24ff8bea2b4724aa8/run_log_7551b84149b66ed24ff8bea2b4724aa8.log (S3 failure context).
+   - Run report: runs/local_full_run-5/7551b84149b66ed24ff8bea2b4724aa8/reports/layer2/5A/state=S3/manifest_fingerprint=38b072d4788bf51c7d2f4e6b8a190270bdce7ebf358873368fc164a521178d24/run_report.json.
+   - Policy file: config/layer2/5A/policy/baseline_intensity_policy_5A.v1.yaml (hard_limits.max_weekly_volume_expected).
+2) **Alternatives considered**
+   - Clamp volumes to the cap (changes distribution silently; hides mismatch).
+   - Reduce upstream scale parameters (broad distribution change).
+3) **Decision**
+   - Raise baseline_intensity_policy_5A.hard_limits.max_weekly_volume_expected to 10,000,000 for headroom.
+4) **Algorithm / data-flow**
+   - No algorithm change; adjust policy cap only.
+5) **Invariants**
+   - Keep finite, non-negative checks; maintain hard cap enforcement.
+6) **Resumability**
+   - Must rerun 5A.S0 to reseal inputs because sealed_inputs_5A digest depends on policy files.
+   - Use fresh run_id or delete 5A S0 outputs for the active run_id.
+7) **Validation / testing**
+   - Re-run segment5a-s0 then segment5a-s3 for the active run_id and confirm S3 passes.

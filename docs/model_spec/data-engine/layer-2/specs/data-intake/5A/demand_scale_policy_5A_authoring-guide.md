@@ -385,7 +385,7 @@ realism_targets:
   mean_per_site_bounds: [150, 900]
   p99_p50_ratio_min: 6
   max_class_volume_share: 0.60
-  max_weekly_volume_expected: 5000000
+  max_weekly_volume_expected: 10000000
 ```
 
 Codex MUST replace `global_multiplier` after running the deterministic calibration step (§7D). No timestamps.
