@@ -1,0 +1,21 @@
+policy_id: time_grid_policy_5B
+version: v1.0.1
+bucket_duration_seconds: 3600
+alignment_mode: require_aligned_v1
+bucket_index_base: 0
+bucket_index_origin: horizon_start_utc
+carry_scenario_fields:
+  required:
+    - scenario_is_baseline
+    - scenario_is_stress
+  optional:
+    - scenario_labels
+local_annotations:
+  emit: true
+  reference_tzid: Etc/UTC
+  day_of_week_encoding: "1=Mon,...,7=Sun"
+  weekend_days: [6, 7]
+guardrails:
+  min_horizon_days: 28
+  max_horizon_days: 120
+  max_buckets_per_scenario: 5000

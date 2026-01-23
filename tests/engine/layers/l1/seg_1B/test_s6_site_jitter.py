@@ -6,8 +6,10 @@ from pathlib import Path
 import geopandas as gpd
 import polars as pl
 from shapely.geometry import Polygon
+import pyarrow.dataset as ds
 
 from engine.layers.l1.seg_1B import S6RunnerConfig, S6SiteJitterRunner
+from engine.layers.l1.seg_1B.s6_site_jitter.l0.datasets import TileBoundsPartition
 from engine.layers.l1.seg_1B.s6_site_jitter.l1.jitter import JitterOutcome
 from engine.layers.l1.seg_1B.s6_site_jitter.l2.materialise import (
     S6RunResult,
@@ -92,10 +94,12 @@ def _prepare_inputs(tmp_path: Path) -> tuple[PreparedInputs, S6RunnerConfig]:
         {
             "country_iso": ["US", "CA"],
             "tile_id": [11, 42],
-            "west_lon": [-1.0, 9.0],
-            "east_lon": [1.0, 11.0],
-            "south_lat": [-1.0, 9.0],
-            "north_lat": [1.0, 11.0],
+            "min_lon_deg": [-1.0, 9.0],
+            "max_lon_deg": [1.0, 11.0],
+            "min_lat_deg": [-1.0, 9.0],
+            "max_lat_deg": [1.0, 11.0],
+            "centroid_lon_deg": [0.0, 10.0],
+            "centroid_lat_deg": [0.0, 10.0],
         }
     )
     tile_bounds_df.write_parquet(tile_bounds_path / "part-00000.parquet")
@@ -337,10 +341,10 @@ def test_runner_emits_expected_dataset(tmp_path: Path) -> None:
         delta_lon = float(row["delta_lon_deg"])
         delta_lat = float(row["delta_lat_deg"])
 
-        west_margin = float(bounds["west_lon"]) - centroid_lon
-        east_margin = float(bounds["east_lon"]) - centroid_lon
-        south_margin = float(bounds["south_lat"]) - centroid_lat
-        north_margin = float(bounds["north_lat"]) - centroid_lat
+        west_margin = float(bounds["min_lon_deg"]) - centroid_lon
+        east_margin = float(bounds["max_lon_deg"]) - centroid_lon
+        south_margin = float(bounds["min_lat_deg"]) - centroid_lat
+        north_margin = float(bounds["max_lat_deg"]) - centroid_lat
 
         tol = 1e-9
         assert south_margin - tol <= delta_lat <= north_margin + tol
@@ -351,3 +355,42 @@ def test_runner_emits_expected_dataset(tmp_path: Path) -> None:
     assert rng_counts["events_total"] == dataset.height
     assert rng_counts["resample_sites_total"] >= 0
     assert rng_counts["resample_events_total"] >= 0
+
+def test_tile_bounds_partition_handles_legacy_schema(tmp_path: Path) -> None:
+    """Even old partitions with legacy column names normalise to canonical form."""
+
+    partition_path = tmp_path / "data/layer1/1B/tile_bounds/parameter_hash=legacy"
+    partition_path.mkdir(parents=True, exist_ok=True)
+    legacy_df = pl.DataFrame(
+        {
+            "country_iso": ["US"],
+            "tile_id": [11],
+            "west_lon": [-1.0],
+            "east_lon": [1.0],
+            "south_lat": [-1.0],
+            "north_lat": [1.0],
+        }
+    )
+    file_path = partition_path / "part-00000.parquet"
+    legacy_df.write_parquet(file_path)
+
+    partition = TileBoundsPartition(
+        path=partition_path,
+        file_paths=(file_path,),
+        dataset=ds.dataset([str(file_path)], format="parquet"),
+    )
+
+    frame = partition.collect_country("US")
+    assert frame.columns == [
+        "country_iso",
+        "tile_id",
+        "min_lon_deg",
+        "max_lon_deg",
+        "min_lat_deg",
+        "max_lat_deg",
+        "centroid_lon_deg",
+        "centroid_lat_deg",
+    ]
+    assert frame.shape == (1, 8)
+    assert frame[0, "min_lon_deg"] == -1.0
+    assert frame[0, "max_lat_deg"] == 1.0

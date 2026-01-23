@@ -1,0 +1,1650 @@
+impl_map_semver: 0.1.0
+segment:
+  segment_id: 6A
+  layer_id: layer3
+  title: Entity & Product World
+  description: Realise parties, accounts/products, instruments, devices/IP graph,
+    and static fraud roles; publish Layer-3 PASS gate.
+generated_at_utc: '2026-01-10T12:50:00Z'
+sources:
+  state_expanded_docs:
+  - state.6A.s0.expanded.txt
+  - state.6A.s1.expanded.txt
+  - state.6A.s2.expanded.txt
+  - state.6A.s3.expanded.txt
+  - state.6A.s4.expanded.txt
+  - state.6A.s5.expanded.txt
+  dataset_dictionary:
+  - dataset_dictionary.layer3.6A.yaml
+  artefact_registry:
+  - artefact_registry_6A.yaml
+  schemas:
+  - schemas.6A.yaml
+  - schemas.layer3.yaml
+source_fingerprints:
+  dataset_dictionary.layer3.6A.yaml:
+    sha256: 5014134eacb16b288c17195b2da19c4f71b5931837a13f085e9ed594d3c3a83c
+  artefact_registry_6A.yaml:
+    sha256: bc1e02c5353190cf1b9e62284a8cb006019eccc51bcae8a2d92c16ae8eacddcb
+  schemas.6A.yaml:
+    sha256: d0ec4fa91af49291533b0399aff3f57fb2dd81e8ac3dc547a0384174a1efe1b1
+  schemas.layer3.yaml:
+    sha256: 6d9f6a71c7ee8d5a0855f9789c6a5ff6d75ce6c38b43540fd7972bbfb4264612
+  state.6A.s0.expanded.txt:
+    sha256: 168bdc19188f054402b37a422c2015280a7b995002076edeb2a813c07f862bf5
+  state.6A.s1.expanded.txt:
+    sha256: 63764091023716e2e380d0d0e320794b2e2cda70f252b868487c1a334e35e980
+  state.6A.s2.expanded.txt:
+    sha256: 88b753f4dcfe752dd5f6b3ce2715571f7d04c1a5206a3ef5d87ff79bcfc0cf05
+  state.6A.s3.expanded.txt:
+    sha256: fdec82e79b2540933cbaecf3d2bcb7f87c55e64aa0f17db55e8a2a19eeac94a0
+  state.6A.s4.expanded.txt:
+    sha256: b307b9974620c239e16a8f0f2446e7213d405208beb2e092b118f83613149798
+  state.6A.s5.expanded.txt:
+    sha256: 3e881ade4f129479cc92231397d45adf1a12acee21b00ba9b14814ae744ecb70
+path_tokens:
+  parameter_hash: parameter_hash
+  manifest_fingerprint: manifest_fingerprint
+  seed: seed
+  run_id: run_id
+lineage:
+  parameter_hash:
+    role: parameter_pack_anchor
+    algorithm_ref: Engine-global parameter_hash (canonical; by reference).
+    output_effect:
+      partition_must_include:
+      - parameter_hash
+      log_partitions_must_include:
+      - parameter_hash
+  manifest_fingerprint:
+    role: world_anchor
+    algorithm_ref: Engine-global manifest_fingerprint (canonical; opened-artefact closure).
+    dependency_closure_source: sealed_inputs_6A
+    output_effect:
+      partition_must_include:
+      - manifest_fingerprint
+  run_id:
+    role: log_partition_only
+    algorithm_ref: Engine-global run_id (canonical; log-only; MUST NOT influence modelling
+      outputs).
+    constraints:
+    - MUST_NOT_influence_modelling_outputs
+    - MUST_NOT_influence_RNG_outcomes
+gates:
+- gate_id: upstream.1A.final_bundle_gate
+  gate_type: upstream_final_bundle_gate
+  owner_segment: 1A
+  scope_keys:
+  - manifest_fingerprint
+  location:
+    bundle_root: data/layer1/1A/validation/manifest_fingerprint={manifest_fingerprint}/
+    passed_flag: data/layer1/1A/validation/manifest_fingerprint={manifest_fingerprint}/_passed.flag
+  verification_method: verify_upstream_gate_as_specified
+  file_set_rule: Verify upstream segment gate exactly as specified by that segment
+    (index-driven bundle verification; note 3A uses digest-of-digests).
+- gate_id: upstream.1B.final_bundle_gate
+  gate_type: upstream_final_bundle_gate
+  owner_segment: 1B
+  scope_keys:
+  - manifest_fingerprint
+  location:
+    bundle_root: data/layer1/1B/validation/manifest_fingerprint={manifest_fingerprint}/
+    passed_flag: data/layer1/1B/validation/manifest_fingerprint={manifest_fingerprint}/_passed.flag
+  verification_method: verify_upstream_gate_as_specified
+  file_set_rule: Verify upstream segment gate exactly as specified by that segment
+    (index-driven bundle verification; note 3A uses digest-of-digests).
+- gate_id: upstream.2A.final_bundle_gate
+  gate_type: upstream_final_bundle_gate
+  owner_segment: 2A
+  scope_keys:
+  - manifest_fingerprint
+  location:
+    bundle_root: data/layer1/2A/validation/manifest_fingerprint={manifest_fingerprint}/
+    passed_flag: data/layer1/2A/validation/manifest_fingerprint={manifest_fingerprint}/_passed.flag
+  verification_method: verify_upstream_gate_as_specified
+  file_set_rule: Verify upstream segment gate exactly as specified by that segment
+    (index-driven bundle verification; note 3A uses digest-of-digests).
+- gate_id: upstream.2B.final_bundle_gate
+  gate_type: upstream_final_bundle_gate
+  owner_segment: 2B
+  scope_keys:
+  - manifest_fingerprint
+  location:
+    bundle_root: data/layer1/2B/validation/manifest_fingerprint={manifest_fingerprint}/
+    passed_flag: data/layer1/2B/validation/manifest_fingerprint={manifest_fingerprint}/_passed.flag
+  verification_method: verify_upstream_gate_as_specified
+  file_set_rule: Verify upstream segment gate exactly as specified by that segment
+    (index-driven bundle verification; note 3A uses digest-of-digests).
+- gate_id: upstream.3A.final_bundle_gate
+  gate_type: upstream_final_bundle_gate
+  owner_segment: 3A
+  scope_keys:
+  - manifest_fingerprint
+  location:
+    bundle_root: data/layer1/3A/validation/manifest_fingerprint={manifest_fingerprint}/
+    passed_flag: data/layer1/3A/validation/manifest_fingerprint={manifest_fingerprint}/_passed.flag
+  verification_method: verify_upstream_gate_as_specified
+  file_set_rule: Verify upstream segment gate exactly as specified by that segment
+    (index-driven bundle verification; note 3A uses digest-of-digests).
+- gate_id: upstream.3B.final_bundle_gate
+  gate_type: upstream_final_bundle_gate
+  owner_segment: 3B
+  scope_keys:
+  - manifest_fingerprint
+  location:
+    bundle_root: data/layer1/3B/validation/manifest_fingerprint={manifest_fingerprint}/
+    passed_flag: data/layer1/3B/validation/manifest_fingerprint={manifest_fingerprint}/_passed.flag
+  verification_method: verify_upstream_gate_as_specified
+  file_set_rule: Verify upstream segment gate exactly as specified by that segment
+    (index-driven bundle verification; note 3A uses digest-of-digests).
+- gate_id: upstream.5A.final_bundle_gate
+  gate_type: upstream_final_bundle_gate
+  owner_segment: 5A
+  scope_keys:
+  - manifest_fingerprint
+  location:
+    bundle_root: data/layer2/5A/validation/manifest_fingerprint={manifest_fingerprint}/
+    passed_flag: data/layer2/5A/validation/manifest_fingerprint={manifest_fingerprint}/_passed.flag
+  verification_method: verify_upstream_gate_as_specified
+  file_set_rule: Verify upstream segment gate exactly as specified by that segment
+    (index-driven bundle verification; note 3A uses digest-of-digests).
+- gate_id: upstream.5B.final_bundle_gate
+  gate_type: upstream_final_bundle_gate
+  owner_segment: 5B
+  scope_keys:
+  - manifest_fingerprint
+  location:
+    bundle_root: data/layer2/5B/validation/manifest_fingerprint={manifest_fingerprint}/
+    passed_flag: data/layer2/5B/validation/manifest_fingerprint={manifest_fingerprint}/_passed.flag
+  verification_method: verify_upstream_gate_as_specified
+  file_set_rule: Verify upstream segment gate exactly as specified by that segment
+    (index-driven bundle verification; note 3A uses digest-of-digests).
+- gate_id: 6A.S0.gate_in_receipt
+  gate_type: attestation_receipt
+  scope_keys:
+  - manifest_fingerprint
+  location:
+    receipt: data/layer3/6A/s0_gate_receipt/manifest_fingerprint={manifest_fingerprint}/s0_gate_receipt_6A.json
+    sealed_inputs: data/layer3/6A/sealed_inputs/manifest_fingerprint={manifest_fingerprint}/sealed_inputs_6A.json
+  verification_method: schema_validate_and_digest_link
+  file_set_rule: Validate s0_gate_receipt_6A and sealed_inputs_6A schemas; sealed_inputs_digest
+    in receipt MUST equal digest computed from canonical sealed_inputs rows (sorted
+    by owner_layer, owner_segment, manifest_key).
+  authorizes_reads_of:
+  - 6A.sealed_inputs_universe
+- gate_id: 6A.final.bundle_gate
+  gate_type: final_bundle_gate
+  scope_keys:
+  - manifest_fingerprint
+  location:
+    bundle_root: data/layer3/6A/validation/manifest_fingerprint={manifest_fingerprint}/
+    index_json: data/layer3/6A/validation/manifest_fingerprint={manifest_fingerprint}/validation_bundle_index_6A.json
+    passed_flag: data/layer3/6A/validation/manifest_fingerprint={manifest_fingerprint}/_passed.flag
+  verification_method: indexed_bundle_raw_bytes
+  file_set_rule: bundle_digest_sha256 = SHA256(concat(raw_bytes(files listed in validation_bundle_index_6A
+    excluding _passed.flag) in ASCII-lex path order)); _passed.flag
+    must carry manifest_fingerprint and bundle_digest_sha256 (schema-defined).
+  authorizes_reads_of:
+  - s1_party_base_6A
+  - s2_account_base_6A
+  - s3_instrument_base_6A
+  - s4_device_base_6A
+  - s4_ip_base_6A
+  - s5_party_fraud_roles_6A
+  - s5_account_fraud_roles_6A
+  - s5_merchant_fraud_roles_6A
+  - s5_device_fraud_roles_6A
+  - s5_ip_fraud_roles_6A
+order_authorities:
+- authority_id: 6A.party_id_order
+  dataset_id: s1_party_base_6A
+  scope_keys:
+  - seed
+  - manifest_fingerprint
+  - parameter_hash
+  ordering_keys:
+  - country_iso
+  - segment_id
+  - party_type
+  - party_id
+  rule: Writer ordering keys for s1_party_base_6A are binding for determinism/diffability;
+    downstream joins must use party_id as FK, never file order.
+- authority_id: 6A.account_id_order
+  dataset_id: s2_account_base_6A
+  scope_keys:
+  - seed
+  - manifest_fingerprint
+  - parameter_hash
+  ordering_keys:
+  - country_iso
+  - account_type
+  - owner_party_id
+  - account_id
+  rule: Writer ordering keys for s2_account_base_6A are binding for determinism/diffability;
+    account_id is FK target for instruments/links.
+consumer_surfaces:
+  s1_party_base_6A:
+    dataset_id: s1_party_base_6A
+    scope_keys:
+    - seed
+    - manifest_fingerprint
+    - parameter_hash
+    address_template: data/layer3/6A/s1_party_base_6A/seed={seed}/parameter_hash={parameter_hash}/manifest_fingerprint={manifest_fingerprint}/s1_party_base_6A.parquet
+    schema_ref: schemas.layer3.yaml#/world/6A/s1_party_baseU_base_6A
+    ordering:
+    - country_iso
+    - segment_id
+    - party_type
+    - party_id
+    required_gates:
+    - 6A.final.bundle_gate
+    notes:
+    - Core party universe for (manifest_fingerprint,seed); scenario-independent.
+    - Consumers MUST verify 6A final gate for the same manifest_fingerprint before
+      reading.
+  s2_account_base_6A:
+    dataset_id: s2_account_base_6A
+    scope_keys:
+    - seed
+    - manifest_fingerprint
+    - parameter_hash
+    address_template: data/layer3/6A/s2_account_base_6A/seed={seed}/parameter_hash={parameter_hash}/manifest_fingerprint={manifest_fingerprint}/s2_account_base_6A.parquet
+    schema_ref: schemas.layer3.yaml#/world/6A/s2_account_base_6A
+    ordering:
+    - country_iso
+    - account_type
+    - owner_party_id
+    - account_id
+    required_gates:
+    - 6A.final.bundle_gate
+  s3_instrument_base_6A:
+    dataset_id: s3_instrument_base_6A
+    scope_keys:
+    - seed
+    - manifest_fingerprint
+    - parameter_hash
+    address_template: data/layer3/6A/s3_instrument_base_6A/seed={seed}/parameter_hash={parameter_hash}/manifest_fingerprint={manifest_fingerprint}/s3_instrument_base_6A.parquet
+    schema_ref: schemas.layer3.yaml#/world/6A/s3_instrument_base_6A
+    ordering:
+    - account_id
+    - instrument_type
+    - scheme
+    - instrument_id
+    required_gates:
+    - 6A.final.bundle_gate
+  s4_device_base_6A:
+    dataset_id: s4_device_base_6A
+    scope_keys:
+    - seed
+    - manifest_fingerprint
+    - parameter_hash
+    address_template: data/layer3/6A/s4_device_base_6A/seed={seed}/parameter_hash={parameter_hash}/manifest_fingerprint={manifest_fingerprint}/s4_device_base_6A.parquet
+    schema_ref: schemas.layer3.yaml#/world/6A/s4_device_base_6A
+    ordering:
+    - device_type
+    - primary_party_id
+    - primary_merchant_id
+    - device_id
+    required_gates:
+    - 6A.final.bundle_gate
+  s5_party_fraud_roles_6A:
+    dataset_id: s5_party_fraud_roles_6A
+    scope_keys:
+    - seed
+    - manifest_fingerprint
+    - parameter_hash
+    address_template: data/layer3/6A/s5_party_fraud_roles_6A/seed={seed}/parameter_hash={parameter_hash}/manifest_fingerprint={manifest_fingerprint}/s5_party_fraud_roles_6A.parquet
+    schema_ref: schemas.layer3.yaml#/world/6A/s5_party_fraud_roles_6A
+    ordering:
+    - party_id
+    required_gates:
+    - 6A.final.bundle_gate
+states:
+  S0:
+    impl_map_key: segment=6A.state=S0
+    state_class: SC-A
+    rng_posture: RNG_NONE
+    scope_keys:
+    - manifest_fingerprint
+    reads:
+    - dataset_id: validation_bundle_1A
+      kind: upstream_validation
+      required_gates: []
+    - dataset_id: validation_passed_flag_1A
+      kind: upstream_validation
+      required_gates: []
+    - dataset_id: validation_bundle_1B
+      kind: upstream_validation
+      required_gates: []
+    - dataset_id: validation_passed_flag_1B
+      kind: upstream_validation
+      required_gates: []
+    - dataset_id: validation_bundle_2A
+      kind: upstream_validation
+      required_gates: []
+    - dataset_id: validation_passed_flag_2A
+      kind: upstream_validation
+      required_gates: []
+    - dataset_id: validation_bundle_2B
+      kind: upstream_validation
+      required_gates: []
+    - dataset_id: validation_passed_flag_2B
+      kind: upstream_validation
+      required_gates: []
+    - dataset_id: validation_bundle_3A
+      kind: upstream_validation
+      required_gates: []
+    - dataset_id: validation_passed_flag_3A
+      kind: upstream_validation
+      required_gates: []
+    - dataset_id: validation_bundle_3B
+      kind: upstream_validation
+      required_gates: []
+    - dataset_id: validation_passed_flag_3B
+      kind: upstream_validation
+      required_gates: []
+    - dataset_id: validation_bundle_5A
+      kind: upstream_validation
+      required_gates: []
+    - dataset_id: validation_passed_flag_5A
+      kind: upstream_validation
+      required_gates: []
+    - dataset_id: validation_bundle_5B
+      kind: upstream_validation
+      required_gates: []
+    - dataset_id: validation_passed_flag_5B
+      kind: upstream_validation
+      required_gates: []
+    - dataset_id: outlet_catalogue
+      kind: sealed_reference
+      required_gates:
+      - upstream.1A.final_bundle_gate
+      notes:
+      - METADATA_ONLY in S0
+    - dataset_id: site_locations
+      kind: sealed_reference
+      required_gates:
+      - upstream.1B.final_bundle_gate
+      notes:
+      - METADATA_ONLY in S0
+    - dataset_id: site_timezones
+      kind: sealed_reference
+      required_gates:
+      - upstream.2A.final_bundle_gate
+      notes:
+      - METADATA_ONLY in S0
+    - dataset_id: tz_timetable_cache
+      kind: sealed_reference
+      required_gates:
+      - upstream.2A.final_bundle_gate
+      notes:
+      - METADATA_ONLY in S0
+    - dataset_id: zone_alloc
+      kind: sealed_reference
+      required_gates:
+      - upstream.3A.final_bundle_gate
+      notes:
+      - METADATA_ONLY in S0
+    - dataset_id: zone_alloc_universe_hash
+      kind: sealed_reference
+      required_gates:
+      - upstream.3A.final_bundle_gate
+      notes:
+      - METADATA_ONLY in S0
+    - dataset_id: virtual_classification_3B
+      kind: sealed_reference
+      required_gates:
+      - upstream.3B.final_bundle_gate
+      notes:
+      - METADATA_ONLY in S0
+    - dataset_id: virtual_settlement_3B
+      kind: sealed_reference
+      required_gates:
+      - upstream.3B.final_bundle_gate
+      notes:
+      - METADATA_ONLY in S0
+    - dataset_id: edge_universe_hash_3B
+      kind: sealed_reference
+      required_gates:
+      - upstream.3B.final_bundle_gate
+      notes:
+      - METADATA_ONLY in S0
+    - dataset_id: virtual_routing_policy_3B
+      kind: sealed_reference
+      required_gates:
+      - upstream.3B.final_bundle_gate
+      notes:
+      - METADATA_ONLY in S0
+    - dataset_id: merchant_zone_profile_5A
+      kind: sealed_reference
+      required_gates:
+      - upstream.5A.final_bundle_gate
+      notes:
+      - METADATA_ONLY in S0
+    - dataset_id: arrival_events_5B
+      kind: sealed_reference
+      required_gates:
+      - upstream.5B.final_bundle_gate
+      notes:
+      - METADATA_ONLY in S0
+    - dataset_id: prior_population_6A
+      kind: config
+      required_gates: []
+      notes:
+      - Sealed input; flips manifest_fingerprint
+    - dataset_id: prior_segmentation_6A
+      kind: config
+      required_gates: []
+      notes:
+      - Sealed input; flips manifest_fingerprint
+    - dataset_id: taxonomy_party_6A
+      kind: config
+      required_gates: []
+      notes:
+      - Sealed input; flips manifest_fingerprint
+    - dataset_id: prior_account_per_party_6A
+      kind: config
+      required_gates: []
+      notes:
+      - Sealed input; flips manifest_fingerprint
+    - dataset_id: prior_product_mix_6A
+      kind: config
+      required_gates: []
+      notes:
+      - Sealed input; flips manifest_fingerprint
+    - dataset_id: taxonomy_account_types_6A
+      kind: config
+      required_gates: []
+      notes:
+      - Sealed input; flips manifest_fingerprint
+    - dataset_id: prior_instrument_per_account_6A
+      kind: config
+      required_gates: []
+      notes:
+      - Sealed input; flips manifest_fingerprint
+    - dataset_id: prior_instrument_mix_6A
+      kind: config
+      required_gates: []
+      notes:
+      - Sealed input; flips manifest_fingerprint
+    - dataset_id: taxonomy_instrument_types_6A
+      kind: config
+      required_gates: []
+      notes:
+      - Sealed input; flips manifest_fingerprint
+    - dataset_id: prior_device_counts_6A
+      kind: config
+      required_gates: []
+      notes:
+      - Sealed input; flips manifest_fingerprint
+    - dataset_id: taxonomy_devices_6A
+      kind: config
+      required_gates: []
+      notes:
+      - Sealed input; flips manifest_fingerprint
+    - dataset_id: prior_ip_counts_6A
+      kind: config
+      required_gates: []
+      notes:
+      - Sealed input; flips manifest_fingerprint
+    - dataset_id: taxonomy_ips_6A
+      kind: config
+      required_gates: []
+      notes:
+      - Sealed input; flips manifest_fingerprint
+    - dataset_id: taxonomy_fraud_roles_6A
+      kind: config
+      required_gates: []
+      notes:
+      - Sealed input; flips manifest_fingerprint
+    - dataset_id: prior_party_roles_6A
+      kind: config
+      required_gates: []
+      notes:
+      - Sealed input; flips manifest_fingerprint
+    - dataset_id: prior_account_roles_6A
+      kind: config
+      required_gates: []
+      notes:
+      - Sealed input; flips manifest_fingerprint
+    - dataset_id: prior_merchant_roles_6A
+      kind: config
+      required_gates: []
+      notes:
+      - Sealed input; flips manifest_fingerprint
+    - dataset_id: prior_device_roles_6A
+      kind: config
+      required_gates: []
+      notes:
+      - Sealed input; flips manifest_fingerprint
+    - dataset_id: prior_ip_roles_6A
+      kind: config
+      required_gates: []
+      notes:
+      - Sealed input; flips manifest_fingerprint
+    - dataset_id: validation_policy_6A
+      kind: config
+      required_gates: []
+      notes:
+      - Sealed input; flips manifest_fingerprint
+    - dataset_id: graph_linkage_rules_6A
+      kind: config
+      required_gates: []
+      notes:
+      - Sealed input; flips manifest_fingerprint
+    - dataset_id: device_linkage_rules_6A
+      kind: config
+      required_gates: []
+      notes:
+      - Sealed input; flips manifest_fingerprint
+    - dataset_id: product_linkage_rules_6A
+      kind: config
+      required_gates: []
+      notes:
+      - Sealed input; flips manifest_fingerprint
+    - dataset_id: product_eligibility_config_6A
+      kind: config
+      required_gates: []
+      notes:
+      - Sealed input; flips manifest_fingerprint
+    - dataset_id: instrument_linkage_rules_6A
+      kind: config
+      required_gates: []
+      notes:
+      - Sealed input; flips manifest_fingerprint
+    writes:
+    - dataset_id: s0_gate_receipt_6A
+      scope_keys:
+      - manifest_fingerprint
+      address_template: data/layer3/6A/s0_gate_receipt/manifest_fingerprint={manifest_fingerprint}/s0_gate_receipt_6A.json
+      ordering: []
+      equality: rowset
+      optional: false
+    - dataset_id: sealed_inputs_6A
+      scope_keys:
+      - manifest_fingerprint
+      address_template: data/layer3/6A/sealed_inputs/manifest_fingerprint={manifest_fingerprint}/sealed_inputs_6A.json
+      ordering:
+      - owner_layer
+      - owner_segment
+      - manifest_key
+      equality: ordered
+      optional: false
+    gates_in:
+    - upstream.1A.final_bundle_gate
+    - upstream.1B.final_bundle_gate
+    - upstream.2A.final_bundle_gate
+    - upstream.2B.final_bundle_gate
+    - upstream.3A.final_bundle_gate
+    - upstream.3B.final_bundle_gate
+    - upstream.5A.final_bundle_gate
+    - upstream.5B.final_bundle_gate
+    gates_out:
+    - 6A.S0.gate_in_receipt
+    rng: null
+    validation:
+      performed_here:
+      - Verify upstream segment gates for 1A–3B and 5A–5B for this manifest_fingerprint
+        (per-segment hashing law).
+      - Construct sealed_inputs_6A as the closed input universe; compute sealed_inputs_digest_6A
+        and store in s0_gate_receipt_6A.
+      deferred_to_finalizer:
+      - Segment-wide integrity checks and fraud-role validations are performed in S5.
+      evidence_written:
+      - s0_gate_receipt_6A
+      - sealed_inputs_6A
+    frozen_surfaces:
+    - No upstream PASS → no 6A: S0 MUST fail-closed if any required upstream bundle/index/flag
+      is missing or digest-mismatched.
+    - Closed input universe: downstream states MUST NOT read artefacts not listed in sealed_inputs_6A.
+    - METADATA_ONLY enforcement: any sealed_inputs row marked METADATA_ONLY MUST NOT be row-read
+      by S0 or downstream unless explicitly upgraded.
+    - RNG-free: S0 MUST NOT consume RNG or emit rng_event_*.
+    flexible_choices:
+    - Streaming upstream gate verification is allowed if canonical gate laws are matched exactly.
+    - sealed_inputs_6A may include additional non-gating metadata columns if schema permits (must
+      not change digest law).
+    perf_hotspots:
+    - Hashing and verifying multiple upstream validation bundles.
+    safe_optimization_levers:
+    - Stream hashing; avoid materializing large evidence files; deterministic member ordering.
+    do_not_optimize:
+    - Do not weaken upstream gate verification or sealed_inputs_digest law.
+    debug_hooks:
+    - Record per-upstream-segment verified digest and resolved bundle root path in s0_gate_receipt_6A.
+    - Record sealed_inputs_digest_6A and sealed row counts by owner_segment for drift localization.
+  S1:
+    impl_map_key: segment=6A.state=S1
+    state_class: SC-B
+    rng_posture: RNG_CONSUMING
+    scope_keys:
+    - seed
+    - manifest_fingerprint
+    - parameter_hash
+    - run_id
+    reads:
+    - dataset_id: s0_gate_receipt_6A
+      kind: validation
+      required_gates: []
+    - dataset_id: sealed_inputs_6A
+      kind: validation
+      required_gates: []
+    - dataset_id: prior_population_6A
+      kind: config
+      required_gates:
+      - 6A.S0.gate_in_receipt
+    - dataset_id: prior_segmentation_6A
+      kind: config
+      required_gates:
+      - 6A.S0.gate_in_receipt
+    - dataset_id: taxonomy_party_6A
+      kind: config
+      required_gates:
+      - 6A.S0.gate_in_receipt
+    writes:
+    - dataset_id: s1_party_base_6A
+      scope_keys:
+      - seed
+      - manifest_fingerprint
+      - parameter_hash
+      address_template: data/layer3/6A/s1_party_base_6A/seed={seed}/parameter_hash={parameter_hash}/manifest_fingerprint={manifest_fingerprint}/s1_party_base_6A.parquet
+      ordering:
+      - country_iso
+      - segment_id
+      - party_type
+      - party_id
+      equality: ordered
+      optional: false
+    - dataset_id: s1_party_summary_6A
+      scope_keys:
+      - seed
+      - manifest_fingerprint
+      - parameter_hash
+      address_template: data/layer3/6A/s1_party_summary_6A/seed={seed}/parameter_hash={parameter_hash}/manifest_fingerprint={manifest_fingerprint}/s1_party_summary_6A.json
+      ordering: []
+      equality: rowset
+      optional: true
+    - dataset_id: rng_event_party_count_realisation
+      scope_keys:
+      - seed
+      - parameter_hash
+      - run_id
+      address_template: logs/layer3/6A/rng/events/party_count_realisation/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/part-*.jsonl
+      ordering: []
+      equality: rowset
+      optional: false
+    - dataset_id: rng_event_party_attribute_sampling
+      scope_keys:
+      - seed
+      - parameter_hash
+      - run_id
+      address_template: logs/layer3/6A/rng/events/party_attribute_sampling/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/part-*.jsonl
+      ordering: []
+      equality: rowset
+      optional: false
+    - dataset_id: rng_audit_log
+      scope_keys:
+      - seed
+      - parameter_hash
+      - run_id
+      address_template: logs/layer3/6A/rng/audit/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/rng_audit_log.jsonl
+      ordering: []
+      equality: rowset
+      optional: false
+    - dataset_id: rng_trace_log
+      scope_keys:
+      - seed
+      - parameter_hash
+      - run_id
+      address_template: logs/layer3/6A/rng/trace/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/rng_trace_log.jsonl
+      ordering: []
+      equality: rowset
+      optional: false
+    gates_in:
+    - 6A.S0.gate_in_receipt
+    gates_out: []
+    rng:
+      families_written:
+      - rng_event_party_count_realisation
+      - rng_event_party_attribute_sampling
+      stream_key_template: UER("6A.S1")||cell_id||batch_ix (policy-governed; deterministic)
+      envelope_discipline:
+      - Emit RNG events per batch for party_count_realisation and party_attribute_sampling with
+        correct draws/blocks accounting.
+      - Trace-after-each-event; rng_audit_log and rng_trace_log must reconcile with emitted rng_event_*
+        families.
+      audit_trace_obligations:
+      - rng_audit_log records per-event draws/blocks; rng_trace_log reconciles total_draws and
+        monotone counters within (seed,parameter_hash,run_id).
+    validation:
+      performed_here:
+      - Realise party population counts and per-party attributes per priors; write s1_party_base_6A
+        with FK-stable party_id.
+      deferred_to_finalizer:
+      - S5 validates cross-table referential integrity and distributional constraints.
+      evidence_written:
+      - s1_party_base_6A
+      - rng_event_party_count_realisation
+      - rng_event_party_attribute_sampling
+    frozen_surfaces:
+    - Scenario-independent: party universe is per (manifest_fingerprint, seed) and must not
+      depend on scenario_id.
+    - 'Partitioning is binding: outputs partitioned by [seed, manifest_fingerprint, parameter_hash].'
+    - RNG event families and audit/trace discipline are binding.
+    flexible_choices:
+    - Vectorized sampling is allowed if deterministic and accounting preserved.
+    - Parallelism is allowed only if worker-count invariance is proven (no schedule-dependent
+      ordering).
+    perf_hotspots:
+    - Large-scale party generation and attribute sampling; RNG log IO.
+    safe_optimization_levers:
+    - Deterministic chunking by population cell; buffered log writes.
+    do_not_optimize:
+    - Do not change RNG draw law, counters, or event emission obligations.
+    debug_hooks:
+    - 'Emit counts: parties_total by segment/region; first-N anomalies (invalid attribute domains).'
+  S2:
+    impl_map_key: segment=6A.state=S2
+    state_class: SC-B
+    rng_posture: RNG_CONSUMING
+    scope_keys:
+    - seed
+    - manifest_fingerprint
+    - parameter_hash
+    - run_id
+    reads:
+    - dataset_id: s0_gate_receipt_6A
+      kind: validation
+      required_gates: []
+    - dataset_id: sealed_inputs_6A
+      kind: validation
+      required_gates: []
+    - dataset_id: s1_party_base_6A
+      kind: model
+      required_gates:
+      - 6A.S0.gate_in_receipt
+    - dataset_id: outlet_catalogue
+      kind: reference_data
+      required_gates:
+      - 6A.S0.gate_in_receipt
+      notes:
+      - Merchant universe for owner_merchant_id validation
+    - dataset_id: prior_account_per_party_6A
+      kind: config
+      required_gates:
+      - 6A.S0.gate_in_receipt
+    - dataset_id: prior_product_mix_6A
+      kind: config
+      required_gates:
+      - 6A.S0.gate_in_receipt
+    - dataset_id: taxonomy_account_types_6A
+      kind: config
+      required_gates:
+      - 6A.S0.gate_in_receipt
+    - dataset_id: product_linkage_rules_6A
+      kind: config
+      required_gates:
+      - 6A.S0.gate_in_receipt
+    - dataset_id: product_eligibility_config_6A
+      kind: config
+      required_gates:
+      - 6A.S0.gate_in_receipt
+    writes:
+    - dataset_id: s2_account_base_6A
+      scope_keys:
+      - seed
+      - manifest_fingerprint
+      - parameter_hash
+      address_template: data/layer3/6A/s2_account_base_6A/seed={seed}/parameter_hash={parameter_hash}/manifest_fingerprint={manifest_fingerprint}/s2_account_base_6A.parquet
+      ordering:
+      - country_iso
+      - account_type
+      - owner_party_id
+      - account_id
+      equality: ordered
+      optional: false
+    - dataset_id: s2_party_product_holdings_6A
+      scope_keys:
+      - seed
+      - manifest_fingerprint
+      - parameter_hash
+      address_template: data/layer3/6A/s2_party_product_holdings_6A/seed={seed}/parameter_hash={parameter_hash}/manifest_fingerprint={manifest_fingerprint}/s2_party_product_holdings_6A.parquet
+      ordering:
+      - owner_party_id
+      - product_type
+      - account_id
+      equality: ordered
+      optional: false
+    - dataset_id: s2_merchant_account_base_6A
+      scope_keys:
+      - seed
+      - manifest_fingerprint
+      - parameter_hash
+      address_template: data/layer3/6A/s2_merchant_account_base_6A/seed={seed}/parameter_hash={parameter_hash}/manifest_fingerprint={manifest_fingerprint}/s2_merchant_account_base_6A.parquet
+      ordering:
+      - owner_merchant_id
+      - account_type
+      - account_id
+      equality: ordered
+      optional: true
+    - dataset_id: s2_account_summary_6A
+      scope_keys:
+      - seed
+      - manifest_fingerprint
+      - parameter_hash
+      address_template: data/layer3/6A/s2_account_summary_6A/seed={seed}/parameter_hash={parameter_hash}/manifest_fingerprint={manifest_fingerprint}/s2_account_summary_6A.json
+      ordering: []
+      equality: rowset
+      optional: true
+    - dataset_id: rng_event_account_count_realisation
+      scope_keys:
+      - seed
+      - parameter_hash
+      - run_id
+      address_template: logs/layer3/6A/rng/events/account_count_realisation/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/part-*.jsonl
+      ordering: []
+      equality: rowset
+      optional: false
+    - dataset_id: rng_event_account_allocation_sampling
+      scope_keys:
+      - seed
+      - parameter_hash
+      - run_id
+      address_template: logs/layer3/6A/rng/events/account_allocation_sampling/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/part-*.jsonl
+      ordering: []
+      equality: rowset
+      optional: false
+    - dataset_id: rng_event_account_attribute_sampling
+      scope_keys:
+      - seed
+      - parameter_hash
+      - run_id
+      address_template: logs/layer3/6A/rng/events/account_attribute_sampling/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/part-*.jsonl
+      ordering: []
+      equality: rowset
+      optional: false
+    - dataset_id: rng_audit_log
+      scope_keys:
+      - seed
+      - parameter_hash
+      - run_id
+      address_template: logs/layer3/6A/rng/audit/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/rng_audit_log.jsonl
+      ordering: []
+      equality: rowset
+      optional: false
+    - dataset_id: rng_trace_log
+      scope_keys:
+      - seed
+      - parameter_hash
+      - run_id
+      address_template: logs/layer3/6A/rng/trace/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/rng_trace_log.jsonl
+      ordering: []
+      equality: rowset
+      optional: false
+    gates_in:
+    - 6A.S0.gate_in_receipt
+    gates_out: []
+    rng:
+      families_written:
+      - rng_event_account_count_realisation
+      - rng_event_account_allocation_sampling
+      - rng_event_account_attribute_sampling
+      stream_key_template: UER("6A.S2")||cell_id||batch_ix (policy-governed; deterministic)
+      envelope_discipline:
+      - Emit RNG events per batch for count/allocation/attribute sampling; reconcile audit/trace.
+      audit_trace_obligations:
+      - Maintain trace-after-each-event; total draws reconcile in S5.
+    validation:
+      performed_here:
+      - Realise account counts per party and allocate products/holdings per priors; write s2_account_base_6A
+        and holdings tables.
+      - If owner_merchant_id is present, it MUST refer to a valid merchant_id in the sealed merchant
+        universe.
+      deferred_to_finalizer:
+      - S5 validates FK integrity (party_id/account_id) and schema/domain constraints.
+      evidence_written:
+      - s2_account_base_6A
+      - s2_party_product_holdings_6A
+    frozen_surfaces:
+    - Scenario-independent: account universe per (manifest_fingerprint, seed).
+    - 'Partitioning binding: [seed, manifest_fingerprint, parameter_hash].'
+    - RNG families and accounting discipline binding.
+    flexible_choices:
+    - Allocation implementation may vary (vectorized/multi-pass) if deterministic and event accounting
+      preserved.
+    perf_hotspots:
+    - Large account allocation and attribute sampling; potential heavy joins to party base.
+    safe_optimization_levers:
+    - Deterministic chunking by party cell; buffered event logging; avoid global sorts beyond writer
+      keys.
+    do_not_optimize:
+    - Do not relax merchant_id validation or omit required RNG events.
+    debug_hooks:
+    - 'Emit counts: accounts_total; accounts_per_party distribution summary; first-N invalid FK keys.'
+  S3:
+    impl_map_key: segment=6A.state=S3
+    state_class: SC-B
+    rng_posture: RNG_CONSUMING
+    scope_keys:
+    - seed
+    - manifest_fingerprint
+    - parameter_hash
+    - run_id
+    reads:
+    - dataset_id: s0_gate_receipt_6A
+      kind: validation
+      required_gates: []
+    - dataset_id: sealed_inputs_6A
+      kind: validation
+      required_gates: []
+    - dataset_id: s2_account_base_6A
+      kind: model
+      required_gates:
+      - 6A.S0.gate_in_receipt
+    - dataset_id: prior_instrument_per_account_6A
+      kind: config
+      required_gates:
+      - 6A.S0.gate_in_receipt
+    - dataset_id: prior_instrument_mix_6A
+      kind: config
+      required_gates:
+      - 6A.S0.gate_in_receipt
+    - dataset_id: taxonomy_instrument_types_6A
+      kind: config
+      required_gates:
+      - 6A.S0.gate_in_receipt
+    - dataset_id: instrument_linkage_rules_6A
+      kind: config
+      required_gates:
+      - 6A.S0.gate_in_receipt
+    writes:
+    - dataset_id: s3_instrument_base_6A
+      scope_keys:
+      - seed
+      - manifest_fingerprint
+      - parameter_hash
+      address_template: data/layer3/6A/s3_instrument_base_6A/seed={seed}/parameter_hash={parameter_hash}/manifest_fingerprint={manifest_fingerprint}/s3_instrument_base_6A.parquet
+      ordering:
+      - account_id
+      - instrument_type
+      - scheme
+      - instrument_id
+      equality: ordered
+      optional: false
+    - dataset_id: s3_account_instrument_links_6A
+      scope_keys:
+      - seed
+      - manifest_fingerprint
+      - parameter_hash
+      address_template: data/layer3/6A/s3_account_instrument_links_6A/seed={seed}/parameter_hash={parameter_hash}/manifest_fingerprint={manifest_fingerprint}/s3_account_instrument_links_6A.parquet
+      ordering:
+      - account_id
+      - instrument_id
+      equality: ordered
+      optional: false
+    - dataset_id: s3_party_instrument_holdings_6A
+      scope_keys:
+      - seed
+      - manifest_fingerprint
+      - parameter_hash
+      address_template: data/layer3/6A/s3_party_instrument_holdings_6A/seed={seed}/parameter_hash={parameter_hash}/manifest_fingerprint={manifest_fingerprint}/s3_party_instrument_holdings_6A.parquet
+      ordering:
+      - party_id
+      - instrument_id
+      equality: ordered
+      optional: true
+    - dataset_id: s3_instrument_summary_6A
+      scope_keys:
+      - seed
+      - manifest_fingerprint
+      - parameter_hash
+      address_template: data/layer3/6A/s3_instrument_summary_6A/seed={seed}/parameter_hash={parameter_hash}/manifest_fingerprint={manifest_fingerprint}/s3_instrument_summary_6A.json
+      ordering: []
+      equality: rowset
+      optional: true
+    - dataset_id: rng_event_instrument_count_realisation
+      scope_keys:
+      - seed
+      - parameter_hash
+      - run_id
+      address_template: logs/layer3/6A/rng/events/instrument_count_realisation/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/part-*.jsonl
+      ordering: []
+      equality: rowset
+      optional: false
+    - dataset_id: rng_event_instrument_allocation_sampling
+      scope_keys:
+      - seed
+      - parameter_hash
+      - run_id
+      address_template: logs/layer3/6A/rng/events/instrument_allocation_sampling/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/part-*.jsonl
+      ordering: []
+      equality: rowset
+      optional: false
+    - dataset_id: rng_event_instrument_attribute_sampling
+      scope_keys:
+      - seed
+      - parameter_hash
+      - run_id
+      address_template: logs/layer3/6A/rng/events/instrument_attribute_sampling/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/part-*.jsonl
+      ordering: []
+      equality: rowset
+      optional: false
+    - dataset_id: rng_audit_log
+      scope_keys:
+      - seed
+      - parameter_hash
+      - run_id
+      address_template: logs/layer3/6A/rng/audit/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/rng_audit_log.jsonl
+      ordering: []
+      equality: rowset
+      optional: false
+    - dataset_id: rng_trace_log
+      scope_keys:
+      - seed
+      - parameter_hash
+      - run_id
+      address_template: logs/layer3/6A/rng/trace/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/rng_trace_log.jsonl
+      ordering: []
+      equality: rowset
+      optional: false
+    gates_in:
+    - 6A.S0.gate_in_receipt
+    gates_out: []
+    rng:
+      families_written:
+      - rng_event_instrument_count_realisation
+      - rng_event_instrument_allocation_sampling
+      - rng_event_instrument_attribute_sampling
+      stream_key_template: UER("6A.S3")||account_id||batch_ix (policy-governed; deterministic)
+      envelope_discipline:
+      - Emit RNG events per batch; reconcile audit/trace.
+      audit_trace_obligations:
+      - Trace-after-each-event; total draws reconcile in S5.
+    validation:
+      performed_here:
+      - Realise instruments per account; write instrument base and account↔instrument link tables.
+      - All account_id FKs must exist in s2_account_base_6A within the same (seed,mf,parameter_hash)
+        partition.
+      deferred_to_finalizer:
+      - S5 validates FK integrity and distributional constraints.
+      evidence_written:
+      - s3_instrument_base_6A
+      - s3_account_instrument_links_6A
+    frozen_surfaces:
+    - Scenario-independent: instruments per (manifest_fingerprint, seed).
+    - 'Partitioning binding: [seed, manifest_fingerprint, parameter_hash].'
+    - RNG families and accounting discipline binding.
+    flexible_choices:
+    - Vectorized construction allowed if deterministic and accounting preserved.
+    perf_hotspots:
+    - Instrument allocation and attribute sampling; link-table generation.
+    safe_optimization_levers:
+    - Chunk by account_id; avoid global sorts.
+    do_not_optimize:
+    - Do not omit link integrity checks; do not change RNG event obligations.
+    debug_hooks:
+    - 'Emit counts: instruments_total; instruments_per_account summary; first-N missing account_id
+      links.'
+  S4:
+    impl_map_key: segment=6A.state=S4
+    state_class: SC-B
+    rng_posture: RNG_CONSUMING
+    scope_keys:
+    - seed
+    - manifest_fingerprint
+    - parameter_hash
+    - run_id
+    reads:
+    - dataset_id: s0_gate_receipt_6A
+      kind: validation
+      required_gates: []
+    - dataset_id: sealed_inputs_6A
+      kind: validation
+      required_gates: []
+    - dataset_id: s1_party_base_6A
+      kind: model
+      required_gates:
+      - 6A.S0.gate_in_receipt
+    - dataset_id: s2_account_base_6A
+      kind: model
+      required_gates:
+      - 6A.S0.gate_in_receipt
+    - dataset_id: outlet_catalogue
+      kind: reference_data
+      required_gates:
+      - 6A.S0.gate_in_receipt
+      notes:
+      - Merchant universe for primary_merchant_id validation
+    - dataset_id: prior_device_counts_6A
+      kind: config
+      required_gates:
+      - 6A.S0.gate_in_receipt
+    - dataset_id: taxonomy_devices_6A
+      kind: config
+      required_gates:
+      - 6A.S0.gate_in_receipt
+    - dataset_id: prior_ip_counts_6A
+      kind: config
+      required_gates:
+      - 6A.S0.gate_in_receipt
+    - dataset_id: taxonomy_ips_6A
+      kind: config
+      required_gates:
+      - 6A.S0.gate_in_receipt
+    - dataset_id: graph_linkage_rules_6A
+      kind: config
+      required_gates:
+      - 6A.S0.gate_in_receipt
+    - dataset_id: device_linkage_rules_6A
+      kind: config
+      required_gates:
+      - 6A.S0.gate_in_receipt
+    writes:
+    - dataset_id: s4_device_base_6A
+      scope_keys:
+      - seed
+      - manifest_fingerprint
+      - parameter_hash
+      address_template: data/layer3/6A/s4_device_base_6A/seed={seed}/parameter_hash={parameter_hash}/manifest_fingerprint={manifest_fingerprint}/s4_device_base_6A.parquet
+      ordering:
+      - device_type
+      - primary_party_id
+      - primary_merchant_id
+      - device_id
+      equality: ordered
+      optional: false
+    - dataset_id: s4_ip_base_6A
+      scope_keys:
+      - seed
+      - manifest_fingerprint
+      - parameter_hash
+      address_template: data/layer3/6A/s4_ip_base_6A/seed={seed}/parameter_hash={parameter_hash}/manifest_fingerprint={manifest_fingerprint}/s4_ip_base_6A.parquet
+      ordering:
+      - ip_type
+      - asn_class
+      - country_iso
+      - ip_id
+      equality: ordered
+      optional: false
+    - dataset_id: s4_device_links_6A
+      scope_keys:
+      - seed
+      - manifest_fingerprint
+      - parameter_hash
+      address_template: data/layer3/6A/s4_device_links_6A/seed={seed}/parameter_hash={parameter_hash}/manifest_fingerprint={manifest_fingerprint}/s4_device_links_6A.parquet
+      ordering:
+      - device_id
+      - link_type
+      - target_entity_type
+      - target_entity_id
+      equality: ordered
+      optional: false
+    - dataset_id: s4_ip_links_6A
+      scope_keys:
+      - seed
+      - manifest_fingerprint
+      - parameter_hash
+      address_template: data/layer3/6A/s4_ip_links_6A/seed={seed}/parameter_hash={parameter_hash}/manifest_fingerprint={manifest_fingerprint}/s4_ip_links_6A.parquet
+      ordering:
+      - ip_id
+      - link_type
+      - target_entity_type
+      - target_entity_id
+      equality: ordered
+      optional: false
+    - dataset_id: s4_entity_neighbourhoods_6A
+      scope_keys:
+      - seed
+      - manifest_fingerprint
+      - parameter_hash
+      address_template: data/layer3/6A/s4_entity_neighbourhoods_6A/seed={seed}/parameter_hash={parameter_hash}/manifest_fingerprint={manifest_fingerprint}/s4_entity_neighbourhoods_6A.parquet
+      ordering:
+      - entity_type
+      - entity_id
+      equality: ordered
+      optional: true
+    - dataset_id: s4_network_summary_6A
+      scope_keys:
+      - seed
+      - manifest_fingerprint
+      - parameter_hash
+      address_template: data/layer3/6A/s4_network_summary_6A/seed={seed}/parameter_hash={parameter_hash}/manifest_fingerprint={manifest_fingerprint}/s4_network_summary_6A.json
+      ordering: []
+      equality: rowset
+      optional: true
+    - dataset_id: rng_event_device_count_realisation
+      scope_keys:
+      - seed
+      - parameter_hash
+      - run_id
+      address_template: logs/layer3/6A/rng/events/device_count_realisation/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/part-*.jsonl
+      ordering: []
+      equality: rowset
+      optional: false
+    - dataset_id: rng_event_device_allocation_sampling
+      scope_keys:
+      - seed
+      - parameter_hash
+      - run_id
+      address_template: logs/layer3/6A/rng/events/device_allocation_sampling/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/part-*.jsonl
+      ordering: []
+      equality: rowset
+      optional: false
+    - dataset_id: rng_event_device_attribute_sampling
+      scope_keys:
+      - seed
+      - parameter_hash
+      - run_id
+      address_template: logs/layer3/6A/rng/events/device_attribute_sampling/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/part-*.jsonl
+      ordering: []
+      equality: rowset
+      optional: false
+    - dataset_id: rng_event_ip_count_realisation
+      scope_keys:
+      - seed
+      - parameter_hash
+      - run_id
+      address_template: logs/layer3/6A/rng/events/ip_count_realisation/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/part-*.jsonl
+      ordering: []
+      equality: rowset
+      optional: false
+    - dataset_id: rng_event_ip_allocation_sampling
+      scope_keys:
+      - seed
+      - parameter_hash
+      - run_id
+      address_template: logs/layer3/6A/rng/events/ip_allocation_sampling/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/part-*.jsonl
+      ordering: []
+      equality: rowset
+      optional: false
+    - dataset_id: rng_event_ip_attribute_sampling
+      scope_keys:
+      - seed
+      - parameter_hash
+      - run_id
+      address_template: logs/layer3/6A/rng/events/ip_attribute_sampling/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/part-*.jsonl
+      ordering: []
+      equality: rowset
+      optional: false
+    - dataset_id: rng_audit_log
+      scope_keys:
+      - seed
+      - parameter_hash
+      - run_id
+      address_template: logs/layer3/6A/rng/audit/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/rng_audit_log.jsonl
+      ordering: []
+      equality: rowset
+      optional: false
+    - dataset_id: rng_trace_log
+      scope_keys:
+      - seed
+      - parameter_hash
+      - run_id
+      address_template: logs/layer3/6A/rng/trace/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/rng_trace_log.jsonl
+      ordering: []
+      equality: rowset
+      optional: false
+    gates_in:
+    - 6A.S0.gate_in_receipt
+    gates_out: []
+    rng:
+      families_written:
+      - rng_event_device_count_realisation
+      - rng_event_device_allocation_sampling
+      - rng_event_device_attribute_sampling
+      - rng_event_ip_count_realisation
+      - rng_event_ip_allocation_sampling
+      - rng_event_ip_attribute_sampling
+      stream_key_template: UER("6A.S4")||cell_id||batch_ix (policy-governed; deterministic)
+      envelope_discipline:
+      - Emit RNG events per batch for device/ip draws; reconcile audit/trace.
+      audit_trace_obligations:
+      - Trace-after-each-event; total draws reconcile in S5.
+    validation:
+      performed_here:
+      - Realise device and IP universes and static link tables; write device/ip bases and link
+        edges.
+      - 'FK integrity: primary_party_id must exist in s1_party_base_6A; account_id references
+        must exist in s2_account_base_6A; primary_merchant_id must exist in sealed merchant universe.'
+      deferred_to_finalizer:
+      - S5 validates graph invariants and distributional constraints.
+      evidence_written:
+      - s4_device_base_6A
+      - s4_ip_base_6A
+      - s4_device_links_6A
+      - s4_ip_links_6A
+    frozen_surfaces:
+    - Scenario-independent: device/ip graph per (manifest_fingerprint, seed).
+    - 'Partitioning binding: [seed, manifest_fingerprint, parameter_hash].'
+    - RNG families and accounting discipline binding.
+    - Graph linkage rules and device linkage rules are binding; downstream must not invent edges.
+    flexible_choices:
+    - Spatial/graph construction strategies may vary if deterministic and constraints preserved.
+    perf_hotspots:
+    - Large graph generation; link-table materialization; RNG log IO.
+    safe_optimization_levers:
+    - Chunk by party/account; deterministic batching; buffered logs.
+    do_not_optimize:
+    - Do not weaken FK and graph invariant checks; do not change RNG obligations.
+    debug_hooks:
+    - Emit degree distributions and first-N invalid FK edges.
+  S5:
+    impl_map_key: segment=6A.state=S5
+    state_class: SC-E
+    rng_posture: RNG_CONSUMING
+    scope_keys:
+    - seed
+    - manifest_fingerprint
+    - parameter_hash
+    - run_id
+    reads:
+    - dataset_id: s0_gate_receipt_6A
+      kind: validation
+      required_gates: []
+    - dataset_id: sealed_inputs_6A
+      kind: validation
+      required_gates: []
+    - dataset_id: s1_party_base_6A
+      kind: model
+      required_gates:
+      - 6A.S0.gate_in_receipt
+    - dataset_id: s2_account_base_6A
+      kind: model
+      required_gates:
+      - 6A.S0.gate_in_receipt
+    - dataset_id: s2_merchant_account_base_6A
+      kind: model
+      required_gates:
+      - 6A.S0.gate_in_receipt
+      conditional: optional if merchant accounts emitted
+    - dataset_id: s3_instrument_base_6A
+      kind: model
+      required_gates:
+      - 6A.S0.gate_in_receipt
+    - dataset_id: s4_device_base_6A
+      kind: model
+      required_gates:
+      - 6A.S0.gate_in_receipt
+    - dataset_id: s4_ip_base_6A
+      kind: model
+      required_gates:
+      - 6A.S0.gate_in_receipt
+    - dataset_id: s4_device_links_6A
+      kind: model
+      required_gates:
+      - 6A.S0.gate_in_receipt
+    - dataset_id: s4_ip_links_6A
+      kind: model
+      required_gates:
+      - 6A.S0.gate_in_receipt
+    - dataset_id: outlet_catalogue
+      kind: reference_data
+      required_gates:
+      - 6A.S0.gate_in_receipt
+      notes:
+      - Merchant universe for merchant fraud roles
+    - dataset_id: taxonomy_fraud_roles_6A
+      kind: config
+      required_gates:
+      - 6A.S0.gate_in_receipt
+    - dataset_id: prior_party_roles_6A
+      kind: config
+      required_gates:
+      - 6A.S0.gate_in_receipt
+    - dataset_id: prior_account_roles_6A
+      kind: config
+      required_gates:
+      - 6A.S0.gate_in_receipt
+    - dataset_id: prior_merchant_roles_6A
+      kind: config
+      required_gates:
+      - 6A.S0.gate_in_receipt
+    - dataset_id: prior_device_roles_6A
+      kind: config
+      required_gates:
+      - 6A.S0.gate_in_receipt
+    - dataset_id: prior_ip_roles_6A
+      kind: config
+      required_gates:
+      - 6A.S0.gate_in_receipt
+    - dataset_id: validation_policy_6A
+      kind: config
+      required_gates:
+      - 6A.S0.gate_in_receipt
+    - dataset_id: rng_audit_log
+      kind: log
+      required_gates: []
+    - dataset_id: rng_trace_log
+      kind: log
+      required_gates: []
+    writes:
+    - dataset_id: s5_party_fraud_roles_6A
+      scope_keys:
+      - seed
+      - manifest_fingerprint
+      - parameter_hash
+      address_template: data/layer3/6A/s5_party_fraud_roles_6A/seed={seed}/parameter_hash={parameter_hash}/manifest_fingerprint={manifest_fingerprint}/s5_party_fraud_roles_6A.parquet
+      ordering:
+      - party_id
+      equality: ordered
+      optional: false
+    - dataset_id: s5_account_fraud_roles_6A
+      scope_keys:
+      - seed
+      - manifest_fingerprint
+      - parameter_hash
+      address_template: data/layer3/6A/s5_account_fraud_roles_6A/seed={seed}/parameter_hash={parameter_hash}/manifest_fingerprint={manifest_fingerprint}/s5_account_fraud_roles_6A.parquet
+      ordering:
+      - account_id
+      equality: ordered
+      optional: false
+    - dataset_id: s5_merchant_fraud_roles_6A
+      scope_keys:
+      - seed
+      - manifest_fingerprint
+      - parameter_hash
+      address_template: data/layer3/6A/s5_merchant_fraud_roles_6A/seed={seed}/parameter_hash={parameter_hash}/manifest_fingerprint={manifest_fingerprint}/s5_merchant_fraud_roles_6A.parquet
+      ordering:
+      - merchant_id
+      equality: ordered
+      optional: false
+    - dataset_id: s5_device_fraud_roles_6A
+      scope_keys:
+      - seed
+      - manifest_fingerprint
+      - parameter_hash
+      address_template: data/layer3/6A/s5_device_fraud_roles_6A/seed={seed}/parameter_hash={parameter_hash}/manifest_fingerprint={manifest_fingerprint}/s5_device_fraud_roles_6A.parquet
+      ordering:
+      - device_id
+      equality: ordered
+      optional: false
+    - dataset_id: s5_ip_fraud_roles_6A
+      scope_keys:
+      - seed
+      - manifest_fingerprint
+      - parameter_hash
+      address_template: data/layer3/6A/s5_ip_fraud_roles_6A/seed={seed}/parameter_hash={parameter_hash}/manifest_fingerprint={manifest_fingerprint}/s5_ip_fraud_roles_6A.parquet
+      ordering:
+      - ip_id
+      equality: ordered
+      optional: false
+    - dataset_id: s5_validation_report_6A
+      scope_keys:
+      - manifest_fingerprint
+      address_template: data/layer3/6A/validation/manifest_fingerprint={manifest_fingerprint}/s5_validation_report_6A.json
+      ordering: []
+      equality: rowset
+      optional: false
+    - dataset_id: s5_issue_table_6A
+      scope_keys:
+      - manifest_fingerprint
+      address_template: data/layer3/6A/validation/manifest_fingerprint={manifest_fingerprint}/s5_issue_table_6A.parquet
+      ordering:
+      - severity
+      - issue_id
+      equality: ordered
+      optional: true
+    - dataset_id: validation_bundle_6A
+      scope_keys:
+      - manifest_fingerprint
+      address_template: data/layer3/6A/validation/manifest_fingerprint={manifest_fingerprint}/
+      ordering: []
+      equality: rowset
+      optional: false
+    - dataset_id: validation_bundle_index_6A
+      scope_keys:
+      - manifest_fingerprint
+      address_template: data/layer3/6A/validation/manifest_fingerprint={manifest_fingerprint}/validation_bundle_index_6A.json
+      ordering: []
+      equality: rowset
+      optional: false
+    - dataset_id: validation_passed_flag_6A
+      scope_keys:
+      - manifest_fingerprint
+      address_template: data/layer3/6A/validation/manifest_fingerprint={manifest_fingerprint}/_passed.flag
+      ordering: []
+      equality: rowset
+      optional: false
+    - dataset_id: rng_event_fraud_role_sampling_party
+      scope_keys:
+      - seed
+      - parameter_hash
+      - run_id
+      address_template: logs/layer3/6A/rng/events/fraud_role_sampling_party/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/part-*.jsonl
+      ordering: []
+      equality: rowset
+      optional: false
+    - dataset_id: rng_event_fraud_role_sampling_account
+      scope_keys:
+      - seed
+      - parameter_hash
+      - run_id
+      address_template: logs/layer3/6A/rng/events/fraud_role_sampling_account/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/part-*.jsonl
+      ordering: []
+      equality: rowset
+      optional: false
+    - dataset_id: rng_event_fraud_role_sampling_merchant
+      scope_keys:
+      - seed
+      - parameter_hash
+      - run_id
+      address_template: logs/layer3/6A/rng/events/fraud_role_sampling_merchant/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/part-*.jsonl
+      ordering: []
+      equality: rowset
+      optional: false
+    - dataset_id: rng_event_fraud_role_sampling_device
+      scope_keys:
+      - seed
+      - parameter_hash
+      - run_id
+      address_template: logs/layer3/6A/rng/events/fraud_role_sampling_device/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/part-*.jsonl
+      ordering: []
+      equality: rowset
+      optional: false
+    - dataset_id: rng_event_fraud_role_sampling_ip
+      scope_keys:
+      - seed
+      - parameter_hash
+      - run_id
+      address_template: logs/layer3/6A/rng/events/fraud_role_sampling_ip/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/part-*.jsonl
+      ordering: []
+      equality: rowset
+      optional: false
+    - dataset_id: rng_audit_log
+      scope_keys:
+      - seed
+      - parameter_hash
+      - run_id
+      address_template: logs/layer3/6A/rng/audit/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/rng_audit_log.jsonl
+      ordering: []
+      equality: rowset
+      optional: false
+    - dataset_id: rng_trace_log
+      scope_keys:
+      - seed
+      - parameter_hash
+      - run_id
+      address_template: logs/layer3/6A/rng/trace/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/rng_trace_log.jsonl
+      ordering: []
+      equality: rowset
+      optional: false
+    gates_in:
+    - 6A.S0.gate_in_receipt
+    gates_out:
+    - 6A.final.bundle_gate
+    rng:
+      families_written:
+      - rng_event_fraud_role_sampling_party
+      - rng_event_fraud_role_sampling_account
+      - rng_event_fraud_role_sampling_merchant
+      - rng_event_fraud_role_sampling_device
+      - rng_event_fraud_role_sampling_ip
+      stream_key_template: UER("6A.S5")||entity_type||entity_id||batch_ix (policy-governed;
+        deterministic)
+      envelope_discipline:
+      - Fraud-role sampling consumes RNG; emit rng_event_fraud_role_sampling_* with correct
+        draws/blocks accounting.
+      - S5 also validates RNG accounting for prior states by scanning audit/trace logs and ensuring
+        reconciliation.
+      audit_trace_obligations:
+      - Trace-after-each-event; total draws reconcile across all S1–S5 families in this run partition.
+    validation:
+      performed_here:
+      - Assign static fraud roles over parties/accounts/merchants/devices/IPs per priors and
+        taxonomy; roles are static for the world.
+      - Run segment-level validation over S1–S4 bases/links and S5 roles; write s5_validation_report_6A
+        (+ issue table).
+      - Build validation_bundle_6A and validation_bundle_index_6A; compute and publish _passed.flag
+        atomically (flag last).
+      deferred_to_finalizer: []
+      evidence_written:
+      - s5_validation_report_6A
+      - validation_bundle_index_6A
+      - validation_passed_flag_6A
+    frozen_surfaces:
+    - S5 is the sole authority for segment closure; downstream MUST NOT consume 6A outputs without
+      a verified 6A final gate.
+    - Static roles: fraud roles are immutable within the world and must not depend on scenario_id.
+    - Final gate hashing law is binding (index-driven raw-bytes concat; flag excluded; atomic publish).
+    flexible_choices:
+    - Role assignment algorithms may vary if deterministic under RNG policy and taxonomy/priors
+      constraints are preserved.
+    - Validation implementation can be streaming/bounded-memory if deterministic.
+    perf_hotspots:
+    - Large-scale validation scans and RNG reconciliation across many event families; hashing validation
+      bundle members.
+    safe_optimization_levers:
+    - Streaming validators; bounded-memory checks; stream hashing; set-semantics reads for logs.
+    do_not_optimize:
+    - Do not publish _passed.flag on any validation failure; do not weaken RNG reconciliation obligations.
+    debug_hooks:
+    - Bucket validation failures by class with first-N offending keys; emit counts of risky roles
+      by entity type.
+gate_map_examples:
+- consumer: 6B
+  reads:
+    dataset_id: s1_party_base_6A
+    scope_keys:
+    - seed
+    - manifest_fingerprint
+    - parameter_hash
+  required_gates:
+  - 6A.final.bundle_gate
+  fail_policy: FAIL_CLOSED
+- consumer: downstream_component
+  reads:
+    dataset_id: validation_passed_flag_6A
+    scope_keys:
+    - manifest_fingerprint
+  required_gates:
+  - 6A.final.bundle_gate
+  fail_policy: FAIL_CLOSED
+review_flags:
+- flag_id: 6A.RF.standardize_manifest_fingerprint
+  severity: info
+  summary: Assumed resolved—use manifest_fingerprint token naming everywhere (paths,
+    partition keys, examples) to match dataset dictionaries.
+- flag_id: 6A.RF.partition_alignment
+  severity: info
+  summary: Assumed resolved—state-doc examples align with dictionary authority that
+    core 6A entity datasets are partitioned by [seed, manifest_fingerprint, parameter_hash].

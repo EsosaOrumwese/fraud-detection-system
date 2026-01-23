@@ -1,0 +1,216 @@
+schema_version: 1
+taxonomy_id: taxonomy.account_types.v1
+notes: >
+  Account and product taxonomy for 6A.S2. Stable ids are treated as API tokens.
+
+owner_kinds: [MERCHANT, PARTY]
+
+ledger_classes:
+  - CREDIT_INSTALLMENT
+  - CREDIT_REVOLVING
+  - DEPOSIT
+  - SETTLEMENT
+
+currency_policies:
+  - id: MULTI_CURRENCY
+    label: Multi-currency
+    description: Supports balances and transactions in multiple currencies.
+    is_multi_currency: true
+    default_currency_source: HOME_CCY
+  - id: SINGLE_HOME_CCY
+    label: Single currency (home)
+    description: Single-currency account using the owner home or legal currency.
+    is_multi_currency: false
+    default_currency_source: HOME_CCY
+
+product_families:
+  - id: BUSINESS_CREDIT
+    tier: BUSINESS
+    label: Business credit
+    description: Credit products tailored to business customers.
+  - id: BUSINESS_DEPOSIT
+    tier: BUSINESS
+    label: Business deposit
+    description: Deposit accounts for business cash management.
+  - id: MERCHANT_RESERVE
+    tier: MERCHANT
+    label: Merchant reserve
+    description: Reserve or holdback accounts used for risk buffers and payouts.
+  - id: MERCHANT_SETTLEMENT
+    tier: MERCHANT
+    label: Merchant settlement
+    description: Settlement accounts used to receive funds from payment processing.
+  - id: RETAIL_CREDIT
+    tier: PREMIUM
+    label: Retail credit
+    description: Retail revolving and installment credit products.
+  - id: RETAIL_DEPOSIT
+    tier: BASIC
+    label: Retail deposit
+    description: Retail current and savings accounts.
+
+account_types:
+  - id: BUSINESS_CREDIT_CARD
+    owner_kind: PARTY
+    allowed_party_types: [BUSINESS]
+    ledger_class: CREDIT_REVOLVING
+    product_family_id: BUSINESS_CREDIT
+    currency_policy_id: MULTI_CURRENCY
+    requires_instrument: true
+    label: Business credit card
+    description: Revolving credit card product for business spend.
+    supports_chargeback: true
+    can_be_joint: false
+  - id: BUSINESS_CURRENT
+    owner_kind: PARTY
+    allowed_party_types: [BUSINESS]
+    ledger_class: DEPOSIT
+    product_family_id: BUSINESS_DEPOSIT
+    currency_policy_id: SINGLE_HOME_CCY
+    requires_instrument: false
+    label: Business current
+    description: Business current account for operating cashflows and payments.
+    supports_chargeback: false
+    can_be_joint: false
+  - id: BUSINESS_SAVINGS
+    owner_kind: PARTY
+    allowed_party_types: [BUSINESS]
+    ledger_class: DEPOSIT
+    product_family_id: BUSINESS_DEPOSIT
+    currency_policy_id: SINGLE_HOME_CCY
+    requires_instrument: false
+    label: Business savings
+    description: Business savings or treasury deposit account.
+    supports_chargeback: false
+    can_be_joint: false
+  - id: BUSINESS_TERM_LOAN
+    owner_kind: PARTY
+    allowed_party_types: [BUSINESS]
+    ledger_class: CREDIT_INSTALLMENT
+    product_family_id: BUSINESS_CREDIT
+    currency_policy_id: SINGLE_HOME_CCY
+    requires_instrument: false
+    label: Business term loan
+    description: Installment credit for business investment and working capital.
+    supports_chargeback: false
+    can_be_joint: false
+
+  - id: MERCHANT_RESERVE_ACCOUNT
+    owner_kind: MERCHANT
+    ledger_class: SETTLEMENT
+    product_family_id: MERCHANT_RESERVE
+    currency_policy_id: SINGLE_HOME_CCY
+    requires_instrument: false
+    label: Merchant reserve account
+    description: Reserve or holdback account used for risk buffers and delayed payouts.
+    supports_chargeback: false
+  - id: MERCHANT_SETTLEMENT_ACCOUNT
+    owner_kind: MERCHANT
+    ledger_class: SETTLEMENT
+    product_family_id: MERCHANT_SETTLEMENT
+    currency_policy_id: SINGLE_HOME_CCY
+    requires_instrument: false
+    label: Merchant settlement account
+    description: Account used to receive settlement flows from payment processing.
+    supports_chargeback: false
+
+  - id: OTHER_CURRENT_BASIC
+    owner_kind: PARTY
+    allowed_party_types: [OTHER]
+    ledger_class: DEPOSIT
+    product_family_id: RETAIL_DEPOSIT
+    currency_policy_id: SINGLE_HOME_CCY
+    requires_instrument: false
+    label: Other current (basic)
+    description: Basic current account for institutional or public-sector entities.
+    supports_chargeback: false
+    can_be_joint: false
+  - id: OTHER_SAVINGS
+    owner_kind: PARTY
+    allowed_party_types: [OTHER]
+    ledger_class: DEPOSIT
+    product_family_id: RETAIL_DEPOSIT
+    currency_policy_id: SINGLE_HOME_CCY
+    requires_instrument: false
+    label: Other savings
+    description: Savings or reserve account for institutional entities.
+    supports_chargeback: false
+    can_be_joint: false
+
+  - id: RETAIL_CREDIT_CARD_PREMIUM
+    owner_kind: PARTY
+    allowed_party_types: [RETAIL]
+    ledger_class: CREDIT_REVOLVING
+    product_family_id: RETAIL_CREDIT
+    currency_policy_id: MULTI_CURRENCY
+    requires_instrument: true
+    label: Retail credit card (premium)
+    description: Premium retail revolving credit card product.
+    supports_chargeback: true
+    can_be_joint: false
+  - id: RETAIL_CREDIT_CARD_STANDARD
+    owner_kind: PARTY
+    allowed_party_types: [RETAIL]
+    ledger_class: CREDIT_REVOLVING
+    product_family_id: RETAIL_CREDIT
+    currency_policy_id: MULTI_CURRENCY
+    requires_instrument: true
+    label: Retail credit card (standard)
+    description: Standard retail revolving credit card product.
+    supports_chargeback: true
+    can_be_joint: false
+  - id: RETAIL_CURRENT_BASIC
+    owner_kind: PARTY
+    allowed_party_types: [RETAIL]
+    ledger_class: DEPOSIT
+    product_family_id: RETAIL_DEPOSIT
+    currency_policy_id: SINGLE_HOME_CCY
+    requires_instrument: false
+    label: Retail current (basic)
+    description: Basic retail current account for everyday payments and transfers.
+    supports_chargeback: false
+    can_be_joint: true
+  - id: RETAIL_CURRENT_PREMIUM
+    owner_kind: PARTY
+    allowed_party_types: [RETAIL]
+    ledger_class: DEPOSIT
+    product_family_id: RETAIL_DEPOSIT
+    currency_policy_id: SINGLE_HOME_CCY
+    requires_instrument: false
+    label: Retail current (premium)
+    description: Premium retail current account with higher service tier.
+    supports_chargeback: false
+    can_be_joint: true
+  - id: RETAIL_PERSONAL_LOAN_UNSECURED
+    owner_kind: PARTY
+    allowed_party_types: [RETAIL]
+    ledger_class: CREDIT_INSTALLMENT
+    product_family_id: RETAIL_CREDIT
+    currency_policy_id: SINGLE_HOME_CCY
+    requires_instrument: false
+    label: Retail personal loan (unsecured)
+    description: Unsecured installment credit for retail customers.
+    supports_chargeback: false
+    can_be_joint: false
+  - id: RETAIL_SAVINGS_FIXED
+    owner_kind: PARTY
+    allowed_party_types: [RETAIL]
+    ledger_class: DEPOSIT
+    product_family_id: RETAIL_DEPOSIT
+    currency_policy_id: SINGLE_HOME_CCY
+    requires_instrument: false
+    label: Retail savings (fixed term)
+    description: Fixed-term savings account with restricted withdrawals.
+    supports_chargeback: false
+    can_be_joint: false
+  - id: RETAIL_SAVINGS_INSTANT
+    owner_kind: PARTY
+    allowed_party_types: [RETAIL]
+    ledger_class: DEPOSIT
+    product_family_id: RETAIL_DEPOSIT
+    currency_policy_id: SINGLE_HOME_CCY
+    requires_instrument: false
+    label: Retail savings (instant access)
+    description: Instant-access savings account for short-term saving.
+    supports_chargeback: false
+    can_be_joint: true

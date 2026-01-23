@@ -1,0 +1,120 @@
+semver: "1.2.0"
+version: "2025-12-31"
+
+eligibility:
+  rule_set_id: "eligibility.v1.2025-12-31"
+  default_decision: "deny"
+  rules:
+    - id: "deny_sanctioned_home"
+      priority: 10
+      decision: "deny"
+      channel: "*"
+      iso: ["BY", "CU", "IR", "KP", "RU", "SD", "SY", "VE"]
+      mcc: "*"
+      reason: "deny_sanctioned_home"
+
+    - id: "deny_high_risk_cnp"
+      priority: 20
+      decision: "deny"
+      channel: ["CNP"]
+      iso: "*"
+      mcc:
+        - "4829"
+        - "5815"
+        - "5816"
+        - "5817"
+        - "5818"
+        - "5966"
+        - "6011"
+        - "6051"
+        - "7995"
+        - "7800-7999"
+      reason: "deny_high_risk_cnp"
+
+    - id: "allow_travel_transport"
+      priority: 100
+      decision: "allow"
+      channel: ["CP", "CNP"]
+      iso: "*"
+      mcc:
+        - "3000-3999"
+        - "4000-4799"
+        - "4511"
+        - "4722"
+        - "7011"
+      reason: "allow_travel_transport"
+
+    - id: "allow_retail_cnp"
+      priority: 120
+      decision: "allow"
+      channel: ["CNP"]
+      iso: "*"
+      mcc:
+        - "5000-5999"
+        - "5300-5399"
+        - "5400-5599"
+      reason: "allow_retail_cnp"
+
+    - id: "allow_home_hubs"
+      priority: 200
+      decision: "allow"
+      channel: "*"
+      iso:
+        - "AD"
+        - "AE"
+        - "AT"
+        - "AU"
+        - "BE"
+        - "BM"
+        - "BR"
+        - "CA"
+        - "CH"
+        - "CN"
+        - "DE"
+        - "DK"
+        - "ES"
+        - "FI"
+        - "FO"
+        - "FR"
+        - "GB"
+        - "HK"
+        - "IE"
+        - "IL"
+        - "IN"
+        - "IS"
+        - "IT"
+        - "JP"
+        - "KR"
+        - "LU"
+        - "MC"
+        - "MO"
+        - "MX"
+        - "NL"
+        - "NO"
+        - "NZ"
+        - "PL"
+        - "QA"
+        - "SA"
+        - "SE"
+        - "SG"
+        - "US"
+      mcc: "*"
+      reason: "allow_home_hubs"
+
+ztp:
+  rule_set_id: "ztp_link.v1.2025-12-31"
+  theta_order:
+    - "theta0_intercept"
+    - "theta1_log_n_sites"
+    - "theta2_openness"
+  theta:
+    theta0_intercept: -1.0
+    theta1_log_n_sites: 0.65
+    theta2_openness: 0.90
+  feature_x:
+    feature_id: "openness"
+    x_default: 0.25
+    x_transform:
+      kind: "clamp01"
+  MAX_ZTP_ZERO_ATTEMPTS: 64
+  ztp_exhaustion_policy: "downgrade_domestic"

@@ -1,5 +1,5 @@
-"""Public surface for Segment 2A State 3 (timetable cache)."""
+"""Segment 2A S3 timetable cache builder."""
 
-from .l2.runner import TimetableInputs, TimetableResult, TimetableRunner
+from .runner import S3Result, run_s3
 
-__all__ = ["TimetableInputs", "TimetableResult", "TimetableRunner"]
+__all__ = ["S3Result", "run_s3"]

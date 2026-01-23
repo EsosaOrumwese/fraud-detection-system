@@ -1,0 +1,4 @@
+version: v1.0.0
+ip_country_tolerance: 0.010000
+cutoff_tolerance_seconds: 1800
+notes: "v1: ip_country_tolerance=max(0.01,5/E) clamped; cutoff_tolerance_seconds=1800"

@@ -1,0 +1,4 @@
+# Country scope for population inputs (HRSL/alternative).
+# This file is NOT binding; populate it with the actual merchant/issuer footprint
+# when you want to constrain downloads. Leaving it empty means "use full coverage".
+countries: []

@@ -1,0 +1,16 @@
+policy_id: zone_mixture_policy_3A
+version: v1.0.0
+theta_mix: 0.35
+rules:
+  - metric: site_count_lt
+    threshold: 3
+    decision_reason: below_min_sites
+  - metric: zone_count_country_le
+    threshold: 1
+    decision_reason: forced_monolithic
+  - metric: zone_count_country_ge
+    threshold: 4
+    decision_reason: forced_escalation
+  - metric: site_count_ge
+    threshold: 35
+    decision_reason: forced_escalation

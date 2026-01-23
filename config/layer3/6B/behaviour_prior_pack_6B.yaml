@@ -1,0 +1,1685 @@
+schema_version: 1
+pack_id: behaviour_prior_pack_6B
+pack_version: v1
+vocabulary:
+  channel_groups:
+  - ECOM
+  - POS
+  - ATM
+  - BANK_RAIL
+  - HYBRID
+  ledger_classes:
+  - DEPOSIT
+  - CREDIT_REVOLVING
+  - CREDIT_INSTALLMENT
+  - SETTLEMENT
+  instrument_kinds:
+  - CARD_PHYSICAL
+  - CARD_VIRTUAL
+  - BANK_HANDLE
+  - WALLET_TOKEN
+  ip_groups:
+  - RESIDENTIAL
+  - MOBILE_CARRIER
+  - PUBLIC_SHARED
+  - HOSTING_DATACENTRE
+  - ANONYMIZER_PROXY
+geo_affinity:
+  mode: home_vs_global_mixture_v1
+  p_home_geo_by_segment_channel:
+    BUSINESS_CORPORATE:
+      ECOM: 0.7
+      POS: 0.88
+      ATM: 0.92
+      BANK_RAIL: 0.82
+      HYBRID: 0.8
+    BUSINESS_ECOM_NATIVE:
+      ECOM: 0.65
+      POS: 0.84
+      ATM: 0.9
+      BANK_RAIL: 0.8
+      HYBRID: 0.75
+    BUSINESS_LOCAL_SERVICE:
+      ECOM: 0.9
+      POS: 0.96
+      ATM: 0.97
+      BANK_RAIL: 0.92
+      HYBRID: 0.93
+    BUSINESS_MID_MARKET:
+      ECOM: 0.78
+      POS: 0.91
+      ATM: 0.94
+      BANK_RAIL: 0.87
+      HYBRID: 0.86
+    BUSINESS_MICRO:
+      ECOM: 0.86
+      POS: 0.95
+      ATM: 0.97
+      BANK_RAIL: 0.9
+      HYBRID: 0.89
+    BUSINESS_SME:
+      ECOM: 0.82
+      POS: 0.93
+      ATM: 0.95
+      BANK_RAIL: 0.88
+      HYBRID: 0.87
+    BUSINESS_SOLE_TRADER:
+      ECOM: 0.84
+      POS: 0.94
+      ATM: 0.96
+      BANK_RAIL: 0.89
+      HYBRID: 0.88
+    OTHER_NONPROFIT:
+      ECOM: 0.88
+      POS: 0.95
+      ATM: 0.97
+      BANK_RAIL: 0.93
+      HYBRID: 0.92
+    OTHER_PUBLIC_SECTOR:
+      ECOM: 0.9
+      POS: 0.96
+      ATM: 0.98
+      BANK_RAIL: 0.94
+      HYBRID: 0.93
+    RETAIL_AFFLUENT:
+      ECOM: 0.76
+      POS: 0.9
+      ATM: 0.94
+      BANK_RAIL: 0.84
+      HYBRID: 0.84
+    RETAIL_EARLY_CAREER:
+      ECOM: 0.82
+      POS: 0.92
+      ATM: 0.95
+      BANK_RAIL: 0.86
+      HYBRID: 0.86
+    RETAIL_FAMILY:
+      ECOM: 0.84
+      POS: 0.94
+      ATM: 0.96
+      BANK_RAIL: 0.88
+      HYBRID: 0.88
+    RETAIL_MASS_MARKET:
+      ECOM: 0.83
+      POS: 0.94
+      ATM: 0.96
+      BANK_RAIL: 0.88
+      HYBRID: 0.88
+    RETAIL_MATURE:
+      ECOM: 0.86
+      POS: 0.95
+      ATM: 0.97
+      BANK_RAIL: 0.9
+      HYBRID: 0.9
+    RETAIL_RETIRED:
+      ECOM: 0.88
+      POS: 0.96
+      ATM: 0.98
+      BANK_RAIL: 0.92
+      HYBRID: 0.92
+    RETAIL_STUDENT:
+      ECOM: 0.84
+      POS: 0.94
+      ATM: 0.97
+      BANK_RAIL: 0.88
+      HYBRID: 0.88
+    RETAIL_VALUE:
+      ECOM: 0.87
+      POS: 0.95
+      ATM: 0.97
+      BANK_RAIL: 0.9
+      HYBRID: 0.9
+account_preferences:
+  mode: weights_by_ledger_class_v1
+  weights_by_segment_channel:
+    BUSINESS_CORPORATE:
+      ECOM:
+        DEPOSIT: 0.45
+        CREDIT_REVOLVING: 0.2
+        CREDIT_INSTALLMENT: 0.05
+        SETTLEMENT: 0.3
+      POS:
+        DEPOSIT: 0.55
+        CREDIT_REVOLVING: 0.15
+        CREDIT_INSTALLMENT: 0.05
+        SETTLEMENT: 0.25
+      ATM:
+        DEPOSIT: 0.7
+        CREDIT_REVOLVING: 0.1
+        CREDIT_INSTALLMENT: 0.05
+        SETTLEMENT: 0.15
+      BANK_RAIL:
+        DEPOSIT: 0.3
+        CREDIT_REVOLVING: 0.05
+        CREDIT_INSTALLMENT: 0.05
+        SETTLEMENT: 0.6
+      HYBRID:
+        DEPOSIT: 0.5
+        CREDIT_REVOLVING: 0.18
+        CREDIT_INSTALLMENT: 0.07
+        SETTLEMENT: 0.25
+    BUSINESS_ECOM_NATIVE:
+      ECOM:
+        DEPOSIT: 0.45
+        CREDIT_REVOLVING: 0.2
+        CREDIT_INSTALLMENT: 0.05
+        SETTLEMENT: 0.3
+      POS:
+        DEPOSIT: 0.55
+        CREDIT_REVOLVING: 0.15
+        CREDIT_INSTALLMENT: 0.05
+        SETTLEMENT: 0.25
+      ATM:
+        DEPOSIT: 0.7
+        CREDIT_REVOLVING: 0.1
+        CREDIT_INSTALLMENT: 0.05
+        SETTLEMENT: 0.15
+      BANK_RAIL:
+        DEPOSIT: 0.3
+        CREDIT_REVOLVING: 0.05
+        CREDIT_INSTALLMENT: 0.05
+        SETTLEMENT: 0.6
+      HYBRID:
+        DEPOSIT: 0.5
+        CREDIT_REVOLVING: 0.18
+        CREDIT_INSTALLMENT: 0.07
+        SETTLEMENT: 0.25
+    BUSINESS_LOCAL_SERVICE:
+      ECOM:
+        DEPOSIT: 0.45
+        CREDIT_REVOLVING: 0.2
+        CREDIT_INSTALLMENT: 0.05
+        SETTLEMENT: 0.3
+      POS:
+        DEPOSIT: 0.55
+        CREDIT_REVOLVING: 0.15
+        CREDIT_INSTALLMENT: 0.05
+        SETTLEMENT: 0.25
+      ATM:
+        DEPOSIT: 0.7
+        CREDIT_REVOLVING: 0.1
+        CREDIT_INSTALLMENT: 0.05
+        SETTLEMENT: 0.15
+      BANK_RAIL:
+        DEPOSIT: 0.3
+        CREDIT_REVOLVING: 0.05
+        CREDIT_INSTALLMENT: 0.05
+        SETTLEMENT: 0.6
+      HYBRID:
+        DEPOSIT: 0.5
+        CREDIT_REVOLVING: 0.18
+        CREDIT_INSTALLMENT: 0.07
+        SETTLEMENT: 0.25
+    BUSINESS_MID_MARKET:
+      ECOM:
+        DEPOSIT: 0.45
+        CREDIT_REVOLVING: 0.2
+        CREDIT_INSTALLMENT: 0.05
+        SETTLEMENT: 0.3
+      POS:
+        DEPOSIT: 0.55
+        CREDIT_REVOLVING: 0.15
+        CREDIT_INSTALLMENT: 0.05
+        SETTLEMENT: 0.25
+      ATM:
+        DEPOSIT: 0.7
+        CREDIT_REVOLVING: 0.1
+        CREDIT_INSTALLMENT: 0.05
+        SETTLEMENT: 0.15
+      BANK_RAIL:
+        DEPOSIT: 0.3
+        CREDIT_REVOLVING: 0.05
+        CREDIT_INSTALLMENT: 0.05
+        SETTLEMENT: 0.6
+      HYBRID:
+        DEPOSIT: 0.5
+        CREDIT_REVOLVING: 0.18
+        CREDIT_INSTALLMENT: 0.07
+        SETTLEMENT: 0.25
+    BUSINESS_MICRO:
+      ECOM:
+        DEPOSIT: 0.45
+        CREDIT_REVOLVING: 0.2
+        CREDIT_INSTALLMENT: 0.05
+        SETTLEMENT: 0.3
+      POS:
+        DEPOSIT: 0.55
+        CREDIT_REVOLVING: 0.15
+        CREDIT_INSTALLMENT: 0.05
+        SETTLEMENT: 0.25
+      ATM:
+        DEPOSIT: 0.7
+        CREDIT_REVOLVING: 0.1
+        CREDIT_INSTALLMENT: 0.05
+        SETTLEMENT: 0.15
+      BANK_RAIL:
+        DEPOSIT: 0.3
+        CREDIT_REVOLVING: 0.05
+        CREDIT_INSTALLMENT: 0.05
+        SETTLEMENT: 0.6
+      HYBRID:
+        DEPOSIT: 0.5
+        CREDIT_REVOLVING: 0.18
+        CREDIT_INSTALLMENT: 0.07
+        SETTLEMENT: 0.25
+    BUSINESS_SME:
+      ECOM:
+        DEPOSIT: 0.45
+        CREDIT_REVOLVING: 0.2
+        CREDIT_INSTALLMENT: 0.05
+        SETTLEMENT: 0.3
+      POS:
+        DEPOSIT: 0.55
+        CREDIT_REVOLVING: 0.15
+        CREDIT_INSTALLMENT: 0.05
+        SETTLEMENT: 0.25
+      ATM:
+        DEPOSIT: 0.7
+        CREDIT_REVOLVING: 0.1
+        CREDIT_INSTALLMENT: 0.05
+        SETTLEMENT: 0.15
+      BANK_RAIL:
+        DEPOSIT: 0.3
+        CREDIT_REVOLVING: 0.05
+        CREDIT_INSTALLMENT: 0.05
+        SETTLEMENT: 0.6
+      HYBRID:
+        DEPOSIT: 0.5
+        CREDIT_REVOLVING: 0.18
+        CREDIT_INSTALLMENT: 0.07
+        SETTLEMENT: 0.25
+    BUSINESS_SOLE_TRADER:
+      ECOM:
+        DEPOSIT: 0.45
+        CREDIT_REVOLVING: 0.2
+        CREDIT_INSTALLMENT: 0.05
+        SETTLEMENT: 0.3
+      POS:
+        DEPOSIT: 0.55
+        CREDIT_REVOLVING: 0.15
+        CREDIT_INSTALLMENT: 0.05
+        SETTLEMENT: 0.25
+      ATM:
+        DEPOSIT: 0.7
+        CREDIT_REVOLVING: 0.1
+        CREDIT_INSTALLMENT: 0.05
+        SETTLEMENT: 0.15
+      BANK_RAIL:
+        DEPOSIT: 0.3
+        CREDIT_REVOLVING: 0.05
+        CREDIT_INSTALLMENT: 0.05
+        SETTLEMENT: 0.6
+      HYBRID:
+        DEPOSIT: 0.5
+        CREDIT_REVOLVING: 0.18
+        CREDIT_INSTALLMENT: 0.07
+        SETTLEMENT: 0.25
+    OTHER_NONPROFIT:
+      ECOM:
+        DEPOSIT: 0.4
+        CREDIT_REVOLVING: 0.1
+        CREDIT_INSTALLMENT: 0.05
+        SETTLEMENT: 0.45
+      POS:
+        DEPOSIT: 0.5
+        CREDIT_REVOLVING: 0.1
+        CREDIT_INSTALLMENT: 0.05
+        SETTLEMENT: 0.35
+      ATM:
+        DEPOSIT: 0.7
+        CREDIT_REVOLVING: 0.05
+        CREDIT_INSTALLMENT: 0.05
+        SETTLEMENT: 0.2
+      BANK_RAIL:
+        DEPOSIT: 0.2
+        CREDIT_REVOLVING: 0.05
+        CREDIT_INSTALLMENT: 0.05
+        SETTLEMENT: 0.7
+      HYBRID:
+        DEPOSIT: 0.45
+        CREDIT_REVOLVING: 0.1
+        CREDIT_INSTALLMENT: 0.05
+        SETTLEMENT: 0.4
+    OTHER_PUBLIC_SECTOR:
+      ECOM:
+        DEPOSIT: 0.4
+        CREDIT_REVOLVING: 0.1
+        CREDIT_INSTALLMENT: 0.05
+        SETTLEMENT: 0.45
+      POS:
+        DEPOSIT: 0.5
+        CREDIT_REVOLVING: 0.1
+        CREDIT_INSTALLMENT: 0.05
+        SETTLEMENT: 0.35
+      ATM:
+        DEPOSIT: 0.7
+        CREDIT_REVOLVING: 0.05
+        CREDIT_INSTALLMENT: 0.05
+        SETTLEMENT: 0.2
+      BANK_RAIL:
+        DEPOSIT: 0.2
+        CREDIT_REVOLVING: 0.05
+        CREDIT_INSTALLMENT: 0.05
+        SETTLEMENT: 0.7
+      HYBRID:
+        DEPOSIT: 0.45
+        CREDIT_REVOLVING: 0.1
+        CREDIT_INSTALLMENT: 0.05
+        SETTLEMENT: 0.4
+    RETAIL_AFFLUENT:
+      ECOM:
+        DEPOSIT: 0.6
+        CREDIT_REVOLVING: 0.3
+        CREDIT_INSTALLMENT: 0.05
+        SETTLEMENT: 0.05
+      POS:
+        DEPOSIT: 0.7
+        CREDIT_REVOLVING: 0.25
+        CREDIT_INSTALLMENT: 0.03
+        SETTLEMENT: 0.02
+      ATM:
+        DEPOSIT: 0.85
+        CREDIT_REVOLVING: 0.1
+        CREDIT_INSTALLMENT: 0.03
+        SETTLEMENT: 0.02
+      BANK_RAIL:
+        DEPOSIT: 0.55
+        CREDIT_REVOLVING: 0.2
+        CREDIT_INSTALLMENT: 0.05
+        SETTLEMENT: 0.2
+      HYBRID:
+        DEPOSIT: 0.65
+        CREDIT_REVOLVING: 0.25
+        CREDIT_INSTALLMENT: 0.05
+        SETTLEMENT: 0.05
+    RETAIL_EARLY_CAREER:
+      ECOM:
+        DEPOSIT: 0.6
+        CREDIT_REVOLVING: 0.3
+        CREDIT_INSTALLMENT: 0.05
+        SETTLEMENT: 0.05
+      POS:
+        DEPOSIT: 0.7
+        CREDIT_REVOLVING: 0.25
+        CREDIT_INSTALLMENT: 0.03
+        SETTLEMENT: 0.02
+      ATM:
+        DEPOSIT: 0.85
+        CREDIT_REVOLVING: 0.1
+        CREDIT_INSTALLMENT: 0.03
+        SETTLEMENT: 0.02
+      BANK_RAIL:
+        DEPOSIT: 0.55
+        CREDIT_REVOLVING: 0.2
+        CREDIT_INSTALLMENT: 0.05
+        SETTLEMENT: 0.2
+      HYBRID:
+        DEPOSIT: 0.65
+        CREDIT_REVOLVING: 0.25
+        CREDIT_INSTALLMENT: 0.05
+        SETTLEMENT: 0.05
+    RETAIL_FAMILY:
+      ECOM:
+        DEPOSIT: 0.6
+        CREDIT_REVOLVING: 0.3
+        CREDIT_INSTALLMENT: 0.05
+        SETTLEMENT: 0.05
+      POS:
+        DEPOSIT: 0.7
+        CREDIT_REVOLVING: 0.25
+        CREDIT_INSTALLMENT: 0.03
+        SETTLEMENT: 0.02
+      ATM:
+        DEPOSIT: 0.85
+        CREDIT_REVOLVING: 0.1
+        CREDIT_INSTALLMENT: 0.03
+        SETTLEMENT: 0.02
+      BANK_RAIL:
+        DEPOSIT: 0.55
+        CREDIT_REVOLVING: 0.2
+        CREDIT_INSTALLMENT: 0.05
+        SETTLEMENT: 0.2
+      HYBRID:
+        DEPOSIT: 0.65
+        CREDIT_REVOLVING: 0.25
+        CREDIT_INSTALLMENT: 0.05
+        SETTLEMENT: 0.05
+    RETAIL_MASS_MARKET:
+      ECOM:
+        DEPOSIT: 0.6
+        CREDIT_REVOLVING: 0.3
+        CREDIT_INSTALLMENT: 0.05
+        SETTLEMENT: 0.05
+      POS:
+        DEPOSIT: 0.7
+        CREDIT_REVOLVING: 0.25
+        CREDIT_INSTALLMENT: 0.03
+        SETTLEMENT: 0.02
+      ATM:
+        DEPOSIT: 0.85
+        CREDIT_REVOLVING: 0.1
+        CREDIT_INSTALLMENT: 0.03
+        SETTLEMENT: 0.02
+      BANK_RAIL:
+        DEPOSIT: 0.55
+        CREDIT_REVOLVING: 0.2
+        CREDIT_INSTALLMENT: 0.05
+        SETTLEMENT: 0.2
+      HYBRID:
+        DEPOSIT: 0.65
+        CREDIT_REVOLVING: 0.25
+        CREDIT_INSTALLMENT: 0.05
+        SETTLEMENT: 0.05
+    RETAIL_MATURE:
+      ECOM:
+        DEPOSIT: 0.6
+        CREDIT_REVOLVING: 0.3
+        CREDIT_INSTALLMENT: 0.05
+        SETTLEMENT: 0.05
+      POS:
+        DEPOSIT: 0.7
+        CREDIT_REVOLVING: 0.25
+        CREDIT_INSTALLMENT: 0.03
+        SETTLEMENT: 0.02
+      ATM:
+        DEPOSIT: 0.85
+        CREDIT_REVOLVING: 0.1
+        CREDIT_INSTALLMENT: 0.03
+        SETTLEMENT: 0.02
+      BANK_RAIL:
+        DEPOSIT: 0.55
+        CREDIT_REVOLVING: 0.2
+        CREDIT_INSTALLMENT: 0.05
+        SETTLEMENT: 0.2
+      HYBRID:
+        DEPOSIT: 0.65
+        CREDIT_REVOLVING: 0.25
+        CREDIT_INSTALLMENT: 0.05
+        SETTLEMENT: 0.05
+    RETAIL_RETIRED:
+      ECOM:
+        DEPOSIT: 0.6
+        CREDIT_REVOLVING: 0.3
+        CREDIT_INSTALLMENT: 0.05
+        SETTLEMENT: 0.05
+      POS:
+        DEPOSIT: 0.7
+        CREDIT_REVOLVING: 0.25
+        CREDIT_INSTALLMENT: 0.03
+        SETTLEMENT: 0.02
+      ATM:
+        DEPOSIT: 0.85
+        CREDIT_REVOLVING: 0.1
+        CREDIT_INSTALLMENT: 0.03
+        SETTLEMENT: 0.02
+      BANK_RAIL:
+        DEPOSIT: 0.55
+        CREDIT_REVOLVING: 0.2
+        CREDIT_INSTALLMENT: 0.05
+        SETTLEMENT: 0.2
+      HYBRID:
+        DEPOSIT: 0.65
+        CREDIT_REVOLVING: 0.25
+        CREDIT_INSTALLMENT: 0.05
+        SETTLEMENT: 0.05
+    RETAIL_STUDENT:
+      ECOM:
+        DEPOSIT: 0.6
+        CREDIT_REVOLVING: 0.3
+        CREDIT_INSTALLMENT: 0.05
+        SETTLEMENT: 0.05
+      POS:
+        DEPOSIT: 0.7
+        CREDIT_REVOLVING: 0.25
+        CREDIT_INSTALLMENT: 0.03
+        SETTLEMENT: 0.02
+      ATM:
+        DEPOSIT: 0.85
+        CREDIT_REVOLVING: 0.1
+        CREDIT_INSTALLMENT: 0.03
+        SETTLEMENT: 0.02
+      BANK_RAIL:
+        DEPOSIT: 0.55
+        CREDIT_REVOLVING: 0.2
+        CREDIT_INSTALLMENT: 0.05
+        SETTLEMENT: 0.2
+      HYBRID:
+        DEPOSIT: 0.65
+        CREDIT_REVOLVING: 0.25
+        CREDIT_INSTALLMENT: 0.05
+        SETTLEMENT: 0.05
+    RETAIL_VALUE:
+      ECOM:
+        DEPOSIT: 0.6
+        CREDIT_REVOLVING: 0.3
+        CREDIT_INSTALLMENT: 0.05
+        SETTLEMENT: 0.05
+      POS:
+        DEPOSIT: 0.7
+        CREDIT_REVOLVING: 0.25
+        CREDIT_INSTALLMENT: 0.03
+        SETTLEMENT: 0.02
+      ATM:
+        DEPOSIT: 0.85
+        CREDIT_REVOLVING: 0.1
+        CREDIT_INSTALLMENT: 0.03
+        SETTLEMENT: 0.02
+      BANK_RAIL:
+        DEPOSIT: 0.55
+        CREDIT_REVOLVING: 0.2
+        CREDIT_INSTALLMENT: 0.05
+        SETTLEMENT: 0.2
+      HYBRID:
+        DEPOSIT: 0.65
+        CREDIT_REVOLVING: 0.25
+        CREDIT_INSTALLMENT: 0.05
+        SETTLEMENT: 0.05
+instrument_preferences:
+  mode: weights_by_instrument_kind_v1
+  weights_by_segment_channel:
+    BUSINESS_CORPORATE:
+      ECOM:
+        CARD_PHYSICAL: 0.4
+        CARD_VIRTUAL: 0.2
+        BANK_HANDLE: 0.3
+        WALLET_TOKEN: 0.1
+      POS:
+        CARD_PHYSICAL: 0.7
+        CARD_VIRTUAL: 0.05
+        BANK_HANDLE: 0.15
+        WALLET_TOKEN: 0.1
+      ATM:
+        CARD_PHYSICAL: 0.85
+        CARD_VIRTUAL: 0.02
+        BANK_HANDLE: 0.1
+        WALLET_TOKEN: 0.03
+      BANK_RAIL:
+        CARD_PHYSICAL: 0.1
+        CARD_VIRTUAL: 0.05
+        BANK_HANDLE: 0.75
+        WALLET_TOKEN: 0.1
+      HYBRID:
+        CARD_PHYSICAL: 0.55
+        CARD_VIRTUAL: 0.1
+        BANK_HANDLE: 0.25
+        WALLET_TOKEN: 0.1
+    BUSINESS_ECOM_NATIVE:
+      ECOM:
+        CARD_PHYSICAL: 0.4
+        CARD_VIRTUAL: 0.2
+        BANK_HANDLE: 0.3
+        WALLET_TOKEN: 0.1
+      POS:
+        CARD_PHYSICAL: 0.7
+        CARD_VIRTUAL: 0.05
+        BANK_HANDLE: 0.15
+        WALLET_TOKEN: 0.1
+      ATM:
+        CARD_PHYSICAL: 0.85
+        CARD_VIRTUAL: 0.02
+        BANK_HANDLE: 0.1
+        WALLET_TOKEN: 0.03
+      BANK_RAIL:
+        CARD_PHYSICAL: 0.1
+        CARD_VIRTUAL: 0.05
+        BANK_HANDLE: 0.75
+        WALLET_TOKEN: 0.1
+      HYBRID:
+        CARD_PHYSICAL: 0.55
+        CARD_VIRTUAL: 0.1
+        BANK_HANDLE: 0.25
+        WALLET_TOKEN: 0.1
+    BUSINESS_LOCAL_SERVICE:
+      ECOM:
+        CARD_PHYSICAL: 0.4
+        CARD_VIRTUAL: 0.2
+        BANK_HANDLE: 0.3
+        WALLET_TOKEN: 0.1
+      POS:
+        CARD_PHYSICAL: 0.7
+        CARD_VIRTUAL: 0.05
+        BANK_HANDLE: 0.15
+        WALLET_TOKEN: 0.1
+      ATM:
+        CARD_PHYSICAL: 0.85
+        CARD_VIRTUAL: 0.02
+        BANK_HANDLE: 0.1
+        WALLET_TOKEN: 0.03
+      BANK_RAIL:
+        CARD_PHYSICAL: 0.1
+        CARD_VIRTUAL: 0.05
+        BANK_HANDLE: 0.75
+        WALLET_TOKEN: 0.1
+      HYBRID:
+        CARD_PHYSICAL: 0.55
+        CARD_VIRTUAL: 0.1
+        BANK_HANDLE: 0.25
+        WALLET_TOKEN: 0.1
+    BUSINESS_MID_MARKET:
+      ECOM:
+        CARD_PHYSICAL: 0.4
+        CARD_VIRTUAL: 0.2
+        BANK_HANDLE: 0.3
+        WALLET_TOKEN: 0.1
+      POS:
+        CARD_PHYSICAL: 0.7
+        CARD_VIRTUAL: 0.05
+        BANK_HANDLE: 0.15
+        WALLET_TOKEN: 0.1
+      ATM:
+        CARD_PHYSICAL: 0.85
+        CARD_VIRTUAL: 0.02
+        BANK_HANDLE: 0.1
+        WALLET_TOKEN: 0.03
+      BANK_RAIL:
+        CARD_PHYSICAL: 0.1
+        CARD_VIRTUAL: 0.05
+        BANK_HANDLE: 0.75
+        WALLET_TOKEN: 0.1
+      HYBRID:
+        CARD_PHYSICAL: 0.55
+        CARD_VIRTUAL: 0.1
+        BANK_HANDLE: 0.25
+        WALLET_TOKEN: 0.1
+    BUSINESS_MICRO:
+      ECOM:
+        CARD_PHYSICAL: 0.4
+        CARD_VIRTUAL: 0.2
+        BANK_HANDLE: 0.3
+        WALLET_TOKEN: 0.1
+      POS:
+        CARD_PHYSICAL: 0.7
+        CARD_VIRTUAL: 0.05
+        BANK_HANDLE: 0.15
+        WALLET_TOKEN: 0.1
+      ATM:
+        CARD_PHYSICAL: 0.85
+        CARD_VIRTUAL: 0.02
+        BANK_HANDLE: 0.1
+        WALLET_TOKEN: 0.03
+      BANK_RAIL:
+        CARD_PHYSICAL: 0.1
+        CARD_VIRTUAL: 0.05
+        BANK_HANDLE: 0.75
+        WALLET_TOKEN: 0.1
+      HYBRID:
+        CARD_PHYSICAL: 0.55
+        CARD_VIRTUAL: 0.1
+        BANK_HANDLE: 0.25
+        WALLET_TOKEN: 0.1
+    BUSINESS_SME:
+      ECOM:
+        CARD_PHYSICAL: 0.4
+        CARD_VIRTUAL: 0.2
+        BANK_HANDLE: 0.3
+        WALLET_TOKEN: 0.1
+      POS:
+        CARD_PHYSICAL: 0.7
+        CARD_VIRTUAL: 0.05
+        BANK_HANDLE: 0.15
+        WALLET_TOKEN: 0.1
+      ATM:
+        CARD_PHYSICAL: 0.85
+        CARD_VIRTUAL: 0.02
+        BANK_HANDLE: 0.1
+        WALLET_TOKEN: 0.03
+      BANK_RAIL:
+        CARD_PHYSICAL: 0.1
+        CARD_VIRTUAL: 0.05
+        BANK_HANDLE: 0.75
+        WALLET_TOKEN: 0.1
+      HYBRID:
+        CARD_PHYSICAL: 0.55
+        CARD_VIRTUAL: 0.1
+        BANK_HANDLE: 0.25
+        WALLET_TOKEN: 0.1
+    BUSINESS_SOLE_TRADER:
+      ECOM:
+        CARD_PHYSICAL: 0.4
+        CARD_VIRTUAL: 0.2
+        BANK_HANDLE: 0.3
+        WALLET_TOKEN: 0.1
+      POS:
+        CARD_PHYSICAL: 0.7
+        CARD_VIRTUAL: 0.05
+        BANK_HANDLE: 0.15
+        WALLET_TOKEN: 0.1
+      ATM:
+        CARD_PHYSICAL: 0.85
+        CARD_VIRTUAL: 0.02
+        BANK_HANDLE: 0.1
+        WALLET_TOKEN: 0.03
+      BANK_RAIL:
+        CARD_PHYSICAL: 0.1
+        CARD_VIRTUAL: 0.05
+        BANK_HANDLE: 0.75
+        WALLET_TOKEN: 0.1
+      HYBRID:
+        CARD_PHYSICAL: 0.55
+        CARD_VIRTUAL: 0.1
+        BANK_HANDLE: 0.25
+        WALLET_TOKEN: 0.1
+    OTHER_NONPROFIT:
+      ECOM:
+        CARD_PHYSICAL: 0.35
+        CARD_VIRTUAL: 0.15
+        BANK_HANDLE: 0.4
+        WALLET_TOKEN: 0.1
+      POS:
+        CARD_PHYSICAL: 0.65
+        CARD_VIRTUAL: 0.05
+        BANK_HANDLE: 0.2
+        WALLET_TOKEN: 0.1
+      ATM:
+        CARD_PHYSICAL: 0.8
+        CARD_VIRTUAL: 0.02
+        BANK_HANDLE: 0.15
+        WALLET_TOKEN: 0.03
+      BANK_RAIL:
+        CARD_PHYSICAL: 0.08
+        CARD_VIRTUAL: 0.05
+        BANK_HANDLE: 0.77
+        WALLET_TOKEN: 0.1
+      HYBRID:
+        CARD_PHYSICAL: 0.5
+        CARD_VIRTUAL: 0.08
+        BANK_HANDLE: 0.32
+        WALLET_TOKEN: 0.1
+    OTHER_PUBLIC_SECTOR:
+      ECOM:
+        CARD_PHYSICAL: 0.35
+        CARD_VIRTUAL: 0.15
+        BANK_HANDLE: 0.4
+        WALLET_TOKEN: 0.1
+      POS:
+        CARD_PHYSICAL: 0.65
+        CARD_VIRTUAL: 0.05
+        BANK_HANDLE: 0.2
+        WALLET_TOKEN: 0.1
+      ATM:
+        CARD_PHYSICAL: 0.8
+        CARD_VIRTUAL: 0.02
+        BANK_HANDLE: 0.15
+        WALLET_TOKEN: 0.03
+      BANK_RAIL:
+        CARD_PHYSICAL: 0.08
+        CARD_VIRTUAL: 0.05
+        BANK_HANDLE: 0.77
+        WALLET_TOKEN: 0.1
+      HYBRID:
+        CARD_PHYSICAL: 0.5
+        CARD_VIRTUAL: 0.08
+        BANK_HANDLE: 0.32
+        WALLET_TOKEN: 0.1
+    RETAIL_AFFLUENT:
+      ECOM:
+        CARD_PHYSICAL: 0.5
+        CARD_VIRTUAL: 0.25
+        BANK_HANDLE: 0.1
+        WALLET_TOKEN: 0.15
+      POS:
+        CARD_PHYSICAL: 0.8
+        CARD_VIRTUAL: 0.05
+        BANK_HANDLE: 0.05
+        WALLET_TOKEN: 0.1
+      ATM:
+        CARD_PHYSICAL: 0.9
+        CARD_VIRTUAL: 0.02
+        BANK_HANDLE: 0.05
+        WALLET_TOKEN: 0.03
+      BANK_RAIL:
+        CARD_PHYSICAL: 0.2
+        CARD_VIRTUAL: 0.05
+        BANK_HANDLE: 0.6
+        WALLET_TOKEN: 0.15
+      HYBRID:
+        CARD_PHYSICAL: 0.65
+        CARD_VIRTUAL: 0.1
+        BANK_HANDLE: 0.1
+        WALLET_TOKEN: 0.15
+    RETAIL_EARLY_CAREER:
+      ECOM:
+        CARD_PHYSICAL: 0.5
+        CARD_VIRTUAL: 0.25
+        BANK_HANDLE: 0.1
+        WALLET_TOKEN: 0.15
+      POS:
+        CARD_PHYSICAL: 0.8
+        CARD_VIRTUAL: 0.05
+        BANK_HANDLE: 0.05
+        WALLET_TOKEN: 0.1
+      ATM:
+        CARD_PHYSICAL: 0.9
+        CARD_VIRTUAL: 0.02
+        BANK_HANDLE: 0.05
+        WALLET_TOKEN: 0.03
+      BANK_RAIL:
+        CARD_PHYSICAL: 0.2
+        CARD_VIRTUAL: 0.05
+        BANK_HANDLE: 0.6
+        WALLET_TOKEN: 0.15
+      HYBRID:
+        CARD_PHYSICAL: 0.65
+        CARD_VIRTUAL: 0.1
+        BANK_HANDLE: 0.1
+        WALLET_TOKEN: 0.15
+    RETAIL_FAMILY:
+      ECOM:
+        CARD_PHYSICAL: 0.5
+        CARD_VIRTUAL: 0.25
+        BANK_HANDLE: 0.1
+        WALLET_TOKEN: 0.15
+      POS:
+        CARD_PHYSICAL: 0.8
+        CARD_VIRTUAL: 0.05
+        BANK_HANDLE: 0.05
+        WALLET_TOKEN: 0.1
+      ATM:
+        CARD_PHYSICAL: 0.9
+        CARD_VIRTUAL: 0.02
+        BANK_HANDLE: 0.05
+        WALLET_TOKEN: 0.03
+      BANK_RAIL:
+        CARD_PHYSICAL: 0.2
+        CARD_VIRTUAL: 0.05
+        BANK_HANDLE: 0.6
+        WALLET_TOKEN: 0.15
+      HYBRID:
+        CARD_PHYSICAL: 0.65
+        CARD_VIRTUAL: 0.1
+        BANK_HANDLE: 0.1
+        WALLET_TOKEN: 0.15
+    RETAIL_MASS_MARKET:
+      ECOM:
+        CARD_PHYSICAL: 0.5
+        CARD_VIRTUAL: 0.25
+        BANK_HANDLE: 0.1
+        WALLET_TOKEN: 0.15
+      POS:
+        CARD_PHYSICAL: 0.8
+        CARD_VIRTUAL: 0.05
+        BANK_HANDLE: 0.05
+        WALLET_TOKEN: 0.1
+      ATM:
+        CARD_PHYSICAL: 0.9
+        CARD_VIRTUAL: 0.02
+        BANK_HANDLE: 0.05
+        WALLET_TOKEN: 0.03
+      BANK_RAIL:
+        CARD_PHYSICAL: 0.2
+        CARD_VIRTUAL: 0.05
+        BANK_HANDLE: 0.6
+        WALLET_TOKEN: 0.15
+      HYBRID:
+        CARD_PHYSICAL: 0.65
+        CARD_VIRTUAL: 0.1
+        BANK_HANDLE: 0.1
+        WALLET_TOKEN: 0.15
+    RETAIL_MATURE:
+      ECOM:
+        CARD_PHYSICAL: 0.5
+        CARD_VIRTUAL: 0.25
+        BANK_HANDLE: 0.1
+        WALLET_TOKEN: 0.15
+      POS:
+        CARD_PHYSICAL: 0.8
+        CARD_VIRTUAL: 0.05
+        BANK_HANDLE: 0.05
+        WALLET_TOKEN: 0.1
+      ATM:
+        CARD_PHYSICAL: 0.9
+        CARD_VIRTUAL: 0.02
+        BANK_HANDLE: 0.05
+        WALLET_TOKEN: 0.03
+      BANK_RAIL:
+        CARD_PHYSICAL: 0.2
+        CARD_VIRTUAL: 0.05
+        BANK_HANDLE: 0.6
+        WALLET_TOKEN: 0.15
+      HYBRID:
+        CARD_PHYSICAL: 0.65
+        CARD_VIRTUAL: 0.1
+        BANK_HANDLE: 0.1
+        WALLET_TOKEN: 0.15
+    RETAIL_RETIRED:
+      ECOM:
+        CARD_PHYSICAL: 0.5
+        CARD_VIRTUAL: 0.25
+        BANK_HANDLE: 0.1
+        WALLET_TOKEN: 0.15
+      POS:
+        CARD_PHYSICAL: 0.8
+        CARD_VIRTUAL: 0.05
+        BANK_HANDLE: 0.05
+        WALLET_TOKEN: 0.1
+      ATM:
+        CARD_PHYSICAL: 0.9
+        CARD_VIRTUAL: 0.02
+        BANK_HANDLE: 0.05
+        WALLET_TOKEN: 0.03
+      BANK_RAIL:
+        CARD_PHYSICAL: 0.2
+        CARD_VIRTUAL: 0.05
+        BANK_HANDLE: 0.6
+        WALLET_TOKEN: 0.15
+      HYBRID:
+        CARD_PHYSICAL: 0.65
+        CARD_VIRTUAL: 0.1
+        BANK_HANDLE: 0.1
+        WALLET_TOKEN: 0.15
+    RETAIL_STUDENT:
+      ECOM:
+        CARD_PHYSICAL: 0.5
+        CARD_VIRTUAL: 0.25
+        BANK_HANDLE: 0.1
+        WALLET_TOKEN: 0.15
+      POS:
+        CARD_PHYSICAL: 0.8
+        CARD_VIRTUAL: 0.05
+        BANK_HANDLE: 0.05
+        WALLET_TOKEN: 0.1
+      ATM:
+        CARD_PHYSICAL: 0.9
+        CARD_VIRTUAL: 0.02
+        BANK_HANDLE: 0.05
+        WALLET_TOKEN: 0.03
+      BANK_RAIL:
+        CARD_PHYSICAL: 0.2
+        CARD_VIRTUAL: 0.05
+        BANK_HANDLE: 0.6
+        WALLET_TOKEN: 0.15
+      HYBRID:
+        CARD_PHYSICAL: 0.65
+        CARD_VIRTUAL: 0.1
+        BANK_HANDLE: 0.1
+        WALLET_TOKEN: 0.15
+    RETAIL_VALUE:
+      ECOM:
+        CARD_PHYSICAL: 0.5
+        CARD_VIRTUAL: 0.25
+        BANK_HANDLE: 0.1
+        WALLET_TOKEN: 0.15
+      POS:
+        CARD_PHYSICAL: 0.8
+        CARD_VIRTUAL: 0.05
+        BANK_HANDLE: 0.05
+        WALLET_TOKEN: 0.1
+      ATM:
+        CARD_PHYSICAL: 0.9
+        CARD_VIRTUAL: 0.02
+        BANK_HANDLE: 0.05
+        WALLET_TOKEN: 0.03
+      BANK_RAIL:
+        CARD_PHYSICAL: 0.2
+        CARD_VIRTUAL: 0.05
+        BANK_HANDLE: 0.6
+        WALLET_TOKEN: 0.15
+      HYBRID:
+        CARD_PHYSICAL: 0.65
+        CARD_VIRTUAL: 0.1
+        BANK_HANDLE: 0.1
+        WALLET_TOKEN: 0.15
+device_preferences:
+  mode: primary_vs_other_v1
+  p_primary_device_by_segment_channel:
+    BUSINESS_CORPORATE:
+      ECOM: 0.88
+      POS: 0.92
+      ATM: 0.94
+      BANK_RAIL: 0.9
+      HYBRID: 0.9
+    BUSINESS_ECOM_NATIVE:
+      ECOM: 0.88
+      POS: 0.92
+      ATM: 0.94
+      BANK_RAIL: 0.9
+      HYBRID: 0.9
+    BUSINESS_LOCAL_SERVICE:
+      ECOM: 0.88
+      POS: 0.92
+      ATM: 0.94
+      BANK_RAIL: 0.9
+      HYBRID: 0.9
+    BUSINESS_MID_MARKET:
+      ECOM: 0.88
+      POS: 0.92
+      ATM: 0.94
+      BANK_RAIL: 0.9
+      HYBRID: 0.9
+    BUSINESS_MICRO:
+      ECOM: 0.88
+      POS: 0.92
+      ATM: 0.94
+      BANK_RAIL: 0.9
+      HYBRID: 0.9
+    BUSINESS_SME:
+      ECOM: 0.88
+      POS: 0.92
+      ATM: 0.94
+      BANK_RAIL: 0.9
+      HYBRID: 0.9
+    BUSINESS_SOLE_TRADER:
+      ECOM: 0.88
+      POS: 0.92
+      ATM: 0.94
+      BANK_RAIL: 0.9
+      HYBRID: 0.9
+    OTHER_NONPROFIT:
+      ECOM: 0.9
+      POS: 0.94
+      ATM: 0.96
+      BANK_RAIL: 0.92
+      HYBRID: 0.92
+    OTHER_PUBLIC_SECTOR:
+      ECOM: 0.9
+      POS: 0.94
+      ATM: 0.96
+      BANK_RAIL: 0.92
+      HYBRID: 0.92
+    RETAIL_AFFLUENT:
+      ECOM: 0.9
+      POS: 0.94
+      ATM: 0.96
+      BANK_RAIL: 0.92
+      HYBRID: 0.92
+    RETAIL_EARLY_CAREER:
+      ECOM: 0.9
+      POS: 0.94
+      ATM: 0.96
+      BANK_RAIL: 0.92
+      HYBRID: 0.92
+    RETAIL_FAMILY:
+      ECOM: 0.9
+      POS: 0.94
+      ATM: 0.96
+      BANK_RAIL: 0.92
+      HYBRID: 0.92
+    RETAIL_MASS_MARKET:
+      ECOM: 0.9
+      POS: 0.94
+      ATM: 0.96
+      BANK_RAIL: 0.92
+      HYBRID: 0.92
+    RETAIL_MATURE:
+      ECOM: 0.9
+      POS: 0.94
+      ATM: 0.96
+      BANK_RAIL: 0.92
+      HYBRID: 0.92
+    RETAIL_RETIRED:
+      ECOM: 0.9
+      POS: 0.94
+      ATM: 0.96
+      BANK_RAIL: 0.92
+      HYBRID: 0.92
+    RETAIL_STUDENT:
+      ECOM: 0.9
+      POS: 0.94
+      ATM: 0.96
+      BANK_RAIL: 0.92
+      HYBRID: 0.92
+    RETAIL_VALUE:
+      ECOM: 0.9
+      POS: 0.94
+      ATM: 0.96
+      BANK_RAIL: 0.92
+      HYBRID: 0.92
+  terminal_bias_by_channel:
+    POS:
+      use_terminal_device_prob: 0.88
+    ATM:
+      use_terminal_device_prob: 0.97
+    ECOM:
+      use_terminal_device_prob: 0.0
+    BANK_RAIL:
+      use_terminal_device_prob: 0.0
+    HYBRID:
+      use_terminal_device_prob: 0.08
+ip_preferences:
+  mode: weights_by_ip_group_v1
+  weights_by_segment_channel:
+    BUSINESS_CORPORATE:
+      ECOM:
+        RESIDENTIAL: 0.35
+        MOBILE_CARRIER: 0.25
+        PUBLIC_SHARED: 0.2
+        HOSTING_DATACENTRE: 0.12
+        ANONYMIZER_PROXY: 0.08
+      POS:
+        RESIDENTIAL: 0.3
+        MOBILE_CARRIER: 0.3
+        PUBLIC_SHARED: 0.28
+        HOSTING_DATACENTRE: 0.07
+        ANONYMIZER_PROXY: 0.05
+      ATM:
+        RESIDENTIAL: 0.25
+        MOBILE_CARRIER: 0.3
+        PUBLIC_SHARED: 0.35
+        HOSTING_DATACENTRE: 0.06
+        ANONYMIZER_PROXY: 0.04
+      BANK_RAIL:
+        RESIDENTIAL: 0.4
+        MOBILE_CARRIER: 0.2
+        PUBLIC_SHARED: 0.25
+        HOSTING_DATACENTRE: 0.1
+        ANONYMIZER_PROXY: 0.05
+      HYBRID:
+        RESIDENTIAL: 0.32
+        MOBILE_CARRIER: 0.28
+        PUBLIC_SHARED: 0.25
+        HOSTING_DATACENTRE: 0.1
+        ANONYMIZER_PROXY: 0.05
+    BUSINESS_ECOM_NATIVE:
+      ECOM:
+        RESIDENTIAL: 0.35
+        MOBILE_CARRIER: 0.25
+        PUBLIC_SHARED: 0.2
+        HOSTING_DATACENTRE: 0.12
+        ANONYMIZER_PROXY: 0.08
+      POS:
+        RESIDENTIAL: 0.3
+        MOBILE_CARRIER: 0.3
+        PUBLIC_SHARED: 0.28
+        HOSTING_DATACENTRE: 0.07
+        ANONYMIZER_PROXY: 0.05
+      ATM:
+        RESIDENTIAL: 0.25
+        MOBILE_CARRIER: 0.3
+        PUBLIC_SHARED: 0.35
+        HOSTING_DATACENTRE: 0.06
+        ANONYMIZER_PROXY: 0.04
+      BANK_RAIL:
+        RESIDENTIAL: 0.4
+        MOBILE_CARRIER: 0.2
+        PUBLIC_SHARED: 0.25
+        HOSTING_DATACENTRE: 0.1
+        ANONYMIZER_PROXY: 0.05
+      HYBRID:
+        RESIDENTIAL: 0.32
+        MOBILE_CARRIER: 0.28
+        PUBLIC_SHARED: 0.25
+        HOSTING_DATACENTRE: 0.1
+        ANONYMIZER_PROXY: 0.05
+    BUSINESS_LOCAL_SERVICE:
+      ECOM:
+        RESIDENTIAL: 0.35
+        MOBILE_CARRIER: 0.25
+        PUBLIC_SHARED: 0.2
+        HOSTING_DATACENTRE: 0.12
+        ANONYMIZER_PROXY: 0.08
+      POS:
+        RESIDENTIAL: 0.3
+        MOBILE_CARRIER: 0.3
+        PUBLIC_SHARED: 0.28
+        HOSTING_DATACENTRE: 0.07
+        ANONYMIZER_PROXY: 0.05
+      ATM:
+        RESIDENTIAL: 0.25
+        MOBILE_CARRIER: 0.3
+        PUBLIC_SHARED: 0.35
+        HOSTING_DATACENTRE: 0.06
+        ANONYMIZER_PROXY: 0.04
+      BANK_RAIL:
+        RESIDENTIAL: 0.4
+        MOBILE_CARRIER: 0.2
+        PUBLIC_SHARED: 0.25
+        HOSTING_DATACENTRE: 0.1
+        ANONYMIZER_PROXY: 0.05
+      HYBRID:
+        RESIDENTIAL: 0.32
+        MOBILE_CARRIER: 0.28
+        PUBLIC_SHARED: 0.25
+        HOSTING_DATACENTRE: 0.1
+        ANONYMIZER_PROXY: 0.05
+    BUSINESS_MID_MARKET:
+      ECOM:
+        RESIDENTIAL: 0.35
+        MOBILE_CARRIER: 0.25
+        PUBLIC_SHARED: 0.2
+        HOSTING_DATACENTRE: 0.12
+        ANONYMIZER_PROXY: 0.08
+      POS:
+        RESIDENTIAL: 0.3
+        MOBILE_CARRIER: 0.3
+        PUBLIC_SHARED: 0.28
+        HOSTING_DATACENTRE: 0.07
+        ANONYMIZER_PROXY: 0.05
+      ATM:
+        RESIDENTIAL: 0.25
+        MOBILE_CARRIER: 0.3
+        PUBLIC_SHARED: 0.35
+        HOSTING_DATACENTRE: 0.06
+        ANONYMIZER_PROXY: 0.04
+      BANK_RAIL:
+        RESIDENTIAL: 0.4
+        MOBILE_CARRIER: 0.2
+        PUBLIC_SHARED: 0.25
+        HOSTING_DATACENTRE: 0.1
+        ANONYMIZER_PROXY: 0.05
+      HYBRID:
+        RESIDENTIAL: 0.32
+        MOBILE_CARRIER: 0.28
+        PUBLIC_SHARED: 0.25
+        HOSTING_DATACENTRE: 0.1
+        ANONYMIZER_PROXY: 0.05
+    BUSINESS_MICRO:
+      ECOM:
+        RESIDENTIAL: 0.35
+        MOBILE_CARRIER: 0.25
+        PUBLIC_SHARED: 0.2
+        HOSTING_DATACENTRE: 0.12
+        ANONYMIZER_PROXY: 0.08
+      POS:
+        RESIDENTIAL: 0.3
+        MOBILE_CARRIER: 0.3
+        PUBLIC_SHARED: 0.28
+        HOSTING_DATACENTRE: 0.07
+        ANONYMIZER_PROXY: 0.05
+      ATM:
+        RESIDENTIAL: 0.25
+        MOBILE_CARRIER: 0.3
+        PUBLIC_SHARED: 0.35
+        HOSTING_DATACENTRE: 0.06
+        ANONYMIZER_PROXY: 0.04
+      BANK_RAIL:
+        RESIDENTIAL: 0.4
+        MOBILE_CARRIER: 0.2
+        PUBLIC_SHARED: 0.25
+        HOSTING_DATACENTRE: 0.1
+        ANONYMIZER_PROXY: 0.05
+      HYBRID:
+        RESIDENTIAL: 0.32
+        MOBILE_CARRIER: 0.28
+        PUBLIC_SHARED: 0.25
+        HOSTING_DATACENTRE: 0.1
+        ANONYMIZER_PROXY: 0.05
+    BUSINESS_SME:
+      ECOM:
+        RESIDENTIAL: 0.35
+        MOBILE_CARRIER: 0.25
+        PUBLIC_SHARED: 0.2
+        HOSTING_DATACENTRE: 0.12
+        ANONYMIZER_PROXY: 0.08
+      POS:
+        RESIDENTIAL: 0.3
+        MOBILE_CARRIER: 0.3
+        PUBLIC_SHARED: 0.28
+        HOSTING_DATACENTRE: 0.07
+        ANONYMIZER_PROXY: 0.05
+      ATM:
+        RESIDENTIAL: 0.25
+        MOBILE_CARRIER: 0.3
+        PUBLIC_SHARED: 0.35
+        HOSTING_DATACENTRE: 0.06
+        ANONYMIZER_PROXY: 0.04
+      BANK_RAIL:
+        RESIDENTIAL: 0.4
+        MOBILE_CARRIER: 0.2
+        PUBLIC_SHARED: 0.25
+        HOSTING_DATACENTRE: 0.1
+        ANONYMIZER_PROXY: 0.05
+      HYBRID:
+        RESIDENTIAL: 0.32
+        MOBILE_CARRIER: 0.28
+        PUBLIC_SHARED: 0.25
+        HOSTING_DATACENTRE: 0.1
+        ANONYMIZER_PROXY: 0.05
+    BUSINESS_SOLE_TRADER:
+      ECOM:
+        RESIDENTIAL: 0.35
+        MOBILE_CARRIER: 0.25
+        PUBLIC_SHARED: 0.2
+        HOSTING_DATACENTRE: 0.12
+        ANONYMIZER_PROXY: 0.08
+      POS:
+        RESIDENTIAL: 0.3
+        MOBILE_CARRIER: 0.3
+        PUBLIC_SHARED: 0.28
+        HOSTING_DATACENTRE: 0.07
+        ANONYMIZER_PROXY: 0.05
+      ATM:
+        RESIDENTIAL: 0.25
+        MOBILE_CARRIER: 0.3
+        PUBLIC_SHARED: 0.35
+        HOSTING_DATACENTRE: 0.06
+        ANONYMIZER_PROXY: 0.04
+      BANK_RAIL:
+        RESIDENTIAL: 0.4
+        MOBILE_CARRIER: 0.2
+        PUBLIC_SHARED: 0.25
+        HOSTING_DATACENTRE: 0.1
+        ANONYMIZER_PROXY: 0.05
+      HYBRID:
+        RESIDENTIAL: 0.32
+        MOBILE_CARRIER: 0.28
+        PUBLIC_SHARED: 0.25
+        HOSTING_DATACENTRE: 0.1
+        ANONYMIZER_PROXY: 0.05
+    OTHER_NONPROFIT:
+      ECOM:
+        RESIDENTIAL: 0.32
+        MOBILE_CARRIER: 0.22
+        PUBLIC_SHARED: 0.28
+        HOSTING_DATACENTRE: 0.1
+        ANONYMIZER_PROXY: 0.08
+      POS:
+        RESIDENTIAL: 0.28
+        MOBILE_CARRIER: 0.28
+        PUBLIC_SHARED: 0.32
+        HOSTING_DATACENTRE: 0.07
+        ANONYMIZER_PROXY: 0.05
+      ATM:
+        RESIDENTIAL: 0.22
+        MOBILE_CARRIER: 0.28
+        PUBLIC_SHARED: 0.4
+        HOSTING_DATACENTRE: 0.06
+        ANONYMIZER_PROXY: 0.04
+      BANK_RAIL:
+        RESIDENTIAL: 0.38
+        MOBILE_CARRIER: 0.18
+        PUBLIC_SHARED: 0.3
+        HOSTING_DATACENTRE: 0.08
+        ANONYMIZER_PROXY: 0.06
+      HYBRID:
+        RESIDENTIAL: 0.3
+        MOBILE_CARRIER: 0.26
+        PUBLIC_SHARED: 0.3
+        HOSTING_DATACENTRE: 0.08
+        ANONYMIZER_PROXY: 0.06
+    OTHER_PUBLIC_SECTOR:
+      ECOM:
+        RESIDENTIAL: 0.32
+        MOBILE_CARRIER: 0.22
+        PUBLIC_SHARED: 0.28
+        HOSTING_DATACENTRE: 0.1
+        ANONYMIZER_PROXY: 0.08
+      POS:
+        RESIDENTIAL: 0.28
+        MOBILE_CARRIER: 0.28
+        PUBLIC_SHARED: 0.32
+        HOSTING_DATACENTRE: 0.07
+        ANONYMIZER_PROXY: 0.05
+      ATM:
+        RESIDENTIAL: 0.22
+        MOBILE_CARRIER: 0.28
+        PUBLIC_SHARED: 0.4
+        HOSTING_DATACENTRE: 0.06
+        ANONYMIZER_PROXY: 0.04
+      BANK_RAIL:
+        RESIDENTIAL: 0.38
+        MOBILE_CARRIER: 0.18
+        PUBLIC_SHARED: 0.3
+        HOSTING_DATACENTRE: 0.08
+        ANONYMIZER_PROXY: 0.06
+      HYBRID:
+        RESIDENTIAL: 0.3
+        MOBILE_CARRIER: 0.26
+        PUBLIC_SHARED: 0.3
+        HOSTING_DATACENTRE: 0.08
+        ANONYMIZER_PROXY: 0.06
+    RETAIL_AFFLUENT:
+      ECOM:
+        RESIDENTIAL: 0.45
+        MOBILE_CARRIER: 0.3
+        PUBLIC_SHARED: 0.12
+        HOSTING_DATACENTRE: 0.07
+        ANONYMIZER_PROXY: 0.06
+      POS:
+        RESIDENTIAL: 0.38
+        MOBILE_CARRIER: 0.32
+        PUBLIC_SHARED: 0.2
+        HOSTING_DATACENTRE: 0.05
+        ANONYMIZER_PROXY: 0.05
+      ATM:
+        RESIDENTIAL: 0.3
+        MOBILE_CARRIER: 0.35
+        PUBLIC_SHARED: 0.28
+        HOSTING_DATACENTRE: 0.04
+        ANONYMIZER_PROXY: 0.03
+      BANK_RAIL:
+        RESIDENTIAL: 0.5
+        MOBILE_CARRIER: 0.25
+        PUBLIC_SHARED: 0.15
+        HOSTING_DATACENTRE: 0.05
+        ANONYMIZER_PROXY: 0.05
+      HYBRID:
+        RESIDENTIAL: 0.4
+        MOBILE_CARRIER: 0.3
+        PUBLIC_SHARED: 0.2
+        HOSTING_DATACENTRE: 0.05
+        ANONYMIZER_PROXY: 0.05
+    RETAIL_EARLY_CAREER:
+      ECOM:
+        RESIDENTIAL: 0.45
+        MOBILE_CARRIER: 0.3
+        PUBLIC_SHARED: 0.12
+        HOSTING_DATACENTRE: 0.07
+        ANONYMIZER_PROXY: 0.06
+      POS:
+        RESIDENTIAL: 0.38
+        MOBILE_CARRIER: 0.32
+        PUBLIC_SHARED: 0.2
+        HOSTING_DATACENTRE: 0.05
+        ANONYMIZER_PROXY: 0.05
+      ATM:
+        RESIDENTIAL: 0.3
+        MOBILE_CARRIER: 0.35
+        PUBLIC_SHARED: 0.28
+        HOSTING_DATACENTRE: 0.04
+        ANONYMIZER_PROXY: 0.03
+      BANK_RAIL:
+        RESIDENTIAL: 0.5
+        MOBILE_CARRIER: 0.25
+        PUBLIC_SHARED: 0.15
+        HOSTING_DATACENTRE: 0.05
+        ANONYMIZER_PROXY: 0.05
+      HYBRID:
+        RESIDENTIAL: 0.4
+        MOBILE_CARRIER: 0.3
+        PUBLIC_SHARED: 0.2
+        HOSTING_DATACENTRE: 0.05
+        ANONYMIZER_PROXY: 0.05
+    RETAIL_FAMILY:
+      ECOM:
+        RESIDENTIAL: 0.45
+        MOBILE_CARRIER: 0.3
+        PUBLIC_SHARED: 0.12
+        HOSTING_DATACENTRE: 0.07
+        ANONYMIZER_PROXY: 0.06
+      POS:
+        RESIDENTIAL: 0.38
+        MOBILE_CARRIER: 0.32
+        PUBLIC_SHARED: 0.2
+        HOSTING_DATACENTRE: 0.05
+        ANONYMIZER_PROXY: 0.05
+      ATM:
+        RESIDENTIAL: 0.3
+        MOBILE_CARRIER: 0.35
+        PUBLIC_SHARED: 0.28
+        HOSTING_DATACENTRE: 0.04
+        ANONYMIZER_PROXY: 0.03
+      BANK_RAIL:
+        RESIDENTIAL: 0.5
+        MOBILE_CARRIER: 0.25
+        PUBLIC_SHARED: 0.15
+        HOSTING_DATACENTRE: 0.05
+        ANONYMIZER_PROXY: 0.05
+      HYBRID:
+        RESIDENTIAL: 0.4
+        MOBILE_CARRIER: 0.3
+        PUBLIC_SHARED: 0.2
+        HOSTING_DATACENTRE: 0.05
+        ANONYMIZER_PROXY: 0.05
+    RETAIL_MASS_MARKET:
+      ECOM:
+        RESIDENTIAL: 0.45
+        MOBILE_CARRIER: 0.3
+        PUBLIC_SHARED: 0.12
+        HOSTING_DATACENTRE: 0.07
+        ANONYMIZER_PROXY: 0.06
+      POS:
+        RESIDENTIAL: 0.38
+        MOBILE_CARRIER: 0.32
+        PUBLIC_SHARED: 0.2
+        HOSTING_DATACENTRE: 0.05
+        ANONYMIZER_PROXY: 0.05
+      ATM:
+        RESIDENTIAL: 0.3
+        MOBILE_CARRIER: 0.35
+        PUBLIC_SHARED: 0.28
+        HOSTING_DATACENTRE: 0.04
+        ANONYMIZER_PROXY: 0.03
+      BANK_RAIL:
+        RESIDENTIAL: 0.5
+        MOBILE_CARRIER: 0.25
+        PUBLIC_SHARED: 0.15
+        HOSTING_DATACENTRE: 0.05
+        ANONYMIZER_PROXY: 0.05
+      HYBRID:
+        RESIDENTIAL: 0.4
+        MOBILE_CARRIER: 0.3
+        PUBLIC_SHARED: 0.2
+        HOSTING_DATACENTRE: 0.05
+        ANONYMIZER_PROXY: 0.05
+    RETAIL_MATURE:
+      ECOM:
+        RESIDENTIAL: 0.45
+        MOBILE_CARRIER: 0.3
+        PUBLIC_SHARED: 0.12
+        HOSTING_DATACENTRE: 0.07
+        ANONYMIZER_PROXY: 0.06
+      POS:
+        RESIDENTIAL: 0.38
+        MOBILE_CARRIER: 0.32
+        PUBLIC_SHARED: 0.2
+        HOSTING_DATACENTRE: 0.05
+        ANONYMIZER_PROXY: 0.05
+      ATM:
+        RESIDENTIAL: 0.3
+        MOBILE_CARRIER: 0.35
+        PUBLIC_SHARED: 0.28
+        HOSTING_DATACENTRE: 0.04
+        ANONYMIZER_PROXY: 0.03
+      BANK_RAIL:
+        RESIDENTIAL: 0.5
+        MOBILE_CARRIER: 0.25
+        PUBLIC_SHARED: 0.15
+        HOSTING_DATACENTRE: 0.05
+        ANONYMIZER_PROXY: 0.05
+      HYBRID:
+        RESIDENTIAL: 0.4
+        MOBILE_CARRIER: 0.3
+        PUBLIC_SHARED: 0.2
+        HOSTING_DATACENTRE: 0.05
+        ANONYMIZER_PROXY: 0.05
+    RETAIL_RETIRED:
+      ECOM:
+        RESIDENTIAL: 0.45
+        MOBILE_CARRIER: 0.3
+        PUBLIC_SHARED: 0.12
+        HOSTING_DATACENTRE: 0.07
+        ANONYMIZER_PROXY: 0.06
+      POS:
+        RESIDENTIAL: 0.38
+        MOBILE_CARRIER: 0.32
+        PUBLIC_SHARED: 0.2
+        HOSTING_DATACENTRE: 0.05
+        ANONYMIZER_PROXY: 0.05
+      ATM:
+        RESIDENTIAL: 0.3
+        MOBILE_CARRIER: 0.35
+        PUBLIC_SHARED: 0.28
+        HOSTING_DATACENTRE: 0.04
+        ANONYMIZER_PROXY: 0.03
+      BANK_RAIL:
+        RESIDENTIAL: 0.5
+        MOBILE_CARRIER: 0.25
+        PUBLIC_SHARED: 0.15
+        HOSTING_DATACENTRE: 0.05
+        ANONYMIZER_PROXY: 0.05
+      HYBRID:
+        RESIDENTIAL: 0.4
+        MOBILE_CARRIER: 0.3
+        PUBLIC_SHARED: 0.2
+        HOSTING_DATACENTRE: 0.05
+        ANONYMIZER_PROXY: 0.05
+    RETAIL_STUDENT:
+      ECOM:
+        RESIDENTIAL: 0.45
+        MOBILE_CARRIER: 0.3
+        PUBLIC_SHARED: 0.12
+        HOSTING_DATACENTRE: 0.07
+        ANONYMIZER_PROXY: 0.06
+      POS:
+        RESIDENTIAL: 0.38
+        MOBILE_CARRIER: 0.32
+        PUBLIC_SHARED: 0.2
+        HOSTING_DATACENTRE: 0.05
+        ANONYMIZER_PROXY: 0.05
+      ATM:
+        RESIDENTIAL: 0.3
+        MOBILE_CARRIER: 0.35
+        PUBLIC_SHARED: 0.28
+        HOSTING_DATACENTRE: 0.04
+        ANONYMIZER_PROXY: 0.03
+      BANK_RAIL:
+        RESIDENTIAL: 0.5
+        MOBILE_CARRIER: 0.25
+        PUBLIC_SHARED: 0.15
+        HOSTING_DATACENTRE: 0.05
+        ANONYMIZER_PROXY: 0.05
+      HYBRID:
+        RESIDENTIAL: 0.4
+        MOBILE_CARRIER: 0.3
+        PUBLIC_SHARED: 0.2
+        HOSTING_DATACENTRE: 0.05
+        ANONYMIZER_PROXY: 0.05
+    RETAIL_VALUE:
+      ECOM:
+        RESIDENTIAL: 0.45
+        MOBILE_CARRIER: 0.3
+        PUBLIC_SHARED: 0.12
+        HOSTING_DATACENTRE: 0.07
+        ANONYMIZER_PROXY: 0.06
+      POS:
+        RESIDENTIAL: 0.38
+        MOBILE_CARRIER: 0.32
+        PUBLIC_SHARED: 0.2
+        HOSTING_DATACENTRE: 0.05
+        ANONYMIZER_PROXY: 0.05
+      ATM:
+        RESIDENTIAL: 0.3
+        MOBILE_CARRIER: 0.35
+        PUBLIC_SHARED: 0.28
+        HOSTING_DATACENTRE: 0.04
+        ANONYMIZER_PROXY: 0.03
+      BANK_RAIL:
+        RESIDENTIAL: 0.5
+        MOBILE_CARRIER: 0.25
+        PUBLIC_SHARED: 0.15
+        HOSTING_DATACENTRE: 0.05
+        ANONYMIZER_PROXY: 0.05
+      HYBRID:
+        RESIDENTIAL: 0.4
+        MOBILE_CARRIER: 0.3
+        PUBLIC_SHARED: 0.2
+        HOSTING_DATACENTRE: 0.05
+        ANONYMIZER_PROXY: 0.05
+guardrails:
+  max_total_campaign_instances_per_seed_scenario: 50
+  max_total_targets_per_seed_scenario: 200000
+  max_targets_per_campaign_instance: 100000
+  max_windows_per_campaign_instance: 20
+realism_targets:
+  min_templates_total: 6
+  min_fraud_family_coverage: 3
+  targeting_diversity_min: 3
+  proxy_usage_presence: true
+  campaign_prevalence_ranges:
+    CARD_TESTING: { min: 0.0005, max: 0.03 }
+    ATO: { min: 0.0001, max: 0.01 }
+    REFUND_ABUSE: { min: 0.0001, max: 0.02 }
+    MERCHANT_COLLUSION: { min: 0.00001, max: 0.002 }
+notes: Behaviour priors cover all party segments from taxonomy.party.v1 and provide
+  channel-specific preferences to steer S1 selection without introducing new behaviours
+  outside the attachment and session policies.

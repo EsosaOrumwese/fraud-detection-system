@@ -1,97 +1,70 @@
-"""Command-line entry point for Segment 1B S1 (Tile Index)."""
+"""CLI for Segment 1B S1 tile index."""
 
 from __future__ import annotations
 
 import argparse
-import sys
+import os
 from pathlib import Path
 
-from engine.layers.l1.seg_1B.s1_tile_index import (
-    RunnerConfig,
-    S1TileIndexRunner,
-    S1TileIndexValidator,
-    ValidatorConfig,
-)
-from engine.layers.l1.seg_1B.shared.dictionary import load_dictionary
+from engine.core.config import EngineConfig
+from engine.core.logging import get_logger
+from engine.layers.l1.seg_1B.s1_tile_index.runner import run_s1
 
 
-def _load_dictionary(path: str | None):
-    if path is None:
-        return None
-    return load_dictionary(Path(path))
-
-
-def main(argv: list[str] | None = None) -> int:
-    parser = argparse.ArgumentParser(description="Segment 1B S1 Tile Index utilities")
-    subparsers = parser.add_subparsers(dest="command", required=True)
-
-    run_parser = subparsers.add_parser("run", help="Materialise tile_index/tile_bounds for a parameter hash")
-    run_parser.add_argument("--data-root", type=Path, default=Path("."), help="Root directory containing sealed inputs")
-    run_parser.add_argument("--parameter-hash", required=True, help="Parameter hash identifying the partition")
-    run_parser.add_argument(
-        "--inclusion-rule",
-        choices=["center", "any_overlap"],
-        default="center",
-        help="Inclusion predicate used to enumerate eligible tiles",
+def build_parser() -> argparse.ArgumentParser:
+    parser = argparse.ArgumentParser(description="Run Segment 1B S1 tile index.")
+    parser.add_argument("--contracts-layout", default=os.getenv("ENGINE_CONTRACTS_LAYOUT", "model_spec"))
+    parser.add_argument("--contracts-root", default=os.getenv("ENGINE_CONTRACTS_ROOT"))
+    parser.add_argument("--runs-root", default=os.getenv("ENGINE_RUNS_ROOT"))
+    parser.add_argument(
+        "--external-root",
+        action="append",
+        default=os.getenv("ENGINE_EXTERNAL_ROOTS", "").split(";") if os.getenv("ENGINE_EXTERNAL_ROOTS") else [],
+        help="External roots for input resolution (repeatable or ';' delimited).",
     )
-    run_parser.add_argument(
-        "--dictionary",
-        type=str,
-        default=None,
-        help="Optional path to an alternate Segment 1B dictionary YAML",
-    )
+    parser.add_argument("--run-id", default=None, help="Select a run_id (defaults to latest run_receipt.json).")
+    parser.add_argument("--predicate", default="center", choices=["center", "any_overlap"])
+    parser.add_argument("--workers", type=int, default=1)
+    return parser
 
-    validate_parser = subparsers.add_parser("validate", help="Validate an existing tile_index partition")
-    validate_parser.add_argument("--data-root", type=Path, default=Path("."), help="Root directory containing outputs")
-    validate_parser.add_argument("--parameter-hash", required=True, help="Parameter hash identifying the partition")
-    validate_parser.add_argument(
-        "--inclusion-rule",
-        choices=["center", "any_overlap"],
-        default=None,
-        help="Override inclusion predicate when the run report is absent",
-    )
-    validate_parser.add_argument(
-        "--dictionary",
-        type=str,
-        default=None,
-        help="Optional path to an alternate Segment 1B dictionary YAML",
-    )
 
-    args = parser.parse_args(argv)
-
-    if args.command == "run":
-        dictionary = _load_dictionary(args.dictionary)
-        runner = S1TileIndexRunner()
-        result = runner.run(
-            RunnerConfig(
-                data_root=args.data_root,
-                parameter_hash=args.parameter_hash,
-                inclusion_rule=args.inclusion_rule,
-                dictionary=dictionary,
-            )
+def main() -> None:
+    logger = get_logger("engine.layers.l1.seg_1B.s1_tile_index.cli")
+    args = build_parser().parse_args()
+    cfg = EngineConfig.default()
+    runs_root = Path(args.runs_root) if args.runs_root else cfg.runs_root
+    if args.contracts_root:
+        cfg = EngineConfig(
+            repo_root=cfg.repo_root,
+            contracts_root=Path(args.contracts_root),
+            contracts_layout=args.contracts_layout,
+            runs_root=runs_root,
+            external_roots=cfg.external_roots,
         )
-        print(f"tile_index written to: {result.tile_index_path}")
-        print(f"tile_bounds written to: {result.tile_bounds_path}")
-        print(f"run report: {result.report_path}")
-        return 0
-
-    if args.command == "validate":
-        dictionary = _load_dictionary(args.dictionary)
-        validator = S1TileIndexValidator()
-        validator.validate(
-            ValidatorConfig(
-                data_root=args.data_root,
-                parameter_hash=args.parameter_hash,
-                inclusion_rule=args.inclusion_rule,
-                dictionary=dictionary,
-            )
+    else:
+        cfg = EngineConfig(
+            repo_root=cfg.repo_root,
+            contracts_root=cfg.repo_root,
+            contracts_layout=args.contracts_layout,
+            runs_root=runs_root,
+            external_roots=cfg.external_roots,
         )
-        print("Validation succeeded")
-        return 0
-
-    parser.error("Unknown command")
-    return 1
+    external_roots = [Path(root) for root in args.external_root if root]
+    if external_roots:
+        cfg = cfg.with_external_roots(external_roots)
+    result = run_s1(
+        cfg,
+        run_id=args.run_id,
+        predicate=args.predicate,
+        workers=args.workers,
+    )
+    logger.info(
+        "S1 1B complete: run_id=%s parameter_hash=%s tile_index=%s",
+        result.run_id,
+        result.parameter_hash,
+        result.tile_index_path,
+    )
 
 
 if __name__ == "__main__":
-    sys.exit(main())
+    main()

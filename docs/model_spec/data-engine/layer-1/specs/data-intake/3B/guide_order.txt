@@ -1,0 +1,12 @@
+# List guides in dependency order after reading expanded specs and contracts.
+# One guide per line.
+cdn_weights_ext_yaml_acquisition-guide.md
+hrsl_raster-acquisition-guide.md
+pelias_cached.sqlite_acquisition-guide.md
+mcc_channel_rules_authoring-guide.md
+cdn_country_weights_authoring-guide.md
+virtual_validation_authoring-guide.md
+cdn_key_digest_authoring-guide.md
+virtual_settlement_coords_derivation-guide.md
+virtual_logging_policy_authoring-guide.md
+

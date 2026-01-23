@@ -1,0 +1,986 @@
+impl_map_semver: 0.1.0
+segment:
+  segment_id: 1B
+  layer_id: layer1
+  title: Site Geolocation
+  description: Assign concrete geolocated sites to outlet stubs from 1A (tile allocation + jitter), then publish site_locations with consumer gate.
+generated_at_utc: '2026-01-10T08:00:07Z'
+sources:
+  state_expanded_docs:
+  - state.1B.s0.expanded.md
+  - state.1B.s1.expanded.md
+  - state.1B.s2.expanded.md
+  - state.1B.s3.expanded.md
+  - state.1B.s4.expanded.md
+  - state.1B.s5.expanded.md
+  - state.1B.s6.expanded.md
+  - state.1B.s7.expanded.md
+  - state.1B.s8.expanded.md
+  - state.1B.s9.expanded.md
+  dataset_dictionary:
+  - dataset_dictionary.layer1.1B.yaml
+  artefact_registry:
+  - artefact_registry_1B.yaml
+  schemas:
+  - schemas.1B.yaml
+  - schemas.layer1.yaml
+  - schemas.ingress.layer1.yaml
+  - schemas.1A.yaml
+source_fingerprints:
+  dataset_dictionary.layer1.1B.yaml:
+    sha256: c7be36bfab0350433459b61ac68216832880c2b52761cacb47aac588e1b80d25
+  artefact_registry_1B.yaml:
+    sha256: 502f2b15a05f81322ae4f0823a025402133264dbb811d49debdbe7d6229ff1a4
+  schemas.1B.yaml:
+    sha256: 92283b986add164492a997f62ffd9265adb48c75370565576ffd14cb46b96b35
+  schemas.layer1.yaml:
+    sha256: c91a4db9fde11cd93faba4ae0eca35479f27d676573f101680ba7f4fe4b81dbf
+  schemas.ingress.layer1.yaml:
+    sha256: cc5b554a2739308cdf7360c45c33d484d008d7e04b060843ba8e3b207e5bfd51
+  schemas.1A.yaml:
+    sha256: 83891933b7b0cd63697c5b3b2b446382d7676448ebdae5875bea09555f0e3bf0
+  state.1B.s0.expanded.md:
+    sha256: 777cf4709a2154eccafb4aa4448e2ec8712d57c9b55a2fb33f81e84a3bd440b2
+  state.1B.s1.expanded.md:
+    sha256: db2463762a05165a75d779ccbfe3d21cfbc5d82274aaef0320111279f5d74eb4
+  state.1B.s2.expanded.md:
+    sha256: 44a53af1095c55ef03fc59054c6d9abbf1bd80d916eafbee20288c81f8e04f5d
+  state.1B.s3.expanded.md:
+    sha256: 2856b536f06276c77e3df59752b7a96ff90e008d7d7e7970c52ac70397b2cfae
+  state.1B.s4.expanded.md:
+    sha256: 856dfa7a8440cee23dd42b6057d980b7f1531e76453923ceecbb3566e3bf7137
+  state.1B.s5.expanded.md:
+    sha256: 4ad08d4ff4d953a88c42e91bc24c1646d54f3b9b78714036c4fe074c5d1ca8a3
+  state.1B.s6.expanded.md:
+    sha256: 19718b05ad4f5b8125e4103d0923df4ebb65db6f88aab7142bfc0102c2e148a6
+  state.1B.s7.expanded.md:
+    sha256: 10ad8701ab8e6759dca8ea97ec1fe3ef068ad365e161cdc7be2c62ddbd92273b
+  state.1B.s8.expanded.md:
+    sha256: f62aea682c1e19d85a1b02d8dd95d31db60e6ae030e335fece6cc5cc4c6e6e30
+  state.1B.s9.expanded.md:
+    sha256: bf858b71ec3f9794500debc0d6ad187e66dec5d21f998ed95d5392a17a2d9eb9
+path_tokens:
+  parameter_hash: parameter_hash
+  manifest_fingerprint: manifest_fingerprint
+  seed: seed
+  run_id: run_id
+lineage:
+  parameter_hash:
+    role: layer1_parameter_anchor
+    algorithm_ref: Layer-1 parameter_hash (canonical; see 1A.S0 / rails). 1B introduces no additional governed policies in v1.
+    output_effect:
+      partition_must_include:
+      - parameter_hash
+  manifest_fingerprint:
+    role: sealed_input_anchor
+    algorithm_ref: Layer-1 manifest_fingerprint (canonical; see 1A.S0 / rails). MUST cover all external artefacts opened by 1B (listed in sealed_inputs_1B).
+    output_effect:
+      partition_must_include:
+      - manifest_fingerprint
+  run_id:
+    role: log_partition_only
+    algorithm_ref: Layer-1 run_id (canonical; log-only; MUST NOT influence modelling outputs or RNG outcomes).
+    constraints:
+    - MUST_NOT_influence_modelling_outputs
+    - MUST_NOT_influence_RNG_outcomes
+gates:
+- gate_id: 1A.final.bundle_gate
+  gate_type: final_bundle_gate
+  scope_keys:
+  - manifest_fingerprint
+  owner_segment: 1A
+  location:
+    bundle_root: data/layer1/1A/validation/manifest_fingerprint={manifest_fingerprint}/
+    index_json: data/layer1/1A/validation/manifest_fingerprint={manifest_fingerprint}/index.json
+    passed_flag: data/layer1/1A/validation/manifest_fingerprint={manifest_fingerprint}/_passed.flag
+  verification_method: indexed_bundle
+  file_set_rule: SHA256(concat(raw_bytes(files listed in index.json excluding _passed.flag), ASCII-lex order of index.json.path entries))
+  authorizes_reads_of:
+  - outlet_catalogue
+- gate_id: 1B.S0.gate_in_receipt
+  gate_type: attestation_receipt
+  scope_keys:
+  - manifest_fingerprint
+  location:
+    evidence_files:
+    - data/layer1/1B/s0_gate_receipt/manifest_fingerprint={manifest_fingerprint}/s0_gate_receipt.json
+  verification_method: attestation_table
+  file_set_rule: 'N/A: validate s0_gate_receipt_1B schema; MUST include flag_sha256_hex matching verified 1A _passed.flag and the resolved validation_bundle_path.'
+  authorizes_reads_of:
+  - outlet_catalogue
+  - s3_candidate_set
+- gate_id: 1B.final.bundle_gate
+  gate_type: final_bundle_gate
+  scope_keys:
+  - manifest_fingerprint
+  location:
+    bundle_root: data/layer1/1B/validation/manifest_fingerprint={manifest_fingerprint}/
+    index_json: data/layer1/1B/validation/manifest_fingerprint={manifest_fingerprint}/index.json
+    passed_flag: data/layer1/1B/validation/manifest_fingerprint={manifest_fingerprint}/_passed.flag
+  verification_method: indexed_bundle
+  file_set_rule: SHA256(concat(raw_bytes(files listed in index.json excluding _passed.flag), ASCII-lex order of index.json.path entries))
+  authorizes_reads_of:
+  - site_locations
+order_authorities:
+- authority_id: 1A.s3_candidate_order
+  owner_segment: 1A
+  dataset_id: s3_candidate_set
+  scope_keys:
+  - parameter_hash
+  ordering_keys:
+  - merchant_id
+  - candidate_rank
+  - country_iso
+  rule: Inter-country order authority is 1A.S3 candidate_rank (home=0, contiguous). 1B MUST NOT invent inter-country order.
+- authority_id: 1A.outlet_site_order
+  owner_segment: 1A
+  dataset_id: outlet_catalogue
+  scope_keys:
+  - seed
+  - manifest_fingerprint
+  ordering_keys:
+  - merchant_id
+  - legal_country_iso
+  - site_order
+  rule: Within-country site_order for outlet stubs is defined upstream (1A). 1B preserves site_order; it MUST NOT renumber sites.
+consumer_surfaces:
+  site_locations:
+    dataset_id: site_locations
+    scope_keys:
+    - seed
+    - manifest_fingerprint
+    address_template: data/layer1/1B/site_locations/seed={seed}/manifest_fingerprint={manifest_fingerprint}/
+    schema_ref: schemas.1B.yaml#/egress/site_locations
+    ordering:
+    - merchant_id
+    - legal_country_iso
+    - site_order
+    required_gates:
+    - 1B.final.bundle_gate
+    notes:
+    - Downstream MUST verify 1B validation_passed_flag_1B for the same manifest_fingerprint before reading (no PASS → no read).
+    - Egress is order-free for semantics; writer sort keys exist for determinism and diffability only.
+states:
+  S0:
+    impl_map_key: segment=1B.state=S0
+    state_class: SC-A
+    rng_posture: RNG_NONE
+    scope_keys:
+    - manifest_fingerprint
+    reads:
+    - dataset_id: validation_bundle_1A
+      kind: reference_data
+      required_gates: []
+    - dataset_id: validation_passed_flag_1A
+      kind: reference_data
+      required_gates: []
+    - dataset_id: outlet_catalogue
+      kind: reference_data
+      required_gates:
+      - 1A.final.bundle_gate
+      notes:
+      - May be opened for post-PASS lineage/sanity checks; MUST NOT read before verifying 1A gate.
+    - dataset_id: s3_candidate_set
+      kind: reference_data
+      required_gates: []
+      notes:
+      - Pinned as the sole inter-country order authority for later states; S0 itself may not need to read.
+    - dataset_id: iso3166_canonical_2024
+      kind: reference_data
+      required_gates: []
+    - dataset_id: world_countries
+      kind: reference_data
+      required_gates: []
+    - dataset_id: population_raster_2025
+      kind: reference_data
+      required_gates: []
+    - dataset_id: tz_world_2025a
+      kind: reference_data
+      required_gates: []
+      notes:
+      - Reserved for later segments; may be sealed/provenance-only in v1.
+    - dataset_id: numeric_policy_profile
+      kind: governance
+      required_gates: []
+      notes:
+      - Registry path: reference/governance/numeric_policy/{version}/numeric_policy.json (sealed; flips manifest_fingerprint).
+    - dataset_id: math_profile_manifest
+      kind: governance
+      required_gates: []
+      notes:
+      - Registry path: reference/governance/math_profile/{version}/math_profile_manifest.json (sealed; flips manifest_fingerprint).
+    writes:
+    - dataset_id: s0_gate_receipt_1B
+      scope_keys:
+      - manifest_fingerprint
+      address_template: data/layer1/1B/s0_gate_receipt/manifest_fingerprint={manifest_fingerprint}/s0_gate_receipt.json
+      ordering: []
+      equality: ordered
+      optional: false
+      notes:
+      - Durable evidence that 1A.final.bundle_gate was verified for this manifest_fingerprint.
+    - dataset_id: sealed_inputs_1B
+      scope_keys:
+      - manifest_fingerprint
+      address_template: data/layer1/1B/sealed_inputs/manifest_fingerprint={manifest_fingerprint}/sealed_inputs_1B.json
+      ordering:
+      - asset_id
+      - path
+      equality: ordered
+      optional: false
+    gates_in:
+    - 1A.final.bundle_gate
+    gates_out:
+    - 1B.S0.gate_in_receipt
+    validation:
+      performed_here:
+      - Verify 1A consumer gate (_passed.flag) using index.json-hash rule; ABORT on mismatch.
+      - Write s0_gate_receipt_1B capturing validation_bundle_path and verified flag_sha256_hex, plus sealed input list.
+      deferred_to_finalizer:
+      - All 1B egress validation + packaging happens in S9.
+      evidence_written:
+      - s0_gate_receipt_1B
+      - sealed_inputs_1B
+    frozen_surfaces:
+    - 'No PASS → no read: MUST verify 1A.final.bundle_gate before reading outlet_catalogue.'
+    - s0_gate_receipt_1B is the durable attestation enabling downstream 1B states to read 1A egress (must be required before any such read).
+    - 'Path↔embed equality: embedded lineage fields (seed/parameter_hash/manifest_fingerprint) MUST equal path tokens where present.'
+    flexible_choices:
+    - Implementation of the index-hash verification may be streaming as long as it matches the canonical hashing rule exactly.
+    - S0 may choose additional post-PASS hardening checks (recommended) without changing gate semantics.
+    perf_hotspots:
+    - Potentially large validation bundle hashing if many evidence files; prefer streaming reads.
+    safe_optimization_levers:
+    - Stream file hashing and avoid loading large files into memory.
+    do_not_optimize:
+    - Do not weaken the 1A gate verification algorithm or skip index hygiene checks required by S0.
+    debug_hooks:
+    - Record verification outcome (PASS/ABORT) and resolved bundle paths in s0_gate_receipt_1B.
+  S1:
+    impl_map_key: segment=1B.state=S1
+    state_class: SC-C
+    rng_posture: RNG_NONE
+    scope_keys:
+    - parameter_hash
+    reads:
+    - dataset_id: iso3166_canonical_2024
+      kind: reference_data
+      required_gates: []
+    - dataset_id: world_countries
+      kind: reference_data
+      required_gates: []
+    - dataset_id: population_raster_2025
+      kind: reference_data
+      required_gates: []
+    writes:
+    - dataset_id: tile_index
+      scope_keys:
+      - parameter_hash
+      address_template: data/layer1/1B/tile_index/parameter_hash={parameter_hash}/
+      ordering:
+      - country_iso
+      - tile_id
+      equality: ordered
+      optional: false
+    - dataset_id: tile_bounds
+      scope_keys:
+      - parameter_hash
+      address_template: data/layer1/1B/tile_bounds/parameter_hash={parameter_hash}/
+      ordering:
+      - country_iso
+      - tile_id
+      equality: ordered
+      optional: false
+    - dataset_id: s1_run_report
+      scope_keys:
+      - parameter_hash
+      address_template: reports/layer1/1B/state=S1/parameter_hash={parameter_hash}/s1_run_report.json
+      ordering: []
+      equality: ordered
+      optional: false
+    gates_in: []
+    gates_out: []
+    validation:
+      performed_here:
+      - Schema conformance for tile_index/tile_bounds; fail-closed on missing sealed inputs.
+      deferred_to_finalizer:
+      - Bundle/gate publication is in S9.
+      evidence_written:
+      - s1_run_report
+    frozen_surfaces:
+    - tile_index/tile_bounds are parameter-scoped; must be deterministic given pinned reference inputs.
+    - 1B must not create inter-country order; order authority remains 1A.s3_candidate_set.candidate_rank.
+    flexible_choices:
+    - Index construction method (raster scan vs precomputed lists) allowed if deterministic and schema-consistent.
+    perf_hotspots:
+    - Population raster scan / tiling may be large.
+    safe_optimization_levers:
+    - Chunked raster reads; deterministic tiling; avoid nondeterministic parallel reductions.
+    do_not_optimize:
+    - Do not depend on file listing order or hash-map iteration order for tile_id enumeration.
+    debug_hooks:
+    - Emit row counts per country_iso and total eligible tiles in s1_run_report.
+  S2:
+    impl_map_key: segment=1B.state=S2
+    state_class: SC-C
+    rng_posture: RNG_NONE
+    scope_keys:
+    - parameter_hash
+    reads:
+    - dataset_id: tile_index
+      kind: intermediate
+      required_gates: []
+    - dataset_id: iso3166_canonical_2024
+      kind: reference_data
+      required_gates: []
+    - dataset_id: world_countries
+      kind: reference_data
+      required_gates: []
+      conditional: optional geometry validation lane
+    - dataset_id: population_raster_2025
+      kind: reference_data
+      required_gates: []
+      conditional: only if weights basis uses population
+    writes:
+    - dataset_id: tile_weights
+      scope_keys:
+      - parameter_hash
+      address_template: data/layer1/1B/tile_weights/parameter_hash={parameter_hash}/
+      ordering:
+      - country_iso
+      - tile_id
+      equality: ordered
+      optional: false
+    - dataset_id: s2_run_report
+      scope_keys:
+      - parameter_hash
+      address_template: reports/layer1/1B/state=S2/parameter_hash={parameter_hash}/s2_run_report.json
+      ordering: []
+      equality: ordered
+      optional: false
+    gates_in: []
+    gates_out: []
+    validation:
+      performed_here:
+      - Fixed-dp weights output; schema conformance and non-negativity/sum checks per country.
+      deferred_to_finalizer:
+      - Bundle/gate publication is in S9.
+      evidence_written:
+      - s2_run_report
+    frozen_surfaces:
+    - tile_weights must be deterministic (fixed dp); no RNG consumption.
+    flexible_choices:
+    - Weight basis (population vs other) may branch only as specified by the state doc; implementation can precompute aggregates.
+    perf_hotspots:
+    - Weight computation over large raster coverage.
+    safe_optimization_levers:
+    - Vectorized aggregation; deterministic chunking by tile_id.
+    do_not_optimize:
+    - Do not change rounding/quantisation rules for fixed-dp weights.
+    debug_hooks:
+    - Emit per-country sum(weights) and min/max weight stats in s2_run_report.
+  S3:
+    impl_map_key: segment=1B.state=S3
+    state_class: SC-C
+    rng_posture: RNG_NONE
+    scope_keys:
+    - seed
+    - manifest_fingerprint
+    - parameter_hash
+    reads:
+    - dataset_id: s0_gate_receipt_1B
+      kind: validation
+      required_gates: []
+      notes:
+      - Required durable evidence of 1A PASS verification before reading outlet_catalogue.
+    - dataset_id: outlet_catalogue
+      kind: reference_data
+      required_gates:
+      - 1B.S0.gate_in_receipt
+    - dataset_id: tile_weights
+      kind: intermediate
+      required_gates: []
+    - dataset_id: iso3166_canonical_2024
+      kind: reference_data
+      required_gates: []
+    writes:
+    - dataset_id: s3_requirements
+      scope_keys:
+      - seed
+      - manifest_fingerprint
+      - parameter_hash
+      address_template: data/layer1/1B/s3_requirements/seed={seed}/parameter_hash={parameter_hash}/manifest_fingerprint={manifest_fingerprint}/
+      ordering:
+      - merchant_id
+      - legal_country_iso
+      equality: ordered
+      optional: false
+    - dataset_id: s3_run_report
+      scope_keys:
+      - seed
+      - manifest_fingerprint
+      - parameter_hash
+      address_template: reports/layer1/1B/state=S3/seed={seed}/parameter_hash={parameter_hash}/manifest_fingerprint={manifest_fingerprint}/s3_run_report.json
+      ordering: []
+      equality: ordered
+      optional: false
+    gates_in:
+    - 1B.S0.gate_in_receipt
+    gates_out: []
+    validation:
+      performed_here:
+      - 'Coverage parity basis: derive required site counts per (merchant_id, legal_country_iso) from outlet_catalogue and weights.'
+      deferred_to_finalizer:
+      - Final egress checksums/gates in S9.
+      evidence_written:
+      - s3_run_report
+    frozen_surfaces:
+    - Must not read outlet_catalogue unless s0_gate_receipt_1B exists for the manifest_fingerprint (durable gate-in evidence).
+    - Does not create inter-country order; uses upstream site_order from outlet_catalogue.
+    flexible_choices:
+    - Aggregation strategy allowed if deterministic.
+    perf_hotspots:
+    - Groupby over outlet_catalogue at scale.
+    safe_optimization_levers:
+    - Chunk by merchant_id; use stable groupby keys.
+    do_not_optimize:
+    - Do not infer cross-country ordering from outlet_catalogue.
+    debug_hooks:
+    - Emit totals per merchant and per country_iso; include mismatch counters in s3_run_report.
+  S4:
+    impl_map_key: segment=1B.state=S4
+    state_class: SC-C
+    rng_posture: RNG_NONE
+    scope_keys:
+    - seed
+    - manifest_fingerprint
+    - parameter_hash
+    reads:
+    - dataset_id: s3_requirements
+      kind: intermediate
+      required_gates: []
+    - dataset_id: tile_weights
+      kind: intermediate
+      required_gates: []
+    - dataset_id: tile_index
+      kind: intermediate
+      required_gates: []
+    - dataset_id: iso3166_canonical_2024
+      kind: reference_data
+      required_gates: []
+    writes:
+    - dataset_id: s4_alloc_plan
+      scope_keys:
+      - seed
+      - manifest_fingerprint
+      - parameter_hash
+      address_template: data/layer1/1B/s4_alloc_plan/seed={seed}/parameter_hash={parameter_hash}/manifest_fingerprint={manifest_fingerprint}/
+      ordering:
+      - merchant_id
+      - legal_country_iso
+      - tile_id
+      equality: ordered
+      optional: false
+    - dataset_id: s4_run_report
+      scope_keys:
+      - seed
+      - manifest_fingerprint
+      - parameter_hash
+      address_template: reports/layer1/1B/state=S4/seed={seed}/parameter_hash={parameter_hash}/manifest_fingerprint={manifest_fingerprint}/s4_run_report.json
+      ordering: []
+      equality: ordered
+      optional: false
+    gates_in: []
+    gates_out: []
+    validation:
+      performed_here:
+      - Integer allocation plan must satisfy per-pair sum-to-N constraints (Σ n_sites_tile == n_sites).
+      deferred_to_finalizer:
+      - Bundle/gate publication in S9.
+      evidence_written:
+      - s4_run_report
+    frozen_surfaces:
+    - Allocation plan must satisfy exact quota constraints; fail-closed on mismatch.
+    - No RNG consumption in integerisation; deterministic tie-breaks required.
+    flexible_choices:
+    - Integerisation algorithm (largest remainder, etc.) allowed if it preserves deterministic tie-break rules specified by the state doc.
+    perf_hotspots:
+    - Large per-pair allocations across many tiles.
+    safe_optimization_levers:
+    - Operate per (merchant_id, legal_country_iso) partition; avoid global sorts.
+    do_not_optimize:
+    - Do not introduce nondeterministic tie-breakers.
+    debug_hooks:
+    - Emit per-pair Σ checks and first-N quota violations in s4_run_report.
+  S5:
+    impl_map_key: segment=1B.state=S5
+    state_class: SC-B
+    rng_posture: RNG_CONSUMING
+    scope_keys:
+    - seed
+    - manifest_fingerprint
+    - parameter_hash
+    - run_id
+    reads:
+    - dataset_id: s4_alloc_plan
+      kind: intermediate
+      required_gates: []
+    - dataset_id: tile_index
+      kind: intermediate
+      required_gates: []
+    - dataset_id: iso3166_canonical_2024
+      kind: reference_data
+      required_gates: []
+    writes:
+    - dataset_id: s5_site_tile_assignment
+      scope_keys:
+      - seed
+      - manifest_fingerprint
+      - parameter_hash
+      address_template: data/layer1/1B/s5_site_tile_assignment/seed={seed}/parameter_hash={parameter_hash}/manifest_fingerprint={manifest_fingerprint}/
+      ordering:
+      - merchant_id
+      - legal_country_iso
+      - site_order
+      equality: ordered
+      optional: false
+    - dataset_id: rng_event_site_tile_assign
+      scope_keys:
+      - seed
+      - parameter_hash
+      - run_id
+      address_template: logs/layer1/1B/rng/events/site_tile_assign/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/
+      ordering: []
+      equality: rowset
+      optional: false
+      notes:
+      - RNG event family; substream=site_tile_assign; draws=1 per event (S5).
+    - dataset_id: rng_audit_log
+      scope_keys:
+      - seed
+      - parameter_hash
+      - run_id
+      address_template: logs/layer1/1B/rng/audit/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/rng_audit_log.jsonl
+      ordering: []
+      equality: rowset
+      optional: false
+      notes:
+      - Append-only RNG audit log (segment-wide).
+    - dataset_id: rng_trace_log
+      scope_keys:
+      - seed
+      - parameter_hash
+      - run_id
+      address_template: logs/layer1/1B/rng/trace/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/rng_trace_log.jsonl
+      ordering: []
+      equality: rowset
+      optional: false
+      notes:
+      - Append-only RNG trace log (segment-wide).
+    - dataset_id: s5_run_report
+      scope_keys:
+      - seed
+      - manifest_fingerprint
+      - parameter_hash
+      address_template: reports/layer1/1B/state=S5/seed={seed}/parameter_hash={parameter_hash}/manifest_fingerprint={manifest_fingerprint}/s5_run_report.json
+      ordering: []
+      equality: ordered
+      optional: false
+    gates_in: []
+    gates_out: []
+    rng:
+      families_written:
+      - rng_event_site_tile_assign
+      envelope_discipline:
+      - Each assigned site MUST emit exactly one site_tile_assign event; draws=1 per event; blocks=1 (per layer RNG anchor).
+      - Event envelope lineage {seed,parameter_hash,run_id} MUST match path tokens.
+      - Event must embed manifest_fingerprint matching the dataset manifest_fingerprint.
+      audit_trace_obligations:
+      - Update rng_audit_log and rng_trace_log per layer RNG profile; reconcile in S9.
+    validation:
+      performed_here:
+      - 'PK uniqueness for s5_site_tile_assignment: (merchant_id, legal_country_iso, site_order) unique within partition.'
+      - 'Quota satisfaction: counts per tile match s4_alloc_plan.n_sites_tile.'
+      deferred_to_finalizer:
+      - Cross-stream RNG accounting reconciliation is in S9.
+      evidence_written:
+      - s5_run_report
+    frozen_surfaces:
+    - Assignment draws are the sole authority for site→tile selection; one draw per site.
+    - No missing RNG coverage: every assigned site emits an event; fail-closed on mismatch.
+    flexible_choices:
+    - Sampling implementation may be vectorized if deterministic and preserves per-site one-event semantics.
+    perf_hotspots:
+    - Large-scale per-site sampling; IO for event logs.
+    safe_optimization_levers:
+    - Batch per merchant; deterministic chunking; write logs in shards then merge deterministically if allowed by log contract.
+    do_not_optimize:
+    - Do not change per-site draw budget or event emission semantics.
+    debug_hooks:
+    - Emit event coverage counts and quota mismatch counters in s5_run_report.
+  S6:
+    impl_map_key: segment=1B.state=S6
+    state_class: SC-B
+    rng_posture: RNG_CONSUMING
+    scope_keys:
+    - seed
+    - manifest_fingerprint
+    - parameter_hash
+    - run_id
+    reads:
+    - dataset_id: s0_gate_receipt_1B
+      kind: validation
+      required_gates: []
+      notes:
+      - Required evidence of 1A PASS verification for this fingerprint (gate-in).
+    - dataset_id: s5_site_tile_assignment
+      kind: intermediate
+      required_gates: []
+    - dataset_id: tile_index
+      kind: intermediate
+      required_gates: []
+    - dataset_id: world_countries
+      kind: reference_data
+      required_gates: []
+    writes:
+    - dataset_id: s6_site_jitter
+      scope_keys:
+      - seed
+      - manifest_fingerprint
+      - parameter_hash
+      address_template: data/layer1/1B/s6_site_jitter/seed={seed}/parameter_hash={parameter_hash}/manifest_fingerprint={manifest_fingerprint}/
+      ordering:
+      - merchant_id
+      - legal_country_iso
+      - site_order
+      equality: ordered
+      optional: false
+    - dataset_id: rng_event_in_cell_jitter
+      scope_keys:
+      - seed
+      - parameter_hash
+      - run_id
+      address_template: logs/layer1/1B/rng/events/in_cell_jitter/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/
+      ordering: []
+      equality: rowset
+      optional: false
+      notes:
+      - RNG event family; substream=in_cell_jitter; blocks=1; draws="2" per attempt; one event per attempt (>=1 per site).
+    - dataset_id: rng_audit_log
+      scope_keys:
+      - seed
+      - parameter_hash
+      - run_id
+      address_template: logs/layer1/1B/rng/audit/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/rng_audit_log.jsonl
+      ordering: []
+      equality: rowset
+      optional: false
+      notes:
+      - Append-only RNG audit log (segment-wide).
+    - dataset_id: rng_trace_log
+      scope_keys:
+      - seed
+      - parameter_hash
+      - run_id
+      address_template: logs/layer1/1B/rng/trace/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/rng_trace_log.jsonl
+      ordering: []
+      equality: rowset
+      optional: false
+      notes:
+      - Append-only RNG trace log (segment-wide).
+    - dataset_id: s6_run_report
+      scope_keys:
+      - seed
+      - manifest_fingerprint
+      - parameter_hash
+      address_template: reports/layer1/1B/state=S6/seed={seed}/parameter_hash={parameter_hash}/manifest_fingerprint={manifest_fingerprint}/s6_run_report.json
+      ordering: []
+      equality: ordered
+      optional: false
+    gates_in:
+    - 1B.S0.gate_in_receipt
+    gates_out: []
+    rng:
+      families_written:
+      - rng_event_in_cell_jitter
+      envelope_discipline:
+      - One RNG event per jitter attempt; last event per site corresponds to accepted sample.
+      - Per-event budget: blocks=1; draws="2" (two uniforms) per attempt (S6).
+      - Bounded resample is allowed; attempts>max_attempts ⇒ ABORT.
+      audit_trace_obligations:
+      - Update rng_audit_log and rng_trace_log per layer RNG profile; reconcile in S9.
+    validation:
+      performed_here:
+      - Point-in-country acceptance enforced per attempt; ABORT on acceptance failure or budget law violation.
+      deferred_to_finalizer:
+      - Cross-stream RNG accounting reconciliation is in S9.
+      evidence_written:
+      - s6_run_report
+    frozen_surfaces:
+    - Uniform-within-pixel jitter with point-in-country acceptance; bounded resample allowed but must be logged (one event per attempt).
+    - Must require s0_gate_receipt_1B before any use of 1A-derived context (gate-in evidence).
+    flexible_choices:
+    - Geometry acceleration structures allowed (spatial index) if deterministic and does not change acceptance semantics.
+    perf_hotspots:
+    - Point-in-polygon checks can dominate runtime.
+    safe_optimization_levers:
+    - Use deterministic spatial indexing; cache country polygons per country_iso.
+    do_not_optimize:
+    - Do not change attempt budget, per-event draw counts, or acceptance criteria.
+    debug_hooks:
+    - Emit attempt histograms and rejection reasons in s6_run_report.
+  S7:
+    impl_map_key: segment=1B.state=S7
+    state_class: SC-C
+    rng_posture: RNG_NONE
+    scope_keys:
+    - seed
+    - manifest_fingerprint
+    - parameter_hash
+    reads:
+    - dataset_id: s0_gate_receipt_1B
+      kind: validation
+      required_gates: []
+    - dataset_id: outlet_catalogue
+      kind: reference_data
+      required_gates:
+      - 1B.S0.gate_in_receipt
+      notes:
+      - Used for coverage parity checks; must not be read without S0 receipt.
+    - dataset_id: s5_site_tile_assignment
+      kind: intermediate
+      required_gates: []
+    - dataset_id: s6_site_jitter
+      kind: intermediate
+      required_gates: []
+    - dataset_id: tile_bounds
+      kind: intermediate
+      required_gates: []
+    writes:
+    - dataset_id: s7_site_synthesis
+      scope_keys:
+      - seed
+      - manifest_fingerprint
+      - parameter_hash
+      address_template: data/layer1/1B/s7_site_synthesis/seed={seed}/parameter_hash={parameter_hash}/manifest_fingerprint={manifest_fingerprint}/
+      ordering:
+      - merchant_id
+      - legal_country_iso
+      - site_order
+      equality: ordered
+      optional: false
+    - dataset_id: s7_run_summary
+      scope_keys:
+      - seed
+      - manifest_fingerprint
+      - parameter_hash
+      address_template: reports/layer1/1B/state=S7/seed={seed}/parameter_hash={parameter_hash}/manifest_fingerprint={manifest_fingerprint}/s7_run_summary.json
+      ordering: []
+      equality: ordered
+      optional: false
+    gates_in:
+    - 1B.S0.gate_in_receipt
+    gates_out: []
+    validation:
+      performed_here:
+      - 'Coverage parity: every outlet stub in outlet_catalogue must produce exactly one synthesized site row (per merchant_id,legal_country_iso,site_order).'
+      - Conformance checks: lat/lon within tile bounds and country geometry as specified.
+      deferred_to_finalizer:
+      - Egress checksums and final gate in S9.
+      evidence_written:
+      - s7_run_summary
+    frozen_surfaces:
+    - Must preserve site_order from outlet_catalogue; no renumbering.
+    - Must enforce coverage parity with outlet_catalogue; fail-closed on mismatch.
+    flexible_choices:
+    - Synthesis may be streaming; deterministic join strategy required.
+    perf_hotspots:
+    - Large joins across site assignments + jitter + bounds; parity checks.
+    safe_optimization_levers:
+    - Join on declared keys; avoid global sorts; work per merchant partitions.
+    do_not_optimize:
+    - Do not drop parity checks; do not allow missing site rows.
+    debug_hooks:
+    - Emit mismatch counts and first-N missing/duplicate keys in s7_run_summary.
+  S8:
+    impl_map_key: segment=1B.state=S8
+    state_class: SC-C
+    rng_posture: RNG_NONE
+    scope_keys:
+    - seed
+    - manifest_fingerprint
+    reads:
+    - dataset_id: s7_site_synthesis
+      kind: intermediate
+      required_gates: []
+    writes:
+    - dataset_id: site_locations
+      scope_keys:
+      - seed
+      - manifest_fingerprint
+      address_template: data/layer1/1B/site_locations/seed={seed}/manifest_fingerprint={manifest_fingerprint}/
+      ordering:
+      - merchant_id
+      - legal_country_iso
+      - site_order
+      equality: ordered
+      optional: false
+    - dataset_id: s8_run_summary
+      scope_keys:
+      - seed
+      - manifest_fingerprint
+      address_template: reports/layer1/1B/state=S8/seed={seed}/manifest_fingerprint={manifest_fingerprint}/s8_run_summary.json
+      ordering: []
+      equality: ordered
+      optional: false
+    gates_in: []
+    gates_out: []
+    validation:
+      performed_here:
+      - Egress schema conformance; embed lineage fields must match path tokens where present.
+      deferred_to_finalizer:
+      - Consumer gate publication is in S9.
+      evidence_written:
+      - s8_run_summary
+    frozen_surfaces:
+    - S8 SHALL read only s7_site_synthesis (no additional inputs); fail-closed if missing.
+    - Egress remains order-free for semantics; do not encode inter-country order.
+    flexible_choices:
+    - Writer implementation may stream and shard as long as ordering keys are preserved for determinism.
+    perf_hotspots:
+    - Writing large egress parquet; preserving writer sort.
+    safe_optimization_levers:
+    - Write per-merchant chunks and merge deterministically.
+    do_not_optimize:
+    - Do not reorder rows in a way that breaks declared sort_keys.
+    debug_hooks:
+    - Emit egress rowcount and checksum summaries in s8_run_summary.
+  S9:
+    impl_map_key: segment=1B.state=S9
+    state_class: SC-E
+    rng_posture: RNG_NONE
+    scope_keys:
+    - manifest_fingerprint
+    reads:
+    - dataset_id: s7_site_synthesis
+      kind: intermediate
+      required_gates: []
+    - dataset_id: site_locations
+      kind: egress
+      required_gates: []
+    - dataset_id: sealed_inputs_1B
+      kind: validation
+      required_gates: []
+    - dataset_id: rng_event_site_tile_assign
+      kind: log
+      required_gates: []
+    - dataset_id: rng_event_in_cell_jitter
+      kind: log
+      required_gates: []
+    - dataset_id: rng_audit_log
+      kind: log
+      required_gates: []
+    - dataset_id: rng_trace_log
+      kind: log
+      required_gates: []
+    writes:
+    - dataset_id: validation_bundle_1B
+      scope_keys:
+      - manifest_fingerprint
+      address_template: data/layer1/1B/validation/manifest_fingerprint={manifest_fingerprint}/
+      ordering: []
+      equality: rowset
+      optional: false
+    - dataset_id: validation_bundle_index_1B
+      scope_keys:
+      - manifest_fingerprint
+      address_template: data/layer1/1B/validation/manifest_fingerprint={manifest_fingerprint}/index.json
+      ordering: []
+      equality: ordered
+      optional: false
+    - dataset_id: validation_passed_flag_1B
+      scope_keys:
+      - manifest_fingerprint
+      address_template: data/layer1/1B/validation/manifest_fingerprint={manifest_fingerprint}/_passed.flag
+      ordering: []
+      equality: ordered
+      optional: false
+    - emits_gate: 1B.final.bundle_gate
+    gates_in: []
+    gates_out:
+    - 1B.final.bundle_gate
+    validation:
+      performed_here:
+      - Build validation bundle (fingerprint-scoped) including required members: MANIFEST.json, parameter_hash_resolved.json, manifest_fingerprint_resolved.json, rng_accounting.json, s9_summary.json, egress_checksums.json, index.json.
+      - Compute _passed.flag hash over files listed in index.json (exclude _passed.flag) in ASCII-lex path order; publish atomically.
+      deferred_to_finalizer: []
+      evidence_written:
+      - index.json
+      - _passed.flag
+      - rng_accounting.json
+      - egress_checksums.json
+      - s9_summary.json
+    frozen_surfaces:
+    - Bundle membership + index.json completeness are binding.
+    - _passed.flag hashing uses index.json.path ASCII-lex order; exclude _passed.flag.
+    - Atomic publish: do not publish _passed.flag on FAIL (no partial visibility).
+    - 'RNG accounting: S5 site_tile_assign must have exactly one event per assigned site; S6 in_cell_jitter must have >=1 event per site (per attempt) with per-event budget blocks=1, draws="2".'
+    flexible_choices:
+    - Streaming validators vs batch scans allowed if deterministic and required evidence files match.
+    perf_hotspots:
+    - RNG reconciliation across many event shards; egress checksum computation.
+    safe_optimization_levers:
+    - Use set-semantics reads for logs (no file-order dependence) and bounded-memory checksumers.
+    do_not_optimize:
+    - Do not weaken gate hashing rules or omit required bundle members.
+    debug_hooks:
+    - Bucket validation failures by class and include first-N offending keys per class in s9_summary.json.
+gate_map_examples:
+- consumer: 1B.S0
+  reads:
+    dataset_id: outlet_catalogue
+    scope_keys:
+    - seed
+    - manifest_fingerprint
+  required_gates:
+  - 1A.final.bundle_gate
+  fail_policy: FAIL_CLOSED
+- consumer: 1B.S3
+  reads:
+    dataset_id: outlet_catalogue
+    scope_keys:
+    - seed
+    - manifest_fingerprint
+  required_gates:
+  - 1B.S0.gate_in_receipt
+  fail_policy: FAIL_CLOSED
+- consumer: downstream_segment
+  reads:
+    dataset_id: site_locations
+    scope_keys:
+    - seed
+    - manifest_fingerprint
+  required_gates:
+  - 1B.final.bundle_gate
+  fail_policy: FAIL_CLOSED
+review_flags:
+- flag_id: 1B.RF.standardize_manifest_fingerprint
+  severity: info
+  summary: Decision: standardize on manifest_fingerprint everywhere (paths, partition keys, examples).
+  impact: Removes fingerprint vs manifest_fingerprint drift across docs/dictionary/schemas; reduces implementer ambiguity.
+  action: Update 1B state docs and schemas.1B.yaml partition_keys/sort anchors that currently use fingerprint to use manifest_fingerprint, matching the dictionary.
+- flag_id: 1B.RF.mirror_1A_validation_path
+  severity: info
+  summary: Decision: mirror the dictionary path for 1A validation everywhere in 1B: .../validation/manifest_fingerprint={manifest_fingerprint}/
+  impact: Ensures S0 gate verification points at the same canonical location as dictionary and 1A outputs.
+  action: Update any S0 examples or patterns that still show fingerprint=... label.
+- flag_id: 1B.RF.gate_in_receipt_rule
+  severity: info
+  summary: Decision: S0 writes s0_gate_receipt_1B as durable evidence that 1A final bundle was verified; any state reading 1A egress must require it before read.
+  impact: Prevents duplicated gate hashing and makes failures localizable to S0 when 1A verification fails.
+  action: Ensure S3 and S7 (and any future state reading outlet_catalogue) lists s0_gate_receipt_1B as required input; enforce FAIL_CLOSED if missing.
+- flag_id: 1B.RF.governance_inputs_dictionary_visibility
+  severity: warning
+  summary: S0 binding text seals numeric_policy.json and math_profile_manifest as inputs that flip manifest_fingerprint, but dataset_dictionary.layer1.1B.yaml does not list numeric_policy_profile / math_profile_manifest in reference_data.
+  impact: Implementers may omit these opens, breaking manifest_fingerprint closure and determinism expectations.
+  suggested_action: Either (a) add these governance artefacts to 1B reference_data, or (b) reference a global governance dictionary/rails pack as authoritative input list for all segments.

@@ -1,0 +1,331 @@
+schema_version: 1
+taxonomy_id: taxonomy.instrument_types.v1
+notes: >
+  Instrument, scheme, token, and identifier vocab for 6A.S3.
+
+instrument_classes: [BANK_ACCOUNT, CARD, TOKEN, WALLET]
+
+tag_vocabulary:
+  - ATM_CAPABLE
+  - CONTACTLESS
+  - ECOM_CAPABLE
+  - HIGH_LIMIT_ELIGIBLE
+  - IN_APP
+  - MOTO_CAPABLE
+  - RECURRING_CAPABLE
+  - TOKENIZABLE
+
+schemes:
+  - id: ACH
+    kind: BANK_RAIL
+    label: ACH
+    description: Batch bank transfer rail.
+  - id: AMEX
+    kind: CARD_NETWORK
+    label: American Express
+    description: Card network with distinct acceptance patterns.
+  - id: APPLE_PAY
+    kind: WALLET_NETWORK
+    label: Apple Pay
+    description: Wallet network using device tokenization.
+  - id: DISCOVER
+    kind: CARD_NETWORK
+    label: Discover
+    description: Card network with regional emphasis.
+  - id: FPS
+    kind: BANK_RAIL
+    label: Faster Payments
+    description: Near-real-time domestic bank transfer rail.
+  - id: GOOGLE_PAY
+    kind: WALLET_NETWORK
+    label: Google Pay
+    description: Wallet network using device tokenization.
+  - id: MASTERCARD
+    kind: CARD_NETWORK
+    label: Mastercard
+    description: Global card network.
+  - id: SEPA_CREDIT
+    kind: BANK_RAIL
+    label: SEPA Credit Transfer
+    description: Domestic or regional bank transfer rail.
+  - id: SWIFT
+    kind: BANK_RAIL
+    label: SWIFT
+    description: International bank transfer messaging rail.
+  - id: VISA
+    kind: CARD_NETWORK
+    label: Visa
+    description: Global card network.
+
+brand_tiers:
+  - id: BASIC
+    label: Basic
+    description: Entry tier with standard eligibility.
+  - id: BUSINESS
+    label: Business
+    description: Business-oriented tier.
+  - id: CORPORATE
+    label: Corporate
+    description: Corporate tier with higher limits and controls.
+  - id: PREMIUM
+    label: Premium
+    description: Higher tier with enhanced benefits.
+
+token_types:
+  - id: DEVICE_TOKEN
+    is_tokenised: true
+    label: Device token
+    description: Token bound to a device wallet or container.
+  - id: NETWORK_TOKEN
+    is_tokenised: true
+    label: Network token
+    description: Token issued via card network tokenization.
+  - id: NONE
+    is_tokenised: false
+    label: Not tokenised
+    description: Underlying identifier is used directly.
+
+identifier_types:
+  - id: ALIAS_ID
+    label: Alias id
+    description: Generic alias or token identifier.
+  - id: IBAN
+    label: IBAN-like
+    description: Bank-account style identifier.
+  - id: PAN
+    label: PAN-like
+    description: Card-number style identifier.
+  - id: WALLET_ID
+    label: Wallet id
+    description: Wallet handle identifier.
+
+instrument_types:
+  - id: BUSINESS_CREDIT_CARD_PHYSICAL
+    instrument_class: CARD
+    label: Business credit card (physical)
+    description: Physical revolving credit credential for business spend.
+    identifier_type: PAN
+    is_physical: true
+    is_virtual: false
+    supports_chargeback: true
+    supports_tokenization: true
+    allowed_token_types: [NONE, DEVICE_TOKEN, NETWORK_TOKEN]
+    allowed_owner_kinds: [PARTY]
+    allowed_party_types: [BUSINESS]
+    allowed_ledger_classes: [CREDIT_REVOLVING]
+    allowed_scheme_kinds: [CARD_NETWORK]
+    default_scheme_kind: CARD_NETWORK
+    capability_tags: [CONTACTLESS, ECOM_CAPABLE, HIGH_LIMIT_ELIGIBLE, TOKENIZABLE]
+
+  - id: BUSINESS_DEBIT_CARD_PHYSICAL
+    instrument_class: CARD
+    label: Business debit card (physical)
+    description: Physical debit credential for business deposit accounts.
+    identifier_type: PAN
+    is_physical: true
+    is_virtual: false
+    supports_chargeback: true
+    supports_tokenization: true
+    allowed_token_types: [NONE, DEVICE_TOKEN, NETWORK_TOKEN]
+    allowed_owner_kinds: [PARTY]
+    allowed_party_types: [BUSINESS]
+    allowed_ledger_classes: [DEPOSIT]
+    allowed_scheme_kinds: [CARD_NETWORK]
+    default_scheme_kind: CARD_NETWORK
+    capability_tags: [CONTACTLESS, ATM_CAPABLE, ECOM_CAPABLE, TOKENIZABLE]
+
+  - id: MERCHANT_PAYOUT_BANK_ACCOUNT
+    instrument_class: BANK_ACCOUNT
+    label: Merchant payout bank account
+    description: Merchant-owned settlement or payout bank-account handle.
+    identifier_type: IBAN
+    is_physical: false
+    is_virtual: true
+    supports_chargeback: false
+    supports_tokenization: false
+    allowed_owner_kinds: [MERCHANT]
+    allowed_ledger_classes: [SETTLEMENT]
+    allowed_scheme_kinds: [BANK_RAIL]
+    default_scheme_kind: BANK_RAIL
+
+  - id: NETWORK_TOKEN_HANDLE
+    instrument_class: TOKEN
+    label: Network token handle
+    description: Token handle issued by a network or wallet provider.
+    identifier_type: ALIAS_ID
+    is_physical: false
+    is_virtual: true
+    supports_chargeback: false
+    supports_tokenization: false
+    allowed_owner_kinds: [PARTY]
+    allowed_party_types: [RETAIL, BUSINESS]
+    allowed_ledger_classes: [DEPOSIT, CREDIT_REVOLVING]
+    allowed_scheme_kinds: [WALLET_NETWORK]
+    default_scheme_kind: WALLET_NETWORK
+
+  - id: PARTY_BANK_ACCOUNT_DOMESTIC
+    instrument_class: BANK_ACCOUNT
+    label: Party bank account (domestic)
+    description: Bank-account handle used for domestic transfers.
+    identifier_type: IBAN
+    is_physical: false
+    is_virtual: true
+    supports_chargeback: false
+    supports_tokenization: false
+    allowed_owner_kinds: [PARTY]
+    allowed_party_types: [RETAIL, BUSINESS, OTHER]
+    allowed_ledger_classes: [DEPOSIT, SETTLEMENT]
+    allowed_scheme_kinds: [BANK_RAIL]
+    default_scheme_kind: BANK_RAIL
+    capability_tags: [RECURRING_CAPABLE]
+
+  - id: PARTY_BANK_ACCOUNT_INTERNATIONAL
+    instrument_class: BANK_ACCOUNT
+    label: Party bank account (international)
+    description: Bank-account handle used for international transfers.
+    identifier_type: IBAN
+    is_physical: false
+    is_virtual: true
+    supports_chargeback: false
+    supports_tokenization: false
+    allowed_owner_kinds: [PARTY]
+    allowed_party_types: [RETAIL, BUSINESS, OTHER]
+    allowed_ledger_classes: [DEPOSIT, SETTLEMENT]
+    allowed_scheme_kinds: [BANK_RAIL]
+    default_scheme_kind: BANK_RAIL
+
+  - id: RETAIL_CREDIT_CARD_PHYSICAL
+    instrument_class: CARD
+    label: Retail credit card (physical)
+    description: Physical revolving credit credential.
+    identifier_type: PAN
+    is_physical: true
+    is_virtual: false
+    supports_chargeback: true
+    supports_tokenization: true
+    allowed_token_types: [NONE, DEVICE_TOKEN, NETWORK_TOKEN]
+    allowed_owner_kinds: [PARTY]
+    allowed_party_types: [RETAIL]
+    allowed_ledger_classes: [CREDIT_REVOLVING]
+    allowed_scheme_kinds: [CARD_NETWORK]
+    default_scheme_kind: CARD_NETWORK
+    capability_tags: [CONTACTLESS, ECOM_CAPABLE, HIGH_LIMIT_ELIGIBLE, TOKENIZABLE, RECURRING_CAPABLE]
+
+  - id: RETAIL_CREDIT_CARD_VIRTUAL
+    instrument_class: CARD
+    label: Retail credit card (virtual)
+    description: Virtual revolving credit credential for online or in-app use.
+    identifier_type: PAN
+    is_physical: false
+    is_virtual: true
+    supports_chargeback: true
+    supports_tokenization: true
+    allowed_token_types: [NONE, DEVICE_TOKEN, NETWORK_TOKEN]
+    allowed_owner_kinds: [PARTY]
+    allowed_party_types: [RETAIL]
+    allowed_ledger_classes: [CREDIT_REVOLVING]
+    allowed_scheme_kinds: [CARD_NETWORK]
+    default_scheme_kind: CARD_NETWORK
+    capability_tags: [ECOM_CAPABLE, IN_APP, TOKENIZABLE, RECURRING_CAPABLE]
+
+  - id: RETAIL_DEBIT_CARD_PHYSICAL
+    instrument_class: CARD
+    label: Retail debit card (physical)
+    description: Physical debit card linked to a deposit account.
+    identifier_type: PAN
+    is_physical: true
+    is_virtual: false
+    supports_chargeback: true
+    supports_tokenization: true
+    allowed_token_types: [NONE, DEVICE_TOKEN, NETWORK_TOKEN]
+    allowed_owner_kinds: [PARTY]
+    allowed_party_types: [RETAIL]
+    allowed_ledger_classes: [DEPOSIT]
+    allowed_scheme_kinds: [CARD_NETWORK]
+    default_scheme_kind: CARD_NETWORK
+    capability_tags: [CONTACTLESS, ATM_CAPABLE, ECOM_CAPABLE, TOKENIZABLE, RECURRING_CAPABLE]
+
+  - id: RETAIL_DEBIT_CARD_VIRTUAL
+    instrument_class: CARD
+    label: Retail debit card (virtual)
+    description: Virtual debit credential for online or in-app use.
+    identifier_type: PAN
+    is_physical: false
+    is_virtual: true
+    supports_chargeback: true
+    supports_tokenization: true
+    allowed_token_types: [NONE, DEVICE_TOKEN, NETWORK_TOKEN]
+    allowed_owner_kinds: [PARTY]
+    allowed_party_types: [RETAIL]
+    allowed_ledger_classes: [DEPOSIT]
+    allowed_scheme_kinds: [CARD_NETWORK]
+    default_scheme_kind: CARD_NETWORK
+    capability_tags: [ECOM_CAPABLE, IN_APP, TOKENIZABLE, RECURRING_CAPABLE]
+
+  - id: RETAIL_PREPAID_CARD_PHYSICAL
+    instrument_class: CARD
+    label: Retail prepaid card (physical)
+    description: Physical prepaid credential linked to a stored-value balance.
+    identifier_type: PAN
+    is_physical: true
+    is_virtual: false
+    supports_chargeback: true
+    supports_tokenization: true
+    allowed_token_types: [NONE, DEVICE_TOKEN, NETWORK_TOKEN]
+    allowed_owner_kinds: [PARTY]
+    allowed_party_types: [RETAIL]
+    allowed_ledger_classes: [DEPOSIT]
+    allowed_scheme_kinds: [CARD_NETWORK]
+    default_scheme_kind: CARD_NETWORK
+    capability_tags: [CONTACTLESS, ECOM_CAPABLE, TOKENIZABLE]
+
+  - id: RETAIL_PREPAID_CARD_VIRTUAL
+    instrument_class: CARD
+    label: Retail prepaid card (virtual)
+    description: Virtual prepaid credential for online or in-app use.
+    identifier_type: PAN
+    is_physical: false
+    is_virtual: true
+    supports_chargeback: true
+    supports_tokenization: true
+    allowed_token_types: [NONE, DEVICE_TOKEN, NETWORK_TOKEN]
+    allowed_owner_kinds: [PARTY]
+    allowed_party_types: [RETAIL]
+    allowed_ledger_classes: [DEPOSIT]
+    allowed_scheme_kinds: [CARD_NETWORK]
+    default_scheme_kind: CARD_NETWORK
+    capability_tags: [ECOM_CAPABLE, IN_APP, TOKENIZABLE]
+
+  - id: WALLET_DEVICE_TOKEN
+    instrument_class: WALLET
+    label: Device wallet token
+    description: Wallet-based credential using device tokenization.
+    identifier_type: WALLET_ID
+    is_physical: false
+    is_virtual: true
+    supports_chargeback: true
+    supports_tokenization: true
+    allowed_token_types: [DEVICE_TOKEN, NETWORK_TOKEN]
+    allowed_owner_kinds: [PARTY]
+    allowed_party_types: [RETAIL, BUSINESS]
+    allowed_ledger_classes: [DEPOSIT, CREDIT_REVOLVING]
+    allowed_scheme_kinds: [WALLET_NETWORK]
+    default_scheme_kind: WALLET_NETWORK
+    capability_tags: [IN_APP, ECOM_CAPABLE, TOKENIZABLE, RECURRING_CAPABLE]
+
+  - id: WALLET_NETWORK_TOKEN
+    instrument_class: WALLET
+    label: Network wallet token
+    description: Wallet-network token for in-app and web checkout.
+    identifier_type: WALLET_ID
+    is_physical: false
+    is_virtual: true
+    supports_chargeback: true
+    supports_tokenization: true
+    allowed_token_types: [NETWORK_TOKEN]
+    allowed_owner_kinds: [PARTY]
+    allowed_party_types: [RETAIL, BUSINESS]
+    allowed_ledger_classes: [DEPOSIT, CREDIT_REVOLVING]
+    allowed_scheme_kinds: [WALLET_NETWORK]
+    default_scheme_kind: WALLET_NETWORK
+    capability_tags: [IN_APP, ECOM_CAPABLE, TOKENIZABLE, RECURRING_CAPABLE]

@@ -18,7 +18,6 @@ from pathlib import Path
 from typing import Dict, List
 
 import polars as pl
-import requests
 import yaml
 
 
@@ -28,26 +27,15 @@ REFERENCE_BASE = ROOT / "reference" / "layer1" / DATASET_ID
 ARTEFACT_BASE = ROOT / "artefacts" / "data-intake" / "1A" / DATASET_ID
 
 
-RAW_SOURCES = {
-    "mcc_codes": {
-        "url": "https://raw.githubusercontent.com/greggles/mcc-codes/master/mcc_codes.csv",
-        "filename": "mcc_codes.csv",
-    },
-    "iso_country_codes": {
-        "url": "https://raw.githubusercontent.com/datasets/country-codes/master/data/country-codes.csv",
-        "filename": "iso_country_codes.csv",
-    },
-}
-
-
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--version", default="2025-10-07", help="Version tag for output partition")
-    parser.add_argument("--iso-version", default="2025-10-08", help="ISO canonical version")
+    parser.add_argument("--iso-version", default="2024-12-31", help="ISO canonical version")
     parser.add_argument("--gdp-version", default="2025-10-07", help="GDP reference version")
     parser.add_argument("--bucket-version", default="2025-10-07", help="GDP bucket map version")
-    parser.add_argument("--channel-policy", default="config/policy/channel_policy.1A.yaml")
-    parser.add_argument("--allocation-policy", default="config/policy/merchant_allocation.1A.yaml")
+    parser.add_argument("--mcc-version", default="2025-12-31", help="MCC canonical vintage")
+    parser.add_argument("--channel-policy", default="config/layer1/1A/policy/channel_policy.1A.yaml")
+    parser.add_argument("--allocation-policy", default="config/layer1/1A/policy/merchant_allocation.1A.yaml")
     parser.add_argument("--numeric-policy", default="reference/governance/numeric_policy/2025-10-07/numeric_policy.json")
     parser.add_argument("--rebuild", action="store_true", help="Remove existing outputs before building")
     return parser.parse_args()
@@ -61,15 +49,6 @@ def sha256sum(path: Path) -> str:
     return digest.hexdigest()
 
 
-def ensure_download(url: str, destination: Path) -> None:
-    if destination.exists():
-        return
-    destination.parent.mkdir(parents=True, exist_ok=True)
-    resp = requests.get(url, timeout=120)
-    resp.raise_for_status()
-    destination.write_bytes(resp.content)
-
-
 def load_yaml(path: Path) -> dict:
     return yaml.safe_load(path.read_text(encoding="utf-8"))
 
@@ -78,10 +57,11 @@ def load_json(path: Path) -> dict:
     return json.loads(path.read_text(encoding="utf-8"))
 
 
-def load_mcc_table(path: Path) -> List[int]:
-    table = pl.read_csv(path, infer_schema_length=0, ignore_errors=False)
-    if "mcc" not in table.columns:
-        raise ValueError("MCC table missing 'mcc' column")
+def load_mcc_table(version: str) -> List[int]:
+    path = ROOT / "reference" / "industry" / "mcc_canonical" / version / "mcc_canonical.parquet"
+    if not path.exists():
+        raise FileNotFoundError(f"MCC canonical parquet not found: {path}")
+    table = pl.read_parquet(path, columns=["mcc"])
     return sorted(table["mcc"].cast(pl.Int32).to_list())
 
 
@@ -104,7 +84,7 @@ def load_bucket_map(version: str) -> Dict[str, int]:
 
 
 def load_iso_set(version: str) -> set[str]:
-    path = ROOT / "reference" / "layer1" / "iso_canonical" / f'v{version}' / 'iso_canonical.parquet'
+    path = ROOT / "reference" / "iso" / "iso3166_canonical" / version / "iso3166.parquet"
     if not path.exists():
         raise FileNotFoundError(f"ISO canonical parquet not found: {path}")
     df = pl.read_parquet(path).select("country_iso")
@@ -303,8 +283,9 @@ def git_commit_hex() -> str:
 
 
 def build_dataset(args: argparse.Namespace) -> None:
-    output_dir = REFERENCE_BASE / f"v{args.version}"
-    raw_dir = ARTEFACT_BASE / args.version / "raw"
+    version = args.version.lstrip("v")
+    output_dir = REFERENCE_BASE / version
+    raw_dir = ARTEFACT_BASE / version / "raw"
     output_dir.mkdir(parents=True, exist_ok=True)
     raw_dir.mkdir(parents=True, exist_ok=True)
 
@@ -318,11 +299,7 @@ def build_dataset(args: argparse.Namespace) -> None:
             if path.exists():
                 path.unlink()
 
-    # Acquire raw artefacts
-    for spec in RAW_SOURCES.values():
-        ensure_download(spec["url"], raw_dir / spec["filename"])
-
-    mccs = load_mcc_table(raw_dir / RAW_SOURCES["mcc_codes"]["filename"])
+    mccs = load_mcc_table(args.mcc_version)
     iso_set = load_iso_set(args.iso_version)
     gdp_df = load_gdp_table(args.gdp_version)
     bucket_map = load_bucket_map(args.bucket_version)
@@ -374,7 +351,15 @@ def build_dataset(args: argparse.Namespace) -> None:
 
     enforce_global_mix(records, channel_policy)
 
-    df = pl.DataFrame(records).sort("merchant_id")
+    df = pl.DataFrame(
+        records,
+        schema={
+            "merchant_id": pl.UInt64,
+            "mcc": pl.Int32,
+            "channel": pl.Utf8,
+            "home_country_iso": pl.Utf8,
+        },
+    ).sort("merchant_id")
 
     # Policy gates from numeric manifest
     merchants_policy = numeric_policy.get("merchants", {})
@@ -408,11 +393,6 @@ def build_dataset(args: argparse.Namespace) -> None:
         "max_merchants_per_iso": int(max_iso),
     }
 
-    artefact_digests = {}
-    for spec in RAW_SOURCES.values():
-        path = raw_dir / spec["filename"]
-        artefact_digests[str(path.relative_to(ROOT))] = sha256sum(path)
-
     policy_paths = {
         str((ROOT / args.channel_policy).relative_to(ROOT)): sha256sum(ROOT / args.channel_policy),
         str((ROOT / args.allocation_policy).relative_to(ROOT)): sha256sum(ROOT / args.allocation_policy),
@@ -423,8 +403,11 @@ def build_dataset(args: argparse.Namespace) -> None:
         f"reference/economic/gdp_bucket_map/{args.bucket_version}/gdp_bucket_map.parquet": sha256sum(
             ROOT / "reference" / "economic" / "gdp_bucket_map" / args.bucket_version / "gdp_bucket_map.parquet"
         ),
-        f"reference/layer1/iso_canonical/{args.iso_version}/iso_canonical.parquet": sha256sum(
-            ROOT / "reference" / "layer1" / "iso_canonical" / f"v{args.iso_version}" / "iso_canonical.parquet"
+        f"reference/iso/iso3166_canonical/{args.iso_version}/iso3166.parquet": sha256sum(
+            ROOT / "reference" / "iso" / "iso3166_canonical" / args.iso_version / "iso3166.parquet"
+        ),
+        f"reference/industry/mcc_canonical/{args.mcc_version}/mcc_canonical.parquet": sha256sum(
+            ROOT / "reference" / "industry" / "mcc_canonical" / args.mcc_version / "mcc_canonical.parquet"
         ),
     }
 
@@ -435,7 +418,7 @@ def build_dataset(args: argparse.Namespace) -> None:
 
     manifest = {
         "dataset_id": DATASET_ID,
-        "version": args.version,
+        "version": version,
         "created_at_utc": datetime.now(timezone.utc).isoformat(),
         "generator_script": "scripts/build_transaction_schema_merchant_ids.py",
         "git_commit_hex": git_commit_hex(),
@@ -445,11 +428,12 @@ def build_dataset(args: argparse.Namespace) -> None:
         "channel_counts": dict(zip(channel_counts.get("channel", []), channel_counts.get("len", []))),
         "channel_mix": channel_mix,
         "iso_stats": iso_stats,
-        "input_artifacts": {**artefact_digests, **policy_paths},
+        "input_artifacts": {**policy_paths},
         "output_files": output_digests,
         "gdp_version": args.gdp_version,
         "bucket_version": args.bucket_version,
         "iso_version": args.iso_version,
+        "mcc_version": args.mcc_version,
         "allocation_policy": allocation_policy,
         "channel_policy": {
             "policy_version": channel_policy.get("policy_version"),
@@ -458,7 +442,7 @@ def build_dataset(args: argparse.Namespace) -> None:
     }
     (output_dir / f"{DATASET_ID}.manifest.json").write_text(json.dumps(manifest, indent=2) + "\n", encoding="utf-8")
 
-    combined = {**artefact_digests, **policy_paths, **output_digests}
+    combined = {**policy_paths, **output_digests}
     sha_lines = [f"{digest}  {path}" for path, digest in sorted(combined.items())]
     sha_path.write_text("\n".join(sha_lines) + "\n", encoding="utf-8")
 

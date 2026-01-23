@@ -1,0 +1,167 @@
+schema_version: 1
+policy_id: flow_shape_policy_6B
+policy_version: v1
+
+bindings:
+  rng_family_ids_used: [rng_event_flow_shape]
+  channel_groups: [ECOM, POS, ATM, BANK_RAIL, HYBRID]
+  event_type_vocab:
+    - AUTH_REQUEST
+    - AUTH_RESPONSE
+    - STEP_UP_CHALLENGE
+    - STEP_UP_COMPLETE
+    - CLEARING
+    - REFUND
+    - REVERSAL
+
+flow_count_model:
+  mode: stochastic_discrete_v1
+  support: [1, 2, 3]
+  prob: [0.78, 0.18, 0.04]
+  rng_family: rng_event_flow_shape
+  keying_ids: [manifest_fingerprint, parameter_hash, seed, scenario_id, session_id]
+  allow_empty_sessions: false
+
+arrival_to_flow_model:
+  mode: multi_flow_orders_v1
+  max_flows_per_session: 4
+  order_key_fields: [merchant_id, channel_group]
+  tie_break_order: [ts_utc, merchant_id, arrival_seq, flow_index_within_session]
+  stochastic_assignment:
+    enabled: false
+
+flow_type_catalog:
+  flow_types:
+    - flow_type_id: CARD_AUTH_CLEAR
+      description: "Card auth approved, then clearing."
+      channel_groups_allowed: [ECOM, POS, ATM, HYBRID]
+      baseline_outcome_class: AUTH_SETTLED
+      requires_instrument: true
+      allows_refund: true
+      allows_step_up: true
+      max_retry_count: 1
+
+    - flow_type_id: CARD_AUTH_DECLINE
+      description: "Card auth declined, no clearing."
+      channel_groups_allowed: [ECOM, POS, ATM, HYBRID]
+      baseline_outcome_class: AUTH_DECLINED
+      requires_instrument: true
+      allows_refund: false
+      allows_step_up: false
+      max_retry_count: 0
+
+    - flow_type_id: CARD_AUTH_STEPUP_CLEAR
+      description: "Step-up challenge before approval and clearing."
+      channel_groups_allowed: [ECOM, POS, HYBRID]
+      baseline_outcome_class: AUTH_SETTLED
+      requires_instrument: true
+      allows_refund: true
+      allows_step_up: true
+      max_retry_count: 1
+
+    - flow_type_id: BANK_TRANSFER
+      description: "Bank-rail transfer flow."
+      channel_groups_allowed: [BANK_RAIL]
+      baseline_outcome_class: TRANSFER_COMPLETED
+      requires_instrument: false
+      allows_refund: false
+      allows_step_up: false
+      max_retry_count: 0
+
+    - flow_type_id: ATM_WITHDRAWAL
+      description: "ATM cash withdrawal."
+      channel_groups_allowed: [ATM]
+      baseline_outcome_class: CASH_DISPENSED
+      requires_instrument: true
+      allows_refund: false
+      allows_step_up: false
+      max_retry_count: 0
+
+flow_type_selection:
+  mode: by_channel_group_v1
+  deterministic_if_singleton: true
+  rng_family: rng_event_flow_shape
+  keying_ids: [manifest_fingerprint, parameter_hash, seed, scenario_id, flow_id]
+  pi_flow_type_by_channel_group:
+    ECOM:
+      - { flow_type_id: CARD_AUTH_CLEAR, prob: 0.85 }
+      - { flow_type_id: CARD_AUTH_DECLINE, prob: 0.10 }
+      - { flow_type_id: CARD_AUTH_STEPUP_CLEAR, prob: 0.05 }
+    POS:
+      - { flow_type_id: CARD_AUTH_CLEAR, prob: 0.90 }
+      - { flow_type_id: CARD_AUTH_DECLINE, prob: 0.08 }
+      - { flow_type_id: CARD_AUTH_STEPUP_CLEAR, prob: 0.02 }
+    ATM:
+      - { flow_type_id: ATM_WITHDRAWAL, prob: 0.92 }
+      - { flow_type_id: CARD_AUTH_DECLINE, prob: 0.08 }
+    BANK_RAIL:
+      - { flow_type_id: BANK_TRANSFER, prob: 1.0 }
+    HYBRID:
+      - { flow_type_id: CARD_AUTH_CLEAR, prob: 0.86 }
+      - { flow_type_id: CARD_AUTH_DECLINE, prob: 0.10 }
+      - { flow_type_id: CARD_AUTH_STEPUP_CLEAR, prob: 0.04 }
+
+event_templates:
+  template_base_index: 0_based
+  templates_by_flow_type:
+    CARD_AUTH_CLEAR: [AUTH_REQUEST, AUTH_RESPONSE, CLEARING]
+    CARD_AUTH_DECLINE: [AUTH_REQUEST, AUTH_RESPONSE]
+    CARD_AUTH_STEPUP_CLEAR: [AUTH_REQUEST, STEP_UP_CHALLENGE, STEP_UP_COMPLETE, AUTH_RESPONSE, CLEARING]
+    BANK_TRANSFER: [AUTH_REQUEST, AUTH_RESPONSE]
+    ATM_WITHDRAWAL: [AUTH_REQUEST, AUTH_RESPONSE, CLEARING]
+
+branching:
+  retry_branch:
+    enabled: false
+    applicable_flow_types: []
+    insertion_rule: "no retry branch in v1"
+    decision: { mode: deterministic }
+    max_insertions: 0
+
+  step_up_branch:
+    enabled: true
+    applicable_flow_types: [CARD_AUTH_CLEAR]
+    insertion_rule: "insert [STEP_UP_CHALLENGE, STEP_UP_COMPLETE] after first AUTH_REQUEST"
+    decision: { mode: bernoulli_v1, p: 0.05, rng_family: rng_event_flow_shape }
+    max_insertions: 1
+
+  refund_branch:
+    enabled: true
+    applicable_flow_types: [CARD_AUTH_CLEAR, CARD_AUTH_STEPUP_CLEAR]
+    insertion_rule: "append [REFUND]"
+    decision: { mode: bernoulli_v1, p: 0.02, rng_family: rng_event_flow_shape }
+    max_insertions: 1
+
+  reversal_branch:
+    enabled: true
+    applicable_flow_types: [CARD_AUTH_CLEAR]
+    insertion_rule: "append [REVERSAL]"
+    decision: { mode: bernoulli_v1, p: 0.004, rng_family: rng_event_flow_shape }
+    max_insertions: 1
+
+provenance_fields:
+  flow_plan_rule_id_enabled: true
+  flow_type_id_enabled: true
+  arrival_assignment_rule_id_enabled: true
+  branch_trace_enabled: true
+
+guardrails:
+  max_flows_per_session: 8
+  max_events_per_flow: 12
+  max_retry_count_global: 2
+
+realism_targets:
+  max_single_flow_type_share_cap: 0.96
+  event_template_diversity_min: 3
+  min_fraction_declines:
+    ECOM: { min: 0.01, max: 0.25 }
+    POS: { min: 0.005, max: 0.20 }
+    ATM: { min: 0.01, max: 0.30 }
+    HYBRID: { min: 0.01, max: 0.25 }
+    BANK_RAIL: { min: 0.0, max: 0.05 }
+  min_fraction_refunds:
+    ECOM: { min: 0.001, max: 0.08 }
+    POS: { min: 0.001, max: 0.08 }
+    HYBRID: { min: 0.001, max: 0.08 }
+  min_fraction_multi_flow_sessions: { min: 0.01, max: 0.25 }
+notes: "Baseline flow shapes for S2; stochastic choices use rng_event_flow_shape."

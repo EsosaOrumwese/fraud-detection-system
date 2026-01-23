@@ -1,0 +1,73 @@
+semver: "1.1.0"
+version: "2025-12-31"
+
+licenses:
+  ODbL-1.0:
+    spdx: "ODbL-1.0"
+    osi_approved: null
+    redistribution: "open"
+    notice_required: true
+    sharealike: true
+    source_disclosure: true
+    text_path: "LICENSES/ODbL-1.0.txt"
+    attribution_template: |
+      License: ODbL 1.0 (Open Data Commons Open Database License).
+      Attribute the upstream data source (e.g., OpenStreetMap contributors) and keep share-alike for derived databases.
+      See LICENSES/ODbL-1.0.txt.
+    notes: "Use for ODbL-backed spatial or reference datasets (e.g., OSM-derived boundaries)."
+
+  CC-BY-4.0:
+    spdx: "CC-BY-4.0"
+    osi_approved: null
+    redistribution: "open"
+    notice_required: true
+    sharealike: false
+    source_disclosure: false
+    text_path: "LICENSES/CC-BY-4.0.txt"
+    attribution_template: |
+      License: CC BY 4.0.
+      You MUST provide attribution to the original source and include the license link when redistributing.
+      See LICENSES/CC-BY-4.0.txt.
+    notes: "Used for World Bank indicators, HRSL raster, and other CC BY 4.0 data sources."
+
+  Public-Domain:
+    spdx: null
+    osi_approved: null
+    redistribution: "open"
+    notice_required: false
+    sharealike: false
+    source_disclosure: false
+    text_path: "LICENSES/Public-Domain.txt"
+    attribution_template: |
+      Public domain / no known restrictions.
+      Source attribution is recommended as a best practice.
+      See LICENSES/Public-Domain.txt.
+    notes: "Used for Natural Earth and other public domain sources."
+
+  Proprietary-Internal:
+    spdx: null
+    osi_approved: null
+    redistribution: "internal"
+    notice_required: true
+    sharealike: false
+    source_disclosure: false
+    text_path: "LICENSES/Proprietary-Internal.txt"
+    attribution_template: |
+      Proprietary / Internal use only.
+      Redistribution outside the project is not permitted.
+      See LICENSES/Proprietary-Internal.txt.
+    notes: "Used for engine-generated, synthetic, or internally authored artefacts."
+
+  SEE-FILES:
+    spdx: null
+    osi_approved: null
+    redistribution: "restricted"
+    notice_required: true
+    sharealike: false
+    source_disclosure: false
+    text_path: "LICENSES/SEE-FILES.txt"
+    attribution_template: |
+      License: See files / provenance for asset-specific terms.
+      Review LICENSES entries and provenance before redistribution.
+      See LICENSES/SEE-FILES.txt.
+    notes: "Used when an artefact bundles multiple upstream licenses or per-file terms."

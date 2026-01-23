@@ -1,0 +1,61 @@
+policy_id: arrival_rng_policy_5B
+version: v1.1.0
+
+rng_engine: philox2x64-10
+block_outputs_u64: 2
+uniform_law: open_interval_u64
+counter_width_bits: 128
+wrap_policy: abort_on_wrap
+
+encoding:
+  string_encoding: UTF-8
+  uer: u32be_len_prefix
+  seed_encoding: LE64
+  hash: SHA256
+  key_bytes: [0, 8]
+  counter_hi_bytes: [8, 16]
+  counter_lo_bytes: [16, 24]
+
+families:
+  - family_id: S2.latent_vector.v1
+    module: 5B.S2
+    substream_label: latent_vector
+    domain_key_law: group_id
+    draws_u64_law:
+      kind: box_muller_u2_vector
+      uniforms_per_standard_normal: 2
+      latent_dims: horizon_buckets_H
+
+  - family_id: S3.bucket_count.v1
+    module: 5B.S3
+    substream_label: bucket_count
+    domain_key_law: merchant_zone_bucket
+    draws_u64_law:
+      kind: by_count_law
+      when_lambda_zero: 0
+      laws:
+        poisson: 1
+        nb2: 2
+
+  - family_id: S4.arrival_time_jitter.v1
+    module: 5B.S4
+    substream_label: arrival_time_jitter
+    domain_key_law: merchant_zone_bucket
+    draws_u64_law: { kind: fixed, draws_u64: 1 }
+
+  - family_id: S4.arrival_site_pick.v1
+    module: 5B.S4
+    substream_label: arrival_site_pick
+    domain_key_law: merchant_zone_bucket
+    draws_u64_law: { kind: fixed, draws_u64: 2 }
+
+  - family_id: S4.arrival_edge_pick.v1
+    module: 5B.S4
+    substream_label: arrival_edge_pick
+    domain_key_law: merchant_zone_bucket
+    draws_u64_law: { kind: fixed, draws_u64: 1 }
+
+derivation:
+  domain_sep: 5B.rng.v1
+  required_inputs: [manifest_fingerprint, parameter_hash, seed, scenario_id, family_id, domain_key]
+  forbid_inputs: [run_id]

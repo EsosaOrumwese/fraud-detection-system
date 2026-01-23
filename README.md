@@ -1,6 +1,6 @@
 # Closed-World Enterprise Fraud Platform — Concept Overview
 
-> **Status:** Conceptual, non-binding.  
+> **Status:** Data Engine specs sealed; implementation complete; final full-run validation complete. Now to build the other components in the platform.
 > **Mission:** Build a bank-grade, closed-world fraud platform. All data (train/test/stream/labels) comes **only** from the **Data Engine**. No third-party enrichment. Everything is governed by contracts, lineage, validation gates, and reproducible runs.
 > *Refer to `docs/references/closed-world-synthetic-data-engine-with-realism-conceptual-design.md` for more information*
 
@@ -10,19 +10,38 @@
 - **Closed world:** the Data Engine is the single source of truth.  
 - **Contracts-first:** JSON-Schema is the authority; consumers must pass validation (**no PASS → no read**).  
 - **Reproducible:** every run is identified by `{ seed, parameter_hash, manifest_fingerprint }`.  
+- **Black-box interface:** platform components integrate via `docs/model_spec/data-engine/interface_pack/` (catalogue + gate map + boundary schemas).  
 - **Two feature planes:** online (low-latency, freshness SLOs) and offline (training/replay) with **identical transforms**.  
 - **Decision fabric:** guardrails → primary ML → optional 2nd stage; returns **ACTION + reasons + provenance** with a **degrade ladder** to keep latency SLOs.  
 - **Auditability:** immutable decision log + label store; deterministic replay/DR from lineage.
 
-### Current build status (2025-11-12)
+### Current build status (2026-01-23)
 | Segment | States | Status | Notes |
 |---------|--------|--------|-------|
-| 1A | S0-S9 | **Sealed** | Authority surface for downstream segments |
-| 1B | S0-S9 | **Sealed** | Production-ready Layer-1 world realism |
-| 2A | S0-S5 | **Sealed** | Gate, TZ pipeline, timetable, legality, bundle |
-| 2B | S0-S8 | **Sealed** | Alias build, router core, audits, PASS bundle |
+| 1A | S0-S9 | **Implemented** | Authority surface for downstream segments |
+| 1B | S0-S9 | **Implemented** | Production-ready Layer-1 world realism |
+| 2A | S0-S5 | **Implemented** | Gate, TZ pipeline, timetable, legality, bundle |
+| 2B | S0-S8 | **Implemented** | Alias build, router core, audits, PASS bundle |
+| 3A | S0-S7 | **Implemented** | Layer-1 cross-zone merchants; PASS bundle emitted |
+| 3B | S0-S5 | **Implemented** | Layer-1 virtual merchants & CDN; PASS bundle emitted |
+| 5A | S0-S5 | **Implemented** | Layer-2 arrival surfaces & calendar |
+| 5B | S0-S5 | **Implemented** | Layer-2 arrival realisation (LGCP + routing) |
+| 6A | S0-S5 | **Implemented** | Layer-3 entity & product world |
+| 6B | S0-S5 | **Implemented** | Layer-3 behaviour & fraud cascades |
 
-Implementation sequence (next): 3A (S0→SX) followed by 3B (S0→SX), leaving 1A/1B/2A/2B artefacts as read-only authorities while we prepare the PR to main.
+
+### Spec sources (repo layout)
+- **Layer-1** - `docs/model_spec/data-engine/layer-1/.` holds all Layer-1 narratives, contracts, and state-flow docs (Segments 1A-3B) - **sealed**.
+- **Layer-2** - `docs/model_spec/data-engine/layer-2/.` mirrors the same structure for Segments 5A/5B - **sealed**.
+- **Layer-3** - `docs/model_spec/data-engine/layer-3/.` carries Segments 6A/6B - **sealed**.
+
+All layers reference upstream authorities explicitly (via schemas, dataset dictionaries, and artefact registries); no ad-hoc paths.
+
+### Black-box integration (platform-facing)
+Use the interface pack (no segment/state internals):
+- `docs/model_spec/data-engine/interface_pack/data_engine_interface.md`
+- `docs/model_spec/data-engine/interface_pack/engine_outputs.catalogue.yaml`
+- `docs/model_spec/data-engine/interface_pack/engine_gates.map.yaml`
 
 ---
 
@@ -141,11 +160,11 @@ Legend (compact):
   - `parameter_hash` — governed parameters that define a run’s semantics.  
   - `manifest_fingerprint` — digest of **everything opened** (incl. git tree + artefacts).  
 - **Determinism & replay.** Strict RNG mapping; counters/trace envelopes; reproducible runs keyed by `{seed, parameter_hash, manifest_fingerprint}`.  
-- **Separation of concerns.**  
-  - **L0** emitters (schema-bound I/O)  
-  - **L1** pure kernels  
-  - **L2** orchestrators  
-  - **L3** validators (read-only proofs)
+- **Separation of concerns.** (suggestion not binding) 
+  - emitters (schema-bound I/O)  
+  - pure kernels  
+  - orchestrators  
+  - validators (read-only proofs)
 
 ---
 
@@ -207,69 +226,57 @@ Legend (compact):
 ## Repository layout
 ```text
 fraud-enterprise/
-├─ packages/                     # buildable Python distributions (each with its own pyproject & src/)
-│  └─ engine/                    # the Data Engine package (Layer-1 Segments 1A–2B sealed; 3A planning in docs)
+├─ packages/
+│  └─ engine/
 │     ├─ pyproject.toml
 │     └─ src/engine/
-│        ├─ cli/                 # (concept) command entry points: run / validate / manifest
-│        ├─ registry/            # (concept) loads the declarative state registry
-│        ├─ core/                # (concept) lineage, RNG mapping, numeric policy, IO, paths
-│        ├─ validation/          # (concept) structural/corridor/adversarial checks; PASS bundle
-│        ├─ scenario_runner/     # (concept) sealed-world traffic driver
-│        └─ layers/              # (active) engine code by layer → segment → state (L0/L1/L2/L3)
-│           └─ l1/seg_1A/
-│              ├─ s0_foundations/{l0,l1,l2,l3}/
-│              ├─ s1_hurdle/{l0,l1,l2,l3}/
-│              ├─ s2_nb_outlets/{l0,l1,l2,l3}/
-│              ├─ s3_crossborder_universe/{l0,l1,l2,l3}/
-│              └─ s4_ztp_target/{l0,l1,l2,l3}/
-│  # add more packages later as they become real (e.g., packages/svc-decision-fabric, packages/lib-shared)
+│        ├─ cli/
+│        ├─ registry/
+│        ├─ core/
+│        ├─ validation/
+│        ├─ scenario_runner/
+│        └─ layers/
+│           └─ l1/seg_1A/...   # representative tree (s0_foundations, s1_hurdle, …)
+│  # add more packages later (e.g., packages/svc-decision-fabric, packages/lib-shared)
 │
-├─ services/                     # runtime microservices — conceptual stubs (docs only until “promoted” to packages/)
-│  ├─ ingestion/README.md        # schema/lineage gate, idempotent intake, tokenization
-│  ├─ feature_online/README.md   # low-latency feature reads/writes; freshness parity with offline
-│  ├─ decision_fabric/README.md  # rules + ML scoring, explanations, degrade ladder
-│  ├─ replayer/README.md         # stream engine-generated events to the event bus
-│  ├─ model_registry/README.md   # read-only pointers to immutable bundles
-│  └─ consumer_gate/README.md    # enforce “no PASS → no read” for data consumers
+├─ services/
+│  ├─ ingestion/README.md
+│  ├─ feature_online/README.md
+│  ├─ decision_fabric/README.md
+│  ├─ replayer/README.md
+│  ├─ model_registry/README.md
+│  └─ consumer_gate/README.md
 │
-├─ shared/README.md              # cross-service helper notes (logging, typing, time); not engine primitives
+├─ shared/README.md
+├─ contracts/
+│  ├─ schemas/
+│  ├─ dataset_dictionary/
+│  └─ policies/
 │
-├─ contracts/                    # authoritative contracts (schemas, dataset dictionary, governed policies)
-│  ├─ schemas/…                  # canonical JSON-Schemas for events/tables across layers/subsegments
-│  ├─ dataset_dictionary/…       # dataset names, partitions, gating rules (concept)
-│  └─ policies/…                 # versioned policy bundles consumed by kernels (concept)
+├─ docs/
+│  ├─ model_spec/
+│  │  └─ data-engine/
+│  │     ├─ README.md
+│  │     ├─ AGENTS.md
+│  │     ├─ layer-1/
+│  │     │  ├─ README.md / AGENTS.md
+│  │     │  ├─ narrative/, deprecated__assumptions/
+│  │     │  └─ specs/…
+│  │     └─ layer-2/
+│  │        ├─ README.md / AGENTS.md
+│  │        └─ specs/state-flow|contracts/{5A,5B}/
+│  └─ engineering-decisions/
 │
-├─ orchestration/                # workflow layer (concept)
-│  ├─ airflow/…                  # runner-specific glue/DAGs if/when chosen
-│  └─ state_registry/…           # declarative map: layer → segment → states with {after, gates}
-│
-├─ infra/                        # infrastructure & containerization (concept)
-│  ├─ terraform/…                # modules + env compositions (network/compute/storage/observability)
-│  └─ docker/…                   # image definitions (one image per package/service)
-│
-├─ config/                       # canonical non-secret configs + replayable run manifests
-│  ├─ models/…                  # governed priors + versioned model exports (e.g., hurdle)
-│  ├─ policy/…                  # channel/allocation/cross-border knobs (s3.rule_ladder.yaml, etc.)
-│  ├─ runs/…                    # sealed JSON configs (e.g., s0_synthetic_config.json)
-│  └─ scenario_profiles/…       # sealed-world traffic profiles for the Scenario Runner
-│
-├─ artefacts/                    # external artefact manifests & licenses (no raw data)
-│  ├─ registry/…                 # logical name → manifest mapping (hash, license)
-│  ├─ manifests/…                # provenance descriptors (source, license, digest)
-│  └─ licences/…                 # third-party license texts
-│
-├─ tests/                        # test tree (concept)
-│  ├─ unit/…                     # core primitives & state kernels/emitters; service API units
-│  ├─ integration/…              # path↔embed equality; event→trace adjacency; determinism
-│  └─ e2e/…                      # scenario → stream → decision → validation PASS (closed-world)
-│
-├─ docs/                         # narrative/context; not authoritative
-│  ├─ engineering-decisions/     # persistent records of dataset/policy engineering choices
-├─ scripts/                      # small dev helpers; no business logic
-├─ runs/                         # local run manifests & numeric attestations (gitignored; outputs live in data lake)
-└─ examples/                     # non-authoritative demos (notebooks/scripts)
+├─ orchestration/
+├─ infra/
+├─ config/
+├─ artefacts/
+├─ tests/
+├─ scripts/
+├─ runs/
+└─ examples/
 ```
+
 
 ---
 
@@ -282,16 +289,13 @@ fraud-enterprise/
 
 ---
 
-> **Note:** This README describes the **destination**. Many folders are intentionally **conceptual** until unlocked. The **Data Engine** now has Layer-1 Segments 1A–2B sealed and deterministic; the next build frontier is Segment 3A (spec + planning) before we unlock 3B.
-
 ## Data Engine Progress
 
 ```
 ============================ DATA ENGINE (progress) ============================
 [ Merchant-Location Realism ] | [ Arrival Mechanics ] | [ Flow Dynamics ]
-            [  ONLINE  ]      |       [  LOCKED ]     |     [  LOCKED ]
+       [  ONLINE  ]           |     [ ONLINE ]        |     [ ONLINE ]
 
-                          ^ focus now
 -------------------------------------------------------------------------------
 | 4A Reproducibility + 4B Validation = CROSS-CUTTING (baked into every box)   |
 | VALIDATION HARNESS: ON FROM DAY 0 (spans all layers; not a tail-end step)   |
@@ -299,14 +303,14 @@ fraud-enterprise/
 ```
 
 ```
-=========== Merchant-Location Realism (open) ===========
+=========== Merchant-Location Realism ===========
 Sub-segments:
   1A  Merchants → Physical Sites  ............. [ ONLINE ]
   1B  Place Sites on Planet ................... [ ONLINE ]
   2A  Civil Time Zone (IANA/DST) .............. [ ONLINE ]
   2B  Routing Through Sites ................... [ ONLINE ]
-  3A  Cross-Zone Merchants .................... [ NEXT UP ]
-  3B  Purely Virtual Merchants ................ [ LOCKED ]
+  3A  Cross-Zone Merchants .................... [ ONLINE ]
+  3B  Purely Virtual Merchants ................ [ ONLINE ]
 
 [4A/4B overlay]  >>> applied to every sub-segment above (inputs/outputs, RNG,
                    manifests, schema checks, and per-state validation gates)
@@ -347,12 +351,63 @@ S0 Gate & Sealed Inputs        S1 Site Weights                S2 Alias Tables
 S3 Day Effects (γ draws)       S4 Group Weights (Σ=1)         S5 Router Core (group→site)
 S6 Virtual Edge Routing        S7 Audits & CI Gate            S8 Validation Bundle & `_passed.flag`
 
+
+=========== 3A state-flow (8 states; live) ===========
+S0 -> S1 -> S2 -> S3 -> S4 -> S5 -> S6 -> S7
+
+Where (short labels just to anchor the flow):
+S0 Gate & Sealed Inputs        S1 Mixture Policy & Escalation Queue
+S2 Dirichlet Priors            S3 Zone Share Draws (Dirichlet)
+S4 Integerise w/ Floors & Bump S5 Bind Allocation + Universe Hash
+S6 Structural Validation       S7 Validation Bundle & `_passed.flag`
+
+
+=========== 3B state-flow (6 states; live) ===========
+S0 -> S1 -> S2 -> S3 -> S4 -> S5
+
+Where (short labels just to anchor the flow):
+S0 Gate & Sealed Inputs        S1 Virtual ID + Settlement Node
+S2 CDN Edge Catalogue (HRSL)   S3 Alias Tables & Universe Hash
+S4 Dual-TZ Routing Policy + CI S5 Validation Bundle & `_passed.flag`
+
+
 Legend:
 [OPEN]   = exposed/being worked
 [LOCKED] = not yet opened to define
 4A/4B    = reproducibility + validation, cross-cutting across all boxes/states
 ```
 
+```markdown
+=========== Arrival Mechanics (Layer 2) ===========
+Sub-segments:
+  5A  Arrival Surfaces & Calendar              [ ONLINE ]
+  5B  Arrival Realisation (LGCP + Routing)     [ ONLINE]
+
+Notes:
+  - 5A defines deterministic intensity surfaces per merchant/zone/time bucket,
+    with calendar/scenario overlays (paydays, holidays, campaigns).
+  - 5B realises arrivals from those surfaces using LGCP-style latent fields
+    plus Poisson draws, then routes each arrival through L1 alias tables and edges to a site.
+
+[4A/4B overlay]  >>> S0 gate + validation bundle pattern reused for 5A/5B
+                   (same run sealing, RNG, and HashGate discipline as Layer 1)
+
+
+=========== Flow Dynamics (Layer 3) ===========
+Sub-segments:
+  6A  Entity & Product World                   [ ONLINE ]
+  6B  Behaviour & Fraud Cascades               [ ONLINE ]
+
+Notes:
+  - 6A builds the entity graph: customers, accounts, instruments, devices, IPs,
+    merchant-side accounts, and static fraud roles (mules, synthetic IDs, risky merchants).
+  - 6B maps arrivals to entities, generates transactional flows (auth/clear/refund/
+    chargeback), overlays fraud and abuse campaigns, and produces truth plus bank-view labels.
+
+[4A/4B overlay]  >>> same governance rails in Layer 3:
+                   sealed inputs, deterministic specs, validation bundles,
+                   and "no PASS -> no read" for all L3 outputs
+```
 
 ---
 

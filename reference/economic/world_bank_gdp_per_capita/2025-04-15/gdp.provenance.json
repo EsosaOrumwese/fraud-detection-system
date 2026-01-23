@@ -1,0 +1,13 @@
+{
+  "acquisition_route": "api",
+  "dataset_id": "world_bank_gdp_per_capita_20250415",
+  "downloaded_at_utc": "2025-12-31T03:15:21Z",
+  "indicator_code": "NY.GDP.PCAP.KD",
+  "is_exact_vintage": false,
+  "notes": "WDI API used (archives blocked); filtered to ISO2 in iso3166_canonical_2024 and GDP > 0 for 2024.",
+  "output_sha256": "1eb6d9ae47639b17fd41e7875c03247c4133a849b442c0e3ebe61a4cb2c06074",
+  "raw_sha256": "c0c8f88fc520f35d3f8da95416d787556c600a65e7f3885262b17e8c4a82e96d",
+  "row_count": 190,
+  "source_url": "https://api.worldbank.org/v2/country/all/indicator/NY.GDP.PCAP.KD?date=2024&format=json&per_page=20000",
+  "version": "2025-04-15"
+}

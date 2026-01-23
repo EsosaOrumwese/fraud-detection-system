@@ -1,0 +1,33 @@
+policy_id: overlay_ordering_policy_5A
+version: v1
+
+type_priority:
+  require_all_vocab_types_listed: true
+  priority:
+    OUTAGE: 100
+    STRESS: 80
+    CAMPAIGN: 60
+    PAYDAY: 40
+    HOLIDAY: 20
+
+within_type_aggregation:
+  OUTAGE: { selection: MOST_SPECIFIC_ONLY, mode: MIN }
+  STRESS: { selection: MOST_SPECIFIC_ONLY, mode: MAX }
+  CAMPAIGN: { selection: MOST_SPECIFIC_ONLY, mode: MAX }
+  PAYDAY: { selection: MOST_SPECIFIC_ONLY, mode: MAX }
+  HOLIDAY: { selection: MOST_SPECIFIC_ONLY, mode: MIN }
+
+masking_rules:
+  - name: outage_suppresses_uplifts
+    when_active_types: [OUTAGE]
+    apply:
+      - target_types: [CAMPAIGN, PAYDAY, STRESS]
+        operator: CAP_AT_ONE
+
+  - name: stress_suppresses_campaign
+    when_active_types: [STRESS]
+    apply:
+      - target_types: [CAMPAIGN]
+        operator: CAP_AT_ONE
+
+notes: "Defines precedence/masking for overlapping S4 overlays; event->factor math and clamps live in scenario_overlay_policy_5A."

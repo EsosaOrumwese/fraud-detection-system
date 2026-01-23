@@ -1,0 +1,9 @@
+version: v1.0.0
+tzid_settlement_field: event.tzid_settlement
+tzid_operational_field: event.tzid_operational
+settlement_day_field: event.settlement_day
+settlement_cutoff_rule: settlement_day_from_tzid_settlement
+ip_country_field: event.ip_country
+ip_latitude_field: event.ip_latitude
+ip_longitude_field: event.ip_longitude
+notes: "Routing-field bindings for virtual flows (S4 v1)."

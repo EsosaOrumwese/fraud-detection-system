@@ -13,7 +13,7 @@ from engine.layers.l1.seg_1A.s6_foreign_selection.policy import (
 
 
 def test_load_policy_defaults(tmp_path):
-    policy_path = Path("config/allocation/s6_selection_policy.yaml").resolve()
+    policy_path = Path("config/layer1/1A/policy.s6.selection.yaml").resolve()
     policy = load_policy(policy_path)
 
     assert isinstance(policy, SelectionPolicy)

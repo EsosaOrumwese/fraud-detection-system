@@ -1,0 +1,17 @@
+{
+  "bootstrap_config_path": "config/layer1/1A/ingress/transaction_schema_merchant_ids.bootstrap.yaml",
+  "bootstrap_config_sha256": "fcbdf829969a14202a3d8de5cf9913ac7fcd50ca297a6e39088ed8b2a821b615",
+  "bootstrap_config_version": "2024-12-31",
+  "channel_counts": {
+    "card_not_present": 12320,
+    "card_present": 37680
+  },
+  "dataset_id": "transaction_schema_merchant_ids",
+  "distinct_home_country_iso": 190,
+  "distinct_mcc": 290,
+  "generated_at_utc": "2025-12-31T03:19:49Z",
+  "output_sha256": "a5ce122a1c61a4247ba4ece8624a201fe824c72c10f352cfba74623e54a0cb12",
+  "route": "closed_world_authored",
+  "row_count": 50000,
+  "version": "2025-12-31"
+}

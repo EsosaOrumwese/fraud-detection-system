@@ -1,0 +1,52 @@
+{
+  "policy_id": "route_rng_policy_v1",
+  "version_tag": "1.0.0",
+  "policy_version": "1.0.0",
+  "rng_engine": "philox2x64-10",
+  "streams": {
+    "routing_selection": {
+      "rng_stream_id": "2B.routing",
+      "basis": {
+        "key_basis": ["seed", "parameter_hash", "run_id"],
+        "counter_start": { "hi": 0, "lo": 0 },
+        "counter_step_per_event": 1,
+        "counter_wrap_policy": "abort_on_wrap"
+      },
+      "event_families": {
+        "alias_pick_group": { "substream_label": "alias_pick_group", "blocks": 1, "draws": "1" },
+        "alias_pick_site": { "substream_label": "alias_pick_site", "blocks": 1, "draws": "1" }
+      },
+      "draws_per_unit": { "draws_per_selection": 2 }
+    },
+    "routing_edge": {
+      "rng_stream_id": "2B.routing_edge",
+      "basis": {
+        "key_basis": ["seed", "parameter_hash", "run_id"],
+        "counter_start": { "hi": 0, "lo": 0 },
+        "counter_step_per_event": 1,
+        "counter_wrap_policy": "abort_on_wrap"
+      },
+      "event_families": {
+        "cdn_edge_pick": { "substream_label": "cdn_edge_pick", "blocks": 1, "draws": "1" }
+      },
+      "draws_per_unit": { "draws_per_virtual": 1 }
+    },
+    "virtual_edge_catalogue": {
+      "rng_stream_id": "3B.edge_catalogue",
+      "basis": {
+        "key_basis": ["seed", "parameter_hash", "run_id"],
+        "counter_start": { "hi": 0, "lo": 0 },
+        "counter_step_per_event": 1,
+        "counter_wrap_policy": "abort_on_wrap"
+      },
+      "event_families": {
+        "edge_jitter": { "substream_label": "edge_jitter", "blocks": 1, "draws": "2" },
+        "edge_tile_assign": { "substream_label": "edge_tile_assign", "blocks": 1, "draws": "1" }
+      },
+      "draws_per_unit": { "draws_per_edge": 2 }
+    }
+  },
+  "extensions": {
+    "selection_log_enabled": false
+  }
+}

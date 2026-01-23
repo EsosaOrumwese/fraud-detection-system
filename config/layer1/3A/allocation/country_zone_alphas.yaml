@@ -1,0 +1,2859 @@
+version: v1.0.0
+countries:
+  AD:
+    notes: mass_basis=area_fallback
+    tzid_alphas:
+      - tzid: Europe/Andorra
+        alpha: 8.65142
+      - tzid: Europe/Madrid
+        alpha: 6.240021
+      - tzid: Europe/Paris
+        alpha: 6.112177
+  AE:
+    tzid_alphas:
+      - tzid: Asia/Dubai
+        alpha: 39.467214
+      - tzid: Asia/Muscat
+        alpha: 0.397865
+      - tzid: Asia/Riyadh
+        alpha: 0.005
+  AF:
+    tzid_alphas:
+      - tzid: Asia/Ashgabat
+        alpha: 0.110937
+      - tzid: Asia/Dushanbe
+        alpha: 0.006646
+      - tzid: Asia/Kabul
+        alpha: 66.312899
+      - tzid: Asia/Karachi
+        alpha: 0.036596
+      - tzid: Asia/Samarkand
+        alpha: 0.025773
+      - tzid: Asia/Shanghai
+        alpha: 0.006646
+      - tzid: Asia/Tehran
+        alpha: 0.010013
+      - tzid: Asia/Urumqi
+        alpha: 0.006646
+  AG:
+    tzid_alphas:
+      - tzid: America/Antigua
+        alpha: 20
+  AI:
+    notes: mass_basis=area_fallback
+    tzid_alphas:
+      - tzid: America/Anguilla
+        alpha: 20
+  AL:
+    notes: mass_basis=area_fallback
+    tzid_alphas:
+      - tzid: Europe/Athens
+        alpha: 0.842336
+      - tzid: Europe/Belgrade
+        alpha: 0.816939
+      - tzid: Europe/Podgorica
+        alpha: 0.925812
+      - tzid: Europe/Skopje
+        alpha: 0.822655
+      - tzid: Europe/Tirane
+        alpha: 23.815793
+  AM:
+    tzid_alphas:
+      - tzid: Asia/Baku
+        alpha: 0.178009
+      - tzid: Asia/Tbilisi
+        alpha: 0.016848
+      - tzid: Asia/Tehran
+        alpha: 0.016848
+      - tzid: Asia/Yerevan
+        alpha: 35.863063
+      - tzid: Europe/Istanbul
+        alpha: 0.081623
+  AO:
+    tzid_alphas:
+      - tzid: Africa/Brazzaville
+        alpha: 0.005898
+      - tzid: Africa/Kinshasa
+        alpha: 0.010854
+      - tzid: Africa/Luanda
+        alpha: 58.978723
+      - tzid: Africa/Lubumbashi
+        alpha: 0.007076
+      - tzid: Africa/Lusaka
+        alpha: 0.005898
+      - tzid: Africa/Windhoek
+        alpha: 0.005996
+  AQ:
+    notes: mass_basis=area_fallback
+    tzid_alphas:
+      - tzid: Africa/Johannesburg
+        alpha: 1.58495
+      - tzid: America/Argentina/Ushuaia
+        alpha: 3.543322
+      - tzid: America/Punta_Arenas
+        alpha: 0.029246
+      - tzid: Antarctica/Casey
+        alpha: 2.991081
+      - tzid: Antarctica/Davis
+        alpha: 3.486506
+      - tzid: Antarctica/DumontDUrville
+        alpha: 3.769665
+      - tzid: Antarctica/Mawson
+        alpha: 8.558068
+      - tzid: Antarctica/McMurdo
+        alpha: 7.943318
+      - tzid: Antarctica/Palmer
+        alpha: 0.013202
+      - tzid: Antarctica/Rothera
+        alpha: 5.215967
+      - tzid: Antarctica/Syowa
+        alpha: 11.374507
+      - tzid: Antarctica/Troll
+        alpha: 7.769297
+      - tzid: Antarctica/Vostok
+        alpha: 10.898017
+      - tzid: Australia/Perth
+        alpha: 14.829152
+      - tzid: Etc/GMT+10
+        alpha: 1.076378
+      - tzid: Etc/GMT+4
+        alpha: 0.013995
+      - tzid: Etc/GMT+5
+        alpha: 0.529546
+      - tzid: Etc/GMT+6
+        alpha: 3.450424
+      - tzid: Etc/GMT+7
+        alpha: 2.943607
+      - tzid: Etc/GMT+8
+        alpha: 2.961854
+      - tzid: Etc/GMT+9
+        alpha: 2.729072
+      - tzid: Etc/UTC
+        alpha: 3.025886
+  AR:
+    tzid_alphas:
+      - tzid: America/Argentina/Buenos_Aires
+        alpha: 41.058368
+      - tzid: America/Argentina/Catamarca
+        alpha: 1.598497
+      - tzid: America/Argentina/Cordoba
+        alpha: 28.424574
+      - tzid: America/Argentina/Jujuy
+        alpha: 2.55932
+      - tzid: America/Argentina/La_Rioja
+        alpha: 1.346853
+      - tzid: America/Argentina/Mendoza
+        alpha: 4.50495
+      - tzid: America/Argentina/Rio_Gallegos
+        alpha: 0.936743
+      - tzid: America/Argentina/Salta
+        alpha: 8.217223
+      - tzid: America/Argentina/San_Juan
+        alpha: 1.804314
+      - tzid: America/Argentina/San_Luis
+        alpha: 1.424081
+      - tzid: America/Argentina/Tucuman
+        alpha: 4.015527
+      - tzid: America/Argentina/Ushuaia
+        alpha: 0.646784
+      - tzid: America/Asuncion
+        alpha: 0.078882
+      - tzid: America/La_Paz
+        alpha: 0.009743
+      - tzid: America/Montevideo
+        alpha: 0.009954
+      - tzid: America/Punta_Arenas
+        alpha: 0.014023
+      - tzid: America/Santiago
+        alpha: 0.01412
+      - tzid: America/Sao_Paulo
+        alpha: 0.081111
+  AS:
+    notes: mass_basis=area_fallback
+    tzid_alphas:
+      - tzid: Pacific/Pago_Pago
+        alpha: 20
+  AT:
+    tzid_alphas:
+      - tzid: Europe/Berlin
+        alpha: 0.221328
+      - tzid: Europe/Bratislava
+        alpha: 0.006222
+      - tzid: Europe/Budapest
+        alpha: 0.0062
+      - tzid: Europe/Ljubljana
+        alpha: 0.021508
+      - tzid: Europe/Prague
+        alpha: 0.064338
+      - tzid: Europe/Rome
+        alpha: 0.0062
+      - tzid: Europe/Vaduz
+        alpha: 0.159811
+      - tzid: Europe/Vienna
+        alpha: 57.156666
+      - tzid: Europe/Zurich
+        alpha: 0.0062
+  AU:
+    tzid_alphas:
+      - tzid: Antarctica/Macquarie
+        alpha: 0.007402
+      - tzid: Australia/Adelaide
+        alpha: 6.170768
+      - tzid: Australia/Brisbane
+        alpha: 14.729239
+      - tzid: Australia/Broken_Hill
+        alpha: 0.120996
+      - tzid: Australia/Darwin
+        alpha: 0.445237
+      - tzid: Australia/Eucla
+        alpha: 0.007986
+      - tzid: Australia/Hobart
+        alpha: 0.856943
+      - tzid: Australia/Lindeman
+        alpha: 0.007402
+      - tzid: Australia/Lord_Howe
+        alpha: 0.007402
+      - tzid: Australia/Melbourne
+        alpha: 18.663244
+      - tzid: Australia/Perth
+        alpha: 9.810241
+      - tzid: Australia/Sydney
+        alpha: 23.283683
+  AW:
+    tzid_alphas:
+      - tzid: America/Aruba
+        alpha: 20
+  AX:
+    tzid_alphas:
+      - tzid: Europe/Mariehamn
+        alpha: 20
+  AZ:
+    tzid_alphas:
+      - tzid: Asia/Baku
+        alpha: 49.133244
+      - tzid: Asia/Tbilisi
+        alpha: 0.016141
+      - tzid: Asia/Tehran
+        alpha: 0.142068
+      - tzid: Asia/Yerevan
+        alpha: 0.029192
+      - tzid: Europe/Istanbul
+        alpha: 0.005
+      - tzid: Europe/Moscow
+        alpha: 0.005
+  BA:
+    tzid_alphas:
+      - tzid: Europe/Belgrade
+        alpha: 0.013473
+      - tzid: Europe/Podgorica
+        alpha: 0.010871
+      - tzid: Europe/Sarajevo
+        alpha: 35.546075
+      - tzid: Europe/Zagreb
+        alpha: 0.047201
+  BB:
+    tzid_alphas:
+      - tzid: America/Barbados
+        alpha: 20
+  BD:
+    tzid_alphas:
+      - tzid: Asia/Dhaka
+        alpha: 61.975519
+      - tzid: Asia/Kolkata
+        alpha: 0.350051
+      - tzid: Asia/Yangon
+        alpha: 0.006231
+  BE:
+    tzid_alphas:
+      - tzid: Europe/Amsterdam
+        alpha: 0.005
+      - tzid: Europe/Berlin
+        alpha: 0.005
+      - tzid: Europe/Brussels
+        alpha: 47.048296
+      - tzid: Europe/Luxembourg
+        alpha: 0.010599
+      - tzid: Europe/Paris
+        alpha: 0.845168
+  BF:
+    tzid_alphas:
+      - tzid: Africa/Abidjan
+        alpha: 0.045069
+      - tzid: Africa/Accra
+        alpha: 0.024108
+      - tzid: Africa/Bamako
+        alpha: 0.077617
+      - tzid: Africa/Lome
+        alpha: 0.407909
+      - tzid: Africa/Niamey
+        alpha: 0.005859
+      - tzid: Africa/Ouagadougou
+        alpha: 58.066625
+      - tzid: Africa/Porto-Novo
+        alpha: 0.005859
+  BG:
+    tzid_alphas:
+      - tzid: Europe/Athens
+        alpha: 0.007331
+      - tzid: Europe/Belgrade
+        alpha: 0.009546
+      - tzid: Europe/Bucharest
+        alpha: 0.248075
+      - tzid: Europe/Istanbul
+        alpha: 0.00771
+      - tzid: Europe/Skopje
+        alpha: 0.009906
+      - tzid: Europe/Sofia
+        alpha: 45.563274
+  BH:
+    tzid_alphas:
+      - tzid: Asia/Bahrain
+        alpha: 20.216893
+  BI:
+    tzid_alphas:
+      - tzid: Africa/Bujumbura
+        alpha: 45.468478
+      - tzid: Africa/Dar_es_Salaam
+        alpha: 0.04506
+      - tzid: Africa/Kigali
+        alpha: 0.592369
+      - tzid: Africa/Lubumbashi
+        alpha: 0.005
+  BJ:
+    tzid_alphas:
+      - tzid: Africa/Lagos
+        alpha: 0.021351
+      - tzid: Africa/Lome
+        alpha: 0.57797
+      - tzid: Africa/Niamey
+        alpha: 0.00968
+      - tzid: Africa/Ouagadougou
+        alpha: 0.005
+      - tzid: Africa/Porto-Novo
+        alpha: 47.921145
+  BL:
+    notes: mass_basis=area_fallback
+    tzid_alphas:
+      - tzid: America/St_Barthelemy
+        alpha: 20
+  BM:
+    notes: mass_basis=area_fallback
+    tzid_alphas:
+      - tzid: Atlantic/Bermuda
+        alpha: 20
+  BN:
+    tzid_alphas:
+      - tzid: Asia/Brunei
+        alpha: 20.799762
+      - tzid: Asia/Kuching
+        alpha: 0.142731
+  BO:
+    tzid_alphas:
+      - tzid: America/Argentina/Jujuy
+        alpha: 0.006261
+      - tzid: America/Argentina/Salta
+        alpha: 0.006598
+      - tzid: America/Asuncion
+        alpha: 0.006261
+      - tzid: America/Campo_Grande
+        alpha: 0.006261
+      - tzid: America/Cuiaba
+        alpha: 0.007927
+      - tzid: America/La_Paz
+        alpha: 62.584505
+      - tzid: America/Lima
+        alpha: 0.024947
+      - tzid: America/Porto_Velho
+        alpha: 0.009589
+      - tzid: America/Rio_Branco
+        alpha: 0.017745
+      - tzid: America/Santiago
+        alpha: 0.006502
+  BQ:
+    notes: mass_basis=area_fallback
+    tzid_alphas:
+      - tzid: America/Curacao
+        alpha: 3.764545
+      - tzid: America/Kralendijk
+        alpha: 13.1939
+      - tzid: Etc/GMT+5
+        alpha: 4.065596
+  BR:
+    tzid_alphas:
+      - tzid: America/Araguaina
+        alpha: 1.321
+      - tzid: America/Argentina/Cordoba
+        alpha: 0.016395
+      - tzid: America/Asuncion
+        alpha: 0.242095
+      - tzid: America/Bahia
+        alpha: 8.512832
+      - tzid: America/Belem
+        alpha: 4.402735
+      - tzid: America/Boa_Vista
+        alpha: 0.28995
+      - tzid: America/Bogota
+        alpha: 0.013239
+      - tzid: America/Campo_Grande
+        alpha: 1.75055
+      - tzid: America/Caracas
+        alpha: 0.013239
+      - tzid: America/Cayenne
+        alpha: 0.013239
+      - tzid: America/Cuiaba
+        alpha: 2.360343
+      - tzid: America/Eirunepe
+        alpha: 0.28492
+      - tzid: America/Fortaleza
+        alpha: 15.561389
+      - tzid: America/Guyana
+        alpha: 0.013239
+      - tzid: America/La_Paz
+        alpha: 0.017916
+      - tzid: America/Lima
+        alpha: 0.013452
+      - tzid: America/Maceio
+        alpha: 2.841662
+      - tzid: America/Manaus
+        alpha: 3.349912
+      - tzid: America/Montevideo
+        alpha: 0.013391
+      - tzid: America/Noronha
+        alpha: 0.013239
+      - tzid: America/Paramaribo
+        alpha: 0.013239
+      - tzid: America/Porto_Velho
+        alpha: 1.036792
+      - tzid: America/Recife
+        alpha: 6.538922
+      - tzid: America/Rio_Branco
+        alpha: 0.767463
+      - tzid: America/Santarem
+        alpha: 1.063013
+      - tzid: America/Sao_Paulo
+        alpha: 82.270995
+  BS:
+    tzid_alphas:
+      - tzid: America/Nassau
+        alpha: 20
+  BT:
+    tzid_alphas:
+      - tzid: Asia/Kolkata
+        alpha: 3.182095
+      - tzid: Asia/Shanghai
+        alpha: 0.032251
+      - tzid: Asia/Thimphu
+        alpha: 22.528381
+  BV:
+    notes: mass_basis=area_fallback
+    tzid_alphas:
+      - tzid: Etc/GMT
+        alpha: 20
+  BW:
+    tzid_alphas:
+      - tzid: Africa/Gaborone
+        alpha: 33.645771
+      - tzid: Africa/Harare
+        alpha: 0.014263
+      - tzid: Africa/Johannesburg
+        alpha: 0.016464
+      - tzid: Africa/Windhoek
+        alpha: 0.014583
+  BY:
+    tzid_alphas:
+      - tzid: Europe/Kyiv
+        alpha: 0.01897
+      - tzid: Europe/Minsk
+        alpha: 48.868564
+      - tzid: Europe/Moscow
+        alpha: 0.005405
+      - tzid: Europe/Riga
+        alpha: 0.00634
+      - tzid: Europe/Vilnius
+        alpha: 0.007575
+      - tzid: Europe/Warsaw
+        alpha: 0.028685
+  BZ:
+    tzid_alphas:
+      - tzid: America/Belize
+        alpha: 24.997127
+      - tzid: America/Cancun
+        alpha: 0.1002
+      - tzid: America/Guatemala
+        alpha: 0.61039
+      - tzid: America/Merida
+        alpha: 0.1002
+  CA:
+    tzid_alphas:
+      - tzid: America/Anchorage
+        alpha: 0.013651
+      - tzid: America/Atikokan
+        alpha: 0.04635
+      - tzid: America/Blanc-Sablon
+        alpha: 0.013804
+      - tzid: America/Cambridge_Bay
+        alpha: 0.013651
+      - tzid: America/Chicago
+        alpha: 0.013651
+      - tzid: America/Creston
+        alpha: 0.018791
+      - tzid: America/Dawson
+        alpha: 0.018122
+      - tzid: America/Dawson_Creek
+        alpha: 0.199511
+      - tzid: America/Denver
+        alpha: 0.013651
+      - tzid: America/Detroit
+        alpha: 0.441921
+      - tzid: America/Edmonton
+        alpha: 18.007436
+      - tzid: America/Fort_Nelson
+        alpha: 0.01933
+      - tzid: America/Glace_Bay
+        alpha: 0.531377
+      - tzid: America/Goose_Bay
+        alpha: 0.040808
+      - tzid: America/Halifax
+        alpha: 3.248179
+      - tzid: America/Inuvik
+        alpha: 0.013723
+      - tzid: America/Iqaluit
+        alpha: 0.013651
+      - tzid: America/Juneau
+        alpha: 0.013651
+      - tzid: America/Los_Angeles
+        alpha: 0.013651
+      - tzid: America/Moncton
+        alpha: 2.024925
+      - tzid: America/New_York
+        alpha: 0.035844
+      - tzid: America/Rankin_Inlet
+        alpha: 0.013666
+      - tzid: America/Regina
+        alpha: 5.354029
+      - tzid: America/Resolute
+        alpha: 0.01366
+      - tzid: America/Sitka
+        alpha: 0.013651
+      - tzid: America/St_Johns
+        alpha: 1.433969
+      - tzid: America/Swift_Current
+        alpha: 0.698987
+      - tzid: America/Toronto
+        alpha: 82.705023
+      - tzid: America/Vancouver
+        alpha: 16.558179
+      - tzid: America/Whitehorse
+        alpha: 0.090447
+      - tzid: America/Winnipeg
+        alpha: 5.300005
+      - tzid: America/Yakutat
+        alpha: 0.013651
+  CC:
+    notes: mass_basis=area_fallback
+    tzid_alphas:
+      - tzid: Etc/GMT-6
+        alpha: 5.542643
+      - tzid: Indian/Cocos
+        alpha: 14.457357
+  CD:
+    tzid_alphas:
+      - tzid: Africa/Bangui
+        alpha: 0.008601
+      - tzid: Africa/Brazzaville
+        alpha: 0.013021
+      - tzid: Africa/Bujumbura
+        alpha: 0.008226
+      - tzid: Africa/Dar_es_Salaam
+        alpha: 0.008226
+      - tzid: Africa/Juba
+        alpha: 0.008226
+      - tzid: Africa/Kampala
+        alpha: 0.01499
+      - tzid: Africa/Kigali
+        alpha: 0.036493
+      - tzid: Africa/Kinshasa
+        alpha: 34.224186
+      - tzid: Africa/Luanda
+        alpha: 0.019706
+      - tzid: Africa/Lubumbashi
+        alpha: 47.824387
+      - tzid: Africa/Lusaka
+        alpha: 0.183891
+  CF:
+    tzid_alphas:
+      - tzid: Africa/Bangui
+        alpha: 50.642861
+      - tzid: Africa/Brazzaville
+        alpha: 0.009201
+      - tzid: Africa/Douala
+        alpha: 0.733196
+      - tzid: Africa/Juba
+        alpha: 0.008528
+      - tzid: Africa/Khartoum
+        alpha: 0.008528
+      - tzid: Africa/Kinshasa
+        alpha: 0.012017
+      - tzid: Africa/Lubumbashi
+        alpha: 0.010136
+      - tzid: Africa/Ndjamena
+        alpha: 0.193423
+  CG:
+    tzid_alphas:
+      - tzid: Africa/Bangui
+        alpha: 0.014369
+      - tzid: Africa/Brazzaville
+        alpha: 46.458233
+      - tzid: Africa/Douala
+        alpha: 0.006641
+      - tzid: Africa/Kinshasa
+        alpha: 0.161841
+      - tzid: Africa/Libreville
+        alpha: 0.006641
+      - tzid: Africa/Luanda
+        alpha: 0.006677
+  CH:
+    tzid_alphas:
+      - tzid: Europe/Berlin
+        alpha: 0.026421
+      - tzid: Europe/Busingen
+        alpha: 0.022839
+      - tzid: Europe/Paris
+        alpha: 0.090045
+      - tzid: Europe/Rome
+        alpha: 0.869375
+      - tzid: Europe/Vaduz
+        alpha: 0.005444
+      - tzid: Europe/Vienna
+        alpha: 0.005444
+      - tzid: Europe/Zurich
+        alpha: 50.800571
+  CI:
+    tzid_alphas:
+      - tzid: Africa/Abidjan
+        alpha: 56.356469
+      - tzid: Africa/Accra
+        alpha: 0.005643
+      - tzid: Africa/Bamako
+        alpha: 0.031189
+      - tzid: Africa/Conakry
+        alpha: 0.041666
+      - tzid: Africa/Monrovia
+        alpha: 0.009236
+      - tzid: Africa/Ouagadougou
+        alpha: 0.016755
+  CK:
+    tzid_alphas:
+      - tzid: Pacific/Rarotonga
+        alpha: 20
+  CL:
+    tzid_alphas:
+      - tzid: America/Argentina/Catamarca
+        alpha: 0.007205
+      - tzid: America/Argentina/La_Rioja
+        alpha: 0.007174
+      - tzid: America/Argentina/Mendoza
+        alpha: 0.007174
+      - tzid: America/Argentina/Rio_Gallegos
+        alpha: 0.007174
+      - tzid: America/Argentina/Salta
+        alpha: 0.0073
+      - tzid: America/Argentina/San_Juan
+        alpha: 0.007174
+      - tzid: America/Argentina/Ushuaia
+        alpha: 0.007174
+      - tzid: America/La_Paz
+        alpha: 0.007174
+      - tzid: America/Lima
+        alpha: 0.007249
+      - tzid: America/Punta_Arenas
+        alpha: 0.088625
+      - tzid: America/Santiago
+        alpha: 71.657526
+      - tzid: Pacific/Easter
+        alpha: 0.01117
+  CM:
+    tzid_alphas:
+      - tzid: Africa/Bangui
+        alpha: 0.005992
+      - tzid: Africa/Brazzaville
+        alpha: 0.012683
+      - tzid: Africa/Douala
+        alpha: 59.572289
+      - tzid: Africa/Lagos
+        alpha: 0.237084
+      - tzid: Africa/Libreville
+        alpha: 0.005992
+      - tzid: Africa/Malabo
+        alpha: 0.055224
+      - tzid: Africa/Ndjamena
+        alpha: 0.075284
+  CN:
+    tzid_alphas:
+      - tzid: Asia/Almaty
+        alpha: 0.013631
+      - tzid: Asia/Bangkok
+        alpha: 0.01867
+      - tzid: Asia/Barnaul
+        alpha: 0.013264
+      - tzid: Asia/Bishkek
+        alpha: 0.013264
+      - tzid: Asia/Chita
+        alpha: 0.013264
+      - tzid: Asia/Dushanbe
+        alpha: 0.013267
+      - tzid: Asia/Hong_Kong
+        alpha: 0.013264
+      - tzid: Asia/Hovd
+        alpha: 0.013264
+      - tzid: Asia/Kabul
+        alpha: 0.013264
+      - tzid: Asia/Karachi
+        alpha: 0.013264
+      - tzid: Asia/Kathmandu
+        alpha: 0.014691
+      - tzid: Asia/Kolkata
+        alpha: 0.013789
+      - tzid: Asia/Pyongyang
+        alpha: 0.022398
+      - tzid: Asia/Shanghai
+        alpha: 130.028152
+      - tzid: Asia/Thimphu
+        alpha: 0.013264
+      - tzid: Asia/Ulaanbaatar
+        alpha: 0.013271
+      - tzid: Asia/Urumqi
+        alpha: 2.618413
+      - tzid: Asia/Vientiane
+        alpha: 0.014274
+      - tzid: Asia/Vladivostok
+        alpha: 0.013414
+      - tzid: Asia/Yakutsk
+        alpha: 0.013285
+      - tzid: Asia/Yangon
+        alpha: 0.016363
+  CO:
+    tzid_alphas:
+      - tzid: America/Bogota
+        alpha: 61.760326
+      - tzid: America/Caracas
+        alpha: 0.006577
+      - tzid: America/Guayaquil
+        alpha: 0.012896
+      - tzid: America/Lima
+        alpha: 0.008852
+      - tzid: America/Manaus
+        alpha: 0.006176
+      - tzid: America/Panama
+        alpha: 0.006765
+  CR:
+    tzid_alphas:
+      - tzid: America/Costa_Rica
+        alpha: 38.004319
+      - tzid: America/Managua
+        alpha: 0.007911
+      - tzid: America/Panama
+        alpha: 0.054859
+      - tzid: Etc/GMT+6
+        alpha: 0.007911
+  CU:
+    tzid_alphas:
+      - tzid: America/Havana
+        alpha: 36.468113
+      - tzid: America/New_York
+        alpha: 0.005
+  CV:
+    tzid_alphas:
+      - tzid: Atlantic/Cape_Verde
+        alpha: 20
+  CW:
+    tzid_alphas:
+      - tzid: America/Curacao
+        alpha: 20
+  CX:
+    notes: mass_basis=area_fallback
+    tzid_alphas:
+      - tzid: Etc/GMT-7
+        alpha: 5.382057
+      - tzid: Indian/Christmas
+        alpha: 14.617943
+  CY:
+    tzid_alphas:
+      - tzid: Asia/Famagusta
+        alpha: 0.03369
+      - tzid: Asia/Nicosia
+        alpha: 21.979252
+  CZ:
+    tzid_alphas:
+      - tzid: Europe/Berlin
+        alpha: 0.023791
+      - tzid: Europe/Bratislava
+        alpha: 0.118661
+      - tzid: Europe/Prague
+        alpha: 46.261933
+      - tzid: Europe/Vienna
+        alpha: 0.121161
+      - tzid: Europe/Warsaw
+        alpha: 0.006396
+  DE:
+    tzid_alphas:
+      - tzid: Europe/Amsterdam
+        alpha: 0.120697
+      - tzid: Europe/Berlin
+        alpha: 80.644304
+      - tzid: Europe/Brussels
+        alpha: 0.014959
+      - tzid: Europe/Busingen
+        alpha: 0.008081
+      - tzid: Europe/Copenhagen
+        alpha: 0.008081
+      - tzid: Europe/Luxembourg
+        alpha: 0.023714
+      - tzid: Europe/Paris
+        alpha: 0.01052
+      - tzid: Europe/Prague
+        alpha: 0.033746
+      - tzid: Europe/Vienna
+        alpha: 0.011359
+      - tzid: Europe/Warsaw
+        alpha: 0.016709
+      - tzid: Europe/Zurich
+        alpha: 0.008081
+  DJ:
+    tzid_alphas:
+      - tzid: Africa/Addis_Ababa
+        alpha: 0.06035
+      - tzid: Africa/Asmara
+        alpha: 0.087292
+      - tzid: Africa/Djibouti
+        alpha: 24.148929
+  DK:
+    tzid_alphas:
+      - tzid: Europe/Berlin
+        alpha: 0.030494
+      - tzid: Europe/Copenhagen
+        alpha: 33.175643
+  DM:
+    tzid_alphas:
+      - tzid: America/Dominica
+        alpha: 20
+  DO:
+    tzid_alphas:
+      - tzid: America/Port-au-Prince
+        alpha: 0.411207
+      - tzid: America/Santo_Domingo
+        alpha: 35.866313
+  DZ:
+    tzid_alphas:
+      - tzid: Africa/Algiers
+        alpha: 66.716562
+      - tzid: Africa/Bamako
+        alpha: 0.006686
+      - tzid: Africa/Casablanca
+        alpha: 0.022592
+      - tzid: Africa/El_Aaiun
+        alpha: 0.006673
+      - tzid: Africa/Niamey
+        alpha: 0.006673
+      - tzid: Africa/Nouakchott
+        alpha: 0.006673
+      - tzid: Africa/Tripoli
+        alpha: 0.006673
+      - tzid: Africa/Tunis
+        alpha: 0.008688
+  EC:
+    tzid_alphas:
+      - tzid: America/Bogota
+        alpha: 0.01626
+      - tzid: America/Guayaquil
+        alpha: 47.586386
+      - tzid: America/Lima
+        alpha: 0.024843
+      - tzid: Pacific/Galapagos
+        alpha: 0.012376
+  EE:
+    tzid_alphas:
+      - tzid: Europe/Moscow
+        alpha: 0.022571
+      - tzid: Europe/Riga
+        alpha: 0.057435
+      - tzid: Europe/Tallinn
+        alpha: 27.429645
+  EG:
+    tzid_alphas:
+      - tzid: Africa/Cairo
+        alpha: 62.572754
+      - tzid: Africa/Khartoum
+        alpha: 0.006257
+      - tzid: Africa/Tripoli
+        alpha: 0.006257
+      - tzid: Asia/Riyadh
+        alpha: 0.006257
+  EH:
+    tzid_alphas:
+      - tzid: Africa/El_Aaiun
+        alpha: 18.991711
+      - tzid: Africa/Nouakchott
+        alpha: 1.008289
+  ER:
+    tzid_alphas:
+      - tzid: Africa/Addis_Ababa
+        alpha: 0.961371
+      - tzid: Africa/Asmara
+        alpha: 35.105132
+      - tzid: Africa/Djibouti
+        alpha: 0.010158
+      - tzid: Africa/Khartoum
+        alpha: 0.0484
+  ES:
+    notes: mass_basis=area_fallback
+    tzid_alphas:
+      - tzid: Africa/Casablanca
+        alpha: 0.07729
+      - tzid: Africa/Ceuta
+        alpha: 0.079977
+      - tzid: Atlantic/Canary
+        alpha: 0.64352
+      - tzid: Europe/Andorra
+        alpha: 0.077002
+      - tzid: Europe/Gibraltar
+        alpha: 0.076522
+      - tzid: Europe/Lisbon
+        alpha: 0.154153
+      - tzid: Europe/Madrid
+        alpha: 38.09123
+      - tzid: Europe/Paris
+        alpha: 0.080662
+  ET:
+    tzid_alphas:
+      - tzid: Africa/Addis_Ababa
+        alpha: 72.508795
+      - tzid: Africa/Asmara
+        alpha: 0.012533
+      - tzid: Africa/Djibouti
+        alpha: 0.007251
+      - tzid: Africa/Juba
+        alpha: 0.008052
+      - tzid: Africa/Khartoum
+        alpha: 0.009382
+      - tzid: Africa/Mogadishu
+        alpha: 0.009914
+      - tzid: Africa/Nairobi
+        alpha: 0.008932
+  FI:
+    tzid_alphas:
+      - tzid: Europe/Helsinki
+        alpha: 38.332457
+      - tzid: Europe/Moscow
+        alpha: 0.010272
+      - tzid: Europe/Oslo
+        alpha: 0.007638
+      - tzid: Europe/Stockholm
+        alpha: 0.007638
+  FJ:
+    tzid_alphas:
+      - tzid: Pacific/Fiji
+        alpha: 20
+  FK:
+    tzid_alphas:
+      - tzid: Atlantic/Stanley
+        alpha: 20
+  FM:
+    tzid_alphas:
+      - tzid: Pacific/Chuuk
+        alpha: 1.13293
+      - tzid: Pacific/Kosrae
+        alpha: 2.597248
+      - tzid: Pacific/Pohnpei
+        alpha: 17.658896
+  FO:
+    tzid_alphas:
+      - tzid: Atlantic/Faroe
+        alpha: 20
+  FR:
+    tzid_alphas:
+      - tzid: America/Belem
+        alpha: 0.009296
+      - tzid: America/Cayenne
+        alpha: 0.624086
+      - tzid: America/Guadeloupe
+        alpha: 0.288555
+      - tzid: America/Martinique
+        alpha: 0.009296
+      - tzid: America/Paramaribo
+        alpha: 0.009784
+      - tzid: Europe/Andorra
+        alpha: 0.009296
+      - tzid: Europe/Berlin
+        alpha: 0.009296
+      - tzid: Europe/Brussels
+        alpha: 0.012844
+      - tzid: Europe/Luxembourg
+        alpha: 0.009296
+      - tzid: Europe/Madrid
+        alpha: 0.014236
+      - tzid: Europe/Monaco
+        alpha: 0.009296
+      - tzid: Europe/Paris
+        alpha: 91.036971
+      - tzid: Europe/Rome
+        alpha: 0.009304
+      - tzid: Europe/Zurich
+        alpha: 0.934322
+      - tzid: Indian/Mayotte
+        alpha: 0.009296
+      - tzid: Indian/Reunion
+        alpha: 0.111179
+  GA:
+    tzid_alphas:
+      - tzid: Africa/Brazzaville
+        alpha: 0.012397
+      - tzid: Africa/Douala
+        alpha: 0.013556
+      - tzid: Africa/Libreville
+        alpha: 34.593274
+      - tzid: Africa/Malabo
+        alpha: 0.044379
+  GB:
+    tzid_alphas:
+      - tzid: Europe/Dublin
+        alpha: 0.005198
+      - tzid: Europe/London
+        alpha: 51.800948
+  GD:
+    tzid_alphas:
+      - tzid: America/Grenada
+        alpha: 20
+  GE:
+    tzid_alphas:
+      - tzid: Asia/Baku
+        alpha: 0.012469
+      - tzid: Asia/Tbilisi
+        alpha: 38.044853
+      - tzid: Asia/Yerevan
+        alpha: 0.014549
+      - tzid: Europe/Istanbul
+        alpha: 0.011315
+      - tzid: Europe/Moscow
+        alpha: 0.925182
+  GF:
+    notes: mass_basis=area_fallback
+    tzid_alphas:
+      - tzid: America/Cayenne
+        alpha: 20
+  GG:
+    tzid_alphas:
+      - tzid: Europe/Guernsey
+        alpha: 20
+  GH:
+    tzid_alphas:
+      - tzid: Africa/Abidjan
+        alpha: 0.041354
+      - tzid: Africa/Accra
+        alpha: 52.897206
+      - tzid: Africa/Lome
+        alpha: 0.005294
+      - tzid: Africa/Ouagadougou
+        alpha: 0.015619
+  GI:
+    notes: mass_basis=area_fallback
+    tzid_alphas:
+      - tzid: Europe/Gibraltar
+        alpha: 20
+  GL:
+    tzid_alphas:
+      - tzid: America/Danmarkshavn
+        alpha: 5.617503
+      - tzid: America/Nuuk
+        alpha: 7.121018
+      - tzid: America/Scoresbysund
+        alpha: 5.617503
+      - tzid: America/Thule
+        alpha: 5.646158
+  GM:
+    tzid_alphas:
+      - tzid: Africa/Banjul
+        alpha: 25.779209
+      - tzid: Africa/Dakar
+        alpha: 3.89171
+  GN:
+    tzid_alphas:
+      - tzid: Africa/Abidjan
+        alpha: 0.012002
+      - tzid: Africa/Bamako
+        alpha: 0.009337
+      - tzid: Africa/Bissau
+        alpha: 0.165589
+      - tzid: Africa/Conakry
+        alpha: 54.441802
+      - tzid: Africa/Dakar
+        alpha: 0.00956
+      - tzid: Africa/Freetown
+        alpha: 0.083042
+      - tzid: Africa/Monrovia
+        alpha: 0.025476
+  GP:
+    tzid_alphas:
+      - tzid: America/Guadeloupe
+        alpha: 20
+  GQ:
+    notes: mass_basis=area_fallback
+    tzid_alphas:
+      - tzid: Africa/Douala
+        alpha: 0.723756
+      - tzid: Africa/Libreville
+        alpha: 0.790489
+      - tzid: Africa/Malabo
+        alpha: 19.696332
+  GR:
+    tzid_alphas:
+      - tzid: Europe/Athens
+        alpha: 45.163354
+      - tzid: Europe/Istanbul
+        alpha: 0.005142
+      - tzid: Europe/Skopje
+        alpha: 0.005193
+      - tzid: Europe/Sofia
+        alpha: 0.048562
+      - tzid: Europe/Tirane
+        alpha: 0.033433
+  GS:
+    notes: mass_basis=area_fallback
+    tzid_alphas:
+      - tzid: Atlantic/South_Georgia
+        alpha: 20
+  GT:
+    tzid_alphas:
+      - tzid: America/Belize
+        alpha: 0.005414
+      - tzid: America/El_Salvador
+        alpha: 0.018735
+      - tzid: America/Guatemala
+        alpha: 54.106514
+      - tzid: America/Merida
+        alpha: 0.005414
+      - tzid: America/Mexico_City
+        alpha: 0.035765
+      - tzid: America/Tegucigalpa
+        alpha: 0.005414
+  GU:
+    tzid_alphas:
+      - tzid: Pacific/Guam
+        alpha: 20
+  GW:
+    tzid_alphas:
+      - tzid: Africa/Bissau
+        alpha: 26.996524
+      - tzid: Africa/Conakry
+        alpha: 0.023525
+      - tzid: Africa/Dakar
+        alpha: 0.103651
+  GY:
+    notes: mass_basis=area_fallback
+    tzid_alphas:
+      - tzid: America/Boa_Vista
+        alpha: 0.194266
+      - tzid: America/Caracas
+        alpha: 0.200801
+      - tzid: America/Guyana
+        alpha: 27.829292
+      - tzid: America/Paramaribo
+        alpha: 0.159619
+      - tzid: America/Santarem
+        alpha: 0.149005
+  HK:
+    tzid_alphas:
+      - tzid: Asia/Hong_Kong
+        alpha: 35.11406
+      - tzid: Asia/Shanghai
+        alpha: 0.005
+  HM:
+    notes: mass_basis=area_fallback
+    tzid_alphas:
+      - tzid: Etc/GMT-5
+        alpha: 20
+  HN:
+    tzid_alphas:
+      - tzid: America/El_Salvador
+        alpha: 0.152649
+      - tzid: America/Guatemala
+        alpha: 0.087341
+      - tzid: America/Managua
+        alpha: 0.06192
+      - tzid: America/Tegucigalpa
+        alpha: 43.168813
+  HR:
+    tzid_alphas:
+      - tzid: Etc/GMT-1
+        alpha: 0.014419
+      - tzid: Europe/Belgrade
+        alpha: 0.014419
+      - tzid: Europe/Budapest
+        alpha: 0.017056
+      - tzid: Europe/Ljubljana
+        alpha: 0.03715
+      - tzid: Europe/Podgorica
+        alpha: 0.014419
+      - tzid: Europe/Sarajevo
+        alpha: 0.024937
+      - tzid: Europe/Zagreb
+        alpha: 44.084923
+  HT:
+    tzid_alphas:
+      - tzid: America/Port-au-Prince
+        alpha: 38.694883
+      - tzid: America/Santo_Domingo
+        alpha: 0.346872
+  HU:
+    tzid_alphas:
+      - tzid: Europe/Belgrade
+        alpha: 0.084154
+      - tzid: Europe/Bratislava
+        alpha: 0.165374
+      - tzid: Europe/Bucharest
+        alpha: 0.007188
+      - tzid: Europe/Budapest
+        alpha: 54.734489
+      - tzid: Europe/Kyiv
+        alpha: 0.005601
+      - tzid: Europe/Ljubljana
+        alpha: 0.006936
+      - tzid: Europe/Vienna
+        alpha: 0.010945
+      - tzid: Europe/Zagreb
+        alpha: 0.037214
+  ID:
+    tzid_alphas:
+      - tzid: Asia/Dili
+        alpha: 0.008094
+      - tzid: Asia/Jakarta
+        alpha: 62.20911
+      - tzid: Asia/Jayapura
+        alpha: 2.52724
+      - tzid: Asia/Kuching
+        alpha: 0.015141
+      - tzid: Asia/Makassar
+        alpha: 10.865053
+      - tzid: Asia/Pontianak
+        alpha: 2.20471
+      - tzid: Pacific/Port_Moresby
+        alpha: 0.007778
+  IE:
+    tzid_alphas:
+      - tzid: Europe/Dublin
+        alpha: 32.265919
+      - tzid: Europe/London
+        alpha: 0.006512
+  IL:
+    tzid_alphas:
+      - tzid: Africa/Cairo
+        alpha: 0.009719
+      - tzid: Asia/Amman
+        alpha: 0.005454
+      - tzid: Asia/Beirut
+        alpha: 0.074379
+      - tzid: Asia/Damascus
+        alpha: 0.005215
+      - tzid: Asia/Gaza
+        alpha: 0.906247
+      - tzid: Asia/Hebron
+        alpha: 0.005215
+      - tzid: Asia/Jerusalem
+        alpha: 51.179234
+  IM:
+    tzid_alphas:
+      - tzid: Europe/Isle_of_Man
+        alpha: 20
+  IN:
+    tzid_alphas:
+      - tzid: Asia/Dhaka
+        alpha: 0.17746
+      - tzid: Asia/Karachi
+        alpha: 0.060282
+      - tzid: Asia/Kathmandu
+        alpha: 0.036705
+      - tzid: Asia/Kolkata
+        alpha: 93.995234
+      - tzid: Asia/Shanghai
+        alpha: 0.009429
+      - tzid: Asia/Thimphu
+        alpha: 0.009742
+      - tzid: Asia/Urumqi
+        alpha: 0.009423
+      - tzid: Asia/Yangon
+        alpha: 0.009775
+  IO:
+    notes: mass_basis=area_fallback
+    tzid_alphas:
+      - tzid: Indian/Chagos
+        alpha: 20
+  IQ:
+    tzid_alphas:
+      - tzid: Asia/Amman
+        alpha: 0.006443
+      - tzid: Asia/Baghdad
+        alpha: 64.434766
+      - tzid: Asia/Damascus
+        alpha: 0.006817
+      - tzid: Asia/Kuwait
+        alpha: 0.006912
+      - tzid: Asia/Riyadh
+        alpha: 0.006484
+      - tzid: Asia/Tehran
+        alpha: 0.006443
+      - tzid: Europe/Istanbul
+        alpha: 0.006566
+  IR:
+    tzid_alphas:
+      - tzid: Asia/Ashgabat
+        alpha: 0.013201
+      - tzid: Asia/Baghdad
+        alpha: 0.057337
+      - tzid: Asia/Baku
+        alpha: 0.035612
+      - tzid: Asia/Kabul
+        alpha: 0.007223
+      - tzid: Asia/Karachi
+        alpha: 0.007223
+      - tzid: Asia/Tehran
+        alpha: 72.151483
+      - tzid: Asia/Yerevan
+        alpha: 0.007223
+      - tzid: Europe/Istanbul
+        alpha: 0.008123
+  IS:
+    tzid_alphas:
+      - tzid: Atlantic/Reykjavik
+        alpha: 20
+  IT:
+    tzid_alphas:
+      - tzid: Europe/Ljubljana
+        alpha: 0.006491
+      - tzid: Europe/Paris
+        alpha: 0.00714
+      - tzid: Europe/Rome
+        alpha: 64.880529
+      - tzid: Europe/San_Marino
+        alpha: 0.010289
+      - tzid: Europe/Vatican
+        alpha: 0.006491
+      - tzid: Europe/Vienna
+        alpha: 0.006491
+      - tzid: Europe/Zurich
+        alpha: 0.037917
+  JE:
+    notes: mass_basis=area_fallback
+    tzid_alphas:
+      - tzid: Europe/Jersey
+        alpha: 20
+  JM:
+    tzid_alphas:
+      - tzid: America/Jamaica
+        alpha: 23.886633
+  JO:
+    notes: mass_basis=area_fallback
+    tzid_alphas:
+      - tzid: Asia/Amman
+        alpha: 28.765027
+      - tzid: Asia/Baghdad
+        alpha: 0.326222
+      - tzid: Asia/Damascus
+        alpha: 0.419263
+      - tzid: Asia/Hebron
+        alpha: 0.341358
+      - tzid: Asia/Jerusalem
+        alpha: 0.483609
+      - tzid: Asia/Riyadh
+        alpha: 0.346002
+  JP:
+    tzid_alphas:
+      - tzid: Asia/Tokyo
+        alpha: 56.208425
+      - tzid: Etc/GMT-8
+        alpha: 0.00562
+  KE:
+    tzid_alphas:
+      - tzid: Africa/Addis_Ababa
+        alpha: 0.017716
+      - tzid: Africa/Dar_es_Salaam
+        alpha: 0.150674
+      - tzid: Africa/Juba
+        alpha: 0.010856
+      - tzid: Africa/Kampala
+        alpha: 0.18185
+      - tzid: Africa/Nairobi
+        alpha: 58.920251
+  KG:
+    tzid_alphas:
+      - tzid: Asia/Almaty
+        alpha: 0.006625
+      - tzid: Asia/Bishkek
+        alpha: 46.045941
+      - tzid: Asia/Dushanbe
+        alpha: 0.102069
+      - tzid: Asia/Shanghai
+        alpha: 0.005803
+      - tzid: Asia/Tashkent
+        alpha: 1.611471
+      - tzid: Asia/Urumqi
+        alpha: 0.005803
+  KH:
+    tzid_alphas:
+      - tzid: Asia/Bangkok
+        alpha: 0.263527
+      - tzid: Asia/Ho_Chi_Minh
+        alpha: 0.044994
+      - tzid: Asia/Phnom_Penh
+        alpha: 47.371665
+      - tzid: Asia/Vientiane
+        alpha: 0.006264
+  KI:
+    tzid_alphas:
+      - tzid: Pacific/Kanton
+        alpha: 4.159215
+      - tzid: Pacific/Kiritimati
+        alpha: 4.642049
+      - tzid: Pacific/Tarawa
+        alpha: 12.215143
+  KM:
+    tzid_alphas:
+      - tzid: Indian/Comoro
+        alpha: 20
+  KN:
+    tzid_alphas:
+      - tzid: America/St_Kitts
+        alpha: 20
+  KP:
+    tzid_alphas:
+      - tzid: Asia/Pyongyang
+        alpha: 48.629366
+      - tzid: Asia/Seoul
+        alpha: 0.005
+      - tzid: Asia/Shanghai
+        alpha: 0.025085
+      - tzid: Asia/Vladivostok
+        alpha: 0.005
+  KR:
+    tzid_alphas:
+      - tzid: Asia/Pyongyang
+        alpha: 0.005
+      - tzid: Asia/Seoul
+        alpha: 49.484199
+  KW:
+    notes: mass_basis=area_fallback
+    tzid_alphas:
+      - tzid: Asia/Baghdad
+        alpha: 1.215906
+      - tzid: Asia/Kuwait
+        alpha: 18.592521
+      - tzid: Asia/Riyadh
+        alpha: 1.330154
+  KY:
+    notes: mass_basis=area_fallback
+    tzid_alphas:
+      - tzid: America/Cayman
+        alpha: 20
+  KZ:
+    tzid_alphas:
+      - tzid: Asia/Almaty
+        alpha: 73.230351
+      - tzid: Asia/Aqtau
+        alpha: 3.642325
+      - tzid: Asia/Aqtobe
+        alpha: 3.904276
+      - tzid: Asia/Ashgabat
+        alpha: 0.010115
+      - tzid: Asia/Atyrau
+        alpha: 3.464824
+      - tzid: Asia/Barnaul
+        alpha: 0.009649
+      - tzid: Asia/Bishkek
+        alpha: 0.115574
+      - tzid: Asia/Novosibirsk
+        alpha: 0.009649
+      - tzid: Asia/Omsk
+        alpha: 0.009666
+      - tzid: Asia/Oral
+        alpha: 3.685978
+      - tzid: Asia/Qostanay
+        alpha: 3.710277
+      - tzid: Asia/Qyzylorda
+        alpha: 4.784157
+      - tzid: Asia/Samarkand
+        alpha: 0.009649
+      - tzid: Asia/Shanghai
+        alpha: 0.009649
+      - tzid: Asia/Tashkent
+        alpha: 0.026126
+      - tzid: Asia/Urumqi
+        alpha: 0.014661
+      - tzid: Asia/Yekaterinburg
+        alpha: 0.0104
+      - tzid: Europe/Astrakhan
+        alpha: 0.009649
+      - tzid: Europe/Saratov
+        alpha: 0.01447
+      - tzid: Europe/Volgograd
+        alpha: 0.009649
+  LA:
+    tzid_alphas:
+      - tzid: Asia/Bangkok
+        alpha: 0.744675
+      - tzid: Asia/Ho_Chi_Minh
+        alpha: 0.00914
+      - tzid: Asia/Phnom_Penh
+        alpha: 0.007105
+      - tzid: Asia/Shanghai
+        alpha: 0.175207
+      - tzid: Asia/Vientiane
+        alpha: 46.097538
+      - tzid: Asia/Yangon
+        alpha: 0.006339
+  LB:
+    tzid_alphas:
+      - tzid: Asia/Beirut
+        alpha: 33.340432
+      - tzid: Asia/Damascus
+        alpha: 0.009037
+      - tzid: Asia/Jerusalem
+        alpha: 0.024293
+  LC:
+    tzid_alphas:
+      - tzid: America/St_Lucia
+        alpha: 20
+  LI:
+    tzid_alphas:
+      - tzid: Europe/Vaduz
+        alpha: 18.897861
+      - tzid: Europe/Zurich
+        alpha: 1.102139
+  LK:
+    tzid_alphas:
+      - tzid: Asia/Colombo
+        alpha: 40.696036
+  LR:
+    tzid_alphas:
+      - tzid: Africa/Abidjan
+        alpha: 0.008175
+      - tzid: Africa/Conakry
+        alpha: 0.041867
+      - tzid: Africa/Freetown
+        alpha: 0.006312
+      - tzid: Africa/Monrovia
+        alpha: 39.870411
+  LS:
+    tzid_alphas:
+      - tzid: Africa/Johannesburg
+        alpha: 0.071105
+      - tzid: Africa/Maseru
+        alpha: 28.524257
+  LT:
+    tzid_alphas:
+      - tzid: Europe/Kaliningrad
+        alpha: 0.013352
+      - tzid: Europe/Minsk
+        alpha: 0.028061
+      - tzid: Europe/Riga
+        alpha: 0.020563
+      - tzid: Europe/Vilnius
+        alpha: 37.682002
+      - tzid: Europe/Warsaw
+        alpha: 0.021034
+  LU:
+    tzid_alphas:
+      - tzid: Europe/Berlin
+        alpha: 0.044049
+      - tzid: Europe/Brussels
+        alpha: 0.044049
+      - tzid: Europe/Luxembourg
+        alpha: 27.249451
+      - tzid: Europe/Paris
+        alpha: 0.568811
+  LV:
+    tzid_alphas:
+      - tzid: Europe/Minsk
+        alpha: 0.023408
+      - tzid: Europe/Moscow
+        alpha: 0.022235
+      - tzid: Europe/Riga
+        alpha: 34.304546
+      - tzid: Europe/Tallinn
+        alpha: 0.025837
+      - tzid: Europe/Vilnius
+        alpha: 0.09838
+  LY:
+    tzid_alphas:
+      - tzid: Africa/Algiers
+        alpha: 0.008919
+      - tzid: Africa/Cairo
+        alpha: 0.006659
+      - tzid: Africa/Khartoum
+        alpha: 0.006659
+      - tzid: Africa/Ndjamena
+        alpha: 0.014706
+      - tzid: Africa/Niamey
+        alpha: 0.006659
+      - tzid: Africa/Tripoli
+        alpha: 50.090402
+      - tzid: Africa/Tunis
+        alpha: 0.007928
+  MA:
+    tzid_alphas:
+      - tzid: Africa/Algiers
+        alpha: 0.005378
+      - tzid: Africa/Casablanca
+        alpha: 52.849712
+      - tzid: Africa/Ceuta
+        alpha: 0.006423
+      - tzid: Africa/El_Aaiun
+        alpha: 0.94189
+  MC:
+    notes: mass_basis=area_fallback
+    tzid_alphas:
+      - tzid: Europe/Monaco
+        alpha: 9.923056
+      - tzid: Europe/Paris
+        alpha: 10.076944
+  MD:
+    tzid_alphas:
+      - tzid: Europe/Bucharest
+        alpha: 0.011297
+      - tzid: Europe/Chisinau
+        alpha: 31.646295
+      - tzid: Europe/Kyiv
+        alpha: 0.025644
+  ME:
+    tzid_alphas:
+      - tzid: Europe/Belgrade
+        alpha: 0.098975
+      - tzid: Europe/Podgorica
+        alpha: 30.705425
+      - tzid: Europe/Sarajevo
+        alpha: 0.079755
+      - tzid: Europe/Tirane
+        alpha: 0.073043
+      - tzid: Europe/Zagreb
+        alpha: 0.048364
+  MF:
+    notes: mass_basis=area_fallback
+    tzid_alphas:
+      - tzid: America/Lower_Princes
+        alpha: 9.779324
+      - tzid: America/Marigot
+        alpha: 10.220676
+  MG:
+    tzid_alphas:
+      - tzid: Indian/Antananarivo
+        alpha: 42.683343
+  MH:
+    notes: mass_basis=area_fallback
+    tzid_alphas:
+      - tzid: Pacific/Kwajalein
+        alpha: 9.252247
+      - tzid: Pacific/Majuro
+        alpha: 10.747753
+  MK:
+    tzid_alphas:
+      - tzid: Europe/Athens
+        alpha: 0.022534
+      - tzid: Europe/Belgrade
+        alpha: 0.02752
+      - tzid: Europe/Skopje
+        alpha: 34.303858
+      - tzid: Europe/Sofia
+        alpha: 0.022534
+      - tzid: Europe/Tirane
+        alpha: 0.022568
+  ML:
+    tzid_alphas:
+      - tzid: Africa/Abidjan
+        alpha: 0.0166
+      - tzid: Africa/Algiers
+        alpha: 0.006228
+      - tzid: Africa/Bamako
+        alpha: 62.189351
+      - tzid: Africa/Conakry
+        alpha: 0.075491
+      - tzid: Africa/Dakar
+        alpha: 0.01092
+      - tzid: Africa/Niamey
+        alpha: 0.006228
+      - tzid: Africa/Nouakchott
+        alpha: 0.007667
+      - tzid: Africa/Ouagadougou
+        alpha: 0.019689
+  MM:
+    tzid_alphas:
+      - tzid: Asia/Bangkok
+        alpha: 0.038618
+      - tzid: Asia/Dhaka
+        alpha: 0.031104
+      - tzid: Asia/Kolkata
+        alpha: 0.033862
+      - tzid: Asia/Shanghai
+        alpha: 0.020855
+      - tzid: Asia/Vientiane
+        alpha: 0.031809
+      - tzid: Asia/Yangon
+        alpha: 62.793129
+  MN:
+    notes: mass_basis=area_fallback
+    tzid_alphas:
+      - tzid: Asia/Barnaul
+        alpha: 0.029726
+      - tzid: Asia/Chita
+        alpha: 0.0405
+      - tzid: Asia/Hovd
+        alpha: 5.298741
+      - tzid: Asia/Irkutsk
+        alpha: 0.03199
+      - tzid: Asia/Krasnoyarsk
+        alpha: 0.039725
+      - tzid: Asia/Shanghai
+        alpha: 0.138985
+      - tzid: Asia/Ulaanbaatar
+        alpha: 37.888075
+      - tzid: Asia/Urumqi
+        alpha: 0.071862
+  MO:
+    notes: mass_basis=area_fallback
+    tzid_alphas:
+      - tzid: Asia/Macau
+        alpha: 10.077797
+      - tzid: Asia/Shanghai
+        alpha: 9.922203
+  MP:
+    tzid_alphas:
+      - tzid: Pacific/Saipan
+        alpha: 20
+  MQ:
+    tzid_alphas:
+      - tzid: America/Martinique
+        alpha: 19.897222
+      - tzid: Etc/GMT+4
+        alpha: 0.102778
+  MR:
+    tzid_alphas:
+      - tzid: Africa/Algiers
+        alpha: 0.006515
+      - tzid: Africa/Bamako
+        alpha: 0.260825
+      - tzid: Africa/Dakar
+        alpha: 0.007426
+      - tzid: Africa/El_Aaiun
+        alpha: 0.006515
+      - tzid: Africa/Nouakchott
+        alpha: 42.980546
+  MS:
+    tzid_alphas:
+      - tzid: America/Montserrat
+        alpha: 20
+  MT:
+    tzid_alphas:
+      - tzid: Europe/Malta
+        alpha: 20
+  MU:
+    tzid_alphas:
+      - tzid: Indian/Mauritius
+        alpha: 22.1835
+  MV:
+    notes: mass_basis=area_fallback
+    tzid_alphas:
+      - tzid: Indian/Maldives
+        alpha: 20
+  MW:
+    tzid_alphas:
+      - tzid: Africa/Blantyre
+        alpha: 48.877036
+      - tzid: Africa/Dar_es_Salaam
+        alpha: 0.008215
+      - tzid: Africa/Lusaka
+        alpha: 0.269755
+      - tzid: Africa/Maputo
+        alpha: 0.297663
+  MX:
+    tzid_alphas:
+      - tzid: America/Bahia_Banderas
+        alpha: 0.031768
+      - tzid: America/Belize
+        alpha: 0.010194
+      - tzid: America/Cancun
+        alpha: 0.846063
+      - tzid: America/Chicago
+        alpha: 0.036504
+      - tzid: America/Chihuahua
+        alpha: 1.674442
+      - tzid: America/Ciudad_Juarez
+        alpha: 1.893829
+      - tzid: America/Denver
+        alpha: 0.010555
+      - tzid: America/Guatemala
+        alpha: 0.010194
+      - tzid: America/Hermosillo
+        alpha: 2.541407
+      - tzid: America/Matamoros
+        alpha: 2.13025
+      - tzid: America/Mazatlan
+        alpha: 4.035799
+      - tzid: America/Merida
+        alpha: 2.668216
+      - tzid: America/Mexico_City
+        alpha: 71.604826
+      - tzid: America/Monterrey
+        alpha: 10.761247
+      - tzid: America/Ojinaga
+        alpha: 0.013959
+      - tzid: America/Phoenix
+        alpha: 0.010194
+      - tzid: America/Tijuana
+        alpha: 3.836966
+  MY:
+    tzid_alphas:
+      - tzid: Asia/Bangkok
+        alpha: 0.007789
+      - tzid: Asia/Brunei
+        alpha: 0.029293
+      - tzid: Asia/Kuala_Lumpur
+        alpha: 49.818064
+      - tzid: Asia/Kuching
+        alpha: 11.735376
+      - tzid: Asia/Makassar
+        alpha: 0.00627
+      - tzid: Asia/Pontianak
+        alpha: 0.105747
+      - tzid: Asia/Singapore
+        alpha: 0.006167
+  MZ:
+    tzid_alphas:
+      - tzid: Africa/Blantyre
+        alpha: 0.112937
+      - tzid: Africa/Dar_es_Salaam
+        alpha: 0.006143
+      - tzid: Africa/Harare
+        alpha: 0.311177
+      - tzid: Africa/Johannesburg
+        alpha: 0.006419
+      - tzid: Africa/Lusaka
+        alpha: 0.01255
+      - tzid: Africa/Maputo
+        alpha: 60.817774
+      - tzid: Africa/Mbabane
+        alpha: 0.065089
+  NC:
+    tzid_alphas:
+      - tzid: Pacific/Noumea
+        alpha: 20
+  NE:
+    tzid_alphas:
+      - tzid: Africa/Algiers
+        alpha: 0.006248
+      - tzid: Africa/Bamako
+        alpha: 0.014062
+      - tzid: Africa/Lagos
+        alpha: 0.269641
+      - tzid: Africa/Ndjamena
+        alpha: 0.006211
+      - tzid: Africa/Niamey
+        alpha: 61.751045
+      - tzid: Africa/Ouagadougou
+        alpha: 0.102867
+      - tzid: Africa/Porto-Novo
+        alpha: 0.007058
+      - tzid: Africa/Tripoli
+        alpha: 0.006211
+  NF:
+    tzid_alphas:
+      - tzid: Pacific/Norfolk
+        alpha: 20
+  NG:
+    tzid_alphas:
+      - tzid: Africa/Douala
+        alpha: 0.017037
+      - tzid: Africa/Lagos
+        alpha: 67.647821
+      - tzid: Africa/Niamey
+        alpha: 0.076852
+      - tzid: Africa/Porto-Novo
+        alpha: 0.008479
+  NI:
+    tzid_alphas:
+      - tzid: America/Costa_Rica
+        alpha: 0.01672
+      - tzid: America/Managua
+        alpha: 36.327715
+      - tzid: America/Tegucigalpa
+        alpha: 0.025994
+  NL:
+    tzid_alphas:
+      - tzid: America/Kralendijk
+        alpha: 0.010477
+      - tzid: Europe/Amsterdam
+        alpha: 47.212166
+      - tzid: Europe/Berlin
+        alpha: 0.091305
+      - tzid: Europe/Brussels
+        alpha: 0.057948
+  "NO":
+    tzid_alphas:
+      - tzid: Arctic/Longyearbyen
+        alpha: 0.009097
+      - tzid: Etc/GMT
+        alpha: 0.009097
+      - tzid: Europe/Helsinki
+        alpha: 0.009574
+      - tzid: Europe/Moscow
+        alpha: 0.009149
+      - tzid: Europe/Oslo
+        alpha: 44.077976
+      - tzid: Europe/Stockholm
+        alpha: 0.009322
+  NP:
+    tzid_alphas:
+      - tzid: Asia/Kathmandu
+        alpha: 46.271275
+      - tzid: Asia/Kolkata
+        alpha: 2.227074
+      - tzid: Asia/Shanghai
+        alpha: 0.005
+  NR:
+    notes: mass_basis=area_fallback
+    tzid_alphas:
+      - tzid: Pacific/Nauru
+        alpha: 20
+  NU:
+    tzid_alphas:
+      - tzid: Pacific/Niue
+        alpha: 20
+  NZ:
+    tzid_alphas:
+      - tzid: Pacific/Auckland
+        alpha: 34.511545
+      - tzid: Pacific/Chatham
+        alpha: 0.013777
+      - tzid: Pacific/Fakaofo
+        alpha: 0.007793
+  OM:
+    tzid_alphas:
+      - tzid: Asia/Aden
+        alpha: 0.036915
+      - tzid: Asia/Dubai
+        alpha: 0.553495
+      - tzid: Asia/Muscat
+        alpha: 38.270801
+      - tzid: Asia/Riyadh
+        alpha: 0.007173
+  PA:
+    tzid_alphas:
+      - tzid: America/Bogota
+        alpha: 0.010574
+      - tzid: America/Costa_Rica
+        alpha: 0.045266
+      - tzid: America/Panama
+        alpha: 32.112423
+  PE:
+    notes: mass_basis=area_fallback
+    tzid_alphas:
+      - tzid: America/Bogota
+        alpha: 0.078448
+      - tzid: America/Eirunepe
+        alpha: 0.038897
+      - tzid: America/Guayaquil
+        alpha: 0.090009
+      - tzid: America/La_Paz
+        alpha: 0.030846
+      - tzid: America/Lima
+        alpha: 39.322223
+      - tzid: America/Rio_Branco
+        alpha: 0.035667
+      - tzid: America/Santiago
+        alpha: 0.031858
+  PF:
+    tzid_alphas:
+      - tzid: Pacific/Gambier
+        alpha: 0.120224
+      - tzid: Pacific/Marquesas
+        alpha: 0.123766
+      - tzid: Pacific/Tahiti
+        alpha: 22.099406
+  PG:
+    tzid_alphas:
+      - tzid: Asia/Jayapura
+        alpha: 0.005
+      - tzid: Pacific/Bougainville
+        alpha: 1.580308
+      - tzid: Pacific/Port_Moresby
+        alpha: 37.900235
+  PH:
+    tzid_alphas:
+      - tzid: Asia/Manila
+        alpha: 51.586871
+  PK:
+    tzid_alphas:
+      - tzid: Asia/Kabul
+        alpha: 0.026034
+      - tzid: Asia/Karachi
+        alpha: 74.172305
+      - tzid: Asia/Kolkata
+        alpha: 0.034791
+      - tzid: Asia/Shanghai
+        alpha: 0.007421
+      - tzid: Asia/Tehran
+        alpha: 0.007899
+      - tzid: Asia/Urumqi
+        alpha: 0.007421
+  PL:
+    tzid_alphas:
+      - tzid: Europe/Berlin
+        alpha: 0.05904
+      - tzid: Europe/Bratislava
+        alpha: 0.01178
+      - tzid: Europe/Kaliningrad
+        alpha: 0.021313
+      - tzid: Europe/Kyiv
+        alpha: 0.011064
+      - tzid: Europe/Minsk
+        alpha: 0.006513
+      - tzid: Europe/Prague
+        alpha: 0.047725
+      - tzid: Europe/Vilnius
+        alpha: 0.006595
+      - tzid: Europe/Warsaw
+        alpha: 65.015739
+  PM:
+    tzid_alphas:
+      - tzid: America/Miquelon
+        alpha: 20
+  PN:
+    notes: mass_basis=area_fallback
+    tzid_alphas:
+      - tzid: Pacific/Pitcairn
+        alpha: 20
+  PR:
+    tzid_alphas:
+      - tzid: America/Puerto_Rico
+        alpha: 25.423716
+  PS:
+    tzid_alphas:
+      - tzid: Africa/Cairo
+        alpha: 0.009531
+      - tzid: Asia/Amman
+        alpha: 0.009531
+      - tzid: Asia/Gaza
+        alpha: 12.49448
+      - tzid: Asia/Hebron
+        alpha: 3.20976
+      - tzid: Asia/Jerusalem
+        alpha: 24.487446
+  PT:
+    tzid_alphas:
+      - tzid: Atlantic/Azores
+        alpha: 1.124832
+      - tzid: Atlantic/Madeira
+        alpha: 0.113635
+      - tzid: Europe/Lisbon
+        alpha: 41.062362
+      - tzid: Europe/Madrid
+        alpha: 0.005
+  PW:
+    tzid_alphas:
+      - tzid: Pacific/Palau
+        alpha: 20
+  PY:
+    tzid_alphas:
+      - tzid: America/Argentina/Cordoba
+        alpha: 0.007637
+      - tzid: America/Argentina/Salta
+        alpha: 0.007546
+      - tzid: America/Asuncion
+        alpha: 45.459049
+      - tzid: America/Campo_Grande
+        alpha: 0.121907
+      - tzid: America/La_Paz
+        alpha: 0.007546
+      - tzid: America/Sao_Paulo
+        alpha: 0.007546
+  QA:
+    notes: mass_basis=area_fallback
+    tzid_alphas:
+      - tzid: Asia/Bahrain
+        alpha: 1.490552
+      - tzid: Asia/Qatar
+        alpha: 18.10564
+      - tzid: Asia/Riyadh
+        alpha: 1.492516
+  RE:
+    tzid_alphas:
+      - tzid: Indian/Reunion
+        alpha: 20
+  RO:
+    tzid_alphas:
+      - tzid: Europe/Belgrade
+        alpha: 0.060952
+      - tzid: Europe/Bucharest
+        alpha: 53.954546
+      - tzid: Europe/Budapest
+        alpha: 0.030165
+      - tzid: Europe/Chisinau
+        alpha: 0.088408
+      - tzid: Europe/Kyiv
+        alpha: 0.008882
+      - tzid: Europe/Sofia
+        alpha: 0.005425
+  RS:
+    notes: mass_basis=area_fallback
+    tzid_alphas:
+      - tzid: Etc/GMT-1
+        alpha: 0.45701
+      - tzid: Europe/Belgrade
+        alpha: 35.502598
+      - tzid: Europe/Bucharest
+        alpha: 0.615304
+      - tzid: Europe/Budapest
+        alpha: 0.471712
+      - tzid: Europe/Podgorica
+        alpha: 0.583354
+      - tzid: Europe/Sarajevo
+        alpha: 0.507877
+      - tzid: Europe/Skopje
+        alpha: 0.474254
+      - tzid: Europe/Sofia
+        alpha: 0.462792
+      - tzid: Europe/Zagreb
+        alpha: 0.523698
+  RU:
+    tzid_alphas:
+      - tzid: Asia/Almaty
+        alpha: 0.019682
+      - tzid: Asia/Anadyr
+        alpha: 0.021382
+      - tzid: Asia/Aqtobe
+        alpha: 0.013935
+      - tzid: Asia/Atyrau
+        alpha: 0.013935
+      - tzid: Asia/Baku
+        alpha: 0.013935
+      - tzid: Asia/Barnaul
+        alpha: 2.05504
+      - tzid: Asia/Chita
+        alpha: 0.823114
+      - tzid: Asia/Hovd
+        alpha: 0.058628
+      - tzid: Asia/Irkutsk
+        alpha: 3.288948
+      - tzid: Asia/Kamchatka
+        alpha: 0.357042
+      - tzid: Asia/Khandyga
+        alpha: 0.023238
+      - tzid: Asia/Krasnoyarsk
+        alpha: 3.505375
+      - tzid: Asia/Magadan
+        alpha: 0.048183
+      - tzid: Asia/Novokuznetsk
+        alpha: 2.029905
+      - tzid: Asia/Novosibirsk
+        alpha: 2.032643
+      - tzid: Asia/Omsk
+        alpha: 1.733187
+      - tzid: Asia/Oral
+        alpha: 0.013935
+      - tzid: Asia/Pyongyang
+        alpha: 0.013935
+      - tzid: Asia/Qostanay
+        alpha: 0.014796
+      - tzid: Asia/Sakhalin
+        alpha: 0.435923
+      - tzid: Asia/Shanghai
+        alpha: 0.630366
+      - tzid: Asia/Srednekolymsk
+        alpha: 0.031635
+      - tzid: Asia/Tbilisi
+        alpha: 0.013941
+      - tzid: Asia/Tomsk
+        alpha: 1.181647
+      - tzid: Asia/Ulaanbaatar
+        alpha: 0.013935
+      - tzid: Asia/Urumqi
+        alpha: 0.013935
+      - tzid: Asia/Ust-Nera
+        alpha: 0.027698
+      - tzid: Asia/Vladivostok
+        alpha: 2.884478
+      - tzid: Asia/Yakutsk
+        alpha: 1.417828
+      - tzid: Asia/Yekaterinburg
+        alpha: 19.967867
+      - tzid: Europe/Astrakhan
+        alpha: 0.845709
+      - tzid: Europe/Helsinki
+        alpha: 0.015984
+      - tzid: Europe/Kaliningrad
+        alpha: 1.207959
+      - tzid: Europe/Kirov
+        alpha: 1.194343
+      - tzid: Europe/Kyiv
+        alpha: 0.09552
+      - tzid: Europe/Minsk
+        alpha: 0.014059
+      - tzid: Europe/Moscow
+        alpha: 81.890691
+      - tzid: Europe/Oslo
+        alpha: 0.013935
+      - tzid: Europe/Riga
+        alpha: 0.014184
+      - tzid: Europe/Samara
+        alpha: 4.648721
+      - tzid: Europe/Saratov
+        alpha: 2.348001
+      - tzid: Europe/Simferopol
+        alpha: 1.642756
+      - tzid: Europe/Tallinn
+        alpha: 0.013935
+      - tzid: Europe/Ulyanovsk
+        alpha: 1.061368
+      - tzid: Europe/Vilnius
+        alpha: 0.013935
+      - tzid: Europe/Volgograd
+        alpha: 2.264881
+      - tzid: Europe/Warsaw
+        alpha: 0.013935
+  RW:
+    tzid_alphas:
+      - tzid: Africa/Bujumbura
+        alpha: 0.118848
+      - tzid: Africa/Dar_es_Salaam
+        alpha: 0.005
+      - tzid: Africa/Kampala
+        alpha: 0.027594
+      - tzid: Africa/Kigali
+        alpha: 44.638208
+      - tzid: Africa/Lubumbashi
+        alpha: 3.858977
+  SA:
+    tzid_alphas:
+      - tzid: Asia/Aden
+        alpha: 0.041893
+      - tzid: Asia/Amman
+        alpha: 0.006152
+      - tzid: Asia/Baghdad
+        alpha: 0.006485
+      - tzid: Asia/Dubai
+        alpha: 0.006152
+      - tzid: Asia/Kuwait
+        alpha: 0.006152
+      - tzid: Asia/Qatar
+        alpha: 0.006687
+      - tzid: Asia/Riyadh
+        alpha: 61.48727
+  SB:
+    tzid_alphas:
+      - tzid: Pacific/Guadalcanal
+        alpha: 20
+  SC:
+    tzid_alphas:
+      - tzid: Indian/Mahe
+        alpha: 20
+  SD:
+    tzid_alphas:
+      - tzid: Africa/Addis_Ababa
+        alpha: 0.006785
+      - tzid: Africa/Asmara
+        alpha: 0.006785
+      - tzid: Africa/Bangui
+        alpha: 0.006905
+      - tzid: Africa/Cairo
+        alpha: 0.006785
+      - tzid: Africa/Juba
+        alpha: 0.121224
+      - tzid: Africa/Khartoum
+        alpha: 67.725119
+      - tzid: Africa/Ndjamena
+        alpha: 0.028766
+      - tzid: Africa/Tripoli
+        alpha: 0.006785
+  SE:
+    tzid_alphas:
+      - tzid: Europe/Helsinki
+        alpha: 0.005
+      - tzid: Europe/Oslo
+        alpha: 0.005
+      - tzid: Europe/Stockholm
+        alpha: 40.052917
+  SG:
+    tzid_alphas:
+      - tzid: Asia/Singapore
+        alpha: 23.929482
+  SH:
+    tzid_alphas:
+      - tzid: Atlantic/St_Helena
+        alpha: 20
+  SI:
+    tzid_alphas:
+      - tzid: Europe/Budapest
+        alpha: 0.018667
+      - tzid: Europe/Ljubljana
+        alpha: 35.011914
+      - tzid: Europe/Rome
+        alpha: 0.119068
+      - tzid: Europe/Vienna
+        alpha: 0.27965
+      - tzid: Europe/Zagreb
+        alpha: 0.081044
+  SJ:
+    notes: mass_basis=area_fallback
+    tzid_alphas:
+      - tzid: Arctic/Longyearbyen
+        alpha: 20
+  SK:
+    tzid_alphas:
+      - tzid: Europe/Bratislava
+        alpha: 44.019243
+      - tzid: Europe/Budapest
+        alpha: 0.242788
+      - tzid: Europe/Kyiv
+        alpha: 0.008878
+      - tzid: Europe/Prague
+        alpha: 0.018784
+      - tzid: Europe/Vienna
+        alpha: 0.008878
+      - tzid: Europe/Warsaw
+        alpha: 0.016117
+  SL:
+    tzid_alphas:
+      - tzid: Africa/Conakry
+        alpha: 0.171183
+      - tzid: Africa/Freetown
+        alpha: 38.728163
+      - tzid: Africa/Monrovia
+        alpha: 0.005
+  SM:
+    tzid_alphas:
+      - tzid: Europe/Rome
+        alpha: 18.527536
+      - tzid: Europe/San_Marino
+        alpha: 1.472464
+  SN:
+    tzid_alphas:
+      - tzid: Africa/Bamako
+        alpha: 0.005307
+      - tzid: Africa/Banjul
+        alpha: 0.053864
+      - tzid: Africa/Bissau
+        alpha: 0.005307
+      - tzid: Africa/Conakry
+        alpha: 0.012272
+      - tzid: Africa/Dakar
+        alpha: 52.816875
+      - tzid: Africa/Nouakchott
+        alpha: 0.212411
+  SO:
+    tzid_alphas:
+      - tzid: Africa/Addis_Ababa
+        alpha: 0.029843
+      - tzid: Africa/Mogadishu
+        alpha: 40.93414
+      - tzid: Africa/Nairobi
+        alpha: 0.851098
+  SR:
+    notes: mass_basis=area_fallback
+    tzid_alphas:
+      - tzid: America/Belem
+        alpha: 0.19377
+      - tzid: America/Cayenne
+        alpha: 0.204363
+      - tzid: America/Guyana
+        alpha: 0.237629
+      - tzid: America/Paramaribo
+        alpha: 27.22858
+      - tzid: America/Santarem
+        alpha: 0.219757
+  SS:
+    tzid_alphas:
+      - tzid: Africa/Addis_Ababa
+        alpha: 0.005435
+      - tzid: Africa/Bangui
+        alpha: 0.015689
+      - tzid: Africa/Juba
+        alpha: 54.155667
+      - tzid: Africa/Kampala
+        alpha: 0.169236
+      - tzid: Africa/Khartoum
+        alpha: 0.012825
+      - tzid: Africa/Lubumbashi
+        alpha: 0.023922
+      - tzid: Africa/Nairobi
+        alpha: 0.005435
+  ST:
+    tzid_alphas:
+      - tzid: Africa/Sao_Tome
+        alpha: 20
+  SV:
+    tzid_alphas:
+      - tzid: America/El_Salvador
+        alpha: 35.311702
+      - tzid: America/Guatemala
+        alpha: 0.045368
+      - tzid: America/Tegucigalpa
+        alpha: 0.105118
+  SX:
+    tzid_alphas:
+      - tzid: America/Lower_Princes
+        alpha: 18.684471
+      - tzid: America/Marigot
+        alpha: 1.315529
+  SY:
+    tzid_alphas:
+      - tzid: Asia/Amman
+        alpha: 0.005565
+      - tzid: Asia/Baghdad
+        alpha: 0.005565
+      - tzid: Asia/Beirut
+        alpha: 0.330139
+      - tzid: Asia/Damascus
+        alpha: 55.307535
+      - tzid: Asia/Jerusalem
+        alpha: 0.022294
+      - tzid: Europe/Istanbul
+        alpha: 0.012352
+  SZ:
+    tzid_alphas:
+      - tzid: Africa/Johannesburg
+        alpha: 0.139872
+      - tzid: Africa/Maputo
+        alpha: 0.022892
+      - tzid: Africa/Mbabane
+        alpha: 27.101117
+  TC:
+    tzid_alphas:
+      - tzid: America/Grand_Turk
+        alpha: 20
+  TD:
+    tzid_alphas:
+      - tzid: Africa/Bangui
+        alpha: 0.005917
+      - tzid: Africa/Douala
+        alpha: 0.82969
+      - tzid: Africa/Khartoum
+        alpha: 0.00937
+      - tzid: Africa/Lagos
+        alpha: 0.005816
+      - tzid: Africa/Ndjamena
+        alpha: 57.333526
+      - tzid: Africa/Niamey
+        alpha: 0.006819
+      - tzid: Africa/Tripoli
+        alpha: 0.005816
+  TF:
+    notes: mass_basis=area_fallback
+    tzid_alphas:
+      - tzid: Etc/GMT-3
+        alpha: 2.098889
+      - tzid: Etc/GMT-4
+        alpha: 2.049167
+      - tzid: Indian/Kerguelen
+        alpha: 16.909972
+  TG:
+    tzid_alphas:
+      - tzid: Africa/Accra
+        alpha: 4.479284
+      - tzid: Africa/Lome
+        alpha: 38.980049
+      - tzid: Africa/Ouagadougou
+        alpha: 0.005
+      - tzid: Africa/Porto-Novo
+        alpha: 0.005
+  TH:
+    tzid_alphas:
+      - tzid: Asia/Bangkok
+        alpha: 60.617433
+      - tzid: Asia/Kuala_Lumpur
+        alpha: 0.009294
+      - tzid: Asia/Phnom_Penh
+        alpha: 0.010441
+      - tzid: Asia/Vientiane
+        alpha: 0.223172
+      - tzid: Asia/Yangon
+        alpha: 0.028866
+  TJ:
+    tzid_alphas:
+      - tzid: Asia/Bishkek
+        alpha: 0.043168
+      - tzid: Asia/Dushanbe
+        alpha: 52.361597
+      - tzid: Asia/Kabul
+        alpha: 0.006939
+      - tzid: Asia/Samarkand
+        alpha: 0.121849
+      - tzid: Asia/Shanghai
+        alpha: 0.005273
+      - tzid: Asia/Tashkent
+        alpha: 0.225534
+      - tzid: Asia/Urumqi
+        alpha: 0.005273
+  TK:
+    notes: mass_basis=area_fallback
+    tzid_alphas:
+      - tzid: Etc/GMT+11
+        alpha: 6.711508
+      - tzid: Pacific/Fakaofo
+        alpha: 13.288492
+  TL:
+    tzid_alphas:
+      - tzid: Asia/Dili
+        alpha: 23.201145
+      - tzid: Asia/Makassar
+        alpha: 0.327441
+  TM:
+    tzid_alphas:
+      - tzid: Asia/Aqtau
+        alpha: 0.005365
+      - tzid: Asia/Ashgabat
+        alpha: 44.50689
+      - tzid: Asia/Kabul
+        alpha: 0.005365
+      - tzid: Asia/Samarkand
+        alpha: 0.043559
+      - tzid: Asia/Tehran
+        alpha: 0.333479
+  TN:
+    tzid_alphas:
+      - tzid: Africa/Algiers
+        alpha: 0.723943
+      - tzid: Africa/Tripoli
+        alpha: 0.005
+      - tzid: Africa/Tunis
+        alpha: 39.457892
+  TO:
+    tzid_alphas:
+      - tzid: Pacific/Tongatapu
+        alpha: 20
+  TR:
+    notes: mass_basis=area_fallback
+    tzid_alphas:
+      - tzid: Asia/Baghdad
+        alpha: 0.065446
+      - tzid: Asia/Baku
+        alpha: 0.055298
+      - tzid: Asia/Damascus
+        alpha: 0.085476
+      - tzid: Asia/Tbilisi
+        alpha: 0.056838
+      - tzid: Asia/Tehran
+        alpha: 0.058238
+      - tzid: Asia/Yerevan
+        alpha: 0.059315
+      - tzid: Europe/Athens
+        alpha: 0.058439
+      - tzid: Europe/Istanbul
+        alpha: 43.115218
+      - tzid: Europe/Sofia
+        alpha: 0.058999
+  TT:
+    tzid_alphas:
+      - tzid: America/Port_of_Spain
+        alpha: 21.356386
+  TV:
+    notes: mass_basis=area_fallback
+    tzid_alphas:
+      - tzid: Pacific/Funafuti
+        alpha: 20
+  TW:
+    tzid_alphas:
+      - tzid: Asia/Taipei
+        alpha: 20
+  TZ:
+    tzid_alphas:
+      - tzid: Africa/Blantyre
+        alpha: 0.068032
+      - tzid: Africa/Bujumbura
+        alpha: 0.445628
+      - tzid: Africa/Dar_es_Salaam
+        alpha: 72.744107
+      - tzid: Africa/Kampala
+        alpha: 0.007326
+      - tzid: Africa/Kigali
+        alpha: 0.007326
+      - tzid: Africa/Lubumbashi
+        alpha: 0.007326
+      - tzid: Africa/Lusaka
+        alpha: 0.013367
+      - tzid: Africa/Maputo
+        alpha: 0.023734
+      - tzid: Africa/Nairobi
+        alpha: 0.007326
+  UA:
+    tzid_alphas:
+      - tzid: Europe/Bratislava
+        alpha: 0.011279
+      - tzid: Europe/Bucharest
+        alpha: 0.019904
+      - tzid: Europe/Budapest
+        alpha: 0.022934
+      - tzid: Europe/Chisinau
+        alpha: 0.018577
+      - tzid: Europe/Kyiv
+        alpha: 67.638727
+      - tzid: Europe/Minsk
+        alpha: 0.007857
+      - tzid: Europe/Moscow
+        alpha: 0.019812
+      - tzid: Europe/Simferopol
+        alpha: 0.007131
+      - tzid: Europe/Warsaw
+        alpha: 0.023159
+  UG:
+    tzid_alphas:
+      - tzid: Africa/Dar_es_Salaam
+        alpha: 0.006153
+      - tzid: Africa/Juba
+        alpha: 0.019946
+      - tzid: Africa/Kampala
+        alpha: 61.106364
+      - tzid: Africa/Kigali
+        alpha: 0.006153
+      - tzid: Africa/Lubumbashi
+        alpha: 0.396617
+      - tzid: Africa/Nairobi
+        alpha: 0.031229
+  UM:
+    notes: mass_basis=area_fallback
+    tzid_alphas:
+      - tzid: America/Port-au-Prince
+        alpha: 5.000844
+      - tzid: Etc/GMT+11
+        alpha: 5.037036
+      - tzid: Etc/GMT+12
+        alpha: 4.98275
+      - tzid: Pacific/Honolulu
+        alpha: 4.98903
+      - tzid: Pacific/Midway
+        alpha: 4.994265
+      - tzid: Pacific/Wake
+        alpha: 4.996298
+  US:
+    tzid_alphas:
+      - tzid: America/Adak
+        alpha: 0.014229
+      - tzid: America/Anchorage
+        alpha: 0.282773
+      - tzid: America/Atikokan
+        alpha: 0.013941
+      - tzid: America/Boise
+        alpha: 0.632631
+      - tzid: America/Chicago
+        alpha: 40.219091
+      - tzid: America/Ciudad_Juarez
+        alpha: 0.013941
+      - tzid: America/Dawson
+        alpha: 0.013941
+      - tzid: America/Denver
+        alpha: 5.436662
+      - tzid: America/Detroit
+        alpha: 4.657311
+      - tzid: America/Hermosillo
+        alpha: 0.013941
+      - tzid: America/Indiana/Indianapolis
+        alpha: 2.055383
+      - tzid: America/Indiana/Knox
+        alpha: 0.019115
+      - tzid: America/Indiana/Marengo
+        alpha: 0.020055
+      - tzid: America/Indiana/Petersburg
+        alpha: 0.016735
+      - tzid: America/Indiana/Tell_City
+        alpha: 0.020827
+      - tzid: America/Indiana/Vevay
+        alpha: 0.016736
+      - tzid: America/Indiana/Vincennes
+        alpha: 0.100868
+      - tzid: America/Indiana/Winamac
+        alpha: 0.017922
+      - tzid: America/Juneau
+        alpha: 0.02186
+      - tzid: America/Kentucky/Louisville
+        alpha: 0.415096
+      - tzid: America/Kentucky/Monticello
+        alpha: 0.017531
+      - tzid: America/Los_Angeles
+        alpha: 25.05712
+      - tzid: America/Matamoros
+        alpha: 0.013957
+      - tzid: America/Menominee
+        alpha: 0.035008
+      - tzid: America/Metlakatla
+        alpha: 0.014031
+      - tzid: America/Moncton
+        alpha: 0.017873
+      - tzid: America/New_York
+        alpha: 56.193396
+      - tzid: America/Nome
+        alpha: 0.014682
+      - tzid: America/North_Dakota/Beulah
+        alpha: 0.014395
+      - tzid: America/North_Dakota/Center
+        alpha: 0.014313
+      - tzid: America/North_Dakota/New_Salem
+        alpha: 0.022631
+      - tzid: America/Ojinaga
+        alpha: 0.013941
+      - tzid: America/Phoenix
+        alpha: 3.974553
+      - tzid: America/Sitka
+        alpha: 0.014195
+      - tzid: America/Tijuana
+        alpha: 0.013941
+      - tzid: America/Toronto
+        alpha: 0.062766
+      - tzid: America/Vancouver
+        alpha: 0.013941
+      - tzid: America/Winnipeg
+        alpha: 0.013941
+      - tzid: America/Yakutat
+        alpha: 0.013946
+      - tzid: Etc/GMT+7
+        alpha: 0.013941
+      - tzid: Pacific/Honolulu
+        alpha: 0.432895
+      - tzid: Pacific/Midway
+        alpha: 0.013941
+  UY:
+    tzid_alphas:
+      - tzid: America/Argentina/Cordoba
+        alpha: 0.034851
+      - tzid: America/Montevideo
+        alpha: 30.077221
+      - tzid: America/Sao_Paulo
+        alpha: 0.020297
+  UZ:
+    tzid_alphas:
+      - tzid: Asia/Almaty
+        alpha: 0.080498
+      - tzid: Asia/Aqtau
+        alpha: 0.006738
+      - tzid: Asia/Ashgabat
+        alpha: 0.028197
+      - tzid: Asia/Bishkek
+        alpha: 0.718477
+      - tzid: Asia/Dushanbe
+        alpha: 0.182108
+      - tzid: Asia/Kabul
+        alpha: 0.006738
+      - tzid: Asia/Qyzylorda
+        alpha: 0.006738
+      - tzid: Asia/Samarkand
+        alpha: 31.227374
+      - tzid: Asia/Tashkent
+        alpha: 35.182997
+  VA:
+    notes: mass_basis=area_fallback
+    tzid_alphas:
+      - tzid: Europe/Vatican
+        alpha: 20
+  VC:
+    tzid_alphas:
+      - tzid: America/St_Vincent
+        alpha: 20
+  VE:
+    notes: mass_basis=area_fallback
+    tzid_alphas:
+      - tzid: America/Boa_Vista
+        alpha: 0.068952
+      - tzid: America/Bogota
+        alpha: 0.109625
+      - tzid: America/Caracas
+        alpha: 31.911885
+      - tzid: America/Guyana
+        alpha: 0.040427
+      - tzid: America/Manaus
+        alpha: 0.05717
+  VG:
+    notes: mass_basis=area_fallback
+    tzid_alphas:
+      - tzid: America/Tortola
+        alpha: 20
+  VI:
+    tzid_alphas:
+      - tzid: America/St_Thomas
+        alpha: 20
+  VN:
+    tzid_alphas:
+      - tzid: Asia/Bangkok
+        alpha: 28.432773
+      - tzid: Asia/Ho_Chi_Minh
+        alpha: 34.727624
+      - tzid: Asia/Phnom_Penh
+        alpha: 0.158713
+      - tzid: Asia/Shanghai
+        alpha: 0.024825
+      - tzid: Asia/Vientiane
+        alpha: 0.040985
+  VU:
+    tzid_alphas:
+      - tzid: Pacific/Efate
+        alpha: 20
+  WF:
+    tzid_alphas:
+      - tzid: Pacific/Wallis
+        alpha: 20
+  WS:
+    tzid_alphas:
+      - tzid: Pacific/Apia
+        alpha: 20
+  YE:
+    tzid_alphas:
+      - tzid: Asia/Aden
+        alpha: 47.850632
+      - tzid: Asia/Riyadh
+        alpha: 0.051145
+  YT:
+    tzid_alphas:
+      - tzid: Indian/Mayotte
+        alpha: 21.831392
+  ZA:
+    tzid_alphas:
+      - tzid: Africa/Gaborone
+        alpha: 0.028384
+      - tzid: Africa/Harare
+        alpha: 0.011707
+      - tzid: Africa/Johannesburg
+        alpha: 65.942113
+      - tzid: Africa/Maputo
+        alpha: 0.006598
+      - tzid: Africa/Maseru
+        alpha: 0.013545
+      - tzid: Africa/Mbabane
+        alpha: 0.012846
+      - tzid: Africa/Windhoek
+        alpha: 0.006639
+  ZM:
+    notes: mass_basis=area_fallback
+    tzid_alphas:
+      - tzid: Africa/Blantyre
+        alpha: 0.063914
+      - tzid: Africa/Dar_es_Salaam
+        alpha: 0.060844
+      - tzid: Africa/Gaborone
+        alpha: 0.057157
+      - tzid: Africa/Harare
+        alpha: 0.076747
+      - tzid: Africa/Luanda
+        alpha: 0.175473
+      - tzid: Africa/Lubumbashi
+        alpha: 0.168501
+      - tzid: Africa/Lusaka
+        alpha: 42.765471
+      - tzid: Africa/Maputo
+        alpha: 0.059101
+      - tzid: Africa/Windhoek
+        alpha: 0.058464
+  ZW:
+    tzid_alphas:
+      - tzid: Africa/Gaborone
+        alpha: 0.076067
+      - tzid: Africa/Harare
+        alpha: 49.664384
+      - tzid: Africa/Johannesburg
+        alpha: 0.005
+      - tzid: Africa/Lusaka
+        alpha: 0.037981
+      - tzid: Africa/Maputo
+        alpha: 0.005223

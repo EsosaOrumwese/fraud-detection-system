@@ -1,0 +1,180 @@
+schema_version: 1
+policy_id: party_role_priors_6A
+policy_version: v1
+
+role_vocabulary:
+  - role_id: ASSOCIATE
+    label: Associate
+    description: Party connected to elevated fraud posture.
+    applicable_party_types: [RETAIL, BUSINESS]
+    severity_rank: 3
+  - role_id: CLEAN
+    label: Clean
+    description: Baseline party posture.
+    applicable_party_types: [RETAIL, BUSINESS, OTHER]
+    severity_rank: 0
+  - role_id: MULE
+    label: Mule
+    description: Party used as an intermediary for illicit movement.
+    applicable_party_types: [RETAIL, BUSINESS]
+    severity_rank: 4
+  - role_id: ORGANISER
+    label: Organiser
+    description: Party coordinating or leading fraud activity.
+    applicable_party_types: [RETAIL, BUSINESS]
+    severity_rank: 5
+  - role_id: SYNTHETIC_ID
+    label: Synthetic identity
+    description: Party with constructed identity posture.
+    applicable_party_types: [RETAIL, BUSINESS]
+    severity_rank: 2
+
+risk_tier_vocabulary:
+  - tier_id: ELEVATED
+    label: Elevated
+    description: Elevated static posture.
+    severity_rank: 2
+  - tier_id: HIGH
+    label: High
+    description: High static posture.
+    severity_rank: 3
+  - tier_id: LOW
+    label: Low
+    description: Low static posture.
+    severity_rank: 0
+  - tier_id: STANDARD
+    label: Standard
+    description: Typical baseline posture.
+    severity_rank: 1
+
+cell_definition:
+  base_cell: [region_id, party_type, segment_id]
+  context_features:
+    - has_credit_instrument
+    - has_any_anonymizer_ip
+    - has_any_high_risk_device
+    - n_devices_bucket
+  cell_id_format: "{region_id}|{party_type}|{segment_id}|{flags}"
+
+risk_score_model:
+  base: 0.48
+  features:
+    - { name: credit_appetite, source: SEGMENT_PROFILE, ref: 0.50, weight: 0.10 }
+    - { name: cross_border_propensity, source: SEGMENT_PROFILE, ref: 0.50, weight: 0.16 }
+    - { name: digital_affinity, source: SEGMENT_PROFILE, ref: 0.50, weight: 0.18 }
+    - { name: has_any_anonymizer_ip, source: GRAPH_DERIVED, ref: 0.00, weight: 0.18 }
+    - { name: has_any_high_risk_device, source: GRAPH_DERIVED, ref: 0.00, weight: 0.10 }
+    - { name: has_credit_instrument, source: HOLDINGS_DERIVED, ref: 0.00, weight: 0.10 }
+    - { name: n_devices_bucket, source: GRAPH_DERIVED, ref: 0.25, weight: 0.08 }
+
+risk_tier_thresholds:
+  tiers_in_order: [LOW, STANDARD, ELEVATED, HIGH]
+  thresholds:
+    LOW_max: 0.25
+    STANDARD_max: 0.65
+    ELEVATED_max: 0.85
+    HIGH_max: 1.00
+
+role_probability_model:
+  mode: by_party_type_and_risk_tier_v1
+  pi_role_by_party_type_and_tier:
+    BUSINESS:
+      LOW:
+        - { role_id: ASSOCIATE, prob: 0.00025 }
+        - { role_id: CLEAN, prob: 0.9980 }
+        - { role_id: MULE, prob: 0.0007 }
+        - { role_id: ORGANISER, prob: 0.00005 }
+        - { role_id: SYNTHETIC_ID, prob: 0.0010 }
+      STANDARD:
+        - { role_id: ASSOCIATE, prob: 0.0017 }
+        - { role_id: CLEAN, prob: 0.9920 }
+        - { role_id: MULE, prob: 0.0020 }
+        - { role_id: ORGANISER, prob: 0.0003 }
+        - { role_id: SYNTHETIC_ID, prob: 0.0040 }
+      ELEVATED:
+        - { role_id: ASSOCIATE, prob: 0.008 }
+        - { role_id: CLEAN, prob: 0.955 }
+        - { role_id: MULE, prob: 0.020 }
+        - { role_id: ORGANISER, prob: 0.002 }
+        - { role_id: SYNTHETIC_ID, prob: 0.015 }
+      HIGH:
+        - { role_id: ASSOCIATE, prob: 0.020 }
+        - { role_id: CLEAN, prob: 0.860 }
+        - { role_id: MULE, prob: 0.060 }
+        - { role_id: ORGANISER, prob: 0.010 }
+        - { role_id: SYNTHETIC_ID, prob: 0.050 }
+    OTHER:
+      LOW:
+        - { role_id: CLEAN, prob: 1.0 }
+      STANDARD:
+        - { role_id: CLEAN, prob: 1.0 }
+      ELEVATED:
+        - { role_id: CLEAN, prob: 1.0 }
+      HIGH:
+        - { role_id: CLEAN, prob: 1.0 }
+    RETAIL:
+      LOW:
+        - { role_id: ASSOCIATE, prob: 0.00025 }
+        - { role_id: CLEAN, prob: 0.9975 }
+        - { role_id: MULE, prob: 0.0012 }
+        - { role_id: ORGANISER, prob: 0.00005 }
+        - { role_id: SYNTHETIC_ID, prob: 0.0010 }
+      STANDARD:
+        - { role_id: ASSOCIATE, prob: 0.0016 }
+        - { role_id: CLEAN, prob: 0.9880 }
+        - { role_id: MULE, prob: 0.0050 }
+        - { role_id: ORGANISER, prob: 0.0004 }
+        - { role_id: SYNTHETIC_ID, prob: 0.0050 }
+      ELEVATED:
+        - { role_id: ASSOCIATE, prob: 0.008 }
+        - { role_id: CLEAN, prob: 0.940 }
+        - { role_id: MULE, prob: 0.030 }
+        - { role_id: ORGANISER, prob: 0.002 }
+        - { role_id: SYNTHETIC_ID, prob: 0.020 }
+      HIGH:
+        - { role_id: ASSOCIATE, prob: 0.020 }
+        - { role_id: CLEAN, prob: 0.800 }
+        - { role_id: MULE, prob: 0.100 }
+        - { role_id: ORGANISER, prob: 0.010 }
+        - { role_id: SYNTHETIC_ID, prob: 0.070 }
+  nudges:
+    - if_feature: "has_any_anonymizer_ip == true"
+      multiply_roles: { MULE: 1.35, ORGANISER: 1.20, CLEAN: 0.90 }
+      clip_multiplier: { min: 0.70, max: 1.60 }
+
+constraints:
+  fail_on_missing_rule: true
+  prob_dp: 12
+  max_role_share_caps:
+    ORGANISER: 0.0010
+    ASSOCIATE: 0.0100
+    MULE: 0.0300
+    SYNTHETIC_ID: 0.0200
+  min_nonclean_presence:
+    RETAIL: 0.003
+    BUSINESS: 0.002
+    OTHER: 0.000
+  require_role_vocab_minimum: true
+
+realism_targets:
+  clean_fraction_range_by_party_type:
+    RETAIL: { min: 0.93, max: 0.995 }
+    BUSINESS: { min: 0.95, max: 0.997 }
+    OTHER: { min: 0.995, max: 1.0 }
+  high_risk_tier_fraction_range_by_party_type:
+    RETAIL: { min: 0.002, max: 0.030 }
+    BUSINESS: { min: 0.001, max: 0.025 }
+    OTHER: { min: 0.000, max: 0.010 }
+  organiser_fraction_range_world: { min: 0.00002, max: 0.00080 }
+  mule_fraction_range_world: { min: 0.00100, max: 0.02500 }
+  synthetic_id_fraction_range_world: { min: 0.00050, max: 0.01500 }
+  risk_tier_entropy_min_by_party_type:
+    RETAIL: 1.0
+    BUSINESS: 0.8
+    OTHER: 0.0
+  nontrivial_region_variation:
+    required_if_n_regions_ge: 3
+    min_delta_in_high_risk_fraction: 0.003
+
+notes: >
+  Party role priors skew heavily clean with structured, low prevalence elevated roles.

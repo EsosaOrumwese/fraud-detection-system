@@ -1,0 +1,86 @@
+schema_version: 1
+policy_id: case_policy_6B
+policy_version: v1
+
+vocabulary:
+  case_event_type_vocab:
+    - CASE_OPENED
+    - DETECTION_EVENT_ATTACHED
+    - CUSTOMER_DISPUTE_FILED
+    - CHARGEBACK_INITIATED
+    - CHARGEBACK_DECISION
+    - CASE_CLOSED
+  case_key_type_vocab: [INSTRUMENT, ACCOUNT, PARTY, MERCHANT]
+  case_type_vocab: [DETECTION_CASE, DISPUTE_CASE, CHARGEBACK_CASE, REVIEW_CASE]
+  case_outcome_vocab: [CONFIRMED_FRAUD, CONFIRMED_LEGIT, BANK_LOSS, BANK_WIN, UNKNOWN]
+
+case_involvement:
+  case_trigger_labels: [BANK_CONFIRMED_FRAUD, CUSTOMER_DISPUTE_REJECTED, CHARGEBACK_WRITTEN_OFF]
+  predicate: "case_opened_ts_utc != null OR bank_view_label in [BANK_CONFIRMED_FRAUD,CUSTOMER_DISPUTE_REJECTED,CHARGEBACK_WRITTEN_OFF]"
+
+case_key_model:
+  precedence: [INSTRUMENT, ACCOUNT, PARTY, MERCHANT]
+  encoding: concat_v1
+
+case_grouping_model:
+  case_anchor_ts_source: MIN_NON_NULL
+  group_window_seconds: 259200
+  reopen_gap_seconds: 604800
+  order_by: [case_anchor_ts_utc, flow_id]
+
+case_id_model:
+  mode: hash64_v1
+  domain_tag: "mlr:6B.case_id.v1"
+  inputs: [manifest_fingerprint, seed, case_key_string, case_index_within_key]
+  output_format: id64_hex_le
+
+case_event_model:
+  event_order: [CASE_OPENED, DETECTION_EVENT_ATTACHED, CUSTOMER_DISPUTE_FILED, CHARGEBACK_INITIATED, CHARGEBACK_DECISION, CASE_CLOSED]
+  timestamp_sources:
+    CASE_OPENED: MIN_CASE_OPENED_TS
+    DETECTION_EVENT_ATTACHED: MIN_DETECTION_TS
+    CUSTOMER_DISPUTE_FILED: MIN_DISPUTE_TS
+    CHARGEBACK_INITIATED: MIN_CHARGEBACK_TS
+    CHARGEBACK_DECISION: CASE_CLOSED_TS
+    CASE_CLOSED: FROM_BANK_VIEW_IF_PRESENT_ELSE_DELAY_MODEL:CASE_CLOSE_DELAY_V1
+
+state_machine:
+  mode: v1_table
+  require_first_event: CASE_OPENED
+  require_last_event: CASE_CLOSED
+  max_once_events:
+    - CASE_OPENED
+    - CASE_CLOSED
+    - DETECTION_EVENT_ATTACHED
+    - CUSTOMER_DISPUTE_FILED
+    - CHARGEBACK_INITIATED
+    - CHARGEBACK_DECISION
+  allowed_transitions:
+    START: [CASE_OPENED]
+    CASE_OPENED: [DETECTION_EVENT_ATTACHED, CUSTOMER_DISPUTE_FILED, CHARGEBACK_INITIATED, CASE_CLOSED]
+    DETECTION_EVENT_ATTACHED: [CUSTOMER_DISPUTE_FILED, CHARGEBACK_INITIATED, CASE_CLOSED]
+    CUSTOMER_DISPUTE_FILED: [CHARGEBACK_INITIATED, CASE_CLOSED]
+    CHARGEBACK_INITIATED: [CHARGEBACK_DECISION, CASE_CLOSED]
+    CHARGEBACK_DECISION: [CASE_CLOSED]
+    CASE_CLOSED: []
+
+stochastic_splitting:
+  enabled: false
+  rng_family: rng_event_case_timeline
+  decision_id: case_split
+  max_cases_per_case_key: 3
+
+guardrails:
+  max_cases_per_seed_fingerprint: 100000
+  max_flows_per_case: 150
+  max_case_duration_seconds: 5184000
+  max_case_events_per_case: 12
+
+realism_targets:
+  case_involvement_fraction_range: { min: 0.0005, max: 0.20 }
+  mean_flows_per_case_range: { min: 1.1, max: 20.0 }
+  mean_case_duration_range_seconds: { min: 3600.0, max: 1728000.0 }
+  chargeback_case_fraction_range: { min: 0.0001, max: 0.05 }
+  multi_flow_case_fraction_range: { min: 0.02, max: 0.50 }
+  max_case_cluster_size_cap: 500
+notes: "Case grouping is deterministic by key and anchor time; no stochastic splitting in v1."

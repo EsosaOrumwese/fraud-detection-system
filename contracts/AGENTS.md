@@ -1,45 +1,49 @@
-# AGENTS.md — Contracts (Canonical Authority)
-_As of 2025-10-06_
+# AGENTS.md - Contracts (Model-Spec Mirror)
+_As of 2026-01-10_
 
-This folder is the **canonical, enterprise-wide authority** for contracts once files are materialized.  
-Contracts here are consumed by the Data Engine now and by other services later.
+This folder is a **generated mirror** of the authoritative contracts in `docs/model_spec`.
+Runtime code reads from `contracts/`, but **do not edit** these files by hand unless explicitly instructed.
 
-**Contracts include:**
-- JSON Schemas (structure & types)
-- Dataset Dictionary (dataset IDs, partitions, lineage fields, retention, licensing)
-- Policy bundles (numeric corridors, bounds, priors, etc.)
+**Authoritative sources (model_spec):**
+- `docs/model_spec/data-engine/layer-*/specs/contracts/<segment>/*.yaml`
+- These include dataset dictionaries, schemas, and artefact registries.
 
-> **Design source:** The intended shapes live in **docs** under  
-> `docs/model_spec/data-engine/specs/contracts/` (per sub-segment/state contract-specs).  
-> Use those specs to author/update files in this folder. You are free to group and arrange the folders as you like but ensure that each folder is still inline with the contracts started in `docs/model_spec/data-engine/specs/contracts/<subsegment>/...`
+**Generated here:**
+- Dataset dictionaries: `contracts/dataset_dictionary/l{layer}/seg_{SEG}/layer{layer}.{SEG}.yaml`
+- Schemas: `contracts/schemas/layer{layer}/schemas.{SEG}.yaml` and `contracts/schemas/layer{layer}/schemas.layer{layer}.yaml`
+- Artefact registries: `contracts/artefact_registry/artefact_registry_{SEG}.yaml`
+
+**Policies:**
+- Policy bundles are defined under `config/` per model_spec and are **not** mirrored into `contracts/`.
+- Treat any files under `contracts/_stale/policies/` as legacy unless the model_spec contracts explicitly require them.
 
 ---
 
 ## Status
-- **UNLOCKED** and **in-progress** for Layer-1 → Segment **1A** → States **S0–S4**.
-- This folder may be **empty or partial** until specs are implemented here.
+- Contracts mirror is **active** and should be kept in sync with model_spec.
+- Legacy files may exist until explicit cleanup is approved.
 
 ---
 
 ## Reading order (for any change)
-1. Read the relevant **contract-spec** under  
-   `docs/model_spec/data-engine/specs/contracts/<subsegment>/...`
-2. Read the matching state’s **expanded** + **pseudocode** docs under  
-   `docs/model_spec/data-engine/specs/state-flow/<subsegment>/`
-3. Materialize or adjust **this folder** accordingly (schemas / dataset dictionary / policies).
+1. Read the relevant **contract-spec** under
+   `docs/model_spec/data-engine/layer-*/specs/contracts/<segment>/...`
+2. Read the matching state's **expanded** docs under
+   `docs/model_spec/data-engine/layer-*/specs/state-flow/<segment>/...`
+3. Update model_spec and re-sync `contracts/` using `make contracts-sync`.
 
 ---
 
-> **Naming guidance (example only):** mirror Layer/Segment/State slugs (e.g., `schemas/l1/seg_1A/...`).  
-> Use the convention that best matches your engine and specs.
+> **Naming guidance:** keep the mirror mapping stable so runtime paths are deterministic.
 
 ---
 
-## Do / Don’t
-- I'll let you use best practices for this.
+## Do / Don't
+- Do use `make contracts-sync` after editing model_spec contracts.
+- Do not hand-edit mirrored files in `contracts/` unless explicitly directed.
 
 ---
 
 ## Packaging & snapshots (informational)
-- The engine may embed a **read-only snapshot** of these contracts for offline/repro use.  
-  Source of truth remains this folder; embedded copies should match a pinned digest/version.
+- The engine may embed a **read-only snapshot** of this mirror for offline/repro use.
+  Source of truth remains `docs/model_spec`; embedded copies should match a pinned digest/version.

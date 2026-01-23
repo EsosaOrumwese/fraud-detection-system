@@ -1,0 +1,69 @@
+policy_id: scenario_overlay_policy_5A
+version: v1
+
+event_types:
+  HOLIDAY:
+    default_shape_kind: constant
+    default_amplitude: 0.85
+    amplitude_bounds: [0.50, 1.05]
+    allowed_scope_kinds: [country, tzid, demand_class]
+  PAYDAY:
+    default_shape_kind: ramp
+    default_amplitude: 1.20
+    amplitude_bounds: [1.00, 1.60]
+    allowed_scope_kinds: [country, demand_class]
+  CAMPAIGN:
+    default_shape_kind: ramp
+    default_amplitude: 1.35
+    amplitude_bounds: [1.00, 2.50]
+    allowed_scope_kinds: [global, country, demand_class, merchant]
+  OUTAGE:
+    default_shape_kind: constant
+    default_amplitude: 0.05
+    amplitude_bounds: [0.00, 0.50]
+    allowed_scope_kinds: [merchant, tzid]
+  STRESS:
+    default_shape_kind: constant
+    default_amplitude: 1.60
+    amplitude_bounds: [1.00, 3.00]
+    allowed_scope_kinds: [global, country]
+
+scope_rules:
+  allowed_scope_kinds: [global, country, tzid, demand_class, merchant]
+  predicate_schema:
+    global: true
+    country_iso: "US"
+    tzid: "Etc/UTC"
+    demand_class: "example_class"
+    merchant_id: 1
+  rules:
+    require_at_least_one_predicate: true
+    global_cannot_combine: true
+    merchant_scope_is_exclusive: true
+
+combination:
+  mode: multiplicative_product_v1
+  min_factor: 0.0
+  max_factor: 5.0
+  apply_clamp_after_product: true
+
+shape_kinds:
+  constant:
+    required_params: [amplitude]
+    amplitude_min: 0.0
+    amplitude_max: 5.0
+  ramp:
+    required_params: [amplitude_peak, ramp_in_buckets, ramp_out_buckets]
+    amplitude_peak_min: 0.0
+    amplitude_peak_max: 5.0
+    ramp_in_buckets_max: 48
+    ramp_out_buckets_max: 48
+
+calendar_validation:
+  require_event_type_in_vocab: true
+  require_scope_valid: true
+  require_time_within_horizon: true
+  disallow_empty_scope: true
+  disallow_unknown_fields: true
+  max_events_per_scenario: 5000
+  max_overlap_events_per_row_bucket: 10

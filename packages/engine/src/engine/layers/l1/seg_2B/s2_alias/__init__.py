@@ -1,10 +1,7 @@
-"""Public exports for Segment 2B S2 alias generation."""
+"""Compatibility shim for legacy s2_alias imports."""
 
-from .l2.runner import (
+from engine.layers.l1.seg_2B.s2_alias_tables.runner import (  # noqa: F401
     S2AliasInputs,
     S2AliasResult,
     S2AliasRunner,
 )
-
-__all__ = ["S2AliasInputs", "S2AliasResult", "S2AliasRunner"]
-

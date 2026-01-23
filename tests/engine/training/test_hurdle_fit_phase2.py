@@ -23,19 +23,19 @@ def _latest_partition(root: Path) -> Path:
 
 def _sources() -> MerchantUniverseSources:
     merchant_root = Path("reference/layer1/transaction_schema_merchant_ids")
-    iso_root = Path("reference/layer1/iso_canonical")
+    iso_root = Path("reference/iso/iso3166_canonical")
     gdp_root = Path("reference/economic/world_bank_gdp_per_capita")
     bucket_root = Path("reference/economic/gdp_bucket_map")
     return MerchantUniverseSources(
         merchant_table=_latest_partition(merchant_root) / "transaction_schema_merchant_ids.parquet",
-        iso_table=_latest_partition(iso_root) / "iso_canonical.parquet",
+        iso_table=_latest_partition(iso_root) / "iso3166.parquet",
         gdp_table=_latest_partition(gdp_root) / "gdp.parquet",
         bucket_table=_latest_partition(bucket_root) / "gdp_bucket_map.parquet",
     )
 
 
 def test_fit_hurdle_coefficients(tmp_path: Path) -> None:
-    config_path = Path("config/models/hurdle/hurdle_simulation.priors.yaml")
+    config_path = Path("config/layer1/1A/models/hurdle/hurdle_simulation.priors.yaml")
     sources = _sources()
     timestamp = datetime(2025, 10, 9, 12, 0, 0, tzinfo=timezone.utc)
     artefacts = materialise_simulated_corpus(

@@ -1,112 +1,64 @@
-"""CLI entry point for Segment 1B S2 (Tile Weights)."""
+"""CLI for Segment 1B S2 tile weights."""
 
 from __future__ import annotations
 
 import argparse
-import sys
+import os
 from pathlib import Path
 
-from engine.layers.l1.seg_1B.s2_tile_weights import (
-    RunnerConfig,
-    S2RunResult,
-    S2TileWeightsRunner,
-    S2TileWeightsValidator,
-    ValidatorConfig,
-)
-from engine.layers.l1.seg_1B.shared.dictionary import load_dictionary
+from engine.core.config import EngineConfig
+from engine.core.logging import get_logger
+from engine.layers.l1.seg_1B.s2_tile_weights.runner import run_s2
 
 
-def _load_dictionary(path: str | None):
-    if path is None:
-        return None
-    return load_dictionary(Path(path))
+def build_parser() -> argparse.ArgumentParser:
+    parser = argparse.ArgumentParser(description="Run Segment 1B S2 tile weights.")
+    parser.add_argument("--contracts-layout", default=os.getenv("ENGINE_CONTRACTS_LAYOUT", "model_spec"))
+    parser.add_argument("--contracts-root", default=os.getenv("ENGINE_CONTRACTS_ROOT"))
+    parser.add_argument("--runs-root", default=os.getenv("ENGINE_RUNS_ROOT"))
+    parser.add_argument(
+        "--external-root",
+        action="append",
+        default=os.getenv("ENGINE_EXTERNAL_ROOTS", "").split(";") if os.getenv("ENGINE_EXTERNAL_ROOTS") else [],
+        help="External roots for input resolution (repeatable or ';' delimited).",
+    )
+    parser.add_argument("--run-id", default=None, help="Select a run_id (defaults to latest run_receipt.json).")
+    return parser
 
 
-def _materialise(args: argparse.Namespace) -> S2RunResult:
-    dictionary = _load_dictionary(args.dictionary)
-    runner = S2TileWeightsRunner()
-    prepared = runner.prepare(
-        RunnerConfig(
-            data_root=args.data_root,
-            parameter_hash=args.parameter_hash,
-            basis=args.basis,
-            dp=args.dp,
-            dictionary=dictionary,
+def main() -> None:
+    logger = get_logger("engine.layers.l1.seg_1B.s2_tile_weights.cli")
+    args = build_parser().parse_args()
+    cfg = EngineConfig.default()
+    runs_root = Path(args.runs_root) if args.runs_root else cfg.runs_root
+    if args.contracts_root:
+        cfg = EngineConfig(
+            repo_root=cfg.repo_root,
+            contracts_root=Path(args.contracts_root),
+            contracts_layout=args.contracts_layout,
+            runs_root=runs_root,
+            external_roots=cfg.external_roots,
         )
-    )
-    masses = runner.compute_masses(prepared)
-    runner.measure_baselines(prepared, measure_raster=prepared.governed.basis == "population")
-    quantised = runner.quantise(prepared, masses)
-    return runner.materialise(prepared, quantised)
-
-
-def main(argv: list[str] | None = None) -> int:
-    parser = argparse.ArgumentParser(description="Segment 1B S2 Tile Weights utilities")
-    subparsers = parser.add_subparsers(dest="command", required=True)
-
-    run_parser = subparsers.add_parser("run", help="Materialise tile_weights for a parameter hash")
-    run_parser.add_argument("--data-root", type=Path, default=Path("."), help="Root directory containing sealed inputs")
-    run_parser.add_argument("--parameter-hash", required=True, help="Parameter hash identifying the partition")
-    run_parser.add_argument(
-        "--basis",
-        choices=["uniform", "area_m2", "population"],
-        default="uniform",
-        help="Governed mass basis used to compute tile weights",
-    )
-    run_parser.add_argument("--dp", type=int, default=2, help="Fixed-decimal precision for integerisation")
-    run_parser.add_argument(
-        "--dictionary",
-        type=str,
-        default=None,
-        help="Optional path to an alternate Segment 1B dictionary YAML",
-    )
-
-    validate_parser = subparsers.add_parser("validate", help="Validate a tile_weights partition")
-    validate_parser.add_argument("--data-root", type=Path, default=Path("."), help="Root directory containing outputs")
-    validate_parser.add_argument("--parameter-hash", required=True, help="Parameter hash identifying the partition")
-    validate_parser.add_argument("--basis", type=str, default=None, help="Override basis when run report absent")
-    validate_parser.add_argument("--dp", type=int, default=None, help="Override dp when run report absent")
-    validate_parser.add_argument(
-        "--run-report",
-        type=Path,
-        default=None,
-        help="Explicit path to an existing S2 run report",
-    )
-    validate_parser.add_argument(
-        "--dictionary",
-        type=str,
-        default=None,
-        help="Optional path to an alternate Segment 1B dictionary YAML",
-    )
-
-    args = parser.parse_args(argv)
-
-    if args.command == "run":
-        result = _materialise(args)
-        print(f"tile_weights written to: {result.tile_weights_path}")
-        print(f"run report: {result.report_path}")
-        print(f"country summaries: {result.country_summary_path}")
-        return 0
-
-    if args.command == "validate":
-        dictionary = _load_dictionary(args.dictionary)
-        validator = S2TileWeightsValidator()
-        validator.validate(
-            ValidatorConfig(
-                data_root=args.data_root,
-                parameter_hash=args.parameter_hash,
-                dictionary=dictionary,
-                run_report_path=args.run_report,
-                basis=args.basis,
-                dp=args.dp,
-            )
+    else:
+        cfg = EngineConfig(
+            repo_root=cfg.repo_root,
+            contracts_root=cfg.repo_root,
+            contracts_layout=args.contracts_layout,
+            runs_root=runs_root,
+            external_roots=cfg.external_roots,
         )
-        print("Validation succeeded")
-        return 0
-
-    parser.error("Unknown command")
-    return 1
+    external_roots = [Path(root) for root in args.external_root if root]
+    if external_roots:
+        cfg = cfg.with_external_roots(external_roots)
+    result = run_s2(cfg, run_id=args.run_id)
+    logger.info(
+        "S2 1B complete: run_id=%s parameter_hash=%s tile_weights=%s run_report=%s",
+        result.run_id,
+        result.parameter_hash,
+        result.tile_weights_path,
+        result.run_report_path,
+    )
 
 
 if __name__ == "__main__":
-    sys.exit(main())
+    main()

@@ -1,0 +1,186 @@
+schema_version: 1
+policy_id: fraud_overlay_policy_6B
+policy_version: v1
+
+vocabulary:
+  tactic_vocab:
+    - AMOUNT_UPSHIFT
+    - IP_SWAP_ANON
+    - DEVICE_SWAP_SHARED
+    - SITE_SHIFT
+    - BURST_TIMING
+    - SUPPRESS_CLEARING
+  mutation_axis_vocab: [AMOUNT, IDENTITY, ROUTING, TIMING, STRUCTURE]
+  event_type_vocab: [AUTH_REQUEST, AUTH_RESPONSE, STEP_UP_CHALLENGE, STEP_UP_COMPLETE, CLEARING, REFUND, REVERSAL]
+  flow_type_vocab: [CARD_AUTH_CLEAR, CARD_AUTH_DECLINE, CARD_AUTH_STEPUP_CLEAR, BANK_TRANSFER, ATM_WITHDRAWAL]
+  channel_group_vocab: [ECOM, POS, ATM, BANK_RAIL, HYBRID]
+  routing_anomaly_vocab: [UNUSUAL_SITE, CROSS_BORDER_MISMATCH, VIRTUAL_EDGE_SHIFT]
+  identity_swap_vocab: [DEVICE_SWAP, IP_SWAP, INSTRUMENT_SWAP, ACCOUNT_SWAP]
+
+tactics:
+  - tactic_id: AMOUNT_UPSHIFT
+    axis: AMOUNT
+    description: "Increase attempted and settled amounts by a bounded factor."
+    allowed_target_kind: FLOW
+    allowed_channel_groups: [ECOM, POS, HYBRID]
+    allowed_flow_types: [CARD_AUTH_CLEAR, CARD_AUTH_STEPUP_CLEAR]
+    requires: { instrument_present: true, device_present: true, ip_present: true, merchant_present: true }
+    rng_decision_points: [SELECT_TACTIC, APPLY_MUTATION_PARAM]
+    mutation_spec:
+      op: MULTIPLY_AMOUNT
+      apply_to_event_types: [AUTH_REQUEST, CLEARING]
+      sync_auth_and_clearing: true
+      factor:
+        dist_id: LOGNORMAL_V1
+        mu_log: 0.15
+        sigma_log: 0.30
+        clip: { min: 1.05, max: 3.00 }
+
+  - tactic_id: IP_SWAP_ANON
+    axis: IDENTITY
+    description: "Swap observed IP to an anonymizer-like IP for targeted flows."
+    allowed_target_kind: FLOW
+    allowed_channel_groups: [ECOM, POS, HYBRID]
+    allowed_flow_types: []
+    requires: { instrument_present: true, device_present: true, ip_present: true, merchant_present: true }
+    rng_decision_points: [SELECT_TACTIC, SELECT_SWAP_CANDIDATE]
+    mutation_spec:
+      op: IP_SWAP
+      candidate_pool: ANONYMIZER_PROXY
+      preserve_device: true
+
+  - tactic_id: DEVICE_SWAP_SHARED
+    axis: IDENTITY
+    description: "Swap device to a shared/high-risk device to simulate credential reuse."
+    allowed_target_kind: FLOW
+    allowed_channel_groups: [ECOM, POS, HYBRID]
+    allowed_flow_types: []
+    requires: { instrument_present: true, device_present: true, ip_present: true, merchant_present: true }
+    rng_decision_points: [SELECT_TACTIC, SELECT_SWAP_CANDIDATE]
+    mutation_spec:
+      op: DEVICE_SWAP
+      candidate_pool: HIGH_RISK_DEVICE
+      preserve_ip: false
+
+  - tactic_id: SITE_SHIFT
+    axis: ROUTING
+    description: "Route to a plausible but unusual site within the same country."
+    allowed_target_kind: FLOW
+    allowed_channel_groups: [ECOM, POS, HYBRID]
+    allowed_flow_types: [CARD_AUTH_CLEAR, CARD_AUTH_STEPUP_CLEAR]
+    requires: { instrument_present: true, device_present: true, ip_present: true, merchant_present: true }
+    rng_decision_points: [SELECT_TACTIC, SELECT_ROUTING_ANOMALY]
+    mutation_spec:
+      op: SITE_SHIFT
+      candidate_rule: SAME_COUNTRY_RANDOM_SITE
+      anomaly_kind: UNUSUAL_SITE
+
+  - tactic_id: BURST_TIMING
+    axis: TIMING
+    description: "Compress inter-event gaps to produce rapid burst behavior."
+    allowed_target_kind: FLOW
+    allowed_channel_groups: [ECOM, POS, HYBRID]
+    allowed_flow_types: [CARD_AUTH_CLEAR, CARD_AUTH_STEPUP_CLEAR]
+    requires: { instrument_present: true, device_present: true, ip_present: true, merchant_present: true }
+    rng_decision_points: [SELECT_TACTIC, APPLY_MUTATION_PARAM]
+    mutation_spec:
+      op: BURST
+      apply_to_transitions: [delta_auth_response_seconds, delta_auth_to_clear_seconds]
+      multiplier:
+        dist_id: LOGNORMAL_V1
+        mu_log: -0.60
+        sigma_log: 0.25
+        clip: { min: 0.20, max: 0.70 }
+
+  - tactic_id: SUPPRESS_CLEARING
+    axis: STRUCTURE
+    description: "Suppress clearing to simulate incomplete settlement."
+    allowed_target_kind: FLOW
+    allowed_channel_groups: [ECOM, POS, HYBRID]
+    allowed_flow_types: [CARD_AUTH_CLEAR]
+    requires: { instrument_present: true, device_present: true, ip_present: true, merchant_present: true }
+    rng_decision_points: [SELECT_TACTIC, APPLY_MUTATION_PARAM]
+    mutation_spec:
+      op: SUPPRESS_EVENT
+      apply_to_event_types: [CLEARING]
+      max_suppressions: 1
+
+campaign_to_tactics:
+  - campaign_type: CARD_TESTING
+    selection_mode: MIXTURE_V1
+    allowed_tactics:
+      - { tactic_id: IP_SWAP_ANON, weight: 0.50 }
+      - { tactic_id: BURST_TIMING, weight: 0.30 }
+      - { tactic_id: AMOUNT_UPSHIFT, weight: 0.20 }
+
+  - campaign_type: ATO
+    selection_mode: MIXTURE_V1
+    allowed_tactics:
+      - { tactic_id: DEVICE_SWAP_SHARED, weight: 0.45 }
+      - { tactic_id: IP_SWAP_ANON, weight: 0.30 }
+      - { tactic_id: AMOUNT_UPSHIFT, weight: 0.25 }
+
+  - campaign_type: REFUND_ABUSE
+    selection_mode: MIXTURE_V1
+    allowed_tactics:
+      - { tactic_id: AMOUNT_UPSHIFT, weight: 0.60 }
+      - { tactic_id: SUPPRESS_CLEARING, weight: 0.40 }
+
+  - campaign_type: MERCHANT_COLLUSION
+    selection_mode: MIXTURE_V1
+    allowed_tactics:
+      - { tactic_id: SITE_SHIFT, weight: 0.55 }
+      - { tactic_id: AMOUNT_UPSHIFT, weight: 0.45 }
+
+  - campaign_type: PROMO_FRAUD
+    selection_mode: MIXTURE_V1
+    allowed_tactics:
+      - { tactic_id: BURST_TIMING, weight: 0.55 }
+      - { tactic_id: AMOUNT_UPSHIFT, weight: 0.45 }
+
+  - campaign_type: BONUS_ABUSE
+    selection_mode: MIXTURE_V1
+    allowed_tactics:
+      - { tactic_id: AMOUNT_UPSHIFT, weight: 0.55 }
+      - { tactic_id: BURST_TIMING, weight: 0.45 }
+
+mutation_rules:
+  axis_defaults:
+    AMOUNT: { rng_family: rng_event_overlay_mutation }
+    IDENTITY: { rng_family: rng_event_overlay_mutation }
+    ROUTING: { rng_family: rng_event_overlay_mutation }
+    TIMING: { rng_family: rng_event_overlay_mutation }
+    STRUCTURE: { rng_family: rng_event_overlay_mutation }
+
+constraints:
+  fail_on_missing_tactic: true
+  fail_on_incompatible_target: true
+  forbid_out_of_universe_routing: true
+  forbid_schema_invariant_breaks: true
+  forbid_time_travel: true
+  forbid_amount_sign_violations: true
+  forbid_unbounded_loops: true
+
+provenance:
+  require_campaign_id: true
+  require_tactic_id: true
+  require_mutation_rule_id: true
+  require_rng_family_and_decision_id: true
+
+guardrails:
+  max_targets_total_per_seed_scenario: 200000
+  max_mutations_per_flow: 2
+  max_new_flows_created_per_seed_scenario: 5000
+  max_event_inserts_per_flow: 1
+  max_event_suppressions_per_flow: 1
+  max_amount_multiplier: 4.0
+  max_time_multiplier: 5.0
+
+realism_targets:
+  mutation_axis_coverage_min: 3
+  amount_shift_factor_range: { min: 1.05, max: 3.5 }
+  routing_anomaly_fraction_range: { min: 0.0005, max: 0.05 }
+  identity_swap_fraction_range: { min: 0.0005, max: 0.05 }
+  time_anomaly_fraction_range: { min: 0.0005, max: 0.05 }
+  structure_anomaly_fraction_range: { min: 0.0001, max: 0.02 }
+notes: "Overlay tactics are bounded and mapped to campaigns; RNG decisions are budgeted in fraud_rng_policy_6B."

@@ -43,7 +43,7 @@ datasets:
     schema_ref: schemas.2B.yaml#/validation/sealed_inputs_v1
 policies:
   - id: day_effect_policy_v1
-    path: contracts/policies/l1/seg_2B/day_effect_policy_v1.json
+    path: config/layer1/2B/policy/day_effect_policy_v1.json
     schema_ref: schemas.2B.yaml#/policy/day_effect_policy_v1
 """
     dictionary_path = path / "dictionary.yaml"
@@ -103,7 +103,7 @@ def _write_policy(base: Path) -> None:
         "base_counter_hi": 0,
         "base_counter_lo": 0,
     }
-    dest = base / "contracts/policies/l1/seg_2B/day_effect_policy_v1.json"
+    dest = base / "config/layer1/2B/policy/day_effect_policy_v1.json"
     dest.parent.mkdir(parents=True, exist_ok=True)
     dest.write_text(json.dumps(payload, indent=2), encoding="utf-8")
     return dest
@@ -130,7 +130,7 @@ def _write_sealed_inventory(
             "asset_id": "day_effect_policy_v1",
             "version_tag": "2025.11",
             "sha256_hex": _sealed_digest(policy_path),
-            "path": "contracts/policies/l1/seg_2B/day_effect_policy_v1.json",
+            "path": "config/layer1/2B/policy/day_effect_policy_v1.json",
             "partition": [],
             "schema_ref": "schemas.2B.yaml#/policy/day_effect_policy_v1",
         },

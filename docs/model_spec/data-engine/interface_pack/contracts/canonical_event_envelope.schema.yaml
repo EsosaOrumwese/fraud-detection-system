@@ -1,0 +1,126 @@
+# contracts/canonical_event_envelope.schema.yaml
+version: "0.1.0"
+$id: canonical_event_envelope.schema.yaml
+$schema: https://json-schema.org/draft/2020-12/schema
+title: Canonical Event Envelope
+description: >
+  Minimal, black-box event header used at the platform boundary (Ingestion Gate / Event Bus).
+  Payload fields are intentionally unconstrained here; this schema validates only the envelope
+  and isolates payload data under `payload` to prevent collisions with envelope fields.
+
+$defs:
+  hex64:
+    $ref: "../layer-1/specs/contracts/1A/schemas.layer1.yaml#/$defs/hex64"
+  hex32:
+    $ref: "../layer-1/specs/contracts/1A/schemas.layer1.yaml#/$defs/hex32"
+  uint64:
+    $ref: "../layer-1/specs/contracts/1A/schemas.layer1.yaml#/$defs/uint64"
+  rfc3339_micros:
+    $ref: "../layer-1/specs/contracts/1A/schemas.layer1.yaml#/$defs/rfc3339_micros"
+
+  scenario_id:
+    description: Scenario identifier (used where scenario overlays apply).
+    anyOf:
+      - type: string
+        minLength: 1
+        maxLength: 256
+      - type: integer
+        minimum: 0
+
+  event_id:
+    description: >
+      Stable event identifier for idempotency/deduplication at ingest/bus boundaries.
+      May be a UUID, a hex digest, or another stable identifier produced/assigned by the platform.
+    anyOf:
+      - type: string
+        format: uuid
+      - $ref: "#/$defs/hex64"
+      - $ref: "#/$defs/hex32"
+      - type: string
+        minLength: 1
+        maxLength: 256
+
+type: object
+additionalProperties: false
+
+required:
+  - event_id
+  - event_type
+  - ts_utc
+  - manifest_fingerprint
+
+properties:
+  # ---- core identity ----
+  manifest_fingerprint:
+    description: World identity for the event.
+    $ref: "#/$defs/hex64"
+
+  parameter_hash:
+    description: Governed parameter bundle identity (present for most run-scoped events).
+    $ref: "#/$defs/hex64"
+
+  seed:
+    description: Run realisation seed (present for RNG-consuming / run-scoped events).
+    $ref: "#/$defs/uint64"
+
+  scenario_id:
+    description: Scenario binding for the event (used by scenario overlays).
+    $ref: "#/$defs/scenario_id"
+
+  run_id:
+    description: >
+      Correlation identifier for the execution run. May partition logs/events but is not required
+      for all event classes.
+    $ref: "#/$defs/hex32"
+
+  # ---- time + typing ----
+  ts_utc:
+    description: Event time in UTC (RFC-3339 with exactly 6 fractional digits).
+    $ref: "#/$defs/rfc3339_micros"
+
+  emitted_at_utc:
+    description: Optional emission timestamp in UTC (RFC-3339 micros), if distinct from ts_utc.
+    $ref: "#/$defs/rfc3339_micros"
+
+  event_type:
+    description: Event type name (topic/routing key), e.g. "arrival", "rng_event", "label".
+    type: string
+    minLength: 1
+    maxLength: 256
+
+  schema_version:
+    description: Schema version for the payload (if the event type is versioned).
+    type: string
+    minLength: 1
+    maxLength: 64
+
+  # ---- idempotency + tracing ----
+  event_id:
+    $ref: "#/$defs/event_id"
+
+  trace_id:
+    description: Optional distributed trace identifier.
+    type: string
+    minLength: 1
+    maxLength: 128
+
+  span_id:
+    description: Optional distributed trace span identifier.
+    type: string
+    minLength: 1
+    maxLength: 128
+
+  parent_event_id:
+    description: Optional causal parent event id.
+    $ref: "#/$defs/event_id"
+
+  producer:
+    description: Producer identifier (useful when multiple producers share the bus).
+    type: string
+    minLength: 1
+    maxLength: 128
+
+  payload:
+    description: Optional event-specific payload (shape is producer-defined).
+    type: object
+    additionalProperties: true

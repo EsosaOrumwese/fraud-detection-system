@@ -54,28 +54,23 @@ reference_data:
     schema_ref: schemas.1B.yaml#/egress/site_locations
 policies:
   - id: route_rng_policy_v1
-    path: contracts/policies/l1/seg_2B/route_rng_policy_v1.json
+    path: config/layer1/2B/policy/route_rng_policy_v1.json
     schema_ref: schemas.2B.yaml#/policy/route_rng_policy_v1
     partitioning: []
     version: "2025.11"
   - id: alias_layout_policy_v1
-    path: contracts/policies/l1/seg_2B/alias_layout_policy_v1.json
+    path: config/layer1/2B/policy/alias_layout_policy_v1.json
     schema_ref: schemas.2B.yaml#/policy/alias_layout_policy_v1
     partitioning: []
     version: "2025.11"
   - id: day_effect_policy_v1
-    path: contracts/policies/l1/seg_2B/day_effect_policy_v1.json
+    path: config/layer1/2B/policy/day_effect_policy_v1.json
     schema_ref: schemas.2B.yaml#/policy/day_effect_policy_v1
     partitioning: []
     version: "2025.11"
   - id: virtual_edge_policy_v1
-    path: contracts/policies/l1/seg_2B/virtual_edge_policy_v1.json
+    path: config/layer1/2B/policy/virtual_edge_policy_v1.json
     schema_ref: schemas.2B.yaml#/policy/virtual_edge_policy_v1
-    partitioning: []
-    version: "2025.11"
-  - id: virtual_rules_policy_v1
-    path: contracts/policies/l1/seg_2B/virtual_rules_policy_v1.json
-    schema_ref: schemas.2B.yaml#/policy/virtual_rules_policy_v1
     partitioning: []
     version: "2025.11"
 datasets:

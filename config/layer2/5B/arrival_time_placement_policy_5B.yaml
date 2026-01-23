@@ -1,0 +1,19 @@
+policy_id: arrival_time_placement_policy_5B
+version: v1.0.1
+placement_kind: uniform_within_bucket_v1
+interval_semantics: "[start,end)"
+timestamp_precision: microsecond
+draws_per_arrival: 1
+u_mapping:
+  uniform_law: open_interval_u64
+  u_from_u64: "(x+0.5)/2^64"
+offset_quantisation:
+  unit: microsecond
+  law: floor(u * D_seconds * 1_000_000)
+  clamp_end_exclusive: true
+ordering:
+  sort_by: [timestamp_utc, arrival_seq]
+  stable: true
+guardrails:
+  max_arrivals_per_bucket: 50000
+  max_bucket_duration_seconds: 86400

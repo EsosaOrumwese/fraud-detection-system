@@ -1,0 +1,29 @@
+semver: "1.0.0"
+version: "2024-12-31"
+
+dp: 8
+
+defaults:
+  blend_weight: 0.60
+  alpha: 0.50
+  obs_floor: 1000
+  min_share: 0.0
+  shrink_exponent: 2.0
+
+per_currency:
+  EUR:
+    blend_weight: 0.75
+    alpha: 0.30
+    obs_floor: 2000
+    shrink_exponent: 2.0
+  XOF:
+    blend_weight: 0.70
+    alpha: 0.35
+  XAF:
+    blend_weight: 0.70
+    alpha: 0.35
+  XCD:
+    blend_weight: 0.70
+    alpha: 0.35
+
+overrides: {}

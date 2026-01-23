@@ -1,0 +1,65 @@
+prior_id: population_priors_6A
+version: v1.0.0
+population_unit: parties
+geo_unit: country_iso
+
+world_size_model:
+  mode: arrivals_based_v1
+  active_fraction: 0.42
+  arrivals_per_active_party_per_week: 6.5
+  N_world_min: 150000
+  N_world_max: 30000000
+  seed_scale_lognormal_sigma: 0.10
+  seed_scale_clip: { min: 0.80, max: 1.25 }
+
+country_weight_model:
+  use_outlets: true
+  use_arrivals: true
+  outlet_offset: 40.0
+  outlet_exponent: 0.85
+  arrival_offset: 800.0
+  arrival_exponent: 0.18
+  country_weight_floor: 1.0
+  max_country_share_cap: 0.70
+
+party_type_model:
+  party_types: [BUSINESS, OTHER, RETAIL]
+  base_shares:
+    RETAIL: 0.962
+    BUSINESS: 0.034
+    OTHER: 0.004
+  country_adjustment:
+    mode: mass_tilt_v1
+    business_tilt_strength: 0.07
+    other_tilt_strength: 0.015
+    tilt_reference_share: 0.02
+
+constraints:
+  min_parties_per_country: 4000
+  min_parties_per_party_type_in_country:
+    RETAIL: 3200
+    BUSINESS: 220
+    OTHER: 40
+  min_parties_per_cell: 0
+  allow_zero_other_in_small_countries: true
+
+realism_targets:
+  active_fraction_range: { min: 0.25, max: 0.65 }
+  arrivals_per_active_party_per_week_range: { min: 2.0, max: 18.0 }
+  parties_per_outlet_range: { min: 80.0, max: 2500.0 }
+  business_share_range: { min: 0.015, max: 0.07 }
+  country_share_gini_min: 0.22
+  max_country_share_range: { min: 0.08, max: 0.75 }
+
+inputs_allowed:
+  hints:
+    - OUTLET_COUNTS_BY_COUNTRY
+    - EXPECTED_ARRIVALS_BY_COUNTRY
+    - ZONE_RICHNESS_BY_COUNTRY
+  required_hints:
+    - OUTLET_COUNTS_BY_COUNTRY
+    - EXPECTED_ARRIVALS_BY_COUNTRY
+
+notes: >
+  World size is anchored to expected arrivals and a moderate active fraction.
+  Country weights blend outlet counts and expected arrivals to avoid uniformity.

@@ -1,0 +1,782 @@
+version: '1.0'
+$id: schemas.3B.yaml
+$schema: https://json-schema.org/draft/2020-12/schema
+description: "Layer-1 · Segment 3B (Virtual Merchants & CDN) — schema pack."
+
+$defs:
+  hex64:
+    $ref: 'schemas.layer1.yaml#/$defs/hex64'
+  uint64:
+    $ref: 'schemas.layer1.yaml#/$defs/uint64'
+  iso2:
+    $ref: 'schemas.layer1.yaml#/$defs/iso2'
+  rfc3339_micros:
+    $ref: 'schemas.layer1.yaml#/$defs/rfc3339_micros'
+  iana_tzid:
+    $ref: 'schemas.layer1.yaml#/$defs/iana_tzid'
+  id64:
+    $ref: 'schemas.layer1.yaml#/$defs/id64'
+  u01:
+    $ref: 'schemas.layer1.yaml#/$defs/u01'
+  pct01:
+    $ref: 'schemas.layer1.yaml#/$defs/pct01'
+  stream_label:
+    $ref: 'schemas.layer1.yaml#/$defs/stream_label'
+
+reference:
+  virtual_settlement_coords_v1:
+    type: table
+    description: "Pinned settlement coordinate inputs keyed by merchant."
+    primary_key: [merchant_id]
+    partition_keys: []
+    sort_keys: [merchant_id]
+    columns_strict: true
+    columns:
+      - name: merchant_id
+        $ref: '#/$defs/id64'
+        nullable: false
+      - name: lat_deg
+        type: number
+        nullable: false
+        minimum: -90
+        maximum: 90
+      - name: lon_deg
+        type: number
+        nullable: false
+        exclusiveMinimum: -180
+        maximum: 180
+      - name: evidence_url
+        type: string
+        nullable: true
+      - name: coord_source
+        type: string
+        nullable: true
+      - name: tzid_settlement
+        $ref: '#/$defs/iana_tzid'
+        nullable: true
+      - name: notes
+        type: string
+        nullable: true
+
+  pelias_cached_bundle_v1:
+    type: object
+    description: "Metadata contract for offline Pelias SQLite bundle."
+    additionalProperties: false
+    required: [version, sha256_hex]
+    properties:
+      version:    { type: string }
+      sha256_hex: { $ref: '#/$defs/hex64' }
+      tile_span:  { type: string }
+      licence:    { type: string }
+      notes:      { type: string }
+
+  pelias_cached_sqlite_v1:
+    type: object
+    description: "SQLite bundle file reference (binary; schema intentionally permissive)."
+    additionalProperties: true
+
+  cdn_weights_ext_yaml_v1:
+    type: object
+    additionalProperties: false
+    description: "Raw external CDN weights YAML (versioned country weights)."
+    required: [version, countries]
+    properties:
+      version: { type: string, minLength: 1 }
+      countries:
+        type: array
+        minItems: 1
+        items:
+          type: object
+          additionalProperties: false
+          required: [country_iso, weight]
+          properties:
+            country_iso: { $ref: '#/$defs/iso2' }
+            weight: { type: number, exclusiveMinimum: 0.0 }
+
+validation:
+  s0_gate_receipt_3B:
+    type: object
+    additionalProperties: false
+    required:
+      - version
+      - manifest_fingerprint
+      - parameter_hash
+      - seed
+      - verified_at_utc
+      - upstream_gates
+      - sealed_policy_set
+      - digests
+    properties:
+      version: { type: string }
+      manifest_fingerprint: { $ref: '#/$defs/hex64' }
+      parameter_hash: { $ref: '#/$defs/hex64' }
+      seed: { $ref: '#/$defs/uint64' }
+      verified_at_utc: { $ref: '#/$defs/rfc3339_micros' }
+      upstream_gates:
+        type: object
+        additionalProperties: false
+        required: [segment_1A, segment_1B, segment_2A, segment_3A]
+        properties:
+          segment_1A: &gate_status
+            type: object
+            additionalProperties: false
+            required: [bundle_id, flag_path, sha256_hex, status]
+            properties:
+              bundle_id:  { type: string }
+              flag_path:  { type: string }
+              sha256_hex: { $ref: '#/$defs/hex64' }
+              status:     { type: string, enum: [PASS] }
+          segment_1B: *gate_status
+          segment_2A: *gate_status
+          segment_3A: *gate_status
+      sealed_policy_set:
+        type: array
+        items:
+          type: object
+          additionalProperties: false
+          required: [logical_id, path, schema_ref, sha256_hex, role]
+          properties:
+            logical_id:    { type: string }
+            path:          { type: string }
+            schema_ref:    { type: string }
+            sha256_hex:    { $ref: '#/$defs/hex64' }
+            role:          { type: string }
+            owner_segment: { type: string }
+      digests:
+        type: object
+        additionalProperties: false
+        properties:
+          virtual_rules_digest:        { $ref: '#/$defs/hex64' }
+          settlement_coord_digest:     { $ref: '#/$defs/hex64' }
+          cdn_weights_digest:          { $ref: '#/$defs/hex64' }
+          hrsl_digest:                 { $ref: '#/$defs/hex64' }
+          tzdata_archive_digest:       { $ref: '#/$defs/hex64' }
+          tz_index_digest:             { $ref: '#/$defs/hex64' }
+          virtual_validation_digest:   { $ref: '#/$defs/hex64' }
+          cdn_key_digest:              { $ref: '#/$defs/hex64' }
+      notes: { type: string }
+
+  sealed_inputs_3B:
+    type: object
+    additionalProperties: false
+    required:
+      - manifest_fingerprint
+      - owner_segment
+      - artefact_kind
+      - logical_id
+      - path
+      - schema_ref
+      - sha256_hex
+      - role
+    properties:
+      manifest_fingerprint: { $ref: '#/$defs/hex64' }
+      owner_segment: { type: string }
+      artefact_kind: { type: string }
+      logical_id:    { type: string }
+      path:          { type: string }
+      schema_ref:    { type: string }
+      sha256_hex:    { $ref: '#/$defs/hex64' }
+      role:          { type: string }
+      license_class: { type: string }
+      notes:         { type: string }
+
+  edge_universe_hash_3B:
+    type: object
+    additionalProperties: false
+    required:
+      - manifest_fingerprint
+      - parameter_hash
+      - cdn_weights_digest
+      - edge_catalogue_index_digest
+      - edge_alias_index_digest
+      - virtual_rules_digest
+      - universe_hash
+    properties:
+      manifest_fingerprint:        { $ref: '#/$defs/hex64' }
+      parameter_hash:              { $ref: '#/$defs/hex64' }
+      cdn_weights_digest:          { $ref: '#/$defs/hex64' }
+      edge_catalogue_index_digest: { $ref: '#/$defs/hex64' }
+      edge_alias_index_digest:     { $ref: '#/$defs/hex64' }
+      virtual_rules_digest:        { $ref: '#/$defs/hex64' }
+      universe_hash:               { $ref: '#/$defs/hex64' }
+      created_at_utc:              { $ref: '#/$defs/rfc3339_micros' }
+      notes:                       { type: string }
+
+  s4_run_summary_3B:
+    type: object
+    additionalProperties: false
+    required: [manifest_fingerprint, parameter_hash, status]
+    properties:
+      manifest_fingerprint: { $ref: '#/$defs/hex64' }
+      parameter_hash:       { $ref: '#/$defs/hex64' }
+      status:               { type: string, enum: [PASS, FAIL] }
+      cdn_key_digest:       { $ref: '#/$defs/hex64' }
+      virtual_validation_digest: { $ref: '#/$defs/hex64' }
+      routing_policy_version: { type: string }
+      notes: { type: string }
+
+  s5_manifest_3B:
+    type: object
+    additionalProperties: false
+    required: [manifest_fingerprint, parameter_hash, status, evidence]
+    properties:
+      manifest_fingerprint: { $ref: '#/$defs/hex64' }
+      parameter_hash:       { $ref: '#/$defs/hex64' }
+      status:               { type: string, enum: [PASS, FAIL] }
+      evidence:
+        type: array
+        minItems: 1
+        items:
+          type: object
+          additionalProperties: false
+          required: [logical_id, sha256_hex]
+          properties:
+            logical_id: { type: string }
+            sha256_hex: { $ref: '#/$defs/hex64' }
+            notes:      { type: string }
+      digests:
+        type: object
+        additionalProperties: false
+        properties:
+          edge_catalogue_digest_global: { $ref: '#/$defs/hex64' }
+          edge_alias_blob_digest:       { $ref: '#/$defs/hex64' }
+          virtual_routing_policy_digest: { $ref: '#/$defs/hex64' }
+      notes: { type: string }
+
+  s5_structural_summary_3B:
+    type: object
+    additionalProperties: false
+    required: [manifest_fingerprint, parameter_hash, status, checks]
+    properties:
+      manifest_fingerprint: { $ref: '#/$defs/hex64' }
+      parameter_hash:       { $ref: '#/$defs/hex64' }
+      status:               { type: string, enum: [PASS, FAIL] }
+      checks:
+        type: array
+        minItems: 1
+        items:
+          type: object
+          additionalProperties: false
+          required: [check_id, status]
+          properties:
+            check_id:       { type: string }
+            status:         { type: string, enum: [PASS, FAIL, WARN] }
+            affected_count: { type: integer, minimum: 0 }
+            detail:         { type: string }
+            notes:          { type: string }
+      counts:
+        type: object
+        additionalProperties: false
+        properties:
+          virtual_merchants: { type: integer, minimum: 0 }
+          edge_merchants:    { type: integer, minimum: 0 }
+          alias_merchants:   { type: integer, minimum: 0 }
+          edge_total:        { type: integer, minimum: 0 }
+          validation_tests:  { type: integer, minimum: 0 }
+      notes: { type: string }
+
+  s5_rng_summary_3B:
+    type: object
+    additionalProperties: false
+    required: [manifest_fingerprint, parameter_hash, status, streams]
+    properties:
+      manifest_fingerprint: { $ref: '#/$defs/hex64' }
+      parameter_hash:       { $ref: '#/$defs/hex64' }
+      status:               { type: string, enum: [PASS, FAIL] }
+      streams:
+        type: array
+        minItems: 1
+        items:
+          type: object
+          additionalProperties: false
+          required: [module, substream_label, events_total, draws_total, blocks_total, status]
+          properties:
+            module:         { type: string }
+            substream_label: { type: string }
+            events_total:   { type: integer, minimum: 0 }
+            draws_total:    { type: integer, minimum: 0 }
+            blocks_total:   { type: integer, minimum: 0 }
+            expected_events: { type: integer, minimum: 0 }
+            expected_draws: { type: integer, minimum: 0 }
+            expected_blocks: { type: integer, minimum: 0 }
+            status:         { type: string, enum: [PASS, FAIL, WARN] }
+            notes:          { type: string }
+      notes: { type: string }
+
+  s5_digest_summary_3B:
+    type: object
+    additionalProperties: false
+    required: [manifest_fingerprint, parameter_hash, digests]
+    properties:
+      manifest_fingerprint: { $ref: '#/$defs/hex64' }
+      parameter_hash:       { $ref: '#/$defs/hex64' }
+      digests:
+        type: object
+        additionalProperties: false
+        properties:
+          edge_catalogue_index_digest:   { $ref: '#/$defs/hex64' }
+          edge_alias_index_digest:       { $ref: '#/$defs/hex64' }
+          edge_alias_blob_digest:        { $ref: '#/$defs/hex64' }
+          edge_universe_hash:            { $ref: '#/$defs/hex64' }
+          virtual_routing_policy_digest: { $ref: '#/$defs/hex64' }
+          virtual_validation_contract_digest: { $ref: '#/$defs/hex64' }
+          cdn_country_weights_digest:    { $ref: '#/$defs/hex64' }
+          mcc_channel_rules_digest:      { $ref: '#/$defs/hex64' }
+          route_rng_policy_digest:       { $ref: '#/$defs/hex64' }
+          virtual_validation_policy_digest: { $ref: '#/$defs/hex64' }
+          virtual_routing_fields_digest: { $ref: '#/$defs/hex64' }
+      notes: { type: string }
+
+  gamma_draw_log_entry_3B:
+    type: object
+    additionalProperties: false
+    required: [merchant_id, day_index, gamma_value, rng_stream_id, rng_event_id]
+    properties:
+      merchant_id:    { $ref: '#/$defs/id64' }
+      day_index:      { type: integer, minimum: 0 }
+      gamma_value:    { type: number, exclusiveMinimum: 0.0 }
+      shape_param:    { type: number, exclusiveMinimum: 0.0 }
+      rng_stream_id:  { type: string }
+      rng_event_id:   { type: string }
+      philox_counter: { type: string }
+      created_at_utc: { $ref: '#/$defs/rfc3339_micros' }
+      notes:          { type: string }
+
+plan:
+  virtual_classification_3B:
+    type: table
+    description: "Classification surface for merchants with virtual reason codes."
+    primary_key: [merchant_id]
+    partition_keys: [seed, manifest_fingerprint]
+    sort_keys: [merchant_id]
+    columns_strict: true
+    columns:
+      - { name: seed, $ref: '#/$defs/uint64', nullable: false }
+      - { name: manifest_fingerprint, $ref: '#/$defs/hex64', nullable: false }
+      - { name: merchant_id, $ref: '#/$defs/id64', nullable: false }
+      - { name: is_virtual, type: boolean, nullable: false }
+      - { name: virtual_mode, type: string, enum: [NON_VIRTUAL, HYBRID, VIRTUAL_ONLY], nullable: false }
+      - { name: decision_reason, type: string, enum: [RULE_MATCH, OVERRIDE_ACCEPT, OVERRIDE_DENY, DEFAULT_GUARD], nullable: false }
+      - { name: rule_id, type: string, nullable: true }
+      - { name: rule_version, type: string, nullable: true }
+      - { name: source_policy_id, type: string, nullable: true }
+      - { name: source_policy_version, type: string, nullable: true }
+      - { name: classification_digest, $ref: '#/$defs/hex64', nullable: true }
+      - { name: notes, type: string, nullable: true }
+
+  virtual_settlement_3B:
+    type: table
+    description: "Settlement node per virtual merchant."
+    primary_key: [merchant_id]
+    partition_keys: [seed, manifest_fingerprint]
+    sort_keys: [merchant_id]
+    columns_strict: true
+    columns:
+      - { name: seed, $ref: '#/$defs/uint64', nullable: false }
+      - { name: manifest_fingerprint, $ref: '#/$defs/hex64', nullable: false }
+      - { name: merchant_id, $ref: '#/$defs/id64', nullable: false }
+      - { name: settlement_site_id, type: string, nullable: false }
+      - { name: lat_deg, type: number, nullable: false }
+      - { name: lon_deg, type: number, nullable: false }
+      - { name: tzid_settlement, $ref: '#/$defs/iana_tzid', nullable: false }
+      - { name: tz_source, type: string, enum: [INGEST, OVERRIDE, DERIVED], nullable: false }
+      - { name: coord_source_id, type: string, nullable: false }
+      - { name: coord_source_version, type: string, nullable: false }
+      - { name: settlement_coord_digest, $ref: '#/$defs/hex64', nullable: false }
+      - { name: tz_policy_digest, $ref: '#/$defs/hex64', nullable: false }
+      - { name: evidence_url, type: string, nullable: true }
+      - { name: notes, type: string, nullable: true }
+
+  edge_catalogue_3B:
+    type: table
+    description: "Per-edge geometry and weights for CDN catalogue."
+    primary_key: [merchant_id, edge_id]
+    partition_keys: [seed, manifest_fingerprint]
+    sort_keys: [merchant_id, edge_id]
+    columns_strict: true
+    columns:
+      - { name: seed, $ref: '#/$defs/uint64', nullable: false }
+      - { name: manifest_fingerprint, $ref: '#/$defs/hex64', nullable: false }
+      - { name: merchant_id, $ref: '#/$defs/id64', nullable: false }
+      - { name: edge_id, type: string, nullable: false }
+      - { name: edge_seq_index, type: integer, minimum: 0, nullable: false }
+      - { name: country_iso, $ref: '#/$defs/iso2', nullable: false }
+      - { name: lat_deg, type: number, nullable: false }
+      - { name: lon_deg, type: number, nullable: false }
+      - { name: tzid_operational, $ref: '#/$defs/iana_tzid', nullable: false }
+      - { name: tz_source, type: string, enum: [POLYGON, OVERRIDE, NUDGE], nullable: false }
+      - { name: edge_weight, type: number, minimum: 0.0, nullable: false }
+      - { name: hrsl_tile_id, type: string, nullable: true }
+      - { name: spatial_surface_id, type: string, nullable: true }
+      - { name: cdn_policy_id, type: string, nullable: true }
+      - { name: cdn_policy_version, type: string, nullable: true }
+      - { name: rng_stream_id, type: string, nullable: false }
+      - { name: rng_event_id, type: string, nullable: false }
+      - { name: sampling_rank, type: integer, minimum: 0, nullable: true }
+      - { name: edge_digest, $ref: '#/$defs/hex64', nullable: false }
+
+  edge_catalogue_index_3B:
+    type: table
+    description: "Digest summary for edge catalogue partition (per-merchant + global rows)."
+    primary_key: [scope, merchant_id]
+    partition_keys: [seed, manifest_fingerprint]
+    sort_keys: [scope, merchant_id]
+    columns_strict: true
+    columns:
+      - { name: scope, type: string, enum: [MERCHANT, GLOBAL], nullable: false }
+      - { name: seed, $ref: '#/$defs/uint64', nullable: false }
+      - { name: manifest_fingerprint, $ref: '#/$defs/hex64', nullable: false }
+      - { name: merchant_id, $ref: '#/$defs/id64', nullable: true }
+      - { name: edge_count_total, type: integer, minimum: 0, nullable: true }
+      - { name: edge_digest, $ref: '#/$defs/hex64', nullable: true }
+      - { name: edge_catalogue_path, type: string, nullable: true }
+      - { name: edge_catalogue_size_bytes, type: integer, minimum: 0, nullable: true }
+      - { name: country_mix_summary, type: string, nullable: true }
+      - { name: edge_count_total_all_merchants, type: integer, minimum: 0, nullable: true }
+      - { name: edge_catalogue_digest_global, $ref: '#/$defs/hex64', nullable: true }
+      - { name: notes, type: string, nullable: true }
+
+  edge_alias_index_3B:
+    type: table
+    description: "Metadata for CDN alias tables per merchant plus global blob record."
+    primary_key: [scope, merchant_id]
+    partition_keys: [seed, manifest_fingerprint]
+    sort_keys: [scope, merchant_id]
+    columns_strict: true
+    columns:
+      - { name: scope, type: string, enum: [MERCHANT, GLOBAL], nullable: false }
+      - { name: seed, $ref: '#/$defs/uint64', nullable: false }
+      - { name: manifest_fingerprint, $ref: '#/$defs/hex64', nullable: false }
+      - { name: merchant_id, $ref: '#/$defs/id64', nullable: true }
+      - { name: blob_offset_bytes, type: integer, minimum: 0, nullable: true }
+      - { name: blob_length_bytes, type: integer, minimum: 0, nullable: true }
+      - { name: edge_count_total, type: integer, minimum: 0, nullable: true }
+      - { name: alias_table_length, type: integer, minimum: 0, nullable: true }
+      - { name: merchant_alias_checksum, $ref: '#/$defs/hex64', nullable: true }
+      - { name: alias_layout_version, type: string, nullable: true }
+      - { name: universe_hash, $ref: '#/$defs/hex64', nullable: true }
+      - { name: blob_sha256_hex, $ref: '#/$defs/hex64', nullable: true }
+      - { name: notes, type: string, nullable: true }
+
+  gamma_draw_log_3B:
+    type: table
+    description: "Structured copy of gamma draw audit events."
+    primary_key: [merchant_id, day_index]
+    partition_keys: [seed, manifest_fingerprint]
+    sort_keys: [merchant_id, day_index]
+    columns_strict: true
+    columns:
+      - { name: seed, $ref: '#/$defs/uint64', nullable: false }
+      - { name: manifest_fingerprint, $ref: '#/$defs/hex64', nullable: false }
+      - { name: merchant_id, $ref: '#/$defs/id64', nullable: false }
+      - { name: day_index, type: integer, minimum: 0, nullable: false }
+      - { name: gamma_value, type: number, exclusiveMinimum: 0.0, nullable: false }
+      - { name: shape_param, type: number, exclusiveMinimum: 0.0, nullable: false }
+      - { name: rng_stream_id, type: string, nullable: false }
+      - { name: rng_event_id, type: string, nullable: false }
+      - { name: notes, type: string, nullable: true }
+
+binary:
+  edge_alias_blob_header_3B:
+    type: object
+    additionalProperties: false
+    required: [layout_version, endianness, alignment_bytes, blob_length_bytes, blob_sha256_hex]
+    properties:
+      layout_version:    { type: string }
+      endianness:        { type: string, enum: [little, big] }
+      alignment_bytes:   { type: integer, minimum: 1 }
+      blob_length_bytes: { type: integer, minimum: 0 }
+      blob_sha256_hex:   { $ref: '#/$defs/hex64' }
+      alias_layout_policy_id:      { type: string }
+      alias_layout_policy_version: { type: string }
+      universe_hash:               { $ref: '#/$defs/hex64' }
+      notes:                       { type: string }
+
+egress:
+  virtual_routing_policy_3B:
+    type: object
+    description: "Routing contract tying settlement and operational semantics for virtual merchants."
+    additionalProperties: false
+    required:
+      - manifest_fingerprint
+      - parameter_hash
+      - edge_universe_hash
+      - routing_policy_id
+      - routing_policy_version
+      - virtual_validation_policy_id
+      - virtual_validation_policy_version
+      - cdn_key_digest
+      - alias_layout_version
+      - dual_timezone_semantics
+      - geo_field_bindings
+      - artefact_paths
+      - alias_blob_manifest_key
+      - alias_index_manifest_key
+      - edge_universe_hash_manifest_key
+      - virtual_edge_rng_binding
+    properties:
+      manifest_fingerprint:        { $ref: '#/$defs/hex64' }
+      parameter_hash:              { $ref: '#/$defs/hex64' }
+      edge_universe_hash:          { $ref: '#/$defs/hex64' }
+      routing_policy_id:           { type: string }
+      routing_policy_version:      { type: string }
+      virtual_validation_policy_id: { type: string }
+      virtual_validation_policy_version: { type: string }
+      cdn_key_digest:              { $ref: '#/$defs/hex64' }
+      alias_layout_version:        { type: string }
+      alias_blob_manifest_key:     { type: string }
+      alias_index_manifest_key:    { type: string }
+      edge_universe_hash_manifest_key: { type: string }
+      dual_timezone_semantics:
+        type: object
+        additionalProperties: false
+        required: [tzid_settlement_field, tzid_operational_field]
+        properties:
+          tzid_settlement_field:   { type: string }
+          tzid_operational_field:  { type: string }
+          settlement_cutoff_rule:  { type: string }
+      geo_field_bindings:
+        type: object
+        additionalProperties: false
+        properties:
+          ip_country_field:   { type: string }
+          ip_latitude_field:  { type: string }
+          ip_longitude_field: { type: string }
+      artefact_paths:
+        type: object
+        additionalProperties: false
+        required: [edge_catalogue_index, edge_alias_blob, edge_alias_index]
+        properties:
+          edge_catalogue_index: { type: string }
+          edge_alias_blob:      { type: string }
+          edge_alias_index:     { type: string }
+      virtual_edge_rng_binding:
+        type: object
+        additionalProperties: false
+        required: [module, substream_label]
+        properties:
+          module:          { type: string }
+          substream_label: { $ref: '#/$defs/stream_label' }
+          event_schema:    { type: string }
+      overrides:
+        type: array
+        items:
+          type: object
+          additionalProperties: false
+          required: [merchant_id, mode]
+          properties:
+            merchant_id: { $ref: '#/$defs/id64' }
+            mode:        { type: string, enum: [virtual, hybrid, disable_virtual] }
+            notes:       { type: string }
+      notes: { type: string }
+
+  virtual_validation_contract_3B:
+    type: table
+    description: "Structured list of validation tests for virtual routing."
+    primary_key: [test_id]
+    partition_keys: [manifest_fingerprint]
+    sort_keys: [test_id]
+    columns_strict: true
+    columns:
+      - { name: manifest_fingerprint, $ref: '#/$defs/hex64', nullable: false }
+      - { name: test_id, type: string, nullable: false }
+      - { name: test_type, type: string, enum: [IP_COUNTRY_MIX, SETTLEMENT_CUTOFF, EDGE_USAGE_VS_WEIGHT, ROUTING_RECEIPT], nullable: false }
+      - { name: scope, type: string, enum: [GLOBAL, PER_MERCHANT, PER_CLASS, PER_SCENARIO], nullable: false }
+      - name: target_population
+        type: object
+        nullable: false
+        additionalProperties: false
+        properties:
+          virtual_only: { type: boolean }
+          merchant_ids:
+            type: array
+            items: { $ref: '#/$defs/id64' }
+          classes:
+            type: array
+            items: { type: string }
+          notes: { type: string }
+      - name: inputs
+        type: object
+        nullable: false
+        additionalProperties: false
+        properties:
+          datasets:
+            type: array
+            minItems: 1
+            items:
+              type: object
+              additionalProperties: false
+              required: [logical_id, role]
+              properties:
+                logical_id: { type: string }
+                role:       { type: string }
+          fields:
+            type: array
+            items:
+              type: object
+              additionalProperties: false
+              required: [schema_anchor, role]
+              properties:
+                schema_anchor: { type: string }
+                role:          { type: string }
+          join_keys:
+            type: array
+            items: { type: string }
+      - name: thresholds
+        type: object
+        nullable: false
+        additionalProperties: false
+        properties:
+          max_abs_error:    { type: number, minimum: 0.0 }
+          max_rel_error:    { type: number, minimum: 0.0 }
+          max_kl_divergence: { type: number, minimum: 0.0 }
+          cutoff_tolerance_seconds: { type: integer, minimum: 0 }
+          min_coverage_ratio: { type: number, minimum: 0.0, maximum: 1.0 }
+      - { name: severity, type: string, enum: [BLOCKING, WARNING, INFO], nullable: false }
+      - { name: enabled, type: boolean, nullable: false }
+      - { name: description, type: string, nullable: true }
+      - { name: profile, type: string, nullable: true }
+
+policy:
+  virtual_rules_policy_v1:
+    type: object
+    additionalProperties: false
+    required: [version, rules]
+    properties:
+      version: { type: string, minLength: 1 }
+      rules:
+        type: array
+        minItems: 1
+        items:
+          type: object
+          additionalProperties: false
+          required: [mcc, channel, decision, notes]
+          properties:
+            mcc: { type: string, pattern: '^[0-9]{4}$' }
+            channel: { type: string, enum: [card_present, card_not_present] }
+            decision: { type: string, enum: [virtual, physical] }
+            notes: { type: string, minLength: 1 }
+
+  cdn_country_weights_v1:
+    type: object
+    additionalProperties: false
+    required: [version, edge_scale, countries]
+    properties:
+      version: { type: string, minLength: 1 }
+      edge_scale: { type: integer, minimum: 1 }
+      countries:
+        type: array
+        minItems: 1
+        items:
+          type: object
+          additionalProperties: false
+          required: [country_iso, weight]
+          properties:
+            country_iso: { $ref: '#/$defs/iso2' }
+            weight: { type: number, exclusiveMinimum: 0.0 }
+            notes: { type: string }
+
+  virtual_validation_policy_v1:
+    type: object
+    additionalProperties: false
+    required: [version, ip_country_tolerance, cutoff_tolerance_seconds]
+    properties:
+      version: { type: string, minLength: 1 }
+      ip_country_tolerance: { type: number, minimum: 0.0 }
+      cutoff_tolerance_seconds: { type: integer, minimum: 0 }
+      notes: { type: string }
+
+  virtual_routing_fields_v1:
+    type: object
+    additionalProperties: false
+    required:
+      - version
+      - tzid_settlement_field
+      - tzid_operational_field
+      - settlement_day_field
+      - settlement_cutoff_rule
+      - ip_country_field
+      - ip_latitude_field
+      - ip_longitude_field
+    properties:
+      version: { type: string, minLength: 1 }
+      tzid_settlement_field: { type: string, minLength: 1 }
+      tzid_operational_field: { type: string, minLength: 1 }
+      settlement_day_field: { type: string, minLength: 1 }
+      settlement_cutoff_rule: { type: string, minLength: 1 }
+      ip_country_field: { type: string, minLength: 1 }
+      ip_latitude_field: { type: string, minLength: 1 }
+      ip_longitude_field: { type: string, minLength: 1 }
+      notes: { type: string }
+
+  cdn_key_digest_v1:
+    type: object
+    additionalProperties: false
+    required: [version, source_policy_id, source_policy_version, edge_scale, cdn_key_digest]
+    properties:
+      version: { type: string, minLength: 1 }
+      source_policy_id: { const: cdn_country_weights }
+      source_policy_version: { type: string, minLength: 1 }
+      edge_scale: { type: integer, minimum: 1 }
+      cdn_key_digest: { $ref: '#/$defs/hex64' }
+      notes: { type: string }
+
+  virtual_logging_policy_v1:
+    type: object
+    additionalProperties: false
+    required: [policy_id, version, run_log_root, managed_logs, retention, housekeeping]
+    properties:
+      policy_id: { const: virtual_logging_policy }
+      version: { type: string, minLength: 1 }
+      run_log_root: { const: logs/virtual }
+      managed_logs:
+        type: array
+        minItems: 2
+        maxItems: 2
+        items:
+          type: object
+          additionalProperties: false
+          required: [logical_id, filename, write_mode, flush_policy, rotation, protection]
+          properties:
+            logical_id: { type: string, enum: [edge_progress_log, virtual_audit_log] }
+            filename: { type: string, enum: [edge_progress.log, virtual_audit.log] }
+            write_mode: { const: append_only }
+            flush_policy:
+              type: object
+              additionalProperties: false
+              required: [flush_each_line, fsync_every_n_lines]
+              properties:
+                flush_each_line: { type: boolean }
+                fsync_every_n_lines: { type: integer, minimum: 1 }
+            rotation:
+              type: object
+              additionalProperties: false
+              required: [mode, max_bytes, keep_files, compress_rotated]
+              properties:
+                mode: { const: size_bytes }
+                max_bytes: { type: integer, minimum: 1 }
+                keep_files: { type: integer, minimum: 1 }
+                compress_rotated: { type: boolean }
+            protection:
+              type: object
+              additionalProperties: false
+              required: [never_delete_active_file]
+              properties:
+                never_delete_active_file: { type: boolean }
+      retention:
+        type: object
+        additionalProperties: false
+        required: [keep_run_days, keep_min_completed_runs, never_delete_runs_newer_than_days]
+        properties:
+          keep_run_days: { type: integer, minimum: 1 }
+          keep_min_completed_runs: { type: integer, minimum: 1 }
+          never_delete_runs_newer_than_days: { type: integer, minimum: 1 }
+      housekeeping:
+        type: object
+        additionalProperties: false
+        required: [max_total_bytes_under_run_log_root, max_bytes_per_run_dir, deletion_order, on_over_budget]
+        properties:
+          max_total_bytes_under_run_log_root: { type: integer, minimum: 1 }
+          max_bytes_per_run_dir: { type: integer, minimum: 1 }
+          deletion_order: { const: oldest_completed_first }
+          on_over_budget: { const: delete_whole_run_dir }

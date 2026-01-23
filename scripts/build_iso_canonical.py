@@ -1,28 +1,28 @@
 """Build the canonical ISO-3166 reference dataset for S0.
 
-The script downloads the DataHub country-codes CSV, curates the required
-columns, enforces schema guardrails, and materialises CSV + Parquet outputs
-alongside a manifest and QA summary.
+This follows the iso3166_canonical_2024 acquisition guide and prefers the
+GeoNames countryInfo.txt snapshot, emitting the contracted parquet +
+provenance sidecar under reference/iso/iso3166_canonical/<version>/.
 """
+
 from __future__ import annotations
 
 import argparse
 import hashlib
+import io
 import json
-import subprocess
+import shutil
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import List
 
 import polars as pl
 import requests
 
 
 ROOT = Path(__file__).resolve().parents[1]
-ARTEFACT_DIR = ROOT / "artefacts" / "data-intake" / "1A" / "iso_canonical"
-REFERENCE_DIR = ROOT / "reference" / "layer1" / "iso_canonical"
+ISO_ROOT = ROOT / "reference" / "iso" / "iso3166_canonical"
 
-DATAHUB_URL = "https://raw.githubusercontent.com/datasets/country-codes/master/data/country-codes.csv"
+GEONAMES_URL = "https://download.geonames.org/export/dump/countryInfo.txt"
 
 OUTPUT_COLUMNS = [
     "country_iso",
@@ -35,7 +35,29 @@ OUTPUT_COLUMNS = [
     "end_date",
 ]
 
-ALLOWED_REGIONS = {"Africa", "Americas", "Asia", "Europe", "Oceania"}
+COUNTRYINFO_COLUMNS = [
+    "country_iso",
+    "alpha3",
+    "numeric_code",
+    "fips",
+    "name",
+    "capital",
+    "area_sq_km",
+    "population",
+    "continent",
+    "tld",
+    "currency_code",
+    "currency_name",
+    "phone",
+    "postal_code_format",
+    "postal_code_regex",
+    "languages",
+    "geonameid",
+    "neighbours",
+    "equivalent_fips_code",
+]
+
+EXCLUDED_ISO2 = {"UK", "XK"}
 
 
 def sha256sum(path: Path) -> str:
@@ -46,161 +68,170 @@ def sha256sum(path: Path) -> str:
     return digest.hexdigest()
 
 
-def download_source(dest: Path) -> str:
+def download_source(dest: Path) -> None:
     dest.parent.mkdir(parents=True, exist_ok=True)
-    response = requests.get(DATAHUB_URL, timeout=120)
+    response = requests.get(GEONAMES_URL, timeout=120)
     response.raise_for_status()
     dest.write_bytes(response.content)
-    return sha256sum(dest)
 
 
 def load_source(path: Path) -> pl.DataFrame:
-    return pl.read_csv(path, infer_schema_length=0)
+    lines = []
+    with path.open("r", encoding="utf-8") as handle:
+        for line in handle:
+            if not line.strip() or line.startswith("#"):
+                continue
+            lines.append(line)
+    return pl.read_csv(
+        io.StringIO("".join(lines)),
+        separator="\t",
+        has_header=False,
+        infer_schema_length=0,
+        new_columns=COUNTRYINFO_COLUMNS,
+    )
+
+
+def _isoformat_z(ts: datetime) -> str:
+    return ts.astimezone(timezone.utc).isoformat().replace("+00:00", "Z")
 
 
 def build_dataset(df: pl.DataFrame) -> pl.DataFrame:
-    required = {
-        "ISO3166-1-Alpha-2",
-        "ISO3166-1-Alpha-3",
-        "ISO3166-1-numeric",
-        "official_name_en",
-        "UNTERM English Short",
-        "CLDR display name",
-        "Region Name",
-        "Sub-region Name",
-    }
-    missing = required - set(df.columns)
-    if missing:
-        raise ValueError(f"Source CSV missing columns: {sorted(missing)}")
-
-    # Compose the name column with fallbacks
-    name = (
-        pl.coalesce(
-            [
-                pl.col("official_name_en"),
-                pl.col("UNTERM English Short"),
-                pl.col("CLDR display name"),
-            ]
-        )
-        .str.strip_chars()
-        .alias("name")
-    )
-
     result = df.select(
-        pl.col("ISO3166-1-Alpha-2").str.strip_chars().str.to_uppercase().alias("country_iso"),
-        pl.col("ISO3166-1-Alpha-3").str.strip_chars().str.to_uppercase().alias("alpha3"),
-        pl.col("ISO3166-1-numeric").str.strip_chars().alias("numeric_code"),
-        name,
-        pl.col("Region Name").str.strip_chars().alias("region"),
-        pl.col("Sub-region Name").str.strip_chars().alias("subregion"),
+        pl.col("country_iso").str.strip_chars().str.to_uppercase().alias("country_iso"),
+        pl.col("alpha3").str.strip_chars().str.to_uppercase().alias("alpha3"),
+        pl.col("numeric_code").str.strip_chars().alias("numeric_code"),
+        pl.col("name").str.strip_chars().alias("name"),
     )
 
-    # Basic cleaning
+    result = result.filter(pl.col("country_iso").str.contains(r"^[A-Z]{2}$"))
+    if EXCLUDED_ISO2:
+        result = result.filter(~pl.col("country_iso").is_in(list(EXCLUDED_ISO2)))
+
     result = result.with_columns(
-        pl.when(pl.col("subregion") == "").then(None).otherwise(pl.col("subregion")).alias("subregion"),
-        pl.lit(None, dtype=pl.Null).alias("start_date"),
-        pl.lit(None, dtype=pl.Null).alias("end_date"),
+        pl.col("numeric_code").cast(pl.Int16, strict=True),
+        pl.lit(None, dtype=pl.Utf8).alias("region"),
+        pl.lit(None, dtype=pl.Utf8).alias("subregion"),
+        pl.lit(None, dtype=pl.Date).alias("start_date"),
+        pl.lit(None, dtype=pl.Date).alias("end_date"),
     )
 
-    # Validations
     if result.select(pl.col("country_iso").n_unique()).item() != result.height:
         raise ValueError("Duplicate country_iso detected")
-    if result.filter(~pl.col("country_iso").str.contains(r"^[A-Z]{2}$")).height > 0:
-        raise ValueError("country_iso contains invalid values")
+    if result.select(pl.struct(["alpha3", "numeric_code"]).n_unique()).item() != result.height:
+        raise ValueError("Duplicate (alpha3, numeric_code) detected")
+    if result.filter(pl.col("country_iso").is_null()).height > 0:
+        raise ValueError("country_iso contains nulls")
+    if result.filter(pl.col("alpha3").is_null()).height > 0:
+        raise ValueError("alpha3 contains nulls")
+    if result.filter(pl.col("numeric_code").is_null()).height > 0:
+        raise ValueError("numeric_code contains nulls")
+    if result.filter(pl.col("name").is_null()).height > 0:
+        raise ValueError("name contains nulls")
     if result.filter(~pl.col("alpha3").str.contains(r"^[A-Z]{3}$")).height > 0:
         raise ValueError("alpha3 contains invalid values")
 
-    result = result.with_columns(pl.col("numeric_code").cast(pl.Int16))
-    if result.filter(pl.col("numeric_code").is_null()).height > 0:
-        raise ValueError("numeric_code contains nulls after cast")
-
-    bad_regions = result.filter(~pl.col("region").is_in(list(ALLOWED_REGIONS)))
-    if bad_regions.height > 0:
-        raise ValueError(f"Unexpected regions: {bad_regions['region'].unique().to_list()}")
-
-    return result.select(OUTPUT_COLUMNS)
+    return result.select(OUTPUT_COLUMNS).sort("country_iso")
 
 
 def build_manifest(
     *,
     version: str,
     source_sha: str,
-    csv_path: Path,
     parquet_path: Path,
-    qa_path: Path,
+    provenance_path: Path,
     row_count: int,
+    upstream_retrieved_utc: str,
+    is_exact_vintage: bool,
 ) -> dict:
     return {
         "dataset_id": "iso3166_canonical_2024",
         "version": version,
-        "source_url": DATAHUB_URL,
+        "source_url": GEONAMES_URL,
         "source_sha256": source_sha,
-        "generated_at_utc": datetime.now(timezone.utc).isoformat(),
+        "upstream_retrieved_utc": upstream_retrieved_utc,
+        "generated_at_utc": _isoformat_z(datetime.now(timezone.utc)),
         "generator_script": "scripts/build_iso_canonical.py",
-        "generator_git_sha": subprocess.check_output(["git", "rev-parse", "HEAD"], cwd=ROOT)
-        .decode("utf-8")
-        .strip(),
-        "output_csv": str(csv_path.relative_to(ROOT)),
-        "output_csv_sha256": sha256sum(csv_path),
         "output_parquet": str(parquet_path.relative_to(ROOT)),
         "output_parquet_sha256": sha256sum(parquet_path),
-        "qa_path": str(qa_path.relative_to(ROOT)),
-        "qa_sha256": sha256sum(qa_path),
+        "provenance_path": str(provenance_path.relative_to(ROOT)),
+        "provenance_sha256": sha256sum(provenance_path),
         "row_count": row_count,
         "column_order": OUTPUT_COLUMNS,
-        "allowed_regions": sorted(ALLOWED_REGIONS),
+        "excluded_iso2": sorted(EXCLUDED_ISO2),
+        "is_exact_vintage": is_exact_vintage,
     }
 
 
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--version", default="2025-10-08", help="Dataset version tag")
+    parser.add_argument("--version", default="2024-12-31", help="Dataset version tag")
+    parser.add_argument("--source-path", default=None, help="Optional path to GeoNames countryInfo.txt")
+    parser.add_argument("--download", action="store_true", help="Force download of the GeoNames source.")
+    parser.add_argument(
+        "--is-exact-vintage",
+        action="store_true",
+        help="Flag that the source snapshot matches the version.",
+    )
     args = parser.parse_args()
 
-    raw_dir = ARTEFACT_DIR / args.version / "raw"
-    output_dir = REFERENCE_DIR / f"v{args.version}"
-    raw_dir.mkdir(parents=True, exist_ok=True)
+    output_dir = ISO_ROOT / args.version
+    raw_dir = output_dir / "source"
     output_dir.mkdir(parents=True, exist_ok=True)
+    raw_dir.mkdir(parents=True, exist_ok=True)
 
-    raw_csv = raw_dir / "country-codes.csv"
-    source_sha = download_source(raw_csv)
-    df = load_source(raw_csv)
-    curated = build_dataset(df)
+    raw_path = raw_dir / "countryInfo.txt"
+    source_path = Path(args.source_path).resolve() if args.source_path else raw_path
+    if args.download or not source_path.exists():
+        download_source(raw_path)
+        source_path = raw_path
+        upstream_retrieved = datetime.now(timezone.utc)
+    else:
+        upstream_retrieved = datetime.fromtimestamp(source_path.stat().st_mtime, timezone.utc)
+        if source_path != raw_path:
+            shutil.copy2(source_path, raw_path)
+            source_path = raw_path
 
-    csv_path = output_dir / "iso_canonical.csv"
-    parquet_path = output_dir / "iso_canonical.parquet"
-    qa_path = output_dir / "iso_canonical.qa.json"
-    curated.write_csv(csv_path)
+    source_sha = sha256sum(source_path)
+    curated = build_dataset(load_source(source_path))
+
+    parquet_path = output_dir / "iso3166.parquet"
     curated.write_parquet(parquet_path, compression="zstd", statistics=True)
 
-    regions = curated.select(pl.col("region")).unique().sort("region")["region"].to_list()
-    qa = {
-        "rows": curated.height,
-        "regions": regions,
-        "generated_at_utc": datetime.now(timezone.utc).isoformat(),
+    provenance_path = output_dir / "iso3166.provenance.json"
+    provenance = {
+        "dataset_id": "iso3166_canonical_2024",
+        "version": args.version,
+        "upstream_url": GEONAMES_URL,
+        "upstream_retrieved_utc": _isoformat_z(upstream_retrieved),
+        "upstream_version_label": None,
+        "raw_bytes_sha256": source_sha,
+        "output_sha256": sha256sum(parquet_path),
+        "row_count": curated.height,
+        "is_exact_vintage": bool(args.is_exact_vintage),
+        "exclusions": {
+            "country_iso": sorted(EXCLUDED_ISO2),
+            "excluded_count": len(EXCLUDED_ISO2),
+        },
+        "notes": (
+            "GeoNames countryInfo.txt snapshot; excluded XK and UK per guide. "
+            "Optional region/subregion/start_date/end_date left null."
+        ),
     }
-    qa_path.write_text(json.dumps(qa, indent=2), encoding="utf-8")
+    provenance_path.write_text(json.dumps(provenance, indent=2) + "\n", encoding="utf-8")
 
     manifest = build_manifest(
         version=args.version,
         source_sha=source_sha,
-        csv_path=csv_path,
         parquet_path=parquet_path,
-        qa_path=qa_path,
+        provenance_path=provenance_path,
         row_count=curated.height,
+        upstream_retrieved_utc=_isoformat_z(upstream_retrieved),
+        is_exact_vintage=bool(args.is_exact_vintage),
     )
-    (output_dir / "iso_canonical.manifest.json").write_text(
+    (output_dir / "iso3166.manifest.json").write_text(
         json.dumps(manifest, indent=2) + "\n",
         encoding="utf-8",
     )
-
-    sha_lines = [
-        f"{source_sha}  {raw_csv.relative_to(ROOT)}",
-        f"{manifest['output_csv_sha256']}  {csv_path.relative_to(ROOT)}",
-        f"{manifest['output_parquet_sha256']}  {parquet_path.relative_to(ROOT)}",
-        f"{manifest['qa_sha256']}  {qa_path.relative_to(ROOT)}",
-    ]
-    (output_dir / "SHA256SUMS").write_text("\n".join(sha_lines) + "\n", encoding="utf-8")
 
 
 if __name__ == "__main__":

@@ -1,0 +1,110 @@
+schema_version: 1
+taxonomy_id: taxonomy.fraud_roles.v1
+notes: >
+  Fraud role taxonomy for 6A static posture outputs across entities.
+
+risk_tiers:
+  - id: LOW
+    label: Low
+    description: Low static risk posture.
+    severity_rank: 0
+  - id: STANDARD
+    label: Standard
+    description: Typical baseline posture.
+    severity_rank: 1
+  - id: ELEVATED
+    label: Elevated
+    description: Elevated static posture.
+    severity_rank: 2
+  - id: HIGH
+    label: High
+    description: High static posture.
+    severity_rank: 3
+
+role_sets:
+  - entity_type: PARTY
+    roles:
+      - id: CLEAN
+        label: Clean
+        description: Baseline party posture.
+        severity_rank: 0
+      - id: SYNTHETIC_ID
+        label: Synthetic identity
+        description: Constructed or fragmented identity posture.
+        severity_rank: 2
+      - id: MULE
+        label: Mule
+        description: Intermediary posture for illicit flows.
+        severity_rank: 4
+      - id: ASSOCIATE
+        label: Associate
+        description: Connected to organized fraud actors.
+        severity_rank: 3
+      - id: ORGANISER
+        label: Organiser
+        description: Coordinating or leading fraud posture.
+        severity_rank: 5
+  - entity_type: ACCOUNT
+    roles:
+      - id: CLEAN_ACCOUNT
+        label: Clean account
+        description: Baseline account posture.
+        severity_rank: 0
+      - id: DORMANT_RISKY
+        label: Dormant risky
+        description: Dormant account with elevated static risk.
+        severity_rank: 2
+      - id: HIGH_RISK_ACCOUNT
+        label: High risk account
+        description: Elevated account posture.
+        severity_rank: 3
+      - id: MULE_ACCOUNT
+        label: Mule account
+        description: Account likely used as an intermediary.
+        severity_rank: 4
+  - entity_type: MERCHANT
+    roles:
+      - id: NORMAL
+        label: Normal
+        description: Baseline merchant posture.
+        severity_rank: 0
+      - id: HIGH_RISK_MCC
+        label: High-risk MCC
+        description: Merchant in a higher-risk MCC class.
+        severity_rank: 2
+      - id: MSB
+        label: Money services business
+        description: Money-services posture with elevated scrutiny.
+        severity_rank: 2
+      - id: COLLUSIVE
+        label: Collusive
+        description: Merchant engaged in collusive activity.
+        severity_rank: 3
+  - entity_type: DEVICE
+    roles:
+      - id: CLEAN_DEVICE
+        label: Clean device
+        description: Baseline device posture.
+        severity_rank: 0
+      - id: REUSED_DEVICE
+        label: Reused device
+        description: Device with elevated reuse/sharing signals.
+        severity_rank: 2
+      - id: HIGH_RISK_DEVICE
+        label: High risk device
+        description: Device with elevated static risk posture.
+        severity_rank: 3
+  - entity_type: IP
+    roles:
+      - id: CLEAN_IP
+        label: Clean IP
+        description: Baseline IP posture.
+        severity_rank: 0
+      - id: SHARED_IP
+        label: Shared IP
+        description: IP with elevated sharing/aggregation.
+        severity_rank: 2
+      - id: HIGH_RISK_IP
+        label: High risk IP
+        description: IP with elevated static risk posture.
+        severity_rank: 3

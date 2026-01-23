@@ -1,0 +1,19 @@
+semver: "1.0.0"
+version: "2024-12-31"
+
+enabled: true
+
+alpha_model:
+  kind: "scaled_base_shares"
+  total_concentration: 30.0
+  base_share_source: "base_weight_priors"
+  include_home_boost: true
+  home_boost_multiplier: 1.25
+
+bounds:
+  alpha_min: 0.05
+  alpha_max: 200.0
+
+fallback:
+  on_missing_base_shares: "uniform"
+  on_nonfinite_alpha: "fail"

@@ -1,0 +1,285 @@
+schema_version: 1
+prior_id: instrument_per_account_priors_6A
+prior_version: v1
+
+bindings:
+  party_taxonomy_ref: taxonomy_party_6A
+  account_taxonomy_ref: taxonomy_account_types_6A
+  instrument_taxonomy_ref: taxonomy_instrument_types_6A
+  instrument_mix_ref: prior_instrument_mix_6A
+
+scheme_scope_mode: NONE
+
+supported_count_models:
+  - count_model_id: bernoulli_cap1_v1
+    required_params: [p_zero, p_zero_weight, sigma, weight_floor_eps]
+    description: "k in {0,1} with hard cap."
+  - count_model_id: zi_poisson_capK_v1
+    required_params: [p_zero, p_zero_weight, sigma, weight_floor_eps]
+    description: "ZI Poisson with hard cap."
+  - count_model_id: zi_nb2_capK_v1
+    required_params: [p_zero, kappa, p_zero_weight, sigma, weight_floor_eps]
+    description: "ZI NB2 with hard cap."
+
+rules:
+  - party_type: BUSINESS
+    account_type: BUSINESS_CREDIT_CARD
+    instrument_type: BUSINESS_CREDIT_CARD_PHYSICAL
+    count_model_id: zi_poisson_capK_v1
+    hard_min_per_account: 0
+    hard_max_per_account: 2
+    params: { p_zero: 0.15, p_zero_weight: 0.10, sigma: 0.70, weight_floor_eps: 1.0e-6 }
+  - party_type: BUSINESS
+    account_type: BUSINESS_CREDIT_CARD
+    instrument_type: WALLET_DEVICE_TOKEN
+    count_model_id: zi_nb2_capK_v1
+    hard_min_per_account: 0
+    hard_max_per_account: 5
+    params: { p_zero: 0.55, kappa: 1.7, p_zero_weight: 0.45, sigma: 1.05, weight_floor_eps: 1.0e-6 }
+  - party_type: BUSINESS
+    account_type: BUSINESS_CREDIT_CARD
+    instrument_type: WALLET_NETWORK_TOKEN
+    count_model_id: zi_nb2_capK_v1
+    hard_min_per_account: 0
+    hard_max_per_account: 5
+    params: { p_zero: 0.60, kappa: 1.8, p_zero_weight: 0.50, sigma: 1.05, weight_floor_eps: 1.0e-6 }
+  - party_type: BUSINESS
+    account_type: BUSINESS_CURRENT
+    instrument_type: BUSINESS_DEBIT_CARD_PHYSICAL
+    count_model_id: zi_poisson_capK_v1
+    hard_min_per_account: 0
+    hard_max_per_account: 2
+    params: { p_zero: 0.08, p_zero_weight: 0.06, sigma: 0.60, weight_floor_eps: 1.0e-6 }
+  - party_type: BUSINESS
+    account_type: BUSINESS_CURRENT
+    instrument_type: PARTY_BANK_ACCOUNT_DOMESTIC
+    count_model_id: zi_poisson_capK_v1
+    hard_min_per_account: 0
+    hard_max_per_account: 2
+    params: { p_zero: 0.03, p_zero_weight: 0.03, sigma: 0.45, weight_floor_eps: 1.0e-6 }
+  - party_type: BUSINESS
+    account_type: BUSINESS_CURRENT
+    instrument_type: PARTY_BANK_ACCOUNT_INTERNATIONAL
+    count_model_id: zi_poisson_capK_v1
+    hard_min_per_account: 0
+    hard_max_per_account: 2
+    params: { p_zero: 0.35, p_zero_weight: 0.30, sigma: 0.75, weight_floor_eps: 1.0e-6 }
+  - party_type: BUSINESS
+    account_type: BUSINESS_CURRENT
+    instrument_type: WALLET_DEVICE_TOKEN
+    count_model_id: zi_nb2_capK_v1
+    hard_min_per_account: 0
+    hard_max_per_account: 4
+    params: { p_zero: 0.55, kappa: 1.6, p_zero_weight: 0.45, sigma: 0.95, weight_floor_eps: 1.0e-6 }
+  - party_type: BUSINESS
+    account_type: BUSINESS_SAVINGS
+    instrument_type: PARTY_BANK_ACCOUNT_DOMESTIC
+    count_model_id: zi_poisson_capK_v1
+    hard_min_per_account: 0
+    hard_max_per_account: 2
+    params: { p_zero: 0.05, p_zero_weight: 0.05, sigma: 0.40, weight_floor_eps: 1.0e-6 }
+  - party_type: BUSINESS
+    account_type: BUSINESS_SAVINGS
+    instrument_type: PARTY_BANK_ACCOUNT_INTERNATIONAL
+    count_model_id: zi_poisson_capK_v1
+    hard_min_per_account: 0
+    hard_max_per_account: 2
+    params: { p_zero: 0.40, p_zero_weight: 0.35, sigma: 0.70, weight_floor_eps: 1.0e-6 }
+  - party_type: BUSINESS
+    account_type: BUSINESS_TERM_LOAN
+    instrument_type: PARTY_BANK_ACCOUNT_DOMESTIC
+    count_model_id: zi_poisson_capK_v1
+    hard_min_per_account: 0
+    hard_max_per_account: 1
+    params: { p_zero: 0.05, p_zero_weight: 0.05, sigma: 0.35, weight_floor_eps: 1.0e-6 }
+  - party_type: OTHER
+    account_type: OTHER_CURRENT_BASIC
+    instrument_type: PARTY_BANK_ACCOUNT_DOMESTIC
+    count_model_id: zi_poisson_capK_v1
+    hard_min_per_account: 0
+    hard_max_per_account: 2
+    params: { p_zero: 0.08, p_zero_weight: 0.08, sigma: 0.45, weight_floor_eps: 1.0e-6 }
+  - party_type: OTHER
+    account_type: OTHER_CURRENT_BASIC
+    instrument_type: PARTY_BANK_ACCOUNT_INTERNATIONAL
+    count_model_id: zi_poisson_capK_v1
+    hard_min_per_account: 0
+    hard_max_per_account: 2
+    params: { p_zero: 0.35, p_zero_weight: 0.30, sigma: 0.70, weight_floor_eps: 1.0e-6 }
+  - party_type: OTHER
+    account_type: OTHER_SAVINGS
+    instrument_type: PARTY_BANK_ACCOUNT_DOMESTIC
+    count_model_id: zi_poisson_capK_v1
+    hard_min_per_account: 0
+    hard_max_per_account: 1
+    params: { p_zero: 0.10, p_zero_weight: 0.10, sigma: 0.40, weight_floor_eps: 1.0e-6 }
+  - party_type: RETAIL
+    account_type: RETAIL_CREDIT_CARD_PREMIUM
+    instrument_type: RETAIL_CREDIT_CARD_PHYSICAL
+    count_model_id: zi_poisson_capK_v1
+    hard_min_per_account: 0
+    hard_max_per_account: 2
+    params: { p_zero: 0.12, p_zero_weight: 0.08, sigma: 0.75, weight_floor_eps: 1.0e-6 }
+  - party_type: RETAIL
+    account_type: RETAIL_CREDIT_CARD_PREMIUM
+    instrument_type: RETAIL_CREDIT_CARD_VIRTUAL
+    count_model_id: zi_nb2_capK_v1
+    hard_min_per_account: 0
+    hard_max_per_account: 6
+    params: { p_zero: 0.50, kappa: 1.7, p_zero_weight: 0.40, sigma: 1.15, weight_floor_eps: 1.0e-6 }
+  - party_type: RETAIL
+    account_type: RETAIL_CREDIT_CARD_PREMIUM
+    instrument_type: WALLET_DEVICE_TOKEN
+    count_model_id: zi_nb2_capK_v1
+    hard_min_per_account: 0
+    hard_max_per_account: 5
+    params: { p_zero: 0.55, kappa: 1.6, p_zero_weight: 0.45, sigma: 1.05, weight_floor_eps: 1.0e-6 }
+  - party_type: RETAIL
+    account_type: RETAIL_CREDIT_CARD_PREMIUM
+    instrument_type: WALLET_NETWORK_TOKEN
+    count_model_id: zi_nb2_capK_v1
+    hard_min_per_account: 0
+    hard_max_per_account: 5
+    params: { p_zero: 0.60, kappa: 1.8, p_zero_weight: 0.50, sigma: 1.05, weight_floor_eps: 1.0e-6 }
+  - party_type: RETAIL
+    account_type: RETAIL_CREDIT_CARD_STANDARD
+    instrument_type: RETAIL_CREDIT_CARD_PHYSICAL
+    count_model_id: zi_poisson_capK_v1
+    hard_min_per_account: 0
+    hard_max_per_account: 2
+    params: { p_zero: 0.15, p_zero_weight: 0.10, sigma: 0.70, weight_floor_eps: 1.0e-6 }
+  - party_type: RETAIL
+    account_type: RETAIL_CREDIT_CARD_STANDARD
+    instrument_type: RETAIL_CREDIT_CARD_VIRTUAL
+    count_model_id: zi_nb2_capK_v1
+    hard_min_per_account: 0
+    hard_max_per_account: 6
+    params: { p_zero: 0.55, kappa: 1.7, p_zero_weight: 0.45, sigma: 1.10, weight_floor_eps: 1.0e-6 }
+  - party_type: RETAIL
+    account_type: RETAIL_CREDIT_CARD_STANDARD
+    instrument_type: WALLET_DEVICE_TOKEN
+    count_model_id: zi_nb2_capK_v1
+    hard_min_per_account: 0
+    hard_max_per_account: 4
+    params: { p_zero: 0.60, kappa: 1.6, p_zero_weight: 0.50, sigma: 0.95, weight_floor_eps: 1.0e-6 }
+  - party_type: RETAIL
+    account_type: RETAIL_CURRENT_BASIC
+    instrument_type: PARTY_BANK_ACCOUNT_DOMESTIC
+    count_model_id: zi_poisson_capK_v1
+    hard_min_per_account: 0
+    hard_max_per_account: 2
+    params: { p_zero: 0.04, p_zero_weight: 0.04, sigma: 0.45, weight_floor_eps: 1.0e-6 }
+  - party_type: RETAIL
+    account_type: RETAIL_CURRENT_BASIC
+    instrument_type: RETAIL_DEBIT_CARD_PHYSICAL
+    count_model_id: zi_poisson_capK_v1
+    hard_min_per_account: 0
+    hard_max_per_account: 2
+    params: { p_zero: 0.06, p_zero_weight: 0.05, sigma: 0.60, weight_floor_eps: 1.0e-6 }
+  - party_type: RETAIL
+    account_type: RETAIL_CURRENT_BASIC
+    instrument_type: RETAIL_DEBIT_CARD_VIRTUAL
+    count_model_id: zi_nb2_capK_v1
+    hard_min_per_account: 0
+    hard_max_per_account: 4
+    params: { p_zero: 0.45, kappa: 1.6, p_zero_weight: 0.35, sigma: 0.95, weight_floor_eps: 1.0e-6 }
+  - party_type: RETAIL
+    account_type: RETAIL_CURRENT_PREMIUM
+    instrument_type: PARTY_BANK_ACCOUNT_DOMESTIC
+    count_model_id: zi_poisson_capK_v1
+    hard_min_per_account: 0
+    hard_max_per_account: 2
+    params: { p_zero: 0.03, p_zero_weight: 0.03, sigma: 0.45, weight_floor_eps: 1.0e-6 }
+  - party_type: RETAIL
+    account_type: RETAIL_CURRENT_PREMIUM
+    instrument_type: RETAIL_DEBIT_CARD_PHYSICAL
+    count_model_id: zi_poisson_capK_v1
+    hard_min_per_account: 0
+    hard_max_per_account: 2
+    params: { p_zero: 0.05, p_zero_weight: 0.05, sigma: 0.65, weight_floor_eps: 1.0e-6 }
+  - party_type: RETAIL
+    account_type: RETAIL_CURRENT_PREMIUM
+    instrument_type: RETAIL_DEBIT_CARD_VIRTUAL
+    count_model_id: zi_nb2_capK_v1
+    hard_min_per_account: 0
+    hard_max_per_account: 4
+    params: { p_zero: 0.40, kappa: 1.6, p_zero_weight: 0.30, sigma: 0.95, weight_floor_eps: 1.0e-6 }
+  - party_type: RETAIL
+    account_type: RETAIL_CURRENT_PREMIUM
+    instrument_type: WALLET_DEVICE_TOKEN
+    count_model_id: zi_nb2_capK_v1
+    hard_min_per_account: 0
+    hard_max_per_account: 4
+    params: { p_zero: 0.55, kappa: 1.6, p_zero_weight: 0.45, sigma: 0.95, weight_floor_eps: 1.0e-6 }
+  - party_type: RETAIL
+    account_type: RETAIL_PERSONAL_LOAN_UNSECURED
+    instrument_type: PARTY_BANK_ACCOUNT_DOMESTIC
+    count_model_id: zi_poisson_capK_v1
+    hard_min_per_account: 0
+    hard_max_per_account: 1
+    params: { p_zero: 0.08, p_zero_weight: 0.08, sigma: 0.40, weight_floor_eps: 1.0e-6 }
+  - party_type: RETAIL
+    account_type: RETAIL_SAVINGS_FIXED
+    instrument_type: PARTY_BANK_ACCOUNT_DOMESTIC
+    count_model_id: zi_poisson_capK_v1
+    hard_min_per_account: 0
+    hard_max_per_account: 1
+    params: { p_zero: 0.10, p_zero_weight: 0.10, sigma: 0.35, weight_floor_eps: 1.0e-6 }
+  - party_type: RETAIL
+    account_type: RETAIL_SAVINGS_INSTANT
+    instrument_type: PARTY_BANK_ACCOUNT_DOMESTIC
+    count_model_id: zi_poisson_capK_v1
+    hard_min_per_account: 0
+    hard_max_per_account: 1
+    params: { p_zero: 0.08, p_zero_weight: 0.08, sigma: 0.35, weight_floor_eps: 1.0e-6 }
+
+segment_feature_tilts:
+  - feature: digital_affinity
+    instrument_type: RETAIL_CREDIT_CARD_VIRTUAL
+    p_zero_weight_multiplier_by_feature: 0.85
+    sigma_multiplier_by_feature: 1.15
+    clip: { min: 0.60, max: 1.60 }
+  - feature: digital_affinity
+    instrument_type: RETAIL_DEBIT_CARD_VIRTUAL
+    p_zero_weight_multiplier_by_feature: 0.85
+    sigma_multiplier_by_feature: 1.10
+    clip: { min: 0.60, max: 1.60 }
+  - feature: digital_affinity
+    instrument_type: WALLET_DEVICE_TOKEN
+    p_zero_weight_multiplier_by_feature: 0.80
+    sigma_multiplier_by_feature: 1.10
+    clip: { min: 0.55, max: 1.70 }
+  - feature: credit_appetite
+    instrument_type: RETAIL_CREDIT_CARD_PHYSICAL
+    p_zero_weight_multiplier_by_feature: 0.90
+    sigma_multiplier_by_feature: 1.05
+    clip: { min: 0.70, max: 1.50 }
+
+constraints:
+  coverage_mode: fail_on_missing_rule
+  max_sigma_global: 2.2
+  max_hard_max_global: 8
+  require_nonzero_weight_when_mandatory: true
+  forbid_rules_for_ineligible_pairs: true
+
+realism_targets:
+  p_zero_weight_ranges_by_instrument_group:
+    BANK_HANDLE: { min: 0.00, max: 0.30 }
+    CARD_PHYSICAL: { min: 0.00, max: 0.20 }
+    CARD_VIRTUAL: { min: 0.20, max: 0.85 }
+    WALLET_TOKEN: { min: 0.20, max: 0.90 }
+  sigma_ranges_by_instrument_group:
+    BANK_HANDLE: { min: 0.20, max: 0.90 }
+    CARD_PHYSICAL: { min: 0.30, max: 1.20 }
+    CARD_VIRTUAL: { min: 0.60, max: 1.80 }
+    WALLET_TOKEN: { min: 0.60, max: 1.80 }
+  hard_max_ranges_by_instrument_group:
+    BANK_HANDLE: { min: 1, max: 3 }
+    CARD_PHYSICAL: { min: 1, max: 3 }
+    CARD_VIRTUAL: { min: 2, max: 8 }
+    WALLET_TOKEN: { min: 2, max: 8 }
+  min_fraction_rules_with_sigma_ge: { sigma: 0.7, frac: 0.30 }
+  mandatory_coverage_rules: []
+
+notes: >
+  Per-account instrument concentration includes zero inflation and segment tilts without hard minimums.

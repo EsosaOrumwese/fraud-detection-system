@@ -1,0 +1,2240 @@
+# Artefact registry for Layer-3 / Segment 6A
+
+subsegments:
+  - id: "6A"
+    name: "Entity & Product World (Who exists?)"
+    artifacts:
+      # --- S0 ---
+      - name: s0_gate_receipt_6A
+        path: data/layer3/6A/s0_gate_receipt/manifest_fingerprint={manifest_fingerprint}/s0_gate_receipt_6A.json
+        type: dataset
+        category: validation
+        semver: 1.0.0
+        version: '{manifest_fingerprint}'
+        digest: null
+        manifest_key: mlr.6A.validation.s0_gate_receipt
+        license: null
+        role: Layer-3 / Segment 6A gate receipt. One row per manifest_fingerprint, summarising
+          upstream gates and the sealed input universe for 6A.
+        dependencies:
+        - mlr.1A.validation.bundle
+        - mlr.1A.validation.passed
+        - mlr.1B.validation.bundle
+        - mlr.1B.validation.passed
+        - mlr.2A.validation.bundle
+        - mlr.2A.validation.passed
+        - mlr.2B.validation.bundle
+        - mlr.2B.validation.passed
+        - mlr.3A.validation.bundle
+        - mlr.3A.validation.passed
+        - mlr.3B.validation.bundle
+        - mlr.3B.validation.passed
+        - mlr.5A.validation.bundle
+        - mlr.5A.validation.passed
+        - mlr.5B.validation.bundle
+        - mlr.5B.validation.passed
+        source: internal
+        owner:
+          owner_team: null
+        last_updated: '{iso8601_timestamp}'
+        environment:
+        - runtime
+        schema: schemas.layer3.yaml#/gate/6A/s0_gate_receipt_6A
+        cross_layer: true
+        notes: retention_class=engine_control_plane; pii_class=none
+      - name: sealed_inputs_6A
+        path: data/layer3/6A/sealed_inputs/manifest_fingerprint={manifest_fingerprint}/sealed_inputs_6A.json
+        type: dataset
+        category: validation
+        semver: 1.0.0
+        version: '{manifest_fingerprint}'
+        digest: null
+        manifest_key: mlr.6A.validation.sealed_inputs
+        license: null
+        role: Manifest of all artefacts 6A is authorised to depend on for a given manifest_fingerprint,
+          with roles, digests, and read scopes.
+        dependencies:
+        - mlr.6A.validation.s0_gate_receipt
+        source: internal
+        owner:
+          owner_team: null
+        last_updated: '{iso8601_timestamp}'
+        environment:
+        - runtime
+        schema: schemas.layer3.yaml#/gate/6A/sealed_inputs_6A
+        cross_layer: true
+        notes: retention_class=engine_control_plane; pii_class=none
+      # --- S0 sealed inputs (upstream cross-layer) ---
+      - name: validation_bundle_1A
+        path: data/layer1/1A/validation/manifest_fingerprint={manifest_fingerprint}/
+        type: dataset
+        category: validation
+        semver: 1.0.0
+        version: '{manifest_fingerprint}'
+        digest: null
+        manifest_key: mlr.1A.validation.bundle
+        license: null
+        role: Upstream validation bundle for Segment 1A.
+        dependencies: []
+        source: internal
+        owner:
+          owner_team: null
+        last_updated: '{iso8601_timestamp}'
+        environment:
+        - runtime
+        schema: schemas.1A.yaml#/validation/validation_bundle
+        cross_layer: true
+        notes: retention_class=engine_control_plane; pii_class=none
+      - name: validation_passed_flag_1A
+        path: data/layer1/1A/validation/manifest_fingerprint={manifest_fingerprint}/_passed.flag
+        type: dataset
+        category: validation
+        semver: 1.0.0
+        version: '{manifest_fingerprint}'
+        digest: null
+        manifest_key: mlr.1A.validation.passed
+        license: null
+        role: HashGate PASS flag for Segment 1A.
+        dependencies:
+        - mlr.1A.validation.bundle
+        source: internal
+        owner:
+          owner_team: null
+        last_updated: '{iso8601_timestamp}'
+        environment:
+        - runtime
+        schema: schemas.layer1.yaml#/validation/passed_flag
+        cross_layer: true
+        notes: retention_class=engine_control_plane; pii_class=none
+      - name: validation_bundle_1B
+        path: data/layer1/1B/validation/manifest_fingerprint={manifest_fingerprint}/
+        type: dataset
+        category: validation
+        semver: 1.0.0
+        version: '{manifest_fingerprint}'
+        digest: null
+        manifest_key: mlr.1B.validation.bundle
+        license: null
+        role: Upstream validation bundle for Segment 1B.
+        dependencies: []
+        source: internal
+        owner:
+          owner_team: null
+        last_updated: '{iso8601_timestamp}'
+        environment:
+        - runtime
+        schema: schemas.1B.yaml#/validation/validation_bundle_1B
+        cross_layer: true
+        notes: retention_class=engine_control_plane; pii_class=none
+      - name: validation_passed_flag_1B
+        path: data/layer1/1B/validation/manifest_fingerprint={manifest_fingerprint}/_passed.flag
+        type: dataset
+        category: validation
+        semver: 1.0.0
+        version: '{manifest_fingerprint}'
+        digest: null
+        manifest_key: mlr.1B.validation.passed
+        license: null
+        role: HashGate PASS flag for Segment 1B.
+        dependencies:
+        - mlr.1B.validation.bundle
+        source: internal
+        owner:
+          owner_team: null
+        last_updated: '{iso8601_timestamp}'
+        environment:
+        - runtime
+        schema: schemas.1B.yaml#/validation/passed_flag
+        cross_layer: true
+        notes: retention_class=engine_control_plane; pii_class=none
+      - name: validation_bundle_2A
+        path: data/layer1/2A/validation/manifest_fingerprint={manifest_fingerprint}/
+        type: dataset
+        category: validation
+        semver: 1.0.0
+        version: '{manifest_fingerprint}'
+        digest: null
+        manifest_key: mlr.2A.validation.bundle
+        license: null
+        role: Upstream validation bundle for Segment 2A.
+        dependencies: []
+        source: internal
+        owner:
+          owner_team: null
+        last_updated: '{iso8601_timestamp}'
+        environment:
+        - runtime
+        schema: schemas.2A.yaml#/validation/validation_bundle_2A
+        cross_layer: true
+        notes: retention_class=engine_control_plane; pii_class=none
+      - name: validation_passed_flag_2A
+        path: data/layer1/2A/validation/manifest_fingerprint={manifest_fingerprint}/_passed.flag
+        type: dataset
+        category: validation
+        semver: 1.0.0
+        version: '{manifest_fingerprint}'
+        digest: null
+        manifest_key: mlr.2A.validation.passed
+        license: null
+        role: HashGate PASS flag for Segment 2A.
+        dependencies:
+        - mlr.2A.validation.bundle
+        source: internal
+        owner:
+          owner_team: null
+        last_updated: '{iso8601_timestamp}'
+        environment:
+        - runtime
+        schema: schemas.2A.yaml#/validation/passed_flag
+        cross_layer: true
+        notes: retention_class=engine_control_plane; pii_class=none
+      - name: validation_bundle_2B
+        path: data/layer1/2B/validation/manifest_fingerprint={manifest_fingerprint}/index.json
+        type: dataset
+        category: validation
+        semver: 1.0.0
+        version: '{manifest_fingerprint}'
+        digest: null
+        manifest_key: mlr.2B.validation.bundle
+        license: null
+        role: Upstream validation bundle index for Segment 2B.
+        dependencies: []
+        source: internal
+        owner:
+          owner_team: null
+        last_updated: '{iso8601_timestamp}'
+        environment:
+        - runtime
+        schema: schemas.layer1.yaml#/validation/validation_bundle/index_schema
+        cross_layer: true
+        notes: retention_class=engine_control_plane; pii_class=none
+      - name: validation_passed_flag_2B
+        path: data/layer1/2B/validation/manifest_fingerprint={manifest_fingerprint}/_passed.flag
+        type: dataset
+        category: validation
+        semver: 1.0.0
+        version: '{manifest_fingerprint}'
+        digest: null
+        manifest_key: mlr.2B.validation.passed
+        license: null
+        role: HashGate PASS flag for Segment 2B.
+        dependencies:
+        - mlr.2B.validation.bundle
+        source: internal
+        owner:
+          owner_team: null
+        last_updated: '{iso8601_timestamp}'
+        environment:
+        - runtime
+        schema: schemas.1B.yaml#/validation/passed_flag
+        cross_layer: true
+        notes: retention_class=engine_control_plane; pii_class=none
+      - name: validation_bundle_3A
+        path: data/layer1/3A/validation/manifest_fingerprint={manifest_fingerprint}/
+        type: dataset
+        category: validation
+        semver: 1.0.0
+        version: '{manifest_fingerprint}'
+        digest: null
+        manifest_key: mlr.3A.validation.bundle
+        license: null
+        role: Upstream validation bundle for Segment 3A.
+        dependencies: []
+        source: internal
+        owner:
+          owner_team: null
+        last_updated: '{iso8601_timestamp}'
+        environment:
+        - runtime
+        schema: schemas.layer1.yaml#/validation/validation_bundle_index_3A
+        cross_layer: true
+        notes: retention_class=engine_control_plane; pii_class=none
+      - name: validation_passed_flag_3A
+        path: data/layer1/3A/validation/manifest_fingerprint={manifest_fingerprint}/_passed.flag
+        type: dataset
+        category: validation
+        semver: 1.0.0
+        version: '{manifest_fingerprint}'
+        digest: null
+        manifest_key: mlr.3A.validation.passed
+        license: null
+        role: HashGate PASS flag for Segment 3A.
+        dependencies:
+        - mlr.3A.validation.bundle
+        source: internal
+        owner:
+          owner_team: null
+        last_updated: '{iso8601_timestamp}'
+        environment:
+        - runtime
+        schema: schemas.layer1.yaml#/validation/passed_flag_3A
+        cross_layer: true
+        notes: retention_class=engine_control_plane; pii_class=none
+      - name: validation_bundle_3B
+        path: data/layer1/3B/validation/manifest_fingerprint={manifest_fingerprint}/
+        type: dataset
+        category: validation
+        semver: 1.0.0
+        version: '{manifest_fingerprint}'
+        digest: null
+        manifest_key: mlr.3B.validation.bundle
+        license: null
+        role: Upstream validation bundle for Segment 3B.
+        dependencies: []
+        source: internal
+        owner:
+          owner_team: null
+        last_updated: '{iso8601_timestamp}'
+        environment:
+        - runtime
+        schema: schemas.layer1.yaml#/validation/validation_bundle_index_3B
+        cross_layer: true
+        notes: retention_class=engine_control_plane; pii_class=none
+      - name: validation_passed_flag_3B
+        path: data/layer1/3B/validation/manifest_fingerprint={manifest_fingerprint}/_passed.flag
+        type: dataset
+        category: validation
+        semver: 1.0.0
+        version: '{manifest_fingerprint}'
+        digest: null
+        manifest_key: mlr.3B.validation.passed
+        license: null
+        role: HashGate PASS flag for Segment 3B.
+        dependencies:
+        - mlr.3B.validation.bundle
+        source: internal
+        owner:
+          owner_team: null
+        last_updated: '{iso8601_timestamp}'
+        environment:
+        - runtime
+        schema: schemas.layer1.yaml#/validation/passed_flag_3B
+        cross_layer: true
+        notes: retention_class=engine_control_plane; pii_class=none
+      - name: validation_bundle_5A
+        path: data/layer2/5A/validation/manifest_fingerprint={manifest_fingerprint}/
+        type: dataset
+        category: validation
+        semver: 1.0.0
+        version: '{manifest_fingerprint}'
+        digest: null
+        manifest_key: mlr.5A.validation.bundle
+        license: null
+        role: Upstream validation bundle for Segment 5A.
+        dependencies: []
+        source: internal
+        owner:
+          owner_team: null
+        last_updated: '{iso8601_timestamp}'
+        environment:
+        - runtime
+        schema: schemas.layer2.yaml#/validation/validation_bundle_index_5A
+        cross_layer: true
+        notes: retention_class=engine_control_plane; pii_class=none
+      - name: validation_passed_flag_5A
+        path: data/layer2/5A/validation/manifest_fingerprint={manifest_fingerprint}/_passed.flag
+        type: dataset
+        category: validation
+        semver: 1.0.0
+        version: '{manifest_fingerprint}'
+        digest: null
+        manifest_key: mlr.5A.validation.passed
+        license: null
+        role: HashGate PASS flag for Segment 5A.
+        dependencies:
+        - mlr.5A.validation.bundle
+        source: internal
+        owner:
+          owner_team: null
+        last_updated: '{iso8601_timestamp}'
+        environment:
+        - runtime
+        schema: schemas.layer2.yaml#/validation/passed_flag_5A
+        cross_layer: true
+        notes: retention_class=engine_control_plane; pii_class=none
+      - name: validation_bundle_5B
+        path: data/layer2/5B/validation/manifest_fingerprint={manifest_fingerprint}/
+        type: dataset
+        category: validation
+        semver: 1.0.0
+        version: '{manifest_fingerprint}'
+        digest: null
+        manifest_key: mlr.5B.validation.bundle
+        license: null
+        role: Upstream validation bundle for Segment 5B.
+        dependencies: []
+        source: internal
+        owner:
+          owner_team: null
+        last_updated: '{iso8601_timestamp}'
+        environment:
+        - runtime
+        schema: schemas.layer2.yaml#/validation/validation_bundle_index_5B
+        cross_layer: true
+        notes: retention_class=engine_control_plane; pii_class=none
+      - name: validation_passed_flag_5B
+        path: data/layer2/5B/validation/manifest_fingerprint={manifest_fingerprint}/_passed.flag
+        type: dataset
+        category: validation
+        semver: 1.0.0
+        version: '{manifest_fingerprint}'
+        digest: null
+        manifest_key: mlr.5B.validation.passed
+        license: null
+        role: HashGate PASS flag for Segment 5B.
+        dependencies:
+        - mlr.5B.validation.bundle
+        source: internal
+        owner:
+          owner_team: null
+        last_updated: '{iso8601_timestamp}'
+        environment:
+        - runtime
+        schema: schemas.layer2.yaml#/validation/passed_flag_5B
+        cross_layer: true
+        notes: retention_class=engine_control_plane; pii_class=none
+      - name: outlet_catalogue
+        path: data/layer1/1A/outlet_catalogue/seed={seed}/manifest_fingerprint={manifest_fingerprint}/
+        type: dataset
+        category: output
+        semver: 1.0.0
+        version: '{manifest_fingerprint}'
+        digest: null
+        manifest_key: mlr.1A.output.outlet_catalogue
+        license: null
+        role: Upstream outlet catalogue egress from Segment 1A.
+        dependencies: []
+        source: internal
+        owner:
+          owner_team: null
+        last_updated: '{iso8601_timestamp}'
+        environment:
+        - runtime
+        schema: schemas.1A.yaml#/egress/outlet_catalogue
+        cross_layer: true
+        notes: retention_class=engine_control_plane; pii_class=synthetic_customer
+      - name: site_locations
+        path: data/layer1/1B/site_locations/seed={seed}/manifest_fingerprint={manifest_fingerprint}/
+        type: dataset
+        category: output
+        semver: 1.0.0
+        version: '{seed}.{manifest_fingerprint}'
+        digest: null
+        manifest_key: mlr.1B.egress.site_locations
+        license: null
+        role: Upstream site locations egress from Segment 1B.
+        dependencies: []
+        source: internal
+        owner:
+          owner_team: null
+        last_updated: '{iso8601_timestamp}'
+        environment:
+        - runtime
+        schema: schemas.1B.yaml#/egress/site_locations
+        cross_layer: true
+        notes: retention_class=engine_control_plane; pii_class=synthetic_customer
+      - name: site_timezones
+        path: data/layer1/2A/site_timezones/seed={seed}/manifest_fingerprint={manifest_fingerprint}/
+        type: dataset
+        category: output
+        semver: 1.0.0
+        version: '{seed}.{manifest_fingerprint}'
+        digest: null
+        manifest_key: mlr.2A.egress.site_timezones
+        license: null
+        role: Upstream site timezone resolution from Segment 2A.
+        dependencies: []
+        source: internal
+        owner:
+          owner_team: null
+        last_updated: '{iso8601_timestamp}'
+        environment:
+        - runtime
+        schema: schemas.2A.yaml#/egress/site_timezones
+        cross_layer: true
+        notes: retention_class=engine_control_plane; pii_class=synthetic_customer
+      - name: tz_timetable_cache
+        path: data/layer1/2A/tz_timetable_cache/manifest_fingerprint={manifest_fingerprint}/
+        type: dataset
+        category: output
+        semver: 1.0.0
+        version: '{manifest_fingerprint}'
+        digest: null
+        manifest_key: mlr.2A.cache.tz_timetable
+        license: null
+        role: Upstream tz timetable cache from Segment 2A.
+        dependencies: []
+        source: internal
+        owner:
+          owner_team: null
+        last_updated: '{iso8601_timestamp}'
+        environment:
+        - runtime
+        schema: schemas.2A.yaml#/cache/tz_timetable_cache
+        cross_layer: true
+        notes: retention_class=engine_control_plane; pii_class=none
+      - name: zone_alloc
+        path: data/layer1/3A/zone_alloc/seed={seed}/manifest_fingerprint={manifest_fingerprint}/
+        type: dataset
+        category: output
+        semver: 1.0.0
+        version: '{seed}.{manifest_fingerprint}'
+        digest: null
+        manifest_key: mlr.3A.zone_alloc
+        license: null
+        role: Upstream zone allocation egress from Segment 3A.
+        dependencies: []
+        source: internal
+        owner:
+          owner_team: null
+        last_updated: '{iso8601_timestamp}'
+        environment:
+        - runtime
+        schema: schemas.3A.yaml#/egress/zone_alloc
+        cross_layer: true
+        notes: retention_class=engine_control_plane; pii_class=synthetic_customer
+      - name: zone_alloc_universe_hash
+        path: data/layer1/3A/zone_universe/manifest_fingerprint={manifest_fingerprint}/zone_alloc_universe_hash.json
+        type: dataset
+        category: validation
+        semver: 1.0.0
+        version: '{manifest_fingerprint}'
+        digest: null
+        manifest_key: mlr.3A.zone_alloc_universe_hash
+        license: null
+        role: Upstream zone allocation hash from Segment 3A.
+        dependencies: []
+        source: internal
+        owner:
+          owner_team: null
+        last_updated: '{iso8601_timestamp}'
+        environment:
+        - runtime
+        schema: schemas.3A.yaml#/validation/zone_alloc_universe_hash
+        cross_layer: true
+        notes: retention_class=engine_control_plane; pii_class=none
+      - name: virtual_classification_3B
+        path: data/layer1/3B/virtual_classification/seed={seed}/manifest_fingerprint={manifest_fingerprint}/
+        type: dataset
+        category: output
+        semver: 1.0.0
+        version: '{seed}.{manifest_fingerprint}'
+        digest: null
+        manifest_key: mlr.3B.s1.virtual_classification
+        license: null
+        role: Upstream virtual classification surface from Segment 3B.
+        dependencies: []
+        source: internal
+        owner:
+          owner_team: null
+        last_updated: '{iso8601_timestamp}'
+        environment:
+        - runtime
+        schema: schemas.3B.yaml#/plan/virtual_classification_3B
+        cross_layer: true
+        notes: retention_class=engine_control_plane; pii_class=synthetic_customer
+      - name: virtual_settlement_3B
+        path: data/layer1/3B/virtual_settlement/seed={seed}/manifest_fingerprint={manifest_fingerprint}/
+        type: dataset
+        category: output
+        semver: 1.0.0
+        version: '{seed}.{manifest_fingerprint}'
+        digest: null
+        manifest_key: mlr.3B.s1.virtual_settlement
+        license: null
+        role: Upstream virtual settlement surface from Segment 3B.
+        dependencies: []
+        source: internal
+        owner:
+          owner_team: null
+        last_updated: '{iso8601_timestamp}'
+        environment:
+        - runtime
+        schema: schemas.3B.yaml#/plan/virtual_settlement_3B
+        cross_layer: true
+        notes: retention_class=engine_control_plane; pii_class=synthetic_customer
+      - name: edge_universe_hash_3B
+        path: data/layer1/3B/edge_universe_hash/manifest_fingerprint={manifest_fingerprint}/edge_universe_hash_3B.json
+        type: dataset
+        category: validation
+        semver: 1.0.0
+        version: '{manifest_fingerprint}'
+        digest: null
+        manifest_key: mlr.3B.validation.edge_universe_hash
+        license: null
+        role: Upstream edge universe hash from Segment 3B.
+        dependencies: []
+        source: internal
+        owner:
+          owner_team: null
+        last_updated: '{iso8601_timestamp}'
+        environment:
+        - runtime
+        schema: schemas.3B.yaml#/validation/edge_universe_hash_3B
+        cross_layer: true
+        notes: retention_class=engine_control_plane; pii_class=none
+      - name: virtual_routing_policy_3B
+        path: data/layer1/3B/virtual_routing_policy/manifest_fingerprint={manifest_fingerprint}/virtual_routing_policy_3B.json
+        type: dataset
+        category: output
+        semver: 1.0.0
+        version: '{manifest_fingerprint}'
+        digest: null
+        manifest_key: mlr.3B.virtual.routing_policy
+        license: null
+        role: Upstream virtual routing policy from Segment 3B.
+        dependencies: []
+        source: internal
+        owner:
+          owner_team: null
+        last_updated: '{iso8601_timestamp}'
+        environment:
+        - runtime
+        schema: schemas.3B.yaml#/egress/virtual_routing_policy_3B
+        cross_layer: true
+        notes: retention_class=engine_control_plane; pii_class=none
+      - name: merchant_zone_profile_5A
+        path: data/layer2/5A/merchant_zone_profile/manifest_fingerprint={manifest_fingerprint}/merchant_zone_profile_5A.parquet
+        type: dataset
+        category: output
+        semver: 1.0.0
+        version: '{manifest_fingerprint}'
+        digest: null
+        manifest_key: mlr.5A.model.merchant_zone_profile
+        license: null
+        role: Upstream merchant zone profile from Segment 5A.
+        dependencies: []
+        source: internal
+        owner:
+          owner_team: null
+        last_updated: '{iso8601_timestamp}'
+        environment:
+        - runtime
+        schema: schemas.5A.yaml#/model/merchant_zone_profile_5A
+        cross_layer: true
+        notes: retention_class=engine_control_plane; pii_class=synthetic_customer
+      - name: arrival_events_5B
+        path: data/layer2/5B/arrival_events/seed={seed}/manifest_fingerprint={manifest_fingerprint}/scenario_id={scenario_id}/part-*.parquet
+        type: dataset
+        category: output
+        semver: 1.0.0
+        version: '{seed}.{manifest_fingerprint}.{scenario_id}'
+        digest: null
+        manifest_key: mlr.5B.egress.arrival_events
+        license: null
+        role: Upstream arrival events surface from Segment 5B.
+        dependencies: []
+        source: internal
+        owner:
+          owner_team: null
+        last_updated: '{iso8601_timestamp}'
+        environment:
+        - runtime
+        schema: schemas.5B.yaml#/egress/s4_arrival_events_5B
+        cross_layer: true
+        notes: retention_class=engine_control_plane; pii_class=synthetic_customer
+      # --- S0 sealed inputs (priors & taxonomies) ---
+
+      - name: prior_population_6A
+        path: config/layer3/6A/priors/population_priors_6A.v1.yaml
+        type: config
+        category: config
+        semver: 1.0.0
+        version: v1
+        digest: null
+        manifest_key: mlr.6A.prior.population
+        license: Proprietary-Internal
+        role: Population priors pack for 6A (world/region totals, mixtures, demographics).
+        dependencies: []
+        source: internal
+        owner:
+          owner_team: data-governance
+        last_updated: '{iso8601_timestamp}'
+        environment:
+        - runtime
+        schema: schemas.6A.yaml#/prior/population_priors_6A
+        cross_layer: false
+        notes: retention_class=engine_control_plane; pii_class=none
+      - name: prior_segmentation_6A
+        path: config/layer3/6A/priors/segmentation_priors_6A.v1.yaml
+        type: config
+        category: config
+        semver: 1.0.0
+        version: v1
+        digest: null
+        manifest_key: mlr.6A.prior.segmentation
+        license: Proprietary-Internal
+        role: Segmentation priors for 6A (party_type/segment mixes and region splits).
+        dependencies: []
+        source: internal
+        owner:
+          owner_team: data-governance
+        last_updated: '{iso8601_timestamp}'
+        environment:
+        - runtime
+        schema: schemas.6A.yaml#/prior/segmentation_priors_6A
+        cross_layer: false
+        notes: retention_class=engine_control_plane; pii_class=none
+      - name: taxonomy_party_6A
+        path: config/layer3/6A/taxonomy/party_taxonomy_6A.v1.yaml
+        type: config
+        category: config
+        semver: 1.0.0
+        version: v1
+        digest: null
+        manifest_key: mlr.6A.taxonomy.party
+        license: Proprietary-Internal
+        role: Party/segment/region taxonomies for 6A.
+        dependencies: []
+        source: internal
+        owner:
+          owner_team: data-governance
+        last_updated: '{iso8601_timestamp}'
+        environment:
+        - runtime
+        schema: schemas.6A.yaml#/taxonomy/party_taxonomy_6A
+        cross_layer: false
+        notes: retention_class=engine_control_plane; pii_class=none
+      - name: prior_account_per_party_6A
+        path: config/layer3/6A/priors/account_per_party_priors_6A.v1.yaml
+        type: config
+        category: config
+        semver: 1.0.0
+        version: v1
+        digest: null
+        manifest_key: mlr.6A.prior.account_per_party
+        license: Proprietary-Internal
+        role: Priors for account counts per party and per segment.
+        dependencies: []
+        source: internal
+        owner:
+          owner_team: data-governance
+        last_updated: '{iso8601_timestamp}'
+        environment:
+        - runtime
+        schema: schemas.6A.yaml#/prior/account_per_party_priors_6A
+        cross_layer: false
+        notes: retention_class=engine_control_plane; pii_class=none
+      - name: prior_product_mix_6A
+        path: config/layer3/6A/priors/product_mix_priors_6A.v1.yaml
+        type: config
+        category: config
+        semver: 1.0.0
+        version: v1
+        digest: null
+        manifest_key: mlr.6A.prior.product_mix
+        license: Proprietary-Internal
+        role: Priors for account/product mix by party segment and region.
+        dependencies: []
+        source: internal
+        owner:
+          owner_team: data-governance
+        last_updated: '{iso8601_timestamp}'
+        environment:
+        - runtime
+        schema: schemas.6A.yaml#/prior/product_mix_priors_6A
+        cross_layer: false
+        notes: retention_class=engine_control_plane; pii_class=none
+      - name: taxonomy_account_types_6A
+        path: config/layer3/6A/taxonomy/account_taxonomy_6A.v1.yaml
+        type: config
+        category: config
+        semver: 1.0.0
+        version: v1
+        digest: null
+        manifest_key: mlr.6A.taxonomy.account_types
+        license: Proprietary-Internal
+        role: Account/product taxonomies for 6A.
+        dependencies: []
+        source: internal
+        owner:
+          owner_team: data-governance
+        last_updated: '{iso8601_timestamp}'
+        environment:
+        - runtime
+        schema: schemas.6A.yaml#/taxonomy/account_taxonomy_6A
+        cross_layer: false
+        notes: retention_class=engine_control_plane; pii_class=none
+      - name: prior_instrument_per_account_6A
+        path: config/layer3/6A/priors/instrument_per_account_priors_6A.v1.yaml
+        type: config
+        category: config
+        semver: 1.0.0
+        version: v1
+        digest: null
+        manifest_key: mlr.6A.prior.instrument_per_account
+        license: Proprietary-Internal
+        role: Priors for instrument counts per account.
+        dependencies: []
+        source: internal
+        owner:
+          owner_team: data-governance
+        last_updated: '{iso8601_timestamp}'
+        environment:
+        - runtime
+        schema: schemas.6A.yaml#/prior/instrument_per_account_priors_6A
+        cross_layer: false
+        notes: retention_class=engine_control_plane; pii_class=none
+      - name: prior_instrument_mix_6A
+        path: config/layer3/6A/priors/instrument_mix_priors_6A.v1.yaml
+        type: config
+        category: config
+        semver: 1.0.0
+        version: v1
+        digest: null
+        manifest_key: mlr.6A.prior.instrument_mix
+        license: Proprietary-Internal
+        role: Priors for instrument type and scheme mixes.
+        dependencies: []
+        source: internal
+        owner:
+          owner_team: data-governance
+        last_updated: '{iso8601_timestamp}'
+        environment:
+        - runtime
+        schema: schemas.6A.yaml#/prior/instrument_mix_priors_6A
+        cross_layer: false
+        notes: retention_class=engine_control_plane; pii_class=none
+      - name: taxonomy_instrument_types_6A
+        path: config/layer3/6A/taxonomy/instrument_taxonomy_6A.v1.yaml
+        type: config
+        category: config
+        semver: 1.0.0
+        version: v1
+        digest: null
+        manifest_key: mlr.6A.taxonomy.instrument_types
+        license: Proprietary-Internal
+        role: Instrument, scheme, and network taxonomies for 6A.
+        dependencies: []
+        source: internal
+        owner:
+          owner_team: data-governance
+        last_updated: '{iso8601_timestamp}'
+        environment:
+        - runtime
+        schema: schemas.6A.yaml#/taxonomy/instrument_taxonomy_6A
+        cross_layer: false
+        notes: retention_class=engine_control_plane; pii_class=none
+      - name: prior_device_counts_6A
+        path: config/layer3/6A/priors/device_count_priors_6A.v1.yaml
+        type: config
+        category: config
+        semver: 1.0.0
+        version: v1
+        digest: null
+        manifest_key: mlr.6A.prior.device_counts
+        license: Proprietary-Internal
+        role: Priors for device counts and sharing behavior.
+        dependencies: []
+        source: internal
+        owner:
+          owner_team: data-governance
+        last_updated: '{iso8601_timestamp}'
+        environment:
+        - runtime
+        schema: schemas.6A.yaml#/prior/device_count_priors_6A
+        cross_layer: false
+        notes: retention_class=engine_control_plane; pii_class=none
+      - name: taxonomy_devices_6A
+        path: config/layer3/6A/taxonomy/device_taxonomy_6A.v1.yaml
+        type: config
+        category: config
+        semver: 1.0.0
+        version: v1
+        digest: null
+        manifest_key: mlr.6A.taxonomy.devices
+        license: Proprietary-Internal
+        role: Device taxonomies (device_type, OS, UA families, risk codes).
+        dependencies: []
+        source: internal
+        owner:
+          owner_team: data-governance
+        last_updated: '{iso8601_timestamp}'
+        environment:
+        - runtime
+        schema: schemas.6A.yaml#/taxonomy/device_taxonomy_6A
+        cross_layer: false
+        notes: retention_class=engine_control_plane; pii_class=none
+      - name: prior_ip_counts_6A
+        path: config/layer3/6A/priors/ip_count_priors_6A.v1.yaml
+        type: config
+        category: config
+        semver: 1.0.0
+        version: v1
+        digest: null
+        manifest_key: mlr.6A.prior.ip_counts
+        license: Proprietary-Internal
+        role: Priors for IP/endpoint counts and sharing behavior.
+        dependencies: []
+        source: internal
+        owner:
+          owner_team: data-governance
+        last_updated: '{iso8601_timestamp}'
+        environment:
+        - runtime
+        schema: schemas.6A.yaml#/prior/ip_count_priors_6A
+        cross_layer: false
+        notes: retention_class=engine_control_plane; pii_class=none
+      - name: taxonomy_ips_6A
+        path: config/layer3/6A/taxonomy/ip_taxonomy_6A.v1.yaml
+        type: config
+        category: config
+        semver: 1.0.0
+        version: v1
+        digest: null
+        manifest_key: mlr.6A.taxonomy.ips
+        license: Proprietary-Internal
+        role: IP/endpoint taxonomies (type and ASN class).
+        dependencies: []
+        source: internal
+        owner:
+          owner_team: data-governance
+        last_updated: '{iso8601_timestamp}'
+        environment:
+        - runtime
+        schema: schemas.6A.yaml#/taxonomy/ip_taxonomy_6A
+        cross_layer: false
+        notes: retention_class=engine_control_plane; pii_class=none
+      - name: taxonomy_fraud_roles_6A
+        path: config/layer3/6A/taxonomy/fraud_role_taxonomy_6A.v1.yaml
+        type: config
+        category: config
+        semver: 1.0.0
+        version: v1
+        digest: null
+        manifest_key: mlr.6A.taxonomy.fraud_roles
+        license: Proprietary-Internal
+        role: Fraud-role enum taxonomy for parties/accounts/merchants/devices/IPs.
+        dependencies: []
+        source: internal
+        owner:
+          owner_team: data-governance
+        last_updated: '{iso8601_timestamp}'
+        environment:
+        - runtime
+        schema: schemas.6A.yaml#/taxonomy/fraud_role_taxonomy_6A
+        cross_layer: false
+        notes: retention_class=engine_control_plane; pii_class=none
+      - name: prior_party_roles_6A
+        path: config/layer3/6A/priors/party_role_priors_6A.v1.yaml
+        type: config
+        category: config
+        semver: 1.0.0
+        version: v1
+        digest: null
+        manifest_key: mlr.6A.s5.prior.party_roles
+        license: Proprietary-Internal
+        role: Fraud-role priors for parties.
+        dependencies: []
+        source: internal
+        owner:
+          owner_team: data-governance
+        last_updated: '{iso8601_timestamp}'
+        environment:
+        - runtime
+        schema: schemas.6A.yaml#/prior/party_role_priors_6A
+        cross_layer: false
+        notes: retention_class=engine_control_plane; pii_class=none
+      - name: prior_account_roles_6A
+        path: config/layer3/6A/priors/account_role_priors_6A.v1.yaml
+        type: config
+        category: config
+        semver: 1.0.0
+        version: v1
+        digest: null
+        manifest_key: mlr.6A.s5.prior.account_roles
+        license: Proprietary-Internal
+        role: Fraud-role priors for accounts.
+        dependencies: []
+        source: internal
+        owner:
+          owner_team: data-governance
+        last_updated: '{iso8601_timestamp}'
+        environment:
+        - runtime
+        schema: schemas.6A.yaml#/prior/account_role_priors_6A
+        cross_layer: false
+        notes: retention_class=engine_control_plane; pii_class=none
+      - name: prior_merchant_roles_6A
+        path: config/layer3/6A/priors/merchant_role_priors_6A.v1.yaml
+        type: config
+        category: config
+        semver: 1.0.0
+        version: v1
+        digest: null
+        manifest_key: mlr.6A.s5.prior.merchant_roles
+        license: Proprietary-Internal
+        role: Fraud-role priors for merchants.
+        dependencies: []
+        source: internal
+        owner:
+          owner_team: data-governance
+        last_updated: '{iso8601_timestamp}'
+        environment:
+        - runtime
+        schema: schemas.6A.yaml#/prior/merchant_role_priors_6A
+        cross_layer: false
+        notes: retention_class=engine_control_plane; pii_class=none
+      - name: prior_device_roles_6A
+        path: config/layer3/6A/priors/device_role_priors_6A.v1.yaml
+        type: config
+        category: config
+        semver: 1.0.0
+        version: v1
+        digest: null
+        manifest_key: mlr.6A.s5.prior.device_roles
+        license: Proprietary-Internal
+        role: Fraud-role priors for devices.
+        dependencies: []
+        source: internal
+        owner:
+          owner_team: data-governance
+        last_updated: '{iso8601_timestamp}'
+        environment:
+        - runtime
+        schema: schemas.6A.yaml#/prior/device_role_priors_6A
+        cross_layer: false
+        notes: retention_class=engine_control_plane; pii_class=none
+      - name: prior_ip_roles_6A
+        path: config/layer3/6A/priors/ip_role_priors_6A.v1.yaml
+        type: config
+        category: config
+        semver: 1.0.0
+        version: v1
+        digest: null
+        manifest_key: mlr.6A.s5.prior.ip_roles
+        license: Proprietary-Internal
+        role: Fraud-role priors for IPs/endpoints.
+        dependencies: []
+        source: internal
+        owner:
+          owner_team: data-governance
+        last_updated: '{iso8601_timestamp}'
+        environment:
+        - runtime
+        schema: schemas.6A.yaml#/prior/ip_role_priors_6A
+        cross_layer: false
+        notes: retention_class=engine_control_plane; pii_class=none
+      - name: validation_policy_6A
+        path: config/layer3/6A/policy/validation_policy_6A.v1.yaml
+        type: config
+        category: policy
+        semver: 1.0.0
+        version: v1
+        digest: null
+        manifest_key: mlr.6A.policy.validation_policy
+        license: Proprietary-Internal
+        role: Validation policy/checklist for 6A.S5 (PASS/WARN/FAIL thresholds and required
+          checks).
+        dependencies: []
+        source: internal
+        owner:
+          owner_team: data-governance
+        last_updated: '{iso8601_timestamp}'
+        environment:
+        - runtime
+        schema: schemas.6A.yaml#/policy/validation_policy_6A
+        cross_layer: false
+        notes: retention_class=engine_control_plane; pii_class=none
+      - name: graph_linkage_rules_6A
+        path: config/layer3/6A/policy/graph_linkage_rules_6A.v1.yaml
+        type: config
+        category: policy
+        semver: 1.0.0
+        version: v1
+        digest: null
+        manifest_key: mlr.6A.policy.graph_linkage_rules
+        license: Proprietary-Internal
+        role: Graph/linkage rules for 6A.S4 (device/IP sharing, degree caps, deterministic
+          tie-breaks).
+        dependencies: []
+        source: internal
+        owner:
+          owner_team: data-governance
+        last_updated: '{iso8601_timestamp}'
+        environment:
+        - runtime
+        schema: schemas.6A.yaml#/policy/graph_linkage_rules_6A
+        cross_layer: false
+        notes: retention_class=engine_control_plane; pii_class=none
+      - name: device_linkage_rules_6A
+        path: config/layer3/6A/policy/device_linkage_rules_6A.v1.yaml
+        type: config
+        category: policy
+        semver: 1.0.0
+        version: v1
+        digest: null
+        manifest_key: mlr.6A.policy.device_linkage_rules
+        license: Proprietary-Internal
+        role: Device-specific linkage rules for 6A.S4 (sharing patterns and degree caps).
+        dependencies: []
+        source: internal
+        owner:
+          owner_team: data-governance
+        last_updated: '{iso8601_timestamp}'
+        environment:
+        - runtime
+        schema: schemas.6A.yaml#/policy/device_linkage_rules_6A
+        cross_layer: false
+        notes: retention_class=engine_control_plane; pii_class=none
+      - name: product_linkage_rules_6A
+        path: config/layer3/6A/policy/product_linkage_rules_6A.v1.yaml
+        type: config
+        category: policy
+        semver: 1.0.0
+        version: v1
+        digest: null
+        manifest_key: mlr.6A.policy.product_linkage_rules
+        license: Proprietary-Internal
+        role: Optional product linkage rules for 6A.S2 (account/product wiring constraints).
+        dependencies: []
+        source: internal
+        owner:
+          owner_team: data-governance
+        last_updated: '{iso8601_timestamp}'
+        environment:
+        - runtime
+        schema: schemas.6A.yaml#/policy/product_linkage_rules_6A
+        cross_layer: false
+        notes: retention_class=engine_control_plane; pii_class=none
+      - name: product_eligibility_config_6A
+        path: config/layer3/6A/policy/product_eligibility_config_6A.v1.yaml
+        type: config
+        category: policy
+        semver: 1.0.0
+        version: v1
+        digest: null
+        manifest_key: mlr.6A.policy.product_eligibility_config
+        license: Proprietary-Internal
+        role: Optional product eligibility config for 6A.S2 (admissibility rules).
+        dependencies: []
+        source: internal
+        owner:
+          owner_team: data-governance
+        last_updated: '{iso8601_timestamp}'
+        environment:
+        - runtime
+        schema: schemas.6A.yaml#/policy/product_eligibility_config_6A
+        cross_layer: false
+        notes: retention_class=engine_control_plane; pii_class=none
+      - name: instrument_linkage_rules_6A
+        path: config/layer3/6A/policy/instrument_linkage_rules_6A.v1.yaml
+        type: config
+        category: policy
+        semver: 1.0.0
+        version: v1
+        digest: null
+        manifest_key: mlr.6A.policy.instrument_linkage_rules
+        license: Proprietary-Internal
+        role: Optional instrument linkage rules for 6A.S3 (ownership constraints).
+        dependencies: []
+        source: internal
+        owner:
+          owner_team: data-governance
+        last_updated: '{iso8601_timestamp}'
+        environment:
+        - runtime
+        schema: schemas.6A.yaml#/policy/instrument_linkage_rules_6A
+        cross_layer: false
+        notes: retention_class=engine_control_plane; pii_class=none
+      # --- RNG logs & event tables ---
+      - name: rng_audit_log
+        path: logs/layer3/6A/rng/audit/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/rng_audit_log.jsonl
+        type: log
+        category: rng_core
+        semver: 1.0.0
+        version: '{run_id}'
+        digest: null
+        manifest_key: mlr.rng.core.6A.audit
+        license: null
+        role: Run-scoped RNG audit envelope for 6A runs.
+        dependencies: []
+        source: internal
+        owner:
+          owner_team: null
+        last_updated: '{iso8601_timestamp}'
+        environment:
+        - runtime
+        schema: schemas.layer3.yaml#/rng/core/rng_audit_log
+        cross_layer: false
+        notes: retention_class=engine_control_plane; pii_class=none
+      - name: rng_trace_log
+        path: logs/layer3/6A/rng/trace/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/rng_trace_log.jsonl
+        type: log
+        category: rng_core
+        semver: 1.0.0
+        version: '{run_id}'
+        digest: null
+        manifest_key: mlr.rng.core.6A.trace
+        license: null
+        role: Aggregated RNG trace log for 6A runs (per event family draws/blocks).
+        dependencies:
+        - mlr.rng.core.6A.audit
+        source: internal
+        owner:
+          owner_team: null
+        last_updated: '{iso8601_timestamp}'
+        environment:
+        - runtime
+        schema: schemas.layer3.yaml#/rng/core/rng_trace_log
+        cross_layer: false
+        notes: retention_class=engine_control_plane; pii_class=none
+      - name: rng_event_party_count_realisation
+        path: logs/layer3/6A/rng/events/party_count_realisation/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/part-*.jsonl
+        type: log
+        category: rng_event
+        semver: 1.0.0
+        version: '{run_id}'
+        digest: null
+        manifest_key: mlr.rng.events.6A.party_count_realisation
+        license: null
+        role: RNG events for 6A.S1 party count realisation.
+        dependencies: []
+        source: internal
+        owner:
+          owner_team: null
+        last_updated: '{iso8601_timestamp}'
+        environment:
+        - runtime
+        schema: schemas.layer3.yaml#/rng/events/party_count_realisation
+        cross_layer: false
+        notes: retention_class=engine_control_plane; pii_class=none
+      - name: rng_event_party_attribute_sampling
+        path: logs/layer3/6A/rng/events/party_attribute_sampling/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/part-*.jsonl
+        type: log
+        category: rng_event
+        semver: 1.0.0
+        version: '{run_id}'
+        digest: null
+        manifest_key: mlr.rng.events.6A.party_attribute_sampling
+        license: null
+        role: RNG events for 6A.S1 party attribute sampling.
+        dependencies: []
+        source: internal
+        owner:
+          owner_team: null
+        last_updated: '{iso8601_timestamp}'
+        environment:
+        - runtime
+        schema: schemas.layer3.yaml#/rng/events/party_attribute_sampling
+        cross_layer: false
+        notes: retention_class=engine_control_plane; pii_class=none
+      - name: rng_event_account_count_realisation
+        path: logs/layer3/6A/rng/events/account_count_realisation/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/part-*.jsonl
+        type: log
+        category: rng_event
+        semver: 1.0.0
+        version: '{run_id}'
+        digest: null
+        manifest_key: mlr.rng.events.6A.account_count_realisation
+        license: null
+        role: RNG events for 6A.S2 account count realisation.
+        dependencies: []
+        source: internal
+        owner:
+          owner_team: null
+        last_updated: '{iso8601_timestamp}'
+        environment:
+        - runtime
+        schema: schemas.layer3.yaml#/rng/events/account_count_realisation
+        cross_layer: false
+        notes: retention_class=engine_control_plane; pii_class=none
+      - name: rng_event_account_allocation_sampling
+        path: logs/layer3/6A/rng/events/account_allocation_sampling/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/part-*.jsonl
+        type: log
+        category: rng_event
+        semver: 1.0.0
+        version: '{run_id}'
+        digest: null
+        manifest_key: mlr.rng.events.6A.account_allocation_sampling
+        license: null
+        role: RNG events for 6A.S2 account allocation sampling.
+        dependencies: []
+        source: internal
+        owner:
+          owner_team: null
+        last_updated: '{iso8601_timestamp}'
+        environment:
+        - runtime
+        schema: schemas.layer3.yaml#/rng/events/account_allocation_sampling
+        cross_layer: false
+        notes: retention_class=engine_control_plane; pii_class=none
+      - name: rng_event_account_attribute_sampling
+        path: logs/layer3/6A/rng/events/account_attribute_sampling/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/part-*.jsonl
+        type: log
+        category: rng_event
+        semver: 1.0.0
+        version: '{run_id}'
+        digest: null
+        manifest_key: mlr.rng.events.6A.account_attribute_sampling
+        license: null
+        role: RNG events for 6A.S2 account attribute sampling.
+        dependencies: []
+        source: internal
+        owner:
+          owner_team: null
+        last_updated: '{iso8601_timestamp}'
+        environment:
+        - runtime
+        schema: schemas.layer3.yaml#/rng/events/account_attribute_sampling
+        cross_layer: false
+        notes: retention_class=engine_control_plane; pii_class=none
+      - name: rng_event_instrument_count_realisation
+        path: logs/layer3/6A/rng/events/instrument_count_realisation/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/part-*.jsonl
+        type: log
+        category: rng_event
+        semver: 1.0.0
+        version: '{run_id}'
+        digest: null
+        manifest_key: mlr.rng.events.6A.instrument_count_realisation
+        license: null
+        role: RNG events for 6A.S3 instrument count realisation.
+        dependencies: []
+        source: internal
+        owner:
+          owner_team: null
+        last_updated: '{iso8601_timestamp}'
+        environment:
+        - runtime
+        schema: schemas.layer3.yaml#/rng/events/instrument_count_realisation
+        cross_layer: false
+        notes: retention_class=engine_control_plane; pii_class=none
+      - name: rng_event_instrument_allocation_sampling
+        path: logs/layer3/6A/rng/events/instrument_allocation_sampling/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/part-*.jsonl
+        type: log
+        category: rng_event
+        semver: 1.0.0
+        version: '{run_id}'
+        digest: null
+        manifest_key: mlr.rng.events.6A.instrument_allocation_sampling
+        license: null
+        role: RNG events for 6A.S3 instrument allocation sampling.
+        dependencies: []
+        source: internal
+        owner:
+          owner_team: null
+        last_updated: '{iso8601_timestamp}'
+        environment:
+        - runtime
+        schema: schemas.layer3.yaml#/rng/events/instrument_allocation_sampling
+        cross_layer: false
+        notes: retention_class=engine_control_plane; pii_class=none
+      - name: rng_event_instrument_attribute_sampling
+        path: logs/layer3/6A/rng/events/instrument_attribute_sampling/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/part-*.jsonl
+        type: log
+        category: rng_event
+        semver: 1.0.0
+        version: '{run_id}'
+        digest: null
+        manifest_key: mlr.rng.events.6A.instrument_attribute_sampling
+        license: null
+        role: RNG events for 6A.S3 instrument attribute sampling.
+        dependencies: []
+        source: internal
+        owner:
+          owner_team: null
+        last_updated: '{iso8601_timestamp}'
+        environment:
+        - runtime
+        schema: schemas.layer3.yaml#/rng/events/instrument_attribute_sampling
+        cross_layer: false
+        notes: retention_class=engine_control_plane; pii_class=none
+      - name: rng_event_device_count_realisation
+        path: logs/layer3/6A/rng/events/device_count_realisation/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/part-*.jsonl
+        type: log
+        category: rng_event
+        semver: 1.0.0
+        version: '{run_id}'
+        digest: null
+        manifest_key: mlr.rng.events.6A.device_count_realisation
+        license: null
+        role: RNG events for 6A.S4 device count realisation.
+        dependencies: []
+        source: internal
+        owner:
+          owner_team: null
+        last_updated: '{iso8601_timestamp}'
+        environment:
+        - runtime
+        schema: schemas.layer3.yaml#/rng/events/device_count_realisation
+        cross_layer: false
+        notes: retention_class=engine_control_plane; pii_class=none
+      - name: rng_event_device_allocation_sampling
+        path: logs/layer3/6A/rng/events/device_allocation_sampling/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/part-*.jsonl
+        type: log
+        category: rng_event
+        semver: 1.0.0
+        version: '{run_id}'
+        digest: null
+        manifest_key: mlr.rng.events.6A.device_allocation_sampling
+        license: null
+        role: RNG events for 6A.S4 device allocation sampling.
+        dependencies: []
+        source: internal
+        owner:
+          owner_team: null
+        last_updated: '{iso8601_timestamp}'
+        environment:
+        - runtime
+        schema: schemas.layer3.yaml#/rng/events/device_allocation_sampling
+        cross_layer: false
+        notes: retention_class=engine_control_plane; pii_class=none
+      - name: rng_event_device_attribute_sampling
+        path: logs/layer3/6A/rng/events/device_attribute_sampling/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/part-*.jsonl
+        type: log
+        category: rng_event
+        semver: 1.0.0
+        version: '{run_id}'
+        digest: null
+        manifest_key: mlr.rng.events.6A.device_attribute_sampling
+        license: null
+        role: RNG events for 6A.S4 device attribute sampling.
+        dependencies: []
+        source: internal
+        owner:
+          owner_team: null
+        last_updated: '{iso8601_timestamp}'
+        environment:
+        - runtime
+        schema: schemas.layer3.yaml#/rng/events/device_attribute_sampling
+        cross_layer: false
+        notes: retention_class=engine_control_plane; pii_class=none
+      - name: rng_event_ip_count_realisation
+        path: logs/layer3/6A/rng/events/ip_count_realisation/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/part-*.jsonl
+        type: log
+        category: rng_event
+        semver: 1.0.0
+        version: '{run_id}'
+        digest: null
+        manifest_key: mlr.rng.events.6A.ip_count_realisation
+        license: null
+        role: RNG events for 6A.S4 IP count realisation.
+        dependencies: []
+        source: internal
+        owner:
+          owner_team: null
+        last_updated: '{iso8601_timestamp}'
+        environment:
+        - runtime
+        schema: schemas.layer3.yaml#/rng/events/ip_count_realisation
+        cross_layer: false
+        notes: retention_class=engine_control_plane; pii_class=none
+      - name: rng_event_ip_allocation_sampling
+        path: logs/layer3/6A/rng/events/ip_allocation_sampling/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/part-*.jsonl
+        type: log
+        category: rng_event
+        semver: 1.0.0
+        version: '{run_id}'
+        digest: null
+        manifest_key: mlr.rng.events.6A.ip_allocation_sampling
+        license: null
+        role: RNG events for 6A.S4 IP allocation sampling.
+        dependencies: []
+        source: internal
+        owner:
+          owner_team: null
+        last_updated: '{iso8601_timestamp}'
+        environment:
+        - runtime
+        schema: schemas.layer3.yaml#/rng/events/ip_allocation_sampling
+        cross_layer: false
+        notes: retention_class=engine_control_plane; pii_class=none
+      - name: rng_event_ip_attribute_sampling
+        path: logs/layer3/6A/rng/events/ip_attribute_sampling/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/part-*.jsonl
+        type: log
+        category: rng_event
+        semver: 1.0.0
+        version: '{run_id}'
+        digest: null
+        manifest_key: mlr.rng.events.6A.ip_attribute_sampling
+        license: null
+        role: RNG events for 6A.S4 IP attribute sampling.
+        dependencies: []
+        source: internal
+        owner:
+          owner_team: null
+        last_updated: '{iso8601_timestamp}'
+        environment:
+        - runtime
+        schema: schemas.layer3.yaml#/rng/events/ip_attribute_sampling
+        cross_layer: false
+        notes: retention_class=engine_control_plane; pii_class=none
+      - name: rng_event_fraud_role_sampling_party
+        path: logs/layer3/6A/rng/events/fraud_role_sampling_party/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/part-*.jsonl
+        type: log
+        category: rng_event
+        semver: 1.0.0
+        version: '{run_id}'
+        digest: null
+        manifest_key: mlr.rng.events.6A.fraud_role_sampling_party
+        license: null
+        role: RNG events for 6A.S5 party fraud-role sampling.
+        dependencies: []
+        source: internal
+        owner:
+          owner_team: null
+        last_updated: '{iso8601_timestamp}'
+        environment:
+        - runtime
+        schema: schemas.layer3.yaml#/rng/events/fraud_role_sampling_party
+        cross_layer: false
+        notes: retention_class=engine_control_plane; pii_class=none
+      - name: rng_event_fraud_role_sampling_account
+        path: logs/layer3/6A/rng/events/fraud_role_sampling_account/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/part-*.jsonl
+        type: log
+        category: rng_event
+        semver: 1.0.0
+        version: '{run_id}'
+        digest: null
+        manifest_key: mlr.rng.events.6A.fraud_role_sampling_account
+        license: null
+        role: RNG events for 6A.S5 account fraud-role sampling.
+        dependencies: []
+        source: internal
+        owner:
+          owner_team: null
+        last_updated: '{iso8601_timestamp}'
+        environment:
+        - runtime
+        schema: schemas.layer3.yaml#/rng/events/fraud_role_sampling_account
+        cross_layer: false
+        notes: retention_class=engine_control_plane; pii_class=none
+      - name: rng_event_fraud_role_sampling_merchant
+        path: logs/layer3/6A/rng/events/fraud_role_sampling_merchant/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/part-*.jsonl
+        type: log
+        category: rng_event
+        semver: 1.0.0
+        version: '{run_id}'
+        digest: null
+        manifest_key: mlr.rng.events.6A.fraud_role_sampling_merchant
+        license: null
+        role: RNG events for 6A.S5 merchant fraud-role sampling.
+        dependencies: []
+        source: internal
+        owner:
+          owner_team: null
+        last_updated: '{iso8601_timestamp}'
+        environment:
+        - runtime
+        schema: schemas.layer3.yaml#/rng/events/fraud_role_sampling_merchant
+        cross_layer: false
+        notes: retention_class=engine_control_plane; pii_class=none
+      - name: rng_event_fraud_role_sampling_device
+        path: logs/layer3/6A/rng/events/fraud_role_sampling_device/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/part-*.jsonl
+        type: log
+        category: rng_event
+        semver: 1.0.0
+        version: '{run_id}'
+        digest: null
+        manifest_key: mlr.rng.events.6A.fraud_role_sampling_device
+        license: null
+        role: RNG events for 6A.S5 device fraud-role sampling.
+        dependencies: []
+        source: internal
+        owner:
+          owner_team: null
+        last_updated: '{iso8601_timestamp}'
+        environment:
+        - runtime
+        schema: schemas.layer3.yaml#/rng/events/fraud_role_sampling_device
+        cross_layer: false
+        notes: retention_class=engine_control_plane; pii_class=none
+      - name: rng_event_fraud_role_sampling_ip
+        path: logs/layer3/6A/rng/events/fraud_role_sampling_ip/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/part-*.jsonl
+        type: log
+        category: rng_event
+        semver: 1.0.0
+        version: '{run_id}'
+        digest: null
+        manifest_key: mlr.rng.events.6A.fraud_role_sampling_ip
+        license: null
+        role: RNG events for 6A.S5 IP fraud-role sampling.
+        dependencies: []
+        source: internal
+        owner:
+          owner_team: null
+        last_updated: '{iso8601_timestamp}'
+        environment:
+        - runtime
+        schema: schemas.layer3.yaml#/rng/events/fraud_role_sampling_ip
+        cross_layer: false
+        notes: retention_class=engine_control_plane; pii_class=none
+      # --- S1 ---
+
+      - name: s1_party_base_6A
+        path: data/layer3/6A/s1_party_base_6A/seed={seed}/parameter_hash={parameter_hash}/manifest_fingerprint={manifest_fingerprint}/s1_party_base_6A.parquet
+        type: dataset
+        category: output
+        semver: 1.0.0
+        version: '{seed}.{manifest_fingerprint}.{parameter_hash}'
+        digest: null
+        manifest_key: mlr.6A.s1.party_base
+        license: null
+        role: Base party/customer universe for Layer-3 / Segment 6A. One row per party per
+          (manifest_fingerprint, seed), including type, home geography and static segment
+          attributes.
+        dependencies:
+        - mlr.6A.validation.s0_gate_receipt
+        - mlr.6A.validation.sealed_inputs
+        - mlr.6A.prior.population
+        - mlr.6A.prior.segmentation
+        - mlr.6A.taxonomy.party
+        source: internal
+        owner:
+          owner_team: null
+        last_updated: '{iso8601_timestamp}'
+        environment:
+        - runtime
+        schema: schemas.6A.yaml#/s1/party_base
+        cross_layer: true
+        notes: retention_class=core_entity; pii_class=synthetic_customer
+      - name: s1_party_summary_6A
+        path: data/layer3/6A/s1_party_summary_6A/seed={seed}/parameter_hash={parameter_hash}/manifest_fingerprint={manifest_fingerprint}/s1_party_summary_6A.parquet
+        type: dataset
+        category: diagnostics
+        semver: 1.0.0
+        version: '{seed}.{manifest_fingerprint}.{parameter_hash}'
+        digest: null
+        manifest_key: mlr.6A.s1.party_summary
+        license: null
+        role: Aggregate view of the 6A party base, providing party counts by geography,
+          segment and type for diagnostics and downstream sizing.
+        dependencies:
+        - mlr.6A.s1.party_base
+        source: internal
+        owner:
+          owner_team: null
+        last_updated: '{iso8601_timestamp}'
+        environment:
+        - runtime
+        schema: schemas.6A.yaml#/s1/party_summary
+        cross_layer: true
+        notes: retention_class=diagnostics; pii_class=synthetic_customer
+      # --- S2 ---
+
+      - name: s2_account_base_6A
+        path: data/layer3/6A/s2_account_base_6A/seed={seed}/parameter_hash={parameter_hash}/manifest_fingerprint={manifest_fingerprint}/s2_account_base_6A.parquet
+        type: dataset
+        category: output
+        semver: 1.0.0
+        version: '{seed}.{manifest_fingerprint}.{parameter_hash}'
+        digest: null
+        manifest_key: mlr.6A.s2.account_base
+        license: null
+        role: Account and product universe for Layer-3 / Segment 6A. One row per account
+          per (manifest_fingerprint, seed), including owner references, account type, currency
+          and static account attributes.
+        dependencies:
+        - mlr.6A.validation.s0_gate_receipt
+        - mlr.6A.validation.sealed_inputs
+        - mlr.6A.s1.party_base
+        - mlr.6A.prior.product_mix
+        - mlr.6A.prior.account_per_party
+        - mlr.6A.taxonomy.account_types
+        source: internal
+        owner:
+          owner_team: null
+        last_updated: '{iso8601_timestamp}'
+        environment:
+        - runtime
+        schema: schemas.6A.yaml#/s2/account_base
+        cross_layer: true
+        notes: retention_class=core_entity; pii_class=synthetic_customer
+      - name: s2_party_product_holdings_6A
+        path: data/layer3/6A/s2_party_product_holdings_6A/seed={seed}/parameter_hash={parameter_hash}/manifest_fingerprint={manifest_fingerprint}/s2_party_product_holdings_6A.parquet
+        type: dataset
+        category: output
+        semver: 1.0.0
+        version: '{seed}.{manifest_fingerprint}.{parameter_hash}'
+        digest: null
+        manifest_key: mlr.6A.s2.party_product_holdings
+        license: null
+        role: Per-party product holdings for Layer-3 / Segment 6A, derived from s2_account_base_6A
+          and s1_party_base_6A. One row per party and product grouping (e.g. account_type),
+          with account counts.
+        dependencies:
+        - mlr.6A.s1.party_base
+        - mlr.6A.s2.account_base
+        source: internal
+        owner:
+          owner_team: null
+        last_updated: '{iso8601_timestamp}'
+        environment:
+        - runtime
+        schema: schemas.6A.yaml#/s2/party_product_holdings
+        cross_layer: true
+        notes: retention_class=core_entity; pii_class=synthetic_customer
+      - name: s2_merchant_account_base_6A
+        path: data/layer3/6A/s2_merchant_account_base_6A/seed={seed}/parameter_hash={parameter_hash}/manifest_fingerprint={manifest_fingerprint}/s2_merchant_account_base_6A.parquet
+        type: dataset
+        category: diagnostics
+        semver: 1.0.0
+        version: '{seed}.{manifest_fingerprint}.{parameter_hash}'
+        digest: null
+        manifest_key: mlr.6A.s2.merchant_account_base
+        license: null
+        role: Merchant-centric view of accounts where a merchant is an owner (e.g. settlement
+          or acquiring accounts). Pure subset of s2_account_base_6A.
+        dependencies:
+        - mlr.6A.s2.account_base
+        source: internal
+        owner:
+          owner_team: null
+        last_updated: '{iso8601_timestamp}'
+        environment:
+        - runtime
+        schema: schemas.6A.yaml#/s2/merchant_account_base
+        cross_layer: true
+        notes: retention_class=diagnostics; pii_class=synthetic_customer
+      - name: s2_account_summary_6A
+        path: data/layer3/6A/s2_account_summary_6A/seed={seed}/parameter_hash={parameter_hash}/manifest_fingerprint={manifest_fingerprint}/s2_account_summary_6A.parquet
+        type: dataset
+        category: diagnostics
+        semver: 1.0.0
+        version: '{seed}.{manifest_fingerprint}.{parameter_hash}'
+        digest: null
+        manifest_key: mlr.6A.s2.account_summary
+        license: null
+        role: Aggregate view of the 6A account base, providing account counts by geography,
+          segment and account type for diagnostics and sizing.
+        dependencies:
+        - mlr.6A.s2.account_base
+        source: internal
+        owner:
+          owner_team: null
+        last_updated: '{iso8601_timestamp}'
+        environment:
+        - runtime
+        schema: schemas.6A.yaml#/s2/account_summary
+        cross_layer: true
+        notes: retention_class=diagnostics; pii_class=synthetic_customer
+      # --- S3 ---
+
+      - name: s3_instrument_base_6A
+        path: data/layer3/6A/s3_instrument_base_6A/seed={seed}/parameter_hash={parameter_hash}/manifest_fingerprint={manifest_fingerprint}/s3_instrument_base_6A.parquet
+        type: dataset
+        category: output
+        semver: 1.0.0
+        version: '{seed}.{manifest_fingerprint}.{parameter_hash}'
+        digest: null
+        manifest_key: mlr.6A.s3.instrument_base
+        license: null
+        role: Instrument and payment-credential universe for Layer-3 / Segment 6A. One row
+          per instrument per (manifest_fingerprint, seed), including owner account, owner
+          party/merchant (if modelled), instrument type, scheme/network, masked identifier,
+          expiry, and static flags.
+        dependencies:
+        - mlr.6A.validation.s0_gate_receipt
+        - mlr.6A.validation.sealed_inputs
+        - mlr.6A.s1.party_base
+        - mlr.6A.s2.account_base
+        - mlr.6A.prior.instrument_mix
+        - mlr.6A.prior.instrument_per_account
+        - mlr.6A.taxonomy.instrument_types
+        source: internal
+        owner:
+          owner_team: null
+        last_updated: '{iso8601_timestamp}'
+        environment:
+        - runtime
+        schema: schemas.6A.yaml#/s3/instrument_base
+        cross_layer: true
+        notes: retention_class=core_entity; pii_class=synthetic_customer
+      - name: s3_account_instrument_links_6A
+        path: data/layer3/6A/s3_account_instrument_links_6A/seed={seed}/parameter_hash={parameter_hash}/manifest_fingerprint={manifest_fingerprint}/s3_account_instrument_links_6A.parquet
+        type: dataset
+        category: output
+        semver: 1.0.0
+        version: '{seed}.{manifest_fingerprint}.{parameter_hash}'
+        digest: null
+        manifest_key: mlr.6A.s3.account_instrument_links
+        license: null
+        role: Per-account instrument linkage surface for Layer-3 / Segment 6A. Derived from
+          s3_instrument_base_6A and s2_account_base_6A; provides either per-instrument or
+          aggregated per-account, per-instrument-type views of instrument ownership.
+        dependencies:
+        - mlr.6A.s2.account_base
+        - mlr.6A.s3.instrument_base
+        source: internal
+        owner:
+          owner_team: null
+        last_updated: '{iso8601_timestamp}'
+        environment:
+        - runtime
+        schema: schemas.6A.yaml#/s3/account_instrument_links
+        cross_layer: true
+        notes: retention_class=core_entity; pii_class=synthetic_customer
+      - name: s3_party_instrument_holdings_6A
+        path: data/layer3/6A/s3_party_instrument_holdings_6A/seed={seed}/parameter_hash={parameter_hash}/manifest_fingerprint={manifest_fingerprint}/s3_party_instrument_holdings_6A.parquet
+        type: dataset
+        category: output
+        semver: 1.0.0
+        version: '{seed}.{manifest_fingerprint}.{parameter_hash}'
+        digest: null
+        manifest_key: mlr.6A.s3.party_instrument_holdings
+        license: null
+        role: Per-party instrument holdings for Layer-3 / Segment 6A, derived from s3_instrument_base_6A
+          and s1_party_base_6A; one row per (party_id, instrument grouping) with instrument_count.
+        dependencies:
+        - mlr.6A.s1.party_base
+        - mlr.6A.s2.account_base
+        - mlr.6A.s3.instrument_base
+        source: internal
+        owner:
+          owner_team: null
+        last_updated: '{iso8601_timestamp}'
+        environment:
+        - runtime
+        schema: schemas.6A.yaml#/s3/party_instrument_holdings
+        cross_layer: true
+        notes: retention_class=core_entity; pii_class=synthetic_customer
+      - name: s3_instrument_summary_6A
+        path: data/layer3/6A/s3_instrument_summary_6A/seed={seed}/parameter_hash={parameter_hash}/manifest_fingerprint={manifest_fingerprint}/s3_instrument_summary_6A.parquet
+        type: dataset
+        category: diagnostics
+        semver: 1.0.0
+        version: '{seed}.{manifest_fingerprint}.{parameter_hash}'
+        digest: null
+        manifest_key: mlr.6A.s3.instrument_summary
+        license: null
+        role: Aggregate instrument diagnostics for Layer-3 / Segment 6A, providing instrument
+          counts by geography, segment, account_type and instrument_type.
+        dependencies:
+        - mlr.6A.s3.instrument_base
+        source: internal
+        owner:
+          owner_team: null
+        last_updated: '{iso8601_timestamp}'
+        environment:
+        - runtime
+        schema: schemas.6A.yaml#/s3/instrument_summary
+        cross_layer: true
+        notes: retention_class=diagnostics; pii_class=synthetic_customer
+      # --- S4 ---
+
+      - name: s4_device_base_6A
+        path: data/layer3/6A/s4_device_base_6A/seed={seed}/parameter_hash={parameter_hash}/manifest_fingerprint={manifest_fingerprint}/s4_device_base_6A.parquet
+        type: dataset
+        category: output
+        semver: 1.0.0
+        version: '{seed}.{manifest_fingerprint}.{parameter_hash}'
+        digest: null
+        manifest_key: mlr.6A.s4.device_base
+        license: null
+        role: Device universe for Layer-3 / Segment 6A. One row per device per (manifest_fingerprint,
+          seed), with device classification, primary owner context and static device risk/capability
+          flags.
+        dependencies:
+        - mlr.6A.validation.s0_gate_receipt
+        - mlr.6A.validation.sealed_inputs
+        - mlr.6A.s1.party_base
+        - mlr.6A.prior.device_counts
+        - mlr.6A.taxonomy.devices
+        source: internal
+        owner:
+          owner_team: null
+        last_updated: '{iso8601_timestamp}'
+        environment:
+        - runtime
+        schema: schemas.6A.yaml#/s4/device_base
+        cross_layer: true
+        notes: retention_class=core_entity; pii_class=synthetic_customer
+      - name: s4_ip_base_6A
+        path: data/layer3/6A/s4_ip_base_6A/seed={seed}/parameter_hash={parameter_hash}/manifest_fingerprint={manifest_fingerprint}/s4_ip_base_6A.parquet
+        type: dataset
+        category: output
+        semver: 1.0.0
+        version: '{seed}.{manifest_fingerprint}.{parameter_hash}'
+        digest: null
+        manifest_key: mlr.6A.s4.ip_base
+        license: null
+        role: IP / network endpoint universe for Layer-3 / Segment 6A. One row per IP/endpoint
+          per (manifest_fingerprint, seed), including masked representation, ip_type, asn_class,
+          geo hints and static risk tags.
+        dependencies:
+        - mlr.6A.validation.s0_gate_receipt
+        - mlr.6A.validation.sealed_inputs
+        - mlr.6A.prior.ip_counts
+        - mlr.6A.taxonomy.ips
+        source: internal
+        owner:
+          owner_team: null
+        last_updated: '{iso8601_timestamp}'
+        environment:
+        - runtime
+        schema: schemas.6A.yaml#/s4/ip_base
+        cross_layer: true
+        notes: retention_class=core_entity; pii_class=synthetic_customer
+      - name: s4_device_links_6A
+        path: data/layer3/6A/s4_device_links_6A/seed={seed}/parameter_hash={parameter_hash}/manifest_fingerprint={manifest_fingerprint}/s4_device_links_6A.parquet
+        type: dataset
+        category: output
+        semver: 1.0.0
+        version: '{seed}.{manifest_fingerprint}.{parameter_hash}'
+        digest: null
+        manifest_key: mlr.6A.s4.device_links
+        license: null
+        role: Device-to-entity edges for Layer-3 / Segment 6A. Links each device_id to one
+          or more parties/accounts/instruments/merchants with a link_role describing the
+          semantics.
+        dependencies:
+        - mlr.6A.s4.device_base
+        - mlr.6A.s1.party_base
+        - mlr.6A.s2.account_base
+        - mlr.6A.s3.instrument_base
+        - mlr.6A.policy.graph_linkage_rules
+        - mlr.6A.policy.device_linkage_rules
+        source: internal
+        owner:
+          owner_team: null
+        last_updated: '{iso8601_timestamp}'
+        environment:
+        - runtime
+        schema: schemas.6A.yaml#/s4/device_links
+        cross_layer: true
+        notes: retention_class=core_entity; pii_class=synthetic_customer
+      - name: s4_ip_links_6A
+        path: data/layer3/6A/s4_ip_links_6A/seed={seed}/parameter_hash={parameter_hash}/manifest_fingerprint={manifest_fingerprint}/s4_ip_links_6A.parquet
+        type: dataset
+        category: output
+        semver: 1.0.0
+        version: '{seed}.{manifest_fingerprint}.{parameter_hash}'
+        digest: null
+        manifest_key: mlr.6A.s4.ip_links
+        license: null
+        role: IP-to-device/entity edges for Layer-3 / Segment 6A. Links each ip_id to one
+          or more devices/parties/merchants with a link_role describing the semantics.
+        dependencies:
+        - mlr.6A.s4.ip_base
+        - mlr.6A.s4.device_base
+        - mlr.6A.s1.party_base
+        - mlr.6A.policy.graph_linkage_rules
+        source: internal
+        owner:
+          owner_team: null
+        last_updated: '{iso8601_timestamp}'
+        environment:
+        - runtime
+        schema: schemas.6A.yaml#/s4/ip_links
+        cross_layer: true
+        notes: retention_class=core_entity; pii_class=synthetic_customer
+      - name: s4_entity_neighbourhoods_6A
+        path: data/layer3/6A/s4_entity_neighbourhoods_6A/seed={seed}/parameter_hash={parameter_hash}/manifest_fingerprint={manifest_fingerprint}/s4_entity_neighbourhoods_6A.parquet
+        type: dataset
+        category: diagnostics
+        semver: 1.0.0
+        version: '{seed}.{manifest_fingerprint}.{parameter_hash}'
+        digest: null
+        manifest_key: mlr.6A.s4.entity_neighbourhoods
+        license: null
+        role: Per-entity graph neighbourhood metrics for Layer-3 / Segment 6A (devices per
+          party, IPs per device, shared-device/shared-IP degrees, etc.), derived from S4
+          base and link datasets.
+        dependencies:
+        - mlr.6A.s4.device_base
+        - mlr.6A.s4.ip_base
+        - mlr.6A.s4.device_links
+        - mlr.6A.s4.ip_links
+        - mlr.6A.policy.graph_linkage_rules
+        - mlr.6A.policy.device_linkage_rules
+        source: internal
+        owner:
+          owner_team: null
+        last_updated: '{iso8601_timestamp}'
+        environment:
+        - runtime
+        schema: schemas.6A.yaml#/s4/entity_neighbourhoods
+        cross_layer: true
+        notes: retention_class=diagnostics; pii_class=synthetic_customer
+      - name: s4_network_summary_6A
+        path: data/layer3/6A/s4_network_summary_6A/seed={seed}/parameter_hash={parameter_hash}/manifest_fingerprint={manifest_fingerprint}/s4_network_summary_6A.parquet
+        type: dataset
+        category: diagnostics
+        semver: 1.0.0
+        version: '{seed}.{manifest_fingerprint}.{parameter_hash}'
+        digest: null
+        manifest_key: mlr.6A.s4.network_summary
+        license: null
+        role: 'Aggregate graph diagnostics for Layer-3 / Segment 6A: degree distributions
+          and sharing summaries per region/segment/account_type and globally.'
+        dependencies:
+        - mlr.6A.s4.device_base
+        - mlr.6A.s4.ip_base
+        - mlr.6A.s4.device_links
+        - mlr.6A.s4.ip_links
+        - mlr.6A.policy.graph_linkage_rules
+        - mlr.6A.policy.device_linkage_rules
+        source: internal
+        owner:
+          owner_team: null
+        last_updated: '{iso8601_timestamp}'
+        environment:
+        - runtime
+        schema: schemas.6A.yaml#/s4/network_summary
+        cross_layer: true
+        notes: retention_class=diagnostics; pii_class=none
+      # --- S5 fraud roles ---
+
+      - name: s5_party_fraud_roles_6A
+        path: data/layer3/6A/s5_party_fraud_roles_6A/seed={seed}/parameter_hash={parameter_hash}/manifest_fingerprint={manifest_fingerprint}/s5_party_fraud_roles_6A.parquet
+        type: dataset
+        category: output
+        semver: 1.0.0
+        version: '{seed}.{manifest_fingerprint}.{parameter_hash}'
+        digest: null
+        manifest_key: mlr.6A.s5.party_fraud_roles
+        license: null
+        role: Static fraud posture for parties in Layer-3 / Segment 6A. One row per party
+          per (manifest_fingerprint, seed).
+        dependencies:
+        - mlr.6A.validation.s0_gate_receipt
+        - mlr.6A.validation.sealed_inputs
+        - mlr.6A.s1.party_base
+        - mlr.6A.s5.prior.party_roles
+        - mlr.6A.taxonomy.fraud_roles
+        - mlr.6A.policy.validation_policy
+        source: internal
+        owner:
+          owner_team: null
+        last_updated: '{iso8601_timestamp}'
+        environment:
+        - runtime
+        schema: schemas.6A.yaml#/s5/party_fraud_roles
+        cross_layer: true
+        notes: retention_class=core_entity; pii_class=synthetic_customer
+      - name: s5_account_fraud_roles_6A
+        path: data/layer3/6A/s5_account_fraud_roles_6A/seed={seed}/parameter_hash={parameter_hash}/manifest_fingerprint={manifest_fingerprint}/s5_account_fraud_roles_6A.parquet
+        type: dataset
+        category: output
+        semver: 1.0.0
+        version: '{seed}.{manifest_fingerprint}.{parameter_hash}'
+        digest: null
+        manifest_key: mlr.6A.s5.account_fraud_roles
+        license: null
+        role: Static fraud posture for accounts in Layer-3 / Segment 6A. One row per account
+          per (manifest_fingerprint, seed).
+        dependencies:
+        - mlr.6A.validation.s0_gate_receipt
+        - mlr.6A.validation.sealed_inputs
+        - mlr.6A.s2.account_base
+        - mlr.6A.s1.party_base
+        - mlr.6A.s5.prior.account_roles
+        - mlr.6A.taxonomy.fraud_roles
+        - mlr.6A.policy.validation_policy
+        source: internal
+        owner:
+          owner_team: null
+        last_updated: '{iso8601_timestamp}'
+        environment:
+        - runtime
+        schema: schemas.6A.yaml#/s5/account_fraud_roles
+        cross_layer: true
+        notes: retention_class=core_entity; pii_class=synthetic_customer
+      - name: s5_merchant_fraud_roles_6A
+        path: data/layer3/6A/s5_merchant_fraud_roles_6A/seed={seed}/parameter_hash={parameter_hash}/manifest_fingerprint={manifest_fingerprint}/s5_merchant_fraud_roles_6A.parquet
+        type: dataset
+        category: output
+        semver: 1.0.0
+        version: '{seed}.{manifest_fingerprint}.{parameter_hash}'
+        digest: null
+        manifest_key: mlr.6A.s5.merchant_fraud_roles
+        license: null
+        role: Static fraud posture for merchants in Layer-3 / Segment 6A. One row per merchant,
+          keyed by merchant_id.
+        dependencies:
+        - mlr.6A.validation.s0_gate_receipt
+        - mlr.6A.validation.sealed_inputs
+        - mlr.1A.output.outlet_catalogue
+        - mlr.6A.s5.prior.merchant_roles
+        - mlr.6A.taxonomy.fraud_roles
+        - mlr.6A.policy.validation_policy
+        source: internal
+        owner:
+          owner_team: null
+        last_updated: '{iso8601_timestamp}'
+        environment:
+        - runtime
+        schema: schemas.6A.yaml#/s5/merchant_fraud_roles
+        cross_layer: true
+        notes: retention_class=core_entity; pii_class=synthetic_customer
+      - name: s5_device_fraud_roles_6A
+        path: data/layer3/6A/s5_device_fraud_roles_6A/seed={seed}/parameter_hash={parameter_hash}/manifest_fingerprint={manifest_fingerprint}/s5_device_fraud_roles_6A.parquet
+        type: dataset
+        category: output
+        semver: 1.0.0
+        version: '{seed}.{manifest_fingerprint}.{parameter_hash}'
+        digest: null
+        manifest_key: mlr.6A.s5.device_fraud_roles
+        license: null
+        role: Static fraud posture for devices in Layer-3 / Segment 6A. One row per device
+          per (manifest_fingerprint, seed).
+        dependencies:
+        - mlr.6A.validation.s0_gate_receipt
+        - mlr.6A.validation.sealed_inputs
+        - mlr.6A.s4.device_base
+        - mlr.6A.s5.prior.device_roles
+        - mlr.6A.taxonomy.fraud_roles
+        - mlr.6A.policy.validation_policy
+        source: internal
+        owner:
+          owner_team: null
+        last_updated: '{iso8601_timestamp}'
+        environment:
+        - runtime
+        schema: schemas.6A.yaml#/s5/device_fraud_roles
+        cross_layer: true
+        notes: retention_class=core_entity; pii_class=synthetic_customer
+      - name: s5_ip_fraud_roles_6A
+        path: data/layer3/6A/s5_ip_fraud_roles_6A/seed={seed}/parameter_hash={parameter_hash}/manifest_fingerprint={manifest_fingerprint}/s5_ip_fraud_roles_6A.parquet
+        type: dataset
+        category: output
+        semver: 1.0.0
+        version: '{seed}.{manifest_fingerprint}.{parameter_hash}'
+        digest: null
+        manifest_key: mlr.6A.s5.ip_fraud_roles
+        license: null
+        role: Static fraud posture for IPs/endpoints in Layer-3 / Segment 6A. One row per
+          ip_id per (manifest_fingerprint, seed).
+        dependencies:
+        - mlr.6A.validation.s0_gate_receipt
+        - mlr.6A.validation.sealed_inputs
+        - mlr.6A.s4.ip_base
+        - mlr.6A.s5.prior.ip_roles
+        - mlr.6A.taxonomy.fraud_roles
+        - mlr.6A.policy.validation_policy
+        source: internal
+        owner:
+          owner_team: null
+        last_updated: '{iso8601_timestamp}'
+        environment:
+        - runtime
+        schema: schemas.6A.yaml#/s5/ip_fraud_roles
+        cross_layer: true
+        notes: retention_class=core_entity; pii_class=synthetic_customer
+      # --- S5 validation & HashGate ---
+
+      - name: s5_validation_report_6A
+        path: data/layer3/6A/validation/manifest_fingerprint={manifest_fingerprint}/s5_validation_report_6A.json
+        type: dataset
+        category: validation
+        semver: 1.0.0
+        version: '{manifest_fingerprint}'
+        digest: null
+        manifest_key: mlr.6A.validation.report
+        license: null
+        role: Segment 6A validation report summarising S5 check outcomes.
+        dependencies:
+        - mlr.6A.policy.validation_policy
+        - mlr.6A.s5.party_fraud_roles
+        - mlr.6A.s5.account_fraud_roles
+        - mlr.6A.s5.merchant_fraud_roles
+        - mlr.6A.s5.device_fraud_roles
+        - mlr.6A.s5.ip_fraud_roles
+        source: internal
+        owner:
+          owner_team: null
+        last_updated: '{iso8601_timestamp}'
+        environment:
+        - runtime
+        schema: schemas.layer3.yaml#/validation/6A/validation_report_6A
+        cross_layer: true
+        notes: retention_class=engine_control_plane; pii_class=none
+      - name: s5_issue_table_6A
+        path: data/layer3/6A/validation/manifest_fingerprint={manifest_fingerprint}/s5_issue_table_6A.parquet
+        type: dataset
+        category: validation
+        semver: 1.0.0
+        version: '{manifest_fingerprint}'
+        digest: null
+        manifest_key: mlr.6A.validation.issue_table
+        license: null
+        role: Structured list of validation issues for 6A (one row per failing or warning check).
+        dependencies:
+        - mlr.6A.validation.report
+        source: internal
+        owner:
+          owner_team: null
+        last_updated: '{iso8601_timestamp}'
+        environment:
+        - runtime
+        schema: schemas.layer3.yaml#/validation/6A/validation_issue_table_6A
+        cross_layer: true
+        notes: retention_class=engine_control_plane; pii_class=synthetic_customer
+      - name: validation_bundle_6A
+        path: data/layer3/6A/validation/manifest_fingerprint={manifest_fingerprint}/
+        type: dataset
+        category: validation
+        semver: 1.0.0
+        version: '{manifest_fingerprint}'
+        digest: null
+        manifest_key: mlr.6A.validation.bundle
+        license: null
+        role: Validation bundle directory for Segment 6A (index + evidence + _passed.flag).
+        dependencies:
+        - mlr.6A.validation.report
+        - mlr.6A.validation.issue_table
+        source: internal
+        owner:
+          owner_team: null
+        last_updated: '{iso8601_timestamp}'
+        environment:
+        - runtime
+        schema: schemas.layer3.yaml#/validation/6A/validation_bundle_index_6A
+        cross_layer: true
+        notes: retention_class=engine_control_plane; pii_class=none
+      - name: validation_bundle_index_6A
+        path: data/layer3/6A/validation/manifest_fingerprint={manifest_fingerprint}/validation_bundle_index_6A.json
+        type: dataset
+        category: validation
+        semver: 1.0.0
+        version: '{manifest_fingerprint}'
+        digest: null
+        manifest_key: mlr.6A.validation.bundle_index
+        license: null
+        role: Index for the Layer-3 / Segment 6A validation bundle, listing all evidence
+          files and their SHA-256 digests.
+        dependencies:
+        - mlr.6A.validation.s0_gate_receipt
+        - mlr.6A.taxonomy.fraud_roles
+        - mlr.6A.policy.validation_policy
+        - mlr.6A.s1.party_base
+        - mlr.6A.s2.account_base
+        - mlr.6A.s3.instrument_base
+        - mlr.6A.s4.device_base
+        - mlr.6A.s4.ip_base
+        - mlr.6A.s5.party_fraud_roles
+        - mlr.6A.s5.account_fraud_roles
+        - mlr.6A.s5.merchant_fraud_roles
+        - mlr.6A.s5.device_fraud_roles
+        - mlr.6A.s5.ip_fraud_roles
+        source: internal
+        owner:
+          owner_team: null
+        last_updated: '{iso8601_timestamp}'
+        environment:
+        - runtime
+        schema: schemas.layer3.yaml#/validation/6A/validation_bundle_index_6A
+        cross_layer: true
+        notes: retention_class=engine_control_plane; pii_class=none
+      - name: validation_passed_flag_6A
+        path: data/layer3/6A/validation/manifest_fingerprint={manifest_fingerprint}/_passed.flag
+        type: dataset
+        category: validation
+        semver: 1.0.0
+        version: '{manifest_fingerprint}'
+        digest: null
+        manifest_key: mlr.6A.validation.passed
+        license: null
+        role: HashGate flag for Layer-3 / Segment 6A. Contains the SHA-256 digest over the
+          validation bundle for this manifest_fingerprint.
+        dependencies:
+        - mlr.6A.validation.bundle
+        source: internal
+        owner:
+          owner_team: null
+        last_updated: '{iso8601_timestamp}'
+        environment:
+        - runtime
+        schema: schemas.layer3.yaml#/validation/6A/passed_flag_6A
+        cross_layer: true
+        notes: retention_class=engine_control_plane; pii_class=none

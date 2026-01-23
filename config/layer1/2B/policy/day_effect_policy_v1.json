@@ -1,0 +1,40 @@
+{
+  "created_utc_policy_echo": true,
+  "day_range": {
+    "start_day": "2026-01-01",
+    "end_day": "2026-03-31"
+  },
+  "draws_per_row": 1,
+  "policy_id": "day_effect_policy_v1",
+  "policy_version": "1.0.2",
+  "record_fields": [
+    "gamma",
+    "log_gamma",
+    "sigma_gamma",
+    "rng_stream_id",
+    "rng_counter_lo",
+    "rng_counter_hi",
+    "created_utc"
+  ],
+  "rng_derivation": {
+    "base_counter_basis": [
+      "manifest_fingerprint_bytes",
+      "seed_u64",
+      "rng_stream_id"
+    ],
+    "counter_split_rule": "BE64_bytes_16_23_and_24_31",
+    "domain_master": "2B.S3.master",
+    "domain_stream": "2B.S3.day_effects",
+    "key_basis": [
+      "manifest_fingerprint_bytes",
+      "seed_u64",
+      "rng_stream_id"
+    ],
+    "low64_rule": "LE64_tail_bytes_24_31"
+  },
+  "rng_engine": "philox2x64-10",
+  "rng_stream_id": "2B.day_effects.gamma",
+  "sha256_hex": "f98ca0621eea84fb5f7054e81766b27aaa32f1ace136a256ffddae191dd5406a",
+  "sigma_gamma": 0.12,
+  "version_tag": "1.0.2"
+}

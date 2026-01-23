@@ -1,0 +1,267 @@
+schema_version: 1
+policy_id: device_role_priors_6A
+policy_version: v1
+
+role_vocabulary:
+  - role_id: BOT_LIKE_DEVICE
+    label: Bot-like
+    description: Automation or farm-like posture consistent with scripted access.
+    severity_rank: 3
+  - role_id: NORMAL_DEVICE
+    label: Normal
+    description: Baseline device posture.
+    severity_rank: 0
+  - role_id: RISKY_DEVICE
+    label: Risky
+    description: Elevated device posture without strong bot signals.
+    severity_rank: 2
+  - role_id: SHARED_SUSPICIOUS_DEVICE
+    label: Shared suspicious
+    description: High-sharing posture consistent with elevated abuse risk.
+    severity_rank: 2
+
+risk_tier_vocabulary:
+  - { tier_id: ELEVATED, label: Elevated, description: Elevated static posture, severity_rank: 2 }
+  - { tier_id: HIGH, label: High, description: High static posture, severity_rank: 3 }
+  - { tier_id: LOW, label: Low, description: Low static posture, severity_rank: 0 }
+  - { tier_id: STANDARD, label: Standard, description: Typical baseline posture, severity_rank: 1 }
+
+device_groups:
+  groups:
+    - { group_id: BACKEND_SERVER, device_types: [SERVER], semantics: "Backend and API clients." }
+    - { group_id: COMPUTER_PORTABLE, device_types: [LAPTOP], semantics: "Portable computers." }
+    - { group_id: CONSUMER_PERSONAL, device_types: [MOBILE_PHONE, WEARABLE], semantics: "Personal consumer devices." }
+    - { group_id: CONSUMER_SHARED, device_types: [DESKTOP, TABLET], semantics: "Shared household devices." }
+    - { group_id: IOT_OTHER, device_types: [IOT_DEVICE], semantics: "IoT and embedded devices." }
+    - { group_id: MERCHANT_TERMINAL, device_types: [POS_TERMINAL, ATM, KIOSK], semantics: "Merchant terminals." }
+  device_type_to_group:
+    ATM: MERCHANT_TERMINAL
+    DESKTOP: CONSUMER_SHARED
+    IOT_DEVICE: IOT_OTHER
+    KIOSK: MERCHANT_TERMINAL
+    LAPTOP: COMPUTER_PORTABLE
+    MOBILE_PHONE: CONSUMER_PERSONAL
+    POS_TERMINAL: MERCHANT_TERMINAL
+    SERVER: BACKEND_SERVER
+    TABLET: CONSUMER_SHARED
+    WEARABLE: CONSUMER_PERSONAL
+
+feature_whitelist:
+  required_sources: [s4_device_base_6A, s4_device_links_6A, s4_ip_links_6A]
+  allowed_features:
+    - device_group_id
+    - deg_account_bucket
+    - deg_ip_bucket
+    - deg_party_bucket
+    - has_anonymizer_ip
+    - has_high_risk_device_flag
+  required_features: [device_group_id, deg_party_bucket, deg_ip_bucket, has_anonymizer_ip]
+
+derived_feature_buckets:
+  deg_account_bucket:
+    edges: [0, 1, 2, 4, 8, 16]
+    values: [0.00, 0.08, 0.15, 0.30, 0.50, 0.70, 0.85]
+  deg_ip_bucket:
+    edges: [0, 1, 2, 4, 8, 16]
+    values: [0.00, 0.08, 0.15, 0.30, 0.50, 0.70, 0.85]
+  deg_party_bucket:
+    edges: [0, 1, 2, 4, 8, 16]
+    values: [0.00, 0.10, 0.18, 0.35, 0.55, 0.75, 0.90]
+
+risk_score_model:
+  base_by_group:
+    BACKEND_SERVER: 0.58
+    COMPUTER_PORTABLE: 0.46
+    CONSUMER_PERSONAL: 0.45
+    CONSUMER_SHARED: 0.48
+    IOT_OTHER: 0.52
+    MERCHANT_TERMINAL: 0.50
+  features:
+    - { name: deg_account_bucket, source: GRAPH_DERIVED, ref: 0.10, weight: 0.08 }
+    - { name: deg_ip_bucket, source: GRAPH_DERIVED, ref: 0.08, weight: 0.12 }
+    - { name: deg_party_bucket, source: GRAPH_DERIVED, ref: 0.10, weight: 0.18 }
+    - { name: has_anonymizer_ip, source: GRAPH_DERIVED, ref: 0.00, weight: 0.22 }
+    - { name: has_high_risk_device_flag, source: DEVICE_ATTR, ref: 0.00, weight: 0.10 }
+
+risk_tier_thresholds:
+  tiers_in_order: [LOW, STANDARD, ELEVATED, HIGH]
+  thresholds:
+    LOW_max: 0.25
+    STANDARD_max: 0.65
+    ELEVATED_max: 0.85
+    HIGH_max: 1.00
+
+role_probability_model:
+  mode: by_group_and_risk_tier_v1
+  pi_role_by_group_and_tier:
+    BACKEND_SERVER:
+      LOW:
+        - { role_id: BOT_LIKE_DEVICE, prob: 0.0100 }
+        - { role_id: NORMAL_DEVICE, prob: 0.9750 }
+        - { role_id: RISKY_DEVICE, prob: 0.0120 }
+        - { role_id: SHARED_SUSPICIOUS_DEVICE, prob: 0.0030 }
+      STANDARD:
+        - { role_id: BOT_LIKE_DEVICE, prob: 0.0200 }
+        - { role_id: NORMAL_DEVICE, prob: 0.9400 }
+        - { role_id: RISKY_DEVICE, prob: 0.0300 }
+        - { role_id: SHARED_SUSPICIOUS_DEVICE, prob: 0.0100 }
+      ELEVATED:
+        - { role_id: BOT_LIKE_DEVICE, prob: 0.0500 }
+        - { role_id: NORMAL_DEVICE, prob: 0.8500 }
+        - { role_id: RISKY_DEVICE, prob: 0.0700 }
+        - { role_id: SHARED_SUSPICIOUS_DEVICE, prob: 0.0300 }
+      HIGH:
+        - { role_id: BOT_LIKE_DEVICE, prob: 0.1200 }
+        - { role_id: NORMAL_DEVICE, prob: 0.7000 }
+        - { role_id: RISKY_DEVICE, prob: 0.1200 }
+        - { role_id: SHARED_SUSPICIOUS_DEVICE, prob: 0.0600 }
+
+    COMPUTER_PORTABLE:
+      LOW:
+        - { role_id: BOT_LIKE_DEVICE, prob: 0.0002 }
+        - { role_id: NORMAL_DEVICE, prob: 0.9970 }
+        - { role_id: RISKY_DEVICE, prob: 0.0024 }
+        - { role_id: SHARED_SUSPICIOUS_DEVICE, prob: 0.0004 }
+      STANDARD:
+        - { role_id: BOT_LIKE_DEVICE, prob: 0.0006 }
+        - { role_id: NORMAL_DEVICE, prob: 0.9900 }
+        - { role_id: RISKY_DEVICE, prob: 0.0085 }
+        - { role_id: SHARED_SUSPICIOUS_DEVICE, prob: 0.0009 }
+      ELEVATED:
+        - { role_id: BOT_LIKE_DEVICE, prob: 0.0025 }
+        - { role_id: NORMAL_DEVICE, prob: 0.9700 }
+        - { role_id: RISKY_DEVICE, prob: 0.0240 }
+        - { role_id: SHARED_SUSPICIOUS_DEVICE, prob: 0.0035 }
+      HIGH:
+        - { role_id: BOT_LIKE_DEVICE, prob: 0.0100 }
+        - { role_id: NORMAL_DEVICE, prob: 0.9100 }
+        - { role_id: RISKY_DEVICE, prob: 0.0600 }
+        - { role_id: SHARED_SUSPICIOUS_DEVICE, prob: 0.0200 }
+
+    CONSUMER_PERSONAL:
+      LOW:
+        - { role_id: BOT_LIKE_DEVICE, prob: 0.0002 }
+        - { role_id: NORMAL_DEVICE, prob: 0.9980 }
+        - { role_id: RISKY_DEVICE, prob: 0.0016 }
+        - { role_id: SHARED_SUSPICIOUS_DEVICE, prob: 0.0002 }
+      STANDARD:
+        - { role_id: BOT_LIKE_DEVICE, prob: 0.0008 }
+        - { role_id: NORMAL_DEVICE, prob: 0.9920 }
+        - { role_id: RISKY_DEVICE, prob: 0.0065 }
+        - { role_id: SHARED_SUSPICIOUS_DEVICE, prob: 0.0007 }
+      ELEVATED:
+        - { role_id: BOT_LIKE_DEVICE, prob: 0.0035 }
+        - { role_id: NORMAL_DEVICE, prob: 0.9650 }
+        - { role_id: RISKY_DEVICE, prob: 0.0300 }
+        - { role_id: SHARED_SUSPICIOUS_DEVICE, prob: 0.0015 }
+      HIGH:
+        - { role_id: BOT_LIKE_DEVICE, prob: 0.0220 }
+        - { role_id: NORMAL_DEVICE, prob: 0.9000 }
+        - { role_id: RISKY_DEVICE, prob: 0.0700 }
+        - { role_id: SHARED_SUSPICIOUS_DEVICE, prob: 0.0080 }
+
+    CONSUMER_SHARED:
+      LOW:
+        - { role_id: BOT_LIKE_DEVICE, prob: 0.0002 }
+        - { role_id: NORMAL_DEVICE, prob: 0.9950 }
+        - { role_id: RISKY_DEVICE, prob: 0.0038 }
+        - { role_id: SHARED_SUSPICIOUS_DEVICE, prob: 0.0010 }
+      STANDARD:
+        - { role_id: BOT_LIKE_DEVICE, prob: 0.0006 }
+        - { role_id: NORMAL_DEVICE, prob: 0.9850 }
+        - { role_id: RISKY_DEVICE, prob: 0.0100 }
+        - { role_id: SHARED_SUSPICIOUS_DEVICE, prob: 0.0044 }
+      ELEVATED:
+        - { role_id: BOT_LIKE_DEVICE, prob: 0.0020 }
+        - { role_id: NORMAL_DEVICE, prob: 0.9500 }
+        - { role_id: RISKY_DEVICE, prob: 0.0300 }
+        - { role_id: SHARED_SUSPICIOUS_DEVICE, prob: 0.0180 }
+      HIGH:
+        - { role_id: BOT_LIKE_DEVICE, prob: 0.0060 }
+        - { role_id: NORMAL_DEVICE, prob: 0.8800 }
+        - { role_id: RISKY_DEVICE, prob: 0.0600 }
+        - { role_id: SHARED_SUSPICIOUS_DEVICE, prob: 0.0540 }
+
+    IOT_OTHER:
+      LOW:
+        - { role_id: BOT_LIKE_DEVICE, prob: 0.0020 }
+        - { role_id: NORMAL_DEVICE, prob: 0.9920 }
+        - { role_id: RISKY_DEVICE, prob: 0.0050 }
+        - { role_id: SHARED_SUSPICIOUS_DEVICE, prob: 0.0010 }
+      STANDARD:
+        - { role_id: BOT_LIKE_DEVICE, prob: 0.0040 }
+        - { role_id: NORMAL_DEVICE, prob: 0.9800 }
+        - { role_id: RISKY_DEVICE, prob: 0.0120 }
+        - { role_id: SHARED_SUSPICIOUS_DEVICE, prob: 0.0040 }
+      ELEVATED:
+        - { role_id: BOT_LIKE_DEVICE, prob: 0.0120 }
+        - { role_id: NORMAL_DEVICE, prob: 0.9400 }
+        - { role_id: RISKY_DEVICE, prob: 0.0350 }
+        - { role_id: SHARED_SUSPICIOUS_DEVICE, prob: 0.0130 }
+      HIGH:
+        - { role_id: BOT_LIKE_DEVICE, prob: 0.0350 }
+        - { role_id: NORMAL_DEVICE, prob: 0.8600 }
+        - { role_id: RISKY_DEVICE, prob: 0.0700 }
+        - { role_id: SHARED_SUSPICIOUS_DEVICE, prob: 0.0350 }
+
+    MERCHANT_TERMINAL:
+      LOW:
+        - { role_id: BOT_LIKE_DEVICE, prob: 0.0001 }
+        - { role_id: NORMAL_DEVICE, prob: 0.9975 }
+        - { role_id: RISKY_DEVICE, prob: 0.0022 }
+        - { role_id: SHARED_SUSPICIOUS_DEVICE, prob: 0.0002 }
+      STANDARD:
+        - { role_id: BOT_LIKE_DEVICE, prob: 0.0003 }
+        - { role_id: NORMAL_DEVICE, prob: 0.9920 }
+        - { role_id: RISKY_DEVICE, prob: 0.0068 }
+        - { role_id: SHARED_SUSPICIOUS_DEVICE, prob: 0.0009 }
+      ELEVATED:
+        - { role_id: BOT_LIKE_DEVICE, prob: 0.0010 }
+        - { role_id: NORMAL_DEVICE, prob: 0.9750 }
+        - { role_id: RISKY_DEVICE, prob: 0.0200 }
+        - { role_id: SHARED_SUSPICIOUS_DEVICE, prob: 0.0040 }
+      HIGH:
+        - { role_id: BOT_LIKE_DEVICE, prob: 0.0040 }
+        - { role_id: NORMAL_DEVICE, prob: 0.9300 }
+        - { role_id: RISKY_DEVICE, prob: 0.0500 }
+        - { role_id: SHARED_SUSPICIOUS_DEVICE, prob: 0.0160 }
+  nudges:
+    - if_feature: "has_anonymizer_ip == true"
+      multiply_roles: { BOT_LIKE_DEVICE: 1.60, NORMAL_DEVICE: 0.90 }
+      clip_multiplier: { min: 0.70, max: 2.00 }
+    - if_feature: "deg_party_bucket >= 0.35"
+      multiply_roles: { SHARED_SUSPICIOUS_DEVICE: 1.80, NORMAL_DEVICE: 0.88 }
+      clip_multiplier: { min: 0.70, max: 2.50 }
+    - if_feature: "deg_ip_bucket >= 0.55"
+      multiply_roles: { RISKY_DEVICE: 1.25, NORMAL_DEVICE: 0.94 }
+      clip_multiplier: { min: 0.75, max: 1.60 }
+
+optional_cluster_model:
+  enabled: true
+  cluster_key: [has_anonymizer_ip]
+  cluster_role: BOT_LIKE_DEVICE
+  cluster_size_distribution: { model_id: zipf_capK_v1, min_k: 2, max_k: 200, alpha: 1.25 }
+
+constraints:
+  fail_on_missing_rule: true
+  prob_dp: 12
+  max_role_share_caps_world:
+    BOT_LIKE_DEVICE: 0.0200
+    RISKY_DEVICE: 0.2000
+    SHARED_SUSPICIOUS_DEVICE: 0.1000
+  min_non_normal_presence:
+    RISKY_DEVICE: 0.0050
+
+realism_targets:
+  bot_like_fraction_world_range: { min: 0.0005, max: 0.02 }
+  shared_suspicious_fraction_world_range: { min: 0.002, max: 0.08 }
+  risky_fraction_world_range: { min: 0.01, max: 0.20 }
+  bot_enrichment_in_anonymizer_context_min_ratio: 3.0
+  shared_enrichment_in_high_deg_party_min_ratio: 5.0
+  region_variation:
+    required_if_n_regions_ge: 3
+    min_delta_in_bot_like_fraction: 0.001
+
+notes: >
+  Device role priors emphasize sharing and anonymizer exposure while keeping
+  bot-like devices rare outside backend contexts.

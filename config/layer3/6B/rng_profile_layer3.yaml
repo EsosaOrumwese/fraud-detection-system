@@ -1,0 +1,63 @@
+policy_id: rng_profile_layer3
+version: v1.0.0
+
+rng_engine: philox2x64-10
+
+philox:
+  rounds: 10
+  lanes_per_block_u64: 2
+  key_bits: 64
+  counter_bits: 128
+
+counter:
+  representation: { hi: uint64, lo: uint64 }
+  arithmetic: unsigned_128_add_with_carry
+  increment_per_block: 1
+  wrap_policy: abort_on_wrap
+
+uniform_u01:
+  law_id: strict_open_interval_u64_v1
+  u_from_u64:
+    expr: "u = ((x + 1) * 0x1.0000000000000p-64); if u == 1.0: u = 0x1.fffffffffffffp-1"
+  forbid_decimal_substitutes: true
+
+lane_policy:
+  single_uniform: { uses: x0, discards: x1 }
+  two_uniform: { uses: [x0, x1], same_block: true }
+  cache_across_events: false
+
+budget_law:
+  draws_type: dec_u128_string
+  blocks_type: uint64
+  blocks_from_draws: "blocks = ceil(draws / 2)"
+  lane_order: [x0, x1]
+  non_consuming: { draws: "0", blocks: 0 }
+
+normal_z:
+  enabled: true
+  law_id: box_muller_no_cache_v1
+  tau_hex: 0x1.921fb54442d18p+2
+  draws_per_z: "2"
+  blocks_per_z: 1
+  discard_sine_mate: true
+
+substreams:
+  master_domain: "mlr:6B.master"
+  msg_domain: "mlr:6B"
+  encodings:
+    uer_string: "LE32_len || utf8"
+    ser_u64: "LE64"
+    ser_index_u32: "LE32 (0-based)"
+    iso_uppercase: true
+  derivation:
+    master_material: "M = SHA256(UER(master_domain) || fingerprint_bytes || LE64(seed))"
+    substream_hash: "H = SHA256(M || UER(msg_domain) || UER(label) || SER(ids))"
+    key: "LOW64_LE(H[24:32])"
+    counter_base: "hi=BE64(H[16:24]); lo=BE64(H[24:32])"
+
+guardrails:
+  forbid_rng_without_policy: true
+  forbid_event_lane_reuse: true
+  require_open_interval_u01: true
+
+notes: "Pinned Layer-3 RNG law for 6B policies."

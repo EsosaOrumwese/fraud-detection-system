@@ -1,0 +1,1288 @@
+impl_map_semver: 0.1.0
+segment:
+  segment_id: 5B
+  layer_id: layer2
+  title: Arrival Realisation
+  description: Realise arrivals from 5A scenario intensities via latent LGCP + bucket counts + micro-time placement and routing;
+    publish PASS gate.
+generated_at_utc: '2026-01-10T12:45:00Z'
+sources:
+  state_expanded_docs:
+  - state.5B.s0.expanded.txt
+  - state.5B.s1.expanded.txt
+  - state.5B.s2.expanded.txt
+  - state.5B.s3.expanded.txt
+  - state.5B.s4.expanded.txt
+  - state.5B.s5.expanded.txt
+  dataset_dictionary:
+  - dataset_dictionary.layer2.5B.yaml
+  artefact_registry:
+  - artefact_registry_5B.yaml
+  schemas:
+  - schemas.5B.yaml
+source_fingerprints:
+  dataset_dictionary.layer2.5B.yaml:
+    sha256: 91fc9c35c975b4ed8be1cd8d69a6ddda1c52e89efa563decd8241f07bc4709dc
+  artefact_registry_5B.yaml:
+    sha256: c3eeb94afa6805d9e05b48a6a2b6da9e4f24bcd93fa52d2fa4273424d054aad2
+  schemas.5B.yaml:
+    sha256: 8f07868f35ee0b59cc2f1674cf86a0ac653110610fc6fbd5cc3127f628285d75
+  state.5B.s0.expanded.txt:
+    sha256: d02ef35ec11978afe288f8fa2c1b1e3e3b32bb48fb22b7f6e9820a9f7bbf2fba
+  state.5B.s1.expanded.txt:
+    sha256: 87ca051ddf04709cae21bbaeb69dd55db2a7444209a6e18b8d4d5d35a39adf15
+  state.5B.s2.expanded.txt:
+    sha256: 3d8820cc26625fa7112dbbb5ef7eeb62f3d5bbeea4aba12ee13914f6b952eda2
+  state.5B.s3.expanded.txt:
+    sha256: 9b1eca4a2c5ce8bf7a1a30be48b7d5ebda051780789e1bc24fdc4ad6d788f4c1
+  state.5B.s4.expanded.txt:
+    sha256: 2508dcca46f2d0461fb2444e5b2902990e1a426276097e592713e1515be315e4
+  state.5B.s5.expanded.txt:
+    sha256: 42cacc59a018ec25d319a97d14d4254e7d43e21dae68d129018f7518b70cfd7e
+path_tokens:
+  parameter_hash: parameter_hash
+  manifest_fingerprint: manifest_fingerprint
+  seed: seed
+  run_id: run_id
+  scenario_id: scenario_id
+  utc_day: utc_day
+lineage:
+  parameter_hash:
+    role: rng_partition_and_policy_anchor
+    algorithm_ref: Engine-global parameter_hash (canonical; by reference).
+    output_effect:
+      log_partitions_must_include:
+      - parameter_hash
+  manifest_fingerprint:
+    role: world_anchor
+    algorithm_ref: Engine-global manifest_fingerprint (canonical; opened-artefact closure via sealed_inputs_5B).
+    dependency_closure_source: sealed_inputs_5B
+    output_effect:
+      partition_must_include:
+      - manifest_fingerprint
+  run_id:
+    role: log_partition_only
+    algorithm_ref: Engine-global run_id (canonical; log-only; must not affect modelling outcomes).
+    constraints:
+    - MUST_NOT_influence_modelling_outputs
+    - MUST_NOT_influence_RNG_outcomes
+gates:
+- gate_id: upstream.layer1_1A.final
+  gate_type: upstream_final_bundle_gate
+  owner_segment: 1A
+  scope_keys:
+  - manifest_fingerprint
+  location:
+    bundle_root: data/layer1/1A/validation/manifest_fingerprint={manifest_fingerprint}/
+    index_json: data/layer1/1A/validation/manifest_fingerprint={manifest_fingerprint}/index.json
+    passed_flag: data/layer1/1A/validation/manifest_fingerprint={manifest_fingerprint}/_passed.flag
+  verification_method: verify_upstream_gate_as_specified
+  file_set_rule: Verify 1A gate using 1A's declared hashing law (index-driven).
+- gate_id: upstream.layer1_1B.final
+  gate_type: upstream_final_bundle_gate
+  owner_segment: 1B
+  scope_keys:
+  - manifest_fingerprint
+  location:
+    bundle_root: data/layer1/1B/validation/manifest_fingerprint={manifest_fingerprint}/
+    index_json: data/layer1/1B/validation/manifest_fingerprint={manifest_fingerprint}/index.json
+    passed_flag: data/layer1/1B/validation/manifest_fingerprint={manifest_fingerprint}/_passed.flag
+  verification_method: verify_upstream_gate_as_specified
+  file_set_rule: Verify 1B gate using 1B's declared hashing law (index-driven).
+- gate_id: upstream.layer1_2A.final
+  gate_type: upstream_final_bundle_gate
+  owner_segment: 2A
+  scope_keys:
+  - manifest_fingerprint
+  location:
+    bundle_root: data/layer1/2A/validation/manifest_fingerprint={manifest_fingerprint}/
+    index_json: data/layer1/2A/validation/manifest_fingerprint={manifest_fingerprint}/index.json
+    passed_flag: data/layer1/2A/validation/manifest_fingerprint={manifest_fingerprint}/_passed.flag
+  verification_method: verify_upstream_gate_as_specified
+  file_set_rule: Verify 2A gate using 2A's declared hashing law (index-driven).
+- gate_id: upstream.layer1_2B.final
+  gate_type: upstream_final_bundle_gate
+  owner_segment: 2B
+  scope_keys:
+  - manifest_fingerprint
+  location:
+    bundle_root: data/layer1/2B/validation/manifest_fingerprint={manifest_fingerprint}/
+    index_json: data/layer1/2B/validation/manifest_fingerprint={manifest_fingerprint}/index.json
+    passed_flag: data/layer1/2B/validation/manifest_fingerprint={manifest_fingerprint}/_passed.flag
+  verification_method: verify_upstream_gate_as_specified
+  file_set_rule: Verify 2B gate using 2B's declared hashing law (index-driven).
+- gate_id: upstream.layer1_3A.final
+  gate_type: upstream_final_bundle_gate
+  owner_segment: 3A
+  scope_keys:
+  - manifest_fingerprint
+  location:
+    bundle_root: data/layer1/3A/validation/manifest_fingerprint={manifest_fingerprint}/
+    index_json: data/layer1/3A/validation/manifest_fingerprint={manifest_fingerprint}/index.json
+    passed_flag: data/layer1/3A/validation/manifest_fingerprint={manifest_fingerprint}/_passed.flag
+  verification_method: verify_upstream_gate_as_specified
+  file_set_rule: Verify 3A gate using 3A's declared hashing law (digest-of-digests).
+- gate_id: upstream.layer1_3B.final
+  gate_type: upstream_final_bundle_gate
+  owner_segment: 3B
+  scope_keys:
+  - manifest_fingerprint
+  location:
+    bundle_root: data/layer1/3B/validation/manifest_fingerprint={manifest_fingerprint}/
+    index_json: data/layer1/3B/validation/manifest_fingerprint={manifest_fingerprint}/index.json
+    passed_flag: data/layer1/3B/validation/manifest_fingerprint={manifest_fingerprint}/_passed.flag
+  verification_method: verify_upstream_gate_as_specified
+  file_set_rule: Verify 3B gate using 3B's declared hashing law (index-driven).
+- gate_id: upstream.layer2_5A.final
+  gate_type: upstream_final_bundle_gate
+  owner_segment: 5A
+  scope_keys:
+  - manifest_fingerprint
+  location:
+    bundle_root: data/layer2/5A/validation/manifest_fingerprint={manifest_fingerprint}/
+    index_json: data/layer2/5A/validation/manifest_fingerprint={manifest_fingerprint}/validation_bundle_index_5A.json
+    passed_flag: data/layer2/5A/validation/manifest_fingerprint={manifest_fingerprint}/_passed.flag
+  verification_method: verify_upstream_gate_as_specified
+  file_set_rule: Verify 5A gate using 5A's declared hashing law (index-driven raw-bytes concat).
+- gate_id: 5B.S0.gate_in_receipt
+  gate_type: attestation_receipt
+  scope_keys:
+  - manifest_fingerprint
+  location:
+    receipt: data/layer2/5B/s0_gate_receipt/manifest_fingerprint={manifest_fingerprint}/s0_gate_receipt_5B.json
+    sealed_inputs: data/layer2/5B/sealed_inputs/manifest_fingerprint={manifest_fingerprint}/sealed_inputs_5B.json
+  verification_method: schema_validate_and_digest_link
+  file_set_rule: Validate schemas for s0_gate_receipt_5B and sealed_inputs_5B; sealed_inputs_digest in receipt MUST equal SHA256
+    over canonical bytes of sealed_inputs_5B in declared ordering.
+  authorizes_reads_of:
+  - 5B.sealed_inputs_universe
+- gate_id: 5B.final.bundle_gate
+  gate_type: final_bundle_gate
+  scope_keys:
+  - manifest_fingerprint
+  location:
+    bundle_root: data/layer2/5B/validation/manifest_fingerprint={manifest_fingerprint}/
+    index_json: data/layer2/5B/validation/manifest_fingerprint={manifest_fingerprint}/index.json
+    passed_flag: data/layer2/5B/validation/manifest_fingerprint={manifest_fingerprint}/_passed.flag
+  verification_method: indexed_bundle_raw_bytes
+  file_set_rule: bundle_sha256 = SHA256(concat(raw_bytes(files listed in index.json excluding _passed.flag) in ASCII-lex path
+    order)); _passed.flag JSON must carry manifest_fingerprint and bundle_digest_sha256.
+  authorizes_reads_of:
+  - arrival_events_5B
+  - s3_bucket_counts_5B
+  - s2_realised_intensity_5B
+order_authorities:
+- authority_id: 5B.s1_time_grid.bucket_order
+  dataset_id: s1_time_grid_5B
+  scope_keys:
+  - manifest_fingerprint
+  - scenario_id
+  ordering_keys:
+  - bucket_index
+  rule: bucket_index in s1_time_grid_5B is the single authority for bucket order in downstream S2–S4 joins and validations.
+- authority_id: 5B.arrival_events.order
+  dataset_id: arrival_events_5B
+  scope_keys:
+  - seed
+  - manifest_fingerprint
+  - scenario_id
+  ordering_keys:
+  - scenario_id
+  - merchant_id
+  - ts_utc
+  - arrival_seq
+  rule: arrival_events_5B writer ordering keys are binding for determinism/diffability; arrival_seq is the unique per-merchant
+    sequence within a run partition.
+consumer_surfaces:
+  arrival_events_5B:
+    dataset_id: arrival_events_5B
+    scope_keys:
+    - seed
+    - manifest_fingerprint
+    - scenario_id
+    address_template: data/layer2/5B/arrival_events/seed={seed}/manifest_fingerprint={manifest_fingerprint}/scenario_id={scenario_id}/part-*.parquet
+    schema_ref: schemas.5B.yaml#/egress/arrival_events_5B
+    ordering:
+    - scenario_id
+    - merchant_id
+    - ts_utc
+    - arrival_seq
+    required_gates:
+    - 5B.final.bundle_gate
+    notes:
+    - Final-in-layer arrival event stream consumed by 6A/6B and ingestion; consumers MUST verify 5B final gate (no PASS → no
+      read).
+  s3_bucket_counts_5B:
+    dataset_id: s3_bucket_counts_5B
+    scope_keys:
+    - seed
+    - manifest_fingerprint
+    - scenario_id
+    address_template: data/layer2/5B/s3_bucket_counts/seed={seed}/manifest_fingerprint={manifest_fingerprint}/scenario_id={scenario_id}/s3_bucket_counts_5B.parquet
+    schema_ref: schemas.5B.yaml#/model/s3_bucket_counts_5B
+    ordering:
+    - scenario_id
+    - merchant_id
+    - zone_representation
+    - channel_group
+    - bucket_index
+    required_gates:
+    - 5B.final.bundle_gate
+    notes:
+    - Bucket-level integer counts; must be conserved exactly in S4 expansion.
+states:
+  S0:
+    impl_map_key: segment=5B.state=S0
+    state_class: SC-A
+    rng_posture: RNG_NONE
+    scope_keys:
+    - manifest_fingerprint
+    reads:
+    - dataset_id: validation_bundle_1A
+      kind: upstream_validation
+      required_gates: []
+    - dataset_id: validation_passed_flag_1A
+      kind: upstream_validation
+      required_gates: []
+    - dataset_id: validation_bundle_1B
+      kind: upstream_validation
+      required_gates: []
+    - dataset_id: validation_passed_flag_1B
+      kind: upstream_validation
+      required_gates: []
+    - dataset_id: validation_bundle_2A
+      kind: upstream_validation
+      required_gates: []
+    - dataset_id: validation_passed_flag_2A
+      kind: upstream_validation
+      required_gates: []
+    - dataset_id: validation_bundle_2B
+      kind: upstream_validation
+      required_gates: []
+    - dataset_id: validation_passed_flag_2B
+      kind: upstream_validation
+      required_gates: []
+    - dataset_id: validation_bundle_3A
+      kind: upstream_validation
+      required_gates: []
+    - dataset_id: validation_passed_flag_3A
+      kind: upstream_validation
+      required_gates: []
+    - dataset_id: validation_bundle_3B
+      kind: upstream_validation
+      required_gates: []
+    - dataset_id: validation_passed_flag_3B
+      kind: upstream_validation
+      required_gates: []
+    - dataset_id: validation_bundle_5A
+      kind: upstream_validation
+      required_gates: []
+    - dataset_id: validation_passed_flag_5A
+      kind: upstream_validation
+      required_gates: []
+    - dataset_id: time_grid_policy_5B
+      kind: policy_or_config
+      required_gates: []
+    - dataset_id: grouping_policy_5B
+      kind: policy_or_config
+      required_gates: []
+    - dataset_id: arrival_lgcp_config_5B
+      kind: policy_or_config
+      required_gates: []
+    - dataset_id: arrival_count_config_5B
+      kind: policy_or_config
+      required_gates: []
+    - dataset_id: arrival_time_placement_policy_5B
+      kind: policy_or_config
+      required_gates: []
+    - dataset_id: arrival_routing_policy_5B
+      kind: policy_or_config
+      required_gates: []
+    - dataset_id: arrival_rng_policy_5B
+      kind: policy_or_config
+      required_gates: []
+    - dataset_id: validation_policy_5B
+      kind: policy_or_config
+      required_gates: []
+    - dataset_id: bundle_layout_policy_5B
+      kind: policy_or_config
+      required_gates: []
+    - dataset_id: scenario_manifest_5A
+      kind: sealed_reference
+      required_gates: []
+      notes:
+      - Sealed by catalogue; S0 is metadata-only (no bulk row scans).
+    - dataset_id: merchant_zone_profile_5A
+      kind: sealed_reference
+      required_gates: []
+      notes:
+      - Sealed by catalogue; S0 is metadata-only (no bulk row scans).
+    - dataset_id: shape_grid_definition_5A
+      kind: sealed_reference
+      required_gates: []
+      notes:
+      - Sealed by catalogue; S0 is metadata-only (no bulk row scans).
+    - dataset_id: class_zone_shape_5A
+      kind: sealed_reference
+      required_gates: []
+      notes:
+      - Sealed by catalogue; S0 is metadata-only (no bulk row scans).
+    - dataset_id: merchant_zone_scenario_local_5A
+      kind: sealed_reference
+      required_gates: []
+      notes:
+      - Sealed by catalogue; S0 is metadata-only (no bulk row scans).
+    - dataset_id: merchant_zone_overlay_factors_5A
+      kind: sealed_reference
+      required_gates: []
+      notes:
+      - Sealed by catalogue; S0 is metadata-only (no bulk row scans).
+    - dataset_id: merchant_zone_scenario_utc_5A
+      kind: sealed_reference
+      required_gates: []
+      notes:
+      - Sealed by catalogue; S0 is metadata-only (no bulk row scans).
+    - dataset_id: site_locations
+      kind: sealed_reference
+      required_gates: []
+      notes:
+      - Sealed by catalogue; S0 is metadata-only (no bulk row scans).
+    - dataset_id: site_timezones
+      kind: sealed_reference
+      required_gates: []
+      notes:
+      - Sealed by catalogue; S0 is metadata-only (no bulk row scans).
+    - dataset_id: tz_timetable_cache
+      kind: sealed_reference
+      required_gates: []
+      notes:
+      - Sealed by catalogue; S0 is metadata-only (no bulk row scans).
+    - dataset_id: s1_site_weights
+      kind: sealed_reference
+      required_gates: []
+      notes:
+      - Sealed by catalogue; S0 is metadata-only (no bulk row scans).
+    - dataset_id: s2_alias_blob
+      kind: sealed_reference
+      required_gates: []
+      notes:
+      - Sealed by catalogue; S0 is metadata-only (no bulk row scans).
+    - dataset_id: s2_alias_index
+      kind: sealed_reference
+      required_gates: []
+      notes:
+      - Sealed by catalogue; S0 is metadata-only (no bulk row scans).
+    - dataset_id: s3_day_effects
+      kind: sealed_reference
+      required_gates: []
+      notes:
+      - Sealed by catalogue; S0 is metadata-only (no bulk row scans).
+    - dataset_id: s4_group_weights
+      kind: sealed_reference
+      required_gates: []
+      notes:
+      - Sealed by catalogue; S0 is metadata-only (no bulk row scans).
+    - dataset_id: zone_alloc
+      kind: sealed_reference
+      required_gates: []
+      notes:
+      - Sealed by catalogue; S0 is metadata-only (no bulk row scans).
+    - dataset_id: zone_alloc_universe_hash
+      kind: sealed_reference
+      required_gates: []
+      notes:
+      - Sealed by catalogue; S0 is metadata-only (no bulk row scans).
+    - dataset_id: virtual_classification_3B
+      kind: sealed_reference
+      required_gates: []
+      notes:
+      - Sealed by catalogue; S0 is metadata-only (no bulk row scans).
+    - dataset_id: virtual_settlement_3B
+      kind: sealed_reference
+      required_gates: []
+      notes:
+      - Sealed by catalogue; S0 is metadata-only (no bulk row scans).
+    - dataset_id: edge_catalogue_3B
+      kind: sealed_reference
+      required_gates: []
+      notes:
+      - Sealed by catalogue; S0 is metadata-only (no bulk row scans).
+    - dataset_id: edge_catalogue_index_3B
+      kind: sealed_reference
+      required_gates: []
+      notes:
+      - Sealed by catalogue; S0 is metadata-only (no bulk row scans).
+    - dataset_id: edge_alias_blob_3B
+      kind: sealed_reference
+      required_gates: []
+      notes:
+      - Sealed by catalogue; S0 is metadata-only (no bulk row scans).
+    - dataset_id: edge_alias_index_3B
+      kind: sealed_reference
+      required_gates: []
+      notes:
+      - Sealed by catalogue; S0 is metadata-only (no bulk row scans).
+    - dataset_id: edge_universe_hash_3B
+      kind: sealed_reference
+      required_gates: []
+      notes:
+      - Sealed by catalogue; S0 is metadata-only (no bulk row scans).
+    - dataset_id: virtual_routing_policy_3B
+      kind: sealed_reference
+      required_gates: []
+      notes:
+      - Sealed by catalogue; S0 is metadata-only (no bulk row scans).
+    - dataset_id: virtual_validation_contract_3B
+      kind: sealed_reference
+      required_gates: []
+      notes:
+      - Sealed by catalogue; S0 is metadata-only (no bulk row scans).
+    - dataset_id: route_rng_policy_v1
+      kind: sealed_reference
+      required_gates: []
+      notes:
+      - Sealed by catalogue; S0 is metadata-only (no bulk row scans).
+    - dataset_id: alias_layout_policy_v1
+      kind: sealed_reference
+      required_gates: []
+      notes:
+      - Sealed by catalogue; S0 is metadata-only (no bulk row scans).
+    writes:
+    - dataset_id: s0_gate_receipt_5B
+      scope_keys:
+      - manifest_fingerprint
+      address_template: data/layer2/5B/s0_gate_receipt/manifest_fingerprint={manifest_fingerprint}/s0_gate_receipt_5B.json
+      ordering: []
+      equality: ordered
+      optional: false
+    - dataset_id: sealed_inputs_5B
+      scope_keys:
+      - manifest_fingerprint
+      address_template: data/layer2/5B/sealed_inputs/manifest_fingerprint={manifest_fingerprint}/sealed_inputs_5B.json
+      ordering:
+      - owner_segment
+      - artifact_id
+      - role
+      equality: ordered
+      optional: false
+    - dataset_id: segment_state_runs
+      scope_keys: []
+      address_template: reports/layer2/segment_state_runs/segment=5B/utc_day={utc_day}/segment_state_runs.jsonl
+      ordering: []
+      equality: rowset
+      optional: true
+    gates_in:
+    - upstream.layer1_1A.final
+    - upstream.layer1_1B.final
+    - upstream.layer1_2A.final
+    - upstream.layer1_2B.final
+    - upstream.layer1_3A.final
+    - upstream.layer1_3B.final
+    - upstream.layer2_5A.final
+    gates_out:
+    - 5B.S0.gate_in_receipt
+    rng: null
+    validation:
+      performed_here:
+      - Verify upstream PASS gates for 1A–3B and 5A for this manifest_fingerprint (fail-closed).
+      - Resolve scenario_set_5B as subset of ScenarioIDs from scenario_manifest_5A; record binding in s0_gate_receipt_5B.
+      - Materialise sealed_inputs_5B as the closed input universe; compute sealed_inputs_digest and store in receipt.
+      deferred_to_finalizer:
+      - All downstream surface validation and final PASS gating occur in S5.
+      evidence_written:
+      - s0_gate_receipt_5B
+      - sealed_inputs_5B
+    frozen_surfaces:
+    - No upstream PASS → no 5B read: S0 MUST refuse to proceed if any required upstream bundle/index/flag is missing or digest-mismatched.
+    - 'Catalogue-only resolution: S0 MUST use dataset dictionaries/registries and must not hard-code paths.'
+    - 'Closed input universe: downstream states MUST NOT read artefacts not listed in sealed_inputs_5B.'
+    - 'RNG-free: S0 MUST NOT consume RNG or emit rng_event_*.'
+    - Token naming uses manifest_fingerprint consistently (assumed resolved).
+    flexible_choices:
+    - Streaming hashing of upstream bundles is allowed if each upstream gate law is matched exactly.
+    - S0 may include additional non-gating summary fields (counts, pointers) if schema permits.
+    perf_hotspots:
+    - Verifying and hashing many upstream validation bundles.
+    safe_optimization_levers:
+    - Stream hashing; avoid reading large evidence files into memory; deterministic path ordering.
+    do_not_optimize:
+    - Do not weaken upstream gate verification or sealed-input closure rules.
+    debug_hooks:
+    - Record per-upstream-segment verified digest + resolved bundle root path in s0_gate_receipt_5B.
+    - Record sealed_inputs_digest and row counts by role for drift localization.
+  S1:
+    impl_map_key: segment=5B.state=S1
+    state_class: SC-C
+    rng_posture: RNG_NONE
+    scope_keys:
+    - manifest_fingerprint
+    - scenario_id
+    reads:
+    - dataset_id: s0_gate_receipt_5B
+      kind: validation
+      required_gates: []
+    - dataset_id: sealed_inputs_5B
+      kind: validation
+      required_gates: []
+    - dataset_id: time_grid_policy_5B
+      kind: policy
+      required_gates:
+      - 5B.S0.gate_in_receipt
+    - dataset_id: grouping_policy_5B
+      kind: policy
+      required_gates:
+      - 5B.S0.gate_in_receipt
+    - dataset_id: scenario_manifest_5A
+      kind: reference_data
+      required_gates:
+      - 5B.S0.gate_in_receipt
+    - dataset_id: merchant_zone_scenario_local_5A
+      kind: reference_data
+      required_gates:
+      - 5B.S0.gate_in_receipt
+    - dataset_id: site_timezones
+      kind: reference_data
+      required_gates:
+      - 5B.S0.gate_in_receipt
+    - dataset_id: tz_timetable_cache
+      kind: reference_data
+      required_gates:
+      - 5B.S0.gate_in_receipt
+    writes:
+    - dataset_id: s1_time_grid_5B
+      scope_keys:
+      - manifest_fingerprint
+      - scenario_id
+      address_template: data/layer2/5B/s1_time_grid/manifest_fingerprint={manifest_fingerprint}/scenario_id={scenario_id}/s1_time_grid_5B.parquet
+      ordering:
+      - scenario_id
+      - bucket_index
+      equality: ordered
+      optional: false
+    - dataset_id: s1_grouping_5B
+      scope_keys:
+      - manifest_fingerprint
+      - scenario_id
+      address_template: data/layer2/5B/s1_grouping/manifest_fingerprint={manifest_fingerprint}/scenario_id={scenario_id}/s1_grouping_5B.parquet
+      ordering:
+      - scenario_id
+      - merchant_id
+      - zone_representation
+      - channel_group
+      equality: ordered
+      optional: false
+    - dataset_id: segment_state_runs
+      scope_keys: []
+      address_template: reports/layer2/segment_state_runs/segment=5B/utc_day={utc_day}/segment_state_runs.jsonl
+      ordering: []
+      equality: rowset
+      optional: true
+    gates_in:
+    - 5B.S0.gate_in_receipt
+    gates_out: []
+    rng: null
+    validation:
+      performed_here:
+      - Deterministically construct canonical time buckets for each scenario in scenario_set_5B; write s1_time_grid_5B.
+      - Deterministically construct grouping plan (entity→group_id, zone_representation, channel_group) per grouping_policy_5B;
+        write s1_grouping_5B.
+      deferred_to_finalizer:
+      - S5 validates coherence and publishes segment PASS gate.
+      evidence_written:
+      - s1_time_grid_5B
+      - s1_grouping_5B
+    frozen_surfaces:
+    - RNG-free; outputs MUST be independent of seed/run_id.
+    - S1 is the sole authority for bucket grid and grouping plan; downstream MUST join/align using bucket_index and group_id from
+      S1 outputs.
+    flexible_choices:
+    - Internal data structures and batching strategy are flexible if deterministic and preserve declared ordering keys.
+    perf_hotspots:
+    - Building per-scenario grids and grouping plans over large merchant×zone domains.
+    safe_optimization_levers:
+    - Process per scenario_id and per merchant_id with deterministic chunking.
+    do_not_optimize:
+    - Do not change bucket semantics or grouping keys without updating downstream validators.
+    debug_hooks:
+    - 'Emit counts per scenario: buckets_total, groups_total, and grouping cardinalities (diagnostic).'
+  S2:
+    impl_map_key: segment=5B.state=S2
+    state_class: SC-B
+    rng_posture: RNG_CONSUMING
+    scope_keys:
+    - seed
+    - manifest_fingerprint
+    - scenario_id
+    - parameter_hash
+    - run_id
+    reads:
+    - dataset_id: s0_gate_receipt_5B
+      kind: validation
+      required_gates: []
+    - dataset_id: sealed_inputs_5B
+      kind: validation
+      required_gates: []
+    - dataset_id: s1_time_grid_5B
+      kind: plan
+      required_gates:
+      - 5B.S0.gate_in_receipt
+    - dataset_id: s1_grouping_5B
+      kind: plan
+      required_gates:
+      - 5B.S0.gate_in_receipt
+    - dataset_id: merchant_zone_scenario_local_5A
+      kind: reference_data
+      required_gates:
+      - 5B.S0.gate_in_receipt
+      notes:
+      - Target λ surface.
+    - dataset_id: merchant_zone_overlay_factors_5A
+      kind: reference_data
+      required_gates:
+      - 5B.S0.gate_in_receipt
+      conditional: optional
+    - dataset_id: arrival_lgcp_config_5B
+      kind: policy
+      required_gates:
+      - 5B.S0.gate_in_receipt
+    - dataset_id: arrival_rng_policy_5B
+      kind: policy
+      required_gates:
+      - 5B.S0.gate_in_receipt
+    writes:
+    - dataset_id: s2_realised_intensity_5B
+      scope_keys:
+      - seed
+      - manifest_fingerprint
+      - scenario_id
+      address_template: data/layer2/5B/s2_realised_intensity/seed={seed}/manifest_fingerprint={manifest_fingerprint}/scenario_id={scenario_id}/s2_realised_intensity_5B.parquet
+      ordering:
+      - scenario_id
+      - merchant_id
+      - zone_representation
+      - channel_group
+      - bucket_index
+      equality: ordered
+      optional: false
+    - dataset_id: s2_latent_field_5B
+      scope_keys:
+      - seed
+      - manifest_fingerprint
+      - scenario_id
+      address_template: data/layer2/5B/s2_latent_field/seed={seed}/manifest_fingerprint={manifest_fingerprint}/scenario_id={scenario_id}/s2_latent_field_5B.parquet
+      ordering:
+      - scenario_id
+      - group_id
+      - bucket_index
+      equality: ordered
+      optional: true
+    - dataset_id: rng_event_arrival_lgcp_gaussian
+      scope_keys:
+      - seed
+      - parameter_hash
+      - run_id
+      address_template: logs/layer2/5B/rng/events/arrival_lgcp_gaussian/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/part-*.jsonl
+      ordering: []
+      equality: rowset
+      optional: false
+    - dataset_id: rng_audit_log
+      scope_keys:
+      - seed
+      - parameter_hash
+      - run_id
+      address_template: logs/layer2/5B/rng/audit/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/rng_audit_log.jsonl
+      ordering: []
+      equality: rowset
+      optional: false
+      notes:
+      - Append-only; shared across S2–S4 for the run_id partition.
+    - dataset_id: rng_trace_log
+      scope_keys:
+      - seed
+      - parameter_hash
+      - run_id
+      address_template: logs/layer2/5B/rng/trace/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/rng_trace_log.jsonl
+      ordering: []
+      equality: rowset
+      optional: false
+      notes:
+      - Append-only; trace-after-each-event discipline.
+    - dataset_id: segment_state_runs
+      scope_keys: []
+      address_template: reports/layer2/segment_state_runs/segment=5B/utc_day={utc_day}/segment_state_runs.jsonl
+      ordering: []
+      equality: rowset
+      optional: true
+    gates_in:
+    - 5B.S0.gate_in_receipt
+    gates_out: []
+    rng:
+      families_written:
+      - rng_event_arrival_lgcp_gaussian
+      - rng_audit_log
+      - rng_trace_log
+      envelope_discipline:
+      - Philox stream/substream and budgets are governed by arrival_rng_policy_5B.
+      - Trace-after-each-event; counters and draws/blocks must reconcile in S5.
+      stream_key_template: policy-governed deterministic keying per (group_id,bucket_index) (see arrival_rng_policy_5B).
+    validation:
+      performed_here:
+      - Sample LGCP latent field ξ(group,bucket) using arrival_lgcp_config_5B and arrival_rng_policy_5B.
+      - Compute λ_realised = λ_target × ξ and write s2_realised_intensity_5B; optionally write s2_latent_field_5B.
+      - Emit rng_event_arrival_lgcp_gaussian and update rng_audit_log/rng_trace_log.
+      deferred_to_finalizer:
+      - S5 validates distributions, domain coverage, and RNG accounting.
+      evidence_written:
+      - s2_realised_intensity_5B
+      - rng_event_arrival_lgcp_gaussian
+      - rng_audit_log
+      - rng_trace_log
+    frozen_surfaces:
+    - 'RNG posture: consuming; budgets and substream labels are fixed by arrival_rng_policy_5B.'
+    - Output partitioning must match dictionary (seed, manifest_fingerprint, scenario_id).
+    - PK uniqueness on realised intensity table (entity × bucket) is binding.
+    flexible_choices:
+    - Vectorized Gaussian draws and latent field construction allowed if deterministic and accounting preserved.
+    - Materialization of s2_latent_field_5B is optional per dictionary.
+    perf_hotspots:
+    - Large latent-field simulation over many groups × buckets; log IO.
+    safe_optimization_levers:
+    - Deterministic chunking by group_id; buffered log writes.
+    do_not_optimize:
+    - Do not alter RNG draw counts or counter progression semantics without updating validation.
+    debug_hooks:
+    - Emit expected rows vs written rows for latent field and realised intensity; include first-N missing groups/buckets if any.
+  S3:
+    impl_map_key: segment=5B.state=S3
+    state_class: SC-B
+    rng_posture: RNG_CONSUMING
+    scope_keys:
+    - seed
+    - manifest_fingerprint
+    - scenario_id
+    - parameter_hash
+    - run_id
+    reads:
+    - dataset_id: s0_gate_receipt_5B
+      kind: validation
+      required_gates: []
+    - dataset_id: sealed_inputs_5B
+      kind: validation
+      required_gates: []
+    - dataset_id: s1_time_grid_5B
+      kind: plan
+      required_gates:
+      - 5B.S0.gate_in_receipt
+    - dataset_id: s2_realised_intensity_5B
+      kind: model
+      required_gates:
+      - 5B.S0.gate_in_receipt
+    - dataset_id: arrival_count_config_5B
+      kind: policy
+      required_gates:
+      - 5B.S0.gate_in_receipt
+    - dataset_id: arrival_rng_policy_5B
+      kind: policy
+      required_gates:
+      - 5B.S0.gate_in_receipt
+    writes:
+    - dataset_id: s3_bucket_counts_5B
+      scope_keys:
+      - seed
+      - manifest_fingerprint
+      - scenario_id
+      address_template: data/layer2/5B/s3_bucket_counts/seed={seed}/manifest_fingerprint={manifest_fingerprint}/scenario_id={scenario_id}/s3_bucket_counts_5B.parquet
+      ordering:
+      - scenario_id
+      - merchant_id
+      - zone_representation
+      - channel_group
+      - bucket_index
+      equality: ordered
+      optional: false
+    - dataset_id: rng_event_arrival_bucket_count
+      scope_keys:
+      - seed
+      - parameter_hash
+      - run_id
+      address_template: logs/layer2/5B/rng/events/arrival_bucket_count/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/part-*.jsonl
+      ordering: []
+      equality: rowset
+      optional: false
+      notes:
+      - 'Assumed resolved: explicit per-draw RNG event surface for S3 bucket counts (substream_label=''bucket_count'').'
+    - dataset_id: rng_audit_log
+      scope_keys:
+      - seed
+      - parameter_hash
+      - run_id
+      address_template: logs/layer2/5B/rng/audit/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/rng_audit_log.jsonl
+      ordering: []
+      equality: rowset
+      optional: false
+    - dataset_id: rng_trace_log
+      scope_keys:
+      - seed
+      - parameter_hash
+      - run_id
+      address_template: logs/layer2/5B/rng/trace/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/rng_trace_log.jsonl
+      ordering: []
+      equality: rowset
+      optional: false
+    - dataset_id: segment_state_runs
+      scope_keys: []
+      address_template: reports/layer2/segment_state_runs/segment=5B/utc_day={utc_day}/segment_state_runs.jsonl
+      ordering: []
+      equality: rowset
+      optional: true
+    gates_in:
+    - 5B.S0.gate_in_receipt
+    gates_out: []
+    rng:
+      families_written:
+      - rng_event_arrival_bucket_count
+      - rng_audit_log
+      - rng_trace_log
+      envelope_discipline:
+      - Per entity×bucket draw(s) must emit RNG event row(s) with substream_label='bucket_count' and record draws/blocks.
+      - Trace-after-each-event; total draws/blocks reconcile in S5.
+      stream_key_template: policy-governed deterministic keying per (group_id,bucket_index) (see arrival_rng_policy_5B).
+    validation:
+      performed_here:
+      - Sample integer arrival counts N(entity,bucket) from λ_realised and bucket duration per arrival_count_config_5B.
+      - Write s3_bucket_counts_5B; emit per-draw RNG event rows and update audit/trace logs.
+      deferred_to_finalizer:
+      - S5 validates count laws, conservation in S4, and RNG accounting.
+      evidence_written:
+      - s3_bucket_counts_5B
+      - rng_event_arrival_bucket_count
+      - rng_audit_log
+      - rng_trace_log
+    frozen_surfaces:
+    - Counts are RNG-consuming and must be reproducible under (seed,parameter_hash,run_id).
+    - PK uniqueness and bucket_index alignment to s1_time_grid_5B are binding.
+    flexible_choices:
+    - Distribution sampler implementation may vary if it preserves determinism and records correct draws/blocks in RNG events.
+    perf_hotspots:
+    - High-volume sampling across large entity×bucket grid; log IO.
+    safe_optimization_levers:
+    - Batch per group_id; buffered writes; deterministic chunking.
+    do_not_optimize:
+    - Do not change RNG draw law or event emission obligations.
+    debug_hooks:
+    - Emit totals: counts_sum per scenario and per merchant; first-N negative/invalid parameter cases if abort.
+  S4:
+    impl_map_key: segment=5B.state=S4
+    state_class: SC-B
+    rng_posture: RNG_CONSUMING
+    scope_keys:
+    - seed
+    - manifest_fingerprint
+    - scenario_id
+    - parameter_hash
+    - run_id
+    reads:
+    - dataset_id: s0_gate_receipt_5B
+      kind: validation
+      required_gates: []
+    - dataset_id: sealed_inputs_5B
+      kind: validation
+      required_gates: []
+    - dataset_id: s1_time_grid_5B
+      kind: plan
+      required_gates:
+      - 5B.S0.gate_in_receipt
+    - dataset_id: s1_grouping_5B
+      kind: plan
+      required_gates:
+      - 5B.S0.gate_in_receipt
+    - dataset_id: s3_bucket_counts_5B
+      kind: model
+      required_gates:
+      - 5B.S0.gate_in_receipt
+    - dataset_id: site_timezones
+      kind: reference_data
+      required_gates:
+      - 5B.S0.gate_in_receipt
+    - dataset_id: tz_timetable_cache
+      kind: reference_data
+      required_gates:
+      - 5B.S0.gate_in_receipt
+    - dataset_id: s4_group_weights
+      kind: reference_data
+      required_gates:
+      - 5B.S0.gate_in_receipt
+    - dataset_id: s2_alias_blob
+      kind: reference_data
+      required_gates:
+      - 5B.S0.gate_in_receipt
+    - dataset_id: s2_alias_index
+      kind: reference_data
+      required_gates:
+      - 5B.S0.gate_in_receipt
+    - dataset_id: zone_alloc
+      kind: reference_data
+      required_gates:
+      - 5B.S0.gate_in_receipt
+    - dataset_id: virtual_routing_policy_3B
+      kind: reference_data
+      required_gates:
+      - 5B.S0.gate_in_receipt
+    - dataset_id: edge_alias_blob_3B
+      kind: reference_data
+      required_gates:
+      - 5B.S0.gate_in_receipt
+    - dataset_id: edge_alias_index_3B
+      kind: reference_data
+      required_gates:
+      - 5B.S0.gate_in_receipt
+    - dataset_id: edge_universe_hash_3B
+      kind: reference_data
+      required_gates:
+      - 5B.S0.gate_in_receipt
+    - dataset_id: arrival_time_placement_policy_5B
+      kind: policy
+      required_gates:
+      - 5B.S0.gate_in_receipt
+    - dataset_id: arrival_routing_policy_5B
+      kind: policy
+      required_gates:
+      - 5B.S0.gate_in_receipt
+    - dataset_id: arrival_rng_policy_5B
+      kind: policy
+      required_gates:
+      - 5B.S0.gate_in_receipt
+    - dataset_id: route_rng_policy_v1
+      kind: policy
+      required_gates:
+      - 5B.S0.gate_in_receipt
+    - dataset_id: alias_layout_policy_v1
+      kind: policy
+      required_gates:
+      - 5B.S0.gate_in_receipt
+    writes:
+    - dataset_id: arrival_events_5B
+      scope_keys:
+      - seed
+      - manifest_fingerprint
+      - scenario_id
+      address_template: data/layer2/5B/arrival_events/seed={seed}/manifest_fingerprint={manifest_fingerprint}/scenario_id={scenario_id}/part-*.parquet
+      ordering:
+      - scenario_id
+      - merchant_id
+      - ts_utc
+      - arrival_seq
+      equality: ordered
+      optional: false
+    - dataset_id: s4_arrival_summary_5B
+      scope_keys:
+      - seed
+      - manifest_fingerprint
+      - scenario_id
+      address_template: data/layer2/5B/arrival_summary/seed={seed}/manifest_fingerprint={manifest_fingerprint}/scenario_id={scenario_id}/s4_arrival_summary_5B.parquet
+      ordering:
+      - scenario_id
+      - merchant_id
+      - zone_representation
+      - channel_group
+      - bucket_index
+      equality: ordered
+      optional: true
+    - dataset_id: s4_arrival_anomalies_5B
+      scope_keys:
+      - seed
+      - manifest_fingerprint
+      - scenario_id
+      address_template: data/layer2/5B/arrival_anomalies/seed={seed}/manifest_fingerprint={manifest_fingerprint}/scenario_id={scenario_id}/s4_arrival_anomalies_5B.parquet
+      ordering:
+      - scenario_id
+      - anomaly_id
+      equality: ordered
+      optional: true
+    - dataset_id: rng_event_arrival_time_jitter
+      scope_keys:
+      - seed
+      - parameter_hash
+      - run_id
+      address_template: logs/layer2/5B/rng/events/arrival_time_jitter/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/part-*.jsonl
+      ordering: []
+      equality: rowset
+      optional: false
+    - dataset_id: rng_event_arrival_site_pick
+      scope_keys:
+      - seed
+      - parameter_hash
+      - run_id
+      address_template: logs/layer2/5B/rng/events/arrival_site_pick/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/part-*.jsonl
+      ordering: []
+      equality: rowset
+      optional: false
+    - dataset_id: rng_event_arrival_edge_pick
+      scope_keys:
+      - seed
+      - parameter_hash
+      - run_id
+      address_template: logs/layer2/5B/rng/events/arrival_edge_pick/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/part-*.jsonl
+      ordering: []
+      equality: rowset
+      optional: false
+    - dataset_id: rng_audit_log
+      scope_keys:
+      - seed
+      - parameter_hash
+      - run_id
+      address_template: logs/layer2/5B/rng/audit/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/rng_audit_log.jsonl
+      ordering: []
+      equality: rowset
+      optional: false
+    - dataset_id: rng_trace_log
+      scope_keys:
+      - seed
+      - parameter_hash
+      - run_id
+      address_template: logs/layer2/5B/rng/trace/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/rng_trace_log.jsonl
+      ordering: []
+      equality: rowset
+      optional: false
+    - dataset_id: segment_state_runs
+      scope_keys: []
+      address_template: reports/layer2/segment_state_runs/segment=5B/utc_day={utc_day}/segment_state_runs.jsonl
+      ordering: []
+      equality: rowset
+      optional: true
+    gates_in:
+    - 5B.S0.gate_in_receipt
+    gates_out: []
+    rng:
+      families_written:
+      - rng_event_arrival_time_jitter
+      - rng_event_arrival_site_pick
+      - rng_event_arrival_edge_pick
+      - rng_audit_log
+      - rng_trace_log
+      envelope_discipline:
+      - For each consuming draw, emit RNG event row under the appropriate family; record draws/blocks per arrival_rng_policy_5B.
+      - Trace-after-each-event; totals reconcile with expected counts implied by s3_bucket_counts_5B and routing decisions.
+      stream_key_template: policy-governed deterministic keying per (merchant_id,arrival_seq,stage) (see arrival_rng_policy_5B).
+    validation:
+      performed_here:
+      - Expand each (entity,bucket) count into exactly N arrivals; assign ts_utc within [bucket_start_utc, bucket_end_utc) using
+        arrival_time_placement_policy_5B.
+      - Route each arrival to physical site_id or virtual edge_id according to arrival_routing_policy_5B and upstream routing universes
+        (2B/3A/3B).
+      - Emit RNG event families for time placement and routing and update audit/trace logs.
+      deferred_to_finalizer:
+      - S5 validates count conservation, routing correctness, time window correctness, and RNG accounting.
+      evidence_written:
+      - arrival_events_5B
+      - rng_event_arrival_time_jitter
+      - rng_event_arrival_site_pick
+      - rng_event_arrival_edge_pick
+      - rng_audit_log
+      - rng_trace_log
+    frozen_surfaces:
+    - Count conservation is binding: Σ arrivals emitted per entity×bucket must equal s3_bucket_counts_5B.count_N exactly.
+    - Time placement must respect half-open bucket intervals; no arrivals outside bucket window.
+    - Routing must respect upstream universes: 2B physical routing and 3B virtual routing bindings; civil time semantics via 2A
+      artefacts.
+    - RNG event emission is mandatory for each consuming draw; accounting reconciles in S5.
+    flexible_choices:
+    - Batching of arrival expansion is allowed if deterministic and preserves arrival_seq uniqueness and writer ordering keys.
+    - Optional summary/anomaly tables may be emitted depending on configuration.
+    perf_hotspots:
+    - High-volume arrival expansion and routing; log IO.
+    safe_optimization_levers:
+    - Stream expansion; vectorize time-offset draws; buffer log writes; deterministic chunking per merchant.
+    do_not_optimize:
+    - Do not change draw law or omit RNG events; do not reorder arrivals in a way that breaks ordering keys.
+    debug_hooks:
+    - 'Emit per-scenario totals: arrivals_total, virtual_arrivals_total, and conservation mismatch counters (should be zero).'
+  S5:
+    impl_map_key: segment=5B.state=S5
+    state_class: SC-E
+    rng_posture: RNG_NONE
+    scope_keys:
+    - manifest_fingerprint
+    reads:
+    - dataset_id: s0_gate_receipt_5B
+      kind: validation
+      required_gates: []
+    - dataset_id: sealed_inputs_5B
+      kind: validation
+      required_gates: []
+    - dataset_id: bundle_layout_policy_5B
+      kind: policy
+      required_gates:
+      - 5B.S0.gate_in_receipt
+    - dataset_id: validation_policy_5B
+      kind: policy
+      required_gates:
+      - 5B.S0.gate_in_receipt
+    - dataset_id: s1_time_grid_5B
+      kind: plan
+      required_gates:
+      - 5B.S0.gate_in_receipt
+      conditional: for discovered scenarios
+    - dataset_id: s1_grouping_5B
+      kind: plan
+      required_gates:
+      - 5B.S0.gate_in_receipt
+      conditional: for discovered scenarios
+    - dataset_id: s2_realised_intensity_5B
+      kind: model
+      required_gates:
+      - 5B.S0.gate_in_receipt
+      conditional: for discovered scenarios/seeds
+    - dataset_id: s3_bucket_counts_5B
+      kind: model
+      required_gates:
+      - 5B.S0.gate_in_receipt
+      conditional: for discovered scenarios/seeds
+    - dataset_id: arrival_events_5B
+      kind: egress
+      required_gates:
+      - 5B.S0.gate_in_receipt
+      conditional: for discovered scenarios/seeds
+    - dataset_id: rng_audit_log
+      kind: log
+      required_gates: []
+    - dataset_id: rng_trace_log
+      kind: log
+      required_gates: []
+    - dataset_id: rng_event_arrival_lgcp_gaussian
+      kind: log
+      required_gates: []
+    - dataset_id: rng_event_arrival_bucket_count
+      kind: log
+      required_gates: []
+      conditional: assumed present
+    - dataset_id: rng_event_arrival_time_jitter
+      kind: log
+      required_gates: []
+    - dataset_id: rng_event_arrival_site_pick
+      kind: log
+      required_gates: []
+    - dataset_id: rng_event_arrival_edge_pick
+      kind: log
+      required_gates: []
+    writes:
+    - dataset_id: validation_bundle_5B
+      scope_keys:
+      - manifest_fingerprint
+      address_template: data/layer2/5B/validation/manifest_fingerprint={manifest_fingerprint}/
+      ordering: []
+      equality: rowset
+      optional: false
+    - dataset_id: validation_bundle_index_5B
+      scope_keys:
+      - manifest_fingerprint
+      address_template: data/layer2/5B/validation/manifest_fingerprint={manifest_fingerprint}/index.json
+      ordering: []
+      equality: ordered
+      optional: false
+    - dataset_id: validation_report_5B
+      scope_keys:
+      - manifest_fingerprint
+      address_template: data/layer2/5B/validation/manifest_fingerprint={manifest_fingerprint}/validation_report_5B.json
+      ordering: []
+      equality: ordered
+      optional: false
+    - dataset_id: validation_issue_table_5B
+      scope_keys:
+      - manifest_fingerprint
+      address_template: data/layer2/5B/validation/manifest_fingerprint={manifest_fingerprint}/validation_issue_table_5B.parquet
+      ordering:
+      - issue_code
+      - severity
+      equality: ordered
+      optional: true
+    - dataset_id: validation_passed_flag_5B
+      scope_keys:
+      - manifest_fingerprint
+      address_template: data/layer2/5B/validation/manifest_fingerprint={manifest_fingerprint}/_passed.flag
+      ordering: []
+      equality: ordered
+      optional: false
+    - dataset_id: segment_state_runs
+      scope_keys: []
+      address_template: reports/layer2/segment_state_runs/segment=5B/utc_day={utc_day}/segment_state_runs.jsonl
+      ordering: []
+      equality: rowset
+      optional: true
+    - emits_gate: 5B.final.bundle_gate
+    gates_in:
+    - 5B.S0.gate_in_receipt
+    gates_out:
+    - 5B.final.bundle_gate
+    rng: null
+    validation:
+      performed_here:
+      - Validate S0 sealed universe and upstream status invariants.
+      - Validate S1–S4 artefacts for all discovered (seed,scenario_id) partitions: time-grid coherence, intensity non-negativity,
+        count laws, S3↔S4 conservation, and routing correctness vs 2A/2B/3A/3B.
+      - Validate RNG accounting for S2/S3/S4 using rng_event_* + rng_audit_log + rng_trace_log against expected counts implied by
+        data cardinalities and arrival_rng_policy_5B.
+      - Build validation bundle index.json and compute _passed.flag digest per indexed_bundle raw-bytes concat law; publish atomically
+        (flag last).
+      deferred_to_finalizer: []
+      evidence_written:
+      - validation_report_5B
+      - index.json
+      - _passed.flag
+    frozen_surfaces:
+    - S5 is RNG-free; must not consume RNG.
+    - 'Fail-closed: do not publish _passed.flag unless all required validations PASS.'
+    - Final gate hashing law is binding (index-driven raw bytes concat; flag excluded; atomic publish).
+    flexible_choices:
+    - Streaming/bounded-memory validators permitted if deterministic outcomes and evidence formats match schemas.
+    - Issue table emission is optional; if emitted must be indexed and hashed.
+    perf_hotspots:
+    - Scanning large arrival_events tables and reconciling logs for RNG accounting.
+    safe_optimization_levers:
+    - Streaming validators; set-semantics reads for logs; stream hashing.
+    do_not_optimize:
+    - Do not weaken validations or gate hashing law; do not publish flag on failure.
+    debug_hooks:
+    - Bucket failures by validation class in validation_report_5B; include first-N offending keys (merchant_id, bucket_index, arrival_seq).
+gate_map_examples:
+- consumer: 5B.internal_state
+  reads:
+    dataset_id: merchant_zone_scenario_local_5A
+    scope_keys:
+    - manifest_fingerprint
+    - scenario_id
+  required_gates:
+  - 5B.S0.gate_in_receipt
+  fail_policy: FAIL_CLOSED
+- consumer: 6A
+  reads:
+    dataset_id: arrival_events_5B
+    scope_keys:
+    - seed
+    - manifest_fingerprint
+    - scenario_id
+  required_gates:
+  - 5B.final.bundle_gate
+  fail_policy: FAIL_CLOSED
+review_flags:
+- flag_id: 5B.RF.token_standardization
+  severity: info
+  summary: 'Assumed resolved: use manifest_fingerprint token naming everywhere (paths, partitions, examples).'
+- flag_id: 5B.RF.registry_path_alignment
+  severity: info
+  summary: 'Assumed resolved: artefact_registry_5B paths align with dataset_dictionary.layer2.5B.yaml for all datasets (no seed-path drift).'
+- flag_id: 5B.RF.s3_rng_event_surface
+  severity: info
+  summary: 'Assumed resolved: explicit rng_event dataset exists for S3 bucket-count draws (substream_label=''bucket_count'').'
+- flag_id: 5B.RF.dictionary_path_trailing_newlines
+  severity: warning
+  summary: dataset_dictionary.layer2.5B.yaml contains trailing newlines in several dataset paths; impl_map uses trimmed paths.
+    Recommend fixing dictionary to avoid byte-level path mismatches.
+- flag_id: 5B.RF.registry_yaml_parse_error
+  severity: warning
+  summary: artefact_registry_5B.yaml did not parse as YAML in my tool (line ~793). If true in repo, tooling/closure may break;
+    fix syntax.
+- flag_id: 5B.RF.schemas_yaml_parse_error
+  severity: warning
+  summary: schemas.5B.yaml did not parse as YAML in my tool (around lines 148–154). If true in repo, schema validation tooling may
+    break; fix syntax/indentation.

@@ -18,30 +18,30 @@ On start, the platform **seals its world**: it loads version-pinned schemas and 
 
    ┌──────────────────────┐          drives            ┌──────────────────────────────────────────┐        sidecars (not in flow)
    │   SCENARIO RUNNER    │ =========================> │               DATA ENGINE                │ ================================┐
-   │ (traffic & campaigns)│                            │ L1: world/merchant realism  (1A..3B)    │                                │
-   │ rate/seed/manifest   │                            │ L2: temporal arrivals       (2A..)      │                                │
-   │ controlled replays   │                            │ L3: fraud flows/dynamics    (3A..)      │                                │
-   └──────────────────────┘                            │ 4A/4B: reproducibility & validation     │                                │
-                                                       │ sealed, deterministic, lineage-anchored │                                │
-                                                       └────────────┬─────────────────────────────┘                                │
+   │ (traffic & campaigns)│                            │ L1: world/merchant realism  (1A..3B)     │                                 │
+   │ rate/seed/manifest   │                            │ L2: temporal arrivals       (5A..5B)     │                                 │
+   │ controlled replays   │                            │ L3: entity & fraud dynamics (6A..6B)     │                                 │
+   └──────────────────────┘                            │ 4A/4B: reproducibility & validation      │                                 │
+                                                       │ sealed, deterministic, lineage-anchored  │                                 │
+                                                       └─────────────┬────────────────────────────┘                                 │
                                         emits canonical tx + lineage │                                                              │
                                                                      ▼                                                              ▼
-                                                         ┌───────────────────────┐                                      ┌───────────────────────────┐
-                                                         │     INGESTION GATE    │                                      │ AUTHORITY SURFACES (RO)  │
-                                                         │ schema+lineage verify │                                      │ sites • zones/DST • order│
-                                                         │ idempotent • tokenize │                                      │ civil-time legality       │
-                                                         └────────────┬──────────┘                                      │ lineage anchors (read-only)│
-                                                                      │                                                 └───────────────────────────┘
-                                                                      ▼
-                                             (contract-checked stream; lineage preserved)
-                                                         ┌───────────────────────┐
+                                                         ┌───────────────────────┐                                      ┌────────────────────────────┐
+                                                         │     INGESTION GATE    │                                      │ AUTHORITY SURFACES (RO)    │
+                                                         │ schema+lineage verify │                                      │ sites • zones/DST • order  │
+                                                         │ idempotent • tokenize │                                      │ civil-time legality        │
+                                                         └────────────┬──────────┘                                      │ routing/zone universes     │
+                                                                      │                                                 │ entity graph + posture     │
+                                                                      ▼                                                 │ labels & case timelines    │
+                                             (contract-checked stream; lineage preserved)                               │ lineage anchors (read-only)│
+                                                         ┌───────────────────────┐                                      └────────────────────────────┘
                                                          │       EVENT BUS       │  (e.g., Kinesis)
                                                          └────────────┬──────────┘
                                       features (low latency)          │                       features+labels (batch parity)
       ┌───────────────────────────────────────────┐                   │                 ┌────────────────────────────────────────┐
       │        ONLINE FEATURE PLANE               │                   │                 │        OFFLINE FEATURE PLANE           │
-      │ counters, windows, trust, TTL/freshness   │◄──────────────────┘                 │ same transforms • same schemas        │
-      │ p95-safe reads (DynamoDB)                 │                                     │ dataset assembly for train/replay (S3)│
+      │ counters, windows, trust, TTL/freshness   │◄──────────────────┘                 │ same transforms • same schemas         │
+      │ p95-safe reads (DynamoDB)                 │                                     │ dataset assembly for train/replay (S3) │
       └───────────────┬───────────────────────────┘                                     └───────────────────────┬────────────────┘
                       │                                                                                         │
                       ▼                                                                                         ▼
@@ -49,18 +49,18 @@ On start, the platform **seals its world**: it loads version-pinned schemas and 
             │ IDENTITY & ENTITY GRAPH     │◄──────────────── stream updates ─────────────│      DECISION LOG & AUDIT    │
             │ link device/person/account  │                                              │  STORE (immutable, queryable)│
             │ mule rings • collusion      │                                              │ inputs • features • versions │
-            └──────────────┬──────────────┘                                              │ explanations • timings      │
-                           │ features                                                    └───────────────┬─────────────┘
-                           ▼                                                                            │
-                 ┌───────────────────────────────┐                                                      │
-                 │        DECISION FABRIC        │ <========= metrics & labels feedback ================┘
+            └──────────────┬──────────────┘                                              │ explanations • timings       │
+                           │ features                                                    └───────────────┬──────────────┘
+                           ▼                                                                             │
+                 ┌───────────────────────────────┐                                                       │
+                 │        DECISION FABRIC        │ <========= metrics & labels feedback =================┘
                  │ 1) guardrails (cheap)         │ ---------------- deploy bundles -------------------->  ┌──────────────────────────┐
-                 │ 2) primary ML (calibrated)    │                                                      │   MODEL/POLICY REGISTRY   │
-                 │ 3) optional 2nd stage         │                                                      │ bundles in S3 + pointers  │
-                 │ reasons + provenance (signed) │                                                      │ in DynamoDB (immutable)   │
-                 └──────────────┬────────────────┘                                                      └──────────────┬───────────┘
+                 │ 2) primary ML (calibrated)    │                                                        │   MODEL/POLICY REGISTRY  │
+                 │ 3) optional 2nd stage         │                                                        │ bundles in S3 + pointers │
+                 │ reasons + provenance (signed) │                                                        │ in DynamoDB (immutable)  │
+                 └──────────────┬────────────────┘                                                        └──────────────┬───────────┘
                                 │ decisions                                                                     registry │/deploy
-          ┌─────────────────────┴────────────────────┐                                                          ┌────────▼───────────┐
+          ┌─────────────────────┴────────────────────┐                                                          ┌────────▼────────────┐
           │               ACTIONS LAYER              │                                                          │     MODEL FACTORY   │
           │ APPROVE • STEP-UP • DECLINE • QUEUE      │                                                          │ train • eval • pkg  │
           │ idempotent • audited (gateway sim)       │                                                          │ shadow→canary→ramp  │
@@ -75,24 +75,24 @@ On start, the platform **seals its world**: it loads version-pinned schemas and 
 
                                 ┌─────────────────────────────────────────────────────────────────────────────────────────┐
                                 │                         DEGRADE LADDER (automatic)                                      │
-                                │ skip 2nd stage → use last-good features → raise STEP-UP → rules-only (keep SLOs)       │
+                                │ skip 2nd stage → use last-good features → raise STEP-UP → rules-only (keep SLOs)        │
                                 └─────────────────────────────────────────────────────────────────────────────────────────┘
 
 
       ┌──────────────────────────────────────────────────────── RUN / OPERATE PLANE (AWS-oriented) ──────────────────────────────────────────────────────┐
-      │ Orchestrate: Airflow (MWAA) DAGs → ECS Fargate tasks (engine runs, training, deploy, replay)                                                    │
-      │ Containers: ECR images per service (engine, scoring, replayer, feature updaters); healthchecks; blue/green                                      │
-      │ Storage: S3 (KMS) for lake + bundles • DynamoDB for online features & registries • RDS/Aurora for cases/audits                                  │
-      │ Bus: Kinesis streams (contract-checked puts) • Secrets: Secrets Manager/SSM • Access: least-privilege IAM                                       │
+      │ Orchestrate: Airflow (MWAA) DAGs → ECS Fargate tasks (engine runs, training, deploy, replay)                                                     │
+      │ Containers: ECR images per service (engine, scoring, replayer, feature updaters); healthchecks; blue/green                                       │
+      │ Storage: S3 (KMS) for lake + bundles • DynamoDB for online features & registries • RDS/Aurora for cases/audits                                   │
+      │ Bus: Kinesis streams (contract-checked puts) • Secrets: Secrets Manager/SSM • Access: least-privilege IAM                                        │
       │ Engine Run Registry: manifests (seed, params, git, digests) • Engine State Registry: DAG of layers/subsegments/states                            │
       └──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┘
 
 
 ┌───────────────────────────────────────────────────────────────────── OBSERVABILITY & GOVERNANCE ─────────────────────────────────────────────────────┐
-│ Golden signals: latency p50/95/99, TPS, error rates, saturation • Data health: schema errors, nulls, volume deltas, lineage mismatches              │
-│ Feature freshness & train/serve skew • Model drift & decision-mix deltas • Corridor checks (synthetic probes) • Replay/DR from manifests            │
-│ Change control: contract tests in CI, determinism checks (re-run & byte-diff), dual read/write on risky paths • Security: encryption, redaction,   │
-│ retention policies • Audit: every decision carries {manifest_id, feature_view_hash, model/policy versions, reasons, timings}                        │
+│ Golden signals: latency p50/95/99, TPS, error rates, saturation • Data health: schema errors, nulls, volume deltas, lineage mismatches               │
+│ Feature freshness & train/serve skew • Model drift & decision-mix deltas • Corridor checks (synthetic probes) • Replay/DR from manifests             │
+│ Change control: contract tests in CI, determinism checks (re-run & byte-diff), dual read/write on risky paths • Security: encryption, redaction,     │
+│ retention policies • Audit: every decision carries {manifest_id, feature_view_hash, model/policy versions, reasons, timings}                         │
 └──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┘
 
 Legend (compact):
@@ -164,5 +164,47 @@ Least-privilege IAM, key rotation, encrypted data in motion/at rest, default red
 ## Life of a transaction (one breath)
 
 Engine emits an event → ingestion verifies & receipts → online features compute within SLO → guardrails + primary model (maybe 2nd stage) → policy returns action + reasons + provenance → action executes idempotently → simulated outcome lands in Label Store → training plane learns and safely promotes the next model → monitors watch latency, quality, and drift; replay is always possible from lineage.
+
+## What parts of the platform’s operation this design conceptually covers
+
+You can view the conceptual operation as four big “planes” and a meta layer(which the DAG above try to hit):
+
+### 1) Cross-cutting rails (what every component must obey)
+
+* Contracts / JSON-Schema authority
+* Lineage + validation (“no PASS → no read”)
+* Deterministic replay (parameter_hash + manifest_fingerprint + seed)
+* Privacy/security + SLOs/observability
+
+### 2) Control & ingress (how a run starts, and how data is admitted)
+
+* **Scenario Runner** (rates/seed/manifest/campaigns; controlled replays)
+* **Data Engine** (the only reality; sealed outputs + lineage)
+* **Authority Surfaces (RO)** as sidecars (read-only truths, never re-derived)
+* **Ingestion Gate** (schema+lineage verify, idempotency, tokenize)
+
+### 3) Real-time decision loop (what happens “during the day”)
+
+* **Event Bus**
+* **Online Feature Plane** (low-latency counters/windows/TTL/freshness)
+* **Offline Feature Plane** (batch parity; train/replay assembly)
+* **Identity & Entity Graph** (linking/device/person/account; rings/collusion)
+* **Decision Log & Audit Store** (immutable, queryable provenance)
+* **Decision Fabric** (guardrails → primary model → optional second stage)
+* **Actions Layer** (approve/step-up/decline/queue; idempotent + audited)
+* **Label Store** (fraud/FP/disputes; lagged states)
+* **Case Mgmt / Workbench**
+* **Degrade Ladder** (automatic fallback policy to protect SLOs)
+
+### 4) Learning & evolution loop (how the platform improves safely)
+
+* **Model Factory** (train/eval/pkg; shadow→canary→ramp)
+* **Model/Policy Registry** (versioned bundles; deploy linkage back into Decision Fabric)
+* Feedback paths from **labels/metrics** back into training + monitoring
+
+And then you also include the “how it runs” meta layer:
+
+* **Run / Operate Plane** (orchestration + storage + bus + secrets + registries)
+* **Observability & Governance** (golden signals, data health, drift, replay/DR, change control)
 
 ---

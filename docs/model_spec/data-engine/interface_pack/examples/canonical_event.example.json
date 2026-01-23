@@ -1,0 +1,21 @@
+{
+  "event_id": "550e8400-e29b-41d4-a716-446655440000",
+  "event_type": "arrival_event",
+  "schema_version": "1",
+  "ts_utc": "2026-01-02T10:15:30.123456Z",
+  "emitted_at_utc": "2026-01-02T10:15:30.223456Z",
+  "manifest_fingerprint": "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
+  "parameter_hash": "fedcba9876543210fedcba9876543210fedcba9876543210fedcba9876543210",
+  "seed": 123456789,
+  "scenario_id": "scenario_42",
+  "run_id": "89abcdef0123456789abcdef01234567",
+  "trace_id": "trace-0000000000000001",
+  "span_id": "span-00000001",
+  "producer": "data_engine",
+  "payload": {
+    "merchant_id": "m_00001234",
+    "site_id": 100001,
+    "amount_minor": 2599,
+    "currency": "GBP"
+  }
+}

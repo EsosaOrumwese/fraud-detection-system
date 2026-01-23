@@ -1,0 +1,101 @@
+# source=authored; vintage=2025-12-31; basis=merchant universe + major payment hubs
+precedence_order: ["DENY", "ALLOW", "CLASS", "LEGAL", "THRESHOLD", "DEFAULT"]
+
+reason_codes:
+  - "DENY_SANCTIONED_HOME"
+  - "DENY_HIGH_RISK_CNP"
+  - "ALLOW_TRAVEL_RETAIL"
+  - "ALLOW_CORE_MULTI"
+  - "DEFAULT_DENY"
+
+filter_tags:
+  - "ADMISSIBLE"
+  - "CORE"
+  - "HIGH_RISK"
+  - "HOME"
+  - "SANCTIONED"
+  - "TRAVEL_RETAIL"
+
+country_sets:
+  SANCTIONED: ["BY", "CU", "IR", "KP", "RU", "SD", "SY", "VE"]
+  GLOBAL_CORE: [
+    "AD", "AE", "AT", "AU", "BE", "BM", "BR", "CA", "CH", "CN",
+    "DE", "DK", "ES", "FI", "FO", "FR", "GB", "HK", "IE", "IL",
+    "IN", "IS", "IT", "JP", "KR", "LU", "MC", "MO", "MX", "NL",
+    "NO", "NZ", "PL", "QA", "SA", "SE", "SG", "US"
+  ]
+
+reason_code_to_rule_id:
+  DENY_SANCTIONED_HOME: "RL_DENY_SANCTIONED_HOME"
+  DENY_HIGH_RISK_CNP: "RL_DENY_HIGH_RISK_CNP"
+  ALLOW_TRAVEL_RETAIL: "RL_ALLOW_TRAVEL_RETAIL"
+  ALLOW_CORE_MULTI: "RL_ALLOW_CORE_MULTI"
+  DEFAULT_DENY: "RL_DEFAULT_DENY"
+
+rules:
+  - rule_id: "RL_DENY_SANCTIONED_HOME"
+    precedence: "DENY"
+    priority: 10
+    is_decision_bearing: true
+    predicate:
+      op: "IN_SET"
+      field: "home_country_iso"
+      set: "SANCTIONED"
+    outcome:
+      reason_code: "DENY_SANCTIONED_HOME"
+      tags: ["SANCTIONED"]
+
+  - rule_id: "RL_DENY_HIGH_RISK_CNP"
+    precedence: "DENY"
+    priority: 20
+    is_decision_bearing: true
+    predicate:
+      op: "AND"
+      args:
+        - { op: "CHANNEL_IN", values: ["card_not_present"] }
+        - { op: "MCC_IN", codes: ["4829", "5815", "5816", "5817", "5818", "5966", "6011", "7995"], ranges: ["7800-7999"] }
+    outcome:
+      reason_code: "DENY_HIGH_RISK_CNP"
+      tags: ["HIGH_RISK"]
+
+  - rule_id: "RL_ALLOW_TRAVEL_RETAIL"
+    precedence: "ALLOW"
+    priority: 100
+    is_decision_bearing: true
+    predicate:
+      op: "AND"
+      args:
+        - { op: "N_GE", value: 2 }
+        - { op: "CHANNEL_IN", values: ["card_present", "card_not_present"] }
+        - { op: "MCC_IN", ranges: ["4000-4799", "5000-5999", "5300-5399", "5400-5599"] }
+    outcome:
+      reason_code: "ALLOW_TRAVEL_RETAIL"
+      tags: ["ADMISSIBLE", "TRAVEL_RETAIL"]
+    admit_sets: ["GLOBAL_CORE"]
+    deny_sets: ["SANCTIONED"]
+    row_tags: ["ADMISSIBLE", "TRAVEL_RETAIL"]
+
+  - rule_id: "RL_ALLOW_CORE_MULTI"
+    precedence: "ALLOW"
+    priority: 200
+    is_decision_bearing: true
+    predicate:
+      op: "AND"
+      args:
+        - { op: "N_GE", value: 2 }
+        - { op: "NOT", arg: { op: "MCC_IN", codes: ["4829", "5815", "5816", "5817", "5818", "5966", "6011", "7995"], ranges: ["7800-7999"] } }
+    outcome:
+      reason_code: "ALLOW_CORE_MULTI"
+      tags: ["ADMISSIBLE", "CORE"]
+    admit_sets: ["GLOBAL_CORE"]
+    deny_sets: ["SANCTIONED"]
+    row_tags: ["ADMISSIBLE", "CORE"]
+
+  - rule_id: "RL_DEFAULT_DENY"
+    precedence: "DEFAULT"
+    priority: 999999
+    is_decision_bearing: true
+    predicate: { op: "TRUE" }
+    outcome:
+      reason_code: "DEFAULT_DENY"
+      tags: []

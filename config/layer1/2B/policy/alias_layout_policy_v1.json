@@ -1,0 +1,83 @@
+{
+  "policy_id": "alias_layout_policy_v1",
+  "version_tag": "1.0.1",
+  "policy_version": "1.0.1",
+  "weight_source": {
+    "id": "uniform",
+    "mode": "uniform"
+  },
+  "floor_spec": {
+    "mode": "absolute",
+    "value": 0.0,
+    "fallback": "uniform"
+  },
+  "cap_spec": {
+    "mode": "none"
+  },
+  "fallback": {
+    "mode": "uniform"
+  },
+  "required_s1_provenance": {
+    "weight_source": true,
+    "quantised_bits": true,
+    "floor_applied": true
+  },
+  "normalisation_epsilon": 1e-12,
+  "quantised_bits": 24,
+  "quantisation_epsilon": 5.960464477539063e-08,
+  "tiny_negative_epsilon": 1e-15,
+  "layout_version": "2B.alias.blob.v1",
+  "endianness": "little",
+  "alignment_bytes": 8,
+  "padding_rule": {
+    "pad_byte_hex": "00",
+    "pad_included_in_slice_length": false
+  },
+  "encode_spec": {
+    "mass_rounding": "round_to_nearest_ties_to_even",
+    "delta_adjust": "residual_ranked_plus_minus_one",
+    "worklist_order": "ascending_index",
+    "treat_within_epsilon_of_one_as_one": true
+  },
+  "record_layout": {
+    "slice_header": "u32_n_sites,u32_prob_qbits,u32_reserved0,u32_reserved1",
+    "prob_qbits": 32,
+    "prob_q_encoding": "Q0.32_floor_clamp_1_to_2^32-1",
+    "alias_index_type": "u32"
+  },
+  "checksum": {
+    "algorithm": "sha256",
+    "scope": "slice_payload_bytes",
+    "encoding": "hex64_lower"
+  },
+  "blob_digest": {
+    "algorithm": "sha256",
+    "scope": "raw_blob_bytes",
+    "encoding": "hex64_lower"
+  },
+  "required_index_fields": {
+    "header": [
+      "blob_sha256",
+      "blob_size_bytes",
+      "layout_version",
+      "endianness",
+      "alignment_bytes",
+      "quantised_bits",
+      "created_utc",
+      "policy_id",
+      "policy_digest",
+      "merchants_count",
+      "merchants"
+    ],
+    "merchant_row": [
+      "merchant_id",
+      "offset",
+      "length",
+      "sites",
+      "quantised_bits",
+      "checksum"
+    ]
+  },
+  "decode_law": "walker_vose_q0_32",
+  "notes": "Deterministic uniform weights with absolute floor 0 and no caps."
+}

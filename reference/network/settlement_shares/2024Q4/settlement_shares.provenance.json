@@ -1,0 +1,53 @@
+{
+  "currency_universe_sha256": "033b60f2e830b1f46448d3c20f9cfc6283744218cf8aa6f3a071c388f9497453",
+  "currency_universe_source": "C:/Users/LEGION/Documents/Data Science/Python & R Scripts/fraud-detection-system/reference/network/ccy_country_shares/2024Q4/ccy_country_shares.parquet",
+  "downloaded_at_utc": {
+    "bis_d11_2": "2026-01-11T20:23:41Z",
+    "bis_d11_3": "2026-01-11T20:23:41Z"
+  },
+  "evidence_policy": {
+    "N_max": 2000000,
+    "N_min": 25000,
+    "N_total": 10000000,
+    "source": "BIS D11.3 2022"
+  },
+  "hub_countries": [
+    "GB",
+    "US",
+    "SG",
+    "JP",
+    "CH",
+    "FR",
+    "DE",
+    "CA",
+    "CN",
+    "AU",
+    "LU",
+    "DK",
+    "NL",
+    "AE",
+    "IN",
+    "SE",
+    "ES",
+    "BE",
+    "NO",
+    "BR"
+  ],
+  "hub_mass_default": 0.7,
+  "hub_mass_if_concentrated": 0.4,
+  "hub_source": "BIS D11.2 2022",
+  "hub_top_n": 20,
+  "output_sha256": "715033ca5464d80a071d6c24aff300b20722079dd09abade173f7db62ea5a9c4",
+  "raw_sha256": {
+    "bis_d11_2": "bac8687c81661ee287e8d87d01706160786fb9592e353766afbf772e154d1a26",
+    "bis_d11_3": "566cc15618d363994646e60bd795c025e7fbe1ee2c084aabebc48297a79720a9"
+  },
+  "route": "B",
+  "time_window": "2024Q4",
+  "unmapped_hub_entities": [
+    "Chinese Taipei",
+    "Hong Kong SAR",
+    "Korea",
+    "Total"
+  ]
+}

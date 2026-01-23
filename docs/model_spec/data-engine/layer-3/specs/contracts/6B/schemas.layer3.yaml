@@ -1,0 +1,757 @@
+$schema: "https://json-schema.org/draft/2020-12/schema"
+$id: schemas.layer3.yaml
+title: "Layer-3 shared schema pack (gate & validation)"
+description: >-
+  Shared schema anchors for Layer-3 segments. Gate receipts and sealed-input
+  manifests live here (since they point to upstream layers), as do the segment
+  validation bundle/report/flag structures. Business datasets remain in each
+  segment’s local schema pack.
+type: object
+additionalProperties: false
+
+$defs:
+  hex64:
+    type: string
+    pattern: "^[0-9a-f]{64}$"
+  dec_u128:
+    type: string
+    pattern: ^(0|[1-9][0-9]{0,38})$
+    maxLength: 39
+    description: Base-10 unsigned 128-bit integer as a string (no sign, no leading zeros except '0').
+  hex32:
+    type: string
+    pattern: ^[a-f0-9]{32}$
+    description: Lowercase 32-hex run identifier (run_id).
+  id64:
+    type: integer
+    minimum: 1
+    maximum: 9223372036854775807
+    description: Positive 64-bit identifier.
+  rfc3339_micros:
+    type: string
+    format: date-time
+    pattern: ^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}\.[0-9]{6}Z$
+    description: "UTC timestamp with EXACTLY 6 fractional digits."
+  stream_label:
+    type: string
+    description: Deterministic Philox sub-stream label (e.g., "party_count_realisation").
+  uint64:
+    type: integer
+    minimum: 0
+    maximum: 18446744073709551615
+    description: Unsigned 64-bit integer.
+  contract_file:
+    type: object
+    additionalProperties: true
+    description: Generic schema placeholder for contract files (dictionary, registry, schema packs).
+  rng_envelope_v1:
+    type: object
+    required:
+      - ts_utc
+      - run_id
+      - seed
+      - parameter_hash
+      - manifest_fingerprint
+      - module
+      - substream_label
+      - rng_counter_before_lo
+      - rng_counter_before_hi
+      - rng_counter_after_lo
+      - rng_counter_after_hi
+      - draws
+      - blocks
+    properties:
+      ts_utc: { $ref: "#/$defs/rfc3339_micros" }
+      run_id: { $ref: "#/$defs/hex32" }
+      seed: { $ref: "#/$defs/uint64" }
+      parameter_hash: { $ref: "#/$defs/hex64" }
+      manifest_fingerprint: { $ref: "#/$defs/hex64" }
+      module: { type: string }
+      substream_label: { $ref: "#/$defs/stream_label" }
+      rng_counter_before_lo: { $ref: "#/$defs/uint64" }
+      rng_counter_before_hi: { $ref: "#/$defs/uint64" }
+      rng_counter_after_lo: { $ref: "#/$defs/uint64" }
+      rng_counter_after_hi: { $ref: "#/$defs/uint64" }
+      draws: { $ref: "#/$defs/dec_u128" }
+      blocks: { $ref: "#/$defs/uint64" }
+      merchant_id: { $ref: "#/$defs/id64" }
+
+gate:
+  description: "Segment gate receipts and sealed-input manifests"
+  type: object
+  additionalProperties: false
+  properties:
+    6A:
+      type: object
+      additionalProperties: false
+      properties:
+        s0_gate_receipt_6A:
+          type: object
+          additionalProperties: false
+          required:
+            - manifest_fingerprint
+            - parameter_hash
+            - spec_version_6A
+            - upstream_segments
+            - contracts_6A
+            - sealed_inputs_digest_6A
+          properties:
+            manifest_fingerprint: { $ref: "#/$defs/hex64" }
+            parameter_hash:       { $ref: "#/$defs/hex64" }
+            spec_version_6A:      { type: string }
+            upstream_segments:
+              type: object
+              additionalProperties:
+                type: object
+                additionalProperties: false
+                required: [status, bundle_path, bundle_sha256, flag_path]
+                properties:
+                  status:        { type: string, enum: [PASS, FAIL, MISSING] }
+                  bundle_path:   { type: string }
+                  bundle_sha256: { $ref: "#/$defs/hex64" }
+                  flag_path:     { type: string }
+            contracts_6A:
+              type: object
+              additionalProperties:
+                type: object
+                additionalProperties: false
+                required: [logical_id, path, sha256_hex]
+                properties:
+                  logical_id:  { type: string }
+                  path:        { type: string }
+                  sha256_hex:  { $ref: "#/$defs/hex64" }
+                  schema_ref:  { type: string }
+                  role:        { type: string }
+            sealed_inputs_digest_6A: { $ref: "#/$defs/hex64" }
+            prior_packs:
+              type: array
+              items:
+                type: object
+                additionalProperties: false
+                required: [logical_id, version, role]
+                properties:
+                  logical_id: { type: string }
+                  version:    { type: string }
+                  role:       { type: string }
+                  schema_ref: { type: ["null", "string"] }
+                  path:       { type: ["null", "string"] }
+                  sha256_hex: { $ref: "#/$defs/hex64" }
+
+        sealed_inputs_6A:
+          type: object
+          additionalProperties: false
+          required:
+            - manifest_fingerprint
+            - owner_layer
+            - owner_segment
+            - manifest_key
+            - path_template
+            - partition_keys
+            - schema_ref
+            - role
+            - status
+            - read_scope
+            - sha256_hex
+          properties:
+            manifest_fingerprint: { $ref: "#/$defs/hex64" }
+            owner_layer:
+              type: integer
+              enum: [1, 2, 3]
+            owner_segment: { type: string }
+            manifest_key:  { type: string }
+            path_template: { type: string }
+            partition_keys:
+              type: array
+              items: { type: string }
+            schema_ref: { type: string }
+            role:        { type: string }
+            status:
+              type: string
+              enum: [REQUIRED, OPTIONAL, IGNORED]
+            read_scope:
+              type: string
+              enum: [ROW_LEVEL, METADATA_ONLY]
+            sha256_hex: { $ref: "#/$defs/hex64" }
+            upstream_bundle_id: { type: ["null", "string"] }
+            notes:              { type: ["null", "string"] }
+
+    6B:
+      type: object
+      additionalProperties: false
+      properties:
+        s0_gate_receipt_6B:
+          $id: "#/gate/6B/s0_gate_receipt_6B"
+          $defs:
+            hex64:
+              type: string
+              pattern: "^[0-9a-f]{64}$"
+          type: object
+          additionalProperties: false
+          required:
+            - manifest_fingerprint
+            - parameter_hash
+            - spec_version_6B
+            - upstream_segments
+            - contracts_6B
+            - sealed_inputs_digest_6B
+          properties:
+            manifest_fingerprint: { $ref: "#/$defs/hex64" }
+            parameter_hash:       { $ref: "#/$defs/hex64" }
+            spec_version_6B:      { type: string }
+            upstream_segments:
+              type: object
+              additionalProperties:
+                type: object
+                additionalProperties: false
+                required: [status, bundle_path, bundle_sha256, flag_path]
+                properties:
+                  status:        { type: string, enum: [PASS, FAIL, MISSING] }
+                  bundle_path:   { type: string }
+                  bundle_sha256: { $ref: "#/$defs/hex64" }
+                  flag_path:     { type: string }
+            contracts_6B:
+              type: object
+              additionalProperties:
+                type: object
+                additionalProperties: false
+                required: [logical_id, path, sha256_hex]
+                properties:
+                  logical_id:  { type: string }
+                  path:        { type: string }
+                  sha256_hex:  { $ref: "#/$defs/hex64" }
+                  schema_ref:  { type: string }
+                  role:        { type: string }
+            sealed_inputs_digest_6B: { $ref: "#/$defs/hex64" }
+
+        sealed_inputs_6B:
+          $id: "#/gate/6B/sealed_inputs_6B"
+          $defs:
+            hex64:
+              type: string
+              pattern: "^[0-9a-f]{64}$"
+          type: object
+          additionalProperties: false
+          required:
+            - manifest_fingerprint
+            - owner_layer
+            - owner_segment
+            - manifest_key
+            - path_template
+            - partition_keys
+            - schema_ref
+            - role
+            - status
+            - read_scope
+            - sha256_hex
+          properties:
+            manifest_fingerprint: { $ref: "#/$defs/hex64" }
+            owner_layer:
+              type: integer
+              enum: [1, 2, 3]
+            owner_segment: { type: string }
+            manifest_key:  { type: string }
+            path_template: { type: string }
+            partition_keys:
+              type: array
+              items: { type: string }
+            schema_ref: { type: string }
+            role:        { type: string }
+            status:
+              type: string
+              enum: [REQUIRED, OPTIONAL, IGNORED]
+            read_scope:
+              type: string
+              enum: [ROW_LEVEL, METADATA_ONLY]
+            sha256_hex: { $ref: "#/$defs/hex64" }
+            upstream_bundle_id: { type: ["null", "string"] }
+            notes:              { type: ["null", "string"] }
+
+validation:
+  description: "Segment validation bundles, reports and flags"
+  type: object
+  additionalProperties: false
+  properties:
+    6A:
+      type: object
+      additionalProperties: false
+      properties:
+        validation_report_6A:
+          type: object
+          additionalProperties: false
+          required:
+            - manifest_fingerprint
+            - parameter_hash
+            - spec_version_6A
+            - overall_status
+            - upstream_segments
+            - segment_states
+            - checks
+          properties:
+            manifest_fingerprint: { $ref: "#/$defs/hex64" }
+            parameter_hash:       { $ref: "#/$defs/hex64" }
+            spec_version_6A:      { type: string }
+            overall_status:       { type: string, enum: [PASS, WARN, FAIL] }
+            upstream_segments:
+              type: object
+              additionalProperties:
+                type: object
+                additionalProperties: false
+                required: [status, bundle_sha256, flag_path]
+                properties:
+                  status:        { type: string }
+                  bundle_sha256: { $ref: "#/$defs/hex64" }
+                  flag_path:     { type: string }
+            segment_states:
+              type: object
+              additionalProperties: { type: string }
+            checks:
+              type: array
+              items:
+                type: object
+                additionalProperties: false
+                required: [check_id, severity, result]
+                properties:
+                  check_id:  { type: string }
+                  severity:  { type: string, enum: [REQUIRED, WARN_ONLY, INFO] }
+                  result:    { type: string, enum: [PASS, WARN, FAIL] }
+                  metrics:   { type: object, additionalProperties: true }
+                  thresholds: { type: object, additionalProperties: true }
+
+        validation_issue_table_6A:
+          type: object
+          additionalProperties: false
+          required:
+            - manifest_fingerprint
+            - check_id
+            - issue_id
+            - severity
+            - scope_type
+            - message
+          properties:
+            manifest_fingerprint: { $ref: "#/$defs/hex64" }
+            check_id:             { type: string }
+            issue_id:             { type: ["string", "integer"] }
+            severity:             { type: string, enum: [WARN, FAIL] }
+            scope_type:           { type: string }
+            seed:                 { type: ["null", "integer", "string"] }
+            scenario_id:          { type: ["null", "integer", "string"] }
+            flow_id:              { type: ["null", "integer", "string"] }
+            case_id:              { type: ["null", "integer", "string"] }
+            event_seq:            { type: ["null", "integer"] }
+            message:              { type: string }
+            metrics:              { type: object, additionalProperties: true }
+
+        validation_bundle_index_6A:
+          type: object
+          additionalProperties: false
+          required:
+            - manifest_fingerprint
+            - parameter_hash
+            - spec_version_6A
+            - items
+          properties:
+            manifest_fingerprint: { $ref: "#/$defs/hex64" }
+            parameter_hash:       { $ref: "#/$defs/hex64" }
+            spec_version_6A:      { type: string }
+            items:
+              type: array
+              items:
+                type: object
+                additionalProperties: false
+                required: [path, sha256_hex, role]
+                properties:
+                  path:       { type: string }
+                  sha256_hex: { $ref: "#/$defs/hex64" }
+                  role:       { type: string }
+                  schema_ref: { type: ["null", "string"] }
+
+        passed_flag_6A:
+          type: string
+          pattern: "^sha256_hex = [0-9a-f]{64}$"
+
+    6B:
+      type: object
+      additionalProperties: false
+      properties:
+        s5_validation_report:
+          $id: "#/validation/6B/s5_validation_report"
+          type: object
+          additionalProperties: false
+          required:
+            - manifest_fingerprint
+            - parameter_hash
+            - spec_version_6B
+            - overall_status
+            - upstream_segments
+            - segment_states
+            - checks
+          properties:
+            manifest_fingerprint: { $ref: "#/$defs/hex64" }
+            parameter_hash:       { $ref: "#/$defs/hex64" }
+            spec_version_6B:      { type: string }
+            overall_status:       { type: string, enum: [PASS, WARN, FAIL] }
+            upstream_segments:
+              type: object
+              additionalProperties:
+                type: object
+                additionalProperties: false
+                required: [status, bundle_sha256, flag_path]
+                properties:
+                  status:        { type: string }
+                  bundle_sha256: { $ref: "#/$defs/hex64" }
+                  flag_path:     { type: string }
+            segment_states:
+              type: object
+              additionalProperties: { type: string }
+            checks:
+              type: array
+              items:
+                type: object
+                additionalProperties: false
+                required: [check_id, severity, result]
+                properties:
+                  check_id:  { type: string }
+                  severity:  { type: string, enum: [REQUIRED, WARN_ONLY, INFO] }
+                  result:    { type: string, enum: [PASS, WARN, FAIL] }
+                  metrics:   { type: object, additionalProperties: true }
+                  thresholds: { type: object, additionalProperties: true }
+
+        s5_issue_table:
+          $id: "#/validation/6B/s5_issue_table"
+          type: object
+          additionalProperties: false
+          required:
+            - manifest_fingerprint
+            - check_id
+            - issue_id
+            - severity
+            - scope_type
+            - message
+          properties:
+            manifest_fingerprint: { $ref: "#/$defs/hex64" }
+            check_id:             { type: string }
+            issue_id:             { type: ["string", "integer"] }
+            severity:             { type: string, enum: [WARN, FAIL] }
+            scope_type:           { type: string }
+            seed:                 { type: ["null", "integer", "string"] }
+            scenario_id:          { type: ["null", "integer", "string"] }
+            flow_id:              { type: ["null", "integer", "string"] }
+            case_id:              { type: ["null", "integer", "string"] }
+            event_seq:            { type: ["null", "integer"] }
+            message:              { type: string }
+            metrics:              { type: object, additionalProperties: true }
+
+        validation_bundle_index_6B:
+          $id: "#/validation/6B/validation_bundle_index_6B"
+          type: object
+          additionalProperties: false
+          required:
+            - manifest_fingerprint
+            - parameter_hash
+            - spec_version_6B
+            - items
+          properties:
+            manifest_fingerprint: { $ref: "#/$defs/hex64" }
+            parameter_hash:       { $ref: "#/$defs/hex64" }
+            spec_version_6B:      { type: string }
+            items:
+              type: array
+              items:
+                type: object
+                additionalProperties: false
+                required: [path, sha256_hex, role]
+                properties:
+                  path:       { type: string }
+                  sha256_hex: { $ref: "#/$defs/hex64" }
+                  role:       { type: string }
+                  schema_ref: { type: ["null", "string"] }
+
+        passed_flag_6B:
+          $id: "#/validation/6B/passed_flag_6B"
+          type: string
+          pattern: "^sha256_hex = [0-9a-f]{64}$"
+
+rng:
+  description: "Layer-3 RNG core logs and event families."
+  core:
+    rng_audit_log:
+      type: stream
+      description: Run-scoped RNG audit (master seed, algo, build metadata).
+      record:
+        type: object
+        additionalProperties: false
+        required: [ts_utc, run_id, seed, manifest_fingerprint, parameter_hash, algorithm, build_commit]
+        properties:
+          ts_utc: { $ref: "#/$defs/rfc3339_micros" }
+          run_id: { $ref: "#/$defs/hex32" }
+          seed: { $ref: "#/$defs/uint64" }
+          manifest_fingerprint: { $ref: "#/$defs/hex64" }
+          parameter_hash: { $ref: "#/$defs/hex64" }
+          algorithm:
+            type: string
+            enum: [philox2x64-10]
+          build_commit: { type: string }
+          code_digest: { $ref: "#/$defs/hex64", nullable: true }
+          hostname: { type: string, nullable: true }
+          platform: { type: string, nullable: true }
+          notes: { type: string, nullable: true }
+
+    rng_trace_log:
+      type: stream
+      description: Per-(module,substream_label) RNG consumption trace with cumulative totals.
+      record:
+        type: object
+        additionalProperties: false
+        required:
+          - ts_utc
+          - run_id
+          - seed
+          - module
+          - substream_label
+          - rng_counter_before_lo
+          - rng_counter_before_hi
+          - rng_counter_after_lo
+          - rng_counter_after_hi
+          - draws_total
+          - blocks_total
+          - events_total
+        properties:
+          ts_utc: { $ref: "#/$defs/rfc3339_micros" }
+          run_id: { $ref: "#/$defs/hex32" }
+          seed: { $ref: "#/$defs/uint64" }
+          module: { type: string }
+          substream_label: { $ref: "#/$defs/stream_label" }
+          draws_total: { $ref: "#/$defs/uint64" }
+          blocks_total: { $ref: "#/$defs/uint64" }
+          events_total: { $ref: "#/$defs/uint64" }
+          rng_counter_before_lo: { $ref: "#/$defs/uint64" }
+          rng_counter_before_hi: { $ref: "#/$defs/uint64" }
+          rng_counter_after_lo: { $ref: "#/$defs/uint64" }
+          rng_counter_after_hi: { $ref: "#/$defs/uint64" }
+          detail: { type: string, nullable: true }
+
+  events:
+    party_count_realisation:
+      description: "RNG family for 6A party count realisation."
+      allOf:
+        - $ref: "#/$defs/rng_envelope_v1"
+        - type: object
+          properties:
+            substream_label: { const: party_count_realisation }
+            context: { type: object, additionalProperties: true }
+
+    party_attribute_sampling:
+      description: "RNG family for 6A party attribute sampling."
+      allOf:
+        - $ref: "#/$defs/rng_envelope_v1"
+        - type: object
+          properties:
+            substream_label: { const: party_attribute_sampling }
+            context: { type: object, additionalProperties: true }
+
+    account_count_realisation:
+      description: "RNG family for 6A account count realisation."
+      allOf:
+        - $ref: "#/$defs/rng_envelope_v1"
+        - type: object
+          properties:
+            substream_label: { const: account_count_realisation }
+            context: { type: object, additionalProperties: true }
+
+    account_allocation_sampling:
+      description: "RNG family for 6A account allocation sampling."
+      allOf:
+        - $ref: "#/$defs/rng_envelope_v1"
+        - type: object
+          properties:
+            substream_label: { const: account_allocation_sampling }
+            context: { type: object, additionalProperties: true }
+
+    account_attribute_sampling:
+      description: "RNG family for 6A account attribute sampling."
+      allOf:
+        - $ref: "#/$defs/rng_envelope_v1"
+        - type: object
+          properties:
+            substream_label: { const: account_attribute_sampling }
+            context: { type: object, additionalProperties: true }
+
+    instrument_count_realisation:
+      description: "RNG family for 6A instrument count realisation."
+      allOf:
+        - $ref: "#/$defs/rng_envelope_v1"
+        - type: object
+          properties:
+            substream_label: { const: instrument_count_realisation }
+            context: { type: object, additionalProperties: true }
+
+    instrument_allocation_sampling:
+      description: "RNG family for 6A instrument allocation sampling."
+      allOf:
+        - $ref: "#/$defs/rng_envelope_v1"
+        - type: object
+          properties:
+            substream_label: { const: instrument_allocation_sampling }
+            context: { type: object, additionalProperties: true }
+
+    instrument_attribute_sampling:
+      description: "RNG family for 6A instrument attribute sampling."
+      allOf:
+        - $ref: "#/$defs/rng_envelope_v1"
+        - type: object
+          properties:
+            substream_label: { const: instrument_attribute_sampling }
+            context: { type: object, additionalProperties: true }
+
+    device_count_realisation:
+      description: "RNG family for 6A device count realisation."
+      allOf:
+        - $ref: "#/$defs/rng_envelope_v1"
+        - type: object
+          properties:
+            substream_label: { const: device_count_realisation }
+            context: { type: object, additionalProperties: true }
+
+    device_allocation_sampling:
+      description: "RNG family for 6A device allocation sampling."
+      allOf:
+        - $ref: "#/$defs/rng_envelope_v1"
+        - type: object
+          properties:
+            substream_label: { const: device_allocation_sampling }
+            context: { type: object, additionalProperties: true }
+
+    device_attribute_sampling:
+      description: "RNG family for 6A device attribute sampling."
+      allOf:
+        - $ref: "#/$defs/rng_envelope_v1"
+        - type: object
+          properties:
+            substream_label: { const: device_attribute_sampling }
+            context: { type: object, additionalProperties: true }
+
+    ip_count_realisation:
+      description: "RNG family for 6A IP count realisation."
+      allOf:
+        - $ref: "#/$defs/rng_envelope_v1"
+        - type: object
+          properties:
+            substream_label: { const: ip_count_realisation }
+            context: { type: object, additionalProperties: true }
+
+    ip_allocation_sampling:
+      description: "RNG family for 6A IP allocation sampling."
+      allOf:
+        - $ref: "#/$defs/rng_envelope_v1"
+        - type: object
+          properties:
+            substream_label: { const: ip_allocation_sampling }
+            context: { type: object, additionalProperties: true }
+
+    ip_attribute_sampling:
+      description: "RNG family for 6A IP attribute sampling."
+      allOf:
+        - $ref: "#/$defs/rng_envelope_v1"
+        - type: object
+          properties:
+            substream_label: { const: ip_attribute_sampling }
+            context: { type: object, additionalProperties: true }
+
+    fraud_role_sampling_party:
+      description: "RNG family for 6A party fraud-role sampling."
+      allOf:
+        - $ref: "#/$defs/rng_envelope_v1"
+        - type: object
+          properties:
+            substream_label: { const: fraud_role_sampling_party }
+            context: { type: object, additionalProperties: true }
+
+    fraud_role_sampling_account:
+      description: "RNG family for 6A account fraud-role sampling."
+      allOf:
+        - $ref: "#/$defs/rng_envelope_v1"
+        - type: object
+          properties:
+            substream_label: { const: fraud_role_sampling_account }
+            context: { type: object, additionalProperties: true }
+
+    fraud_role_sampling_merchant:
+      description: "RNG family for 6A merchant fraud-role sampling."
+      allOf:
+        - $ref: "#/$defs/rng_envelope_v1"
+        - type: object
+          properties:
+            substream_label: { const: fraud_role_sampling_merchant }
+            context: { type: object, additionalProperties: true }
+
+    fraud_role_sampling_device:
+      description: "RNG family for 6A device fraud-role sampling."
+      allOf:
+        - $ref: "#/$defs/rng_envelope_v1"
+        - type: object
+          properties:
+            substream_label: { const: fraud_role_sampling_device }
+            context: { type: object, additionalProperties: true }
+
+    fraud_role_sampling_ip:
+      description: "RNG family for 6A IP fraud-role sampling."
+      allOf:
+        - $ref: "#/$defs/rng_envelope_v1"
+        - type: object
+          properties:
+            substream_label: { const: fraud_role_sampling_ip }
+            context: { type: object, additionalProperties: true }
+
+    flow_anchor_baseline:
+      description: "RNG family for 6B baseline flow anchor draws."
+      allOf:
+        - $ref: "#/$defs/rng_envelope_v1"
+        - type: object
+          properties:
+            substream_label: { const: flow_anchor_baseline }
+            context: { type: object, additionalProperties: true }
+
+    event_stream_baseline:
+      description: "RNG family for 6B baseline event stream draws."
+      allOf:
+        - $ref: "#/$defs/rng_envelope_v1"
+        - type: object
+          properties:
+            substream_label: { const: event_stream_baseline }
+            context: { type: object, additionalProperties: true }
+
+    fraud_campaign_pick:
+      description: "RNG family for 6B fraud campaign selection."
+      allOf:
+        - $ref: "#/$defs/rng_envelope_v1"
+        - type: object
+          properties:
+            substream_label: { const: fraud_campaign_pick }
+            context: { type: object, additionalProperties: true }
+
+    fraud_overlay_apply:
+      description: "RNG family for 6B fraud overlay application."
+      allOf:
+        - $ref: "#/$defs/rng_envelope_v1"
+        - type: object
+          properties:
+            substream_label: { const: fraud_overlay_apply }
+            context: { type: object, additionalProperties: true }
+
+    truth_label:
+      description: "RNG family for 6B truth-label sampling."
+      allOf:
+        - $ref: "#/$defs/rng_envelope_v1"
+        - type: object
+          properties:
+            substream_label: { const: truth_label }
+            context: { type: object, additionalProperties: true }
+
+    bank_view_label:
+      description: "RNG family for 6B bank-view label sampling."
+      allOf:
+        - $ref: "#/$defs/rng_envelope_v1"
+        - type: object
+          properties:
+            substream_label: { const: bank_view_label }
+            context: { type: object, additionalProperties: true }

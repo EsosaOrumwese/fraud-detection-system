@@ -1,0 +1,95 @@
+"""CLI for Segment 1A S5 currency-to-country weights."""
+
+from __future__ import annotations
+
+import argparse
+import os
+from pathlib import Path
+
+from engine.core.config import EngineConfig
+from engine.core.logging import get_logger
+from engine.layers.l1.seg_1A.s5_currency_weights.runner import run_s5
+
+
+def build_parser() -> argparse.ArgumentParser:
+    parser = argparse.ArgumentParser(
+        description="Run Segment 1A S5 currency-to-country weights."
+    )
+    parser.add_argument(
+        "--contracts-layout",
+        default=os.getenv("ENGINE_CONTRACTS_LAYOUT", "model_spec"),
+    )
+    parser.add_argument("--contracts-root", default=os.getenv("ENGINE_CONTRACTS_ROOT"))
+    parser.add_argument("--runs-root", default=os.getenv("ENGINE_RUNS_ROOT"))
+    parser.add_argument(
+        "--external-root",
+        action="append",
+        default=os.getenv("ENGINE_EXTERNAL_ROOTS", "").split(";")
+        if os.getenv("ENGINE_EXTERNAL_ROOTS")
+        else [],
+        help="External roots for input resolution (repeatable or ';' delimited).",
+    )
+    parser.add_argument(
+        "--run-id",
+        default=os.getenv("ENGINE_RUN_ID"),
+        help="Run id to resume; defaults to newest run_receipt.json if omitted.",
+    )
+    parser.add_argument(
+        "--emit-sparse-flag",
+        action="store_true",
+        help="Emit sparse_flag dataset (optional).",
+    )
+    parser.add_argument(
+        "--fail-on-degrade",
+        action="store_true",
+        help="Fail the run if any per-currency degrade mode is used.",
+    )
+    parser.add_argument(
+        "--validate-only",
+        action="store_true",
+        help="Validate and emit receipt without writing datasets.",
+    )
+    return parser
+
+
+def main() -> None:
+    logger = get_logger("engine.layers.l1.seg_1A.s5_currency_weights.cli")
+    args = build_parser().parse_args()
+    cfg = EngineConfig.default()
+    runs_root = Path(args.runs_root) if args.runs_root else cfg.runs_root
+    if args.contracts_root:
+        cfg = EngineConfig(
+            repo_root=cfg.repo_root,
+            contracts_root=Path(args.contracts_root),
+            contracts_layout=args.contracts_layout,
+            runs_root=runs_root,
+            external_roots=cfg.external_roots,
+        )
+    else:
+        cfg = EngineConfig(
+            repo_root=cfg.repo_root,
+            contracts_root=cfg.repo_root,
+            contracts_layout=args.contracts_layout,
+            runs_root=runs_root,
+            external_roots=cfg.external_roots,
+        )
+    external_roots = [Path(root) for root in args.external_root if root]
+    if external_roots:
+        cfg = cfg.with_external_roots(external_roots)
+    result = run_s5(
+        cfg,
+        run_id=args.run_id,
+        emit_sparse_flag=args.emit_sparse_flag,
+        fail_on_degrade=args.fail_on_degrade,
+        validate_only=args.validate_only,
+    )
+    logger.info(
+        "S5 complete: run_id=%s parameter_hash=%s manifest_fingerprint=%s",
+        result.run_id,
+        result.parameter_hash,
+        result.manifest_fingerprint,
+    )
+
+
+if __name__ == "__main__":
+    main()

@@ -1,0 +1,625 @@
+impl_map_semver: 0.1.0
+segment:
+  segment_id: 2A
+  layer_id: layer1
+  title: Civil Time
+  description: Assign IANA tzid to Layer-1 sites; compile tz transition cache; run legality checks; publish PASS gate.
+generated_at_utc: '2026-01-10T09:11:07Z'
+sources:
+  state_expanded_docs:
+  - state.2A.s0.expanded.md
+  - state.2A.s1.expanded.md
+  - state.2A.s2.expanded.md
+  - state.2A.s3.expanded.md
+  - state.2A.s4.expanded.md
+  - state.2A.s5.expanded.md
+  dataset_dictionary:
+  - dataset_dictionary.layer1.2A.yaml
+  artefact_registry:
+  - artefact_registry_2A.yaml
+  schemas:
+  - schemas.2A.yaml
+  - schemas.layer1.yaml
+source_fingerprints:
+  dataset_dictionary.layer1.2A.yaml:
+    sha256: be26c4816291f75ed770a01f7608ee287c5b18358077b5bde59f0cb7285e1d4a
+  artefact_registry_2A.yaml:
+    sha256: 1fbdca3a59a2892682999029a4dfd3810cee384e38af929e469cd1b5180e2ce5
+  schemas.2A.yaml:
+    sha256: fef10e7cdd8c018929b848b082675f583256392ceae921a3cc595255f165e7b0
+  schemas.layer1.yaml:
+    sha256: c91a4db9fde11cd93faba4ae0eca35479f27d676573f101680ba7f4fe4b81dbf
+  state.2A.s0.expanded.md:
+    sha256: 95f85c6334b87cc687b8b15464bfb193f1db96dc1718e0cb7b49ae2d7c8746ca
+  state.2A.s1.expanded.md:
+    sha256: 9f4bcd5428a4255cda2bdaf380b0045e76aa78e374f87c0699149534dc6cde64
+  state.2A.s2.expanded.md:
+    sha256: fc7e7d9e05b3216e5c3963821594754eeae534c191d0d3e0f73e83ef0ce2f660
+  state.2A.s3.expanded.md:
+    sha256: 2d1fe6f27f3ca00253fb0653a75b7331f11e9f8e2e6ddd5a975a8747542ff4f6
+  state.2A.s4.expanded.md:
+    sha256: 62c737d42b1ef5ab961c7d1099590bad7e771224bce68c27097156a233417012
+  state.2A.s5.expanded.md:
+    sha256: 0410824b04dc9b84d9af90b0efab3f63af16b6627d8bfeb64df00ad068ec26a5
+path_tokens:
+  parameter_hash: parameter_hash
+  manifest_fingerprint: manifest_fingerprint
+  seed: seed
+  run_id: run_id
+lineage:
+  parameter_hash:
+    role: recorded_lineage_token_only
+    algorithm_ref: Layer-1 parameter_hash (canonical; by reference). 2A does not use parameter_hash for partitioning.
+    output_effect:
+      recorded_in:
+      - s0_gate_receipt_2A
+  manifest_fingerprint:
+    role: sealed_input_anchor
+    algorithm_ref: Layer-1 manifest_fingerprint (canonical; by reference). MUST cover all inputs opened by 2A.S0 (see sealed_inputs_2A).
+    dependency_closure_source: artefact_registry_2A.yaml
+    output_effect:
+      partition_must_include:
+      - manifest_fingerprint
+  run_id:
+    role: not_used_in_segment_outputs
+    algorithm_ref: Layer-1 run_id (canonical; log-only). Segment 2A emits no RNG logs/events.
+    constraints:
+    - MUST_NOT_influence_modelling_outputs
+    - MUST_NOT_influence_RNG_outcomes
+gates:
+- gate_id: 1B.final.bundle_gate
+  gate_type: final_bundle_gate
+  scope_keys:
+  - manifest_fingerprint
+  owner_segment: 1B
+  location:
+    bundle_root: data/layer1/1B/validation/manifest_fingerprint={manifest_fingerprint}/
+    index_json: data/layer1/1B/validation/manifest_fingerprint={manifest_fingerprint}/index.json
+    passed_flag: data/layer1/1B/validation/manifest_fingerprint={manifest_fingerprint}/_passed.flag
+  verification_method: indexed_bundle
+  file_set_rule: SHA256(concat(raw_bytes(files listed in index.json excluding _passed.flag), ASCII-lex order of index.json.path entries))
+  authorizes_reads_of:
+  - site_locations
+- gate_id: 2A.S0.gate_in_receipt
+  gate_type: attestation_receipt
+  scope_keys:
+  - manifest_fingerprint
+  location:
+    evidence_files:
+    - data/layer1/2A/s0_gate_receipt/manifest_fingerprint={manifest_fingerprint}/s0_gate_receipt.json
+  verification_method: attestation_table
+  file_set_rule: Validate s0_gate_receipt_2A schema; MUST include flag_sha256_hex matching verified 1B _passed.flag and list sealed inputs for this manifest_fingerprint.
+  authorizes_reads_of:
+  - site_locations
+  - tz_world_2025a
+  - tzdb_release
+  - tz_overrides
+  - tz_nudge
+  - iso3166_canonical_2024
+  - world_countries
+  - merchant_mcc_map
+- gate_id: 2A.final.bundle_gate
+  gate_type: final_bundle_gate
+  scope_keys:
+  - manifest_fingerprint
+  location:
+    bundle_root: data/layer1/2A/validation/manifest_fingerprint={manifest_fingerprint}/
+    index_json: data/layer1/2A/validation/manifest_fingerprint={manifest_fingerprint}/index.json
+    passed_flag: data/layer1/2A/validation/manifest_fingerprint={manifest_fingerprint}/_passed.flag
+  verification_method: indexed_bundle
+  file_set_rule: SHA256(concat(raw_bytes(files listed in index.json excluding _passed.flag), ASCII-lex order of index.json.path entries))
+  authorizes_reads_of:
+  - site_timezones
+order_authorities:
+- authority_id: 1B.site_order
+  owner_segment: 1B
+  dataset_id: site_locations
+  scope_keys:
+  - seed
+  - manifest_fingerprint
+  ordering_keys:
+  - merchant_id
+  - legal_country_iso
+  - site_order
+  rule: 1B defines site_order for each (merchant_id,legal_country_iso). 2A MUST preserve site_order; it MUST NOT renumber sites. Ordering is for deterministic writing only; semantics remain order-free.
+consumer_surfaces:
+  site_timezones:
+    dataset_id: site_timezones
+    scope_keys:
+    - seed
+    - manifest_fingerprint
+    address_template: data/layer1/2A/site_timezones/seed={seed}/manifest_fingerprint={manifest_fingerprint}/
+    schema_ref: schemas.2A.yaml#/egress/site_timezones
+    ordering:
+    - merchant_id
+    - legal_country_iso
+    - site_order
+    required_gates:
+    - 2A.final.bundle_gate
+    notes:
+    - Primary downstream surface for segment 2A; consumed by 2B.
+    - Order-free semantics; writer sort keys exist for determinism/diffability only.
+states:
+  S0:
+    impl_map_key: segment=2A.state=S0
+    state_class: SC-A
+    rng_posture: RNG_NONE
+    scope_keys:
+    - manifest_fingerprint
+    reads:
+    - dataset_id: validation_bundle_1B
+      kind: reference_data
+      required_gates: []
+    - dataset_id: validation_passed_flag_1B
+      kind: reference_data
+      required_gates: []
+    - dataset_id: site_locations
+      kind: egress
+      required_gates:
+      - 1B.final.bundle_gate
+      notes:
+      - Read permission is established by verifying 1B.final.bundle_gate first (No PASS -> No Read).
+    - dataset_id: tz_world_2025a
+      kind: reference_data
+      required_gates: []
+    - dataset_id: tzdb_release
+      kind: artefact
+      required_gates: []
+    - dataset_id: tz_overrides
+      kind: policy
+      required_gates: []
+    - dataset_id: tz_nudge
+      kind: policy
+      required_gates: []
+    - dataset_id: iso3166_canonical_2024
+      kind: reference_data
+      required_gates: []
+      conditional: optional (if program uses ISO-derived checks)
+    - dataset_id: world_countries
+      kind: reference_data
+      required_gates: []
+      conditional: optional (if extra geometry checks are enabled)
+    - dataset_id: merchant_mcc_map
+      kind: reference_data
+      required_gates: []
+      conditional: optional (only if MCC-scope overrides are enabled/used)
+    writes:
+    - dataset_id: s0_gate_receipt_2A
+      scope_keys:
+      - manifest_fingerprint
+      address_template: data/layer1/2A/s0_gate_receipt/manifest_fingerprint={manifest_fingerprint}/s0_gate_receipt.json
+      ordering: []
+      equality: ordered
+      optional: false
+    - dataset_id: sealed_inputs_2A
+      scope_keys:
+      - manifest_fingerprint
+      address_template: data/layer1/2A/sealed_inputs/manifest_fingerprint={manifest_fingerprint}/sealed_inputs_2A.json
+      ordering:
+      - asset_kind
+      - basename
+      equality: ordered
+      optional: false
+    gates_in:
+    - 1B.final.bundle_gate
+    gates_out:
+    - 2A.S0.gate_in_receipt
+    rng: null
+    validation:
+      performed_here:
+      - Verify 1B consumer gate for the same manifest_fingerprint (indexed_bundle law; FAIL_CLOSED on mismatch).
+      - Write s0_gate_receipt_2A capturing validation_bundle_path, proven flag_sha256_hex, parameter_hash, verified_at_utc, and sealed_inputs list.
+      - Write sealed_inputs_2A inventory (id, partitions, schema_ref, digests/bytes) for all opened inputs.
+      deferred_to_finalizer:
+      - Segment-level packaging + PASS flag is handled by S5.
+      evidence_written:
+      - s0_gate_receipt_2A
+      - sealed_inputs_2A
+    frozen_surfaces:
+    - No PASS -> No Read: MUST verify 1B.final.bundle_gate before reading any 1B egress (site_locations).
+    - Minimum sealed set MUST include: site_locations, tz_world_2025a, tzdb_release, tz_overrides (empty allowed), tz_nudge (epsilon>0).
+    - Sealed inputs MUST be resolved via dictionary/registry IDs; literal paths and 'latest' pointers are forbidden.
+    - s0_gate_receipt_2A is the durable attestation enabling downstream 2A states to read sealed inputs; downstream MUST fail-closed if missing.
+    - Path<->embed equality: embedded manifest_fingerprint in receipts/manifests MUST equal path token.
+    flexible_choices:
+    - Streaming verification of 1B bundle digest is allowed so long as it matches the indexed_bundle hashing law exactly.
+    - Additional post-PASS sanity checks MAY be performed (e.g., schema validation of site_locations) without weakening gate law.
+    perf_hotspots:
+    - Verifying upstream bundle digest can be IO-heavy if bundle is large.
+    safe_optimization_levers:
+    - Stream hashing; avoid materializing large bundle files in memory.
+    do_not_optimize:
+    - Do not skip or weaken upstream gate verification.
+    - Do not allow ambiguous/unpinned inputs into sealed set.
+    debug_hooks:
+    - s0_gate_receipt_2A MUST record resolved upstream bundle root path and the verified flag_sha256_hex.
+    - Record counts of sealed inputs by category (reference/policy/artefact/egress) for drift localization.
+  S1:
+    impl_map_key: segment=2A.state=S1
+    state_class: SC-C
+    rng_posture: RNG_NONE
+    scope_keys:
+    - seed
+    - manifest_fingerprint
+    reads:
+    - dataset_id: s0_gate_receipt_2A
+      kind: validation
+      required_gates: []
+    - dataset_id: site_locations
+      kind: egress
+      required_gates:
+      - 2A.S0.gate_in_receipt
+      notes:
+      - Read exactly the (seed,manifest_fingerprint) partition; no other partition allowed.
+    - dataset_id: tz_world_2025a
+      kind: reference_data
+      required_gates:
+      - 2A.S0.gate_in_receipt
+    - dataset_id: tz_nudge
+      kind: policy
+      required_gates:
+      - 2A.S0.gate_in_receipt
+      notes:
+      - epsilon_degrees > 0 (validator enforced).
+    writes:
+    - dataset_id: s1_tz_lookup
+      scope_keys:
+      - seed
+      - manifest_fingerprint
+      address_template: data/layer1/2A/s1_tz_lookup/seed={seed}/manifest_fingerprint={manifest_fingerprint}/
+      ordering:
+      - merchant_id
+      - legal_country_iso
+      - site_order
+      equality: ordered
+      optional: false
+      notes:
+      - 'Plan table: exactly one row per input site; includes tzid_provisional and nudge_* (both null or both non-null).'
+    gates_in:
+    - 2A.S0.gate_in_receipt
+    gates_out: []
+    rng: null
+    validation:
+      performed_here:
+      - Require s0_gate_receipt_2A for this manifest_fingerprint before reading site_locations.
+      - Enforce 1:1 coverage from site_locations to s1_tz_lookup; PK uniqueness (merchant_id,legal_country_iso,site_order).
+      - Deterministic tie-break: if polygon membership cardinality != 1, apply single epsilon-nudge (lat+epsilon, lon+epsilon) with clamp/wrap; abort if still ambiguous/empty.
+      - Ensure tzid_provisional is valid IANA tzid and present in sealed tz_world domain.
+      deferred_to_finalizer:
+      - Segment-level PASS gating is handled by S5.
+      evidence_written:
+      - s1_tz_lookup
+    frozen_surfaces:
+    - RNG-free; deterministic point-in-polygon membership against sealed tz_world.
+    - Single epsilon-nudge rule: apply at most once; record nudge_lat_deg/nudge_lon_deg together; abort on unresolved ambiguity.
+    - Write-once semantics per (seed,manifest_fingerprint): re-emits must be byte-identical or abort.
+    flexible_choices:
+    - Spatial acceleration (e.g., deterministic spatial index) permitted if it does not change membership results.
+    - Batching strategy permitted if deterministic and preserves per-site processing semantics.
+    perf_hotspots:
+    - Point-in-polygon membership checks over many sites.
+    safe_optimization_levers:
+    - Deterministic spatial indexing; cache per-country polygon subsets; vectorize where deterministic.
+    do_not_optimize:
+    - Do not introduce nondeterministic geometry operations or iteration order dependence.
+    debug_hooks:
+    - 'Emit counts: sites_total, nudged_total, abort_reason counts (if failure).'
+    - Emit first-N ambiguous cases (merchant_id,site key, candidate tzids) in structured logs (not in output table).
+  S2:
+    impl_map_key: segment=2A.state=S2
+    state_class: SC-C
+    rng_posture: RNG_NONE
+    scope_keys:
+    - seed
+    - manifest_fingerprint
+    reads:
+    - dataset_id: s0_gate_receipt_2A
+      kind: validation
+      required_gates: []
+    - dataset_id: s1_tz_lookup
+      kind: intermediate
+      required_gates:
+      - 2A.S0.gate_in_receipt
+      notes:
+      - Read exactly the (seed,manifest_fingerprint) partition from S1 output.
+    - dataset_id: tz_overrides
+      kind: policy
+      required_gates:
+      - 2A.S0.gate_in_receipt
+    - dataset_id: tz_world_2025a
+      kind: reference_data
+      required_gates:
+      - 2A.S0.gate_in_receipt
+      notes:
+      - Used for tzid domain membership checks (override tzid must belong).
+    - dataset_id: merchant_mcc_map
+      kind: reference_data
+      required_gates:
+      - 2A.S0.gate_in_receipt
+      conditional: required only if MCC-scope overrides are present/used
+    writes:
+    - dataset_id: site_timezones
+      scope_keys:
+      - seed
+      - manifest_fingerprint
+      address_template: data/layer1/2A/site_timezones/seed={seed}/manifest_fingerprint={manifest_fingerprint}/
+      ordering:
+      - merchant_id
+      - legal_country_iso
+      - site_order
+      equality: ordered
+      optional: false
+      notes:
+      - Final per-site tzid with provenance tzid_source in {polygon,override} and optional override_scope.
+      - created_utc MUST equal s0_gate_receipt_2A.verified_at_utc.
+    gates_in:
+    - 2A.S0.gate_in_receipt
+    gates_out: []
+    rng: null
+    validation:
+      performed_here:
+      - Override active test uses date( s0_gate_receipt_2A.verified_at_utc ) (no wall-clock dependence).
+      - Compute candidate override sets by scope (site, mcc, country); uniqueness: >1 active per (scope,target) abort.
+      - Precedence: site > mcc > country; apply at most one override per site.
+      - Override tzid must be valid IANA tzid and in tz_world tzid domain; unknown tzid abort.
+      - If selected override tzid equals provisional, treat as polygon (tzid_source='polygon', override_scope=null).
+      - Carry through nudge_* exactly from S1; enforce 1:1 coverage and PK uniqueness.
+      - Write-once semantics per (seed,manifest_fingerprint): byte-identical re-emits only.
+      deferred_to_finalizer:
+      - Segment-level PASS gating is handled by S5.
+      evidence_written:
+      - site_timezones
+    frozen_surfaces:
+    - RNG-free; deterministic override selection and provenance rules.
+    - created_utc MUST equal s0_gate_receipt_2A.verified_at_utc.
+    - Precedence + uniqueness laws are binding; fail-closed on duplicates.
+    flexible_choices:
+    - Override lookup indexing allowed (e.g., pre-index overrides by scope/target) if deterministic.
+    - Streaming join against MCC mapping allowed if deterministic.
+    perf_hotspots:
+    - Per-site override evaluation and lookups (especially MCC-scope) at scale.
+    safe_optimization_levers:
+    - Pre-index overrides; vectorized evaluation of active status; cache MCC mapping.
+    do_not_optimize:
+    - Do not introduce any dependence on current wall-clock time; only s0 verified_at_utc defines 'active'.
+    debug_hooks:
+    - 'Emit counts: overrides_applied_total and by scope; duplicates_detected (if abort); unknown_tzid counts.'
+    - Emit first-N overridden sites (site key, old tzid, new tzid, scope) in structured logs.
+  S3:
+    impl_map_key: segment=2A.state=S3
+    state_class: SC-C
+    rng_posture: RNG_NONE
+    scope_keys:
+    - manifest_fingerprint
+    reads:
+    - dataset_id: s0_gate_receipt_2A
+      kind: validation
+      required_gates: []
+    - dataset_id: tzdb_release
+      kind: artefact
+      required_gates:
+      - 2A.S0.gate_in_receipt
+    - dataset_id: tz_world_2025a
+      kind: reference_data
+      required_gates:
+      - 2A.S0.gate_in_receipt
+      notes:
+      - Used for tzid coverage domain; not a content dependency.
+    writes:
+    - dataset_id: tz_timetable_cache
+      scope_keys:
+      - manifest_fingerprint
+      address_template: data/layer1/2A/tz_timetable_cache/manifest_fingerprint={manifest_fingerprint}/
+      ordering: []
+      equality: rowset
+      optional: false
+      notes:
+      - Format is files + JSON manifest; dictionary governs filenames/layout; manifest embeds tzdb_release_tag, archive sha256, tz_index_digest, rle_cache_bytes, created_utc.
+    gates_in:
+    - 2A.S0.gate_in_receipt
+    gates_out: []
+    rng: null
+    validation:
+      performed_here:
+      - Compile canonical per-tzid transition index from sealed tzdb_release; deterministic canonicalisation + hashing law by reference.
+      - created_utc MUST equal s0_gate_receipt_2A.verified_at_utc.
+      - 'Coverage check: compiled index MUST include every tzid present in sealed tz_world domain (superset allowed).'
+      - 'Integrity checks: per-tzid transition order strict; offsets bounded; no non-finite values.'
+      - Atomic publish; file order non-authoritative; manifest is sole authority for cache contents.
+      deferred_to_finalizer:
+      - Segment-level PASS gating is handled by S5.
+      evidence_written:
+      - tz_timetable_cache
+    frozen_surfaces:
+    - RNG-free; deterministic cache compilation from sealed tzdb_release.
+    - Cache partitions are manifest_fingerprint-only; write-once and atomic publish required.
+    - Manifest path<->embed equality for manifest_fingerprint and deterministic created_utc.
+    flexible_choices:
+    - Cache sharding strategy (number/size of cache files) is flexible as long as manifest + tz_index_digest and payload byte counts match and deterministic.
+    - Compilation pipeline may be streaming.
+    perf_hotspots:
+    - Compiling transitions from tzdb release; potentially CPU-heavy.
+    safe_optimization_levers:
+    - Incremental/streaming parsing of tzdata; deterministic canonicalization; avoid nondeterministic maps.
+    do_not_optimize:
+    - Do not change canonical tz_index_digest computation or coverage requirements.
+    debug_hooks:
+    - 'Emit counts: tzids_in_world, tzids_in_index, transitions_total; first-N missing tzids (if abort).'
+    - Record tzdb_release_tag and tzdb_archive_sha256 in manifest and logs.
+  S4:
+    impl_map_key: segment=2A.state=S4
+    state_class: SC-C
+    rng_posture: RNG_NONE
+    scope_keys:
+    - seed
+    - manifest_fingerprint
+    reads:
+    - dataset_id: s0_gate_receipt_2A
+      kind: validation
+      required_gates: []
+    - dataset_id: site_timezones
+      kind: egress
+      required_gates:
+      - 2A.S0.gate_in_receipt
+      notes:
+      - Read exactly the (seed,manifest_fingerprint) partition.
+    - dataset_id: tz_timetable_cache
+      kind: cache
+      required_gates:
+      - 2A.S0.gate_in_receipt
+      notes:
+      - Fingerprint-scoped; must be present and non-empty.
+    writes:
+    - dataset_id: s4_legality_report
+      scope_keys:
+      - seed
+      - manifest_fingerprint
+      address_template: data/layer1/2A/legality_report/seed={seed}/manifest_fingerprint={manifest_fingerprint}/s4_legality_report.json
+      ordering: []
+      equality: ordered
+      optional: false
+      notes:
+      - JSON report; generated_utc MUST equal s0_gate_receipt_2A.verified_at_utc; includes PASS/FAIL and fold/gap window counts.
+    gates_in:
+    - 2A.S0.gate_in_receipt
+    gates_out: []
+    rng: null
+    validation:
+      performed_here:
+      - Cache readiness: tz_timetable_cache present and schema-valid; tzid coverage includes all tzids referenced by site_timezones.
+      - Compute fold/gap legality windows from timetable; enforce numeric domain checks on offsets and window coherence.
+      - generated_utc MUST equal s0_gate_receipt_2A.verified_at_utc.
+      - Fail-closed: status=FAIL blocks downstream bundle gating.
+      deferred_to_finalizer:
+      - S5 bundles PASS reports and publishes consumer gate.
+      evidence_written:
+      - s4_legality_report
+    frozen_surfaces:
+    - RNG-free; legality derivation is deterministic given site_timezones and tz_timetable_cache.
+    - generated_utc must equal s0 verified_at_utc.
+    - If any tzid missing from cache for used sites, abort/fail as per spec.
+    flexible_choices:
+    - Computation may be streaming per tzid; memory layout is flexible if deterministic.
+    perf_hotspots:
+    - Potentially heavy timetable scanning and window derivation for many tzids.
+    safe_optimization_levers:
+    - Cache transitions per tzid; reuse computations across sites with same tzid.
+    do_not_optimize:
+    - Do not alter fold/gap definitions or offset-domain checks.
+    debug_hooks:
+    - 'Emit counts: sites_total, tzids_total, gap_windows_total, fold_windows_total; list missing_tzids (if any).'
+  S5:
+    impl_map_key: segment=2A.state=S5
+    state_class: SC-E
+    rng_posture: RNG_NONE
+    scope_keys:
+    - manifest_fingerprint
+    reads:
+    - dataset_id: s0_gate_receipt_2A
+      kind: validation
+      required_gates: []
+    - dataset_id: tz_timetable_cache
+      kind: cache
+      required_gates:
+      - 2A.S0.gate_in_receipt
+      notes:
+      - Must exist for this manifest_fingerprint; S5 validates non-empty payload and integrity.
+    - dataset_id: site_timezones
+      kind: egress
+      required_gates:
+      - 2A.S0.gate_in_receipt
+      notes:
+      - 'Seed discovery only: enumerate existing (seed,manifest_fingerprint) partitions; do not read rows.'
+    - dataset_id: s4_legality_report
+      kind: validation
+      required_gates:
+      - 2A.S0.gate_in_receipt
+      notes:
+      - One per discovered seed; each MUST have status=PASS to proceed.
+    writes:
+    - dataset_id: validation_bundle_2A
+      scope_keys:
+      - manifest_fingerprint
+      address_template: data/layer1/2A/validation/manifest_fingerprint={manifest_fingerprint}/
+      ordering: []
+      equality: rowset
+      optional: false
+      notes:
+      - Bundle directory; must include index.json; may include checks_json/metrics_json and bundled evidence files (e.g., S4 reports) as listed in index.
+    - dataset_id: validation_bundle_index_2A
+      scope_keys:
+      - manifest_fingerprint
+      address_template: data/layer1/2A/validation/manifest_fingerprint={manifest_fingerprint}/index.json
+      ordering: []
+      equality: ordered
+      optional: false
+      notes:
+      - index.json listing files with {path,sha256_hex}; _passed.flag MUST NOT be listed.
+    - dataset_id: validation_passed_flag_2A
+      scope_keys:
+      - manifest_fingerprint
+      address_template: data/layer1/2A/validation/manifest_fingerprint={manifest_fingerprint}/_passed.flag
+      ordering: []
+      equality: ordered
+      optional: false
+      notes:
+      - 'Single ASCII line: sha256_hex = <hex64> (exact casing/spacing; no extra lines).'
+    - emits_gate: 2A.final.bundle_gate
+    gates_in:
+    - 2A.S0.gate_in_receipt
+    gates_out:
+    - 2A.final.bundle_gate
+    rng: null
+    validation:
+      performed_here:
+      - Discover seeds by enumerating site_timezones partitions under this manifest_fingerprint (catalogue path family); do not read rows.
+      - Require s4_legality_report exists for each discovered seed and has status=PASS; otherwise abort and do not publish _passed.flag.
+      - Bundle evidence: include at least index.json; bundle S4 reports verbatim (one per discovered seed) and list them in index.
+      - Digest law: compute _passed.flag over raw bytes of files listed in index.json (exclude _passed.flag) in ASCII-lex path order.
+      - Index law: relative paths; uniqueness; must cover all files in bundle root; _passed.flag excluded from index.
+      - Atomic publish: stage -> write evidence -> write index -> compute flag -> single finalize/rename; on FAIL, no flag.
+      deferred_to_finalizer: []
+      evidence_written:
+      - validation_bundle_2A/index.json
+      - validation_bundle_2A/_passed.flag
+    frozen_surfaces:
+    - Final consumer gate uses indexed_bundle law (index.json-driven hashing; flag excluded).
+    - Atomic publish + write-once partition for manifest_fingerprint.
+    - Evidence must be verbatim when bundled (byte-equal to source).
+    flexible_choices:
+    - Bundle may include optional checks_json/metrics_json and optional snapshot of tz_timetable_cache manifest, if listed in index.
+    - Bundle construction can be streaming as long as index/flag laws are met deterministically.
+    perf_hotspots:
+    - Bundling and hashing evidence files (potentially many seeds/reports).
+    safe_optimization_levers:
+    - Stream hashing; avoid loading large files; generate index incrementally with deterministic ordering.
+    do_not_optimize:
+    - Do not publish _passed.flag unless all preconditions are satisfied (fail-closed).
+    - Do not omit index entries or include _passed.flag in index.
+    debug_hooks:
+    - Record discovered seeds set and per-seed report status summary in s5 logs/summary.
+    - Emit index completeness checks and first-N missing/extra file issues if validation fails.
+gate_map_examples:
+- consumer: 2A.internal_state
+  reads:
+    dataset_id: site_locations
+    scope_keys:
+    - seed
+    - manifest_fingerprint
+  required_gates:
+  - 2A.S0.gate_in_receipt
+  fail_policy: FAIL_CLOSED
+- consumer: 2B
+  reads:
+    dataset_id: site_timezones
+    scope_keys:
+    - seed
+    - manifest_fingerprint
+  required_gates:
+  - 2A.final.bundle_gate
+  fail_policy: FAIL_CLOSED
+review_flags:
+- flag_id: 2A.RF.standardize_manifest_fingerprint
+  severity: info
+  summary: Decision: standardize on manifest_fingerprint everywhere (paths, partition keys, examples).
+  action: Update state docs and schemas.2A.yaml anchors that still use fingerprint as a token label to match dataset_dictionary.layer1.2A.yaml.

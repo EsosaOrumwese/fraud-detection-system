@@ -1,0 +1,31 @@
+{
+  "math_profile_id": "openlibm-v0.8.7",
+  "vendor": "JuliaMath/openlibm",
+  "version": "v0.8.7",
+  "build": "wsl-ubuntu-24.04.2 gcc-13.3.0 make -j1 CFLAGS='-O2 -fno-fast-math -ffp-contract=off -fno-unsafe-math-optimizations -frounding-math'",
+  "functions": [
+    "atan2",
+    "cos",
+    "exp",
+    "expm1",
+    "erfinv",
+    "lgamma",
+    "log",
+    "log1p",
+    "pow",
+    "sin",
+    "sqrt",
+    "tanh"
+  ],
+  "artifacts": [
+    {
+      "name": "libopenlibm.so",
+      "sha256": "244991c7aba3fdc55e803ca3219557c70e1446ff67a50b95e5f3f21ddcef301a"
+    },
+    {
+      "name": "openlibm-v0.8.7.tar.gz",
+      "sha256": "e328a1d59b94748b111e022bca6a9d2fc0481fb57d23c87d90f394b559d4f062"
+    }
+  ],
+  "checksum": "d4949d140c98b85d88dcd9b161a05d00a95767b897d15707695a972532217384"
+}

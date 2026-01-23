@@ -1,0 +1,4349 @@
+$schema: "https://json-schema.org/draft/2020-12/schema"
+$id: schemas.6A.yaml
+title: "Layer-3 / Segment 6A — business dataset schemas"
+description: >-
+  Anchors for the Layer-3 / Segment 6A business datasets. Each anchor provides
+  the concrete field definitions required by the 6A state specifications.
+type: object
+additionalProperties: false
+
+$defs:
+  hex64:
+    $ref: "schemas.layer3.yaml#/$defs/hex64"
+  id_token:
+    type: string
+    pattern: "^[A-Z][A-Z0-9_]{1,63}$"
+  probability:
+    type: number
+    minimum: 0
+    maximum: 1
+  range_min_max:
+    type: object
+    additionalProperties: false
+    required:
+      - min
+      - max
+    properties:
+      min: { type: number }
+      max: { type: number }
+  range_min_max_int:
+    type: object
+    additionalProperties: false
+    required:
+      - min
+      - max
+    properties:
+      min: { type: integer }
+      max: { type: integer }
+
+prior:
+  description: "6A prior inputs sealed at S0"
+  additionalProperties: false
+  properties:
+    population_priors_6A:
+      $id: "#/prior/population_priors_6A"
+      type: object
+      description: "Population priors pack for 6A."
+      additionalProperties: false
+      required:
+        - prior_id
+        - version
+        - population_unit
+        - geo_unit
+        - world_size_model
+        - country_weight_model
+        - party_type_model
+        - constraints
+        - realism_targets
+        - inputs_allowed
+      properties:
+        prior_id: { type: string, const: population_priors_6A }
+        version: { type: string }
+        population_unit: { type: string, const: parties }
+        geo_unit: { type: string, const: country_iso }
+        world_size_model:
+          type: object
+          additionalProperties: false
+          required:
+            - mode
+            - active_fraction
+            - N_world_min
+            - N_world_max
+          properties:
+            mode:
+              type: string
+              enum: [arrivals_based_v1, outlets_based_v1]
+            active_fraction: { type: number }
+            arrivals_per_active_party_per_week: { type: number }
+            parties_per_outlet: { type: number }
+            N_world_min: { type: integer, minimum: 1 }
+            N_world_max: { type: integer, minimum: 1 }
+            seed_scale_lognormal_sigma: { type: number }
+            seed_scale_clip: { $ref: "#/$defs/range_min_max" }
+        country_weight_model:
+          type: object
+          additionalProperties: false
+          required:
+            - use_outlets
+            - use_arrivals
+            - outlet_offset
+            - outlet_exponent
+            - arrival_offset
+            - arrival_exponent
+            - country_weight_floor
+          properties:
+            use_outlets: { type: boolean }
+            use_arrivals: { type: boolean }
+            outlet_offset: { type: number }
+            outlet_exponent: { type: number }
+            arrival_offset: { type: number }
+            arrival_exponent: { type: number }
+            country_weight_floor: { type: number }
+            max_country_share_cap: { type: number }
+        party_type_model:
+          type: object
+          additionalProperties: false
+          required:
+            - party_types
+            - base_shares
+            - country_adjustment
+          properties:
+            party_types:
+              type: array
+              items: { type: string }
+            base_shares:
+              type: object
+              additionalProperties: false
+              required:
+                - RETAIL
+                - BUSINESS
+                - OTHER
+              properties:
+                RETAIL: { $ref: "#/$defs/probability" }
+                BUSINESS: { $ref: "#/$defs/probability" }
+                OTHER: { $ref: "#/$defs/probability" }
+            country_adjustment:
+              type: object
+              additionalProperties: false
+              required:
+                - mode
+              properties:
+                mode:
+                  type: string
+                  enum: [none, mass_tilt_v1]
+                business_tilt_strength: { type: number }
+                other_tilt_strength: { type: number }
+                tilt_reference_share: { type: number }
+        constraints:
+          type: object
+          additionalProperties: false
+          required:
+            - min_parties_per_country
+            - min_parties_per_party_type_in_country
+            - min_parties_per_cell
+          properties:
+            min_parties_per_country: { type: integer, minimum: 0 }
+            min_parties_per_party_type_in_country:
+              type: object
+              additionalProperties: false
+              required:
+                - RETAIL
+                - BUSINESS
+                - OTHER
+              properties:
+                RETAIL: { type: integer, minimum: 0 }
+                BUSINESS: { type: integer, minimum: 0 }
+                OTHER: { type: integer, minimum: 0 }
+            min_parties_per_cell: { type: integer, minimum: 0 }
+            allow_zero_other_in_small_countries: { type: boolean }
+        realism_targets:
+          type: object
+          additionalProperties: false
+          required:
+            - active_fraction_range
+            - arrivals_per_active_party_per_week_range
+            - parties_per_outlet_range
+            - business_share_range
+            - country_share_gini_min
+            - max_country_share_range
+          properties:
+            active_fraction_range: { $ref: "#/$defs/range_min_max" }
+            arrivals_per_active_party_per_week_range: { $ref: "#/$defs/range_min_max" }
+            parties_per_outlet_range: { $ref: "#/$defs/range_min_max" }
+            business_share_range: { $ref: "#/$defs/range_min_max" }
+            country_share_gini_min: { type: number }
+            max_country_share_range: { $ref: "#/$defs/range_min_max" }
+        inputs_allowed:
+          type: object
+          additionalProperties: false
+          required:
+            - hints
+            - required_hints
+          properties:
+            hints:
+              type: array
+              items: { type: string }
+            required_hints:
+              type: array
+              items: { type: string }
+        notes: { type: string }
+    segmentation_priors_6A:
+      $id: "#/prior/segmentation_priors_6A"
+      type: object
+      description: "Segmentation priors pack for 6A."
+      additionalProperties: false
+      required:
+        - schema_version
+        - prior_id
+        - prior_version
+        - taxonomy_binding
+        - region_party_type_mix
+        - region_type_segment_mix
+        - segment_profiles
+        - constraints
+        - realism_targets
+      properties:
+        schema_version: { type: integer, const: 1 }
+        prior_id: { type: string, const: segmentation_priors_6A }
+        prior_version: { type: string, const: v1 }
+        taxonomy_binding:
+          type: object
+          additionalProperties: false
+          required:
+            - expected_party_taxonomy_id
+            - required_party_types
+            - segment_scope
+          properties:
+            expected_party_taxonomy_id: { type: string }
+            required_party_types:
+              type: array
+              items: { type: string }
+            segment_scope: { type: string }
+        region_party_type_mix:
+          type: array
+          items:
+            type: object
+            additionalProperties: false
+            required:
+              - region_id
+              - pi_type
+            properties:
+              region_id: { type: string }
+              pi_type:
+                type: object
+                additionalProperties: false
+                required:
+                  - RETAIL
+                  - BUSINESS
+                  - OTHER
+                properties:
+                  RETAIL: { $ref: "#/$defs/probability" }
+                  BUSINESS: { $ref: "#/$defs/probability" }
+                  OTHER: { $ref: "#/$defs/probability" }
+        region_type_segment_mix:
+          type: array
+          items:
+            type: object
+            additionalProperties: false
+            required:
+              - region_id
+              - party_type
+              - pi_segment
+            properties:
+              region_id: { type: string }
+              party_type: { type: string }
+              pi_segment:
+                type: array
+                items:
+                  type: object
+                  additionalProperties: false
+                  required:
+                    - segment_id
+                    - share
+                  properties:
+                    segment_id: { type: string }
+                    share: { $ref: "#/$defs/probability" }
+        segment_profiles:
+          type: array
+          items:
+            type: object
+            additionalProperties: false
+            required:
+              - segment_id
+              - party_type
+              - income_score
+              - digital_affinity
+              - cash_affinity
+              - cross_border_propensity
+              - credit_appetite
+              - stability_score
+            properties:
+              segment_id: { type: string }
+              party_type: { type: string }
+              income_score: { type: number }
+              digital_affinity: { type: number }
+              cash_affinity: { type: number }
+              cross_border_propensity: { type: number }
+              credit_appetite: { type: number }
+              stability_score: { type: number }
+              business_size_score: { type: number }
+        constraints:
+          type: object
+          additionalProperties: false
+          required:
+            - min_share_per_segment
+            - max_share_per_segment
+            - min_effective_segments_per_region_type
+            - effective_share_threshold
+          properties:
+            min_share_per_segment: { type: number }
+            max_share_per_segment: { type: number }
+            min_effective_segments_per_region_type:
+              type: object
+              additionalProperties: false
+              required:
+                - RETAIL
+                - BUSINESS
+                - OTHER
+              properties:
+                RETAIL: { type: integer }
+                BUSINESS: { type: integer }
+                OTHER: { type: integer }
+            effective_share_threshold: { type: number }
+            allowed_zero_cells:
+              type: array
+              items:
+                type: object
+                additionalProperties: false
+                required:
+                  - region_id
+                  - party_type
+                  - segment_id
+                properties:
+                  region_id: { type: string }
+                  party_type: { type: string }
+                  segment_id: { type: string }
+        realism_targets:
+          type: object
+          additionalProperties: false
+          required:
+            - region_diversity_entropy_min
+            - region_max_share_cap
+            - cross_region_variation_min_delta
+            - cross_region_variation_required_if_n_regions_ge
+          properties:
+            region_diversity_entropy_min:
+              type: object
+              additionalProperties: false
+              required:
+                - RETAIL
+                - BUSINESS
+                - OTHER
+              properties:
+                RETAIL: { type: number }
+                BUSINESS: { type: number }
+                OTHER: { type: number }
+            region_max_share_cap:
+              type: object
+              additionalProperties: false
+              required:
+                - RETAIL
+                - BUSINESS
+                - OTHER
+              properties:
+                RETAIL: { type: number }
+                BUSINESS: { type: number }
+                OTHER: { type: number }
+            cross_region_variation_min_delta: { type: number }
+            cross_region_variation_required_if_n_regions_ge: { type: integer }
+        notes: { type: string }
+    account_per_party_priors_6A:
+      $id: "#/prior/account_per_party_priors_6A"
+      type: object
+      description: "Account-per-party priors for 6A."
+      additionalProperties: false
+      required:
+        - schema_version
+        - prior_id
+        - prior_version
+        - bindings
+        - supported_count_models
+        - rules
+        - constraints
+        - realism_targets
+      properties:
+        schema_version: { type: integer, const: 1 }
+        prior_id: { type: string, const: account_per_party_priors_6A }
+        prior_version: { type: string, const: v1 }
+        bindings:
+          type: object
+          additionalProperties: false
+          required:
+            - party_taxonomy_ref
+            - account_taxonomy_ref
+            - base_cell
+            - account_cell
+          properties:
+            party_taxonomy_ref: { type: string }
+            account_taxonomy_ref: { type: string }
+            base_cell:
+              type: array
+              items: { type: string }
+            account_cell:
+              type: array
+              items: { type: string }
+        supported_count_models:
+          type: array
+          items:
+            type: object
+            additionalProperties: false
+            required:
+              - count_model_id
+              - required_params
+              - description
+            properties:
+              count_model_id: { type: string }
+              required_params:
+                type: array
+                items: { type: string }
+              description: { type: string }
+        rules:
+          type: array
+          items:
+            type: object
+            additionalProperties: false
+            required:
+              - party_type
+              - account_type
+              - count_model_id
+              - params
+            properties:
+              party_type: { type: string }
+              account_type: { type: string }
+              count_model_id: { type: string }
+              params:
+                type: object
+                additionalProperties: false
+                required:
+                  - K_max
+                  - p_zero_weight
+                  - sigma
+                  - weight_floor_eps
+                properties:
+                  K_max: { type: integer, minimum: 1 }
+                  p_zero: { $ref: "#/$defs/probability" }
+                  p_zero_weight: { $ref: "#/$defs/probability" }
+                  sigma: { type: number, minimum: 0 }
+                  kappa: { type: number, minimum: 0 }
+                  weight_floor_eps: { type: number }
+        tag_adjustments:
+          type: array
+          items:
+            type: object
+            additionalProperties: false
+            required:
+              - tag
+              - account_type
+              - p_zero_weight_multiplier
+              - sigma_multiplier
+              - multipliers_clip
+            properties:
+              tag: { type: string }
+              account_type: { type: string }
+              p_zero_weight_multiplier: { type: number }
+              sigma_multiplier: { type: number }
+              multipliers_clip: { $ref: "#/$defs/range_min_max" }
+        constraints:
+          type: object
+          additionalProperties: false
+          required:
+            - coverage_mode
+            - required_types_min_weighted_coverage
+            - K_max_global_upper_bound
+            - sigma_global_upper_bound
+          properties:
+            coverage_mode: { type: string }
+            required_types_min_weighted_coverage:
+              type: object
+              additionalProperties:
+                type: number
+            K_max_global_upper_bound: { type: integer }
+            sigma_global_upper_bound: { type: number }
+        realism_targets:
+          type: object
+          additionalProperties: false
+          required:
+            - p_zero_weight_ranges_by_account_group
+            - sigma_ranges_by_account_group
+            - K_max_ranges_by_account_group
+            - min_fraction_of_rules_with_sigma_ge
+          properties:
+            p_zero_weight_ranges_by_account_group:
+              type: object
+              additionalProperties: { $ref: "#/$defs/range_min_max" }
+            sigma_ranges_by_account_group:
+              type: object
+              additionalProperties: { $ref: "#/$defs/range_min_max" }
+            K_max_ranges_by_account_group:
+              type: object
+              additionalProperties: { $ref: "#/$defs/range_min_max_int" }
+            min_fraction_of_rules_with_sigma_ge:
+              type: object
+              additionalProperties: false
+              required:
+                - sigma
+                - frac
+              properties:
+                sigma: { type: number }
+                frac: { $ref: "#/$defs/probability" }
+        notes: { type: string }
+    product_mix_priors_6A:
+      $id: "#/prior/product_mix_priors_6A"
+      type: object
+      description: "Product mix priors for 6A."
+      additionalProperties: false
+      required:
+        - schema_version
+        - prior_id
+        - prior_version
+        - bindings
+        - party_account_domain
+        - party_lambda_model
+        - constraints
+        - realism_targets
+        - merchant_mode
+      properties:
+        schema_version: { type: integer, const: 1 }
+        prior_id: { type: string, const: product_mix_priors_6A }
+        prior_version: { type: string, const: v1 }
+        bindings:
+          type: object
+          additionalProperties: false
+          required:
+            - party_taxonomy_ref
+            - account_taxonomy_ref
+            - cell_definition
+          properties:
+            party_taxonomy_ref: { type: string }
+            account_taxonomy_ref: { type: string }
+            cell_definition:
+              type: object
+              additionalProperties: false
+              required:
+                - base_cell
+                - account_cell
+              properties:
+                base_cell:
+                  type: array
+                  items: { type: string }
+                account_cell:
+                  type: array
+                  items: { type: string }
+        party_account_domain:
+          type: object
+          additionalProperties: false
+          required:
+            - mode
+            - required_account_types_by_party_type
+            - allowed_account_types_by_party_type
+          properties:
+            mode: { type: string }
+            required_account_types_by_party_type:
+              type: object
+              additionalProperties:
+                type: array
+                items: { type: string }
+            allowed_account_types_by_party_type:
+              type: object
+              additionalProperties:
+                type: array
+                items: { type: string }
+            allowed_account_types_by_segment:
+              type: array
+              items:
+                type: object
+                additionalProperties: false
+                required:
+                  - party_type
+                  - segment_id
+                  - allowed_account_types
+                properties:
+                  party_type: { type: string }
+                  segment_id: { type: string }
+                  allowed_account_types:
+                    type: array
+                    items: { type: string }
+        party_lambda_model:
+          type: object
+          additionalProperties: false
+          required:
+            - lambda_units
+            - mode
+            - base_lambda_by_party_type
+          properties:
+            lambda_units: { type: string }
+            mode: { type: string }
+            base_lambda_by_party_type:
+              type: object
+              additionalProperties:
+                type: object
+                additionalProperties:
+                  type: number
+            segment_tilt:
+              type: object
+              additionalProperties: false
+              required:
+                - segment_profile_source
+                - feature_center
+                - features
+                - weights_by_feature
+                - clip_log_multiplier
+              properties:
+                segment_profile_source: { type: string }
+                feature_center: { type: number }
+                features:
+                  type: array
+                  items: { type: string }
+                weights_by_feature:
+                  type: object
+                  additionalProperties:
+                    type: object
+                    additionalProperties:
+                      type: number
+                clip_log_multiplier: { type: number }
+            context_scaling:
+              type: object
+              additionalProperties: false
+              required:
+                - enabled
+                - context_feature
+                - weights_by_account_group
+                - clip_log_multiplier
+              properties:
+                enabled: { type: boolean }
+                context_feature: { type: string }
+                weights_by_account_group:
+                  type: object
+                  additionalProperties:
+                    type: number
+                clip_log_multiplier: { type: number }
+        constraints:
+          type: object
+          additionalProperties: false
+          required:
+            - max_total_lambda_per_party_by_party_type
+            - min_nonzero_account_types_in_domain
+            - disallow_zero_domain_cells
+            - enforce_required_types
+          properties:
+            max_total_lambda_per_party_by_party_type:
+              type: object
+              additionalProperties:
+                type: number
+            min_nonzero_account_types_in_domain:
+              type: object
+              additionalProperties:
+                type: integer
+            disallow_zero_domain_cells: { type: boolean }
+            enforce_required_types: { type: boolean }
+        realism_targets:
+          type: object
+          additionalProperties: false
+          required:
+            - lambda_total_range_by_party_type
+            - deposit_penetration_proxy_range
+            - credit_card_penetration_proxy_range
+            - max_single_account_type_share_proxy
+            - region_variation_required_if_n_regions_ge
+            - region_variation_min_delta_lambda
+          properties:
+            lambda_total_range_by_party_type:
+              type: object
+              additionalProperties: { $ref: "#/$defs/range_min_max" }
+            deposit_penetration_proxy_range:
+              type: object
+              additionalProperties: { $ref: "#/$defs/range_min_max" }
+            credit_card_penetration_proxy_range:
+              type: object
+              additionalProperties: { $ref: "#/$defs/range_min_max" }
+            max_single_account_type_share_proxy:
+              type: object
+              additionalProperties:
+                type: number
+            region_variation_required_if_n_regions_ge: { type: integer }
+            region_variation_min_delta_lambda: { type: number }
+        merchant_mode:
+          type: object
+          additionalProperties: false
+          required:
+            - enabled
+          properties:
+            enabled: { type: boolean }
+            reason: { type: string }
+            merchant_account_types:
+              type: array
+              items: { type: string }
+            lambda_per_merchant:
+              type: object
+              additionalProperties:
+                type: number
+            merchant_cell_definition:
+              type: array
+              items: { type: string }
+        notes: { type: string }
+    instrument_per_account_priors_6A:
+      $id: "#/prior/instrument_per_account_priors_6A"
+      type: object
+      description: "Instrument-per-account priors for 6A."
+      additionalProperties: false
+      required:
+        - schema_version
+        - prior_id
+        - prior_version
+        - bindings
+        - scheme_scope_mode
+        - supported_count_models
+        - rules
+        - constraints
+        - realism_targets
+      properties:
+        schema_version: { type: integer, const: 1 }
+        prior_id: { type: string, const: instrument_per_account_priors_6A }
+        prior_version: { type: string, const: v1 }
+        bindings:
+          type: object
+          additionalProperties: false
+          required:
+            - party_taxonomy_ref
+            - account_taxonomy_ref
+            - instrument_taxonomy_ref
+            - instrument_mix_ref
+          properties:
+            party_taxonomy_ref: { type: string }
+            account_taxonomy_ref: { type: string }
+            instrument_taxonomy_ref: { type: string }
+            instrument_mix_ref: { type: string }
+        scheme_scope_mode:
+          type: string
+          enum: [NONE, SCHEME_KIND, SCHEME_ID]
+        supported_count_models:
+          type: array
+          items:
+            type: object
+            additionalProperties: false
+            required:
+              - count_model_id
+              - required_params
+              - description
+            properties:
+              count_model_id: { type: string }
+              required_params:
+                type: array
+                items: { type: string }
+              description: { type: string }
+        rules:
+          type: array
+          items:
+            type: object
+            additionalProperties: false
+            required:
+              - party_type
+              - account_type
+              - instrument_type
+              - count_model_id
+              - hard_min_per_account
+              - hard_max_per_account
+              - params
+            properties:
+              party_type: { type: string }
+              account_type: { type: string }
+              instrument_type: { type: string }
+              scheme_key: { type: string }
+              count_model_id: { type: string }
+              hard_min_per_account: { type: integer, minimum: 0 }
+              hard_max_per_account: { type: integer, minimum: 0 }
+              params:
+                type: object
+                additionalProperties: false
+                required:
+                  - p_zero
+                  - p_zero_weight
+                  - sigma
+                  - weight_floor_eps
+                properties:
+                  p_zero: { $ref: "#/$defs/probability" }
+                  p_zero_weight: { $ref: "#/$defs/probability" }
+                  sigma: { type: number, minimum: 0 }
+                  weight_floor_eps: { type: number }
+                  kappa: { type: number, minimum: 0 }
+        segment_feature_tilts:
+          type: array
+          items:
+            type: object
+            additionalProperties: false
+            required:
+              - feature
+              - instrument_type
+              - p_zero_weight_multiplier_by_feature
+              - sigma_multiplier_by_feature
+              - clip
+            properties:
+              feature: { type: string }
+              instrument_type: { type: string }
+              p_zero_weight_multiplier_by_feature: { type: number }
+              sigma_multiplier_by_feature: { type: number }
+              clip: { $ref: "#/$defs/range_min_max" }
+        constraints:
+          type: object
+          additionalProperties: false
+          required:
+            - coverage_mode
+            - max_sigma_global
+            - max_hard_max_global
+            - require_nonzero_weight_when_mandatory
+            - forbid_rules_for_ineligible_pairs
+          properties:
+            coverage_mode: { type: string }
+            max_sigma_global: { type: number }
+            max_hard_max_global: { type: integer }
+            require_nonzero_weight_when_mandatory: { type: boolean }
+            forbid_rules_for_ineligible_pairs: { type: boolean }
+        realism_targets:
+          type: object
+          additionalProperties: false
+          required:
+            - p_zero_weight_ranges_by_instrument_group
+            - sigma_ranges_by_instrument_group
+            - hard_max_ranges_by_instrument_group
+            - min_fraction_rules_with_sigma_ge
+            - mandatory_coverage_rules
+          properties:
+            p_zero_weight_ranges_by_instrument_group:
+              type: object
+              additionalProperties: { $ref: "#/$defs/range_min_max" }
+            sigma_ranges_by_instrument_group:
+              type: object
+              additionalProperties: { $ref: "#/$defs/range_min_max" }
+            hard_max_ranges_by_instrument_group:
+              type: object
+              additionalProperties: { $ref: "#/$defs/range_min_max_int" }
+            min_fraction_rules_with_sigma_ge:
+              type: object
+              additionalProperties: false
+              required:
+                - sigma
+                - frac
+              properties:
+                sigma: { type: number }
+                frac: { $ref: "#/$defs/probability" }
+            mandatory_coverage_rules:
+              type: array
+              items:
+                type: object
+                additionalProperties: false
+                required:
+                  - account_type
+                  - instrument_type
+                  - hard_min_per_account
+                properties:
+                  account_type: { type: string }
+                  instrument_type: { type: string }
+                  hard_min_per_account: { type: integer, minimum: 0 }
+        notes: { type: string }
+    instrument_mix_priors_6A:
+      $id: "#/prior/instrument_mix_priors_6A"
+      type: object
+      description: "Instrument mix priors for 6A."
+      additionalProperties: false
+      required:
+        - schema_version
+        - prior_id
+        - prior_version
+        - bindings
+        - cell_definition
+        - scheme_mode
+        - instrument_domain_model
+        - lambda_model
+        - attribute_models
+        - constraints
+        - realism_targets
+      properties:
+        schema_version: { type: integer, const: 1 }
+        prior_id: { type: string, const: instrument_mix_priors_6A }
+        prior_version: { type: string, const: v1 }
+        bindings:
+          type: object
+          additionalProperties: false
+          required:
+            - party_taxonomy_ref
+            - account_taxonomy_ref
+            - instrument_taxonomy_ref
+          properties:
+            party_taxonomy_ref: { type: string }
+            account_taxonomy_ref: { type: string }
+            instrument_taxonomy_ref: { type: string }
+        cell_definition:
+          type: object
+          additionalProperties: false
+          required:
+            - account_cell
+            - instrument_cell_base
+          properties:
+            account_cell:
+              type: array
+              items: { type: string }
+            instrument_cell_base:
+              type: array
+              items: { type: string }
+            instrument_cell:
+              type: array
+              items: { type: string }
+        scheme_mode:
+          type: string
+          enum: [IN_CELL, ATTRIBUTE_ONLY]
+        instrument_domain_model:
+          type: object
+          additionalProperties: false
+          required:
+            - mode
+            - allowed_instrument_types
+          properties:
+            mode: { type: string }
+            allowed_instrument_types:
+              type: array
+              items:
+                type: object
+                additionalProperties: false
+                required:
+                  - party_type
+                  - account_type
+                  - instrument_types
+                properties:
+                  party_type: { type: string }
+                  account_type: { type: string }
+                  instrument_types:
+                    type: array
+                    items: { type: string }
+            segment_overrides:
+              type: array
+              items:
+                type: object
+                additionalProperties: false
+                required:
+                  - party_type
+                  - segment_id
+                  - account_type
+                  - instrument_types
+                properties:
+                  party_type: { type: string }
+                  segment_id: { type: string }
+                  account_type: { type: string }
+                  instrument_types:
+                    type: array
+                    items: { type: string }
+        lambda_model:
+          type: object
+          additionalProperties: false
+          required:
+            - mode
+            - lambda_total_by_party_type_account_type
+            - mix_by_party_type_account_type
+          properties:
+            mode: { type: string }
+            lambda_total_by_party_type_account_type:
+              type: array
+              items:
+                type: object
+                additionalProperties: false
+                required:
+                  - party_type
+                  - account_type
+                  - lambda_total
+                properties:
+                  party_type: { type: string }
+                  account_type: { type: string }
+                  lambda_total: { type: number }
+            mix_by_party_type_account_type:
+              type: array
+              items:
+                type: object
+                additionalProperties: false
+                required:
+                  - party_type
+                  - account_type
+                  - pi_instr
+                properties:
+                  party_type: { type: string }
+                  account_type: { type: string }
+                  pi_instr:
+                    type: array
+                    items:
+                      type: object
+                      additionalProperties: false
+                      required:
+                        - instrument_type
+                        - share
+                      properties:
+                        instrument_type: { type: string }
+                        share: { $ref: "#/$defs/probability" }
+            segment_tilt:
+              type: object
+              additionalProperties: false
+              required:
+                - segment_profile_source
+                - features
+                - weights_by_feature
+                - clip_log_multiplier
+              properties:
+                segment_profile_source: { type: string }
+                features:
+                  type: array
+                  items: { type: string }
+                weights_by_feature:
+                  type: object
+                  additionalProperties:
+                    type: object
+                    additionalProperties:
+                      type: number
+                clip_log_multiplier: { type: number }
+            region_tilt:
+              type: object
+              additionalProperties: false
+              required:
+                - region_profiles
+              properties:
+                region_profiles:
+                  type: array
+                  items:
+                    type: object
+                    additionalProperties: false
+                    required:
+                      - region_id
+                    properties:
+                      region_id: { type: string }
+                      card_penetration_score: { type: number }
+                      digital_score: { type: number }
+                      cross_border_score: { type: number }
+            scheme_split:
+              type: object
+              additionalProperties: true
+        attribute_models:
+          type: object
+          additionalProperties: false
+          required:
+            - scheme_model
+            - brand_tier_model
+            - token_type_model
+            - expiry_model
+            - flags_model
+          properties:
+            scheme_model:
+              type: object
+              additionalProperties: false
+              required: [enabled, mode, defaults]
+              properties:
+                enabled: { type: boolean }
+                mode: { type: string }
+                defaults: { type: object }
+                overrides:
+                  type: array
+                  items: { type: object }
+            brand_tier_model:
+              type: object
+              additionalProperties: false
+              required: [enabled, mode, defaults]
+              properties:
+                enabled: { type: boolean }
+                mode: { type: string }
+                defaults: { type: object }
+                overrides:
+                  type: array
+                  items: { type: object }
+            token_type_model:
+              type: object
+              additionalProperties: false
+              required: [enabled, mode, defaults]
+              properties:
+                enabled: { type: boolean }
+                mode: { type: string }
+                defaults: { type: object }
+                overrides:
+                  type: array
+                  items: { type: object }
+            expiry_model:
+              type: object
+              additionalProperties: false
+              required: [enabled, mode, defaults]
+              properties:
+                enabled: { type: boolean }
+                mode: { type: string }
+                defaults: { type: object }
+                overrides:
+                  type: array
+                  items: { type: object }
+            flags_model:
+              type: object
+              additionalProperties: false
+              required: [enabled, mode, defaults]
+              properties:
+                enabled: { type: boolean }
+                mode: { type: string }
+                defaults: { type: object }
+                overrides:
+                  type: array
+                  items: { type: object }
+        constraints:
+          type: object
+          additionalProperties: false
+          required:
+            - fail_on_missing_rule
+            - max_lambda_total_per_account_type
+            - min_nonzero_instrument_types_per_domain
+            - max_single_instrument_type_share_cap
+          properties:
+            fail_on_missing_rule: { type: boolean }
+            max_lambda_total_per_account_type:
+              type: array
+              items:
+                type: object
+                additionalProperties: false
+                required:
+                  - party_type
+                  - account_type
+                  - max_lambda_total
+                properties:
+                  party_type: { type: string }
+                  account_type: { type: string }
+                  max_lambda_total: { type: number }
+            min_nonzero_instrument_types_per_domain:
+              type: array
+              items:
+                type: object
+                additionalProperties: false
+                required:
+                  - party_type
+                  - account_type
+                  - min_k
+                properties:
+                  party_type: { type: string }
+                  account_type: { type: string }
+                  min_k: { type: integer }
+            max_single_instrument_type_share_cap:
+              type: array
+              items:
+                type: object
+                additionalProperties: false
+                required:
+                  - party_type
+                  - account_type
+                  - cap
+                properties:
+                  party_type: { type: string }
+                  account_type: { type: string }
+                  cap: { type: number }
+            min_nonzero_schemes_per_card_cell: { type: integer }
+        realism_targets:
+          type: object
+          additionalProperties: false
+          required:
+            - lambda_total_range_by_account_group
+            - card_penetration_proxy_range_by_party_type
+            - virtual_share_range_for_card_like
+            - tokenization_share_range_for_card_like
+            - region_variation_required_if_n_regions_ge
+            - region_variation_min_delta
+          properties:
+            lambda_total_range_by_account_group:
+              type: object
+              additionalProperties: { $ref: "#/$defs/range_min_max" }
+            card_penetration_proxy_range_by_party_type:
+              type: object
+              additionalProperties: { $ref: "#/$defs/range_min_max" }
+            virtual_share_range_for_card_like: { $ref: "#/$defs/range_min_max" }
+            tokenization_share_range_for_card_like: { $ref: "#/$defs/range_min_max" }
+            region_variation_required_if_n_regions_ge: { type: integer }
+            region_variation_min_delta: { type: number }
+        notes: { type: string }
+    device_count_priors_6A:
+      $id: "#/prior/device_count_priors_6A"
+      type: object
+      description: "Device count priors for 6A."
+      additionalProperties: false
+      required:
+        - schema_version
+        - prior_id
+        - prior_version
+        - bindings
+        - cell_model
+        - density_model
+        - type_mix_model
+        - sharing_model
+        - allocation_weight_model
+        - attribute_models
+        - constraints
+        - realism_targets
+      properties:
+        schema_version: { type: integer, const: 1 }
+        prior_id: { type: string, const: device_count_priors_6A }
+        prior_version: { type: string, const: v1 }
+        bindings:
+          type: object
+          additionalProperties: false
+          required:
+            - party_taxonomy_ref
+            - device_taxonomy_ref
+            - segmentation_prior_ref
+          properties:
+            party_taxonomy_ref: { type: string }
+            device_taxonomy_ref: { type: string }
+            segmentation_prior_ref: { type: string }
+            account_taxonomy_ref: { type: string }
+        cell_model:
+          type: object
+          additionalProperties: false
+          required:
+            - mode
+            - cell_definition
+          properties:
+            mode: { type: string }
+            cell_definition:
+              type: array
+              items: { type: string }
+            account_type_class_map:
+              type: array
+              items:
+                type: object
+                additionalProperties: false
+                required:
+                  - account_type
+                  - account_type_class
+                properties:
+                  account_type: { type: string }
+                  account_type_class: { type: string }
+        density_model:
+          type: object
+          additionalProperties: false
+          required:
+            - party_lambda
+          properties:
+            global_density_multiplier: { type: number }
+            party_lambda:
+              type: object
+              additionalProperties: false
+              required:
+                - mode
+                - base_lambda_by_party_type
+                - segment_feature_tilt
+              properties:
+                mode: { type: string }
+                base_lambda_by_party_type:
+                  type: object
+                  additionalProperties:
+                    type: number
+                segment_feature_tilt:
+                  type: object
+                  additionalProperties: false
+                  required:
+                    - features
+                    - weights_by_feature
+                    - clip_log_multiplier
+                  properties:
+                    features:
+                      type: array
+                      items: { type: string }
+                    weights_by_feature:
+                      type: object
+                      additionalProperties:
+                        type: number
+                    clip_log_multiplier: { type: number }
+            account_lambda: { type: object }
+            merchant_lambda: { type: object }
+        type_mix_model:
+          type: object
+          additionalProperties: false
+          required:
+            - mode
+            - base_pi_by_party_type
+          properties:
+            mode: { type: string }
+            base_pi_by_party_type:
+              type: object
+              additionalProperties:
+                type: array
+                items:
+                  type: object
+                  additionalProperties: false
+                  required:
+                    - device_type
+                    - share
+                  properties:
+                    device_type: { type: string }
+                    share: { $ref: "#/$defs/probability" }
+            segment_tilts:
+              type: array
+              items:
+                type: object
+                additionalProperties: false
+                required:
+                  - feature
+                  - device_type
+                  - weight
+                  - clip
+                properties:
+                  feature: { type: string }
+                  device_type: { type: string }
+                  weight: { type: number }
+                  clip: { type: number }
+        sharing_model:
+          type: object
+          additionalProperties: false
+          required:
+            - mode
+            - device_type_groups
+          properties:
+            mode: { type: string }
+            device_type_groups:
+              type: array
+              items:
+                type: object
+                additionalProperties: false
+                required:
+                  - group_id
+                  - device_types
+                  - semantics
+                properties:
+                  group_id: { type: string }
+                  device_types:
+                    type: array
+                    items: { type: string }
+                  semantics: { type: string }
+            group_params:
+              type: object
+              additionalProperties:
+                type: object
+                additionalProperties: true
+        allocation_weight_model:
+          type: object
+          additionalProperties: false
+          required:
+            - mode
+            - p_zero_weight_by_group
+            - sigma_by_group
+            - weight_floor_eps
+          properties:
+            mode: { type: string }
+            p_zero_weight_by_group:
+              type: object
+              additionalProperties:
+                type: number
+            sigma_by_group:
+              type: object
+              additionalProperties:
+                type: number
+            weight_floor_eps: { type: number }
+            p_zero_weight_multipliers_by_feature:
+              type: object
+              additionalProperties:
+                type: number
+            sigma_multipliers_by_feature:
+              type: object
+              additionalProperties:
+                type: number
+        attribute_models:
+          type: object
+          additionalProperties: false
+          required:
+            - os_family_model
+            - ua_family_model
+            - risk_tier_model
+            - risk_flags_model
+          properties:
+            os_family_model:
+              type: object
+              additionalProperties: false
+              required: [enabled, mode, defaults]
+              properties:
+                enabled: { type: boolean }
+                mode: { type: string }
+                defaults: { type: object }
+                overrides:
+                  type: array
+                  items: { type: object }
+            ua_family_model:
+              type: object
+              additionalProperties: false
+              required: [enabled, mode, defaults]
+              properties:
+                enabled: { type: boolean }
+                mode: { type: string }
+                defaults: { type: object }
+                overrides:
+                  type: array
+                  items: { type: object }
+            risk_tier_model:
+              type: object
+              additionalProperties: false
+              required: [enabled, mode, defaults]
+              properties:
+                enabled: { type: boolean }
+                mode: { type: string }
+                defaults: { type: object }
+                overrides:
+                  type: array
+                  items: { type: object }
+            risk_flags_model:
+              type: object
+              additionalProperties: false
+              required: [enabled, mode, defaults]
+              properties:
+                enabled: { type: boolean }
+                mode: { type: string }
+                defaults: { type: object }
+                overrides:
+                  type: array
+                  items: { type: object }
+        constraints:
+          type: object
+          additionalProperties: false
+          required:
+            - fail_on_missing_rule
+            - max_devices_per_party
+            - max_devices_per_account
+            - max_devices_per_merchant
+            - max_total_devices_world
+            - max_total_device_edges_world
+          properties:
+            fail_on_missing_rule: { type: boolean }
+            max_devices_per_party: { type: integer }
+            max_devices_per_account: { type: integer }
+            max_devices_per_merchant: { type: integer }
+            max_total_devices_world: { type: integer }
+            max_total_device_edges_world: { type: integer }
+        realism_targets:
+          type: object
+          additionalProperties: false
+          required:
+            - lambda_devices_per_party_range_by_party_type
+            - mobile_share_range_retail
+            - desktop_share_range_business
+            - shared_fraction_range_by_group
+            - os_diversity_floor
+            - high_risk_fraction_cap
+            - segment_variation_required_if_n_segments_ge
+            - segment_variation_min_delta
+          properties:
+            lambda_devices_per_party_range_by_party_type:
+              type: object
+              additionalProperties: { $ref: "#/$defs/range_min_max" }
+            mobile_share_range_retail: { $ref: "#/$defs/range_min_max" }
+            desktop_share_range_business: { $ref: "#/$defs/range_min_max" }
+            shared_fraction_range_by_group:
+              type: object
+              additionalProperties: { $ref: "#/$defs/range_min_max" }
+            os_diversity_floor:
+              type: object
+              additionalProperties: true
+            high_risk_fraction_cap: { type: number }
+            segment_variation_required_if_n_segments_ge: { type: integer }
+            segment_variation_min_delta: { type: number }
+        notes: { type: string }
+    ip_count_priors_6A:
+      $id: "#/prior/ip_count_priors_6A"
+      type: object
+      description: "IP count priors for 6A."
+      additionalProperties: false
+      required:
+        - schema_version
+        - prior_id
+        - prior_version
+        - bindings
+        - cell_definition
+        - device_groups
+        - ip_edge_demand_model
+        - ip_type_mix_model
+        - asn_mix_model
+        - sharing_model
+        - attribute_models
+        - address_policy
+        - constraints
+        - realism_targets
+      properties:
+        schema_version: { type: integer, const: 1 }
+        prior_id: { type: string, const: ip_count_priors_6A }
+        prior_version: { type: string, const: v1 }
+        bindings:
+          type: object
+          additionalProperties: false
+          required:
+            - party_taxonomy_ref
+            - device_taxonomy_ref
+            - ip_taxonomy_ref
+            - device_counts_ref
+          properties:
+            party_taxonomy_ref: { type: string }
+            device_taxonomy_ref: { type: string }
+            ip_taxonomy_ref: { type: string }
+            device_counts_ref: { type: string }
+        cell_definition:
+          type: object
+          additionalProperties: false
+          required:
+            - ip_cell
+          properties:
+            ip_cell:
+              type: array
+              items: { type: string }
+        device_groups:
+          type: object
+          additionalProperties: false
+          required:
+            - groups
+          properties:
+            groups:
+              type: array
+              items:
+                type: object
+                additionalProperties: false
+                required:
+                  - group_id
+                  - device_types
+                  - semantics
+                properties:
+                  group_id: { type: string }
+                  device_types:
+                    type: array
+                    items: { type: string }
+                  semantics: { type: string }
+            device_type_to_group:
+              type: object
+              additionalProperties:
+                type: string
+        ip_edge_demand_model:
+          type: object
+          additionalProperties: false
+          required:
+            - mode
+            - lambda_ip_per_device_by_group
+          properties:
+            mode: { type: string }
+            lambda_ip_per_device_by_group:
+              type: object
+              additionalProperties:
+                type: number
+            region_multiplier:
+              type: object
+              additionalProperties: false
+              required:
+                - enabled
+                - mode
+                - region_scores
+                - clip_multiplier
+              properties:
+                enabled: { type: boolean }
+                mode: { type: string }
+                region_scores:
+                  type: array
+                  items:
+                    type: object
+                    additionalProperties: false
+                    required:
+                      - region_id
+                      - score
+                    properties:
+                      region_id: { type: string }
+                      score: { type: number }
+                clip_multiplier: { $ref: "#/$defs/range_min_max" }
+        ip_type_mix_model:
+          type: object
+          additionalProperties: false
+          required:
+            - mode
+            - pi_ip_type_by_region
+          properties:
+            mode: { type: string }
+            pi_ip_type_by_region:
+              type: array
+              items:
+                type: object
+                additionalProperties: false
+                required:
+                  - region_id
+                  - pi_ip_type
+                properties:
+                  region_id: { type: string }
+                  pi_ip_type:
+                    type: array
+                    items:
+                      type: object
+                      additionalProperties: false
+                      required:
+                        - ip_type
+                        - share
+                      properties:
+                        ip_type: { type: string }
+                        share: { $ref: "#/$defs/probability" }
+        asn_mix_model:
+          type: object
+          additionalProperties: false
+          required:
+            - mode
+            - pi_asn_class_by_ip_type
+          properties:
+            mode: { type: string }
+            pi_asn_class_by_ip_type:
+              type: array
+              items:
+                type: object
+                additionalProperties: false
+                required:
+                  - ip_type
+                  - pi_asn
+                properties:
+                  ip_type: { type: string }
+                  pi_asn:
+                    type: array
+                    items:
+                      type: object
+                      additionalProperties: false
+                      required:
+                        - asn_class
+                        - share
+                      properties:
+                        asn_class: { type: string }
+                        share: { $ref: "#/$defs/probability" }
+        sharing_model:
+          type: object
+          additionalProperties: false
+          required:
+            - mode
+            - mu_dev_per_ip
+            - deg_dev_per_ip_distribution
+            - direct_party_links
+          properties:
+            mode: { type: string }
+            mu_dev_per_ip:
+              type: array
+              items:
+                type: object
+                additionalProperties: false
+                required:
+                  - ip_type
+                  - asn_class
+                  - mean
+                properties:
+                  ip_type: { type: string }
+                  asn_class: { type: string }
+                  mean: { type: number }
+            deg_dev_per_ip_distribution:
+              type: array
+              items:
+                type: object
+                additionalProperties: false
+                required:
+                  - ip_type
+                  - asn_class
+                  - model_id
+                  - min_k
+                  - max_k
+                properties:
+                  ip_type: { type: string }
+                  asn_class: { type: string }
+                  model_id: { type: string }
+                  min_k: { type: integer }
+                  max_k: { type: integer }
+                  p: { type: number }
+                  alpha: { type: number }
+            direct_party_links:
+              type: object
+              additionalProperties: false
+              required:
+                - enabled
+              properties:
+                enabled: { type: boolean }
+                mu_party_per_ip:
+                  type: array
+                  items:
+                    type: object
+                    additionalProperties: false
+                    required:
+                      - ip_type
+                      - asn_class
+                      - mean
+                    properties:
+                      ip_type: { type: string }
+                      asn_class: { type: string }
+                      mean: { type: number }
+                lambda_ip_per_party_by_party_type:
+                  type: object
+                  additionalProperties:
+                    type: number
+        attribute_models:
+          type: object
+          additionalProperties: false
+          required:
+            - ip_version_model
+            - churn_model
+            - risk_tier_model
+            - risk_flags_model
+          properties:
+            ip_version_model:
+              type: object
+              additionalProperties: false
+              required: [enabled, mode, defaults]
+              properties:
+                enabled: { type: boolean }
+                mode: { type: string }
+                defaults: { type: object }
+                overrides:
+                  type: array
+                  items: { type: object }
+            churn_model:
+              type: object
+              additionalProperties: false
+              required: [enabled, mode, defaults]
+              properties:
+                enabled: { type: boolean }
+                mode: { type: string }
+                defaults: { type: object }
+                overrides:
+                  type: array
+                  items: { type: object }
+            risk_tier_model:
+              type: object
+              additionalProperties: false
+              required: [enabled, mode, defaults]
+              properties:
+                enabled: { type: boolean }
+                mode: { type: string }
+                defaults: { type: object }
+                overrides:
+                  type: array
+                  items: { type: object }
+            risk_flags_model:
+              type: object
+              additionalProperties: false
+              required: [enabled, mode, defaults]
+              properties:
+                enabled: { type: boolean }
+                mode: { type: string }
+                defaults: { type: object }
+                overrides:
+                  type: array
+                  items: { type: object }
+        address_policy:
+          type: object
+          additionalProperties: false
+          required:
+            - mode
+            - ipv4_pools
+            - ipv6_pool
+            - assignment
+            - formatting
+          properties:
+            mode: { type: string }
+            ipv4_pools:
+              type: array
+              items: { type: string }
+            ipv6_pool: { type: string }
+            assignment:
+              type: object
+              additionalProperties: false
+              required:
+                - mode
+                - salt_label
+                - open_interval_mapping
+              properties:
+                mode: { type: string }
+                salt_label: { type: string }
+                open_interval_mapping: { type: string }
+            formatting:
+              type: object
+              additionalProperties: false
+              required:
+                - ipv4_style
+                - ipv6_style
+              properties:
+                ipv4_style: { type: string }
+                ipv6_style: { type: string }
+        constraints:
+          type: object
+          additionalProperties: false
+          required:
+            - fail_on_missing_rule
+            - max_total_ips_world
+            - max_total_ip_edges_world
+            - max_ips_per_device
+            - max_devices_per_ip
+            - max_parties_per_ip
+            - eps_min_mu_dev_per_ip
+          properties:
+            fail_on_missing_rule: { type: boolean }
+            max_total_ips_world: { type: integer }
+            max_total_ip_edges_world: { type: integer }
+            max_ips_per_device: { type: integer }
+            max_devices_per_ip: { type: integer }
+            max_parties_per_ip: { type: integer }
+            eps_min_mu_dev_per_ip: { type: number }
+        realism_targets:
+          type: object
+          additionalProperties: false
+          required:
+            - lambda_ip_per_device_range_by_group
+            - mu_dev_per_ip_range_by_ip_type
+            - datacentre_fraction_range
+            - vpn_proxy_fraction_range
+            - ipv6_share_range_by_ip_type
+            - shared_network_presence_min
+            - region_variation_required_if_n_regions_ge
+            - region_variation_min_delta
+          properties:
+            lambda_ip_per_device_range_by_group:
+              type: object
+              additionalProperties: { $ref: "#/$defs/range_min_max" }
+            mu_dev_per_ip_range_by_ip_type:
+              type: object
+              additionalProperties: { $ref: "#/$defs/range_min_max" }
+            datacentre_fraction_range: { $ref: "#/$defs/range_min_max" }
+            vpn_proxy_fraction_range: { $ref: "#/$defs/range_min_max" }
+            ipv6_share_range_by_ip_type:
+              type: object
+              additionalProperties: { $ref: "#/$defs/range_min_max" }
+            shared_network_presence_min: { type: number }
+            region_variation_required_if_n_regions_ge: { type: integer }
+            region_variation_min_delta: { type: number }
+        notes: { type: string }
+    party_role_priors_6A:
+      $id: "#/prior/party_role_priors_6A"
+      type: object
+      description: "Party fraud-role priors for 6A."
+      additionalProperties: false
+      required:
+        - schema_version
+        - policy_id
+        - policy_version
+        - role_vocabulary
+        - risk_tier_vocabulary
+        - cell_definition
+        - risk_score_model
+        - risk_tier_thresholds
+        - role_probability_model
+        - constraints
+        - realism_targets
+      properties:
+        schema_version: { type: integer, const: 1 }
+        policy_id: { type: string, const: party_role_priors_6A }
+        policy_version: { type: string, const: v1 }
+        role_vocabulary:
+          type: array
+          items:
+            type: object
+            additionalProperties: false
+            required:
+              - role_id
+              - label
+              - description
+              - applicable_party_types
+              - severity_rank
+            properties:
+              role_id: { type: string }
+              label: { type: string }
+              description: { type: string }
+              applicable_party_types:
+                type: array
+                items: { type: string }
+              severity_rank: { type: integer }
+        risk_tier_vocabulary:
+          type: array
+          items:
+            type: object
+            additionalProperties: false
+            required:
+              - tier_id
+              - label
+              - description
+              - severity_rank
+            properties:
+              tier_id: { type: string }
+              label: { type: string }
+              description: { type: string }
+              severity_rank: { type: integer }
+        cell_definition:
+          type: object
+          additionalProperties: false
+          required:
+            - base_cell
+            - context_features
+            - cell_id_format
+          properties:
+            base_cell:
+              type: array
+              items: { type: string }
+            context_features:
+              type: array
+              items: { type: string }
+            cell_id_format: { type: string }
+        risk_score_model:
+          type: object
+          additionalProperties: false
+          required:
+            - base
+            - features
+          properties:
+            base: { type: number }
+            features:
+              type: array
+              items:
+                type: object
+                additionalProperties: false
+                required:
+                  - name
+                  - source
+                  - ref
+                  - weight
+                properties:
+                  name: { type: string }
+                  source:
+                    type: string
+                    enum: [SEGMENT_PROFILE, HOLDINGS_DERIVED, GRAPH_DERIVED]
+                  ref: { type: number }
+                  weight: { type: number }
+        risk_tier_thresholds:
+          type: object
+          additionalProperties: false
+          required:
+            - tiers_in_order
+            - thresholds
+          properties:
+            tiers_in_order:
+              type: array
+              items: { type: string }
+            thresholds:
+              type: object
+              additionalProperties: false
+              required:
+                - LOW_max
+                - STANDARD_max
+                - ELEVATED_max
+                - HIGH_max
+              properties:
+                LOW_max: { type: number }
+                STANDARD_max: { type: number }
+                ELEVATED_max: { type: number }
+                HIGH_max: { type: number }
+        role_probability_model:
+          type: object
+          additionalProperties: false
+          required:
+            - mode
+            - pi_role_by_party_type_and_tier
+          properties:
+            mode: { type: string }
+            pi_role_by_party_type_and_tier:
+              type: object
+              additionalProperties:
+                type: object
+                additionalProperties:
+                  type: array
+                  items:
+                    type: object
+                    additionalProperties: false
+                    required:
+                      - role_id
+                      - prob
+                    properties:
+                      role_id: { type: string }
+                      prob: { $ref: "#/$defs/probability" }
+            nudges:
+              type: array
+              items:
+                type: object
+                additionalProperties: false
+                required:
+                  - if_feature
+                  - multiply_roles
+                  - clip_multiplier
+                properties:
+                  if_feature: { type: string }
+                  multiply_roles:
+                    type: object
+                    additionalProperties:
+                      type: number
+                  clip_multiplier: { $ref: "#/$defs/range_min_max" }
+        constraints:
+          type: object
+          additionalProperties: false
+          required:
+            - fail_on_missing_rule
+            - prob_dp
+            - max_role_share_caps
+            - min_nonclean_presence
+            - require_role_vocab_minimum
+          properties:
+            fail_on_missing_rule: { type: boolean }
+            prob_dp: { type: integer }
+            max_role_share_caps:
+              type: object
+              additionalProperties:
+                type: number
+            min_nonclean_presence:
+              type: object
+              additionalProperties:
+                type: number
+            require_role_vocab_minimum: { type: boolean }
+        realism_targets:
+          type: object
+          additionalProperties: false
+          required:
+            - clean_fraction_range_by_party_type
+            - high_risk_tier_fraction_range_by_party_type
+            - organiser_fraction_range_world
+            - mule_fraction_range_world
+            - synthetic_id_fraction_range_world
+            - risk_tier_entropy_min_by_party_type
+            - nontrivial_region_variation
+          properties:
+            clean_fraction_range_by_party_type:
+              type: object
+              additionalProperties: { $ref: "#/$defs/range_min_max" }
+            high_risk_tier_fraction_range_by_party_type:
+              type: object
+              additionalProperties: { $ref: "#/$defs/range_min_max" }
+            organiser_fraction_range_world: { $ref: "#/$defs/range_min_max" }
+            mule_fraction_range_world: { $ref: "#/$defs/range_min_max" }
+            synthetic_id_fraction_range_world: { $ref: "#/$defs/range_min_max" }
+            risk_tier_entropy_min_by_party_type:
+              type: object
+              additionalProperties:
+                type: number
+            nontrivial_region_variation:
+              type: object
+              additionalProperties: false
+              required:
+                - required_if_n_regions_ge
+                - min_delta_in_high_risk_fraction
+              properties:
+                required_if_n_regions_ge: { type: integer }
+                min_delta_in_high_risk_fraction: { type: number }
+        notes: { type: string }
+    account_role_priors_6A:
+      $id: "#/prior/account_role_priors_6A"
+      type: object
+      description: "Account fraud-role priors for 6A."
+      additionalProperties: false
+      required:
+        - schema_version
+        - policy_id
+        - policy_version
+        - role_vocabulary
+        - risk_tier_vocabulary
+        - cell_definition
+        - risk_score_model
+        - risk_tier_thresholds
+        - role_probability_model
+        - constraints
+        - realism_targets
+      properties:
+        schema_version: { type: integer, const: 1 }
+        policy_id: { type: string, const: account_role_priors_6A }
+        policy_version: { type: string, const: v1 }
+        role_vocabulary:
+          type: array
+          items:
+            type: object
+            additionalProperties: false
+            required:
+              - role_id
+              - label
+              - description
+              - applicable_ledger_classes
+              - severity_rank
+            properties:
+              role_id: { type: string }
+              label: { type: string }
+              description: { type: string }
+              applicable_ledger_classes:
+                type: array
+                items: { type: string }
+              severity_rank: { type: integer }
+        risk_tier_vocabulary:
+          type: array
+          items:
+            type: object
+            additionalProperties: false
+            required:
+              - tier_id
+              - label
+              - description
+              - severity_rank
+            properties:
+              tier_id: { type: string }
+              label: { type: string }
+              description: { type: string }
+              severity_rank: { type: integer }
+        cell_definition:
+          type: object
+          additionalProperties: false
+          required:
+            - base_cell
+            - account_groups
+            - context_features_allowed
+          properties:
+            base_cell:
+              type: array
+              items: { type: string }
+            account_groups:
+              type: object
+              additionalProperties:
+                type: string
+            context_features_allowed:
+              type: array
+              items: { type: string }
+        risk_score_model:
+          type: object
+          additionalProperties: false
+          required:
+            - base_by_group
+            - features
+          properties:
+            base_by_group:
+              type: object
+              additionalProperties:
+                type: number
+            features:
+              type: array
+              items:
+                type: object
+                additionalProperties: false
+                required:
+                  - name
+                  - source
+                  - ref
+                  - weight
+                properties:
+                  name: { type: string }
+                  source:
+                    type: string
+                    enum: [SEGMENT_PROFILE, HOLDINGS_DERIVED, GRAPH_DERIVED, PARTY_POSTURE]
+                  ref: { type: number }
+                  weight: { type: number }
+        risk_tier_thresholds:
+          type: object
+          additionalProperties: false
+          required:
+            - tiers_in_order
+            - thresholds
+          properties:
+            tiers_in_order:
+              type: array
+              items: { type: string }
+            thresholds:
+              type: object
+              additionalProperties: false
+              required:
+                - LOW_max
+                - STANDARD_max
+                - ELEVATED_max
+                - HIGH_max
+              properties:
+                LOW_max: { type: number }
+                STANDARD_max: { type: number }
+                ELEVATED_max: { type: number }
+                HIGH_max: { type: number }
+        role_probability_model:
+          type: object
+          additionalProperties: false
+          required:
+            - mode
+            - pi_role_by_group_and_tier
+          properties:
+            mode: { type: string }
+            pi_role_by_group_and_tier:
+              type: object
+              additionalProperties:
+                type: object
+                additionalProperties:
+                  type: array
+                  items:
+                    type: object
+                    additionalProperties: false
+                    required:
+                      - role_id
+                      - prob
+                    properties:
+                      role_id: { type: string }
+                      prob: { $ref: "#/$defs/probability" }
+            nudges:
+              type: array
+              items:
+                type: object
+                additionalProperties: false
+                required:
+                  - if_feature
+                  - multiply_roles
+                  - clip_multiplier
+                properties:
+                  if_feature: { type: string }
+                  multiply_roles:
+                    type: object
+                    additionalProperties:
+                      type: number
+                  clip_multiplier: { $ref: "#/$defs/range_min_max" }
+        constraints:
+          type: object
+          additionalProperties: false
+          required:
+            - fail_on_missing_rule
+            - prob_dp
+            - max_role_share_caps_world
+            - min_nonclean_presence_by_group
+            - require_minimum_vocab
+          properties:
+            fail_on_missing_rule: { type: boolean }
+            prob_dp: { type: integer }
+            max_role_share_caps_world:
+              type: object
+              additionalProperties:
+                type: number
+            min_nonclean_presence_by_group:
+              type: object
+              additionalProperties:
+                type: number
+            require_minimum_vocab: { type: boolean }
+        realism_targets:
+          type: object
+          additionalProperties: false
+          required:
+            - clean_fraction_range_world
+            - high_risk_fraction_range_world
+            - mule_account_fraction_range_world
+            - dormant_risky_fraction_range_world
+            - region_variation
+          properties:
+            clean_fraction_range_world: { $ref: "#/$defs/range_min_max" }
+            high_risk_fraction_range_world: { $ref: "#/$defs/range_min_max" }
+            mule_account_fraction_range_world: { $ref: "#/$defs/range_min_max" }
+            dormant_risky_fraction_range_world: { $ref: "#/$defs/range_min_max" }
+            by_group_caps: { type: object }
+            region_variation:
+              type: object
+              additionalProperties: false
+              required:
+                - required_if_n_regions_ge
+                - min_delta_in_high_risk_fraction
+              properties:
+                required_if_n_regions_ge: { type: integer }
+                min_delta_in_high_risk_fraction: { type: number }
+        notes: { type: string }
+    merchant_role_priors_6A:
+      $id: "#/prior/merchant_role_priors_6A"
+      type: object
+      description: "Merchant fraud-role priors for 6A."
+      additionalProperties: false
+      required:
+        - schema_version
+        - policy_id
+        - policy_version
+        - role_vocabulary
+        - risk_tier_vocabulary
+        - feature_whitelist
+        - mcc_classification
+        - risk_score_model
+        - risk_tier_thresholds
+        - role_probability_model
+        - collusion_cluster_model
+        - constraints
+        - realism_targets
+      properties:
+        schema_version: { type: integer, const: 1 }
+        policy_id: { type: string, const: merchant_role_priors_6A }
+        policy_version: { type: string, const: v1 }
+        role_vocabulary:
+          type: array
+          items:
+            type: object
+            additionalProperties: false
+            required:
+              - role_id
+              - label
+              - description
+              - severity_rank
+            properties:
+              role_id: { type: string }
+              label: { type: string }
+              description: { type: string }
+              severity_rank: { type: integer }
+        risk_tier_vocabulary:
+          type: array
+          items:
+            type: object
+            additionalProperties: false
+            required:
+              - tier_id
+              - label
+              - description
+              - severity_rank
+            properties:
+              tier_id: { type: string }
+              label: { type: string }
+              description: { type: string }
+              severity_rank: { type: integer }
+        feature_whitelist:
+          type: object
+          additionalProperties: false
+          required:
+            - required_sources
+            - allowed_features
+            - fallbacks
+          properties:
+            required_sources:
+              type: array
+              items: { type: string }
+            allowed_features:
+              type: array
+              items: { type: string }
+            fallbacks: { type: object }
+        mcc_classification:
+          type: object
+          additionalProperties: false
+          required:
+            - mcc_class_vocab
+            - mcc_to_class_rules
+            - unknown_mcc_policy
+          properties:
+            mcc_class_vocab:
+              type: array
+              items: { type: string }
+            mcc_to_class_rules:
+              type: array
+              items:
+                type: object
+                additionalProperties: false
+                required:
+                  - rule_id
+                  - match
+                  - mcc_class
+                properties:
+                  rule_id: { type: string }
+                  match: { type: object }
+                  mcc_class: { type: string }
+            unknown_mcc_policy: { type: string }
+        risk_score_model:
+          type: object
+          additionalProperties: false
+          required:
+            - base
+            - features
+          properties:
+            base: { type: number }
+            features:
+              type: array
+              items:
+                type: object
+                additionalProperties: false
+                required:
+                  - name
+                  - ref
+                  - weight
+                properties:
+                  name: { type: string }
+                  ref: { type: number }
+                  weight: { type: number }
+            mcc_class_risk_weights: { type: object }
+            size_ref_sites: { type: number }
+        risk_tier_thresholds:
+          type: object
+          additionalProperties: false
+          required:
+            - tiers_in_order
+            - thresholds
+          properties:
+            tiers_in_order:
+              type: array
+              items: { type: string }
+            thresholds:
+              type: object
+              additionalProperties: false
+              required:
+                - LOW_max
+                - STANDARD_max
+                - ELEVATED_max
+                - HIGH_max
+              properties:
+                LOW_max: { type: number }
+                STANDARD_max: { type: number }
+                ELEVATED_max: { type: number }
+                HIGH_max: { type: number }
+        role_probability_model:
+          type: object
+          additionalProperties: false
+          required:
+            - mode
+            - pi_role_by_class_and_tier
+          properties:
+            mode: { type: string }
+            pi_role_by_class_and_tier:
+              type: object
+              additionalProperties:
+                type: object
+                additionalProperties:
+                  type: array
+                  items:
+                    type: object
+                    additionalProperties: false
+                    required:
+                      - role_id
+                      - prob
+                    properties:
+                      role_id: { type: string }
+                      prob: { $ref: "#/$defs/probability" }
+            nudges:
+              type: array
+              items:
+                type: object
+                additionalProperties: false
+                required:
+                  - if_feature
+                  - multiply_roles
+                  - clip_multiplier
+                properties:
+                  if_feature: { type: string }
+                  multiply_roles:
+                    type: object
+                    additionalProperties:
+                      type: number
+                  clip_multiplier: { $ref: "#/$defs/range_min_max" }
+        collusion_cluster_model:
+          type: object
+          additionalProperties: false
+          required:
+            - enabled
+          properties:
+            enabled: { type: boolean }
+            cluster_key:
+              type: array
+              items: { type: string }
+            target_collusive_fraction_by_tier:
+              type: object
+              additionalProperties:
+                type: number
+            cluster_size_distribution:
+              type: object
+              additionalProperties: false
+              required:
+                - model_id
+                - min_k
+                - max_k
+              properties:
+                model_id: { type: string }
+                min_k: { type: integer }
+                max_k: { type: integer }
+                alpha: { type: number }
+                p: { type: number }
+            min_clusters_per_large_country: { type: integer }
+            large_country_threshold_merchants: { type: integer }
+        constraints:
+          type: object
+          additionalProperties: false
+          required:
+            - fail_on_missing_rule
+            - prob_dp
+            - unknown_mcc_policy
+            - max_role_share_caps_world
+            - min_non_normal_presence
+            - require_mcc_coverage
+          properties:
+            fail_on_missing_rule: { type: boolean }
+            prob_dp: { type: integer }
+            unknown_mcc_policy: { type: string }
+            max_role_share_caps_world:
+              type: object
+              additionalProperties:
+                type: number
+            min_non_normal_presence:
+              type: object
+              additionalProperties:
+                type: number
+            require_mcc_coverage: { type: boolean }
+        realism_targets:
+          type: object
+          additionalProperties: false
+          required:
+            - normal_fraction_range_world
+            - high_risk_mcc_fraction_range_world
+            - msb_fraction_range_world
+            - collusive_fraction_range_world
+            - msb_share_within_money_services_class_range
+            - region_variation
+          properties:
+            normal_fraction_range_world: { $ref: "#/$defs/range_min_max" }
+            high_risk_mcc_fraction_range_world: { $ref: "#/$defs/range_min_max" }
+            msb_fraction_range_world: { $ref: "#/$defs/range_min_max" }
+            collusive_fraction_range_world: { $ref: "#/$defs/range_min_max" }
+            msb_share_within_money_services_class_range: { $ref: "#/$defs/range_min_max" }
+            region_variation:
+              type: object
+              additionalProperties: false
+              required:
+                - required_if_n_countries_ge
+                - min_delta_high_risk_fraction_between_countries
+              properties:
+                required_if_n_countries_ge: { type: integer }
+                min_delta_high_risk_fraction_between_countries: { type: number }
+            collusion_cluster_realism:
+              type: object
+              additionalProperties: false
+              required:
+                - min_fraction_collusive_in_clusters_size_ge_2
+              properties:
+                min_fraction_collusive_in_clusters_size_ge_2: { type: number }
+        notes: { type: string }
+    device_role_priors_6A:
+      $id: "#/prior/device_role_priors_6A"
+      type: object
+      description: "Device fraud-role priors for 6A."
+      additionalProperties: false
+      required:
+        - schema_version
+        - policy_id
+        - policy_version
+        - role_vocabulary
+        - risk_tier_vocabulary
+        - device_groups
+        - feature_whitelist
+        - derived_feature_buckets
+        - risk_score_model
+        - risk_tier_thresholds
+        - role_probability_model
+        - optional_cluster_model
+        - constraints
+        - realism_targets
+      properties:
+        schema_version: { type: integer, const: 1 }
+        policy_id: { type: string, const: device_role_priors_6A }
+        policy_version: { type: string, const: v1 }
+        role_vocabulary:
+          type: array
+          items:
+            type: object
+            additionalProperties: false
+            required:
+              - role_id
+              - label
+              - description
+              - severity_rank
+            properties:
+              role_id: { type: string }
+              label: { type: string }
+              description: { type: string }
+              severity_rank: { type: integer }
+        risk_tier_vocabulary:
+          type: array
+          items:
+            type: object
+            additionalProperties: false
+            required:
+              - tier_id
+              - label
+              - description
+              - severity_rank
+            properties:
+              tier_id: { type: string }
+              label: { type: string }
+              description: { type: string }
+              severity_rank: { type: integer }
+        device_groups:
+          type: object
+          additionalProperties: false
+          required:
+            - groups
+          properties:
+            groups:
+              type: array
+              items:
+                type: object
+                additionalProperties: false
+                required:
+                  - group_id
+                  - device_types
+                  - semantics
+                properties:
+                  group_id: { type: string }
+                  device_types:
+                    type: array
+                    items: { type: string }
+                  semantics: { type: string }
+            device_type_to_group:
+              type: object
+              additionalProperties:
+                type: string
+        feature_whitelist:
+          type: object
+          additionalProperties: false
+          required:
+            - required_sources
+            - allowed_features
+            - required_features
+          properties:
+            required_sources:
+              type: array
+              items: { type: string }
+            allowed_features:
+              type: array
+              items: { type: string }
+            required_features:
+              type: array
+              items: { type: string }
+        derived_feature_buckets:
+          type: object
+          additionalProperties:
+            type: object
+            additionalProperties: false
+            required:
+              - edges
+              - values
+            properties:
+              edges:
+                type: array
+                items: { type: integer }
+              values:
+                type: array
+                items: { type: number }
+        risk_score_model:
+          type: object
+          additionalProperties: false
+          required:
+            - base_by_group
+            - features
+          properties:
+            base_by_group:
+              type: object
+              additionalProperties:
+                type: number
+            features:
+              type: array
+              items:
+                type: object
+                additionalProperties: false
+                required:
+                  - name
+                  - source
+                  - ref
+                  - weight
+                properties:
+                  name: { type: string }
+                  source: { type: string }
+                  ref: { type: number }
+                  weight: { type: number }
+        risk_tier_thresholds:
+          type: object
+          additionalProperties: false
+          required:
+            - tiers_in_order
+            - thresholds
+          properties:
+            tiers_in_order:
+              type: array
+              items: { type: string }
+            thresholds:
+              type: object
+              additionalProperties: false
+              required:
+                - LOW_max
+                - STANDARD_max
+                - ELEVATED_max
+                - HIGH_max
+              properties:
+                LOW_max: { type: number }
+                STANDARD_max: { type: number }
+                ELEVATED_max: { type: number }
+                HIGH_max: { type: number }
+        role_probability_model:
+          type: object
+          additionalProperties: false
+          required:
+            - mode
+            - pi_role_by_group_and_tier
+          properties:
+            mode: { type: string }
+            pi_role_by_group_and_tier:
+              type: object
+              additionalProperties:
+                type: object
+                additionalProperties:
+                  type: array
+                  items:
+                    type: object
+                    additionalProperties: false
+                    required:
+                      - role_id
+                      - prob
+                    properties:
+                      role_id: { type: string }
+                      prob: { $ref: "#/$defs/probability" }
+            nudges:
+              type: array
+              items:
+                type: object
+                additionalProperties: false
+                required:
+                  - if_feature
+                  - multiply_roles
+                  - clip_multiplier
+                properties:
+                  if_feature: { type: string }
+                  multiply_roles:
+                    type: object
+                    additionalProperties:
+                      type: number
+                  clip_multiplier: { $ref: "#/$defs/range_min_max" }
+        optional_cluster_model:
+          type: object
+          additionalProperties: false
+          required:
+            - enabled
+          properties:
+            enabled: { type: boolean }
+            cluster_key:
+              type: array
+              items: { type: string }
+            cluster_role: { type: string }
+            cluster_size_distribution:
+              type: object
+              additionalProperties: false
+              required:
+                - model_id
+                - min_k
+                - max_k
+              properties:
+                model_id: { type: string }
+                min_k: { type: integer }
+                max_k: { type: integer }
+                alpha: { type: number }
+                p: { type: number }
+        constraints:
+          type: object
+          additionalProperties: false
+          required:
+            - fail_on_missing_rule
+            - prob_dp
+            - max_role_share_caps_world
+            - min_non_normal_presence
+          properties:
+            fail_on_missing_rule: { type: boolean }
+            prob_dp: { type: integer }
+            max_role_share_caps_world:
+              type: object
+              additionalProperties:
+                type: number
+            min_non_normal_presence:
+              type: object
+              additionalProperties:
+                type: number
+        realism_targets:
+          type: object
+          additionalProperties: false
+          required:
+            - bot_like_fraction_world_range
+            - shared_suspicious_fraction_world_range
+            - risky_fraction_world_range
+            - bot_enrichment_in_anonymizer_context_min_ratio
+            - shared_enrichment_in_high_deg_party_min_ratio
+            - region_variation
+          properties:
+            bot_like_fraction_world_range: { $ref: "#/$defs/range_min_max" }
+            shared_suspicious_fraction_world_range: { $ref: "#/$defs/range_min_max" }
+            risky_fraction_world_range: { $ref: "#/$defs/range_min_max" }
+            bot_enrichment_in_anonymizer_context_min_ratio: { type: number }
+            shared_enrichment_in_high_deg_party_min_ratio: { type: number }
+            high_tier_fraction_range: { $ref: "#/$defs/range_min_max" }
+            region_variation:
+              type: object
+              additionalProperties: false
+              required:
+                - required_if_n_regions_ge
+                - min_delta_in_bot_like_fraction
+              properties:
+                required_if_n_regions_ge: { type: integer }
+                min_delta_in_bot_like_fraction: { type: number }
+        notes: { type: string }
+    ip_role_priors_6A:
+      $id: "#/prior/ip_role_priors_6A"
+      type: object
+      description: "IP fraud-role priors for 6A."
+      additionalProperties: false
+      required:
+        - schema_version
+        - policy_id
+        - policy_version
+        - role_vocabulary
+        - risk_tier_vocabulary
+        - ip_groups
+        - feature_whitelist
+        - derived_feature_buckets
+        - risk_score_model
+        - risk_tier_thresholds
+        - role_probability_model
+        - optional_cluster_model
+        - constraints
+        - realism_targets
+      properties:
+        schema_version: { type: integer, const: 1 }
+        policy_id: { type: string, const: ip_role_priors_6A }
+        policy_version: { type: string, const: v1 }
+        role_vocabulary:
+          type: array
+          items:
+            type: object
+            additionalProperties: false
+            required:
+              - role_id
+              - label
+              - description
+              - severity_rank
+            properties:
+              role_id: { type: string }
+              label: { type: string }
+              description: { type: string }
+              severity_rank: { type: integer }
+        risk_tier_vocabulary:
+          type: array
+          items:
+            type: object
+            additionalProperties: false
+            required:
+              - tier_id
+              - label
+              - description
+              - severity_rank
+            properties:
+              tier_id: { type: string }
+              label: { type: string }
+              description: { type: string }
+              severity_rank: { type: integer }
+        ip_groups:
+          type: object
+          additionalProperties: false
+          required:
+            - groups
+          properties:
+            groups:
+              type: array
+              items:
+                type: object
+                additionalProperties: false
+                required:
+                  - group_id
+                  - group_priority
+                  - ip_types
+                  - asn_classes
+                  - semantics
+                properties:
+                  group_id: { type: string }
+                  group_priority: { type: integer }
+                  ip_types:
+                    type: array
+                    items: { type: string }
+                  asn_classes:
+                    type: array
+                    items: { type: string }
+                  semantics: { type: string }
+            group_priority: { type: object }
+        feature_whitelist:
+          type: object
+          additionalProperties: false
+          required:
+            - required_sources
+            - allowed_features
+            - required_features
+          properties:
+            required_sources:
+              type: array
+              items: { type: string }
+            allowed_features:
+              type: array
+              items: { type: string }
+            required_features:
+              type: array
+              items: { type: string }
+        derived_feature_buckets:
+          type: object
+          additionalProperties:
+            type: object
+            additionalProperties: false
+            required:
+              - edges
+              - values
+            properties:
+              edges:
+                type: array
+                items: { type: integer }
+              values:
+                type: array
+                items: { type: number }
+        risk_score_model:
+          type: object
+          additionalProperties: false
+          required:
+            - base_by_group
+            - features
+          properties:
+            base_by_group:
+              type: object
+              additionalProperties:
+                type: number
+            features:
+              type: array
+              items:
+                type: object
+                additionalProperties: false
+                required:
+                  - name
+                  - source
+                  - ref
+                  - weight
+                properties:
+                  name: { type: string }
+                  source: { type: string }
+                  ref: { type: number }
+                  weight: { type: number }
+        risk_tier_thresholds:
+          type: object
+          additionalProperties: false
+          required:
+            - tiers_in_order
+            - thresholds
+          properties:
+            tiers_in_order:
+              type: array
+              items: { type: string }
+            thresholds:
+              type: object
+              additionalProperties: false
+              required:
+                - LOW_max
+                - STANDARD_max
+                - ELEVATED_max
+                - HIGH_max
+              properties:
+                LOW_max: { type: number }
+                STANDARD_max: { type: number }
+                ELEVATED_max: { type: number }
+                HIGH_max: { type: number }
+        role_probability_model:
+          type: object
+          additionalProperties: false
+          required:
+            - mode
+            - pi_role_by_group_and_tier
+          properties:
+            mode: { type: string }
+            pi_role_by_group_and_tier:
+              type: object
+              additionalProperties:
+                type: object
+                additionalProperties:
+                  type: array
+                  items:
+                    type: object
+                    additionalProperties: false
+                    required:
+                      - role_id
+                      - prob
+                    properties:
+                      role_id: { type: string }
+                      prob: { $ref: "#/$defs/probability" }
+            nudges:
+              type: array
+              items:
+                type: object
+                additionalProperties: false
+                required:
+                  - if_feature
+                  - multiply_roles
+                  - clip_multiplier
+                properties:
+                  if_feature: { type: string }
+                  multiply_roles:
+                    type: object
+                    additionalProperties:
+                      type: number
+                  clip_multiplier: { $ref: "#/$defs/range_min_max" }
+        optional_cluster_model:
+          type: object
+          additionalProperties: false
+          required:
+            - enabled
+          properties:
+            enabled: { type: boolean }
+            cluster_key:
+              type: array
+              items: { type: string }
+            cluster_role: { type: string }
+            cluster_size_distribution:
+              type: object
+              additionalProperties: false
+              required:
+                - model_id
+                - min_k
+                - max_k
+              properties:
+                model_id: { type: string }
+                min_k: { type: integer }
+                max_k: { type: integer }
+                alpha: { type: number }
+                p: { type: number }
+        constraints:
+          type: object
+          additionalProperties: false
+          required:
+            - fail_on_missing_rule
+            - prob_dp
+            - max_role_share_caps_world
+            - min_non_normal_presence
+          properties:
+            fail_on_missing_rule: { type: boolean }
+            prob_dp: { type: integer }
+            max_role_share_caps_world:
+              type: object
+              additionalProperties:
+                type: number
+            min_non_normal_presence:
+              type: object
+              additionalProperties:
+                type: number
+        realism_targets:
+          type: object
+          additionalProperties: false
+          required:
+            - proxy_fraction_world_range
+            - datacentre_fraction_world_range
+            - high_risk_fraction_world_range
+            - proxy_enrichment_in_anonymizer_min_ratio
+            - datacentre_enrichment_in_hosting_min_ratio
+            - high_risk_enrichment_in_high_degree_min_ratio
+            - region_variation
+          properties:
+            proxy_fraction_world_range: { $ref: "#/$defs/range_min_max" }
+            datacentre_fraction_world_range: { $ref: "#/$defs/range_min_max" }
+            high_risk_fraction_world_range: { $ref: "#/$defs/range_min_max" }
+            proxy_enrichment_in_anonymizer_min_ratio: { type: number }
+            datacentre_enrichment_in_hosting_min_ratio: { type: number }
+            high_risk_enrichment_in_high_degree_min_ratio: { type: number }
+            region_variation:
+              type: object
+              additionalProperties: false
+              required:
+                - required_if_n_regions_ge
+                - min_delta_in_proxy_fraction
+              properties:
+                required_if_n_regions_ge: { type: integer }
+                min_delta_in_proxy_fraction: { type: number }
+        notes: { type: string }
+
+taxonomy:
+  description: "6A taxonomy inputs sealed at S0"
+  additionalProperties: false
+  properties:
+    party_taxonomy_6A:
+      $id: "#/taxonomy/party_taxonomy_6A"
+      type: object
+      description: "Party/segment/region taxonomies for 6A."
+      additionalProperties: false
+      required:
+        - schema_version
+        - taxonomy_id
+        - party_types
+        - segments
+      properties:
+        schema_version: { type: integer, const: 1 }
+        taxonomy_id: { type: string, const: taxonomy.party.v1 }
+        party_types:
+          type: array
+          items:
+            type: object
+            additionalProperties: false
+            required:
+              - id
+              - label
+              - description
+            properties:
+              id: { $ref: "#/$defs/id_token" }
+              label: { type: string }
+              description: { type: string }
+              is_business: { type: boolean }
+              notes: { type: string }
+        segments:
+          type: array
+          items:
+            type: object
+            additionalProperties: false
+            required:
+              - id
+              - party_type
+              - label
+              - description
+            properties:
+              id: { $ref: "#/$defs/id_token" }
+              party_type: { $ref: "#/$defs/id_token" }
+              label: { type: string }
+              description: { type: string }
+              family_id: { $ref: "#/$defs/id_token" }
+              group_id: { $ref: "#/$defs/id_token" }
+              tags:
+                type: array
+                items: { $ref: "#/$defs/id_token" }
+              deprecated: { type: boolean }
+              replacement_id: { $ref: "#/$defs/id_token" }
+        segment_families:
+          type: array
+          items:
+            type: object
+            additionalProperties: false
+            required:
+              - id
+              - party_type
+              - label
+              - description
+            properties:
+              id: { $ref: "#/$defs/id_token" }
+              party_type: { $ref: "#/$defs/id_token" }
+              label: { type: string }
+              description: { type: string }
+        segment_groups:
+          type: array
+          items:
+            type: object
+            additionalProperties: false
+            required:
+              - id
+              - family_id
+              - label
+              - description
+            properties:
+              id: { $ref: "#/$defs/id_token" }
+              family_id: { $ref: "#/$defs/id_token" }
+              dimension: { type: string }
+              label: { type: string }
+              description: { type: string }
+        tag_vocabulary:
+          type: array
+          items: { $ref: "#/$defs/id_token" }
+        notes: { type: string }
+    account_taxonomy_6A:
+      $id: "#/taxonomy/account_taxonomy_6A"
+      type: object
+      description: "Account/product taxonomies for 6A."
+      additionalProperties: false
+      required:
+        - schema_version
+        - taxonomy_id
+        - owner_kinds
+        - ledger_classes
+        - currency_policies
+        - product_families
+        - account_types
+      properties:
+        schema_version: { type: integer, const: 1 }
+        taxonomy_id: { type: string, const: taxonomy.account_types.v1 }
+        owner_kinds:
+          type: array
+          items: { type: string }
+        ledger_classes:
+          type: array
+          items: { type: string }
+        currency_policies:
+          type: array
+          items:
+            type: object
+            additionalProperties: false
+            required:
+              - id
+              - label
+              - description
+              - is_multi_currency
+            properties:
+              id: { $ref: "#/$defs/id_token" }
+              label: { type: string }
+              description: { type: string }
+              is_multi_currency: { type: boolean }
+              default_currency_source: { type: string }
+        product_families:
+          type: array
+          items:
+            type: object
+            additionalProperties: false
+            required:
+              - id
+              - label
+              - description
+            properties:
+              id: { $ref: "#/$defs/id_token" }
+              label: { type: string }
+              description: { type: string }
+              tier: { type: string }
+        account_types:
+          type: array
+          items:
+            type: object
+            additionalProperties: false
+            required:
+              - id
+              - label
+              - description
+              - owner_kind
+              - ledger_class
+              - product_family_id
+              - currency_policy_id
+              - requires_instrument
+            properties:
+              id: { $ref: "#/$defs/id_token" }
+              label: { type: string }
+              description: { type: string }
+              owner_kind:
+                type: string
+                enum: [PARTY, MERCHANT]
+              allowed_party_types:
+                type: array
+                items: { $ref: "#/$defs/id_token" }
+              ledger_class: { type: string }
+              product_family_id: { $ref: "#/$defs/id_token" }
+              currency_policy_id: { $ref: "#/$defs/id_token" }
+              requires_instrument: { type: boolean }
+              supports_chargeback: { type: boolean }
+              can_be_joint: { type: boolean }
+              notes: { type: string }
+        notes: { type: string }
+    instrument_taxonomy_6A:
+      $id: "#/taxonomy/instrument_taxonomy_6A"
+      type: object
+      description: "Instrument taxonomies for 6A."
+      additionalProperties: false
+      required:
+        - schema_version
+        - taxonomy_id
+        - instrument_classes
+        - schemes
+        - brand_tiers
+        - token_types
+        - identifier_types
+        - instrument_types
+      properties:
+        schema_version: { type: integer, const: 1 }
+        taxonomy_id: { type: string, const: taxonomy.instrument_types.v1 }
+        instrument_classes:
+          type: array
+          items: { type: string }
+        schemes:
+          type: array
+          items:
+            type: object
+            additionalProperties: false
+            required:
+              - id
+              - kind
+              - label
+              - description
+            properties:
+              id: { $ref: "#/$defs/id_token" }
+              kind: { type: string }
+              label: { type: string }
+              description: { type: string }
+        brand_tiers:
+          type: array
+          items:
+            type: object
+            additionalProperties: false
+            required:
+              - id
+              - label
+              - description
+            properties:
+              id: { $ref: "#/$defs/id_token" }
+              label: { type: string }
+              description: { type: string }
+        token_types:
+          type: array
+          items:
+            type: object
+            additionalProperties: false
+            required:
+              - id
+              - label
+              - description
+              - is_tokenised
+            properties:
+              id: { $ref: "#/$defs/id_token" }
+              label: { type: string }
+              description: { type: string }
+              is_tokenised: { type: boolean }
+        identifier_types:
+          type: array
+          items:
+            type: object
+            additionalProperties: false
+            required:
+              - id
+              - label
+              - description
+            properties:
+              id: { $ref: "#/$defs/id_token" }
+              label: { type: string }
+              description: { type: string }
+        instrument_types:
+          type: array
+          items:
+            type: object
+            additionalProperties: false
+            required:
+              - id
+              - instrument_class
+              - label
+              - description
+              - identifier_type
+              - is_physical
+              - is_virtual
+              - supports_chargeback
+              - supports_tokenization
+              - allowed_owner_kinds
+              - allowed_ledger_classes
+              - allowed_scheme_kinds
+              - default_scheme_kind
+            properties:
+              id: { $ref: "#/$defs/id_token" }
+              instrument_class: { type: string }
+              label: { type: string }
+              description: { type: string }
+              identifier_type: { $ref: "#/$defs/id_token" }
+              is_physical: { type: boolean }
+              is_virtual: { type: boolean }
+              supports_chargeback: { type: boolean }
+              supports_tokenization: { type: boolean }
+              allowed_owner_kinds:
+                type: array
+                items: { type: string }
+              allowed_party_types:
+                type: array
+                items: { $ref: "#/$defs/id_token" }
+              allowed_ledger_classes:
+                type: array
+                items: { type: string }
+              allowed_scheme_kinds:
+                type: array
+                items: { type: string }
+              default_scheme_kind: { type: string }
+              capability_tags:
+                type: array
+                items: { $ref: "#/$defs/id_token" }
+              allowed_token_types:
+                type: array
+                items: { $ref: "#/$defs/id_token" }
+              notes: { type: string }
+        tag_vocabulary:
+          type: array
+          items: { $ref: "#/$defs/id_token" }
+        notes: { type: string }
+    device_taxonomy_6A:
+      $id: "#/taxonomy/device_taxonomy_6A"
+      type: object
+      description: "Device taxonomies for 6A."
+      additionalProperties: false
+      required:
+        - schema_version
+        - taxonomy_id
+        - device_types
+        - os_families
+        - risk_tiers
+      properties:
+        schema_version: { type: integer, const: 1 }
+        taxonomy_id: { type: string, const: taxonomy.devices.v1 }
+        device_types:
+          type: array
+          items:
+            type: object
+            additionalProperties: false
+            required:
+              - id
+              - label
+              - description
+              - owner_kind
+              - is_mobile
+              - is_terminal
+              - allowed_os_families
+            properties:
+              id: { $ref: "#/$defs/id_token" }
+              label: { type: string }
+              description: { type: string }
+              owner_kind:
+                type: string
+                enum: [PARTY, MERCHANT, EITHER]
+              is_mobile: { type: boolean }
+              is_terminal: { type: boolean }
+              allowed_os_families:
+                type: array
+                items: { $ref: "#/$defs/id_token" }
+              allowed_ua_families:
+                type: array
+                items: { $ref: "#/$defs/id_token" }
+              default_os_family: { $ref: "#/$defs/id_token" }
+              capability_tags:
+                type: array
+                items: { $ref: "#/$defs/id_token" }
+              notes: { type: string }
+        os_families:
+          type: array
+          items:
+            type: object
+            additionalProperties: false
+            required:
+              - id
+              - label
+              - description
+            properties:
+              id: { $ref: "#/$defs/id_token" }
+              label: { type: string }
+              description: { type: string }
+              kind: { type: string }
+        ua_families:
+          type: array
+          items:
+            type: object
+            additionalProperties: false
+            required:
+              - id
+              - kind
+              - label
+              - description
+            properties:
+              id: { $ref: "#/$defs/id_token" }
+              kind: { type: string }
+              label: { type: string }
+              description: { type: string }
+        risk_tiers:
+          type: array
+          items:
+            type: object
+            additionalProperties: false
+            required:
+              - id
+              - label
+              - description
+            properties:
+              id: { $ref: "#/$defs/id_token" }
+              label: { type: string }
+              description: { type: string }
+        capability_vocabulary:
+          type: array
+          items: { $ref: "#/$defs/id_token" }
+        notes: { type: string }
+    ip_taxonomy_6A:
+      $id: "#/taxonomy/ip_taxonomy_6A"
+      type: object
+      description: "IP taxonomies for 6A."
+      additionalProperties: false
+      required:
+        - schema_version
+        - taxonomy_id
+        - ip_types
+        - asn_classes
+      properties:
+        schema_version: { type: integer, const: 1 }
+        taxonomy_id: { type: string, const: taxonomy.ips.v1 }
+        ip_types:
+          type: array
+          items:
+            type: object
+            additionalProperties: false
+            required:
+              - id
+              - label
+              - description
+            properties:
+              id: { $ref: "#/$defs/id_token" }
+              label: { type: string }
+              description: { type: string }
+              is_anonymizing: { type: boolean }
+              is_shared_infrastructure: { type: boolean }
+              notes: { type: string }
+        asn_classes:
+          type: array
+          items:
+            type: object
+            additionalProperties: false
+            required:
+              - id
+              - label
+              - description
+            properties:
+              id: { $ref: "#/$defs/id_token" }
+              label: { type: string }
+              description: { type: string }
+              kind: { type: string }
+              notes: { type: string }
+        risk_tiers:
+          type: array
+          items:
+            type: object
+            additionalProperties: false
+            required:
+              - id
+              - label
+              - description
+            properties:
+              id: { $ref: "#/$defs/id_token" }
+              label: { type: string }
+              description: { type: string }
+        risk_flags:
+          type: array
+          items:
+            type: object
+            additionalProperties: false
+            required:
+              - id
+              - label
+              - description
+            properties:
+              id: { $ref: "#/$defs/id_token" }
+              label: { type: string }
+              description: { type: string }
+        compatibility_rules:
+          type: array
+          items:
+            type: object
+            additionalProperties: false
+            required:
+              - id
+              - ip_type
+              - allowed_asn_classes
+            properties:
+              id: { $ref: "#/$defs/id_token" }
+              ip_type: { $ref: "#/$defs/id_token" }
+              allowed_asn_classes:
+                type: array
+                items: { $ref: "#/$defs/id_token" }
+        notes: { type: string }
+    fraud_role_taxonomy_6A:
+      $id: "#/taxonomy/fraud_role_taxonomy_6A"
+      type: object
+      description: "Fraud-role enum taxonomy for 6A (party/account/merchant/device/ip)."
+
+policy:
+  description: "6A policy inputs sealed at S0"
+  additionalProperties: false
+  properties:
+    validation_policy_6A:
+      $id: "#/policy/validation_policy_6A"
+      type: object
+      description: "6A.S5 validation policy/checklist (PASS/WARN/FAIL thresholds and required checks)."
+    graph_linkage_rules_6A:
+      $id: "#/policy/graph_linkage_rules_6A"
+      type: object
+      description: "6A.S4 linkage/graph rules (sharing priors + deterministic tie-break rules)."
+      additionalProperties: false
+      required:
+        - schema_version
+        - config_id
+        - config_version
+        - bindings
+        - device_groups
+        - ip_groups
+        - device_link_roles
+        - ip_link_roles
+        - device_owner_and_sharing
+        - device_access_edges
+        - device_ip_edges
+        - direct_entity_ip_edges
+        - degree_caps
+        - forbidden_combinations
+        - realism_targets
+        - acceptance_checks
+      properties:
+        schema_version: { type: integer, const: 1 }
+        config_id: { type: string, const: graph_linkage_rules_6A }
+        config_version: { type: string, const: v1 }
+        bindings:
+          type: object
+          additionalProperties: false
+          required:
+            - device_taxonomy_ref
+            - ip_taxonomy_ref
+            - account_taxonomy_ref
+            - instrument_taxonomy_ref
+            - device_counts_ref
+            - ip_counts_ref
+          properties:
+            device_taxonomy_ref: { type: string }
+            ip_taxonomy_ref: { type: string }
+            account_taxonomy_ref: { type: string }
+            instrument_taxonomy_ref: { type: string }
+            device_counts_ref: { type: string }
+            ip_counts_ref: { type: string }
+        device_groups:
+          type: object
+          additionalProperties: false
+          required:
+            - groups
+          properties:
+            groups:
+              type: array
+              items:
+                type: object
+                additionalProperties: false
+                required:
+                  - group_id
+                  - device_types
+                  - semantics
+                properties:
+                  group_id: { type: string }
+                  device_types:
+                    type: array
+                    items: { type: string }
+                  semantics: { type: string }
+            group_priority: { type: object }
+        ip_groups:
+          type: object
+          additionalProperties: false
+          required:
+            - groups
+          properties:
+            groups:
+              type: array
+              items:
+                type: object
+                additionalProperties: false
+                required:
+                  - group_id
+                  - ip_types
+                  - asn_classes
+                properties:
+                  group_id: { type: string }
+                  ip_types:
+                    type: array
+                    items: { type: string }
+                  asn_classes:
+                    type: array
+                    items: { type: string }
+        device_link_roles:
+          type: array
+          items:
+            type: object
+            additionalProperties: false
+            required:
+              - role_id
+              - description
+              - required_nonnull_fields
+              - forbidden_nonnull_fields
+              - semantic_class
+            properties:
+              role_id: { type: string }
+              description: { type: string }
+              required_nonnull_fields:
+                type: array
+                items: { type: string }
+              forbidden_nonnull_fields:
+                type: array
+                items: { type: string }
+              semantic_class: { type: string }
+        ip_link_roles:
+          type: array
+          items:
+            type: object
+            additionalProperties: false
+            required:
+              - role_id
+              - description
+              - required_nonnull_fields
+              - forbidden_nonnull_fields
+              - semantic_class
+            properties:
+              role_id: { type: string }
+              description: { type: string }
+              required_nonnull_fields:
+                type: array
+                items: { type: string }
+              forbidden_nonnull_fields:
+                type: array
+                items: { type: string }
+              semantic_class: { type: string }
+        device_owner_and_sharing:
+          type: object
+          additionalProperties: false
+          required:
+            - owner_kind_by_group
+            - p_shared_by_group
+            - parties_per_shared_device
+          properties:
+            owner_kind_by_group: { type: object }
+            p_shared_by_group: { type: object }
+            parties_per_shared_device: { type: object }
+        device_access_edges:
+          type: object
+          additionalProperties: false
+          required:
+            - account_edges_per_device_by_group
+            - instrument_edges_per_device_by_group
+            - selection_scope
+          properties:
+            account_edges_per_device_by_group: { type: object }
+            instrument_edges_per_device_by_group: { type: object }
+            selection_scope: { type: string }
+        device_ip_edges:
+          type: object
+          additionalProperties: false
+          required:
+            - edge_roles_by_group
+            - role_to_allowed_ip_groups
+          properties:
+            edge_roles_by_group: { type: object }
+            role_to_allowed_ip_groups: { type: object }
+            role_allocation_rule: { type: string }
+        direct_entity_ip_edges:
+          type: object
+          additionalProperties: false
+          required:
+            - direct_party_ip_edges
+            - direct_merchant_ip_edges
+          properties:
+            direct_party_ip_edges:
+              type: object
+              additionalProperties: true
+              required:
+                - enabled
+              properties:
+                enabled: { type: boolean }
+            direct_merchant_ip_edges:
+              type: object
+              additionalProperties: true
+              required:
+                - enabled
+              properties:
+                enabled: { type: boolean }
+        degree_caps:
+          type: object
+          additionalProperties: false
+          required:
+            - per_device_by_group
+            - per_ip_by_group
+            - per_entity_global
+          properties:
+            per_device_by_group: { type: object }
+            per_ip_by_group: { type: object }
+            per_entity_global: { type: object }
+        forbidden_combinations:
+          type: array
+          items:
+            type: object
+            additionalProperties: false
+            required:
+              - rule_id
+              - when
+              - forbid
+            properties:
+              rule_id: { type: string }
+              when: { type: object }
+              forbid: { type: object }
+        realism_targets:
+          type: object
+          additionalProperties: true
+        acceptance_checks:
+          type: object
+          additionalProperties: true
+        notes: { type: string }
+    device_linkage_rules_6A:
+      $id: "#/policy/device_linkage_rules_6A"
+      type: object
+      description: "6A.S4 device linkage rules (device sharing constraints and caps)."
+      additionalProperties: false
+      required:
+        - schema_version
+        - config_id
+        - config_version
+        - bindings
+        - device_groups
+        - link_role_vocabulary
+        - owner_policy
+        - sharing_policy
+        - access_policy
+        - degree_caps
+        - forbidden_combinations
+        - realism_targets
+        - acceptance_checks
+      properties:
+        schema_version: { type: integer, const: 1 }
+        config_id: { type: string, const: device_linkage_rules_6A }
+        config_version: { type: string, const: v1 }
+        bindings:
+          type: object
+          additionalProperties: false
+          required:
+            - party_taxonomy_ref
+            - account_taxonomy_ref
+            - instrument_taxonomy_ref
+            - device_taxonomy_ref
+          properties:
+            party_taxonomy_ref: { type: string }
+            account_taxonomy_ref: { type: string }
+            instrument_taxonomy_ref: { type: string }
+            device_taxonomy_ref: { type: string }
+        device_groups:
+          type: object
+          additionalProperties: false
+          required:
+            - groups
+          properties:
+            groups:
+              type: array
+              items:
+                type: object
+                additionalProperties: false
+                required:
+                  - group_id
+                  - device_types
+                  - semantics
+                properties:
+                  group_id: { type: string }
+                  device_types:
+                    type: array
+                    items: { type: string }
+                  semantics: { type: string }
+            device_type_to_group: { type: object }
+            group_priority: { type: object }
+        link_role_vocabulary:
+          type: array
+          items:
+            type: object
+            additionalProperties: false
+            required:
+              - role_id
+              - label
+              - description
+              - required_nonnull_fields
+              - allowed_field_patterns
+            properties:
+              role_id: { type: string }
+              label: { type: string }
+              description: { type: string }
+              required_nonnull_fields:
+                type: array
+                items: { type: string }
+              allowed_field_patterns:
+                type: array
+                items:
+                  type: object
+                  additionalProperties: false
+                  required:
+                    - pattern_id
+                    - party_id
+                    - account_id
+                    - instrument_id
+                    - merchant_id
+                  properties:
+                    pattern_id: { type: string }
+                    party_id:
+                      type: string
+                      enum: [REQUIRED, FORBIDDEN, OPTIONAL]
+                    account_id:
+                      type: string
+                      enum: [REQUIRED, FORBIDDEN, OPTIONAL]
+                    instrument_id:
+                      type: string
+                      enum: [REQUIRED, FORBIDDEN, OPTIONAL]
+                    merchant_id:
+                      type: string
+                      enum: [REQUIRED, FORBIDDEN, OPTIONAL]
+        owner_policy:
+          type: object
+          additionalProperties: false
+          required:
+            - owner_kind_by_group
+            - primary_owner_role_id
+            - selection_scope
+          properties:
+            owner_kind_by_group: { type: object }
+            primary_owner_role_id: { type: string }
+            selection_scope: { type: string }
+        sharing_policy:
+          type: object
+          additionalProperties: false
+          required:
+            - p_shared_by_group
+            - shared_party_count_model_by_group
+          properties:
+            p_shared_by_group: { type: object }
+            shared_party_count_model_by_group: { type: object }
+        access_policy:
+          type: object
+          additionalProperties: false
+          required:
+            - accounts_per_device_by_group
+            - account_selection_scope
+            - instruments_per_device_by_group
+            - instrument_selection_scope
+          properties:
+            accounts_per_device_by_group: { type: object }
+            account_selection_scope: { type: string }
+            instruments_per_device_by_group: { type: object }
+            instrument_selection_scope: { type: string }
+        degree_caps:
+          type: object
+          additionalProperties: false
+          required:
+            - per_device_by_group
+            - per_entity_global
+          properties:
+            per_device_by_group: { type: object }
+            per_entity_global: { type: object }
+        forbidden_combinations:
+          type: array
+          items:
+            type: object
+            additionalProperties: false
+            required:
+              - rule_id
+              - when
+              - forbid
+            properties:
+              rule_id: { type: string }
+              when: { type: object }
+              forbid: { type: object }
+        realism_targets:
+          type: object
+          additionalProperties: true
+        acceptance_checks:
+          type: object
+          additionalProperties: true
+        notes: { type: string }
+    product_linkage_rules_6A:
+      $id: "#/policy/product_linkage_rules_6A"
+      type: object
+      description: "Optional 6A.S2 product linkage rules (account/product wiring constraints)."
+    product_eligibility_config_6A:
+      $id: "#/policy/product_eligibility_config_6A"
+      type: object
+      description: "Optional 6A.S2 product eligibility config (admissibility rules)."
+    instrument_linkage_rules_6A:
+      $id: "#/policy/instrument_linkage_rules_6A"
+      type: object
+      description: "Optional 6A.S3 instrument linkage rules (ownership constraints)."
+
+s1:
+  description: "State 6A.S1 outputs"
+  additionalProperties: false
+  properties:
+    party_base:
+      $id: "#/s1/party_base"
+      type: object
+      description: "Party/customer base row for 6A"
+      additionalProperties: false
+      required:
+        - party_id
+        - party_type
+        - segment_id
+        - region_id
+        - country_iso
+        - seed
+        - manifest_fingerprint
+        - parameter_hash
+      properties:
+        party_id: { type: integer }
+        party_type: { type: string }
+        segment_id: { type: string }
+        region_id: { type: string }
+        country_iso: { type: string }
+        seed: { type: integer }
+        manifest_fingerprint: { $ref: "#/$defs/hex64" }
+        parameter_hash: { $ref: "#/$defs/hex64" }
+    party_summary:
+      $id: "#/s1/party_summary"
+      type: object
+      description: "Party-level diagnostic summary row (optional)"
+      additionalProperties: false
+      required:
+        - country_iso
+        - region_id
+        - party_type
+        - segment_id
+        - party_count
+      properties:
+        country_iso: { type: string }
+        region_id: { type: string }
+        party_type: { type: string }
+        segment_id: { type: string }
+        party_count: { type: integer }
+
+s2:
+  description: "State 6A.S2 outputs"
+  additionalProperties: false
+  properties:
+    account_base:
+      $id: "#/s2/account_base"
+      type: object
+      description: "Account/product base row"
+      additionalProperties: false
+      required:
+        - account_id
+        - owner_party_id
+        - account_type
+        - party_type
+        - segment_id
+        - region_id
+        - country_iso
+        - seed
+        - manifest_fingerprint
+        - parameter_hash
+      properties:
+        account_id: { type: integer }
+        owner_party_id: { type: integer }
+        account_type: { type: string }
+        party_type: { type: string }
+        segment_id: { type: string }
+        region_id: { type: string }
+        country_iso: { type: string }
+        seed: { type: integer }
+        manifest_fingerprint: { $ref: "#/$defs/hex64" }
+        parameter_hash: { $ref: "#/$defs/hex64" }
+    party_product_holdings:
+      $id: "#/s2/party_product_holdings"
+      type: object
+      description: "Per-party holdings row"
+      additionalProperties: false
+      required:
+        - owner_party_id
+        - account_type
+        - account_count
+      properties:
+        owner_party_id: { type: integer }
+        account_type: { type: string }
+        account_count: { type: integer }
+    merchant_account_base:
+      $id: "#/s2/merchant_account_base"
+      type: object
+      description: "Merchant-account subset (optional)"
+      additionalProperties: false
+      required:
+        - account_id
+        - owner_party_id
+        - account_type
+        - party_type
+        - segment_id
+        - region_id
+        - country_iso
+      properties:
+        account_id: { type: integer }
+        owner_party_id: { type: integer }
+        account_type: { type: string }
+        party_type: { type: string }
+        segment_id: { type: string }
+        region_id: { type: string }
+        country_iso: { type: string }
+        merchant_id: { type: ["null", "integer"] }
+        seed: { type: integer }
+        manifest_fingerprint: { $ref: "#/$defs/hex64" }
+        parameter_hash: { $ref: "#/$defs/hex64" }
+    account_summary:
+      $id: "#/s2/account_summary"
+      type: object
+      description: "Account summary / diagnostics (optional)"
+      additionalProperties: false
+      required:
+        - country_iso
+        - region_id
+        - party_type
+        - account_type
+        - account_count
+      properties:
+        country_iso: { type: string }
+        region_id: { type: string }
+        party_type: { type: string }
+        account_type: { type: string }
+        account_count: { type: integer }
+
+s3:
+  description: "State 6A.S3 outputs"
+  additionalProperties: false
+  properties:
+    instrument_base:
+      $id: "#/s3/instrument_base"
+      type: object
+      description: "Instrument/payment-credential base row"
+      additionalProperties: false
+      required:
+        - instrument_id
+        - account_id
+        - owner_party_id
+        - instrument_type
+        - scheme
+        - seed
+        - manifest_fingerprint
+        - parameter_hash
+      properties:
+        instrument_id: { type: integer }
+        account_id: { type: integer }
+        owner_party_id: { type: integer }
+        instrument_type: { type: string }
+        scheme: { type: string }
+        seed: { type: integer }
+        manifest_fingerprint: { $ref: "#/$defs/hex64" }
+        parameter_hash: { $ref: "#/$defs/hex64" }
+    account_instrument_links:
+      $id: "#/s3/account_instrument_links"
+      type: object
+      description: "Per-account instrument linkage row"
+      additionalProperties: false
+      required:
+        - account_id
+        - instrument_id
+        - instrument_type
+        - scheme
+      properties:
+        account_id: { type: integer }
+        instrument_id: { type: integer }
+        instrument_type: { type: string }
+        scheme: { type: string }
+    party_instrument_holdings:
+      $id: "#/s3/party_instrument_holdings"
+      type: object
+      description: "Per-party instrument holdings row (optional)"
+      additionalProperties: false
+      required:
+        - owner_party_id
+        - instrument_type
+        - scheme
+        - instrument_count
+      properties:
+        owner_party_id: { type: integer }
+        instrument_type: { type: string }
+        scheme: { type: string }
+        instrument_count: { type: integer }
+    instrument_summary:
+      $id: "#/s3/instrument_summary"
+      type: object
+      description: "Instrument diagnostics row (optional)"
+      additionalProperties: false
+      required:
+        - instrument_type
+        - scheme
+        - instrument_count
+      properties:
+        instrument_type: { type: string }
+        scheme: { type: string }
+        instrument_count: { type: integer }
+
+s4:
+  description: "State 6A.S4 outputs"
+  additionalProperties: false
+  properties:
+    device_base:
+      $id: "#/s4/device_base"
+      type: object
+      description: "Device base row"
+      additionalProperties: false
+      required:
+        - device_id
+        - device_type
+        - os_family
+        - primary_party_id
+        - home_region_id
+        - home_country_iso
+        - manifest_fingerprint
+        - parameter_hash
+        - seed
+      properties:
+        device_id: { type: integer }
+        device_type: { type: string }
+        os_family: { type: string }
+        primary_party_id: { type: integer }
+        home_region_id: { type: string }
+        home_country_iso: { type: string }
+        manifest_fingerprint: { $ref: "#/$defs/hex64" }
+        parameter_hash: { $ref: "#/$defs/hex64" }
+        seed: { type: integer }
+    ip_base:
+      $id: "#/s4/ip_base"
+      type: object
+      description: "IP/endpoint base row"
+      additionalProperties: false
+      required:
+        - ip_id
+        - ip_type
+        - asn_class
+        - country_iso
+        - manifest_fingerprint
+        - parameter_hash
+        - seed
+      properties:
+        ip_id: { type: integer }
+        ip_type: { type: string }
+        asn_class: { type: string }
+        country_iso: { type: string }
+        manifest_fingerprint: { $ref: "#/$defs/hex64" }
+        parameter_hash: { $ref: "#/$defs/hex64" }
+        seed: { type: integer }
+    device_links:
+      $id: "#/s4/device_links"
+      type: object
+      description: "Device-to-entity edge row"
+      additionalProperties: false
+      required:
+        - device_id
+        - link_role
+        - manifest_fingerprint
+        - parameter_hash
+        - seed
+      properties:
+        device_id: { type: integer }
+        party_id: { type: ["null", "integer"] }
+        account_id: { type: ["null", "integer"] }
+        instrument_id: { type: ["null", "integer"] }
+        link_role: { type: string }
+        manifest_fingerprint: { $ref: "#/$defs/hex64" }
+        parameter_hash: { $ref: "#/$defs/hex64" }
+        seed: { type: integer }
+    ip_links:
+      $id: "#/s4/ip_links"
+      type: object
+      description: "IP-to-entity edge row"
+      additionalProperties: false
+      required:
+        - ip_id
+        - device_id
+        - party_id
+        - link_role
+        - manifest_fingerprint
+        - parameter_hash
+        - seed
+      properties:
+        ip_id: { type: integer }
+        device_id: { type: integer }
+        party_id: { type: integer }
+        link_role: { type: string }
+        manifest_fingerprint: { $ref: "#/$defs/hex64" }
+        parameter_hash: { $ref: "#/$defs/hex64" }
+        seed: { type: integer }
+    entity_neighbourhoods:
+      $id: "#/s4/entity_neighbourhoods"
+      type: object
+      description: "Per-entity graph neighbourhood row (optional)"
+      additionalProperties: false
+      required:
+        - party_id
+        - device_count
+        - ip_count
+      properties:
+        party_id: { type: integer }
+        device_count: { type: integer }
+        ip_count: { type: integer }
+    network_summary:
+      $id: "#/s4/network_summary"
+      type: object
+      description: "Graph diagnostics row (optional)"
+      additionalProperties: false
+      required:
+        - devices_total
+        - ips_total
+        - device_links_total
+        - ip_links_total
+      properties:
+        devices_total: { type: integer }
+        ips_total: { type: integer }
+        device_links_total: { type: integer }
+        ip_links_total: { type: integer }
+
+s5:
+  description: "State 6A.S5 outputs"
+  additionalProperties: false
+  properties:
+    party_fraud_roles:
+      $id: "#/s5/party_fraud_roles"
+      type: object
+      description: "Fraud posture row for a party"
+      additionalProperties: false
+      required:
+        - party_id
+        - fraud_role_party
+        - risk_tier
+        - seed
+        - manifest_fingerprint
+        - parameter_hash
+      properties:
+        party_id: { type: integer }
+        fraud_role_party: { type: string }
+        risk_tier: { type: string }
+        seed: { type: integer }
+        manifest_fingerprint: { $ref: "#/$defs/hex64" }
+        parameter_hash: { $ref: "#/$defs/hex64" }
+    account_fraud_roles:
+      $id: "#/s5/account_fraud_roles"
+      type: object
+      description: "Fraud posture row for an account"
+      additionalProperties: false
+      required:
+        - account_id
+        - fraud_role_account
+        - risk_tier
+        - seed
+        - manifest_fingerprint
+        - parameter_hash
+      properties:
+        account_id: { type: integer }
+        fraud_role_account: { type: string }
+        risk_tier: { type: string }
+        seed: { type: integer }
+        manifest_fingerprint: { $ref: "#/$defs/hex64" }
+        parameter_hash: { $ref: "#/$defs/hex64" }
+    merchant_fraud_roles:
+      $id: "#/s5/merchant_fraud_roles"
+      type: object
+      description: "Fraud posture row for a merchant"
+      additionalProperties: false
+      required:
+        - merchant_id
+        - fraud_role_merchant
+        - risk_tier
+        - seed
+        - manifest_fingerprint
+        - parameter_hash
+      properties:
+        merchant_id: { type: integer }
+        fraud_role_merchant: { type: string }
+        risk_tier: { type: string }
+        seed: { type: integer }
+        manifest_fingerprint: { $ref: "#/$defs/hex64" }
+        parameter_hash: { $ref: "#/$defs/hex64" }
+    device_fraud_roles:
+      $id: "#/s5/device_fraud_roles"
+      type: object
+      description: "Fraud posture row for a device"
+      additionalProperties: false
+      required:
+        - device_id
+        - fraud_role_device
+        - risk_tier
+        - seed
+        - manifest_fingerprint
+        - parameter_hash
+      properties:
+        device_id: { type: integer }
+        fraud_role_device: { type: string }
+        risk_tier: { type: string }
+        seed: { type: integer }
+        manifest_fingerprint: { $ref: "#/$defs/hex64" }
+        parameter_hash: { $ref: "#/$defs/hex64" }
+    ip_fraud_roles:
+      $id: "#/s5/ip_fraud_roles"
+      type: object
+      description: "Fraud posture row for an IP"
+      additionalProperties: false
+      required:
+        - ip_id
+        - fraud_role_ip
+        - risk_tier
+        - seed
+        - manifest_fingerprint
+        - parameter_hash
+      properties:
+        ip_id: { type: integer }
+        fraud_role_ip: { type: string }
+        risk_tier: { type: string }
+        seed: { type: integer }
+        manifest_fingerprint: { $ref: "#/$defs/hex64" }
+        parameter_hash: { $ref: "#/$defs/hex64" }

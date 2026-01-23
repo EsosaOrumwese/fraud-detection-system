@@ -1,0 +1,1307 @@
+version: v1.0.0
+floors:
+  - tzid: Africa/Abidjan
+    floor_value: 0.12532
+    bump_threshold: 0.6
+  - tzid: Africa/Accra
+    floor_value: 0.092083
+    bump_threshold: 0
+  - tzid: Africa/Addis_Ababa
+    floor_value: 0.129127
+    bump_threshold: 0.6
+  - tzid: Africa/Algiers
+    floor_value: 0.129127
+    bump_threshold: 0.6
+  - tzid: Africa/Asmara
+    floor_value: 0.092083
+    bump_threshold: 0
+  - tzid: Africa/Bamako
+    floor_value: 0.132385
+    bump_threshold: 0.6
+  - tzid: Africa/Bangui
+    floor_value: 0.129127
+    bump_threshold: 0.6
+  - tzid: Africa/Banjul
+    floor_value: 0.077817
+    bump_threshold: 0
+  - tzid: Africa/Bissau
+    floor_value: 0.08618
+    bump_threshold: 0
+  - tzid: Africa/Blantyre
+    floor_value: 0.092083
+    bump_threshold: 0
+  - tzid: Africa/Brazzaville
+    floor_value: 0.12532
+    bump_threshold: 0.6
+  - tzid: Africa/Bujumbura
+    floor_value: 0.092083
+    bump_threshold: 0
+  - tzid: Africa/Cairo
+    floor_value: 0.120759
+    bump_threshold: 0.6
+  - tzid: Africa/Casablanca
+    floor_value: 0.08618
+    bump_threshold: 0
+  - tzid: Africa/Ceuta
+    floor_value: 0.077817
+    bump_threshold: 0
+  - tzid: Africa/Conakry
+    floor_value: 0.129127
+    bump_threshold: 0.6
+  - tzid: Africa/Dakar
+    floor_value: 0.12532
+    bump_threshold: 0.6
+  - tzid: Africa/Dar_es_Salaam
+    floor_value: 0.135225
+    bump_threshold: 0.6
+  - tzid: Africa/Djibouti
+    floor_value: 0.08618
+    bump_threshold: 0
+  - tzid: Africa/Douala
+    floor_value: 0.129127
+    bump_threshold: 0.6
+  - tzid: Africa/El_Aaiun
+    floor_value: 0.092083
+    bump_threshold: 0
+  - tzid: Africa/Freetown
+    floor_value: 0.08618
+    bump_threshold: 0
+  - tzid: Africa/Gaborone
+    floor_value: 0.120759
+    bump_threshold: 0.6
+  - tzid: Africa/Harare
+    floor_value: 0.120759
+    bump_threshold: 0.6
+  - tzid: Africa/Johannesburg
+    floor_value: 0.132385
+    bump_threshold: 0.6
+  - tzid: Africa/Juba
+    floor_value: 0.129127
+    bump_threshold: 0.6
+  - tzid: Africa/Kampala
+    floor_value: 0.12532
+    bump_threshold: 0.6
+  - tzid: Africa/Khartoum
+    floor_value: 0.132385
+    bump_threshold: 0.6
+  - tzid: Africa/Kigali
+    floor_value: 0.120759
+    bump_threshold: 0.6
+  - tzid: Africa/Kinshasa
+    floor_value: 0.092083
+    bump_threshold: 0
+  - tzid: Africa/Lagos
+    floor_value: 0.120759
+    bump_threshold: 0.6
+  - tzid: Africa/Libreville
+    floor_value: 0.092083
+    bump_threshold: 0
+  - tzid: Africa/Lome
+    floor_value: 0.092083
+    bump_threshold: 0
+  - tzid: Africa/Luanda
+    floor_value: 0.120759
+    bump_threshold: 0.6
+  - tzid: Africa/Lubumbashi
+    floor_value: 0.135225
+    bump_threshold: 0.6
+  - tzid: Africa/Lusaka
+    floor_value: 0.132385
+    bump_threshold: 0.6
+  - tzid: Africa/Malabo
+    floor_value: 0.08618
+    bump_threshold: 0
+  - tzid: Africa/Maputo
+    floor_value: 0.129127
+    bump_threshold: 0.6
+  - tzid: Africa/Maseru
+    floor_value: 0.077817
+    bump_threshold: 0
+  - tzid: Africa/Mbabane
+    floor_value: 0.08618
+    bump_threshold: 0
+  - tzid: Africa/Mogadishu
+    floor_value: 0.077817
+    bump_threshold: 0
+  - tzid: Africa/Monrovia
+    floor_value: 0.092083
+    bump_threshold: 0
+  - tzid: Africa/Nairobi
+    floor_value: 0.12532
+    bump_threshold: 0.6
+  - tzid: Africa/Ndjamena
+    floor_value: 0.12532
+    bump_threshold: 0.6
+  - tzid: Africa/Niamey
+    floor_value: 0.132385
+    bump_threshold: 0.6
+  - tzid: Africa/Nouakchott
+    floor_value: 0.120759
+    bump_threshold: 0.6
+  - tzid: Africa/Ouagadougou
+    floor_value: 0.129127
+    bump_threshold: 0.6
+  - tzid: Africa/Porto-Novo
+    floor_value: 0.120759
+    bump_threshold: 0.6
+  - tzid: Africa/Sao_Tome
+    floor_value: 0.063868
+    bump_threshold: 0
+  - tzid: Africa/Tripoli
+    floor_value: 0.129127
+    bump_threshold: 0.6
+  - tzid: Africa/Tunis
+    floor_value: 0.08618
+    bump_threshold: 0
+  - tzid: Africa/Windhoek
+    floor_value: 0.120759
+    bump_threshold: 0.6
+  - tzid: America/Adak
+    floor_value: 0.063868
+    bump_threshold: 0
+  - tzid: America/Anchorage
+    floor_value: 0.077817
+    bump_threshold: 0
+  - tzid: America/Anguilla
+    floor_value: 0.063868
+    bump_threshold: 0
+  - tzid: America/Antigua
+    floor_value: 0.063868
+    bump_threshold: 0
+  - tzid: America/Araguaina
+    floor_value: 0.063868
+    bump_threshold: 0
+  - tzid: America/Argentina/Buenos_Aires
+    floor_value: 0.063868
+    bump_threshold: 0
+  - tzid: America/Argentina/Catamarca
+    floor_value: 0.077817
+    bump_threshold: 0
+  - tzid: America/Argentina/Cordoba
+    floor_value: 0.092083
+    bump_threshold: 0
+  - tzid: America/Argentina/Jujuy
+    floor_value: 0.077817
+    bump_threshold: 0
+  - tzid: America/Argentina/La_Rioja
+    floor_value: 0.077817
+    bump_threshold: 0
+  - tzid: America/Argentina/Mendoza
+    floor_value: 0.077817
+    bump_threshold: 0
+  - tzid: America/Argentina/Rio_Gallegos
+    floor_value: 0.077817
+    bump_threshold: 0
+  - tzid: America/Argentina/Salta
+    floor_value: 0.092083
+    bump_threshold: 0
+  - tzid: America/Argentina/San_Juan
+    floor_value: 0.077817
+    bump_threshold: 0
+  - tzid: America/Argentina/San_Luis
+    floor_value: 0.063868
+    bump_threshold: 0
+  - tzid: America/Argentina/Tucuman
+    floor_value: 0.063868
+    bump_threshold: 0
+  - tzid: America/Argentina/Ushuaia
+    floor_value: 0.08618
+    bump_threshold: 0
+  - tzid: America/Aruba
+    floor_value: 0.063868
+    bump_threshold: 0
+  - tzid: America/Asuncion
+    floor_value: 0.092083
+    bump_threshold: 0
+  - tzid: America/Atikokan
+    floor_value: 0.077817
+    bump_threshold: 0
+  - tzid: America/Bahia
+    floor_value: 0.063868
+    bump_threshold: 0
+  - tzid: America/Bahia_Banderas
+    floor_value: 0.063868
+    bump_threshold: 0
+  - tzid: America/Barbados
+    floor_value: 0.063868
+    bump_threshold: 0
+  - tzid: America/Belem
+    floor_value: 0.08618
+    bump_threshold: 0
+  - tzid: America/Belize
+    floor_value: 0.08618
+    bump_threshold: 0
+  - tzid: America/Blanc-Sablon
+    floor_value: 0.063868
+    bump_threshold: 0
+  - tzid: America/Boa_Vista
+    floor_value: 0.08618
+    bump_threshold: 0
+  - tzid: America/Bogota
+    floor_value: 0.12532
+    bump_threshold: 0.6
+  - tzid: America/Boise
+    floor_value: 0.063868
+    bump_threshold: 0
+  - tzid: America/Cambridge_Bay
+    floor_value: 0.063868
+    bump_threshold: 0
+  - tzid: America/Campo_Grande
+    floor_value: 0.08618
+    bump_threshold: 0
+  - tzid: America/Cancun
+    floor_value: 0.077817
+    bump_threshold: 0
+  - tzid: America/Caracas
+    floor_value: 0.092083
+    bump_threshold: 0
+  - tzid: America/Cayenne
+    floor_value: 0.092083
+    bump_threshold: 0
+  - tzid: America/Cayman
+    floor_value: 0.063868
+    bump_threshold: 0
+  - tzid: America/Chicago
+    floor_value: 0.08618
+    bump_threshold: 0
+  - tzid: America/Chihuahua
+    floor_value: 0.063868
+    bump_threshold: 0
+  - tzid: America/Ciudad_Juarez
+    floor_value: 0.077817
+    bump_threshold: 0
+  - tzid: America/Costa_Rica
+    floor_value: 0.08618
+    bump_threshold: 0
+  - tzid: America/Creston
+    floor_value: 0.063868
+    bump_threshold: 0
+  - tzid: America/Cuiaba
+    floor_value: 0.077817
+    bump_threshold: 0
+  - tzid: America/Curacao
+    floor_value: 0.077817
+    bump_threshold: 0
+  - tzid: America/Danmarkshavn
+    floor_value: 0.063868
+    bump_threshold: 0
+  - tzid: America/Dawson
+    floor_value: 0.077817
+    bump_threshold: 0
+  - tzid: America/Dawson_Creek
+    floor_value: 0.063868
+    bump_threshold: 0
+  - tzid: America/Denver
+    floor_value: 0.08618
+    bump_threshold: 0
+  - tzid: America/Detroit
+    floor_value: 0.077817
+    bump_threshold: 0
+  - tzid: America/Dominica
+    floor_value: 0.063868
+    bump_threshold: 0
+  - tzid: America/Edmonton
+    floor_value: 0.063868
+    bump_threshold: 0
+  - tzid: America/Eirunepe
+    floor_value: 0.077817
+    bump_threshold: 0
+  - tzid: America/El_Salvador
+    floor_value: 0.08618
+    bump_threshold: 0
+  - tzid: America/Fort_Nelson
+    floor_value: 0.063868
+    bump_threshold: 0
+  - tzid: America/Fortaleza
+    floor_value: 0.063868
+    bump_threshold: 0
+  - tzid: America/Glace_Bay
+    floor_value: 0.063868
+    bump_threshold: 0
+  - tzid: America/Goose_Bay
+    floor_value: 0.063868
+    bump_threshold: 0
+  - tzid: America/Grand_Turk
+    floor_value: 0.063868
+    bump_threshold: 0
+  - tzid: America/Grenada
+    floor_value: 0.063868
+    bump_threshold: 0
+  - tzid: America/Guadeloupe
+    floor_value: 0.077817
+    bump_threshold: 0
+  - tzid: America/Guatemala
+    floor_value: 0.120759
+    bump_threshold: 0.6
+  - tzid: America/Guayaquil
+    floor_value: 0.08618
+    bump_threshold: 0
+  - tzid: America/Guyana
+    floor_value: 0.092083
+    bump_threshold: 0
+  - tzid: America/Halifax
+    floor_value: 0.063868
+    bump_threshold: 0
+  - tzid: America/Havana
+    floor_value: 0.063868
+    bump_threshold: 0
+  - tzid: America/Hermosillo
+    floor_value: 0.077817
+    bump_threshold: 0
+  - tzid: America/Indiana/Indianapolis
+    floor_value: 0.063868
+    bump_threshold: 0
+  - tzid: America/Indiana/Knox
+    floor_value: 0.063868
+    bump_threshold: 0
+  - tzid: America/Indiana/Marengo
+    floor_value: 0.063868
+    bump_threshold: 0
+  - tzid: America/Indiana/Petersburg
+    floor_value: 0.063868
+    bump_threshold: 0
+  - tzid: America/Indiana/Tell_City
+    floor_value: 0.063868
+    bump_threshold: 0
+  - tzid: America/Indiana/Vevay
+    floor_value: 0.063868
+    bump_threshold: 0
+  - tzid: America/Indiana/Vincennes
+    floor_value: 0.063868
+    bump_threshold: 0
+  - tzid: America/Indiana/Winamac
+    floor_value: 0.063868
+    bump_threshold: 0
+  - tzid: America/Inuvik
+    floor_value: 0.063868
+    bump_threshold: 0
+  - tzid: America/Iqaluit
+    floor_value: 0.063868
+    bump_threshold: 0
+  - tzid: America/Jamaica
+    floor_value: 0.063868
+    bump_threshold: 0
+  - tzid: America/Juneau
+    floor_value: 0.077817
+    bump_threshold: 0
+  - tzid: America/Kentucky/Louisville
+    floor_value: 0.063868
+    bump_threshold: 0
+  - tzid: America/Kentucky/Monticello
+    floor_value: 0.063868
+    bump_threshold: 0
+  - tzid: America/Kralendijk
+    floor_value: 0.077817
+    bump_threshold: 0
+  - tzid: America/La_Paz
+    floor_value: 0.12532
+    bump_threshold: 0.6
+  - tzid: America/Lima
+    floor_value: 0.12532
+    bump_threshold: 0.6
+  - tzid: America/Los_Angeles
+    floor_value: 0.077817
+    bump_threshold: 0
+  - tzid: America/Lower_Princes
+    floor_value: 0.077817
+    bump_threshold: 0
+  - tzid: America/Maceio
+    floor_value: 0.063868
+    bump_threshold: 0
+  - tzid: America/Managua
+    floor_value: 0.08618
+    bump_threshold: 0
+  - tzid: America/Manaus
+    floor_value: 0.08618
+    bump_threshold: 0
+  - tzid: America/Marigot
+    floor_value: 0.077817
+    bump_threshold: 0
+  - tzid: America/Martinique
+    floor_value: 0.077817
+    bump_threshold: 0
+  - tzid: America/Matamoros
+    floor_value: 0.077817
+    bump_threshold: 0
+  - tzid: America/Mazatlan
+    floor_value: 0.063868
+    bump_threshold: 0
+  - tzid: America/Menominee
+    floor_value: 0.063868
+    bump_threshold: 0
+  - tzid: America/Merida
+    floor_value: 0.08618
+    bump_threshold: 0
+  - tzid: America/Metlakatla
+    floor_value: 0.063868
+    bump_threshold: 0
+  - tzid: America/Mexico_City
+    floor_value: 0.077817
+    bump_threshold: 0
+  - tzid: America/Miquelon
+    floor_value: 0.063868
+    bump_threshold: 0
+  - tzid: America/Moncton
+    floor_value: 0.077817
+    bump_threshold: 0
+  - tzid: America/Monterrey
+    floor_value: 0.063868
+    bump_threshold: 0
+  - tzid: America/Montevideo
+    floor_value: 0.08618
+    bump_threshold: 0
+  - tzid: America/Montserrat
+    floor_value: 0.063868
+    bump_threshold: 0
+  - tzid: America/Nassau
+    floor_value: 0.063868
+    bump_threshold: 0
+  - tzid: America/New_York
+    floor_value: 0.08618
+    bump_threshold: 0
+  - tzid: America/Nome
+    floor_value: 0.063868
+    bump_threshold: 0
+  - tzid: America/Noronha
+    floor_value: 0.063868
+    bump_threshold: 0
+  - tzid: America/North_Dakota/Beulah
+    floor_value: 0.063868
+    bump_threshold: 0
+  - tzid: America/North_Dakota/Center
+    floor_value: 0.063868
+    bump_threshold: 0
+  - tzid: America/North_Dakota/New_Salem
+    floor_value: 0.063868
+    bump_threshold: 0
+  - tzid: America/Nuuk
+    floor_value: 0.063868
+    bump_threshold: 0
+  - tzid: America/Ojinaga
+    floor_value: 0.077817
+    bump_threshold: 0
+  - tzid: America/Panama
+    floor_value: 0.08618
+    bump_threshold: 0
+  - tzid: America/Paramaribo
+    floor_value: 0.092083
+    bump_threshold: 0
+  - tzid: America/Phoenix
+    floor_value: 0.077817
+    bump_threshold: 0
+  - tzid: America/Port-au-Prince
+    floor_value: 0.08618
+    bump_threshold: 0
+  - tzid: America/Port_of_Spain
+    floor_value: 0.063868
+    bump_threshold: 0
+  - tzid: America/Porto_Velho
+    floor_value: 0.077817
+    bump_threshold: 0
+  - tzid: America/Puerto_Rico
+    floor_value: 0.063868
+    bump_threshold: 0
+  - tzid: America/Punta_Arenas
+    floor_value: 0.08618
+    bump_threshold: 0
+  - tzid: America/Rankin_Inlet
+    floor_value: 0.063868
+    bump_threshold: 0
+  - tzid: America/Recife
+    floor_value: 0.063868
+    bump_threshold: 0
+  - tzid: America/Regina
+    floor_value: 0.063868
+    bump_threshold: 0
+  - tzid: America/Resolute
+    floor_value: 0.063868
+    bump_threshold: 0
+  - tzid: America/Rio_Branco
+    floor_value: 0.08618
+    bump_threshold: 0
+  - tzid: America/Santarem
+    floor_value: 0.08618
+    bump_threshold: 0
+  - tzid: America/Santiago
+    floor_value: 0.092083
+    bump_threshold: 0
+  - tzid: America/Santo_Domingo
+    floor_value: 0.077817
+    bump_threshold: 0
+  - tzid: America/Sao_Paulo
+    floor_value: 0.092083
+    bump_threshold: 0
+  - tzid: America/Scoresbysund
+    floor_value: 0.063868
+    bump_threshold: 0
+  - tzid: America/Sitka
+    floor_value: 0.077817
+    bump_threshold: 0
+  - tzid: America/St_Barthelemy
+    floor_value: 0.063868
+    bump_threshold: 0
+  - tzid: America/St_Johns
+    floor_value: 0.063868
+    bump_threshold: 0
+  - tzid: America/St_Kitts
+    floor_value: 0.063868
+    bump_threshold: 0
+  - tzid: America/St_Lucia
+    floor_value: 0.063868
+    bump_threshold: 0
+  - tzid: America/St_Thomas
+    floor_value: 0.063868
+    bump_threshold: 0
+  - tzid: America/St_Vincent
+    floor_value: 0.063868
+    bump_threshold: 0
+  - tzid: America/Swift_Current
+    floor_value: 0.063868
+    bump_threshold: 0
+  - tzid: America/Tegucigalpa
+    floor_value: 0.092083
+    bump_threshold: 0
+  - tzid: America/Thule
+    floor_value: 0.063868
+    bump_threshold: 0
+  - tzid: America/Tijuana
+    floor_value: 0.077817
+    bump_threshold: 0
+  - tzid: America/Toronto
+    floor_value: 0.077817
+    bump_threshold: 0
+  - tzid: America/Tortola
+    floor_value: 0.063868
+    bump_threshold: 0
+  - tzid: America/Vancouver
+    floor_value: 0.077817
+    bump_threshold: 0
+  - tzid: America/Whitehorse
+    floor_value: 0.063868
+    bump_threshold: 0
+  - tzid: America/Winnipeg
+    floor_value: 0.077817
+    bump_threshold: 0
+  - tzid: America/Yakutat
+    floor_value: 0.077817
+    bump_threshold: 0
+  - tzid: Antarctica/Casey
+    floor_value: 0.063868
+    bump_threshold: 0
+  - tzid: Antarctica/Davis
+    floor_value: 0.063868
+    bump_threshold: 0
+  - tzid: Antarctica/DumontDUrville
+    floor_value: 0.063868
+    bump_threshold: 0
+  - tzid: Antarctica/Macquarie
+    floor_value: 0.063868
+    bump_threshold: 0
+  - tzid: Antarctica/Mawson
+    floor_value: 0.063868
+    bump_threshold: 0
+  - tzid: Antarctica/McMurdo
+    floor_value: 0.063868
+    bump_threshold: 0
+  - tzid: Antarctica/Palmer
+    floor_value: 0.063868
+    bump_threshold: 0
+  - tzid: Antarctica/Rothera
+    floor_value: 0.063868
+    bump_threshold: 0
+  - tzid: Antarctica/Syowa
+    floor_value: 0.063868
+    bump_threshold: 0
+  - tzid: Antarctica/Troll
+    floor_value: 0.063868
+    bump_threshold: 0
+  - tzid: Antarctica/Vostok
+    floor_value: 0.063868
+    bump_threshold: 0
+  - tzid: Arctic/Longyearbyen
+    floor_value: 0.077817
+    bump_threshold: 0
+  - tzid: Asia/Aden
+    floor_value: 0.08618
+    bump_threshold: 0
+  - tzid: Asia/Almaty
+    floor_value: 0.120759
+    bump_threshold: 0.6
+  - tzid: Asia/Amman
+    floor_value: 0.12532
+    bump_threshold: 0.6
+  - tzid: Asia/Anadyr
+    floor_value: 0.063868
+    bump_threshold: 0
+  - tzid: Asia/Aqtau
+    floor_value: 0.08618
+    bump_threshold: 0
+  - tzid: Asia/Aqtobe
+    floor_value: 0.077817
+    bump_threshold: 0
+  - tzid: Asia/Ashgabat
+    floor_value: 0.120759
+    bump_threshold: 0.6
+  - tzid: Asia/Atyrau
+    floor_value: 0.077817
+    bump_threshold: 0
+  - tzid: Asia/Baghdad
+    floor_value: 0.129127
+    bump_threshold: 0.6
+  - tzid: Asia/Bahrain
+    floor_value: 0.077817
+    bump_threshold: 0
+  - tzid: Asia/Baku
+    floor_value: 0.12532
+    bump_threshold: 0.6
+  - tzid: Asia/Bangkok
+    floor_value: 0.129127
+    bump_threshold: 0.6
+  - tzid: Asia/Barnaul
+    floor_value: 0.092083
+    bump_threshold: 0
+  - tzid: Asia/Beirut
+    floor_value: 0.08618
+    bump_threshold: 0
+  - tzid: Asia/Bishkek
+    floor_value: 0.120759
+    bump_threshold: 0.6
+  - tzid: Asia/Brunei
+    floor_value: 0.077817
+    bump_threshold: 0
+  - tzid: Asia/Chita
+    floor_value: 0.08618
+    bump_threshold: 0
+  - tzid: Asia/Colombo
+    floor_value: 0.063868
+    bump_threshold: 0
+  - tzid: Asia/Damascus
+    floor_value: 0.12532
+    bump_threshold: 0.6
+  - tzid: Asia/Dhaka
+    floor_value: 0.08618
+    bump_threshold: 0
+  - tzid: Asia/Dili
+    floor_value: 0.077817
+    bump_threshold: 0
+  - tzid: Asia/Dubai
+    floor_value: 0.08618
+    bump_threshold: 0
+  - tzid: Asia/Dushanbe
+    floor_value: 0.120759
+    bump_threshold: 0.6
+  - tzid: Asia/Famagusta
+    floor_value: 0.063868
+    bump_threshold: 0
+  - tzid: Asia/Gaza
+    floor_value: 0.077817
+    bump_threshold: 0
+  - tzid: Asia/Hebron
+    floor_value: 0.08618
+    bump_threshold: 0
+  - tzid: Asia/Ho_Chi_Minh
+    floor_value: 0.08618
+    bump_threshold: 0
+  - tzid: Asia/Hong_Kong
+    floor_value: 0.077817
+    bump_threshold: 0
+  - tzid: Asia/Hovd
+    floor_value: 0.08618
+    bump_threshold: 0
+  - tzid: Asia/Irkutsk
+    floor_value: 0.077817
+    bump_threshold: 0
+  - tzid: Asia/Jakarta
+    floor_value: 0.063868
+    bump_threshold: 0
+  - tzid: Asia/Jayapura
+    floor_value: 0.077817
+    bump_threshold: 0
+  - tzid: Asia/Jerusalem
+    floor_value: 0.120759
+    bump_threshold: 0.6
+  - tzid: Asia/Kabul
+    floor_value: 0.129127
+    bump_threshold: 0.6
+  - tzid: Asia/Kamchatka
+    floor_value: 0.063868
+    bump_threshold: 0
+  - tzid: Asia/Karachi
+    floor_value: 0.120759
+    bump_threshold: 0.6
+  - tzid: Asia/Kathmandu
+    floor_value: 0.08618
+    bump_threshold: 0
+  - tzid: Asia/Khandyga
+    floor_value: 0.063868
+    bump_threshold: 0
+  - tzid: Asia/Kolkata
+    floor_value: 0.129127
+    bump_threshold: 0.6
+  - tzid: Asia/Krasnoyarsk
+    floor_value: 0.077817
+    bump_threshold: 0
+  - tzid: Asia/Kuala_Lumpur
+    floor_value: 0.077817
+    bump_threshold: 0
+  - tzid: Asia/Kuching
+    floor_value: 0.08618
+    bump_threshold: 0
+  - tzid: Asia/Kuwait
+    floor_value: 0.08618
+    bump_threshold: 0
+  - tzid: Asia/Macau
+    floor_value: 0.063868
+    bump_threshold: 0
+  - tzid: Asia/Magadan
+    floor_value: 0.063868
+    bump_threshold: 0
+  - tzid: Asia/Makassar
+    floor_value: 0.08618
+    bump_threshold: 0
+  - tzid: Asia/Manila
+    floor_value: 0.063868
+    bump_threshold: 0
+  - tzid: Asia/Muscat
+    floor_value: 0.077817
+    bump_threshold: 0
+  - tzid: Asia/Nicosia
+    floor_value: 0.063868
+    bump_threshold: 0
+  - tzid: Asia/Novokuznetsk
+    floor_value: 0.063868
+    bump_threshold: 0
+  - tzid: Asia/Novosibirsk
+    floor_value: 0.077817
+    bump_threshold: 0
+  - tzid: Asia/Omsk
+    floor_value: 0.077817
+    bump_threshold: 0
+  - tzid: Asia/Oral
+    floor_value: 0.077817
+    bump_threshold: 0
+  - tzid: Asia/Phnom_Penh
+    floor_value: 0.092083
+    bump_threshold: 0
+  - tzid: Asia/Pontianak
+    floor_value: 0.077817
+    bump_threshold: 0
+  - tzid: Asia/Pyongyang
+    floor_value: 0.092083
+    bump_threshold: 0
+  - tzid: Asia/Qatar
+    floor_value: 0.077817
+    bump_threshold: 0
+  - tzid: Asia/Qostanay
+    floor_value: 0.077817
+    bump_threshold: 0
+  - tzid: Asia/Qyzylorda
+    floor_value: 0.077817
+    bump_threshold: 0
+  - tzid: Asia/Riyadh
+    floor_value: 0.135225
+    bump_threshold: 0.6
+  - tzid: Asia/Sakhalin
+    floor_value: 0.063868
+    bump_threshold: 0
+  - tzid: Asia/Samarkand
+    floor_value: 0.120759
+    bump_threshold: 0.6
+  - tzid: Asia/Seoul
+    floor_value: 0.077817
+    bump_threshold: 0
+  - tzid: Asia/Shanghai
+    floor_value: 0.15
+    bump_threshold: 0.6
+  - tzid: Asia/Singapore
+    floor_value: 0.077817
+    bump_threshold: 0
+  - tzid: Asia/Srednekolymsk
+    floor_value: 0.063868
+    bump_threshold: 0
+  - tzid: Asia/Taipei
+    floor_value: 0.063868
+    bump_threshold: 0
+  - tzid: Asia/Tashkent
+    floor_value: 0.092083
+    bump_threshold: 0
+  - tzid: Asia/Tbilisi
+    floor_value: 0.120759
+    bump_threshold: 0.6
+  - tzid: Asia/Tehran
+    floor_value: 0.132385
+    bump_threshold: 0.6
+  - tzid: Asia/Thimphu
+    floor_value: 0.08618
+    bump_threshold: 0
+  - tzid: Asia/Tokyo
+    floor_value: 0.063868
+    bump_threshold: 0
+  - tzid: Asia/Tomsk
+    floor_value: 0.063868
+    bump_threshold: 0
+  - tzid: Asia/Ulaanbaatar
+    floor_value: 0.08618
+    bump_threshold: 0
+  - tzid: Asia/Urumqi
+    floor_value: 0.135225
+    bump_threshold: 0.6
+  - tzid: Asia/Ust-Nera
+    floor_value: 0.063868
+    bump_threshold: 0
+  - tzid: Asia/Vientiane
+    floor_value: 0.12532
+    bump_threshold: 0.6
+  - tzid: Asia/Vladivostok
+    floor_value: 0.08618
+    bump_threshold: 0
+  - tzid: Asia/Yakutsk
+    floor_value: 0.077817
+    bump_threshold: 0
+  - tzid: Asia/Yangon
+    floor_value: 0.12532
+    bump_threshold: 0.6
+  - tzid: Asia/Yekaterinburg
+    floor_value: 0.077817
+    bump_threshold: 0
+  - tzid: Asia/Yerevan
+    floor_value: 0.120759
+    bump_threshold: 0.6
+  - tzid: Atlantic/Azores
+    floor_value: 0.063868
+    bump_threshold: 0
+  - tzid: Atlantic/Bermuda
+    floor_value: 0.063868
+    bump_threshold: 0
+  - tzid: Atlantic/Canary
+    floor_value: 0.063868
+    bump_threshold: 0
+  - tzid: Atlantic/Cape_Verde
+    floor_value: 0.063868
+    bump_threshold: 0
+  - tzid: Atlantic/Faroe
+    floor_value: 0.063868
+    bump_threshold: 0
+  - tzid: Atlantic/Madeira
+    floor_value: 0.063868
+    bump_threshold: 0
+  - tzid: Atlantic/Reykjavik
+    floor_value: 0.063868
+    bump_threshold: 0
+  - tzid: Atlantic/South_Georgia
+    floor_value: 0.063868
+    bump_threshold: 0
+  - tzid: Atlantic/St_Helena
+    floor_value: 0.063868
+    bump_threshold: 0
+  - tzid: Atlantic/Stanley
+    floor_value: 0.063868
+    bump_threshold: 0
+  - tzid: Australia/Adelaide
+    floor_value: 0.063868
+    bump_threshold: 0
+  - tzid: Australia/Brisbane
+    floor_value: 0.063868
+    bump_threshold: 0
+  - tzid: Australia/Broken_Hill
+    floor_value: 0.063868
+    bump_threshold: 0
+  - tzid: Australia/Darwin
+    floor_value: 0.063868
+    bump_threshold: 0
+  - tzid: Australia/Eucla
+    floor_value: 0.063868
+    bump_threshold: 0
+  - tzid: Australia/Hobart
+    floor_value: 0.063868
+    bump_threshold: 0
+  - tzid: Australia/Lindeman
+    floor_value: 0.063868
+    bump_threshold: 0
+  - tzid: Australia/Lord_Howe
+    floor_value: 0.063868
+    bump_threshold: 0
+  - tzid: Australia/Melbourne
+    floor_value: 0.063868
+    bump_threshold: 0
+  - tzid: Australia/Perth
+    floor_value: 0.077817
+    bump_threshold: 0
+  - tzid: Australia/Sydney
+    floor_value: 0.063868
+    bump_threshold: 0
+  - tzid: Etc/GMT
+    floor_value: 0.077817
+    bump_threshold: 0
+  - tzid: Etc/GMT+10
+    floor_value: 0.063868
+    bump_threshold: 0
+  - tzid: Etc/GMT+11
+    floor_value: 0.077817
+    bump_threshold: 0
+  - tzid: Etc/GMT+12
+    floor_value: 0.063868
+    bump_threshold: 0
+  - tzid: Etc/GMT+4
+    floor_value: 0.077817
+    bump_threshold: 0
+  - tzid: Etc/GMT+5
+    floor_value: 0.077817
+    bump_threshold: 0
+  - tzid: Etc/GMT+6
+    floor_value: 0.077817
+    bump_threshold: 0
+  - tzid: Etc/GMT+7
+    floor_value: 0.077817
+    bump_threshold: 0
+  - tzid: Etc/GMT+8
+    floor_value: 0.063868
+    bump_threshold: 0
+  - tzid: Etc/GMT+9
+    floor_value: 0.063868
+    bump_threshold: 0
+  - tzid: Etc/GMT-1
+    floor_value: 0.077817
+    bump_threshold: 0
+  - tzid: Etc/GMT-3
+    floor_value: 0.063868
+    bump_threshold: 0
+  - tzid: Etc/GMT-4
+    floor_value: 0.063868
+    bump_threshold: 0
+  - tzid: Etc/GMT-5
+    floor_value: 0.063868
+    bump_threshold: 0
+  - tzid: Etc/GMT-6
+    floor_value: 0.063868
+    bump_threshold: 0
+  - tzid: Etc/GMT-7
+    floor_value: 0.063868
+    bump_threshold: 0
+  - tzid: Etc/GMT-8
+    floor_value: 0.063868
+    bump_threshold: 0
+  - tzid: Etc/UTC
+    floor_value: 0.063868
+    bump_threshold: 0
+  - tzid: Europe/Amsterdam
+    floor_value: 0.08618
+    bump_threshold: 0
+  - tzid: Europe/Andorra
+    floor_value: 0.08618
+    bump_threshold: 0
+  - tzid: Europe/Astrakhan
+    floor_value: 0.077817
+    bump_threshold: 0
+  - tzid: Europe/Athens
+    floor_value: 0.120759
+    bump_threshold: 0.6
+  - tzid: Europe/Belgrade
+    floor_value: 0.135225
+    bump_threshold: 0.6
+  - tzid: Europe/Berlin
+    floor_value: 0.137739
+    bump_threshold: 0.6
+  - tzid: Europe/Bratislava
+    floor_value: 0.12532
+    bump_threshold: 0.6
+  - tzid: Europe/Brussels
+    floor_value: 0.120759
+    bump_threshold: 0.6
+  - tzid: Europe/Bucharest
+    floor_value: 0.12532
+    bump_threshold: 0.6
+  - tzid: Europe/Budapest
+    floor_value: 0.132385
+    bump_threshold: 0.6
+  - tzid: Europe/Busingen
+    floor_value: 0.077817
+    bump_threshold: 0
+  - tzid: Europe/Chisinau
+    floor_value: 0.08618
+    bump_threshold: 0
+  - tzid: Europe/Copenhagen
+    floor_value: 0.077817
+    bump_threshold: 0
+  - tzid: Europe/Dublin
+    floor_value: 0.077817
+    bump_threshold: 0
+  - tzid: Europe/Gibraltar
+    floor_value: 0.077817
+    bump_threshold: 0
+  - tzid: Europe/Guernsey
+    floor_value: 0.063868
+    bump_threshold: 0
+  - tzid: Europe/Helsinki
+    floor_value: 0.092083
+    bump_threshold: 0
+  - tzid: Europe/Isle_of_Man
+    floor_value: 0.063868
+    bump_threshold: 0
+  - tzid: Europe/Istanbul
+    floor_value: 0.135225
+    bump_threshold: 0.6
+  - tzid: Europe/Jersey
+    floor_value: 0.063868
+    bump_threshold: 0
+  - tzid: Europe/Kaliningrad
+    floor_value: 0.08618
+    bump_threshold: 0
+  - tzid: Europe/Kirov
+    floor_value: 0.063868
+    bump_threshold: 0
+  - tzid: Europe/Kyiv
+    floor_value: 0.132385
+    bump_threshold: 0.6
+  - tzid: Europe/Lisbon
+    floor_value: 0.077817
+    bump_threshold: 0
+  - tzid: Europe/Ljubljana
+    floor_value: 0.120759
+    bump_threshold: 0.6
+  - tzid: Europe/London
+    floor_value: 0.077817
+    bump_threshold: 0
+  - tzid: Europe/Luxembourg
+    floor_value: 0.092083
+    bump_threshold: 0
+  - tzid: Europe/Madrid
+    floor_value: 0.092083
+    bump_threshold: 0
+  - tzid: Europe/Malta
+    floor_value: 0.063868
+    bump_threshold: 0
+  - tzid: Europe/Mariehamn
+    floor_value: 0.063868
+    bump_threshold: 0
+  - tzid: Europe/Minsk
+    floor_value: 0.12532
+    bump_threshold: 0.6
+  - tzid: Europe/Monaco
+    floor_value: 0.077817
+    bump_threshold: 0
+  - tzid: Europe/Moscow
+    floor_value: 0.135225
+    bump_threshold: 0.6
+  - tzid: Europe/Oslo
+    floor_value: 0.092083
+    bump_threshold: 0
+  - tzid: Europe/Paris
+    floor_value: 0.135225
+    bump_threshold: 0.6
+  - tzid: Europe/Podgorica
+    floor_value: 0.120759
+    bump_threshold: 0.6
+  - tzid: Europe/Prague
+    floor_value: 0.120759
+    bump_threshold: 0.6
+  - tzid: Europe/Riga
+    floor_value: 0.120759
+    bump_threshold: 0.6
+  - tzid: Europe/Rome
+    floor_value: 0.12532
+    bump_threshold: 0.6
+  - tzid: Europe/Samara
+    floor_value: 0.063868
+    bump_threshold: 0
+  - tzid: Europe/San_Marino
+    floor_value: 0.077817
+    bump_threshold: 0
+  - tzid: Europe/Sarajevo
+    floor_value: 0.092083
+    bump_threshold: 0
+  - tzid: Europe/Saratov
+    floor_value: 0.077817
+    bump_threshold: 0
+  - tzid: Europe/Simferopol
+    floor_value: 0.077817
+    bump_threshold: 0
+  - tzid: Europe/Skopje
+    floor_value: 0.120759
+    bump_threshold: 0.6
+  - tzid: Europe/Sofia
+    floor_value: 0.12532
+    bump_threshold: 0.6
+  - tzid: Europe/Stockholm
+    floor_value: 0.08618
+    bump_threshold: 0
+  - tzid: Europe/Tallinn
+    floor_value: 0.08618
+    bump_threshold: 0
+  - tzid: Europe/Tirane
+    floor_value: 0.092083
+    bump_threshold: 0
+  - tzid: Europe/Ulyanovsk
+    floor_value: 0.063868
+    bump_threshold: 0
+  - tzid: Europe/Vaduz
+    floor_value: 0.08618
+    bump_threshold: 0
+  - tzid: Europe/Vatican
+    floor_value: 0.077817
+    bump_threshold: 0
+  - tzid: Europe/Vienna
+    floor_value: 0.132385
+    bump_threshold: 0.6
+  - tzid: Europe/Vilnius
+    floor_value: 0.120759
+    bump_threshold: 0.6
+  - tzid: Europe/Volgograd
+    floor_value: 0.077817
+    bump_threshold: 0
+  - tzid: Europe/Warsaw
+    floor_value: 0.132385
+    bump_threshold: 0.6
+  - tzid: Europe/Zagreb
+    floor_value: 0.12532
+    bump_threshold: 0.6
+  - tzid: Europe/Zurich
+    floor_value: 0.12532
+    bump_threshold: 0.6
+  - tzid: Indian/Antananarivo
+    floor_value: 0.063868
+    bump_threshold: 0
+  - tzid: Indian/Chagos
+    floor_value: 0.063868
+    bump_threshold: 0
+  - tzid: Indian/Christmas
+    floor_value: 0.063868
+    bump_threshold: 0
+  - tzid: Indian/Cocos
+    floor_value: 0.063868
+    bump_threshold: 0
+  - tzid: Indian/Comoro
+    floor_value: 0.063868
+    bump_threshold: 0
+  - tzid: Indian/Kerguelen
+    floor_value: 0.063868
+    bump_threshold: 0
+  - tzid: Indian/Mahe
+    floor_value: 0.063868
+    bump_threshold: 0
+  - tzid: Indian/Maldives
+    floor_value: 0.063868
+    bump_threshold: 0
+  - tzid: Indian/Mauritius
+    floor_value: 0.063868
+    bump_threshold: 0
+  - tzid: Indian/Mayotte
+    floor_value: 0.077817
+    bump_threshold: 0
+  - tzid: Indian/Reunion
+    floor_value: 0.077817
+    bump_threshold: 0
+  - tzid: Pacific/Apia
+    floor_value: 0.063868
+    bump_threshold: 0
+  - tzid: Pacific/Auckland
+    floor_value: 0.063868
+    bump_threshold: 0
+  - tzid: Pacific/Bougainville
+    floor_value: 0.063868
+    bump_threshold: 0
+  - tzid: Pacific/Chatham
+    floor_value: 0.063868
+    bump_threshold: 0
+  - tzid: Pacific/Chuuk
+    floor_value: 0.063868
+    bump_threshold: 0
+  - tzid: Pacific/Easter
+    floor_value: 0.063868
+    bump_threshold: 0
+  - tzid: Pacific/Efate
+    floor_value: 0.063868
+    bump_threshold: 0
+  - tzid: Pacific/Fakaofo
+    floor_value: 0.077817
+    bump_threshold: 0
+  - tzid: Pacific/Fiji
+    floor_value: 0.063868
+    bump_threshold: 0
+  - tzid: Pacific/Funafuti
+    floor_value: 0.063868
+    bump_threshold: 0
+  - tzid: Pacific/Galapagos
+    floor_value: 0.063868
+    bump_threshold: 0
+  - tzid: Pacific/Gambier
+    floor_value: 0.063868
+    bump_threshold: 0
+  - tzid: Pacific/Guadalcanal
+    floor_value: 0.063868
+    bump_threshold: 0
+  - tzid: Pacific/Guam
+    floor_value: 0.063868
+    bump_threshold: 0
+  - tzid: Pacific/Honolulu
+    floor_value: 0.077817
+    bump_threshold: 0
+  - tzid: Pacific/Kanton
+    floor_value: 0.063868
+    bump_threshold: 0
+  - tzid: Pacific/Kiritimati
+    floor_value: 0.063868
+    bump_threshold: 0
+  - tzid: Pacific/Kosrae
+    floor_value: 0.063868
+    bump_threshold: 0
+  - tzid: Pacific/Kwajalein
+    floor_value: 0.063868
+    bump_threshold: 0
+  - tzid: Pacific/Majuro
+    floor_value: 0.063868
+    bump_threshold: 0
+  - tzid: Pacific/Marquesas
+    floor_value: 0.063868
+    bump_threshold: 0
+  - tzid: Pacific/Midway
+    floor_value: 0.077817
+    bump_threshold: 0
+  - tzid: Pacific/Nauru
+    floor_value: 0.063868
+    bump_threshold: 0
+  - tzid: Pacific/Niue
+    floor_value: 0.063868
+    bump_threshold: 0
+  - tzid: Pacific/Norfolk
+    floor_value: 0.063868
+    bump_threshold: 0
+  - tzid: Pacific/Noumea
+    floor_value: 0.063868
+    bump_threshold: 0
+  - tzid: Pacific/Pago_Pago
+    floor_value: 0.063868
+    bump_threshold: 0
+  - tzid: Pacific/Palau
+    floor_value: 0.063868
+    bump_threshold: 0
+  - tzid: Pacific/Pitcairn
+    floor_value: 0.063868
+    bump_threshold: 0
+  - tzid: Pacific/Pohnpei
+    floor_value: 0.063868
+    bump_threshold: 0
+  - tzid: Pacific/Port_Moresby
+    floor_value: 0.077817
+    bump_threshold: 0
+  - tzid: Pacific/Rarotonga
+    floor_value: 0.063868
+    bump_threshold: 0
+  - tzid: Pacific/Saipan
+    floor_value: 0.063868
+    bump_threshold: 0
+  - tzid: Pacific/Tahiti
+    floor_value: 0.063868
+    bump_threshold: 0
+  - tzid: Pacific/Tarawa
+    floor_value: 0.063868
+    bump_threshold: 0
+  - tzid: Pacific/Tongatapu
+    floor_value: 0.063868
+    bump_threshold: 0
+  - tzid: Pacific/Wake
+    floor_value: 0.063868
+    bump_threshold: 0
+  - tzid: Pacific/Wallis
+    floor_value: 0.063868
+    bump_threshold: 0

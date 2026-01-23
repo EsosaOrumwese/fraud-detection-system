@@ -1,0 +1,71 @@
+policy_id: rng_policy_6B
+version: v1.0.0
+
+scope:
+  segment: 6B
+  state: S1
+  description: "S1 RNG families and budgets for entity attachment + session boundaries."
+
+rng_profile_ref:
+  policy_id: rng_profile_layer3
+  required: true
+
+families:
+  - family_id: rng_event_entity_attach
+    purpose: "Single draw for one attachment step when candidate set > 1."
+    budgets:
+      consuming: { draws: "1", blocks: 1 }
+      non_consuming: { draws: "0", blocks: 0 }
+    step_enum:
+      - ATTACH_PARTY
+      - ATTACH_ACCOUNT
+      - ATTACH_INSTRUMENT
+      - ATTACH_DEVICE
+      - ATTACH_IP
+
+  - family_id: rng_event_session_boundary
+    purpose: "Optional stochastic boundary decision when gap is ambiguous."
+    budgets:
+      consuming: { draws: "1", blocks: 1 }
+      non_consuming: { draws: "0", blocks: 0 }
+    step_enum:
+      - BOUNDARY_AMBIGUITY
+
+emission_rules:
+  attachment_steps_order:
+    - ATTACH_PARTY
+    - ATTACH_ACCOUNT
+    - ATTACH_INSTRUMENT
+    - ATTACH_DEVICE
+    - ATTACH_IP
+
+  entity_attach:
+    emit_event_every_step: true
+    consume_if_candidate_count_gt: 1
+    deterministic_if_candidate_count_le: 1
+
+  session_boundary:
+    enabled_by_sessionisation_policy: true
+    emit_event_on_ambiguity_only: true
+    consume_if_ambiguity: true
+
+keying:
+  forbid_run_id_in_key: true
+  common_ids:
+    - manifest_fingerprint
+    - seed
+    - scenario_id
+  arrival_ids:
+    - merchant_id
+    - zone_representation
+    - bucket_index
+    - arrival_seq
+  step_id_field:
+    rng_event_entity_attach: attachment_step
+    rng_event_session_boundary: boundary_step
+
+guardrails:
+  forbid_unknown_families: true
+  forbid_variable_budgets: true
+  forbid_lane_reuse_across_events: true
+  require_open_interval_u01: true

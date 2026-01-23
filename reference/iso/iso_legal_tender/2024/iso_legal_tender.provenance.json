@@ -1,0 +1,43 @@
+{
+  "downloaded_at_utc": "2026-01-11T20:23:39Z",
+  "dropped_no_tender": [],
+  "is_exact_vintage": false,
+  "output_sha256": "3ba133b2fc69355463394cb870ccbee8678ea14ac678558632d1e4197e9b66d1",
+  "overrides_applied": [
+    {
+      "country_iso": "PS",
+      "currency": "ILS"
+    }
+  ],
+  "published_date": "2026-01-01",
+  "raw_sha256": "838dfb991648cf36df939edd5fe3811737962b75a32252847d239cedd1e291c9",
+  "source_urls": [
+    "https://www.six-group.com/dam/download/financial-information/data-center/iso-currrency/lists/list-one.xml"
+  ],
+  "unmapped_entities": [
+    "ARAB MONETARY FUND",
+    "COCOS (KEELING) ISLANDS (THE)",
+    "EUROPEAN UNION",
+    "FALKLAND ISLANDS (THE) [MALVINAS]",
+    "HOLY SEE (THE)",
+    "INTERNATIONAL MONETARY FUND (IMF)",
+    "MEMBER COUNTRIES OF THE AFRICAN DEVELOPMENT BANK GROUP",
+    "SAINT HELENA, ASCENSION AND TRISTAN DA CUNHA",
+    "SAINT MARTIN (FRENCH PART)",
+    "SISTEMA UNITARIO DE COMPENSACION REGIONAL DE PAGOS \"SUCRE\"",
+    "SYRIAN ARAB REPUBLIC",
+    "TAIWAN (PROVINCE OF CHINA)",
+    "VIRGIN ISLANDS (BRITISH)",
+    "VIRGIN ISLANDS (U.S.)",
+    "ZZ01_Bond Markets Unit European_EURCO",
+    "ZZ02_Bond Markets Unit European_EMU-6",
+    "ZZ03_Bond Markets Unit European_EUA-9",
+    "ZZ04_Bond Markets Unit European_EUA-17",
+    "ZZ06_Testing_Code",
+    "ZZ07_No_Currency",
+    "ZZ08_Gold",
+    "ZZ09_Palladium",
+    "ZZ10_Platinum",
+    "ZZ11_Silver"
+  ]
+}

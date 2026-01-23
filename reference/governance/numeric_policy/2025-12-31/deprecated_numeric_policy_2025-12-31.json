@@ -1,0 +1,30 @@
+{
+  "version": "2025-12-31",
+  "binary_format": "ieee754-binary64",
+  "rounding": "RNE",
+  "rounding_mode": "rne",
+  "fma": "off",
+  "fma_allowed": false,
+  "ftz_daz": "off",
+  "flush_to_zero": false,
+  "denormals_are_zero": false,
+  "subnormals": "preserved",
+  "reductions": {
+    "sum_policy": "serial_neumaier",
+    "parallel_decision_kernels": "disallowed"
+  },
+  "sorting": {
+    "float_total_order": "ieee754_totalOrder",
+    "nan_forbidden_in_sort_keys": true,
+    "tie_break_rule": "lexicographic_secondary_key"
+  },
+  "constants_policy": {
+    "require_binary64_hex_literals": true,
+    "forbid_derived_constants": true
+  },
+  "exceptions": {
+    "mask_fp_exceptions": true,
+    "nan_inf_is_hard_error": true
+  },
+  "notes": null
+}

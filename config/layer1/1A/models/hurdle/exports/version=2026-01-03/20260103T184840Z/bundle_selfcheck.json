@@ -1,0 +1,16 @@
+{
+  "beta_len": 298,
+  "beta_mu_len": 293,
+  "beta_phi_len": 294,
+  "dict_mcc_len": 290,
+  "dispersion_sha256": "4613495683fdaf92068fd3510156c4e35dd2f30669652722522eda906b35ea35",
+  "hurdle_sha256": "2d010c8feddf26990a5cd163db3914f87582cc615066d5789008f915370bf197",
+  "max_infl": 1.1450889718566426,
+  "max_p_rej": 0.12670541366003724,
+  "mean_pi": 0.1609001139576262,
+  "median_mu_over_phi": 1.5184108520643127,
+  "median_phi": 11.999972277958921,
+  "q90_mu": 21.864713044546807,
+  "rho_hat": 0.00482778641506508,
+  "status": "PASS"
+}

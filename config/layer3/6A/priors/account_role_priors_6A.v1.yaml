@@ -1,0 +1,316 @@
+schema_version: 1
+policy_id: account_role_priors_6A
+policy_version: v1
+
+role_vocabulary:
+  - role_id: CLEAN_ACCOUNT
+    label: Clean account
+    description: Baseline account posture with no static fraud indicators.
+    applicable_ledger_classes: [DEPOSIT, CREDIT_REVOLVING, CREDIT_INSTALLMENT, SETTLEMENT]
+    severity_rank: 0
+  - role_id: DORMANT_RISKY
+    label: Dormant risky
+    description: Low-activity account with elevated static risk indicators.
+    applicable_ledger_classes: [DEPOSIT]
+    severity_rank: 1
+  - role_id: HIGH_RISK_ACCOUNT
+    label: High risk account
+    description: Elevated static posture driven by exposure or product context.
+    applicable_ledger_classes: [DEPOSIT, CREDIT_REVOLVING, CREDIT_INSTALLMENT]
+    severity_rank: 2
+  - role_id: MULE_ACCOUNT
+    label: Mule account
+    description: Account posture consistent with illicit pass-through activity.
+    applicable_ledger_classes: [DEPOSIT]
+    severity_rank: 3
+
+risk_tier_vocabulary:
+  - { tier_id: LOW, label: Low, description: Low static posture, severity_rank: 0 }
+  - { tier_id: STANDARD, label: Standard, description: Typical baseline posture, severity_rank: 1 }
+  - { tier_id: ELEVATED, label: Elevated, description: Elevated static posture, severity_rank: 2 }
+  - { tier_id: HIGH, label: High, description: High static posture, severity_rank: 3 }
+
+cell_definition:
+  base_cell: [region_id, party_type, segment_id, account_type]
+  account_groups:
+    BUSINESS_CREDIT_CARD: BUSINESS_CREDIT
+    BUSINESS_CURRENT: BUSINESS_DEPOSIT
+    BUSINESS_SAVINGS: BUSINESS_DEPOSIT
+    BUSINESS_TERM_LOAN: LOAN
+    MERCHANT_RESERVE_ACCOUNT: MERCHANT_RESERVE
+    MERCHANT_SETTLEMENT_ACCOUNT: MERCHANT_SETTLEMENT
+    OTHER_CURRENT_BASIC: OTHER_DEPOSIT
+    OTHER_SAVINGS: OTHER_DEPOSIT
+    RETAIL_CREDIT_CARD_PREMIUM: CREDIT_CARD
+    RETAIL_CREDIT_CARD_STANDARD: CREDIT_CARD
+    RETAIL_CURRENT_BASIC: DEPOSIT_PRIMARY
+    RETAIL_CURRENT_PREMIUM: DEPOSIT_PRIMARY
+    RETAIL_PERSONAL_LOAN_UNSECURED: LOAN
+    RETAIL_SAVINGS_FIXED: SAVINGS
+    RETAIL_SAVINGS_INSTANT: SAVINGS
+  context_features_allowed:
+    - has_card_instrument
+    - has_virtual_instrument
+    - has_any_anonymizer_ip
+    - has_any_high_risk_device
+    - n_instruments_bucket
+    - owner_party_risk_tier_score
+
+risk_score_model:
+  base_by_group:
+    BUSINESS_CREDIT: 0.50
+    BUSINESS_DEPOSIT: 0.45
+    CREDIT_CARD: 0.52
+    DEPOSIT_PRIMARY: 0.44
+    LOAN: 0.48
+    MERCHANT_RESERVE: 0.46
+    MERCHANT_SETTLEMENT: 0.46
+    OTHER_DEPOSIT: 0.43
+    SAVINGS: 0.40
+  features:
+    - { name: owner_party_risk_tier_score, source: PARTY_POSTURE, ref: 0.25, weight: 0.20 }
+    - { name: has_any_anonymizer_ip, source: GRAPH_DERIVED, ref: 0.00, weight: 0.18 }
+    - { name: has_any_high_risk_device, source: GRAPH_DERIVED, ref: 0.00, weight: 0.12 }
+    - { name: has_card_instrument, source: HOLDINGS_DERIVED, ref: 0.00, weight: 0.10 }
+    - { name: has_virtual_instrument, source: HOLDINGS_DERIVED, ref: 0.00, weight: 0.08 }
+    - { name: n_instruments_bucket, source: HOLDINGS_DERIVED, ref: 0.25, weight: 0.06 }
+
+risk_tier_thresholds:
+  tiers_in_order: [LOW, STANDARD, ELEVATED, HIGH]
+  thresholds:
+    LOW_max: 0.25
+    STANDARD_max: 0.65
+    ELEVATED_max: 0.85
+    HIGH_max: 1.00
+
+role_probability_model:
+  mode: by_account_group_and_risk_tier_v1
+  pi_role_by_group_and_tier:
+    BUSINESS_CREDIT:
+      LOW:
+        - { role_id: CLEAN_ACCOUNT, prob: 0.9975 }
+        - { role_id: HIGH_RISK_ACCOUNT, prob: 0.0020 }
+        - { role_id: MULE_ACCOUNT, prob: 0.0003 }
+        - { role_id: DORMANT_RISKY, prob: 0.0002 }
+      STANDARD:
+        - { role_id: CLEAN_ACCOUNT, prob: 0.9900 }
+        - { role_id: HIGH_RISK_ACCOUNT, prob: 0.0080 }
+        - { role_id: MULE_ACCOUNT, prob: 0.0012 }
+        - { role_id: DORMANT_RISKY, prob: 0.0008 }
+      ELEVATED:
+        - { role_id: CLEAN_ACCOUNT, prob: 0.9500 }
+        - { role_id: HIGH_RISK_ACCOUNT, prob: 0.0350 }
+        - { role_id: MULE_ACCOUNT, prob: 0.0100 }
+        - { role_id: DORMANT_RISKY, prob: 0.0050 }
+      HIGH:
+        - { role_id: CLEAN_ACCOUNT, prob: 0.8700 }
+        - { role_id: HIGH_RISK_ACCOUNT, prob: 0.0900 }
+        - { role_id: MULE_ACCOUNT, prob: 0.0300 }
+        - { role_id: DORMANT_RISKY, prob: 0.0100 }
+    BUSINESS_DEPOSIT:
+      LOW:
+        - { role_id: CLEAN_ACCOUNT, prob: 0.9982 }
+        - { role_id: HIGH_RISK_ACCOUNT, prob: 0.0012 }
+        - { role_id: MULE_ACCOUNT, prob: 0.0004 }
+        - { role_id: DORMANT_RISKY, prob: 0.0002 }
+      STANDARD:
+        - { role_id: CLEAN_ACCOUNT, prob: 0.9935 }
+        - { role_id: HIGH_RISK_ACCOUNT, prob: 0.0040 }
+        - { role_id: MULE_ACCOUNT, prob: 0.0018 }
+        - { role_id: DORMANT_RISKY, prob: 0.0007 }
+      ELEVATED:
+        - { role_id: CLEAN_ACCOUNT, prob: 0.9700 }
+        - { role_id: HIGH_RISK_ACCOUNT, prob: 0.0180 }
+        - { role_id: MULE_ACCOUNT, prob: 0.0080 }
+        - { role_id: DORMANT_RISKY, prob: 0.0040 }
+      HIGH:
+        - { role_id: CLEAN_ACCOUNT, prob: 0.9000 }
+        - { role_id: HIGH_RISK_ACCOUNT, prob: 0.0600 }
+        - { role_id: MULE_ACCOUNT, prob: 0.0300 }
+        - { role_id: DORMANT_RISKY, prob: 0.0100 }
+    CREDIT_CARD:
+      LOW:
+        - { role_id: CLEAN_ACCOUNT, prob: 0.9970 }
+        - { role_id: HIGH_RISK_ACCOUNT, prob: 0.0025 }
+        - { role_id: MULE_ACCOUNT, prob: 0.0003 }
+        - { role_id: DORMANT_RISKY, prob: 0.0002 }
+      STANDARD:
+        - { role_id: CLEAN_ACCOUNT, prob: 0.9900 }
+        - { role_id: HIGH_RISK_ACCOUNT, prob: 0.0080 }
+        - { role_id: MULE_ACCOUNT, prob: 0.0012 }
+        - { role_id: DORMANT_RISKY, prob: 0.0008 }
+      ELEVATED:
+        - { role_id: CLEAN_ACCOUNT, prob: 0.9550 }
+        - { role_id: HIGH_RISK_ACCOUNT, prob: 0.0300 }
+        - { role_id: MULE_ACCOUNT, prob: 0.0100 }
+        - { role_id: DORMANT_RISKY, prob: 0.0050 }
+      HIGH:
+        - { role_id: CLEAN_ACCOUNT, prob: 0.8800 }
+        - { role_id: HIGH_RISK_ACCOUNT, prob: 0.0850 }
+        - { role_id: MULE_ACCOUNT, prob: 0.0250 }
+        - { role_id: DORMANT_RISKY, prob: 0.0100 }
+    DEPOSIT_PRIMARY:
+      LOW:
+        - { role_id: CLEAN_ACCOUNT, prob: 0.9980 }
+        - { role_id: HIGH_RISK_ACCOUNT, prob: 0.0012 }
+        - { role_id: MULE_ACCOUNT, prob: 0.0005 }
+        - { role_id: DORMANT_RISKY, prob: 0.0003 }
+      STANDARD:
+        - { role_id: CLEAN_ACCOUNT, prob: 0.9920 }
+        - { role_id: HIGH_RISK_ACCOUNT, prob: 0.0040 }
+        - { role_id: MULE_ACCOUNT, prob: 0.0025 }
+        - { role_id: DORMANT_RISKY, prob: 0.0015 }
+      ELEVATED:
+        - { role_id: CLEAN_ACCOUNT, prob: 0.9650 }
+        - { role_id: HIGH_RISK_ACCOUNT, prob: 0.0200 }
+        - { role_id: MULE_ACCOUNT, prob: 0.0100 }
+        - { role_id: DORMANT_RISKY, prob: 0.0050 }
+      HIGH:
+        - { role_id: CLEAN_ACCOUNT, prob: 0.9000 }
+        - { role_id: HIGH_RISK_ACCOUNT, prob: 0.0550 }
+        - { role_id: MULE_ACCOUNT, prob: 0.0300 }
+        - { role_id: DORMANT_RISKY, prob: 0.0150 }
+    LOAN:
+      LOW:
+        - { role_id: CLEAN_ACCOUNT, prob: 0.9985 }
+        - { role_id: HIGH_RISK_ACCOUNT, prob: 0.0010 }
+        - { role_id: MULE_ACCOUNT, prob: 0.0003 }
+        - { role_id: DORMANT_RISKY, prob: 0.0002 }
+      STANDARD:
+        - { role_id: CLEAN_ACCOUNT, prob: 0.9930 }
+        - { role_id: HIGH_RISK_ACCOUNT, prob: 0.0050 }
+        - { role_id: MULE_ACCOUNT, prob: 0.0010 }
+        - { role_id: DORMANT_RISKY, prob: 0.0010 }
+      ELEVATED:
+        - { role_id: CLEAN_ACCOUNT, prob: 0.9700 }
+        - { role_id: HIGH_RISK_ACCOUNT, prob: 0.0200 }
+        - { role_id: MULE_ACCOUNT, prob: 0.0060 }
+        - { role_id: DORMANT_RISKY, prob: 0.0040 }
+      HIGH:
+        - { role_id: CLEAN_ACCOUNT, prob: 0.9000 }
+        - { role_id: HIGH_RISK_ACCOUNT, prob: 0.0700 }
+        - { role_id: MULE_ACCOUNT, prob: 0.0200 }
+        - { role_id: DORMANT_RISKY, prob: 0.0100 }
+    MERCHANT_RESERVE:
+      LOW:
+        - { role_id: CLEAN_ACCOUNT, prob: 0.9990 }
+        - { role_id: HIGH_RISK_ACCOUNT, prob: 0.0006 }
+        - { role_id: MULE_ACCOUNT, prob: 0.0002 }
+        - { role_id: DORMANT_RISKY, prob: 0.0002 }
+      STANDARD:
+        - { role_id: CLEAN_ACCOUNT, prob: 0.9970 }
+        - { role_id: HIGH_RISK_ACCOUNT, prob: 0.0020 }
+        - { role_id: MULE_ACCOUNT, prob: 0.0006 }
+        - { role_id: DORMANT_RISKY, prob: 0.0004 }
+      ELEVATED:
+        - { role_id: CLEAN_ACCOUNT, prob: 0.9850 }
+        - { role_id: HIGH_RISK_ACCOUNT, prob: 0.0100 }
+        - { role_id: MULE_ACCOUNT, prob: 0.0030 }
+        - { role_id: DORMANT_RISKY, prob: 0.0020 }
+      HIGH:
+        - { role_id: CLEAN_ACCOUNT, prob: 0.9500 }
+        - { role_id: HIGH_RISK_ACCOUNT, prob: 0.0350 }
+        - { role_id: MULE_ACCOUNT, prob: 0.0100 }
+        - { role_id: DORMANT_RISKY, prob: 0.0050 }
+    MERCHANT_SETTLEMENT:
+      LOW:
+        - { role_id: CLEAN_ACCOUNT, prob: 0.9995 }
+        - { role_id: HIGH_RISK_ACCOUNT, prob: 0.0003 }
+        - { role_id: MULE_ACCOUNT, prob: 0.0001 }
+        - { role_id: DORMANT_RISKY, prob: 0.0001 }
+      STANDARD:
+        - { role_id: CLEAN_ACCOUNT, prob: 0.9970 }
+        - { role_id: HIGH_RISK_ACCOUNT, prob: 0.0020 }
+        - { role_id: MULE_ACCOUNT, prob: 0.0006 }
+        - { role_id: DORMANT_RISKY, prob: 0.0004 }
+      ELEVATED:
+        - { role_id: CLEAN_ACCOUNT, prob: 0.9850 }
+        - { role_id: HIGH_RISK_ACCOUNT, prob: 0.0100 }
+        - { role_id: MULE_ACCOUNT, prob: 0.0030 }
+        - { role_id: DORMANT_RISKY, prob: 0.0020 }
+      HIGH:
+        - { role_id: CLEAN_ACCOUNT, prob: 0.9500 }
+        - { role_id: HIGH_RISK_ACCOUNT, prob: 0.0350 }
+        - { role_id: MULE_ACCOUNT, prob: 0.0100 }
+        - { role_id: DORMANT_RISKY, prob: 0.0050 }
+    OTHER_DEPOSIT:
+      LOW:
+        - { role_id: CLEAN_ACCOUNT, prob: 0.9990 }
+        - { role_id: HIGH_RISK_ACCOUNT, prob: 0.0006 }
+        - { role_id: MULE_ACCOUNT, prob: 0.0002 }
+        - { role_id: DORMANT_RISKY, prob: 0.0002 }
+      STANDARD:
+        - { role_id: CLEAN_ACCOUNT, prob: 0.9960 }
+        - { role_id: HIGH_RISK_ACCOUNT, prob: 0.0025 }
+        - { role_id: MULE_ACCOUNT, prob: 0.0010 }
+        - { role_id: DORMANT_RISKY, prob: 0.0005 }
+      ELEVATED:
+        - { role_id: CLEAN_ACCOUNT, prob: 0.9800 }
+        - { role_id: HIGH_RISK_ACCOUNT, prob: 0.0120 }
+        - { role_id: MULE_ACCOUNT, prob: 0.0050 }
+        - { role_id: DORMANT_RISKY, prob: 0.0030 }
+      HIGH:
+        - { role_id: CLEAN_ACCOUNT, prob: 0.9400 }
+        - { role_id: HIGH_RISK_ACCOUNT, prob: 0.0450 }
+        - { role_id: MULE_ACCOUNT, prob: 0.0100 }
+        - { role_id: DORMANT_RISKY, prob: 0.0050 }
+    SAVINGS:
+      LOW:
+        - { role_id: CLEAN_ACCOUNT, prob: 0.9990 }
+        - { role_id: HIGH_RISK_ACCOUNT, prob: 0.0006 }
+        - { role_id: MULE_ACCOUNT, prob: 0.0002 }
+        - { role_id: DORMANT_RISKY, prob: 0.0002 }
+      STANDARD:
+        - { role_id: CLEAN_ACCOUNT, prob: 0.9950 }
+        - { role_id: HIGH_RISK_ACCOUNT, prob: 0.0030 }
+        - { role_id: MULE_ACCOUNT, prob: 0.0010 }
+        - { role_id: DORMANT_RISKY, prob: 0.0010 }
+      ELEVATED:
+        - { role_id: CLEAN_ACCOUNT, prob: 0.9750 }
+        - { role_id: HIGH_RISK_ACCOUNT, prob: 0.0150 }
+        - { role_id: MULE_ACCOUNT, prob: 0.0050 }
+        - { role_id: DORMANT_RISKY, prob: 0.0050 }
+      HIGH:
+        - { role_id: CLEAN_ACCOUNT, prob: 0.9300 }
+        - { role_id: HIGH_RISK_ACCOUNT, prob: 0.0400 }
+        - { role_id: MULE_ACCOUNT, prob: 0.0150 }
+        - { role_id: DORMANT_RISKY, prob: 0.0150 }
+  nudges:
+    - if_feature: "owner_party_role == MULE"
+      multiply_roles: { MULE_ACCOUNT: 1.60, CLEAN_ACCOUNT: 0.85 }
+      clip_multiplier: { min: 0.70, max: 2.20 }
+    - if_feature: "has_any_anonymizer_ip == true"
+      multiply_roles: { HIGH_RISK_ACCOUNT: 1.35, CLEAN_ACCOUNT: 0.90 }
+      clip_multiplier: { min: 0.70, max: 1.80 }
+    - if_feature: "has_any_high_risk_device == true"
+      multiply_roles: { HIGH_RISK_ACCOUNT: 1.20, CLEAN_ACCOUNT: 0.93 }
+      clip_multiplier: { min: 0.75, max: 1.60 }
+    - if_feature: "has_virtual_instrument == true"
+      multiply_roles: { HIGH_RISK_ACCOUNT: 1.10, CLEAN_ACCOUNT: 0.96 }
+      clip_multiplier: { min: 0.85, max: 1.40 }
+
+constraints:
+  fail_on_missing_rule: true
+  prob_dp: 12
+  max_role_share_caps_world:
+    MULE_ACCOUNT: 0.020
+    HIGH_RISK_ACCOUNT: 0.080
+    DORMANT_RISKY: 0.030
+  min_nonclean_presence_by_group:
+    DEPOSIT_PRIMARY: 0.002
+    CREDIT_CARD: 0.003
+    LOAN: 0.002
+    BUSINESS_DEPOSIT: 0.002
+  require_minimum_vocab: true
+
+realism_targets:
+  clean_fraction_range_world: { min: 0.92, max: 0.995 }
+  high_risk_fraction_range_world: { min: 0.003, max: 0.080 }
+  mule_account_fraction_range_world: { min: 0.0005, max: 0.020 }
+  dormant_risky_fraction_range_world: { min: 0.0005, max: 0.030 }
+  region_variation:
+    required_if_n_regions_ge: 3
+    min_delta_in_high_risk_fraction: 0.002
+
+notes: >
+  Account posture is anchored by account group intent with small, structured risk tails.

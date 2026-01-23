@@ -69,13 +69,13 @@ def _build_dictionary(tmp: Path) -> Path:
         license: CC-BY-4.0
     policies:
       tz_overrides:
-        path: config/timezone/tz_overrides.yaml
+        path: config/layer1/2A/timezone/tz_overrides.yaml
         schema_ref: schemas.2A.yaml#/policy/tz_overrides_v1
         partitioning: []
         version: "{semver}"
         license: Proprietary-Internal
       tz_nudge:
-        path: config/timezone/tz_nudge.yml
+        path: config/layer1/2A/timezone/tz_nudge.yml
         schema_ref: schemas.2A.yaml#/policy/tz_nudge_v1
         partitioning: []
         version: "{semver}"

@@ -20,7 +20,7 @@ def _latest_partition(root: Path) -> Path:
 
 
 def test_load_simulation_config() -> None:
-    config_path = Path("config/models/hurdle/hurdle_simulation.priors.yaml")
+    config_path = Path("config/layer1/1A/models/hurdle/hurdle_simulation.priors.yaml")
     cfg = load_simulation_config(config_path)
 
     assert cfg.rng.seed > 0
@@ -31,13 +31,13 @@ def test_load_simulation_config() -> None:
 
 def test_load_enriched_universe() -> None:
     merchant_root = Path("reference/layer1/transaction_schema_merchant_ids")
-    iso_root = Path("reference/layer1/iso_canonical")
+    iso_root = Path("reference/iso/iso3166_canonical")
     gdp_root = Path("reference/economic/world_bank_gdp_per_capita")
     bucket_root = Path("reference/economic/gdp_bucket_map")
 
     sources = MerchantUniverseSources(
         merchant_table=_latest_partition(merchant_root) / "transaction_schema_merchant_ids.parquet",
-        iso_table=_latest_partition(iso_root) / "iso_canonical.parquet",
+        iso_table=_latest_partition(iso_root) / "iso3166.parquet",
         gdp_table=_latest_partition(gdp_root) / "gdp.parquet",
         bucket_table=_latest_partition(bucket_root) / "gdp_bucket_map.parquet",
     )

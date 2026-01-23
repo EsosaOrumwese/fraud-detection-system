@@ -1,0 +1,3827 @@
+# schemas.layer1.yaml
+
+version: '1.0'
+
+$id: schemas.layer1.yaml
+
+$schema: https://json-schema.org/draft/2020-12/schema
+
+description: Layer-wide schemas used by Layer 1 (shared logs and RNG event streams).
+
+
+
+# -- Reusable primitives ---------------------------------------------------
+
+$defs:
+
+  dec_u128:
+
+    type: string
+
+    pattern: ^(0|[1-9][0-9]{0,38})$
+
+    maxLength: 39
+
+    description: Base-10 unsigned 128-bit integer as a string (no sign, no leading zeros except '0'). Validator enforces < 2^128.
+
+  id64:
+
+    type: integer
+
+    minimum: 1
+
+    maximum: 18446744073709551615
+
+    description: Positive 64-bit identifier (uint64).
+
+  iso2:
+
+    type: string
+
+    pattern: ^[A-Z]{2}$
+
+    description: ISO 3166-1 alpha-2 country code.
+
+  iso4217:
+
+    type: string
+
+    pattern: ^[A-Z]{3}$
+
+    description: ISO 4217 currency code.
+
+  hex64:
+
+    type: string
+
+    pattern: ^[a-f0-9]{64}$
+
+    description: Lowercase hex SHA-256 digest.
+
+  sha256:
+
+    type: string
+
+    pattern: ^[a-f0-9]{64}$
+
+  hex32:
+
+    type: string
+
+    pattern: ^[a-f0-9]{32}$
+
+    description: Lowercase 32-hex run identifier (run_id).
+
+  u01:
+
+    type: number
+
+    exclusiveMinimum: 0.0
+
+    exclusiveMaximum: 1.0
+
+    description: Open-interval uniform deviate in (0,1).
+
+  pct01:
+
+    type: number
+
+    minimum: 0.0
+
+    maximum: 1.0
+
+    description: Probability or share in [0,1].
+
+  uint32:
+
+    type: integer
+
+    minimum: 0
+
+    maximum: 4294967295
+
+  uint64:
+
+    type: integer
+
+    minimum: 0
+
+    maximum: 18446744073709551615
+
+  semver:
+
+    type: string
+
+    pattern: '^[0-9]+\\.[0-9]+\\.[0-9]+$'
+
+  rng_algorithm:
+
+    type: string
+
+    enum: [philox2x64-10]
+
+  iso8601_utc:
+
+    type: string
+
+    anyOf:
+
+      - {pattern: '^[0-9]{8}T[0-9]{6}Z$'}
+
+      - {pattern: '^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}Z$'}
+
+  channel_offsets:
+
+    type: object
+
+    additionalProperties: false
+
+    required: [CP, CNP]
+
+    properties:
+
+      CP: {type: number}
+
+      CNP: {type: number}
+
+  bucket_offsets_1_to_5:
+
+    type: object
+
+    additionalProperties: false
+
+    required: ["1", "2", "3", "4", "5"]
+
+    properties:
+
+      "1": {type: number}
+
+      "2": {type: number}
+
+      "3": {type: number}
+
+      "4": {type: number}
+
+      "5": {type: number}
+
+  mcc_offsets:
+
+    type: object
+
+    patternProperties:
+
+      '^[0-9]{4}$': {type: number}
+
+    additionalProperties: false
+
+  mcc_range_offsets:
+
+    type: array
+
+    items:
+
+      type: object
+
+      additionalProperties: false
+
+      required: [range, offset]
+
+      properties:
+
+        range: {type: string, pattern: '^[0-9]{4}-[0-9]{4}$'}
+
+        offset: {type: number}
+
+  artifact_ref:
+
+    type: object
+
+    additionalProperties: false
+
+    required: [path, sha256]
+
+    properties:
+
+      path: {type: string, minLength: 1}
+
+      sha256: {$ref: '#/$defs/sha256'}
+
+  s3_rule_predicate:
+
+    oneOf:
+
+    - type: object
+
+      additionalProperties: false
+
+      required: [op]
+
+      properties:
+
+        op: {const: "TRUE"}
+
+    - type: object
+
+      additionalProperties: false
+
+      required: [op, field, set]
+
+      properties:
+
+        op: {const: "IN_SET"}
+
+        field: {const: "home_country_iso"}
+
+        set: {type: string, minLength: 1}
+
+    - type: object
+
+      additionalProperties: false
+
+      required: [op, values]
+
+      properties:
+
+        op: {const: "CHANNEL_IN"}
+
+        values:
+
+          type: array
+
+          minItems: 1
+
+          items: {type: string, enum: [card_present, card_not_present]}
+
+    - type: object
+
+      additionalProperties: false
+
+      required: [op]
+
+      properties:
+
+        op: {const: "MCC_IN"}
+
+        codes:
+
+          type: array
+
+          minItems: 1
+
+          items: {type: string, pattern: '^[0-9]{4}$'}
+
+        ranges:
+
+          type: array
+
+          minItems: 1
+
+          items: {type: string, pattern: '^[0-9]{4}-[0-9]{4}$'}
+
+      anyOf:
+
+      - required: [codes]
+
+      - required: [ranges]
+
+    - type: object
+
+      additionalProperties: false
+
+      required: [op, value]
+
+      properties:
+
+        op: {const: "N_GE"}
+
+        value: {type: integer, minimum: 0}
+
+    - type: object
+
+      additionalProperties: false
+
+      required: [op, args]
+
+      properties:
+
+        op: {const: "AND"}
+
+        args:
+
+          type: array
+
+          minItems: 1
+
+          items: {$ref: '#/$defs/s3_rule_predicate'}
+
+    - type: object
+
+      additionalProperties: false
+
+      required: [op, args]
+
+      properties:
+
+        op: {const: "OR"}
+
+        args:
+
+          type: array
+
+          minItems: 1
+
+          items: {$ref: '#/$defs/s3_rule_predicate'}
+
+    - type: object
+
+      additionalProperties: false
+
+      required: [op, arg]
+
+      properties:
+
+        op: {const: "NOT"}
+
+        arg: {$ref: '#/$defs/s3_rule_predicate'}
+
+  six_digit_seq:
+
+    type: string
+
+    pattern: ^[0-9]{6}$
+
+    description: Zero-padded 6-digit sequence string.
+
+  stream_label:
+
+    type: string
+
+    description: Deterministic Philox sub-stream label (e.g., 'hurdle_bernoulli', 'gumbel_key').
+
+  rfc3339_micros:
+
+    type: string
+
+    format: date-time
+
+    pattern: ^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}\.[0-9]{6}Z$
+
+    description: "UTC timestamp with EXACTLY 6 fractional digits."
+
+  iana_tzid:
+
+    type: string
+
+    pattern: '^[A-Za-z0-9._+-]+(?:/[A-Za-z0-9._+-]+)*$'
+
+    description: "IANA tzid like Area/Location (allows single-segment aliases)."
+
+  tz_offset_minutes:
+
+    type: integer
+
+    minimum: -900
+
+    maximum: 900
+
+  fold_bit:
+
+    type: integer
+
+    enum: [0,1]
+
+
+
+  # Common envelope for all RNG JSONL events
+
+  rng_envelope:
+
+    type: object
+
+    required: [ts_utc, run_id, seed, parameter_hash, manifest_fingerprint, module, substream_label, rng_counter_before_lo, rng_counter_before_hi, rng_counter_after_lo, rng_counter_after_hi, draws, blocks]
+
+    properties:
+
+      ts_utc:
+
+        type: string
+
+        format: date-time  # Exactly 6 fractional digits (microseconds) plus trailing 'Z'
+
+        pattern: ^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}\.[0-9]{6}Z$
+
+        description: Event timestamp (UTC). MUST be RFC-3339 with 'Z' and EXACTLY 6 fractional digits (microseconds), e.g., 2025-08-15T10:03:12.345678Z.
+
+      run_id: {$ref: '#/$defs/hex32'}
+
+      seed: {$ref: '#/$defs/uint64', description: Master Philox seed for this run.}
+
+      parameter_hash: {$ref: '#/$defs/hex64', description: SHA-256 of combined parameter bundle.}
+
+      manifest_fingerprint: {$ref: '#/$defs/hex64', description: Run fingerprint used across Layer 1.}
+
+      module:
+
+        type: string
+
+        description: Emitting module (e.g., '1A.nb_sampler'). For S1 hurdle, MUST be '1A.hurdle_sampler'.
+
+      substream_label: {$ref: '#/$defs/stream_label', description: Philox sub-stream logical label.}
+
+      rng_counter_before_lo: {$ref: '#/$defs/uint64', description: Philox 2x64 counter low (before draws).}
+
+      rng_counter_before_hi: {$ref: '#/$defs/uint64', description: Philox 2x64 counter high (before draws).}
+
+      rng_counter_after_lo: {$ref: '#/$defs/uint64', description: Philox 2x64 counter low (after draws).}
+
+      rng_counter_after_hi: {$ref: '#/$defs/uint64', description: Philox 2x64 counter high (after draws).}
+
+      merchant_id: {$ref: '#/$defs/id64', nullable: true, description: Present when event is merchant-scoped.}
+
+      draws:
+
+        $ref: '#/$defs/dec_u128'
+
+        description: Uniform variates consumed by THIS event (decimal u128 string). Independent of the counter delta; validators enforce per-family budgets.
+
+      blocks:
+
+        description: PRNG block increments for THIS event (delta of the 128-bit counters). MUST equal u128(after) - u128(before) and fit in uint64.
+
+        $ref: '#/$defs/uint64'
+
+
+
+run_report:
+
+  segment_state_run:
+
+    type: object
+
+    additionalProperties: true
+
+    required:
+
+      - layer
+
+      - segment
+
+      - state
+
+      - parameter_hash
+
+      - manifest_fingerprint
+
+      - run_id
+
+      - status
+
+    properties:
+
+      layer: {type: string}
+
+      segment: {type: string}
+
+      state: {type: string}
+
+      parameter_hash: {$ref: '#/$defs/hex64'}
+
+      manifest_fingerprint: {$ref: '#/$defs/hex64'}
+
+      run_id: {type: string}
+
+      status: {type: string}
+
+
+
+# -- RNG: Core logs (JSONL) ------------------------------------------------
+
+rng:
+
+  core:
+
+
+
+    rng_audit_log:
+
+      type: stream
+
+      description: Run-scoped RNG audit (master seed, algo, code digests, platform).
+
+      record:
+
+        type: object
+
+        unevaluatedProperties: false
+        required: [ts_utc, run_id, seed, manifest_fingerprint, parameter_hash, algorithm, build_commit]
+
+        properties:
+
+          ts_utc:
+
+            type: string
+
+            format: date-time
+
+            pattern: ^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}\.[0-9]{6}Z$
+
+          run_id: {$ref: '#/$defs/hex32'}
+
+          seed: {$ref: '#/$defs/uint64'}
+
+          manifest_fingerprint: {$ref: '#/$defs/hex64'}
+
+          parameter_hash: {$ref: '#/$defs/hex64'}
+
+          algorithm: {type: string, enum: [philox2x64-10], description: Counter-based RNG variant.}
+
+          build_commit: {type: string, description: Git SHA of code at run.}
+
+          code_digest: {$ref: '#/$defs/hex64', description: Digest of source bundle opened by runtime., nullable: true}
+
+          hostname: {type: string, nullable: true}
+
+          platform: {type: string, nullable: true}
+
+          notes: {type: string, nullable: true}
+
+
+
+    rng_trace_log:
+
+      type: stream
+
+      description: 'Structured per-(module,substream_label) RNG consumption trace with cumulative totals: draws_total = Σ event draws (uniforms); blocks_total = Σ event counter deltas (PRNG blocks). No equality between the two is implied.'
+
+      # Final-row selection (validator note): choose the row with the max (after_hi, after_lo) in unsigned lexicographic order;
+
+      # if tied, use latest ts_utc; if still tied, choose the row with the lexicographically largest (events_total, blocks_total, draws_total);
+
+      # if still tied, pick the lexicographically largest part filename. Informational comment; schema unchanged.
+
+      record:
+
+        type: object
+
+        unevaluatedProperties: false
+        required: [ts_utc, run_id, seed, module, substream_label, rng_counter_before_lo, rng_counter_before_hi, rng_counter_after_lo, rng_counter_after_hi, draws_total, blocks_total, events_total]
+
+        properties:
+
+          ts_utc:
+
+            type: string
+
+            format: date-time
+
+            pattern: ^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}\.[0-9]{6}Z$
+
+          run_id: {$ref: '#/$defs/hex32'}
+
+          seed: {$ref: '#/$defs/uint64'}
+
+          module: {type: string}
+
+          substream_label: {$ref: '#/$defs/stream_label'}
+
+          draws_total: {$ref: '#/$defs/uint64', description: 'Cumulative number of uniforms consumed for this (module, substream_label) in the run (saturating sum).'}
+
+          blocks_total: {$ref: '#/$defs/uint64', description: 'Cumulative PRNG block count per (module, substream_label) in the run (saturating sum).'}
+
+          events_total: {$ref: '#/$defs/uint64', description: 'Cumulative number of event rows observed for this (module, substream_label) in the run (saturating sum).'}
+
+          rng_counter_before_lo: {$ref: '#/$defs/uint64'}
+
+          rng_counter_before_hi: {$ref: '#/$defs/uint64'}
+
+          rng_counter_after_lo: {$ref: '#/$defs/uint64'}
+
+          rng_counter_after_hi: {$ref: '#/$defs/uint64'}
+
+          detail: {type: string, nullable: true}
+
+
+
+  # -- RNG: Event schemas (JSONL) ------------------------------------------
+
+  events:
+
+
+
+    cdn_edge_pick:
+
+      description: "Virtual-merchant edge pick (2B.S6). Single-uniform budget."
+
+      allOf:
+
+      - $ref: '#/$defs/rng_envelope'
+
+      - type: object
+
+        required: [module, substream_label, blocks, draws]
+
+        properties:
+
+          module: { const: 2B.virtual_edge }
+
+          substream_label: { const: cdn_edge_pick }
+
+          blocks: { const: 1 }
+
+          draws:  { const: "1" }
+
+      - type: object
+
+        unevaluatedProperties: false
+
+
+
+    alias_pick_group:
+
+      description: "2B.S5 tz-group selection (Stage A). Single-uniform budget."
+
+      allOf:
+
+      - $ref: '#/$defs/rng_envelope'
+
+      - type: object
+
+        required: [module, substream_label, merchant_id, utc_day, tz_group_id, p_group]
+
+        properties:
+
+          module:          { const: 2B.S5.router }
+
+          substream_label: { const: alias_pick_group }
+
+          draws:           { const: "1" }
+
+          blocks:          { const: 1 }
+
+          merchant_id:     { $ref: '#/$defs/id64' }
+
+          utc_day:         { type: string, format: date }
+
+          tz_group_id:     { $ref: '#/$defs/iana_tzid' }
+
+          p_group:         { $ref: '#/$defs/pct01' }
+
+      - type: object
+
+        unevaluatedProperties: false
+
+
+
+    alias_pick_site:
+
+      description: "2B.S5 site selection (Stage B). Single-uniform budget."
+
+      allOf:
+
+      - $ref: '#/$defs/rng_envelope'
+
+      - type: object
+
+        required: [module, substream_label, merchant_id, utc_day, tz_group_id, site_id]
+
+        properties:
+
+          module:          { const: 2B.S5.router }
+
+          substream_label: { const: alias_pick_site }
+
+          draws:           { const: "1" }
+
+          blocks:          { const: 1 }
+
+          merchant_id:     { $ref: '#/$defs/id64' }
+
+          utc_day:         { type: string, format: date }
+
+          tz_group_id:     { $ref: '#/$defs/iana_tzid' }
+
+          site_id:         { $ref: '#/$defs/id64' }
+
+      - type: object
+
+        unevaluatedProperties: false
+
+
+
+    arrival_bucket_count:
+
+      description: "Segment 5B.S3 bucket-count draws."
+
+      allOf:
+
+      - $ref: '#/$defs/rng_envelope'
+
+      - type: object
+
+        required: [module, substream_label, scenario_id, bucket_index]
+
+        properties:
+
+          module: { const: 5B.S3 }
+
+          substream_label: { const: bucket_count }
+
+          scenario_id: { type: string }
+
+          bucket_index:
+
+            type: integer
+
+            minimum: 0
+
+
+
+    arrival_lgcp_gaussian:
+
+      description: "Segment 5B.S2 LGCP latent-vector draws (arrival intensity)."
+
+      allOf:
+
+      - $ref: '#/$defs/rng_envelope'
+
+      - type: object
+
+        required: [module, substream_label, scenario_id, group_id]
+
+        properties:
+
+          module: { const: 5B.S2 }
+
+          substream_label: { const: latent_vector }
+
+          scenario_id: { type: string }
+
+          group_id: { type: string }
+
+
+
+    arrival_time_jitter:
+
+      description: "Segment 5B.S4 time placement jitter draws."
+
+      allOf:
+
+      - $ref: '#/$defs/rng_envelope'
+
+      - type: object
+
+        required: [module, substream_label]
+
+        properties:
+
+          module: { const: 5B.S4 }
+
+          substream_label: { const: arrival_time_jitter }
+
+
+
+    arrival_site_pick:
+
+      description: "Segment 5B.S4 physical site selection draws."
+
+      allOf:
+
+      - $ref: '#/$defs/rng_envelope'
+
+      - type: object
+
+        required: [module, substream_label]
+
+        properties:
+
+          module: { const: 5B.S4 }
+
+          substream_label: { const: arrival_site_pick }
+
+
+
+    arrival_edge_pick:
+
+      description: "Segment 5B.S4 virtual edge selection draws."
+
+      allOf:
+
+      - $ref: '#/$defs/rng_envelope'
+
+      - type: object
+
+        required: [module, substream_label]
+
+        properties:
+
+          module: { const: 5B.S4 }
+
+          substream_label: { const: arrival_edge_pick }
+
+
+
+    edge_tile_assign:
+
+      description: "Segment 3B.S2 tile assignment or permutation when expanding CDN weights."
+
+      allOf:
+
+      - $ref: '#/$defs/rng_envelope'
+
+      - type: object
+
+        required: [module, substream_label, merchant_id, country_iso, tile_id, edge_budget, permuted_index]
+
+        properties:
+
+          module:          { const: 3B.S2 }
+
+          substream_label: { const: edge_tile_assign }
+
+          merchant_id:     { $ref: '#/$defs/id64' }
+
+          country_iso:     { $ref: '#/$defs/iso2' }
+
+          tile_id:         { type: string }
+
+          edge_budget:     { type: integer, minimum: 0 }
+
+          permuted_index:  { type: integer, minimum: 0 }
+
+          notes:           { type: string, nullable: true }
+
+      - type: object
+
+        unevaluatedProperties: false
+
+
+
+    edge_jitter:
+
+      description: "Segment 3B.S2 HRSL jitter attempt for a single edge slot."
+
+      allOf:
+
+      - $ref: '#/$defs/rng_envelope'
+
+      - type: object
+
+        required: [module, substream_label, merchant_id, country_iso, tile_id, edge_seq_index, attempt, accepted]
+
+        properties:
+
+          module:          { const: 3B.S2 }
+
+          substream_label: { const: edge_jitter }
+
+          merchant_id:     { $ref: '#/$defs/id64' }
+
+          country_iso:     { $ref: '#/$defs/iso2' }
+
+          tile_id:         { type: string }
+
+          edge_seq_index:  { type: integer, minimum: 0 }
+
+          attempt:         { type: integer, minimum: 1 }
+
+          accepted:        { type: boolean }
+
+          u_lon:           { $ref: '#/$defs/u01' }
+
+          u_lat:           { $ref: '#/$defs/u01' }
+
+          candidate_lon_deg: { type: number, nullable: true }
+
+          candidate_lat_deg: { type: number, nullable: true }
+
+          tz_resolution:   { type: string, nullable: true }
+
+      - type: object
+
+        unevaluatedProperties: false
+
+
+
+    zone_dirichlet:
+
+      description: "Segment 3A Dirichlet draw per escalated merchant x country."
+
+      allOf:
+
+      - $ref: '#/$defs/rng_envelope'
+
+      - type: object
+
+        required: [module, substream_label, merchant_id, country_iso, rng_stream_id, zone_count]
+
+        properties:
+
+          module: { const: 3A.S3 }
+
+          substream_label: { const: zone_dirichlet }
+
+          merchant_id: { $ref: '#/$defs/id64' }
+
+          country_iso: { $ref: '#/$defs/iso2' }
+
+          rng_stream_id: { type: string }
+
+          zone_count: { type: integer, minimum: 1 }
+
+          alpha_sum_country: { type: number, minimum: 0.0, nullable: true }
+
+          alpha_min: { type: number, minimum: 0.0, nullable: true }
+
+          alpha_max: { type: number, minimum: 0.0, nullable: true }
+
+          notes: { type: string, nullable: true }
+
+      - type: object
+
+        unevaluatedProperties: false
+
+
+
+    zone_dirichlet_share:
+
+      description: "Segment 3A Dirichlet share draw for zone allocation."
+
+      allOf:
+
+      - $ref: '#/$defs/rng_envelope'
+
+      - type: object
+
+        required: [merchant_id, country_iso, tzid, share_drawn]
+
+        properties:
+
+          module: { const: 3A.zone_shares }
+
+          substream_label: { const: zone_dirichlet_share }
+
+          merchant_id: { $ref: '#/$defs/id64' }
+
+          country_iso: { $ref: '#/$defs/iso2' }
+
+          tzid: { $ref: '#/$defs/iana_tzid' }
+
+          share_drawn: { $ref: '#/$defs/pct01' }
+
+          prior_pack_id: { type: string }
+
+          prior_pack_version: { type: string }
+
+          alpha_sum_country: { type: number, minimum: 0.0 }
+
+          notes: { type: string, nullable: true }
+
+      - type: object
+
+        unevaluatedProperties: false
+
+
+
+    anchor:
+
+      description: "Segment 1A S0 RNG anchor event (non-consuming)."
+
+      allOf:
+
+      - $ref: '#/$defs/rng_envelope'
+
+      - type: object
+
+        required: [module, substream_label, blocks, draws]
+
+        properties:
+
+          module: { const: 1A.s0 }
+
+          substream_label: { const: s0.anchor }
+
+          blocks: { const: 0 }
+
+          draws:  { const: "0" }
+
+      - type: object
+
+        unevaluatedProperties: false
+
+
+
+    hurdle_bernoulli:
+
+      allOf:
+
+      - $ref: '#/$defs/rng_envelope'
+
+      - type: object
+
+        required: [merchant_id, pi, u, is_multi, deterministic]     # deterministic flag is authoritative; 'u' becomes conditional
+
+        properties:
+
+            # Envelope literal closure for this stream
+
+          module: {const: 1A.hurdle_sampler}
+
+          substream_label: {const: hurdle_bernoulli}
+
+            # Budget constraints for this family
+
+          blocks: {type: integer, enum: [0, 1], description: Exactly one or zero Philox blocks consumed.}
+
+          draws: {type: string, enum: ['0', '1'], description: Decimal-encoded uint128; exactly 0 or 1 uniform.}
+
+            # Payload
+
+          merchant_id: {$ref: '#/$defs/id64'}
+
+          pi: {$ref: '#/$defs/pct01', description: Logistic probability of being multi-site.}
+
+          is_multi: {type: boolean, description: 'Outcome: true ⇒ multi-site.'}
+
+          deterministic: {type: boolean, description: "True iff π ∈ {0,1}. When true, no uniform is consumed and 'u' MUST be null."}
+
+          u:
+
+            oneOf:
+
+            - {type: 'null', description: Only valid when deterministic = true.}
+
+            - {$ref: '#/$defs/u01', description: Open-interval uniform used only when deterministic = false.}
+
+            # optional diagnostics (non-authoritative)
+
+          eta: {type: number, description: Linear predictor (binary64)., nullable: true}
+
+          gdp_bucket_id: {type: integer, minimum: 1, maximum: 5, description: From design matrix., nullable: true}
+
+          mcc: {type: integer, minimum: 0, maximum: 9999, description: MCC (from design)., nullable: true}
+
+          channel: {type: string, enum: [card_present, card_not_present], description: Channel (from design)., nullable: true}
+
+        allOf:
+
+        - if: {properties: {deterministic: {const: true}}}
+
+          then:
+
+            properties: {u: {type: 'null'}}
+
+        - if: {properties: {deterministic: {const: false}}}
+
+          then:
+
+            required: [u]
+
+      - type: object
+
+        unevaluatedProperties: false
+
+
+
+    gamma_component:
+
+      allOf:
+
+      - $ref: '#/$defs/rng_envelope'
+
+      - type: object
+
+        required: [merchant_id, context, index, alpha, gamma_value]
+
+        properties:
+
+          merchant_id: {$ref: '#/$defs/id64'}
+
+          context: {type: string, enum: [nb, dirichlet], description: NB mixture vs Dirichlet sampler.}
+
+          index: {type: integer, minimum: 0, description: 'Component index (Dirichlet i, or NB=0).'}
+
+          country_iso: {$ref: '#/$defs/iso2', nullable: true, description: Present for Dirichlet components.}
+
+          alpha: {type: number, exclusiveMinimum: 0.0, description: Gamma shape parameter.}
+
+          gamma_value: {type: number, exclusiveMinimum: 0.0, description: 'Sampled Gamma(α,1) deviate.'}
+
+      - type: object
+
+        unevaluatedProperties: false
+
+
+
+    poisson_component:
+
+      allOf:
+
+      - $ref: '#/$defs/rng_envelope'
+
+      - type: object
+
+        required: [merchant_id, context, lambda, k, attempt]
+
+        properties:
+
+          merchant_id: {$ref: '#/$defs/id64'}
+
+          context: {type: string, enum: [nb, ztp], description: NB composition or ZTP sampler.}
+
+          lambda: {type: number, exclusiveMinimum: 0.0}
+
+          k: {type: integer, minimum: 0, description: Poisson draw (untruncated).}
+
+          attempt: {type: integer, minimum: 1, description: 1-based attempt index for context='ztp'.}
+
+      - if: { properties: { context: { const: ztp } } }
+
+        then:
+
+          properties:
+
+            module: {const: 1A.ztp_sampler}
+
+            substream_label: {const: poisson_component}
+
+      - type: object
+
+        unevaluatedProperties: false
+
+
+
+    nb_final:
+
+      allOf:
+
+      - $ref: '#/$defs/rng_envelope'
+
+      - type: object
+
+        required: [merchant_id, mu, dispersion_k, n_outlets, nb_rejections]
+
+        properties:
+
+          merchant_id: {$ref: '#/$defs/id64'}
+
+          mu: {type: number, exclusiveMinimum: 0.0, description: NB mean parameter.}
+
+          dispersion_k: {type: number, exclusiveMinimum: 0.0, description: NB dispersion (size) parameter.}
+
+          n_outlets: {type: integer, minimum: 2, description: 'Accepted NB draw N (rejected if {0,1}).'}
+
+          nb_rejections: {type: integer, minimum: 0, description: 'Count of rejected {0,1} draws before acceptance.'}
+
+          method: {type: string, enum: [poisson_gamma_mixture]}
+
+      - type: object
+
+        # S2 finaliser is non-consuming; envelope must reflect that (parity with ztp_final).
+
+        properties:
+
+          blocks: {const: 0}
+
+          draws:  {const: "0"}
+
+      - type: object
+
+        unevaluatedProperties: false
+
+
+
+    ztp_rejection:
+
+      allOf:
+
+      - $ref: '#/$defs/rng_envelope'
+
+      - type: object
+
+        required: [merchant_id, context, lambda_extra, k, attempt]
+
+        properties:
+
+          module: {const: 1A.ztp_sampler}
+
+          substream_label: {const: poisson_component}
+
+          context: {const: ztp}
+
+          blocks: {const: 0}
+
+          draws: {const: "0"}
+
+          merchant_id: {$ref: '#/$defs/id64'}
+
+          lambda_extra: {type: number, exclusiveMinimum: 0.0, description: λ for extra-country count.}
+
+          k: {type: integer, const: 0, description: Rejected draw (ZTP zero).}
+
+          attempt: {type: integer, minimum: 1}
+
+      - type: object
+
+        unevaluatedProperties: false
+
+
+
+    ztp_retry_exhausted:
+
+      allOf:
+
+      - $ref: '#/$defs/rng_envelope'
+
+      - type: object
+
+        required: [merchant_id, context, lambda_extra, attempts, aborted]
+
+        properties:
+
+          module: {const: 1A.ztp_sampler}
+
+          substream_label: {const: poisson_component}
+
+          context: {const: ztp}
+
+          blocks: {const: 0}
+
+          draws: {const: "0"}
+
+          merchant_id: {$ref: '#/$defs/id64'}
+
+          lambda_extra: {type: number, exclusiveMinimum: 0.0}
+
+          attempts: {type: integer, minimum: 1}
+
+          aborted: {type: boolean, const: true}
+
+      - type: object
+
+        unevaluatedProperties: false
+
+
+
+    ztp_final:
+
+      $id: /rng/events/ztp_final
+
+      title: S4 ZTP finaliser (non-consuming)
+
+      description: >
+
+        Single acceptance record per resolved merchant in S4. Non-consuming row that fixes
+
+        {K_target, lambda_extra, attempts, regime, exhausted?[, reason?]} and closes the ZTP loop.
+
+        Envelope identities for non-consuming rows MUST hold: before==after, blocks=0, draws="0".
+
+      type: object
+
+      allOf:
+
+        # Reuse the standard RNG envelope for event rows (ts_utc, module, substream_label, context, counters, blocks, draws)
+
+      - $ref: '#/$defs/rng_envelope'
+
+      - type: object
+
+        properties:
+
+          module: {const: 1A.ztp_sampler}
+
+          substream_label: {const: poisson_component}
+
+          context: {const: ztp}
+
+          blocks: {const: 0}
+
+          draws:  {const: "0"}
+
+          merchant_id: {$ref: '#/$defs/id64'}
+
+          K_target: {type: integer, minimum: 0}
+
+          lambda_extra: {type: number}
+
+          attempts: {type: integer, minimum: 0}
+
+          regime: {type: string, enum: [inversion, ptrs]}
+
+          exhausted: {type: boolean}
+
+        required: [module, substream_label, context, merchant_id, K_target, lambda_extra, attempts, regime]
+
+        unevaluatedProperties: false
+
+
+    gumbel_key:
+
+      allOf:
+
+        # 1) Bring in the standard RNG envelope (before/after/blocks/draws, lineage, etc.)
+
+        - $ref: '#/$defs/rng_envelope'
+
+        # 2) Core shape for this event family
+
+        - type: object
+
+          required: [merchant_id, country_iso, weight, u, key, selected]
+
+          properties:
+
+            merchant_id: {$ref: '#/$defs/id64'}
+
+            country_iso: {$ref: '#/$defs/iso2'}
+
+            weight: {$ref: '#/$defs/pct01', description: 'Renormalised candidate weight on the considered subset (numerically equal to renormalisation on the eligible subset because zero-weights add 0 to the sum).'}
+
+            u: {$ref: '#/$defs/u01'}
+
+            key: {type: [number, "null"], description: 'Gumbel score: ln(w) - ln(-ln u); null only when weight==0.'}
+
+            selected: {type: boolean, description: 'True if country among the top-K.'}
+
+            selection_order: {type: integer, minimum: 1, description: 'Present iff selected=true; integer order 1 ≤ selection_order ≤ K.'}
+
+          unevaluatedProperties: false
+
+        # 3) Pin module/label and single-uniform budget (draws=1, blocks=1)
+
+        - type: object
+
+          properties:
+
+            module: {const: "1A.foreign_country_selector"}
+
+            substream_label: {const: "gumbel_key"}
+
+            blocks: {const: 1}
+
+            draws:  {const: "1"}
+
+        # 4) JSON-safe zero-weight: key must be null; cannot be selected; no selection_order
+
+        - if:
+
+            properties: { weight: { const: 0 } }
+
+          then:
+
+            properties:
+
+              key: { type: "null" }
+
+              selected: { const: false }
+
+            not:
+
+              required: ["selection_order"]
+
+        # 5a) If selected==false, selection_order MUST NOT be present
+
+        - if:
+
+            properties: { selected: { const: false } }
+
+          then:
+
+            properties:
+
+              selection_order: false
+
+        # 5) If selected==true, selection_order must be present
+
+        - if:
+
+            properties: { selected: { const: true } }
+
+          then:
+
+            required: ["selection_order"]
+
+        # Final guard: forbid any properties not recognised by the combined schema above
+
+        - type: object
+
+          unevaluatedProperties: false
+
+
+
+    normal_box_muller:
+
+      description: Standard normal via Box–Muller; two-uniform event; sine mate discarded.
+
+      allOf:
+
+      - $ref: '#/$defs/rng_envelope'
+
+      - type: object
+
+        properties:
+
+          substream_label: {const: normal_box_muller, description: Fixed label for Box–Muller helper.}
+
+          blocks: {const: 1, description: Exactly one Philox block for two uniforms.}
+
+          draws: {type: string, enum: ['2'], description: Decimal-encoded uint128; exactly two uniforms.}
+
+          payload:
+
+            type: object
+
+            additionalProperties: false
+
+            required: [z]
+
+            properties:
+
+              z: {type: number, description: 'Standard normal deviate N(0,1) from Box–Muller (cosine branch); no caching.'}
+
+        required: [payload]
+
+      - type: object
+
+        unevaluatedProperties: false
+
+
+
+    dirichlet_gamma_vector:
+
+      allOf:
+
+      - $ref: '#/$defs/rng_envelope'
+
+      - type: object
+
+        required: [merchant_id, home_country_iso, country_isos, alpha, gamma_raw, weights]
+
+        properties:
+
+          merchant_id: {$ref: '#/$defs/id64'}
+
+          home_country_iso: {$ref: '#/$defs/iso2'}
+
+          country_isos:
+
+            type: array
+
+            minItems: 1
+
+            items: {$ref: '#/$defs/iso2'}
+
+            description: 'Order: home first, then foreigns in S3 `candidate_rank` order filtered to membership.'
+
+          alpha:
+
+            type: array
+
+            minItems: 1
+
+            items: {type: number, exclusiveMinimum: 0.0}
+
+            description: Dirichlet α-vector, length == len(country_isos).
+
+          gamma_raw:
+
+            type: array
+
+            minItems: 1
+
+            items: {type: number, exclusiveMinimum: 0.0}
+
+            description: Raw Gamma(α_i,1) deviates.
+
+          weights:
+
+            type: array
+
+            minItems: 1
+
+            items: {$ref: '#/$defs/pct01'}
+
+            description: Normalised w_i; Σ w_i = 1 ± 1e-6.
+
+          n_domestic: {type: integer, minimum: 1, nullable: true, description: 'Optional diagnostic: domestic outlet count N used to scale.'}
+
+    # Pin the emitting lineage for this S7 feature-lane
+
+      - type: object
+
+        properties:
+
+          module: {const: "1A.dirichlet_allocator"}
+
+          substream_label: {const: "dirichlet_gamma_vector"}
+
+      - type: object
+
+        unevaluatedProperties: false
+
+
+
+    stream_jump:
+
+      allOf:
+
+      - $ref: '#/$defs/rng_envelope'
+
+      - type: object
+
+        required: [reason, jump_stride_lo, jump_stride_hi]
+
+        properties:
+
+          reason: {type: string, enum: [init, module_start, reset, advance], description: Why jump occurred.}
+
+          jump_stride_lo: {$ref: '#/$defs/uint64', description: 'Lower 64 bits of stride (e.g., first 64b of SHA-256(label)).'}
+
+          jump_stride_hi: {$ref: '#/$defs/uint64', description: Upper 64 bits of stride (if used).}
+
+      - type: object
+
+        unevaluatedProperties: false
+
+
+
+    sequence_finalize:
+
+      allOf:
+
+      - $ref: '#/$defs/rng_envelope'
+
+      - type: object
+
+        required: [merchant_id, country_iso, site_count, start_sequence, end_sequence]
+
+        properties:
+
+          merchant_id: {$ref: '#/$defs/id64'}
+
+          country_iso: {$ref: '#/$defs/iso2'}
+
+          site_count: {type: integer, minimum: 1}
+
+          start_sequence: {$ref: '#/$defs/six_digit_seq'}
+
+          end_sequence: {$ref: '#/$defs/six_digit_seq'}
+
+      - type: object
+
+        properties:
+
+          blocks: {const: 0}
+
+          draws:  {const: "0"}
+
+      - type: object
+
+        properties:
+
+          module:          {const: "1A.site_id_allocator"}
+
+          substream_label: {const: "sequence_finalize"}
+
+      - type: object
+
+        unevaluatedProperties: false
+
+
+
+    residual_rank:
+
+      allOf:
+
+      - $ref: '#/$defs/rng_envelope'
+
+      - type: object
+
+        required: [merchant_id, country_iso, residual, residual_rank]
+
+        properties:
+
+          merchant_id: {$ref: '#/$defs/id64'}
+
+          country_iso: {$ref: '#/$defs/iso2'}
+
+            # Note: residuals are quantised to 8 dp by the engine; rounding tolerance is validated in invariants, not in schema.
+
+          residual: {type: number, minimum: 0.0, exclusiveMaximum: 1.0, description: 'Largest-remainder residual in [0,1).'}
+
+          residual_rank: {type: integer, minimum: 1}
+
+      # Pin the emitting lineage and assert non-consuming envelope (S7 deterministic lane)
+
+      - type: object
+
+        properties:
+
+          module: {const: "1A.integerisation"}
+
+          substream_label: {const: "residual_rank"}
+
+          blocks: {const: 0}
+
+          draws:  {const: "0"}
+
+      - type: object
+
+        unevaluatedProperties: false
+
+
+
+    site_sequence_overflow:
+
+      allOf:
+
+      - $ref: '#/$defs/rng_envelope'
+
+      - type: object
+
+        required: [merchant_id, country_iso, attempted_count, max_seq, overflow_by, severity]
+
+        properties:
+
+          merchant_id: {$ref: '#/$defs/id64'}
+
+          country_iso: {$ref: '#/$defs/iso2'}
+
+          attempted_count: {type: integer, minimum: 0, description: Requested n_i for this country.}
+
+          max_seq: {type: integer, const: 999999, description: 6-digit ceiling.}
+
+          overflow_by: {type: integer, minimum: 1}
+
+          severity: {type: string, enum: [ERROR], description: Hard guardrail triggers abort.}
+
+      - type: object
+
+        properties:
+
+          blocks: {const: 0}
+
+          draws:  {const: "0"}
+
+      - type: object
+
+        properties:
+
+          module:          {const: "1A.site_id_allocator"}
+
+          substream_label: {const: "site_sequence_overflow"}
+
+      - type: object
+
+        unevaluatedProperties: false
+
+
+
+    site_tile_assign:
+
+      allOf:
+
+      - $ref: '#/$defs/rng_envelope'
+
+      - type: object
+
+        required: [module, substream_label, merchant_id, legal_country_iso, site_order, tile_id, u]
+
+        properties:
+
+          module:          { const: "1B.S5.assigner" }
+
+          substream_label: { const: "site_tile_assign" }
+
+          merchant_id:     { $ref: '#/$defs/id64' }
+
+          legal_country_iso: { $ref: '#/$defs/iso2' }
+
+          site_order:      { type: integer, minimum: 1 }
+
+          tile_id:         { $ref: 'schemas.1B.yaml#/$defs/uint64' }
+
+          u:               { $ref: '#/$defs/u01' }            # open-interval (0,1)
+
+      - type: object
+
+        properties: { blocks: { const: 1 }, draws: { const: "1" } }   # one draw per site
+
+      - type: object
+
+        unevaluatedProperties: false
+
+
+
+    in_cell_jitter:
+
+      allOf:
+
+      - $ref: '#/$defs/rng_envelope'
+
+      - type: object
+
+        required: [module, substream_label, merchant_id, legal_country_iso, site_order, delta_lat_deg, delta_lon_deg, sigma_lat_deg, sigma_lon_deg]
+
+        properties:
+
+          module:            { const: "1B.S6.jitter" }
+
+          substream_label:   { const: "in_cell_jitter" }
+
+          merchant_id:       { $ref: '#/$defs/id64' }
+
+          legal_country_iso: { $ref: '#/$defs/iso2' }
+
+          site_order:        { type: integer, minimum: 1 }
+
+          sigma_lat_deg:     { type: number }
+
+          sigma_lon_deg:     { type: number }
+
+          delta_lat_deg:     { type: number }
+
+          delta_lon_deg:     { type: number }
+
+      - type: object
+
+        properties: { blocks: { const: 1 }, draws: { const: "2" } }   # two uniforms per site
+
+      - type: object
+
+        unevaluatedProperties: false
+
+
+
+governance:
+
+  numeric_policy_profile:
+
+    type: object
+
+    required: [rounding, fma, ftz_daz, subnormals]
+
+    properties:
+
+      rounding: {type: string, enum: [RNE]}
+
+      fma: {type: string, enum: [off]}
+
+      ftz_daz: {type: string, enum: [off]}
+
+      subnormals: {type: string, enum: [preserved]}
+
+      notes: {type: string, nullable: true}
+
+  math_profile_manifest:
+
+    type: object
+
+    required: [math_profile_id, vendor, version, functions]
+
+    properties:
+
+      math_profile_id: {type: string}
+
+      vendor: {type: string}
+
+      version: {type: string}
+
+      functions:
+
+        type: array
+
+        items: {type: string}
+
+      checksum:
+
+        type: string
+
+        pattern: ^[0-9a-f]{64}$
+
+  license_map:
+
+    type: object
+
+    additionalProperties: false
+
+    required: [semver, version, licenses]
+
+    properties:
+
+      semver: {type: string, pattern: '^[0-9]+\.[0-9]+\.[0-9]+$'}
+
+      version: {type: string, pattern: '^[0-9]{4}-[0-9]{2}-[0-9]{2}$'}
+
+      licenses:
+
+        type: object
+
+        additionalProperties:
+
+          type: object
+
+          additionalProperties: false
+
+          required:
+
+          - spdx
+
+          - osi_approved
+
+          - redistribution
+
+          - notice_required
+
+          - sharealike
+
+          - source_disclosure
+
+          - text_path
+
+          - attribution_template
+
+          - notes
+
+          properties:
+
+            spdx: {type: [string, 'null']}
+
+            osi_approved: {type: [boolean, 'null']}
+
+            redistribution: {type: string, enum: [open, restricted, internal]}
+
+            notice_required: {type: boolean}
+
+            sharealike: {type: boolean}
+
+            source_disclosure: {type: boolean}
+
+            text_path: {type: string, minLength: 1}
+
+            attribution_template: {type: [string, 'null']}
+
+            notes: {type: [string, 'null']}
+
+
+
+
+
+policy:
+
+  s6_selection:
+
+    type: object
+
+    additionalProperties: false
+
+    required: [defaults]
+
+    properties:
+
+      defaults:
+
+        type: object
+
+        additionalProperties: false
+
+        required: [emit_membership_dataset, log_all_candidates, max_candidates_cap, zero_weight_rule]
+
+        properties:
+
+          emit_membership_dataset: {type: boolean}
+
+          log_all_candidates:     {type: boolean}
+
+          max_candidates_cap:     {$ref: '#/$defs/uint32'}
+
+          zero_weight_rule:       {type: string, enum: [exclude, include]}
+          dp_score_print:         {type: integer, minimum: 0, description: 'Diagnostic only: decimal places when printing scores; MUST NOT affect selection or RNG.'}
+
+      per_currency:
+
+        type: object
+
+        additionalProperties:
+
+          type: object
+
+          additionalProperties: false
+
+          properties:
+
+            emit_membership_dataset: {type: boolean}
+
+            max_candidates_cap:     {$ref: '#/$defs/uint32'}
+
+            zero_weight_rule:       {type: string, enum: [exclude, include]}
+
+
+  s7_integerisation:
+
+    type: object
+
+    additionalProperties: false
+
+    required: [policy_semver, policy_version, dp_resid, dirichlet_lane, bounds_lane]
+
+    allOf:
+
+    - if:
+        properties:
+          dirichlet_lane:
+            properties:
+              enabled: {const: true}
+        required: [dirichlet_lane]
+      then:
+        properties:
+          dirichlet_lane:
+            required: [alpha0]
+
+    - if:
+        properties:
+          bounds_lane:
+            properties:
+              enabled: {const: true}
+        required: [bounds_lane]
+      then:
+        properties:
+          bounds_lane:
+            required: [lower_multiplier, upper_multiplier]
+
+    properties:
+
+      policy_semver: {type: string, pattern: '^[0-9]+\.[0-9]+\.[0-9]+$'}
+
+      policy_version: {type: string, pattern: '^[0-9]{4}-[0-9]{2}-[0-9]{2}$'}
+
+      dp_resid: {type: integer, const: 8}
+
+      dirichlet_lane:
+
+        type: object
+
+        additionalProperties: false
+
+        required: [enabled]
+
+        properties:
+
+          enabled: {type: boolean}
+
+          alpha0: {type: number, exclusiveMinimum: 0.0}
+
+      bounds_lane:
+
+        type: object
+
+        additionalProperties: false
+
+        required: [enabled]
+
+        properties:
+
+          enabled: {type: boolean}
+
+          lower_multiplier: {type: number, minimum: 0.0}
+
+          upper_multiplier: {type: number, exclusiveMinimum: 0.0}
+
+
+
+  transaction_schema_merchant_ids_bootstrap_policy:
+
+    type: object
+
+    additionalProperties: false
+
+    required: [semver, version, rng, scale, home_country, mcc, channel]
+
+    properties:
+
+      semver:  {type: string, pattern: '^[0-9]+\.[0-9]+\.[0-9]+$'}
+
+      version: {type: string, pattern: '^[0-9]{4}-[0-9]{2}-[0-9]{2}$'}
+
+
+
+      rng:
+
+        type: object
+
+        additionalProperties: false
+
+        required: [algorithm, seed]
+
+        properties:
+
+          algorithm: {type: string, enum: [philox2x64-10]}
+
+          seed: {$ref: '#/$defs/uint64'}
+
+
+
+      scale:
+
+        type: object
+
+        additionalProperties: false
+
+        required: [n_merchants, merchant_id_start]
+
+        properties:
+
+          n_merchants: {$ref: '#/$defs/uint32'}
+
+          merchant_id_start: {$ref: '#/$defs/id64'}
+
+
+
+      home_country:
+
+        type: object
+
+        additionalProperties: false
+
+        required: [floor_weight, bucket_base, min_distinct]
+
+        properties:
+
+          floor_weight: {type: number, minimum: 0.0}
+
+          bucket_base:  {type: number, exclusiveMinimum: 1.0}
+
+          min_distinct: {type: integer, minimum: 1}
+
+
+
+      mcc:
+
+        type: object
+
+        additionalProperties: false
+
+        required: [min_distinct, range_boosts]
+
+        properties:
+
+          min_distinct: {type: integer, minimum: 1}
+
+          range_boosts:
+
+            type: array
+
+            items:
+
+              type: object
+
+              additionalProperties: false
+
+              required: [mcc_min, mcc_max, factor]
+
+              properties:
+
+                mcc_min: {type: integer, minimum: 0, maximum: 9999}
+
+                mcc_max: {type: integer, minimum: 0, maximum: 9999}
+
+                factor:  {type: number, exclusiveMinimum: 0.0}
+
+
+
+      channel:
+
+        type: object
+
+        additionalProperties: false
+
+        required: [base_p_cnp, online_heavy, in_person_heavy]
+
+        properties:
+
+          base_p_cnp: {type: number, minimum: 0.0, maximum: 1.0}
+
+          online_heavy:
+
+            type: object
+
+            additionalProperties: false
+
+            required: [mcc_set, p_cnp]
+
+            properties:
+
+              mcc_set:
+
+                type: array
+
+                items: {type: integer, minimum: 0, maximum: 9999}
+
+              p_cnp: {type: number, minimum: 0.0, maximum: 1.0}
+
+          in_person_heavy:
+
+            type: object
+
+            additionalProperties: false
+
+            required: [mcc_set, p_cnp]
+
+            properties:
+
+              mcc_set:
+
+                type: array
+
+                items: {type: integer, minimum: 0, maximum: 9999}
+
+              p_cnp: {type: number, minimum: 0.0, maximum: 1.0}
+
+
+
+  validation_policy:
+
+    type: object
+
+    additionalProperties: false
+
+    required: [semver, version, cusum]
+
+    properties:
+
+      semver:  {type: string, pattern: '^[0-9]+\.[0-9]+\.[0-9]+$'}
+
+      version: {type: string, pattern: '^[0-9]{4}-[0-9]{2}-[0-9]{2}$'}
+
+      cusum:
+
+        type: object
+
+        additionalProperties: false
+
+        required: [reference_k, threshold_h]
+
+        properties:
+
+          reference_k: {type: number, exclusiveMinimum: 0.0}
+
+          threshold_h: {type: number, exclusiveMinimum: 0.0}
+
+          alpha_cap:
+
+            type: number
+
+            exclusiveMinimum: 0.0
+
+            maximum: 1.0
+
+            description: "Optional cap for acceptance probability alpha_m used in CUSUM; apply min(alpha_m, alpha_cap)."
+
+      notes: {type: string}
+
+
+
+  s3_rule_ladder:
+
+    type: object
+
+    additionalProperties: false
+
+    required: [precedence_order, reason_codes, filter_tags, reason_code_to_rule_id, rules]
+
+    properties:
+
+      precedence_order:
+
+        type: array
+
+        minItems: 6
+
+        uniqueItems: true
+
+        items: {type: string, enum: [DENY, ALLOW, CLASS, LEGAL, THRESHOLD, DEFAULT]}
+
+      reason_codes:
+
+        type: array
+
+        minItems: 1
+
+        items: {type: string}
+
+      filter_tags:
+
+        type: array
+
+        minItems: 1
+
+        items: {type: string}
+
+      reason_code_to_rule_id:
+
+        type: object
+
+        additionalProperties: false
+
+        patternProperties:
+
+          '^[A-Z0-9_]+$': {type: string, pattern: '^[A-Z0-9_]+$'}
+
+        description: "Mapping from reason_code to rule_id for S3 ordering-key reconstruction."
+
+      country_sets:
+
+        type: object
+
+        patternProperties:
+
+          '^[A-Z0-9_]+$':
+
+            type: array
+
+            minItems: 1
+
+            items: {$ref: '#/$defs/iso2'}
+
+        additionalProperties: false
+
+      rules:
+
+        type: array
+
+        minItems: 1
+
+        items:
+
+          type: object
+
+          additionalProperties: false
+
+          required: [rule_id, precedence, priority, is_decision_bearing, predicate, outcome]
+
+          properties:
+
+            rule_id: {type: string, pattern: '^[A-Z0-9_]+$'}
+
+            precedence: {type: string, enum: [DENY, ALLOW, CLASS, LEGAL, THRESHOLD, DEFAULT]}
+
+            priority: {type: integer, minimum: 0}
+
+            is_decision_bearing: {type: boolean}
+
+            predicate: {$ref: '#/$defs/s3_rule_predicate'}
+
+            admit_countries:
+
+              type: array
+
+              items: {$ref: '#/$defs/iso2'}
+
+            admit_sets:
+
+              type: array
+
+              items: {type: string}
+
+            deny_countries:
+
+              type: array
+
+              items: {$ref: '#/$defs/iso2'}
+
+            deny_sets:
+
+              type: array
+
+              items: {type: string}
+
+            row_tags:
+
+              type: array
+
+              items: {type: string}
+
+            outcome:
+
+              type: object
+
+              additionalProperties: false
+
+              required: [reason_code]
+
+              properties:
+
+                reason_code: {type: string}
+
+                tags:
+
+                  type: array
+
+                  items: {type: string}
+
+
+
+  s3_base_weight:
+
+    type: object
+
+    additionalProperties: false
+
+    required: [version, dp, model, bounds]
+
+    properties:
+
+      version: {type: string, pattern: '^[0-9]+\.[0-9]+\.[0-9]+$'}
+
+      dp: {type: integer, minimum: 0, maximum: 255}
+
+      model:
+
+        type: object
+
+        additionalProperties: false
+
+        required: [kind, coeffs]
+
+        properties:
+
+          kind: {type: string, const: "loglinear_rank_home"}
+
+          coeffs:
+
+            type: object
+
+            additionalProperties: false
+
+            required: [beta0, beta_home, beta_rank]
+
+            properties:
+
+              beta0: {type: number}
+
+              beta_home: {type: number}
+
+              beta_rank: {type: number}
+
+      bounds:
+
+        type: object
+
+        additionalProperties: false
+
+        required: [log_w_min, log_w_max, w_min, w_max]
+
+        properties:
+
+          log_w_min: {type: number}
+
+          log_w_max: {type: number}
+
+          w_min: {type: number, exclusiveMinimum: 0.0}
+
+          w_max: {type: number, exclusiveMinimum: 0.0}
+
+
+
+  s3_thresholds:
+
+    type: object
+
+    additionalProperties: false
+
+    required:
+
+    - semver
+
+    - version
+
+    - enabled
+
+    - home_min
+
+    - force_at_least_one_foreign_if_foreign_present
+
+    - min_one_per_country_when_feasible
+
+    - foreign_cap_mode
+
+    - on_infeasible
+
+    properties:
+
+      semver: {type: string, pattern: '^[0-9]+\.[0-9]+\.[0-9]+$'}
+
+      version: {type: string, pattern: '^[0-9]{4}-[0-9]{2}-[0-9]{2}$'}
+
+      enabled: {type: boolean}
+
+      home_min: {type: integer, minimum: 0}
+
+      force_at_least_one_foreign_if_foreign_present: {type: boolean}
+
+      min_one_per_country_when_feasible: {type: boolean}
+
+      foreign_cap_mode: {type: string, enum: [none, n_minus_home_min]}
+
+      on_infeasible: {type: string, enum: [fail]}
+
+
+
+  s3_integerisation:
+
+    type: object
+
+    additionalProperties: false
+
+    required:
+
+    - semver
+
+    - version
+
+    - emit_integerised_counts
+
+    - emit_site_sequence
+
+    properties:
+
+      semver: {type: string, pattern: '^[0-9]+\.[0-9]+\.[0-9]+$'}
+
+      version: {type: string, pattern: '^[0-9]{4}-[0-9]{2}-[0-9]{2}$'}
+
+      emit_integerised_counts: {type: boolean}
+
+      emit_site_sequence: {type: boolean}
+
+
+
+  crossborder_hyperparams:
+
+    type: object
+
+    additionalProperties: false
+
+    required: [semver, version, eligibility, ztp]
+
+    properties:
+
+      semver: {type: string, pattern: '^[0-9]+\.[0-9]+\.[0-9]+$'}
+      version: {type: string, pattern: '^[0-9]{4}-[0-9]{2}-[0-9]{2}$'}
+
+      eligibility:
+
+        type: object
+
+        additionalProperties: false
+
+        required: [rule_set_id, default_decision, rules]
+
+        properties:
+
+          rule_set_id: {type: string, minLength: 1}
+
+          default_decision: {type: string, enum: [allow, deny]}
+
+          rules:
+
+            type: array
+
+            minItems: 1
+
+            items:
+
+              type: object
+
+              additionalProperties: false
+
+              required: [id, priority, decision, channel, iso, mcc]
+
+              properties:
+
+                id: {type: string, minLength: 1}
+
+                priority: {type: integer, minimum: 0}
+
+                decision: {type: string, enum: [allow, deny]}
+
+                channel:
+
+                  anyOf:
+
+                  - {type: string, const: "*"}
+
+                  - type: array
+
+                    minItems: 1
+
+                    items: {type: string, enum: [CP, CNP]}
+
+                iso:
+
+                  anyOf:
+
+                  - {type: string, const: "*"}
+
+                  - type: array
+
+                    minItems: 1
+
+                    items: {$ref: '#/$defs/iso2'}
+
+                mcc:
+
+                  anyOf:
+
+                  - {type: string, const: "*"}
+
+                  - type: array
+
+                    minItems: 1
+
+                    items:
+
+                      type: string
+
+                      pattern: '^[0-9]{4}(-[0-9]{4})?$'
+
+                reason: {type: string}
+
+      ztp:
+
+        type: object
+
+        additionalProperties: false
+
+        required:
+
+        - rule_set_id
+
+        - theta_order
+
+        - theta
+
+        - feature_x
+
+        - MAX_ZTP_ZERO_ATTEMPTS
+
+        - ztp_exhaustion_policy
+
+        properties:
+
+          rule_set_id: {type: string, minLength: 1}
+
+          theta_order:
+
+            type: array
+
+            minItems: 1
+
+            items: {type: string}
+
+          theta:
+
+            type: object
+
+            additionalProperties: {type: number}
+
+          feature_x:
+
+            type: object
+
+            additionalProperties: false
+
+            required: [feature_id, x_default, x_transform]
+
+            properties:
+
+              feature_id: {type: string, minLength: 1}
+
+              x_default: {type: number, minimum: 0.0, maximum: 1.0}
+
+              x_transform:
+
+                type: object
+
+                additionalProperties: false
+
+                required: [kind]
+
+                properties:
+
+                  kind: {type: string, enum: [clamp01]}
+
+          MAX_ZTP_ZERO_ATTEMPTS: {type: integer, minimum: 1}
+
+          ztp_exhaustion_policy: {type: string, enum: [abort, downgrade_domestic]}
+
+
+
+  ccy_smoothing_params:
+
+    type: object
+
+    additionalProperties: false
+
+    required: [semver, version, dp, defaults]
+
+    properties:
+
+      semver: {type: string, pattern: '^[0-9]+\.[0-9]+\.[0-9]+$'}
+      version: {type: string, pattern: '^[0-9]{4}-[0-9]{2}-[0-9]{2}$'}
+
+      dp: {type: integer, minimum: 0, maximum: 18}
+
+      defaults:
+
+        type: object
+
+        additionalProperties: false
+
+        required: [blend_weight, alpha, obs_floor, min_share, shrink_exponent]
+
+        properties:
+
+          blend_weight: {type: number, minimum: 0.0, maximum: 1.0}
+
+          alpha: {type: number, minimum: 0.0}
+
+          obs_floor: {type: integer, minimum: 0}
+
+          min_share: {type: number, minimum: 0.0, maximum: 1.0}
+
+          shrink_exponent: {type: number, minimum: 0.0}
+
+      per_currency:
+
+        type: object
+
+        patternProperties:
+
+          '^[A-Z]{3}$':
+
+            type: object
+
+            additionalProperties: false
+
+            properties:
+
+              blend_weight: {type: number, minimum: 0.0, maximum: 1.0}
+
+              alpha: {type: number, minimum: 0.0}
+
+              obs_floor: {type: integer, minimum: 0}
+
+              min_share: {type: number, minimum: 0.0, maximum: 1.0}
+
+              shrink_exponent: {type: number, minimum: 0.0}
+
+        additionalProperties: false
+
+      overrides:
+
+        type: object
+
+        additionalProperties: false
+
+        properties:
+
+          alpha_iso:
+
+            type: object
+
+            patternProperties:
+
+              '^[A-Z]{3}$':
+
+                type: object
+
+                patternProperties:
+
+                  '^[A-Z]{2}$': {type: number, minimum: 0.0}
+
+                additionalProperties: false
+
+            additionalProperties: false
+
+          min_share_iso:
+
+            type: object
+
+            patternProperties:
+
+              '^[A-Z]{3}$':
+
+                type: object
+
+                patternProperties:
+
+                  '^[A-Z]{2}$': {type: number, minimum: 0.0, maximum: 1.0}
+
+                additionalProperties: false
+
+            additionalProperties: false
+
+
+
+  dirichlet_alpha_policy:
+
+    type: object
+
+    additionalProperties: false
+
+    required: [semver, version, enabled, alpha_model, bounds, fallback]
+
+    properties:
+
+      semver: {type: string, pattern: '^[0-9]+\\.[0-9]+\\.[0-9]+$'}
+
+      version: {type: string, pattern: '^[0-9]{4}-[0-9]{2}-[0-9]{2}$'}
+
+      enabled: {type: boolean}
+
+      alpha_model:
+
+        type: object
+
+        additionalProperties: false
+
+        required: [kind, total_concentration, base_share_source, include_home_boost, home_boost_multiplier]
+
+        properties:
+
+          kind: {type: string, enum: [scaled_base_shares, uniform]}
+
+          total_concentration: {type: number, exclusiveMinimum: 0.0}
+
+          base_share_source: {type: string, enum: [base_weight_priors, ccy_country_weights_cache, uniform]}
+
+          include_home_boost: {type: boolean}
+
+          home_boost_multiplier: {type: number, minimum: 1.0}
+
+      bounds:
+
+        type: object
+
+        additionalProperties: false
+
+        required: [alpha_min, alpha_max]
+
+        properties:
+
+          alpha_min: {type: number, exclusiveMinimum: 0.0}
+
+          alpha_max: {type: number, exclusiveMinimum: 0.0}
+
+      fallback:
+
+        type: object
+
+        additionalProperties: false
+
+        required: [on_missing_base_shares, on_nonfinite_alpha]
+
+        properties:
+
+          on_missing_base_shares: {type: string, enum: [fail, uniform]}
+
+          on_nonfinite_alpha: {type: string, enum: [fail]}
+
+
+
+  residual_quantisation:
+
+    type: object
+
+    additionalProperties: false
+
+    required: [semver, version, dp_resid, rounding, sort, tiebreak, validation]
+
+    properties:
+
+      semver: {type: string, pattern: '^[0-9]+\\.[0-9]+\\.[0-9]+$'}
+
+      version: {type: string, pattern: '^[0-9]{4}-[0-9]{2}-[0-9]{2}$'}
+
+      dp_resid: {type: integer, minimum: 0, maximum: 18}
+
+      rounding: {type: string, enum: [RNE]}
+
+      sort:
+
+        type: object
+
+        additionalProperties: false
+
+        required: [primary_key, stable]
+
+        properties:
+
+          primary_key: {type: string, enum: [residual_desc]}
+
+          stable: {type: boolean}
+
+      tiebreak:
+
+        type: object
+
+        additionalProperties: false
+
+        required: [keys]
+
+        properties:
+
+          keys:
+
+            type: array
+
+            minItems: 1
+
+            items: {type: string, enum: [country_iso_asc, candidate_rank_asc, merchant_id_asc, tile_id_asc]}
+
+      validation:
+
+        type: object
+
+        additionalProperties: false
+
+        required: [forbid_nan_inf, residual_domain, enforce_residual_domain]
+
+        properties:
+
+          forbid_nan_inf: {type: boolean}
+
+          residual_domain:
+
+            type: array
+
+            minItems: 2
+
+            maxItems: 2
+
+            items: {type: number}
+
+          enforce_residual_domain: {type: boolean}
+
+
+
+  hurdle_coefficients:
+
+    type: object
+
+    additionalProperties: false
+
+    required: [semver, version, metadata, dict_mcc, dict_ch, dict_dev5, beta, beta_mu, design]
+
+    properties:
+
+      semver: {type: string, pattern: '^[0-9]+\\.[0-9]+\\.[0-9]+$'}
+
+      version: {type: string, minLength: 1}
+
+      metadata:
+
+        type: object
+
+        additionalProperties: false
+
+        required: [simulation_manifest]
+
+        properties:
+
+          simulation_manifest: {type: string, minLength: 1}
+
+          simulation_config_path: {type: string}
+
+          seed: {$ref: '#/$defs/uint64'}
+
+          created_utc: {type: string}
+
+          inputs:
+
+            type: object
+
+            additionalProperties: true
+
+      dict_mcc:
+
+        type: array
+
+        minItems: 1
+
+        uniqueItems: true
+
+        items: {type: integer, minimum: 0, maximum: 9999}
+
+      dict_ch:
+
+        type: array
+
+        minItems: 2
+
+        maxItems: 2
+
+        uniqueItems: true
+
+        items: {type: string, enum: [CP, CNP]}
+
+      dict_dev5:
+
+        type: array
+
+        minItems: 5
+
+        maxItems: 5
+
+        uniqueItems: true
+
+        items: {type: integer, enum: [1, 2, 3, 4, 5]}
+
+      beta:
+
+        type: array
+
+        minItems: 1
+
+        items: {type: number}
+
+      beta_mu:
+
+        type: array
+
+        minItems: 1
+
+        items: {type: number}
+
+      design:
+
+        type: object
+
+        additionalProperties: false
+
+        required: [beta_order, beta_mu_order]
+
+        properties:
+
+          beta_order:
+
+            type: array
+
+            minItems: 1
+
+            items: {type: string}
+
+          beta_mu_order:
+
+            type: array
+
+            minItems: 1
+
+            items: {type: string}
+
+
+
+  nb_dispersion_coefficients:
+
+    type: object
+
+    additionalProperties: false
+
+    required: [semver, version, metadata, dict_mcc, dict_ch, beta_phi]
+
+    properties:
+
+      semver: {type: string, pattern: '^[0-9]+\\.[0-9]+\\.[0-9]+$'}
+
+      version: {type: string, minLength: 1}
+
+      metadata:
+
+        type: object
+
+        additionalProperties: false
+
+        required: [simulation_manifest]
+
+        properties:
+
+          simulation_manifest: {type: string, minLength: 1}
+
+          simulation_config_path: {type: string}
+
+          seed: {$ref: '#/$defs/uint64'}
+
+          created_utc: {type: string}
+
+          inputs:
+
+            type: object
+
+            additionalProperties: true
+
+      dict_mcc:
+
+        type: array
+
+        minItems: 1
+
+        uniqueItems: true
+
+        items: {type: integer, minimum: 0, maximum: 9999}
+
+      dict_ch:
+
+        type: array
+
+        minItems: 2
+
+        maxItems: 2
+
+        uniqueItems: true
+
+        items: {type: string, enum: [CP, CNP]}
+
+      beta_phi:
+
+        type: array
+
+        minItems: 1
+
+        items: {type: number}
+
+      design:
+
+        type: object
+
+        additionalProperties: false
+
+        properties:
+
+          beta_phi_order:
+
+            type: array
+
+            minItems: 1
+
+            items: {type: string}
+
+
+
+
+
+training:
+
+  hurdle_simulation_priors:
+
+    type: object
+
+    additionalProperties: false
+
+    required: [semver, version, rng, calibration, noise, clamps, hurdle, nb_mean, dispersion]
+
+    properties:
+
+      semver: {$ref: '#/$defs/semver'}
+
+      version: {type: string, minLength: 1}
+
+      rng:
+
+        type: object
+
+        additionalProperties: false
+
+        required: [algorithm, seed]
+
+        properties:
+
+          algorithm: {$ref: '#/$defs/rng_algorithm'}
+
+          seed: {$ref: '#/$defs/uint64'}
+
+      calibration:
+
+        type: object
+
+        additionalProperties: false
+
+        required: [enabled, mean_pi_target, mean_mu_target_multi, median_phi_target, fixed_iters, brackets]
+
+        properties:
+
+          enabled: {type: boolean}
+
+          mean_pi_target: {type: number, minimum: 0.0, maximum: 1.0}
+
+          mean_mu_target_multi: {type: number, exclusiveMinimum: 0.0}
+
+          median_phi_target: {type: number, exclusiveMinimum: 0.0}
+
+          fixed_iters: {type: integer, minimum: 1, maximum: 1024}
+
+          brackets:
+
+            type: object
+
+            additionalProperties: false
+
+            required: [base_logit, base_log_mean, base_log_phi]
+
+            properties:
+
+              base_logit:
+
+                type: array
+
+                minItems: 2
+
+                maxItems: 2
+
+                items: {type: number}
+
+              base_log_mean:
+
+                type: array
+
+                minItems: 2
+
+                maxItems: 2
+
+                items: {type: number}
+
+              base_log_phi:
+
+                type: array
+
+                minItems: 2
+
+                maxItems: 2
+
+                items: {type: number}
+
+      noise:
+
+        type: object
+
+        additionalProperties: false
+
+        required: [per_merchant_logit_sd, per_merchant_log_mu_sd, per_merchant_log_phi_sd]
+
+        properties:
+
+          per_merchant_logit_sd: {type: number, minimum: 0.0}
+
+          per_merchant_log_mu_sd: {type: number, minimum: 0.0}
+
+          per_merchant_log_phi_sd: {type: number, minimum: 0.0}
+
+      clamps:
+
+        type: object
+
+        additionalProperties: false
+
+        required: [pi, mu, phi]
+
+        properties:
+
+          pi:
+
+            type: object
+
+            additionalProperties: false
+
+            required: [min, max]
+
+            properties:
+
+              min: {type: number, minimum: 0.0, maximum: 1.0}
+
+              max: {type: number, minimum: 0.0, maximum: 1.0}
+
+          mu:
+
+            type: object
+
+            additionalProperties: false
+
+            required: [min, max]
+
+            properties:
+
+              min: {type: number, exclusiveMinimum: 0.0}
+
+              max: {type: number, exclusiveMinimum: 0.0}
+
+          phi:
+
+            type: object
+
+            additionalProperties: false
+
+            required: [min, max]
+
+            properties:
+
+              min: {type: number, exclusiveMinimum: 0.0}
+
+              max: {type: number, exclusiveMinimum: 0.0}
+
+      hurdle:
+
+        type: object
+
+        additionalProperties: false
+
+        required: [base_logit, channel_offsets, bucket_offsets, mcc_offsets]
+
+        properties:
+
+          base_logit: {type: number}
+
+          channel_offsets: {$ref: '#/$defs/channel_offsets'}
+
+          bucket_offsets: {$ref: '#/$defs/bucket_offsets_1_to_5'}
+
+          mcc_offsets: {$ref: '#/$defs/mcc_offsets'}
+
+          mcc_range_offsets: {$ref: '#/$defs/mcc_range_offsets'}
+
+      nb_mean:
+
+        type: object
+
+        additionalProperties: false
+
+        required: [base_log_mean, channel_offsets, mcc_offsets]
+
+        properties:
+
+          base_log_mean: {type: number}
+
+          channel_offsets: {$ref: '#/$defs/channel_offsets'}
+
+          mcc_offsets: {$ref: '#/$defs/mcc_offsets'}
+
+          mcc_range_offsets: {$ref: '#/$defs/mcc_range_offsets'}
+
+      dispersion:
+
+        type: object
+
+        additionalProperties: false
+
+        required: [base_log_phi, gdp_log_slope, channel_offsets, mcc_offsets, mom]
+
+        properties:
+
+          base_log_phi: {type: number}
+
+          gdp_log_slope: {type: number}
+
+          channel_offsets: {$ref: '#/$defs/channel_offsets'}
+
+          mcc_offsets: {$ref: '#/$defs/mcc_offsets'}
+
+          mcc_range_offsets: {$ref: '#/$defs/mcc_range_offsets'}
+
+          mom:
+
+            type: object
+
+            additionalProperties: false
+
+            required: [epsilon, n_min, cell_weight_rule]
+
+            properties:
+
+              epsilon: {type: number, exclusiveMinimum: 0.0}
+
+              n_min: {type: integer, minimum: 1}
+
+              cell_weight_rule:
+
+                type: string
+
+                enum: ["n_cell", "sqrt_n_cell"]
+
+
+
+  training_manifest_1A_hurdle_sim:
+
+    type: object
+
+    additionalProperties: false
+
+    required:
+
+      - manifest_semver
+
+      - simulation_version
+
+      - created_utc
+
+      - rng
+
+      - simulation_config
+
+      - inputs
+
+      - outputs
+
+      - exports
+
+    properties:
+
+      manifest_semver: {$ref: '#/$defs/semver'}
+
+      simulation_version: {type: string, minLength: 1}
+
+      created_utc: {$ref: '#/$defs/iso8601_utc'}
+
+      rng:
+
+        type: object
+
+        additionalProperties: false
+
+        required: [algorithm, seed]
+
+        properties:
+
+          algorithm: {$ref: '#/$defs/rng_algorithm'}
+
+          seed: {$ref: '#/$defs/uint64'}
+
+      simulation_config:
+
+        type: object
+
+        additionalProperties: false
+
+        required: [config_path, sha256]
+
+        properties:
+
+          config_path: {type: string, minLength: 1}
+
+          sha256: {$ref: '#/$defs/sha256'}
+
+          semver: {$ref: '#/$defs/semver'}
+
+          version: {type: string, minLength: 1}
+
+      inputs:
+
+        type: object
+
+        additionalProperties: false
+
+        required:
+
+          - transaction_schema_merchant_ids
+
+          - world_bank_gdp_per_capita
+
+          - gdp_bucket_map
+
+          - iso3166_canonical
+
+        properties:
+
+          transaction_schema_merchant_ids: {$ref: '#/$defs/artifact_ref'}
+
+          world_bank_gdp_per_capita: {$ref: '#/$defs/artifact_ref'}
+
+          gdp_bucket_map: {$ref: '#/$defs/artifact_ref'}
+
+          iso3166_canonical: {$ref: '#/$defs/artifact_ref'}
+
+      outputs:
+
+        type: object
+
+        additionalProperties: false
+
+        required: [logistic_parquet, nb_mean_parquet]
+
+        properties:
+
+          logistic_parquet: {$ref: '#/$defs/artifact_ref'}
+
+          nb_mean_parquet: {$ref: '#/$defs/artifact_ref'}
+
+          notes: {type: string}
+
+      exports:
+
+        type: object
+
+        additionalProperties: false
+
+        required: [hurdle_coefficients_yaml, nb_dispersion_coefficients_yaml, bundle_selfcheck_json]
+
+        properties:
+
+          hurdle_coefficients_yaml: {$ref: '#/$defs/artifact_ref'}
+
+          nb_dispersion_coefficients_yaml: {$ref: '#/$defs/artifact_ref'}
+
+          bundle_selfcheck_json: {$ref: '#/$defs/artifact_ref'}
+
+      git_commit_hex:
+
+        type: string
+
+        pattern: '^(?:[0-9a-f]{40}|[0-9a-f]{64})$'
+
+
+
+validation:
+
+  numeric_policy_attest:
+
+    type: object
+
+    required: [passed, rounding_ok, fma_off_ok, subnormals_ok, libm_regression_ok, neumaier_ok, total_order_ok, math_profile_id, profile_functions]
+
+    properties:
+
+      passed: {type: boolean}
+
+      rounding_ok: {type: boolean}
+
+      fma_off_ok: {type: boolean}
+
+      subnormals_ok: {type: boolean}
+
+      libm_regression_ok: {type: boolean}
+
+      neumaier_ok: {type: boolean}
+
+      total_order_ok: {type: boolean}
+
+      math_profile_id: {type: string}
+
+      profile_functions:
+
+        type: array
+
+        items: {type: string}
+
+  parameter_hash_resolved:
+
+    type: object
+
+    required: [parameter_hash, artifact_count]
+
+    properties:
+
+      parameter_hash:
+
+        type: string
+
+        pattern: ^[0-9a-f]{64}$
+
+      filenames_sorted:
+
+        type: array
+
+        items: {type: string}
+
+      artifact_count:
+
+        type: integer
+
+        minimum: 0
+
+  manifest_fingerprint_resolved:
+
+    type: object
+
+    required: [manifest_fingerprint, artifact_count, git_commit_hex, parameter_hash]
+
+    properties:
+
+      manifest_fingerprint:
+
+        type: string
+
+        pattern: ^[0-9a-f]{64}$
+
+      artifact_count:
+
+        type: integer
+
+        minimum: 0
+
+      git_commit_hex:
+
+        type: string
+
+        pattern: ^(?:[0-9a-f]{40}|[0-9a-f]{64})$
+
+        description: Git commit (SHA-1 hex40 or SHA-256 hex64).
+
+      parameter_hash:
+
+        type: string
+
+        pattern: ^[0-9a-f]{64}$
+
+  fingerprint_artifacts:
+
+    type: object
+
+    required: [path, sha256, size_bytes]
+
+    properties:
+
+      path: {type: string}
+
+      sha256:
+
+        type: string
+
+        pattern: ^[0-9a-f]{64}$
+
+      size_bytes:
+
+        type: integer
+
+        minimum: 0
+
+  run_environ:
+
+    type: object
+
+    properties:
+
+      hostname: {type: string}
+
+      platform: {type: string}
+
+      build_commit: {type: string}
+
+      code_digest:
+
+        type: string
+
+        pattern: ^[0-9a-f]{64}$
+
+  s5_receipt:
+    type: object
+    description: 'PASS receipt for S5 (S5_VALIDATION.json); used with _passed.flag in same folder.'
+    additionalProperties: true
+
+  s6_receipt:
+    type: object
+
+    description: 'PASS receipt for S6 (S6_VALIDATION.json); used with _passed.flag in same folder.'
+
+    additionalProperties: true
+
+
+
+  validation_bundle:
+
+    index_schema:
+
+      type: array
+
+      minItems: 1
+
+      items:
+
+        type: object
+
+        additionalProperties: false
+
+        required: [path, sha256_hex]
+
+        properties:
+
+          path:
+
+            type: string
+
+            pattern: "^(?!/)(?!.*\\\\)(?!.*\\.\\.).+"
+
+            description: Relative POSIX path under the bundle root (no leading '/', no '..').
+
+          sha256_hex:
+
+            $ref: '#/$defs/hex64'
+
+            description: SHA-256 digest over the raw bytes at `path`.
+
+      description: "Canonical bundle index schema (array of {path, sha256_hex}). Entries are ASCII-lex ordered by `path`."
+
+  passed_flag:
+
+    type: string
+
+    pattern: "^sha256_hex = [a-f0-9]{64}$"
+
+    description: "Single-line ASCII file declaring the bundle digest."
+
+
+
+  validation_bundle_index_3A:
+
+    type: object
+
+    additionalProperties: false
+
+    required: [manifest_fingerprint, parameter_hash, s6_receipt_digest, members]
+
+    properties:
+
+      manifest_fingerprint: { $ref: '#/$defs/hex64' }
+
+      parameter_hash:       { $ref: '#/$defs/hex64' }
+
+      s6_receipt_digest:    { $ref: '#/$defs/hex64' }
+
+      members:
+
+        type: array
+
+        minItems: 1
+
+        items:
+
+          type: object
+
+          additionalProperties: false
+
+          required: [logical_id, path, schema_ref, sha256_hex, role]
+
+          properties:
+
+            logical_id: { type: string }
+
+            path:       { type: string }
+
+            schema_ref: { type: string }
+
+            sha256_hex: { $ref: '#/$defs/hex64' }
+
+            role:       { type: string }
+
+            size_bytes: { type: integer, minimum: 0 }
+
+            notes:      { type: string }
+
+      metadata:
+
+        type: object
+
+        additionalProperties: true
+
+
+
+  passed_flag_3A:
+
+    type: string
+
+    pattern: "^sha256_hex = [a-f0-9]{64}$"
+
+    description: "Single-line ASCII file declaring the 3A bundle digest."
+
+
+
+  validation_bundle_index_3B:
+
+    type: object
+
+    additionalProperties: false
+
+    required: [manifest_fingerprint, parameter_hash, s5_manifest_digest, members]
+
+    properties:
+
+      manifest_fingerprint: { $ref: '#/$defs/hex64' }
+
+      parameter_hash:       { $ref: '#/$defs/hex64' }
+
+      s5_manifest_digest:   { $ref: '#/$defs/hex64' }
+
+      members:
+
+        type: array
+
+        minItems: 1
+
+        items:
+
+          type: object
+
+          additionalProperties: false
+
+          required: [logical_id, path, schema_ref, sha256_hex, role]
+
+          properties:
+
+            logical_id: { type: string }
+
+            path:       { type: string }
+
+            schema_ref: { type: string }
+
+            sha256_hex: { $ref: '#/$defs/hex64' }
+
+            role:       { type: string }
+
+            size_bytes: { type: integer, minimum: 0 }
+
+            notes:      { type: string }
+
+      metadata:
+
+        type: object
+
+        additionalProperties: true
+
+
+
+  passed_flag_3B:
+
+    type: string
+
+    pattern: "^sha256_hex = [a-f0-9]{64}$"
+
+    description: "Single-line ASCII file declaring the 3B bundle digest."
+
+
+observability:
+
+  s4_metrics_log:
+
+    $id: /observability/s4_metrics_log
+
+    title: S4 observability metrics (values-only)
+
+    type: object
+
+    additionalProperties: false
+
+    required: [seed, parameter_hash, run_id, manifest_fingerprint]
+
+    properties:
+
+      seed: { $ref: '#/$defs/uint64' }
+
+      parameter_hash: { $ref: '#/$defs/hex64' }
+
+      run_id: { $ref: '#/$defs/hex32' }
+
+      manifest_fingerprint: { $ref: '#/$defs/hex64' }
+
+      s4.merchants_in_scope: { type: integer, minimum: 0 }
+
+      s4.accepted: { type: integer, minimum: 0 }
+
+      s4.short_circuit_no_admissible: { type: integer, minimum: 0 }
+
+      s4.downgrade_domestic: { type: integer, minimum: 0 }
+
+      s4.aborted: { type: integer, minimum: 0 }
+
+      s4.rejections: { type: integer, minimum: 0 }
+
+      s4.attempts.total: { type: integer, minimum: 0 }
+
+      s4.trace.rows: { type: integer, minimum: 0 }
+
+      s4.regime.inversion: { type: integer, minimum: 0 }
+
+      s4.regime.ptrs: { type: integer, minimum: 0 }
+
+      s4.attempts.hist: { type: integer, minimum: 0 }
+
+      s4.lambda.hist: { type: number, exclusiveMinimum: 0.0 }
+
+      s4.ms.poisson_inversion: { type: number, minimum: 0.0 }
+
+      s4.ms.poisson_ptrs: { type: number, minimum: 0.0 }
+
+      s4.merchant.summary:
+
+        type: object
+
+        additionalProperties: false
+
+        required: [merchant_id, attempts, accepted_K, regime, exhausted]
+
+        properties:
+
+          merchant_id: { $ref: '#/$defs/id64' }
+
+          attempts: { type: integer, minimum: 0 }
+
+          accepted_K: { type: integer, minimum: 0 }
+
+          regime: { type: string, enum: [inversion, ptrs] }
+
+          exhausted: { type: boolean }

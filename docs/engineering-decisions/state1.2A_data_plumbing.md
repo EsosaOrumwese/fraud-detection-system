@@ -14,7 +14,7 @@
    | --- | --- | --- |
    | `site_locations` | `data/layer1/1B/site_locations/seed={seed}/fingerprint={fp}/` | 1B egress for this run; **read-only** |
    | `tz_world_2025a` | `reference/spatial/tz_world/2025a/tz_world.parquet` | Must match CRS=WGS84 |
-   | `tz_nudge` | `config/timezone/tz_nudge.yml` | Contains ε (0.0001° by default) and digest |
+   | `tz_nudge` | `config/layer1/2A/timezone/tz_nudge.yml` | Contains ε (0.0001° by default) and digest |
    | `tz_overrides` | *sealed but unused in S1* | Logged for completeness; overrides applied in S2 |
 3. Assert path↔manifest equality: any resolved path must contain the same `{seed, fingerprint}` tokens captured in the sealed manifest.
 

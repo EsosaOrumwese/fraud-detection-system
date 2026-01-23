@@ -1,0 +1,188 @@
+schema_version: 1
+config_id: graph_linkage_rules_6A
+config_version: v1
+
+bindings:
+  device_taxonomy_ref: taxonomy_devices_6A
+  ip_taxonomy_ref: taxonomy_ips_6A
+  account_taxonomy_ref: taxonomy_account_types_6A
+  instrument_taxonomy_ref: taxonomy_instrument_types_6A
+  device_counts_ref: prior_device_counts_6A
+  ip_counts_ref: prior_ip_counts_6A
+
+device_groups:
+  groups:
+    - { group_id: BACKEND_SERVER, device_types: [SERVER], semantics: "Backend or automated clients." }
+    - { group_id: COMPUTER_PORTABLE, device_types: [LAPTOP], semantics: "Portable computers." }
+    - { group_id: CONSUMER_PERSONAL, device_types: [MOBILE_PHONE, WEARABLE], semantics: "Personal consumer devices." }
+    - { group_id: CONSUMER_SHARED, device_types: [DESKTOP, TABLET], semantics: "Shared household devices." }
+    - { group_id: IOT_OTHER, device_types: [IOT_DEVICE], semantics: "IoT and embedded devices." }
+    - { group_id: MERCHANT_TERMINAL, device_types: [POS_TERMINAL, ATM, KIOSK], semantics: "Merchant terminals." }
+
+ip_groups:
+  groups:
+    - { group_id: ANONYMIZER_PROXY, ip_types: [VPN_PROXY], asn_classes: [HOSTING_PROVIDER] }
+    - { group_id: CORPORATE_NAT, ip_types: [CORPORATE], asn_classes: [ENTERPRISE] }
+    - { group_id: HOSTING_DATACENTRE, ip_types: [DATACENTRE], asn_classes: [HOSTING_PROVIDER, CDN_EDGE] }
+    - { group_id: MOBILE_CARRIER, ip_types: [MOBILE], asn_classes: [MNO] }
+    - { group_id: PUBLIC_SHARED, ip_types: [PUBLIC_WIFI, HOTEL_TRAVEL, EDUCATION], asn_classes: [CONSUMER_ISP, PUBLIC_SECTOR, ENTERPRISE] }
+    - { group_id: RESIDENTIAL, ip_types: [RESIDENTIAL], asn_classes: [CONSUMER_ISP] }
+
+device_link_roles:
+  - role_id: ASSOCIATED_ACCOUNT_ACCESS
+    semantic_class: ACCESS
+    required_nonnull_fields: [account_id]
+    forbidden_nonnull_fields: [instrument_id, merchant_id]
+    description: "Device can access account."
+  - role_id: ASSOCIATED_INSTRUMENT_ACCESS
+    semantic_class: ACCESS
+    required_nonnull_fields: [instrument_id]
+    forbidden_nonnull_fields: [merchant_id]
+    description: "Device can access an instrument credential."
+  - role_id: MERCHANT_TERMINAL
+    semantic_class: OWNERSHIP
+    required_nonnull_fields: [merchant_id]
+    forbidden_nonnull_fields: [party_id, account_id, instrument_id]
+    description: "Merchant-owned terminal device."
+  - role_id: PRIMARY_OWNER
+    semantic_class: OWNERSHIP
+    required_nonnull_fields: [party_id]
+    forbidden_nonnull_fields: [account_id, instrument_id, merchant_id]
+    description: "Primary owner party."
+  - role_id: SECONDARY_USER
+    semantic_class: SHARING
+    required_nonnull_fields: [party_id]
+    forbidden_nonnull_fields: [account_id, instrument_id, merchant_id]
+    description: "Secondary user party for shared devices."
+
+ip_link_roles:
+  - role_id: MERCHANT_ENDPOINT
+    semantic_class: MERCHANT_ENDPOINT
+    required_nonnull_fields: [merchant_id]
+    forbidden_nonnull_fields: [device_id, party_id]
+    description: "Merchant endpoint IP."
+  - role_id: RECENT_LOGIN_IP
+    semantic_class: DEVICE_ENDPOINT
+    required_nonnull_fields: [device_id]
+    forbidden_nonnull_fields: [party_id, merchant_id]
+    description: "Secondary or recent login IP exposure."
+  - role_id: SHARED_PUBLIC_WIFI
+    semantic_class: SHARED_CONTEXT
+    required_nonnull_fields: [device_id]
+    forbidden_nonnull_fields: [party_id, merchant_id]
+    description: "Shared public Wi-Fi or travel access."
+  - role_id: TYPICAL_DEVICE_IP
+    semantic_class: DEVICE_ENDPOINT
+    required_nonnull_fields: [device_id]
+    forbidden_nonnull_fields: [party_id, merchant_id]
+    description: "Typical device IP."
+
+device_owner_and_sharing:
+  owner_kind_by_group:
+    BACKEND_SERVER: MERCHANT
+    COMPUTER_PORTABLE: PARTY
+    CONSUMER_PERSONAL: PARTY
+    CONSUMER_SHARED: PARTY
+    IOT_OTHER: PARTY
+    MERCHANT_TERMINAL: MERCHANT
+  p_shared_by_group:
+    BACKEND_SERVER: 0.00
+    COMPUTER_PORTABLE: 0.08
+    CONSUMER_PERSONAL: 0.03
+    CONSUMER_SHARED: 0.25
+    IOT_OTHER: 0.06
+    MERCHANT_TERMINAL: 0.00
+  parties_per_shared_device:
+    COMPUTER_PORTABLE: { model_id: geometric_capK_v1, min_k: 2, max_k: 4, p: 0.65 }
+    CONSUMER_PERSONAL: { model_id: geometric_capK_v1, min_k: 2, max_k: 4, p: 0.70 }
+    CONSUMER_SHARED: { model_id: geometric_capK_v1, min_k: 2, max_k: 6, p: 0.55 }
+    IOT_OTHER: { model_id: geometric_capK_v1, min_k: 2, max_k: 3, p: 0.60 }
+
+device_access_edges:
+  account_edges_per_device_by_group:
+    BACKEND_SERVER: { model_id: zi_poisson_capK_v1, min_k: 0, max_k: 4, p_zero: 0.35, mu: 1.0 }
+    COMPUTER_PORTABLE: { model_id: zi_poisson_capK_v1, min_k: 0, max_k: 6, p_zero: 0.08, mu: 1.9 }
+    CONSUMER_PERSONAL: { model_id: zi_poisson_capK_v1, min_k: 0, max_k: 5, p_zero: 0.05, mu: 1.6 }
+    CONSUMER_SHARED: { model_id: zi_poisson_capK_v1, min_k: 0, max_k: 8, p_zero: 0.15, mu: 2.2 }
+    IOT_OTHER: { model_id: zi_poisson_capK_v1, min_k: 0, max_k: 3, p_zero: 0.25, mu: 1.1 }
+    MERCHANT_TERMINAL: { model_id: zi_poisson_capK_v1, min_k: 0, max_k: 2, p_zero: 0.60, mu: 0.6 }
+  instrument_edges_per_device_by_group:
+    COMPUTER_PORTABLE: { model_id: zi_poisson_capK_v1, min_k: 0, max_k: 6, p_zero: 0.12, mu: 1.3 }
+    CONSUMER_PERSONAL: { model_id: zi_poisson_capK_v1, min_k: 0, max_k: 6, p_zero: 0.10, mu: 1.4 }
+    CONSUMER_SHARED: { model_id: zi_poisson_capK_v1, min_k: 0, max_k: 8, p_zero: 0.18, mu: 1.8 }
+    IOT_OTHER: { model_id: zi_poisson_capK_v1, min_k: 0, max_k: 3, p_zero: 0.30, mu: 0.8 }
+  selection_scope: OWNERS_AND_SHARED_USERS
+
+device_ip_edges:
+  edge_roles_by_group:
+    BACKEND_SERVER: { TYPICAL_DEVICE_IP: 0.80, RECENT_LOGIN_IP: 0.20 }
+    COMPUTER_PORTABLE: { TYPICAL_DEVICE_IP: 0.70, RECENT_LOGIN_IP: 0.25, SHARED_PUBLIC_WIFI: 0.05 }
+    CONSUMER_PERSONAL: { TYPICAL_DEVICE_IP: 0.70, RECENT_LOGIN_IP: 0.25, SHARED_PUBLIC_WIFI: 0.05 }
+    CONSUMER_SHARED: { TYPICAL_DEVICE_IP: 0.60, RECENT_LOGIN_IP: 0.30, SHARED_PUBLIC_WIFI: 0.10 }
+    IOT_OTHER: { TYPICAL_DEVICE_IP: 0.85, RECENT_LOGIN_IP: 0.15 }
+    MERCHANT_TERMINAL: { TYPICAL_DEVICE_IP: 0.95, RECENT_LOGIN_IP: 0.05 }
+  role_to_allowed_ip_groups:
+    TYPICAL_DEVICE_IP: [RESIDENTIAL, MOBILE_CARRIER, CORPORATE_NAT]
+    RECENT_LOGIN_IP: [RESIDENTIAL, MOBILE_CARRIER, PUBLIC_SHARED, ANONYMIZER_PROXY]
+    SHARED_PUBLIC_WIFI: [PUBLIC_SHARED]
+  role_allocation_rule: typical_first_with_optional_public_wifi_v1
+
+direct_entity_ip_edges:
+  direct_party_ip_edges: { enabled: false }
+  direct_merchant_ip_edges:
+    enabled: true
+    ips_per_merchant: { model_id: zi_poisson_capK_v1, min_k: 0, max_k: 6, p_zero: 0.30, mu: 1.4 }
+    allowed_ip_groups: [CORPORATE_NAT, HOSTING_DATACENTRE]
+    role_id: MERCHANT_ENDPOINT
+
+degree_caps:
+  per_device_by_group:
+    BACKEND_SERVER: { max_parties_per_device: 0, max_accounts_per_device: 4, max_instruments_per_device: 0, max_ips_per_device: 20 }
+    COMPUTER_PORTABLE: { max_parties_per_device: 4, max_accounts_per_device: 6, max_instruments_per_device: 6, max_ips_per_device: 30 }
+    CONSUMER_PERSONAL: { max_parties_per_device: 4, max_accounts_per_device: 6, max_instruments_per_device: 6, max_ips_per_device: 30 }
+    CONSUMER_SHARED: { max_parties_per_device: 6, max_accounts_per_device: 10, max_instruments_per_device: 8, max_ips_per_device: 40 }
+    IOT_OTHER: { max_parties_per_device: 3, max_accounts_per_device: 3, max_instruments_per_device: 2, max_ips_per_device: 12 }
+    MERCHANT_TERMINAL: { max_parties_per_device: 0, max_accounts_per_device: 2, max_instruments_per_device: 0, max_ips_per_device: 15 }
+  per_ip_by_group:
+    ANONYMIZER_PROXY: { max_devices_per_ip: 50000, max_parties_per_ip: 20000 }
+    CORPORATE_NAT: { max_devices_per_ip: 2000, max_parties_per_ip: 800 }
+    HOSTING_DATACENTRE: { max_devices_per_ip: 100000, max_parties_per_ip: 30000 }
+    MOBILE_CARRIER: { max_devices_per_ip: 20000, max_parties_per_ip: 8000 }
+    PUBLIC_SHARED: { max_devices_per_ip: 2000, max_parties_per_ip: 1200 }
+    RESIDENTIAL: { max_devices_per_ip: 20, max_parties_per_ip: 10 }
+  per_entity_global:
+    max_devices_per_party: 20
+    max_ips_per_party: 80
+    max_devices_per_merchant: 40
+    max_ips_per_merchant: 200
+
+forbidden_combinations:
+  - rule_id: TERMINAL_NO_PARTY_LINKS
+    when: { device_group_id: MERCHANT_TERMINAL }
+    forbid: { device_link_role: [PRIMARY_OWNER, SECONDARY_USER] }
+  - rule_id: PUBLIC_WIFI_ROLE_RESTRICT
+    when: { ip_link_role: SHARED_PUBLIC_WIFI }
+    forbid: { ip_group_id: [RESIDENTIAL, MOBILE_CARRIER, HOSTING_DATACENTRE, ANONYMIZER_PROXY, CORPORATE_NAT] }
+  - rule_id: TYPICAL_IP_NOT_ANONYMIZER
+    when: { ip_link_role: TYPICAL_DEVICE_IP }
+    forbid: { ip_group_id: [ANONYMIZER_PROXY, HOSTING_DATACENTRE] }
+
+realism_targets:
+  shared_fraction_range_by_group:
+    COMPUTER_PORTABLE: { min: 0.02, max: 0.18 }
+    CONSUMER_PERSONAL: { min: 0.00, max: 0.08 }
+    CONSUMER_SHARED: { min: 0.10, max: 0.40 }
+    IOT_OTHER: { min: 0.01, max: 0.15 }
+  fraction_devices_with_typical_ip_min: 0.99
+  fraction_devices_with_any_recent_ip_range: { min: 0.15, max: 0.85 }
+  fraction_devices_with_public_wifi_range: { min: 0.03, max: 0.35 }
+
+acceptance_checks:
+  enforce_degree_caps: true
+  enforce_forbidden_combinations: true
+  require_one_primary_owner_for_party_devices: true
+  require_one_merchant_terminal_edge_for_terminal_devices: true
+
+notes: >
+  Linkage rules enforce deterministic sharing patterns while keeping
+  public/shared IP exposure plausible for consumer devices.

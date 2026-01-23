@@ -1,0 +1,253 @@
+schema_version: 1
+policy_id: merchant_role_priors_6A
+policy_version: v1
+
+role_vocabulary:
+  - role_id: COLLUSIVE
+    label: Collusive
+    description: Merchant plausibly coordinating with other merchants for abuse.
+    severity_rank: 3
+  - role_id: HIGH_RISK_MCC
+    label: High-risk MCC
+    description: Merchant in a higher-risk MCC class with elevated chargeback risk.
+    severity_rank: 2
+  - role_id: MSB
+    label: Money services
+    description: Merchant posture consistent with money-service business activity.
+    severity_rank: 2
+  - role_id: NORMAL
+    label: Normal
+    description: Baseline merchant posture.
+    severity_rank: 0
+
+risk_tier_vocabulary:
+  - { tier_id: ELEVATED, label: Elevated, description: Elevated static posture, severity_rank: 2 }
+  - { tier_id: HIGH, label: High, description: High static posture, severity_rank: 3 }
+  - { tier_id: LOW, label: Low, description: Low static posture, severity_rank: 0 }
+  - { tier_id: STANDARD, label: Standard, description: Typical baseline posture, severity_rank: 1 }
+
+feature_whitelist:
+  required_sources: [mlr.1A.output.outlet_catalogue, mlr.input.transaction_schema.merchant_ids]
+  allowed_features:
+    - channel
+    - cross_border_share
+    - home_country_iso
+    - mcc
+    - n_countries
+    - n_sites_total
+  fallbacks:
+    home_country_iso: "top_country_iso_by_outlet_mass (tie-break country_iso asc)"
+
+mcc_classification:
+  mcc_class_vocab:
+    - DIGITAL_GOODS
+    - GENERAL_RETAIL
+    - HIGH_CHARGEBACK_RISK
+    - HOSPITALITY
+    - MONEY_SERVICES
+    - TRAVEL
+  mcc_to_class_rules:
+    - rule_id: MONEY_SERVICES_CORE
+      match: { mcc_values: [4829, 6011, 6012, 6051, 6211] }
+      mcc_class: MONEY_SERVICES
+    - rule_id: DIGITAL_GOODS
+      match: { mcc_values: [5734, 5816, 5817] }
+      mcc_class: DIGITAL_GOODS
+    - rule_id: HIGH_CHARGEBACK_RISK
+      match: { mcc_ranges: [{ min: 7800, max: 7999 }], mcc_values: [5962, 5963, 5967] }
+      mcc_class: HIGH_CHARGEBACK_RISK
+    - rule_id: TRAVEL
+      match: { mcc_ranges: [{ min: 3000, max: 3299 }], mcc_values: [4511, 4411] }
+      mcc_class: TRAVEL
+    - rule_id: HOSPITALITY
+      match: { mcc_ranges: [{ min: 3500, max: 3999 }], mcc_values: [7011] }
+      mcc_class: HOSPITALITY
+    - rule_id: DEFAULT_RETAIL
+      match: { mcc_ranges: [{ min: 0, max: 9999 }] }
+      mcc_class: GENERAL_RETAIL
+  unknown_mcc_policy: FAIL
+
+risk_score_model:
+  base: 0.34
+  features:
+    - { name: cross_border_share, ref: 0.10, weight: 0.25 }
+    - { name: log_size_score, ref: 0.20, weight: 0.20 }
+    - { name: mcc_class_risk, ref: 0.00, weight: 0.35 }
+  mcc_class_risk_weights:
+    GENERAL_RETAIL: 0.05
+    TRAVEL: 0.10
+    HOSPITALITY: 0.10
+    DIGITAL_GOODS: 0.18
+    HIGH_CHARGEBACK_RISK: 0.25
+    MONEY_SERVICES: 0.30
+  size_ref_sites: 50
+
+risk_tier_thresholds:
+  tiers_in_order: [LOW, STANDARD, ELEVATED, HIGH]
+  thresholds:
+    LOW_max: 0.25
+    STANDARD_max: 0.65
+    ELEVATED_max: 0.85
+    HIGH_max: 1.00
+
+role_probability_model:
+  mode: by_mcc_class_and_risk_tier_v1
+  pi_role_by_class_and_tier:
+    DIGITAL_GOODS:
+      LOW:
+        - { role_id: COLLUSIVE, prob: 0.0005 }
+        - { role_id: HIGH_RISK_MCC, prob: 0.0035 }
+        - { role_id: NORMAL, prob: 0.9960 }
+      STANDARD:
+        - { role_id: COLLUSIVE, prob: 0.0020 }
+        - { role_id: HIGH_RISK_MCC, prob: 0.0080 }
+        - { role_id: NORMAL, prob: 0.9900 }
+      ELEVATED:
+        - { role_id: COLLUSIVE, prob: 0.0080 }
+        - { role_id: HIGH_RISK_MCC, prob: 0.0220 }
+        - { role_id: NORMAL, prob: 0.9700 }
+      HIGH:
+        - { role_id: COLLUSIVE, prob: 0.0300 }
+        - { role_id: HIGH_RISK_MCC, prob: 0.0600 }
+        - { role_id: NORMAL, prob: 0.9100 }
+
+    GENERAL_RETAIL:
+      LOW:
+        - { role_id: COLLUSIVE, prob: 0.0002 }
+        - { role_id: HIGH_RISK_MCC, prob: 0.0010 }
+        - { role_id: NORMAL, prob: 0.9988 }
+      STANDARD:
+        - { role_id: COLLUSIVE, prob: 0.0010 }
+        - { role_id: HIGH_RISK_MCC, prob: 0.0030 }
+        - { role_id: NORMAL, prob: 0.9960 }
+      ELEVATED:
+        - { role_id: COLLUSIVE, prob: 0.0050 }
+        - { role_id: HIGH_RISK_MCC, prob: 0.0100 }
+        - { role_id: NORMAL, prob: 0.9850 }
+      HIGH:
+        - { role_id: COLLUSIVE, prob: 0.0150 }
+        - { role_id: HIGH_RISK_MCC, prob: 0.0250 }
+        - { role_id: NORMAL, prob: 0.9600 }
+
+    HIGH_CHARGEBACK_RISK:
+      LOW:
+        - { role_id: COLLUSIVE, prob: 0.0010 }
+        - { role_id: HIGH_RISK_MCC, prob: 0.0070 }
+        - { role_id: NORMAL, prob: 0.9920 }
+      STANDARD:
+        - { role_id: COLLUSIVE, prob: 0.0050 }
+        - { role_id: HIGH_RISK_MCC, prob: 0.0250 }
+        - { role_id: NORMAL, prob: 0.9700 }
+      ELEVATED:
+        - { role_id: COLLUSIVE, prob: 0.0200 }
+        - { role_id: HIGH_RISK_MCC, prob: 0.0600 }
+        - { role_id: NORMAL, prob: 0.9200 }
+      HIGH:
+        - { role_id: COLLUSIVE, prob: 0.0400 }
+        - { role_id: HIGH_RISK_MCC, prob: 0.1100 }
+        - { role_id: NORMAL, prob: 0.8500 }
+
+    HOSPITALITY:
+      LOW:
+        - { role_id: COLLUSIVE, prob: 0.0005 }
+        - { role_id: HIGH_RISK_MCC, prob: 0.0020 }
+        - { role_id: NORMAL, prob: 0.9975 }
+      STANDARD:
+        - { role_id: COLLUSIVE, prob: 0.0020 }
+        - { role_id: HIGH_RISK_MCC, prob: 0.0050 }
+        - { role_id: NORMAL, prob: 0.9930 }
+      ELEVATED:
+        - { role_id: COLLUSIVE, prob: 0.0070 }
+        - { role_id: HIGH_RISK_MCC, prob: 0.0160 }
+        - { role_id: NORMAL, prob: 0.9770 }
+      HIGH:
+        - { role_id: COLLUSIVE, prob: 0.0250 }
+        - { role_id: HIGH_RISK_MCC, prob: 0.0400 }
+        - { role_id: NORMAL, prob: 0.9350 }
+
+    MONEY_SERVICES:
+      LOW:
+        - { role_id: COLLUSIVE, prob: 0.0010 }
+        - { role_id: HIGH_RISK_MCC, prob: 0.0090 }
+        - { role_id: MSB, prob: 0.0900 }
+        - { role_id: NORMAL, prob: 0.9000 }
+      STANDARD:
+        - { role_id: COLLUSIVE, prob: 0.0100 }
+        - { role_id: HIGH_RISK_MCC, prob: 0.0300 }
+        - { role_id: MSB, prob: 0.1400 }
+        - { role_id: NORMAL, prob: 0.8200 }
+      ELEVATED:
+        - { role_id: COLLUSIVE, prob: 0.0400 }
+        - { role_id: HIGH_RISK_MCC, prob: 0.0800 }
+        - { role_id: MSB, prob: 0.2000 }
+        - { role_id: NORMAL, prob: 0.6800 }
+      HIGH:
+        - { role_id: COLLUSIVE, prob: 0.0800 }
+        - { role_id: HIGH_RISK_MCC, prob: 0.1200 }
+        - { role_id: MSB, prob: 0.2500 }
+        - { role_id: NORMAL, prob: 0.5500 }
+
+    TRAVEL:
+      LOW:
+        - { role_id: COLLUSIVE, prob: 0.0005 }
+        - { role_id: HIGH_RISK_MCC, prob: 0.0025 }
+        - { role_id: NORMAL, prob: 0.9970 }
+      STANDARD:
+        - { role_id: COLLUSIVE, prob: 0.0020 }
+        - { role_id: HIGH_RISK_MCC, prob: 0.0060 }
+        - { role_id: NORMAL, prob: 0.9920 }
+      ELEVATED:
+        - { role_id: COLLUSIVE, prob: 0.0070 }
+        - { role_id: HIGH_RISK_MCC, prob: 0.0180 }
+        - { role_id: NORMAL, prob: 0.9750 }
+      HIGH:
+        - { role_id: COLLUSIVE, prob: 0.0250 }
+        - { role_id: HIGH_RISK_MCC, prob: 0.0450 }
+        - { role_id: NORMAL, prob: 0.9300 }
+  nudges:
+    - if_feature: "cross_border_share >= 0.60"
+      multiply_roles: { COLLUSIVE: 1.30, HIGH_RISK_MCC: 1.15, NORMAL: 0.92 }
+      clip_multiplier: { min: 0.70, max: 1.80 }
+    - if_feature: "n_sites_total >= 200"
+      multiply_roles: { COLLUSIVE: 1.20, NORMAL: 0.95 }
+      clip_multiplier: { min: 0.80, max: 1.50 }
+
+collusion_cluster_model:
+  enabled: true
+  cluster_key: [home_country_iso, mcc_class]
+  target_collusive_fraction_by_tier: { LOW: 0.0002, STANDARD: 0.0010, ELEVATED: 0.0040, HIGH: 0.0100 }
+  cluster_size_distribution:
+    model_id: zipf_capK_v1
+    min_k: 2
+    max_k: 50
+    alpha: 1.25
+  min_clusters_per_large_country: 3
+  large_country_threshold_merchants: 5000
+
+constraints:
+  fail_on_missing_rule: true
+  prob_dp: 12
+  unknown_mcc_policy: FAIL
+  require_mcc_coverage: true
+  max_role_share_caps_world:
+    COLLUSIVE: 0.0100
+    HIGH_RISK_MCC: 0.1500
+    MSB: 0.0200
+  min_non_normal_presence:
+    HIGH_RISK_MCC: 0.0100
+
+realism_targets:
+  normal_fraction_range_world: { min: 0.85, max: 0.995 }
+  high_risk_mcc_fraction_range_world: { min: 0.01, max: 0.15 }
+  msb_fraction_range_world: { min: 0.001, max: 0.02 }
+  collusive_fraction_range_world: { min: 0.0002, max: 0.01 }
+  msb_share_within_money_services_class_range: { min: 0.10, max: 0.80 }
+  region_variation:
+    required_if_n_countries_ge: 5
+    min_delta_high_risk_fraction_between_countries: 0.01
+  collusion_cluster_realism:
+    min_fraction_collusive_in_clusters_size_ge_2: 0.70
+
+notes: >
+  Merchant role priors blend MCC class risk with cross-border exposure while
+  keeping collusion rare and clustered for realism.

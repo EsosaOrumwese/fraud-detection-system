@@ -1,0 +1,77 @@
+policy_id: validation_policy_5B
+version: v1.0.1
+
+require_upstream_pass:
+  layer1_required: [1A, 1B, 2A, 3A, 3B]
+  layer2_required: [5A]
+  optional: [2B]
+
+structural_checks:
+  s1_time_grid:
+    require_bucket_index_contiguous: true
+    require_half_open_intervals: true
+    require_duration_seconds_matches_policy: true
+    max_buckets_per_scenario: 5000
+  s2_realised_intensity:
+    require_nonnegative_lambda: true
+    require_finite_lambda: true
+    require_lambda_zero_implies_count_zero: true
+    max_lambda_realised: 200000.0
+  s3_bucket_counts:
+    require_integer_counts: true
+    require_counts_nonnegative: true
+    max_count_per_bucket: 50000
+    require_no_rng_event_when_lambda_zero: true
+  s4_arrival_events:
+    require_event_time_in_bucket: true
+    require_time_half_open: true
+    require_sorted_within_bucket: true
+    require_exactly_N_events_per_bucket: true
+    require_routing_keys_present: true
+
+rng_accounting_checks:
+  streams:
+    require_monotonic_counters: true
+    require_next_before_equals_prev_after: true
+    forbid_counter_overlap: true
+    abort_on_wrap: true
+  budgets:
+    s2_latent_vector:
+      require_one_event_per_group_when_enabled: true
+      draws_u64_expected: "2H"
+    s3_bucket_count:
+      poisson_draws_u64: 1
+      nb2_draws_u64: 2
+      require_no_event_when_deterministic_zero: true
+    s4_time_jitter_draws_u64: 1
+    s4_site_pick_draws_u64: 2
+    s4_edge_pick_draws_u64: 1
+  trace:
+    require_trace_row_per_rng_event: true
+    require_append_after_each_event: true
+
+realism_checks:
+  lgcp_realism:
+    require_mean_factor_near_one: true
+    mean_factor_abs_tol: 0.05
+    require_factor_bounds_respected: true
+    min_factor: 0.20
+    max_factor: 5.00
+  count_realism:
+    require_nontrivial_nonzero_fraction: true
+    min_nonzero_bucket_fraction: 0.01
+    require_heavy_tail: true
+    p99_p50_ratio_min: 4.0
+  time_realism:
+    require_not_all_at_bucket_start: true
+    min_distinct_offsets_per_1000_events: 50
+  routing_realism:
+    require_2B_pass_if_physical_present: true
+    require_physical_and_virtual_coverage_when_present: true
+    require_no_missing_alias_rows: true
+    require_country_mix_close_if_virtual: true
+    ip_country_max_abs_dev: 0.05
+
+failure_policy:
+  mode: fail_closed
+  max_warnings: 0

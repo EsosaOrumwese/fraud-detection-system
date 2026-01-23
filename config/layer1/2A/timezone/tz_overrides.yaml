@@ -1,0 +1,25 @@
+# tz_overrides (2A) - empty list means no overrides.
+- scope: country
+  target: "RS"
+  tzid: "Europe/Belgrade"
+  evidence_url: null
+  expiry_yyyy_mm_dd: null
+  notes: "Resolve tz_world overlap (Belgrade/Zagreb) for RS."
+- scope: country
+  target: "BM"
+  tzid: "Atlantic/Bermuda"
+  evidence_url: null
+  expiry_yyyy_mm_dd: null
+  notes: "Resolve border ambiguity for Bermuda; tz_world has a single tzid."
+- scope: country
+  target: "TW"
+  tzid: "Asia/Taipei"
+  evidence_url: null
+  expiry_yyyy_mm_dd: null
+  notes: "S2 tz resolution fallback for TW when tz_world polygons miss jittered points."
+- scope: country
+  target: "SH"
+  tzid: "Atlantic/St_Helena"
+  evidence_url: null
+  expiry_yyyy_mm_dd: null
+  notes: "S2 tz resolution fallback for SH when tz_world polygons miss jittered points."

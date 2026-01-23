@@ -1,0 +1,18 @@
+{
+  "dataset_id": "world_countries",
+  "version": "2024",
+  "generated_at_utc": "2026-01-13T03:27:45.202376+00:00",
+  "generator_script": "scripts/build_world_countries.py",
+  "source_geojson": "reference\\spatial\\world_countries\\2024\\source\\ne_10m_admin_0_countries.zip",
+  "source_geojson_sha256": "ce1ac7036499a0edd641fbc093cd209a98f96a49d2eca8480aaacad35138a7f6",
+  "iso3166_canonical": "reference\\iso\\iso3166_canonical\\2024-12-31\\iso3166.parquet",
+  "iso3166_canonical_sha256": "98bcd9efb061dd0d8d6afa743388c479001cc8e2257c2fb73c6ee53e25e87812",
+  "output_parquet": "reference\\spatial\\world_countries\\2024\\world_countries.parquet",
+  "output_parquet_sha256": "7db63b6b8ee1b5ad9e2029142eeda5564fe60b0788889c2ccf9f0934bc33b1e8",
+  "row_count": 251,
+  "columns": [
+    "country_iso",
+    "name",
+    "geometry"
+  ]
+}

@@ -1,0 +1,25 @@
+{
+  "dataset_id": "tz_world_2025a",
+  "downloaded_at_utc": "2025-12-31T03:07:58Z",
+  "invalid_tzid_count": 25,
+  "invalid_tzid_sample": [
+    "America/Argentina/Buenos_Aires",
+    "America/Argentina/Catamarca",
+    "America/Argentina/Cordoba",
+    "America/Argentina/Jujuy",
+    "America/Argentina/La_Rioja",
+    "America/Argentina/Mendoza",
+    "America/Argentina/Rio_Gallegos",
+    "America/Argentina/Salta",
+    "America/Argentina/San_Juan",
+    "America/Argentina/San_Luis"
+  ],
+  "license": "ODbL-1.0",
+  "notes": "Polygon_id assigned per tzid by area(desc), bbox, centroid, and WKB hash; geodesic area via WGS84 ellipsoid; geometries made valid.",
+  "output_sha256": "09d65dc1d6816f41aeb570a01e0b5a51246bb56a880599f1858650cd3ddb6a9f",
+  "polygon_parts": 1175,
+  "raw_sha256": "6cef51528adb4e3e1a63cedbdc855042007815b799502f48b13a8f2c1a0b62c1",
+  "source_url": "https://github.com/evansiroky/timezone-boundary-builder/releases/download/2025a/timezones-with-oceans.shapefile.zip",
+  "tzid_count": 418,
+  "version": "2025a"
+}

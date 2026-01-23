@@ -1,0 +1,10 @@
+{
+  "manifest_fingerprint": "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
+  "parameter_hash": "fedcba9876543210fedcba9876543210fedcba9876543210fedcba9876543210",
+  "seed": 123456789,
+  "run_id": "89abcdef0123456789abcdef01234567",
+  "scenario_binding": { "scenario_id": "baseline" },
+  "request_id": "req-20260102-baseline-0001",
+  "invoker": "scenario_runner",
+  "notes": "Baseline run (no scenario overlays)."
+}

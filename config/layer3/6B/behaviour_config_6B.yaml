@@ -1,0 +1,47 @@
+schema_version: 1
+config_id: behaviour_config_6B
+config_version: v1
+
+scope_filters:
+  scenario_id_allowlist: ["baseline_v1"]
+
+feature_flags:
+  s1:
+    enable_attachment_steps:
+      ATTACH_PARTY: true
+      ATTACH_ACCOUNT: true
+      ATTACH_INSTRUMENT: true
+      ATTACH_DEVICE: true
+      ATTACH_IP: true
+    enable_sessionisation: true
+    enable_stochastic_session_boundary: true
+
+  s2:
+    enable_multi_flow_sessions: true
+    enable_refunds: true
+    enable_reversals: true
+    enable_partial_clearing: true
+
+  s3:
+    enable_fraud_overlay: true
+
+  s4:
+    enable_truth_labelling: true
+    enable_bank_view: true
+    enable_cases: true
+    enable_delays: true
+
+  s5:
+    validation_scope_mode: FULL
+
+guardrails:
+  max_sessions_per_seed_scenario: 1500000
+  max_flows_per_session: 25
+  max_events_per_flow: 40
+  max_campaigns_active_per_day: 25
+  max_cases_per_seed_scenario: 50000
+
+degrade_posture:
+  on_scope_filter_miss: SKIP_PARTITION
+  on_guardrail_exceeded: CLAMP_AND_WARN
+  on_optional_policy_missing: DISABLE_FEATURE

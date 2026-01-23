@@ -1,0 +1,29 @@
+{
+  "dataset_id": "iso3166_canonical_2024",
+  "version": "2024-12-31",
+  "source_url": "https://download.geonames.org/export/dump/countryInfo.txt",
+  "source_sha256": "7cc305b96b8c9488981125de7dc3f2e809f582cd5c5e55a889568fd1735224ae",
+  "upstream_retrieved_utc": "2026-01-10T20:49:50.014214Z",
+  "generated_at_utc": "2026-01-11T01:32:18.797231Z",
+  "generator_script": "scripts/build_iso_canonical.py",
+  "output_parquet": "reference\\iso\\iso3166_canonical\\2024-12-31\\iso3166.parquet",
+  "output_parquet_sha256": "98bcd9efb061dd0d8d6afa743388c479001cc8e2257c2fb73c6ee53e25e87812",
+  "provenance_path": "reference\\iso\\iso3166_canonical\\2024-12-31\\iso3166.provenance.json",
+  "provenance_sha256": "ef5bd06224118f423b4488b6b6bda9d48a2604cc5b323fbdf7c2f54c43b5f7db",
+  "row_count": 251,
+  "column_order": [
+    "country_iso",
+    "alpha3",
+    "numeric_code",
+    "name",
+    "region",
+    "subregion",
+    "start_date",
+    "end_date"
+  ],
+  "excluded_iso2": [
+    "UK",
+    "XK"
+  ],
+  "is_exact_vintage": false
+}

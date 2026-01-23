@@ -1,0 +1,377 @@
+version: '1.0'
+gates:
+- gate_id: gate.layer1.1A.validation
+  segment: 1A
+  scope: fingerprint
+  passed_flag_path_template: data/layer1/1A/validation/manifest_fingerprint={manifest_fingerprint}/_passed.flag
+  bundle_root_template: data/layer1/1A/validation/manifest_fingerprint={manifest_fingerprint}/
+  index_path_template: data/layer1/1A/validation/manifest_fingerprint={manifest_fingerprint}/index.json
+  index_schema_ref: schemas.1A.yaml#/validation/validation_bundle/index_schema
+  input_set_authority: index.json
+  receipt_schema_ref: schemas.layer1.yaml#/validation/passed_flag
+  verification_method:
+    kind: sha256_bundle_digest
+    digest_field: sha256_hex
+    ordering: ascii_lex
+    exclude_filenames:
+    - _passed.flag
+  authorizes_outputs:
+  - outlet_catalogue
+  - sealed_inputs_1A
+  upstream_gate_dependencies: []
+  receipts_emitted:
+  - s0_gate_receipt_1A
+  required_by_components:
+  - ingestion_gate
+  - downstream_readers
+  - observability_governance
+- gate_id: gate.layer1.1B.validation
+  segment: 1B
+  scope: fingerprint
+  passed_flag_path_template: data/layer1/1B/validation/manifest_fingerprint={manifest_fingerprint}/_passed.flag
+  bundle_root_template: data/layer1/1B/validation/manifest_fingerprint={manifest_fingerprint}/
+  index_path_template: data/layer1/1B/validation/manifest_fingerprint={manifest_fingerprint}/index.json
+  index_schema_ref: schemas.1B.yaml#/validation/validation_bundle_1B/index_schema
+  input_set_authority: index.json
+  receipt_schema_ref: schemas.1B.yaml#/validation/passed_flag
+  verification_method:
+    kind: sha256_bundle_digest
+    digest_field: sha256_hex
+    ordering: ascii_lex
+    exclude_filenames:
+    - _passed.flag
+  authorizes_outputs:
+  - s3_requirements
+  - s4_alloc_plan
+  - s5_site_tile_assignment
+  - s6_site_jitter
+  - s7_site_synthesis
+  - sealed_inputs_1B
+  - site_locations
+  upstream_gate_dependencies:
+  - gate.layer1.1A.validation
+  receipts_emitted:
+  - s0_gate_receipt_1B
+  required_by_components:
+  - ingestion_gate
+  - downstream_readers
+  - observability_governance
+- gate_id: gate.layer1.2A.validation
+  segment: 2A
+  scope: fingerprint
+  passed_flag_path_template: data/layer1/2A/validation/manifest_fingerprint={manifest_fingerprint}/_passed.flag
+  bundle_root_template: data/layer1/2A/validation/manifest_fingerprint={manifest_fingerprint}/
+  index_path_template: data/layer1/2A/validation/manifest_fingerprint={manifest_fingerprint}/index.json
+  index_schema_ref: schemas.2A.yaml#/validation/bundle_index_v1
+  input_set_authority: index.json
+  receipt_schema_ref: schemas.2A.yaml#/validation/passed_flag
+  verification_method:
+    kind: sha256_bundle_digest
+    digest_field: sha256_hex
+    ordering: ascii_lex
+    exclude_filenames:
+    - _passed.flag
+  authorizes_outputs:
+  - s1_tz_lookup
+  - s4_legality_report
+  - sealed_inputs_2A
+  - site_timezones
+  - tz_timetable_cache
+  upstream_gate_dependencies:
+  - gate.layer1.1B.validation
+  receipts_emitted:
+  - s0_gate_receipt_2A
+  required_by_components:
+  - ingestion_gate
+  - downstream_readers
+  - observability_governance
+- gate_id: gate.layer1.2B.validation
+  segment: 2B
+  scope: fingerprint
+  passed_flag_path_template: data/layer1/2B/validation/manifest_fingerprint={manifest_fingerprint}/_passed.flag
+  bundle_root_template: data/layer1/2B/validation/manifest_fingerprint={manifest_fingerprint}/
+  index_path_template: data/layer1/2B/validation/manifest_fingerprint={manifest_fingerprint}/index.json
+  index_schema_ref: schemas.layer1.yaml#/validation/validation_bundle/index_schema
+  input_set_authority: index.json
+  receipt_schema_ref: schemas.1B.yaml#/validation/passed_flag
+  verification_method:
+    kind: sha256_bundle_digest
+    digest_field: sha256_hex
+    ordering: ascii_lex
+    exclude_filenames:
+    - _passed.flag
+  authorizes_outputs:
+  - s1_site_weights
+  - s2_alias_blob
+  - s2_alias_index
+  - s3_day_effects
+  - s4_group_weights
+  - s7_audit_report
+  - sealed_inputs_2B
+  upstream_gate_dependencies:
+  - gate.layer1.1B.validation
+  - gate.layer1.2A.validation
+  receipts_emitted:
+  - s0_gate_receipt_2B
+  required_by_components:
+  - ingestion_gate
+  - downstream_readers
+  - observability_governance
+- gate_id: gate.layer1.3A.validation
+  segment: 3A
+  scope: fingerprint
+  passed_flag_path_template: data/layer1/3A/validation/manifest_fingerprint={manifest_fingerprint}/_passed.flag
+  bundle_root_template: data/layer1/3A/validation/manifest_fingerprint={manifest_fingerprint}/
+  index_path_template: data/layer1/3A/validation/manifest_fingerprint={manifest_fingerprint}/index.json
+  index_schema_ref: schemas.layer1.yaml#/validation/validation_bundle_index_3A
+  input_set_authority: index.json
+  receipt_schema_ref: schemas.layer1.yaml#/validation/passed_flag_3A
+  verification_method:
+    kind: sha256_member_digest_concat
+    digest_field: sha256_hex
+    ordering: members_array_order
+    exclude_filenames:
+    - _passed.flag
+  authorizes_outputs:
+  - s1_escalation_queue
+  - s3_zone_shares
+  - s4_zone_counts
+  - s6_issue_table_3A
+  - s6_receipt_3A
+  - s6_validation_report_3A
+  - sealed_inputs_3A
+  - zone_alloc
+  - zone_alloc_universe_hash
+  upstream_gate_dependencies:
+  - gate.layer1.1A.validation
+  - gate.layer1.1B.validation
+  - gate.layer1.2A.validation
+  receipts_emitted:
+  - s0_gate_receipt_3A
+  required_by_components:
+  - ingestion_gate
+  - downstream_readers
+  - observability_governance
+- gate_id: gate.layer1.3B.validation
+  segment: 3B
+  scope: fingerprint
+  passed_flag_path_template: data/layer1/3B/validation/manifest_fingerprint={manifest_fingerprint}/_passed.flag
+  bundle_root_template: data/layer1/3B/validation/manifest_fingerprint={manifest_fingerprint}/
+  index_path_template: data/layer1/3B/validation/manifest_fingerprint={manifest_fingerprint}/index.json
+  index_schema_ref: schemas.layer1.yaml#/validation/validation_bundle_index_3B
+  input_set_authority: index.json
+  receipt_schema_ref: schemas.layer1.yaml#/validation/passed_flag_3B
+  verification_method:
+    kind: sha256_bundle_digest
+    digest_field: sha256_hex
+    ordering: ascii_lex
+    exclude_filenames:
+    - _passed.flag
+  authorizes_outputs:
+  - edge_alias_blob_3B
+  - edge_alias_index_3B
+  - edge_catalogue_3B
+  - edge_catalogue_index_3B
+  - edge_universe_hash_3B
+  - gamma_draw_log_3B
+  - s5_manifest_3B
+  - sealed_inputs_3B
+  - virtual_classification_3B
+  - virtual_routing_policy_3B
+  - virtual_settlement_3B
+  - virtual_validation_contract_3B
+  upstream_gate_dependencies:
+  - gate.layer1.1A.validation
+  - gate.layer1.1B.validation
+  - gate.layer1.2A.validation
+  - gate.layer1.2B.validation
+  - gate.layer1.3A.validation
+  receipts_emitted:
+  - s0_gate_receipt_3B
+  required_by_components:
+  - ingestion_gate
+  - downstream_readers
+  - observability_governance
+- gate_id: gate.layer2.5A.validation
+  segment: 5A
+  scope: fingerprint
+  passed_flag_path_template: data/layer2/5A/validation/manifest_fingerprint={manifest_fingerprint}/_passed.flag
+  bundle_root_template: data/layer2/5A/validation/manifest_fingerprint={manifest_fingerprint}/
+  index_path_template: data/layer2/5A/validation/manifest_fingerprint={manifest_fingerprint}/validation_bundle_index_5A.json
+  index_schema_ref: schemas.layer2.yaml#/validation/validation_bundle_index_5A
+  input_set_authority: validation_bundle_index_5A.json
+  receipt_schema_ref: schemas.layer2.yaml#/validation/passed_flag_5A
+  verification_method:
+    kind: sha256_bundle_digest
+    digest_field: bundle_digest_sha256
+    ordering: ascii_lex
+    exclude_filenames:
+    - _passed.flag
+  authorizes_outputs:
+  - class_zone_baseline_local_5A
+  - merchant_class_profile_5A
+  - merchant_zone_baseline_local_5A
+  - merchant_zone_baseline_utc_5A
+  - merchant_zone_overlay_factors_5A
+  - merchant_zone_profile_5A
+  - merchant_zone_scenario_local_5A
+  - merchant_zone_scenario_utc_5A
+  - scenario_manifest_5A
+  - sealed_inputs_5A
+  - validation_issue_table_5A
+  - validation_report_5A
+  upstream_gate_dependencies:
+  - gate.layer1.1A.validation
+  - gate.layer1.1B.validation
+  - gate.layer1.2A.validation
+  - gate.layer1.2B.validation
+  - gate.layer1.3A.validation
+  - gate.layer1.3B.validation
+  receipts_emitted:
+  - s0_gate_receipt_5A
+  required_by_components:
+  - ingestion_gate
+  - downstream_readers
+  - observability_governance
+- gate_id: gate.layer2.5B.validation
+  segment: 5B
+  scope: fingerprint
+  passed_flag_path_template: data/layer2/5B/validation/manifest_fingerprint={manifest_fingerprint}/_passed.flag
+  bundle_root_template: data/layer2/5B/validation/manifest_fingerprint={manifest_fingerprint}/
+  index_path_template: data/layer2/5B/validation/manifest_fingerprint={manifest_fingerprint}/index.json
+  index_schema_ref: schemas.layer2.yaml#/validation/validation_bundle_index_5B
+  input_set_authority: index.json
+  receipt_schema_ref: schemas.layer2.yaml#/validation/passed_flag_5B
+  verification_method:
+    kind: sha256_bundle_digest
+    digest_field: bundle_digest_sha256
+    ordering: ascii_lex
+    exclude_filenames:
+    - _passed.flag
+  authorizes_outputs:
+  - arrival_events_5B
+  - s1_grouping_5B
+  - s1_time_grid_5B
+  - s2_latent_field_5B
+  - s2_realised_intensity_5B
+  - s3_bucket_counts_5B
+  - s4_arrival_anomalies_5B
+  - s4_arrival_summary_5B
+  - sealed_inputs_5B
+  - validation_issue_table_5B
+  - validation_report_5B
+  upstream_gate_dependencies:
+  - gate.layer1.1A.validation
+  - gate.layer1.1B.validation
+  - gate.layer1.2A.validation
+  - gate.layer1.2B.validation
+  - gate.layer1.3A.validation
+  - gate.layer1.3B.validation
+  - gate.layer2.5A.validation
+  receipts_emitted:
+  - s0_gate_receipt_5B
+  required_by_components:
+  - ingestion_gate
+  - downstream_readers
+  - observability_governance
+- gate_id: gate.layer3.6A.validation
+  segment: 6A
+  scope: fingerprint
+  passed_flag_path_template: data/layer3/6A/validation/manifest_fingerprint={manifest_fingerprint}/_passed.flag
+  bundle_root_template: data/layer3/6A/validation/manifest_fingerprint={manifest_fingerprint}/
+  index_path_template: data/layer3/6A/validation/manifest_fingerprint={manifest_fingerprint}/validation_bundle_index_6A.json
+  index_schema_ref: schemas.layer3.yaml#/validation/6A/validation_bundle_index_6A
+  input_set_authority: validation_bundle_index_6A.json
+  receipt_schema_ref: schemas.layer3.yaml#/validation/6A/passed_flag_6A
+  verification_method:
+    kind: sha256_bundle_digest
+    digest_field: sha256_hex
+    ordering: ascii_lex
+    exclude_filenames:
+    - _passed.flag
+  authorizes_outputs:
+  - s1_party_base_6A
+  - s1_party_summary_6A
+  - s2_account_base_6A
+  - s2_account_summary_6A
+  - s2_merchant_account_base_6A
+  - s2_party_product_holdings_6A
+  - s3_account_instrument_links_6A
+  - s3_instrument_base_6A
+  - s3_instrument_summary_6A
+  - s3_party_instrument_holdings_6A
+  - s4_device_base_6A
+  - s4_device_links_6A
+  - s4_entity_neighbourhoods_6A
+  - s4_ip_base_6A
+  - s4_ip_links_6A
+  - s4_network_summary_6A
+  - s5_account_fraud_roles_6A
+  - s5_device_fraud_roles_6A
+  - s5_ip_fraud_roles_6A
+  - s5_issue_table_6A
+  - s5_merchant_fraud_roles_6A
+  - s5_party_fraud_roles_6A
+  - s5_validation_report_6A
+  - sealed_inputs_6A
+  upstream_gate_dependencies:
+  - gate.layer1.1A.validation
+  - gate.layer1.1B.validation
+  - gate.layer1.2A.validation
+  - gate.layer1.2B.validation
+  - gate.layer1.3A.validation
+  - gate.layer1.3B.validation
+  - gate.layer2.5A.validation
+  - gate.layer2.5B.validation
+  receipts_emitted:
+  - s0_gate_receipt_6A
+  required_by_components:
+  - ingestion_gate
+  - downstream_readers
+  - observability_governance
+- gate_id: gate.layer3.6B.validation
+  segment: 6B
+  scope: fingerprint
+  passed_flag_path_template: data/layer3/6B/validation/manifest_fingerprint={manifest_fingerprint}/_passed.flag
+  bundle_root_template: data/layer3/6B/validation/manifest_fingerprint={manifest_fingerprint}/
+  index_path_template: data/layer3/6B/validation/manifest_fingerprint={manifest_fingerprint}/index.json
+  index_schema_ref: schemas.layer3.yaml#/validation/6B/validation_bundle_index_6B
+  input_set_authority: index.json
+  receipt_schema_ref: schemas.layer3.yaml#/validation/6B/passed_flag_6B
+  verification_method:
+    kind: sha256_bundle_digest
+    digest_field: sha256_hex
+    ordering: ascii_lex
+    exclude_filenames:
+    - _passed.flag
+  authorizes_outputs:
+  - s1_arrival_entities_6B
+  - s1_session_index_6B
+  - s2_event_stream_baseline_6B
+  - s2_flow_anchor_baseline_6B
+  - s3_campaign_catalogue_6B
+  - s3_event_stream_with_fraud_6B
+  - s3_flow_anchor_with_fraud_6B
+  - s4_case_timeline_6B
+  - s4_event_labels_6B
+  - s4_flow_bank_view_6B
+  - s4_flow_truth_labels_6B
+  - s5_issue_table_6B
+  - s5_validation_report_6B
+  - sealed_inputs_6B
+  upstream_gate_dependencies:
+  - gate.layer1.1A.validation
+  - gate.layer1.1B.validation
+  - gate.layer1.2A.validation
+  - gate.layer1.2B.validation
+  - gate.layer1.3A.validation
+  - gate.layer1.3B.validation
+  - gate.layer2.5A.validation
+  - gate.layer2.5B.validation
+  - gate.layer3.6A.validation
+  receipts_emitted:
+  - s0_gate_receipt_6B
+  required_by_components:
+  - ingestion_gate
+  - downstream_readers
+  - observability_governance

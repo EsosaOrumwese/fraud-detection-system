@@ -1,0 +1,13 @@
+semver: "1.1.0"
+version: "2025-12-31"
+
+enabled: true
+
+home_min: 1
+
+force_at_least_one_foreign_if_foreign_present: true
+min_one_per_country_when_feasible: false
+
+foreign_cap_mode: "n_minus_home_min"
+
+on_infeasible: "fail"

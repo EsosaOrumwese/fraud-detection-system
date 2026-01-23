@@ -1,0 +1,43 @@
+policy_id: virtual_logging_policy
+version: v1.0.0
+run_log_root: logs/virtual
+
+managed_logs:
+  - logical_id: edge_progress_log
+    filename: edge_progress.log
+    write_mode: append_only
+    flush_policy:
+      flush_each_line: true
+      fsync_every_n_lines: 50
+    rotation:
+      mode: size_bytes
+      max_bytes: 16777216
+      keep_files: 10
+      compress_rotated: true
+    protection:
+      never_delete_active_file: true
+
+  - logical_id: virtual_audit_log
+    filename: virtual_audit.log
+    write_mode: append_only
+    flush_policy:
+      flush_each_line: false
+      fsync_every_n_lines: 200
+    rotation:
+      mode: size_bytes
+      max_bytes: 268435456
+      keep_files: 20
+      compress_rotated: true
+    protection:
+      never_delete_active_file: true
+
+retention:
+  keep_run_days: 365
+  keep_min_completed_runs: 200
+  never_delete_runs_newer_than_days: 14
+
+housekeeping:
+  max_total_bytes_under_run_log_root: 214748364800
+  max_bytes_per_run_dir: 2147483648
+  deletion_order: oldest_completed_first
+  on_over_budget: delete_whole_run_dir

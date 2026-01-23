@@ -1,0 +1,236 @@
+{
+  "dest_root": "C:/Users/LEGION/Documents/Data Science/Python & R Scripts/fraud-detection-system/contracts",
+  "file_count": 38,
+  "files": [
+    {
+      "destination": "artefact_registry/artefact_registry_1A.yaml",
+      "sha256": "0c0d521fea1b3b183148e9361580ddcd4fe30c6244d7e1abe477ac3d90d1a980",
+      "size_bytes": 62995,
+      "source": "layer-1/specs/contracts/1A/artefact_registry_1A.yaml"
+    },
+    {
+      "destination": "dataset_dictionary/l1/seg_1A/layer1.1A.yaml",
+      "sha256": "5711a25fe5a357f6b4bf37b84c5d12a72ba327888affcaa6388e1a38cca3998a",
+      "size_bytes": 35557,
+      "source": "layer-1/specs/contracts/1A/dataset_dictionary.layer1.1A.yaml"
+    },
+    {
+      "destination": "schemas/layer1/schemas.1A.yaml",
+      "sha256": "83891933b7b0cd63697c5b3b2b446382d7676448ebdae5875bea09555f0e3bf0",
+      "size_bytes": 25174,
+      "source": "layer-1/specs/contracts/1A/schemas.1A.yaml"
+    },
+    {
+      "destination": "schemas/layer1/schemas.ingress.layer1.yaml",
+      "sha256": "cc5b554a2739308cdf7360c45c33d484d008d7e04b060843ba8e3b207e5bfd51",
+      "size_bytes": 12044,
+      "source": "layer-1/specs/contracts/1A/schemas.ingress.layer1.yaml"
+    },
+    {
+      "destination": "schemas/layer1/schemas.layer1.yaml",
+      "sha256": "3e226da373864e00708c04e5ff702da6c06e81fa5663c6017184ce79ae91fdd7",
+      "size_bytes": 67327,
+      "source": "layer-1/specs/contracts/1A/schemas.layer1.yaml"
+    },
+    {
+      "destination": "artefact_registry/artefact_registry_1B.yaml",
+      "sha256": "1d4ec3841f8e669e158d1d1be864bf97281019fc8538861124ae8d662431ed08",
+      "size_bytes": 23706,
+      "source": "layer-1/specs/contracts/1B/artefact_registry_1B.yaml"
+    },
+    {
+      "destination": "dataset_dictionary/l1/seg_1B/layer1.1B.yaml",
+      "sha256": "af1ec160c2b14eb17f977a54f659fe24de12d0628266ef64f9069ad6291bd24e",
+      "size_bytes": 21649,
+      "source": "layer-1/specs/contracts/1B/dataset_dictionary.layer1.1B.yaml"
+    },
+    {
+      "destination": "schemas/layer1/schemas.1B.yaml",
+      "sha256": "31dee670d9dc0f4a304e123cc6e44236547a28c2795f7383cdfd62112dae8296",
+      "size_bytes": 22802,
+      "source": "layer-1/specs/contracts/1B/schemas.1B.yaml"
+    },
+    {
+      "destination": "artefact_registry/artefact_registry_2A.yaml",
+      "sha256": "1fbdca3a59a2892682999029a4dfd3810cee384e38af929e469cd1b5180e2ce5",
+      "size_bytes": 14016,
+      "source": "layer-1/specs/contracts/2A/artefact_registry_2A.yaml"
+    },
+    {
+      "destination": "dataset_dictionary/l1/seg_2A/layer1.2A.yaml",
+      "sha256": "be26c4816291f75ed770a01f7608ee287c5b18358077b5bde59f0cb7285e1d4a",
+      "size_bytes": 11416,
+      "source": "layer-1/specs/contracts/2A/dataset_dictionary.layer1.2A.yaml"
+    },
+    {
+      "destination": "schemas/layer1/schemas.2A.yaml",
+      "sha256": "fef10e7cdd8c018929b848b082675f583256392ceae921a3cc595255f165e7b0",
+      "size_bytes": 13200,
+      "source": "layer-1/specs/contracts/2A/schemas.2A.yaml"
+    },
+    {
+      "destination": "artefact_registry/artefact_registry_2B.yaml",
+      "sha256": "513a8c01c2fc4b79f37359ae09d81e27bfaecd1d70a482901c9ec5d387ade781",
+      "size_bytes": 23209,
+      "source": "layer-1/specs/contracts/2B/artefact_registry_2B.yaml"
+    },
+    {
+      "destination": "dataset_dictionary/l1/seg_2B/layer1.2B.yaml",
+      "sha256": "c6e8b3745687af0d4c8fd81facd0c640ede2626a275fc53cc27591c0c25cfd5a",
+      "size_bytes": 17914,
+      "source": "layer-1/specs/contracts/2B/dataset_dictionary.layer1.2B.yaml"
+    },
+    {
+      "destination": "schemas/layer1/schemas.2B.yaml",
+      "sha256": "85e18b528507f0c4746927739fbc1b18edb96ab7c5a1f974bed7d919038f4715",
+      "size_bytes": 25485,
+      "source": "layer-1/specs/contracts/2B/schemas.2B.yaml"
+    },
+    {
+      "destination": "artefact_registry/artefact_registry_3A.yaml",
+      "sha256": "a5192fb89bd4e0eeea122ef363f65788303fb4d376660c8f641bb32ca151cdbc",
+      "size_bytes": 23128,
+      "source": "layer-1/specs/contracts/3A/artefact_registry_3A.yaml"
+    },
+    {
+      "destination": "dataset_dictionary/l1/seg_3A/layer1.3A.yaml",
+      "sha256": "cfe22371ea8b53c30af7ac714f7a0a188c418c89c112fcf43a20ecb1329e3226",
+      "size_bytes": 23446,
+      "source": "layer-1/specs/contracts/3A/dataset_dictionary.layer1.3A.yaml"
+    },
+    {
+      "destination": "schemas/layer1/schemas.3A.yaml",
+      "sha256": "322ceb9f0abb34bd22e9d40704382fa870c3c25afc64e197a7426a9f2747944f",
+      "size_bytes": 18447,
+      "source": "layer-1/specs/contracts/3A/schemas.3A.yaml"
+    },
+    {
+      "destination": "artefact_registry/artefact_registry_3B.yaml",
+      "sha256": "c231645bb0706aafbbfe87d37809c4e460ba4b60e71f84479825982f96a185fe",
+      "size_bytes": 41686,
+      "source": "layer-1/specs/contracts/3B/artefact_registry_3B.yaml"
+    },
+    {
+      "destination": "dataset_dictionary/l1/seg_3B/layer1.3B.yaml",
+      "sha256": "f3fb28fde8dfc321c3783e2c096fb52f73d6bef1f1d569bc6c24767536e22d26",
+      "size_bytes": 32018,
+      "source": "layer-1/specs/contracts/3B/dataset_dictionary.layer1.3B.yaml"
+    },
+    {
+      "destination": "schemas/layer1/schemas.3B.yaml",
+      "sha256": "f2a661c41413fad24c77890e9876d4a830964459e9b82b7427fe97ebd82907a9",
+      "size_bytes": 27378,
+      "source": "layer-1/specs/contracts/3B/schemas.3B.yaml"
+    },
+    {
+      "destination": "artefact_registry/artefact_registry_4A.yaml",
+      "sha256": "b24dec97ce6653b90a0c9ec68023d2d9a49956d91e2d7ff7176358c518dfae81",
+      "size_bytes": 24687,
+      "source": "layer-1/specs/contracts/4A/artefact_registry_4A.yaml"
+    },
+    {
+      "destination": "artefact_registry/artefact_registry_4B.yaml",
+      "sha256": "492af8b5056f7e0908c5e7ca24567f02abc420db788ec9c2fdfd9b6d4c28f0fb",
+      "size_bytes": 20700,
+      "source": "layer-1/specs/contracts/4B/artefact_registry_4B.yaml"
+    },
+    {
+      "destination": "artefact_registry/artefact_registry_5A.yaml",
+      "sha256": "e6077a7664626afd98f57de8843789a164f87d90b7ec117c576544346c15c452",
+      "size_bytes": 44600,
+      "source": "layer-2/specs/contracts/5A/artefact_registry_5A.yaml"
+    },
+    {
+      "destination": "dataset_dictionary/l2/seg_5A/layer2.5A.yaml",
+      "sha256": "47d85c1b3e1d2ff5d1b366e8d6cc77e61d72d466bf7bd220db85d5c8cbe045e4",
+      "size_bytes": 49293,
+      "source": "layer-2/specs/contracts/5A/dataset_dictionary.layer2.5A.yaml"
+    },
+    {
+      "destination": "schemas/layer2/schemas.5A.yaml",
+      "sha256": "a731ef5d1bea4f9a401b27cb69e7aa4af6a7feecac3ee3ee108aa9a355e8d4eb",
+      "size_bytes": 62300,
+      "source": "layer-2/specs/contracts/5A/schemas.5A.yaml"
+    },
+    {
+      "destination": "schemas/layer2/schemas.ingress.layer2.yaml",
+      "sha256": "724272cb44166db35e0d9b4abfe32500a4d883f89acdb7be66a5fb01cd73850e",
+      "size_bytes": 415,
+      "source": "layer-2/specs/contracts/5A/schemas.ingress.layer2.yaml"
+    },
+    {
+      "destination": "schemas/layer2/schemas.layer2.yaml",
+      "sha256": "2e0e00695466bd787d4baef6e415e8da28a416edfc036b752157294cb3c5d7df",
+      "size_bytes": 6361,
+      "source": "layer-2/specs/contracts/5A/schemas.layer2.yaml"
+    },
+    {
+      "destination": "artefact_registry/artefact_registry_5B.yaml",
+      "sha256": "e5e9d9e1be8469c89d67ea2f1589d7ed61306caff35442debc4ced4271d22dff",
+      "size_bytes": 47437,
+      "source": "layer-2/specs/contracts/5B/artefact_registry_5B.yaml"
+    },
+    {
+      "destination": "dataset_dictionary/l2/seg_5B/layer2.5B.yaml",
+      "sha256": "2c3ce9337052744ce985ce1fdaddda720f3e7aaf3c169536ade4230886c2ea7a",
+      "size_bytes": 51845,
+      "source": "layer-2/specs/contracts/5B/dataset_dictionary.layer2.5B.yaml"
+    },
+    {
+      "destination": "schemas/layer2/schemas.5B.yaml",
+      "sha256": "8f07868f35ee0b59cc2f1674cf86a0ac653110610fc6fbd5cc3127f628285d75",
+      "size_bytes": 39372,
+      "source": "layer-2/specs/contracts/5B/schemas.5B.yaml"
+    },
+    {
+      "destination": "artefact_registry/artefact_registry_6A.yaml",
+      "sha256": "bc1e02c5353190cf1b9e62284a8cb006019eccc51bcae8a2d92c16ae8eacddcb",
+      "size_bytes": 88749,
+      "source": "layer-3/specs/contracts/6A/artefact_registry_6A.yaml"
+    },
+    {
+      "destination": "dataset_dictionary/l3/seg_6A/layer3.6A.yaml",
+      "sha256": "5014134eacb16b288c17195b2da19c4f71b5931837a13f085e9ed594d3c3a83c",
+      "size_bytes": 69551,
+      "source": "layer-3/specs/contracts/6A/dataset_dictionary.layer3.6A.yaml"
+    },
+    {
+      "destination": "schemas/layer3/schemas.6A.yaml",
+      "sha256": "d0ec4fa91af49291533b0399aff3f57fb2dd81e8ac3dc547a0384174a1efe1b1",
+      "size_bytes": 144870,
+      "source": "layer-3/specs/contracts/6A/schemas.6A.yaml"
+    },
+    {
+      "destination": "schemas/layer3/schemas.ingress.layer3.yaml",
+      "sha256": "8df25effc89994e4591cca922629cd7e6f936d87e75dbbd9b913284c8252ec99",
+      "size_bytes": 415,
+      "source": "layer-3/specs/contracts/6A/schemas.ingress.layer3.yaml"
+    },
+    {
+      "destination": "schemas/layer3/schemas.layer3.yaml",
+      "sha256": "6d9f6a71c7ee8d5a0855f9789c6a5ff6d75ce6c38b43540fd7972bbfb4264612",
+      "size_bytes": 26896,
+      "source": "layer-3/specs/contracts/6A/schemas.layer3.yaml"
+    },
+    {
+      "destination": "artefact_registry/artefact_registry_6B.yaml",
+      "sha256": "6502cfb35b87bfdbfff763f703d824f38811dbd5dc1b88671396829fce574f64",
+      "size_bytes": 67504,
+      "source": "layer-3/specs/contracts/6B/artefact_registry_6B.yaml"
+    },
+    {
+      "destination": "dataset_dictionary/l3/seg_6B/layer3.6B.yaml",
+      "sha256": "773a9470603eb37fe010c8c0722884c1853635ab19033ba470f9ab21c0269f99",
+      "size_bytes": 53041,
+      "source": "layer-3/specs/contracts/6B/dataset_dictionary.layer3.6B.yaml"
+    },
+    {
+      "destination": "schemas/layer3/schemas.6B.yaml",
+      "sha256": "a1076e0ad176a7abe86b81cad06b4ad9b9bc7bbdb727840cc142b43eea8047a3",
+      "size_bytes": 101067,
+      "source": "layer-3/specs/contracts/6B/schemas.6B.yaml"
+    }
+  ],
+  "source_root": "C:/Users/LEGION/Documents/Data Science/Python & R Scripts/fraud-detection-system/docs/model_spec/data-engine",
+  "unmapped": []
+}

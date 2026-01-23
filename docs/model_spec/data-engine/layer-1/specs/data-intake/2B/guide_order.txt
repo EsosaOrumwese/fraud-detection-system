@@ -1,0 +1,8 @@
+# List guides in dependency order after reading expanded specs and contracts.
+# One guide per line.
+
+alias_layout_policy_v1_authoring-guide.md
+day_effect_policy_v1_authoring-guide.md
+route_rng_policy_v1_authoring-guide.md
+virtual_edge_policy_v1_authoring-guide.md
+

@@ -1,0 +1,118 @@
+schema_version: 1
+policy_id: amount_model_6B
+policy_version: v1
+
+bindings:
+  rng_family_for_amount_base_draw: rng_event_amount_draw
+  rng_family_for_amount_jitter_draw: rng_event_amount_draw
+  rng_family_for_currency_cross_draw: rng_event_amount_draw
+
+currency_policy:
+  mode: MERCHANT_PRIMARY_ONLY
+
+amount_families:
+  PURCHASE:
+    base_distribution:
+      dist_id: DISCRETE_PRICE_POINTS_V1
+      price_points_minor: [199, 499, 999, 1499, 1999, 2999, 4999, 9999]
+      point_mass_total: 0.32
+      tail:
+        dist_id: LOGNORMAL_V1
+        mu_log: 7.25
+        sigma_log: 0.95
+  CASH_WITHDRAWAL:
+    base_distribution:
+      dist_id: DISCRETE_PRICE_POINTS_V1
+      price_points_minor: [2000, 5000, 10000, 20000, 50000, 100000]
+      point_mass_total: 0.70
+      tail:
+        dist_id: LOGNORMAL_V1
+        mu_log: 8.30
+        sigma_log: 0.70
+  TRANSFER:
+    base_distribution:
+      dist_id: LOGNORMAL_V1
+      mu_log: 8.10
+      sigma_log: 1.10
+
+event_amount_rules:
+  rules:
+    - rule_id: RULE_PURCHASE_AUTH
+      amount_family: PURCHASE
+      applies_to:
+        channel_groups: [ECOM, POS, HYBRID]
+        event_types: [AUTH_REQUEST]
+      sign: POSITIVE
+      base_draw: { enabled: true, family: rng_event_amount_draw }
+
+    - rule_id: RULE_ATM_AUTH
+      amount_family: CASH_WITHDRAWAL
+      applies_to:
+        channel_groups: [ATM]
+        event_types: [AUTH_REQUEST]
+      sign: POSITIVE
+      base_draw: { enabled: true, family: rng_event_amount_draw }
+
+    - rule_id: RULE_BANK_TRANSFER_AUTH
+      amount_family: TRANSFER
+      applies_to:
+        channel_groups: [BANK_RAIL]
+        event_types: [AUTH_REQUEST]
+      sign: POSITIVE
+      base_draw: { enabled: true, family: rng_event_amount_draw }
+
+cross_event_constraints:
+  clearing_amount:
+    mode: auth_times_one_plus_delta_v1
+    delta:
+      enabled: true
+      family: rng_event_amount_draw
+      delta_abs_max: 0.01
+      dist_id: UNIFORM_SYMMETRIC_V1
+    apply_when_event_types_present: [AUTH_REQUEST, CLEARING]
+
+  refund_amount:
+    mode: negative_fraction_of_clearing_v1
+    refund_fraction:
+      allow_partial: true
+      partial_prob: 0.30
+      partial_fraction_range: { min: 0.10, max: 0.90 }
+      full_prob: 0.70
+    sign: NEGATIVE
+    apply_when_event_types_present: [CLEARING, REFUND]
+
+  reversal_amount:
+    mode: negative_of_auth_v1
+    sign: NEGATIVE
+    apply_when_event_types_present: [AUTH_REQUEST, REVERSAL]
+
+rounding:
+  mode: minor_units
+  default_dp: 2
+  rounding_mode: round_half_even
+
+guardrails:
+  max_amount_minor_by_currency: { DEFAULT: 250000000 }
+  min_amount_minor_by_currency: { DEFAULT: 1 }
+  max_refund_fraction: 1.0
+  max_clearing_delta_abs: 0.02
+  max_fee_fraction: 0.02
+
+realism_targets:
+  median_minor_range_by_family:
+    PURCHASE: { min: 300, max: 8000 }
+    CASH_WITHDRAWAL: { min: 2000, max: 40000 }
+    TRANSFER: { min: 1000, max: 25000 }
+  p95_minor_range_by_family:
+    PURCHASE: { min: 5000, max: 250000 }
+    CASH_WITHDRAWAL: { min: 20000, max: 250000 }
+    TRANSFER: { min: 10000, max: 500000 }
+  heavy_tail_ratio_range_by_family:
+    PURCHASE: { min: 10.0, max: 250.0 }
+    CASH_WITHDRAWAL: { min: 2.0, max: 50.0 }
+    TRANSFER: { min: 5.0, max: 200.0 }
+  fraction_round_price_points_min:
+    PURCHASE: 0.20
+    CASH_WITHDRAWAL: 0.60
+  decline_amount_distribution_same_as_approved: true
+notes: "Baseline amounts are in merchant primary currency; cross-currency disabled in v1."

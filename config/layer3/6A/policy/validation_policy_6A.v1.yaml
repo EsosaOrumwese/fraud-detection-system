@@ -1,0 +1,61 @@
+policy_id: validation_policy_6A
+version: v1.0.0
+
+require_upstream_pass:
+  layer1_required: [1A, 1B, 2A, 2B, 3A, 3B]
+  layer2_required: [5A, 5B]
+  layer3_required: []
+
+structural_checks:
+  party_base:
+    require_unique_party_id: true
+    require_country_iso_present: true
+    require_segment_id_present: true
+  account_base:
+    require_owner_party_id_present: true
+    require_account_type_present: true
+  instrument_base:
+    require_account_link_present: true
+    require_instrument_type_present: true
+  device_base:
+    require_device_type_present: true
+    require_primary_party_present: true
+  ip_base:
+    require_ip_type_present: true
+    require_country_iso_present: true
+
+linkage_checks:
+  device_links:
+    max_devices_per_party: 20
+    max_parties_per_device: 6
+    require_owner_link_present: true
+  ip_links:
+    max_ips_per_device: 25
+    max_devices_per_ip: 20000
+  account_instrument_links:
+    max_instruments_per_account: 16
+
+role_distribution_checks:
+  party_roles:
+    min_fraud_fraction: 0.0005
+    max_fraud_fraction: 0.12
+  account_roles:
+    min_fraud_fraction: 0.0005
+    max_fraud_fraction: 0.12
+  merchant_roles:
+    min_fraud_fraction: 0.001
+    max_fraud_fraction: 0.20
+  device_roles:
+    min_risky_fraction: 0.002
+    max_risky_fraction: 0.25
+  ip_roles:
+    min_risky_fraction: 0.002
+    max_risky_fraction: 0.99
+
+consistency_checks:
+  require_role_vocab_match_taxonomy: true
+  require_linkage_roles_match_policy: true
+
+failure_policy:
+  mode: fail_closed
+  max_warnings: 0

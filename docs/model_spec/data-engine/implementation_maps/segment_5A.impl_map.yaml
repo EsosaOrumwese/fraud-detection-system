@@ -1,0 +1,1079 @@
+impl_map_semver: 0.1.0
+segment:
+  segment_id: 5A
+  layer_id: layer2
+  title: Intensity Surfaces
+  description: Deterministic demand classes, weekly shapes, baseline and scenario intensity surfaces; publishes Layer-2 PASS gate.
+generated_at_utc: '2026-01-10T12:30:00Z'
+sources:
+  state_expanded_docs:
+  - state.5A.s0.expanded.txt
+  - state.5A.s1.expanded.txt
+  - state.5A.s2.expanded.txt
+  - state.5A.s3.expanded.txt
+  - state.5A.s4.expanded.txt
+  - state.5A.s5.expanded.txt
+  dataset_dictionary:
+  - dataset_dictionary.layer2.5A.yaml
+  artefact_registry:
+  - artefact_registry_5A.yaml
+  schemas:
+  - schemas.5A.yaml
+  - schemas.layer2.yaml
+source_fingerprints:
+  dataset_dictionary.layer2.5A.yaml:
+    sha256: 313cafb806eaee120f4e1a05c2268ad874618616f0a4eef15f74b677b8bdb85d
+  artefact_registry_5A.yaml:
+    sha256: e6077a7664626afd98f57de8843789a164f87d90b7ec117c576544346c15c452
+  schemas.5A.yaml:
+    sha256: a731ef5d1bea4f9a401b27cb69e7aa4af6a7feecac3ee3ee108aa9a355e8d4eb
+  schemas.layer2.yaml:
+    sha256: 2e0e00695466bd787d4baef6e415e8da28a416edfc036b752157294cb3c5d7df
+  state.5A.s0.expanded.txt:
+    sha256: e225081a95c276e1499708690b4530fe8bbebb563ba23010f6b210f79312290a
+  state.5A.s1.expanded.txt:
+    sha256: c501ff70bb394d662654e09f1c1d2d29bc1a4e3f19d738c1475257b1884b1e3f
+  state.5A.s2.expanded.txt:
+    sha256: 8dbd29cf3e04eb2c5a723b1da333bc95c5219c372f4723453f54d0c9bd1c09d6
+  state.5A.s3.expanded.txt:
+    sha256: 71102c609b561c3be58bd0b36564d5b9721723ffd2af4f5acb8fa512bb8b3588
+  state.5A.s4.expanded.txt:
+    sha256: ab228d84a934be3f65db17c82885f4bb401cfb7eaaaa31268f54257f713b7bdc
+  state.5A.s5.expanded.txt:
+    sha256: 3849ee197d9f0b681a5b93d247997dd4943375b1ffdc6d3d2831eaf7d670f9ad
+path_tokens:
+  parameter_hash: parameter_hash
+  manifest_fingerprint: manifest_fingerprint
+  scenario_id: scenario_id
+  run_id: run_id
+  utc_day: utc_day
+lineage:
+  parameter_hash:
+    role: parameter_pack_anchor
+    algorithm_ref: Engine-global parameter_hash (canonical; by reference). 5A parameter-scoped outputs MUST be a pure function
+      of parameter-pack artefacts + scenario pack.
+    output_effect:
+      partition_must_include:
+      - parameter_hash
+      recorded_in:
+      - s0_gate_receipt_5A
+      - sealed_inputs_5A
+  manifest_fingerprint:
+    role: world_anchor
+    algorithm_ref: Engine-global manifest_fingerprint (opened-artefact closure; by reference). 5A.S0 sealed_inputs_5A defines
+      the closure for this segment.
+    dependency_closure_source: artefact_registry_5A.yaml
+    output_effect:
+      partition_must_include:
+      - manifest_fingerprint
+  run_id:
+    role: log_partition_only
+    algorithm_ref: Engine-global run_id (log-only). Segment 5A is RNG-free; run_id is recorded for audit/traceability only.
+    constraints:
+    - MUST_NOT_influence_modelling_outputs
+    - MUST_NOT_influence_RNG_outcomes
+gates:
+- gate_id: 1A.final.bundle_gate
+  gate_type: final_bundle_gate
+  owner_segment: 1A
+  scope_keys:
+  - manifest_fingerprint
+  location:
+    bundle_root: data/layer1/1A/validation/manifest_fingerprint={manifest_fingerprint}/
+    index_json: data/layer1/1A/validation/manifest_fingerprint={manifest_fingerprint}/index.json
+    passed_flag: data/layer1/1A/validation/manifest_fingerprint={manifest_fingerprint}/_passed.flag
+  verification_method: indexed_bundle_raw_bytes
+  file_set_rule: Verify the upstream segment’s HashGate exactly as specified by that segment (index-driven bundle verification;
+    3A uses digest-of-digests).
+  authorizes_reads_of:
+  - 1A
+- gate_id: 1B.final.bundle_gate
+  gate_type: final_bundle_gate
+  owner_segment: 1B
+  scope_keys:
+  - manifest_fingerprint
+  location:
+    bundle_root: data/layer1/1B/validation/manifest_fingerprint={manifest_fingerprint}/
+    index_json: data/layer1/1B/validation/manifest_fingerprint={manifest_fingerprint}/index.json
+    passed_flag: data/layer1/1B/validation/manifest_fingerprint={manifest_fingerprint}/_passed.flag
+  verification_method: indexed_bundle_raw_bytes
+  file_set_rule: Verify the upstream segment’s HashGate exactly as specified by that segment (index-driven bundle verification;
+    3A uses digest-of-digests).
+  authorizes_reads_of:
+  - 1B
+- gate_id: 2A.final.bundle_gate
+  gate_type: final_bundle_gate
+  owner_segment: 2A
+  scope_keys:
+  - manifest_fingerprint
+  location:
+    bundle_root: data/layer1/2A/validation/manifest_fingerprint={manifest_fingerprint}/
+    index_json: data/layer1/2A/validation/manifest_fingerprint={manifest_fingerprint}/index.json
+    passed_flag: data/layer1/2A/validation/manifest_fingerprint={manifest_fingerprint}/_passed.flag
+  verification_method: indexed_bundle_raw_bytes
+  file_set_rule: Verify the upstream segment’s HashGate exactly as specified by that segment (index-driven bundle verification;
+    3A uses digest-of-digests).
+  authorizes_reads_of:
+  - 2A
+- gate_id: 2B.final.bundle_gate
+  gate_type: final_bundle_gate
+  owner_segment: 2B
+  scope_keys:
+  - manifest_fingerprint
+  location:
+    bundle_root: data/layer1/2B/validation/manifest_fingerprint={manifest_fingerprint}/
+    index_json: data/layer1/2B/validation/manifest_fingerprint={manifest_fingerprint}/index.json
+    passed_flag: data/layer1/2B/validation/manifest_fingerprint={manifest_fingerprint}/_passed.flag
+  verification_method: indexed_bundle_raw_bytes
+  file_set_rule: Verify the upstream segment’s HashGate exactly as specified by that segment (index-driven bundle verification;
+    3A uses digest-of-digests).
+  authorizes_reads_of:
+  - 2B
+- gate_id: 3A.final.bundle_gate
+  gate_type: final_bundle_gate
+  owner_segment: 3A
+  scope_keys:
+  - manifest_fingerprint
+  location:
+    bundle_root: data/layer1/3A/validation/manifest_fingerprint={manifest_fingerprint}/
+    index_json: data/layer1/3A/validation/manifest_fingerprint={manifest_fingerprint}/index.json
+    passed_flag: data/layer1/3A/validation/manifest_fingerprint={manifest_fingerprint}/_passed.flag
+  verification_method: indexed_bundle_digest_concat
+  file_set_rule: Verify the upstream segment’s HashGate exactly as specified by that segment (index-driven bundle verification;
+    3A uses digest-of-digests).
+  authorizes_reads_of:
+  - 3A
+- gate_id: 3B.final.bundle_gate
+  gate_type: final_bundle_gate
+  owner_segment: 3B
+  scope_keys:
+  - manifest_fingerprint
+  location:
+    bundle_root: data/layer1/3B/validation/manifest_fingerprint={manifest_fingerprint}/
+    index_json: data/layer1/3B/validation/manifest_fingerprint={manifest_fingerprint}/index.json
+    passed_flag: data/layer1/3B/validation/manifest_fingerprint={manifest_fingerprint}/_passed.flag
+  verification_method: indexed_bundle_raw_bytes
+  file_set_rule: Verify the upstream segment’s HashGate exactly as specified by that segment (index-driven bundle verification;
+    3A uses digest-of-digests).
+  authorizes_reads_of:
+  - 3B
+- gate_id: 5A.S0.gate_in_receipt
+  gate_type: attestation_receipt
+  scope_keys:
+  - manifest_fingerprint
+  location:
+    evidence_files:
+    - data/layer2/5A/s0_gate_receipt/manifest_fingerprint={manifest_fingerprint}/s0_gate_receipt_5A.json
+    - data/layer2/5A/sealed_inputs/manifest_fingerprint={manifest_fingerprint}/sealed_inputs_5A.json
+  verification_method: schema_validate_and_digest_link
+  file_set_rule: Validate s0_gate_receipt_5A and sealed_inputs_5A schemas; sealed_inputs_digest in receipt MUST equal SHA256(concat(canonical
+    JSON rows of sealed_inputs_5A sorted by (owner_layer,owner_segment,role,artifact_id))).
+  authorizes_reads_of:
+  - 5A.sealed_inputs_universe
+- gate_id: 5A.final.bundle_gate
+  gate_type: final_bundle_gate
+  scope_keys:
+  - manifest_fingerprint
+  location:
+    bundle_root: data/layer2/5A/validation/manifest_fingerprint={manifest_fingerprint}/
+    index_json: data/layer2/5A/validation/manifest_fingerprint={manifest_fingerprint}/validation_bundle_index_5A.json
+    passed_flag: data/layer2/5A/validation/manifest_fingerprint={manifest_fingerprint}/_passed.flag
+  verification_method: indexed_bundle_raw_bytes
+  file_set_rule: Load validation_bundle_index_5A.json; sort entries by ASCII-lex path; compute bundle_digest_sha256 = SHA256(concat(raw_bytes(file(path))));
+    _passed.flag JSON (schemas.layer2.yaml#/validation/passed_flag_5A) must contain manifest_fingerprint and bundle_digest_sha256 equal
+    to computed digest.
+  authorizes_reads_of:
+  - merchant_zone_profile_5A
+  - shape_grid_definition_5A
+  - class_zone_shape_5A
+  - merchant_zone_baseline_local_5A
+  - merchant_zone_scenario_local_5A
+order_authorities:
+- authority_id: 5A.shape_grid_bucket_order
+  dataset_id: shape_grid_definition_5A
+  scope_keys:
+  - parameter_hash
+  - scenario_id
+  ordering_keys:
+  - bucket_index
+  rule: shape_grid_definition_5A.bucket_index is the single authority for local-week bucket order. Downstream MUST not invent
+    bucket ordering; join/align by bucket_index.
+consumer_surfaces:
+  merchant_zone_profile_5A:
+    dataset_id: merchant_zone_profile_5A
+    scope_keys:
+    - manifest_fingerprint
+    address_template: data/layer2/5A/merchant_zone_profile/manifest_fingerprint={manifest_fingerprint}/merchant_zone_profile_5A.parquet
+    schema_ref: schemas.5A.yaml#/model/merchant_zone_profile_5A
+    ordering:
+    - merchant_id
+    - legal_country_iso
+    - tzid
+    required_gates:
+    - 5A.final.bundle_gate
+    notes:
+    - Fingerprint-scoped merchant×zone demand profile (class + scale).
+    - Consumers MUST verify 5A final gate for the same manifest_fingerprint before reading.
+  shape_grid_definition_5A:
+    dataset_id: shape_grid_definition_5A
+    scope_keys:
+    - parameter_hash
+    - scenario_id
+    address_template: data/layer2/5A/shape_grid_definition/parameter_hash={parameter_hash}/scenario_id={scenario_id}/shape_grid_definition_5A.parquet
+    schema_ref: schemas.5A.yaml#/model/shape_grid_definition_5A
+    ordering:
+    - bucket_index
+    required_gates:
+    - 5A.final.bundle_gate
+    notes:
+    - Parameter-pack + scenario scoped; consumers should use parameter_hash and scenario_id from s0_gate_receipt_5A for the world
+      they are processing.
+  class_zone_shape_5A:
+    dataset_id: class_zone_shape_5A
+    scope_keys:
+    - parameter_hash
+    - scenario_id
+    address_template: data/layer2/5A/class_zone_shape/parameter_hash={parameter_hash}/scenario_id={scenario_id}/class_zone_shape_5A.parquet
+    schema_ref: schemas.5A.yaml#/model/class_zone_shape_5A
+    ordering:
+    - demand_class
+    - tzid
+    - bucket_index
+    required_gates:
+    - 5A.final.bundle_gate
+    notes:
+    - Unit-mass weekly shape library per (class,zone[,channel]) on the S2 grid.
+  merchant_zone_baseline_local_5A:
+    dataset_id: merchant_zone_baseline_local_5A
+    scope_keys:
+    - manifest_fingerprint
+    - scenario_id
+    address_template: data/layer2/5A/merchant_zone_baseline_local/manifest_fingerprint={manifest_fingerprint}/scenario_id={scenario_id}/merchant_zone_baseline_local_5A.parquet
+    schema_ref: schemas.5A.yaml#/model/merchant_zone_baseline_local_5A
+    ordering:
+    - merchant_id
+    - legal_country_iso
+    - tzid
+    - bucket_index
+    required_gates:
+    - 5A.final.bundle_gate
+    notes:
+    - Baseline local-week intensities λ_base on S2 bucket grid.
+  merchant_zone_scenario_local_5A:
+    dataset_id: merchant_zone_scenario_local_5A
+    scope_keys:
+    - manifest_fingerprint
+    - scenario_id
+    address_template: data/layer2/5A/merchant_zone_scenario_local/manifest_fingerprint={manifest_fingerprint}/scenario_id={scenario_id}/merchant_zone_scenario_local_5A.parquet
+    schema_ref: schemas.5A.yaml#/model/merchant_zone_scenario_local_5A
+    ordering:
+    - merchant_id
+    - legal_country_iso
+    - tzid
+    - local_horizon_bucket_index
+    required_gates:
+    - 5A.final.bundle_gate
+    notes:
+    - Scenario-adjusted local-week intensities λ_scenario over horizon buckets (λ_base × overlay factors).
+states:
+  S0:
+    impl_map_key: segment=5A.state=S0
+    state_class: SC-A
+    rng_posture: RNG_NONE
+    scope_keys:
+    - manifest_fingerprint
+    reads:
+    - dataset_id: validation_bundle_1A
+      kind: reference_data
+      required_gates: []
+    - dataset_id: validation_passed_flag_1A
+      kind: reference_data
+      required_gates: []
+    - dataset_id: validation_bundle_1B
+      kind: reference_data
+      required_gates: []
+    - dataset_id: validation_passed_flag_1B
+      kind: reference_data
+      required_gates: []
+    - dataset_id: validation_bundle_2A
+      kind: reference_data
+      required_gates: []
+    - dataset_id: validation_passed_flag_2A
+      kind: reference_data
+      required_gates: []
+    - dataset_id: validation_bundle_2B
+      kind: reference_data
+      required_gates: []
+    - dataset_id: validation_passed_flag_2B
+      kind: reference_data
+      required_gates: []
+    - dataset_id: validation_bundle_3A
+      kind: reference_data
+      required_gates: []
+    - dataset_id: validation_passed_flag_3A
+      kind: reference_data
+      required_gates: []
+    - dataset_id: validation_bundle_3B
+      kind: reference_data
+      required_gates: []
+    - dataset_id: validation_passed_flag_3B
+      kind: reference_data
+      required_gates: []
+    - dataset_id: zone_alloc
+      kind: reference_data
+      required_gates:
+      - 3A.final.bundle_gate
+      notes:
+      - Candidate/eligible input for later states; S0 seals by catalogue (may be METADATA_ONLY).
+    - dataset_id: zone_alloc_universe_hash
+      kind: reference_data
+      required_gates:
+      - 3A.final.bundle_gate
+      notes:
+      - Sealed universe descriptor for zones.
+    - dataset_id: site_timezones
+      kind: reference_data
+      required_gates:
+      - 2A.final.bundle_gate
+      notes:
+      - Civil-time mapping; required by S1/S3/S4.
+    - dataset_id: virtual_classification_3B
+      kind: reference_data
+      required_gates:
+      - 3B.final.bundle_gate
+      conditional: only if virtual merchant handling enabled
+    - dataset_id: virtual_settlement_3B
+      kind: reference_data
+      required_gates:
+      - 3B.final.bundle_gate
+      conditional: only if virtual merchant handling enabled
+    - dataset_id: virtual_routing_policy_3B
+      kind: reference_data
+      required_gates:
+      - 3B.final.bundle_gate
+      conditional: only if virtual routing binding needed
+    - dataset_id: scenario_metadata
+      kind: policy
+      required_gates: []
+    - dataset_id: scenario_horizon_config_5A
+      kind: policy
+      required_gates: []
+    - dataset_id: scenario_calendar_5A
+      kind: reference_data
+      required_gates: []
+      conditional: per scenario_id
+      notes:
+      - Scenario calendar sealed for S4.
+    - dataset_id: overlay_ordering_policy_5A
+      kind: policy
+      required_gates: []
+    - dataset_id: scenario_overlay_policy_5A
+      kind: policy
+      required_gates: []
+    - dataset_id: scenario_overlay_validation_policy_5A
+      kind: policy
+      required_gates: []
+    - dataset_id: merchant_class_policy_5A
+      kind: policy
+      required_gates: []
+    - dataset_id: demand_scale_policy_5A
+      kind: policy
+      required_gates: []
+    - dataset_id: baseline_intensity_policy_5A
+      kind: policy
+      required_gates: []
+    - dataset_id: shape_library_5A
+      kind: policy
+      required_gates: []
+    - dataset_id: shape_time_grid_policy_5A
+      kind: policy
+      required_gates: []
+    - dataset_id: zone_shape_modifiers_5A
+      kind: policy
+      required_gates: []
+      conditional: optional
+    - dataset_id: validation_policy_5A
+      kind: policy
+      required_gates: []
+    - dataset_id: spec_compatibility_config_5A
+      kind: policy
+      required_gates: []
+    writes:
+    - dataset_id: s0_gate_receipt_5A
+      scope_keys:
+      - manifest_fingerprint
+      address_template: data/layer2/5A/s0_gate_receipt/manifest_fingerprint={manifest_fingerprint}/s0_gate_receipt_5A.json
+      ordering: []
+      equality: ordered
+      optional: false
+    - dataset_id: sealed_inputs_5A
+      scope_keys:
+      - manifest_fingerprint
+      address_template: data/layer2/5A/sealed_inputs/manifest_fingerprint={manifest_fingerprint}/sealed_inputs_5A.json
+      ordering: []
+      equality: ordered
+      optional: false
+    - dataset_id: scenario_manifest_5A
+      scope_keys:
+      - manifest_fingerprint
+      address_template: data/layer2/5A/scenario_manifest/manifest_fingerprint={manifest_fingerprint}/scenario_manifest_5A.parquet
+      ordering:
+      - scenario_id
+      equality: ordered
+      optional: true
+    - dataset_id: segment_state_runs
+      scope_keys: []
+      address_template: reports/layer2/segment_state_runs/segment=5A/utc_day={utc_day}/segment_state_runs.jsonl
+      ordering: []
+      equality: rowset
+      optional: true
+    gates_in:
+    - 1A.final.bundle_gate
+    - 1B.final.bundle_gate
+    - 2A.final.bundle_gate
+    - 2B.final.bundle_gate
+    - 3A.final.bundle_gate
+    - 3B.final.bundle_gate
+    gates_out:
+    - 5A.S0.gate_in_receipt
+    validation:
+      performed_here:
+      - Verify upstream segment PASS gates for 1A–3B for this manifest_fingerprint (per-segment hashing law).
+      - Construct sealed_inputs_5A as the closed input universe; compute sealed_inputs_digest via canonical JSON row concatenation
+        + SHA256.
+      - Write s0_gate_receipt_5A binding (parameter_hash, manifest_fingerprint, run_id, scenario_id) to upstream statuses + sealed_inputs_digest.
+      deferred_to_finalizer:
+      - Model-surface integrity and cross-state coherence checks are performed in S5 (validation bundle).
+      evidence_written:
+      - s0_gate_receipt_5A
+      - sealed_inputs_5A
+      - scenario_manifest_5A (optional)
+    frozen_surfaces:
+    - Catalogue-driven discovery only (no literal paths; dictionary/registry IDs are authoritative).
+    - Upstream verification: S0 MAY record PASS/FAIL/MISSING per upstream segment, but MUST NOT fabricate PASS.
+    - 'sealed_inputs_digest law: sort SEALED_ROWS deterministically; encode each row as canonical UTF-8 JSON; concatenate bytes;
+      sealed_inputs_digest = SHA256(concat) hex64.'
+    - S0 is RNG-free: MUST NOT consume RNG or emit RNG events.
+    flexible_choices:
+    - S0 may finish while recording upstream FAIL/MISSING; downstream states enforce hard PASS preconditions.
+    - Extra non-gating metadata may be included in scenario_manifest_5A if schema allows (does not alter semantics).
+    - Streaming hashing/verification implementations allowed if they match the upstream gate laws exactly.
+    perf_hotspots:
+    - Hashing/verification of multiple upstream validation bundles.
+    safe_optimization_levers:
+    - Stream hashing; avoid reading large files into memory.
+    do_not_optimize:
+    - Do not weaken upstream gate verification rules or sealed_inputs_digest law.
+    - Do not allow non-sealed artefacts to be read by downstream states.
+    debug_hooks:
+    - Record upstream status map (PASS/FAIL/MISSING) for each segment 1A–3B in s0_gate_receipt_5A.
+    - Record sealed_inputs_digest and first-N sealed input entries (non-gating excerpt) for drift localization.
+  S1:
+    impl_map_key: segment=5A.state=S1
+    state_class: SC-C
+    rng_posture: RNG_NONE
+    scope_keys:
+    - manifest_fingerprint
+    reads:
+    - dataset_id: s0_gate_receipt_5A
+      kind: validation
+      required_gates: []
+    - dataset_id: sealed_inputs_5A
+      kind: validation
+      required_gates: []
+    - dataset_id: zone_alloc
+      kind: reference_data
+      required_gates:
+      - 3A.final.bundle_gate
+    - dataset_id: zone_alloc_universe_hash
+      kind: reference_data
+      required_gates:
+      - 3A.final.bundle_gate
+    - dataset_id: site_timezones
+      kind: reference_data
+      required_gates:
+      - 2A.final.bundle_gate
+    - dataset_id: virtual_classification_3B
+      kind: reference_data
+      required_gates:
+      - 3B.final.bundle_gate
+      conditional: only if virtual merchant handling enabled
+    - dataset_id: virtual_settlement_3B
+      kind: reference_data
+      required_gates:
+      - 3B.final.bundle_gate
+      conditional: only if virtual merchant handling enabled
+    - dataset_id: virtual_routing_policy_3B
+      kind: reference_data
+      required_gates:
+      - 3B.final.bundle_gate
+      conditional: only if virtual routing binding needed
+    - dataset_id: merchant_class_policy_5A
+      kind: policy
+      required_gates: []
+    - dataset_id: demand_scale_policy_5A
+      kind: policy
+      required_gates: []
+    writes:
+    - dataset_id: merchant_zone_profile_5A
+      scope_keys:
+      - manifest_fingerprint
+      address_template: data/layer2/5A/merchant_zone_profile/manifest_fingerprint={manifest_fingerprint}/merchant_zone_profile_5A.parquet
+      ordering:
+      - merchant_id
+      - legal_country_iso
+      - tzid
+      equality: ordered
+      optional: false
+    - dataset_id: merchant_class_profile_5A
+      scope_keys:
+      - manifest_fingerprint
+      address_template: data/layer2/5A/merchant_class_profile/manifest_fingerprint={manifest_fingerprint}/merchant_class_profile_5A.parquet
+      ordering:
+      - merchant_id
+      equality: ordered
+      optional: true
+    - dataset_id: s1_run_report_5A
+      scope_keys:
+      - manifest_fingerprint
+      address_template: data/layer2/5A/reports/manifest_fingerprint={manifest_fingerprint}/s1_run_report_5A.json
+      ordering: []
+      equality: ordered
+      optional: true
+    - dataset_id: segment_state_runs
+      scope_keys: []
+      address_template: reports/layer2/segment_state_runs/segment=5A/utc_day={utc_day}/segment_state_runs.jsonl
+      ordering: []
+      equality: rowset
+      optional: true
+    gates_in:
+    - 5A.S0.gate_in_receipt
+    gates_out: []
+    validation:
+      performed_here:
+      - 'Fail-fast precondition: all required upstream segments MUST be PASS as recorded in s0_gate_receipt_5A.verified_upstream_segments.'
+      - Deterministically assign demand_class and base_scale per merchant×zone and write merchant_zone_profile_5A.
+      deferred_to_finalizer:
+      - Cross-state coherence checks and PASS gating happen in S5.
+      evidence_written:
+      - merchant_zone_profile_5A
+      - merchant_class_profile_5A (optional)
+    frozen_surfaces:
+    - S1 treats s0_gate_receipt_5A upstream status map as sole authority; it MUST NOT re-verify upstream bundles.
+    - S1 is the sole authority for demand class + base scale used by S2–S4.
+    - RNG-free; deterministic outputs under (manifest_fingerprint, scenario_id from receipt).
+    flexible_choices:
+    - Implementation may choose deterministic grouping/indexing strategies (vectorized operations allowed).
+    perf_hotspots:
+    - Merchant×zone domain sizing and joins against zone/timezone inputs.
+    safe_optimization_levers:
+    - Process per merchant_id with deterministic chunking; avoid global sorts beyond declared ordering.
+    do_not_optimize:
+    - Do not change class/scale semantics or expand domain beyond zone_alloc.
+    debug_hooks:
+    - Emit counts: merchants_total, zones_total, class distribution, and base_scale summary stats.
+  S2:
+    impl_map_key: segment=5A.state=S2
+    state_class: SC-C
+    rng_posture: RNG_NONE
+    scope_keys:
+    - parameter_hash
+    - scenario_id
+    reads:
+    - dataset_id: s0_gate_receipt_5A
+      kind: validation
+      required_gates: []
+    - dataset_id: sealed_inputs_5A
+      kind: validation
+      required_gates: []
+    - dataset_id: merchant_zone_profile_5A
+      kind: intermediate
+      required_gates:
+      - 5A.S0.gate_in_receipt
+    - dataset_id: merchant_class_profile_5A
+      kind: intermediate
+      required_gates:
+      - 5A.S0.gate_in_receipt
+      conditional: optional input lane
+    - dataset_id: scenario_metadata
+      kind: policy
+      required_gates: []
+    - dataset_id: shape_time_grid_policy_5A
+      kind: policy
+      required_gates: []
+    - dataset_id: shape_library_5A
+      kind: policy
+      required_gates: []
+    - dataset_id: zone_shape_modifiers_5A
+      kind: policy
+      required_gates: []
+      conditional: optional
+    writes:
+    - dataset_id: shape_grid_definition_5A
+      scope_keys:
+      - parameter_hash
+      - scenario_id
+      address_template: data/layer2/5A/shape_grid_definition/parameter_hash={parameter_hash}/scenario_id={scenario_id}/shape_grid_definition_5A.parquet
+      ordering:
+      - bucket_index
+      equality: ordered
+      optional: false
+    - dataset_id: class_zone_shape_5A
+      scope_keys:
+      - parameter_hash
+      - scenario_id
+      address_template: data/layer2/5A/class_zone_shape/parameter_hash={parameter_hash}/scenario_id={scenario_id}/class_zone_shape_5A.parquet
+      ordering:
+      - demand_class
+      - tzid
+      - bucket_index
+      equality: ordered
+      optional: false
+    - dataset_id: class_shape_catalogue_5A
+      scope_keys:
+      - parameter_hash
+      - scenario_id
+      address_template: data/layer2/5A/class_shape_catalogue/parameter_hash={parameter_hash}/scenario_id={scenario_id}/class_shape_catalogue_5A.parquet
+      ordering:
+      - demand_class
+      equality: ordered
+      optional: true
+    - dataset_id: s2_run_report_5A
+      scope_keys:
+      - parameter_hash
+      - scenario_id
+      address_template: data/layer2/5A/reports/parameter_hash={parameter_hash}/scenario_id={scenario_id}/s2_run_report_5A.json
+      ordering: []
+      equality: ordered
+      optional: true
+    - dataset_id: segment_state_runs
+      scope_keys: []
+      address_template: reports/layer2/segment_state_runs/segment=5A/utc_day={utc_day}/segment_state_runs.jsonl
+      ordering: []
+      equality: rowset
+      optional: true
+    gates_in:
+    - 5A.S0.gate_in_receipt
+    gates_out: []
+    validation:
+      performed_here:
+      - Build local-week bucket grid per shape_time_grid_policy_5A; write shape_grid_definition_5A.
+      - Build unit-mass weekly shape vectors per (demand_class, tzid[,channel]) on that grid; Σ bucket_mass = 1; write class_zone_shape_5A.
+      deferred_to_finalizer:
+      - Cross-state validation and gating happen in S5.
+      evidence_written:
+      - shape_grid_definition_5A
+      - class_zone_shape_5A
+    frozen_surfaces:
+    - Shapes are unit-mass and deterministic; outputs keyed by (parameter_hash, scenario_id).
+    - No RNG; no world dependence other than the class/zone set derived from S1.
+    flexible_choices:
+    - Vectorized shape synthesis allowed if deterministic and normalization laws are preserved.
+    - Optional zone_shape_modifiers_5A may be omitted when absent.
+    perf_hotspots:
+    - Generating shape library across potentially many class×zone combinations.
+    safe_optimization_levers:
+    - Precompute template shapes; batch normalization; deterministic ordering by keys.
+    do_not_optimize:
+    - Do not violate unit-mass or normalization/tie-break rules defined by policies.
+    debug_hooks:
+    - Emit Σ checks and max deviation per shape; counts of combos generated.
+  S3:
+    impl_map_key: segment=5A.state=S3
+    state_class: SC-C
+    rng_posture: RNG_NONE
+    scope_keys:
+    - manifest_fingerprint
+    - scenario_id
+    reads:
+    - dataset_id: s0_gate_receipt_5A
+      kind: validation
+      required_gates: []
+    - dataset_id: sealed_inputs_5A
+      kind: validation
+      required_gates: []
+    - dataset_id: merchant_zone_profile_5A
+      kind: intermediate
+      required_gates:
+      - 5A.S0.gate_in_receipt
+    - dataset_id: merchant_class_profile_5A
+      kind: intermediate
+      required_gates:
+      - 5A.S0.gate_in_receipt
+      conditional: optional
+    - dataset_id: shape_grid_definition_5A
+      kind: intermediate
+      required_gates:
+      - 5A.S0.gate_in_receipt
+    - dataset_id: class_zone_shape_5A
+      kind: intermediate
+      required_gates:
+      - 5A.S0.gate_in_receipt
+    - dataset_id: baseline_intensity_policy_5A
+      kind: policy
+      required_gates: []
+    - dataset_id: zone_alloc
+      kind: reference_data
+      required_gates:
+      - 3A.final.bundle_gate
+    - dataset_id: site_timezones
+      kind: reference_data
+      required_gates:
+      - 2A.final.bundle_gate
+    writes:
+    - dataset_id: merchant_zone_baseline_local_5A
+      scope_keys:
+      - manifest_fingerprint
+      - scenario_id
+      address_template: data/layer2/5A/merchant_zone_baseline_local/manifest_fingerprint={manifest_fingerprint}/scenario_id={scenario_id}/merchant_zone_baseline_local_5A.parquet
+      ordering:
+      - merchant_id
+      - legal_country_iso
+      - tzid
+      - bucket_index
+      equality: ordered
+      optional: false
+    - dataset_id: class_zone_baseline_local_5A
+      scope_keys:
+      - manifest_fingerprint
+      - scenario_id
+      address_template: data/layer2/5A/class_zone_baseline_local/manifest_fingerprint={manifest_fingerprint}/scenario_id={scenario_id}/class_zone_baseline_local_5A.parquet
+      ordering:
+      - demand_class
+      - tzid
+      - bucket_index
+      equality: ordered
+      optional: true
+    - dataset_id: merchant_zone_baseline_utc_5A
+      scope_keys:
+      - manifest_fingerprint
+      - scenario_id
+      address_template: data/layer2/5A/merchant_zone_baseline_utc/manifest_fingerprint={manifest_fingerprint}/scenario_id={scenario_id}/merchant_zone_baseline_utc_5A.parquet
+      ordering:
+      - merchant_id
+      - legal_country_iso
+      - tzid
+      - utc_bucket_index
+      equality: ordered
+      optional: true
+    - dataset_id: s3_run_report_5A
+      scope_keys:
+      - manifest_fingerprint
+      - scenario_id
+      address_template: data/layer2/5A/reports/manifest_fingerprint={manifest_fingerprint}/scenario_id={scenario_id}/s3_run_report_5A.json
+      ordering: []
+      equality: ordered
+      optional: true
+    - dataset_id: segment_state_runs
+      scope_keys: []
+      address_template: reports/layer2/segment_state_runs/segment=5A/utc_day={utc_day}/segment_state_runs.jsonl
+      ordering: []
+      equality: rowset
+      optional: true
+    gates_in:
+    - 5A.S0.gate_in_receipt
+    gates_out: []
+    validation:
+      performed_here:
+      - Compose baseline local-week intensities λ_base over S2 bucket grid using S1 class/scale and baseline_intensity_policy_5A;
+        write merchant_zone_baseline_local_5A.
+      - Optional: compute class-level aggregates and/or UTC projections when enabled.
+      deferred_to_finalizer:
+      - S5 validates coherence and publishes PASS gate.
+      evidence_written:
+      - merchant_zone_baseline_local_5A
+    frozen_surfaces:
+    - RNG-free: must not consume RNG or emit RNG events.
+    - Baseline λ must be non-negative and finite; must align with S2 bucket grid and S1 class/scale authority.
+    flexible_choices:
+    - Projection to UTC (merchant_zone_baseline_utc_5A) is optional; when present must use pinned civil-time artifacts.
+    perf_hotspots:
+    - Large merchant×zone×bucket surface generation.
+    safe_optimization_levers:
+    - Stream writes per merchant; deterministic chunking; avoid recomputing shapes.
+    do_not_optimize:
+    - Do not change bucket alignment or reinterpret shapes/scales.
+    debug_hooks:
+    - Emit row counts and Σ checks per merchant×zone; min/max λ stats.
+  S4:
+    impl_map_key: segment=5A.state=S4
+    state_class: SC-C
+    rng_posture: RNG_NONE
+    scope_keys:
+    - manifest_fingerprint
+    - scenario_id
+    reads:
+    - dataset_id: s0_gate_receipt_5A
+      kind: validation
+      required_gates: []
+    - dataset_id: sealed_inputs_5A
+      kind: validation
+      required_gates: []
+    - dataset_id: merchant_zone_baseline_local_5A
+      kind: intermediate
+      required_gates:
+      - 5A.S0.gate_in_receipt
+    - dataset_id: shape_grid_definition_5A
+      kind: intermediate
+      required_gates:
+      - 5A.S0.gate_in_receipt
+    - dataset_id: class_zone_shape_5A
+      kind: intermediate
+      required_gates:
+      - 5A.S0.gate_in_receipt
+    - dataset_id: scenario_calendar_5A
+      kind: reference_data
+      required_gates: []
+    - dataset_id: scenario_horizon_config_5A
+      kind: policy
+      required_gates: []
+    - dataset_id: overlay_ordering_policy_5A
+      kind: policy
+      required_gates: []
+    - dataset_id: scenario_overlay_policy_5A
+      kind: policy
+      required_gates: []
+    - dataset_id: scenario_overlay_validation_policy_5A
+      kind: policy
+      required_gates: []
+    - dataset_id: site_timezones
+      kind: reference_data
+      required_gates:
+      - 2A.final.bundle_gate
+    writes:
+    - dataset_id: merchant_zone_scenario_local_5A
+      scope_keys:
+      - manifest_fingerprint
+      - scenario_id
+      address_template: data/layer2/5A/merchant_zone_scenario_local/manifest_fingerprint={manifest_fingerprint}/scenario_id={scenario_id}/merchant_zone_scenario_local_5A.parquet
+      ordering:
+      - merchant_id
+      - legal_country_iso
+      - tzid
+      - local_horizon_bucket_index
+      equality: ordered
+      optional: false
+    - dataset_id: merchant_zone_overlay_factors_5A
+      scope_keys:
+      - manifest_fingerprint
+      - scenario_id
+      address_template: data/layer2/5A/merchant_zone_overlay_factors/manifest_fingerprint={manifest_fingerprint}/scenario_id={scenario_id}/merchant_zone_overlay_factors_5A.parquet
+      ordering:
+      - merchant_id
+      - legal_country_iso
+      - tzid
+      - local_horizon_bucket_index
+      equality: ordered
+      optional: true
+    - dataset_id: merchant_zone_scenario_utc_5A
+      scope_keys:
+      - manifest_fingerprint
+      - scenario_id
+      address_template: data/layer2/5A/merchant_zone_scenario_utc/manifest_fingerprint={manifest_fingerprint}/scenario_id={scenario_id}/merchant_zone_scenario_utc_5A.parquet
+      ordering:
+      - merchant_id
+      - legal_country_iso
+      - tzid
+      - utc_horizon_bucket_index
+      equality: ordered
+      optional: true
+    - dataset_id: s4_run_report_5A
+      scope_keys:
+      - manifest_fingerprint
+      - scenario_id
+      address_template: data/layer2/5A/reports/manifest_fingerprint={manifest_fingerprint}/scenario_id={scenario_id}/s4_run_report_5A.json
+      ordering: []
+      equality: ordered
+      optional: true
+    - dataset_id: segment_state_runs
+      scope_keys: []
+      address_template: reports/layer2/segment_state_runs/segment=5A/utc_day={utc_day}/segment_state_runs.jsonl
+      ordering: []
+      equality: rowset
+      optional: true
+    gates_in:
+    - 5A.S0.gate_in_receipt
+    gates_out: []
+    validation:
+      performed_here:
+      - Apply scenario calendar overlays over horizon buckets (per scenario_horizon_config_5A) to baseline λ_base; compute λ_scenario
+        = λ_base × F_overlay; write merchant_zone_scenario_local_5A.
+      - Optional: write overlay factors and/or UTC-projected scenario surface.
+      deferred_to_finalizer:
+      - S5 validates overlay composition and publishes PASS gate.
+      evidence_written:
+      - merchant_zone_scenario_local_5A
+      - merchant_zone_overlay_factors_5A (optional)
+    frozen_surfaces:
+    - RNG-free; overlays deterministic under sealed scenario configs.
+    - Overlay ordering and validation policy are binding; horizon mapping must be consistent with S2 grid and horizon config.
+    flexible_choices:
+    - Internal overlay application can be streaming/batched if deterministic and preserves ordering policies.
+    perf_hotspots:
+    - Scenario horizon surface generation; overlay composition over large domains.
+    safe_optimization_levers:
+    - Precompute overlay factors per scope; deterministic join keys; stream writes.
+    do_not_optimize:
+    - Do not alter baseline λ or overlay semantics; do not depend on wall-clock time.
+    debug_hooks:
+    - Emit per-overlay counts and factor bounds; min/max λ_scenario stats.
+  S5:
+    impl_map_key: segment=5A.state=S5
+    state_class: SC-E
+    rng_posture: RNG_NONE
+    scope_keys:
+    - manifest_fingerprint
+    reads:
+    - dataset_id: s0_gate_receipt_5A
+      kind: validation
+      required_gates: []
+    - dataset_id: sealed_inputs_5A
+      kind: validation
+      required_gates: []
+    - dataset_id: validation_policy_5A
+      kind: policy
+      required_gates: []
+    - dataset_id: scenario_overlay_validation_policy_5A
+      kind: policy
+      required_gates: []
+    - dataset_id: merchant_zone_profile_5A
+      kind: intermediate
+      required_gates: []
+      conditional: if present
+    - dataset_id: merchant_zone_baseline_local_5A
+      kind: intermediate
+      required_gates: []
+      conditional: if present
+    - dataset_id: merchant_zone_scenario_local_5A
+      kind: intermediate
+      required_gates: []
+      conditional: if present
+    - dataset_id: shape_grid_definition_5A
+      kind: intermediate
+      required_gates: []
+      conditional: if present
+    - dataset_id: class_zone_shape_5A
+      kind: intermediate
+      required_gates: []
+      conditional: if present
+    writes:
+    - dataset_id: validation_bundle_5A
+      scope_keys:
+      - manifest_fingerprint
+      address_template: data/layer2/5A/validation/manifest_fingerprint={manifest_fingerprint}/
+      ordering: []
+      equality: rowset
+      optional: false
+    - dataset_id: validation_bundle_index_5A
+      scope_keys:
+      - manifest_fingerprint
+      address_template: data/layer2/5A/validation/manifest_fingerprint={manifest_fingerprint}/validation_bundle_index_5A.json
+      ordering: []
+      equality: ordered
+      optional: false
+    - dataset_id: validation_report_5A
+      scope_keys:
+      - manifest_fingerprint
+      address_template: data/layer2/5A/validation/manifest_fingerprint={manifest_fingerprint}/reports/validation_report_5A.json
+      ordering: []
+      equality: ordered
+      optional: false
+    - dataset_id: validation_issue_table_5A
+      scope_keys:
+      - manifest_fingerprint
+      address_template: data/layer2/5A/validation/manifest_fingerprint={manifest_fingerprint}/issues/validation_issue_table_5A.parquet
+      ordering:
+      - issue_code
+      - severity
+      equality: ordered
+      optional: true
+    - dataset_id: validation_passed_flag_5A
+      scope_keys:
+      - manifest_fingerprint
+      address_template: data/layer2/5A/validation/manifest_fingerprint={manifest_fingerprint}/_passed.flag
+      ordering: []
+      equality: ordered
+      optional: false
+    - dataset_id: s5_run_report_5A
+      scope_keys:
+      - manifest_fingerprint
+      address_template: data/layer2/5A/reports/manifest_fingerprint={manifest_fingerprint}/s5_run_report_5A.json
+      ordering: []
+      equality: ordered
+      optional: true
+    - dataset_id: segment_state_runs
+      scope_keys: []
+      address_template: reports/layer2/segment_state_runs/segment=5A/utc_day={utc_day}/segment_state_runs.jsonl
+      ordering: []
+      equality: rowset
+      optional: true
+    - emits_gate: 5A.final.bundle_gate
+    gates_in:
+    - 5A.S0.gate_in_receipt
+    gates_out:
+    - 5A.final.bundle_gate
+    validation:
+      performed_here:
+      - Re-check S0 invariants (sealed universe + upstream statuses) and validate S1–S4 outputs if present; missing/invalid artefacts
+        become FAIL evidence.
+      - Build validation_bundle_index_5A.json with entries {path, sha256_hex} for all bundle members (excluding _passed.flag).
+      - Compute bundle_digest_sha256 = SHA256(concat(raw_bytes(files in entries sorted by ASCII-lex path))).
+      - Write _passed.flag JSON {manifest_fingerprint, bundle_digest_sha256} and publish atomically (flag last).
+      deferred_to_finalizer: []
+      evidence_written:
+      - validation_report_5A
+      - validation_bundle_index_5A
+      - validation_passed_flag_5A
+    frozen_surfaces:
+    - S5 is RNG-free and MUST NOT model/transform S1–S4 surfaces; it only validates and emits evidence + gate.
+    - 'Gate law: index.json-driven raw-bytes concatenation hashing; _passed.flag must match schemas.layer2.yaml#/validation/passed_flag_5A.'
+    - Fail-closed: if any validation fails, do not publish _passed.flag.
+    - Atomic publish: stage evidence + index first, then write _passed.flag last; write-once per manifest_fingerprint.
+    flexible_choices:
+    - Validator implementation may be streaming/bounded-memory if deterministic outcomes and evidence formats match schemas.
+    - Bundle may include optional issue table and run reports, as long as listed in index.json.
+    perf_hotspots:
+    - Scanning large parquet surfaces for integrity checks; hashing bundle members.
+    safe_optimization_levers:
+    - Stream hashing; avoid loading entire files; use bounded-memory validators.
+    do_not_optimize:
+    - Do not weaken hashing law or publish _passed.flag on failure.
+    debug_hooks:
+    - Bucket validation failures by class and include first-N offending keys/paths in validation_report_5A.
+gate_map_examples:
+- consumer: 5A.internal_state
+  reads:
+    dataset_id: zone_alloc
+    scope_keys:
+    - seed
+    - manifest_fingerprint
+  required_gates:
+  - 3A.final.bundle_gate
+  - 5A.S0.gate_in_receipt
+  fail_policy: FAIL_CLOSED
+- consumer: 5B
+  reads:
+    dataset_id: merchant_zone_scenario_local_5A
+    scope_keys:
+    - manifest_fingerprint
+    - scenario_id
+  required_gates:
+  - 5A.final.bundle_gate
+  fail_policy: FAIL_CLOSED
+- consumer: 6A
+  reads:
+    dataset_id: merchant_zone_profile_5A
+    scope_keys:
+    - manifest_fingerprint
+  required_gates:
+  - 5A.final.bundle_gate
+  fail_policy: FAIL_CLOSED
+review_flags:
+- flag_id: 5A.RF.standardize_manifest_fingerprint
+  severity: info
+  summary: Assumed resolved—standardize on manifest_fingerprint everywhere (paths, partition keys, examples) to match dataset
+    dictionaries and remove fingerprint label drift.
+- flag_id: 5A.RF.s0_vs_s1plus_gate_semantics
+  severity: info
+  summary: Assumed resolved—S0 may complete while recording upstream FAIL/MISSING; S1+ must enforce hard precondition that all
+    required upstream segments are PASS (fail-fast).

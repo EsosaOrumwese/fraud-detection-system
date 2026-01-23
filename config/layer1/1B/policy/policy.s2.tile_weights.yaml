@@ -1,0 +1,4 @@
+policy_version: "2026-01-13"
+basis: "area_m2"
+dp: 6
+notes: "Deterministic S2 weights policy (basis + dp)."

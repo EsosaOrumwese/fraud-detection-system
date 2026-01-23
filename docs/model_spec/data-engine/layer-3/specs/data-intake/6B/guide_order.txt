@@ -1,0 +1,23 @@
+# List guides in dependency order after reading expanded specs and contracts.
+# One guide per line.
+
+rng_profile_layer3_authoring-guide.md
+rng_policy_6B_authoring-guide.md
+flow_rng_policy_6B_authoring-guide.md
+fraud_rng_policy_6B_authoring-guide.md
+label_rng_policy_6B_authoring-guide.md
+attachment_policy_6B_authoring-guide.md
+sessionisation_policy_6B_authoring-guide.md
+behaviour_config_6B_authoring-guide.md
+behaviour_prior_pack_6B_authoring-guide.md
+flow_shape_policy_6B_authoring-guide.md
+amount_model_6B_authoring-guide.md
+timing_policy_6B_authoring-guide.md
+bank_view_policy_6B_authoring-guide.md
+delay_models_6B_authoring-guide.md
+case_policy_6B_authoring-guide.md
+fraud_campaign_catalogue_config_6B_authoring-guide.md
+fraud_overlay_policy_6B_authoring-guide.md
+truth_labelling_policy_6B_authoring-guide.md
+segment_validation_policy_6B_authoring-guide.md
+

@@ -26,10 +26,6 @@ policies:
     path: policies/alias_layout_policy_v1.json
     partitioning: []
     schema_ref: schemas.2B.yaml#/policy/alias_layout_policy_v1
-  - id: virtual_rules_policy_v1
-    path: policies/virtual_rules_policy_v1.json
-    partitioning: []
-    schema_ref: schemas.2B.yaml#/policy/virtual_rules_policy_v1
 datasets:
   - id: s4_group_weights
     path: data/layer1/2B/s4_group_weights/seed={seed}/fingerprint={manifest_fingerprint}/
@@ -39,10 +35,6 @@ datasets:
     path: data/layer1/2B/s1_site_weights/seed={seed}/fingerprint={manifest_fingerprint}/
     partitioning: [seed, fingerprint]
     schema_ref: schemas.2B.yaml#/plan/s1_site_weights
-  - id: merchant_mcc_map
-    path: data/layer1/2A/merchant_mcc_map/seed={seed}/fingerprint={manifest_fingerprint}/merchant_mcc_map.parquet
-    partitioning: [seed, fingerprint]
-    schema_ref: schemas.2A.yaml#/reference/merchant_mcc_map
   - id: site_timezones
     path: data/layer1/2A/site_timezones/seed={seed}/fingerprint={manifest_fingerprint}/
     partitioning: [seed, fingerprint]
@@ -101,7 +93,6 @@ def _write_receipt_and_inventory(
     parameter_hash: str,
     route_policy: tuple[Path, str, str],
     alias_policy: tuple[Path, str, str],
-    virtual_policy: tuple[Path, str, str],
 ) -> None:
     receipt_payload = {
         "segment": "2B",
@@ -115,7 +106,6 @@ def _write_receipt_and_inventory(
         "sealed_inputs": [
             {"id": "route_rng_policy_v1", "partition": [], "schema_ref": "schemas.2B.yaml#/policy/route_rng_policy_v1"},
             {"id": "alias_layout_policy_v1", "partition": [], "schema_ref": "schemas.2B.yaml#/policy/alias_layout_policy_v1"},
-            {"id": "virtual_rules_policy_v1", "partition": [], "schema_ref": "schemas.2B.yaml#/policy/virtual_rules_policy_v1"},
         ],
         "catalogue_resolution": {"dictionary_version": "test", "registry_version": "test"},
         "determinism_receipt": {
@@ -143,14 +133,6 @@ def _write_receipt_and_inventory(
             "path": alias_policy[0].relative_to(base).as_posix(),
             "partition": [],
             "schema_ref": "schemas.2B.yaml#/policy/alias_layout_policy_v1",
-        },
-        {
-            "asset_id": "virtual_rules_policy_v1",
-            "version_tag": "test",
-            "sha256_hex": virtual_policy[2],
-            "path": virtual_policy[0].relative_to(base).as_posix(),
-            "partition": [],
-            "schema_ref": "schemas.2B.yaml#/policy/virtual_rules_policy_v1",
         },
     ]
     inventory_path = base / f"data/layer1/2B/sealed_inputs/fingerprint={manifest}/sealed_inputs_v1.json"
@@ -220,19 +202,6 @@ def _write_site_timezones(base: Path, seed: int, manifest: str) -> None:
     df.write_parquet(dest)
 
 
-def _write_merchant_mcc_map(base: Path, seed: int, manifest: str) -> Path:
-    df = pl.DataFrame(
-        {
-            "merchant_id": [1],
-            "mcc": [5074],
-        }
-    )
-    dest = base / f"data/layer1/2A/merchant_mcc_map/seed={seed}/fingerprint={manifest}/merchant_mcc_map.parquet"
-    dest.parent.mkdir(parents=True, exist_ok=True)
-    df.write_parquet(dest)
-    return dest
-
-
 def _write_group_weights(base: Path, seed: int, manifest: str) -> None:
     df = pl.DataFrame(
         {
@@ -281,16 +250,6 @@ def _build_runner_inputs(tmp_path: Path) -> tuple[S5RouterRunner, S5RouterInputs
     }
     route_policy_path, route_digest_raw, route_digest_agg = _write_policy(tmp_path, "route_rng_policy_v1", route_policy_payload)
     alias_policy_path, alias_digest_raw, alias_digest_agg = _write_policy(tmp_path, "alias_layout_policy_v1", alias_policy_payload)
-    virtual_policy_payload = {
-        "version_tag": "2025.11",
-        "default_virtual": False,
-        "virtual_mccs": ["5074"],
-    }
-    virtual_policy_path, virtual_digest_raw, virtual_digest_agg = _write_policy(
-        tmp_path,
-        "virtual_rules_policy_v1",
-        virtual_policy_payload,
-    )
     _write_receipt_and_inventory(
         tmp_path,
         manifest=manifest,
@@ -298,13 +257,10 @@ def _build_runner_inputs(tmp_path: Path) -> tuple[S5RouterRunner, S5RouterInputs
         parameter_hash=parameter_hash,
         route_policy=(route_policy_path, route_digest_raw, route_digest_agg),
         alias_policy=(alias_policy_path, alias_digest_raw, alias_digest_agg),
-        virtual_policy=(virtual_policy_path, virtual_digest_raw, virtual_digest_agg),
     )
     _write_alias_artifacts(tmp_path, seed=seed, manifest=manifest, alias_policy_digest=alias_digest_raw)
     _write_s1_site_weights(tmp_path, seed, manifest)
     _write_site_timezones(tmp_path, seed, seg2a_manifest)
-    _write_merchant_mcc_map(tmp_path, seed, seg2a_manifest)
-    _write_merchant_mcc_map(tmp_path, seed, manifest)
     _write_group_weights(tmp_path, seed, manifest)
     runner = S5RouterRunner()
     inputs = S5RouterInputs(
@@ -329,7 +285,6 @@ def test_s5_router_runs_with_default_arrivals(tmp_path: Path) -> None:
     assert report["component"] == "2B.S5"
     assert report["policy"]["rng_stream_id"] == "router_core"
     assert report["logging"]["selection_log_enabled"] is True
-    assert report["virtual_routing"]["virtual_merchants_total"] == 1
     assert report["determinism"]["engine_commit"] == "deadbeef"
     assert result.selection_log_paths
     selection_log = result.selection_log_paths[0]
@@ -337,7 +292,7 @@ def test_s5_router_runs_with_default_arrivals(tmp_path: Path) -> None:
     assert rows[0]["merchant_id"] == 1
     assert result.rng_event_group_path is not None
     assert (result.rng_event_group_path / "part-00000.jsonl").exists()
-    assert len(result.virtual_arrivals) == 2
+    assert len(result.virtual_arrivals) == 0
 
 
 def test_s5_router_consumes_arrivals_file(tmp_path: Path) -> None:
@@ -364,7 +319,7 @@ def test_s5_router_consumes_arrivals_file(tmp_path: Path) -> None:
     report = json.loads(result.run_report_path.read_text(encoding="utf-8"))
     assert report["logging"]["selection_log_enabled"] is False
     assert report["determinism"]["policy_ids"] == ["route_rng_policy_v1", "alias_layout_policy_v1"]
-    assert len(result.virtual_arrivals) == 1
+    assert len(result.virtual_arrivals) == 0
 
 
 def test_s5_router_records_virtual_arrivals(tmp_path: Path) -> None:
@@ -394,22 +349,3 @@ def test_s5_router_records_virtual_arrivals(tmp_path: Path) -> None:
     assert virtual_record.site_id > 0
     assert virtual_record.tz_group_id
 
-
-def test_s5_router_fallbacks_to_gate_manifest_for_mcc_map(tmp_path: Path) -> None:
-    runner, inputs = _build_runner_inputs(tmp_path)
-    seed = inputs.seed
-    seg2a_manifest = inputs.seg2a_manifest_fingerprint
-    manifest = inputs.manifest_fingerprint
-    primary_path = (
-        tmp_path
-        / f"data/layer1/2A/merchant_mcc_map/seed={seed}/fingerprint={seg2a_manifest}/merchant_mcc_map.parquet"
-    )
-    if primary_path.exists():
-        primary_path.unlink()
-    fallback_path = (
-        tmp_path
-        / f"data/layer1/2A/merchant_mcc_map/seed={seed}/fingerprint={manifest}/merchant_mcc_map.parquet"
-    )
-    assert fallback_path.exists()
-    result = runner.run(inputs)
-    assert result.virtual_arrivals

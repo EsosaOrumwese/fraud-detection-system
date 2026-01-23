@@ -1,0 +1,669 @@
+subsegments:
+- id: 3A
+  name: Cross-Zone Merchants
+  artifacts:
+
+      # ---------------------------
+      # GOVERNED POLICIES & PRIORS
+      # ---------------------------
+  - name: zone_mixture_policy
+    path: config/layer1/3A/policy/zone_mixture_policy.yaml
+    type: policy
+    category: escalation
+    semver: '1.0.0'
+    version: '{policy_version}'
+    digest: '{sha256}'
+    manifest_key: mlr.3A.zone_mixture_policy
+    license: Proprietary-Internal
+    role: Theta thresholds and decision buckets for S1 escalation.
+    dependencies: []
+    source: internal
+    owner: {owner_team: "mlr-3a-governance"}
+    last_updated: '{iso8601_timestamp}'
+    environment: [runtime]
+    schema: schemas.3A.yaml#/policy/zone_mixture_policy_v1
+    cross_layer: false
+    notes:
+
+  - name: country_zone_alphas
+    path: config/layer1/3A/allocation/country_zone_alphas.yaml
+    type: policy
+    category: priors
+    semver: '1.0.0'
+    version: '{prior_pack_version}'
+    digest: '{sha256}'
+    manifest_key: mlr.3A.country_zone_alphas
+    license: Proprietary-Internal
+    role: Dirichlet α-vector ledger per country×tzid.
+    dependencies: []
+    source: internal
+    owner: {owner_team: "mlr-3a-governance"}
+    last_updated: '{iso8601_timestamp}'
+    environment: [runtime]
+    schema: schemas.3A.yaml#/policy/country_zone_alphas_v1
+    cross_layer: false
+    notes:
+
+  - name: zone_floor_policy
+    path: config/layer1/3A/allocation/zone_floor_policy.yaml
+    type: policy
+    category: priors
+    semver: '1.0.0'
+    version: '{policy_version}'
+    digest: '{sha256}'
+    manifest_key: mlr.3A.zone_floor_policy
+    license: Proprietary-Internal
+    role: Floor and bump rules applied during integerisation.
+    dependencies: []
+    source: internal
+    owner: {owner_team: "mlr-3a-governance"}
+    last_updated: '{iso8601_timestamp}'
+    environment: [runtime]
+    schema: schemas.3A.yaml#/policy/zone_floor_policy_v1
+    cross_layer: false
+    notes:
+
+      # ---------------------------
+      # S0 GATE SURFACES
+      # ---------------------------
+  - name: s0_gate_receipt_3A
+    path: data/layer1/3A/s0_gate_receipt/manifest_fingerprint={manifest_fingerprint}/s0_gate_receipt_3A.json
+    type: dataset
+    category: gate
+    semver: '1.0.0'
+    version: '{manifest_fingerprint}'
+    digest: '{sha256}'
+    manifest_key: mlr.3A.s0_gate_receipt
+    license: Proprietary-Internal
+    role: Gate descriptor referencing upstream PASS bundles and sealed policies.
+    dependencies:
+      - mlr.1A.validation.bundle
+      - mlr.1A.validation.passed
+      - mlr.1B.validation.bundle
+      - mlr.1B.validation.passed
+      - mlr.2A.validation.bundle
+      - mlr.2A.validation.passed
+    source: internal
+    owner: {owner_team: "mlr-3a-core"}
+    last_updated: '{iso8601_timestamp}'
+    environment: [runtime]
+    schema: schemas.3A.yaml#/validation/s0_gate_receipt_3A
+    cross_layer: true
+    notes:
+
+  - name: sealed_inputs_3A
+    path: data/layer1/3A/sealed_inputs/manifest_fingerprint={manifest_fingerprint}/sealed_inputs_3A.json
+    type: dataset
+    category: inventory
+    semver: '1.0.0'
+    version: '{manifest_fingerprint}'
+    digest: '{sha256}'
+    manifest_key: mlr.3A.sealed_inputs
+    license: Proprietary-Internal
+    role: Inventory of artefacts allowed for this manifest.
+    dependencies: []
+    source: internal
+    owner: {owner_team: "mlr-3a-core"}
+    last_updated: '{iso8601_timestamp}'
+    environment: [runtime]
+    schema: schemas.3A.yaml#/validation/sealed_inputs_3A
+    cross_layer: true
+    notes:
+
+      # ---------------------------
+      # CROSS-LAYER INPUTS (EXPLICIT)
+      # ---------------------------
+  - name: validation_bundle_1A
+    path: data/layer1/1A/validation/manifest_fingerprint={manifest_fingerprint}/
+    type: bundle
+    category: validation
+    semver: '{semver}'
+    version: '{manifest_fingerprint}'
+    digest: '{sha256}'
+    manifest_key: mlr.1A.validation.bundle
+    license: Proprietary-Internal
+    role: "1A validation bundle required before 3A consumes outlet_catalogue."
+    dependencies: []
+    source: internal
+    owner: {owner_team: "mlr-1a-validation"}
+    last_updated: '{iso8601_timestamp}'
+    environment: [runtime]
+    schema: schemas.1A.yaml#/validation/validation_bundle
+    cross_layer: true
+    notes: null
+
+  - name: validation_passed_flag_1A
+    path: data/layer1/1A/validation/manifest_fingerprint={manifest_fingerprint}/_passed.flag
+    type: manifest
+    category: validation
+    semver: '{semver}'
+    version: '{manifest_fingerprint}'
+    digest: '{sha256_of_bundle}'
+    manifest_key: mlr.1A.validation.passed
+    license: Proprietary-Internal
+    role: "PASS flag for 1A validation bundle (sha256_hex of bundle)."
+    dependencies: [mlr.1A.validation.bundle]
+    source: internal
+    owner: {owner_team: "mlr-1a-validation"}
+    last_updated: '{iso8601_timestamp}'
+    environment: [runtime]
+    schema: schemas.layer1.yaml#/validation/passed_flag
+    cross_layer: true
+    notes: null
+
+  - name: validation_bundle_1B
+    path: data/layer1/1B/validation/manifest_fingerprint={manifest_fingerprint}/
+    type: bundle
+    category: validation
+    semver: '{semver}'
+    version: '{manifest_fingerprint}'
+    digest: '{sha256}'
+    manifest_key: mlr.1B.validation.bundle
+    license: Proprietary-Internal
+    role: "1B validation bundle required before 3A admits 2A outputs."
+    dependencies: []
+    source: internal
+    owner: {owner_team: "mlr-1b-validation"}
+    last_updated: '{iso8601_timestamp}'
+    environment: [runtime]
+    schema: schemas.1B.yaml#/validation/validation_bundle_1B
+    cross_layer: true
+    notes: null
+
+  - name: validation_passed_flag_1B
+    path: data/layer1/1B/validation/manifest_fingerprint={manifest_fingerprint}/_passed.flag
+    type: manifest
+    category: validation
+    semver: '{semver}'
+    version: '{manifest_fingerprint}'
+    digest: '{sha256_of_bundle}'
+    manifest_key: mlr.1B.validation.passed
+    license: Proprietary-Internal
+    role: "PASS flag for 1B validation bundle (sha256_hex of bundle)."
+    dependencies: [mlr.1B.validation.bundle]
+    source: internal
+    owner: {owner_team: "mlr-1b-validation"}
+    last_updated: '{iso8601_timestamp}'
+    environment: [runtime]
+    schema: schemas.1B.yaml#/validation/passed_flag
+    cross_layer: true
+    notes: null
+
+  - name: validation_bundle_2A
+    path: data/layer1/2A/validation/manifest_fingerprint={manifest_fingerprint}/
+    type: bundle
+    category: validation
+    semver: '{semver}'
+    version: '{manifest_fingerprint}'
+    digest: '{sha256}'
+    manifest_key: mlr.2A.validation.bundle
+    license: Proprietary-Internal
+    role: "2A validation bundle required before 3A admits 2A outputs."
+    dependencies: []
+    source: internal
+    owner: {owner_team: "mlr-2a-validation"}
+    last_updated: '{iso8601_timestamp}'
+    environment: [runtime]
+    schema: schemas.2A.yaml#/validation/validation_bundle_2A
+    cross_layer: true
+    notes: null
+
+  - name: validation_passed_flag_2A
+    path: data/layer1/2A/validation/manifest_fingerprint={manifest_fingerprint}/_passed.flag
+    type: manifest
+    category: validation
+    semver: '{semver}'
+    version: '{manifest_fingerprint}'
+    digest: '{sha256_of_bundle}'
+    manifest_key: mlr.2A.validation.passed
+    license: Proprietary-Internal
+    role: "PASS flag for 2A validation bundle (sha256_hex of bundle)."
+    dependencies: [mlr.2A.validation.bundle]
+    source: internal
+    owner: {owner_team: "mlr-2a-validation"}
+    last_updated: '{iso8601_timestamp}'
+    environment: [runtime]
+    schema: schemas.2A.yaml#/validation/passed_flag
+    cross_layer: true
+    notes: null
+
+  - name: outlet_catalogue
+    path: data/layer1/1A/outlet_catalogue/seed={seed}/manifest_fingerprint={manifest_fingerprint}/
+    type: dataset
+    category: output
+    semver: '{semver}'
+    version: '{manifest_fingerprint}'
+    digest: '{sha256}'
+    manifest_key: mlr.1A.output.outlet_catalogue
+    license: Proprietary-Internal
+    role: "Immutable outlet stubs from 1A; required input for 3A escalation."
+    dependencies: []
+    source: internal
+    owner: {owner_team: "mlr-1a-core"}
+    last_updated: '{iso8601_timestamp}'
+    environment: [runtime]
+    schema: schemas.1A.yaml#/egress/outlet_catalogue
+    cross_layer: true
+    notes: null
+
+  - name: site_timezones
+    path: data/layer1/2A/site_timezones/seed={seed}/manifest_fingerprint={manifest_fingerprint}/
+    type: dataset
+    category: output
+    semver: '{semver}'
+    version: '{seed}.{manifest_fingerprint}'
+    digest: '{sha256}'
+    manifest_key: mlr.2A.egress.site_timezones
+    license: Proprietary-Internal
+    role: "Per-site tzid assignments from 2A (optional pin for routing governance)."
+    dependencies: []
+    source: internal
+    owner: {owner_team: "mlr-2a-core"}
+    last_updated: '{iso8601_timestamp}'
+    environment: [runtime]
+    schema: schemas.2A.yaml#/egress/site_timezones
+    cross_layer: true
+    notes: null
+
+  - name: tz_timetable_cache
+    path: data/layer1/2A/tz_timetable_cache/manifest_fingerprint={manifest_fingerprint}/
+    type: dataset
+    category: cache
+    semver: '{semver}'
+    version: '{manifest_fingerprint}'
+    digest: '{sha256}'
+    manifest_key: mlr.2A.cache.tz_timetable
+    license: Proprietary-Internal
+    role: "Fingerprint-scoped civil-time cache manifest compiled by 2A."
+    dependencies: []
+    source: internal
+    owner: {owner_team: "mlr-2a-core"}
+    last_updated: '{iso8601_timestamp}'
+    environment: [runtime]
+    schema: schemas.2A.yaml#/cache/tz_timetable_cache
+    cross_layer: true
+    notes: null
+
+  - name: s4_legality_report
+    path: data/layer1/2A/legality_report/seed={seed}/manifest_fingerprint={manifest_fingerprint}/s4_legality_report.json
+    type: dataset
+    category: validation
+    semver: '{semver}'
+    version: '{seed}.{manifest_fingerprint}'
+    digest: '{sha256}'
+    manifest_key: mlr.2A.validation.legality_report
+    license: Proprietary-Internal
+    role: "Optional DST gaps/folds legality report from 2A."
+    dependencies: [mlr.2A.egress.site_timezones, mlr.2A.cache.tz_timetable]
+    source: internal
+    owner: {owner_team: "mlr-2a-core"}
+    last_updated: '{iso8601_timestamp}'
+    environment: [runtime]
+    schema: schemas.2A.yaml#/validation/s4_legality_report
+    cross_layer: true
+    notes: null
+
+  - name: iso3166_canonical_2024
+    path: reference/iso/iso3166_canonical/2024-12-31/iso3166.parquet
+    type: dataset
+    category: reference
+    semver: '{semver}'
+    version: '2024-12-31'
+    digest: '{sha256}'
+    manifest_key: mlr.ingress.iso3166_canonical_2024
+    license: CC-BY-4.0
+    role: "Canonical ISO-3166-1 alpha-2 list; FK surface for country_iso."
+    dependencies: []
+    source: external
+    owner: {owner_team: "mlr-ingress"}
+    last_updated: '{iso8601_timestamp}'
+    environment: [runtime]
+    schema: schemas.ingress.layer1.yaml#/iso3166_canonical_2024
+    cross_layer: true
+    notes: null
+
+  - name: world_countries
+    path: reference/spatial/world_countries/2024/world_countries.parquet
+    type: dataset
+    category: reference
+    semver: '{semver}'
+    version: '2024'
+    digest: '{sha256}'
+    manifest_key: mlr.ingress.world_countries
+    license: Public-Domain
+    role: "Country polygons (GeoParquet) for zone mapping."
+    dependencies: [iso3166_canonical_2024]
+    source: external
+    owner: {owner_team: "mlr-ingress"}
+    last_updated: '{iso8601_timestamp}'
+    environment: [runtime]
+    schema: schemas.ingress.layer1.yaml#/world_countries
+    cross_layer: true
+    notes: null
+
+  - name: tz_world_2025a
+    path: reference/spatial/tz_world/2025a/tz_world.parquet
+    type: dataset
+    category: reference
+    semver: '{semver}'
+    version: '2025a'
+    digest: '{sha256}'
+    manifest_key: mlr.ingress.tz_world_2025a
+    license: ODbL-1.0
+    role: "Time-zone polygons (GeoParquet) for the 2025a TZDB release."
+    dependencies: []
+    source: external
+    owner: {owner_team: "mlr-ingress"}
+    last_updated: '{iso8601_timestamp}'
+    environment: [runtime]
+    schema: schemas.ingress.layer1.yaml#/tz_world_2025a
+    cross_layer: true
+    notes: null
+
+  - name: day_effect_policy_v1
+    path: config/layer1/2B/policy/day_effect_policy_v1.json
+    type: policy
+    category: config
+    semver: '{semver}'
+    version: '{policy_version}'
+    digest: '{sha256}'
+    manifest_key: mlr.2B.policy.day_effect_v1
+    license: Proprietary-Internal
+    role: "Day-effect variance policy consumed when computing the zone universe hash."
+    dependencies: []
+    source: internal
+    owner: {owner_team: "l1-2b-governance"}
+    last_updated: '{iso8601_timestamp}'
+    environment: [runtime]
+    schema: schemas.2B.yaml#/policy/day_effect_policy_v1
+    cross_layer: true
+    notes: null
+
+      # ---------------------------
+      # S1-S4 PLAN DATASETS
+      # ---------------------------
+  - name: s1_escalation_queue
+    path: data/layer1/3A/s1_escalation_queue/seed={seed}/manifest_fingerprint={manifest_fingerprint}/
+    type: dataset
+    category: plan
+    semver: '1.0.0'
+    version: '{seed}.{manifest_fingerprint}'
+    digest: '{sha256}'
+    manifest_key: mlr.3A.s1.escalation_queue
+    license: Proprietary-Internal
+    role: Escalation decisions and totals per merchant×country.
+    dependencies: [mlr.3A.s0_gate_receipt, mlr.1A.output.outlet_catalogue, mlr.ingress.iso3166_canonical_2024, mlr.ingress.tz_world_2025a]
+    source: internal
+    owner: {owner_team: "mlr-3a-core"}
+    last_updated: '{iso8601_timestamp}'
+    environment: [runtime]
+    schema: schemas.3A.yaml#/plan/s1_escalation_queue
+    cross_layer: true
+    notes:
+
+  - name: s2_country_zone_priors
+    path: data/layer1/3A/s2_country_zone_priors/parameter_hash={parameter_hash}/
+    type: dataset
+    category: plan
+    semver: '1.0.0'
+    version: '{parameter_hash}'
+    digest: '{sha256}'
+    manifest_key: mlr.3A.s2.country_zone_priors
+    license: Proprietary-Internal
+    role: Effective Dirichlet α-vectors per country×tzid.
+    dependencies: [mlr.3A.country_zone_alphas, mlr.3A.zone_floor_policy]
+    source: internal
+    owner: {owner_team: "mlr-3a-core"}
+    last_updated: '{iso8601_timestamp}'
+    environment: [runtime]
+    schema: schemas.3A.yaml#/plan/s2_country_zone_priors
+    cross_layer: true
+    notes:
+
+  - name: s3_zone_shares
+    path: data/layer1/3A/s3_zone_shares/seed={seed}/manifest_fingerprint={manifest_fingerprint}/
+    type: dataset
+    category: plan
+    semver: '1.0.0'
+    version: '{seed}.{manifest_fingerprint}'
+    digest: '{sha256}'
+    manifest_key: mlr.3A.s3.zone_shares
+    license: Proprietary-Internal
+    role: Dirichlet share draws per merchant×country×tzid.
+    dependencies: [mlr.3A.s1.escalation_queue, mlr.3A.s2.country_zone_priors]
+    source: internal
+    owner: {owner_team: "mlr-3a-core"}
+    last_updated: '{iso8601_timestamp}'
+    environment: [runtime]
+    schema: schemas.3A.yaml#/plan/s3_zone_shares
+    cross_layer: true
+    notes:
+
+  - name: rng_audit_log
+    path: logs/layer1/3A/rng/audit/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/rng_audit_log.jsonl
+    type: log
+    category: rng_core
+    semver: '1.0.0'
+    version: '{run_id}'
+    digest: '{sha256}'
+    manifest_key: mlr.rng.core.3A.audit
+    license: Proprietary-Internal
+    role: "Run-scoped audit envelope for Segment 3A RNG usage (seed, parameters, build metadata)."
+    dependencies: []
+    source: internal
+    owner: {owner_team: "mlr-3a-core"}
+    last_updated: '{iso8601_timestamp}'
+    environment: [runtime]
+    schema: schemas.layer1.yaml#/rng/core/rng_audit_log
+    cross_layer: false
+    notes: null
+
+  - name: rng_trace_log
+    path: logs/layer1/3A/rng/trace/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/rng_trace_log.jsonl
+    type: log
+    category: rng_core
+    semver: '1.0.0'
+    version: '{run_id}'
+    digest: '{sha256}'
+    manifest_key: mlr.rng.core.3A.trace
+    license: Proprietary-Internal
+    role: "Cumulative RNG trace for Segment 3A substreams; append exactly one row after each event."
+    dependencies: [mlr.rng.core.3A.audit, mlr.rng.events.3A.zone_dirichlet]
+    source: internal
+    owner: {owner_team: "mlr-3a-core"}
+    last_updated: '{iso8601_timestamp}'
+    environment: [runtime]
+    schema: schemas.layer1.yaml#/rng/core/rng_trace_log
+    cross_layer: false
+    notes: null
+
+  - name: rng_event_zone_dirichlet
+    path: logs/layer1/3A/rng/events/zone_dirichlet/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/part-*.jsonl
+    type: log
+    category: rng_event
+    semver: '1.0.0'
+    version: '{run_id}'
+    digest: '{sha256}'
+    manifest_key: mlr.rng.events.3A.zone_dirichlet
+    license: Proprietary-Internal
+    role: "RNG envelope events for S3 zone_dirichlet (one per escalated merchant x country)."
+    dependencies: [mlr.3A.s1.escalation_queue]
+    source: internal
+    owner: {owner_team: "mlr-3a-core"}
+    last_updated: '{iso8601_timestamp}'
+    environment: [runtime]
+    schema: schemas.layer1.yaml#/rng/events/zone_dirichlet
+    cross_layer: false
+    notes: null
+
+  - name: s4_zone_counts
+    path: data/layer1/3A/s4_zone_counts/seed={seed}/manifest_fingerprint={manifest_fingerprint}/
+    type: dataset
+    category: plan
+    semver: '1.0.0'
+    version: '{seed}.{manifest_fingerprint}'
+    digest: '{sha256}'
+    manifest_key: mlr.3A.s4.zone_counts
+    license: Proprietary-Internal
+    role: Integer counts after floors/bump per merchant×country×tzid.
+    dependencies: [mlr.3A.s3.zone_shares, mlr.3A.zone_floor_policy]
+    source: internal
+    owner: {owner_team: "mlr-3a-core"}
+    last_updated: '{iso8601_timestamp}'
+    environment: [runtime]
+    schema: schemas.3A.yaml#/plan/s4_zone_counts
+    cross_layer: true
+    notes:
+
+      # ---------------------------
+      # S5 EGRESS + HASH UNIVERSE
+      # ---------------------------
+  - name: zone_alloc
+    path: data/layer1/3A/zone_alloc/seed={seed}/manifest_fingerprint={manifest_fingerprint}/
+    type: dataset
+    category: egress
+    semver: '1.0.0'
+    version: '{seed}.{manifest_fingerprint}'
+    digest: '{sha256}'
+    manifest_key: mlr.3A.zone_alloc
+    license: Proprietary-Internal
+    role: Cross-layer zone allocation egress consumed by routing.
+    dependencies: [mlr.3A.s4.zone_counts, mlr.3A.zone_alloc_universe_hash]
+    source: internal
+    owner: {owner_team: "mlr-3a-core"}
+    last_updated: '{iso8601_timestamp}'
+    environment: [runtime]
+    schema: schemas.3A.yaml#/egress/zone_alloc
+    cross_layer: true
+    notes:
+
+  - name: zone_alloc_universe_hash
+    path: data/layer1/3A/zone_universe/manifest_fingerprint={manifest_fingerprint}/zone_alloc_universe_hash.json
+    type: dataset
+    category: validation
+    semver: '1.0.0'
+    version: '{manifest_fingerprint}'
+    digest: '{sha256}'
+    manifest_key: mlr.3A.zone_alloc_universe_hash
+    license: Proprietary-Internal
+    role: Digest summary tying priors, policies, and allocation outputs.
+    dependencies: [mlr.3A.country_zone_alphas, mlr.3A.zone_mixture_policy, mlr.3A.zone_floor_policy, mlr.2B.policy.day_effect_v1, mlr.3A.zone_alloc]
+    source: internal
+    owner: {owner_team: "mlr-3a-core"}
+    last_updated: '{iso8601_timestamp}'
+    environment: [runtime]
+    schema: schemas.3A.yaml#/validation/zone_alloc_universe_hash
+    cross_layer: true
+    notes:
+
+      # ---------------------------
+      # S6 VALIDATION SURFACES
+      # ---------------------------
+  - name: s6_validation_report_3A
+    path: data/layer1/3A/s6_validation_report/manifest_fingerprint={manifest_fingerprint}/report.json
+    type: dataset
+    category: validation
+    semver: '1.0.0'
+    version: '{manifest_fingerprint}'
+    digest: '{sha256}'
+    manifest_key: mlr.3A.s6.validation_report
+    license: Proprietary-Internal
+    role: Structured validation summary for 3A.
+    dependencies: [mlr.3A.zone_alloc, mlr.3A.zone_alloc_universe_hash]
+    source: internal
+    owner: {owner_team: "mlr-3a-core"}
+    last_updated: '{iso8601_timestamp}'
+    environment: [runtime]
+    schema: schemas.3A.yaml#/validation/s6_validation_report_3A
+    cross_layer: true
+    notes:
+
+  - name: s6_issue_table_3A
+    path: data/layer1/3A/s6_issues/manifest_fingerprint={manifest_fingerprint}/issues.parquet
+    type: dataset
+    category: validation
+    semver: '1.0.0'
+    version: '{manifest_fingerprint}'
+    digest: '{sha256}'
+    manifest_key: mlr.3A.s6.issues
+    license: Proprietary-Internal
+    role: Per-issue diagnostics for allocation validation.
+    dependencies: [mlr.3A.s6.validation_report]
+    source: internal
+    owner: {owner_team: "mlr-3a-core"}
+    last_updated: '{iso8601_timestamp}'
+    environment: [runtime]
+    schema: schemas.3A.yaml#/validation/s6_issue_table_3A
+    cross_layer: false
+    notes:
+
+  - name: s6_receipt_3A
+    path: data/layer1/3A/s6_receipt/manifest_fingerprint={manifest_fingerprint}/s6_receipt.json
+    type: dataset
+    category: validation
+    semver: '1.0.0'
+    version: '{manifest_fingerprint}'
+    digest: '{sha256}'
+    manifest_key: mlr.3A.s6.receipt
+    license: Proprietary-Internal
+    role: Compact PASS/FAIL verdict consumed by S7.
+    dependencies: [mlr.3A.s6.validation_report, mlr.3A.s6.issues]
+    source: internal
+    owner: {owner_team: "mlr-3a-core"}
+    last_updated: '{iso8601_timestamp}'
+    environment: [runtime]
+    schema: schemas.3A.yaml#/validation/s6_receipt_3A
+    cross_layer: true
+    notes:
+
+      # ---------------------------
+      # S7 VALIDATION BUNDLE
+      # ---------------------------
+  - name: validation_bundle_3A
+    path: data/layer1/3A/validation/manifest_fingerprint={manifest_fingerprint}/
+    type: dataset
+    category: validation
+    semver: '1.0.0'
+    version: '{manifest_fingerprint}'
+    digest: '{sha256}'
+    manifest_key: mlr.3A.validation.bundle
+    license: Proprietary-Internal
+    role: Fingerprint-scoped validation bundle listing all 3A artefacts.
+    dependencies:
+      - mlr.3A.s0_gate_receipt
+      - mlr.3A.sealed_inputs
+      - mlr.3A.s1.escalation_queue
+      - mlr.3A.s2.country_zone_priors
+      - mlr.3A.s3.zone_shares
+      - mlr.3A.s4.zone_counts
+      - mlr.3A.zone_alloc
+      - mlr.3A.zone_alloc_universe_hash
+      - mlr.3A.s6.validation_report
+      - mlr.3A.s6.issues
+      - mlr.3A.s6.receipt
+    source: internal
+    owner: {owner_team: "mlr-3a-core"}
+    last_updated: '{iso8601_timestamp}'
+    environment: [runtime]
+    schema: schemas.layer1.yaml#/validation/validation_bundle_index_3A
+    cross_layer: true
+    notes:
+
+  - name: validation_passed_flag_3A
+    path: data/layer1/3A/validation/manifest_fingerprint={manifest_fingerprint}/_passed.flag
+    type: dataset
+    category: validation
+    semver: '1.0.0'
+    version: '{manifest_fingerprint}'
+    digest: '{sha256}'
+    manifest_key: mlr.3A.validation.passed
+    license: Proprietary-Internal
+    role: HashGate PASS flag (SHA-256 over concat(index.members[*].sha256_hex) in canonical member order).
+    dependencies: [mlr.3A.validation.bundle]
+    source: internal
+    owner: {owner_team: "mlr-3a-core"}
+    last_updated: '{iso8601_timestamp}'
+    environment: [runtime]
+    schema: schemas.layer1.yaml#/validation/passed_flag_3A
+    cross_layer: true
+    notes:

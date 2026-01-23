@@ -1,0 +1,238 @@
+schema_version: 1
+prior_id: device_count_priors_6A
+prior_version: v1
+
+bindings:
+  party_taxonomy_ref: taxonomy_party_6A
+  device_taxonomy_ref: taxonomy_devices_6A
+  segmentation_prior_ref: prior_segmentation_6A
+
+cell_model:
+  mode: party_cell_v1
+  cell_definition: [region_id, party_type, segment_id]
+
+density_model:
+  global_density_multiplier: 1.0
+  party_lambda:
+    mode: base_plus_segment_tilt_v1
+    base_lambda_by_party_type: { RETAIL: 2.2, BUSINESS: 2.8, OTHER: 1.6 }
+    segment_feature_tilt:
+      features: [digital_affinity, stability_score]
+      weights_by_feature: { digital_affinity: 0.35, stability_score: 0.12 }
+      clip_log_multiplier: 0.60
+  account_lambda:
+    enabled: false
+  merchant_lambda:
+    enabled: false
+
+type_mix_model:
+  mode: by_party_type_with_segment_tilt_v1
+  base_pi_by_party_type:
+    BUSINESS:
+      - { device_type: DESKTOP, share: 0.28 }
+      - { device_type: IOT_DEVICE, share: 0.06 }
+      - { device_type: LAPTOP, share: 0.30 }
+      - { device_type: MOBILE_PHONE, share: 0.22 }
+      - { device_type: SERVER, share: 0.06 }
+      - { device_type: TABLET, share: 0.08 }
+    OTHER:
+      - { device_type: DESKTOP, share: 0.32 }
+      - { device_type: IOT_DEVICE, share: 0.05 }
+      - { device_type: LAPTOP, share: 0.24 }
+      - { device_type: MOBILE_PHONE, share: 0.22 }
+      - { device_type: SERVER, share: 0.05 }
+      - { device_type: TABLET, share: 0.12 }
+    RETAIL:
+      - { device_type: DESKTOP, share: 0.10 }
+      - { device_type: IOT_DEVICE, share: 0.02 }
+      - { device_type: LAPTOP, share: 0.12 }
+      - { device_type: MOBILE_PHONE, share: 0.60 }
+      - { device_type: TABLET, share: 0.10 }
+      - { device_type: WEARABLE, share: 0.06 }
+  segment_tilts:
+    - { feature: digital_affinity, device_type: MOBILE_PHONE, weight: 0.45, clip: 0.60 }
+    - { feature: digital_affinity, device_type: WEARABLE, weight: 0.35, clip: 0.60 }
+    - { feature: digital_affinity, device_type: DESKTOP, weight: -0.30, clip: 0.60 }
+    - { feature: stability_score, device_type: DESKTOP, weight: 0.20, clip: 0.45 }
+
+sharing_model:
+  mode: by_device_type_group_v1
+  device_type_groups:
+    - group_id: BACKEND_SERVER
+      device_types: [SERVER]
+      semantics: "Backend or automated systems."
+    - group_id: COMPUTER_PORTABLE
+      device_types: [LAPTOP]
+      semantics: "Portable computers."
+    - group_id: CONSUMER_PERSONAL
+      device_types: [MOBILE_PHONE, WEARABLE]
+      semantics: "Mostly personal devices."
+    - group_id: CONSUMER_SHARED
+      device_types: [DESKTOP, TABLET]
+      semantics: "Shared household devices."
+    - group_id: IOT_OTHER
+      device_types: [IOT_DEVICE]
+      semantics: "Embedded connected devices."
+  group_params:
+    BACKEND_SERVER:
+      p_shared: 0.00
+      parties_per_shared_device: { model: geometric_capK, p: 0.60, min_k: 2, max_k: 4 }
+      max_parties_per_device: 2
+    COMPUTER_PORTABLE:
+      p_shared: 0.08
+      parties_per_shared_device: { model: geometric_capK, p: 0.60, min_k: 2, max_k: 4 }
+      max_parties_per_device: 4
+    CONSUMER_PERSONAL:
+      p_shared: 0.03
+      parties_per_shared_device: { model: geometric_capK, p: 0.70, min_k: 2, max_k: 4 }
+      max_parties_per_device: 4
+    CONSUMER_SHARED:
+      p_shared: 0.25
+      parties_per_shared_device: { model: geometric_capK, p: 0.55, min_k: 2, max_k: 6 }
+      max_parties_per_device: 6
+    IOT_OTHER:
+      p_shared: 0.15
+      parties_per_shared_device: { model: geometric_capK, p: 0.55, min_k: 2, max_k: 5 }
+      max_parties_per_device: 5
+
+allocation_weight_model:
+  mode: hash_lognormal_with_zero_gate_v1
+  p_zero_weight_by_group:
+    BACKEND_SERVER: 0.15
+    COMPUTER_PORTABLE: 0.12
+    CONSUMER_PERSONAL: 0.02
+    CONSUMER_SHARED: 0.35
+    IOT_OTHER: 0.25
+  sigma_by_group:
+    BACKEND_SERVER: 0.85
+    COMPUTER_PORTABLE: 0.80
+    CONSUMER_PERSONAL: 0.55
+    CONSUMER_SHARED: 0.95
+    IOT_OTHER: 0.90
+  weight_floor_eps: 1.0e-6
+
+attribute_models:
+  os_family_model:
+    enabled: true
+    mode: by_device_type_v1
+    defaults:
+      DESKTOP:
+        - { os_family: WINDOWS, share: 0.68 }
+        - { os_family: MACOS, share: 0.22 }
+        - { os_family: LINUX, share: 0.10 }
+      IOT_DEVICE:
+        - { os_family: EMBEDDED, share: 1.00 }
+      LAPTOP:
+        - { os_family: WINDOWS, share: 0.62 }
+        - { os_family: MACOS, share: 0.28 }
+        - { os_family: LINUX, share: 0.10 }
+      MOBILE_PHONE:
+        - { os_family: ANDROID, share: 0.72 }
+        - { os_family: IOS, share: 0.28 }
+      SERVER:
+        - { os_family: LINUX, share: 0.70 }
+        - { os_family: WINDOWS, share: 0.30 }
+      TABLET:
+        - { os_family: ANDROID, share: 0.55 }
+        - { os_family: IOS, share: 0.45 }
+      WEARABLE:
+        - { os_family: IOS, share: 0.55 }
+        - { os_family: ANDROID, share: 0.45 }
+    overrides: []
+
+  ua_family_model:
+    enabled: true
+    mode: by_device_type_v1
+    defaults:
+      DESKTOP:
+        - { ua_family: CHROME, share: 0.55 }
+        - { ua_family: EDGE, share: 0.20 }
+        - { ua_family: FIREFOX, share: 0.15 }
+        - { ua_family: SAFARI, share: 0.10 }
+      IOT_DEVICE:
+        - { ua_family: API_CLIENT, share: 1.00 }
+      LAPTOP:
+        - { ua_family: CHROME, share: 0.50 }
+        - { ua_family: EDGE, share: 0.18 }
+        - { ua_family: FIREFOX, share: 0.14 }
+        - { ua_family: SAFARI, share: 0.18 }
+      MOBILE_PHONE:
+        - { ua_family: WEBVIEW, share: 0.45 }
+        - { ua_family: CHROME, share: 0.35 }
+        - { ua_family: SAFARI, share: 0.20 }
+      SERVER:
+        - { ua_family: API_CLIENT, share: 1.00 }
+      TABLET:
+        - { ua_family: WEBVIEW, share: 0.40 }
+        - { ua_family: CHROME, share: 0.35 }
+        - { ua_family: SAFARI, share: 0.25 }
+      WEARABLE:
+        - { ua_family: API_CLIENT, share: 1.00 }
+    overrides: []
+
+  risk_tier_model:
+    enabled: true
+    mode: by_device_type_with_stability_tilt_v1
+    defaults:
+      DESKTOP:
+        - { device_risk_tier: LOW, share: 0.12 }
+        - { device_risk_tier: STANDARD, share: 0.80 }
+        - { device_risk_tier: HIGH, share: 0.08 }
+      IOT_DEVICE:
+        - { device_risk_tier: STANDARD, share: 0.75 }
+        - { device_risk_tier: HIGH, share: 0.25 }
+      LAPTOP:
+        - { device_risk_tier: LOW, share: 0.10 }
+        - { device_risk_tier: STANDARD, share: 0.82 }
+        - { device_risk_tier: HIGH, share: 0.08 }
+      MOBILE_PHONE:
+        - { device_risk_tier: LOW, share: 0.18 }
+        - { device_risk_tier: STANDARD, share: 0.78 }
+        - { device_risk_tier: HIGH, share: 0.04 }
+      SERVER:
+        - { device_risk_tier: STANDARD, share: 0.70 }
+        - { device_risk_tier: HIGH, share: 0.30 }
+      TABLET:
+        - { device_risk_tier: LOW, share: 0.14 }
+        - { device_risk_tier: STANDARD, share: 0.80 }
+        - { device_risk_tier: HIGH, share: 0.06 }
+      WEARABLE:
+        - { device_risk_tier: LOW, share: 0.20 }
+        - { device_risk_tier: STANDARD, share: 0.75 }
+        - { device_risk_tier: HIGH, share: 0.05 }
+    overrides: []
+
+  risk_flags_model:
+    enabled: false
+    mode: none
+    defaults: {}
+    overrides: []
+
+constraints:
+  fail_on_missing_rule: true
+  max_devices_per_party: 14
+  max_devices_per_account: 6
+  max_devices_per_merchant: 25
+  max_total_devices_world: 200000000
+  max_total_device_edges_world: 400000000
+
+realism_targets:
+  lambda_devices_per_party_range_by_party_type:
+    RETAIL: { min: 1.3, max: 3.8 }
+    BUSINESS: { min: 1.6, max: 5.2 }
+    OTHER: { min: 0.9, max: 3.0 }
+  mobile_share_range_retail: { min: 0.45, max: 0.80 }
+  desktop_share_range_business: { min: 0.18, max: 0.40 }
+  shared_fraction_range_by_group:
+    CONSUMER_PERSONAL: { min: 0.00, max: 0.08 }
+    CONSUMER_SHARED: { min: 0.10, max: 0.40 }
+    COMPUTER_PORTABLE: { min: 0.02, max: 0.18 }
+  os_diversity_floor:
+    MOBILE_PHONE: { min_distinct: 2, min_share: 0.05 }
+    DESKTOP: { min_distinct: 2, min_share: 0.05 }
+  high_risk_fraction_cap: 0.15
+  segment_variation_required_if_n_segments_ge: 6
+  segment_variation_min_delta: 0.05
+
+notes: >
+  Device density and mix are anchored to segment traits while preserving shared-device realism.

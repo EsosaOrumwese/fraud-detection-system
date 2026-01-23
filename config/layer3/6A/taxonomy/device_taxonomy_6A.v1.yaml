@@ -1,0 +1,184 @@
+schema_version: 1
+taxonomy_id: taxonomy.devices.v1
+notes: >
+  Device taxonomy for 6A.S4 (device_type, os_family, ua_family, device_risk_tier).
+
+capability_vocabulary:
+  - BIOMETRIC
+  - CAMERA
+  - CONTACTLESS
+  - EMULATOR_PRONE
+  - GPS
+  - JAILBREAKABLE
+  - NFC
+  - PUSH_NOTIFICATIONS
+  - ROOTABLE
+  - SMS_CAPABLE
+
+os_families:
+  - id: ANDROID
+    kind: MOBILE
+    label: Android
+    description: Android mobile operating systems.
+  - id: EMBEDDED
+    kind: EMBEDDED
+    label: Embedded
+    description: Embedded or firmware OS used by terminals and IoT devices.
+  - id: IOS
+    kind: MOBILE
+    label: iOS
+    description: iOS mobile operating systems.
+  - id: LINUX
+    kind: DESKTOP
+    label: Linux
+    description: Linux desktop or server operating systems.
+  - id: MACOS
+    kind: DESKTOP
+    label: macOS
+    description: Apple desktop operating systems.
+  - id: WINDOWS
+    kind: DESKTOP
+    label: Windows
+    description: Microsoft desktop operating systems.
+
+ua_families:
+  - id: API_CLIENT
+    kind: API_CLIENT
+    label: API client
+    description: Non-browser API or SDK user agent family.
+  - id: CHROME
+    kind: BROWSER
+    label: Chrome
+    description: Chromium-based browser family.
+  - id: EDGE
+    kind: BROWSER
+    label: Edge
+    description: Microsoft Edge browser family.
+  - id: FIREFOX
+    kind: BROWSER
+    label: Firefox
+    description: Firefox browser family.
+  - id: POS_FIRMWARE
+    kind: TERMINAL_FIRMWARE
+    label: POS firmware UA
+    description: POS terminal firmware or network stack user agent family.
+  - id: SAFARI
+    kind: BROWSER
+    label: Safari
+    description: Safari browser family.
+  - id: WEBVIEW
+    kind: WEBVIEW
+    label: WebView
+    description: In-app embedded web view family.
+
+risk_tiers:
+  - id: HIGH
+    label: High risk
+    description: Higher static risk posture (e.g., rooted or emulated more plausible).
+  - id: LOW
+    label: Low risk
+    description: Lower static risk posture (managed or stable devices).
+  - id: STANDARD
+    label: Standard risk
+    description: Typical baseline posture.
+
+device_types:
+  - id: ATM
+    owner_kind: MERCHANT
+    is_mobile: false
+    is_terminal: true
+    label: ATM
+    description: Automated teller machine or cash terminal.
+    allowed_os_families: [EMBEDDED]
+    allowed_ua_families: [POS_FIRMWARE]
+    capability_tags: [CAMERA]
+
+  - id: DESKTOP
+    owner_kind: PARTY
+    is_mobile: false
+    is_terminal: false
+    label: Desktop computer
+    description: Fixed desktop computer used for web or app access.
+    allowed_os_families: [LINUX, MACOS, WINDOWS]
+    allowed_ua_families: [CHROME, EDGE, FIREFOX, SAFARI]
+    capability_tags: [PUSH_NOTIFICATIONS]
+
+  - id: IOT_DEVICE
+    owner_kind: EITHER
+    is_mobile: false
+    is_terminal: false
+    label: IoT device
+    description: Embedded connected device capable of network activity.
+    allowed_os_families: [EMBEDDED]
+    allowed_ua_families: [API_CLIENT]
+    capability_tags: [EMULATOR_PRONE]
+
+  - id: KIOSK
+    owner_kind: MERCHANT
+    is_mobile: false
+    is_terminal: true
+    label: Kiosk terminal
+    description: Self-service kiosk terminal.
+    allowed_os_families: [EMBEDDED, LINUX, WINDOWS]
+    allowed_ua_families: [POS_FIRMWARE, CHROME]
+    capability_tags: [CAMERA]
+
+  - id: LAPTOP
+    owner_kind: PARTY
+    is_mobile: true
+    is_terminal: false
+    label: Laptop computer
+    description: Portable computer used for web or app access.
+    allowed_os_families: [LINUX, MACOS, WINDOWS]
+    allowed_ua_families: [CHROME, EDGE, FIREFOX, SAFARI]
+    capability_tags: [PUSH_NOTIFICATIONS]
+
+  - id: MOBILE_PHONE
+    owner_kind: PARTY
+    is_mobile: true
+    is_terminal: false
+    label: Mobile phone
+    description: Smartphone device used for apps and mobile web.
+    allowed_os_families: [ANDROID, IOS]
+    allowed_ua_families: [CHROME, SAFARI, WEBVIEW, API_CLIENT]
+    capability_tags: [NFC, BIOMETRIC, GPS, PUSH_NOTIFICATIONS, SMS_CAPABLE, ROOTABLE, JAILBREAKABLE]
+
+  - id: POS_TERMINAL
+    owner_kind: MERCHANT
+    is_mobile: false
+    is_terminal: true
+    label: POS terminal
+    description: Merchant point-of-sale terminal for in-person payments.
+    allowed_os_families: [EMBEDDED, ANDROID]
+    allowed_ua_families: [POS_FIRMWARE, API_CLIENT]
+    capability_tags: [CONTACTLESS, NFC]
+
+  - id: SERVER
+    owner_kind: EITHER
+    is_mobile: false
+    is_terminal: false
+    label: Server
+    description: Server-like device representing automated backends.
+    allowed_os_families: [LINUX, WINDOWS]
+    allowed_ua_families: [API_CLIENT]
+    capability_tags: [EMULATOR_PRONE]
+
+  - id: TABLET
+    owner_kind: PARTY
+    is_mobile: true
+    is_terminal: false
+    label: Tablet
+    description: Tablet device used for apps and mobile web.
+    allowed_os_families: [ANDROID, IOS]
+    allowed_ua_families: [CHROME, SAFARI, WEBVIEW, API_CLIENT]
+    capability_tags: [BIOMETRIC, GPS, PUSH_NOTIFICATIONS]
+
+  - id: WEARABLE
+    owner_kind: PARTY
+    is_mobile: true
+    is_terminal: false
+    label: Wearable
+    description: Wearable device used for authentication or payments.
+    allowed_os_families: [EMBEDDED, IOS, ANDROID]
+    allowed_ua_families: [API_CLIENT]
+    capability_tags: [CONTACTLESS, NFC, BIOMETRIC]

@@ -47,7 +47,7 @@ def _build_dictionary(include_mcc: bool = True) -> dict[str, object]:
         "policies": [
             {
                 "id": "tz_overrides",
-                "path": "config/timezone/tz_overrides.yaml",
+                "path": "config/layer1/2A/timezone/tz_overrides.yaml",
             }
         ],
         "reference_data": [
@@ -131,7 +131,7 @@ def _write_sealed_inputs(
             "asset_kind": "policy",
             "version_tag": "1.0.0-alpha",
             "schema_ref": "schemas.2A.yaml#/policy/tz_overrides_v1",
-            "catalog_path": "config/timezone/tz_overrides.yaml",
+            "catalog_path": "config/layer1/2A/timezone/tz_overrides.yaml",
             "partition_keys": [],
             "sha256_hex": _aggregate_digest(tz_overrides_path),
             "size_bytes": tz_overrides_path.stat().st_size,
@@ -217,7 +217,7 @@ def _write_overrides(base_path: Path) -> Path:
             {"scope": "country", "target": "CA", "tzid": "TZ_COUNTRY"},
         ],
     }
-    overrides_path = base_path / "config/timezone/tz_overrides.yaml"
+    overrides_path = base_path / "config/layer1/2A/timezone/tz_overrides.yaml"
     overrides_path.parent.mkdir(parents=True, exist_ok=True)
     overrides_path.write_text(json.dumps(overrides_body, indent=2), encoding="utf-8")
     return overrides_path
@@ -346,7 +346,7 @@ def test_missing_mcc_mapping_is_reported(tmp_path: Path, manifest_fingerprint: s
             {"scope": "mcc", "target": "5812", "tzid": "TZ_MCC"},
         ],
     }
-    overrides_path = tmp_path / "config/timezone/tz_overrides.yaml"
+    overrides_path = tmp_path / "config/layer1/2A/timezone/tz_overrides.yaml"
     overrides_path.parent.mkdir(parents=True, exist_ok=True)
     overrides_path.write_text(json.dumps(overrides, indent=2), encoding="utf-8")
     _write_sealed_inputs(

@@ -1,0 +1,61 @@
+schema_version: 1
+policy_id: fraud_rng_policy_6B
+policy_version: v1
+
+rng_profile_ref:
+  policy_id: rng_profile_layer3
+  required: true
+
+families:
+  - family_id: rng_event_campaign_activation
+    decisions:
+      - decision_id: ACTIVATE_TEMPLATE
+        budgets: { consuming: { draws: "1", blocks: 1 }, non_consuming: { draws: "0", blocks: 0 } }
+        key_ids: [manifest_fingerprint, parameter_hash, seed, scenario_id, template_id]
+      - decision_id: SCHEDULE_START
+        budgets: { consuming: { draws: "1", blocks: 1 }, non_consuming: { draws: "0", blocks: 0 } }
+        key_ids: [manifest_fingerprint, parameter_hash, seed, scenario_id, campaign_id]
+
+  - family_id: rng_event_campaign_targeting
+    decisions:
+      - decision_id: SELECT_TARGET
+        budgets: { consuming: { draws: "1", blocks: 1 }, non_consuming: { draws: "0", blocks: 0 } }
+        key_ids: [manifest_fingerprint, parameter_hash, seed, scenario_id, campaign_id, window_index, target_index]
+      - decision_id: QUOTA_REALISATION
+        budgets: { consuming: { draws: "1", blocks: 1 }, non_consuming: { draws: "0", blocks: 0 } }
+        key_ids: [manifest_fingerprint, parameter_hash, seed, scenario_id, campaign_id]
+
+  - family_id: rng_event_overlay_mutation
+    decisions:
+      - decision_id: SELECT_TACTIC
+        budgets: { consuming: { draws: "1", blocks: 1 }, non_consuming: { draws: "0", blocks: 0 } }
+        key_ids: [manifest_fingerprint, parameter_hash, seed, scenario_id, campaign_id, target_id, mutation_step_index]
+      - decision_id: APPLY_MUTATION_PARAM
+        budgets: { consuming: { draws: "1", blocks: 1 }, non_consuming: { draws: "0", blocks: 0 } }
+        key_ids: [manifest_fingerprint, parameter_hash, seed, scenario_id, campaign_id, target_id, tactic_id, mutation_step_index]
+      - decision_id: SELECT_SWAP_CANDIDATE
+        budgets: { consuming: { draws: "1", blocks: 1 }, non_consuming: { draws: "0", blocks: 0 } }
+        key_ids: [manifest_fingerprint, parameter_hash, seed, scenario_id, campaign_id, target_id, tactic_id, mutation_step_index]
+      - decision_id: SELECT_ROUTING_ANOMALY
+        budgets: { consuming: { draws: "1", blocks: 1 }, non_consuming: { draws: "0", blocks: 0 } }
+        key_ids: [manifest_fingerprint, parameter_hash, seed, scenario_id, campaign_id, target_id, tactic_id, mutation_step_index]
+
+keying:
+  forbid_run_id_in_key: true
+  decision_id_field: decision_id
+  target_id_format: "stable opaque id (entity_id|flow_id|event_id)"
+  indices_are_zero_based: true
+
+sampling_primitives:
+  discrete_choice_draws: "1"
+  forbid_rejection_sampling: true
+  forbid_variable_draws_per_locus: true
+
+emission_rules:
+  require_non_consuming_envelopes_when_deterministic: true
+  forbid_unknown_families: true
+  forbid_data_dependent_budget_variation: true
+
+guardrails:
+  max_mutation_steps_per_target: 4
+  max_target_picks_per_campaign_instance: 200000

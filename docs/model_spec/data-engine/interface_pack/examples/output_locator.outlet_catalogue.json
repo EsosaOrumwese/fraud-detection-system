@@ -1,0 +1,15 @@
+{
+  "output_id": "outlet_catalogue",
+  "manifest_fingerprint": "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
+  "parameter_hash": "fedcba9876543210fedcba9876543210fedcba9876543210fedcba9876543210",
+  "seed": 123456789,
+  "path": "data/layer1/1A/outlet_catalogue/seed=123456789/fingerprint=0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef/",
+  "schema_ref": "schemas.1A.yaml#/egress/outlet_catalogue",
+  "dictionary_ref": "docs/model_spec/data-engine/layer-1/specs/contracts/1A/dataset_dictionary.layer1.1A.yaml#outlet_catalogue",
+  "produced_at_utc": "2026-01-02T10:20:00.000000Z",
+  "content_digest": {
+    "algo": "sha256",
+    "hex": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  "notes": "Pinned egress surface (requires gate.layer1.1A.validation before read)."
+}

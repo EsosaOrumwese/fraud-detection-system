@@ -1,0 +1,7 @@
+{
+  "version": "2025-12-31",
+  "sha256_hex": "de3de4000f314cfc40818d5d0fbcdceaaeb9efc19761aa09de21a3cd21ba7755",
+  "tile_span": "global",
+  "licence": "CC-BY-4.0 (GeoNames Gazetteer extract)",
+  "notes": "Built deterministically from GeoNames dump files: cities500.zip, countryInfo.txt, admin1CodesASCII.txt, timeZones.txt."
+}

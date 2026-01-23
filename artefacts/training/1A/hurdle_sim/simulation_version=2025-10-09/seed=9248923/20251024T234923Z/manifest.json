@@ -7,7 +7,7 @@
   },
   "generated_at_utc": "20251024T234923Z",
   "simulation_config": {
-    "config_path": "config/models/hurdle/hurdle_simulation.priors.yaml",
+    "config_path": "config/layer1/1A/models/hurdle/hurdle_simulation.priors.yaml",
     "rng": {
       "algorithm": "philox2x64-10",
       "seed": 9248923

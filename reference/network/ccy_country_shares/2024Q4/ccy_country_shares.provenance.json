@@ -1,0 +1,55 @@
+{
+  "downloaded_at_utc": {
+    "bis_d11_3": "2026-01-11T20:23:41Z",
+    "six": "2026-01-11T20:23:39Z",
+    "wdi_gdp": "2026-01-11T20:23:40Z"
+  },
+  "indicator": "NY.GDP.MKTP.CD",
+  "indicator_year": 2024,
+  "is_exact_vintage": false,
+  "obs_count_policy": {
+    "N_max": 250000,
+    "N_min": 5000,
+    "N_total_ccy": 2000000,
+    "source": "BIS D11.3 2022"
+  },
+  "output_sha256": "033b60f2e830b1f46448d3c20f9cfc6283744218cf8aa6f3a071c388f9497453",
+  "published_date": "2026-01-01",
+  "raw_sha256": {
+    "bis_d11_3": "566cc15618d363994646e60bd795c025e7fbe1ee2c084aabebc48297a79720a9",
+    "six": "838dfb991648cf36df939edd5fe3811737962b75a32252847d239cedd1e291c9",
+    "wdi_gdp": "8eb7f0e6587b4de1048c2249dadc258dcd236d787aadc47c1e178e2872f0c554"
+  },
+  "source_urls": [
+    "https://www.six-group.com/dam/download/financial-information/data-center/iso-currrency/lists/list-one.xml",
+    "https://api.worldbank.org/v2/country/all/indicator/NY.GDP.MKTP.CD?format=json&per_page=20000",
+    "https://data.bis.org/api/v0/publication_tables/BIS,DER_D11_3,1.0"
+  ],
+  "unmapped_entities": [
+    "ARAB MONETARY FUND",
+    "COCOS (KEELING) ISLANDS (THE)",
+    "EUROPEAN UNION",
+    "FALKLAND ISLANDS (THE) [MALVINAS]",
+    "HOLY SEE (THE)",
+    "INTERNATIONAL MONETARY FUND (IMF)",
+    "MEMBER COUNTRIES OF THE AFRICAN DEVELOPMENT BANK GROUP",
+    "SAINT HELENA, ASCENSION AND TRISTAN DA CUNHA",
+    "SAINT MARTIN (FRENCH PART)",
+    "SISTEMA UNITARIO DE COMPENSACION REGIONAL DE PAGOS \"SUCRE\"",
+    "SYRIAN ARAB REPUBLIC",
+    "TAIWAN (PROVINCE OF CHINA)",
+    "VIRGIN ISLANDS (BRITISH)",
+    "VIRGIN ISLANDS (U.S.)",
+    "ZZ01_Bond Markets Unit European_EURCO",
+    "ZZ02_Bond Markets Unit European_EMU-6",
+    "ZZ03_Bond Markets Unit European_EUA-9",
+    "ZZ04_Bond Markets Unit European_EUA-17",
+    "ZZ06_Testing_Code",
+    "ZZ07_No_Currency",
+    "ZZ08_Gold",
+    "ZZ09_Palladium",
+    "ZZ10_Platinum",
+    "ZZ11_Silver"
+  ],
+  "w_floor": 1000000000.0
+}

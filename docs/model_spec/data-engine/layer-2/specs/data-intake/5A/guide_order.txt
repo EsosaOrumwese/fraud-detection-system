@@ -1,0 +1,10 @@
+# List guides in dependency order after reading expanded specs and contracts.
+# One guide per line.
+scenario_horizon_config_5A_authoring-guide.md
+merchant_class_policy_5A_authoring-guide.md
+demand_scale_policy_5A_authoring-guide.md
+baseline_intensity_policy_5A_authoring-guide.md
+shape_library_5A_authoring-guide.md
+scenario_overlay_policy_5A_authoring-guide.md
+scenario_calendar_5A_derivation-guide.md
+

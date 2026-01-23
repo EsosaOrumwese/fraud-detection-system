@@ -1,0 +1,31 @@
+{
+  "policy_id": "virtual_edge_policy_v1",
+  "version_tag": "1.0.0",
+  "policy_version": "1.0.0",
+  "default_edges": [
+    { "edge_id": "iad-us", "ip_country": "US", "weight": 0.35 },
+    { "edge_id": "dub-ie", "ip_country": "IE", "weight": 0.25 },
+    { "edge_id": "sin-sg", "ip_country": "SG", "weight": 0.20 },
+    { "edge_id": "syd-au", "ip_country": "AU", "weight": 0.20 }
+  ],
+  "merchant_overrides": {
+    "1694081450446801": [
+      { "edge_id": "iad-us", "ip_country": "US", "weight": 0.60 },
+      { "edge_id": "dub-ie", "ip_country": "IE", "weight": 0.40 }
+    ],
+    "2697116941085629": [
+      { "edge_id": "sin-sg", "ip_country": "SG", "weight": 0.50 },
+      { "edge_id": "syd-au", "ip_country": "AU", "weight": 0.50 }
+    ]
+  },
+  "geo_metadata": {
+    "iad-us": { "edge_lat": 38.9445, "edge_lon": -77.4558 },
+    "dub-ie": { "edge_lat": 53.3331, "edge_lon": -6.2489 },
+    "sin-sg": { "edge_lat": 1.3521, "edge_lon": 103.8198 },
+    "syd-au": { "edge_lat": -33.8688, "edge_lon": 151.2093 }
+  },
+  "extensions": {
+    "edge_log_enabled": false
+  },
+  "notes": "Edge catalogue + default weights for virtual merchant routing (alpha)."
+}
