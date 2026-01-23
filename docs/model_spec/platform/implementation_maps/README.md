@@ -1,0 +1,21 @@
+# Platform Implementation Maps
+_As of 2026-01-23_
+
+Use this folder to capture **component-specific implementation plans and decision logs** for platform components (non-engine).
+
+## File naming
+- One file per component: `component_{COMP}.impl_actual.md`
+- Examples:
+  - `component_scenario_runner.impl_actual.md`
+  - `component_ingestion_gate.impl_actual.md`
+  - `component_event_bus.impl_actual.md`
+  - `component_decision_fabric.impl_actual.md`
+  - `component_actions_layer.impl_actual.md`
+
+## Required discipline
+- Append-only, never rewrite prior entries.
+- Add a detailed plan **before** coding and log each decision as it happens.
+- Reference the matching entry in `docs/logbook` with local time.
+
+The data engine keeps its own implementation maps under:
+`docs/model_spec/data-engine/implementation_maps/`.

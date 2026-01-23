@@ -1,5 +1,5 @@
 # AGENTS.md - Data Engine Router (Specs sealed; implementation next)
-_As of 2026-01-10_
+_As of 2026-01-23_
 
 This router tells you what is binding, what to read first, and which parts of the engine are in play. All technical specifications for all segments, 1A to 6B are ready. **Ensure you have read the repo's root AGENTS.md**.
 
@@ -69,6 +69,61 @@ Read these in order before touching code so you align with the frozen specs. Not
 - Default: do NOT copy large immutable datasets (e.g., hrsl_raster).
 - Optional: staged/hermetic mode copies small/medium inputs into runs/<run_id>/reference/.
 
+
+---
+
+## Implementation map discipline (mandatory, detail-first)
+- For every segment/state you touch, you MUST append entries to
+  `docs/model_spec/data-engine/implementation_maps/segment_{SEG}.impl_actual.md`.
+- Each entry MUST be detailed and auditable. A 1-2 line summary is allowed, but
+  the plan itself must be explicit and stepwise. No vague "we will implement"
+  phrasing and no skipped rationale.
+- The implementation map is a running **brainstorming notebook**. As you reason
+  through a state, capture the full thought process (assumptions, alternatives,
+  decision criteria, edge cases, and intended mechanics). Do this **during** the
+  design, not just before/after. The goal is to make the entire reasoning trail
+  reviewable later, not a minimal recap.
+- This is NOT a two-time update doc. Append entries repeatedly while you are
+  actively thinking and deciding. If you explore multiple approaches or adjust
+  your plan mid-stream, record each thread as it happens so the reader can see
+  the full evolution of the decision process.
+- The plan MUST include: exact inputs/authorities, file paths, algorithm or
+  data-flow choices, invariants to enforce, logging points, resumability hooks,
+  performance considerations, and validation/testing steps.
+- Before implementing any change, append a detailed plan entry that captures
+  your full thought process: the problem, alternatives considered, the decision
+  and why, and the exact steps you intend to take. Do this *before* coding so
+  the record reflects the real decision path (not a retrospective summary).
+- For every decision or review during implementation (no matter how small),
+  append another entry describing the reasoning and the outcome. If you realize
+  a missing decision later, append a corrective entry rather than rewriting
+  history.
+- If you are about to implement a change and the in-progress reasoning is not
+  captured yet, stop and append a new entry first. The map must mirror the live
+  design process, not a reconstructed summary.
+- If a plan changes, append a new entry describing the change and why. Never
+  delete or rewrite prior entries.
+- Before implementing a state, read ALL expanded docs for that segment/state
+  and note the files read in the logbook (time-stamped).
+- Log every decision and action as it happens in `docs/logbook` with local time.
+  The logbook must reference the matching implementation-map entry (or note
+  that one was added).
+- If you are unsure, stop and add a detailed plan entry first, then proceed.
+
+## Execution logging requirements (engine)
+- Use loggers in every process; include a heartbeat plus narrative state-aware logs.
+- Log lines must be narrative and state-aware: whenever you log counts/progress,
+  include what the count represents, the gate defining scope, and the stage/output.
+- Emit a short story header log per state (objective, gated inputs, outputs).
+- For long-running loops, include elapsed time, processed/total, rate, ETA using
+  monotonic time and a predictable cadence.
+
+## Implementation records + hygiene (engine)
+- Keep `pyproject.toml` aligned with new dependencies.
+- Ensure truly large files are tracked in Git LFS.
+- Update the Makefile as workflows evolve (human-readable; no reverse-engineer constraints).
+- Before implementation, declare the contract source (model_spec for dev; root-ready switch later).
+- Do not use placeholders; locate externals via artefact registry/data dictionary.
 
 ---
 
