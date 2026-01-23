@@ -181,6 +181,10 @@ gate:
       properties:
         s0_gate_receipt_6B:
           $id: "#/gate/6B/s0_gate_receipt_6B"
+          $defs:
+            hex64:
+              type: string
+              pattern: "^[0-9a-f]{64}$"
           type: object
           additionalProperties: false
           required:
@@ -221,6 +225,10 @@ gate:
 
         sealed_inputs_6B:
           $id: "#/gate/6B/sealed_inputs_6B"
+          $defs:
+            hex64:
+              type: string
+              pattern: "^[0-9a-f]{64}$"
           type: object
           additionalProperties: false
           required:

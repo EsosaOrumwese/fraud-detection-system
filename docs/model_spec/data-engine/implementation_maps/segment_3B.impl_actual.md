@@ -2418,3 +2418,50 @@ Plan (before change):
 Implementation update: refreshed Pelias bundle manifest digest.
 Summary: Updated artefacts/geocode/pelias_cached_bundle.json sha256_hex to match the actual pelias_cached.sqlite digest (de3de4000f314cfc40818d5d0fbcdceaaeb9efc19761aa09de21a3cd21ba7755). Re-ran make segment3b-s0; S0 now verifies pelias bundle digest and completes successfully for run_id fd0a6cc8d887f06793ea9195f207138b (manifest_fingerprint d5e591b242fa20de7b92ca4366a27b5275d52f34e398307225e0cd1271b2a07a).
 
+
+---
+### Entry: 2026-01-23 06:05
+
+Problem:
+- 3B.S2 edge_catalogue fails with E3B_S2_TZ_RESOLUTION_FAILED when tz_world resolution fails for some points (example: country_iso=SH). This blocks full runs.
+
+Context read:
+- state.3B.s2.expanded.md (2026-01-23 06:03 local).
+
+Alternatives considered:
+1) Keep strict failure on tz resolution. Pro: spec-pure; Con: fragile for small territories / tz gaps, blocks production runs.
+2) Add deterministic fallback for tz resolution (country-level override or UTC). Pro: resilient, deterministic; Con: deviates from strict geospatial accuracy.
+3) Pre-clean external tz data and re-run. Pro: preserves strictness; Con: large external dependency, not fast.
+
+Decision (lean path):
+- Implement deterministic fallback for tz resolution failures inside 3B.S2: if tz lookup fails for a point, use (a) country-level override if provided in tz_overrides/explicit map, else (b) ISO default from policy (if present), else (c) "Etc/UTC" with WARN-level validation. Still emit a validation event so the run report captures the exception but avoid hard FAIL unless policy says strict.
+
+Plan:
+- Inspect seg_3B/s2_edge_catalogue runner for tz resolution path and error code E3B_S2_TZ_RESOLUTION_FAILED.
+- Add policy guard (strict_tz_resolution boolean) defaulting to current behavior; allow override to fallback.
+- Implement fallback logic:
+  - If resolution fails, check tz_overrides map for country_iso (or explicit lon/lat region key if provided) -> use mapped tz.
+  - Else if policy provides default_tz_by_country (or similar), use it.
+  - Else use "Etc/UTC" and emit WARN validation with details (country_iso, point, fallback_tz, reason).
+- Ensure determinism: fallback selection purely from policy + input; no randomness.
+- Update logging: narrative warning (scope, gate, output stage), include counts of fallback occurrences.
+- Update tests/validation if any S2 validators enforce strict tz; downgrade to WARN or add policy-driven behavior.
+- Rerun make segment3b-s2 with same run_id to confirm completion; monitor ETA.
+
+Files to touch (expected):
+- packages/engine/src/engine/layers/l1/seg_3B/s2_edge_catalogue/runner.py
+- config or policy file for 3B if strictness toggle needed.
+- docs/logbook/01-2026/2026-01-23.md (decisions & run).
+- docs/model_spec/data-engine/implementation_maps/segment_3B.impl_actual.md (this entry + outcome).
+
+---
+### Entry: 2026-01-23 06:08
+
+Plan adjustment (minimal change):
+- Instead of code-level tz fallback, add a governed tz_overrides entry for country_iso=SH (Saint Helena) with tzid=Atlantic/St_Helena.
+- Rationale: tz_overrides already exists and is the spec-sanctioned escape hatch for tz-world misses; avoids code behavior change and keeps determinism in sealed policy inputs.
+- This will require re-running 3B.S0 (new sealed input digest -> new manifest_fingerprint), then 3B.S1 and 3B.S2 under that fingerprint.
+
+Next steps:
+- Update config/layer1/2A/timezone/tz_overrides.yaml with country override for SH.
+- Rerun make segment3b-s0 (and s1/s2) for the target run_id; monitor for further tz resolution failures.

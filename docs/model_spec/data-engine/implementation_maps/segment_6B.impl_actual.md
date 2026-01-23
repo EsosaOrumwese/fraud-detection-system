@@ -975,3 +975,81 @@ Interface-pack/schema alignment:
   - #/validation/6B/validation_bundle_index_6B
   - #/validation/6B/passed_flag_6B
 - Purpose: make schema_ref anchors resolvable for interface_pack consumers; no behavioral change to engine runtime.
+
+---
+### Entry: 2026-01-23 04:32
+
+6B.S1 failure analysis (schema resolution):
+- Trigger: 6B.S1 fails during _validate_payload against sealed_inputs_6B with PointerToNowhere: '/$defs/hex64' does not exist under schema id #/gate/6B/sealed_inputs_6B.
+- Root cause: subschema uses $id with a fragment (#/gate/6B/sealed_inputs_6B). jsonschema resolves internal $ref "#/$defs/hex64" relative to that subschema’s base URI, which no longer includes the document root $defs. This makes $defs unreachable during S1 validation.
+
+Alternatives considered:
+1) Remove/alter $id to avoid fragment base: would break interface_pack schema_ref anchors that rely on the existing pointer.
+2) Add local $defs to sealed_inputs_6B subschema: avoids $ref break but duplicates definitions and risks drift.
+3) Update $ref to absolute document-root refs (schemas.layer3.yaml#/$defs/hex64): minimal change, retains anchors, keeps shared defs as single source.
+
+Decision:
+- Use absolute document-root refs for hex64 inside sealed_inputs_6B (and sealed_inputs_6A for consistency). Keep $id anchors unchanged to preserve interface_pack schema_ref stability.
+
+Plan (pre-implementation):
+- Edit docs/model_spec/data-engine/layer-3/specs/contracts/6B/schemas.layer3.yaml sealed_inputs_6A and sealed_inputs_6B properties:
+  - manifest_fingerprint: { $ref: "schemas.layer3.yaml#/$defs/hex64" }
+  - sha256_hex:          { $ref: "schemas.layer3.yaml#/$defs/hex64" }
+- Validate no other schema nodes are affected (only sealed_inputs schemas touched).
+- Rerun make segment6b-s1 for run_id c7b08388516bf5522028b10535540e82 to confirm schema validation passes.
+- Log the change in logbook with timestamp and reference this entry.
+
+### Entry: 2026-01-23 04:35
+
+6B schema fix applied:
+- Updated docs/model_spec/data-engine/layer-3/specs/contracts/6B/schemas.layer3.yaml sealed_inputs_6A + sealed_inputs_6B to use absolute refs for hex64:
+  - manifest_fingerprint -> "schemas.layer3.yaml#/$defs/hex64"
+  - sha256_hex -> "schemas.layer3.yaml#/$defs/hex64"
+- Rationale: keep $id anchors for interface_pack while ensuring Draft202012Validator resolves shared $defs from document root.
+- Next: rerun make segment6b-s1 (run_id=c7b08388516bf5522028b10535540e82) to confirm schema validation passes.
+
+### Entry: 2026-01-23 04:38
+
+6B schema fix revision (after S0 failure):
+- Observed 6B.S0 failure: jsonschema tried to resolve schemas.layer3.yaml#/$defs/hex64 as a URI (Unresolvable '/schemas.layer3.yaml').
+- Adjusted approach: revert absolute refs back to "#/$defs/hex64" and add local $defs(hex64) to the subschemas that carry fragment $id (s0_gate_receipt_6B and sealed_inputs_6B).
+- This keeps interface_pack schema_ref anchors intact while avoiding external URI retrieval.
+
+Change applied:
+- docs/model_spec/data-engine/layer-3/specs/contracts/6B/schemas.layer3.yaml
+  - Replaced all "schemas.layer3.yaml#/$defs/hex64" with "#/$defs/hex64".
+  - Added local $defs.hex64 under s0_gate_receipt_6B and sealed_inputs_6B.
+
+Next:
+- Rerun make segment6b-s0 (and then segment6b-s1) to verify schema validation now passes.
+
+### Entry: 2026-01-23 04:42
+
+6B.S1 failure root cause (array schema wrapping):
+- _validate_payload converts object schema to array for list payloads and drops $defs from items schema.
+- Because sealed_inputs_6B schema has $id, jsonschema resolves $ref #/$defs/hex64 against the items schema resource; with $defs stripped, resolution fails even if top-level array schema has $defs.
+
+Decision:
+- Keep $defs in the items schema when wrapping object->array (duplicate defs at top level is OK). This preserves local resolution for $id-bound items schemas.
+
+Plan:
+- Update packages/engine/src/engine/layers/l3/seg_6B/s1_attachment_session/runner.py in _validate_payload:
+  - When payload is list and schema type is object, construct items_schema = dict(schema) without removing $defs.
+  - Preserve existing behavior that also adds $defs to the top-level array schema.
+- Rerun make segment6b-s1 for run_id c7b08388516bf5522028b10535540e82.
+
+### Entry: 2026-01-23 04:44
+
+6B.S1 schema wrap fix implemented:
+- Updated packages/engine/src/engine/layers/l3/seg_6B/s1_attachment_session/runner.py _validate_payload:
+  - Preserve $defs in items_schema when converting object schema -> array for list payloads.
+  - Keep $defs duplicated at top-level array schema for compatibility.
+- Expected effect: sealed_inputs_6B validation resolves #/$defs/hex64 within items schema resource (even with $id).
+- Next: rerun make segment6b-s1 (run_id c7b08388516bf5522028b10535540e82) and monitor for any further schema errors.
+
+### Entry: 2026-01-23 05:12
+
+6B.S1 run outcome after schema fixes:
+- Run_id c7b08388516bf5522028b10535540e82 completed S1 successfully.
+- Log summary: arrivals_processed=134,980,749; sessions=134,919,711; elapsed=1822.30s; scenario_id=baseline_v1.
+- Outputs: s1_arrival_entities_6B and s1_session_index_6B published; rng audit/trace appended.

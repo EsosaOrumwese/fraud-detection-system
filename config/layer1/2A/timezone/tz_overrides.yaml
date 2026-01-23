@@ -17,3 +17,9 @@
   evidence_url: null
   expiry_yyyy_mm_dd: null
   notes: "S2 tz resolution fallback for TW when tz_world polygons miss jittered points."
+- scope: country
+  target: "SH"
+  tzid: "Atlantic/St_Helena"
+  evidence_url: null
+  expiry_yyyy_mm_dd: null
+  notes: "S2 tz resolution fallback for SH when tz_world polygons miss jittered points."
