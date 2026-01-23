@@ -4920,3 +4920,14 @@ Invariants:
 
 Validation:
 - Re-run segment5b-s5 and confirm routing_membership passes (no missing edge_ids for physical subset).
+
+### Entry: 2026-01-23 14:31
+
+Implementation update: exclude virtual arrivals from routing membership (5B.S5).
+
+Actions taken:
+- Filtered rows to physical_rows where is_virtual is falsy before collecting site_id/edge_id.
+- Keeps dtype-safe string normalization from earlier fix.
+
+Expected outcome:
+- routing_membership no longer fails due to virtual edge_ids not present in 3B edge_catalogue.

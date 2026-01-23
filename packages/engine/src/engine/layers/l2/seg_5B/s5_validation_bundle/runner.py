@@ -387,8 +387,9 @@ def _check_routing_membership(
     edge_paths: list[Path],
     logger,
 ) -> tuple[bool, dict]:
-    site_ids = {str(row["site_id"]) for row in rows if row.get("site_id") is not None}
-    edge_ids = {str(row["edge_id"]) for row in rows if row.get("edge_id") is not None}
+    physical_rows = [row for row in rows if not bool(row.get("is_virtual"))]
+    site_ids = {str(row["site_id"]) for row in physical_rows if row.get("site_id") is not None}
+    edge_ids = {str(row["edge_id"]) for row in physical_rows if row.get("edge_id") is not None}
     if not site_ids and not edge_ids:
         return True, {}
 
