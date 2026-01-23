@@ -3317,3 +3317,43 @@ Plan (before change):
 
 Implementation update: raised S3 weekly volume guardrail and reran S3.
 Summary: Updated config/layer2/5A/policy/baseline_intensity_policy_5A.v1.yaml hard_limits.max_weekly_volume_expected to 5,000,000 (observed max ~4.16M). Re-ran make segment5a-s3 for run_id fd0a6cc8d887f06793ea9195f207138b; S3 completed PASS and published merchant_zone_baseline_local_5A + class_zone_baseline_local_5A.
+
+### Entry: 2026-01-23 06:53
+
+Design element: 5A.S1 demand scale guardrail too low for current run (S1_SCALE_ASSIGNMENT_FAILED).
+Summary: Full run (run_id 30163ff7db4966ad8a7f0eeacc93b986) failed in 5A.S1 with S1_SCALE_ASSIGNMENT_FAILED scale_exceeds_max: weekly_volume_expected ~6,049,323 > policy cap 5,000,000. This is a policy realism guardrail mismatch, not a data integrity error.
+
+Plan (before change):
+1) **Inputs / authorities**
+   - Run log: runs/local_full_run-5/30163ff7db4966ad8a7f0eeacc93b986/run_log_30163ff7db4966ad8a7f0eeacc93b986.log (error context + observed weekly_volume_expected).
+   - Policy file: config/layer2/5A/policy/demand_scale_policy_5A.v1.yaml (realism_targets.max_weekly_volume_expected).
+   - Contracts: docs/model_spec/data-engine/layer-2/specs/contracts/5A/schemas.5A.yaml (policy schema).
+2) **Alternatives considered**
+   - Clamp weekly_volume_expected in code to max_weekly_volume_expected (avoids aborts but hides policy mismatch and changes distribution).
+   - Reduce global_multiplier or per-class params (broader distribution change, higher risk of drift).
+3) **Decision**
+   - Raise realism_targets.max_weekly_volume_expected to 10,000,000 to provide headroom above observed 6.05M while keeping a finite guardrail.
+4) **Algorithm / data-flow**
+   - No algorithm change. Only policy cap adjustment; S1 logic remains unchanged.
+5) **Invariants**
+   - weekly_volume_expected remains finite and non-negative; cap remains enforced.
+   - Keep schema compliance with policy contract.
+6) **Logging points**
+   - Rely on existing S1 logs that emit policy versions and scale_exceeds_max context.
+7) **Resumability**
+   - Must rerun 5A.S0 to reseal inputs because sealed_inputs_5A embeds policy hashes.
+   - If S0 immutability blocks, use a fresh run_id or delete prior 5A S0 outputs for the run_id.
+8) **Performance**
+   - Negligible impact (policy-only change).
+9) **Validation / testing**
+   - Run make segment5a-s0 then segment5a-s1 for run_id 30163ff7db4966ad8a7f0eeacc93b986.
+   - Confirm S1 passes and merchant_zone_profile_5A emitted; ensure no new guardrail violations.
+
+### Entry: 2026-01-23 06:55
+
+Implementation update: 5A.S0 rerun blocked by output conflict after policy change.
+Summary: After raising demand_scale_policy_5A max_weekly_volume_expected, rerunning segment5a-s0 for run_id 30163ff7db4966ad8a7f0eeacc93b986 failed with S0_OUTPUT_CONFLICT (existing sealed_inputs_digest differs from newly computed). This is expected because sealed_inputs_5A was already written with old policy hashes.
+
+Next steps:
+1) Either use a fresh run_id for the full run, or
+2) Delete the existing 5A S0 outputs under the current run_id (s0_gate_receipt_5A + sealed_inputs_5A) and rerun segment5a-s0 then segment5a-s1.

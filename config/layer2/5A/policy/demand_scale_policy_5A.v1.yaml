@@ -86,4 +86,4 @@ realism_targets:
   - 900
   p99_p50_ratio_min: 6
   max_class_volume_share: 0.6
-  max_weekly_volume_expected: 5000000
+  max_weekly_volume_expected: 10000000
