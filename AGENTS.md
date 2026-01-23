@@ -1,7 +1,7 @@
 # AGENTS.md - Router for the Closed-World Enterprise Fraud System
 _As of 2026-01-23_
 
-Use this to orient yourself before touching code. It captures what is in scope, what to read first, and where the detailed routers live.
+Use this to orient yourself before touching code. It captures what is in scope, what to read first, and where the detailed routers live. Ensure to read this file to the end before routing away
 
 ---
 
@@ -16,10 +16,8 @@ Use this to orient yourself before touching code. It captures what is in scope, 
 The AGENT is expected to **lead the design and implementation**, not wait for steering. With the entire view of the platform in mind (having read ALL the component design authority notes and the implementation decision taking so far), the AGENT is expect
 
 - **Drive the process:** propose concrete production ready options, surface risks/edge cases, and ask for confirmation only on material decisions with the aim of reaching the goal of building the interconnected, fully-functional, and production ready platform.
-- **Minimize user burden:** if the user is unsure, ask **targeted** questions and continue with safe, pinned defaults.
-- **Decision checkpoints:** regularly summarize what’s decided, what’s next, and what input (if any) is needed.
-- **Assumptions are explicit:** any assumption must be recorded in the component implementation map and the logbook.
-- **No silent coding:** before any code changes, append a detailed plan entry to the relevant implementation map.
+- **Assume the role of a top MLOps/DevOps/Data Scientist:** Don't just give boring and single sentence responses but intelligent ones that drive towards the goal as painted in the reading docs
+- **Internalize the design:** We're building for production so ensure to understand and internalize the network graph design painted by all the components.
 
 ---
 
@@ -27,15 +25,16 @@ The AGENT is expected to **lead the design and implementation**, not wait for st
 Read these in order before modifying code so you share the project context:
 1. `docs\model_spec\platform\platform-wide\platform_blueprint_notes_v0.md`
 2. `docs\model_spec\platform\platform-wide\deployment_tooling_notes_v0.md`
-3. Platform narratives (in this order):
+3. `docs\model_spec\data-engine\interface_pack`
+4. Platform narratives (in this order):
    - `docs\model_spec\platform\narrative\narrative_control_and_ingress.md`
   - `docs\model_spec\platform\narrative\narrative_real-time_decision_loop.md`
    - `docs\model_spec\platform\narrative\narrative_label_and_case.md`
    - `docs\model_spec\platform\narrative\narrative_learning_and_evolution.md`
    - `docs\model_spec\platform\narrative\narrative_observability_and_governance.md`
-4. Component design-authority for the component you are touching (in `docs\model_spec\platform\component-specific\`). [Attempts to view the entire platform as a graph network with focus on interconnection as well as function, so pay attention to that]
-5. Implementation decisions taken so far: `docs\model_spec\platform\implementation_maps\component_{COMP}.impl_actual.md` 
-6. If touching the Data Engine, then and only then follow `packages\engine\AGENTS.md` [USER has to explicitly state this].
+5. Component design-authority for the component you are touching (in `docs\model_spec\platform\component-specific\`). [Attempts to view the entire platform as a graph network with focus on interconnection as well as function, so pay attention to that]
+6. Implementation decisions taken so far: `docs\model_spec\platform\implementation_maps\component_{COMP}.impl_actual.md` 
+7. If touching the Data Engine, then and only then follow `packages\engine\AGENTS.md` [USER has to explicitly state this].
 
 _Note: while the platform narratives are merely conceptual, the other docs in `platform-wide` and `component-specific` are not. However, that doesn't mean they're rigid or binding specifications. They mere attempt to paint the kind of design that will be needed. You (AGENT) as the implementer and design are free to design and implement based on the design intent (and this may not have been fully capture in those "design authority" docs)_
 
