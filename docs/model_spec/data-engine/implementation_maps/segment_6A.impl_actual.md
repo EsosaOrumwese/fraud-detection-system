@@ -1122,3 +1122,14 @@ Interface-pack/schema alignment:
 - **Steps:**
   1) Update `_validate_payload` in `packages/engine/src/engine/layers/l3/seg_6A/s2_accounts/runner.py` to keep `$defs` in `items_schema`.
   2) Rerun `make segment6a-s2` for the active run_id.
+
+### Entry: 2026-01-23 09:48
+
+6A schema audit: ensure all state validators preserve `$defs` in list wrapping.
+- **Scope:** searched 6A state runners for the pattern that drops `$defs` from `items_schema` during array wrapping.
+- **Files updated:**
+  - `packages/engine/src/engine/layers/l3/seg_6A/s3_instruments/runner.py`
+  - `packages/engine/src/engine/layers/l3/seg_6A/s4_device_graph/runner.py`
+  - `packages/engine/src/engine/layers/l3/seg_6A/s5_fraud_posture/runner.py`
+- **Rationale:** same PointerToNowhere failure seen in S1/S2 can occur in later states when validating sealed_inputs or gate receipts. Keeping `$defs` in the items schema ensures `$ref #/$defs/...` resolves under the subschema `$id`.
+- **Next step:** rerun affected states as needed (S3/S4/S5) after S1/S2 succeed; monitor for IO_WRITE_CONFLICTs on existing outputs/RNG event files.

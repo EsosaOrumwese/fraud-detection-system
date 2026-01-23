@@ -264,8 +264,8 @@ def _validate_payload(
     schema = _schema_from_pack(schema_pack, f"#/{schema_anchor}")
     _inline_external_refs(schema, schema_layer3, "schemas.layer3.yaml#")
     if isinstance(payload, list) and schema.get("type") == "object":
-        defs = schema.get("$defs")
-        items_schema = {key: value for key, value in schema.items() if key != "$defs"}
+        items_schema = dict(schema)
+        defs = items_schema.get("$defs")
         schema = {"type": "array", "items": items_schema}
         if defs:
             schema["$defs"] = defs

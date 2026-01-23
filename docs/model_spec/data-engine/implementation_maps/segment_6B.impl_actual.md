@@ -1053,3 +1053,14 @@ Plan:
 - Run_id c7b08388516bf5522028b10535540e82 completed S1 successfully.
 - Log summary: arrivals_processed=134,980,749; sessions=134,919,711; elapsed=1822.30s; scenario_id=baseline_v1.
 - Outputs: s1_arrival_entities_6B and s1_session_index_6B published; rng audit/trace appended.
+
+### Entry: 2026-01-23 09:48
+
+6B schema audit: preserve `$defs` when wrapping object schemas for list payloads.
+- **Scope:** searched 6B state runners for the pattern that strips `$defs` from `items_schema` in `_validate_payload`.
+- **Files updated:**
+  - `packages/engine/src/engine/layers/l3/seg_6B/s2_baseline_flow/runner.py`
+  - `packages/engine/src/engine/layers/l3/seg_6B/s3_fraud_overlay/runner.py`
+  - `packages/engine/src/engine/layers/l3/seg_6B/s4_truth_bank_labels/runner.py`
+- **Rationale:** avoid PointerToNowhere errors for `#/$defs/hex64` under subschema `$id` when validating sealed_inputs or gate receipts in later states.
+- **Next step:** rerun affected states as needed after S1; monitor for IO_WRITE_CONFLICT if outputs/RNG events already exist.
