@@ -1,0 +1,193 @@
+"""Evidence collection and gate verification."""
+
+from __future__ import annotations
+
+import hashlib
+import json
+from dataclasses import dataclass
+from enum import Enum
+from pathlib import Path
+from typing import Any
+
+import yaml
+
+from .models import EvidenceStatus
+
+
+class GateStatus(str, Enum):
+    PASS = "PASS"
+    FAIL = "FAIL"
+
+
+@dataclass(frozen=True)
+class EngineOutputLocator:
+    output_id: str
+    path: str
+    manifest_fingerprint: str | None = None
+    parameter_hash: str | None = None
+    seed: int | None = None
+    scenario_id: str | None = None
+    run_id: str | None = None
+    content_digest: str | None = None
+
+
+@dataclass(frozen=True)
+class GateReceipt:
+    gate_id: str
+    status: GateStatus
+    scope: dict[str, Any]
+    receipt_ref: str
+    digest: str | None = None
+
+
+@dataclass(frozen=True)
+class EvidenceBundle:
+    status: EvidenceStatus
+    locators: list[EngineOutputLocator]
+    gate_receipts: list[GateReceipt]
+    bundle_hash: str | None = None
+    missing: list[str] | None = None
+    reason: str | None = None
+
+
+@dataclass(frozen=True)
+class GateVerificationResult:
+    receipt: GateReceipt | None
+    missing: bool
+    conflict: bool
+
+
+class GateMap:
+    def __init__(self, gate_map_path: Path) -> None:
+        data = yaml.safe_load(gate_map_path.read_text(encoding="utf-8"))
+        self.gates = {entry["gate_id"]: entry for entry in data.get("gates", [])}
+
+    def required_gate_set(self, output_ids: list[str]) -> list[str]:
+        required = set()
+        for gate_id, entry in self.gates.items():
+            if any(output_id in entry.get("authorizes_outputs", []) for output_id in output_ids):
+                required.add(gate_id)
+        # Add upstream dependencies
+        changed = True
+        while changed:
+            changed = False
+            for gate_id in list(required):
+                deps = self.gates.get(gate_id, {}).get("upstream_gate_dependencies", [])
+                for dep in deps:
+                    if dep not in required:
+                        required.add(dep)
+                        changed = True
+        return sorted(required)
+
+    def gate_entry(self, gate_id: str) -> dict[str, Any]:
+        return self.gates[gate_id]
+
+
+class GateVerifier:
+    def __init__(self, engine_root: Path, gate_map: GateMap) -> None:
+        self.engine_root = engine_root
+        self.gate_map = gate_map
+
+    def verify(self, gate_id: str, tokens: dict[str, Any]) -> GateVerificationResult:
+        entry = self.gate_map.gate_entry(gate_id)
+        method = entry.get("verification_method", {})
+        passed_flag = self._render(entry["passed_flag_path_template"], tokens)
+        bundle_root = self._render(entry["bundle_root_template"], tokens)
+        index_path = self._render(entry.get("index_path_template", ""), tokens)
+        digest_field = method.get("digest_field")
+        ordering = method.get("ordering", "ascii_lex")
+        exclude = set(method.get("exclude_filenames", []) or [])
+
+        passed_path = self.engine_root / passed_flag
+        if not passed_path.exists():
+            return GateVerificationResult(receipt=None, missing=True, conflict=False)
+
+        bundle_path = self.engine_root / bundle_root
+        if not bundle_path.exists():
+            return GateVerificationResult(receipt=None, missing=True, conflict=False)
+
+        expected = self._parse_passed_flag(passed_path, digest_field)
+        if expected is None:
+            return GateVerificationResult(receipt=None, missing=False, conflict=True)
+
+        if method.get("kind") == "sha256_member_digest_concat":
+            index_full = self.engine_root / index_path
+            if not index_full.exists():
+                return GateVerificationResult(receipt=None, missing=True, conflict=False)
+            actual = self._digest_member_concat(index_full, digest_field)
+        else:
+            actual = self._digest_bundle(bundle_path, exclude, ordering)
+
+        if actual != expected:
+            receipt = GateReceipt(
+                gate_id=gate_id,
+                status=GateStatus.FAIL,
+                scope=tokens,
+                receipt_ref=str(passed_path),
+                digest=actual,
+            )
+            return GateVerificationResult(receipt=receipt, missing=False, conflict=True)
+        receipt = GateReceipt(
+            gate_id=gate_id,
+            status=GateStatus.PASS,
+            scope=tokens,
+            receipt_ref=str(passed_path),
+            digest=actual,
+        )
+        return GateVerificationResult(receipt=receipt, missing=False, conflict=False)
+
+    def _render(self, template: str, tokens: dict[str, Any]) -> str:
+        rendered = template
+        for key, value in tokens.items():
+            rendered = rendered.replace(f"{{{key}}}", str(value))
+        return rendered
+
+    def _parse_passed_flag(self, path: Path, digest_field: str | None) -> str | None:
+        content = path.read_text(encoding="utf-8").strip()
+        if not content:
+            return None
+        if content.startswith("{"):
+            data = json.loads(content)
+            return data.get(digest_field) if digest_field else None
+        if "=" in content:
+            key, value = content.split("=", 1)
+            if digest_field and key.strip() != digest_field:
+                return None
+            return value.strip()
+        return None
+
+    def _digest_bundle(self, root: Path, exclude: set[str], ordering: str) -> str:
+        files = [path for path in root.rglob("*") if path.is_file() and path.name not in exclude]
+        if ordering == "ascii_lex":
+            files = sorted(files, key=lambda p: str(p.relative_to(root)))
+        digest = hashlib.sha256()
+        for path in files:
+            digest.update(path.read_bytes())
+        return digest.hexdigest()
+
+    def _digest_member_concat(self, index_path: Path, digest_field: str | None) -> str:
+        data = json.loads(index_path.read_text(encoding="utf-8"))
+        items = data.get("members") or data.get("items") or []
+        parts = []
+        for item in items:
+            value = item.get(digest_field) if digest_field else None
+            if value:
+                parts.append(value)
+        concat = "".join(parts)
+        return hashlib.sha256(concat.encode("utf-8")).hexdigest()
+
+
+def hash_bundle(locators: list[EngineOutputLocator], receipts: list[GateReceipt], policy_rev: dict[str, Any]) -> str:
+    def locator_key(locator: EngineOutputLocator) -> str:
+        return locator.output_id
+
+    def receipt_key(receipt: GateReceipt) -> str:
+        return receipt.gate_id
+
+    payload = {
+        "locators": [locator.__dict__ for locator in sorted(locators, key=locator_key)],
+        "receipts": [receipt.__dict__ for receipt in sorted(receipts, key=receipt_key)],
+        "policy_rev": policy_rev,
+    }
+    encoded = json.dumps(payload, sort_keys=True, ensure_ascii=True, separators=(",", ":"))
+    return hashlib.sha256(encoded.encode("utf-8")).hexdigest()

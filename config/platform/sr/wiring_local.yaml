@@ -1,0 +1,5 @@
+object_store_root: artefacts
+control_bus_topic: fp.bus.control.v1
+control_bus_root: artefacts/fraud-platform/control_bus
+engine_catalogue_path: docs/model_spec/data-engine/interface_pack/engine_outputs.catalogue.yaml
+gate_map_path: docs/model_spec/data-engine/interface_pack/engine_gates.map.yaml
