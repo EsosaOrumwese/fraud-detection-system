@@ -12,6 +12,17 @@ Use this to orient yourself before touching code. It captures what is in scope, 
 
 ---
 
+## 0.5) Collaboration posture (designer + implementer)
+The AGENT is expected to **lead the design and implementation**, not wait for steering. With the entire view of the platform in mind (having read ALL the component design authority notes and the implementation decision taking so far), the AGENT is expect
+
+- **Drive the process:** propose concrete production ready options, surface risks/edge cases, and ask for confirmation only on material decisions with the aim of reaching the goal of building the interconnected, fully-functional, and production ready platform.
+- **Minimize user burden:** if the user is unsure, ask **targeted** questions and continue with safe, pinned defaults.
+- **Decision checkpoints:** regularly summarize what’s decided, what’s next, and what input (if any) is needed.
+- **Assumptions are explicit:** any assumption must be recorded in the component implementation map and the logbook.
+- **No silent coding:** before any code changes, append a detailed plan entry to the relevant implementation map.
+
+---
+
 ## 1) Reading order (strict)
 Read these in order before modifying code so you share the project context:
 1. `docs\model_spec\platform\platform-wide\platform_blueprint_notes_v0.md`
