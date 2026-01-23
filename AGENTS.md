@@ -18,7 +18,7 @@ Read these in order before modifying code so you share the project context:
 2. `docs\model_spec\platform\platform-wide\deployment_tooling_notes_v0.md`
 3. Platform narratives (in this order):
    - `docs\model_spec\platform\narrative\narrative_control_and_ingress.md`
-   - `docs\model_spec\platform\narrative\narrrative_real-time_decision_loop.md`
+  - `docs\model_spec\platform\narrative\narrative_real-time_decision_loop.md`
    - `docs\model_spec\platform\narrative\narrative_label_and_case.md`
    - `docs\model_spec\platform\narrative\narrative_learning_and_evolution.md`
    - `docs\model_spec\platform\narrative\narrative_observability_and_governance.md`
