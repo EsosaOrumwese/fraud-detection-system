@@ -4596,3 +4596,31 @@ Corrective plan (documenting the real-time change already applied in working tre
 Notes:
 - This entry is a corrective log: the script change was applied before the formal map entry, and this record captures the reasoning + steps now for auditability.
 
+---
+
+### Entry: 2026-01-23 12:48
+
+Design element: stable latest run_receipt selection (Segment 2B).
+Summary: 2B validation states use mtime-based latest run_receipt selection. We will switch to created_utc sorting with mtime fallback via a shared helper to avoid accidental run drift.
+
+Planned steps:
+1) Add `pick_latest_run_receipt` helper in `engine/core/run_receipt.py`.
+2) Update 2B runners that define `_pick_latest_run_receipt` to call the helper.
+
+Invariants:
+- Explicit run_id usage is unchanged.
+- Latest selection remains available for ad-hoc runs.
+
+---
+
+### Entry: 2026-01-23 12:57
+
+Implementation update: latest receipt helper (2B).
+
+Actions taken:
+- Added shared helper `engine/core/run_receipt.py::pick_latest_run_receipt`.
+- Updated 2B `_pick_latest_run_receipt` functions to delegate to the helper.
+
+Expected outcome:
+- Latest selection stable under mtime changes.
+

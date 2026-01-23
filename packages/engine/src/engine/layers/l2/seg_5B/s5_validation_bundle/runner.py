@@ -387,8 +387,8 @@ def _check_routing_membership(
     edge_paths: list[Path],
     logger,
 ) -> tuple[bool, dict]:
-    site_ids = {int(row["site_id"]) for row in rows if row.get("site_id") is not None}
-    edge_ids = {int(row["edge_id"]) for row in rows if row.get("edge_id") is not None}
+    site_ids = {str(row["site_id"]) for row in rows if row.get("site_id") is not None}
+    edge_ids = {str(row["edge_id"]) for row in rows if row.get("edge_id") is not None}
     if not site_ids and not edge_ids:
         return True, {}
 
@@ -397,9 +397,10 @@ def _check_routing_membership(
         if "site_id" not in scan.collect_schema().names():
             logger.info("S5: site_locations missing site_id column; skipping site_id membership check")
         else:
+            site_expr = pl.col("site_id").cast(pl.Utf8)
             found = set(
-                scan.select(pl.col("site_id"))
-                .filter(pl.col("site_id").is_in(list(site_ids)))
+                scan.select(site_expr.alias("site_id"))
+                .filter(site_expr.is_in(list(site_ids)))
                 .collect()
                 .get_column("site_id")
                 .to_list()
@@ -414,9 +415,10 @@ def _check_routing_membership(
         if "edge_id" not in scan.collect_schema().names():
             logger.warning("S5: edge_catalogue missing edge_id column; skipping edge_id check")
         else:
+            edge_expr = pl.col("edge_id").cast(pl.Utf8)
             found = set(
-                scan.select(pl.col("edge_id"))
-                .filter(pl.col("edge_id").is_in(list(edge_ids)))
+                scan.select(edge_expr.alias("edge_id"))
+                .filter(edge_expr.is_in(list(edge_ids)))
                 .collect()
                 .get_column("edge_id")
                 .to_list()

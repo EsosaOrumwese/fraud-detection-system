@@ -31,7 +31,8 @@ from engine.core.errors import (
 )
 from engine.core.logging import add_file_handler, get_logger
 from engine.core.paths import RunPaths
-from engine.core.time import utc_now_ns, utc_now_rfc3339_micro
+from engine.core.time import utc_day_from_receipt, utc_now_ns, utc_now_rfc3339_micro
+from engine.core.run_receipt import pick_latest_run_receipt
 from engine.layers.l1.seg_1A.s1_hurdle.rng import (
     UINT64_MAX,
     add_u128,
@@ -105,13 +106,7 @@ def _load_yaml(path: Path) -> dict:
 
 
 def _pick_latest_run_receipt(runs_root: Path) -> Path:
-    candidates = sorted(
-        runs_root.glob("*/run_receipt.json"),
-        key=lambda path: path.stat().st_mtime,
-    )
-    if not candidates:
-        raise InputResolutionError(f"No run_receipt.json found under {runs_root}")
-    return candidates[-1]
+    return pick_latest_run_receipt(runs_root)
 
 
 def _resolve_run_receipt(runs_root: Path, run_id: Optional[str]) -> tuple[Path, dict]:
@@ -1059,7 +1054,7 @@ def run_s1(config: EngineConfig, run_id: Optional[str] = None) -> S1RunResult:
     add_file_handler(run_paths.run_root / f"run_log_{run_id}.log")
     timer.info(f"S1: loaded run receipt {receipt_path}")
 
-    utc_day = dt.datetime.now(dt.timezone.utc).strftime("%Y-%m-%d")
+    utc_day = utc_day_from_receipt(receipt)
     segment_state_runs_path = _segment_state_runs_path(run_paths, dictionary, utc_day)
 
     def _emit_state_run(status: str, detail: Optional[str] = None) -> None:

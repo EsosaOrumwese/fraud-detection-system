@@ -3292,3 +3292,60 @@ Plan (resolve libm_profile_mismatch after numpy downgrade):
 Result:
 - Added new math_profile manifest at reference/governance/math_profile/2026-01-22/math_profile_manifest.json (numpy-1.26.4 + scipy-1.15.3).
 - Re-ran segment1a-s0; numeric self-tests passed and S0 completed successfully (run_id=581b51640a80dab799c5399a57374616, manifest_fingerprint=53e5f4b3ebb6c692fed11827ff89b0c74611709e714712e83e81027e49f0de4f).
+
+---
+
+### Entry: 2026-01-23 12:48
+
+Design element: deterministic utc_day + stable latest run receipt selection (Segment 1A).
+Summary: Several 1A states compute `utc_day` from wall-clock time, so re-running the same run_id on a later date writes segment_state_runs to a different partition. In addition, multiple 1A states select the latest `run_receipt.json` by file mtime, which can drift if old receipts are touched. We need deterministic utc_day and a stable “latest receipt” selection without breaking existing runs.
+
+Decision:
+- Derive utc_day from `run_receipt.created_utc` when available (fallback to current UTC if missing) via a shared helper in `engine.core.time`.
+- Replace mtime-based “latest receipt” selection with a created_utc-based selection (fallback to mtime if created_utc missing or invalid), via a shared helper in `engine.core.run_receipt`.
+
+Planned steps:
+1) Add `utc_day_from_receipt(receipt)` to `engine/core/time.py` to parse `created_utc` (RFC3339) and return YYYY-MM-DD; fallback to current UTC on parse failure.
+2) Add `pick_latest_run_receipt(runs_root)` to `engine/core/run_receipt.py` that:
+   - reads created_utc from each candidate receipt,
+   - sorts by created_utc (fallback to mtime),
+   - returns the latest candidate.
+3) Update 1A state runners to use:
+   - `utc_day_from_receipt(receipt)` for deterministic `utc_day` partitions.
+   - `pick_latest_run_receipt` for fallback selection when run_id is not provided.
+4) Validate by rerunning one 1A state with the same run_id on a different day; output paths should remain stable.
+
+Inputs/authorities:
+- `run_receipt.json` (created_utc) written by 1A.S0.
+
+Invariants:
+- If created_utc is missing, behavior matches previous wall-clock logic.
+- Latest-run selection remains available but is stable against mtime changes.
+
+Logging:
+- Use existing receipt logging; no additional log noise required.
+
+---
+
+### Entry: 2026-01-23 12:57
+
+Implementation update: deterministic utc_day + latest receipt helper (1A).
+
+Actions taken:
+1) Added `engine/core/time.py` helpers `parse_rfc3339` and `utc_day_from_receipt`.
+2) Added `engine/core/run_receipt.py` helper `pick_latest_run_receipt`.
+3) Updated 1A state runners to compute utc_day from receipt:
+   - `packages/engine/src/engine/layers/l1/seg_1A/s0_foundations/runner.py` (S0 uses a single created_utc for both receipt + utc_day)
+   - `.../s1_hurdle/runner.py`
+   - `.../s2_nb_outlets/runner.py`
+   - `.../s3_crossborder/runner.py`
+   - `.../s4_ztp/runner.py`
+   - `.../s5_currency_weights/runner.py`
+   - `.../s6_foreign_set/runner.py`
+   - `.../s7_integerisation/runner.py`
+   - `.../s8_outlet_catalogue/runner.py`
+4) Replaced local `_pick_latest_run_receipt` bodies to delegate to `pick_latest_run_receipt`.
+
+Expected outcome:
+- Re-running the same run_id on a different day uses the same utc_day partition.
+- “Latest receipt” selection is stable under mtime changes while preserving fallback behavior.

@@ -45,6 +45,7 @@ from engine.core.hashing import sha256_file
 from engine.core.logging import add_file_handler, get_logger
 from engine.core.paths import RunPaths, resolve_input_path
 from engine.core.time import utc_now_rfc3339_micro
+from engine.core.run_receipt import pick_latest_run_receipt
 
 
 MODULE_NAME = "2A.s0_gate"
@@ -467,13 +468,7 @@ def _validate_payload(
 
 
 def _pick_latest_run_receipt(runs_root: Path) -> Path:
-    candidates = sorted(
-        runs_root.glob("*/run_receipt.json"),
-        key=lambda path: path.stat().st_mtime,
-    )
-    if not candidates:
-        raise InputResolutionError(f"No run_receipt.json found under {runs_root}")
-    return candidates[-1]
+    return pick_latest_run_receipt(runs_root)
 
 
 def _resolve_run_receipt(runs_root: Path, run_id: Optional[str]) -> tuple[Path, dict]:
@@ -852,6 +847,7 @@ def _atomic_publish_file(
             pass
 
 def _extract_geo_crs(path: Path) -> Optional[str]:
+    logger = get_logger("engine.layers.l1.seg_2A.s0_gate.runner")
     if _HAVE_PYARROW:
         try:
             parquet_file = pq.ParquetFile(path)
@@ -859,15 +855,16 @@ def _extract_geo_crs(path: Path) -> Optional[str]:
             crs_bytes = metadata.get(b"geo:crs")
             if crs_bytes:
                 return crs_bytes.decode("utf-8")
-        except Exception:
-            pass
+        except Exception as exc:
+            logger.warning("S0: failed to read tz_world CRS via pyarrow: %s", exc)
     try:
         import geopandas as gpd
 
         gdf = gpd.read_parquet(path)
         if gdf.crs is not None:
             return gdf.crs.to_string()
-    except Exception:
+    except Exception as exc:
+        logger.warning("S0: failed to read tz_world CRS via geopandas: %s", exc)
         return None
     return None
 
@@ -1385,6 +1382,10 @@ def run_s0(config: EngineConfig, run_id: Optional[str] = None) -> S0GateResult:
     tzid_index = _load_tz_world_tzids(tz_world_path)
     tzid_index_present = bool(tzid_index)
     tzid_index_list = sorted(tzid_index) if tzid_index_present else []
+    if not tzid_index_present:
+        logger.warning(
+            "S0: tzid index unavailable; override validation will fail if tz_overrides are present"
+        )
     if tzid_index_present:
         logger.info(
             "S0: derived tzid index from tz_world (tzids=%s)",

@@ -3516,3 +3516,31 @@ Future option:
 - If we need headroom above 5,000,000, raise both
   `soft_cap_multiplier` and `baseline_intensity_policy_5A.hard_limits.max_weekly_volume_expected`
   together (and accept the runtime trade-off).
+
+---
+
+### Entry: 2026-01-23 12:48
+
+Design element: stable latest run_receipt selection (Segment 5A).
+Summary: 5A S0 gate uses mtime-based latest receipt fallback; this can drift if receipts are touched. We will use created_utc ordering with mtime fallback via shared helper.
+
+Planned steps:
+1) Add `engine/core/run_receipt.py` helper.
+2) Update `packages/engine/src/engine/layers/l2/seg_5A/s0_gate/runner.py` `_pick_latest_run_receipt` to call the helper.
+
+Invariants:
+- Explicit run_id behavior unchanged.
+- Latest selection stable across filesystem mtime changes.
+
+---
+
+### Entry: 2026-01-23 12:57
+
+Implementation update: latest receipt helper (5A).
+
+Actions taken:
+- Added shared helper `engine/core/run_receipt.py::pick_latest_run_receipt`.
+- Updated 5A.S0 `_pick_latest_run_receipt` to delegate to the helper.
+
+Expected outcome:
+- Latest receipt selection stable under mtime changes.

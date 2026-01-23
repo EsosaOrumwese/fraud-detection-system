@@ -1133,3 +1133,32 @@ Interface-pack/schema alignment:
   - `packages/engine/src/engine/layers/l3/seg_6A/s5_fraud_posture/runner.py`
 - **Rationale:** same PointerToNowhere failure seen in S1/S2 can occur in later states when validating sealed_inputs or gate receipts. Keeping `$defs` in the items schema ensures `$ref #/$defs/...` resolves under the subschema `$id`.
 - **Next step:** rerun affected states as needed (S3/S4/S5) after S1/S2 succeed; monitor for IO_WRITE_CONFLICTs on existing outputs/RNG event files.
+
+---
+
+### Entry: 2026-01-23 12:48
+
+Design element: stable latest run_receipt selection + atomic JSON writes (Segment 6A).
+Summary: 6A runners select latest receipt by mtime and write some JSON outputs non-atomically. We will use created_utc ordering for latest selection and switch run-report/flag JSON writes to atomic tmp+replace to avoid partial files.
+
+Planned steps:
+1) Add `engine/core/run_receipt.py` helper and update 6A `_pick_latest_run_receipt` to call it.
+2) Add a small `_atomic_write_json` helper in `s5_fraud_posture` (and other 6A writers if needed) to write JSON via tmp file + replace.
+
+Invariants:
+- Explicit run_id behavior unchanged.
+- Output payloads and schemas unchanged; only write method changes.
+
+---
+
+### Entry: 2026-01-23 12:57
+
+Implementation update: latest receipt helper + atomic JSON writes (6A).
+
+Actions taken:
+- Added shared helper `engine/core/run_receipt.py::pick_latest_run_receipt` and updated 6A `_pick_latest_run_receipt` functions to delegate to it.
+- Updated `packages/engine/src/engine/layers/l3/seg_6A/s5_fraud_posture/runner.py` `_write_json` to use tmp+replace atomic writes.
+
+Expected outcome:
+- Latest receipt selection stable under mtime changes.
+- JSON outputs are less likely to be left partial on crash.

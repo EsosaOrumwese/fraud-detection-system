@@ -4842,3 +4842,81 @@ Execution update (numba enabled):
 - Downgraded numpy to 1.26.4 in the repo venv; numba 0.60.0 import now succeeds.
 - Pip reported rioxarray requires numpy>=2; leave as-is since 5B.S4 does not depend on rioxarray, but note for future env hygiene.
 - Re-ran segment5b-s4 for run_id fd0a6cc8d887f06793ea9195f207138b; arrivals emission progressing with ETA ~10 minutes (based on log rates).
+
+---
+
+### Entry: 2026-01-23 12:48
+
+Design element: stable latest run_receipt selection (Segment 5B).
+Summary: 5B S0/S3/S4 use mtime-based latest receipt fallback; we will sort by created_utc (fallback to mtime) via shared helper.
+
+Planned steps:
+1) Add `engine/core/run_receipt.py` helper.
+2) Update 5B runners’ `_pick_latest_run_receipt` to call the helper.
+
+Invariants:
+- Explicit run_id behavior unchanged.
+- Latest selection stable across filesystem mtime changes.
+
+---
+
+### Entry: 2026-01-23 12:57
+
+Implementation update: latest receipt helper (5B).
+
+Actions taken:
+- Added shared helper `engine/core/run_receipt.py::pick_latest_run_receipt`.
+- Updated 5B `_pick_latest_run_receipt` functions to delegate to the helper.
+
+Expected outcome:
+- Latest receipt selection stable under mtime changes.
+
+---
+
+### Entry: 2026-01-23 14:24
+
+Design element: 5B.S5 routing membership validation should be dtype-safe.
+Summary: S5 failed with Polars is_in on edge_id when edge_catalogue stores edge_id as string; we will compare using string-normalized ids to avoid dtype mismatch.
+
+Planned steps:
+1) Update _check_routing_membership to coerce site_id and edge_id values to strings for is_in checks.
+2) Use a single string-cast expression for membership filters and missing detection.
+3) Keep behavior identical for missing counts (only membership check), log outcome.
+
+Invariants:
+- Skip checks if id column missing.
+- Do not expand validation scope (still sample-based).
+- No new outputs; only validation logic.
+
+Validation:
+- Re-run segment5b-s5 for the failing run_id and confirm routing_membership phase passes.
+
+### Entry: 2026-01-23 14:26
+
+Implementation update: dtype-safe routing membership checks (5B.S5).
+
+Actions taken:
+- Normalized sample site_id/edge_id values to strings.
+- Cast site_id/edge_id columns to Utf8 before is_in checks to avoid Polars dtype mismatch.
+
+Expected outcome:
+- routing_membership phase no longer fails when edge_catalogue stores ids as strings.
+
+---
+
+### Entry: 2026-01-23 14:30
+
+Design element: 5B.S5 routing membership should ignore virtual arrivals.
+Summary: membership check should validate only physical edges; virtual arrivals can reference edges not present in 3B edge_catalogue and should be excluded.
+
+Planned steps:
+1) In _check_routing_membership, filter rows to those with is_virtual is False (or missing) before collecting ids.
+2) Keep existing dtype-safe string normalization for ids.
+3) Maintain current behavior for missing site_id column; only reduce false failures from virtual edges.
+
+Invariants:
+- Validation remains sample-based and non-blocking for virtual edges.
+- No changes to outputs.
+
+Validation:
+- Re-run segment5b-s5 and confirm routing_membership passes (no missing edge_ids for physical subset).

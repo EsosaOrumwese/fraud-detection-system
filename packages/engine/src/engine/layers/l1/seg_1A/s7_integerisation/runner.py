@@ -33,7 +33,8 @@ from engine.core.errors import (
 )
 from engine.core.logging import add_file_handler, get_logger
 from engine.core.paths import RunPaths
-from engine.core.time import utc_now_rfc3339_micro
+from engine.core.time import utc_day_from_receipt, utc_now_rfc3339_micro
+from engine.core.run_receipt import pick_latest_run_receipt
 from engine.layers.l1.seg_1A.s0_foundations.validation_bundle import write_failure_record
 from engine.layers.l1.seg_1A.s6_foreign_set.rng import (
     UINT64_MAX,
@@ -215,13 +216,7 @@ def _load_yaml(path: Path) -> dict:
         return yaml.safe_load(handle)
 
 def _pick_latest_run_receipt(runs_root: Path) -> Path:
-    candidates = sorted(
-        runs_root.glob("*/run_receipt.json"),
-        key=lambda path: path.stat().st_mtime,
-    )
-    if not candidates:
-        raise InputResolutionError(f"No run_receipt.json found under {runs_root}")
-    return candidates[-1]
+    return pick_latest_run_receipt(runs_root)
 
 
 def _resolve_run_receipt(
@@ -1060,7 +1055,7 @@ def run_s7(
     if validate_only:
         logger.info("S7: validate-only enabled; outputs will not be written")
 
-    utc_day = dt.datetime.now(dt.timezone.utc).strftime("%Y-%m-%d")
+    utc_day = utc_day_from_receipt(receipt)
     segment_state_runs_path = _segment_state_runs_path(run_paths, dictionary, utc_day)
 
     def _emit_state_run(status: str, detail: Optional[str] = None) -> None:

@@ -3145,3 +3145,32 @@ Execution details and checks (explicit):
 
 Decision record:
 - S2 is considered green and spec-compliant for the current parameter_hash; no further rerun required unless downstream checks detect a lineage mismatch.
+
+---
+
+### Entry: 2026-01-23 12:48
+
+Design element: stable latest run_receipt selection (Segment 1B).
+Summary: Multiple 1B states select the latest run_receipt by file mtime, which can drift if receipts are touched. We will select latest by run_receipt.created_utc instead (fallback to mtime when missing) using a shared helper to preserve determinism.
+
+Planned steps:
+1) Add `pick_latest_run_receipt(runs_root)` helper in `engine/core/run_receipt.py`.
+2) Update 1B state runners’ `_pick_latest_run_receipt` to call the helper (no behavioral change when run_id is explicit).
+3) Keep fallback to mtime if created_utc is missing to avoid breaking old receipts.
+
+Invariants:
+- Explicit run_id paths are unchanged.
+- Latest selection is deterministic and stable.
+
+---
+
+### Entry: 2026-01-23 12:57
+
+Implementation update: latest receipt helper (1B).
+
+Actions taken:
+- Added shared helper `engine/core/run_receipt.py::pick_latest_run_receipt`.
+- Updated 1B runners’ `_pick_latest_run_receipt` to delegate to the helper (created_utc sort, mtime fallback).
+
+Expected outcome:
+- Latest-run selection is stable and deterministic without changing explicit run_id behavior.

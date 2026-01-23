@@ -2465,3 +2465,31 @@ Plan adjustment (minimal change):
 Next steps:
 - Update config/layer1/2A/timezone/tz_overrides.yaml with country override for SH.
 - Rerun make segment3b-s0 (and s1/s2) for the target run_id; monitor for further tz resolution failures.
+
+---
+
+### Entry: 2026-01-23 12:48
+
+Design element: stable latest run_receipt selection (Segment 3B).
+Summary: 3B states that resolve run_receipt by mtime can drift if receipts are touched. We will select by created_utc with mtime fallback via shared helper.
+
+Planned steps:
+1) Add `engine/core/run_receipt.py` helper.
+2) Update 3B runners with `_pick_latest_run_receipt` to call the helper.
+
+Invariants:
+- Explicit run_id unchanged.
+- Latest selection remains available but stable.
+
+---
+
+### Entry: 2026-01-23 12:57
+
+Implementation update: latest receipt helper (3B).
+
+Actions taken:
+- Added shared helper `engine/core/run_receipt.py::pick_latest_run_receipt`.
+- Updated 3B `_pick_latest_run_receipt` functions to delegate to the helper.
+
+Expected outcome:
+- Latest selection stable under mtime changes.

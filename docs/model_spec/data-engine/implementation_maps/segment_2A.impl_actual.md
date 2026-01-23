@@ -3121,3 +3121,34 @@ Run validation: S1 executed with new fallback logic.
 
 Next step:
 - Proceed to 2A.S2 or downstream states as needed; no further S1 fixes required based on this run.
+
+---
+
+### Entry: 2026-01-23 12:48
+
+Design element: stable latest run_receipt selection + tz_world/CRS observability (Segment 2A).
+Summary: 2A.S0 uses mtime-based latest run_receipt selection and suppresses CRS/tzid extraction failures, which can hide data issues. We will stabilize latest-run selection and improve tz_world error visibility without breaking runs.
+
+Planned steps:
+1) Use shared `pick_latest_run_receipt(runs_root)` helper (created_utc sort, fallback to mtime).
+2) In `_extract_geo_crs`, emit WARN on exceptions instead of silent pass.
+3) When tzid index cannot be derived from tz_world, emit a WARN (in addition to existing override checks) so operators can see the enforcement gap.
+
+Invariants:
+- If overrides are present and tzid index is missing, S0 should continue to fail as it does today.
+- No change to output schemas or paths.
+
+---
+
+### Entry: 2026-01-23 12:57
+
+Implementation update: receipt helper + tz_world warnings (2A).
+
+Actions taken:
+1) Added shared helper `engine/core/run_receipt.py::pick_latest_run_receipt` and updated 2A `_pick_latest_run_receipt` to delegate to it.
+2) Added WARN logs when CRS extraction fails in `_extract_geo_crs`.
+3) Added WARN when tzid index cannot be derived (even if overrides are empty) to surface the enforcement gap.
+
+Expected outcome:
+- Latest receipt selection is stable by created_utc.
+- CRS/tzid parsing issues are visible without changing failure semantics.

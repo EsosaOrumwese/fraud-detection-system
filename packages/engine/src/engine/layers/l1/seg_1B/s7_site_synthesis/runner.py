@@ -36,6 +36,7 @@ from engine.core.hashing import sha256_file
 from engine.core.logging import add_file_handler, get_logger
 from engine.core.paths import RunPaths, resolve_input_path
 from engine.core.time import utc_now_rfc3339_micro
+from engine.core.run_receipt import pick_latest_run_receipt
 
 
 MODULE_NAME = "1B.S7.synthesis"
@@ -120,13 +121,7 @@ def _write_json(path: Path, payload: dict) -> None:
 
 
 def _pick_latest_run_receipt(runs_root: Path) -> Path:
-    receipts = sorted(
-        runs_root.glob("*/run_receipt.json"),
-        key=lambda path: path.stat().st_mtime,
-    )
-    if not receipts:
-        raise InputResolutionError(f"No run_receipt.json found under {runs_root}")
-    return receipts[-1]
+    return pick_latest_run_receipt(runs_root)
 
 
 def _resolve_run_receipt(runs_root: Path, run_id: Optional[str]) -> tuple[Path, dict]:

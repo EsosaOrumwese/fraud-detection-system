@@ -26,6 +26,7 @@ from engine.core.hashing import sha256_file
 from engine.core.logging import add_file_handler, get_logger
 from engine.core.paths import RunPaths, resolve_input_path
 from engine.core.time import utc_now_rfc3339_micro
+from engine.core.run_receipt import pick_latest_run_receipt
 
 
 MODULE_NAME = "6A.s5_fraud_posture"
@@ -144,13 +145,7 @@ def _load_yaml(path: Path) -> dict:
 
 
 def _pick_latest_run_receipt(runs_root: Path) -> Path:
-    receipts = sorted(
-        runs_root.glob("*/run_receipt.json"),
-        key=lambda path: path.stat().st_mtime,
-    )
-    if not receipts:
-        raise InputResolutionError(f"No run_receipt.json found under {runs_root}")
-    return receipts[-1]
+    return pick_latest_run_receipt(runs_root)
 
 
 def _resolve_run_receipt(runs_root: Path, run_id: Optional[str]) -> tuple[Path, dict]:
@@ -711,8 +706,19 @@ def _map_role_to_taxonomy_expr(role_expr: pl.Expr, mapping: dict[str, str], defa
 
 
 def _write_json(path: Path, payload: dict) -> None:
+    tmp_dir = path.parent / f"_tmp.{uuid.uuid4().hex}"
+    tmp_dir.mkdir(parents=True, exist_ok=True)
+    tmp_path = tmp_dir / path.name
+    tmp_path.write_text(
+        json.dumps(payload, ensure_ascii=True, sort_keys=True, indent=2) + "\n",
+        encoding="utf-8",
+    )
     path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(json.dumps(payload, ensure_ascii=True, sort_keys=True, indent=2) + "\n", encoding="utf-8")
+    tmp_path.replace(path)
+    try:
+        tmp_dir.rmdir()
+    except OSError:
+        pass
 
 
 def _select_dataset_path(

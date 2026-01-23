@@ -2963,6 +2963,34 @@ Implementation details:
 
 Next: re-run `make segment3a-s7`.
 
+---
+
+### Entry: 2026-01-23 12:48
+
+Design element: stable latest run_receipt selection (Segment 3A).
+Summary: 3A gate/validation states use mtime-based latest run_receipt selection. We will move to created_utc ordering (fallback to mtime) using a shared helper to improve determinism.
+
+Planned steps:
+1) Introduce `engine/core/run_receipt.py` helper.
+2) Update 3A runners’ `_pick_latest_run_receipt` to delegate to the helper.
+
+Invariants:
+- Explicit run_id unaffected.
+- Latest selection still works but is stable against mtime changes.
+
+---
+
+### Entry: 2026-01-23 12:57
+
+Implementation update: latest receipt helper (3A).
+
+Actions taken:
+- Added shared helper `engine/core/run_receipt.py::pick_latest_run_receipt`.
+- Updated 3A `_pick_latest_run_receipt` functions to delegate to the helper.
+
+Expected outcome:
+- Latest selection stable under mtime changes.
+
 ### Entry: 2026-01-18 09:08
 
 `make segment3a-s7` completed successfully after the object-schema parquet

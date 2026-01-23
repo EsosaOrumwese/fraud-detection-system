@@ -28,7 +28,10 @@ def _load_yaml(path: Path) -> dict[str, Any]:
     if not path.exists():
         raise ContractError(f"Missing contract file: {path}")
     with path.open("r", encoding="utf-8") as handle:
-        return yaml.safe_load(handle)
+        payload = yaml.safe_load(handle)
+    if not isinstance(payload, dict):
+        raise ContractError(f"Contract YAML must be a mapping: {path}")
+    return payload
 
 
 def load_dataset_dictionary(source: ContractSource, segment: str) -> tuple[Path, dict[str, Any]]:

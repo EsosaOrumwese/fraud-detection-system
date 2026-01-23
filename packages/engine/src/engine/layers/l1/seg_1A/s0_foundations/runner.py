@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import datetime as dt
 import re
 import hashlib
 import json
@@ -42,7 +41,7 @@ from engine.core.errors import (
 from engine.core.hashing import FileDigest, sha256_file
 from engine.core.logging import add_file_handler, get_logger
 from engine.core.paths import RunPaths
-from engine.core.time import utc_now_ns, utc_now_rfc3339_micro
+from engine.core.time import utc_day_from_receipt, utc_now_ns, utc_now_rfc3339_micro
 from engine.layers.l1.seg_1A.s0_foundations.context import MerchantUniverse, RunContext
 from engine.layers.l1.seg_1A.s0_foundations.hashing import (
     NamedDigest,
@@ -1071,7 +1070,8 @@ def run_s0(
         add_file_handler(run_log_path)
         timer.info(f"S0: run log initialized at {run_log_path}")
 
-        utc_day = dt.datetime.now(dt.timezone.utc).strftime("%Y-%m-%d")
+        created_utc = utc_now_rfc3339_micro()
+        utc_day = utc_day_from_receipt({"created_utc": created_utc})
         outputs = _build_output_paths(
             run_paths,
             dictionary,
@@ -1094,7 +1094,7 @@ def run_s0(
             contracts_root=config.contracts_root,
             runs_root=config.runs_root,
             external_roots=config.external_roots,
-            created_utc=utc_now_rfc3339_micro(),
+            created_utc=created_utc,
         )
 
         sealed_assets: list[InputAsset] = []
