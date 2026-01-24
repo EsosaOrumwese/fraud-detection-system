@@ -344,3 +344,102 @@ Create `docs/model_spec/platform/implementation_maps/component_scenario_runner.b
 Add the build‑plan file with the structure above and log the action.
 
 ---
+## Entry: 2026-01-24 05:20:30 — Phase 2 plan (durable storage + idempotency)
+
+### Problem / goal
+Advance SR from local-only persistence to production‑grade durability and idempotency:
+- Durable object store abstraction (local + S3‑compatible).
+- Durable idempotency + lease authority (SQLite local; Postgres dev/prod).
+- Preserve SR truth invariants (append‑only record, monotonic status, by‑ref facts).
+
+### Authorities / inputs
+- Root AGENTS.md doctrine: by‑ref artifacts, idempotency, append‑only truths, fail‑closed.
+- SR design‑authority (N2/N6 invariants) + Phase 2 build‑plan intent.
+- Engine interface pack (pins + outputs/gates remain unchanged).
+- Existing SR v0 code + schemas (run_record/run_status/run_plan/run_facts_view/ready_signal).
+
+### Decisions (proposed)
+1) **Object store abstraction**:
+   - Introduce `ObjectStore` interface in SR storage module.
+   - Implement `LocalObjectStore` (existing) and `S3ObjectStore` (boto3).
+   - Auto‑select backend from `object_store_root` (path vs `s3://bucket/prefix`).
+2) **Atomic writes**:
+   - Local: tmp + replace (current behavior).
+   - S3: `put_object` is atomic per key; use `IfNoneMatch='*'` when immutability is required.
+   - For `append_jsonl` on S3: read + append + conditional `IfMatch` on ETag to avoid lost updates (leader‑only writes still expected).
+3) **Idempotency + lease authority**:
+   - Replace file‑based equivalence + leases with DB‑backed store.
+   - SQLite for local dev (file DB); Postgres for dev/prod (psycopg sync client).
+   - Tables: `sr_run_equivalence` (key → run_id + fingerprint) and `sr_run_leases` (run_id → lease state).
+4) **Wiring**:
+   - Add `authority_store_dsn` to SR wiring profile.
+   - Default local DSN under `artefacts/fraud-platform/sr/index/` if not provided.
+
+### Invariants to preserve
+- One `run_equivalence_key` → one `run_id`; mismatch in intent_fingerprint hard‑fails.
+- Only the lease holder may advance state; lease loss halts writes.
+- run_record append‑only with idempotent event IDs.
+- run_status transitions are monotonic and validated against schema.
+- READY publish order remains: facts_view → status READY → record append → ready signal → control bus.
+
+### Security / governance
+- DB creds only via DSN/env; no secrets in artifacts.
+- Lease tokens opaque; never written to public artifacts.
+- Fail‑closed on DB or object‑store errors (no READY on uncertainty).
+
+### Performance considerations
+- Lease and equivalence operations are single‑row transactions; no hot scans.
+- Append‑jsonl on S3 is O(n) in file size; acceptable for small run_record; can be segmented later if needed.
+
+### Deployment / environment
+- Local: SQLite file + LocalObjectStore.
+- Dev/Prod: Postgres DSN + S3‑compatible object store (MinIO/S3).
+
+### Validation / tests
+- Unit: idempotency resolve collision; lease acquire/renew/expire.
+- Integration: duplicate submits with concurrent leases; ensure only one leader writes.
+- Storage: Local + S3 write/append behavior (S3 tests can be stubbed or skipped if no credentials).
+
+### Execution steps (next)
+1) Add `ObjectStore` interface + `S3ObjectStore`; refactor SR to use store factory.
+2) Add DB‑backed authority store; refactor EquivalenceRegistry/LeaseManager usage.
+3) Wire new config fields + update docs/build plan/logbook.
+4) Add tests + run targeted sanity checks; log results.
+
+---
+## Entry: 2026-01-24 05:28:30 — Phase 2 implementation (storage + authority store)
+
+### What changed
+**Storage abstraction**
+- Replaced direct LocalObjectStore usage with an `ObjectStore` protocol.
+- Added `S3ObjectStore` (boto3) and `build_object_store` factory (path vs `s3://`).
+- Ledger now accepts an `ObjectStore` instead of the local‑only type.
+
+**Authority store (idempotency + leases)**
+- Replaced file‑based equivalence/lease tracking with DB‑backed stores:
+  - `SQLiteAuthorityStore` for local.
+  - `PostgresAuthorityStore` for dev/prod (psycopg).
+- Added `build_authority_store(dsn)` and refactored EquivalenceRegistry/LeaseManager to wrap the store.
+- Added `authority_store_dsn` to SR wiring; local wiring uses SQLite under `artefacts/fraud-platform/sr/index/`.
+
+**Dependencies + tests**
+- Added `psycopg[binary]` to pyproject dependencies.
+- Added SQLite authority store tests; pytest run green (2 tests).
+
+### Files touched (high‑signal)
+- `src/fraud_detection/scenario_runner/storage.py` (ObjectStore + S3 backend + factory)
+- `src/fraud_detection/scenario_runner/authority.py` (DB‑backed authority store)
+- `src/fraud_detection/scenario_runner/ledger.py` (ObjectStore type)
+- `src/fraud_detection/scenario_runner/runner.py` (store + authority wiring)
+- `config/platform/sr/wiring_local.yaml` (authority_store_dsn)
+- `pyproject.toml` (psycopg dependency)
+- `tests/services/scenario_runner/test_authority_store.py` (new tests)
+
+### Notes / constraints
+- S3 append_jsonl is implemented as read‑append‑write (leader‑only writes assumed).
+- If `object_store_root` is non‑local and `authority_store_dsn` is not set, SR fails closed.
+
+### Validation
+- `pytest tests/services/scenario_runner/test_authority_store.py` → 2 passed.
+
+---

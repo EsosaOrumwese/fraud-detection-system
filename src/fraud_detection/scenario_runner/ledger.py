@@ -10,7 +10,7 @@ from typing import Any
 
 from .models import RunPlan, RunStatus, RunStatusState
 from .schemas import SchemaRegistry
-from .storage import ArtifactRef, LocalObjectStore
+from .storage import ArtifactRef, ObjectStore
 
 
 @dataclass(frozen=True)
@@ -24,7 +24,7 @@ class LedgerPaths:
 
 
 class Ledger:
-    def __init__(self, store: LocalObjectStore, prefix: str, schemas: SchemaRegistry | None = None) -> None:
+    def __init__(self, store: ObjectStore, prefix: str, schemas: SchemaRegistry | None = None) -> None:
         self.store = store
         self.prefix = prefix.rstrip("/")
         self.schemas = schemas

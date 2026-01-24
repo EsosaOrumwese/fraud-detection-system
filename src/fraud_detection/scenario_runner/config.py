@@ -16,6 +16,7 @@ class WiringProfile(BaseModel):
     engine_catalogue_path: str
     gate_map_path: str
     schema_root: str
+    authority_store_dsn: str | None = None
 
 
 class PolicyProfile(BaseModel):

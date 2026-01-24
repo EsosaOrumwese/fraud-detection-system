@@ -8,7 +8,7 @@ from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any
 
-from .authority import EquivalenceRegistry, LeaseManager, RunHandle
+from .authority import EquivalenceRegistry, LeaseManager, RunHandle, build_authority_store
 from .bus import FileControlBus
 from .catalogue import OutputCatalogue
 from .config import PolicyProfile, WiringProfile
@@ -28,7 +28,7 @@ from .ids import hash_payload, run_id_from_equivalence_key, scenario_set_to_id
 from .ledger import Ledger
 from .models import CanonicalRunIntent, RunPlan, RunRequest, RunResponse, RunStatusState, Strategy
 from .schemas import SchemaRegistry
-from .storage import LocalObjectStore
+from .storage import build_object_store
 
 
 class ScenarioRunner:
@@ -42,13 +42,20 @@ class ScenarioRunner:
         self.policy = policy
         self.engine_invoker = engine_invoker
         self.schemas = SchemaRegistry(Path(wiring.schema_root))
-        self.store = LocalObjectStore(Path(wiring.object_store_root))
+        self.store = build_object_store(wiring.object_store_root)
         self.ledger = Ledger(self.store, prefix="fraud-platform/sr", schemas=self.schemas)
         self.control_bus = FileControlBus(Path(wiring.control_bus_root))
         self.catalogue = OutputCatalogue(Path(wiring.engine_catalogue_path))
         self.gate_map = GateMap(Path(wiring.gate_map_path))
-        self.equiv_registry = EquivalenceRegistry(Path(wiring.object_store_root) / "fraud-platform/sr/index")
-        self.lease_manager = LeaseManager(Path(wiring.object_store_root) / "fraud-platform/sr/index/leases")
+        authority_dsn = wiring.authority_store_dsn
+        if authority_dsn is None:
+            if wiring.object_store_root.startswith("s3://"):
+                raise RuntimeError("authority_store_dsn required for non-local object store")
+            default_path = Path(wiring.object_store_root) / "fraud-platform/sr/index/sr_authority.db"
+            authority_dsn = f"sqlite:///{default_path.as_posix()}"
+        authority_store = build_authority_store(authority_dsn)
+        self.equiv_registry = EquivalenceRegistry(authority_store)
+        self.lease_manager = LeaseManager(authority_store)
 
     def submit_run(self, request: RunRequest) -> RunResponse:
         self.schemas.validate(

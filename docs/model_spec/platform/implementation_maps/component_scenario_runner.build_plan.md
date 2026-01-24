@@ -33,6 +33,10 @@ This plan is intentionally progressive: it starts as phase milestones, then expa
 ### Scope intent
 Make SR truth durable and correct under at‑least‑once behavior using persistent storage and a real idempotency/lease authority. This is “truth, not demos.”
 
+### Implementation choices (current)
+- Object store interface with Local + S3‑compatible backends (boto3).
+- Authority store DSN with SQLite for local, Postgres for dev/prod (psycopg).
+
 ### Section 2.1 — Object store abstraction (durable, by‑ref)
 **Goal:** replace the local-only store with a real abstraction suitable for S3/MinIO and ensure atomic writes + by‑ref artifact refs are enforced.
 
@@ -100,4 +104,3 @@ High‑level intent: authn/authz, secrets hygiene, quarantine workflows, operato
 
 ## Phase 8 — Integration tests + CI gates
 High‑level intent: golden path + duplicate + reuse + fail‑closed + re‑emit + correction tests; contract compatibility checks in CI.
-
