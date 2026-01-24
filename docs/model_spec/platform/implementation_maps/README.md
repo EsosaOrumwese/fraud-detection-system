@@ -4,13 +4,13 @@ _As of 2026-01-23_
 Use this folder to capture **component-specific implementation plans and decision logs** for platform components (non-engine).
 
 ## File naming
-- One file per component: `component_{COMP}.impl_actual.md`
+- One file per component: `{COMP}.impl_actual.md`
 - Examples:
-  - `component_scenario_runner.impl_actual.md`
-  - `component_ingestion_gate.impl_actual.md`
-  - `component_event_bus.impl_actual.md`
-  - `component_decision_fabric.impl_actual.md`
-  - `component_actions_layer.impl_actual.md`
+  - `scenario_runner.impl_actual.md`
+  - `ingestion_gate.impl_actual.md`
+  - `event_bus.impl_actual.md`
+  - `decision_fabric.impl_actual.md`
+  - `actions_layer.impl_actual.md`
 
 ## Required discipline
 - Append-only, never rewrite prior entries.

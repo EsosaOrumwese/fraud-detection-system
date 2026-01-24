@@ -547,6 +547,17 @@ Phase 2 is functional but not rock‑solid. Hardening is required for production
 - Decide on additional lease fencing if required by ops policy.
 
 ---
+## Entry: 2026-01-24 07:09:54 — Implementation map rename (drop component_ prefix)
+
+### Change
+Renamed SR implementation map + build plan files to drop the `component_` prefix:
+- `docs/model_spec/platform/implementation_maps/component_scenario_runner.impl_actual.md` → `docs/model_spec/platform/implementation_maps/scenario_runner.impl_actual.md`
+- `docs/model_spec/platform/implementation_maps/component_scenario_runner.build_plan.md` → `docs/model_spec/platform/implementation_maps/scenario_runner.build_plan.md`
+
+### Reason
+Align with new naming convention: use `{COMP}.impl_actual.md` and `{COMP}.build_plan.md`.
+
+---
 ## Entry: 2026-01-24 05:55:04 — Phase 2.5 hardening tests plan (remaining items)
 
 ### Goal
