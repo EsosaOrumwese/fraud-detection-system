@@ -443,3 +443,27 @@ Advance SR from local-only persistence to production‑grade durability and idem
 - `pytest tests/services/scenario_runner/test_authority_store.py` → 2 passed.
 
 ---
+## Entry: 2026-01-24 05:35:58 — Phase 2 hardening gap (plan correction)
+
+### Correction
+Phase 2 implementation delivered functional durability but did not include the hardening items required for “rock‑solid” production semantics (S3 immutability guards, CAS append or segmentation, lease fencing/renewal, error‑class distinction, Postgres smoke, concurrency tests).
+
+### Action
+Updated the SR build plan to add **Phase 2.5 Hardening** with explicit DoD items. Phase 2 is not considered complete until those are implemented and validated.
+
+---
+## Entry: 2026-01-24 05:42:32 — Locked SR platform stack (AWS)
+
+### Decision
+Lock the SR target platform stack to AWS:
+- **Object storage:** Amazon S3 (truth artifacts, run ledger).
+- **Authority store:** Amazon RDS Postgres (idempotency + leases).
+- **Runtime:** ECS Fargate (SR service deployment).
+- **Control bus:** Amazon Kinesis (READY/control events).
+
+### Implications
+- Wiring/config must target S3 + Postgres DSN in dev/prod.
+- FileControlBus remains local-only; Kinesis adapter will be implemented in Phase 5.
+- Phase 2.5 hardening must assume S3 semantics (immutability guards + CAS/segmented append).
+
+---

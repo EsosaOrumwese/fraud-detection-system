@@ -37,6 +37,12 @@ Make SR truth durable and correct under at‑least‑once behavior using persist
 - Object store interface with Local + S3‑compatible backends (boto3).
 - Authority store DSN with SQLite for local, Postgres for dev/prod (psycopg).
 
+### Locked platform stack (decision)
+- **Object storage:** Amazon S3.
+- **Authority store:** Amazon RDS Postgres.
+- **Runtime:** ECS Fargate.
+- **Control bus:** Amazon Kinesis.
+
 ### Section 2.1 — Object store abstraction (durable, by‑ref)
 **Goal:** replace the local-only store with a real abstraction suitable for S3/MinIO and ensure atomic writes + by‑ref artifact refs are enforced.
 
@@ -74,6 +80,17 @@ Make SR truth durable and correct under at‑least‑once behavior using persist
 - Integration tests for duplicate submits and concurrent leases (only one leader writes).
 - Storage tests for atomic writes and by‑ref behavior (local + at least one object store backend).
 - All Phase 2 tests logged in docs/logbook with results.
+
+### Section 2.5 — Phase 2 hardening (rock‑solid durability)
+**Goal:** eliminate correctness gaps in durable storage + idempotency before Phase 3.
+
+**Definition of done**
+- S3 writes for immutable artifacts use explicit write‑once semantics (e.g., `If-None-Match: *`).
+- run_record append on S3 is CAS‑protected (ETag `If-Match`) **or** segmented into immutable chunks.
+- Lease fencing enforced on state‑advancing writes; lease renewal during long runs.
+- Distinguish missing vs access/network failures in object store operations (fail‑closed on errors).
+- Postgres authority store exercised in test (smoke or integration) and logged.
+- Concurrency tests for duplicate submissions and lease contention pass.
 
 ---
 

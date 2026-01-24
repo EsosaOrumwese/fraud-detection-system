@@ -1,0 +1,7 @@
+object_store_root: s3://YOUR_BUCKET/fraud-platform/sr
+control_bus_topic: fp.bus.control.v1
+control_bus_root: kinesis://YOUR_STREAM
+engine_catalogue_path: docs/model_spec/data-engine/interface_pack/engine_outputs.catalogue.yaml
+gate_map_path: docs/model_spec/data-engine/interface_pack/engine_gates.map.yaml
+schema_root: docs/model_spec/platform/contracts/scenario_runner
+authority_store_dsn: postgresql://USER:PASSWORD@HOST:5432/DBNAME
