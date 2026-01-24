@@ -1,6 +1,6 @@
 policy_id: sr_policy
 revision: v0-local
-content_digest: 26ac121b8e8a2a3f37bb3a10c1d0c587e3d1c81e4099c0c8231d0c77b9b31639
+content_digest: c7f6da0172c57228940231844b9a6c4457aa809fc7929ff72ca5512197d0c412
 reuse_policy: ALLOW
 evidence_wait_seconds: 600
 attempt_limit: 1
@@ -8,4 +8,3 @@ traffic_output_ids:
   - arrival_events_5B
   - s2_flow_anchor_baseline_6B
   - s3_flow_anchor_with_fraud_6B
-allow_instance_proof_bridge: false

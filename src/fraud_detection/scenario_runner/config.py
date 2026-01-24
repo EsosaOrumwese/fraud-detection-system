@@ -31,7 +31,6 @@ class PolicyProfile(BaseModel):
     evidence_wait_seconds: int
     attempt_limit: int
     traffic_output_ids: list[str]
-    allow_instance_proof_bridge: bool = False
 
     def as_rev(self) -> dict[str, Any]:
         return {

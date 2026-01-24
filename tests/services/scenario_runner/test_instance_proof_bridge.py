@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -58,7 +59,6 @@ def _build_policy() -> PolicyProfile:
         evidence_wait_seconds=1,
         attempt_limit=1,
         traffic_output_ids=["test_output"],
-        allow_instance_proof_bridge=False,
     )
 
 
@@ -118,3 +118,51 @@ def test_instance_proof_emits_receipt_and_ready(tmp_path: Path) -> None:
     receipt_path = receipt["artifacts"]["receipt_path"]
     assert receipt_path.startswith("fraud-platform/sr/instance_receipts/output_id=test_output/")
     assert (tmp_path / "artefacts" / receipt_path).exists()
+
+
+def test_instance_receipt_drift_fails(tmp_path: Path) -> None:
+    engine_root = tmp_path / "engine_root"
+    _write_output(engine_root)
+
+    catalogue_path = tmp_path / "engine_outputs.catalogue.yaml"
+    gate_map_path = tmp_path / "engine_gates.map.yaml"
+    _write_catalogue(catalogue_path)
+    _write_gate_map(gate_map_path)
+
+    wiring = _build_wiring(tmp_path, catalogue_path, gate_map_path)
+    policy = _build_policy()
+    runner = ScenarioRunner(wiring, policy, LocalEngineInvoker(str(engine_root)))
+
+    run_key = "instance-proof-drift"
+    run_id = run_id_from_equivalence_key(run_key)
+    receipt_path = (
+        "fraud-platform/sr/instance_receipts/output_id=test_output/"
+        f"manifest_fingerprint={'a' * 64}/parameter_hash={'c' * 64}/seed=1/instance_receipt.json"
+    )
+    output_path = engine_root / f"data/test_output/seed=1/parameter_hash={'c' * 64}/out.json"
+    receipt_payload = {
+        "output_id": "test_output",
+        "status": "PASS",
+        "scope": {"manifest_fingerprint": "a" * 64, "parameter_hash": "c" * 64, "seed": 1},
+        "target_ref": {
+            "output_id": "test_output",
+            "path": str(output_path),
+            "parameter_hash": "c" * 64,
+            "seed": 1,
+        },
+        "target_digest": {"algo": "sha256", "hex": "b" * 64},
+        "receipt_kind": "instance_proof",
+        "artifacts": {"receipt_path": receipt_path},
+    }
+    receipt_file = tmp_path / "artefacts" / receipt_path
+    receipt_file.parent.mkdir(parents=True, exist_ok=True)
+    receipt_file.write_text(json.dumps(receipt_payload, sort_keys=True) + "\n", encoding="utf-8")
+
+    request = _build_request(engine_root, run_key)
+    response = runner.submit_run(request)
+
+    assert response.message == "Reuse evidence failed."
+    status = runner.ledger.read_status(run_id)
+    assert status is not None
+    assert status.state.value == "FAILED"
+    assert status.reason_code == "INSTANCE_RECEIPT_DRIFT"

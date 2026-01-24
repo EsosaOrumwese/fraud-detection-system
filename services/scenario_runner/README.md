@@ -16,7 +16,7 @@ Profiles:
   - Note: wiring profiles now include `engine_contracts_root` (engine boundary schemas).
 
 Policy:
-- `config/platform/sr/policy_v0.yaml` still includes `allow_instance_proof_bridge`; SR now emits verifier receipts so this flag is deprecated (kept for backward compatibility).
+- `config/platform/sr/policy_v0.yaml` omits any instance‑proof bridge; SR emits verifier receipts directly.
 
 Local parity stack (MinIO + Postgres):
 - `docker compose -f infra/local/docker-compose.sr-parity.yaml up -d`

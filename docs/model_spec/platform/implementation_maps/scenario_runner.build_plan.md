@@ -105,7 +105,7 @@ Phase 2.5 hardening tests must run against MinIO + Postgres where available.
 ## Phase 3 — Evidence + gate verification completeness
 High‑level intent: enforce full HashGate coverage and instance‑proof binding (seed/scenario/run_id) with deterministic COMPLETE/WAITING/FAIL/CONFLICT outcomes.
 
-**Status:** IN PROGRESS (strict evidence logic implemented; instance‑proof receipts blocked by interface‑pack gap; integration tests pending).
+**Status:** IN PROGRESS (black‑box verifier receipts implemented; receipt‑drift test added; parity integration tests pending).
 
 ### Section 3.1 — Gate closure + required set
 **Goal:** compute the authoritative gate closure for intended outputs.
@@ -122,6 +122,7 @@ High‑level intent: enforce full HashGate coverage and instance‑proof binding
 - Gate receipts are validated against schemas before use.
 - Instance‑scoped gates enforce pins (seed/scenario_id/run_id/parameter_hash); broader gates do not require instance pins.
 - Receipt scope mismatch → FAIL/QUARANTINE.
+- Instance‑scoped outputs emit SR verifier receipts under `fraud-platform/sr/instance_receipts/...` with drift detection.
 
 ### Section 3.3 — Output locator integrity
 **Goal:** produce immutable, verifiable output locators for all intended outputs.
@@ -144,6 +145,7 @@ High‑level intent: enforce full HashGate coverage and instance‑proof binding
 
 **Definition of done**
 - Unit tests for gate scope binding, missing receipts, and conflict detection.
+- Receipt drift test: pre‑seed mismatching receipt → FAIL with reason `INSTANCE_RECEIPT_DRIFT`.
 - Integration tests using real engine artefacts (local parity stack).
 - All Phase 3 tests logged with results.
 

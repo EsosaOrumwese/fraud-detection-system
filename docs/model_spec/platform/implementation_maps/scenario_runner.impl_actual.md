@@ -1195,3 +1195,68 @@ I’ve now applied the black‑box path in code. This captures the concrete deci
 
 ### Compatibility note (policy flag)
 - `allow_instance_proof_bridge` remains in policy for backward compatibility but is now deprecated in SR behavior (no bridge path in black‑box mode).
+
+---
+
+## Entry: 2026-01-24 14:48:32 — Phase 3 follow‑ups (remove bridge flag, add drift test, update plan)
+
+I’m about to execute the three requested follow‑ups. This entry captures the intent and the reasoning trail before touching code.
+
+### Why these changes are needed
+- **Bridge flag removal**: the SR now emits verifier receipts in a black‑box‑safe way. Keeping `allow_instance_proof_bridge` creates a false affordance and an unused prod risk knob.
+- **Receipt drift test**: we must prove that SR rejects pre‑existing receipts that don’t match the computed proof (idempotency + immutability enforcement).
+- **Build plan update**: Phase 3 status should reflect that instance‑proof receipts are now implemented in SR (no longer blocked by interface pack gap).
+
+### Decisions I’m making now
+1) **Remove `allow_instance_proof_bridge` everywhere** (policy schema, policy YAML, tests, README notes).
+   - Keep the historical impl_actual mentions unchanged; record the removal as a new entry (append‑only).
+2) **Add a receipt‑drift integration test** using the minimal output catalogue.
+   - Pre‑seed a mismatching receipt in SR’s object store and assert the run fails with `INSTANCE_RECEIPT_DRIFT`.
+   - This proves write‑once + drift detection semantics, not just presence.
+3) **Update Phase 3 build plan** to mark instance‑proof receipts as implemented and add drift test to DoD.
+
+### Files I will touch (planned)
+- `src/fraud_detection/scenario_runner/config.py` (remove policy field)
+- `config/platform/sr/policy_v0.yaml` (remove field, recompute content_digest)
+- `tests/services/scenario_runner/test_instance_proof_bridge.py` (add drift test; remove bridge logic)
+- `tests/services/scenario_runner/test_gate_verification_integration.py` (remove bridge param)
+- `services/scenario_runner/README.md` (remove deprecated flag mention)
+- `docs/model_spec/platform/implementation_maps/scenario_runner.build_plan.md` (Phase 3 status + DoD)
+- `docs/logbook/01-2026/2026-01-24.md` (record actions + test results)
+
+### Guardrails
+- No credentials in plan or notes.
+- Receipt drift test will only touch local temp artefacts.
+- Content digest recomputed deterministically from policy content without the digest field.
+
+---
+
+## Entry: 2026-01-24 14:50:32 — Phase 3 follow‑ups executed (bridge removal + drift test + plan update)
+
+I’ve completed the three requested actions. Here is what I actually changed and why, in the same decision‑trail style.
+
+### 1) Bridge flag removal (policy + tests + docs)
+- **Removed** `allow_instance_proof_bridge` from `PolicyProfile` and from `config/platform/sr/policy_v0.yaml`.
+- **Why:** SR now always emits verifier receipts; a bridge flag is unused and creates a false safety‑off switch for production.
+- **Impact:** policy content_digest was recomputed after removing the field to preserve pinned policy_rev integrity.
+- **Docs:** service README now states there is no bridge; SR emits verifier receipts directly.
+
+### 2) Receipt‑drift test (immutability proof)
+- Added a new test that **pre‑seeds** a mismatching receipt in SR’s object store, then submits a run.
+- Expected behavior verified: SR fails the run with reason `INSTANCE_RECEIPT_DRIFT` (idempotent, fail‑closed).
+- This protects against silent drift if a receipt already exists with different target_ref/digest.
+
+### 3) Build plan update
+- Phase 3 status now reflects that black‑box verifier receipts are implemented.
+- Added an explicit DoD item for receipt drift testing under Phase 3 validation.
+
+### Test run
+- `pytest tests/services/scenario_runner/test_instance_proof_bridge.py` → 2 passed (RefResolver deprecation warnings only).
+
+### Files touched (high‑signal)
+- `src/fraud_detection/scenario_runner/config.py`
+- `config/platform/sr/policy_v0.yaml`
+- `tests/services/scenario_runner/test_instance_proof_bridge.py`
+- `tests/services/scenario_runner/test_gate_verification_integration.py`
+- `services/scenario_runner/README.md`
+- `docs/model_spec/platform/implementation_maps/scenario_runner.build_plan.md`

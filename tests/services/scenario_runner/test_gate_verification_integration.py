@@ -32,7 +32,6 @@ def _build_policy() -> PolicyProfile:
         evidence_wait_seconds=60,
         attempt_limit=1,
         traffic_output_ids=["sealed_inputs_1A"],
-        allow_instance_proof_bridge=False,
     )
 
 
