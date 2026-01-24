@@ -11,7 +11,7 @@ This plan is intentionally progressive: it starts as phase milestones, then expa
 3) Phase 3 — Evidence + gate verification completeness (COMPLETE)
 4) Phase 4 — Engine invocation integration (COMPLETE)
 5) Phase 5 — Control bus + re‑emit operations (COMPLETE)
-6) Phase 6 — Observability + governance
+6) Phase 6 — Observability + governance (IN PROGRESS)
 7) Phase 7 — Security + ops hardening
 8) Phase 8 — Integration tests + CI gates
 
@@ -258,6 +258,49 @@ High‑level intent: publish READY to a real bus with idempotent keys; implement
 
 ## Phase 6 — Observability + governance
 High‑level intent: structured event taxonomy, metrics/traces, audit‑ready provenance stamps.
+
+**Status:** IN PROGRESS (planning).
+
+### Section 6.1 — Event taxonomy + structured events
+**Goal:** define and emit a stable SR observability event model.
+
+**Definition of done**
+- Canonical SR event taxonomy defined (ingress, plan, engine, evidence, commit, re‑emit).
+- Structured event model includes pins + policy_rev + attempt_id when applicable.
+- Emission is best‑effort and never blocks truth commits.
+
+### Section 6.2 — Governance facts (policy_rev / plan_hash / bundle_hash)
+**Goal:** emit explicit governance facts for audit‑ready provenance.
+
+**Definition of done**
+- Emit policy_rev + plan_hash facts at plan commit.
+- Emit bundle_hash facts at READY commit.
+- Emit re‑emit keys for READY/TERMINAL replays.
+- Facts are append‑only in run_record; no run_status mutation.
+
+### Section 6.3 — Metrics counters + durations
+**Goal:** produce minimal golden‑signal metrics from structured events.
+
+**Definition of done**
+- Counters for run requests, ready, failed, quarantined, engine attempts.
+- Duration metrics for engine attempt and evidence wait (tracked in process).
+- Metrics emission is best‑effort and non‑blocking.
+
+### Section 6.4 — Sinks + degrade posture
+**Goal:** provide a sink strategy that never blocks SR truth.
+
+**Definition of done**
+- Console JSON sink for local/dev.
+- Optional OTLP sink scaffolded (feature‑flagged).
+- Degrade posture: drop DEBUG first; never block on sink failure.
+
+### Section 6.5 — Tests + validation
+**Goal:** prove observability and governance facts without affecting truth.
+
+**Definition of done**
+- Unit tests for event emission and presence of governance facts in run_record.
+- Tests confirm emit failures do not block READY commits.
+- Log test results in docs/logbook.
 
 ---
 

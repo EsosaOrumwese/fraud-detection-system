@@ -2434,3 +2434,70 @@ Note:
 User requested Phase 5 sign‑off. I verified that all Phase 5 DoD items are met (control‑bus adapter, READY idempotency, re‑emit ops flow, failure posture, tests including LocalStack Kinesis). Marking Phase 5 as COMPLETE.
 
 ---
+
+## Entry: 2026-01-24 19:54:50 — Phase 6 planning (Observability + governance)
+
+I’m starting Phase 6 planning now. This is a live decision trail before any code changes.
+
+### Problem framing (what Phase 6 must solve)
+- SR already emits narrative logs, but we need **structured observability + governance facts** that are consistent across environments and do not affect truth outcomes.
+- Phase 6 must deliver a **stable event taxonomy**, **metrics**, and **governance facts** (policy_rev, plan_hash, bundle_hash) that let operators and auditors explain what happened without reading raw logs.
+- Observability must **never block truth commits** (drop, buffer, or degrade without affecting SR outcomes).
+
+### Authorities / inputs
+- Root AGENTS.md doctrine: provenance first‑class, no‑PASS‑no‑read, append‑only truth, fail‑closed.
+- SR design‑authority N8 (Observability / Governance) requirements and event taxonomy.
+- Existing SR contracts and run_record events.
+
+### Current state (baseline)
+- SR has narrative INFO logs in `runner.py` but no structured event emitter.
+- run_record captures core events but not a normalized taxonomy or metrics.
+- No metrics/traces or governance fact emission beyond run_facts_view/pins.
+
+### Decisions to make (initial)
+1) **Event taxonomy source of truth**
+   - Define a stable SR obs taxonomy (enum list) in code and optionally in docs.
+   - Use it to normalize SR internal events into structured obs events.
+
+2) **Emitter strategy**
+   - Emit structured events to:
+     - console JSON (local),
+     - optional OTLP/metrics (future),
+     - governance facts appended to run_record (authoritative index).
+   - Do **not** block SR commits; emit is best‑effort.
+
+3) **Governance facts**
+   - Emit explicit facts in run_record:
+     - policy_rev used,
+     - plan_hash,
+     - bundle_hash (READY),
+     - re‑emit keys.
+   - These should be emitted at commit boundaries and re‑emit operations.
+
+4) **Metrics scope**
+   - Start with a minimal set (counts + durations) derived from normalized events.
+   - Keep in‑process counters only (no external dependency in v0).
+
+5) **Trace scaffolding**
+   - Add correlation IDs to structured logs (run_id, attempt_id, policy_rev) so traces can be added later without changing the event schema.
+
+### Planned Phase 6 sections (to add to build plan)
+- 6.1 Event taxonomy + structured event model
+- 6.2 Governance fact emission (policy_rev / plan_hash / bundle_hash)
+- 6.3 Metrics counters + durations
+- 6.4 Log/telemetry sinks with degrade posture
+- 6.5 Tests + validation
+
+### File touchpoints (expected)
+- `src/fraud_detection/scenario_runner/obs.py` (new structured event model + emitter)
+- `src/fraud_detection/scenario_runner/runner.py` (emit normalized events at key points)
+- `docs/model_spec/platform/implementation_maps/scenario_runner.build_plan.md` (Phase 6 sections + DoD)
+- `docs/model_spec/platform/implementation_maps/scenario_runner.impl_actual.md` (live decision trail)
+- Tests under `tests/services/scenario_runner/` for event emission and governance facts
+
+### Invariants to preserve
+- Observability never blocks truth commits.
+- All structured events include pins (run_id, manifest_fingerprint, parameter_hash, seed, scenario_id).
+- Governance facts are append‑only and never mutate run_status or facts_view.
+
+---
