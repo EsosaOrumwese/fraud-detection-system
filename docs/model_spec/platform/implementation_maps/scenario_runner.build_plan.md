@@ -11,7 +11,7 @@ This plan is intentionally progressive: it starts as phase milestones, then expa
 3) Phase 3 — Evidence + gate verification completeness (COMPLETE)
 4) Phase 4 — Engine invocation integration (COMPLETE)
 5) Phase 5 — Control bus + re‑emit operations (COMPLETE)
-6) Phase 6 — Observability + governance (IN PROGRESS)
+6) Phase 6 — Observability + governance (COMPLETE)
 7) Phase 7 — Security + ops hardening
 8) Phase 8 — Integration tests + CI gates
 
@@ -259,7 +259,7 @@ High‑level intent: publish READY to a real bus with idempotent keys; implement
 ## Phase 6 — Observability + governance
 High‑level intent: structured event taxonomy, metrics/traces, audit‑ready provenance stamps.
 
-**Status:** IN PROGRESS (planning).
+**Status:** COMPLETE.
 
 ### Section 6.1 — Event taxonomy + structured events
 **Goal:** define and emit a stable SR observability event model.

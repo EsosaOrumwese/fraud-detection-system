@@ -2598,3 +2598,108 @@ I added explicit governance fact events to run_record so audits can query policy
 - `python -m pytest tests/services/scenario_runner -q` → 35 passed, 3 skipped.
 
 ---
+
+## Entry: 2026-01-24 20:32:10 — Phase 6.3/6.4 metrics + sinks + degrade posture
+
+I implemented Phase 6.3 (metrics counters/durations) and Phase 6.4 (sink strategy + degrade posture) in a minimal, non‑blocking way.
+
+### What changed
+- Added `MetricsObsSink` in `obs.py`:
+  - Counts events by kind and outcome.
+  - Captures duration_ms metrics from event details (min/max/avg snapshot).
+- Added sink composition + degrade posture:
+  - `CompositeObsSink` fan‑out with per‑sink exception isolation.
+  - `NullObsSink` and `OtlpObsSink` scaffold (feature‑flagged; no external deps).
+  - Drop DEBUG events by default via `SR_OBS_DROP_DEBUG=true`.
+- `ScenarioRunner` now:
+  - accepts optional `obs_sink` for tests,
+  - otherwise uses Console + Metrics sinks (and OTLP if `SR_OTLP_ENABLED=true`).
+
+### Tests
+- Added `test_obs_emission.py` to ensure obs sink failures do not block READY.
+- `python -m pytest tests/services/scenario_runner -q` → 36 passed, 3 skipped.
+
+---
+
+## Entry: 2026-01-24 20:41:20 — Phase 6.5 tests completed
+
+Added a metrics‑sink test and re‑ran the SR suite to close out Phase 6.5.
+
+### Tests
+- `python -m pytest tests/services/scenario_runner/test_obs_emission.py -q` → 2 passed.
+- `python -m pytest tests/services/scenario_runner -q` → 37 passed, 3 skipped.
+
+Result:
+- Phase 6 test coverage now includes structured event emission, governance fact presence, and non‑blocking failure posture.
+
+---
+
+## Entry: 2026-01-24 20:42:45 — Phase 6 marked COMPLETE
+
+Phase 6 is now complete: structured obs events, governance facts, metrics counters, sink scaffolding + degrade posture, and tests are all in place. Marking Phase 6 COMPLETE in the build plan.
+
+---
+
+## Entry: 2026-01-24 20:13:30 — Phase 6 detailed reasoning expansion (post‑implementation)
+
+This entry expands the Phase 6 decision trail in detail. The earlier Phase 6 entries were too summary‑style, so I’m recording the actual reasoning, trade‑offs, and mechanics in a more complete form here without rewriting history.
+
+### Why Phase 6 exists (restated intent)
+- SR already had narrative logs, but those are human‑only and not joinable. We needed a **structured, stable event model** that can be used for metrics, governance, and audits without scraping logs.
+- Observability must **never block SR truth**. This is non‑negotiable: no missed READY commits because telemetry sinks were down.
+
+### Core design choices (and why)
+
+**1) Event model as a lightweight, stable schema**
+- I created a minimal `ObsEvent` with: `event_kind`, `phase`, `outcome`, `severity`, `pins`, `ts_utc`, plus optional `policy_rev`, `attempt_id`, `details`.
+- This keeps the “shape” stable and explicit, without coupling to any external telemetry stack (OTLP, Prometheus, etc.).
+- Pins are mandatory because **joinability is the goal**. I decided to always include `run_id`, `manifest_fingerprint`, `parameter_hash`, `seed`, `scenario_id` once canonical intent is known. This ensures any event can be joined to truth.
+
+**2) Explicit phases & outcomes**
+- I used enums for `phase` and `outcome` to avoid drifting strings in logs.
+- Phase list aligns to the SR subnetworks (INGRESS / AUTHORITY / PLAN / ENGINE / EVIDENCE / COMMIT / REEMIT). This makes it easy to aggregate metrics across flows without deep parsing.
+
+**3) Best‑effort emission (never blocking)**
+- Emission happens via `_emit_obs()` and is fully guarded; all exceptions are swallowed. This was a deliberate choice: observability failure is allowed, truth failure is not.
+- I added a drop‑DEBUG switch (`SR_OBS_DROP_DEBUG=true` by default) to enforce degrade posture early without extra infra.
+
+**4) Sink architecture**
+- Implemented a `CompositeObsSink` so each sink is isolated and failures are contained. If one sink fails (console, metrics, future OTLP), others still run.
+- `ConsoleObsSink` is the local default for readability and dev feedback.
+- `MetricsObsSink` is the minimal in‑process aggregator (counts + durations). It doesn’t export yet — it just captures a snapshot. This keeps Phase 6 lightweight while still proving the model.
+- `OtlpObsSink` is a **scaffold only**; it does nothing until Phase 6/7 introduces real telemetry infra. This prevents a new dependency while allowing the interface to be stable now.
+
+**5) Metrics design**
+- I avoided building a full metrics pipeline. Instead, I track a few core counters + durations from event details. The decision here was to keep metrics **derived from events** (so we don’t double‑count under retries).
+- The `MetricsObsSink` uses `event_kind` and `outcome` to drive counters. Durations are pulled from `details.duration_ms` when present (engine attempt, evidence wait, etc.).
+
+**6) Governance facts vs observability**
+- Governance facts are written into the **run_record** as dedicated events (`GOV_POLICY_REV`, `GOV_PLAN_HASH`, `GOV_BUNDLE_HASH`, `GOV_REEMIT_KEY`). These are authoritative and append‑only.
+- Observability events are a **side channel**; they can be dropped without affecting truth.
+- This separation ensures audits rely on the ledger, not transient telemetry.
+
+### Mechanics: where events are emitted
+I intentionally chose **milestone points** that align with control‑plane decisions, not noisy inner loops:
+- Ingress: `RUN_REQUEST_RECEIVED`
+- Authority: `RUN_ACCEPTED`, `RUN_ANCHORED`, `LEASE_BUSY`
+- Plan: `PLAN_COMMITTED` or `PLAN_FAILED`
+- Engine: `ENGINE_ATTEMPT_START`, `ENGINE_ATTEMPT_FINISH`, `ENGINE_FAILED`
+- Evidence: `EVIDENCE_REUSE_RESULT`, `EVIDENCE_COMPLETE`
+- Commit: `READY_COMMITTED`, `READY_PUBLISHED`, `READY_PUBLISH_FAILED`
+- Re‑emit: `REEMIT_REQUESTED`, `REEMIT_BUSY`, `REEMIT_NOT_FOUND`, `REEMIT_FAILED`, `REEMIT_NOT_APPLICABLE`
+
+### Alternatives considered (and why rejected)
+- **Emit only in run_record**: rejected because run_record is authoritative but not ergonomic for real‑time monitoring.
+- **Push OTLP as a hard dependency**: rejected because it adds infra coupling and violates “non‑blocking.”
+- **Emit every internal step**: rejected because it becomes noisy and undermines the “noob‑readable” goal.
+
+### Validation strategy (why these tests)
+- I added a test that uses a **failing obs sink** to ensure READY still commits. This proves “observability never blocks truth.”
+- I added a metrics‑sink test to show that durations are captured without needing a real exporter.
+- Full SR suite is green, which ensures no regressions in core SR flows.
+
+### Remaining risk (tracked)
+- Event schema is stable but **not yet versioned**. If we expect schema evolution, we should add versioning to `ObsEvent` in Phase 7.
+- Metrics are in‑process only. We will need an exporter or collector later (Phase 6.4/Phase 7).
+
+---

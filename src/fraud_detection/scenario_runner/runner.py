@@ -5,6 +5,7 @@ from __future__ import annotations
 import json
 import hashlib
 import logging
+import os
 import time
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
@@ -44,7 +45,17 @@ from .models import (
     RunStatusState,
     Strategy,
 )
-from .obs import ConsoleObsSink, ObsEvent, ObsOutcome, ObsPhase, ObsSeverity
+from .obs import (
+    CompositeObsSink,
+    ConsoleObsSink,
+    MetricsObsSink,
+    ObsEvent,
+    ObsOutcome,
+    ObsPhase,
+    ObsSeverity,
+    OtlpObsSink,
+    ObsSink,
+)
 from .schemas import SchemaRegistry
 from .storage import build_object_store
 
@@ -55,6 +66,7 @@ class ScenarioRunner:
         wiring: WiringProfile,
         policy: PolicyProfile,
         engine_invoker: EngineInvoker,
+        obs_sink: ObsSink | None = None,
     ) -> None:
         self.logger = logging.getLogger(__name__)
         self.wiring = wiring
@@ -72,7 +84,17 @@ class ScenarioRunner:
         self.control_bus = self._build_control_bus(wiring)
         self.catalogue = OutputCatalogue(Path(wiring.engine_catalogue_path))
         self.gate_map = GateMap(Path(wiring.gate_map_path))
-        self.obs_sink = ConsoleObsSink()
+        self.metrics_sink = MetricsObsSink()
+        if obs_sink is None:
+            sinks = []
+            if os.getenv("SR_OBS_CONSOLE", "true").lower() == "true":
+                sinks.append(ConsoleObsSink())
+            if os.getenv("SR_OTLP_ENABLED", "false").lower() == "true":
+                sinks.append(OtlpObsSink())
+            sinks.append(self.metrics_sink)
+            self.obs_sink = CompositeObsSink(sinks)
+        else:
+            self.obs_sink = obs_sink
         authority_dsn = wiring.authority_store_dsn
         if authority_dsn is None:
             if wiring.object_store_root.startswith("s3://"):
@@ -1149,6 +1171,8 @@ class ScenarioRunner:
         return ObsOutcome.FAIL
 
     def _emit_obs(self, event: ObsEvent) -> None:
+        if event.severity == ObsSeverity.DEBUG and os.getenv("SR_OBS_DROP_DEBUG", "true").lower() == "true":
+            return
         try:
             self.obs_sink.emit(event)
         except Exception:
