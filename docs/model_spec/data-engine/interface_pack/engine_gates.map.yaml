@@ -1,4 +1,10 @@
 version: '1.0'
+compatibility_notes:
+  - id: gate.layer3.6A.validation.index_order
+    status: active
+    summary: "6A validation_bundle_index_6A items are not ASCII-lex ordered in current engine outputs."
+    decision: "SR verifies `_passed.flag` using the index order (`ordering: index_order`) to match real engine artifacts."
+    scope: "applies until engine emits sorted items; then revert to ascii_lex ordering."
 gates:
 - gate_id: gate.layer1.1A.validation
   segment: 1A

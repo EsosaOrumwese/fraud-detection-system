@@ -1643,3 +1643,22 @@ Test results:
 
 Open follow-up:
 - Consider filing an engine-side note to sort `validation_bundle_index_6A.items` by path to align with the stated spec; until then, SR uses `index_order` to match real outputs.
+
+---
+
+### Entry: 2026-01-24 16:36:40 — Interface-pack compatibility notes (engine black-box)
+
+Decision context:
+- User explicitly wants **no engine code changes**. Therefore SR must remain aligned to actual engine outputs, even where the state-expanded spec would imply stricter ordering rules.
+
+Decision:
+- Add a small compatibility note in the interface pack (engine_gates map) documenting the 6A bundle index ordering mismatch and why SR uses `index_order`.
+- This keeps SR verification correct for real outputs while making the spec deviation visible to future readers.
+
+Planned edit:
+- Update `docs/model_spec/data-engine/interface_pack/engine_gates.map.yaml` to include a top-level `compatibility_notes` section, noting:
+  - 6A `validation_bundle_index_6A.items` is not ASCII-lex ordered in current engine outputs.
+  - `_passed.flag` matches the **index order**, so SR uses `ordering: index_order` until the engine behavior changes.
+
+Validation plan:
+- No code behavior changes; note is documentation-only. Existing gate verifier tests remain the validation signal for correctness.
