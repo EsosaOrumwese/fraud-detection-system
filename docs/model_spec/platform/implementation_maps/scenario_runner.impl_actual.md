@@ -1984,3 +1984,73 @@ Test run:
 
 Result:
 - 26 passed, 2 skipped
+
+---
+
+### Entry: 2026-01-24 17:55:42 — Phase 4 hardening fixes (invocation + command validation)
+
+Problem:
+- Phase 4 has three small hardening gaps: (1) invocation schema errors are not trapped; (2) empty engine_command can crash LocalSubprocessInvoker; (3) unresolved placeholders can lead to confusing CLI invocations.
+
+Decision:
+- Add explicit error handling for invocation validation and command definition.
+- Enforce placeholder completeness (fail closed when unresolved tokens are detected).
+
+Planned changes:
+1) In `_invoke_engine`, catch invocation schema validation errors and fail with `ENGINE_INVOCATION_INVALID`.
+2) In `LocalSubprocessInvoker`, validate command list is non‑empty; if empty, return `ENGINE_COMMAND_MISSING`.
+3) In `LocalSubprocessInvoker`, detect unresolved `{...}` placeholders after substitution and fail with `ENGINE_COMMAND_TEMPLATE_UNRESOLVED` (record token list in stderr for audit).
+4) Add/extend tests to cover these cases.
+
+Validation:
+- Re‑run SR tests after updates.
+
+## Entry: 2026-01-24 18:02:22 — Phase 4 hardening fixes (implementation plan)
+
+I’m fixing the three Phase 4 hardening gaps identified earlier. I’m writing this **before** any new edits so the decision trail is explicit.
+
+### Problem statement (the three findings)
+1) Invocation schema validation failures were not trapped at the SR boundary, so a schema error could bubble as an exception instead of a deterministic attempt outcome.
+2) LocalSubprocessInvoker could be configured with an empty `engine_command`, leading to ambiguous failures.
+3) Placeholder tokens in `engine_command` could remain unresolved, producing confusing CLI calls.
+
+### Decision (what to do and why)
+- Add explicit, fail‑closed handling for each gap with stable reason codes so the run ledger is auditable:
+  - `ENGINE_INVOCATION_INVALID` when the invocation payload violates the engine invocation contract.
+  - `ENGINE_COMMAND_MISSING` when the configured command list is empty or missing.
+  - `ENGINE_COMMAND_TEMPLATE_UNRESOLVED` when a token still contains `{...}` after substitution.
+- Ensure the attempt lifecycle still appends a finished attempt event even for these failures. This keeps run_record append‑only and avoids silent drops.
+
+### Implementation plan (stepwise)
+1) Update `LocalSubprocessInvoker.invoke` to guard empty command and unresolved placeholders; return FAILED with the above reason codes and a short stderr message for operator clarity.
+2) Update `_invoke_engine` to catch invocation schema validation errors and convert them into a finished attempt with `ENGINE_INVOCATION_INVALID`.
+3) Extend tests to cover all three cases; ensure test helpers import the needed symbols (avoid NameError from missing RunHandle import).
+4) Re-run the SR test suite and log results.
+
+### Invariants to preserve
+- No‑PASS‑no‑read stays intact: invocation failures must not proceed to evidence collection.
+- Every engine attempt request results in an append‑only `ENGINE_ATTEMPT_FINISHED` event with a stable reason.
+- No secrets or credentials in code or docs.
+
+---
+
+## Entry: 2026-01-24 18:06:12 — Phase 4 hardening fixes implemented (invocation + command validation)
+
+I implemented the three hardening fixes and validated them with tests.
+
+### What changed (concrete)
+- **Invocation schema failures are now deterministic**: `_invoke_engine` traps schema validation errors and returns a FAILED attempt with `ENGINE_INVOCATION_INVALID`, while still appending an `ENGINE_ATTEMPT_FINISHED` event.
+- **Command guards in LocalSubprocessInvoker**:
+  - Empty `engine_command` now returns FAILED with `ENGINE_COMMAND_MISSING`.
+  - Unresolved `{...}` placeholders after substitution return FAILED with `ENGINE_COMMAND_TEMPLATE_UNRESOLVED` and a short stderr hint listing the unresolved tokens.
+- **Tests updated** to cover the new failure paths and to ensure the attempt ledger captures the reason codes. (Fixed missing `RunHandle` import in the invocation test helper.)
+
+### Why this satisfies the DoD gap
+- Fail‑closed behavior is explicit and auditable with stable reason codes.
+- Attempt lifecycle remains append‑only (even in validation failures).
+- Operators get a clear stderr hint without leaking secrets.
+
+### Validation
+- `python -m pytest tests/services/scenario_runner -q` via venv → **29 passed, 2 skipped**.
+
+---

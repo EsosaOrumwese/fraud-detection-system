@@ -63,6 +63,37 @@ def test_subprocess_invoker_captures_output(tmp_path: Path) -> None:
     assert result.stderr and "engine warn" in result.stderr
 
 
+def test_subprocess_invoker_empty_command_fails() -> None:
+    invoker = LocalSubprocessInvoker([])
+    run_id = run_id_from_equivalence_key("subprocess-empty")
+    invocation = {
+        "manifest_fingerprint": "a" * 64,
+        "parameter_hash": "b" * 64,
+        "seed": 1,
+        "run_id": run_id,
+        "scenario_binding": {"scenario_id": "s1"},
+    }
+    result = invoker.invoke(run_id, 1, invocation)
+    assert result.outcome == "FAILED"
+    assert result.reason_code == "ENGINE_COMMAND_MISSING"
+
+
+def test_subprocess_invoker_unresolved_placeholder_fails() -> None:
+    invoker = LocalSubprocessInvoker(["echo", "{scenario_id}"])
+    run_id = run_id_from_equivalence_key("subprocess-unresolved")
+    invocation = {
+        "manifest_fingerprint": "a" * 64,
+        "parameter_hash": "b" * 64,
+        "seed": 1,
+        "run_id": run_id,
+        "scenario_binding": {"scenario_set": ["s1", "s2"]},
+    }
+    result = invoker.invoke(run_id, 1, invocation)
+    assert result.outcome == "FAILED"
+    assert result.reason_code == "ENGINE_COMMAND_TEMPLATE_UNRESOLVED"
+    assert result.stderr and "{scenario_id}" in result.stderr
+
+
 def _build_wiring(tmp_path: Path) -> WiringProfile:
     return WiringProfile(
         object_store_root=str(tmp_path / "artefacts"),

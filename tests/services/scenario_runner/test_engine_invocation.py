@@ -8,6 +8,7 @@ from fraud_detection.scenario_runner.config import PolicyProfile, WiringProfile
 from fraud_detection.scenario_runner.engine import LocalEngineInvoker
 from fraud_detection.scenario_runner.ids import run_id_from_equivalence_key
 from fraud_detection.scenario_runner.models import RunRequest, RunWindow, ScenarioBinding, Strategy
+from fraud_detection.scenario_runner.authority import RunHandle
 from fraud_detection.scenario_runner.runner import ScenarioRunner
 
 
@@ -142,3 +143,31 @@ def test_attempt_limit_enforced(tmp_path: Path) -> None:
     assert status is not None
     assert status.state.value == "FAILED"
     assert status.reason_code == "ATTEMPT_LIMIT_EXCEEDED"
+
+
+def test_engine_invocation_invalid_fails(tmp_path: Path) -> None:
+    engine_root = tmp_path / "engine_root"
+    engine_root.mkdir(parents=True, exist_ok=True)
+    wiring = _build_wiring(tmp_path)
+    policy = _build_policy()
+    runner = ScenarioRunner(wiring, policy, LocalEngineInvoker(str(engine_root)))
+
+    request = _build_request("engine-invocation-invalid", engine_root)
+    intent = runner._canonicalize(request)
+    invalid_intent = intent.model_copy(update={"seed": -1})
+    intent_fingerprint = runner._intent_fingerprint(intent)
+    run_id, _ = runner.equiv_registry.resolve("engine-invocation-invalid", intent_fingerprint)
+    leader, lease_token = runner.lease_manager.acquire(run_id, owner_id="test")
+    assert leader and lease_token
+    run_handle = RunHandle(run_id=run_id, intent_fingerprint=intent_fingerprint, leader=True, lease_token=lease_token)
+    runner._anchor_run(run_handle)
+    plan = runner._compile_plan(intent, run_id)
+    runner._commit_plan(run_handle, plan)
+
+    attempt = runner._invoke_engine(run_handle, invalid_intent, plan)
+    assert attempt.outcome == "FAILED"
+    assert attempt.reason_code == "ENGINE_INVOCATION_INVALID"
+    events = runner.ledger.read_record_events(run_id)
+    finished = [event for event in events if event.get("event_kind") == "ENGINE_ATTEMPT_FINISHED"]
+    assert finished
+    assert finished[-1]["details"].get("reason_code") == "ENGINE_INVOCATION_INVALID"

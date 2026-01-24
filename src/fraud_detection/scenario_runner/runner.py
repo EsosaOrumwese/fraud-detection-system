@@ -119,6 +119,8 @@ class ScenarioRunner:
                 reason = "UNKNOWN_GATE_ID"
             elif message.startswith("UNKNOWN_OUTPUT_ID:"):
                 reason = "UNKNOWN_OUTPUT_ID"
+            elif message.startswith("ENGINE_INVOCATION_INVALID"):
+                reason = "ENGINE_INVOCATION_INVALID"
             failure_bundle = EvidenceBundle(
                 status=EvidenceStatus.FAIL,
                 locators=[],
@@ -290,8 +292,6 @@ class ScenarioRunner:
             invocation["invoker"] = intent.invoker
         if intent.request_id:
             invocation["request_id"] = intent.request_id
-        self.engine_schemas.validate("engine_invocation.schema.yaml", invocation)
-
         prior_attempts = len(
             [event for event in self.ledger.read_record_events(run_handle.run_id) if event.get("event_kind") == "ENGINE_ATTEMPT_FINISHED"]
         )
@@ -328,6 +328,37 @@ class ScenarioRunner:
                 reason_code="ATTEMPT_LIMIT_EXCEEDED",
                 engine_run_root=intent.engine_run_root,
                 invocation=invocation,
+            )
+
+        try:
+            self.engine_schemas.validate("engine_invocation.schema.yaml", invocation)
+        except ValueError:
+            ended_at = datetime.now(tz=timezone.utc)
+            duration_ms = int((time.monotonic() - started_mono) * 1000)
+            attempt_payload: dict[str, Any] = {
+                "run_id": run_handle.run_id,
+                "attempt_id": attempt_id,
+                "attempt_no": attempt_no,
+                "invoker": intent.invoker or "sr-local",
+                "outcome": "FAILED",
+                "reason_code": "ENGINE_INVOCATION_INVALID",
+                "started_at_utc": started_at.isoformat(),
+                "ended_at_utc": ended_at.isoformat(),
+                "duration_ms": duration_ms,
+                "invocation": invocation,
+            }
+            self.schemas.validate("engine_attempt.schema.yaml", attempt_payload)
+            finish_event = self._event("ENGINE_ATTEMPT_FINISHED", run_handle.run_id, attempt_payload)
+            self.ledger.append_record(run_handle.run_id, finish_event)
+            return EngineAttemptResult(
+                run_id=run_handle.run_id,
+                attempt_id=attempt_id,
+                attempt_no=attempt_no,
+                outcome="FAILED",
+                reason_code="ENGINE_INVOCATION_INVALID",
+                engine_run_root=intent.engine_run_root,
+                invocation=invocation,
+                duration_ms=duration_ms,
             )
 
         attempt_event = self._event(

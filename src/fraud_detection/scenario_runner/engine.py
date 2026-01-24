@@ -93,7 +93,32 @@ class LocalSubprocessInvoker(EngineInvoker):
                 rendered = rendered.replace(f"{{{key}}}", str(value))
             return rendered
 
+        if not self.command:
+            return EngineAttemptResult(
+                run_id=run_id,
+                attempt_id=attempt_id,
+                attempt_no=attempt_no,
+                outcome="FAILED",
+                reason_code="ENGINE_COMMAND_MISSING",
+                engine_run_root=engine_root,
+                invocation=invocation,
+                duration_ms=0,
+                stderr="engine_command is empty",
+            )
         command = [render(token) for token in self.command]
+        unresolved = [token for token in command if "{" in token and "}" in token]
+        if unresolved:
+            return EngineAttemptResult(
+                run_id=run_id,
+                attempt_id=attempt_id,
+                attempt_no=attempt_no,
+                outcome="FAILED",
+                reason_code="ENGINE_COMMAND_TEMPLATE_UNRESOLVED",
+                engine_run_root=engine_root,
+                invocation=invocation,
+                duration_ms=0,
+                stderr=f"unresolved tokens: {', '.join(unresolved)}",
+            )
         env = os.environ.copy()
         env["SR_ENGINE_INVOCATION_JSON"] = invocation_json
         if engine_root:
