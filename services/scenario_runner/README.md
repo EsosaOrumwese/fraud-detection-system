@@ -20,6 +20,6 @@ Local parity stack (MinIO + Postgres):
 Phase 2.5 integration tests (local parity):
 1) Ensure Docker stack is up (command above).
 2) Load env vars from `.env` (PowerShell):
-   - `Get-Content .env | ForEach-Object { if ($_ -match '^(\\w+)=(.*)$') { $env:$($matches[1])=$matches[2] } }`
+   - `Get-Content .env | ForEach-Object { if ($_ -match '^(\\w+)=(.*)$') { Set-Item -Path "Env:$($matches[1])" -Value $matches[2] } }`
 3) Run tests:
    - `& .\\.venv\\Scripts\\python.exe -m pytest tests/services/scenario_runner/test_s3_store.py tests/services/scenario_runner/test_authority_store_postgres.py`
