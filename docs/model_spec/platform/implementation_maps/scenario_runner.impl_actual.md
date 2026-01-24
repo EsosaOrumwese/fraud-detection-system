@@ -1662,3 +1662,50 @@ Planned edit:
 
 Validation plan:
 - No code behavior changes; note is documentation-only. Existing gate verifier tests remain the validation signal for correctness.
+
+---
+
+### Entry: 2026-01-24 16:44:51 — Phase 3 parity reuse deep-gate update + SR tests
+
+Context:
+- Phase 3 is near-complete but parity reuse integration still targets 1A. HashGate laws for 2A/2B/3B/5A/5B/6A are now aligned in the interface pack and SR verifier.
+- We need to harden Phase 3 by reusing **deeper gates** to prove SR can verify real engine artifacts beyond 1A.
+
+Decision:
+- Update the parity reuse integration test to target a deeper gate (prefer 5B or 6A if their `_passed.flag` exists for the local_full_run-5 manifest). Keep the test deterministic and pinned to local_full_run-5 outputs.
+- Run the SR test suite (`tests/services/scenario_runner`) after updating the test.
+
+Implementation plan:
+1) Inspect `tests/services/scenario_runner/test_gate_verification_integration.py` to locate the parity reuse test.
+2) Switch the selected output(s) to one authorized by a deeper gate (priority: 6A → 5B → 5A). Use only outputs that are present in local_full_run-5.
+3) Ensure the test still uses the same run_root + manifest_fingerprint and validates the gate receipts (PASS) and evidence bundle hash stability.
+4) Run `pytest tests/services/scenario_runner -q` under the venv.
+5) Log results and update Phase 3 status if all tests pass and the DoD is satisfied.
+
+Validation plan:
+- Full SR test subset run, with explicit output in logbook.
+
+---
+
+### Entry: 2026-01-24 16:45:51 — Parity reuse test now targets 6A
+
+Change applied:
+- Updated `tests/services/scenario_runner/test_gate_verification_integration.py` so the real-run parity reuse test targets `s5_validation_report_6A` (deep gate) instead of `sealed_inputs_1A`.
+- Parameterized `_build_policy` so the 1A synthetic test still uses `sealed_inputs_1A`, while the parity test uses `s5_validation_report_6A`.
+
+Reasoning:
+- Phase 3 hashing alignment is now complete across 2A/2B/3B/5A/5B/6A, so the reuse test should exercise a deeper gate to prove real-world verification beyond 1A.
+
+---
+
+### Entry: 2026-01-24 16:46:30 — SR test suite run (Phase 3)
+
+Test run:
+- `python -m pytest tests/services/scenario_runner -q` (venv)
+
+Results:
+- 19 passed, 2 skipped
+
+Notes:
+- Skip reasons unchanged (local_full_run-5 gating when run root absent).
+- Parity reuse now exercises 6A gate with real engine artifacts.

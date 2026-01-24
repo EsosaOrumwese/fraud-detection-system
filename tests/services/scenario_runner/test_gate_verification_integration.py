@@ -24,7 +24,7 @@ def _build_wiring(tmp_path: Path) -> WiringProfile:
     )
 
 
-def _build_policy() -> PolicyProfile:
+def _build_policy(output_ids: list[str] | None = None) -> PolicyProfile:
     return PolicyProfile(
         policy_id="sr_policy",
         revision="v0-test",
@@ -32,7 +32,7 @@ def _build_policy() -> PolicyProfile:
         reuse_policy="ALLOW",
         evidence_wait_seconds=60,
         attempt_limit=1,
-        traffic_output_ids=["sealed_inputs_1A"],
+        traffic_output_ids=output_ids or ["sealed_inputs_1A"],
     )
 
 
@@ -59,7 +59,7 @@ def test_gate_verification_with_real_map(tmp_path: Path) -> None:
     _write_output(engine_root, manifest_fingerprint)
 
     wiring = _build_wiring(tmp_path)
-    policy = _build_policy()
+    policy = _build_policy(["sealed_inputs_1A"])
     runner = ScenarioRunner(wiring, policy, LocalEngineInvoker(str(engine_root)))
 
     request = RunRequest(
@@ -93,11 +93,11 @@ def test_sr_reuse_with_real_engine_run(tmp_path: Path) -> None:
     run_root = RUN_ROOT
     manifest = "c8fd43cd60ce0ede0c63d2ceb4610f167c9b107e1d59b9b8c7d7b8d0028b05c8"
     wiring = _build_wiring(tmp_path)
-    policy = _build_policy()
+    policy = _build_policy(["s5_validation_report_6A"])
     runner = ScenarioRunner(wiring, policy, LocalEngineInvoker(str(run_root)))
 
     request = RunRequest(
-        run_equivalence_key="sr-reuse-real-run-1a",
+        run_equivalence_key="sr-reuse-real-run-6a",
         manifest_fingerprint=manifest,
         parameter_hash="56d45126eaabedd083a1d8428a763e0278c89efec5023cfd6cf3cab7fc8dd2d7",
         seed=42,
@@ -106,7 +106,7 @@ def test_sr_reuse_with_real_engine_run(tmp_path: Path) -> None:
             window_start_utc=datetime(2026, 1, 1, tzinfo=timezone.utc),
             window_end_utc=datetime(2026, 1, 2, tzinfo=timezone.utc),
         ),
-        output_ids=["sealed_inputs_1A"],
+        output_ids=["s5_validation_report_6A"],
         engine_run_root=str(run_root),
         requested_strategy=Strategy.FORCE_REUSE,
         invoker="test",
