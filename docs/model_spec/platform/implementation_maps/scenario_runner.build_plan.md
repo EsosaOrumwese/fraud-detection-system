@@ -43,6 +43,12 @@ Make SR truth durable and correct under at‑least‑once behavior using persist
 - **Runtime:** ECS Fargate.
 - **Control bus:** Amazon Kinesis.
 
+### Local dev stack (parity first)
+To avoid drift, local dev should mirror AWS semantics:
+- **Recommended:** MinIO (S3‑compatible) + Postgres container.
+- **Not recommended:** Local filesystem + SQLite (only acceptable for quick smoke runs; not valid for Phase 2.5 hardening or correctness claims).
+Phase 2.5 hardening tests must run against MinIO + Postgres where available.
+
 ### Section 2.1 — Object store abstraction (durable, by‑ref)
 **Goal:** replace the local-only store with a real abstraction suitable for S3/MinIO and ensure atomic writes + by‑ref artifact refs are enforced.
 

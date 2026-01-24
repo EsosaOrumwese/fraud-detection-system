@@ -547,6 +547,26 @@ Phase 2 is functional but not rock‑solid. Hardening is required for production
 - Decide on additional lease fencing if required by ops policy.
 
 ---
+## Entry: 2026-01-24 09:58:16 — Plan clarification (local dev stack parity)
+
+### Gap
+The Phase 2/2.5 plans locked the AWS target stack but did not explicitly state the **local dev stack** preference (parity vs speed). This made it unclear whether we were intentionally keeping local on AWS semantics.
+
+### Clarification
+Documented local dev guidance in the build plan:
+- **Recommended:** MinIO + Postgres (S3/RDS parity).
+- **Allowed:** filesystem + SQLite for speed, with reduced fidelity.
+
+---
+## Entry: 2026-01-24 09:59:41 — Correction (local FS + SQLite not recommended)
+
+### Correction
+Clarified that **local filesystem + SQLite are not recommended** for SR Phase 2/2.5 hardening. They may be used only for quick smoke checks and are not valid for correctness claims.
+
+### Current guidance
+Local dev should mirror AWS semantics with **MinIO + Postgres**; Phase 2.5 hardening must run against that stack where available.
+
+---
 ## Entry: 2026-01-24 07:09:54 — Implementation map rename (drop component_ prefix)
 
 ### Change
