@@ -44,6 +44,7 @@ from .models import (
     RunStatusState,
     Strategy,
 )
+from .obs import ConsoleObsSink, ObsEvent, ObsOutcome, ObsPhase, ObsSeverity
 from .schemas import SchemaRegistry
 from .storage import build_object_store
 
@@ -71,6 +72,7 @@ class ScenarioRunner:
         self.control_bus = self._build_control_bus(wiring)
         self.catalogue = OutputCatalogue(Path(wiring.engine_catalogue_path))
         self.gate_map = GateMap(Path(wiring.gate_map_path))
+        self.obs_sink = ConsoleObsSink()
         authority_dsn = wiring.authority_store_dsn
         if authority_dsn is None:
             if wiring.object_store_root.startswith("s3://"):
@@ -90,6 +92,16 @@ class ScenarioRunner:
             output_label,
             request.engine_run_root,
         )
+        self._emit_obs(
+            ObsEvent.now(
+                event_kind="RUN_REQUEST_RECEIVED",
+                phase=ObsPhase.INGRESS,
+                outcome=ObsOutcome.OK,
+                severity=ObsSeverity.INFO,
+                pins={"run_equivalence_key": request.run_equivalence_key},
+                details={"requested_outputs": output_label},
+            )
+        )
         self.schemas.validate(
             "run_request.schema.yaml",
             request.model_dump(mode="json", exclude_none=True),
@@ -102,10 +114,28 @@ class ScenarioRunner:
             run_id,
             first_seen,
         )
+        self._emit_obs(
+            ObsEvent.now(
+                event_kind="RUN_ACCEPTED",
+                phase=ObsPhase.AUTHORITY,
+                outcome=ObsOutcome.OK,
+                severity=ObsSeverity.INFO,
+                pins=self._obs_pins(canonical, run_id),
+            )
+        )
 
         leader, lease_token = self.lease_manager.acquire(run_id, owner_id="sr-local")
         if not leader:
             self.logger.info("SR: lease held by another runner (run_id=%s)", run_id)
+            self._emit_obs(
+                ObsEvent.now(
+                    event_kind="LEASE_BUSY",
+                    phase=ObsPhase.AUTHORITY,
+                    outcome=ObsOutcome.SKIP,
+                    severity=ObsSeverity.WARN,
+                    pins=self._obs_pins(canonical, run_id),
+                )
+            )
             status = self.ledger.read_status(run_id)
             return RunResponse(
                 run_id=run_id,
@@ -119,6 +149,15 @@ class ScenarioRunner:
         run_handle = RunHandle(run_id=run_id, intent_fingerprint=intent_fingerprint, leader=True, lease_token=lease_token)
         self._anchor_run(run_handle)
         self.logger.info("SR: run anchored (run_id=%s)", run_id)
+        self._emit_obs(
+            ObsEvent.now(
+                event_kind="RUN_ANCHORED",
+                phase=ObsPhase.AUTHORITY,
+                outcome=ObsOutcome.OK,
+                severity=ObsSeverity.INFO,
+                pins=self._obs_pins(canonical, run_id),
+            )
+        )
 
         try:
             plan = self._compile_plan(canonical, run_id)
@@ -138,6 +177,17 @@ class ScenarioRunner:
                 reason=reason,
             )
             self._commit_terminal(run_handle, failure_bundle)
+            self._emit_obs(
+                ObsEvent.now(
+                    event_kind="PLAN_FAILED",
+                    phase=ObsPhase.PLAN,
+                    outcome=ObsOutcome.FAIL,
+                    severity=ObsSeverity.ERROR,
+                    pins=self._obs_pins(canonical, run_id),
+                    policy_rev=self.policy.as_rev(),
+                    details={"reason": reason},
+                )
+            )
             return self._response_from_status(run_id, "Run failed.")
         self._commit_plan(run_handle, plan)
         self.logger.info(
@@ -146,6 +196,17 @@ class ScenarioRunner:
             len(plan.intended_outputs),
             len(plan.required_gates),
             plan.strategy.value,
+        )
+        self._emit_obs(
+            ObsEvent.now(
+                event_kind="PLAN_COMMITTED",
+                phase=ObsPhase.PLAN,
+                outcome=ObsOutcome.OK,
+                severity=ObsSeverity.INFO,
+                pins=self._obs_pins(canonical, run_id),
+                policy_rev=plan.policy_rev,
+                details={"plan_hash": plan.plan_hash},
+            )
         )
 
         strategy = plan.strategy
@@ -158,6 +219,17 @@ class ScenarioRunner:
                 reuse_result.status.value,
                 reuse_result.reason,
             )
+            self._emit_obs(
+                ObsEvent.now(
+                    event_kind="EVIDENCE_REUSE_RESULT",
+                    phase=ObsPhase.EVIDENCE,
+                    outcome=self._obs_outcome(reuse_result.status),
+                    severity=ObsSeverity.INFO,
+                    pins=self._obs_pins(canonical, run_id),
+                    policy_rev=plan.policy_rev,
+                    details={"reason": reuse_result.reason},
+                )
+            )
             if reuse_result.status == EvidenceStatus.COMPLETE:
                 return self._commit_ready(run_handle, canonical, plan, reuse_result)
             if reuse_result.status == EvidenceStatus.WAITING:
@@ -169,12 +241,34 @@ class ScenarioRunner:
 
         # Invoke engine path (IP1)
         self.logger.info("SR: invoking engine (run_id=%s)", run_id)
+        self._emit_obs(
+            ObsEvent.now(
+                event_kind="ENGINE_ATTEMPT_START",
+                phase=ObsPhase.ENGINE,
+                outcome=ObsOutcome.OK,
+                severity=ObsSeverity.INFO,
+                pins=self._obs_pins(canonical, run_id),
+                policy_rev=plan.policy_rev,
+            )
+        )
         attempt_result = self._invoke_engine(run_handle, canonical, plan)
         self.logger.info(
             "SR: engine attempt finished (run_id=%s, outcome=%s, reason=%s)",
             run_id,
             attempt_result.outcome,
             attempt_result.reason_code,
+        )
+        self._emit_obs(
+            ObsEvent.now(
+                event_kind="ENGINE_ATTEMPT_FINISH",
+                phase=ObsPhase.ENGINE,
+                outcome=ObsOutcome.OK if attempt_result.outcome == "SUCCEEDED" else ObsOutcome.FAIL,
+                severity=ObsSeverity.INFO if attempt_result.outcome == "SUCCEEDED" else ObsSeverity.ERROR,
+                pins=self._obs_pins(canonical, run_id),
+                policy_rev=plan.policy_rev,
+                attempt_id=attempt_result.attempt_id,
+                details={"reason_code": attempt_result.reason_code},
+            )
         )
         if attempt_result.outcome != "SUCCEEDED":
             failure_bundle = EvidenceBundle(
@@ -184,6 +278,18 @@ class ScenarioRunner:
                 reason=attempt_result.reason_code or "ENGINE_FAILED",
             )
             self._commit_terminal(run_handle, failure_bundle)
+            self._emit_obs(
+                ObsEvent.now(
+                    event_kind="ENGINE_FAILED",
+                    phase=ObsPhase.ENGINE,
+                    outcome=ObsOutcome.FAIL,
+                    severity=ObsSeverity.ERROR,
+                    pins=self._obs_pins(canonical, run_id),
+                    policy_rev=plan.policy_rev,
+                    attempt_id=attempt_result.attempt_id,
+                    details={"reason_code": attempt_result.reason_code},
+                )
+            )
             return self._response_from_status(run_id, "Engine attempt failed.")
 
         evidence = self._collect_evidence(canonical, plan, attempt_result)
@@ -192,6 +298,17 @@ class ScenarioRunner:
             run_id,
             evidence.status.value,
             evidence.reason,
+        )
+        self._emit_obs(
+            ObsEvent.now(
+                event_kind="EVIDENCE_COMPLETE",
+                phase=ObsPhase.EVIDENCE,
+                outcome=self._obs_outcome(evidence.status),
+                severity=ObsSeverity.INFO if evidence.status == EvidenceStatus.COMPLETE else ObsSeverity.WARN,
+                pins=self._obs_pins(canonical, run_id),
+                policy_rev=plan.policy_rev,
+                details={"reason": evidence.reason},
+            )
         )
         if evidence.status == EvidenceStatus.COMPLETE:
             return self._commit_ready(run_handle, canonical, plan, evidence)
@@ -207,14 +324,42 @@ class ScenarioRunner:
             request.model_dump(mode="json", exclude_none=True),
         )
         run_id = request.run_id
+        self._emit_obs(
+            ObsEvent.now(
+                event_kind="REEMIT_REQUESTED",
+                phase=ObsPhase.REEMIT,
+                outcome=ObsOutcome.OK,
+                severity=ObsSeverity.INFO,
+                pins={"run_id": run_id},
+                details={"reemit_kind": request.reemit_kind.value},
+            )
+        )
         ops_lease_key = f"reemit:{run_id}:{request.reemit_kind.value}"
         ops_lease = LeaseManager(self.lease_manager.store, ttl_seconds=60)
         leader, lease_token = ops_lease.acquire(ops_lease_key, owner_id="sr-reemit")
         if not leader:
+            self._emit_obs(
+                ObsEvent.now(
+                    event_kind="REEMIT_BUSY",
+                    phase=ObsPhase.REEMIT,
+                    outcome=ObsOutcome.SKIP,
+                    severity=ObsSeverity.WARN,
+                    pins={"run_id": run_id},
+                )
+            )
             return ReemitResponse(run_id=run_id, message="Reemit busy; another operator is active.")
 
         status = self.ledger.read_status(run_id)
         if status is None:
+            self._emit_obs(
+                ObsEvent.now(
+                    event_kind="REEMIT_NOT_FOUND",
+                    phase=ObsPhase.REEMIT,
+                    outcome=ObsOutcome.FAIL,
+                    severity=ObsSeverity.ERROR,
+                    pins={"run_id": run_id},
+                )
+            )
             return ReemitResponse(run_id=run_id, message="Run not found.")
 
         request_details = {
@@ -247,6 +392,15 @@ class ScenarioRunner:
 
         if not published:
             if attempted:
+                self._emit_obs(
+                    ObsEvent.now(
+                        event_kind="REEMIT_FAILED",
+                        phase=ObsPhase.REEMIT,
+                        outcome=ObsOutcome.FAIL,
+                        severity=ObsSeverity.ERROR,
+                        pins={"run_id": run_id},
+                    )
+                )
                 return ReemitResponse(run_id=run_id, status_state=status.state, published=[], message="Reemit failed.")
             reason = "REEMIT_NOT_APPLICABLE"
             if status.state == RunStatusState.READY and terminal_allowed:
@@ -255,6 +409,16 @@ class ScenarioRunner:
                 reason = "REEMIT_READY_ONLY_MISMATCH"
             failure_event = self._event("REEMIT_FAILED", run_id, {"reason": reason})
             self.ledger.append_record(run_id, failure_event)
+            self._emit_obs(
+                ObsEvent.now(
+                    event_kind="REEMIT_NOT_APPLICABLE",
+                    phase=ObsPhase.REEMIT,
+                    outcome=ObsOutcome.SKIP,
+                    severity=ObsSeverity.WARN,
+                    pins={"run_id": run_id},
+                    details={"reason": reason},
+                )
+            )
             return ReemitResponse(run_id=run_id, status_state=status.state, published=[], message="Reemit not applicable.")
 
         return ReemitResponse(run_id=run_id, status_state=status.state, published=published, message="Reemit published.")
@@ -838,6 +1002,17 @@ class ScenarioRunner:
         event = self._event("READY_COMMITTED", plan.run_id, {"bundle_hash": bundle.bundle_hash})
         self.ledger.commit_ready(plan.run_id, event)
         self.logger.info("SR: READY committed (run_id=%s)", plan.run_id)
+        self._emit_obs(
+            ObsEvent.now(
+                event_kind="READY_COMMITTED",
+                phase=ObsPhase.COMMIT,
+                outcome=ObsOutcome.OK,
+                severity=ObsSeverity.INFO,
+                pins=self._obs_pins(intent, plan.run_id),
+                policy_rev=plan.policy_rev,
+                details={"bundle_hash": bundle.bundle_hash},
+            )
+        )
         ready_payload = {
             "run_id": plan.run_id,
             "facts_view_ref": f"fraud-platform/sr/run_facts_view/{plan.run_id}.json",
@@ -856,11 +1031,33 @@ class ScenarioRunner:
             )
             publish_event = self._event("READY_PUBLISHED", plan.run_id, {"message_id": publish_key})
             self.ledger.append_record(plan.run_id, publish_event)
+            self._emit_obs(
+                ObsEvent.now(
+                    event_kind="READY_PUBLISHED",
+                    phase=ObsPhase.COMMIT,
+                    outcome=ObsOutcome.OK,
+                    severity=ObsSeverity.INFO,
+                    pins=self._obs_pins(intent, plan.run_id),
+                    policy_rev=plan.policy_rev,
+                    details={"message_id": publish_key},
+                )
+            )
         except Exception as exc:
             error_text = str(exc)[:512]
             fail_event = self._event("READY_PUBLISH_FAILED", plan.run_id, {"message_id": publish_key, "error": error_text})
             self.ledger.append_record(plan.run_id, fail_event)
             self.logger.warning("SR: READY publish failed (run_id=%s, error=%s)", plan.run_id, error_text)
+            self._emit_obs(
+                ObsEvent.now(
+                    event_kind="READY_PUBLISH_FAILED",
+                    phase=ObsPhase.COMMIT,
+                    outcome=ObsOutcome.FAIL,
+                    severity=ObsSeverity.ERROR,
+                    pins=self._obs_pins(intent, plan.run_id),
+                    policy_rev=plan.policy_rev,
+                    details={"message_id": publish_key, "error": error_text},
+                )
+            )
         return self._response_from_status(plan.run_id, "READY committed")
 
     def _commit_waiting(self, run_handle: RunHandle, bundle: EvidenceBundle) -> None:
@@ -906,6 +1103,30 @@ class ScenarioRunner:
 
     def _hash_payload(self, payload: dict[str, Any]) -> str:
         return hash_payload(json.dumps(payload, sort_keys=True, ensure_ascii=True))
+
+    def _obs_pins(self, intent: CanonicalRunIntent, run_id: str) -> dict[str, Any]:
+        return {
+            "run_id": run_id,
+            "manifest_fingerprint": intent.manifest_fingerprint,
+            "parameter_hash": intent.parameter_hash,
+            "seed": intent.seed,
+            "scenario_id": intent.scenario_id,
+        }
+
+    def _obs_outcome(self, status: EvidenceStatus) -> ObsOutcome:
+        if status == EvidenceStatus.COMPLETE:
+            return ObsOutcome.OK
+        if status == EvidenceStatus.WAITING:
+            return ObsOutcome.WAITING
+        if status == EvidenceStatus.CONFLICT:
+            return ObsOutcome.CONFLICT
+        return ObsOutcome.FAIL
+
+    def _emit_obs(self, event: ObsEvent) -> None:
+        try:
+            self.obs_sink.emit(event)
+        except Exception:
+            return
 
     def _render_template(self, template: str, intent: CanonicalRunIntent, run_id: str) -> str:
         rendered = template

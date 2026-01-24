@@ -2501,3 +2501,49 @@ I’m starting Phase 6 planning now. This is a live decision trail before any co
 - Governance facts are append‑only and never mutate run_status or facts_view.
 
 ---
+
+## Entry: 2026-01-24 19:59:30 — Phase 6 implementation begins (obs scaffolding)
+
+I’m starting Phase 6 implementation with the smallest safe unit: a structured event taxonomy + lightweight emitter that is best‑effort and non‑blocking. I will log each decision before code changes.
+
+Immediate steps:
+1) Add `obs.py` with `ObsEvent` model + enum taxonomy and a `ConsoleObsSink`.
+2) Add a `ScenarioRunner._emit_obs(...)` helper that never raises.
+3) Wire emit points for core milestones (ingress, plan commit, attempt start/finish, evidence result, READY publish, re‑emit publish).
+4) Add tests to assert governance facts are appended and emission failures don’t block.
+
+Guardrails:
+- No changes to truth semantics or commit ordering.
+- Emission failure must not impact run outcomes.
+- All events carry pins + policy_rev where known.
+
+---
+
+## Entry: 2026-01-24 20:11:30 — Phase 6 scaffolding implemented (structured obs events)
+
+I added a first-pass structured observability scaffold with a stable event model and best‑effort emission, and wired core SR milestones to emit events. This is Phase 6 Section 6.1 work.
+
+### What changed
+- Added `src/fraud_detection/scenario_runner/obs.py` with:
+  - `ObsPhase`, `ObsOutcome`, `ObsSeverity` enums.
+  - `ObsEvent` dataclass + `to_dict()`.
+  - `ConsoleObsSink` for local JSON emission.
+- Wired `ScenarioRunner` to emit structured events at:
+  - run request received
+  - run accepted / anchored
+  - plan committed / plan failed
+  - engine attempt start/finish
+  - evidence result (reuse + post‑attempt)
+  - READY committed / READY published / READY publish failed
+  - re‑emit requested / busy / not found / failed / not applicable
+- Emission is best‑effort and non‑blocking (`_emit_obs` swallows exceptions).
+
+### Why this is safe
+- No truth semantics changed; all emissions are side‑channel only.
+- Emission failure cannot block SR commits.
+- Every event includes pins and policy_rev where available.
+
+### Tests
+- `python -m pytest tests/services/scenario_runner -q` → 35 passed, 3 skipped.
+
+---
