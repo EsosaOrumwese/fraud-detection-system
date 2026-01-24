@@ -2069,3 +2069,106 @@ Decision:
 - Mark Phase 4 as COMPLETE in the build plan.
 
 ---
+
+## Entry: 2026-01-24 18:19:22 — Phase 5 planning (control bus + re‑emit operations)
+
+I’m starting Phase 5 planning now. This is a live reasoning note, not a retrospective summary.
+
+### Problem framing (what Phase 5 must solve)
+- Phase 4 made engine invocation real, but SR still publishes READY to a file bus only. We need **production‑real control bus semantics** with idempotent publishing, and an **ops‑safe re‑emit path (N7)** that replays control facts without recomputation or mutation.
+- This phase is about **control‑plane delivery**, not changing truth. The truth surfaces remain `sr/*` artifacts; the bus is a trigger.
+
+### Authorities / inputs I’m grounding on
+- Root AGENTS.md (pins: no‑PASS‑no‑read, by‑ref truth, idempotency, fail‑closed).
+- SR design‑authority, especially N7 (rehydration / re‑emit) and the control‑bus join semantics.
+- Platform blueprint notes (control bus is the entrypoint trigger; downstream starts at SR READY).
+- Existing SR contracts: `run_ready_signal.schema.yaml` + run_record/run_status/run_facts_view schemas.
+- Locked platform stack decision (control bus = Amazon Kinesis; local can remain file bus for parity).
+
+### What I observe in current code
+- `FileControlBus` is used in `ScenarioRunner` for READY publish; it’s a local artifact‑based bus.
+- READY publish uses `bundle_hash` (or plan_hash) as a message_id, which is already aligned with idempotency intent.
+- No explicit re‑emit capability exists yet; no re‑emit request schema or events in run_record.
+
+### Decisions to make (and my reasoning)
+1) **Control bus abstraction**
+   - Keep `ControlBus` as an interface with at least `publish(topic, payload, message_id, attributes)`.
+   - Add a **KinesisControlBus** adapter for production with partition key = `run_id` and dedupe key = message_id.
+   - Keep `FileControlBus` for local/dev parity so unit tests stay deterministic.
+
+2) **READY publish idempotency key**
+   - Use a **stable key derived from `run_id + bundle_hash`**. The facts view already carries `bundle_hash`, which is stable for a run once READY.
+   - If a READY payload lacks bundle_hash (should not in COMPLETE), fall back to a deterministic hash of the facts_view payload. This avoids “random publish keys.”
+
+3) **Re‑emit contract and flow (N7)**
+   - Re‑emit must be **read‑only against SR truth**, never recompute, never modify status.
+   - Re‑emit must be idempotent and auditable: create run_record events for request + publish.
+   - Use **ops micro‑lease** to prevent stampede; reject with BUSY if lease not acquired.
+   - Re‑emit modes: READY_ONLY, TERMINAL_ONLY, BOTH. If the run is READY, publish READY; if terminal, publish terminal. If state doesn’t match requested kind, fail with reason.
+
+4) **Terminal control messages**
+   - I will emit a terminal control fact only for re‑emit (not for normal flow), because the platform’s entrypoint is READY; terminal control facts are strictly an ops/audit recovery tool.
+   - Terminal re‑emit includes status_ref + record_ref for downstream inspection; no facts_view ref required.
+
+5) **Authorization + safety**
+   - In local/dev, allow re‑emit without hard auth (but keep the hooks). In prod, require explicit authn/authz (Phase 7 will harden). For Phase 5, include a policy‑gate stub to keep the shape right.
+
+### Alternatives considered (and why I’m not choosing them)
+- **Push READY directly to EB**: rejected because SR must publish only to control bus; EB is owned by IG and is append/replay.
+- **Compute new facts_view on re‑emit**: rejected; violates “read truth → publish trigger.”
+- **Skip micro‑lease**: rejected; ops re‑emit is prone to duplicate floods in outage scenarios.
+
+### Proposed design (concrete mechanics)
+**A) Control bus adapters**
+- Add `KinesisControlBus` (new file under `src/fraud_detection/scenario_runner/bus.py` or sibling).
+- Wiring profile gains `control_bus_kind` (file|kinesis) + `control_bus_stream` (name only; no secrets).
+- `ScenarioRunner` chooses adapter via wiring.
+
+**B) READY publish flow (N6)**
+- Keep the commit order: facts_view → run_status READY → publish READY.
+- Publish payload must validate `run_ready_signal.schema.yaml` before send.
+- Use deterministic `message_id` = `bundle_hash` (or derived hash of facts_view) for idempotency.
+
+**C) Re‑emit flow (N7)**
+- Implement a `ReemitRequest` model + schema (under SR contracts) with:
+  - `run_id`, `reemit_kind`, `reason`, `requested_by`, `requested_at_utc`.
+- Re‑emit handler steps:
+  1) Acquire ops micro‑lease keyed by `(run_id, reemit_kind)`.
+  2) Read `run_status` (must exist) and `run_facts_view` (if READY).
+  3) Derive re‑emit idempotency keys:
+     - READY key: `sha256("ready|" + run_id + "|" + bundle_hash_or_facts_view_hash)`.
+     - TERMINAL key: `sha256("terminal|" + run_id + "|" + state + "|" + status_hash)`.
+  4) Append `REEMIT_REQUESTED` to run_record.
+  5) Publish READY and/or terminal control fact based on state + kind.
+  6) Append `REEMIT_PUBLISHED` or `REEMIT_FAILED` to run_record (no run_status changes).
+
+**D) Control‑fact payloads**
+- READY re‑emit uses the same payload as standard READY (run_ready_signal).
+- Terminal re‑emit payload includes: run_id, status_state, status_ref, record_ref, reason_code, and reemit_key. (Schema to be added under SR contracts so it’s auditable.)
+
+### File path plan (expected touchpoints)
+- `src/fraud_detection/scenario_runner/bus.py` (add Kinesis adapter + interface extensions)
+- `src/fraud_detection/scenario_runner/config.py` (wiring fields for bus kind/stream)
+- `src/fraud_detection/scenario_runner/runner.py` (READY publish idempotency key from bundle hash)
+- `src/fraud_detection/scenario_runner/service.py` + `cli.py` (re‑emit endpoint/command)
+- `docs/model_spec/platform/contracts/scenario_runner/` (new re‑emit request + terminal signal schemas)
+- `docs/model_spec/platform/contracts/scenario_runner/README.md` (document re‑emit contract)
+- Tests under `tests/services/scenario_runner/` (re‑emit + publish idempotency)
+
+### Invariants to enforce
+- Re‑emit never mutates run_status or facts_view.
+- READY publish remains strictly after facts_view + status READY commit.
+- Message idempotency is deterministic and stable across retries.
+- No credentials or secrets appear in code or docs.
+
+### Observability expectations (light, Phase 5‑scoped)
+- Log re‑emit start/end with run_id, kind, result, reemit_key.
+- Append run_record events for re‑emit actions; this is the audit trail.
+
+### Validation plan
+- Unit tests for re‑emit key derivation + READY publish key determinism.
+- Integration test for re‑emit READY using file bus (assert control message stored and idempotent).
+- Integration test for terminal re‑emit (FAILED/QUARANTINED) verifying payload and refs.
+- Log test results in logbook.
+
+---

@@ -10,7 +10,7 @@ This plan is intentionally progressive: it starts as phase milestones, then expa
 2) Phase 2 — Durable storage + idempotency (COMPLETE)
 3) Phase 3 — Evidence + gate verification completeness (COMPLETE)
 4) Phase 4 — Engine invocation integration (COMPLETE)
-5) Phase 5 — Control bus + re‑emit operations
+5) Phase 5 — Control bus + re‑emit operations (IN PROGRESS)
 6) Phase 6 — Observability + governance
 7) Phase 7 — Security + ops hardening
 8) Phase 8 — Integration tests + CI gates
@@ -205,6 +205,54 @@ High‑level intent: real job runner adapter with attempt lifecycle, retries, an
 
 ## Phase 5 — Control bus + re‑emit operations
 High‑level intent: publish READY to a real bus with idempotent keys; implement re‑emit (N7).
+
+**Status:** IN PROGRESS (planning).
+
+### Section 5.1 — Control bus abstraction + real adapter
+**Goal:** make control‑bus publishing real (AWS Kinesis in prod) while keeping semantics identical across envs.
+
+**Definition of done**
+- ControlBus interface supports publish + idempotency key + message attributes.
+- Kinesis adapter implemented (production target); file‑based bus remains for local/dev.
+- Publish does not block truth commits; failures are recorded and surfaced.
+- No credentials or secrets are embedded in code or docs.
+
+### Section 5.2 — READY publish idempotency + envelope
+**Goal:** ensure READY publish is safe under retries and duplicates.
+
+**Definition of done**
+- READY publish key is deterministic: `(run_id, bundle_hash)` (or equivalent stable facts_view hash).
+- READY payload includes `facts_view_ref` and pins; payload validated against run_ready_signal schema.
+- Duplicate READY publishes are idempotent and safe for downstream.
+
+### Section 5.3 — Re‑emit operations (N7)
+**Goal:** provide an ops‑safe re‑emit path that replays control facts without recomputing or mutating truth.
+
+**Definition of done**
+- Re‑emit API/CLI accepts `run_id`, `reemit_kind` (READY_ONLY / TERMINAL_ONLY / BOTH), and `reason` (audit).
+- Re‑emit reads `run_status` + `run_facts_view` (if READY) from SR truth; no engine calls.
+- Re‑emit uses a short ops micro‑lease to prevent stampede.
+- Re‑emit publishes idempotently with deterministic keys:
+  - READY key: `sha256("ready|" + run_id + "|" + facts_view_hash)`.
+  - TERMINAL key: `sha256("terminal|" + run_id + "|" + status_state + "|" + status_hash)`.
+- Re‑emit appends run_record events (`REEMIT_REQUESTED`, `REEMIT_PUBLISHED`, `REEMIT_FAILED`) without changing run_status.
+
+### Section 5.4 — Failure posture + audit trail
+**Goal:** keep control‑bus failures observable without violating truth immutability.
+
+**Definition of done**
+- Publish failures do **not** alter run_status or facts_view.
+- Failures are appended to run_record with reason codes.
+- SR returns a clear response to the operator (success/failure/busy).
+
+### Section 5.5 — Tests + validation
+**Goal:** prove control‑bus idempotency and re‑emit behavior.
+
+**Definition of done**
+- Unit tests for READY idempotency key and re‑emit key derivation.
+- Integration test for re‑emit READY against a ready run (file bus), verifying message payload and idempotency key.
+- Integration test for re‑emit terminal (FAILED/QUARANTINED) with correct status refs.
+- All Phase 5 tests logged in docs/logbook with results.
 
 ---
 
