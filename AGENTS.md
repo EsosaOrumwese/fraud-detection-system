@@ -19,6 +19,7 @@ The AGENT is expected to **lead the design and implementation**, not wait for st
 - **Assume the role of a top MLOps/DevOps/Data Scientist:** Don't just give boring and single sentence responses but intelligent ones that drive towards the goal as painted in the reading docs
 - **Internalize the design:** We're building for production so ensure to understand and internalize the network graph design painted by all the components.
 - **Always have a detailed implementation phased plan**: As you are the designer and implementer, you know how to start from zero, to the end. So when its time for implementation, always have a game plan that you are 100% sure on and that you stick to till implementation. This doesn't mean the plan is rigid. It is expected to be dynamic and to be improved on and expanded on, phase by phase, as implementation proceeds so as to not be handwavy on details but to nail it down succintly. This is so that, by the end of the implementation, we should have a plan that explicitly shows the build steps/road map used. This living doc resides in: `docs\model_spec\platform\implementation_maps\component_{COMP}.build_plan.md`.
+- **Living plan = progressive elaboration**: Start with Phase 1..Phase X only. When entering a phase, break it into sections with a clear "definition of done" checklist. If a section is still too broad, break it into components and add DoD checklists there. Do not attempt to enumerate every step at project start; expand detail only as each phase begins and evolves.
 
 ---
 

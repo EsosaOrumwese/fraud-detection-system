@@ -328,3 +328,19 @@ RunPlan and RunStatus include datetimes and optional fields; JSON Schema expects
 Re-ran a local submit flow after the fix; schema validation passed. The response returned “lease held by another runner,” indicating a stale local lease from a prior failed attempt (expected in local dev, can be cleaned).
 
 ---
+## Entry: 2026-01-24 05:07:44 — Create SR build plan doc (living plan format)
+
+### Problem / request
+Root AGENTS.md now requires a living build‑plan doc at `component_{COMP}.build_plan.md` using progressive elaboration (phase list first; phase sections expanded with definition‑of‑done checklists as we enter them). User requested creation for SR.
+
+### Decision
+Create `docs/model_spec/platform/implementation_maps/component_scenario_runner.build_plan.md`:
+- Start with Phase 1–Phase X list aligned to the SR roadmap.
+- Mark Phase 1 as completed.
+- Expand Phase 2 into sections with DoD checklists (since Phase 2 is next).
+- Keep later phases high‑level until we enter them.
+
+### Next actions
+Add the build‑plan file with the structure above and log the action.
+
+---
