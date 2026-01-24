@@ -2380,3 +2380,9 @@ User requested LocalStack envs. I will add a `.env.localstack.example` file with
 Added a short note in the SR service README showing how to load `.env.localstack.example` for the LocalStack Kinesis test.
 
 ---
+
+## Entry: 2026-01-24 19:12:10 — LocalStack helper script
+
+User asked for a small helper to start/stop LocalStack from CLI. I will add `scripts/localstack.ps1` with start/stop/status/logs actions using docker.
+
+---
