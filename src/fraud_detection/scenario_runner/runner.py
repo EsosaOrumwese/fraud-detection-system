@@ -5,6 +5,7 @@ from __future__ import annotations
 import json
 import hashlib
 import logging
+import time
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any
@@ -30,7 +31,7 @@ from .evidence import (
     scope_parts,
 )
 from .engine import EngineInvoker, EngineAttemptResult
-from .ids import hash_payload, run_id_from_equivalence_key, scenario_set_to_id
+from .ids import attempt_id_for, hash_payload, run_id_from_equivalence_key, scenario_set_to_id
 from .ledger import Ledger
 from .models import CanonicalRunIntent, RunPlan, RunRequest, RunResponse, RunStatusState, Strategy
 from .schemas import SchemaRegistry
@@ -156,7 +157,7 @@ class ScenarioRunner:
 
         # Invoke engine path (IP1)
         self.logger.info("SR: invoking engine (run_id=%s)", run_id)
-        attempt_result = self._invoke_engine(run_handle, canonical)
+        attempt_result = self._invoke_engine(run_handle, canonical, plan)
         self.logger.info(
             "SR: engine attempt finished (run_id=%s, outcome=%s, reason=%s)",
             run_id,
@@ -270,29 +271,144 @@ class ScenarioRunner:
         event = self._event("PLAN_COMMITTED", run_handle.run_id, {"plan_hash": plan.plan_hash})
         self.ledger.commit_plan(plan, event)
 
-    def _invoke_engine(self, run_handle: RunHandle, intent: CanonicalRunIntent) -> EngineAttemptResult:
+    def _invoke_engine(self, run_handle: RunHandle, intent: CanonicalRunIntent, plan: RunPlan) -> EngineAttemptResult:
         self._ensure_lease(run_handle)
+        scenario_binding: dict[str, Any]
+        if intent.scenario_set:
+            scenario_binding = {"scenario_set": intent.scenario_set}
+        else:
+            scenario_binding = {"scenario_id": intent.scenario_id}
         invocation = {
             "manifest_fingerprint": intent.manifest_fingerprint,
             "parameter_hash": intent.parameter_hash,
             "seed": intent.seed,
             "run_id": run_handle.run_id,
-            "scenario_binding": {
-                "scenario_id": intent.scenario_id,
-                "scenario_set": intent.scenario_set,
-            },
+            "scenario_binding": scenario_binding,
             "engine_run_root": intent.engine_run_root,
         }
-        attempt_event = self._event("ENGINE_ATTEMPT_LAUNCH_REQUESTED", run_handle.run_id, {"attempt_no": 1})
-        self.ledger.mark_executing(run_handle.run_id, attempt_event)
-        attempt = self.engine_invoker.invoke(run_handle.run_id, 1, invocation)
-        finish_event = self._event(
-            "ENGINE_ATTEMPT_FINISHED",
-            run_handle.run_id,
-            {"attempt_id": attempt.attempt_id, "outcome": attempt.outcome, "reason": attempt.reason_code},
+        if intent.invoker:
+            invocation["invoker"] = intent.invoker
+        if intent.request_id:
+            invocation["request_id"] = intent.request_id
+        self.engine_schemas.validate("engine_invocation.schema.yaml", invocation)
+
+        prior_attempts = len(
+            [event for event in self.ledger.read_record_events(run_handle.run_id) if event.get("event_kind") == "ENGINE_ATTEMPT_FINISHED"]
         )
+        attempt_no = prior_attempts + 1
+        attempt_id = attempt_id_for(run_handle.run_id, attempt_no)
+        started_at = datetime.now(tz=timezone.utc)
+        started_mono = time.monotonic()
+
+        if attempt_no > plan.attempt_limit:
+            ended_at = datetime.now(tz=timezone.utc)
+            duration_ms = int((time.monotonic() - started_mono) * 1000)
+            attempt_payload: dict[str, Any] = {
+                "run_id": run_handle.run_id,
+                "attempt_id": attempt_id,
+                "attempt_no": attempt_no,
+                "invoker": intent.invoker or "sr-local",
+                "outcome": "FAILED",
+                "started_at_utc": started_at.isoformat(),
+                "ended_at_utc": ended_at.isoformat(),
+                "duration_ms": duration_ms,
+                "invocation": invocation,
+            }
+            attempt_payload["reason_code"] = "ATTEMPT_LIMIT_EXCEEDED"
+            if intent.engine_run_root:
+                attempt_payload["engine_run_root"] = intent.engine_run_root
+            self.schemas.validate("engine_attempt.schema.yaml", attempt_payload)
+            finish_event = self._event("ENGINE_ATTEMPT_FINISHED", run_handle.run_id, attempt_payload)
+            self.ledger.append_record(run_handle.run_id, finish_event)
+            return EngineAttemptResult(
+                run_id=run_handle.run_id,
+                attempt_id=attempt_id,
+                attempt_no=attempt_no,
+                outcome="FAILED",
+                reason_code="ATTEMPT_LIMIT_EXCEEDED",
+                engine_run_root=intent.engine_run_root,
+                invocation=invocation,
+            )
+
+        attempt_event = self._event(
+            "ENGINE_ATTEMPT_LAUNCH_REQUESTED",
+            run_handle.run_id,
+            {"attempt_id": attempt_id, "attempt_no": attempt_no, "invoker": intent.invoker or "sr-local"},
+        )
+        self.ledger.mark_executing(run_handle.run_id, attempt_event)
+        attempt = self.engine_invoker.invoke(run_handle.run_id, attempt_no, invocation)
+
+        outcome = attempt.outcome
+        reason_code = attempt.reason_code
+        engine_run_root = attempt.engine_run_root
+        run_receipt_ref = None
+
+        if outcome == "SUCCEEDED":
+            if not engine_run_root:
+                outcome = "FAILED"
+                reason_code = "ENGINE_ROOT_MISSING"
+            else:
+                receipt_path = Path(engine_run_root) / "run_receipt.json"
+                if not receipt_path.exists():
+                    outcome = "FAILED"
+                    reason_code = "ENGINE_RECEIPT_MISSING"
+                else:
+                    try:
+                        receipt_payload = json.loads(receipt_path.read_text(encoding="utf-8"))
+                        self.engine_schemas.validate("run_receipt.schema.yaml", receipt_payload)
+                    except (ValueError, json.JSONDecodeError):
+                        outcome = "FAILED"
+                        reason_code = "ENGINE_RECEIPT_INVALID"
+                    else:
+                        if receipt_payload.get("run_id") != run_handle.run_id:
+                            outcome = "FAILED"
+                            reason_code = "ENGINE_RECEIPT_MISMATCH"
+                        elif receipt_payload.get("manifest_fingerprint") != intent.manifest_fingerprint:
+                            outcome = "FAILED"
+                            reason_code = "ENGINE_RECEIPT_MISMATCH"
+                        elif receipt_payload.get("parameter_hash") != intent.parameter_hash:
+                            outcome = "FAILED"
+                            reason_code = "ENGINE_RECEIPT_MISMATCH"
+                        elif receipt_payload.get("seed") != intent.seed:
+                            outcome = "FAILED"
+                            reason_code = "ENGINE_RECEIPT_MISMATCH"
+                        else:
+                            run_receipt_ref = str(receipt_path)
+
+        ended_at = datetime.now(tz=timezone.utc)
+        duration_ms = int((time.monotonic() - started_mono) * 1000)
+        attempt_payload: dict[str, Any] = {
+            "run_id": run_handle.run_id,
+            "attempt_id": attempt_id,
+            "attempt_no": attempt_no,
+            "invoker": intent.invoker or "sr-local",
+            "outcome": outcome,
+            "started_at_utc": started_at.isoformat(),
+            "ended_at_utc": ended_at.isoformat(),
+            "duration_ms": duration_ms,
+            "invocation": invocation,
+        }
+        if reason_code:
+            attempt_payload["reason_code"] = reason_code
+        if engine_run_root:
+            attempt_payload["engine_run_root"] = engine_run_root
+        if run_receipt_ref:
+            attempt_payload["run_receipt_ref"] = run_receipt_ref
+        self.schemas.validate("engine_attempt.schema.yaml", attempt_payload)
+        finish_event = self._event("ENGINE_ATTEMPT_FINISHED", run_handle.run_id, attempt_payload)
         self.ledger.append_record(run_handle.run_id, finish_event)
-        return attempt
+
+        return EngineAttemptResult(
+            run_id=run_handle.run_id,
+            attempt_id=attempt_id,
+            attempt_no=attempt_no,
+            outcome=outcome,
+            reason_code=reason_code,
+            engine_run_root=engine_run_root,
+            invocation=invocation,
+            duration_ms=duration_ms,
+            run_receipt_ref=run_receipt_ref,
+        )
 
     def _reuse_evidence(self, intent: CanonicalRunIntent, plan: RunPlan) -> EvidenceBundle:
         engine_root = intent.engine_run_root

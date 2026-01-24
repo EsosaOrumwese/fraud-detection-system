@@ -148,6 +148,18 @@ class Ledger:
             return None
         return self.store.read_json(paths.run_facts_view)
 
+    def read_record_events(self, run_id: str) -> list[dict[str, Any]]:
+        paths = self._paths(run_id)
+        if not self.store.exists(paths.run_record):
+            return []
+        raw = self.store.read_text(paths.run_record)
+        events: list[dict[str, Any]] = []
+        for line in raw.splitlines():
+            if not line.strip():
+                continue
+            events.append(json.loads(line))
+        return events
+
     def _append_record(self, paths: LedgerPaths, record_event: dict[str, Any]) -> None:
         existing_ids = set()
         if self.store.exists(paths.record_index):

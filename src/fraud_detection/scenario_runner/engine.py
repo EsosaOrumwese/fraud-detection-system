@@ -18,6 +18,9 @@ class EngineAttemptResult:
     reason_code: str | None
     engine_run_root: str | None
     invocation: dict[str, Any]
+    duration_ms: int | None = None
+    run_receipt_ref: str | None = None
+    logs_ref: str | None = None
 
 
 class EngineInvoker:

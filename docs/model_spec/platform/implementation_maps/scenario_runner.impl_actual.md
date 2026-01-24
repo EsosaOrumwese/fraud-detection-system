@@ -1816,3 +1816,91 @@ Security posture:
 Validation plan:
 - Unit tests for attempt record creation + outcomes.
 - Integration test that runs a local “engine stub” (or the existing LocalEngineInvoker) and confirms receipts are validated before evidence collection.
+
+---
+
+### Entry: 2026-01-24 17:22:09 — Phase 4 implementation begins (exhaustive reasoning)
+
+Intent:
+- Proceed with Phase 4 implementation in a fully documented, step‑by‑step fashion (reasoning recorded as it happens).
+
+Immediate next actions (before code edits):
+1) Inspect current invoker code (`src/fraud_detection/scenario_runner/engine.py`) and `_invoke_engine` in `runner.py` to understand existing contract and gaps.
+2) Inventory current ledger record shapes for attempts (if any) and determine whether a new attempt schema is needed in SR contracts.
+3) Draft a minimal, explicit invoker result envelope and decide where it is persisted.
+
+Rationale:
+- We must not touch engine internals. The invoker interface is the boundary that gives SR deterministic control and observability over attempts.
+- Attempt lifecycle must be append‑only and idempotent to align with platform doctrine.
+
+---
+
+### Entry: 2026-01-24 17:26:13 — Phase 4 decisions (attempt lifecycle + receipt gating)
+
+Observations from code:
+- `EngineInvoker.invoke` currently returns a minimal `EngineAttemptResult` and LocalEngineInvoker always returns SUCCEEDED when engine_root is present.
+- `_invoke_engine` always uses attempt_no=1 and does not validate run receipts; no attempt records exist besides a single finish event.
+- `run_record` schema allows arbitrary details; there is no explicit attempt payload schema.
+
+Decisions (with rationale):
+1) **Attempt counting via run_record (no new DB tables).**
+   - Implement a lightweight `Ledger.read_record_events()` to parse the run_record JSONL and count prior attempt events.
+   - This avoids touching authority store schemas and keeps attempt logic append‑only.
+   - We will count events of kind `ENGINE_ATTEMPT_FINISHED` to derive `attempt_no`.
+
+2) **Add explicit attempt payload schema in SR contracts.**
+   - New schema file `engine_attempt.schema.yaml` under SR contracts.
+   - Validate attempt payload before appending to run_record to make attempts auditable and structured.
+
+3) **Engine invocation contract validation.**
+   - Validate the invocation payload against `engine_invocation.schema.yaml` before calling the invoker.
+   - Add optional `engine_run_root` to the invocation schema (currently used by SR but not allowed by schema).
+
+4) **Run receipt validation before evidence collection.**
+   - Add `run_receipt.schema.yaml` under interface pack contracts and validate `run_receipt.json` after a SUCCEEDED attempt.
+   - Enforce pins: `run_id`, `manifest_fingerprint`, `parameter_hash`, `seed` must match the run intent.
+   - Failure reasons: `ENGINE_RECEIPT_MISSING`, `ENGINE_RECEIPT_INVALID`, `ENGINE_RECEIPT_MISMATCH`.
+
+5) **Attempt limit enforcement.**
+   - Compute `attempt_no = prior_attempts + 1`; if `attempt_no > plan.attempt_limit`, return FAILED with `ATTEMPT_LIMIT_EXCEEDED` and append an attempt event without invoking the engine.
+
+6) **Event taxonomy.**
+   - Keep `ENGINE_ATTEMPT_LAUNCH_REQUESTED` but enrich details; append `ENGINE_ATTEMPT_FINISHED` with full attempt payload (validated).
+
+Next steps (implementation order):
+1) Add schemas: `engine_attempt.schema.yaml` (SR contracts) and `run_receipt.schema.yaml` (interface pack).
+2) Update `engine_invocation.schema.yaml` to allow `engine_run_root`.
+3) Add `Ledger.read_record_events` helper for attempt counting.
+4) Update `_invoke_engine` to validate invocation, enforce attempt_limit, validate run_receipt, and append attempt payload events.
+5) Add tests for missing/invalid run_receipt and attempt_limit handling.
+
+---
+
+### Entry: 2026-01-24 17:32:21 — Phase 4 implementation: invoker + attempt lifecycle + receipt gating
+
+Implemented changes (with reasoning):
+- **Invocation validation**: `_invoke_engine` now validates the invocation payload against `engine_invocation.schema.yaml` before calling the invoker. This prevents SR from sending malformed or schema‑drifting requests to the engine.
+- **Scenario binding shape fix**: only `scenario_id` OR `scenario_set` is populated (never both), aligning with the invocation schema’s `oneOf` contract.
+- **Attempt counting without new DB tables**: introduced `Ledger.read_record_events()` to parse run_record JSONL and count prior `ENGINE_ATTEMPT_FINISHED` events. This keeps attempt tracking append‑only and avoids changing authority DB schemas.
+- **Attempt limit enforcement**: if `attempt_no > plan.attempt_limit`, SR writes a finished attempt event with `ATTEMPT_LIMIT_EXCEEDED` and fails closed without invoking the engine.
+- **Attempt payload schema**: added `engine_attempt.schema.yaml` under SR contracts and validate attempt payloads before they are written to run_record for auditability.
+- **Run receipt gating**: after a SUCCEEDED attempt, SR loads `run_receipt.json`, validates it against new `run_receipt.schema.yaml`, and enforces pin equality (`run_id`, `manifest_fingerprint`, `parameter_hash`, `seed`). Fail‑closed reasons: `ENGINE_RECEIPT_MISSING`, `ENGINE_RECEIPT_INVALID`, `ENGINE_RECEIPT_MISMATCH`.
+- **Attempt event details**: `ENGINE_ATTEMPT_LAUNCH_REQUESTED` now includes attempt_id/attempt_no/invoker; `ENGINE_ATTEMPT_FINISHED` carries the validated attempt payload (start/end/duration, invocation, outcome, receipt ref).
+
+Contract updates:
+- Added `docs/model_spec/platform/contracts/scenario_runner/engine_attempt.schema.yaml`.
+- Added `docs/model_spec/data-engine/interface_pack/contracts/run_receipt.schema.yaml`.
+- Updated `docs/model_spec/data-engine/interface_pack/contracts/engine_invocation.schema.yaml` to allow `engine_run_root`.
+
+Tests added:
+- `tests/services/scenario_runner/test_engine_invocation.py` covering:
+  - Missing receipt → `ENGINE_RECEIPT_MISSING`
+  - Invalid receipt → `ENGINE_RECEIPT_INVALID`
+  - Mismatched receipt → `ENGINE_RECEIPT_MISMATCH`
+  - Attempt limit exceeded → `ATTEMPT_LIMIT_EXCEEDED`
+
+Test results:
+- `python -m pytest tests/services/scenario_runner -q` (venv) → **24 passed, 2 skipped**
+
+Notes / known limits:
+- Attempt counting is based on `ENGINE_ATTEMPT_FINISHED` events in run_record; this is sufficient for v0 but can be replaced by a dedicated attempt index if/when record size becomes a concern.

@@ -92,3 +92,11 @@ properties:
     description: Optional human notes (non-semantic).
     type: string
     maxLength: 2048
+
+  engine_run_root:
+    description: >
+      Optional run root override for local/dev invocation. Production runners
+      may ignore this field in favor of their own run-root policy.
+    type: string
+    minLength: 1
+    maxLength: 2048
