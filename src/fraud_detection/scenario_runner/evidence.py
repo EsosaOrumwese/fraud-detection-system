@@ -138,6 +138,13 @@ class GateVerifier:
             if not index_full.exists():
                 return GateVerificationResult(receipt=None, missing=True, conflict=False)
             actual = self._digest_member_concat(index_full, digest_field)
+        elif method.get("kind") == "sha256_index_json_ascii_lex_raw_bytes":
+            index_full = self.engine_root / index_path
+            if not index_full.exists():
+                return GateVerificationResult(receipt=None, missing=True, conflict=False)
+            actual = self._digest_index_raw_bytes(index_full, bundle_path, ordering, exclude)
+            if actual is None:
+                return GateVerificationResult(receipt=None, missing=True, conflict=False)
         else:
             actual = self._digest_bundle(bundle_path, exclude, ordering)
 
@@ -205,6 +212,32 @@ class GateVerifier:
                 parts.append(value)
         concat = "".join(parts)
         return hashlib.sha256(concat.encode("utf-8")).hexdigest()
+
+    def _digest_index_raw_bytes(
+        self,
+        index_path: Path,
+        bundle_root: Path,
+        ordering: str,
+        exclude: set[str],
+    ) -> str | None:
+        data = json.loads(index_path.read_text(encoding="utf-8"))
+        items = data.get("items") or data.get("members") or []
+        paths: list[str] = []
+        for item in items:
+            path = item.get("path")
+            if not path or path in exclude:
+                continue
+            paths.append(path)
+        if ordering == "ascii_lex":
+            paths = sorted(paths)
+        digest = hashlib.sha256()
+        for rel in paths:
+            candidate = Path(rel)
+            full_path = candidate if candidate.is_absolute() else bundle_root / candidate
+            if not full_path.exists():
+                return None
+            digest.update(full_path.read_bytes())
+        return digest.hexdigest()
 
 
 def hash_bundle(

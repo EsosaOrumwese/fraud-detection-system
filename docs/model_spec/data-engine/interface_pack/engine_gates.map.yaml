@@ -339,11 +339,12 @@ gates:
   input_set_authority: index.json
   receipt_schema_ref: schemas.layer3.yaml#/validation/6B/passed_flag_6B
   verification_method:
-    kind: sha256_bundle_digest
+    kind: sha256_index_json_ascii_lex_raw_bytes
     digest_field: sha256_hex
     ordering: ascii_lex
     exclude_filenames:
     - _passed.flag
+    - index.json
   authorizes_outputs:
   - s1_arrival_entities_6B
   - s1_session_index_6B

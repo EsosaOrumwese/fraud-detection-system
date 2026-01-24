@@ -1260,3 +1260,53 @@ I’ve completed the three requested actions. Here is what I actually changed an
 - `tests/services/scenario_runner/test_gate_verification_integration.py`
 - `services/scenario_runner/README.md`
 - `docs/model_spec/platform/implementation_maps/scenario_runner.build_plan.md`
+
+---
+
+## Entry: 2026-01-24 15:05:10 — Gate map alignment with engine specs (6B hashing law)
+
+I’m about to update the interface_pack gate map to match the **engine specs** (source‑of‑truth), not the run artefacts. The failing test shows a mismatch, and the correct fix is to derive the interface pack from the engine contracts/policies.
+
+### Source‑of‑truth consulted
+- `config/layer3/6B/segment_validation_policy_6B.yaml` → `bundle_hashing_law: index_json_ascii_lex_raw_bytes_excluding_passed_flag`.
+- `docs/model_spec/data-engine/layer-3/specs/contracts/6B/artefact_registry_6B.yaml` → 6B passed flag encodes SHA‑256 over the validation bundle; index.json is a bundle artefact.
+- 6B index.json in the run artefact lists the evidence file paths.
+
+### Decision
+Update `engine_gates.map.yaml` for `gate.layer3.6B.validation` to reflect the policy’s hashing law and extend GateVerifier accordingly.
+
+### Expected behavior after change
+- GateVerifier will hash **raw bytes of files listed in index.json**, sorted ASCII‑lex, excluding `_passed.flag`.
+- This matches the 6B policy and makes the 6B gate test pass **for the right reason**.
+
+### Planned code/doc touchpoints
+- `docs/model_spec/data-engine/interface_pack/engine_gates.map.yaml` (new verification_method kind for 6B).
+- `src/fraud_detection/scenario_runner/evidence.py` (GateVerifier supports new hashing law).
+- `tests/services/scenario_runner/test_gate_verifier.py` should pass for 6B after update.
+
+---
+
+## Entry: 2026-01-24 15:20:47 — 6B gate verification fixed via engine policy law
+
+I updated the interface pack and GateVerifier to match the **engine policy** for Segment 6B hashing.
+
+### What changed
+- `engine_gates.map.yaml`: `gate.layer3.6B.validation` now uses verification_method
+  `sha256_index_json_ascii_lex_raw_bytes` and excludes `_passed.flag` and `index.json`.
+- `GateVerifier` now supports this method by:
+  - reading index.json,
+  - collecting `path` entries,
+  - ASCII‑lex ordering,
+  - hashing raw bytes of those files relative to the bundle root.
+
+### Why this is the correct derivation
+The 6B validation policy (`config/layer3/6B/segment_validation_policy_6B.yaml`) explicitly defines
+`bundle_hashing_law: index_json_ascii_lex_raw_bytes_excluding_passed_flag`, which implies
+index‑driven raw‑bytes hashing rather than “hash all files in the directory.”
+
+### Test result
+- `pytest tests/services/scenario_runner/test_gate_verifier.py` → 2 passed.
+
+### Residual risk
+- If other segments later adopt index‑driven hashing, we’ll need to update their gate map entries
+  (and possibly expand test coverage beyond 6B).
