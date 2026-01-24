@@ -69,6 +69,7 @@ _Note: while the platform narratives are merely conceptual, the other docs in `p
 - Keep in mind that you're building for production 
 - Keep `pyproject.toml` aligned with any new dependencies you introduce.
 - Ensure to check truly large files into git LFS.
+- **Sensitive artifacts and credentials (platformwide):** Runtime artifacts/logs may include capability tokens, lease tokens, or other secrets. Never commit these or paste them into implementation maps, build plans, or logbooks. If a run creates such artifacts, explicitly alert the user so they can decide whether to delete or quarantine them.
 - Log every decision and action in `docs\logbook` with local time (create the day file if needed).
 
 ---

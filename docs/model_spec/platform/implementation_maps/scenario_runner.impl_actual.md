@@ -2864,3 +2864,25 @@ I completed Phase 7 sections 7.1–7.4 with explicit auth gates, secrets redacti
 Phase 7 is complete: auth allowlists, redaction helpers, quarantine artifacts + CLI tooling, re‑emit guardrails (rate limits + dry‑run), and tests are all in place. Marked Phase 7 COMPLETE in the build plan.
 
 ---
+
+## Entry: 2026-01-24 20:30:20 — Lease token exposure mitigation (SR runtime artifacts)
+
+Problem surfaced:
+- GitGuardian flagged a lease token file under `artefacts/fraud-platform/sr/index/leases/...json`.
+- Lease tokens are **capability tokens** (who holds it can renew/act as leader). Even though they are local/dev artifacts, they must be treated as secrets.
+
+Decision:
+- **Do not ignore all of `artefacts/`** (engine depends on it). Instead, ignore only SR runtime subpaths that can contain sensitive tokens.
+- Add an explicit **user‑facing warning** (docs + runtime log) so operators are alerted to review and decide how to handle runtime artifacts after a run.
+
+Actions taken:
+1) Removed the tracked lease token file from git index (left local file intact).
+2) Added `.gitignore` entries for `artefacts/fraud-platform/sr/index/` (covers lease tokens + sqlite authority).
+3) Added a security note in `services/scenario_runner/README.md` warning that SR runtime artifacts may include sensitive capability tokens.
+4) Added a runtime warning in `ScenarioRunner.__init__` for local object_store roots to alert operators.
+
+Rationale:
+- Keeps engine artifacts in git while preventing SR runtime secrets from being committed.
+- Provides an explicit, user‑visible alert so operators can choose whether to delete or preserve runtime artifacts after runs.
+
+---

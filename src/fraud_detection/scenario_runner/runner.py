@@ -86,6 +86,12 @@ class ScenarioRunner:
         self.catalogue = OutputCatalogue(Path(wiring.engine_catalogue_path))
         self.gate_map = GateMap(Path(wiring.gate_map_path))
         self.metrics_sink = MetricsObsSink()
+        if not wiring.object_store_root.startswith("s3://"):
+            self.logger.warning(
+                "SR: runtime artifacts may include sensitive capability tokens under %s/%s; review and avoid committing.",
+                wiring.object_store_root.rstrip("/"),
+                "fraud-platform/sr/index",
+            )
         if obs_sink is None:
             sinks = []
             if os.getenv("SR_OBS_CONSOLE", "true").lower() == "true":
