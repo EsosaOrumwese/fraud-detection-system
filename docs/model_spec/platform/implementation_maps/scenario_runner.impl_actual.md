@@ -3168,3 +3168,61 @@ Ran Tier‑0 SR suite after adding the integration tests:
 Result: **39 passed, 15 deselected**.
 
 ---
+
+## Entry: 2026-01-24 21:48:10 — Phase 8 implementation start: 8.5–8.7 (LocalStack E2E + CI gates/runbooks)
+
+Starting Option 2 now. This is the pre‑change decision trail.
+
+### What I will implement
+1) **LocalStack Kinesis E2E re‑emit tests (8.5)**:
+   - Use real SR flow to publish READY to Kinesis.
+   - Run re‑emit (READY + TERMINAL) and assert Kinesis envelope correctness.
+   - Keep tests env‑gated and marked `localstack` + `integration`.
+
+2) **CI gate + runbook wiring (8.7)**:
+   - Add a small SR test runner script to codify the tier matrix.
+   - Update SR README with explicit CI gating guidance and runbook commands.
+
+### Constraints
+- No credentials embedded anywhere.
+- Engine remains a black box (no engine code changes).
+- LocalStack tests must be opt‑in (env‑gated) to avoid CI flakiness.
+
+---
+
+## Entry: 2026-01-24 22:01:10 — Phase 8 implementation detail: LocalStack re‑emit E2E + CI/runbook wiring
+
+I implemented 8.5–8.7 as planned.
+
+### 8.5 LocalStack Kinesis E2E (re‑emit)
+Added `tests/services/scenario_runner/test_localstack_reemit_e2e.py`:
+- Env‑gated via `SR_KINESIS_ENDPOINT_URL`, `SR_KINESIS_STREAM`, `SR_KINESIS_REGION` (or `AWS_DEFAULT_REGION`), and AWS creds.
+- Uses a **StubEngineInvoker** to produce a valid run_receipt + 1A validation bundle + `sealed_inputs_1A`.
+- READY path:
+  - Submit run with `Strategy.FORCE_INVOKE` so SR goes through attempt + receipt validation + evidence collection.
+  - Call `runner.reemit(READY_ONLY)` and assert a **Kinesis envelope** with `kind=READY_REEMIT`.
+- TERMINAL path:
+  - Submit a run with `output_ids=["unknown_output"]` to force `UNKNOWN_OUTPUT_ID` failure.
+  - Call `runner.reemit(TERMINAL_ONLY)` and assert envelope `kind=TERMINAL_REEMIT`.
+- Assertions read Kinesis records and match `message_id` + payload.
+
+### 8.7 CI gates + runbook wiring
+Added `scripts/run_sr_tests.ps1` to codify the tier matrix:
+- `-Tier tier0|parity|localstack|engine_fixture|all`
+- Uses active Python by default (no credentials embedded).
+Updated `services/scenario_runner/README.md`:
+- CI gate recommendations (PR = Tier 0; nightly/manual = Tier 1–3).
+- Script usage examples.
+
+No engine code changes; all updates are tests/runbooks only.
+
+---
+
+## Entry: 2026-01-24 22:04:20 — Phase 8 validation: Tier‑0 tests green after 8.5–8.7
+
+Ran Tier‑0 SR suite after adding LocalStack E2E tests and the runbook script:
+`python -m pytest tests/services/scenario_runner -m "not parity and not localstack and not engine_fixture" -q`
+
+Result: **39 passed, 17 deselected**.
+
+---

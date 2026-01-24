@@ -57,3 +57,13 @@ Test tiers (Phase 8):
   - `python -m pytest tests/services/scenario_runner -m "localstack" -q`
 - Tier 3 (engine fixtures): requires `runs/local_full_run-*` artifacts.
   - `python -m pytest tests/services/scenario_runner -m "engine_fixture" -q`
+
+CI gates (recommended):
+- PR gate: Tier 0 only.
+- Nightly/manual: Tier 1 + Tier 2 + Tier 3.
+
+Helper script (PowerShell):
+- `.\scripts\run_sr_tests.ps1 -Tier tier0`
+- `.\scripts\run_sr_tests.ps1 -Tier parity`
+- `.\scripts\run_sr_tests.ps1 -Tier localstack`
+- `.\scripts\run_sr_tests.ps1 -Tier engine_fixture`
