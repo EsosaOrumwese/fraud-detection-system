@@ -223,58 +223,67 @@ Legend (compact):
 
 ---
 
-## Repository layout
+## Repository layout (proposed end‑state)
 ```text
-fraud-enterprise/
+fraud-detection-system/
+├─ src/
+│  └─ fraud_detection/
+│     ├─ scenario_runner/          # SR core (N1–N8), IP1/IP2/IP3/IP5+ later
+│     ├─ ingestion_gate/           # IG core: admission + evidence gating
+│     ├─ event_bus/                # EB control/replay interfaces (adapters)
+│     ├─ decision_fabric/          # DF decision pipeline orchestration
+│     ├─ actions_layer/            # AL side‑effects + outcome tracking
+│     ├─ decision_log_audit/       # DLA immutable audit truth
+│     ├─ label_case/               # Label Store + Case mgmt (future)
+│     ├─ learning_registry/        # Model/feature registry + learning loops
+│     ├─ observability_governance/ # Obs/Gov metrics + policy enforcement
+│     ├─ common/                   # shared models, pins, hashing, errors
+│     └─ adapters/                 # infra adapters (db, bus, object store)
+│
 ├─ packages/
-│  └─ engine/
-│     ├─ pyproject.toml
-│     └─ src/engine/
-│        ├─ cli/
-│        ├─ registry/
-│        ├─ core/
-│        ├─ validation/
-│        ├─ scenario_runner/
-│        └─ layers/
-│           └─ l1/seg_1A/...   # representative tree (s0_foundations, s1_hurdle, …)
-│  # add more packages later (e.g., packages/svc-decision-fabric, packages/lib-shared)
+│  └─ engine/                      # sealed engine package (black‑box)
 │
 ├─ services/
-│  ├─ ingestion/README.md
-│  ├─ feature_online/README.md
-│  ├─ decision_fabric/README.md
-│  ├─ replayer/README.md
-│  ├─ model_registry/README.md
-│  └─ consumer_gate/README.md
-│
-├─ shared/README.md
-├─ contracts/
-│  ├─ schemas/
-│  ├─ dataset_dictionary/
-│  └─ policies/
+│  ├─ scenario_runner/             # SR service entrypoint + Dockerfile
+│  ├─ ingestion_gate/              # IG service entrypoint + Dockerfile
+│  ├─ event_bus/                   # EB service/bridge (if not managed)
+│  ├─ decision_fabric/             # DF service entrypoint + Dockerfile
+│  ├─ actions_layer/               # AL service entrypoint + Dockerfile
+│  ├─ decision_log_audit/          # DLA service entrypoint + Dockerfile
+│  ├─ label_case/                  # Label/Case service entrypoint
+│  ├─ learning_registry/           # Registry service entrypoint
+│  └─ observability_governance/    # Obs/Gov service entrypoint
 │
 ├─ docs/
 │  ├─ model_spec/
-│  │  └─ data-engine/
-│  │     ├─ README.md
-│  │     ├─ AGENTS.md
-│  │     ├─ layer-1/
-│  │     │  ├─ README.md / AGENTS.md
-│  │     │  ├─ narrative/, deprecated__assumptions/
-│  │     │  └─ specs/…
-│  │     └─ layer-2/
-│  │        ├─ README.md / AGENTS.md
-│  │        └─ specs/state-flow|contracts/{5A,5B}/
-│  └─ engineering-decisions/
+│  │  ├─ data-engine/interface_pack/           # engine boundary contract
+│  │  └─ platform/
+│  │     ├─ platform-wide/                     # system‑level notes
+│  │     ├─ component-specific/                # design authority per component
+│  │     ├─ implementation_maps/               # build plans + impl_actual
+│  │     └─ contracts/                         # platform truth schemas
+│  └─ logbook/                                 # execution log (daily)
 │
-├─ orchestration/
-├─ infra/
 ├─ config/
-├─ artefacts/
+│  └─ platform/
+│     ├─ sr/                    # SR wiring + policy profiles
+│     ├─ ig/                    # IG wiring + policy profiles
+│     ├─ eb/                    # EB wiring
+│     ├─ df/                    # DF wiring
+│     ├─ al/                    # AL wiring
+│     ├─ dla/                   # DLA wiring
+│     ├─ lc/                    # Label/Case wiring
+│     ├─ lr/                    # Learning/Registry wiring
+│     └─ og/                    # Obs/Gov wiring
+│
+├─ orchestration/               # workflow defs, DAGs, or job runners
+├─ infra/                       # IaC (terraform/helm), env bootstrap
+├─ tools/                       # build/deploy scripts
 ├─ tests/
-├─ scripts/
-├─ runs/
-└─ examples/
+│  ├─ services/                 # component integration tests
+│  └─ unit/                     # shared/unit tests
+├─ contracts/                   # reserved for global contracts (if unlocked)
+└─ pyproject.toml               # monorepo packaging + deps
 ```
 
 
