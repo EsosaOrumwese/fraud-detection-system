@@ -16,6 +16,7 @@ class WiringProfile(BaseModel):
     engine_catalogue_path: str
     gate_map_path: str
     schema_root: str
+    engine_contracts_root: str
     authority_store_dsn: str | None = None
     s3_endpoint_url: str | None = None
     s3_region: str | None = None
@@ -30,6 +31,7 @@ class PolicyProfile(BaseModel):
     evidence_wait_seconds: int
     attempt_limit: int
     traffic_output_ids: list[str]
+    allow_instance_proof_bridge: bool = False
 
     def as_rev(self) -> dict[str, Any]:
         return {

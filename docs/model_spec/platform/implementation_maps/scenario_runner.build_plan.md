@@ -105,6 +105,8 @@ Phase 2.5 hardening tests must run against MinIO + Postgres where available.
 ## Phase 3 — Evidence + gate verification completeness
 High‑level intent: enforce full HashGate coverage and instance‑proof binding (seed/scenario/run_id) with deterministic COMPLETE/WAITING/FAIL/CONFLICT outcomes.
 
+**Status:** IN PROGRESS (strict evidence logic implemented; instance‑proof receipts blocked by interface‑pack gap; integration tests pending).
+
 ### Section 3.1 — Gate closure + required set
 **Goal:** compute the authoritative gate closure for intended outputs.
 

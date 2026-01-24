@@ -19,6 +19,7 @@ def _build_wiring(tmp_path: Path) -> WiringProfile:
         engine_catalogue_path="docs/model_spec/data-engine/interface_pack/engine_outputs.catalogue.yaml",
         gate_map_path="docs/model_spec/data-engine/interface_pack/engine_gates.map.yaml",
         schema_root="docs/model_spec/platform/contracts/scenario_runner",
+        engine_contracts_root="docs/model_spec/data-engine/interface_pack/contracts",
         authority_store_dsn=f"sqlite:///{(tmp_path / 'sr_authority.db').as_posix()}",
     )
 

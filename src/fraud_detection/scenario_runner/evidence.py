@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import hashlib
 import json
-from dataclasses import dataclass
+from dataclasses import asdict, dataclass
 from enum import Enum
 from pathlib import Path
 from typing import Any
@@ -20,6 +20,12 @@ class GateStatus(str, Enum):
 
 
 @dataclass(frozen=True)
+class Digest:
+    algo: str
+    hex: str
+
+
+@dataclass(frozen=True)
 class EngineOutputLocator:
     output_id: str
     path: str
@@ -28,7 +34,14 @@ class EngineOutputLocator:
     seed: int | None = None
     scenario_id: str | None = None
     run_id: str | None = None
-    content_digest: str | None = None
+    content_digest: Digest | None = None
+
+
+@dataclass(frozen=True)
+class GateArtifacts:
+    validation_bundle_root: str | None = None
+    index_path: str | None = None
+    passed_flag_path: str | None = None
 
 
 @dataclass(frozen=True)
@@ -36,8 +49,9 @@ class GateReceipt:
     gate_id: str
     status: GateStatus
     scope: dict[str, Any]
-    receipt_ref: str
-    digest: str | None = None
+    digest: Digest | None = None
+    receipt_kind: str | None = None
+    artifacts: GateArtifacts | None = None
 
 
 @dataclass(frozen=True)
@@ -48,6 +62,7 @@ class EvidenceBundle:
     bundle_hash: str | None = None
     missing: list[str] | None = None
     reason: str | None = None
+    notes: list[str] | None = None
 
 
 @dataclass(frozen=True)
@@ -98,6 +113,13 @@ class GateVerifier:
         ordering = method.get("ordering", "ascii_lex")
         exclude = set(method.get("exclude_filenames", []) or [])
 
+        if "{" in passed_flag or "}" in passed_flag:
+            return GateVerificationResult(receipt=None, missing=True, conflict=False)
+        if "{" in bundle_root or "}" in bundle_root:
+            return GateVerificationResult(receipt=None, missing=True, conflict=False)
+        if index_path and ("{" in index_path or "}" in index_path):
+            return GateVerificationResult(receipt=None, missing=True, conflict=False)
+
         passed_path = self.engine_root / passed_flag
         if not passed_path.exists():
             return GateVerificationResult(receipt=None, missing=True, conflict=False)
@@ -118,21 +140,28 @@ class GateVerifier:
         else:
             actual = self._digest_bundle(bundle_path, exclude, ordering)
 
+        artifacts = GateArtifacts(
+            validation_bundle_root=str(bundle_path),
+            index_path=str(self.engine_root / index_path) if index_path else None,
+            passed_flag_path=str(passed_path),
+        )
         if actual != expected:
             receipt = GateReceipt(
                 gate_id=gate_id,
                 status=GateStatus.FAIL,
                 scope=tokens,
-                receipt_ref=str(passed_path),
-                digest=actual,
+                digest=Digest(algo="sha256", hex=actual),
+                receipt_kind="passed_flag",
+                artifacts=artifacts,
             )
             return GateVerificationResult(receipt=receipt, missing=False, conflict=True)
         receipt = GateReceipt(
             gate_id=gate_id,
             status=GateStatus.PASS,
             scope=tokens,
-            receipt_ref=str(passed_path),
-            digest=actual,
+            digest=Digest(algo="sha256", hex=actual),
+            receipt_kind="passed_flag",
+            artifacts=artifacts,
         )
         return GateVerificationResult(receipt=receipt, missing=False, conflict=False)
 
@@ -185,9 +214,72 @@ def hash_bundle(locators: list[EngineOutputLocator], receipts: list[GateReceipt]
         return receipt.gate_id
 
     payload = {
-        "locators": [locator.__dict__ for locator in sorted(locators, key=locator_key)],
-        "receipts": [receipt.__dict__ for receipt in sorted(receipts, key=receipt_key)],
+        "locators": [locator_to_wire(locator) for locator in sorted(locators, key=locator_key)],
+        "receipts": [receipt_to_wire(receipt) for receipt in sorted(receipts, key=receipt_key)],
         "policy_rev": policy_rev,
     }
     encoded = json.dumps(payload, sort_keys=True, ensure_ascii=True, separators=(",", ":"))
     return hashlib.sha256(encoded.encode("utf-8")).hexdigest()
+
+
+def prune_none(payload: dict[str, Any]) -> dict[str, Any]:
+    pruned: dict[str, Any] = {}
+    for key, value in payload.items():
+        if value is None:
+            continue
+        if isinstance(value, dict):
+            pruned[key] = prune_none(value)
+        else:
+            pruned[key] = value
+    return pruned
+
+
+def locator_to_wire(locator: EngineOutputLocator) -> dict[str, Any]:
+    payload = asdict(locator)
+    payload = prune_none(payload)
+    if "content_digest" in payload and isinstance(payload["content_digest"], dict):
+        payload["content_digest"] = prune_none(payload["content_digest"])
+    return payload
+
+
+def receipt_to_wire(receipt: GateReceipt) -> dict[str, Any]:
+    payload: dict[str, Any] = {
+        "gate_id": receipt.gate_id,
+        "status": receipt.status.value,
+        "scope": receipt.scope,
+    }
+    if receipt.receipt_kind:
+        payload["receipt_kind"] = receipt.receipt_kind
+    if receipt.digest is not None:
+        payload["digest"] = prune_none(asdict(receipt.digest))
+    if receipt.artifacts is not None:
+        payload["artifacts"] = prune_none(asdict(receipt.artifacts))
+    return payload
+
+
+def scope_parts(scope: str) -> set[str]:
+    raw = scope or ""
+    tokens = [
+        "manifest_fingerprint",
+        "parameter_hash",
+        "scenario_id",
+        "run_id",
+        "seed",
+        "fingerprint",
+        "parameter",
+        "scenario",
+        "run",
+        "global",
+    ]
+    return {token for token in tokens if token in raw}
+
+
+def is_instance_scope(scope: str) -> bool:
+    instance_tokens = {"seed", "scenario_id", "parameter_hash", "run_id"}
+    return bool(scope_parts(scope) & instance_tokens)
+
+
+def make_digest(hex_value: str | None) -> Digest | None:
+    if not hex_value:
+        return None
+    return Digest(algo="sha256", hex=hex_value)

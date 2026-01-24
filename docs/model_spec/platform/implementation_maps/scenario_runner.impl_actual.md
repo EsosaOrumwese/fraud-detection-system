@@ -842,7 +842,8 @@ My current bias is **option 1 (strict)**, and if that blocks, we surface the pac
   - Validate receipts against gate schemas from interface pack before using them.
   - Reject malformed receipts early; record reason codes (e.g., RECEIPT_SCHEMA_INVALID).
 - **Scope classification**:
-  - Parse output.scope and classify as ingerprint vs instance.
+  - Parse output.scope and classify as 
+ingerprint vs instance.
   - Instance scope = any of seed/scenario_id/parameter_hash/run_id in scope string.
 - **Instance-proof enforcement**:
   - For instance-scoped outputs, require receipt bound to locator + digest.
@@ -894,3 +895,122 @@ My current bias is **option 1 (strict)**, and if that blocks, we surface the pac
 
 ### Decision status
 Pending: strict vs temporary bridge. I’m ready to implement strict fail-closed unless you ask for a bridge.
+
+---
+## Entry: 2026-01-24 12:29:03 — Phase 3 implementation start (evidence strictness + schema alignment)
+
+I’m about to implement Phase 3 evidence hardening. I’m writing this before touching code so the decision trail stays live, not retrospective.
+
+### Starting point (what exists)
+- Evidence collection currently builds locators + gate receipts but **does not validate** them against engine contracts.
+- Locators/receipts are serialized with `__dict__` and include `None` fields + digest as raw hex string.
+- run_facts_view.schema.yaml expects the old “flat hex” digest + receipt_ref shape, which is **not aligned** with engine interface pack.
+- Gate verification uses engine_gates.map.yaml but gate scope tokens are always full (manifest/parameter/seed/scenario/run_id), even when gate scope is fingerprint-only.
+- Instance-proof receipts (required for instance-scoped outputs) are **not represented** in code or in interface pack artifacts.
+
+### Phase 3 decision (already confirmed with you)
+- **Strict fail-closed** in prod.
+- **Dev-only bridge** allowed via policy flag, but only for local/dev; default is strict.
+- Bridge = accept locator digest as provisional proof when instance receipt is missing. Must be explicitly flagged in run_facts_view so it’s never mistaken for true proof.
+
+### Key design choices I’m making now
+1) **Align SR facts view with engine contracts.**
+   - Update run_facts_view.schema.yaml to accept engine-style digest objects and gate_receipt shape with artifacts instead of receipt_ref.
+   - This is required because we’re now validating against engine_output_locator + gate_receipt contracts.
+
+2) **Add engine-contract validation.**
+   - Create a second schema registry for engine contracts (root = interface_pack/contracts).
+   - Validate each produced locator against engine_output_locator.schema.yaml.
+   - Validate each produced gate receipt against gate_receipt.schema.yaml.
+   - If validation fails → **FAIL** (strict fail-closed) with explicit reason codes.
+
+3) **Scope-correct pins.**
+   - Use catalogue partitions to decide which pins belong on each locator.
+   - Gate receipts will carry only pins that match the gate’s scope (fingerprint/parameter/seed/scenario/run).
+   - Remove `None` fields from serialized payloads (schema does not allow nulls).
+
+4) **Instance-proof enforcement.**
+   - Output scope classified as instance-scoped if scope includes any of: seed, scenario_id, parameter_hash, run_id.
+   - If instance-scoped:
+     - require content_digest on locator (to bind proof).
+     - require instance-proof receipt (not available in pack yet). If missing:
+       - strict mode → WAITING/FAIL (reason INSTANCE_PROOF_MISSING).
+       - dev-bridge mode → allow but mark evidence_notes with INSTANCE_PROOF_BRIDGE_USED.
+   - This keeps us compliant by default while still letting dev iterate.
+
+### Open risk I’m explicitly accepting (with mitigation)
+- **Spec gap:** interface pack does not yet define instance-proof receipts. Strict mode may block readiness for instance-scoped outputs. I will surface this gap explicitly in the impl_actual entries and in reason codes so it can’t be ignored.
+
+### Files I expect to touch
+- src/fraud_detection/scenario_runner/evidence.py (digest objects, helpers, scope classifier, wire conversion)
+- src/fraud_detection/scenario_runner/runner.py (scope-correct tokens, instance-proof checks, schema validation integration)
+- src/fraud_detection/scenario_runner/catalogue.py (capture availability, partitions usage)
+- src/fraud_detection/scenario_runner/config.py + config/platform/sr/*.yaml (add engine_contracts_root, allow_instance_proof_bridge)
+- docs/model_spec/platform/contracts/scenario_runner/run_facts_view.schema.yaml (align with engine contracts)
+- tests/services/scenario_runner/* (new tests for schema/instance-proof path; update wiring helpers)
+
+### Guardrails
+- No credentials in this document.
+- Every step will be appended as I decide/adjust.
+
+---
+## Entry: 2026-01-24 12:37:56 — Phase 3 implementation notes (decisions while coding)
+
+I’ve started coding Phase 3 and documented the key decisions as they landed:
+
+### Evidence payload alignment (schema + wire shapes)
+- **Updated SR run_facts_view contract** to align with engine contracts:
+  - locators now use `{algo, hex}` digest objects (not raw hex strings).
+  - gate receipts now include artifacts and match the engine gate_receipt shape (no receipt_ref).
+  - Added optional evidence_notes so bridge usage is explicitly recorded.
+- Rationale: SR needs to emit portable evidence objects that can be validated against the engine interface pack.
+
+### Schema validation strategy
+- Added an **engine contracts schema registry** (root = interface_pack/contracts) and validate:
+  - each locator against engine_output_locator.schema.yaml
+  - each gate receipt against gate_receipt.schema.yaml
+- Any schema mismatch is treated as **FAIL** with explicit reason codes (LOCATOR_SCHEMA_INVALID, RECEIPT_SCHEMA_INVALID).
+
+### Gate scope tokens
+- Gate receipts now include **only scope-appropriate tokens** but always include manifest_fingerprint (required by gate_receipt schema).
+- Missing tokens in templates now produce a **missing evidence** outcome rather than a malformed path.
+
+### Output locator pins
+- Locator pins are derived from the output’s **catalogue partitions**.
+- If partitions are empty, I still include manifest_fingerprint so engine_output_locator validation can succeed; this is a pragmatic assumption that “global” outputs are still anchored to the manifest. If the engine pack later clarifies truly global outputs, we should revisit this.
+
+### Instance-proof enforcement + dev bridge
+- Instance-scoped outputs are now detected from scope and require instance proof.
+- Because instance receipts are not present in the interface pack, **strict mode will WAIT/FAIL** with instance_proof:{output_id}.
+- If allow_instance_proof_bridge=true (dev only), SR marks evidence_notes: ["INSTANCE_PROOF_BRIDGE:{output_id}"] and proceeds.
+
+### Policy digest update (non-circular)
+- Recomputed policy_v0.yaml content_digest as **sha256 of the policy content excluding content_digest itself** (avoids circular hash).
+
+No credentials were written anywhere.
+
+---
+
+## Entry: 2026-01-24 12:42:52 — Schema ref resolution fix (interface_pack path mismatch)
+
+While adding engine contract validation, tests failed because the interface_pack contract $ref paths resolve to .../interface_pack/layer-1/..., but the actual schemas live under docs/model_spec/data-engine/layer-1/.... The pack’s relative refs appear to be **one directory too shallow**.
+
+Decision taken:
+- In SchemaRegistry._load_yaml_ref, if the resolved file:// path does not exist and contains interface_pack, I now **fallback by removing the interface_pack/ segment** and retry.
+- This is a pragmatic resolver shim to keep SR strict validation working while we wait for the interface pack paths to be corrected.
+
+This preserves fail-closed behavior while acknowledging a spec packaging mismatch.
+
+---
+
+## Entry: 2026-01-24 12:43:38 — Phase 3 test scaffolding (instance-proof strict vs bridge)
+
+Added dedicated tests to ensure Phase 3 evidence behavior is explicit:
+- test_instance_proof_strict_waits: strict mode should WAIT when instance proof is missing.
+- test_instance_proof_bridge_allows_ready: dev bridge should yield READY and emit evidence_notes.
+
+These tests use a **minimal gate map** (no gates) and a **minimal output catalogue** (instance-scoped output) to isolate the instance-proof logic without requiring full engine artifacts
+.
+## Entry: 2026-01-24 12:44:12 — Output availability handling
+
+Noticed the engine catalogue includes availability: optional. I added this to OutputEntry and treat missing optional outputs as **non-blocking** (no WAIT/FAIL). Required outputs still block evidence as before.

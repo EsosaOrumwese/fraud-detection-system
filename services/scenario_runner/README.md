@@ -10,6 +10,10 @@ Profiles:
 - `config/platform/sr/wiring_local.yaml` — local smoke (filesystem + SQLite; not valid for hardening).
 - `config/platform/sr/wiring_local_parity.yaml` — local parity (MinIO + Postgres).
 - `config/platform/sr/wiring_aws.yaml` — AWS target (S3 + RDS Postgres + Kinesis placeholder).
+  - Note: wiring profiles now include `engine_contracts_root` (engine boundary schemas).
+
+Policy:
+- `config/platform/sr/policy_v0.yaml` includes `allow_instance_proof_bridge` (dev-only escape hatch; keep false in prod).
 
 Local parity stack (MinIO + Postgres):
 - `docker compose -f infra/local/docker-compose.sr-parity.yaml up -d`

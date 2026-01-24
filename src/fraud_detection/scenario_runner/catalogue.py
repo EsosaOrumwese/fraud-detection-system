@@ -16,6 +16,7 @@ class OutputEntry:
     partitions: list[str]
     scope: str
     read_requires_gates: list[str]
+    availability: str
 
 
 class OutputCatalogue:
@@ -29,6 +30,7 @@ class OutputCatalogue:
                 partitions=entry.get("partitions", []),
                 scope=entry.get("scope", ""),
                 read_requires_gates=entry.get("read_requires_gates", []),
+                availability=entry.get("availability", "required"),
             )
             for entry in entries
         }

@@ -10,7 +10,7 @@ from typing import Any
 
 from .authority import EquivalenceRegistry, LeaseManager, RunHandle, build_authority_store
 from .bus import FileControlBus
-from .catalogue import OutputCatalogue
+from .catalogue import OutputCatalogue, OutputEntry
 from .config import PolicyProfile, WiringProfile
 from .evidence import (
     EvidenceBundle,
@@ -22,6 +22,11 @@ from .evidence import (
     EngineOutputLocator,
     GateMap,
     hash_bundle,
+    is_instance_scope,
+    locator_to_wire,
+    make_digest,
+    receipt_to_wire,
+    scope_parts,
 )
 from .engine import EngineInvoker, EngineAttemptResult
 from .ids import hash_payload, run_id_from_equivalence_key, scenario_set_to_id
@@ -42,6 +47,7 @@ class ScenarioRunner:
         self.policy = policy
         self.engine_invoker = engine_invoker
         self.schemas = SchemaRegistry(Path(wiring.schema_root))
+        self.engine_schemas = SchemaRegistry(Path(wiring.engine_contracts_root))
         self.store = build_object_store(
             wiring.object_store_root,
             s3_endpoint_url=wiring.s3_endpoint_url,
@@ -250,6 +256,7 @@ class ScenarioRunner:
             return EvidenceBundle(status=EvidenceStatus.FAIL, locators=[], gate_receipts=[], reason="ENGINE_ROOT_MISSING")
 
         locators: list[EngineOutputLocator] = []
+        locator_by_output: dict[str, EngineOutputLocator] = {}
         missing_outputs: list[str] = []
         for output_id in plan.intended_outputs:
             entry = self.catalogue.get(output_id)
@@ -258,36 +265,39 @@ class ScenarioRunner:
             if "*" in output_path:
                 matches = list(full_path.parent.glob(full_path.name))
                 if not matches:
-                    missing_outputs.append(output_id)
+                    if entry.availability != "optional":
+                        missing_outputs.append(output_id)
                     continue
             elif not full_path.exists():
-                missing_outputs.append(output_id)
+                if entry.availability != "optional":
+                    missing_outputs.append(output_id)
                 continue
             content_digest = self._compute_output_digest(full_path)
+            pins = self._locator_pins(entry, intent, plan.run_id)
             locator = EngineOutputLocator(
                 output_id=output_id,
                 path=str(full_path),
-                manifest_fingerprint=intent.manifest_fingerprint,
-                parameter_hash=intent.parameter_hash,
-                seed=intent.seed,
-                scenario_id=intent.scenario_id,
-                run_id=plan.run_id,
-                content_digest=content_digest,
+                content_digest=make_digest(content_digest),
+                **pins,
             )
+            try:
+                self.engine_schemas.validate("engine_output_locator.schema.yaml", locator_to_wire(locator))
+            except ValueError:
+                return EvidenceBundle(
+                    status=EvidenceStatus.FAIL,
+                    locators=locators,
+                    gate_receipts=[],
+                    reason="LOCATOR_SCHEMA_INVALID",
+                )
             locators.append(locator)
+            locator_by_output[output_id] = locator
 
         gate_verifier = GateVerifier(engine_root, self.gate_map)
         gate_receipts: list[GateReceipt] = []
         missing_gates: list[str] = []
         conflict = False
         for gate_id in plan.required_gates:
-            tokens = {
-                "manifest_fingerprint": intent.manifest_fingerprint,
-                "parameter_hash": intent.parameter_hash,
-                "seed": intent.seed,
-                "scenario_id": intent.scenario_id,
-                "run_id": plan.run_id,
-            }
+            tokens = self._gate_tokens_for_scope(gate_id, intent, plan.run_id)
             result: GateVerificationResult = gate_verifier.verify(gate_id, tokens)
             if result.missing:
                 missing_gates.append(gate_id)
@@ -295,27 +305,52 @@ class ScenarioRunner:
             if result.conflict:
                 conflict = True
             if result.receipt:
+                try:
+                    self.engine_schemas.validate("gate_receipt.schema.yaml", receipt_to_wire(result.receipt))
+                except ValueError:
+                    return EvidenceBundle(
+                        status=EvidenceStatus.FAIL,
+                        locators=locators,
+                        gate_receipts=gate_receipts,
+                        reason="RECEIPT_SCHEMA_INVALID",
+                    )
                 gate_receipts.append(result.receipt)
 
         if conflict:
             return EvidenceBundle(status=EvidenceStatus.CONFLICT, locators=locators, gate_receipts=gate_receipts, reason="EVIDENCE_CONFLICT")
 
+        instance_missing: list[str] = []
+        evidence_notes: list[str] = []
+        for output_id, locator in locator_by_output.items():
+            entry = self.catalogue.get(output_id)
+            if not is_instance_scope(entry.scope):
+                continue
+            if locator.content_digest is None:
+                instance_missing.append(f"instance_proof:{output_id}")
+                continue
+            if not self.policy.allow_instance_proof_bridge:
+                instance_missing.append(f"instance_proof:{output_id}")
+            else:
+                evidence_notes.append(f"INSTANCE_PROOF_BRIDGE:{output_id}")
+
         now = datetime.now(tz=timezone.utc)
-        if missing_outputs or missing_gates:
+        if missing_outputs or missing_gates or instance_missing:
             if now < plan.evidence_deadline_utc:
                 return EvidenceBundle(
                     status=EvidenceStatus.WAITING,
                     locators=locators,
                     gate_receipts=gate_receipts,
-                    missing=missing_outputs + missing_gates,
+                    missing=missing_outputs + missing_gates + instance_missing,
                     reason="EVIDENCE_WAITING",
+                    notes=evidence_notes or None,
                 )
             return EvidenceBundle(
                 status=EvidenceStatus.FAIL,
                 locators=locators,
                 gate_receipts=gate_receipts,
-                missing=missing_outputs + missing_gates,
+                missing=missing_outputs + missing_gates + instance_missing,
                 reason="EVIDENCE_MISSING_DEADLINE",
+                notes=evidence_notes or None,
             )
 
         if any(receipt.status == GateStatus.FAIL for receipt in gate_receipts):
@@ -327,6 +362,7 @@ class ScenarioRunner:
             locators=locators,
             gate_receipts=gate_receipts,
             bundle_hash=bundle_hash,
+            notes=evidence_notes or None,
         )
 
     def _commit_ready(
@@ -346,19 +382,21 @@ class ScenarioRunner:
                 "scenario_id": intent.scenario_id,
                 "run_id": plan.run_id,
             },
-            "locators": [locator.__dict__ for locator in bundle.locators],
+            "locators": [locator_to_wire(locator) for locator in bundle.locators],
             "output_roles": {
                 output_id: "business_traffic" if output_id in self.policy.traffic_output_ids else "non_traffic"
                 for output_id in plan.intended_outputs
             },
             "intended_outputs": plan.intended_outputs,
-            "gate_receipts": [receipt.__dict__ for receipt in bundle.gate_receipts],
+            "gate_receipts": [receipt_to_wire(receipt) for receipt in bundle.gate_receipts],
             "policy_rev": plan.policy_rev,
             "bundle_hash": bundle.bundle_hash,
             "plan_ref": f"fraud-platform/sr/run_plan/{plan.run_id}.json",
             "record_ref": f"fraud-platform/sr/run_record/{plan.run_id}.jsonl",
             "status_ref": f"fraud-platform/sr/run_status/{plan.run_id}.json",
         }
+        if bundle.notes:
+            facts_view["evidence_notes"] = bundle.notes
         self.ledger.commit_facts_view(plan.run_id, facts_view)
         event = self._event("READY_COMMITTED", plan.run_id, {"bundle_hash": bundle.bundle_hash})
         self.ledger.commit_ready(plan.run_id, event)
@@ -424,6 +462,40 @@ class ScenarioRunner:
             return digest_files(files)
         matches = sorted([p for p in path.parent.glob(path.name) if p.is_file()], key=lambda p: str(p))
         return digest_files(matches)
+
+    def _locator_pins(self, entry: OutputEntry, intent: CanonicalRunIntent, run_id: str) -> dict[str, Any]:
+        partitions = entry.partitions or []
+        pins: dict[str, Any] = {}
+        if not partitions:
+            pins["manifest_fingerprint"] = intent.manifest_fingerprint
+            return pins
+        for part in partitions:
+            if part == "manifest_fingerprint":
+                pins["manifest_fingerprint"] = intent.manifest_fingerprint
+            elif part == "parameter_hash":
+                pins["parameter_hash"] = intent.parameter_hash
+            elif part == "seed":
+                pins["seed"] = intent.seed
+            elif part == "scenario_id":
+                pins["scenario_id"] = intent.scenario_id
+            elif part == "run_id":
+                pins["run_id"] = run_id
+        return pins
+
+    def _gate_tokens_for_scope(self, gate_id: str, intent: CanonicalRunIntent, run_id: str) -> dict[str, Any]:
+        entry = self.gate_map.gate_entry(gate_id)
+        scope = entry.get("scope", "")
+        parts = scope_parts(scope)
+        tokens: dict[str, Any] = {"manifest_fingerprint": intent.manifest_fingerprint}
+        if "parameter" in parts or "parameter_hash" in parts:
+            tokens["parameter_hash"] = intent.parameter_hash
+        if "seed" in parts:
+            tokens["seed"] = intent.seed
+        if "scenario" in parts or "scenario_id" in parts:
+            tokens["scenario_id"] = intent.scenario_id
+        if "run" in parts or "run_id" in parts:
+            tokens["run_id"] = run_id
+        return tokens
 
     def _ensure_lease(self, run_handle: RunHandle) -> None:
         if not run_handle.lease_token:

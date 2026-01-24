@@ -56,8 +56,16 @@ properties:
           minLength: 1
         run_id:
           $ref: "#/$defs/hex32"
+        schema_ref:
+          type: string
+          minLength: 1
+        dictionary_ref:
+          type: string
+          minLength: 1
+        produced_at_utc:
+          $ref: "#/$defs/rfc3339_micros"
         content_digest:
-          $ref: "#/$defs/hex64"
+          $ref: "#/$defs/digest"
   output_roles:
     type: object
     additionalProperties:
@@ -72,22 +80,44 @@ properties:
     items:
       type: object
       additionalProperties: false
-      required: [gate_id, status, scope, receipt_ref]
+      required: [gate_id, status, scope]
       properties:
         gate_id:
           type: string
           minLength: 1
+          maxLength: 128
+          pattern: "^[A-Za-z0-9_\\.\\-]+$"
         status:
           type: string
           enum: [PASS, FAIL]
         scope:
-          type: object
-          additionalProperties: true
-        receipt_ref:
+          $ref: "#/$defs/gate_scope"
+        produced_at_utc:
+          $ref: "#/$defs/rfc3339_micros"
+        receipt_kind:
           type: string
-          minLength: 1
+          enum: [passed_flag, json_receipt, bundle_flag]
         digest:
-          $ref: "#/$defs/hex64"
+          $ref: "#/$defs/digest"
+        artifacts:
+          type: object
+          additionalProperties: false
+          properties:
+            validation_bundle_root:
+              type: string
+              minLength: 1
+              maxLength: 2048
+            index_path:
+              type: string
+              minLength: 1
+              maxLength: 2048
+            passed_flag_path:
+              type: string
+              minLength: 1
+              maxLength: 2048
+        notes:
+          type: string
+          maxLength: 2048
   policy_rev:
     type: object
     additionalProperties: false
@@ -110,6 +140,11 @@ properties:
   status_ref:
     type: string
     minLength: 1
+  evidence_notes:
+    type: array
+    items:
+      type: string
+      minLength: 1
 $defs:
   hex32:
     type: string
@@ -120,3 +155,34 @@ $defs:
   uint64:
     type: integer
     minimum: 0
+  rfc3339_micros:
+    type: string
+    minLength: 1
+  digest:
+    type: object
+    additionalProperties: false
+    required: [algo, hex]
+    properties:
+      algo:
+        type: string
+        enum: [sha256]
+      hex:
+        type: string
+        pattern: "^[0-9a-f]{64}$"
+  gate_scope:
+    type: object
+    additionalProperties: false
+    required: [manifest_fingerprint]
+    properties:
+      manifest_fingerprint:
+        $ref: "#/$defs/hex64"
+      parameter_hash:
+        $ref: "#/$defs/hex64"
+      seed:
+        $ref: "#/$defs/uint64"
+      scenario_id:
+        type: string
+        minLength: 1
+        maxLength: 256
+      run_id:
+        $ref: "#/$defs/hex32"
