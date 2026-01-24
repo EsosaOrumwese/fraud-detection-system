@@ -10,7 +10,7 @@ This plan is intentionally progressive: it starts as phase milestones, then expa
 2) Phase 2 — Durable storage + idempotency (COMPLETE)
 3) Phase 3 — Evidence + gate verification completeness (COMPLETE)
 4) Phase 4 — Engine invocation integration (COMPLETE)
-5) Phase 5 — Control bus + re‑emit operations (IN PROGRESS)
+5) Phase 5 — Control bus + re‑emit operations (COMPLETE)
 6) Phase 6 — Observability + governance
 7) Phase 7 — Security + ops hardening
 8) Phase 8 — Integration tests + CI gates
@@ -206,7 +206,7 @@ High‑level intent: real job runner adapter with attempt lifecycle, retries, an
 ## Phase 5 — Control bus + re‑emit operations
 High‑level intent: publish READY to a real bus with idempotent keys; implement re‑emit (N7).
 
-**Status:** IN PROGRESS (implementation started).
+**Status:** COMPLETE.
 
 ### Section 5.1 — Control bus abstraction + real adapter
 **Goal:** make control‑bus publishing real (AWS Kinesis in prod) while keeping semantics identical across envs.
