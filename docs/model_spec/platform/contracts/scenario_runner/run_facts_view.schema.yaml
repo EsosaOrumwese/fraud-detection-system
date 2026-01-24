@@ -118,6 +118,75 @@ properties:
         notes:
           type: string
           maxLength: 2048
+  instance_receipts:
+    type: array
+    items:
+      type: object
+      additionalProperties: false
+      required: [output_id, status, scope, target_ref, target_digest]
+      properties:
+        output_id:
+          type: string
+          minLength: 1
+          maxLength: 128
+          pattern: "^[A-Za-z0-9_\\.\\-]+$"
+        status:
+          type: string
+          enum: [PASS, FAIL]
+        scope:
+          $ref: "#/$defs/gate_scope"
+        target_ref:
+          type: object
+          additionalProperties: false
+          required: [output_id, path]
+          properties:
+            output_id:
+              type: string
+              minLength: 1
+            path:
+              type: string
+              minLength: 1
+            manifest_fingerprint:
+              $ref: "#/$defs/hex64"
+            parameter_hash:
+              $ref: "#/$defs/hex64"
+            seed:
+              $ref: "#/$defs/uint64"
+            scenario_id:
+              type: string
+              minLength: 1
+            run_id:
+              $ref: "#/$defs/hex32"
+            schema_ref:
+              type: string
+              minLength: 1
+            dictionary_ref:
+              type: string
+              minLength: 1
+            produced_at_utc:
+              $ref: "#/$defs/rfc3339_micros"
+            content_digest:
+              $ref: "#/$defs/digest"
+        target_digest:
+          $ref: "#/$defs/digest"
+        bundle_manifest_ref:
+          type: string
+          minLength: 1
+          maxLength: 2048
+        receipt_kind:
+          type: string
+          enum: [instance_proof]
+        artifacts:
+          type: object
+          additionalProperties: false
+          properties:
+            receipt_path:
+              type: string
+              minLength: 1
+              maxLength: 2048
+        notes:
+          type: string
+          maxLength: 2048
   policy_rev:
     type: object
     additionalProperties: false

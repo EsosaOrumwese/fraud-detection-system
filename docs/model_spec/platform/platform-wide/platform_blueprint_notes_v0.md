@@ -21,6 +21,7 @@ SR is explicitly “conductor + ledger” and the system-of-record for run ident
 Data Engine is a black box that promises deterministic, immutable outputs per partition identity and exposes output discovery + gates via its interface pack. 
 
 **Key join artifact:** `run_facts_view` is literally the “bridge” that points downstream to engine evidence + authoritative outputs by ref.
+Compatibility note: `run_facts_view` uses engine-contract shapes (digest objects + receipt artifacts) and may include optional `instance_receipts` for instance-scoped outputs.
 
 ---
 

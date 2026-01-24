@@ -26,7 +26,7 @@ Stand up the Scenario Runner (SR) as the production-grade run authority for the 
 - **“Latest outputs” discovery**: rejected due to explicit platform rule: downstream must start from SR join surface; no scanning.
 
 ### Intended mechanics (v0 scope)
-Implement the SR backbone as a set of subnetworks per design authority (N1–N8). v0 focuses on correctness of control truth and evidence gating, not throughput.
+Implementhe SR backbone as a set of subnetworks per design authority (N1–N8). v0 focuses on correctness of control truth and evidence gating, nothroughput.
 
 **Core flows to implement first (mandatory):**
 - IP1: new run → invoke engine → gather evidence → verify gates → publish READY.
@@ -57,7 +57,7 @@ Implement the SR backbone as a set of subnetworks per design authority (N1–N8)
 - **N1 (Ingress)**: canonicalize run intent, validate minimal shape, enforce authn/authz, derive run-equivalence key.
 - **N2 (Run Authority Core)**: resolve run_id from equivalence key; single-writer lease; idempotent admission; produce RunHandle.
 - **N3 (Plan/Policy)**: load wiring profile + policy profile; compile output intent; derive required gate closure; select strategy (invoke vs reuse); compute plan_hash; emit plan ticket(s).
-- **N4 (Engine Orchestrator)**: idempotent engine invocation + attempt tracking; no direct writes except through N6; emits attempt result.
+- **N4 (Engine Orchestrator)**: idempotent engine invocation + attemptracking; no direct writes excepthrough N6; emits attempt result.
 - **N5 (Evidence Assembly)**: build engine output locators; resolve gate graph; verify gates using interface pack; bind instance receipts; classify evidence completeness (COMPLETE/WAITING/FAIL/CONFLICT); compute bundle hash.
 - **N6 (Ledger/Join Surface)**: append run_record; commit run_plan; update run_status (monotonic); write run_facts_view; emit READY control fact only when evidence COMPLETE.
 - **N7 (Re-emit Ops)**: authorized re-emit with ops micro-lease; reconstruct control facts from ledger; no mutation.
@@ -99,7 +99,7 @@ Implement the SR backbone as a set of subnetworks per design authority (N1–N8)
 ## Entry: 2026-01-23 21:44:32 — SR v0 skeleton plan (N1–N6 + IP1/IP2/IP3/IP5)
 
 ### Scope
-Implement the first runnable Scenario Runner skeleton with correct truth artifacts, deterministic IDs, and the core flow behaviors: IP1 (new run invoke), IP2 (duplicate), IP3 (reuse), IP5 (waiting/fail/ quarantine). Provide a minimal CLI + service wrapper and local object-store persistence. Keep interfaces pluggable for future production wiring.
+Implementhe first runnable Scenario Runner skeleton with correctruth artifacts, deterministic IDs, and the core flow behaviors: IP1 (new run invoke), IP2 (duplicate), IP3 (reuse), IP5 (waiting/fail/ quarantine). Provide a minimal CLI + service wrapper and local object-store persistence. Keep interfaces pluggable for future production wiring.
 
 ### Design choices (applied)
 - SR code lives under `src/fraud_detection/scenario_runner/` (package) with a thin service wrapper under `services/scenario_runner/` to match repo conventions.
@@ -132,7 +132,7 @@ Implement the first runnable Scenario Runner skeleton with correct truth artifac
 - Fail-closed: missing/invalid gate evidence yields WAITING/FAIL/QUARANTINED (never READY).
 
 ### Validation plan (execute + log)
-- Unit tests for run_id/attempt_id determinism and scenario_set → scenario_id derivation.
+- Unitests for run_id/attempt_id determinism and scenario_set → scenario_id derivation.
 - Gate verification tests against existing run artifacts in `runs/local_full_run-5` for one `sha256_bundle_digest` gate (6B) and one `sha256_member_digest_concat` gate (3A).
 - Smoke flow: submit run with reuse strategy + existing engine run root; expect READY and artifacts in `sr/`.
 
@@ -213,7 +213,7 @@ SR must:
 - Implement N7 re‑emit with ops micro‑lease and strict “read truth → re‑publish” behavior.
 
 **Phase 6 — Observability + governance (audit‑ready)**
-- Implement N8 normalized event taxonomy; emit metrics, traces, and governance facts.
+- Implement N8 normalized eventaxonomy; emit metrics, traces, and governance facts.
 - Stamp policy_rev + plan hash + evidence hash on all runs.
 - Enforce telemetry never blocks truth commits (drop DEBUG first, keep governance facts).
 
@@ -225,7 +225,7 @@ SR must:
 **Phase 8 — Integration tests + CI gates**
 - Golden path, duplicate, reuse, fail‑closed, re‑emit, correction.
 - Contract compliance tests.
-- CI checks for schema compatibility + invariant tests.
+- CI checks for schema compatibility + invariantests.
 
 ### Mapping to SR subnetworks
 - N1: ingress validation, scenario normalization, run_equivalence_key enforcement.
@@ -259,7 +259,7 @@ Proceed to **Phase 1: Contracts + Truth Surfaces** (schemas + validation wiring)
   - run_ready_signal.schema.yaml
 - Implemented SchemaRegistry with Draft 2020-12 validation and wired it into SR:
   - RunRequest validated at ingress.
-  - run_plan/run_record/run_status/run_facts_view/run_ready_signal validated at commit time.
+  - run_plan/run_record/run_status/run_facts_view/run_ready_signal validated at commitime.
 - Wiring profile now carries `schema_root` for SR validation.
 
 ### Design intent alignment
@@ -279,7 +279,7 @@ Ran a quick end-to-end SR sanity flow with local wiring/policy:
 - Expected WAITING due to missing outputs.
 
 ### Finding
-`ScenarioRunner.submit_run()` currently fails at schema validation because it validates `request.model_dump()` (Python objects) against the JSON Schema, which expects JSON-compatible types and omits null fields.
+`ScenarioRunner.submit_run()` currently fails at schema validation because it validates `request.model_dump()` (Python objects) againsthe JSON Schema, which expects JSON-compatible types and omits null fields.
 
 Observed failures:
 - `window_start_utc` / `window_end_utc` are datetime objects (schema expects RFC3339 strings).
@@ -440,7 +440,7 @@ Advance SR from local-only persistence to production‑grade durability and idem
 - If `object_store_root` is non‑local and `authority_store_dsn` is not set, SR fails closed.
 
 ### Validation
-- `pytest tests/services/scenario_runner/test_authority_store.py` → 2 passed.
+- `pytestests/services/scenario_runner/test_authority_store.py` → 2 passed.
 
 ---
 ## Entry: 2026-01-24 05:35:58 — Phase 2 hardening gap (plan correction)
@@ -462,7 +462,7 @@ Lock the SR target platform stack to AWS:
 - **Control bus:** Amazon Kinesis (READY/control events).
 
 ### Implications
-- Wiring/config must target S3 + Postgres DSN in dev/prod.
+- Wiring/config mustarget S3 + Postgres DSN in dev/prod.
 - FileControlBus remains local-only; Kinesis adapter will be implemented in Phase 5.
 - Phase 2.5 hardening must assume S3 semantics (immutability guards + CAS/segmented append).
 
@@ -486,7 +486,7 @@ Phase 2 is functional but not rock‑solid. Hardening is required for production
 ### Steps
 1) Extend storage interface + S3 behavior (immutability + CAS + error classification).
 2) Extend authority store interface with `check_lease`; update SQLite/Postgres implementations.
-3) Enforce lease validation/renew in ScenarioRunner before commit transitions.
+3) Enforce lease validation/renew in ScenarioRunner before commitransitions.
 4) Add/extend tests for lease validation; log results.
 
 ---
@@ -528,13 +528,13 @@ Complete the remaining Phase 2.5 hardening items with explicit, verifiable tests
 
 ### Approach
 1) **Postgres authority store smoke test**
-   - Add pytest that runs only when `SR_TEST_PG_DSN` is set.
+   - Add pytesthat runs only when `SR_TEST_PG_DSN` is set.
    - Validate equivalence resolve + lease acquire/check/renew/release.
 2) **Concurrency test**
-   - Use multiple threads to submit the same RunRequest via ScenarioRunner.
+   - Use multiple threads to submithe same RunRequest via ScenarioRunner.
    - Assert exactly one leader advances (others return lease‑held response) and the run_status is stable.
 3) **S3 integration tests**
-   - Add pytest tests that run only when `SR_TEST_S3_BUCKET` is set (optional prefix via `SR_TEST_S3_PREFIX`).
+   - Add pytestests that run only when `SR_TEST_S3_BUCKET` is set (optional prefix via `SR_TEST_S3_PREFIX`).
    - Validate `write_json_if_absent` immutability (second write raises FileExistsError).
    - Validate `append_jsonl` CAS conflicts by forcing an ETag mismatch.
 
@@ -562,7 +562,7 @@ Tests will be skipped if required env vars are not present; failures should be f
 - `src/fraud_detection/scenario_runner/runner.py`
 
 ### Test results
-- `pytest tests/services/scenario_runner/test_scenario_runner_concurrency.py tests/services/scenario_runner/test_s3_store.py tests/services/scenario_runner/test_authority_store_postgres.py`
+- `pytestests/services/scenario_runner/test_scenario_runner_concurrency.py tests/services/scenario_runner/test_s3_store.py tests/services/scenario_runner/test_authority_store_postgres.py`
   - 2 passed, 2 skipped (Postgres + S3 integration tests skipped; env vars not set).
 
 ### Remaining Phase 2.5 items
@@ -599,7 +599,7 @@ Documented local dev guidance in the build plan:
 Clarified that **local filesystem + SQLite are not recommended** for SR Phase 2/2.5 hardening. They may be used only for quick smoke checks and are not valid for correctness claims.
 
 ### Current guidance
-Local dev should mirror AWS semantics with **MinIO + Postgres**; Phase 2.5 hardening must run against that stack where available.
+Local dev should mirror AWS semantics with **MinIO + Postgres**; Phase 2.5 hardening must run againsthat stack where available.
 
 ---
 ## Entry: 2026-01-24 10:40:41 — Local parity profiles plan (MinIO + Postgres)
@@ -610,7 +610,7 @@ Set up SR local profiles that mirror the AWS stack semantics (S3 + RDS Postgres)
 ### Planned changes
 - Add a local parity wiring profile targeting MinIO + Postgres.
 - Extend SR wiring + storage to allow S3 endpoint/region/path‑style overrides (needed for MinIO).
-- Document the available wiring profiles in the SR service README.
+- Documenthe available wiring profiles in the SR service README.
 
 ---
 ## Entry: 2026-01-24 10:41:47 — Local parity profiles implementation
@@ -653,12 +653,12 @@ Phase 2.5 requires **real** S3 + Postgres semantics to validate immutability, CA
 
 4) **Image tags**
    - Initial pinned tags (`RELEASE.2024-12-18...`) failed to resolve from Docker Hub.
-   - **Decision:** switch to `latest` for MinIO/MC so the stack is runnable; accept the drift risk and plan to pin later once a valid tag is confirmed.
+   - **Decision:** switch to `latest` for MinIO/MC so the stack is runnable; accepthe drift risk and plan to pin later once a valid tag is confirmed.
 
 5) **Postgres auth failures**
    - Tests failed with `password authentication failed for user "sr"` even though the container was healthy.
-   - Root cause: **local Windows Postgres service already bound to port 5432**, so the test DSN hit the local service instead of Docker.
-   - **Decision:** change compose port mapping to `5433:5432` to avoid the conflict (keeps dockerized Postgres as the test target).
+   - Root cause: **local Windows Postgres service already bound to port 5432**, so the test DSN hithe local service instead of Docker.
+   - **Decision:** change compose port mapping to `5433:5432` to avoid the conflict (keeps dockerized Postgres as the testarget).
    - Consequence: update local parity wiring + test DSN to use port 5433.
 
 6) **Python dependency for Postgres**
@@ -666,7 +666,7 @@ Phase 2.5 requires **real** S3 + Postgres semantics to validate immutability, CA
    - **Decision:** install `psycopg[binary]` in the active venv to match `pyproject.toml` and enable tests.
 
 ### Evidence / outcomes
-- Docker daemon initially offline; switched context to `desktop-linux`.
+- Docker daemon initially offline; switched contexto `desktop-linux`.
 - MinIO + Postgres stack started successfully via compose after image tag fix.
 - S3 integration tests passed once MinIO creds were set and bucket created.
 - Postgres smoke still failed until port conflict identified (local Postgres on 5432).
@@ -682,7 +682,7 @@ Phase 2.5 requires **real** S3 + Postgres semantics to validate immutability, CA
 ### What we did (execution)
 1) **Local parity stack**
    - Started MinIO + Postgres via `infra/local/docker-compose.sr-parity.yaml`.
-   - Switched Docker context to `desktop-linux` and corrected MinIO/MC image tags to `latest` (previous pinned tag not found).
+   - Switched Docker contexto `desktop-linux` and corrected MinIO/MC image tags to `latest` (previous pinned tag not found).
    - Fixed MC initialization to use `MC_HOST_local` + `mb --ignore-existing` (shell entrypoint not supported).
 2) **Port conflict resolution**
    - Identified Windows Postgres on **5432**, which hijacked test DSN.
@@ -705,7 +705,7 @@ Environment used (values redacted; set locally as required):
 - `AWS_SECRET_ACCESS_KEY`
 
 Test run:
-- `pytest tests/services/scenario_runner/test_s3_store.py tests/services/scenario_runner/test_authority_store_postgres.py`
+- `pytestests/services/scenario_runner/test_s3_store.py tests/services/scenario_runner/test_authority_store_postgres.py`
   - Result: **3 passed**
 
 ### Conclusion
@@ -740,7 +740,7 @@ Phase 3 must make SR evidence handling **production‑complete**:
    - **Rationale:** prevents “latest output” scanning and enforces no‑PASS‑no‑read.
 
 2) **Receipt validation is mandatory**
-   - **Decision:** validate gate receipts against their schemas (interface pack) before using them.
+   - **Decision:** validate gate receipts againstheir schemas (interface pack) before using them.
    - **Rationale:** receipts are proof artifacts; schema violations must fail‑closed.
 
 3) **Instance‑proof binding**
@@ -782,7 +782,7 @@ This is a tension: **we don’t see any instance‑proof receipts in the pack**,
 
 I need to choose how to handle this in Phase 3:
 1) **Strict fail‑closed**: require an instance‑proof receipt; if missing → WAITING → FAIL at deadline. This aligns with doctrine but may block readiness on most runs.
-2) **Temporary bridge**: accept the output locator content_digest as “instance proof” even without a receipt. That’s not what the interface pack says, but it keeps SR usable.
+2) **Temporary bridge**: accepthe output locator content_digest as “instance proof” even without a receipt. That’s not whathe interface pack says, but it keeps SR usable.
 3) **Policy flag**: default strict, but allow a controlled exception for dev only (still uncomfortable).
 
 My bias: **option 1** (strict fail‑closed) unless you explicitly want a bridge. If we choose strict, we should surface a spec gap to the engine interface pack rather than silently weakening SR.
@@ -794,14 +794,14 @@ Concrete implementation notes:
 - For fingerprint‑scoped outputs, existing PASS gate receipts remain sufficient.
 
 Open question I need your call on:
-→ Do we enforce strict instance‑proof now and accept that it may block readiness, or do we allow a temporary bridge (clearly marked) while the interface pack is extended?
+→ Do we enforce strict instance‑proof now and accepthat it may block readiness, or do we allow a temporary bridge (clearly marked) while the interface pack is extended?
 
 ---
 ## Entry: 2026-01-24 12:18:50 — Phase 3 planning expansion (corrective; detail-first)
 
 I’m correcting the earlier Phase 3 planning entry because it reads like a checklist. Below is the actual decision trail I’m following in real time so the intent and tradeoffs are explicit.
 
-### What triggered this phase (problem framing)
+### Whatriggered this phase (problem framing)
 I need to make SR evidence handling production-grade and **fail-closed** while aligning with the engine interface pack. Phase 3 is where we eliminate ambiguous evidence handling and make the gate + receipt + locator chain deterministic and auditable. The key friction I’m seeing: **gate receipts appear fingerprint-scoped**, while **many outputs are instance-scoped**. That creates a mismatch if we require instance proof for instance outputs (which the interface pack says we must).
 
 ### Authorities I’m using (inputs)
@@ -885,7 +885,7 @@ ingerprint vs instance.
 - src/fraud_detection/scenario_runner/evidence.py (core classification + receipt/locator checks)
 - src/fraud_detection/scenario_runner/schemas.py (schema validation helpers)
 - src/fraud_detection/scenario_runner/runner.py (wiring evidence evaluation)
-- 	ests/services/scenario_runner/ (new tests for instance-proof + receipt invalid cases)
+-tests/services/scenario_runner/ (new tests for instance-proof + receipt invalid cases)
 
 ### Validation plan (tests)
 - Instance-scoped output with no instance proof => WAITING/FAIL with reason.
@@ -899,7 +899,7 @@ Pending: strict vs temporary bridge. I’m ready to implement strict fail-closed
 ---
 ## Entry: 2026-01-24 12:29:03 — Phase 3 implementation start (evidence strictness + schema alignment)
 
-I’m about to implement Phase 3 evidence hardening. I’m writing this before touching code so the decision trail stays live, not retrospective.
+I’m abouto implement Phase 3 evidence hardening. I’m writing this before touching code so the decision trail stays live, not retrospective.
 
 ### Starting point (what exists)
 - Evidence collection currently builds locators + gate receipts but **does not validate** them against engine contracts.
@@ -941,11 +941,11 @@ I’m about to implement Phase 3 evidence hardening. I’m writing this before t
 ### Open risk I’m explicitly accepting (with mitigation)
 - **Spec gap:** interface pack does not yet define instance-proof receipts. Strict mode may block readiness for instance-scoped outputs. I will surface this gap explicitly in the impl_actual entries and in reason codes so it can’t be ignored.
 
-### Files I expect to touch
+### Files I expecto touch
 - src/fraud_detection/scenario_runner/evidence.py (digest objects, helpers, scope classifier, wire conversion)
-- src/fraud_detection/scenario_runner/runner.py (scope-correct tokens, instance-proof checks, schema validation integration)
+- src/fraud_detection/scenario_runner/runner.py (scope-correctokens, instance-proof checks, schema validation integration)
 - src/fraud_detection/scenario_runner/catalogue.py (capture availability, partitions usage)
-- src/fraud_detection/scenario_runner/config.py + config/platform/sr/*.yaml (add engine_contracts_root, allow_instance_proof_bridge)
+- src/fraud_detection/scenario_runner/config.py + config/platform/sr/*.yaml (add engine_contracts_root, aallow_instance_proof_bridge)
 - docs/model_spec/platform/contracts/scenario_runner/run_facts_view.schema.yaml (align with engine contracts)
 - tests/services/scenario_runner/* (new tests for schema/instance-proof path; update wiring helpers)
 
@@ -963,7 +963,7 @@ I’ve started coding Phase 3 and documented the key decisions as they landed:
   - locators now use `{algo, hex}` digest objects (not raw hex strings).
   - gate receipts now include artifacts and match the engine gate_receipt shape (no receipt_ref).
   - Added optional evidence_notes so bridge usage is explicitly recorded.
-- Rationale: SR needs to emit portable evidence objects that can be validated against the engine interface pack.
+- Rationale: SR needs to emit portable evidence objects that can be validated againsthe engine interface pack.
 
 ### Schema validation strategy
 - Added an **engine contracts schema registry** (root = interface_pack/contracts) and validate:
@@ -977,12 +977,12 @@ I’ve started coding Phase 3 and documented the key decisions as they landed:
 
 ### Output locator pins
 - Locator pins are derived from the output’s **catalogue partitions**.
-- If partitions are empty, I still include manifest_fingerprint so engine_output_locator validation can succeed; this is a pragmatic assumption that “global” outputs are still anchored to the manifest. If the engine pack later clarifies truly global outputs, we should revisit this.
+- If partitions are empty, I still include manifest_fingerprint so engine_output_locator validation can succeed; this is a pragmatic assumption that “global” outputs are still anchored to the manifest. If the engine pack later clarifies truly global outputs, we should revisithis.
 
 ### Instance-proof enforcement + dev bridge
 - Instance-scoped outputs are now detected from scope and require instance proof.
 - Because instance receipts are not present in the interface pack, **strict mode will WAIT/FAIL** with instance_proof:{output_id}.
-- If allow_instance_proof_bridge=true (dev only), SR marks evidence_notes: ["INSTANCE_PROOF_BRIDGE:{output_id}"] and proceeds.
+- If aallow_instance_proof_bridge=true (dev only), SR marks evidence_notes: ["INSTANCE_PROOF_BRIDGE:{output_id}"] and proceeds.
 
 ### Policy digest update (non-circular)
 - Recomputed policy_v0.yaml content_digest as **sha256 of the policy content excluding content_digest itself** (avoids circular hash).
@@ -993,7 +993,7 @@ No credentials were written anywhere.
 
 ## Entry: 2026-01-24 12:42:52 — Schema ref resolution fix (interface_pack path mismatch)
 
-While adding engine contract validation, tests failed because the interface_pack contract $ref paths resolve to .../interface_pack/layer-1/..., but the actual schemas live under docs/model_spec/data-engine/layer-1/.... The pack’s relative refs appear to be **one directory too shallow**.
+While adding engine contract validation, tests failed because the interface_pack contract $ref paths resolve to .../interface_pack/layer-1/..., buthe actual schemas live under docs/model_spec/data-engine/layer-1/.... The pack’s relative refs appear to be **one directory too shallow**.
 
 Decision taken:
 - In SchemaRegistry._load_yaml_ref, if the resolved file:// path does not exist and contains interface_pack, I now **fallback by removing the interface_pack/ segment** and retry.
@@ -1009,8 +1009,68 @@ Added dedicated tests to ensure Phase 3 evidence behavior is explicit:
 - test_instance_proof_strict_waits: strict mode should WAIT when instance proof is missing.
 - test_instance_proof_bridge_allows_ready: dev bridge should yield READY and emit evidence_notes.
 
-These tests use a **minimal gate map** (no gates) and a **minimal output catalogue** (instance-scoped output) to isolate the instance-proof logic without requiring full engine artifacts
-.
+These tests use a **minimal gate map** (no gates) and a **minimal output catalogue** (instance-scoped output) to isolate the instance-proof logic without requiring full engine artifacts.
+
+---
 ## Entry: 2026-01-24 12:44:12 — Output availability handling
 
 Noticed the engine catalogue includes availability: optional. I added this to OutputEntry and treat missing optional outputs as **non-blocking** (no WAIT/FAIL). Required outputs still block evidence as before.
+
+---
+## Entry: 2026-01-24 13:01:34 — Phase 3 extension: instance-proof receipts + downstream compatibility
+
+I’m starting the next Phase 3 slice: making instance-proof receipts real (schema + path convention) and wiring SR to consume them, plus adding a parity-grade gate verification test. I’m capturing decisions live.
+
+### What I need to solve now
+1) **Instance-proof receipts aren’t defined in the interface pack**, but SR strict mode now depends on them. I must define a schema + path convention so the contract is real.
+2) SR must be able to **locate, validate, and bind** those receipts to locators (target_ref + digest).
+3) Downstream consumers read 
+un_facts_view; we changed digest shape + receipt artifacts, so I must decide how to communicate/update that boundary.
+
+### Decision direction (pre-implementation)
+- **Define a new contract**: instance_proof_receipt.schema.yaml in interface_pack/contracts.
+- **Path convention**: place instance receipts under the same layer/segment namespace as the outputhey prove, using 
+eceipts/instance/ and the output’s partitions. This keeps provenance localized and avoids cross-segment ambiguity.
+- **SR behavior**: for instance-scoped outputs, require a PASS instance receipt whose  target_ref matches the locator and whose  target_digest equals locator.content_digest.
+- **run_facts_view**: add a new optional instance_receipts array (do not overload gate_receipts). Keep backward compatibility by making it optional. Update docs so downstream is aware.
+- **Downstream update decision**: update platform/docs now (even if no code yet) so that IG/OFS/others know the new receipt shape and optional field.
+
+### Risks and mitigations
+- Contract drift if engine doesn’t emit instance receipts yet → SR strict mode still WAIT/FAIL until engine implements it. This is acceptable; we’re closing the spec gap first.
+- Added instance_receipts field means downstream must be made aware; I’ll update platform-wide notes + SR contract README.
+
+### Planned touchpoints
+- docs/model_spec/data-engine/interface_pack/contracts/instance_proof_receipt.schema.yaml
+- docs/model_spec/data-engine/interface_pack/data_engine_interface.md
+- docs/model_spec/data-engine/interface_pack/storage_layout_v1.md
+- docs/model_spec/data-engine/interface_pack/README.md
+- docs/model_spec/platform/contracts/scenario_runner/run_facts_view.schema.yaml
+- src/fraud_detection/scenario_runner/runner.py (receipt lookup + validation + facts view field)
+-tests/services/scenario_runner/test_gate_verification_integration.py
+- docs/model_spec/platform/platform-wide/platform_blueprint_notes_v0.md (compat note)
+
+----
+## Entry: 2026-01-24 13:08:38 — Instance-proof receipt contract + SR consumption (implemented)
+
+### Interface pack changes
+- Added contracts/instance_proof_receipt.schema.yaml and xamples/instance_proof_receipt.example.json.
+- Documented instance-proof receipt path convention in data_engine_interface.md and storage_layout_v1.md.
+- Updated interface pack README to listhe new contract + example.
+
+### SR behavior updates
+- SR now looks for instance receipts at:
+  data/<layer>/<segment>/receipts/instance/output_id=<output_id>/<partitions>/instance_receipt.json
+- Receipts are validated against instance_proof_receipt.schema.yaml and bound to the locator:
+  -  target_ref.output_id must match locator output_id.
+  -  target_ref.path must match locator path (relative paths allowed vs engine_root).
+  -  target_digest.hex must equal locator.content_digest.hex.
+- Missing receipts → WAIT/FAIL unless allow_instance_proof_bridge=true (dev-only).
+- Facts view now includes optional instance_receipts when present.
+
+### Tests added
+-  test_gate_verification_integration uses the real gate map and a synthetic bundle to verify HashGate PASS flow end-to-end (SR reuse path → READY).
+
+### Compatibility updates
+- run_facts_view contract documents instance_receipts and digest object shapes; platform blueprint note updated to alert downstream consumers.
+
+---

@@ -1,0 +1,123 @@
+# contracts/instance_proof_receipt.schema.yaml
+version: "0.1.0"
+$id: instance_proof_receipt.schema.yaml
+$schema: https://json-schema.org/draft/2020-12/schema
+title: Instance Proof Receipt
+description: >
+  Portable proof that a specific output instance (by output_id + scope) was produced
+  and that its bytes match the declared digest. Used by Scenario Runner and downstream
+  components to enforce instance-scoped “no PASS → no read”.
+
+$defs:
+  hex64:
+    $ref: "../layer-1/specs/contracts/1A/schemas.layer1.yaml#/$defs/hex64"
+  hex32:
+    $ref: "../layer-1/specs/contracts/1A/schemas.layer1.yaml#/$defs/hex32"
+  uint64:
+    $ref: "../layer-1/specs/contracts/1A/schemas.layer1.yaml#/$defs/uint64"
+  rfc3339_micros:
+    $ref: "../layer-1/specs/contracts/1A/schemas.layer1.yaml#/$defs/rfc3339_micros"
+
+  scenario_id:
+    anyOf:
+      - type: string
+        minLength: 1
+        maxLength: 256
+      - type: integer
+        minimum: 0
+
+  digest:
+    type: object
+    additionalProperties: false
+    required: [algo, hex]
+    properties:
+      algo:
+        type: string
+        enum: ["sha256"]
+      hex:
+        type: string
+        pattern: "^[0-9a-f]{64}$"
+
+  receipt_scope:
+    description: >
+      Identity scope for the output instance. Must include manifest_fingerprint and
+      any additional partition tokens for the output_id (parameter_hash, seed,
+      scenario_id, run_id) when applicable.
+    type: object
+    additionalProperties: false
+    required: [manifest_fingerprint]
+    properties:
+      manifest_fingerprint:
+        $ref: "#/$defs/hex64"
+      parameter_hash:
+        $ref: "#/$defs/hex64"
+      seed:
+        $ref: "#/$defs/uint64"
+      scenario_id:
+        $ref: "#/$defs/scenario_id"
+      run_id:
+        $ref: "#/$defs/hex32"
+
+type: object
+additionalProperties: false
+required:
+  - output_id
+  - status
+  - scope
+  - target_ref
+  - target_digest
+properties:
+  output_id:
+    description: Stable output identifier (must correspond to engine_outputs.catalogue.yaml).
+    type: string
+    minLength: 1
+    maxLength: 128
+    pattern: "^[A-Za-z0-9_\.\-]+$"
+
+  status:
+    description: Instance proof outcome.
+    type: string
+    enum: ["PASS", "FAIL"]
+
+  scope:
+    $ref: "#/$defs/receipt_scope"
+
+  target_ref:
+    description: The exact output locator being proven.
+    $ref: "engine_output_locator.schema.yaml"
+
+  target_digest:
+    description: Digest of the authoritative bytes for the target output instance.
+    $ref: "#/$defs/digest"
+
+  bundle_manifest_ref:
+    description: >
+      Optional reference to a bundle manifest used to compute target_digest for multi-file outputs.
+    type: string
+    minLength: 1
+    maxLength: 2048
+
+  produced_at_utc:
+    description: Optional UTC timestamp when the receipt was produced.
+    $ref: "#/$defs/rfc3339_micros"
+
+  receipt_kind:
+    description: Informative classification.
+    type: string
+    enum: ["instance_proof"]
+    default: "instance_proof"
+
+  artifacts:
+    description: Optional pointers to authoritative on-disk artifacts for this receipt.
+    type: object
+    additionalProperties: false
+    properties:
+      receipt_path:
+        type: string
+        minLength: 1
+        maxLength: 2048
+
+  notes:
+    description: Optional non-semantic notes.
+    type: string
+    maxLength: 2048

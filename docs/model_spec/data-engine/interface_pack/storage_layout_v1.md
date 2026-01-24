@@ -44,6 +44,7 @@ Data:
 data/layer{1,2,3}/{SEG}/{dataset_id}/<partitions>/<files>
 data/layer{1,2,3}/{SEG}/validation/manifest_fingerprint={manifest_fingerprint}/...
 data/layer{1,2,3}/{SEG}/receipts/manifest_fingerprint={manifest_fingerprint}/...
+data/layer{1,2,3}/{SEG}/receipts/instance/output_id={output_id}/<partitions>/instance_receipt.json
 ```
 
 Logs:

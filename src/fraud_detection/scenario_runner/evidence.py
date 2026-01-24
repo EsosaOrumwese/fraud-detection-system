@@ -59,6 +59,7 @@ class EvidenceBundle:
     status: EvidenceStatus
     locators: list[EngineOutputLocator]
     gate_receipts: list[GateReceipt]
+    instance_receipts: list[dict[str, Any]] | None = None
     bundle_hash: str | None = None
     missing: list[str] | None = None
     reason: str | None = None
@@ -206,7 +207,12 @@ class GateVerifier:
         return hashlib.sha256(concat.encode("utf-8")).hexdigest()
 
 
-def hash_bundle(locators: list[EngineOutputLocator], receipts: list[GateReceipt], policy_rev: dict[str, Any]) -> str:
+def hash_bundle(
+    locators: list[EngineOutputLocator],
+    receipts: list[GateReceipt],
+    policy_rev: dict[str, Any],
+    instance_receipts: list[dict[str, Any]] | None = None,
+) -> str:
     def locator_key(locator: EngineOutputLocator) -> str:
         return locator.output_id
 
@@ -216,6 +222,7 @@ def hash_bundle(locators: list[EngineOutputLocator], receipts: list[GateReceipt]
     payload = {
         "locators": [locator_to_wire(locator) for locator in sorted(locators, key=locator_key)],
         "receipts": [receipt_to_wire(receipt) for receipt in sorted(receipts, key=receipt_key)],
+        "instance_receipts": sorted(instance_receipts or [], key=lambda r: r.get("output_id", "")),
         "policy_rev": policy_rev,
     }
     encoded = json.dumps(payload, sort_keys=True, ensure_ascii=True, separators=(",", ":"))

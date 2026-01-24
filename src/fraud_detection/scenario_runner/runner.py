@@ -319,6 +319,7 @@ class ScenarioRunner:
         if conflict:
             return EvidenceBundle(status=EvidenceStatus.CONFLICT, locators=locators, gate_receipts=gate_receipts, reason="EVIDENCE_CONFLICT")
 
+        instance_receipts: list[dict[str, Any]] = []
         instance_missing: list[str] = []
         evidence_notes: list[str] = []
         for output_id, locator in locator_by_output.items():
@@ -328,10 +329,45 @@ class ScenarioRunner:
             if locator.content_digest is None:
                 instance_missing.append(f"instance_proof:{output_id}")
                 continue
-            if not self.policy.allow_instance_proof_bridge:
+            receipt_path = self._instance_receipt_path(entry, intent, plan.run_id)
+            if receipt_path is None:
                 instance_missing.append(f"instance_proof:{output_id}")
-            else:
-                evidence_notes.append(f"INSTANCE_PROOF_BRIDGE:{output_id}")
+                continue
+            receipt_full = engine_root / receipt_path
+            if not receipt_full.exists():
+                if not self.policy.allow_instance_proof_bridge:
+                    instance_missing.append(f"instance_proof:{output_id}")
+                else:
+                    evidence_notes.append(f"INSTANCE_PROOF_BRIDGE:{output_id}")
+                continue
+            receipt_payload = json.loads(receipt_full.read_text(encoding="utf-8"))
+            try:
+                self.engine_schemas.validate("instance_proof_receipt.schema.yaml", receipt_payload)
+            except ValueError:
+                return EvidenceBundle(
+                    status=EvidenceStatus.FAIL,
+                    locators=locators,
+                    gate_receipts=gate_receipts,
+                    instance_receipts=instance_receipts,
+                    reason="INSTANCE_RECEIPT_SCHEMA_INVALID",
+                )
+            if receipt_payload.get("status") != "PASS":
+                return EvidenceBundle(
+                    status=EvidenceStatus.FAIL,
+                    locators=locators,
+                    gate_receipts=gate_receipts,
+                    instance_receipts=instance_receipts,
+                    reason="INSTANCE_PROOF_FAIL",
+                )
+            if not self._instance_receipt_matches(locator, receipt_payload, engine_root):
+                return EvidenceBundle(
+                    status=EvidenceStatus.FAIL,
+                    locators=locators,
+                    gate_receipts=gate_receipts,
+                    instance_receipts=instance_receipts,
+                    reason="INSTANCE_PROOF_MISMATCH",
+                )
+            instance_receipts.append(receipt_payload)
 
         now = datetime.now(tz=timezone.utc)
         if missing_outputs or missing_gates or instance_missing:
@@ -340,6 +376,7 @@ class ScenarioRunner:
                     status=EvidenceStatus.WAITING,
                     locators=locators,
                     gate_receipts=gate_receipts,
+                    instance_receipts=instance_receipts,
                     missing=missing_outputs + missing_gates + instance_missing,
                     reason="EVIDENCE_WAITING",
                     notes=evidence_notes or None,
@@ -348,6 +385,7 @@ class ScenarioRunner:
                 status=EvidenceStatus.FAIL,
                 locators=locators,
                 gate_receipts=gate_receipts,
+                instance_receipts=instance_receipts,
                 missing=missing_outputs + missing_gates + instance_missing,
                 reason="EVIDENCE_MISSING_DEADLINE",
                 notes=evidence_notes or None,
@@ -356,11 +394,12 @@ class ScenarioRunner:
         if any(receipt.status == GateStatus.FAIL for receipt in gate_receipts):
             return EvidenceBundle(status=EvidenceStatus.FAIL, locators=locators, gate_receipts=gate_receipts, reason="GATE_FAIL")
 
-        bundle_hash = hash_bundle(locators, gate_receipts, plan.policy_rev)
+        bundle_hash = hash_bundle(locators, gate_receipts, plan.policy_rev, instance_receipts)
         return EvidenceBundle(
             status=EvidenceStatus.COMPLETE,
             locators=locators,
             gate_receipts=gate_receipts,
+            instance_receipts=instance_receipts,
             bundle_hash=bundle_hash,
             notes=evidence_notes or None,
         )
@@ -395,6 +434,8 @@ class ScenarioRunner:
             "record_ref": f"fraud-platform/sr/run_record/{plan.run_id}.jsonl",
             "status_ref": f"fraud-platform/sr/run_status/{plan.run_id}.json",
         }
+        if bundle.instance_receipts:
+            facts_view["instance_receipts"] = bundle.instance_receipts
         if bundle.notes:
             facts_view["evidence_notes"] = bundle.notes
         self.ledger.commit_facts_view(plan.run_id, facts_view)
@@ -496,6 +537,60 @@ class ScenarioRunner:
         if "run" in parts or "run_id" in parts:
             tokens["run_id"] = run_id
         return tokens
+
+    def _instance_receipt_path(self, entry: OutputEntry, intent: CanonicalRunIntent, run_id: str) -> str | None:
+        template = entry.path_template.strip().strip("'")
+        parts = Path(template).parts
+        if len(parts) < 3 or parts[0] != "data":
+            return None
+        layer = parts[1]
+        segment = parts[2]
+        partition_order = ["seed", "parameter_hash", "manifest_fingerprint", "scenario_id", "run_id"]
+        partitions = entry.partitions or []
+        tokens = {
+            "manifest_fingerprint": intent.manifest_fingerprint,
+            "parameter_hash": intent.parameter_hash,
+            "seed": intent.seed,
+            "scenario_id": intent.scenario_id,
+            "run_id": run_id,
+        }
+        segments: list[str] = []
+        for key in partition_order:
+            if key in partitions:
+                value = tokens.get(key)
+                if value is None:
+                    return None
+                segments.append(f"{key}={value}")
+        partition_path = "/".join(segments)
+        return f"data/{layer}/{segment}/receipts/instance/output_id={entry.output_id}/{partition_path}/instance_receipt.json"
+
+    def _instance_receipt_matches(
+        self,
+        locator: EngineOutputLocator,
+        receipt_payload: dict[str, Any],
+        engine_root: Path,
+    ) -> bool:
+        target_ref = receipt_payload.get("target_ref", {})
+        if target_ref.get("output_id") != locator.output_id:
+            return False
+        locator_path = Path(locator.path)
+        target_path = Path(target_ref.get("path", ""))
+        if target_path.is_absolute():
+            if locator_path != target_path:
+                return False
+        else:
+            try:
+                rel = locator_path.relative_to(engine_root)
+            except ValueError:
+                return False
+            if rel.as_posix() != target_path.as_posix():
+                return False
+        target_digest = receipt_payload.get("target_digest", {})
+        if locator.content_digest is None:
+            return False
+        if target_digest.get("hex") != locator.content_digest.hex:
+            return False
+        return True
 
     def _ensure_lease(self, run_handle: RunHandle) -> None:
         if not run_handle.lease_token:
