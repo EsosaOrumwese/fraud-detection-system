@@ -157,7 +157,7 @@ High‑level intent: enforce full HashGate coverage and instance‑proof binding
 ## Phase 4 — Engine invocation integration
 High‑level intent: real job runner adapter with attempt lifecycle, retries, and idempotency.
 
-**Status:** IN PROGRESS (invocation validation + attempt lifecycle + receipt gating done; local subprocess adapter still stubbed).
+**Status:** IN PROGRESS (all Section 4.1–4.5 work implemented; awaiting phase sign‑off).
 
 ### Section 4.1 — Invocation adapter interface (engine remains black box)
 **Goal:** define a stable invoker interface with clear inputs/outputs and no engine internals.

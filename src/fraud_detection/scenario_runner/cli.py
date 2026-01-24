@@ -7,7 +7,7 @@ from datetime import datetime
 from pathlib import Path
 
 from .config import load_policy, load_wiring
-from .engine import LocalEngineInvoker
+from .engine import LocalEngineInvoker, LocalSubprocessInvoker
 from .logging_utils import configure_logging
 from .models import RunRequest, RunWindow, ScenarioBinding
 from .runner import ScenarioRunner
@@ -35,7 +35,14 @@ def main() -> None:
     args = parse_args()
     wiring = load_wiring(Path(args.wiring))
     policy = load_policy(Path(args.policy))
-    invoker = LocalEngineInvoker()
+    if wiring.engine_command:
+        invoker = LocalSubprocessInvoker(
+            wiring.engine_command,
+            cwd=wiring.engine_command_cwd,
+            timeout_seconds=wiring.engine_command_timeout_seconds,
+        )
+    else:
+        invoker = LocalEngineInvoker()
     runner = ScenarioRunner(wiring, policy, invoker)
     scenario = ScenarioBinding(scenario_id=args.scenario_id, scenario_set=args.scenario_set)
     window = RunWindow(

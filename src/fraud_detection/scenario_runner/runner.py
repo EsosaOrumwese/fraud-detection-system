@@ -342,6 +342,17 @@ class ScenarioRunner:
         reason_code = attempt.reason_code
         engine_run_root = attempt.engine_run_root
         run_receipt_ref = None
+        logs_ref: dict[str, str] | None = None
+
+        if attempt.stdout or attempt.stderr:
+            logs_ref = {}
+            base = f"{self.ledger.prefix}/engine_attempt_logs/run_id={run_handle.run_id}/attempt_no={attempt_no}"
+            if attempt.stdout:
+                stdout_ref = self.store.write_text(f"{base}/stdout.log", attempt.stdout)
+                logs_ref["stdout_ref"] = stdout_ref.path
+            if attempt.stderr:
+                stderr_ref = self.store.write_text(f"{base}/stderr.log", attempt.stderr)
+                logs_ref["stderr_ref"] = stderr_ref.path
 
         if outcome == "SUCCEEDED":
             if not engine_run_root:
@@ -394,6 +405,8 @@ class ScenarioRunner:
             attempt_payload["engine_run_root"] = engine_run_root
         if run_receipt_ref:
             attempt_payload["run_receipt_ref"] = run_receipt_ref
+        if logs_ref:
+            attempt_payload["logs_ref"] = logs_ref
         self.schemas.validate("engine_attempt.schema.yaml", attempt_payload)
         finish_event = self._event("ENGINE_ATTEMPT_FINISHED", run_handle.run_id, attempt_payload)
         self.ledger.append_record(run_handle.run_id, finish_event)

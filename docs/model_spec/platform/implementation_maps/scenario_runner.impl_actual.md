@@ -1904,3 +1904,83 @@ Test results:
 
 Notes / known limits:
 - Attempt counting is based on `ENGINE_ATTEMPT_FINISHED` events in run_record; this is sufficient for v0 but can be replaced by a dedicated attempt index if/when record size becomes a concern.
+
+---
+
+### Entry: 2026-01-24 17:38:41 — Phase 4.1: implement real local subprocess invoker
+
+Intent:
+- Replace the stubbed LocalEngineInvoker with a real local subprocess adapter that runs the engine CLI, captures stdout/stderr, and maps exit code to attempt outcome.
+
+Key constraints:
+- Engine is a black box: invocation must use the engine’s published CLI/contract surface only.
+- No credentials or secrets embedded in code or docs.
+
+Plan (stepwise):
+1) Locate engine CLI entrypoints or scripts (likely under `packages/engine/` or `scripts/`) and determine the correct invocation command for a full run using only the invocation payload.
+2) Define a local adapter interface: it should build the CLI command, set environment variables if needed (without embedding secrets), and capture stdout/stderr to SR artifact store (logs_ref).
+3) Implement subprocess execution in `LocalEngineInvoker` with timeout handling and clear reason codes for non‑zero exits.
+4) Add tests using a stub command (e.g., a small Python script) to simulate success and failure without depending on engine internals.
+5) Update impl_actual and logbook with all decisions.
+
+---
+
+### Entry: 2026-01-24 17:41:04 — Subprocess invoker design decisions
+
+Decision trail (live):
+- **Command source**: add optional `engine_command` to WiringProfile so SR can run a user‑supplied CLI without hardcoding engine internals. This keeps engine black‑box and avoids embedding a specific segment/state runner.
+- **Command template**: allow placeholder substitution in command tokens using invocation fields (`manifest_fingerprint`, `parameter_hash`, `seed`, `run_id`, `scenario_id`, `engine_run_root`). This keeps SR generic and lets the user point to any engine wrapper.
+- **Invocation payload transport**: pass invocation JSON via an env var (`SR_ENGINE_INVOCATION_JSON`) for local subprocess runs; also expose `{invocation_json}` placeholder for token substitution. This avoids writing into engine run root while still allowing a wrapper script to read the payload.
+- **stdout/stderr capture**: capture subprocess output in the invoker and persist into SR object store at `fraud-platform/sr/engine_attempt_logs/run_id=.../attempt_no=.../stdout.log|stderr.log`. Store refs in the attempt record (`logs_ref`).
+- **Exit code mapping**: non‑zero exit → `ENGINE_EXIT_NONZERO`; timeout → `ENGINE_TIMEOUT`; missing command → `ENGINE_COMMAND_MISSING`.
+
+Why this path:
+- Keeps SR generic and black‑box compliant, avoids coupling to engine CLI internals.
+- Provides audit‑ready logs without polluting engine run roots.
+
+Planned code touchpoints:
+- `src/fraud_detection/scenario_runner/config.py` (add wiring fields)
+- `src/fraud_detection/scenario_runner/engine.py` (LocalSubprocessInvoker + stdout/stderr capture)
+- `src/fraud_detection/scenario_runner/runner.py` (store logs + include logs_ref in attempt payload)
+- `docs/model_spec/platform/contracts/scenario_runner/engine_attempt.schema.yaml` (add logs_ref)
+- `docs/model_spec/platform/implementation_maps/scenario_runner.build_plan.md` (note completion once done)
+- Tests for subprocess invoker (stub command) + verify logs_ref persisted.
+
+---
+
+### Entry: 2026-01-24 17:45:27 — Local subprocess invoker implemented
+
+Implementation summary (with details):
+- Added **LocalSubprocessInvoker** in `src/fraud_detection/scenario_runner/engine.py`.
+  - Accepts a `command` list, optional `cwd`, and optional timeout.
+  - Performs placeholder substitution in command tokens using invocation fields.
+  - Exposes invocation JSON via `SR_ENGINE_INVOCATION_JSON` and `SR_ENGINE_RUN_ROOT` env vars.
+  - Captures stdout/stderr and maps exit codes to `ENGINE_EXIT_NONZERO`, missing command to `ENGINE_COMMAND_MISSING`, and timeouts to `ENGINE_TIMEOUT`.
+- Extended `EngineAttemptResult` to carry stdout/stderr.
+- Added log persistence in `_invoke_engine`:
+  - Writes stdout/stderr to SR object store under `fraud-platform/sr/engine_attempt_logs/run_id=.../attempt_no=.../`.
+  - Stores log refs in attempt payload (`logs_ref`).
+- Added wiring fields for `engine_command`, `engine_command_cwd`, `engine_command_timeout_seconds` and wired CLI/service to use LocalSubprocessInvoker when `engine_command` is present.
+- Updated `engine_attempt.schema.yaml` to include `logs_ref`.
+
+Tests added:
+- `tests/services/scenario_runner/test_engine_subprocess_invoker.py`:
+  - Ensures stdout/stderr capture works for a stub engine subprocess.
+  - Ensures SR persists attempt logs and refs them in run_record.
+
+Test results:
+- `python -m pytest tests/services/scenario_runner/test_engine_subprocess_invoker.py -q` → 2 passed.
+
+Notes:
+- LocalEngineInvoker stub remains for tests and for wiring profiles without `engine_command`.
+- SR remains black‑box compliant: invocation contract is passed to the subprocess; no engine internals are assumed.
+
+---
+
+### Entry: 2026-01-24 17:46:29 — SR test suite after subprocess invoker
+
+Test run:
+- `python -m pytest tests/services/scenario_runner -q` (venv)
+
+Result:
+- 26 passed, 2 skipped

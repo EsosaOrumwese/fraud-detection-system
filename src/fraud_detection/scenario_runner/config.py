@@ -17,6 +17,9 @@ class WiringProfile(BaseModel):
     gate_map_path: str
     schema_root: str
     engine_contracts_root: str
+    engine_command: list[str] | None = None
+    engine_command_cwd: str | None = None
+    engine_command_timeout_seconds: int | None = None
     authority_store_dsn: str | None = None
     s3_endpoint_url: str | None = None
     s3_region: str | None = None

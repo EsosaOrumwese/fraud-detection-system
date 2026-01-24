@@ -50,6 +50,18 @@ properties:
   invocation:
     type: object
     additionalProperties: true
+  logs_ref:
+    type: object
+    additionalProperties: false
+    properties:
+      stdout_ref:
+        type: string
+        minLength: 1
+        maxLength: 2048
+      stderr_ref:
+        type: string
+        minLength: 1
+        maxLength: 2048
 $defs:
   hex32:
     type: string
