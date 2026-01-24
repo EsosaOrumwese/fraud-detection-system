@@ -17,6 +17,9 @@ class WiringProfile(BaseModel):
     gate_map_path: str
     schema_root: str
     authority_store_dsn: str | None = None
+    s3_endpoint_url: str | None = None
+    s3_region: str | None = None
+    s3_path_style: bool | None = None
 
 
 class PolicyProfile(BaseModel):

@@ -42,7 +42,12 @@ class ScenarioRunner:
         self.policy = policy
         self.engine_invoker = engine_invoker
         self.schemas = SchemaRegistry(Path(wiring.schema_root))
-        self.store = build_object_store(wiring.object_store_root)
+        self.store = build_object_store(
+            wiring.object_store_root,
+            s3_endpoint_url=wiring.s3_endpoint_url,
+            s3_region=wiring.s3_region,
+            s3_path_style=wiring.s3_path_style,
+        )
         self.ledger = Ledger(self.store, prefix="fraud-platform/sr", schemas=self.schemas)
         self.control_bus = FileControlBus(Path(wiring.control_bus_root))
         self.catalogue = OutputCatalogue(Path(wiring.engine_catalogue_path))

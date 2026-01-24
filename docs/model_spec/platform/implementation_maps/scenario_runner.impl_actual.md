@@ -567,6 +567,36 @@ Clarified that **local filesystem + SQLite are not recommended** for SR Phase 2/
 Local dev should mirror AWS semantics with **MinIO + Postgres**; Phase 2.5 hardening must run against that stack where available.
 
 ---
+## Entry: 2026-01-24 10:40:41 — Local parity profiles plan (MinIO + Postgres)
+
+### Goal
+Set up SR local profiles that mirror the AWS stack semantics (S3 + RDS Postgres) to run Phase 2.5 integration tests and reduce drift.
+
+### Planned changes
+- Add a local parity wiring profile targeting MinIO + Postgres.
+- Extend SR wiring + storage to allow S3 endpoint/region/path‑style overrides (needed for MinIO).
+- Document the available wiring profiles in the SR service README.
+
+---
+## Entry: 2026-01-24 10:41:47 — Local parity profiles implementation
+
+### What changed
+- Added MinIO/Postgres local parity wiring profile.
+- Added S3 endpoint/region/path‑style overrides in wiring + S3 client builder (needed for MinIO).
+- Documented available profiles in SR service README.
+
+### Files touched
+- `config/platform/sr/wiring_local_parity.yaml`
+- `src/fraud_detection/scenario_runner/config.py`
+- `src/fraud_detection/scenario_runner/storage.py`
+- `src/fraud_detection/scenario_runner/runner.py`
+- `services/scenario_runner/README.md`
+
+### Notes
+- For MinIO, set `s3_endpoint_url` and `s3_path_style: true` in wiring.
+- Environment overrides still supported via `SR_S3_ENDPOINT_URL`, `SR_S3_REGION`, `SR_S3_PATH_STYLE`.
+
+---
 ## Entry: 2026-01-24 07:09:54 — Implementation map rename (drop component_ prefix)
 
 ### Change

@@ -122,12 +122,28 @@ class LocalObjectStore:
 
 
 class S3ObjectStore:
-    def __init__(self, bucket: str, prefix: str = "") -> None:
+    def __init__(
+        self,
+        bucket: str,
+        prefix: str = "",
+        endpoint_url: str | None = None,
+        region_name: str | None = None,
+        path_style: bool | None = None,
+    ) -> None:
         import boto3
+        from botocore.config import Config
 
         self.bucket = bucket
         self.prefix = prefix.strip("/")
-        self._client = boto3.client("s3")
+        config = None
+        if path_style:
+            config = Config(s3={"addressing_style": "path"})
+        self._client = boto3.client(
+            "s3",
+            endpoint_url=endpoint_url,
+            region_name=region_name,
+            config=config,
+        )
 
     def _key(self, relative_path: str) -> str:
         relative = relative_path.lstrip("/")
@@ -257,12 +273,27 @@ class S3ObjectStore:
         return keys
 
 
-def build_object_store(root: str) -> ObjectStore:
+def build_object_store(
+    root: str,
+    s3_endpoint_url: str | None = None,
+    s3_region: str | None = None,
+    s3_path_style: bool | None = None,
+) -> ObjectStore:
     if root.startswith("s3://"):
         parsed = urlparse(root)
         bucket = parsed.netloc
         prefix = parsed.path.lstrip("/")
         if not bucket:
             raise ValueError("S3 object_store_root missing bucket")
-        return S3ObjectStore(bucket=bucket, prefix=prefix)
+        endpoint = s3_endpoint_url or os.getenv("SR_S3_ENDPOINT_URL") or os.getenv("AWS_ENDPOINT_URL")
+        region = s3_region or os.getenv("SR_S3_REGION") or os.getenv("AWS_DEFAULT_REGION")
+        path_style_env = os.getenv("SR_S3_PATH_STYLE")
+        path_style = s3_path_style if s3_path_style is not None else (path_style_env == "true")
+        return S3ObjectStore(
+            bucket=bucket,
+            prefix=prefix,
+            endpoint_url=endpoint,
+            region_name=region,
+            path_style=path_style,
+        )
     return LocalObjectStore(Path(root))
