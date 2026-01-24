@@ -34,6 +34,9 @@ def create_app(wiring_path: str, policy_path: str) -> Flask:
     @app.post("/runs")
     def submit_run() -> Any:
         payload = request.get_json(force=True)
+        actor = request.headers.get("X-SR-Actor")
+        if actor and "invoker" not in payload:
+            payload["invoker"] = actor
         run_request = RunRequest(**payload)
         response = runner.submit_run(run_request)
         return jsonify(response.model_dump())
@@ -42,6 +45,9 @@ def create_app(wiring_path: str, policy_path: str) -> Flask:
     def reemit_run(run_id: str) -> Any:
         payload = request.get_json(force=True) or {}
         payload["run_id"] = run_id
+        actor = request.headers.get("X-SR-Actor")
+        if actor and "requested_by" not in payload:
+            payload["requested_by"] = actor
         reemit_request = ReemitRequest(**payload)
         response = runner.reemit(reemit_request)
         return jsonify(response.model_dump())

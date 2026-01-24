@@ -139,6 +139,7 @@ class ReemitRequest(BaseModel):
     reemit_kind: ReemitKind = ReemitKind.BOTH
     reason: Optional[str] = None
     requested_by: Optional[str] = None
+    dry_run: bool = False
 
 
 class ReemitResponse(BaseModel):

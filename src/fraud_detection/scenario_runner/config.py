@@ -28,6 +28,11 @@ class WiringProfile(BaseModel):
     s3_endpoint_url: str | None = None
     s3_region: str | None = None
     s3_path_style: bool | None = None
+    auth_mode: str = "disabled"
+    auth_allowlist: list[str] = []
+    reemit_allowlist: list[str] = []
+    reemit_rate_limit_max: int | None = None
+    reemit_rate_limit_window_seconds: int = 3600
 
 
 class PolicyProfile(BaseModel):

@@ -10,6 +10,7 @@ from .config import load_policy, load_wiring
 from .engine import LocalEngineInvoker, LocalSubprocessInvoker
 from .logging_utils import configure_logging
 from .models import ReemitKind, ReemitRequest, RunRequest, RunWindow, ScenarioBinding
+from .storage import build_object_store
 from .runner import ScenarioRunner
 
 
@@ -32,12 +33,20 @@ def parse_args() -> argparse.Namespace:
     run_parser.add_argument("--window-end", required=True)
     run_parser.add_argument("--engine-run-root", default=None)
     run_parser.add_argument("--output-id", action="append")
+    run_parser.add_argument("--invoker", default=None)
 
     reemit_parser = subparsers.add_parser("reemit", parents=[base], help="Re-emit control facts for a run")
     reemit_parser.add_argument("--run-id", required=True)
     reemit_parser.add_argument("--kind", choices=[k.value for k in ReemitKind], default=ReemitKind.BOTH.value)
     reemit_parser.add_argument("--reason", default=None)
     reemit_parser.add_argument("--requested-by", default=None)
+    reemit_parser.add_argument("--dry-run", action="store_true")
+
+    quarantine_parser = subparsers.add_parser("quarantine", parents=[base], help="Inspect quarantined runs")
+    q_sub = quarantine_parser.add_subparsers(dest="q_action")
+    q_list = q_sub.add_parser("list", help="List quarantined runs")
+    q_show = q_sub.add_parser("show", help="Show quarantine record for a run")
+    q_show.add_argument("--run-id", required=True)
 
     args = parser.parse_args()
     if args.command is None:
@@ -60,12 +69,32 @@ def main() -> None:
     else:
         invoker = LocalEngineInvoker()
     runner = ScenarioRunner(wiring, policy, invoker)
+    if args.command == "quarantine":
+        store = build_object_store(
+            wiring.object_store_root,
+            s3_endpoint_url=wiring.s3_endpoint_url,
+            s3_region=wiring.s3_region,
+            s3_path_style=wiring.s3_path_style,
+        )
+        prefix = "fraud-platform/sr/quarantine"
+        if args.q_action == "list":
+            files = store.list_files(prefix)
+            for path in files:
+                print(path)
+            return
+        if args.q_action == "show":
+            record_path = f"{prefix}/{args.run_id}.json"
+            record = store.read_json(record_path)
+            print(record)
+            return
+        raise SystemExit("Quarantine command requires list or show action.")
     if args.command == "reemit":
         reemit_request = ReemitRequest(
             run_id=args.run_id,
             reemit_kind=ReemitKind(args.kind),
             reason=args.reason,
             requested_by=args.requested_by,
+            dry_run=args.dry_run,
         )
         response = runner.reemit(reemit_request)
         print(response.model_dump())
@@ -86,6 +115,7 @@ def main() -> None:
         window=window,
         engine_run_root=args.engine_run_root,
         output_ids=args.output_id,
+        invoker=args.invoker,
     )
     response = runner.submit_run(request)
     print(response.model_dump())

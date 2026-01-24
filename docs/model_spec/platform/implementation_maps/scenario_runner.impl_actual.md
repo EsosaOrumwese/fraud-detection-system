@@ -2703,3 +2703,164 @@ I intentionally chose **milestone points** that align with control‑plane decis
 - Metrics are in‑process only. We will need an exporter or collector later (Phase 6.4/Phase 7).
 
 ---
+
+## Entry: 2026-01-24 20:20:40 — Phase 7 planning (Security + ops hardening)
+
+Starting Phase 7 planning now. This is a live decision trail (not a summary) to capture the rationale before any code changes.
+
+### Problem framing (what Phase 7 must solve)
+We now have a production‑capable SR core, control bus, and observability. The remaining risk is **security posture and operational safety**: who can submit/re‑emit, how secrets are handled, how quarantine is inspected, and how ops can recover safely without violating invariants.
+
+Phase 7 must deliver:
+- explicit AuthN/AuthZ gates at SR ingress and re‑emit
+- hardened secrets handling (no secret material in artifacts/logs)
+- quarantine workflows for conflicts/failures
+- operational tooling and guardrails (rate limits, micro‑leases, safe re‑emit)
+
+### Authorities / inputs
+- Root AGENTS.md doctrine: fail‑closed, provenance, no‑PASS‑no‑read, append‑only truths.
+- SR design‑authority: N1 auth gate + N7 ops re‑emit must be controlled; quarantine path required.
+- Platform blueprint: SR is control‑plane entrypoint; IG is trust boundary; no secrets in control artifacts.
+
+### Decisions to make (initial)
+1) **AuthN/AuthZ model**
+   - For now, add a **policy‑based allowlist** for ingress and re‑emit (local/dev permissive by config; prod explicit).
+   - Implement as a simple callable or policy section in wiring/policy (no external auth provider in v0).
+
+2) **Secrets hygiene**
+   - Audit all SR artifacts/logs to ensure no secret values are emitted.
+   - Add explicit redaction guard for any future config logging (e.g., environment variables, DSNs with passwords).
+
+3) **Quarantine workflow**
+   - Define a quarantine artifact path under `fraud-platform/sr/quarantine/` for conflict details.
+   - Provide an operator CLI command to list/inspect quarantined runs without mutating truth.
+
+4) **Ops rate limits / safety**
+   - Add re‑emit rate‑limit guardrails (micro‑lease already in place; add a max re‑emit per run per window).
+   - Add a “dry‑run” re‑emit option that validates availability of facts_view/status without publishing.
+
+5) **Hardening checks**
+   - Add checks to ensure SR rejects runs when required pins or policies are missing or incompatible.
+
+### Planned Phase 7 sections (build plan expansion)
+- 7.1 AuthN/AuthZ gates (ingress + re‑emit)
+- 7.2 Secrets hygiene + redaction
+- 7.3 Quarantine artifacts + operator tooling
+- 7.4 Ops guardrails (rate limits, dry‑run, re‑emit safety)
+- 7.5 Tests + validation
+
+### File touchpoints (expected)
+- `src/fraud_detection/scenario_runner/security.py` (auth policy + redaction helpers)
+- `src/fraud_detection/scenario_runner/service.py` + `cli.py` (auth gate + dry‑run re‑emit)
+- `src/fraud_detection/scenario_runner/runner.py` (re‑emit rate guard + quarantine artifact write)
+- `docs/model_spec/platform/implementation_maps/scenario_runner.build_plan.md`
+- `docs/model_spec/platform/implementation_maps/scenario_runner.impl_actual.md`
+
+### Invariants to preserve
+- No secrets ever in artifacts/logs.
+- Quarantine and re‑emit must be append‑only (no truth mutation).
+- Auth failure must be explicit and observable (audit events).
+
+---
+
+## Entry: 2026-01-24 20:26:40 — Phase 7 implementation start (auth, secrets, quarantine, ops guardrails)
+
+Proceeding with Phase 7 implementation now. I will append decisions as I change each section.
+
+Immediate steps (before code edits):
+1) Extend wiring config for auth + ops guardrails (auth_mode, allowlists, re‑emit rate limits).
+2) Add `security.py` helpers for auth checks and redaction.
+3) Wire auth gate in submit_run and reemit (service + CLI carry actor identity).
+4) Implement quarantine artifact write for CONFLICT.
+5) Implement re‑emit rate limit + dry‑run support.
+6) Add tests for auth, redaction, quarantine, rate‑limit, dry‑run.
+
+---
+
+## Entry: 2026-01-24 20:52:30 — Phase 7 implementation detail: auth gates, redaction, quarantine, ops guardrails
+
+I completed Phase 7 sections 7.1–7.4 with explicit auth gates, secrets redaction helper, quarantine artifacts, and re‑emit guardrails. This entry captures the reasoning and mechanics in detail.
+
+### 7.1 AuthN/AuthZ gates (ingress + re‑emit)
+**Design choice:** use a **policy‑controlled allowlist** in wiring for v0. This keeps auth explicit without introducing external IAM complexity yet.
+
+**Why allowlist now?**
+- We need a deterministic, auditable gate immediately.
+- External auth providers would add infra coupling before the system is ready.
+
+**Implementation details**
+- Added wiring fields:
+  - `auth_mode` (default `disabled`)
+  - `auth_allowlist` (submit)
+  - `reemit_allowlist` (re‑emit)
+- Introduced `security.is_authorized(actor, allowlist, mode)`.
+- `ScenarioRunner.submit_run` checks `request.invoker` against allowlist when `auth_mode != disabled`.
+  - On deny: append `AUTH_DENIED` to run_record (no run_status mutation), emit obs event, return `RunResponse` with `FAILED` + message “Unauthorized.”
+- `ScenarioRunner.reemit` checks `requested_by` against re‑emit allowlist (or falls back to auth_allowlist).
+  - On deny: append `AUTH_DENIED`, emit obs event, return “Unauthorized.”
+
+**Why no run_status on deny?**
+- We want **auditability without claiming a run exists**. We only append a record entry; we do not create a run_status or bind the equivalence key, so a later authorized request is not blocked.
+
+### 7.2 Secrets hygiene + redaction
+**Design choice:** keep a small, explicit redaction helper rather than trying to sanitize all logs globally.
+
+**Implementation details**
+- Added `security.redact_dsn()` to mask `user:password@` in DSNs.
+- Added `security.redact_env()` to mask keys that include SECRET/PASSWORD or explicitly listed sensitive keys.
+- Added unit test for redaction correctness.
+
+**Why this minimal approach?**
+- SR does not currently log DSNs or envs, so a lightweight helper is enough to meet DoD without changing runtime behavior.
+
+### 7.3 Quarantine artifacts + operator tooling
+**Design choice:** write a **quarantine artifact** when a run is quarantined (EVIDENCE_CONFLICT) so ops can inspect without mutating truth.
+
+**Mechanics**
+- `_commit_terminal` calls `_write_quarantine_record` when state=QUARANTINED.
+- Artifact path: `fraud-platform/sr/quarantine/{run_id}.json` with run_id, reason, missing, record_ref, status_ref, ts_utc.
+- Added CLI tooling:
+  - `quarantine list` to list quarantine files
+  - `quarantine show --run-id` to load a record
+
+**Why a separate artifact?**
+- It’s a quick index for ops while keeping run_record as the canonical truth. It does not mutate run_status.
+
+### 7.4 Ops guardrails (rate limits + dry‑run)
+**Re‑emit rate limit**
+- Implemented `_reemit_rate_limited` by scanning run_record for recent `REEMIT_PUBLISHED` events within a time window.
+- Wiring fields:
+  - `reemit_rate_limit_max`
+  - `reemit_rate_limit_window_seconds`
+- If limit exceeded: append `REEMIT_FAILED` with reason `REEMIT_RATE_LIMIT`, return “Reemit rate limit exceeded.”
+
+**Dry‑run re‑emit**
+- Added `dry_run` to `ReemitRequest` schema/model.
+- If `dry_run`:
+  - Determine whether READY/TERMINAL would be published based on current status + kind.
+  - Append `REEMIT_DRY_RUN` with `would_publish` list.
+  - Return “Dry‑run complete; no publish performed.” (or “not applicable”).
+- Dry‑run bypasses actual publish and does not check rate‑limit (no side‑effects).
+
+### CLI/service surface updates
+- CLI `run` now accepts `--invoker` to provide an auth identity.
+- CLI `reemit` accepts `--dry-run`.
+- Service uses `X-SR-Actor` header to populate `invoker` / `requested_by` if missing.
+
+### Tests (added)
+- `test_security_ops.py` covers:
+  - auth allow/deny
+  - re‑emit auth deny
+  - re‑emit rate limit
+  - dry‑run behavior
+  - quarantine artifact emission
+  - redaction helper
+- Full SR suite green.
+
+---
+
+## Entry: 2026-01-24 20:57:10 — Phase 7 marked COMPLETE
+
+Phase 7 is complete: auth allowlists, redaction helpers, quarantine artifacts + CLI tooling, re‑emit guardrails (rate limits + dry‑run), and tests are all in place. Marked Phase 7 COMPLETE in the build plan.
+
+---

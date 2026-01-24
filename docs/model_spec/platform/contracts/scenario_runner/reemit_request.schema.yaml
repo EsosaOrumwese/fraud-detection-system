@@ -20,6 +20,8 @@ properties:
     type: string
     minLength: 1
     maxLength: 256
+  dry_run:
+    type: boolean
   requested_at_utc:
     type: string
     format: date-time

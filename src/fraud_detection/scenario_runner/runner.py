@@ -56,6 +56,7 @@ from .obs import (
     OtlpObsSink,
     ObsSink,
 )
+from .security import is_authorized
 from .schemas import SchemaRegistry
 from .storage import build_object_store
 
@@ -108,6 +109,32 @@ class ScenarioRunner:
     def submit_run(self, request: RunRequest) -> RunResponse:
         requested_outputs = request.output_ids or []
         output_label = "policy_default" if request.output_ids is None else str(len(requested_outputs))
+        if not is_authorized(request.invoker, self.wiring.auth_allowlist, self.wiring.auth_mode):
+            run_id = run_id_from_equivalence_key(request.run_equivalence_key)
+            self.ledger.append_record(
+                run_id,
+                self._event(
+                    "AUTH_DENIED",
+                    run_id,
+                    {"invoker": request.invoker or "unknown", "action": "submit_run"},
+                ),
+            )
+            self._emit_obs(
+                ObsEvent.now(
+                    event_kind="AUTH_DENIED",
+                    phase=ObsPhase.INGRESS,
+                    outcome=ObsOutcome.FAIL,
+                    severity=ObsSeverity.ERROR,
+                    pins={"run_id": run_id},
+                    details={"action": "submit_run"},
+                )
+            )
+            return RunResponse(
+                run_id=run_id,
+                state=RunStatusState.FAILED,
+                record_ref=f"{self.ledger.prefix}/run_record/{run_id}.jsonl",
+                message="Unauthorized.",
+            )
         self.logger.info(
             "SR: submit request received (run_equivalence_key=%s, requested_outputs=%s, engine_root=%s)",
             request.run_equivalence_key,
@@ -346,6 +373,30 @@ class ScenarioRunner:
             request.model_dump(mode="json", exclude_none=True),
         )
         run_id = request.run_id
+        if not is_authorized(
+            request.requested_by,
+            self.wiring.reemit_allowlist or self.wiring.auth_allowlist,
+            self.wiring.auth_mode,
+        ):
+            self.ledger.append_record(
+                run_id,
+                self._event(
+                    "AUTH_DENIED",
+                    run_id,
+                    {"invoker": request.requested_by or "unknown", "action": "reemit"},
+                ),
+            )
+            self._emit_obs(
+                ObsEvent.now(
+                    event_kind="AUTH_DENIED",
+                    phase=ObsPhase.REEMIT,
+                    outcome=ObsOutcome.FAIL,
+                    severity=ObsSeverity.ERROR,
+                    pins={"run_id": run_id},
+                    details={"action": "reemit"},
+                )
+            )
+            return ReemitResponse(run_id=run_id, message="Unauthorized.")
         self._emit_obs(
             ObsEvent.now(
                 event_kind="REEMIT_REQUESTED",
@@ -383,7 +434,6 @@ class ScenarioRunner:
                 )
             )
             return ReemitResponse(run_id=run_id, message="Run not found.")
-
         request_details = {
             "reemit_kind": request.reemit_kind.value,
             "reason": request.reason,
@@ -396,11 +446,40 @@ class ScenarioRunner:
         )
         self.ledger.append_record(run_id, request_event)
 
-        published: list[str] = []
-        attempted = False
         ready_allowed = request.reemit_kind in (ReemitKind.READY_ONLY, ReemitKind.BOTH)
         terminal_allowed = request.reemit_kind in (ReemitKind.TERMINAL_ONLY, ReemitKind.BOTH)
 
+        if request.dry_run:
+            would_publish: list[str] = []
+            if ready_allowed and status.state == RunStatusState.READY:
+                would_publish.append("READY")
+            if terminal_allowed and status.state in (RunStatusState.FAILED, RunStatusState.QUARANTINED):
+                would_publish.append("TERMINAL")
+            self.ledger.append_record(
+                run_id,
+                self._event(
+                    "REEMIT_DRY_RUN",
+                    run_id,
+                    {"reemit_kind": request.reemit_kind.value, "would_publish": would_publish},
+                ),
+            )
+            message = "Dry-run complete; no publish performed."
+            if not would_publish:
+                message = "Dry-run complete; not applicable."
+            return ReemitResponse(
+                run_id=run_id,
+                status_state=status.state,
+                published=[],
+                message=message,
+            )
+
+        if self._reemit_rate_limited(run_id):
+            failure_event = self._event("REEMIT_FAILED", run_id, {"reason": "REEMIT_RATE_LIMIT"})
+            self.ledger.append_record(run_id, failure_event)
+            return ReemitResponse(run_id=run_id, status_state=status.state, message="Reemit rate limit exceeded.")
+
+        published: list[str] = []
+        attempted = False
         if ready_allowed and status.state == RunStatusState.READY:
             attempted = True
             ready_key = self._reemit_ready(run_id, status)
@@ -1120,6 +1199,8 @@ class ScenarioRunner:
         event_kind = "EVIDENCE_CONFLICT" if bundle.status == EvidenceStatus.CONFLICT else "EVIDENCE_FAIL"
         event = self._event(event_kind, run_handle.run_id, {"reason": bundle.reason, "missing": bundle.missing})
         self.ledger.commit_terminal(run_handle.run_id, state, bundle.reason or "FAIL", event)
+        if state == RunStatusState.QUARANTINED:
+            self._write_quarantine_record(run_handle.run_id, bundle)
         self.logger.info(
             "SR: terminal commit (run_id=%s, state=%s, reason=%s)",
             run_handle.run_id,
@@ -1189,6 +1270,43 @@ class ScenarioRunner:
                 fact_kind,
                 str(exc)[:512],
             )
+
+    def _write_quarantine_record(self, run_id: str, bundle: EvidenceBundle) -> None:
+        payload = {
+            "run_id": run_id,
+            "reason": bundle.reason,
+            "missing": bundle.missing,
+            "record_ref": f"{self.ledger.prefix}/run_record/{run_id}.jsonl",
+            "status_ref": f"{self.ledger.prefix}/run_status/{run_id}.json",
+            "ts_utc": datetime.now(tz=timezone.utc).isoformat(),
+        }
+        path = f"{self.ledger.prefix}/quarantine/{run_id}.json"
+        try:
+            self.store.write_json(path, payload)
+        except Exception as exc:
+            self.logger.warning("SR: quarantine write failed (run_id=%s, error=%s)", run_id, str(exc)[:512])
+
+    def _reemit_rate_limited(self, run_id: str) -> bool:
+        limit = self.wiring.reemit_rate_limit_max
+        if limit is None or limit <= 0:
+            return False
+        window_seconds = max(1, self.wiring.reemit_rate_limit_window_seconds)
+        cutoff = datetime.now(tz=timezone.utc).timestamp() - window_seconds
+        events = self.ledger.read_record_events(run_id)
+        recent = 0
+        for event in events:
+            if event.get("event_kind") != "REEMIT_PUBLISHED":
+                continue
+            ts = event.get("ts_utc")
+            if not ts:
+                continue
+            try:
+                ts_value = datetime.fromisoformat(ts).timestamp()
+            except ValueError:
+                continue
+            if ts_value >= cutoff:
+                recent += 1
+        return recent >= limit
 
     def _render_template(self, template: str, intent: CanonicalRunIntent, run_id: str) -> str:
         rendered = template

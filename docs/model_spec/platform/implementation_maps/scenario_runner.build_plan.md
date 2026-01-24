@@ -12,7 +12,7 @@ This plan is intentionally progressive: it starts as phase milestones, then expa
 4) Phase 4 — Engine invocation integration (COMPLETE)
 5) Phase 5 — Control bus + re‑emit operations (COMPLETE)
 6) Phase 6 — Observability + governance (COMPLETE)
-7) Phase 7 — Security + ops hardening
+7) Phase 7 — Security + ops hardening (COMPLETE)
 8) Phase 8 — Integration tests + CI gates
 
 ---
@@ -306,6 +306,45 @@ High‑level intent: structured event taxonomy, metrics/traces, audit‑ready pr
 
 ## Phase 7 — Security + ops hardening
 High‑level intent: authn/authz, secrets hygiene, quarantine workflows, operator tooling.
+
+**Status:** COMPLETE.
+
+### Section 7.1 — AuthN/AuthZ gates (ingress + re‑emit)
+**Goal:** explicit authorization for run submit and re‑emit operations.
+
+**Definition of done**
+- Policy‑based allowlist for ingress + re‑emit (local/dev permissive, prod explicit).
+- Auth failures are explicit and audited (run_record + obs event).
+
+### Section 7.2 — Secrets hygiene + redaction
+**Goal:** eliminate secrets from logs/artifacts.
+
+**Definition of done**
+- Redaction helper for DSNs/env vars in logs.
+- No secret material in SR artifacts or control signals.
+
+### Section 7.3 — Quarantine artifacts + operator tooling
+**Goal:** make quarantined runs inspectable without mutating truth.
+
+**Definition of done**
+- Quarantine artifacts stored under `fraud-platform/sr/quarantine/`.
+- CLI tooling to list/inspect quarantined runs (read‑only).
+
+### Section 7.4 — Ops guardrails (rate limits + dry‑run)
+**Goal:** prevent ops misuse and accidental flooding.
+
+**Definition of done**
+- Re‑emit rate limits per run (time‑windowed).
+- Dry‑run re‑emit option validates availability without publishing.
+
+### Section 7.5 — Tests + validation
+**Goal:** prove security + ops hardening without breaking truth flow.
+
+**Definition of done**
+- Tests for auth allow/deny behavior.
+- Tests for redaction helper (secrets masked).
+- Tests for quarantine artifact presence.
+- Tests for re‑emit rate limits + dry‑run.
 
 ---
 
