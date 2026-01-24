@@ -81,22 +81,36 @@ def _ensure_stream(client, stream_name: str) -> str:
     return shards[0]["ShardId"]
 
 
-def _fetch_envelope(client, stream: str, shard_id: str, message_id: str, timeout_seconds: float = 6.0) -> dict[str, Any]:
+def _fetch_envelope(
+    client,
+    stream: str,
+    shard_id: str,
+    message_id: str,
+    expected_kind: str | None = None,
+    timeout_seconds: float = 6.0,
+) -> dict[str, Any]:
     iterator = client.get_shard_iterator(
         StreamName=stream,
         ShardId=shard_id,
         ShardIteratorType="TRIM_HORIZON",
     )["ShardIterator"]
     deadline = time.time() + timeout_seconds
+    last_match: dict[str, Any] | None = None
     while time.time() < deadline:
         records = client.get_records(ShardIterator=iterator, Limit=25)
         iterator = records["NextShardIterator"]
         for record in records["Records"]:
             envelope = json.loads(record["Data"].decode("utf-8"))
             if envelope.get("message_id") == message_id:
-                return envelope
+                last_match = envelope
+                if expected_kind is None:
+                    return envelope
+                if envelope.get("attributes", {}).get("kind") == expected_kind:
+                    return envelope
         time.sleep(0.2)
-    raise AssertionError(f"message_id not found in stream: {message_id}")
+    if last_match is None:
+        raise AssertionError(f"message_id not found in stream: {message_id}")
+    raise AssertionError(f"message_id found but kind '{expected_kind}' not observed")
 
 
 def _build_wiring(tmp_path: Path, env: dict[str, str]) -> WiringProfile:
@@ -192,7 +206,7 @@ def test_localstack_reemit_ready_e2e(tmp_path: Path) -> None:
     reemit_event = next(event for event in events if event.get("event_kind") == "REEMIT_PUBLISHED")
     message_id = reemit_event["details"]["message_id"]
 
-    envelope = _fetch_envelope(client, env["stream"], shard_id, message_id)
+    envelope = _fetch_envelope(client, env["stream"], shard_id, message_id, expected_kind="READY_REEMIT")
     assert envelope["attributes"]["kind"] == "READY_REEMIT"
     assert envelope["payload"]["run_id"] == response.run_id
 
@@ -235,6 +249,6 @@ def test_localstack_reemit_terminal_e2e(tmp_path: Path) -> None:
     reemit_event = next(event for event in events if event.get("event_kind") == "REEMIT_PUBLISHED")
     message_id = reemit_event["details"]["message_id"]
 
-    envelope = _fetch_envelope(client, env["stream"], shard_id, message_id)
+    envelope = _fetch_envelope(client, env["stream"], shard_id, message_id, expected_kind="TERMINAL_REEMIT")
     assert envelope["attributes"]["kind"] == "TERMINAL_REEMIT"
     assert envelope["payload"]["run_id"] == response.run_id

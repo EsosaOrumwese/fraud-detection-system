@@ -3226,3 +3226,23 @@ Ran Tier‑0 SR suite after adding LocalStack E2E tests and the runbook script:
 Result: **39 passed, 17 deselected**.
 
 ---
+
+## Entry: 2026-01-24 22:09:10 — Phase 8 fix: LocalStack re‑emit E2E fetch logic
+
+LocalStack E2E failed because READY re‑emit uses the **same idempotency key** as the initial READY publish, so the first record fetched by message_id was the original READY envelope (`kind=READY`). The re‑emit record exists but is not the first match.
+
+Fix:
+- Updated `_fetch_envelope` to optionally wait for a specific `attributes.kind` and return the matching envelope, while still failing if the message_id never appears.
+
+This preserves idempotency semantics while making the test assert the intended re‑emit envelope.
+
+---
+
+## Entry: 2026-01-24 22:12:40 — Phase 8 validation: LocalStack tier green
+
+Ran LocalStack tier after fixing the re‑emit envelope matcher:
+`python -m pytest tests/services/scenario_runner -m "localstack" -q`
+
+Result: **3 passed, 53 deselected** (botocore `datetime.utcnow()` deprecation warnings only).
+
+---
