@@ -98,6 +98,8 @@ Phase 2.5 hardening tests must run against MinIO + Postgres where available.
 - Postgres authority store exercised in test (smoke or integration) and logged.
 - Concurrency tests for duplicate submissions and lease contention pass.
 
+**Status:** COMPLETE (local parity tests passed on 2026-01-24).
+
 ---
 
 ## Phase 3 — Evidence + gate verification completeness

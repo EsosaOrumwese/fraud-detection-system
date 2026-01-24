@@ -518,6 +518,30 @@ Phase 2 is functional but not rock‑solid. Hardening is required for production
 - Lease fencing token enforcement on writes (beyond check/renew) if required by ops policy.
 
 ---
+## Entry: 2026-01-24 05:55:04 — Phase 2.5 hardening tests plan (remaining items)
+
+### Goal
+Complete the remaining Phase 2.5 hardening items with explicit, verifiable tests:
+- Postgres authority store smoke coverage (env‑gated).
+- Concurrency behavior under duplicate submissions and lease contention.
+- S3 immutability + CAS append integration tests (env‑gated).
+
+### Approach
+1) **Postgres authority store smoke test**
+   - Add pytest that runs only when `SR_TEST_PG_DSN` is set.
+   - Validate equivalence resolve + lease acquire/check/renew/release.
+2) **Concurrency test**
+   - Use multiple threads to submit the same RunRequest via ScenarioRunner.
+   - Assert exactly one leader advances (others return lease‑held response) and the run_status is stable.
+3) **S3 integration tests**
+   - Add pytest tests that run only when `SR_TEST_S3_BUCKET` is set (optional prefix via `SR_TEST_S3_PREFIX`).
+   - Validate `write_json_if_absent` immutability (second write raises FileExistsError).
+   - Validate `append_jsonl` CAS conflicts by forcing an ETag mismatch.
+
+### Notes
+Tests will be skipped if required env vars are not present; failures should be fail‑closed in prod.
+
+---
 ## Entry: 2026-01-24 05:58:14 — Phase 2.5 hardening tests + plan_hash fix
 
 ### What changed
@@ -545,6 +569,17 @@ Phase 2 is functional but not rock‑solid. Hardening is required for production
 - Run Postgres smoke test in an environment with `SR_TEST_PG_DSN`.
 - Run S3 integration test with `SR_TEST_S3_BUCKET` (or MinIO).
 - Decide on additional lease fencing if required by ops policy.
+
+---
+## Entry: 2026-01-24 07:09:54 — Implementation map rename (drop component_ prefix)
+
+### Change
+Renamed SR implementation map + build plan files to drop the `component_` prefix:
+- `docs/model_spec/platform/implementation_maps/component_scenario_runner.impl_actual.md` → `docs/model_spec/platform/implementation_maps/scenario_runner.impl_actual.md`
+- `docs/model_spec/platform/implementation_maps/component_scenario_runner.build_plan.md` → `docs/model_spec/platform/implementation_maps/scenario_runner.build_plan.md`
+
+### Reason
+Align with new naming convention: use `{COMP}.impl_actual.md` and `{COMP}.build_plan.md`.
 
 ---
 ## Entry: 2026-01-24 09:58:16 — Plan clarification (local dev stack parity)
@@ -597,38 +632,83 @@ Set up SR local profiles that mirror the AWS stack semantics (S3 + RDS Postgres)
 - Environment overrides still supported via `SR_S3_ENDPOINT_URL`, `SR_S3_REGION`, `SR_S3_PATH_STYLE`.
 
 ---
-## Entry: 2026-01-24 07:09:54 — Implementation map rename (drop component_ prefix)
+## Entry: 2026-01-24 11:24:39 — Phase 2.5 local‑parity execution notes (decision trail)
 
-### Change
-Renamed SR implementation map + build plan files to drop the `component_` prefix:
-- `docs/model_spec/platform/implementation_maps/component_scenario_runner.impl_actual.md` → `docs/model_spec/platform/implementation_maps/scenario_runner.impl_actual.md`
-- `docs/model_spec/platform/implementation_maps/component_scenario_runner.build_plan.md` → `docs/model_spec/platform/implementation_maps/scenario_runner.build_plan.md`
+### Context / intent
+Phase 2.5 requires **real** S3 + Postgres semantics to validate immutability, CAS append, and idempotency under duplicates. Local filesystem + SQLite are not acceptable for correctness claims, so we moved to **MinIO + Postgres** parity and ran env‑gated tests.
 
-### Reason
-Align with new naming convention: use `{COMP}.impl_actual.md` and `{COMP}.build_plan.md`.
+### Decisions and reasoning
+1) **Use Docker compose for parity stack**
+   - **Why:** fastest way to mirror S3/RDS semantics locally with minimal operator effort.
+   - **Alternative:** install native Postgres + MinIO services. Rejected for reproducibility and onboarding friction.
+
+2) **MinIO bucket initialization via `mc`**
+   - **Why:** avoid manual console steps; deterministic bucket creation for tests (`sr-local`).
+   - **Issue:** `minio/mc` image does not run `/bin/sh` entrypoint; switched to direct `mc` commands and `MC_HOST_*` env var.
+   - **Decision:** keep `mc` container in compose but also document fallback with `docker run ... mc` if init fails.
+
+3) **S3 client configuration for local parity**
+   - **Why:** MinIO requires endpoint override + path‑style addressing.
+   - **Action:** added wiring fields `s3_endpoint_url`, `s3_region`, `s3_path_style`, and env overrides (`SR_S3_*`) to support MinIO and AWS without code changes.
+
+4) **Image tags**
+   - Initial pinned tags (`RELEASE.2024-12-18...`) failed to resolve from Docker Hub.
+   - **Decision:** switch to `latest` for MinIO/MC so the stack is runnable; accept the drift risk and plan to pin later once a valid tag is confirmed.
+
+5) **Postgres auth failures**
+   - Tests failed with `password authentication failed for user "sr"` even though the container was healthy.
+   - Root cause: **local Windows Postgres service already bound to port 5432**, so the test DSN hit the local service instead of Docker.
+   - **Decision:** change compose port mapping to `5433:5432` to avoid the conflict (keeps dockerized Postgres as the test target).
+   - Consequence: update local parity wiring + test DSN to use port 5433.
+
+6) **Python dependency for Postgres**
+   - **Issue:** `psycopg` missing in venv; tests failed.
+   - **Decision:** install `psycopg[binary]` in the active venv to match `pyproject.toml` and enable tests.
+
+### Evidence / outcomes
+- Docker daemon initially offline; switched context to `desktop-linux`.
+- MinIO + Postgres stack started successfully via compose after image tag fix.
+- S3 integration tests passed once MinIO creds were set and bucket created.
+- Postgres smoke still failed until port conflict identified (local Postgres on 5432).
+
+### Follow‑ups required
+- Update local parity wiring + test DSN to **port 5433**.
+- Re‑run Postgres smoke test against Dockerized DB.
+- Document final test results and mark Phase 2.5 complete when both S3 and Postgres integration tests pass.
 
 ---
-## Entry: 2026-01-24 05:55:04 — Phase 2.5 hardening tests plan (remaining items)
+## Entry: 2026-01-24 11:26:44 — Phase 2.5 local parity tests (completion)
 
-### Goal
-Complete the remaining Phase 2.5 hardening items with explicit, verifiable tests:
-- Postgres authority store smoke coverage (env‑gated).
-- Concurrency behavior under duplicate submissions and lease contention.
-- S3 immutability + CAS append integration tests (env‑gated).
+### What we did (execution)
+1) **Local parity stack**
+   - Started MinIO + Postgres via `infra/local/docker-compose.sr-parity.yaml`.
+   - Switched Docker context to `desktop-linux` and corrected MinIO/MC image tags to `latest` (previous pinned tag not found).
+   - Fixed MC initialization to use `MC_HOST_local` + `mb --ignore-existing` (shell entrypoint not supported).
+2) **Port conflict resolution**
+   - Identified Windows Postgres on **5432**, which hijacked test DSN.
+   - Rebound Dockerized Postgres to **5433** and updated local parity wiring accordingly.
+3) **Test dependencies**
+   - Installed `psycopg[binary]` into the active venv to run Postgres smoke tests.
+4) **Integration tests**
+   - S3 integration tests executed against MinIO.
+   - Postgres authority store smoke executed against Dockerized Postgres.
 
-### Approach
-1) **Postgres authority store smoke test**
-   - Add pytest that runs only when `SR_TEST_PG_DSN` is set.
-   - Validate equivalence resolve + lease acquire/check/renew/release.
-2) **Concurrency test**
-   - Use multiple threads to submit the same RunRequest via ScenarioRunner.
-   - Assert exactly one leader advances (others return lease‑held response) and the run_status is stable.
-3) **S3 integration tests**
-   - Add pytest tests that run only when `SR_TEST_S3_BUCKET` is set (optional prefix via `SR_TEST_S3_PREFIX`).
-   - Validate `write_json_if_absent` immutability (second write raises FileExistsError).
-   - Validate `append_jsonl` CAS conflicts by forcing an ETag mismatch.
+### Evidence (commands + env)
+Environment used (values redacted; set locally as required):
+- `SR_TEST_PG_DSN` (local Postgres DSN on port 5433)
+- `SR_TEST_S3_BUCKET`
+- `SR_TEST_S3_PREFIX`
+- `SR_S3_ENDPOINT_URL`
+- `SR_S3_REGION`
+- `SR_S3_PATH_STYLE`
+- `AWS_ACCESS_KEY_ID`
+- `AWS_SECRET_ACCESS_KEY`
 
-### Notes
-Tests will be skipped if required env vars are not present; failures should be fail‑closed in prod.
+Test run:
+- `pytest tests/services/scenario_runner/test_s3_store.py tests/services/scenario_runner/test_authority_store_postgres.py`
+  - Result: **3 passed**
+
+### Conclusion
+Phase 2.5 hardening tests now pass on a local parity stack (MinIO + Postgres). Combined with prior concurrency testing, Phase 2.5 is **complete** for local parity validation.
 
 ---

@@ -4,7 +4,7 @@ control_bus_root: artefacts/fraud-platform/control_bus
 engine_catalogue_path: docs/model_spec/data-engine/interface_pack/engine_outputs.catalogue.yaml
 gate_map_path: docs/model_spec/data-engine/interface_pack/engine_gates.map.yaml
 schema_root: docs/model_spec/platform/contracts/scenario_runner
-authority_store_dsn: postgresql://sr:sr@localhost:5432/sr_dev
+authority_store_dsn: postgresql://sr:sr@localhost:5433/sr_dev
 s3_endpoint_url: http://localhost:9000
 s3_region: us-east-1
 s3_path_style: true
