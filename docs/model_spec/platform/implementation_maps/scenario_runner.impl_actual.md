@@ -1310,3 +1310,47 @@ index‑driven raw‑bytes hashing rather than “hash all files in the director
 ### Residual risk
 - If other segments later adopt index‑driven hashing, we’ll need to update their gate map entries
   (and possibly expand test coverage beyond 6B).
+
+---
+
+## Entry: 2026-01-24 15:24:03 — RefResolver deprecation fix (move to referencing registry)
+
+I’m about to remove `jsonschema.RefResolver` usage and replace it with the modern `referencing` registry. This eliminates the deprecation warning and aligns SR with jsonschema’s current APIs.
+
+### Why this change is needed
+- `RefResolver` is deprecated and will be removed in a future jsonschema release.
+- Our SchemaRegistry also includes a **shim** to fix interface_pack $ref path issues; that needs to be preserved.
+
+### Design constraints I’m honoring
+- **Fail‑closed**: any schema validation failure remains a hard error.
+- **Interface pack shim**: keep the fallback that strips `interface_pack/` when a $ref path doesn’t exist.
+- **Minimal surface area**: only touch SchemaRegistry; keep callers unchanged.
+
+### Planned approach
+- Replace `RefResolver` with `referencing.Registry` and `Resource`.
+- Custom resolver for `file://` URIs that:
+  - loads YAML/JSON,
+  - if path missing and contains `interface_pack/`, retries without that segment,
+  - registers loaded resources with the registry for recursive references.
+
+### Files to touch
+- `src/fraud_detection/scenario_runner/schemas.py`
+- logbook + impl_actual entries.
+
+---
+
+## Entry: 2026-01-24 15:25:55 — RefResolver removed; referencing registry in use
+
+I replaced `jsonschema.RefResolver` with the `referencing` registry to eliminate the deprecation warning and align with current jsonschema APIs.
+
+### What changed
+- `SchemaRegistry.validate` now builds a `Registry(retrieve=...)` and seeds it with the root schema’s URI.
+- Custom `file://` retriever loads YAML and applies the interface_pack path‑shim (strip `interface_pack/` when needed).
+- Unknown/unsupported URIs now raise `NoSuchResource`, keeping fail‑closed behavior.
+
+### Why this preserves behavior
+- The same YAML loading logic is used, but reference resolution is now standards‑compliant and forward‑compatible.
+- The interface_pack shim remains intact so validation doesn’t regress due to the known path mismatch.
+
+### Test result
+- `pytest tests/services/scenario_runner/test_gate_verifier.py` → 2 passed, no deprecation warnings.
