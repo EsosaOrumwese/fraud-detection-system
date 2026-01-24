@@ -712,3 +712,15 @@ Test run:
 Phase 2.5 hardening tests now pass on a local parity stack (MinIO + Postgres). Combined with prior concurrency testing, Phase 2.5 is **complete** for local parity validation.
 
 ---
+## Entry: 2026-01-24 12:01:45 — Phase 1 & Phase 2 completion confirmation
+
+### Confirmation
+Based on implemented code + local parity integration tests (MinIO + Postgres), Phase 1 and Phase 2 are **100% complete**:
+- **Phase 1:** contracts + truth surfaces validated and wired.
+- **Phase 2:** durable storage + idempotency + hardening (2.1–2.5) completed, with local parity tests passing.
+
+### Evidence
+- Phase 2.5 integration tests passed on local parity stack (see Entry: 2026-01-24 11:26:44).
+- Build plan updated to mark Phase 2 complete.
+
+---

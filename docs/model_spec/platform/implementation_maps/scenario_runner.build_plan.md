@@ -7,7 +7,7 @@ This plan is intentionally progressive: it starts as phase milestones, then expa
 
 ## Phase Summary (roadmap)
 1) Phase 1 — Contracts + Truth Surfaces (COMPLETE)
-2) Phase 2 — Durable storage + idempotency (NEXT)
+2) Phase 2 — Durable storage + idempotency (COMPLETE)
 3) Phase 3 — Evidence + gate verification completeness
 4) Phase 4 — Engine invocation integration
 5) Phase 5 — Control bus + re‑emit operations
@@ -28,7 +28,7 @@ This plan is intentionally progressive: it starts as phase milestones, then expa
 
 ---
 
-## Phase 2 — Durable storage + idempotency (NEXT)
+## Phase 2 — Durable storage + idempotency (COMPLETE)
 
 ### Scope intent
 Make SR truth durable and correct under at‑least‑once behavior using persistent storage and a real idempotency/lease authority. This is “truth, not demos.”
