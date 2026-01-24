@@ -463,6 +463,11 @@ class ScenarioRunner:
             )
             publish_event = self._event("REEMIT_PUBLISHED", run_id, {"kind": "READY", "message_id": reemit_key})
             self.ledger.append_record(run_id, publish_event)
+            self._append_governance_fact(
+                run_id,
+                "GOV_REEMIT_KEY",
+                {"kind": "READY", "reemit_key": reemit_key},
+            )
             self.logger.info("SR: re-emit READY published (run_id=%s, key=%s)", run_id, reemit_key)
             return reemit_key
         except Exception as exc:
@@ -500,6 +505,11 @@ class ScenarioRunner:
             )
             publish_event = self._event("REEMIT_PUBLISHED", run_id, {"kind": "TERMINAL", "message_id": reemit_key})
             self.ledger.append_record(run_id, publish_event)
+            self._append_governance_fact(
+                run_id,
+                "GOV_REEMIT_KEY",
+                {"kind": "TERMINAL", "reemit_key": reemit_key},
+            )
             self.logger.info("SR: re-emit terminal published (run_id=%s, key=%s)", run_id, reemit_key)
             return reemit_key
         except Exception as exc:
@@ -594,6 +604,16 @@ class ScenarioRunner:
         self._ensure_lease(run_handle)
         event = self._event("PLAN_COMMITTED", run_handle.run_id, {"plan_hash": plan.plan_hash})
         self.ledger.commit_plan(plan, event)
+        self._append_governance_fact(
+            run_handle.run_id,
+            "GOV_POLICY_REV",
+            plan.policy_rev,
+        )
+        self._append_governance_fact(
+            run_handle.run_id,
+            "GOV_PLAN_HASH",
+            {"plan_hash": plan.plan_hash},
+        )
 
     def _invoke_engine(self, run_handle: RunHandle, intent: CanonicalRunIntent, plan: RunPlan) -> EngineAttemptResult:
         self._ensure_lease(run_handle)
@@ -1013,6 +1033,12 @@ class ScenarioRunner:
                 details={"bundle_hash": bundle.bundle_hash},
             )
         )
+        if bundle.bundle_hash:
+            self._append_governance_fact(
+                plan.run_id,
+                "GOV_BUNDLE_HASH",
+                {"bundle_hash": bundle.bundle_hash},
+            )
         ready_payload = {
             "run_id": plan.run_id,
             "facts_view_ref": f"fraud-platform/sr/run_facts_view/{plan.run_id}.json",
@@ -1127,6 +1153,18 @@ class ScenarioRunner:
             self.obs_sink.emit(event)
         except Exception:
             return
+
+    def _append_governance_fact(self, run_id: str, fact_kind: str, payload: dict[str, Any]) -> None:
+        try:
+            event = self._event(fact_kind, run_id, payload)
+            self.ledger.append_record(run_id, event)
+        except Exception as exc:
+            self.logger.warning(
+                "SR: governance fact append failed (run_id=%s, fact_kind=%s, error=%s)",
+                run_id,
+                fact_kind,
+                str(exc)[:512],
+            )
 
     def _render_template(self, template: str, intent: CanonicalRunIntent, run_id: str) -> str:
         rendered = template

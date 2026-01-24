@@ -127,6 +127,11 @@ def test_reemit_terminal_publishes_control_fact(tmp_path: Path) -> None:
     assert payload["run_id"] == run_id
     assert payload["status_state"] == RunStatusState.FAILED.value
 
+    events = runner.ledger.read_record_events(run_id)
+    gov = [event for event in events if event.get("event_kind") == "GOV_REEMIT_KEY"]
+    assert gov
+    assert gov[-1]["details"].get("reemit_key") == expected_key
+
 
 def test_reemit_ready_only_mismatch(tmp_path: Path) -> None:
     wiring = _build_wiring(tmp_path)

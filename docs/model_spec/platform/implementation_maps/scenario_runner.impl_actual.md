@@ -2547,3 +2547,54 @@ I added a first-pass structured observability scaffold with a stable event model
 - `python -m pytest tests/services/scenario_runner -q` → 35 passed, 3 skipped.
 
 ---
+
+## Entry: 2026-01-24 20:14:50 — Phase 6.2 governance facts (plan + decision)
+
+I’m moving to Phase 6.2: explicit governance facts in the run_record. This entry captures the decision trail before edits.
+
+### Goal
+Emit explicit governance facts (policy_rev, plan_hash, bundle_hash, re‑emit keys) into run_record as append‑only events, so audit trails are reconstructable without parsing free‑form logs.
+
+### Design choices (pre‑code)
+- Use **dedicated run_record events** rather than embedding these in existing events, so downstream audits can filter explicitly.
+- Event kinds:
+  - `GOV_POLICY_REV` (policy id/revision/digest)
+  - `GOV_PLAN_HASH` (plan hash)
+  - `GOV_BUNDLE_HASH` (bundle hash at READY)
+  - `GOV_REEMIT_KEY` (READY/TERMINAL re‑emit keys)
+- Append these at the same boundaries where the facts become true:
+  - Plan commit (policy_rev + plan_hash)
+  - READY commit (bundle_hash)
+  - Re‑emit publish (reemit_key with kind)
+
+### Invariants
+- Append‑only; never mutate existing ledger entries.
+- Best‑effort; if append fails, SR should continue but log the failure.
+
+### Files to touch
+- `src/fraud_detection/scenario_runner/runner.py`
+- Tests for run_record contents (new or extended)
+
+---
+
+## Entry: 2026-01-24 20:22:10 — Phase 6.2 governance facts implemented
+
+I added explicit governance fact events to run_record so audits can query policy_rev, plan_hash, bundle_hash, and re‑emit keys directly.
+
+### What changed
+- `ScenarioRunner._commit_plan` now appends:
+  - `GOV_POLICY_REV` (policy_id/revision/content_digest)
+  - `GOV_PLAN_HASH` (plan_hash)
+- `ScenarioRunner._commit_ready` appends:
+  - `GOV_BUNDLE_HASH` (bundle_hash) when READY is committed.
+- Re‑emit publish appends:
+  - `GOV_REEMIT_KEY` with kind READY/TERMINAL and the reemit_key.
+- Added `_append_governance_fact(...)` helper that is best‑effort and logs warnings without blocking SR flow.
+
+### Tests
+- Added governance fact assertions in:
+  - `tests/services/scenario_runner/test_engine_invocation.py` (policy_rev + plan_hash)
+  - `tests/services/scenario_runner/test_reemit.py` (reemit key)
+- `python -m pytest tests/services/scenario_runner -q` → 35 passed, 3 skipped.
+
+---

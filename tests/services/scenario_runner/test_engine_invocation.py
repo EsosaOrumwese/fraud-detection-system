@@ -144,6 +144,12 @@ def test_attempt_limit_enforced(tmp_path: Path) -> None:
     assert status.state.value == "FAILED"
     assert status.reason_code == "ATTEMPT_LIMIT_EXCEEDED"
 
+    events = runner.ledger.read_record_events(run_id)
+    gov_policy = [event for event in events if event.get("event_kind") == "GOV_POLICY_REV"]
+    gov_plan = [event for event in events if event.get("event_kind") == "GOV_PLAN_HASH"]
+    assert gov_policy
+    assert gov_plan
+
 
 def test_engine_invocation_invalid_fails(tmp_path: Path) -> None:
     engine_root = tmp_path / "engine_root"
