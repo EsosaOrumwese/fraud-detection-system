@@ -98,6 +98,9 @@ class GateMap:
     def gate_entry(self, gate_id: str) -> dict[str, Any]:
         return self.gates[gate_id]
 
+    def has_gate(self, gate_id: str) -> bool:
+        return gate_id in self.gates
+
 
 class GateVerifier:
     def __init__(self, engine_root: Path, gate_map: GateMap) -> None:

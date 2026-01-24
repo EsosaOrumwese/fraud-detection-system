@@ -11,7 +11,9 @@ from fraud_detection.scenario_runner.models import RunRequest, RunWindow, Scenar
 from fraud_detection.scenario_runner.runner import ScenarioRunner
 
 
-def _write_catalogue(path: Path) -> None:
+def _write_catalogue(path: Path, read_requires: list[str] | None = None) -> None:
+    read_requires = read_requires or []
+    line = f"  read_requires_gates: [{', '.join(read_requires)}]" if read_requires else "  read_requires_gates: []"
     path.write_text(
         "\n".join(
             [
@@ -26,7 +28,7 @@ def _write_catalogue(path: Path) -> None:
                 "  partitions:",
                 "  - seed",
                 "  - parameter_hash",
-                "  read_requires_gates: []",
+                line,
             ]
         ),
         encoding="utf-8",
@@ -166,3 +168,27 @@ def test_instance_receipt_drift_fails(tmp_path: Path) -> None:
     assert status is not None
     assert status.state.value == "FAILED"
     assert status.reason_code == "INSTANCE_RECEIPT_DRIFT"
+
+
+def test_unknown_gate_id_fails_closed(tmp_path: Path) -> None:
+    engine_root = tmp_path / "engine_root"
+    _write_output(engine_root)
+
+    catalogue_path = tmp_path / "engine_outputs.catalogue.yaml"
+    gate_map_path = tmp_path / "engine_gates.map.yaml"
+    _write_catalogue(catalogue_path, ["gate.unknown.missing"])
+    _write_gate_map(gate_map_path)
+
+    wiring = _build_wiring(tmp_path, catalogue_path, gate_map_path)
+    policy = _build_policy()
+    runner = ScenarioRunner(wiring, policy, LocalEngineInvoker(str(engine_root)))
+
+    request = _build_request(engine_root, "unknown-gate")
+    response = runner.submit_run(request)
+
+    assert response.message == "Run failed."
+    run_id = run_id_from_equivalence_key("unknown-gate")
+    status = runner.ledger.read_status(run_id)
+    assert status is not None
+    assert status.state.value == "FAILED"
+    assert status.reason_code == "UNKNOWN_GATE_ID"

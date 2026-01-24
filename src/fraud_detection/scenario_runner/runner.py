@@ -109,7 +109,23 @@ class ScenarioRunner:
         self._anchor_run(run_handle)
         self.logger.info("SR: run anchored (run_id=%s)", run_id)
 
-        plan = self._compile_plan(canonical, run_id)
+        try:
+            plan = self._compile_plan(canonical, run_id)
+        except RuntimeError as exc:
+            reason = "PLAN_INVALID"
+            message = str(exc)
+            if message.startswith("UNKNOWN_GATE_ID:"):
+                reason = "UNKNOWN_GATE_ID"
+            elif message.startswith("UNKNOWN_OUTPUT_ID:"):
+                reason = "UNKNOWN_OUTPUT_ID"
+            failure_bundle = EvidenceBundle(
+                status=EvidenceStatus.FAIL,
+                locators=[],
+                gate_receipts=[],
+                reason=reason,
+            )
+            self._commit_terminal(run_handle, failure_bundle)
+            return self._response_from_status(run_id, "Run failed.")
         self._commit_plan(run_handle, plan)
         self.logger.info(
             "SR: plan committed (run_id=%s, outputs=%d, required_gates=%d, strategy=%s)",
@@ -212,11 +228,14 @@ class ScenarioRunner:
         output_ids = intent.output_ids or self.policy.traffic_output_ids
         for output_id in output_ids:
             if not self.catalogue.has(output_id):
-                raise RuntimeError(f"Unknown output_id {output_id}")
+                raise RuntimeError(f"UNKNOWN_OUTPUT_ID:{output_id}")
         required = set(self.gate_map.required_gate_set(output_ids))
         for output_id in output_ids:
             entry = self.catalogue.get(output_id)
             required.update(entry.read_requires_gates)
+        unknown = sorted(gate_id for gate_id in required if not self.gate_map.has_gate(gate_id))
+        if unknown:
+            raise RuntimeError(f"UNKNOWN_GATE_ID:{','.join(unknown)}")
         strategy = self._select_strategy(intent)
         created_at = datetime.now(tz=timezone.utc)
         plan = RunPlan(
@@ -361,6 +380,13 @@ class ScenarioRunner:
         conflict_gates: list[str] = []
         conflict = False
         for gate_id in plan.required_gates:
+            if not self.gate_map.has_gate(gate_id):
+                return EvidenceBundle(
+                    status=EvidenceStatus.FAIL,
+                    locators=locators,
+                    gate_receipts=gate_receipts,
+                    reason="UNKNOWN_GATE_ID",
+                )
             tokens = self._gate_tokens_for_scope(gate_id, intent, plan.run_id)
             result: GateVerificationResult = gate_verifier.verify(gate_id, tokens)
             if result.missing:

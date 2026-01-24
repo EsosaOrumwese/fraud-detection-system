@@ -1709,3 +1709,56 @@ Results:
 Notes:
 - Skip reasons unchanged (local_full_run-5 gating when run root absent).
 - Parity reuse now exercises 6A gate with real engine artifacts.
+
+---
+
+### Entry: 2026-01-24 16:59:35 — Phase 3 DoD gap: unknown gate_id handling
+
+Problem:
+- Phase 3 DoD expects unknown gate IDs to fail closed with explicit reason codes. Currently an unknown gate ID (e.g., in `read_requires_gates`) can surface as a raw KeyError from `GateMap.gate_entry` during verification.
+
+Decision:
+- Add explicit validation for gate IDs in plan compilation and verification steps. Unknown gate IDs should produce a deterministic FAIL with a clear reason code (e.g., `UNKNOWN_GATE_ID`).
+
+Planned changes:
+1) In `_compile_plan`, after assembling `required_gates`, validate each gate_id exists in `GateMap.gates`; if any missing, raise `RuntimeError` with a stable reason (so submit_run returns FAIL with reason code).
+2) In evidence collection, if a gate_id is missing, return `EvidenceBundle` with `FAIL` and `reason="UNKNOWN_GATE_ID"`.
+3) Add/extend a unit test to cover this path (use a test catalogue with `read_requires_gates` pointing at a missing gate).
+
+Validation:
+- Run SR test suite after adding the test.
+
+---
+
+### Entry: 2026-01-24 17:03:17 — Unknown gate_id fail‑closed handling (Phase 3 DoD)
+
+What changed:
+- Added explicit UNKNOWN gate/output handling at plan compile time and during evidence verification.
+  - `_compile_plan` now raises `UNKNOWN_OUTPUT_ID:<id>` for missing outputs.
+  - Missing gate IDs in the required gate set raise `UNKNOWN_GATE_ID:<ids>`.
+  - `submit_run` now catches these plan errors, commits a terminal FAIL with reason `UNKNOWN_GATE_ID` or `UNKNOWN_OUTPUT_ID`, and returns a stable "Run failed." response.
+  - `_collect_evidence` also fails closed with `UNKNOWN_GATE_ID` if a gate_id is missing at verification time (defensive).
+- Added a unit test that injects `read_requires_gates: [gate.unknown.missing]` and asserts `UNKNOWN_GATE_ID` on failure.
+
+Files touched:
+- `src/fraud_detection/scenario_runner/runner.py`
+- `src/fraud_detection/scenario_runner/evidence.py`
+- `tests/services/scenario_runner/test_instance_proof_bridge.py`
+
+Tests:
+- `python -m pytest tests/services/scenario_runner -q` (venv) → 20 passed, 2 skipped.
+
+---
+
+### Entry: 2026-01-24 17:06:22 — Phase 3 complete (evidence + gate verification)
+
+Decision:
+- Phase 3 is now **COMPLETE**. All DoD items are satisfied:
+  - Required gate closure derived from interface pack and enforced (including explicit UNKNOWN gate/output fail‑closed handling).
+  - Gate receipts schema‑validated; instance receipts emitted with drift protection.
+  - Locator integrity + deterministic content digests implemented.
+  - Evidence classification uses stable COMPLETE/WAITING/FAIL/CONFLICT reasons + deterministic bundle hash.
+  - Tests cover deep gate verification (2A/2B/3B/5A/5B/6A), parity reuse on 6A, negative gate evidence, and instance receipt drift.
+
+Next phase entry:
+- Proceed to Phase 4 — Engine invocation integration (real job runner adapter, attempt lifecycle, retries, idempotency).
