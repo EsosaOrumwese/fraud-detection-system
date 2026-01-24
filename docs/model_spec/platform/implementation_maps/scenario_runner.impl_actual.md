@@ -2386,3 +2386,29 @@ Added a short note in the SR service README showing how to load `.env.localstack
 User asked for a small helper to start/stop LocalStack from CLI. I will add `scripts/localstack.ps1` with start/stop/status/logs actions using docker.
 
 ---
+
+## Entry: 2026-01-24 19:31:20 — LocalStack log narration (dev UX fix)
+
+User asked to refine LocalStack logs so they’re readable and narrative. I can’t change LocalStack’s internal logging, but I can provide a **filtered, human‑readable log view** via our helper script.
+
+Plan (before edits):
+- Update `scripts/localstack.ps1` to support a `-Mode narrative` log view that filters LocalStack’s raw logs into a small set of high‑level status lines (ready, stream create, publish, read, shutdown) and surfaces only ERROR/WARN lines.
+- Keep a `-Mode raw` option for full output.
+- Add a short README note so users know how to use the narrative log view.
+
+No secrets will be added or logged.
+
+---
+
+## Entry: 2026-01-24 19:33:40 — LocalStack narrative logs
+
+I added a narrative log filter to `scripts/localstack.ps1` so LocalStack logs are readable and “noob‑friendly.” Raw logs are still available via `-Mode raw`.
+
+### Behavior
+- `.scripts\localstack.ps1 logs` now prints high‑level milestones (ready, stream create, publish, read) and only surfaces WARN/ERROR lines.
+- `.scripts\localstack.ps1 logs -Mode raw` shows the full LocalStack output.
+
+### Docs
+- Added a brief note in the SR README pointing to the narrative log view.
+
+---

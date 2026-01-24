@@ -35,6 +35,7 @@ Phase 2.5 integration tests (local parity):
 LocalStack Kinesis test (end-to-end):
 1) Start LocalStack (Kinesis enabled):
    - `docker run --rm -p 4566:4566 -e SERVICES=kinesis localstack/localstack:latest`
+   - Optional (narrative logs): `.\scripts\localstack.ps1 logs`
 2) Set env vars (PowerShell):
    - `Get-Content .env.localstack.example | ForEach-Object { if ($_ -match '^(\\w+)=(.*)$') { Set-Item -Path "Env:$($matches[1])" -Value $matches[2] } }`
    - (or set them manually below)
