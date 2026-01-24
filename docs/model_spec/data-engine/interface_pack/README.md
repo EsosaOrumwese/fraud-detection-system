@@ -135,6 +135,7 @@ Defines the payload shape for `_passed.flag` / gate receipts:
 ### 3.5 `instance_proof_receipt.schema.yaml`
 Defines the payload shape for instance-scoped output proof receipts:
 - `{ output_id, status, scope, target_ref, target_digest, bundle_manifest_ref?, … }`
+Receipts may be emitted by the engine **or** by Scenario Runner as verifier receipts when the engine is a strict black box (path conventions documented in `data_engine_interface.md` and SR contracts).
 
 ---
 

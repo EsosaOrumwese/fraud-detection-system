@@ -326,47 +326,19 @@ class ScenarioRunner:
             entry = self.catalogue.get(output_id)
             if not is_instance_scope(entry.scope):
                 continue
-            if locator.content_digest is None:
-                instance_missing.append(f"instance_proof:{output_id}")
-                continue
-            receipt_path = self._instance_receipt_path(entry, intent, plan.run_id)
-            if receipt_path is None:
-                instance_missing.append(f"instance_proof:{output_id}")
-                continue
-            receipt_full = engine_root / receipt_path
-            if not receipt_full.exists():
-                if not self.policy.allow_instance_proof_bridge:
-                    instance_missing.append(f"instance_proof:{output_id}")
-                else:
-                    evidence_notes.append(f"INSTANCE_PROOF_BRIDGE:{output_id}")
-                continue
-            receipt_payload = json.loads(receipt_full.read_text(encoding="utf-8"))
             try:
-                self.engine_schemas.validate("instance_proof_receipt.schema.yaml", receipt_payload)
-            except ValueError:
+                receipt_payload = self._ensure_instance_receipt(entry, locator, intent, plan.run_id)
+            except RuntimeError as exc:
                 return EvidenceBundle(
                     status=EvidenceStatus.FAIL,
                     locators=locators,
                     gate_receipts=gate_receipts,
                     instance_receipts=instance_receipts,
-                    reason="INSTANCE_RECEIPT_SCHEMA_INVALID",
+                    reason=str(exc),
                 )
-            if receipt_payload.get("status") != "PASS":
-                return EvidenceBundle(
-                    status=EvidenceStatus.FAIL,
-                    locators=locators,
-                    gate_receipts=gate_receipts,
-                    instance_receipts=instance_receipts,
-                    reason="INSTANCE_PROOF_FAIL",
-                )
-            if not self._instance_receipt_matches(locator, receipt_payload, engine_root):
-                return EvidenceBundle(
-                    status=EvidenceStatus.FAIL,
-                    locators=locators,
-                    gate_receipts=gate_receipts,
-                    instance_receipts=instance_receipts,
-                    reason="INSTANCE_PROOF_MISMATCH",
-                )
+            if receipt_payload is None:
+                instance_missing.append(f"instance_proof:{output_id}")
+                continue
             instance_receipts.append(receipt_payload)
 
         now = datetime.now(tz=timezone.utc)
@@ -538,14 +510,12 @@ class ScenarioRunner:
             tokens["run_id"] = run_id
         return tokens
 
-    def _instance_receipt_path(self, entry: OutputEntry, intent: CanonicalRunIntent, run_id: str) -> str | None:
-        template = entry.path_template.strip().strip("'")
-        parts = Path(template).parts
-        if len(parts) < 3 or parts[0] != "data":
-            return None
-        layer = parts[1]
-        segment = parts[2]
-        partition_order = ["seed", "parameter_hash", "manifest_fingerprint", "scenario_id", "run_id"]
+    def _instance_receipt_scope(
+        self,
+        entry: OutputEntry,
+        intent: CanonicalRunIntent,
+        run_id: str,
+    ) -> tuple[dict[str, Any], list[str]]:
         partitions = entry.partitions or []
         tokens = {
             "manifest_fingerprint": intent.manifest_fingerprint,
@@ -554,43 +524,61 @@ class ScenarioRunner:
             "scenario_id": intent.scenario_id,
             "run_id": run_id,
         }
-        segments: list[str] = []
-        for key in partition_order:
-            if key in partitions:
-                value = tokens.get(key)
-                if value is None:
-                    return None
-                segments.append(f"{key}={value}")
-        partition_path = "/".join(segments)
-        return f"data/{layer}/{segment}/receipts/instance/output_id={entry.output_id}/{partition_path}/instance_receipt.json"
+        scope: dict[str, Any] = {"manifest_fingerprint": intent.manifest_fingerprint}
+        missing: list[str] = []
+        for key in partitions:
+            value = tokens.get(key)
+            if value is None:
+                missing.append(key)
+                continue
+            scope[key] = value
+        return scope, missing
 
-    def _instance_receipt_matches(
+    def _instance_receipt_store_path(self, output_id: str, scope: dict[str, Any]) -> str:
+        order = ["manifest_fingerprint", "parameter_hash", "seed", "scenario_id", "run_id"]
+        segments = [f"{key}={scope[key]}" for key in order if key in scope]
+        partition_path = "/".join(segments)
+        return f"{self.ledger.prefix}/instance_receipts/output_id={output_id}/{partition_path}/instance_receipt.json"
+
+    def _normalize_instance_receipt(self, payload: dict[str, Any]) -> dict[str, Any]:
+        normalized = dict(payload)
+        normalized.pop("produced_at_utc", None)
+        return normalized
+
+    def _ensure_instance_receipt(
         self,
+        entry: OutputEntry,
         locator: EngineOutputLocator,
-        receipt_payload: dict[str, Any],
-        engine_root: Path,
-    ) -> bool:
-        target_ref = receipt_payload.get("target_ref", {})
-        if target_ref.get("output_id") != locator.output_id:
-            return False
-        locator_path = Path(locator.path)
-        target_path = Path(target_ref.get("path", ""))
-        if target_path.is_absolute():
-            if locator_path != target_path:
-                return False
-        else:
-            try:
-                rel = locator_path.relative_to(engine_root)
-            except ValueError:
-                return False
-            if rel.as_posix() != target_path.as_posix():
-                return False
-        target_digest = receipt_payload.get("target_digest", {})
+        intent: CanonicalRunIntent,
+        run_id: str,
+    ) -> dict[str, Any] | None:
         if locator.content_digest is None:
-            return False
-        if target_digest.get("hex") != locator.content_digest.hex:
-            return False
-        return True
+            raise RuntimeError("INSTANCE_DIGEST_MISSING")
+        scope, missing = self._instance_receipt_scope(entry, intent, run_id)
+        if missing:
+            raise RuntimeError("INSTANCE_SCOPE_MISSING")
+        receipt_path = self._instance_receipt_store_path(locator.output_id, scope)
+        receipt_payload = {
+            "output_id": locator.output_id,
+            "status": "PASS",
+            "scope": scope,
+            "target_ref": locator_to_wire(locator),
+            "target_digest": {"algo": locator.content_digest.algo, "hex": locator.content_digest.hex},
+            "receipt_kind": "instance_proof",
+            "artifacts": {"receipt_path": receipt_path},
+        }
+        try:
+            self.engine_schemas.validate("instance_proof_receipt.schema.yaml", receipt_payload)
+        except ValueError as exc:
+            raise RuntimeError("INSTANCE_RECEIPT_SCHEMA_INVALID") from exc
+        try:
+            self.store.write_json_if_absent(receipt_path, receipt_payload)
+            return receipt_payload
+        except FileExistsError:
+            existing = self.store.read_json(receipt_path)
+            if self._normalize_instance_receipt(existing) != self._normalize_instance_receipt(receipt_payload):
+                raise RuntimeError("INSTANCE_RECEIPT_DRIFT")
+            return existing
 
     def _ensure_lease(self, run_handle: RunHandle) -> None:
         if not run_handle.lease_token:

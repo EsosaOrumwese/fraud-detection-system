@@ -91,10 +91,11 @@ Operational verification details (paths, hashing law, and gate->output mapping) 
 
 **Instance-proof receipt contract + path convention.**
 - Schema: `contracts/instance_proof_receipt.schema.yaml`
-- Path convention (segment-local, by output_id + partitions):
+- Engine-emitted path convention (segment-local, by output_id + partitions):
   `data/layer{L}/{SEG}/receipts/instance/output_id={output_id}/{partition_tokens}/instance_receipt.json`
   - `{partition_tokens}` are the output’s partitions in canonical order (see storage_layout_v1.md).
   - Only tokens applicable to the output_id are included.
+- If the engine remains a **black box** and does not emit receipts, Scenario Runner MAY emit **verifier receipts** into its own object store using the same schema (see SR contract README for the SR path convention).
 
 ## Segment boundary summaries
 

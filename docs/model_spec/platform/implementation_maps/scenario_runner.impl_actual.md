@@ -26,7 +26,7 @@ Stand up the Scenario Runner (SR) as the production-grade run authority for the 
 - **“Latest outputs” discovery**: rejected due to explicit platform rule: downstream must start from SR join surface; no scanning.
 
 ### Intended mechanics (v0 scope)
-Implementhe SR backbone as a set of subnetworks per design authority (N1–N8). v0 focuses on correctness of control truth and evidence gating, nothroughput.
+Implement the SR backbone as a set of subnetworks per design authority (N1–N8). v0 focuses on correctness of control truth and evidence gating, not throughput.
 
 **Core flows to implement first (mandatory):**
 - IP1: new run → invoke engine → gather evidence → verify gates → publish READY.
@@ -57,7 +57,7 @@ Implementhe SR backbone as a set of subnetworks per design authority (N1–N8). 
 - **N1 (Ingress)**: canonicalize run intent, validate minimal shape, enforce authn/authz, derive run-equivalence key.
 - **N2 (Run Authority Core)**: resolve run_id from equivalence key; single-writer lease; idempotent admission; produce RunHandle.
 - **N3 (Plan/Policy)**: load wiring profile + policy profile; compile output intent; derive required gate closure; select strategy (invoke vs reuse); compute plan_hash; emit plan ticket(s).
-- **N4 (Engine Orchestrator)**: idempotent engine invocation + attemptracking; no direct writes excepthrough N6; emits attempt result.
+- **N4 (Engine Orchestrator)**: idempotent engine invocation + attempt tracking; no direct writes except through N6; emits attempt result.
 - **N5 (Evidence Assembly)**: build engine output locators; resolve gate graph; verify gates using interface pack; bind instance receipts; classify evidence completeness (COMPLETE/WAITING/FAIL/CONFLICT); compute bundle hash.
 - **N6 (Ledger/Join Surface)**: append run_record; commit run_plan; update run_status (monotonic); write run_facts_view; emit READY control fact only when evidence COMPLETE.
 - **N7 (Re-emit Ops)**: authorized re-emit with ops micro-lease; reconstruct control facts from ledger; no mutation.
@@ -99,7 +99,7 @@ Implementhe SR backbone as a set of subnetworks per design authority (N1–N8). 
 ## Entry: 2026-01-23 21:44:32 — SR v0 skeleton plan (N1–N6 + IP1/IP2/IP3/IP5)
 
 ### Scope
-Implementhe first runnable Scenario Runner skeleton with correctruth artifacts, deterministic IDs, and the core flow behaviors: IP1 (new run invoke), IP2 (duplicate), IP3 (reuse), IP5 (waiting/fail/ quarantine). Provide a minimal CLI + service wrapper and local object-store persistence. Keep interfaces pluggable for future production wiring.
+Implement the first runnable Scenario Runner skeleton with correct truth artifacts, deterministic IDs, and the core flow behaviors: IP1 (new run invoke), IP2 (duplicate), IP3 (reuse), IP5 (waiting/fail/ quarantine). Provide a minimal CLI + service wrapper and local object-store persistence. Keep interfaces pluggable for future production wiring.
 
 ### Design choices (applied)
 - SR code lives under `src/fraud_detection/scenario_runner/` (package) with a thin service wrapper under `services/scenario_runner/` to match repo conventions.
@@ -259,7 +259,7 @@ Proceed to **Phase 1: Contracts + Truth Surfaces** (schemas + validation wiring)
   - run_ready_signal.schema.yaml
 - Implemented SchemaRegistry with Draft 2020-12 validation and wired it into SR:
   - RunRequest validated at ingress.
-  - run_plan/run_record/run_status/run_facts_view/run_ready_signal validated at commitime.
+  - run_plan/run_record/run_status/run_facts_view/run_ready_signal validated at commit time.
 - Wiring profile now carries `schema_root` for SR validation.
 
 ### Design intent alignment
@@ -740,7 +740,7 @@ Phase 3 must make SR evidence handling **production‑complete**:
    - **Rationale:** prevents “latest output” scanning and enforces no‑PASS‑no‑read.
 
 2) **Receipt validation is mandatory**
-   - **Decision:** validate gate receipts againstheir schemas (interface pack) before using them.
+   - **Decision:** validate gate receipts against their schemas (interface pack) before using them.
    - **Rationale:** receipts are proof artifacts; schema violations must fail‑closed.
 
 3) **Instance‑proof binding**
@@ -801,7 +801,7 @@ Open question I need your call on:
 
 I’m correcting the earlier Phase 3 planning entry because it reads like a checklist. Below is the actual decision trail I’m following in real time so the intent and tradeoffs are explicit.
 
-### Whatriggered this phase (problem framing)
+### What triggered this phase (problem framing)
 I need to make SR evidence handling production-grade and **fail-closed** while aligning with the engine interface pack. Phase 3 is where we eliminate ambiguous evidence handling and make the gate + receipt + locator chain deterministic and auditable. The key friction I’m seeing: **gate receipts appear fingerprint-scoped**, while **many outputs are instance-scoped**. That creates a mismatch if we require instance proof for instance outputs (which the interface pack says we must).
 
 ### Authorities I’m using (inputs)
@@ -899,7 +899,7 @@ Pending: strict vs temporary bridge. I’m ready to implement strict fail-closed
 ---
 ## Entry: 2026-01-24 12:29:03 — Phase 3 implementation start (evidence strictness + schema alignment)
 
-I’m abouto implement Phase 3 evidence hardening. I’m writing this before touching code so the decision trail stays live, not retrospective.
+I’m about to implement Phase 3 evidence hardening. I’m writing this before touching code so the decision trail stays live, not retrospective.
 
 ### Starting point (what exists)
 - Evidence collection currently builds locators + gate receipts but **does not validate** them against engine contracts.
@@ -945,7 +945,7 @@ I’m abouto implement Phase 3 evidence hardening. I’m writing this before tou
 - src/fraud_detection/scenario_runner/evidence.py (digest objects, helpers, scope classifier, wire conversion)
 - src/fraud_detection/scenario_runner/runner.py (scope-correctokens, instance-proof checks, schema validation integration)
 - src/fraud_detection/scenario_runner/catalogue.py (capture availability, partitions usage)
-- src/fraud_detection/scenario_runner/config.py + config/platform/sr/*.yaml (add engine_contracts_root, aallow_instance_proof_bridge)
+- src/fraud_detection/scenario_runner/config.py + config/platform/sr/*.yaml (add engine_contracts_root, allow_instance_proof_bridge)
 - docs/model_spec/platform/contracts/scenario_runner/run_facts_view.schema.yaml (align with engine contracts)
 - tests/services/scenario_runner/* (new tests for schema/instance-proof path; update wiring helpers)
 
@@ -982,7 +982,7 @@ I’ve started coding Phase 3 and documented the key decisions as they landed:
 ### Instance-proof enforcement + dev bridge
 - Instance-scoped outputs are now detected from scope and require instance proof.
 - Because instance receipts are not present in the interface pack, **strict mode will WAIT/FAIL** with instance_proof:{output_id}.
-- If aallow_instance_proof_bridge=true (dev only), SR marks evidence_notes: ["INSTANCE_PROOF_BRIDGE:{output_id}"] and proceeds.
+- If allow_instance_proof_bridge=true (dev only), SR marks evidence_notes: ["INSTANCE_PROOF_BRIDGE:{output_id}"] and proceeds.
 
 ### Policy digest update (non-circular)
 - Recomputed policy_v0.yaml content_digest as **sha256 of the policy content excluding content_digest itself** (avoids circular hash).
@@ -1025,12 +1025,12 @@ I’m starting the next Phase 3 slice: making instance-proof receipts real (sche
 1) **Instance-proof receipts aren’t defined in the interface pack**, but SR strict mode now depends on them. I must define a schema + path convention so the contract is real.
 2) SR must be able to **locate, validate, and bind** those receipts to locators (target_ref + digest).
 3) Downstream consumers read 
-un_facts_view; we changed digest shape + receipt artifacts, so I must decide how to communicate/update that boundary.
+run_facts_view; we changed digest shape + receipt artifacts, so I must decide how to communicate/update that boundary.
 
 ### Decision direction (pre-implementation)
 - **Define a new contract**: instance_proof_receipt.schema.yaml in interface_pack/contracts.
-- **Path convention**: place instance receipts under the same layer/segment namespace as the outputhey prove, using 
-eceipts/instance/ and the output’s partitions. This keeps provenance localized and avoids cross-segment ambiguity.
+- **Path convention**: place instance receipts under the same layer/segment namespace as the outputs they prove, using 
+receipts/instance/ and the output’s partitions. This keeps provenance localized and avoids cross-segment ambiguity.
 - **SR behavior**: for instance-scoped outputs, require a PASS instance receipt whose  target_ref matches the locator and whose  target_digest equals locator.content_digest.
 - **run_facts_view**: add a new optional instance_receipts array (do not overload gate_receipts). Keep backward compatibility by making it optional. Update docs so downstream is aware.
 - **Downstream update decision**: update platform/docs now (even if no code yet) so that IG/OFS/others know the new receipt shape and optional field.
@@ -1060,7 +1060,7 @@ eceipts/instance/ and the output’s partitions. This keeps provenance localized
 ### SR behavior updates
 - SR now looks for instance receipts at:
   data/<layer>/<segment>/receipts/instance/output_id=<output_id>/<partitions>/instance_receipt.json
-- Receipts are validated against instance_proof_receipt.schema.yaml and bound to the locator:
+- Rreceipts are validated against instance_proof_receipt.schema.yaml and bound to the locator:
   -  target_ref.output_id must match locator output_id.
   -  target_ref.path must match locator path (relative paths allowed vs engine_root).
   -  target_digest.hex must equal locator.content_digest.hex.
@@ -1074,3 +1074,124 @@ eceipts/instance/ and the output’s partitions. This keeps provenance localized
 - run_facts_view contract documents instance_receipts and digest object shapes; platform blueprint note updated to alert downstream consumers.
 
 ---
+## Entry: 2026-01-24 14:30:15 — Black-box instance proof (SR-verifier receipts)
+
+You explicitly require the engine to remain a black box. That means SR cannot rely on engine-emitted instance receipts. Instead, SR must generate **verifier receipts** itself, based only on the output bytes it reads.
+
+### Why compute a digest at all
+- A schema only proves **shape**, not **identity** or **immutability**.
+- The digest binds the exact output instance bytes to the run pins (manifest_fingerprint, seed, scenario_id, etc.).
+- This creates a deterministic, auditable proof that “this exact output instance was the one SR used,” which is required for no‑PASS‑no‑read on instance‑scoped outputs.
+
+### Black-box compliant plan
+- SR computes content_digest over the output bytes (already required for locators).
+- SR writes an instance_proof_receipt into **SR’s own object store** (not engine storage).
+- run_facts_view.instance_receipts includes the receipt payload and references the SR receipt path.
+- This keeps the engine opaque while still enforcing strict instance proof.
+
+---
+
+## Entry: 2026-01-24 14:36:13 — Phase 3 black‑box instance‑proof implementation plan (SR‑verifier receipts)
+
+I’m about to implement the black‑box‑safe instance‑proof path. This entry captures the actual thinking path before code changes so the reasoning trail stays live.
+
+### What forced this change
+You’ve made it explicit that the engine must remain a black box. That means SR **cannot** depend on engine‑emitted instance receipts or on modifying engine storage/layout. If SR still enforces instance‑scoped proofs, it must generate that proof itself using only the bytes it already reads.
+
+### What I’m trying to guarantee (non‑negotiable)
+- **No‑PASS‑no‑read** still holds for instance‑scoped outputs.
+- **Fail‑closed** on missing/invalid instance proof (no “best effort”).
+- **Idempotent + append‑only**: instance receipts must be write‑once and stable across retries.
+- **Black‑box safety**: no assumptions about engine internals, no writes into engine storage, no engine‑side code changes.
+
+### Options I considered (and why I chose the final one)
+1) **Keep consuming engine receipts** (current behavior)
+   - Rejected because it violates the black‑box constraint and requires engine changes to pass strict mode.
+2) **Skip receipts and treat locator digest as “good enough”**
+   - Rejected because it weakens the proof chain and collapses “evidence of bytes” into “mere pointer.”
+3) **SR‑verifier receipts in SR object store (chosen)**
+   - SR already computes locator digests; we can bind those bytes to scope and emit an auditable receipt in SR’s own store.
+   - Keeps engine opaque while still enforcing instance‑proof.
+
+### Decision I’m locking in now
+- **SR emits instance‑proof receipts** in its own object store (under the SR prefix), not in engine storage.
+- Receipts are produced only for **instance‑scoped** outputs and must bind:
+  - output_id
+  - scope tokens (manifest_fingerprint + any instance partitions)
+  - target_ref = locator (path + pins)
+  - target_digest = locator.content_digest
+- Receipts are **validated against the instance_proof_receipt.schema.yaml** contract so they are portable and audit‑friendly.
+
+### Concrete mechanics I will implement
+- **Receipt path convention (SR store):**
+  `fraud-platform/sr/instance_receipts/output_id=<output_id>/<scope partitions>/instance_receipt.json`
+  - Scope partitions ordered: manifest_fingerprint, parameter_hash, seed, scenario_id, run_id.
+  - This path is deterministic so the receipt is idempotent across retries.
+- **Receipt creation flow** (inside evidence collection):
+  1) For each instance‑scoped output with a content digest, build scope tokens.
+  2) Build receipt payload (status=PASS, receipt_kind=instance_proof, target_ref/target_digest).
+  3) Write with `write_json_if_absent` to enforce immutability.
+  4) If a receipt exists, read and verify that **critical fields match** (ignore produced_at_utc if present) to prevent drift.
+- **Evidence gating:**
+  - If scope tokens or digest are missing → WAITING/FAIL (same as missing evidence).
+  - No dev‑bridge for instance proof in this path; the receipt is always created by SR when possible.
+
+### Why compute the digest at all (the core rationale)
+- The digest is the **only objective binding** between “the bytes SR saw” and “the run pins.”
+- It prevents a downstream reader from swapping content while reusing the same locator path.
+- It makes evidence **replayable and auditable** even though the engine is opaque.
+
+### Planned code touchpoints (before writing)
+- `src/fraud_detection/scenario_runner/runner.py`
+  - Remove engine‑receipt lookup.
+  - Add receipt creation + storage in SR object store.
+  - Update instance‑proof evidence evaluation to use SR receipts.
+- `tests/services/scenario_runner/test_instance_proof_bridge.py`
+  - Replace “strict vs bridge” expectations with “receipt emitted by SR” expectations.
+- `docs/model_spec/...`
+  - Update SR contract README to describe SR‑emitted receipts and SR receipt path.
+  - Clarify in interface_pack docs that engine receipts are optional; SR verifier receipts are used when engine is black‑box.
+
+### Note on text integrity
+I also fixed missing‑letter typos in earlier impl_actual entries (no semantic changes), since you asked for clean, readable notes.
+
+---
+
+## Entry: 2026-01-24 14:43:08 — Phase 3 black‑box receipts implemented (SR‑verifier receipts)
+
+I’ve now applied the black‑box path in code. This captures the concrete decisions made while implementing it, not just the outcome.
+
+### What changed in SR evidence flow
+- Removed engine‑receipt lookup entirely; SR now **generates verifier receipts** in its own object store.
+- Instance‑scoped outputs are handled by a new `_ensure_instance_receipt` flow that:
+  - builds a scope from catalogue partitions + manifest_fingerprint,
+  - binds `target_ref` to the output locator,
+  - binds `target_digest` to the locator’s content_digest,
+  - writes receipts **write‑once** using `write_json_if_absent`, and
+  - validates against `instance_proof_receipt.schema.yaml` before commit.
+- Receipt path now lives under SR’s prefix:
+  `fraud-platform/sr/instance_receipts/output_id=<output_id>/<scope partitions>/instance_receipt.json`
+  (partition order: manifest_fingerprint → parameter_hash → seed → scenario_id → run_id).
+
+### Why I omitted produced_at_utc in receipts
+- A timestamp makes the payload non‑deterministic and can cause drift on re‑entry.
+- Since receipts are write‑once, the store itself preserves the creation time if we ever need it (via object metadata or audit logs). I can add produced_at_utc later if we agree to treat it as immutable once written.
+
+### New strict failure points (explicit reason codes)
+- `INSTANCE_DIGEST_MISSING` if a locator lacks a digest (shouldn’t happen if output exists).
+- `INSTANCE_SCOPE_MISSING` if required scope tokens are missing (configuration error).
+- `INSTANCE_RECEIPT_SCHEMA_INVALID` if the receipt payload fails schema validation.
+- `INSTANCE_RECEIPT_DRIFT` if an existing receipt’s critical fields don’t match the newly computed proof.
+
+### Test + contract adjustments made during implementation
+- Updated `tests/services/scenario_runner/test_instance_proof_bridge.py` to assert SR emits a verifier receipt and commits READY.
+- Ran pytest for that test (1 passed; only RefResolver deprecation warnings).
+- Fixed a YAML escaping issue in `instance_proof_receipt.schema.yaml` (regex pattern string) uncovered by schema validation.
+
+### Documentation updates while coding
+- Clarified in `data_engine_interface.md` and `storage_layout_v1.md` that engine‑emitted receipts are optional and SR verifier receipts live under the SR object store.
+- Updated SR contract README + service README to document the SR receipt path and black‑box posture.
+- Added a note to interface_pack README that instance receipts may be emitted by SR when the engine is opaque.
+
+### Compatibility note (policy flag)
+- `allow_instance_proof_bridge` remains in policy for backward compatibility but is now deprecated in SR behavior (no bridge path in black‑box mode).

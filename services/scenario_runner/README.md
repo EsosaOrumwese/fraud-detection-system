@@ -6,6 +6,8 @@ Boundaries: engine internals; ingestion; downstream processing.
 
 Notes: This service is the control-plane entrypoint for runs. It must stay fail-closed and by-ref.
 run_facts_view now includes engine-contract digest objects and may include optional `instance_receipts` for instance-scoped outputs.
+SR emits **verifier receipts** in its own object store (engine remains a black box):
+- `fraud-platform/sr/instance_receipts/output_id=<output_id>/<scope partitions>/instance_receipt.json`
 
 Profiles:
 - `config/platform/sr/wiring_local.yaml` — local smoke (filesystem + SQLite; not valid for hardening).
@@ -14,7 +16,7 @@ Profiles:
   - Note: wiring profiles now include `engine_contracts_root` (engine boundary schemas).
 
 Policy:
-- `config/platform/sr/policy_v0.yaml` includes `allow_instance_proof_bridge` (dev-only escape hatch; keep false in prod).
+- `config/platform/sr/policy_v0.yaml` still includes `allow_instance_proof_bridge`; SR now emits verifier receipts so this flag is deprecated (kept for backward compatibility).
 
 Local parity stack (MinIO + Postgres):
 - `docker compose -f infra/local/docker-compose.sr-parity.yaml up -d`

@@ -46,6 +46,7 @@ data/layer{1,2,3}/{SEG}/validation/manifest_fingerprint={manifest_fingerprint}/.
 data/layer{1,2,3}/{SEG}/receipts/manifest_fingerprint={manifest_fingerprint}/...
 data/layer{1,2,3}/{SEG}/receipts/instance/output_id={output_id}/<partitions>/instance_receipt.json
 ```
+Note: The instance receipt path above is for engine-emitted receipts. If the engine is a black box and does not emit receipts, Scenario Runner writes verifier receipts in its own object store under `fraud-platform/sr/instance_receipts/...`.
 
 Logs:
 ```

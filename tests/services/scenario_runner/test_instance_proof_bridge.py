@@ -49,7 +49,7 @@ def _build_wiring(tmp_path: Path, catalogue_path: Path, gate_map_path: Path) -> 
     )
 
 
-def _build_policy(allow_bridge: bool) -> PolicyProfile:
+def _build_policy() -> PolicyProfile:
     return PolicyProfile(
         policy_id="sr_policy",
         revision="v0-test",
@@ -58,7 +58,7 @@ def _build_policy(allow_bridge: bool) -> PolicyProfile:
         evidence_wait_seconds=1,
         attempt_limit=1,
         traffic_output_ids=["test_output"],
-        allow_instance_proof_bridge=allow_bridge,
+        allow_instance_proof_bridge=False,
     )
 
 
@@ -87,7 +87,7 @@ def _write_output(engine_root: Path) -> None:
     output_path.write_text("{\"ok\": true}", encoding="utf-8")
 
 
-def test_instance_proof_strict_waits(tmp_path: Path) -> None:
+def test_instance_proof_emits_receipt_and_ready(tmp_path: Path) -> None:
     engine_root = tmp_path / "engine_root"
     _write_output(engine_root)
 
@@ -97,41 +97,24 @@ def test_instance_proof_strict_waits(tmp_path: Path) -> None:
     _write_gate_map(gate_map_path)
 
     wiring = _build_wiring(tmp_path, catalogue_path, gate_map_path)
-    policy = _build_policy(allow_bridge=False)
+    policy = _build_policy()
     runner = ScenarioRunner(wiring, policy, LocalEngineInvoker(str(engine_root)))
 
     request = _build_request(engine_root, "instance-proof-strict")
     response = runner.submit_run(request)
 
-    assert response.message == "Evidence incomplete; waiting."
-    run_id = run_id_from_equivalence_key("instance-proof-strict")
-    status = runner.ledger.read_status(run_id)
-    assert status is not None
-    assert status.state.value == "WAITING_EVIDENCE"
-
-
-def test_instance_proof_bridge_allows_ready(tmp_path: Path) -> None:
-    engine_root = tmp_path / "engine_root"
-    _write_output(engine_root)
-
-    catalogue_path = tmp_path / "engine_outputs.catalogue.yaml"
-    gate_map_path = tmp_path / "engine_gates.map.yaml"
-    _write_catalogue(catalogue_path)
-    _write_gate_map(gate_map_path)
-
-    wiring = _build_wiring(tmp_path, catalogue_path, gate_map_path)
-    policy = _build_policy(allow_bridge=True)
-    runner = ScenarioRunner(wiring, policy, LocalEngineInvoker(str(engine_root)))
-
-    request = _build_request(engine_root, "instance-proof-bridge")
-    response = runner.submit_run(request)
-
     assert response.message == "READY committed"
-    run_id = run_id_from_equivalence_key("instance-proof-bridge")
+    run_id = run_id_from_equivalence_key("instance-proof-strict")
     status = runner.ledger.read_status(run_id)
     assert status is not None
     assert status.state.value == "READY"
     facts_view = runner.ledger.read_facts_view(run_id)
     assert facts_view is not None
-    assert "evidence_notes" in facts_view
-    assert "INSTANCE_PROOF_BRIDGE:test_output" in facts_view["evidence_notes"]
+    receipts = facts_view.get("instance_receipts") or []
+    assert len(receipts) == 1
+    receipt = receipts[0]
+    assert receipt["output_id"] == "test_output"
+    assert receipt["status"] == "PASS"
+    receipt_path = receipt["artifacts"]["receipt_path"]
+    assert receipt_path.startswith("fraud-platform/sr/instance_receipts/output_id=test_output/")
+    assert (tmp_path / "artefacts" / receipt_path).exists()
