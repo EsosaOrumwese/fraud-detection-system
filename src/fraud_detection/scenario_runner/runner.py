@@ -175,7 +175,7 @@ class ScenarioRunner:
             attempt_limit=self.policy.attempt_limit,
             created_at_utc=created_at,
         )
-        payload = json.dumps(plan.model_dump(exclude={"plan_hash"}), sort_keys=True, ensure_ascii=True)
+        payload = json.dumps(plan.model_dump(mode="json", exclude={"plan_hash"}), sort_keys=True, ensure_ascii=True)
         plan.plan_hash = hash_payload(payload)
         return plan
 

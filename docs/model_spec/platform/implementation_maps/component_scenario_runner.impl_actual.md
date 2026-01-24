@@ -518,3 +518,56 @@ Phase 2 is functional but not rock‑solid. Hardening is required for production
 - Lease fencing token enforcement on writes (beyond check/renew) if required by ops policy.
 
 ---
+## Entry: 2026-01-24 05:58:14 — Phase 2.5 hardening tests + plan_hash fix
+
+### What changed
+**Tests added**
+- Postgres authority store smoke test (env‑gated via `SR_TEST_PG_DSN`).
+- Concurrency test for duplicate submissions/lease contention (threads; one leader expected).
+- S3 store tests:
+  - Unit‑style CAS conflict handling for append.
+  - Integration test for write‑once + append (env‑gated via `SR_TEST_S3_BUCKET`).
+
+**Bug fix**
+- `RunPlan.plan_hash` computation now uses JSON‑safe dump (`mode="json"`) to avoid datetime serialization errors.
+
+### Files touched
+- `tests/services/scenario_runner/test_authority_store_postgres.py`
+- `tests/services/scenario_runner/test_scenario_runner_concurrency.py`
+- `tests/services/scenario_runner/test_s3_store.py`
+- `src/fraud_detection/scenario_runner/runner.py`
+
+### Test results
+- `pytest tests/services/scenario_runner/test_scenario_runner_concurrency.py tests/services/scenario_runner/test_s3_store.py tests/services/scenario_runner/test_authority_store_postgres.py`
+  - 2 passed, 2 skipped (Postgres + S3 integration tests skipped; env vars not set).
+
+### Remaining Phase 2.5 items
+- Run Postgres smoke test in an environment with `SR_TEST_PG_DSN`.
+- Run S3 integration test with `SR_TEST_S3_BUCKET` (or MinIO).
+- Decide on additional lease fencing if required by ops policy.
+
+---
+## Entry: 2026-01-24 05:55:04 — Phase 2.5 hardening tests plan (remaining items)
+
+### Goal
+Complete the remaining Phase 2.5 hardening items with explicit, verifiable tests:
+- Postgres authority store smoke coverage (env‑gated).
+- Concurrency behavior under duplicate submissions and lease contention.
+- S3 immutability + CAS append integration tests (env‑gated).
+
+### Approach
+1) **Postgres authority store smoke test**
+   - Add pytest that runs only when `SR_TEST_PG_DSN` is set.
+   - Validate equivalence resolve + lease acquire/check/renew/release.
+2) **Concurrency test**
+   - Use multiple threads to submit the same RunRequest via ScenarioRunner.
+   - Assert exactly one leader advances (others return lease‑held response) and the run_status is stable.
+3) **S3 integration tests**
+   - Add pytest tests that run only when `SR_TEST_S3_BUCKET` is set (optional prefix via `SR_TEST_S3_PREFIX`).
+   - Validate `write_json_if_absent` immutability (second write raises FileExistsError).
+   - Validate `append_jsonl` CAS conflicts by forcing an ETag mismatch.
+
+### Notes
+Tests will be skipped if required env vars are not present; failures should be fail‑closed in prod.
+
+---
