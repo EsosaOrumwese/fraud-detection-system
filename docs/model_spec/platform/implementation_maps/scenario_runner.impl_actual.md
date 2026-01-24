@@ -1762,3 +1762,57 @@ Decision:
 
 Next phase entry:
 - Proceed to Phase 4 — Engine invocation integration (real job runner adapter, attempt lifecycle, retries, idempotency).
+
+---
+
+### Entry: 2026-01-24 17:10:30 — Phase 4 planning (engine invocation integration)
+
+Problem framing:
+- Phase 4 must turn SR’s “invoke engine” path from a placeholder into a real, production‑grade job runner adapter with attempt lifecycle, retries, idempotency, and explicit failure posture.
+- The engine must remain a black box; SR can only interact via defined contracts + run root and must not assume internal engine behavior beyond outputs and run receipts.
+
+Inputs / authorities:
+- SR contracts: `docs/model_spec/platform/contracts/scenario_runner/*`
+- Interface pack: `docs/model_spec/data-engine/interface_pack/` (outputs catalogue + gates map + engine contract schemas)
+- Existing SR code: `src/fraud_detection/scenario_runner/runner.py`, `engine.py`, `models.py`, `ledger.py`, `authority_store.py`
+
+Key decisions to make (and how I’ll decide):
+1) **Invocation mode(s)**
+   - Options: (a) local subprocess CLI, (b) Docker container (local parity), (c) remote job runner (ECS/Batch) adapter.
+   - Decision criteria: deterministic run root placement, observable attempt lifecycle, ability to pass pins and capture run receipts.
+   - Likely: implement a local subprocess adapter first (to keep dev unblocked), and define a stable interface for a future ECS adapter without wiring AWS creds in code.
+
+2) **Attempt lifecycle & idempotency**
+   - Define attempt record shape: attempt_id, started_at, ended_at, outcome, reason_code, engine_run_root, run_receipt_ref.
+   - Decision: attempt_id derived as hash of (run_id, attempt_n, invoker_id) to make retries explicit and safe.
+   - Enforce “no PASS‑no read”: evidence collection only after attempt reports success and run receipt is present/valid.
+
+3) **Failure semantics**
+   - Distinguish between engine hard failures (non‑zero exit, missing run receipt, invalid receipt) and evidence failures.
+   - Decision: commit terminal FAIL with reason codes like `ENGINE_EXIT_NONZERO`, `ENGINE_RECEIPT_MISSING`, `ENGINE_RECEIPT_INVALID`.
+
+4) **Run root ownership**
+   - SR must not write into engine outputs other than its own receipts/logging; engine owns the run root content.
+   - Decision: SR only passes `engine_run_root` + pins; engine writes; SR later verifies receipts and gates.
+
+Plan (stepwise, before coding):
+1) **Build plan update**
+   - Expand Phase 4 in `scenario_runner.build_plan.md` into sections with DoD.
+2) **Define attempt model + receipt envelope**
+   - Add attempt record schema if missing (SR contracts) and wire into ledger append‑only record.
+3) **Engine invoker interface hardening**
+   - Ensure `engine.py` exposes a clean adapter interface (invoke, poll, collect logs, return outcome + receipt ref).
+   - Implement local subprocess adapter with deterministic run root and captured stdout/stderr to SR logs.
+4) **Runner wiring**
+   - Update `_invoke_engine` to create attempt record, call invoker, persist attempt outcome, and perform post‑attempt receipt checks.
+5) **Failure reason codes + tests**
+   - Add tests for: non‑zero exit, missing receipt, invalid receipt, and retry limit enforcement.
+6) **Observability**
+   - Emit narrative logs around attempt start/finish with attempt_id, duration, and reason.
+
+Security posture:
+- No credentials in code or plans. Local adapter uses local paths only. Remote adapter (future) requires explicit injected credentials or role assumption (documented, not embedded).
+
+Validation plan:
+- Unit tests for attempt record creation + outcomes.
+- Integration test that runs a local “engine stub” (or the existing LocalEngineInvoker) and confirms receipts are validated before evidence collection.

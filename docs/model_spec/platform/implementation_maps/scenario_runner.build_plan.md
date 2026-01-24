@@ -157,6 +157,50 @@ High‑level intent: enforce full HashGate coverage and instance‑proof binding
 ## Phase 4 — Engine invocation integration
 High‑level intent: real job runner adapter with attempt lifecycle, retries, and idempotency.
 
+**Status:** IN PROGRESS (planning + scaffolding).
+
+### Section 4.1 — Invocation adapter interface (engine remains black box)
+**Goal:** define a stable invoker interface with clear inputs/outputs and no engine internals.
+
+**Definition of done**
+- Invoker contract includes: engine_run_root, manifest_fingerprint, parameter_hash, seed, scenario_id, run_id, attempt_id.
+- Invoker returns: outcome (SUCCEEDED/FAILED), reason_code, duration, run_receipt_ref (if any), logs_ref (optional).
+- Local subprocess adapter implemented for dev with deterministic run root and captured stdout/stderr.
+- No credentials or platform secrets in code.
+
+### Section 4.2 — Attempt lifecycle + idempotency
+**Goal:** record attempts in append‑only ledger and enforce retry limits safely.
+
+**Definition of done**
+- Attempt record schema exists and is appended per attempt (attempt_id, started_at, ended_at, outcome, reason, run_receipt_ref).
+- attempt_id is deterministic per (run_id, attempt_number, invoker_id).
+- attempt_limit enforced; additional attempts rejected with reason code `ATTEMPT_LIMIT_EXCEEDED`.
+- Failed attempts do not mutate run facts; only success proceeds to evidence collection.
+
+### Section 4.3 — Receipt gating (post‑attempt validation)
+**Goal:** validate run receipts before evidence collection.
+
+**Definition of done**
+- Missing run receipt after SUCCEEDED attempt → FAIL with `ENGINE_RECEIPT_MISSING`.
+- Invalid run receipt schema → FAIL with `ENGINE_RECEIPT_INVALID`.
+- Receipt pins (manifest_fingerprint / parameter_hash / seed / scenario_id) match the run intent (fail‑closed on mismatch).
+
+### Section 4.4 — Failure taxonomy + messaging
+**Goal:** explicit, stable reason codes for engine failures.
+
+**Definition of done**
+- Reason codes include `ENGINE_EXIT_NONZERO`, `ENGINE_RECEIPT_MISSING`, `ENGINE_RECEIPT_INVALID`, `ENGINE_RECEIPT_MISMATCH`.
+- Terminal failures are committed with these codes and surfaced in RunStatus.
+- Narrative logs describe attempt start/end and reason.
+
+### Section 4.5 — Tests + validation
+**Goal:** prove attempt handling and receipt gating.
+
+**Definition of done**
+- Unit tests for attempt record creation + retry limit enforcement.
+- Integration test for local invoker with a stub engine (non‑zero exit and missing receipt cases).
+- Test results logged in docs/logbook.
+
 ---
 
 ## Phase 5 — Control bus + re‑emit operations
