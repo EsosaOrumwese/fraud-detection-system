@@ -27,6 +27,7 @@ from .engine import EngineInvoker, EngineAttemptResult
 from .ids import hash_payload, run_id_from_equivalence_key, scenario_set_to_id
 from .ledger import Ledger
 from .models import CanonicalRunIntent, RunPlan, RunRequest, RunResponse, RunStatusState, Strategy
+from .schemas import SchemaRegistry
 from .storage import LocalObjectStore
 
 
@@ -40,8 +41,9 @@ class ScenarioRunner:
         self.wiring = wiring
         self.policy = policy
         self.engine_invoker = engine_invoker
+        self.schemas = SchemaRegistry(Path(wiring.schema_root))
         self.store = LocalObjectStore(Path(wiring.object_store_root))
-        self.ledger = Ledger(self.store, prefix="fraud-platform/sr")
+        self.ledger = Ledger(self.store, prefix="fraud-platform/sr", schemas=self.schemas)
         self.control_bus = FileControlBus(Path(wiring.control_bus_root))
         self.catalogue = OutputCatalogue(Path(wiring.engine_catalogue_path))
         self.gate_map = GateMap(Path(wiring.gate_map_path))
@@ -49,6 +51,7 @@ class ScenarioRunner:
         self.lease_manager = LeaseManager(Path(wiring.object_store_root) / "fraud-platform/sr/index/leases")
 
     def submit_run(self, request: RunRequest) -> RunResponse:
+        self.schemas.validate("run_request.schema.yaml", request.model_dump())
         canonical = self._canonicalize(request)
         intent_fingerprint = self._intent_fingerprint(canonical)
         run_id, first_seen = self.equiv_registry.resolve(canonical.run_equivalence_key, intent_fingerprint)

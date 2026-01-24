@@ -1,0 +1,85 @@
+$schema: https://json-schema.org/draft/2020-12/schema
+$id: run_request.schema.yaml
+title: Scenario Runner RunRequest
+type: object
+additionalProperties: false
+required:
+  - run_equivalence_key
+  - manifest_fingerprint
+  - parameter_hash
+  - seed
+  - scenario
+  - window
+properties:
+  request_id:
+    type: string
+    minLength: 1
+  run_equivalence_key:
+    type: string
+    minLength: 1
+  manifest_fingerprint:
+    $ref: "#/$defs/hex64"
+  parameter_hash:
+    $ref: "#/$defs/hex64"
+  seed:
+    $ref: "#/$defs/uint64"
+  scenario:
+    type: object
+    additionalProperties: false
+    oneOf:
+      - required: [scenario_id]
+      - required: [scenario_set]
+    properties:
+      scenario_id:
+        type: string
+        minLength: 1
+        maxLength: 512
+      scenario_set:
+        type: array
+        minItems: 1
+        items:
+          type: string
+          minLength: 1
+  window:
+    type: object
+    additionalProperties: false
+    required:
+      - window_start_utc
+      - window_end_utc
+      - window_tz
+    properties:
+      window_start_utc:
+        type: string
+        format: date-time
+      window_end_utc:
+        type: string
+        format: date-time
+      window_tz:
+        type: string
+        minLength: 1
+  requested_strategy:
+    type: string
+    enum: [AUTO, FORCE_INVOKE, FORCE_REUSE]
+  output_ids:
+    type: array
+    items:
+      type: string
+      minLength: 1
+      maxLength: 128
+  engine_run_root:
+    type: string
+    minLength: 1
+  notes:
+    type: string
+  invoker:
+    type: string
+$defs:
+  hex32:
+    type: string
+    pattern: "^[0-9a-f]{32}$"
+  hex64:
+    type: string
+    pattern: "^[0-9a-f]{64}$"
+  uint64:
+    type: integer
+    minimum: 0

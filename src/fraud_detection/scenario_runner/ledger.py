@@ -9,6 +9,7 @@ from pathlib import Path
 from typing import Any
 
 from .models import RunPlan, RunStatus, RunStatusState
+from .schemas import SchemaRegistry
 from .storage import ArtifactRef, LocalObjectStore
 
 
@@ -23,9 +24,10 @@ class LedgerPaths:
 
 
 class Ledger:
-    def __init__(self, store: LocalObjectStore, prefix: str) -> None:
+    def __init__(self, store: LocalObjectStore, prefix: str, schemas: SchemaRegistry | None = None) -> None:
         self.store = store
         self.prefix = prefix.rstrip("/")
+        self.schemas = schemas
 
     def _paths(self, run_id: str) -> LedgerPaths:
         return LedgerPaths(
@@ -39,6 +41,7 @@ class Ledger:
 
     def anchor_run(self, run_id: str, record_event: dict[str, Any]) -> tuple[ArtifactRef, ArtifactRef]:
         paths = self._paths(run_id)
+        self._validate_record(record_event)
         self._append_record(paths, record_event)
         status = RunStatus(
             run_id=run_id,
@@ -46,6 +49,7 @@ class Ledger:
             updated_at_utc=datetime.now(tz=timezone.utc),
             record_ref=paths.run_record,
         )
+        self._validate_payload("run_status.schema.yaml", status.model_dump())
         status_ref = self.store.write_json(paths.run_status, status.model_dump())
         return ArtifactRef(path=paths.run_record), status_ref
 
@@ -56,6 +60,8 @@ class Ledger:
             if existing != plan.model_dump():
                 raise RuntimeError("PLAN_DRIFT")
             return ArtifactRef(path=paths.run_plan)
+        self._validate_payload("run_plan.schema.yaml", plan.model_dump())
+        self._validate_record(record_event)
         self.store.write_json(paths.run_plan, plan.model_dump())
         self._append_record(paths, record_event)
         self._update_status(
@@ -72,10 +78,12 @@ class Ledger:
             if existing != facts_view:
                 raise RuntimeError("FACTS_VIEW_DRIFT")
             return ArtifactRef(path=paths.run_facts_view)
+        self._validate_payload("run_facts_view.schema.yaml", facts_view)
         return self.store.write_json(paths.run_facts_view, facts_view)
 
     def commit_ready(self, run_id: str, record_event: dict[str, Any]) -> ArtifactRef:
         paths = self._paths(run_id)
+        self._validate_record(record_event)
         self._update_status(
             run_id,
             RunStatusState.READY,
@@ -87,6 +95,7 @@ class Ledger:
 
     def mark_executing(self, run_id: str, record_event: dict[str, Any]) -> ArtifactRef:
         paths = self._paths(run_id)
+        self._validate_record(record_event)
         self._update_status(run_id, RunStatusState.EXECUTING, record_ref=paths.run_record)
         self._append_record(paths, record_event)
         return ArtifactRef(path=paths.run_status)
@@ -95,23 +104,27 @@ class Ledger:
         if state not in (RunStatusState.FAILED, RunStatusState.QUARANTINED):
             raise ValueError("terminal state must be FAILED or QUARANTINED")
         paths = self._paths(run_id)
+        self._validate_record(record_event)
         self._update_status(run_id, state, reason_code=reason, record_ref=paths.run_record)
         self._append_record(paths, record_event)
         return ArtifactRef(path=paths.run_status)
 
     def commit_waiting(self, run_id: str, record_event: dict[str, Any]) -> ArtifactRef:
         paths = self._paths(run_id)
+        self._validate_record(record_event)
         self._update_status(run_id, RunStatusState.WAITING_EVIDENCE, record_ref=paths.run_record)
         self._append_record(paths, record_event)
         return ArtifactRef(path=paths.run_status)
 
     def append_record(self, run_id: str, record_event: dict[str, Any]) -> ArtifactRef:
         paths = self._paths(run_id)
+        self._validate_record(record_event)
         self._append_record(paths, record_event)
         return ArtifactRef(path=paths.run_record)
 
     def write_ready_signal(self, run_id: str, payload: dict[str, Any]) -> ArtifactRef:
         paths = self._paths(run_id)
+        self._validate_payload("run_ready_signal.schema.yaml", payload)
         return self.store.write_json(paths.ready_signal, payload)
 
     def read_status(self, run_id: str) -> RunStatus | None:
@@ -158,6 +171,7 @@ class Ledger:
             record_ref=record_ref,
             facts_view_ref=facts_view_ref or (current.facts_view_ref if current else None),
         )
+        self._validate_payload("run_status.schema.yaml", status.model_dump())
         self.store.write_json(paths.run_status, status.model_dump())
 
     def _allowed_transition(self, current: RunStatusState, next_state: RunStatusState) -> bool:
@@ -171,3 +185,11 @@ class Ledger:
             RunStatusState.QUARANTINED: {RunStatusState.QUARANTINED},
         }
         return next_state in allowed.get(current, set())
+
+    def _validate_payload(self, schema_name: str, payload: dict[str, Any]) -> None:
+        if self.schemas is None:
+            return
+        self.schemas.validate(schema_name, payload)
+
+    def _validate_record(self, record_event: dict[str, Any]) -> None:
+        self._validate_payload("run_record.schema.yaml", record_event)

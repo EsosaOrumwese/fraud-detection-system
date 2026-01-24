@@ -1,0 +1,122 @@
+$schema: https://json-schema.org/draft/2020-12/schema
+$id: run_facts_view.schema.yaml
+title: Scenario Runner RunFactsView
+type: object
+additionalProperties: false
+required:
+  - run_id
+  - pins
+  - locators
+  - gate_receipts
+  - policy_rev
+  - bundle_hash
+  - plan_ref
+  - record_ref
+  - status_ref
+properties:
+  run_id:
+    $ref: "#/$defs/hex32"
+  pins:
+    type: object
+    additionalProperties: false
+    required: [manifest_fingerprint, parameter_hash, seed, scenario_id, run_id]
+    properties:
+      manifest_fingerprint:
+        $ref: "#/$defs/hex64"
+      parameter_hash:
+        $ref: "#/$defs/hex64"
+      seed:
+        $ref: "#/$defs/uint64"
+      scenario_id:
+        type: string
+        minLength: 1
+      run_id:
+        $ref: "#/$defs/hex32"
+  locators:
+    type: array
+    items:
+      type: object
+      additionalProperties: false
+      required: [output_id, path]
+      properties:
+        output_id:
+          type: string
+          minLength: 1
+        path:
+          type: string
+          minLength: 1
+        manifest_fingerprint:
+          $ref: "#/$defs/hex64"
+        parameter_hash:
+          $ref: "#/$defs/hex64"
+        seed:
+          $ref: "#/$defs/uint64"
+        scenario_id:
+          type: string
+          minLength: 1
+        run_id:
+          $ref: "#/$defs/hex32"
+        content_digest:
+          $ref: "#/$defs/hex64"
+  output_roles:
+    type: object
+    additionalProperties:
+      type: string
+  intended_outputs:
+    type: array
+    items:
+      type: string
+      minLength: 1
+  gate_receipts:
+    type: array
+    items:
+      type: object
+      additionalProperties: false
+      required: [gate_id, status, scope, receipt_ref]
+      properties:
+        gate_id:
+          type: string
+          minLength: 1
+        status:
+          type: string
+          enum: [PASS, FAIL]
+        scope:
+          type: object
+          additionalProperties: true
+        receipt_ref:
+          type: string
+          minLength: 1
+        digest:
+          $ref: "#/$defs/hex64"
+  policy_rev:
+    type: object
+    additionalProperties: false
+    required: [policy_id, revision, content_digest]
+    properties:
+      policy_id:
+        type: string
+      revision:
+        type: string
+      content_digest:
+        $ref: "#/$defs/hex64"
+  bundle_hash:
+    $ref: "#/$defs/hex64"
+  plan_ref:
+    type: string
+    minLength: 1
+  record_ref:
+    type: string
+    minLength: 1
+  status_ref:
+    type: string
+    minLength: 1
+$defs:
+  hex32:
+    type: string
+    pattern: "^[0-9a-f]{32}$"
+  hex64:
+    type: string
+    pattern: "^[0-9a-f]{64}$"
+  uint64:
+    type: integer
+    minimum: 0

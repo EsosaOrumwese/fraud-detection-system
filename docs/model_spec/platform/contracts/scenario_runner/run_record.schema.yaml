@@ -1,0 +1,35 @@
+$schema: https://json-schema.org/draft/2020-12/schema
+$id: run_record.schema.yaml
+title: Scenario Runner RunRecordEvent
+type: object
+additionalProperties: false
+required:
+  - event_id
+  - event_kind
+  - run_id
+  - ts_utc
+  - details
+properties:
+  event_id:
+    $ref: "#/$defs/hex64"
+  event_kind:
+    type: string
+    minLength: 1
+  run_id:
+    $ref: "#/$defs/hex32"
+  ts_utc:
+    type: string
+    format: date-time
+  details:
+    type: object
+    additionalProperties: true
+  policy_rev:
+    type: object
+    additionalProperties: true
+$defs:
+  hex32:
+    type: string
+    pattern: "^[0-9a-f]{32}$"
+  hex64:
+    type: string
+    pattern: "^[0-9a-f]{64}$"

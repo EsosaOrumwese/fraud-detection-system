@@ -247,3 +247,26 @@ SR must:
 Proceed to **Phase 1: Contracts + Truth Surfaces** (schemas + validation wiring), then Phase 2 (durable idempotency/lease store).
 
 ---
+## Entry: 2026-01-23 22:14:40 — Phase 1: SR contracts + validation wiring
+
+### Change summary
+- Added SR JSON Schemas under `docs/model_spec/platform/contracts/scenario_runner/`:
+  - run_request.schema.yaml
+  - run_plan.schema.yaml
+  - run_record.schema.yaml
+  - run_status.schema.yaml
+  - run_facts_view.schema.yaml
+  - run_ready_signal.schema.yaml
+- Implemented SchemaRegistry with Draft 2020-12 validation and wired it into SR:
+  - RunRequest validated at ingress.
+  - run_plan/run_record/run_status/run_facts_view/run_ready_signal validated at commit time.
+- Wiring profile now carries `schema_root` for SR validation.
+
+### Design intent alignment
+- Contracts now explicitly define SR truth surfaces and the READY signal, reducing drift risk.
+- Validation is fail‑closed: schema violations prevent commits/publish.
+
+### Notes
+- Schemas live under docs/model_spec/platform/contracts (not root `contracts/` which is locked); this is intentional to keep authority local to platform specs until the contracts root is unlocked.
+
+---

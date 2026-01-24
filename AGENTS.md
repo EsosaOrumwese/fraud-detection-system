@@ -33,7 +33,8 @@ Read these in order before modifying code so you share the project context:
    - `docs\model_spec\platform\narrative\narrative_learning_and_evolution.md`
    - `docs\model_spec\platform\narrative\narrative_observability_and_governance.md`
 5. Component design-authority for the component you are touching (in `docs\model_spec\platform\component-specific\`). [Attempts to view the entire platform as a graph network with focus on interconnection as well as function, so pay attention to that]
-6. Implementation decisions taken so far: `docs\model_spec\platform\implementation_maps\component_{COMP}.impl_actual.md` 
+6. Implementation decisions taken so far: `docs\model_spec\platform\implementation_maps\component_{COMP}.impl_actual.md`
+7. Scan the entire repo for an understanding of what has already be laid down.
 7. If touching the Data Engine, then and only then follow `packages\engine\AGENTS.md` [USER has to explicitly state this].
 
 _Note: while the platform narratives are merely conceptual, the other docs in `platform-wide` and `component-specific` are not. However, that doesn't mean they're rigid or binding specifications. They mere attempt to paint the kind of design that will be needed. You (AGENT) as the implementer and design are free to design and implement based on the design intent (and this may not have been fully capture in those "design authority" docs)_

@@ -1,0 +1,62 @@
+$schema: https://json-schema.org/draft/2020-12/schema
+$id: run_plan.schema.yaml
+title: Scenario Runner RunPlan
+type: object
+additionalProperties: false
+required:
+  - run_id
+  - plan_hash
+  - policy_rev
+  - strategy
+  - intended_outputs
+  - required_gates
+  - evidence_deadline_utc
+  - attempt_limit
+  - created_at_utc
+properties:
+  run_id:
+    $ref: "#/$defs/hex32"
+  plan_hash:
+    $ref: "#/$defs/hex64"
+  policy_rev:
+    type: object
+    additionalProperties: false
+    required: [policy_id, revision, content_digest]
+    properties:
+      policy_id:
+        type: string
+        minLength: 1
+      revision:
+        type: string
+        minLength: 1
+      content_digest:
+        $ref: "#/$defs/hex64"
+  strategy:
+    type: string
+    enum: [AUTO, FORCE_INVOKE, FORCE_REUSE]
+  intended_outputs:
+    type: array
+    items:
+      type: string
+      minLength: 1
+  required_gates:
+    type: array
+    items:
+      type: string
+      minLength: 1
+  evidence_deadline_utc:
+    type: string
+    format: date-time
+  attempt_limit:
+    type: integer
+    minimum: 1
+  created_at_utc:
+    type: string
+    format: date-time
+$defs:
+  hex32:
+    type: string
+    pattern: "^[0-9a-f]{32}$"
+  hex64:
+    type: string
+    pattern: "^[0-9a-f]{64}$"

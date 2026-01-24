@@ -15,6 +15,7 @@ class WiringProfile(BaseModel):
     control_bus_root: str
     engine_catalogue_path: str
     gate_map_path: str
+    schema_root: str
 
 
 class PolicyProfile(BaseModel):

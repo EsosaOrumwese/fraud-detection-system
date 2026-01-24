@@ -1,0 +1,27 @@
+$schema: https://json-schema.org/draft/2020-12/schema
+$id: run_ready_signal.schema.yaml
+title: Scenario Runner RunReadySignal
+type: object
+additionalProperties: false
+required:
+  - run_id
+  - facts_view_ref
+  - bundle_hash
+properties:
+  run_id:
+    $ref: "#/$defs/hex32"
+  facts_view_ref:
+    type: string
+    minLength: 1
+  bundle_hash:
+    $ref: "#/$defs/hex64"
+  emitted_at_utc:
+    type: string
+    format: date-time
+$defs:
+  hex32:
+    type: string
+    pattern: "^[0-9a-f]{32}$"
+  hex64:
+    type: string
+    pattern: "^[0-9a-f]{64}$"
