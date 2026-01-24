@@ -51,7 +51,10 @@ class ScenarioRunner:
         self.lease_manager = LeaseManager(Path(wiring.object_store_root) / "fraud-platform/sr/index/leases")
 
     def submit_run(self, request: RunRequest) -> RunResponse:
-        self.schemas.validate("run_request.schema.yaml", request.model_dump())
+        self.schemas.validate(
+            "run_request.schema.yaml",
+            request.model_dump(mode="json", exclude_none=True),
+        )
         canonical = self._canonicalize(request)
         intent_fingerprint = self._intent_fingerprint(canonical)
         run_id, first_seen = self.equiv_registry.resolve(canonical.run_equivalence_key, intent_fingerprint)

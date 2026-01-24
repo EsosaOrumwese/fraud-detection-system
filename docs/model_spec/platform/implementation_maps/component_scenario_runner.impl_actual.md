@@ -270,3 +270,61 @@ Proceed to **Phase 1: Contracts + Truth Surfaces** (schemas + validation wiring)
 - Schemas live under docs/model_spec/platform/contracts (not root `contracts/` which is locked); this is intentional to keep authority local to platform specs until the contracts root is unlocked.
 
 ---
+## Entry: 2026-01-24 04:41:45 — Phase 1 sanity check (schema validation mismatch)
+
+### What I checked
+Ran a quick end-to-end SR sanity flow with local wiring/policy:
+- Instantiated ScenarioRunner with `config/platform/sr/wiring_local.yaml` + `policy_v0.yaml`.
+- Submitted a minimal RunRequest (single output, local engine_run_root).
+- Expected WAITING due to missing outputs.
+
+### Finding
+`ScenarioRunner.submit_run()` currently fails at schema validation because it validates `request.model_dump()` (Python objects) against the JSON Schema, which expects JSON-compatible types and omits null fields.
+
+Observed failures:
+- `window_start_utc` / `window_end_utc` are datetime objects (schema expects RFC3339 strings).
+- Optional fields with `None` are still present (schema disallows nulls).
+- `scenario.scenario_set=None` causes a `oneOf` conflict (both scenario_id and scenario_set present).
+- `requested_strategy=None` fails enum constraint; `output_ids=None` fails array constraint.
+
+### Implication
+Phase 1 validation wiring exists, but ingress validation is not yet operational for Pydantic inputs without a JSON-mode dump. This is a correctness bug that should be fixed before Phase 2.
+
+### Recommended fix (next action before Phase 2)
+In `ScenarioRunner.submit_run`, validate a JSON-safe payload:
+- `request.model_dump(mode="json", exclude_none=True)` (or equivalent)
+This will:
+  - Serialize datetimes to strings,
+  - Remove `None` fields,
+  - Avoid scenario_set/oneOf conflicts when only scenario_id is set,
+  - Align with schema requirements.
+
+---
+## Entry: 2026-01-24 04:44:09 — Fix ingress schema validation (JSON-safe dump)
+
+### Change
+Updated SR ingress schema validation to validate a JSON-safe payload:
+- `ScenarioRunner.submit_run` now validates `request.model_dump(mode="json", exclude_none=True)`.
+
+### Reasoning
+JSON Schema expects JSON types and disallows nulls for optional fields. Pydantic model_dump (default) emits Python datetimes and includes `None` fields, causing schema validation to fail even for valid requests.
+
+### Expected outcome
+Ingress validation now accepts valid RunRequest inputs and fails only on true schema violations, restoring Phase 1 correctness.
+
+---
+## Entry: 2026-01-24 04:45:48 — Fix ledger schema validation + JSON persistence
+
+### Change
+Converted RunPlan/RunStatus payloads to JSON-safe dumps in the ledger:
+- `anchor_run` uses `status.model_dump(mode="json", exclude_none=True)`
+- `commit_plan` uses `plan.model_dump(mode="json", exclude_none=True)` for compare/validate/write
+- `_update_status` uses JSON-safe dump before validate/write
+
+### Reasoning
+RunPlan and RunStatus include datetimes and optional fields; JSON Schema expects RFC3339 strings and omits nulls. The JSON writer also fails on raw datetime objects, so dumps must be JSON-compatible.
+
+### Sanity check
+Re-ran a local submit flow after the fix; schema validation passed. The response returned “lease held by another runner,” indicating a stale local lease from a prior failed attempt (expected in local dev, can be cleaned).
+
+---

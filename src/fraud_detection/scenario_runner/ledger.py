@@ -49,20 +49,22 @@ class Ledger:
             updated_at_utc=datetime.now(tz=timezone.utc),
             record_ref=paths.run_record,
         )
-        self._validate_payload("run_status.schema.yaml", status.model_dump())
-        status_ref = self.store.write_json(paths.run_status, status.model_dump())
+        status_payload = status.model_dump(mode="json", exclude_none=True)
+        self._validate_payload("run_status.schema.yaml", status_payload)
+        status_ref = self.store.write_json(paths.run_status, status_payload)
         return ArtifactRef(path=paths.run_record), status_ref
 
     def commit_plan(self, plan: RunPlan, record_event: dict[str, Any]) -> ArtifactRef:
         paths = self._paths(plan.run_id)
+        plan_payload = plan.model_dump(mode="json", exclude_none=True)
         if self.store.exists(paths.run_plan):
             existing = self.store.read_json(paths.run_plan)
-            if existing != plan.model_dump():
+            if existing != plan_payload:
                 raise RuntimeError("PLAN_DRIFT")
             return ArtifactRef(path=paths.run_plan)
-        self._validate_payload("run_plan.schema.yaml", plan.model_dump())
+        self._validate_payload("run_plan.schema.yaml", plan_payload)
         self._validate_record(record_event)
-        self.store.write_json(paths.run_plan, plan.model_dump())
+        self.store.write_json(paths.run_plan, plan_payload)
         self._append_record(paths, record_event)
         self._update_status(
             plan.run_id,
@@ -171,8 +173,9 @@ class Ledger:
             record_ref=record_ref,
             facts_view_ref=facts_view_ref or (current.facts_view_ref if current else None),
         )
-        self._validate_payload("run_status.schema.yaml", status.model_dump())
-        self.store.write_json(paths.run_status, status.model_dump())
+        status_payload = status.model_dump(mode="json", exclude_none=True)
+        self._validate_payload("run_status.schema.yaml", status_payload)
+        self.store.write_json(paths.run_status, status_payload)
 
     def _allowed_transition(self, current: RunStatusState, next_state: RunStatusState) -> bool:
         allowed = {
