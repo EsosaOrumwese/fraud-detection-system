@@ -66,7 +66,7 @@ gates:
   input_set_authority: index.json
   receipt_schema_ref: schemas.2A.yaml#/validation/passed_flag
   verification_method:
-    kind: sha256_bundle_digest
+    kind: sha256_index_json_ascii_lex_raw_bytes
     digest_field: sha256_hex
     ordering: ascii_lex
     exclude_filenames:
@@ -95,9 +95,10 @@ gates:
   input_set_authority: index.json
   receipt_schema_ref: schemas.1B.yaml#/validation/passed_flag
   verification_method:
-    kind: sha256_bundle_digest
+    kind: sha256_index_json_ascii_lex_raw_bytes
     digest_field: sha256_hex
     ordering: ascii_lex
+    path_base: run_root
     exclude_filenames:
     - _passed.flag
   authorizes_outputs:
@@ -162,7 +163,7 @@ gates:
   input_set_authority: index.json
   receipt_schema_ref: schemas.layer1.yaml#/validation/passed_flag_3B
   verification_method:
-    kind: sha256_bundle_digest
+    kind: sha256_index_json_ascii_lex_raw_bytes
     digest_field: sha256_hex
     ordering: ascii_lex
     exclude_filenames:
@@ -202,7 +203,7 @@ gates:
   input_set_authority: validation_bundle_index_5A.json
   receipt_schema_ref: schemas.layer2.yaml#/validation/passed_flag_5A
   verification_method:
-    kind: sha256_bundle_digest
+    kind: sha256_index_json_ascii_lex_raw_bytes
     digest_field: bundle_digest_sha256
     ordering: ascii_lex
     exclude_filenames:
@@ -243,7 +244,7 @@ gates:
   input_set_authority: index.json
   receipt_schema_ref: schemas.layer2.yaml#/validation/passed_flag_5B
   verification_method:
-    kind: sha256_bundle_digest
+    kind: sha256_index_json_ascii_lex_raw_bytes
     digest_field: bundle_digest_sha256
     ordering: ascii_lex
     exclude_filenames:
@@ -284,9 +285,9 @@ gates:
   input_set_authority: validation_bundle_index_6A.json
   receipt_schema_ref: schemas.layer3.yaml#/validation/6A/passed_flag_6A
   verification_method:
-    kind: sha256_bundle_digest
+    kind: sha256_index_json_ascii_lex_raw_bytes
     digest_field: sha256_hex
-    ordering: ascii_lex
+    ordering: index_order
     exclude_filenames:
     - _passed.flag
   authorizes_outputs:

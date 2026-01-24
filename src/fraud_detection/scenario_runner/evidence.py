@@ -113,6 +113,7 @@ class GateVerifier:
         digest_field = method.get("digest_field")
         ordering = method.get("ordering", "ascii_lex")
         exclude = set(method.get("exclude_filenames", []) or [])
+        path_base = method.get("path_base", "bundle_root")
 
         if "{" in passed_flag or "}" in passed_flag:
             return GateVerificationResult(receipt=None, missing=True, conflict=False)
@@ -142,7 +143,8 @@ class GateVerifier:
             index_full = self.engine_root / index_path
             if not index_full.exists():
                 return GateVerificationResult(receipt=None, missing=True, conflict=False)
-            actual = self._digest_index_raw_bytes(index_full, bundle_path, ordering, exclude)
+            base_root = bundle_path if path_base == "bundle_root" else self.engine_root
+            actual = self._digest_index_raw_bytes(index_full, base_root, ordering, exclude)
             if actual is None:
                 return GateVerificationResult(receipt=None, missing=True, conflict=False)
         else:
@@ -216,16 +218,30 @@ class GateVerifier:
     def _digest_index_raw_bytes(
         self,
         index_path: Path,
-        bundle_root: Path,
+        base_root: Path,
         ordering: str,
         exclude: set[str],
     ) -> str | None:
         data = json.loads(index_path.read_text(encoding="utf-8"))
-        items = data.get("items") or data.get("members") or []
+        items: list[dict[str, Any]]
+        if isinstance(data, list):
+            items = data
+        elif isinstance(data, dict):
+            items = (
+                data.get("items")
+                or data.get("members")
+                or data.get("entries")
+                or data.get("files")
+                or []
+            )
+        else:
+            items = []
         paths: list[str] = []
         for item in items:
             path = item.get("path")
-            if not path or path in exclude:
+            if not path:
+                continue
+            if path in exclude or Path(path).name in exclude:
                 continue
             paths.append(path)
         if ordering == "ascii_lex":
@@ -233,7 +249,7 @@ class GateVerifier:
         digest = hashlib.sha256()
         for rel in paths:
             candidate = Path(rel)
-            full_path = candidate if candidate.is_absolute() else bundle_root / candidate
+            full_path = candidate if candidate.is_absolute() else base_root / candidate
             if not full_path.exists():
                 return None
             digest.update(full_path.read_bytes())

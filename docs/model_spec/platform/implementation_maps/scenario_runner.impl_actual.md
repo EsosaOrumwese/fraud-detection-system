@@ -1542,3 +1542,104 @@ I’ve added INFO‑level narrative logs across the SR run flow and wired defaul
 
 ### Why this helps “noob” operators
 The SR flow is now visible without digging into artefacts. It mirrors the engine’s run log style at a higher level: milestones, counts, and decisions instead of silent execution.
+
+---
+
+### Entry: 2026-01-24 15:57:01 — Gate hashing laws alignment (2A/2B/3B/5A/5B/6A)
+
+Context + problem framing:
+- SR HashGate verification currently uses `sha256_bundle_digest` for several upstream gates (2A/2B/3B/5A/5B/6A), which hashes the full bundle directory. Engine docs indicate these gates compute `_passed.flag` from **index-defined evidence sets**, not a raw directory hash. This mismatch risks false FAILs or false PASSes if the bundle root contains index.json or non-indexed files.
+- We must treat the engine as a black box and derive the HashGate law from engine implementation notes or state-expanded specs. The interface pack should reflect those laws, and SR verification must implement them exactly.
+
+Primary authorities to consult (in order):
+- `docs/model_spec/data-engine/implementation_maps/segment_2A.impl_actual.md`
+- `docs/model_spec/data-engine/implementation_maps/segment_2B.impl_actual.md`
+- `docs/model_spec/data-engine/implementation_maps/segment_3B.impl_actual.md`
+- `docs/model_spec/data-engine/implementation_maps/segment_5A.impl_actual.md`
+- `docs/model_spec/data-engine/implementation_maps/segment_5B.impl_actual.md`
+- `docs/model_spec/data-engine/implementation_maps/segment_6A.impl_actual.md`
+- If any hashing law is ambiguous, fall back to the state-expanded validation spec for that segment (S5 for 5B/6A, S5 for 3B, etc.).
+
+Findings (from impl_actual/spec, summarized for use in SR):
+- 2A: `_passed.flag` = SHA256 over raw bytes of files listed in `index.json` (index order, which is ASCII-lex by contract); `_passed.flag` and `index.json` are **excluded** from the index/digest.
+- 2B: `_passed.flag` = SHA256 over raw bytes of files listed in `index.json`, sorted ASCII-lex by path; **index paths are run-root-relative** (index-only bundle) → digest must be computed from run-root base, not bundle root.
+- 3B: `_passed.flag` = SHA256 over raw bytes of evidence files in ASCII-lex `path` order as listed in `validation_bundle_index_3B` (explicitly *not* the 3A index-only hex concat law).
+- 5A: `_passed.flag` JSON contains `bundle_digest_sha256` computed from raw bytes of files listed in `validation_bundle_index_5A` (entries list) in ASCII-lex `path` order.
+- 5B: `_passed.flag` JSON contains `bundle_digest_sha256` computed from raw bytes of files listed in `index.json` (entries list) sorted by `path` (state-expanded §6.7).
+- 6A: `_passed.flag` (text) uses bundle digest computed from raw bytes of files listed in `validation_bundle_index_6A` (items list) in deterministic path order.
+
+Decision (why + what):
+- **Update interface pack HashGate verification_method** for 2A/2B/3B/5A/5B/6A to use an explicit **index-driven raw-bytes digest** method rather than bundle-root hashing. This aligns SR verification with the engine’s bundle laws and avoids false negatives/positives.
+- **Extend SR GateVerifier** to:
+  - Parse index formats across segments (`files`, `entries`, `items`, `members`, and top-level list).
+  - Allow index-path resolution relative to **bundle root** (default) or **run root** (required for 2B).
+  - Honor ASCII-lex ordering and exclusion rules.
+
+Alternatives considered:
+1) Keep `sha256_bundle_digest` and tweak exclude list → rejected because digest law is index-based, not directory-based; also fails for 2B index-only bundles.
+2) Require SR to revalidate per-file `sha256_hex` vs index and compute digest from that list → unnecessary duplication; HashGate only needs the bundle digest law and does not mandate re-hashing per entry.
+3) Skip digest recomputation and trust `_passed.flag` → rejected; violates “no-PASS-no-read” evidence verification and SR’s audit posture.
+
+Implementation plan (stepwise, before coding):
+1) Record hashing law evidence in this entry (done) and add logbook note with timestamp.
+2) Update `docs/model_spec/data-engine/interface_pack/engine_gates.map.yaml`:
+   - 2A/2B/3B/5A/5B/6A `verification_method.kind` → `sha256_index_json_ascii_lex_raw_bytes`.
+   - Add `path_base: run_root` for 2B; use default bundle_root for others.
+   - Ensure `exclude_filenames` includes `_passed.flag` and `index.json` where appropriate.
+3) Extend `src/fraud_detection/scenario_runner/evidence.py`:
+   - `_digest_index_raw_bytes(...)` to handle index list variants (`files`, `entries`, `items`, `members`, or top-level list).
+   - Add support for `path_base` (bundle_root vs run_root) and avoid silently ignoring missing files.
+4) Run SR tests that cover gate verification and evidence integration; add/adjust tests if needed for 2B index-only base.
+5) Log all actions + outcomes in `docs/logbook` with local time.
+
+Invariants to enforce:
+- Digest law must be deterministic and must follow the index ordering contract (ASCII-lex by path).
+- `_passed.flag` must be excluded from digest input; `index.json` should not be included unless the index schema explicitly includes it (current segments exclude it).
+- Any missing index entry file should produce a FAIL (conflict) rather than a PASS; missing bundle/flag should surface as MISSING.
+
+Security posture:
+- No credentials in plans/logs; only reference file paths and public artifacts.
+
+Validation plan:
+- Re-run SR gate verification tests on a known local run root (local_full_run-5) and ensure the HashGate PASS/FAIL matches engine artifacts.
+- If 2B gate verification fails, confirm index paths are run-root-relative and digest computation uses `run_root / path`.
+
+---
+
+### Entry: 2026-01-24 16:00:28 — Implemented index-driven HashGate verification
+
+What changed:
+- Updated `docs/model_spec/data-engine/interface_pack/engine_gates.map.yaml` to use `sha256_index_json_ascii_lex_raw_bytes` for HashGate verification on 2A/2B/3B/5A/5B/6A (aligning SR with engine bundle laws). Added `path_base: run_root` for 2B to honor its run-root-relative index paths.
+- Extended SR GateVerifier (`src/fraud_detection/scenario_runner/evidence.py`) to parse index formats across segments (`files`, `entries`, `items`, `members`, or top-level list) and to resolve index paths relative to bundle root or run root depending on the gate’s `path_base`.
+- Added exclude-by-basename handling so `_passed.flag` is reliably skipped if it ever appears in index entries.
+
+Reasoning check:
+- The engine’s bundle law uses index-defined evidence sets; hashing the bundle root directory is insufficient and inconsistent with 2A/2B/3B/5A/5B/6A emission logic. This change puts SR in strict agreement with engine contracts while keeping the engine as a black box.
+
+Files touched:
+- `docs/model_spec/data-engine/interface_pack/engine_gates.map.yaml`
+- `src/fraud_detection/scenario_runner/evidence.py`
+
+Next validation steps:
+- Re-run SR gate verification tests on local_full_run-5 to confirm 2B’s run-root base works and that 3B/5A/5B/6A gate digests match their `_passed.flag` values.
+
+---
+
+### Entry: 2026-01-24 16:07:47 — HashGate alignment fixes + tests
+
+Corrections applied:
+- Restored `gate.layer1.1A.validation` and `gate.layer1.1B.validation` to their original `sha256_bundle_digest` method after an unintended edit while updating the gate map.
+- Updated `gate.layer1.2B.validation` and `gate.layer1.3B.validation` in the interface pack to the index-driven digest method (as intended).
+- Adjusted `gate.layer3.6A.validation` ordering to `index_order` after confirming that the current engine output writes `validation_bundle_index_6A.items` in non-ASCII order while computing `_passed.flag` from that exact order.
+
+Design intent / rationale:
+- 6A spec calls for ASCII-lex ordering, but the **actual engine output** is not sorted and `_passed.flag` matches index order. For SR to verify real engine artifacts (black-box posture), we must follow the observed contract until the engine output is corrected. Documenting this mismatch here so it is explicit.
+
+Test coverage added:
+- Added gate-verifier tests for 2A/2B/3B/5A/5B/6A to cover each index shape (`files`, list, `members`, `entries`, `items`) and the 2B run-root base path.
+
+Test results:
+- `python -m pytest tests/services/scenario_runner/test_gate_verifier.py -q` (venv) → **8 passed**.
+
+Open follow-up:
+- Consider filing an engine-side note to sort `validation_bundle_index_6A.items` by path to align with the stated spec; until then, SR uses `index_order` to match real outputs.

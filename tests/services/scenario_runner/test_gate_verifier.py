@@ -25,3 +25,57 @@ def test_gate_verify_3a_pass() -> None:
     result = verifier.verify("gate.layer1.3A.validation", {"manifest_fingerprint": MANIFEST})
     assert result.receipt is not None
     assert result.receipt.status == GateStatus.PASS
+
+
+@pytest.mark.skipif(not RUN_ROOT.exists(), reason="local_full_run-5 not available")
+def test_gate_verify_2a_pass() -> None:
+    gate_map = GateMap(GATE_MAP)
+    verifier = GateVerifier(RUN_ROOT, gate_map)
+    result = verifier.verify("gate.layer1.2A.validation", {"manifest_fingerprint": MANIFEST})
+    assert result.receipt is not None
+    assert result.receipt.status == GateStatus.PASS
+
+
+@pytest.mark.skipif(not RUN_ROOT.exists(), reason="local_full_run-5 not available")
+def test_gate_verify_2b_pass() -> None:
+    gate_map = GateMap(GATE_MAP)
+    verifier = GateVerifier(RUN_ROOT, gate_map)
+    result = verifier.verify("gate.layer1.2B.validation", {"manifest_fingerprint": MANIFEST})
+    assert result.receipt is not None
+    assert result.receipt.status == GateStatus.PASS
+
+
+@pytest.mark.skipif(not RUN_ROOT.exists(), reason="local_full_run-5 not available")
+def test_gate_verify_3b_pass() -> None:
+    gate_map = GateMap(GATE_MAP)
+    verifier = GateVerifier(RUN_ROOT, gate_map)
+    result = verifier.verify("gate.layer1.3B.validation", {"manifest_fingerprint": MANIFEST})
+    assert result.receipt is not None
+    assert result.receipt.status == GateStatus.PASS
+
+
+@pytest.mark.skipif(not RUN_ROOT.exists(), reason="local_full_run-5 not available")
+def test_gate_verify_5a_pass() -> None:
+    gate_map = GateMap(GATE_MAP)
+    verifier = GateVerifier(RUN_ROOT, gate_map)
+    result = verifier.verify("gate.layer2.5A.validation", {"manifest_fingerprint": MANIFEST})
+    assert result.receipt is not None
+    assert result.receipt.status == GateStatus.PASS
+
+
+@pytest.mark.skipif(not RUN_ROOT.exists(), reason="local_full_run-5 not available")
+def test_gate_verify_5b_pass() -> None:
+    gate_map = GateMap(GATE_MAP)
+    verifier = GateVerifier(RUN_ROOT, gate_map)
+    result = verifier.verify("gate.layer2.5B.validation", {"manifest_fingerprint": MANIFEST})
+    assert result.receipt is not None
+    assert result.receipt.status == GateStatus.PASS
+
+
+@pytest.mark.skipif(not RUN_ROOT.exists(), reason="local_full_run-5 not available")
+def test_gate_verify_6a_pass() -> None:
+    gate_map = GateMap(GATE_MAP)
+    verifier = GateVerifier(RUN_ROOT, gate_map)
+    result = verifier.verify("gate.layer3.6A.validation", {"manifest_fingerprint": MANIFEST})
+    assert result.receipt is not None
+    assert result.receipt.status == GateStatus.PASS
