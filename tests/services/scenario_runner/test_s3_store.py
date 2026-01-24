@@ -8,6 +8,8 @@ from botocore.exceptions import ClientError
 
 from fraud_detection.scenario_runner.storage import S3ObjectStore, build_object_store
 
+pytestmark = pytest.mark.parity
+
 
 def test_s3_append_conflict_raises() -> None:
     store = S3ObjectStore("bucket", "prefix")

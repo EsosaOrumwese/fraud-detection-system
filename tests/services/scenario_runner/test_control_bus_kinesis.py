@@ -8,6 +8,8 @@ import pytest
 
 from fraud_detection.scenario_runner.bus import KinesisControlBus
 
+pytestmark = pytest.mark.localstack
+
 
 def _env(name: str) -> str | None:
     value = os.getenv(name)

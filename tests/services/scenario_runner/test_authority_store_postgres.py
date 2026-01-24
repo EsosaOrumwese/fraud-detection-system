@@ -7,6 +7,8 @@ import pytest
 
 from fraud_detection.scenario_runner.authority import build_authority_store
 
+pytestmark = pytest.mark.parity
+
 
 def test_postgres_authority_store_smoke() -> None:
     dsn = os.getenv("SR_TEST_PG_DSN")

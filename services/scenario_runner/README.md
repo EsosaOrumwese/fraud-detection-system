@@ -46,3 +46,14 @@ LocalStack Kinesis test (end-to-end):
    - `$env:AWS_SECRET_ACCESS_KEY="test"`
 3) Run the Kinesis adapter test:
    - `& .\\.venv\\Scripts\\python.exe -m pytest tests/services/scenario_runner/test_control_bus_kinesis.py -q`
+
+Test tiers (Phase 8):
+- Tier 0 (default, fast): unit + fast integration (no external services).
+  - `python -m pytest tests/services/scenario_runner -m "not parity and not localstack and not engine_fixture" -q`
+- Tier 1 (parity: MinIO + Postgres): requires `SR_TEST_S3_BUCKET` + `SR_TEST_PG_DSN`.
+  - Optional: `SR_TEST_S3_ENDPOINT_URL`, `SR_TEST_S3_REGION`, `SR_TEST_S3_PATH_STYLE`.
+  - `python -m pytest tests/services/scenario_runner -m "parity" -q`
+- Tier 2 (LocalStack Kinesis): requires the env vars above for LocalStack.
+  - `python -m pytest tests/services/scenario_runner -m "localstack" -q`
+- Tier 3 (engine fixtures): requires `runs/local_full_run-*` artifacts.
+  - `python -m pytest tests/services/scenario_runner -m "engine_fixture" -q`

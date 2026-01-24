@@ -2968,3 +2968,65 @@ Action taken:
 No credentials were added or recorded during this change.
 
 ---
+
+## Entry: 2026-01-24 20:57:20 — Phase 8 implementation start (tests + CI gates)
+
+I am starting Phase 8 implementation now. This entry captures the concrete steps I will take before making code changes.
+
+### Implementation steps (ordered)
+1) **Define test tiers with markers** in pytest configuration (unit/parity/localstack/engine_fixture) and apply markers to existing SR tests that require external services or fixtures.
+2) **Add contract compatibility tests** that validate interface_pack integrity (catalogue ↔ gate map references, schema refs, dictionary refs, upstream gate references). This is a read-only check to fail fast on contract drift.
+3) **Add parity integration test** for SR reuse flow using MinIO + Postgres (env‑gated), to prove the full SR pipeline is correct under production‑like storage semantics.
+4) **Update SR runbooks** with explicit tiered test commands and env var requirements (no secrets).
+5) **Log test results** in the logbook once executed.
+
+### Design intent for these changes
+- Keep engine as a black box (no engine code changes).
+- Fail closed on missing or incompatible contracts.
+- Separate fast PR‑gating tests from heavier parity/LocalStack/fixture tiers.
+- Ensure all integration tests are opt‑in (env‑gated) to avoid CI flakiness.
+
+---
+
+## Entry: 2026-01-24 21:01:10 — Phase 8 implementation detail: test markers + contract checks + parity reuse
+
+I implemented the first Phase 8 steps now, with emphasis on **tiered tests** and **contract drift protection**.
+
+### 1) Test tier markers (pytest.ini + SR tests)
+I added explicit pytest markers so CI can gate fast vs heavy tiers:
+- `unit` (fast, no external deps)
+- `parity` (MinIO + Postgres)
+- `localstack` (Kinesis)
+- `engine_fixture` (real engine artifacts under `runs/`)
+
+I **only marked tests that require external resources** to preserve fast Tier‑0 coverage:
+- `test_s3_store.py` + `test_authority_store_postgres.py` → `parity`
+- `test_control_bus_kinesis.py` → `localstack`
+- `test_gate_verifier.py` → `engine_fixture`
+- `test_gate_verification_integration.py` and `test_evidence_negative_integration.py`:
+  - only the real‑fixture tests are marked `engine_fixture`
+  - the synthetic gate verification test remains Tier‑0
+
+This keeps the default SR test subset fast while still letting us opt into deeper tiers.
+
+### 2) Interface‑pack contract compatibility tests (fail‑closed)
+I added `test_contract_compatibility.py` to validate interface_pack integrity:
+- Catalogue ↔ gate map consistency (no dangling gate/output IDs).
+- Gates must authorize at least one output.
+- Upstream gate dependencies must exist.
+- `schema_ref` / `dictionary_ref` / `index_schema_ref` / `receipt_schema_ref` resolve to real files and JSON pointers.
+
+This test is read‑only, fast, and fails closed if contracts drift.
+
+### 3) Parity reuse integration test (MinIO + Postgres)
+I added `test_parity_integration.py` to prove SR reuse under parity storage:
+- Uses MinIO (S3‑compatible) + Postgres via env‑gated DSNs.
+- Uses real engine artifacts from `runs/local_full_run-5`.
+- Runs a full SR reuse pipeline and asserts READY commit with S3‑backed truth.
+
+This is Tier‑1 + Tier‑3 combined (`parity` + `engine_fixture`) and opt‑in by env vars.
+
+### 4) Runbook updates (no secrets)
+I documented tiered test commands and required env var names in `services/scenario_runner/README.md` without embedding any credentials.
+
+---

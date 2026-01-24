@@ -88,6 +88,7 @@ def test_gate_verification_with_real_map(tmp_path: Path) -> None:
 RUN_ROOT = Path("runs/local_full_run-5/c25a2675fbfbacd952b13bb594880e92")
 
 
+@pytest.mark.engine_fixture
 @pytest.mark.skipif(not RUN_ROOT.exists(), reason="local_full_run-5 not available")
 def test_sr_reuse_with_real_engine_run(tmp_path: Path) -> None:
     run_root = RUN_ROOT

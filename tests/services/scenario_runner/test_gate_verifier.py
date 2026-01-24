@@ -3,6 +3,8 @@ import pytest
 
 from fraud_detection.scenario_runner.evidence import GateMap, GateVerifier, GateStatus
 
+pytestmark = pytest.mark.engine_fixture
+
 RUN_ROOT = pathlib.Path(r"c:\Users\LEGION\Documents\Data Science\Python & R Scripts\fraud-detection-system\runs\local_full_run-5\c25a2675fbfbacd952b13bb594880e92")
 MANIFEST = "c8fd43cd60ce0ede0c63d2ceb4610f167c9b107e1d59b9b8c7d7b8d0028b05c8"
 
