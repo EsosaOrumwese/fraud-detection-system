@@ -10,11 +10,13 @@ from flask import Flask, jsonify, request
 
 from .config import load_policy, load_wiring
 from .engine import LocalEngineInvoker
+from .logging_utils import configure_logging
 from .models import RunRequest
 from .runner import ScenarioRunner
 
 
 def create_app(wiring_path: str, policy_path: str) -> Flask:
+    configure_logging()
     wiring = load_wiring(Path(wiring_path))
     policy = load_policy(Path(policy_path))
     invoker = LocalEngineInvoker()

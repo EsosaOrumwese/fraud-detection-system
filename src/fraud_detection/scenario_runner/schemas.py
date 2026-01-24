@@ -35,12 +35,17 @@ class SchemaRegistry:
     def validate(self, name: str, payload: dict[str, Any]) -> None:
         schema = self.load(name)
         base_uri = self._paths[name].as_uri()
+        schema_for_validation = schema
+        schema_id = schema.get("$id")
+        if schema_id and not urlparse(schema_id).scheme:
+            schema_for_validation = dict(schema)
+            schema_for_validation["$id"] = base_uri
         registry = Registry(retrieve=self._retrieve_resource)
         registry = registry.with_resource(
             base_uri,
-            Resource.from_contents(schema, default_specification=DRAFT202012),
+            Resource.from_contents(schema_for_validation, default_specification=DRAFT202012),
         )
-        validator = Draft202012Validator(schema, registry=registry)
+        validator = Draft202012Validator(schema_for_validation, registry=registry)
         errors = sorted(validator.iter_errors(payload), key=lambda e: e.path)
         if errors:
             messages = "; ".join(error.message for error in errors)
@@ -63,6 +68,8 @@ class SchemaRegistry:
         if path_str.startswith("/") and len(path_str) > 2 and path_str[2] == ":":
             path_str = path_str.lstrip("/")
         path = Path(path_str)
+        if not path.is_absolute():
+            path = (self.root / path).resolve()
         if not path.exists():
             parts = list(path.parts)
             if "interface_pack" in parts:

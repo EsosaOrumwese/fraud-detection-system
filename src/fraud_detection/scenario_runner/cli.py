@@ -8,6 +8,7 @@ from pathlib import Path
 
 from .config import load_policy, load_wiring
 from .engine import LocalEngineInvoker
+from .logging_utils import configure_logging
 from .models import RunRequest, RunWindow, ScenarioBinding
 from .runner import ScenarioRunner
 
@@ -30,6 +31,7 @@ def parse_args() -> argparse.Namespace:
 
 
 def main() -> None:
+    configure_logging()
     args = parse_args()
     wiring = load_wiring(Path(args.wiring))
     policy = load_policy(Path(args.policy))

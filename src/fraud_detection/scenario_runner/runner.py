@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import hashlib
+import logging
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any
@@ -43,6 +44,7 @@ class ScenarioRunner:
         policy: PolicyProfile,
         engine_invoker: EngineInvoker,
     ) -> None:
+        self.logger = logging.getLogger(__name__)
         self.wiring = wiring
         self.policy = policy
         self.engine_invoker = engine_invoker
@@ -69,6 +71,14 @@ class ScenarioRunner:
         self.lease_manager = LeaseManager(authority_store)
 
     def submit_run(self, request: RunRequest) -> RunResponse:
+        requested_outputs = request.output_ids or []
+        output_label = "policy_default" if request.output_ids is None else str(len(requested_outputs))
+        self.logger.info(
+            "SR: submit request received (run_equivalence_key=%s, requested_outputs=%s, engine_root=%s)",
+            request.run_equivalence_key,
+            output_label,
+            request.engine_run_root,
+        )
         self.schemas.validate(
             "run_request.schema.yaml",
             request.model_dump(mode="json", exclude_none=True),
@@ -76,9 +86,15 @@ class ScenarioRunner:
         canonical = self._canonicalize(request)
         intent_fingerprint = self._intent_fingerprint(canonical)
         run_id, first_seen = self.equiv_registry.resolve(canonical.run_equivalence_key, intent_fingerprint)
+        self.logger.info(
+            "SR: run_id resolved (run_id=%s, first_seen=%s)",
+            run_id,
+            first_seen,
+        )
 
         leader, lease_token = self.lease_manager.acquire(run_id, owner_id="sr-local")
         if not leader:
+            self.logger.info("SR: lease held by another runner (run_id=%s)", run_id)
             status = self.ledger.read_status(run_id)
             return RunResponse(
                 run_id=run_id,
@@ -91,13 +107,28 @@ class ScenarioRunner:
 
         run_handle = RunHandle(run_id=run_id, intent_fingerprint=intent_fingerprint, leader=True, lease_token=lease_token)
         self._anchor_run(run_handle)
+        self.logger.info("SR: run anchored (run_id=%s)", run_id)
 
         plan = self._compile_plan(canonical, run_id)
         self._commit_plan(run_handle, plan)
+        self.logger.info(
+            "SR: plan committed (run_id=%s, outputs=%d, required_gates=%d, strategy=%s)",
+            run_id,
+            len(plan.intended_outputs),
+            len(plan.required_gates),
+            plan.strategy.value,
+        )
 
         strategy = plan.strategy
         if strategy in (Strategy.AUTO, Strategy.FORCE_REUSE):
+            self.logger.info("SR: attempting evidence reuse (run_id=%s)", run_id)
             reuse_result = self._reuse_evidence(canonical, plan)
+            self.logger.info(
+                "SR: reuse evidence result (run_id=%s, status=%s, reason=%s)",
+                run_id,
+                reuse_result.status.value,
+                reuse_result.reason,
+            )
             if reuse_result.status == EvidenceStatus.COMPLETE:
                 return self._commit_ready(run_handle, canonical, plan, reuse_result)
             if reuse_result.status == EvidenceStatus.WAITING:
@@ -108,7 +139,14 @@ class ScenarioRunner:
                 return self._response_from_status(run_id, "Reuse evidence failed.")
 
         # Invoke engine path (IP1)
+        self.logger.info("SR: invoking engine (run_id=%s)", run_id)
         attempt_result = self._invoke_engine(run_handle, canonical)
+        self.logger.info(
+            "SR: engine attempt finished (run_id=%s, outcome=%s, reason=%s)",
+            run_id,
+            attempt_result.outcome,
+            attempt_result.reason_code,
+        )
         if attempt_result.outcome != "SUCCEEDED":
             failure_bundle = EvidenceBundle(
                 status=EvidenceStatus.FAIL,
@@ -120,6 +158,12 @@ class ScenarioRunner:
             return self._response_from_status(run_id, "Engine attempt failed.")
 
         evidence = self._collect_evidence(canonical, plan, attempt_result)
+        self.logger.info(
+            "SR: evidence collection complete (run_id=%s, status=%s, reason=%s)",
+            run_id,
+            evidence.status.value,
+            evidence.reason,
+        )
         if evidence.status == EvidenceStatus.COMPLETE:
             return self._commit_ready(run_handle, canonical, plan, evidence)
         if evidence.status == EvidenceStatus.WAITING:
@@ -255,9 +299,17 @@ class ScenarioRunner:
         if engine_root is None or not engine_root.exists():
             return EvidenceBundle(status=EvidenceStatus.FAIL, locators=[], gate_receipts=[], reason="ENGINE_ROOT_MISSING")
 
+        self.logger.info(
+            "SR: collecting evidence (run_id=%s, outputs=%d, required_gates=%d)",
+            plan.run_id,
+            len(plan.intended_outputs),
+            len(plan.required_gates),
+        )
+
         locators: list[EngineOutputLocator] = []
         locator_by_output: dict[str, EngineOutputLocator] = {}
         missing_outputs: list[str] = []
+        optional_missing: list[str] = []
         for output_id in plan.intended_outputs:
             entry = self.catalogue.get(output_id)
             output_path = self._render_template(entry.path_template, intent, plan.run_id)
@@ -267,10 +319,14 @@ class ScenarioRunner:
                 if not matches:
                     if entry.availability != "optional":
                         missing_outputs.append(output_id)
+                    else:
+                        optional_missing.append(output_id)
                     continue
             elif not full_path.exists():
                 if entry.availability != "optional":
                     missing_outputs.append(output_id)
+                else:
+                    optional_missing.append(output_id)
                 continue
             content_digest = self._compute_output_digest(full_path)
             pins = self._locator_pins(entry, intent, plan.run_id)
@@ -291,10 +347,18 @@ class ScenarioRunner:
                 )
             locators.append(locator)
             locator_by_output[output_id] = locator
+        self.logger.info(
+            "SR: locator scan complete (present=%d, missing_required=%d, missing_optional=%d)",
+            len(locators),
+            len(missing_outputs),
+            len(optional_missing),
+        )
 
         gate_verifier = GateVerifier(engine_root, self.gate_map)
         gate_receipts: list[GateReceipt] = []
         missing_gates: list[str] = []
+        failed_gates: list[str] = []
+        conflict_gates: list[str] = []
         conflict = False
         for gate_id in plan.required_gates:
             tokens = self._gate_tokens_for_scope(gate_id, intent, plan.run_id)
@@ -304,6 +368,7 @@ class ScenarioRunner:
                 continue
             if result.conflict:
                 conflict = True
+                conflict_gates.append(gate_id)
             if result.receipt:
                 try:
                     self.engine_schemas.validate("gate_receipt.schema.yaml", receipt_to_wire(result.receipt))
@@ -315,6 +380,16 @@ class ScenarioRunner:
                         reason="RECEIPT_SCHEMA_INVALID",
                     )
                 gate_receipts.append(result.receipt)
+                if result.receipt.status == GateStatus.FAIL:
+                    failed_gates.append(gate_id)
+
+        self.logger.info(
+            "SR: gate verification summary (passed=%d, failed=%d, missing=%d, conflicts=%d)",
+            len(gate_receipts) - len(failed_gates),
+            len(failed_gates),
+            len(missing_gates),
+            len(conflict_gates),
+        )
 
         if conflict:
             return EvidenceBundle(status=EvidenceStatus.CONFLICT, locators=locators, gate_receipts=gate_receipts, reason="EVIDENCE_CONFLICT")
@@ -340,6 +415,11 @@ class ScenarioRunner:
                 instance_missing.append(f"instance_proof:{output_id}")
                 continue
             instance_receipts.append(receipt_payload)
+        if instance_receipts:
+            self.logger.info(
+                "SR: instance receipts emitted (count=%d)",
+                len(instance_receipts),
+            )
 
         now = datetime.now(tz=timezone.utc)
         if missing_outputs or missing_gates or instance_missing:
@@ -413,6 +493,7 @@ class ScenarioRunner:
         self.ledger.commit_facts_view(plan.run_id, facts_view)
         event = self._event("READY_COMMITTED", plan.run_id, {"bundle_hash": bundle.bundle_hash})
         self.ledger.commit_ready(plan.run_id, event)
+        self.logger.info("SR: READY committed (run_id=%s)", plan.run_id)
         ready_payload = {
             "run_id": plan.run_id,
             "facts_view_ref": f"fraud-platform/sr/run_facts_view/{plan.run_id}.json",
@@ -426,6 +507,7 @@ class ScenarioRunner:
         self._ensure_lease(run_handle)
         event = self._event("EVIDENCE_WAITING", run_handle.run_id, {"missing": bundle.missing})
         self.ledger.commit_waiting(run_handle.run_id, event)
+        self.logger.info("SR: evidence waiting (run_id=%s, missing=%s)", run_handle.run_id, bundle.missing)
 
     def _commit_terminal(self, run_handle: RunHandle, bundle: EvidenceBundle) -> None:
         self._ensure_lease(run_handle)
@@ -433,6 +515,12 @@ class ScenarioRunner:
         event_kind = "EVIDENCE_CONFLICT" if bundle.status == EvidenceStatus.CONFLICT else "EVIDENCE_FAIL"
         event = self._event(event_kind, run_handle.run_id, {"reason": bundle.reason, "missing": bundle.missing})
         self.ledger.commit_terminal(run_handle.run_id, state, bundle.reason or "FAIL", event)
+        self.logger.info(
+            "SR: terminal commit (run_id=%s, state=%s, reason=%s)",
+            run_handle.run_id,
+            state.value,
+            bundle.reason,
+        )
 
     def _response_from_status(self, run_id: str, message: str) -> RunResponse:
         status = self.ledger.read_status(run_id)

@@ -1354,3 +1354,191 @@ I replaced `jsonschema.RefResolver` with the `referencing` registry to eliminate
 
 ### Test result
 - `pytest tests/services/scenario_runner/test_gate_verifier.py` → 2 passed, no deprecation warnings.
+
+---
+
+## Entry: 2026-01-24 15:32:40 — Phase 3 hardening plan (parity integration + negative evidence cases)
+
+I’m proceeding with Phase 3 hardening. I’m writing this **before** coding and will keep appending as decisions are made.
+
+### What remains open (Phase 3 DoD gaps)
+1) **Full SR reuse integration test** against real engine artefacts (not synthetic).
+   - This must exercise: output locators + gate verification + instance‑proof receipts + READY commit.
+2) **Negative evidence cases** against real artefacts (missing gate or output) to assert WAITING/FAIL behavior.
+
+### My approach (senior MLOps posture)
+- Treat the engine artefacts under `runs/local_full_run-5` as **immutable truth**.
+- Avoid modifying engine artefacts; tests must be non‑destructive (use a temp copy or selectively remove via temp dir).
+- Use `Strategy.FORCE_REUSE` so SR only validates evidence (no engine invocation).
+
+### Planned design for tests
+**A) Full SR parity reuse test (positive):**
+- Build a RunRequest pointing at `runs/local_full_run-5/...` as `engine_run_root`.
+- Use the real `engine_outputs.catalogue.yaml` + `engine_gates.map.yaml` from interface_pack.
+- Assert:
+  - response message is READY
+  - run_facts_view exists
+  - gate_receipts length > 0
+  - instance_receipts length > 0 (SR verifier receipts emitted)
+
+**B) Negative evidence test (gate missing):**
+- Copy only the minimal 6B validation bundle to a temp engine_root and delete `_passed.flag`.
+- Force SR reuse with that engine_root.
+- Expect WAITING (if within evidence_deadline) or FAIL if we set evidence_wait_seconds=0.
+- Use policy override in test to keep this deterministic.
+
+### Files I expect to touch
+- `tests/services/scenario_runner/test_gate_verification_integration.py` (add parity SR flow)
+- `tests/services/scenario_runner/test_instance_proof_bridge.py` or new test file for negative evidence case
+- `docs/model_spec/platform/implementation_maps/scenario_runner.build_plan.md` (Phase 3 DoD update)
+- Logbook + impl_actual append entries as I go
+
+---
+
+## Entry: 2026-01-24 15:33:24 — Phase 3 hardening: start building parity integration test
+
+I’m moving into the parity integration test now. I want to use the real run artefacts without mutating them, so the safest path is to **read them in place** for the positive test and **copy a minimal subset** for the negative case.
+
+### Evidence I need from local_full_run‑5
+- gate map + output catalogue from interface_pack
+- a stable engine_root that contains validation bundles + outputs for at least one segment (6B is the most complete)
+
+### Test shape (positive)
+- SR run request uses `engine_run_root = runs/local_full_run-5/<run_id>`
+- Strategy = FORCE_REUSE (SR doesn’t invoke engine)
+- Assert READY, non‑empty gate_receipts, and SR‑emitted instance_receipts
+
+I’m going to implement this by extending `test_gate_verification_integration.py` because it already wires SR with the real gate map/catalogue.
+
+---
+
+## Entry: 2026-01-24 15:37:52 — Phase 3 hardening: negative evidence test (missing gate flag)
+
+I implemented the negative evidence case using **real artefacts copied to a temp engine_root** so we don’t mutate the canonical run data.
+
+### What I actually built
+- New test: `tests/services/scenario_runner/test_evidence_negative_integration.py`.
+- It copies the **6B validation bundle** into a temp engine_root, then deletes `_passed.flag`.
+- It also copies a required output (`sealed_inputs_6B.json`) so the only failure is the missing gate flag.
+- Policy sets `evidence_wait_seconds=0` to make the outcome deterministic (`EVIDENCE_MISSING_DEADLINE`).
+
+### Why this is the right negative case
+- Missing `_passed.flag` is the cleanest “no‑PASS‑no‑read” failure and aligns with gate semantics.
+- We keep outputs present so we’re testing gate enforcement, not output discovery.
+- The test is non‑destructive because it operates on a temp copy.
+
+### Expected outcome
+- SR returns “Reuse evidence failed.”
+- run_status = FAILED
+- reason_code = EVIDENCE_MISSING_DEADLINE
+
+---
+
+## Entry: 2026-01-24 15:42:18 — Phase 3 parity test adjustment (gate conflicts in local_full_run‑5)
+
+I tried to use `s3_flow_anchor_with_fraud_6B` for the full reuse parity test, but SR quarantined the run due to **gate conflicts** across upstream segments. I validated this directly:
+
+- Required gates for 6B include 1A/1B/2A/2B/3A/3B/5A/5B/6A/6B.
+- Only 1A, 1B, 3A, 6B pass with the current artefacts.
+- 2A/2B/3B/5A/5B/6A fail under the gate hashing law in the interface pack.
+
+That means a “deep” 6B output won’t reach READY without also fixing the gate map for those segments (derived from their policies). That’s a larger scope than Phase 3 hardening right now.
+
+### Decision (short‑term, still valid for Phase 3 DoD)
+- Keep the parity reuse test **real** but target a **1A output** (`sealed_inputs_1A`) so the gate closure is just `gate.layer1.1A.validation`, which passes in local_full_run‑5.
+- This still exercises SR reuse flow, real gate verification, locator creation, facts_view commit, and READY emission using real artefacts.
+
+### Follow‑up (future hardening)
+- Derive gate hashing laws for 2A/2B/3B/5A/5B/6A from their segment policies, then re‑enable a deep 6B output for the parity test.
+
+---
+
+## Entry: 2026-01-24 15:40:00 — Phase 3 hardening: parity + negative tests executed
+
+I ran the new parity and negative evidence integration tests after adjusting the parity target to a 1A output.
+
+### Test runs
+- `pytest tests/services/scenario_runner/test_gate_verification_integration.py tests/services/scenario_runner/test_evidence_negative_integration.py`
+  - Result: **3 passed**
+
+### What this proves now
+- SR reuse flow can reach READY against **real artefacts** (1A output, real gate map, real engine root).
+- SR fails closed on **missing gate flag** with deterministic `EVIDENCE_MISSING_DEADLINE` when evidence_wait_seconds=0.
+- We have at least one positive + one negative parity case, both non‑destructive.
+
+### Remaining Phase 3 hardening gap (explicit)
+- Deep outputs (6B) still conflict because upstream gate hashing laws for 2A/2B/3B/5A/5B/6A are not yet derived into the interface pack.
+
+---
+
+## Entry: 2026-01-24 15:41:12 — Referencing resolver fix for relative $id
+
+During the new parity tests, schema validation failed with `Unresolvable: ../layer-1/...` even after switching to `referencing`. Root cause: engine interface pack schemas use **relative $id** values (e.g., `engine_output_locator.schema.yaml`), so the resolver base URI became relative and the registry could not resolve `../layer-1/...` refs unless we normalised the base.
+
+### Fix applied
+- When a schema has a relative `$id`, I override it **in-memory** with the file URI of the schema path for validation.
+- This keeps the schema files untouched while ensuring references resolve as file paths.
+- The interface_pack shim (strip `interface_pack/` on missing paths) still applies.
+
+### Result
+- Parity + negative tests now resolve refs correctly under `referencing`.
+
+---
+
+## Entry: 2026-01-24 15:48:12 — Narrative logging plan (SR runtime visibility)
+
+I’m adding narrative logging to SR so the console isn’t idle and a new user can follow what’s happening. This is **not** telemetry plumbing yet; it’s run‑flow narration at INFO level.
+
+### Why now
+- SR is doing correct work but is silent during reuse/verification flows, which is confusing for new operators.
+- Engine logs show the value of “always‑on narration” during long jobs; SR should do the same for control‑plane steps.
+
+### Logging strategy (non‑intrusive, safe)
+- Use Python’s stdlib `logging` (no new dependencies).
+- Add `configure_logging()` for CLI/service so INFO logs show by default.
+- In SR core, log **major flow milestones** and **summaries**, not every item.
+
+### Planned log points
+- Submit received (run_equivalence_key, requested outputs count, engine_root).
+- Run_id resolved + lease acquisition outcome.
+- Plan compiled (outputs count, required gates count, strategy).
+- Evidence collection start + output locator summary.
+- Gate verification summary (passed/failed/missing/conflicts).
+- Instance‑receipt emission summary.
+- Evidence result (COMPLETE/WAITING/FAIL/CONFLICT + reason).
+- Commit actions (READY/WAITING/FAILED/QUARANTINED).
+
+### Guardrails
+- No secrets or config values in logs (only IDs, counts, and statuses).
+- Keep logs human‑readable and friendly to “noob” readers.
+- Avoid high‑volume per‑row logs; summarise counts.
+
+### Files to touch
+- `src/fraud_detection/scenario_runner/runner.py`
+- `src/fraud_detection/scenario_runner/evidence.py` (if needed for gate summaries)
+- `src/fraud_detection/scenario_runner/cli.py`
+- `src/fraud_detection/scenario_runner/service.py`
+- `src/fraud_detection/scenario_runner/logging_utils.py` (new helper)
+
+---
+
+## Entry: 2026-01-24 15:55:06 — Narrative logging implemented (SR flow visibility)
+
+I’ve added INFO‑level narrative logs across the SR run flow and wired default logging in CLI/service so new users see activity in the console.
+
+### What I logged (human‑readable milestones)
+- Submit received (run_equivalence_key, requested outputs count, engine_root).
+- Run_id resolved + lease outcome.
+- Plan committed (outputs count, required gates count, strategy).
+- Evidence collection start + locator scan summary.
+- Gate verification summary (passed/failed/missing/conflicts).
+- Instance receipt emission summary.
+- Evidence outcome + commit actions (READY / WAITING / terminal).
+
+### Where it lives
+- `src/fraud_detection/scenario_runner/runner.py` (core narration)
+- `src/fraud_detection/scenario_runner/logging_utils.py` (configure_logging helper)
+- `src/fraud_detection/scenario_runner/cli.py` + `service.py` (enable INFO logs by default)
+
+### Why this helps “noob” operators
+The SR flow is now visible without digging into artefacts. It mirrors the engine’s run log style at a higher level: milestones, counts, and decisions instead of silent execution.
