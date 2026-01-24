@@ -3030,3 +3030,72 @@ This is Tier‑1 + Tier‑3 combined (`parity` + `engine_fixture`) and opt‑in 
 I documented tiered test commands and required env var names in `services/scenario_runner/README.md` without embedding any credentials.
 
 ---
+
+## Entry: 2026-01-24 21:05:10 — Phase 8 fix: pytestmark tuple error in parity test
+
+I attempted a Tier‑0 run and pytest failed during collection because `pytestmark` in the new parity test was set to a tuple of MarkDecorators. Pytest expects a single Mark or a list of Marks.
+
+Fix applied:
+- Updated `tests/services/scenario_runner/test_parity_integration.py` to use
+  `pytestmark = [pytest.mark.parity, pytest.mark.engine_fixture]`.
+
+This is a test‑collection fix only; it does not change runtime SR behavior.
+
+---
+
+## Entry: 2026-01-24 21:12:10 — Phase 8 fix: contract compatibility resolver paths
+
+Tier‑0 test run failed on `test_interface_pack_refs_resolve`. The issue was **my resolver assumed schema refs were repo‑root relative**, but the interface_pack uses **relative refs inside the interface_pack root** (e.g., `schemas.1A.yaml`).
+
+Fix applied:
+- Resolve refs relative to `docs/model_spec/data-engine/interface_pack` first, then fall back to repo root.
+- Accept fragment pointers without a leading slash (treat `#foo` as `#/foo`).
+- Marked the contract compatibility test as `unit` to keep it in Tier‑0.
+
+This aligns the resolver with the interface_pack contract style while keeping it strict on missing files and bad pointers.
+
+---
+
+## Entry: 2026-01-24 21:18:40 — Phase 8 fix: schema/dictionary ref resolution rules
+
+Tier‑0 still failed because interface_pack references use **schema file names without paths**
+(`schemas.1A.yaml`, `schemas.layer3.yaml`) and **dictionary refs that point to dataset IDs**
+instead of JSON‑Pointer paths. I updated the resolver to match the contract style:
+
+Fixes applied:
+- If a ref file is a bare filename, resolve it using the **segment context**:
+  - map segment → layer (1A/1B/2A/2B/3A/3B → layer‑1, 5A/5B → layer‑2, 6A/6B → layer‑3)
+  - prefer `docs/model_spec/data-engine/layer-{L}/specs/contracts/{segment}/{file}`
+  - fall back to searching within that layer’s contracts; error on ambiguity
+- If a dictionary_ref fragment is a bare token (e.g., `#outlet_catalogue`), treat it as
+  a dataset **id lookup** within the dictionary file rather than a JSON‑Pointer path.
+
+This aligns the check with how the engine specs and dictionaries are structured while
+remaining strict on missing or ambiguous refs.
+
+---
+
+## Entry: 2026-01-24 21:24:30 — Phase 8 fix: schema $id anchor resolution + cross-layer schema lookup
+
+Tier‑0 still failed for two reasons:
+1) Some schema refs point to **subschema anchors via `$id`**, not via strict JSON‑Pointer paths.
+2) Some outputs (e.g., 5B RNG logs) reference **schemas.layer1.yaml**, which lives under
+   layer‑1 contracts even though the owning segment is layer‑2.
+
+Fixes applied:
+- When JSON‑Pointer traversal fails, fall back to **$id scan** (match `$id == #{pointer}` or `$id == pointer`).
+- If segment‑layer lookup fails, allow a **global search across data‑engine contracts** for the schema filename.
+  This still errors on ambiguity.
+
+This makes the compatibility test faithful to how schemas are actually referenced in the specs.
+
+---
+
+## Entry: 2026-01-24 21:27:10 — Phase 8 validation: Tier‑0 tests green
+
+I reran Tier‑0 tests after the resolver fixes:
+`python -m pytest tests/services/scenario_runner -m "not parity and not localstack and not engine_fixture" -q`
+
+Result: **35 passed, 15 deselected**. Tier‑0 is now green.
+
+---

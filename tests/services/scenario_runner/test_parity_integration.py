@@ -13,7 +13,7 @@ from fraud_detection.scenario_runner.models import RunRequest, RunWindow, Scenar
 from fraud_detection.scenario_runner.runner import ScenarioRunner
 
 
-pytestmark = (pytest.mark.parity, pytest.mark.engine_fixture)
+pytestmark = [pytest.mark.parity, pytest.mark.engine_fixture]
 
 RUN_ROOT = Path("runs/local_full_run-5/c25a2675fbfbacd952b13bb594880e92")
 MANIFEST = "c8fd43cd60ce0ede0c63d2ceb4610f167c9b107e1d59b9b8c7d7b8d0028b05c8"

@@ -12,6 +12,8 @@ INTERFACE_ROOT = REPO_ROOT / "docs/model_spec/data-engine/interface_pack"
 CATALOGUE_PATH = INTERFACE_ROOT / "engine_outputs.catalogue.yaml"
 GATE_MAP_PATH = INTERFACE_ROOT / "engine_gates.map.yaml"
 
+pytestmark = pytest.mark.unit
+
 
 def _load_yaml(path: Path) -> dict[str, Any]:
     return yaml.safe_load(path.read_text(encoding="utf-8"))
@@ -24,36 +26,136 @@ def _split_ref(ref: str) -> tuple[str, str]:
     return file_part, pointer
 
 
+def _find_by_id(node: Any, target: str) -> Any | None:
+    if isinstance(node, dict):
+        if node.get("id") == target:
+            return node
+        for value in node.values():
+            found = _find_by_id(value, target)
+            if found is not None:
+                return found
+    elif isinstance(node, list):
+        for item in node:
+            found = _find_by_id(item, target)
+            if found is not None:
+                return found
+    return None
+
+
+def _find_by_schema_id(node: Any, target: str) -> Any | None:
+    if isinstance(node, dict):
+        schema_id = node.get("$id")
+        if schema_id in {target, f"#{target}"}:
+            return node
+        for value in node.values():
+            found = _find_by_schema_id(value, target)
+            if found is not None:
+                return found
+    elif isinstance(node, list):
+        for item in node:
+            found = _find_by_schema_id(item, target)
+            if found is not None:
+                return found
+    return None
+
+
 def _resolve_pointer(doc: Any, pointer: str) -> Any:
     if not pointer or pointer == "#":
         return doc
     if not pointer.startswith("/"):
-        raise AssertionError(f"Unsupported schema pointer: {pointer}")
-    node: Any = doc
-    for part in pointer.lstrip("/").split("/"):
-        part = part.replace("~1", "/").replace("~0", "~")
-        if isinstance(node, list):
-            try:
-                index = int(part)
-            except ValueError as exc:
-                raise AssertionError(f"Invalid list index in pointer: {pointer}") from exc
-            node = node[index]
-        elif isinstance(node, dict):
-            if part not in node:
-                raise AssertionError(f"Missing pointer segment '{part}' in {pointer}")
-            node = node[part]
-        else:
-            raise AssertionError(f"Pointer '{pointer}' traversed into non-container value")
-    return node
+        hit = _find_by_id(doc, pointer)
+        if hit is None:
+            hit = _find_by_schema_id(doc, pointer)
+        if hit is None:
+            raise AssertionError(f"Missing id '{pointer}' in document")
+        return hit
+    try:
+        node: Any = doc
+        for part in pointer.lstrip("/").split("/"):
+            part = part.replace("~1", "/").replace("~0", "~")
+            if isinstance(node, list):
+                try:
+                    index = int(part)
+                except ValueError as exc:
+                    raise AssertionError(f"Invalid list index in pointer: {pointer}") from exc
+                node = node[index]
+            elif isinstance(node, dict):
+                if part not in node:
+                    raise AssertionError(f"Missing pointer segment '{part}' in {pointer}")
+                node = node[part]
+            else:
+                raise AssertionError(f"Pointer '{pointer}' traversed into non-container value")
+        return node
+    except AssertionError as exc:
+        hit = _find_by_schema_id(doc, pointer)
+        if hit is not None:
+            return hit
+        raise exc
 
 
-def _resolve_ref(repo_root: Path, ref: str, cache: dict[Path, Any]) -> None:
+def _segment_layer(segment: str | None) -> str | None:
+    if not segment:
+        return None
+    prefix = segment.upper()[0]
+    if prefix in {"1", "2", "3"}:
+        return "1"
+    if prefix == "5":
+        return "2"
+    if prefix == "6":
+        return "3"
+    return None
+
+
+def _resolve_ref(
+    repo_root: Path,
+    interface_root: Path,
+    ref: str,
+    cache: dict[Path, Any],
+    segment: str | None = None,
+) -> None:
     file_part, pointer = _split_ref(ref)
     if not file_part:
         raise AssertionError(f"Schema ref missing file part: {ref}")
     path = Path(file_part)
     if not path.is_absolute():
-        path = (repo_root / file_part).resolve()
+        if file_part.startswith("docs/") or file_part.startswith("docs\\"):
+            candidates = [(repo_root / file_part).resolve()]
+        elif "/" in file_part or "\\" in file_part:
+            candidates = [
+                (interface_root / file_part).resolve(),
+                (repo_root / file_part).resolve(),
+            ]
+        else:
+            candidates = []
+            layer = _segment_layer(segment)
+            if layer:
+                layer_root = repo_root / f"docs/model_spec/data-engine/layer-{layer}/specs/contracts"
+                seg_path = layer_root / f"{segment}/{file_part}"
+                if seg_path.exists():
+                    candidates.append(seg_path.resolve())
+                else:
+                    matches = list(layer_root.rglob(file_part))
+                    if len(matches) == 1:
+                        candidates.append(matches[0].resolve())
+                    elif len(matches) > 1:
+                        seg_matches = [m for m in matches if segment and segment in m.parts]
+                        if len(seg_matches) == 1:
+                            candidates.append(seg_matches[0].resolve())
+                        else:
+                            raise AssertionError(f"Ambiguous ref file '{file_part}' ({len(matches)} matches)")
+                    elif len(matches) == 0:
+                        global_matches = list((repo_root / "docs/model_spec/data-engine").rglob(file_part))
+                        if len(global_matches) == 1:
+                            candidates.append(global_matches[0].resolve())
+                        elif len(global_matches) > 1:
+                            seg_matches = [m for m in global_matches if segment and segment in m.parts]
+                            if len(seg_matches) == 1:
+                                candidates.append(seg_matches[0].resolve())
+                            else:
+                                raise AssertionError(f"Ambiguous ref file '{file_part}' ({len(global_matches)} matches)")
+            candidates.append((interface_root / file_part).resolve())
+            candidates.append((repo_root / file_part).resolve())
+        path = next((candidate for candidate in candidates if candidate.exists()), candidates[0])
     if not path.exists():
         raise AssertionError(f"Ref file not found: {path}")
     data = cache.get(path)
@@ -141,7 +243,7 @@ def test_interface_pack_refs_resolve() -> None:
             if not ref:
                 continue
             try:
-                _resolve_ref(REPO_ROOT, ref, cache)
+                _resolve_ref(REPO_ROOT, INTERFACE_ROOT, ref, cache, segment=entry.get("owner_segment"))
             except AssertionError as exc:
                 errors.append(f"{entry.get('output_id')} {field}: {exc}")
 
@@ -151,7 +253,7 @@ def test_interface_pack_refs_resolve() -> None:
             if not ref:
                 continue
             try:
-                _resolve_ref(REPO_ROOT, ref, cache)
+                _resolve_ref(REPO_ROOT, INTERFACE_ROOT, ref, cache, segment=entry.get("segment"))
             except AssertionError as exc:
                 errors.append(f"{entry.get('gate_id')} {field}: {exc}")
 
