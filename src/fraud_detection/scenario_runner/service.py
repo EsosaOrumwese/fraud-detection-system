@@ -11,7 +11,7 @@ from flask import Flask, jsonify, request
 from .config import load_policy, load_wiring
 from .engine import LocalEngineInvoker, LocalSubprocessInvoker
 from .logging_utils import configure_logging
-from .models import RunRequest
+from .models import ReemitRequest, RunRequest
 from .runner import ScenarioRunner
 
 
@@ -36,6 +36,14 @@ def create_app(wiring_path: str, policy_path: str) -> Flask:
         payload = request.get_json(force=True)
         run_request = RunRequest(**payload)
         response = runner.submit_run(run_request)
+        return jsonify(response.model_dump())
+
+    @app.post("/runs/<run_id>/reemit")
+    def reemit_run(run_id: str) -> Any:
+        payload = request.get_json(force=True) or {}
+        payload["run_id"] = run_id
+        reemit_request = ReemitRequest(**payload)
+        response = runner.reemit(reemit_request)
         return jsonify(response.model_dump())
 
     return app

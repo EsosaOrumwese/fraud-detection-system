@@ -2172,3 +2172,89 @@ I’m starting Phase 5 planning now. This is a live reasoning note, not a retros
 - Log test results in logbook.
 
 ---
+
+## Entry: 2026-01-24 18:22:10 — Phase 5 implementation begins (control bus + re‑emit)
+
+I’m moving from planning into implementation now. I will append decisions as I touch each file.
+
+Immediate next actions (before code edits):
+1) Extend wiring to select a control‑bus adapter (file vs Kinesis) without embedding credentials.
+2) Define re‑emit contracts (request + terminal signal schemas) under SR contracts.
+3) Implement re‑emit flow in ScenarioRunner with ops micro‑lease, idempotency keys, and run_record audit events.
+4) Wire service + CLI entrypoints for re‑emit requests (keeping existing run submit intact).
+5) Add tests for re‑emit (READY + terminal) and idempotency key derivation.
+
+Guardrails:
+- Re‑emit must be read‑only against truth (no run_status/facts_view mutations).
+- Control‑bus failures must be recorded but never block truth commits.
+- No secrets/credentials in code or docs.
+
+---
+
+## Entry: 2026-01-24 18:33:40 — Phase 5 implementation (control bus + re‑emit)
+
+I implemented the first Phase 5 slice: control‑bus adapter selection, READY publish idempotency, and N7 re‑emit (ops replay). This entry documents the concrete decisions and mechanics as implemented.
+
+### What I changed (by concern)
+
+**1) Control bus abstraction + adapter selection**
+- Added wiring fields so SR can select a control‑bus adapter by config (default `file`).
+- Implemented a **KinesisControlBus** adapter that publishes an envelope to a configured stream using boto3, without embedding credentials (credentials are still external to code).
+- FileControlBus now writes a JSON envelope that includes `message_id`, `topic`, `attributes`, and `payload`, so local tests can validate message metadata deterministically.
+
+Files touched:
+- `src/fraud_detection/scenario_runner/config.py` (wiring fields)
+- `src/fraud_detection/scenario_runner/bus.py` (FileControlBus envelope + KinesisControlBus)
+- `src/fraud_detection/scenario_runner/runner.py` (adapter selection)
+
+**2) READY publish idempotency (N6)**
+- READY publish key is now deterministic by design: `sha256("ready|" + run_id + "|" + bundle_hash_or_plan_hash)`.
+- READY publish is wrapped in a failure‑tolerant guard so **publish failures don’t block truth commits**. Failures append a `READY_PUBLISH_FAILED` event; successes append `READY_PUBLISHED`.
+
+Files touched:
+- `src/fraud_detection/scenario_runner/runner.py`
+
+**3) Re‑emit operations (N7)**
+- Added SR‑level **ReemitRequest** and response models.
+- Implemented `ScenarioRunner.reemit()` with **ops micro‑lease**, read‑only truth access, deterministic re‑emit keys, and run_record audit events.
+- Re‑emit READY uses `run_ready_signal` schema and publishes with `sha256("ready|" + run_id + "|" + facts_view_hash)`.
+- Re‑emit TERMINAL publishes a new terminal control fact validated by `run_terminal_signal.schema.yaml` using key `sha256("terminal|" + run_id + "|" + status_state + "|" + status_hash)`.
+- No mutation of run_status/run_facts_view occurs during re‑emit (read‑only by design).
+
+Files touched:
+- `src/fraud_detection/scenario_runner/models.py` (ReemitKind/ReemitRequest/ReemitResponse)
+- `src/fraud_detection/scenario_runner/runner.py` (re‑emit flow)
+- `docs/model_spec/platform/contracts/scenario_runner/reemit_request.schema.yaml`
+- `docs/model_spec/platform/contracts/scenario_runner/run_terminal_signal.schema.yaml`
+- `docs/model_spec/platform/contracts/scenario_runner/README.md`
+- `src/fraud_detection/scenario_runner/cli.py` + `service.py` (re‑emit endpoint + CLI subcommand)
+
+### Why these decisions
+- **Re‑emit includes terminal facts** so ops can replay a terminal outcome without recomputation.
+- **File bus remains default for local** to keep tests deterministic; Kinesis adapter is present but not required for local parity.
+- **Envelope format** is used so metadata like message_id and reemit key can be validated locally without touching Kinesis.
+- **Failure posture**: publishing must never block truth commits or mutate run status.
+
+### Invariants enforced
+- Re‑emit is read‑only against SR truth; no run_status or facts_view mutation.
+- Idempotency keys are deterministic and stable across retries.
+- No secrets or credentials appear in code or docs.
+
+### Tests executed
+- `python -m pytest tests/services/scenario_runner/test_reemit.py -q` → 2 passed.
+- `python -m pytest tests/services/scenario_runner -q` → 31 passed, 2 skipped.
+
+---
+
+## Entry: 2026-01-24 18:37:10 — Re‑emit failure handling correction
+
+While validating Phase 5 re‑emit behavior, I noticed that a publish failure could be misreported as “not applicable” because the response logic didn’t distinguish **attempted‑but‑failed** from **not attempted**. I corrected this by tracking whether a READY/TERMINAL publish was attempted and only emitting `REEMIT_NOT_APPLICABLE` when no publish was attempted due to state/kind mismatch.
+
+Outcome:
+- Re‑emit now returns “Reemit failed.” when a publish was attempted and failed, while keeping the detailed `REEMIT_FAILED` audit event with the error.
+
+Tests re‑run:
+- `python -m pytest tests/services/scenario_runner/test_reemit.py -q` → 2 passed.
+- `python -m pytest tests/services/scenario_runner -q` → 31 passed, 2 skipped.
+
+---

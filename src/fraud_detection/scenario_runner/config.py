@@ -13,6 +13,10 @@ class WiringProfile(BaseModel):
     object_store_root: str
     control_bus_topic: str
     control_bus_root: str
+    control_bus_kind: str = "file"
+    control_bus_stream: str | None = None
+    control_bus_region: str | None = None
+    control_bus_endpoint_url: str | None = None
     engine_catalogue_path: str
     gate_map_path: str
     schema_root: str

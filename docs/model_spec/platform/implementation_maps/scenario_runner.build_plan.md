@@ -206,7 +206,7 @@ High‑level intent: real job runner adapter with attempt lifecycle, retries, an
 ## Phase 5 — Control bus + re‑emit operations
 High‑level intent: publish READY to a real bus with idempotent keys; implement re‑emit (N7).
 
-**Status:** IN PROGRESS (planning).
+**Status:** IN PROGRESS (implementation started).
 
 ### Section 5.1 — Control bus abstraction + real adapter
 **Goal:** make control‑bus publishing real (AWS Kinesis in prod) while keeping semantics identical across envs.

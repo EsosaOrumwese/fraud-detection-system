@@ -7,3 +7,6 @@ Compatibility notes:
 - `run_facts_view` may include optional `instance_receipts` for instance-scoped outputs.
   - SR emits **verifier receipts** into its own object store (black-box safe), under:
     `fraud-platform/sr/instance_receipts/output_id=<output_id>/<scope partitions>/instance_receipt.json`
+- Phase 5 additions:
+  - `reemit_request.schema.yaml` defines the ops re-emit contract.
+  - `run_terminal_signal.schema.yaml` defines terminal control signals for re-emit.

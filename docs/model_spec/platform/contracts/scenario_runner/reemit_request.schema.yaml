@@ -1,0 +1,29 @@
+$schema: https://json-schema.org/draft/2020-12/schema
+$id: reemit_request.schema.yaml
+title: Scenario Runner ReemitRequest
+type: object
+additionalProperties: false
+required:
+  - run_id
+  - reemit_kind
+properties:
+  run_id:
+    $ref: "#/$defs/hex32"
+  reemit_kind:
+    type: string
+    enum: [READY_ONLY, TERMINAL_ONLY, BOTH]
+  reason:
+    type: string
+    minLength: 1
+    maxLength: 2048
+  requested_by:
+    type: string
+    minLength: 1
+    maxLength: 256
+  requested_at_utc:
+    type: string
+    format: date-time
+$defs:
+  hex32:
+    type: string
+    pattern: "^[0-9a-f]{32}$"

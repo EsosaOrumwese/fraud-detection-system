@@ -126,3 +126,23 @@ class RunResponse(BaseModel):
     record_ref: Optional[str] = None
     facts_view_ref: Optional[str] = None
     message: Optional[str] = None
+
+
+class ReemitKind(str, Enum):
+    READY_ONLY = "READY_ONLY"
+    TERMINAL_ONLY = "TERMINAL_ONLY"
+    BOTH = "BOTH"
+
+
+class ReemitRequest(BaseModel):
+    run_id: str
+    reemit_kind: ReemitKind = ReemitKind.BOTH
+    reason: Optional[str] = None
+    requested_by: Optional[str] = None
+
+
+class ReemitResponse(BaseModel):
+    run_id: str
+    status_state: Optional[RunStatusState] = None
+    published: list[str] = Field(default_factory=list)
+    message: Optional[str] = None

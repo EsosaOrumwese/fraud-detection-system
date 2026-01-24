@@ -11,7 +11,7 @@ from pathlib import Path
 from typing import Any
 
 from .authority import EquivalenceRegistry, LeaseManager, RunHandle, build_authority_store
-from .bus import FileControlBus
+from .bus import FileControlBus, KinesisControlBus
 from .catalogue import OutputCatalogue, OutputEntry
 from .config import PolicyProfile, WiringProfile
 from .evidence import (
@@ -33,7 +33,17 @@ from .evidence import (
 from .engine import EngineInvoker, EngineAttemptResult
 from .ids import attempt_id_for, hash_payload, run_id_from_equivalence_key, scenario_set_to_id
 from .ledger import Ledger
-from .models import CanonicalRunIntent, RunPlan, RunRequest, RunResponse, RunStatusState, Strategy
+from .models import (
+    CanonicalRunIntent,
+    ReemitKind,
+    ReemitRequest,
+    ReemitResponse,
+    RunPlan,
+    RunRequest,
+    RunResponse,
+    RunStatusState,
+    Strategy,
+)
 from .schemas import SchemaRegistry
 from .storage import build_object_store
 
@@ -58,7 +68,7 @@ class ScenarioRunner:
             s3_path_style=wiring.s3_path_style,
         )
         self.ledger = Ledger(self.store, prefix="fraud-platform/sr", schemas=self.schemas)
-        self.control_bus = FileControlBus(Path(wiring.control_bus_root))
+        self.control_bus = self._build_control_bus(wiring)
         self.catalogue = OutputCatalogue(Path(wiring.engine_catalogue_path))
         self.gate_map = GateMap(Path(wiring.gate_map_path))
         authority_dsn = wiring.authority_store_dsn
@@ -190,6 +200,154 @@ class ScenarioRunner:
             return self._response_from_status(run_id, "Evidence incomplete; waiting.")
         self._commit_terminal(run_handle, evidence)
         return self._response_from_status(run_id, "Evidence failed or conflicted.")
+
+    def reemit(self, request: ReemitRequest) -> ReemitResponse:
+        self.schemas.validate(
+            "reemit_request.schema.yaml",
+            request.model_dump(mode="json", exclude_none=True),
+        )
+        run_id = request.run_id
+        ops_lease_key = f"reemit:{run_id}:{request.reemit_kind.value}"
+        ops_lease = LeaseManager(self.lease_manager.store, ttl_seconds=60)
+        leader, lease_token = ops_lease.acquire(ops_lease_key, owner_id="sr-reemit")
+        if not leader:
+            return ReemitResponse(run_id=run_id, message="Reemit busy; another operator is active.")
+
+        status = self.ledger.read_status(run_id)
+        if status is None:
+            return ReemitResponse(run_id=run_id, message="Run not found.")
+
+        request_details = {
+            "reemit_kind": request.reemit_kind.value,
+            "reason": request.reason,
+            "requested_by": request.requested_by,
+        }
+        request_event = self._event(
+            "REEMIT_REQUESTED",
+            run_id,
+            {key: value for key, value in request_details.items() if value},
+        )
+        self.ledger.append_record(run_id, request_event)
+
+        published: list[str] = []
+        attempted = False
+        ready_allowed = request.reemit_kind in (ReemitKind.READY_ONLY, ReemitKind.BOTH)
+        terminal_allowed = request.reemit_kind in (ReemitKind.TERMINAL_ONLY, ReemitKind.BOTH)
+
+        if ready_allowed and status.state == RunStatusState.READY:
+            attempted = True
+            ready_key = self._reemit_ready(run_id, status)
+            if ready_key:
+                published.append(ready_key)
+        if terminal_allowed and status.state in (RunStatusState.FAILED, RunStatusState.QUARANTINED):
+            attempted = True
+            terminal_key = self._reemit_terminal(run_id, status)
+            if terminal_key:
+                published.append(terminal_key)
+
+        if not published:
+            if attempted:
+                return ReemitResponse(run_id=run_id, status_state=status.state, published=[], message="Reemit failed.")
+            reason = "REEMIT_NOT_APPLICABLE"
+            if status.state == RunStatusState.READY and terminal_allowed:
+                reason = "REEMIT_TERMINAL_ONLY_MISMATCH"
+            elif status.state in (RunStatusState.FAILED, RunStatusState.QUARANTINED) and ready_allowed:
+                reason = "REEMIT_READY_ONLY_MISMATCH"
+            failure_event = self._event("REEMIT_FAILED", run_id, {"reason": reason})
+            self.ledger.append_record(run_id, failure_event)
+            return ReemitResponse(run_id=run_id, status_state=status.state, published=[], message="Reemit not applicable.")
+
+        return ReemitResponse(run_id=run_id, status_state=status.state, published=published, message="Reemit published.")
+
+    def _build_control_bus(self, wiring: WiringProfile):
+        kind = (wiring.control_bus_kind or "file").lower()
+        if kind == "kinesis":
+            if not wiring.control_bus_stream:
+                raise RuntimeError("control_bus_stream required for kinesis")
+            return KinesisControlBus(
+                wiring.control_bus_stream,
+                region=wiring.control_bus_region,
+                endpoint_url=wiring.control_bus_endpoint_url,
+            )
+        if not wiring.control_bus_root:
+            raise RuntimeError("control_bus_root required for file bus")
+        return FileControlBus(Path(wiring.control_bus_root))
+
+    def _reemit_ready(self, run_id: str, status) -> str | None:
+        facts_view = self.ledger.read_facts_view(run_id)
+        if facts_view is None:
+            failure_event = self._event("REEMIT_FAILED", run_id, {"reason": "FACTS_VIEW_MISSING"})
+            self.ledger.append_record(run_id, failure_event)
+            return None
+        bundle_hash = facts_view.get("bundle_hash")
+        facts_view_hash = bundle_hash or self._hash_payload(facts_view)
+        reemit_key = hash_payload(f"ready|{run_id}|{facts_view_hash}")
+        ready_payload = {
+            "run_id": run_id,
+            "facts_view_ref": status.facts_view_ref or f"{self.ledger.prefix}/run_facts_view/{run_id}.json",
+            "bundle_hash": bundle_hash or facts_view_hash,
+            "emitted_at_utc": datetime.now(tz=timezone.utc).isoformat(),
+        }
+        self.schemas.validate("run_ready_signal.schema.yaml", ready_payload)
+        try:
+            self.control_bus.publish(
+                self.wiring.control_bus_topic,
+                ready_payload,
+                message_id=reemit_key,
+                attributes={"kind": "READY_REEMIT", "run_id": run_id},
+                partition_key=run_id,
+            )
+            publish_event = self._event("REEMIT_PUBLISHED", run_id, {"kind": "READY", "message_id": reemit_key})
+            self.ledger.append_record(run_id, publish_event)
+            self.logger.info("SR: re-emit READY published (run_id=%s, key=%s)", run_id, reemit_key)
+            return reemit_key
+        except Exception as exc:
+            error_text = str(exc)[:512]
+            failure_event = self._event(
+                "REEMIT_FAILED",
+                run_id,
+                {"kind": "READY", "message_id": reemit_key, "error": error_text},
+            )
+            self.ledger.append_record(run_id, failure_event)
+            self.logger.warning("SR: re-emit READY failed (run_id=%s, error=%s)", run_id, error_text)
+            return None
+
+    def _reemit_terminal(self, run_id: str, status) -> str | None:
+        status_payload = status.model_dump(mode="json", exclude_none=True)
+        status_hash = self._hash_payload(status_payload)
+        reemit_key = hash_payload(f"terminal|{run_id}|{status.state.value}|{status_hash}")
+        terminal_payload = {
+            "run_id": run_id,
+            "status_state": status.state.value,
+            "status_ref": f"{self.ledger.prefix}/run_status/{run_id}.json",
+            "record_ref": status.record_ref or f"{self.ledger.prefix}/run_record/{run_id}.jsonl",
+            "reason_code": status.reason_code,
+            "reemit_key": reemit_key,
+            "emitted_at_utc": datetime.now(tz=timezone.utc).isoformat(),
+        }
+        self.schemas.validate("run_terminal_signal.schema.yaml", terminal_payload)
+        try:
+            self.control_bus.publish(
+                self.wiring.control_bus_topic,
+                terminal_payload,
+                message_id=reemit_key,
+                attributes={"kind": "TERMINAL_REEMIT", "run_id": run_id, "state": status.state.value},
+                partition_key=run_id,
+            )
+            publish_event = self._event("REEMIT_PUBLISHED", run_id, {"kind": "TERMINAL", "message_id": reemit_key})
+            self.ledger.append_record(run_id, publish_event)
+            self.logger.info("SR: re-emit terminal published (run_id=%s, key=%s)", run_id, reemit_key)
+            return reemit_key
+        except Exception as exc:
+            error_text = str(exc)[:512]
+            failure_event = self._event(
+                "REEMIT_FAILED",
+                run_id,
+                {"kind": "TERMINAL", "message_id": reemit_key, "error": error_text},
+            )
+            self.ledger.append_record(run_id, failure_event)
+            self.logger.warning("SR: re-emit terminal failed (run_id=%s, error=%s)", run_id, error_text)
+            return None
 
     def _canonicalize(self, request: RunRequest) -> CanonicalRunIntent:
         scenario_id = request.scenario.scenario_id
@@ -684,9 +842,25 @@ class ScenarioRunner:
             "run_id": plan.run_id,
             "facts_view_ref": f"fraud-platform/sr/run_facts_view/{plan.run_id}.json",
             "bundle_hash": bundle.bundle_hash,
+            "emitted_at_utc": datetime.now(tz=timezone.utc).isoformat(),
         }
         self.ledger.write_ready_signal(plan.run_id, ready_payload)
-        self.control_bus.publish(self.wiring.control_bus_topic, ready_payload, message_id=bundle.bundle_hash or plan.plan_hash)
+        publish_key = self._ready_publish_key(plan.run_id, bundle.bundle_hash, plan.plan_hash)
+        try:
+            self.control_bus.publish(
+                self.wiring.control_bus_topic,
+                ready_payload,
+                message_id=publish_key,
+                attributes={"kind": "READY", "run_id": plan.run_id},
+                partition_key=plan.run_id,
+            )
+            publish_event = self._event("READY_PUBLISHED", plan.run_id, {"message_id": publish_key})
+            self.ledger.append_record(plan.run_id, publish_event)
+        except Exception as exc:
+            error_text = str(exc)[:512]
+            fail_event = self._event("READY_PUBLISH_FAILED", plan.run_id, {"message_id": publish_key, "error": error_text})
+            self.ledger.append_record(plan.run_id, fail_event)
+            self.logger.warning("SR: READY publish failed (run_id=%s, error=%s)", plan.run_id, error_text)
         return self._response_from_status(plan.run_id, "READY committed")
 
     def _commit_waiting(self, run_handle: RunHandle, bundle: EvidenceBundle) -> None:
@@ -725,6 +899,13 @@ class ScenarioRunner:
         payload["event_id"] = event_id
         payload["ts_utc"] = datetime.now(tz=timezone.utc).isoformat()
         return payload
+
+    def _ready_publish_key(self, run_id: str, bundle_hash: str | None, plan_hash: str) -> str:
+        key_source = bundle_hash or plan_hash
+        return hash_payload(f"ready|{run_id}|{key_source}")
+
+    def _hash_payload(self, payload: dict[str, Any]) -> str:
+        return hash_payload(json.dumps(payload, sort_keys=True, ensure_ascii=True))
 
     def _render_template(self, template: str, intent: CanonicalRunIntent, run_id: str) -> str:
         rendered = template
