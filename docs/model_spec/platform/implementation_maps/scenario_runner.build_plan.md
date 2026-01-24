@@ -350,3 +350,67 @@ High‑level intent: authn/authz, secrets hygiene, quarantine workflows, operato
 
 ## Phase 8 — Integration tests + CI gates
 High‑level intent: golden path + duplicate + reuse + fail‑closed + re‑emit + correction tests; contract compatibility checks in CI.
+
+**Status:** PLANNING.
+
+### Section 8.1 — Test tiers + markers
+**Goal:** define a tiered integration test strategy that is fast on PRs and deep on nightly/explicit runs.
+
+**Definition of done**
+- Define pytest markers: `unit`, `parity`, `localstack`, `engine_fixture`.
+- Tier 0 (PR): unit + fast integration (no external services).
+- Tier 1 (PR or manual): MinIO + Postgres parity tests (storage + evidence).
+- Tier 2 (nightly/manual): LocalStack Kinesis control bus + re‑emit E2E.
+- Tier 3 (manual/nightly): engine fixture reuse tests using `runs/local_full_run-*`.
+- Each marker has a short runbook in README or docs (how to run locally).
+
+### Section 8.2 — Golden path integration (SR core)
+**Goal:** prove the full SR pipeline from submit → plan → attempt → evidence → READY on real storage backends.
+
+**Definition of done**
+- Integration test uses parity stack (MinIO + Postgres).
+- Test asserts: run_record append-only, run_status READY, facts_view emitted, READY publish recorded.
+- Evidence verification uses real gate map and locators (no mocks).
+
+### Section 8.3 — Duplicate + at‑least‑once behavior
+**Goal:** validate idempotency in integration conditions (not just unit tests).
+
+**Definition of done**
+- Integration test submits the same run twice and proves equivalence binding (same run_id, no duplicate writes).
+- Concurrent lease contention test proves only one writer commits truth.
+- Duplicate READY publish is idempotent and does not mutate truth.
+
+### Section 8.4 — Fail‑closed integration (negative cases)
+**Goal:** ensure SR refuses to proceed when contracts/evidence are incomplete or incompatible.
+
+**Definition of done**
+- Missing gate receipt → WAITING/FAIL with stable reason code.
+- Receipt drift → FAIL with `INSTANCE_RECEIPT_DRIFT`.
+- Unknown output/gate → FAIL with explicit reason.
+- Contract validation failure → FAIL closed, no READY.
+
+### Section 8.5 — Control bus + re‑emit E2E (LocalStack)
+**Goal:** prove that Kinesis adapter + re‑emit work end‑to‑end under a real API surface.
+
+**Definition of done**
+- LocalStack test publishes READY to Kinesis with deterministic idempotency key.
+- Re‑emit READY/TERMINAL publishes with expected keys and payloads.
+- Publish failures are recorded in run_record but do not mutate run_status.
+
+### Section 8.6 — Contract compatibility checks
+**Goal:** fail CI when interface_pack contracts drift or break SR assumptions.
+
+**Definition of done**
+- Validation step loads interface_pack schemas and gate map, compiles all $refs, and fails on missing/invalid contracts.
+- Gate map hashing laws are parsed and validated for required outputs (2A/2B/3B/5A/5B/6A/6B).
+- No engine code changes; strictly read-only validation.
+
+### Section 8.7 — CI gates + runbooks
+**Goal:** define clear CI gates and local reproduction steps.
+
+**Definition of done**
+- CI targets:
+  - PR: Tier 0 tests only (fast).
+  - Nightly/manual: Tier 1–3 integration tests.
+- Runbook documents which env vars are required and how to start local parity stacks.
+- Test results logged in docs/logbook when executed.

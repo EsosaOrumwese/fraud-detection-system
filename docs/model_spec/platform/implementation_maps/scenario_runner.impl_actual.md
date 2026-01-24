@@ -2886,3 +2886,85 @@ Rationale:
 - Provides an explicit, user‑visible alert so operators can choose whether to delete or preserve runtime artifacts after runs.
 
 ---
+
+## Entry: 2026-01-24 20:45:30 — Phase 8 planning (Integration tests + CI gates)
+
+Starting Phase 8 planning now. This is a live decision trail to capture reasoning before any implementation.
+
+### Problem framing (what Phase 8 must solve)
+We have a feature-complete SR through Phase 7, but we still need **confidence at scale**: integration tests that prove cross-cutting behavior (storage + evidence + invocation + control bus + re-emit) and CI gates that prevent regressions. Phase 8 is about **proving correctness across boundaries**, not adding new features.
+
+Key risks to address:
+- Regressions in at-least-once/idempotency under integration conditions.
+- Silent contract drift between SR and engine interface_pack artifacts.
+- Bus + re-emit flows that work in unit tests but fail in LocalStack parity.
+- Tests that are too heavy for PR gates, leading to slow or flaky CI.
+
+### Authorities / inputs
+- Root AGENTS.md: fail-closed, append-only truth, black-box engine boundary.
+- SR contracts and interface_pack gate map (authoritative for gate verification).
+- Existing Phase 2.5/3 parity tests and LocalStack Kinesis tests.
+
+### Decisions to make (Phase 8 scope + strategy)
+1) **Test tiers and gating levels**
+   - I want a **tiered test model** so PR gates are fast but still meaningful:
+     - Tier 0: unit + fast integration (no external services).
+     - Tier 1: local parity (MinIO + Postgres) storage + evidence tests.
+     - Tier 2: LocalStack Kinesis end-to-end control bus + re-emit test.
+     - Tier 3: engine-artifact reuse tests (using real run roots).
+   - CI should run Tier 0 on every PR and defer heavier tiers to nightly/explicit runs.
+
+2) **Contract drift checks**
+   - Add a lightweight **schema compatibility check** that validates SR’s interface_pack reads
+     (gate map, output catalog, instance receipt schema) without touching engine code.
+   - The check should fail-closed if a referenced contract is missing or invalid.
+
+3) **Engine artifacts as fixtures**
+   - Use existing `runs/local_full_run-5/...` artifacts as fixtures (read-only).
+   - Tests will **copy to temp** before mutation to avoid accidental drift.
+   - If the fixture is missing, tests should skip with a clear reason.
+
+4) **CI environment safety**
+   - No credentials in CI config.
+   - Use `.env.localstack.example` + ephemeral LocalStack for Tier 2.
+   - Keep all integration tests opt-in or gated by env vars to avoid accidental CI flakiness.
+
+### Planned Phase 8 sections (build plan expansion)
+- 8.1 Test tiers + markers (unit, parity, localstack, engine-fixture)
+- 8.2 Golden path integration (submit → plan → invoke stub → evidence → READY)
+- 8.3 Duplicate/at-least-once integration (replay + idempotent events)
+- 8.4 Fail-closed integration (missing gates, drifted receipts, unknown output)
+- 8.5 Control bus + re-emit E2E (LocalStack Kinesis)
+- 8.6 Contract compatibility checks (interface_pack validation)
+- 8.7 CI gates + runbooks (what runs when, how to reproduce locally)
+
+### File touchpoints (expected)
+- `tests/services/scenario_runner/` (new integration tests + markers)
+- `scripts/` or `config/ci/` (test runner presets)
+- `docs/model_spec/platform/implementation_maps/scenario_runner.build_plan.md`
+- `docs/model_spec/platform/implementation_maps/scenario_runner.impl_actual.md`
+- `docs/logbook/01-2026/2026-01-24.md`
+
+### Invariants to preserve
+- Engine remains a black box (no engine code changes).
+- Tests must never mutate canonical truth (use temp copies for artifacts).
+- Fail closed on missing/invalid contracts.
+- No secrets or credentials in code/docs/impl_actual.
+
+---
+
+## Entry: 2026-01-24 20:47:10 — Correction: sensitive-artifacts warning moved to AGENTS
+
+I moved the sensitive runtime artifacts warning out of `services/scenario_runner/README.md` and into the root `AGENTS.md` so it is a **platformwide rule**, not SR-scoped.
+
+Why:
+- The risk (runtime capability tokens/credentials) is not SR-specific.
+- Root AGENTS is the correct authority for cross-platform operational rules.
+
+Action taken:
+- Removed the SR README warning.
+- Added a platformwide rule in AGENTS: do not commit sensitive runtime artifacts and explicitly alert the user when such artifacts are created.
+
+No credentials were added or recorded during this change.
+
+---
