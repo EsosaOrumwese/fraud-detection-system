@@ -3099,3 +3099,72 @@ I reran Tier‑0 tests after the resolver fixes:
 Result: **35 passed, 15 deselected**. Tier‑0 is now green.
 
 ---
+
+## Entry: 2026-01-24 21:32:40 — Phase 8 implementation: Sections 8.2–8.4 (golden path + duplicate/idempotency + fail‑closed)
+
+I am proceeding with Phase 8 sections 8.2–8.4. This is the pre‑change decision trail.
+
+### What I will add (tests only, no runtime behavior changes)
+1) **Golden path integration test** that exercises:
+   submit → plan → invoke → receipt validation → evidence collection → READY.
+   - Use a **stub EngineInvoker** that writes a minimal engine run root
+     (run_receipt + gate bundle + sealed_inputs_1A output).
+   - Keep it Tier‑0 (no external services), mark as integration.
+
+2) **Duplicate/idempotency integration test**:
+   - Submit the same run twice with the same equivalence key.
+   - Verify the second call returns the lease‑held response and does not duplicate READY commit or bus publish.
+
+3) **Fail‑closed integration tests**:
+   - Unknown output_id fails in plan compile with reason `UNKNOWN_OUTPUT_ID`.
+   - Unknown gate_id fails in plan compile when gate map is missing required gate.
+
+### Why this design
+- It keeps the engine black‑box (no engine code changes).
+- It tests SR invariants end‑to‑end using the real interface_pack contracts.
+- It stays in Tier‑0 so CI can gate regressions without external services.
+
+---
+
+## Entry: 2026-01-24 21:40:20 — Phase 8 implementation detail: added 8.2–8.4 integration tests
+
+I implemented the tests described in the pre‑change note. This section captures the mechanics.
+
+### 8.2 Golden path integration (invoke → READY)
+Added `tests/services/scenario_runner/test_golden_path_integration.py`:
+- Uses a **StubEngineInvoker** that writes:
+  - `run_receipt.json` with required pins (run_id/manifest/parameter/seed).
+  - 1A validation bundle (`index.json` + `_passed.flag` digest).
+  - `sealed_inputs_1A` output under the catalogue path.
+- Runs SR with `Strategy.FORCE_INVOKE` to exercise the **engine invocation path**.
+- Asserts READY commit, facts_view present, and locators populated.
+
+This validates the full pipeline without external services.
+
+### 8.3 Duplicate/idempotency integration
+Added `tests/services/scenario_runner/test_duplicate_idempotency_integration.py`:
+- Submits the same run twice (same equivalence key).
+- Confirms second submit returns the **lease‑held** response.
+- Confirms READY publish file count is unchanged and only one READY_COMMITTED event exists.
+
+This proves at‑least‑once safety at the SR boundary.
+
+### 8.4 Fail‑closed integration
+Added `tests/services/scenario_runner/test_fail_closed_integration.py`:
+- Unknown output_id → plan failure, status reason `UNKNOWN_OUTPUT_ID`.
+- Gate map missing required gate → plan failure, status reason `UNKNOWN_GATE_ID`.
+
+These enforce fail‑closed posture on contract inconsistencies.
+
+All new tests are Tier‑0 (no external services) and marked `integration`.
+
+---
+
+## Entry: 2026-01-24 21:43:40 — Phase 8 validation: Tier‑0 tests green after 8.2–8.4
+
+Ran Tier‑0 SR suite after adding the integration tests:
+`python -m pytest tests/services/scenario_runner -m "not parity and not localstack and not engine_fixture" -q`
+
+Result: **39 passed, 15 deselected**.
+
+---
