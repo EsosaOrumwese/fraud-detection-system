@@ -32,6 +32,23 @@ Phase 2.5 integration tests (local parity):
 3) Run tests:
    - `& .\\.venv\\Scripts\\python.exe -m pytest tests/services/scenario_runner/test_s3_store.py tests/services/scenario_runner/test_authority_store_postgres.py`
 
+Parity tier (Phase 8):
+1) Start the parity stack:
+   - `docker compose -f infra/local/docker-compose.sr-parity.yaml up -d`
+2) Set env vars (PowerShell):
+   - `$env:SR_TEST_S3_BUCKET="sr-local"`
+   - `$env:SR_TEST_S3_PREFIX="sr-test"`
+   - `$env:SR_TEST_S3_ENDPOINT_URL="http://localhost:9000"`
+   - `$env:SR_TEST_S3_REGION="us-east-1"`
+   - `$env:SR_TEST_S3_PATH_STYLE="true"`
+   - `$env:SR_TEST_PG_DSN="postgresql://sr:sr@localhost:5433/sr_dev"`
+   - `$env:AWS_ACCESS_KEY_ID="minio"`
+   - `$env:AWS_SECRET_ACCESS_KEY="minio123"`
+3) Run the parity tier:
+   - `.\scripts\run_sr_tests.ps1 -Tier parity`
+4) Tear down when done:
+   - `docker compose -f infra/local/docker-compose.sr-parity.yaml down`
+
 LocalStack Kinesis test (end-to-end):
 1) Start LocalStack (Kinesis enabled):
    - `docker run --rm -p 4566:4566 -e SERVICES=kinesis localstack/localstack:latest`
@@ -46,6 +63,20 @@ LocalStack Kinesis test (end-to-end):
    - `$env:AWS_SECRET_ACCESS_KEY="test"`
 3) Run the Kinesis adapter test:
    - `& .\\.venv\\Scripts\\python.exe -m pytest tests/services/scenario_runner/test_control_bus_kinesis.py -q`
+
+LocalStack tier (Phase 8 re-emit E2E):
+1) Start LocalStack:
+   - `.\scripts\localstack.ps1 start`
+2) Set env vars (PowerShell):
+   - `$env:SR_KINESIS_ENDPOINT_URL="http://localhost:4566"`
+   - `$env:SR_KINESIS_STREAM="sr-control-bus"`
+   - `$env:SR_KINESIS_REGION="us-east-1"`
+   - `$env:AWS_ACCESS_KEY_ID="test"`
+   - `$env:AWS_SECRET_ACCESS_KEY="test"`
+3) Run the LocalStack tier:
+   - `.\scripts\run_sr_tests.ps1 -Tier localstack`
+4) Stop LocalStack:
+   - `.\scripts\localstack.ps1 stop`
 
 Test tiers (Phase 8):
 - Tier 0 (default, fast): unit + fast integration (no external services).

@@ -3246,3 +3246,41 @@ Ran LocalStack tier after fixing the re‑emit envelope matcher:
 Result: **3 passed, 53 deselected** (botocore `datetime.utcnow()` deprecation warnings only).
 
 ---
+
+## Entry: 2026-01-24 22:16:10 — Phase 8 fix: parity reuse test lease collision
+
+Parity tier initially failed because the test used a **fixed run_equivalence_key**, so the
+Postgres lease persisted across runs and returned “lease held by another runner.” This is
+expected for durable authority storage.
+
+Fix:
+- Updated `test_parity_integration.py` to use a **unique run_equivalence_key** per run
+  (`sr-parity-reuse-6a-{uuid}`), ensuring a new run_id and fresh lease.
+
+This keeps the parity test stable without weakening the lease semantics.
+
+---
+
+## Entry: 2026-01-24 22:22:10 — Phase 8 validation: parity + engine_fixture tiers green
+
+Ran parity tier (MinIO + Postgres) with local credentials:
+`python -m pytest tests/services/scenario_runner -m "parity" -q`
+Result: **4 passed, 52 deselected** (botocore datetime.utcnow deprecation warnings).
+
+Ran engine_fixture tier:
+`python -m pytest tests/services/scenario_runner -m "engine_fixture" -q`
+Result: **10 passed, 1 skipped, 45 deselected**.
+
+LocalStack was stopped after validation.
+
+---
+
+## Entry: 2026-01-24 22:29:10 — Phase 8 doc update: runbook steps for parity/localstack tiers
+
+User requested a clearer “how to run this” after tearing down containers. I will update
+`services/scenario_runner/README.md` to include **explicit bring‑up/tear‑down steps**
+for parity (MinIO + Postgres) and LocalStack tiers, plus the env var setup.
+
+No code changes; docs only. No credentials will be embedded.
+
+---

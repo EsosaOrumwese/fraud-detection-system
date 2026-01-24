@@ -76,8 +76,9 @@ def test_parity_reuse_ready_commit(tmp_path: Path) -> None:
     policy = _build_policy()
     runner = ScenarioRunner(wiring, policy, LocalEngineInvoker(str(RUN_ROOT)))
 
+    run_key = f"sr-parity-reuse-6a-{uuid.uuid4().hex}"
     request = RunRequest(
-        run_equivalence_key="sr-parity-reuse-6a",
+        run_equivalence_key=run_key,
         manifest_fingerprint=MANIFEST,
         parameter_hash=PARAM_HASH,
         seed=42,

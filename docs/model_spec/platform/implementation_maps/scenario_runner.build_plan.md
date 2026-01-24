@@ -351,7 +351,7 @@ High‑level intent: authn/authz, secrets hygiene, quarantine workflows, operato
 ## Phase 8 — Integration tests + CI gates
 High‑level intent: golden path + duplicate + reuse + fail‑closed + re‑emit + correction tests; contract compatibility checks in CI.
 
-**Status:** IN PROGRESS (8.1–8.7 implemented; LocalStack validated; parity/engine_fixture pending).
+**Status:** COMPLETE (8.1–8.7 implemented + validated across Tier 0, parity, localstack, engine_fixture).
 
 ### Section 8.1 — Test tiers + markers
 **Goal:** define a tiered integration test strategy that is fast on PRs and deep on nightly/explicit runs.
