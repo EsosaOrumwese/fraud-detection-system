@@ -12,6 +12,7 @@ SR emits **verifier receipts** in its own object store (engine remains a black b
 Profiles:
 - `config/platform/sr/wiring_local.yaml` — local smoke (filesystem + SQLite; not valid for hardening).
 - `config/platform/sr/wiring_local_parity.yaml` — local parity (MinIO + Postgres).
+- `config/platform/sr/wiring_local_kinesis.yaml` — local parity + LocalStack Kinesis (control bus).
 - `config/platform/sr/wiring_aws.yaml` — AWS target (S3 + RDS Postgres + Kinesis placeholder).
   - Note: wiring profiles now include `engine_contracts_root` (engine boundary schemas).
 
@@ -30,3 +31,17 @@ Phase 2.5 integration tests (local parity):
    - `Get-Content .env | ForEach-Object { if ($_ -match '^(\\w+)=(.*)$') { Set-Item -Path "Env:$($matches[1])" -Value $matches[2] } }`
 3) Run tests:
    - `& .\\.venv\\Scripts\\python.exe -m pytest tests/services/scenario_runner/test_s3_store.py tests/services/scenario_runner/test_authority_store_postgres.py`
+
+LocalStack Kinesis test (end-to-end):
+1) Start LocalStack (Kinesis enabled):
+   - `docker run --rm -p 4566:4566 -e SERVICES=kinesis localstack/localstack:latest`
+2) Set env vars (PowerShell):
+   - `Get-Content .env.localstack.example | ForEach-Object { if ($_ -match '^(\\w+)=(.*)$') { Set-Item -Path "Env:$($matches[1])" -Value $matches[2] } }`
+   - (or set them manually below)
+   - `$env:SR_KINESIS_ENDPOINT_URL="http://localhost:4566"`
+   - `$env:SR_KINESIS_STREAM="sr-control-bus"`
+   - `$env:SR_KINESIS_REGION="us-east-1"`
+   - `$env:AWS_ACCESS_KEY_ID="test"`
+   - `$env:AWS_SECRET_ACCESS_KEY="test"`
+3) Run the Kinesis adapter test:
+   - `& .\\.venv\\Scripts\\python.exe -m pytest tests/services/scenario_runner/test_control_bus_kinesis.py -q`

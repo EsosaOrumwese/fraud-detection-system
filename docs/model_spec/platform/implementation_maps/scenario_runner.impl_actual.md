@@ -2258,3 +2258,125 @@ Tests re‑run:
 - `python -m pytest tests/services/scenario_runner -q` → 31 passed, 2 skipped.
 
 ---
+
+## Entry: 2026-01-24 18:41:30 — Phase 5 add-ons (LocalStack Kinesis test + re‑emit failure coverage)
+
+I’m extending Phase 5 implementation based on the user’s choice to do option 1 and 2: add a LocalStack Kinesis integration test gate and expand re‑emit failure coverage tests. This entry captures the decisions before edits.
+
+### Option 1 — LocalStack Kinesis integration test (gated)
+- **Decision**: add a Kinesis adapter integration test that only runs when explicit env vars are present (so default CI/local runs remain deterministic). If env vars are missing, the test will skip.
+- **Why**: we want real adapter coverage without hard‑requiring LocalStack or AWS credentials in every developer setup.
+- **Planned env gates** (names to be used in test):
+  - `SR_KINESIS_ENDPOINT_URL` (LocalStack endpoint)
+  - `SR_KINESIS_STREAM` (stream name)
+  - `AWS_ACCESS_KEY_ID` / `AWS_SECRET_ACCESS_KEY` (dummy values are fine for LocalStack)
+  - `AWS_DEFAULT_REGION` (or `SR_KINESIS_REGION`)
+- **Test behavior**:
+  - Ensure stream exists (create if missing).
+  - Publish via `KinesisControlBus`.
+  - Read back one record with boto3 and assert envelope fields (`message_id`, `payload.run_id`, `attributes.kind`).
+- **No secrets**: no credentials in code/docs; only environment expectations.
+
+### Option 2 — Re‑emit failure coverage
+- **Decision**: add tests for mismatch and missing truth surfaces:
+  - READY_ONLY requested but run is terminal → should return “not applicable” and append `REEMIT_FAILED` with reason `REEMIT_READY_ONLY_MISMATCH`.
+  - TERMINAL_ONLY requested but run is READY → should return “not applicable” and append `REEMIT_FAILED` with reason `REEMIT_TERMINAL_ONLY_MISMATCH`.
+  - READY re‑emit when facts_view missing → should return “Reemit failed.” and append `REEMIT_FAILED` with reason `FACTS_VIEW_MISSING`.
+  - Re‑emit when run_id not found → should return “Run not found.” and not publish.
+- **Why**: closes DoD gap in Section 5.4 by proving re‑emit failure posture + audit trail determinism.
+
+### Files expected to touch
+- `tests/services/scenario_runner/test_reemit.py` (add failure‑case assertions)
+- `tests/services/scenario_runner/test_control_bus_kinesis.py` (new LocalStack‑gated test)
+- `docs/model_spec/platform/implementation_maps/scenario_runner.impl_actual.md` + logbook (this entry + results)
+
+### Validation
+- Run `python -m pytest tests/services/scenario_runner/test_reemit.py -q`.
+- Run `python -m pytest tests/services/scenario_runner/test_control_bus_kinesis.py -q` (will skip unless env provided).
+- Run `python -m pytest tests/services/scenario_runner -q` after updates.
+
+---
+
+## Entry: 2026-01-24 18:45:55 — Concurrency regression (Windows read lock) + fix plan
+
+During the full SR test suite run, `test_scenario_runner_concurrency.py::test_concurrent_duplicate_submissions` failed on Windows with a `PermissionError` while a follower thread tried to read `run_status`. This happened while the leader thread was updating the same file via atomic replace.
+
+### Diagnosis
+- The failure is a Windows file‑locking edge case during concurrent `read_status` vs `write_json` (atomic replace) on the local object store.
+- This is local‑store specific (LocalObjectStore); S3 is not affected.
+
+### Decision
+- Add a **small retry loop** for LocalObjectStore `read_json`/`read_text` to tolerate transient `PermissionError` during atomic replace.
+- Keep retry bounded (short sleep, few attempts) to avoid hiding real errors.
+
+### Why this is acceptable
+- This is a local/dev‑only store; the production store is S3 and doesn’t have this file‑lock behavior.
+- The retry is fail‑closed after a few attempts, so we don’t silently mask persistent failures.
+
+### Planned change
+- Implement retry (e.g., 5 attempts with 25–50 ms backoff) in LocalObjectStore `read_json` and `read_text`.
+- Re‑run the full SR test suite to confirm the concurrency test passes.
+
+---
+
+## Entry: 2026-01-24 18:49:30 — LocalObjectStore read retry (Windows lock fix)
+
+I implemented a small retry loop for LocalObjectStore reads to avoid transient `PermissionError` during concurrent writes on Windows.
+
+### What changed
+- `LocalObjectStore.read_json` and `read_text` now call `_read_text_with_retry`.
+- `_read_text_with_retry` retries up to 5 times with a short delay on `PermissionError` and `FileNotFoundError` (covers atomic replace and race conditions).
+
+### Why this is safe
+- This only affects the local filesystem store (dev/test). S3 behavior is unchanged.
+- The retry window is small and bounded; persistent failures still surface.
+
+### Tests
+- `python -m pytest tests/services/scenario_runner -q` → 35 passed, 3 skipped.
+
+---
+
+## Entry: 2026-01-24 18:56:05 — Phase 5 docs + wiring for LocalStack Kinesis
+
+I’m adding a sample `wiring_local_kinesis.yaml` and short docs so the LocalStack Kinesis integration test can be run end‑to‑end. This is a small, scoped addition to keep local parity reproducible.
+
+### Decisions (before edits)
+- Create a new wiring profile `config/platform/sr/wiring_local_kinesis.yaml` that:
+  - keeps object store settings aligned with local parity (MinIO + Postgres),
+  - selects `control_bus_kind: kinesis`,
+  - uses LocalStack endpoint + stream name fields (no credentials in file).
+- Add a short “how to run LocalStack Kinesis test” section to the SR service README with env‑only instructions.
+- Keep `.env` credentials out of docs; use example env variable names only.
+
+### Files to touch
+- `config/platform/sr/wiring_local_kinesis.yaml` (new)
+- `services/scenario_runner/README.md` (add test instructions)
+- logbook + impl_actual entries
+
+---
+
+## Entry: 2026-01-24 19:00:45 — LocalStack wiring + docs added
+
+I added a sample LocalStack Kinesis wiring profile and short end‑to‑end instructions for running the Kinesis adapter test.
+
+### What changed
+- Added `config/platform/sr/wiring_local_kinesis.yaml` (MinIO + Postgres + LocalStack Kinesis settings; no secrets).
+- Updated `services/scenario_runner/README.md` with a concise LocalStack Kinesis test walkthrough and noted the new wiring profile.
+
+### Why this helps
+- Keeps local parity reproducible without entangling real AWS credentials.
+- Provides an explicit, copy‑paste path to validate the Kinesis adapter end‑to‑end.
+
+---
+
+## Entry: 2026-01-24 19:04:50 — LocalStack env example file
+
+User requested LocalStack envs. I will add a `.env.localstack.example` file with placeholder values (no real credentials) so LocalStack tests can be run without modifying `.env`. No secrets will be included.
+
+---
+
+## Entry: 2026-01-24 19:06:40 — README note for .env.localstack.example
+
+Added a short note in the SR service README showing how to load `.env.localstack.example` for the LocalStack Kinesis test.
+
+---

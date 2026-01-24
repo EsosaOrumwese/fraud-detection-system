@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import os
+import time
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Iterable, Protocol
@@ -79,7 +80,7 @@ class LocalObjectStore:
 
     def read_json(self, relative_path: str) -> dict[str, Any]:
         path = self._full_path(relative_path)
-        return json.loads(path.read_text(encoding="utf-8"))
+        return json.loads(self._read_text_with_retry(path))
 
     def write_text(self, relative_path: str, content: str) -> ArtifactRef:
         path = self._full_path(relative_path)
@@ -112,7 +113,19 @@ class LocalObjectStore:
         return self._full_path(relative_path).exists()
 
     def read_text(self, relative_path: str) -> str:
-        return self._full_path(relative_path).read_text(encoding="utf-8")
+        return self._read_text_with_retry(self._full_path(relative_path))
+
+    def _read_text_with_retry(self, path: Path) -> str:
+        last_err: Exception | None = None
+        for _ in range(5):
+            try:
+                return path.read_text(encoding="utf-8")
+            except (PermissionError, FileNotFoundError) as exc:
+                last_err = exc
+                time.sleep(0.05)
+        if last_err:
+            raise last_err
+        return path.read_text(encoding="utf-8")
 
     def list_files(self, relative_dir: str) -> list[str]:
         base = self._full_path(relative_dir)
