@@ -2054,3 +2054,18 @@ I implemented the three hardening fixes and validated them with tests.
 - `python -m pytest tests/services/scenario_runner -q` via venv → **29 passed, 2 skipped**.
 
 ---
+
+## Entry: 2026-01-24 18:13:45 — Phase 4 marked COMPLETE
+
+User requested Phase 4 sign‑off. I verified that all Section 4.1–4.5 DoD items are implemented and that the SR test suite passes under the venv.
+
+### Completion evidence
+- Local subprocess invoker in place with stdout/stderr capture and explicit failure codes.
+- Attempt lifecycle + schema enforced; attempt_limit and receipt gating wired.
+- Invocation validation + command guards fail closed with deterministic reason codes.
+- SR test suite: 29 passed, 2 skipped (venv).
+
+Decision:
+- Mark Phase 4 as COMPLETE in the build plan.
+
+---
