@@ -2412,3 +2412,19 @@ I added a narrative log filter to `scripts/localstack.ps1` so LocalStack logs ar
 - Added a brief note in the SR README pointing to the narrative log view.
 
 ---
+
+## Entry: 2026-01-24 19:44:12 — LocalStack Kinesis test run (end‑to‑end)
+
+Ran the LocalStack Kinesis integration test using the `.env.localstack.example` env loader and a running LocalStack container.
+
+Command:
+- `python -m pytest tests/services/scenario_runner/test_control_bus_kinesis.py -q`
+
+Result:
+- 1 passed
+- 7 warnings (botocore deprecation: datetime.utcnow)
+
+Note:
+- This validates the KinesisControlBus envelope publish + round‑trip read using LocalStack.
+
+---
