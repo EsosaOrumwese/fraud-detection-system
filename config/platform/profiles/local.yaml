@@ -1,0 +1,13 @@
+profile_id: local
+policy:
+  policy_rev: local-v0
+  partitioning_profile_id: ig.partitioning.v0
+  require_gate_pass: true
+wiring:
+  object_store:
+    bucket: fraud-platform
+    endpoint: ${OBJECT_STORE_ENDPOINT}
+  event_bus:
+    topic_traffic: fp.bus.traffic.v1
+    topic_control: fp.bus.control.v1
+    topic_audit: fp.bus.audit.v1

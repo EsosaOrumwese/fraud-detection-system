@@ -21,12 +21,47 @@ Provide a platform-wide, production-shaped build plan for v0 that aligns compone
 ### Phase 1 — Platform substrate + rails
 **Intent:** pin the shared rails and the local production-shaped substrate so every component implements the same semantics.
 
-**Definition of Done (DoD):**
-- Canonical envelope + ContextPins + seed semantics pinned and versioned in platform contracts.
-- Object-store prefix map and by-ref artifact conventions pinned platform-wide.
-- Event bus topic taxonomy + partitioning key rules pinned (at least: traffic/control/audit).
-- Environment ladder profiles (local/dev/prod) defined with clear separation of policy vs wiring config.
-- Security posture documented: secrets are runtime-only; no secrets in artifacts, plans, or logs.
+#### Phase 1.1 — Identity + envelope contracts
+**Goal:** make the platform’s join semantics unambiguous and versioned.
+
+**DoD checklist:**
+- Canonical envelope fields are pinned and versioned (including `ts_utc`, `event_type`, `event_id`, `schema_version`, `manifest_fingerprint` + optional pins).
+- ContextPins are pinned as `{scenario_id, run_id, manifest_fingerprint, parameter_hash}` and `seed` is treated as a separate, required field when seed‑variant.
+- Time semantics are pinned (domain `ts_utc`, optional `emitted_at_utc`, ingestion time in IG receipts).
+- Naming/alias mapping for any legacy fields is documented (no hidden drift).
+
+#### Phase 1.2 — By‑ref artifact addressing + digest posture
+**Goal:** pin how artifacts are referenced and verified across components.
+
+**DoD checklist:**
+- Platform object‑store prefix map is pinned (bucket + prefixes for SR/IG/DLA/Registry/etc.).
+- Locator schema and digest posture are pinned (content digest, bundle manifest digest rules).
+- Instance‑proof receipts path conventions are pinned (engine vs SR verifier receipts).
+- Token order rules are pinned for partitioned paths (seed → parameter_hash → manifest_fingerprint → scenario_id → run_id → utc_day).
+
+#### Phase 1.3 — Event bus taxonomy + partitioning rules
+**Goal:** prevent drift on how traffic/control/audit are separated and replayed.
+
+**DoD checklist:**
+- Topic taxonomy pinned (traffic/control/audit minimum).
+- Partitioning key rules pinned (deterministic, stable across envs).
+- Replay semantics and retention expectations documented (v0 scope).
+
+#### Phase 1.4 — Environment ladder profiles (policy vs wiring)
+**Goal:** ensure local/dev/prod share semantics but differ in operational envelope only.
+
+**DoD checklist:**
+- Local/dev/prod profile schema pinned with clear separation between **policy config** and **wiring config**.
+- Policy config is versioned and referenced by revision in receipts/outcomes where applicable.
+- Promotion concept documented as profile change, not code change.
+
+#### Phase 1.5 — Security + secrets posture
+**Goal:** prevent provenance drift and avoid credential leakage.
+
+**DoD checklist:**
+- Secrets are runtime‑only; no secrets in artifacts, build plans, impl_actual, or logbooks.
+- Provenance records use secret identifiers only (if needed), never secret material.
+- Sensitive runtime artifacts are flagged to the user for review/quarantine.
 
 ### Phase 2 — Control & Ingress plane (SR + IG + EB)
 **Intent:** establish run readiness authority and trusted event admission into the bus.

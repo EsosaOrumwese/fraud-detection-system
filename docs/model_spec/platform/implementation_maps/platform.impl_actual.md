@@ -38,3 +38,90 @@ User requested a platform-wide build plan (v0) that sets expectations for v0/v1/
 - Add a logbook entry with timestamp noting this planning step.
 
 ---
+
+## Entry: 2026-01-24 23:01:54 — Expand Phase 1 (platform substrate + rails)
+
+### Trigger
+User asked to expand Phase 1 of the platform build plan (progressive elaboration) before any further platform work.
+
+### Reasoning notes (live)
+- Phase 1 is the platform’s “semantic foundation”; it must pin identity, contracts, and substrate conventions so later components can rely on them without drift.
+- Keep Phase 1 sections concrete (DoD‑oriented) but avoid over‑specifying steps beyond this phase, per AGENTS progressive‑elaboration rule.
+- Emphasize rails (ContextPins, envelope, no‑PASS‑no‑read, by‑ref), truth‑ownership boundaries, and environment ladder separation of policy vs wiring config.
+- Ensure no secrets or credentials appear in the plan.
+
+### Plan edits to make
+- Add Phase 1 subsections with DoD checklists:
+  - 1.1 Identity & envelope contracts
+  - 1.2 By‑ref artifact addressing + locator/digest posture
+  - 1.3 Event bus taxonomy + partitioning rules
+  - 1.4 Environment ladder profiles + policy vs wiring config
+  - 1.5 Security/secrets posture + provenance stamping requirements
+
+---
+
+## Entry: 2026-01-24 23:05:58 — Phase 1 implementation start (rails + substrate pins)
+
+### Problem / goal
+Begin Phase 1 implementation by pinning platform-wide rails and substrate conventions into concrete, reusable docs and profile stubs. This is the semantic foundation that later components must inherit without drift.
+
+### Inputs / authorities
+- Root AGENTS.md (rails + progressive elaboration + secrets posture).
+- Platform blueprint + deployment tooling notes (truth ownership, envelope, substrate map, bus taxonomy, env ladder).
+- Engine interface pack contracts (canonical_event_envelope, locator/receipts, storage layout).
+
+### Live decision trail
+- I need a **single source of truth** for rails, but I want to avoid duplicating engine contracts verbatim. I will **reference** the canonical envelope contract from the engine interface pack and pin platform semantics around it, rather than copy it into a new schema file (avoids drift).
+- To keep Phase 1 artifacts usable, I’ll create a **platform-wide rails + substrate doc** that consolidates: identity/envelope, by-ref addressing, bus taxonomy, environment profiles, and secrets posture.
+- For environment ladder profiles, I will add a **profiles folder with non-secret stubs** (local/dev/prod). These are structural examples only; they intentionally omit credentials and rely on env injection at runtime.
+
+### Planned edits (Phase 1 scope only)
+- Add a platform-wide doc: `docs/model_spec/platform/platform-wide/platform_rails_and_substrate_v0.md`.
+- Add `config/platform/profiles/README.md` plus minimal `local.yaml`, `dev.yaml`, `prod.yaml` stubs (no secrets).
+
+---
+
+## Entry: 2026-01-24 23:09:25 — Phase 1 artifacts added (rails + profiles)
+
+### What I changed (and why)
+- Added `docs/model_spec/platform/platform-wide/platform_rails_and_substrate_v0.md` as the platform-wide, binding rails + substrate pin. This consolidates identity/envelope semantics, by-ref addressing, bus taxonomy, env profiles, and secrets posture in one place to avoid drift and document the “laws” before component work.
+- Referenced the canonical envelope **by path** to the engine interface pack contract instead of copying it, to avoid schema drift between engine and platform boundary.
+- Created `config/platform/profiles/README.md` plus `local.yaml`, `dev.yaml`, `prod.yaml` stubs to make the policy-vs-wiring separation concrete without embedding secrets.
+
+### Notes / invariants pinned in the new doc
+- ContextPins are fixed to `{scenario_id, run_id, manifest_fingerprint, parameter_hash}`; `seed` remains separate and required only when seed-variant.
+- Time semantics are pinned: `ts_utc` is domain time; `emitted_at_utc` optional; ingestion time only in IG receipts.
+- Object-store prefix map and instance-receipt paths are pinned to the v0 substrate map.
+- EB taxonomy is pinned to `fp.bus.{traffic,control,audit}.v1` with deterministic partition_key stamped by IG.
+- Secrets are runtime-only; provenance may record secret identifiers only.
+
+---
+
+## Entry: 2026-01-24 23:14:10 — Tighten platform rails/substrate doc
+
+### Trigger
+User asked to review and tighten the Phase 1 rails/substrate doc wording for clarity and non-ambiguity.
+
+### Reasoning notes
+- The doc should explicitly state envelope minimality and payload isolation to prevent accidental field collisions.
+- Token naming constraints should be called out (allowed token names + canonical order) to prevent drift in paths.
+- The no‑PASS‑no‑read and fail‑closed posture should be re‑stated within the by‑ref/digest section so it is not only implicit.
+- Add explicit note that `fp.bus.audit.v1` is optional and never a truth stream to prevent misuse.
+
+### Planned edits
+- Add envelope minimality + payload isolation note.
+- Add token naming rule alongside token order.
+- Add fail‑closed + no‑PASS‑no‑read reminder under digest posture.
+- Clarify audit topic is optional and non-authoritative.
+
+---
+
+## Entry: 2026-01-24 23:25:28 — Tighten rails/substrate wording (applied)
+
+### Changes applied
+- Added envelope minimality note (payload isolated under `payload`; no extra top-level fields).
+- Added explicit fail-closed / no-PASS-no-read reminder under digest posture.
+- Added allowed token-name list to prevent path-token drift.
+- Restated audit topic as optional and non-authoritative.
+
+---
