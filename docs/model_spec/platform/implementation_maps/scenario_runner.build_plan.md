@@ -105,6 +105,46 @@ Phase 2.5 hardening tests must run against MinIO + Postgres where available.
 ## Phase 3 — Evidence + gate verification completeness
 High‑level intent: enforce full HashGate coverage and instance‑proof binding (seed/scenario/run_id) with deterministic COMPLETE/WAITING/FAIL/CONFLICT outcomes.
 
+### Section 3.1 — Gate closure + required set
+**Goal:** compute the authoritative gate closure for intended outputs.
+
+**Definition of done**
+- Required gates derive from interface pack (gate map + output catalogue) and are deterministic.
+- Unknown output_id or gate_id fails closed.
+- Output read_requires_gates are enforced.
+
+### Section 3.2 — Receipt validation + scope binding
+**Goal:** validate gate receipts and enforce scope‑appropriate pin binding.
+
+**Definition of done**
+- Gate receipts are validated against schemas before use.
+- Instance‑scoped gates enforce pins (seed/scenario_id/run_id/parameter_hash); broader gates do not require instance pins.
+- Receipt scope mismatch → FAIL/QUARANTINE.
+
+### Section 3.3 — Output locator integrity
+**Goal:** produce immutable, verifiable output locators for all intended outputs.
+
+**Definition of done**
+- Locator schema validation passes for all outputs.
+- content_digest computed deterministically for file/dir/glob outputs.
+- Missing outputs follow WAITING→FAIL semantics with evidence_deadline.
+
+### Section 3.4 — Evidence classification + bundle hash
+**Goal:** deterministic COMPLETE/WAITING/FAIL/CONFLICT outcomes.
+
+**Definition of done**
+- Evidence bundle hash is stable across retries (sorted locators/receipts + policy_rev).
+- Explicit, stable reason codes for WAITING/FAIL/CONFLICT.
+- Fail‑closed on unknown compatibility or malformed receipts.
+
+### Section 3.5 — Tests + validation
+**Goal:** prove evidence logic under mismatches and conflicts.
+
+**Definition of done**
+- Unit tests for gate scope binding, missing receipts, and conflict detection.
+- Integration tests using real engine artefacts (local parity stack).
+- All Phase 3 tests logged with results.
+
 ---
 
 ## Phase 4 — Engine invocation integration

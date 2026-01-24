@@ -724,3 +724,173 @@ Based on implemented code + local parity integration tests (MinIO + Postgres), P
 - Build plan updated to mark Phase 2 complete.
 
 ---
+## Entry: 2026-01-24 12:04:07 — Phase 3 planning (evidence + gate completeness)
+
+### Problem / goal
+Phase 3 must make SR evidence handling **production‑complete**:
+- enforce full HashGate coverage,
+- validate receipts and output locators against contracts,
+- bind evidence to instance scope deterministically,
+- and keep the system fail‑closed.
+
+### Decision trail (brainstorm + choices)
+1) **Gate closure is authoritative**
+   - **Assumption:** engine interface pack is the only source of gate requirements.
+   - **Decision:** required_gates = `gate_map.required_gate_set(outputs)` ∪ `output.read_requires_gates`.
+   - **Rationale:** prevents “latest output” scanning and enforces no‑PASS‑no‑read.
+
+2) **Receipt validation is mandatory**
+   - **Decision:** validate gate receipts against their schemas (interface pack) before using them.
+   - **Rationale:** receipts are proof artifacts; schema violations must fail‑closed.
+
+3) **Instance‑proof binding**
+   - **Observation:** not all gates are instance‑scoped; some are static/world‑level.
+   - **Decision:** enforce pin binding only when gate scope is instance‑scoped (seed/scenario/run_id/parameter_hash); otherwise accept gate at broader scope.
+   - **Rationale:** avoids false negatives while preserving provenance.
+
+4) **Output locator integrity**
+   - **Decision:** validate locators against output schema (path + pins + content_digest), and compute content_digest deterministically for files/dirs/globs.
+   - **Rationale:** downstream needs immutable by‑ref locators with verifiable provenance.
+
+5) **Evidence bundle determinism**
+   - **Decision:** bundle_hash computed from sorted locators + receipts + policy_rev; record stable reason codes for WAITING/FAIL/CONFLICT.
+   - **Rationale:** supports replay + audit; idempotent results across retries.
+
+6) **Fail‑closed posture**
+   - Missing/invalid gates or mismatched instance pins → WAITING/FAIL/QUARANTINE.
+   - Unknown compatibility versions → reject/quarantine rather than guess.
+
+### Alternatives considered
+- **Lenient receipt parsing:** rejected (breaks no‑PASS‑no‑read).
+- **Force instance‑proof on all gates:** rejected (false conflicts for static gates).
+
+### Outputs / deliverables (Phase 3)
+- Gate receipt schema validation + instance‑scope enforcement.
+- Output locator validation + integrity digest rules.
+- Evidence classification rules (COMPLETE/WAITING/FAIL/CONFLICT) tightened.
+- Tests for each branch and for mismatched scopes.
+
+---
+## Entry: 2026-01-24 12:20:05 — Phase 3 scratchpad (live decision notes)
+
+Re‑reading interface pack because the previous entry feels too clean. A few things hitting me immediately:
+- `engine_gates.map.yaml` scopes are all **fingerprint** right now. That means PASS receipts we can verify are tied only to `manifest_fingerprint`.
+- `engine_outputs.catalogue.yaml` lists **many outputs with instance scopes** (`scope_seed_manifest_fingerprint[_scenario_id]`, `scope_seed_manifest_fingerprint_parameter_hash...`, `scope_seed_parameter_hash_run_id`, etc).
+- `data_engine_interface.md` explicitly says: **instance‑scoped outputs require instance proof** (receipt bound to `engine_output_locator` + digest).
+
+This is a tension: **we don’t see any instance‑proof receipts in the pack**, only segment PASS flags and s0_gate_receipts that are fingerprint‑scoped. So if we go strict, SR will likely WAITING/FAIL for a lot of instance‑scoped outputs (because the required receipt doesn’t exist yet).
+
+I need to choose how to handle this in Phase 3:
+1) **Strict fail‑closed**: require an instance‑proof receipt; if missing → WAITING → FAIL at deadline. This aligns with doctrine but may block readiness on most runs.
+2) **Temporary bridge**: accept the output locator content_digest as “instance proof” even without a receipt. That’s not what the interface pack says, but it keeps SR usable.
+3) **Policy flag**: default strict, but allow a controlled exception for dev only (still uncomfortable).
+
+My bias: **option 1** (strict fail‑closed) unless you explicitly want a bridge. If we choose strict, we should surface a spec gap to the engine interface pack rather than silently weakening SR.
+
+Concrete implementation notes:
+- Add a **scope classifier** in SR: parse `output.scope` and mark outputs as instance‑scoped when scope includes seed/scenario_id/parameter_hash/run_id.
+- For instance‑scoped outputs, SR should **look for an instance‑proof receipt** bound to locator/digest (not currently available).
+- If that receipt doesn’t exist, evidence should be WAITING/FAIL (explicit reason code like `INSTANCE_PROOF_MISSING`).
+- For fingerprint‑scoped outputs, existing PASS gate receipts remain sufficient.
+
+Open question I need your call on:
+→ Do we enforce strict instance‑proof now and accept that it may block readiness, or do we allow a temporary bridge (clearly marked) while the interface pack is extended?
+
+---
+## Entry: 2026-01-24 12:18:50 — Phase 3 planning expansion (corrective; detail-first)
+
+I’m correcting the earlier Phase 3 planning entry because it reads like a checklist. Below is the actual decision trail I’m following in real time so the intent and tradeoffs are explicit.
+
+### What triggered this phase (problem framing)
+I need to make SR evidence handling production-grade and **fail-closed** while aligning with the engine interface pack. Phase 3 is where we eliminate ambiguous evidence handling and make the gate + receipt + locator chain deterministic and auditable. The key friction I’m seeing: **gate receipts appear fingerprint-scoped**, while **many outputs are instance-scoped**. That creates a mismatch if we require instance proof for instance outputs (which the interface pack says we must).
+
+### Authorities I’m using (inputs)
+- docs\model_spec\data-engine\interface_pack\engine_gates.map.yaml
+- docs\model_spec\data-engine\interface_pack\engine_outputs.catalogue.yaml
+- docs\model_spec\data-engine\interface_pack\data_engine_interface.md
+- SR design authority notes (N1–N8) for evidence intent and no-PASS-no-read posture.
+- Platform doctrine (pins as law, fail-closed, provenance first-class).
+
+### What I actually observe (not assumptions)
+- Gate map entries are **fingerprint-scoped** (manifest_fingerprint). I don’t see any receipt artifacts that bind to run_id/parameter_hash/scenario_id.
+- Output catalogue includes many **instance-scoped outputs** (scopes include seed/scenario_id/parameter_hash/run_id).
+- Interface pack text says: **instance-scoped outputs require instance proof** (receipt bound to locator + digest). That proof doesn’t exist in the pack today.
+
+### Tension / risk surfaced
+If I enforce instance-proof strictly, SR will WAIT/FAIL a large class of instance-scoped outputs because the required receipt isn’t available. If I relax the requirement, I would be violating the doctrine and could allow “latest output” reads without proof.
+
+### Options I’m weighing (with why they matter)
+1) **Strict fail-closed** (default):
+   - Require instance proof receipts for instance-scoped outputs. If missing, SR stays WAITING and eventually FAILS.
+   - Pros: aligned with doctrine, no false proof, auditability clean.
+   - Cons: likely blocks readiness until engine pack adds instance-proof receipts.
+2) **Temporary bridge (explicitly flagged)**:
+   - Accept an output locator digest as “instance proof” even without a receipt.
+   - Pros: keeps SR usable short-term.
+   - Cons: breaks spec; weakens evidence chain; must be clearly marked as non-prod.
+3) **Policy toggle** (strict by default, allow bridge in dev only):
+   - Pros: safety in prod, dev unblocked.
+   - Cons: risk of “temporary” becoming permanent; adds complexity.
+
+My current bias is **option 1 (strict)**, and if that blocks, we surface the pack gap to the engine side rather than diluting SR. But I need explicit confirmation if you want a bridge.
+
+### Intended mechanics (what I’d actually build)
+- **Gate requirement resolution**:
+  - Compute required_gates = gate_map.required_gate_set(outputs) UNION outputs.read_requires_gates.
+  - This prevents “latest output” reads and enforces no-PASS-no-read.
+- **Receipt validation**:
+  - Validate receipts against gate schemas from interface pack before using them.
+  - Reject malformed receipts early; record reason codes (e.g., RECEIPT_SCHEMA_INVALID).
+- **Scope classification**:
+  - Parse output.scope and classify as ingerprint vs instance.
+  - Instance scope = any of seed/scenario_id/parameter_hash/run_id in scope string.
+- **Instance-proof enforcement**:
+  - For instance-scoped outputs, require receipt bound to locator + digest.
+  - Missing/invalid => WAITING then FAIL at deadline, with explicit reason INSTANCE_PROOF_MISSING.
+- **Output locator integrity**:
+  - Validate locator fields (pins + path + content_digest) and compute digest deterministically.
+  - For dirs/globs, compute stable digest over sorted file listing.
+- **Evidence bundling**:
+  - bundle_hash from sorted locators + receipt ids + policy_rev.
+  - Evidence status is monotonic (WAITING -> COMPLETE/FAIL/CONFLICT only).
+
+### Invariants to enforce
+- No-PASS-no-read: if a required gate is missing/invalid, SR must not read.
+- Evidence decisions are deterministic given the same inputs.
+- Append-only evidence trail; no mutable overwrites.
+- Monotonic evidence status; no downgrade from COMPLETE.
+
+### Logging + audit points
+- Log evidence evaluation start/end with reason codes.
+- Record missing gates/receipts in SR ledger.
+- Include pins + policy_rev in evidence outputs for replay.
+
+### Security / compliance posture
+- Fail-closed on unknown compatibility, missing receipts, or schema mismatch.
+- No secret material in logs or implementation notes.
+- Explicit provenance linking (pins + receipt IDs + locator digests).
+
+### Performance considerations
+- Avoid scanning all outputs; derive required gates from map + per-output requirements.
+- Digest computation should be streaming for large files.
+- Cache gate map and output catalogue parsing within SR process.
+
+### Deployment / environment considerations
+- Production target: AWS (S3 + RDS Postgres + ECS Fargate + Kinesis).
+- Local parity: MinIO + Postgres remains valid for Phase 3 tests.
+- Ensure behavior is identical across local parity and prod (only endpoint differences).
+
+### Concrete file touchpoints (planned)
+- src/fraud_detection/scenario_runner/evidence.py (core classification + receipt/locator checks)
+- src/fraud_detection/scenario_runner/schemas.py (schema validation helpers)
+- src/fraud_detection/scenario_runner/runner.py (wiring evidence evaluation)
+- 	ests/services/scenario_runner/ (new tests for instance-proof + receipt invalid cases)
+
+### Validation plan (tests)
+- Instance-scoped output with no instance proof => WAITING/FAIL with reason.
+- Fingerprint-scoped output with PASS receipt => COMPLETE.
+- Invalid receipt schema => FAIL (reason code matches).
+- Output locator digest mismatch => FAIL/CONFLICT.
+
+### Decision status
+Pending: strict vs temporary bridge. I’m ready to implement strict fail-closed unless you ask for a bridge.
