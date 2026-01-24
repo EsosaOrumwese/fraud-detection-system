@@ -467,3 +467,54 @@ Lock the SR target platform stack to AWS:
 - Phase 2.5 hardening must assume S3 semantics (immutability guards + CAS/segmented append).
 
 ---
+## Entry: 2026-01-24 05:47:18 — Phase 2.5 hardening plan (rock‑solid durability)
+
+### Problem / goal
+Phase 2 is functional but not rock‑solid. Hardening is required for production‑grade durability and idempotency:
+- S3 immutability guards for write‑once artifacts.
+- CAS/segmented run_record append to avoid lost updates.
+- Lease fencing + renewal checks on state‑advancing writes.
+- Fail‑closed object store errors (distinguish missing vs access/network).
+- Postgres authority store smoke coverage and concurrency tests.
+
+### Decisions (this phase)
+1) **Immutability guards**: add `write_json_if_absent` / `write_text_if_absent` to the ObjectStore; use for run_plan, run_facts_view, ready_signal.
+2) **CAS append**: S3 append uses ETag `IfMatch` to prevent lost updates; raise on precondition failure.
+3) **Lease validation**: add `check_lease` to AuthorityStore; require valid lease (and renew) before any state‑advancing ledger write.
+4) **Fail‑closed store errors**: only treat 404/NoSuchKey as missing; all other errors propagate.
+
+### Steps
+1) Extend storage interface + S3 behavior (immutability + CAS + error classification).
+2) Extend authority store interface with `check_lease`; update SQLite/Postgres implementations.
+3) Enforce lease validation/renew in ScenarioRunner before commit transitions.
+4) Add/extend tests for lease validation; log results.
+
+---
+## Entry: 2026-01-24 05:50:29 — Phase 2.5 hardening implementation (partial)
+
+### What changed
+**Object store hardening**
+- Added write‑once methods (`write_json_if_absent`, `write_text_if_absent`) and wired them into the ledger for immutable artifacts (run_plan, run_facts_view, ready_signal).
+- Added S3 CAS protection on append (ETag `IfMatch`) with explicit conflict error.
+- S3 `exists` now distinguishes missing vs access/network errors (fail‑closed on non‑404).
+
+**Lease validation**
+- Added `check_lease` to the authority store; ScenarioRunner now validates + renews the lease before any state‑advancing writes.
+
+**Tests**
+- Extended SQLite authority store tests to cover `check_lease`; pytest run green (2 tests).
+
+### Files touched
+- `src/fraud_detection/scenario_runner/storage.py`
+- `src/fraud_detection/scenario_runner/ledger.py`
+- `src/fraud_detection/scenario_runner/authority.py`
+- `src/fraud_detection/scenario_runner/runner.py`
+- `tests/services/scenario_runner/test_authority_store.py`
+
+### Still pending for Phase 2.5 completion
+- Postgres authority store smoke/integration test (needs DSN).
+- Concurrency tests for duplicate submits + lease contention.
+- S3 integration tests (immutability + CAS append) against a real bucket or MinIO.
+- Lease fencing token enforcement on writes (beyond check/renew) if required by ops policy.
+
+---

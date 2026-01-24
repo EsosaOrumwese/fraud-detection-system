@@ -28,10 +28,12 @@ def test_lease_acquire_renew_release_sqlite(tmp_path: Path) -> None:
     ok, token = store.acquire_lease(run_id, "owner-a", ttl_seconds=300)
     assert ok is True
     assert token
+    assert store.check_lease(run_id, token) is True
     ok2, _ = store.acquire_lease(run_id, "owner-b", ttl_seconds=300)
     assert ok2 is False
     assert store.renew_lease(run_id, token, ttl_seconds=300) is True
     assert store.release_lease(run_id, token) is True
+    assert store.check_lease(run_id, token) is False
     ok3, token2 = store.acquire_lease(run_id, "owner-b", ttl_seconds=300)
     assert ok3 is True
     assert token2

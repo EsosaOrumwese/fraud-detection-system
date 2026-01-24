@@ -57,14 +57,14 @@ class Ledger:
     def commit_plan(self, plan: RunPlan, record_event: dict[str, Any]) -> ArtifactRef:
         paths = self._paths(plan.run_id)
         plan_payload = plan.model_dump(mode="json", exclude_none=True)
-        if self.store.exists(paths.run_plan):
+        self._validate_payload("run_plan.schema.yaml", plan_payload)
+        self._validate_record(record_event)
+        try:
+            self.store.write_json_if_absent(paths.run_plan, plan_payload)
+        except FileExistsError:
             existing = self.store.read_json(paths.run_plan)
             if existing != plan_payload:
                 raise RuntimeError("PLAN_DRIFT")
-            return ArtifactRef(path=paths.run_plan)
-        self._validate_payload("run_plan.schema.yaml", plan_payload)
-        self._validate_record(record_event)
-        self.store.write_json(paths.run_plan, plan_payload)
         self._append_record(paths, record_event)
         self._update_status(
             plan.run_id,
@@ -75,13 +75,14 @@ class Ledger:
 
     def commit_facts_view(self, run_id: str, facts_view: dict[str, Any]) -> ArtifactRef:
         paths = self._paths(run_id)
-        if self.store.exists(paths.run_facts_view):
+        self._validate_payload("run_facts_view.schema.yaml", facts_view)
+        try:
+            return self.store.write_json_if_absent(paths.run_facts_view, facts_view)
+        except FileExistsError:
             existing = self.store.read_json(paths.run_facts_view)
             if existing != facts_view:
                 raise RuntimeError("FACTS_VIEW_DRIFT")
             return ArtifactRef(path=paths.run_facts_view)
-        self._validate_payload("run_facts_view.schema.yaml", facts_view)
-        return self.store.write_json(paths.run_facts_view, facts_view)
 
     def commit_ready(self, run_id: str, record_event: dict[str, Any]) -> ArtifactRef:
         paths = self._paths(run_id)
@@ -127,7 +128,13 @@ class Ledger:
     def write_ready_signal(self, run_id: str, payload: dict[str, Any]) -> ArtifactRef:
         paths = self._paths(run_id)
         self._validate_payload("run_ready_signal.schema.yaml", payload)
-        return self.store.write_json(paths.ready_signal, payload)
+        try:
+            return self.store.write_json_if_absent(paths.ready_signal, payload)
+        except FileExistsError:
+            existing = self.store.read_json(paths.ready_signal)
+            if existing != payload:
+                raise RuntimeError("READY_SIGNAL_DRIFT")
+            return ArtifactRef(path=paths.ready_signal)
 
     def read_status(self, run_id: str) -> RunStatus | None:
         paths = self._paths(run_id)

@@ -20,10 +20,16 @@ class ObjectStore(Protocol):
     def write_json(self, relative_path: str, payload: dict[str, Any]) -> ArtifactRef:
         ...
 
+    def write_json_if_absent(self, relative_path: str, payload: dict[str, Any]) -> ArtifactRef:
+        ...
+
     def read_json(self, relative_path: str) -> dict[str, Any]:
         ...
 
     def write_text(self, relative_path: str, content: str) -> ArtifactRef:
+        ...
+
+    def write_text_if_absent(self, relative_path: str, content: str) -> ArtifactRef:
         ...
 
     def append_jsonl(self, relative_path: str, records: Iterable[dict[str, Any]]) -> ArtifactRef:
@@ -60,6 +66,17 @@ class LocalObjectStore:
         os.replace(tmp_path, path)
         return ArtifactRef(path=str(path))
 
+    def write_json_if_absent(self, relative_path: str, payload: dict[str, Any]) -> ArtifactRef:
+        path = self._full_path(relative_path)
+        path.parent.mkdir(parents=True, exist_ok=True)
+        data = json.dumps(payload, sort_keys=True, ensure_ascii=True, separators=(",", ":")) + "\n"
+        try:
+            with path.open("x", encoding="utf-8") as handle:
+                handle.write(data)
+        except FileExistsError as exc:
+            raise exc
+        return ArtifactRef(path=str(path))
+
     def read_json(self, relative_path: str) -> dict[str, Any]:
         path = self._full_path(relative_path)
         return json.loads(path.read_text(encoding="utf-8"))
@@ -70,6 +87,16 @@ class LocalObjectStore:
         tmp_path = path.with_suffix(path.suffix + ".tmp")
         tmp_path.write_text(content, encoding="utf-8")
         os.replace(tmp_path, path)
+        return ArtifactRef(path=str(path))
+
+    def write_text_if_absent(self, relative_path: str, content: str) -> ArtifactRef:
+        path = self._full_path(relative_path)
+        path.parent.mkdir(parents=True, exist_ok=True)
+        try:
+            with path.open("x", encoding="utf-8") as handle:
+                handle.write(content)
+        except FileExistsError as exc:
+            raise exc
         return ArtifactRef(path=str(path))
 
     def append_jsonl(self, relative_path: str, records: Iterable[dict[str, Any]]) -> ArtifactRef:
@@ -117,6 +144,25 @@ class S3ObjectStore:
         self._put_text(key, data)
         return ArtifactRef(path=f"s3://{self.bucket}/{key}")
 
+    def write_json_if_absent(self, relative_path: str, payload: dict[str, Any]) -> ArtifactRef:
+        from botocore.exceptions import ClientError
+
+        data = json.dumps(payload, sort_keys=True, ensure_ascii=True, separators=(",", ":")) + "\n"
+        key = self._key(relative_path)
+        try:
+            self._client.put_object(
+                Bucket=self.bucket,
+                Key=key,
+                Body=data.encode("utf-8"),
+                IfNoneMatch="*",
+            )
+        except ClientError as exc:
+            error_code = exc.response.get("Error", {}).get("Code")
+            if error_code in {"PreconditionFailed", "412"}:
+                raise FileExistsError(key) from exc
+            raise
+        return ArtifactRef(path=f"s3://{self.bucket}/{key}")
+
     def read_json(self, relative_path: str) -> dict[str, Any]:
         key = self._key(relative_path)
         response = self._client.get_object(Bucket=self.bucket, Key=key)
@@ -128,27 +174,73 @@ class S3ObjectStore:
         self._put_text(key, content)
         return ArtifactRef(path=f"s3://{self.bucket}/{key}")
 
+    def write_text_if_absent(self, relative_path: str, content: str) -> ArtifactRef:
+        from botocore.exceptions import ClientError
+
+        key = self._key(relative_path)
+        try:
+            self._client.put_object(
+                Bucket=self.bucket,
+                Key=key,
+                Body=content.encode("utf-8"),
+                IfNoneMatch="*",
+            )
+        except ClientError as exc:
+            error_code = exc.response.get("Error", {}).get("Code")
+            if error_code in {"PreconditionFailed", "412"}:
+                raise FileExistsError(key) from exc
+            raise
+        return ArtifactRef(path=f"s3://{self.bucket}/{key}")
+
     def append_jsonl(self, relative_path: str, records: Iterable[dict[str, Any]]) -> ArtifactRef:
+        from botocore.exceptions import ClientError
+
         key = self._key(relative_path)
         existing = ""
+        etag = None
         if self.exists(relative_path):
             response = self._client.get_object(Bucket=self.bucket, Key=key)
             existing = response["Body"].read().decode("utf-8")
+            etag = response.get("ETag")
         lines = []
         for record in records:
             line = json.dumps(record, sort_keys=True, ensure_ascii=True, separators=(",", ":"))
             lines.append(line)
         content = existing + "".join(line + "\n" for line in lines)
-        self._put_text(key, content)
+        try:
+            if etag:
+                self._client.put_object(
+                    Bucket=self.bucket,
+                    Key=key,
+                    Body=content.encode("utf-8"),
+                    IfMatch=etag,
+                )
+            else:
+                self._client.put_object(
+                    Bucket=self.bucket,
+                    Key=key,
+                    Body=content.encode("utf-8"),
+                    IfNoneMatch="*",
+                )
+        except ClientError as exc:
+            error_code = exc.response.get("Error", {}).get("Code")
+            if error_code in {"PreconditionFailed", "412"}:
+                raise RuntimeError("S3_APPEND_CONFLICT") from exc
+            raise
         return ArtifactRef(path=f"s3://{self.bucket}/{key}")
 
     def exists(self, relative_path: str) -> bool:
+        from botocore.exceptions import ClientError
+
         key = self._key(relative_path)
         try:
             self._client.head_object(Bucket=self.bucket, Key=key)
             return True
-        except Exception:
-            return False
+        except ClientError as exc:
+            error_code = exc.response.get("Error", {}).get("Code")
+            if error_code in {"404", "NoSuchKey", "NotFound"}:
+                return False
+            raise
 
     def read_text(self, relative_path: str) -> str:
         key = self._key(relative_path)

@@ -28,6 +28,9 @@ class AuthorityStore:
     def acquire_lease(self, run_id: str, owner_id: str, ttl_seconds: int) -> tuple[bool, str | None]:
         raise NotImplementedError
 
+    def check_lease(self, run_id: str, lease_token: str) -> bool:
+        raise NotImplementedError
+
     def renew_lease(self, run_id: str, lease_token: str, ttl_seconds: int) -> bool:
         raise NotImplementedError
 
@@ -129,6 +132,20 @@ class SQLiteAuthorityStore(AuthorityStore):
                 (run_id, owner_id, token, expires_at, now.isoformat()),
             )
             return True, token
+
+    def check_lease(self, run_id: str, lease_token: str) -> bool:
+        now = datetime.now(tz=timezone.utc)
+        with self._connect() as conn:
+            row = conn.execute(
+                "SELECT lease_token, expires_at FROM sr_run_leases WHERE run_id = ?",
+                (run_id,),
+            ).fetchone()
+            if not row:
+                return False
+            token, expires_at = row
+            if token != lease_token:
+                return False
+            return datetime.fromisoformat(expires_at) > now
 
     def renew_lease(self, run_id: str, lease_token: str, ttl_seconds: int) -> bool:
         now = datetime.now(tz=timezone.utc)
@@ -266,6 +283,22 @@ class PostgresAuthorityStore(AuthorityStore):
                 )
                 return True, token
 
+    def check_lease(self, run_id: str, lease_token: str) -> bool:
+        now = datetime.now(tz=timezone.utc)
+        with self._connect() as conn:
+            with conn.cursor() as cur:
+                cur.execute(
+                    "SELECT lease_token, expires_at FROM sr_run_leases WHERE run_id = %s",
+                    (run_id,),
+                )
+                row = cur.fetchone()
+                if not row:
+                    return False
+                token, expires_at = row
+                if token != lease_token:
+                    return False
+                return datetime.fromisoformat(expires_at) > now
+
     def renew_lease(self, run_id: str, lease_token: str, ttl_seconds: int) -> bool:
         now = datetime.now(tz=timezone.utc)
         expires_at = (now + timedelta(seconds=ttl_seconds)).isoformat()
@@ -325,6 +358,9 @@ class LeaseManager:
 
     def renew(self, run_id: str, lease_token: str) -> bool:
         return self.store.renew_lease(run_id, lease_token, self.ttl_seconds)
+
+    def check(self, run_id: str, lease_token: str) -> bool:
+        return self.store.check_lease(run_id, lease_token)
 
     def release(self, run_id: str, lease_token: str) -> bool:
         return self.store.release_lease(run_id, lease_token)

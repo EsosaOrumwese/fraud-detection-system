@@ -97,7 +97,7 @@ class ScenarioRunner:
                 return self._response_from_status(run_id, "Reuse evidence failed.")
 
         # Invoke engine path (IP1)
-        attempt_result = self._invoke_engine(run_id, canonical)
+        attempt_result = self._invoke_engine(run_handle, canonical)
         if attempt_result.outcome != "SUCCEEDED":
             failure_bundle = EvidenceBundle(
                 status=EvidenceStatus.FAIL,
@@ -187,34 +187,37 @@ class ScenarioRunner:
         return Strategy.AUTO
 
     def _anchor_run(self, run_handle: RunHandle) -> None:
+        self._ensure_lease(run_handle)
         event = self._event("RUN_ACCEPTED", run_handle.run_id, {"intent_fingerprint": run_handle.intent_fingerprint})
         self.ledger.anchor_run(run_handle.run_id, event)
 
     def _commit_plan(self, run_handle: RunHandle, plan: RunPlan) -> None:
+        self._ensure_lease(run_handle)
         event = self._event("PLAN_COMMITTED", run_handle.run_id, {"plan_hash": plan.plan_hash})
         self.ledger.commit_plan(plan, event)
 
-    def _invoke_engine(self, run_id: str, intent: CanonicalRunIntent) -> EngineAttemptResult:
+    def _invoke_engine(self, run_handle: RunHandle, intent: CanonicalRunIntent) -> EngineAttemptResult:
+        self._ensure_lease(run_handle)
         invocation = {
             "manifest_fingerprint": intent.manifest_fingerprint,
             "parameter_hash": intent.parameter_hash,
             "seed": intent.seed,
-            "run_id": run_id,
+            "run_id": run_handle.run_id,
             "scenario_binding": {
                 "scenario_id": intent.scenario_id,
                 "scenario_set": intent.scenario_set,
             },
             "engine_run_root": intent.engine_run_root,
         }
-        attempt_event = self._event("ENGINE_ATTEMPT_LAUNCH_REQUESTED", run_id, {"attempt_no": 1})
-        self.ledger.mark_executing(run_id, attempt_event)
-        attempt = self.engine_invoker.invoke(run_id, 1, invocation)
+        attempt_event = self._event("ENGINE_ATTEMPT_LAUNCH_REQUESTED", run_handle.run_id, {"attempt_no": 1})
+        self.ledger.mark_executing(run_handle.run_id, attempt_event)
+        attempt = self.engine_invoker.invoke(run_handle.run_id, 1, invocation)
         finish_event = self._event(
             "ENGINE_ATTEMPT_FINISHED",
-            run_id,
+            run_handle.run_id,
             {"attempt_id": attempt.attempt_id, "outcome": attempt.outcome, "reason": attempt.reason_code},
         )
-        self.ledger.append_record(run_id, finish_event)
+        self.ledger.append_record(run_handle.run_id, finish_event)
         return attempt
 
     def _reuse_evidence(self, intent: CanonicalRunIntent, plan: RunPlan) -> EvidenceBundle:
@@ -328,6 +331,7 @@ class ScenarioRunner:
         plan: RunPlan,
         bundle: EvidenceBundle,
     ) -> RunResponse:
+        self._ensure_lease(run_handle)
         facts_view = {
             "run_id": plan.run_id,
             "pins": {
@@ -363,10 +367,12 @@ class ScenarioRunner:
         return self._response_from_status(plan.run_id, "READY committed")
 
     def _commit_waiting(self, run_handle: RunHandle, bundle: EvidenceBundle) -> None:
+        self._ensure_lease(run_handle)
         event = self._event("EVIDENCE_WAITING", run_handle.run_id, {"missing": bundle.missing})
         self.ledger.commit_waiting(run_handle.run_id, event)
 
     def _commit_terminal(self, run_handle: RunHandle, bundle: EvidenceBundle) -> None:
+        self._ensure_lease(run_handle)
         state = RunStatusState.QUARANTINED if bundle.status == EvidenceStatus.CONFLICT else RunStatusState.FAILED
         event_kind = "EVIDENCE_CONFLICT" if bundle.status == EvidenceStatus.CONFLICT else "EVIDENCE_FAIL"
         event = self._event(event_kind, run_handle.run_id, {"reason": bundle.reason, "missing": bundle.missing})
@@ -413,3 +419,11 @@ class ScenarioRunner:
             return digest_files(files)
         matches = sorted([p for p in path.parent.glob(path.name) if p.is_file()], key=lambda p: str(p))
         return digest_files(matches)
+
+    def _ensure_lease(self, run_handle: RunHandle) -> None:
+        if not run_handle.lease_token:
+            raise RuntimeError("LEASE_TOKEN_MISSING")
+        if not self.lease_manager.check(run_handle.run_id, run_handle.lease_token):
+            raise RuntimeError("LEASE_LOST")
+        if not self.lease_manager.renew(run_handle.run_id, run_handle.lease_token):
+            raise RuntimeError("LEASE_LOST")
