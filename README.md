@@ -295,6 +295,8 @@ fraud-detection-system/
 - **`parameter_hash`** — digest of governed parameter sets that define run semantics.  
 - **`manifest_fingerprint`** — digest of everything the run opened (incl. git tree and artefacts).  
 - **Degrade ladder** — automatic path to meet SLOs under pressure (skip 2nd stage → last-good features → STEP-UP → rules-only).
+- The **component logic lives in `src/fraud_detection/*`**, while **deployable services live in `services/*`**.
+- If any component needs independent release cadence later, it can be promoted into `packages/` without breaking service layout.
 
 ---
 
