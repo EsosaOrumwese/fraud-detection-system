@@ -1193,3 +1193,27 @@ Use `pyarrow.parquet.ParquetFile(path).read()` for local parquet reads in IG. It
 
 ### Expected outcome
 IG pull should now ingest engine parquet outputs without the schema merge error, yielding `COMPLETED` instead of `PARTIAL` for outputs that are otherwise valid.
+
+---
+
+## Entry: 2026-01-25 22:47:28 — SR→IG smoke run (10‑min cap) after parquet fix
+
+### What was executed (bounded run)
+I ran a single `make platform-ig-ready-once` after the parquet fix, with a **10‑minute cap** (per user request). Any existing READY consumers were stopped first to avoid lease contention.
+
+### Observations (no schema failure, but long runtime)
+- The pull run did **not** emit new `OUTPUT_FAILED` events with `INTERNAL_ERROR`.
+- The READY consumer remained active past the 10‑minute cap; the run had not reached `PULL_COMPLETED` within the time window.
+- This indicates the **schema merge error is resolved**, but the full ingestion over the large engine outputs likely needs **more than 10 minutes** on local hardware.
+
+### Diagnosis (why it didn’t finish in time)
+- `arrival_events_5B` alone has ~591 parquet files; ingesting all outputs is heavy for a bounded smoke run.
+- The IG pull pipeline is doing full ingestion; with a strict 10‑minute cap, it may not complete even when functioning correctly.
+
+### Next decision needed
+To mark SR→IG “green,” choose one of:
+1) **Allow a longer run** (recommended for a true end‑to‑end validation).
+2) **Enable shard checkpointing in local profile** (`pull_shard_mode: locator_range`, `pull_shard_size: 1`) to allow incremental progress across multiple READY runs without reprocessing completed files.
+3) **Add a local‑only ingest cap** (e.g., max files per output) to make a short smoke run deterministic; default remains uncapped for production.
+
+I will proceed based on your preference.
