@@ -14,6 +14,7 @@ python -m fraud_detection.ingestion_gate.cli --profile config/platform/profiles/
 Run push ingestion:
 ```
 python -m fraud_detection.ingestion_gate.cli --profile config/platform/profiles/local.yaml --push-file <path-to-envelope.json>
+```
 
 Lookup outcomes:
 ```
@@ -24,20 +25,32 @@ python -m fraud_detection.ingestion_gate.cli --profile config/platform/profiles/
 python -m fraud_detection.ingestion_gate.cli --profile config/platform/profiles/local.yaml --health
 ```
 
-Smoke test (uses runs/ artifacts if present):
+Smoke test (uses SR artifacts if present):
 ```
 python -m pytest tests/services/ingestion_gate/test_ops_rebuild_runs_smoke.py -q
 ```
+
+Notes:
+- This smoke test looks for SR artifacts under:
+  - `%SR_ARTIFACTS_ROOT%` (preferred)
+  - `artefacts/fraud-platform/sr` (repo-local default)
+- If none are found, the test skips with a clear message.
 
 ## Service (local)
 Run HTTP service:
 ```
 python -m fraud_detection.ingestion_gate.service --profile config/platform/profiles/local.yaml --port 8081
 ```
+
 Enable READY polling inside the service (PowerShell):
 ```
 $env:IG_READY_CONSUMER="1"
 ```
+
+Auth + rate limits (profile wiring):
+- `wiring.security.auth_mode: api_key` to require API keys on `/v1/ingest/*` and `/v1/ops/*`.
+- `wiring.security.auth_allowlist_ref` points to a newline-delimited allowlist file.
+- `wiring.security.push_rate_limit_per_minute` and `ready_rate_limit_per_minute` enforce basic backpressure.
 
 Push ingest example:
 ```
@@ -64,14 +77,21 @@ Run READY poll loop:
 python -m fraud_detection.ingestion_gate.ready_consumer --profile config/platform/profiles/local.yaml --interval 2
 ```
 
-Notes:
-- This smoke test looks for SR artifacts under:
-  - `%SR_ARTIFACTS_ROOT%` (preferred)
-  - `artefacts/fraud-platform/sr` (repo-local default)
-- If none are found, the test skips with a clear message.
-```
+## Runbook + alerts (Phase 5)
+Failure modes and first actions:
+- **IG health RED (IG_UNHEALTHY)**: check object store access, ops DB path, and bus connectivity; re-run `--health` to confirm reasons.
+- **RUN_FACTS_UNREADABLE / RUN_FACTS_MISSING**: verify `run_facts_view` path or S3 endpoint/region/path-style settings; confirm SR READY emitted a facts ref.
+- **EB_PUBLISH_FAILED**: verify EB endpoint, topic availability, and permissions; health should flip RED if failures persist.
+- **RATE_LIMITED**: increase limits or reduce caller concurrency; READY consumer should back off rather than re-ingest.
+- **RUN_NOT_ALLOWED / UNAUTHORIZED**: confirm allowlists and API key header name; rotate allowlist files if needed.
 
-## Notes
-- IG validates canonical envelopes and applies schema policy allowlists.
-- EB publisher is a **local file bus** for v0 tests; Kafka-compatible adapter will be plugged in later.
-- Receipts/quarantine are written by-ref under `fraud-platform/ig/`.
+Alert triggers to wire:
+- Health state transitions to RED/AMBER (bus, store, or ops DB degradation).
+- Quarantine spikes (threshold over rolling window; see `wiring.quarantine_spike_*`).
+- READY processing failures (status=FAILED in pull run records, missing facts refs).
+
+Operational signals:
+- Metrics log lines (`IG metrics`) include counters and latencies:
+  - `phase.validate_seconds`, `phase.verify_seconds`, `phase.publish_seconds`, `phase.receipt_seconds`
+  - `admission_seconds` (end-to-end admission)
+- Governance events: `ig.policy.activation`, `ig.pull.run`, and quarantine spike notices are emitted to the audit/control bus.

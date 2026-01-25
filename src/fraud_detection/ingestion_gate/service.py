@@ -31,6 +31,8 @@ def create_app(profile_path: str) -> Flask:
     def ingest_push() -> Any:
         payload = request.get_json(force=True)
         try:
+            _require_auth(gate, request)
+            gate.enforce_push_rate_limit()
             decision, receipt = gate.admit_push_with_decision(payload)
             receipt_id = receipt.payload.get("receipt_id")
             receipt_ref = None
@@ -39,7 +41,7 @@ def create_app(profile_path: str) -> Flask:
                 receipt_ref = lookup.get("receipt_ref") if lookup else None
             return jsonify({"decision": decision.decision, "receipt": receipt.payload, "receipt_ref": receipt_ref})
         except IngestionError as exc:
-            return jsonify({"error": exc.code, "detail": exc.detail}), 400
+            return jsonify({"error": exc.code, "detail": exc.detail}), _error_status(exc)
         except Exception as exc:  # pragma: no cover - defensive
             return jsonify({"error": reason_code(exc)}), 500
 
@@ -50,6 +52,8 @@ def create_app(profile_path: str) -> Flask:
         run_facts_ref = payload.get("run_facts_ref") or payload.get("facts_view_ref")
         message_id = payload.get("message_id")
         try:
+            _require_auth(gate, request)
+            gate.enforce_ready_rate_limit()
             if not run_facts_ref and run_id:
                 run_facts_ref = gate.resolve_run_facts_ref(run_id)
             if not run_facts_ref:
@@ -57,12 +61,13 @@ def create_app(profile_path: str) -> Flask:
             status = gate.admit_pull_with_state(run_facts_ref, run_id=run_id, message_id=message_id)
             return jsonify(status)
         except IngestionError as exc:
-            return jsonify({"error": exc.code, "detail": exc.detail}), 400
+            return jsonify({"error": exc.code, "detail": exc.detail}), _error_status(exc)
         except Exception as exc:  # pragma: no cover - defensive
             return jsonify({"error": reason_code(exc)}), 500
 
     @app.get("/v1/ops/lookup")
     def ops_lookup() -> Any:
+        _require_auth(gate, request)
         event_id = request.args.get("event_id")
         receipt_id = request.args.get("receipt_id")
         dedupe_key = request.args.get("dedupe_key")
@@ -78,6 +83,7 @@ def create_app(profile_path: str) -> Flask:
 
     @app.get("/v1/ops/health")
     def ops_health() -> Any:
+        _require_auth(gate, request)
         result = gate.health.check()
         return jsonify({"state": result.state.value, "reasons": result.reasons})
 
@@ -108,6 +114,19 @@ def _start_ready_consumer(app: Flask, wiring: WiringProfile, gate: IngestionGate
     @app.teardown_appcontext
     def _stop_ready_consumer(exc: Exception | None = None) -> None:
         stop_event.set()
+
+
+def _error_status(exc: IngestionError) -> int:
+    if exc.code in {"UNAUTHORIZED", "AUTH_MODE_UNKNOWN", "AUTH_MODE_UNSUPPORTED"}:
+        return 401
+    if exc.code == "RATE_LIMITED":
+        return 429
+    return 400
+
+
+def _require_auth(gate: IngestionGate, req) -> None:
+    token = req.headers.get(gate.api_key_header)
+    gate.authorize_request(token)
 
 
 def main() -> None:

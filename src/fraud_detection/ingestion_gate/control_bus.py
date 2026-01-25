@@ -88,6 +88,16 @@ class ReadyConsumer:
 
     def _process_message(self, message: ReadyMessage) -> dict[str, Any]:
         status_ref = self.pull_store.status_path(message.run_id)
+        try:
+            self.gate.enforce_ready_allowlist(message.run_id)
+            self.gate.enforce_ready_rate_limit()
+        except IngestionError as exc:
+            return {
+                "message_id": message.message_id,
+                "run_id": message.run_id,
+                "status": "SKIPPED_UNAUTHORIZED" if exc.code == "RUN_NOT_ALLOWED" else "SKIPPED_RATE_LIMIT",
+                "reason_code": exc.code,
+            }
         existing = self.pull_store.read_message_record(message.message_id)
         if existing:
             existing_status = self.pull_store.read_status(existing.get("run_id", message.run_id))

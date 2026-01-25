@@ -26,8 +26,11 @@ from .ops_index import OpsIndex
 from .partitioning import PartitionProfile, PartitioningProfiles
 from .policy_digest import compute_policy_digest
 from .pull_state import PullRunStore
+from .rate_limit import RateLimiter
+from .retry import with_retry
 from .receipts import ReceiptWriter
 from .scopes import is_instance_scope
+from .security import authorize
 from .schema import SchemaEnforcer
 from .schemas import SchemaRegistry
 from .store import ObjectStore, build_object_store
@@ -63,6 +66,12 @@ class IngestionGate:
     metrics: MetricsRecorder
     governance: GovernanceEmitter
     pull_store: PullRunStore
+    auth_mode: str
+    auth_allowlist: list[str]
+    api_key_header: str
+    ready_allowlist_run_ids: list[str]
+    push_limiter: RateLimiter
+    ready_limiter: RateLimiter
 
     @classmethod
     def build(cls, wiring: WiringProfile) -> "IngestionGate":
@@ -106,6 +115,7 @@ class IngestionGate:
             ops_index,
             wiring.health_probe_interval_seconds,
             wiring.bus_publish_failure_threshold,
+            wiring.store_read_failure_threshold,
         )
         metrics = MetricsRecorder(flush_interval_seconds=wiring.metrics_flush_seconds)
         governance = GovernanceEmitter(
@@ -120,6 +130,8 @@ class IngestionGate:
             {"policy_id": policy_rev.policy_id, "revision": policy_rev.revision, "content_digest": policy_rev.content_digest}
         )
         pull_store = PullRunStore(store)
+        auth_allowlist = list(wiring.auth_allowlist or [])
+        ready_allowlist = list(wiring.ready_allowlist_run_ids or [])
         return cls(
             wiring=wiring,
             policy=policy,
@@ -140,6 +152,12 @@ class IngestionGate:
             metrics=metrics,
             governance=governance,
             pull_store=pull_store,
+            auth_mode=wiring.auth_mode,
+            auth_allowlist=auth_allowlist,
+            api_key_header=wiring.api_key_header,
+            ready_allowlist_run_ids=ready_allowlist,
+            push_limiter=RateLimiter(wiring.push_rate_limit_per_minute),
+            ready_limiter=RateLimiter(wiring.ready_rate_limit_per_minute),
         )
 
     def admit_push(self, envelope: dict[str, Any]) -> Receipt:
@@ -156,9 +174,9 @@ class IngestionGate:
 
     def admit_pull(self, run_facts_view_path: Path) -> list[Receipt]:
         logger.info("IG admit_pull start run_facts_view=%s", run_facts_view_path)
-        puller = EnginePuller(run_facts_view_path, self.catalogue)
         receipts: list[Receipt] = []
         run_facts = _load_json(run_facts_view_path)
+        puller = EnginePuller(run_facts_view_path, self.catalogue, run_facts)
         for envelope in puller.iter_events():
             decision, receipt = self._admit_event(
                 envelope,
@@ -176,14 +194,24 @@ class IngestionGate:
         run_id: str | None = None,
         message_id: str | None = None,
     ) -> dict[str, Any]:
-        run_facts_path = self._resolve_run_facts_path(run_facts_ref)
-        run_facts = _load_json(run_facts_path)
+        self._enforce_health()
+        run_facts = self._load_run_facts_by_ref(run_facts_ref)
+        run_facts_path = None
+        if not run_facts_ref.startswith("s3://"):
+            run_facts_path = self._resolve_run_facts_path(run_facts_ref)
         run_id = run_id or run_facts.get("pins", {}).get("run_id") or run_facts.get("run_id")
         if not run_id:
             raise IngestionError("RUN_ID_MISSING")
 
         started_at = datetime.now(tz=timezone.utc)
-        output_ids = EnginePuller(run_facts_path, self.catalogue).list_outputs()
+        output_ids = EnginePuller(
+            run_facts_path,
+            self.catalogue,
+            run_facts,
+            retry_attempts=self.wiring.store_read_retry_attempts,
+            retry_backoff_seconds=self.wiring.store_read_retry_backoff_seconds,
+            retry_max_seconds=self.wiring.store_read_retry_max_seconds,
+        ).list_outputs()
         status = {
             "run_id": run_id,
             "message_id": message_id,
@@ -204,7 +232,14 @@ class IngestionGate:
                 "message_id": message_id,
             },
         )
-        puller = EnginePuller(run_facts_path, self.catalogue)
+        puller = EnginePuller(
+            run_facts_path,
+            self.catalogue,
+            run_facts,
+            retry_attempts=self.wiring.store_read_retry_attempts,
+            retry_backoff_seconds=self.wiring.store_read_retry_backoff_seconds,
+            retry_max_seconds=self.wiring.store_read_retry_max_seconds,
+        )
 
         for output_id in output_ids:
             if self.pull_store.checkpoint_exists(run_id, output_id):
@@ -296,15 +331,19 @@ class IngestionGate:
         run_facts: dict[str, Any] | None,
     ) -> tuple[AdmissionDecision, Receipt]:
         start = time.perf_counter()
+        validate_started = time.perf_counter()
         try:
             self._enforce_health()
             self._validate_envelope(envelope)
             self._validate_class_pins(envelope)
             self.schema_enforcer.validate_payload(envelope["event_type"], envelope)
+            self.metrics.record_latency("phase.validate_seconds", time.perf_counter() - validate_started)
+            verify_started = time.perf_counter()
             if run_facts is None and self._requires_run_ready(envelope["event_type"]):
                 self._ensure_run_ready(envelope)
             if output_id and run_facts:
                 self._verify_required_gates(output_id, run_facts)
+            self.metrics.record_latency("phase.verify_seconds", time.perf_counter() - verify_started)
         except IngestionError as exc:
             if exc.code == "IG_UNHEALTHY":
                 raise
@@ -319,7 +358,9 @@ class IngestionGate:
         )
 
         dedupe = dedupe_key(envelope["event_id"], envelope["event_type"])
+        dedupe_started = time.perf_counter()
         existing = self.admission_index.lookup(dedupe)
+        self.metrics.record_latency("phase.dedupe_seconds", time.perf_counter() - dedupe_started)
         if existing:
             logger.info("IG duplicate event_id=%s event_type=%s", envelope["event_id"], envelope["event_type"])
             decision = AdmissionDecision(
@@ -330,12 +371,14 @@ class IngestionGate:
                 if existing.get("receipt_ref")
                 else None,
             )
+            receipt_started = time.perf_counter()
             receipt_payload = self._receipt_payload(envelope, decision, dedupe)
             receipt = Receipt(payload=receipt_payload)
             receipt_id = receipt_payload["receipt_id"]
             self.contract_registry.validate("ingestion_receipt.schema.yaml", receipt_payload)
             receipt_ref = self.receipt_writer.write_receipt(receipt_id, receipt_payload)
             self._record_ops_receipt(receipt_payload, receipt_ref)
+            self.metrics.record_latency("phase.receipt_seconds", time.perf_counter() - receipt_started)
             self.metrics.record_decision("DUPLICATE")
             self.metrics.record_latency("admission_seconds", time.perf_counter() - start)
             self.metrics.flush_if_due(self._metrics_context(envelope))
@@ -343,7 +386,9 @@ class IngestionGate:
 
         try:
             partition_key, profile = self._partitioning(envelope)
+            publish_started = time.perf_counter()
             eb_ref = self.bus.publish(profile.stream, partition_key, envelope)
+            self.metrics.record_latency("phase.publish_seconds", time.perf_counter() - publish_started)
         except IngestionError as exc:
             return self._quarantine(envelope, exc, start)
         except Exception as exc:
@@ -364,6 +409,7 @@ class IngestionGate:
             reason_codes=[],
             eb_ref={"topic": eb_ref.topic, "partition": eb_ref.partition, "offset": eb_ref.offset},
         )
+        receipt_started = time.perf_counter()
         receipt_payload = self._receipt_payload(
             envelope,
             decision,
@@ -378,6 +424,7 @@ class IngestionGate:
         receipt_ref = self.receipt_writer.write_receipt(receipt_id, receipt_payload)
         self.admission_index.record(dedupe, receipt_ref, decision.eb_ref)
         self._record_ops_receipt(receipt_payload, receipt_ref)
+        self.metrics.record_latency("phase.receipt_seconds", time.perf_counter() - receipt_started)
         self.metrics.record_decision("ADMIT")
         self.metrics.record_latency("admission_seconds", time.perf_counter() - start)
         self.metrics.flush_if_due(self._metrics_context(envelope))
@@ -398,6 +445,7 @@ class IngestionGate:
         )
         event_id = envelope.get("event_id") or "unknown"
         quarantine_id = quarantine_id_from(event_id)
+        receipt_started = time.perf_counter()
         quarantine_payload = {
             "quarantine_id": quarantine_id,
             "received_at_utc": datetime.now(tz=timezone.utc).isoformat(),
@@ -434,6 +482,7 @@ class IngestionGate:
         receipt_ref = self.receipt_writer.write_receipt(receipt_id, receipt_payload)
         self._record_ops_quarantine(quarantine_payload, quarantine_ref, event_id)
         self._record_ops_receipt(receipt_payload, receipt_ref)
+        self.metrics.record_latency("phase.receipt_seconds", time.perf_counter() - receipt_started)
         self.metrics.record_decision("QUARANTINE", code)
         self.metrics.record_latency("admission_seconds", time.perf_counter() - started_at)
         self.governance.emit_quarantine_spike(self.metrics.counters.get("decision.QUARANTINE", 0))
@@ -486,7 +535,7 @@ class IngestionGate:
         facts_ref = status.get("facts_view_ref") or f"{self.wiring.sr_ledger_prefix}/run_facts_view/{run_id}.json"
         if not self.store.exists(facts_ref):
             raise IngestionError("RUN_FACTS_MISSING", run_id)
-        run_facts = self.store.read_json(facts_ref)
+        run_facts = self._load_run_facts_by_ref(facts_ref)
         self._verify_run_pins(envelope, run_facts)
         logger.info("IG run joinability ok run_id=%s facts_ref=%s", run_id, facts_ref)
 
@@ -503,6 +552,8 @@ class IngestionGate:
         return facts_ref
 
     def _resolve_run_facts_path(self, run_facts_ref: str) -> Path:
+        if run_facts_ref.startswith("s3://"):
+            raise IngestionError("RUN_FACTS_REMOTE")
         candidate = Path(run_facts_ref)
         if candidate.is_absolute():
             return candidate
@@ -510,6 +561,39 @@ class IngestionGate:
         if store_root is None:
             raise IngestionError("RUN_FACTS_UNSUPPORTED")
         return Path(store_root) / run_facts_ref
+
+    def _load_run_facts_by_ref(self, run_facts_ref: str) -> dict[str, Any]:
+        def _read() -> dict[str, Any]:
+            if run_facts_ref.startswith("s3://"):
+                return _load_json_from_s3(
+                    run_facts_ref,
+                    endpoint_url=self.wiring.object_store_endpoint,
+                    region=self.wiring.object_store_region,
+                    path_style=self.wiring.object_store_path_style,
+                )
+            return self.store.read_json(run_facts_ref)
+
+        def _on_retry(attempt: int, delay: float, exc: Exception) -> None:
+            logger.warning(
+                "IG run_facts read retry attempt=%s delay=%.2fs reason=%s",
+                attempt,
+                delay,
+                str(exc)[:160],
+            )
+
+        try:
+            payload = with_retry(
+                _read,
+                attempts=self.wiring.store_read_retry_attempts,
+                base_delay_seconds=self.wiring.store_read_retry_backoff_seconds,
+                max_delay_seconds=self.wiring.store_read_retry_max_seconds,
+                on_retry=_on_retry,
+            )
+            self.health.record_read_success()
+            return payload
+        except Exception as exc:
+            self.health.record_read_failure()
+            raise IngestionError("RUN_FACTS_UNREADABLE", str(exc)[:256]) from exc
 
     def _enforce_health(self) -> None:
         result = self.health.check()
@@ -521,6 +605,23 @@ class IngestionGate:
                 raise IngestionError("IG_UNHEALTHY", "AMBER")
             if self.wiring.health_amber_sleep_seconds > 0:
                 time.sleep(self.wiring.health_amber_sleep_seconds)
+
+    def authorize_request(self, token: str | None) -> None:
+        allowed, reason = authorize(self.auth_mode, token, self.auth_allowlist)
+        if not allowed:
+            raise IngestionError(reason or "UNAUTHORIZED")
+
+    def enforce_push_rate_limit(self) -> None:
+        if not self.push_limiter.allow():
+            raise IngestionError("RATE_LIMITED")
+
+    def enforce_ready_rate_limit(self) -> None:
+        if not self.ready_limiter.allow():
+            raise IngestionError("RATE_LIMITED")
+
+    def enforce_ready_allowlist(self, run_id: str) -> None:
+        if self.ready_allowlist_run_ids and run_id not in self.ready_allowlist_run_ids:
+            raise IngestionError("RUN_NOT_ALLOWED", run_id)
 
     def _record_ops_receipt(self, payload: dict[str, Any], receipt_ref: str) -> None:
         try:
@@ -640,6 +741,32 @@ def _build_bus(wiring: WiringProfile) -> EventBusPublisher:
 
 def _load_json(path: Path) -> dict[str, Any]:
     return json.loads(path.read_text(encoding="utf-8"))
+
+
+def _load_json_from_s3(
+    ref: str,
+    *,
+    endpoint_url: str | None,
+    region: str | None,
+    path_style: bool | None,
+) -> dict[str, Any]:
+    from urllib.parse import urlparse
+
+    import boto3
+    from botocore.config import Config
+
+    parsed = urlparse(ref)
+    bucket = parsed.netloc
+    key = parsed.path.lstrip("/")
+    if not bucket or not key:
+        raise ValueError("S3_REF_INVALID")
+    config = None
+    if path_style:
+        config = Config(s3={"addressing_style": "path"})
+    client = boto3.client("s3", region_name=region, endpoint_url=endpoint_url, config=config)
+    response = client.get_object(Bucket=bucket, Key=key)
+    body = response["Body"].read().decode("utf-8")
+    return json.loads(body)
 
 
 def _locator_for(output_id: str, locators: Iterable[dict[str, Any]]) -> dict[str, Any] | None:

@@ -34,15 +34,18 @@ class HealthProbe:
         ops_index: OpsIndex,
         probe_interval_seconds: int = 30,
         max_publish_failures: int = 3,
+        max_read_failures: int = 3,
     ) -> None:
         self.store = store
         self.bus = bus
         self.ops_index = ops_index
         self.probe_interval_seconds = probe_interval_seconds
         self.max_publish_failures = max_publish_failures
+        self.max_read_failures = max_read_failures
         self._last_result: HealthResult | None = None
         self._last_checked_at: float | None = None
         self._publish_failures: int = 0
+        self._read_failures: int = 0
 
     def check(self) -> HealthResult:
         now = datetime.now(tz=timezone.utc)
@@ -54,6 +57,8 @@ class HealthProbe:
         reasons: list[str] = []
         if not self._store_ok():
             reasons.append("OBJECT_STORE_UNHEALTHY")
+        if self._read_failures >= self.max_read_failures:
+            reasons.append("STORE_READ_UNHEALTHY")
         if not self.ops_index.probe():
             reasons.append("OPS_DB_UNHEALTHY")
         bus_reason = self._bus_ok()
@@ -61,6 +66,8 @@ class HealthProbe:
             reasons.append(bus_reason)
 
         if "OBJECT_STORE_UNHEALTHY" in reasons or "OPS_DB_UNHEALTHY" in reasons:
+            state = HealthState.RED
+        elif "STORE_READ_UNHEALTHY" in reasons:
             state = HealthState.RED
         elif "BUS_UNHEALTHY" in reasons:
             state = HealthState.RED
@@ -97,3 +104,9 @@ class HealthProbe:
 
     def record_publish_success(self) -> None:
         self._publish_failures = 0
+
+    def record_read_failure(self) -> None:
+        self._read_failures += 1
+
+    def record_read_success(self) -> None:
+        self._read_failures = 0

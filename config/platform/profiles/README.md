@@ -29,6 +29,18 @@ wiring:
     kind: file
     root: artefacts/fraud-platform/control_bus
     topic: fp.bus.control.v1
+  security:
+    auth_mode: disabled | api_key
+    api_key_header: X-IG-Api-Key
+    auth_allowlist_ref: path/to/allowlist.txt
+    ready_allowlist_run_ids: [run_id_1, run_id_2]
+    ready_allowlist_ref: path/to/ready_allowlist.txt
+    push_rate_limit_per_minute: 0
+    ready_rate_limit_per_minute: 0
+    store_read_failure_threshold: 3
+    store_read_retry_attempts: 3
+    store_read_retry_backoff_seconds: 0.2
+    store_read_retry_max_seconds: 2.0
 ```
 
 Notes:
@@ -37,3 +49,5 @@ Notes:
 - `partitioning_profiles_ref` anchors the versioned profile set used by IG.
 - Wiring endpoints are placeholders; actual values come from env/secret store.
 - `control_bus` wiring tells IG where to read SR READY control events (file bus in v0).
+- `security` is wiring‑scoped: it can enable auth and rate limits without changing policy behavior.
+- Auth applies to **ingest and ops endpoints** when enabled; only CLI/internal calls bypass it.

@@ -752,3 +752,182 @@ User requested Phase‑5/6 checklists and to bump Flask/Werkzeug due to warning 
 
 ### Phase 5/6 checklist update
 Added Phase 5 (production hardening) and Phase 6 (scale + governance hardening) sections to the IG build plan with explicit DoD items.
+
+---
+
+## Entry: 2026-01-25 14:25:10 — Phase 5 planning (production hardening)
+
+### Problem / goal
+Phase 5 hardens IG for production: authenticated ingress + READY consumption, non‑local object store support for pull, resilience/backpressure controls, and operational runbooks/alerts. This is where we move from “local‑correct” to “production‑safe.”
+
+### Constraints / invariants (must not break)
+- **IG remains trust boundary**: always emit ADMIT/DUPLICATE/QUARANTINE with durable receipts.
+- **No‑PASS‑no‑read** and **fail‑closed** stay absolute: missing or invalid evidence cannot be admitted.
+- **No secrets in code or docs**: only references to secret sources (env/secret manager).
+- **Engine is a blackbox**: we only read artifacts/receipts.
+- **Idempotency**: at‑least‑once READY and push intake must be safe.
+
+### Decision trail (live reasoning)
+1) **AuthN/AuthZ approach**
+   - Option A: “static allowlist” in profiles (similar to SR’s allowlist).
+   - Option B: API key/JWT verification via shared secret or public key.
+   - Decision: implement a **pluggable auth module** with `auth_mode`:
+     - `disabled` for local/dev.
+     - `api_key` for v0 prod (Header + allowlist, no external IdP required).
+     - `jwt` reserved for Phase 6+ when a proper IdP is available.
+   - Reason: simple enough for v0, doesn’t block production rollout, remains extensible.
+2) **READY provenance validation**
+   - READY messages are at‑least‑once and must be **validated** before pull.
+   - Decision: accept READY only if:
+     - topic matches control topic,
+     - payload validates `run_ready_signal.schema.yaml`,
+     - message_id is deduped,
+     - `facts_view_ref` resolves and is readable.
+3) **Non‑local object store support**
+   - Current pull assumes filesystem. For prod, SR artifacts may live in S3/MinIO.
+   - Decision: introduce an **object‑store reader** in IG that can read JSON by ref:
+     - If ref is `s3://`, use S3 client.
+     - If ref is relative, resolve via IG object store root.
+   - Keep read retry/backoff bounded; fail‑closed on missing/invalid refs.
+4) **Backpressure / resilience**
+   - EB and object store failures should trigger **circuit breakers** and health transitions.
+   - Decision: add rate‑limit + breaker thresholds to wiring; reuse HealthProbe signals (AMBER/RED).
+5) **Ops runbook + alerting**
+   - Provide human‑operable recovery steps; wire governance events to alert triggers.
+   - Decision: add explicit runbook sections for:
+     - READY backlog / consumer stuck
+     - object store read failures
+     - EB publish failures
+     - quarantine spikes
+
+### Phase 5 implementation plan (stepwise)
+1) **Auth module**
+   - Add `src/fraud_detection/ingestion_gate/security.py` with `auth_mode` and `authorize()` helper.
+   - Extend `WiringProfile` with `auth_mode`, `auth_allowlist`, `api_key_header`, and `api_key_allowlist_ref` (file path).
+   - Enforce auth in:
+     - HTTP push endpoint.
+     - READY consumer (optional allowlist by message_id/run_id until proper signing).
+2) **Object store reader for run_facts_view**
+   - Add `read_json_by_ref(ref: str)` with support for:
+     - `s3://bucket/key` using boto3.
+     - relative refs via object store root.
+   - Add retries with bounded backoff; log reason codes on failure.
+3) **Resilience / backpressure**
+   - Add rate‑limit settings to wiring (push_per_minute, ready_per_minute).
+   - Add circuit breaker counters for EB publish + object store reads.
+   - HealthProbe should surface these as AMBER/RED reasons.
+4) **Ops runbook + alerts**
+   - Update `services/ingestion_gate/README.md` with failure scenarios and recovery steps.
+   - Add alert checklist (health transitions, quarantine spikes, READY failures).
+
+### Validation plan (Phase 5)
+- Unit tests for auth modes + allowlist parsing.
+- Unit tests for run_facts_view S3 ref resolution (mocked boto3).
+- Integration test: READY consumer rejects invalid payloads and unauthorized push.
+- Load/backpressure test: simulate EB failure → health RED → intake refused.
+
+### Open questions
+- Whether to use a centralized auth service in this repo or keep auth local to IG for v0.
+- Which audit stream is authoritative for alert routing (control vs audit topics).
+
+---
+
+## Entry: 2026-01-25 15:10:30 — Phase 5 implementation (auth, rate limits, S3 run_facts)
+
+### Implementation decisions (live, during coding)
+1) **Auth enforcement point**
+   - Auth is enforced at the **service boundary** (HTTP ingress) and READY consumer, not inside core admission logic.
+   - Reason: admission is also used by internal callers (tests/CLI); boundary enforcement keeps the core path deterministic and testable.
+2) **Auth mode strategy**
+   - Implemented `auth_mode=api_key` with a file‑backed allowlist (`auth_allowlist_ref`) and optional inline list.
+   - JWT mode returns `AUTH_MODE_UNSUPPORTED` (explicit fail‑closed) to avoid false security.
+3) **Rate limiting**
+   - Implemented simple in‑memory per‑process rate limits for push/READY (`push_rate_limit_per_minute`, `ready_rate_limit_per_minute`).
+   - Returns `RATE_LIMITED` → HTTP 429 for push/pull endpoints; READY consumer marks `SKIPPED_RATE_LIMIT`.
+4) **READY allowlist**
+   - Added `ready_allowlist_run_ids` to explicitly gate READY processing (useful until signed READY is implemented).
+5) **Non‑local run_facts**
+   - Added S3 read path for `run_facts_view` (supports `s3://` refs).
+   - HealthProbe now tracks store read failures; repeated failures flip health to RED.
+6) **Engine pull S3 support**
+   - EnginePuller can read outputs from `s3://` locators (json/jsonl/parquet) using boto3.
+   - Uses env‑controlled endpoint/region/path style (`IG_S3_*`/`AWS_*`).
+
+### Code changes (high‑signal)
+- Auth + rate limiting:
+  - `src/fraud_detection/ingestion_gate/security.py`
+  - `src/fraud_detection/ingestion_gate/rate_limit.py`
+  - `src/fraud_detection/ingestion_gate/service.py` (auth + 429 mapping)
+  - `src/fraud_detection/ingestion_gate/control_bus.py` (READY allowlist + rate limit)
+- Wiring updates:
+  - `src/fraud_detection/ingestion_gate/config.py` (security section + limits)
+  - `config/platform/profiles/README.md` (security wiring docs)
+- Non‑local pull:
+  - `src/fraud_detection/ingestion_gate/admission.py` (`_load_run_facts_by_ref` + health read counters)
+  - `src/fraud_detection/ingestion_gate/engine_pull.py` (S3 locators + wildcard support)
+  - `src/fraud_detection/ingestion_gate/health.py` (store read failure threshold)
+
+### Tests added (Phase 5)
+- `tests/services/ingestion_gate/test_phase5_auth_rate.py`
+  - API key auth required and enforced.
+  - Push rate limit returns 429.
+  - READY allowlist blocks unauthorized run_id.
+- `tests/services/ingestion_gate/test_phase5_runfacts_s3.py`
+  - S3 run_facts ref reading with a mocked boto3 client.
+
+### Test results
+- `python -m pytest tests/services/ingestion_gate/test_phase5_auth_rate.py tests/services/ingestion_gate/test_phase5_runfacts_s3.py -q` → **4 passed**
+- Warnings remain from werkzeug/ast deprecations (test env).
+
+### Notes / caveats
+- Auth is boundary‑only for now; internal calls (CLI/tests) bypass auth as expected.
+- S3 support reads whole objects into memory (v0 tradeoff).
+- Full production runbook + alert wiring remains to be expanded before Phase‑5 completion.
+- During testing, the S3 run_facts test initially failed because the audit partitioning profile was missing; fixed by adding `ig.partitioning.v0.audit` to the test partitioning fixture.
+
+## Entry: 2026-01-25 14:54:07 — Phase 5 completion plan (retries, per‑phase metrics, runbook/alerts)
+
+### Problem / goal
+Finish Phase 5 hardening: add bounded retries for object‑store reads, expose circuit‑breaker behavior via health gates, add per‑phase latency metrics, and document the operational runbook + alerts. Also tighten boundary auth coverage and fix formatting gaps in IG service docs.
+
+### Live reasoning / decisions
+- **Retry strategy:** use bounded exponential backoff with small defaults (attempts + base delay + max delay). Make values configurable via wiring (no secrets) to suit local vs prod.
+- **Retry scope:** apply to run_facts_view reads (critical) and S3 output reads for pull ingestion. Do **not** retry EB publish automatically to avoid duplicate appends.
+- **Circuit breaker posture:** reuse HealthProbe thresholds (publish/read failures) but call health gate **before** run_facts reads so repeated failures cut intake; record read failures to flip RED deterministically.
+- **Per‑phase latency metrics:** instrument validate, verify, publish, and receipt phases with stable metric keys; keep existing `admission_seconds` as end‑to‑end.
+- **Runbook + alerts:** keep operator guidance in `services/ingestion_gate/README.md`, listing failure modes, recovery steps, and alert triggers (health state changes, quarantine spikes, READY failures). No credentials or secrets.
+- **Tests:** add a focused retry helper test and re‑run Phase‑5 suite to keep green.
+
+### Planned edits (stepwise)
+1) Add `ingestion_gate/retry.py` helper and new wiring fields for store read retries; update profile README.
+2) Wrap run_facts_view reads and S3 output reads with retry; enforce health check before pull reads.
+3) Add per‑phase latency metrics in admission + quarantine paths.
+4) Update IG service README with runbook/alerts, auth boundary note, and fix code‑fence formatting.
+5) Add retry unit test; re‑run Phase‑5 tests.
+6) Update build plan status and logbook after validation.
+
+## Entry: 2026-01-25 14:58:38 — Phase 5 completion (retries + per‑phase metrics + runbook/alerts)
+
+### Implementation decisions applied (live trail)
+- **Bounded retries:** added a small retry helper with exponential backoff (attempts + base + max). Values are wiring‑configurable; defaults keep local runs fast while allowing prod tuning.
+- **Retry scope:** run_facts_view reads and S3 output reads are retried; EB publish is **not retried** to avoid duplicate appends.
+- **Circuit breaker alignment:** health gate is enforced before pull reads; read failures increment HealthProbe counters to trip RED deterministically.
+- **Per‑phase latency metrics:** added timers for validate, verify, publish, receipt (plus dedupe) while keeping `admission_seconds` end‑to‑end.
+- **Auth boundary clarity:** ops endpoints are covered by the same auth boundary as ingest endpoints.
+- **Runbook + alerts:** operator guidance and alert triggers are documented in the IG service README; formatting cleaned to avoid broken code fences.
+
+### Code + doc changes (high‑signal)
+- `src/fraud_detection/ingestion_gate/retry.py`: bounded retry helper.
+- `src/fraud_detection/ingestion_gate/config.py`: new retry wiring fields (`store_read_retry_*`).
+- `src/fraud_detection/ingestion_gate/admission.py`: health gate before pull reads, retry‑wrapped run_facts reads, per‑phase metrics.
+- `src/fraud_detection/ingestion_gate/engine_pull.py`: retry for S3 list/get + wiring passthrough.
+- `config/platform/profiles/README.md`: security + retry wiring docs; auth boundary note.
+- `services/ingestion_gate/README.md`: runbook/alerts + formatting fixes.
+- `tests/services/ingestion_gate/test_phase5_retries.py`: retry helper unit test.
+
+### Tests run / outcomes
+- `python -m pytest tests/services/ingestion_gate/test_phase5_auth_rate.py tests/services/ingestion_gate/test_phase5_runfacts_s3.py tests/services/ingestion_gate/test_phase5_retries.py -q`
+  - Failed (system python missing Flask).
+- Re‑ran via venv:
+  - `.\.venv\Scripts\python.exe -m pytest tests/services/ingestion_gate/test_phase5_auth_rate.py tests/services/ingestion_gate/test_phase5_runfacts_s3.py tests/services/ingestion_gate/test_phase5_retries.py -q` → **5 passed**
+  - Warnings: werkzeug/ast deprecation noise persists (known, upstream dependency constraint).
