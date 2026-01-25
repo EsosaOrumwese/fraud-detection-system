@@ -28,6 +28,13 @@ Smoke test (uses runs/ artifacts if present):
 ```
 python -m pytest tests/services/ingestion_gate/test_ops_rebuild_runs_smoke.py -q
 ```
+
+Notes:
+- This smoke test looks for SR artifacts under:
+  - `%SR_ARTIFACTS_ROOT%` (preferred)
+  - `%TEMP%\\artefacts\\fraud-platform\\sr`
+  - `artefacts/fraud-platform/sr` (repo-local)
+- If none are found, the test skips with a clear message.
 ```
 
 ## Notes

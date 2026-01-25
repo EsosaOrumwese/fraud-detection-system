@@ -1,4 +1,5 @@
 import json
+import os
 from pathlib import Path
 
 import pytest
@@ -15,9 +16,47 @@ def _write_yaml(path: Path, payload: dict) -> None:
     path.write_text(yaml.safe_dump(payload, sort_keys=False), encoding="utf-8")
 
 
-def _find_run_receipt(root: Path) -> Path | None:
-    matches = list(root.glob("runs/**/run_receipt.json"))
-    return matches[0] if matches else None
+def _candidate_sr_roots(repo_root: Path) -> list[Path]:
+    roots: list[Path] = []
+    env_root = os.getenv("SR_ARTIFACTS_ROOT") or os.getenv("SR_LEDGER_ROOT")
+    if env_root:
+        roots.append(Path(env_root))
+    temp_root = os.getenv("TEMP")
+    if temp_root:
+        roots.append(Path(temp_root) / "artefacts" / "fraud-platform" / "sr")
+    roots.append(repo_root / "artefacts" / "fraud-platform" / "sr")
+    return roots
+
+
+def _find_run_facts(root: Path) -> Path | None:
+    candidates = list(root.glob("run_facts_view/*.json"))
+    return candidates[0] if candidates else None
+
+
+def _find_run_status(root: Path) -> Path | None:
+    candidates = list(root.glob("run_status/*.json"))
+    return candidates[0] if candidates else None
+
+
+def _load_sr_pins(sr_root: Path) -> dict | None:
+    facts = _find_run_facts(sr_root)
+    if facts and facts.exists():
+        payload = json.loads(facts.read_text(encoding="utf-8"))
+        return payload.get("pins")
+    status = _find_run_status(sr_root)
+    if not status or not status.exists():
+        return None
+    status_payload = json.loads(status.read_text(encoding="utf-8"))
+    facts_ref = status_payload.get("facts_view_ref")
+    if not facts_ref:
+        return None
+    facts_path = Path(facts_ref)
+    if not facts_path.is_absolute():
+        facts_path = sr_root / facts_ref
+    if facts_path.exists():
+        payload = json.loads(facts_path.read_text(encoding="utf-8"))
+        return payload.get("pins")
+    return None
 
 
 def _build_gate(tmp_path: Path) -> IngestionGate:
@@ -109,21 +148,24 @@ def _build_gate(tmp_path: Path) -> IngestionGate:
 
 def test_ops_rebuild_smoke_runs(tmp_path: Path) -> None:
     repo_root = Path(__file__).resolve().parents[3]
-    run_receipt = _find_run_receipt(repo_root)
-    if run_receipt is None:
-        pytest.skip("No runs/**/run_receipt.json found for smoke test")
-
-    receipt = json.loads(run_receipt.read_text(encoding="utf-8"))
+    pins = None
+    for root in _candidate_sr_roots(repo_root):
+        if root.exists():
+            pins = _load_sr_pins(root)
+            if pins:
+                break
+    if not pins:
+        pytest.skip("No SR run_facts_view/run_status found; set SR_ARTIFACTS_ROOT to enable smoke test")
     gate = _build_gate(tmp_path)
 
     envelope = {
-        "event_id": receipt.get("run_id", "smoke") + "-smoke",
+        "event_id": (pins.get("run_id") or "smoke") + "-smoke",
         "event_type": "smoke.event",
         "ts_utc": "2026-01-01T00:00:00.000000Z",
-        "manifest_fingerprint": receipt.get("manifest_fingerprint", "0" * 64),
-        "parameter_hash": receipt.get("parameter_hash"),
-        "seed": receipt.get("seed"),
-        "run_id": receipt.get("run_id"),
+        "manifest_fingerprint": pins.get("manifest_fingerprint", "0" * 64),
+        "parameter_hash": pins.get("parameter_hash"),
+        "seed": pins.get("seed"),
+        "run_id": pins.get("run_id"),
         "payload": {"source": "runs_smoke"},
     }
 

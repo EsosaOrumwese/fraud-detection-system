@@ -497,3 +497,22 @@ Provide a **user‑runnable smoke test** that exercises ops index rebuild using 
 
 ### Test run
 - `python -m pytest tests/services/ingestion_gate/test_ops_rebuild_runs_smoke.py -q` → **passed** (runs artifacts present).
+
+---
+
+## Entry: 2026-01-25 08:44:08 — IG smoke test correction (SR artifacts live under temp/artefacts)
+
+### Problem / correction
+SR artifacts are stored under **temp\\artefacts\\fraud-platform\\sr**, not under `runs/` (which holds engine artifacts). The smoke test must discover SR artifacts from the correct location.
+
+### Change applied
+- Updated `test_ops_rebuild_runs_smoke.py` to resolve SR artifacts from:
+  - `SR_ARTIFACTS_ROOT` (preferred override)
+  - `%TEMP%\\artefacts\\fraud-platform\\sr`
+  - `artefacts/fraud-platform/sr` (repo-local fallback)
+- Test now **skips cleanly** with guidance if no SR artifacts are found.
+- README updated with these paths for user execution.
+
+### Test run
+- `python -m pytest tests/services/ingestion_gate/test_ops_rebuild_runs_smoke.py -q`
+  - **skipped** on this machine because no SR artifacts were found in the resolved paths.
