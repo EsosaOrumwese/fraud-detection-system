@@ -531,3 +531,36 @@ SR artifacts are actually present under the repo‑local path:
 
 ### Current state
 The repo‑temp SR ledger has `run_plan` + `run_status` but **no `run_facts_view`** (run is quarantined), so the smoke test still skips unless a READY run exists.
+
+---
+
+## Entry: 2026-01-25 09:10:20 — IG smoke test path alignment (prefer repo artefacts)
+
+### Problem / update
+User cleaned `temp/artefacts/`. The smoke test should no longer rely on repo‑temp paths and must instead use the stable repo path: `artefacts/fraud-platform/sr` (or an explicit override via `SR_ARTIFACTS_ROOT`).
+
+### Decision trail
+- **Default SR runtime location for tests** should be deterministic and repo‑local, not temp‑scoped.
+- **Env override stays** for flexibility in CI or alternate ledger roots.
+- Remove system `%TEMP%` / repo `temp/artefacts` fallbacks to avoid silent dependence on cleaned directories.
+
+### Change applied (planned)
+1) Update `_candidate_sr_roots` in `tests/services/ingestion_gate/test_ops_rebuild_runs_smoke.py`:
+   - Keep `SR_ARTIFACTS_ROOT`/`SR_LEDGER_ROOT` override.
+   - Default to `artefacts/fraud-platform/sr` only.
+2) Update `services/ingestion_gate/README.md` smoke test notes to reflect the new path list.
+3) Log the change in the logbook after implementation and re‑run the smoke test if needed.
+
+---
+
+## Entry: 2026-01-25 09:11:10 — IG smoke test path alignment (implementation result)
+
+### Changes applied
+- `tests/services/ingestion_gate/test_ops_rebuild_runs_smoke.py` now searches:
+  - `SR_ARTIFACTS_ROOT` / `SR_LEDGER_ROOT` override
+  - `artefacts/fraud-platform/sr` (repo‑local default)
+- Skip message updated to reference the repo‑local artefacts path.
+- `services/ingestion_gate/README.md` updated to match the new search order.
+
+### Notes
+SR artifacts are expected under `artefacts/fraud-platform/sr/` (repo‑local). `temp/artefacts` is no longer referenced by tests.

@@ -21,14 +21,8 @@ def _candidate_sr_roots(repo_root: Path) -> list[Path]:
     env_root = os.getenv("SR_ARTIFACTS_ROOT") or os.getenv("SR_LEDGER_ROOT")
     if env_root:
         roots.append(Path(env_root))
-    # repo-local temp artefacts (preferred when present)
-    roots.append(repo_root / "temp" / "artefacts" / "fraud-platform" / "sr")
-    # repo-local artefacts fallback
+    # repo-local artefacts default
     roots.append(repo_root / "artefacts" / "fraud-platform" / "sr")
-    # system temp (last resort)
-    temp_root = os.getenv("TEMP")
-    if temp_root:
-        roots.append(Path(temp_root) / "artefacts" / "fraud-platform" / "sr")
     return roots
 
 
@@ -159,7 +153,7 @@ def test_ops_rebuild_smoke_runs(tmp_path: Path) -> None:
             if pins:
                 break
     if not pins:
-        pytest.skip("No SR run_facts_view/run_status found; set SR_ARTIFACTS_ROOT to enable smoke test")
+        pytest.skip("No SR run_facts_view/run_status found under artefacts/fraud-platform/sr; set SR_ARTIFACTS_ROOT to enable smoke test")
     gate = _build_gate(tmp_path)
 
     envelope = {
