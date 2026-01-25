@@ -467,3 +467,33 @@ Execute Phase‑3 in three legs:
 - Full IG suite:
   - `python -m pytest tests/services/ingestion_gate/test_admission.py tests/services/ingestion_gate/test_ops_index.py tests/services/ingestion_gate/test_health_governance.py tests/services/ingestion_gate/test_phase3_replay_load_recovery.py -q`
   - **13 passed**
+
+---
+
+## Entry: 2026-01-25 08:32:41 — IG Phase 3 smoke integration (ops rebuild using runs/ artifacts)
+
+### Problem / goal
+Provide a **user‑runnable smoke test** that exercises ops index rebuild using **real SR artifacts under `runs/`**, without requiring a full SR/IG pipeline. This proves that IG can ingest with real run metadata and rebuild its ops index from receipts.
+
+### Decision trail (live)
+- Runs artifacts do not currently include `run_facts_view`, so this smoke test must **avoid run‑joinability** (no SR READY lookup). We will use `manifest_fingerprint/seed/parameter_hash/run_id` from `run_receipt.json`, but keep required pins minimal (manifest only).
+- The smoke test is **not** a correctness proof for gate verification; it is a rebuild/receipt durability check.
+- To keep it deterministic and safe, we use `LocalObjectStore` and `FileEventBusPublisher` in a temp directory.
+- Test must **skip** gracefully when no `runs/**/run_receipt.json` exists.
+
+### Planned steps
+1) Find a `run_receipt.json` under `runs/` and extract run pins.
+2) Configure IG with a minimal policy allowlisting a `smoke.event` type.
+3) Admit a single event using the real pins to create receipts.
+4) Delete the ops DB file and rebuild from the object store.
+5) Assert lookup by event_id succeeds.
+
+### Implementation result
+- Added `tests/services/ingestion_gate/test_ops_rebuild_runs_smoke.py`:
+  - Locates `runs/**/run_receipt.json` and uses its pins for a smoke envelope.
+  - Creates IG receipts in a temp LocalObjectStore.
+  - Rebuilds ops index into a fresh DB and verifies lookup by event_id.
+  - Skips gracefully if no run_receipt exists.
+
+### Test run
+- `python -m pytest tests/services/ingestion_gate/test_ops_rebuild_runs_smoke.py -q` → **passed** (runs artifacts present).

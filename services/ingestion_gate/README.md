@@ -23,6 +23,11 @@ python -m fraud_detection.ingestion_gate.cli --profile config/platform/profiles/
 python -m fraud_detection.ingestion_gate.cli --profile config/platform/profiles/local.yaml --rebuild-index
 python -m fraud_detection.ingestion_gate.cli --profile config/platform/profiles/local.yaml --health
 ```
+
+Smoke test (uses runs/ artifacts if present):
+```
+python -m pytest tests/services/ingestion_gate/test_ops_rebuild_runs_smoke.py -q
+```
 ```
 
 ## Notes
