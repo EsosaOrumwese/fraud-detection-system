@@ -397,4 +397,37 @@ Close the remaining Phase‑2 hardening gaps:
 ### Tests run / outcomes
 - `python -m pytest tests/services/ingestion_gate/test_admission.py tests/services/ingestion_gate/test_ops_index.py tests/services/ingestion_gate/test_health_governance.py -q`
   - Initial failure due to `deque` mutable default in governance emitter → fixed with `default_factory`.
-  - Final result: **10 passed**.
+- Final result: **10 passed**.
+
+---
+
+## Entry: 2026-01-25 08:25:37 — IG Phase 3 planning start (scale + replay readiness)
+
+### Problem / goal
+Phase 3 must prove IG’s **at‑least‑once safety** and **operational resilience** under replay, load, and recovery. This is not functional feature work; it is evidence that the Phase‑2 rails behave under stress and failure.
+
+### Authorities / inputs
+- IG design‑authority (replay/duplicate reality + ops surfaces).
+- Platform doctrine (idempotency, append‑only truths, fail‑closed).
+- Phase‑2 implementation (ops index rebuild + health gating + governance facts).
+
+### Decision trail (live)
+- **Replay tests must target receipts + ops index**, not just EB logs. EB append‑once is necessary but not sufficient; receipts must remain stable and ops lookup must return the same receipt_ref.
+- **Load/soak should include failure injection**: flip bus health to AMBER/RED and confirm intake refuses; verify no silent loss (every input is receipt/quarantine).
+- **Recovery drills must be realistic**: delete ops DB and rebuild from object store; verify lookup correctness; verify governance events emitted for policy activation and spike detection.
+
+### Planned work (Phase‑3 focus)
+1) Build a replay harness that re‑submits the same envelope set multiple times and asserts:
+   - EB log length stable after first admit.
+   - Receipt_id and receipt_ref unchanged across duplicates.
+   - Ops index returns the same receipt for event_id.
+2) Add a load/soak test with injected health degradation:
+   - Force bus publish failures to flip to RED; intake must refuse.
+   - Restore and confirm recovery.
+3) Add recovery drills:
+   - Delete ops DB → rebuild from store → verify lookup parity.
+   - Confirm governance events for policy activation + spike emission exist in audit stream.
+
+### Validation / tests
+- New test module(s) under `tests/services/ingestion_gate/` for replay/soak/rebuild.
+- Use FileEventBus for deterministic local replay.

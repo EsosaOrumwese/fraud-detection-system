@@ -96,10 +96,31 @@ Provide a progressive, component‑scoped build plan for the Ingestion Gate (IG)
 ### Phase 3 — Scale & replay readiness
 **Intent:** ensure IG behaves predictably under load and replay.
 
-**DoD (high level):**
-- Load/soak tests with duplicate traffic patterns.
-- Replay simulations validate idempotency and receipt stability.
+#### Phase 3.1 — Replay/duplicate torture suite
+**Goal:** prove at‑least‑once safety and receipt stability under heavy duplicates.
+
+**DoD checklist:**
+- Replay the same batch with duplicate rates ≥50%; EB appends only once per event_id.
+- Duplicate admissions always return original EB coords + receipt ref.
+- Receipts and ops index remain consistent under repeated replays.
+
+#### Phase 3.2 — Load/soak stability + backpressure
+**Goal:** validate IG behavior under sustained load and dependency degradation.
+
+**DoD checklist:**
+- Sustained admission throughput for N minutes without error spikes.
+- Health probe transitions to AMBER/RED under injected failures and intake refuses on RED.
+- No data loss: all inputs have receipts/quarantine evidence.
+
+#### Phase 3.3 — Recovery drills (ops index + policy)
+**Goal:** prove recovery after index loss or policy drift.
+
+**DoD checklist:**
+- Ops index rebuild restores lookup accuracy from object store.
+- Policy digest mismatch detected and emitted as governance event.
+- Audit stream contains activation + spike events for the test run.
 
 ## Status (rolling)
 - Phase 1: complete (admission spine + run joinability + optional gate re-hash; unit tests added).
 - Phase 2: complete (policy digesting + ops index + health/ingress control + governance/metrics; tests green).
+- Phase 3: planning in progress (sections + DoD defined; implementation not started).
