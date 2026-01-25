@@ -204,6 +204,38 @@ class IngestionGate:
             raise IngestionError("RUN_ID_MISSING")
 
         started_at = datetime.now(tz=timezone.utc)
+        budget_seconds = self.wiring.pull_time_budget_seconds
+        budget_start = time.monotonic()
+        budget_deadline = None
+        if budget_seconds and budget_seconds > 0:
+            budget_deadline = budget_start + budget_seconds
+
+        def budget_exceeded() -> bool:
+            return budget_deadline is not None and time.monotonic() >= budget_deadline
+
+        def mark_budget_exceeded(output_id: str, shard_id: int | None = None) -> None:
+            elapsed = time.monotonic() - budget_start
+            entry: dict[str, Any] = {"output_id": output_id, "reason_code": "TIME_BUDGET_EXCEEDED"}
+            event_payload: dict[str, Any] = {
+                "event_kind": "OUTPUT_FAILED",
+                "ts_utc": datetime.now(tz=timezone.utc).isoformat(),
+                "run_id": run_id,
+                "message_id": message_id,
+                "output_id": output_id,
+                "reason_code": "TIME_BUDGET_EXCEEDED",
+                "elapsed_seconds": round(elapsed, 3),
+            }
+            if shard_id is not None:
+                entry["shard_id"] = shard_id
+                event_payload["shard_id"] = shard_id
+            status["outputs_failed"].append(entry)
+            self.pull_store.append_event(run_id, event_payload)
+            logger.warning(
+                "IG pull time budget exceeded run_id=%s output_id=%s elapsed=%.2fs",
+                run_id,
+                output_id,
+                elapsed,
+            )
         output_ids = EnginePuller(
             run_facts_path,
             self.catalogue,
@@ -244,8 +276,13 @@ class IngestionGate:
         if shard_mode not in {"output_id", "locator_range"}:
             raise IngestionError("SHARD_MODE_UNSUPPORTED", shard_mode)
         shard_size = self.wiring.pull_shard_size
+        stop_due_to_budget = False
 
         for output_id in output_ids:
+            if budget_exceeded():
+                mark_budget_exceeded(output_id)
+                stop_due_to_budget = True
+                break
             if shard_mode == "locator_range":
                 if shard_size <= 0:
                     raise IngestionError("SHARD_SIZE_INVALID", str(shard_size))
@@ -277,6 +314,11 @@ class IngestionGate:
                 output_counts = {"ADMIT": 0, "DUPLICATE": 0, "QUARANTINE": 0}
                 output_failed = False
                 for shard_id, shard_paths in enumerate(shards):
+                    if budget_exceeded():
+                        mark_budget_exceeded(output_id, shard_id=shard_id)
+                        stop_due_to_budget = True
+                        output_failed = True
+                        break
                     if self.pull_store.checkpoint_exists(run_id, output_id, shard_id=shard_id):
                         logger.info(
                             "IG pull shard checkpoint skip run_id=%s output_id=%s shard_id=%s",
@@ -288,6 +330,11 @@ class IngestionGate:
                     shard_counts = {"ADMIT": 0, "DUPLICATE": 0, "QUARANTINE": 0}
                     try:
                         for envelope in puller.iter_events_for_paths(output_id, shard_paths):
+                            if budget_exceeded():
+                                mark_budget_exceeded(output_id, shard_id=shard_id)
+                                stop_due_to_budget = True
+                                output_failed = True
+                                break
                             decision, _receipt = self._admit_event(
                                 envelope,
                                 output_id=output_id,
@@ -296,6 +343,8 @@ class IngestionGate:
                             shard_counts[decision.decision] += 1
                             output_counts[decision.decision] += 1
                             status["counts"][decision.decision] += 1
+                        if stop_due_to_budget:
+                            break
                         checkpoint_payload = {
                             "run_id": run_id,
                             "output_id": output_id,
@@ -337,6 +386,8 @@ class IngestionGate:
                             },
                         )
                 if output_failed:
+                    if stop_due_to_budget:
+                        break
                     continue
                 self.pull_store.append_event(
                     run_id,
@@ -360,6 +411,10 @@ class IngestionGate:
             output_counts = {"ADMIT": 0, "DUPLICATE": 0, "QUARANTINE": 0}
             try:
                 for envelope in puller.iter_events(output_ids=[output_id]):
+                    if budget_exceeded():
+                        mark_budget_exceeded(output_id)
+                        stop_due_to_budget = True
+                        break
                     decision, _receipt = self._admit_event(
                         envelope,
                         output_id=output_id,
@@ -367,6 +422,8 @@ class IngestionGate:
                     )
                     output_counts[decision.decision] += 1
                     status["counts"][decision.decision] += 1
+                if stop_due_to_budget:
+                    break
                 checkpoint_payload = {
                     "run_id": run_id,
                     "output_id": output_id,
@@ -401,6 +458,8 @@ class IngestionGate:
                         "reason_code": code,
                     },
                 )
+            if stop_due_to_budget:
+                break
 
         completed_at = datetime.now(tz=timezone.utc)
         status["completed_at_utc"] = completed_at.isoformat()

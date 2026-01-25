@@ -6,19 +6,18 @@ import logging
 from pathlib import Path
 
 
-def configure_logging(level: int = logging.INFO, log_path: str | None = None) -> None:
+def configure_logging(level: int = logging.INFO, log_paths: list[str] | None = None) -> None:
     """Configure default logging if no handlers are present."""
     root = logging.getLogger()
     if root.handlers:
         return
     handlers = None
-    if log_path:
-        path = Path(log_path)
-        path.parent.mkdir(parents=True, exist_ok=True)
-        handlers = [
-            logging.StreamHandler(),
-            logging.FileHandler(path, encoding="utf-8"),
-        ]
+    if log_paths:
+        handlers = [logging.StreamHandler()]
+        for entry in log_paths:
+            path = Path(entry)
+            path.parent.mkdir(parents=True, exist_ok=True)
+            handlers.append(logging.FileHandler(path, encoding="utf-8"))
     kwargs = {
         "level": level,
         "format": "%(asctime)s [%(levelname)s] %(name)s: %(message)s",

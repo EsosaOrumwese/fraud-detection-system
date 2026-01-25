@@ -71,6 +71,7 @@ class WiringProfile:
     ready_lease_owner_id: str | None = None
     pull_shard_mode: str = "output_id"
     pull_shard_size: int = 0
+    pull_time_budget_seconds: float | None = None
 
     @classmethod
     def load(cls, path: Path) -> "WiringProfile":
@@ -83,6 +84,9 @@ class WiringProfile:
         security = wiring.get("security", {})
         ready_lease = wiring.get("ready_lease", {})
         pull_sharding = wiring.get("pull_sharding", {})
+        pull_time_budget = wiring.get("pull_time_budget_seconds")
+        if isinstance(pull_time_budget, str) and pull_time_budget.strip():
+            pull_time_budget = float(pull_time_budget)
         endpoint = _resolve_env(object_store.get("endpoint"))
         region = _resolve_env(object_store.get("region"))
         path_style = object_store.get("path_style")
@@ -186,6 +190,7 @@ class WiringProfile:
             ready_lease_owner_id=_resolve_env(ready_lease.get("owner_id")),
             pull_shard_mode=pull_sharding.get("mode", "output_id"),
             pull_shard_size=int(pull_sharding.get("shard_size", 0)),
+            pull_time_budget_seconds=pull_time_budget,
         )
 
 

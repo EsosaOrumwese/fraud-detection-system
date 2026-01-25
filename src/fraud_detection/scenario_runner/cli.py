@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import argparse
-import os
 from datetime import datetime
 from pathlib import Path
 
@@ -11,6 +10,7 @@ from .config import load_policy, load_wiring
 from .engine import LocalEngineInvoker, LocalSubprocessInvoker
 from .logging_utils import configure_logging
 from .models import ReemitKind, ReemitRequest, RunRequest, RunWindow, ScenarioBinding
+from ..platform_runtime import append_session_event, platform_log_paths
 from .storage import build_object_store
 from .runner import ScenarioRunner
 
@@ -58,8 +58,8 @@ def parse_args() -> argparse.Namespace:
 
 def main() -> None:
     args = parse_args()
-    log_path = os.getenv("PLATFORM_LOG_PATH") or "runs/fraud-platform/platform.log"
-    configure_logging(log_path=log_path)
+    log_paths = platform_log_paths(create_if_missing=args.command == "run")
+    configure_logging(log_paths=log_paths)
     wiring = load_wiring(Path(args.wiring))
     policy = load_policy(Path(args.policy))
     if wiring.engine_command:
@@ -99,6 +99,12 @@ def main() -> None:
             dry_run=args.dry_run,
         )
         response = runner.reemit(reemit_request)
+        append_session_event(
+            "sr",
+            "reemit",
+            {"run_id": response.run_id, "status_state": response.status_state, "published": response.published},
+            create_if_missing=False,
+        )
         print(response.model_dump())
         return
 
@@ -120,6 +126,17 @@ def main() -> None:
         invoker=args.invoker,
     )
     response = runner.submit_run(request)
+    append_session_event(
+        "sr",
+        "run_submit",
+        {
+            "run_id": response.run_id,
+            "state": response.state.value,
+            "status_ref": response.status_ref,
+            "facts_view_ref": response.facts_view_ref,
+        },
+        create_if_missing=True,
+    )
     print(response.model_dump())
 
 

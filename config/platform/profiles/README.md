@@ -37,6 +37,7 @@ wiring:
   pull_sharding:
     mode: output_id | locator_range
     shard_size: 0
+  pull_time_budget_seconds: 0
   security:
     auth_mode: disabled | api_key
     api_key_header: X-IG-Api-Key
@@ -63,3 +64,4 @@ Notes:
 - Auth applies to **ingest and ops endpoints** when enabled; only CLI/internal calls bypass it.
 - `ready_lease` enables **distributed READY** consumption. Postgres advisory locks are recommended for multi‑instance deployments.
 - `pull_sharding` defaults to `output_id` for v0; `locator_range` is opt‑in for large outputs.
+- `pull_time_budget_seconds` is optional and intended for **local smoke runs**; leave unset for production.

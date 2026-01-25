@@ -22,3 +22,4 @@ wiring:
     dsn: ${IG_READY_LEASE_DSN}
     namespace: ig_ready
     owner_id: ${IG_INSTANCE_ID}
+  pull_time_budget_seconds: 600

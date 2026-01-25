@@ -4,13 +4,13 @@ from __future__ import annotations
 
 import argparse
 import json
-import os
 from pathlib import Path
 
 from .audit import verify_pull_run
 from .admission import IngestionGate
 from .config import WiringProfile
 from .logging_utils import configure_logging
+from ..platform_runtime import append_session_event, platform_log_paths
 
 
 def main() -> None:
@@ -26,8 +26,7 @@ def main() -> None:
     parser.add_argument("--audit-verify", help="Verify pull-run hash chain + checkpoints for run_id")
     args = parser.parse_args()
 
-    log_path = os.getenv("PLATFORM_LOG_PATH") or "runs/fraud-platform/platform.log"
-    configure_logging(log_path=log_path)
+    configure_logging(log_paths=platform_log_paths(create_if_missing=False))
     wiring = WiringProfile.load(Path(args.profile))
     gate = IngestionGate.build(wiring)
 
@@ -45,23 +44,33 @@ def main() -> None:
         return
     if args.rebuild_index:
         gate.ops_index.rebuild_from_store(gate.store)
+        append_session_event("ig", "ops_rebuild", {}, create_if_missing=False)
         print("REBUILT=1")
         return
     if args.health:
         result = gate.health.check()
+        append_session_event("ig", "health_check", {"state": result.state.value}, create_if_missing=False)
         print(json.dumps({"state": result.state.value, "reasons": result.reasons}, ensure_ascii=True))
         return
     if args.audit_verify:
         report = verify_pull_run(gate, args.audit_verify)
+        append_session_event(
+            "ig",
+            "audit_verify",
+            {"run_id": args.audit_verify, "status": report.get("status")},
+            create_if_missing=False,
+        )
         print(json.dumps(report, ensure_ascii=True))
         return
     if args.run_facts:
         receipts = gate.admit_pull(Path(args.run_facts))
+        append_session_event("ig", "pull_ingest", {"receipts": len(receipts)}, create_if_missing=False)
         print(f"ADMITTED={len(receipts)}")
         return
     if args.push_file:
         payload = json.loads(Path(args.push_file).read_text(encoding="utf-8"))
         gate.admit_push(payload)
+        append_session_event("ig", "push_ingest", {"event_id": payload.get("event_id")}, create_if_missing=False)
         print("ADMITTED=1")
         return
     raise SystemExit("Provide --run-facts or --push-file")

@@ -213,10 +213,19 @@ Provide a progressive, component‑scoped build plan for the Ingestion Gate (IG)
 - Governance facts include policy_rev + run pins + READY bundle hash.
 - Periodic audit job validates receipt/index parity.
 
+#### Phase 6.4 — Local smoke time budget (operator guardrail)
+**Goal:** allow bounded local pull runs without weakening production defaults.
+
+**DoD checklist:**
+- Wiring supports `pull_time_budget_seconds` (optional).
+- Budget exhaustion emits `TIME_BUDGET_EXCEEDED` and halts further outputs.
+- Local profile sets a default cap (10 minutes).
+- Unit test validates deterministic budget behavior.
+
 ## Status (rolling)
 - Phase 1: complete (admission spine + run joinability + optional gate re-hash; unit tests added).
 - Phase 2: complete (policy digesting + ops index + health/ingress control + governance/metrics; tests green).
 - Phase 3: complete (replay/load/recovery tests added; suite green + SR‑artifact smoke test).
 - Phase 4: complete (service boundary + READY consumer + pull checkpoints implemented; Phase‑4 tests green).
 - Phase 5: complete (auth/rate limits + S3 run_facts support + retries/backpressure + per-phase metrics + runbook/alerts; tests green).
-- Phase 6: in progress (READY leases, optional sharding checkpoints, hash-chain integrity, audit CLI).
+- Phase 6: in progress (READY leases, optional sharding checkpoints, hash-chain integrity, audit CLI; time-budget guard done).

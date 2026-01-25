@@ -5,7 +5,6 @@ from __future__ import annotations
 import argparse
 import json
 import logging
-import os
 import time
 from pathlib import Path
 
@@ -13,6 +12,7 @@ from .admission import IngestionGate
 from .config import WiringProfile
 from .control_bus import FileControlBusReader, ReadyConsumer
 from .logging_utils import configure_logging
+from ..platform_runtime import append_session_event, platform_log_paths
 from .pull_state import PullRunStore
 from .schemas import SchemaRegistry
 
@@ -24,8 +24,7 @@ def main() -> None:
     parser.add_argument("--interval", type=float, default=2.0, help="Polling interval seconds")
     args = parser.parse_args()
 
-    log_path = os.getenv("PLATFORM_LOG_PATH") or "runs/fraud-platform/platform.log"
-    configure_logging(log_path=log_path)
+    configure_logging(log_paths=platform_log_paths(create_if_missing=False))
     wiring = WiringProfile.load(Path(args.profile))
     gate = IngestionGate.build(wiring)
     if wiring.control_bus_kind != "file":
@@ -37,12 +36,14 @@ def main() -> None:
 
     if args.once:
         results = consumer.poll_once()
+        append_session_event("ig", "ready_poll", {"results": results}, create_if_missing=False)
         print(json.dumps(results, ensure_ascii=True))
         return
 
     while True:
         results = consumer.poll_once()
         if results:
+            append_session_event("ig", "ready_poll", {"results": results}, create_if_missing=False)
             logging.info("IG READY batch processed count=%d", len(results))
         time.sleep(args.interval)
 

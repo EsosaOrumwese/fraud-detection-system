@@ -15,14 +15,14 @@ from .admission import IngestionGate
 from .config import WiringProfile
 from .control_bus import FileControlBusReader, ReadyConsumer
 from .errors import IngestionError, reason_code
+from ..platform_runtime import platform_log_paths
 from .logging_utils import configure_logging
 from .pull_state import PullRunStore
 from .schemas import SchemaRegistry
 
 
 def create_app(profile_path: str) -> Flask:
-    log_path = os.getenv("PLATFORM_LOG_PATH") or "runs/fraud-platform/platform.log"
-    configure_logging(log_path=log_path)
+    configure_logging(log_paths=platform_log_paths(create_if_missing=False))
     wiring = WiringProfile.load(Path(profile_path))
     gate = IngestionGate.build(wiring)
 

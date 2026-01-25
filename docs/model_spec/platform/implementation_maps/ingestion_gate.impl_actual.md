@@ -1217,3 +1217,77 @@ To mark SR→IG “green,” choose one of:
 3) **Add a local‑only ingest cap** (e.g., max files per output) to make a short smoke run deterministic; default remains uncapped for production.
 
 I will proceed based on your preference.
+
+---
+
+## Entry: 2026-01-25 22:51:40 — Plan: IG time budget + platform session logs
+
+### Trigger
+User approved the recommendation to add a **time budget** for local IG pulls and introduce **platform run IDs** so runs don’t share a single folder.
+
+### Live reasoning
+- Local engine outputs are large; a bounded smoke run must be **deterministic** and **safe to interrupt**.
+- A wiring‑only time budget lets local runs stop early without changing policy behavior or production defaults.
+- Platform run IDs should not change SR/IG ledger ownership, only add session scoping for logs and metadata.
+
+### Plan (IG changes)
+1) Add `pull_time_budget_seconds` to IG wiring (optional, default None).
+2) Enforce the time budget inside `admit_pull_with_state`:
+   - If exceeded, append `OUTPUT_FAILED` with `TIME_BUDGET_EXCEEDED` and stop processing further outputs.
+   - Status remains `PARTIAL` with explicit reason codes.
+3) Update local profile to set `pull_time_budget_seconds: 600` (10 minutes) for smoke runs.
+4) Update IG logging to append to both global and session platform logs.
+5) Add a small unit test to ensure `TIME_BUDGET_EXCEEDED` is emitted when budget is zero.
+
+### Guardrails
+- Default remains uncapped unless wired (no production change).
+- No engine code changes.
+
+## Entry: 2026-01-25 23:12:50 — Applied: pull time budget + session log wiring
+
+### What changed (stepwise)
+1) **Wiring support**
+   - Added `pull_time_budget_seconds` to `WiringProfile` (optional, default None).
+   - `config/platform/profiles/local.yaml` now sets `pull_time_budget_seconds: 600` for bounded smoke runs.
+   - `config/platform/profiles/README.md` documents the new knob and clarifies it is local‑only by default.
+
+2) **Admission time budget** (`admit_pull_with_state`)
+   - Added a monotonic‑time budget guard for pull runs.
+   - When the budget is exceeded, IG appends `OUTPUT_FAILED` with `reason_code=TIME_BUDGET_EXCEEDED`, logs a warning, and stops further output processing.
+   - The run ends in `PARTIAL` with a clear failure reason (no silent truncation).
+
+3) **Session‑scoped logs**
+   - IG CLI/READY consumer/service now call `platform_log_paths()` (global log + optional session log).
+
+4) **Test coverage**
+   - Added `tests/services/ingestion_gate/test_phase6_time_budget.py` to assert the `TIME_BUDGET_EXCEEDED` outcome is emitted deterministically.
+
+### Files updated
+- `src/fraud_detection/ingestion_gate/config.py`
+- `src/fraud_detection/ingestion_gate/admission.py`
+- `src/fraud_detection/ingestion_gate/cli.py`
+- `src/fraud_detection/ingestion_gate/ready_consumer.py`
+- `src/fraud_detection/ingestion_gate/service.py`
+- `config/platform/profiles/local.yaml`
+- `config/platform/profiles/README.md`
+- `tests/services/ingestion_gate/test_phase6_time_budget.py`
+
+### Notes
+- No engine code or run outputs were modified.
+- Time budget is **opt‑in** and defaults to uncapped unless wired.
+
+
+## Entry: 2026-01-25 23:27:30 — Local SR→IG smoke run with time budget
+
+### What was exercised
+- SR reuse run produced READY for engine run `runs/local_full_run-5/c25a...` with a fresh equivalence key.
+- IG READY consumer processed the READY message under `pull_time_budget_seconds: 600` (local profile).
+
+### Observed outcome
+- Pull run status: `PARTIAL` with `TIME_BUDGET_EXCEEDED` on `arrival_events_5B`.
+- Status record written to `runs/fraud-platform/ig/pull_runs/run_id=40dfb540e134f8bb8eb3585da3aeee7a.json`.
+- Confirms the **time budget guard** halts long pulls deterministically without touching engine outputs.
+
+### Notes
+- The time budget is a local operator guard; production defaults remain uncapped.
+

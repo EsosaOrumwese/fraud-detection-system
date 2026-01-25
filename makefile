@@ -2521,6 +2521,7 @@ IG_READY_LEASE_DSN ?= postgresql://sr:sr@localhost:5433/sr_dev
 IG_INSTANCE_ID ?= ig-1
 IG_INSTANCE_ID_2 ?= ig-2
 IG_AUDIT_RUN_ID ?=
+PLATFORM_RUN_ID ?=
 
 .PHONY: platform-stack-up platform-stack-down platform-stack-status
 platform-stack-up:
@@ -2535,6 +2536,11 @@ platform-stack-status:
 .PHONY: platform-bus-clean
 platform-bus-clean:
 	rm -f runs/fraud-platform/control_bus/fp.bus.control.v1/*.json
+
+.PHONY: platform-run-new
+platform-run-new:
+	rm -f runs/fraud-platform/platform_runs/ACTIVE_RUN_ID
+	@PLATFORM_RUN_ID="$(PLATFORM_RUN_ID)" $(PY_SCRIPT) -c "from fraud_detection.platform_runtime import resolve_platform_run_id; print(resolve_platform_run_id(create_if_missing=True))"
 
 .PHONY: platform-sr-run-reuse
 platform-sr-run-reuse:

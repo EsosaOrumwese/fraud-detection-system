@@ -3452,3 +3452,37 @@ User requested that **all** PowerShell helpers be removed and the Makefile be th
 
 ### Notes
 Historical entries referencing the PowerShell helpers remain as history; Make targets now supersede those workflows.
+
+---
+
+## Entry: 2026-01-25 22:51:05 — Plan: platform run ID + session logs (SR side)
+
+### Trigger
+User wants a **platform run ID** to separate runs and a shared platform log that still keeps session‑scoped logs.
+
+### Plan (SR changes only)
+1) Use a shared runtime helper to resolve `platform_run_id` (env → ACTIVE_RUN_ID → generate on SR run).
+2) Update SR CLI logging to append to:
+   - Global `runs/fraud-platform/platform.log`.
+   - Session `runs/fraud-platform/platform_runs/<platform_run_id>/platform.log`.
+3) Append a session event line for SR `run` and `reemit` commands with key refs (run_id, status_ref, facts_view_ref).
+
+### Guardrails
+- No secrets in session files.
+- SR ledger paths remain unchanged.
+
+## Entry: 2026-01-25 23:12:50 — Applied: platform run session logs (SR wiring)
+
+### What changed
+- SR CLI now uses shared runtime helper to write logs to:
+  - Global `runs/fraud-platform/platform.log`.
+  - Session log `runs/fraud-platform/platform_runs/<platform_run_id>/platform.log` when a run ID is active.
+- SR service (`service.py`) is now aligned to the same log path resolution (no more silent console‑only logs).
+
+### Session metadata
+- SR `run` and `reemit` commands append a `session.jsonl` entry with non‑secret references (run_id, status_ref, facts_view_ref, publish status).
+
+### Notes
+- Platform run ID resolution: `PLATFORM_RUN_ID` env → `ACTIVE_RUN_ID` file → generate on SR run.
+- No ledger paths or SR ownership semantics changed.
+

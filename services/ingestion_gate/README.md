@@ -37,6 +37,8 @@ Notes:
   - `runs/fraud-platform/sr` (repo-local default)
 - If none are found, the test skips with a clear message.
 - SR/IG append to a shared platform log by default: `runs/fraud-platform/platform.log`. Override with `PLATFORM_LOG_PATH` if needed.
+- Optional per‑session logs live under `runs/fraud-platform/platform_runs/<platform_run_id>/platform.log` when a run ID is set.
+- `pull_time_budget_seconds` (profile wiring) can cap local smoke runs; leave unset for production.
 
 ## Service (local)
 Run HTTP service:

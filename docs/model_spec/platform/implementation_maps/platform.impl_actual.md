@@ -352,3 +352,76 @@ User reiterated that **all** platform workflows must be Makefile‑based (no Pow
 
 ### Rationale
 This keeps local workflows consistent, removes dangling scripts, and aligns SR/IG tooling with the engine’s Makefile‑first approach.
+
+---
+
+## Entry: 2026-01-25 22:50:20 — Plan: platform run IDs + shared + per‑run logs
+
+### Trigger
+User asked for a **platform run ID** so SR/IG don’t keep writing into a single folder and requested that SR/IG append into a **shared platform log** while still keeping runs separated.
+
+### Live reasoning
+- SR/IG artifacts already live under `runs/fraud-platform/*`; however, without a platform‑run concept, logs from different sessions blend together.
+- We need a **lightweight session boundary** that doesn’t alter SR/IG canonical ledgers (ownership rules) but still provides an audit trail and operator clarity.
+- The most compatible approach: keep SR/IG ledgers where they are, but write **session‑scoped logs** and **session manifests** under a `platform_runs/<platform_run_id>/` folder.
+
+### Plan (stepwise)
+1) Add a small runtime helper (`platform_runtime.py`) to resolve a `platform_run_id`:
+   - Use `PLATFORM_RUN_ID` if set.
+   - Else read `runs/fraud-platform/platform_runs/ACTIVE_RUN_ID` if present.
+   - Else generate a new ID on SR `run` and persist to `ACTIVE_RUN_ID`.
+2) Update logging utilities to support **multiple log files**:
+   - Always append to `runs/fraud-platform/platform.log`.
+   - Also append to `runs/fraud-platform/platform_runs/<platform_run_id>/platform.log` when an active run ID exists.
+3) Add a `session.jsonl` (append‑only) in the run folder with basic metadata:
+   - component (`sr`/`ig`), command kind, timestamps, and key refs (run_id/message_id/status_ref).
+4) Update Makefile to expose `PLATFORM_RUN_ID` (optional) and document in `.env.example`.
+
+### Guardrails
+- No secrets or credentials in session files.
+- Do **not** move SR/IG ledgers or change their ownership; only add session metadata and logs.
+
+## Entry: 2026-01-25 23:07:13 — Apply platform run IDs + session log wiring (platform scope)
+
+### Trigger
+User approved the plan to introduce **platform run IDs** and session‑scoped logs while preserving SR/IG ledger ownership. We also need a deterministic way to keep **one shared platform log** while still capturing per‑session traces.
+
+### Live reasoning (what I am doing and why)
+- A platform run is an **operator concept**, not a ledger owner. I will keep SR/IG ledgers in place and only add session folders for logs and metadata.
+- The **global platform log** remains the primary operator view (`runs/fraud-platform/platform.log`). Session logs are additive and help isolate a specific run without losing the global trace.
+- I will not generate a run ID for **non‑run commands** (e.g., IG health, lookup) unless a run ID is explicitly set by env or ACTIVE_RUN_ID. This avoids creating fake sessions.
+
+### Implementation steps (platform‑wide)
+1) Add a small runtime helper (`src/fraud_detection/platform_runtime.py`) to resolve `platform_run_id` via:
+   - `PLATFORM_RUN_ID` env (explicit override), else
+   - `runs/fraud-platform/platform_runs/ACTIVE_RUN_ID` (if present), else
+   - generate a new ID when SR `run` is executed.
+2) Update SR + IG logging utilities to accept **multiple log paths** and append to:
+   - `runs/fraud-platform/platform.log` (always)
+   - `runs/fraud-platform/platform_runs/<platform_run_id>/platform.log` (when available)
+3) Record per‑session metadata in `session.jsonl` (append‑only) with **non‑secret** details only.
+4) Update service entrypoints to use `platform_log_paths()` so long‑running services append to the same shared log surface.
+
+### Guardrails
+- No secrets or credentials are written to session files or logs.
+- SR/IG artifact roots and ledger ownership are unchanged.
+
+
+## Entry: 2026-01-25 23:12:50 — Applied: platform run session logs + Make target
+
+### What changed
+1) **Runtime helper**
+   - `src/fraud_detection/platform_runtime.py` added/updated to resolve platform run IDs and write `session.jsonl` entries.
+   - `PLATFORM_LOG_PATH` is respected for the global log path; session logs remain under `runs/fraud-platform/platform_runs/<id>/`.
+
+2) **Workflow**
+   - Added `make platform-run-new` to reset `ACTIVE_RUN_ID` and create a new session ID for the next SR/IG run.
+
+3) **Docs**
+   - `.env.example` now includes `PLATFORM_RUN_ID` (optional).
+   - SR/IG service READMEs note session log behavior and how to reset the session.
+
+### Guardrails
+- No secrets are written to session files; these are metadata‑only.
+- SR/IG ledgers remain unchanged.
+

@@ -9,6 +9,8 @@ run_facts_view now includes engine-contract digest objects and may include optio
 SR emits **verifier receipts** in its own object store (engine remains a black box):
 - `fraud-platform/sr/instance_receipts/output_id=<output_id>/<scope partitions>/instance_receipt.json`
 SR/IG append to a shared platform log by default: `runs/fraud-platform/platform.log`.
+Optional session logs live under `runs/fraud-platform/platform_runs/<platform_run_id>/platform.log` when a run ID is set.
+Set `PLATFORM_RUN_ID` (env) or delete `runs/fraud-platform/platform_runs/ACTIVE_RUN_ID` to start a fresh session.
 
 Profiles:
 - `config/platform/sr/wiring_local.yaml` — local smoke (filesystem + SQLite; not valid for hardening).
