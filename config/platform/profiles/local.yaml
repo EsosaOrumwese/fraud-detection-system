@@ -1,7 +1,8 @@
 profile_id: local
 policy:
   policy_rev: local-v0
-  partitioning_profile_id: ig.partitioning.v0
+  partitioning_profiles_ref: config/platform/ig/partitioning_profiles_v0.yaml
+  partitioning_profile_id: ig.partitioning.v0.traffic
   require_gate_pass: true
 wiring:
   object_store:

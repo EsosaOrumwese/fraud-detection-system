@@ -143,3 +143,46 @@ User asked to review and tighten the Phase 1 rails/substrate doc wording for cla
 - IG must stamp partition_key deterministically; EB never infers routing.
 
 ---
+
+## Entry: 2026-01-25 05:33:37 — Platform contracts index + profile alignment
+
+### Trigger
+User requested a compact platform contracts index under docs/model_spec/platform/contracts and alignment of platform profiles to reference partitioning_profiles_v0.yaml (policy_rev + partitioning_profile_id).
+
+### Reasoning notes
+- A small index file prevents schema drift and makes the canonical envelope + locator/receipt contracts discoverable without duplication.
+- Profiles should explicitly point to the partitioning policy file to keep routing decisions versioned and auditable.
+
+### Planned edits
+- Add `docs/model_spec/platform/contracts/README.md` referencing canonical envelope + locator/receipt schemas in the engine interface pack.
+- Update `config/platform/profiles/*.yaml` to include `policy.partitioning_profiles_ref` and set `policy.partitioning_profile_id` to a concrete profile in `config/platform/ig/partitioning_profiles_v0.yaml`.
+
+---
+
+## Entry: 2026-01-25 05:34:18 — Contracts index + profile alignment (applied)
+
+### Changes applied
+- Added `docs/model_spec/platform/contracts/README.md` to index canonical envelope + locator/receipt contracts by reference.
+- Updated platform profiles to reference `config/platform/ig/partitioning_profiles_v0.yaml` and set `partitioning_profile_id` to `ig.partitioning.v0.traffic`.
+
+### Notes
+- Profile files remain non‑secret; endpoints still come from env injection.
+
+---
+
+## Entry: 2026-01-25 05:36:55 — IG partitioning profile mapping note
+
+### Trigger
+User asked to add an explicit IG policy note mapping partitioning_profile_id to stream classes (traffic/control/audit).
+
+### Plan
+- Update `config/platform/ig/README.md` with a mapping table from stream class → partitioning_profile_id.
+
+---
+
+## Entry: 2026-01-25 05:37:19 — IG stream class mapping (applied)
+
+### Change
+- Added explicit stream‑class → `partitioning_profile_id` mapping to `config/platform/ig/README.md`.
+
+---
