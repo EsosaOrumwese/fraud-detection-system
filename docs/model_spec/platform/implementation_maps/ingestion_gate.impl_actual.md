@@ -564,3 +564,68 @@ User cleaned `temp/artefacts/`. The smoke test should no longer rely on repo‑t
 
 ### Notes
 SR artifacts are expected under `artefacts/fraud-platform/sr/` (repo‑local). `temp/artefacts` is no longer referenced by tests.
+
+---
+
+## Entry: 2026-01-25 11:55:30 — Phase 4 planning (service boundary + READY automation + pull checkpoints)
+
+### Problem / goal (why Phase 4 exists)
+IG is currently a library + CLI. For v0 platform readiness we need IG to run as a **service** and automatically **react to SR READY** signals. That is the only approved join surface (no “scan latest”). Phase 4 is about making IG deployable and safe under restarts while preserving the trust‑boundary semantics (ADMIT/DUPLICATE/QUARANTINE with durable receipts).
+
+### Authorities / constraints shaping the plan
+- **IG design authority**: IG is the trust boundary; READY/run_facts_view is the only run join surface; no scanning for “latest run”; no‑PASS‑no‑read.
+- **Platform doctrine**: append‑only truth, idempotency, deterministic partitioning; fail‑closed when missing evidence; provenance stamped everywhere.
+- **Engine blackbox**: IG must use artifacts + receipts only; no engine code changes or inferred semantics.
+- **Security posture**: do not store secrets in receipts or implementation notes.
+
+### Decision trail (live reasoning)
+1) **Trigger model for pull ingestion**
+   - Option A: Periodic scan of `sr/run_status` or `run_facts_view` (polling).
+     - Rejected: violates “no scanning for latest” and makes runtime behavior ambiguous.
+   - Option B: Subscribe to SR READY control bus (`fp.bus.control.v1`) and treat READY as the sole trigger.
+     - Chosen: aligns with pinned join semantics and provides explicit, idempotent triggers.
+2) **Service boundary shape**
+   - We already use Flask for SR; mirroring this keeps dependencies minimal and consistent.
+   - Service should be profile‑driven (single wiring profile on startup), just like CLI.
+   - Push ingestion must accept canonical envelopes; pull ingestion must accept run_facts_view ref or run_id (resolved to ref).
+3) **Idempotent READY processing**
+   - READY events are at‑least‑once. We must record which READY messages have been processed (by message_id / run_id).
+   - We’ll store a **pull ingestion record** under `ig/pull_ingestion/` in object store and index it in the ops DB for fast lookup.
+4) **Pull checkpoints**
+   - Pull ingestion can be long‑running. If the service restarts mid‑run, we need deterministic resume.
+   - We will checkpoint by `output_id` (and potentially by locator path if needed for very large outputs).
+   - Replays must be safe: already processed outputs skip based on checkpoint; receipts remain append‑only.
+5) **Observability and governance**
+   - READY processing should emit a governance fact with counts + outcome; logs should narrate per‑run progress for operator clarity.
+
+### Phase 4 scope breakdown (what we will build)
+**4.1 Service boundary (HTTP + CLI parity)**
+- Add an IG service wrapper (Flask) with endpoints for:
+  - `POST /v1/ingest/push` (canonical envelope)
+  - `POST /v1/ingest/pull` (run_facts_view ref or run_id)
+  - `GET /v1/ops/lookup` (event_id / receipt_id / dedupe_key)
+  - `GET /v1/ops/health`
+- Response payloads include decision + receipt_ref + reason_code where applicable.
+
+**4.2 READY control bus consumer**
+- Add a control‑bus subscriber that reads READY events and invokes pull ingestion.
+- Dedup by `message_id` and/or `run_id`; use stored pull‑records to avoid reprocessing.
+- Fail‑closed if READY is malformed or `run_facts_view` missing.
+
+**4.3 Pull ingestion checkpoints**
+- Introduce a durable pull‑run record:
+  - run_id, READY message_id, start/end timestamps, output_ids processed, counts, status.
+  - per‑output checkpoints (completed/failed/partial).
+- Replays skip completed outputs; failures can be retried idempotently.
+
+### Planned file touchpoints (directional)
+- `src/fraud_detection/ingestion_gate/service.py` (Flask app + routes)
+- `src/fraud_detection/ingestion_gate/control_bus.py` (READY subscriber)
+- `src/fraud_detection/ingestion_gate/pull_state.py` (pull run records + checkpoints)
+- `services/ingestion_gate/README.md` (runbook + env var wiring)
+- `tests/services/ingestion_gate/test_service.py` and `test_ready_consumer.py`
+
+### Validation plan (Phase 4 tests)
+- Unit: READY message validation + idempotent pull‑record handling.
+- Integration: READY signal triggers pull ingest and emits pull run record; restart safe re‑run.
+- Service: push + pull endpoints return receipts with valid schema.

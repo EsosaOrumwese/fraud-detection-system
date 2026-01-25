@@ -120,7 +120,40 @@ Provide a progressive, component‑scoped build plan for the Ingestion Gate (IG)
 - Policy digest mismatch detected and emitted as governance event.
 - Audit stream contains activation + spike events for the test run.
 
+### Phase 4 — Serviceization + READY automation
+**Intent:** turn IG into a deployable service with control‑plane triggered pull ingestion and durable pull checkpoints.
+
+#### Phase 4.1 — Service boundary (HTTP + CLI parity)
+**Goal:** provide a stable service interface for push and pull ingestion with explicit error surfaces.
+
+**DoD checklist:**
+- HTTP service wrapper can start from a single profile and exposes:
+  - push ingestion (canonical envelope)
+  - pull ingestion (run_facts_view ref or run_id)
+  - ops lookups (event_id/receipt_id/dedupe_key) + health
+- Requests validated against canonical envelope and policy allowlist.
+- Responses include receipt refs and decision status; non‑admission returns reason codes.
+- Service logs include admission phases (validate → verify → dedupe → publish → receipt).
+
+#### Phase 4.2 — READY trigger consumption (control bus)
+**Goal:** automatically pull ingest when SR publishes READY.
+
+**DoD checklist:**
+- Control bus consumer subscribes to `fp.bus.control.v1` and filters READY events.
+- READY message ids are deduped (idempotent replays do not double‑ingest).
+- Pull ingestion uses `run_facts_view` ref from READY signal; fail‑closed if missing/invalid.
+- Per‑run ingestion emits a governance fact with counts and outcome.
+
+#### Phase 4.3 — Pull ingestion checkpoints + recovery
+**Goal:** survive interruptions and allow deterministic resume.
+
+**DoD checklist:**
+- Each pull ingestion creates a durable `ingestion_run_record` with start/end times, output ids, and counts.
+- Checkpointing records progress per output_id (or per locator) to allow resume.
+- Re‑runs are idempotent: already‑processed outputs are skipped based on recorded checkpoints.
+- Ops index can be rebuilt to include pull ingestion receipts.
+
 ## Status (rolling)
 - Phase 1: complete (admission spine + run joinability + optional gate re-hash; unit tests added).
 - Phase 2: complete (policy digesting + ops index + health/ingress control + governance/metrics; tests green).
-- Phase 3: in progress (replay/load/recovery tests added; suite green).
+- Phase 3: complete (replay/load/recovery tests added; suite green + SR‑artifact smoke test).
