@@ -186,3 +186,34 @@ User asked to add an explicit IG policy note mapping partitioning_profile_id to 
 - Added explicit stream‑class → `partitioning_profile_id` mapping to `config/platform/ig/README.md`.
 
 ---
+
+## Entry: 2026-01-25 05:40:12 — Phase 1.4 + 1.5 validation start (policy/wiring + secrets sweep)
+
+### Trigger
+User asked to proceed with Phase 1.4 validation (policy vs wiring separation audit) and Phase 1.5 (secrets posture sweep).
+
+### Audit plan (no secrets exposed)
+- Inventory config/platform policy vs wiring files and check for obvious mixing (policy files containing endpoints/ports; wiring files containing outcome-affecting policy fields).
+- List .env files by name only; do not display contents.
+- Scan for common secret key markers by filename only (no content printed).
+- Update any docs if the profile schema or separation guidance needs alignment.
+
+---
+
+## Entry: 2026-01-25 05:45:40 — Phase 1.4/1.5 audit results (policy vs wiring + secrets)
+
+### Phase 1.4 — Policy vs wiring separation (results)
+- **Config inventory (platform):**
+  - Policy files: `config/platform/sr/policy_v0.yaml`, `config/platform/ig/partitioning_profiles_v0.yaml`, `config/platform/profiles/*.yaml` (policy sections).
+  - Wiring files: `config/platform/sr/wiring_*.yaml`, `config/platform/profiles/*.yaml` (wiring sections).
+- **Mixing check:** no endpoint/url/host/port keys found in policy files (sr policy + ig partitioning profiles). This keeps policy clean.
+- **Docs alignment:** updated `config/platform/profiles/README.md` to include `partitioning_profiles_ref` and clarify stream‑class mapping for `partitioning_profile_id`.
+
+### Phase 1.5 — Secrets posture sweep (results)
+- **.env presence:** `.env` and `.env.localstack.example` exist; both are listed in `.gitignore` (so they should not be committed). No contents inspected.
+- **Secret‑marker scan:** filename‑only scan for common secret key tokens found matches in tests/docs (likely placeholders). No secret contents were printed or logged.
+
+### Open notes
+- If you want a stricter secrets policy, we can add a repo‑wide pre‑commit rule or a CI check that blocks secret‑like strings in tracked files.
+
+---

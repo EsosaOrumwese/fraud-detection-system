@@ -14,6 +14,7 @@ config/platform/profiles/
 profile_id: <local|dev|prod>
 policy:
   policy_rev: <version tag>
+  partitioning_profiles_ref: config/platform/ig/partitioning_profiles_v0.yaml
   partitioning_profile_id: <ig partition strategy id>
   require_gate_pass: true
 wiring:
@@ -28,6 +29,6 @@ wiring:
 
 Notes:
 - `policy_rev` must be stamped into receipts/decisions/outcomes where applicable.
-- `partitioning_profile_id` is chosen by IG policy; EB never infers partitioning.
+- `partitioning_profile_id` is chosen by IG policy (mapped by stream class); EB never infers partitioning.
+- `partitioning_profiles_ref` anchors the versioned profile set used by IG.
 - Wiring endpoints are placeholders; actual values come from env/secret store.
-
