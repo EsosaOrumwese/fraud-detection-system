@@ -1170,10 +1170,8 @@ User mandated a hard move of platform runtime artifacts to `runs/fraud-platform`
    - `tests/services/ingestion_gate/test_ops_rebuild_runs_smoke.py`: default SR artifacts root moved to `runs/fraud-platform/sr` and skip message updated.
 4) **Log files**
    - `ingestion_gate/logging_utils.py`: optional file handler support.
-   - `ready_consumer.py`: logs to `runs/fraud-platform/ig_ready_consumer.log` by default (override via `IG_LOG_PATH`).
-   - `service.py`: logs to `runs/fraud-platform/ig_service.log` (override via `IG_SERVICE_LOG_PATH` or `IG_LOG_PATH`).
-   - `cli.py`: logs to `runs/fraud-platform/ig_cli.log` (override via `IG_CLI_LOG_PATH` or `IG_LOG_PATH`).
-   - `services/ingestion_gate/README.md`: log location note added.
+   - `ready_consumer.py`, `service.py`, `cli.py`: all append to the **shared platform log** at `runs/fraud-platform/platform.log` (override via `PLATFORM_LOG_PATH`).
+   - `services/ingestion_gate/README.md`: log location note updated.
 
 ### Outcome
-IG now resolves SR READY refs under the **shared runtime root** (`runs/fraud-platform`) without `fraud-platform/fraud-platform` duplication, and produces component log files for local runs.
+IG now resolves SR READY refs under the **shared runtime root** (`runs/fraud-platform`) without `fraud-platform/fraud-platform` duplication, and appends to the shared platform log (`runs/fraud-platform/platform.log`).

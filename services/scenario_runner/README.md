@@ -8,7 +8,7 @@ Notes: This service is the control-plane entrypoint for runs. It must stay fail-
 run_facts_view now includes engine-contract digest objects and may include optional `instance_receipts` for instance-scoped outputs.
 SR emits **verifier receipts** in its own object store (engine remains a black box):
 - `fraud-platform/sr/instance_receipts/output_id=<output_id>/<scope partitions>/instance_receipt.json`
-SR CLI writes a per‑run log to `runs/fraud-platform/sr_run_<run_id>.log`.
+SR/IG append to a shared platform log by default: `runs/fraud-platform/platform.log`.
 
 Profiles:
 - `config/platform/sr/wiring_local.yaml` — local smoke (filesystem + SQLite; not valid for hardening).
@@ -35,7 +35,7 @@ Phase 2.5 integration tests (local parity):
 
 Parity tier (Phase 8):
 1) Start the parity stack:
-   - `docker compose -f infra/local/docker-compose.sr-parity.yaml up -d`
+   - `make platform-stack-up`
 2) Set env vars (PowerShell):
    - `$env:SR_TEST_S3_BUCKET="sr-local"`
    - `$env:SR_TEST_S3_PREFIX="sr-test"`
@@ -46,14 +46,14 @@ Parity tier (Phase 8):
    - `$env:AWS_ACCESS_KEY_ID="minio"`
    - `$env:AWS_SECRET_ACCESS_KEY="minio123"`
 3) Run the parity tier:
-   - `.\scripts\run_sr_tests.ps1 -Tier parity`
+   - `make sr-tests-parity`
 4) Tear down when done:
-   - `docker compose -f infra/local/docker-compose.sr-parity.yaml down`
+   - `make platform-stack-down`
 
 LocalStack Kinesis test (end-to-end):
 1) Start LocalStack (Kinesis enabled):
-   - `docker run --rm -p 4566:4566 -e SERVICES=kinesis localstack/localstack:latest`
-   - Optional (narrative logs): `.\scripts\localstack.ps1 logs`
+   - `make localstack-up`
+   - Optional (logs): `make localstack-logs`
 2) Set env vars (PowerShell):
    - `Get-Content .env.localstack.example | ForEach-Object { if ($_ -match '^(\\w+)=(.*)$') { Set-Item -Path "Env:$($matches[1])" -Value $matches[2] } }`
    - (or set them manually below)
@@ -67,7 +67,7 @@ LocalStack Kinesis test (end-to-end):
 
 LocalStack tier (Phase 8 re-emit E2E):
 1) Start LocalStack:
-   - `.\scripts\localstack.ps1 start`
+   - `make localstack-up`
 2) Set env vars (PowerShell):
    - `$env:SR_KINESIS_ENDPOINT_URL="http://localhost:4566"`
    - `$env:SR_KINESIS_STREAM="sr-control-bus"`
@@ -75,9 +75,9 @@ LocalStack tier (Phase 8 re-emit E2E):
    - `$env:AWS_ACCESS_KEY_ID="test"`
    - `$env:AWS_SECRET_ACCESS_KEY="test"`
 3) Run the LocalStack tier:
-   - `.\scripts\run_sr_tests.ps1 -Tier localstack`
+   - `make sr-tests-localstack`
 4) Stop LocalStack:
-   - `.\scripts\localstack.ps1 stop`
+   - `make localstack-down`
 
 Test tiers (Phase 8):
 - Tier 0 (default, fast): unit + fast integration (no external services).
@@ -93,9 +93,3 @@ Test tiers (Phase 8):
 CI gates (recommended):
 - PR gate: Tier 0 only.
 - Nightly/manual: Tier 1 + Tier 2 + Tier 3.
-
-Helper script (PowerShell):
-- `.\scripts\run_sr_tests.ps1 -Tier tier0`
-- `.\scripts\run_sr_tests.ps1 -Tier parity`
-- `.\scripts\run_sr_tests.ps1 -Tier localstack`
-- `.\scripts\run_sr_tests.ps1 -Tier engine_fixture`

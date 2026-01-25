@@ -335,3 +335,20 @@ I removed the PowerShell workflow and replaced it with Makefile targets so **SR/
 ### Notes
 - No credentials are embedded. Any DSN/endpoint values remain placeholders or local defaults.
 - This change is purely workflow; runtime path migration is tracked in SR/IG component maps.
+
+---
+
+## Entry: 2026-01-25 21:10:05 — Applied: remove remaining PowerShell scripts
+
+### Trigger
+User reiterated that **all** platform workflows must be Makefile‑based (no PowerShell helpers).
+
+### Changes applied
+- Removed `scripts/run_sr_tests.ps1` and `scripts/localstack.ps1`.
+- Added Make targets for SR test tiers and LocalStack lifecycle:
+  - `sr-tests-tier0|parity|localstack|engine-fixture|all`
+  - `localstack-up|localstack-down|localstack-logs`
+- Updated `services/scenario_runner/README.md` to reference the Make targets.
+
+### Rationale
+This keeps local workflows consistent, removes dangling scripts, and aligns SR/IG tooling with the engine’s Makefile‑first approach.

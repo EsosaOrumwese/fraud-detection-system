@@ -21,7 +21,7 @@ from .schemas import SchemaRegistry
 
 
 def create_app(profile_path: str) -> Flask:
-    log_path = os.getenv("IG_SERVICE_LOG_PATH") or os.getenv("IG_LOG_PATH") or "runs/fraud-platform/ig_service.log"
+    log_path = os.getenv("PLATFORM_LOG_PATH") or "runs/fraud-platform/platform.log"
     configure_logging(log_path=log_path)
     wiring = WiringProfile.load(Path(profile_path))
     gate = IngestionGate.build(wiring)

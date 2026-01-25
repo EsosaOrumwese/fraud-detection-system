@@ -3427,7 +3427,7 @@ User commanded that SR runtime artifacts move from `artefacts/fraud-platform` to
 ### Changes applied (concrete)
 1) **SR logging**
    - `src/fraud_detection/scenario_runner/logging_utils.py`: added optional file handler support.
-   - `src/fraud_detection/scenario_runner/cli.py`: compute `run_id` from `run_equivalence_key` and log to `runs/fraud-platform/sr_run_<run_id>.log`. Re‑emit/quarantine commands use `sr_reemit_<run_id>.log` and `sr_quarantine_<ts>.log`.
+   - `src/fraud_detection/scenario_runner/cli.py`: logs now append to the **shared platform log** at `runs/fraud-platform/platform.log` (override via `PLATFORM_LOG_PATH`). This replaces the per‑run log files so all platform activity is in one place.
 2) **Wiring updates**
    - `config/platform/sr/wiring_local_parity.yaml` and `wiring_local_kinesis.yaml`: control bus root now `runs/fraud-platform/control_bus`.
    - `config/platform/sr/wiring_local.yaml` already uses `runs` and remains canonical.
@@ -3436,4 +3436,19 @@ User commanded that SR runtime artifacts move from `artefacts/fraud-platform` to
    - Updated the synthetic `run_facts_view` locator paths to reference `runs/fraud-platform/engine_outputs/...` so IG pull can resolve them consistently.
 
 ### Outcome
-SR now writes and logs to the **platform runtime root** (`runs/fraud-platform`), with per‑run log files analogous to the engine run logs. No engine code touched.
+SR now writes to the **platform runtime root** (`runs/fraud-platform`) and appends to the shared platform log (`runs/fraud-platform/platform.log`). No engine code touched.
+
+---
+
+## Entry: 2026-01-25 21:10:40 — Remove SR PowerShell helpers (Makefile only)
+
+### Trigger
+User requested that **all** PowerShell helpers be removed and the Makefile be the only workflow surface.
+
+### Change
+- Removed `scripts/run_sr_tests.ps1` and `scripts/localstack.ps1`.
+- Added Make targets in `makefile` for SR test tiers and LocalStack lifecycle.
+- Updated `services/scenario_runner/README.md` to reference Make targets.
+
+### Notes
+Historical entries referencing the PowerShell helpers remain as history; Make targets now supersede those workflows.

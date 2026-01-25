@@ -24,7 +24,7 @@ def main() -> None:
     parser.add_argument("--interval", type=float, default=2.0, help="Polling interval seconds")
     args = parser.parse_args()
 
-    log_path = os.getenv("IG_LOG_PATH") or "runs/fraud-platform/ig_ready_consumer.log"
+    log_path = os.getenv("PLATFORM_LOG_PATH") or "runs/fraud-platform/platform.log"
     configure_logging(log_path=log_path)
     wiring = WiringProfile.load(Path(args.profile))
     gate = IngestionGate.build(wiring)

@@ -26,7 +26,7 @@ def main() -> None:
     parser.add_argument("--audit-verify", help="Verify pull-run hash chain + checkpoints for run_id")
     args = parser.parse_args()
 
-    log_path = os.getenv("IG_CLI_LOG_PATH") or os.getenv("IG_LOG_PATH") or "runs/fraud-platform/ig_cli.log"
+    log_path = os.getenv("PLATFORM_LOG_PATH") or "runs/fraud-platform/platform.log"
     configure_logging(log_path=log_path)
     wiring = WiringProfile.load(Path(args.profile))
     gate = IngestionGate.build(wiring)

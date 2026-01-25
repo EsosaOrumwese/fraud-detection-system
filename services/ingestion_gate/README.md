@@ -36,7 +36,7 @@ Notes:
   - `%SR_ARTIFACTS_ROOT%` (preferred)
   - `runs/fraud-platform/sr` (repo-local default)
 - If none are found, the test skips with a clear message.
-- IG logs write to `runs/fraud-platform/ig_*.log` by default. Override with `IG_LOG_PATH`, `IG_SERVICE_LOG_PATH`, or `IG_CLI_LOG_PATH` if needed.
+- SR/IG append to a shared platform log by default: `runs/fraud-platform/platform.log`. Override with `PLATFORM_LOG_PATH` if needed.
 
 ## Service (local)
 Run HTTP service:

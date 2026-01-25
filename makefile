@@ -2579,3 +2579,36 @@ platform-ig-audit:
 	fi
 	@$(PY_SCRIPT) -m fraud_detection.ingestion_gate.cli --profile "$(IG_PROFILE)" --audit-verify "$(IG_AUDIT_RUN_ID)"
 
+# ---------------------------------------------------------------------------
+# Scenario Runner test tiers (Makefile-based, no PowerShell)
+# ---------------------------------------------------------------------------
+.PHONY: sr-tests-tier0 sr-tests-parity sr-tests-localstack sr-tests-engine-fixture sr-tests-all
+sr-tests-tier0:
+	@$(PY_SCRIPT) -m pytest tests/services/scenario_runner -m "not parity and not localstack and not engine_fixture" -q
+
+sr-tests-parity:
+	@$(PY_SCRIPT) -m pytest tests/services/scenario_runner -m "parity" -q
+
+sr-tests-localstack:
+	@$(PY_SCRIPT) -m pytest tests/services/scenario_runner -m "localstack" -q
+
+sr-tests-engine-fixture:
+	@$(PY_SCRIPT) -m pytest tests/services/scenario_runner -m "engine_fixture" -q
+
+sr-tests-all:
+	@$(PY_SCRIPT) -m pytest tests/services/scenario_runner -q
+
+# ---------------------------------------------------------------------------
+# LocalStack helpers (Makefile-based)
+# ---------------------------------------------------------------------------
+.PHONY: localstack-up localstack-down localstack-logs
+localstack-up:
+	@docker rm -f localstack >/dev/null 2>&1 || true
+	@docker run -d --name localstack -p 4566:4566 -e SERVICES=kinesis localstack/localstack:latest
+
+localstack-down:
+	@docker rm -f localstack >/dev/null 2>&1 || true
+
+localstack-logs:
+	@docker logs -f localstack
+
