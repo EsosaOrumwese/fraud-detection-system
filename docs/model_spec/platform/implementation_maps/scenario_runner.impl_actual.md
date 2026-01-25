@@ -198,6 +198,115 @@ SR must:
 - Implement real idempotency binding + lease manager (SQLite/Postgres for local; Postgres for dev/prod).
 - Ensure run_record append‑only + idempotent event IDs; run_status monotonic only.
 
+---
+
+## Entry: 2026-01-25 09:00:30 — Plan to trigger READY run for IG smoke test (reuse-only, engine blackbox safe)
+
+### Problem / goal
+The IG ops‑rebuild smoke test requires an SR READY run with a valid `run_facts_view` under the SR artifacts root. Current SR artifacts in `temp/artefacts/fraud-platform/sr` show QUARANTINED with no facts view. We need a READY run that reuses existing engine artifacts (engine remains a blackbox) so the IG smoke test can read a real join surface.
+
+### Constraints / invariants honored
+- **Engine remains a blackbox.** No engine code changes or re‑execution; SR will only read existing engine outputs and gate bundles under `runs/`.
+- **No-PASS-no-read.** SR must only publish READY if required gates pass under the interface pack gate map.
+- **Idempotency safe.** A new run_equivalence_key is used to avoid collision with any prior SR runs.
+- **Secrets hygiene.** No credentials or secrets are written to impl_actual; only public artifact paths and fingerprints already in repo.
+
+### Inputs / authorities consulted
+- Engine run receipt at `runs/local_full_run-5/c25a2675fbfbacd952b13bb594880e92/run_receipt.json` for:
+  - manifest_fingerprint: `c8fd43cd60ce0ede0c63d2ceb4610f167c9b107e1d59b9b8c7d7b8d0028b05c8`
+  - parameter_hash: `56d45126eaabedd083a1d8428a763e0278c89efec5023cfd6cf3cab7fc8dd2d7`
+  - seed: `42`
+- Scenario id observed under engine outputs: `scenario_id=baseline_v1` within `runs/local_full_run-5/.../arrival_events/...`.
+- SR wiring profile: `config/platform/sr/wiring_local.yaml` (object_store_root=`artefacts`, control bus file, interface pack paths).
+- SR policy: `config/platform/sr/policy_v0.yaml` (traffic outputs: arrival_events_5B, s2_flow_anchor_baseline_6B, s3_flow_anchor_with_fraud_6B; reuse_policy=ALLOW).
+
+### Decision trail (why this approach)
+1) **Reuse path vs engine invocation**
+   - SR strategy AUTO first attempts reuse when reuse_policy=ALLOW.
+   - Reuse avoids the engine invocation path that would enforce run_receipt run_id equality (SR run_id is deterministic from equivalence key and won’t match engine run_id). This keeps the engine blackbox while still verifying gates and outputs.
+2) **Artifact root selection**
+   - Use existing wiring profile to write SR artifacts under `artefacts/fraud-platform/sr` (already in repo and referenced by IG smoke test search order).
+   - Avoid introducing new wiring variants for this run; keep configuration minimal and explicit.
+3) **Scenario binding**
+   - Use `scenario_id=baseline_v1` to match actual engine output partitions, ensuring locators resolve.
+4) **Run window**
+   - Provide a valid, timezone‑aware window (ISO8601 with `+00:00`) as required by schema; no functional coupling to engine output timestamps.
+
+### Execution plan (pre‑run, explicit)
+1) Submit SR run via CLI using reuse‑only path by providing engine_run_root and using policy reuse (AUTO).
+2) Confirm SR output artifacts:
+   - `artefacts/fraud-platform/sr/run_status/{run_id}.json` state is READY.
+   - `artefacts/fraud-platform/sr/run_facts_view/{run_id}.json` exists with locators + gate receipts.
+3) Run IG smoke test: `tests/services/ingestion_gate/test_ops_rebuild_runs_smoke.py -q` and confirm it reads the SR artifacts.
+4) Log results in logbook + append follow‑up entry here with outcomes and any deviations.
+
+### Planned CLI invocation (values to reuse)
+```
+.\.venv\Scripts\python.exe -m fraud_detection.scenario_runner.cli `
+  --wiring config/platform/sr/wiring_local.yaml `
+  --policy config/platform/sr/policy_v0.yaml `
+  run `
+  --run-equivalence-key sr_local_full_run_5_baseline_v1_2026-01-25 `
+  --manifest-fingerprint c8fd43cd60ce0ede0c63d2ceb4610f167c9b107e1d59b9b8c7d7b8d0028b05c8 `
+  --parameter-hash 56d45126eaabedd083a1d8428a763e0278c89efec5023cfd6cf3cab7fc8dd2d7 `
+  --seed 42 `
+  --scenario-id baseline_v1 `
+  --window-start 2026-01-01T00:00:00+00:00 `
+  --window-end 2026-01-02T00:00:00+00:00 `
+  --engine-run-root runs/local_full_run-5/c25a2675fbfbacd952b13bb594880e92
+```
+
+---
+
+## Entry: 2026-01-25 09:02:40 — RUN produced WAITING: arrival_events_5B path_template newline bug (fix in SR catalogue loader)
+
+### What happened (observed)
+Executed the planned SR CLI run and SR returned `WAITING_EVIDENCE` with `missing=['arrival_events_5B']`. This is incorrect: the arrival_events parquet files exist in the engine run root under:
+`runs/local_full_run-5/c25a2675fbfbacd952b13bb594880e92/data/layer2/5B/arrival_events/seed=42/manifest_fingerprint=.../scenario_id=baseline_v1/part-*.parquet`.
+
+### Root cause analysis (decision trail)
+1) Verified the arrival_events files exist at the expected path (seed=42, manifest_fingerprint=..., scenario_id=baseline_v1).
+2) Inspected the interface pack catalogue entry for `arrival_events_5B` and printed `repr(path_template)`.
+3) Found a trailing newline:  
+   `data/layer2/5B/arrival_events/.../part-*.parquet\n`  
+   This newline becomes part of the rendered path, so globbing never matches the real files. Result: SR treats `arrival_events_5B` as missing and moves to WAITING.
+
+### Decision
+Harden SR’s catalogue loader to normalize `path_template` by stripping leading/trailing whitespace when reading the interface pack. This keeps the engine blackbox intact, avoids mutating engine outputs, and makes SR tolerant of benign formatting artifacts in YAML (e.g., trailing newline introduced by the writer).
+
+### Implementation steps (pre‑code)
+1) Update `src/fraud_detection/scenario_runner/catalogue.py` to apply `.strip()` to `entry["path_template"]`.
+2) Re‑run SR CLI with a new `run_equivalence_key` to avoid idempotent collision with the WAITING run.
+3) Verify READY status and a `run_facts_view` under `artefacts/fraud-platform/sr/`.
+4) Re‑run IG smoke test to confirm it can rebuild ops index from the SR facts view.
+5) Log results and update this entry with outcomes.
+
+---
+
+## Entry: 2026-01-25 09:05:50 — Fix applied; READY achieved; IG smoke test passes
+
+### Changes applied
+- Hardened SR catalogue loader to strip whitespace from `path_template` on load:
+  - `src/fraud_detection/scenario_runner/catalogue.py` now uses `str(...).strip()` for `path_template`.
+- Added regression test to lock this behavior:
+  - `tests/services/scenario_runner/test_catalogue.py` verifies trailing newline is removed.
+
+### SR run (reuse-only) results
+- New run_equivalence_key: `sr_local_full_run_5_baseline_v1_2026-01-25b`
+- Resulting run_id: `870056d6aaa95c99e1d770a484469563`
+- Evidence reuse COMPLETE; READY committed.
+- Artifacts written under:
+  - `artefacts/fraud-platform/sr/run_status/870056d6aaa95c99e1d770a484469563.json` (state READY)
+  - `artefacts/fraud-platform/sr/run_facts_view/870056d6aaa95c99e1d770a484469563.json`
+  - `artefacts/fraud-platform/sr/run_record/870056d6aaa95c99e1d770a484469563.jsonl`
+
+### Validation (executed)
+- SR unit test: `python -m pytest tests/services/scenario_runner/test_catalogue.py -q` → 1 passed.
+- IG smoke test: `python -m pytest tests/services/ingestion_gate/test_ops_rebuild_runs_smoke.py -q` → 1 passed.
+
+### Notes
+- The earlier WAITING run (run_id=4d0c3c64c3e24c4f3091179259d19004) remains in SR artifacts for audit history; no mutation performed.
+
 **Phase 3 — Evidence + gate verification completeness (fail‑closed)**
 - Implement N5 fully: output intent → required gate closure; gate verification by gate‑specific method.
 - Enforce instance‑proof binding where scope includes seed/scenario_id/parameter_hash/run_id.

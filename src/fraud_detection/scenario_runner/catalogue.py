@@ -26,7 +26,7 @@ class OutputCatalogue:
         self._entries = {
             entry["output_id"]: OutputEntry(
                 output_id=entry["output_id"],
-                path_template=entry["path_template"],
+                path_template=str(entry["path_template"]).strip(),
                 partitions=entry.get("partitions", []),
                 scope=entry.get("scope", ""),
                 read_requires_gates=entry.get("read_requires_gates", []),

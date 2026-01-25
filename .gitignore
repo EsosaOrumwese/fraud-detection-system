@@ -176,5 +176,5 @@ temp/
 .env.localstack.example
 
 # SR runtime artifacts (sensitive, generated)
-artefacts/fraud-platform/sr/index/
-artefacts/fraud-platform/sr/index/**
+artefacts/fraud-platform/
+artefacts/fraud-platform/**

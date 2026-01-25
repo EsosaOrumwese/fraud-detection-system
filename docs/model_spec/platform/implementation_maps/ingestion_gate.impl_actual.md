@@ -516,3 +516,18 @@ SR artifacts are stored under **temp\\artefacts\\fraud-platform\\sr**, not under
 ### Test run
 - `python -m pytest tests/services/ingestion_gate/test_ops_rebuild_runs_smoke.py -q`
   - **skipped** on this machine because no SR artifacts were found in the resolved paths.
+
+---
+
+## Entry: 2026-01-25 08:48:12 — IG smoke test correction (repo temp artifacts)
+
+### Correction
+SR artifacts are actually present under the repo‑local path:
+`temp/artefacts/fraud-platform/sr/` (inside the repo), not system `%TEMP%`.
+
+### Change applied
+- Updated the smoke test to prefer `temp/artefacts/fraud-platform/sr` before repo `artefacts/` and system `%TEMP%`.
+- README updated to document the repo‑temp location and env override.
+
+### Current state
+The repo‑temp SR ledger has `run_plan` + `run_status` but **no `run_facts_view`** (run is quarantined), so the smoke test still skips unless a READY run exists.

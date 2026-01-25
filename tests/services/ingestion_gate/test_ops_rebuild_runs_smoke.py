@@ -21,10 +21,14 @@ def _candidate_sr_roots(repo_root: Path) -> list[Path]:
     env_root = os.getenv("SR_ARTIFACTS_ROOT") or os.getenv("SR_LEDGER_ROOT")
     if env_root:
         roots.append(Path(env_root))
+    # repo-local temp artefacts (preferred when present)
+    roots.append(repo_root / "temp" / "artefacts" / "fraud-platform" / "sr")
+    # repo-local artefacts fallback
+    roots.append(repo_root / "artefacts" / "fraud-platform" / "sr")
+    # system temp (last resort)
     temp_root = os.getenv("TEMP")
     if temp_root:
         roots.append(Path(temp_root) / "artefacts" / "fraud-platform" / "sr")
-    roots.append(repo_root / "artefacts" / "fraud-platform" / "sr")
     return roots
 
 
