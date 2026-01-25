@@ -732,3 +732,23 @@ IG is currently a library + CLI. For v0 platform readiness we need IG to run as 
 ### Notes / risks
 - Pull ingestion assumes local filesystem access for run_facts_view; non‑local object stores will require a fetch adapter (future phase).
 - Status snapshot overwrites are acceptable as derived state; event log remains append‑only truth.
+
+---
+
+## Entry: 2026-01-25 14:05:40 — Phase 5/6 checklist added + Flask/Werkzeug bump decision
+
+### Problem / goal
+User requested Phase‑5/6 checklists and to bump Flask/Werkzeug due to warning volume during Phase‑4 tests.
+
+### Decision trail (libraries)
+1) **Desired bump**: latest Flask/Werkzeug releases exist, but we must respect dependency constraints already in the repo.
+2) **Compatibility constraints discovered**:
+   - `connexion==2.14.2` depends on `werkzeug<2.3` (per upstream dependency listing).
+   - `apache-airflow` providers currently pin Flask `<2.3` (dev dependency).
+3) **Decision**: bump to the **latest compatible** line rather than breaking dependencies.
+   - Set Flask to `>=2.2.5,<2.3` (keeps within Airflow/Connexion bounds).
+   - Add explicit Werkzeug constraint `>=2.2,<2.3` to prevent accidental 3.x installs.
+4) **Trade‑off noted**: this may not eliminate all warnings; removing them fully would require a coordinated upgrade of Connexion/Airflow to versions that allow Flask/Werkzeug 3.x (out of Phase‑4 scope).
+
+### Phase 5/6 checklist update
+Added Phase 5 (production hardening) and Phase 6 (scale + governance hardening) sections to the IG build plan with explicit DoD items.

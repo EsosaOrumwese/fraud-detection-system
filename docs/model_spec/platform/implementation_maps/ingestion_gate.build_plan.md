@@ -153,6 +153,66 @@ Provide a progressive, component‑scoped build plan for the Ingestion Gate (IG)
 - Re‑runs are idempotent: already‑processed outputs are skipped based on recorded checkpoints.
 - Ops index can be rebuilt to include pull ingestion receipts.
 
+### Phase 5 — Production hardening
+**Intent:** harden IG for production security, reliability, and non‑local environments.
+
+#### Phase 5.1 — AuthN/AuthZ boundary
+**Goal:** ensure only authorized producers and operators can trigger ingestion.
+
+**DoD checklist:**
+- Request authentication enforced for push ingress (mTLS/API key/JWT; profile‑driven).
+- READY consumer validates provenance (allowed topics + message signature/allowlist).
+- Unauthorized requests return explicit reason codes; no partial processing.
+
+#### Phase 5.2 — Non‑local object store support for pull
+**Goal:** allow IG to pull run_facts_view from S3‑style object stores.
+
+**DoD checklist:**
+- Run facts ref resolution supports `s3://` and by‑ref paths.
+- Object store reads are retried with bounded backoff.
+- Missing/invalid refs fail closed with explicit reason codes.
+
+#### Phase 5.3 — Resilience + backpressure
+**Goal:** protect EB and downstream from overload or dependency failure.
+
+**DoD checklist:**
+- Circuit breakers for EB publish and object store operations.
+- Configurable rate limits for push ingress + READY pull.
+- Health transitions (AMBER/RED) block intake when thresholds exceeded.
+
+#### Phase 5.4 — Ops runbook + alerts
+**Goal:** provide operational clarity for on‑call responders.
+
+**DoD checklist:**
+- Runbook updated with common failure modes + recovery steps.
+- Alerts defined for health state changes, quarantine spikes, READY failures.
+- Metrics include per‑phase latency (validate→verify→publish→receipt).
+
+### Phase 6 — Scale + governance hardening
+**Intent:** support horizontal scale and audit‑grade integrity.
+
+#### Phase 6.1 — Horizontal READY consumer
+**Goal:** allow multiple IG instances without duplicate pull ingestion.
+
+**DoD checklist:**
+- Distributed lease/lock on READY message processing.
+- Exactly‑once processing per message_id (at‑least‑once transport safe).
+
+#### Phase 6.2 — Pull sharding + checkpoints
+**Goal:** scale pull ingestion across large outputs.
+
+**DoD checklist:**
+- Shard pull by output_id or locator range with deterministic partitioning.
+- Checkpoints record shard progress and allow resume without duplicates.
+
+#### Phase 6.3 — Integrity + audit proofing
+**Goal:** strengthen provenance and audit evidence.
+
+**DoD checklist:**
+- Optional hash chain for pull run events (tamper‑evident).
+- Governance facts include policy_rev + run pins + READY bundle hash.
+- Periodic audit job validates receipt/index parity.
+
 ## Status (rolling)
 - Phase 1: complete (admission spine + run joinability + optional gate re-hash; unit tests added).
 - Phase 2: complete (policy digesting + ops index + health/ingress control + governance/metrics; tests green).
