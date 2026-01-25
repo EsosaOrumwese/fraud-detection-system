@@ -1,0 +1,32 @@
+version: "0.1.0"
+profiles:
+  ig.partitioning.v0.traffic:
+    description: >
+      Deterministic routing for admitted traffic events. Prefer entity-local ordering.
+    stream: fp.bus.traffic.v1
+    key_precedence:
+      - payload.flow_id
+      - payload.merchant_id
+      - payload.account_id
+      - payload.party_id
+      - event_id
+    hash_algo: sha256
+
+  ig.partitioning.v0.control:
+    description: >
+      Deterministic routing for control facts. Prefer run-scoped ordering.
+    stream: fp.bus.control.v1
+    key_precedence:
+      - run_id
+      - manifest_fingerprint
+      - event_id
+    hash_algo: sha256
+
+  ig.partitioning.v0.audit:
+    description: >
+      Deterministic routing for audit pointer events. Stable ordering only.
+    stream: fp.bus.audit.v1
+    key_precedence:
+      - event_id
+      - manifest_fingerprint
+    hash_algo: sha256

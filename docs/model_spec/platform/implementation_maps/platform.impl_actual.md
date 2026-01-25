@@ -125,3 +125,21 @@ User asked to review and tighten the Phase 1 rails/substrate doc wording for cla
 - Restated audit topic as optional and non-authoritative.
 
 ---
+
+## Entry: 2026-01-24 23:30:30 — Phase 1.2 + 1.3 artifacts (by-ref validation + partitioning policy)
+
+### What I changed
+- Added a **by-ref validation checklist** doc to make locator/digest/gate/instance-proof checks explicit and fail‑closed.
+- Added **partitioning policy guidance** doc to pin deterministic routing posture and stream-specific key precedence.
+- Added IG policy stubs (`partitioning_profiles_v0.yaml`) and README under `config/platform/ig/` with non‑secret examples.
+
+### Rationale (live)
+- Phase 1.2 needed a concrete, testable checklist so component implementations (SR/IG/OFS/DLA) don’t diverge on by‑ref integrity.
+- Phase 1.3 needed policy stubs that express deterministic routing **without** hard‑coding secrets or vendor tooling; profiles are versioned and referenceable by `partitioning_profile_id`.
+
+### Notes / invariants pinned
+- Locator validation must check schema, path template, pin consistency, and token order.
+- Instance‑scoped outputs require locator `content_digest` and (where required) instance‑proof receipts bound to locator+digest.
+- IG must stamp partition_key deterministically; EB never infers routing.
+
+---
