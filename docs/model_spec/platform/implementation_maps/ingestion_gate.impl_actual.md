@@ -204,3 +204,83 @@ If `engine_root_path` is configured, IG must **fail fast** when the gate verifie
 
 ### Change applied
 - `IngestionGate.build` now raises `GATE_VERIFIER_UNAVAILABLE` if `engine_root_path` is set but the verifier cannot be imported.
+
+---
+
+## Entry: 2026-01-25 07:49:58 — IG Phase 2 planning (control plane + ops hardening)
+
+### Problem / goal
+Phase 2 turns IG from a strict admission boundary into an **operationally safe** service: it must be queryable, observable, and resilient under dependency failures without violating rails (no silent drop, no PASS→no read, append‑only truth).
+
+### Authorities / inputs
+- Root AGENTS rails + platform doctrine (idempotency, append‑only truth, fail‑closed).
+- IG design‑authority (M10 ops surfaces; J19 ingress control; governance facts).
+- Platform profiles + policy split (policy vs wiring).
+- SR ledger conventions (run_status / run_facts_view; READY gating).
+
+### Live reasoning (detail trail)
+- **Policy attribution is mandatory**: we already stamp `policy_id`+`revision` but **content_digest** is missing. Without digest, downstream cannot prove the exact policy bundle.  
+  Options considered:
+  1) Hardcode digest in config → fragile and easy to drift.
+  2) Compute digest from a fixed set of policy files at runtime (preferred).
+  Decision: compute digest at IG startup from `schema_policy`, `class_map`, `partitioning_profiles` (and any IG‑specific policy docs); stamp into `policy_rev.content_digest`. This keeps receipts auditable without introducing secrets.
+
+- **Ops surfaces must not scan EB/object store**: receipt lookup needs a DB‑backed index.  
+  Options:
+  1) Extend existing `AdmissionIndex` DB with new tables for receipts/quarantine (preferred: fewer DBs).
+  2) New ops DB (cleaner separation, but more moving parts).
+  Decision: extend the current SQLite index with `receipts` and `quarantines` tables; keep schema append‑only. The object store remains the evidence authority; DB is a query cache, not truth.
+
+- **Ingress control cannot be implicit**: if EB or object store is unhealthy, IG must throttle or pause intake rather than admit and fail later.  
+  Minimal Phase‑2 approach:
+  - A `HealthProbe` that checks: object‑store write (receipt/quarantine), EB publish readiness, and DB availability.
+  - Map probe results to `GREEN|AMBER|RED`; RED causes intake refusal; AMBER may log throttling decisions.
+  - Emit explicit state‑change logs with reason codes.
+
+- **Observability must be narrative + structured**: Phase‑1 added narrative logs, but Phase‑2 must also produce counters and latencies.  
+  Approach: in‑process counters with periodic log flush (no new deps). Keep OTel as a later enhancement once the metrics surface is stable. Metrics tags include `decision`, `event_type`, `policy_rev`, and run pins where available.
+
+- **Governance facts**: policy change and quarantine spikes should emit to audit/control streams.  
+  For v0: define a small `ig_audit_event` payload and emit on:
+  - policy activation (new digest)
+  - quarantine spike (thresholded rate)
+  Emission uses existing EB publisher (audit/control topic).
+
+### Proposed Phase‑2 mechanics (stepwise)
+1) **Policy digesting**
+   - Add a `PolicyDigest` helper to compute sha256 over the resolved policy bundle (schema_policy + class_map + partitioning_profiles + optional IG policy YAML).
+   - Include `content_digest` in `policy_rev` and in logs/metrics.
+
+2) **Ops index**
+   - Extend `AdmissionIndex` or add `OpsIndex` with:
+     - `receipts` table: receipt_id, event_id, event_type, dedupe_key, decision, eb_ref, pins, policy_rev, created_at_utc, receipt_ref.
+     - `quarantines` table: quarantine_id, event_id, reason_codes, pins, evidence_ref, created_at_utc.
+   - Insert records on every decision path (ADMIT/DUPLICATE/QUARANTINE).
+   - Provide a small CLI query (`ig ops lookup --event-id/--receipt-id`) without secrets.
+
+3) **Health + ingress control**
+   - Add `IGHealthState` computation that checks:
+     - object store write probe (write‑once sentinel)
+     - EB publish probe (no‑op or test append for file bus)
+     - DB availability (simple SELECT/PRAGMA)
+   - Enforce: RED → refuse intake; AMBER → log throttle recommendation.
+
+4) **Observability + governance facts**
+   - Add in‑process counters + latencies; flush to logs at interval.
+   - Emit governance events to `fp.bus.audit.v1` on policy change and quarantine spikes.
+
+### Invariants to enforce (Phase‑2)
+- No ingestion proceeds when dependencies are unhealthy (fail‑closed).
+- Indexes are append‑only mirrors of receipt/quarantine objects; never authoritative over object store.
+- Governance facts are additive and do not alter admission outcomes.
+
+### Implementation notes (paths)
+- `src/fraud_detection/ingestion_gate/ops_index.py` (new)
+- `src/fraud_detection/ingestion_gate/policy_digest.py` (new)
+- `src/fraud_detection/ingestion_gate/health.py` (new)
+- `src/fraud_detection/ingestion_gate/metrics.py` (new)
+- CLI extension under `src/fraud_detection/ingestion_gate/cli.py`
+
+### Testing plan (Phase‑2)
+- Unit: policy digest reproducibility; ops index insert/query; health state transitions.
+- Integration: simulate EB failure → intake refuses; quarantine spike emits audit event; policy digest stamped in receipts.

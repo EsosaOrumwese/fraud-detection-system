@@ -57,10 +57,41 @@ Provide a progressive, component‑scoped build plan for the Ingestion Gate (IG)
 ### Phase 2 — Control plane + operations hardening
 **Intent:** add governance hooks, observability, and operational safety.
 
-**DoD (high level):**
-- Policy revision stamping on receipts.
-- Governance facts emitted for policy changes and quarantine spikes.
-- OTel metrics/logs with ContextPins tags.
+#### Phase 2.1 — Active policy resolution + stamping
+**Goal:** make all IG outcomes attributable to a specific policy revision and profile set.
+
+**DoD checklist:**
+- A single **ActivePolicyPointer** is resolved at IG startup and reload.
+- `policy_rev` in receipts includes `policy_id`, `revision`, and `content_digest`.
+- Policy changes are atomic (no half‑applied config across modules).
+- `policy_rev` is emitted in logs/metrics for auditability.
+
+#### Phase 2.2 — Ops index + lookup surfaces (receipts/quarantine)
+**Goal:** make “what happened to my event?” and quarantine triage queryable without scanning object store or EB.
+
+**DoD checklist:**
+- Receipt index persisted (receipt_id, event_id, dedupe_key, decision, EB coords, reason codes, pins).
+- Quarantine index persisted (quarantine_id, reason codes, pins, evidence ref).
+- CLI or lightweight API can query by event_id or receipt_id.
+- Index contents are consistent with object receipts (append‑only; no mutation).
+
+#### Phase 2.3 — Health + ingress control (throttle/pause)
+**Goal:** keep correctness under dependency failures and overload.
+
+**DoD checklist:**
+- Health probe evaluates EB connectivity, object‑store writes, and index DB availability.
+- Explicit health state (`GREEN|AMBER|RED`) computed from thresholds.
+- In RED: IG refuses intake or pauses bus consumption (fail‑closed).
+- State transitions are logged with reason codes.
+
+#### Phase 2.4 — Observability + governance facts
+**Goal:** make IG behavior visible and produce governance‑worthy signals.
+
+**DoD checklist:**
+- Structured logs for admission path (validate→verify→dedupe→publish→receipt).
+- Metrics counters/histograms for admit/duplicate/quarantine, latency, and backlog.
+- Governance facts emitted to audit/control stream on policy change + quarantine spikes.
+- All telemetry tagged with run pins and `policy_rev` when available.
 
 ### Phase 3 — Scale & replay readiness
 **Intent:** ensure IG behaves predictably under load and replay.
@@ -71,4 +102,4 @@ Provide a progressive, component‑scoped build plan for the Ingestion Gate (IG)
 
 ## Status (rolling)
 - Phase 1: complete (admission spine + run joinability + optional gate re-hash; unit tests added).
-- Phase 2+: not started.
+- Phase 2: planning in progress (sections + DoD defined; implementation not started).
