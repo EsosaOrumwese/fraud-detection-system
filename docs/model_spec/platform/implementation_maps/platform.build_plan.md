@@ -66,12 +66,40 @@ Provide a platform-wide, production-shaped build plan for v0 that aligns compone
 ### Phase 2 — Control & Ingress plane (SR + IG + EB)
 **Intent:** establish run readiness authority and trusted event admission into the bus.
 
-**Definition of Done (DoD):**
-- Scenario Runner publishes READY + run_facts_view with required PASS evidence and pins.
-- Ingestion Gate enforces schema + lineage + gate verification and emits receipts (admit/duplicate/quarantine).
-- Event Bus receives admitted events with canonical envelope and idempotency under retries.
-- Truth ownership is enforced: SR is the readiness authority; IG is the admission authority; EB owns offsets/replay only.
-- End-to-end proof: SR READY -> IG admits engine traffic -> EB replay works for a pinned run.
+#### Phase 2.1 — Scenario Runner readiness authority (SR)
+**Goal:** SR is the sole readiness authority and publishes the join surface.
+
+**DoD checklist:**
+- SR publishes `run_facts_view` + READY with required PASS evidence and pins.
+- READY is emitted only after evidence completeness (no PASS → no read).
+- SR run ledger artifacts are immutable and append‑only (run_plan/run_record/run_status/run_facts_view).
+- Reuse path is evidence‑based (locators + receipts), never “scan latest.”
+
+**Status:** ready to proceed to IG; path‑alignment follow‑up noted (see platform.impl_actual).
+
+#### Phase 2.2 — Ingestion Gate admission boundary (IG)
+**Goal:** IG is the sole admission authority; schema + lineage + gate checks are enforced.
+
+**DoD checklist:**
+- IG validates canonical envelope + payload schema (versioned) and enforces ContextPins when required.
+- IG verifies required HashGates before admitting traffic.
+- IG emits receipts with decision (ADMIT/DUPLICATE/QUARANTINE) and by‑ref evidence.
+- IG stamps deterministic `partition_key` using policy profiles.
+
+#### Phase 2.3 — Event Bus durability + replay (EB)
+**Goal:** EB is the durable fact log with stable offsets and at‑least‑once delivery.
+
+**DoD checklist:**
+- EB append ACK implies durable `(stream, partition, offset)` assignment.
+- Replay by offsets works with partition‑only ordering semantics.
+- Idempotent publish and dedupe semantics are validated under retry.
+
+#### Phase 2.4 — Control & Ingress E2E proof
+**Goal:** demonstrate end‑to‑end readiness → admission → replay under rails.
+
+**DoD checklist:**
+- SR READY → IG admits engine traffic → EB replay works for pinned run.
+- Truth ownership enforced: SR readiness authority; IG admission authority; EB offsets/replay only.
 
 ### Phase 3 — Hot-path decision loop (IEG/OFP/DL/DF/AL/DLA)
 **Intent:** turn admitted traffic into decisions and outcomes with correct provenance and audit.
@@ -128,5 +156,6 @@ Provide a platform-wide, production-shaped build plan for v0 that aligns compone
 - Multi-bus / multi-domain expansion (fraud + risk + compliance) under shared rails.
 
 ## Status (rolling)
+- Phase 1: complete (rails + substrate pins + validation + profiles).
 - SR v0: complete (see `docs/model_spec/platform/implementation_maps/scenario_runner.build_plan.md`).
-- All other phases: not started in platform-wide plan (pending entry).
+- Phase 2+: not started in platform-wide plan (pending entry).

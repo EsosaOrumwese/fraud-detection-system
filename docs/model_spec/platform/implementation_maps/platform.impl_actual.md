@@ -217,3 +217,30 @@ User asked to proceed with Phase 1.4 validation (policy vs wiring separation aud
 - If you want a stricter secrets policy, we can add a repo‑wide pre‑commit rule or a CI check that blocks secret‑like strings in tracked files.
 
 ---
+
+## Entry: 2026-01-25 05:50:21 — Mark Phase 1 complete; expand Phase 2
+
+### Phase 1 completion note
+- Phase 1.1–1.5 deliverables are now in place: rails/substrate doc, by‑ref validation checklist, partitioning policy guidance, IG partitioning profiles, profile schema alignment, and policy/wiring + secrets posture validation.
+
+### Next step
+- Expand Phase 2 (Control & Ingress plane: SR + IG + EB) into sections with DoD checklists under the progressive‑elaboration rule.
+
+---
+
+## Entry: 2026-01-25 05:56:08 — SR v0 marked ready for IG; path alignment follow‑up
+
+### Decision
+User requested that SR v0 be treated as done/ready to proceed to IG, with the caveat that SR path alignment remains outstanding.
+
+### Rationale
+- SR’s functional v0 build is complete and validated; moving to IG unblocks platform progress.
+- Path alignment to the platform prefix map is a known gap; it is explicitly recorded as a follow‑up so we do not misrepresent readiness.
+
+### Change applied
+- Marked Phase 2.1 as “ready to proceed to IG” with an explicit note about path‑alignment follow‑up in `platform.build_plan.md`.
+
+### Follow‑up (must close)
+- Align SR object‑store paths with the platform substrate prefix map (fraud‑platform/sr/...).
+
+---
