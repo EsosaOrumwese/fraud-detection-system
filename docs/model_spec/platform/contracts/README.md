@@ -33,3 +33,4 @@ These live under:
 - `ig_policy_activation.schema.yaml`
 - `ig_quarantine_spike.schema.yaml`
 - `ig_pull_run.schema.yaml`
+- `ig_audit_verify.schema.yaml`

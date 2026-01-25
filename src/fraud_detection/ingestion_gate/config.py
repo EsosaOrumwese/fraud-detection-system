@@ -63,6 +63,12 @@ class WiringProfile:
     store_read_retry_attempts: int = 3
     store_read_retry_backoff_seconds: float = 0.2
     store_read_retry_max_seconds: float = 2.0
+    ready_lease_backend: str = "none"
+    ready_lease_dsn: str | None = None
+    ready_lease_namespace: str = "ig_ready"
+    ready_lease_owner_id: str | None = None
+    pull_shard_mode: str = "output_id"
+    pull_shard_size: int = 0
 
     @classmethod
     def load(cls, path: Path) -> "WiringProfile":
@@ -73,6 +79,8 @@ class WiringProfile:
         event_bus = wiring.get("event_bus", {})
         control_bus = wiring.get("control_bus", {})
         security = wiring.get("security", {})
+        ready_lease = wiring.get("ready_lease", {})
+        pull_sharding = wiring.get("pull_sharding", {})
         endpoint = object_store.get("endpoint")
         region = object_store.get("region")
         path_style = object_store.get("path_style")
@@ -170,6 +178,12 @@ class WiringProfile:
             store_read_retry_attempts=int(security.get("store_read_retry_attempts", 3)),
             store_read_retry_backoff_seconds=float(security.get("store_read_retry_backoff_seconds", 0.2)),
             store_read_retry_max_seconds=float(security.get("store_read_retry_max_seconds", 2.0)),
+            ready_lease_backend=ready_lease.get("backend", "none"),
+            ready_lease_dsn=ready_lease.get("dsn"),
+            ready_lease_namespace=ready_lease.get("namespace", "ig_ready"),
+            ready_lease_owner_id=ready_lease.get("owner_id"),
+            pull_shard_mode=pull_sharding.get("mode", "output_id"),
+            pull_shard_size=int(pull_sharding.get("shard_size", 0)),
         )
 
 

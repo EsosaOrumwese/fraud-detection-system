@@ -25,3 +25,7 @@ policies:
     class: audit
     schema_version_required: false
     payload_schema_ref: docs/model_spec/platform/contracts/ingestion_gate/ig_pull_run.schema.yaml
+  - event_type: ig.audit.verify
+    class: audit
+    schema_version_required: false
+    payload_schema_ref: docs/model_spec/platform/contracts/ingestion_gate/ig_audit_verify.schema.yaml

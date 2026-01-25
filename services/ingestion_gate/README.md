@@ -23,6 +23,7 @@ python -m fraud_detection.ingestion_gate.cli --profile config/platform/profiles/
 python -m fraud_detection.ingestion_gate.cli --profile config/platform/profiles/local.yaml --lookup-dedupe-key <dedupe_key>
 python -m fraud_detection.ingestion_gate.cli --profile config/platform/profiles/local.yaml --rebuild-index
 python -m fraud_detection.ingestion_gate.cli --profile config/platform/profiles/local.yaml --health
+python -m fraud_detection.ingestion_gate.cli --profile config/platform/profiles/local.yaml --audit-verify <run_id>
 ```
 
 Smoke test (uses SR artifacts if present):
@@ -51,6 +52,7 @@ Auth + rate limits (profile wiring):
 - `wiring.security.auth_mode: api_key` to require API keys on `/v1/ingest/*` and `/v1/ops/*`.
 - `wiring.security.auth_allowlist_ref` points to a newline-delimited allowlist file.
 - `wiring.security.push_rate_limit_per_minute` and `ready_rate_limit_per_minute` enforce basic backpressure.
+- `wiring.ready_lease.backend: postgres` enables distributed READY consumption (requires DSN in env).
 
 Push ingest example:
 ```

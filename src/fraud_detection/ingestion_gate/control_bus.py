@@ -4,12 +4,14 @@ from __future__ import annotations
 
 import json
 import logging
+from datetime import datetime, timezone
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Iterable
 
 from .admission import IngestionGate
 from .errors import IngestionError
+from .leases import ReadyLeaseManager, build_ready_lease_manager
 from .pull_state import PullRunStore
 from .schemas import SchemaRegistry
 
@@ -75,10 +77,24 @@ class FileControlBusReader:
 
 
 class ReadyConsumer:
-    def __init__(self, gate: IngestionGate, reader: FileControlBusReader, pull_store: PullRunStore | None = None) -> None:
+    def __init__(
+        self,
+        gate: IngestionGate,
+        reader: FileControlBusReader,
+        pull_store: PullRunStore | None = None,
+        lease_manager: ReadyLeaseManager | None = None,
+    ) -> None:
         self.gate = gate
         self.reader = reader
         self.pull_store = pull_store or gate.pull_store
+        if lease_manager is None:
+            lease_manager = build_ready_lease_manager(
+                backend=gate.wiring.ready_lease_backend,
+                dsn=gate.wiring.ready_lease_dsn,
+                namespace=gate.wiring.ready_lease_namespace,
+                owner_id=gate.wiring.ready_lease_owner_id,
+            )
+        self.lease_manager = lease_manager
 
     def poll_once(self) -> list[dict[str, Any]]:
         results: list[dict[str, Any]] = []
@@ -98,11 +114,43 @@ class ReadyConsumer:
                 "status": "SKIPPED_UNAUTHORIZED" if exc.code == "RUN_NOT_ALLOWED" else "SKIPPED_RATE_LIMIT",
                 "reason_code": exc.code,
             }
+        lease = None
+        try:
+            lease = self.lease_manager.try_acquire(message.message_id, message.run_id)
+        except IngestionError as exc:
+            logger.warning("IG READY lease acquisition failed message_id=%s reason=%s", message.message_id, exc.code)
+            return {"message_id": message.message_id, "run_id": message.run_id, "status": "FAILED", "reason_code": exc.code}
+        if lease is None:
+            return {"message_id": message.message_id, "run_id": message.run_id, "status": "SKIPPED_LEASED"}
+
+        self.pull_store.append_event(
+            message.run_id,
+            {
+                "event_kind": "LEASE_ACQUIRED",
+                "ts_utc": datetime.now(tz=timezone.utc).isoformat(),
+                "run_id": message.run_id,
+                "message_id": message.message_id,
+                "lease_owner": lease.owner_id,
+                "lease_backend": lease.backend,
+            },
+        )
         existing = self.pull_store.read_message_record(message.message_id)
         if existing:
             existing_status = self.pull_store.read_status(existing.get("run_id", message.run_id))
             if existing_status and existing_status.get("status") == "COMPLETED":
                 logger.info("IG READY duplicate skipped message_id=%s run_id=%s", message.message_id, message.run_id)
+                lease.release()
+                self.pull_store.append_event(
+                    message.run_id,
+                    {
+                        "event_kind": "LEASE_RELEASED",
+                        "ts_utc": datetime.now(tz=timezone.utc).isoformat(),
+                        "run_id": message.run_id,
+                        "message_id": message.message_id,
+                        "lease_owner": lease.owner_id,
+                        "lease_backend": lease.backend,
+                    },
+                )
                 return {"message_id": message.message_id, "run_id": message.run_id, "status": "SKIPPED_DUPLICATE"}
         else:
             created = self.pull_store.ensure_message_record(message.message_id, message.run_id, status_ref)
@@ -117,7 +165,20 @@ class ReadyConsumer:
         except IngestionError as exc:
             logger.warning("IG READY processing failed message_id=%s reason=%s", message.message_id, exc.code)
             return {"message_id": message.message_id, "run_id": message.run_id, "status": "FAILED", "reason_code": exc.code}
-        except Exception as exc:  # pragma: no cover - defensive
+        except Exception:  # pragma: no cover - defensive
             logger.exception("IG READY processing exception message_id=%s", message.message_id)
             return {"message_id": message.message_id, "run_id": message.run_id, "status": "FAILED", "reason_code": "INTERNAL_ERROR"}
+        finally:
+            lease.release()
+            self.pull_store.append_event(
+                message.run_id,
+                {
+                    "event_kind": "LEASE_RELEASED",
+                    "ts_utc": datetime.now(tz=timezone.utc).isoformat(),
+                    "run_id": message.run_id,
+                    "message_id": message.message_id,
+                    "lease_owner": lease.owner_id,
+                    "lease_backend": lease.backend,
+                },
+            )
         return {"message_id": message.message_id, "run_id": message.run_id, "status": status.get("status"), "status_ref": status.get("status_ref")}

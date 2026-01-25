@@ -69,6 +69,10 @@ class GovernanceEmitter:
         envelope = _make_envelope("ig.pull.run", payload)
         self._emit_audit(envelope)
 
+    def emit_audit_verification(self, payload: dict[str, Any]) -> None:
+        envelope = _make_envelope("ig.audit.verify", payload)
+        self._emit_audit(envelope)
+
     def _emit_audit(self, envelope: dict[str, Any]) -> None:
         profile_id = "ig.partitioning.v0.audit"
         partition_key = self.partitioning.derive_key(profile_id, envelope)

@@ -21,3 +21,4 @@ event_types:
   ig.policy.activation: audit
   ig.quarantine.spike: audit
   ig.pull.run: audit
+  ig.audit.verify: audit

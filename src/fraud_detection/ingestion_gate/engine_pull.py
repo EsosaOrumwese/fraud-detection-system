@@ -57,6 +57,20 @@ class EnginePuller:
             outputs.append(output_id)
         return outputs
 
+    def list_locator_paths(self, output_id: str) -> list[str]:
+        locator = self._locator_for_output(output_id)
+        if not locator:
+            return []
+        return self._expand_paths(locator)
+
+    def iter_events_for_paths(self, output_id: str, paths: list[str]) -> Iterable[dict[str, Any]]:
+        facts = self._load_facts()
+        pins = facts.get("pins", {})
+        locator = self._locator_for_output(output_id)
+        if not locator:
+            return
+        yield from self._events_from_output(output_id, locator, pins, paths_override=paths)
+
     def _load_facts(self) -> dict[str, Any]:
         if self._facts is None:
             if self.run_facts_payload is not None:
@@ -72,9 +86,10 @@ class EnginePuller:
         output_id: str,
         path: str,
         pins: dict[str, Any],
+        paths_override: list[str] | None = None,
     ) -> Iterable[dict[str, Any]]:
         entry = self.catalogue.get(output_id)
-        files = self._expand_paths(path)
+        files = paths_override or self._expand_paths(path)
         for file_path in files:
             for row in self._read_rows(file_path):
                 event_id = derive_engine_event_id(output_id, entry.primary_key, row, pins)
@@ -94,6 +109,14 @@ class EnginePuller:
                     "payload": row,
                 }
                 yield envelope
+
+    def _locator_for_output(self, output_id: str) -> str | None:
+        facts = self._load_facts()
+        locators = facts.get("locators", [])
+        for locator in locators:
+            if locator.get("output_id") == output_id:
+                return locator.get("path")
+        return None
 
     def _expand_paths(self, path: str) -> list[str]:
         if path.startswith("s3://"):

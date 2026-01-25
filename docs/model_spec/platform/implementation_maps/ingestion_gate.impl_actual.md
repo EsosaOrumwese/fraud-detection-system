@@ -931,3 +931,152 @@ Finish Phase 5 hardening: add bounded retries for object‑store reads, expose c
 - Re‑ran via venv:
   - `.\.venv\Scripts\python.exe -m pytest tests/services/ingestion_gate/test_phase5_auth_rate.py tests/services/ingestion_gate/test_phase5_runfacts_s3.py tests/services/ingestion_gate/test_phase5_retries.py -q` → **5 passed**
   - Warnings: werkzeug/ast deprecation noise persists (known, upstream dependency constraint).
+
+## Entry: 2026-01-25 17:41:06 — Phase 6 planning (scale + governance hardening)
+
+### Problem / goal
+Phase 6 scales IG horizontally and hardens audit‑grade integrity without violating rails (idempotency, append‑only truth, fail‑closed, provenance in every output). This covers distributed READY consumption, pull sharding with checkpoints, and integrity/audit verification.
+
+### Constraints / rails (non‑negotiable)
+- At‑least‑once transport is assumed; ingestion must remain idempotent under duplicates.
+- READY is the only join surface (no scanning for “latest”).
+- Receipts/quarantine are append‑only truth; derived views can be overwritten.
+- Engine remains a black box (read artifacts only).
+- No secrets or credentials in docs.
+
+### Live decision trail (planning)
+1) **Distributed READY processing (exactly‑once at message_id)**
+   - Need a **distributed lease/lock** so multiple IG instances can share READY work without double‑pulling.
+   - Options:
+     - Postgres advisory locks (reuse ops DB, lowest new infra).
+     - Redis locks (fast, but extra infra + failure modes).
+     - DynamoDB conditional writes (AWS‑native; infra overhead).
+   - Leaning: **Postgres advisory locks** for v0 scale; keeps infra minimal and aligns with existing ops DB usage.
+
+2) **READY dedupe truth surface**
+   - Already have message_id records in object store. For multi‑instance, we need **atomic claim** or **lease record** in a shared DB.
+   - Use ops DB table `ready_leases` with `(message_id, run_id, owner, lease_expires_utc)`; compare‑and‑swap for claim.
+
+3) **Pull sharding strategy**
+   - Shard by `output_id` (coarse, stable) with optional sub‑shard by locator range if outputs are huge.
+   - Do **not** shard by row for v0; rely on dedupe and per‑output checkpoints.
+   - Add shard checkpoints under `pull_runs/checkpoints/run_id=.../output_id=.../shard=...json` when needed.
+
+4) **Integrity + audit proofing**
+   - Add a **hash chain** over pull run events for tamper‑evidence:
+     - Each event includes `prev_hash` and `event_hash` = sha256(prev_hash + canonical_json(event)).
+   - Provide a periodic audit job that replays event log and validates hash chain + receipt/index parity.
+
+5) **Operational safety**
+   - Lease expiry with heartbeat; if IG dies, lease expires and another instance resumes safely.
+   - Health gate denies intake when lease DB is unavailable (fail‑closed).
+
+### Phase 6.1 plan (horizontal READY consumer)
+- Add `ready_leases` table to OpsIndex with atomic claim + heartbeat + release.
+- READY consumer acquires lease before pull; skips if lease exists and not expired.
+- Persist lease metadata in pull run record for audit (owner, lease_id, acquired_at).
+
+### Phase 6.2 plan (pull sharding + checkpoints)
+- Extend `PullRunStore` to track shard checkpoints per output.
+- Add sharding strategy config: `shard_mode: output_id|locator_range` + max shard size.
+- Ensure pull resume logic merges per‑shard completion into run status.
+
+### Phase 6.3 plan (integrity + audit proofing)
+- Add hash chain fields to pull run event log entries.
+- Add `ig.audit.verify` CLI to validate:
+  - hash chain integrity,
+  - receipts ↔ ops index parity,
+  - pull checkpoints completeness.
+- Emit governance facts for audit job outcome.
+
+### Validation / test plan
+- Concurrency test: two IG instances race for READY; only one acquires lease and ingests.
+- Lease expiry test: instance A acquires, stops heartbeating → instance B resumes safely.
+- Shard checkpoint test: partial completion resumes without duplicates; end counts stable.
+- Audit job test: detects tampered event log (hash chain mismatch).
+
+### Open decisions to confirm
+- **Lease backend** for distributed READY: Postgres advisory locks vs Redis vs DynamoDB.
+- **Shard mode** default: output_id only vs enabling locator_range in v0.
+- **Audit job schedule**: manual CLI only vs periodic scheduler hook.
+
+## Entry: 2026-01-25 17:52:43 — Phase 6 decisions locked + implementation start
+
+### Decisions locked (per confirmation)
+- **Lease backend:** Postgres advisory locks for distributed READY consumption. No SQLite for multi‑instance. Local single‑instance runs can use a no‑op lease manager (explicitly non‑distributed).
+- **Sharding default:** output_id only for v0. Locator‑range sharding is optional and config‑gated.
+- **Audit schedule:** manual CLI verifier with an optional scheduler hook (no new scheduler dependency in v0).
+
+### Live reasoning (why these are production‑safe)
+- Postgres advisory locks give strong atomicity with minimal new infra and align with our existing Postgres usage; advisory locks release automatically if the process dies, which is safer than stale table leases.
+- output_id sharding is deterministic and aligns with our existing per‑output checkpointing; locator‑range sharding is kept as an opt‑in for large outputs to avoid premature complexity.
+- A manual audit CLI gives audit‑grade verification without adding a scheduler dependency; ops can hook it into cron/CI later.
+
+### Implementation plan (stepwise, Phase 6)
+1) **Lease manager**: introduce `ReadyLeaseManager` with a Postgres advisory‑lock implementation; wire into READY consumer; emit lease events into pull run log for audit.
+2) **Sharding (optional)**: extend pull checkpoints to support shard IDs; add locator‑range sharding mode (config‑gated) while keeping output_id default.
+3) **Integrity**: add a hash chain over pull‑run event log entries (prev_hash + event_hash) with derived chain state storage.
+4) **Audit CLI**: add an `--audit-verify` option to validate hash chain + checkpoint completeness for a run; emit a governance fact on audit outcome.
+5) **Tests**: add unit tests for hash chain + sharded checkpoints + lease acquisition behavior (local no‑op or mocked Postgres).
+
+### Guardrails
+- Keep receipts/quarantine append‑only; any mutable state is explicitly derived.
+- No secrets or credentials in code or docs (DSN is config/env‑only).
+
+## Entry: 2026-01-25 18:02:15 — Phase 6 implementation (leases, sharding, hash chain, audit CLI)
+
+### Decisions applied (live reasoning)
+- **Lease backend** implemented with Postgres advisory locks (optional), plus a no‑op local lease manager for single‑instance runs. This preserves production correctness while keeping local dev usable without extra infra.
+- **Sharding default** remains output_id only; locator‑range sharding is opt‑in and config‑gated with explicit shard_size.
+- **Integrity** enforced via a pull‑run event hash chain. The event log remains the source of truth; chain state is a derived file for efficient append.
+- **Audit verification** is CLI‑driven and emits an audit governance fact (`ig.audit.verify`). No scheduler dependency added.
+
+### Code changes (stepwise, with rationale)
+1) **READY leases**
+   - Added `leases.py` with `PostgresReadyLeaseManager` (advisory locks) and `NullReadyLeaseManager` for local non‑distributed runs.
+   - Wired READY consumer to acquire/release leases and emit lease events into the pull run log for auditability.
+   - Failure to reach the lease backend is fail‑closed (`LEASE_BACKEND_UNAVAILABLE`).
+
+2) **Sharding + checkpoints**
+   - Added locator‑range sharding (optional): outputs can be split into file‑path shards with per‑shard checkpoints.
+   - Output‑level completion remains unchanged for default mode; sharded runs emit `SHARD_COMPLETED/FAILED` events and a final `OUTPUT_COMPLETED` event.
+
+3) **Hash‑chain integrity**
+   - Pull‑run event log now includes `prev_hash` + `event_hash` computed deterministically.
+   - Chain state is stored as a derived record to avoid scanning the full log on each append.
+
+4) **Audit CLI**
+   - Added `--audit-verify <run_id>` to validate hash chain + checkpoint completeness.
+   - Added `ig.audit.verify` contract and policy/class map entries; governance emitter now publishes audit verification facts.
+
+### Files updated/added (high‑signal)
+- `src/fraud_detection/ingestion_gate/leases.py`
+- `src/fraud_detection/ingestion_gate/control_bus.py`
+- `src/fraud_detection/ingestion_gate/pull_state.py`
+- `src/fraud_detection/ingestion_gate/engine_pull.py`
+- `src/fraud_detection/ingestion_gate/admission.py`
+- `src/fraud_detection/ingestion_gate/audit.py`
+- `src/fraud_detection/ingestion_gate/cli.py`
+- `src/fraud_detection/ingestion_gate/governance.py`
+- `config/platform/ig/schema_policy_v0.yaml`
+- `config/platform/ig/class_map_v0.yaml`
+- `docs/model_spec/platform/contracts/ingestion_gate/ig_audit_verify.schema.yaml`
+- `docs/model_spec/platform/contracts/README.md`
+- `config/platform/profiles/README.md`
+- `services/ingestion_gate/README.md`
+
+### Tests added (Phase 6)
+- `tests/services/ingestion_gate/test_phase6_hash_chain.py`
+- `tests/services/ingestion_gate/test_phase6_shard_checkpoints.py`
+- `tests/services/ingestion_gate/test_phase6_lease_manager.py`
+
+### Pending validation
+- Run Phase‑6 test subset in venv and update logbook with results.
+
+## Entry: 2026-01-25 18:03:16 — Phase 6 tests (hash chain + shard checkpoints + leases)
+
+### Tests run / outcomes
+- `.\.venv\Scripts\python.exe -m pytest tests/services/ingestion_gate/test_phase6_hash_chain.py tests/services/ingestion_gate/test_phase6_shard_checkpoints.py tests/services/ingestion_gate/test_phase6_lease_manager.py -q` → **3 passed**
+
+### Notes
+- These validate the new hash‑chain append logic, shard checkpoint paths, and local lease manager behavior.

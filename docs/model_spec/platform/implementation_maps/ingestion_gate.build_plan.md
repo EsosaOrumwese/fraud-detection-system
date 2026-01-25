@@ -219,3 +219,4 @@ Provide a progressive, component‑scoped build plan for the Ingestion Gate (IG)
 - Phase 3: complete (replay/load/recovery tests added; suite green + SR‑artifact smoke test).
 - Phase 4: complete (service boundary + READY consumer + pull checkpoints implemented; Phase‑4 tests green).
 - Phase 5: complete (auth/rate limits + S3 run_facts support + retries/backpressure + per-phase metrics + runbook/alerts; tests green).
+- Phase 6: in progress (READY leases, optional sharding checkpoints, hash-chain integrity, audit CLI).

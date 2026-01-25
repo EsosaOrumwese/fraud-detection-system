@@ -1,0 +1,50 @@
+$schema: https://json-schema.org/draft/2020-12/schema
+$id: ig_audit_verify.schema.yaml
+title: IG Audit Verification Result
+type: object
+additionalProperties: false
+required:
+  - run_id
+  - status
+  - checked_at_utc
+  - checks
+properties:
+  run_id:
+    $ref: "#/$defs/hex32"
+  status:
+    type: string
+    enum: [PASS, FAIL]
+  checked_at_utc:
+    type: string
+    format: date-time
+  checks:
+    type: object
+    additionalProperties: false
+    required:
+      - hash_chain
+      - checkpoints
+    properties:
+      hash_chain:
+        $ref: "#/$defs/check"
+      checkpoints:
+        $ref: "#/$defs/check"
+$defs:
+  hex32:
+    type: string
+    pattern: "^[0-9a-f]{32}$"
+  check:
+    type: object
+    additionalProperties: false
+    required:
+      - ok
+    properties:
+      ok:
+        type: boolean
+      reason:
+        type: string
+        minLength: 1
+        maxLength: 128
+      detail:
+        type: string
+        minLength: 1
+        maxLength: 256

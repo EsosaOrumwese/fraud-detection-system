@@ -29,6 +29,14 @@ wiring:
     kind: file
     root: artefacts/fraud-platform/control_bus
     topic: fp.bus.control.v1
+  ready_lease:
+    backend: none | postgres
+    dsn: ${IG_READY_LEASE_DSN}
+    namespace: ig_ready
+    owner_id: ${IG_INSTANCE_ID}
+  pull_sharding:
+    mode: output_id | locator_range
+    shard_size: 0
   security:
     auth_mode: disabled | api_key
     api_key_header: X-IG-Api-Key
@@ -51,3 +59,5 @@ Notes:
 - `control_bus` wiring tells IG where to read SR READY control events (file bus in v0).
 - `security` is wiring‑scoped: it can enable auth and rate limits without changing policy behavior.
 - Auth applies to **ingest and ops endpoints** when enabled; only CLI/internal calls bypass it.
+- `ready_lease` enables **distributed READY** consumption. Postgres advisory locks are recommended for multi‑instance deployments.
+- `pull_sharding` defaults to `output_id` for v0; `locator_range` is opt‑in for large outputs.

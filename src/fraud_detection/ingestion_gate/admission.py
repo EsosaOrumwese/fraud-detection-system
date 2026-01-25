@@ -240,8 +240,119 @@ class IngestionGate:
             retry_backoff_seconds=self.wiring.store_read_retry_backoff_seconds,
             retry_max_seconds=self.wiring.store_read_retry_max_seconds,
         )
+        shard_mode = self.wiring.pull_shard_mode or "output_id"
+        if shard_mode not in {"output_id", "locator_range"}:
+            raise IngestionError("SHARD_MODE_UNSUPPORTED", shard_mode)
+        shard_size = self.wiring.pull_shard_size
 
         for output_id in output_ids:
+            if shard_mode == "locator_range":
+                if shard_size <= 0:
+                    raise IngestionError("SHARD_SIZE_INVALID", str(shard_size))
+                locator_paths = puller.list_locator_paths(output_id)
+                if not locator_paths:
+                    status["outputs_failed"].append({"output_id": output_id, "reason_code": "OUTPUT_LOCATOR_MISSING"})
+                    self.pull_store.append_event(
+                        run_id,
+                        {
+                            "event_kind": "OUTPUT_FAILED",
+                            "ts_utc": datetime.now(tz=timezone.utc).isoformat(),
+                            "run_id": run_id,
+                            "message_id": message_id,
+                            "output_id": output_id,
+                            "reason_code": "OUTPUT_LOCATOR_MISSING",
+                        },
+                    )
+                    continue
+                shards = _chunk_list(locator_paths, shard_size)
+                all_shards_done = True
+                for shard_id in range(len(shards)):
+                    if not self.pull_store.checkpoint_exists(run_id, output_id, shard_id=shard_id):
+                        all_shards_done = False
+                        break
+                if all_shards_done:
+                    logger.info("IG pull checkpoint skip run_id=%s output_id=%s shards=%s", run_id, output_id, len(shards))
+                    status["outputs_completed"].append(output_id)
+                    continue
+                output_counts = {"ADMIT": 0, "DUPLICATE": 0, "QUARANTINE": 0}
+                output_failed = False
+                for shard_id, shard_paths in enumerate(shards):
+                    if self.pull_store.checkpoint_exists(run_id, output_id, shard_id=shard_id):
+                        logger.info(
+                            "IG pull shard checkpoint skip run_id=%s output_id=%s shard_id=%s",
+                            run_id,
+                            output_id,
+                            shard_id,
+                        )
+                        continue
+                    shard_counts = {"ADMIT": 0, "DUPLICATE": 0, "QUARANTINE": 0}
+                    try:
+                        for envelope in puller.iter_events_for_paths(output_id, shard_paths):
+                            decision, _receipt = self._admit_event(
+                                envelope,
+                                output_id=output_id,
+                                run_facts=run_facts,
+                            )
+                            shard_counts[decision.decision] += 1
+                            output_counts[decision.decision] += 1
+                            status["counts"][decision.decision] += 1
+                        checkpoint_payload = {
+                            "run_id": run_id,
+                            "output_id": output_id,
+                            "shard_id": shard_id,
+                            "shard_total": len(shards),
+                            "path_count": len(shard_paths),
+                            "status": "COMPLETED",
+                            "counts": shard_counts,
+                            "completed_at_utc": datetime.now(tz=timezone.utc).isoformat(),
+                        }
+                        self.pull_store.write_checkpoint(run_id, output_id, checkpoint_payload, shard_id=shard_id)
+                        self.pull_store.append_event(
+                            run_id,
+                            {
+                                "event_kind": "SHARD_COMPLETED",
+                                "ts_utc": datetime.now(tz=timezone.utc).isoformat(),
+                                "run_id": run_id,
+                                "message_id": message_id,
+                                "output_id": output_id,
+                                "shard_id": shard_id,
+                                "shard_total": len(shards),
+                                "counts": shard_counts,
+                            },
+                        )
+                    except Exception as exc:
+                        code = reason_code(exc)
+                        output_failed = True
+                        status["outputs_failed"].append({"output_id": output_id, "shard_id": shard_id, "reason_code": code})
+                        self.pull_store.append_event(
+                            run_id,
+                            {
+                                "event_kind": "SHARD_FAILED",
+                                "ts_utc": datetime.now(tz=timezone.utc).isoformat(),
+                                "run_id": run_id,
+                                "message_id": message_id,
+                                "output_id": output_id,
+                                "shard_id": shard_id,
+                                "reason_code": code,
+                            },
+                        )
+                if output_failed:
+                    continue
+                self.pull_store.append_event(
+                    run_id,
+                    {
+                        "event_kind": "OUTPUT_COMPLETED",
+                        "ts_utc": datetime.now(tz=timezone.utc).isoformat(),
+                        "run_id": run_id,
+                        "message_id": message_id,
+                        "output_id": output_id,
+                        "counts": output_counts,
+                        "shard_total": len(shards),
+                    },
+                )
+                status["outputs_completed"].append(output_id)
+                continue
+
             if self.pull_store.checkpoint_exists(run_id, output_id):
                 logger.info("IG pull checkpoint skip run_id=%s output_id=%s", run_id, output_id)
                 status["outputs_completed"].append(output_id)
@@ -804,3 +915,7 @@ def _prune_none(payload: dict[str, Any]) -> dict[str, Any]:
         else:
             pruned[key] = value
     return pruned
+
+
+def _chunk_list(items: list[str], size: int) -> list[list[str]]:
+    return [items[idx : idx + size] for idx in range(0, len(items), size)]

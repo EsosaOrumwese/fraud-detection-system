@@ -7,6 +7,7 @@ import json
 import logging
 from pathlib import Path
 
+from .audit import verify_pull_run
 from .admission import IngestionGate
 from .config import WiringProfile
 
@@ -21,6 +22,7 @@ def main() -> None:
     parser.add_argument("--lookup-dedupe-key", help="Lookup receipt by dedupe_key")
     parser.add_argument("--rebuild-index", action="store_true", help="Rebuild ops index from object store")
     parser.add_argument("--health", action="store_true", help="Print IG health probe state")
+    parser.add_argument("--audit-verify", help="Verify pull-run hash chain + checkpoints for run_id")
     args = parser.parse_args()
 
     logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s: %(message)s")
@@ -46,6 +48,10 @@ def main() -> None:
     if args.health:
         result = gate.health.check()
         print(json.dumps({"state": result.state.value, "reasons": result.reasons}, ensure_ascii=True))
+        return
+    if args.audit_verify:
+        report = verify_pull_run(gate, args.audit_verify)
+        print(json.dumps(report, ensure_ascii=True))
         return
     if args.run_facts:
         receipts = gate.admit_pull(Path(args.run_facts))
