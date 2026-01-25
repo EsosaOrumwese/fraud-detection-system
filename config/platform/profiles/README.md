@@ -56,6 +56,7 @@ Notes:
 - `partitioning_profile_id` is chosen by IG policy (mapped by stream class); EB never infers partitioning.
 - `partitioning_profiles_ref` anchors the versioned profile set used by IG.
 - Wiring endpoints are placeholders; actual values come from env/secret store.
+- `${VAR}` placeholders are resolved from environment variables at load time.
 - `control_bus` wiring tells IG where to read SR READY control events (file bus in v0).
 - `security` is wiring‑scoped: it can enable auth and rate limits without changing policy behavior.
 - Auth applies to **ingest and ops endpoints** when enabled; only CLI/internal calls bypass it.

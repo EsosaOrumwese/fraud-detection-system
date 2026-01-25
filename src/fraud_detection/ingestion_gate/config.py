@@ -3,6 +3,8 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+import os
+import re
 from pathlib import Path
 from typing import Any
 
@@ -81,8 +83,8 @@ class WiringProfile:
         security = wiring.get("security", {})
         ready_lease = wiring.get("ready_lease", {})
         pull_sharding = wiring.get("pull_sharding", {})
-        endpoint = object_store.get("endpoint")
-        region = object_store.get("region")
+        endpoint = _resolve_env(object_store.get("endpoint"))
+        region = _resolve_env(object_store.get("region"))
         path_style = object_store.get("path_style")
         if isinstance(path_style, str):
             path_style = path_style.lower() in {"1", "true", "yes"}
@@ -179,9 +181,9 @@ class WiringProfile:
             store_read_retry_backoff_seconds=float(security.get("store_read_retry_backoff_seconds", 0.2)),
             store_read_retry_max_seconds=float(security.get("store_read_retry_max_seconds", 2.0)),
             ready_lease_backend=ready_lease.get("backend", "none"),
-            ready_lease_dsn=ready_lease.get("dsn"),
+            ready_lease_dsn=_resolve_env(ready_lease.get("dsn")),
             ready_lease_namespace=ready_lease.get("namespace", "ig_ready"),
-            ready_lease_owner_id=ready_lease.get("owner_id"),
+            ready_lease_owner_id=_resolve_env(ready_lease.get("owner_id")),
             pull_shard_mode=pull_sharding.get("mode", "output_id"),
             pull_shard_size=int(pull_sharding.get("shard_size", 0)),
         )
@@ -246,3 +248,15 @@ class ClassMap:
 
 def _load_yaml(path: Path) -> dict[str, Any]:
     return yaml.safe_load(path.read_text(encoding="utf-8"))
+
+
+_ENV_PATTERN = re.compile(r"^\$\{([A-Z0-9_]+)\}$")
+
+
+def _resolve_env(value: str | None) -> str | None:
+    if value is None or not isinstance(value, str):
+        return value
+    match = _ENV_PATTERN.match(value.strip())
+    if not match:
+        return value
+    return os.getenv(match.group(1))

@@ -1080,3 +1080,33 @@ Phase 6 scales IG horizontally and hardens audit‑grade integrity without viola
 
 ### Notes
 - These validate the new hash‑chain append logic, shard checkpoint paths, and local lease manager behavior.
+
+## Entry: 2026-01-25 18:22:40 — Phase 6 wiring + two‑instance READY smoke test
+
+### Live decision trail
+- **Profile wiring:** added `ready_lease` blocks to local/dev/prod profiles using env placeholders. This keeps secrets out of config while enabling Postgres lease backend.
+- **Env resolution:** implemented minimal `${VAR}` resolution in `WiringProfile.load` so placeholders resolve at runtime (required for lease DSN and object store endpoints).
+- **Smoke profile:** used a scratch profile with a local object store root for the smoke test to avoid MinIO/S3 dependencies.
+
+### Smoke test setup (what was created)
+- Scratch profile: `scratch_files/ig_ready_smoke_profile.yaml` (local object_store root, Postgres lease backend via env).
+- Test artifacts:
+  - `artefacts/fraud-platform/sr/run_facts_view/bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb.json`
+  - `artefacts/fraud-platform/engine_outputs/merchant_class_profile_5A.jsonl`
+  - `artefacts/fraud-platform/control_bus/fp.bus.control.v1/smoke-lease-2.json`
+
+### Two‑instance READY consumer run (result)
+- Postgres started via docker compose (sr‑parity stack).
+- Two READY consumers launched concurrently with distinct `IG_INSTANCE_ID` and shared `IG_READY_LEASE_DSN`.
+- Observed **lease contention working**:
+  - For each READY message, one instance processed and the other returned `SKIPPED_LEASED`.
+  - The smoke run (`smoke-lease-2`) completed successfully; events were quarantined due to `SCHEMA_POLICY_MISSING` for `merchant_class_profile_5A` (expected for this synthetic output).
+
+### Commands executed (for reproducibility, no secrets)
+- `docker compose -f infra/local/docker-compose.sr-parity.yaml up -d postgres`
+- Two‑instance run via PowerShell jobs using `.\.venv\Scripts\python.exe -m fraud_detection.ingestion_gate.ready_consumer --profile scratch_files/ig_ready_smoke_profile.yaml --once` with env vars:
+  - `IG_READY_LEASE_DSN=postgresql://sr:sr@localhost:5433/sr_dev`
+  - `IG_INSTANCE_ID=ig-1` / `ig-2`
+
+### Notes
+- READY message from prior SR run was also picked up; it remains `PARTIAL` due to missing artifacts, which is expected under fail‑closed posture.
