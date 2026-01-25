@@ -244,3 +244,19 @@ User requested that SR v0 be treated as done/ready to proceed to IG, with the ca
 - Align SR object‑store paths with the platform substrate prefix map (fraud‑platform/sr/...).
 
 ---
+
+## Entry: 2026-01-25 06:07:06 — Start IG planning (component build plan + impl_actual)
+
+### Trigger
+User said “proceed” after clarifying platform vs component build plans; we are moving into IG planning under Phase 2.
+
+### Reasoning notes
+- IG is the admission authority and must be planned separately from platform Phase 2 so its internal flows, policies, and invariants are explicit.
+- The IG build plan must stay component-scoped and progressive-elaboration: phase list first; expand Phase 1 as we begin.
+- IG must enforce canonical envelope + schema version policy, gate verification, idempotency, deterministic partition key stamping, and receipt emission with by-ref evidence.
+
+### Planned artifacts
+- Create `docs/model_spec/platform/implementation_maps/ingestion_gate.build_plan.md` with v0 phases.
+- Create `docs/model_spec/platform/implementation_maps/ingestion_gate.impl_actual.md` with initial decision trail.
+
+---
