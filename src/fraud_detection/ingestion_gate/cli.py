@@ -16,12 +16,27 @@ def main() -> None:
     parser.add_argument("--profile", required=True, help="Path to platform profile YAML")
     parser.add_argument("--run-facts", help="Path to SR run_facts_view.json for pull ingestion")
     parser.add_argument("--push-file", help="Path to envelope JSON for push ingestion")
+    parser.add_argument("--lookup-event-id", help="Lookup receipt by event_id")
+    parser.add_argument("--lookup-receipt-id", help="Lookup receipt by receipt_id")
+    parser.add_argument("--health", action="store_true", help="Print IG health probe state")
     args = parser.parse_args()
 
     logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s: %(message)s")
     wiring = WiringProfile.load(Path(args.profile))
     gate = IngestionGate.build(wiring)
 
+    if args.lookup_event_id:
+        result = gate.ops_index.lookup_event(args.lookup_event_id)
+        print(json.dumps(result or {}, ensure_ascii=True))
+        return
+    if args.lookup_receipt_id:
+        result = gate.ops_index.lookup_receipt(args.lookup_receipt_id)
+        print(json.dumps(result or {}, ensure_ascii=True))
+        return
+    if args.health:
+        result = gate.health.check()
+        print(json.dumps({"state": result.state.value, "reasons": result.reasons}, ensure_ascii=True))
+        return
     if args.run_facts:
         receipts = gate.admit_pull(Path(args.run_facts))
         print(f"ADMITTED={len(receipts)}")

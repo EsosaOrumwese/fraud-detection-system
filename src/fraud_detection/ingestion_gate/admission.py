@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import logging
+import time
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import Path
@@ -15,10 +16,15 @@ from .engine_pull import EnginePuller
 from .event_bus import EbRef, EventBusPublisher, FileEventBusPublisher
 from .errors import IngestionError, reason_code
 from .gates import GateMap
+from .governance import GovernanceEmitter
+from .health import HealthProbe, HealthState
 from .ids import dedupe_key, quarantine_id_from, receipt_id_from
 from .index import AdmissionIndex
+from .metrics import MetricsRecorder
 from .models import AdmissionDecision, Receipt, QuarantineRecord
+from .ops_index import OpsIndex
 from .partitioning import PartitionProfile, PartitioningProfiles
+from .policy_digest import compute_policy_digest
 from .receipts import ReceiptWriter
 from .scopes import is_instance_scope
 from .schema import SchemaEnforcer
@@ -48,15 +54,26 @@ class IngestionGate:
     contract_registry: SchemaRegistry
     receipt_writer: ReceiptWriter
     admission_index: AdmissionIndex
+    ops_index: OpsIndex
     bus: EventBusPublisher
     store: ObjectStore
     gate_verifier: GateVerifier | None
+    health: HealthProbe
+    metrics: MetricsRecorder
+    governance: GovernanceEmitter
 
     @classmethod
     def build(cls, wiring: WiringProfile) -> "IngestionGate":
         policy = SchemaPolicy.load(Path(wiring.schema_policy_ref))
         class_map = ClassMap.load(Path(wiring.class_map_ref))
-        policy_rev = PolicyRev(policy_id="ig_policy", revision=wiring.policy_rev)
+        digest = compute_policy_digest(
+            [
+                Path(wiring.schema_policy_ref),
+                Path(wiring.class_map_ref),
+                Path(wiring.partitioning_profiles_ref),
+            ]
+        )
+        policy_rev = PolicyRev(policy_id="ig_policy", revision=wiring.policy_rev, content_digest=digest)
         catalogue = OutputCatalogue(Path(wiring.engine_catalogue_path))
         gate_map = GateMap(Path(wiring.gate_map_path))
         partitioning = PartitioningProfiles(wiring.partitioning_profiles_ref)
@@ -79,7 +96,21 @@ class IngestionGate:
             gate_verifier = GateVerifier(Path(wiring.engine_root_path), SrGateMap(Path(wiring.gate_map_path)))
         receipt_writer = ReceiptWriter(store)
         admission_index = AdmissionIndex(Path(wiring.admission_db_path))
+        ops_index = OpsIndex(Path(wiring.admission_db_path))
         bus = _build_bus(wiring)
+        health = HealthProbe(store, bus, ops_index, wiring.health_probe_interval_seconds)
+        metrics = MetricsRecorder(flush_interval_seconds=wiring.metrics_flush_seconds)
+        governance = GovernanceEmitter(
+            store=store,
+            bus=bus,
+            partitioning=partitioning,
+            quarantine_spike_threshold=wiring.quarantine_spike_threshold,
+            quarantine_spike_window_seconds=wiring.quarantine_spike_window_seconds,
+            policy_id=policy_rev.policy_id,
+        )
+        governance.emit_policy_activation(
+            {"policy_id": policy_rev.policy_id, "revision": policy_rev.revision, "content_digest": policy_rev.content_digest}
+        )
         return cls(
             wiring=wiring,
             policy=policy,
@@ -92,9 +123,13 @@ class IngestionGate:
             contract_registry=contract_registry,
             receipt_writer=receipt_writer,
             admission_index=admission_index,
+            ops_index=ops_index,
             bus=bus,
             store=store,
             gate_verifier=gate_verifier,
+            health=health,
+            metrics=metrics,
+            governance=governance,
         )
 
     def admit_push(self, envelope: dict[str, Any]) -> Receipt:
@@ -125,7 +160,9 @@ class IngestionGate:
         output_id: str | None,
         run_facts: dict[str, Any] | None,
     ) -> tuple[AdmissionDecision, Receipt]:
+        start = time.perf_counter()
         try:
+            self._enforce_health()
             self._validate_envelope(envelope)
             self._validate_class_pins(envelope)
             self.schema_enforcer.validate_payload(envelope["event_type"], envelope)
@@ -134,10 +171,12 @@ class IngestionGate:
             if output_id and run_facts:
                 self._verify_required_gates(output_id, run_facts)
         except IngestionError as exc:
-            return self._quarantine(envelope, exc)
+            if exc.code == "IG_UNHEALTHY":
+                raise
+            return self._quarantine(envelope, exc, start)
         except Exception as exc:  # pragma: no cover - defensive
             logger.exception("IG admission validation error")
-            return self._quarantine(envelope, IngestionError("INTERNAL_ERROR"))
+            return self._quarantine(envelope, IngestionError("INTERNAL_ERROR"), start)
         logger.info(
             "IG validated event_id=%s event_type=%s",
             envelope.get("event_id"),
@@ -160,17 +199,21 @@ class IngestionGate:
             receipt = Receipt(payload=receipt_payload)
             receipt_id = receipt_payload["receipt_id"]
             self.contract_registry.validate("ingestion_receipt.schema.yaml", receipt_payload)
-            self.receipt_writer.write_receipt(receipt_id, receipt_payload)
+            receipt_ref = self.receipt_writer.write_receipt(receipt_id, receipt_payload)
+            self._record_ops_receipt(receipt_payload, receipt_ref)
+            self.metrics.record_decision("DUPLICATE")
+            self.metrics.record_latency("admission_seconds", time.perf_counter() - start)
+            self.metrics.flush_if_due({"policy_rev": self.policy_rev.revision})
             return decision, receipt
 
         try:
             partition_key, profile = self._partitioning(envelope)
             eb_ref = self.bus.publish(profile.stream, partition_key, envelope)
         except IngestionError as exc:
-            return self._quarantine(envelope, exc)
+            return self._quarantine(envelope, exc, start)
         except Exception as exc:
             logger.exception("IG event bus publish error")
-            return self._quarantine(envelope, IngestionError("EB_PUBLISH_FAILED"))
+            return self._quarantine(envelope, IngestionError("EB_PUBLISH_FAILED"), start)
         logger.info(
             "IG admitted event_id=%s event_type=%s topic=%s partition=%s offset=%s",
             envelope.get("event_id"),
@@ -197,9 +240,18 @@ class IngestionGate:
         self.contract_registry.validate("ingestion_receipt.schema.yaml", receipt_payload)
         receipt_ref = self.receipt_writer.write_receipt(receipt_id, receipt_payload)
         self.admission_index.record(dedupe, receipt_ref, decision.eb_ref)
+        self._record_ops_receipt(receipt_payload, receipt_ref)
+        self.metrics.record_decision("ADMIT")
+        self.metrics.record_latency("admission_seconds", time.perf_counter() - start)
+        self.metrics.flush_if_due({"policy_rev": self.policy_rev.revision})
         return decision, receipt
 
-    def _quarantine(self, envelope: dict[str, Any], exc: Exception) -> tuple[AdmissionDecision, Receipt]:
+    def _quarantine(
+        self,
+        envelope: dict[str, Any],
+        exc: Exception,
+        started_at: float,
+    ) -> tuple[AdmissionDecision, Receipt]:
         code = reason_code(exc)
         logger.warning(
             "IG quarantine event_id=%s event_type=%s reason=%s",
@@ -242,7 +294,13 @@ class IngestionGate:
         receipt_payload = self._receipt_payload(envelope, decision, dedupe)
         receipt_id = receipt_payload["receipt_id"]
         self.contract_registry.validate("ingestion_receipt.schema.yaml", receipt_payload)
-        self.receipt_writer.write_receipt(receipt_id, receipt_payload)
+        receipt_ref = self.receipt_writer.write_receipt(receipt_id, receipt_payload)
+        self._record_ops_quarantine(quarantine_payload, quarantine_ref, event_id)
+        self._record_ops_receipt(receipt_payload, receipt_ref)
+        self.metrics.record_decision("QUARANTINE", code)
+        self.metrics.record_latency("admission_seconds", time.perf_counter() - started_at)
+        self.governance.emit_quarantine_spike(self.metrics.counters.get("decision.QUARANTINE", 0))
+        self.metrics.flush_if_due({"policy_rev": self.policy_rev.revision})
         receipt = Receipt(payload=receipt_payload)
         return decision, receipt
 
@@ -276,6 +334,25 @@ class IngestionGate:
         run_facts = self.store.read_json(facts_ref)
         self._verify_run_pins(envelope, run_facts)
         logger.info("IG run joinability ok run_id=%s facts_ref=%s", run_id, facts_ref)
+
+    def _enforce_health(self) -> None:
+        result = self.health.check()
+        if result.state == HealthState.RED:
+            raise IngestionError("IG_UNHEALTHY", ",".join(result.reasons))
+        if result.state == HealthState.AMBER:
+            logger.warning("IG health amber reasons=%s", ",".join(result.reasons))
+
+    def _record_ops_receipt(self, payload: dict[str, Any], receipt_ref: str) -> None:
+        try:
+            self.ops_index.record_receipt(payload, receipt_ref)
+        except Exception:
+            logger.exception("IG ops index receipt write failed")
+
+    def _record_ops_quarantine(self, payload: dict[str, Any], quarantine_ref: str, event_id: str) -> None:
+        try:
+            self.ops_index.record_quarantine(payload, quarantine_ref, event_id)
+        except Exception:
+            logger.exception("IG ops index quarantine write failed")
 
     def _verify_run_pins(self, envelope: dict[str, Any], run_facts: dict[str, Any]) -> None:
         pins = run_facts.get("pins", {})

@@ -60,6 +60,11 @@ def _build_gate(
                     "stream": "fp.bus.traffic.v1",
                     "key_precedence": ["event_id"],
                     "hash_algo": "sha256",
+                },
+                "ig.partitioning.v0.audit": {
+                    "stream": "fp.bus.audit.v1",
+                    "key_precedence": ["event_id"],
+                    "hash_algo": "sha256",
                 }
             },
         },
@@ -111,6 +116,10 @@ def _build_gate(
         admission_db_path=str(tmp_path / "ig_admission.db"),
         sr_ledger_prefix="fraud-platform/sr",
         engine_root_path=str(engine_root_path) if engine_root_path else None,
+        health_probe_interval_seconds=0,
+        metrics_flush_seconds=0,
+        quarantine_spike_threshold=10,
+        quarantine_spike_window_seconds=60,
         schema_root="docs/model_spec/platform/contracts",
         engine_contracts_root="docs/model_spec/data-engine/interface_pack/contracts",
         engine_catalogue_path=str(catalogue),

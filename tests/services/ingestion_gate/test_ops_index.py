@@ -1,0 +1,47 @@
+import json
+from pathlib import Path
+
+from fraud_detection.ingestion_gate.ops_index import OpsIndex
+from fraud_detection.ingestion_gate.policy_digest import compute_policy_digest
+
+
+def test_policy_digest_is_deterministic(tmp_path: Path) -> None:
+    policy_a = tmp_path / "a.yaml"
+    policy_b = tmp_path / "b.yaml"
+    policy_a.write_text("version: 1\nfoo: bar\n", encoding="utf-8")
+    policy_b.write_text("items:\n  - 2\n  - 1\n", encoding="utf-8")
+
+    digest1 = compute_policy_digest([policy_a, policy_b])
+    digest2 = compute_policy_digest([policy_b, policy_a])
+    assert digest1 == digest2
+
+
+def test_ops_index_records_and_looks_up(tmp_path: Path) -> None:
+    db_path = tmp_path / "ops.db"
+    index = OpsIndex(db_path)
+    receipt_payload = {
+        "receipt_id": "a" * 32,
+        "event_id": "evt-1",
+        "event_type": "test_event",
+        "dedupe_key": "d" * 64,
+        "decision": "ADMIT",
+        "policy_rev": {"policy_id": "ig", "revision": "v1", "content_digest": "c" * 64},
+        "pins": {"manifest_fingerprint": "b" * 64},
+        "eb_ref": {"topic": "fp.bus.traffic.v1", "partition": 0, "offset": 1},
+    }
+    index.record_receipt(receipt_payload, "fraud-platform/ig/receipts/abcd.json")
+
+    lookup = index.lookup_event("evt-1")
+    assert lookup is not None
+    assert lookup["receipt_id"] == "a" * 32
+
+    quarantine_payload = {
+        "quarantine_id": "q" * 32,
+        "decision": "QUARANTINE",
+        "reason_codes": ["SCHEMA_FAIL"],
+        "policy_rev": {"policy_id": "ig", "revision": "v1", "content_digest": "c" * 64},
+        "pins": {"manifest_fingerprint": "b" * 64},
+    }
+    index.record_quarantine(quarantine_payload, "fraud-platform/ig/quarantine/q.json", "evt-2")
+    # ensure no exceptions and DB probe works
+    assert index.probe() is True

@@ -26,6 +26,10 @@ class WiringProfile:
     admission_db_path: str
     sr_ledger_prefix: str
     engine_root_path: str | None
+    health_probe_interval_seconds: int
+    metrics_flush_seconds: int
+    quarantine_spike_threshold: int
+    quarantine_spike_window_seconds: int
     schema_root: str
     engine_contracts_root: str
     engine_catalogue_path: str
@@ -73,6 +77,10 @@ class WiringProfile:
             admission_db_path=admission_db_path,
             sr_ledger_prefix=wiring.get("sr_ledger_prefix", "fraud-platform/sr"),
             engine_root_path=wiring.get("engine_root_path"),
+            health_probe_interval_seconds=int(wiring.get("health_probe_interval_seconds", 30)),
+            metrics_flush_seconds=int(wiring.get("metrics_flush_seconds", 30)),
+            quarantine_spike_threshold=int(wiring.get("quarantine_spike_threshold", 25)),
+            quarantine_spike_window_seconds=int(wiring.get("quarantine_spike_window_seconds", 60)),
             schema_root=wiring.get("schema_root", "docs/model_spec/platform/contracts"),
             engine_contracts_root=wiring.get(
                 "engine_contracts_root",

@@ -284,3 +284,60 @@ Phase 2 turns IG from a strict admission boundary into an **operationally safe**
 ### Testing plan (Phase‑2)
 - Unit: policy digest reproducibility; ops index insert/query; health state transitions.
 - Integration: simulate EB failure → intake refuses; quarantine spike emits audit event; policy digest stamped in receipts.
+
+---
+
+## Entry: 2026-01-25 07:52:12 — IG Phase 2 implementation start (ops hardening)
+
+### Implementation intent (before coding)
+Proceed section‑by‑section (2.1→2.4) with hardened behavior and tests. Priority order:
+1) Policy digesting + policy_rev stamping (content_digest).
+2) Ops index tables + lookup surface (CLI).
+3) Health probe + ingress control gating (fail‑closed on RED).
+4) Metrics + governance facts (policy activation, quarantine spikes).
+
+### Non‑negotiables carried into implementation
+- No secrets in docs/logs/receipts.
+- Fail‑closed posture for readiness/compatibility.
+- Append‑only truth in object store; DB is a query cache only.
+- Avoid adding heavy dependencies; use stdlib where possible.
+
+### Implementation notes (pre‑commit decisions)
+- Compute policy digest from **resolved policy artifacts**: `schema_policy`, `class_map`, `partitioning_profiles`. Use canonical JSON dumps with sorted keys for deterministic hashing.
+- Extend IG SQLite DB (same file as admission index) with ops tables; writes must be **idempotent** (`INSERT OR IGNORE`).
+- Health probe should be **rate‑limited** (avoid probing dependencies on every event). Cache last result for a configurable interval.
+- Governance events are emitted using the existing EB publisher on the **audit** stream, using a canonical envelope with a synthetic manifest fingerprint (`0`*64).
+
+---
+
+## Entry: 2026-01-25 08:02:18 — IG Phase 2 implementation progress (policy digest + ops surfaces)
+
+### Implementation decisions applied
+- **Policy digesting** implemented as deterministic sha256 over canonical JSON dumps of `schema_policy`, `class_map`, and `partitioning_profiles`. The resulting digest is stamped into `policy_rev.content_digest` on every receipt/quarantine.
+- **Policy activation governance** emits a canonical audit event (`ig.policy.activation`) only when the stored active digest changes; state is tracked in object store at `fraud-platform/ig/policy/active.json`.
+- **Ops index** added as an append‑only SQLite mirror for receipts/quarantine (`OpsIndex`); this is a query cache, not authority.
+- **Health probe** added with a cached probe interval. Object store + ops DB failures yield RED health (fail‑closed). Bus health is AMBER if unknown.
+- **Metrics recorder** added for per‑decision counters and admission latencies; periodically flushed to logs for observability.
+- **Quarantine spikes** emit audit events on thresholded counts within the configured window.
+- **CLI** extended with receipt lookup + health probe output.
+
+### Files added / updated
+- Added: `src/fraud_detection/ingestion_gate/policy_digest.py`
+- Added: `src/fraud_detection/ingestion_gate/ops_index.py`
+- Added: `src/fraud_detection/ingestion_gate/health.py`
+- Added: `src/fraud_detection/ingestion_gate/metrics.py`
+- Added: `src/fraud_detection/ingestion_gate/governance.py`
+- Updated: `src/fraud_detection/ingestion_gate/admission.py` (health gating, ops index writes, metrics, governance)
+- Updated: `src/fraud_detection/ingestion_gate/config.py` (health/metrics/quarantine thresholds)
+- Updated: `src/fraud_detection/ingestion_gate/cli.py` (ops lookups + health)
+
+### Tests added / adjusted
+- Added `tests/services/ingestion_gate/test_ops_index.py` (policy digest determinism + ops index probe).
+- Extended `tests/services/ingestion_gate/test_admission.py` for Phase‑2 wiring fields.
+- Fix applied: include `ig.partitioning.v0.audit` in test partitioning profiles so policy activation audit emission can route.
+
+### Test results
+- `python -m pytest tests/services/ingestion_gate/test_admission.py tests/services/ingestion_gate/test_ops_index.py -q`
+  - Initial failures due to missing audit partition profile in test fixtures.
+  - Fixed by adding audit profile to test partitioning profile.
+  - Final result: **7 passed**.
