@@ -2532,6 +2532,10 @@ platform-stack-down:
 platform-stack-status:
 	docker compose -f infra/local/docker-compose.sr-parity.yaml ps
 
+.PHONY: platform-bus-clean
+platform-bus-clean:
+	rm -f runs/fraud-platform/control_bus/fp.bus.control.v1/*.json
+
 .PHONY: platform-sr-run-reuse
 platform-sr-run-reuse:
 	@if [ -z "$(SR_ENGINE_RUN_ROOT)" ]; then \
