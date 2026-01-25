@@ -1,6 +1,9 @@
 SHELL := C:/Progra~1/Git/bin/bash.exe
 .SHELLFLAGS := -eu -o pipefail -c
 
+-include .env.platform.local
+-include .env.local
+
 PY ?= $(if $(wildcard .venv/Scripts/python.exe),.venv/Scripts/python.exe,python)
 ENGINE_PYTHONPATH ?= packages/engine/src
 PYTHONUNBUFFERED ?= 1
@@ -2497,4 +2500,82 @@ profile-seg1b:
 clean-results:
 	rm -rf "$(SUMMARY_DIR)"
 	rm -f profile.segment1a profile.segment1b
+
+# ---------------------------------------------------------------------------
+# Platform (SR/IG) local workflow
+# ---------------------------------------------------------------------------
+PLATFORM_RUNS_ROOT ?= runs/fraud-platform
+SR_WIRING ?= config/platform/sr/wiring_local.yaml
+SR_POLICY ?= config/platform/sr/policy_v0.yaml
+SR_ENGINE_RUN_ROOT ?= runs/local_full_run-5/c25a2675fbfbacd952b13bb594880e92
+SR_RUN_EQUIVALENCE_KEY ?= local_full_run_5_reuse
+SR_MANIFEST_FINGERPRINT ?= c8fd43cd60ce0ede0c63d2ceb4610f167c9b107e1d59b9b8c7d7b8d0028b05c8
+SR_PARAMETER_HASH ?= 56d45126eaabedd083a1d8428a763e0278c89efec5023cfd6cf3cab7fc8dd2d7
+SR_SEED ?= 42
+SR_SCENARIO_ID ?= baseline_v1
+SR_WINDOW_START ?= 2026-01-01T00:00:00Z
+SR_WINDOW_END ?= 2026-01-02T00:00:00Z
+
+IG_PROFILE ?= config/platform/profiles/local.yaml
+IG_READY_LEASE_DSN ?= postgresql://sr:sr@localhost:5433/sr_dev
+IG_INSTANCE_ID ?= ig-1
+IG_INSTANCE_ID_2 ?= ig-2
+IG_AUDIT_RUN_ID ?=
+
+.PHONY: platform-stack-up platform-stack-down platform-stack-status
+platform-stack-up:
+	docker compose -f infra/local/docker-compose.sr-parity.yaml up -d
+
+platform-stack-down:
+	docker compose -f infra/local/docker-compose.sr-parity.yaml down
+
+platform-stack-status:
+	docker compose -f infra/local/docker-compose.sr-parity.yaml ps
+
+.PHONY: platform-sr-run-reuse
+platform-sr-run-reuse:
+	@if [ -z "$(SR_ENGINE_RUN_ROOT)" ]; then \
+		echo "SR_ENGINE_RUN_ROOT is required (engine run root path)." >&2; \
+		exit 1; \
+	fi
+	@if [ -z "$(SR_MANIFEST_FINGERPRINT)" ] || [ -z "$(SR_PARAMETER_HASH)" ]; then \
+		echo "SR_MANIFEST_FINGERPRINT and SR_PARAMETER_HASH are required." >&2; \
+		exit 1; \
+	fi
+	@$(PY_SCRIPT) -m fraud_detection.scenario_runner.cli run \
+		--wiring "$(SR_WIRING)" \
+		--policy "$(SR_POLICY)" \
+		--run-equivalence-key "$(SR_RUN_EQUIVALENCE_KEY)" \
+		--manifest-fingerprint "$(SR_MANIFEST_FINGERPRINT)" \
+		--parameter-hash "$(SR_PARAMETER_HASH)" \
+		--seed "$(SR_SEED)" \
+		--scenario-id "$(SR_SCENARIO_ID)" \
+		--window-start "$(SR_WINDOW_START)" \
+		--window-end "$(SR_WINDOW_END)" \
+		--engine-run-root "$(SR_ENGINE_RUN_ROOT)"
+
+.PHONY: platform-ig-ready-once platform-ig-ready-dual
+platform-ig-ready-once:
+	@IG_READY_LEASE_DSN="$(IG_READY_LEASE_DSN)" \
+	 IG_INSTANCE_ID="$(IG_INSTANCE_ID)" \
+	 $(PY_SCRIPT) -m fraud_detection.ingestion_gate.ready_consumer --profile "$(IG_PROFILE)" --once
+
+platform-ig-ready-dual:
+	@if [ -z "$(IG_READY_LEASE_DSN)" ]; then \
+		echo "IG_READY_LEASE_DSN is required for dual READY consumers." >&2; \
+		exit 1; \
+	fi
+	@IG_READY_LEASE_DSN="$(IG_READY_LEASE_DSN)" IG_INSTANCE_ID="$(IG_INSTANCE_ID)" \
+	 $(PY_SCRIPT) -m fraud_detection.ingestion_gate.ready_consumer --profile "$(IG_PROFILE)" --once & \
+	 IG_READY_LEASE_DSN="$(IG_READY_LEASE_DSN)" IG_INSTANCE_ID="$(IG_INSTANCE_ID_2)" \
+	 $(PY_SCRIPT) -m fraud_detection.ingestion_gate.ready_consumer --profile "$(IG_PROFILE)" --once; \
+	 wait
+
+.PHONY: platform-ig-audit
+platform-ig-audit:
+	@if [ -z "$(IG_AUDIT_RUN_ID)" ]; then \
+		echo "IG_AUDIT_RUN_ID is required for platform-ig-audit." >&2; \
+		exit 1; \
+	fi
+	@$(PY_SCRIPT) -m fraud_detection.ingestion_gate.cli --profile "$(IG_PROFILE)" --audit-verify "$(IG_AUDIT_RUN_ID)"
 

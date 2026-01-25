@@ -34,8 +34,9 @@ python -m pytest tests/services/ingestion_gate/test_ops_rebuild_runs_smoke.py -q
 Notes:
 - This smoke test looks for SR artifacts under:
   - `%SR_ARTIFACTS_ROOT%` (preferred)
-  - `artefacts/fraud-platform/sr` (repo-local default)
+  - `runs/fraud-platform/sr` (repo-local default)
 - If none are found, the test skips with a clear message.
+- IG logs write to `runs/fraud-platform/ig_*.log` by default. Override with `IG_LOG_PATH`, `IG_SERVICE_LOG_PATH`, or `IG_CLI_LOG_PATH` if needed.
 
 ## Service (local)
 Run HTTP service:

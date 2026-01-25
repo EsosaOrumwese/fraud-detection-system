@@ -8,6 +8,7 @@ Notes: This service is the control-plane entrypoint for runs. It must stay fail-
 run_facts_view now includes engine-contract digest objects and may include optional `instance_receipts` for instance-scoped outputs.
 SR emits **verifier receipts** in its own object store (engine remains a black box):
 - `fraud-platform/sr/instance_receipts/output_id=<output_id>/<scope partitions>/instance_receipt.json`
+SR CLI writes a per‑run log to `runs/fraud-platform/sr_run_<run_id>.log`.
 
 Profiles:
 - `config/platform/sr/wiring_local.yaml` — local smoke (filesystem + SQLite; not valid for hardening).

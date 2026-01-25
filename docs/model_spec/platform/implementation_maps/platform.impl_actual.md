@@ -260,3 +260,78 @@ User said “proceed” after clarifying platform vs component build plans; we a
 - Create `docs/model_spec/platform/implementation_maps/ingestion_gate.impl_actual.md` with initial decision trail.
 
 ---
+
+## Entry: 2026-01-25 18:30:15 — Local workflow automation (SR + IG)
+
+### Problem / goal
+Manual environment setup and command sequences are error‑prone. We need a **standard, repeatable local workflow** for SR + IG that hides boilerplate, keeps credentials out of the repo, and supports the SR→IG verification loop.
+
+### Decisions (live reasoning)
+- Use **PowerShell scripts** as the primary local runner because this repo is being run on Windows and Make is not guaranteed.
+- Provide a **single entrypoint** (`scripts/platform.ps1`) with explicit actions to keep the workflow simple and discoverable.
+- Use `.env.local` (gitignored) for local secrets; document **only placeholders** in `.env.example` to avoid credential leakage.
+- Keep scripts minimal and transparent (no opaque magic); every action maps to an explicit SR/IG CLI call.
+
+### Implementation summary
+- Added `scripts/platform.ps1` with commands to:
+  - bring up/down local stack
+  - run SR reuse (engine artifacts)
+  - run IG READY once or dual‑instance lease demo
+  - run IG audit verification
+- Added `scripts/README.md` with usage examples.
+- Added `.env.example` for non‑secret placeholders.
+- Updated root `README.md` to point to the scripts.
+
+### Guardrails
+- No secrets in repo. `.env.local` is for local use only and must remain gitignored.
+- Scripts are local‑only helpers; production deployments use proper orchestration.
+
+---
+
+## Entry: 2026-01-25 20:55:30 — Local workflow + runtime root migration (Makefile, runs/fraud-platform)
+
+### Trigger
+User explicitly rejected the PowerShell helper and asked for a **Makefile‑only** workflow, plus a hard migration of all platform runtime artifacts from `artefacts/fraud-platform` to `runs/fraud-platform`.
+
+### Live reasoning (why this change is necessary)
+- The repo already uses a Makefile as the primary engine runner; keeping SR/IG in a separate script path creates an inconsistent workflow surface and violates the “no dangling scripts” directive.
+- The platform runtime artifacts are *not* external engine inputs; they are platform outputs. Keeping them under `artefacts/` conflicts with the intended meaning (external datasets) and makes it easier to accidentally commit runtime state.
+- A single, consistent runtime root (`runs/fraud-platform`) reduces path ambiguity, fixes `fraud-platform/fraud-platform` joins, and makes it easier to reason about SR → IG hand‑offs.
+
+### Plan (stepwise, before code)
+1) Replace script‑based workflow with Makefile targets:
+   - `platform-stack-up/down/status`
+   - `platform-sr-run-reuse`
+   - `platform-ig-ready-once/dual`
+   - `platform-ig-audit`
+2) Add optional `.env.platform.local` loading in Makefile (gitignored) so users don’t set env vars manually.
+3) Update all wiring/config defaults and docs that refer to `artefacts/fraud-platform` → `runs/fraud-platform`.
+4) Update any test fixtures and smoke tests that search for SR artifacts so they find the new root.
+5) Move the on‑disk folder `artefacts/fraud-platform/` to `runs/fraud-platform/`.
+6) Remove `scripts/platform.ps1` + `scripts/README.md` and update README references.
+
+### Guardrails
+- No credentials or secrets will be added to docs or impl_actual (only placeholders).
+- Historical entries that mention `artefacts/fraud-platform` remain as history; a new note will clarify the migration rather than rewriting prior decisions.
+
+---
+
+## Entry: 2026-01-25 21:05:56 — Applied: Makefile workflow + runtime root migration
+
+### What I changed (and why it matches the directive)
+I removed the PowerShell workflow and replaced it with Makefile targets so **SR/IG local flows are unified with the engine’s workflow**. This keeps the repo consistent, avoids ad‑hoc env setup, and aligns with the “no dangling scripts” instruction.
+
+### Applied changes (concrete)
+1) **Makefile** (`makefile`)
+   - Added optional `.env.platform.local`/`.env.local` includes for local overrides (gitignored).
+   - Added platform targets: `platform-stack-*`, `platform-sr-run-reuse`, `platform-ig-ready-once/dual`, `platform-ig-audit`.
+   - Defaulted SR reuse args to the known working engine run (override via Make vars).
+2) **README** (`README.md`)
+   - Replaced script references with the Make targets.
+   - Documented `.env.platform.local` usage (no secrets committed).
+3) **Removed scripts**
+   - Deleted `scripts/platform.ps1` and `scripts/README.md`.
+
+### Notes
+- No credentials are embedded. Any DSN/endpoint values remain placeholders or local defaults.
+- This change is purely workflow; runtime path migration is tracked in SR/IG component maps.

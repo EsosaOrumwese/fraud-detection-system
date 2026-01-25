@@ -90,7 +90,7 @@ class WiringProfile:
             path_style = path_style.lower() in {"1", "true", "yes"}
         root = object_store.get("root")
         bucket = object_store.get("bucket")
-        object_store_root = root or "fraud-platform"
+        object_store_root = root or "runs"
         if not root and bucket:
             if endpoint or region or object_store.get("kind") == "s3":
                 object_store_root = f"s3://{bucket}"
@@ -100,7 +100,7 @@ class WiringProfile:
         admission_db_path = wiring.get("admission_db_path")
         if not admission_db_path:
             if str(object_store_root).startswith("s3://"):
-                admission_db_path = "artefacts/fraud-platform/ig/index/ig_admission.db"
+                admission_db_path = "runs/fraud-platform/ig/index/ig_admission.db"
             else:
                 admission_db_path = str(Path(object_store_root) / "fraud-platform/ig/index/ig_admission.db")
         event_bus_path = wiring.get("event_bus_path") or event_bus.get("root")

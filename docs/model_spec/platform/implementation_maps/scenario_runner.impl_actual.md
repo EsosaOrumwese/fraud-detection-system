@@ -3393,3 +3393,47 @@ for parity (MinIO + Postgres) and LocalStack tiers, plus the env var setup.
 No code changes; docs only. No credentials will be embedded.
 
 ---
+
+## Entry: 2026-01-25 20:56:20 — SR runtime root migration + run log output (pre‑change)
+
+### Trigger
+User commanded that SR runtime artifacts move from `artefacts/fraud-platform` to `runs/fraud-platform` and that SR runs emit a **platform run log** under `runs/fraud-platform/*.log` (similar to engine run logs). This must be done without touching the engine code.
+
+### Live reasoning (what needs to change and why)
+- SR already writes by‑ref refs like `fraud-platform/sr/run_status/...`. If the object store root is set to `runs`, the resulting filesystem path becomes `runs/fraud-platform/sr/...` which matches the new standard.
+- The prior local root (`artefacts`) was meant for external inputs; SR outputs do not belong there. Moving the root fixes semantics and prevents cross‑component confusion.
+- Logging must be explicit and readable. We need a deterministic SR run log path so the user can see what happened without scrolling console output.
+- The run_id is deterministic from `run_equivalence_key`, so we can **compute it before running** and log to `runs/fraud-platform/sr_run_<run_id>.log`.
+
+### Plan (before code)
+1) Update local SR wiring files:
+   - `config/platform/sr/wiring_local.yaml` already uses `runs/` (verify).
+   - Update `wiring_local_parity.yaml` and `wiring_local_kinesis.yaml` to use `runs/fraud-platform/control_bus`.
+   - Ensure `authority_store_dsn` defaults reference `runs/fraud-platform/sr/index/`.
+2) Update SR logging:
+   - Extend `scenario_runner.logging_utils.configure_logging()` to accept an optional file path.
+   - In `scenario_runner.cli`, compute `run_id` from `run_equivalence_key` and pass a `runs/fraud-platform/sr_run_<run_id>.log` file.
+   - For re‑emit/quarantine commands, emit a separate log file under `runs/fraud-platform/`.
+3) Move the on‑disk SR artifacts directory from `artefacts/fraud-platform/sr` to `runs/fraud-platform/sr` (and update any refs/tests/docs that search for it).
+
+### Guardrails
+- No secrets in logs or docs. Only deterministic IDs + non‑sensitive metadata appear in log paths.
+- Engine remains a black box; SR only reuses its output paths.
+
+---
+
+## Entry: 2026-01-25 21:06:20 — Applied: SR runtime root migration + run logs
+
+### Changes applied (concrete)
+1) **SR logging**
+   - `src/fraud_detection/scenario_runner/logging_utils.py`: added optional file handler support.
+   - `src/fraud_detection/scenario_runner/cli.py`: compute `run_id` from `run_equivalence_key` and log to `runs/fraud-platform/sr_run_<run_id>.log`. Re‑emit/quarantine commands use `sr_reemit_<run_id>.log` and `sr_quarantine_<ts>.log`.
+2) **Wiring updates**
+   - `config/platform/sr/wiring_local_parity.yaml` and `wiring_local_kinesis.yaml`: control bus root now `runs/fraud-platform/control_bus`.
+   - `config/platform/sr/wiring_local.yaml` already uses `runs` and remains canonical.
+3) **Runtime artifact migration**
+   - Moved on‑disk SR artifacts from `artefacts/fraud-platform/` → `runs/fraud-platform/`.
+   - Updated the synthetic `run_facts_view` locator paths to reference `runs/fraud-platform/engine_outputs/...` so IG pull can resolve them consistently.
+
+### Outcome
+SR now writes and logs to the **platform runtime root** (`runs/fraud-platform`), with per‑run log files analogous to the engine run logs. No engine code touched.

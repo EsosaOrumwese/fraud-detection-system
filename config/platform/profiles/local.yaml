@@ -6,6 +6,7 @@ policy:
   require_gate_pass: true
 wiring:
   object_store:
+    root: runs
     bucket: fraud-platform
     endpoint: ${OBJECT_STORE_ENDPOINT}
   event_bus:
@@ -14,7 +15,7 @@ wiring:
     topic_audit: fp.bus.audit.v1
   control_bus:
     kind: file
-    root: artefacts/fraud-platform/control_bus
+    root: runs/fraud-platform/control_bus
     topic: fp.bus.control.v1
   ready_lease:
     backend: postgres

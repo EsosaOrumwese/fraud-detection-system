@@ -444,3 +444,14 @@ python -m pre_commit run --all-files
 ```
 
 These commands keep the hook environments reproducible without blocking commits for tooling issues outside the governed paths.
+
+---
+
+## Local workflow (SR + IG)
+For repeatable local runs (containers, SR reuse runs, IG READY ingestion, audit checks), use the Makefile targets:
+- `make platform-stack-up` / `make platform-stack-down` / `make platform-stack-status`
+- `make platform-sr-run-reuse`
+- `make platform-ig-ready-once` / `make platform-ig-ready-dual`
+- `make platform-ig-audit IG_AUDIT_RUN_ID=<run_id>`
+
+Create a gitignored `.env.platform.local` (or `.env.local`) using `.env.example` if you want to keep env vars out of your shell profile.

@@ -3,11 +3,12 @@
 from __future__ import annotations
 
 import argparse
-from datetime import datetime
+from datetime import datetime, timezone
 from pathlib import Path
 
 from .config import load_policy, load_wiring
 from .engine import LocalEngineInvoker, LocalSubprocessInvoker
+from .ids import run_id_from_equivalence_key
 from .logging_utils import configure_logging
 from .models import ReemitKind, ReemitRequest, RunRequest, RunWindow, ScenarioBinding
 from .storage import build_object_store
@@ -55,9 +56,23 @@ def parse_args() -> argparse.Namespace:
     return args
 
 
+def _log_path_for_args(args: argparse.Namespace) -> str | None:
+    base = "runs/fraud-platform"
+    if args.command == "run":
+        run_id = run_id_from_equivalence_key(args.run_equivalence_key)
+        return f"{base}/sr_run_{run_id}.log"
+    if args.command == "reemit":
+        return f"{base}/sr_reemit_{args.run_id}.log"
+    if args.command == "quarantine":
+        ts = datetime.now(tz=timezone.utc).strftime("%Y%m%dT%H%M%SZ")
+        return f"{base}/sr_quarantine_{ts}.log"
+    return f"{base}/sr_cli.log"
+
+
 def main() -> None:
-    configure_logging()
     args = parse_args()
+    log_path = _log_path_for_args(args)
+    configure_logging(log_path=log_path)
     wiring = load_wiring(Path(args.wiring))
     policy = load_policy(Path(args.policy))
     if wiring.engine_command:

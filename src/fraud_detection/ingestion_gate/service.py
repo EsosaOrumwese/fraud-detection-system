@@ -21,7 +21,8 @@ from .schemas import SchemaRegistry
 
 
 def create_app(profile_path: str) -> Flask:
-    configure_logging()
+    log_path = os.getenv("IG_SERVICE_LOG_PATH") or os.getenv("IG_LOG_PATH") or "runs/fraud-platform/ig_service.log"
+    configure_logging(log_path=log_path)
     wiring = WiringProfile.load(Path(profile_path))
     gate = IngestionGate.build(wiring)
 
@@ -96,7 +97,7 @@ def _start_ready_consumer(app: Flask, wiring: WiringProfile, gate: IngestionGate
         return
     if wiring.control_bus_kind != "file":
         raise RuntimeError("CONTROL_BUS_KIND_UNSUPPORTED")
-    root = Path(wiring.control_bus_root or "artefacts/fraud-platform/control_bus")
+    root = Path(wiring.control_bus_root or "runs/fraud-platform/control_bus")
     registry = SchemaRegistry(Path(wiring.schema_root) / "scenario_runner")
     reader = FileControlBusReader(root, wiring.control_bus_topic, registry=registry)
     consumer = ReadyConsumer(gate, reader, PullRunStore(gate.store))

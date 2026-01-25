@@ -5,6 +5,7 @@ from __future__ import annotations
 import argparse
 import json
 import logging
+import os
 import time
 from pathlib import Path
 
@@ -23,12 +24,13 @@ def main() -> None:
     parser.add_argument("--interval", type=float, default=2.0, help="Polling interval seconds")
     args = parser.parse_args()
 
-    configure_logging()
+    log_path = os.getenv("IG_LOG_PATH") or "runs/fraud-platform/ig_ready_consumer.log"
+    configure_logging(log_path=log_path)
     wiring = WiringProfile.load(Path(args.profile))
     gate = IngestionGate.build(wiring)
     if wiring.control_bus_kind != "file":
         raise SystemExit("CONTROL_BUS_KIND_UNSUPPORTED")
-    root = Path(wiring.control_bus_root or "artefacts/fraud-platform/control_bus")
+    root = Path(wiring.control_bus_root or "runs/fraud-platform/control_bus")
     registry = SchemaRegistry(Path(wiring.schema_root) / "scenario_runner")
     reader = FileControlBusReader(root, wiring.control_bus_topic, registry=registry)
     consumer = ReadyConsumer(gate, reader, PullRunStore(gate.store))

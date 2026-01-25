@@ -27,7 +27,7 @@ wiring:
     topic_audit: fp.bus.audit.v1
   control_bus:
     kind: file
-    root: artefacts/fraud-platform/control_bus
+    root: runs/fraud-platform/control_bus
     topic: fp.bus.control.v1
   ready_lease:
     backend: none | postgres
@@ -58,6 +58,7 @@ Notes:
 - Wiring endpoints are placeholders; actual values come from env/secret store.
 - `${VAR}` placeholders are resolved from environment variables at load time.
 - `control_bus` wiring tells IG where to read SR READY control events (file bus in v0).
+- Local file runs use `object_store.root: runs` so platform artifacts resolve under `runs/fraud-platform/`.
 - `security` is wiring‑scoped: it can enable auth and rate limits without changing policy behavior.
 - Auth applies to **ingest and ops endpoints** when enabled; only CLI/internal calls bypass it.
 - `ready_lease` enables **distributed READY** consumption. Postgres advisory locks are recommended for multi‑instance deployments.

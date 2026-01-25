@@ -4,12 +4,13 @@ from __future__ import annotations
 
 import argparse
 import json
-import logging
+import os
 from pathlib import Path
 
 from .audit import verify_pull_run
 from .admission import IngestionGate
 from .config import WiringProfile
+from .logging_utils import configure_logging
 
 
 def main() -> None:
@@ -25,7 +26,8 @@ def main() -> None:
     parser.add_argument("--audit-verify", help="Verify pull-run hash chain + checkpoints for run_id")
     args = parser.parse_args()
 
-    logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s: %(message)s")
+    log_path = os.getenv("IG_CLI_LOG_PATH") or os.getenv("IG_LOG_PATH") or "runs/fraud-platform/ig_cli.log"
+    configure_logging(log_path=log_path)
     wiring = WiringProfile.load(Path(args.profile))
     gate = IngestionGate.build(wiring)
 

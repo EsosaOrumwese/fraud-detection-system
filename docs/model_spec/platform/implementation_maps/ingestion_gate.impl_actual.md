@@ -1110,3 +1110,70 @@ Phase 6 scales IG horizontally and hardens audit‑grade integrity without viola
 
 ### Notes
 - READY message from prior SR run was also picked up; it remains `PARTIAL` due to missing artifacts, which is expected under fail‑closed posture.
+
+## Entry: 2026-01-25 20:31:57 — Local IG profile alignment (object_store root)
+
+### Problem / goal
+Local SR writes artifacts under `artefacts/` while the IG local profile pointed at a bucket name (`fraud-platform`) and optional S3 endpoint. This caused IG to resolve run_facts paths as `fraud-platform/fraud-platform/...` and fail to read READY facts in local runs.
+
+### Decision / rationale
+- For **local** profile only, set `object_store.root: artefacts` so IG reads local filesystem artifacts produced by SR’s `wiring_local.yaml`.
+- Keep bucket/endpoint keys for parity docs, but `root` takes precedence for local filesystem runs.
+
+### Change applied
+- `config/platform/profiles/local.yaml`: added `object_store.root: artefacts`.
+
+---
+
+## Entry: 2026-01-25 20:57:05 — IG runtime root migration + platform log output (pre‑change)
+
+### Trigger
+User mandated a hard move of platform runtime artifacts to `runs/fraud-platform` and requested **component run logs** to be written under `runs/fraud-platform/*.log`. This affects IG’s control‑bus reads, admission DB default, and smoke tests that locate SR artifacts.
+
+### Live reasoning (what must shift)
+- IG currently resolves SR refs by prefixing the object store root. When root is set to `runs`, `fraud-platform/sr/...` resolves correctly to `runs/fraud-platform/sr/...` without the prior `fraud-platform/fraud-platform` duplication.
+- Default control‑bus roots (`artefacts/fraud-platform/control_bus`) must move to `runs/fraud-platform/control_bus` to align with SR’s new output location.
+- The ops rebuild smoke test must search under the **new SR root** so it can find READY runs without manual overrides.
+- A clear IG log file (ready consumer + service/CLI) improves traceability, especially when running READY in dual‑instance mode.
+
+### Plan (before code)
+1) Update IG defaults + profiles:
+   - Change `object_store.root` in `config/platform/profiles/local.yaml` to `runs`.
+   - Update `control_bus.root` in local/dev/prod profiles to `runs/fraud-platform/control_bus`.
+   - Update `ingestion_gate.config` defaults so `admission_db_path` uses `runs/fraud-platform/ig/index/`.
+2) Update READY consumer/service defaults:
+   - `ready_consumer.py` and `service.py` default control_bus_root → `runs/fraud-platform/control_bus`.
+3) Update the ops rebuild smoke test:
+   - Search `runs/fraud-platform/sr` by default and adjust skip message.
+4) Add IG log files:
+   - Extend `ingestion_gate.logging_utils.configure_logging()` to accept a log path.
+   - Wire `ready_consumer`, `service`, and IG CLI to emit logs under `runs/fraud-platform/`.
+5) Migrate existing runtime artifacts on disk to `runs/fraud-platform/` and update any README references.
+
+### Guardrails
+- No secrets in logs/docs. Any DSN values remain in env/config placeholders only.
+- Engine remains a black box; IG reads SR outputs only by ref.
+
+---
+
+## Entry: 2026-01-25 21:06:50 — Applied: IG runtime root migration + log outputs
+
+### Applied changes (stepwise)
+1) **Defaults + profiles**
+   - `src/fraud_detection/ingestion_gate/config.py`: default `object_store_root` → `runs`; `admission_db_path` now defaults to `runs/fraud-platform/ig/index/ig_admission.db`.
+   - `config/platform/profiles/local.yaml`: `object_store.root: runs` and `control_bus.root: runs/fraud-platform/control_bus`.
+   - `config/platform/profiles/dev.yaml` / `prod.yaml`: control bus root updated to `runs/fraud-platform/control_bus`.
+   - `config/platform/profiles/README.md`: notes updated to reflect the new runs root.
+2) **READY consumer/service defaults**
+   - `ready_consumer.py` and `service.py`: default control bus root → `runs/fraud-platform/control_bus`.
+3) **Smoke test alignment**
+   - `tests/services/ingestion_gate/test_ops_rebuild_runs_smoke.py`: default SR artifacts root moved to `runs/fraud-platform/sr` and skip message updated.
+4) **Log files**
+   - `ingestion_gate/logging_utils.py`: optional file handler support.
+   - `ready_consumer.py`: logs to `runs/fraud-platform/ig_ready_consumer.log` by default (override via `IG_LOG_PATH`).
+   - `service.py`: logs to `runs/fraud-platform/ig_service.log` (override via `IG_SERVICE_LOG_PATH` or `IG_LOG_PATH`).
+   - `cli.py`: logs to `runs/fraud-platform/ig_cli.log` (override via `IG_CLI_LOG_PATH` or `IG_LOG_PATH`).
+   - `services/ingestion_gate/README.md`: log location note added.
+
+### Outcome
+IG now resolves SR READY refs under the **shared runtime root** (`runs/fraud-platform`) without `fraud-platform/fraud-platform` duplication, and produces component log files for local runs.
