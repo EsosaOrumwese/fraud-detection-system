@@ -629,3 +629,106 @@ IG is currently a library + CLI. For v0 platform readiness we need IG to run as 
 - Unit: READY message validation + idempotent pull‑record handling.
 - Integration: READY signal triggers pull ingest and emits pull run record; restart safe re‑run.
 - Service: push + pull endpoints return receipts with valid schema.
+
+---
+
+## Entry: 2026-01-25 12:58:20 — Phase 4 implementation start (design decisions before coding)
+
+### Decision trail (explicit, pre‑code)
+1) **Service framework**
+   - Option A: FastAPI (async + pydantic auto‑docs).
+   - Option B: Flask (already used by SR, minimal dependency, consistent style).
+   - **Chosen: Flask** to keep stack consistent and avoid adding async complexity to v0.
+2) **Service endpoints**
+   - Minimal endpoints must cover push, pull, ops lookup, and health.
+   - **Chosen routes**:
+     - `POST /v1/ingest/push` (canonical envelope)
+     - `POST /v1/ingest/pull` (run_facts_view ref or run_id)
+     - `GET /v1/ops/lookup` (event_id / receipt_id / dedupe_key)
+     - `GET /v1/ops/health`
+   - Responses must include decision + receipt ref + reason codes.
+3) **READY consumption**
+   - **File control bus** for local v0 (matches SR `FileControlBus` output).
+   - Control bus polling loop with explicit stop conditions, not hidden background threads.
+4) **Idempotency for READY**
+   - Use **message_id** as the primary dedupe key; also store run_id for operator lookup.
+   - Record is **write‑once** in object store; if already present, skip processing.
+5) **Pull checkpoints**
+   - Use **per‑output checkpoints** (output_id complete) rather than per‑row (too heavy).
+   - If an output was partially processed and no checkpoint exists, reprocess safely; dedupe in IG makes this safe.
+6) **Truth surfaces**
+   - Use append‑only `events.jsonl` under `ig/pull_records/run_id=.../` for audit truth.
+   - Store a derived `status.json` snapshot for convenience; source of truth remains the event log.
+7) **Config / wiring**
+   - Extend IG wiring to include a control bus root (file) and topic.
+   - Keep profiles free of secrets; only paths/identifiers added.
+
+### Planned code changes (phase 4.1–4.3)
+- Add `src/fraud_detection/ingestion_gate/service.py` (Flask service wrapper).
+- Add `src/fraud_detection/ingestion_gate/control_bus.py` (READY poller + validation).
+- Add `src/fraud_detection/ingestion_gate/pull_state.py` (pull run events + checkpoints).
+- Extend `src/fraud_detection/ingestion_gate/ops_index.py` with pull run index table.
+- Update `src/fraud_detection/ingestion_gate/config.py` for control bus wiring.
+- Update `config/platform/profiles/*.yaml` and profile README to include control bus root.
+- Add tests: service endpoints, READY consumer, pull checkpoint resume.
+
+---
+
+## Entry: 2026-01-25 13:28:10 — Phase 4 implementation (service + READY consumer + pull checkpoints)
+
+### Implementation decisions (as executed)
+1) **Control bus wiring added to profiles**
+   - Added `wiring.control_bus` (kind/root/topic) to `config/platform/profiles/*.yaml`.
+   - Updated `WiringProfile` loader to parse control bus fields and reuse event_bus topic_control where available.
+   - Rationale: READY consumption should be profile‑driven and explicit; default root `artefacts/fraud-platform/control_bus` matches SR file bus.
+2) **Pull run state format**
+   - Implemented `PullRunStore` with:
+     - immutable `message_id` record (`pull_runs/message_id=...`)
+     - per‑run status snapshot (`pull_runs/run_id=...json`)
+     - append‑only event log (`pull_runs/run_id=...events.jsonl`)
+     - per‑output checkpoints (`pull_runs/checkpoints/run_id=.../output_id=...json`)
+   - Status snapshot is derived (convenience); truth is the event log + checkpoints.
+   - Event log entries include `message_id` when present to keep READY provenance explicit.
+3) **Idempotent READY processing**
+   - READY consumer checks for existing message record and completed status.
+   - If COMPLETED, skips as duplicate; if partial/in‑progress, resumes using checkpoints.
+4) **Service boundary**
+   - Added Flask IG service (`/v1/ingest/push`, `/v1/ingest/pull`, `/v1/ops/lookup`, `/v1/ops/health`).
+   - Push returns decision + receipt + receipt_ref; pull returns per‑run status summary.
+5) **Governance summary**
+   - Added `ig.pull.run` governance event and schema contract; emitted on pull completion.
+
+### Code changes (high‑signal)
+- `src/fraud_detection/ingestion_gate/config.py`:
+  - parse `control_bus` and `event_bus` wiring; added control bus fields to `WiringProfile`.
+- `src/fraud_detection/ingestion_gate/pull_state.py`:
+  - pull run records + checkpoints; append‑only event log.
+- `src/fraud_detection/ingestion_gate/control_bus.py`:
+  - file control bus reader + READY consumer with schema validation.
+- `src/fraud_detection/ingestion_gate/admission.py`:
+  - `admit_pull_with_state`, `admit_push_with_decision`, and run_facts_ref resolver.
+- `src/fraud_detection/ingestion_gate/service.py`:
+  - Flask service + optional READY poller thread (env‑gated).
+- `src/fraud_detection/ingestion_gate/ready_consumer.py`:
+  - CLI for READY polling (once or loop).
+- `src/fraud_detection/ingestion_gate/ops_index.py`:
+  - new `pull_runs` table; rebuild picks up pull status records.
+- Contracts/policy:
+  - added `docs/model_spec/platform/contracts/ingestion_gate/ig_pull_run.schema.yaml`.
+  - updated `config/platform/ig/schema_policy_v0.yaml` + `class_map_v0.yaml` for `ig.pull.run`.
+- `services/ingestion_gate/README.md`:
+  - service + READY consumer runbook.
+
+### Tests added (Phase 4)
+- `tests/services/ingestion_gate/test_phase4_ready_consumer.py`:
+  - READY file message triggers pull ingestion + idempotent duplicate skip.
+- `tests/services/ingestion_gate/test_phase4_service.py`:
+  - service push + pull endpoints succeed against a minimal profile.
+
+### Test execution results
+- `python -m pytest tests/services/ingestion_gate/test_phase4_ready_consumer.py tests/services/ingestion_gate/test_phase4_service.py -q` → **2 passed**
+- Observed warnings from werkzeug/ast deprecations (test environment only; no functional impact).
+
+### Notes / risks
+- Pull ingestion assumes local filesystem access for run_facts_view; non‑local object stores will require a fetch adapter (future phase).
+- Status snapshot overwrites are acceptable as derived state; event log remains append‑only truth.

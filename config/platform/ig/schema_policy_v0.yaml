@@ -21,3 +21,7 @@ policies:
     class: audit
     schema_version_required: false
     payload_schema_ref: docs/model_spec/platform/contracts/ingestion_gate/ig_quarantine_spike.schema.yaml
+  - event_type: ig.pull.run
+    class: audit
+    schema_version_required: false
+    payload_schema_ref: docs/model_spec/platform/contracts/ingestion_gate/ig_pull_run.schema.yaml

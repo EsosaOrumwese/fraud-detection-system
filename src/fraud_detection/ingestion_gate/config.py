@@ -44,6 +44,12 @@ class WiringProfile:
     policy_rev: str
     event_bus_kind: str = "file"
     event_bus_path: str | None = None
+    control_bus_kind: str = "file"
+    control_bus_root: str | None = None
+    control_bus_topic: str = "fp.bus.control.v1"
+    control_bus_stream: str | None = None
+    control_bus_region: str | None = None
+    control_bus_endpoint_url: str | None = None
 
     @classmethod
     def load(cls, path: Path) -> "WiringProfile":
@@ -51,6 +57,8 @@ class WiringProfile:
         policy = data.get("policy", {})
         wiring = data.get("wiring", {})
         object_store = wiring.get("object_store", {})
+        event_bus = wiring.get("event_bus", {})
+        control_bus = wiring.get("control_bus", {})
         endpoint = object_store.get("endpoint")
         region = object_store.get("region")
         path_style = object_store.get("path_style")
@@ -71,6 +79,9 @@ class WiringProfile:
                 admission_db_path = "artefacts/fraud-platform/ig/index/ig_admission.db"
             else:
                 admission_db_path = str(Path(object_store_root) / "fraud-platform/ig/index/ig_admission.db")
+        event_bus_path = wiring.get("event_bus_path") or event_bus.get("root")
+        control_bus_root = control_bus.get("root") or wiring.get("control_bus_root")
+        control_bus_topic = control_bus.get("topic") or event_bus.get("topic_control") or "fp.bus.control.v1"
         return cls(
             profile_id=profile_id,
             object_store_root=object_store_root,
@@ -118,7 +129,13 @@ class WiringProfile:
             ),
             policy_rev=policy.get("policy_rev", profile_id),
             event_bus_kind=wiring.get("event_bus_kind", "file"),
-            event_bus_path=wiring.get("event_bus_path"),
+            event_bus_path=event_bus_path,
+            control_bus_kind=control_bus.get("kind", wiring.get("control_bus_kind", "file")),
+            control_bus_root=control_bus_root,
+            control_bus_topic=control_bus_topic,
+            control_bus_stream=control_bus.get("stream"),
+            control_bus_region=control_bus.get("region"),
+            control_bus_endpoint_url=control_bus.get("endpoint_url"),
         )
 
 

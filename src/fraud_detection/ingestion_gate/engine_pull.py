@@ -20,9 +20,10 @@ logger = logging.getLogger(__name__)
 class EnginePuller:
     run_facts_view_path: Path
     catalogue: OutputCatalogue
+    _facts: dict[str, Any] | None = None
 
-    def iter_events(self) -> Iterable[dict[str, Any]]:
-        facts = json.loads(self.run_facts_view_path.read_text(encoding="utf-8"))
+    def iter_events(self, output_ids: list[str] | None = None) -> Iterable[dict[str, Any]]:
+        facts = self._load_facts()
         pins = facts.get("pins", {})
         output_roles = facts.get("output_roles", {})
         locators = facts.get("locators", [])
@@ -30,10 +31,31 @@ class EnginePuller:
         for output_id, role in output_roles.items():
             if role != "business_traffic":
                 continue
+            if output_ids and output_id not in output_ids:
+                continue
             if output_id not in locator_by_output:
                 continue
             logger.info("IG engine_pull output_id=%s path=%s", output_id, locator_by_output[output_id])
             yield from self._events_from_output(output_id, locator_by_output[output_id], pins)
+
+    def list_outputs(self) -> list[str]:
+        facts = self._load_facts()
+        output_roles = facts.get("output_roles", {})
+        locators = facts.get("locators", [])
+        locator_by_output = {loc["output_id"]: Path(loc["path"]) for loc in locators}
+        outputs: list[str] = []
+        for output_id, role in output_roles.items():
+            if role != "business_traffic":
+                continue
+            if output_id not in locator_by_output:
+                continue
+            outputs.append(output_id)
+        return outputs
+
+    def _load_facts(self) -> dict[str, Any]:
+        if self._facts is None:
+            self._facts = json.loads(self.run_facts_view_path.read_text(encoding="utf-8"))
+        return self._facts
 
     def _events_from_output(
         self,

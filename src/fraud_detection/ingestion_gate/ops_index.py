@@ -55,6 +55,21 @@ class OpsIndex:
                 )
                 """
             )
+            conn.execute(
+                """
+                CREATE TABLE IF NOT EXISTS pull_runs (
+                    message_id TEXT PRIMARY KEY,
+                    run_id TEXT,
+                    status TEXT,
+                    started_at_utc TEXT,
+                    completed_at_utc TEXT,
+                    record_ref TEXT,
+                    status_ref TEXT,
+                    counts_json TEXT,
+                    output_ids_json TEXT
+                )
+                """
+            )
             conn.commit()
 
     def record_receipt(self, receipt_payload: dict[str, Any], receipt_ref: str) -> None:
@@ -176,6 +191,7 @@ class OpsIndex:
         store: Any,
         receipts_prefix: str = "fraud-platform/ig/receipts",
         quarantine_prefix: str = "fraud-platform/ig/quarantine",
+        pull_runs_prefix: str = "fraud-platform/ig/pull_runs",
     ) -> None:
         self._clear()
         for payload, ref in _iter_store_json(store, receipts_prefix):
@@ -183,6 +199,9 @@ class OpsIndex:
         for payload, ref in _iter_store_json(store, quarantine_prefix):
             event_id = payload.get("event_id") if isinstance(payload, dict) else None
             self.record_quarantine(payload, ref, event_id)
+        for payload, ref in _iter_store_json(store, pull_runs_prefix):
+            if isinstance(payload, dict) and payload.get("message_id") and payload.get("status"):
+                self.record_pull_run(payload, ref)
 
     def probe(self) -> bool:
         try:
@@ -199,7 +218,46 @@ class OpsIndex:
         with self._connect() as conn:
             conn.execute("DELETE FROM receipts")
             conn.execute("DELETE FROM quarantines")
+            conn.execute("DELETE FROM pull_runs")
             conn.commit()
+
+    def record_pull_run(self, payload: dict[str, Any], record_ref: str) -> None:
+        with self._connect() as conn:
+            conn.execute(
+                """
+                INSERT OR IGNORE INTO pull_runs
+                (message_id, run_id, status, started_at_utc, completed_at_utc, record_ref, status_ref, counts_json, output_ids_json)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                """,
+                (
+                    payload.get("message_id"),
+                    payload.get("run_id"),
+                    payload.get("status"),
+                    payload.get("started_at_utc"),
+                    payload.get("completed_at_utc"),
+                    record_ref,
+                    payload.get("status_ref"),
+                    _json_dump(payload.get("counts")),
+                    _json_dump(payload.get("output_ids")),
+                ),
+            )
+            conn.commit()
+
+    def lookup_pull_run(self, message_id: str) -> dict[str, Any] | None:
+        with self._connect() as conn:
+            row = conn.execute(
+                "SELECT message_id, run_id, status, record_ref, status_ref FROM pull_runs WHERE message_id = ?",
+                (message_id,),
+            ).fetchone()
+        if not row:
+            return None
+        return {
+            "message_id": row[0],
+            "run_id": row[1],
+            "status": row[2],
+            "record_ref": row[3],
+            "status_ref": row[4],
+        }
 
 
 def _json_dump(value: Any) -> str | None:

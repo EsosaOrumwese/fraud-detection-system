@@ -20,3 +20,4 @@ event_types:
   s3_flow_anchor_with_fraud_6B: traffic
   ig.policy.activation: audit
   ig.quarantine.spike: audit
+  ig.pull.run: audit

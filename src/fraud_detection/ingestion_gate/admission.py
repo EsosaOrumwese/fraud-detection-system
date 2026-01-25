@@ -25,6 +25,7 @@ from .models import AdmissionDecision, Receipt, QuarantineRecord
 from .ops_index import OpsIndex
 from .partitioning import PartitionProfile, PartitioningProfiles
 from .policy_digest import compute_policy_digest
+from .pull_state import PullRunStore
 from .receipts import ReceiptWriter
 from .scopes import is_instance_scope
 from .schema import SchemaEnforcer
@@ -61,6 +62,7 @@ class IngestionGate:
     health: HealthProbe
     metrics: MetricsRecorder
     governance: GovernanceEmitter
+    pull_store: PullRunStore
 
     @classmethod
     def build(cls, wiring: WiringProfile) -> "IngestionGate":
@@ -117,6 +119,7 @@ class IngestionGate:
         governance.emit_policy_activation(
             {"policy_id": policy_rev.policy_id, "revision": policy_rev.revision, "content_digest": policy_rev.content_digest}
         )
+        pull_store = PullRunStore(store)
         return cls(
             wiring=wiring,
             policy=policy,
@@ -136,6 +139,7 @@ class IngestionGate:
             health=health,
             metrics=metrics,
             governance=governance,
+            pull_store=pull_store,
         )
 
     def admit_push(self, envelope: dict[str, Any]) -> Receipt:
@@ -144,6 +148,11 @@ class IngestionGate:
         if decision.decision == "QUARANTINE":
             raise RuntimeError("QUARANTINED")
         return receipt
+
+    def admit_push_with_decision(self, envelope: dict[str, Any]) -> tuple[AdmissionDecision, Receipt]:
+        logger.info("IG admit_push(decision) event_id=%s event_type=%s", envelope.get("event_id"), envelope.get("event_type"))
+        decision, receipt = self._admit_event(envelope, output_id=None, run_facts=None)
+        return decision, receipt
 
     def admit_pull(self, run_facts_view_path: Path) -> list[Receipt]:
         logger.info("IG admit_pull start run_facts_view=%s", run_facts_view_path)
@@ -159,6 +168,126 @@ class IngestionGate:
             if decision.decision != "QUARANTINE":
                 receipts.append(receipt)
         return receipts
+
+    def admit_pull_with_state(
+        self,
+        run_facts_ref: str,
+        *,
+        run_id: str | None = None,
+        message_id: str | None = None,
+    ) -> dict[str, Any]:
+        run_facts_path = self._resolve_run_facts_path(run_facts_ref)
+        run_facts = _load_json(run_facts_path)
+        run_id = run_id or run_facts.get("pins", {}).get("run_id") or run_facts.get("run_id")
+        if not run_id:
+            raise IngestionError("RUN_ID_MISSING")
+
+        started_at = datetime.now(tz=timezone.utc)
+        output_ids = EnginePuller(run_facts_path, self.catalogue).list_outputs()
+        status = {
+            "run_id": run_id,
+            "message_id": message_id,
+            "status": "IN_PROGRESS",
+            "started_at_utc": started_at.isoformat(),
+            "output_ids": output_ids,
+            "counts": {"ADMIT": 0, "DUPLICATE": 0, "QUARANTINE": 0},
+            "outputs_completed": [],
+            "outputs_failed": [],
+            "facts_view_ref": run_facts_ref,
+        }
+        self.pull_store.append_event(
+            run_id,
+            {
+                "event_kind": "PULL_STARTED",
+                "ts_utc": started_at.isoformat(),
+                "run_id": run_id,
+                "message_id": message_id,
+            },
+        )
+        puller = EnginePuller(run_facts_path, self.catalogue)
+
+        for output_id in output_ids:
+            if self.pull_store.checkpoint_exists(run_id, output_id):
+                logger.info("IG pull checkpoint skip run_id=%s output_id=%s", run_id, output_id)
+                status["outputs_completed"].append(output_id)
+                continue
+            output_counts = {"ADMIT": 0, "DUPLICATE": 0, "QUARANTINE": 0}
+            try:
+                for envelope in puller.iter_events(output_ids=[output_id]):
+                    decision, _receipt = self._admit_event(
+                        envelope,
+                        output_id=output_id,
+                        run_facts=run_facts,
+                    )
+                    output_counts[decision.decision] += 1
+                    status["counts"][decision.decision] += 1
+                checkpoint_payload = {
+                    "run_id": run_id,
+                    "output_id": output_id,
+                    "status": "COMPLETED",
+                    "counts": output_counts,
+                    "completed_at_utc": datetime.now(tz=timezone.utc).isoformat(),
+                }
+                self.pull_store.write_checkpoint(run_id, output_id, checkpoint_payload)
+                self.pull_store.append_event(
+                    run_id,
+                    {
+                        "event_kind": "OUTPUT_COMPLETED",
+                        "ts_utc": datetime.now(tz=timezone.utc).isoformat(),
+                        "run_id": run_id,
+                        "message_id": message_id,
+                        "output_id": output_id,
+                        "counts": output_counts,
+                    },
+                )
+                status["outputs_completed"].append(output_id)
+            except Exception as exc:
+                code = reason_code(exc)
+                status["outputs_failed"].append({"output_id": output_id, "reason_code": code})
+                self.pull_store.append_event(
+                    run_id,
+                    {
+                        "event_kind": "OUTPUT_FAILED",
+                        "ts_utc": datetime.now(tz=timezone.utc).isoformat(),
+                        "run_id": run_id,
+                        "message_id": message_id,
+                        "output_id": output_id,
+                        "reason_code": code,
+                    },
+                )
+
+        completed_at = datetime.now(tz=timezone.utc)
+        status["completed_at_utc"] = completed_at.isoformat()
+        if status["outputs_failed"]:
+            status["status"] = "PARTIAL"
+        else:
+            status["status"] = "COMPLETED"
+        status_ref = self.pull_store.write_status(run_id, status)
+        status["status_ref"] = status_ref
+        self.ops_index.record_pull_run(status, status_ref)
+        self.governance.emit_pull_run_summary(
+            {
+                "run_id": run_id,
+                "message_id": message_id,
+                "status": status["status"],
+                "counts": status["counts"],
+                "output_ids": output_ids,
+                "facts_view_ref": run_facts_ref,
+                "started_at_utc": status["started_at_utc"],
+                "completed_at_utc": status.get("completed_at_utc"),
+            }
+        )
+        self.pull_store.append_event(
+            run_id,
+            {
+                "event_kind": "PULL_COMPLETED",
+                "ts_utc": completed_at.isoformat(),
+                "run_id": run_id,
+                "message_id": message_id,
+                "status": status["status"],
+            },
+        )
+        return status
 
     def _admit_event(
         self,
@@ -360,6 +489,27 @@ class IngestionGate:
         run_facts = self.store.read_json(facts_ref)
         self._verify_run_pins(envelope, run_facts)
         logger.info("IG run joinability ok run_id=%s facts_ref=%s", run_id, facts_ref)
+
+    def resolve_run_facts_ref(self, run_id: str) -> str:
+        status_path = f"{self.wiring.sr_ledger_prefix}/run_status/{run_id}.json"
+        if not self.store.exists(status_path):
+            raise IngestionError("RUN_STATUS_MISSING", run_id)
+        status = self.store.read_json(status_path)
+        if status.get("state") != "READY":
+            raise IngestionError("RUN_NOT_READY", status.get("state"))
+        facts_ref = status.get("facts_view_ref") or f"{self.wiring.sr_ledger_prefix}/run_facts_view/{run_id}.json"
+        if not self.store.exists(facts_ref):
+            raise IngestionError("RUN_FACTS_MISSING", run_id)
+        return facts_ref
+
+    def _resolve_run_facts_path(self, run_facts_ref: str) -> Path:
+        candidate = Path(run_facts_ref)
+        if candidate.is_absolute():
+            return candidate
+        store_root = getattr(self.store, "root", None)
+        if store_root is None:
+            raise IngestionError("RUN_FACTS_UNSUPPORTED")
+        return Path(store_root) / run_facts_ref
 
     def _enforce_health(self) -> None:
         result = self.health.check()

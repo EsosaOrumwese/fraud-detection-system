@@ -20,7 +20,16 @@ It avoids duplicating engine contracts and reduces drift.
 
 ---
 
-## Platform‑native contracts (SR only, v0)
+## Platform‑native contracts (SR, v0)
 These live under:
 `docs/model_spec/platform/contracts/scenario_runner/`
 
+## Platform‑native contracts (IG, v0)
+These live under:
+`docs/model_spec/platform/contracts/ingestion_gate/`
+
+- `ingestion_receipt.schema.yaml`
+- `quarantine_record.schema.yaml`
+- `ig_policy_activation.schema.yaml`
+- `ig_quarantine_spike.schema.yaml`
+- `ig_pull_run.schema.yaml`

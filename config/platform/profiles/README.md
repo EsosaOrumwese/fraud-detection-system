@@ -25,6 +25,10 @@ wiring:
     topic_traffic: fp.bus.traffic.v1
     topic_control: fp.bus.control.v1
     topic_audit: fp.bus.audit.v1
+  control_bus:
+    kind: file
+    root: artefacts/fraud-platform/control_bus
+    topic: fp.bus.control.v1
 ```
 
 Notes:
@@ -32,3 +36,4 @@ Notes:
 - `partitioning_profile_id` is chosen by IG policy (mapped by stream class); EB never infers partitioning.
 - `partitioning_profiles_ref` anchors the versioned profile set used by IG.
 - Wiring endpoints are placeholders; actual values come from env/secret store.
+- `control_bus` wiring tells IG where to read SR READY control events (file bus in v0).

@@ -29,6 +29,41 @@ Smoke test (uses runs/ artifacts if present):
 python -m pytest tests/services/ingestion_gate/test_ops_rebuild_runs_smoke.py -q
 ```
 
+## Service (local)
+Run HTTP service:
+```
+python -m fraud_detection.ingestion_gate.service --profile config/platform/profiles/local.yaml --port 8081
+```
+Enable READY polling inside the service (PowerShell):
+```
+$env:IG_READY_CONSUMER="1"
+```
+
+Push ingest example:
+```
+curl -X POST http://127.0.0.1:8081/v1/ingest/push ^
+  -H "Content-Type: application/json" ^
+  -d "{\"event_id\":\"evt-1\",\"event_type\":\"arrival_events_5B\",\"ts_utc\":\"2026-01-01T00:00:00.000000Z\",\"manifest_fingerprint\":\"<hex64>\",\"payload\":{}}"
+```
+
+Pull ingest example:
+```
+curl -X POST http://127.0.0.1:8081/v1/ingest/pull ^
+  -H "Content-Type: application/json" ^
+  -d "{\"run_id\":\"<run_id>\"}"
+```
+
+## READY consumer (local file control bus)
+Process READY events once:
+```
+python -m fraud_detection.ingestion_gate.ready_consumer --profile config/platform/profiles/local.yaml --once
+```
+
+Run READY poll loop:
+```
+python -m fraud_detection.ingestion_gate.ready_consumer --profile config/platform/profiles/local.yaml --interval 2
+```
+
 Notes:
 - This smoke test looks for SR artifacts under:
   - `%SR_ARTIFACTS_ROOT%` (preferred)
