@@ -142,7 +142,7 @@ class OpsIndex:
     def lookup_dedupe(self, dedupe_key: str) -> dict[str, Any] | None:
         with self._connect() as conn:
             row = conn.execute(
-                "SELECT receipt_id, event_id, event_type, decision, receipt_ref FROM receipts WHERE dedupe_key = ?",
+                "SELECT receipt_id, event_id, event_type, decision, receipt_ref FROM receipts WHERE dedupe_key = ? ORDER BY created_at_utc ASC LIMIT 1",
                 (dedupe_key,),
             ).fetchone()
         if not row:
@@ -158,7 +158,7 @@ class OpsIndex:
     def lookup_event(self, event_id: str) -> dict[str, Any] | None:
         with self._connect() as conn:
             row = conn.execute(
-                "SELECT receipt_id, event_id, event_type, decision, receipt_ref FROM receipts WHERE event_id = ?",
+                "SELECT receipt_id, event_id, event_type, decision, receipt_ref FROM receipts WHERE event_id = ? ORDER BY created_at_utc ASC LIMIT 1",
                 (event_id,),
             ).fetchone()
         if not row:

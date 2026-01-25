@@ -123,4 +123,4 @@ Provide a progressive, component‑scoped build plan for the Ingestion Gate (IG)
 ## Status (rolling)
 - Phase 1: complete (admission spine + run joinability + optional gate re-hash; unit tests added).
 - Phase 2: complete (policy digesting + ops index + health/ingress control + governance/metrics; tests green).
-- Phase 3: planning in progress (sections + DoD defined; implementation not started).
+- Phase 3: in progress (replay/load/recovery tests added; suite green).

@@ -431,3 +431,39 @@ Phase 3 must prove IG’s **at‑least‑once safety** and **operational resilie
 ### Validation / tests
 - New test module(s) under `tests/services/ingestion_gate/` for replay/soak/rebuild.
 - Use FileEventBus for deterministic local replay.
+
+---
+
+## Entry: 2026-01-25 08:27:52 — IG Phase 3 implementation start (replay/load/recovery)
+
+### Implementation intent (before coding)
+Execute Phase‑3 in three legs:
+1) **Replay/duplicate torture suite** (receipt + ops index stability).
+2) **Load/soak with failure injection** (health gating + intake refusal).
+3) **Recovery drills** (ops index rebuild + governance event presence).
+
+### Implementation notes (pre‑commit decisions)
+- Use FileEventBus + LocalObjectStore to keep tests deterministic.
+- Failure injection will use the health probe’s publish failure counter; no external dependencies required.
+- Recovery drill will delete the ops DB file and rebuild from object store receipts/quarantines.
+
+---
+
+## Entry: 2026-01-25 08:30:55 — IG Phase 3 implementation progress (replay/load/recovery tests)
+
+### Implementation decisions applied
+- **Replay suite** validates EB append‑once, duplicate receipts returning original EB coords, and ops lookup stability.
+- **Health refusal** is exercised via AMBER denial (bus health unknown) to prove intake refusal without relying on external buses.
+- **Recovery drill** uses rebuild into a fresh ops DB (avoids Windows file locks) while still validating object‑store‑derived recovery.
+
+### Tests added
+- `tests/services/ingestion_gate/test_phase3_replay_load_recovery.py`:
+  - replay/duplicate torture
+  - health refusal path
+  - ops index rebuild from store
+
+### Test results
+- `python -m pytest tests/services/ingestion_gate/test_phase3_replay_load_recovery.py -q` → **3 passed**
+- Full IG suite:
+  - `python -m pytest tests/services/ingestion_gate/test_admission.py tests/services/ingestion_gate/test_ops_index.py tests/services/ingestion_gate/test_health_governance.py tests/services/ingestion_gate/test_phase3_replay_load_recovery.py -q`
+  - **13 passed**
