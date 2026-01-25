@@ -24,6 +24,8 @@ class WiringProfile:
     object_store_region: str | None
     object_store_path_style: bool | None
     admission_db_path: str
+    sr_ledger_prefix: str
+    engine_root_path: str | None
     schema_root: str
     engine_contracts_root: str
     engine_catalogue_path: str
@@ -69,6 +71,8 @@ class WiringProfile:
             object_store_region=region,
             object_store_path_style=path_style,
             admission_db_path=admission_db_path,
+            sr_ledger_prefix=wiring.get("sr_ledger_prefix", "fraud-platform/sr"),
+            engine_root_path=wiring.get("engine_root_path"),
             schema_root=wiring.get("schema_root", "docs/model_spec/platform/contracts"),
             engine_contracts_root=wiring.get(
                 "engine_contracts_root",

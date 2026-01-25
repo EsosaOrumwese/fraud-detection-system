@@ -23,7 +23,14 @@ from .receipts import ReceiptWriter
 from .scopes import is_instance_scope
 from .schema import SchemaEnforcer
 from .schemas import SchemaRegistry
-from .store import build_object_store
+from .store import ObjectStore, build_object_store
+
+try:  # optional import for local gate re-hash verification
+    from fraud_detection.scenario_runner.evidence import GateMap as SrGateMap
+    from fraud_detection.scenario_runner.evidence import GateVerifier
+except Exception:  # pragma: no cover - optional dependency
+    GateVerifier = None  # type: ignore[assignment]
+    SrGateMap = None  # type: ignore[assignment]
 
 logger = logging.getLogger(__name__)
 
@@ -42,6 +49,8 @@ class IngestionGate:
     receipt_writer: ReceiptWriter
     admission_index: AdmissionIndex
     bus: EventBusPublisher
+    store: ObjectStore
+    gate_verifier: GateVerifier | None
 
     @classmethod
     def build(cls, wiring: WiringProfile) -> "IngestionGate":
@@ -63,6 +72,11 @@ class IngestionGate:
             s3_region=wiring.object_store_region,
             s3_path_style=wiring.object_store_path_style,
         )
+        gate_verifier = None
+        if wiring.engine_root_path:
+            if not GateVerifier or not SrGateMap:
+                raise RuntimeError("GATE_VERIFIER_UNAVAILABLE")
+            gate_verifier = GateVerifier(Path(wiring.engine_root_path), SrGateMap(Path(wiring.gate_map_path)))
         receipt_writer = ReceiptWriter(store)
         admission_index = AdmissionIndex(Path(wiring.admission_db_path))
         bus = _build_bus(wiring)
@@ -79,6 +93,8 @@ class IngestionGate:
             receipt_writer=receipt_writer,
             admission_index=admission_index,
             bus=bus,
+            store=store,
+            gate_verifier=gate_verifier,
         )
 
     def admit_push(self, envelope: dict[str, Any]) -> Receipt:
@@ -113,6 +129,8 @@ class IngestionGate:
             self._validate_envelope(envelope)
             self._validate_class_pins(envelope)
             self.schema_enforcer.validate_payload(envelope["event_type"], envelope)
+            if run_facts is None and self._requires_run_ready(envelope["event_type"]):
+                self._ensure_run_ready(envelope)
             if output_id and run_facts:
                 self._verify_required_gates(output_id, run_facts)
         except IngestionError as exc:
@@ -237,6 +255,37 @@ class IngestionGate:
         if missing:
             raise IngestionError("PINS_MISSING", ",".join(missing))
 
+    def _requires_run_ready(self, event_type: str) -> bool:
+        required = set(self.class_map.required_pins_for(event_type))
+        run_scoped = {"run_id", "scenario_id", "parameter_hash", "seed"}
+        return bool(required & run_scoped)
+
+    def _ensure_run_ready(self, envelope: dict[str, Any]) -> None:
+        run_id = envelope.get("run_id")
+        if not run_id:
+            raise IngestionError("RUN_ID_MISSING")
+        status_path = f"{self.wiring.sr_ledger_prefix}/run_status/{run_id}.json"
+        if not self.store.exists(status_path):
+            raise IngestionError("RUN_STATUS_MISSING", run_id)
+        status = self.store.read_json(status_path)
+        if status.get("state") != "READY":
+            raise IngestionError("RUN_NOT_READY", status.get("state"))
+        facts_ref = status.get("facts_view_ref") or f"{self.wiring.sr_ledger_prefix}/run_facts_view/{run_id}.json"
+        if not self.store.exists(facts_ref):
+            raise IngestionError("RUN_FACTS_MISSING", run_id)
+        run_facts = self.store.read_json(facts_ref)
+        self._verify_run_pins(envelope, run_facts)
+        logger.info("IG run joinability ok run_id=%s facts_ref=%s", run_id, facts_ref)
+
+    def _verify_run_pins(self, envelope: dict[str, Any], run_facts: dict[str, Any]) -> None:
+        pins = run_facts.get("pins", {})
+        for key in ("manifest_fingerprint", "parameter_hash", "seed", "scenario_id", "run_id"):
+            value = envelope.get(key)
+            if value is None:
+                continue
+            if pins.get(key) != value:
+                raise IngestionError("RUN_PINS_MISMATCH", key)
+
     def _verify_required_gates(self, output_id: str, run_facts: dict[str, Any]) -> None:
         try:
             entry = self.catalogue.get(output_id)
@@ -248,6 +297,14 @@ class IngestionGate:
         missing = [gate_id for gate_id in required_gates if gate_status.get(gate_id) != "PASS"]
         if missing:
             raise IngestionError("GATE_MISSING", ",".join(missing))
+        if self.gate_verifier:
+            pins = run_facts.get("pins", {})
+            for gate_id in required_gates:
+                result = self.gate_verifier.verify(gate_id, pins)
+                if result.receipt is None or result.missing:
+                    raise IngestionError("GATE_VERIFY_MISSING", gate_id)
+                if result.conflict or result.receipt.status.value != "PASS":
+                    raise IngestionError("GATE_VERIFY_CONFLICT", gate_id)
         logger.info("IG gate verification ok output_id=%s gates=%s", output_id, ",".join(required_gates))
         if is_instance_scope(entry.scope):
             locator = _locator_for(output_id, run_facts.get("locators", []))

@@ -153,3 +153,54 @@ Harden IG Phase 1 implementation so the admission boundary is deterministic, aud
 ### Follow‑ups / open edges
 - Push‑ingest run joinability is still policy‑only (pins enforced but no SR readiness lookup yet).
 - Full gate re‑hash verification (reading engine artifacts) remains a later hardening step when a stable `engine_root` configuration is introduced.
+
+---
+
+## Entry: 2026-01-25 07:30:47 — IG Phase 1 continuation (run joinability + optional gate re‑hash)
+
+### Problem / goal
+Close remaining Phase‑1 gaps: make push‑ingest run‑scoped events join to SR READY + run_facts_view, and optionally hard‑verify gate artifacts when a local engine root is configured. Both must preserve black‑box constraints and fail‑closed posture.
+
+### Decision trail (live)
+- **Run joinability for push:** If an event class is run‑scoped (pins require any of `run_id`, `scenario_id`, `parameter_hash`, `seed`), IG must check SR readiness before admission. This avoids admitting run‑scoped events into EB when the run context is not anchored.
+- **SR lookup path:** Use SR ledger paths under a configurable prefix (`sr_ledger_prefix`, default `fraud-platform/sr`). Read `run_status/{run_id}.json`, require `state == READY`, then follow `facts_view_ref` (or default to `run_facts_view/{run_id}.json`). This preserves the “no scan, no latest” rule.
+- **Run pin consistency:** When a READY run is found, validate envelope pins against run_facts pins (manifest_fingerprint, parameter_hash, seed, scenario_id, run_id). Any mismatch is quarantine.
+- **Gate re‑hash verification (optional):** If `engine_root_path` is configured, IG performs an additional gate‑artifact check using the engine’s gate map and verification method. This is a defensive integrity check layered on top of `run_facts_view` receipts. If it fails/misses, IG quarantines with a stable reason code.
+- **Black‑box respected:** No changes to engine code; verification reads only artifacts by path from the engine root when configured. If not configured, IG relies on run_facts receipts only.
+
+### Implementation changes (stepwise)
+1) Extend `WiringProfile` to include `sr_ledger_prefix` (default `fraud-platform/sr`) and optional `engine_root_path` (enable gate re‑hash).
+2) Add `_ensure_run_ready()` and `_verify_run_pins()` to enforce SR READY + pin equality for run‑scoped push events.
+3) Add optional gate artifact verification in `_verify_required_gates()` using `GateVerifier` when `engine_root_path` is set.
+4) Add tests: push events quarantine when run is not READY; gate re‑hash verification passes when artifacts match.
+
+---
+
+## Entry: 2026-01-25 07:41:05 — IG Phase 1 completion (joinability + gate re‑hash)
+
+### Implementation decisions applied
+- **Run joinability enforcement:** IG now checks SR `run_status` + `run_facts_view` for run‑scoped push events (based on required pins). Missing status, non‑READY state, or pin mismatches are quarantine‑level errors.
+- **Optional gate re‑hash:** When `engine_root_path` is provided, IG verifies gate artifacts using the engine’s gate map/verification method in addition to run_facts receipts. This is a defensive integrity check; if artifacts are missing or conflict, IG quarantines.
+- **Wiring extensions:** Added `sr_ledger_prefix` and `engine_root_path` to IG wiring, keeping defaults safe for local use and preserving black‑box posture when unset.
+- **Test‑driven sanity:** The run‑scoped check is triggered by required pins; tests explicitly configure required pins to exercise the joinability path.
+
+### Files updated
+- `src/fraud_detection/ingestion_gate/config.py`: added `sr_ledger_prefix`, `engine_root_path`.
+- `src/fraud_detection/ingestion_gate/admission.py`: SR READY lookup + pin match, optional gate re‑hash verification, and required‑pin run‑scope detection.
+- `tests/services/ingestion_gate/test_admission.py`: added tests for push joinability and gate re‑hash, plus helper for gate artifacts.
+
+### Tests run / outcomes
+- **Command:** `python -m pytest tests/services/ingestion_gate/test_admission.py -q`
+  - First run: push‑joinability test did not trigger because the class_map required pins were too permissive.
+  - Fix: allow tests to specify run‑scoped required pins explicitly.
+  - Final result: **5 passed**.
+
+---
+
+## Entry: 2026-01-25 07:41:51 — IG hardening tweak (gate verifier availability)
+
+### Decision / rationale
+If `engine_root_path` is configured, IG must **fail fast** when the gate verifier dependency cannot be loaded. Silent fallback would weaken the intended integrity check and violate fail‑closed posture.
+
+### Change applied
+- `IngestionGate.build` now raises `GATE_VERIFIER_UNAVAILABLE` if `engine_root_path` is set but the verifier cannot be imported.
