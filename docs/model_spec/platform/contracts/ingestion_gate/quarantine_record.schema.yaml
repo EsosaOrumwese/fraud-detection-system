@@ -1,0 +1,103 @@
+$schema: https://json-schema.org/draft/2020-12/schema
+$id: quarantine_record.schema.yaml
+title: Ingestion Quarantine Record
+type: object
+additionalProperties: false
+required:
+  - quarantine_id
+  - received_at_utc
+  - decision
+  - reason_codes
+  - manifest_fingerprint
+  - policy_rev
+properties:
+  quarantine_id:
+    $ref: "#/$defs/hex32"
+  received_at_utc:
+    $ref: "#/$defs/rfc3339_micros"
+  decision:
+    type: string
+    enum: [QUARANTINE]
+  reason_codes:
+    type: array
+    minItems: 1
+    items:
+      type: string
+      minLength: 1
+      maxLength: 128
+  manifest_fingerprint:
+    $ref: "#/$defs/hex64"
+  pins:
+    type: object
+    additionalProperties: false
+    required: [manifest_fingerprint]
+    properties:
+      manifest_fingerprint:
+        $ref: "#/$defs/hex64"
+      parameter_hash:
+        $ref: "#/$defs/hex64"
+      seed:
+        $ref: "#/$defs/uint64"
+      scenario_id:
+        type: string
+        minLength: 1
+        maxLength: 256
+      run_id:
+        $ref: "#/$defs/hex32"
+  policy_rev:
+    type: object
+    additionalProperties: false
+    required: [policy_id, revision]
+    properties:
+      policy_id:
+        type: string
+      revision:
+        type: string
+      content_digest:
+        $ref: "#/$defs/hex64"
+  envelope:
+    type: object
+    description: Optional canonical envelope snapshot (no raw payloads required).
+    additionalProperties: true
+  evidence_refs:
+    type: array
+    items:
+      type: object
+      additionalProperties: false
+      required: [kind, ref]
+      properties:
+        kind:
+          type: string
+          minLength: 1
+          maxLength: 64
+        ref:
+          type: string
+          minLength: 1
+          maxLength: 2048
+        digest:
+          $ref: "#/$defs/digest"
+
+$defs:
+  hex32:
+    type: string
+    pattern: "^[0-9a-f]{32}$"
+  hex64:
+    type: string
+    pattern: "^[0-9a-f]{64}$"
+  uint64:
+    type: integer
+    minimum: 0
+  rfc3339_micros:
+    type: string
+    minLength: 1
+  digest:
+    type: object
+    additionalProperties: false
+    required: [algo, hex]
+    properties:
+      algo:
+        type: string
+        enum: [sha256]
+      hex:
+        type: string
+        pattern: "^[0-9a-f]{64}$"

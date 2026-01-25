@@ -70,5 +70,5 @@ Provide a progressive, component‑scoped build plan for the Ingestion Gate (IG)
 - Replay simulations validate idempotency and receipt stability.
 
 ## Status (rolling)
-- Phase 1: not started (planning complete; ready to implement).
+- Phase 1: in progress (core admission spine implemented; unit tests added for dedupe/gate/instance; remaining: push joinability lookup + full gate re-hash verification).
 - Phase 2+: not started.

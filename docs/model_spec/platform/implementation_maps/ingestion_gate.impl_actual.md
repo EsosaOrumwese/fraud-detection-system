@@ -86,3 +86,70 @@ Implement IG Phase 1 admission boundary: schema + lineage + gate verification, i
 - Push ingestion authN/authZ profile (allowlists) to be pinned for prod; v0 can be permissive but must be explicit.
 
 ---
+
+## Entry: 2026-01-25 07:19:11 — IG Phase 1 implementation execution (admission spine hardening)
+
+### Problem / goal
+Harden IG Phase 1 implementation so the admission boundary is deterministic, auditable, and aligned with the platform rails: canonical envelope validation, policy‑driven schema enforcement, no‑PASS‑no‑read, idempotency, deterministic partitioning, and by‑ref receipts/quarantine.
+
+### Observations (current state)
+- `_admit_event` has a control‑flow bug: the duplicate path returns early, and the normal admission path is unreachable; when no duplicate exists, `decision` is undefined.
+- IG wiring currently assumes an IG‑specific profile shape, but the CLI points at `config/platform/profiles/*.yaml` (platform profile shape). This can mis‑resolve `object_store_root` and event bus settings.
+- Gate verification currently only checks `run_facts_view.gate_receipts` status and does not enforce instance‑proof receipts for instance‑scoped outputs.
+- Reason codes are raw exception strings; they are not normalized or safe for operator‑level debugging.
+
+### Decision trail (live)
+- **Dedupe semantics:** Duplicates must not append to EB. IG will return a DUPLICATE receipt that **references the original EB coordinates** and (when available) the **original receipt ref** as evidence. Receipts are written with **write‑once** semantics to preserve append‑only truth.
+- **Reason codes:** Introduce a small internal reason‑code taxonomy and a dedicated `IngestionError` to carry a stable `code` + optional detail. Quarantine receipts will record **only the stable reason code**; details remain in logs to avoid leaking sensitive content.
+- **Gate + instance verification:** For v0, IG will **require PASS receipts** from `run_facts_view` for required gates **and** instance‑proof receipts for instance‑scoped outputs. This satisfies “no PASS → no read” while keeping the engine a black box. Full re‑hash verification can be layered later when a stable `engine_root` is configured.
+- **Required gate set expansion:** Use `read_requires_gates` from the catalogue when present; otherwise derive required gates from `engine_gates.map.yaml` and include upstream dependencies.
+- **Instance scope detection:** Use output `scope` (catalogue field) to detect instance‑scoped outputs (seed/parameter_hash/scenario_id/run_id tokens) and enforce instance receipts accordingly.
+- **Partitioning → topic selection:** Derive EB topic from the **partitioning profile** (policy) rather than hard‑coding topic names in code.
+- **Profile parsing:** Extend IG wiring loader to accept the **platform profile shape** (object_store bucket + endpoint). When an endpoint is present, map to `s3://{bucket}` and pass endpoint/region/path‑style into the object store builder.
+
+### Planned edits (stepwise)
+1) Fix `_admit_event` control‑flow; implement explicit duplicate path; gate EB publish only on non‑duplicate; write receipts immutably; record admissions in the idempotency index.
+2) Add `ingestion_gate/errors.py` with `IngestionError` + reason‑code constants; update schema/pins/gate/partition checks to raise stable codes and keep details in logs.
+3) Extend `OutputCatalogue` to load `scope`; add an `is_instance_scope()` helper in IG to enforce instance‑proof receipts.
+4) Implement gate + instance verification against `run_facts_view` receipts; include required gate expansion via the gate map.
+5) Use partitioning profile stream as the EB topic; add narrative logging at each admission phase (validate → verify → dedupe → partition → publish → receipt).
+6) Update `WiringProfile` to support platform profile shape and propagate object‑store endpoint settings.
+7) Add unit tests for: duplicate idempotency; missing gate PASS; missing instance receipt; partitioning‑driven topic selection.
+
+---
+
+## Entry: 2026-01-25 07:30:47 — IG Phase 1 implementation progress (code + tests)
+
+### Implementation decisions applied
+- **Admission spine fix:** rewired `_admit_event` to separate duplicate vs admit paths; duplicates now return a receipt with the original EB ref and optional receipt ref evidence, without re‑publishing to EB.
+- **Reason‑code handling:** added `ingestion_gate/errors.py` (`IngestionError` + `reason_code`) and updated schema/pins/gate/partitioning to raise stable codes instead of raw exceptions.
+- **Gate/instance enforcement:** expanded required gate set via `engine_gates.map.yaml` (filtered to `required_by_components: ingestion_gate`) when catalogue lacks explicit requirements; enforced instance‑proof receipts for instance‑scoped outputs (scope token detection).
+- **Partitioning → topic:** EB topic is now derived from the selected partitioning profile’s `stream` (policy‑driven; no hard‑coded topic strings).
+- **Wiring alignment:** IG wiring now accepts the platform profile shape and maps object store buckets to `s3://` roots when endpoints are configured; admission index is stored locally via `admission_db_path` even when the object store is remote.
+- **Narrative logging:** added clear log statements at intake, validation, gate check, duplicate detection, publish, and quarantine for operator‑readable traces.
+
+### Files touched / created (code)
+- `src/fraud_detection/ingestion_gate/admission.py`: fixed duplicate/admit flow, added gate + instance checks, pruning of optional pins, and narrative logs.
+- `src/fraud_detection/ingestion_gate/errors.py`: stable error taxonomy and reason extraction.
+- `src/fraud_detection/ingestion_gate/gates.py`: gate map parser + required gate expansion.
+- `src/fraud_detection/ingestion_gate/scopes.py`: instance‑scope detector.
+- `src/fraud_detection/ingestion_gate/catalogue.py`: load `scope` field.
+- `src/fraud_detection/ingestion_gate/partitioning.py`: stable error codes on missing/unsupported keys.
+- `src/fraud_detection/ingestion_gate/ids.py`: stable error codes on missing primary keys.
+- `src/fraud_detection/ingestion_gate/engine_pull.py`: narrative logging + stable errors for missing event time.
+- `src/fraud_detection/ingestion_gate/config.py`: accept platform profile shape; add admission DB path and object‑store endpoint fields.
+- `src/fraud_detection/ingestion_gate/receipts.py`: write‑once receipt/quarantine semantics.
+- `src/fraud_detection/ingestion_gate/cli.py`: consistent logging for CLI runs.
+
+### Tests added / results
+- **Added:** `tests/services/ingestion_gate/test_admission.py`
+  - duplicate does not republish (EB log stays 1 line)
+  - missing gate PASS → quarantine
+  - missing instance receipt → quarantine
+- **Test run:** `python -m pytest tests/services/ingestion_gate/test_admission.py -q`
+  - Initial failure due to `None` pins violating receipt schema; fixed by pruning `None` values in receipt/quarantine payloads.
+  - Final result: **3 passed**.
+
+### Follow‑ups / open edges
+- Push‑ingest run joinability is still policy‑only (pins enforced but no SR readiness lookup yet).
+- Full gate re‑hash verification (reading engine artifacts) remains a later hardening step when a stable `engine_root` configuration is introduced.

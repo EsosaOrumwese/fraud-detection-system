@@ -1,0 +1,20 @@
+version: "0.1.0"
+classes:
+  traffic:
+    required_pins:
+      - manifest_fingerprint
+      - parameter_hash
+      - seed
+      - scenario_id
+      - run_id
+  control:
+    required_pins:
+      - manifest_fingerprint
+      - run_id
+  audit:
+    required_pins:
+      - manifest_fingerprint
+event_types:
+  arrival_events_5B: traffic
+  s2_flow_anchor_baseline_6B: traffic
+  s3_flow_anchor_with_fraud_6B: traffic
