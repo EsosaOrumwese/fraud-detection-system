@@ -142,7 +142,7 @@ class EnginePuller:
             return
         local = Path(path)
         if local.suffix == ".parquet":
-            table = pq.read_table(local)
+            table = pq.ParquetFile(local).read()
             for row in table.to_pylist():
                 yield row
         elif local.suffix in (".jsonl", ".json"):

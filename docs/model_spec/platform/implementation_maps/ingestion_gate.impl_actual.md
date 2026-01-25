@@ -1175,3 +1175,21 @@ User mandated a hard move of platform runtime artifacts to `runs/fraud-platform`
 
 ### Outcome
 IG now resolves SR READY refs under the **shared runtime root** (`runs/fraud-platform`) without `fraud-platform/fraud-platform` duplication, and appends to the shared platform log (`runs/fraud-platform/platform.log`).
+
+---
+
+## Entry: 2026-01-25 22:11:16 — Fix: Parquet read INTERNAL_ERROR during IG pull
+
+### Problem observed (live)
+The SR→IG smoke run produced `OUTPUT_FAILED` with reason `INTERNAL_ERROR` for every output. The pull‑run log didn’t include details, so I replicated the read in venv and saw:
+- `pyarrow.lib.ArrowTypeError: Unable to merge: Field seed has incompatible types...`
+This happens because `pyarrow.parquet.read_table()` uses the dataset API and attempts schema merging across row groups, which fails on these engine outputs.
+
+### Decision
+Use `pyarrow.parquet.ParquetFile(path).read()` for local parquet reads in IG. It reads a single file directly and avoids the dataset‑level schema merge.
+
+### Change applied
+- `src/fraud_detection/ingestion_gate/engine_pull.py`: replace `pq.read_table(local)` with `pq.ParquetFile(local).read()` for `.parquet` files.
+
+### Expected outcome
+IG pull should now ingest engine parquet outputs without the schema merge error, yielding `COMPLETED` instead of `PARTIAL` for outputs that are otherwise valid.
