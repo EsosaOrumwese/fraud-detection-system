@@ -98,7 +98,13 @@ class IngestionGate:
         admission_index = AdmissionIndex(Path(wiring.admission_db_path))
         ops_index = OpsIndex(Path(wiring.admission_db_path))
         bus = _build_bus(wiring)
-        health = HealthProbe(store, bus, ops_index, wiring.health_probe_interval_seconds)
+        health = HealthProbe(
+            store,
+            bus,
+            ops_index,
+            wiring.health_probe_interval_seconds,
+            wiring.bus_publish_failure_threshold,
+        )
         metrics = MetricsRecorder(flush_interval_seconds=wiring.metrics_flush_seconds)
         governance = GovernanceEmitter(
             store=store,
@@ -203,7 +209,7 @@ class IngestionGate:
             self._record_ops_receipt(receipt_payload, receipt_ref)
             self.metrics.record_decision("DUPLICATE")
             self.metrics.record_latency("admission_seconds", time.perf_counter() - start)
-            self.metrics.flush_if_due({"policy_rev": self.policy_rev.revision})
+            self.metrics.flush_if_due(self._metrics_context(envelope))
             return decision, receipt
 
         try:
@@ -213,7 +219,9 @@ class IngestionGate:
             return self._quarantine(envelope, exc, start)
         except Exception as exc:
             logger.exception("IG event bus publish error")
+            self.health.record_publish_failure()
             return self._quarantine(envelope, IngestionError("EB_PUBLISH_FAILED"), start)
+        self.health.record_publish_success()
         logger.info(
             "IG admitted event_id=%s event_type=%s topic=%s partition=%s offset=%s",
             envelope.get("event_id"),
@@ -243,7 +251,7 @@ class IngestionGate:
         self._record_ops_receipt(receipt_payload, receipt_ref)
         self.metrics.record_decision("ADMIT")
         self.metrics.record_latency("admission_seconds", time.perf_counter() - start)
-        self.metrics.flush_if_due({"policy_rev": self.policy_rev.revision})
+        self.metrics.flush_if_due(self._metrics_context(envelope))
         return decision, receipt
 
     def _quarantine(
@@ -300,9 +308,27 @@ class IngestionGate:
         self.metrics.record_decision("QUARANTINE", code)
         self.metrics.record_latency("admission_seconds", time.perf_counter() - started_at)
         self.governance.emit_quarantine_spike(self.metrics.counters.get("decision.QUARANTINE", 0))
-        self.metrics.flush_if_due({"policy_rev": self.policy_rev.revision})
+        self.metrics.flush_if_due(self._metrics_context(envelope))
         receipt = Receipt(payload=receipt_payload)
         return decision, receipt
+
+    def _metrics_context(self, envelope: dict[str, Any]) -> dict[str, Any]:
+        pins = {
+            "manifest_fingerprint": envelope.get("manifest_fingerprint"),
+            "parameter_hash": envelope.get("parameter_hash"),
+            "seed": envelope.get("seed"),
+            "scenario_id": envelope.get("scenario_id"),
+            "run_id": envelope.get("run_id"),
+        }
+        return {
+            "policy_rev": {
+                "policy_id": self.policy_rev.policy_id,
+                "revision": self.policy_rev.revision,
+                "content_digest": self.policy_rev.content_digest,
+            },
+            "event_type": envelope.get("event_type"),
+            "pins": _prune_none(pins),
+        }
 
     def _validate_envelope(self, envelope: dict[str, Any]) -> None:
         self.schema_enforcer.validate_envelope(envelope)
@@ -341,6 +367,10 @@ class IngestionGate:
             raise IngestionError("IG_UNHEALTHY", ",".join(result.reasons))
         if result.state == HealthState.AMBER:
             logger.warning("IG health amber reasons=%s", ",".join(result.reasons))
+            if self.wiring.health_deny_on_amber:
+                raise IngestionError("IG_UNHEALTHY", "AMBER")
+            if self.wiring.health_amber_sleep_seconds > 0:
+                time.sleep(self.wiring.health_amber_sleep_seconds)
 
     def _record_ops_receipt(self, payload: dict[str, Any], receipt_ref: str) -> None:
         try:

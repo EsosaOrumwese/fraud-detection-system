@@ -3,6 +3,7 @@ from pathlib import Path
 
 from fraud_detection.ingestion_gate.ops_index import OpsIndex
 from fraud_detection.ingestion_gate.policy_digest import compute_policy_digest
+from fraud_detection.ingestion_gate.store import LocalObjectStore
 
 
 def test_policy_digest_is_deterministic(tmp_path: Path) -> None:
@@ -45,3 +46,30 @@ def test_ops_index_records_and_looks_up(tmp_path: Path) -> None:
     index.record_quarantine(quarantine_payload, "fraud-platform/ig/quarantine/q.json", "evt-2")
     # ensure no exceptions and DB probe works
     assert index.probe() is True
+
+
+def test_ops_index_rebuild_from_store(tmp_path: Path) -> None:
+    store = LocalObjectStore(tmp_path)
+    receipt_payload = {
+        "receipt_id": "b" * 32,
+        "event_id": "evt-9",
+        "event_type": "test_event",
+        "dedupe_key": "e" * 64,
+        "decision": "ADMIT",
+        "policy_rev": {"policy_id": "ig", "revision": "v2", "content_digest": "f" * 64},
+        "pins": {"manifest_fingerprint": "c" * 64},
+        "eb_ref": {"topic": "fp.bus.traffic.v1", "partition": 0, "offset": 2},
+    }
+    quarantine_payload = {
+        "quarantine_id": "q" * 32,
+        "decision": "QUARANTINE",
+        "reason_codes": ["SCHEMA_FAIL"],
+        "policy_rev": {"policy_id": "ig", "revision": "v2", "content_digest": "f" * 64},
+        "pins": {"manifest_fingerprint": "c" * 64},
+    }
+    store.write_json("fraud-platform/ig/receipts/b.json", receipt_payload)
+    store.write_json("fraud-platform/ig/quarantine/q.json", quarantine_payload)
+
+    index = OpsIndex(tmp_path / "ops.db")
+    index.rebuild_from_store(store)
+    assert index.lookup_event("evt-9") is not None

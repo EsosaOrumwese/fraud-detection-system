@@ -13,3 +13,11 @@ policies:
     class: traffic
     schema_version_required: false
     payload_schema_ref: docs/model_spec/data-engine/layer-3/specs/contracts/6B/schemas.6B.yaml#/egress/s3_flow_anchor_with_fraud_6B
+  - event_type: ig.policy.activation
+    class: audit
+    schema_version_required: false
+    payload_schema_ref: docs/model_spec/platform/contracts/ingestion_gate/ig_policy_activation.schema.yaml
+  - event_type: ig.quarantine.spike
+    class: audit
+    schema_version_required: false
+    payload_schema_ref: docs/model_spec/platform/contracts/ingestion_gate/ig_quarantine_spike.schema.yaml

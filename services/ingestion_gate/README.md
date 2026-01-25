@@ -14,6 +14,15 @@ python -m fraud_detection.ingestion_gate.cli --profile config/platform/profiles/
 Run push ingestion:
 ```
 python -m fraud_detection.ingestion_gate.cli --profile config/platform/profiles/local.yaml --push-file <path-to-envelope.json>
+
+Lookup outcomes:
+```
+python -m fraud_detection.ingestion_gate.cli --profile config/platform/profiles/local.yaml --lookup-event-id <event_id>
+python -m fraud_detection.ingestion_gate.cli --profile config/platform/profiles/local.yaml --lookup-receipt-id <receipt_id>
+python -m fraud_detection.ingestion_gate.cli --profile config/platform/profiles/local.yaml --lookup-dedupe-key <dedupe_key>
+python -m fraud_detection.ingestion_gate.cli --profile config/platform/profiles/local.yaml --rebuild-index
+python -m fraud_detection.ingestion_gate.cli --profile config/platform/profiles/local.yaml --health
+```
 ```
 
 ## Notes

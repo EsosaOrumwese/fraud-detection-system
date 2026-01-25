@@ -2,9 +2,11 @@
 
 from __future__ import annotations
 
-import hashlib
-from dataclasses import dataclass
+from collections import deque
+from dataclasses import dataclass, field
 from datetime import datetime, timezone
+import hashlib
+import json
 from typing import Any
 
 from .event_bus import EventBusPublisher
@@ -20,6 +22,8 @@ class GovernanceEmitter:
     quarantine_spike_threshold: int
     quarantine_spike_window_seconds: int
     policy_id: str
+    _quarantine_ts: deque[float] = field(default_factory=deque)
+    _last_spike_ts: float | None = None
 
     def emit_policy_activation(self, policy_rev: dict[str, Any]) -> None:
         digest = policy_rev.get("content_digest")
@@ -42,11 +46,19 @@ class GovernanceEmitter:
         self._emit_audit(envelope)
 
     def emit_quarantine_spike(self, count: int) -> None:
-        if count < self.quarantine_spike_threshold:
+        now = datetime.now(tz=timezone.utc).timestamp()
+        window_start = now - self.quarantine_spike_window_seconds
+        while self._quarantine_ts and self._quarantine_ts[0] < window_start:
+            self._quarantine_ts.popleft()
+        self._quarantine_ts.append(now)
+        if len(self._quarantine_ts) < self.quarantine_spike_threshold:
             return
+        if self._last_spike_ts and (now - self._last_spike_ts) < self.quarantine_spike_window_seconds:
+            return
+        self._last_spike_ts = now
         payload = {
             "policy_id": self.policy_id,
-            "quarantine_count": count,
+            "quarantine_count": len(self._quarantine_ts),
             "window_seconds": self.quarantine_spike_window_seconds,
             "detected_at_utc": datetime.now(tz=timezone.utc).isoformat(),
         }
@@ -62,8 +74,8 @@ class GovernanceEmitter:
 
 def _make_envelope(event_type: str, payload: dict[str, Any]) -> dict[str, Any]:
     ts = datetime.now(tz=timezone.utc).isoformat()
-    base = f"{event_type}:{ts}"
-    event_id = hashlib.sha256(base.encode("utf-8")).hexdigest()
+    encoded = json.dumps(payload, sort_keys=True, ensure_ascii=True, separators=(",", ":"))
+    event_id = hashlib.sha256(f"{event_type}:{ts}:{encoded}".encode("utf-8")).hexdigest()
     return {
         "event_id": event_id,
         "event_type": event_type,

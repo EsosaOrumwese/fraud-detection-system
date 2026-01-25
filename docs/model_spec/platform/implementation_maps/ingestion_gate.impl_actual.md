@@ -341,3 +341,60 @@ Proceed section‑by‑section (2.1→2.4) with hardened behavior and tests. Pri
   - Initial failures due to missing audit partition profile in test fixtures.
   - Fixed by adding audit profile to test partitioning profile.
   - Final result: **7 passed**.
+
+---
+
+## Entry: 2026-01-25 08:06:54 — IG Phase 2 hardening round 2 (health, spike window, ops rebuild, telemetry tags, governance schemas)
+
+### Problem / goal
+Close the remaining Phase‑2 hardening gaps:
+1) EB health for non‑file buses + explicit throttle/deny logic.
+2) Real quarantine spike detection over a rolling window.
+3) Ops index durability: more lookups + rebuild tool from object store.
+4) Metrics + logs tagged with ContextPins + policy_rev.
+5) Governance event schemas (and explicit policy allowlist).
+
+### Decision trail (live)
+- **EB health probe:** for non‑file buses, we must not assume green. We’ll implement a generic “unknown” → AMBER and allow wiring‑specific probes later, but enforce RED when EB publish fails repeatedly (rate‑limited circuit). This avoids false greens.
+- **Spike window:** using counters alone is misleading; implement a rolling deque of timestamps and emit at most once per window to avoid alert storms.
+- **Ops rebuild:** the DB is a cache; add a rebuild CLI path that scans receipts/quarantine objects and repopulates the index. This is mandatory for recovery after DB loss.
+- **Telemetry tags:** metrics flush and logs must include pins + policy_rev; do not leak payloads.
+- **Governance schemas:** add minimal schemas for `ig.policy.activation` and `ig.quarantine.spike` and add them to schema policy allowlist so IG’s own events are explicitly governed.
+
+### Implementation intent (stepwise)
+1) Extend HealthProbe with EB‑specific probes:
+   - file bus: directory probe (GREEN)
+   - non‑file: UNKNOWN → AMBER; add a failure counter and RED if recent publish failures exceed threshold.
+2) Implement `QuarantineSpikeDetector` with deque + windowed threshold.
+3) Expand OpsIndex lookups (by dedupe_key, receipt_id) and add rebuild from object store (scan `ig/receipts/*.json`, `ig/quarantine/*.json`).
+4) Add metrics/log tagging with pins + policy_rev in a structured envelope; ensure no payloads leak.
+5) Add governance event schemas under `docs/model_spec/platform/contracts/ingestion_gate/` and update `config/platform/ig/schema_policy_v0.yaml` to allow them.
+
+---
+
+## Entry: 2026-01-25 08:17:39 — IG Phase 2 hardening round 2 complete (all five items)
+
+### Implementation decisions applied
+- **EB health for non‑file buses:** health probe now reports BUS_HEALTH_UNKNOWN → AMBER until failures exceed a threshold, then RED. Publish failures increment the counter; successes reset it. RED causes intake refusal; AMBER logs + optional throttle/deny based on config.
+- **Rolling spike window:** quarantine spikes are now detected by a deque of timestamps within a window; emits at most once per window to avoid alert storms.
+- **Ops rebuild:** ops index can now rebuild itself by scanning object store receipts/quarantines (local filesystem or S3 list). Added lookup by dedupe_key and CLI rebuild/lookup flags.
+- **Telemetry tags:** metrics flush now includes policy_rev + pins (no payloads), making observability aligned with ContextPins.
+- **Governance schemas:** added payload schemas for `ig.policy.activation` and `ig.quarantine.spike`, and allowlisted both in IG schema policy + class map as `audit`.
+
+### Files updated / added
+- Updated: `src/fraud_detection/ingestion_gate/health.py` (bus failure threshold + AMBER/RED logic)
+- Updated: `src/fraud_detection/ingestion_gate/admission.py` (health throttle/deny, ops/metrics tags, publish failure accounting)
+- Updated: `src/fraud_detection/ingestion_gate/governance.py` (rolling spike window, deterministic event_id hashing, default_factory fix)
+- Updated: `src/fraud_detection/ingestion_gate/ops_index.py` (lookup by dedupe, rebuild from store)
+- Updated: `src/fraud_detection/ingestion_gate/cli.py` (lookup by dedupe + rebuild index)
+- Updated: `src/fraud_detection/ingestion_gate/config.py` (health config knobs)
+- Added: `docs/model_spec/platform/contracts/ingestion_gate/ig_policy_activation.schema.yaml`
+- Added: `docs/model_spec/platform/contracts/ingestion_gate/ig_quarantine_spike.schema.yaml`
+- Updated: `config/platform/ig/schema_policy_v0.yaml`, `config/platform/ig/class_map_v0.yaml`
+- Added tests: `tests/services/ingestion_gate/test_health_governance.py`
+- Updated tests: `tests/services/ingestion_gate/test_ops_index.py`, `tests/services/ingestion_gate/test_admission.py`
+
+### Tests run / outcomes
+- `python -m pytest tests/services/ingestion_gate/test_admission.py tests/services/ingestion_gate/test_ops_index.py tests/services/ingestion_gate/test_health_governance.py -q`
+  - Initial failure due to `deque` mutable default in governance emitter → fixed with `default_factory`.
+  - Final result: **10 passed**.

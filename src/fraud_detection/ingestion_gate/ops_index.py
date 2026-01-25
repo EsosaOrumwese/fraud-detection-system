@@ -139,6 +139,22 @@ class OpsIndex:
             "receipt_ref": row[4],
         }
 
+    def lookup_dedupe(self, dedupe_key: str) -> dict[str, Any] | None:
+        with self._connect() as conn:
+            row = conn.execute(
+                "SELECT receipt_id, event_id, event_type, decision, receipt_ref FROM receipts WHERE dedupe_key = ?",
+                (dedupe_key,),
+            ).fetchone()
+        if not row:
+            return None
+        return {
+            "receipt_id": row[0],
+            "event_id": row[1],
+            "event_type": row[2],
+            "decision": row[3],
+            "receipt_ref": row[4],
+        }
+
     def lookup_event(self, event_id: str) -> dict[str, Any] | None:
         with self._connect() as conn:
             row = conn.execute(
@@ -155,6 +171,19 @@ class OpsIndex:
             "receipt_ref": row[4],
         }
 
+    def rebuild_from_store(
+        self,
+        store: Any,
+        receipts_prefix: str = "fraud-platform/ig/receipts",
+        quarantine_prefix: str = "fraud-platform/ig/quarantine",
+    ) -> None:
+        self._clear()
+        for payload, ref in _iter_store_json(store, receipts_prefix):
+            self.record_receipt(payload, ref)
+        for payload, ref in _iter_store_json(store, quarantine_prefix):
+            event_id = payload.get("event_id") if isinstance(payload, dict) else None
+            self.record_quarantine(payload, ref, event_id)
+
     def probe(self) -> bool:
         try:
             with self._connect() as conn:
@@ -166,8 +195,39 @@ class OpsIndex:
     def _connect(self) -> sqlite3.Connection:
         return sqlite3.connect(self.path)
 
+    def _clear(self) -> None:
+        with self._connect() as conn:
+            conn.execute("DELETE FROM receipts")
+            conn.execute("DELETE FROM quarantines")
+            conn.commit()
+
 
 def _json_dump(value: Any) -> str | None:
     if value is None:
         return None
     return json.dumps(value, sort_keys=True, ensure_ascii=True, separators=(",", ":"))
+
+
+def _iter_store_json(store: Any, prefix: str) -> list[tuple[dict[str, Any], str]]:
+    from .store import LocalObjectStore, S3ObjectStore
+
+    results: list[tuple[dict[str, Any], str]] = []
+    if isinstance(store, LocalObjectStore):
+        root = store.root / prefix
+        if root.exists():
+            for path in root.glob("*.json"):
+                payload = json.loads(path.read_text(encoding="utf-8"))
+                results.append((payload, str(path)))
+        return results
+    if isinstance(store, S3ObjectStore):
+        client = store._client  # internal client
+        prefix_key = store._key(prefix + "/")
+        paginator = client.get_paginator("list_objects_v2")
+        for page in paginator.paginate(Bucket=store.bucket, Prefix=prefix_key):
+            for item in page.get("Contents", []):
+                key = item["Key"]
+                obj = client.get_object(Bucket=store.bucket, Key=key)
+                payload = json.loads(obj["Body"].read().decode("utf-8"))
+                results.append((payload, f"s3://{store.bucket}/{key}"))
+        return results
+    return results

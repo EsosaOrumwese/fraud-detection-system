@@ -27,6 +27,9 @@ class WiringProfile:
     sr_ledger_prefix: str
     engine_root_path: str | None
     health_probe_interval_seconds: int
+    health_deny_on_amber: bool
+    health_amber_sleep_seconds: float
+    bus_publish_failure_threshold: int
     metrics_flush_seconds: int
     quarantine_spike_threshold: int
     quarantine_spike_window_seconds: int
@@ -78,6 +81,9 @@ class WiringProfile:
             sr_ledger_prefix=wiring.get("sr_ledger_prefix", "fraud-platform/sr"),
             engine_root_path=wiring.get("engine_root_path"),
             health_probe_interval_seconds=int(wiring.get("health_probe_interval_seconds", 30)),
+            health_deny_on_amber=bool(wiring.get("health_deny_on_amber", False)),
+            health_amber_sleep_seconds=float(wiring.get("health_amber_sleep_seconds", 0)),
+            bus_publish_failure_threshold=int(wiring.get("bus_publish_failure_threshold", 3)),
             metrics_flush_seconds=int(wiring.get("metrics_flush_seconds", 30)),
             quarantine_spike_threshold=int(wiring.get("quarantine_spike_threshold", 25)),
             quarantine_spike_window_seconds=int(wiring.get("quarantine_spike_window_seconds", 60)),

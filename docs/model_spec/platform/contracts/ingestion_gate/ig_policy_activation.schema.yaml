@@ -1,0 +1,23 @@
+$schema: https://json-schema.org/draft/2020-12/schema
+$id: ig_policy_activation.schema.yaml
+title: IG Policy Activation Payload
+type: object
+additionalProperties: false
+required:
+  - policy_id
+  - revision
+  - content_digest
+  - activated_at_utc
+properties:
+  policy_id:
+    type: string
+    minLength: 1
+  revision:
+    type: string
+    minLength: 1
+  content_digest:
+    type: string
+    pattern: "^[0-9a-f]{64}$"
+  activated_at_utc:
+    type: string
+    minLength: 1

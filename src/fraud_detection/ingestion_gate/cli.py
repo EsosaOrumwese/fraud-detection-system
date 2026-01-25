@@ -18,6 +18,8 @@ def main() -> None:
     parser.add_argument("--push-file", help="Path to envelope JSON for push ingestion")
     parser.add_argument("--lookup-event-id", help="Lookup receipt by event_id")
     parser.add_argument("--lookup-receipt-id", help="Lookup receipt by receipt_id")
+    parser.add_argument("--lookup-dedupe-key", help="Lookup receipt by dedupe_key")
+    parser.add_argument("--rebuild-index", action="store_true", help="Rebuild ops index from object store")
     parser.add_argument("--health", action="store_true", help="Print IG health probe state")
     args = parser.parse_args()
 
@@ -32,6 +34,14 @@ def main() -> None:
     if args.lookup_receipt_id:
         result = gate.ops_index.lookup_receipt(args.lookup_receipt_id)
         print(json.dumps(result or {}, ensure_ascii=True))
+        return
+    if args.lookup_dedupe_key:
+        result = gate.ops_index.lookup_dedupe(args.lookup_dedupe_key)
+        print(json.dumps(result or {}, ensure_ascii=True))
+        return
+    if args.rebuild_index:
+        gate.ops_index.rebuild_from_store(gate.store)
+        print("REBUILT=1")
         return
     if args.health:
         result = gate.health.check()
