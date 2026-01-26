@@ -40,6 +40,10 @@ Notes:
 - Optional per‑session logs live under `runs/fraud-platform/platform_runs/<platform_run_id>/platform.log` when a run ID is set.
 - `pull_time_budget_seconds` (profile wiring) can cap local smoke runs; leave unset for production.
 
+Local vs dev testing (current):
+- **Local smoke**: `config/platform/profiles/local.yaml` (time‑budgeted).
+- **Dev completion**: `config/platform/profiles/dev_local.yaml` (uncapped).
+
 ## Service (local)
 Run HTTP service:
 ```

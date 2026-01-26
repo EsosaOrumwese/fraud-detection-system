@@ -65,3 +65,8 @@ Notes:
 - `ready_lease` enables **distributed READY** consumption. Postgres advisory locks are recommended for multi‑instance deployments.
 - `pull_sharding` defaults to `output_id` for v0; `locator_range` is opt‑in for large outputs.
 - `pull_time_budget_seconds` is optional and intended for **local smoke runs**; leave unset for production.
+
+Testing policy (current):
+- **local.yaml** → smoke validation only (bounded with `pull_time_budget_seconds`).
+- **dev_local.yaml** → completion runs (uncapped; uses local filesystem).
+- **dev.yaml** → reserved for true dev infra (S3/RDS/etc.) when available.

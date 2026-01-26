@@ -54,6 +54,7 @@ Provide a platform-wide, production-shaped build plan for v0 that aligns compone
 - Local/dev/prod profile schema pinned with clear separation between **policy config** and **wiring config**.
 - Policy config is versioned and referenced by revision in receipts/outcomes where applicable.
 - Promotion concept documented as profile change, not code change.
+- Testing policy pinned: **local = smoke**, **dev = completion** (uncapped).
 
 #### Phase 1.5 — Security + secrets posture
 **Goal:** prevent provenance drift and avoid credential leakage.

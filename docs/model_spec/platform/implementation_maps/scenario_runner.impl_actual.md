@@ -3499,3 +3499,13 @@ User wants a **platform run ID** to separate runs and a shared platform log that
 ### Change
 - Added Make target + README note so operators can re‑emit READY for the same run_id (needed for checkpointed pulls).
 
+
+## Entry: 2026-01-25 23:59:40 — Policy: local smoke vs dev completion
+
+### Decision
+- Local testing is **smoke‑only** with time budget caps.
+- Dev testing is **completion‑grade** (no cap) to validate full READY ingestion.
+
+### Why
+Local hardware can’t finish large engine outputs within 10 minutes; the cap is necessary for deterministic smoke validation. Dev runs must prove full completion without weakening production semantics.
+

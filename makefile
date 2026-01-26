@@ -2519,6 +2519,7 @@ SR_WINDOW_START ?= 2026-01-01T00:00:00Z
 SR_WINDOW_END ?= 2026-01-02T00:00:00Z
 
 IG_PROFILE ?= config/platform/profiles/local.yaml
+IG_PROFILE_DEV ?= config/platform/profiles/dev_local.yaml
 IG_READY_LEASE_DSN ?= postgresql://sr:sr@localhost:5433/sr_dev
 IG_INSTANCE_ID ?= ig-1
 IG_INSTANCE_ID_2 ?= ig-2
@@ -2583,6 +2584,12 @@ platform-ig-ready-once:
 	@IG_READY_LEASE_DSN="$(IG_READY_LEASE_DSN)" \
 	 IG_INSTANCE_ID="$(IG_INSTANCE_ID)" \
 	 $(PY_SCRIPT) -m fraud_detection.ingestion_gate.ready_consumer --profile "$(IG_PROFILE)" --once
+
+.PHONY: platform-ig-ready-once-dev
+platform-ig-ready-once-dev:
+	@IG_READY_LEASE_DSN="$(IG_READY_LEASE_DSN)" \
+	 IG_INSTANCE_ID="$(IG_INSTANCE_ID)" \
+	 $(PY_SCRIPT) -m fraud_detection.ingestion_gate.ready_consumer --profile "$(IG_PROFILE_DEV)" --once
 
 platform-ig-ready-dual:
 	@if [ -z "$(IG_READY_LEASE_DSN)" ]; then \

@@ -1348,3 +1348,32 @@ User selected **Option 2**: enable sharded pulls in `local.yaml` and re‑run RE
 1) Increase `pull_time_budget_seconds` (local only) so at least one shard completes.
 2) Implement finer‑grain chunking for parquet (row‑group or row‑batch checkpoints) to allow progress within a single file.
 
+
+## Entry: 2026-01-25 23:59:40 — Applied: dev_local completion profile
+
+### What changed
+- Added `config/platform/profiles/dev_local.yaml` to support **uncapped completion runs** on local filesystem.
+- Kept `local.yaml` as a **time‑budgeted smoke** profile.
+
+### Operational intent
+- Local smoke: validate READY → IG ingestion pipeline with bounded time budget.
+- Dev completion: run the same READY pipeline to full completion without time cap.
+
+
+## Entry: 2026-01-26 02:15:30 — Dev completion run attempt (uncapped) timed out locally
+
+### What was attempted
+- Re‑emitted READY for run_id `40dfb540e134f8bb8eb3585da3aeee7a`.
+- Ran `make platform-ig-ready-once-dev` (uncapped profile) for 2 hours.
+
+### Outcome
+- The READY consumer did not complete within the 2‑hour window.
+- No new `run_id` status was written (process terminated before `PULL_COMPLETED`).
+- Local hardware/time budget is insufficient for full completion on this dataset.
+
+### Next decision required
+To mark dev completion green, we need one of:
+1) Run on stronger dev infra (actual dev environment) with no cap.
+2) Implement finer‑grain parquet chunking (row‑group/row‑batch checkpoints).
+3) Use a smaller engine run for dev completion (explicitly documented as a scaled validation).
+

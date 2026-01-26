@@ -456,3 +456,31 @@ This enables repeated READY emission for the same run_id so IG can progress thro
 ### Fix
 - Updated Makefile default to `READY_ONLY` and aligned README example.
 
+
+## Entry: 2026-01-25 23:59:40 — Applied: local smoke vs dev completion policy
+
+### Applied changes
+1) **Profiles**
+   - Added `config/platform/profiles/dev_local.yaml` (uncapped, local filesystem) for completion runs.
+   - `local.yaml` remains time‑budgeted for smoke.
+
+2) **Makefile**
+   - Added `IG_PROFILE_DEV` default and `platform-ig-ready-once-dev` target to run the completion profile without manual overrides.
+
+3) **Docs**
+   - `config/platform/profiles/README.md` now states the testing policy explicitly.
+   - `services/ingestion_gate/README.md` documents local vs dev usage.
+   - Platform build plan (Phase 1.4) now pins local smoke vs dev completion policy.
+
+### Rationale
+Local smoke must be fast and deterministic; dev completion must be uncapped to validate full ingestion. This keeps production semantics intact while giving clear expectations for each environment.
+
+
+## Entry: 2026-01-26 02:15:30 — Dev completion run blocked by local hardware
+
+### Observation
+An uncapped dev completion run on local hardware did not finish within 2 hours. This confirms that **full completion must be executed on stronger dev infra** or with more granular chunking.
+
+### Implication
+Local remains smoke‑only. Dev completion requires either a real dev environment or additional chunking work if we must complete locally.
+

@@ -1,0 +1,27 @@
+profile_id: dev_local
+policy:
+  policy_rev: dev-local-v0
+  partitioning_profiles_ref: config/platform/ig/partitioning_profiles_v0.yaml
+  partitioning_profile_id: ig.partitioning.v0.traffic
+  require_gate_pass: true
+wiring:
+  object_store:
+    root: runs
+    bucket: fraud-platform
+    endpoint: ${OBJECT_STORE_ENDPOINT}
+  event_bus:
+    topic_traffic: fp.bus.traffic.v1
+    topic_control: fp.bus.control.v1
+    topic_audit: fp.bus.audit.v1
+  control_bus:
+    kind: file
+    root: runs/fraud-platform/control_bus
+    topic: fp.bus.control.v1
+  ready_lease:
+    backend: postgres
+    dsn: ${IG_READY_LEASE_DSN}
+    namespace: ig_ready
+    owner_id: ${IG_INSTANCE_ID}
+  pull_sharding:
+    mode: locator_range
+    shard_size: 1
