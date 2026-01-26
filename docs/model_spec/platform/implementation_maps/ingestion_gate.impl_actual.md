@@ -1291,3 +1291,60 @@ User approved the recommendation to add a **time budget** for local IG pulls and
 ### Notes
 - The time budget is a local operator guard; production defaults remain uncapped.
 
+
+## Entry: 2026-01-25 23:30:20 — Enable local sharded pulls + READY reemit workflow
+
+### Trigger
+User selected **Option 2**: enable sharded pulls in `local.yaml` and re‑run READY ingestion until `PULL_COMPLETED` is observed.
+
+### Live reasoning (what must change)
+- With `pull_time_budget_seconds=600`, a full pull can’t finish in one pass. We need **checkpointed sharding** so each READY run advances progress without re‑processing.
+- The READY consumer dedupes by `message_id`, so to re‑process the *same* run_id we must **re‑emit READY** with a new message_id (SR `reemit` command).
+- For local workflow, a Make target for **SR reemit** keeps everything centralized (no manual CLI or PowerShell).
+
+### Plan (before code)
+1) Update `config/platform/profiles/local.yaml` to enable sharding:
+   - `pull_sharding.mode: locator_range`
+   - `pull_sharding.shard_size: 1`
+2) Add Make target `platform-sr-reemit-ready` (or generic reemit) so we can publish a new READY message for a given `run_id` without creating a new SR run.
+3) Re‑run READY ingestion in cycles:
+   - SR reemit READY → IG ready once → check `runs/fraud-platform/ig/pull_runs/run_id=<id>.json`.
+   - Continue until `status=COMPLETED` (or pause if it’s clear multiple cycles are needed).
+
+### Guardrails
+- Engine remains untouched.
+- No secrets in docs/logs.
+
+
+## Entry: 2026-01-25 23:33:10 — Applied: enable local sharded pulls + SR reemit target
+
+### Applied changes
+1) **Local profile sharding**
+   - `config/platform/profiles/local.yaml` now enables:
+     - `pull_sharding.mode: locator_range`
+     - `pull_sharding.shard_size: 1`
+   This makes each READY pass checkpointable by locator shards under the time budget.
+
+2) **SR READY reemit workflow**
+   - Added `make platform-sr-reemit` target to publish a new READY message for an existing run_id.
+   - This is required because READY consumer dedupes by `message_id`, not `run_id`.
+
+### Next validation
+- Re‑emit READY for the existing run_id and re‑run IG READY once to advance checkpoints.
+- Repeat until pull status shows `COMPLETED`.
+
+
+## Entry: 2026-01-25 23:56:10 — Sharded pull attempt under 10‑min budget (still PARTIAL)
+
+### What happened
+- Enabled `locator_range` sharding (size=1) and re‑emitted READY for run_id `40dfb540e134f8bb8eb3585da3aeee7a`.
+- IG READY pull ran for the full 10‑minute budget and still exited as `PARTIAL` with `TIME_BUDGET_EXCEEDED` on **shard_id=0** of `arrival_events_5B`.
+
+### Interpretation
+- The first parquet shard itself takes longer than 10 minutes to ingest; sharding by locator alone doesn’t create smaller work units.
+- Re‑emitting READY will **not** advance checkpoints because shard 0 never completes.
+
+### Next viable options
+1) Increase `pull_time_budget_seconds` (local only) so at least one shard completes.
+2) Implement finer‑grain chunking for parquet (row‑group or row‑batch checkpoints) to allow progress within a single file.
+

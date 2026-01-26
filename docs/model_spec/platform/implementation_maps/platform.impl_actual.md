@@ -425,3 +425,34 @@ User approved the plan to introduce **platform run IDs** and session‑scoped lo
 - No secrets are written to session files; these are metadata‑only.
 - SR/IG ledgers remain unchanged.
 
+
+## Entry: 2026-01-25 23:30:20 — Workflow support for SR READY reemit (Makefile)
+
+### Reasoning
+To progress sharded IG pulls under a local time budget, we need a safe way to **re‑emit READY** for an existing run_id without creating a new SR run. The most consistent workflow surface is a Make target (no scripts).
+
+### Planned change
+- Add a Make target that wraps `python -m fraud_detection.scenario_runner.cli reemit` with:
+  - `SR_REEMIT_RUN_ID` (required)
+  - optional `SR_REEMIT_KIND` (default READY)
+
+This keeps local workflow centralized while preserving SR ownership semantics.
+
+
+## Entry: 2026-01-25 23:33:10 — Applied: Make target for SR reemit
+
+### Change
+- Added `platform-sr-reemit` Make target to call `fraud_detection.scenario_runner.cli reemit` with required `SR_REEMIT_RUN_ID` and optional `SR_REEMIT_KIND` (default READY).
+
+### Why
+This enables repeated READY emission for the same run_id so IG can progress through sharded checkpoints under a local time budget.
+
+
+## Entry: 2026-01-25 23:35:15 — Fix: SR reemit kind default
+
+### Issue
+`platform-sr-reemit` initially defaulted to `ready`, but the CLI accepts only `READY_ONLY|TERMINAL_ONLY|BOTH`.
+
+### Fix
+- Updated Makefile default to `READY_ONLY` and aligned README example.
+

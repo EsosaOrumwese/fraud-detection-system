@@ -2509,6 +2509,8 @@ SR_WIRING ?= config/platform/sr/wiring_local.yaml
 SR_POLICY ?= config/platform/sr/policy_v0.yaml
 SR_ENGINE_RUN_ROOT ?= runs/local_full_run-5/c25a2675fbfbacd952b13bb594880e92
 SR_RUN_EQUIVALENCE_KEY ?= local_full_run_5_reuse
+SR_REEMIT_RUN_ID ?=
+SR_REEMIT_KIND ?= READY_ONLY
 SR_MANIFEST_FINGERPRINT ?= c8fd43cd60ce0ede0c63d2ceb4610f167c9b107e1d59b9b8c7d7b8d0028b05c8
 SR_PARAMETER_HASH ?= 56d45126eaabedd083a1d8428a763e0278c89efec5023cfd6cf3cab7fc8dd2d7
 SR_SEED ?= 42
@@ -2563,6 +2565,18 @@ platform-sr-run-reuse:
 		--window-start "$(SR_WINDOW_START)" \
 		--window-end "$(SR_WINDOW_END)" \
 		--engine-run-root "$(SR_ENGINE_RUN_ROOT)"
+
+.PHONY: platform-sr-reemit
+platform-sr-reemit:
+	@if [ -z "$(SR_REEMIT_RUN_ID)" ]; then \
+		echo "SR_REEMIT_RUN_ID is required for platform-sr-reemit." >&2; \
+		exit 1; \
+	fi
+	@$(PY_SCRIPT) -m fraud_detection.scenario_runner.cli reemit \
+		--wiring "$(SR_WIRING)" \
+		--policy "$(SR_POLICY)" \
+		--run-id "$(SR_REEMIT_RUN_ID)" \
+		--kind "$(SR_REEMIT_KIND)"
 
 .PHONY: platform-ig-ready-once platform-ig-ready-dual
 platform-ig-ready-once:

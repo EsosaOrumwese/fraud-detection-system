@@ -3486,3 +3486,16 @@ User wants a **platform run ID** to separate runs and a shared platform log that
 - Platform run ID resolution: `PLATFORM_RUN_ID` env → `ACTIVE_RUN_ID` file → generate on SR run.
 - No ledger paths or SR ownership semantics changed.
 
+
+## Entry: 2026-01-25 23:30:20 — Local sharding + reemit workflow (SR/IG loop)
+
+### What changed and why
+- Enabling sharded pulls in `local.yaml` requires a **READY reemit loop** to advance checkpoints under the time budget.
+- A Make target for SR reemit keeps this loop consistent with the Makefile‑only workflow directive.
+
+
+## Entry: 2026-01-25 23:33:10 — Applied: SR READY reemit workflow note
+
+### Change
+- Added Make target + README note so operators can re‑emit READY for the same run_id (needed for checkpointed pulls).
+

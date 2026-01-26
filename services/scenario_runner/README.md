@@ -95,3 +95,6 @@ Test tiers (Phase 8):
 CI gates (recommended):
 - PR gate: Tier 0 only.
 - Nightly/manual: Tier 1 + Tier 2 + Tier 3.
+
+Re‑emit READY (local, same run_id):
+- `make platform-sr-reemit SR_REEMIT_RUN_ID=<run_id> SR_REEMIT_KIND=READY_ONLY`
