@@ -222,6 +222,35 @@ Provide a progressive, component‑scoped build plan for the Ingestion Gate (IG)
 - Local profile sets a default cap (10 minutes).
 - Unit test validates deterministic budget behavior.
 
+---
+
+## Phase 7 — Streaming‑only alignment (docs + contracts)
+_This alignment supersedes the legacy pull‑ingest posture. IG becomes **push‑only**; READY/pull paths are retired._
+
+**Intent:** remove ambiguity: IG is a push boundary only; SR READY is a trigger for WSP (not IG).
+
+**DoD checklist:**
+- IG design authority and narratives explicitly state **push‑only** ingestion.
+- Any IG docs that mention READY‑triggered pull are marked **legacy/retired**.
+- Profiles remove READY/pull wiring in the default path (kept only as deprecated legacy stubs if necessary).
+
+## Phase 8 — Streaming‑only alignment (implementation retirement)
+**Intent:** remove READY consumer + pull ingestion code paths to prevent drift.
+
+**DoD checklist:**
+- READY consumer, pull store, and pull ingestion APIs are removed or hard‑disabled.
+- `run_facts_view` is no longer a runtime dependency for IG.
+- IG config fails closed if pull‑only settings are supplied (explicit error).
+- Push ingestion path remains unchanged and hardened.
+
+## Phase 9 — Streaming‑only alignment (validation)
+**Intent:** prove IG is stable without any pull path.
+
+**DoD checklist:**
+- Push ingestion tests remain green (schema + dedupe + receipts).
+- No tests rely on READY/pull ingestion.
+- Local smoke: WSP → IG push‑only path validated.
+
 ## Status (rolling)
 - Phase 1: complete (admission spine + run joinability + optional gate re-hash; unit tests added).
 - Phase 2: complete (policy digesting + ops index + health/ingress control + governance/metrics; tests green).
@@ -229,3 +258,4 @@ Provide a progressive, component‑scoped build plan for the Ingestion Gate (IG)
 - Phase 4: complete (service boundary + READY consumer + pull checkpoints implemented; Phase‑4 tests green).
 - Phase 5: complete (auth/rate limits + S3 run_facts support + retries/backpressure + per-phase metrics + runbook/alerts; tests green).
 - Phase 6: in progress (READY leases, optional sharding checkpoints, hash-chain integrity, audit CLI; time-budget guard done).
+- Phase 7–9: planned (streaming‑only alignment: docs → implementation → validation).

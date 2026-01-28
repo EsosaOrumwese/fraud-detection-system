@@ -1377,3 +1377,79 @@ To mark dev completion green, we need one of:
 2) Implement finer‑grain parquet chunking (row‑group/row‑batch checkpoints).
 3) Use a smaller engine run for dev completion (explicitly documented as a scaled validation).
 
+
+## Entry: 2026-01-28 20:34:06 — IG streaming‑only alignment planning (retire pull)
+
+### Trigger
+User directed IG to **prioritize streaming only** and retire legacy pull to avoid future confusion.
+
+### Decision (hard)
+- IG will be **push‑only** in v0. READY/pull ingestion is retired.
+- SR READY is now a **trigger for WSP**, not a trigger for IG.
+
+### Rationale
+- The platform’s primary data‑plane is WSP → IG (streaming). Maintaining a pull path risks role confusion and drift.
+- Oracle Store is external truth; IG should not pull directly from it in the primary runtime.
+
+### Planned alignment phases
+- **Phase A:** docs/contract alignment (push‑only posture, retire pull in docs + profiles).
+- **Phase B:** implementation retirement of pull/READY consumer code paths.
+- **Phase C:** validation of push‑only ingestion (WSP → IG) and removal of pull‑based tests.
+
+### Immediate changes
+- Added a streaming‑only alignment section to the IG build plan (A–C phases) and marked it as planned.
+
+---
+
+## Entry: 2026-01-28 20:37:42 — IG alignment phases renumbered (letters → numbers)
+
+### Change
+- Replaced Phase A/B/C with numeric phases to match repo conventions and avoid ambiguity:
+  - Phase 7 — docs/contracts alignment
+  - Phase 8 — implementation retirement (pull removal)
+  - Phase 9 — validation (push‑only green)
+
+### Reason
+User requested numeric phases; numeric ordering also integrates cleanly with existing IG phase numbering (1–6).
+
+---
+
+## Entry: 2026-01-28 20:51:13 — IG Phase 7 planning (streaming‑only docs + contracts)
+
+### Trigger
+User requested planning to implement IG Phase 7 (docs + contracts alignment) for streaming‑only posture.
+
+### Phase 7 scope (docs + contracts only)
+Phase 7 re‑scopes IG to **push‑only** ingestion in all design docs and contracts. It does **not** remove code paths yet (that is Phase 8). The goal is to remove ambiguity before implementation changes.
+
+### What must change (and why)
+1) **IG design authority**
+   - Must state IG is a push boundary (WSP → IG) and does **not** pull from Oracle Store.
+   - READY consumer and pull ingestion are explicitly labeled **legacy/retired**.
+
+2) **Platform narratives + blueprint**
+   - Control & Ingress narrative: IG receives events from WSP only.
+   - Platform blueprint: remove READY‑driven IG pull; SR READY triggers WSP, not IG.
+
+3) **IG contracts and profiles**
+   - IG contract docs should no longer present pull ingestion as default or required.
+   - Profiles should mark READY/pull wiring as deprecated (or remove from default examples).
+
+### Options considered
+- **Option A: Mark pull path as legacy (doc‑only), keep examples.**
+  - Rejected: still risks confusion in v0 where streaming‑only is now the law.
+- **Option B: Remove pull references from all docs and profile examples.**
+  - Selected: aligns with “streaming‑only” directive and prevents mixed‑mode assumptions.
+
+### Phase 7 plan (stepwise)
+1) Update `docs/model_spec/platform/component-specific/ingestion_gate.design-authority.md` to declare push‑only role.
+2) Update `docs/model_spec/platform/narrative/narrative_control_and_ingress.md` to reflect WSP → IG only.
+3) Update `docs/model_spec/platform/platform-wide/platform_blueprint_notes_v0.md` to remove IG pull from the primary path narrative.
+4) Update IG contract README / profile README to de‑emphasize pull and READY wiring.
+5) Log each decision as it is executed (no bulk summaries).
+
+### Out‑of‑scope
+- No code removal (Phase 8).
+- No test changes (Phase 9).
+
+---
