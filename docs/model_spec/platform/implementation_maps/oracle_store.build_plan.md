@@ -78,7 +78,7 @@ Define the **sealed world boundary** for engine outputs as an explicit platform 
 - Checker outputs stable reason codes (PACK_NOT_SEALED, LOCATOR_MISSING, GATE_PASS_MISSING, DIGEST_MISSING).
 - Operator guidance documented for retry vs terminal failure.
 
-**Status:** in progress.
+**Status:** complete.
 
 ### Phase 3 — Pack seal + manifest tooling
 **Intent:** make sealing explicit without touching engine internals.
@@ -105,6 +105,8 @@ Define the **sealed world boundary** for engine outputs as an explicit platform 
 - CLI can seal an existing local pack root **without** moving bytes (pack‑root alias).
 - Inputs can be derived from `run_facts_view` (pins + locators) or explicitly provided.
 - Seal + manifest writes are idempotent (create‑if‑absent; fail‑closed on mismatch).
+
+**Status:** in progress.
 
 ### Phase 4 — Ops + governance hardening
 **Intent:** immutability enforcement, auditability, and operational safety.

@@ -153,6 +153,55 @@ User asked to proceed to Phase 3 planning once Phase 2 hardening is done.
 
 ---
 
+## Entry: 2026-01-28 15:18:40 — Phase 3 implementation (packer + manifest + strict seal)
+
+### Live reasoning (decisions made)
+- **Manifest contents:** keep minimal but sufficient: `oracle_pack_id`, OracleWorldKey tokens, `engine_release`, `catalogue_digest`, `gate_map_digest`, `created_at_utc`. This anchors interpretation without dragging large payloads.
+- **OracleWorldKey tokens:** `{manifest_fingerprint, parameter_hash, scenario_id, seed}` only; `run_id` excluded per design.
+- **Pack id derivation:** sha256 over world key + engine_release + catalogue/gate_map digests to avoid collisions across engine versions.
+- **Write‑once semantics:** manifest + seal are written with create‑if‑absent; if the file exists and content differs → fail (no overwrite).
+- **Pack‑root alias support:** packer derives pack root from run_facts locators when not explicitly provided; if multiple roots → fail (ambiguity).
+- **Local safety:** packer refuses to seal if the local pack root directory does not exist (avoid sealing a phantom root).
+- **Strict‑seal posture:** dev/prod enforce seal markers by default; local allows unsealed until packer is in routine use.
+
+### What I implemented
+- Added Oracle packer (`src/fraud_detection/oracle_store/packer.py`) with:
+  - OracleWorldKey + manifest models
+  - pack root derivation from locators
+  - write‑once manifest + seal creation (`_oracle_pack_manifest.json`, `_SEALED.json`)
+- Added seal CLI (`src/fraud_detection/oracle_store/seal_cli.py`) that seals from `run_facts_view`.
+- Updated checker to report manifest metadata when present and emit `PACK_MANIFEST_MISSING` warnings.
+- Added Make target `platform-oracle-seal` with `ORACLE_ENGINE_RELEASE` + optional `ORACLE_PACK_ROOT`.
+- Added unit tests for packer write‑once + mismatch detection.
+
+---
+
+## Entry: 2026-01-28 15:32:10 — Packer idempotency fix + sample seal validation
+
+### What changed
+- Adjusted packer idempotency: manifest/seal comparisons now ignore timestamp fields and compare only identity‑critical fields.
+- Added local pack root existence check to avoid sealing non‑existent roots.
+
+### Validation (local/dev)
+- Sealed pack for `runs/local_full_run-5/c25a2675fbfbacd952b13bb594880e92` using `run_facts_view` (engine release `engine-local-v0`).
+- Strict‑seal check (dev_local) now passes with status **OK**.
+
+---
+
+## Entry: 2026-01-28 15:10:45 — Manifest schema + validation
+
+### What changed
+- Added Oracle Store contract schemas:
+  - `docs/model_spec/platform/contracts/oracle_store/oracle_pack_manifest.schema.yaml`
+  - `docs/model_spec/platform/contracts/oracle_store/oracle_pack_seal.schema.yaml`
+- Checker now validates manifests when present and reports `PACK_MANIFEST_INVALID` on schema failure.
+
+### Rationale
+- Schemas make pack metadata auditable and enforceable without embedding logic in the engine.
+- Validation keeps the seal/manifest tooling honest as we expand to dev/prod.
+
+---
+
 ## Entry: 2026-01-28 14:45:50 — Expand Oracle Store build plan for implementation + hardening
 
 ### Trigger

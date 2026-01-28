@@ -2529,6 +2529,8 @@ WSP_PROFILE ?= config/platform/profiles/local.yaml
 WSP_MAX_EVENTS ?= 1
 ORACLE_PROFILE ?= config/platform/profiles/local.yaml
 ORACLE_RUN_FACTS_REF ?=
+ORACLE_PACK_ROOT ?=
+ORACLE_ENGINE_RELEASE ?= unknown
 
 .PHONY: platform-stack-up platform-stack-down platform-stack-status
 platform-stack-up:
@@ -2625,6 +2627,17 @@ platform-oracle-check:
 		exit 1; \
 	fi
 	@$(PY_SCRIPT) -m fraud_detection.oracle_store.cli --profile "$(ORACLE_PROFILE)" --run-facts-ref "$(ORACLE_RUN_FACTS_REF)"
+
+.PHONY: platform-oracle-seal
+platform-oracle-seal:
+	@if [ -z "$(ORACLE_RUN_FACTS_REF)" ]; then \
+		echo "ORACLE_RUN_FACTS_REF is required for platform-oracle-seal." >&2; \
+		exit 1; \
+	fi
+	@$(PY_SCRIPT) -m fraud_detection.oracle_store.seal_cli --profile "$(ORACLE_PROFILE)" \
+		--run-facts-ref "$(ORACLE_RUN_FACTS_REF)" \
+		$(if $(ORACLE_PACK_ROOT),--pack-root "$(ORACLE_PACK_ROOT)",) \
+		--engine-release "$(ORACLE_ENGINE_RELEASE)"
 
 # ---------------------------------------------------------------------------
 # Scenario Runner test tiers (Makefile-based, no PowerShell)

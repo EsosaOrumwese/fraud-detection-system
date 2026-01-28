@@ -37,6 +37,7 @@ class OracleWiring:
     object_store_path_style: bool | None
     schema_root: str
     engine_catalogue_path: str
+    gate_map_path: str
     oracle_root: str
 
 
@@ -75,6 +76,10 @@ class OracleProfile:
             "engine_catalogue_path",
             "docs/model_spec/data-engine/interface_pack/engine_outputs.catalogue.yaml",
         )
+        gate_map_path = wiring.get(
+            "gate_map_path",
+            "docs/model_spec/data-engine/interface_pack/engine_gates.map.yaml",
+        )
         oracle_root = _resolve_env(wiring.get("oracle_root") or "runs/local_full_run-5")
 
         return cls(
@@ -87,6 +92,7 @@ class OracleProfile:
                 object_store_path_style=path_style,
                 schema_root=schema_root,
                 engine_catalogue_path=engine_catalogue_path,
+                gate_map_path=gate_map_path,
                 oracle_root=oracle_root,
             ),
         )

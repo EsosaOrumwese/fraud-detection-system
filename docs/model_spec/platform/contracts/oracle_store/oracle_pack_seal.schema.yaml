@@ -1,0 +1,26 @@
+$schema: https://json-schema.org/draft/2020-12/schema
+$id: oracle_pack_seal.schema.yaml
+title: Oracle Pack Seal
+type: object
+additionalProperties: false
+required:
+  - version
+  - oracle_pack_id
+  - seal_status
+  - sealed_at_utc
+properties:
+  version:
+    type: string
+  oracle_pack_id:
+    $ref: "#/$defs/hex64"
+  seal_status:
+    type: string
+    enum: [SEALED_OK, SEALED_FAILED]
+  sealed_at_utc:
+    type: string
+    minLength: 1
+
+$defs:
+  hex64:
+    type: string
+    pattern: "^[0-9a-f]{64}$"

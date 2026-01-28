@@ -48,6 +48,7 @@ class OracleStoreChecker:
         self.profile = profile
         self.catalogue = OutputCatalogue(Path(profile.wiring.engine_catalogue_path))
         self.schema = SchemaRegistry(Path(profile.wiring.schema_root) / "scenario_runner")
+        self.oracle_schema = SchemaRegistry(Path(profile.wiring.schema_root) / "oracle_store")
 
     def check_run_facts(
         self,
@@ -79,12 +80,18 @@ class OracleStoreChecker:
                 report.add_issue("GATE_PASS_MISSING", detail=json.dumps(missing, sort_keys=True), severity="ERROR")
                 report.status = "FAIL"
 
-        seal_missing = self._check_seal_markers(locators)
+        seal_missing, manifest_missing, manifest_invalid, manifests = self._check_seal_markers(locators)
         for pack_root in seal_missing:
             severity = "ERROR" if strict_seal else "WARN"
             report.add_issue("PACK_NOT_SEALED", detail=pack_root, severity=severity)
+        for pack_root in manifest_missing:
+            report.add_issue("PACK_MANIFEST_MISSING", detail=pack_root, severity="WARN")
+        for pack_root in manifest_invalid:
+            report.add_issue("PACK_MANIFEST_INVALID", detail=pack_root, severity="ERROR")
         if strict_seal and seal_missing:
             report.status = "FAIL"
+        if manifests:
+            report.details["pack_manifests"] = manifests
 
         missing_locators = 0
         missing_digests = 0
@@ -161,8 +168,13 @@ class OracleStoreChecker:
                 missing[output_id] = missing_gates
         return missing
 
-    def _check_seal_markers(self, locators: list[dict[str, Any]]) -> list[str]:
+    def _check_seal_markers(
+        self, locators: list[dict[str, Any]]
+    ) -> tuple[list[str], list[str], list[str], list[dict[str, Any]]]:
         missing: list[str] = []
+        manifest_missing: list[str] = []
+        manifest_invalid: list[str] = []
+        manifests: list[dict[str, Any]] = []
         oracle_root = self.profile.wiring.oracle_root
         seen: set[str] = set()
         for locator in locators:
@@ -174,11 +186,25 @@ class OracleStoreChecker:
             seal_paths = [
                 str(Path(pack_root) / "_SEALED.flag"),
                 str(Path(pack_root) / "_SEALED.json"),
-                str(Path(pack_root) / "_oracle_pack_manifest.json"),
             ]
+            manifest_path = str(Path(pack_root) / "_oracle_pack_manifest.json")
             if not any(Path(p).exists() for p in seal_paths):
                 missing.append(pack_root)
-        return missing
+            if Path(manifest_path).exists():
+                try:
+                    manifest_payload = _read_json(Path(manifest_path))
+                    try:
+                        self.oracle_schema.validate("oracle_pack_manifest.schema.yaml", manifest_payload)
+                    except Exception as exc:
+                        manifest_invalid.append(pack_root)
+                        manifests.append({"pack_root": pack_root, "manifest": None})
+                        continue
+                    manifests.append({"pack_root": pack_root, "manifest": manifest_payload})
+                except Exception:
+                    manifests.append({"pack_root": pack_root, "manifest": None})
+            else:
+                manifest_missing.append(pack_root)
+        return missing, manifest_missing, manifest_invalid, manifests
 
 
 def _build_object_store(profile: OracleProfile) -> LocalObjectStore | S3ObjectStore:
@@ -288,3 +314,9 @@ def _list_s3_matches(
             if fnmatch(candidate, key_pattern):
                 matches.append(candidate)
     return matches
+
+
+def _read_json(path: Path) -> dict[str, Any]:
+    import json as _json
+
+    return _json.loads(path.read_text(encoding="utf-8"))

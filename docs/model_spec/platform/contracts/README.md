@@ -34,3 +34,10 @@ These live under:
 - `ig_quarantine_spike.schema.yaml`
 - `ig_pull_run.schema.yaml`
 - `ig_audit_verify.schema.yaml`
+
+## Platform‑native contracts (Oracle Store, v0)
+These live under:
+`docs/model_spec/platform/contracts/oracle_store/`
+
+- `oracle_pack_manifest.schema.yaml`
+- `oracle_pack_seal.schema.yaml`
