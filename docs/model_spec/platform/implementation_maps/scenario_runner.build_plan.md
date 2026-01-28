@@ -14,6 +14,9 @@ This plan is intentionally progressive: it starts as phase milestones, then expa
 6) Phase 6 — Observability + governance (COMPLETE)
 7) Phase 7 — Security + ops hardening (COMPLETE)
 8) Phase 8 — Integration tests + CI gates
+9) Phase 9 — WSP alignment (docs + contracts) (PLANNED)
+10) Phase 10 — WSP alignment (implementation) (PLANNED)
+11) Phase 11 — WSP alignment (validation) (PLANNED)
 
 ---
 
@@ -414,3 +417,70 @@ High‑level intent: golden path + duplicate + reuse + fail‑closed + re‑emit
   - Nightly/manual: Tier 1–3 integration tests.
 - Runbook documents which env vars are required and how to start local parity stacks.
 - Test results logged in docs/logbook when executed.
+
+---
+
+## Phase 9 — WSP alignment (docs + contracts) (PLANNED)
+
+**Intent:** align SR docs and contracts to WSP‑first runtime while preserving SR as readiness authority and Oracle Store as external truth.
+
+### Section 9.1 — Control‑plane re‑scope (docs)
+**Definition of done**
+- SR docs/contracts explicitly state SR is **control‑plane only** (readiness authority).
+- SR does not claim ownership of data‑plane streaming (WSP is the primary producer).
+- Narrative docs treat IG pull path as **legacy/backfill** only.
+
+### Section 9.2 — Oracle pack linking (contract updates)
+**Definition of done**
+- SR truth surfaces include **by‑ref pack identity**:
+  - `oracle_pack_id` (if present),
+  - `engine_run_root` (or oracle root pointer),
+  - pack manifest ref (by‑ref path/URI).
+- Schema validation enforces presence/format when available (fail‑closed on mismatch).
+
+### Section 9.3 — Legacy pull compatibility (doc’d)
+**Definition of done**
+- run_facts_view locators remain valid for legacy pull/backfill.
+- Explicit doc notes that WSP is the primary runtime path.
+
+### Section 9.4 — Ops guidance (docs)
+**Definition of done**
+- Operator guides + examples show WSP‑first flow and SR’s readiness role.
+- SR re‑emit operations remain supported for control bus/audit workflows.
+
+---
+
+## Phase 10 — WSP alignment (implementation) (PLANNED)
+
+**Intent:** implement SR truth‑surface changes and READY payload linking to Oracle pack identity without changing SR’s core readiness logic.
+
+### Section 10.1 — Truth surface extensions
+**Definition of done**
+- run_facts_view and READY include pack identity refs (by‑ref paths/ids).
+- SR still publishes legacy locators for backfill.
+
+### Section 10.2 — Ingress/evidence binding
+**Definition of done**
+- Pack identity is validated when present (schema + mismatch fail‑closed).
+- SR does **not** attempt to stream data or own Oracle Store.
+
+### Section 10.3 — Control bus payload updates
+**Definition of done**
+- READY payload carries pack refs for WSP/ops correlation.
+- Re‑emit preserves pack refs.
+
+---
+
+## Phase 11 — WSP alignment (validation) (PLANNED)
+
+**Intent:** validate SR alignment without breaking backfill or compatibility.
+
+### Section 11.1 — Compatibility tests
+**Definition of done**
+- SR publishes READY with pack references (when available).
+- run_facts_view still supports IG legacy pull.
+
+### Section 11.2 — Fail‑closed tests
+**Definition of done**
+- Pack ref mismatch → FAIL/QUARANTINE with explicit reason.
+- Missing pack refs allowed only when manifest absent (local/dev rules).

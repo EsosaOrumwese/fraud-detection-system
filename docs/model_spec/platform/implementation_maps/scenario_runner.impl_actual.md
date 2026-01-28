@@ -3509,3 +3509,67 @@ User wants a **platform run ID** to separate runs and a shared platform log that
 ### Why
 Local hardware can’t finish large engine outputs within 10 minutes; the cap is necessary for deterministic smoke validation. Dev runs must prove full completion without weakening production semantics.
 
+
+## Entry: 2026-01-28 19:45:26 — SR alignment planning (WSP‑first streaming + Oracle boundary)
+
+### Trigger
+User requested a plan to align SR with the **current streaming path** (WSP‑first) and the fact that **Data Engine + Oracle Store are outside the platform**.
+
+### Problem framing
+SR was built to publish a join surface (run_facts_view + READY) for IG’s legacy pull path. In the WSP‑first runtime, **data‑plane traffic comes from WSP**, not SR. SR must therefore be re‑scoped as **control‑plane authority** while still ensuring evidence/gate correctness and readiness governance. The plan must avoid conflating SR with WSP or Oracle Store ownership.
+
+### Constraints / non‑negotiables
+- Engine + Oracle Store remain **external truth** (SR may read by‑ref, never mutate).
+- WSP is the primary runtime producer; IG is the ingest gatekeeper.
+- SR remains the **sole readiness authority** and issues control signals, not traffic.
+- Fail‑closed on unknown compatibility, missing evidence, or invalid receipts.
+
+### Alignment decisions (high‑level)
+1) **SR remains readiness authority, but not a data‑plane producer.**
+   - SR publishes control facts and readiness only; no implied ownership of streaming.
+
+2) **SR should explicitly surface Oracle pack identity** in its truth surfaces.
+   - Add references (oracle pack id / engine run root / pack manifest ref) so WSP/ops can link control‑plane runs to data‑plane packs.
+
+3) **Legacy IG pull remains optional/backfill.**
+   - SR outputs must still be valid for backfill, but design narrative should treat pull as legacy.
+
+4) **Phase plan update (v0 alignment track).**
+   - Add a post‑v0 alignment phase to SR build plan so future work doesn’t drift.
+
+### Plan outline to add to SR build plan
+- **Phase 9 — WSP alignment + Oracle boundary**
+  - 9.1 **Control‑plane re‑scope**: update SR docs/contracts to define SR as readiness authority only; remove any implied streaming responsibility.
+  - 9.2 **Oracle pack linking**: add pack identity fields to run_facts_view / READY (by‑ref), with schema updates + validation.
+  - 9.3 **Legacy pull compatibility**: keep run_facts_view locators for backfill; document WSP as primary path.
+  - 9.4 **Ops guidance**: operator docs and examples reflect WSP‑first runtime; SR used to gate readiness.
+  - 9.5 **Validation**: tests to ensure SR publishes control facts without depending on WSP or engine internals.
+
+### Next actions (docs only, no code yet)
+- Update `docs/model_spec/platform/implementation_maps/scenario_runner.build_plan.md` with Phase 9 alignment.
+- Capture this alignment intent in SR impl_actual as a decision trail entry (this entry).
+- Log in docs/logbook.
+
+---
+
+## Entry: 2026-01-28 19:49:14 — SR alignment phased into 3 stages (docs/contracts, implementation, validation)
+
+### Trigger
+User requested the WSP alignment work be split into three robust phases rather than a single Phase 9.
+
+### Decision
+Expand the SR alignment track into **three phases** so we do not conflate:
+1) **Docs + contracts** (design authority + schema changes + narrative alignment).
+2) **Implementation** (SR truth surfaces + READY payload linking to Oracle pack identity).
+3) **Validation** (compat tests + fail‑closed checks + legacy pull preservation).
+
+### Rationale
+- Design and contract updates are pre‑conditions to safe implementation.
+- Implementation should only proceed after contracts reflect WSP‑first flow.
+- Validation must be its own phase to ensure the alignment doesn’t break backfill or compatibility.
+
+### Next steps
+- Update SR build plan to add Phase 9/10/11 alignment sequence.
+- Keep SR impl_actual trail in sync with the new phase breakdown.
+
+---
