@@ -94,3 +94,21 @@ WSP Phase 1 implementation starts and requires `oracle_root` to be surfaced in p
 ### Guardrails
 - No secrets are stored or logged; all endpoints are wiring only.
 - S3 checks are optional by virtue of the profile wiring; local is the default for v0.
+
+---
+
+## Entry: 2026-01-28 14:45:50 — Expand Oracle Store build plan for implementation + hardening
+
+### Trigger
+User asked to update the Oracle Store build plan so we can start **implementation + hardening** (local then dev).
+
+### Live reasoning (notes)
+- Phase 1 (contract) is effectively complete; we now need **implementation steps** that make the Oracle boundary verifiable and “green.”
+- Local must tolerate missing seal markers (v0 transitional rule), but **dev must be strict**.
+- Sealing tooling should be **external to the engine** (black‑box rule) and must be **write‑once** to avoid mutation.
+- S3 compatibility needs explicit validation (path expansion, head/list) before we declare dev‑readiness.
+
+### Planned plan changes
+- Mark Phase 1 complete and expand Phase 2 into concrete implementation steps (checker CLI, strict‑seal, S3 validation, failure taxonomy).
+- Add a dedicated phase for **seal/manifest tooling** (packer CLI) with write‑once semantics.
+- Add an ops/governance hardening phase (immutability enforcement, tombstone policy, least‑privilege reads).
