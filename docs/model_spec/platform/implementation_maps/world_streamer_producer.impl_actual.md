@@ -102,3 +102,18 @@ User said “Proceed with all 3”: (1) add Oracle/WSP fields to platform profil
 - Decide whether WSP should persist a checkpoint (Phase 2) or remain stateless for now.
 - Add a small validation test (local smoke) to assert at least one envelope is admitted by IG.
 
+---
+
+## Entry: 2026-01-28 15:46:33 — **IMPORTANT** WSP reads an external Oracle Store (not a platform vertex)
+
+### Clarified boundary (non‑negotiable)
+The WSP treats the Oracle Store as **external truth**. It is **not** a platform vertex and is **not** expected to live inside the platform runtime graph. WSP must **never** rely on `runs/fraud-platform` (platform outputs) for its oracle data source.
+
+### Consequences for implementation
+- `oracle_root` is a pointer to **engine‑materialized truth** (local path or object store), not a platform output folder.
+- `runs/fraud-platform` remains a **platform runtime** location (logs/ledgers/session metadata only).
+- If `runs/fraud-platform` is deleted, WSP **must still function** as long as the Oracle Store (engine world) is present.
+
+### v0 local alignment
+- For local dev we may set `oracle_root` to `runs/local_full_run-5` as a practical engine‑world location, but this does **not** make it part of the platform runtime; it is still outside the platform boundary.
+

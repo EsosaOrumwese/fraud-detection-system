@@ -521,4 +521,19 @@ User approved building **Oracle Store** (sealed engine outputs boundary) + **WSP
 - Re‑state Phase 2 as **Control & Ingress alignment** (SR/IG/EB refactor to WSP truth) rather than first‑time construction.
 - Update Phase status roll‑up to show Phase 1 complete; Phase 2 (Oracle/WSP) next.
 
+---
+
+## Entry: 2026-01-28 15:46:33 — **IMPORTANT** Oracle Store is outside the platform runtime graph
+
+### Clarified platform boundary
+The Oracle Store is **external engine truth** (sealed worlds) and is **not** part of the platform runtime graph. The platform **reads** from it (via WSP), but does not “own” it as a runtime vertex. Platform runtime artifacts remain in `runs/fraud-platform` and are **not** valid oracle inputs.
+
+### Why we’re locking this in
+- Avoids accidental coupling where platform outputs (SR/IG ledgers, logs) are treated as oracle data.
+- Preserves the “engine outside the platform” model and keeps WSP’s producer role clean.
+- Guarantees that wiping platform runtime state does not invalidate oracle truth.
+
+### Operational note (local/dev)
+- Local/dev may point `oracle_root` to `runs/local_full_run-5` or future `runs/data-engine`; the **conceptual boundary is external**, even if the path lives inside the repo.
+
 

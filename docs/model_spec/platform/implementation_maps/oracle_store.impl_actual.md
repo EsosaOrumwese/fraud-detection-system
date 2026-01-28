@@ -226,3 +226,46 @@ User asked to proceed to Phase 3 planning once Phase 2 hardening is done.
 - Added Make target `platform-oracle-check-strict` to enforce seal markers explicitly.
 - Documented a short “oracle store in action” guide for operators (seal → strict check).
 
+---
+
+## Entry: 2026-01-28 15:46:33 — **IMPORTANT** Oracle Store is external to the platform runtime
+
+### Decision (explicit separation)
+The Oracle Store is **not** a platform vertex or runtime component. It is the **external, immutable store of engine worlds** (oracle sets) that the platform reads from. Platform runtime artifacts (logs, SR/IG ledgers, session metadata) live under `runs/fraud-platform` and must **never** be treated as the oracle store.
+
+### Why this matters
+- The platform must operate even if `runs/fraud-platform` is wiped; that folder is only **platform output**, not engine truth.
+- The Oracle Store is the **source of truth** for WSP streaming and does **not** depend on SR artifacts or platform runtime state.
+- Keeping this boundary hard preserves the “engine outside the platform” model and avoids accidental coupling.
+
+### Operational implication (v0)
+- Local/dev can point `oracle_root` at `runs/local_full_run-5` **only as a path to the engine world** — it is still treated as external truth, not a platform folder.
+- Future environments should point `oracle_root` to `runs/data-engine` or an object store bucket (S3/MinIO).
+
+---
+
+## Entry: 2026-01-28 16:07:27 — **Decisive change**: remove SR‑based sealing, make Oracle Store engine‑rooted only
+
+### Trigger (user direction)
+User explicitly rejected SR‑based sealing as a “temporary helper” and required us to **scrap it entirely** to avoid future agents mistaking SR as an oracle authority. Oracle Store must be treated strictly as a **database for engine outputs**, populated by the engine (or a loader) outside the platform.
+
+### Live reasoning (decision trail, no retro‑summary)
+- The SR `run_facts_view` is **platform runtime output**, not engine truth. Using it as the sealing input makes Oracle Store **dependent on platform runtime** and violates the new boundary rule we just locked in.
+- The Oracle Store’s correct dependency chain is: **Engine outputs → Oracle Store → WSP**, with **no SR dependency**. If we leave any SR‑based path in code/Make targets, future work will drift back to that coupling.
+- Because the Oracle Store is a **store**, not a producer, it should **never** assume responsibility for population. It can validate (check) and seal metadata, but the bytes must come from the engine world itself.
+- Therefore, the “seal from run_facts_view” pathway must be removed, not just deprioritized. Keeping it as a CLI switch would preserve a confusing escape hatch.
+
+### Plan (what I’m changing next, before code)
+1) **Remove SR‑based inputs** from Oracle Store:
+   - delete `seal_cli.py` and any CLI args that take `run_facts_ref`.
+   - remove `platform-oracle-seal`, `platform-oracle-check`, `platform-oracle-check-strict` Make targets (SR‑dependent).
+2) **Replace with engine‑rooted tooling**:
+   - new packer entry point to seal **from engine run root** using `run_receipt.json` + `scenario_id`.
+   - checker entry point to validate **engine run root** and gate receipts; optional output checks by `output_id` list.
+3) **Update tests** to use engine‑rooted inputs (temp engine‑run folder + run_receipt).
+4) **Update docs** (impl_actual + operator notes) so only engine‑rooted usage remains visible.
+
+### Expected invariants after change
+- Oracle Store **never** reads from `runs/fraud-platform`.
+- Removing `runs/fraud-platform` should **not** affect oracle checks or sealing.
+- The only required input for Oracle Store tooling is the **engine run root** (plus scenario_id when needed).
