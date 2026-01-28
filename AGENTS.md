@@ -42,6 +42,13 @@ Read these in order before modifying code so you share the project context:
 
 _Note: while the platform narratives are merely conceptual, the other docs in `platform-wide` and `component-specific` are not. However, that doesn't mean they're rigid or binding specifications. They mere attempt to paint the kind of design that will be needed. You (AGENT) as the implementer and design are free to design and implement based on the design intent (and this may not have been fully capture in those "design authority" docs)_
 
+**Authority clarification (platform-wide docs):**
+- The **core authority** docs are the two platform-wide notes you authored:
+  - `platform_blueprint_notes_v0.md`
+  - `deployment_tooling_notes_v0.md`
+- Other `platform-wide` files (e.g., `byref_validation`, `partitioning_policy`, `rails_and_substrate`) are **guardrail supplements** to make cross-cutting rails explicit. They **do not override** the two core notes.
+- If any conflict appears: prefer the core notes above, then the relevant component design‑authority doc; if still unclear, pause and ask the user.
+
 ---
 
 ## 2) Test-yourself policy (no prescribed runner)

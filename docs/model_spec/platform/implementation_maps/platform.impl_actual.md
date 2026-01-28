@@ -484,3 +484,19 @@ An uncapped dev completion run on local hardware did not finish within 2 hours. 
 ### Implication
 Local remains smoke‑only. Dev completion requires either a real dev environment or additional chunking work if we must complete locally.
 
+
+## Entry: 2026-01-28 09:44:30 — Authority hierarchy clarification
+
+### Trigger
+User noted potential ambiguity between the two core platform-wide notes and supplemental platform-wide guardrail docs.
+
+### Decision
+Clarify in `AGENTS.md` that the **core authority** remains:
+- `platform_blueprint_notes_v0.md`
+- `deployment_tooling_notes_v0.md`
+
+Supplemental platform-wide docs (byref_validation, partitioning_policy, rails_and_substrate) are **guardrail references** only and do not override the core notes. Component design‑authority docs remain authoritative for component‑specific mechanics.
+
+### Change
+- Added an explicit “Authority clarification” block under the reading order section.
+
