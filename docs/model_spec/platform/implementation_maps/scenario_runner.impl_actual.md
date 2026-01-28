@@ -3573,3 +3573,77 @@ Expand the SR alignment track into **three phases** so we do not conflate:
 - Keep SR impl_actual trail in sync with the new phase breakdown.
 
 ---
+
+## Entry: 2026-01-28 19:53:30 — Phase 9 planning (SR WSP‑alignment docs + contracts)
+
+### Trigger
+User initiated Phase 9 planning to realign SR with the WSP‑first runtime and Oracle Store boundary.
+
+### Phase 9 scope (docs + contracts only)
+Phase 9 updates **design authority + SR contracts** to reflect the WSP‑first runtime. No runtime code changes yet (those belong to Phase 10). The goal is to lock the **control‑plane semantics** and the **schema fields** SR will carry so implementation work does not drift.
+
+### What must change (and why)
+1) **SR is control‑plane authority only**
+   - SR owns readiness, gates, and truth surfaces, but does not own the traffic stream.
+   - This must be explicit in SR docs and platform narratives to avoid WSP/IG role confusion.
+
+2) **Oracle Store is external truth**
+   - SR should never imply ownership of engine outputs; it may only reference them by‑ref.
+   - Contracts should express pack identity as references, not inline payload.
+
+3) **Control‑plane ↔ data‑plane linkage**
+   - SR must include *pack references* so operators and WSP can correlate readiness to the exact oracle pack.
+   - These fields must be schema‑validated and fail‑closed on mismatches when present.
+
+### Contracts to update (Phase 9 deliverables)
+Target SR contracts under `docs/model_spec/platform/contracts/scenario_runner/`:
+- **run_facts_view.schema.yaml**
+- **run_ready_signal.schema.yaml**
+- **run_record.schema.yaml** (if it carries derived control facts)
+
+### Proposed schema additions (draft, to refine in Phase 9)
+Add a **by‑ref pack block** with optional fields (presence rules below):
+```
+oracle_pack_ref:
+  oracle_pack_id: <hex64>
+  manifest_ref: <uri-or-path>
+  engine_run_root: <uri-or-path>
+  oracle_root: <uri-or-path>
+  engine_release: <string>
+```
+
+**Presence rules (planning intent):**
+- If `_oracle_pack_manifest.json` exists, SR must populate `oracle_pack_id` + `manifest_ref` (fail‑closed otherwise).
+- `engine_run_root` should always be present when SR was invoked with it.
+- `oracle_root` is optional but recommended for operator clarity.
+- `engine_release` is included when present in the pack manifest (no requirement if absent).
+
+### Doc updates required (Phase 9 deliverables)
+- **SR design authority**: explicitly mark SR as control‑plane only; call out WSP as the primary runtime producer.
+- **Platform narratives**: update control/ingress and real‑time decision loop to show WSP‑first path.
+- **Platform blueprint note**: update “graph” description so WSP is on the data‑plane edge and SR feeds readiness only.
+- **Contracts index**: update any cross‑references that imply SR is the data plane.
+
+### Options considered (and why)
+1) **Embed pack identity directly in READY only**
+   - Rejected: run_facts_view is also consumed by ops/backfill; it should carry the same linkage.
+
+2) **Put pack identity only in run_record**
+   - Rejected: run_record is internal truth; READY + facts_view are the integration surfaces.
+
+3) **New top‑level fields vs nested block**
+   - Chosen: **nested `oracle_pack_ref` block** to keep schema evolution contained and optional.
+
+### Phase 9 work plan (stepwise)
+1) Review SR contract schemas and decide exact field names + validation rules.
+2) Update schemas and any example payloads in docs.
+3) Update SR design authority and relevant platform narratives to reflect WSP‑first runtime.
+4) Update SR build plan + operator docs with the new linkage semantics.
+5) Record decisions and update logbook immediately as changes are made.
+
+### Out‑of‑scope for Phase 9 (explicit)
+- No SR runtime code changes.
+- No WSP changes.
+- No IG changes.
+
+---
