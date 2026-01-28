@@ -10,10 +10,10 @@ from pathlib import Path
 from typing import Any
 from urllib.parse import urlparse
 
-from fraud_detection.scenario_runner.storage import LocalObjectStore, S3ObjectStore
+from fraud_detection.scenario_runner.storage import S3ObjectStore
 
-from .checker import _pack_root_from_locator, _resolve_oracle_path
 from .config import OracleProfile
+from .engine_reader import read_run_receipt, resolve_engine_root
 
 
 @dataclass(frozen=True)
@@ -62,52 +62,46 @@ class OraclePackPacker:
     def __init__(self, profile: OracleProfile) -> None:
         self.profile = profile
 
-    def seal_from_run_facts(
+    def seal_from_engine_run(
         self,
-        run_facts: dict[str, Any],
+        engine_run_root: str,
         *,
+        scenario_id: str,
         pack_root: str | None = None,
         engine_release: str = "unknown",
         seal_status: str = "SEALED_OK",
     ) -> dict[str, Any]:
-        world_key = self._world_key_from_run_facts(run_facts)
-        if pack_root is None:
-            pack_root = self._derive_pack_root(run_facts)
-        if not pack_root:
-            raise OraclePackError("PACK_ROOT_MISSING")
-        if not pack_root.startswith("s3://"):
-            if not Path(pack_root).exists():
+        if not scenario_id:
+            raise OraclePackError("SCENARIO_ID_MISSING")
+        resolved_engine_root = resolve_engine_root(engine_run_root, self.profile.wiring.oracle_root)
+        resolved_pack_root = (
+            resolve_engine_root(pack_root, self.profile.wiring.oracle_root)
+            if pack_root
+            else resolved_engine_root
+        )
+        if not resolved_pack_root.startswith("s3://"):
+            if not Path(resolved_pack_root).exists():
                 raise OraclePackError("PACK_ROOT_NOT_FOUND")
+
+        receipt = read_run_receipt(resolved_engine_root, self.profile)
+        world_key = self._world_key_from_receipt(receipt, scenario_id)
         manifest = self._build_manifest(world_key, engine_release)
         seal = self._build_seal(manifest.oracle_pack_id, seal_status=seal_status)
-        self._write_manifest(pack_root, manifest)
-        self._write_seal(pack_root, seal)
-        return {"pack_root": pack_root, "oracle_pack_id": manifest.oracle_pack_id}
+        self._write_manifest(resolved_pack_root, manifest)
+        self._write_seal(resolved_pack_root, seal)
+        return {
+            "pack_root": resolved_pack_root,
+            "engine_run_root": resolved_engine_root,
+            "oracle_pack_id": manifest.oracle_pack_id,
+        }
 
-    def _derive_pack_root(self, run_facts: dict[str, Any]) -> str:
-        locators = run_facts.get("locators", [])
-        oracle_root = self.profile.wiring.oracle_root
-        roots: set[str] = set()
-        for locator in locators:
-            path = locator.get("path", "")
-            resolved = _resolve_oracle_path(path, oracle_root)
-            root = _pack_root_from_locator(resolved, oracle_root)
-            if root:
-                roots.add(root)
-        if not roots:
-            raise OraclePackError("PACK_ROOT_UNDERIVED")
-        if len(roots) > 1:
-            raise OraclePackError(f"PACK_ROOT_AMBIGUOUS:{sorted(roots)}")
-        return next(iter(roots))
-
-    def _world_key_from_run_facts(self, run_facts: dict[str, Any]) -> OracleWorldKey:
-        pins = run_facts.get("pins", {})
+    def _world_key_from_receipt(self, receipt: dict[str, Any], scenario_id: str) -> OracleWorldKey:
         try:
             return OracleWorldKey(
-                manifest_fingerprint=pins["manifest_fingerprint"],
-                parameter_hash=pins["parameter_hash"],
-                scenario_id=pins["scenario_id"],
-                seed=int(pins["seed"]),
+                manifest_fingerprint=receipt["manifest_fingerprint"],
+                parameter_hash=receipt["parameter_hash"],
+                scenario_id=scenario_id,
+                seed=int(receipt["seed"]),
             )
         except Exception as exc:
             raise OraclePackError("WORLD_KEY_MISSING") from exc

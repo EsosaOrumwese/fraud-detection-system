@@ -7,7 +7,7 @@ Define the **sealed world boundary** for engine outputs as an explicit platform 
 ## Planning rules (binding)
 - **Progressive elaboration:** expand only the active phase into sections + DoD.
 - **No secrets:** never embed credentials or tokens in plans or logs.
-- **No scanning:** consumers must start from SR’s join surface; no “latest run” discovery.
+- **No discovery-by-scanning:** Oracle Store tools require an explicit engine run root or pack root; no “latest world” lookup.
 
 ## Phase plan (v0)
 
@@ -33,8 +33,9 @@ Define the **sealed world boundary** for engine outputs as an explicit platform 
 
 #### Phase 1.4 — Integration pins (SR/WSP/IG)
 **DoD checklist:**
-- SR `run_facts_view` is the only entrypoint to Oracle Store refs.
-- WSP and legacy IG pull consume **only** locators from SR; no direct scanning.
+- Oracle Store is **external engine truth**; platform components do not “own” it.
+- WSP reads Oracle Store directly using explicit world identity (no SR‑based discovery).
+- Legacy IG pull does not scan Oracle Store; it only follows explicit locators.
 
 #### Phase 1.5 — Validation checklist
 **DoD checklist:**
@@ -45,7 +46,7 @@ Define the **sealed world boundary** for engine outputs as an explicit platform 
 **DoD checklist:**
 - Pack‑root aliasing documented (current `runs/local_full_run-*` treated as pack roots).
 - Seal markers optional for **local** until packer exists; strict seal reserved for dev/prod.
-- `run_facts_view` traffic allowlist clarified (v0 uses `output_roles + locators`).
+- No SR‑based inputs for Oracle Store tooling (engine‑root only).
 
 **Status:** complete.
 
@@ -59,9 +60,9 @@ Define the **sealed world boundary** for engine outputs as an explicit platform 
 
 #### Phase 2.2 — Oracle checker (local)
 **DoD checklist:**
-- CLI check validates `run_facts_view` schema + locators + required gates.
+- CLI check validates engine run root + required gates (optionally specific outputs).
 - Missing seal markers produce **WARN** (local only).
-- No scanning beyond locator‑implied `part-*` expansion.
+- No discovery-by-scanning; only explicit engine roots.
 
 #### Phase 2.3 — Oracle checker (dev strict‑seal)
 **DoD checklist:**
@@ -75,7 +76,7 @@ Define the **sealed world boundary** for engine outputs as an explicit platform 
 
 #### Phase 2.5 — Failure taxonomy + operator guidance
 **DoD checklist:**
-- Checker outputs stable reason codes (PACK_NOT_SEALED, LOCATOR_MISSING, GATE_PASS_MISSING, DIGEST_MISSING).
+- Checker outputs stable reason codes (PACK_NOT_SEALED, GATE_RECEIPT_MISSING, OUTPUT_MISSING, SCENARIO_ID_*).
 - Operator guidance documented for retry vs terminal failure.
 
 **Status:** complete.
@@ -103,7 +104,7 @@ Define the **sealed world boundary** for engine outputs as an explicit platform 
 #### Phase 3.4 — Local pack sealing helper (v0 migration)
 **DoD checklist:**
 - CLI can seal an existing local pack root **without** moving bytes (pack‑root alias).
-- Inputs can be derived from `run_facts_view` (pins + locators) or explicitly provided.
+- Inputs are derived from engine run receipt + scenario_id (no SR‑based inputs).
 - Seal + manifest writes are idempotent (create‑if‑absent; fail‑closed on mismatch).
 
 **Status:** in progress.

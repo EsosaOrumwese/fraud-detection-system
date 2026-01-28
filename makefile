@@ -2528,9 +2528,11 @@ PLATFORM_RUN_ID ?=
 WSP_PROFILE ?= config/platform/profiles/local.yaml
 WSP_MAX_EVENTS ?= 1
 ORACLE_PROFILE ?= config/platform/profiles/local.yaml
-ORACLE_RUN_FACTS_REF ?=
-ORACLE_PACK_ROOT ?=
+ORACLE_ENGINE_RUN_ROOT ?=
+ORACLE_SCENARIO_ID ?=
 ORACLE_ENGINE_RELEASE ?= unknown
+ORACLE_PACK_ROOT ?=
+ORACLE_OUTPUT_IDS ?=
 
 .PHONY: platform-stack-up platform-stack-down platform-stack-status
 platform-stack-up:
@@ -2620,32 +2622,48 @@ platform-ig-audit:
 platform-wsp-ready-once:
 	@$(PY_SCRIPT) -m fraud_detection.world_streamer_producer.cli --profile "$(WSP_PROFILE)" --once --max-events "$(WSP_MAX_EVENTS)"
 
-.PHONY: platform-oracle-check
-platform-oracle-check:
-	@if [ -z "$(ORACLE_RUN_FACTS_REF)" ]; then \
-		echo "ORACLE_RUN_FACTS_REF is required for platform-oracle-check." >&2; \
+.PHONY: platform-oracle-pack
+platform-oracle-pack:
+	@if [ -z "$(ORACLE_ENGINE_RUN_ROOT)" ]; then \
+		echo "ORACLE_ENGINE_RUN_ROOT is required for platform-oracle-pack." >&2; \
 		exit 1; \
 	fi
-	@$(PY_SCRIPT) -m fraud_detection.oracle_store.cli --profile "$(ORACLE_PROFILE)" --run-facts-ref "$(ORACLE_RUN_FACTS_REF)"
+	@if [ -z "$(ORACLE_SCENARIO_ID)" ]; then \
+		echo "ORACLE_SCENARIO_ID is required for platform-oracle-pack." >&2; \
+		exit 1; \
+	fi
+	@if [ -z "$(ORACLE_ENGINE_RELEASE)" ]; then \
+		echo "ORACLE_ENGINE_RELEASE is required for platform-oracle-pack." >&2; \
+		exit 1; \
+	fi
+	@$(PY_SCRIPT) -m fraud_detection.oracle_store.pack_cli --profile "$(ORACLE_PROFILE)" \
+		--engine-run-root "$(ORACLE_ENGINE_RUN_ROOT)" \
+		--scenario-id "$(ORACLE_SCENARIO_ID)" \
+		$(if $(ORACLE_PACK_ROOT),--pack-root "$(ORACLE_PACK_ROOT)",) \
+		--engine-release "$(ORACLE_ENGINE_RELEASE)"
+
+.PHONY: platform-oracle-check
+platform-oracle-check:
+	@if [ -z "$(ORACLE_ENGINE_RUN_ROOT)" ]; then \
+		echo "ORACLE_ENGINE_RUN_ROOT is required for platform-oracle-check." >&2; \
+		exit 1; \
+	fi
+	@$(PY_SCRIPT) -m fraud_detection.oracle_store.cli --profile "$(ORACLE_PROFILE)" \
+		--engine-run-root "$(ORACLE_ENGINE_RUN_ROOT)" \
+		$(if $(ORACLE_SCENARIO_ID),--scenario-id "$(ORACLE_SCENARIO_ID)",) \
+		$(if $(ORACLE_OUTPUT_IDS),--output-ids "$(ORACLE_OUTPUT_IDS)",)
 
 .PHONY: platform-oracle-check-strict
 platform-oracle-check-strict:
-	@if [ -z "$(ORACLE_RUN_FACTS_REF)" ]; then \
-		echo "ORACLE_RUN_FACTS_REF is required for platform-oracle-check-strict." >&2; \
+	@if [ -z "$(ORACLE_ENGINE_RUN_ROOT)" ]; then \
+		echo "ORACLE_ENGINE_RUN_ROOT is required for platform-oracle-check-strict." >&2; \
 		exit 1; \
 	fi
-	@$(PY_SCRIPT) -m fraud_detection.oracle_store.cli --profile "$(ORACLE_PROFILE)" --run-facts-ref "$(ORACLE_RUN_FACTS_REF)" --strict-seal
-
-.PHONY: platform-oracle-seal
-platform-oracle-seal:
-	@if [ -z "$(ORACLE_RUN_FACTS_REF)" ]; then \
-		echo "ORACLE_RUN_FACTS_REF is required for platform-oracle-seal." >&2; \
-		exit 1; \
-	fi
-	@$(PY_SCRIPT) -m fraud_detection.oracle_store.seal_cli --profile "$(ORACLE_PROFILE)" \
-		--run-facts-ref "$(ORACLE_RUN_FACTS_REF)" \
-		$(if $(ORACLE_PACK_ROOT),--pack-root "$(ORACLE_PACK_ROOT)",) \
-		--engine-release "$(ORACLE_ENGINE_RELEASE)"
+	@$(PY_SCRIPT) -m fraud_detection.oracle_store.cli --profile "$(ORACLE_PROFILE)" \
+		--engine-run-root "$(ORACLE_ENGINE_RUN_ROOT)" \
+		$(if $(ORACLE_SCENARIO_ID),--scenario-id "$(ORACLE_SCENARIO_ID)",) \
+		$(if $(ORACLE_OUTPUT_IDS),--output-ids "$(ORACLE_OUTPUT_IDS)",) \
+		--strict-seal
 
 # ---------------------------------------------------------------------------
 # Scenario Runner test tiers (Makefile-based, no PowerShell)

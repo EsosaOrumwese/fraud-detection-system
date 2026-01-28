@@ -1667,21 +1667,22 @@ If you keep `PULL` mode as a fallback:
 
 This is a **minimal operational walkthrough** to validate the Oracle boundary locally and under strict‑seal (dev posture).
 
-### M1) Pick a run_facts_view reference
-Example (local):
+### M1) Pick an engine run root + scenario_id
+Example (local engine world):
 ```
-fraud-platform/sr/run_facts_view/9142f6d3ed4ca6375f388946e0e4ea4d.json
+ORACLE_ENGINE_RUN_ROOT=runs/local_full_run-5/c25a2675fbfbacd952b13bb594880e92
+ORACLE_SCENARIO_ID=baseline_v1
 ```
 
 ### M2) Seal the pack root (write‑once)
-This writes `_oracle_pack_manifest.json` + `_SEALED.json` at the pack root derived from locators.
+This writes `_oracle_pack_manifest.json` + `_SEALED.json` at the engine run root (or an explicit pack root).
 ```
-make platform-oracle-seal ORACLE_RUN_FACTS_REF=fraud-platform/sr/run_facts_view/9142f6d3ed4ca6375f388946e0e4ea4d.json ORACLE_ENGINE_RELEASE=engine-local-v0
+make platform-oracle-pack ORACLE_ENGINE_RUN_ROOT=runs/local_full_run-5/c25a2675fbfbacd952b13bb594880e92 ORACLE_SCENARIO_ID=baseline_v1 ORACLE_ENGINE_RELEASE=engine-local-v0
 ```
 
 ### M3) Run a strict‑seal check (dev posture)
 ```
-make platform-oracle-check-strict ORACLE_RUN_FACTS_REF=fraud-platform/sr/run_facts_view/9142f6d3ed4ca6375f388946e0e4ea4d.json
+make platform-oracle-check-strict ORACLE_ENGINE_RUN_ROOT=runs/local_full_run-5/c25a2675fbfbacd952b13bb594880e92 ORACLE_SCENARIO_ID=baseline_v1
 ```
 
 Expected outcome:
@@ -1690,10 +1691,13 @@ Expected outcome:
 
 ### M4) Non‑strict (local smoke) check
 ```
-make platform-oracle-check ORACLE_RUN_FACTS_REF=fraud-platform/sr/run_facts_view/9142f6d3ed4ca6375f388946e0e4ea4d.json
+make platform-oracle-check ORACLE_ENGINE_RUN_ROOT=runs/local_full_run-5/c25a2675fbfbacd952b13bb594880e92 ORACLE_SCENARIO_ID=baseline_v1
 ```
 
-This allows unsealed packs (WARN only) until packer use is routine.
+This allows unsealed packs (WARN only) until packer use is routine. You can optionally verify specific outputs with:
+```
+make platform-oracle-check ORACLE_ENGINE_RUN_ROOT=... ORACLE_SCENARIO_ID=baseline_v1 ORACLE_OUTPUT_IDS=arrival_events_5B,s2_flow_anchor_baseline_6B
+```
 
 ### M5) Where logs go (platform run ids)
 Oracle Store tooling writes to the **shared platform log** and, if a platform run id is active, also writes to a **per‑run log**:

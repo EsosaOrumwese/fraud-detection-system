@@ -14,14 +14,25 @@ from .checker import OracleStoreChecker
 from .config import OracleProfile
 
 
+def _parse_output_ids(raw: str | None) -> list[str] | None:
+    if not raw:
+        return None
+    parts = [item.strip() for item in raw.split(",") if item.strip()]
+    return parts or None
+
+
 def main() -> None:
-    parser = argparse.ArgumentParser(description="Oracle Store checker")
+    parser = argparse.ArgumentParser(description="Oracle Store checker (engine-rooted)")
     parser.add_argument("--profile", required=True, help="Path to platform profile YAML")
-    parser.add_argument("--run-facts-ref", required=True, help="run_facts_view reference path")
+    parser.add_argument("--engine-run-root", required=True, help="Engine run root path or URI")
+    parser.add_argument("--scenario-id", help="Scenario id (required if not discoverable from engine root)")
+    parser.add_argument(
+        "--output-ids",
+        help="Comma-separated output_ids to verify exist under engine run root",
+    )
     group = parser.add_mutually_exclusive_group()
     group.add_argument("--strict-seal", action="store_true", help="Fail if seal markers are missing")
     group.add_argument("--allow-unsealed", action="store_true", help="Allow missing seal markers")
-    parser.add_argument("--allow-missing-digest", action="store_true", help="Do not fail on missing digests")
     args = parser.parse_args()
 
     configure_logging(level=logging.INFO, log_paths=platform_log_paths(create_if_missing=False))
@@ -33,10 +44,11 @@ def main() -> None:
     else:
         strict_seal = profile.wiring.profile_id in {"dev", "prod"}
     checker = OracleStoreChecker(profile)
-    report = checker.check_run_facts(
-        args.run_facts_ref,
+    report = checker.check_engine_run(
+        args.engine_run_root,
+        scenario_id=args.scenario_id,
         strict_seal=strict_seal,
-        require_digest=not args.allow_missing_digest,
+        output_ids=_parse_output_ids(args.output_ids),
     )
     print(json.dumps(report.__dict__, sort_keys=True))
     raise SystemExit(0 if report.ok() else 1)

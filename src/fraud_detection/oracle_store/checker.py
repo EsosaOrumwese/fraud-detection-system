@@ -1,4 +1,4 @@
-"""Oracle Store validation checks (Phase 1)."""
+"""Oracle Store validation checks (engine-rooted)."""
 
 from __future__ import annotations
 
@@ -10,12 +10,14 @@ from urllib.parse import urlparse
 import boto3
 from botocore.config import Config
 import json
+import yaml
 
 from fraud_detection.ingestion_gate.catalogue import OutputCatalogue
 from fraud_detection.scenario_runner.schemas import SchemaRegistry
-from fraud_detection.scenario_runner.storage import LocalObjectStore, S3ObjectStore
 
 from .config import OracleProfile
+from .engine_reader import discover_scenario_ids, join_engine_path, read_run_receipt, resolve_engine_root
+from .packer import OracleWorldKey
 
 
 @dataclass
@@ -47,187 +49,227 @@ class OracleStoreChecker:
     def __init__(self, profile: OracleProfile) -> None:
         self.profile = profile
         self.catalogue = OutputCatalogue(Path(profile.wiring.engine_catalogue_path))
-        self.schema = SchemaRegistry(Path(profile.wiring.schema_root) / "scenario_runner")
         self.oracle_schema = SchemaRegistry(Path(profile.wiring.schema_root) / "oracle_store")
+        self.gate_map = yaml.safe_load(Path(profile.wiring.gate_map_path).read_text(encoding="utf-8"))
 
-    def check_run_facts(
+    def check_engine_run(
         self,
-        run_facts_ref: str,
+        engine_run_root: str,
         *,
+        scenario_id: str | None = None,
         strict_seal: bool = False,
-        require_digest: bool = True,
+        output_ids: list[str] | None = None,
     ) -> OracleCheckReport:
         report = OracleCheckReport(status="OK")
-        facts = self._load_run_facts(run_facts_ref, report)
-        if facts is None:
-            report.status = "FAIL"
-            return report
-        if not self._validate_facts_schema(facts, report):
+        resolved_root = resolve_engine_root(engine_run_root, self.profile.wiring.oracle_root)
+        report.details["engine_run_root"] = resolved_root
+
+        receipt = self._load_run_receipt(resolved_root, report)
+        if receipt is None:
             report.status = "FAIL"
             return report
 
-        output_roles = facts.get("output_roles", {})
-        locators = facts.get("locators", [])
-        traffic_outputs = {
-            output_id for output_id, role in output_roles.items() if role == "business_traffic"
+        scenario_value = self._resolve_scenario_id(resolved_root, scenario_id, report)
+        if scenario_value is None:
+            report.status = "FAIL"
+            return report
+
+        world_key = self._world_key_from_receipt(receipt, scenario_value, report)
+        if world_key is None:
+            report.status = "FAIL"
+            return report
+
+        tokens = {
+            "manifest_fingerprint": world_key.manifest_fingerprint,
+            "parameter_hash": world_key.parameter_hash,
+            "scenario_id": world_key.scenario_id,
+            "seed": world_key.seed,
+            "run_id": str(receipt.get("run_id", "")),
         }
-        locator_ids = {loc.get("output_id") for loc in locators}
-        traffic_outputs = {oid for oid in traffic_outputs if oid in locator_ids}
+        report.details["world_key"] = world_key.as_dict()
 
+        missing_gates = []
         if self.profile.policy.require_gate_pass:
-            missing = self._missing_required_gates(facts, traffic_outputs)
-            if missing:
-                report.add_issue("GATE_PASS_MISSING", detail=json.dumps(missing, sort_keys=True), severity="ERROR")
-                report.status = "FAIL"
+            missing_gates = self._missing_gate_receipts(resolved_root, tokens, report)
+            if missing_gates:
+                report.add_issue(
+                    "GATE_RECEIPT_MISSING",
+                    detail=json.dumps(missing_gates, sort_keys=True),
+                    severity="ERROR",
+                )
 
-        seal_missing, manifest_missing, manifest_invalid, manifests = self._check_seal_markers(locators)
-        for pack_root in seal_missing:
+        missing_outputs = 0
+        if output_ids:
+            missing_outputs = self._check_output_paths(resolved_root, tokens, output_ids, report)
+
+        seal_missing, manifest_missing, manifest_invalid, manifests = self._check_pack_markers(resolved_root)
+        if seal_missing:
             severity = "ERROR" if strict_seal else "WARN"
-            report.add_issue("PACK_NOT_SEALED", detail=pack_root, severity=severity)
-        for pack_root in manifest_missing:
-            report.add_issue("PACK_MANIFEST_MISSING", detail=pack_root, severity="WARN")
-        for pack_root in manifest_invalid:
-            report.add_issue("PACK_MANIFEST_INVALID", detail=pack_root, severity="ERROR")
+            report.add_issue("PACK_NOT_SEALED", detail=resolved_root, severity=severity)
+        if manifest_missing:
+            report.add_issue("PACK_MANIFEST_MISSING", detail=resolved_root, severity="WARN")
+        if manifest_invalid:
+            report.add_issue("PACK_MANIFEST_INVALID", detail=resolved_root, severity="ERROR")
         if strict_seal and seal_missing:
             report.status = "FAIL"
         if manifests:
             report.details["pack_manifests"] = manifests
 
-        missing_locators = 0
-        missing_digests = 0
-        for locator in locators:
-            path = locator.get("path", "")
-            resolved = _resolve_oracle_path(path, self.profile.wiring.oracle_root)
-            if require_digest and not locator.get("content_digest"):
-                missing_digests += 1
-                report.add_issue("DIGEST_MISSING", detail=resolved, severity="ERROR")
-            if not _path_exists(
-                resolved,
-                endpoint=self.profile.wiring.object_store_endpoint,
-                region=self.profile.wiring.object_store_region,
-                path_style=self.profile.wiring.object_store_path_style,
-            ):
-                missing_locators += 1
-                report.add_issue("LOCATOR_MISSING", detail=resolved, severity="ERROR")
-        if missing_digests and not require_digest:
-            report.add_issue("DIGEST_MISSING", detail=str(missing_digests), severity="WARN")
-        if missing_locators:
-            report.status = "FAIL"
+        report.details["gates_missing"] = len(missing_gates)
+        report.details["outputs_missing"] = missing_outputs
 
         if report.errors:
             report.status = "FAIL"
         elif report.warnings:
             report.status = "WARN"
-        report.details = {
-            "locators_total": len(locators),
-            "locators_missing": missing_locators,
-            "locators_missing_digest": missing_digests,
-        }
         return report
 
-    def _load_run_facts(self, run_facts_ref: str, report: OracleCheckReport) -> dict[str, Any] | None:
+    def _load_run_receipt(self, engine_root: str, report: OracleCheckReport) -> dict[str, Any] | None:
         try:
-            if run_facts_ref.startswith("s3://"):
-                parsed = urlparse(run_facts_ref)
-                store = S3ObjectStore(
-                    parsed.netloc,
-                    prefix="",
-                    endpoint_url=self.profile.wiring.object_store_endpoint,
-                    region_name=self.profile.wiring.object_store_region,
-                    path_style=self.profile.wiring.object_store_path_style,
-                )
-                return store.read_json(parsed.path.lstrip("/"))
-            if Path(run_facts_ref).is_absolute():
-                return _read_json(Path(run_facts_ref))
-            store = _build_object_store(self.profile)
-            return store.read_json(run_facts_ref)
+            return read_run_receipt(engine_root, self.profile)
         except Exception as exc:
-            report.add_issue("RUN_FACTS_UNREADABLE", detail=str(exc), severity="ERROR")
+            report.add_issue("RUN_RECEIPT_UNREADABLE", detail=str(exc), severity="ERROR")
             return None
 
-    def _validate_facts_schema(self, facts: dict[str, Any], report: OracleCheckReport) -> bool:
-        try:
-            self.schema.validate("run_facts_view.schema.yaml", facts)
-            return True
-        except Exception as exc:
-            report.add_issue("RUN_FACTS_INVALID", detail=str(exc), severity="ERROR")
-            return False
+    def _resolve_scenario_id(
+        self,
+        engine_root: str,
+        scenario_id: str | None,
+        report: OracleCheckReport,
+    ) -> str | None:
+        if scenario_id:
+            return scenario_id
+        candidates = discover_scenario_ids(engine_root)
+        if len(candidates) == 1:
+            return next(iter(candidates))
+        if len(candidates) > 1:
+            report.add_issue("SCENARIO_ID_AMBIGUOUS", detail=sorted(candidates).__repr__(), severity="ERROR")
+            return None
+        report.add_issue("SCENARIO_ID_MISSING", detail=engine_root, severity="ERROR")
+        return None
 
-    def _missing_required_gates(self, facts: dict[str, Any], output_ids: set[str]) -> dict[str, list[str]]:
-        passed = {
-            receipt.get("gate_id")
-            for receipt in facts.get("gate_receipts", [])
-            if receipt.get("status") == "PASS"
-        }
-        missing: dict[str, list[str]] = {}
-        for output_id in output_ids:
-            entry = self.catalogue.get(output_id)
-            required = list(entry.read_requires_gates or [])
-            missing_gates = [gate for gate in required if gate not in passed]
-            if missing_gates:
-                missing[output_id] = missing_gates
+    def _world_key_from_receipt(
+        self, receipt: dict[str, Any], scenario_id: str, report: OracleCheckReport
+    ) -> OracleWorldKey | None:
+        try:
+            return OracleWorldKey(
+                manifest_fingerprint=receipt["manifest_fingerprint"],
+                parameter_hash=receipt["parameter_hash"],
+                scenario_id=scenario_id,
+                seed=int(receipt["seed"]),
+            )
+        except Exception as exc:
+            report.add_issue("RUN_RECEIPT_INVALID", detail=str(exc), severity="ERROR")
+            return None
+
+    def _missing_gate_receipts(
+        self, engine_root: str, tokens: dict[str, Any], report: OracleCheckReport
+    ) -> list[dict[str, str]]:
+        missing: list[dict[str, str]] = []
+        for gate in self.gate_map.get("gates", []):
+            gate_id = gate.get("gate_id", "unknown")
+            template = gate.get("passed_flag_path_template")
+            if not template:
+                continue
+            relative = _render_path_template(template, tokens, report, gate_id)
+            if not relative:
+                continue
+            candidate = join_engine_path(engine_root, relative)
+            if not _path_exists(
+                candidate,
+                endpoint=self.profile.wiring.object_store_endpoint,
+                region=self.profile.wiring.object_store_region,
+                path_style=self.profile.wiring.object_store_path_style,
+            ):
+                missing.append({"gate_id": gate_id, "path": candidate})
         return missing
 
-    def _check_seal_markers(
-        self, locators: list[dict[str, Any]]
-    ) -> tuple[list[str], list[str], list[str], list[dict[str, Any]]]:
-        missing: list[str] = []
-        manifest_missing: list[str] = []
-        manifest_invalid: list[str] = []
-        manifests: list[dict[str, Any]] = []
-        oracle_root = self.profile.wiring.oracle_root
-        seen: set[str] = set()
-        for locator in locators:
-            path = locator.get("path", "")
-            pack_root = _pack_root_from_locator(path, oracle_root)
-            if not pack_root or pack_root in seen:
+    def _check_output_paths(
+        self,
+        engine_root: str,
+        tokens: dict[str, Any],
+        output_ids: list[str],
+        report: OracleCheckReport,
+    ) -> int:
+        missing = 0
+        for output_id in output_ids:
+            try:
+                entry = self.catalogue.get(output_id)
+            except KeyError:
+                report.add_issue("OUTPUT_UNKNOWN", detail=output_id, severity="ERROR")
+                missing += 1
                 continue
-            seen.add(pack_root)
-            seal_paths = [
-                str(Path(pack_root) / "_SEALED.flag"),
-                str(Path(pack_root) / "_SEALED.json"),
-            ]
-            manifest_path = str(Path(pack_root) / "_oracle_pack_manifest.json")
-            if not any(Path(p).exists() for p in seal_paths):
-                missing.append(pack_root)
-            if Path(manifest_path).exists():
-                try:
-                    manifest_payload = _read_json(Path(manifest_path))
-                    try:
-                        self.oracle_schema.validate("oracle_pack_manifest.schema.yaml", manifest_payload)
-                    except Exception as exc:
-                        manifest_invalid.append(pack_root)
-                        manifests.append({"pack_root": pack_root, "manifest": None})
-                        continue
-                    manifests.append({"pack_root": pack_root, "manifest": manifest_payload})
-                except Exception:
-                    manifests.append({"pack_root": pack_root, "manifest": None})
-            else:
-                manifest_missing.append(pack_root)
-        return missing, manifest_missing, manifest_invalid, manifests
+            if not entry.path_template:
+                report.add_issue("OUTPUT_TEMPLATE_MISSING", detail=output_id, severity="ERROR")
+                missing += 1
+                continue
+            relative = _render_path_template(entry.path_template, tokens, report, output_id)
+            if not relative:
+                missing += 1
+                continue
+            candidate = join_engine_path(engine_root, relative)
+            if not _path_exists(
+                candidate,
+                endpoint=self.profile.wiring.object_store_endpoint,
+                region=self.profile.wiring.object_store_region,
+                path_style=self.profile.wiring.object_store_path_style,
+            ):
+                missing += 1
+                report.add_issue("OUTPUT_MISSING", detail=candidate, severity="ERROR")
+        return missing
 
-
-def _build_object_store(profile: OracleProfile) -> LocalObjectStore | S3ObjectStore:
-    root = profile.wiring.object_store_root
-    endpoint = profile.wiring.object_store_endpoint
-    region = profile.wiring.object_store_region
-    path_style = profile.wiring.object_store_path_style
-    if root.startswith("s3://"):
-        parsed = urlparse(root)
-        return S3ObjectStore(
-            parsed.netloc,
-            prefix=parsed.path.lstrip("/"),
-            endpoint_url=endpoint,
-            region_name=region,
-            path_style=path_style,
+    def _check_pack_markers(
+        self, engine_root: str
+    ) -> tuple[bool, bool, bool, list[dict[str, Any]]]:
+        manifests: list[dict[str, Any]] = []
+        seal_paths = [
+            join_engine_path(engine_root, "_SEALED.flag"),
+            join_engine_path(engine_root, "_SEALED.json"),
+        ]
+        manifest_path = join_engine_path(engine_root, "_oracle_pack_manifest.json")
+        seal_missing = not any(
+            _path_exists(
+                path,
+                endpoint=self.profile.wiring.object_store_endpoint,
+                region=self.profile.wiring.object_store_region,
+                path_style=self.profile.wiring.object_store_path_style,
+            )
+            for path in seal_paths
         )
-    return LocalObjectStore(Path(root))
+        manifest_missing = not _path_exists(
+            manifest_path,
+            endpoint=self.profile.wiring.object_store_endpoint,
+            region=self.profile.wiring.object_store_region,
+            path_style=self.profile.wiring.object_store_path_style,
+        )
+        manifest_invalid = False
+        if not manifest_missing and not manifest_path.startswith("s3://"):
+            try:
+                manifest_payload = _read_json(Path(manifest_path))
+                try:
+                    self.oracle_schema.validate("oracle_pack_manifest.schema.yaml", manifest_payload)
+                except Exception:
+                    manifest_invalid = True
+                    manifests.append({"pack_root": engine_root, "manifest": None})
+                else:
+                    manifests.append({"pack_root": engine_root, "manifest": manifest_payload})
+            except Exception:
+                manifests.append({"pack_root": engine_root, "manifest": None})
+        return seal_missing, manifest_missing, manifest_invalid, manifests
 
 
 def _read_json(path: Path) -> dict[str, Any]:
-    import json
-
     return json.loads(path.read_text(encoding="utf-8"))
+
+
+def _render_path_template(
+    template: str, tokens: dict[str, Any], report: OracleCheckReport, label: str
+) -> str | None:
+    try:
+        return template.format(**tokens)
+    except KeyError as exc:
+        report.add_issue("TEMPLATE_TOKEN_MISSING", detail=f"{label}:{exc}", severity="ERROR")
+        return None
 
 
 def _resolve_oracle_path(path: str, oracle_root: str) -> str:
@@ -314,9 +356,3 @@ def _list_s3_matches(
             if fnmatch(candidate, key_pattern):
                 matches.append(candidate)
     return matches
-
-
-def _read_json(path: Path) -> dict[str, Any]:
-    import json as _json
-
-    return _json.loads(path.read_text(encoding="utf-8"))

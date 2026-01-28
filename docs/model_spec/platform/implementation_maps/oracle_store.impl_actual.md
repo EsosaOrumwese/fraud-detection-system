@@ -269,3 +269,45 @@ User explicitly rejected SR‑based sealing as a “temporary helper” and requ
 - Oracle Store **never** reads from `runs/fraud-platform`.
 - Removing `runs/fraud-platform` should **not** affect oracle checks or sealing.
 - The only required input for Oracle Store tooling is the **engine run root** (plus scenario_id when needed).
+
+---
+
+## Entry: 2026-01-28 16:17:31 — Applied: engine‑rooted Oracle Store tooling (SR‑based paths removed)
+
+### What I actually changed (step‑by‑step, while implementing)
+1) **Introduced an engine‑run reader module** so both checker and packer use the same boundary logic:
+   - New `oracle_store/engine_reader.py` resolves engine run roots, reads `run_receipt.json`, and discovers `scenario_id` on local runs.
+   - I chose a separate module to prevent circular imports between checker/packer and to make “engine‑rooted” logic explicit.
+
+2) **Rebuilt the checker around engine roots** (no run_facts_view):
+   - `oracle_store/checker.py` now accepts `engine_run_root` + optional `scenario_id` and validates:
+     - `run_receipt.json` is present + readable.
+     - `scenario_id` is explicit or uniquely discoverable (error on ambiguity).
+     - gate receipts exist at `passed_flag_path_template` locations.
+     - pack markers (`_SEALED.*`, `_oracle_pack_manifest.json`) are present (strict‑seal enforces).
+     - optional `output_ids` list can be checked without scanning the whole world.
+   - I removed the run_facts_view schema dependency so the checker cannot drift back into SR‑based validation.
+
+3) **Rebuilt the packer to seal from engine runs**:
+   - `oracle_store/packer.py` now seals **from engine run root**, using `run_receipt.json` + `scenario_id` as the OracleWorldKey.
+   - Pack manifest/seal writes remain idempotent and use the same digest logic; I kept the write‑once guarantees intact.
+
+4) **Scrapped SR‑based CLI and Makefile targets**:
+   - Removed `seal_cli.py` entirely.
+   - Added `pack_cli.py` with `--engine-run-root` + `--scenario-id`.
+   - Make targets now expose `platform-oracle-pack`, `platform-oracle-check`, `platform-oracle-check-strict` with engine‑rooted inputs only.
+
+5) **Updated operator guidance + build plan**:
+   - Oracle Store operator guide now shows engine‑rooted usage only.
+   - Build plan sections that assumed SR join‑surface inputs were rewritten to reflect the engine‑rooted boundary.
+
+6) **Updated tests**:
+   - Oracle packer tests now write a local `run_receipt.json` and seal from engine run roots.
+
+### Why these changes satisfy the user’s constraint
+- There is **no code path** left that can accept SR `run_facts_view`.
+- Oracle Store tooling is now **only** a consumer of engine‑materialized truth.
+- Wiping `runs/fraud-platform` does **not** affect Oracle Store operations.
+
+### Validation
+- `pytest tests/services/oracle_store/test_checker.py tests/services/oracle_store/test_packer.py -q` → 6 passed.
