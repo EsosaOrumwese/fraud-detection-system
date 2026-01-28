@@ -1662,3 +1662,46 @@ If you keep `PULL` mode as a fallback:
 7. Legacy IG pull remains compatible, but mode is exclusive per run.
 
 ---
+
+## M) Operator guide (v0): Oracle Store in action
+
+This is a **minimal operational walkthrough** to validate the Oracle boundary locally and under strict‑seal (dev posture).
+
+### M1) Pick a run_facts_view reference
+Example (local):
+```
+fraud-platform/sr/run_facts_view/9142f6d3ed4ca6375f388946e0e4ea4d.json
+```
+
+### M2) Seal the pack root (write‑once)
+This writes `_oracle_pack_manifest.json` + `_SEALED.json` at the pack root derived from locators.
+```
+make platform-oracle-seal ORACLE_RUN_FACTS_REF=fraud-platform/sr/run_facts_view/9142f6d3ed4ca6375f388946e0e4ea4d.json ORACLE_ENGINE_RELEASE=engine-local-v0
+```
+
+### M3) Run a strict‑seal check (dev posture)
+```
+make platform-oracle-check-strict ORACLE_RUN_FACTS_REF=fraud-platform/sr/run_facts_view/9142f6d3ed4ca6375f388946e0e4ea4d.json
+```
+
+Expected outcome:
+- `status: OK`
+- no `PACK_NOT_SEALED` errors
+
+### M4) Non‑strict (local smoke) check
+```
+make platform-oracle-check ORACLE_RUN_FACTS_REF=fraud-platform/sr/run_facts_view/9142f6d3ed4ca6375f388946e0e4ea4d.json
+```
+
+This allows unsealed packs (WARN only) until packer use is routine.
+
+### M5) Where logs go (platform run ids)
+Oracle Store tooling writes to the **shared platform log** and, if a platform run id is active, also writes to a **per‑run log**:
+
+```
+make platform-run-new
+```
+
+Then run the oracle commands. Logs will append to:
+- `runs/fraud-platform/platform.log` (always)
+- `runs/fraud-platform/platform_runs/<platform_run_id>/platform.log` (when ACTIVE_RUN_ID exists)

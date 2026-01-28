@@ -2628,6 +2628,14 @@ platform-oracle-check:
 	fi
 	@$(PY_SCRIPT) -m fraud_detection.oracle_store.cli --profile "$(ORACLE_PROFILE)" --run-facts-ref "$(ORACLE_RUN_FACTS_REF)"
 
+.PHONY: platform-oracle-check-strict
+platform-oracle-check-strict:
+	@if [ -z "$(ORACLE_RUN_FACTS_REF)" ]; then \
+		echo "ORACLE_RUN_FACTS_REF is required for platform-oracle-check-strict." >&2; \
+		exit 1; \
+	fi
+	@$(PY_SCRIPT) -m fraud_detection.oracle_store.cli --profile "$(ORACLE_PROFILE)" --run-facts-ref "$(ORACLE_RUN_FACTS_REF)" --strict-seal
+
 .PHONY: platform-oracle-seal
 platform-oracle-seal:
 	@if [ -z "$(ORACLE_RUN_FACTS_REF)" ]; then \
