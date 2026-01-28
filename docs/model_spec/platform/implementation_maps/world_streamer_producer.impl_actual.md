@@ -517,3 +517,43 @@ Phase 4 is **not new capability**; it validates that Phases 1–3 work end‑to�
 - WSP subset tests already exist; Phase 4 adds **integration‑style** validation using local run data + IG endpoint.
 
 ---
+
+## Entry: 2026-01-28 19:29:10 — Phase 4 implemented (validation harness + make targets)
+
+### Step‑by‑step decisions and changes
+1) **Add a dedicated validation CLI (not reuse WSP CLI)**
+   - Implemented `fraud_detection.world_streamer_producer.validate_cli` to run Phase 4 checks as a sequence.
+   - Reason: Phase 4 needs a multi‑step validation flow (smoke + resume + negative checks), which doesn’t fit a single WSP emit command.
+
+2) **Local smoke validation design (bounded, deterministic)**
+   - First pass runs WSP with `max_events` (default 10) to ensure end‑to‑end IG ingestion works.
+   - Resume check runs WSP again with `resume_events` (default 1) and verifies the checkpoint cursor advanced.
+   - Cursor advance is verified by reading the file checkpoint store; no engine mutation required.
+   - Reason: provides a strict, observable signal that resume is working without needing IG internals.
+
+3) **Checkpoint cursor resolution strategy**
+   - Pack key is derived from the file checkpoint root by locating the newest cursor for the chosen output_id.
+   - Reason: avoids re‑implementing pack identity resolution logic (manifest + fallback) in validation.
+
+4) **Failure‑path validation (producer allowlist)**
+   - Implemented a negative check by running WSP with a **different producer_id** (`svc:invalid`) while keeping the same allowlist.
+   - This fails before streaming and confirms `PRODUCER_NOT_ALLOWED` without changing profile files.
+   - Reason: fail‑closed governance can be verified without editing allowlist contents or engine data.
+
+5) **Dev completion validation (uncapped)**
+   - Added dev mode to run WSP with `max_events=None` (full completion) and warn if checkpoint backend is not Postgres.
+   - Reason: this maps to the dev environment expectation without adding new validation logic.
+
+6) **Makefile targets for reproducibility**
+   - Added `platform-wsp-validate-local` and `platform-wsp-validate-dev` targets to standardize runs.
+   - Added tuning variables (`WSP_VALIDATE_MAX_EVENTS`, `WSP_RESUME_EVENTS`, `WSP_VALIDATE_CHECK_FAILURES`, `WSP_VALIDATE_SKIP_RESUME`).
+   - Reason: avoid ad‑hoc CLI usage and keep validation steps consistent across operators.
+
+### Files changed
+- `src/fraud_detection/world_streamer_producer/validate_cli.py` (new)
+- `makefile` (new targets + variables)
+
+### Tests run (local)
+- `.\.venv\Scripts\python.exe -m pytest tests/services/world_streamer_producer/test_runner.py -q` → 4 passed.
+
+---

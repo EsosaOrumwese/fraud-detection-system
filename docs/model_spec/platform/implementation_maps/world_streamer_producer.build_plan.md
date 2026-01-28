@@ -119,3 +119,5 @@ Implement WSP as the **primary runtime producer** that replays sealed engine `bu
 **DoD checklist:**
 - Missing gate → `GATE_PASS_MISSING` (fail‑closed).
 - Producer not allowed → `PRODUCER_NOT_ALLOWED` (fail‑closed).
+
+**Status:** implemented (validation harness + make targets). Execution pending.

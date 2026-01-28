@@ -2527,6 +2527,10 @@ IG_AUDIT_RUN_ID ?=
 PLATFORM_RUN_ID ?=
 WSP_PROFILE ?= config/platform/profiles/local.yaml
 WSP_MAX_EVENTS ?= 1
+WSP_VALIDATE_MAX_EVENTS ?= 10
+WSP_RESUME_EVENTS ?= 1
+WSP_VALIDATE_CHECK_FAILURES ?=
+WSP_VALIDATE_SKIP_RESUME ?=
 WSP_ENGINE_RUN_ROOT ?=
 WSP_SCENARIO_ID ?=
 WSP_OUTPUT_IDS ?=
@@ -2636,6 +2640,42 @@ platform-wsp-ready-once:
 		--scenario-id "$(WSP_SCENARIO_ID)" \
 		$(if $(WSP_OUTPUT_IDS),--output-ids "$(WSP_OUTPUT_IDS)",) \
 		$(if $(WSP_MAX_EVENTS),--max-events "$(WSP_MAX_EVENTS)",)
+
+.PHONY: platform-wsp-validate-local
+platform-wsp-validate-local:
+	@if [ -z "$(WSP_ENGINE_RUN_ROOT)" ]; then \
+		echo "WSP_ENGINE_RUN_ROOT is required for platform-wsp-validate-local." >&2; \
+		exit 1; \
+	fi
+	@if [ -z "$(WSP_SCENARIO_ID)" ]; then \
+		echo "WSP_SCENARIO_ID is required for platform-wsp-validate-local." >&2; \
+		exit 1; \
+	fi
+	@$(PY_SCRIPT) -m fraud_detection.world_streamer_producer.validate_cli --profile "$(WSP_PROFILE)" \
+		--engine-run-root "$(WSP_ENGINE_RUN_ROOT)" \
+		--scenario-id "$(WSP_SCENARIO_ID)" \
+		--mode local \
+		$(if $(WSP_OUTPUT_IDS),--output-ids "$(WSP_OUTPUT_IDS)",) \
+		$(if $(WSP_VALIDATE_MAX_EVENTS),--max-events "$(WSP_VALIDATE_MAX_EVENTS)",) \
+		$(if $(WSP_RESUME_EVENTS),--resume-events "$(WSP_RESUME_EVENTS)",) \
+		$(if $(filter 1 true yes,$(WSP_VALIDATE_SKIP_RESUME)),--skip-resume,) \
+		$(if $(filter 1 true yes,$(WSP_VALIDATE_CHECK_FAILURES)),--check-failures,)
+
+.PHONY: platform-wsp-validate-dev
+platform-wsp-validate-dev:
+	@if [ -z "$(WSP_ENGINE_RUN_ROOT)" ]; then \
+		echo "WSP_ENGINE_RUN_ROOT is required for platform-wsp-validate-dev." >&2; \
+		exit 1; \
+	fi
+	@if [ -z "$(WSP_SCENARIO_ID)" ]; then \
+		echo "WSP_SCENARIO_ID is required for platform-wsp-validate-dev." >&2; \
+		exit 1; \
+	fi
+	@$(PY_SCRIPT) -m fraud_detection.world_streamer_producer.validate_cli --profile "$(WSP_PROFILE)" \
+		--engine-run-root "$(WSP_ENGINE_RUN_ROOT)" \
+		--scenario-id "$(WSP_SCENARIO_ID)" \
+		--mode dev \
+		$(if $(WSP_OUTPUT_IDS),--output-ids "$(WSP_OUTPUT_IDS)",)
 
 .PHONY: platform-oracle-pack
 platform-oracle-pack:
