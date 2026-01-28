@@ -49,6 +49,7 @@ Default bucket: **`fraud-platform`** (vendor-neutral; S3-compatible semantics).
 Prefixes (authoritative by component):
 - `engine/` — engine outputs + gate receipts (engine is truth owner)
 - `sr/` — run_plan, run_record, run_status, run_facts_view, READY signals (SR is truth owner)
+- `wsp/` — world stream checkpoints (WSP operational state only)
 - `ig/receipts/` — ingestion receipts (IG truth owner)
 - `ig/quarantine/` — quarantine evidence (IG truth owner)
 - `dla/audit/` — immutable audit records (DLA truth owner)

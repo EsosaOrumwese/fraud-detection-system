@@ -237,24 +237,27 @@ These are invoked explicitly (SR/Run-Operate):
   Its job is: engine invocation/reuse + gate verification + publish join surface + run ledger.
 
 12. **Data Engine run job**
-    Invoked by SR. Not always-on. Produces world artifacts + stream outputs + PASS evidence.
+    Invoked by SR. Not always-on. Produces sealed world artifacts + PASS evidence (no bus writes).
 
-13. **Offline Feature Plane Shadow job**
+13. **World Stream Producer (WSP)**
+    Triggered by SR READY. Streams sealed `business_traffic` into IG (push). Persists checkpoints (DB or object store).
+
+14. **Offline Feature Plane Shadow job**
     Scheduled/on-demand. Rebuilds datasets/snapshots deterministically from EB/archive + labels.
 
-14. **Model Factory training/eval job**
+15. **Model Factory training/eval job**
     Scheduled/on-demand. Consumes DatasetManifests, produces bundles + evidence + PASS posture.
 
-15. **Backfill/replay jobs (Run/Operate)**
+16. **Backfill/replay jobs (Run/Operate)**
     Explicitly invoked. Rebuild projections/datasets and emits governance facts (never silent).
 
 ### Infrastructure units (not “your code” but required deployment units)
 
-16. **Event Bus** (EB)
+17. **Event Bus** (EB)
     Durable append + replay.
-17. **Artifact/object store**
+18. **Artifact/object store**
     Holds by-ref artifacts: engine outputs, receipts, ledgers, manifests, bundles, quarantine evidence.
-18. **Operational databases**
+19. **Operational databases**
     At minimum: registry DB, labels DB, case DB; possibly audit index DB (even if audit raw is in object store).
 
 (Locally you can run these as dev services; in prod they’re managed/clustered; semantics stay the same.)
@@ -263,7 +266,7 @@ These are invoked explicitly (SR/Run-Operate):
 
 ## The deployment-unit pin (designer-authoritative)
 
-**In production shape, the hot path is a set of always-on services (IG, DF, AL, DLA, DL) plus always-on EB consumers that maintain state (IEG, OFP); control-plane services (Registry, Label Store, Case backend) serve authoritative truths; and batch jobs (SR, Engine runs, Offline Shadow, Model Factory, Backfills) are invoked explicitly with pinned inputs and auditable outputs. Local/dev/prod may collapse units for convenience, but these unit roles and authority boundaries do not change.**
+**In production shape, the hot path is a set of always-on services (IG, DF, AL, DLA, DL) plus always-on EB consumers that maintain state (IEG, OFP); control-plane services (Registry, Label Store, Case backend) serve authoritative truths; and batch jobs (SR, Engine runs, WSP streaming, Offline Shadow, Model Factory, Backfills) are invoked explicitly with pinned inputs and auditable outputs. Local/dev/prod may collapse units for convenience, but these unit roles and authority boundaries do not change.**
 
 # 3) Pin the stateful substrate map
 
@@ -1029,7 +1032,7 @@ Codex doesn’t need you to pick a cloud vendor now. It needs:
 
 1. a **single “bring up local infra” command** (Compose)
 2. a **local profile** (`.env.local` / config profile) with endpoints and policy revs
-3. an **integration script** that runs one full golden flow end-to-end (SR→Engine→IG/EB→IEG/OFP→DF→AL→DLA + label + offline + registry resolve)
+3. an **integration script** that runs one full golden flow end-to-end (SR→Engine→WSP→IG/EB→IEG/OFP→DF→AL→DLA + label + offline + registry resolve)
 
 That’s enough for it to implement and test against a real substrate from day one.
 
@@ -1054,7 +1057,7 @@ I’ll also pin a **minimal substrate naming layout** first so the table has som
 ### Event Bus (Redpanda) topics (reference names)
 
 * **`fp.bus.traffic.v1`**
-  Canonical *business_traffic* events that drive the hot path (engine traffic, external transactions, decision/action events that need to be replayed).
+  Canonical *business_traffic* events that drive the hot path (WSP‑streamed engine traffic, external transactions, decision/action events that need to be replayed).
 * **`fp.bus.control.v1`**
   Low-volume control facts (run ready signals, governance facts, registry lifecycle events, backfill declarations, config activations).
 * **`fp.bus.audit.v1`** *(optional but useful)*
@@ -1068,6 +1071,7 @@ Single bucket: **`fraud-platform`**, with prefixes:
 
 * `engine/` (engine outputs, gate receipts)
 * `sr/` (run_plan/run_record/run_status/run_facts_view, READY signals)
+* `wsp/` (world stream checkpoints; operational state only)
 * `ig/quarantine/` (quarantine evidence blobs)
 * `ig/receipts/` (ingestion receipts, if you store them as objects)
 * `dla/audit/` (audit decision records + evidence pointers)
@@ -1105,7 +1109,8 @@ Derived (rebuildable):
 
 | Component (deployment unit)               | Reads                                                                                                                                                          | Writes                                                                                                                                                                      | Must persist (truth)                                                                                                                |
 | ----------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------- |
-| **Data Engine (job)**                     | `profiles/` (engine params/config), reference artifacts                                                                                                        | **Object:** `engine/…` outputs + **gate receipts**. Optionally emits traffic → IG                                                                                           | Engine outputs (immutable per identity) + gate PASS evidence (`engine/`)                                                            |
+| **Data Engine (job)**                     | `profiles/` (engine params/config), reference artifacts                                                                                                        | **Object:** `engine/…` outputs + **gate receipts** (no bus writes)                                                                                                           | Engine outputs (immutable per identity) + gate PASS evidence (`engine/`)                                                            |
+| **World Stream Producer (job/service)**   | **Bus:** `fp.bus.control.v1` READY; **Object:** `sr/run_facts_view`, `engine/…` locators/evidence                                                               | **Push:** canonical envelopes → IG; **Object/DB:** `wsp/checkpoints/…` (operational resume state)                                                                            | Checkpoints (operational); truth remains IG receipts + EB                                                                           |
 | **Scenario Runner (job/service)**         | **Object:** `engine/…` locators/receipts; **DB:** optional `sr`; config profile                                                                                | **Object:** `sr/run_plan`, `sr/run_record`, `sr/run_status`, `sr/run_facts_view`; **Bus:** `fp.bus.control.v1` READY signal                                                 | Run ledger + join surface (`sr/…`) (READY is meaningless without these)                                                             |
 | **Ingestion Gate (service)**              | **Bus:** producer traffic input (or HTTP ingress), **Object:** `sr/run_facts_view` (to enforce run joinability), policy profiles                               | **Bus:** `fp.bus.traffic.v1` admitted events; **Object:** `ig/quarantine/…` evidence; **DB:** `ig` receipt/quarantine index; optional pointer events → `fp.bus.audit.v1`    | Admission truth (receipts + decisions) + quarantine evidence pointers (DB + object)                                                 |
 | **Event Bus (infra)**                     | n/a                                                                                                                                                            | n/a                                                                                                                                                                         | Primary admitted fact log (topics themselves)                                                                                       |
@@ -1134,7 +1139,7 @@ If Codex runs one full integration flow locally, it should touch:
 * object: `engine/…`, `sr/…`
 * bus: `fp.bus.control.v1` (READY)
 
-2. **Traffic through IG → EB**
+2. **WSP → IG → EB**
 
 * bus: `fp.bus.traffic.v1`
 * db/object: `ig` + `ig/quarantine/…` (if any)

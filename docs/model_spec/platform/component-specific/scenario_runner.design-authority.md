@@ -812,7 +812,7 @@ This path exists because your platform law is: **No PASS → no read**, and miss
 
 ### What happens to ingestion (IG) in P5
 
-Because v0 ingestion is **triggered from READY**, IG never starts the pull-ingestion route.
+Because v0 ingestion is **triggered from READY**, WSP streams into IG (push); IG does not initiate a pull route by default.
 If any producer tries to send “traffic” anyway, IG enforces joinability by consulting SR’s join surface; without READY/joinability it quarantines (it’s literally IG’s job).
 
 ---
@@ -3171,7 +3171,7 @@ Below is **the machinery inside N5** (as a network of submodules inside N5).
 **Inputs:** output catalogue metadata (and interface taxonomy rules)
 **Outputs:** `OutputRole` for each output: `business_traffic | truth_products | audit_evidence | ops_telemetry` 
 
-**Hard law:** Only `business_traffic` is eligible for IG pull-ingestion to EB; everything else is *not traffic*. N5 only labels/records; it does not ingest.
+**Hard law:** Only `business_traffic` is eligible for WSP streaming into IG → EB; everything else is *not traffic*. N5 only labels/records; it does not ingest.
 
 ---
 
@@ -4070,7 +4070,7 @@ N7 is purely: **read truth → publish trigger again**.
 This module is what makes your platform recoverable:
 
 * if IG missed READY (consumer down), you re-emit instead of re-running the engine
-* if downstream services are redeployed, you re-emit to re-trigger pull-ingestion
+* if downstream services are redeployed, you re-emit to re-trigger WSP streaming
 * if you restore from backups, you can rebuild consumers’ state by re-emitting control-plane facts
 
 All while respecting the pinned rule: **the ledger is the authority; the bus is a trigger.**

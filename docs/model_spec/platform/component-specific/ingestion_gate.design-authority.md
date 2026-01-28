@@ -16,6 +16,8 @@ IG is the platform’s **trust boundary** for anything that can influence decisi
 
 That means: **no matter where an event comes from**, it only becomes “platform fact” after it crosses IG.
 
+**Design update (WSP):** IG no longer **pulls** engine outputs as the default runtime path. The sealed world is streamed by **WSP** and delivered to IG via **push ingestion**. Any “legacy engine pull” sections below are **legacy/backfill** only and should not be treated as the primary runtime story.
+
 ---
 
 ## 2) IG’s authority boundary (what IG owns vs what it must not own)
@@ -48,7 +50,7 @@ Key meaning of `event_id` (important for later): it’s the **stable identifier*
 
 If an event is meant to participate in the current run/world, IG enforces that it is joinable to a **valid run context** (and, in practice, a **READY** run). If not joinable → quarantine/hold, not “best effort.”
 
-Also pinned: downstream components are **forbidden** from scanning engine outputs or inferring “latest run”; they must start from **SR READY + run_facts_view** and follow refs. IG follows that same rule in pull-ingestion.
+Also pinned: downstream components are **forbidden** from scanning engine outputs or inferring “latest run”; they must start from **SR READY + run_facts_view** and follow refs. IG follows that same rule for WSP-driven ingestion.
 
 ---
 
@@ -111,14 +113,16 @@ Pinned rule from the platform join: IG must not “silently fix” bad inputs in
 
 ---
 
-## 10) Two ingestion modes exist, but they share the same outer meaning
+## 10) Ingestion modes (primary vs legacy)
 
 This is the production-clean posture given your engine reality:
 
-* **Push ingest:** producers submit already-framed envelopes to IG (J3).
-* **Pull ingest (engine business_traffic):** SR READY + run_facts_view triggers IG to pull referenced engine traffic outputs, verify gates, frame rows to envelopes, then admit/quarantine/duplicate.
+* **Push ingest (primary):** producers (notably WSP) submit already-framed envelopes to IG (J3). IG remains the trust boundary and verifies joinability + proofs.
+* **Engine pull ingest (legacy/optional):** retained only for backfill/remediation scenarios if WSP is absent. This is not the default runtime path.
 
 **Important overview point:** even though the intake differs, **the outcome semantics are identical** (ADMIT/DUPLICATE/QUARANTINE + receipts + durability meaning). 
+
+**Design correction (v0):** The default traffic path is **WSP → IG (push)**. Any legacy engine-pull path below is **legacy/optional** and should not be treated as the primary runtime story.
 
 ---
 
@@ -164,7 +168,7 @@ Everything here is constrained by your pinned joins J3/J4 + “only one front do
    IG reads **`sr/run_facts_view`** “to enforce run joinability.”
 
 3. **SR READY trigger (control bus)**
-   SR publishes a **READY signal** on `fp.bus.control.v1`. In production, this is the trigger that downstream (including IG pull ingestion) starts from.
+   SR publishes a **READY signal** on `fp.bus.control.v1`. In production, this is the trigger that downstream (including legacy engine pull ingestion, if enabled) starts from.
 
 4. **Engine artifacts + gate receipts (object)**
    Engine writes outputs + PASS/FAIL evidence; IG (as a downstream component) must treat PASS receipts as prerequisites (“no PASS → no read”).
@@ -220,26 +224,26 @@ A4) **UNJOINABLE / UNREADY run context path (special case of quarantine/hold)**
 
 ---
 
-### Path family B — Engine “business_traffic” pull ingestion (SR entrypoint → IG → EB)
+### Path family B — WSP “business_traffic” push ingestion (SR entrypoint → WSP → IG → EB)
 
-This is the **production-clean** design you pinned: SR READY precedes ingestion.
+This is the **production‑clean** design you pinned: SR READY precedes ingestion, and WSP streams the sealed world into IG.
 
-B1) **READY triggers ingestion**
-`SR → (fp.bus.control.v1 READY) → IG` (trigger)
+B1) **READY triggers streaming**
+`SR → (fp.bus.control.v1 READY) → WSP` (trigger)
 
-B2) **IG resolves join surface**
-`IG → read sr/run_facts_view (object)` (the map)
+B2) **WSP resolves join surface**
+`WSP → read sr/run_facts_view (object)` (the map)
 
-B3) **IG reads engine outputs by reference and enforces “no PASS → no read”**
-`IG → read engine outputs + required PASS evidence (object) → IG`
-Meaning: IG doesn’t scan “latest”; it follows SR’s refs and treats PASS receipts as prerequisites.
+B3) **WSP reads engine outputs by reference and enforces “no PASS → no read”**
+`WSP → read engine outputs + required PASS evidence (object) → WSP`
+Meaning: WSP doesn’t scan “latest”; it follows SR’s refs and treats PASS receipts as prerequisites.
 
-B4) **ADMIT engine traffic to EB**
-`IG → wrap rows → EB(fp.bus.traffic.v1)`
+B4) **IG admits canonical envelopes**
+`WSP → IG(push) → EB(fp.bus.traffic.v1)`
 Note: admitted events must conform to canonical envelope (required `event_id,event_type,ts_utc,manifest_fingerprint`).
 
-B5) **Engine-pull quarantine** (gate/schema/pin mismatch, etc.)
-`SR READY → IG → (gate fail / missing prereq / invalid envelope framing) → ig/quarantine + receipt`
+B5) **Quarantine on invalid stream items** (gate/schema/pin mismatch, etc.)
+`SR READY → WSP → IG → (gate fail / missing prereq / invalid envelope) → ig/quarantine + receipt`
 Meaning: fail-closed; no “best effort” reading or fixing.
 
 ---
@@ -325,7 +329,7 @@ To make sure we’re speaking precisely in later steps:
 
 * **J3:** `Producers → IG` (envelope + joinability + duplicate/quarantine posture) 
 * **J4:** `IG ↔ EB` (admitted means durably appended; receipts point to EB coordinates; IG stamps partition_key)
-* **J2 support:** `SR → run_facts_view + READY` is the platform entrypoint (used by IG for pull ingestion / joinability enforcement)
+* **J2 support:** `SR → run_facts_view + READY` is the platform entrypoint (used by WSP/IG for push joinability and by legacy engine pull ingestion when enabled)
 * **J12:** `(DF/AL/IG) → DLA` (audit flight recorder uses IG evidence by-ref)
 
 ---
@@ -370,7 +374,7 @@ Plus `payload` (unconstrained at envelope level).
 ## 2) IG → SR join surface (read `sr/run_facts_view`)
 
 **Why this edge exists:**
-J2 says downstream must start from SR’s **READY + run_facts_view** and must not scan engine outputs or infer “latest.” IG follows that too (especially for engine pull-ingestion + joinability enforcement).
+J2 says downstream must start from SR’s **READY + run_facts_view** and must not scan engine outputs or infer “latest.” IG follows that too (for WSP-driven joinability and legacy engine pull-ingestion when enabled).
 
 **What crosses the edge (conceptually):**
 
@@ -573,7 +577,7 @@ Production posture requires observability; IG’s rates/lag/errors matter and ma
 
 * Counters: admitted/quarantined/duplicate per event_type/producer
 * Latency histograms: ingest-to-ack, gate-verify time, EB-append time
-* Backlog/lag signals (especially for pull ingestion)
+* Backlog/lag signals (especially for legacy engine pull ingestion)
 * Error reason taxonomy (top quarantine reasons)
 
 **Pinned “must not”:**
@@ -807,7 +811,7 @@ Treat READY as spawning a **run-scoped ingestion job** keyed by the run context 
 
 ### Designer pin for B1 (authoritative)
 
-**IG begins engine pull ingestion only after READY.** No “pre-ready buffering” in IG for engine pull (that was the whole point of choosing Pull).
+**IG begins legacy engine pull ingestion only after READY.** No “pre-ready buffering” in IG for legacy engine pull (that was the whole point of choosing Pull).
 
 ---
 
@@ -912,7 +916,7 @@ Every emitted event must satisfy the envelope schema (required fields + optional
 * **manifest_fingerprint**: from the run context / locator.
 * **ts_utc**: from the row’s domain-time field (for `arrival_events_5B`, `ts_utc` is explicitly part of the PK).
 * **event_type**: chosen routing name.
-  **Designer v0 pin:** for engine-pull ingestion, set `event_type = output_id` unless an explicit mapping table exists. This avoids hidden translation drift and is still semantically stable.
+  **Designer v0 pin:** for legacy engine-pull ingestion, set `event_type = output_id` unless an explicit mapping table exists. This avoids hidden translation drift and is still semantically stable.
 * **event_id**: must be stable for idempotency/dedup at ingest/bus boundaries.
 
 ### Pins in the envelope (joinability)
@@ -926,7 +930,7 @@ Even if the engine output’s scope doesn’t include all pins, the platform joi
 
 Because many engine “traffic tables” won’t carry a UUID, IG must mint a stable id.
 
-**Designer pin:** for engine-pull ingestion, define
+**Designer pin:** for legacy engine-pull ingestion, define
 `event_id = H(output_id + PK_tuple + world pins)`
 where `PK_tuple` comes from the engine output’s declared primary key.
 
@@ -1514,7 +1518,7 @@ At a minimum, IG emits structured telemetry for:
 
 * input backlog (queue depth / request rate)
 * EB append failure rate / retry rate
-* for engine pull ingestion: per-run ingestion progress (job-level), not as platform truth
+* for legacy engine pull ingestion: per-run ingestion progress (job-level), not as platform truth
 
 ### Correlation requirements (non-negotiable)
 
@@ -1686,7 +1690,7 @@ From your deployment-unit map, IG in any env must be able to:
 * **Read**
 
   * producer traffic input (**bus input or HTTP ingress**)
-  * `sr/run_facts_view` (for run joinability + engine pull ingestion)
+  * `sr/run_facts_view` (for run joinability + legacy engine pull ingestion)
   * policy profiles
 * **Write**
 
@@ -1742,7 +1746,7 @@ The ladder allows throughput/concurrency differences.
 IG knobs:
 
 * max ingress RPS / queue depth
-* worker concurrency (push intake and engine-pull ingestion)
+* worker concurrency (push intake and legacy engine-pull ingestion)
 * batch sizes (for engine table scanning → envelope emit)
 * retry budgets/timeouts (EB append, object reads, DB writes)
 * backpressure posture (shed vs slow vs hard-fail; still must be receipted)
@@ -1923,7 +1927,7 @@ In a production-ready platform, **IG contains exactly these internal subnetworks
 **Hard guarantees:**
 
 * Engine rows become valid canonical envelopes.
-* `event_type` is deterministic (for engine pull: `event_type = output_id`).
+* `event_type` is deterministic (for legacy engine pull: `event_type = output_id`).
 * `event_id` is stable/deterministic when minting is required.
 * `ts_utc` remains domain time; IG adds ingestion time only in receipts/metadata.
 
@@ -2356,7 +2360,7 @@ If M3 cannot resolve a valid READY run context from this request, the ingest sta
 
 ### Purpose
 
-Give M4 the **only legal plan** for engine pull ingestion: “here is the run context, here is the join surface, here are the traffic targets SR declared.”
+Give M4 the **only legal plan** for legacy engine pull ingestion: “here is the run context, here is the join surface, here are the traffic targets SR declared.”
 
 ### What crosses (payload)
 
@@ -2486,7 +2490,7 @@ Modules in play here:
 
 ### Purpose
 
-Hand off a **fully canonical, admission-ready event** (from either push or engine-pull framing) to the **single truth engine** that decides first-seen vs duplicate vs quarantine.
+Hand off a **fully canonical, admission-ready event** (from either push or legacy engine-pull framing) to the **single truth engine** that decides first-seen vs duplicate vs quarantine.
 
 ### What crosses
 
@@ -2500,7 +2504,7 @@ Hand off a **fully canonical, admission-ready event** (from either push or engin
 * `producer_principal`
 * `run_context` (present iff run-scoped; includes run pins + READY anchor ref)
 * `partitioning_profile_id` + `partition_hint_inputs` (the fields needed to compute partition_key deterministically)
-* `provenance_pointers` (source refs; for engine pull this includes `{engine_output_locator, row_pk}`)
+* `provenance_pointers` (source refs; for legacy engine pull this includes `{engine_output_locator, row_pk}`)
 
 ### Hard invariants
 
@@ -2548,7 +2552,7 @@ Authorize **exactly one** attempt to append the event to EB by issuing a *first-
 * If the ledger store is unavailable:
 
   * The event is **not accepted** (no receipt is promised because the truth store is down).
-  * Push ingress returns a retryable failure; bus ingress remains unacked; engine pull pauses the run ingest.
+  * Push ingress returns a retryable failure; bus ingress remains unacked; legacy engine pull pauses the run ingest.
   * Nothing moves forward into EB without ledger truth.
 
 (That’s not “maybe” — that’s the rule: **no ledger write → no acceptance → no EB append**.)
@@ -2672,7 +2676,7 @@ Provide a single convergence edge for **all failure paths** to produce durable e
 * optional context:
 
   * run_context_ref (if known)
-  * engine context: `{engine_output_locator, row_pk, proof_refs}` (for pull ingestion)
+  * engine context: `{engine_output_locator, row_pk, proof_refs}` (for legacy engine pull ingestion)
   * policy_rev
 
 ### Hard invariants
@@ -2686,7 +2690,7 @@ If M9 cannot persist evidence (object store down) **and** cannot persist a recei
 
 * push ingress gets a retryable failure,
 * bus ingress remains unacked,
-* engine pull pauses.
+* legacy engine pull pauses.
   No fake receipts are issued.
 
 ---
@@ -2842,7 +2846,7 @@ Make IG **environment-ladder compliant**: same semantics everywhere, different *
 ### Hard invariants
 
 * **Activation is atomic at the “active pointer” level**: IG runs either the old active set or the new active set—never a half-applied mix.
-* Every receipt/telemetry emission is stamped with the **active revisions in force** (at least `policy_rev`; and for engine pull also `gate_map_rev`).
+* Every receipt/telemetry emission is stamped with the **active revisions in force** (at least `policy_rev`; and for legacy engine pull also `gate_map_rev`).
 * Unknown revision state is fail-closed: if a module cannot load the active revision, that module becomes unavailable and IG refuses acceptance rather than silently weakening rules.
 
 ### Reject routing
@@ -3126,7 +3130,7 @@ M1 Intake, M2 Envelope+Policy, M3 Run/World Anchor, M4 Engine Pull Orchestrator,
 ## Internal joins we’ve defined (high-level truth)
 
 * **J1–J3 (push front-half):** normalize intake → policy/envelope gate → run/world anchor → canonicalization.
-* **J4–J7 (engine pull front-half):** READY start → run ingest plan from `run_facts_view` → per-target candidates → proofed sources only.
+* **J4–J7 (legacy engine pull front-half):** READY start → run ingest plan from `run_facts_view` → per-target candidates → proofed sources only.
 * **J8–J14 (truth spine):** canonical admission candidate → first-seen ticket (PENDING reservation) → EB ack → finalize ADMITTED; or quarantine request → evidence → finalize QUARANTINED; receipts always queryable.
 * **J15–J20 (ops/control):** evidence pointers → receipt lookup → quarantine triage → atomic profile activation → ingress throttle/circuit-break → remediation re-ingest re-enters through intake (no bypass).
 
@@ -3141,7 +3145,7 @@ From here on, I’ll actively **check every new design statement against this le
 
 ---
 
-Cool. **P5–P9** are the remaining IG path families (engine pull ingestion + remediation + reconciliation + observability/control). I’ll keep every subnetwork opaque and describe each path as a **join-composition** with **hard outcomes**.
+Cool. **P5–P9** are the remaining IG path families (legacy engine pull ingestion + remediation + reconciliation + observability/control). I’ll keep every subnetwork opaque and describe each path as a **join-composition** with **hard outcomes**.
 
 ---
 
@@ -3420,7 +3424,7 @@ IG is an **always-on service deployment unit** (not a job), and it has these fix
 * **Reads**
 
   * producer ingress: **bus input or HTTP ingress**
-  * **`sr/run_facts_view`** (for run joinability + engine pull)
+  * **`sr/run_facts_view`** (for run joinability + legacy engine pull)
   * policy profiles
 * **Writes**
 
@@ -3438,7 +3442,7 @@ This *does not change* across local/dev/prod; only the substrate implementation 
 
 ## 2) How the internal IG network maps to runtime in prod (the “final” deployment view)
 
-We are **not** turning your internal modules into microservices. They remain internal modules, but **production runs IG in two runtime roles** (same codebase, shared truth stores), because push-ingest and engine-pull have different load patterns:
+We are **not** turning your internal modules into microservices. They remain internal modules, but **production runs IG in two runtime roles** (same codebase, shared truth stores), because push-ingest and legacy engine-pull have different load patterns:
 
 ### Role A — `ig-ingress` (front-door pool)
 
@@ -3449,7 +3453,7 @@ We are **not** turning your internal modules into microservices. They remain int
 ### Role B — `ig-enginepull` (worker pool)
 
 * subscribes to SR READY / reads `run_facts_view`
-* runs P5–P6 (engine pull ingestion) with controlled concurrency
+* runs P5–P6 (legacy engine pull ingestion) with controlled concurrency
 
 **Shared truth dependencies (both roles):**
 
@@ -3457,7 +3461,7 @@ We are **not** turning your internal modules into microservices. They remain int
 * `ig/quarantine/...` evidence store
 * `fp.bus.traffic.v1` writer permissions
 
-This is the cleanest “production component” posture because it prevents engine pull workloads from starving the real-time ingest boundary, while keeping one authoritative “IG truth.” (And it still respects the doc’s pinned stance that modules are conceptual, not separate deployables.)
+This is the cleanest “production component” posture because it prevents legacy engine pull workloads from starving the real-time ingest boundary, while keeping one authoritative “IG truth.” (And it still respects the doc’s pinned stance that modules are conceptual, not separate deployables.)
 
 ---
 
@@ -3692,7 +3696,7 @@ IG is an **always-on service** with the fixed surfaces we listed earlier: reads 
 Same codebase, two runtime roles (not separate products):
 
 * **ig-ingress**: runs push paths P1–P4 + ops surfaces
-* **ig-enginepull**: runs engine pull paths P5–P6
+* **ig-enginepull**: runs legacy engine pull paths P5–P6
 
 Both share the same authoritative truth stores (`ig` DB + quarantine evidence store) and the same EB writer.
 
@@ -4251,7 +4255,7 @@ For every quarantine, construct an evidence bundle with these sections:
   * gate/proof verify failures
   * commit deadletter details (from M8)
 
-4. **Upstream proof context** (engine pull quarantines)
+4. **Upstream proof context** (legacy engine pull quarantines)
 
 * `engine_output_locator`
 * `row_pk` (if row-level)
@@ -4420,7 +4424,7 @@ This is part of “production-ready” and cannot be deferred.
 * Remediation is always **new intake**, linked by explicit **supersedes** chains; history is never rewritten.
 * Holds are represented as retryable quarantines; pin mismatch is terminal.
 
-If you want the next node to open, the clean one is **M3 (Run/World Anchor)**, because it defines the exact mechanics of READY/run_facts_view anchoring that drive both P4 holds and the entire engine-pull path family.
+If you want the next node to open, the clean one is **M3 (Run/World Anchor)**, because it defines the exact mechanics of READY/run_facts_view anchoring that drive both P4 holds and the entire legacy engine-pull path family.
 
 ---
 
@@ -4466,7 +4470,7 @@ Below is M3 as a **white box**: the **subnetworks inside it** and the **machiner
 
 * `(scenario_id, run_id)` and a resolution rule (“where is that run’s join surface?”)
 
-  * For engine pull: triggered by J4 and resolved via SR conventions.
+  * For legacy engine pull: triggered by J4 and resolved via SR conventions.
   * For push anchoring: may be triggered on-demand when anchoring requires it.
 
 **Outputs**
@@ -4511,13 +4515,13 @@ This validator enforces four non-negotiable laws:
 
 3. **Traffic target hygiene**
 
-   * `traffic_targets[]` must be present for engine-pull runs, and each target must be well-formed (has `output_id`, resolved path, and identity tokens).
+   * `traffic_targets[]` must be present for legacy engine-pull runs, and each target must be well-formed (has `output_id`, resolved path, and identity tokens).
    * Targets must be declared as **business traffic** (M3 rejects a plan that attempts to treat truth/audit/telemetry as traffic; M5 will also enforce later, but M3 blocks it early).
 
 4. **Proof completeness for declared targets**
 
    * If a traffic target is instance-scoped, the join surface must include what’s needed to bind instance proof (notably the digest/refs).
-   * Missing proof hooks makes the plan invalid; engine pull cannot proceed.
+   * Missing proof hooks makes the plan invalid; legacy engine pull cannot proceed.
 
 If any of these fail → M3 emits a **run-level quarantine request** (via J13) and produces **no ingest plan**.
 
@@ -4659,7 +4663,7 @@ Understood. **M5 (Proof & Gate Enforcement)** is the IG module that makes this p
 
 > **No PASS → no read** (and verification is gate-specific), with **instance proof** required for instance-scoped outputs.
 
-M5 is the only internal machinery allowed to say “this engine output is admissible to read” for engine pull ingestion. Everything else treats M5’s result as authoritative.
+M5 is the only internal machinery allowed to say “this engine output is admissible to read” for legacy engine pull ingestion. Everything else treats M5’s result as authoritative.
 
 Below is **M5 as a white box**: the internal subnetworks inside it and the exact machinery each performs.
 
@@ -5037,7 +5041,7 @@ This uses only the joins we already defined (J6/J7) and locks the “no partial 
 
 ## 4.7 Progress Checkpoint & Resume Manager
 
-**Role:** Make engine pull ingestion resumable across restarts and safe under at-least-once.
+**Role:** Make legacy engine pull ingestion resumable across restarts and safe under at-least-once.
 
 **Machinery (design-locked):**
 
@@ -5062,7 +5066,7 @@ This uses only the joins we already defined (J6/J7) and locks the “no partial 
 
 ## 4.8 Concurrency, Fairness, and Backpressure Interface
 
-**Role:** Prevent engine pull from starving the ingest boundary or overwhelming EB/DB/evidence stores.
+**Role:** Prevent legacy engine pull from starving the ingest boundary or overwhelming EB/DB/evidence stores.
 
 **Machinery (design-locked):**
 
@@ -5148,16 +5152,16 @@ Below is **M6 as a white box**: the internal subnetworks inside it and the machi
 ### Inputs
 
 * From **J3 (M3→M6)**: `AnchoredEvent` (push ingest)
-* From **J7 (M5→M6)**: `ProofedTrafficSource` (engine pull)
+* From **J7 (M5→M6)**: `ProofedTrafficSource` (legacy engine pull)
 
 ### Outputs
 
 * `FrameWorkItem` with:
 
   * `mode = PUSH | ENGINE_PULL`
-  * `run_context` (present iff run-scoped; always present for engine pull)
+  * `run_context` (present iff run-scoped; always present for legacy engine pull)
   * `source_pointer` (raw input ref for push; engine locator + proof refs for pull)
-  * `canonical_envelope_base` (push carries it; engine pull starts empty except pins)
+  * `canonical_envelope_base` (push carries it; legacy engine pull starts empty except pins)
 
 **Hard rule:** both modes must converge to the same downstream output shape.
 
@@ -5264,7 +5268,7 @@ M6 mints `event_id` deterministically when the row doesn’t carry one:
 
 If the declared PK fields are missing from the row → **FRAME_FAIL quarantine** (row-level). No fallback to “row number”.
 
-This makes engine pull idempotent across retries and resumptions.
+This makes legacy engine pull idempotent across retries and resumptions.
 
 ---
 
@@ -5343,8 +5347,8 @@ Row-level quarantines do not abort the run job (the run continues unless preflig
 
   * required fields present
   * correct domain time `ts_utc`
-  * stable `event_id` (minted deterministically for engine pull)
-  * consistent run/world pins stamped for engine pull
+  * stable `event_id` (minted deterministically for legacy engine pull)
+  * consistent run/world pins stamped for legacy engine pull
 * Engine pull naming is drift-proof: **`event_type = output_id`**
 * Any non-deterministic or ambiguous framing becomes a **row-level quarantine**, not a silent fix.
 
@@ -5907,7 +5911,7 @@ Produces golden signals:
 * quarantine reason distribution + retryable/terminal split
 * EB append latency + retry rates + commit deadletters
 * PENDING age histogram (how long admissions are waiting on commit)
-* engine pull job lag (if enabled, run-level)
+* legacy engine pull job lag (if enabled, run-level)
 
 Correlation propagation:
 
@@ -5999,7 +6003,7 @@ This state is used internally to drive J19 (below) and exposed as a health endpo
 * Ensures every receipt/telemetry record is stamped with:
 
   * at least `policy_rev`
-  * and, for engine pull, `gate_map_rev`
+  * and, for legacy engine pull, `gate_map_rev`
   * and commit policy revision for commit-related telemetry
 
 **Hard rule:** no half-applied behavior across modules.

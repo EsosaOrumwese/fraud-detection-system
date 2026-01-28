@@ -267,7 +267,7 @@ So SR does **not** publish “second-by-second ticks” or attempt to sequence t
 ### 2.3 Trigger semantics: what READY means to WSP
 
 **READY is permission to begin streaming for that run context.**
-This is fully aligned with how IG interprets READY today in the pull model (“permission to start work”).
+This is fully aligned with how IG interprets READY today in the legacy pull model (“permission to start work”).
 
 **Pinned behavior for WSP on READY:**
 
@@ -326,8 +326,8 @@ This keeps the bank-like feel: SR picks “which world/run,” but **WSP is the 
 
 ### 2.6 The one friction point we must pin now: avoiding double ingestion
 
-Your current platform design includes an IG **pull ingestion job** that starts on READY for engine business traffic (A1/B-family).
-If we add WSP streaming **without** declaring mode, we risk **both**:
+The legacy platform design includes an IG **pull ingestion job** (optional/backfill) that starts on READY for engine business traffic (A1/B-family).
+Now that WSP is the primary path, we must ensure only one mode runs per run, otherwise we risk **both**:
 
 * IG pulling the engine outputs, **and**
 * WSP pushing the same events,
@@ -339,8 +339,8 @@ So we need a minimal *design-authority* pin to prevent that drift:
 
 * Either:
 
-  * `traffic_delivery_mode = STREAM` (WSP is responsible; IG must not run engine-pull for this run), **or**
-  * `traffic_delivery_mode = PULL` (legacy; IG engine-pull path runs; WSP stays idle for that run).
+  * `traffic_delivery_mode = STREAM` (WSP is responsible; IG must not run legacy engine-pull for this run), **or**
+  * `traffic_delivery_mode = PULL` (legacy/backfill; IG legacy engine-pull path runs; WSP stays idle for that run).
 
 The best place for this declaration is SR’s truth surface (because downstream must not guess). Concretely: a field in `run_facts_view` or `run_plan` that WSP and IG both read.
 
@@ -369,7 +369,7 @@ SR does not become responsible for traffic completion; WSP (or Run/Operate) can 
 2. WSP consumes READY (idempotent), reads `run_facts_view`, and derives a StreamPlan.
 3. WSP streams to IG under “no future leakage,” and never bypasses IG.
 4. Duplicate READY / re-emit is treated as a nudge/resume, not a second stream.
-5. To avoid drift, the run declares `traffic_delivery_mode` so IG doesn’t simultaneously do engine-pull.
+5. To avoid drift, the run declares `traffic_delivery_mode` so IG doesn’t simultaneously do legacy engine-pull.
 
 ---
 
@@ -397,7 +397,7 @@ So WSP must be comfortable streaming from **surface-class parquet outputs** that
 
 ### 3.2 How WSP learns “what to stream” (no discovery / no scanning)
 
-We reuse the exact same “join surface discipline” already pinned for IG engine pull:
+We reuse the exact same “join surface discipline” already pinned for legacy IG engine pull:
 
 * SR’s `run_facts_view` is the authoritative **map of engine refs + proofs** for the run.
 * WSP does **not** discover worlds by scanning engine directories.
@@ -469,7 +469,7 @@ To do that, WSP needs two pieces of truth per output_id:
 1. **What column represents domain time (`ts_utc`) for pacing**
 2. **What key tuple defines stable identity (`row_pk_tuple`) for event_id**
 
-Both are already pinned patterns in IG’s engine pull framing logic, and we can reuse them as WSP framing laws:
+Both are already pinned patterns in legacy IG engine‑pull framing logic, and we can reuse them as WSP framing laws:
 
 * **Time extraction law:** prefer a column literally named `ts_utc`; otherwise use an explicit per-output time-column mapping stored in policy (not hardcoded). If time cannot be extracted deterministically → framing fails.
 * **File-order law:** physical file order is non-authoritative; ordering must be derived from declared keys/fields.
@@ -483,7 +483,7 @@ This means WSP can stream from outputs like `arrival_events_5B` (parquet `part-*
 Because WSP is push-ingest, IG will **not mint missing fields**; missing `event_id`/`ts_utc` is a boundary violation.
 And the canonical envelope requires `{event_id,event_type,ts_utc,manifest_fingerprint}` and forbids extra top-level fields. 
 
-So WSP must do the “engine pull style” framing itself:
+So WSP must do the “legacy engine‑pull style” framing itself:
 
 * **[PIN] `event_type = output_id`** (drift-proof naming; no translation table in v0). 
 * **[PIN] `event_id` minting is deterministic and uses declared PK, not row index.**
@@ -772,12 +772,12 @@ Where do these come from?
 
 ### 5.3 `event_type`: drift-proof naming for engine-backed traffic
 
-IG already pins the drift-proof rule in engine-pull framing:
+IG already pins the drift-proof rule in legacy engine-pull framing:
 
 * **Engine pull:** `event_type = output_id` (exact string; no translation table in v0).
 * **Push ingest:** event_type is producer-declared but must be policy-allowed.
 
-Even though WSP is “push ingest,” we want **compatibility** with the engine-pull world and **zero naming drift**, so:
+Even though WSP is “push ingest,” we want **compatibility** with the legacy engine-pull world and **zero naming drift**, so:
 
 **Pin (v0): WSP uses `event_type = output_id` for engine-backed business_traffic.**
 
@@ -802,7 +802,7 @@ and **run_id is not included**.
 
 So WSP should **reuse exactly this recipe** to remain compatible with the prior pull path:
 
-**Pin (v0): WSP mints event_id using the IG engine-pull recipe (same inputs; no run_id).** 
+**Pin (v0): WSP mints event_id using the IG legacy engine-pull recipe (same inputs; no run_id).** 
 
 Why excluding `run_id` doesn’t break the platform:
 
@@ -842,7 +842,7 @@ Two immediate consequences:
 
 ### 5.6 Payload packaging: keep by-value data + by-ref origin story (and avoid collisions with IG)
 
-IG already pins a very clean engine-pull payload structure:
+IG already pins a very clean legacy engine-pull payload structure:
 
 * `payload.data` = selected row fields needed downstream (policy-driven)
 * `payload.source` = immutable by-ref pointers:
@@ -856,7 +856,7 @@ And IG separately reserves `payload.ingest_source = {source_kind, raw_input_ref}
 
 So for WSP:
 
-**Pin (v0): WSP uses the same `payload.data` + `payload.source` packaging as IG engine-pull, and never writes `payload.ingest_source` (IG owns that).**
+**Pin (v0): WSP uses the same `payload.data` + `payload.source` packaging as IG legacy engine-pull, and never writes `payload.ingest_source` (IG owns that).**
 
 This is a big drift-killer: downstream code (IEG/OFP/DF) can treat engine-backed traffic the same whether it arrived via legacy pull or via WSP push.
 
@@ -1563,7 +1563,7 @@ The goal of migration is **not** “make pull faster.” It’s to **change the 
 * **SR stays the entrypoint authority** (READY + `run_facts_view`; downstream starts there). 
 * **IG stays the only front door** (ADMIT/DUPLICATE/QUARANTINE + receipts; IG→EB is the only write path).
 * **EB stays opaque durability** (at-least-once, partition-order; archive continues the same logical stream).
-* **A1 “engine business traffic” currently assumes a pull model** (SR READY → IG pull from engine outputs → wrap → admit).
+* **A1 “engine business traffic” currently assumes a legacy pull model** (SR READY → IG pull from engine outputs → wrap → admit).
 
 So migration must do two things simultaneously:
 
@@ -1574,7 +1574,7 @@ So migration must do two things simultaneously:
 
 ### 10.1 The single most important migration pin: per-run “traffic delivery mode”
 
-Right now, READY triggers IG’s engine-pull ingestion job (B1/B2/B3…) and the EB doc’s A1 path is defined as pull.
+Right now, READY triggers IG’s legacy engine-pull ingestion job (B1/B2/B3…) and the EB doc’s A1 path is defined as pull.
 If we introduce WSP without an explicit mode latch, you’ll get **two concurrent sources** for the same traffic targets (IG pull + WSP push), and the platform will “work” only because dedupe hides the error—until it doesn’t.
 
 So we pin:
@@ -1617,7 +1617,7 @@ The new shape is:
 This cannot be left as “operator discipline.” It must be a hard network law.
 
 **Guardrail 1 (IG):** if `traffic_delivery_mode=STREAM`, IG must **not** start the Engine Pull Orchestrator on READY.
-IG’s own internals already make the pull machinery explicit as “Pull model” M4, triggered by READY. We simply gate M4 behind the run mode.
+IG’s own internals already make the legacy pull machinery explicit as “Pull model” M4, triggered by READY. We simply gate M4 behind the run mode.
 
 **Guardrail 2 (WSP):** WSP must refuse to stream unless:
 
