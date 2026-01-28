@@ -335,3 +335,15 @@ User asked to move into **Phase 2 planning** and explicitly warned not to confla
 ### Tests run (local)
 - `pytest tests/services/world_streamer_producer/test_runner.py -q` → 3 passed.
 
+---
+
+## Entry: 2026-01-28 18:57:40 — Mark Phase 1 + Phase 2 complete
+
+### Confirmation
+- Phase 1 (engine‑rooted streaming + gate checks) is **complete** and tested.
+- Phase 2 (checkpointing + resume) is **complete** and tested.
+
+### Evidence
+- WSP unit + resume tests green (`tests/services/world_streamer_producer/test_runner.py`).
+- Local resume smoke run verified (second run emits remaining events only).
+

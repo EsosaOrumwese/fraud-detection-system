@@ -45,7 +45,7 @@ Implement WSP as the **primary runtime producer** that replays sealed engine `bu
 - WSP pushes to IG ingress; no direct EB writes.
 - Failure handling is explicit (retry vs halt vs quarantine trigger).
 
-**Status:** in progress.
+**Status:** complete.
 
 ### Phase 2 — Checkpointing + resume
 **Intent:** operational continuity under restarts and at‑least‑once delivery.
@@ -74,8 +74,25 @@ Implement WSP as the **primary runtime producer** that replays sealed engine `bu
 - IG idempotency remains the final guard (at‑least‑once).
 - No new validation logic added here (Phase 4 owns validation).
 
+**Status:** complete.
+
 ### Phase 3 — Security + governance hardening
 **Intent:** producer identity allowlists, provenance stamping, audit hooks.
+
+#### Phase 3.1 — Producer identity allowlist
+**DoD checklist:**
+- WSP stamps a stable `producer_id` on all envelopes.
+- IG allowlist (or WSP config) can restrict which producer_ids are accepted.
+
+#### Phase 3.2 — Provenance stamp (oracle world)
+**DoD checklist:**
+- Include `oracle_pack_id` (or pack_key fallback) in envelope metadata.
+- Include `engine_release` + manifest digest if available.
+
+#### Phase 3.3 — Audit hooks
+**DoD checklist:**
+- WSP emits audit events (or audit log lines) for stream start/stop + cursor updates.
+- Audit output is append‑only; does not mutate traffic.
 
 ### Phase 4 — Validation (smoke + dev completion)
 **Intent:** WSP→IG path validates under local smoke and dev completion policies.
