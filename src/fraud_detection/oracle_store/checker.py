@@ -9,6 +9,7 @@ from urllib.parse import urlparse
 
 import boto3
 from botocore.config import Config
+import json
 
 from fraud_detection.ingestion_gate.catalogue import OutputCatalogue
 from fraud_detection.scenario_runner.schemas import SchemaRegistry
@@ -20,12 +21,26 @@ from .config import OracleProfile
 @dataclass
 class OracleCheckReport:
     status: str
+    reason_codes: list[str] = field(default_factory=list)
+    issues: list[dict[str, Any]] = field(default_factory=list)
     errors: list[str] = field(default_factory=list)
     warnings: list[str] = field(default_factory=list)
     details: dict[str, Any] = field(default_factory=dict)
 
     def ok(self) -> bool:
         return self.status in {"OK", "WARN"}
+
+    def add_issue(self, code: str, *, detail: str | None = None, severity: str = "ERROR") -> None:
+        if code not in self.reason_codes:
+            self.reason_codes.append(code)
+        payload = {"code": code, "severity": severity}
+        if detail:
+            payload["detail"] = detail
+        self.issues.append(payload)
+        if severity == "ERROR":
+            self.errors.append(code if detail is None else f"{code}:{detail}")
+        else:
+            self.warnings.append(code if detail is None else f"{code}:{detail}")
 
 
 class OracleStoreChecker:
@@ -61,13 +76,14 @@ class OracleStoreChecker:
         if self.profile.policy.require_gate_pass:
             missing = self._missing_required_gates(facts, traffic_outputs)
             if missing:
-                report.errors.append(f"MISSING_REQUIRED_GATES:{missing}")
+                report.add_issue("GATE_PASS_MISSING", detail=json.dumps(missing, sort_keys=True), severity="ERROR")
                 report.status = "FAIL"
 
-        seal_warnings = self._check_seal_markers(locators, strict_seal=strict_seal)
-        report.warnings.extend(seal_warnings)
-        if strict_seal and seal_warnings:
-            report.errors.append("PACK_NOT_SEALED")
+        seal_missing = self._check_seal_markers(locators)
+        for pack_root in seal_missing:
+            severity = "ERROR" if strict_seal else "WARN"
+            report.add_issue("PACK_NOT_SEALED", detail=pack_root, severity=severity)
+        if strict_seal and seal_missing:
             report.status = "FAIL"
 
         missing_locators = 0
@@ -77,6 +93,7 @@ class OracleStoreChecker:
             resolved = _resolve_oracle_path(path, self.profile.wiring.oracle_root)
             if require_digest and not locator.get("content_digest"):
                 missing_digests += 1
+                report.add_issue("DIGEST_MISSING", detail=resolved, severity="ERROR")
             if not _path_exists(
                 resolved,
                 endpoint=self.profile.wiring.object_store_endpoint,
@@ -84,9 +101,9 @@ class OracleStoreChecker:
                 path_style=self.profile.wiring.object_store_path_style,
             ):
                 missing_locators += 1
-                report.errors.append(f"LOCATOR_MISSING:{resolved}")
-        if missing_digests:
-            report.warnings.append(f"LOCATOR_DIGEST_MISSING:{missing_digests}")
+                report.add_issue("LOCATOR_MISSING", detail=resolved, severity="ERROR")
+        if missing_digests and not require_digest:
+            report.add_issue("DIGEST_MISSING", detail=str(missing_digests), severity="WARN")
         if missing_locators:
             report.status = "FAIL"
 
@@ -118,7 +135,7 @@ class OracleStoreChecker:
             store = _build_object_store(self.profile)
             return store.read_json(run_facts_ref)
         except Exception as exc:
-            report.errors.append(f"RUN_FACTS_UNREADABLE:{exc}")
+            report.add_issue("RUN_FACTS_UNREADABLE", detail=str(exc), severity="ERROR")
             return None
 
     def _validate_facts_schema(self, facts: dict[str, Any], report: OracleCheckReport) -> bool:
@@ -126,7 +143,7 @@ class OracleStoreChecker:
             self.schema.validate("run_facts_view.schema.yaml", facts)
             return True
         except Exception as exc:
-            report.errors.append(f"RUN_FACTS_INVALID:{exc}")
+            report.add_issue("RUN_FACTS_INVALID", detail=str(exc), severity="ERROR")
             return False
 
     def _missing_required_gates(self, facts: dict[str, Any], output_ids: set[str]) -> dict[str, list[str]]:
@@ -144,8 +161,8 @@ class OracleStoreChecker:
                 missing[output_id] = missing_gates
         return missing
 
-    def _check_seal_markers(self, locators: list[dict[str, Any]], *, strict_seal: bool) -> list[str]:
-        warnings: list[str] = []
+    def _check_seal_markers(self, locators: list[dict[str, Any]]) -> list[str]:
+        missing: list[str] = []
         oracle_root = self.profile.wiring.oracle_root
         seen: set[str] = set()
         for locator in locators:
@@ -160,8 +177,8 @@ class OracleStoreChecker:
                 str(Path(pack_root) / "_oracle_pack_manifest.json"),
             ]
             if not any(Path(p).exists() for p in seal_paths):
-                warnings.append(f"PACK_UNSEALED:{pack_root}")
-        return warnings
+                missing.append(pack_root)
+        return missing
 
 
 def _build_object_store(profile: OracleProfile) -> LocalObjectStore | S3ObjectStore:

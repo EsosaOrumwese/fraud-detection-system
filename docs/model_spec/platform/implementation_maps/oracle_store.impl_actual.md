@@ -97,6 +97,36 @@ WSP Phase 1 implementation starts and requires `oracle_root` to be surfaced in p
 
 ---
 
+## Entry: 2026-01-28 14:58:40 — Phase 2 hardening (reason codes + strict‑seal + S3 tests)
+
+### Trigger
+User requested Phase 2 hardening of Oracle Store (stable reason codes, strict‑seal for dev, and S3 validation tests).
+
+### Live reasoning (notes)
+- The checker already validates locators and gates, but **reason codes must be stable** so operators can classify failures deterministically.
+- Dev/prod must **fail on unsealed packs**; local remains WARN‑only until a packer exists.
+- We need **unit‑level S3 path validation tests** (no real S3) to ensure glob expansion and head/list logic are correct.
+
+### Planned edits
+1) Add stable reason codes to `OracleCheckReport` (codes + issue details).
+2) Enforce strict‑seal default for `profile_id in {dev, prod}` in the CLI (override allowed).
+3) Add S3 path validation tests using stubbed clients; add tests for oracle path resolution.
+
+---
+
+## Entry: 2026-01-28 14:51:51 — Applied: Phase 2 hardening (reason codes + strict‑seal + tests)
+
+### What changed
+- **Stable reason codes:** `OracleCheckReport` now emits `reason_codes` + structured `issues` with `code/detail/severity` (PACK_NOT_SEALED, LOCATOR_MISSING, DIGEST_MISSING, GATE_PASS_MISSING, RUN_FACTS_INVALID/UNREADABLE).
+- **Strict‑seal default for dev/prod:** CLI now enforces strict seal markers for `profile_id in {dev, prod}` unless explicitly overridden.
+- **S3 path validation tests:** added unit tests for S3 head + glob listing and oracle path resolution.
+
+### Notes
+- Local runs still WARN on missing seal markers (v0 transitional rule).
+- Missing digest is treated as error when `require_digest` is true; use `--allow-missing-digest` to relax.
+
+---
+
 ## Entry: 2026-01-28 14:45:50 — Expand Oracle Store build plan for implementation + hardening
 
 ### Trigger
