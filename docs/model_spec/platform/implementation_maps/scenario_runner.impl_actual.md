@@ -3780,3 +3780,26 @@ User requested Phase 10 implementation after Phase 9 docs/contracts alignment.
   `@'... '@ | .\.venv\Scripts\python.exe -` → ok
 
 ---
+
+## Entry: 2026-01-28 20:22:16 — Phase 11 implemented (SR WSP‑alignment validation)
+
+### Step‑by‑step decisions and changes
+1) **Direct pack‑ref validation tests**
+   - Added `test_oracle_pack_ref.py` to validate SR’s `_build_oracle_pack_ref` behavior:
+     - **valid manifest** → returns ref with pack id + engine_release,
+     - **missing manifest** → returns ref with engine_run_root only,
+     - **pin mismatch** → fails closed with `ORACLE_PACK_MISMATCH`.
+   - Reason: Phase 11 focuses on alignment correctness without requiring full SR run integration.
+
+2) **READY re‑emit compatibility check**
+   - Extended `test_reemit_ready_publishes_control_fact` to include `oracle_pack_ref` in stored facts_view and assert it is preserved in READY re‑emit payloads.
+   - Reason: ensure control-plane ↔ data-plane linkage remains stable across re‑emit operations.
+
+3) **No data‑plane behavior changes**
+   - Tests avoid invoking WSP/IG or scanning the engine; they validate **control‑plane correctness only**.
+   - Reason: preserve component boundaries and avoid role creep.
+
+### Tests run (local)
+- `.\.venv\Scripts\python.exe -m pytest tests/services/scenario_runner/test_oracle_pack_ref.py tests/services/scenario_runner/test_reemit.py -q` → 9 passed.
+
+---

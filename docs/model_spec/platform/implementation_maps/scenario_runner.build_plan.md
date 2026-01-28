@@ -14,9 +14,9 @@ This plan is intentionally progressive: it starts as phase milestones, then expa
 6) Phase 6 — Observability + governance (COMPLETE)
 7) Phase 7 — Security + ops hardening (COMPLETE)
 8) Phase 8 — Integration tests + CI gates
-9) Phase 9 — WSP alignment (docs + contracts) (PLANNED)
-10) Phase 10 — WSP alignment (implementation) (PLANNED)
-11) Phase 11 — WSP alignment (validation) (PLANNED)
+9) Phase 9 — WSP alignment (docs + contracts) (COMPLETE)
+10) Phase 10 — WSP alignment (implementation) (COMPLETE)
+11) Phase 11 — WSP alignment (validation) (COMPLETE)
 
 ---
 
@@ -420,7 +420,7 @@ High‑level intent: golden path + duplicate + reuse + fail‑closed + re‑emit
 
 ---
 
-## Phase 9 — WSP alignment (docs + contracts) (PLANNED)
+## Phase 9 — WSP alignment (docs + contracts) (COMPLETE)
 
 **Intent:** align SR docs and contracts to WSP‑first runtime while preserving SR as readiness authority and Oracle Store as external truth.
 
@@ -450,7 +450,7 @@ High‑level intent: golden path + duplicate + reuse + fail‑closed + re‑emit
 
 ---
 
-## Phase 10 — WSP alignment (implementation) (PLANNED)
+## Phase 10 — WSP alignment (implementation) (COMPLETE)
 
 **Intent:** implement SR truth‑surface changes and READY payload linking to Oracle pack identity without changing SR’s core readiness logic.
 
@@ -471,7 +471,7 @@ High‑level intent: golden path + duplicate + reuse + fail‑closed + re‑emit
 
 ---
 
-## Phase 11 — WSP alignment (validation) (PLANNED)
+## Phase 11 — WSP alignment (validation) (COMPLETE)
 
 **Intent:** validate SR alignment without breaking backfill or compatibility.
 

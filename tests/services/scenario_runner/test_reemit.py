@@ -67,6 +67,12 @@ def test_reemit_ready_publishes_control_fact(tmp_path: Path) -> None:
         "plan_ref": f"{runner.ledger.prefix}/run_plan/{run_id}.json",
         "record_ref": f"{runner.ledger.prefix}/run_record/{run_id}.jsonl",
         "status_ref": f"{runner.ledger.prefix}/run_status/{run_id}.json",
+        "oracle_pack_ref": {
+            "engine_run_root": "runs/local_full_run-5/abc",
+            "oracle_pack_id": "d" * 64,
+            "manifest_ref": "runs/local_full_run-5/abc/_oracle_pack_manifest.json",
+            "engine_release": "engine-0.1.0",
+        },
     }
     runner.ledger.commit_facts_view(run_id, facts_view)
     plan = RunPlan(
@@ -97,6 +103,7 @@ def test_reemit_ready_publishes_control_fact(tmp_path: Path) -> None:
     payload = message["payload"]
     assert payload["run_id"] == run_id
     assert payload["bundle_hash"] == facts_view["bundle_hash"]
+    assert payload.get("oracle_pack_ref") == facts_view["oracle_pack_ref"]
 
 
 def test_reemit_terminal_publishes_control_fact(tmp_path: Path) -> None:
