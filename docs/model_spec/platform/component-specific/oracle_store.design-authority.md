@@ -235,6 +235,13 @@ This matches how your local `runs/local_full_run-5` behaves today as a self-cont
 **Authority declaration (v0):**
 Oracle Store layout = `oracle_root/<env>/packs/<oracle_pack_id>/` + engine’s normal `path_template` tree underneath.
 
+**V0 transitional note (current repo reality):**
+- Local materialized data already lives under `runs/local_full_run-5/<engine_run_id>/...` and **does not** yet use the `packs/<oracle_pack_id>` structure.
+- For v0, treat the existing **engine run root** as a **pack‑root alias** (one sealed pack per run root), and treat `oracle_root` as **either**:
+  - the pack root itself, **or**
+  - a parent directory that contains pack roots.
+- Locators remain **fully resolved** and must continue to work without migration. We do **not** re‑write paths during v0.
+
 ---
 
 ### C3) What lives *inside* a pack root (do not invent new subtrees)
@@ -303,6 +310,10 @@ This makes “readable vs not readable” deterministic without scanning the int
 * `oracle_root` is a filesystem directory (your current `runs/local_full_run-5` is a valid pack root). 
 * Packs live under: `runs/oracle/local/packs/<oracle_pack_id>/...` (or whatever root you prefer).
 
+**V0 allowance (important):**
+- `oracle_root` may point **directly to a pack root** (e.g., `runs/local_full_run-5/<engine_run_id>`) or to a **parent of packs**.
+- SR/WSP should **not** derive pack ids; they should consume fully resolved locators from SR.
+
 **Dev/Prod**
 
 * Oracle Store is an S3-compatible bucket/prefix:
@@ -367,6 +378,11 @@ Borrow the exact “root commit last” protocol your DLA already pins:
 * Engine (or a thin “oracle packer” wrapper around engine) writes all pack contents first.
 * It writes a single **root seal object** *last*, with a conditional “create-if-absent” semantics.
 * **Pack is READABLE iff root seal object exists.**
+
+**V0 local reality (interim rule):**
+- Current local packs do **not** yet have explicit seal markers.
+- Until a packer/seal step exists, SR’s READY + required gate PASS evidence is treated as the **practical read‑safe indicator** for local packs.
+- This is a **temporary allowance**; seal markers become mandatory once packer tooling exists.
 
 Why this is drift-resistant:
 
@@ -1566,7 +1582,9 @@ WSP should not “figure out” oracle interpretation. SR is the attester and ma
 
 So WSP requires SR’s `run_facts_view` to provide, at minimum:
 
-* **traffic_targets[] allowlist**: which engine outputs are eligible to become traffic
+* **traffic allowlist**: which engine outputs are eligible to become traffic
+  - **v0:** use `output_roles` + `locators` (only `business_traffic` outputs with locators)
+  - **planned:** `traffic_targets[]` (explicit allowlist) and `traffic_delivery_mode`
 * **resolved locators** for those outputs (full path, not templates)
 * **pins** `{manifest_fingerprint, parameter_hash, scenario_id, run_id, seed}`
 * **proof completeness cues**:
@@ -1589,6 +1607,7 @@ For each traffic target output, WSP needs two things to stream without semantic 
 
 * Prefer a column literally named `ts_utc`.
 * If not present, SR/run policy must provide a **time_column mapping per output_id** (WSP does not guess).
+  - **v0:** we assume `ts_utc` is present for traffic outputs in the current engine catalogue.
 
 2. **Stable row identity for event_id**
 
@@ -1643,4 +1662,3 @@ If you keep `PULL` mode as a fallback:
 7. Legacy IG pull remains compatible, but mode is exclusive per run.
 
 ---
-

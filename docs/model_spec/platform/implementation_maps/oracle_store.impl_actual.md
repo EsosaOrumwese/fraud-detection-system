@@ -70,3 +70,27 @@ WSP Phase 1 implementation starts and requires `oracle_root` to be surfaced in p
 ### Notes
 - Local/dev_local default to `runs/local_full_run-5` (temporary).
 - Dev/prod use `${ORACLE_ROOT}` so the location can be swapped without code edits.
+
+---
+
+## Entry: 2026-01-28 14:37:34 — Applied: Oracle Store Phase‑1 checks (local by‑ref verification)
+
+### What I changed
+- Added an **Oracle Store checker** (`src/fraud_detection/oracle_store/`) with:
+  - profile loader (wiring + policy; no secrets),
+  - run_facts_view schema validation,
+  - locator existence checks (local + S3),
+  - required gate PASS validation (catalogue‑driven),
+  - seal marker detection (soft in v0 unless `--strict-seal`).
+- Added CLI entrypoint: `python -m fraud_detection.oracle_store.cli`.
+- Added Make target `platform-oracle-check` with `ORACLE_RUN_FACTS_REF` input.
+- Updated Oracle Store design authority with v0 transitional notes (pack‑root aliasing + no seal markers locally).
+
+### Rationale (live)
+- The checker provides a **green/red** readiness gate for the Oracle boundary before we harden WSP.
+- It is **fail‑closed** on missing locators or required gate receipts, but **warn‑only** on missing seal markers in v0 local runs.
+- Locators are validated without scanning for “latest”; only locator‑implied listing is allowed for `part-*`.
+
+### Guardrails
+- No secrets are stored or logged; all endpoints are wiring only.
+- S3 checks are optional by virtue of the profile wiring; local is the default for v0.

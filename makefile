@@ -2527,6 +2527,8 @@ IG_AUDIT_RUN_ID ?=
 PLATFORM_RUN_ID ?=
 WSP_PROFILE ?= config/platform/profiles/local.yaml
 WSP_MAX_EVENTS ?= 1
+ORACLE_PROFILE ?= config/platform/profiles/local.yaml
+ORACLE_RUN_FACTS_REF ?=
 
 .PHONY: platform-stack-up platform-stack-down platform-stack-status
 platform-stack-up:
@@ -2615,6 +2617,14 @@ platform-ig-audit:
 .PHONY: platform-wsp-ready-once
 platform-wsp-ready-once:
 	@$(PY_SCRIPT) -m fraud_detection.world_streamer_producer.cli --profile "$(WSP_PROFILE)" --once --max-events "$(WSP_MAX_EVENTS)"
+
+.PHONY: platform-oracle-check
+platform-oracle-check:
+	@if [ -z "$(ORACLE_RUN_FACTS_REF)" ]; then \
+		echo "ORACLE_RUN_FACTS_REF is required for platform-oracle-check." >&2; \
+		exit 1; \
+	fi
+	@$(PY_SCRIPT) -m fraud_detection.oracle_store.cli --profile "$(ORACLE_PROFILE)" --run-facts-ref "$(ORACLE_RUN_FACTS_REF)"
 
 # ---------------------------------------------------------------------------
 # Scenario Runner test tiers (Makefile-based, no PowerShell)
