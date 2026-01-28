@@ -500,3 +500,25 @@ Supplemental platform-wide docs (byref_validation, partitioning_policy, rails_an
 ### Change
 - Added an explicit “Authority clarification” block under the reading order section.
 
+---
+
+## Entry: 2026-01-28 13:05:20 — Revamp platform build plan for Oracle Store + WSP
+
+### Trigger
+User approved building **Oracle Store** (sealed engine outputs boundary) + **WSP** (stream head) before refactoring SR/IG. Requested a revamped platform build plan to reflect this sequencing and to allow a speedup factor across all environments.
+
+### Live reasoning (decision trail)
+- The platform’s runtime shape changed: **WSP is the primary producer** and the engine is a sealed world builder. The build plan must expose this explicitly so component sequencing aligns with the intended bank‑like temporal flow.
+- Oracle Store is a **platform boundary component** (immutable by‑ref world store). Treating it as its own component makes its invariants visible and prevents WSP from silently redefining storage contracts.
+- SR/IG already exist, but they were built under a legacy “engine pull” assumption. The plan must capture **alignment/refactor** as a later phase, not implied by existing SR/IG work.
+- Speedup factor should be **available in all envs** (local/dev/prod) but remains a **policy knob** (not hard‑coded). The plan should reflect that the same semantics apply at any speed.
+- Progressive elaboration still holds: we only expand new phases (Oracle Store + WSP) to section/DoD detail; other phases remain high‑level unless already expanded.
+
+### Plan edits to apply
+- Insert a new early phase for **World Oracle + Stream Head**:
+  - Oracle Store contract (immutability, by‑ref locator rules, env ladder)
+  - WSP v0 (READY‑driven stream, canonical envelope framing, pacing/clock policy + speedup factor)
+- Re‑state Phase 2 as **Control & Ingress alignment** (SR/IG/EB refactor to WSP truth) rather than first‑time construction.
+- Update Phase status roll‑up to show Phase 1 complete; Phase 2 (Oracle/WSP) next.
+
+

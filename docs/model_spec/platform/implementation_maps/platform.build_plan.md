@@ -64,22 +64,52 @@ Provide a platform-wide, production-shaped build plan for v0 that aligns compone
 - Provenance records use secret identifiers only (if needed), never secret material.
 - Sensitive runtime artifacts are flagged to the user for review/quarantine.
 
-### Phase 2 — Control & Ingress plane (SR + IG + EB)
-**Intent:** establish run readiness authority and trusted event admission into the bus.
+### Phase 2 — World Oracle + Stream Head (Oracle Store + WSP)
+**Intent:** establish the sealed world boundary and the primary stream producer so the platform experiences bank‑like temporal flow.
 
-#### Phase 2.1 — Scenario Runner readiness authority (SR)
-**Goal:** SR is the sole readiness authority and publishes the join surface.
+#### Phase 2.1 — Oracle Store contract (sealed world boundary)
+**Goal:** define immutable, by‑ref engine outputs as a first‑class platform boundary.
+
+**DoD checklist:**
+- Oracle Store prefix layout is pinned (local/dev/prod) with an explicit `oracle_root` that is runtime‑configurable.
+- Immutability rules are explicit: sealed runs are write‑once; no overwrite in place.
+- Locator + digest posture is pinned (content digest required; schema versioned).
+- Oracle Store paths are referenced by SR `run_facts_view` only (no scanning; by‑ref only).
+
+#### Phase 2.2 — WSP v0 stream head (primary runtime producer)
+**Goal:** WSP streams engine business_traffic into IG under READY + run_facts_view.
+
+**DoD checklist:**
+- WSP consumes READY + `run_facts_view` and derives a StreamPlan (no “latest” scans).
+- Only `business_traffic` is streamed; other roles remain by‑ref.
+- Canonical envelope framing is enforced; event identity is stable and compatible with legacy pull framing where required.
+- **Speedup factor is available in all envs** as a policy knob (semantics preserved across speeds).
+- WSP never writes directly to EB; IG remains the only writer.
+
+#### Phase 2.3 — WSP ↔ IG smoke path
+**Goal:** prove WSP → IG admission under rails before refactoring SR/IG for full alignment.
+
+**DoD checklist:**
+- WSP streams a READY‑scoped run into IG with pass/fail evidence respected (no‑PASS‑no‑read).
+- IG receipts reflect ADMIT/DUPLICATE/QUARANTINE outcomes with by‑ref evidence.
+
+### Phase 3 — Control & Ingress plane alignment (SR + IG + EB)
+**Intent:** align SR/IG/EB with the WSP‑first runtime truth and preserve rails.
+
+#### Phase 3.1 — Scenario Runner readiness authority (SR)
+**Goal:** SR remains the sole readiness authority and publishes the join surface that WSP/IG follow.
 
 **DoD checklist:**
 - SR publishes `run_facts_view` + READY with required PASS evidence and pins.
 - READY is emitted only after evidence completeness (no PASS → no read).
 - SR run ledger artifacts are immutable and append‑only (run_plan/run_record/run_status/run_facts_view).
 - Reuse path is evidence‑based (locators + receipts), never “scan latest.”
+- `run_facts_view` declares `traffic_delivery_mode` so WSP and IG do not both ingest.
 
 **Status:** ready to proceed to IG; path‑alignment follow‑up noted (see platform.impl_actual).
 
-#### Phase 2.2 — Ingestion Gate admission boundary (IG)
-**Goal:** IG is the sole admission authority; schema + lineage + gate checks are enforced.
+#### Phase 3.2 — Ingestion Gate admission boundary (IG)
+**Goal:** IG is the sole admission authority; push ingestion is primary; legacy pull remains optional/backfill.
 
 **DoD checklist:**
 - IG validates canonical envelope + payload schema (versioned) and enforces ContextPins when required.
@@ -87,7 +117,7 @@ Provide a platform-wide, production-shaped build plan for v0 that aligns compone
 - IG emits receipts with decision (ADMIT/DUPLICATE/QUARANTINE) and by‑ref evidence.
 - IG stamps deterministic `partition_key` using policy profiles.
 
-#### Phase 2.3 — Event Bus durability + replay (EB)
+#### Phase 3.3 — Event Bus durability + replay (EB)
 **Goal:** EB is the durable fact log with stable offsets and at‑least‑once delivery.
 
 **DoD checklist:**
@@ -95,14 +125,14 @@ Provide a platform-wide, production-shaped build plan for v0 that aligns compone
 - Replay by offsets works with partition‑only ordering semantics.
 - Idempotent publish and dedupe semantics are validated under retry.
 
-#### Phase 2.4 — Control & Ingress E2E proof
-**Goal:** demonstrate end‑to‑end readiness → admission → replay under rails.
+#### Phase 3.4 — Control & Ingress E2E proof
+**Goal:** demonstrate end‑to‑end READY → WSP stream → IG admission → EB replay under rails.
 
 **DoD checklist:**
-- SR READY → IG admits engine traffic → EB replay works for pinned run.
+- SR READY → WSP streams → IG admits → EB replay works for pinned run.
 - Truth ownership enforced: SR readiness authority; IG admission authority; EB offsets/replay only.
 
-### Phase 3 — Hot-path decision loop (IEG/OFP/DL/DF/AL/DLA)
+### Phase 4 — Hot-path decision loop (IEG/OFP/DL/DF/AL/DLA)
 **Intent:** turn admitted traffic into decisions and outcomes with correct provenance and audit.
 
 **Definition of Done (DoD):**
@@ -114,7 +144,7 @@ Provide a platform-wide, production-shaped build plan for v0 that aligns compone
 - DLA writes append-only audit records by-ref and supports lookup via refs.
 - E2E: admitted event -> decision -> action outcome -> audit record with replayable provenance.
 
-### Phase 4 — Label & Case plane
+### Phase 5 — Label & Case plane
 **Intent:** crystallize outcomes into authoritative label timelines and case workflows.
 
 **Definition of Done (DoD):**
@@ -123,7 +153,7 @@ Provide a platform-wide, production-shaped build plan for v0 that aligns compone
 - Engine 6B truth/bank-view/case surfaces can be ingested via IG into Label Store.
 - E2E: action outcome + case event -> label timeline update visible to learning plane.
 
-### Phase 5 — Learning & Registry plane
+### Phase 6 — Learning & Registry plane
 **Intent:** create deterministic learning loop with reproducible datasets and controlled deployment.
 
 **Definition of Done (DoD):**
@@ -133,7 +163,7 @@ Provide a platform-wide, production-shaped build plan for v0 that aligns compone
 - Registry resolves ACTIVE bundle deterministically and rejects incompatible bundles.
 - E2E: decision audit + labels -> dataset manifest -> model bundle -> registry resolution -> DF uses ref.
 
-### Phase 6 — Observability & Governance hardening
+### Phase 7 — Observability & Governance hardening
 **Intent:** make behavior visible, safe to change, and auditable across planes.
 
 **Definition of Done (DoD):**
@@ -158,5 +188,5 @@ Provide a platform-wide, production-shaped build plan for v0 that aligns compone
 
 ## Status (rolling)
 - Phase 1: complete (rails + substrate pins + validation + profiles).
-- SR v0: complete (see `docs/model_spec/platform/implementation_maps/scenario_runner.build_plan.md`).
-- Phase 2+: not started in platform-wide plan (pending entry).
+- Phase 2: ready to begin (Oracle Store + WSP).
+- SR v0: complete (see `docs/model_spec/platform/implementation_maps/scenario_runner.build_plan.md`); alignment to WSP truth pending under Phase 3.
