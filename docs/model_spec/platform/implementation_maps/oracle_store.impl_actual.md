@@ -127,6 +127,32 @@ User requested Phase 2 hardening of Oracle Store (stable reason codes, strict‑
 
 ---
 
+## Entry: 2026-01-28 15:02:20 — Phase 3 planning (seal + manifest tooling)
+
+### Trigger
+User asked to proceed to Phase 3 planning once Phase 2 hardening is done.
+
+### Live reasoning (notes)
+- Dev strict‑seal already fails without seal markers; Phase 3 must **introduce seal/manifest tooling** to make dev green.
+- We cannot touch engine internals, so sealing must be done by a **separate packer/CLI** that writes only **new metadata objects** at the pack root.
+- We must support the **v0 pack‑root alias** (existing `runs/local_full_run-*` roots) without moving data.
+- The manifest must capture interpretation identity (engine release + catalogue/gate-map identifiers) to keep future reads reproducible.
+
+### Decisions to lock
+- OracleWorldKey is pinned as `{manifest_fingerprint, parameter_hash, scenario_id, seed}` (run_id excluded).
+- Seal artifacts are **write‑once** and **idempotent** (create‑if‑absent; fail on mismatch).
+- Pack manifest schema will live under `docs/model_spec/platform/contracts/oracle_store/` (versioned).
+
+### Planned work (Phase 3)
+1) Define manifest + seal schema (minimal fields, versioned).
+2) Implement packer CLI:
+   - Accept `run_facts_view` ref or explicit tokens.
+   - Derive pack root from locators (or use explicit `--pack-root`).
+   - Write `_oracle_pack_manifest.json` + `_SEALED.json` only if absent.
+3) Update oracle checker to read and report manifest metadata when present.
+
+---
+
 ## Entry: 2026-01-28 14:45:50 — Expand Oracle Store build plan for implementation + hardening
 
 ### Trigger

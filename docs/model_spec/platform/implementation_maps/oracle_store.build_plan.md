@@ -94,6 +94,18 @@ Define the **sealed world boundary** for engine outputs as an explicit platform 
 - Dev/prod checks require seal markers.
 - Local remains optional until packer is used routinely.
 
+#### Phase 3.3 — Pack identity + manifest schema
+**DoD checklist:**
+- OracleWorldKey is pinned as `{manifest_fingerprint, parameter_hash, scenario_id, seed}` (run_id excluded).
+- Pack manifest schema is versioned (minimal JSON schema under `docs/model_spec/platform/contracts/oracle_store/`).
+- Manifest records `oracle_pack_id`, OracleWorldKey tokens, `engine_release`, and catalogue/gate-map identifiers.
+
+#### Phase 3.4 — Local pack sealing helper (v0 migration)
+**DoD checklist:**
+- CLI can seal an existing local pack root **without** moving bytes (pack‑root alias).
+- Inputs can be derived from `run_facts_view` (pins + locators) or explicitly provided.
+- Seal + manifest writes are idempotent (create‑if‑absent; fail‑closed on mismatch).
+
 ### Phase 4 — Ops + governance hardening
 **Intent:** immutability enforcement, auditability, and operational safety.
 
@@ -111,4 +123,3 @@ Define the **sealed world boundary** for engine outputs as an explicit platform 
 **DoD checklist:**
 - Least‑privilege reader roles documented (SR/WSP/IG/DLA/CM).
 - Writer role limited to engine/packer only.
-
