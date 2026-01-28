@@ -117,3 +117,66 @@ The WSP treats the Oracle Store as **external truth**. It is **not** a platform 
 ### v0 local alignment
 - For local dev we may set `oracle_root` to `runs/local_full_run-5` as a practical engine‑world location, but this does **not** make it part of the platform runtime; it is still outside the platform boundary.
 
+---
+
+## Entry: 2026-01-28 16:36:19 — Planning WSP rewire for engine‑rooted Oracle Store (pre‑implementation)
+
+### Trigger (why we’re planning now)
+User confirmed Oracle Store is **engine‑rooted** and must **not** be coupled to SR runtime artifacts. WSP must be wired to read the **engine world** directly via Oracle Store, so we need a concrete plan before touching code.
+
+### Problem I’m solving (plain language)
+WSP currently expects SR’s `run_facts_view` as the authoritative map of what to stream. That makes WSP transitively dependent on platform runtime state (`runs/fraud-platform`). We must invert this: WSP should stream from **engine‑materialized truth** and only use SR if/when it acts as an external scheduler/attester—not as an oracle index.
+
+### Options I considered (and why I’m choosing one)
+1) **Keep SR READY as the trigger** and reuse `run_facts_view` for output selection.
+   - **Rejected** because it violates the new boundary and keeps Oracle Store coupled to SR artifacts.
+2) **Make WSP fully oracle‑rooted** with explicit world identity (engine run root + scenario id).
+   - **Chosen** because it enforces the correct dependency chain: engine → oracle store → WSP → IG.
+3) **Introduce a new “world registry” service** that emits READY events for WSP.
+   - **Deferred** for later; adds a new component before we have the oracle‑rooted WSP path working.
+
+### Decision (what we will build)
+WSP will be **oracle‑rooted** and **engine‑world aware**:
+- It reads the **oracle pack manifest** (or `run_receipt.json` if manifest missing) to obtain **world identity**.
+- It uses the engine **output catalogue** + **stream class policy** to decide **which outputs** become traffic.
+- It verifies **gate receipts** directly against the engine world (no SR join surface).
+- It emits canonical envelopes to IG using the selected outputs and world key.
+
+### Key invariants (must hold)
+- WSP must not depend on `runs/fraud-platform` or SR `run_facts_view`.
+- `oracle_root` is a pointer to **engine truth** (local or S3).
+- No discovery‑by‑scanning: WSP must be pointed at a specific world (engine run root or oracle pack id).
+- Gate checks remain **fail‑closed** (no PASS → no read).
+
+### Inputs + authorities
+- **Engine outputs catalogue**: `docs/model_spec/data-engine/interface_pack/engine_outputs.catalogue.yaml`
+- **Engine gate map**: `docs/model_spec/data-engine/interface_pack/engine_gates.map.yaml`
+- **Oracle pack manifest + seal** at engine run root.
+- **Policy stream class mapping** (IG policy note) to tag outputs as `business_traffic` vs `control` vs `audit`.
+
+### Planned wiring (concrete)
+1) **WSP config additions**
+   - `oracle.engine_run_root` (explicit world root).
+   - `oracle.scenario_id` (required if ambiguous).
+   - `stream.output_ids` optional override for local smoke.
+2) **Oracle pack resolution**
+   - Read `_oracle_pack_manifest.json` if present.
+   - Fallback to `run_receipt.json` + scenario_id.
+3) **Output selection**
+   - Default: select outputs where policy tags them `business_traffic`.
+   - Optional: `stream.output_ids` for local test runs.
+4) **Gate verification**
+   - Use `engine_gates.map.yaml` to resolve `passed_flag_path_template`.
+   - Require gate pass for any output requiring gates in the catalogue.
+5) **Envelope emit**
+   - Use existing canonical envelope framing in WSP/IG.
+   - Ensure `event_id` stability from locator + world key.
+
+### Test plan (local/dev)
+- **Unit**: parse manifest + receipt, output selection, gate pass lookup.
+- **Integration**: point at `runs/local_full_run-5/<run_id>` and confirm a bounded number of envelopes are admitted by IG.
+
+### What I’m not doing yet
+- I am **not** replacing SR or adding a new scheduler component; this is purely WSP oracle‑rooted wiring.
+- I am **not** introducing a streaming cursor/offset store until the oracle‑rooted path is verified.
+
