@@ -49,3 +49,56 @@ User approved: Oracle Store as a **separate component**, `oracle_root` as a conf
    - `stream_speedup` (policy knob across envs)
 4) Begin WSP skeleton implementation only after the above plans are recorded.
 
+---
+
+## Entry: 2026-01-28 13:31:37 — Phase 1 implementation start (profiles + WSP skeleton + smoke path)
+
+### Trigger
+User said “Proceed with all 3”: (1) add Oracle/WSP fields to platform profiles + README, (2) scaffold WSP package, (3) add a minimal local smoke path (READY → WSP → IG push).
+
+### Live decision trail (notes as I go)
+- **Profiles as the primary surface:** we already use platform profiles for IG; adding WSP/Oracle keys there keeps one canonical profile without introducing new ad‑hoc config files.
+- **No secrets in profiles:** `oracle_root` and `ig_ingest_url` are wiring only; they can be literals or env placeholders, but never credentials.
+- **WSP should reuse legacy engine‑pull framing** to avoid downstream schema drift. The simplest safe path is to reuse IG’s `EnginePuller` + `OutputCatalogue` for event framing and payload structure, but keep WSP’s control flow separate (push to IG, never EB).
+- **Oracle root resolution:** locators may already be absolute (e.g., `runs/local_full_run-5/...`); WSP must not blindly prefix and double‑nest. Resolve only when locator path is relative and does not already include the oracle root.
+- **Smoke path must be bounded:** local runs cannot stream full data. Add a CLI `--max-events` guard for WSP; default to a small number for smoke only. This is an operator tool, not a policy rule.
+- **Speedup factor lives in policy** and is available across envs, but it does not change correctness—only pacing.
+
+### Planned edits (before code)
+1) **Profiles + README**
+   - Add `policy.stream_speedup` and `wiring.oracle_root` (and `wiring.ig_ingest_url`) to `config/platform/profiles/*.yaml`.
+   - Update `config/platform/profiles/README.md` to document these fields and their intent.
+2) **WSP package scaffold**
+   - `src/fraud_detection/world_streamer_producer/{__init__,config,control_bus,runner,cli}.py`
+   - Implement config loader (profile + env interpolation).
+   - Implement READY polling (file bus v0) + run_facts_view load/validate.
+3) **Local smoke path**
+   - WSP CLI command that processes READY once and pushes a bounded number of events to IG (`/v1/ingest/push`).
+   - Makefile target `platform-wsp-ready-once` for repeatable local runs.
+
+---
+
+## Entry: 2026-01-28 13:38:12 — Applied: profiles + WSP scaffold + smoke runner
+
+### What I changed
+- **Profiles:** added `policy.stream_speedup` and wiring keys `oracle_root` + `ig_ingest_url` to all platform profiles.
+  - Local/dev_local default to `runs/local_full_run-5` + `http://localhost:8081`.
+  - Dev/prod use env placeholders (`${ORACLE_ROOT}`, `${IG_INGEST_URL}`).
+- **Profiles README:** documented `stream_speedup`, `oracle_root`, and `ig_ingest_url` semantics (no secrets).
+- **WSP scaffold:** added `world_streamer_producer` package with:
+  - config loader (env interpolation + defaults)
+  - file‑bus READY reader
+  - runner that loads `run_facts_view`, resolves oracle paths, enforces gate‑pass when required, and pushes envelopes to IG
+  - CLI for one‑shot READY processing
+- **Makefile:** added `platform-wsp-ready-once` target with `WSP_PROFILE` + `WSP_MAX_EVENTS` guards.
+- **.env.example:** added non‑secret placeholders for `ORACLE_ROOT` and `IG_INGEST_URL`.
+
+### Rationale (live)
+- Keeping `oracle_root` and `ig_ingest_url` in profiles keeps wiring consistent across components and avoids ad‑hoc WSP config.
+- Reusing IG’s engine‑pull framing logic via `EnginePuller` prevents schema drift and keeps event_id stable.
+- Smoke‑mode `--max-events` bounds local runs without altering policy semantics.
+
+### Open follow‑ups
+- Decide whether WSP should persist a checkpoint (Phase 2) or remain stateless for now.
+- Add a small validation test (local smoke) to assert at least one envelope is admitted by IG.
+

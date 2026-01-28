@@ -17,10 +17,13 @@ policy:
   partitioning_profiles_ref: config/platform/ig/partitioning_profiles_v0.yaml
   partitioning_profile_id: <ig partition strategy id>
   require_gate_pass: true
+  stream_speedup: 1.0
 wiring:
   object_store:
     bucket: fraud-platform
     endpoint: ${OBJECT_STORE_ENDPOINT}
+  oracle_root: runs/local_full_run-5
+  ig_ingest_url: http://localhost:8081
   event_bus:
     topic_traffic: fp.bus.traffic.v1
     topic_control: fp.bus.control.v1
@@ -59,12 +62,15 @@ Notes:
 - Wiring endpoints are placeholders; actual values come from env/secret store.
 - `${VAR}` placeholders are resolved from environment variables at load time.
 - `control_bus` wiring tells IG where to read SR READY control events (file bus in v0).
+- `oracle_root` points to the sealed engine world store (Oracle Store); it is wiring, not policy.
+- `ig_ingest_url` is the WSP → IG push endpoint (non‑secret; can be local or service DNS).
 - Local file runs use `object_store.root: runs` so platform artifacts resolve under `runs/fraud-platform/`.
 - `security` is wiring‑scoped: it can enable auth and rate limits without changing policy behavior.
 - Auth applies to **ingest and ops endpoints** when enabled; only CLI/internal calls bypass it.
 - `ready_lease` enables **distributed READY** consumption. Postgres advisory locks are recommended for multi‑instance deployments.
 - `pull_sharding` defaults to `output_id` for v0; `locator_range` is opt‑in for large outputs.
 - `pull_time_budget_seconds` is optional and intended for **local smoke runs**; leave unset for production.
+- `stream_speedup` is a **policy knob** that affects pacing only (same semantics across envs).
 
 Testing policy (current):
 - **local.yaml** → smoke validation only (bounded with `pull_time_budget_seconds`).

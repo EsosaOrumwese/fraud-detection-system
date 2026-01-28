@@ -4,11 +4,14 @@ policy:
   partitioning_profiles_ref: config/platform/ig/partitioning_profiles_v0.yaml
   partitioning_profile_id: ig.partitioning.v0.traffic
   require_gate_pass: true
+  stream_speedup: 60.0
 wiring:
   object_store:
     root: runs
     bucket: fraud-platform
     endpoint: ${OBJECT_STORE_ENDPOINT}
+  oracle_root: runs/local_full_run-5
+  ig_ingest_url: http://localhost:8081
   event_bus:
     topic_traffic: fp.bus.traffic.v1
     topic_control: fp.bus.control.v1

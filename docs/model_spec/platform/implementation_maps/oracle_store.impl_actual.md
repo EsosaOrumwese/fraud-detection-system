@@ -43,3 +43,30 @@ User approved building **Oracle Store** as a **separate platform component** alo
    - locator/digest checks (by‑ref only)
 4) Wire references in WSP plan to the Oracle Store contract (no code until plans are recorded).
 
+---
+
+## Entry: 2026-01-28 13:32:07 — Wire oracle_root into platform profiles (pre-change)
+
+### Trigger
+WSP Phase 1 implementation starts and requires `oracle_root` to be surfaced in platform profiles as a wiring value (no secrets).
+
+### Live reasoning (notes)
+- Oracle Store is a **boundary contract**, but it still needs a concrete **wiring hook** (`oracle_root`) to point at the current sealed world location.
+- Defaulting `oracle_root` to `runs/local_full_run-5` aligns with the only fully materialized local run, while keeping it adjustable for the future `runs/data-engine` move.
+- For dev/prod, the value should remain **wiring** (env or S3 URI) and must not embed credentials.
+
+### Planned edit
+- Update `config/platform/profiles/*.yaml` to include `wiring.oracle_root`.
+- Update profiles README to document `oracle_root` semantics and the “no secrets” posture.
+
+---
+
+## Entry: 2026-01-28 13:38:37 — Applied: oracle_root wiring in profiles
+
+### What changed
+- Added `wiring.oracle_root` to all platform profiles.
+- Updated `config/platform/profiles/README.md` to define Oracle Store wiring and its non‑secret posture.
+
+### Notes
+- Local/dev_local default to `runs/local_full_run-5` (temporary).
+- Dev/prod use `${ORACLE_ROOT}` so the location can be swapped without code edits.

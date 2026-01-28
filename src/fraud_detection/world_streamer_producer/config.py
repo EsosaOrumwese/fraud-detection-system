@@ -1,0 +1,114 @@
+"""WSP configuration loader (platform profiles)."""
+
+from __future__ import annotations
+
+from dataclasses import dataclass
+import os
+import re
+from pathlib import Path
+from typing import Any
+
+import yaml
+
+
+_ENV_PATTERN = re.compile(r"\$\{([^}]+)\}")
+
+
+def _resolve_env(value: str | None) -> str | None:
+    if not value or not isinstance(value, str):
+        return value
+    match = _ENV_PATTERN.fullmatch(value.strip())
+    if match:
+        return os.getenv(match.group(1)) or ""
+    return value
+
+
+@dataclass(frozen=True)
+class PolicyProfile:
+    policy_rev: str
+    require_gate_pass: bool
+    stream_speedup: float
+
+
+@dataclass(frozen=True)
+class WiringProfile:
+    profile_id: str
+    object_store_root: str
+    object_store_endpoint: str | None
+    object_store_region: str | None
+    object_store_path_style: bool | None
+    control_bus_kind: str
+    control_bus_root: str
+    control_bus_topic: str
+    schema_root: str
+    engine_catalogue_path: str
+    oracle_root: str
+    ig_ingest_url: str
+
+
+@dataclass(frozen=True)
+class WspProfile:
+    policy: PolicyProfile
+    wiring: WiringProfile
+
+    @classmethod
+    def load(cls, path: Path) -> "WspProfile":
+        data = yaml.safe_load(path.read_text(encoding="utf-8"))
+        policy = data.get("policy", {})
+        wiring = data.get("wiring", {})
+        object_store = wiring.get("object_store", {})
+        control_bus = wiring.get("control_bus", {})
+
+        endpoint = _resolve_env(object_store.get("endpoint"))
+        region = _resolve_env(object_store.get("region"))
+        path_style = object_store.get("path_style")
+        if isinstance(path_style, str):
+            path_style = path_style.lower() in {"1", "true", "yes"}
+
+        root = object_store.get("root")
+        bucket = object_store.get("bucket")
+        object_store_root = root or "runs"
+        if not root and bucket:
+            if endpoint or region or object_store.get("kind") == "s3":
+                object_store_root = f"s3://{bucket}"
+            else:
+                object_store_root = bucket
+
+        policy_rev = policy.get("policy_rev", data.get("profile_id", "local"))
+        require_gate_pass = bool(policy.get("require_gate_pass", True))
+        stream_speedup = float(policy.get("stream_speedup", 1.0))
+
+        control_bus_kind = control_bus.get("kind", "file")
+        control_bus_root = control_bus.get("root", "runs/fraud-platform/control_bus")
+        control_bus_topic = control_bus.get("topic", "fp.bus.control.v1")
+
+        schema_root = wiring.get("schema_root", "docs/model_spec/platform/contracts")
+        engine_catalogue_path = wiring.get(
+            "engine_catalogue_path",
+            "docs/model_spec/data-engine/interface_pack/engine_outputs.catalogue.yaml",
+        )
+        oracle_root = _resolve_env(wiring.get("oracle_root") or "runs/local_full_run-5")
+        ig_ingest_url = _resolve_env(wiring.get("ig_ingest_url") or "http://localhost:8081")
+
+        return cls(
+            policy=PolicyProfile(
+                policy_rev=policy_rev,
+                require_gate_pass=require_gate_pass,
+                stream_speedup=stream_speedup,
+            ),
+            wiring=WiringProfile(
+                profile_id=data["profile_id"],
+                object_store_root=object_store_root,
+                object_store_endpoint=endpoint,
+                object_store_region=region,
+                object_store_path_style=path_style,
+                control_bus_kind=control_bus_kind,
+                control_bus_root=control_bus_root,
+                control_bus_topic=control_bus_topic,
+                schema_root=schema_root,
+                engine_catalogue_path=engine_catalogue_path,
+                oracle_root=oracle_root,
+                ig_ingest_url=ig_ingest_url,
+            ),
+        )
+

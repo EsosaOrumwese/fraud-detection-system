@@ -2525,6 +2525,8 @@ IG_INSTANCE_ID ?= ig-1
 IG_INSTANCE_ID_2 ?= ig-2
 IG_AUDIT_RUN_ID ?=
 PLATFORM_RUN_ID ?=
+WSP_PROFILE ?= config/platform/profiles/local.yaml
+WSP_MAX_EVENTS ?= 1
 
 .PHONY: platform-stack-up platform-stack-down platform-stack-status
 platform-stack-up:
@@ -2609,6 +2611,10 @@ platform-ig-audit:
 		exit 1; \
 	fi
 	@$(PY_SCRIPT) -m fraud_detection.ingestion_gate.cli --profile "$(IG_PROFILE)" --audit-verify "$(IG_AUDIT_RUN_ID)"
+
+.PHONY: platform-wsp-ready-once
+platform-wsp-ready-once:
+	@$(PY_SCRIPT) -m fraud_detection.world_streamer_producer.cli --profile "$(WSP_PROFILE)" --once --max-events "$(WSP_MAX_EVENTS)"
 
 # ---------------------------------------------------------------------------
 # Scenario Runner test tiers (Makefile-based, no PowerShell)
