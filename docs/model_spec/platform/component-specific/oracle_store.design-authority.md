@@ -1699,6 +1699,38 @@ This allows unsealed packs (WARN only) until packer use is routine. You can opti
 make platform-oracle-check ORACLE_ENGINE_RUN_ROOT=... ORACLE_SCENARIO_ID=baseline_v1 ORACLE_OUTPUT_IDS=arrival_events_5B,s2_flow_anchor_baseline_6B
 ```
 
+### M4.1) Pack‑from‑engine guide (preferred defaults)
+**Current local default (existing engine world):**
+- Engine run root: `runs/local_full_run-5/<run_id>`
+- Example run id: `c25a2675fbfbacd952b13bb594880e92`
+```
+make platform-oracle-pack \
+  ORACLE_ENGINE_RUN_ROOT=runs/local_full_run-5/c25a2675fbfbacd952b13bb594880e92 \
+  ORACLE_SCENARIO_ID=baseline_v1 \
+  ORACLE_ENGINE_RELEASE=engine-local-v0
+```
+
+**Future default (dedicated oracle store path):**
+- Engine world root: `runs/data-engine/<run_id>`
+```
+make platform-oracle-pack \
+  ORACLE_ENGINE_RUN_ROOT=runs/data-engine/<run_id> \
+  ORACLE_SCENARIO_ID=baseline_v1 \
+  ORACLE_ENGINE_RELEASE=engine-<release-id>
+```
+
+**Notes:**
+- `ORACLE_ENGINE_RUN_ROOT` must point at a folder that contains `run_receipt.json`.
+- `ORACLE_SCENARIO_ID` is required unless you have exactly one scenario under that engine root.
+
+### M4.2) Dev cutover checklist (Oracle Store + engine world)
+1. **Materialize engine world in dev** (engine run in dev produces a new run root).
+2. **Set dev oracle root** (profile or env) to the engine world location (e.g., `s3://<bucket>/<prefix>/<run_id>` or `runs/data-engine/<run_id>`).
+3. **Seal the pack** with `make platform-oracle-pack` using the dev engine run root + scenario id.
+4. **Run strict check** with `make platform-oracle-check-strict` against the same engine run root.
+5. **Update WSP/IG profiles** (if needed) to point at the new dev oracle root only—no platform runtime paths.
+6. **Smoke stream** (WSP → IG) using the dev oracle root to confirm end‑to‑end visibility.
+
 ### M5) Where logs go (platform run ids)
 Oracle Store tooling writes to the **shared platform log** and, if a platform run id is active, also writes to a **per‑run log**:
 
