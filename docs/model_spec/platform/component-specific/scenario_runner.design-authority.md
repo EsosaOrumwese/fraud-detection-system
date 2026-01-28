@@ -10,6 +10,8 @@ Here’s the **minimum-but-sufficient SR overview** that needs to be pinned in e
 
 SR is the **platform’s world/run “entrypoint authority”**: it turns *an intended run* into a **joinable, evidenced, replay-safe run context** for the rest of the platform. The platform top-view literally pins SR as: invoke/reuse engine → verify PASS gates → write SR ledger → publish READY + `run_facts_view`.
 
+**WSP-first runtime note (v0):** SR is **control-plane only**. It does **not** stream traffic. The **World Stream Producer (WSP)** is the primary data-plane producer that streams sealed engine traffic from the Oracle Store into IG. SR’s responsibility is to publish READY + by‑ref truth (including Oracle pack references) so WSP and ops can correlate the run to the correct world.
+
 SR is therefore **conductor + ledger**, and **system-of-record** for:
 
 * run identity,
@@ -30,8 +32,8 @@ Production posture says SR must persist (as truth):
 * `sr/run_plan`
 * `sr/run_record`
 * `sr/run_status`
-* `sr/run_facts_view`
-  and also emit the READY signal on `fp.bus.control.v1`.
+* `sr/run_facts_view` (includes Oracle pack references when available)
+  and also emit the READY signal on `fp.bus.control.v1` (which may carry the same pack refs).
 
 **Key meaning:** READY is meaningless without those persisted ledger artifacts (because READY is just the trigger; the facts view is the map).
 
@@ -99,8 +101,9 @@ Two pinned facts matter here:
 
 So in production-ready v0, SR’s job is:
 
-* publish READY + `run_facts_view`,
-* and that facts view must allow IG to deterministically pull only `business_traffic` outputs (by ref), wrap into canonical envelope if needed, and then admit/quarantine into EB.
+* publish READY + `run_facts_view` (control-plane join surface),
+* include **Oracle pack references** so the data-plane can bind to the correct world,
+* and keep legacy locators so IG can still pull for **backfill/ops** when needed (not the primary runtime path).
 
 ## 8) The mental model to carry into join/path analysis
 
@@ -169,8 +172,9 @@ This join is pinned as the **platform entrypoint**: downstream starts here or it
 
 IG uses SR’s join surface:
 
-* **IG reads `sr/run_facts_view`** to enforce that producer traffic is joinable to a valid (in practice READY) run.
-* IG is then the trust-boundary that admits/quarantines/duplicates and appends admitted facts to EB.
+* **Primary runtime:** WSP streams sealed traffic from the Oracle Store and IG validates joinability using SR’s READY + pack refs.
+* **Legacy/backfill:** IG may still read `sr/run_facts_view` to pull by‑ref outputs for backfill or ops rebuilds.
+* IG remains the trust-boundary that admits/quarantines/duplicates and appends admitted facts to EB.
 
 ---
 
@@ -197,7 +201,7 @@ Below are the **distinct production paths** that exist *even with SR opaque*. Ea
 3. Engine → artifact store outputs + gate receipts
 4. SR → writes `run_facts_view` + `run_status=READY`
 5. SR → emits READY on `fp.bus.control.v1`
-6. IG consumes READY + reads `run_facts_view` → pulls `business_traffic` outputs → admits/quarantines → appends to EB
+6. **WSP** consumes READY + pack refs → streams `business_traffic` from Oracle Store → **IG** admits/quarantines → appends to EB
 7. EB → IEG/OFP/DF/AL/DLA etc.
 
 ---

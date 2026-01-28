@@ -18,6 +18,8 @@ properties:
   emitted_at_utc:
     type: string
     format: date-time
+  oracle_pack_ref:
+    $ref: "#/$defs/oracle_pack_ref"
 $defs:
   hex32:
     type: string
@@ -25,3 +27,26 @@ $defs:
   hex64:
     type: string
     pattern: "^[0-9a-f]{64}$"
+  oracle_pack_ref:
+    type: object
+    additionalProperties: false
+    minProperties: 1
+    properties:
+      oracle_pack_id:
+        $ref: "#/$defs/hex64"
+      manifest_ref:
+        type: string
+        minLength: 1
+        maxLength: 2048
+      engine_run_root:
+        type: string
+        minLength: 1
+        maxLength: 2048
+      oracle_root:
+        type: string
+        minLength: 1
+        maxLength: 2048
+      engine_release:
+        type: string
+        minLength: 1
+        maxLength: 256

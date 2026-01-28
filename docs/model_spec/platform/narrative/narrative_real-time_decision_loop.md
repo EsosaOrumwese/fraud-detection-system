@@ -258,7 +258,7 @@ The Degrade Ladder doesn’t change business logic by itself; it **chooses which
 
 To keep later specs and implementation aligned with this narrative, it helps to be explicit about what the Real-time Decision Loop does **not** own:
 
-* It does **not** decide which world exists or how synthetic data are generated—that’s the Scenario Runner + Data Engine.
+* It does **not** decide which world exists or how synthetic data are generated—that’s the Scenario Runner + Data Engine, with WSP streaming the sealed world into IG.
 * It does **not** re-derive or mutate authority surfaces; it only reads them via the Identity & Entity Graph or feature jobs.
 * It does **not** train models or policies; it only applies them. Training, evaluation, and registration live in the learning loop.
 * It does **not** own label semantics; it emits outcomes and decision data that the Label Store and learning loop will interpret.

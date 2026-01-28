@@ -3647,3 +3647,48 @@ oracle_pack_ref:
 - No IG changes.
 
 ---
+
+## Entry: 2026-01-28 20:02:05 — Phase 9 implemented (docs + contracts alignment)
+
+### Step‑by‑step decisions and changes
+1) **Add Oracle pack references to SR control-plane contracts**
+   - Updated `run_facts_view.schema.yaml` and `run_ready_signal.schema.yaml` to include an optional `oracle_pack_ref` block.
+   - Chose a **nested object** to keep schema evolution contained and avoid cluttering top‑level fields.
+   - Fields are **by‑ref only** (`oracle_pack_id`, `manifest_ref`, `engine_run_root`, `oracle_root`, `engine_release`) with `minProperties: 1` to prevent empty blocks.
+   - Reason: link SR readiness to the exact external Oracle pack without implying SR owns the data plane.
+
+2) **Document WSP‑first runtime explicitly in SR design authority**
+   - Added a WSP‑first runtime note: SR is control‑plane only; WSP is the primary data‑plane producer.
+   - Rewrote IG↔SR join text to treat IG pull as legacy/backfill and WSP streaming as primary.
+   - Updated Path P1 to include WSP streaming into IG.
+   - Reason: prevent role conflation and align the join surface narrative with the current runtime architecture.
+
+3) **Align platform narratives and blueprint**
+   - Control & Ingress narrative now names WSP as the stream producer and Oracle Store as external truth.
+   - Real‑time decision loop explicitly references WSP as the streaming actor.
+   - Blueprint note clarifies WSP is triggered by READY + pack refs and streams from Oracle Store (does not read SR for payloads).
+   - Join surface section now lists Oracle pack refs as minimum required linkage.
+   - Reason: keep platform‑wide narratives consistent with the WSP‑first runtime and Oracle boundary.
+
+4) **Contract README update**
+   - Added a compatibility note in SR contracts README to document the new optional `oracle_pack_ref` block.
+   - Reason: ensure contract consumers understand the new linkage fields without searching schema diffs.
+
+### Out‑of‑scope (kept out intentionally)
+- No SR runtime code changes (Phase 10).
+- No IG/WSP implementation changes.
+- No behavior changes in READY emission; only contract + doc alignment.
+
+### Tests run (local)
+- `.\.venv\Scripts\python.exe - <<'PY'` (YAML parse sanity for updated schemas)
+
+---
+
+## Entry: 2026-01-28 20:05:02 — Phase 9 test command correction
+
+### Correction
+- YAML parse sanity was executed via PowerShell here‑string:
+  `@'... '@ | .\.venv\Scripts\python.exe -`
+- Result: ok
+
+---
