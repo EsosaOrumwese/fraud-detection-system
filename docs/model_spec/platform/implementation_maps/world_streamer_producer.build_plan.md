@@ -86,13 +86,15 @@ Implement WSP as the **primary runtime producer** that replays sealed engine `bu
 
 #### Phase 3.2 — Provenance stamp (oracle world)
 **DoD checklist:**
-- Include `oracle_pack_id` (or pack_key fallback) in envelope metadata.
-- Include `engine_release` + manifest digest if available.
+- Stamp `oracle_pack_id` (or pack_key fallback) into `trace_id` (schema‑safe provenance).
+- Stamp `engine_release` into `span_id` when available.
 
 #### Phase 3.3 — Audit hooks
 **DoD checklist:**
 - WSP emits audit events (or audit log lines) for stream start/stop + cursor updates.
 - Audit output is append‑only; does not mutate traffic.
+
+**Status:** complete.
 
 ### Phase 4 — Validation (smoke + dev completion)
 **Intent:** WSP→IG path validates under local smoke and dev completion policies.

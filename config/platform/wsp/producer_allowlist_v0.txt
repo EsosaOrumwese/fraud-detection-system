@@ -1,0 +1,2 @@
+# WSP producer allowlist (one producer_id per line)
+svc:world_stream_producer

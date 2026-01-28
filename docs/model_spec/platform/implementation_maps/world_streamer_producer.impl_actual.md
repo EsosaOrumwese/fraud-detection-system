@@ -347,3 +347,115 @@ User asked to move into **Phase 2 planning** and explicitly warned not to confla
 - WSP unit + resume tests green (`tests/services/world_streamer_producer/test_runner.py`).
 - Local resume smoke run verified (second run emits remaining events only).
 
+
+## Entry: 2026-01-28 19:05:41 — Phase 3 planning (producer identity + provenance + audit)
+
+### Trigger
+User requested Phase 3 implementation (security/governance hardening) with detailed decision trail and tests.
+
+### Problem framing (what Phase 3 must add)
+Phase 1/2 already stream engine events with checkpointing. Phase 3 must harden **governance** without changing roles:
+- **Producer identity control** (who is allowed to emit to IG).
+- **Provenance stamping** of the oracle world (pack identity + engine release).
+- **Audit hooks** for stream start/stop and cursor commits.
+
+Phase 3 must **not** add new validation that belongs in Phase 4 (smoke + dev completion). It must also respect the canonical envelope schema (no additional properties) and keep WSP as the traffic producer only (no EB writes).
+
+### Constraints and authorities
+- Canonical envelope schema is strict (`additionalProperties: false`) in `docs/model_spec/data-engine/interface_pack/contracts/canonical_event_envelope.schema.yaml`.
+- Oracle pack manifest schema provides `oracle_pack_id` + `engine_release`.
+- Governance rules: fail closed when compatibility/identity is unknown.
+
+### Options considered (and why)
+1) **Add new custom fields (e.g., oracle_pack_id) to the envelope.**
+   - Rejected: schema is strict; adding fields would break validation and violate boundary contract.
+
+2) **Reuse existing tracing fields for provenance (trace_id/span_id).**
+   - Accepted: conforms to schema and keeps provenance attached to each event without schema changes.
+
+3) **Producer allowlist enforced in IG instead of WSP.**
+   - Partial: IG should also be able to enforce, but WSP must fail‑closed if its producer identity is invalid or not in the allowlist to prevent accidental emission.
+
+### Decisions (locked)
+1) **Producer identity stamping**
+   - WSP sets `producer` on every envelope to the configured `producer_id`.
+   - WSP **fails closed** if `producer_id` is missing or not on the allowlist.
+   - Allowlist is an explicit file ref in wiring; provide a default file with the WSP service id.
+
+2) **Provenance stamping within allowed fields**
+   - `trace_id` = `oracle_pack_id` (preferred), fallback to `pack_key` when manifest is absent.
+   - `span_id` = `engine_release` (if present) to tie events back to the engine build.
+   - If those fields are already set, WSP will not clobber them (defensive).
+
+3) **Audit hooks (append‑only)**
+   - Use `append_session_event` for:
+     - `stream_start` (engine root, scenario, output_ids, pack key)
+     - `stream_complete` (emitted count)
+     - `checkpoint_saved` (pack key, output_id, cursor)
+   - Log only on checkpoint flush (not every event) to avoid excessive audit noise.
+
+### Implementation plan (before coding)
+1) Add a producer allowlist file under `config/platform/wsp/producer_allowlist_v0.txt`.
+2) Extend platform profiles + README to include `wsp_producer` block (producer_id + allowlist_ref).
+3) Update WSP runner to:
+   - load/validate allowlist;
+   - stamp producer + provenance in envelopes;
+   - emit audit events for stream start/stop and cursor saves.
+4) Update tests to cover:
+   - producer allowlist failure;
+   - provenance stamping (trace_id/span_id presence);
+   - no break to existing resume tests.
+5) Run WSP test subset.
+
+### Risks + mitigations
+- **Risk:** provenance can’t be added without schema change. → Mitigation: use trace/span fields.
+- **Risk:** allowlist missing in profile. → Mitigation: add default allowlist file + fail‑closed with clear reason code.
+- **Risk:** audit spam. → Mitigation: only log on checkpoint flush.
+
+### Test plan (local)
+- `pytest tests/services/world_streamer_producer/test_runner.py -q`
+
+---
+
+## Entry: 2026-01-28 19:14:10 — Phase 3 implemented (producer allowlist + provenance + audit)
+
+### Step‑by‑step decisions and changes
+1) **Producer identity allowlist (fail‑closed)**
+   - Added `wsp_producer` wiring block in all platform profiles with a stable `producer_id` and explicit allowlist ref.
+   - Created a versioned allowlist file at `config/platform/wsp/producer_allowlist_v0.txt` containing the WSP service id.
+   - WSP now validates producer identity **before any streaming**:
+     - Missing producer id → `PRODUCER_ID_MISSING`.
+     - Missing/empty/unreadable allowlist → `PRODUCER_ALLOWLIST_*` reason codes.
+     - Producer not in allowlist → `PRODUCER_NOT_ALLOWED`.
+   - Reason: governance requires explicit identity control; fail‑closed when identity is unknown.
+
+2) **Provenance stamping without schema violations**
+   - Canonical envelope is strict (`additionalProperties: false`), so we cannot add custom fields.
+   - Decision: use existing tracing fields for provenance:
+     - `trace_id` = `oracle_pack_id` (preferred) or fallback pack key when manifest is absent.
+     - `span_id` = `engine_release` when available in the pack manifest.
+   - WSP stamps these **only if not already set** to avoid clobbering upstream instrumentation.
+   - Reason: keeps provenance attached to each event while staying schema‑safe.
+
+3) **Audit hooks (append‑only)**
+   - Added `append_session_event` hooks for:
+     - `stream_start` (engine root, scenario, outputs, pack key, producer id)
+     - `stream_complete` (emitted count)
+     - `checkpoint_saved` (pack key/output/cursor + reason)
+   - Checkpoint audit happens on flush boundaries (controlled by `flush_every`) to avoid noisy logs.
+   - Reason: ensure observable lifecycle without turning the audit log into per‑event spam.
+
+4) **Path resolution hardening (allowlist + output ids)**
+   - Updated WSP config loader to resolve refs in this order:
+     - If the path exists as‑is (relative to current working dir), use it.
+     - Otherwise, resolve relative to the profile directory.
+   - Reason: profiles currently use repo‑root style paths; this prevents accidental double‑prefixing.
+
+5) **Tests**
+   - Added a producer allowlist failure test to confirm fail‑closed behavior.
+   - Extended stream test to assert producer + provenance stamping (`producer`, `trace_id`).
+
+### Tests run (local)
+- `.\.venv\Scripts\python.exe -m pytest tests/services/world_streamer_producer/test_runner.py -q` → 4 passed.
+
+---

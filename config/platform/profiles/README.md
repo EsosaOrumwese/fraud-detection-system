@@ -40,6 +40,9 @@ wiring:
     root: runs/fraud-platform/wsp_checkpoints
     dsn: ${WSP_CHECKPOINT_DSN}
     flush_every: 1
+  wsp_producer:
+    producer_id: svc:world_stream_producer
+    allowlist_ref: config/platform/wsp/producer_allowlist_v0.txt
   ready_lease:
     backend: none | postgres
     dsn: ${IG_READY_LEASE_DSN}
@@ -76,6 +79,7 @@ Notes:
 - `oracle_scenario_id` can be used when a world contains multiple scenarios (avoid ambiguity).
 - `wsp_checkpoint` controls WSP resume state (file backend for local, Postgres for dev/prod).
 - `flush_every` defines how often WSP persists its cursor (lower = fewer duplicates after crash).
+- `wsp_producer` pins the producer identity stamped on envelopes; allowlist restricts valid producer_ids.
 - `ig_ingest_url` is the WSP → IG push endpoint (non‑secret; can be local or service DNS).
 - Local file runs use `object_store.root: runs` so platform artifacts resolve under `runs/fraud-platform/`.
 - `security` is wiring‑scoped: it can enable auth and rate limits without changing policy behavior.

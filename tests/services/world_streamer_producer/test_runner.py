@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import hashlib
 import json
 from pathlib import Path
 
@@ -54,7 +55,17 @@ def _write_arrival_events(root: Path, receipt: dict, scenario_id: str, *, count:
     gate_flag.write_text("PASS", encoding="utf-8")
 
 
-def _profile(root: Path, *, output_ids: list[str], checkpoint_root: Path | None = None) -> WspProfile:
+def _profile(
+    root: Path,
+    *,
+    output_ids: list[str],
+    checkpoint_root: Path | None = None,
+    producer_id: str = "svc:world_stream_producer",
+    allowlist_ref: Path | None = None,
+) -> WspProfile:
+    allowlist_path = allowlist_ref or (root / "wsp_allowlist.txt")
+    if allowlist_ref is None:
+        allowlist_path.write_text(f"{producer_id}\n", encoding="utf-8")
     policy = PolicyProfile(
         policy_rev="local",
         require_gate_pass=True,
@@ -80,6 +91,8 @@ def _profile(root: Path, *, output_ids: list[str], checkpoint_root: Path | None 
         checkpoint_root=str(checkpoint_root or (root / "wsp_checkpoints")),
         checkpoint_dsn=None,
         checkpoint_every=1,
+        producer_id=producer_id,
+        producer_allowlist_ref=str(allowlist_path),
     )
     return WspProfile(policy=policy, wiring=wiring)
 
@@ -105,6 +118,9 @@ def test_wsp_streams_engine_world(monkeypatch, tmp_path: Path) -> None:
     assert result.status == "STREAMED"
     assert result.emitted == 1
     assert sent
+    expected_trace = hashlib.sha256(str(engine_root).encode("utf-8")).hexdigest()
+    assert sent[0].get("producer") == "svc:world_stream_producer"
+    assert sent[0].get("trace_id") == expected_trace
 
 
 def test_wsp_fails_missing_gate(tmp_path: Path) -> None:
@@ -144,3 +160,22 @@ def test_wsp_checkpoint_resume(monkeypatch, tmp_path: Path) -> None:
     )
     assert second.status == "STREAMED"
     assert second.emitted == 1
+
+
+def test_wsp_fails_producer_allowlist(tmp_path: Path) -> None:
+    engine_root = tmp_path / "engine_run"
+    engine_root.mkdir()
+    receipt = _write_run_receipt(engine_root)
+    _write_arrival_events(engine_root, receipt, "baseline_v1")
+    allowlist = tmp_path / "allowlist.txt"
+    allowlist.write_text("svc:other\n", encoding="utf-8")
+    profile = _profile(
+        engine_root,
+        output_ids=["arrival_events_5B"],
+        allowlist_ref=allowlist,
+        producer_id="svc:world_stream_producer",
+    )
+    producer = WorldStreamProducer(profile)
+    result = producer.stream_engine_world(engine_run_root=str(engine_root), scenario_id="baseline_v1")
+    assert result.status == "FAILED"
+    assert result.reason == "PRODUCER_NOT_ALLOWED"

@@ -51,6 +51,8 @@ class WiringProfile:
     checkpoint_root: str
     checkpoint_dsn: str | None
     checkpoint_every: int
+    producer_id: str
+    producer_allowlist_ref: str | None
 
 
 @dataclass(frozen=True)
@@ -66,6 +68,7 @@ class WspProfile:
         object_store = wiring.get("object_store", {})
         control_bus = wiring.get("control_bus", {})
         checkpoint = wiring.get("wsp_checkpoint", {})
+        producer = wiring.get("wsp_producer", {})
 
         endpoint = _resolve_env(object_store.get("endpoint"))
         region = _resolve_env(object_store.get("region"))
@@ -105,6 +108,16 @@ class WspProfile:
         checkpoint_root = _resolve_env(checkpoint.get("root") or "runs/fraud-platform/wsp_checkpoints")
         checkpoint_dsn = _resolve_env(checkpoint.get("dsn"))
         checkpoint_every = int(checkpoint.get("flush_every", 1))
+        producer_id = (producer.get("producer_id") or "svc:world_stream_producer").strip()
+        producer_allowlist_ref = _resolve_env(
+            producer.get("allowlist_ref") or "config/platform/wsp/producer_allowlist_v0.txt"
+        )
+        if producer_allowlist_ref:
+            allowlist_path = Path(producer_allowlist_ref)
+            if not allowlist_path.is_absolute():
+                if not allowlist_path.exists():
+                    allowlist_path = path.parent / allowlist_path
+                producer_allowlist_ref = str(allowlist_path)
 
         return cls(
             policy=PolicyProfile(
@@ -132,6 +145,8 @@ class WspProfile:
                 checkpoint_root=checkpoint_root,
                 checkpoint_dsn=checkpoint_dsn,
                 checkpoint_every=checkpoint_every,
+                producer_id=producer_id,
+                producer_allowlist_ref=producer_allowlist_ref,
             ),
         )
 
@@ -145,7 +160,8 @@ def _load_output_ids(policy: dict[str, Any], *, base_dir: Path) -> list[str]:
         return []
     ref_path = Path(ref)
     if not ref_path.is_absolute():
-        ref_path = base_dir / ref_path
+        if not ref_path.exists():
+            ref_path = base_dir / ref_path
     payload = yaml.safe_load(ref_path.read_text(encoding="utf-8"))
     if isinstance(payload, dict):
         items = payload.get("output_ids") or []
