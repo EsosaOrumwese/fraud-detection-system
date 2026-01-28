@@ -198,6 +198,39 @@ This edge is where we keep the platform’s **pinned entrypoint law** (“downst
 
 **SR remains the run/join authority. WSP is just another downstream consumer of that authority.**
 
+---
+
+## Oracle storage + engine interface boundary (environment ladder)
+
+### Where the “oracle” world lives
+The engine’s finalized outputs are the **sealed world store** outside the platform runtime. They must be **immutable** and **by‑ref**.
+
+**Local**
+- Filesystem under `runs/local_full_run-*` is acceptable for now.
+- Optional: MinIO for prod‑shaped local (S3‑style access).
+
+**Dev**
+- S3‑compatible bucket (MinIO or real S3).
+- Suggested prefix layout:
+  - `s3://fraud-platform-oracle/dev/engine_runs/<run_id>/...`
+
+**Prod**
+- Real S3 bucket with immutability posture.
+- Suggested prefix layout:
+  - `s3://fraud-platform-oracle/prod/engine_runs/<run_id>/...`
+
+**Invariants**
+- **Immutable**: once a run is sealed, do not overwrite.
+- **By‑ref only**: platform consumes locators + digests, never payload copies.
+
+### Does WSP replace the engine interface pack?
+**No.** WSP does **not** replace the engine interface pack. The interface pack remains the **engine boundary contract** (catalogue + gates + schemas). WSP is a **downstream inlet** that consumes SR’s join surface and streams only declared `business_traffic` into IG.
+
+Pipeline boundary (unchanged):
+```
+Engine outputs (oracle) → SR (READY + run_facts_view) → WSP → IG → EB
+```
+
 * SR publishes **READY (trigger)** + **`run_facts_view` (map)** as the platform entrypoint.
 * WSP must **only** start from READY → fetch `run_facts_view` → follow refs. No scanning engine outputs, no “latest”, no guessing.
 * SR **does not control pacing**, it just makes a run joinable and evidenced. (SR must not become “the pipeline”.)

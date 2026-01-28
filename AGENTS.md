@@ -27,11 +27,12 @@ The AGENT is expected to **lead the design and implementation**, not wait for st
 ## 1) Reading order (strict)
 Read these in order before modifying code so you share the project context:
 1. `docs\model_spec\platform\platform-wide\platform_blueprint_notes_v0.md`
+   * New component (WSP) to replace data engine (as it now exists outside the platform): `docs\model_spec\platform\component-specific\world_streamer_producer.design-authority.md`. This trumps all other assumptions of the data engine as a vertex in the network
 2. `docs\model_spec\platform\platform-wide\deployment_tooling_notes_v0.md`
 3. `docs\model_spec\data-engine\interface_pack`
 4. Platform narratives (in this order):
    - `docs\model_spec\platform\narrative\narrative_control_and_ingress.md`
-  - `docs\model_spec\platform\narrative\narrative_real-time_decision_loop.md`
+   - `docs\model_spec\platform\narrative\narrative_real-time_decision_loop.md`
    - `docs\model_spec\platform\narrative\narrative_label_and_case.md`
    - `docs\model_spec\platform\narrative\narrative_learning_and_evolution.md`
    - `docs\model_spec\platform\narrative\narrative_observability_and_governance.md`
