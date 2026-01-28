@@ -35,6 +35,11 @@ wiring:
     kind: file
     root: runs/fraud-platform/control_bus
     topic: fp.bus.control.v1
+  wsp_checkpoint:
+    backend: file | postgres
+    root: runs/fraud-platform/wsp_checkpoints
+    dsn: ${WSP_CHECKPOINT_DSN}
+    flush_every: 1
   ready_lease:
     backend: none | postgres
     dsn: ${IG_READY_LEASE_DSN}
@@ -69,6 +74,8 @@ Notes:
 - `oracle_root` points to the sealed engine world store (Oracle Store); it is wiring, not policy.
 - `oracle_engine_run_root` optionally pins WSP to a specific engine world (no “latest” scanning).
 - `oracle_scenario_id` can be used when a world contains multiple scenarios (avoid ambiguity).
+- `wsp_checkpoint` controls WSP resume state (file backend for local, Postgres for dev/prod).
+- `flush_every` defines how often WSP persists its cursor (lower = fewer duplicates after crash).
 - `ig_ingest_url` is the WSP → IG push endpoint (non‑secret; can be local or service DNS).
 - Local file runs use `object_store.root: runs` so platform artifacts resolve under `runs/fraud-platform/`.
 - `security` is wiring‑scoped: it can enable auth and rate limits without changing policy behavior.

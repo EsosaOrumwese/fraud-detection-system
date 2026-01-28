@@ -296,3 +296,42 @@ User asked to move into **Phase 2 planning** and explicitly warned not to confla
 4) Add tests: resume from cursor, duplicate suppression, crash‑resume behavior.  
 5) Update operator docs + make targets.
 
+---
+
+## Entry: 2026-01-28 18:49:04 — Phase 2 implemented (checkpointing + resume)
+
+### Step‑by‑step decisions and changes
+1) **Checkpoint backends (local + dev/prod)**
+   - Implemented `world_streamer_producer/checkpoints.py` with:
+     - `FileCheckpointStore` (local): JSON cursor + JSONL append log (atomic rename).
+     - `PostgresCheckpointStore` (dev/prod): `wsp_checkpoint` table with upsert.
+   - Reason: local smoke needs a file backend; dev/prod needs concurrency‑safe persistence.
+
+2) **Checkpoint identity + fallback**
+   - Primary key is `{oracle_pack_id, output_id}` from `_oracle_pack_manifest.json`.
+   - If manifest missing, fallback key is a **hash of engine_run_root** (stable, opaque).
+   - Reason: keep resume stable even when manifest is absent in local.
+
+3) **Resume logic (no new validation)**
+   - WSP loads a cursor per output and skips rows **≤ last_row_index** within the last_file.
+   - Cursor advances **after successful emit** to IG.
+   - Reason: minimize duplicates without adding validation or scanning responsibilities.
+
+4) **Cursor granularity**
+   - Cursor = `{last_file, last_row_index, last_ts_utc}`.
+   - Reason: allows precise resume within a Parquet part without re‑emitting earlier rows.
+
+5) **EnginePuller extension (metadata only)**
+   - Added `iter_events_for_paths_with_positions` to expose `(envelope, file_path, row_index)` while reusing canonical envelope framing.
+   - Reason: avoid duplicating event framing logic in WSP and keep consistency with IG.
+
+6) **Profile wiring**
+   - Added `wsp_checkpoint` wiring in profiles (local/dev_local=file; dev/prod=postgres) with `flush_every`.
+   - Reason: operational tuning without changing policy semantics.
+
+7) **Tests**
+   - Added WSP checkpoint resume test to ensure re‑runs do not re‑emit prior rows.
+
+### Tests run (local)
+- `pytest tests/services/world_streamer_producer/test_runner.py -q` → 3 passed.
+

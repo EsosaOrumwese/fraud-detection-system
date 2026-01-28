@@ -30,6 +30,7 @@ from fraud_detection.oracle_store.engine_reader import (
 from fraud_detection.oracle_store.packer import OracleWorldKey
 
 from .config import WspProfile
+from .checkpoints import CheckpointCursor, CheckpointStore, FileCheckpointStore, PostgresCheckpointStore
 
 logger = logging.getLogger(__name__)
 
@@ -89,13 +90,15 @@ class WorldStreamProducer:
         run_id = str(receipt.get("run_id", ""))
 
         strict_seal = self.profile.wiring.profile_id in {"dev", "prod"}
-        manifest_error = self._verify_pack_manifest(resolved_root, world_key, strict=strict_seal)
+        manifest_error, pack_key = self._verify_pack_manifest(resolved_root, world_key, strict=strict_seal)
         if manifest_error:
             return StreamResult(resolved_root, scenario_value, "FAILED", 0, manifest_error)
 
         seal_error = self._verify_pack_seal(resolved_root, strict=strict_seal)
         if seal_error:
             return StreamResult(resolved_root, scenario_value, "FAILED", 0, seal_error)
+        if not pack_key:
+            pack_key = _fallback_pack_key(resolved_root)
 
         chosen_outputs = self._select_output_ids(output_ids)
         if not chosen_outputs:
@@ -119,8 +122,15 @@ class WorldStreamProducer:
             catalogue=self._catalogue,
             run_facts_payload=facts_payload,
         )
+        checkpoint_store = _build_checkpoint_store(self.profile)
         try:
-            emitted = self._stream_events(puller, max_events=max_events, output_ids=chosen_outputs)
+            emitted = self._stream_events(
+                puller,
+                pack_key=pack_key,
+                checkpoint_store=checkpoint_store,
+                max_events=max_events,
+                output_ids=chosen_outputs,
+            )
         except IngestionError as exc:
             logger.warning("WSP stream failed reason=%s", exc.code)
             return StreamResult(
@@ -186,7 +196,7 @@ class WorldStreamProducer:
 
     def _verify_pack_manifest(
         self, engine_root: str, world_key: OracleWorldKey, *, strict: bool
-    ) -> str | None:
+    ) -> tuple[str | None, str | None]:
         manifest_path = join_engine_path(engine_root, "_oracle_pack_manifest.json")
         if not _path_exists(
             manifest_path,
@@ -195,9 +205,9 @@ class WorldStreamProducer:
             path_style=self.profile.wiring.object_store_path_style,
         ):
             if strict:
-                return "PACK_MANIFEST_MISSING"
+                return "PACK_MANIFEST_MISSING", None
             logger.info("WSP pack manifest missing root=%s", engine_root)
-            return None
+            return None, None
         try:
             if manifest_path.startswith("s3://"):
                 payload = _read_json_s3(
@@ -210,17 +220,17 @@ class WorldStreamProducer:
                 payload = json.loads(Path(manifest_path).read_text(encoding="utf-8"))
             self._oracle_registry.validate("oracle_pack_manifest.schema.yaml", payload)
         except Exception:
-            return "PACK_MANIFEST_INVALID"
+            return "PACK_MANIFEST_INVALID", None
         stored_key = payload.get("world_key") or {}
         if stored_key.get("manifest_fingerprint") != world_key.manifest_fingerprint:
-            return "WORLD_KEY_MISMATCH"
+            return "WORLD_KEY_MISMATCH", payload.get("oracle_pack_id")
         if stored_key.get("parameter_hash") != world_key.parameter_hash:
-            return "WORLD_KEY_MISMATCH"
+            return "WORLD_KEY_MISMATCH", payload.get("oracle_pack_id")
         if stored_key.get("scenario_id") != world_key.scenario_id:
-            return "WORLD_KEY_MISMATCH"
+            return "WORLD_KEY_MISMATCH", payload.get("oracle_pack_id")
         if int(stored_key.get("seed", -1)) != world_key.seed:
-            return "WORLD_KEY_MISMATCH"
-        return None
+            return "WORLD_KEY_MISMATCH", payload.get("oracle_pack_id")
+        return None, payload.get("oracle_pack_id")
 
     def _verify_pack_seal(self, engine_root: str, *, strict: bool) -> str | None:
         seal_paths = [
@@ -345,24 +355,53 @@ class WorldStreamProducer:
         }
 
     def _stream_events(
-        self, puller: EnginePuller, *, max_events: int | None, output_ids: list[str] | None
+        self,
+        puller: EnginePuller,
+        *,
+        pack_key: str,
+        checkpoint_store: CheckpointStore,
+        max_events: int | None,
+        output_ids: list[str] | None,
     ) -> int:
         emitted = 0
         speedup = self.profile.policy.stream_speedup
         last_ts: datetime | None = None
-        for envelope in puller.iter_events(output_ids=output_ids):
-            envelope["producer"] = "svc:world_stream_producer"
-            current_ts = _parse_ts(envelope.get("ts_utc"))
-            if last_ts and current_ts:
-                delay = _delay_seconds(last_ts, current_ts, speedup)
-                if delay > 0:
-                    time.sleep(delay)
-            if current_ts:
-                last_ts = current_ts
-            self._push_to_ig(envelope)
-            emitted += 1
-            if max_events is not None and emitted >= max_events:
-                break
+        checkpoint_every = max(1, self.profile.wiring.checkpoint_every)
+        if not output_ids:
+            return 0
+        for output_id in output_ids:
+            cursor = checkpoint_store.load(pack_key, output_id)
+            paths = sorted(puller.list_locator_paths(output_id))
+            for envelope, path, row_index in puller.iter_events_for_paths_with_positions(
+                output_id, paths
+            ):
+                if cursor and _should_skip(cursor, path, row_index):
+                    continue
+                envelope["producer"] = "svc:world_stream_producer"
+                current_ts = _parse_ts(envelope.get("ts_utc"))
+                if last_ts and current_ts:
+                    delay = _delay_seconds(last_ts, current_ts, speedup)
+                    if delay > 0:
+                        time.sleep(delay)
+                if current_ts:
+                    last_ts = current_ts
+                self._push_to_ig(envelope)
+                emitted += 1
+                cursor = CheckpointCursor(
+                    pack_key=pack_key,
+                    output_id=output_id,
+                    last_file=path,
+                    last_row_index=row_index,
+                    last_ts_utc=envelope.get("ts_utc"),
+                )
+                if emitted % checkpoint_every == 0:
+                    checkpoint_store.save(cursor)
+                if max_events is not None and emitted >= max_events:
+                    if cursor:
+                        checkpoint_store.save(cursor)
+                    return emitted
+            if cursor:
+                checkpoint_store.save(cursor)
         return emitted
 
     def _push_to_ig(self, envelope: dict[str, Any]) -> None:
@@ -479,6 +518,30 @@ def _read_run_receipt(engine_root: str, profile: WspProfile) -> dict[str, Any]:
         return json.loads(response["Body"].read().decode("utf-8"))
     path = Path(engine_root) / "run_receipt.json"
     return json.loads(path.read_text(encoding="utf-8"))
+
+
+def _build_checkpoint_store(profile: WspProfile) -> CheckpointStore:
+    backend = profile.wiring.checkpoint_backend
+    if backend == "postgres":
+        dsn = profile.wiring.checkpoint_dsn
+        if not dsn:
+            raise IngestionError("CHECKPOINT_DSN_MISSING")
+        return PostgresCheckpointStore(dsn)
+    return FileCheckpointStore(Path(profile.wiring.checkpoint_root))
+
+
+def _fallback_pack_key(engine_root: str) -> str:
+    import hashlib
+
+    return hashlib.sha256(engine_root.encode("utf-8")).hexdigest()
+
+
+def _should_skip(cursor: CheckpointCursor, path: str, row_index: int) -> bool:
+    if path < cursor.last_file:
+        return True
+    if path == cursor.last_file and row_index <= cursor.last_row_index:
+        return True
+    return False
 
 
 def _read_json_s3(

@@ -71,6 +71,35 @@ class EnginePuller:
             return
         yield from self._events_from_output(output_id, locator, pins, paths_override=paths)
 
+    def iter_events_for_paths_with_positions(
+        self, output_id: str, paths: list[str]
+    ) -> Iterable[tuple[dict[str, Any], str, int]]:
+        facts = self._load_facts()
+        pins = facts.get("pins", {})
+        locator = self._locator_for_output(output_id)
+        if not locator:
+            return
+        entry = self.catalogue.get(output_id)
+        for file_path in paths:
+            for row_index, row in self._read_rows_with_index(file_path):
+                event_id = derive_engine_event_id(output_id, entry.primary_key, row, pins)
+                ts_utc = row.get("ts_utc")
+                if ts_utc is None:
+                    raise IngestionError("MISSING_EVENT_TIME")
+                envelope = {
+                    "event_id": event_id,
+                    "event_type": output_id,
+                    "ts_utc": ts_utc,
+                    "manifest_fingerprint": pins.get("manifest_fingerprint"),
+                    "parameter_hash": pins.get("parameter_hash"),
+                    "seed": pins.get("seed"),
+                    "scenario_id": pins.get("scenario_id"),
+                    "run_id": pins.get("run_id"),
+                    "producer": "engine",
+                    "payload": row,
+                }
+                yield envelope, file_path, row_index
+
     def _load_facts(self) -> dict[str, Any]:
         if self._facts is None:
             if self.run_facts_payload is not None:
@@ -158,6 +187,39 @@ class EnginePuller:
                     for line in handle:
                         if line.strip():
                             yield json.loads(line)
+        else:
+            raise ValueError("UNSUPPORTED_OUTPUT_FORMAT")
+
+    def _read_rows_with_index(self, path: str) -> Iterable[tuple[int, dict[str, Any]]]:
+        if path.startswith("s3://"):
+            for row_index, row in enumerate(
+                _read_rows_s3(
+                    path,
+                    attempts=self.retry_attempts,
+                    base_delay_seconds=self.retry_backoff_seconds,
+                    max_delay_seconds=self.retry_max_seconds,
+                )
+            ):
+                yield row_index, row
+            return
+        local = Path(path)
+        if local.suffix == ".parquet":
+            table = pq.ParquetFile(local).read()
+            for row_index, row in enumerate(table.to_pylist()):
+                yield row_index, row
+        elif local.suffix in (".jsonl", ".json"):
+            if local.suffix == ".json":
+                data = json.loads(local.read_text(encoding="utf-8"))
+                if isinstance(data, list):
+                    for row_index, row in enumerate(data):
+                        yield row_index, row
+                elif isinstance(data, dict):
+                    yield 0, data
+            else:
+                with local.open("r", encoding="utf-8") as handle:
+                    for row_index, line in enumerate(handle):
+                        if line.strip():
+                            yield row_index, json.loads(line)
         else:
             raise ValueError("UNSUPPORTED_OUTPUT_FORMAT")
 

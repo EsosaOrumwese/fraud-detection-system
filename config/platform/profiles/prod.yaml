@@ -22,6 +22,10 @@ wiring:
     kind: file
     root: runs/fraud-platform/control_bus
     topic: fp.bus.control.v1
+  wsp_checkpoint:
+    backend: postgres
+    dsn: ${WSP_CHECKPOINT_DSN}
+    flush_every: 100
   ready_lease:
     backend: postgres
     dsn: ${IG_READY_LEASE_DSN}

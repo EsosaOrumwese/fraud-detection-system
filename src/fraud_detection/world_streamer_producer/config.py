@@ -47,6 +47,10 @@ class WiringProfile:
     oracle_engine_run_root: str | None
     oracle_scenario_id: str | None
     ig_ingest_url: str
+    checkpoint_backend: str
+    checkpoint_root: str
+    checkpoint_dsn: str | None
+    checkpoint_every: int
 
 
 @dataclass(frozen=True)
@@ -61,6 +65,7 @@ class WspProfile:
         wiring = data.get("wiring", {})
         object_store = wiring.get("object_store", {})
         control_bus = wiring.get("control_bus", {})
+        checkpoint = wiring.get("wsp_checkpoint", {})
 
         endpoint = _resolve_env(object_store.get("endpoint"))
         region = _resolve_env(object_store.get("region"))
@@ -96,6 +101,11 @@ class WspProfile:
         oracle_scenario_id = _resolve_env(wiring.get("oracle_scenario_id"))
         ig_ingest_url = _resolve_env(wiring.get("ig_ingest_url") or "http://localhost:8081")
 
+        checkpoint_backend = checkpoint.get("backend", "file")
+        checkpoint_root = _resolve_env(checkpoint.get("root") or "runs/fraud-platform/wsp_checkpoints")
+        checkpoint_dsn = _resolve_env(checkpoint.get("dsn"))
+        checkpoint_every = int(checkpoint.get("flush_every", 1))
+
         return cls(
             policy=PolicyProfile(
                 policy_rev=policy_rev,
@@ -118,6 +128,10 @@ class WspProfile:
                 oracle_engine_run_root=oracle_engine_run_root,
                 oracle_scenario_id=oracle_scenario_id,
                 ig_ingest_url=ig_ingest_url,
+                checkpoint_backend=checkpoint_backend,
+                checkpoint_root=checkpoint_root,
+                checkpoint_dsn=checkpoint_dsn,
+                checkpoint_every=checkpoint_every,
             ),
         )
 
