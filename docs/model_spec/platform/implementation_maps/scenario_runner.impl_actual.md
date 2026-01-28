@@ -3692,3 +3692,91 @@ oracle_pack_ref:
 - Result: ok
 
 ---
+
+## Entry: 2026-01-28 20:11:39 — Phase 10 planning (SR implementation for WSP alignment)
+
+### Trigger
+User requested Phase 10 implementation after Phase 9 docs/contracts alignment.
+
+### Scope (implementation only)
+- Populate `oracle_pack_ref` in SR **run_facts_view** and **run_ready_signal**.
+- Validate pack identity when a pack manifest exists (fail‑closed on mismatch/invalid).
+- Preserve legacy locators in run_facts_view (backfill compatibility).
+- Keep SR as control‑plane only (no WSP/IG behavior changes).
+
+### Decisions (locked before coding)
+1) **Pack ref source**
+   - Source is the engine run root used for evidence collection (actual engine run root, not just request intent).
+   - We will pass the resolved engine run root into `_commit_ready` to avoid losing invoker‑assigned paths.
+
+2) **Manifest validation**
+   - If `_oracle_pack_manifest.json` exists, validate against Oracle Store schema and compare its `world_key` to SR pins.
+   - If validation fails or pins mismatch → SR fails closed with reason `ORACLE_PACK_INVALID` or `ORACLE_PACK_MISMATCH`.
+   - If manifest is missing → proceed without pack id, but still include `engine_run_root` in `oracle_pack_ref`.
+
+3) **Schema root for validation**
+   - SR will load Oracle Store schemas from `docs/model_spec/platform/contracts/oracle_store` (sibling to SR schema root).
+
+4) **Payload fields**
+   - `oracle_pack_ref` will include:
+     - `engine_run_root` always (when known),
+     - `manifest_ref`, `oracle_pack_id`, `engine_release` when manifest is present and valid.
+   - No `oracle_root` yet (SR lacks reliable oracle root context in wiring).
+
+5) **Re-emit READY behavior**
+   - Re-emit will reuse `oracle_pack_ref` from stored `run_facts_view` when present.
+   - This keeps READY re-emit consistent without recomputing pack refs.
+
+### Planned implementation steps
+1) Add Oracle Store schema registry to SR runner.
+2) Implement `_build_oracle_pack_ref(...)` helper with validation + pin matching.
+3) Update `_commit_ready` to:
+   - build pack ref,
+   - fail‑closed on mismatch/invalid manifest,
+   - attach `oracle_pack_ref` to facts_view + ready payload.
+4) Update re-emit READY to include `oracle_pack_ref` from facts_view if available.
+5) Run a schema‑validation sanity check for the new payload fields.
+
+### Tests planned (Phase 10)
+- Minimal schema validation check for run_facts_view + run_ready_signal with `oracle_pack_ref`.
+
+---
+
+## Entry: 2026-01-28 20:16:42 — Phase 10 implemented (SR pack refs in READY + facts_view)
+
+### Step‑by‑step decisions and changes
+1) **Oracle Store schema wiring inside SR**
+   - Added a dedicated schema registry pointing at `docs/model_spec/platform/contracts/oracle_store`.
+   - Reason: pack manifest validation must use the authoritative Oracle Store schema (avoid ad‑hoc validation).
+
+2) **Pack ref extraction + validation helper**
+   - Implemented `_build_oracle_pack_ref(engine_run_root, intent)` that:
+     - always includes `engine_run_root` when provided,
+     - reads `_oracle_pack_manifest.json` if present,
+     - validates it against `oracle_pack_manifest.schema.yaml`,
+     - compares `world_key` pins to SR intent (manifest_fingerprint, parameter_hash, scenario_id, seed).
+   - Failure modes:
+     - invalid manifest → `ORACLE_PACK_INVALID` (fail‑closed)
+     - pin mismatch → `ORACLE_PACK_MISMATCH` (fail‑closed)
+   - Reason: WSP‑first runtime depends on accurate pack identity; SR must not READY if that identity is ambiguous or wrong.
+
+3) **READY + facts view payload linking**
+   - `_commit_ready` now takes the resolved `engine_run_root` (actual root used for evidence collection).
+   - When pack refs are valid, SR adds `oracle_pack_ref` to:
+     - `run_facts_view` (control‑plane join surface)
+     - `run_ready_signal` (control trigger)
+   - Reason: allow WSP/ops to correlate READY to a specific sealed world without making SR a data‑plane producer.
+
+4) **Fail‑closed readiness on pack mismatch**
+   - If pack manifest exists but fails validation or pin match, SR commits a terminal failure instead of READY.
+   - Reason: control‑plane readiness must not point to a misidentified world.
+
+5) **READY re‑emit parity**
+   - Re‑emit now reuses `oracle_pack_ref` from stored `run_facts_view` when present.
+   - Reason: re‑emit must preserve the same control‑plane ↔ data‑plane linkage without recomputation.
+
+### Tests run (local)
+- Schema validation sanity (run_facts_view + run_ready_signal with oracle_pack_ref):
+  `@'... '@ | .\.venv\Scripts\python.exe -` → ok
+
+---

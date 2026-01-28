@@ -75,6 +75,7 @@ class ScenarioRunner:
         self.engine_invoker = engine_invoker
         self.schemas = SchemaRegistry(Path(wiring.schema_root))
         self.engine_schemas = SchemaRegistry(Path(wiring.engine_contracts_root))
+        self.oracle_schemas = SchemaRegistry(Path(wiring.schema_root).parent / "oracle_store")
         self.store = build_object_store(
             wiring.object_store_root,
             s3_endpoint_url=wiring.s3_endpoint_url,
@@ -286,7 +287,13 @@ class ScenarioRunner:
                 )
             )
             if reuse_result.status == EvidenceStatus.COMPLETE:
-                return self._commit_ready(run_handle, canonical, plan, reuse_result)
+                return self._commit_ready(
+                    run_handle,
+                    canonical,
+                    plan,
+                    reuse_result,
+                    engine_run_root=canonical.engine_run_root,
+                )
             if reuse_result.status == EvidenceStatus.WAITING:
                 self._commit_waiting(run_handle, reuse_result)
                 return self._response_from_status(run_id, "Evidence incomplete; waiting.")
@@ -366,7 +373,13 @@ class ScenarioRunner:
             )
         )
         if evidence.status == EvidenceStatus.COMPLETE:
-            return self._commit_ready(run_handle, canonical, plan, evidence)
+            return self._commit_ready(
+                run_handle,
+                canonical,
+                plan,
+                evidence,
+                engine_run_root=attempt_result.engine_run_root,
+            )
         if evidence.status == EvidenceStatus.WAITING:
             self._commit_waiting(run_handle, evidence)
             return self._response_from_status(run_id, "Evidence incomplete; waiting.")
@@ -559,6 +572,9 @@ class ScenarioRunner:
             "bundle_hash": bundle_hash or facts_view_hash,
             "emitted_at_utc": datetime.now(tz=timezone.utc).isoformat(),
         }
+        oracle_pack_ref = facts_view.get("oracle_pack_ref")
+        if oracle_pack_ref:
+            ready_payload["oracle_pack_ref"] = oracle_pack_ref
         self.schemas.validate("run_ready_signal.schema.yaml", ready_payload)
         try:
             self.control_bus.publish(
@@ -1097,8 +1113,34 @@ class ScenarioRunner:
         intent: CanonicalRunIntent,
         plan: RunPlan,
         bundle: EvidenceBundle,
+        *,
+        engine_run_root: str | None,
     ) -> RunResponse:
         self._ensure_lease(run_handle)
+        oracle_pack_ref, oracle_error = self._build_oracle_pack_ref(engine_run_root, intent)
+        if oracle_error:
+            failure_bundle = EvidenceBundle(
+                status=EvidenceStatus.FAIL,
+                locators=bundle.locators,
+                gate_receipts=bundle.gate_receipts,
+                instance_receipts=bundle.instance_receipts,
+                bundle_hash=bundle.bundle_hash,
+                reason=oracle_error,
+                notes=bundle.notes,
+            )
+            self._commit_terminal(run_handle, failure_bundle)
+            self._emit_obs(
+                ObsEvent.now(
+                    event_kind="ORACLE_PACK_INVALID",
+                    phase=ObsPhase.COMMIT,
+                    outcome=ObsOutcome.FAIL,
+                    severity=ObsSeverity.ERROR,
+                    pins=self._obs_pins(intent, plan.run_id),
+                    policy_rev=plan.policy_rev,
+                    details={"reason": oracle_error},
+                )
+            )
+            return self._response_from_status(plan.run_id, "Oracle pack invalid; run failed.")
         facts_view = {
             "run_id": plan.run_id,
             "pins": {
@@ -1121,6 +1163,8 @@ class ScenarioRunner:
             "record_ref": f"fraud-platform/sr/run_record/{plan.run_id}.jsonl",
             "status_ref": f"fraud-platform/sr/run_status/{plan.run_id}.json",
         }
+        if oracle_pack_ref:
+            facts_view["oracle_pack_ref"] = oracle_pack_ref
         if bundle.instance_receipts:
             facts_view["instance_receipts"] = bundle.instance_receipts
         if bundle.notes:
@@ -1152,6 +1196,8 @@ class ScenarioRunner:
             "bundle_hash": bundle.bundle_hash,
             "emitted_at_utc": datetime.now(tz=timezone.utc).isoformat(),
         }
+        if oracle_pack_ref:
+            ready_payload["oracle_pack_ref"] = oracle_pack_ref
         self.ledger.write_ready_signal(plan.run_id, ready_payload)
         publish_key = self._ready_publish_key(plan.run_id, bundle.bundle_hash, plan.plan_hash)
         try:
@@ -1192,6 +1238,39 @@ class ScenarioRunner:
                 )
             )
         return self._response_from_status(plan.run_id, "READY committed")
+
+    def _build_oracle_pack_ref(
+        self, engine_run_root: str | None, intent: CanonicalRunIntent
+    ) -> tuple[dict[str, Any] | None, str | None]:
+        if not engine_run_root:
+            return None, None
+        ref: dict[str, Any] = {"engine_run_root": engine_run_root}
+        manifest_path = Path(engine_run_root) / "_oracle_pack_manifest.json"
+        if not manifest_path.exists():
+            return ref, None
+        try:
+            payload = json.loads(manifest_path.read_text(encoding="utf-8"))
+            self.oracle_schemas.validate("oracle_pack_manifest.schema.yaml", payload)
+        except (ValueError, json.JSONDecodeError) as exc:
+            self.logger.warning("SR: oracle pack manifest invalid root=%s error=%s", engine_run_root, str(exc))
+            return None, "ORACLE_PACK_INVALID"
+        world_key = payload.get("world_key") or {}
+        if world_key.get("manifest_fingerprint") != intent.manifest_fingerprint:
+            return None, "ORACLE_PACK_MISMATCH"
+        if world_key.get("parameter_hash") != intent.parameter_hash:
+            return None, "ORACLE_PACK_MISMATCH"
+        if world_key.get("scenario_id") != intent.scenario_id:
+            return None, "ORACLE_PACK_MISMATCH"
+        if int(world_key.get("seed", -1)) != int(intent.seed):
+            return None, "ORACLE_PACK_MISMATCH"
+        ref.update(
+            {
+                "oracle_pack_id": payload.get("oracle_pack_id"),
+                "manifest_ref": str(manifest_path),
+                "engine_release": payload.get("engine_release"),
+            }
+        )
+        return ref, None
 
     def _commit_waiting(self, run_handle: RunHandle, bundle: EvidenceBundle) -> None:
         self._ensure_lease(run_handle)
