@@ -5,11 +5,14 @@ policy:
   partitioning_profile_id: ig.partitioning.v0.traffic
   require_gate_pass: true
   stream_speedup: 1.0
+  traffic_output_ids_ref: config/platform/wsp/traffic_outputs_v0.yaml
 wiring:
   object_store:
     bucket: fraud-platform
     endpoint: ${OBJECT_STORE_ENDPOINT}
   oracle_root: ${ORACLE_ROOT}
+  oracle_engine_run_root: ${ORACLE_ENGINE_RUN_ROOT}
+  oracle_scenario_id: ${ORACLE_SCENARIO_ID}
   ig_ingest_url: ${IG_INGEST_URL}
   event_bus:
     topic_traffic: fp.bus.traffic.v1

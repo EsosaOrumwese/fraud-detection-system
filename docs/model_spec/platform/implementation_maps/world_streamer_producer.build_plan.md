@@ -2,33 +2,33 @@
 _As of 2026-01-28_
 
 ## Purpose
-Implement WSP as the **primary runtime producer** that replays sealed engine `business_traffic` into IG under SR’s join surface, preserving bank‑like temporal flow.
+Implement WSP as the **primary runtime producer** that replays sealed engine `business_traffic` into IG **directly from the Oracle Store** (engine‑rooted), preserving bank‑like temporal flow.
 
 ## Planning rules (binding)
 - **Progressive elaboration:** expand only the active phase into sections + DoD.
 - **WSP never writes to EB:** IG remains the only writer.
-- **No scanning:** READY + `run_facts_view` is the only entrypoint.
+- **No discovery‑by‑scanning:** WSP must be pointed at a specific engine world (explicit run root).
 - **Speedup is a policy knob in all envs** (same semantics at any speed).
 
 ## Phase plan (v0)
 
 ### Phase 1 — Core stream head (current)
-**Intent:** READY‑driven stream production with canonical envelopes and oracle by‑ref reads.
+**Intent:** engine‑rooted stream production with canonical envelopes and oracle by‑ref reads.
 
-#### Phase 1.1 — READY intake + join surface
+#### Phase 1.1 — Engine world selection
 **DoD checklist:**
-- Consume READY (control bus) idempotently.
-- Resolve and validate `run_facts_view` pins (fail‑closed on mismatch).
+- Explicit engine run root + scenario_id required (no “latest” scanning).
+- `run_receipt.json` and (if present) `_oracle_pack_manifest.json` validated.
 
 #### Phase 1.2 — StreamPlan derivation
 **DoD checklist:**
-- Derive StreamPlan from `run_facts_view` traffic targets.
-- Honor `traffic_delivery_mode=STREAM`; refuse to stream on `PULL`.
+- Derive StreamPlan from **policy allowlist** (`traffic_output_ids`).
+- Output IDs must exist in catalogue; unknown outputs are rejected.
 
 #### Phase 1.3 — Oracle Store by‑ref reads
 **DoD checklist:**
-- Use locators + digests only (no “latest” scans).
-- Enforce “no PASS → no read” using proof refs where required.
+- Use catalogue path templates + world tokens to build locators (no scanning).
+- Enforce “no PASS → no read” using gate pass flags from engine gate map.
 
 #### Phase 1.4 — Canonical envelope framing
 **DoD checklist:**
@@ -55,4 +55,3 @@ Implement WSP as the **primary runtime producer** that replays sealed engine `bu
 
 ### Phase 4 — Validation (smoke + dev completion)
 **Intent:** WSP→IG path validates under local smoke and dev completion policies.
-

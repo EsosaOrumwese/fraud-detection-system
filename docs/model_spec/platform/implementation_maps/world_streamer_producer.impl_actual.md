@@ -180,3 +180,63 @@ WSP will be **oracle‑rooted** and **engine‑world aware**:
 - I am **not** replacing SR or adding a new scheduler component; this is purely WSP oracle‑rooted wiring.
 - I am **not** introducing a streaming cursor/offset store until the oracle‑rooted path is verified.
 
+---
+
+## Entry: 2026-01-28 16:42:30 — Phase 1 implementation start (engine‑rooted WSP wiring)
+
+### Immediate intent (before touching code)
+I am implementing Phase 1 as **engine‑rooted WSP** with no SR `run_facts_view` dependency. The runner will read an **explicit engine run root**, resolve world identity from `run_receipt.json` and/or `_oracle_pack_manifest.json`, select `business_traffic` outputs from a **WSP policy list**, verify gate receipts from engine gate map, and then stream envelopes to IG using the existing canonical envelope framing.
+
+### Decisions I’m locking now (and why)
+- **Explicit engine root required**: I will require `engine_run_root` (CLI or config) and will **not** scan for “latest.” This enforces the no‑discovery rule.
+- **Policy list for output selection**: since there is no machine‑readable role mapping in the interface pack, I will introduce a **WSP traffic outputs list** (policy file) and treat it as the source of truth for `business_traffic` selection.
+- **Gate verification uses passed flags**: I will reuse `engine_gates.map.yaml` passed‑flag templates to check gate PASS by file existence (local or S3).
+- **Seal check is environment‑sensitive**: local can allow missing seals; dev/prod will fail if `_SEALED.*` is missing (same posture as Oracle Store).
+
+### Safety checks I will add
+- Fail if `run_receipt.json` missing or invalid.
+- Fail if scenario_id cannot be resolved unambiguously.
+- Fail if required gates are missing when `require_gate_pass` is true.
+- Fail if no traffic outputs are selected (to avoid silent no‑ops).
+
+---
+
+## Entry: 2026-01-28 17:07:04 — Phase 1 implemented (engine‑rooted streaming + gate checks)
+
+### What I implemented (with reasoning as I went)
+1) **WSP policy allowlist (traffic outputs)**
+   - Added `config/platform/wsp/traffic_outputs_v0.yaml` with the v0 traffic output_ids.
+   - Updated all platform profiles to reference it via `policy.traffic_output_ids_ref`.
+   - Loader resolves the ref **relative to the profile path** to avoid CWD ambiguity.
+   - Reason: there is no machine‑readable “business_traffic” map in the interface pack; a policy file is the cleanest explicit authority and avoids accidental streaming of non‑traffic outputs.
+
+2) **WSP config wiring for explicit world selection**
+   - Added optional `oracle_engine_run_root` + `oracle_scenario_id` wiring fields to profiles (env‑driven).
+   - Reason: WSP must be pinned to a **specific** engine world; no “latest” scanning allowed.
+
+3) **Engine‑rooted runner (no SR dependency)**
+   - Rebuilt `world_streamer_producer/runner.py` to:
+     - resolve engine run root (explicit input or profile default),
+     - read `run_receipt.json`,
+     - resolve/validate `scenario_id`,
+     - validate `_oracle_pack_manifest.json` (if present) and `_SEALED.*` (strict in dev/prod),
+     - select traffic outputs from policy allowlist,
+     - verify gate PASS using `engine_gates.map.yaml` `passed_flag_path_template`,
+     - build locators directly from catalogue `path_template` + world tokens,
+     - stream via existing `EnginePuller` (canonical envelope framing).
+   - Reason: reuse the canonical envelope framing logic and keep the WSP boundary minimal; no new event schema drift.
+
+4) **CLI + Makefile rewiring**
+   - Updated WSP CLI to accept `--engine-run-root`, `--scenario-id`, and optional `--output-ids`.
+   - Updated Makefile `platform-wsp-ready-once` to require engine‑rooted inputs (renamed semantics).
+   - Reason: make the engine‑rooted flow the default and remove SR‑based usage.
+
+5) **Edge‑case hardening**
+   - Failure on missing run receipt, ambiguous scenario_id, missing gates, missing traffic outputs.
+   - Trimmed path templates before formatting to handle newline‑wrapped YAML templates.
+   - Reason: prevent silent “no‑ops” and common catalogue formatting pitfalls.
+
+### Tests run (local)
+- Added unit tests for engine‑rooted WSP streaming and gate‑missing failure.
+- `pytest tests/services/world_streamer_producer/test_runner.py -q` → 2 passed.
+

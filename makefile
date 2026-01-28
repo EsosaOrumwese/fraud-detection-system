@@ -2527,6 +2527,9 @@ IG_AUDIT_RUN_ID ?=
 PLATFORM_RUN_ID ?=
 WSP_PROFILE ?= config/platform/profiles/local.yaml
 WSP_MAX_EVENTS ?= 1
+WSP_ENGINE_RUN_ROOT ?=
+WSP_SCENARIO_ID ?=
+WSP_OUTPUT_IDS ?=
 ORACLE_PROFILE ?= config/platform/profiles/local.yaml
 ORACLE_ENGINE_RUN_ROOT ?=
 ORACLE_SCENARIO_ID ?=
@@ -2620,7 +2623,19 @@ platform-ig-audit:
 
 .PHONY: platform-wsp-ready-once
 platform-wsp-ready-once:
-	@$(PY_SCRIPT) -m fraud_detection.world_streamer_producer.cli --profile "$(WSP_PROFILE)" --once --max-events "$(WSP_MAX_EVENTS)"
+	@if [ -z "$(WSP_ENGINE_RUN_ROOT)" ]; then \
+		echo "WSP_ENGINE_RUN_ROOT is required for platform-wsp-ready-once." >&2; \
+		exit 1; \
+	fi
+	@if [ -z "$(WSP_SCENARIO_ID)" ]; then \
+		echo "WSP_SCENARIO_ID is required for platform-wsp-ready-once." >&2; \
+		exit 1; \
+	fi
+	@$(PY_SCRIPT) -m fraud_detection.world_streamer_producer.cli --profile "$(WSP_PROFILE)" \
+		--engine-run-root "$(WSP_ENGINE_RUN_ROOT)" \
+		--scenario-id "$(WSP_SCENARIO_ID)" \
+		$(if $(WSP_OUTPUT_IDS),--output-ids "$(WSP_OUTPUT_IDS)",) \
+		$(if $(WSP_MAX_EVENTS),--max-events "$(WSP_MAX_EVENTS)",)
 
 .PHONY: platform-oracle-pack
 platform-oracle-pack:

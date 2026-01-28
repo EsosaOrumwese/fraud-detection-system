@@ -18,11 +18,14 @@ policy:
   partitioning_profile_id: <ig partition strategy id>
   require_gate_pass: true
   stream_speedup: 1.0
+  traffic_output_ids_ref: config/platform/wsp/traffic_outputs_v0.yaml
 wiring:
   object_store:
     bucket: fraud-platform
     endpoint: ${OBJECT_STORE_ENDPOINT}
   oracle_root: runs/local_full_run-5
+  oracle_engine_run_root: runs/local_full_run-5/<run_id>
+  oracle_scenario_id: baseline_v1
   ig_ingest_url: http://localhost:8081
   event_bus:
     topic_traffic: fp.bus.traffic.v1
@@ -59,10 +62,13 @@ Notes:
 - `policy_rev` must be stamped into receipts/decisions/outcomes where applicable.
 - `partitioning_profile_id` is chosen by IG policy (mapped by stream class); EB never infers partitioning.
 - `partitioning_profiles_ref` anchors the versioned profile set used by IG.
+- `traffic_output_ids_ref` defines the **WSP business_traffic allowlist** (engine output_ids eligible to stream).
 - Wiring endpoints are placeholders; actual values come from env/secret store.
 - `${VAR}` placeholders are resolved from environment variables at load time.
 - `control_bus` wiring tells IG where to read SR READY control events (file bus in v0).
 - `oracle_root` points to the sealed engine world store (Oracle Store); it is wiring, not policy.
+- `oracle_engine_run_root` optionally pins WSP to a specific engine world (no “latest” scanning).
+- `oracle_scenario_id` can be used when a world contains multiple scenarios (avoid ambiguity).
 - `ig_ingest_url` is the WSP → IG push endpoint (non‑secret; can be local or service DNS).
 - Local file runs use `object_store.root: runs` so platform artifacts resolve under `runs/fraud-platform/`.
 - `security` is wiring‑scoped: it can enable auth and rate limits without changing policy behavior.

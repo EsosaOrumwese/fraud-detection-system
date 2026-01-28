@@ -28,6 +28,7 @@ class PolicyProfile:
     policy_rev: str
     require_gate_pass: bool
     stream_speedup: float
+    traffic_output_ids: list[str]
 
 
 @dataclass(frozen=True)
@@ -43,6 +44,8 @@ class WiringProfile:
     schema_root: str
     engine_catalogue_path: str
     oracle_root: str
+    oracle_engine_run_root: str | None
+    oracle_scenario_id: str | None
     ig_ingest_url: str
 
 
@@ -77,6 +80,7 @@ class WspProfile:
         policy_rev = policy.get("policy_rev", data.get("profile_id", "local"))
         require_gate_pass = bool(policy.get("require_gate_pass", True))
         stream_speedup = float(policy.get("stream_speedup", 1.0))
+        traffic_output_ids = _load_output_ids(policy, base_dir=path.parent)
 
         control_bus_kind = control_bus.get("kind", "file")
         control_bus_root = control_bus.get("root", "runs/fraud-platform/control_bus")
@@ -88,6 +92,8 @@ class WspProfile:
             "docs/model_spec/data-engine/interface_pack/engine_outputs.catalogue.yaml",
         )
         oracle_root = _resolve_env(wiring.get("oracle_root") or "runs/local_full_run-5")
+        oracle_engine_run_root = _resolve_env(wiring.get("oracle_engine_run_root"))
+        oracle_scenario_id = _resolve_env(wiring.get("oracle_scenario_id"))
         ig_ingest_url = _resolve_env(wiring.get("ig_ingest_url") or "http://localhost:8081")
 
         return cls(
@@ -95,6 +101,7 @@ class WspProfile:
                 policy_rev=policy_rev,
                 require_gate_pass=require_gate_pass,
                 stream_speedup=stream_speedup,
+                traffic_output_ids=traffic_output_ids,
             ),
             wiring=WiringProfile(
                 profile_id=data["profile_id"],
@@ -108,7 +115,28 @@ class WspProfile:
                 schema_root=schema_root,
                 engine_catalogue_path=engine_catalogue_path,
                 oracle_root=oracle_root,
+                oracle_engine_run_root=oracle_engine_run_root,
+                oracle_scenario_id=oracle_scenario_id,
                 ig_ingest_url=ig_ingest_url,
             ),
         )
 
+
+def _load_output_ids(policy: dict[str, Any], *, base_dir: Path) -> list[str]:
+    explicit = policy.get("traffic_output_ids")
+    if isinstance(explicit, list):
+        return [str(item) for item in explicit if str(item).strip()]
+    ref = _resolve_env(policy.get("traffic_output_ids_ref"))
+    if not ref:
+        return []
+    ref_path = Path(ref)
+    if not ref_path.is_absolute():
+        ref_path = base_dir / ref_path
+    payload = yaml.safe_load(ref_path.read_text(encoding="utf-8"))
+    if isinstance(payload, dict):
+        items = payload.get("output_ids") or []
+    else:
+        items = payload or []
+    if not isinstance(items, list):
+        return []
+    return [str(item) for item in items if str(item).strip()]
