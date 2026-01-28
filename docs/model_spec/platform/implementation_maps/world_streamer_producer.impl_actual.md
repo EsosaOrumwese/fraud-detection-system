@@ -240,3 +240,59 @@ I am implementing Phase 1 as **engine‑rooted WSP** with no SR `run_facts_view`
 - Added unit tests for engine‑rooted WSP streaming and gate‑missing failure.
 - `pytest tests/services/world_streamer_producer/test_runner.py -q` → 2 passed.
 
+---
+
+## Entry: 2026-01-28 18:38:35 — Phase 2 planning (checkpointing + resume, no role conflation)
+
+### Trigger
+User asked to move into **Phase 2 planning** and explicitly warned not to conflate validation (Phase 4) with checkpointing (Phase 2).
+
+### What Phase 2 is *and is not*
+- **Phase 2 = checkpointing + resume** to make WSP operationally safe under restarts and at‑least‑once delivery.
+- **Phase 4 = validation** (smoke + dev completion). Phase 2 does **not** replace or duplicate Phase 4.
+- Phase 2 will **not** add new validation logic beyond what Phase 1 already enforces (gates/manifest/inputs).
+
+### Problems Phase 2 must solve (explicit)
+1) **Resume semantics** after crash/restart without re‑emitting already pushed events.
+2) **Deterministic progress cursor** per engine world + output_id (and optionally per partition).
+3) **At‑least‑once reality**: WSP may re‑emit during failure → IG must remain idempotent, but WSP should still minimize duplicates.
+4) **Local/dev parity**: local can persist to file; dev/prod use external store.
+
+### Options considered (with reasoning)
+**A) File‑based checkpoint (local only)**  
+- Pros: trivial to implement for local smoke.  
+- Cons: unusable for multi‑instance dev/prod; not enough alone.
+
+**B) Object‑store checkpoint (S3/MinIO)**  
+- Pros: environment‑consistent, cheap.  
+- Cons: concurrency control is weak; needs conditional writes/ETags.
+
+**C) Postgres checkpoint (recommended for dev/prod)**  
+- Pros: strong concurrency; easy lease + resume semantics.  
+- Cons: more infra, but already used for IG READY leases.
+
+**Decision (provisional):**  
+- Local: file‑based checkpoint under `runs/fraud-platform/wsp_checkpoints/`.  
+- Dev/Prod: Postgres table keyed by `{oracle_pack_id, output_id}` (or `{engine_run_root, output_id}` if no manifest).
+
+### Proposed checkpoint model (concrete)
+- **Checkpoint key:** `{oracle_pack_id, output_id}`  
+- **Cursor payload:** `{last_file, last_row_index, last_ts_utc}`  
+- **Write discipline:** append‑only JSONL log + current cursor (write‑once per update; atomic rename for local).
+- **Resume policy:**  
+  - if cursor exists → skip rows prior to cursor, continue from next row.  
+  - if cursor missing → start at beginning.
+
+### Pending decisions to lock before implementation
+1) **Primary identity:** `oracle_pack_id` vs `engine_run_root` (if manifest missing).  
+2) **Cursor granularity:** per output_id only vs output_id + file + row index.  
+3) **Storage backend:** Postgres (dev/prod) vs object store (if we want infra symmetry).  
+4) **Concurrency rule:** single WSP per pack vs multi‑worker partitions (not in Phase 2).
+
+### Planned steps (Phase 2 implementation outline)
+1) Add checkpoint interface + local file backend.  
+2) Add Postgres backend + migrations (if chosen).  
+3) Wire checkpoint load/save into streaming loop (after emit, before advance).  
+4) Add tests: resume from cursor, duplicate suppression, crash‑resume behavior.  
+5) Update operator docs + make targets.
+

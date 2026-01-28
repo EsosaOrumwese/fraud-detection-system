@@ -50,6 +50,30 @@ Implement WSP as the **primary runtime producer** that replays sealed engine `bu
 ### Phase 2 — Checkpointing + resume
 **Intent:** operational continuity under restarts and at‑least‑once delivery.
 
+#### Phase 2.1 — Checkpoint identity + cursor model
+**DoD checklist:**
+- Checkpoint key pinned (`oracle_pack_id` + `output_id`, fallback to `engine_run_root` if manifest missing).
+- Cursor includes `last_file` + `last_row_index` + `last_ts_utc`.
+- Cursor advances **after** successful emit to IG.
+
+#### Phase 2.2 — Local checkpoint backend
+**DoD checklist:**
+- File‑based checkpoint under `runs/fraud-platform/wsp_checkpoints/`.
+- Write‑once append log + current cursor snapshot (atomic rename).
+- Resume logic skips previously emitted rows.
+
+#### Phase 2.3 — Dev/Prod checkpoint backend
+**DoD checklist:**
+- Postgres table for checkpoints (single‑writer semantics).
+- Concurrency guard documented (single WSP per pack in v0).
+- Clear handling for missing/invalid checkpoints (fail‑closed vs restart).
+
+#### Phase 2.4 — Resume + duplicate posture
+**DoD checklist:**
+- WSP resumes from cursor and **minimizes duplicates**.
+- IG idempotency remains the final guard (at‑least‑once).
+- No new validation logic added here (Phase 4 owns validation).
+
 ### Phase 3 — Security + governance hardening
 **Intent:** producer identity allowlists, provenance stamping, audit hooks.
 
