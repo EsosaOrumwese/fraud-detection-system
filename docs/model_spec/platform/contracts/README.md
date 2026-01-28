@@ -32,7 +32,7 @@ These live under:
 - `quarantine_record.schema.yaml`
 - `ig_policy_activation.schema.yaml`
 - `ig_quarantine_spike.schema.yaml`
-- `ig_pull_run.schema.yaml`
+- `ig_pull_run.schema.yaml` (legacy pull-only; deprecated)
 - `ig_audit_verify.schema.yaml`
 
 ## Platform‑native contracts (Oracle Store, v0)

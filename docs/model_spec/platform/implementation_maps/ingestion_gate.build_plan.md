@@ -258,4 +258,5 @@ _This alignment supersedes the legacy pull‑ingest posture. IG becomes **push�
 - Phase 4: complete (service boundary + READY consumer + pull checkpoints implemented; Phase‑4 tests green).
 - Phase 5: complete (auth/rate limits + S3 run_facts support + retries/backpressure + per-phase metrics + runbook/alerts; tests green).
 - Phase 6: in progress (READY leases, optional sharding checkpoints, hash-chain integrity, audit CLI; time-budget guard done).
-- Phase 7–9: planned (streaming‑only alignment: docs → implementation → validation).
+- Phase 7: complete (streaming‑only docs + contracts alignment).
+- Phase 8–9: planned (implementation retirement → validation).

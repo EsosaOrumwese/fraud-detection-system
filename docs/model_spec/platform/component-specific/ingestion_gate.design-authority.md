@@ -16,7 +16,7 @@ IG is the platform’s **trust boundary** for anything that can influence decisi
 
 That means: **no matter where an event comes from**, it only becomes “platform fact” after it crosses IG.
 
-**Design update (WSP):** IG no longer **pulls** engine outputs as the default runtime path. The sealed world is streamed by **WSP** and delivered to IG via **push ingestion**. Any “legacy engine pull” sections below are **legacy/backfill** only and should not be treated as the primary runtime story.
+**Design update (WSP):** IG is **push‑only** in v0. The sealed world is streamed by **WSP** and delivered to IG via **push ingestion**. Legacy engine‑pull ingestion is **retired** and should not be considered part of the runtime path.
 
 ---
 
@@ -30,7 +30,7 @@ That means: **no matter where an event comes from**, it only becomes “platform
 ### IG does *not* own
 
 * “What the payload means” (business truth / semantics). EB and downstream interpret; IG only enforces boundary rules.
-* “What world/run to use” — SR owns that via READY + run_facts_view.
+* “What world/run to use” — SR owns that via READY + oracle pack refs (IG does not pull run_facts_view in streaming‑only).
 
 ---
 
@@ -50,7 +50,9 @@ Key meaning of `event_id` (important for later): it’s the **stable identifier*
 
 If an event is meant to participate in the current run/world, IG enforces that it is joinable to a **valid run context** (and, in practice, a **READY** run). If not joinable → quarantine/hold, not “best effort.”
 
-Also pinned: downstream components are **forbidden** from scanning engine outputs or inferring “latest run”; they must start from **SR READY + run_facts_view** and follow refs. IG follows that same rule for WSP-driven ingestion.
+Also pinned: downstream components are **forbidden** from scanning engine outputs or inferring “latest run”; they must start from **SR READY + oracle pack refs** and follow by‑ref truth. IG follows that same rule for WSP‑driven ingestion.
+
+**Streaming‑only pin:** IG does **not** read `run_facts_view` in v0 streaming mode. Any references to `run_facts_view` below are **legacy pull‑only** and should be ignored.
 
 ---
 
@@ -113,16 +115,15 @@ Pinned rule from the platform join: IG must not “silently fix” bad inputs in
 
 ---
 
-## 10) Ingestion modes (primary vs legacy)
+## 10) Ingestion mode (push‑only)
 
-This is the production-clean posture given your engine reality:
+This is the production‑clean posture:
 
-* **Push ingest (primary):** producers (notably WSP) submit already-framed envelopes to IG (J3). IG remains the trust boundary and verifies joinability + proofs.
-* **Engine pull ingest (legacy/optional):** retained only for backfill/remediation scenarios if WSP is absent. This is not the default runtime path.
+* **Push ingest (only):** producers (notably WSP) submit already‑framed envelopes to IG (J3). IG remains the trust boundary and verifies joinability + proofs.
 
-**Important overview point:** even though the intake differs, **the outcome semantics are identical** (ADMIT/DUPLICATE/QUARANTINE + receipts + durability meaning). 
+**Important overview point:** even though intake is push‑only, **the outcome semantics are identical** (ADMIT/DUPLICATE/QUARANTINE + receipts + durability meaning).
 
-**Design correction (v0):** The default traffic path is **WSP → IG (push)**. Any legacy engine-pull path below is **legacy/optional** and should not be treated as the primary runtime story.
+**Design correction (v0):** The traffic path is **WSP → IG (push)**. Legacy engine‑pull ingestion is retired and should not be treated as part of the runtime path.
 
 ---
 
@@ -130,7 +131,7 @@ This is the production-clean posture given your engine reality:
 
 Before edges/paths, you only need this compact black-box contract:
 
-**IG takes** (envelope or frameable input) **+ policy + SR join surface + required PASS proof(s)**
+**IG takes** (canonical envelope) **+ policy + required PASS proof(s)**
 → **returns** one of:
 
 * ADMIT (means EB append acknowledged)
@@ -150,9 +151,11 @@ If you’re happy with this “pinned overview,” the next step is clean: we ca
 
 ---
 
-Below is the **complete set of production-ready “joins / paths” that involve IG**, treating IG as an **opaque vertex** (so: only *who connects to IG*, *what crosses the edge*, and *what the path means*).
+Below is the **complete set of production‑ready “joins / paths” that involve IG**, treating IG as an **opaque vertex** (so: only *who connects to IG*, *what crosses the edge*, and *what the path means*).
 
-Everything here is constrained by your pinned joins J3/J4 + “only one front door” truth, canonical envelope boundary, READY/run_facts_view entrypoint, “no PASS → no read”, and the deployment unit mapping (bus/object/db surfaces).
+Everything here is constrained by your pinned joins J3/J4 + “only one front door” truth, canonical envelope boundary, “no PASS → no read”, and the deployment unit mapping (bus/object/db surfaces).
+
+**Streaming‑only note:** any legacy engine‑pull path descriptions below are **deprecated** and should be ignored. They are retained only for historical context until Phase 8 removes them.
 
 ---
 
@@ -164,19 +167,10 @@ Everything here is constrained by your pinned joins J3/J4 + “only one front do
    “Producers → IG” is a first-class join (J3). Producers MUST supply a canonical envelope at minimum.
    Deployment mapping explicitly allows **bus input or HTTP ingress**. 
 
-2. **SR join surface for run context (object)**
-   IG reads **`sr/run_facts_view`** “to enforce run joinability.”
-
-3. **SR READY trigger (control bus)**
-   SR publishes a **READY signal** on `fp.bus.control.v1`. In production, this is the trigger that downstream (including legacy engine pull ingestion, if enabled) starts from.
-
-4. **Engine artifacts + gate receipts (object)**
-   Engine writes outputs + PASS/FAIL evidence; IG (as a downstream component) must treat PASS receipts as prerequisites (“no PASS → no read”).
-
-5. **Policy profiles (config)**
+2. **Policy profiles (config)**
    IG consumes policy profiles (explicitly called out in the deployment mapping). 
 
-6. **Schema authority / contract catalogue (read-only dependency)**
+3. **Schema authority / contract catalogue (read-only dependency)**
    The conceptual IG doc (non-authoritative, but realistic) matches the platform pin: IG consults the schema authority; unknown versions are not guessed.
 
 7. **AuthN/AuthZ / allowlists (security boundary)**

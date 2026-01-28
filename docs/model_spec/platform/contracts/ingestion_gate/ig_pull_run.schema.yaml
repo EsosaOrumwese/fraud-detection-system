@@ -1,3 +1,4 @@
+# DEPRECATED: legacy pull ingestion (streaming-only v0); retained for historical reference.
 $schema: https://json-schema.org/draft/2020-12/schema
 $id: ig_pull_run.schema.yaml
 title: IG Pull Run Summary

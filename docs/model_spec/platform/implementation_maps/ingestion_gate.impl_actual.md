@@ -1453,3 +1453,31 @@ Phase 7 re‑scopes IG to **push‑only** ingestion in all design docs and contr
 - No test changes (Phase 9).
 
 ---
+
+## Entry: 2026-01-28 21:01:32 — Phase 7 implemented (IG streaming‑only docs + contracts)
+
+### Step‑by‑step decisions and changes
+1) **IG design authority re‑scope (push‑only)**
+   - Explicitly declared IG as **push‑only** in v0 and retired legacy engine‑pull ingestion.
+   - Updated the ingestion modes section to remove “primary vs legacy” framing and state push‑only as the single runtime mode.
+   - Removed SR READY and run_facts_view as IG inbound edges; IG no longer presents READY as a trigger.
+   - Added a streaming‑only pin: **IG does not read run_facts_view**; any residual references are legacy‑only and should be ignored.
+   - Reason: prevent future contributors from treating READY/pull as valid runtime behavior.
+
+2) **Platform profile docs (deprecate pull wiring)**
+   - Marked `ready_lease`, `pull_sharding`, and `pull_time_budget_seconds` as **legacy pull‑only** in `config/platform/profiles/README.md`.
+   - Added inline comments in the example profile to label pull wiring as retired.
+   - Reason: profiles are an operator touchpoint; they must not imply pull is an active path.
+
+3) **Contracts index + legacy schema marker**
+   - Marked `ig_pull_run.schema.yaml` as **deprecated** in the contracts index and added a header comment in the schema itself.
+   - Reason: keep historical artifacts but make their status unambiguous.
+
+### Out‑of‑scope (kept out intentionally)
+- No code removal or runtime behavior changes (Phase 8).
+- No test deletions (Phase 9).
+
+### Sanity checks (local)
+- Confirmed docs now include streaming‑only markers and deprecated pull wiring notes.
+
+---
