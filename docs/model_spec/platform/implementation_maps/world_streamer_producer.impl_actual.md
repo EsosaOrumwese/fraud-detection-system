@@ -459,3 +459,61 @@ Phase 3 must **not** add new validation that belongs in Phase 4 (smoke + dev com
 - `.\.venv\Scripts\python.exe -m pytest tests/services/world_streamer_producer/test_runner.py -q` → 4 passed.
 
 ---
+
+## Entry: 2026-01-28 19:19:37 — Phase 4 planning (WSP validation: local smoke + dev completion)
+
+### Trigger
+User requested Phase 4 planning after confirming Phase 3 completion.
+
+### Phase 4 intent (validation only)
+Phase 4 is **not new capability**; it validates that Phases 1–3 work end‑to‑end under two operational modes:
+- **Local smoke** (bounded, fast feedback).
+- **Dev completion** (uncapped, true completion semantics).
+
+### Constraints and boundaries
+- WSP remains engine/oracle‑rooted (explicit run root), no scanning.
+- WSP pushes only to IG, never to EB.
+- Validation must not mutate engine outputs; it may write **platform runtime** artifacts under `runs/fraud-platform/` only.
+- Gate PASS enforcement and producer allowlist must be exercised (fail‑closed on missing/invalid identity).
+
+### Decisions to lock (planning)
+1) **Local smoke** will validate:
+   - Oracle pack is sealed (strict_seal false in local, but report if missing).
+   - Gate PASS presence for traffic outputs.
+   - Envelope stamping (producer + trace_id/span_id) is visible in IG ingest.
+   - WSP resume works (max_events + checkpoint resume) and does not re‑emit already streamed events.
+
+2) **Dev completion** will validate:
+   - Strict seal enabled (pack must be sealed).
+   - All traffic outputs in policy are streamed to IG without missing gates.
+   - Checkpoint persistence backend works (Postgres in dev/prod profiles).
+
+3) **Run identity and log expectations**
+   - Platform run log is written via `platform_runtime` paths.
+   - Validation steps should surface run ids for traceability (platform run + engine run root).
+
+### Planned validation steps (Phase 4 outline)
+**4.1 Local smoke (fast loop)**
+- Preflight: ensure engine run root + scenario_id resolve.
+- Run WSP with `max_events` bound to 10 (or config) and verify:
+  - events accepted by IG;
+  - audit hooks emit `stream_start/stream_complete/checkpoint_saved`.
+- Re‑run with `max_events=1` to validate resume from checkpoint.
+
+**4.2 Dev completion (uncapped)**
+- Ensure strict seal (dev profile) and Postgres checkpoint DSN set.
+- Run WSP without `max_events` to stream all policy outputs.
+- Confirm WSP completes with `STREAMED` status and IG produces `PULL_COMPLETED` (or equivalent) for the run.
+
+**4.3 Failure‑path spot checks**
+- Producer allowlist failure (invalid producer id) should fail before streaming.
+- Gate missing should fail closed and report `GATE_PASS_MISSING`.
+
+### Artifacts + outputs
+- Use existing Make targets (or add a `wsp-validate-*` target if missing) to ensure reproducible runs.
+- Validation should record output pointers in platform logs (not new artifacts).
+
+### Test plan (to execute during Phase 4)
+- WSP subset tests already exist; Phase 4 adds **integration‑style** validation using local run data + IG endpoint.
+
+---

@@ -98,3 +98,24 @@ Implement WSP as the **primary runtime producer** that replays sealed engine `bu
 
 ### Phase 4 — Validation (smoke + dev completion)
 **Intent:** WSP→IG path validates under local smoke and dev completion policies.
+
+#### Phase 4.1 — Local smoke validation (bounded)
+**DoD checklist:**
+- Explicit engine run root + scenario_id resolves (no implicit discovery).
+- WSP streams a bounded slice (`max_events`) to IG.
+- Producer allowlist enforced (bad producer fails closed).
+- Provenance stamping visible (`producer`, `trace_id`, optional `span_id`).
+- Checkpoint resume works (second run emits remaining events only).
+- Audit hooks are recorded (stream_start/complete + checkpoint_saved).
+
+#### Phase 4.2 — Dev completion validation (uncapped)
+**DoD checklist:**
+- Strict seal enforced (pack must be sealed).
+- Postgres checkpoint backend used (dsn required).
+- All policy traffic outputs stream to IG without missing gates.
+- WSP completes with `STREAMED` status and IG acknowledges ingestion.
+
+#### Phase 4.3 — Failure‑path spot checks
+**DoD checklist:**
+- Missing gate → `GATE_PASS_MISSING` (fail‑closed).
+- Producer not allowed → `PRODUCER_NOT_ALLOWED` (fail‑closed).
