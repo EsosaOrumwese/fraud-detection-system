@@ -295,3 +295,42 @@ Provide **minimal replay/tail utilities** for the local EB file‑bus so we can 
 
 ### Decision needed
 - None (Phase 3 is bounded local‑only).
+
+## Entry: 2026-01-29 06:08:42 — Phase 3 implementation start (local replay/tail utilities)
+
+### Pre‑implementation intent
+Deliver a **minimal EB replay/tail reader** for the local file‑bus so we can verify offsets and durability without introducing consumer coordination. This is strictly read‑only tooling.
+
+### Decisions (with reasoning)
+- **Reader is local‑only** in v0. Reason: avoid premature abstractions (Kinesis reader belongs to Phase 5/6).
+- **CLI prints JSON lines** with `topic`, `partition`, `offset`, and the stored record. Reason: easy to pipe/inspect without imposing formatting opinions.
+- **Default bus root**: `runs/fraud-platform/event_bus` (same as file‑bus writer). Reason: keep local tooling zero‑config.
+
+### Planned steps
+1) Add `EventBusReader` to `src/fraud_detection/event_bus/reader.py`.
+2) Add CLI `src/fraud_detection/event_bus/cli.py` with `tail` command.
+3) Update `event_bus.__init__` to export reader.
+4) Tests: publish via FileEventBusPublisher, then read by offset.
+
+### Constraints
+- No consumer groups, leases, or retention logic.
+- Keep the reader side‑effect‑free.
+
+## Entry: 2026-01-29 06:09:53 — Phase 3 implementation (replay/tail utilities)
+
+### What was implemented
+- **EventBusReader** (`src/fraud_detection/event_bus/reader.py`): local file‑bus reader with `read(topic, partition, from_offset, max_records)` returning typed records and offsets.
+- **CLI tail utility** (`src/fraud_detection/event_bus/cli.py`): prints JSON lines containing `{topic, partition, offset, record}` for inspection and piping.
+- **Exports updated** in `event_bus.__init__` for the reader types.
+
+### Design choices made (and why)
+- Reader is **local‑only** and read‑only: avoids premature coordination/consumer group design.
+- CLI output is raw JSON lines to keep it tool‑friendly and not impose formatting opinions.
+- Defaults align with file‑bus layout and local smoke expectations.
+
+### Tests executed
+- `.\.venv\Scripts\python.exe -m pytest tests/services/event_bus/test_reader.py -q`
+- Result: **2 passed**
+
+### Scope discipline
+- No retention, no leases, no coordination; this is purely replay/tail verification for v0.
