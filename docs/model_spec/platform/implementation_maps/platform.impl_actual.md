@@ -782,3 +782,11 @@ explicit in IG wiring removes reliance on implicit env propagation.
 ### Notes
 LocalStack `GetRecords` returned 0 in a quick probe; however receipts + offsets in ops DB are
 the audit‑truth for publish success.
+
+---
+
+## Entry: 2026-01-29 23:36:36 — Parity alignment marked complete
+
+### Decision
+Parity alignment is considered **complete** for v0 local: SR→WSP→IG→EB parity smoke runs green,
+receipt offsets are captured, and no remaining parity blockers are open.
