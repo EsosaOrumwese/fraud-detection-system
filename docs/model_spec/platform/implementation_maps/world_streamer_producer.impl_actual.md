@@ -674,3 +674,19 @@ User requested a READY consumer runner so SR can drive WSP automatically for a f
 ### Tests re‑run
 - `pytest tests/services/world_streamer_producer/test_ready_consumer.py tests/services/world_streamer_producer/test_runner.py -q`
   - Result: **6 passed**.
+
+## Entry: 2026-01-29 01:43:15 — Local speedup for WSP smoke runs
+
+### Context
+The READY‑driven WSP run was taking too long for a local smoke test. The profile `stream_speedup` governs the wall‑clock delay between `ts_utc` events during streaming.
+
+### Decision
+- Increase **local** `stream_speedup` from 60 → 600 to compress time gaps in local smoke runs.
+- Keep this scoped to `config/platform/profiles/local.yaml` so dev/prod remain unaffected.
+
+### Why this is safe for v0
+- The speedup factor only affects local pacing; it does not alter event ordering or payload content.
+- WSP still preserves monotonic `ts_utc` ordering and checkpoint consistency.
+
+### Change
+- `config/platform/profiles/local.yaml`: `policy.stream_speedup: 600.0`

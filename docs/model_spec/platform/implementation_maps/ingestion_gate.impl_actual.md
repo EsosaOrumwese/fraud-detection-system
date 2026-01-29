@@ -1747,3 +1747,172 @@ Phase‑9 validation is now anchored on:
 ### Interpretation
 - Push‑only ingestion remains green after the `/v1/ingest/pull` 404 assertion.
 - No pull/READY tests remain in IG suite, matching the streaming‑only posture.
+
+## Entry: 2026-01-29 01:18:30 — Phase 9 local full‑chain validation (SR→WSP→IG)
+
+### Intent
+Run a **full local chain** where SR emits READY, WSP consumes READY and streams full traffic, IG ingests via push‑only. Capture platform logs and validate artifacts, without re‑introducing pull paths.
+
+### Decisions before execution
+1) **Use a fresh platform run id**
+   - Run `make platform-run-new` to set `runs/fraud-platform/platform_runs/ACTIVE_RUN_ID` so logs are grouped.
+   - Reason: platform log should be traceable for this run without polluting previous runs.
+
+2) **Use a fresh SR run_equivalence_key**
+   - Set `SR_RUN_EQUIVALENCE_KEY` to a timestamped value to force a new run_id and READY message.
+   - Reason: WSP READY consumer skips duplicates based on message_id; reusing the same run_id would be skipped.
+
+3) **Clean control bus before SR emits READY**
+   - Run `make platform-bus-clean` to avoid stale READY messages.
+   - Reason: WSP consumer should process only the newly emitted READY.
+
+4) **Start IG as a long‑running service**
+   - Launch IG service before SR/WSP so push endpoint is available during streaming.
+   - Reason: avoid stream failures due to IG not listening.
+
+5) **Run WSP READY consumer once (full traffic)**
+   - Use `make platform-wsp-ready-consumer-once` with no `max_events` cap.
+   - Reason: user requested full business traffic.
+
+### Expected outputs to inspect
+- Platform logs at `runs/fraud-platform/platform.log` and per‑run log under `runs/fraud-platform/platform_runs/<run_id>/platform.log`.
+- IG receipts under `runs/fraud-platform/ig/receipts`.
+- WSP ready run record under `runs/fraud-platform/wsp/ready_runs/<message_id>.jsonl`.
+
+### If errors occur
+- Diagnose and correct configuration mismatches (paths, profile wiring, control bus root).
+- Re‑run only the failing step (SR emit or WSP consume) with a new run_equivalence_key if needed.
+
+## Entry: 2026-01-29 01:38:50 — Phase 9 validation fix (IG schema mismatch on arrival_events_5B)
+
+### What broke
+- During the SR→WSP→IG run, IG quarantined every `arrival_events_5B` event with `SCHEMA_FAIL`.
+- Platform log showed repeated `IG quarantine ... reason=SCHEMA_FAIL` for `event_type=arrival_events_5B`.
+
+### Investigation trail (live reasoning)
+- Checked IG schema policy (`config/platform/ig/schema_policy_v0.yaml`) to see what schema IG enforces per event_type.
+- Found `arrival_events_5B` policy pointing to the **array** schema: `schemas.5B.yaml#/egress/s4_arrival_events_5B`.
+- Inspected the actual engine row from `runs/local_full_run-5/.../arrival_events/.../part-000000.parquet` and confirmed it is a **single row object** with fields like `merchant_id`, `arrival_seq`, `ts_utc`, etc.
+- IG validates `payload` (single event) against the schema ref, so it was validating an object against an array schema → consistent `SCHEMA_FAIL`.
+- Cross‑checked 6B refs: those are `type: object`, so they were not affected.
+
+### Decision
+- **Keep per‑row ingestion** (one envelope per row) as the v0 contract for IG push.
+- Update the schema ref to validate the **item schema** instead of the array wrapper.
+
+### Change applied
+- Updated `arrival_events_5B` policy to point at the row schema:
+  - `docs/model_spec/data-engine/layer-2/specs/contracts/5B/schemas.5B.yaml#/egress/s4_arrival_events_5B/items`
+- This preserves the data‑engine authority (schema still derives from engine spec) but aligns IG validation with the actual payload shape.
+
+### Follow‑up
+- Re‑run the WSP READY consumer with a capped `max_events` once to confirm IG admits rows.
+- If other outputs fail, apply the same “use items when schema is an array” rule.
+
+## Entry: 2026-01-29 01:47:10 — Fix schema fragment resolution for $defs
+
+### What broke (after switching to item schema)
+- IG now loaded the `#/egress/s4_arrival_events_5B/items` fragment, but validation still failed with `INTERNAL_ERROR`.
+- Stack trace showed `$ref: #/$defs/...` could not resolve because the fragment schema no longer contained `$defs`.
+
+### Reasoning
+- `_load_schema_ref` currently returns **only** the fragment node, discarding top‑level `$defs` and `$id`.
+- Engine schemas use `$defs` extensively, so fragment‑only validation breaks.
+
+### Decision
+- Keep fragment‑targeting (so IG validates a single row), **but** graft root `$defs` (and `$id`/`$schema` if missing) onto the fragment before validation.
+- This keeps the engine schema as the authority while preserving per‑row validation.
+
+### Change
+- `src/fraud_detection/ingestion_gate/schema.py` now merges root `$defs`/`$id`/`$schema` into the fragment schema when present.
+
+### Expected outcome
+- `arrival_events_5B` rows should validate successfully using the item schema.
+- Same fix supports any fragment schema that uses `$defs`.
+
+## Entry: 2026-01-29 01:52:05 — Payload schema resolution now uses registry + fragment ref
+
+### Follow‑up observation
+- After grafting `$defs`, IG still failed on `schemas.layer1.yaml#/$defs/hex64`.
+- Root cause: schema fragments reference **other files** via relative `$ref`, which require a resolver/registry.
+
+### Decision
+- Replace fragment extraction with a **registry‑backed validator**:
+  - Load the base schema file.
+  - Validate against a wrapper `{"$ref": "<base_uri>#<fragment>"}`.
+  - Use a referencing `Registry` that can resolve local file refs under the contracts root.
+
+### Change
+- `src/fraud_detection/ingestion_gate/schema.py` now returns `(schema, registry)` from `_load_schema_ref`.
+- Validation uses `Draft202012Validator(..., registry=registry)` so both internal and external `$ref` values resolve.
+
+### Why this matches design intent
+- IG continues to treat engine schemas as authoritative.
+- We still validate per‑event payloads (not arrays) while respecting the full schema graph.
+
+## Entry: 2026-01-29 01:55:10 — Ensure base `$id` for schema files without id
+
+### Observation
+- Relative refs like `schemas.layer1.yaml#/$defs/hex64` still failed to resolve.
+- The base schema files do not always declare `$id`, so relative refs had no base URI.
+
+### Decision
+- Always set `$id` to the schema file URI when missing (or non‑URI), so relative refs resolve through the registry.
+
+### Change
+- `src/fraud_detection/ingestion_gate/schema.py`: if `$id` is absent or non‑URI, assign `base_uri` before building the registry.
+
+## Entry: 2026-01-29 02:00:10 — Resolve engine schema filename refs via data‑engine search
+
+### Observation
+- Engine schemas reference shared defs by bare filenames (e.g. `schemas.layer1.yaml#/$defs/hex64`).
+- Registry resolution still failed because the resolver looked only under `schema_root`.
+
+### Decision
+- Add a **fallback resolver**: when a referenced schema file is not found, search under `docs/model_spec/data-engine/**/<filename>`.
+- This keeps schema authority in the data‑engine tree without hard‑coding a single path in policy.
+
+### Change
+- `src/fraud_detection/ingestion_gate/schemas.py` now rglobs `docs/model_spec/data-engine` for missing schema filenames.
+
+### Rationale
+- The data‑engine specs already define these files; the resolver should find them rather than forcing duplication.
+
+## Entry: 2026-01-29 02:04:15 — Treat docs/ paths as repo‑root schema refs
+
+### Observation
+- Schema policy uses refs like `docs/model_spec/data-engine/.../schemas.5B.yaml`.
+- With `schema_root` set to platform contracts, these were being joined and would point to non‑existent nested paths.
+
+### Decision
+- If `schema_ref` starts with `docs/` (or is absolute), resolve it **from repo root** rather than from `schema_root`.
+- This keeps platform schema_root intact for envelope validation while honoring explicit data‑engine paths.
+
+### Change
+- `src/fraud_detection/ingestion_gate/schema.py`: `_load_schema_ref` now detects `docs/`‑prefixed refs and resolves them directly.
+
+## Entry: 2026-01-29 02:08:20 — Normalize `nullable` to JSON Schema `null`
+
+### Observation
+- Validation now runs but fails with `None is not of type 'integer'`.
+- Engine schemas use `nullable: true` (OpenAPI style), which Draft202012Validator ignores.
+
+### Decision
+- Preprocess loaded schemas to translate `nullable: true` into JSON‑Schema‑compatible constructs:
+  - `type: X` → `type: [X, "null"]`
+  - `$ref` → `anyOf: [{"$ref": ...}, {"type": "null"}]`
+
+### Change
+- Added `_normalize_nullable` in `src/fraud_detection/ingestion_gate/schema.py` and run it on every loaded schema.
+
+### Expected outcome
+- `arrival_events_5B` rows with nullable fields (e.g. `edge_id: null`) should validate and admit.
+
+## Entry: 2026-01-29 02:11:10 — Validation green after nullable fix
+
+### Result
+- Re‑ran SR→WSP (cap 20) after nullable normalization and schema path fixes.
+- IG now logs `validated` + `admitted` for `arrival_events_5B` with traffic topic offsets, no new `SCHEMA_FAIL` or `INTERNAL_ERROR`.
+
+### Evidence
+- Platform log shows `IG validated` and `IG admitted` lines around 01:57–01:58 for the latest READY message.

@@ -5,8 +5,11 @@ from __future__ import annotations
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
+from urllib.parse import urlparse
 
 import yaml
+from referencing import Registry, Resource
+from referencing.jsonschema import DRAFT202012
 
 from .config import SchemaPolicy
 from .errors import IngestionError
@@ -35,31 +38,73 @@ class SchemaEnforcer:
         if entry.allowed_schema_versions and schema_version not in entry.allowed_schema_versions:
             raise IngestionError("SCHEMA_VERSION_NOT_ALLOWED")
         if entry.payload_schema_ref:
-            schema = _load_schema_ref(self.payload_registry_root, entry.payload_schema_ref)
+            schema, registry = _load_schema_ref(self.payload_registry_root, entry.payload_schema_ref)
             try:
-                _validate_with_schema(schema, envelope.get("payload", {}))
+                _validate_with_schema(schema, envelope.get("payload", {}), registry=registry)
             except ValueError as exc:
                 raise IngestionError("SCHEMA_FAIL") from exc
 
 
-def _load_schema_ref(root: Path, schema_ref: str) -> dict[str, Any]:
+def _load_schema_ref(root: Path, schema_ref: str) -> tuple[dict[str, Any], Registry]:
     path_str, _, fragment = schema_ref.partition("#")
-    path = (root / path_str).resolve()
+    raw_path = Path(path_str)
+    if raw_path.is_absolute() or path_str.startswith("docs/") or path_str.startswith("docs\\"):
+        path = raw_path.resolve()
+    else:
+        path = (root / path_str).resolve()
     data = yaml.safe_load(path.read_text(encoding="utf-8"))
-    if fragment.startswith("/"):
-        parts = [part for part in fragment.lstrip("/").split("/") if part]
-        for part in parts:
-            if not isinstance(data, dict) or part not in data:
-                raise ValueError("SCHEMA_REF_INVALID")
-            data = data[part]
-    return data
+    _normalize_nullable(data)
+    base_uri = path.as_uri()
+    schema_for_validation = data
+    if fragment:
+        schema_for_validation = {"$ref": f"{base_uri}#{fragment}"}
+    if isinstance(data, dict):
+        schema_id = data.get("$id")
+        if not schema_id or not urlparse(schema_id).scheme:
+            data = dict(data)
+            data["$id"] = base_uri
+    registry = SchemaRegistry(root)
+    registry_obj = Registry(retrieve=registry._retrieve_resource)
+    registry_obj = registry_obj.with_resource(
+        base_uri,
+        Resource.from_contents(data, default_specification=DRAFT202012),
+    )
+    return schema_for_validation, registry_obj
 
 
-def _validate_with_schema(schema: dict[str, Any], payload: dict[str, Any]) -> None:
+def _validate_with_schema(
+    schema: dict[str, Any], payload: dict[str, Any], *, registry: Registry
+) -> None:
     from jsonschema import Draft202012Validator
 
-    validator = Draft202012Validator(schema)
+    validator = Draft202012Validator(schema, registry=registry)
     errors = sorted(validator.iter_errors(payload), key=lambda e: e.path)
     if errors:
         messages = "; ".join(error.message for error in errors)
         raise ValueError(f"Payload schema validation failed: {messages}")
+
+
+def _normalize_nullable(node: Any) -> None:
+    if isinstance(node, dict):
+        nullable = node.pop("nullable", False)
+        if nullable:
+            if "$ref" in node:
+                ref = node.pop("$ref")
+                meta = dict(node)
+                node.clear()
+                node.update(meta)
+                node["anyOf"] = [{"$ref": ref}, {"type": "null"}]
+            elif "type" in node:
+                node_type = node["type"]
+                if isinstance(node_type, list):
+                    if "null" not in node_type:
+                        node_type.append("null")
+                else:
+                    node["type"] = [node_type, "null"]
+            else:
+                node["type"] = ["null"]
+        for value in node.values():
+            _normalize_nullable(value)
+    elif isinstance(node, list):
+        for item in node:
+            _normalize_nullable(item)

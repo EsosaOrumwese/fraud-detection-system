@@ -78,5 +78,12 @@ class SchemaRegistry:
                 if fallback.exists():
                     path = fallback
         if not path.exists():
+            # Fallback for engine schemas that reference shared defs by filename only.
+            engine_root = Path("docs/model_spec/data-engine")
+            if engine_root.exists():
+                matches = sorted(engine_root.rglob(path.name))
+                if matches:
+                    path = matches[0]
+        if not path.exists():
             raise NoSuchResource(uri)
         return path

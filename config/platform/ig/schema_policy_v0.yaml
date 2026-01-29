@@ -4,7 +4,7 @@ policies:
   - event_type: arrival_events_5B
     class: traffic
     schema_version_required: false
-    payload_schema_ref: docs/model_spec/data-engine/layer-2/specs/contracts/5B/schemas.5B.yaml#/egress/s4_arrival_events_5B
+    payload_schema_ref: docs/model_spec/data-engine/layer-2/specs/contracts/5B/schemas.5B.yaml#/egress/s4_arrival_events_5B/items
   - event_type: s2_flow_anchor_baseline_6B
     class: traffic
     schema_version_required: false
