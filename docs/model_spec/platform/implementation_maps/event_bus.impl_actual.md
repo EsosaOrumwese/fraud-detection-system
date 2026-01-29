@@ -143,3 +143,46 @@ We need a **stable EB boundary contract** and an **EB adapter interface** so IG 
 
 ### Notes
 - Phase 1 stays strictly at contract + interface layer (no EB backend behavior changes beyond receipt shape).
+
+## Entry: 2026-01-29 05:34:17 — Phase 2 planning (local file‑bus durability)
+
+### Phase intent
+Deliver a **correct local EB implementation** with durable append semantics, stable offsets, and explicit ACK behavior so IG can treat EB as the fact log in v0. This phase is still local‑only; no Kinesis yet.
+
+### Live reasoning (decision trail)
+- Our EB interface is now shared and receipt shapes are forward‑compatible; Phase 2 must make the **local EB durable and deterministic**, not “just a stub.”
+- File‑bus offsets must be stable and monotonic even with retries; at‑least‑once means duplicates may exist, so **offsets are for position only**, not dedupe.
+- IG’s “admitted” decision must be tied to EB ACK, so EB publish must be **atomic enough**: if it returns an EbRef, the record is definitely appended.
+- We should avoid implementing consumer coordination; Phase 2 focuses purely on **append + ACK + minimal tail proof**.
+
+### Proposed plan (detailed)
+1) **File‑bus write hardening**
+   - Ensure append is atomic at the file level: open → write → flush → fsync (best‑effort on Windows).
+   - Offset = line index (0‑based). Compute without reading full file if possible (seek + count or stored sidecar). For v0, a single read count is acceptable but we should cap it to avoid O(n) on every append.
+   - Record structure includes `partition_key`, `payload`, and `published_at_utc`.
+
+2) **Offset source of truth**
+   - Option A (v0): store a per‑topic `head.json` containing next offset. Update it atomically after append.
+   - Option B: compute count on append (simpler but slower). For v0 we can start with a head file to avoid O(n).
+   - Decision criterion: correctness + local speed. (Will lock before implementation.)
+
+3) **Receipt integration**
+   - EB returns `EbRef(offset=str, offset_kind=file_line, published_at_utc=now)`.
+   - IG receipts include this `eb_ref` and validate against schema.
+
+4) **Health probe alignment**
+   - Health check should treat file‑bus root as required and check writeability.
+
+5) **Tests (must be green)**
+   - Publish N records and assert offsets `0..N-1`.
+   - Duplicate publish yields a new offset (no dedupe by EB).
+   - Crash simulation: if head file exists but log missing (or vice‑versa), EB should recover (prefer log truth).
+
+### Decisions needing confirmation
+- **Offset source**: do we adopt a `head.json` per topic for O(1) offsets (recommended), or keep line‑counting in v0 for simplicity?
+
+### Exit criteria (Phase 2 DoD)
+- File‑bus returns stable offsets and published_at.
+- IG receipts carry EB ref and pass schema validation.
+- Unit tests cover monotonic offsets and crash recovery.
+
