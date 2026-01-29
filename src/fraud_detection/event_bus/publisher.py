@@ -1,4 +1,4 @@
-"""Event Bus publisher interface + local stub."""
+"""Event Bus publisher interface + local file-bus adapter."""
 
 from __future__ import annotations
 
@@ -12,7 +12,9 @@ from typing import Any, Protocol
 class EbRef:
     topic: str
     partition: int
-    offset: int
+    offset: str
+    offset_kind: str
+    published_at_utc: str | None = None
 
 
 class EventBusPublisher(Protocol):
@@ -41,4 +43,9 @@ class FileEventBusPublisher:
         }
         with log_path.open("a", encoding="utf-8") as handle:
             handle.write(json.dumps(record, ensure_ascii=True, separators=(",", ":")) + "\n")
-        return EbRef(topic=topic, partition=partition, offset=offset)
+        return EbRef(
+            topic=topic,
+            partition=partition,
+            offset=str(offset),
+            offset_kind="file_line",
+        )

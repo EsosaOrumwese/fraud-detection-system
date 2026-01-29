@@ -8,7 +8,7 @@ from enum import Enum
 from pathlib import Path
 from typing import Any
 
-from .event_bus import FileEventBusPublisher
+from fraud_detection.event_bus import FileEventBusPublisher
 from .ops_index import OpsIndex
 from .store import ObjectStore
 

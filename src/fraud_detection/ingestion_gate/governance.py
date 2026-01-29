@@ -9,7 +9,7 @@ import hashlib
 import json
 from typing import Any
 
-from .event_bus import EventBusPublisher
+from fraud_detection.event_bus import EventBusPublisher
 from .partitioning import PartitioningProfiles
 from .store import ObjectStore
 

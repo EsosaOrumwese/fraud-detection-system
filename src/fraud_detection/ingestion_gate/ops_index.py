@@ -27,7 +27,8 @@ class OpsIndex:
                     decision TEXT,
                     eb_topic TEXT,
                     eb_partition INTEGER,
-                    eb_offset INTEGER,
+                    eb_offset TEXT,
+                    eb_offset_kind TEXT,
                     policy_id TEXT,
                     policy_revision TEXT,
                     policy_digest TEXT,
@@ -38,6 +39,14 @@ class OpsIndex:
                     evidence_refs_json TEXT
                 )
                 """
+            )
+            _ensure_columns(
+                conn,
+                "receipts",
+                {
+                    "eb_offset": "TEXT",
+                    "eb_offset_kind": "TEXT",
+                },
             )
             conn.execute(
                 """
@@ -65,10 +74,10 @@ class OpsIndex:
             conn.execute(
                 """
                 INSERT OR IGNORE INTO receipts
-                (receipt_id, event_id, event_type, dedupe_key, decision, eb_topic, eb_partition, eb_offset,
+                (receipt_id, event_id, event_type, dedupe_key, decision, eb_topic, eb_partition, eb_offset, eb_offset_kind,
                  policy_id, policy_revision, policy_digest, created_at_utc, receipt_ref, pins_json,
                  reason_codes_json, evidence_refs_json)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """,
                 (
                     receipt_payload.get("receipt_id"),
@@ -79,6 +88,7 @@ class OpsIndex:
                     eb_ref.get("topic"),
                     eb_ref.get("partition"),
                     eb_ref.get("offset"),
+                    eb_ref.get("offset_kind"),
                     policy_rev.get("policy_id"),
                     policy_rev.get("revision"),
                     policy_rev.get("content_digest"),
@@ -200,6 +210,13 @@ class OpsIndex:
             conn.execute("DELETE FROM receipts")
             conn.execute("DELETE FROM quarantines")
             conn.commit()
+
+
+def _ensure_columns(conn: sqlite3.Connection, table: str, columns: dict[str, str]) -> None:
+    existing = {row[1] for row in conn.execute(f"PRAGMA table_info({table})")}
+    for name, col_type in columns.items():
+        if name not in existing:
+            conn.execute(f"ALTER TABLE {table} ADD COLUMN {name} {col_type}")
 
 
 def _json_dump(value: Any) -> str | None:

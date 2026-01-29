@@ -41,3 +41,9 @@ These live under:
 
 - `oracle_pack_manifest.schema.yaml`
 - `oracle_pack_seal.schema.yaml`
+
+## Platform‑native contracts (Event Bus, v0)
+These live under:
+`docs/model_spec/platform/contracts/event_bus/`
+
+- `eb_ref.schema.yaml`

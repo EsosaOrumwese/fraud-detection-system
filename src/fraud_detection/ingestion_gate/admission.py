@@ -10,7 +10,7 @@ from pathlib import Path
 from typing import Any
 
 from .config import ClassMap, PolicyRev, SchemaPolicy, WiringProfile
-from .event_bus import EbRef, EventBusPublisher, FileEventBusPublisher
+from fraud_detection.event_bus import EbRef, EventBusPublisher, FileEventBusPublisher
 from .errors import IngestionError, reason_code
 from .governance import GovernanceEmitter
 from .health import HealthProbe, HealthState
@@ -170,10 +170,11 @@ class IngestionGate:
         self.metrics.record_latency("phase.dedupe_seconds", time.perf_counter() - dedupe_started)
         if existing:
             logger.info("IG duplicate event_id=%s event_type=%s", envelope["event_id"], envelope["event_type"])
+            eb_ref = _normalize_eb_ref(existing.get("eb_ref"))
             decision = AdmissionDecision(
                 decision="DUPLICATE",
                 reason_codes=["DUPLICATE"],
-                eb_ref=existing.get("eb_ref"),
+                eb_ref=eb_ref,
                 evidence_refs=[{"kind": "receipt_ref", "ref": existing.get("receipt_ref")}]
                 if existing.get("receipt_ref")
                 else None,
@@ -214,7 +215,7 @@ class IngestionGate:
         decision = AdmissionDecision(
             decision="ADMIT",
             reason_codes=[],
-            eb_ref={"topic": eb_ref.topic, "partition": eb_ref.partition, "offset": eb_ref.offset},
+            eb_ref=_eb_ref_payload(eb_ref),
         )
         receipt_started = time.perf_counter()
         receipt_payload = self._receipt_payload(
@@ -435,3 +436,27 @@ def _prune_none(payload: dict[str, Any]) -> dict[str, Any]:
         else:
             pruned[key] = value
     return pruned
+
+
+def _eb_ref_payload(eb_ref: EbRef) -> dict[str, Any]:
+    payload = {
+        "topic": eb_ref.topic,
+        "partition": eb_ref.partition,
+        "offset": eb_ref.offset,
+        "offset_kind": eb_ref.offset_kind,
+    }
+    if eb_ref.published_at_utc:
+        payload["published_at_utc"] = eb_ref.published_at_utc
+    return payload
+
+
+def _normalize_eb_ref(eb_ref: dict[str, Any] | None) -> dict[str, Any] | None:
+    if not eb_ref:
+        return None
+    if "offset_kind" not in eb_ref:
+        eb_ref = dict(eb_ref)
+        eb_ref["offset_kind"] = "file_line"
+    if "offset" in eb_ref and eb_ref["offset"] is not None:
+        eb_ref = dict(eb_ref)
+        eb_ref["offset"] = str(eb_ref["offset"])
+    return eb_ref

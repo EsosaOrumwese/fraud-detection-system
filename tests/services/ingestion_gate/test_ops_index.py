@@ -28,7 +28,7 @@ def test_ops_index_records_and_looks_up(tmp_path: Path) -> None:
         "decision": "ADMIT",
         "policy_rev": {"policy_id": "ig", "revision": "v1", "content_digest": "c" * 64},
         "pins": {"manifest_fingerprint": "b" * 64},
-        "eb_ref": {"topic": "fp.bus.traffic.v1", "partition": 0, "offset": 1},
+        "eb_ref": {"topic": "fp.bus.traffic.v1", "partition": 0, "offset": "1", "offset_kind": "file_line"},
     }
     index.record_receipt(receipt_payload, "fraud-platform/ig/receipts/abcd.json")
 
@@ -58,7 +58,7 @@ def test_ops_index_rebuild_from_store(tmp_path: Path) -> None:
         "decision": "ADMIT",
         "policy_rev": {"policy_id": "ig", "revision": "v2", "content_digest": "f" * 64},
         "pins": {"manifest_fingerprint": "c" * 64},
-        "eb_ref": {"topic": "fp.bus.traffic.v1", "partition": 0, "offset": 2},
+        "eb_ref": {"topic": "fp.bus.traffic.v1", "partition": 0, "offset": "2", "offset_kind": "file_line"},
     }
     quarantine_payload = {
         "quarantine_id": "q" * 32,

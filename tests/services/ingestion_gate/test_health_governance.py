@@ -5,7 +5,7 @@ from fraud_detection.ingestion_gate.health import HealthProbe, HealthState
 from fraud_detection.ingestion_gate.ops_index import OpsIndex
 from fraud_detection.ingestion_gate.partitioning import PartitioningProfiles
 from fraud_detection.ingestion_gate.store import LocalObjectStore
-from fraud_detection.ingestion_gate.event_bus import FileEventBusPublisher
+from fraud_detection.event_bus import FileEventBusPublisher
 
 
 def _write_partitioning(path: Path) -> None:

@@ -98,3 +98,48 @@ We need a **stable EB boundary contract** and an **EB adapter interface** so IG 
 ### Validation plan (Phase 1)
 - Schema validation of `ingestion_receipt` passes with new `eb_ref` shape.
 - IG smoke path still writes receipts after EB ACK.
+
+---
+
+## Entry: 2026-01-29 05:18:25 — Phase 1 implementation start (contracts + interface)
+
+### Pre‑implementation notes (decision trail)
+- Proceeding only after explicit approval to: (a) move EB interface to `src/fraud_detection/event_bus/`, (b) change EB receipt offsets to string with `offset_kind`.
+- This change is intentionally **schema‑first** to preserve forward compatibility with Kinesis; local file‑bus remains fully supported.
+- EB remains opaque; Phase 1 only addresses **contract shape** and **interface placement**, not retention/consumer responsibilities.
+
+### Planned execution steps (before code)
+1) **Schema update** — `ingestion_receipt.schema.yaml`:
+   - `eb_ref.offset` becomes string.
+   - add `eb_ref.offset_kind` enum (`file_line`, `kinesis_sequence`).
+2) **EB contracts folder** — create `docs/model_spec/platform/contracts/event_bus/eb_ref.schema.yaml`.
+3) **EB interface relocation** — new `src/fraud_detection/event_bus/` module; move `EbRef`, `EventBusPublisher`, `FileEventBusPublisher` there.
+4) **IG wiring update** — update imports and receipt assembly to include `offset_kind`.
+5) **SQLite indices** — adjust IG admission/ops index tables to store offset as TEXT + offset_kind; add lightweight migration for existing DBs.
+6) **Tests** — update IG ops/index tests expecting `eb_ref` to include `offset_kind` and string offsets.
+7) **Validation** — run targeted tests to confirm receipt schema accepts new EB ref shape.
+
+### Constraints
+- Do **not** expand EB responsibilities beyond publish + receipt shape.
+- Do **not** touch engine or SR/WSP flow semantics.
+
+## Entry: 2026-01-29 05:23:43 — Phase 1 implementation (contracts + interface)
+
+### What was implemented
+- **Receipt schema updated**: `eb_ref.offset` is now a string and `offset_kind` is required (`file_line`, `kinesis_sequence`).
+- **EB contract added**: new `docs/model_spec/platform/contracts/event_bus/eb_ref.schema.yaml` and README index entry.
+- **EB interface relocated**: created `src/fraud_detection/event_bus/` with `EbRef`, `EventBusPublisher`, and `FileEventBusPublisher`; IG now imports from this shared module.
+- **Receipt assembly updated**: IG now emits `offset_kind` and string offsets; duplicates are normalized to include `offset_kind`.
+- **SQLite indexes migrated**: admission and ops DBs now store `eb_offset` as TEXT and include `eb_offset_kind`, with `ALTER TABLE` guards for existing DBs.
+
+### Rationale captured during build
+- Offset shape must be forward‑compatible with Kinesis sequence numbers.
+- EB interface must be shared (not IG‑owned) to avoid coupling as we add other EB adapters.
+- Nullable/legacy receipts are normalized to avoid breaking duplicate flow.
+
+### Tests executed
+- `.\.venv\Scripts\python.exe -m pytest tests/services/ingestion_gate/test_ops_index.py tests/services/ingestion_gate/test_phase3_replay_load_recovery.py tests/services/ingestion_gate/test_health_governance.py -q`
+- Result: **8 passed**
+
+### Notes
+- Phase 1 stays strictly at contract + interface layer (no EB backend behavior changes beyond receipt shape).

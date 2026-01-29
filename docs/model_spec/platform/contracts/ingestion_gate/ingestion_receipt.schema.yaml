@@ -80,7 +80,7 @@ properties:
   eb_ref:
     type: object
     additionalProperties: false
-    required: [topic, partition, offset]
+    required: [topic, partition, offset, offset_kind]
     properties:
       topic:
         type: string
@@ -90,8 +90,12 @@ properties:
         type: integer
         minimum: 0
       offset:
-        type: integer
-        minimum: 0
+        type: string
+        minLength: 1
+        maxLength: 128
+      offset_kind:
+        type: string
+        enum: [file_line, kinesis_sequence]
       published_at_utc:
         $ref: "#/$defs/rfc3339_micros"
   evidence_refs:
