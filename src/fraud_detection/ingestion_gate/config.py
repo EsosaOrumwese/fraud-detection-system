@@ -92,7 +92,7 @@ class WiringProfile:
                 admission_db_path = "runs/fraud-platform/ig/index/ig_admission.db"
             else:
                 admission_db_path = str(Path(object_store_root) / "fraud-platform/ig/index/ig_admission.db")
-        event_bus_path = wiring.get("event_bus_path") or event_bus.get("root")
+        event_bus_path = wiring.get("event_bus_path") or event_bus.get("root") or event_bus.get("stream")
         auth_allowlist = list(security.get("auth_allowlist") or [])
         auth_allowlist_ref = security.get("auth_allowlist_ref")
         if auth_allowlist_ref:

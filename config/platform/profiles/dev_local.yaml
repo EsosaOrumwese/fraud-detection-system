@@ -15,10 +15,12 @@ wiring:
   oracle_engine_run_root: ${ORACLE_ENGINE_RUN_ROOT}
   oracle_scenario_id: ${ORACLE_SCENARIO_ID}
   ig_ingest_url: http://localhost:8081
+  event_bus_kind: kinesis
   event_bus:
     topic_traffic: fp.bus.traffic.v1
     topic_control: fp.bus.control.v1
     topic_audit: fp.bus.audit.v1
+    stream: sr-control-bus
   control_bus:
     kind: file
     root: runs/fraud-platform/control_bus

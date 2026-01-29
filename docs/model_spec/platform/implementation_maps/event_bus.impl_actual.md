@@ -407,3 +407,44 @@ Provide a **dev‑parity EB adapter** so IG can publish to a real stream backend
 - IG can publish to Kinesis and receipts include `offset_kind=kinesis_sequence`.
 - Local smoke still passes (file‑bus unaffected).
 
+
+## Entry: 2026-01-29 06:16:14 — Phase 5 implementation start (Kinesis dev adapter)
+
+### Pre‑implementation notes
+- Scope: **publish‑only** Kinesis adapter for dev parity using LocalStack or AWS.
+- No consumer coordination or retention logic; we only need EB ACK semantics and receipt shape.
+
+### Decisions (with reasoning)
+- **Use boto3** (already a dependency in the repo for S3). Minimizes new deps.
+- **Expose endpoint/region via env**: reuse LocalStack vars to avoid secrets in code/docs.
+- **Receipt offset**: Kinesis SequenceNumber stored as string with `offset_kind=kinesis_sequence`.
+
+### Planned steps
+1) Implement `KinesisEventBusPublisher` in `src/fraud_detection/event_bus/kinesis.py`.
+2) Extend IG bus builder to recognize `event_bus_kind: kinesis` and build the adapter.
+3) Add dev profile wiring (if not already) for event bus kind + endpoint.
+4) Add env‑gated integration test (skips when LocalStack not running).
+
+### Constraints
+- No changes to EB contracts; only adapter and wiring.
+- No credentials stored in docs or code.
+
+## Entry: 2026-01-29 06:20:40 — Phase 5 implementation (Kinesis publish adapter)
+
+### What was implemented
+- **KinesisEventBusPublisher** (`src/fraud_detection/event_bus/kinesis.py`) using boto3 `PutRecord`.
+- **IG wiring support** for `event_bus_kind: kinesis` and `event_bus.stream` in profile.
+- **Dev profile wiring** updated to point to Kinesis (`config/platform/profiles/dev_local.yaml`).
+- **Env‑gated smoke test** for Kinesis publish (LocalStack) with skip if endpoint not set.
+
+### Design choices made (and why)
+- Publish‑only adapter: keeps v0 scope tight and avoids consumer coordination.
+- Use `KINESIS_ENDPOINT_URL`/`AWS_*` envs for LocalStack; no credentials in repo.
+- SequenceNumber stored as `offset` with `offset_kind=kinesis_sequence`.
+
+### Tests executed
+- `.\.venv\Scripts\python.exe -m pytest tests/services/event_bus/test_kinesis_publisher.py -q`
+- Result: **skipped** (no LocalStack endpoint set in env during this run).
+
+### Notes
+- Local file‑bus remains default for local profile; dev profile now targets Kinesis by default.

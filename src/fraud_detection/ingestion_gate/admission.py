@@ -424,6 +424,10 @@ def _build_bus(wiring: WiringProfile) -> EventBusPublisher:
     if wiring.event_bus_kind == "file":
         bus_path = wiring.event_bus_path or "runs/local_bus"
         return FileEventBusPublisher(Path(bus_path))
+    if wiring.event_bus_kind == "kinesis":
+        from fraud_detection.event_bus.kinesis import build_kinesis_publisher
+
+        return build_kinesis_publisher(stream_name=wiring.event_bus_path or "fp.bus.traffic.v1")
     raise RuntimeError("EB_KIND_UNSUPPORTED")
 
 
