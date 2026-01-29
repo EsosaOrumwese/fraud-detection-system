@@ -186,3 +186,79 @@ Deliver a **correct local EB implementation** with durable append semantics, sta
 - IG receipts carry EB ref and pass schema validation.
 - Unit tests cover monotonic offsets and crash recovery.
 
+
+## Entry: 2026-01-29 05:35:43 — Phase 2 implementation start (local file‑bus durability)
+
+### Pre‑implementation decision (locked)
+- **Offset source:** per‑topic `head.json` storing `next_offset` (O(1) append). 
+- Rationale: avoids O(n) line counts on each publish and keeps append deterministic for smoke runs. 
+- Recovery rule: if `head.json` missing or inconsistent, derive next offset from log line count and rewrite head.
+
+### Implementation plan (stepwise)
+1) Extend FileEventBusPublisher:
+   - Add per‑topic head file: `runs/fraud-platform/event_bus/<topic>/head.json`.
+   - On publish: read head (or compute from log), append record, flush, fsync, update head.
+   - Emit `published_at_utc` in EbRef.
+
+2) Add recovery logic:
+   - If log exists but head is missing/corrupt → rebuild head from line count.
+   - If head exists but log missing → treat log as empty and reset head to 0.
+
+3) Update health probe (if needed):
+   - Ensure file‑bus root is writeable and head directory is creatable.
+
+4) Tests:
+   - Monotonic offsets with head tracking.
+   - Head recovery from missing head.
+   - Head recovery from missing log.
+
+### Constraints
+- Do not add consumer coordination or retention logic.
+- Keep EB as append‑only and opaque to payload semantics.
+
+## Entry: 2026-01-29 05:39:10 — Phase 2 implementation (file‑bus head + durability)
+
+### What changed
+- **File‑bus now maintains per‑topic `head.json`** with `next_offset` to avoid O(n) counts.
+- **Publish is hardened**: append → flush → fsync; head is written atomically via temp file swap.
+- **Published timestamp** captured in EB ref (`published_at_utc`).
+- **Recovery logic**:
+  - Missing/corrupt head → rebuild from log line count.
+  - Head present but log missing → reset to 0 (log is source of truth).
+
+### Why this design
+- Deterministic offsets with minimal overhead for local smoke runs.
+- Clear recovery rule prevents silent offset drift.
+- Still append‑only; no consumer coordination or retention logic added.
+
+### Tests added
+- `tests/services/event_bus/test_file_bus.py`:
+  - Monotonic offsets
+  - Head missing recovery
+  - Log missing recovery
+
+### Next validation
+- Run EB unit tests + targeted IG tests (receipt includes published_at and offset_kind).
+
+## Entry: 2026-01-29 05:41:50 — Phase 2 fix (head vs log precedence)
+
+### Issue discovered
+- Test showed `head.json` could override a missing log, causing offsets to resume at a stale value.
+
+### Decision
+- Treat the **log as source of truth**; if the log is missing, reset offset to 0 regardless of head.
+
+### Change
+- `_load_next_offset` now checks log existence before reading head.
+
+### Outcome
+- This prevents stale head state from resurrecting non‑existent offsets.
+
+## Entry: 2026-01-29 05:37:33 — Phase 2 tests green
+
+### Test run
+- `.\.venv\Scripts\python.exe -m pytest tests/services/event_bus/test_file_bus.py -q`
+- Result: **3 passed**
+
+### Notes
+- Offset recovery logic now prefers log truth; stale head values no longer resurrect missing offsets.
