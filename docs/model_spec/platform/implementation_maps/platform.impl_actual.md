@@ -562,3 +562,24 @@ Provide a **single make target** that runs the local SR→WSP→IG smoke flow wi
 ### Expected usage
 - Terminal A: `make platform-ig-service`
 - Terminal B: `make platform-smoke`
+
+---
+
+## Entry: 2026-01-29 18:48:00 — Draft maximum‑parity local stack plan (compose + config + migration)
+
+### Trigger
+User requested a “Maximum Parity Local Stack Plan” so local can mirror dev/prod with minimal environment‑ladder friction.
+
+### Decision trail (live reasoning)
+- The current local stack uses **file‑bus + SQLite + filesystem oracle**, which is fast but diverges from the production‑shape backends.
+- The cleanest way to reduce ladder friction is to provide a **parity mode** that swaps local backends for the same service *classes* used in dev/prod (S3/Kinesis/Postgres), while keeping the wiring schema identical.
+- This must remain **opt‑in** so fast local smoke stays available; parity mode should be the default when validating ladder climbs.
+- The plan should be explicit about **compose services**, **profile wiring**, and a **stepwise migration** so we can implement without breaking ongoing work.
+
+### Change
+- Added a **Local Stack Maximum‑Parity Plan** section to `docs/model_spec/platform/implementation_maps/platform.build_plan.md`, including:
+  - parity target shape,
+  - compose blueprint (MinIO + LocalStack + Postgres),
+  - parity profile wiring,
+  - stepwise migration steps,
+  - concrete deliverables (compose file, local parity profile, make targets).

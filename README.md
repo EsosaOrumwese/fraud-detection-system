@@ -45,6 +45,22 @@ Use the interface pack (no segment/state internals):
 
 ---
 
+## Local Stack Overview (v0)
+**Profiles:** `config/platform/profiles/local.yaml` (file‑bus) and `config/platform/profiles/dev_local.yaml` (Kinesis parity).  
+
+**Components (local):**
+- **Oracle Store:** local filesystem dataset under `runs/local_full_run-5` (engine outputs); overridden by `ORACLE_ENGINE_RUN_ROOT`.
+- **WSP:** Python CLI (`fraud_detection.world_streamer_producer.*`), pushes to IG; checkpoints at `runs/fraud-platform/wsp_checkpoints`.
+- **SR:** Python CLI (`fraud_detection.scenario_runner.*`); artifacts under `runs/fraud-platform/sr`.
+- **IG:** Flask service on `http://localhost:8081`; SQLite indices under `runs/fraud-platform/ig`.
+- **EB:** file‑bus log under `runs/fraud-platform/event_bus` (topics `fp.bus.*`).
+
+**Optional local containers:**
+- **Postgres + MinIO** (SR parity) via `infra/local/docker-compose.sr-parity.yaml`.
+- **LocalStack** (Kinesis dev parity) for `dev_local` profile.
+
+---
+
 ## Concept Map
 ```
                             CLOSED-WORLD ENTERPRISE FRAUD PLATFORM — DETAILED ASCII MAP

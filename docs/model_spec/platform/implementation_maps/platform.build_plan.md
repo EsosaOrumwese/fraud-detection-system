@@ -64,6 +64,66 @@ Provide a platform-wide, production-shaped build plan for v0 that aligns compone
 - Provenance records use secret identifiers only (if needed), never secret material.
 - Sensitive runtime artifacts are flagged to the user for review/quarantine.
 
+### Local Stack Maximum‑Parity Plan (v0 add‑on)
+**Intent:** make local behave like dev/prod by swapping file‑based backends for the same classes of services used in higher environments. This is an **opt‑in parity mode**; file‑based local remains for fast smoke, but parity mode should be the default for “no‑gymnastics” ladder climbs.
+
+**Target parity shape (local = dev/prod semantics):**
+- **Oracle Store:** S3‑compatible (MinIO) instead of local filesystem.
+- **Event Bus:** Kinesis‑compatible (LocalStack) instead of file‑bus.
+- **Control Bus:** Kinesis‑compatible (LocalStack) instead of file control bus.
+- **IG indices:** Postgres (docker) instead of SQLite.
+- **WSP checkpoints:** Postgres (docker) instead of file checkpoints.
+- **Runtime shape:** same env var names, same wiring schema; only endpoints change per env.
+
+#### Compose blueprint (local parity stack)
+**Goal:** one local compose file that brings up the parity services.
+- **MinIO** (S3‑compatible) for Oracle Store + platform object store.
+- **LocalStack** with **Kinesis** for Event Bus + control bus.
+- **Postgres** for IG admission/ops indexes + WSP checkpoints.
+- Optional: **minio‑mc** init container to create buckets (`oracle-store`, `fraud-platform`).
+
+#### Config blueprint (parity profile)
+**Goal:** a dedicated local profile (e.g., `local_parity.yaml`) with the same wiring shape as dev/prod.
+- `object_store.root: s3://fraud-platform` (path‑style S3 enabled).
+- `oracle_root: s3://oracle-store/<run-root>` (same path shape as dev/prod).
+- `event_bus_kind: kinesis` (LocalStack endpoint).
+- `control_bus.kind: kinesis` (LocalStack endpoint).
+- `wsp_checkpoint.backend: postgres` (DSN env var).
+- `admission_db_path` replaced by DSN for Postgres‑backed IG index (new backend).
+- Keep `policy.*` identical to dev/prod (speedup optionally elevated but same semantics).
+
+#### Stepwise migration (no‑gymnastics ladder)
+**Step 1 — Postgres index parity**
+- Implement Postgres backend for IG admission/ops index.
+- Wire `IG_ADMISSION_DSN` (env) into IG config; add migrations + health probe.
+- Keep SQLite fallback for tests only.
+
+**Step 2 — WSP checkpoint parity**
+- Switch local parity profile to Postgres checkpoints (`WSP_CHECKPOINT_DSN`).
+- Validate resume semantics across restarts.
+
+**Step 3 — Event Bus parity**
+- Turn on `event_bus_kind: kinesis` for local parity profile.
+- Add LocalStack endpoint envs + stream bootstrapping step.
+- Validate publish + replay via EB reader.
+
+**Step 4 — Control Bus parity**
+- Move READY control bus to LocalStack Kinesis.
+- Validate WSP READY consumer in parity mode.
+
+**Step 5 — Oracle Store parity**
+- Point `oracle_root` to MinIO (`s3://oracle-store/...`).
+- Update WSP to read via S3 paths only in parity mode; validate pack manifest + seal.
+
+**Step 6 — Full chain parity smoke**
+- Local parity smoke run (SR → WSP → IG → EB) using the parity profile.
+- Confirm: no schema errors, stable offsets, IG receipts persisted in Postgres.
+
+**Deliverables for parity mode:**
+- `infra/local/docker-compose.platform-parity.yaml` (MinIO + LocalStack + Postgres).
+- `config/platform/profiles/local_parity.yaml` (S3 + Kinesis + Postgres wiring).
+- `make` targets to bootstrap buckets, streams, and run the parity smoke.
+
 ### Phase 2 — World Oracle + Stream Head (Oracle Store + WSP)
 **Intent:** establish the sealed world boundary and the primary stream producer so the platform experiences bank‑like temporal flow.
 
