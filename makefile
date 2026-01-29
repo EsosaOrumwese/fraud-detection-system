@@ -2600,10 +2600,6 @@ platform-ig-service:
 		--host "$(IG_HOST)" \
 		--port "$(IG_PORT)"
 
-.PHONY: platform-ig-ready-once platform-ig-ready-once-dev platform-ig-ready-dual platform-ig-audit
-platform-ig-ready-once platform-ig-ready-once-dev platform-ig-ready-dual platform-ig-audit:
-	@echo "Deprecated: IG pull/READY paths removed. Use push ingestion (platform-ig-service) and WSP targets." >&2; \
-	exit 1
 
 .PHONY: platform-wsp-ready-once
 platform-wsp-ready-once:

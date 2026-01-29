@@ -1622,3 +1622,12 @@ While removing READY targets, noticed the Makefile had **no** IG service target;
 
 ### Rationale
 Streaming‑only IG still needs an explicit launcher; removing READY targets without a replacement would violate the “no dangling scripts” expectation.
+
+## Entry: 2026-01-29 00:32:54 — IG Phase 8 follow‑up (prune legacy Make targets)
+
+### Trigger
+User requested removal of legacy IG pull/READY Make targets.
+
+### Decision + change
+- Removed deprecated targets (`platform-ig-ready-once`, `platform-ig-ready-once-dev`, `platform-ig-ready-dual`, `platform-ig-audit`) from `makefile`.
+- Rationale: streaming‑only IG should not expose pull/READY entrypoints even as no‑op stubs.
