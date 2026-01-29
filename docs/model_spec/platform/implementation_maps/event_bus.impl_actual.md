@@ -372,3 +372,38 @@ Harden the **IG→EB publish boundary** so that “admitted” only happens afte
 
 ### Scope discipline
 - No retries or consumer coordination added; EB remains an append‑only log with explicit ACK semantics.
+
+## Entry: 2026-01-29 06:14:55 — Phase 5 planning (dev adapter parity: Kinesis/LocalStack)
+
+### Phase intent
+Provide a **dev‑parity EB adapter** so IG can publish to a real stream backend (LocalStack Kinesis or AWS) without changing semantics. This is still v0 scope; it focuses on publish only.
+
+### Reasoning trail
+- Local file‑bus proves append + offsets. Dev must validate we can publish into a real streaming system while preserving receipt shape and ACK semantics.
+- We already use LocalStack for SR/IG experimentation; Kinesis is a pragmatic v0 dev target (Kafka can come later).
+- We must **not** add consumer coordination or retention; only publishing and receipts are in scope.
+
+### Proposed plan
+1) **Kinesis adapter (publish‑only)**
+   - Implement `KinesisEventBusPublisher` in `src/fraud_detection/event_bus/kinesis.py`.
+   - Input: topic, partition_key, payload → `PutRecord`.
+   - Output: `EbRef` with `offset_kind = kinesis_sequence`, `offset = SequenceNumber`, `published_at_utc` set at publish time.
+
+2) **Config wiring**
+   - Extend IG wiring to accept `event_bus_kind: kinesis` plus endpoint/region/credentials.
+   - Use existing localstack envs for endpoint.
+
+3) **Smoke validation (dev)**
+   - Publish N records to LocalStack Kinesis; assert EB refs contain sequence numbers.
+   - Keep smoke capped (N=5) and isolated in a dev profile.
+
+4) **Tests**
+   - Unit test with boto3 stubber (optional). Integration test gated by envs (LocalStack).
+
+### Decisions needing confirmation
+- Do we standardize on **LocalStack Kinesis** for dev EB parity, or do you want a different backend for v0 dev?
+
+### Exit criteria
+- IG can publish to Kinesis and receipts include `offset_kind=kinesis_sequence`.
+- Local smoke still passes (file‑bus unaffected).
+
