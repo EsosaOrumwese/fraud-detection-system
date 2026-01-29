@@ -16,6 +16,7 @@ wiring:
   oracle_scenario_id: ${ORACLE_SCENARIO_ID}
   ig_ingest_url: http://localhost:8081
   event_bus:
+    root: runs/fraud-platform/event_bus
     topic_traffic: fp.bus.traffic.v1
     topic_control: fp.bus.control.v1
     topic_audit: fp.bus.audit.v1

@@ -462,3 +462,57 @@ Provide a **dev‑parity EB adapter** so IG can publish to a real stream backend
 ### Impact
 - Phase 5 stays Kinesis publish‑only.
 - Kafka noted as a v1+ adapter in the EB build plan.
+
+## Entry: 2026-01-29 06:27:36 — Local EB root alignment for smoke run
+
+### Observation
+- Local IG file‑bus default was `runs/local_bus` (implicit), which splits EB artifacts from the platform runtime root.
+
+### Decision
+- Align local file‑bus root to `runs/fraud-platform/event_bus` to keep all platform runtime artifacts under the same root and meet earlier platform layout requirements.
+
+### Change
+- Update `config/platform/profiles/local.yaml` to set `wiring.event_bus.root: runs/fraud-platform/event_bus`.
+
+## Entry: 2026-01-29 06:28:50 — Smoke runner fix (Windows bash quoting)
+
+### Issue
+- `make platform-smoke` failed under Git Bash due to nested quotes in the Python command that generates a run_equivalence_key.
+
+### Fix
+- Escaped the inner quotes in the Python one‑liner so bash parses it correctly on Windows.
+
+### Change
+- `makefile`: adjusted `platform-smoke` run_equivalence_key generator.
+
+## Entry: 2026-01-29 06:29:29 — Smoke runner fix (use date instead of python)
+
+### Issue
+- Quoting in `platform-smoke` kept failing under `/usr/bin/bash` on Windows.
+
+### Fix
+- Replaced Python one‑liner with `date +%Y%m%dT%H%M%SZ` to generate the run_equivalence_key in bash.
+
+### Change
+- `makefile`: `SR_RUN_EQUIVALENCE_KEY=local_smoke_$$(date +%Y%m%dT%H%M%SZ)`.
+
+## Entry: 2026-01-29 06:33:45 — Smoke run verification (SR → WSP → IG → EB)
+
+### Goal
+- Confirm end‑to‑end local chain publishes to the file‑bus with stable offsets and no fresh errors in platform logging.
+
+### Run context
+- Platform run id: `platform_20260129T062946Z`.
+- Engine root: `runs/local_full_run-5/c25a2675fbfbacd952b13bb594880e92`.
+- Event bus root: `runs/fraud-platform/event_bus`.
+
+### Evidence gathered
+- SR run log: `runs/fraud-platform/platform_runs/platform_20260129T062946Z/platform.log` shows READY committed for run_id `a26b2312a84f851b4a7d7e559fc5c122`.
+- EB file‑bus state:
+  - `runs/fraud-platform/event_bus/fp.bus.traffic.v1/head.json` → `{"next_offset":20}`.
+  - `runs/fraud-platform/event_bus/fp.bus.traffic.v1/partition=0.jsonl` contains the last events published at `2026-01-29T06:30:50Z`–`06:30:52Z`.
+- IG admissions recorded in `runs/fraud-platform/platform.log` show offsets 1–19 for the same time window.
+
+### Outcome
+- Smoke run is green for the local chain; EB offsets advanced to 20 and no fresh ERROR/SCHEMA_FAIL lines appeared in the tail of `runs/fraud-platform/platform.log` during the 06:29–06:31 window.
+- Older SCHEMA_FAIL records remain in the global platform log from earlier experiments (pre‑run); they are not from this smoke run.

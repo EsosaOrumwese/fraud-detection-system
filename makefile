@@ -2639,7 +2639,7 @@ platform-smoke:
 	@echo "Ensure IG service is running (in another terminal): make platform-ig-service"
 	@$(MAKE) platform-run-new
 	@$(MAKE) platform-bus-clean
-	@SR_RUN_EQUIVALENCE_KEY="$$( $(PY_SCRIPT) -c \"import time; print('local_smoke_' + time.strftime('%Y%m%dT%H%M%SZ'))\" )" \
+	@SR_RUN_EQUIVALENCE_KEY="local_smoke_$$(date +%Y%m%dT%H%M%SZ)" \
 		$(MAKE) platform-sr-run-reuse
 	@WSP_READY_MAX_EVENTS="$(PLATFORM_SMOKE_MAX_EVENTS)" $(MAKE) platform-wsp-ready-consumer-once
 
