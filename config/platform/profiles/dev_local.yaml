@@ -30,11 +30,3 @@ wiring:
   wsp_producer:
     producer_id: svc:world_stream_producer
     allowlist_ref: config/platform/wsp/producer_allowlist_v0.txt
-  ready_lease:
-    backend: postgres
-    dsn: ${IG_READY_LEASE_DSN}
-    namespace: ig_ready
-    owner_id: ${IG_INSTANCE_ID}
-  pull_sharding:
-    mode: locator_range
-    shard_size: 1

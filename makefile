@@ -2520,9 +2520,8 @@ SR_WINDOW_END ?= 2026-01-02T00:00:00Z
 
 IG_PROFILE ?= config/platform/profiles/local.yaml
 IG_PROFILE_DEV ?= config/platform/profiles/dev_local.yaml
-IG_READY_LEASE_DSN ?= postgresql://sr:sr@localhost:5433/sr_dev
-IG_INSTANCE_ID ?= ig-1
-IG_INSTANCE_ID_2 ?= ig-2
+IG_HOST ?= 127.0.0.1
+IG_PORT ?= 8081
 IG_AUDIT_RUN_ID ?=
 PLATFORM_RUN_ID ?=
 WSP_PROFILE ?= config/platform/profiles/local.yaml
@@ -2594,36 +2593,17 @@ platform-sr-reemit:
 		--run-id "$(SR_REEMIT_RUN_ID)" \
 		--kind "$(SR_REEMIT_KIND)"
 
-.PHONY: platform-ig-ready-once platform-ig-ready-dual
-platform-ig-ready-once:
-	@IG_READY_LEASE_DSN="$(IG_READY_LEASE_DSN)" \
-	 IG_INSTANCE_ID="$(IG_INSTANCE_ID)" \
-	 $(PY_SCRIPT) -m fraud_detection.ingestion_gate.ready_consumer --profile "$(IG_PROFILE)" --once
+.PHONY: platform-ig-service
+platform-ig-service:
+	@$(PY_SCRIPT) -m fraud_detection.ingestion_gate.service \
+		--profile "$(IG_PROFILE)" \
+		--host "$(IG_HOST)" \
+		--port "$(IG_PORT)"
 
-.PHONY: platform-ig-ready-once-dev
-platform-ig-ready-once-dev:
-	@IG_READY_LEASE_DSN="$(IG_READY_LEASE_DSN)" \
-	 IG_INSTANCE_ID="$(IG_INSTANCE_ID)" \
-	 $(PY_SCRIPT) -m fraud_detection.ingestion_gate.ready_consumer --profile "$(IG_PROFILE_DEV)" --once
-
-platform-ig-ready-dual:
-	@if [ -z "$(IG_READY_LEASE_DSN)" ]; then \
-		echo "IG_READY_LEASE_DSN is required for dual READY consumers." >&2; \
-		exit 1; \
-	fi
-	@IG_READY_LEASE_DSN="$(IG_READY_LEASE_DSN)" IG_INSTANCE_ID="$(IG_INSTANCE_ID)" \
-	 $(PY_SCRIPT) -m fraud_detection.ingestion_gate.ready_consumer --profile "$(IG_PROFILE)" --once & \
-	 IG_READY_LEASE_DSN="$(IG_READY_LEASE_DSN)" IG_INSTANCE_ID="$(IG_INSTANCE_ID_2)" \
-	 $(PY_SCRIPT) -m fraud_detection.ingestion_gate.ready_consumer --profile "$(IG_PROFILE)" --once; \
-	 wait
-
-.PHONY: platform-ig-audit
-platform-ig-audit:
-	@if [ -z "$(IG_AUDIT_RUN_ID)" ]; then \
-		echo "IG_AUDIT_RUN_ID is required for platform-ig-audit." >&2; \
-		exit 1; \
-	fi
-	@$(PY_SCRIPT) -m fraud_detection.ingestion_gate.cli --profile "$(IG_PROFILE)" --audit-verify "$(IG_AUDIT_RUN_ID)"
+.PHONY: platform-ig-ready-once platform-ig-ready-once-dev platform-ig-ready-dual platform-ig-audit
+platform-ig-ready-once platform-ig-ready-once-dev platform-ig-ready-dual platform-ig-audit:
+	@echo "Deprecated: IG pull/READY paths removed. Use push ingestion (platform-ig-service) and WSP targets." >&2; \
+	exit 1
 
 .PHONY: platform-wsp-ready-once
 platform-wsp-ready-once:

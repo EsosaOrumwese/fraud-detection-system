@@ -27,7 +27,6 @@ class WiringProfile:
     object_store_region: str | None
     object_store_path_style: bool | None
     admission_db_path: str
-    sr_ledger_prefix: str
     engine_root_path: str | None
     health_probe_interval_seconds: int
     health_deny_on_amber: bool
@@ -47,31 +46,12 @@ class WiringProfile:
     policy_rev: str
     event_bus_kind: str = "file"
     event_bus_path: str | None = None
-    control_bus_kind: str = "file"
-    control_bus_root: str | None = None
-    control_bus_topic: str = "fp.bus.control.v1"
-    control_bus_stream: str | None = None
-    control_bus_region: str | None = None
-    control_bus_endpoint_url: str | None = None
     auth_mode: str = "disabled"
     api_key_header: str = "X-IG-Api-Key"
     auth_allowlist: list[str] | None = None
     auth_allowlist_ref: str | None = None
-    ready_allowlist_run_ids: list[str] | None = None
-    ready_allowlist_ref: str | None = None
     push_rate_limit_per_minute: int = 0
-    ready_rate_limit_per_minute: int = 0
     store_read_failure_threshold: int = 3
-    store_read_retry_attempts: int = 3
-    store_read_retry_backoff_seconds: float = 0.2
-    store_read_retry_max_seconds: float = 2.0
-    ready_lease_backend: str = "none"
-    ready_lease_dsn: str | None = None
-    ready_lease_namespace: str = "ig_ready"
-    ready_lease_owner_id: str | None = None
-    pull_shard_mode: str = "output_id"
-    pull_shard_size: int = 0
-    pull_time_budget_seconds: float | None = None
 
     @classmethod
     def load(cls, path: Path) -> "WiringProfile":
@@ -80,13 +60,18 @@ class WiringProfile:
         wiring = data.get("wiring", {})
         object_store = wiring.get("object_store", {})
         event_bus = wiring.get("event_bus", {})
-        control_bus = wiring.get("control_bus", {})
         security = wiring.get("security", {})
-        ready_lease = wiring.get("ready_lease", {})
-        pull_sharding = wiring.get("pull_sharding", {})
-        pull_time_budget = wiring.get("pull_time_budget_seconds")
-        if isinstance(pull_time_budget, str) and pull_time_budget.strip():
-            pull_time_budget = float(pull_time_budget)
+        legacy_keys: list[str] = []
+        if "ready_lease" in wiring:
+            legacy_keys.append("wiring.ready_lease")
+        if "pull_sharding" in wiring:
+            legacy_keys.append("wiring.pull_sharding")
+        if "pull_time_budget_seconds" in wiring:
+            legacy_keys.append("wiring.pull_time_budget_seconds")
+        if "ready_allowlist_run_ids" in security or "ready_allowlist_ref" in security or "ready_rate_limit_per_minute" in security:
+            legacy_keys.append("wiring.security.ready_*")
+        if legacy_keys:
+            raise ValueError(f"PULL_WIRING_DEPRECATED: {', '.join(legacy_keys)}")
         endpoint = _resolve_env(object_store.get("endpoint"))
         region = _resolve_env(object_store.get("region"))
         path_style = object_store.get("path_style")
@@ -108,16 +93,10 @@ class WiringProfile:
             else:
                 admission_db_path = str(Path(object_store_root) / "fraud-platform/ig/index/ig_admission.db")
         event_bus_path = wiring.get("event_bus_path") or event_bus.get("root")
-        control_bus_root = control_bus.get("root") or wiring.get("control_bus_root")
-        control_bus_topic = control_bus.get("topic") or event_bus.get("topic_control") or "fp.bus.control.v1"
         auth_allowlist = list(security.get("auth_allowlist") or [])
         auth_allowlist_ref = security.get("auth_allowlist_ref")
         if auth_allowlist_ref:
             auth_allowlist.extend(load_allowlist(auth_allowlist_ref))
-        ready_allowlist = list(security.get("ready_allowlist_run_ids") or [])
-        ready_allowlist_ref = security.get("ready_allowlist_ref")
-        if ready_allowlist_ref:
-            ready_allowlist.extend(load_allowlist(ready_allowlist_ref))
         return cls(
             profile_id=profile_id,
             object_store_root=object_store_root,
@@ -125,7 +104,6 @@ class WiringProfile:
             object_store_region=region,
             object_store_path_style=path_style,
             admission_db_path=admission_db_path,
-            sr_ledger_prefix=wiring.get("sr_ledger_prefix", "fraud-platform/sr"),
             engine_root_path=wiring.get("engine_root_path"),
             health_probe_interval_seconds=int(wiring.get("health_probe_interval_seconds", 30)),
             health_deny_on_amber=bool(wiring.get("health_deny_on_amber", False)),
@@ -166,31 +144,12 @@ class WiringProfile:
             policy_rev=policy.get("policy_rev", profile_id),
             event_bus_kind=wiring.get("event_bus_kind", "file"),
             event_bus_path=event_bus_path,
-            control_bus_kind=control_bus.get("kind", wiring.get("control_bus_kind", "file")),
-            control_bus_root=control_bus_root,
-            control_bus_topic=control_bus_topic,
-            control_bus_stream=control_bus.get("stream"),
-            control_bus_region=control_bus.get("region"),
-            control_bus_endpoint_url=control_bus.get("endpoint_url"),
             auth_mode=security.get("auth_mode", "disabled"),
             api_key_header=security.get("api_key_header", "X-IG-Api-Key"),
             auth_allowlist=auth_allowlist or None,
             auth_allowlist_ref=auth_allowlist_ref,
-            ready_allowlist_run_ids=ready_allowlist or None,
-            ready_allowlist_ref=ready_allowlist_ref,
             push_rate_limit_per_minute=int(security.get("push_rate_limit_per_minute", 0)),
-            ready_rate_limit_per_minute=int(security.get("ready_rate_limit_per_minute", 0)),
             store_read_failure_threshold=int(security.get("store_read_failure_threshold", 3)),
-            store_read_retry_attempts=int(security.get("store_read_retry_attempts", 3)),
-            store_read_retry_backoff_seconds=float(security.get("store_read_retry_backoff_seconds", 0.2)),
-            store_read_retry_max_seconds=float(security.get("store_read_retry_max_seconds", 2.0)),
-            ready_lease_backend=ready_lease.get("backend", "none"),
-            ready_lease_dsn=_resolve_env(ready_lease.get("dsn")),
-            ready_lease_namespace=ready_lease.get("namespace", "ig_ready"),
-            ready_lease_owner_id=_resolve_env(ready_lease.get("owner_id")),
-            pull_shard_mode=pull_sharding.get("mode", "output_id"),
-            pull_shard_size=int(pull_sharding.get("shard_size", 0)),
-            pull_time_budget_seconds=pull_time_budget,
         )
 
 

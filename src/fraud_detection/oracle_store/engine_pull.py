@@ -1,4 +1,4 @@
-"""Engine pull ingestion: frame engine outputs into canonical envelopes."""
+"""Engine pull helper for Oracle Store streaming (WSP)."""
 
 from __future__ import annotations
 
@@ -10,12 +10,13 @@ from typing import Any, Iterable
 
 import pyarrow.parquet as pq
 
-from .catalogue import OutputCatalogue
-from .errors import IngestionError
-from .ids import derive_engine_event_id
-from .retry import with_retry
+from fraud_detection.ingestion_gate.catalogue import OutputCatalogue
+from fraud_detection.ingestion_gate.errors import IngestionError
+from fraud_detection.ingestion_gate.ids import derive_engine_event_id
+from fraud_detection.ingestion_gate.retry import with_retry
 
 logger = logging.getLogger(__name__)
+
 
 @dataclass
 class EnginePuller:
@@ -40,7 +41,7 @@ class EnginePuller:
                 continue
             if output_id not in locator_by_output:
                 continue
-            logger.info("IG engine_pull output_id=%s path=%s", output_id, locator_by_output[output_id])
+            logger.info("WSP engine_pull output_id=%s path=%s", output_id, locator_by_output[output_id])
             yield from self._events_from_output(output_id, locator_by_output[output_id], pins)
 
     def list_outputs(self) -> list[str]:

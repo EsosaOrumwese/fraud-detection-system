@@ -252,6 +252,7 @@ _This alignment supersedes the legacy pull‑ingest posture. IG becomes **push�
 - Local smoke: WSP → IG push‑only path validated.
 
 ## Status (rolling)
+- Note: Phases 4–6 describe the legacy pull path; retired by the Phase 7–8 streaming‑only alignment.
 - Phase 1: complete (admission spine + run joinability + optional gate re-hash; unit tests added).
 - Phase 2: complete (policy digesting + ops index + health/ingress control + governance/metrics; tests green).
 - Phase 3: complete (replay/load/recovery tests added; suite green + SR‑artifact smoke test).
@@ -259,4 +260,5 @@ _This alignment supersedes the legacy pull‑ingest posture. IG becomes **push�
 - Phase 5: complete (auth/rate limits + S3 run_facts support + retries/backpressure + per-phase metrics + runbook/alerts; tests green).
 - Phase 6: in progress (READY leases, optional sharding checkpoints, hash-chain integrity, audit CLI; time-budget guard done).
 - Phase 7: complete (streaming‑only docs + contracts alignment).
-- Phase 8–9: planned (implementation retirement → validation).
+- Phase 8: complete (pull/READY implementation removed; config fails closed).
+- Phase 9: in progress (push‑only validation; WSP→IG local smoke pending).

@@ -97,7 +97,6 @@ def _build_gate(tmp_path: Path, *, deny_on_amber: bool = False) -> IngestionGate
         object_store_region=None,
         object_store_path_style=None,
         admission_db_path=str(tmp_path / "ig_admission.db"),
-        sr_ledger_prefix="fraud-platform/sr",
         engine_root_path=None,
         health_probe_interval_seconds=0,
         health_deny_on_amber=deny_on_amber,

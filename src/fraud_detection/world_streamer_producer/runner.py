@@ -17,7 +17,7 @@ import requests
 import yaml
 
 from fraud_detection.ingestion_gate.catalogue import OutputCatalogue
-from fraud_detection.ingestion_gate.engine_pull import EnginePuller
+from fraud_detection.oracle_store.engine_pull import EnginePuller
 from fraud_detection.ingestion_gate.errors import IngestionError
 from fraud_detection.platform_runtime import append_session_event
 from fraud_detection.scenario_runner.schemas import SchemaRegistry

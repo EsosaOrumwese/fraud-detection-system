@@ -43,27 +43,12 @@ wiring:
   wsp_producer:
     producer_id: svc:world_stream_producer
     allowlist_ref: config/platform/wsp/producer_allowlist_v0.txt
-  ready_lease:  # legacy (pull-only; retired)
-    backend: none | postgres
-    dsn: ${IG_READY_LEASE_DSN}
-    namespace: ig_ready
-    owner_id: ${IG_INSTANCE_ID}
-  pull_sharding:  # legacy (pull-only; retired)
-    mode: output_id | locator_range
-    shard_size: 0
-  pull_time_budget_seconds: 0  # legacy (pull-only; retired)
   security:
     auth_mode: disabled | api_key
     api_key_header: X-IG-Api-Key
     auth_allowlist_ref: path/to/allowlist.txt
-    ready_allowlist_run_ids: [run_id_1, run_id_2]
-    ready_allowlist_ref: path/to/ready_allowlist.txt
     push_rate_limit_per_minute: 0
-    ready_rate_limit_per_minute: 0
     store_read_failure_threshold: 3
-    store_read_retry_attempts: 3
-    store_read_retry_backoff_seconds: 0.2
-    store_read_retry_max_seconds: 2.0
 ```
 
 Notes:
@@ -73,7 +58,7 @@ Notes:
 - `traffic_output_ids_ref` defines the **WSP business_traffic allowlist** (engine output_ids eligible to stream).
 - Wiring endpoints are placeholders; actual values come from env/secret store.
 - `${VAR}` placeholders are resolved from environment variables at load time.
-- `control_bus` wiring is **legacy pull-only** (READY consumer); retired in streaming-only v0.
+- `control_bus` wiring is used by the WSP control plane (SR → WSP); IG ignores it in streaming-only v0.
 - `oracle_root` points to the sealed engine world store (Oracle Store); it is wiring, not policy.
 - `oracle_engine_run_root` optionally pins WSP to a specific engine world (no “latest” scanning).
 - `oracle_scenario_id` can be used when a world contains multiple scenarios (avoid ambiguity).
@@ -84,12 +69,10 @@ Notes:
 - Local file runs use `object_store.root: runs` so platform artifacts resolve under `runs/fraud-platform/`.
 - `security` is wiring‑scoped: it can enable auth and rate limits without changing policy behavior.
 - Auth applies to **ingest and ops endpoints** when enabled; only CLI/internal calls bypass it.
-- `ready_lease` is **legacy pull-only** (distributed READY consumer); retired in streaming-only v0.
-- `pull_sharding` is **legacy pull-only**; retired in streaming-only v0.
-- `pull_time_budget_seconds` is **legacy pull-only**; retired in streaming-only v0.
+- IG rejects legacy pull wiring keys (`ready_lease`, `pull_sharding`, `pull_time_budget_seconds`, `security.ready_*`) in streaming‑only v0.
 - `stream_speedup` is a **policy knob** that affects pacing only (same semantics across envs).
 
 Testing policy (current):
-- **local.yaml** → smoke validation only (push ingestion). Pull time budgets are legacy-only and retired.
+- **local.yaml** → smoke validation only (push ingestion).
 - **dev_local.yaml** → completion runs (uncapped; uses local filesystem).
 - **dev.yaml** → reserved for true dev infra (S3/RDS/etc.) when available.

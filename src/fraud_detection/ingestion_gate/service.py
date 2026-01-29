@@ -3,9 +3,6 @@
 from __future__ import annotations
 
 import argparse
-import os
-import threading
-import time
 from pathlib import Path
 from typing import Any
 
@@ -13,12 +10,9 @@ from flask import Flask, jsonify, request
 
 from .admission import IngestionGate
 from .config import WiringProfile
-from .control_bus import FileControlBusReader, ReadyConsumer
 from .errors import IngestionError, reason_code
 from ..platform_runtime import platform_log_paths
 from .logging_utils import configure_logging
-from .pull_state import PullRunStore
-from .schemas import SchemaRegistry
 
 
 def create_app(profile_path: str) -> Flask:
@@ -46,26 +40,6 @@ def create_app(profile_path: str) -> Flask:
         except Exception as exc:  # pragma: no cover - defensive
             return jsonify({"error": reason_code(exc)}), 500
 
-    @app.post("/v1/ingest/pull")
-    def ingest_pull() -> Any:
-        payload = request.get_json(force=True) or {}
-        run_id = payload.get("run_id")
-        run_facts_ref = payload.get("run_facts_ref") or payload.get("facts_view_ref")
-        message_id = payload.get("message_id")
-        try:
-            _require_auth(gate, request)
-            gate.enforce_ready_rate_limit()
-            if not run_facts_ref and run_id:
-                run_facts_ref = gate.resolve_run_facts_ref(run_id)
-            if not run_facts_ref:
-                raise IngestionError("RUN_FACTS_MISSING")
-            status = gate.admit_pull_with_state(run_facts_ref, run_id=run_id, message_id=message_id)
-            return jsonify(status)
-        except IngestionError as exc:
-            return jsonify({"error": exc.code, "detail": exc.detail}), _error_status(exc)
-        except Exception as exc:  # pragma: no cover - defensive
-            return jsonify({"error": reason_code(exc)}), 500
-
     @app.get("/v1/ops/lookup")
     def ops_lookup() -> Any:
         _require_auth(gate, request)
@@ -88,33 +62,7 @@ def create_app(profile_path: str) -> Flask:
         result = gate.health.check()
         return jsonify({"state": result.state.value, "reasons": result.reasons})
 
-    _start_ready_consumer(app, wiring, gate)
     return app
-
-
-def _start_ready_consumer(app: Flask, wiring: WiringProfile, gate: IngestionGate) -> None:
-    if os.getenv("IG_READY_CONSUMER", "false").lower() not in {"1", "true", "yes"}:
-        return
-    if wiring.control_bus_kind != "file":
-        raise RuntimeError("CONTROL_BUS_KIND_UNSUPPORTED")
-    root = Path(wiring.control_bus_root or "runs/fraud-platform/control_bus")
-    registry = SchemaRegistry(Path(wiring.schema_root) / "scenario_runner")
-    reader = FileControlBusReader(root, wiring.control_bus_topic, registry=registry)
-    consumer = ReadyConsumer(gate, reader, PullRunStore(gate.store))
-    stop_event = threading.Event()
-
-    def loop() -> None:
-        interval = float(os.getenv("IG_READY_POLL_SECONDS", "2.0"))
-        while not stop_event.is_set():
-            consumer.poll_once()
-            time.sleep(interval)
-
-    thread = threading.Thread(target=loop, name="ig-ready-consumer", daemon=True)
-    thread.start()
-
-    @app.teardown_appcontext
-    def _stop_ready_consumer(exc: Exception | None = None) -> None:
-        stop_event.set()
 
 
 def _error_status(exc: IngestionError) -> int:

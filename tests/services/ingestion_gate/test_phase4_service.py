@@ -1,4 +1,3 @@
-import json
 from pathlib import Path
 
 from fraud_detection.ingestion_gate.service import create_app
@@ -86,13 +85,11 @@ def _write_profile(tmp_path: Path) -> Path:
         "wiring": {
             "object_store": {"root": str(tmp_path / "store")},
             "admission_db_path": str(tmp_path / "ig_admission.db"),
-            "sr_ledger_prefix": "fraud-platform/sr",
             "schema_root": "docs/model_spec/platform/contracts",
             "engine_contracts_root": "docs/model_spec/data-engine/interface_pack/contracts",
             "engine_catalogue_path": str(catalogue),
             "gate_map_path": str(gate_map),
             "event_bus_path": str(tmp_path / "bus"),
-            "control_bus": {"kind": "file", "root": str(tmp_path / "control_bus"), "topic": "fp.bus.control.v1"},
         },
     }
     profile_path = tmp_path / "profile.yaml"
@@ -100,29 +97,7 @@ def _write_profile(tmp_path: Path) -> Path:
     return profile_path
 
 
-def _write_run_facts(tmp_path: Path, run_id: str) -> str:
-    store_root = tmp_path / "store"
-    output_path = tmp_path / "data" / "test_event" / "part.json"
-    output_path.parent.mkdir(parents=True, exist_ok=True)
-    output_path.write_text(
-        json.dumps([{"flow_id": "1", "ts_utc": "2026-01-01T00:00:00.000000Z"}], ensure_ascii=True),
-        encoding="utf-8",
-    )
-    run_facts_ref = f"fraud-platform/sr/run_facts_view/{run_id}.json"
-    run_facts = {
-        "pins": {"manifest_fingerprint": "a" * 64, "run_id": run_id},
-        "output_roles": {"test_event": "business_traffic"},
-        "locators": [{"output_id": "test_event", "path": str(output_path)}],
-        "gate_receipts": [],
-        "instance_receipts": [],
-    }
-    facts_path = store_root / run_facts_ref
-    facts_path.parent.mkdir(parents=True, exist_ok=True)
-    facts_path.write_text(json.dumps(run_facts, ensure_ascii=True), encoding="utf-8")
-    return run_facts_ref
-
-
-def test_service_push_and_pull(tmp_path: Path) -> None:
+def test_service_push_only(tmp_path: Path) -> None:
     profile_path = _write_profile(tmp_path)
     app = create_app(str(profile_path))
     client = app.test_client()
@@ -137,9 +112,3 @@ def test_service_push_and_pull(tmp_path: Path) -> None:
     push_resp = client.post("/v1/ingest/push", json=envelope)
     assert push_resp.status_code == 200
     assert push_resp.get_json()["decision"] == "ADMIT"
-
-    run_id = "b" * 32
-    run_facts_ref = _write_run_facts(tmp_path, run_id)
-    pull_resp = client.post("/v1/ingest/pull", json={"run_facts_ref": run_facts_ref, "run_id": run_id})
-    assert pull_resp.status_code == 200
-    assert pull_resp.get_json()["status"] in {"COMPLETED", "PARTIAL"}

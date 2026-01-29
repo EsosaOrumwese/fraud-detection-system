@@ -65,10 +65,6 @@ class GovernanceEmitter:
         envelope = _make_envelope("ig.quarantine.spike", payload)
         self._emit_audit(envelope)
 
-    def emit_pull_run_summary(self, payload: dict[str, Any]) -> None:
-        envelope = _make_envelope("ig.pull.run", payload)
-        self._emit_audit(envelope)
-
     def emit_audit_verification(self, payload: dict[str, Any]) -> None:
         envelope = _make_envelope("ig.audit.verify", payload)
         self._emit_audit(envelope)

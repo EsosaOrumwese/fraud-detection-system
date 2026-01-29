@@ -1,13 +1,8 @@
-import json
 from pathlib import Path
 
 import pytest
 
-from fraud_detection.ingestion_gate.control_bus import FileControlBusReader, ReadyConsumer
-from fraud_detection.ingestion_gate.admission import IngestionGate
 from fraud_detection.ingestion_gate.config import WiringProfile
-from fraud_detection.ingestion_gate.pull_state import PullRunStore
-from fraud_detection.ingestion_gate.schemas import SchemaRegistry
 from fraud_detection.ingestion_gate.service import create_app
 
 
@@ -97,13 +92,11 @@ def _write_profile(tmp_path: Path, security: dict | None = None) -> Path:
         "wiring": {
             "object_store": {"root": str(tmp_path / "store")},
             "admission_db_path": str(tmp_path / "ig_admission.db"),
-            "sr_ledger_prefix": "fraud-platform/sr",
             "schema_root": "docs/model_spec/platform/contracts",
             "engine_contracts_root": "docs/model_spec/data-engine/interface_pack/contracts",
             "engine_catalogue_path": str(files["catalogue"]),
             "gate_map_path": str(files["gate_map"]),
             "event_bus_path": str(tmp_path / "bus"),
-            "control_bus": {"kind": "file", "root": str(tmp_path / "control_bus"), "topic": "fp.bus.control.v1"},
         },
     }
     if security:
@@ -159,58 +152,30 @@ def test_push_rate_limit(tmp_path: Path) -> None:
     assert second.status_code == 429
 
 
-def test_ready_allowlist_blocks(tmp_path: Path) -> None:
+def test_profile_rejects_legacy_pull_wiring(tmp_path: Path) -> None:
     files = _base_profile_files(tmp_path)
-    wiring = WiringProfile(
-        profile_id="test",
-        object_store_root=str(tmp_path / "store"),
-        object_store_endpoint=None,
-        object_store_region=None,
-        object_store_path_style=None,
-        admission_db_path=str(tmp_path / "ig_admission.db"),
-        sr_ledger_prefix="fraud-platform/sr",
-        engine_root_path=None,
-        health_probe_interval_seconds=0,
-        health_deny_on_amber=False,
-        health_amber_sleep_seconds=0,
-        bus_publish_failure_threshold=2,
-        metrics_flush_seconds=0,
-        quarantine_spike_threshold=3,
-        quarantine_spike_window_seconds=60,
-        schema_root="docs/model_spec/platform/contracts",
-        engine_contracts_root="docs/model_spec/data-engine/interface_pack/contracts",
-        engine_catalogue_path=str(files["catalogue"]),
-        gate_map_path=str(files["gate_map"]),
-        partitioning_profiles_ref=str(files["partitioning"]),
-        partitioning_profile_id="ig.partitioning.v0.traffic",
-        schema_policy_ref=str(files["schema_policy"]),
-        class_map_ref=str(files["class_map"]),
-        policy_rev="test-v0",
-        event_bus_kind="file",
-        event_bus_path=str(tmp_path / "bus"),
-        control_bus_kind="file",
-        control_bus_root=str(tmp_path / "control_bus"),
-        control_bus_topic="fp.bus.control.v1",
-        ready_allowlist_run_ids=["allowed"],
-    )
-    gate = IngestionGate.build(wiring)
-
-    run_id = "b" * 32
-    control_root = Path(tmp_path / "control_bus" / "fp.bus.control.v1")
-    control_root.mkdir(parents=True, exist_ok=True)
-    message_id = "msg-1"
-    ready_payload = {"run_id": run_id, "facts_view_ref": "fraud-platform/sr/run_facts_view/x.json", "bundle_hash": "b" * 64}
-    envelope = {
-        "topic": "fp.bus.control.v1",
-        "message_id": message_id,
-        "published_at_utc": "2026-01-01T00:00:00.000000Z",
-        "attributes": {},
-        "partition_key": run_id,
-        "payload": ready_payload,
+    profile = {
+        "profile_id": "test",
+        "policy": {
+            "policy_rev": "test-v0",
+            "partitioning_profiles_ref": str(files["partitioning"]),
+            "partitioning_profile_id": "ig.partitioning.v0.traffic",
+            "schema_policy_ref": str(files["schema_policy"]),
+            "class_map_ref": str(files["class_map"]),
+        },
+        "wiring": {
+            "object_store": {"root": str(tmp_path / "store")},
+            "admission_db_path": str(tmp_path / "ig_admission.db"),
+            "schema_root": "docs/model_spec/platform/contracts",
+            "engine_contracts_root": "docs/model_spec/data-engine/interface_pack/contracts",
+            "engine_catalogue_path": str(files["catalogue"]),
+            "gate_map_path": str(files["gate_map"]),
+            "event_bus_path": str(tmp_path / "bus"),
+            "ready_lease": {"backend": "postgres"},
+        },
     }
-    (control_root / f"{message_id}.json").write_text(json.dumps(envelope, ensure_ascii=True), encoding="utf-8")
-    registry = SchemaRegistry(Path("docs/model_spec/platform/contracts/scenario_runner"))
-    reader = FileControlBusReader(Path(tmp_path / "control_bus"), "fp.bus.control.v1", registry=registry)
-    consumer = ReadyConsumer(gate, reader, PullRunStore(gate.store))
-    result = consumer.poll_once()
-    assert result[0]["status"] == "SKIPPED_UNAUTHORIZED"
+    profile_path = tmp_path / "profile.yaml"
+    _write_yaml(profile_path, profile)
+    with pytest.raises(ValueError) as excinfo:
+        WiringProfile.load(profile_path)
+    assert "PULL_WIRING_DEPRECATED" in str(excinfo.value)

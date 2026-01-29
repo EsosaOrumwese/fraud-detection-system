@@ -1481,3 +1481,144 @@ Phase 7 re‑scopes IG to **push‑only** ingestion in all design docs and contr
 - Confirmed docs now include streaming‑only markers and deprecated pull wiring notes.
 
 ---
+
+## Entry: 2026-01-28 21:07:31 — IG Phase 8 planning (implementation retirement of pull path)
+
+### Trigger
+User requested Phase 8 planning to implement streaming‑only IG by retiring legacy pull ingestion.
+
+### Phase 8 scope (implementation only)
+Remove or hard‑disable the READY/pull ingestion path so IG cannot accidentally ingest from `run_facts_view` or the control bus. Push ingestion remains unchanged and hardened.
+
+### What must change (and why)
+1) **Runtime entrypoints**
+   - Remove READY consumer and pull ingestion CLI/service endpoints, or hard‑fail them.
+   - Reason: any surviving entrypoint is a future foot‑gun.
+
+2) **Core admission layer**
+   - Remove `admit_pull*` paths and pull store wiring (or make them no‑ops with explicit error).
+   - Reason: keep IG a clean push boundary and reduce maintenance load.
+
+3) **Configuration**
+   - Fail closed if pull‑only wiring is provided (`ready_lease`, `pull_sharding`, `pull_time_budget_seconds`).
+   - Reason: prevent misconfigured deployments that implicitly re‑enable pull.
+
+4) **Contracts + artifacts**
+   - `ig_pull_run` artifacts remain legacy but are no longer written.
+   - Reason: preserve history but remove runtime dependency.
+
+### Options considered
+- **Option A: Leave code but disable by config.**
+  - Rejected: still leaves a live path if someone toggles config incorrectly.
+- **Option B: Remove pull code paths entirely.**
+  - Chosen: strongest guarantee for streaming‑only posture.
+
+### Planned implementation steps
+1) Remove READY consumer invocation in CLI/service and delete/disable `ready_consumer.py` path.
+2) Remove `admit_pull` / `admit_pull_with_state` from IG admission logic or guard with explicit error.
+3) Remove pull store modules and any pull run artifacts from runtime logic.
+4) Enforce config validation: if pull wiring is set, raise a configuration error on startup.
+5) Update tests to remove/skip pull‑based scenarios (Phase 9 will handle validation).
+
+### Out‑of‑scope
+- No behavioral changes to push ingestion.
+- No WSP changes.
+- No SR changes.
+
+---
+
+## Entry: 2026-01-28 21:16:20 — IG Phase 8 implementation (retire legacy pull)
+
+### Trigger
+User asked to proceed with Phase 8 implementation to fully retire the READY/pull ingestion path and enforce streaming‑only behavior in code.
+
+### Initial decisions before code changes
+1) **Remove pull ingestion primitives entirely (not just disable).**
+   - Rationale: aligns with the “streaming‑only” directive and avoids a latent re‑enablement path.
+   - Consequence: all pull‑only modules (`engine_pull`, `pull_state`, `ready_consumer`, `control_bus`, `audit`, `cli`) become unused and should be removed to reduce accidental use.
+
+2) **Keep push admission intact; drop run_facts / gate receipt enforcement.**
+   - Rationale: streaming mode receives events as they arrive; there is no SR READY or run_facts_view input. Any run‑facts gate verification becomes a hidden coupling to the retired SR path.
+   - Consequence: remove `admit_pull*`, `resolve_run_facts_ref`, `_requires_run_ready`, and gate‑verification logic that depends on run_facts.
+
+3) **Configuration must fail closed if pull wiring is present.**
+   - Rationale: profiles often linger; the safest posture is to error loudly if legacy pull knobs are set (`ready_lease`, `pull_sharding`, `pull_time_budget_seconds`).
+   - Decision: enforce explicit validation and update platform profiles to remove those keys so IG can start without ambiguity.
+
+4) **Ops index + governance should stop referencing pull runs.**
+   - Rationale: no runtime should emit `ig.pull.run` facts or `pull_runs` records once pull path is removed.
+   - Decision: remove pull‑run indexing and summary emission to keep audit surfaces consistent with streaming mode.
+
+### Planned execution order (for traceability)
+1) Strip pull modules and READY consumer entrypoints.
+2) Simplify IG admission to push‑only and remove run_facts verification paths.
+3) Remove pull run indexing/governance hooks.
+4) Enforce config validation for pull wiring, then update profiles.
+5) Update tests to remove pull scenarios and keep push‑only coverage.
+
+### Notes / constraints
+- No changes to WSP or SR in this phase.
+- Avoid altering engine artifacts or engine code.
+- Keep streaming‑only behavior explicit in code paths and config errors.
+
+## Entry: 2026-01-28 21:42:24 — IG Phase 8 implemented (pull removal, push‑only enforcement)
+
+### Step‑by‑step decisions and actions
+1) **Remove pull‑only modules and entrypoints**
+   - Deleted IG pull modules: `src/fraud_detection/ingestion_gate/engine_pull.py`, `pull_state.py`, `control_bus.py`, `ready_consumer.py`, `audit.py`, `leases.py`, `cli.py`.
+   - Reasoning: leaving these files (even unused) invites future accidental re‑enablement; streaming‑only should be enforced structurally, not just by policy.
+
+2) **Simplify `IngestionGate` to push‑only admission**
+   - Removed `admit_pull` / `admit_pull_with_state` and all run_facts / READY logic from `src/fraud_detection/ingestion_gate/admission.py`.
+   - Dropped run_facts joinability checks, gate receipt verification, instance‑proof checks, and ready allowlist/rate limit enforcement.
+   - Updated `_admit_event` to validate schema + required pins + health only; no SR ledger reads.
+   - Reasoning: streaming mode cannot depend on SR READY / run_facts_view; verification belongs to WSP or upstream policy.
+
+3) **Keep WSP engine reader intact by relocating `EnginePuller`**
+   - Discovered WSP imports `EnginePuller` from IG; removing the file would break WSP.
+   - Decision: move `EnginePuller` into Oracle Store boundary as a shared reader (`src/fraud_detection/oracle_store/engine_pull.py`) and update WSP import.
+   - Rationale: EnginePuller is still valid but it is an Oracle Store helper, not an IG pull path.
+
+4) **Remove pull‑run indexing and governance hooks**
+   - Stripped `pull_runs` indexing from `src/fraud_detection/ingestion_gate/ops_index.py`.
+   - Removed `emit_pull_run_summary` from `governance.py` and the call sites in admission logic.
+   - Reasoning: no runtime should emit pull‑run status once streaming‑only is enforced.
+
+5) **Fail closed on legacy pull wiring**
+   - Added validation in `src/fraud_detection/ingestion_gate/config.py` to reject any `ready_lease`, `pull_sharding`, `pull_time_budget_seconds`, or `security.ready_*` fields.
+   - Updated platform profiles (`config/platform/profiles/*.yaml`) to remove those keys so IG boots cleanly.
+   - Updated `.env.example` and Makefile targets to drop READY lease variables and targets; replaced IG READY targets with explicit “deprecated” failure.
+   - Rationale: eliminate silent misconfiguration and ensure streaming‑only posture is enforced at startup.
+
+6) **Tests updated to match push‑only posture**
+   - Rewrote IG tests to keep push ingress coverage and remove pull/READY scenarios.
+   - Added a config validation test ensuring legacy pull wiring is rejected.
+   - Ran `pytest tests/services/ingestion_gate -q` → 16 passed, 1 skipped (warnings from Werkzeug AST deprecations).
+
+### Files changed (high‑signal)
+- **Removed:** `src/fraud_detection/ingestion_gate/engine_pull.py`, `pull_state.py`, `control_bus.py`, `ready_consumer.py`, `audit.py`, `leases.py`, `cli.py`.
+- **Added:** `src/fraud_detection/oracle_store/engine_pull.py` (EnginePuller relocated).
+- **Updated:**
+  - `src/fraud_detection/ingestion_gate/admission.py` (push‑only, no run_facts/gate checks)
+  - `src/fraud_detection/ingestion_gate/config.py` (legacy pull wiring rejection)
+  - `src/fraud_detection/ingestion_gate/service.py` (push‑only API surface)
+  - `src/fraud_detection/ingestion_gate/ops_index.py`, `governance.py`, `__init__.py`
+  - `src/fraud_detection/world_streamer_producer/runner.py` (EnginePuller import)
+  - `config/platform/profiles/*.yaml`, `config/platform/profiles/README.md`, `.env.example`, `makefile`
+  - IG tests under `tests/services/ingestion_gate/` (pull tests removed, push tests retained)
+
+### Notes
+- This phase intentionally removes SR ledger dependencies and READY consumers from IG.
+- Any residual references in older plan sections are legacy; streaming‑only v0 is enforced in code and config.
+
+## Entry: 2026-01-28 21:47:32 — Addendum (IG service Make target)
+
+### Trigger
+While removing READY targets, noticed the Makefile had **no** IG service target; the deprecation message referenced a non‑existent target.
+
+### Decision + change
+- Added `platform-ig-service` target (with `IG_HOST` + `IG_PORT` defaults) so operators have a clear push‑only entrypoint.
+- Updated Makefile variables to include IG host/port for consistent local usage.
+
+### Rationale
+Streaming‑only IG still needs an explicit launcher; removing READY targets without a replacement would violate the “no dangling scripts” expectation.
