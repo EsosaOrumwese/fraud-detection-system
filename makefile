@@ -2530,6 +2530,9 @@ WSP_VALIDATE_MAX_EVENTS ?= 10
 WSP_RESUME_EVENTS ?= 1
 WSP_VALIDATE_CHECK_FAILURES ?=
 WSP_VALIDATE_SKIP_RESUME ?=
+WSP_READY_POLL_SECONDS ?= 2.0
+WSP_READY_MAX_MESSAGES ?=
+WSP_READY_MAX_EVENTS ?=
 WSP_ENGINE_RUN_ROOT ?=
 WSP_SCENARIO_ID ?=
 WSP_OUTPUT_IDS ?=
@@ -2616,6 +2619,19 @@ platform-wsp-ready-once:
 		--scenario-id "$(WSP_SCENARIO_ID)" \
 		$(if $(WSP_OUTPUT_IDS),--output-ids "$(WSP_OUTPUT_IDS)",) \
 		$(if $(WSP_MAX_EVENTS),--max-events "$(WSP_MAX_EVENTS)",)
+
+.PHONY: platform-wsp-ready-consumer
+platform-wsp-ready-consumer:
+	@$(PY_SCRIPT) -m fraud_detection.world_streamer_producer.ready_consumer --profile "$(WSP_PROFILE)" \
+		--poll-seconds "$(WSP_READY_POLL_SECONDS)" \
+		$(if $(WSP_READY_MAX_MESSAGES),--max-messages "$(WSP_READY_MAX_MESSAGES)",) \
+		$(if $(WSP_READY_MAX_EVENTS),--max-events "$(WSP_READY_MAX_EVENTS)",)
+
+.PHONY: platform-wsp-ready-consumer-once
+platform-wsp-ready-consumer-once:
+	@$(PY_SCRIPT) -m fraud_detection.world_streamer_producer.ready_consumer --profile "$(WSP_PROFILE)" --once \
+		$(if $(WSP_READY_MAX_MESSAGES),--max-messages "$(WSP_READY_MAX_MESSAGES)",) \
+		$(if $(WSP_READY_MAX_EVENTS),--max-events "$(WSP_READY_MAX_EVENTS)",)
 
 .PHONY: platform-wsp-validate-local
 platform-wsp-validate-local:

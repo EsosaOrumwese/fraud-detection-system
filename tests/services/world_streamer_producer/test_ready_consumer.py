@@ -1,0 +1,167 @@
+from __future__ import annotations
+
+import json
+from pathlib import Path
+
+from fraud_detection.world_streamer_producer.config import PolicyProfile, WiringProfile, WspProfile
+from fraud_detection.world_streamer_producer.ready_consumer import ReadyConsumerRunner
+from fraud_detection.world_streamer_producer.runner import StreamResult
+
+
+def _write_control_message(root: Path, *, topic: str, message_id: str, payload: dict) -> None:
+    topic_dir = root / topic
+    topic_dir.mkdir(parents=True, exist_ok=True)
+    envelope = {
+        "topic": topic,
+        "message_id": message_id,
+        "published_at_utc": "2026-01-01T00:00:00Z",
+        "attributes": {"kind": "READY"},
+        "partition_key": payload.get("run_id"),
+        "payload": payload,
+    }
+    (topic_dir / f"{message_id}.json").write_text(json.dumps(envelope, ensure_ascii=True), encoding="utf-8")
+
+
+def _write_run_facts(store_root: Path, run_id: str, engine_root: Path, scenario_id: str) -> str:
+    facts_ref = f"fraud-platform/sr/run_facts_view/{run_id}.json"
+    payload = {
+        "run_id": run_id,
+        "pins": {
+            "manifest_fingerprint": "a" * 64,
+            "parameter_hash": "b" * 64,
+            "seed": 7,
+            "scenario_id": scenario_id,
+            "run_id": run_id,
+        },
+        "locators": [
+            {
+                "output_id": "arrival_events_5B",
+                "path": str(engine_root / "data" / "placeholder.parquet"),
+            }
+        ],
+        "gate_receipts": [
+            {
+                "gate_id": "gate.test.validation",
+                "status": "PASS",
+                "scope": {"manifest_fingerprint": "a" * 64},
+            }
+        ],
+        "policy_rev": {"policy_id": "sr_policy", "revision": "v0", "content_digest": "c" * 64},
+        "bundle_hash": "d" * 64,
+        "plan_ref": "ref/plan",
+        "record_ref": "ref/record",
+        "status_ref": "ref/status",
+        "oracle_pack_ref": {"engine_run_root": str(engine_root)},
+    }
+    path = store_root / facts_ref
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(json.dumps(payload, ensure_ascii=True), encoding="utf-8")
+    return facts_ref
+
+
+def _profile(store_root: Path, control_root: Path) -> WspProfile:
+    store_root.mkdir(parents=True, exist_ok=True)
+    policy = PolicyProfile(
+        policy_rev="local",
+        require_gate_pass=True,
+        stream_speedup=0.0,
+        traffic_output_ids=["arrival_events_5B"],
+    )
+    wiring = WiringProfile(
+        profile_id="local",
+        object_store_root=str(store_root),
+        object_store_endpoint=None,
+        object_store_region=None,
+        object_store_path_style=None,
+        control_bus_kind="file",
+        control_bus_root=str(control_root),
+        control_bus_topic="fp.bus.control.v1",
+        schema_root="docs/model_spec/platform/contracts",
+        engine_catalogue_path="docs/model_spec/data-engine/interface_pack/engine_outputs.catalogue.yaml",
+        oracle_root=str(store_root),
+        oracle_engine_run_root=str(store_root),
+        oracle_scenario_id=None,
+        ig_ingest_url="http://localhost:8081",
+        checkpoint_backend="file",
+        checkpoint_root=str(store_root / "wsp_checkpoints"),
+        checkpoint_dsn=None,
+        checkpoint_every=1,
+        producer_id="svc:world_stream_producer",
+        producer_allowlist_ref=str(store_root / "allowlist.txt"),
+    )
+    (store_root / "allowlist.txt").write_text("svc:world_stream_producer\n", encoding="utf-8")
+    return WspProfile(policy=policy, wiring=wiring)
+
+
+def test_ready_consumer_streams_from_ready(tmp_path: Path, monkeypatch) -> None:
+    store_root = tmp_path / "store"
+    control_root = tmp_path / "control_bus"
+    engine_root = tmp_path / "engine_run"
+    engine_root.mkdir(parents=True, exist_ok=True)
+    profile = _profile(store_root, control_root)
+
+    run_id = "a" * 32
+    scenario_id = "baseline_v1"
+    facts_ref = _write_run_facts(store_root, run_id, engine_root, scenario_id)
+    message_id = "msg-1"
+    ready_payload = {
+        "run_id": run_id,
+        "facts_view_ref": facts_ref,
+        "bundle_hash": "d" * 64,
+        "oracle_pack_ref": {"engine_run_root": str(engine_root)},
+    }
+    _write_control_message(control_root, topic="fp.bus.control.v1", message_id=message_id, payload=ready_payload)
+
+    captured: dict[str, str] = {}
+
+    def _fake_stream(*, engine_run_root: str | None = None, scenario_id: str | None = None, **_kwargs):
+        captured["engine_run_root"] = engine_run_root or ""
+        captured["scenario_id"] = scenario_id or ""
+        return StreamResult(engine_run_root or "", scenario_id or "", "STREAMED", 3)
+
+    runner = ReadyConsumerRunner(profile)
+    monkeypatch.setattr(runner._producer, "stream_engine_world", _fake_stream)
+
+    results = runner.poll_once()
+    assert results
+    assert results[0].status == "STREAMED"
+    assert captured["engine_run_root"] == str(engine_root)
+    assert captured["scenario_id"] == scenario_id
+
+
+def test_ready_consumer_skips_duplicate(tmp_path: Path, monkeypatch) -> None:
+    store_root = tmp_path / "store"
+    control_root = tmp_path / "control_bus"
+    engine_root = tmp_path / "engine_run"
+    engine_root.mkdir(parents=True, exist_ok=True)
+    profile = _profile(store_root, control_root)
+
+    run_id = "b" * 32
+    scenario_id = "baseline_v1"
+    facts_ref = _write_run_facts(store_root, run_id, engine_root, scenario_id)
+    message_id = "msg-dup"
+    ready_payload = {
+        "run_id": run_id,
+        "facts_view_ref": facts_ref,
+        "bundle_hash": "e" * 64,
+        "oracle_pack_ref": {"engine_run_root": str(engine_root)},
+    }
+    _write_control_message(control_root, topic="fp.bus.control.v1", message_id=message_id, payload=ready_payload)
+
+    record_path = store_root / "fraud-platform" / "wsp" / "ready_runs" / f"{message_id}.jsonl"
+    record_path.parent.mkdir(parents=True, exist_ok=True)
+    record_path.write_text(json.dumps({"status": "STREAMED"}) + "\n", encoding="utf-8")
+
+    called = {"value": False}
+
+    def _fake_stream(*_args, **_kwargs):
+        called["value"] = True
+        return StreamResult("", "", "STREAMED", 1)
+
+    runner = ReadyConsumerRunner(profile)
+    monkeypatch.setattr(runner._producer, "stream_engine_world", _fake_stream)
+
+    results = runner.poll_once()
+    assert results
+    assert results[0].status == "SKIPPED_DUPLICATE"
+    assert called["value"] is False

@@ -557,3 +557,120 @@ Phase 4 is **not new capability**; it validates that Phases 1–3 work end‑to�
 - `.\.venv\Scripts\python.exe -m pytest tests/services/world_streamer_producer/test_runner.py -q` → 4 passed.
 
 ---
+
+## Entry: 2026-01-29 01:08:16 — WSP READY consumer runner (design + plan)
+
+### Trigger
+User requested a READY consumer runner so SR can drive WSP automatically for a full SR→WSP→IG run.
+
+### Core design intent (re‑stated)
+- SR remains the **selector** of which run should stream by emitting READY.
+- WSP remains the **producer** that streams the Oracle world to IG.
+- IG remains **push‑only** and does not read SR artifacts.
+
+### Decision trail (live reasoning)
+1) **Consumer should read READY messages from control bus (file bus for local).**
+   - WSP already has `control_bus.py` with a file‑bus reader and schema validation for READY messages.
+   - We will build the runner on top of that reader for local parity; any non‑file bus will fail closed for now.
+   - This avoids inventing a second READY format and keeps SR → WSP contract consistent.
+
+2) **WSP must resolve scenario_id + engine_run_root from SR‑authored facts.**
+   - READY payload does not always include scenario_id; run_facts_view always includes pins.
+   - Decision: load `run_facts_view` and take `pins.scenario_id` as the authoritative scenario_id.
+   - Engine root should come from `oracle_pack_ref.engine_run_root` (or READY payload’s oracle_pack_ref), not from IG or SR internals.
+
+3) **Idempotency should be append‑only, not overwrite.**
+   - To avoid “silent resets”, we will write an append‑only JSONL record per READY message.
+   - If a prior record shows `STREAMED`, the consumer will skip reprocessing (safe under duplicates).
+   - If prior attempts failed, we will allow retries (append new record) rather than overwriting.
+
+4) **Keep IG responsibilities clean.**
+   - The runner will only call `WorldStreamProducer.stream_engine_world(...)` and IG remains a push recipient.
+   - No SR gating or engine validation is introduced inside IG.
+
+### Planned implementation steps (before coding)
+1) Add `src/fraud_detection/world_streamer_producer/ready_consumer.py` with:
+   - `ReadyConsumerRunner` (poll once / loop).
+   - Append‑only READY processing records under `fraud-platform/wsp/ready_runs/<message_id>.jsonl`.
+   - Schema validation for run_facts_view.
+   - Fail‑closed errors for missing oracle pack ref, missing scenario_id, or missing engine root.
+
+2) Add a simple object‑store builder for WSP to read run_facts_view + write READY run records:
+   - Use SR ObjectStore (`scenario_runner.storage`) to keep local + S3 parity.
+
+3) Add a CLI entrypoint to run the READY consumer:
+   - `--profile`, `--once`, `--poll-seconds`, `--max-messages`, `--max-events`.
+
+4) Add a Make target for the new runner (`platform-wsp-ready-consumer` + optional `-once`).
+
+5) Tests:
+   - Unit test that a READY message invokes WSP with engine_run_root from `oracle_pack_ref` and scenario_id from run_facts_view.
+   - Test that duplicate READY with a previous STREAMED record is skipped.
+
+### Non‑goals (explicit)
+- No Kinesis READY consumer in this phase (file bus only; fail closed otherwise).
+- No changes to IG or SR in this phase.
+- No new engine behavior; Oracle Store remains a black‑box source.
+
+## Entry: 2026-01-29 01:11:37 — WSP READY consumer runner implemented (SR‑driven streaming)
+
+### Implementation steps + decisions (as executed)
+1) **Built a READY consumer runner (file‑bus only, fail‑closed otherwise)**
+   - Added `src/fraud_detection/world_streamer_producer/ready_consumer.py`.
+   - The runner uses the existing `FileControlBusReader` and validates READY payloads against `run_ready_signal.schema.yaml`.
+   - Non‑file control bus kinds now hard‑fail with `CONTROL_BUS_KIND_UNSUPPORTED` to avoid silent mis‑wiring.
+
+2) **Resolved scenario_id + engine_run_root from SR facts (authoritative)**
+   - On each READY, the runner reads `run_facts_view` and validates it against `run_facts_view.schema.yaml`.
+   - `scenario_id` comes from `pins.scenario_id` (SR‑authored).
+   - `engine_run_root` is taken from `oracle_pack_ref.engine_run_root` (from READY payload or run_facts_view).
+   - `oracle_root` is respected if present in `oracle_pack_ref` and used to resolve the engine root.
+   - Reasoning: SR is the run selector; WSP should not invent scenario selection or scan for “latest”.
+
+3) **Append‑only READY processing records for idempotency**
+   - Each READY message writes an append‑only JSONL record at:
+     `fraud-platform/wsp/ready_runs/<message_id>.jsonl`.
+   - If any previous record has status `STREAMED`, the message is skipped (`SKIPPED_DUPLICATE`).
+   - Failed attempts do **not** block retries (new record appended).
+   - Reasoning: matches “append‑only truths” and safe under at‑least‑once delivery.
+
+4) **Store access unified via platform object store**
+   - Implemented a small object‑store builder using SR’s store abstractions (local + S3).
+   - Used for both reading SR facts and writing READY run records.
+   - Reasoning: avoids custom filesystem code; keeps local/dev/prod parity.
+
+5) **CLI entrypoint + Make targets for operator use**
+   - `python -m fraud_detection.world_streamer_producer.ready_consumer` supports:
+     `--once`, `--poll-seconds`, `--max-messages`, `--max-events`.
+   - Added `make platform-wsp-ready-consumer` and `make platform-wsp-ready-consumer-once` for repeatable ops.
+
+6) **Unit tests for READY runner behavior**
+   - Added `tests/services/world_streamer_producer/test_ready_consumer.py`:
+     - Ensures READY triggers WSP with engine_run_root from oracle_pack_ref and scenario_id from run_facts.
+     - Ensures a prior STREAMED record results in `SKIPPED_DUPLICATE` and no re‑stream.
+
+### Files changed
+- `src/fraud_detection/world_streamer_producer/ready_consumer.py` (new)
+- `tests/services/world_streamer_producer/test_ready_consumer.py` (new)
+- `makefile` (new READY consumer targets + variables)
+
+### Tests to run (after this change)
+- `pytest tests/services/world_streamer_producer/test_ready_consumer.py -q`
+- `pytest tests/services/world_streamer_producer/test_runner.py -q`
+
+### Notes
+- This runner wires SR → WSP; IG remains push‑only and unchanged.
+- Kinesis control bus is still unimplemented for WSP and will explicitly fail closed if configured.
+
+## Entry: 2026-01-29 01:12:51 — READY consumer test fix + validation
+
+### Issue found
+- Initial READY consumer tests failed because the temporary object store root (`store_root`) was not created before writing the allowlist file.
+
+### Fix applied
+- Ensured `store_root.mkdir(parents=True, exist_ok=True)` in `_profile(...)` within `tests/services/world_streamer_producer/test_ready_consumer.py`.
+- Rationale: local object store paths are filesystem paths; tests must create the root before writing allowlist/config artifacts.
+
+### Tests re‑run
+- `pytest tests/services/world_streamer_producer/test_ready_consumer.py tests/services/world_streamer_producer/test_runner.py -q`
+  - Result: **6 passed**.
