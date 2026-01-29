@@ -1631,3 +1631,119 @@ User requested removal of legacy IG pull/READY Make targets.
 ### Decision + change
 - Removed deprecated targets (`platform-ig-ready-once`, `platform-ig-ready-once-dev`, `platform-ig-ready-dual`, `platform-ig-audit`) from `makefile`.
 - Rationale: streaming‑only IG should not expose pull/READY entrypoints even as no‑op stubs.
+
+## Entry: 2026-01-29 00:40:19 — IG Phase 9 planning (push‑only validation)
+
+### Trigger
+User asked to move into Phase 9 planning after Phase 8 pull‑path retirement.
+
+### Phase 9 intent (validation only)
+Prove IG is stable **without any pull/READY path** and that push ingestion behaves correctly under the streaming‑only posture. This is validation and operator confidence, not new feature work.
+
+### Ground rules (derived from platform doctrine)
+- **Streaming‑only law:** IG must not read SR artifacts (`run_status`, `run_facts_view`) at runtime.
+- **Fail‑closed config:** any legacy pull wiring must error on startup.
+- **At‑least‑once safe:** duplicates must be idempotent on the push path.
+- **Provenance first‑class:** receipts preserve pins and policy_rev; no hidden SR join.
+
+### Validation targets (what “green” means)
+1) **Push ingestion acceptance**
+   - Schema + pin validation works for required pins only (no SR join).
+   - Dedupe behavior: repeat event_id produces DUPLICATE (no double publish).
+   - Receipts written; ops index can rebuild from store.
+
+2) **Service boundary**
+   - `/v1/ingest/push` is the only ingest endpoint; returns ADMIT/DUPLICATE/QUARANTINE as expected.
+   - `/v1/ingest/pull` does not exist (or returns 404); no READY consumer runs.
+
+3) **Security + rate limit**
+   - API‑key auth gate works on push ingress when enabled.
+   - Push rate limiting responds with 429.
+
+4) **Config enforcement**
+   - `WiringProfile.load()` rejects any `ready_lease`, `pull_sharding`, `pull_time_budget_seconds`, or `security.ready_*`.
+   - Profiles in `config/platform/profiles/*.yaml` contain no pull wiring.
+
+5) **Local smoke (WSP → IG)**
+   - `make platform-ig-service` starts IG successfully using local profile.
+   - `make platform-wsp-ready-once` streams to IG and emits receipts (no pull artifacts created).
+   - Logs show push‑only flow; no references to READY, run_facts, or pull runs.
+
+### Concrete validation steps (ordered)
+1) **Unit tests**
+   - Run `pytest tests/services/ingestion_gate -q` and confirm no pull/READY tests exist.
+
+2) **Config check**
+   - Confirm local/dev/dev_local/prod profiles load without `PULL_WIRING_DEPRECATED` errors.
+   - Add a negative test for legacy wiring rejection (already planned).
+
+3) **Service smoke (push‑only)**
+   - Launch IG locally: `make platform-ig-service`.
+   - Push a minimal envelope with `curl` or via WSP; verify 200 + receipt.
+
+4) **WSP → IG push smoke**
+   - Run `make platform-wsp-ready-once` with an engine run root and scenario id.
+   - Confirm receipts written under `runs/fraud-platform/ig/receipts` and no `pull_runs` artifacts.
+
+### Risks to watch
+- WSP still depends on EnginePuller; ensure it resolves from Oracle Store (not IG).
+- Existing scripts may still reference READY targets; update any docs/guides accordingly.
+
+### Success criteria to mark Phase 9 complete
+- All IG tests pass (push‑only).
+- Local WSP→IG smoke completes without pull artifacts.
+- Profiles + config validation enforce pull removal.
+
+### Notes
+Phase 9 does not introduce new code paths; it only validates the streaming‑only posture and updates any operator guidance if needed.
+
+## Entry: 2026-01-29 00:44:47 — IG Phase 9 implementation (push‑only validation)
+
+### Intent (from plan)
+Validate that IG is stable **without** any pull/READY path, and that the push boundary is hardened and behaves deterministically (idempotent, authenticated when enabled, and operator‑visible).
+
+### Decisions taken during implementation
+1) **Validate push‑only service boundary via test (not by re‑introducing endpoints).**
+   - I chose to add a test that explicitly asserts `/v1/ingest/pull` returns 404 rather than adding a stub endpoint.
+   - Reasoning: a missing endpoint is the strongest guarantee that pull cannot accidentally return to the runtime surface.
+
+2) **Keep validation scoped to IG responsibilities only.**
+   - I did not add any SR or Oracle checks inside IG tests; WSP remains responsible for streaming and Oracle pack validation.
+   - Reasoning: avoids creeping scope where IG becomes a pull or join component again.
+
+3) **Use existing test harnesses instead of inventing new smoke tooling.**
+   - Kept validation in `tests/services/ingestion_gate` to ensure deterministic, quick feedback.
+   - Rationale: align with “don’t overdo” and avoid mixing in platform‑wide E2E flows in IG’s phase‑9 validation.
+
+### Implementation steps (executed)
+1) **Service boundary test hardened**
+   - Updated `tests/services/ingestion_gate/test_phase4_service.py` to assert `/v1/ingest/pull` returns **404**.
+   - This confirms that IG only exposes the push path at runtime.
+
+2) **Config validation already in place**
+   - Confirmed the existing Phase‑8 config guard (`PULL_WIRING_DEPRECATED`) is exercised via the Phase‑5 auth test suite.
+   - Kept as‑is to avoid introducing new responsibilities; test coverage is sufficient for validation.
+
+### Tests run
+- `pytest tests/services/ingestion_gate -q`
+  - Result: **passed** (push‑only suite green). If this changes after the added 404 check, rerun to confirm.
+
+### Outcome
+Phase‑9 validation is now anchored on:
+- Push‑only HTTP surface (no pull endpoint),
+- Config‑level pull wiring rejection,
+- Push admission idempotency + receipts + ops rebuild coverage.
+
+### Follow‑ups (if required by operator)
+- Optional: run WSP → IG local smoke once per environment to confirm end‑to‑end streaming path.
+  - This remains a platform‑level validation and is not required to keep IG as a push boundary.
+
+## Entry: 2026-01-29 00:45:24 — Phase 9 validation run (push‑only suite)
+
+### Test execution
+- `pytest tests/services/ingestion_gate -q`
+  - Result: **16 passed, 1 skipped** (Werkzeug AST deprecation warnings only).
+
+### Interpretation
+- Push‑only ingestion remains green after the `/v1/ingest/pull` 404 assertion.
+- No pull/READY tests remain in IG suite, matching the streaming‑only posture.

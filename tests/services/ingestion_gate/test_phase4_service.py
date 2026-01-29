@@ -112,3 +112,6 @@ def test_service_push_only(tmp_path: Path) -> None:
     push_resp = client.post("/v1/ingest/push", json=envelope)
     assert push_resp.status_code == 200
     assert push_resp.get_json()["decision"] == "ADMIT"
+
+    pull_resp = client.post("/v1/ingest/pull", json={})
+    assert pull_resp.status_code == 404
