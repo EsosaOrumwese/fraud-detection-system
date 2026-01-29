@@ -334,3 +334,41 @@ Deliver a **minimal EB replay/tail reader** for the local file‑bus so we can v
 
 ### Scope discipline
 - No retention, no leases, no coordination; this is purely replay/tail verification for v0.
+
+## Entry: 2026-01-29 06:11:45 — Phase 4 implementation start (IG→EB publish hardening)
+
+### Intent
+Harden the **IG→EB publish boundary** so that “admitted” only happens after a durable EB ACK, and receipts capture the EB position consistently. Phase 4 stays within v0 scope (file‑bus).
+
+### Decisions (with reasoning)
+- **Add EB publish timestamp to receipts** using `published_at_utc` from EB ACK to make ACK time explicit.
+- **Record publish failures in health** on both handled `IngestionError` and unexpected exceptions so health can degrade on repeated EB issues.
+- **Do not add retries at EB layer** yet; retry policy belongs to IG/producer (avoid hiding failure modes).
+
+### Planned steps
+1) Ensure IG receipt includes `eb_ref.published_at_utc` when available.
+2) Record bus publish failures consistently in health (even for explicit EB errors).
+3) Extend unit tests to assert EB ref fields are fully captured (offset_kind + published_at_utc).
+4) Run targeted IG + EB tests.
+
+### Constraints
+- No consumer coordination, no retention, no Kinesis.
+- Only adjust IG publish boundary semantics and receipts.
+
+## Entry: 2026-01-29 06:13:17 — Phase 4 implementation (IG→EB publish hardening)
+
+### What was implemented
+- **Publish failure accounting**: IG now records bus publish failures for both explicit `IngestionError` and unexpected exceptions.
+- **EB publish timestamp preserved**: duplicates now retain `published_at_utc` by persisting it in the admission index.
+- **Admission index schema** now stores `eb_published_at_utc` and returns it for duplicate decisions.
+
+### Why this matters
+- Health probe can degrade on repeated EB failures (not just unhandled exceptions).
+- Duplicate receipts stay **byte‑stable** with the original EB position and timestamp, preserving deterministic replay semantics.
+
+### Tests executed
+- `.\.venv\Scripts\python.exe -m pytest tests/services/ingestion_gate/test_phase3_replay_load_recovery.py -q`
+- Result: **3 passed**
+
+### Scope discipline
+- No retries or consumer coordination added; EB remains an append‑only log with explicit ACK semantics.

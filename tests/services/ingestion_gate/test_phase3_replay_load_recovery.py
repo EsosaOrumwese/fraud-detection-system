@@ -135,6 +135,9 @@ def test_replay_duplicate_stability(tmp_path: Path) -> None:
     envelope = _envelope("evt-1")
 
     first = gate.admit_push(envelope)
+    eb_ref = first.payload.get("eb_ref") or {}
+    assert eb_ref.get("offset_kind") == "file_line"
+    assert eb_ref.get("published_at_utc")
     for _ in range(5):
         dup = gate.admit_push(envelope)
         assert dup.payload["decision"] == "DUPLICATE"

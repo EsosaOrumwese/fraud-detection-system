@@ -23,7 +23,8 @@ class AdmissionIndex:
                     eb_topic TEXT,
                     eb_partition INTEGER,
                     eb_offset TEXT,
-                    eb_offset_kind TEXT
+                    eb_offset_kind TEXT,
+                    eb_published_at_utc TEXT
                 )
                 """
             )
@@ -33,6 +34,7 @@ class AdmissionIndex:
                 {
                     "eb_offset": "TEXT",
                     "eb_offset_kind": "TEXT",
+                    "eb_published_at_utc": "TEXT",
                 },
             )
             conn.commit()
@@ -40,7 +42,7 @@ class AdmissionIndex:
     def lookup(self, dedupe_key: str) -> dict[str, Any] | None:
         with self._connect() as conn:
             row = conn.execute(
-                "SELECT receipt_ref, eb_topic, eb_partition, eb_offset, eb_offset_kind FROM admissions WHERE dedupe_key = ?",
+                "SELECT receipt_ref, eb_topic, eb_partition, eb_offset, eb_offset_kind, eb_published_at_utc FROM admissions WHERE dedupe_key = ?",
                 (dedupe_key,),
             ).fetchone()
         if not row:
@@ -52,6 +54,7 @@ class AdmissionIndex:
                 "partition": row[2],
                 "offset": row[3],
                 "offset_kind": row[4],
+                "published_at_utc": row[5],
             }
             if row[1] is not None
             else None,
@@ -62,8 +65,8 @@ class AdmissionIndex:
             conn.execute(
                 """
                 INSERT OR REPLACE INTO admissions
-                (dedupe_key, receipt_ref, eb_topic, eb_partition, eb_offset, eb_offset_kind)
-                VALUES (?, ?, ?, ?, ?, ?)
+                (dedupe_key, receipt_ref, eb_topic, eb_partition, eb_offset, eb_offset_kind, eb_published_at_utc)
+                VALUES (?, ?, ?, ?, ?, ?, ?)
                 """,
                 (
                     dedupe_key,
@@ -72,6 +75,7 @@ class AdmissionIndex:
                     eb_ref.get("partition") if eb_ref else None,
                     eb_ref.get("offset") if eb_ref else None,
                     eb_ref.get("offset_kind") if eb_ref else None,
+                    eb_ref.get("published_at_utc") if eb_ref else None,
                 ),
             )
             conn.commit()

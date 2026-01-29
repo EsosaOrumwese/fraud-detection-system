@@ -198,6 +198,7 @@ class IngestionGate:
             eb_ref = self.bus.publish(profile.stream, partition_key, envelope)
             self.metrics.record_latency("phase.publish_seconds", time.perf_counter() - publish_started)
         except IngestionError as exc:
+            self.health.record_publish_failure()
             return self._quarantine(envelope, exc, start)
         except Exception as exc:
             logger.exception("IG event bus publish error")
