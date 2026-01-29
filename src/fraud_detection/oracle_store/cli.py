@@ -35,7 +35,7 @@ def main() -> None:
     group.add_argument("--allow-unsealed", action="store_true", help="Allow missing seal markers")
     args = parser.parse_args()
 
-    configure_logging(level=logging.INFO, log_paths=platform_log_paths(create_if_missing=False))
+    configure_logging(level=logging.INFO, log_paths=platform_log_paths(create_if_missing=True))
     profile = OracleProfile.load(Path(args.profile))
     if args.strict_seal:
         strict_seal = True

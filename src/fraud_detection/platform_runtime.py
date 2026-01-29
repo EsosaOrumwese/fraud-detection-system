@@ -9,8 +9,7 @@ from pathlib import Path
 from typing import Any
 
 RUNS_ROOT = Path("runs/fraud-platform")
-PLATFORM_RUNS_ROOT = RUNS_ROOT / "platform_runs"
-ACTIVE_RUN_ID_PATH = PLATFORM_RUNS_ROOT / "ACTIVE_RUN_ID"
+ACTIVE_RUN_ID_PATH = RUNS_ROOT / "ACTIVE_RUN_ID"
 
 
 def resolve_platform_run_id(*, create_if_missing: bool) -> str | None:
@@ -24,18 +23,19 @@ def resolve_platform_run_id(*, create_if_missing: bool) -> str | None:
     if not create_if_missing:
         return None
     run_id = _new_run_id()
-    PLATFORM_RUNS_ROOT.mkdir(parents=True, exist_ok=True)
+    RUNS_ROOT.mkdir(parents=True, exist_ok=True)
     ACTIVE_RUN_ID_PATH.write_text(run_id + "\n", encoding="utf-8")
     return run_id
 
 
 def platform_log_paths(*, create_if_missing: bool) -> list[str]:
     log_path = (os.getenv("PLATFORM_LOG_PATH") or "").strip()
-    paths = [log_path] if log_path else [str(RUNS_ROOT / "platform.log")]
+    if log_path:
+        return [log_path]
     run_id = resolve_platform_run_id(create_if_missing=create_if_missing)
-    if run_id:
-        paths.append(str(PLATFORM_RUNS_ROOT / run_id / "platform.log"))
-    return paths
+    if not run_id:
+        return []
+    return [str(RUNS_ROOT / run_id / "platform.log")]
 
 
 def append_session_event(
@@ -48,7 +48,7 @@ def append_session_event(
     run_id = resolve_platform_run_id(create_if_missing=create_if_missing)
     if not run_id:
         return None
-    session_dir = PLATFORM_RUNS_ROOT / run_id
+    session_dir = RUNS_ROOT / run_id
     session_dir.mkdir(parents=True, exist_ok=True)
     payload = {
         "platform_run_id": run_id,

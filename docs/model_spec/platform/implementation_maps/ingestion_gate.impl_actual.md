@@ -1755,7 +1755,7 @@ Run a **full local chain** where SR emits READY, WSP consumes READY and streams 
 
 ### Decisions before execution
 1) **Use a fresh platform run id**
-   - Run `make platform-run-new` to set `runs/fraud-platform/platform_runs/ACTIVE_RUN_ID` so logs are grouped.
+   - Run `make platform-run-new` to set `runs/fraud-platform/ACTIVE_RUN_ID` so logs are grouped.
    - Reason: platform log should be traceable for this run without polluting previous runs.
 
 2) **Use a fresh SR run_equivalence_key**
@@ -1775,7 +1775,7 @@ Run a **full local chain** where SR emits READY, WSP consumes READY and streams 
    - Reason: user requested full business traffic.
 
 ### Expected outputs to inspect
-- Platform logs at `runs/fraud-platform/platform.log` and per‑run log under `runs/fraud-platform/platform_runs/<run_id>/platform.log`.
+- Platform logs at `runs/fraud-platform/platform.log` and per‑run log under `runs/fraud-platform/<run_id>/platform.log`.
 - IG receipts under `runs/fraud-platform/ig/receipts`.
 - WSP ready run record under `runs/fraud-platform/wsp/ready_runs/<message_id>.jsonl`.
 

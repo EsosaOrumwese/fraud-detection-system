@@ -230,7 +230,7 @@ def main() -> None:
     parser.add_argument("--max-events", type=int, default=0, help="Max events per READY stream (0 = all)")
     args = parser.parse_args()
 
-    configure_logging(level=logging.INFO, log_paths=platform_log_paths(create_if_missing=False))
+    configure_logging(level=logging.INFO, log_paths=platform_log_paths(create_if_missing=True))
     profile = WspProfile.load(Path(args.profile))
     runner = ReadyConsumerRunner(profile)
 

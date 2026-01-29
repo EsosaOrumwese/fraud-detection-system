@@ -29,7 +29,7 @@ def main() -> None:
     )
     args = parser.parse_args()
 
-    configure_logging(level=logging.INFO, log_paths=platform_log_paths(create_if_missing=False))
+    configure_logging(level=logging.INFO, log_paths=platform_log_paths(create_if_missing=True))
     profile = OracleProfile.load(Path(args.profile))
     packer = OraclePackPacker(profile)
     result = packer.seal_from_engine_run(

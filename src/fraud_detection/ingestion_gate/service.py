@@ -16,7 +16,7 @@ from .logging_utils import configure_logging
 
 
 def create_app(profile_path: str) -> Flask:
-    configure_logging(log_paths=platform_log_paths(create_if_missing=False))
+    configure_logging(log_paths=platform_log_paths(create_if_missing=True))
     wiring = WiringProfile.load(Path(profile_path))
     gate = IngestionGate.build(wiring)
 

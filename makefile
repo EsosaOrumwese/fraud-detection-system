@@ -2606,7 +2606,7 @@ platform-bus-clean:
 
 .PHONY: platform-run-new
 platform-run-new:
-	rm -f runs/fraud-platform/platform_runs/ACTIVE_RUN_ID
+	rm -f runs/fraud-platform/ACTIVE_RUN_ID
 	@PLATFORM_RUN_ID="$(PLATFORM_RUN_ID)" $(PY_PLATFORM) -c "from fraud_detection.platform_runtime import resolve_platform_run_id; print(resolve_platform_run_id(create_if_missing=True))"
 
 .PHONY: platform-sr-run-reuse

@@ -507,7 +507,7 @@ Provide a **dev‑parity EB adapter** so IG can publish to a real stream backend
 - Event bus root: `runs/fraud-platform/event_bus`.
 
 ### Evidence gathered
-- SR run log: `runs/fraud-platform/platform_runs/platform_20260129T062946Z/platform.log` shows READY committed for run_id `a26b2312a84f851b4a7d7e559fc5c122`.
+- SR run log: `runs/fraud-platform/platform_20260129T062946Z/platform.log` shows READY committed for run_id `a26b2312a84f851b4a7d7e559fc5c122`.
 - EB file‑bus state:
   - `runs/fraud-platform/event_bus/fp.bus.traffic.v1/head.json` → `{"next_offset":20}`.
   - `runs/fraud-platform/event_bus/fp.bus.traffic.v1/partition=0.jsonl` contains the last events published at `2026-01-29T06:30:50Z`–`06:30:52Z`.

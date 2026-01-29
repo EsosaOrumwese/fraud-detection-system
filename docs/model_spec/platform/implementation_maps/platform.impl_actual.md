@@ -363,16 +363,16 @@ User asked for a **platform run ID** so SR/IG don’t keep writing into a single
 ### Live reasoning
 - SR/IG artifacts already live under `runs/fraud-platform/*`; however, without a platform‑run concept, logs from different sessions blend together.
 - We need a **lightweight session boundary** that doesn’t alter SR/IG canonical ledgers (ownership rules) but still provides an audit trail and operator clarity.
-- The most compatible approach: keep SR/IG ledgers where they are, but write **session‑scoped logs** and **session manifests** under a `platform_runs/<platform_run_id>/` folder.
+- The most compatible approach: keep SR/IG ledgers where they are, but write **session‑scoped logs** and **session manifests** under a `<platform_run_id>/` folder.
 
 ### Plan (stepwise)
 1) Add a small runtime helper (`platform_runtime.py`) to resolve a `platform_run_id`:
    - Use `PLATFORM_RUN_ID` if set.
-   - Else read `runs/fraud-platform/platform_runs/ACTIVE_RUN_ID` if present.
+   - Else read `runs/fraud-platform/ACTIVE_RUN_ID` if present.
    - Else generate a new ID on SR `run` and persist to `ACTIVE_RUN_ID`.
 2) Update logging utilities to support **multiple log files**:
    - Always append to `runs/fraud-platform/platform.log`.
-   - Also append to `runs/fraud-platform/platform_runs/<platform_run_id>/platform.log` when an active run ID exists.
+   - Also append to `runs/fraud-platform/<platform_run_id>/platform.log` when an active run ID exists.
 3) Add a `session.jsonl` (append‑only) in the run folder with basic metadata:
    - component (`sr`/`ig`), command kind, timestamps, and key refs (run_id/message_id/status_ref).
 4) Update Makefile to expose `PLATFORM_RUN_ID` (optional) and document in `.env.example`.
@@ -394,11 +394,11 @@ User approved the plan to introduce **platform run IDs** and session‑scoped lo
 ### Implementation steps (platform‑wide)
 1) Add a small runtime helper (`src/fraud_detection/platform_runtime.py`) to resolve `platform_run_id` via:
    - `PLATFORM_RUN_ID` env (explicit override), else
-   - `runs/fraud-platform/platform_runs/ACTIVE_RUN_ID` (if present), else
+   - `runs/fraud-platform/ACTIVE_RUN_ID` (if present), else
    - generate a new ID when SR `run` is executed.
 2) Update SR + IG logging utilities to accept **multiple log paths** and append to:
    - `runs/fraud-platform/platform.log` (always)
-   - `runs/fraud-platform/platform_runs/<platform_run_id>/platform.log` (when available)
+   - `runs/fraud-platform/<platform_run_id>/platform.log` (when available)
 3) Record per‑session metadata in `session.jsonl` (append‑only) with **non‑secret** details only.
 4) Update service entrypoints to use `platform_log_paths()` so long‑running services append to the same shared log surface.
 
@@ -412,7 +412,7 @@ User approved the plan to introduce **platform run IDs** and session‑scoped lo
 ### What changed
 1) **Runtime helper**
    - `src/fraud_detection/platform_runtime.py` added/updated to resolve platform run IDs and write `session.jsonl` entries.
-   - `PLATFORM_LOG_PATH` is respected for the global log path; session logs remain under `runs/fraud-platform/platform_runs/<id>/`.
+   - `PLATFORM_LOG_PATH` is respected for the global log path; session logs remain under `runs/fraud-platform/<id>/`.
 
 2) **Workflow**
    - Added `make platform-run-new` to reset `ACTIVE_RUN_ID` and create a new session ID for the next SR/IG run.
@@ -790,3 +790,33 @@ the audit‑truth for publish success.
 ### Decision
 Parity alignment is considered **complete** for v0 local: SR→WSP→IG→EB parity smoke runs green,
 receipt offsets are captured, and no remaining parity blockers are open.
+
+---
+
+## Entry: 2026-01-29 23:51:53 — Run‑centric log layout (no global platform log)
+
+### Trigger
+User expects run‑first structure: `runs/fraud-platform/<platform_run_id>/` containing logs and
+service subfolders. A global log is confusing and weak for traceability.
+
+### Decision
+Adopt run‑centric layout:
+- **Remove** `platform_runs/` layer.
+- **Drop** global `runs/fraud-platform/platform.log`.
+- Per‑run logs live only under `runs/fraud-platform/<platform_run_id>/platform.log`.
+- Session ledger lives alongside at `runs/fraud-platform/<platform_run_id>/session.jsonl`.
+
+### Mechanics
+- `platform_runtime.py` now resolves run IDs under `runs/fraud-platform/` and writes logs there.
+- `platform_log_paths` returns **only** per‑run log path; no global fallback.
+- Platform commands/services request `create_if_missing=True` so runs always get a log.
+- `make platform-run-new` now manages `runs/fraud-platform/ACTIVE_RUN_ID`.
+
+### Files changed
+- `src/fraud_detection/platform_runtime.py`
+- `src/fraud_detection/ingestion_gate/service.py`
+- `src/fraud_detection/world_streamer_producer/{cli.py,ready_consumer.py}`
+- `src/fraud_detection/oracle_store/{cli.py,pack_cli.py}`
+- `src/fraud_detection/scenario_runner/service.py`
+- `makefile`
+- Docs/READMEs updated to remove `platform_runs/` references.

@@ -1740,4 +1740,4 @@ make platform-run-new
 
 Then run the oracle commands. Logs will append to:
 - `runs/fraud-platform/platform.log` (always)
-- `runs/fraud-platform/platform_runs/<platform_run_id>/platform.log` (when ACTIVE_RUN_ID exists)
+- `runs/fraud-platform/<platform_run_id>/platform.log` (when ACTIVE_RUN_ID exists)

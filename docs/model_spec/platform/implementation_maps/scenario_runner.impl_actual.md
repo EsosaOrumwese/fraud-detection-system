@@ -3464,7 +3464,7 @@ User wants a **platform run ID** to separate runs and a shared platform log that
 1) Use a shared runtime helper to resolve `platform_run_id` (env → ACTIVE_RUN_ID → generate on SR run).
 2) Update SR CLI logging to append to:
    - Global `runs/fraud-platform/platform.log`.
-   - Session `runs/fraud-platform/platform_runs/<platform_run_id>/platform.log`.
+   - Session `runs/fraud-platform/<platform_run_id>/platform.log`.
 3) Append a session event line for SR `run` and `reemit` commands with key refs (run_id, status_ref, facts_view_ref).
 
 ### Guardrails
@@ -3476,7 +3476,7 @@ User wants a **platform run ID** to separate runs and a shared platform log that
 ### What changed
 - SR CLI now uses shared runtime helper to write logs to:
   - Global `runs/fraud-platform/platform.log`.
-  - Session log `runs/fraud-platform/platform_runs/<platform_run_id>/platform.log` when a run ID is active.
+  - Session log `runs/fraud-platform/<platform_run_id>/platform.log` when a run ID is active.
 - SR service (`service.py`) is now aligned to the same log path resolution (no more silent console‑only logs).
 
 ### Session metadata

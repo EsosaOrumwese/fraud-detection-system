@@ -4,10 +4,9 @@
 - docs/logbook/
 
 ## Platform runtime logs (local/dev)
-- Shared platform log: `runs/fraud-platform/platform.log`
-- Per-run log: `runs/fraud-platform/platform_runs/<platform_run_id>/platform.log`
-- Session ledger: `runs/fraud-platform/platform_runs/<platform_run_id>/session.jsonl`
-- Run ID resolution: `PLATFORM_RUN_ID` env var, else `runs/fraud-platform/platform_runs/ACTIVE_RUN_ID`, else auto-generate `platform_YYYYMMDDTHHMMSSZ` on first run.
+- Per-run log: `runs/fraud-platform/<platform_run_id>/platform.log`
+- Session ledger: `runs/fraud-platform/<platform_run_id>/session.jsonl`
+- Run ID resolution: `PLATFORM_RUN_ID` env var, else `runs/fraud-platform/ACTIVE_RUN_ID`, else auto-generate `platform_YYYYMMDDTHHMMSSZ` on first run.
 - Override shared log path with `PLATFORM_LOG_PATH` when you need a custom sink.
 
 ## Runbooks
