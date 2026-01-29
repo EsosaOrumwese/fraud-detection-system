@@ -448,3 +448,17 @@ Provide a **dev‑parity EB adapter** so IG can publish to a real stream backend
 
 ### Notes
 - Local file‑bus remains default for local profile; dev profile now targets Kinesis by default.
+
+## Entry: 2026-01-29 06:21:48 — Decision: v0 dev EB uses Kinesis, Kafka deferred
+
+### Decision
+- **v0 dev parity remains Kinesis** (LocalStack/AWS).
+- **Kafka deferred to v1** when full retention/replay semantics and broker ops are planned.
+
+### Why
+- LocalStack + boto3 are already in use, making Kinesis publish validation low‑lift.
+- Kafka introduces additional operational surface better handled after v0 stabilization.
+
+### Impact
+- Phase 5 stays Kinesis publish‑only.
+- Kafka noted as a v1+ adapter in the EB build plan.

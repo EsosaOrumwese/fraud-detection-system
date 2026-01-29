@@ -151,6 +151,8 @@ These are copied from the EB design‑authority and are treated as **laws**:
 - Kinesis adapter passes smoke test.
 - Same envelope and receipt shape across file/Kinesis.
 
+**Note (decision locked):** Kafka adapter deferred to v1+ once retention/replay semantics and broker operations are planned.
+
 ---
 
 ## 4) Validation strategy (v0)
