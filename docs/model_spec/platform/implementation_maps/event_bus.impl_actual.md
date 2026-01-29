@@ -262,3 +262,36 @@ Deliver a **correct local EB implementation** with durable append semantics, sta
 
 ### Notes
 - Offset recovery logic now prefers log truth; stale head values no longer resurrect missing offsets.
+
+## Entry: 2026-01-29 06:07:06 — Phase 3 planning (replay/tail utilities)
+
+### Phase intent
+Provide **minimal replay/tail utilities** for the local EB file‑bus so we can verify durability and offsets without building consumer coordination. This is explicitly **verification tooling**, not a new platform component.
+
+### Reasoning trail
+- EB’s contract is based on `(topic, partition, offset)` positions. Phase 3 should let operators and tests **read back events by offset** to prove append correctness.
+- We don’t want to introduce consumer groups or leases yet; Phase 3 keeps it simple: **read from an offset, return N records**.
+- This tooling also allows us to validate that IG publishes to EB and that the file‑bus is replayable for smoke tests.
+
+### Proposed plan
+1) **Reader utility (local file‑bus)**
+   - Implement `EventBusReader` with `read(topic, partition, from_offset, max_records)`.
+   - Return records with their offsets and payloads.
+
+2) **CLI for tail/replay**
+   - `python -m fraud_detection.event_bus.cli tail --topic ... --from-offset ... --max ...`
+   - Default: `partition=0`, `from_offset=0`, `max=20`.
+
+3) **Smoke validation**
+   - After `platform-smoke`, run tail and ensure records exist and offsets are contiguous.
+
+4) **Tests**
+   - Publish N records, read from offset 0, assert offsets/payloads.
+   - Read from offset >0, assert subset returned.
+
+### Constraints
+- No consumer coordination, no retention/archival logic.
+- Strictly read‑only verification tooling.
+
+### Decision needed
+- None (Phase 3 is bounded local‑only).
