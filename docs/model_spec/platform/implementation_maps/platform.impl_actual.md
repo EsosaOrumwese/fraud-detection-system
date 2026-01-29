@@ -537,3 +537,28 @@ The Oracle Store is **external engine truth** (sealed worlds) and is **not** par
 - Local/dev may point `oracle_root` to `runs/local_full_run-5` or future `runs/data-engine`; the **conceptual boundary is external**, even if the path lives inside the repo.
 
 
+
+---
+
+## Entry: 2026-01-29 02:16:10 — Add `platform-smoke` make target (SR→WSP→IG cap)
+
+### Intent
+Provide a **single make target** that runs the local SR→WSP→IG smoke flow without manual caps or keys, while keeping IG service startup explicit.
+
+### Decision trail
+- Users repeatedly had to supply `SR_RUN_EQUIVALENCE_KEY` and `WSP_READY_MAX_EVENTS` by hand; this is error‑prone and slows local validation.
+- IG runs as a long‑lived service; starting/stopping it inside a make target is brittle on Windows, so the target should **prompt** the operator to run `make platform-ig-service` in another terminal.
+- The smoke path should remain bounded and deterministic; it should not attempt full completion.
+
+### Implementation
+- Added `PLATFORM_SMOKE_MAX_EVENTS` (default `20`).
+- Added `platform-smoke` target that:
+  1) creates a new platform run id,
+  2) cleans the control bus,
+  3) generates a fresh run_equivalence_key via Python,
+  4) runs SR reuse,
+  5) runs WSP READY once with the cap.
+
+### Expected usage
+- Terminal A: `make platform-ig-service`
+- Terminal B: `make platform-smoke`

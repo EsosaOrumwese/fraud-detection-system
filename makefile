@@ -2533,6 +2533,7 @@ WSP_VALIDATE_SKIP_RESUME ?=
 WSP_READY_POLL_SECONDS ?= 2.0
 WSP_READY_MAX_MESSAGES ?=
 WSP_READY_MAX_EVENTS ?=
+PLATFORM_SMOKE_MAX_EVENTS ?= 20
 WSP_ENGINE_RUN_ROOT ?=
 WSP_SCENARIO_ID ?=
 WSP_OUTPUT_IDS ?=
@@ -2632,6 +2633,15 @@ platform-wsp-ready-consumer-once:
 	@$(PY_SCRIPT) -m fraud_detection.world_streamer_producer.ready_consumer --profile "$(WSP_PROFILE)" --once \
 		$(if $(WSP_READY_MAX_MESSAGES),--max-messages "$(WSP_READY_MAX_MESSAGES)",) \
 		$(if $(WSP_READY_MAX_EVENTS),--max-events "$(WSP_READY_MAX_EVENTS)",)
+
+.PHONY: platform-smoke
+platform-smoke:
+	@echo "Ensure IG service is running (in another terminal): make platform-ig-service"
+	@$(MAKE) platform-run-new
+	@$(MAKE) platform-bus-clean
+	@SR_RUN_EQUIVALENCE_KEY="$$( $(PY_SCRIPT) -c \"import time; print('local_smoke_' + time.strftime('%Y%m%dT%H%M%SZ'))\" )" \
+		$(MAKE) platform-sr-run-reuse
+	@WSP_READY_MAX_EVENTS="$(PLATFORM_SMOKE_MAX_EVENTS)" $(MAKE) platform-wsp-ready-consumer-once
 
 .PHONY: platform-wsp-validate-local
 platform-wsp-validate-local:
