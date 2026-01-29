@@ -11,6 +11,7 @@ PYTHONUNBUFFERED ?= 1
 # Python command wrappers (unbuffered to keep console output responsive).
 PY_ENGINE = PYTHONUNBUFFERED=$(PYTHONUNBUFFERED) PYTHONPATH=$(ENGINE_PYTHONPATH) $(PY)
 PY_SCRIPT = PYTHONUNBUFFERED=$(PYTHONUNBUFFERED) $(PY)
+PY_PLATFORM = PYTHONUNBUFFERED=$(PYTHONUNBUFFERED) PYTHONPATH=src $(PY)
 
 # ---------------------------------------------------------------------------
 # Engine CLI defaults (dev/prod contract switching)
@@ -2551,13 +2552,20 @@ SR_WIRING_PARITY ?= config/platform/sr/wiring_local_kinesis.yaml
 PARITY_OBJECT_STORE_ENDPOINT ?= http://localhost:9000
 PARITY_OBJECT_STORE_REGION ?= us-east-1
 PARITY_ORACLE_ROOT ?= s3://oracle-store/local_full_run-5
-PARITY_IG_ADMISSION_DSN ?= postgresql://platform:platform@localhost:5433/platform
-PARITY_WSP_CHECKPOINT_DSN ?= postgresql://platform:platform@localhost:5433/platform
+PARITY_IG_ADMISSION_DSN ?= postgresql://platform:platform@localhost:5434/platform
+PARITY_WSP_CHECKPOINT_DSN ?= postgresql://platform:platform@localhost:5434/platform
 PARITY_EVENT_BUS_STREAM ?= fp-traffic-bus
+PARITY_EVENT_BUS_REGION ?= $(PARITY_CONTROL_BUS_REGION)
+PARITY_EVENT_BUS_ENDPOINT_URL ?= $(PARITY_CONTROL_BUS_ENDPOINT_URL)
 PARITY_CONTROL_BUS_STREAM ?= sr-control-bus
 PARITY_CONTROL_BUS_REGION ?= us-east-1
 PARITY_CONTROL_BUS_ENDPOINT_URL ?= http://localhost:4566
 PARITY_IG_INGEST_URL ?= http://localhost:8081
+PARITY_AWS_ACCESS_KEY_ID ?= minio
+PARITY_AWS_SECRET_ACCESS_KEY ?= minio123
+PARITY_MINIO_ACCESS_KEY ?= minio
+PARITY_MINIO_SECRET_KEY ?= minio123
+PARITY_AWS_EC2_METADATA_DISABLED ?= true
 
 .PHONY: platform-stack-up platform-stack-down platform-stack-status
 platform-stack-up:
@@ -2579,6 +2587,19 @@ platform-parity-stack-down:
 platform-parity-stack-status:
 	docker compose -f infra/local/docker-compose.platform-parity.yaml ps
 
+.PHONY: platform-parity-bootstrap
+platform-parity-bootstrap:
+	@AWS_ACCESS_KEY_ID="$(PARITY_AWS_ACCESS_KEY_ID)" \
+	AWS_SECRET_ACCESS_KEY="$(PARITY_AWS_SECRET_ACCESS_KEY)" \
+	AWS_DEFAULT_REGION="$(PARITY_CONTROL_BUS_REGION)" \
+	AWS_ENDPOINT_URL="$(PARITY_CONTROL_BUS_ENDPOINT_URL)" \
+	$(PY_SCRIPT) -c "import boto3,os; endpoint=os.environ.get('AWS_ENDPOINT_URL'); region=os.environ.get('AWS_DEFAULT_REGION','us-east-1'); client=boto3.client('kinesis',region_name=region,endpoint_url=endpoint); [client.create_stream(StreamName=n,ShardCount=1) if True else None for n in ['sr-control-bus','fp-traffic-bus'] if True] if True else None" 2> /dev/null || true
+	@AWS_ACCESS_KEY_ID="$(PARITY_MINIO_ACCESS_KEY)" \
+	AWS_SECRET_ACCESS_KEY="$(PARITY_MINIO_SECRET_KEY)" \
+	AWS_DEFAULT_REGION="$(PARITY_OBJECT_STORE_REGION)" \
+	AWS_ENDPOINT_URL="$(PARITY_OBJECT_STORE_ENDPOINT)" \
+	$(PY_SCRIPT) -c "import boto3,os; endpoint=os.environ.get('AWS_ENDPOINT_URL'); region=os.environ.get('AWS_DEFAULT_REGION','us-east-1'); client=boto3.client('s3',region_name=region,endpoint_url=endpoint); [client.create_bucket(Bucket=b) if True else None for b in ['oracle-store','fraud-platform'] if True] if True else None" 2> /dev/null || true
+
 .PHONY: platform-bus-clean
 platform-bus-clean:
 	rm -f runs/fraud-platform/control_bus/fp.bus.control.v1/*.json
@@ -2586,7 +2607,7 @@ platform-bus-clean:
 .PHONY: platform-run-new
 platform-run-new:
 	rm -f runs/fraud-platform/platform_runs/ACTIVE_RUN_ID
-	@PLATFORM_RUN_ID="$(PLATFORM_RUN_ID)" $(PY_SCRIPT) -c "from fraud_detection.platform_runtime import resolve_platform_run_id; print(resolve_platform_run_id(create_if_missing=True))"
+	@PLATFORM_RUN_ID="$(PLATFORM_RUN_ID)" $(PY_PLATFORM) -c "from fraud_detection.platform_runtime import resolve_platform_run_id; print(resolve_platform_run_id(create_if_missing=True))"
 
 .PHONY: platform-sr-run-reuse
 platform-sr-run-reuse:
@@ -2598,7 +2619,7 @@ platform-sr-run-reuse:
 		echo "SR_MANIFEST_FINGERPRINT and SR_PARAMETER_HASH are required." >&2; \
 		exit 1; \
 	fi
-	@$(PY_SCRIPT) -m fraud_detection.scenario_runner.cli run \
+	@$(PY_PLATFORM) -m fraud_detection.scenario_runner.cli run \
 		--wiring "$(SR_WIRING)" \
 		--policy "$(SR_POLICY)" \
 		--run-equivalence-key "$(SR_RUN_EQUIVALENCE_KEY)" \
@@ -2616,7 +2637,7 @@ platform-sr-reemit:
 		echo "SR_REEMIT_RUN_ID is required for platform-sr-reemit." >&2; \
 		exit 1; \
 	fi
-	@$(PY_SCRIPT) -m fraud_detection.scenario_runner.cli reemit \
+	@$(PY_PLATFORM) -m fraud_detection.scenario_runner.cli reemit \
 		--wiring "$(SR_WIRING)" \
 		--policy "$(SR_POLICY)" \
 		--run-id "$(SR_REEMIT_RUN_ID)" \
@@ -2624,7 +2645,7 @@ platform-sr-reemit:
 
 .PHONY: platform-ig-service
 platform-ig-service:
-	@$(PY_SCRIPT) -m fraud_detection.ingestion_gate.service \
+	@$(PY_PLATFORM) -m fraud_detection.ingestion_gate.service \
 		--profile "$(IG_PROFILE)" \
 		--host "$(IG_HOST)" \
 		--port "$(IG_PORT)"
@@ -2637,11 +2658,18 @@ platform-ig-service-parity:
 	IG_ADMISSION_DSN="$(PARITY_IG_ADMISSION_DSN)" \
 	WSP_CHECKPOINT_DSN="$(PARITY_WSP_CHECKPOINT_DSN)" \
 	EVENT_BUS_STREAM="$(PARITY_EVENT_BUS_STREAM)" \
+	EVENT_BUS_REGION="$(PARITY_EVENT_BUS_REGION)" \
+	EVENT_BUS_ENDPOINT_URL="$(PARITY_EVENT_BUS_ENDPOINT_URL)" \
 	CONTROL_BUS_STREAM="$(PARITY_CONTROL_BUS_STREAM)" \
 	CONTROL_BUS_REGION="$(PARITY_CONTROL_BUS_REGION)" \
 	CONTROL_BUS_ENDPOINT_URL="$(PARITY_CONTROL_BUS_ENDPOINT_URL)" \
 	IG_INGEST_URL="$(PARITY_IG_INGEST_URL)" \
-	$(PY_SCRIPT) -m fraud_detection.ingestion_gate.service \
+	AWS_ACCESS_KEY_ID="$(PARITY_AWS_ACCESS_KEY_ID)" \
+	AWS_SECRET_ACCESS_KEY="$(PARITY_AWS_SECRET_ACCESS_KEY)" \
+	AWS_DEFAULT_REGION="$(PARITY_CONTROL_BUS_REGION)" \
+	AWS_ENDPOINT_URL="$(PARITY_CONTROL_BUS_ENDPOINT_URL)" \
+	AWS_EC2_METADATA_DISABLED="$(PARITY_AWS_EC2_METADATA_DISABLED)" \
+	$(PY_PLATFORM) -m fraud_detection.ingestion_gate.service \
 		--profile "$(IG_PROFILE_PARITY)" \
 		--host "$(IG_HOST)" \
 		--port "$(IG_PORT)"
@@ -2657,7 +2685,7 @@ platform-wsp-ready-once:
 		echo "WSP_SCENARIO_ID is required for platform-wsp-ready-once." >&2; \
 		exit 1; \
 	fi
-	@$(PY_SCRIPT) -m fraud_detection.world_streamer_producer.cli --profile "$(WSP_PROFILE)" \
+	@$(PY_PLATFORM) -m fraud_detection.world_streamer_producer.cli --profile "$(WSP_PROFILE)" \
 		--engine-run-root "$(WSP_ENGINE_RUN_ROOT)" \
 		--scenario-id "$(WSP_SCENARIO_ID)" \
 		$(if $(WSP_OUTPUT_IDS),--output-ids "$(WSP_OUTPUT_IDS)",) \
@@ -2665,14 +2693,14 @@ platform-wsp-ready-once:
 
 .PHONY: platform-wsp-ready-consumer
 platform-wsp-ready-consumer:
-	@$(PY_SCRIPT) -m fraud_detection.world_streamer_producer.ready_consumer --profile "$(WSP_PROFILE)" \
+	@$(PY_PLATFORM) -m fraud_detection.world_streamer_producer.ready_consumer --profile "$(WSP_PROFILE)" \
 		--poll-seconds "$(WSP_READY_POLL_SECONDS)" \
 		$(if $(WSP_READY_MAX_MESSAGES),--max-messages "$(WSP_READY_MAX_MESSAGES)",) \
 		$(if $(WSP_READY_MAX_EVENTS),--max-events "$(WSP_READY_MAX_EVENTS)",)
 
 .PHONY: platform-wsp-ready-consumer-once
 platform-wsp-ready-consumer-once:
-	@$(PY_SCRIPT) -m fraud_detection.world_streamer_producer.ready_consumer --profile "$(WSP_PROFILE)" --once \
+	@$(PY_PLATFORM) -m fraud_detection.world_streamer_producer.ready_consumer --profile "$(WSP_PROFILE)" --once \
 		$(if $(WSP_READY_MAX_MESSAGES),--max-messages "$(WSP_READY_MAX_MESSAGES)",) \
 		$(if $(WSP_READY_MAX_EVENTS),--max-events "$(WSP_READY_MAX_EVENTS)",)
 
@@ -2688,6 +2716,7 @@ platform-smoke:
 .PHONY: platform-parity-smoke
 platform-parity-smoke:
 	@echo "Ensure parity stack is up: make platform-parity-stack-up"
+	@$(MAKE) platform-parity-bootstrap
 	@echo "Ensure IG service is running (in another terminal): make platform-ig-service-parity"
 	@$(MAKE) platform-run-new
 	@OBJECT_STORE_ENDPOINT="$(PARITY_OBJECT_STORE_ENDPOINT)" \
@@ -2700,6 +2729,9 @@ platform-parity-smoke:
 	CONTROL_BUS_REGION="$(PARITY_CONTROL_BUS_REGION)" \
 	CONTROL_BUS_ENDPOINT_URL="$(PARITY_CONTROL_BUS_ENDPOINT_URL)" \
 	IG_INGEST_URL="$(PARITY_IG_INGEST_URL)" \
+	AWS_ACCESS_KEY_ID="$(PARITY_AWS_ACCESS_KEY_ID)" \
+	AWS_SECRET_ACCESS_KEY="$(PARITY_AWS_SECRET_ACCESS_KEY)" \
+	AWS_EC2_METADATA_DISABLED="$(PARITY_AWS_EC2_METADATA_DISABLED)" \
 	SR_WIRING="$(SR_WIRING_PARITY)" WSP_PROFILE="$(WSP_PROFILE_PARITY)" IG_PROFILE="$(IG_PROFILE_PARITY)" \
 	ORACLE_PROFILE="$(ORACLE_PROFILE_PARITY)" \
 	SR_RUN_EQUIVALENCE_KEY="parity_smoke_$$(date +%Y%m%dT%H%M%SZ)" \
@@ -2714,6 +2746,9 @@ platform-parity-smoke:
 	CONTROL_BUS_REGION="$(PARITY_CONTROL_BUS_REGION)" \
 	CONTROL_BUS_ENDPOINT_URL="$(PARITY_CONTROL_BUS_ENDPOINT_URL)" \
 	IG_INGEST_URL="$(PARITY_IG_INGEST_URL)" \
+	AWS_ACCESS_KEY_ID="$(PARITY_AWS_ACCESS_KEY_ID)" \
+	AWS_SECRET_ACCESS_KEY="$(PARITY_AWS_SECRET_ACCESS_KEY)" \
+	AWS_EC2_METADATA_DISABLED="$(PARITY_AWS_EC2_METADATA_DISABLED)" \
 	WSP_PROFILE="$(WSP_PROFILE_PARITY)" WSP_READY_MAX_EVENTS="$(PLATFORM_SMOKE_MAX_EVENTS)" \
 	$(MAKE) platform-wsp-ready-consumer-once
 
@@ -2727,7 +2762,7 @@ platform-wsp-validate-local:
 		echo "WSP_SCENARIO_ID is required for platform-wsp-validate-local." >&2; \
 		exit 1; \
 	fi
-	@$(PY_SCRIPT) -m fraud_detection.world_streamer_producer.validate_cli --profile "$(WSP_PROFILE)" \
+	@$(PY_PLATFORM) -m fraud_detection.world_streamer_producer.validate_cli --profile "$(WSP_PROFILE)" \
 		--engine-run-root "$(WSP_ENGINE_RUN_ROOT)" \
 		--scenario-id "$(WSP_SCENARIO_ID)" \
 		--mode local \
@@ -2747,7 +2782,7 @@ platform-wsp-validate-dev:
 		echo "WSP_SCENARIO_ID is required for platform-wsp-validate-dev." >&2; \
 		exit 1; \
 	fi
-	@$(PY_SCRIPT) -m fraud_detection.world_streamer_producer.validate_cli --profile "$(WSP_PROFILE)" \
+	@$(PY_PLATFORM) -m fraud_detection.world_streamer_producer.validate_cli --profile "$(WSP_PROFILE)" \
 		--engine-run-root "$(WSP_ENGINE_RUN_ROOT)" \
 		--scenario-id "$(WSP_SCENARIO_ID)" \
 		--mode dev \
@@ -2767,7 +2802,7 @@ platform-oracle-pack:
 		echo "ORACLE_ENGINE_RELEASE is required for platform-oracle-pack." >&2; \
 		exit 1; \
 	fi
-	@$(PY_SCRIPT) -m fraud_detection.oracle_store.pack_cli --profile "$(ORACLE_PROFILE)" \
+	@$(PY_PLATFORM) -m fraud_detection.oracle_store.pack_cli --profile "$(ORACLE_PROFILE)" \
 		--engine-run-root "$(ORACLE_ENGINE_RUN_ROOT)" \
 		--scenario-id "$(ORACLE_SCENARIO_ID)" \
 		$(if $(ORACLE_PACK_ROOT),--pack-root "$(ORACLE_PACK_ROOT)",) \
@@ -2779,7 +2814,7 @@ platform-oracle-check:
 		echo "ORACLE_ENGINE_RUN_ROOT is required for platform-oracle-check." >&2; \
 		exit 1; \
 	fi
-	@$(PY_SCRIPT) -m fraud_detection.oracle_store.cli --profile "$(ORACLE_PROFILE)" \
+	@$(PY_PLATFORM) -m fraud_detection.oracle_store.cli --profile "$(ORACLE_PROFILE)" \
 		--engine-run-root "$(ORACLE_ENGINE_RUN_ROOT)" \
 		$(if $(ORACLE_SCENARIO_ID),--scenario-id "$(ORACLE_SCENARIO_ID)",) \
 		$(if $(ORACLE_OUTPUT_IDS),--output-ids "$(ORACLE_OUTPUT_IDS)",)
@@ -2790,7 +2825,7 @@ platform-oracle-check-strict:
 		echo "ORACLE_ENGINE_RUN_ROOT is required for platform-oracle-check-strict." >&2; \
 		exit 1; \
 	fi
-	@$(PY_SCRIPT) -m fraud_detection.oracle_store.cli --profile "$(ORACLE_PROFILE)" \
+	@$(PY_PLATFORM) -m fraud_detection.oracle_store.cli --profile "$(ORACLE_PROFILE)" \
 		--engine-run-root "$(ORACLE_ENGINE_RUN_ROOT)" \
 		$(if $(ORACLE_SCENARIO_ID),--scenario-id "$(ORACLE_SCENARIO_ID)",) \
 		$(if $(ORACLE_OUTPUT_IDS),--output-ids "$(ORACLE_OUTPUT_IDS)",) \

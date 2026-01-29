@@ -46,6 +46,8 @@ class WiringProfile:
     policy_rev: str
     event_bus_kind: str = "file"
     event_bus_path: str | None = None
+    event_bus_region: str | None = None
+    event_bus_endpoint_url: str | None = None
     auth_mode: str = "disabled"
     api_key_header: str = "X-IG-Api-Key"
     auth_allowlist: list[str] | None = None
@@ -86,13 +88,16 @@ class WiringProfile:
             else:
                 object_store_root = bucket
         profile_id = data["profile_id"]
-        admission_db_path = wiring.get("admission_db_path")
+        admission_db_path = _resolve_env(wiring.get("admission_db_path"))
         if not admission_db_path:
             if str(object_store_root).startswith("s3://"):
                 admission_db_path = "runs/fraud-platform/ig/index/ig_admission.db"
             else:
                 admission_db_path = str(Path(object_store_root) / "fraud-platform/ig/index/ig_admission.db")
         event_bus_path = wiring.get("event_bus_path") or event_bus.get("root") or event_bus.get("stream")
+        event_bus_path = _resolve_env(event_bus_path)
+        event_bus_region = _resolve_env(event_bus.get("region"))
+        event_bus_endpoint_url = _resolve_env(event_bus.get("endpoint_url"))
         auth_allowlist = list(security.get("auth_allowlist") or [])
         auth_allowlist_ref = security.get("auth_allowlist_ref")
         if auth_allowlist_ref:
@@ -144,6 +149,8 @@ class WiringProfile:
             policy_rev=policy.get("policy_rev", profile_id),
             event_bus_kind=wiring.get("event_bus_kind", "file"),
             event_bus_path=event_bus_path,
+            event_bus_region=event_bus_region,
+            event_bus_endpoint_url=event_bus_endpoint_url,
             auth_mode=security.get("auth_mode", "disabled"),
             api_key_header=security.get("api_key_header", "X-IG-Api-Key"),
             auth_allowlist=auth_allowlist or None,

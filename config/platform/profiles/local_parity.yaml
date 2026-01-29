@@ -23,6 +23,8 @@ wiring:
     topic_control: fp.bus.control.v1
     topic_audit: fp.bus.audit.v1
     stream: ${EVENT_BUS_STREAM}
+    region: ${EVENT_BUS_REGION}
+    endpoint_url: ${EVENT_BUS_ENDPOINT_URL}
   control_bus:
     kind: kinesis
     topic: fp.bus.control.v1

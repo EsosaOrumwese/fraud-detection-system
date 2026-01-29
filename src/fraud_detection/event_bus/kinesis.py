@@ -46,7 +46,12 @@ class KinesisEventBusPublisher:
         )
 
 
-def build_kinesis_publisher(*, stream_name: str) -> KinesisEventBusPublisher:
-    region = os.getenv("AWS_DEFAULT_REGION") or os.getenv("AWS_REGION")
-    endpoint = os.getenv("AWS_ENDPOINT_URL") or os.getenv("KINESIS_ENDPOINT_URL")
+def build_kinesis_publisher(
+    *,
+    stream_name: str,
+    region: str | None = None,
+    endpoint_url: str | None = None,
+) -> KinesisEventBusPublisher:
+    region = region or os.getenv("AWS_DEFAULT_REGION") or os.getenv("AWS_REGION")
+    endpoint = endpoint_url or os.getenv("AWS_ENDPOINT_URL") or os.getenv("KINESIS_ENDPOINT_URL")
     return KinesisEventBusPublisher(KinesisConfig(stream_name=stream_name, region=region, endpoint_url=endpoint))

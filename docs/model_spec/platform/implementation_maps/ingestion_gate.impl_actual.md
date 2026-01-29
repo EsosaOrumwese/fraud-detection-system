@@ -1958,3 +1958,93 @@ Platform parity implementation requires local to match dev/prod backends; SQLite
 - `src/fraud_detection/ingestion_gate/pg_index.py` (new)
 - `src/fraud_detection/ingestion_gate/admission.py` (DSN selection)
 - `config/platform/profiles/local_parity.yaml`
+
+---
+
+## Entry: 2026-01-29 19:38:31 — IG service importing stale module in parity smoke
+
+### Signal
+Parity smoke hit `/v1/ops/health` and IG threw `AttributeError: IngestionGate.authorize_request missing`,
+even though the method exists in repo `src`. This indicates the service is importing a stale
+site‑packages install, not the working tree.
+
+### Decision
+Force IG service (and other platform targets) to use `PYTHONPATH=src` so the repo version is always used.
+
+### Plan
+- Add `PY_PLATFORM` wrapper to `makefile` (`PYTHONPATH=src`).
+- Update IG service targets to use `$(PY_PLATFORM)`.
+- Re‑run parity smoke and confirm receipts/offsets emit correctly.
+
+---
+
+## Entry: 2026-01-29 19:46:31 — Fix IG class method indentation regression
+
+### Finding
+`IngestionGate.authorize_request` (and other methods) were missing at runtime because a bad edit
+ended the class early. Methods starting at `admit_push` were accidentally nested under the
+module‑level `_build_indices` function. This made `IngestionGate` appear to have no methods besides `build`.
+
+### Decision
+Restore class structure by:
+- Moving `_build_indices` back to module level **after** the class definition.
+- Re‑inserting `admit_push` / `admit_push_with_decision` as proper class methods.
+
+### Files changed
+- `src/fraud_detection/ingestion_gate/admission.py`
+
+---
+
+## Entry: 2026-01-29 19:54:00 — Parity publish failure: env placeholders not resolved in IG wiring
+
+### Finding
+IG publish failed with `ValidationException` because the Kinesis stream name was literally
+`${EVENT_BUS_STREAM}`. Root cause: `WiringProfile.load` did not resolve environment variables
+for `admission_db_path` or `event_bus_path`, leaving placeholders untouched.
+
+### Decision
+Resolve env placeholders for these fields at load time to eliminate hidden config drift:
+- `admission_db_path` (avoids accidental `${IG_ADMISSION_DSN}` SQLite files)
+- `event_bus_path` (ensures Kinesis stream name resolves)
+
+### Files changed
+- `src/fraud_detection/ingestion_gate/config.py`
+
+---
+
+## Entry: 2026-01-29 19:58:43 — IG parity Kinesis endpoint must target LocalStack
+
+### Finding
+Kinesis publish errors (`UnrecognizedClientException`) occurred because IG used default AWS endpoint,
+not LocalStack. The IG service env lacked `AWS_ENDPOINT_URL`/`AWS_DEFAULT_REGION`.
+
+### Fix
+Set `AWS_ENDPOINT_URL` + `AWS_DEFAULT_REGION` when starting IG service in parity mode
+(`make platform-ig-service-parity`).
+
+---
+
+## Entry: 2026-01-29 20:05:31 — IG wiring: explicit event‑bus endpoint/region in profile
+
+### Problem
+Relying on env‑only `AWS_ENDPOINT_URL` for IG Kinesis publish proved fragile.
+Parity runs still failed with `UnrecognizedClientException`.
+
+### Decision
+Make the event‑bus endpoint/region explicit in IG wiring and pass them into the Kinesis publisher.
+
+### Files updated
+- `src/fraud_detection/ingestion_gate/config.py` (event_bus_endpoint_url + event_bus_region)
+- `src/fraud_detection/ingestion_gate/admission.py` (pass region/endpoint to publisher)
+- `config/platform/profiles/local_parity.yaml` (event_bus endpoint/region)
+
+---
+
+## Entry: 2026-01-29 20:15:34 — Parity smoke validation (IG publish + receipts)
+
+### Outcome
+IG admitted traffic events in parity mode and produced receipts with Kinesis offsets.
+
+### Evidence
+- IG logs: `ADMIT` entries include non‑empty `offset` values.
+- Postgres ops DB: 5 receipts created after `2026-01-29T20:11:00Z`, all with `eb_offset_kind = kinesis_sequence`.

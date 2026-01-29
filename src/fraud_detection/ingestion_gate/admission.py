@@ -125,13 +125,6 @@ class IngestionGate:
             push_limiter=RateLimiter(wiring.push_rate_limit_per_minute),
         )
 
-
-def _build_indices(admission_db_path: str) -> tuple[AdmissionIndex | PostgresAdmissionIndex, OpsIndex | PostgresOpsIndex]:
-    if is_postgres_dsn(admission_db_path):
-        return PostgresAdmissionIndex(admission_db_path), PostgresOpsIndex(admission_db_path)
-    path = Path(admission_db_path)
-    return AdmissionIndex(path), OpsIndex(path)
-
     def admit_push(self, envelope: dict[str, Any]) -> Receipt:
         logger.info("IG admit_push start event_id=%s event_type=%s", envelope.get("event_id"), envelope.get("event_type"))
         decision, receipt = self._admit_event(envelope)
@@ -140,7 +133,11 @@ def _build_indices(admission_db_path: str) -> tuple[AdmissionIndex | PostgresAdm
         return receipt
 
     def admit_push_with_decision(self, envelope: dict[str, Any]) -> tuple[AdmissionDecision, Receipt]:
-        logger.info("IG admit_push(decision) event_id=%s event_type=%s", envelope.get("event_id"), envelope.get("event_type"))
+        logger.info(
+            "IG admit_push(decision) event_id=%s event_type=%s",
+            envelope.get("event_id"),
+            envelope.get("event_type"),
+        )
         decision, receipt = self._admit_event(envelope)
         return decision, receipt
 
@@ -427,6 +424,13 @@ def _build_indices(admission_db_path: str) -> tuple[AdmissionIndex | PostgresAdm
         return payload
 
 
+def _build_indices(admission_db_path: str) -> tuple[AdmissionIndex | PostgresAdmissionIndex, OpsIndex | PostgresOpsIndex]:
+    if is_postgres_dsn(admission_db_path):
+        return PostgresAdmissionIndex(admission_db_path), PostgresOpsIndex(admission_db_path)
+    path = Path(admission_db_path)
+    return AdmissionIndex(path), OpsIndex(path)
+
+
 def _build_bus(wiring: WiringProfile) -> EventBusPublisher:
     if wiring.event_bus_kind == "file":
         bus_path = wiring.event_bus_path or "runs/local_bus"
@@ -434,7 +438,11 @@ def _build_bus(wiring: WiringProfile) -> EventBusPublisher:
     if wiring.event_bus_kind == "kinesis":
         from fraud_detection.event_bus.kinesis import build_kinesis_publisher
 
-        return build_kinesis_publisher(stream_name=wiring.event_bus_path or "fp.bus.traffic.v1")
+        return build_kinesis_publisher(
+            stream_name=wiring.event_bus_path or "fp.bus.traffic.v1",
+            region=wiring.event_bus_region,
+            endpoint_url=wiring.event_bus_endpoint_url,
+        )
     raise RuntimeError("EB_KIND_UNSUPPORTED")
 
 

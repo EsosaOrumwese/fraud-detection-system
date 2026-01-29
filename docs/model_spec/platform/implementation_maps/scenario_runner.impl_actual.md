@@ -3815,3 +3815,27 @@ Switch SR local parity + local Kinesis wiring to use the **same bucket** (`s3://
 ### Change
 - `config/platform/sr/wiring_local_kinesis.yaml`: `object_store_root: s3://fraud-platform/sr`
 - `config/platform/sr/wiring_local_parity.yaml`: `object_store_root: s3://fraud-platform/sr`
+
+## Entry: 2026-01-29 19:32:10 — Parity SR authority store DSN alignment
+
+### Trigger
+Parity stack moved Postgres to 5434 and uses `platform:platform` credentials; SR parity wiring still pointed to legacy `sr:sr@5433`.
+
+### Decision
+Align SR parity wiring to the parity Postgres instance to avoid blocking on missing DB.
+
+### Change
+- `config/platform/sr/wiring_local_kinesis.yaml`: `authority_store_dsn` → `postgresql://platform:platform@localhost:5434/platform`
+- `config/platform/sr/wiring_local_parity.yaml`: same update.
+
+## Entry: 2026-01-29 19:33:40 — Fix SR S3 root to align run_facts_view refs
+
+### Trigger
+WSP READY consumer failed with `RUN_FACTS_INVALID` because SR wrote run_facts under an extra `sr/` prefix in S3.
+
+### Decision
+Align SR S3 root to the **bucket root** so SR’s relative refs (`fraud-platform/sr/...`) resolve correctly for WSP.
+
+### Change
+- `config/platform/sr/wiring_local_kinesis.yaml`: `object_store_root: s3://fraud-platform`
+- `config/platform/sr/wiring_local_parity.yaml`: `object_store_root: s3://fraud-platform`

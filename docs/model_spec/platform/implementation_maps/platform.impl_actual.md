@@ -666,3 +666,119 @@ User approved “robust implementation and removal of every ladder friction” t
 ### Notes
 - File‑bus + SQLite remain available in `local.yaml` for fast smoke.
 - Parity mode is now the default ladder validation path.
+
+## Entry: 2026-01-29 19:19:40 — Parity run fixes (Postgres port + S3 creds)
+
+### Trigger
+Parity smoke run failed: SR could not access MinIO (403) and Postgres DSN collided with existing local Postgres on 5433.
+
+### Decision
+- Move parity Postgres to **5434** to avoid port collision with existing stacks.
+- Default parity AWS creds to **MinIO credentials** so SR/WSP/IG can access S3‑compatible storage without manual env overrides.
+
+### Change
+- `infra/local/docker-compose.platform-parity.yaml`: Postgres port now `5434:5432`.
+- `makefile`: parity DSNs updated to `localhost:5434`; parity AWS creds default to MinIO access key/secret.
+
+---
+
+## Entry: 2026-01-29 19:38:31 — Parity smoke failure: IG service importing stale module (PYTHONPATH)
+
+### Trigger
+During parity smoke, WSP READY consumer hit IG `/v1/ops/health` and IG crashed with
+`AttributeError: 'IngestionGate' object has no attribute 'authorize_request'`, even though
+`IngestionGate.authorize_request()` exists in `src/fraud_detection/ingestion_gate/admission.py`.
+This strongly suggests the IG service is running a stale installed package rather than `src`.
+
+### Decision
+- Add an explicit **platform Python wrapper** (`PY_PLATFORM`) that sets `PYTHONPATH=src`.
+- Use `PY_PLATFORM` for **all platform targets** (SR/IG/WSP/Oracle/utility) so local runs always
+  execute against the repo working tree, not a site‑packages copy.
+- Rerun parity smoke end‑to‑end and validate receipts + offsets in Postgres/Kinesis after fix.
+
+### Planned edits
+- `makefile`: add `PY_PLATFORM` and swap `$(PY_SCRIPT)` to `$(PY_PLATFORM)` across platform targets.
+- Re‑run parity smoke chain and validate:
+  - IG receipts/quarantines in Postgres (`admissions`, `receipts`, `quarantines`).
+  - EB offsets present in receipts (`eb_offset`, `eb_offset_kind`).
+  - Kinesis stream has new records for `fp-traffic-bus`.
+
+---
+
+## Entry: 2026-01-29 19:46:31 — Parity smoke root cause: IG class methods nested under _build_indices
+
+### What changed
+While investigating the IG 500s, found that `IngestionGate` methods were accidentally indented
+under `_build_indices`, leaving the class without `authorize_request` and other handlers.
+
+### Fix
+- Restored class structure by moving `_build_indices` after the class and re‑adding missing methods.
+- Proceeding to restart IG service and re‑run parity smoke to validate receipts + offsets.
+
+---
+
+## Entry: 2026-01-29 19:47:10 — Ensure platform targets always run from repo (`PYTHONPATH=src`)
+
+### Change
+- Added `PY_PLATFORM` in `makefile` and switched platform targets (SR/IG/WSP/Oracle) to use it.
+
+### Rationale
+Avoids drift between editable installs and working tree; ensures parity smoke uses latest code.
+
+---
+
+## Entry: 2026-01-29 19:54:00 — Parity smoke fix: resolve env placeholders in IG wiring
+
+### Trigger
+Parity smoke failed because IG published to stream `${EVENT_BUS_STREAM}` and used a literal
+`${IG_ADMISSION_DSN}` SQLite file. The placeholders were not resolved in IG wiring.
+
+### Fix
+- Resolve env placeholders for `admission_db_path` and `event_bus_path` in
+  `src/fraud_detection/ingestion_gate/config.py`.
+
+### Next
+Restart IG service and re‑run parity smoke. Validate receipts/offsets.
+
+---
+
+## Entry: 2026-01-29 19:58:43 — Parity EB publish: ensure localstack endpoint env for IG
+
+### Trigger
+IG publish failed with `UnrecognizedClientException` (invalid security token) because
+Kinesis publisher used default AWS endpoint instead of LocalStack. We were not setting
+`AWS_ENDPOINT_URL`/`AWS_DEFAULT_REGION` for the IG service in parity mode.
+
+### Fix
+- `makefile`: export `AWS_ENDPOINT_URL` + `AWS_DEFAULT_REGION` in `platform-ig-service-parity`
+  using the LocalStack endpoint/region.
+
+---
+
+## Entry: 2026-01-29 20:05:31 — Parity EB publish: wire endpoint/region explicitly in IG profile
+
+### Why
+Even with env export, IG still hit AWS with invalid credentials. Making endpoint/region
+explicit in IG wiring removes reliance on implicit env propagation.
+
+### Changes
+- `config/platform/profiles/local_parity.yaml` adds `event_bus.region` + `event_bus.endpoint_url`.
+- `ingestion_gate/config.py` loads these fields and passes to Kinesis publisher.
+- `makefile` adds parity defaults for `EVENT_BUS_REGION` + `EVENT_BUS_ENDPOINT_URL`.
+
+---
+
+## Entry: 2026-01-29 20:15:34 — Parity smoke run (SR → WSP → IG → EB) succeeded
+
+### Run summary
+- SR run created `platform_20260129T201145Z`, READY published for run_id `9259e05c...`.
+- WSP READY consumer streamed **5 events** (`PLATFORM_SMOKE_MAX_EVENTS=5`).
+- IG admitted all 5 events and produced EB offsets (kinesis sequence numbers).
+
+### Validation checks
+- Postgres receipts created after `2026-01-29T20:11:00Z`: **5** receipts, all with `eb_offset_kind = kinesis_sequence`.
+- IG logs show successful `ADMIT` with non‑empty offsets (sequence numbers).
+
+### Notes
+LocalStack `GetRecords` returned 0 in a quick probe; however receipts + offsets in ops DB are
+the audit‑truth for publish success.
