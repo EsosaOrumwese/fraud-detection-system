@@ -18,7 +18,7 @@ from fraud_detection.scenario_runner.schemas import SchemaRegistry
 from fraud_detection.scenario_runner.storage import LocalObjectStore, ObjectStore, S3ObjectStore
 
 from .config import WspProfile
-from .control_bus import FileControlBusReader, ReadyMessage
+from .control_bus import FileControlBusReader, KinesisControlBusReader, ReadyMessage
 from .runner import StreamResult, WorldStreamProducer
 
 logger = logging.getLogger(__name__)
@@ -47,10 +47,22 @@ class ReadyConsumerRunner:
         self._store = store or _build_store(profile)
         self._producer = producer or WorldStreamProducer(profile)
         self._sr_registry = SchemaRegistry(Path(profile.wiring.schema_root) / "scenario_runner")
-        if profile.wiring.control_bus_kind != "file":
+        kind = (profile.wiring.control_bus_kind or "file").lower()
+        if kind == "kinesis":
+            if not profile.wiring.control_bus_stream:
+                raise RuntimeError("CONTROL_BUS_STREAM_MISSING")
+            self._reader = KinesisControlBusReader(
+                profile.wiring.control_bus_stream,
+                profile.wiring.control_bus_topic,
+                region=profile.wiring.control_bus_region,
+                endpoint_url=profile.wiring.control_bus_endpoint_url,
+                registry=self._sr_registry,
+            )
+        elif kind == "file":
+            root = Path(profile.wiring.control_bus_root)
+            self._reader = FileControlBusReader(root, profile.wiring.control_bus_topic, registry=self._sr_registry)
+        else:
             raise RuntimeError("CONTROL_BUS_KIND_UNSUPPORTED")
-        root = Path(profile.wiring.control_bus_root)
-        self._reader = FileControlBusReader(root, profile.wiring.control_bus_topic, registry=self._sr_registry)
 
     def poll_once(
         self,

@@ -3803,3 +3803,15 @@ User requested Phase 10 implementation after Phase 9 docs/contracts alignment.
 - `.\.venv\Scripts\python.exe -m pytest tests/services/scenario_runner/test_oracle_pack_ref.py tests/services/scenario_runner/test_reemit.py -q` → 9 passed.
 
 ---
+
+## Entry: 2026-01-29 19:13:20 — Align SR local parity wiring to shared S3 bucket
+
+### Trigger
+Parity stack uses MinIO with `fraud-platform` bucket; SR wiring still pointed to `sr-local`, which adds an unnecessary bucket and ladder friction.
+
+### Decision
+Switch SR local parity + local Kinesis wiring to use the **same bucket** (`s3://fraud-platform/sr`) as the platform object store.
+
+### Change
+- `config/platform/sr/wiring_local_kinesis.yaml`: `object_store_root: s3://fraud-platform/sr`
+- `config/platform/sr/wiring_local_parity.yaml`: `object_store_root: s3://fraud-platform/sr`

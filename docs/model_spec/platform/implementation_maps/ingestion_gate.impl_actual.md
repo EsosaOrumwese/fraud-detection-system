@@ -1916,3 +1916,45 @@ Run a **full local chain** where SR emits READY, WSP consumes READY and streams 
 
 ### Evidence
 - Platform log shows `IG validated` and `IG admitted` lines around 01:57–01:58 for the latest READY message.
+
+---
+
+## Entry: 2026-01-29 19:02:10 — Plan: Postgres backend for IG admission + ops indices (parity mode)
+
+### Trigger
+Platform parity implementation requires local to match dev/prod backends; SQLite indices are a ladder‑friction point.
+
+### Decision trail (live)
+- IG’s admission/ops index must match prod characteristics (multi‑process safe, durable, no file‑locking edge cases).  
+- Postgres is already in the local parity stack (docker) and is the intended dev/prod class; use it as the parity backend.  
+- Keep SQLite only for unit tests and the lightweight local smoke profile.  
+- Wiring should remain consistent: allow `admission_db_path` to accept DSN strings (e.g., `postgresql://...`) to avoid introducing a second parallel key.
+
+### Planned mechanics
+- Add Postgres index implementation with the **same schema fields** as SQLite.
+- Auto‑create tables on first connect; use `INSERT ... ON CONFLICT DO NOTHING` to preserve idempotency.
+- Provide `probe()` to check connectivity for health gating.
+- Update IG builder to select Postgres when `admission_db_path` is a DSN.
+
+### Files (to change)
+- `src/fraud_detection/ingestion_gate/pg_index.py` (new)
+- `src/fraud_detection/ingestion_gate/admission.py` (index selection)
+- `src/fraud_detection/ingestion_gate/health.py` (probe for Postgres)
+- `config/platform/profiles/local_parity.yaml` (DSN wiring)
+
+## Entry: 2026-01-29 19:09:32 — Implement Postgres admission/ops indices (parity mode)
+
+### What changed
+- Added Postgres-backed admission + ops indices with schema parity to SQLite.
+- Wired IG to select Postgres when `admission_db_path` is a Postgres DSN.
+- Added parity profile wiring to supply `IG_ADMISSION_DSN`.
+
+### Mechanics implemented
+- `PostgresAdmissionIndex` uses `ON CONFLICT (dedupe_key) DO UPDATE` to preserve REPLACE semantics.
+- `PostgresOpsIndex` uses `ON CONFLICT DO NOTHING` for receipts/quarantines (same as SQLite IGNORE).
+- `probe()` checks connectivity via `SELECT 1`.
+
+### Files updated
+- `src/fraud_detection/ingestion_gate/pg_index.py` (new)
+- `src/fraud_detection/ingestion_gate/admission.py` (DSN selection)
+- `config/platform/profiles/local_parity.yaml`

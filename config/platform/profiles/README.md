@@ -11,7 +11,7 @@ config/platform/profiles/
 
 ## Shape (v0)
 ```
-profile_id: <local|dev|prod>
+profile_id: <local|local_parity|dev_local|dev|prod>
 policy:
   policy_rev: <version tag>
   partitioning_profiles_ref: config/platform/ig/partitioning_profiles_v0.yaml
@@ -32,14 +32,18 @@ wiring:
     topic_control: fp.bus.control.v1
     topic_audit: fp.bus.audit.v1
   control_bus:
-    kind: file
+    kind: file | kinesis
     root: runs/fraud-platform/control_bus
     topic: fp.bus.control.v1
+    stream: sr-control-bus
+    region: us-east-1
+    endpoint_url: http://localhost:4566
   wsp_checkpoint:
     backend: file | postgres
     root: runs/fraud-platform/wsp_checkpoints
     dsn: ${WSP_CHECKPOINT_DSN}
     flush_every: 1
+  admission_db_path: ${IG_ADMISSION_DSN}
   wsp_producer:
     producer_id: svc:world_stream_producer
     allowlist_ref: config/platform/wsp/producer_allowlist_v0.txt
@@ -59,20 +63,30 @@ Notes:
 - Wiring endpoints are placeholders; actual values come from env/secret store.
 - `${VAR}` placeholders are resolved from environment variables at load time.
 - `control_bus` wiring is used by the WSP control plane (SR → WSP); IG ignores it in streaming-only v0.
+- Parity profiles use **Kinesis** control bus with `stream/region/endpoint_url` set (LocalStack locally, AWS in dev/prod).
 - `oracle_root` points to the sealed engine world store (Oracle Store); it is wiring, not policy.
 - `oracle_engine_run_root` optionally pins WSP to a specific engine world (no “latest” scanning).
 - `oracle_scenario_id` can be used when a world contains multiple scenarios (avoid ambiguity).
-- `wsp_checkpoint` controls WSP resume state (file backend for local, Postgres for dev/prod).
+- `wsp_checkpoint` controls WSP resume state (file backend for local smoke; Postgres for parity/dev/prod).
 - `flush_every` defines how often WSP persists its cursor (lower = fewer duplicates after crash).
 - `wsp_producer` pins the producer identity stamped on envelopes; allowlist restricts valid producer_ids.
 - `ig_ingest_url` is the WSP → IG push endpoint (non‑secret; can be local or service DNS).
 - Local file runs use `object_store.root: runs` so platform artifacts resolve under `runs/fraud-platform/`.
+- Local parity uses **S3‑compatible** storage (`s3://fraud-platform`) and **Kinesis** for event/control buses.
 - `security` is wiring‑scoped: it can enable auth and rate limits without changing policy behavior.
 - Auth applies to **ingest and ops endpoints** when enabled; only CLI/internal calls bypass it.
 - IG rejects legacy pull wiring keys (`ready_lease`, `pull_sharding`, `pull_time_budget_seconds`, `security.ready_*`) in streaming‑only v0.
 - `stream_speedup` is a **policy knob** that affects pacing only (same semantics across envs).
 
+Parity env vars (local_parity/dev/prod):
+- `OBJECT_STORE_ENDPOINT`, `OBJECT_STORE_REGION`
+- `ORACLE_ROOT`, `ORACLE_ENGINE_RUN_ROOT`, `ORACLE_SCENARIO_ID`
+- `IG_ADMISSION_DSN`, `WSP_CHECKPOINT_DSN`
+- `EVENT_BUS_STREAM`
+- `CONTROL_BUS_STREAM`, `CONTROL_BUS_REGION`, `CONTROL_BUS_ENDPOINT_URL`
+
 Testing policy (current):
-- **local.yaml** → smoke validation only (push ingestion).
-- **dev_local.yaml** → completion runs (uncapped; uses local filesystem).
-- **dev.yaml** → reserved for true dev infra (S3/RDS/etc.) when available.
+- **local.yaml** → fast smoke validation (file‑bus + SQLite).
+- **local_parity.yaml** → parity validation (MinIO + LocalStack + Postgres).
+- **dev_local.yaml** → completion runs (local infra; Kinesis).
+- **dev.yaml** → dev infra (S3/Kinesis/RDS).

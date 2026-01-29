@@ -690,3 +690,42 @@ The READY‑driven WSP run was taking too long for a local smoke test. The profi
 
 ### Change
 - `config/platform/profiles/local.yaml`: `policy.stream_speedup: 600.0`
+
+---
+
+## Entry: 2026-01-29 19:03:20 — Plan: Kinesis control‑bus reader for parity mode
+
+### Trigger
+Maximum‑parity local stack requires READY control‑bus to match dev/prod (Kinesis) rather than file‑bus.
+
+### Decision trail (live)
+- SR already supports Kinesis control‑bus publishing; WSP must read the same stream for parity.
+- We want **no ladder friction**: local parity should use the same Kinesis path as dev/prod.
+- File control bus remains for smoke‑only local profile; parity profile will switch to Kinesis.
+
+### Planned mechanics
+- Add a `KinesisControlBusReader` that reads READY envelopes from a Kinesis stream.
+- Keep schema validation (same `run_ready_signal.schema.yaml`) and use existing dedupe logic.
+- Wiring: `control_bus.kind: kinesis`, `control_bus.stream`, `control_bus.region`, `control_bus.endpoint_url` (LocalStack in local parity).
+
+### Files (to change)
+- `src/fraud_detection/world_streamer_producer/control_bus.py` (new reader)
+- `src/fraud_detection/world_streamer_producer/ready_consumer.py` (reader selection)
+- `src/fraud_detection/world_streamer_producer/config.py` (stream/region/endpoint wiring)
+- `config/platform/profiles/local_parity.yaml` + `config/platform/profiles/dev.yaml`/`prod.yaml` (control bus wiring)
+
+## Entry: 2026-01-29 19:10:05 — Implement Kinesis control‑bus reader (parity mode)
+
+### What changed
+- Added a Kinesis reader for READY envelopes and wired WSP to select it when `control_bus.kind: kinesis`.
+- Extended WSP profile wiring to include `control_bus.stream/region/endpoint_url`.
+
+### Mechanics implemented
+- Kinesis reader scans shards from `TRIM_HORIZON` and decodes JSON envelopes.
+- Schema validation remains enforced (`run_ready_signal.schema.yaml`).
+- READY dedupe remains unchanged (store‑backed).
+
+### Files updated
+- `src/fraud_detection/world_streamer_producer/control_bus.py`
+- `src/fraud_detection/world_streamer_producer/ready_consumer.py`
+- `src/fraud_detection/world_streamer_producer/config.py`

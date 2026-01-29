@@ -19,6 +19,7 @@ from .index import AdmissionIndex
 from .metrics import MetricsRecorder
 from .models import AdmissionDecision, Receipt, QuarantineRecord
 from .ops_index import OpsIndex
+from .pg_index import PostgresAdmissionIndex, PostgresOpsIndex, is_postgres_dsn
 from .partitioning import PartitionProfile, PartitioningProfiles
 from .policy_digest import compute_policy_digest
 from .rate_limit import RateLimiter
@@ -79,8 +80,7 @@ class IngestionGate:
             s3_path_style=wiring.object_store_path_style,
         )
         receipt_writer = ReceiptWriter(store)
-        admission_index = AdmissionIndex(Path(wiring.admission_db_path))
-        ops_index = OpsIndex(Path(wiring.admission_db_path))
+        admission_index, ops_index = _build_indices(wiring.admission_db_path)
         bus = _build_bus(wiring)
         health = HealthProbe(
             store,
@@ -124,6 +124,13 @@ class IngestionGate:
             api_key_header=wiring.api_key_header,
             push_limiter=RateLimiter(wiring.push_rate_limit_per_minute),
         )
+
+
+def _build_indices(admission_db_path: str) -> tuple[AdmissionIndex | PostgresAdmissionIndex, OpsIndex | PostgresOpsIndex]:
+    if is_postgres_dsn(admission_db_path):
+        return PostgresAdmissionIndex(admission_db_path), PostgresOpsIndex(admission_db_path)
+    path = Path(admission_db_path)
+    return AdmissionIndex(path), OpsIndex(path)
 
     def admit_push(self, envelope: dict[str, Any]) -> Receipt:
         logger.info("IG admit_push start event_id=%s event_type=%s", envelope.get("event_id"), envelope.get("event_type"))

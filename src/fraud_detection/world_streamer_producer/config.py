@@ -41,6 +41,9 @@ class WiringProfile:
     control_bus_kind: str
     control_bus_root: str
     control_bus_topic: str
+    control_bus_stream: str | None
+    control_bus_region: str | None
+    control_bus_endpoint_url: str | None
     schema_root: str
     engine_catalogue_path: str
     oracle_root: str
@@ -93,6 +96,9 @@ class WspProfile:
         control_bus_kind = control_bus.get("kind", "file")
         control_bus_root = control_bus.get("root", "runs/fraud-platform/control_bus")
         control_bus_topic = control_bus.get("topic", "fp.bus.control.v1")
+        control_bus_stream = _resolve_env(control_bus.get("stream"))
+        control_bus_region = _resolve_env(control_bus.get("region"))
+        control_bus_endpoint_url = _resolve_env(control_bus.get("endpoint_url"))
 
         schema_root = wiring.get("schema_root", "docs/model_spec/platform/contracts")
         engine_catalogue_path = wiring.get(
@@ -135,6 +141,9 @@ class WspProfile:
                 control_bus_kind=control_bus_kind,
                 control_bus_root=control_bus_root,
                 control_bus_topic=control_bus_topic,
+                control_bus_stream=control_bus_stream,
+                control_bus_region=control_bus_region,
+                control_bus_endpoint_url=control_bus_endpoint_url,
                 schema_root=schema_root,
                 engine_catalogue_path=engine_catalogue_path,
                 oracle_root=oracle_root,

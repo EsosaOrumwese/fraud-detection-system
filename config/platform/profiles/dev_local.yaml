@@ -15,20 +15,24 @@ wiring:
   oracle_engine_run_root: ${ORACLE_ENGINE_RUN_ROOT}
   oracle_scenario_id: ${ORACLE_SCENARIO_ID}
   ig_ingest_url: http://localhost:8081
+  admission_db_path: ${IG_ADMISSION_DSN}
   event_bus_kind: kinesis
   event_bus:
     topic_traffic: fp.bus.traffic.v1
     topic_control: fp.bus.control.v1
     topic_audit: fp.bus.audit.v1
-    stream: sr-control-bus
+    stream: fp-traffic-bus
   control_bus:
-    kind: file
+    kind: kinesis
     root: runs/fraud-platform/control_bus
     topic: fp.bus.control.v1
+    stream: sr-control-bus
+    region: us-east-1
+    endpoint_url: http://localhost:4566
   wsp_checkpoint:
-    backend: file
-    root: runs/fraud-platform/wsp_checkpoints
-    flush_every: 1
+    backend: postgres
+    dsn: ${WSP_CHECKPOINT_DSN}
+    flush_every: 10
   wsp_producer:
     producer_id: svc:world_stream_producer
     allowlist_ref: config/platform/wsp/producer_allowlist_v0.txt

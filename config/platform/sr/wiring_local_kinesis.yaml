@@ -1,4 +1,4 @@
-object_store_root: s3://sr-local/fraud-platform/sr
+object_store_root: s3://fraud-platform/sr
 control_bus_topic: fp.bus.control.v1
 control_bus_kind: kinesis
 control_bus_stream: sr-control-bus

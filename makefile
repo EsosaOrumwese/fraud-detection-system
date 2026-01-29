@@ -2520,11 +2520,13 @@ SR_WINDOW_END ?= 2026-01-02T00:00:00Z
 
 IG_PROFILE ?= config/platform/profiles/local.yaml
 IG_PROFILE_DEV ?= config/platform/profiles/dev_local.yaml
+IG_PROFILE_PARITY ?= config/platform/profiles/local_parity.yaml
 IG_HOST ?= 127.0.0.1
 IG_PORT ?= 8081
 IG_AUDIT_RUN_ID ?=
 PLATFORM_RUN_ID ?=
 WSP_PROFILE ?= config/platform/profiles/local.yaml
+WSP_PROFILE_PARITY ?= config/platform/profiles/local_parity.yaml
 WSP_MAX_EVENTS ?= 1
 WSP_VALIDATE_MAX_EVENTS ?= 10
 WSP_RESUME_EVENTS ?= 1
@@ -2538,11 +2540,24 @@ WSP_ENGINE_RUN_ROOT ?=
 WSP_SCENARIO_ID ?=
 WSP_OUTPUT_IDS ?=
 ORACLE_PROFILE ?= config/platform/profiles/local.yaml
+ORACLE_PROFILE_PARITY ?= config/platform/profiles/local_parity.yaml
 ORACLE_ENGINE_RUN_ROOT ?=
 ORACLE_SCENARIO_ID ?=
 ORACLE_ENGINE_RELEASE ?= unknown
 ORACLE_PACK_ROOT ?=
 ORACLE_OUTPUT_IDS ?=
+SR_WIRING_PARITY ?= config/platform/sr/wiring_local_kinesis.yaml
+
+PARITY_OBJECT_STORE_ENDPOINT ?= http://localhost:9000
+PARITY_OBJECT_STORE_REGION ?= us-east-1
+PARITY_ORACLE_ROOT ?= s3://oracle-store/local_full_run-5
+PARITY_IG_ADMISSION_DSN ?= postgresql://platform:platform@localhost:5433/platform
+PARITY_WSP_CHECKPOINT_DSN ?= postgresql://platform:platform@localhost:5433/platform
+PARITY_EVENT_BUS_STREAM ?= fp-traffic-bus
+PARITY_CONTROL_BUS_STREAM ?= sr-control-bus
+PARITY_CONTROL_BUS_REGION ?= us-east-1
+PARITY_CONTROL_BUS_ENDPOINT_URL ?= http://localhost:4566
+PARITY_IG_INGEST_URL ?= http://localhost:8081
 
 .PHONY: platform-stack-up platform-stack-down platform-stack-status
 platform-stack-up:
@@ -2553,6 +2568,16 @@ platform-stack-down:
 
 platform-stack-status:
 	docker compose -f infra/local/docker-compose.sr-parity.yaml ps
+
+.PHONY: platform-parity-stack-up platform-parity-stack-down platform-parity-stack-status
+platform-parity-stack-up:
+	docker compose -f infra/local/docker-compose.platform-parity.yaml up -d
+
+platform-parity-stack-down:
+	docker compose -f infra/local/docker-compose.platform-parity.yaml down
+
+platform-parity-stack-status:
+	docker compose -f infra/local/docker-compose.platform-parity.yaml ps
 
 .PHONY: platform-bus-clean
 platform-bus-clean:
@@ -2604,6 +2629,23 @@ platform-ig-service:
 		--host "$(IG_HOST)" \
 		--port "$(IG_PORT)"
 
+.PHONY: platform-ig-service-parity
+platform-ig-service-parity:
+	@OBJECT_STORE_ENDPOINT="$(PARITY_OBJECT_STORE_ENDPOINT)" \
+	OBJECT_STORE_REGION="$(PARITY_OBJECT_STORE_REGION)" \
+	ORACLE_ROOT="$(PARITY_ORACLE_ROOT)" \
+	IG_ADMISSION_DSN="$(PARITY_IG_ADMISSION_DSN)" \
+	WSP_CHECKPOINT_DSN="$(PARITY_WSP_CHECKPOINT_DSN)" \
+	EVENT_BUS_STREAM="$(PARITY_EVENT_BUS_STREAM)" \
+	CONTROL_BUS_STREAM="$(PARITY_CONTROL_BUS_STREAM)" \
+	CONTROL_BUS_REGION="$(PARITY_CONTROL_BUS_REGION)" \
+	CONTROL_BUS_ENDPOINT_URL="$(PARITY_CONTROL_BUS_ENDPOINT_URL)" \
+	IG_INGEST_URL="$(PARITY_IG_INGEST_URL)" \
+	$(PY_SCRIPT) -m fraud_detection.ingestion_gate.service \
+		--profile "$(IG_PROFILE_PARITY)" \
+		--host "$(IG_HOST)" \
+		--port "$(IG_PORT)"
+
 
 .PHONY: platform-wsp-ready-once
 platform-wsp-ready-once:
@@ -2642,6 +2684,38 @@ platform-smoke:
 	@SR_RUN_EQUIVALENCE_KEY="local_smoke_$$(date +%Y%m%dT%H%M%SZ)" \
 		$(MAKE) platform-sr-run-reuse
 	@WSP_READY_MAX_EVENTS="$(PLATFORM_SMOKE_MAX_EVENTS)" $(MAKE) platform-wsp-ready-consumer-once
+
+.PHONY: platform-parity-smoke
+platform-parity-smoke:
+	@echo "Ensure parity stack is up: make platform-parity-stack-up"
+	@echo "Ensure IG service is running (in another terminal): make platform-ig-service-parity"
+	@$(MAKE) platform-run-new
+	@OBJECT_STORE_ENDPOINT="$(PARITY_OBJECT_STORE_ENDPOINT)" \
+	OBJECT_STORE_REGION="$(PARITY_OBJECT_STORE_REGION)" \
+	ORACLE_ROOT="$(PARITY_ORACLE_ROOT)" \
+	IG_ADMISSION_DSN="$(PARITY_IG_ADMISSION_DSN)" \
+	WSP_CHECKPOINT_DSN="$(PARITY_WSP_CHECKPOINT_DSN)" \
+	EVENT_BUS_STREAM="$(PARITY_EVENT_BUS_STREAM)" \
+	CONTROL_BUS_STREAM="$(PARITY_CONTROL_BUS_STREAM)" \
+	CONTROL_BUS_REGION="$(PARITY_CONTROL_BUS_REGION)" \
+	CONTROL_BUS_ENDPOINT_URL="$(PARITY_CONTROL_BUS_ENDPOINT_URL)" \
+	IG_INGEST_URL="$(PARITY_IG_INGEST_URL)" \
+	SR_WIRING="$(SR_WIRING_PARITY)" WSP_PROFILE="$(WSP_PROFILE_PARITY)" IG_PROFILE="$(IG_PROFILE_PARITY)" \
+	ORACLE_PROFILE="$(ORACLE_PROFILE_PARITY)" \
+	SR_RUN_EQUIVALENCE_KEY="parity_smoke_$$(date +%Y%m%dT%H%M%SZ)" \
+	$(MAKE) platform-sr-run-reuse
+	@OBJECT_STORE_ENDPOINT="$(PARITY_OBJECT_STORE_ENDPOINT)" \
+	OBJECT_STORE_REGION="$(PARITY_OBJECT_STORE_REGION)" \
+	ORACLE_ROOT="$(PARITY_ORACLE_ROOT)" \
+	IG_ADMISSION_DSN="$(PARITY_IG_ADMISSION_DSN)" \
+	WSP_CHECKPOINT_DSN="$(PARITY_WSP_CHECKPOINT_DSN)" \
+	EVENT_BUS_STREAM="$(PARITY_EVENT_BUS_STREAM)" \
+	CONTROL_BUS_STREAM="$(PARITY_CONTROL_BUS_STREAM)" \
+	CONTROL_BUS_REGION="$(PARITY_CONTROL_BUS_REGION)" \
+	CONTROL_BUS_ENDPOINT_URL="$(PARITY_CONTROL_BUS_ENDPOINT_URL)" \
+	IG_INGEST_URL="$(PARITY_IG_INGEST_URL)" \
+	WSP_PROFILE="$(WSP_PROFILE_PARITY)" WSP_READY_MAX_EVENTS="$(PLATFORM_SMOKE_MAX_EVENTS)" \
+	$(MAKE) platform-wsp-ready-consumer-once
 
 .PHONY: platform-wsp-validate-local
 platform-wsp-validate-local:

@@ -70,3 +70,74 @@ class FileControlBusReader:
             )
         return messages
 
+
+class KinesisControlBusReader:
+    def __init__(
+        self,
+        stream_name: str,
+        topic: str,
+        *,
+        region: str | None = None,
+        endpoint_url: str | None = None,
+        registry: SchemaRegistry | None = None,
+        max_records: int = 1000,
+    ) -> None:
+        import boto3
+
+        self.stream_name = stream_name
+        self.topic = topic
+        self.registry = registry
+        self.max_records = max_records
+        self._client = boto3.client("kinesis", region_name=region, endpoint_url=endpoint_url)
+
+    def iter_ready_messages(self) -> Iterable[ReadyMessage]:
+        messages: list[ReadyMessage] = []
+        stream = self._client.describe_stream(StreamName=self.stream_name)
+        shards = stream.get("StreamDescription", {}).get("Shards", [])
+        for shard in shards:
+            shard_id = shard.get("ShardId")
+            if not shard_id:
+                continue
+            iterator = self._client.get_shard_iterator(
+                StreamName=self.stream_name,
+                ShardId=shard_id,
+                ShardIteratorType="TRIM_HORIZON",
+            ).get("ShardIterator")
+            if not iterator:
+                continue
+            records = self._client.get_records(ShardIterator=iterator, Limit=self.max_records).get("Records", [])
+            for record in records:
+                try:
+                    envelope = json.loads(record.get("Data", b"").decode("utf-8"))
+                except Exception:
+                    logger.warning("WSP control bus invalid json shard=%s", shard_id)
+                    continue
+                if envelope.get("topic") != self.topic:
+                    continue
+                payload = envelope.get("payload") or {}
+                if self.registry:
+                    try:
+                        self.registry.validate("run_ready_signal.schema.yaml", payload)
+                    except ValueError as exc:
+                        logger.warning("WSP control bus payload invalid shard=%s error=%s", shard_id, str(exc))
+                        continue
+                run_id = payload.get("run_id")
+                facts_view_ref = payload.get("facts_view_ref")
+                bundle_hash = payload.get("bundle_hash")
+                message_id = envelope.get("message_id")
+                if not all([run_id, facts_view_ref, bundle_hash, message_id]):
+                    logger.warning("WSP control bus missing fields shard=%s", shard_id)
+                    continue
+                sequence = record.get("SequenceNumber") or ""
+                messages.append(
+                    ReadyMessage(
+                        message_id=message_id,
+                        run_id=run_id,
+                        facts_view_ref=facts_view_ref,
+                        bundle_hash=bundle_hash,
+                        payload=payload,
+                        envelope=envelope,
+                        source_path=Path(f"kinesis://{self.stream_name}/{sequence}"),
+                    )
+                )
+        return messages

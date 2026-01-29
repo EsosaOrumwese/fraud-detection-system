@@ -1,5 +1,9 @@
-object_store_root: s3://sr-local/fraud-platform/sr
+object_store_root: s3://fraud-platform/sr
 control_bus_topic: fp.bus.control.v1
+control_bus_kind: kinesis
+control_bus_stream: sr-control-bus
+control_bus_region: us-east-1
+control_bus_endpoint_url: http://localhost:4566
 control_bus_root: runs/fraud-platform/control_bus
 engine_catalogue_path: docs/model_spec/data-engine/interface_pack/engine_outputs.catalogue.yaml
 gate_map_path: docs/model_spec/data-engine/interface_pack/engine_gates.map.yaml

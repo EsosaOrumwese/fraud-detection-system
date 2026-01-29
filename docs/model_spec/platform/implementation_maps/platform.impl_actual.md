@@ -583,3 +583,86 @@ User requested a “Maximum Parity Local Stack Plan” so local can mirror dev/p
   - parity profile wiring,
   - stepwise migration steps,
   - concrete deliverables (compose file, local parity profile, make targets).
+
+---
+
+## Entry: 2026-01-29 18:59:42 — Proceed to implement maximum‑parity local stack (ladder‑friction removal)
+
+### Trigger
+User approved “robust implementation and removal of every ladder friction” to achieve the target parity shape.
+
+### Live reasoning (decision trail)
+- Local currently uses **file‑bus + SQLite + filesystem oracle**, which is intentionally fast but **behaviorally different** from dev/prod; this is a known ladder‑friction source.
+- To eliminate friction, local must use the **same classes of backends** as dev/prod: S3‑compatible object store, Kinesis‑compatible control/event buses, and Postgres for indexes/checkpoints.
+- The change is **platform‑wide** (multiple components), so the plan belongs in `platform.impl_actual.md` and will fan out to component impl_actual entries as needed.
+- We must **preserve fast smoke** by keeping existing local profile, but introduce a **parity profile + parity compose** that matches dev/prod semantics while still local.
+- Avoid introducing secrets into docs; all credentials stay in env/.env and are referenced only by name.
+
+### Implementation plan (stepwise, hardened)
+1) **Parity infra compose**  
+   - Add `infra/local/docker-compose.platform-parity.yaml` with **MinIO + LocalStack(Kinesis) + Postgres**.  
+   - Include a MinIO bootstrap/init container to create `oracle-store` + `fraud-platform` buckets.  
+   - Declare ports + healthchecks for stable local runs.
+
+2) **Parity profile wiring**  
+   - Add `config/platform/profiles/local_parity.yaml` with:  
+     - `object_store.root: s3://fraud-platform` (path‑style).  
+     - `oracle_root: s3://oracle-store/<run-root>` (env‑override).  
+     - `event_bus_kind: kinesis`, `event_bus.stream` for LocalStack.  
+     - `control_bus.kind: kinesis`, `control_bus.stream`.  
+     - `wsp_checkpoint.backend: postgres` (DSN env).  
+     - IG admission index DSN (env) instead of SQLite path.
+
+3) **IG Postgres backend**  
+   - Implement Postgres admission + ops index backend (schema parity with SQLite).  
+   - Wiring: if `IG_ADMISSION_DSN` is set or `admission_db_path` is a DSN, select Postgres.  
+   - Keep SQLite fallback for unit tests only.  
+   - Update health probe to check Postgres connectivity.
+
+4) **WSP checkpoint Postgres parity**  
+   - Ensure Postgres checkpoint backend is usable in local parity profile.  
+   - Validate resume semantics under restarts in parity mode.
+
+5) **Control bus parity (Kinesis)**  
+   - Add Kinesis READY reader in WSP control bus and wire it via profile `control_bus.kind: kinesis`.  
+   - Reuse SR’s Kinesis control bus publisher.
+
+6) **EB parity (Kinesis)**  
+   - Ensure local parity profile uses `event_bus_kind: kinesis` with LocalStack endpoint.  
+   - Keep file‑bus only for `local` smoke profile.
+
+7) **Make targets + operator guidance**  
+   - Add make targets for parity stack up/down, stream/bucket bootstrap, and parity smoke run.  
+   - Update profile README to document parity profile usage and env vars.
+
+8) **Validation**  
+   - Run parity smoke: SR → WSP → IG → EB on LocalStack/MinIO/Postgres.  
+   - Confirm no schema errors, offsets advance in Kinesis, and IG receipts persist in Postgres.
+
+### Files/areas to touch
+- `infra/local/docker-compose.platform-parity.yaml` (new)  
+- `config/platform/profiles/local_parity.yaml` (new)  
+- `src/fraud_detection/ingestion_gate/*` (Postgres index backend, DSN wiring)  
+- `src/fraud_detection/world_streamer_producer/control_bus.py` + `ready_consumer.py` (Kinesis reader)  
+- `config/platform/profiles/README.md` + make targets  
+- Component impl_actual notes (IG/WSP/EB) + logbook entries
+
+---
+
+## Entry: 2026-01-29 19:12:05 — Implement maximum‑parity local stack (infra + profiles + make targets)
+
+### Outcome summary
+- Added local parity compose stack (MinIO + LocalStack(Kinesis) + Postgres).
+- Added `local_parity.yaml` profile and updated dev/prod profiles for explicit Kinesis + DSN wiring.
+- Added parity make targets and defaults to eliminate manual env gymnastics.
+
+### Concrete changes
+- **Infra:** `infra/local/docker-compose.platform-parity.yaml` (MinIO + LocalStack + Postgres + init jobs).
+- **Profiles:** new `config/platform/profiles/local_parity.yaml`; updated `dev_local.yaml`, `dev.yaml`, `prod.yaml`.
+- **WSP/IG wiring:** control bus and event bus now explicitly Kinesis in parity/dev/prod profiles.
+- **Makefile:** parity stack targets + parity smoke target with default envs.
+- **Profile docs:** expanded to include parity profile + env variables.
+
+### Notes
+- File‑bus + SQLite remain available in `local.yaml` for fast smoke.
+- Parity mode is now the default ladder validation path.

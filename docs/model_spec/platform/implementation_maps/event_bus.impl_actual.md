@@ -516,3 +516,33 @@ Provide a **dev‑parity EB adapter** so IG can publish to a real stream backend
 ### Outcome
 - Smoke run is green for the local chain; EB offsets advanced to 20 and no fresh ERROR/SCHEMA_FAIL lines appeared in the tail of `runs/fraud-platform/platform.log` during the 06:29–06:31 window.
 - Older SCHEMA_FAIL records remain in the global platform log from earlier experiments (pre‑run); they are not from this smoke run.
+
+---
+
+## Entry: 2026-01-29 19:04:05 — Plan: parity EB via Kinesis in local mode
+
+### Trigger
+Platform parity work requires the local event bus to match dev/prod semantics; file‑bus is a ladder‑friction source.
+
+### Decision trail (live)
+- Local parity should use **Kinesis (LocalStack)** to mirror dev/prod behavior.
+- File‑bus remains for fast smoke in `local.yaml`, but parity profile will switch to Kinesis explicitly.
+- EB already has a publish‑only Kinesis adapter; parity work is primarily **profile + infra** wiring.
+
+### Planned changes
+- Add `event_bus_kind: kinesis` and `event_bus.stream` in `local_parity.yaml`.
+- Align `dev.yaml`/`prod.yaml` to explicitly set `event_bus_kind: kinesis` and stream name.
+- Provide LocalStack stream bootstrap in parity compose/make targets.
+
+## Entry: 2026-01-29 19:10:40 — Implement parity EB wiring (Kinesis)
+
+### What changed
+- Added `local_parity.yaml` profile with Kinesis event bus wiring.
+- Aligned `dev.yaml`/`prod.yaml` to explicitly declare Kinesis event bus + stream.
+- Updated `dev_local.yaml` to use a dedicated traffic stream (`fp-traffic-bus`).
+
+### Files updated
+- `config/platform/profiles/local_parity.yaml`
+- `config/platform/profiles/dev_local.yaml`
+- `config/platform/profiles/dev.yaml`
+- `config/platform/profiles/prod.yaml`

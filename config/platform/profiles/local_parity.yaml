@@ -1,15 +1,17 @@
-profile_id: prod
+profile_id: local_parity
 policy:
-  policy_rev: prod-v0
+  policy_rev: local-parity-v0
   partitioning_profiles_ref: config/platform/ig/partitioning_profiles_v0.yaml
   partitioning_profile_id: ig.partitioning.v0.traffic
   require_gate_pass: true
-  stream_speedup: 1.0
+  stream_speedup: 60.0
   traffic_output_ids_ref: config/platform/wsp/traffic_outputs_v0.yaml
 wiring:
   object_store:
-    bucket: fraud-platform
+    root: s3://fraud-platform
     endpoint: ${OBJECT_STORE_ENDPOINT}
+    region: ${OBJECT_STORE_REGION}
+    path_style: true
   oracle_root: ${ORACLE_ROOT}
   oracle_engine_run_root: ${ORACLE_ENGINE_RUN_ROOT}
   oracle_scenario_id: ${ORACLE_SCENARIO_ID}
@@ -23,7 +25,6 @@ wiring:
     stream: ${EVENT_BUS_STREAM}
   control_bus:
     kind: kinesis
-    root: runs/fraud-platform/control_bus
     topic: fp.bus.control.v1
     stream: ${CONTROL_BUS_STREAM}
     region: ${CONTROL_BUS_REGION}
@@ -31,7 +32,7 @@ wiring:
   wsp_checkpoint:
     backend: postgres
     dsn: ${WSP_CHECKPOINT_DSN}
-    flush_every: 100
+    flush_every: 10
   wsp_producer:
     producer_id: svc:world_stream_producer
     allowlist_ref: config/platform/wsp/producer_allowlist_v0.txt
