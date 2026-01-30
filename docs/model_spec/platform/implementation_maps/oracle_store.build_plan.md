@@ -135,7 +135,7 @@ Define the **sealed world boundary** for engine outputs as an explicit platform 
 #### Phase 5.1 — Stream view placement (separate from engine native outputs)
 **DoD checklist:**
 - Derived view stored under engine run root but in a **distinct folder** (no collision with native outputs).
-- Final naming pinned: `stream_view/ts_utc/output_id=<output_id>/bucket_index=<bucket>/` (under the engine run root).
+- Final naming pinned: `stream_view/ts_utc/output_id=<output_id>/part-*.parquet` (under the engine run root).
 - Stream view lives under Oracle Store (engine world), **not** under `runs/fraud-platform`.
 
 #### Phase 5.2 — Per‑output sort builder (S3‑native)
@@ -144,8 +144,7 @@ Define the **sealed world boundary** for engine outputs as an explicit platform 
 - External sort uses **DuckDB** (disk‑backed, vectorized).
 - Deterministic tie‑break documented: `ts_utc`, `filename`, `file_row_number`.
 - Output schema preserved (no extra columns; sort does not mutate payload).
-- Output partitioned by `bucket_index` under each output_id.
-- Use **single‑pass** DuckDB `PARTITION_BY (bucket_index)` to avoid N× scans.
+- Output is **flat** per output_id (no bucket partition in the path).
 
 #### Phase 5.3 — Validation receipt (no dupes/no drops)
 **DoD checklist:**

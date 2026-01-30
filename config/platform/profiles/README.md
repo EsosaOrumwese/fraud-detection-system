@@ -69,7 +69,7 @@ Notes:
 - `oracle_root` points to the sealed engine world store (Oracle Store); it is wiring, not policy.
 - `oracle_engine_run_root` optionally pins WSP to a specific engine world (no “latest” scanning).
 - `oracle_scenario_id` can be used when a world contains multiple scenarios (avoid ambiguity).
-- `oracle_stream_view_root` points to the **stream view base** (`.../stream_view/ts_utc`). WSP appends `output_id=<output_id>` and reads bucket partitions.
+- `oracle_stream_view_root` points to the **stream view base** (`.../stream_view/ts_utc`). WSP appends `output_id=<output_id>` and reads `part-*.parquet`.
 - `wsp_checkpoint` controls WSP resume state (file backend for local smoke; Postgres for parity/dev/prod).
 - `flush_every` defines how often WSP persists its cursor (lower = fewer duplicates after crash).
 - `wsp_producer` pins the producer identity stamped on envelopes; allowlist restricts valid producer_ids.

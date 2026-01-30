@@ -840,6 +840,18 @@ Oracle Store stream view path was corrected to **exclude** `stream_view_id` and 
 - WSP still computes `stream_view_id` and validates it against the manifest when present.
 - Sorting keys remain `ts_utc`, `filename`, `file_row_number`; partitioning is `bucket`.
 
+---
+
+## Entry: 2026-01-30 18:05:12 — Correction: flat stream view layout (no bucket directories)
+
+### Trigger
+Oracle stream view layout was simplified to **flat per output_id** (no `bucket_index` dirs).
+
+### Implementation notes
+- WSP continues to read **all parquet** under:
+  `.../stream_view/ts_utc/output_id=<output_id>/`.
+- No change to envelope formation or ordering semantics.
+
 ### Impact
 - Simplifies operator workflows (no extra path segment).
 - Keeps integrity validation intact (manifest/receipt).

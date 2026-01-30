@@ -611,3 +611,40 @@ Per‑bucket loop was too slow (thousands of buckets → thousands of full scans
 - Replaced per‑bucket COPY loop with a single `COPY` using `PARTITION_BY (bucket_index)`.
 - Ordering still deterministic; output schema unchanged.
 - Output layout remains: `.../stream_view/ts_utc/output_id=<output_id>/bucket_index=<bucket>/`.
+
+---
+
+## Entry: 2026-01-30 17:54:10 — Rename stream view parts to `part-*.parquet`
+
+### Trigger
+User requested stream‑view files to use `part-000000.parquet` naming instead of DuckDB’s default `data_0.parquet`.
+
+### Decision trail (live)
+- Keep DuckDB `PARTITION_BY (bucket_index)` for performance.
+- Rename files **after** the write, per bucket directory.
+- Preserve deterministic ordering by renaming files in sorted order.
+- Fail closed on rename collisions.
+
+### Implementation notes
+- After `COPY … PARTITION_BY (bucket_index)`, rename parquet files:
+  - Local: `Path.rename`
+  - S3/MinIO: `copy_object` + `delete_object`
+- Rename happens **before** sorted stats validation.
+
+---
+
+## Entry: 2026-01-30 18:05:12 — Correction: flat stream view (no bucket partitions)
+
+### Trigger
+User requested **no `bucket_index` directories**; stream view should live directly under
+`.../stream_view/ts_utc/output_id=<output_id>/`.
+
+### Decision trail (live)
+- Keep per‑output sort with deterministic tie‑breakers.
+- Remove `bucket_index` path partitioning entirely.
+- Retain `bucket_index` **column** in the dataset (schema unchanged), but do not use it for layout.
+
+### Implementation notes
+- Single‑pass `COPY` now writes **flat output** (no `PARTITION_BY`).
+- Output files renamed to `part-000000.parquet` under the output_id root.
+- Receipts/manifest still include `stream_view_id` for integrity; path has no extra segments.

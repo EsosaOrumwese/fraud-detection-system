@@ -140,7 +140,7 @@ make platform-oracle-check-strict `
 
 **Note:** Oracle pack uses the MinIO S3 endpoint + credentials from `.env.platform.local` (exported by Make).
 
-**4.3 Build the stream view (per‑output `ts_utc` order, bucket partitions)**
+**4.3 Build the stream view (per‑output `ts_utc` order, flat output)**
 ```
 make platform-oracle-stream-sort `
   ORACLE_PROFILE=config/platform/profiles/local_parity.yaml `
@@ -151,7 +151,7 @@ make platform-oracle-stream-sort `
 **What this does:**
 - Reads the **engine outputs** from MinIO.
 - Builds **one sorted dataset per output_id** under:
-  `.../stream_view/ts_utc/output_id=<output_id>/bucket_index=<bucket>/`
+  `.../stream_view/ts_utc/output_id=<output_id>/part-*.parquet`
 - Sorts **within each output** by `ts_utc` with tie‑breakers `filename` + `file_row_number`.
 - Writes `_stream_view_manifest.json` + `_stream_sort_receipt.json` for **each output**.
 - Is **idempotent** per output: if a valid receipt exists, it skips; if it conflicts, it fails.

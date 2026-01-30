@@ -1116,3 +1116,14 @@ and **must not** include `stream_view_id` in the path.
 - Profiles now pin only `oracle_stream_view_root` (no `stream_mode` key).
 - WSP reads `.../stream_view/ts_utc/output_id=<output_id>/bucket_index=<bucket>/`.
 - Oracle Store receipts/manifest keep `stream_view_id` for validation.
+
+---
+
+## Entry: 2026-01-30 18:05:12 — Correction: flat stream view layout (no bucket partitions)
+
+### Trigger
+User requested stream views to live directly under `output_id=<output_id>` without bucket subdirs.
+
+### Platform‑wide impact
+- Stream view layout is now **flat** per output_id: `.../stream_view/ts_utc/output_id=<output_id>/part-*.parquet`.
+- WSP reads all parquet in the output_id root (no bucket dir traversal needed).

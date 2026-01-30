@@ -33,8 +33,8 @@ def main() -> None:
     )
     parser.add_argument(
         "--partition-granularity",
-        default="bucket",
-        help="Partition granularity (bucket only in v0)",
+        default="flat",
+        help="Partition granularity (flat only in v0)",
     )
     args = parser.parse_args()
 

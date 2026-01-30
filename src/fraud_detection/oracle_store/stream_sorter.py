@@ -93,7 +93,7 @@ def build_stream_view(
     output_id: str,
     stream_view_root: str,
     stream_view_id: str,
-    partition_granularity: str = "bucket",
+    partition_granularity: str = "flat",
 ) -> StreamSortReceipt:
     output_id = str(output_id)
     stream_root = stream_view_root.rstrip("/")
@@ -160,11 +160,14 @@ def build_stream_view(
         logger.info(
             "Oracle stream view sort completed seconds=%.1f%s",
             sort_seconds,
-            f\" (eta_seconds={eta_seconds:.0f})\" if eta_seconds is not None else "",
+            f" (eta_seconds={eta_seconds:.0f})" if eta_seconds is not None else "",
         )
 
+        logger.info("Oracle stream view renaming parquet parts")
+        _rename_parquet_parts(out_path, profile)
+
         logger.info("Oracle stream view computing sorted stats")
-        sorted_query = _build_stats_query_for_parquet(con, f\"{out_path}/**/*.parquet\")
+        sorted_query = _build_stats_query_for_parquet(con, f"{out_path}/**/*.parquet")
         sorted_stats = _compute_stats(con, sorted_query)
     finally:
         try:
@@ -173,6 +176,11 @@ def build_stream_view(
             pass
 
     if not _stats_match(raw_stats, sorted_stats):
+        logger.error(
+            "Oracle stream view validation failed raw=%s sorted=%s",
+            _stats_payload(raw_stats),
+            _stats_payload(sorted_stats),
+        )
         raise StreamSortError("STREAM_SORT_VALIDATION_FAILED")
 
     receipt = StreamSortReceipt(
@@ -463,13 +471,13 @@ def _build_raw_query_for_output(con: "duckdb.DuckDBPyConnection", item: dict[str
     if "bucket_index" not in columns:
         raise StreamSortError(f"MISSING_BUCKET_INDEX:{output_id}")
     select_cols = ", ".join([f'"{col}"' for col in columns])
-    pack_expr = ", ".join([f'"{col}" := "{col}"' for col in columns])
+    hash_cols = ", ".join([f'"{col}"' for col in sorted(columns)])
     return (
         "SELECT "
         f"{select_cols}, "
         "filename, "
         "file_row_number, "
-        "hash(to_json(struct_pack(" + pack_expr + "))) AS payload_hash "
+        "hash(" + hash_cols + ") AS payload_hash "
         f"FROM read_parquet('{locator}', filename=true, file_row_number=true)"
     )
 
@@ -494,11 +502,11 @@ def _build_stats_query_for_parquet(con: "duckdb.DuckDBPyConnection", locator: st
     if "bucket_index" not in columns:
         raise StreamSortError("MISSING_BUCKET_INDEX")
     select_cols = ", ".join([f'"{col}"' for col in columns])
-    pack_expr = ", ".join([f'"{col}" := "{col}"' for col in columns])
+    hash_cols = ", ".join([f'"{col}"' for col in sorted(columns)])
     return (
         "SELECT "
         f"{select_cols}, "
-        "hash(to_json(struct_pack(" + pack_expr + "))) AS payload_hash "
+        "hash(" + hash_cols + ") AS payload_hash "
         f"FROM read_parquet('{locator}')"
     )
 
@@ -530,7 +538,7 @@ def _sort_expr(raw_query: str) -> str:
         SELECT
             *
         FROM ({raw_query})
-        ORDER BY bucket_index, CAST(ts_utc AS TIMESTAMP), filename, file_row_number
+        ORDER BY CAST(ts_utc AS TIMESTAMP), filename, file_row_number
     """
 
 
@@ -540,13 +548,13 @@ def _write_sorted(
     output_root: str,
     partition_granularity: str,
 ) -> None:
-    if partition_granularity != "bucket":
+    if partition_granularity not in {"flat", "none"}:
         raise StreamSortError("PARTITION_GRANULARITY_UNSUPPORTED")
     sort_expr = _sort_expr(raw_query)
     con.execute(
         "COPY ("
         f"SELECT * EXCLUDE(payload_hash, filename, file_row_number) FROM ({sort_expr}) "
-        f") TO '{output_root}' (FORMAT PARQUET, PARTITION_BY (bucket_index))"
+        f") TO '{output_root}' (FORMAT PARQUET)"
     )
 
 
@@ -574,6 +582,46 @@ def _relative_path(root: str, absolute: str) -> str:
 
 def _list_existing_parquet(store: LocalObjectStore | S3ObjectStore) -> list[str]:
     return [path for path in store.list_files("") if path.endswith(".parquet")]
+
+
+def _rename_parquet_parts(output_root: str, profile: OracleProfile) -> None:
+    if output_root.startswith("s3://"):
+        _rename_parquet_parts_s3(output_root, profile)
+        return
+    _rename_parquet_parts_local(Path(output_root))
+
+
+def _rename_parquet_parts_local(root: Path) -> None:
+    parquet_files = sorted(root.glob("*.parquet"))
+    if not parquet_files:
+        return
+    for index, path in enumerate(parquet_files):
+        target = root / f"part-{index:06d}.parquet"
+        if path.name == target.name:
+            continue
+        if target.exists():
+            raise StreamSortError("STREAM_VIEW_PART_RENAME_COLLISION")
+        path.rename(target)
+
+
+def _rename_parquet_parts_s3(output_root: str, profile: OracleProfile) -> None:
+    parsed = urlparse(output_root)
+    bucket = parsed.netloc
+    prefix = parsed.path.lstrip("/").rstrip("/") + "/"
+    client = _s3_client(profile)
+    paginator = client.get_paginator("list_objects_v2")
+    keys: list[str] = []
+    for page in paginator.paginate(Bucket=bucket, Prefix=prefix):
+        for item in page.get("Contents", []):
+            key = item["Key"]
+            if key.endswith(".parquet"):
+                keys.append(key)
+    for index, key in enumerate(sorted(keys)):
+        target = f"{prefix.rstrip('/')}/part-{index:06d}.parquet"
+        if key == target:
+            continue
+        client.copy_object(Bucket=bucket, CopySource={"Bucket": bucket, "Key": key}, Key=target)
+        client.delete_object(Bucket=bucket, Key=key)
 
 
 def _s3_client(profile: OracleProfile):

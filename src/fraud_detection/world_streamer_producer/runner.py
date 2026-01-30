@@ -529,7 +529,7 @@ class WorldStreamProducer:
                 scenario_id=world_key.scenario_id,
                 output_id=output_id,
                 sort_keys=["ts_utc", "filename", "file_row_number"],
-                partition_granularity="bucket",
+                partition_granularity="flat",
             )
             stream_view_root = f"{base_root.rstrip('/')}/output_id={output_id}"
             store = _build_stream_view_store(
