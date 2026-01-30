@@ -151,15 +151,9 @@ def build_stream_view(
         )
 
     out_path = stream_root
-    logger.info("Oracle stream view sorting + writing partitions")
+    logger.info("Oracle stream view sorting + writing partitions (single pass)")
     sort_start = time.monotonic()
-    buckets = _list_bucket_indices(con, locators[0]["path"])
-    logger.info(
-        "Oracle stream view bucket scan output_id=%s buckets=%s",
-        output_id,
-        len(buckets),
-    )
-    _write_sorted(con, raw_query, out_path, partition_granularity, buckets)
+    _write_sorted(con, raw_query, out_path, partition_granularity)
     sort_seconds = time.monotonic() - sort_start
     logger.info(
         "Oracle stream view sort completed seconds=%.1f (eta_seconds=%.0f)",
@@ -514,13 +508,12 @@ def _compute_stats(con: "duckdb.DuckDBPyConnection", query: str) -> StreamSortSt
     )
 
 
-def _sort_expr(raw_query: str, bucket_index: int) -> str:
+def _sort_expr(raw_query: str) -> str:
     return f"""
         SELECT
             *
         FROM ({raw_query})
-        WHERE bucket_index = {int(bucket_index)}
-        ORDER BY CAST(ts_utc AS TIMESTAMP), filename, file_row_number
+        ORDER BY bucket_index, CAST(ts_utc AS TIMESTAMP), filename, file_row_number
     """
 
 
@@ -529,26 +522,15 @@ def _write_sorted(
     raw_query: str,
     output_root: str,
     partition_granularity: str,
-    buckets: list[int],
 ) -> None:
     if partition_granularity != "bucket":
         raise StreamSortError("PARTITION_GRANULARITY_UNSUPPORTED")
-    if not buckets:
-        raise StreamSortError("BUCKET_INDEX_EMPTY")
-    for index, bucket_index in enumerate(buckets, start=1):
-        logger.info(
-            "Oracle stream view sorting bucket %s/%s bucket_index=%s",
-            index,
-            len(buckets),
-            bucket_index,
-        )
-        sort_expr = _sort_expr(raw_query, bucket_index)
-        target = f"{output_root}/bucket_index={bucket_index}"
-        con.execute(
-            "COPY ("
-            f"SELECT * EXCLUDE(payload_hash, filename, file_row_number) FROM ({sort_expr}) "
-            f") TO '{target}' (FORMAT PARQUET)"
-        )
+    sort_expr = _sort_expr(raw_query)
+    con.execute(
+        "COPY ("
+        f"SELECT * EXCLUDE(payload_hash, filename, file_row_number) FROM ({sort_expr}) "
+        f") TO '{output_root}' (FORMAT PARQUET, PARTITION_BY (bucket_index))"
+    )
 
 
 def _list_bucket_indices(con: "duckdb.DuckDBPyConnection", locator: str) -> list[int]:

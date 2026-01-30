@@ -145,6 +145,7 @@ Define the **sealed world boundary** for engine outputs as an explicit platform 
 - Deterministic tie‑break documented: `ts_utc`, `filename`, `file_row_number`.
 - Output schema preserved (no extra columns; sort does not mutate payload).
 - Output partitioned by `bucket_index` under each output_id.
+- Use **single‑pass** DuckDB `PARTITION_BY (bucket_index)` to avoid N× scans.
 
 #### Phase 5.3 — Validation receipt (no dupes/no drops)
 **DoD checklist:**

@@ -594,3 +594,20 @@ User clarified that the stream view must be a **pure re‑sort per output** (no 
 ### Notes
 - `stream_view_id` remains in manifest/receipt for integrity validation but is **not** a path segment.
 - WSP is **stream‑view only** in v0; `stream_mode` is no longer a profile toggle.
+
+---
+
+## Entry: 2026-01-30 16:12:03 — Single‑pass bucket partition write (performance fix)
+
+### Trigger
+Per‑bucket loop was too slow (thousands of buckets → thousands of full scans).
+
+### Decision trail (live)
+- Keep **bucket_index** partitioning (user requirement) but remove the N× full‑scan loop.
+- Use DuckDB `COPY … PARTITION_BY (bucket_index)` in a **single pass**.
+- Preserve deterministic ordering by sorting on `bucket_index, ts_utc, filename, file_row_number`.
+
+### Implementation notes
+- Replaced per‑bucket COPY loop with a single `COPY` using `PARTITION_BY (bucket_index)`.
+- Ordering still deterministic; output schema unchanged.
+- Output layout remains: `.../stream_view/ts_utc/output_id=<output_id>/bucket_index=<bucket>/`.
