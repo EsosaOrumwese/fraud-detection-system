@@ -500,3 +500,40 @@ User requested **ETA‑style** visibility during stream view build.
 ### What I changed
 - Added ETA estimates after source stats scan using `STREAM_SORT_SORT_MULTIPLIER` (default 2.0).
 - Logs estimated completion time (UTC) and compares actual sort time to ETA.
+
+---
+
+## Entry: 2026-01-30 11:06:12 — Fix DuckDB hash sum overflow in receipts
+
+### Trigger
+Stream view build failed with `OutOfRangeException` during `hash_sum2` computation (UINT64 multiplication overflow).
+
+### Decision trail (live)
+- We still need **order‑invariant** integrity checks without overflow.
+- Keep two independent aggregates but compute them in **bounded ranges** to avoid UINT64 overflow.
+
+### What I changed
+- Switched `hash_sum` to **DOUBLE** sum of hash values.
+- Switched `hash_sum2` to a **modular sum** (`hash % 1_000_000_007`) to preserve variance without overflow.
+
+### Implications
+- Receipt remains high‑confidence for “same row‑set” validation.
+- If we later need cryptographic multiset proofs, we can replace sums with a proper multiset digest.
+
+---
+
+## Entry: 2026-01-30 11:24:05 — Stream sort performance knobs (memory/temp/threads)
+
+### Trigger
+User observed long stream view build time (multi‑hour ETA) on ~374M rows.
+
+### What I changed
+- Added optional DuckDB tuning knobs:
+  - `STREAM_SORT_MEMORY_LIMIT` → `PRAGMA memory_limit`
+  - `STREAM_SORT_TEMP_DIR` → `PRAGMA temp_directory`
+  - `STREAM_SORT_THREADS` already supported (kept)
+
+### Operator guidance
+- Set `STREAM_SORT_THREADS` to available cores (e.g., 8–16).
+- Use a fast local SSD for `STREAM_SORT_TEMP_DIR`.
+- Increase `STREAM_SORT_MEMORY_LIMIT` to reduce spill to disk.

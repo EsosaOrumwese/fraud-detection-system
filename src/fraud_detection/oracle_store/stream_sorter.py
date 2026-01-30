@@ -376,10 +376,22 @@ def _duckdb_connect(profile: OracleProfile) -> "duckdb.DuckDBPyConnection":
     progress_time = os.getenv("STREAM_SORT_PROGRESS_SECONDS")
     if progress_time:
         con.execute(f"PRAGMA progress_bar_time={float(progress_time)}")
+    memory_limit = os.getenv("STREAM_SORT_MEMORY_LIMIT")
+    if memory_limit:
+        con.execute(f"PRAGMA memory_limit='{memory_limit}'")
+    temp_dir = os.getenv("STREAM_SORT_TEMP_DIR")
+    if temp_dir:
+        con.execute(f"PRAGMA temp_directory='{temp_dir}'")
     if profile.wiring.object_store_endpoint:
-        con.execute(f"SET s3_endpoint='{profile.wiring.object_store_endpoint}'")
-        if profile.wiring.object_store_endpoint.startswith("http://"):
-            con.execute("SET s3_use_ssl=false")
+        endpoint = profile.wiring.object_store_endpoint
+        if "://" in endpoint:
+            parsed = urlparse(endpoint)
+            endpoint_host = parsed.netloc or endpoint.split("://", 1)[1]
+            con.execute(f"SET s3_endpoint='{endpoint_host}'")
+            if parsed.scheme == "http":
+                con.execute("SET s3_use_ssl=false")
+        else:
+            con.execute(f"SET s3_endpoint='{endpoint}'")
     if profile.wiring.object_store_region:
         con.execute(f"SET s3_region='{profile.wiring.object_store_region}'")
     access_key = os.getenv("AWS_ACCESS_KEY_ID") or ""
@@ -428,8 +440,8 @@ def _compute_stats(con: "duckdb.DuckDBPyConnection", query: str) -> StreamSortSt
             count(*)::BIGINT AS row_count,
             min(CAST(ts_utc AS TIMESTAMP)) AS min_ts,
             max(CAST(ts_utc AS TIMESTAMP)) AS max_ts,
-            sum(hash(payload_json || '|' || event_type))::UBIGINT AS hash_sum,
-            sum(hash(payload_json || '|' || event_type) * 1315423911)::UBIGINT AS hash_sum2
+            sum(CAST(hash(payload_json || '|' || event_type) AS DOUBLE)) AS hash_sum,
+            sum(CAST(hash(payload_json || '|' || event_type) % 1000000007 AS BIGINT))::BIGINT AS hash_sum2
         FROM ({query})
     """
     row = con.execute(stats_sql).fetchone()
