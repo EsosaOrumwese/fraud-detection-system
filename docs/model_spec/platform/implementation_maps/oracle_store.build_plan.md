@@ -126,3 +126,37 @@ Define the **sealed world boundary** for engine outputs as an explicit platform 
 **DoD checklist:**
 - Least‑privilege reader roles documented (SR/WSP/IG/DLA/CM).
 - Writer role limited to engine/packer only.
+
+---
+
+### Phase 5 — Global time‑sorted stream view (Option C)
+**Intent:** produce a **globally `ts_utc`‑sorted stream view** without modifying engine outputs.
+
+#### Phase 5.1 — Stream view placement (separate from engine native outputs)
+**DoD checklist:**
+- Derived view stored under engine run root but in a **distinct folder** (no collision with native outputs).
+- Naming convention documented (e.g., `arrival_events_ts_sorted` / `stream_view_ts_utc`).
+- Two top‑level Oracle Store roots remain: `data-engine` vs `fraud-platform`.
+
+#### Phase 5.2 — Global sort builder (S3‑native)
+**DoD checklist:**
+- Sorter reads **directly from S3** (MinIO locally; AWS S3 in dev/prod).
+- External sort (disk‑based) supports >100M rows.
+- Deterministic tie‑break (e.g., `ts_utc`, `event_type`, `event_id`) documented.
+
+#### Phase 5.3 — Validation receipt (no dupes/no drops)
+**DoD checklist:**
+- Receipt contains `row_count` and **order‑invariant content hash** for both original and sorted view.
+- Receipt includes source locator digest + sort keys for reproducibility.
+- Fail‑closed if receipt mismatch or missing.
+
+#### Phase 5.4 — Idempotency & rerun posture
+**DoD checklist:**
+- If a valid receipt exists, the builder **exits cleanly** (no rewrite).
+- If receipt exists but fails validation, **abort** (do not overwrite).
+
+#### Phase 5.5 — WSP integration switch (stream view vs raw)
+**DoD checklist:**
+- Profile flag to enable time‑sorted view.
+- Fallback to native engine outputs when stream view missing (local only).
+- Dev/prod require stream view when enabled (strict).

@@ -367,3 +367,41 @@ User hit `MANIFEST_MISMATCH` and credential confusion when syncing engine output
 - `makefile`
 - `.env.platform.local`
 - `docs/runbooks/platform_parity_walkthrough_v0.md`
+
+---
+
+## Entry: 2026-01-30 03:25:40 — Ordering reality + global time‑sorted stream view (Option C)
+
+### Trigger
+User observed that `arrival_events_5B` is not globally time‑sorted; requested a **global `ts_utc` stream view** (Option C) with receipts and idempotency.
+
+### Observed ordering (local run inspection)
+For `runs/local_full_run-5/c25a2675...`:
+- `arrival_events_5B` parts appear **lexicographically ordered by** `(scenario_id, merchant_id, arrival_seq)`, *not* `ts_utc`.
+- `s2_flow_anchor_baseline_6B` and `s3_flow_anchor_with_fraud_6B` show the same ordering pattern.
+- Boundaries between `part-*.parquet` also follow the same key order.
+
+This matches the engine’s deterministic writer order but **does not** guarantee global time monotonicity.
+
+### Decision trail (live, pending approval)
+- Provide an **external, derived stream view** sorted globally by `ts_utc` without modifying engine outputs.
+- Store the derived view **under the engine run root** but in a clearly separate folder to avoid conflation.
+- Add a **validation receipt** proving row‑set equality (no dupes/no drops) between original and sorted views.
+- Ensure **idempotency**: if a valid receipt exists, do nothing; if mismatch, fail closed.
+- Operate **directly on S3** (MinIO locally, AWS S3 in dev/prod) since engine outputs already live there.
+
+### Proposed placement (not yet implemented)
+```
+s3://oracle-store/data-engine/<engine_run_id>/data/.../arrival_events_ts_sorted/part-*.parquet
+```
+Folder name TBD (e.g., `arrival_events_ts_sorted` or `stream_view_ts_utc`) to avoid confusing with engine‑native outputs.
+
+### Receipt requirements (draft)
+- `row_count` + `content_hash` (order‑invariant) for both original and sorted views.
+- `source_locator_hash` over original `part-*.parquet` paths for traceability.
+- `sorted_view_manifest` with sort keys and partitions (for deterministic rebuilds).
+
+### Open decisions (to confirm)
+- Sorting engine: DuckDB external sort vs. PyArrow dataset sort.
+- Stream view partitioning: by `stream_date` or `stream_hour`.
+- Payload storage: full payload rows vs. pointer/offsets to original files.
