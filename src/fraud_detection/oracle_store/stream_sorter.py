@@ -392,9 +392,9 @@ def _duckdb_connect(profile: OracleProfile) -> "duckdb.DuckDBPyConnection":
     con = duckdb.connect()
     con.execute("INSTALL httpfs")
     con.execute("LOAD httpfs")
-    con.execute("PRAGMA enable_progress_bar")
     progress_time = os.getenv("STREAM_SORT_PROGRESS_SECONDS")
     if progress_time:
+        con.execute("PRAGMA enable_progress_bar")
         con.execute(f"PRAGMA progress_bar_time={float(progress_time)}")
     memory_limit = os.getenv("STREAM_SORT_MEMORY_LIMIT")
     if memory_limit:
@@ -427,6 +427,18 @@ def _duckdb_connect(profile: OracleProfile) -> "duckdb.DuckDBPyConnection":
     threads = os.getenv("STREAM_SORT_THREADS")
     if threads:
         con.execute(f"PRAGMA threads={int(threads)}")
+    if logger.isEnabledFor(logging.INFO):
+        try:
+            current_threads = con.execute("PRAGMA threads").fetchone()[0]
+        except Exception:
+            current_threads = threads or "default"
+        logger.info(
+            "Oracle stream view duckdb_config threads=%s progress_bar=%s memory_limit=%s temp_dir=%s",
+            current_threads,
+            "on" if progress_time else "off",
+            os.getenv("STREAM_SORT_MEMORY_LIMIT") or "default",
+            os.getenv("STREAM_SORT_TEMP_DIR") or "default",
+        )
     return con
 
 
