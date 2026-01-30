@@ -187,6 +187,13 @@ $env:SR_RUN_EQUIVALENCE_KEY="parity_$(Get-Date -Format 'yyyyMMddTHHmmssZ')"
 make platform-sr-run-reuse SR_WIRING=config/platform/sr/wiring_local_kinesis.yaml
 ```
 
+If you want to reuse the same equivalence key, either:
+- **Wait for TTL** (default 300s), then re‑run; or
+- **Clear the lease** in Postgres (run_id shown in SR output):
+```
+docker exec local-postgres-1 psql -U platform -d platform -c "delete from sr_run_leases where run_id='<run_id>';"
+```
+
 ---
 
 ## 7) WSP consumes READY and streams 500k events
