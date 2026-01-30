@@ -18,7 +18,8 @@ It uses **MinIO (S3)** for the Oracle Store + platform artifacts, **LocalStack K
 - `config/platform/sr/wiring_local_kinesis.yaml`
 
 **Oracle Store assumption:**
-The engine outputs exist locally (for now) and are **packed into MinIO** via the Oracle Store packer.
+The engine outputs exist locally **and are synced into MinIO** (Oracle Store) before sealing. The packer writes
+manifest/seal files; it does not copy the dataset unless you sync it.
 
 ---
 
@@ -67,7 +68,14 @@ $env:PARITY_EVENT_BUS_ENDPOINT_URL="http://localhost:4566"
 $env:PARITY_IG_ADMISSION_DSN="<postgres_dsn>"
 $env:PARITY_WSP_CHECKPOINT_DSN="<postgres_dsn>"
 
-$env:ORACLE_ENGINE_RUN_ROOT="runs/local_full_run-5/c25a2675fbfbacd952b13bb594880e92"
+$env:OBJECT_STORE_ENDPOINT="http://localhost:9000"
+$env:OBJECT_STORE_REGION="us-east-1"
+$env:AWS_ACCESS_KEY_ID="<minio_access_key>"
+$env:AWS_SECRET_ACCESS_KEY="<minio_secret_key>"
+
+$env:ORACLE_ROOT="s3://oracle-store"
+$env:ORACLE_PACK_ROOT="s3://oracle-store/local_full_run-5/pack_<timestamp>"
+$env:ORACLE_ENGINE_RUN_ROOT="s3://oracle-store/local_full_run-5/c25a2675fbfbacd952b13bb594880e92"
 $env:ORACLE_SCENARIO_ID="baseline_v1"
 $env:ORACLE_ENGINE_RELEASE="local"
 ```
@@ -92,8 +100,21 @@ runs/fraud-platform/<platform_run_id>/
 
 ---
 
-## 4) Pack Oracle Store into MinIO (S3)
+## 4) Populate Oracle Store in MinIO (sync + seal)
 
+This step does **two things**: (1) copy the engine outputs into MinIO, (2) write the Oracle pack manifest + seal.
+
+**4.1 Sync engine outputs into MinIO**
+```
+AWS_ACCESS_KEY_ID=<minio_access_key> AWS_SECRET_ACCESS_KEY=<minio_secret_key> AWS_DEFAULT_REGION=us-east-1 AWS_EC2_METADATA_DISABLED=true `
+aws --endpoint-url http://localhost:9000 s3 sync `
+  runs/local_full_run-5/c25a2675fbfbacd952b13bb594880e92 `
+  s3://oracle-store/local_full_run-5/c25a2675fbfbacd952b13bb594880e92
+```
+
+**Why this prefix is required:** the AWS CLI does **not** read `.env.platform.local`. It uses its own credential chain, so we explicitly inject MinIO creds for this one command without touching real AWS credentials.
+
+**4.2 Seal the Oracle pack (manifest + _SEALED.json)**
 ```
 make platform-oracle-pack `
   ORACLE_PROFILE=config/platform/profiles/local_parity.yaml `
@@ -110,6 +131,19 @@ make platform-oracle-check-strict `
 ```
 
 **Expected:** strict‑seal reports OK or no errors.
+
+**If you hit `MANIFEST_MISMATCH`:**
+- Use a fresh pack root:
+```
+$env:ORACLE_PACK_ROOT="s3://oracle-store/local_full_run-5/pack_<timestamp>"
+make platform-oracle-pack ORACLE_PROFILE=config/platform/profiles/local_parity.yaml
+```
+- Or skip packing and verify the existing pack:
+```
+make platform-oracle-check-strict ORACLE_PROFILE=config/platform/profiles/local_parity.yaml
+```
+
+**Note:** Oracle pack uses `OBJECT_STORE_ENDPOINT/REGION` + `AWS_ACCESS_KEY_ID/SECRET` for MinIO access. If those are unset, boto may fall back to your shared AWS credentials and the endpoint may be invalid.
 
 ---
 
@@ -219,3 +253,5 @@ make platform-parity-stack-down
 - IG admits events and writes receipts under `ig/receipts`.
 - EB offsets advance and are visible in receipt `eb_ref`.
 - Platform log shows SR → WSP → IG → EB in order for the same run id.
+
+

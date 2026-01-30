@@ -325,3 +325,23 @@ Previous Oracle Store notes referenced `dev_local.yaml` for strict-seal checks. 
 
 ### Impact
 Treat earlier `dev_local` mentions as historical; use `local_parity` for parity validation.
+
+---
+
+## Entry: 2026-01-30 01:27:40 — Oracle pack env propagation for MinIO
+
+### Trigger
+`platform-oracle-pack` failed with `Invalid endpoint` because `OBJECT_STORE_ENDPOINT` + MinIO credentials were not exported to the packer process; boto fell back to shared AWS credentials.
+
+### Decision trail (live)
+- Oracle pack uses S3ObjectStore for MinIO; it must receive endpoint + creds via environment.
+- Makefile already loads `.env.platform.local` as make variables, but those are not exported to subprocesses by default.
+- Fix is to **explicitly pass** `OBJECT_STORE_*` and `AWS_*` into oracle pack/check commands.
+
+### Implementation notes
+- Prefixed `platform-oracle-pack`, `platform-oracle-check`, and `platform-oracle-check-strict` with `OBJECT_STORE_ENDPOINT/REGION` + `AWS_ACCESS_KEY_ID/SECRET` and `AWS_DEFAULT_REGION`.
+- Updated runbook note to clarify endpoint export requirement.
+
+### Files touched
+- `makefile`
+- `docs/runbooks/platform_parity_walkthrough_v0.md`

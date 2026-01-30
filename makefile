@@ -2801,7 +2801,13 @@ platform-oracle-pack:
 		echo "ORACLE_ENGINE_RELEASE is required for platform-oracle-pack." >&2; \
 		exit 1; \
 	fi
-	@$(PY_PLATFORM) -m fraud_detection.oracle_store.pack_cli --profile "$(ORACLE_PROFILE)" \
+	@OBJECT_STORE_ENDPOINT="$(OBJECT_STORE_ENDPOINT)" \
+	OBJECT_STORE_REGION="$(OBJECT_STORE_REGION)" \
+	AWS_ACCESS_KEY_ID="$(AWS_ACCESS_KEY_ID)" \
+	AWS_SECRET_ACCESS_KEY="$(AWS_SECRET_ACCESS_KEY)" \
+	AWS_EC2_METADATA_DISABLED="$(AWS_EC2_METADATA_DISABLED)" \
+	AWS_DEFAULT_REGION="$(OBJECT_STORE_REGION)" \
+	$(PY_PLATFORM) -m fraud_detection.oracle_store.pack_cli --profile "$(ORACLE_PROFILE)" \
 		--engine-run-root "$(ORACLE_ENGINE_RUN_ROOT)" \
 		--scenario-id "$(ORACLE_SCENARIO_ID)" \
 		$(if $(ORACLE_PACK_ROOT),--pack-root "$(ORACLE_PACK_ROOT)",) \
@@ -2813,7 +2819,13 @@ platform-oracle-check:
 		echo "ORACLE_ENGINE_RUN_ROOT is required for platform-oracle-check." >&2; \
 		exit 1; \
 	fi
-	@$(PY_PLATFORM) -m fraud_detection.oracle_store.cli --profile "$(ORACLE_PROFILE)" \
+	@OBJECT_STORE_ENDPOINT="$(OBJECT_STORE_ENDPOINT)" \
+	OBJECT_STORE_REGION="$(OBJECT_STORE_REGION)" \
+	AWS_ACCESS_KEY_ID="$(AWS_ACCESS_KEY_ID)" \
+	AWS_SECRET_ACCESS_KEY="$(AWS_SECRET_ACCESS_KEY)" \
+	AWS_EC2_METADATA_DISABLED="$(AWS_EC2_METADATA_DISABLED)" \
+	AWS_DEFAULT_REGION="$(OBJECT_STORE_REGION)" \
+	$(PY_PLATFORM) -m fraud_detection.oracle_store.cli --profile "$(ORACLE_PROFILE)" \
 		--engine-run-root "$(ORACLE_ENGINE_RUN_ROOT)" \
 		$(if $(ORACLE_SCENARIO_ID),--scenario-id "$(ORACLE_SCENARIO_ID)",) \
 		$(if $(ORACLE_OUTPUT_IDS),--output-ids "$(ORACLE_OUTPUT_IDS)",)
@@ -2824,7 +2836,13 @@ platform-oracle-check-strict:
 		echo "ORACLE_ENGINE_RUN_ROOT is required for platform-oracle-check-strict." >&2; \
 		exit 1; \
 	fi
-	@$(PY_PLATFORM) -m fraud_detection.oracle_store.cli --profile "$(ORACLE_PROFILE)" \
+	@OBJECT_STORE_ENDPOINT="$(OBJECT_STORE_ENDPOINT)" \
+	OBJECT_STORE_REGION="$(OBJECT_STORE_REGION)" \
+	AWS_ACCESS_KEY_ID="$(AWS_ACCESS_KEY_ID)" \
+	AWS_SECRET_ACCESS_KEY="$(AWS_SECRET_ACCESS_KEY)" \
+	AWS_EC2_METADATA_DISABLED="$(AWS_EC2_METADATA_DISABLED)" \
+	AWS_DEFAULT_REGION="$(OBJECT_STORE_REGION)" \
+	$(PY_PLATFORM) -m fraud_detection.oracle_store.cli --profile "$(ORACLE_PROFILE)" \
 		--engine-run-root "$(ORACLE_ENGINE_RUN_ROOT)" \
 		$(if $(ORACLE_SCENARIO_ID),--scenario-id "$(ORACLE_SCENARIO_ID)",) \
 		$(if $(ORACLE_OUTPUT_IDS),--output-ids "$(ORACLE_OUTPUT_IDS)",) \
