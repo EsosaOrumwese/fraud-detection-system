@@ -1127,3 +1127,18 @@ User requested stream views to live directly under `output_id=<output_id>` witho
 ### Platform‑wide impact
 - Stream view layout is now **flat** per output_id: `.../stream_view/ts_utc/output_id=<output_id>/part-*.parquet`.
 - WSP reads all parquet in the output_id root (no bucket dir traversal needed).
+
+---
+
+## Entry: 2026-01-30 20:27:10 — Platform‑wide S3 timeout controls
+
+### Trigger
+MinIO reads for small Oracle metadata (e.g. `run_receipt.json`) occasionally timed out during stream‑view builds.
+
+### Decision trail (live)
+- Control timeouts/retries at the client layer used by all platform S3 reads/writes.
+- Keep settings environment‑driven for parity/dev/prod tuning.
+
+### Platform‑wide impact
+- New env knobs: `OBJECT_STORE_READ_TIMEOUT`, `OBJECT_STORE_CONNECT_TIMEOUT`, `OBJECT_STORE_MAX_ATTEMPTS`.
+- Defaults added to `.env.platform.local` to avoid MinIO read timeouts during heavy local I/O.

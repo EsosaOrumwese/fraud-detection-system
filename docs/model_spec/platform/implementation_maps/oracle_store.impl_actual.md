@@ -648,3 +648,20 @@ User requested **no `bucket_index` directories**; stream view should live direct
 - Single‑pass `COPY` now writes **flat output** (no `PARTITION_BY`).
 - Output files renamed to `part-000000.parquet` under the output_id root.
 - Receipts/manifest still include `stream_view_id` for integrity; path has no extra segments.
+
+---
+
+## Entry: 2026-01-30 20:27:10 — S3 client timeouts for stream view reliability
+
+### Trigger
+Stream view build failed on MinIO with `ReadTimeoutError` while reading `run_receipt.json` from S3 (small file, but the client timed out during heavy local I/O).
+
+### Decision trail (live)
+- We need retry/timeout controls at the **S3 client layer**, not just DuckDB retries.
+- Apply the same timeout settings to all S3-compatible clients (SR + Oracle Store) to avoid inconsistent behavior.
+- Make it **configurable by env** so local/dev/prod can tune without code changes.
+
+### Implementation notes
+- Add `OBJECT_STORE_READ_TIMEOUT`, `OBJECT_STORE_CONNECT_TIMEOUT`, `OBJECT_STORE_MAX_ATTEMPTS` with defaults.
+- Wire config into `S3ObjectStore` and the Oracle Store’s `_s3_client`.
+- Keep path-style addressing intact when required (MinIO compatibility).
