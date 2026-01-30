@@ -477,3 +477,26 @@ User rejected policy‑based ordering assumptions and requested a **most‑effic
 ### Notes
 - Stream view output lives **under the engine run root** (Oracle Store), not in `runs/fraud-platform`.
 - Parity/dev/prod default to `stream_mode=stream_view`; local smoke stays on `engine` mode.
+
+---
+
+## Entry: 2026-01-30 10:58:04 — Stream view progress logs + DuckDB progress bar
+
+### Trigger
+User requested **live visibility** during the stream view build (milestone logs + progress bar).
+
+### What I changed
+- Added milestone logs: start → source stats → sort/write → sorted stats → receipt/manifest → done.
+- Enabled DuckDB progress bar (`PRAGMA enable_progress_bar`).
+- Added optional `STREAM_SORT_PROGRESS_SECONDS` env knob to control progress bar refresh.
+
+---
+
+## Entry: 2026-01-30 10:59:12 — ETA‑style logging for stream sort
+
+### Trigger
+User requested **ETA‑style** visibility during stream view build.
+
+### What I changed
+- Added ETA estimates after source stats scan using `STREAM_SORT_SORT_MULTIPLIER` (default 2.0).
+- Logs estimated completion time (UTC) and compares actual sort time to ETA.

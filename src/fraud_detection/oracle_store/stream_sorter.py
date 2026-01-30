@@ -3,12 +3,13 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from fnmatch import fnmatch
 import hashlib
 import json
 import logging
 import os
+import time
 from pathlib import Path
 from typing import Any, TYPE_CHECKING
 from urllib.parse import urlparse
@@ -99,6 +100,13 @@ def build_stream_view(
     manifest_path = f"{stream_root}/_stream_view_manifest.json"
 
     store = _build_store(stream_view_root, profile)
+    logger.info(
+        "Oracle stream view start root=%s engine_root=%s scenario_id=%s outputs=%s",
+        stream_root,
+        engine_run_root,
+        scenario_id,
+        len(output_ids),
+    )
     source_locator_digest, locators = _source_locator_digest(
         profile, engine_run_root, scenario_id, output_ids
     )
@@ -114,13 +122,36 @@ def build_stream_view(
         raise StreamSortError("STREAM_RECEIPT_MISMATCH")
 
     con = _duckdb_connect(profile)
+    logger.info("Oracle stream view computing source stats")
+    stats_start = time.monotonic()
     raw_query = _build_raw_query(con, locators)
     raw_stats = _compute_stats(con, raw_query)
+    stats_seconds = time.monotonic() - stats_start
+    multiplier = float(os.getenv("STREAM_SORT_SORT_MULTIPLIER", "2.0"))
+    eta_seconds = max(1.0, stats_seconds * multiplier)
+    eta_at = datetime.now(tz=timezone.utc) + timedelta(seconds=eta_seconds)
+    logger.info(
+        "Oracle stream view ETA sort_completion~%ss (%s UTC) scan_seconds=%.1f multiplier=%.2f rows=%s",
+        f"{eta_seconds:.0f}",
+        eta_at.isoformat(),
+        stats_seconds,
+        multiplier,
+        raw_stats.row_count,
+    )
 
     sort_expr = _sort_expr(raw_query)
     out_path = stream_root
+    logger.info("Oracle stream view sorting + writing partitions")
+    sort_start = time.monotonic()
     _write_sorted(con, sort_expr, out_path, partition_granularity)
+    sort_seconds = time.monotonic() - sort_start
+    logger.info(
+        "Oracle stream view sort completed seconds=%.1f (eta_seconds=%.0f)",
+        sort_seconds,
+        eta_seconds,
+    )
 
+    logger.info("Oracle stream view computing sorted stats")
     sorted_query = f"SELECT * FROM read_parquet('{out_path}/**/*.parquet')"
     sorted_stats = _compute_stats(con, sorted_query)
 
@@ -139,6 +170,7 @@ def build_stream_view(
         sorted_stats=sorted_stats,
         created_utc=datetime.now(tz=timezone.utc).isoformat(),
     )
+    logger.info("Oracle stream view writing receipt + manifest")
     store.write_json(receipt_rel, _receipt_to_payload(receipt))
     store.write_json(
         manifest_rel,
@@ -152,7 +184,7 @@ def build_stream_view(
             receipt=receipt,
         ),
     )
-    logger.info("Oracle stream view built at %s", stream_view_root)
+    logger.info("Oracle stream view built root=%s stream_view_id=%s", stream_view_root, stream_view_id)
     return receipt
 
 
@@ -340,6 +372,10 @@ def _duckdb_connect(profile: OracleProfile) -> "duckdb.DuckDBPyConnection":
     con = duckdb.connect()
     con.execute("INSTALL httpfs")
     con.execute("LOAD httpfs")
+    con.execute("PRAGMA enable_progress_bar")
+    progress_time = os.getenv("STREAM_SORT_PROGRESS_SECONDS")
+    if progress_time:
+        con.execute(f"PRAGMA progress_bar_time={float(progress_time)}")
     if profile.wiring.object_store_endpoint:
         con.execute(f"SET s3_endpoint='{profile.wiring.object_store_endpoint}'")
         if profile.wiring.object_store_endpoint.startswith("http://"):
