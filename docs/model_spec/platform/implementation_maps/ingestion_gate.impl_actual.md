@@ -2084,3 +2084,17 @@ Platform moved to run‑first artifacts (`runs/fraud-platform/<platform_run_id>/
 - `src/fraud_detection/ingestion_gate/admission.py`
 - `src/fraud_detection/ingestion_gate/health.py`
 - `tests/services/ingestion_gate/test_ops_index.py`
+
+---
+
+## Entry: 2026-01-30 00:37:55 — Correction: dev_local profile removed (use local_parity for parity)
+
+### Why this correction
+Earlier IG notes referenced `dev_local.yaml` as an uncapped completion profile. That profile has been removed to avoid mixed semantics.
+
+### Current authoritative posture
+- **Parity gate:** `config/platform/profiles/local_parity.yaml`.
+- **Smoke only:** `config/platform/profiles/local.yaml`.
+
+### Impact
+Any prior `dev_local` mentions are historical only; parity validation should reference `local_parity`.

@@ -755,3 +755,18 @@ User required a run-first layout (`runs/fraud-platform/<platform_run_id>/...`) w
 - `tests/services/world_streamer_producer/test_runner.py`
 - `README.md`
 - `docs/model_spec/platform/implementation_maps/world_streamer_producer.build_plan.md`
+
+---
+
+## Entry: 2026-01-30 00:37:30 — Correction: dev_local profile removed (parity gate = local_parity)
+
+### Why this correction
+Earlier notes referenced `dev_local.yaml` as a completion/parity profile. That profile has now been removed to eliminate local→dev ladder friction caused by mixed filesystem + Kinesis semantics.
+
+### Current authoritative posture
+- **Parity gate:** `config/platform/profiles/local_parity.yaml` (MinIO/S3 + LocalStack/Kinesis + Postgres).
+- **Smoke only:** `config/platform/profiles/local.yaml` (file‑bus + filesystem).
+- **No `dev_local.yaml`** going forward.
+
+### Impact
+References to `dev_local` in prior entries should be treated as historical only; use `local_parity` where parity validation is required.

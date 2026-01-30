@@ -311,3 +311,17 @@ User explicitly rejected SR‑based sealing as a “temporary helper” and requ
 
 ### Validation
 - `pytest tests/services/oracle_store/test_checker.py tests/services/oracle_store/test_packer.py -q` → 6 passed.
+
+---
+
+## Entry: 2026-01-30 00:38:20 — Correction: dev_local profile removed (oracle checks use local_parity)
+
+### Why this correction
+Previous Oracle Store notes referenced `dev_local.yaml` for strict-seal checks. That profile has been removed to remove ladder friction.
+
+### Current authoritative posture
+- **Parity gate:** `config/platform/profiles/local_parity.yaml`.
+- **Smoke only:** `config/platform/profiles/local.yaml`.
+
+### Impact
+Treat earlier `dev_local` mentions as historical; use `local_parity` for parity validation.

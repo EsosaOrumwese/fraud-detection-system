@@ -572,3 +572,17 @@ Run-first layout requires component folders under `runs/fraud-platform/<platform
 - `config/platform/profiles/local.yaml`
 - `README.md`
 - `docs/model_spec/platform/implementation_maps/event_bus.build_plan.md`
+
+---
+
+## Entry: 2026-01-30 00:38:45 — Correction: dev_local profile removed (parity = local_parity)
+
+### Why this correction
+EB notes referenced `dev_local.yaml` for parity publish tests. That profile has been removed to avoid mixed substrate semantics.
+
+### Current authoritative posture
+- **Parity gate:** `config/platform/profiles/local_parity.yaml` (Kinesis/LocalStack).
+- **Smoke only:** `config/platform/profiles/local.yaml` (file bus).
+
+### Impact
+Prior references to `dev_local` are historical; use `local_parity` for parity validation.

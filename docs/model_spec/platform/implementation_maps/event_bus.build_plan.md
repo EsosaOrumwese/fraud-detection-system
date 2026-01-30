@@ -145,7 +145,7 @@ These are copied from the EB design‑authority and are treated as **laws**:
 2. **LocalStack smoke**
    - Publish + read a short batch (cap).
 3. **Config**
-   - `event_bus_kind: kinesis` in `config/platform/profiles/dev_local.yaml`.
+   - `event_bus_kind: kinesis` in `config/platform/profiles/local_parity.yaml`.
 
 **DoD checklist:**
 - Kinesis adapter passes smoke test.

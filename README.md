@@ -46,7 +46,7 @@ Use the interface pack (no segment/state internals):
 ---
 
 ## Local Stack Overview (v0)
-**Profiles:** `config/platform/profiles/local.yaml` (file‑bus) and `config/platform/profiles/dev_local.yaml` (Kinesis parity).  
+**Profiles:** `config/platform/profiles/local.yaml` (file‑bus) and `config/platform/profiles/local_parity.yaml` (Kinesis parity).  
 
 **Components (local):**
 - **Oracle Store:** local filesystem dataset under `runs/local_full_run-5` (engine outputs); overridden by `ORACLE_ENGINE_RUN_ROOT`.
@@ -57,7 +57,7 @@ Use the interface pack (no segment/state internals):
 
 **Optional local containers:**
 - **Postgres + MinIO** (SR parity) via `infra/local/docker-compose.sr-parity.yaml`.
-- **LocalStack** (Kinesis dev parity) for `dev_local` profile.
+- **LocalStack** (Kinesis parity) for `local_parity` profile.
 
 ---
 

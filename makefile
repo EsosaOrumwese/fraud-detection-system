@@ -2520,7 +2520,6 @@ SR_WINDOW_START ?= 2026-01-01T00:00:00Z
 SR_WINDOW_END ?= 2026-01-02T00:00:00Z
 
 IG_PROFILE ?= config/platform/profiles/local.yaml
-IG_PROFILE_DEV ?= config/platform/profiles/dev_local.yaml
 IG_PROFILE_PARITY ?= config/platform/profiles/local_parity.yaml
 IG_HOST ?= 127.0.0.1
 IG_PORT ?= 8081

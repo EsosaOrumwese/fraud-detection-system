@@ -41,7 +41,7 @@ Notes:
 
 Local vs dev testing (current):
 - **Local smoke**: `config/platform/profiles/local.yaml` (time‑budgeted).
-- **Dev completion**: `config/platform/profiles/dev_local.yaml` (uncapped).
+- **Parity completion**: `config/platform/profiles/local_parity.yaml` (uncapped).
 
 ## Service (local)
 Run HTTP service:

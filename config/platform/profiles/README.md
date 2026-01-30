@@ -11,7 +11,7 @@ config/platform/profiles/
 
 ## Shape (v0)
 ```
-profile_id: <local|local_parity|dev_local|dev|prod>
+profile_id: <local|local_parity|dev|prod>
 policy:
   policy_rev: <version tag>
   partitioning_profiles_ref: config/platform/ig/partitioning_profiles_v0.yaml
@@ -89,5 +89,5 @@ Parity env vars (local_parity/dev/prod):
 Testing policy (current):
 - **local.yaml** → fast smoke validation (file‑bus + SQLite).
 - **local_parity.yaml** → parity validation (MinIO + LocalStack + Postgres).
-- **dev_local.yaml** → completion runs (local infra; Kinesis).
+- **local_parity.yaml** → parity validation (MinIO + LocalStack + Postgres).
 - **dev.yaml** → dev infra (S3/Kinesis/RDS).

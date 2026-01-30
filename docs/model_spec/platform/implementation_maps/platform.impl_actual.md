@@ -871,3 +871,29 @@ User required per‑run artifact layout (`runs/fraud-platform/<platform_run_id>/
 - `config/platform/profiles/README.md`
 - `README.md`
 - `docs/model_spec/platform/implementation_maps/event_bus.build_plan.md`
+
+---
+
+## Entry: 2026-01-30 00:36:20 — Remove dev_local profile; enforce parity gate
+
+### Trigger
+User required zero ladder friction and explicitly asked to remove `dev_local.yaml` (mixed local filesystem + Kinesis profile).
+
+### Decision trail (live)
+- `dev_local` mixes file-system object store and local oracle roots with Kinesis/Postgres, which is the primary source of ladder friction.
+- We already have a `local_parity` profile that mirrors dev/prod substrates (MinIO/S3 + LocalStack/Kinesis + Postgres).
+- Keep **two** local tiers only: `local` (fast smoke) and `local_parity` (pre-dev parity gate). Remove `dev_local` to avoid mixed semantics.
+
+### Implementation notes
+- Deleted `config/platform/profiles/dev_local.yaml`.
+- Promoted `local_parity.yaml` as the parity/validation profile in README + profile docs.
+- Removed `IG_PROFILE_DEV` from Makefile (no dev_local alias).
+- Updated EB build plan references to use `local_parity.yaml` instead of `dev_local.yaml`.
+
+### Files touched
+- `config/platform/profiles/dev_local.yaml` (deleted)
+- `config/platform/profiles/README.md`
+- `README.md`
+- `services/ingestion_gate/README.md`
+- `makefile`
+- `docs/model_spec/platform/implementation_maps/event_bus.build_plan.md`
