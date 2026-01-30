@@ -982,3 +982,60 @@ SR failed on `HeadObject` with `403 Forbidden` because boto picked up shared AWS
 - `makefile`
 - `docs/runbooks/platform_parity_walkthrough_v0.md`
 - `.env.platform.local`
+
+---
+
+## Entry: 2026-01-30 02:55:14 — WSP parity S3 credential propagation
+
+### Trigger
+WSP READY consumer failed with `Invalid endpoint` because S3 endpoint/credentials were not exported to boto.
+
+### Decision trail (live)
+- WSP uses S3ObjectStore for run artifacts in parity; it must receive `OBJECT_STORE_*` + `AWS_*`.
+- Align WSP with SR/IG by exporting the same MinIO credentials in Make targets.
+
+### Implementation notes
+- Prefixed `platform-wsp-ready-consumer` and `platform-wsp-ready-consumer-once` with `OBJECT_STORE_*` + `AWS_*`.
+- Added a short WSP troubleshooting note to the parity runbook.
+
+### Files touched
+- `makefile`
+- `docs/runbooks/platform_parity_walkthrough_v0.md`
+
+---
+
+## Entry: 2026-01-30 02:58:20 — WSP control bus env propagation
+
+### Trigger
+WSP READY consumer raised `CONTROL_BUS_STREAM_MISSING` because the profile uses `${CONTROL_BUS_STREAM}` and the Make target did not export it.
+
+### Decision trail (live)
+- WSP consumes READY from Kinesis, so it needs control bus stream/region/endpoint in env.
+- Align WSP with IG/SR by exporting `CONTROL_BUS_*` from parity defaults.
+
+### Implementation notes
+- Added `CONTROL_BUS_STREAM/REGION/ENDPOINT_URL` defaults in Makefile and exported them in WSP ready-consumer targets.
+- Added a parity runbook note for `CONTROL_BUS_STREAM_MISSING`.
+
+### Files touched
+- `makefile`
+- `docs/runbooks/platform_parity_walkthrough_v0.md`
+
+---
+
+## Entry: 2026-01-30 03:00:48 — WSP checkpoint DSN env propagation
+
+### Trigger
+WSP READY consumer raised `CHECKPOINT_DSN_MISSING` because `WSP_CHECKPOINT_DSN` was not exported.
+
+### Decision trail (live)
+- WSP uses Postgres for checkpoints in parity (`wsp_checkpoint.dsn`).
+- Make targets should export `WSP_CHECKPOINT_DSN` using parity defaults to keep parity runs non-interactive.
+
+### Implementation notes
+- Added `WSP_CHECKPOINT_DSN` default to parity DSN in Makefile and exported it in WSP ready-consumer targets.
+- Added a WSP troubleshooting note to the parity runbook.
+
+### Files touched
+- `makefile`
+- `docs/runbooks/platform_parity_walkthrough_v0.md`
