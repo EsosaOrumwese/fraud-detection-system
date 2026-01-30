@@ -210,6 +210,15 @@ make platform-wsp-ready-consumer-once WSP_PROFILE=config/platform/profiles/local
 
 ---
 
+**What this SR command does (summary)**
+`make platform-sr-run-reuse SR_WIRING=config/platform/sr/wiring_local_kinesis.yaml`:
+- Resolves the **run equivalence key → run_id**.
+- Anchors the run and writes **SR run ledger** under the platform run.
+- Verifies gates against the **Oracle Store** and builds the **READY bundle**.
+- Commits READY and publishes it to the **control bus (Kinesis)** for WSP.
+
+---
+
 ## 8) Observe logs (single run, all components)
 
 Tail the platform log:
