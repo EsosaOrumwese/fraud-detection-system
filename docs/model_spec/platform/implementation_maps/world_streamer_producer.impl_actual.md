@@ -770,3 +770,27 @@ Earlier notes referenced `dev_local.yaml` as a completion/parity profile. That p
 
 ### Impact
 References to `dev_local` in prior entries should be treated as historical only; use `local_parity` where parity validation is required.
+
+---
+
+## Entry: 2026-01-30 03:11:12 — Live progress logging for WSP streams
+
+### Trigger
+User requested real-time visibility into WSP streaming progress during parity runs.
+
+### Decision trail (live)
+- Progress logging should be configurable per run via env, not code edits.
+- Emit periodic progress with output id, emitted count, last file/row, and timestamp.
+- Keep defaults conservative to avoid log spam (every 1000 events or 30 seconds).
+
+### Implementation notes
+- Added progress logging in `_stream_events` with env controls:
+  - `WSP_PROGRESS_EVERY` (default 1000)
+  - `WSP_PROGRESS_SECONDS` (default 30)
+- Added `stream start` and `output complete` markers per output id.
+- Documented the envs in the parity runbook.
+- Fixed missing `import os` needed for env access in progress logging.
+
+### Files touched
+- `src/fraud_detection/world_streamer_producer/runner.py`
+- `docs/runbooks/platform_parity_walkthrough_v0.md`

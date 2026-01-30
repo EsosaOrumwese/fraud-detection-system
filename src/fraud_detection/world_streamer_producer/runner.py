@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from datetime import datetime, timezone
+import os
 import json
 import logging
 import time
@@ -398,6 +399,10 @@ class WorldStreamProducer:
         speedup = self.profile.policy.stream_speedup
         last_ts: datetime | None = None
         checkpoint_every = max(1, self.profile.wiring.checkpoint_every)
+        progress_every = max(1, int(os.getenv("WSP_PROGRESS_EVERY", "1000")))
+        progress_seconds = max(1.0, float(os.getenv("WSP_PROGRESS_SECONDS", "30")))
+        last_progress_time = time.monotonic()
+        last_progress_emitted = 0
         if not output_ids:
             return 0
 
@@ -420,6 +425,13 @@ class WorldStreamProducer:
         for output_id in output_ids:
             cursor = checkpoint_store.load(pack_key, output_id)
             paths = sorted(puller.list_locator_paths(output_id))
+            logger.info(
+                "WSP stream start output_id=%s files=%s speedup=%.2f max_events=%s",
+                output_id,
+                len(paths),
+                speedup,
+                max_events if max_events is not None else "all",
+            )
             for envelope, path, row_index in puller.iter_events_for_paths_with_positions(
                 output_id, paths
             ):
@@ -448,12 +460,27 @@ class WorldStreamProducer:
                 )
                 if emitted % checkpoint_every == 0:
                     _save_checkpoint(cursor, reason="periodic_flush")
+                if (
+                    emitted - last_progress_emitted >= progress_every
+                    or (time.monotonic() - last_progress_time) >= progress_seconds
+                ):
+                    logger.info(
+                        "WSP progress output_id=%s emitted=%s last_file=%s row=%s ts=%s",
+                        output_id,
+                        emitted,
+                        path,
+                        row_index,
+                        envelope.get("ts_utc"),
+                    )
+                    last_progress_time = time.monotonic()
+                    last_progress_emitted = emitted
                 if max_events is not None and emitted >= max_events:
                     if cursor:
                         _save_checkpoint(cursor, reason="max_events")
                     return emitted
             if cursor:
                 _save_checkpoint(cursor, reason="output_complete")
+            logger.info("WSP stream output complete output_id=%s emitted=%s", output_id, emitted)
         return emitted
 
     def _push_to_ig(self, envelope: dict[str, Any]) -> None:

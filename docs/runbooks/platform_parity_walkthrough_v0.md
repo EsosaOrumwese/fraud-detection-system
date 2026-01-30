@@ -212,6 +212,13 @@ $env:WSP_READY_MAX_EVENTS="500000"; make platform-wsp-ready-consumer-once WSP_PR
 **If you see `CHECKPOINT_DSN_MISSING`:** ensure `PARITY_WSP_CHECKPOINT_DSN` is set in `.env.platform.local` (Make exports it as `WSP_CHECKPOINT_DSN`).
 **If you see `Invalid URL '/v1/ingest/push'`:** ensure `PARITY_IG_INGEST_URL` is set in `.env.platform.local` (Make exports it as `IG_INGEST_URL`).
 
+**Live progress (WSP):** set these env vars to see periodic progress logs in `platform.log`:
+```
+$env:WSP_PROGRESS_EVERY="1000"
+$env:WSP_PROGRESS_SECONDS="30"
+```
+You’ll see lines like `WSP progress emitted=...` during the stream.
+
 ---
 
 **What this SR command does (summary)**
