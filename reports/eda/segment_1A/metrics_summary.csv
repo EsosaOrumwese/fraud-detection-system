@@ -1,0 +1,8 @@
+dataset,merchants,countries,contiguous_site_order_rate,multi_country_rate,top_1pct_outlet_share,top_5pct_outlet_share,top_10pct_outlet_share,min_countries,median_countries,max_countries,min_outlets,median_outlets,max_outlets,min_candidates,median_candidates,max_candidates,max_rank_global,min_rank_global,rank_contiguous_rate,prob_col,min,max,mean,median,elig_col,eligible_rate,feature_col,currency_col,unique_currencies,min_currency,max_currency,min_foreign,median_foreign,max_foreign
+outlet_catalogue,1238,77,1.0,0.3739903069466882,0.23725885401670027,0.37748344370860926,0.4610487250855808,1,1.0,11,2,16.0,2546,,,,,,,,,,,,,,,,,,,,,
+s3_candidate_set,,,,,,,,,,,,,,1,38.0,39,38,0,1.0,,,,,,,,,,,,,,,
+hurdle_pi_probs,,,,,,,,,,,,,,,,,,,,pi,0.00008799538045423105,0.6797199249267578,0.16090011596679688,0.14213722944259644,,,,,,,,,,
+crossborder_eligibility_flags,,,,,,,,,,,,,,,,,,,,,,,,,is_eligible,0.7069,,,,,,,,
+crossborder_features,,,,,,,,,,,,,,,,,,,,,0.019999999552965164,0.5299999713897705,0.19760599732398987,0.1899999976158142,,,openness,,,,,,,
+merchant_currency,,,,,,,,,,,,,,,,,,,,,,,,,,,,kappa,139,AED,ZWG,,,
+s6_membership,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,1,2.0,12
