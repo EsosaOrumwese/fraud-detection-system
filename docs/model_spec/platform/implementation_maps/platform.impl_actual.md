@@ -897,3 +897,23 @@ User required zero ladder friction and explicitly asked to remove `dev_local.yam
 - `services/ingestion_gate/README.md`
 - `makefile`
 - `docs/model_spec/platform/implementation_maps/event_bus.build_plan.md`
+
+---
+
+## Entry: 2026-01-30 00:40:45 — Parity walkthrough runbook (Oracle→SR→WSP→IG→EB)
+
+### Trigger
+User requested a detailed, written walkthrough for a 500k‑event local_parity run from Oracle Store through EB with observable logs and verification steps.
+
+### Decision trail (live)
+- The parity run should be documented as a runbook under `docs/runbooks/` to match existing operational docs.
+- Use `local_parity.yaml` as the single parity gate and explicitly show MinIO + LocalStack + Postgres wiring.
+- Provide verification steps against MinIO (SR/IG artifacts) and LocalStack Kinesis (EB records).
+
+### Implementation notes
+- Added `docs/runbooks/platform_parity_walkthrough_v0.md` with a step‑by‑step guide, 500k cap, and log inspection points.
+- Added the runbook link to `docs/README.md`.
+
+### Files touched
+- `docs/runbooks/platform_parity_walkthrough_v0.md`
+- `docs/README.md`

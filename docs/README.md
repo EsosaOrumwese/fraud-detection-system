@@ -13,3 +13,4 @@
 - docs/runbooks/
 
 - docs/runbooks/s2_tile_weights.md
+- docs/runbooks/platform_parity_walkthrough_v0.md
