@@ -180,6 +180,13 @@ make platform-sr-run-reuse SR_WIRING=config/platform/sr/wiring_local_kinesis.yam
 - `SR: READY committed`
 - `READY published`
 
+**If you see `LEASE_BUSY`:**
+SR found an existing lease for the same run equivalence key. Set a new key and re‑run:
+```
+$env:SR_RUN_EQUIVALENCE_KEY="parity_$(Get-Date -Format 'yyyyMMddTHHmmssZ')"
+make platform-sr-run-reuse SR_WIRING=config/platform/sr/wiring_local_kinesis.yaml
+```
+
 ---
 
 ## 7) WSP consumes READY and streams 500k events
