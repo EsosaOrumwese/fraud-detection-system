@@ -59,7 +59,7 @@ Phase 2.5 hardening tests must run against MinIO + Postgres where available.
 - Introduce a storage interface with implementations for local filesystem and S3‑compatible backends.
 - Writes are atomic (tmp + replace or multipart/etag strategy depending on backend).
 - All SR artifacts are written by‑ref (paths/URIs only; no inline payloads in control bus).
-- Artifact paths stay under `fraud-platform/sr/` and follow the SR contract layout.
+- Artifact paths stay under `fraud-platform/<platform_run_id>/sr/` and follow the SR contract layout.
 - Ledger uses the storage abstraction exclusively (no direct filesystem writes).
 
 ### Section 2.2 — Idempotency binding + lease authority (real, durable)
@@ -125,7 +125,7 @@ High‑level intent: enforce full HashGate coverage and instance‑proof binding
 - Gate receipts are validated against schemas before use.
 - Instance‑scoped gates enforce pins (seed/scenario_id/run_id/parameter_hash); broader gates do not require instance pins.
 - Receipt scope mismatch → FAIL/QUARANTINE.
-- Instance‑scoped outputs emit SR verifier receipts under `fraud-platform/sr/instance_receipts/...` with drift detection.
+- Instance‑scoped outputs emit SR verifier receipts under `fraud-platform/<platform_run_id>/sr/instance_receipts/...` with drift detection.
 
 ### Section 3.3 — Output locator integrity
 **Goal:** produce immutable, verifiable output locators for all intended outputs.
@@ -330,7 +330,7 @@ High‑level intent: authn/authz, secrets hygiene, quarantine workflows, operato
 **Goal:** make quarantined runs inspectable without mutating truth.
 
 **Definition of done**
-- Quarantine artifacts stored under `fraud-platform/sr/quarantine/`.
+- Quarantine artifacts stored under `fraud-platform/<platform_run_id>/sr/quarantine/`.
 - CLI tooling to list/inspect quarantined runs (read‑only).
 
 ### Section 7.4 — Ops guardrails (rate limits + dry‑run)

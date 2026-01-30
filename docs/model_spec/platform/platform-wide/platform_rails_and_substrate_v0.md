@@ -79,7 +79,7 @@ data/layer{L}/{SEG}/receipts/instance/output_id={output_id}/{partition_tokens}/i
 
 If the engine remains a black box and does not emit instance receipts, SR may emit **verifier receipts** using the same schema under:
 ```
-fraud-platform/sr/instance_receipts/output_id={output_id}/{partition_tokens}/instance_receipt.json
+fraud-platform/<platform_run_id>/sr/instance_receipts/output_id={output_id}/{partition_tokens}/instance_receipt.json
 ```
 
 ### 2.4 Token order (partitioned paths)

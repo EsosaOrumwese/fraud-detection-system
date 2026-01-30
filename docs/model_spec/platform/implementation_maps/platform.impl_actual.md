@@ -820,3 +820,54 @@ Adopt run‑centric layout:
 - `src/fraud_detection/scenario_runner/service.py`
 - `makefile`
 - Docs/READMEs updated to remove `platform_runs/` references.
+
+---
+
+## Entry: 2026-01-30 00:05:50 — Run‑first artifact layout (SR/WSP/IG/EB)
+
+### Decision
+All platform artifacts move under the run root:
+`runs/fraud-platform/<platform_run_id>/{sr,wsp,ig,eb,...}`.
+This eliminates service‑first paths and makes run bundles fully self‑contained.
+
+### Mechanics
+- Introduced `platform_run_root` / `platform_run_prefix` helpers and a `resolve_run_scoped_path` rewriter.
+- SR ledger + refs now write to `{run_prefix}/sr/*`.
+- IG receipts/quarantine/policy/health now write to `{run_prefix}/ig/*`.
+- WSP ready ledger + checkpoints now write under `{run_prefix}/wsp*`.
+- File‑bus roots (control_bus/event_bus) are auto‑rewritten to run scope when paths target `runs/fraud-platform`.
+
+### Files changed (high‑level)
+- `src/fraud_detection/platform_runtime.py`
+- `src/fraud_detection/scenario_runner/*`
+- `src/fraud_detection/ingestion_gate/*`
+- `src/fraud_detection/world_streamer_producer/*`
+- `src/fraud_detection/event_bus/cli.py`
+- Tests/README/docs updated to reflect new run‑first layout.
+
+---
+
+## Entry: 2026-01-30 00:29:40 — Run-first artifact layout migration (sr|wsp|ig|eb)
+
+### Trigger
+User required per‑run artifact layout (`runs/fraud-platform/<platform_run_id>/sr|wsp|ig|eb/...`) and rejected global service‑level folders.
+
+### Decision trail (live)
+- Keep `runs/fraud-platform/<platform_run_id>/` as the platform run root (single audit surface per run).
+- Component artifacts live under the run root (`sr`, `wsp`, `ig`, `eb`), while shared buses like `control_bus` stay at the run root.
+- Rename the file‑bus folder from `event_bus` to `eb` to match the component name and avoid deep/nested names.
+- Preserve historical per‑run logs by moving legacy `platform_runs/<run_id>` contents into the new run root.
+
+### Implementation notes
+- Migrated existing top‑level component folders (`sr`, `ig`, `wsp`, `event_bus`, `control_bus`, `wsp_checkpoints`) into `runs/fraud-platform/<active_run_id>/`.
+- `event_bus` folder renamed to `eb`; WSP checkpoints moved under `wsp/checkpoints`.
+- Legacy `platform_runs/<run_id>` log contents moved into the new run root; `ACTIVE_RUN_ID` moved to `runs/fraud-platform/ACTIVE_RUN_ID`.
+- Global `platform.log` moved under the active run root (stored as `platform.log.global` if a per‑run log already existed).
+- Updated local profile + docs to reflect run‑first layout and new `eb` path.
+
+### Files touched
+- `src/fraud_detection/platform_runtime.py`
+- `config/platform/profiles/local.yaml`
+- `config/platform/profiles/README.md`
+- `README.md`
+- `docs/model_spec/platform/implementation_maps/event_bus.build_plan.md`

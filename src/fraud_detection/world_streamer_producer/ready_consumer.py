@@ -12,7 +12,7 @@ from typing import Any
 from urllib.parse import urlparse
 
 from fraud_detection.oracle_store.engine_reader import resolve_engine_root
-from fraud_detection.platform_runtime import append_session_event, platform_log_paths
+from fraud_detection.platform_runtime import append_session_event, platform_log_paths, platform_run_prefix
 from fraud_detection.scenario_runner.logging_utils import configure_logging
 from fraud_detection.scenario_runner.schemas import SchemaRegistry
 from fraud_detection.scenario_runner.storage import LocalObjectStore, ObjectStore, S3ObjectStore
@@ -185,7 +185,10 @@ class ReadyConsumerRunner:
 
 
 def _ready_record_path(message_id: str) -> str:
-    return f"fraud-platform/wsp/ready_runs/{message_id}.jsonl"
+    run_prefix = platform_run_prefix(create_if_missing=True)
+    if not run_prefix:
+        raise RuntimeError("PLATFORM_RUN_ID required for WSP ready record path.")
+    return f"{run_prefix}/wsp/ready_runs/{message_id}.jsonl"
 
 
 def _build_store(profile: WspProfile) -> ObjectStore:

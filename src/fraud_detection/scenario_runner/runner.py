@@ -59,6 +59,7 @@ from .obs import (
 from .security import is_authorized
 from .schemas import SchemaRegistry
 from .storage import build_object_store
+from ..platform_runtime import platform_run_prefix, resolve_run_scoped_path
 
 
 class ScenarioRunner:
@@ -68,6 +69,7 @@ class ScenarioRunner:
         policy: PolicyProfile,
         engine_invoker: EngineInvoker,
         obs_sink: ObsSink | None = None,
+        run_prefix: str | None = None,
     ) -> None:
         self.logger = logging.getLogger(__name__)
         self.wiring = wiring
@@ -82,7 +84,10 @@ class ScenarioRunner:
             s3_region=wiring.s3_region,
             s3_path_style=wiring.s3_path_style,
         )
-        self.ledger = Ledger(self.store, prefix="fraud-platform/sr", schemas=self.schemas)
+        self.run_prefix = run_prefix or platform_run_prefix(create_if_missing=True)
+        if not self.run_prefix:
+            raise RuntimeError("PLATFORM_RUN_ID required to build SR run-scoped artifacts.")
+        self.ledger = Ledger(self.store, prefix=f"{self.run_prefix}/sr", schemas=self.schemas)
         self.control_bus = self._build_control_bus(wiring)
         self.catalogue = OutputCatalogue(Path(wiring.engine_catalogue_path))
         self.gate_map = GateMap(Path(wiring.gate_map_path))
@@ -91,7 +96,7 @@ class ScenarioRunner:
             self.logger.warning(
                 "SR: runtime artifacts may include sensitive capability tokens under %s/%s; review and avoid committing.",
                 wiring.object_store_root.rstrip("/"),
-                "fraud-platform/sr/index",
+                f"{self.run_prefix}/sr/index",
             )
         if obs_sink is None:
             sinks = []
@@ -107,7 +112,7 @@ class ScenarioRunner:
         if authority_dsn is None:
             if wiring.object_store_root.startswith("s3://"):
                 raise RuntimeError("authority_store_dsn required for non-local object store")
-            default_path = Path(wiring.object_store_root) / "fraud-platform/sr/index/sr_authority.db"
+            default_path = Path(wiring.object_store_root) / self.run_prefix / "sr/index/sr_authority.db"
             authority_dsn = f"sqlite:///{default_path.as_posix()}"
         authority_store = build_authority_store(authority_dsn)
         self.equiv_registry = EquivalenceRegistry(authority_store)
@@ -196,7 +201,7 @@ class ScenarioRunner:
             return RunResponse(
                 run_id=run_id,
                 state=status.state if status else RunStatusState.OPEN,
-                status_ref=f"fraud-platform/sr/run_status/{run_id}.json" if status else None,
+                status_ref=f"{self.run_prefix}/sr/run_status/{run_id}.json" if status else None,
                 record_ref=status.record_ref if status else None,
                 facts_view_ref=status.facts_view_ref if status else None,
                 message="Lease held by another runner; returning current status.",
@@ -555,7 +560,14 @@ class ScenarioRunner:
             )
         if not wiring.control_bus_root:
             raise RuntimeError("control_bus_root required for file bus")
-        return FileControlBus(Path(wiring.control_bus_root))
+        control_root = resolve_run_scoped_path(
+            wiring.control_bus_root,
+            suffix="control_bus",
+            create_if_missing=True,
+        )
+        if not control_root:
+            raise RuntimeError("control_bus_root resolution failed")
+        return FileControlBus(Path(control_root))
 
     def _reemit_ready(self, run_id: str, status) -> str | None:
         facts_view = self.ledger.read_facts_view(run_id)
@@ -1159,9 +1171,9 @@ class ScenarioRunner:
             "gate_receipts": [receipt_to_wire(receipt) for receipt in bundle.gate_receipts],
             "policy_rev": plan.policy_rev,
             "bundle_hash": bundle.bundle_hash,
-            "plan_ref": f"fraud-platform/sr/run_plan/{plan.run_id}.json",
-            "record_ref": f"fraud-platform/sr/run_record/{plan.run_id}.jsonl",
-            "status_ref": f"fraud-platform/sr/run_status/{plan.run_id}.json",
+            "plan_ref": f"{self.run_prefix}/sr/run_plan/{plan.run_id}.json",
+            "record_ref": f"{self.run_prefix}/sr/run_record/{plan.run_id}.jsonl",
+            "status_ref": f"{self.run_prefix}/sr/run_status/{plan.run_id}.json",
         }
         if oracle_pack_ref:
             facts_view["oracle_pack_ref"] = oracle_pack_ref
@@ -1192,7 +1204,7 @@ class ScenarioRunner:
             )
         ready_payload = {
             "run_id": plan.run_id,
-            "facts_view_ref": f"fraud-platform/sr/run_facts_view/{plan.run_id}.json",
+            "facts_view_ref": f"{self.run_prefix}/sr/run_facts_view/{plan.run_id}.json",
             "bundle_hash": bundle.bundle_hash,
             "emitted_at_utc": datetime.now(tz=timezone.utc).isoformat(),
         }
@@ -1298,9 +1310,9 @@ class ScenarioRunner:
         return RunResponse(
             run_id=run_id,
             state=status.state if status else RunStatusState.OPEN,
-            status_ref=f"fraud-platform/sr/run_status/{run_id}.json",
-            record_ref=f"fraud-platform/sr/run_record/{run_id}.jsonl",
-            facts_view_ref=f"fraud-platform/sr/run_facts_view/{run_id}.json" if status and status.state == RunStatusState.READY else None,
+            status_ref=f"{self.run_prefix}/sr/run_status/{run_id}.json",
+            record_ref=f"{self.run_prefix}/sr/run_record/{run_id}.jsonl",
+            facts_view_ref=f"{self.run_prefix}/sr/run_facts_view/{run_id}.json" if status and status.state == RunStatusState.READY else None,
             message=message,
         )
 

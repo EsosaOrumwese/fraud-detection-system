@@ -41,7 +41,7 @@ def _require_env() -> dict[str, str]:
 
 def _build_wiring(tmp_path: Path, env: dict[str, str]) -> WiringProfile:
     unique = uuid.uuid4().hex
-    root = f"s3://{env['bucket']}/{env['prefix']}/{unique}/fraud-platform/sr"
+    root = f"s3://{env['bucket']}/{env['prefix']}/{unique}"
     return WiringProfile(
         object_store_root=root,
         control_bus_topic="fp.bus.control.v1",
@@ -72,9 +72,10 @@ def _build_policy() -> PolicyProfile:
 @pytest.mark.skipif(not RUN_ROOT.exists(), reason="local_full_run-5 not available")
 def test_parity_reuse_ready_commit(tmp_path: Path) -> None:
     env = _require_env()
+    run_prefix = f"fraud-platform/{uuid.uuid4().hex}"
     wiring = _build_wiring(tmp_path, env)
     policy = _build_policy()
-    runner = ScenarioRunner(wiring, policy, LocalEngineInvoker(str(RUN_ROOT)))
+    runner = ScenarioRunner(wiring, policy, LocalEngineInvoker(str(RUN_ROOT)), run_prefix=run_prefix)
 
     run_key = f"sr-parity-reuse-6a-{uuid.uuid4().hex}"
     request = RunRequest(

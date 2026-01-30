@@ -196,7 +196,7 @@ Deliver a **correct local EB implementation** with durable append semantics, sta
 
 ### Implementation plan (stepwise)
 1) Extend FileEventBusPublisher:
-   - Add per‑topic head file: `runs/fraud-platform/event_bus/<topic>/head.json`.
+   - Add per‑topic head file: `runs/fraud-platform/<platform_run_id>/event_bus/<topic>/head.json`.
    - On publish: read head (or compute from log), append record, flush, fsync, update head.
    - Emit `published_at_utc` in EbRef.
 
@@ -304,7 +304,7 @@ Deliver a **minimal EB replay/tail reader** for the local file‑bus so we can v
 ### Decisions (with reasoning)
 - **Reader is local‑only** in v0. Reason: avoid premature abstractions (Kinesis reader belongs to Phase 5/6).
 - **CLI prints JSON lines** with `topic`, `partition`, `offset`, and the stored record. Reason: easy to pipe/inspect without imposing formatting opinions.
-- **Default bus root**: `runs/fraud-platform/event_bus` (same as file‑bus writer). Reason: keep local tooling zero‑config.
+- **Default bus root**: `runs/fraud-platform/<platform_run_id>/event_bus` (same as file‑bus writer). Reason: keep local tooling zero‑config.
 
 ### Planned steps
 1) Add `EventBusReader` to `src/fraud_detection/event_bus/reader.py`.
@@ -469,10 +469,10 @@ Provide a **dev‑parity EB adapter** so IG can publish to a real stream backend
 - Local IG file‑bus default was `runs/local_bus` (implicit), which splits EB artifacts from the platform runtime root.
 
 ### Decision
-- Align local file‑bus root to `runs/fraud-platform/event_bus` to keep all platform runtime artifacts under the same root and meet earlier platform layout requirements.
+- Align local file‑bus root to `runs/fraud-platform/<platform_run_id>/event_bus` to keep all platform runtime artifacts under the same root and meet earlier platform layout requirements.
 
 ### Change
-- Update `config/platform/profiles/local.yaml` to set `wiring.event_bus.root: runs/fraud-platform/event_bus`.
+- Update `config/platform/profiles/local.yaml` to set `wiring.event_bus.root: runs/fraud-platform/<platform_run_id>/event_bus`.
 
 ## Entry: 2026-01-29 06:28:50 — Smoke runner fix (Windows bash quoting)
 
@@ -504,13 +504,13 @@ Provide a **dev‑parity EB adapter** so IG can publish to a real stream backend
 ### Run context
 - Platform run id: `platform_20260129T062946Z`.
 - Engine root: `runs/local_full_run-5/c25a2675fbfbacd952b13bb594880e92`.
-- Event bus root: `runs/fraud-platform/event_bus`.
+- Event bus root: `runs/fraud-platform/<platform_run_id>/event_bus`.
 
 ### Evidence gathered
 - SR run log: `runs/fraud-platform/platform_20260129T062946Z/platform.log` shows READY committed for run_id `a26b2312a84f851b4a7d7e559fc5c122`.
 - EB file‑bus state:
-  - `runs/fraud-platform/event_bus/fp.bus.traffic.v1/head.json` → `{"next_offset":20}`.
-  - `runs/fraud-platform/event_bus/fp.bus.traffic.v1/partition=0.jsonl` contains the last events published at `2026-01-29T06:30:50Z`–`06:30:52Z`.
+  - `runs/fraud-platform/<platform_run_id>/event_bus/fp.bus.traffic.v1/head.json` → `{"next_offset":20}`.
+  - `runs/fraud-platform/<platform_run_id>/event_bus/fp.bus.traffic.v1/partition=0.jsonl` contains the last events published at `2026-01-29T06:30:50Z`–`06:30:52Z`.
 - IG admissions recorded in `runs/fraud-platform/platform.log` show offsets 1–19 for the same time window.
 
 ### Outcome
@@ -546,3 +546,29 @@ Platform parity work requires the local event bus to match dev/prod semantics; f
 - `config/platform/profiles/dev_local.yaml`
 - `config/platform/profiles/dev.yaml`
 - `config/platform/profiles/prod.yaml`
+
+---
+
+## Entry: 2026-01-30 00:27:05 — Run-first EB folder rename (`event_bus` → `eb`)
+
+### Trigger
+Run-first layout requires component folders under `runs/fraud-platform/<platform_run_id>/...` and the EB folder should align with the `eb` component name.
+
+### Decision trail (live)
+- The EB on-disk bus is a component artifact and should sit under the run root (`.../<run_id>/eb/...`), not a shared `event_bus/` root.
+- To avoid breaking Kinesis wiring semantics, only the local file‑bus path is renamed; stream names are unchanged.
+- Earlier entries that mention `event_bus` paths are now superseded by the `eb` folder naming but kept as historical context.
+
+### Implementation notes
+- IG wiring now rewrites file‑bus roots to `.../<run_id>/eb` via `resolve_run_scoped_path(..., suffix="eb")`.
+- EB CLI default tail root updated to `runs/fraud-platform/<platform_run_id>/eb`.
+- Local profile `event_bus.root` updated to `runs/fraud-platform/eb` (auto‑rewritten into the run root).
+- IG file‑bus fallback now defaults to `runs/fraud-platform/eb` for local smoke.
+
+### Files touched
+- `src/fraud_detection/ingestion_gate/config.py`
+- `src/fraud_detection/ingestion_gate/admission.py`
+- `src/fraud_detection/event_bus/cli.py`
+- `config/platform/profiles/local.yaml`
+- `README.md`
+- `docs/model_spec/platform/implementation_maps/event_bus.build_plan.md`

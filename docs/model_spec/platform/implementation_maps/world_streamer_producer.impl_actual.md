@@ -272,7 +272,7 @@ User asked to move into **Phase 2 planning** and explicitly warned not to confla
 - Cons: more infra, but already used for IG READY leases.
 
 **Decision (provisional):**  
-- Local: file‑based checkpoint under `runs/fraud-platform/wsp_checkpoints/`.  
+- Local: file‑based checkpoint under `runs/fraud-platform/<platform_run_id>/wsp_checkpoints/`.  
 - Dev/Prod: Postgres table keyed by `{oracle_pack_id, output_id}` (or `{engine_run_root, output_id}` if no manifest).
 
 ### Proposed checkpoint model (concrete)
@@ -591,7 +591,7 @@ User requested a READY consumer runner so SR can drive WSP automatically for a f
 ### Planned implementation steps (before coding)
 1) Add `src/fraud_detection/world_streamer_producer/ready_consumer.py` with:
    - `ReadyConsumerRunner` (poll once / loop).
-   - Append‑only READY processing records under `fraud-platform/wsp/ready_runs/<message_id>.jsonl`.
+   - Append‑only READY processing records under `fraud-platform/<platform_run_id>/wsp/ready_runs/<message_id>.jsonl`.
    - Schema validation for run_facts_view.
    - Fail‑closed errors for missing oracle pack ref, missing scenario_id, or missing engine root.
 
@@ -629,7 +629,7 @@ User requested a READY consumer runner so SR can drive WSP automatically for a f
 
 3) **Append‑only READY processing records for idempotency**
    - Each READY message writes an append‑only JSONL record at:
-     `fraud-platform/wsp/ready_runs/<message_id>.jsonl`.
+     `fraud-platform/<platform_run_id>/wsp/ready_runs/<message_id>.jsonl`.
    - If any previous record has status `STREAMED`, the message is skipped (`SKIPPED_DUPLICATE`).
    - Failed attempts do **not** block retries (new record appended).
    - Reasoning: matches “append‑only truths” and safe under at‑least‑once delivery.
@@ -729,3 +729,29 @@ Maximum‑parity local stack requires READY control‑bus to match dev/prod (Kin
 - `src/fraud_detection/world_streamer_producer/control_bus.py`
 - `src/fraud_detection/world_streamer_producer/ready_consumer.py`
 - `src/fraud_detection/world_streamer_producer/config.py`
+
+---
+
+## Entry: 2026-01-30 00:26:10 — Run-first WSP artifacts (checkpoints + READY records)
+
+### Trigger
+User required a run-first layout (`runs/fraud-platform/<platform_run_id>/...`) with component folders and per-run logs.
+
+### Decision trail (live)
+- WSP state should not live at a global repo root (`runs/fraud-platform/wsp_checkpoints`) because it flattens runs and breaks auditability.
+- READY dedupe records must be scoped to the platform run, not a shared global namespace.
+- Keep the storage abstraction intact (file vs S3) by relying on `platform_run_prefix` + `resolve_run_scoped_path` for run scoping.
+
+### Implementation notes
+- Default checkpoint root updated to `runs/fraud-platform/wsp/checkpoints`; `resolve_run_scoped_path(..., suffix="wsp/checkpoints")` rewrites it into the active run.
+- READY records now live under `fraud-platform/<platform_run_id>/wsp/ready_runs/...` via `platform_run_prefix`.
+- WSP tests now set `PLATFORM_RUN_ID` and assert run-prefixed SR facts refs; checkpoint paths updated to `wsp/checkpoints`.
+
+### Files touched
+- `src/fraud_detection/world_streamer_producer/config.py`
+- `src/fraud_detection/world_streamer_producer/ready_consumer.py`
+- `config/platform/profiles/local.yaml`
+- `tests/services/world_streamer_producer/test_ready_consumer.py`
+- `tests/services/world_streamer_producer/test_runner.py`
+- `README.md`
+- `docs/model_spec/platform/implementation_maps/world_streamer_producer.build_plan.md`

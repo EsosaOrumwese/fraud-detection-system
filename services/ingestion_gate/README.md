@@ -34,7 +34,7 @@ python -m pytest tests/services/ingestion_gate/test_ops_rebuild_runs_smoke.py -q
 Notes:
 - This smoke test looks for SR artifacts under:
   - `%SR_ARTIFACTS_ROOT%` (preferred)
-  - `runs/fraud-platform/sr` (repo-local default)
+  - `runs/fraud-platform/<platform_run_id>/sr` (repo-local default)
 - If none are found, the test skips with a clear message.
 - Per‑run logs live under `runs/fraud-platform/<platform_run_id>/platform.log` when a run ID is set.
 - `pull_time_budget_seconds` (profile wiring) can cap local smoke runs; leave unset for production.

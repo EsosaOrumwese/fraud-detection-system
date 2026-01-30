@@ -7,7 +7,7 @@ Boundaries: engine internals; ingestion; downstream processing.
 Notes: This service is the control-plane entrypoint for runs. It must stay fail-closed and by-ref.
 run_facts_view now includes engine-contract digest objects and may include optional `instance_receipts` for instance-scoped outputs.
 SR emits **verifier receipts** in its own object store (engine remains a black box):
-- `fraud-platform/sr/instance_receipts/output_id=<output_id>/<scope partitions>/instance_receipt.json`
+- `fraud-platform/<platform_run_id>/sr/instance_receipts/output_id=<output_id>/<scope partitions>/instance_receipt.json`
 Per-run logs live under `runs/fraud-platform/<platform_run_id>/platform.log` when a run ID is set.
 Set `PLATFORM_RUN_ID` (env) or delete `runs/fraud-platform/ACTIVE_RUN_ID` to start a fresh session.
 

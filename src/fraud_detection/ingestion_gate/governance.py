@@ -22,6 +22,7 @@ class GovernanceEmitter:
     quarantine_spike_threshold: int
     quarantine_spike_window_seconds: int
     policy_id: str
+    prefix: str
     _quarantine_ts: deque[float] = field(default_factory=deque)
     _last_spike_ts: float | None = None
 
@@ -29,7 +30,7 @@ class GovernanceEmitter:
         digest = policy_rev.get("content_digest")
         if not digest:
             return
-        active_path = "fraud-platform/ig/policy/active.json"
+        active_path = f"{self.prefix}/ig/policy/active.json"
         previous = None
         if self.store.exists(active_path):
             previous = self.store.read_json(active_path)

@@ -9,6 +9,8 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
+from ..platform_runtime import platform_run_prefix
+
 
 @dataclass
 class OpsIndex:
@@ -184,9 +186,15 @@ class OpsIndex:
     def rebuild_from_store(
         self,
         store: Any,
-        receipts_prefix: str = "fraud-platform/ig/receipts",
-        quarantine_prefix: str = "fraud-platform/ig/quarantine",
+        receipts_prefix: str | None = None,
+        quarantine_prefix: str | None = None,
     ) -> None:
+        if receipts_prefix is None or quarantine_prefix is None:
+            run_prefix = platform_run_prefix(create_if_missing=False)
+            if not run_prefix:
+                raise RuntimeError("PLATFORM_RUN_ID required to rebuild ops index from store.")
+            receipts_prefix = receipts_prefix or f"{run_prefix}/ig/receipts"
+            quarantine_prefix = quarantine_prefix or f"{run_prefix}/ig/quarantine"
         self._clear()
         for payload, ref in _iter_store_json(store, receipts_prefix):
             self.record_receipt(payload, ref)

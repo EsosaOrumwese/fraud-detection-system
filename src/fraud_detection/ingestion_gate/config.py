@@ -11,6 +11,7 @@ from typing import Any
 import yaml
 
 from .security import load_allowlist
+from ..platform_runtime import resolve_run_scoped_path
 
 @dataclass(frozen=True)
 class PolicyRev:
@@ -89,13 +90,20 @@ class WiringProfile:
                 object_store_root = bucket
         profile_id = data["profile_id"]
         admission_db_path = _resolve_env(wiring.get("admission_db_path"))
+        admission_db_path = resolve_run_scoped_path(
+            admission_db_path,
+            suffix="ig/index/ig_admission.db",
+            create_if_missing=True,
+        )
         if not admission_db_path:
-            if str(object_store_root).startswith("s3://"):
-                admission_db_path = "runs/fraud-platform/ig/index/ig_admission.db"
-            else:
-                admission_db_path = str(Path(object_store_root) / "fraud-platform/ig/index/ig_admission.db")
+            raise ValueError("PLATFORM_RUN_ID required to resolve admission_db_path.")
         event_bus_path = wiring.get("event_bus_path") or event_bus.get("root") or event_bus.get("stream")
         event_bus_path = _resolve_env(event_bus_path)
+        event_bus_path = resolve_run_scoped_path(
+            event_bus_path,
+            suffix="eb",
+            create_if_missing=True,
+        )
         event_bus_region = _resolve_env(event_bus.get("region"))
         event_bus_endpoint_url = _resolve_env(event_bus.get("endpoint_url"))
         auth_allowlist = list(security.get("auth_allowlist") or [])

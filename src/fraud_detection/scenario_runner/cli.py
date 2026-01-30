@@ -10,7 +10,7 @@ from .config import load_policy, load_wiring
 from .engine import LocalEngineInvoker, LocalSubprocessInvoker
 from .logging_utils import configure_logging
 from .models import ReemitKind, ReemitRequest, RunRequest, RunWindow, ScenarioBinding
-from ..platform_runtime import append_session_event, platform_log_paths
+from ..platform_runtime import append_session_event, platform_log_paths, platform_run_prefix
 from .storage import build_object_store
 from .runner import ScenarioRunner
 
@@ -60,6 +60,9 @@ def main() -> None:
     args = parse_args()
     log_paths = platform_log_paths(create_if_missing=args.command == "run")
     configure_logging(log_paths=log_paths)
+    run_prefix = platform_run_prefix(create_if_missing=args.command == "run")
+    if not run_prefix:
+        raise SystemExit("PLATFORM_RUN_ID or runs/fraud-platform/ACTIVE_RUN_ID required for SR commands.")
     wiring = load_wiring(Path(args.wiring))
     policy = load_policy(Path(args.policy))
     if wiring.engine_command:
@@ -70,7 +73,7 @@ def main() -> None:
         )
     else:
         invoker = LocalEngineInvoker()
-    runner = ScenarioRunner(wiring, policy, invoker)
+    runner = ScenarioRunner(wiring, policy, invoker, run_prefix=run_prefix)
     if args.command == "quarantine":
         store = build_object_store(
             wiring.object_store_root,
@@ -78,7 +81,7 @@ def main() -> None:
             s3_region=wiring.s3_region,
             s3_path_style=wiring.s3_path_style,
         )
-        prefix = "fraud-platform/sr/quarantine"
+        prefix = f"{run_prefix}/sr/quarantine"
         if args.q_action == "list":
             files = store.list_files(prefix)
             for path in files:

@@ -8,6 +8,7 @@ from fraud_detection.ingestion_gate.admission import IngestionGate
 from fraud_detection.ingestion_gate.config import WiringProfile
 from fraud_detection.ingestion_gate.ops_index import OpsIndex
 from fraud_detection.ingestion_gate.store import LocalObjectStore
+from fraud_detection.platform_runtime import platform_run_root
 
 
 def _write_yaml(path: Path, payload: dict) -> None:
@@ -22,7 +23,9 @@ def _candidate_sr_roots(repo_root: Path) -> list[Path]:
     if env_root:
         roots.append(Path(env_root))
     # repo-local runs default
-    roots.append(repo_root / "runs" / "fraud-platform" / "sr")
+    run_root = platform_run_root(create_if_missing=False)
+    if run_root:
+        roots.append(run_root / "sr")
     return roots
 
 
@@ -143,8 +146,9 @@ def _build_gate(tmp_path: Path) -> IngestionGate:
     return IngestionGate.build(wiring)
 
 
-def test_ops_rebuild_smoke_runs(tmp_path: Path) -> None:
+def test_ops_rebuild_smoke_runs(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     repo_root = Path(__file__).resolve().parents[3]
+    monkeypatch.setenv("PLATFORM_RUN_ID", "test_ops_rebuild")
     pins = None
     for root in _candidate_sr_roots(repo_root):
         if root.exists():
@@ -152,7 +156,10 @@ def test_ops_rebuild_smoke_runs(tmp_path: Path) -> None:
             if pins:
                 break
     if not pins:
-        pytest.skip("No SR run_facts_view/run_status found under runs/fraud-platform/sr; set SR_ARTIFACTS_ROOT to enable smoke test")
+        pytest.skip(
+            "No SR run_facts_view/run_status found under runs/fraud-platform/<platform_run_id>/sr; "
+            "set SR_ARTIFACTS_ROOT to enable smoke test"
+        )
     gate = _build_gate(tmp_path)
 
     envelope = {
@@ -172,7 +179,9 @@ def test_ops_rebuild_smoke_runs(tmp_path: Path) -> None:
     store = LocalObjectStore(tmp_path / "store")
     rebuild_db = tmp_path / "ops_rebuild.db"
     index = OpsIndex(rebuild_db)
-    index.rebuild_from_store(store)
+    receipts_prefix = "fraud-platform/test_ops_rebuild/ig/receipts"
+    quarantine_prefix = "fraud-platform/test_ops_rebuild/ig/quarantine"
+    index.rebuild_from_store(store, receipts_prefix=receipts_prefix, quarantine_prefix=quarantine_prefix)
 
     lookup = index.lookup_event(envelope["event_id"])
     assert lookup is not None

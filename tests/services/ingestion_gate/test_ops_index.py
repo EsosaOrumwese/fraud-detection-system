@@ -5,6 +5,8 @@ from fraud_detection.ingestion_gate.ops_index import OpsIndex
 from fraud_detection.ingestion_gate.policy_digest import compute_policy_digest
 from fraud_detection.ingestion_gate.store import LocalObjectStore
 
+RUN_PREFIX = "fraud-platform/test-run"
+
 
 def test_policy_digest_is_deterministic(tmp_path: Path) -> None:
     policy_a = tmp_path / "a.yaml"
@@ -30,7 +32,7 @@ def test_ops_index_records_and_looks_up(tmp_path: Path) -> None:
         "pins": {"manifest_fingerprint": "b" * 64},
         "eb_ref": {"topic": "fp.bus.traffic.v1", "partition": 0, "offset": "1", "offset_kind": "file_line"},
     }
-    index.record_receipt(receipt_payload, "fraud-platform/ig/receipts/abcd.json")
+    index.record_receipt(receipt_payload, f"{RUN_PREFIX}/ig/receipts/abcd.json")
 
     lookup = index.lookup_event("evt-1")
     assert lookup is not None
@@ -43,7 +45,7 @@ def test_ops_index_records_and_looks_up(tmp_path: Path) -> None:
         "policy_rev": {"policy_id": "ig", "revision": "v1", "content_digest": "c" * 64},
         "pins": {"manifest_fingerprint": "b" * 64},
     }
-    index.record_quarantine(quarantine_payload, "fraud-platform/ig/quarantine/q.json", "evt-2")
+    index.record_quarantine(quarantine_payload, f"{RUN_PREFIX}/ig/quarantine/q.json", "evt-2")
     # ensure no exceptions and DB probe works
     assert index.probe() is True
 
@@ -67,8 +69,8 @@ def test_ops_index_rebuild_from_store(tmp_path: Path) -> None:
         "policy_rev": {"policy_id": "ig", "revision": "v2", "content_digest": "f" * 64},
         "pins": {"manifest_fingerprint": "c" * 64},
     }
-    store.write_json("fraud-platform/ig/receipts/b.json", receipt_payload)
-    store.write_json("fraud-platform/ig/quarantine/q.json", quarantine_payload)
+    store.write_json(f"{RUN_PREFIX}/ig/receipts/b.json", receipt_payload)
+    store.write_json(f"{RUN_PREFIX}/ig/quarantine/q.json", quarantine_payload)
 
     index = OpsIndex(tmp_path / "ops.db")
     index.rebuild_from_store(store)

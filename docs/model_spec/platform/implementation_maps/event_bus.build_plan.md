@@ -31,7 +31,7 @@ These are copied from the EB design‑authority and are treated as **laws**:
 ## 2) Environment ladder (v0 posture)
 
 **Local (v0 smoke):**
-- File‑based append‑only bus in `runs/fraud-platform/event_bus/...`
+- File‑based append‑only bus in `runs/fraud-platform/<platform_run_id>/eb/...`
 - Single partition default (partition=0) to keep behavior deterministic.
 - Fast feedback; cap WSP events for smoke.
 
@@ -76,7 +76,7 @@ These are copied from the EB design‑authority and are treated as **laws**:
 
 **Plan:**
 1. **Append‑only log layout**
-   - `runs/fraud-platform/event_bus/<topic>/partition=0.jsonl`
+   - `runs/fraud-platform/<platform_run_id>/eb/<topic>/partition=0.jsonl`
 2. **Stable offsets**
    - Offset is line index (0‑based) of the append.
 3. **Atomic append**
@@ -103,7 +103,7 @@ These are copied from the EB design‑authority and are treated as **laws**:
 1. **Reader utility**
    - Minimal CLI: `event_bus tail --topic ... --from-offset ... --max ...`
 2. **Checkpoint semantics**
-   - “exclusive‑next” stored in `runs/fraud-platform/event_bus/checkpoints/...`
+   - “exclusive‑next” stored in `runs/fraud-platform/<platform_run_id>/eb/checkpoints/...`
 3. **Smoke verification**
    - Tail the last N records after a WSP smoke run.
 
@@ -177,7 +177,7 @@ These are copied from the EB design‑authority and are treated as **laws**:
    - `offset`: stored as **string** in receipts to allow file‑bus integers and Kinesis sequence numbers without shape changes.
    - `offset_kind`: `file_line` or `kinesis_sequence`.
 3. **Checkpoint store**
-   - **Local:** file checkpoints under `runs/fraud-platform/event_bus/checkpoints/...`
+   - **Local:** file checkpoints under `runs/fraud-platform/<platform_run_id>/eb/checkpoints/...`
    - **Dev (v0):** Postgres (reuse existing local/dev Postgres footprint).
 
 ---

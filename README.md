@@ -50,10 +50,10 @@ Use the interface pack (no segment/state internals):
 
 **Components (local):**
 - **Oracle Store:** local filesystem dataset under `runs/local_full_run-5` (engine outputs); overridden by `ORACLE_ENGINE_RUN_ROOT`.
-- **WSP:** Python CLI (`fraud_detection.world_streamer_producer.*`), pushes to IG; checkpoints at `runs/fraud-platform/wsp_checkpoints`.
-- **SR:** Python CLI (`fraud_detection.scenario_runner.*`); artifacts under `runs/fraud-platform/sr`.
-- **IG:** Flask service on `http://localhost:8081`; SQLite indices under `runs/fraud-platform/ig`.
-- **EB:** file‑bus log under `runs/fraud-platform/event_bus` (topics `fp.bus.*`).
+- **WSP:** Python CLI (`fraud_detection.world_streamer_producer.*`), pushes to IG; checkpoints under `runs/fraud-platform/<platform_run_id>/wsp/checkpoints`.
+- **SR:** Python CLI (`fraud_detection.scenario_runner.*`); artifacts under `runs/fraud-platform/<platform_run_id>/sr`.
+- **IG:** Flask service on `http://localhost:8081`; indices under `runs/fraud-platform/<platform_run_id>/ig`.
+- **EB:** file‑bus log under `runs/fraud-platform/<platform_run_id>/eb` (topics `fp.bus.*`).
 
 **Optional local containers:**
 - **Postgres + MinIO** (SR parity) via `infra/local/docker-compose.sr-parity.yaml`.

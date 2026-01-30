@@ -28,6 +28,47 @@ def resolve_platform_run_id(*, create_if_missing: bool) -> str | None:
     return run_id
 
 
+def platform_run_root(*, create_if_missing: bool) -> Path | None:
+    run_id = resolve_platform_run_id(create_if_missing=create_if_missing)
+    if not run_id:
+        return None
+    return RUNS_ROOT / run_id
+
+
+def platform_run_prefix(*, create_if_missing: bool) -> str | None:
+    run_id = resolve_platform_run_id(create_if_missing=create_if_missing)
+    if not run_id:
+        return None
+    return f"fraud-platform/{run_id}"
+
+
+def resolve_run_scoped_path(
+    path: str | None,
+    *,
+    suffix: str,
+    create_if_missing: bool,
+) -> str | None:
+    if path is None:
+        root = platform_run_root(create_if_missing=create_if_missing)
+        if not root:
+            return None
+        return str(root / suffix)
+    if path.startswith("s3://") or path.startswith("postgres://") or path.startswith("postgresql://"):
+        return path
+    candidate = Path(path)
+    if RUNS_ROOT in candidate.parents or candidate == RUNS_ROOT:
+        parts = candidate.parts
+        root_parts = RUNS_ROOT.parts
+        if parts[: len(root_parts)] == root_parts:
+            if len(parts) > len(root_parts) and parts[len(root_parts)].startswith("platform_"):
+                return path
+            root = platform_run_root(create_if_missing=create_if_missing)
+            if not root:
+                return path
+            return str(root / suffix)
+    return path
+
+
 def platform_log_paths(*, create_if_missing: bool) -> list[str]:
     log_path = (os.getenv("PLATFORM_LOG_PATH") or "").strip()
     if log_path:

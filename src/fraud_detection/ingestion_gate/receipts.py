@@ -11,7 +11,7 @@ from .store import ObjectStore
 @dataclass
 class ReceiptWriter:
     store: ObjectStore
-    prefix: str = "fraud-platform/ig"
+    prefix: str
 
     def write_receipt(self, receipt_id: str, payload: dict[str, Any]) -> str:
         path = f"{self.prefix}/receipts/{receipt_id}.json"

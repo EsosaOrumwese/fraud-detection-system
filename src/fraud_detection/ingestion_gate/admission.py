@@ -28,6 +28,7 @@ from .security import authorize
 from .schema import SchemaEnforcer
 from .schemas import SchemaRegistry
 from .store import ObjectStore, build_object_store
+from ..platform_runtime import platform_run_prefix
 
 logger = logging.getLogger(__name__)
 
@@ -79,7 +80,10 @@ class IngestionGate:
             s3_region=wiring.object_store_region,
             s3_path_style=wiring.object_store_path_style,
         )
-        receipt_writer = ReceiptWriter(store)
+        run_prefix = platform_run_prefix(create_if_missing=True)
+        if not run_prefix:
+            raise RuntimeError("PLATFORM_RUN_ID required to build IG run-scoped artifacts.")
+        receipt_writer = ReceiptWriter(store, prefix=f"{run_prefix}/ig")
         admission_index, ops_index = _build_indices(wiring.admission_db_path)
         bus = _build_bus(wiring)
         health = HealthProbe(
@@ -89,6 +93,7 @@ class IngestionGate:
             wiring.health_probe_interval_seconds,
             wiring.bus_publish_failure_threshold,
             wiring.store_read_failure_threshold,
+            health_path=f"{run_prefix}/ig/health/last_probe.json",
         )
         metrics = MetricsRecorder(flush_interval_seconds=wiring.metrics_flush_seconds)
         governance = GovernanceEmitter(
@@ -98,6 +103,7 @@ class IngestionGate:
             quarantine_spike_threshold=wiring.quarantine_spike_threshold,
             quarantine_spike_window_seconds=wiring.quarantine_spike_window_seconds,
             policy_id=policy_rev.policy_id,
+            prefix=run_prefix,
         )
         governance.emit_policy_activation(
             {"policy_id": policy_rev.policy_id, "revision": policy_rev.revision, "content_digest": policy_rev.content_digest}
@@ -433,7 +439,7 @@ def _build_indices(admission_db_path: str) -> tuple[AdmissionIndex | PostgresAdm
 
 def _build_bus(wiring: WiringProfile) -> EventBusPublisher:
     if wiring.event_bus_kind == "file":
-        bus_path = wiring.event_bus_path or "runs/local_bus"
+        bus_path = wiring.event_bus_path or "runs/fraud-platform/eb"
         return FileEventBusPublisher(Path(bus_path))
     if wiring.event_bus_kind == "kinesis":
         from fraud_detection.event_bus.kinesis import build_kinesis_publisher

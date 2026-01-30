@@ -7,6 +7,9 @@ from fraud_detection.world_streamer_producer.config import PolicyProfile, Wiring
 from fraud_detection.world_streamer_producer.ready_consumer import ReadyConsumerRunner
 from fraud_detection.world_streamer_producer.runner import StreamResult
 
+RUN_ID = "platform_test"
+RUN_PREFIX = f"fraud-platform/{RUN_ID}"
+
 
 def _write_control_message(root: Path, *, topic: str, message_id: str, payload: dict) -> None:
     topic_dir = root / topic
@@ -23,7 +26,7 @@ def _write_control_message(root: Path, *, topic: str, message_id: str, payload: 
 
 
 def _write_run_facts(store_root: Path, run_id: str, engine_root: Path, scenario_id: str) -> str:
-    facts_ref = f"fraud-platform/sr/run_facts_view/{run_id}.json"
+    facts_ref = f"{RUN_PREFIX}/sr/run_facts_view/{run_id}.json"
     payload = {
         "run_id": run_id,
         "pins": {
@@ -83,7 +86,7 @@ def _profile(store_root: Path, control_root: Path) -> WspProfile:
         oracle_scenario_id=None,
         ig_ingest_url="http://localhost:8081",
         checkpoint_backend="file",
-        checkpoint_root=str(store_root / "wsp_checkpoints"),
+        checkpoint_root=str(store_root / "wsp" / "checkpoints"),
         checkpoint_dsn=None,
         checkpoint_every=1,
         producer_id="svc:world_stream_producer",
@@ -94,6 +97,7 @@ def _profile(store_root: Path, control_root: Path) -> WspProfile:
 
 
 def test_ready_consumer_streams_from_ready(tmp_path: Path, monkeypatch) -> None:
+    monkeypatch.setenv("PLATFORM_RUN_ID", RUN_ID)
     store_root = tmp_path / "store"
     control_root = tmp_path / "control_bus"
     engine_root = tmp_path / "engine_run"
@@ -130,6 +134,7 @@ def test_ready_consumer_streams_from_ready(tmp_path: Path, monkeypatch) -> None:
 
 
 def test_ready_consumer_skips_duplicate(tmp_path: Path, monkeypatch) -> None:
+    monkeypatch.setenv("PLATFORM_RUN_ID", RUN_ID)
     store_root = tmp_path / "store"
     control_root = tmp_path / "control_bus"
     engine_root = tmp_path / "engine_run"
@@ -148,7 +153,7 @@ def test_ready_consumer_skips_duplicate(tmp_path: Path, monkeypatch) -> None:
     }
     _write_control_message(control_root, topic="fp.bus.control.v1", message_id=message_id, payload=ready_payload)
 
-    record_path = store_root / "fraud-platform" / "wsp" / "ready_runs" / f"{message_id}.jsonl"
+    record_path = store_root / RUN_PREFIX / "wsp" / "ready_runs" / f"{message_id}.jsonl"
     record_path.parent.mkdir(parents=True, exist_ok=True)
     record_path.write_text(json.dumps({"status": "STREAMED"}) + "\n", encoding="utf-8")
 

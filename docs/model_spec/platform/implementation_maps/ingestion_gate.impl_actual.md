@@ -314,7 +314,7 @@ Proceed section‑by‑section (2.1→2.4) with hardened behavior and tests. Pri
 
 ### Implementation decisions applied
 - **Policy digesting** implemented as deterministic sha256 over canonical JSON dumps of `schema_policy`, `class_map`, and `partitioning_profiles`. The resulting digest is stamped into `policy_rev.content_digest` on every receipt/quarantine.
-- **Policy activation governance** emits a canonical audit event (`ig.policy.activation`) only when the stored active digest changes; state is tracked in object store at `fraud-platform/ig/policy/active.json`.
+- **Policy activation governance** emits a canonical audit event (`ig.policy.activation`) only when the stored active digest changes; state is tracked in object store at `fraud-platform/<platform_run_id>/ig/policy/active.json`.
 - **Ops index** added as an append‑only SQLite mirror for receipts/quarantine (`OpsIndex`); this is a query cache, not authority.
 - **Health probe** added with a cached probe interval. Object store + ops DB failures yield RED health (fail‑closed). Bus health is AMBER if unknown.
 - **Metrics recorder** added for per‑decision counters and admission latencies; periodically flushed to logs for observability.
@@ -523,7 +523,7 @@ SR artifacts are stored under **temp\\artefacts\\fraud-platform\\sr**, not under
 
 ### Correction
 SR artifacts are actually present under the repo‑local path:
-`temp/artefacts/fraud-platform/sr/` (inside the repo), not system `%TEMP%`.
+`temp/artefacts/fraud-platform/<platform_run_id>/sr/` (inside the repo), not system `%TEMP%`.
 
 ### Change applied
 - Updated the smoke test to prefer `temp/artefacts/fraud-platform/sr` before repo `artefacts/` and system `%TEMP%`.
@@ -563,7 +563,7 @@ User cleaned `temp/artefacts/`. The smoke test should no longer rely on repo‑t
 - `services/ingestion_gate/README.md` updated to match the new search order.
 
 ### Notes
-SR artifacts are expected under `artefacts/fraud-platform/sr/` (repo‑local). `temp/artefacts` is no longer referenced by tests.
+SR artifacts are expected under `artefacts/fraud-platform/<platform_run_id>/sr/` (repo‑local). `temp/artefacts` is no longer referenced by tests.
 
 ---
 
@@ -1091,9 +1091,9 @@ Phase 6 scales IG horizontally and hardens audit‑grade integrity without viola
 ### Smoke test setup (what was created)
 - Scratch profile: `scratch_files/ig_ready_smoke_profile.yaml` (local object_store root, Postgres lease backend via env).
 - Test artifacts:
-  - `artefacts/fraud-platform/sr/run_facts_view/bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb.json`
+  - `artefacts/fraud-platform/<platform_run_id>/sr/run_facts_view/bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb.json`
   - `artefacts/fraud-platform/engine_outputs/merchant_class_profile_5A.jsonl`
-  - `artefacts/fraud-platform/control_bus/fp.bus.control.v1/smoke-lease-2.json`
+  - `artefacts/fraud-platform/<platform_run_id>/control_bus/fp.bus.control.v1/smoke-lease-2.json`
 
 ### Two‑instance READY consumer run (result)
 - Postgres started via docker compose (sr‑parity stack).
@@ -1131,20 +1131,20 @@ Local SR writes artifacts under `artefacts/` while the IG local profile pointed 
 User mandated a hard move of platform runtime artifacts to `runs/fraud-platform` and requested **component run logs** to be written under `runs/fraud-platform/*.log`. This affects IG’s control‑bus reads, admission DB default, and smoke tests that locate SR artifacts.
 
 ### Live reasoning (what must shift)
-- IG currently resolves SR refs by prefixing the object store root. When root is set to `runs`, `fraud-platform/sr/...` resolves correctly to `runs/fraud-platform/sr/...` without the prior `fraud-platform/fraud-platform` duplication.
-- Default control‑bus roots (`artefacts/fraud-platform/control_bus`) must move to `runs/fraud-platform/control_bus` to align with SR’s new output location.
+- IG currently resolves SR refs by prefixing the object store root. When root is set to `runs`, `fraud-platform/<platform_run_id>/sr/...` resolves correctly to `runs/fraud-platform/<platform_run_id>/sr/...` without the prior `fraud-platform/fraud-platform` duplication.
+- Default control‑bus roots (`artefacts/fraud-platform/control_bus`) must move to `runs/fraud-platform/<platform_run_id>/control_bus` to align with SR’s new output location.
 - The ops rebuild smoke test must search under the **new SR root** so it can find READY runs without manual overrides.
 - A clear IG log file (ready consumer + service/CLI) improves traceability, especially when running READY in dual‑instance mode.
 
 ### Plan (before code)
 1) Update IG defaults + profiles:
    - Change `object_store.root` in `config/platform/profiles/local.yaml` to `runs`.
-   - Update `control_bus.root` in local/dev/prod profiles to `runs/fraud-platform/control_bus`.
-   - Update `ingestion_gate.config` defaults so `admission_db_path` uses `runs/fraud-platform/ig/index/`.
+   - Update `control_bus.root` in local/dev/prod profiles to `runs/fraud-platform/<platform_run_id>/control_bus`.
+   - Update `ingestion_gate.config` defaults so `admission_db_path` uses `runs/fraud-platform/<platform_run_id>/ig/index/`.
 2) Update READY consumer/service defaults:
-   - `ready_consumer.py` and `service.py` default control_bus_root → `runs/fraud-platform/control_bus`.
+   - `ready_consumer.py` and `service.py` default control_bus_root → `runs/fraud-platform/<platform_run_id>/control_bus`.
 3) Update the ops rebuild smoke test:
-   - Search `runs/fraud-platform/sr` by default and adjust skip message.
+   - Search `runs/fraud-platform/<platform_run_id>/sr` by default and adjust skip message.
 4) Add IG log files:
    - Extend `ingestion_gate.logging_utils.configure_logging()` to accept a log path.
    - Wire `ready_consumer`, `service`, and IG CLI to emit logs under `runs/fraud-platform/`.
@@ -1160,14 +1160,14 @@ User mandated a hard move of platform runtime artifacts to `runs/fraud-platform`
 
 ### Applied changes (stepwise)
 1) **Defaults + profiles**
-   - `src/fraud_detection/ingestion_gate/config.py`: default `object_store_root` → `runs`; `admission_db_path` now defaults to `runs/fraud-platform/ig/index/ig_admission.db`.
-   - `config/platform/profiles/local.yaml`: `object_store.root: runs` and `control_bus.root: runs/fraud-platform/control_bus`.
-   - `config/platform/profiles/dev.yaml` / `prod.yaml`: control bus root updated to `runs/fraud-platform/control_bus`.
+   - `src/fraud_detection/ingestion_gate/config.py`: default `object_store_root` → `runs`; `admission_db_path` now defaults to `runs/fraud-platform/<platform_run_id>/ig/index/ig_admission.db`.
+   - `config/platform/profiles/local.yaml`: `object_store.root: runs` and `control_bus.root: runs/fraud-platform/<platform_run_id>/control_bus`.
+   - `config/platform/profiles/dev.yaml` / `prod.yaml`: control bus root updated to `runs/fraud-platform/<platform_run_id>/control_bus`.
    - `config/platform/profiles/README.md`: notes updated to reflect the new runs root.
 2) **READY consumer/service defaults**
-   - `ready_consumer.py` and `service.py`: default control bus root → `runs/fraud-platform/control_bus`.
+   - `ready_consumer.py` and `service.py`: default control bus root → `runs/fraud-platform/<platform_run_id>/control_bus`.
 3) **Smoke test alignment**
-   - `tests/services/ingestion_gate/test_ops_rebuild_runs_smoke.py`: default SR artifacts root moved to `runs/fraud-platform/sr` and skip message updated.
+   - `tests/services/ingestion_gate/test_ops_rebuild_runs_smoke.py`: default SR artifacts root moved to `runs/fraud-platform/<platform_run_id>/sr` and skip message updated.
 4) **Log files**
    - `ingestion_gate/logging_utils.py`: optional file handler support.
    - `ready_consumer.py`, `service.py`, `cli.py`: all append to the **shared platform log** at `runs/fraud-platform/platform.log` (override via `PLATFORM_LOG_PATH`).
@@ -1285,7 +1285,7 @@ User approved the recommendation to add a **time budget** for local IG pulls and
 
 ### Observed outcome
 - Pull run status: `PARTIAL` with `TIME_BUDGET_EXCEEDED` on `arrival_events_5B`.
-- Status record written to `runs/fraud-platform/ig/pull_runs/run_id=40dfb540e134f8bb8eb3585da3aeee7a.json`.
+- Status record written to `runs/fraud-platform/<platform_run_id>/ig/pull_runs/run_id=40dfb540e134f8bb8eb3585da3aeee7a.json`.
 - Confirms the **time budget guard** halts long pulls deterministically without touching engine outputs.
 
 ### Notes
@@ -1308,7 +1308,7 @@ User selected **Option 2**: enable sharded pulls in `local.yaml` and re‑run RE
    - `pull_sharding.shard_size: 1`
 2) Add Make target `platform-sr-reemit-ready` (or generic reemit) so we can publish a new READY message for a given `run_id` without creating a new SR run.
 3) Re‑run READY ingestion in cycles:
-   - SR reemit READY → IG ready once → check `runs/fraud-platform/ig/pull_runs/run_id=<id>.json`.
+   - SR reemit READY → IG ready once → check `runs/fraud-platform/<platform_run_id>/ig/pull_runs/run_id=<id>.json`.
    - Continue until `status=COMPLETED` (or pause if it’s clear multiple cycles are needed).
 
 ### Guardrails
@@ -1683,7 +1683,7 @@ Prove IG is stable **without any pull/READY path** and that push ingestion behav
 
 4) **WSP → IG push smoke**
    - Run `make platform-wsp-ready-once` with an engine run root and scenario id.
-   - Confirm receipts written under `runs/fraud-platform/ig/receipts` and no `pull_runs` artifacts.
+   - Confirm receipts written under `runs/fraud-platform/<platform_run_id>/ig/receipts` and no `pull_runs` artifacts.
 
 ### Risks to watch
 - WSP still depends on EnginePuller; ensure it resolves from Oracle Store (not IG).
@@ -1776,8 +1776,8 @@ Run a **full local chain** where SR emits READY, WSP consumes READY and streams 
 
 ### Expected outputs to inspect
 - Platform logs at `runs/fraud-platform/platform.log` and per‑run log under `runs/fraud-platform/<run_id>/platform.log`.
-- IG receipts under `runs/fraud-platform/ig/receipts`.
-- WSP ready run record under `runs/fraud-platform/wsp/ready_runs/<message_id>.jsonl`.
+- IG receipts under `runs/fraud-platform/<platform_run_id>/ig/receipts`.
+- WSP ready run record under `runs/fraud-platform/<platform_run_id>/wsp/ready_runs/<message_id>.jsonl`.
 
 ### If errors occur
 - Diagnose and correct configuration mismatches (paths, profile wiring, control bus root).
@@ -2048,3 +2048,39 @@ IG admitted traffic events in parity mode and produced receipts with Kinesis off
 ### Evidence
 - IG logs: `ADMIT` entries include non‑empty `offset` values.
 - Postgres ops DB: 5 receipts created after `2026-01-29T20:11:00Z`, all with `eb_offset_kind = kinesis_sequence`.
+
+---
+
+## Entry: 2026-01-30 00:05:50 — IG artifacts moved to run‑first layout
+
+### Decision
+All IG persisted artifacts move under `fraud-platform/<platform_run_id>/ig/*` to align with run‑first layout.
+
+### Changes
+- Receipt/quarantine writer now uses run‑scoped prefix.
+- Governance `policy/active.json` and health probe writes moved under run‑scoped prefix.
+- Ops rebuild defaults now require a platform run ID (or explicit prefixes).
+
+---
+
+## Entry: 2026-01-30 00:28:05 — IG run-first paths (EB root + health probe)
+
+### Trigger
+Platform moved to run‑first artifacts (`runs/fraud-platform/<platform_run_id>/...`), requiring IG paths to follow the new layout.
+
+### Decision trail (live)
+- IG publishes to EB and emits receipts/quarantine records; these must be per‑run to avoid mixing state across platform runs.
+- EB root should align with the `eb` component folder, not the old `event_bus` name.
+- Health probe writes should also be run‑scoped by default, not global.
+
+### Implementation notes
+- `event_bus_path` now resolves with suffix `eb`, so file‑bus output lives under `.../<run_id>/eb`.
+- File‑bus fallback path updated to `runs/fraud-platform/eb` (rewritten to run‑scope when applicable).
+- Health probe default path now uses `platform_run_prefix` to write under `.../<run_id>/ig/health/last_probe.json`.
+- Ops index tests updated to use run‑prefixed receipt/quarantine paths.
+
+### Files touched
+- `src/fraud_detection/ingestion_gate/config.py`
+- `src/fraud_detection/ingestion_gate/admission.py`
+- `src/fraud_detection/ingestion_gate/health.py`
+- `tests/services/ingestion_gate/test_ops_index.py`

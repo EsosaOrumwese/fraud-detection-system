@@ -13,6 +13,9 @@ from fraud_detection.scenario_runner.runner import ScenarioRunner
 from fraud_detection.scenario_runner.security import redact_dsn
 
 
+RUN_PREFIX = "fraud-platform/test-run"
+
+
 def _build_wiring(tmp_path: Path, auth_mode: str = "disabled") -> WiringProfile:
     return WiringProfile(
         object_store_root=str(tmp_path / "artefacts"),
@@ -80,7 +83,7 @@ def _ready_run(runner: ScenarioRunner, run_id: str, policy: PolicyProfile) -> Ru
 def test_auth_denied_on_submit(tmp_path: Path) -> None:
     wiring = _build_wiring(tmp_path, auth_mode="allowlist")
     policy = _build_policy()
-    runner = ScenarioRunner(wiring, policy, LocalEngineInvoker())
+    runner = ScenarioRunner(wiring, policy, LocalEngineInvoker(), run_prefix=RUN_PREFIX)
 
     request = RunRequest(
         run_equivalence_key="auth-denied",
@@ -101,7 +104,7 @@ def test_auth_denied_on_submit(tmp_path: Path) -> None:
 def test_auth_allow_submit(tmp_path: Path) -> None:
     wiring = _build_wiring(tmp_path, auth_mode="allowlist")
     policy = _build_policy()
-    runner = ScenarioRunner(wiring, policy, LocalEngineInvoker())
+    runner = ScenarioRunner(wiring, policy, LocalEngineInvoker(), run_prefix=RUN_PREFIX)
 
     request = RunRequest(
         run_equivalence_key="auth-allowed",
@@ -122,7 +125,7 @@ def test_auth_allow_submit(tmp_path: Path) -> None:
 def test_reemit_auth_denied(tmp_path: Path) -> None:
     wiring = _build_wiring(tmp_path, auth_mode="allowlist")
     policy = _build_policy()
-    runner = ScenarioRunner(wiring, policy, LocalEngineInvoker())
+    runner = ScenarioRunner(wiring, policy, LocalEngineInvoker(), run_prefix=RUN_PREFIX)
 
     response = runner.reemit(ReemitRequest(run_id=run_id_from_equivalence_key("auth-reemit"), requested_by="bad"))
     assert response.message == "Unauthorized."
@@ -131,7 +134,7 @@ def test_reemit_auth_denied(tmp_path: Path) -> None:
 def test_reemit_rate_limit(tmp_path: Path) -> None:
     wiring = _build_wiring(tmp_path, auth_mode="disabled")
     policy = _build_policy()
-    runner = ScenarioRunner(wiring, policy, LocalEngineInvoker())
+    runner = ScenarioRunner(wiring, policy, LocalEngineInvoker(), run_prefix=RUN_PREFIX)
 
     run_id = run_id_from_equivalence_key("rate-limit")
     _ready_run(runner, run_id, policy)
@@ -144,7 +147,7 @@ def test_reemit_rate_limit(tmp_path: Path) -> None:
 def test_reemit_dry_run(tmp_path: Path) -> None:
     wiring = _build_wiring(tmp_path, auth_mode="disabled")
     policy = _build_policy()
-    runner = ScenarioRunner(wiring, policy, LocalEngineInvoker())
+    runner = ScenarioRunner(wiring, policy, LocalEngineInvoker(), run_prefix=RUN_PREFIX)
 
     run_id = run_id_from_equivalence_key("dry-run")
     _ready_run(runner, run_id, policy)
@@ -165,7 +168,7 @@ def test_quarantine_artifact_written(tmp_path: Path) -> None:
     bundle = EvidenceBundle(status=EvidenceStatus.CONFLICT, locators=[], gate_receipts=[], reason="EVIDENCE_CONFLICT")
     runner._commit_terminal(run_handle, bundle)
 
-    quarantine_path = Path(wiring.object_store_root) / f"fraud-platform/sr/quarantine/{run_id}.json"
+    quarantine_path = Path(wiring.object_store_root) / f"{RUN_PREFIX}/sr/quarantine/{run_id}.json"
     assert quarantine_path.exists()
 
 

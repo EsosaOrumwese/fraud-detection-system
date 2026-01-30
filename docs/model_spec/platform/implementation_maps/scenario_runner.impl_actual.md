@@ -18,7 +18,7 @@ Stand up the Scenario Runner (SR) as the production-grade run authority for the 
 ### Locked decisions (user-approved defaults)
 1) **Deployment shape**: SR runs as an always-on service (HTTP/gRPC) with a CLI wrapper for local/dev single-run invocation. Reason: production semantics (idempotent admission, leases, re-emit) while preserving local iteration.
 2) **Truth storage**: SR truth artifacts are stored in object storage (append-only by-ref), with an optional rebuildable DB index for ops/lookup. Reason: truth stays immutable, index can be skipped in v0 if needed.
-3) **Control bus + prefix naming**: Use control topic name fp.bus.control.v1 and object-store prefix family fraud-platform/sr/ (or equivalent bucket/prefix pair). Reason: avoid naming drift, keep join semantics consistent. (Names are defaults, not binding to a vendor.)
+3) **Control bus + prefix naming**: Use control topic name fp.bus.control.v1 and object-store prefix family fraud-platform/<platform_run_id>/sr/ (or equivalent bucket/prefix pair). Reason: avoid naming drift, keep join semantics consistent. (Names are defaults, not binding to a vendor.)
 
 ### Alternatives considered (and why rejected)
 - **CLI-only SR**: rejected because it weakens production semantics (no long-lived idempotency surface, leases, re-emit authorization path).
@@ -40,7 +40,7 @@ Implement the SR backbone as a set of subnetworks per design authority (N1–N8)
 - IP8: offline rebuild entrypoint (read-only join surface exposure).
 
 ### Data model + truth artifacts (object store)
-**Base prefix:** fraud-platform/sr/
+**Base prefix:** fraud-platform/<platform_run_id>/sr/
 - run_plan/{run_id}.json (immutable; canonical plan + plan_hash)
 - run_record/{run_id}.jsonl (append-only event ledger; all state transitions)
 - run_status/{run_id}.json (monotonic snapshot; derived from run_record)
@@ -92,7 +92,7 @@ Implement the SR backbone as a set of subnetworks per design authority (N1–N8)
 ### Open questions / risks
 - Exact schema for run artifacts (run_plan/run_record/run_status/run_facts_view) needs finalization—must align with interface pack and platform pins.
 - Engine invocation mechanism (job runner vs adapter) still needs concrete binding in this repo (N4).
-- Quarantine storage location for SR evidence conflicts (likely fraud-platform/sr/quarantine/).
+- Quarantine storage location for SR evidence conflicts (likely fraud-platform/<platform_run_id>/sr/quarantine/).
 
 ---
 
@@ -235,8 +235,8 @@ The IG ops‑rebuild smoke test requires an SR READY run with a valid `run_facts
 ### Execution plan (pre‑run, explicit)
 1) Submit SR run via CLI using reuse‑only path by providing engine_run_root and using policy reuse (AUTO).
 2) Confirm SR output artifacts:
-   - `artefacts/fraud-platform/sr/run_status/{run_id}.json` state is READY.
-   - `artefacts/fraud-platform/sr/run_facts_view/{run_id}.json` exists with locators + gate receipts.
+   - `artefacts/fraud-platform/<platform_run_id>/sr/run_status/{run_id}.json` state is READY.
+   - `artefacts/fraud-platform/<platform_run_id>/sr/run_facts_view/{run_id}.json` exists with locators + gate receipts.
 3) Run IG smoke test: `tests/services/ingestion_gate/test_ops_rebuild_runs_smoke.py -q` and confirm it reads the SR artifacts.
 4) Log results in logbook + append follow‑up entry here with outcomes and any deviations.
 
@@ -277,7 +277,7 @@ Harden SR’s catalogue loader to normalize `path_template` by stripping leading
 ### Implementation steps (pre‑code)
 1) Update `src/fraud_detection/scenario_runner/catalogue.py` to apply `.strip()` to `entry["path_template"]`.
 2) Re‑run SR CLI with a new `run_equivalence_key` to avoid idempotent collision with the WAITING run.
-3) Verify READY status and a `run_facts_view` under `artefacts/fraud-platform/sr/`.
+3) Verify READY status and a `run_facts_view` under `artefacts/fraud-platform/<platform_run_id>/sr/`.
 4) Re‑run IG smoke test to confirm it can rebuild ops index from the SR facts view.
 5) Log results and update this entry with outcomes.
 
@@ -296,9 +296,9 @@ Harden SR’s catalogue loader to normalize `path_template` by stripping leading
 - Resulting run_id: `870056d6aaa95c99e1d770a484469563`
 - Evidence reuse COMPLETE; READY committed.
 - Artifacts written under:
-  - `artefacts/fraud-platform/sr/run_status/870056d6aaa95c99e1d770a484469563.json` (state READY)
-  - `artefacts/fraud-platform/sr/run_facts_view/870056d6aaa95c99e1d770a484469563.json`
-  - `artefacts/fraud-platform/sr/run_record/870056d6aaa95c99e1d770a484469563.jsonl`
+  - `artefacts/fraud-platform/<platform_run_id>/sr/run_status/870056d6aaa95c99e1d770a484469563.json` (state READY)
+  - `artefacts/fraud-platform/<platform_run_id>/sr/run_facts_view/870056d6aaa95c99e1d770a484469563.json`
+  - `artefacts/fraud-platform/<platform_run_id>/sr/run_record/870056d6aaa95c99e1d770a484469563.jsonl`
 
 ### Validation (executed)
 - SR unit test: `python -m pytest tests/services/scenario_runner/test_catalogue.py -q` → 1 passed.
@@ -482,7 +482,7 @@ Advance SR from local-only persistence to production‑grade durability and idem
    - Tables: `sr_run_equivalence` (key → run_id + fingerprint) and `sr_run_leases` (run_id → lease state).
 4) **Wiring**:
    - Add `authority_store_dsn` to SR wiring profile.
-   - Default local DSN under `artefacts/fraud-platform/sr/index/` if not provided.
+   - Default local DSN under `artefacts/fraud-platform/<platform_run_id>/sr/index/` if not provided.
 
 ### Invariants to preserve
 - One `run_equivalence_key` → one `run_id`; mismatch in intent_fingerprint hard‑fails.
@@ -529,7 +529,7 @@ Advance SR from local-only persistence to production‑grade durability and idem
   - `SQLiteAuthorityStore` for local.
   - `PostgresAuthorityStore` for dev/prod (psycopg).
 - Added `build_authority_store(dsn)` and refactored EquivalenceRegistry/LeaseManager to wrap the store.
-- Added `authority_store_dsn` to SR wiring; local wiring uses SQLite under `artefacts/fraud-platform/sr/index/`.
+- Added `authority_store_dsn` to SR wiring; local wiring uses SQLite under `artefacts/fraud-platform/<platform_run_id>/sr/index/`.
 
 **Dependencies + tests**
 - Added `psycopg[binary]` to pyproject dependencies.
@@ -1233,7 +1233,7 @@ You’ve made it explicit that the engine must remain a black box. That means SR
 
 ### Concrete mechanics I will implement
 - **Receipt path convention (SR store):**
-  `fraud-platform/sr/instance_receipts/output_id=<output_id>/<scope partitions>/instance_receipt.json`
+  `fraud-platform/<platform_run_id>/sr/instance_receipts/output_id=<output_id>/<scope partitions>/instance_receipt.json`
   - Scope partitions ordered: manifest_fingerprint, parameter_hash, seed, scenario_id, run_id.
   - This path is deterministic so the receipt is idempotent across retries.
 - **Receipt creation flow** (inside evidence collection):
@@ -1279,7 +1279,7 @@ I’ve now applied the black‑box path in code. This captures the concrete deci
   - writes receipts **write‑once** using `write_json_if_absent`, and
   - validates against `instance_proof_receipt.schema.yaml` before commit.
 - Receipt path now lives under SR’s prefix:
-  `fraud-platform/sr/instance_receipts/output_id=<output_id>/<scope partitions>/instance_receipt.json`
+  `fraud-platform/<platform_run_id>/sr/instance_receipts/output_id=<output_id>/<scope partitions>/instance_receipt.json`
   (partition order: manifest_fingerprint → parameter_hash → seed → scenario_id → run_id).
 
 ### Why I omitted produced_at_utc in receipts
@@ -2040,7 +2040,7 @@ Decision trail (live):
 - **Command source**: add optional `engine_command` to WiringProfile so SR can run a user‑supplied CLI without hardcoding engine internals. This keeps engine black‑box and avoids embedding a specific segment/state runner.
 - **Command template**: allow placeholder substitution in command tokens using invocation fields (`manifest_fingerprint`, `parameter_hash`, `seed`, `run_id`, `scenario_id`, `engine_run_root`). This keeps SR generic and lets the user point to any engine wrapper.
 - **Invocation payload transport**: pass invocation JSON via an env var (`SR_ENGINE_INVOCATION_JSON`) for local subprocess runs; also expose `{invocation_json}` placeholder for token substitution. This avoids writing into engine run root while still allowing a wrapper script to read the payload.
-- **stdout/stderr capture**: capture subprocess output in the invoker and persist into SR object store at `fraud-platform/sr/engine_attempt_logs/run_id=.../attempt_no=.../stdout.log|stderr.log`. Store refs in the attempt record (`logs_ref`).
+- **stdout/stderr capture**: capture subprocess output in the invoker and persist into SR object store at `fraud-platform/<platform_run_id>/sr/engine_attempt_logs/run_id=.../attempt_no=.../stdout.log|stderr.log`. Store refs in the attempt record (`logs_ref`).
 - **Exit code mapping**: non‑zero exit → `ENGINE_EXIT_NONZERO`; timeout → `ENGINE_TIMEOUT`; missing command → `ENGINE_COMMAND_MISSING`.
 
 Why this path:
@@ -2067,7 +2067,7 @@ Implementation summary (with details):
   - Captures stdout/stderr and maps exit codes to `ENGINE_EXIT_NONZERO`, missing command to `ENGINE_COMMAND_MISSING`, and timeouts to `ENGINE_TIMEOUT`.
 - Extended `EngineAttemptResult` to carry stdout/stderr.
 - Added log persistence in `_invoke_engine`:
-  - Writes stdout/stderr to SR object store under `fraud-platform/sr/engine_attempt_logs/run_id=.../attempt_no=.../`.
+  - Writes stdout/stderr to SR object store under `fraud-platform/<platform_run_id>/sr/engine_attempt_logs/run_id=.../attempt_no=.../`.
   - Stores log refs in attempt payload (`logs_ref`).
 - Added wiring fields for `engine_command`, `engine_command_cwd`, `engine_command_timeout_seconds` and wired CLI/service to use LocalSubprocessInvoker when `engine_command` is present.
 - Updated `engine_attempt.schema.yaml` to include `logs_ref`.
@@ -2841,7 +2841,7 @@ Phase 7 must deliver:
    - Add explicit redaction guard for any future config logging (e.g., environment variables, DSNs with passwords).
 
 3) **Quarantine workflow**
-   - Define a quarantine artifact path under `fraud-platform/sr/quarantine/` for conflict details.
+   - Define a quarantine artifact path under `fraud-platform/<platform_run_id>/sr/quarantine/` for conflict details.
    - Provide an operator CLI command to list/inspect quarantined runs without mutating truth.
 
 4) **Ops rate limits / safety**
@@ -2927,7 +2927,7 @@ I completed Phase 7 sections 7.1–7.4 with explicit auth gates, secrets redacti
 
 **Mechanics**
 - `_commit_terminal` calls `_write_quarantine_record` when state=QUARANTINED.
-- Artifact path: `fraud-platform/sr/quarantine/{run_id}.json` with run_id, reason, missing, record_ref, status_ref, ts_utc.
+- Artifact path: `fraud-platform/<platform_run_id>/sr/quarantine/{run_id}.json` with run_id, reason, missing, record_ref, status_ref, ts_utc.
 - Added CLI tooling:
   - `quarantine list` to list quarantine files
   - `quarantine show --run-id` to load a record
@@ -2977,7 +2977,7 @@ Phase 7 is complete: auth allowlists, redaction helpers, quarantine artifacts + 
 ## Entry: 2026-01-24 20:30:20 — Lease token exposure mitigation (SR runtime artifacts)
 
 Problem surfaced:
-- GitGuardian flagged a lease token file under `artefacts/fraud-platform/sr/index/leases/...json`.
+- GitGuardian flagged a lease token file under `artefacts/fraud-platform/<platform_run_id>/sr/index/leases/...json`.
 - Lease tokens are **capability tokens** (who holds it can renew/act as leader). Even though they are local/dev artifacts, they must be treated as secrets.
 
 Decision:
@@ -2986,7 +2986,7 @@ Decision:
 
 Actions taken:
 1) Removed the tracked lease token file from git index (left local file intact).
-2) Added `.gitignore` entries for `artefacts/fraud-platform/sr/index/` (covers lease tokens + sqlite authority).
+2) Added `.gitignore` entries for `artefacts/fraud-platform/<platform_run_id>/sr/index/` (covers lease tokens + sqlite authority).
 3) Added a security note in `services/scenario_runner/README.md` warning that SR runtime artifacts may include sensitive capability tokens.
 4) Added a runtime warning in `ScenarioRunner.__init__` for local object_store roots to alert operators.
 
@@ -3400,21 +3400,21 @@ No code changes; docs only. No credentials will be embedded.
 User commanded that SR runtime artifacts move from `artefacts/fraud-platform` to `runs/fraud-platform` and that SR runs emit a **platform run log** under `runs/fraud-platform/*.log` (similar to engine run logs). This must be done without touching the engine code.
 
 ### Live reasoning (what needs to change and why)
-- SR already writes by‑ref refs like `fraud-platform/sr/run_status/...`. If the object store root is set to `runs`, the resulting filesystem path becomes `runs/fraud-platform/sr/...` which matches the new standard.
+- SR already writes by‑ref refs like `fraud-platform/<platform_run_id>/sr/run_status/...`. If the object store root is set to `runs`, the resulting filesystem path becomes `runs/fraud-platform/<platform_run_id>/sr/...` which matches the new standard.
 - The prior local root (`artefacts`) was meant for external inputs; SR outputs do not belong there. Moving the root fixes semantics and prevents cross‑component confusion.
 - Logging must be explicit and readable. We need a deterministic SR run log path so the user can see what happened without scrolling console output.
-- The run_id is deterministic from `run_equivalence_key`, so we can **compute it before running** and log to `runs/fraud-platform/sr_run_<run_id>.log`.
+- The run_id is deterministic from `run_equivalence_key`, so we can **compute it before running** and log to `runs/fraud-platform/<platform_run_id>/sr_run_<run_id>.log`.
 
 ### Plan (before code)
 1) Update local SR wiring files:
    - `config/platform/sr/wiring_local.yaml` already uses `runs/` (verify).
-   - Update `wiring_local_parity.yaml` and `wiring_local_kinesis.yaml` to use `runs/fraud-platform/control_bus`.
-   - Ensure `authority_store_dsn` defaults reference `runs/fraud-platform/sr/index/`.
+   - Update `wiring_local_parity.yaml` and `wiring_local_kinesis.yaml` to use `runs/fraud-platform/<platform_run_id>/control_bus`.
+   - Ensure `authority_store_dsn` defaults reference `runs/fraud-platform/<platform_run_id>/sr/index/`.
 2) Update SR logging:
    - Extend `scenario_runner.logging_utils.configure_logging()` to accept an optional file path.
-   - In `scenario_runner.cli`, compute `run_id` from `run_equivalence_key` and pass a `runs/fraud-platform/sr_run_<run_id>.log` file.
+   - In `scenario_runner.cli`, compute `run_id` from `run_equivalence_key` and pass a `runs/fraud-platform/<platform_run_id>/sr_run_<run_id>.log` file.
    - For re‑emit/quarantine commands, emit a separate log file under `runs/fraud-platform/`.
-3) Move the on‑disk SR artifacts directory from `artefacts/fraud-platform/sr` to `runs/fraud-platform/sr` (and update any refs/tests/docs that search for it).
+3) Move the on‑disk SR artifacts directory from `artefacts/fraud-platform/sr` to `runs/fraud-platform/<platform_run_id>/sr` (and update any refs/tests/docs that search for it).
 
 ### Guardrails
 - No secrets in logs or docs. Only deterministic IDs + non‑sensitive metadata appear in log paths.
@@ -3429,7 +3429,7 @@ User commanded that SR runtime artifacts move from `artefacts/fraud-platform` to
    - `src/fraud_detection/scenario_runner/logging_utils.py`: added optional file handler support.
    - `src/fraud_detection/scenario_runner/cli.py`: logs now append to the **shared platform log** at `runs/fraud-platform/platform.log` (override via `PLATFORM_LOG_PATH`). This replaces the per‑run log files so all platform activity is in one place.
 2) **Wiring updates**
-   - `config/platform/sr/wiring_local_parity.yaml` and `wiring_local_kinesis.yaml`: control bus root now `runs/fraud-platform/control_bus`.
+   - `config/platform/sr/wiring_local_parity.yaml` and `wiring_local_kinesis.yaml`: control bus root now `runs/fraud-platform/<platform_run_id>/control_bus`.
    - `config/platform/sr/wiring_local.yaml` already uses `runs` and remains canonical.
 3) **Runtime artifact migration**
    - Moved on‑disk SR artifacts from `artefacts/fraud-platform/` → `runs/fraud-platform/`.
@@ -3810,11 +3810,24 @@ User requested Phase 10 implementation after Phase 9 docs/contracts alignment.
 Parity stack uses MinIO with `fraud-platform` bucket; SR wiring still pointed to `sr-local`, which adds an unnecessary bucket and ladder friction.
 
 ### Decision
-Switch SR local parity + local Kinesis wiring to use the **same bucket** (`s3://fraud-platform/sr`) as the platform object store.
+Switch SR local parity + local Kinesis wiring to use the **same bucket** (`s3://fraud-platform`) as the platform object store.
 
 ### Change
-- `config/platform/sr/wiring_local_kinesis.yaml`: `object_store_root: s3://fraud-platform/sr`
-- `config/platform/sr/wiring_local_parity.yaml`: `object_store_root: s3://fraud-platform/sr`
+- `config/platform/sr/wiring_local_kinesis.yaml`: `object_store_root: s3://fraud-platform`
+- `config/platform/sr/wiring_local_parity.yaml`: `object_store_root: s3://fraud-platform`
+
+---
+
+## Entry: 2026-01-30 00:05:50 — SR artifacts moved to run‑first layout
+
+### Decision
+SR artifacts and refs now live under `fraud-platform/<platform_run_id>/sr/*` so each platform run is self‑contained.
+
+### Changes
+- `ScenarioRunner` ledger prefix now `fraud-platform/<platform_run_id>/sr`.
+- Status/record/facts refs updated to the run‑scoped prefix.
+- File control‑bus root rewritten to `runs/fraud-platform/<platform_run_id>/control_bus` when a run is active.
+- CLI now requires an active platform run ID for non‑run commands (reemit/quarantine).
 
 ## Entry: 2026-01-29 19:32:10 — Parity SR authority store DSN alignment
 
@@ -3834,8 +3847,31 @@ Align SR parity wiring to the parity Postgres instance to avoid blocking on miss
 WSP READY consumer failed with `RUN_FACTS_INVALID` because SR wrote run_facts under an extra `sr/` prefix in S3.
 
 ### Decision
-Align SR S3 root to the **bucket root** so SR’s relative refs (`fraud-platform/sr/...`) resolve correctly for WSP.
+Align SR S3 root to the **bucket root** so SR’s relative refs (`fraud-platform/<platform_run_id>/sr/...`) resolve correctly for WSP.
 
 ### Change
 - `config/platform/sr/wiring_local_kinesis.yaml`: `object_store_root: s3://fraud-platform`
 - `config/platform/sr/wiring_local_parity.yaml`: `object_store_root: s3://fraud-platform`
+
+---
+
+## Entry: 2026-01-30 00:28:50 — SR local wiring uses run‑scoped authority store
+
+### Trigger
+Run‑first artifacts require SR authority/lease state to live under the active platform run, not a hard‑coded path.
+
+### Decision trail (live)
+- `authority_store_dsn` should be optional for local runs so SR can derive the path from `object_store_root + run_prefix`.
+- This keeps per‑run authority state aligned with `runs/fraud-platform/<platform_run_id>/sr/index` and avoids stale global DBs.
+- Tests should avoid writing to repo‑global paths by using explicit run prefixes.
+
+### Implementation notes
+- Removed the explicit `authority_store_dsn` from local wiring (`config/platform/sr/wiring_local.yaml`).
+- SR defaults now create `sr/index/sr_authority.db` under the active run when DSN is not provided.
+- SR tests now pass a deterministic `run_prefix` to keep artifacts under test roots.
+
+### Files touched
+- `config/platform/sr/wiring_local.yaml`
+- `tests/services/scenario_runner/test_security_ops.py`
+- `tests/services/scenario_runner/test_instance_proof_bridge.py`
+- `tests/services/scenario_runner/test_parity_integration.py`

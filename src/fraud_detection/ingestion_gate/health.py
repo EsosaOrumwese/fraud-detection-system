@@ -9,6 +9,7 @@ from pathlib import Path
 from typing import Any
 
 from fraud_detection.event_bus import FileEventBusPublisher
+from fraud_detection.platform_runtime import platform_run_prefix
 from .ops_index import OpsIndex
 from .store import ObjectStore
 
@@ -35,6 +36,7 @@ class HealthProbe:
         probe_interval_seconds: int = 30,
         max_publish_failures: int = 3,
         max_read_failures: int = 3,
+        health_path: str | None = None,
     ) -> None:
         self.store = store
         self.bus = bus
@@ -46,6 +48,13 @@ class HealthProbe:
         self._last_checked_at: float | None = None
         self._publish_failures: int = 0
         self._read_failures: int = 0
+        if health_path:
+            self._health_path = health_path
+        else:
+            run_prefix = platform_run_prefix(create_if_missing=True)
+            if not run_prefix:
+                raise RuntimeError("PLATFORM_RUN_ID required for IG health probe path.")
+            self._health_path = f"{run_prefix}/ig/health/last_probe.json"
 
     def check(self) -> HealthResult:
         now = datetime.now(tz=timezone.utc)
@@ -83,7 +92,7 @@ class HealthProbe:
 
     def _store_ok(self) -> bool:
         try:
-            self.store.write_json("fraud-platform/ig/health/last_probe.json", {"ts": datetime.now(tz=timezone.utc).isoformat()})
+            self.store.write_json(self._health_path, {"ts": datetime.now(tz=timezone.utc).isoformat()})
             return True
         except Exception:
             return False

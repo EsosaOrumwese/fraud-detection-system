@@ -10,6 +10,8 @@ from fraud_detection.scenario_runner.ids import run_id_from_equivalence_key
 from fraud_detection.scenario_runner.models import RunRequest, RunWindow, ScenarioBinding, Strategy
 from fraud_detection.scenario_runner.runner import ScenarioRunner
 
+RUN_PREFIX = "fraud-platform/test-run"
+
 
 def _write_catalogue(path: Path, read_requires: list[str] | None = None) -> None:
     read_requires = read_requires or []
@@ -100,7 +102,7 @@ def test_instance_proof_emits_receipt_and_ready(tmp_path: Path) -> None:
 
     wiring = _build_wiring(tmp_path, catalogue_path, gate_map_path)
     policy = _build_policy()
-    runner = ScenarioRunner(wiring, policy, LocalEngineInvoker(str(engine_root)))
+    runner = ScenarioRunner(wiring, policy, LocalEngineInvoker(str(engine_root)), run_prefix=RUN_PREFIX)
 
     request = _build_request(engine_root, "instance-proof-strict")
     response = runner.submit_run(request)
@@ -118,7 +120,7 @@ def test_instance_proof_emits_receipt_and_ready(tmp_path: Path) -> None:
     assert receipt["output_id"] == "test_output"
     assert receipt["status"] == "PASS"
     receipt_path = receipt["artifacts"]["receipt_path"]
-    assert receipt_path.startswith("fraud-platform/sr/instance_receipts/output_id=test_output/")
+    assert receipt_path.startswith(f"{RUN_PREFIX}/sr/instance_receipts/output_id=test_output/")
     assert (tmp_path / "artefacts" / receipt_path).exists()
 
 
@@ -133,12 +135,12 @@ def test_instance_receipt_drift_fails(tmp_path: Path) -> None:
 
     wiring = _build_wiring(tmp_path, catalogue_path, gate_map_path)
     policy = _build_policy()
-    runner = ScenarioRunner(wiring, policy, LocalEngineInvoker(str(engine_root)))
+    runner = ScenarioRunner(wiring, policy, LocalEngineInvoker(str(engine_root)), run_prefix=RUN_PREFIX)
 
     run_key = "instance-proof-drift"
     run_id = run_id_from_equivalence_key(run_key)
     receipt_path = (
-        "fraud-platform/sr/instance_receipts/output_id=test_output/"
+        f"{RUN_PREFIX}/sr/instance_receipts/output_id=test_output/"
         f"manifest_fingerprint={'a' * 64}/parameter_hash={'c' * 64}/seed=1/instance_receipt.json"
     )
     output_path = engine_root / f"data/test_output/seed=1/parameter_hash={'c' * 64}/out.json"
@@ -181,7 +183,7 @@ def test_unknown_gate_id_fails_closed(tmp_path: Path) -> None:
 
     wiring = _build_wiring(tmp_path, catalogue_path, gate_map_path)
     policy = _build_policy()
-    runner = ScenarioRunner(wiring, policy, LocalEngineInvoker(str(engine_root)))
+    runner = ScenarioRunner(wiring, policy, LocalEngineInvoker(str(engine_root)), run_prefix=RUN_PREFIX)
 
     request = _build_request(engine_root, "unknown-gate")
     response = runner.submit_run(request)

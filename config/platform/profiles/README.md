@@ -28,19 +28,20 @@ wiring:
   oracle_scenario_id: baseline_v1
   ig_ingest_url: http://localhost:8081
   event_bus:
+    root: runs/fraud-platform/<platform_run_id>/eb
     topic_traffic: fp.bus.traffic.v1
     topic_control: fp.bus.control.v1
     topic_audit: fp.bus.audit.v1
   control_bus:
     kind: file | kinesis
-    root: runs/fraud-platform/control_bus
+    root: runs/fraud-platform/<platform_run_id>/control_bus
     topic: fp.bus.control.v1
     stream: sr-control-bus
     region: us-east-1
     endpoint_url: http://localhost:4566
   wsp_checkpoint:
     backend: file | postgres
-    root: runs/fraud-platform/wsp_checkpoints
+    root: runs/fraud-platform/<platform_run_id>/wsp/checkpoints
     dsn: ${WSP_CHECKPOINT_DSN}
     flush_every: 1
   admission_db_path: ${IG_ADMISSION_DSN}
@@ -71,7 +72,7 @@ Notes:
 - `flush_every` defines how often WSP persists its cursor (lower = fewer duplicates after crash).
 - `wsp_producer` pins the producer identity stamped on envelopes; allowlist restricts valid producer_ids.
 - `ig_ingest_url` is the WSP → IG push endpoint (non‑secret; can be local or service DNS).
-- Local file runs use `object_store.root: runs` so platform artifacts resolve under `runs/fraud-platform/`.
+- Local file runs use `object_store.root: runs` so platform artifacts resolve under `runs/fraud-platform/<platform_run_id>/`.
 - Local parity uses **S3‑compatible** storage (`s3://fraud-platform`) and **Kinesis** for event/control buses.
 - `security` is wiring‑scoped: it can enable auth and rate limits without changing policy behavior.
 - Auth applies to **ingest and ops endpoints** when enabled; only CLI/internal calls bypass it.

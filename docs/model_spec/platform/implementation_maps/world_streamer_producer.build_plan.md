@@ -58,7 +58,7 @@ Implement WSP as the **primary runtime producer** that replays sealed engine `bu
 
 #### Phase 2.2 — Local checkpoint backend
 **DoD checklist:**
-- File‑based checkpoint under `runs/fraud-platform/wsp_checkpoints/`.
+- File‑based checkpoint under `runs/fraud-platform/<platform_run_id>/wsp/checkpoints/`.
 - Write‑once append log + current cursor snapshot (atomic rename).
 - Resume logic skips previously emitted rows.
 

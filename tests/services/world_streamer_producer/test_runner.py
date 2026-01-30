@@ -88,7 +88,7 @@ def _profile(
         oracle_scenario_id="baseline_v1",
         ig_ingest_url="http://localhost:8081",
         checkpoint_backend="file",
-        checkpoint_root=str(checkpoint_root or (root / "wsp_checkpoints")),
+        checkpoint_root=str(checkpoint_root or (root / "wsp" / "checkpoints")),
         checkpoint_dsn=None,
         checkpoint_every=1,
         producer_id=producer_id,

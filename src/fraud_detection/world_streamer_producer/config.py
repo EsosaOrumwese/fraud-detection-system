@@ -10,6 +10,7 @@ from typing import Any
 
 import yaml
 
+from ..platform_runtime import resolve_run_scoped_path
 
 _ENV_PATTERN = re.compile(r"\$\{([^}]+)\}")
 
@@ -95,6 +96,11 @@ class WspProfile:
 
         control_bus_kind = control_bus.get("kind", "file")
         control_bus_root = control_bus.get("root", "runs/fraud-platform/control_bus")
+        control_bus_root = resolve_run_scoped_path(
+            _resolve_env(control_bus_root),
+            suffix="control_bus",
+            create_if_missing=True,
+        )
         control_bus_topic = control_bus.get("topic", "fp.bus.control.v1")
         control_bus_stream = _resolve_env(control_bus.get("stream"))
         control_bus_region = _resolve_env(control_bus.get("region"))
@@ -111,7 +117,11 @@ class WspProfile:
         ig_ingest_url = _resolve_env(wiring.get("ig_ingest_url") or "http://localhost:8081")
 
         checkpoint_backend = checkpoint.get("backend", "file")
-        checkpoint_root = _resolve_env(checkpoint.get("root") or "runs/fraud-platform/wsp_checkpoints")
+        checkpoint_root = resolve_run_scoped_path(
+            _resolve_env(checkpoint.get("root") or "runs/fraud-platform/wsp/checkpoints"),
+            suffix="wsp/checkpoints",
+            create_if_missing=True,
+        )
         checkpoint_dsn = _resolve_env(checkpoint.get("dsn"))
         checkpoint_every = int(checkpoint.get("flush_every", 1))
         producer_id = (producer.get("producer_id") or "svc:world_stream_producer").strip()

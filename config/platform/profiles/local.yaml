@@ -16,7 +16,7 @@ wiring:
   oracle_scenario_id: ${ORACLE_SCENARIO_ID}
   ig_ingest_url: http://localhost:8081
   event_bus:
-    root: runs/fraud-platform/event_bus
+    root: runs/fraud-platform/eb
     topic_traffic: fp.bus.traffic.v1
     topic_control: fp.bus.control.v1
     topic_audit: fp.bus.audit.v1
@@ -26,7 +26,7 @@ wiring:
     topic: fp.bus.control.v1
   wsp_checkpoint:
     backend: file
-    root: runs/fraud-platform/wsp_checkpoints
+    root: runs/fraud-platform/wsp/checkpoints
     flush_every: 1
   wsp_producer:
     producer_id: svc:world_stream_producer
