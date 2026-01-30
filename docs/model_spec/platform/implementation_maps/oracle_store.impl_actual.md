@@ -665,3 +665,53 @@ Stream view build failed on MinIO with `ReadTimeoutError` while reading `run_rec
 - Add `OBJECT_STORE_READ_TIMEOUT`, `OBJECT_STORE_CONNECT_TIMEOUT`, `OBJECT_STORE_MAX_ATTEMPTS` with defaults.
 - Wire config into `S3ObjectStore` and the Oracle Store’s `_s3_client`.
 - Keep path-style addressing intact when required (MinIO compatibility).
+
+---
+
+## Entry: 2026-01-30 21:07:40 — Deterministic stats hash (integer sum)
+
+### Trigger
+Stream view validation failed with near‑identical `hash_sum` values (float drift) after successful sort/write.
+
+### Decision trail (live)
+- `hash_sum` must be **order‑independent and deterministic**.
+- Floating sums (`DOUBLE`) introduce rounding differences across runs.
+- Switch to integer aggregation with a wide type (HUGEINT) to eliminate drift.
+
+### Implementation notes
+- `hash_sum` now uses `sum(CAST(payload_hash AS HUGEINT))`.
+- `hash_sum2` remains modular sum for extra safety.
+
+---
+
+## Entry: 2026-01-30 21:25:30 — Allow outputs without bucket_index
+
+### Trigger
+`s2_flow_anchor_baseline_6B` and `s3_flow_anchor_with_fraud_6B` lack `bucket_index`; stream view build failed with `MISSING_BUCKET_INDEX`.
+
+### Decision trail (live)
+- Stream view is **only** sorted by `ts_utc` (plus deterministic tie‑breakers) and does not need bucket_index.
+- Keep schema unchanged; do not add or derive new columns.
+- Enforce **ts_utc only** as the required sort key.
+
+### Implementation notes
+- Removed `bucket_index` requirement in raw/stat query builders.
+- Hash/validation uses all available columns; absence of bucket_index is OK.
+
+---
+
+## Entry: 2026-01-30 21:46:10 — Chunked stream sort (day windows)
+
+### Trigger
+6B outputs (`s2_flow_anchor_baseline_6B`, `s3_flow_anchor_with_fraud_6B`) hit DuckDB OOM during full‑range sort on a 16GB machine.
+
+### Decision trail (live)
+- Keep **exact same dataset**, only re‑ordering by `ts_utc` + tie‑breakers.
+- Use **day‑window chunking** to reduce peak memory and allow external spill.
+- Emit flat `part-*.parquet` files in chronological order (chunk order preserved).
+
+### Implementation notes
+- New env: `STREAM_SORT_CHUNK_DAYS` (e.g., `1` for day‑chunks).
+- Each chunk: `COPY` ordered rows **directly** to `part-XXXXXX.parquet` at the output root (one part per day).
+- Sequential part numbering preserves global ordering.
+- Default remains single‑pass when `STREAM_SORT_CHUNK_DAYS=0`.

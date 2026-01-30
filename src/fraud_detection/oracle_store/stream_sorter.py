@@ -156,7 +156,21 @@ def build_stream_view(
         out_path = stream_root
         logger.info("Oracle stream view sorting + writing partitions (single pass)")
         sort_start = time.monotonic()
-        _write_sorted(con, raw_query, out_path, partition_granularity)
+        chunk_days = int(os.getenv("STREAM_SORT_CHUNK_DAYS", "0"))
+        if chunk_days > 0:
+            logger.info("Oracle stream view chunked sort days=%s", chunk_days)
+            _write_sorted_chunked(
+                con,
+                raw_query,
+                out_path,
+                partition_granularity,
+                raw_stats.min_ts_utc,
+                raw_stats.max_ts_utc,
+                chunk_days,
+                profile,
+            )
+        else:
+            _write_sorted(con, raw_query, out_path, partition_granularity)
         sort_seconds = time.monotonic() - sort_start
         logger.info(
             "Oracle stream view sort completed seconds=%.1f%s",
@@ -473,8 +487,6 @@ def _build_raw_query_for_output_with_columns(
     columns = [col for col in columns if col not in {"filename", "file_row_number"}]
     if "ts_utc" not in columns:
         raise StreamSortError(f"MISSING_TS_UTC:{output_id}")
-    if "bucket_index" not in columns:
-        raise StreamSortError(f"MISSING_BUCKET_INDEX:{output_id}")
     select_cols = ", ".join([f'"{col}"' for col in columns])
     hash_cols = ", ".join([f'"{col}"' for col in sorted(columns)])
     return (
@@ -504,8 +516,6 @@ def _build_stats_query_for_files(columns: list[str], files: list[str]) -> str:
     columns = [col for col in columns if col not in {"filename", "file_row_number"}]
     if "ts_utc" not in columns:
         raise StreamSortError("MISSING_TS_UTC")
-    if "bucket_index" not in columns:
-        raise StreamSortError("MISSING_BUCKET_INDEX")
     select_cols = ", ".join([f'"{col}"' for col in columns])
     hash_cols = ", ".join([f'"{col}"' for col in sorted(columns)])
     file_list_sql = _sql_string_list(files)
@@ -523,7 +533,7 @@ def _compute_stats(con: "duckdb.DuckDBPyConnection", query: str) -> StreamSortSt
             count(*)::BIGINT AS row_count,
             min(CAST(ts_utc AS TIMESTAMP)) AS min_ts,
             max(CAST(ts_utc AS TIMESTAMP)) AS max_ts,
-            sum(CAST(payload_hash AS DOUBLE)) AS hash_sum,
+            sum(CAST(payload_hash AS HUGEINT))::HUGEINT AS hash_sum,
             sum(CAST(payload_hash % 1000000007 AS BIGINT))::BIGINT AS hash_sum2
         FROM ({query})
     """
@@ -589,6 +599,78 @@ def _write_sorted(
         f"SELECT * EXCLUDE(payload_hash, filename, file_row_number) FROM ({sort_expr}) "
         f") TO '{output_root}' (FORMAT PARQUET)"
     )
+
+
+def _write_sorted_chunked(
+    con: "duckdb.DuckDBPyConnection",
+    raw_query: str,
+    output_root: str,
+    partition_granularity: str,
+    min_ts_utc: str | None,
+    max_ts_utc: str | None,
+    chunk_days: int,
+    profile: OracleProfile,
+) -> None:
+    if partition_granularity not in {"flat", "none"}:
+        raise StreamSortError("PARTITION_GRANULARITY_UNSUPPORTED")
+    if not min_ts_utc or not max_ts_utc:
+        raise StreamSortError("STREAM_SORT_TS_RANGE_MISSING")
+    start = datetime.fromisoformat(min_ts_utc)
+    end = datetime.fromisoformat(max_ts_utc)
+    if start.tzinfo is None:
+        start = start.replace(tzinfo=timezone.utc)
+    if end.tzinfo is None:
+        end = end.replace(tzinfo=timezone.utc)
+    current = start.replace(hour=0, minute=0, second=0, microsecond=0)
+    final = end + timedelta(microseconds=1)
+    chunk_delta = timedelta(days=chunk_days)
+    part_index = 0
+    while current < final:
+        chunk_end = min(current + chunk_delta, final)
+        chunk_query = (
+            "SELECT * EXCLUDE(payload_hash, filename, file_row_number) FROM ("
+            "SELECT * FROM ("
+            f"{raw_query}"
+            ") WHERE CAST(ts_utc AS TIMESTAMP) >= "
+            f"TIMESTAMP '{current.isoformat()}' AND CAST(ts_utc AS TIMESTAMP) < "
+            f"TIMESTAMP '{chunk_end.isoformat()}' "
+            "ORDER BY CAST(ts_utc AS TIMESTAMP), filename, file_row_number"
+            ")"
+        )
+        if output_root.startswith("s3://"):
+            target = f"{output_root.rstrip('/')}/part-{part_index:06d}.parquet"
+            con.execute(
+                "COPY ("
+                f"{chunk_query}"
+                f") TO '{target}' (FORMAT PARQUET)"
+            )
+        else:
+            out_path = Path(output_root)
+            out_path.mkdir(parents=True, exist_ok=True)
+            target_path = out_path / f"part-{part_index:06d}.parquet"
+            target = _short_path(target_path.resolve())
+            con.execute(
+                "COPY ("
+                f"{chunk_query}"
+                f") TO '{target}' (FORMAT PARQUET)"
+            )
+        part_index += 1
+        current = chunk_end
+
+
+def _short_path(path: Path) -> str:
+    if os.name != "nt":
+        return path.as_posix()
+    try:
+        import ctypes
+
+        buffer = ctypes.create_unicode_buffer(260)
+        result = ctypes.windll.kernel32.GetShortPathNameW(str(path), buffer, len(buffer))
+        if result == 0:
+            return path.as_posix()
+        return buffer.value.replace("\\", "/")
+    except Exception:
+        return path.as_posix()
 
 
 def _relative_path(root: str, absolute: str) -> str:
