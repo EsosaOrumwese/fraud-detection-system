@@ -204,7 +204,7 @@ I am implementing Phase 1 as **engine‑rooted WSP** with no SR `run_facts_view`
 ## Entry: 2026-01-30 10:24:24 — WSP stream_view mode (global ts_utc source)
 
 ### Trigger
-Oracle Store Option C was locked: provide a **global time‑sorted stream view** derived from engine outputs. WSP must consume this view (not raw engine parts) for v0 parity.
+Oracle Store Option C was locked: provide **time‑sorted stream views** derived from engine outputs. WSP must consume these views (not raw engine parts) for v0 parity.
 
 ### Decision trail (live)
 - WSP must remain **oracle‑rooted** and never rely on SR artifacts for its source.
@@ -214,16 +214,16 @@ Oracle Store Option C was locked: provide a **global time‑sorted stream view**
 ### Changes I’m making
 - Add `policy.stream_mode` (default `engine`) and `wiring.oracle_stream_view_root` to WSP profiles.
 - Implement **stream_view mode** in the runner:
-  - Compute `stream_view_id` from world identity + output list + sort keys.
-  - Resolve stream view root (`<engine_run_root>/stream_view/ts_utc/<stream_view_id>`).
-  - Read `_stream_view_manifest.json` + `_stream_sort_receipt.json` and fail closed if missing or mismatched.
-  - Stream events in **global time order** from the view, using a single checkpoint cursor (`output_id=stream_view`).
+  - Compute `stream_view_id` **per output_id** from world identity + output_id + sort keys.
+  - Resolve stream view root (`<engine_run_root>/stream_view/ts_utc/output_id=<output_id>/<stream_view_id>`).
+  - Read `_stream_view_manifest.json` + `_stream_sort_receipt.json` per output and fail closed if missing or mismatched.
+  - Stream events per output in **time order** (no union).
 - Keep existing engine‑pull mode for `local` profile (smoke) only.
 
 ### Invariants enforced
 - If `stream_mode=stream_view` and view/receipt missing → **FAIL** (no implicit fallback in parity/dev/prod).
-- Output IDs in the manifest must cover the policy traffic outputs (fail if missing).
-- Checkpoints are **single‑cursor** in stream view mode (global ordering preserved).
+- Output IDs in the manifest must match the requested output_id.
+- Checkpoints remain **per‑output** (consistent with WSP v0 cursor model).
 
 ---
 
@@ -820,3 +820,26 @@ User requested real-time visibility into WSP streaming progress during parity ru
 ### Files touched
 - `src/fraud_detection/world_streamer_producer/runner.py`
 - `docs/runbooks/platform_parity_walkthrough_v0.md`
+
+---
+
+## Entry: 2026-01-30 14:06:21 — Correction: stream view root is per‑output (no stream_view_id path)
+
+### Trigger
+Oracle Store stream view path was corrected to **exclude** `stream_view_id` and to use
+`bucket_index` partitions.
+
+### Decision trail (live)
+- `stream_view_id` remains valuable for integrity checks, but embedding it in the path makes
+  runbook usage and local discovery harder.
+- WSP should treat the stream view root as:
+  `.../stream_view/ts_utc/output_id=<output_id>/` and read all parquet under bucket partitions.
+
+### Implementation notes
+- WSP now resolves the stream view root **per output_id** (no stream_view_id path segment).
+- WSP still computes `stream_view_id` and validates it against the manifest when present.
+- Sorting keys remain `ts_utc`, `filename`, `file_row_number`; partitioning is `bucket`.
+
+### Impact
+- Simplifies operator workflows (no extra path segment).
+- Keeps integrity validation intact (manifest/receipt).

@@ -70,7 +70,6 @@ def _profile(
         policy_rev="local",
         require_gate_pass=True,
         stream_speedup=0.0,
-        stream_mode="engine",
         traffic_output_ids=output_ids,
     )
     wiring = WiringProfile(

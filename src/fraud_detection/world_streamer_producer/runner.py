@@ -140,38 +140,21 @@ class WorldStreamProducer:
                     "output_ids": chosen_outputs,
                     "pack_key": pack_key,
                     "producer_id": self._producer_id,
-                    "stream_mode": self.profile.policy.stream_mode,
+                    "stream_mode": "stream_view",
                 },
                 create_if_missing=False,
             )
-            if self.profile.policy.stream_mode == "stream_view":
-                emitted = self._stream_from_stream_view(
-                    engine_root=resolved_root,
-                    world_key=world_key,
-                    run_id=run_id,
-                    pack_key=pack_key,
-                    engine_release=engine_release,
-                    producer_id=self._producer_id,
-                    checkpoint_store=checkpoint_store,
-                    max_events=max_events,
-                    output_ids=chosen_outputs,
-                )
-            else:
-                facts_payload = self._build_facts_payload(resolved_root, world_key, run_id, chosen_outputs)
-                puller = EnginePuller(
-                    run_facts_view_path=None,
-                    catalogue=self._catalogue,
-                    run_facts_payload=facts_payload,
-                )
-                emitted = self._stream_events(
-                    puller,
-                    pack_key=pack_key,
-                    engine_release=engine_release,
-                    producer_id=self._producer_id,
-                    checkpoint_store=checkpoint_store,
-                    max_events=max_events,
-                    output_ids=chosen_outputs,
-                )
+            emitted = self._stream_from_stream_view(
+                engine_root=resolved_root,
+                world_key=world_key,
+                run_id=run_id,
+                pack_key=pack_key,
+                engine_release=engine_release,
+                producer_id=self._producer_id,
+                checkpoint_store=checkpoint_store,
+                max_events=max_events,
+                output_ids=chosen_outputs,
+            )
         except IngestionError as exc:
             logger.warning("WSP stream failed reason=%s", exc.code)
             return StreamResult(
@@ -513,52 +496,16 @@ class WorldStreamProducer:
         max_events: int | None,
         output_ids: list[str],
     ) -> int:
-        stream_view_id = compute_stream_view_id(
-            engine_run_root=engine_root,
-            scenario_id=world_key.scenario_id,
-            output_ids=output_ids,
-            sort_keys=["ts_utc", "event_type", "payload_hash"],
-            partition_granularity="day",
-        )
         base_root = self.profile.wiring.stream_view_root or join_engine_path(
             engine_root, "stream_view/ts_utc"
         )
-        stream_view_root = base_root.rstrip("/")
-        if not stream_view_root.endswith(stream_view_id):
-            stream_view_root = f"{stream_view_root}/{stream_view_id}"
-        store = _build_stream_view_store(
-            stream_view_root,
-            endpoint=self.profile.wiring.object_store_endpoint,
-            region=self.profile.wiring.object_store_region,
-            path_style=self.profile.wiring.object_store_path_style,
-        )
-        manifest = _read_stream_view_manifest(store)
-        receipt = _read_stream_view_receipt(store)
-        if not manifest or not receipt:
-            raise IngestionError("STREAM_VIEW_MISSING")
-        if receipt.get("status") not in {"OK", None, ""}:
-            raise IngestionError("STREAM_VIEW_RECEIPT_BAD")
-        if manifest.get("stream_view_id") != stream_view_id:
-            raise IngestionError("STREAM_VIEW_ID_MISMATCH")
-        manifest_outputs = list(manifest.get("output_ids") or [])
-        missing = [item for item in output_ids if item not in manifest_outputs]
-        if missing:
-            raise IngestionError("STREAM_VIEW_OUTPUTS_MISSING", ",".join(missing))
-
-        files = _list_stream_view_files(store)
-        if not files:
-            raise IngestionError("STREAM_VIEW_EMPTY")
-        files = sorted([path for path in files if path.endswith(".parquet")])
         emitted = 0
         speedup = self.profile.policy.stream_speedup
-        last_ts: datetime | None = None
         checkpoint_every = max(1, self.profile.wiring.checkpoint_every)
         progress_every = max(1, int(os.getenv("WSP_PROGRESS_EVERY", "1000")))
         progress_seconds = max(1.0, float(os.getenv("WSP_PROGRESS_SECONDS", "30")))
         last_progress_time = time.monotonic()
         last_progress_emitted = 0
-
-        cursor = checkpoint_store.load(stream_view_id, "stream_view")
 
         def _save_checkpoint(cursor: CheckpointCursor, *, reason: str) -> None:
             checkpoint_store.save(cursor)
@@ -576,86 +523,114 @@ class WorldStreamProducer:
                 create_if_missing=False,
             )
 
-        for file_path in files:
-            for row_index, row in _read_stream_view_rows_with_index(
-                file_path,
+        for output_id in output_ids:
+            stream_view_id = compute_stream_view_id(
+                engine_run_root=engine_root,
+                scenario_id=world_key.scenario_id,
+                output_id=output_id,
+                sort_keys=["ts_utc", "filename", "file_row_number"],
+                partition_granularity="bucket",
+            )
+            stream_view_root = f"{base_root.rstrip('/')}/output_id={output_id}"
+            store = _build_stream_view_store(
+                stream_view_root,
                 endpoint=self.profile.wiring.object_store_endpoint,
                 region=self.profile.wiring.object_store_region,
                 path_style=self.profile.wiring.object_store_path_style,
-            ):
-                if cursor and _should_skip(cursor, file_path, row_index):
-                    continue
-                event_type = str(row.get("event_type", ""))
-                if not event_type:
-                    raise IngestionError("STREAM_VIEW_EVENT_TYPE_MISSING")
-                if event_type not in output_ids:
-                    continue
-                payload = _parse_payload(row.get("payload_json"))
-                entry = self._catalogue.get(event_type)
-                pins = {
-                    "manifest_fingerprint": world_key.manifest_fingerprint,
-                    "parameter_hash": world_key.parameter_hash,
-                    "scenario_id": world_key.scenario_id,
-                    "seed": world_key.seed,
-                    "run_id": run_id,
-                }
-                event_id = derive_engine_event_id(event_type, entry.primary_key, payload, pins)
-                ts_utc = row.get("ts_utc")
-                envelope = {
-                    "event_id": event_id,
-                    "event_type": event_type,
-                    "ts_utc": _normalize_ts(ts_utc),
-                    "manifest_fingerprint": world_key.manifest_fingerprint,
-                    "parameter_hash": world_key.parameter_hash,
-                    "seed": world_key.seed,
-                    "scenario_id": world_key.scenario_id,
-                    "run_id": run_id,
-                    "producer": producer_id,
-                    "payload": payload,
-                }
-                if pack_key and not envelope.get("trace_id"):
-                    envelope["trace_id"] = pack_key
-                if engine_release and not envelope.get("span_id"):
-                    envelope["span_id"] = engine_release
-                current_ts = _parse_ts(envelope.get("ts_utc"))
-                if last_ts and current_ts:
-                    delay = _delay_seconds(last_ts, current_ts, speedup)
-                    if delay > 0:
-                        time.sleep(delay)
-                if current_ts:
-                    last_ts = current_ts
-                self._push_to_ig(envelope)
-                emitted += 1
-                cursor = CheckpointCursor(
-                    pack_key=stream_view_id,
-                    output_id="stream_view",
-                    last_file=file_path,
-                    last_row_index=row_index,
-                    last_ts_utc=envelope.get("ts_utc"),
-                )
-                if emitted % checkpoint_every == 0:
-                    _save_checkpoint(cursor, reason="periodic_flush")
-                if (
-                    emitted - last_progress_emitted >= progress_every
-                    or (time.monotonic() - last_progress_time) >= progress_seconds
+            )
+            manifest = _read_stream_view_manifest(store)
+            receipt = _read_stream_view_receipt(store)
+            if not manifest or not receipt:
+                raise IngestionError("STREAM_VIEW_MISSING", output_id)
+            if receipt.get("status") not in {"OK", None, ""}:
+                raise IngestionError("STREAM_VIEW_RECEIPT_BAD", output_id)
+            if manifest.get("stream_view_id") and manifest.get("stream_view_id") != stream_view_id:
+                raise IngestionError("STREAM_VIEW_ID_MISMATCH", output_id)
+            if manifest.get("output_id") and manifest.get("output_id") != output_id:
+                raise IngestionError("STREAM_VIEW_OUTPUT_MISMATCH", output_id)
+
+            files = _list_stream_view_files(store)
+            if not files:
+                raise IngestionError("STREAM_VIEW_EMPTY", output_id)
+            files = sorted([path for path in files if path.endswith(".parquet")])
+            cursor = checkpoint_store.load(pack_key, output_id)
+            last_ts: datetime | None = None
+            for file_path in files:
+                for row_index, row in _read_stream_view_rows_with_index(
+                    file_path,
+                    endpoint=self.profile.wiring.object_store_endpoint,
+                    region=self.profile.wiring.object_store_region,
+                    path_style=self.profile.wiring.object_store_path_style,
                 ):
-                    logger.info(
-                        "WSP stream_view progress emitted=%s last_file=%s row=%s ts=%s",
-                        emitted,
-                        file_path,
-                        row_index,
-                        envelope.get("ts_utc"),
+                    if cursor and _should_skip(cursor, file_path, row_index):
+                        continue
+                    payload = _payload_from_stream_row(row)
+                    entry = self._catalogue.get(output_id)
+                    pins = {
+                        "manifest_fingerprint": world_key.manifest_fingerprint,
+                        "parameter_hash": world_key.parameter_hash,
+                        "scenario_id": world_key.scenario_id,
+                        "seed": world_key.seed,
+                        "run_id": run_id,
+                    }
+                    event_id = derive_engine_event_id(output_id, entry.primary_key, payload, pins)
+                    ts_utc = row.get("ts_utc")
+                    envelope = {
+                        "event_id": event_id,
+                        "event_type": output_id,
+                        "ts_utc": _normalize_ts(ts_utc),
+                        "manifest_fingerprint": world_key.manifest_fingerprint,
+                        "parameter_hash": world_key.parameter_hash,
+                        "seed": world_key.seed,
+                        "scenario_id": world_key.scenario_id,
+                        "run_id": run_id,
+                        "producer": producer_id,
+                        "payload": payload,
+                    }
+                    if pack_key and not envelope.get("trace_id"):
+                        envelope["trace_id"] = pack_key
+                    if engine_release and not envelope.get("span_id"):
+                        envelope["span_id"] = engine_release
+                    current_ts = _parse_ts(envelope.get("ts_utc"))
+                    if last_ts and current_ts:
+                        delay = _delay_seconds(last_ts, current_ts, speedup)
+                        if delay > 0:
+                            time.sleep(delay)
+                    if current_ts:
+                        last_ts = current_ts
+                    self._push_to_ig(envelope)
+                    emitted += 1
+                    cursor = CheckpointCursor(
+                        pack_key=pack_key,
+                        output_id=output_id,
+                        last_file=file_path,
+                        last_row_index=row_index,
+                        last_ts_utc=envelope.get("ts_utc"),
                     )
-                    last_progress_time = time.monotonic()
-                    last_progress_emitted = emitted
-                if max_events is not None and emitted >= max_events:
-                    if cursor:
-                        _save_checkpoint(cursor, reason="max_events")
-                    return emitted
+                    if emitted % checkpoint_every == 0:
+                        _save_checkpoint(cursor, reason="periodic_flush")
+                    if (
+                        emitted - last_progress_emitted >= progress_every
+                        or (time.monotonic() - last_progress_time) >= progress_seconds
+                    ):
+                        logger.info(
+                            "WSP stream_view progress output_id=%s emitted=%s last_file=%s row=%s ts=%s",
+                            output_id,
+                            emitted,
+                            file_path,
+                            row_index,
+                            envelope.get("ts_utc"),
+                        )
+                        last_progress_time = time.monotonic()
+                        last_progress_emitted = emitted
+                    if max_events is not None and emitted >= max_events:
+                        if cursor:
+                            _save_checkpoint(cursor, reason="max_events")
+                        return emitted
+                if cursor:
+                    _save_checkpoint(cursor, reason="file_complete")
             if cursor:
-                _save_checkpoint(cursor, reason="file_complete")
-        if cursor:
-            _save_checkpoint(cursor, reason="stream_complete")
+                _save_checkpoint(cursor, reason="output_complete")
         return emitted
 
     def _push_to_ig(self, envelope: dict[str, Any]) -> None:
@@ -925,6 +900,12 @@ def _parse_payload(payload_raw: Any) -> dict[str, Any]:
     if isinstance(payload_raw, str):
         return json.loads(payload_raw)
     return json.loads(str(payload_raw))
+
+
+def _payload_from_stream_row(row: dict[str, Any]) -> dict[str, Any]:
+    if "payload_json" in row:
+        return _parse_payload(row.get("payload_json"))
+    return row
 
 
 def _normalize_ts(value: Any) -> str | None:

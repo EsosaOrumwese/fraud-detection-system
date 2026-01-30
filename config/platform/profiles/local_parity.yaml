@@ -5,7 +5,6 @@ policy:
   partitioning_profile_id: ig.partitioning.v0.traffic
   require_gate_pass: true
   stream_speedup: 600.0
-  stream_mode: stream_view
   traffic_output_ids_ref: config/platform/wsp/traffic_outputs_v0.yaml
 wiring:
   object_store:

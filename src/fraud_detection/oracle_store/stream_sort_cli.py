@@ -1,4 +1,4 @@
-"""CLI: build a global time-sorted stream view (Option C)."""
+"""CLI: build per-output time-sorted stream views (bucket partitions)."""
 
 from __future__ import annotations
 
@@ -6,6 +6,7 @@ import argparse
 import json
 import logging
 from pathlib import Path
+from typing import Any
 
 from fraud_detection.platform_runtime import platform_log_paths
 from fraud_detection.scenario_runner.logging_utils import configure_logging
@@ -32,8 +33,8 @@ def main() -> None:
     )
     parser.add_argument(
         "--partition-granularity",
-        default="day",
-        help="Partition granularity (day only in v0)",
+        default="bucket",
+        help="Partition granularity (bucket only in v0)",
     )
     args = parser.parse_args()
 
@@ -48,27 +49,29 @@ def main() -> None:
     if not output_ids:
         raise SystemExit("OUTPUT_IDS_MISSING")
 
-    stream_view_root = args.stream_view_root or f"{resolved_root.rstrip('/')}/stream_view/ts_utc"
-    sort_keys = ["ts_utc", "event_type", "payload_hash"]
-    stream_view_id = compute_stream_view_id(
-        engine_run_root=resolved_root,
-        scenario_id=scenario_id,
-        output_ids=output_ids,
-        sort_keys=sort_keys,
-        partition_granularity=args.partition_granularity,
-    )
-    stream_view_root = f"{stream_view_root.rstrip('/')}/{stream_view_id}"
-
-    receipt = build_stream_view(
-        profile=profile,
-        engine_run_root=resolved_root,
-        scenario_id=scenario_id,
-        output_ids=output_ids,
-        stream_view_root=stream_view_root,
-        stream_view_id=stream_view_id,
-        partition_granularity=args.partition_granularity,
-    )
-    print(json.dumps(receipt.__dict__, sort_keys=True))
+    base_root = args.stream_view_root or f"{resolved_root.rstrip('/')}/stream_view/ts_utc"
+    sort_keys = ["ts_utc", "filename", "file_row_number"]
+    receipts: list[dict[str, Any]] = []
+    for output_id in output_ids:
+        stream_view_id = compute_stream_view_id(
+            engine_run_root=resolved_root,
+            scenario_id=scenario_id,
+            output_id=output_id,
+            sort_keys=sort_keys,
+            partition_granularity=args.partition_granularity,
+        )
+        stream_view_root = f"{base_root.rstrip('/')}/output_id={output_id}"
+        receipt = build_stream_view(
+            profile=profile,
+            engine_run_root=resolved_root,
+            scenario_id=scenario_id,
+            output_id=output_id,
+            stream_view_root=stream_view_root,
+            stream_view_id=stream_view_id,
+            partition_granularity=args.partition_granularity,
+        )
+        receipts.append(receipt.__dict__)
+    print(json.dumps(receipts, sort_keys=True))
 
 
 if __name__ == "__main__":

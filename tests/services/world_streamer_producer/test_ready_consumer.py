@@ -68,7 +68,6 @@ def _profile(store_root: Path, control_root: Path) -> WspProfile:
         policy_rev="local",
         require_gate_pass=True,
         stream_speedup=0.0,
-        stream_mode="engine",
         traffic_output_ids=["arrival_events_5B"],
     )
     wiring = WiringProfile(

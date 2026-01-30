@@ -29,7 +29,6 @@ class PolicyProfile:
     policy_rev: str
     require_gate_pass: bool
     stream_speedup: float
-    stream_mode: str
     traffic_output_ids: list[str]
 
 
@@ -94,7 +93,6 @@ class WspProfile:
         policy_rev = policy.get("policy_rev", data.get("profile_id", "local"))
         require_gate_pass = bool(policy.get("require_gate_pass", True))
         stream_speedup = float(policy.get("stream_speedup", 1.0))
-        stream_mode = str(policy.get("stream_mode", "engine")).strip().lower()
         traffic_output_ids = _load_output_ids(policy, base_dir=path.parent)
 
         control_bus_kind = control_bus.get("kind", "file")
@@ -144,7 +142,6 @@ class WspProfile:
                 policy_rev=policy_rev,
                 require_gate_pass=require_gate_pass,
                 stream_speedup=stream_speedup,
-                stream_mode=stream_mode,
                 traffic_output_ids=traffic_output_ids,
             ),
             wiring=WiringProfile(

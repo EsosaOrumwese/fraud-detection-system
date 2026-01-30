@@ -130,20 +130,21 @@ Define the **sealed world boundary** for engine outputs as an explicit platform 
 ---
 
 ### Phase 5 — Global time‑sorted stream view (Option C)
-**Intent:** produce a **globally `ts_utc`‑sorted stream view** without modifying engine outputs.
+**Intent:** produce **per‑output `ts_utc`‑sorted stream views** without modifying engine outputs.
 
 #### Phase 5.1 — Stream view placement (separate from engine native outputs)
 **DoD checklist:**
 - Derived view stored under engine run root but in a **distinct folder** (no collision with native outputs).
-- Final naming pinned: `stream_view/ts_utc/<stream_view_id>/` (under the engine run root).
+- Final naming pinned: `stream_view/ts_utc/output_id=<output_id>/bucket_index=<bucket>/` (under the engine run root).
 - Stream view lives under Oracle Store (engine world), **not** under `runs/fraud-platform`.
 
-#### Phase 5.2 — Global sort builder (S3‑native)
+#### Phase 5.2 — Per‑output sort builder (S3‑native)
 **DoD checklist:**
 - Sorter reads **directly from S3** (MinIO locally; AWS S3 in dev/prod).
 - External sort uses **DuckDB** (disk‑backed, vectorized).
-- Deterministic tie‑break documented: `ts_utc`, `event_type`, `hash(payload_json)`.
-- Output schema pinned: `ts_utc`, `event_type`, `payload_json`, `stream_date`.
+- Deterministic tie‑break documented: `ts_utc`, `filename`, `file_row_number`.
+- Output schema preserved (no extra columns; sort does not mutate payload).
+- Output partitioned by `bucket_index` under each output_id.
 
 #### Phase 5.3 — Validation receipt (no dupes/no drops)
 **DoD checklist:**
@@ -158,7 +159,7 @@ Define the **sealed world boundary** for engine outputs as an explicit platform 
 
 #### Phase 5.5 — WSP integration switch (stream view vs raw)
 **DoD checklist:**
-- Profile flag `stream_mode=stream_view` + `stream_view_root` pin.
+- `stream_view_root` pin in profiles; WSP is **always** stream-view in v0 (no `stream_mode` toggle).
 - WSP reads stream view manifest/receipt and uses it as the single source of events.
 - Local may allow fallback to raw engine outputs; dev/prod require stream view when enabled.
 

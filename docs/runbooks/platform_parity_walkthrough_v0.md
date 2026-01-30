@@ -105,7 +105,7 @@ runs/fraud-platform/<platform_run_id>/
 ## 4) Populate Oracle Store in MinIO (sync + seal + stream view)
 
 This step does **three things**: (1) copy the engine outputs into MinIO, (2) write the Oracle pack manifest + seal,
-(3) build the **global time‑sorted stream view** WSP will consume.
+(3) build **per‑output time‑sorted stream views** WSP will consume.
 
 **4.1 Sync engine outputs into MinIO**
 ```
@@ -140,7 +140,7 @@ make platform-oracle-check-strict `
 
 **Note:** Oracle pack uses the MinIO S3 endpoint + credentials from `.env.platform.local` (exported by Make).
 
-**4.3 Build the stream view (global `ts_utc` order)**
+**4.3 Build the stream view (per‑output `ts_utc` order, bucket partitions)**
 ```
 make platform-oracle-stream-sort `
   ORACLE_PROFILE=config/platform/profiles/local_parity.yaml `
@@ -150,16 +150,23 @@ make platform-oracle-stream-sort `
 
 **What this does:**
 - Reads the **engine outputs** from MinIO.
-- Builds a **time‑sorted stream view** under:
-  `.../stream_view/ts_utc/<stream_view_id>/`
-- Writes `_stream_view_manifest.json` + `_stream_sort_receipt.json`.
-- Is **idempotent**: if a valid receipt exists, it skips; if it conflicts, it fails.
+- Builds **one sorted dataset per output_id** under:
+  `.../stream_view/ts_utc/output_id=<output_id>/bucket_index=<bucket>/`
+- Sorts **within each output** by `ts_utc` with tie‑breakers `filename` + `file_row_number`.
+- Writes `_stream_view_manifest.json` + `_stream_sort_receipt.json` for **each output**.
+- Is **idempotent** per output: if a valid receipt exists, it skips; if it conflicts, it fails.
 - Uses `config/platform/wsp/traffic_outputs_v0.yaml` as the default output_id list unless overridden.
 
 **Dependency note:** this step uses `duckdb` (declared in `pyproject.toml`). If missing, install deps before running.
 
-`ORACLE_STREAM_VIEW_ROOT` should point to the **base** (`.../stream_view/ts_utc`); the stream_view_id is appended automatically.
-If you need a fresh view, set a new base path or delete the prior stream view root.
+`ORACLE_STREAM_VIEW_ROOT` should point to the **base** (`.../stream_view/ts_utc`); WSP appends `output_id=<output_id>`.
+If you need a fresh view, delete the prior output_id view or set a new base path.
+**If you see `STREAM_VIEW_PARTIAL_EXISTS`:** a prior sort left partial parquet files. Delete the output_id stream view prefix and re‑run Section 4.3.
+
+**Optional tuning knobs (set before running):**
+- `STREAM_SORT_PROGRESS_SECONDS` → DuckDB progress bar refresh (seconds).
+- `STREAM_SORT_SORT_MULTIPLIER` → ETA estimate multiplier (default 2.0). ETA logs emit only when the progress bar is **not** enabled.
+- `STREAM_SORT_MEMORY_LIMIT` / `STREAM_SORT_TEMP_DIR` / `STREAM_SORT_THREADS` → performance tuning.
 
 ---
 
@@ -227,7 +234,7 @@ $env:WSP_READY_MAX_EVENTS="500000"; make platform-wsp-ready-consumer-once WSP_PR
 
 **Expected:**
 - WSP reads READY from Kinesis
-- WSP streams up to 500k events to IG using the **stream view** (global `ts_utc` order)
+- WSP streams up to 500k events to IG using the **stream view** (per‑output `ts_utc` order)
 - IG admits and publishes to EB (Kinesis)
 
 **If you see `Invalid endpoint`:** verify `.env.platform.local` has `OBJECT_STORE_ENDPOINT` and MinIO creds; Make exports them to WSP.

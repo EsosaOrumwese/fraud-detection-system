@@ -1,4 +1,4 @@
-"""Oracle Store stream sorter (global ts_utc order, S3-native)."""
+"""Oracle Store stream sorter (per-output ts_utc order, bucket partitions, S3-native)."""
 
 from __future__ import annotations
 
@@ -42,6 +42,7 @@ class StreamSortReceipt:
     stream_view_id: str
     engine_run_root: str
     stream_view_root: str
+    output_id: str
     output_ids: list[str]
     sort_keys: list[str]
     partition_granularity: str
@@ -60,14 +61,14 @@ def compute_stream_view_id(
     *,
     engine_run_root: str,
     scenario_id: str,
-    output_ids: list[str],
+    output_id: str,
     sort_keys: list[str],
     partition_granularity: str,
 ) -> str:
     payload = {
         "engine_run_root": engine_run_root,
         "scenario_id": scenario_id,
-        "output_ids": sorted(output_ids),
+        "output_id": output_id,
         "sort_keys": list(sort_keys),
         "partition_granularity": partition_granularity,
     }
@@ -89,26 +90,26 @@ def build_stream_view(
     profile: OracleProfile,
     engine_run_root: str,
     scenario_id: str,
-    output_ids: list[str],
+    output_id: str,
     stream_view_root: str,
     stream_view_id: str,
-    partition_granularity: str = "day",
+    partition_granularity: str = "bucket",
 ) -> StreamSortReceipt:
-    output_ids = sorted(output_ids)
+    output_id = str(output_id)
     stream_root = stream_view_root.rstrip("/")
     receipt_path = f"{stream_root}/_stream_sort_receipt.json"
     manifest_path = f"{stream_root}/_stream_view_manifest.json"
 
     store = _build_store(stream_view_root, profile)
     logger.info(
-        "Oracle stream view start root=%s engine_root=%s scenario_id=%s outputs=%s",
+        "Oracle stream view start root=%s engine_root=%s scenario_id=%s output_id=%s",
         stream_root,
         engine_run_root,
         scenario_id,
-        len(output_ids),
+        output_id,
     )
     source_locator_digest, locators = _source_locator_digest(
-        profile, engine_run_root, scenario_id, output_ids
+        profile, engine_run_root, scenario_id, [output_id]
     )
     receipt_rel = _relative_path(stream_view_root, receipt_path)
     manifest_rel = _relative_path(stream_view_root, manifest_path)
@@ -116,34 +117,49 @@ def build_stream_view(
         raise StreamSortError("STREAM_RECEIPT_MISSING")
     if store.exists(receipt_rel):
         existing = store.read_json(receipt_rel)
-        if _receipt_matches(existing, source_locator_digest, output_ids, stream_view_id, partition_granularity):
+        if _receipt_matches(existing, source_locator_digest, output_id, stream_view_id, partition_granularity):
             logger.info("Oracle stream view already built; receipt valid. Skipping.")
             return _receipt_from_payload(existing)
         raise StreamSortError("STREAM_RECEIPT_MISMATCH")
+    existing_parquet = _list_existing_parquet(store)
+    if existing_parquet:
+        logger.warning(
+            "Oracle stream view found existing parquet without receipt root=%s files=%s",
+            stream_root,
+            len(existing_parquet),
+        )
+        raise StreamSortError("STREAM_VIEW_PARTIAL_EXISTS")
 
     con = _duckdb_connect(profile)
     logger.info("Oracle stream view computing source stats")
     stats_start = time.monotonic()
-    raw_query = _build_raw_query(con, locators)
+    raw_query = _build_raw_query_for_output(con, locators[0])
     raw_stats = _compute_stats(con, raw_query)
     stats_seconds = time.monotonic() - stats_start
-    multiplier = float(os.getenv("STREAM_SORT_SORT_MULTIPLIER", "2.0"))
-    eta_seconds = max(1.0, stats_seconds * multiplier)
-    eta_at = datetime.now(tz=timezone.utc) + timedelta(seconds=eta_seconds)
-    logger.info(
-        "Oracle stream view ETA sort_completion~%ss (%s UTC) scan_seconds=%.1f multiplier=%.2f rows=%s",
-        f"{eta_seconds:.0f}",
-        eta_at.isoformat(),
-        stats_seconds,
-        multiplier,
-        raw_stats.row_count,
-    )
+    progress_time = os.getenv("STREAM_SORT_PROGRESS_SECONDS")
+    if not progress_time:
+        multiplier = float(os.getenv("STREAM_SORT_SORT_MULTIPLIER", "2.0"))
+        eta_seconds = max(1.0, stats_seconds * multiplier)
+        eta_at = datetime.now(tz=timezone.utc) + timedelta(seconds=eta_seconds)
+        logger.info(
+            "Oracle stream view ETA sort_completion~%ss (%s UTC) scan_seconds=%.1f multiplier=%.2f rows=%s",
+            f"{eta_seconds:.0f}",
+            eta_at.isoformat(),
+            stats_seconds,
+            multiplier,
+            raw_stats.row_count,
+        )
 
-    sort_expr = _sort_expr(raw_query)
     out_path = stream_root
     logger.info("Oracle stream view sorting + writing partitions")
     sort_start = time.monotonic()
-    _write_sorted(con, sort_expr, out_path, partition_granularity)
+    buckets = _list_bucket_indices(con, locators[0]["path"])
+    logger.info(
+        "Oracle stream view bucket scan output_id=%s buckets=%s",
+        output_id,
+        len(buckets),
+    )
+    _write_sorted(con, raw_query, out_path, partition_granularity, buckets)
     sort_seconds = time.monotonic() - sort_start
     logger.info(
         "Oracle stream view sort completed seconds=%.1f (eta_seconds=%.0f)",
@@ -152,7 +168,7 @@ def build_stream_view(
     )
 
     logger.info("Oracle stream view computing sorted stats")
-    sorted_query = f"SELECT * FROM read_parquet('{out_path}/**/*.parquet')"
+    sorted_query = _build_stats_query_for_parquet(con, f"{out_path}/**/*.parquet")
     sorted_stats = _compute_stats(con, sorted_query)
 
     if not _stats_match(raw_stats, sorted_stats):
@@ -162,8 +178,9 @@ def build_stream_view(
         stream_view_id=stream_view_id,
         engine_run_root=engine_run_root,
         stream_view_root=stream_view_root,
-        output_ids=output_ids,
-        sort_keys=["ts_utc", "event_type", "payload_hash"],
+        output_id=output_id,
+        output_ids=[output_id],
+        sort_keys=["ts_utc", "filename", "file_row_number"],
         partition_granularity=partition_granularity,
         source_locator_digest=source_locator_digest,
         raw_stats=raw_stats,
@@ -179,7 +196,7 @@ def build_stream_view(
             engine_run_root=engine_run_root,
             stream_view_root=stream_view_root,
             stream_view_id=stream_view_id,
-            output_ids=output_ids,
+            output_ids=[output_id],
             scenario_id=scenario_id,
             receipt=receipt,
         ),
@@ -205,6 +222,7 @@ def _manifest_payload(
         "stream_view_root": stream_view_root,
         "engine_run_id": run_receipt.get("run_id"),
         "scenario_id": scenario_id,
+        "output_id": receipt.output_id,
         "world_key": {
             "manifest_fingerprint": run_receipt.get("manifest_fingerprint"),
             "parameter_hash": run_receipt.get("parameter_hash"),
@@ -234,14 +252,14 @@ def _build_store(stream_view_root: str, profile: OracleProfile):
 def _receipt_matches(
     payload: dict[str, Any],
     source_locator_digest: str,
-    output_ids: list[str],
+    output_id: str,
     stream_view_id: str,
     partition_granularity: str,
 ) -> bool:
     return (
         payload.get("status") == "OK"
         and payload.get("source_locator_digest") == source_locator_digest
-        and payload.get("output_ids") == output_ids
+        and payload.get("output_id") == output_id
         and payload.get("stream_view_id") == stream_view_id
         and payload.get("partition_granularity") == partition_granularity
     )
@@ -252,6 +270,7 @@ def _receipt_to_payload(receipt: StreamSortReceipt) -> dict[str, Any]:
         "stream_view_id": receipt.stream_view_id,
         "engine_run_root": receipt.engine_run_root,
         "stream_view_root": receipt.stream_view_root,
+        "output_id": receipt.output_id,
         "output_ids": receipt.output_ids,
         "sort_keys": receipt.sort_keys,
         "partition_granularity": receipt.partition_granularity,
@@ -268,9 +287,10 @@ def _receipt_from_payload(payload: dict[str, Any]) -> StreamSortReceipt:
         stream_view_id=payload["stream_view_id"],
         engine_run_root=payload["engine_run_root"],
         stream_view_root=payload["stream_view_root"],
+        output_id=str(payload.get("output_id") or ""),
         output_ids=list(payload.get("output_ids") or []),
         sort_keys=list(payload.get("sort_keys") or []),
-        partition_granularity=payload.get("partition_granularity", "day"),
+        partition_granularity=payload.get("partition_granularity", "bucket"),
         source_locator_digest=payload.get("source_locator_digest", ""),
         raw_stats=_stats_from_payload(payload.get("raw_stats") or {}),
         sorted_stats=_stats_from_payload(payload.get("sorted_stats") or {}),
@@ -410,28 +430,54 @@ def _duckdb_connect(profile: OracleProfile) -> "duckdb.DuckDBPyConnection":
     return con
 
 
-def _build_raw_query(con: "duckdb.DuckDBPyConnection", locators: list[dict[str, Any]]) -> str:
-    selects: list[str] = []
-    for item in locators:
-        output_id = item["output_id"]
-        locator = item["path"]
-        columns = _duckdb_columns(con, locator)
-        if "ts_utc" not in columns:
-            raise StreamSortError(f"MISSING_TS_UTC:{output_id}")
-        pack_expr = ", ".join([f'"{col}" := "{col}"' for col in columns])
-        selects.append(
-            "SELECT "
-            f"'{output_id}' AS event_type, "
-            "ts_utc, "
-            f"to_json(struct_pack({pack_expr})) AS payload_json "
-            f"FROM read_parquet('{locator}')"
-        )
-    return " UNION ALL ".join(selects)
+def _build_raw_query_for_output(con: "duckdb.DuckDBPyConnection", item: dict[str, Any]) -> str:
+    output_id = item["output_id"]
+    locator = item["path"]
+    columns = _duckdb_columns(con, locator, include_file_meta=True)
+    columns = [col for col in columns if col not in {"filename", "file_row_number"}]
+    if "ts_utc" not in columns:
+        raise StreamSortError(f"MISSING_TS_UTC:{output_id}")
+    if "bucket_index" not in columns:
+        raise StreamSortError(f"MISSING_BUCKET_INDEX:{output_id}")
+    select_cols = ", ".join([f'"{col}"' for col in columns])
+    pack_expr = ", ".join([f'"{col}" := "{col}"' for col in columns])
+    return (
+        "SELECT "
+        f"{select_cols}, "
+        "filename, "
+        "file_row_number, "
+        "hash(to_json(struct_pack(" + pack_expr + "))) AS payload_hash "
+        f"FROM read_parquet('{locator}', filename=true, file_row_number=true)"
+    )
 
 
-def _duckdb_columns(con: "duckdb.DuckDBPyConnection", locator: str) -> list[str]:
-    rows = con.execute(f"DESCRIBE SELECT * FROM read_parquet('{locator}')").fetchall()
+def _duckdb_columns(
+    con: "duckdb.DuckDBPyConnection",
+    locator: str,
+    *,
+    include_file_meta: bool = False,
+) -> list[str]:
+    args = "filename=true, file_row_number=true" if include_file_meta else ""
+    rows = con.execute(
+        f"DESCRIBE SELECT * FROM read_parquet('{locator}'{', ' + args if args else ''})"
+    ).fetchall()
     return [row[0] for row in rows]
+
+
+def _build_stats_query_for_parquet(con: "duckdb.DuckDBPyConnection", locator: str) -> str:
+    columns = _duckdb_columns(con, locator)
+    if "ts_utc" not in columns:
+        raise StreamSortError("MISSING_TS_UTC")
+    if "bucket_index" not in columns:
+        raise StreamSortError("MISSING_BUCKET_INDEX")
+    select_cols = ", ".join([f'"{col}"' for col in columns])
+    pack_expr = ", ".join([f'"{col}" := "{col}"' for col in columns])
+    return (
+        "SELECT "
+        f"{select_cols}, "
+        "hash(to_json(struct_pack(" + pack_expr + "))) AS payload_hash "
+        f"FROM read_parquet('{locator}')"
+    )
 
 
 def _compute_stats(con: "duckdb.DuckDBPyConnection", query: str) -> StreamSortStats:
@@ -440,8 +486,8 @@ def _compute_stats(con: "duckdb.DuckDBPyConnection", query: str) -> StreamSortSt
             count(*)::BIGINT AS row_count,
             min(CAST(ts_utc AS TIMESTAMP)) AS min_ts,
             max(CAST(ts_utc AS TIMESTAMP)) AS max_ts,
-            sum(CAST(hash(payload_json || '|' || event_type) AS DOUBLE)) AS hash_sum,
-            sum(CAST(hash(payload_json || '|' || event_type) % 1000000007 AS BIGINT))::BIGINT AS hash_sum2
+            sum(CAST(payload_hash AS DOUBLE)) AS hash_sum,
+            sum(CAST(payload_hash % 1000000007 AS BIGINT))::BIGINT AS hash_sum2
         FROM ({query})
     """
     row = con.execute(stats_sql).fetchone()
@@ -456,37 +502,49 @@ def _compute_stats(con: "duckdb.DuckDBPyConnection", query: str) -> StreamSortSt
     )
 
 
-def _sort_expr(raw_query: str) -> str:
+def _sort_expr(raw_query: str, bucket_index: int) -> str:
     return f"""
         SELECT
-            event_type,
-            ts_utc,
-            payload_json,
-            stream_date
-        FROM (
-            SELECT
-                event_type,
-                ts_utc,
-                payload_json,
-                DATE(CAST(ts_utc AS TIMESTAMP)) AS stream_date,
-                hash(payload_json || '|' || event_type) AS payload_hash
-            FROM ({raw_query})
-        )
-        ORDER BY CAST(ts_utc AS TIMESTAMP), event_type, payload_hash
+            *
+        FROM ({raw_query})
+        WHERE bucket_index = {int(bucket_index)}
+        ORDER BY CAST(ts_utc AS TIMESTAMP), filename, file_row_number
     """
 
 
 def _write_sorted(
     con: "duckdb.DuckDBPyConnection",
-    sort_expr: str,
+    raw_query: str,
     output_root: str,
     partition_granularity: str,
+    buckets: list[int],
 ) -> None:
-    if partition_granularity != "day":
+    if partition_granularity != "bucket":
         raise StreamSortError("PARTITION_GRANULARITY_UNSUPPORTED")
-    con.execute(
-        f"COPY ({sort_expr}) TO '{output_root}' (FORMAT PARQUET, PARTITION_BY (stream_date))"
-    )
+    if not buckets:
+        raise StreamSortError("BUCKET_INDEX_EMPTY")
+    for index, bucket_index in enumerate(buckets, start=1):
+        logger.info(
+            "Oracle stream view sorting bucket %s/%s bucket_index=%s",
+            index,
+            len(buckets),
+            bucket_index,
+        )
+        sort_expr = _sort_expr(raw_query, bucket_index)
+        target = f"{output_root}/bucket_index={bucket_index}"
+        con.execute(
+            "COPY ("
+            f"SELECT * EXCLUDE(payload_hash, filename, file_row_number) FROM ({sort_expr}) "
+            f") TO '{target}' (FORMAT PARQUET)"
+        )
+
+
+def _list_bucket_indices(con: "duckdb.DuckDBPyConnection", locator: str) -> list[int]:
+    rows = con.execute(
+        f"SELECT DISTINCT bucket_index FROM read_parquet('{locator}', filename=true, file_row_number=true) "
+        "ORDER BY bucket_index"
+    ).fetchall()
+    return [int(row[0]) for row in rows if row and row[0] is not None]
 
 
 def _relative_path(root: str, absolute: str) -> str:
@@ -501,6 +559,10 @@ def _relative_path(root: str, absolute: str) -> str:
     if absolute.startswith(root):
         return absolute[len(root) + 1 :]
     return absolute
+
+
+def _list_existing_parquet(store: LocalObjectStore | S3ObjectStore) -> list[str]:
+    return [path for path in store.list_files("") if path.endswith(".parquet")]
 
 
 def _s3_client(profile: OracleProfile):

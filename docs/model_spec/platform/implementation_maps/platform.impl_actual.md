@@ -1078,14 +1078,14 @@ User requested faster parity runs; 60x speedup was still too slow for 500k event
 
 ---
 
-## Entry: 2026-01-30 10:24:24 — Global time‑sorted stream view (Option C) adopted
+## Entry: 2026-01-30 10:24:24 — Per‑output time‑sorted stream views (Option C) adopted
 
 ### Trigger
-User observed engine outputs are not globally time‑sorted and approved **Option C**: create a derived stream view sorted by `ts_utc` without modifying engine outputs.
+User observed engine outputs are not globally time‑sorted and approved **Option C**: create **per‑output** derived views sorted by `ts_utc` without modifying engine outputs.
 
 ### Decision trail (live)
 - Keep the **engine sealed** (no changes to engine outputs or code).
-- Build a **global stream view** in the Oracle Store (engine world) and have WSP consume it.
+- Build **per‑output stream views** in the Oracle Store (engine world) and have WSP consume them.
 - Use **DuckDB external sort** for scale; store output as Parquet partitioned by `stream_date`.
 - Enforce **idempotent receipts**: if receipt matches source locator digest, skip; if mismatch, fail closed.
 
@@ -1098,3 +1098,21 @@ User observed engine outputs are not globally time‑sorted and approved **Optio
 - `docs/model_spec/platform/implementation_maps/oracle_store.build_plan.md`
 - `docs/runbooks/platform_parity_walkthrough_v0.md`
 - `config/platform/profiles/{local_parity,dev,prod}.yaml`
+
+---
+
+## Entry: 2026-01-30 14:06:21 — Correction: stream‑view path + bucket partitions (stream_mode removed)
+
+### Trigger
+User clarified that stream views should be **per output**, partitioned by `bucket_index`,
+and **must not** include `stream_view_id` in the path.
+
+### Decision trail (live)
+- Keep `stream_view_id` only as a **manifest/receipt integrity token**, not part of filesystem layout.
+- Remove `stream_mode` toggle; WSP is **stream‑view only** in v0 (avoids mode confusion).
+- Partition by `bucket_index` to preserve engine bucket semantics and reduce shuffle.
+
+### Platform‑wide impact
+- Profiles now pin only `oracle_stream_view_root` (no `stream_mode` key).
+- WSP reads `.../stream_view/ts_utc/output_id=<output_id>/bucket_index=<bucket>/`.
+- Oracle Store receipts/manifest keep `stream_view_id` for validation.
