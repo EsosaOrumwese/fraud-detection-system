@@ -27,12 +27,17 @@ The engine outputs exist locally (for now) and are **packed into MinIO** via the
 ```
 make platform-parity-stack-up
 make platform-parity-bootstrap
+make platform-parity-stack-status
 ```
 
 **Expected:**
 - MinIO + Postgres + LocalStack are running.
 - Buckets exist: `oracle-store`, `fraud-platform`.
 - Streams exist: `sr-control-bus`, `fp-traffic-bus`.
+
+**What bootstrap does:**
+- Creates the **Kinesis streams** in LocalStack (`sr-control-bus`, `fp-traffic-bus`).
+- Creates the **MinIO buckets** (`oracle-store`, `fraud-platform`).
 
 ---
 
@@ -214,4 +219,3 @@ make platform-parity-stack-down
 - IG admits events and writes receipts under `ig/receipts`.
 - EB offsets advance and are visible in receipt `eb_ref`.
 - Platform log shows SR → WSP → IG → EB in order for the same run id.
-
