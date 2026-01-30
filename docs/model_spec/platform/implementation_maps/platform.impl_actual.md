@@ -917,3 +917,47 @@ User requested a detailed, written walkthrough for a 500k‑event local_parity r
 ### Files touched
 - `docs/runbooks/platform_parity_walkthrough_v0.md`
 - `docs/README.md`
+
+---
+
+## Entry: 2026-01-30 02:18:20 — Parity env defaults for Oracle Store (S3) in .env.platform.local
+
+### Trigger
+User requested avoiding manual overrides when running `make platform-oracle-pack` by aligning `.env.platform.local` with the MinIO‑backed Oracle Store.
+
+### Decision trail (live)
+- Parity runs must target MinIO S3 for Oracle Store, not local filesystem.
+- `ORACLE_ENGINE_RUN_ROOT` should point to the **S3 copy** (post‑sync), while `ORACLE_PACK_ROOT` should remain distinct from the engine root to avoid clashing with engine `_SEALED.json`.
+- Use a stable `pack_current` prefix for day‑to‑day parity runs; if content changes, bump the pack root explicitly.
+
+### Implementation notes
+- Updated `.env.platform.local` to set `ORACLE_ROOT=s3://oracle-store`, `ORACLE_ENGINE_RUN_ROOT` to the S3 engine world, and `ORACLE_PACK_ROOT` to `.../pack_current`.
+- Kept MinIO endpoint + S3 client envs in `.env.platform.local` for Makefile‑driven runs (no secrets logged here).
+
+### Files touched
+- `.env.platform.local`
+
+---
+
+## Entry: 2026-01-30 02:23:28 — Parity MinIO creds alignment + Oracle sync target
+
+### Trigger
+Parity IG service hit a `403 Forbidden` on S3 `HeadObject` because LocalStack-style AWS creds were used against MinIO.
+
+### Decision trail (live)
+- Parity uses **two** AWS‑like endpoints: MinIO S3 (Oracle Store + platform artifacts) and LocalStack Kinesis (control/event buses).
+- MinIO enforces access keys; LocalStack accepts **any** access keys.
+- Therefore, parity Make targets should export **MinIO creds** as the default AWS env to satisfy S3, while Kinesis still works against LocalStack.
+- Add a dedicated `platform-oracle-sync` Make target so the engine‑to‑MinIO copy is reproducible without manual env injection.
+
+### Implementation notes
+- Updated parity service targets to export `AWS_ACCESS_KEY_ID/SECRET` from MinIO keys.
+- Added `platform-oracle-sync` target that uses MinIO creds + endpoint to `aws s3 sync` local engine outputs into MinIO.
+- Added `ORACLE_SYNC_SOURCE` to `.env.platform.local` to avoid ad‑hoc overrides.
+- Aligned `PARITY_ORACLE_ROOT` default to `ORACLE_ROOT` (bucket root) to avoid appending run IDs at the root.
+- Updated parity runbook sections 2 and 4 to use the Make target and reflect the new variables.
+
+### Files touched
+- `makefile`
+- `.env.platform.local`
+- `docs/runbooks/platform_parity_walkthrough_v0.md`

@@ -345,3 +345,25 @@ Treat earlier `dev_local` mentions as historical; use `local_parity` for parity 
 ### Files touched
 - `makefile`
 - `docs/runbooks/platform_parity_walkthrough_v0.md`
+
+---
+
+## Entry: 2026-01-30 02:23:28 — Oracle sync target + runbook simplification
+
+### Trigger
+User hit `MANIFEST_MISMATCH` and credential confusion when syncing engine outputs into MinIO and sealing Oracle packs.
+
+### Decision trail (live)
+- The Oracle Store is MinIO‑backed in parity; the sync step should be **repeatable** without manual AWS CLI env injection.
+- Use a Make target that sources MinIO creds from `.env.platform.local` and syncs the local engine run into MinIO.
+- Keep the runbook path simple: **sync → pack**, with one short troubleshooting note.
+
+### Implementation notes
+- Added `platform-oracle-sync` target to run `aws s3 sync` against MinIO.
+- Added `ORACLE_SYNC_SOURCE` to `.env.platform.local` to anchor the local engine path.
+- Updated the parity runbook section 4 to use the Make target and to clarify that MinIO is local (data is copied).
+
+### Files touched
+- `makefile`
+- `.env.platform.local`
+- `docs/runbooks/platform_parity_walkthrough_v0.md`

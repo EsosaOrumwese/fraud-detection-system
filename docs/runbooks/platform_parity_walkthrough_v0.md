@@ -42,42 +42,42 @@ make platform-parity-stack-status
 
 ---
 
-## 2) Set parity environment variables (no secrets stored)
+## 2) Confirm parity env in `.env.platform.local`
 
-> Use your own values or set these in a `.env.platform.local` file.  
-> Do **not** write secrets into docs or git.
+Make loads `.env.platform.local` automatically. You should not need to export these unless you are overriding a value.
 
 ```
-$env:PARITY_OBJECT_STORE_ENDPOINT="http://localhost:9000"
-$env:PARITY_OBJECT_STORE_REGION="us-east-1"
-$env:PARITY_MINIO_ACCESS_KEY="<minio_access_key>"
-$env:PARITY_MINIO_SECRET_KEY="<minio_secret_key>"
+PARITY_OBJECT_STORE_ENDPOINT=http://localhost:9000
+PARITY_OBJECT_STORE_REGION=us-east-1
+PARITY_MINIO_ACCESS_KEY=<minio_access_key>
+PARITY_MINIO_SECRET_KEY=<minio_secret_key>
 
-$env:PARITY_AWS_ACCESS_KEY_ID="<localstack_access_key>"
-$env:PARITY_AWS_SECRET_KEY="<localstack_secret_key>"
-$env:PARITY_AWS_EC2_METADATA_DISABLED="true"
+PARITY_AWS_ACCESS_KEY_ID=<localstack_access_key>
+PARITY_AWS_SECRET_KEY=<localstack_secret_key>
+PARITY_AWS_EC2_METADATA_DISABLED=true
 
-$env:PARITY_CONTROL_BUS_STREAM="sr-control-bus"
-$env:PARITY_CONTROL_BUS_REGION="us-east-1"
-$env:PARITY_CONTROL_BUS_ENDPOINT_URL="http://localhost:4566"
+PARITY_CONTROL_BUS_STREAM=sr-control-bus
+PARITY_CONTROL_BUS_REGION=us-east-1
+PARITY_CONTROL_BUS_ENDPOINT_URL=http://localhost:4566
 
-$env:PARITY_EVENT_BUS_STREAM="fp-traffic-bus"
-$env:PARITY_EVENT_BUS_REGION="us-east-1"
-$env:PARITY_EVENT_BUS_ENDPOINT_URL="http://localhost:4566"
+PARITY_EVENT_BUS_STREAM=fp-traffic-bus
+PARITY_EVENT_BUS_REGION=us-east-1
+PARITY_EVENT_BUS_ENDPOINT_URL=http://localhost:4566
 
-$env:PARITY_IG_ADMISSION_DSN="<postgres_dsn>"
-$env:PARITY_WSP_CHECKPOINT_DSN="<postgres_dsn>"
+PARITY_IG_ADMISSION_DSN=<postgres_dsn>
+PARITY_WSP_CHECKPOINT_DSN=<postgres_dsn>
 
-$env:OBJECT_STORE_ENDPOINT="http://localhost:9000"
-$env:OBJECT_STORE_REGION="us-east-1"
-$env:AWS_ACCESS_KEY_ID="<minio_access_key>"
-$env:AWS_SECRET_ACCESS_KEY="<minio_secret_key>"
+OBJECT_STORE_ENDPOINT=http://localhost:9000
+OBJECT_STORE_REGION=us-east-1
+AWS_ACCESS_KEY_ID=<minio_access_key>
+AWS_SECRET_ACCESS_KEY=<minio_secret_key>
 
-$env:ORACLE_ROOT="s3://oracle-store"
-$env:ORACLE_PACK_ROOT="s3://oracle-store/local_full_run-5/pack_<timestamp>"
-$env:ORACLE_ENGINE_RUN_ROOT="s3://oracle-store/local_full_run-5/c25a2675fbfbacd952b13bb594880e92"
-$env:ORACLE_SCENARIO_ID="baseline_v1"
-$env:ORACLE_ENGINE_RELEASE="local"
+ORACLE_ROOT=s3://oracle-store
+ORACLE_ENGINE_RUN_ROOT=s3://oracle-store/local_full_run-5/c25a2675fbfbacd952b13bb594880e92
+ORACLE_PACK_ROOT=s3://oracle-store/local_full_run-5/pack_current
+ORACLE_SYNC_SOURCE=runs/local_full_run-5/c25a2675fbfbacd952b13bb594880e92
+ORACLE_SCENARIO_ID=baseline_v1
+ORACLE_ENGINE_RELEASE=local
 ```
 
 ---
@@ -106,13 +106,14 @@ This step does **two things**: (1) copy the engine outputs into MinIO, (2) write
 
 **4.1 Sync engine outputs into MinIO**
 ```
-AWS_ACCESS_KEY_ID=<minio_access_key> AWS_SECRET_ACCESS_KEY=<minio_secret_key> AWS_DEFAULT_REGION=us-east-1 AWS_EC2_METADATA_DISABLED=true `
-aws --endpoint-url http://localhost:9000 s3 sync `
-  runs/local_full_run-5/c25a2675fbfbacd952b13bb594880e92 `
-  s3://oracle-store/local_full_run-5/c25a2675fbfbacd952b13bb594880e92
+make platform-oracle-sync
 ```
 
-**Why this prefix is required:** the AWS CLI does **not** read `.env.platform.local`. It uses its own credential chain, so we explicitly inject MinIO creds for this one command without touching real AWS credentials.
+This uses:
+- `ORACLE_SYNC_SOURCE` (local engine run path)
+- `ORACLE_ENGINE_RUN_ROOT` (S3 path in MinIO)
+
+MinIO runs locally, so this **copies** the engine outputs into the MinIO volume (disk usage will increase accordingly).
 
 **4.2 Seal the Oracle pack (manifest + _SEALED.json)**
 ```
@@ -132,18 +133,9 @@ make platform-oracle-check-strict `
 
 **Expected:** strict‑seal reports OK or no errors.
 
-**If you hit `MANIFEST_MISMATCH`:**
-- Use a fresh pack root:
-```
-$env:ORACLE_PACK_ROOT="s3://oracle-store/local_full_run-5/pack_<timestamp>"
-make platform-oracle-pack ORACLE_PROFILE=config/platform/profiles/local_parity.yaml
-```
-- Or skip packing and verify the existing pack:
-```
-make platform-oracle-check-strict ORACLE_PROFILE=config/platform/profiles/local_parity.yaml
-```
+**If you hit `MANIFEST_MISMATCH`:** set a fresh pack root (e.g., `pack_YYYYMMDDTHHMMSSZ`) and re‑run `make platform-oracle-pack`.
 
-**Note:** Oracle pack uses `OBJECT_STORE_ENDPOINT/REGION` + `AWS_ACCESS_KEY_ID/SECRET` for MinIO access. If those are unset, boto may fall back to your shared AWS credentials and the endpoint may be invalid.
+**Note:** Oracle pack uses the MinIO S3 endpoint + credentials from `.env.platform.local` (exported by Make).
 
 ---
 
