@@ -1058,3 +1058,20 @@ WSP READY consumer failed with `Invalid URL '/v1/ingest/push'` because `IG_INGES
 ### Files touched
 - `makefile`
 - `docs/runbooks/platform_parity_walkthrough_v0.md`
+
+---
+
+## Entry: 2026-01-30 03:18:19 — Parity speedup increase (local_parity)
+
+### Trigger
+User requested faster parity runs; 60x speedup was still too slow for 500k events.
+
+### Decision trail (live)
+- Keep parity semantics intact but increase time compression to reduce wall-clock time.
+- Use a conservative bump (600x) to speed up without eliminating temporal ordering logic.
+
+### Implementation notes
+- Updated `stream_speedup` in `config/platform/profiles/local_parity.yaml` from 60 → 600.
+
+### Files touched
+- `config/platform/profiles/local_parity.yaml`
