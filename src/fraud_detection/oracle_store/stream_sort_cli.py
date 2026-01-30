@@ -13,7 +13,7 @@ from fraud_detection.scenario_runner.logging_utils import configure_logging
 
 from .config import OracleProfile
 from .engine_reader import resolve_engine_root
-from .stream_sorter import build_stream_view, compute_stream_view_id, load_output_ids
+from .stream_sorter import build_stream_view, compute_stream_view_id, load_output_ids, _receipt_to_payload
 
 
 def main() -> None:
@@ -70,7 +70,7 @@ def main() -> None:
             stream_view_id=stream_view_id,
             partition_granularity=args.partition_granularity,
         )
-        receipts.append(receipt.__dict__)
+        receipts.append(_receipt_to_payload(receipt))
     print(json.dumps(receipts, sort_keys=True))
 
 

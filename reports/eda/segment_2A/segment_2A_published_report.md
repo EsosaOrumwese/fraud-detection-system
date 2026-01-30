@@ -154,3 +154,132 @@ When we assess Segment 2A outputs, we will pay special attention to:
 ---
 
 (Next: detailed assessment of the actual 2A outputs under your run folder.)
+
+---
+
+# Segment 2A — Output Assessment (Run: local_full_run‑5)
+Run: `runs\local_full_run-5\c25a2675fbfbacd952b13bb594880e92`  
+Partition: `seed=42`, `manifest_fingerprint=c8fd43cd60ce0ede0c63d2ceb4610f167c9b107e1d59b9b8c7d7b8d0028b05c8`
+
+This section assesses **actual 2A outputs** with realism focus, grounded in the run data above. The key dataset is **`site_timezones`**, with supporting evidence from `s1_tz_lookup`, `s4_legality_report`, and `tz_timetable_cache`.
+
+---
+
+## 6) Output inventory & structural integrity (measured)
+**Files present (2A):**  
+`s0_gate_receipt`, `sealed_inputs`, `s1_tz_lookup`, `site_timezones`, `tz_timetable_cache`, `legality_report`, `validation` (bundle + _passed.flag)
+
+**Row counts (all partitions consistent):**
+- `s1_tz_lookup` = **31,257**
+- `site_timezones` = **31,257**
+- `site_locations` (1B egress, join key) = **31,257**
+
+**Key integrity checks:**
+- PK duplicates (`merchant_id`, `legal_country_iso`, `site_order`): **0** in all three datasets.
+- Coverage:  
+  - `site_locations → s1_tz_lookup`: **0 missing / 0 extra**  
+  - `s1_tz_lookup → site_timezones`: **0 missing / 0 extra**
+- Join with 1B `site_locations`: **0 missing geo rows** (all sites carried through).
+
+**Interpretation:**  
+The 2A pipeline **preserves 1:1 row coverage** and maintains primary‑key integrity. This makes the dataset structurally clean; realism issues are therefore distributional, not structural.
+
+---
+
+## 7) Sealed inputs & gate posture (S0 evidence)
+**S0 gate receipt shows the following sealed inputs (minimal manifest):**
+- 1B gate evidence: `validation_bundle_1B`, `_passed.flag`
+- 1B egress: `site_locations`
+- 2A policies: `tz_overrides`, `tz_nudge`
+- 2A ingress: `tz_world_2025a`, `tzdb_release (2025a)`
+
+**Not sealed:** `iso3166_canonical_2024`, `world_countries`, `merchant_mcc_map` (not referenced in this run’s sealed inputs).  
+
+---
+
+## 8) Primary dataset — `site_timezones` (provenance + override behavior)
+**Row count:** 31,257 (matches `s1_tz_lookup` and `site_locations` exactly).  
+**Distinct tzids:** **90**.
+
+**Provenance distribution:**
+- `tzid_source = polygon`: **31,254**
+- `tzid_source = override`: **3**
+- Override scope: **country = 3**, `site`/`mcc` = 0
+
+**Override usage details:**
+- All overrides applied to **RS (Serbia)** with `tzid = Europe/Belgrade` (3 rows).
+- `s1_tz_lookup.override_applied`: **True = 3**, **False = 31,254**
+- `site_timezones` tzid vs `s1_tz_lookup` tzid: **0 changed rows**, **31,257 unchanged**  
+  → Interpretation: overrides were already applied in S1 (ambiguity fallback), and S2 formalized provenance.
+
+**Nudge usage (boundary resolution):**
+- Nudge used on **6 rows** (~0.019%).  
+- Countries affected: **RS** (5 rows: override + polygon) and **MN** (1 row).  
+- Interpretation: border ambiguity is **rare** in this run; most sites are far from polygon edges.
+
+**Interpretation:**  
+`site_timezones` is structurally clean and provenance‑consistent. Overrides and nudges are minimal, so the output is almost entirely polygon‑driven. This means **realism is dominated by the spatial realism of 1B** (`site_locations`), not by override policy or tzdb artifacts.
+
+---
+
+## 9) Timezone distribution (global concentration)
+Top tzids by site count (global):  
+`Europe/Paris` (3,945), `Europe/Berlin` (3,892), `Europe/London` (2,915), `Europe/Copenhagen` (1,977),  
+`Atlantic/Bermuda` (1,777), `Europe/Rome` (1,568), `Europe/Zurich` (1,530),  
+`Australia/Brisbane` (1,309), `Arctic/Longyearbyen` (1,167), `America/Kralendijk` (1,019).
+
+**Interpretation:**  
+The timezone distribution mirrors the **Europe‑heavy** country distribution from 1B. The presence of **Arctic/Longyearbyen** and **America/Kralendijk** among the most frequent tzids is a realism red flag unless the dataset is intentionally skewed toward polar or Caribbean territories.
+
+---
+
+## 10) Country‑level realism cross‑check (tzid vs coordinates)
+Joining `site_timezones` to 1B `site_locations` reveals **extremely tight geographic clustering per country**, often around a single coordinate band. This is critical: the tzids are correct for those coordinates, but those coordinates are not representative of the full country.
+
+**Examples (top countries by site count):**
+- **NL (1,019 sites):** all points at ~**lat 12.11**, **lon ‑68.24** → tzid **America/Kralendijk** (Caribbean Netherlands).  
+  *Realism concern:* Netherlands mainland should yield `Europe/Amsterdam`, but all sites are placed in Caribbean NL.
+- **NO (1,167 sites):** all points at ~**lat 78.63**, **lon 10.9–13.1** → tzid **Arctic/Longyearbyen**.  
+  *Realism concern:* mainland Norway would map to `Europe/Oslo`, but all sites are at Svalbard latitude.
+- **CN (54 sites):** all points at ~**lat 25.60**, **lon 98.14–98.46** → tzids **Asia/Yangon** (38) and **Asia/Shanghai** (16).  
+  *Realism concern:* China is assigned a Myanmar‑adjacent location; tzid mix is inconsistent with the typical China‑wide timezone use.
+- **BR (46 sites):** all points at ~**lat 1.72**, **lon ‑69.45–‑69.77** → tzids **America/Manaus** (39) and **America/Bogota** (7).  
+  *Realism concern:* Brazil’s sites are concentrated near the Colombia/Venezuela border; the Bogota timezone indicates cross‑border placement.
+- **US (599 sites):** tzids **America/Phoenix (598)** and **America/Hermosillo (1)** only.  
+  *Realism concern:* US should span multiple tzids; here it collapses to a single regional timezone.
+
+**General pattern:**  
+For many countries, **lat/lon ranges are only a few hundred meters wide** (near‑single‑point clusters). This indicates 1B generated site locations per country using a **single tile or tiny band**, which 2A then faithfully maps to a single timezone.
+
+**Interpretation:**  
+2A is **geographically consistent** with the coordinates it receives, but the resulting timezone realism is poor for a “global merchant” narrative because **country coverage is spatially collapsed**. This is primarily a **1B realism issue surfaced by 2A**, not a 2A logic bug.
+
+---
+
+## 11) Legality evidence & cache integrity
+**S4 legality report:**  
+- Status: **PASS**  
+- `sites_total`: **31,257**  
+- `tzids_total`: **90**  
+- `gap_windows_total`: **2,804**  
+- `fold_windows_total`: **2,748**
+
+**S3 cache manifest:**  
+- `tzdb_release_tag`: **2025a**  
+- `tzdb_archive_sha256`: **4d5fcbc7…**  
+- `tz_index_digest`: **ab22a7f4…**  
+- `rle_cache_bytes`: **440,879**  
+- `created_utc` equals S0 `verified_at_utc` (deterministic)
+
+**Interpretation:**  
+Validation evidence is present and consistent with the design. There are no missing tzids, and legality checks passed. The correctness of civil‑time legality is not the limiting realism factor here.
+
+---
+
+## 12) Realism grade (site_timezones)
+**Grade: C (structurally correct, but geographically unrealistic)**  
+
+**Why this grade:**  
+The dataset is internally coherent and correctly gated, but the **spatial collapse of site locations per country** produces **non‑representative timezone allocations**. The output is “correct for the given coordinates,” yet **not realistic for national‑scale distributions** (e.g., NL → Caribbean tzid, NO → Svalbard tzid, US → only Phoenix). For a portfolio‑grade fraud platform, this weakens realism unless the design explicitly calls for these geographic concentrations.
+
+If we want realism to improve at the 2A layer, the real fix is upstream: broaden the spatial spread of `site_locations` inside each country in 1B.
