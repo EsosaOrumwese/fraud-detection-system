@@ -29,6 +29,7 @@ class PolicyProfile:
     policy_rev: str
     require_gate_pass: bool
     stream_speedup: float
+    stream_mode: str
     traffic_output_ids: list[str]
 
 
@@ -50,6 +51,7 @@ class WiringProfile:
     oracle_root: str
     oracle_engine_run_root: str | None
     oracle_scenario_id: str | None
+    stream_view_root: str | None
     ig_ingest_url: str
     checkpoint_backend: str
     checkpoint_root: str
@@ -92,6 +94,7 @@ class WspProfile:
         policy_rev = policy.get("policy_rev", data.get("profile_id", "local"))
         require_gate_pass = bool(policy.get("require_gate_pass", True))
         stream_speedup = float(policy.get("stream_speedup", 1.0))
+        stream_mode = str(policy.get("stream_mode", "engine")).strip().lower()
         traffic_output_ids = _load_output_ids(policy, base_dir=path.parent)
 
         control_bus_kind = control_bus.get("kind", "file")
@@ -114,6 +117,7 @@ class WspProfile:
         oracle_root = _resolve_env(wiring.get("oracle_root") or "runs/local_full_run-5")
         oracle_engine_run_root = _resolve_env(wiring.get("oracle_engine_run_root"))
         oracle_scenario_id = _resolve_env(wiring.get("oracle_scenario_id"))
+        stream_view_root = _resolve_env(wiring.get("oracle_stream_view_root"))
         ig_ingest_url = _resolve_env(wiring.get("ig_ingest_url") or "http://localhost:8081")
 
         checkpoint_backend = checkpoint.get("backend", "file")
@@ -140,6 +144,7 @@ class WspProfile:
                 policy_rev=policy_rev,
                 require_gate_pass=require_gate_pass,
                 stream_speedup=stream_speedup,
+                stream_mode=stream_mode,
                 traffic_output_ids=traffic_output_ids,
             ),
             wiring=WiringProfile(
@@ -159,6 +164,7 @@ class WspProfile:
                 oracle_root=oracle_root,
                 oracle_engine_run_root=oracle_engine_run_root,
                 oracle_scenario_id=oracle_scenario_id,
+                stream_view_root=stream_view_root,
                 ig_ingest_url=ig_ingest_url,
                 checkpoint_backend=checkpoint_backend,
                 checkpoint_root=checkpoint_root,

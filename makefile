@@ -2713,7 +2713,8 @@ platform-wsp-ready-once:
 		echo "WSP_SCENARIO_ID is required for platform-wsp-ready-once." >&2; \
 		exit 1; \
 	fi
-	@$(PY_PLATFORM) -m fraud_detection.world_streamer_producer.cli --profile "$(WSP_PROFILE)" \
+	@ORACLE_STREAM_VIEW_ROOT="$(ORACLE_STREAM_VIEW_ROOT)" \
+	$(PY_PLATFORM) -m fraud_detection.world_streamer_producer.cli --profile "$(WSP_PROFILE)" \
 		--engine-run-root "$(WSP_ENGINE_RUN_ROOT)" \
 		--scenario-id "$(WSP_SCENARIO_ID)" \
 		$(if $(WSP_OUTPUT_IDS),--output-ids "$(WSP_OUTPUT_IDS)",) \
@@ -2723,6 +2724,7 @@ platform-wsp-ready-once:
 platform-wsp-ready-consumer:
 	@OBJECT_STORE_ENDPOINT="$(OBJECT_STORE_ENDPOINT)" \
 	OBJECT_STORE_REGION="$(OBJECT_STORE_REGION)" \
+	ORACLE_STREAM_VIEW_ROOT="$(ORACLE_STREAM_VIEW_ROOT)" \
 	CONTROL_BUS_STREAM="$(CONTROL_BUS_STREAM)" \
 	CONTROL_BUS_REGION="$(CONTROL_BUS_REGION)" \
 	CONTROL_BUS_ENDPOINT_URL="$(CONTROL_BUS_ENDPOINT_URL)" \
@@ -2741,6 +2743,7 @@ platform-wsp-ready-consumer:
 platform-wsp-ready-consumer-once:
 	@OBJECT_STORE_ENDPOINT="$(OBJECT_STORE_ENDPOINT)" \
 	OBJECT_STORE_REGION="$(OBJECT_STORE_REGION)" \
+	ORACLE_STREAM_VIEW_ROOT="$(ORACLE_STREAM_VIEW_ROOT)" \
 	CONTROL_BUS_STREAM="$(CONTROL_BUS_STREAM)" \
 	CONTROL_BUS_REGION="$(CONTROL_BUS_REGION)" \
 	CONTROL_BUS_ENDPOINT_URL="$(CONTROL_BUS_ENDPOINT_URL)" \
@@ -2863,6 +2866,28 @@ platform-oracle-pack:
 		--scenario-id "$(ORACLE_SCENARIO_ID)" \
 		$(if $(ORACLE_PACK_ROOT),--pack-root "$(ORACLE_PACK_ROOT)",) \
 		--engine-release "$(ORACLE_ENGINE_RELEASE)"
+
+.PHONY: platform-oracle-stream-sort
+platform-oracle-stream-sort:
+	@if [ -z "$(ORACLE_ENGINE_RUN_ROOT)" ]; then \
+		echo "ORACLE_ENGINE_RUN_ROOT is required for platform-oracle-stream-sort." >&2; \
+		exit 1; \
+	fi
+	@if [ -z "$(ORACLE_SCENARIO_ID)" ]; then \
+		echo "ORACLE_SCENARIO_ID is required for platform-oracle-stream-sort." >&2; \
+		exit 1; \
+	fi
+	@OBJECT_STORE_ENDPOINT="$(OBJECT_STORE_ENDPOINT)" \
+	OBJECT_STORE_REGION="$(OBJECT_STORE_REGION)" \
+	AWS_ACCESS_KEY_ID="$(AWS_ACCESS_KEY_ID)" \
+	AWS_SECRET_ACCESS_KEY="$(AWS_SECRET_ACCESS_KEY)" \
+	AWS_EC2_METADATA_DISABLED="$(AWS_EC2_METADATA_DISABLED)" \
+	AWS_DEFAULT_REGION="$(OBJECT_STORE_REGION)" \
+	$(PY_PLATFORM) -m fraud_detection.oracle_store.stream_sort_cli --profile "$(ORACLE_PROFILE)" \
+		--engine-run-root "$(ORACLE_ENGINE_RUN_ROOT)" \
+		--scenario-id "$(ORACLE_SCENARIO_ID)" \
+		$(if $(ORACLE_STREAM_VIEW_ROOT),--stream-view-root "$(ORACLE_STREAM_VIEW_ROOT)",) \
+		$(if $(ORACLE_STREAM_OUTPUT_IDS_REF),--output-ids-ref "$(ORACLE_STREAM_OUTPUT_IDS_REF)",)
 
 .PHONY: platform-oracle-check
 platform-oracle-check:

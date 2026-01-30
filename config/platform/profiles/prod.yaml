@@ -5,6 +5,7 @@ policy:
   partitioning_profile_id: ig.partitioning.v0.traffic
   require_gate_pass: true
   stream_speedup: 1.0
+  stream_mode: stream_view
   traffic_output_ids_ref: config/platform/wsp/traffic_outputs_v0.yaml
 wiring:
   object_store:
@@ -13,6 +14,7 @@ wiring:
   oracle_root: ${ORACLE_ROOT}
   oracle_engine_run_root: ${ORACLE_ENGINE_RUN_ROOT}
   oracle_scenario_id: ${ORACLE_SCENARIO_ID}
+  oracle_stream_view_root: ${ORACLE_STREAM_VIEW_ROOT}
   ig_ingest_url: ${IG_INGEST_URL}
   admission_db_path: ${IG_ADMISSION_DSN}
   event_bus_kind: kinesis

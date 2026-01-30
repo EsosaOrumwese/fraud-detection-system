@@ -121,3 +121,26 @@ Implement WSP as the **primary runtime producer** that replays sealed engine `bu
 - Producer not allowed → `PRODUCER_NOT_ALLOWED` (fail‑closed).
 
 **Status:** implemented (validation harness + make targets). Execution pending.
+
+### Phase 5 — Stream view mode (global `ts_utc` ordering)
+**Intent:** consume the Oracle Store **stream view** instead of raw engine parts, preserving global time order.
+
+#### Phase 5.1 — Mode switch + wiring
+**DoD checklist:**
+- `policy.stream_mode` supports `engine` vs `stream_view`.
+- `wiring.oracle_stream_view_root` supplies the base path for stream views.
+- Parity/dev/prod default to `stream_view`; local smoke remains `engine`.
+
+#### Phase 5.2 — Stream view validation
+**DoD checklist:**
+- Read `_stream_view_manifest.json` + `_stream_sort_receipt.json` and fail‑closed if missing/mismatched.
+- Ensure manifest output_ids cover policy traffic outputs.
+- Stream view id derived deterministically from world + outputs + sort keys.
+
+#### Phase 5.3 — Global cursor + pacing
+**DoD checklist:**
+- Single checkpoint cursor (`output_id=stream_view`) preserves global ordering.
+- Pacing uses `ts_utc` from stream view; respects `stream_speedup`.
+- Progress logging works with stream view mode.
+
+**Status:** in progress.

@@ -48,6 +48,7 @@ dependencies = [
     "numba (>=0.60.0,<0.61.0)",
     "numpy (>=1.26.4,<2.0.0)",
     "psycopg[binary] (>=3.2.3,<4.0.0)",
+    "duckdb (>=1.0.0,<2.0.0)",
 ]
 
 [project.scripts]

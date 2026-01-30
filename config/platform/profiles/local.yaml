@@ -5,6 +5,7 @@ policy:
   partitioning_profile_id: ig.partitioning.v0.traffic
   require_gate_pass: true
   stream_speedup: 600.0
+  stream_mode: engine
   traffic_output_ids_ref: config/platform/wsp/traffic_outputs_v0.yaml
 wiring:
   object_store:
@@ -14,6 +15,7 @@ wiring:
   oracle_root: runs/local_full_run-5
   oracle_engine_run_root: ${ORACLE_ENGINE_RUN_ROOT}
   oracle_scenario_id: ${ORACLE_SCENARIO_ID}
+  oracle_stream_view_root: ${ORACLE_STREAM_VIEW_ROOT}
   ig_ingest_url: http://localhost:8081
   event_bus:
     root: runs/fraud-platform/eb

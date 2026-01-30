@@ -1075,3 +1075,26 @@ User requested faster parity runs; 60x speedup was still too slow for 500k event
 
 ### Files touched
 - `config/platform/profiles/local_parity.yaml`
+
+---
+
+## Entry: 2026-01-30 10:24:24 — Global time‑sorted stream view (Option C) adopted
+
+### Trigger
+User observed engine outputs are not globally time‑sorted and approved **Option C**: create a derived stream view sorted by `ts_utc` without modifying engine outputs.
+
+### Decision trail (live)
+- Keep the **engine sealed** (no changes to engine outputs or code).
+- Build a **global stream view** in the Oracle Store (engine world) and have WSP consume it.
+- Use **DuckDB external sort** for scale; store output as Parquet partitioned by `stream_date`.
+- Enforce **idempotent receipts**: if receipt matches source locator digest, skip; if mismatch, fail closed.
+
+### Implementation notes (platform‑wide)
+- Added `stream_mode` + `oracle_stream_view_root` wiring so parity/dev/prod can force stream‑view mode.
+- Added runbook step to build the stream view after Oracle sync+seal.
+
+### Files touched
+- `docs/model_spec/platform/implementation_maps/oracle_store.impl_actual.md`
+- `docs/model_spec/platform/implementation_maps/oracle_store.build_plan.md`
+- `docs/runbooks/platform_parity_walkthrough_v0.md`
+- `config/platform/profiles/{local_parity,dev,prod}.yaml`

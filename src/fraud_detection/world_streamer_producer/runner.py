@@ -22,6 +22,7 @@ from fraud_detection.oracle_store.engine_pull import EnginePuller
 from fraud_detection.ingestion_gate.errors import IngestionError
 from fraud_detection.platform_runtime import append_session_event
 from fraud_detection.scenario_runner.schemas import SchemaRegistry
+from fraud_detection.scenario_runner.storage import LocalObjectStore, S3ObjectStore
 
 from fraud_detection.oracle_store.engine_reader import (
     discover_scenario_ids,
@@ -29,6 +30,8 @@ from fraud_detection.oracle_store.engine_reader import (
     resolve_engine_root,
 )
 from fraud_detection.oracle_store.packer import OracleWorldKey
+from fraud_detection.oracle_store.stream_sorter import compute_stream_view_id
+from fraud_detection.ingestion_gate.ids import derive_engine_event_id
 
 from .config import WspProfile
 from .checkpoints import CheckpointCursor, CheckpointStore, FileCheckpointStore, PostgresCheckpointStore
@@ -126,12 +129,6 @@ class WorldStreamProducer:
         if producer_error:
             return StreamResult(resolved_root, scenario_value, "FAILED", 0, producer_error)
 
-        facts_payload = self._build_facts_payload(resolved_root, world_key, run_id, chosen_outputs)
-        puller = EnginePuller(
-            run_facts_view_path=None,
-            catalogue=self._catalogue,
-            run_facts_payload=facts_payload,
-        )
         checkpoint_store = _build_checkpoint_store(self.profile)
         try:
             append_session_event(
@@ -143,18 +140,38 @@ class WorldStreamProducer:
                     "output_ids": chosen_outputs,
                     "pack_key": pack_key,
                     "producer_id": self._producer_id,
+                    "stream_mode": self.profile.policy.stream_mode,
                 },
                 create_if_missing=False,
             )
-            emitted = self._stream_events(
-                puller,
-                pack_key=pack_key,
-                engine_release=engine_release,
-                producer_id=self._producer_id,
-                checkpoint_store=checkpoint_store,
-                max_events=max_events,
-                output_ids=chosen_outputs,
-            )
+            if self.profile.policy.stream_mode == "stream_view":
+                emitted = self._stream_from_stream_view(
+                    engine_root=resolved_root,
+                    world_key=world_key,
+                    run_id=run_id,
+                    pack_key=pack_key,
+                    engine_release=engine_release,
+                    producer_id=self._producer_id,
+                    checkpoint_store=checkpoint_store,
+                    max_events=max_events,
+                    output_ids=chosen_outputs,
+                )
+            else:
+                facts_payload = self._build_facts_payload(resolved_root, world_key, run_id, chosen_outputs)
+                puller = EnginePuller(
+                    run_facts_view_path=None,
+                    catalogue=self._catalogue,
+                    run_facts_payload=facts_payload,
+                )
+                emitted = self._stream_events(
+                    puller,
+                    pack_key=pack_key,
+                    engine_release=engine_release,
+                    producer_id=self._producer_id,
+                    checkpoint_store=checkpoint_store,
+                    max_events=max_events,
+                    output_ids=chosen_outputs,
+                )
         except IngestionError as exc:
             logger.warning("WSP stream failed reason=%s", exc.code)
             return StreamResult(
@@ -483,6 +500,164 @@ class WorldStreamProducer:
             logger.info("WSP stream output complete output_id=%s emitted=%s", output_id, emitted)
         return emitted
 
+    def _stream_from_stream_view(
+        self,
+        *,
+        engine_root: str,
+        world_key: OracleWorldKey,
+        run_id: str,
+        pack_key: str,
+        engine_release: str | None,
+        producer_id: str,
+        checkpoint_store: CheckpointStore,
+        max_events: int | None,
+        output_ids: list[str],
+    ) -> int:
+        stream_view_id = compute_stream_view_id(
+            engine_run_root=engine_root,
+            scenario_id=world_key.scenario_id,
+            output_ids=output_ids,
+            sort_keys=["ts_utc", "event_type", "payload_hash"],
+            partition_granularity="day",
+        )
+        base_root = self.profile.wiring.stream_view_root or join_engine_path(
+            engine_root, "stream_view/ts_utc"
+        )
+        stream_view_root = base_root.rstrip("/")
+        if not stream_view_root.endswith(stream_view_id):
+            stream_view_root = f"{stream_view_root}/{stream_view_id}"
+        store = _build_stream_view_store(
+            stream_view_root,
+            endpoint=self.profile.wiring.object_store_endpoint,
+            region=self.profile.wiring.object_store_region,
+            path_style=self.profile.wiring.object_store_path_style,
+        )
+        manifest = _read_stream_view_manifest(store)
+        receipt = _read_stream_view_receipt(store)
+        if not manifest or not receipt:
+            raise IngestionError("STREAM_VIEW_MISSING")
+        if receipt.get("status") not in {"OK", None, ""}:
+            raise IngestionError("STREAM_VIEW_RECEIPT_BAD")
+        if manifest.get("stream_view_id") != stream_view_id:
+            raise IngestionError("STREAM_VIEW_ID_MISMATCH")
+        manifest_outputs = list(manifest.get("output_ids") or [])
+        missing = [item for item in output_ids if item not in manifest_outputs]
+        if missing:
+            raise IngestionError("STREAM_VIEW_OUTPUTS_MISSING", ",".join(missing))
+
+        files = _list_stream_view_files(store)
+        if not files:
+            raise IngestionError("STREAM_VIEW_EMPTY")
+        files = sorted([path for path in files if path.endswith(".parquet")])
+        emitted = 0
+        speedup = self.profile.policy.stream_speedup
+        last_ts: datetime | None = None
+        checkpoint_every = max(1, self.profile.wiring.checkpoint_every)
+        progress_every = max(1, int(os.getenv("WSP_PROGRESS_EVERY", "1000")))
+        progress_seconds = max(1.0, float(os.getenv("WSP_PROGRESS_SECONDS", "30")))
+        last_progress_time = time.monotonic()
+        last_progress_emitted = 0
+
+        cursor = checkpoint_store.load(stream_view_id, "stream_view")
+
+        def _save_checkpoint(cursor: CheckpointCursor, *, reason: str) -> None:
+            checkpoint_store.save(cursor)
+            append_session_event(
+                "wsp",
+                "checkpoint_saved",
+                {
+                    "pack_key": cursor.pack_key,
+                    "output_id": cursor.output_id,
+                    "last_file": cursor.last_file,
+                    "last_row_index": cursor.last_row_index,
+                    "last_ts_utc": cursor.last_ts_utc,
+                    "reason": reason,
+                },
+                create_if_missing=False,
+            )
+
+        for file_path in files:
+            for row_index, row in _read_stream_view_rows_with_index(
+                file_path,
+                endpoint=self.profile.wiring.object_store_endpoint,
+                region=self.profile.wiring.object_store_region,
+                path_style=self.profile.wiring.object_store_path_style,
+            ):
+                if cursor and _should_skip(cursor, file_path, row_index):
+                    continue
+                event_type = str(row.get("event_type", ""))
+                if not event_type:
+                    raise IngestionError("STREAM_VIEW_EVENT_TYPE_MISSING")
+                if event_type not in output_ids:
+                    continue
+                payload = _parse_payload(row.get("payload_json"))
+                entry = self._catalogue.get(event_type)
+                pins = {
+                    "manifest_fingerprint": world_key.manifest_fingerprint,
+                    "parameter_hash": world_key.parameter_hash,
+                    "scenario_id": world_key.scenario_id,
+                    "seed": world_key.seed,
+                    "run_id": run_id,
+                }
+                event_id = derive_engine_event_id(event_type, entry.primary_key, payload, pins)
+                ts_utc = row.get("ts_utc")
+                envelope = {
+                    "event_id": event_id,
+                    "event_type": event_type,
+                    "ts_utc": _normalize_ts(ts_utc),
+                    "manifest_fingerprint": world_key.manifest_fingerprint,
+                    "parameter_hash": world_key.parameter_hash,
+                    "seed": world_key.seed,
+                    "scenario_id": world_key.scenario_id,
+                    "run_id": run_id,
+                    "producer": producer_id,
+                    "payload": payload,
+                }
+                if pack_key and not envelope.get("trace_id"):
+                    envelope["trace_id"] = pack_key
+                if engine_release and not envelope.get("span_id"):
+                    envelope["span_id"] = engine_release
+                current_ts = _parse_ts(envelope.get("ts_utc"))
+                if last_ts and current_ts:
+                    delay = _delay_seconds(last_ts, current_ts, speedup)
+                    if delay > 0:
+                        time.sleep(delay)
+                if current_ts:
+                    last_ts = current_ts
+                self._push_to_ig(envelope)
+                emitted += 1
+                cursor = CheckpointCursor(
+                    pack_key=stream_view_id,
+                    output_id="stream_view",
+                    last_file=file_path,
+                    last_row_index=row_index,
+                    last_ts_utc=envelope.get("ts_utc"),
+                )
+                if emitted % checkpoint_every == 0:
+                    _save_checkpoint(cursor, reason="periodic_flush")
+                if (
+                    emitted - last_progress_emitted >= progress_every
+                    or (time.monotonic() - last_progress_time) >= progress_seconds
+                ):
+                    logger.info(
+                        "WSP stream_view progress emitted=%s last_file=%s row=%s ts=%s",
+                        emitted,
+                        file_path,
+                        row_index,
+                        envelope.get("ts_utc"),
+                    )
+                    last_progress_time = time.monotonic()
+                    last_progress_emitted = emitted
+                if max_events is not None and emitted >= max_events:
+                    if cursor:
+                        _save_checkpoint(cursor, reason="max_events")
+                    return emitted
+            if cursor:
+                _save_checkpoint(cursor, reason="file_complete")
+        if cursor:
+            _save_checkpoint(cursor, reason="stream_complete")
+        return emitted
+
     def _push_to_ig(self, envelope: dict[str, Any]) -> None:
         url = self.profile.wiring.ig_ingest_url.rstrip("/")
         response = requests.post(f"{url}/v1/ingest/push", json=envelope, timeout=30)
@@ -652,6 +827,111 @@ def _read_json_s3(
     client = _s3_client(endpoint, region, path_style)
     response = client.get_object(Bucket=parsed.netloc, Key=parsed.path.lstrip("/"))
     return json.loads(response["Body"].read().decode("utf-8"))
+
+
+def _build_stream_view_store(
+    stream_view_root: str,
+    *,
+    endpoint: str | None,
+    region: str | None,
+    path_style: bool | None,
+) -> LocalObjectStore | S3ObjectStore:
+    if stream_view_root.startswith("s3://"):
+        parsed = urlparse(stream_view_root)
+        return S3ObjectStore(
+            parsed.netloc,
+            prefix=parsed.path.lstrip("/"),
+            endpoint_url=endpoint,
+            region_name=region,
+            path_style=path_style,
+        )
+    return LocalObjectStore(Path(stream_view_root))
+
+
+def _read_stream_view_manifest(store: LocalObjectStore | S3ObjectStore) -> dict[str, Any]:
+    try:
+        return store.read_json("_stream_view_manifest.json")
+    except Exception:
+        return {}
+
+
+def _read_stream_view_receipt(store: LocalObjectStore | S3ObjectStore) -> dict[str, Any]:
+    try:
+        return store.read_json("_stream_sort_receipt.json")
+    except Exception:
+        return {}
+
+
+def _list_stream_view_files(store: LocalObjectStore | S3ObjectStore) -> list[str]:
+    return store.list_files("")
+
+
+def _read_stream_view_rows_with_index(
+    path: str,
+    *,
+    endpoint: str | None,
+    region: str | None,
+    path_style: bool | None,
+) -> Any:
+    import pyarrow as pa
+    import pyarrow.fs as fs
+    import pyarrow.parquet as pq
+
+    if path.startswith("s3://"):
+        parsed = urlparse(path)
+        endpoint_override = endpoint
+        if endpoint and "://" in endpoint:
+            endpoint_override = endpoint.split("://", 1)[1]
+        options: dict[str, Any] = {"endpoint_override": endpoint_override, "region": region}
+        if path_style:
+            options["path_style_access"] = True
+        access_key = os.getenv("AWS_ACCESS_KEY_ID") or None
+        secret_key = os.getenv("AWS_SECRET_ACCESS_KEY") or None
+        session_token = os.getenv("AWS_SESSION_TOKEN") or None
+        if access_key and secret_key:
+            options["access_key"] = access_key
+            options["secret_key"] = secret_key
+        if session_token:
+            options["session_token"] = session_token
+        if endpoint and endpoint.startswith("http://"):
+            options["scheme"] = "http"
+        filesystem = fs.S3FileSystem(**{k: v for k, v in options.items() if v})
+        key = parsed.path.lstrip("/")
+        with filesystem.open_input_file(f"{parsed.netloc}/{key}") as handle:
+            parquet = pq.ParquetFile(handle)
+            row_index = 0
+            for batch in parquet.iter_batches(batch_size=int(os.getenv("WSP_STREAM_VIEW_BATCH_SIZE", "1024"))):
+                for row in batch.to_pylist():
+                    yield row_index, row
+                    row_index += 1
+        return
+    local_path = Path(path)
+    parquet = pq.ParquetFile(local_path)
+    row_index = 0
+    for batch in parquet.iter_batches(batch_size=int(os.getenv("WSP_STREAM_VIEW_BATCH_SIZE", "1024"))):
+        for row in batch.to_pylist():
+            yield row_index, row
+            row_index += 1
+    return
+
+
+def _parse_payload(payload_raw: Any) -> dict[str, Any]:
+    if payload_raw is None:
+        raise IngestionError("STREAM_VIEW_PAYLOAD_MISSING")
+    if isinstance(payload_raw, dict):
+        return payload_raw
+    if isinstance(payload_raw, bytes):
+        payload_raw = payload_raw.decode("utf-8")
+    if isinstance(payload_raw, str):
+        return json.loads(payload_raw)
+    return json.loads(str(payload_raw))
+
+
+def _normalize_ts(value: Any) -> str | None:
+    parsed = _parse_ts(value)
+    if parsed is None:
+        return None
+    return parsed.isoformat()
 
 
 def _load_allowlist(ref: str) -> set[str]:

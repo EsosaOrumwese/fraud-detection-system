@@ -135,19 +135,20 @@ Define the **sealed world boundary** for engine outputs as an explicit platform 
 #### Phase 5.1 — Stream view placement (separate from engine native outputs)
 **DoD checklist:**
 - Derived view stored under engine run root but in a **distinct folder** (no collision with native outputs).
-- Naming convention documented (e.g., `arrival_events_ts_sorted` / `stream_view_ts_utc`).
-- Two top‑level Oracle Store roots remain: `data-engine` vs `fraud-platform`.
+- Final naming pinned: `stream_view/ts_utc/<stream_view_id>/` (under the engine run root).
+- Stream view lives under Oracle Store (engine world), **not** under `runs/fraud-platform`.
 
 #### Phase 5.2 — Global sort builder (S3‑native)
 **DoD checklist:**
 - Sorter reads **directly from S3** (MinIO locally; AWS S3 in dev/prod).
-- External sort (disk‑based) supports >100M rows.
-- Deterministic tie‑break (e.g., `ts_utc`, `event_type`, `event_id`) documented.
+- External sort uses **DuckDB** (disk‑backed, vectorized).
+- Deterministic tie‑break documented: `ts_utc`, `event_type`, `hash(payload_json)`.
+- Output schema pinned: `ts_utc`, `event_type`, `payload_json`, `stream_date`.
 
 #### Phase 5.3 — Validation receipt (no dupes/no drops)
 **DoD checklist:**
-- Receipt contains `row_count` and **order‑invariant content hash** for both original and sorted view.
-- Receipt includes source locator digest + sort keys for reproducibility.
+- Receipt contains `row_count`, `min_ts`, `max_ts` and **order‑invariant hash sums** for both source and sorted view.
+- Receipt includes `source_locator_digest` (hash of all source part URIs) + sort keys + partitioning.
 - Fail‑closed if receipt mismatch or missing.
 
 #### Phase 5.4 — Idempotency & rerun posture
@@ -157,6 +158,8 @@ Define the **sealed world boundary** for engine outputs as an explicit platform 
 
 #### Phase 5.5 — WSP integration switch (stream view vs raw)
 **DoD checklist:**
-- Profile flag to enable time‑sorted view.
-- Fallback to native engine outputs when stream view missing (local only).
-- Dev/prod require stream view when enabled (strict).
+- Profile flag `stream_mode=stream_view` + `stream_view_root` pin.
+- WSP reads stream view manifest/receipt and uses it as the single source of events.
+- Local may allow fallback to raw engine outputs; dev/prod require stream view when enabled.
+
+**Status:** implemented (smoke validation pending).

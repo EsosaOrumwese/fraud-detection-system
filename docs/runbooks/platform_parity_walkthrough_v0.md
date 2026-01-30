@@ -79,6 +79,7 @@ ORACLE_PACK_ROOT=s3://oracle-store/local_full_run-5/pack_current
 ORACLE_SYNC_SOURCE=runs/local_full_run-5/c25a2675fbfbacd952b13bb594880e92
 ORACLE_SCENARIO_ID=baseline_v1
 ORACLE_ENGINE_RELEASE=local
+ORACLE_STREAM_VIEW_ROOT=s3://oracle-store/local_full_run-5/c25a2675fbfbacd952b13bb594880e92/stream_view/ts_utc
 ```
 
 ---
@@ -101,9 +102,10 @@ runs/fraud-platform/<platform_run_id>/
 
 ---
 
-## 4) Populate Oracle Store in MinIO (sync + seal)
+## 4) Populate Oracle Store in MinIO (sync + seal + stream view)
 
-This step does **two things**: (1) copy the engine outputs into MinIO, (2) write the Oracle pack manifest + seal.
+This step does **three things**: (1) copy the engine outputs into MinIO, (2) write the Oracle pack manifest + seal,
+(3) build the **global time‑sorted stream view** WSP will consume.
 
 **4.1 Sync engine outputs into MinIO**
 ```
@@ -137,6 +139,27 @@ make platform-oracle-check-strict `
 **If you hit `MANIFEST_MISMATCH`:** set a fresh pack root (e.g., `pack_YYYYMMDDTHHMMSSZ`) and re‑run `make platform-oracle-pack`.
 
 **Note:** Oracle pack uses the MinIO S3 endpoint + credentials from `.env.platform.local` (exported by Make).
+
+**4.3 Build the stream view (global `ts_utc` order)**
+```
+make platform-oracle-stream-sort `
+  ORACLE_PROFILE=config/platform/profiles/local_parity.yaml `
+  ORACLE_ENGINE_RUN_ROOT=$env:ORACLE_ENGINE_RUN_ROOT `
+  ORACLE_SCENARIO_ID=$env:ORACLE_SCENARIO_ID
+```
+
+**What this does:**
+- Reads the **engine outputs** from MinIO.
+- Builds a **time‑sorted stream view** under:
+  `.../stream_view/ts_utc/<stream_view_id>/`
+- Writes `_stream_view_manifest.json` + `_stream_sort_receipt.json`.
+- Is **idempotent**: if a valid receipt exists, it skips; if it conflicts, it fails.
+- Uses `config/platform/wsp/traffic_outputs_v0.yaml` as the default output_id list unless overridden.
+
+**Dependency note:** this step uses `duckdb` (declared in `pyproject.toml`). If missing, install deps before running.
+
+`ORACLE_STREAM_VIEW_ROOT` should point to the **base** (`.../stream_view/ts_utc`); the stream_view_id is appended automatically.
+If you need a fresh view, set a new base path or delete the prior stream view root.
 
 ---
 
@@ -204,13 +227,14 @@ $env:WSP_READY_MAX_EVENTS="500000"; make platform-wsp-ready-consumer-once WSP_PR
 
 **Expected:**
 - WSP reads READY from Kinesis
-- WSP streams up to 500k events to IG
+- WSP streams up to 500k events to IG using the **stream view** (global `ts_utc` order)
 - IG admits and publishes to EB (Kinesis)
 
 **If you see `Invalid endpoint`:** verify `.env.platform.local` has `OBJECT_STORE_ENDPOINT` and MinIO creds; Make exports them to WSP.
 **If you see `CONTROL_BUS_STREAM_MISSING`:** ensure `PARITY_CONTROL_BUS_STREAM/REGION/ENDPOINT_URL` are set in `.env.platform.local` (Make exports them as `CONTROL_BUS_*` for WSP).
 **If you see `CHECKPOINT_DSN_MISSING`:** ensure `PARITY_WSP_CHECKPOINT_DSN` is set in `.env.platform.local` (Make exports it as `WSP_CHECKPOINT_DSN`).
 **If you see `Invalid URL '/v1/ingest/push'`:** ensure `PARITY_IG_INGEST_URL` is set in `.env.platform.local` (Make exports it as `IG_INGEST_URL`).
+**If you see `STREAM_VIEW_MISSING`:** re‑run Section 4.3 (`platform-oracle-stream-sort`) or confirm `ORACLE_STREAM_VIEW_ROOT` is set.
 
 **Live progress (WSP):** set these env vars to see periodic progress logs in `platform.log`:
 ```

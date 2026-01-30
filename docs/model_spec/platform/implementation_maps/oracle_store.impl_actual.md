@@ -405,3 +405,75 @@ Folder name TBD (e.g., `arrival_events_ts_sorted` or `stream_view_ts_utc`) to av
 - Sorting engine: DuckDB external sort vs. PyArrow dataset sort.
 - Stream view partitioning: by `stream_date` or `stream_hour`.
 - Payload storage: full payload rows vs. pointer/offsets to original files.
+
+---
+
+## Entry: 2026-01-30 10:24:24 — Option C locked: stream view sort helper (engine‑rooted, S3‑native)
+
+### Trigger
+User rejected policy‑based ordering assumptions and requested a **most‑efficient, reliable** Option C with explicit receipts + idempotency, operating directly against S3/MinIO.
+
+### Decision trail (live, explicit)
+- We must **not** change engine outputs or engine code. The stream view must be **derived** and stored **alongside** the engine run root, clearly separated from engine‑native folders.
+- We must be **S3‑native** because engine outputs will live in object storage for dev/prod. Local parity should mimic that (MinIO).
+- The sorter must be **idempotent**: if a valid receipt exists, do nothing; if the receipt conflicts, fail closed and force operator action.
+- We need a **receipt** that proves the sorted view is the same row‑set as the source inputs (no missing/dup rows), with traceability back to the exact source parts.
+- We need a **generic helper**, not a one‑off: accept any dataset list and build a unified time‑sorted stream view for WSP to consume.
+
+### Locked design choices
+- **Sorting engine:** DuckDB external sort (fast, vectorized, handles large Parquet datasets; supports S3/MinIO URIs).
+- **Placement:** under the engine run root, but in a **distinct folder** so it never looks like engine‑native output.
+  - Proposed path (final):  
+    `s3://oracle-store/<engine_run_root>/stream_view/ts_utc/<stream_view_id>/...`
+- **Partitioning:** by `stream_date` (`YYYY‑MM‑DD`) to keep file sizes manageable and keep replay windows efficient.
+- **Row payload:** store a canonical JSON payload per event (`payload_json`) + `ts_utc` + `event_type` (output_id), so WSP can rehydrate without rereading original files.
+- **Receipt strategy:** record **row_count**, `min_ts`, `max_ts`, and **two independent hash sums** over `payload_json` (order‑invariant) to detect mismatches. Also record a `source_locator_digest` over all source `part-*.parquet` URIs for traceability.
+  - This is probabilistic but high‑confidence; collisions are extremely unlikely for the v0 use case and can be revisited if we need a cryptographic multiset proof later.
+
+### Invariants to enforce
+- **No overwrite:** if a receipt exists for the target stream view, only proceed if it matches the current source locator digest + row_count.
+- **Fail‑closed:** if source outputs are missing, schema mismatch, or receipt mismatch → abort.
+- **No secrets in logs/receipts:** only store URIs + digests, never credentials.
+
+### Planned mechanics (before code)
+1) Implement `oracle_store/stream_sorter.py`:
+   - Build a union view over configured output_ids (from config).
+   - For each output_id, map to `event_type`, `ts_utc`, and `payload_json`.
+   - External sort by `ts_utc` (tie‑break by `event_type`, `hash(payload_json)`).
+   - Write Parquet partitioned by `stream_date`.
+2) Compute `source_stats` via DuckDB (row_count, min/max ts, hash sums).
+3) Write:
+   - `_stream_sort_receipt.json`
+   - `_stream_view_manifest.json` (sort keys, partitioning, source list, stream_view_id).
+4) Add a CLI + Make target (`platform-oracle-stream-sort`) for operators.
+5) Update WSP to consume stream view when `stream_mode=stream_view` is set.
+
+### Validation/tests
+- Unit‑test receipt match/mismatch behavior (idempotency).
+- Integration smoke: build stream view for local parity data (MinIO), then run WSP in stream_view mode and confirm steady progress.
+
+---
+
+## Entry: 2026-01-30 10:38:00 — Applied: stream view builder + CLI + Make target
+
+### What I implemented
+1) **Stream view builder** (`src/fraud_detection/oracle_store/stream_sorter.py`)
+   - DuckDB external sort over multiple output_ids.
+   - Emits Parquet partitioned by `stream_date`.
+   - Writes `_stream_view_manifest.json` + `_stream_sort_receipt.json`.
+   - Idempotent: receipt must match `source_locator_digest` + output list or it fails closed.
+
+2) **CLI entrypoint** (`src/fraud_detection/oracle_store/stream_sort_cli.py`)
+   - Required inputs: `--engine-run-root`, `--scenario-id`, optional `--stream-view-root`.
+   - Uses `config/platform/wsp/traffic_outputs_v0.yaml` by default for output_ids.
+
+3) **Makefile target**
+   - Added `platform-oracle-stream-sort` with MinIO creds + endpoint exported.
+
+4) **Profile + env wiring**
+   - Added `oracle_stream_view_root` to profiles.
+   - Added `ORACLE_STREAM_VIEW_ROOT` to `.env.platform.local`.
+
+### Notes
+- Stream view output lives **under the engine run root** (Oracle Store), not in `runs/fraud-platform`.
+- Parity/dev/prod default to `stream_mode=stream_view`; local smoke stays on `engine` mode.

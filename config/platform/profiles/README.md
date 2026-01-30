@@ -18,6 +18,7 @@ policy:
   partitioning_profile_id: <ig partition strategy id>
   require_gate_pass: true
   stream_speedup: 1.0
+  stream_mode: engine | stream_view
   traffic_output_ids_ref: config/platform/wsp/traffic_outputs_v0.yaml
 wiring:
   object_store:
@@ -26,6 +27,7 @@ wiring:
   oracle_root: runs/local_full_run-5
   oracle_engine_run_root: runs/local_full_run-5/<run_id>
   oracle_scenario_id: baseline_v1
+  oracle_stream_view_root: s3://oracle-store/<engine_run_root>/stream_view/ts_utc
   ig_ingest_url: http://localhost:8081
   event_bus:
     root: runs/fraud-platform/<platform_run_id>/eb
@@ -61,6 +63,7 @@ Notes:
 - `partitioning_profile_id` is chosen by IG policy (mapped by stream class); EB never infers partitioning.
 - `partitioning_profiles_ref` anchors the versioned profile set used by IG.
 - `traffic_output_ids_ref` defines the **WSP business_traffic allowlist** (engine output_ids eligible to stream).
+- `stream_mode` controls WSP source: `engine` (legacy pull) or `stream_view` (global `ts_utc` view).
 - Wiring endpoints are placeholders; actual values come from env/secret store.
 - `${VAR}` placeholders are resolved from environment variables at load time.
 - `control_bus` wiring is used by the WSP control plane (SR → WSP); IG ignores it in streaming-only v0.
@@ -68,6 +71,7 @@ Notes:
 - `oracle_root` points to the sealed engine world store (Oracle Store); it is wiring, not policy.
 - `oracle_engine_run_root` optionally pins WSP to a specific engine world (no “latest” scanning).
 - `oracle_scenario_id` can be used when a world contains multiple scenarios (avoid ambiguity).
+- `oracle_stream_view_root` points to the **stream view base** (`.../stream_view/ts_utc`). WSP appends the computed stream_view_id.
 - `wsp_checkpoint` controls WSP resume state (file backend for local smoke; Postgres for parity/dev/prod).
 - `flush_every` defines how often WSP persists its cursor (lower = fewer duplicates after crash).
 - `wsp_producer` pins the producer identity stamped on envelopes; allowlist restricts valid producer_ids.
@@ -82,6 +86,7 @@ Notes:
 Parity env vars (local_parity/dev/prod):
 - `OBJECT_STORE_ENDPOINT`, `OBJECT_STORE_REGION`
 - `ORACLE_ROOT`, `ORACLE_ENGINE_RUN_ROOT`, `ORACLE_SCENARIO_ID`
+- `ORACLE_STREAM_VIEW_ROOT`
 - `IG_ADMISSION_DSN`, `WSP_CHECKPOINT_DSN`
 - `EVENT_BUS_STREAM`
 - `CONTROL_BUS_STREAM`, `CONTROL_BUS_REGION`, `CONTROL_BUS_ENDPOINT_URL`

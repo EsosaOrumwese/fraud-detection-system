@@ -70,6 +70,7 @@ def _profile(
         policy_rev="local",
         require_gate_pass=True,
         stream_speedup=0.0,
+        stream_mode="engine",
         traffic_output_ids=output_ids,
     )
     wiring = WiringProfile(
@@ -81,11 +82,15 @@ def _profile(
         control_bus_kind="file",
         control_bus_root="",
         control_bus_topic="",
+        control_bus_stream=None,
+        control_bus_region=None,
+        control_bus_endpoint_url=None,
         schema_root="docs/model_spec/platform/contracts",
         engine_catalogue_path="docs/model_spec/data-engine/interface_pack/engine_outputs.catalogue.yaml",
         oracle_root=str(root),
         oracle_engine_run_root=str(root),
         oracle_scenario_id="baseline_v1",
+        stream_view_root=None,
         ig_ingest_url="http://localhost:8081",
         checkpoint_backend="file",
         checkpoint_root=str(checkpoint_root or (root / "wsp" / "checkpoints")),

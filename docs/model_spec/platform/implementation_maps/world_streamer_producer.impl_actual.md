@@ -201,6 +201,32 @@ I am implementing Phase 1 as **engine‑rooted WSP** with no SR `run_facts_view`
 
 ---
 
+## Entry: 2026-01-30 10:24:24 — WSP stream_view mode (global ts_utc source)
+
+### Trigger
+Oracle Store Option C was locked: provide a **global time‑sorted stream view** derived from engine outputs. WSP must consume this view (not raw engine parts) for v0 parity.
+
+### Decision trail (live)
+- WSP must remain **oracle‑rooted** and never rely on SR artifacts for its source.
+- The stream view is **derived** under the engine run root and must be treated as **another oracle asset**, not a platform artifact.
+- WSP needs a **mode switch** so we can keep the legacy engine‑pull path for local smoke while making parity/dev/prod use the stream view.
+
+### Changes I’m making
+- Add `policy.stream_mode` (default `engine`) and `wiring.oracle_stream_view_root` to WSP profiles.
+- Implement **stream_view mode** in the runner:
+  - Compute `stream_view_id` from world identity + output list + sort keys.
+  - Resolve stream view root (`<engine_run_root>/stream_view/ts_utc/<stream_view_id>`).
+  - Read `_stream_view_manifest.json` + `_stream_sort_receipt.json` and fail closed if missing or mismatched.
+  - Stream events in **global time order** from the view, using a single checkpoint cursor (`output_id=stream_view`).
+- Keep existing engine‑pull mode for `local` profile (smoke) only.
+
+### Invariants enforced
+- If `stream_mode=stream_view` and view/receipt missing → **FAIL** (no implicit fallback in parity/dev/prod).
+- Output IDs in the manifest must cover the policy traffic outputs (fail if missing).
+- Checkpoints are **single‑cursor** in stream view mode (global ordering preserved).
+
+---
+
 ## Entry: 2026-01-28 17:07:04 — Phase 1 implemented (engine‑rooted streaming + gate checks)
 
 ### What I implemented (with reasoning as I went)
