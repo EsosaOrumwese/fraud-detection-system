@@ -167,7 +167,7 @@ def build_stream_view(
         _rename_parquet_parts(out_path, profile)
 
         logger.info("Oracle stream view computing sorted stats")
-        sorted_query = _build_stats_query_for_parquet(con, f"{out_path}/**/*.parquet")
+        sorted_query = _build_stats_query_for_parquet(con, f"{out_path}/*.parquet")
         sorted_stats = _compute_stats(con, sorted_query)
     finally:
         try:
