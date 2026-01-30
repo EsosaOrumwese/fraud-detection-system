@@ -170,6 +170,8 @@ def build_stream_view(
         logger.info("Oracle stream view computing sorted stats")
         parquet_files = _list_parquet_files(store)
         if not parquet_files:
+            existing = store.list_files("")
+            logger.error("Oracle stream view output empty existing=%s", existing[:5])
             raise StreamSortError("STREAM_SORT_OUTPUT_EMPTY")
         sorted_query = _build_stats_query_for_files(columns, parquet_files)
         sorted_stats = _compute_stats(con, sorted_query)
@@ -597,6 +599,12 @@ def _rename_parquet_parts(output_root: str, profile: OracleProfile) -> None:
 
 
 def _rename_parquet_parts_local(root: Path) -> None:
+    if root.exists() and root.is_file():
+        target = root.parent / "part-000000.parquet"
+        if target.exists():
+            raise StreamSortError("STREAM_VIEW_PART_RENAME_COLLISION")
+        root.rename(target)
+        return
     parquet_files = sorted(root.glob("*.parquet"))
     if not parquet_files:
         return
@@ -612,7 +620,7 @@ def _rename_parquet_parts_local(root: Path) -> None:
 def _rename_parquet_parts_s3(output_root: str, profile: OracleProfile) -> None:
     parsed = urlparse(output_root)
     bucket = parsed.netloc
-    prefix = parsed.path.lstrip("/").rstrip("/") + "/"
+    prefix = parsed.path.lstrip("/").rstrip("/")
     client = _s3_client(profile)
     paginator = client.get_paginator("list_objects_v2")
     keys: list[str] = []
@@ -621,8 +629,12 @@ def _rename_parquet_parts_s3(output_root: str, profile: OracleProfile) -> None:
             key = item["Key"]
             if key.endswith(".parquet"):
                 keys.append(key)
+            elif key == prefix:
+                keys.append(key)
+    if not keys:
+        return
     for index, key in enumerate(sorted(keys)):
-        target = f"{prefix.rstrip('/')}/part-{index:06d}.parquet"
+        target = f"{prefix}/part-{index:06d}.parquet"
         if key == target:
             continue
         client.copy_object(Bucket=bucket, CopySource={"Bucket": bucket, "Key": key}, Key=target)
