@@ -103,6 +103,51 @@ These are **dataset‑level sanity checks** that tell us if the outlet universe 
 
 **Summary:** The universe feels plausible in shape, but it over‑represents large/global merchants and under‑represents single‑site businesses. With single‑site inclusion and a lower home/legal mismatch, this could move to A‑ realism.
 
+### 4.1C Outlet catalogue visuals (EDA evidence)
+Plots are saved in: `reports/eda/segment_1A/plots/` and embedded below.
+
+**1) Outlets per merchant (distribution + tail)**  
+`1_outlet_hist_loglog.png` and `2_outlet_ccdf_loglog.png` show a heavy‑tailed outlet distribution: the bulk of merchants sit in the low‑to‑mid range (median **16**, p90 **36**), while a small set stretches into the hundreds and thousands (p99 **~161**, max **2,546**). The CCDF’s near‑linear log‑log tail indicates the skew is structural, not a handful of outliers. This is exactly what a plausible retail ecosystem looks like—many small firms and a few giants.  
+
+<img src="plots/1_outlet_hist_loglog.png" width="520" alt="Outlet count distribution (log-log histogram)">
+<img src="plots/2_outlet_ccdf_loglog.png" width="520" alt="Outlet count CCDF (log-log)">
+
+**2) Concentration / inequality**  
+`3_lorenz_curve.png` (Gini **~0.53**) and `4_topk_share_curve.png` (top 10% hold **~46%**, top 1% **~24%**) quantify concentration. This level of inequality is realistic for real retail landscapes, where large chains dominate outlet counts. The curve isn’t so extreme that it implies a monopoly world, but it is sufficiently bowed to show realistic concentration.  
+
+<img src="plots/3_lorenz_curve.png" width="520" alt="Outlet concentration (Lorenz curve)">
+<img src="plots/4_topk_share_curve.png" width="520" alt="Top-K merchant concentration">
+
+**3) Home vs legal mismatch by merchant size**  
+`5_mismatch_vs_size_hex.png` and `6_mismatch_by_decile.png` show mismatch rates in the **0.35–0.48** range across nearly all size bands, with only a mild dip in the largest‑merchant decile (**~0.37**). If offshore legal domicile were mostly a “large enterprise” phenomenon, you would expect mismatch to be low for small merchants and increase with size. That is not happening here, which suggests mismatch is baked into the generator broadly, not driven by size. This is a realism concern because everyday merchants typically operate under home‑country legal domicile.  
+
+<img src="plots/5_mismatch_vs_size_hex.png" width="520" alt="Mismatch rate vs merchant size (hexbin)">
+<img src="plots/6_mismatch_by_decile.png" width="520" alt="Mismatch rate by size decile">
+
+**4) Legal‑country spread per merchant**  
+`7_legal_country_ecdf.png` shows most merchants are domestic (**median = 1**), but the tail is meaningful (**p90 = 5**, max 11). `8_size_vs_legal_hex.png` shows that cross‑border spread increases with merchant size, which is expected behavior: larger merchants have more international reach. This is a strong realism signal as long as the tail isn’t too dominant.  
+
+<img src="plots/7_legal_country_ecdf.png" width="520" alt="Legal countries per merchant (ECDF)">
+<img src="plots/8_size_vs_legal_hex.png" width="520" alt="Merchant size vs legal-country spread">
+
+**5) Single vs multi‑site flag sanity**  
+`9_flag_violin.png` and `10_flag_jitter.png` show **all merchants flagged True**, meaning **zero single‑site merchants** in the dataset. That is a realism gap because real retail ecosystems are dominated by single‑site or very small merchants. This is a structural bias that will shape downstream model behavior (e.g., models may over‑fit to multi‑site patterns).  
+
+<img src="plots/9_flag_violin.png" width="520" alt="Outlet count by single_vs_multi_flag (violin)">
+<img src="plots/10_flag_jitter.png" width="520" alt="Flag coverage (jitter)">
+
+**6) Candidate breadth vs actual memberships**  
+`11_candidate_vs_membership_hex.png` shows **foreign candidate counts are very high** (median **37**, total candidates median **38**) while actual memberships are sparse (median **0**, only **~46%** of merchants have any foreign membership). The correlation is weak (**~0.14**). `12_candidate_gap_ecdf.png` shows large candidate‑membership gaps for most merchants. This means the policy surface is globally permissive, but realized expansion is limited—reasonable if the generator is conservative in membership assignment, but it creates a realism tension: the “world is open,” yet most merchants don’t expand.  
+
+<img src="plots/11_candidate_vs_membership_hex.png" width="520" alt="Candidate vs membership (hexbin)">
+<img src="plots/12_candidate_gap_ecdf.png" width="520" alt="Candidate-membership gap (ECDF)">
+
+**7) Duplicate merchant‑site pairs**  
+`13_duplicate_site_heatmap.png` and `14_dup_pair_rate_ecdf.png` show that **~37%** of merchants reuse site IDs across multiple legal countries (mean duplicate rate **~0.21**, p90 **~0.75**). This implies `site_id` is a per‑merchant index, not a globally unique location identifier. That can be valid, but it must be explicit; otherwise downstream consumers will mistakenly treat site IDs as unique outlets and misinterpret cross‑border structure.  
+
+<img src="plots/13_duplicate_site_heatmap.png" width="520" alt="Duplicate site IDs across legal countries (heatmap)">
+<img src="plots/14_dup_pair_rate_ecdf.png" width="520" alt="Duplicate site-pair rate (ECDF)">
+
 ### 4.2 Candidate set breadth (how “globally open” merchants are)
 - **Candidate countries per merchant:** min 1, median 38, max 39
 
@@ -145,14 +190,23 @@ These are **dataset‑level sanity checks** that tell us if the outlet universe 
 - **Missing approved outputs** reduce traceability and make it harder to validate distributional assumptions (e.g., site sequencing and integerised counts).
 
 ## 6) Realism grade (1A only)
-**Grade: B (Moderate realism)**
+**Segment grade: B (Moderate realism)**  
+**Core outlet_catalogue grade: B‑ (Moderate realism, skewed toward multi‑site/global behavior)**
 
-**Why:** The outputs are internally coherent and strongly skewed in a way that matches real merchant ecosystems. However, the **global candidate universe** is too permissive, and several approved data artifacts are missing. This puts the segment in a “credible but improvable” state.
+**Why (segment‑level):** The outputs are internally coherent and strongly skewed in a way that matches real merchant ecosystems. However, the **global candidate universe** is too permissive, and several approved data artifacts are missing. This puts the segment in a “credible but improvable” state.
+
+**Why (outlet_catalogue‑level):**
+1) **Strong realism signals:** heavy‑tailed outlet distribution, realistic concentration (Gini ~0.53), and cross‑border spread increasing with merchant size.  
+2) **Material realism gaps:** zero single‑site merchants, high home/legal mismatch (~39%) across sizes, and site_id reuse across legal countries (acceptable only if site_id is explicitly a per‑merchant index).  
+3) **Net effect:** the world “feels” plausible in shape, but the population is too globally biased and under‑represents small, single‑site merchants.
 
 ## 7) What I would fix first (if realism is the priority)
-1) **Constrain candidate sets** so most merchants only see regional or realistically reachable country targets.
-2) **Emit s3_site_sequence and s3_integerised_counts** to make site‑level realism auditable.
-3) **Ensure sparse_flag and hurdle_stationarity_tests** exist so distributional shape is validated and reproducible.
+1) **Introduce single‑site merchants** (ensure `single_vs_multi_flag=False` exists and outlet_count=1 is common). This is the biggest realism gap in outlet_catalogue.
+2) **Reduce home/legal mismatch for small merchants** (keep high mismatch mostly for large, multi‑country firms). This will make the domicile pattern more believable.
+3) **Clarify site_id semantics** (document it as per‑merchant index or make it globally unique). Downstream assumptions depend on this.
+4) **Constrain candidate sets** so most merchants only see regional or realistically reachable country targets.
+5) **Emit s3_site_sequence and s3_integerised_counts** to make site‑level realism auditable.
+6) **Ensure sparse_flag and hurdle_stationarity_tests** exist so distributional shape is validated and reproducible.
 
 ## 8) Bottom line for platform readiness
-You can build v0 on this data, but expect **cross‑border behavior to feel more global than real life** unless you tighten candidate sets. If you want a platform demo that “feels real,” this is the first lever to adjust.
+You can build v0 on this data, but the outlet universe currently **over‑represents multi‑site and globally legalized merchants**. If you want a platform demo that “feels real,” the first three levers are: (1) add single‑site merchants, (2) lower home/legal mismatch for small merchants, and (3) clarify or de‑duplicate site_ids. Tightening candidate sets is still important, but these outlet_catalogue gaps will be the most visible realism issues to reviewers.

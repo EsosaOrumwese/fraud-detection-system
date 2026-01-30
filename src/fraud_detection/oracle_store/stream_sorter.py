@@ -174,7 +174,7 @@ def build_stream_view(
             logger.error("Oracle stream view output empty existing=%s", existing[:5])
             raise StreamSortError("STREAM_SORT_OUTPUT_EMPTY")
         sorted_query = _build_stats_query_for_files(columns, parquet_files)
-        sorted_stats = _compute_stats(con, sorted_query)
+        sorted_stats = _compute_stats_with_retry(profile, sorted_query)
     finally:
         try:
             con.close()
@@ -539,6 +539,33 @@ def _compute_stats(con: "duckdb.DuckDBPyConnection", query: str) -> StreamSortSt
     )
 
 
+def _compute_stats_with_retry(profile: OracleProfile, query: str) -> StreamSortStats:
+    attempts = int(os.getenv("STREAM_SORT_STATS_RETRIES", "3"))
+    delay_seconds = float(os.getenv("STREAM_SORT_STATS_RETRY_DELAY", "2.0"))
+    last_exc: Exception | None = None
+    for attempt in range(1, attempts + 1):
+        con = _duckdb_connect(profile)
+        try:
+            return _compute_stats(con, query)
+        except Exception as exc:
+            last_exc = exc
+            logger.warning(
+                "Oracle stream view stats retry %s/%s error=%s",
+                attempt,
+                attempts,
+                str(exc),
+            )
+            time.sleep(delay_seconds * attempt)
+        finally:
+            try:
+                con.close()
+            except Exception:
+                pass
+    if last_exc:
+        raise last_exc
+    raise StreamSortError("STREAM_SORT_STATS_RETRY_FAILED")
+
+
 def _sort_expr(raw_query: str) -> str:
     return f"""
         SELECT
@@ -643,11 +670,9 @@ def _rename_parquet_parts_s3(output_root: str, profile: OracleProfile) -> None:
 
 def _s3_client(profile: OracleProfile):
     import boto3
-    from botocore.config import Config
+    from fraud_detection.scenario_runner.storage import _build_s3_config
 
-    config = None
-    if profile.wiring.object_store_path_style:
-        config = Config(s3={"addressing_style": "path"})
+    config = _build_s3_config(profile.wiring.object_store_path_style)
     return boto3.client(
         "s3",
         endpoint_url=profile.wiring.object_store_endpoint,

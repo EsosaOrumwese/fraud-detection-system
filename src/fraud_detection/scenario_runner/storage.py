@@ -46,6 +46,36 @@ class ObjectStore(Protocol):
         ...
 
 
+def _env_int(name: str, default: int) -> int:
+    value = os.getenv(name)
+    if value is None:
+        return default
+    value = value.strip()
+    if not value:
+        return default
+    try:
+        return int(value)
+    except ValueError:
+        return default
+
+
+def _build_s3_config(path_style: bool | None):
+    from botocore.config import Config
+
+    read_timeout = _env_int("OBJECT_STORE_READ_TIMEOUT", 120)
+    connect_timeout = _env_int("OBJECT_STORE_CONNECT_TIMEOUT", 10)
+    max_attempts = _env_int("OBJECT_STORE_MAX_ATTEMPTS", 5)
+    retries = {"max_attempts": max_attempts, "mode": "standard"}
+    kwargs: dict[str, Any] = {
+        "read_timeout": read_timeout,
+        "connect_timeout": connect_timeout,
+        "retries": retries,
+    }
+    if path_style:
+        kwargs["s3"] = {"addressing_style": "path"}
+    return Config(**kwargs)
+
+
 class LocalObjectStore:
     def __init__(self, root: Path) -> None:
         self.root = root
@@ -144,13 +174,10 @@ class S3ObjectStore:
         path_style: bool | None = None,
     ) -> None:
         import boto3
-        from botocore.config import Config
 
         self.bucket = bucket
         self.prefix = prefix.strip("/")
-        config = None
-        if path_style:
-            config = Config(s3={"addressing_style": "path"})
+        config = _build_s3_config(path_style)
         self._client = boto3.client(
             "s3",
             endpoint_url=endpoint_url,
