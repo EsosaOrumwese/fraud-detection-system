@@ -1,4 +1,4 @@
-"""Oracle Store stream sorter (per-output ts_utc order, bucket partitions, S3-native)."""
+"""Oracle Store stream sorter (per-output ts_utc order, flat layout, S3-native)."""
 
 from __future__ import annotations
 
@@ -134,7 +134,8 @@ def build_stream_view(
     try:
         logger.info("Oracle stream view computing source stats")
         stats_start = time.monotonic()
-        raw_query = _build_raw_query_for_output(con, locators[0])
+        columns = _duckdb_columns(con, locators[0]["path"], include_file_meta=True)
+        raw_query = _build_raw_query_for_output_with_columns(columns, output_id, locators[0]["path"])
         raw_stats = _compute_stats(con, raw_query)
         stats_seconds = time.monotonic() - stats_start
         progress_time = os.getenv("STREAM_SORT_PROGRESS_SECONDS")
@@ -167,7 +168,10 @@ def build_stream_view(
         _rename_parquet_parts(out_path, profile)
 
         logger.info("Oracle stream view computing sorted stats")
-        sorted_query = _build_stats_query_for_parquet(con, f"{out_path}/*.parquet")
+        parquet_files = _list_parquet_files(store)
+        if not parquet_files:
+            raise StreamSortError("STREAM_SORT_OUTPUT_EMPTY")
+        sorted_query = _build_stats_query_for_files(columns, parquet_files)
         sorted_stats = _compute_stats(con, sorted_query)
     finally:
         try:
@@ -461,10 +465,9 @@ def _duckdb_connect(profile: OracleProfile) -> "duckdb.DuckDBPyConnection":
     return con
 
 
-def _build_raw_query_for_output(con: "duckdb.DuckDBPyConnection", item: dict[str, Any]) -> str:
-    output_id = item["output_id"]
-    locator = item["path"]
-    columns = _duckdb_columns(con, locator, include_file_meta=True)
+def _build_raw_query_for_output_with_columns(
+    columns: list[str], output_id: str, locator: str
+) -> str:
     columns = [col for col in columns if col not in {"filename", "file_row_number"}]
     if "ts_utc" not in columns:
         raise StreamSortError(f"MISSING_TS_UTC:{output_id}")
@@ -495,19 +498,20 @@ def _duckdb_columns(
     return [row[0] for row in rows]
 
 
-def _build_stats_query_for_parquet(con: "duckdb.DuckDBPyConnection", locator: str) -> str:
-    columns = _duckdb_columns(con, locator)
+def _build_stats_query_for_files(columns: list[str], files: list[str]) -> str:
+    columns = [col for col in columns if col not in {"filename", "file_row_number"}]
     if "ts_utc" not in columns:
         raise StreamSortError("MISSING_TS_UTC")
     if "bucket_index" not in columns:
         raise StreamSortError("MISSING_BUCKET_INDEX")
     select_cols = ", ".join([f'"{col}"' for col in columns])
     hash_cols = ", ".join([f'"{col}"' for col in sorted(columns)])
+    file_list_sql = _sql_string_list(files)
     return (
         "SELECT "
         f"{select_cols}, "
         "hash(" + hash_cols + ") AS payload_hash "
-        f"FROM read_parquet('{locator}')"
+        f"FROM read_parquet({file_list_sql})"
     )
 
 
@@ -558,14 +562,6 @@ def _write_sorted(
     )
 
 
-def _list_bucket_indices(con: "duckdb.DuckDBPyConnection", locator: str) -> list[int]:
-    rows = con.execute(
-        f"SELECT DISTINCT bucket_index FROM read_parquet('{locator}', filename=true, file_row_number=true) "
-        "ORDER BY bucket_index"
-    ).fetchall()
-    return [int(row[0]) for row in rows if row and row[0] is not None]
-
-
 def _relative_path(root: str, absolute: str) -> str:
     if absolute.startswith("s3://"):
         parsed = urlparse(absolute)
@@ -582,6 +578,15 @@ def _relative_path(root: str, absolute: str) -> str:
 
 def _list_existing_parquet(store: LocalObjectStore | S3ObjectStore) -> list[str]:
     return [path for path in store.list_files("") if path.endswith(".parquet")]
+
+
+def _list_parquet_files(store: LocalObjectStore | S3ObjectStore) -> list[str]:
+    return [path for path in store.list_files("") if path.endswith(".parquet")]
+
+
+def _sql_string_list(items: list[str]) -> str:
+    escaped = ["'" + item.replace("'", "''") + "'" for item in items]
+    return "[" + ", ".join(escaped) + "]"
 
 
 def _rename_parquet_parts(output_root: str, profile: OracleProfile) -> None:
