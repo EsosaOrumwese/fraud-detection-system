@@ -131,39 +131,46 @@ def build_stream_view(
         raise StreamSortError("STREAM_VIEW_PARTIAL_EXISTS")
 
     con = _duckdb_connect(profile)
-    logger.info("Oracle stream view computing source stats")
-    stats_start = time.monotonic()
-    raw_query = _build_raw_query_for_output(con, locators[0])
-    raw_stats = _compute_stats(con, raw_query)
-    stats_seconds = time.monotonic() - stats_start
-    progress_time = os.getenv("STREAM_SORT_PROGRESS_SECONDS")
-    if not progress_time:
-        multiplier = float(os.getenv("STREAM_SORT_SORT_MULTIPLIER", "2.0"))
-        eta_seconds = max(1.0, stats_seconds * multiplier)
-        eta_at = datetime.now(tz=timezone.utc) + timedelta(seconds=eta_seconds)
+    try:
+        logger.info("Oracle stream view computing source stats")
+        stats_start = time.monotonic()
+        raw_query = _build_raw_query_for_output(con, locators[0])
+        raw_stats = _compute_stats(con, raw_query)
+        stats_seconds = time.monotonic() - stats_start
+        progress_time = os.getenv("STREAM_SORT_PROGRESS_SECONDS")
+        eta_seconds = None
+        if not progress_time:
+            multiplier = float(os.getenv("STREAM_SORT_SORT_MULTIPLIER", "2.0"))
+            eta_seconds = max(1.0, stats_seconds * multiplier)
+            eta_at = datetime.now(tz=timezone.utc) + timedelta(seconds=eta_seconds)
+            logger.info(
+                "Oracle stream view ETA sort_completion~%ss (%s UTC) scan_seconds=%.1f multiplier=%.2f rows=%s",
+                f"{eta_seconds:.0f}",
+                eta_at.isoformat(),
+                stats_seconds,
+                multiplier,
+                raw_stats.row_count,
+            )
+
+        out_path = stream_root
+        logger.info("Oracle stream view sorting + writing partitions (single pass)")
+        sort_start = time.monotonic()
+        _write_sorted(con, raw_query, out_path, partition_granularity)
+        sort_seconds = time.monotonic() - sort_start
         logger.info(
-            "Oracle stream view ETA sort_completion~%ss (%s UTC) scan_seconds=%.1f multiplier=%.2f rows=%s",
-            f"{eta_seconds:.0f}",
-            eta_at.isoformat(),
-            stats_seconds,
-            multiplier,
-            raw_stats.row_count,
+            "Oracle stream view sort completed seconds=%.1f%s",
+            sort_seconds,
+            f\" (eta_seconds={eta_seconds:.0f})\" if eta_seconds is not None else "",
         )
 
-    out_path = stream_root
-    logger.info("Oracle stream view sorting + writing partitions (single pass)")
-    sort_start = time.monotonic()
-    _write_sorted(con, raw_query, out_path, partition_granularity)
-    sort_seconds = time.monotonic() - sort_start
-    logger.info(
-        "Oracle stream view sort completed seconds=%.1f (eta_seconds=%.0f)",
-        sort_seconds,
-        eta_seconds,
-    )
-
-    logger.info("Oracle stream view computing sorted stats")
-    sorted_query = _build_stats_query_for_parquet(con, f"{out_path}/**/*.parquet")
-    sorted_stats = _compute_stats(con, sorted_query)
+        logger.info("Oracle stream view computing sorted stats")
+        sorted_query = _build_stats_query_for_parquet(con, f\"{out_path}/**/*.parquet\")
+        sorted_stats = _compute_stats(con, sorted_query)
+    finally:
+        try:
+            con.close()
+        except Exception:
+            pass
 
     if not _stats_match(raw_stats, sorted_stats):
         raise StreamSortError("STREAM_SORT_VALIDATION_FAILED")
@@ -396,6 +403,9 @@ def _duckdb_connect(profile: OracleProfile) -> "duckdb.DuckDBPyConnection":
     temp_dir = os.getenv("STREAM_SORT_TEMP_DIR")
     if temp_dir:
         con.execute(f"PRAGMA temp_directory='{temp_dir}'")
+    max_temp = os.getenv("STREAM_SORT_MAX_TEMP_SIZE")
+    if max_temp:
+        con.execute(f"PRAGMA max_temp_directory_size='{max_temp}'")
     if profile.wiring.object_store_endpoint:
         endpoint = profile.wiring.object_store_endpoint
         if "://" in endpoint:
@@ -421,17 +431,24 @@ def _duckdb_connect(profile: OracleProfile) -> "duckdb.DuckDBPyConnection":
     threads = os.getenv("STREAM_SORT_THREADS")
     if threads:
         con.execute(f"PRAGMA threads={int(threads)}")
+    preserve_order = os.getenv("STREAM_SORT_PRESERVE_ORDER", "").lower()
+    if preserve_order in {"0", "false", "no", ""}:
+        con.execute("PRAGMA preserve_insertion_order=false")
+    elif preserve_order in {"1", "true", "yes"}:
+        con.execute("PRAGMA preserve_insertion_order=true")
     if logger.isEnabledFor(logging.INFO):
         try:
             current_threads = con.execute("PRAGMA threads").fetchone()[0]
         except Exception:
             current_threads = threads or "default"
         logger.info(
-            "Oracle stream view duckdb_config threads=%s progress_bar=%s memory_limit=%s temp_dir=%s",
+            "Oracle stream view duckdb_config threads=%s progress_bar=%s memory_limit=%s temp_dir=%s max_temp=%s preserve_order=%s",
             current_threads,
             "on" if progress_time else "off",
             os.getenv("STREAM_SORT_MEMORY_LIMIT") or "default",
             os.getenv("STREAM_SORT_TEMP_DIR") or "default",
+            os.getenv("STREAM_SORT_MAX_TEMP_SIZE") or "default",
+            os.getenv("STREAM_SORT_PRESERVE_ORDER") or "false",
         )
     return con
 

@@ -167,6 +167,8 @@ If you need a fresh view, delete the prior output_id view or set a new base path
 - `STREAM_SORT_PROGRESS_SECONDS` → DuckDB progress bar refresh (seconds).
 - `STREAM_SORT_SORT_MULTIPLIER` → ETA estimate multiplier (default 2.0). ETA logs emit only when the progress bar is **not** enabled.
 - `STREAM_SORT_MEMORY_LIMIT` / `STREAM_SORT_TEMP_DIR` / `STREAM_SORT_THREADS` → performance tuning.
+- `STREAM_SORT_MAX_TEMP_SIZE` → increases DuckDB temp spill allowance (e.g., `50GiB`).
+- `STREAM_SORT_PRESERVE_ORDER` → set `false` to reduce memory (safe because query already `ORDER BY`).
 
 ---
 
