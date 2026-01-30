@@ -2636,7 +2636,13 @@ platform-sr-run-reuse:
 		echo "SR_MANIFEST_FINGERPRINT and SR_PARAMETER_HASH are required." >&2; \
 		exit 1; \
 	fi
-	@$(PY_PLATFORM) -m fraud_detection.scenario_runner.cli run \
+	@OBJECT_STORE_ENDPOINT="$(OBJECT_STORE_ENDPOINT)" \
+	OBJECT_STORE_REGION="$(OBJECT_STORE_REGION)" \
+	AWS_ACCESS_KEY_ID="$(AWS_ACCESS_KEY_ID)" \
+	AWS_SECRET_ACCESS_KEY="$(AWS_SECRET_ACCESS_KEY)" \
+	AWS_EC2_METADATA_DISABLED="$(AWS_EC2_METADATA_DISABLED)" \
+	AWS_DEFAULT_REGION="$(OBJECT_STORE_REGION)" \
+	$(PY_PLATFORM) -m fraud_detection.scenario_runner.cli run \
 		--wiring "$(SR_WIRING)" \
 		--policy "$(SR_POLICY)" \
 		--run-equivalence-key "$(SR_RUN_EQUIVALENCE_KEY)" \

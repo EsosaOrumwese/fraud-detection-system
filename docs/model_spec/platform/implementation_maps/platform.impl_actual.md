@@ -961,3 +961,24 @@ Parity IG service hit a `403 Forbidden` on S3 `HeadObject` because LocalStack-st
 - `makefile`
 - `.env.platform.local`
 - `docs/runbooks/platform_parity_walkthrough_v0.md`
+
+---
+
+## Entry: 2026-01-30 02:36:37 — SR parity S3 credential propagation
+
+### Trigger
+SR failed on `HeadObject` with `403 Forbidden` because boto picked up shared AWS credentials instead of MinIO keys.
+
+### Decision trail (live)
+- SR run creates/updates artifacts in the platform object store (MinIO in parity).
+- Make targets must export MinIO S3 envs for SR just like IG/WSP, or boto will fall back to shared credentials.
+
+### Implementation notes
+- Prefixed `platform-sr-run-reuse` with `OBJECT_STORE_*` + `AWS_*` export.
+- Added a short runbook note for 403 troubleshooting in the SR step.
+- Set `AWS_EC2_METADATA_DISABLED=true` in `.env.platform.local` to prevent metadata probing during local parity.
+
+### Files touched
+- `makefile`
+- `docs/runbooks/platform_parity_walkthrough_v0.md`
+- `.env.platform.local`

@@ -71,6 +71,7 @@ OBJECT_STORE_ENDPOINT=http://localhost:9000
 OBJECT_STORE_REGION=us-east-1
 AWS_ACCESS_KEY_ID=<minio_access_key>
 AWS_SECRET_ACCESS_KEY=<minio_secret_key>
+AWS_EC2_METADATA_DISABLED=true
 
 ORACLE_ROOT=s3://oracle-store
 ORACLE_ENGINE_RUN_ROOT=s3://oracle-store/local_full_run-5/c25a2675fbfbacd952b13bb594880e92
@@ -141,10 +142,28 @@ make platform-oracle-check-strict `
 
 ## 5) Start IG service (parity profile)
 
+**What this does:** starts the **Ingestion Gate HTTP service** that receives streamed traffic from WSP, validates it against schema + policy, and writes receipts + admission state to the platform run. It must stay running while SR/WSP execute.
+
 In a **separate terminal**:
 ```
 make platform-ig-service-parity
 ```
+
+**IG service URL:** `http://127.0.0.1:8081`  
+The root path (`/`) is not defined, so a browser at `http://127.0.0.1:8081` will show **Not Found**.  
+
+**Health check (expected before traffic):**
+```
+Invoke-RestMethod http://127.0.0.1:8081/v1/ops/health
+```
+Example output:
+```
+reasons              state
+-------              -----
+{BUS_HEALTH_UNKNOWN} AMBER
+```
+
+**Why AMBER is OK here:** the event bus has not been exercised yet. After SR publishes READY and WSP streams, health should move toward GREEN.
 
 ---
 
@@ -153,6 +172,8 @@ make platform-ig-service-parity
 ```
 make platform-sr-run-reuse SR_WIRING=config/platform/sr/wiring_local_kinesis.yaml
 ```
+
+**Note:** SR writes run artifacts to MinIO S3 in parity mode. If you see a `403` here, confirm `.env.platform.local` has the MinIO credentials set and re‑run.
 
 **Expected in platform log:**
 - `SR: submit request received`
