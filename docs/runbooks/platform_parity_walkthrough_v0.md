@@ -210,6 +210,7 @@ $env:WSP_READY_MAX_EVENTS="500000"; make platform-wsp-ready-consumer-once WSP_PR
 **If you see `Invalid endpoint`:** verify `.env.platform.local` has `OBJECT_STORE_ENDPOINT` and MinIO creds; Make exports them to WSP.
 **If you see `CONTROL_BUS_STREAM_MISSING`:** ensure `PARITY_CONTROL_BUS_STREAM/REGION/ENDPOINT_URL` are set in `.env.platform.local` (Make exports them as `CONTROL_BUS_*` for WSP).
 **If you see `CHECKPOINT_DSN_MISSING`:** ensure `PARITY_WSP_CHECKPOINT_DSN` is set in `.env.platform.local` (Make exports it as `WSP_CHECKPOINT_DSN`).
+**If you see `Invalid URL '/v1/ingest/push'`:** ensure `PARITY_IG_INGEST_URL` is set in `.env.platform.local` (Make exports it as `IG_INGEST_URL`).
 
 ---
 

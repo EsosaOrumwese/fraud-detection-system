@@ -1039,3 +1039,22 @@ WSP READY consumer raised `CHECKPOINT_DSN_MISSING` because `WSP_CHECKPOINT_DSN` 
 ### Files touched
 - `makefile`
 - `docs/runbooks/platform_parity_walkthrough_v0.md`
+
+---
+
+## Entry: 2026-01-30 03:03:55 — WSP IG ingest URL propagation
+
+### Trigger
+WSP READY consumer failed with `Invalid URL '/v1/ingest/push'` because `IG_INGEST_URL` was not exported.
+
+### Decision trail (live)
+- WSP must post traffic to IG via `ig_ingest_url`.
+- In parity, the URL is provided by `PARITY_IG_INGEST_URL` and should be exported as `IG_INGEST_URL`.
+
+### Implementation notes
+- Added `IG_INGEST_URL` default to parity value in Makefile and exported it in WSP ready-consumer targets.
+- Added a runbook troubleshooting note for invalid ingest URL.
+
+### Files touched
+- `makefile`
+- `docs/runbooks/platform_parity_walkthrough_v0.md`
