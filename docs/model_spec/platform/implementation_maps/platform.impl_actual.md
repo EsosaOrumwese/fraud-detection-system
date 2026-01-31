@@ -1445,3 +1445,48 @@ Make RTDL contract ownership explicit so component interfaces cannot drift.
 **Envelope rule:** all RTDL payloads above must be wrapped in the canonical event envelope.
 
 ---
+
+## Entry: 2026-01-31 15:25:00 — Phase 4.2 planning (IEG projector)
+
+### Problem / goal
+Move into Phase 4.2 by defining the IEG projector’s v0 mechanics with explicit contracts, storage layout, and replay semantics so downstream OFP/DF can rely on stable `graph_version` + `eb_offset_basis` stamps.
+
+### Authorities / inputs
+- `docs/model_spec/platform/component-specific/identity_entity_graph.design-authority.md`
+- Platform rails (canonical envelope, ContextPins, no‑PASS‑no‑read, by‑ref truth)
+- Phase 4.1 RTDL contracts in `docs/model_spec/platform/contracts/real_time_decision_loop/`
+
+### Decision trail (live)
+1) **IEG is derived, not truth.** It only projects EB‑admitted events; it never overrides IG/EB truth.
+2) **Projection scope is run/world‑scoped.** ContextPins are the isolation boundary; no cross‑run graph in v0.
+3) **Graph_version basis = EB offsets.** Graph_version is derived from `(stream + per‑partition next‑offset)` with exclusive‑next semantics; watermarks are tied to canonical `ts_utc` only.
+4) **IEG writes to Postgres only.** v0 projection tables + checkpoints live in Postgres; no separate graph DB.
+5) **Query surface is read‑only.** IEG does not mutate state on read; all mutations occur on EB apply path.
+
+### Proposed v0 mechanics (IEG)
+- **Consumer:** Kinesis (LocalStack in local‑parity); per‑partition ordering only.
+- **Apply unit:** deterministic update for each event; idempotent under replay.
+- **Checkpointing:** store `next_offset_to_apply` per partition + stream; update only after deterministic apply/ignore.
+- **Graph_version:** hash of `(stream, partition → next_offset_to_apply map)`; includes watermark_ts_utc.
+- **Projection tables:** minimal entity + edge + identifier index, keyed by ContextPins + entity_id.
+- **Integrity posture:** record apply failures (GRAPH_UNUSABLE) but continue; expose integrity status for DL/DF.
+
+### v0 table sketch (Postgres)
+- `ieg_checkpoints` (stream, partition, next_offset, updated_at)
+- `ieg_graph_version` (version_id, watermark_ts_utc, basis_json)
+- `ieg_entities` (entity_id, entity_type, scope_pins..., first_seen_ts_utc, last_seen_ts_utc)
+- `ieg_edges` (src_entity_id, dst_entity_id, edge_type, scope_pins..., first_seen_ts_utc, last_seen_ts_utc)
+- `ieg_identifiers` (identifier_key, entity_id, scope_pins..., first_seen_ts_utc, last_seen_ts_utc)
+- `ieg_apply_failures` (partition, offset, event_id, reason_code, ts_utc)
+
+### File paths (planned)
+- `src/fraud_detection/identity_entity_graph/` (new package)
+- `config/platform/ieg/` (wiring/profile)
+- `docs/model_spec/platform/contracts/real_time_decision_loop/` already pinned
+
+### Validation plan
+- Unit: graph_version derivation deterministic across replays.
+- Integration: replay same EB offset range yields identical graph_version + projection counts.
+- Smoke: consume 20 admitted events and produce non‑empty projection with a stamped graph_version.
+
+---
