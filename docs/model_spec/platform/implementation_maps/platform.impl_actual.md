@@ -1342,3 +1342,22 @@ User flagged the earlier RTDL narrative as too summary‑like and potentially am
 - Streaming is governed by **canonical event time (`ts_utc`)**. Speedup only changes pacing, not order or timestamps. This is why the flow is not “file order” and should not be read as such.
 
 ---
+
+## Entry: 2026-01-31 14:22:00 — Phase 4 tool stack locked (parity‑first)
+
+### Decision (locked)
+Phase‑4 RTDL uses the **same service classes across local‑parity/dev/prod**:
+- **Event Bus:** Kinesis (LocalStack locally; AWS in dev/prod).
+- **Object Store:** S3 (MinIO locally; AWS in dev/prod).
+- **Primary state store:** Postgres (local container; RDS in dev/prod).
+- **Runtime:** Python services/workers (same code paths).
+
+### Explicit exclusions (v0)
+- **No MLflow** in v0 RTDL (reserved for Phase 6 learning/registry).
+- **No Airflow** in v0 RTDL (offline batch orchestration comes later).
+- **No separate graph DB / feature store**; Postgres remains authoritative for v0 projection + features.
+
+### Why locked now
+This prevents ladder drift (e.g., filesystem shortcuts) and keeps parity consistent across environments. Only endpoints/credentials differ; architecture does not.
+
+---

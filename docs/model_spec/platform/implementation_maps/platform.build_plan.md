@@ -198,6 +198,22 @@ Provide a platform-wide, production-shaped build plan for v0 that aligns compone
 ### Phase 4 — Real-time decision loop (IEG/OFP/DL/DF/AL/DLA)
 **Intent:** turn admitted traffic into decisions and outcomes with correct provenance and audit.
 
+#### RTDL v0 stack (locked for ladder parity)
+
+**Locked tool stack (v0):**
+- **Event Bus:** Kinesis (LocalStack in local‑parity; AWS Kinesis in dev/prod).
+- **Object Store:** S3 (MinIO in local‑parity; AWS S3 in dev/prod).
+- **Primary state store (IEG/OFP/DF/AL/DLA indices):** Postgres (local container in parity; RDS Postgres in dev/prod).
+- **Runtime:** Python services/workers (same code paths in all envs).
+
+**Explicit exclusions (v0):**
+- No MLflow (learning/registry comes later in Phase 6).
+- No Airflow (batch orchestration belongs to offline pipelines, Phase 6+).
+- No extra graph DB or feature store; Postgres is authoritative for v0 projection + features.
+
+**Rationale (ladder parity):**
+Local‑parity uses the *same service classes* as dev/prod (S3/Kinesis/Postgres). Only endpoints and credentials change, not architecture. This minimizes ladder friction and prevents filesystem shortcuts.
+
 **Definition of Done (DoD):**
 - IEG projector builds graph projection with watermark-based graph_version.
 - OFP builds feature snapshots with input_basis + snapshot hash; serves deterministic responses.
@@ -277,5 +293,4 @@ The platform uses the **canonical event time (`ts_utc`)** for windowing and temp
 - Phase 2: complete (Oracle Store + WSP stream‑view parity).
 - Phase 3: complete (control & ingress plane green for v0).
 - SR v0: complete (see `docs/model_spec/platform/implementation_maps/scenario_runner.build_plan.md`).
-
 
