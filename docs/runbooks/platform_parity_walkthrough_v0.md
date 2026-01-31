@@ -349,4 +349,29 @@ make platform-parity-stack-down
 - EB offsets advance and are visible in receipt `eb_ref`.
 - Platform log shows SR → WSP → IG → EB in order for the same run id.
 
+---
+
+## 11) v0 green checklist (control & ingress)
+
+Use this list to confirm the **v0 control & ingress plane** is green.
+
+**Run-scoped artifacts**
+- [ ] `runs/fraud-platform/ACTIVE_RUN_ID` points to the latest run.
+- [ ] SR artifacts exist under `s3://fraud-platform/<run_id>/sr/` (status/record/facts).
+- [ ] WSP ready logs exist under `runs/fraud-platform/<run_id>/wsp/wsp.log`.
+- [ ] IG receipts exist under `s3://fraud-platform/<run_id>/ig/receipts/`.
+
+**Narrative platform log**
+- [ ] `platform.log` includes `SR READY published` for the same run id.
+- [ ] `platform.log` includes `WSP stream start` and `WSP stream stop` for that run.
+- [ ] `platform.log` includes IG summary lines (admit/duplicate/quarantine) after traffic.
+
+**Event bus offsets**
+- [ ] LocalStack stream `fp-traffic-bus` returns records.
+- [ ] IG receipts include `eb_ref` with `offset_kind=kinesis_sequence`.
+
+**Health posture**
+- [ ] IG health is AMBER before traffic (OK).
+- [ ] After traffic, IG health moves toward GREEN or shows admissions in logs.
+
 

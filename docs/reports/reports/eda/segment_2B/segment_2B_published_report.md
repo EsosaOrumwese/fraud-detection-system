@@ -512,6 +512,65 @@ This uniform sigma also suppresses the emergent property we want from realism: d
 
 ---
 
+### 10.1 Visual diagnostics (S3) — narrative interpretation
+
+#### a) Sigma_gamma per merchant
+<img src="plots/s3_sigma_gamma_distribution.png" width="520" alt="S3 sigma_gamma per merchant">
+
+This plot collapses to a **single razor‑thin spike** because sigma_gamma is **effectively constant for all merchants**. The odd x‑axis offset text is just the plotting backend trying to show extremely small variation around a fixed value. Visually, there is no spread at all.  
+This is not just “low variance” — it is **one shared volatility parameter** (`sigma_gamma ≈ 0.1200`) for the entire merchant population. That means there is no distinction between stable merchants (low day‑to‑day volatility) and bursty merchants (high volatility). In practical terms, every merchant experiences the **same day‑effect variance**, so the dataset cannot encode merchant‑specific seasonality or stability differences.  
+Realism impact: this removes one of the most important real‑world signals (different merchants have different volatility profiles), so any downstream model that depends on temporal variability will be trained on **uniform behavior** rather than diverse behavior.
+
+---
+
+#### b) Gamma distribution
+<img src="plots/s3_gamma_distribution.png" width="520" alt="S3 gamma distribution">
+
+The gamma histogram has a clean, bell‑shaped profile centered near **1.0**, with a moderate spread and smooth KDE. This is exactly what a log‑normal daily modulation should look like at the aggregate level. The quantiles back this up: values span roughly **0.57 to 1.66**, with most mass between **0.85 and 1.16**.  
+However, because sigma is fixed, this distribution is essentially the **same log‑normal repeated across all merchants and tz‑groups**, then stacked together. The dataset therefore looks plausible *in aggregate* while still being **behaviorally homogeneous** underneath.  
+Realism impact: a plausible global shape is necessary but not sufficient — the lack of heterogeneity means the dataset does not encode meaningful merchant‑level or region‑level differences in daily variability.
+
+---
+
+#### c) Gamma by tz_group (top 10)
+<img src="plots/s3_gamma_by_tzgroup.png" width="520" alt="S3 gamma by tz-group (top 10)">
+
+The boxplots are **nearly identical across all top tz‑groups**: medians around 1.0, similar IQR widths, and symmetric outlier patterns. There is no visible tz‑group‑specific variability.  
+This means tz_group_id is **not acting as a behavioral driver** in the day‑effect model. If the intention was to incorporate regional differences (holiday cycles, climate‑driven seasonality, cultural spend patterns), those signals are absent.  
+Realism impact: the system treats all regions as statistically interchangeable, which suppresses the geographic realism that fraud models often rely on (e.g., different volatility profiles across regions).
+
+---
+
+#### d) Gamma over time (sample merchants)
+<img src="plots/s3_gamma_time_series.png" width="520" alt="S3 gamma over time (sample merchants)">
+
+The series are noisy fluctuations around 1.0 with no obvious structured pattern. The dense x‑axis labels make the plot visually busy, but the key signal is that the lines behave like **random jitter** rather than structured seasonality or trend. The three merchants track different noise realizations, but they do not show **weekday/weekly cycles** or **long‑horizon drift**.  
+This indicates the day effects are likely **i.i.d. draws** per day rather than a time‑structured process. That is fine for a synthetic baseline, but it is **not realistic** if we want recurring cycles (weekends vs weekdays, monthly peaks, holiday effects).  
+Realism impact: day effects look like **white noise** instead of business‑like seasonality. That limits the realism of temporal dynamics that a fraud model might learn to exploit.
+
+---
+
+#### e) Mean gamma per merchant
+<img src="plots/s3_mean_gamma_per_merchant.png" width="520" alt="S3 mean gamma per merchant">
+
+The mean gamma distribution is **tight and centered near 1.0**, with only a small spread (~0.97 to ~1.02). That means merchants differ only slightly in their average modulation, and nearly all merchants have **the same long‑run baseline**.  
+In real systems, baseline effects differ materially across merchant categories and business models (e.g., fast‑moving vs seasonal merchants). Here, the baseline is effectively **fixed**, with only trivial deviations.  
+Realism impact: the model cannot learn or explain merchant‑specific “baseline intensity” from day effects because the dataset does not encode it.
+
+---
+
+#### f) Days covered per merchant
+<img src="plots/s3_days_covered_per_merchant.png" width="520" alt="S3 days covered per merchant">
+
+This is essentially a **single spike at ~90 days**, showing that every included merchant is present for the full policy horizon. That is good for coverage consistency within S3, but it also highlights that **only 448 merchants are included at all** (the larger coverage gap described earlier).  
+There is **no partial coverage** or intermittent coverage in S3. That is clean from a pipeline perspective, but it is also less realistic if we expect some merchants to enter/exit over time.  
+Realism impact: within S3 the coverage is complete, but the **merchant‑population coverage is incomplete**, so temporal realism only applies to a subset of merchants and does not reflect real‑world churn.
+
+---
+
+**S3 visual takeaway:**  
+The aggregate gamma distribution looks plausible, but **all merchant‑level and tz‑group‑level heterogeneity is missing**. The plots consistently show a single global volatility profile, near‑identical tz‑group behavior, and mostly noise‑like time variation. This makes temporal realism **generic rather than merchant‑specific**, which limits the realism of day‑level dynamics for fraud modeling.
+
 ## 11) Coverage gaps (major realism impact)
 **Merchants present in S1 vs S3/S4**
 - Merchants in `s1_site_weights`: **1,238**
@@ -572,3 +631,19 @@ If realism is the goal, the first fixes should be:
   If a merchant exists in S1, it should appear in day‑effects and group‑mix tables, otherwise the system splits into “realistic merchants” and “static merchants.” That breaks realism at population scale.
 - **Expand arrival rosters to multiple days and multiple arrivals per merchant.**  
   This is required to observe temporal variability, tz‑mix changes, and routing stability. Without this, the system never demonstrates the behavior it is supposed to model.
+
+---
+
+## 15) Realism Grade (Segment 2B)
+**Grade: C‑**
+
+**Why this grade:**  
+Segment 2B is structurally correct but behaviorally weak. The routing layer is built and audited correctly, yet the data it produces lacks the core realism patterns that would make fraud modeling credible. The grade is pulled down by:
+- **Uniform S1 site weights** (no hub dominance, no realistic spatial skew).  
+- **Large coverage gap** (only 448/1,238 merchants receive day‑effects and group‑weights).  
+- **High tz‑group dominance** (≈50% of merchant‑days are effectively single‑timezone).  
+- **Homogeneous temporal volatility** (single global `sigma_gamma`, minimal merchant differentiation).  
+- **Shallow arrival roster** (one day, one arrival per merchant; insufficient for realistic routing behavior).
+
+**What would raise the grade:**  
+Introduce non‑uniform, merchant‑specific site weight distributions; ensure S3/S4 coverage for all merchants; add richer temporal structure (merchant‑specific sigma, weekly/seasonal patterns); and expand the arrival roster so routing behavior can be observed across multiple days.
