@@ -920,7 +920,11 @@ def _normalize_ts(value: Any) -> str | None:
     parsed = _parse_ts(value)
     if parsed is None:
         return None
-    return parsed.isoformat()
+    if parsed.tzinfo is None:
+        parsed = parsed.replace(tzinfo=timezone.utc)
+    parsed = parsed.astimezone(timezone.utc)
+    # Canonical envelope requires RFC3339 with exactly 6 fractional digits and trailing Z.
+    return parsed.strftime("%Y-%m-%dT%H:%M:%S.%fZ")
 
 
 def _load_allowlist(ref: str) -> set[str]:

@@ -904,3 +904,19 @@ Remove `path_style_access` and use `force_virtual_addressing=False` when `path_s
 
 ### Validation plan
 Re-run `make platform-wsp-ready-consumer-once WSP_PROFILE=config/platform/profiles/local_parity.yaml` and confirm stream starts (no `path_style_access` error).
+
+---
+
+## Entry: 2026-01-31 05:10 — WSP ts_utc normalization to canonical RFC3339 micros
+
+### Trigger
+IG quarantined WSP events with `ENVELOPE_INVALID`. The canonical envelope requires `ts_utc` as RFC3339 with **exactly 6 fractional digits** and trailing `Z`. WSP was using `datetime.isoformat()` which emits `+00:00` and can omit fractional seconds.
+
+### Decision
+Normalize all WSP `ts_utc` to `YYYY-MM-DDTHH:MM:SS.ffffffZ` before pushing to IG.
+
+### Change
+- `src/fraud_detection/world_streamer_producer/runner.py`: `_normalize_ts` now formats UTC with fixed microseconds and trailing `Z`.
+
+### Validation plan
+Re-run WSP READY once and confirm IG no longer quarantines for `ENVELOPE_INVALID`.
