@@ -169,7 +169,7 @@ make platform-oracle-stream-sort `
 **What this does:**
 - **Why required:** engine outputs are not guaranteed to be globally `ts_utc`‑sorted; WSP consumes a **stream view** that is strictly ordered by `ts_utc`.
 - Reads the **engine outputs** from MinIO.
-- Builds **one sorted dataset per output_id** under:
+- Builds **one sorted dataset per output_id** (traffic streams only) under:
   `.../stream_view/ts_utc/output_id=<output_id>/part-*.parquet`
 - Sorts **within each output** by `ts_utc` with tie‑breakers `filename` + `file_row_number`.
 - Writes `_stream_view_manifest.json` + `_stream_sort_receipt.json` for **each output**.
@@ -187,7 +187,7 @@ If you need a fresh view, delete the prior output_id view or set a new base path
 **Verify stream view exists (MinIO):**
 ```
 aws --endpoint-url http://localhost:9000 s3 ls `
-  $env:ORACLE_STREAM_VIEW_ROOT/output_id=arrival_events_5B/ | Select-Object -First 5
+  $env:ORACLE_STREAM_VIEW_ROOT/output_id=s2_event_stream_baseline_6B/ | Select-Object -First 5
 ```
 
 **Optional tuning knobs (set before running):**

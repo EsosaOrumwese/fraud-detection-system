@@ -5,6 +5,5 @@ reuse_policy: ALLOW
 evidence_wait_seconds: 600
 attempt_limit: 1
 traffic_output_ids:
-  - arrival_events_5B
-  - s2_flow_anchor_baseline_6B
-  - s3_flow_anchor_with_fraud_6B
+  - s2_event_stream_baseline_6B
+  - s3_event_stream_with_fraud_6B

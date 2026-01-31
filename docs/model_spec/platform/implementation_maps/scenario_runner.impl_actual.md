@@ -3943,3 +3943,21 @@ User requires SR to **always** read engine outputs from the Oracle Store (S3/Min
 - `\.venv\Scripts\python.exe -m pytest tests/services/scenario_runner/test_gate_verifier.py -q` → 8 passed.
 
 ---
+
+---
+
+## Entry: 2026-01-31 18:43:00 — SR traffic output list aligned to behavioural streams
+
+### Trigger
+Engine interface now defines traffic policy: only 6B behavioural event streams are eligible for traffic.
+
+### Reasoning (SR scope)
+- SR traffic_output_ids drive READY planning and downstream traffic expectations.
+- `arrival_events_5B` and 6B flow anchors are join surfaces; they must not be flagged as traffic outputs.
+- `s2_event_stream_baseline_6B` and `s3_event_stream_with_fraud_6B` are the canonical traffic streams.
+
+### Decision
+- Update `config/platform/sr/policy_v0.yaml` `traffic_output_ids` to the two 6B event streams.
+
+### Planned edits
+- Align SR policy with WSP allowlist and Oracle stream-view targets.

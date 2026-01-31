@@ -200,6 +200,35 @@ User asked to proceed with Phase 1.4 validation (policy vs wiring separation aud
 
 ---
 
+## Entry: 2026-01-31 18:40:00 — Align traffic streams to Data Engine black‑box interface
+
+### Trigger
+User provided `docs/model_spec/data-engine/interface_pack/data_engine_interface.md`, which explicitly defines the **traffic policy** and differentiates `traffic_primitives` vs `behavioural_streams`.
+
+### What this fixes (why it matters)
+- We previously treated `arrival_events_5B` and 6B flow anchors as traffic candidates. The new interface clarifies that:
+  - `arrival_events_5B` is **traffic_primitives** (join surface) and **must not** be emitted to the platform traffic bus by default.
+  - The **only** traffic streams are **behavioural streams**: `s2_event_stream_baseline_6B` and `s3_event_stream_with_fraud_6B`.
+- Platform traffic semantics must therefore move from “arrival stream” to **dual behavioural streams** (clean baseline + post‑fraud overlay).
+- This affects SR traffic_output_ids, WSP allowlist, Oracle stream‑view build targets, and runbook instructions.
+
+### Decision (binding)
+- **Traffic streams (v0 default):** `s2_event_stream_baseline_6B`, `s3_event_stream_with_fraud_6B`.
+- **Non‑traffic join surfaces (oracle‑only):** `arrival_events_5B`, `s1_arrival_entities_6B`, `s1_session_index_6B`, `s2_flow_anchor_baseline_6B`, `s3_flow_anchor_with_fraud_6B`.
+- **Truth products (offline only):** all `s4_*` outputs in 6B.
+
+### Planned edits (platform‑wide)
+- Update `config/platform/wsp/traffic_outputs_v0.yaml` to list only the two behavioural streams.
+- Update `config/platform/sr/policy_v0.yaml` `traffic_output_ids` accordingly.
+- Update runbook stream‑view section to build/verify **6B event stream** views (not arrival_events).
+- Update profile README to reflect the new traffic stream policy.
+
+### Validation plan
+- Ensure WSP now pulls only the two behavioural streams and ignores arrival_events_5B by default.
+- Confirm SR publishes READY with policy referencing the updated traffic list.
+- Ensure Oracle stream‑view build targets the two 6B event streams and writes `part-*.parquet` under their `output_id` folders.
+
+
 ## Entry: 2026-01-31 06:59:40 — Control & ingress parity “green” procedure (run-id‑scoped receipts + EB offsets)
 
 ### Problem / goal
@@ -1503,3 +1532,18 @@ User asked for clarity on “one traffic stream” semantics and concurrent flow
 - v0 WSP is currently sequential per output_id, but the **ideal** production posture is concurrent per‑output workers feeding the same traffic stream.
 
 ---
+
+---
+
+## Entry: 2026-01-31 18:44:00 — Correction: traffic stream semantics now dual‑channel
+
+### Correction note
+- Prior notes describing a single interleaved EB traffic stream are superseded.
+- v0 policy is **two concurrent channels** (baseline + post‑overlay), each carrying a single event_type.
+
+---
+
+## Entry: 2026-01-31 18:50:00 — Chronology correction (entry placement)
+
+### Note
+A prior alignment entry (traffic stream policy) was inserted above older entries due to patch placement. Per AGENTS, I will **not** move or rewrite history. This note records that the canonical chronological order is preserved by timestamp, and future entries will be appended only.

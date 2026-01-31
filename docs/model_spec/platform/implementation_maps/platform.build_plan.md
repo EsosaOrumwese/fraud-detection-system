@@ -247,7 +247,7 @@ Local‑parity uses the *same service classes* as dev/prod (S3/Kinesis/Postgres)
 The platform uses the **canonical event time (`ts_utc`)** for windowing and temporal logic. Speedup only changes the pacing of delivery; it does **not** change ordering or event time. This is why the flow can appear “non‑intuitive” if you expect file order—**it is event‑time order**.
 
 **Traffic stream semantics (post‑EB):**  
-The EB “traffic stream” is a **single concurrent stream** (one topic/shard group) carrying **interleaved events** from multiple `event_type`s. It does **not** mean “one dataset at a time.” Downstream components **filter by event_type / payload_kind**; they do not require separate streams in v0.
+The EB traffic plane follows the **dual-stream policy**: two concurrent traffic channels, one for `s2_event_stream_baseline_6B` and one for `s3_event_stream_with_fraud_6B`. Each channel carries **one event_type only** (no interleaving in v0). Downstream components subscribe only to the channel(s) they need.
 
 #### Phase 4.1 — RTDL contracts + invariants (expanded)
 

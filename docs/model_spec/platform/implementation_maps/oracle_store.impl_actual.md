@@ -733,3 +733,25 @@ Confirm Oracle Store v0 is **green** for local_parity: sealed pack + stream view
 - Engine outputs are **sealed** (manifest + _SEALED.json) and immutable.
 - Stream views are **per output_id**, sorted by `ts_utc` + tie‑breakers, with **flat layout** and validated receipts.
 - WSP reads only the stream view root (no raw engine pull).
+
+---
+
+## Entry: 2026-01-31 18:42:00 — Stream-view targets updated to behavioural event streams
+
+### Trigger
+The engine interface doc now defines `traffic_primitives` vs `behavioural_streams` and pins the **dual-stream policy**.
+
+### Reasoning (Oracle Store scope)
+- Oracle stream views exist to provide **time-ordered traffic** for WSP.
+- `arrival_events_5B` is explicitly **not** traffic (join surface), so it should not be required for stream-view generation in v0.
+- The only traffic candidates are:
+  - `s2_event_stream_baseline_6B`
+  - `s3_event_stream_with_fraud_6B`
+
+### Decision
+- **Default stream-view build list** is the two behavioural streams only.
+- Any other output_id remains **oracle-only** unless a future policy explicitly adds it.
+
+### Planned edits
+- Update `config/platform/wsp/traffic_outputs_v0.yaml` (source of default output_ids for stream sort) to the two behavioural streams.
+- Update runbook Section 4.3 to target those outputs when verifying stream view existence.

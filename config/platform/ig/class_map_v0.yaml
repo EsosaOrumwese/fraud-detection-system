@@ -15,9 +15,8 @@ classes:
     required_pins:
       - manifest_fingerprint
 event_types:
-  arrival_events_5B: traffic
-  s2_flow_anchor_baseline_6B: traffic
-  s3_flow_anchor_with_fraud_6B: traffic
+  s2_event_stream_baseline_6B: traffic
+  s3_event_stream_with_fraud_6B: traffic
   ig.policy.activation: audit
   ig.quarantine.spike: audit
   ig.pull.run: audit

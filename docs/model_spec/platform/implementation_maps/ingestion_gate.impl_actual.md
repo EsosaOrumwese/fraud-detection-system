@@ -2170,3 +2170,18 @@ User could not see EB activity in `platform.log` and asked for an EB log.
 
 ### Result
 Platform log includes EB publish lines, and an explicit `eb.log` exists for deeper EB diagnostics.
+
+---
+
+## Entry: 2026-01-31 18:46:00 — IG schema policy aligned to behavioural traffic streams
+
+### Trigger
+Traffic policy now uses `s2_event_stream_baseline_6B` + `s3_event_stream_with_fraud_6B` as the only traffic channels.
+
+### Reasoning
+- IG schema policy and class map must match the WSP/SR traffic allowlist.
+- `arrival_events_5B` and 6B flow anchors are join surfaces and must not be treated as traffic.
+
+### Planned edits
+- Update `config/platform/ig/schema_policy_v0.yaml` to define schemas for the two 6B event streams.
+- Update `config/platform/ig/class_map_v0.yaml` to classify only those two event streams as `traffic`.

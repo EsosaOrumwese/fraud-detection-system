@@ -201,6 +201,28 @@ I am implementing Phase 1 as **engine‑rooted WSP** with no SR `run_facts_view`
 
 ---
 
+## Entry: 2026-01-31 18:41:00 — Traffic stream alignment (behavioural streams only)
+
+### Trigger
+`docs/model_spec/data-engine/interface_pack/data_engine_interface.md` clarifies engine output roles and the **dual behavioural stream policy**.
+
+### Reasoning (WSP-specific)
+- WSP is the **traffic producer**, so its allowlist must reflect **behavioural streams**, not join surfaces.
+- `arrival_events_5B` is explicitly a **traffic primitive** (join surface) and must remain oracle‑only.
+- `s2_flow_anchor_baseline_6B` / `s3_flow_anchor_with_fraud_6B` are **behavioural context**, not traffic.
+- The correct traffic feeds are:
+  - `s2_event_stream_baseline_6B` (clean baseline channel)
+  - `s3_event_stream_with_fraud_6B` (post‑overlay channel)
+
+### Decision (binding for WSP v0)
+- Default WSP output allowlist is **exactly the two behavioural event streams**.
+- WSP never emits `arrival_events_5B` unless an explicit future policy adds it.
+
+### Planned edits
+- Update `config/platform/wsp/traffic_outputs_v0.yaml` to list the two event streams only.
+- Ensure the runbook points WSP stream view to those outputs.
+
+
 ## Entry: 2026-01-30 10:24:24 — WSP stream_view mode (global ts_utc source)
 
 ### Trigger
@@ -937,3 +959,10 @@ Confirm WSP v0 is **green** for local_parity: READY → stream view → IG push,
 - Stream‑view only mode (no raw engine streaming).
 - Canonical envelope (`ts_utc` RFC3339 micros + `Z`) and provenance fields stamped.
 - READY consumption via Kinesis in parity; local smoke via capped runs; checkpoints persisted in Postgres.
+
+---
+
+## Entry: 2026-01-31 18:50:30 — Chronology correction (entry placement)
+
+### Note
+A prior traffic‑alignment entry was inserted above older entries due to patch placement. This note preserves chronology by timestamp without rewriting history. Future entries will be appended only.
