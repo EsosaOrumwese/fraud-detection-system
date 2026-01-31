@@ -283,3 +283,47 @@ Validation evidence is present and consistent with the design. There are no miss
 The dataset is internally coherent and correctly gated, but the **spatial collapse of site locations per country** produces **non‑representative timezone allocations**. The output is “correct for the given coordinates,” yet **not realistic for national‑scale distributions** (e.g., NL → Caribbean tzid, NO → Svalbard tzid, US → only Phoenix). For a portfolio‑grade fraud platform, this weakens realism unless the design explicitly calls for these geographic concentrations.
 
 If we want realism to improve at the 2A layer, the real fix is upstream: broaden the spatial spread of `site_locations` inside each country in 1B.
+
+**Areas for improvement (priority order):**
+1) **Broaden spatial spread within countries in 1B.**  
+   2A is correct given its inputs; the fix is to generate **multi‑city / multi‑region** points per country rather than single‑tile bands.
+2) **Introduce stratified geo sampling.**  
+   Sample multiple administrative regions or city clusters per country to create realistic tzid diversity.
+3) **Audit extreme country‑tzid pairings.**  
+   NL, NO, CN, BR, US show unrealistic tzid outcomes; add overrides or adjust upstream allocations to ensure mainland‑representative placement.
+4) **Surface fallback usage explicitly.**  
+   Keep tracking S1 fallback (nearest polygon) in run‑reports so downstream can see when 2A is compensating for upstream data collapse.
+
+---
+
+## 13) Visual diagnostics (core realism lens)
+Below are the four core plots requested (1, 2, 3, 8 equivalents), embedded and interpreted in detail. These are meant to expose **where realism breaks** rather than simply counting rows.
+
+### 13.1 Country spatial spread vs site count
+<img src="plots/1_bbox_area_vs_count.png" width="520" alt="Country spatial spread vs site count">
+
+**Assessment:**  
+This plot is **clear and informative**. It compares the **number of sites per country** (x, log scale) against an **approximate bounding‑box area** of those sites (y, log scale). If the dataset were geographically realistic, countries with many sites would typically show larger spatial spread. Instead, many countries with large site counts cluster at **very small bbox areas**, showing that sites are concentrated in extremely tight lat/lon bands. The few high‑area outliers indicate only a small number of countries have meaningful spatial spread. This is a direct signal that the **spatial realism is collapsed per country**, and 2A is faithfully mapping those collapsed points to single time zones.
+
+### 13.2 TZID diversity vs site count (jittered)
+<img src="plots/2_tzid_diversity_vs_count.png" width="520" alt="TZID diversity vs site count">
+
+**Assessment:**  
+This plot is **presentable and now readable** (jitter used to separate the 1 vs 2 bands). It shows that **nearly all countries have only 1 or 2 distinct tzids**, even when they have hundreds or thousands of sites. The color encoding (log10 bbox area) indicates that many countries with **large site counts and very small spatial spread** still resolve to a **single tzid**. This strongly supports the conclusion that timezone realism is constrained by **point‑clustered geography**, not by 2A logic. If we want more realistic tzid diversity, the spatial spread in 1B must be widened.
+
+### 13.3 Country small‑multiples (local lat/lon spread)
+<img src="plots/3_country_small_multiples.png" width="520" alt="Country small multiples lat/lon spread">
+
+**Assessment:**  
+This is the **most revealing plot**. Each subplot shows the local lat/lon spread for top‑count countries. Most countries collapse into **near‑flat horizontal bands**, often with **Δlat < 0.05°** (a few km). A realistic dataset would show broader scatter across each country’s geography. Instead, the spread is extremely tight, explaining why many countries resolve to a single timezone. This plot directly visualizes the **single‑tile / single‑band artifact** that drives the realism gaps in 2A outputs.
+
+### 13.4 Country × TZID heatmap (top countries / top tzids)
+<img src="plots/4_country_tzid_heatmap.png" width="520" alt="Country by TZID heatmap">
+
+**Assessment:**  
+The heatmap is **clean and interpretable**. It shows an almost **one‑to‑one mapping** between countries and tzids: each top country is dominated by a single tzid. This is especially visible for NL → America/Kralendijk and NO → Arctic/Longyearbyen, which are highly unrealistic for mainland national distributions. The heatmap makes the **country‑tzid pairing bias** explicit and highlights that timezone variety is extremely limited across the dataset.
+
+---
+
+## 14) Visual takeaway (realism lens)
+Across all four plots, the consistent pattern is: **high site counts with tiny spatial spread → single tzid per country**. The 2A outputs are internally coherent, but the geography feeding them is too collapsed, causing unrealistic timezone diversity and unnatural country‑tzid pairings. The fix is upstream: broaden the spatial distribution in 1B (and/or add explicit multi‑city sampling per country) so 2A can express realistic tzid variation.
