@@ -243,6 +243,12 @@ class IngestionGate:
         receipt_ref = self.receipt_writer.write_receipt(receipt_id, receipt_payload)
         self.admission_index.record(dedupe, receipt_ref, decision.eb_ref)
         self._record_ops_receipt(receipt_payload, receipt_ref)
+        logger.info(
+            "IG receipt stored receipt_id=%s receipt_ref=%s eb_ref=%s",
+            receipt_id,
+            receipt_ref,
+            decision.eb_ref,
+        )
         self.metrics.record_latency("phase.receipt_seconds", time.perf_counter() - receipt_started)
         self.metrics.record_decision("ADMIT")
         self.metrics.record_latency("admission_seconds", time.perf_counter() - start)

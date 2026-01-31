@@ -39,6 +39,9 @@ def platform_run_prefix(*, create_if_missing: bool) -> str | None:
     run_id = resolve_platform_run_id(create_if_missing=create_if_missing)
     if not run_id:
         return None
+    store_root = (os.getenv("PLATFORM_STORE_ROOT") or "").strip()
+    if store_root.startswith("s3://"):
+        return run_id
     return f"fraud-platform/{run_id}"
 
 

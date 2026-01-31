@@ -2098,3 +2098,40 @@ Earlier IG notes referenced `dev_local.yaml` as an uncapped completion profile. 
 
 ### Impact
 Any prior `dev_local` mentions are historical only; parity validation should reference `local_parity`.
+
+---
+
+## Entry: 2026-01-31 06:05 — IG run-scoped receipts + EB ref logging
+
+### Trigger
+User requested per-run diagnostic visibility for EB and receipts in the control/ingress plane. Observed IG receipts landing at `fraud-platform/ig/...` without run_id, and no explicit EB ref lines in platform log.
+
+### Decision
+- Ensure IG service uses the active platform run id when started (via `PLATFORM_RUN_ID`), so receipts/quarantine/health are written under `fraud-platform/<run_id>/ig/...`.
+- Log `receipt_ref` and `eb_ref` explicitly after a successful admission receipt write.
+
+### Changes
+- `makefile`: `platform-ig-service` and `platform-ig-service-parity` now export `PLATFORM_RUN_ID` from `runs/fraud-platform/ACTIVE_RUN_ID`.
+- `src/fraud_detection/ingestion_gate/admission.py`: added `IG receipt stored ... eb_ref=...` log line after receipt write.
+
+### Validation plan
+Start IG after `make platform-run-new`, run SR → WSP (20 events), verify:
+- Receipts appear under `fraud-platform/<run_id>/ig/receipts/` (MinIO).
+- `platform.log` contains `IG receipt stored ... eb_ref=...`.
+
+---
+
+## Entry: 2026-01-31 06:30 — Normalize S3 run prefix for IG receipts
+
+### Trigger
+MinIO receipts were written under `fraud-platform/fraud-platform/<run_id>/...` due to platform run prefix including the bucket name.
+
+### Decision
+Use `PLATFORM_STORE_ROOT` to detect S3 store and return run_id only for the prefix.
+
+### Changes
+- `platform_runtime.platform_run_prefix` uses `PLATFORM_STORE_ROOT` when S3.
+- IG/SR/WSP Make targets export `PLATFORM_STORE_ROOT`.
+
+### Validation
+Receipts now written under `s3://fraud-platform/<run_id>/ig/receipts/` with EB refs in platform log.

@@ -344,89 +344,74 @@ In practice, fraud models expect that a merchant’s traffic is **highly skewed*
 
 ---
 
-### 8.1 Visual diagnostics (S1) — what the plots actually show
+### 8.1 Visual diagnostics (S1) — narrative interpretation and why the plots look “odd”
 
 #### a) Sites per merchant distribution
 <img src="plots/s1_site_count_distribution.png" width="520" alt="S1 sites per merchant distribution">
 
-**What the plot says (image‑based):**  
-The distribution is tightly concentrated between roughly **10 and 100 sites** per merchant (log‑x), with a **very small tail** into hundreds and thousands. This visually matches the earlier stats (median ~16, p75 ~23, p90 ~36, p99 ~168).  
-**Why this matters:** This tells us the **size** of merchant footprints, but not whether those footprints are realistic. It sets the stage for the other plots: if weights were realistic, we would expect **different concentration behavior within this same footprint range**. The next plots show that does **not** happen.
+This plot shows most merchants clustered in the **10–100 site** range, with only a thin tail into the hundreds and thousands. That shape is exactly what the earlier statistics imply (median ~16, p90 ~36, p99 ~168). The reason the bar looks like a “block” is because the **log‑x scale compresses** the low‑count region and spreads out the long tail. The plot is not “broken”; it’s just visualizing a wide numeric range in a compact way.  
+What this tells us is **how large merchant footprints are**, but it does not tell us whether the weights inside those footprints are realistic. It’s a sizing plot, not a realism plot. The next plots reveal whether these footprints have realistic **concentration** or whether they are uniformly flat.
 
 ---
 
 #### b) Top‑1 vs Top‑2 site weight
 <img src="plots/s1_top1_vs_top2.png" width="520" alt="S1 top-1 vs top-2 weights">
 
-**What the plot says (image‑based):**  
-All points lie **exactly on the y=x line** with discrete steps (0.5, 0.33, 0.25, 0.2, 0.1, …). There is virtually **no scatter**.  
-**How this ties to stats:** This is the visual proof of the top‑1/top‑2 quantiles (p50 0.0625, p75 0.1111, p90 0.1667), which are exactly **1/N** for uniform weights.  
-**Why this matters:** In real merchant behavior, the top‑1 weight is almost always **higher** than top‑2 (often much higher). Here they are always equal, so every merchant behaves as if all sites are identical.
+Every point falls exactly on the diagonal **y = x**, and the points snap to discrete steps. That combination is a visual fingerprint of **uniform weights**. If every site is weighted equally, then the top‑1 and top‑2 weights must be identical, and their values become exact fractions like **1/2, 1/3, 1/4, …** — which is why the points sit on clean “stairs.”  
+In real merchant data, top‑1 is rarely equal to top‑2; it is usually larger because some sites dominate. The straight diagonal line here is not a plotting artifact — it is the plot revealing that **all merchants are forced into equal weights** with no dominance or skew.
 
 ---
 
 #### c) HHI (concentration) distribution
 <img src="plots/s1_hhi_distribution.png" width="520" alt="S1 HHI distribution">
 
-**What the plot says (image‑based):**  
-HHI values are **highly clustered** with a narrow spread. There is no multi‑modal pattern or broad dispersion.  
-**How this ties to stats:** The HHI quantiles match the top‑1 quantiles (uniform distribution). The tight clustering in the image confirms there is **no concentration diversity** between merchants.  
-**Why this matters:** Real datasets show a wide range of concentration (small merchants concentrated, large chains skewed but not uniform). Here, concentration is almost entirely a function of site_count, not merchant behavior.
+HHI measures concentration. In this plot, the distribution is **tight and narrow**, not broad. That means almost every merchant has **the same concentration profile**, and the only thing changing HHI is the number of sites. The log‑x axis makes the range readable, but the important signal is that **there is no spread** at each site‑count level.  
+In realistic commerce data, we expect **heterogeneous concentration** — some merchants highly skewed, some relatively flat, many in between. The tight cluster here is another visual confirmation that S1 is uniform by design rather than behavior‑driven.
 
 ---
 
 #### d) Lorenz curves (sample merchants)
 <img src="plots/s1_lorenz_sample.png" width="520" alt="S1 Lorenz curves for sample merchants">
 
-**What the plot says (image‑based):**  
-All curves sit **exactly on the equality line**. No curvature appears.  
-**How this ties to stats:** This directly visualizes “entropy = log(N)” and “std = 0” for all merchants.  
-**Why this matters:** A Lorenz curve on the diagonal means **perfect equality**: every site carries the same weight. This is the strongest visual proof that S1 is fully uniform.
+Every curve lies **exactly on the equality diagonal**. A Lorenz curve bends downward only when a few sites carry most of the weight. Since there is **no curvature at all**, it means **perfect equality** for every merchant sampled.  
+This is the cleanest visual confirmation that **all sites are identical within each merchant**. It is not subtle; the plot says there is **zero concentration** anywhere in S1.
 
 ---
 
 #### e) HHI vs site_count
 <img src="plots/s1_hhi_vs_site_count.png" width="520" alt="S1 HHI vs site count">
 
-**What the plot says (image‑based):**  
-Points fall on a **single smooth line** with **no scatter**, forming a near‑perfect inverse relationship between HHI and site_count.  
-**How this ties to stats:** This is exactly what happens when HHI = 1/N under uniform weights.  
-**Why this matters:** The absence of scatter means **merchant identity does not matter**. Merchants with the same number of sites have the same concentration, which is unrealistic.
+The points sit on a **single smooth inverse curve** with no scatter. That is the exact relationship you get when HHI = 1/N. In other words, concentration is **deterministically defined by site_count** and nothing else.  
+In a realistic dataset, merchants with the same number of sites would show different concentration levels (some more skewed, some flatter). Here, that variation is absent. This plot shows that **merchant individuality does not exist in S1**.
 
 ---
 
 #### f) Top‑1 weight vs site_count
 <img src="plots/s1_top1_vs_site_count.png" width="520" alt="S1 top-1 weight vs site count">
 
-**What the plot says (image‑based):**  
-Another **perfect curve**, top‑1 weight decreasing as site_count increases, with no scatter.  
-**How this ties to stats:** This is the direct visual of top‑1 = 1/N.  
-**Why this matters:** In real data, two merchants with 50 sites should not have identical top‑1 weights; here they do, so the system encodes **no merchant‑specific heterogeneity**.
+This plot is the same story as the HHI curve: top‑1 weight follows a **perfect 1/N curve** with zero scatter. Every merchant with 50 sites has exactly the same top‑1 weight as every other merchant with 50 sites.  
+That is unrealistic because real merchants differ in how traffic concentrates even when they have the same footprint size. This plot confirms that **site_count fully determines top‑1** and nothing else is allowed to vary.
 
 ---
 
 #### g) Weight source breakdown
 <img src="plots/s1_weight_source_breakdown.png" width="520" alt="S1 weight source breakdown">
 
-**What the plot says (image‑based):**  
-Only one bar exists: **uniform** for all rows.  
-**How this ties to stats:** This matches the 100% uniform weight_source count in the stats.  
-**Why this matters:** This explains why every other plot collapses into perfect curves: the generator explicitly uses a uniform policy for every merchant.
+This bar chart looks “weird” because there is only **one category**. All rows are labeled `uniform`, so there is a single massive bar and nothing else. That is not a plotting issue — it is the data stating that **all weights are generated from the same uniform rule**.  
+This is the categorical root cause of the straight‑line plots above.
 
 ---
 
 #### h) Entropy vs site_count
 <img src="plots/s1_entropy_vs_site_count.png" width="520" alt="S1 entropy vs site count">
 
-**What the plot says (image‑based):**  
-Entropy rises on a **single smooth curve** with **no spread**, matching the log(N) shape.  
-**How this ties to stats:** Entropy quantiles increase predictably with N; no merchant variation exists beyond site_count.  
-**Why this matters:** This confirms that **all merchants are identical in weight dispersion** and the system has **zero behavioral diversity** at S1.
+Entropy rises in a perfectly smooth curve with no spread, which is exactly **log(N)** for a uniform distribution. This plot is another way of seeing the same result: **entropy is fully determined by site_count**, and there is no merchant‑level variation in dispersion.  
+In realistic data, you would see scatter here because different merchants with the same site_count would have different dispersions. The absence of scatter confirms that **uniformity is enforced, not emergent**.
 
 ---
 
 **Bottom line from the plots:**  
-Every S1 diagnostic plot converges on the same conclusion: **the per‑merchant site weights are mathematically uniform**, and **merchant individuality is absent**. The plots do not merely suggest uniformity — they **prove it visually**. This is the primary realism blocker for Segment 2B.
+The “weird” straight lines and the single‑bar chart are not plotting artifacts. They are the visual signature of a **fully uniform weighting system**. Every diagnostic plot independently shows the same property: **site_count completely determines the weight distribution**, and there is **zero merchant‑specific variation**. That is the core realism blocker for S1 and therefore for Segment 2B.
 
 ## 9) Realism core #2 - `s4_group_weights` (routing mix realism)
 **Counts**

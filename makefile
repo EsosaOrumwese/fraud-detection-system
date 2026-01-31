@@ -2643,6 +2643,7 @@ platform-sr-run-reuse:
 	fi
 	@OBJECT_STORE_ENDPOINT="$(OBJECT_STORE_ENDPOINT)" \
 	OBJECT_STORE_REGION="$(OBJECT_STORE_REGION)" \
+	PLATFORM_STORE_ROOT="$(PLATFORM_STORE_ROOT)" \
 	AWS_ACCESS_KEY_ID="$(AWS_ACCESS_KEY_ID)" \
 	AWS_SECRET_ACCESS_KEY="$(AWS_SECRET_ACCESS_KEY)" \
 	AWS_EC2_METADATA_DISABLED="$(AWS_EC2_METADATA_DISABLED)" \
@@ -2673,7 +2674,9 @@ platform-sr-reemit:
 
 .PHONY: platform-ig-service
 platform-ig-service:
-	@$(PY_PLATFORM) -m fraud_detection.ingestion_gate.service \
+	@PLATFORM_RUN_ID="$(shell cat runs/fraud-platform/ACTIVE_RUN_ID 2>/dev/null)" \
+	PLATFORM_STORE_ROOT="$(PLATFORM_STORE_ROOT)" \
+	$(PY_PLATFORM) -m fraud_detection.ingestion_gate.service \
 		--profile "$(IG_PROFILE)" \
 		--host "$(IG_HOST)" \
 		--port "$(IG_PORT)"
@@ -2697,6 +2700,8 @@ platform-ig-service-parity:
 	AWS_DEFAULT_REGION="$(PARITY_CONTROL_BUS_REGION)" \
 	AWS_ENDPOINT_URL="$(PARITY_CONTROL_BUS_ENDPOINT_URL)" \
 	AWS_EC2_METADATA_DISABLED="$(PARITY_AWS_EC2_METADATA_DISABLED)" \
+	PLATFORM_RUN_ID="$(shell cat runs/fraud-platform/ACTIVE_RUN_ID 2>/dev/null)" \
+	PLATFORM_STORE_ROOT="$(PLATFORM_STORE_ROOT)" \
 	$(PY_PLATFORM) -m fraud_detection.ingestion_gate.service \
 		--profile "$(IG_PROFILE_PARITY)" \
 		--host "$(IG_HOST)" \
@@ -2724,6 +2729,7 @@ platform-wsp-ready-once:
 platform-wsp-ready-consumer:
 	@OBJECT_STORE_ENDPOINT="$(OBJECT_STORE_ENDPOINT)" \
 	OBJECT_STORE_REGION="$(OBJECT_STORE_REGION)" \
+	PLATFORM_STORE_ROOT="$(PLATFORM_STORE_ROOT)" \
 	ORACLE_ROOT="$(ORACLE_ROOT)" \
 	ORACLE_ENGINE_RUN_ROOT="$(ORACLE_ENGINE_RUN_ROOT)" \
 	ORACLE_SCENARIO_ID="$(ORACLE_SCENARIO_ID)" \
@@ -2746,6 +2752,7 @@ platform-wsp-ready-consumer:
 platform-wsp-ready-consumer-once:
 	@OBJECT_STORE_ENDPOINT="$(OBJECT_STORE_ENDPOINT)" \
 	OBJECT_STORE_REGION="$(OBJECT_STORE_REGION)" \
+	PLATFORM_STORE_ROOT="$(PLATFORM_STORE_ROOT)" \
 	ORACLE_ROOT="$(ORACLE_ROOT)" \
 	ORACLE_ENGINE_RUN_ROOT="$(ORACLE_ENGINE_RUN_ROOT)" \
 	ORACLE_SCENARIO_ID="$(ORACLE_SCENARIO_ID)" \

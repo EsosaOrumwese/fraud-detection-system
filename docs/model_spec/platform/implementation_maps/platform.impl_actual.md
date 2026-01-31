@@ -1161,3 +1161,38 @@ MinIO reads for small Oracle metadata (e.g. `run_receipt.json`) occasionally tim
 
 ### Rationale
 This keeps SR’s local evidence checks intact while ensuring WSP stream view identity matches the S3 oracle store used in parity/dev/prod.
+
+---
+
+## Entry: 2026-01-31 06:05 — IG receipts run-scope + EB ref visibility
+
+### Trigger
+Needed run-scoped IG receipts and explicit EB refs in logs for parity diagnostics.
+
+### Decision
+- Export `PLATFORM_RUN_ID` into IG service start targets so receipts/health/quarantine land under the active run.
+- Log `receipt_ref` and `eb_ref` on successful admissions.
+
+### Changes
+- Makefile: IG service targets now pass PLATFORM_RUN_ID.
+- IG admission: added `IG receipt stored ... eb_ref=...` line after receipt write.
+
+---
+
+## Entry: 2026-01-31 06:30 — Normalize S3 run prefix for platform artifacts
+
+### Trigger
+User requested removal of the duplicate `fraud-platform/` prefix in MinIO paths (e.g., `s3://fraud-platform/fraud-platform/<run_id>/...`).
+
+### Decision
+- Add `PLATFORM_STORE_ROOT` env to signal S3 store usage.
+- If `PLATFORM_STORE_ROOT` is `s3://...`, `platform_run_prefix` returns just `<run_id>` to avoid double prefixing.
+
+### Changes
+- `src/fraud_detection/platform_runtime.py`: `platform_run_prefix` now checks `PLATFORM_STORE_ROOT` and returns run_id when S3.
+- `.env.platform.local`: added `PLATFORM_STORE_ROOT=s3://fraud-platform`.
+- `makefile`: export `PLATFORM_STORE_ROOT` for SR, IG, WSP targets.
+
+### Validation
+Fresh parity run produced receipts at:
+`s3://fraud-platform/<run_id>/ig/receipts/*.json` and platform log shows `IG receipt stored ... eb_ref=...` with normalized path.
