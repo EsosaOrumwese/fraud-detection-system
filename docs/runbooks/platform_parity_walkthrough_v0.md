@@ -266,7 +266,7 @@ $env:WSP_READY_MAX_EVENTS="500000"; make platform-wsp-ready-consumer-once WSP_PR
 
 **Expected:**
 - WSP reads READY from Kinesis
-- WSP streams up to 500k events to IG using the **stream view** (per‑output `ts_utc` order)
+- WSP streams up to 500k events to IG using the **stream view** (per‑output `ts_utc` order; speedup preserves ordering)
 - IG admits and publishes to EB (Kinesis)
 
 **If you see `Invalid endpoint`:** verify `.env.platform.local` has `OBJECT_STORE_ENDPOINT` and MinIO creds; Make exports them to WSP.

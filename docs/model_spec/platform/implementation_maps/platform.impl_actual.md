@@ -1255,3 +1255,52 @@ User requested removal of the duplicate `fraud-platform/` prefix in MinIO paths 
 ### Validation
 Fresh parity run produced receipts at:
 `s3://fraud-platform/<run_id>/ig/receipts/*.json` and platform log shows `IG receipt stored ... eb_ref=...` with normalized path.
+
+## Entry: 2026-01-31 13:10:00 — v0 control & ingress narrative (Phase 1–3) + canonical event time semantics
+
+### Why this entry
+User requested a **single narrative flow** for Phases 1–3 (v0) so the current platform behavior is unambiguous before Phase 4. This captures the actual runtime order and clarifies **event‑time semantics** (streaming by canonical `ts_utc`, with speedup as a policy knob).
+
+### Narrative flow (v0 as implemented)
+**0) Rails + substrate (Phase 1)**
+- Canonical envelope + ContextPins are pinned and versioned.
+- By‑ref artifacts + digest posture are pinned.
+- Event bus taxonomy (control vs traffic vs audit) and partitioning rules are pinned.
+- Environment ladder is policy vs wiring (only wiring changes across envs).
+
+**1) Oracle Store is the truth boundary (Phase 2)**
+- Engine outputs are sealed and stored in the Oracle Store (S3/MinIO in parity).
+- Oracle Store is external to the platform; SR/WSP never “own” it.
+- Local engine paths are not authoritative when `oracle_engine_run_root` is wired.
+
+**2) SR is the readiness authority (Phase 3)**
+- SR is control‑plane only and does not stream data.
+- SR reads **Oracle Store** for evidence/gates and produces the join surface (`run_facts_view`) + READY.
+- READY is published to the control bus only after **no‑PASS‑no‑read** is satisfied.
+
+**3) WSP is the stream producer (Phase 2→3 bridge)**
+- WSP consumes READY + run_facts_view for authorization and pins.
+- WSP reads the **stream view** from Oracle Store and streams traffic into IG.
+- WSP never publishes to EB directly (only IG does).
+
+**4) IG is the admission boundary (Phase 3)**
+- IG validates canonical envelope + schema, enforces no‑PASS‑no‑read, and emits receipts.
+- Receipts are by‑ref with decisions + evidence refs.
+
+**5) EB is the durable traffic log (Phase 3)**
+- EB is the durable offset provider (Kinesis in parity).
+- IG publishes admitted traffic; offsets are recorded in receipts.
+
+### Event‑time semantics (critical)
+- **Streaming is ordered by canonical event time (`ts_utc`)**, not by file order.
+- **Speedup** is an explicit policy knob; it accelerates the same `ts_utc` sequence without changing ordering.
+- This means the observed flow reflects **event‑time ordering** and **may not mirror raw file order**.
+
+### v0 green meaning (control & ingress)
+- Oracle Store sealed outputs exist.
+- SR READY is published after gate verification using Oracle Store.
+- WSP streams traffic by `ts_utc` (speedup optional).
+- IG admits/quarantines and emits receipts.
+- EB has offsets for the same platform run.
+
+---
