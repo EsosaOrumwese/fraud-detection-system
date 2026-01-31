@@ -295,3 +295,166 @@ So in assessment, we will separate:
 ---
 
 (Next: detailed assessment of the actual 2B outputs under your run folder.)
+
+---
+
+# Segment 2B - Output Assessment (Run: local_full_run-5)
+Run: `runs\local_full_run-5\c25a2675fbfbacd952b13bb594880e92`  
+Partition: `seed=42`, `manifest_fingerprint=c8fd43cd60ce0ede0c63d2ceb4610f167c9b107e1d59b9b8c7d7b8d0028b05c8`
+
+This section is a deep statistical assessment of the 2B outputs with a realism lens. The focus follows the priority order in Section 5: `s1_site_weights` -> `s4_group_weights` -> `s3_day_effects`.
+
+---
+
+## 7) Output inventory and sizes (context only)
+Present under `data/layer1/2B`:
+- `s1_site_weights` (1 parquet, ~0.04 MB)
+- `s2_alias_index` + `s2_alias_blob` (~0.27 MB total)
+- `s3_day_effects` (1 parquet, ~4.32 MB)
+- `s4_group_weights` (1 parquet, ~6.45 MB)
+- `s5_arrival_roster` (1 jsonl, ~0.16 MB)
+- `s0_gate_receipt`, `sealed_inputs`, `s7_audit_report`, `validation` (small gate/audit artefacts)
+
+---
+
+## 8) Realism core #1 - `s1_site_weights` (baseline spatial realism)
+**Counts and distribution**
+- Rows: **31,257**
+- Merchants: **1,238**
+- Sites per merchant (quantiles):  
+  min 2, p10 6, p25 9, median 16, p75 23, p90 36, p99 168, max 2,546
+- Site-count bins (merchant counts):  
+  11-25: **592**, 6-10: **273**, 26-50: **196**, 3-5: **96**, 51-100: **36**,  
+  101-250: **21**, 2: **16**, 251-500: **3**, 501-1000: **3**, >1000: **2**
+
+**Weight realism (critical)**
+- `weight_source` = **uniform for 100%** of rows
+- `quantised_bits` = **24 for 100%**
+- `floor_applied` = **false for 100%**
+
+**Concentration metrics (per-merchant)**
+- All merchants are perfectly uniform (weight std = **0** for every merchant)
+- Top-1 weight quantiles: **p50 0.0625**, p75 0.1111, p90 0.1667, p99 0.5  
+  (exactly **1/N** -> uniform)
+- HHI quantiles mirror top-1 quantiles -> confirms uniform distribution
+
+**Interpretation (realism):**  
+These stats show an **engineered uniform distribution**, not a behavior‑derived one. The top‑1 weight quantiles lining up exactly with **1/N** (e.g., p50=0.0625 implies N=16 sites) and the **zero std for every merchant** mean that **every merchant is forced to behave identically** within its own footprint: same probability per site, no hubs, no “main store vs satellite” effect, and no urban concentration.  
+In practice, fraud models expect that a merchant’s traffic is **highly skewed** (a few dominant sites or cities drive most volume). Uniform weights erase these realistic asymmetries, so any downstream routing or transaction simulation will **flatten geography and frequency**. This also hides the typical real‑world phenomenon where **larger merchants exhibit heavy‑tailed site usage**, not equal usage. The uniformity here is not just “less realistic”; it structurally prevents the platform from learning or explaining **why certain sites are riskier or more active**, because all sites are artificially equal.
+
+---
+
+## 9) Realism core #2 - `s4_group_weights` (routing mix realism)
+**Counts**
+- Rows: **100,000**
+- Merchants: **448**
+- Days: **90**
+- tz_groups: **56**
+- Day range: **2026-01-01 to 2026-03-31**
+
+**Normalization**
+- `sum_p_group` is ~1 everywhere except one outlier:
+  - merchant_id **7219681017306349439**, day **2026-02-03**, sum **0.04447**
+  - This row has only one tz_group, so the sum is not normalized to 1.
+- `base_share` sums show the same outlier (0.04348).
+
+**Group diversity per merchant-day**
+- Total merchant-days: **40,264**
+- tz-groups per day:
+  - 1 group: **19,081** (47.4%)
+  - 2 groups: **7,740** (19.2%)
+  - 3+ groups: **13,443** (33.4%)
+
+**Dominance**
+- Max p_group >= 0.90: **50.8%** of merchant-days  
+- Max p_group >= 0.95: **48.6%**  
+- Max p_group >= 0.99: **47.4%**
+
+**Interpretation (realism):**  
+The dominance metrics show that **routing behavior collapses to a single timezone for roughly half of merchant‑days** (max p_group ≥ 0.9 for ~51%). Even when merchants do have multiple tz groups, the mix is often extremely imbalanced, which implies **little cross‑timezone activity** on most days. This is a strong realism limitation because real merchants with multi‑country or multi‑region footprints rarely have **near‑exclusive** traffic from a single timezone every day.  
+The one outlier with sum_p_group ≈ 0.044 is also a **correctness‑level anomaly**: a single tz group day should still normalize to 1.0. That single merchant‑day is effectively “missing mass,” which can bias downstream sampling (the alias decode would be under‑weighted unless it’s renormalized at runtime). It’s small in absolute count, but it proves that **normalization is not strictly guaranteed** under all conditions and should be traced to its upstream cause.
+
+---
+
+## 10) Realism core #3 - `s3_day_effects` (temporal realism)
+**Counts**
+- Rows: **100,000**
+- Merchants: **448**
+- Days: **90**
+- tz_groups: **56**
+- Day range: **2026-01-01 to 2026-03-31**
+- `sigma_gamma` unique values: **1** (all rows share the same sigma)
+
+**Gamma distribution**
+- `gamma` quantiles:  
+  min **0.574**, p10 **0.852**, p25 **0.916**, p50 **0.993**, p75 **1.077**, p90 **1.158**, p99 **1.316**, max **1.660**
+- `log_gamma` quantiles:  
+  min **-0.555**, p50 **-0.007**, p90 **0.147**, max **0.507**
+- Means: `gamma` ~ **1.0003**, `log_gamma` ~ **-0.0069**, std ~ **0.12**
+
+**Interpretation (realism):**  
+The gamma distribution looks **statistically plausible** (log‑normal, centered near 1.0, moderate spread), so the *shape* is realistic. However, the realism weakness is **lack of heterogeneity**: sigma_gamma is identical for every merchant, so **every merchant has the same volatility profile** across days. In real data, some merchants are highly seasonal or have bursty patterns (high sigma), while others are stable (low sigma).  
+This uniform sigma also suppresses the emergent property we want from realism: different merchants should produce **distinct temporal signatures**. With a single sigma, the only variability comes from the random draw, not merchant‑level behavior. That makes temporal realism **generic rather than specific**, which weakens explainability and model interpretability downstream.
+
+---
+
+## 11) Coverage gaps (major realism impact)
+**Merchants present in S1 vs S3/S4**
+- Merchants in `s1_site_weights`: **1,238**
+- Merchants in `s3_day_effects` / `s4_group_weights`: **448**
+- Missing merchants: **790**
+
+**Missing merchant size profile**
+- Missing merchant site counts: min **2**, median **16**, p90 **35**, max **2,546**
+- Missing bins:  
+  11-25: **383**, 6-10: **165**, 26-50: **123**, <=5: **76**, 51-100: **23**,  
+  101-250: **15**, >250: **5**
+
+**Interpretation (realism):**  
+This gap means **most merchants never enter the day‑effect or group‑mix system at all**. In practice, those merchants become **static**: they have weights but no time or tz‑mix modulation. That destroys realism at scale because the majority of merchants will not exhibit daily variability or timezone‑conditioned routing.  
+What makes this worse is that the missing merchants are **not just tiny accounts**—the median missing merchant still has 16 sites, and some have thousands. So the realism deficit affects **large, potentially important merchants**, not just edge cases. If the downstream platform is expected to model fraud patterns across the full merchant population, this coverage gap creates a structural bias: only a minority of merchants will display the intended realistic behavior.
+
+---
+
+## 12) Routing workload realism (`s5_arrival_roster`)
+- Rows: **1,238** (exactly 1 per merchant)
+- Days: **1** (only 2026-01-01)
+- Virtual rate: **11.23%**
+
+**Interpretation:**  
+This roster represents **one arrival per merchant on a single day**, which is effectively a **smoke test** rather than a realism‑grade workload. It cannot reveal day‑level seasonality, tz‑mix variation over time, or intra‑merchant routing dynamics because **there is no temporal depth**.  
+If we evaluate realism based on this roster, we will **overestimate** the system’s realism (since it never has to express variability) and **under‑detect** errors (like tz‑mix drift or day‑grid gaps). For realism assessment, we need multi‑day, multi‑arrival rosters so routing can show **repeated, structured behavior** instead of single‑point snapshots.
+
+---
+
+## 13) Structural integrity checks (supporting realism)
+**S3 <-> S4 coherence**
+- Gamma echo: **max abs diff = 0.0** (perfect match)
+- Key coverage: **0 missing** in either direction
+
+**Alias index**
+- `merchants_count` in alias index = **1,238**, matching S1
+- Layout/endianness/alignment consistent with policy
+
+These checks confirm the **internal consistency** of the 2B pipeline (gamma echo and alias integrity), which is important because it means the realism issues are **not caused by broken joins or corrupt artefacts**. Instead, they are **behavioral choices in the data generation** (uniform weights, coverage gaps, concentrated group mixes). That distinction matters: fixes should target **generation logic and coverage policy**, not repair mechanics.
+
+---
+
+## 14) Realism takeaways (actionable)
+1) Uniform weights across all merchants -> the biggest realism failure.  
+   This makes routing artificially flat and removes hub/cluster behavior.
+2) Massive merchant coverage gap (790 merchants missing from S3/S4).  
+   Most merchants have no temporal or group mix dynamics.
+3) High tz-group dominance (~50% of merchant-days have max p_group >= 0.9).  
+   Indicates very low geographic/timezone diversity in daily routing.
+4) Temporal effects are plausible but homogeneous.  
+   All merchants share identical sigma; variability is not merchant-specific.
+5) Arrival roster too shallow to validate realism in routing behavior.
+
+If realism is the goal, the first fixes should be:
+- **Introduce non‑uniform, merchant‑specific weight distributions in S1.**  
+  For example, generate Zipf‑like or hub‑and‑spoke weights so a few sites dominate, with long‑tail sites still active. This alone will create realistic spatial skew and allow the model to explain why some sites are riskier.
+- **Ensure all merchants flow into S3/S4.**  
+  If a merchant exists in S1, it should appear in day‑effects and group‑mix tables, otherwise the system splits into “realistic merchants” and “static merchants.” That breaks realism at population scale.
+- **Expand arrival rosters to multiple days and multiple arrivals per merchant.**  
+  This is required to observe temporal variability, tz‑mix changes, and routing stability. Without this, the system never demonstrates the behavior it is supposed to model.
