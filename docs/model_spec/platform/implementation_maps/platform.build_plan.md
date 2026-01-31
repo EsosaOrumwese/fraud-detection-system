@@ -246,6 +246,9 @@ Local‑parity uses the *same service classes* as dev/prod (S3/Kinesis/Postgres)
 **Event‑time semantics:**  
 The platform uses the **canonical event time (`ts_utc`)** for windowing and temporal logic. Speedup only changes the pacing of delivery; it does **not** change ordering or event time. This is why the flow can appear “non‑intuitive” if you expect file order—**it is event‑time order**.
 
+**Traffic stream semantics (post‑EB):**  
+The EB “traffic stream” is a **single concurrent stream** (one topic/shard group) carrying **interleaved events** from multiple `event_type`s. It does **not** mean “one dataset at a time.” Downstream components **filter by event_type / payload_kind**; they do not require separate streams in v0.
+
 #### Phase 4.1 — RTDL contracts + invariants (expanded)
 
 ##### 4.1.A — RTDL envelope + provenance contract
@@ -389,4 +392,3 @@ The platform uses the **canonical event time (`ts_utc`)** for windowing and temp
 - Phase 2: complete (Oracle Store + WSP stream‑view parity).
 - Phase 3: complete (control & ingress plane green for v0).
 - SR v0: complete (see `docs/model_spec/platform/implementation_maps/scenario_runner.build_plan.md`).
-

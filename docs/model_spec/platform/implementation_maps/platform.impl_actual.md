@@ -1490,3 +1490,16 @@ Move into Phase 4.2 by defining the IEG projector’s v0 mechanics with explicit
 - Smoke: consume 20 admitted events and produce non‑empty projection with a stamped graph_version.
 
 ---
+
+## Entry: 2026-01-31 16:05:00 — Traffic stream semantics (post‑EB) clarified
+
+### Why this entry
+User asked for clarity on “one traffic stream” semantics and concurrent flow across datasets.
+
+### Clarification (pinned)
+- **One traffic stream** means a single EB topic/shard group carrying **interleaved, concurrent events** of multiple `event_type`s.
+- It does **not** imply “one dataset at a time.” Events from different datasets may arrive concurrently and are interleaved.
+- Consumers **filter by event_type / payload_kind** to take only what they need; they do not require separate streams in v0.
+- v0 WSP is currently sequential per output_id, but the **ideal** production posture is concurrent per‑output workers feeding the same traffic stream.
+
+---
