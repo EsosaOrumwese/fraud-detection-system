@@ -37,6 +37,7 @@ from .config import WspProfile
 from .checkpoints import CheckpointCursor, CheckpointStore, FileCheckpointStore, PostgresCheckpointStore
 
 logger = logging.getLogger(__name__)
+narrative_logger = logging.getLogger("fraud_detection.platform_narrative")
 
 
 @dataclass(frozen=True)
@@ -555,6 +556,14 @@ class WorldStreamProducer:
             if manifest.get("output_id") and manifest.get("output_id") != output_id:
                 raise IngestionError("STREAM_VIEW_OUTPUT_MISMATCH", output_id)
 
+            narrative_logger.info(
+                "WSP stream start run_id=%s output_id=%s max_events=%s speedup=%.2f",
+                run_id,
+                output_id,
+                max_events if max_events is not None else "all",
+                speedup,
+            )
+
             files = _list_stream_view_files(store)
             if not files:
                 raise IngestionError("STREAM_VIEW_EMPTY", output_id)
@@ -632,11 +641,23 @@ class WorldStreamProducer:
                     if max_events is not None and emitted >= max_events:
                         if cursor:
                             _save_checkpoint(cursor, reason="max_events")
+                        narrative_logger.info(
+                            "WSP stream stop run_id=%s output_id=%s emitted=%s reason=max_events",
+                            run_id,
+                            output_id,
+                            emitted,
+                        )
                         return emitted
                 if cursor:
                     _save_checkpoint(cursor, reason="file_complete")
             if cursor:
                 _save_checkpoint(cursor, reason="output_complete")
+            narrative_logger.info(
+                "WSP stream complete run_id=%s output_id=%s emitted=%s",
+                run_id,
+                output_id,
+                emitted,
+            )
         return emitted
 
     def _push_to_ig(self, envelope: dict[str, Any]) -> None:

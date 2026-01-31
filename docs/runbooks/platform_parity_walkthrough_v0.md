@@ -276,16 +276,20 @@ You’ll see lines like `WSP progress emitted=...` during the stream.
 
 ## 8) Observe logs (single run, all components)
 
-Tail the platform log:
+Tail the platform log (narrative + warnings/errors only):
 ```
 Get-Content runs/fraud-platform/<platform_run_id>/platform.log -Wait
 ```
 
 Look for:
-- **SR**: `READY committed`, `READY published`
-- **WSP**: `READY poll processed=...` and `STREAMED`
-- **IG**: `admitted`, `receipt emitted`
-- **EB**: publish acknowledgements (offsets)
+- **SR**: `SR READY published`
+- **WSP**: `WSP stream start` / `WSP stream stop`
+- **IG**: `IG summary admit=...` and `IG receipt stored ... eb_ref=...`
+
+Component detail logs (full diagnostics):
+- SR: `runs/fraud-platform/<platform_run_id>/sr/sr.log`
+- WSP: `runs/fraud-platform/<platform_run_id>/wsp/wsp.log`
+- IG: `runs/fraud-platform/<platform_run_id>/ig/ig.log`
 
 ---
 

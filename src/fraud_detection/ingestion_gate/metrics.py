@@ -8,6 +8,7 @@ from dataclasses import dataclass, field
 from typing import Any
 
 logger = logging.getLogger(__name__)
+narrative_logger = logging.getLogger("fraud_detection.platform_narrative")
 
 
 @dataclass
@@ -36,6 +37,13 @@ class MetricsRecorder:
         if context:
             payload["context"] = context
         logger.info("IG metrics %s", payload)
+        if self.counters:
+            narrative_logger.info(
+                "IG summary admit=%s duplicate=%s quarantine=%s",
+                self.counters.get("decision.ADMIT", 0),
+                self.counters.get("decision.DUPLICATE", 0),
+                self.counters.get("decision.QUARANTINE", 0),
+            )
         self.counters.clear()
         self.latencies.clear()
         self.last_flush_ts = now

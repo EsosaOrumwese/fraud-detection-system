@@ -11,6 +11,7 @@ from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any
 
+import logging as _logging
 from .authority import EquivalenceRegistry, LeaseManager, RunHandle, build_authority_store
 from .bus import FileControlBus, KinesisControlBus
 from .catalogue import OutputCatalogue, OutputEntry
@@ -45,6 +46,8 @@ from .models import (
     RunStatusState,
     Strategy,
 )
+
+narrative_logger = _logging.getLogger("fraud_detection.platform_narrative")
 from .obs import (
     CompositeObsSink,
     ConsoleObsSink,
@@ -1222,6 +1225,12 @@ class ScenarioRunner:
             )
             publish_event = self._event("READY_PUBLISHED", plan.run_id, {"message_id": publish_key})
             self.ledger.append_record(plan.run_id, publish_event)
+            narrative_logger.info(
+                "SR READY published run_id=%s bundle_hash=%s message_id=%s",
+                plan.run_id,
+                bundle.bundle_hash,
+                publish_key,
+            )
             self._emit_obs(
                 ObsEvent.now(
                     event_kind="READY_PUBLISHED",

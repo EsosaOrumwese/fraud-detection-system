@@ -445,6 +445,51 @@ The one outlier with sum_p_group ≈ 0.044 is also a **correctness‑level anoma
 
 ---
 
+### 9.1 Visual diagnostics (S4) — narrative interpretation
+
+#### a) Max p_group per merchant-day
+<img src="plots/s4_max_p_group_distribution.png" width="520" alt="S4 max p_group per merchant-day">
+
+The histogram is dominated by a **huge spike at ~1.0**, with only a thin spread across lower values. That spike means a very large fraction of merchant‑days have **one tz‑group that captures almost all weight**. The long tail indicates that multi‑tz behavior exists, but the spike shows it is not the norm. This image makes the earlier stats concrete: around half of merchant‑days are effectively single‑tz dominated.  
+Realism impact: a routing system where “most days = one timezone” does not reflect how multi‑region merchants typically behave; it compresses geographic diversity into a single dominant region.
+
+---
+
+#### b) Distinct tz_groups per merchant-day
+<img src="plots/s4_tz_groups_per_day.png" width="520" alt="S4 tz-groups per merchant-day">
+
+The bar chart is heavily concentrated at **1 and 2 tz‑groups**, with a long but thin tail reaching up to 12. The tallest bar is at 1, meaning **single‑tz days are the most common case**. The tail shows that some merchant‑days do span multiple tz‑groups, but those cases are comparatively rare.  
+Realism impact: global or multi‑region merchants should show more consistent multi‑tz presence; the dominance of 1‑group days suggests the routing mix is **geographically collapsed** most of the time.
+
+---
+
+#### c) Entropy of group weights
+<img src="plots/s4_entropy_distribution.png" width="520" alt="S4 entropy of group weights">
+
+The entropy distribution has a **very large spike near 0**, then a smaller tail extending out to ~2.0. Entropy near 0 indicates **one tz‑group dominates**; higher entropy indicates more balanced mixes. The spike near 0 therefore confirms that most merchant‑days are **highly concentrated**, even when multiple groups exist.  
+Realism impact: even when tz‑group counts are >1, the **weight distribution is still skewed**, meaning multi‑tz activity is often nominal rather than meaningful.
+
+---
+
+#### d) TZ‑group count vs site count
+<img src="plots/s4_groups_vs_site_count.png" width="520" alt="S4 tz-group count vs site count">
+
+As merchant site count grows, the maximum possible tz‑group count increases, but the **dominant band still sits at 1–3 tz‑groups**, even for merchants with dozens or hundreds of sites. There is some upward trend, but it is weak and noisy.  
+Realism impact: merchant size should correlate strongly with geographic reach. The weak relationship here suggests that **size does not reliably translate into tz diversity**, which is another realism limitation.
+
+---
+
+#### e) Sum of p_group per merchant-day
+<img src="plots/s4_sum_p_group_distribution.png" width="520" alt="S4 sum of p_group per merchant-day">
+
+The distribution is essentially a single spike at **1.0**, which is expected if normalization is correct. This confirms that the routing mix is properly normalized in almost all cases. However, this plot also hides the rare outlier (the single merchant‑day with sum ≈ 0.044), because it is one row against ~40k merchant‑days.  
+Realism impact: normalization is fine overall, but the existence of any non‑normalized day is a correctness risk and should be traced upstream (it can distort routing probabilities if not renormalized).
+
+---
+
+**S4 visual takeaway:**  
+The plots show a system where **single‑tz dominance is the norm**, multi‑tz behavior is the exception, and geographic diversity does not reliably scale with merchant size. The overall pattern aligns with the stats (high max‑p_group dominance, low entropy, and heavy mass at 1–2 tz‑groups). This is a realism bottleneck because daily routing should express broader geographic variation for multi‑site merchants.
+
 ## 10) Realism core #3 - `s3_day_effects` (temporal realism)
 **Counts**
 - Rows: **100,000**
