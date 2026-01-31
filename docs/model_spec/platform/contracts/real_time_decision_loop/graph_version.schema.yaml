@@ -1,0 +1,25 @@
+$schema: https://json-schema.org/draft/2020-12/schema
+$id: graph_version.schema.yaml
+title: Graph Version
+type: object
+additionalProperties: false
+required:
+  - version_id
+  - watermark_ts_utc
+properties:
+  version_id:
+    $ref: "#/$defs/hex32"
+  watermark_ts_utc:
+    $ref: "#/$defs/rfc3339_micros"
+  computed_at_utc:
+    $ref: "#/$defs/rfc3339_micros"
+  notes:
+    type: string
+    maxLength: 1024
+$defs:
+  hex32:
+    type: string
+    pattern: "^[0-9a-f]{32}$"
+  rfc3339_micros:
+    type: string
+    minLength: 1

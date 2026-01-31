@@ -1390,3 +1390,34 @@ Expanded Phase 4.1 into explicit sub‑sections (A–G) with detailed DoD checkl
 This locks the contract surface and provenance rules before implementation so components cannot drift or invent incompatible payloads.
 
 ---
+
+## Entry: 2026-01-31 15:30:00 — Phase 4.1 implementation (RTDL contracts created)
+
+### Decision trail (live)
+- **Canonical envelope reuse**: RTDL events will use the platform’s canonical event envelope. No separate “decision envelope” was created; instead, payloads carry `decision_kind`/`payload_kind` inside the envelope. This prevents divergence between control/ingress and RTDL.
+- **Offset basis**: Added `eb_offset_basis` as an explicit object (stream + offset_kind + offsets). This makes replay boundaries explicit for every downstream artifact and aligns with EB’s per‑partition ordering.
+- **Graph version**: Introduced a minimal `graph_version` object with `version_id` + `watermark_ts_utc` so every feature snapshot/decision/audit can reference a deterministic projection state.
+- **Feature snapshot**: For v0, snapshots are JSON (by‑ref in S3) with a `snapshot_hash` and full provenance (graph_version + eb_offset_basis + pins). Postgres will hold only the index/refs.
+- **Decision payload**: Decision includes `bundle_ref`, `snapshot_hash`, `graph_version`, `eb_offset_basis`, and explicit `degrade_posture`. This is the minimum provenance needed for replay and compliance.
+- **Actions + outcomes**: Added action intent/outcome contracts with idempotency keys and stable IDs to support at‑least‑once execution.
+- **Audit record**: Audit truth is append‑only in S3 with Postgres index for lookup; audit record includes refs to decision/outcome plus provenance chain.
+
+### Schemas added (RTDL)
+Location: `docs/model_spec/platform/contracts/real_time_decision_loop/`
+- `eb_offset_basis.schema.yaml`
+- `graph_version.schema.yaml`
+- `feature_snapshot.schema.yaml`
+- `decision_payload.schema.yaml`
+- `degrade_posture.schema.yaml`
+- `action_intent.schema.yaml`
+- `action_outcome.schema.yaml`
+- `audit_record.schema.yaml`
+
+### Index update
+- Added RTDL contract section to `docs/model_spec/platform/contracts/README.md`.
+
+### Notes / invariants
+- All RTDL artifacts require ContextPins (manifest_fingerprint, parameter_hash, seed, scenario_id, run_id).
+- Event‑time semantics remain canonical `ts_utc`; speedup only changes pacing.
+
+---

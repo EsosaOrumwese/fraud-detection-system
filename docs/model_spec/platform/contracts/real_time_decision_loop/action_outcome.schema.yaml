@@ -1,0 +1,62 @@
+$schema: https://json-schema.org/draft/2020-12/schema
+$id: action_outcome.schema.yaml
+title: Action Outcome
+type: object
+additionalProperties: false
+required:
+  - outcome_id
+  - decision_id
+  - action_id
+  - status
+  - pins
+  - completed_at_utc
+properties:
+  outcome_id:
+    $ref: "#/$defs/hex32"
+  decision_id:
+    $ref: "#/$defs/hex32"
+  action_id:
+    $ref: "#/$defs/hex32"
+  status:
+    type: string
+    enum: [SUCCEEDED, FAILED, SKIPPED]
+  pins:
+    $ref: "#/$defs/pins"
+  completed_at_utc:
+    $ref: "#/$defs/rfc3339_micros"
+  outcome_payload:
+    type: object
+    additionalProperties: true
+  reason:
+    type: string
+    maxLength: 2048
+$defs:
+  hex32:
+    type: string
+    pattern: "^[0-9a-f]{32}$"
+  hex64:
+    type: string
+    pattern: "^[0-9a-f]{64}$"
+  uint64:
+    type: integer
+    minimum: 0
+  rfc3339_micros:
+    type: string
+    minLength: 1
+  pins:
+    type: object
+    additionalProperties: false
+    required: [manifest_fingerprint, parameter_hash, seed, scenario_id, run_id]
+    properties:
+      manifest_fingerprint:
+        $ref: "#/$defs/hex64"
+      parameter_hash:
+        $ref: "#/$defs/hex64"
+      seed:
+        $ref: "#/$defs/uint64"
+      scenario_id:
+        type: string
+        minLength: 1
+        maxLength: 256
+      run_id:
+        $ref: "#/$defs/hex32"

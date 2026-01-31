@@ -1,0 +1,65 @@
+$schema: https://json-schema.org/draft/2020-12/schema
+$id: action_intent.schema.yaml
+title: Action Intent
+type: object
+additionalProperties: false
+required:
+  - action_id
+  - decision_id
+  - action_kind
+  - idempotency_key
+  - pins
+  - requested_at_utc
+properties:
+  action_id:
+    $ref: "#/$defs/hex32"
+  decision_id:
+    $ref: "#/$defs/hex32"
+  action_kind:
+    type: string
+    minLength: 1
+    maxLength: 128
+  idempotency_key:
+    type: string
+    minLength: 1
+    maxLength: 256
+  pins:
+    $ref: "#/$defs/pins"
+  requested_at_utc:
+    $ref: "#/$defs/rfc3339_micros"
+  action_payload:
+    type: object
+    additionalProperties: true
+  notes:
+    type: string
+    maxLength: 2048
+$defs:
+  hex32:
+    type: string
+    pattern: "^[0-9a-f]{32}$"
+  hex64:
+    type: string
+    pattern: "^[0-9a-f]{64}$"
+  uint64:
+    type: integer
+    minimum: 0
+  rfc3339_micros:
+    type: string
+    minLength: 1
+  pins:
+    type: object
+    additionalProperties: false
+    required: [manifest_fingerprint, parameter_hash, seed, scenario_id, run_id]
+    properties:
+      manifest_fingerprint:
+        $ref: "#/$defs/hex64"
+      parameter_hash:
+        $ref: "#/$defs/hex64"
+      seed:
+        $ref: "#/$defs/uint64"
+      scenario_id:
+        type: string
+        minLength: 1
+        maxLength: 256
+      run_id:
+        $ref: "#/$defs/hex32"

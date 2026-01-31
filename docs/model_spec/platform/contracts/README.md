@@ -47,3 +47,16 @@ These live under:
 `docs/model_spec/platform/contracts/event_bus/`
 
 - `eb_ref.schema.yaml`
+
+## Platform‑native contracts (RTDL, v0)
+These live under:
+`docs/model_spec/platform/contracts/real_time_decision_loop/`
+
+- `eb_offset_basis.schema.yaml`
+- `graph_version.schema.yaml`
+- `feature_snapshot.schema.yaml`
+- `decision_payload.schema.yaml`
+- `degrade_posture.schema.yaml`
+- `action_intent.schema.yaml`
+- `action_outcome.schema.yaml`
+- `audit_record.schema.yaml`

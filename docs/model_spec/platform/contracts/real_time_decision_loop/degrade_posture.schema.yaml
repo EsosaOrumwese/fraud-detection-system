@@ -1,0 +1,29 @@
+$schema: https://json-schema.org/draft/2020-12/schema
+$id: degrade_posture.schema.yaml
+title: Degrade Posture
+type: object
+additionalProperties: false
+required:
+  - posture
+properties:
+  posture:
+    type: string
+    enum: [normal, degraded, fail_closed]
+  reason:
+    type: string
+    maxLength: 2048
+  evidence_refs:
+    type: array
+    items:
+      type: object
+      additionalProperties: false
+      required: [kind, ref]
+      properties:
+        kind:
+          type: string
+          minLength: 1
+          maxLength: 64
+        ref:
+          type: string
+          minLength: 1
+          maxLength: 2048
