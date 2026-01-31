@@ -2166,7 +2166,7 @@ User could not see EB activity in `platform.log` and asked for an EB log.
 
 ### Changes
 - IG now logs `IG published to EB ...` to the narrative logger (shows in `platform.log`).
-- EB publish diagnostics routed to `runs/fraud-platform/<run_id>/eb/eb.log` via a logger prefix filter.
+- EB publish diagnostics routed to `runs/fraud-platform/<run_id>/event_bus/event_bus.log` via a logger prefix filter.
 
 ### Result
 Platform log includes EB publish lines, and an explicit `eb.log` exists for deeper EB diagnostics.

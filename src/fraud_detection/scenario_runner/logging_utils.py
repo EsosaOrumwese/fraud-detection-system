@@ -27,6 +27,16 @@ class NamePrefixFilter(logging.Filter):
         return record.name.startswith(self.prefix)
 
 
+def _component_dir_name(component: str) -> str:
+    mapping = {
+        "sr": "scenario_runner",
+        "ig": "ingestion_gate",
+        "wsp": "world_streamer_producer",
+        "eb": "event_bus",
+    }
+    return mapping.get(component, component)
+
+
 def configure_logging(level: int = logging.INFO, log_paths: list[str] | None = None) -> None:
     """Configure default logging if no handlers are present."""
     root = logging.getLogger()
@@ -50,9 +60,9 @@ def configure_logging(level: int = logging.INFO, log_paths: list[str] | None = N
 
             run_root = platform_run_root(create_if_missing=True)
             if run_root:
-                component_dir = Path(run_root) / component
+                component_dir = Path(run_root) / _component_dir_name(component)
                 component_dir.mkdir(parents=True, exist_ok=True)
-                component_path = component_dir / f"{component}.log"
+                component_path = component_dir / f"{_component_dir_name(component)}.log"
                 handlers.append(logging.FileHandler(component_path, encoding="utf-8"))
         except Exception:
             pass
@@ -62,9 +72,9 @@ def configure_logging(level: int = logging.INFO, log_paths: list[str] | None = N
 
         run_root = platform_run_root(create_if_missing=True)
         if run_root:
-            eb_dir = Path(run_root) / "eb"
+            eb_dir = Path(run_root) / "event_bus"
             eb_dir.mkdir(parents=True, exist_ok=True)
-            eb_path = eb_dir / "eb.log"
+            eb_path = eb_dir / "event_bus.log"
             eb_handler = logging.FileHandler(eb_path, encoding="utf-8")
             eb_handler.addFilter(NamePrefixFilter("fraud_detection.event_bus"))
             handlers.append(eb_handler)

@@ -239,6 +239,23 @@ We need a **clean parity run** that proves SR → WSP → IG → EB is functioni
 - **Control bus must be clean** for a deterministic smoke run.
 - Receipts are the authoritative signal that IG published to EB (eb_ref); platform.log is narrative only.
 
+---
+
+## Entry: 2026-01-31 08:30:45 — Full-name component log directories
+
+### Trigger
+User requested log filenames be **full component names**, not abbreviations (e.g., `sr` → `scenario_runner`).
+
+### Decision
+Keep `PLATFORM_COMPONENT` short for env ergonomics, but **map to full names** for log directories and log file names. EB diagnostics log is now `event_bus/event_bus.log`.
+
+### Outcome
+Component logs now land under:
+- `runs/fraud-platform/<run_id>/scenario_runner/scenario_runner.log`
+- `runs/fraud-platform/<run_id>/world_streamer_producer/world_streamer_producer.log`
+- `runs/fraud-platform/<run_id>/ingestion_gate/ingestion_gate.log`
+- `runs/fraud-platform/<run_id>/event_bus/event_bus.log`
+
 
 ---
 

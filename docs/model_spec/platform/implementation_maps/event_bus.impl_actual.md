@@ -611,7 +611,7 @@ Confirm EB v0 is **green** for local_parity: IG publishes to Kinesis (LocalStack
 User requested explicit EB logs and platform‑log visibility of EB activity.
 
 ### Decision
-Route EB publish diagnostics to a **run‑scoped log** (`runs/fraud-platform/<run_id>/eb/eb.log`) and emit a narrative line in `platform.log` from IG.
+Route EB publish diagnostics to a **run‑scoped log** (`runs/fraud-platform/<run_id>/event_bus/event_bus.log`) and emit a narrative line in `platform.log` from IG.
 
 ### Result
 EB publish activity is visible in both narrative and diagnostic logs without adding a separate EB service.

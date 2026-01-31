@@ -305,10 +305,10 @@ Get-Content runs/fraud-platform/<platform_run_id>/platform.log -Wait
   - **IG**: `IG published to EB ...` and `IG summary admit=...`
 
   Component detail logs (full diagnostics):
-  - SR: `runs/fraud-platform/<platform_run_id>/sr/sr.log`
-  - WSP: `runs/fraud-platform/<platform_run_id>/wsp/wsp.log`
-  - IG: `runs/fraud-platform/<platform_run_id>/ig/ig.log`
-  - EB: `runs/fraud-platform/<platform_run_id>/eb/eb.log` (publish diagnostics)
+  - SR: `runs/fraud-platform/<platform_run_id>/scenario_runner/scenario_runner.log`
+  - WSP: `runs/fraud-platform/<platform_run_id>/world_streamer_producer/world_streamer_producer.log`
+  - IG: `runs/fraud-platform/<platform_run_id>/ingestion_gate/ingestion_gate.log`
+  - EB: `runs/fraud-platform/<platform_run_id>/event_bus/event_bus.log` (publish diagnostics)
 
 ---
 
@@ -377,7 +377,8 @@ Use this list to confirm the **v0 control & ingress plane** is green.
 **Run-scoped artifacts**
 - [ ] `runs/fraud-platform/ACTIVE_RUN_ID` points to the latest run.
 - [ ] SR artifacts exist under `s3://fraud-platform/<run_id>/sr/` (status/record/facts).
-- [ ] WSP ready logs exist under `runs/fraud-platform/<run_id>/wsp/wsp.log`.
+- [ ] WSP ready logs exist under `runs/fraud-platform/<run_id>/world_streamer_producer/world_streamer_producer.log`.
+- [ ] WSP ready logs exist under `runs/fraud-platform/<run_id>/world_streamer_producer/world_streamer_producer.log`.
 - [ ] IG receipts exist under `s3://fraud-platform/<run_id>/ig/receipts/`.
 
 **Narrative platform log**
