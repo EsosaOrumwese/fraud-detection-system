@@ -476,3 +476,66 @@ This is very low dispersion: merchants inside the same country see almost identi
 
 Overall: **3A is structurally correct but behaviorally flat**. The system is consistent and auditable, but the outputs do not express realistic multi-zone allocation at scale.
 
+
+---
+
+## 14) Visual diagnostics (plots + narrative interpretation)
+All plots are saved under `docs/reports/reports/eda/segment_3A/plots/` and embedded below. Each interpretation is based on the actual image, not an assumption.
+
+### 14.1 S1 escalation rate by zone_count_country
+<img src="plots/s1_escalation_rate_by_zone_count.png" width="520" alt="S1 escalation rate by zone count">
+
+This plot pairs escalation rate (bars) with pair counts (line). The escalation rate does not rise smoothly with zone_count_country. Some zone counts (6, 11, 12+) show near-forced escalation, while other counts (notably 9) dip sharply despite non-trivial sample sizes. The line indicates that some extreme zone counts are rare, but the non-monotonic pattern is still visible in the mid-range where counts are meaningful. This reinforces that escalation is rule-driven rather than a smooth geographic function.
+
+### 14.2 S1 escalation rate by site_count bucket
+<img src="plots/s1_escalation_rate_by_site_bucket.png" width="520" alt="S1 escalation rate by site bucket">
+
+Escalation jumps from near-zero in the 1-2 bucket to very high in 3-5 and 6-10, then dips again in 11-20 and 21-50 before rising in higher buckets. The annotation labels show large sample sizes in the mid buckets, so the shape is not a small-sample artifact. The 1000+ bucket hits 1.0 but is based on only two pairs, so that spike should not be over-weighted. The overall shape confirms a hard-threshold policy feel rather than a gradual size-driven increase.
+
+### 14.3 S2 top-1 share per country
+<img src="plots/s2_top1_share_hist.png" width="520" alt="S2 top-1 share per country">
+
+The histogram is almost entirely concentrated near 1.0, with the 0.95 and 0.99 reference lines sitting inside the tallest bar. This means most countries allocate nearly all prior mass to a single tzid. The tiny tail below 0.9 confirms that balanced priors are rare. This is the first strong visual signal that S2 is structurally collapsing the zone universe.
+
+### 14.4 S2 HHI per country (ECDF)
+<img src="plots/s2_hhi_ecdf.png" width="520" alt="S2 HHI per country ECDF">
+
+The ECDF stays low until very high HHI values and then rises steeply near 1.0. That means most countries have extremely high concentration. The curve shape implies this is systemic, not driven by a handful of outliers. This supports the conclusion that the priors are heavily concentrated across the board.
+
+### 14.5 S2 tz_count vs top-1 share
+<img src="plots/s2_tzcount_vs_top1.png" width="520" alt="S2 tz_count vs top-1 share">
+
+Even countries with high tz_count still sit near top-1 share of 1.0. The dashed and dotted reference lines (0.95 and 0.99) cut through the densest region, showing that most multi-tz countries remain effectively single-zone at the prior level. Only a handful of points drop into the 0.3-0.7 range, and they are rare exceptions.
+
+### 14.6 S3 top-1 share per merchant-country
+<img src="plots/s3_top1_share_hist.png" width="520" alt="S3 top-1 share per merchant-country">
+
+The distribution is even more concentrated than S2, with almost all merchant-country pairs clustered near 1.0. This shows that sampling did not introduce meaningful diversity; it inherited the prior dominance and effectively preserved it for individual merchants.
+
+### 14.7 S3 effective zone counts by share thresholds
+<img src="plots/s3_effective_zone_count_thresholds.png" width="520" alt="S3 effective zone counts by threshold">
+
+Across all three panels, the mass is concentrated at 1. For >10% and >5% thresholds, almost every merchant-country pair has exactly one zone above the threshold. Even at 1%, the median remains 1 and only a thin tail reaches 2-3 zones. This shows that most zone shares are too small to matter in practice.
+
+### 14.8 S3 mean share vs S2 prior share
+<img src="plots/s3_mean_vs_prior_share_hexbin.png" width="520" alt="S3 mean share vs S2 prior share">
+
+The hexbin points sit almost perfectly on the y=x line. This means the average sampled share per country-tzid is almost identical to the S2 prior share. The lack of spread indicates minimal merchant-level heterogeneity. Sampling is behaving like a direct echo of priors rather than generating new variation.
+
+### 14.9 S4 nonzero zones per merchant-country
+<img src="plots/s4_nonzero_zones_hist.png" width="520" alt="S4 nonzero zones per merchant-country">
+
+There is a dominant spike at 1 nonzero zone, with only a small tail at 2-6. This makes the integerization collapse visible: even after escalation and sampling, most pairs end up with only one zone receiving any outlets.
+
+### 14.10 S4 top-1 share from counts
+<img src="plots/s4_top1_share_hist.png" width="520" alt="S4 top-1 share from counts">
+
+The histogram is almost entirely concentrated at 1.0, with only a tiny tail below 0.95. This confirms that integerization produces near-monopoly allocations for most pairs. Any minor share diversity in S3 is not surviving into counts.
+
+### 14.11 zone_alloc top-1 share (final allocation)
+<img src="plots/zone_alloc_top1_share_hist.png" width="520" alt="zone_alloc top-1 share">
+
+The final allocation mirrors S4 exactly: a massive spike at 1.0 and almost no spread. This is the end-to-end proof that the output is effectively monolithic for most merchant-country pairs, despite the high escalation rate upstream.
+
+**Visual takeaway:**
+Every plot tells the same story: escalation is high, but priors are so dominated by a single tzid that sampling and integerization collapse into single-zone allocations. The system is internally coherent, but behaviorally flat.
