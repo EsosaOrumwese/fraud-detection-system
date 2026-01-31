@@ -1421,3 +1421,27 @@ Location: `docs/model_spec/platform/contracts/real_time_decision_loop/`
 - Event‑time semantics remain canonical `ts_utc`; speedup only changes pacing.
 
 ---
+
+## Entry: 2026-01-31 15:10:00 — Phase 4.1 compatibility matrix (contracts → producers/consumers)
+
+### Purpose
+Make RTDL contract ownership explicit so component interfaces cannot drift.
+
+### Compatibility matrix (v0)
+- **IEG → OFP**
+  - `graph_version.schema.yaml` (producer: IEG, consumer: OFP)
+  - `eb_offset_basis.schema.yaml` (producer: IEG, consumer: OFP)
+- **OFP → DF/DL**
+  - `feature_snapshot.schema.yaml` (producer: OFP, consumer: DF/DL)
+- **DF/DL → AL**
+  - `decision_payload.schema.yaml` (producer: DF/DL, consumer: AL)
+  - `degrade_posture.schema.yaml` (producer: DL, consumer: DF/AL)
+- **AL → DLA**
+  - `action_intent.schema.yaml` (producer: DF/AL, consumer: AL)
+  - `action_outcome.schema.yaml` (producer: AL, consumer: DLA)
+- **DLA (audit truth)**
+  - `audit_record.schema.yaml` (producer: DLA, consumer: audit readers)
+
+**Envelope rule:** all RTDL payloads above must be wrapped in the canonical event envelope.
+
+---
