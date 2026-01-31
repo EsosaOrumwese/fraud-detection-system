@@ -26,6 +26,16 @@ In plain terms: 1B decides **where each outlet exists** on Earth, balancing dete
 
 ---
 
+## 1.5) Priority datasets (by purpose)
+If we rank by the purpose of 1B (credible geospatial placement), the importance order is:
+1) **site_locations** - final egress; this is the realism surface that everyone consumes.
+2) **tile_weights** - density law that determines where sites cluster.
+3) **tile_bounds** + **tile_index** - the grid geometry that constrains placement.
+4) **s5_site_tile_assignment**, **s6_site_jitter**, **s7_site_synthesis** - intermediate placements that explain how the final points were built.
+5) **validation and receipts** - audit surfaces (critical for correctness, not realism).
+
+---
+
 ## 2) Implementation decisions that shape realism (from impl_actual)
 These implementation choices directly affect the realism that we later observe in the data:
 

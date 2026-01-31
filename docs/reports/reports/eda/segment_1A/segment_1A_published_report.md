@@ -30,6 +30,14 @@ Key interpretation points that matter for realism:
 Implication for you: the data may be structurally valid even when some “approved” datasets are missing, but missing outputs **still reduce fidelity** to the design contract.
 
 ## 3) What this run actually produced (plain English inventory)
+### 3.0 Priority datasets (by purpose)
+If we rank by the purpose of 1A (building the merchant/outlet universe), the importance order is:
+1) **outlet_catalogue** - the core world model; everything downstream depends on it.
+2) **s6/membership** - actual cross-border memberships; defines real multi-country behavior.
+3) **crossborder_eligibility_flags** + **hurdle_pi_probs** - policy gate + propensity that decide who becomes multi-site.
+4) **s3_candidate_set** + **s3_base_weight_priors** - the candidate universe that shapes where expansion is possible.
+5) **validation / receipts** - audit surfaces (critical for correctness, not realism).
+
 These are the 1A datasets present in this run and what they mean:
 - **outlet_catalogue** → the master list of merchants and their outlets (core realism surface).
 - **merchant_currency** → the primary currency assigned to each merchant.

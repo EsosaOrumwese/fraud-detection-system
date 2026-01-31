@@ -50,6 +50,16 @@ These are the surfaces we will evaluate when we assess realism and correctness i
 
 ---
 
+## 2.1) Priority datasets (by purpose)
+If we rank by the purpose of 2A (assigning civil time to sites), the importance order is:
+1) **site_timezones** - final egress; this is the realism surface for timezone assignment.
+2) **s1_tz_lookup** - provisional mapping that reveals boundary and ambiguity behavior.
+3) **tz_timetable_cache** - required for legality checks and downstream time handling.
+4) **s4_legality_report** - validation evidence for DST gaps/folds.
+5) **validation bundle + receipts** - audit surfaces (critical for correctness, not realism).
+
+---
+
 ## 3) Implementation observations (what is actually done)
 
 ### 3.1 S0 — Gate & sealed inputs

@@ -79,6 +79,16 @@ These are the surfaces we will use to evaluate realism and coherence.
 
 ---
 
+## 2.1) Priority datasets (by purpose)
+If we rank by the purpose of 2B (routing realism), the importance order is:
+1) **s1_site_weights** - baseline spatial realism driver.
+2) **s4_group_weights** - actual per-day routing mix.
+3) **s3_day_effects** - temporal realism driver.
+4) **s2_alias_index + s2_alias_blob** - structural routing surface (correctness more than realism).
+5) **s5/s6 logs + audit/bundle evidence** - audit surfaces (correctness and traceability).
+
+---
+
 ## 3) Implementation observations (what is actually done)
 
 ### 3.1 S0 — Gate + sealed inputs
