@@ -66,31 +66,31 @@ Rules:
 - **Not traffic (join surfaces):** `arrival_events_5B`, `s1_arrival_entities_6B`, `s1_session_index_6B`, `s2_flow_anchor_baseline_6B`, `s3_flow_anchor_with_fraud_6B`
 - **Truth products:** `s4_event_labels_6B`, `s4_flow_truth_labels_6B`, `s4_flow_bank_view_6B`, `s4_case_timeline_6B`
 
-This policy reflects the engine’s design intent: event streams are **intentionally thin**, and Layer-1/Layer-2 context is joined from authority and behavioural-context surfaces.
+This policy reflects the engine's design intent: event streams are **intentionally thin**, and Layer-1/Layer-2 context is joined from authority and behavioural-context surfaces.
 
 ### Join map for behavioural streams (binding for platform use)
 
-**Event stream → flow anchor (context enrichment)**
-- Baseline: `s2_event_stream_baseline_6B` ↔ `s2_flow_anchor_baseline_6B`  
+**Event stream -> flow anchor (context enrichment)**
+- Baseline: `s2_event_stream_baseline_6B` <-> `s2_flow_anchor_baseline_6B`  
   Join keys: `seed`, `manifest_fingerprint`, `scenario_id`, `flow_id`
-- Post-overlay: `s3_event_stream_with_fraud_6B` ↔ `s3_flow_anchor_with_fraud_6B`  
+- Post-overlay: `s3_event_stream_with_fraud_6B` <-> `s3_flow_anchor_with_fraud_6B`  
   Join keys: `seed`, `manifest_fingerprint`, `scenario_id`, `flow_id`
 
-**Flow anchor → arrival skeleton (routing/timezone context)**
-- `s2_flow_anchor_baseline_6B` / `s3_flow_anchor_with_fraud_6B` ↔ `arrival_events_5B`  
+**Flow anchor -> arrival skeleton (routing/timezone context)**
+- `s2_flow_anchor_baseline_6B` / `s3_flow_anchor_with_fraud_6B` <-> `arrival_events_5B`  
   Join keys: `seed`, `manifest_fingerprint`, `scenario_id`, `merchant_id`, `arrival_seq`
 
-**Arrival skeleton → entity attachments**
-- `arrival_events_5B` ↔ `s1_arrival_entities_6B`  
+**Arrival skeleton -> entity attachments**
+- `arrival_events_5B` <-> `s1_arrival_entities_6B`  
   Join keys: `seed`, `manifest_fingerprint`, `scenario_id`, `merchant_id`, `arrival_seq`  
   Note: `parameter_hash` is run-constant and present in 6B surfaces but not in `arrival_events_5B`.
 
-**Truth products → traffic**
-- `s4_event_labels_6B` ↔ `s3_event_stream_with_fraud_6B`  
+**Truth products -> traffic**
+- `s4_event_labels_6B` <-> `s3_event_stream_with_fraud_6B`  
   Join keys: `seed`, `manifest_fingerprint`, `scenario_id`, `flow_id`, `event_seq`
-- `s4_flow_truth_labels_6B` ↔ `s3_flow_anchor_with_fraud_6B`  
+- `s4_flow_truth_labels_6B` <-> `s3_flow_anchor_with_fraud_6B`  
   Join keys: `seed`, `manifest_fingerprint`, `scenario_id`, `flow_id`
-- `s4_flow_bank_view_6B` ↔ `s3_flow_anchor_with_fraud_6B`  
+- `s4_flow_bank_view_6B` <-> `s3_flow_anchor_with_fraud_6B`  
   Join keys: `seed`, `manifest_fingerprint`, `scenario_id`, `flow_id`
 
 **Case truth**
@@ -101,21 +101,21 @@ This policy reflects the engine’s design intent: event streams are **intention
 **Practical rule (pinned):**
 - **Traffic stays thin.** Only behavioural streams are emitted as traffic.
 - **Joins occur inside the platform** (IEG/OFP or equivalent), using **preloaded indexes/projections** keyed by the join map above. Platform components MUST NOT scan the oracle set per event.
-- **No future leakage.** Only **time-safe** context surfaces may be used in RTDL. Any surface/field that implies future knowledge is **batch‑only** and must not be used for live decisions.
+- **No future leakage.** Only **time-safe** context surfaces may be used in RTDL. Any surface/field that implies future knowledge is **batch-only** and must not be used for live decisions.
 
 ### Time-safety guidance (v0, based on observed schemas)
 
-**Time-safe join surfaces (RTDL‑eligible)**
+**Time-safe join surfaces (RTDL-eligible)**
 - `arrival_events_5B` (arrival skeleton; routing/timezone context).
 - `s1_arrival_entities_6B` (entity attachments for the same arrival).
-- `s2_flow_anchor_baseline_6B`, `s3_flow_anchor_with_fraud_6B` (flow‑level context at event time).
+- `s2_flow_anchor_baseline_6B`, `s3_flow_anchor_with_fraud_6B` (flow-level context at event time).
 
-**Oracle‑only / batch‑only surfaces**
+**Oracle-only / batch-only surfaces**
 - `s1_session_index_6B` includes `session_end_utc` and `arrival_count` (requires full session closure).
 - All truth products (`s4_*`) are **offline** labels/case truth and must never be used for live decisions.
 
-**Field‑level caution**
-- Any field that implies **future aggregation** (counts over a session, end timestamps, post‑hoc labels) is **not RTDL‑safe** even if the dataset is otherwise used for joins.
+**Field-level caution**
+- Any field that implies **future aggregation** (counts over a session, end timestamps, post-hoc labels) is **not RTDL-safe** even if the dataset is otherwise used for joins.
 
 ## Catalogue fields (selected)
 
@@ -153,6 +153,6 @@ Operational verification details (paths, hashing law, and gate->output mapping) 
 - Schema: `contracts/instance_proof_receipt.schema.yaml`
 - Engine-emitted path convention (segment-local, by output_id + partitions):
   `data/layer{L}/{SEG}/receipts/instance/output_id={output_id}/{partition_tokens}/instance_receipt.json`
-  - `{partition_tokens}` are the output’s partitions in canonical order (see storage_layout_v1.md).
+  - `{partition_tokens}` are the output's partitions in canonical order (see storage_layout_v1.md).
   - Only tokens applicable to the output_id are included.
 - If the engine remains a **black box** and does not emit receipts, Scenario Runner MAY emit **verifier receipts** into its own object store using the same schema (see SR contract README for the SR path convention).
