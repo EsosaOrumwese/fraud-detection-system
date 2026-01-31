@@ -184,6 +184,22 @@ If you need a fresh view, delete the prior output_id view or set a new base path
 **If you see `STREAM_VIEW_PARTIAL_EXISTS`:** a prior sort left partial parquet files. Delete the output_id stream view prefix and re‑run Section 4.3.
 **Important:** the stream view ID is derived from `ORACLE_ENGINE_RUN_ROOT` + `ORACLE_SCENARIO_ID` + `output_id`. Ensure `ORACLE_ENGINE_RUN_ROOT` matches the MinIO path you sorted (s3://...), not the local `runs/...` path.
 
+**Resource guardrails (recommended):**
+- This step can be **CPU + disk heavy**. If you are on a laptop, set limits before running:
+  - `STREAM_SORT_MEMORY_LIMIT="8GB"` (or lower if you see OOM)
+  - `STREAM_SORT_MAX_TEMP_SIZE="50GiB"` (or a safe value for your free disk)
+  - `STREAM_SORT_THREADS="4"` (fewer threads = lower memory pressure)
+  - `STREAM_SORT_TEMP_DIR="temp/duckdb"` (keeps temp inside the repo)
+- If the run still stalls or the system becomes unstable, **stop the sort** and lower `THREADS` + `MEMORY_LIMIT`.
+
+```
+$env:STREAM_SORT_THREADS="4"
+$env:STREAM_SORT_MEMORY_LIMIT="8GB"
+$env:STREAM_SORT_MAX_TEMP_SIZE="100GiB"
+$env:STREAM_SORT_TEMP_DIR="temp\duckdb"
+$env:STREAM_SORT_PROGRESS_SECONDS="5"
+```
+
 **Verify stream view exists (MinIO):**
 ```
 aws --endpoint-url http://localhost:9000 s3 ls `
