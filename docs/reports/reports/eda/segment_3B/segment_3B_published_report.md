@@ -416,3 +416,62 @@ This is the most important realism surface, and the outputs are **highly uniform
 ---
 
 (Next: diagnostic plots and targeted remediation ideas if we decide to improve realism in 3B.)
+
+---
+
+## 15) Visual diagnostics (Set A + B: virtual classification & settlement anchors)
+Plots live in `docs/reports/reports/eda/segment_3B/plots/`. Each interpretation below is based on the actual image.
+
+### 15.1 Virtual rate by MCC (Top 20)
+<img src="plots/A1_virtual_rate_by_mcc.png" width="560" alt="Virtual rate by MCC">
+
+The distribution is extremely sparse. Nearly every MCC in the top‑20 set has **0% virtual**, while **MCC 4812 is 100% virtual** and MCC 5815 shows a small non‑zero rate. This is not a smooth gradient: it is effectively a hard rule switch. In a realistic system, MCCs should show a range of virtual rates with a few dominant virtual categories, not a single MCC acting as the sole trigger. This plot visually confirms that the classification layer is **binary and narrow**, which reads as synthetic rather than nuanced.
+
+---
+
+### 15.2 Virtual rate by channel
+<img src="plots/A2_virtual_rate_by_channel.png" width="520" alt="Virtual rate by channel">
+
+The `card_present` channel is essentially 0% virtual, while `card_not_present` sits around ~0.13. The direction makes intuitive sense, but the separation is too clean: it suggests the channel is being used as a hard gate rather than a probabilistic influence. That rigidity supports the earlier statistical finding that the classification is rule‑dominant rather than organically varied.
+
+---
+
+### 15.3 Virtual rate by legal country (Top 20)
+<img src="plots/A3_virtual_rate_by_country.png" width="560" alt="Virtual rate by legal country">
+
+Virtual rates are near‑zero in most of the top‑20 countries, with only a couple showing modest elevation (e.g., HK, IS). This suggests very weak country sensitivity in the classification policy. A realistic overlay typically shows some geographic skew (jurisdictions with more digital‑heavy merchant mix), but this plot shows **minimal country differentiation**, reinforcing a flat synthetic profile.
+
+---
+
+### 15.4 MCC x Channel heatmap
+<img src="plots/A4_virtual_rate_mcc_channel_heatmap.png" width="560" alt="Virtual rate heatmap MCC x channel">
+
+Almost every MCC‑channel cell is 0.00, with a single bright stripe at MCC 4812. This provides the clearest visual proof that the virtual classification is driven by **one dominant rule**, not a layered policy. For realism, we expect multiple MCCs to show non‑zero rates (especially within `card_not_present`), but the heatmap is essentially empty outside one cell.
+
+---
+
+### 15.5 Settlement location density (hexbin)
+<img src="plots/B5_settlement_density_hexbin.png" width="560" alt="Settlement location density hexbin">
+
+The settlement anchors cluster strongly in Europe with a few isolated hubs elsewhere (e.g., Atlantic and parts of Asia). The clustering itself is plausible, but the spread is **narrow** relative to the global merchant universe. Given that virtual merchants can be globally distributed, this density map suggests settlement anchors are over‑concentrated in a handful of hubs, which aligns with the earlier statistical findings.
+
+---
+
+### 15.6 Settlement coordinate duplicate counts
+<img src="plots/B6_settlement_coord_duplicates.png" width="520" alt="Settlement coordinate duplicate counts">
+
+Most settlement coordinates are unique (226), and a smaller portion are shared by 2–4 merchants. There are no extreme “hotspots” with 6+ merchants. This indicates duplication exists but is not catastrophic. The realism issue here is not mass duplication; it is the **geographic concentration** of settlements in a narrow set of hubs rather than many dispersed legal anchors.
+
+---
+
+### 15.7 Top 15 settlement TZIDs
+<img src="plots/B7_settlement_tzid_top15.png" width="560" alt="Top settlement TZIDs">
+
+The top tzids are dominated by **Monaco, Luxembourg, Zurich, Dublin, Bermuda, Macau**, with smaller contributions from a few other cities. This confirms a strong skew toward **financial and offshore hubs**, which may be intended but reads as overly concentrated if the goal is broad synthetic realism. Without more variation in the settlement policy, this tzid distribution makes the virtual layer feel artificially anchored to a small cluster of jurisdictions.
+
+---
+
+**Set A + B takeaway:**
+- Virtual classification is highly **binary** (single MCC + channel gating) with minimal country nuance.
+- Settlement anchors are **plausible but overly concentrated** in a small set of hubs.
+- These visuals reinforce the main realism concern: the virtual overlay lacks **breadth and heterogeneity**, even before we examine edges and routing.
