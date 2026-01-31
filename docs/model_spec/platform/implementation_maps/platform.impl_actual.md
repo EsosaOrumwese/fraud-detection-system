@@ -1361,3 +1361,18 @@ Phase‑4 RTDL uses the **same service classes across local‑parity/dev/prod**:
 This prevents ladder drift (e.g., filesystem shortcuts) and keeps parity consistent across environments. Only endpoints/credentials differ; architecture does not.
 
 ---
+
+## Entry: 2026-01-31 14:32:00 — Phase 4 progression model added to build plan
+
+### What was added
+Expanded Phase 4 into sub‑phases aligned to the data‑flow order:
+- **4.1** Contracts + invariants
+- **4.2** IEG projector
+- **4.3** OFP feature plane
+- **4.4** DF/DL decision core
+- **4.5** AL + DLA
+
+### Why
+This locks the navigation between platform‑level semantics and component build‑out so we don’t drift or build components out of order.
+
+---

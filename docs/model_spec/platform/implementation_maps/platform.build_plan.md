@@ -294,3 +294,46 @@ The platform uses the **canonical event time (`ts_utc`)** for windowing and temp
 - Phase 3: complete (control & ingress plane green for v0).
 - SR v0: complete (see `docs/model_spec/platform/implementation_maps/scenario_runner.build_plan.md`).
 
+
+#### Phase 4.1 — RTDL contracts + invariants (platform‑level)
+**Goal:** lock the cross‑cutting RTDL semantics before component build‑out.
+
+**DoD checklist:**
+- Canonical decision/feature/audit schemas defined (graph_version, snapshot_hash, input_basis, decision_ref, outcome_ref).
+- Watermark + offset semantics pinned (EB offset basis required in downstream artifacts).
+- Idempotency key rules pinned for AL + DLA.
+- Decision provenance contract pinned (bundle_ref + snapshot_hash + graph_version + offsets).
+
+#### Phase 4.2 — IEG projector (EB → graph)
+**Goal:** build deterministic projection state from EB offsets.
+
+**DoD checklist:**
+- IEG consumes EB and writes projection tables in Postgres.
+- Graph watermark/graph_version advances deterministically.
+- Replay from offsets produces identical graph_version state.
+
+#### Phase 4.3 — OFP feature plane (graph → features)
+**Goal:** materialize reproducible feature snapshots.
+
+**DoD checklist:**
+- Feature snapshot derived from a pinned graph_version.
+- Snapshot hash + input_basis recorded (offset basis + graph_version).
+- Snapshot retrieval is deterministic under replay.
+
+#### Phase 4.4 — DF/DL decision core (features → decision)
+**Goal:** compute decisions with explicit degrade posture.
+
+**DoD checklist:**
+- Registry bundle resolution is deterministic.
+- DL enforces explicit degrade posture on stale/incomplete inputs.
+- Decision payload includes bundle_ref + snapshot_hash + graph_version + offset basis.
+
+#### Phase 4.5 — AL + DLA (decision → outcome → audit)
+**Goal:** apply effects safely and record audit truth.
+
+**DoD checklist:**
+- Actions executed idempotently; retries do not duplicate effects.
+- Outcomes are recorded with stable outcome_id.
+- Append‑only audit record ties decision → action → outcome with provenance refs.
+
+---

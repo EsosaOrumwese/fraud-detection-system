@@ -291,3 +291,188 @@ So in assessment, we will separate:
 ---
 
 (Next: detailed assessment of the actual 3A outputs under your run folder.)
+
+---
+
+# Segment 3A - Output Assessment (Run: local_full_run-5)
+Run: `runs\local_full_run-5\c25a2675fbfbacd952b13bb594880e92`  
+Partition: `seed=42`, `manifest_fingerprint=c8fd43cd60ce0ede0c63d2ceb4610f167c9b107e1d59b9b8c7d7b8d0028b05c8`  
+Parameter hash: `56d45126eaabedd083a1d8428a763e0278c89efec5023cfd6cf3cab7fc8dd2d7`
+
+This section captures what the data actually shows. The analysis is exploratory and realism-focused, not just structural validation.
+
+---
+
+## 7) Output inventory and coverage (context only)
+Files present under `data/layer1/3A`:
+- `s1_escalation_queue` (2,597 rows)
+- `s2_country_zone_priors` (1,158 rows)
+- `s3_zone_shares` (16,528 rows)
+- `s4_zone_counts` (16,528 rows)
+- `zone_alloc` (16,528 rows)
+- `s0_gate_receipt`, `sealed_inputs`, `s6_*`, `validation`, `zone_alloc_universe_hash`
+
+Coverage alignment checks:
+- All escalated pairs from S1 appear in S3 (1,621/1,621).
+- No extra pairs appear in S3 beyond S1 escalations.
+- `zone_alloc` matches `s4_zone_counts` exactly (no missing keys, no count deltas).
+
+Structural integrity is strong; realism differences are distributional.
+
+---
+
+## 8) S1 - Escalation queue (realism gate behavior)
+**Escalation rate**
+- Escalated: 1,621 / 2,597 = **62.4%**.
+
+This is a high escalation rate: most merchant x country pairs are being pushed into the multi-zone pipeline.
+
+**Decision reasons (dominant signals)**
+- forced_escalation: **1,530**
+- below_min_sites: **635**
+- legacy_default: **179**
+- forced_monolithic: **162**
+- default_escalation: **91**
+
+The dominance of `forced_escalation` indicates the escalation outcome is heavily policy-driven rather than emerging naturally from site_count and zone_count. This matters because it inflates escalation volume, but downstream allocations do not actually materialize as multi-zone in most cases.
+
+**Site_count distribution**
+- All pairs: median **6** (p90 **22**, p99 **83**, max **2546**).
+- Escalated pairs: min **3**, median **7**, p90 **24**, p99 **103.6**.
+- Non-escalated: min **1**, median **2**, p90 **19**, max **129**.
+
+Escalation is clearly gated by site_count, but still aggressive: even moderate site counts are escalated.
+
+**Escalation rate by zone_count_country**
+- zone_count_country=1: escalation **0%** (expected).
+- 2: **26%**
+- 3: **39%**
+- 4: **46%**
+- 6: **96%**
+- 7: **88%**
+- 8: **76%**
+- 9: **26%** (unexpected dip)
+- 11: **97%**
+- 12+: **~100%**
+
+The escalation curve is not monotonic. Some zone counts (6, 11+) are effectively forced, while others (9) dip unexpectedly. This suggests policy rules interact with thresholds in a way that may not reflect intuitive geographic realism.
+
+**Interpretation (realism impact)**
+- S1 is escalating a large share of pairs and heavily relies on forced rules.
+- Escalation is not cleanly increasing with zone count, which introduces non-intuitive behavior that can look synthetic when audited.
+- The escalation gate is not the realism bottleneck by itself, but it sets expectations that downstream outputs fail to meet.
+
+---
+
+## 9) S2 - Country x zone priors (structural realism bias)
+**Coverage**
+- Rows: **1,158**, Countries: **248**, TZIDs: **435**.
+- TZIDs per country: median **3**, p90 **8**, max **47**.
+
+**Floor / bump usage**
+- floor_applied_rate: **22.97%**
+- bump_applied_rate: **22.97%**
+
+Floors are used but are not the dominant driver of concentration by themselves.
+
+**Share concentration**
+- share_effective quantiles (all rows):  
+  min **9.9e-05**, p50 **0.00195**, p75 **0.1138**, p90 **0.9957**, p99 **1.0**.
+- Countries with top1_share >= 0.95: **82.3%**  
+- Countries with top1_share >= 0.99: **66.1%**  
+- Countries with top1_share == 1.0: **28.6%**
+- Among multi-tz countries (tz_count > 1): **93 / 177** still have top1_share >= 0.99.
+
+**HHI per country**
+- Median HHI **0.990** (very high concentration).
+- p25 **0.960**, p75 **1.0**.
+
+**Interpretation (realism impact)**
+- The priors are extremely dominated by a single tzid in most countries.
+- Even multi-zone countries are effectively treated as single-zone because the dominant tzid absorbs almost all mass.
+- This creates a strong structural collapse before any merchant-specific sampling occurs.
+
+---
+
+## 10) S3 - Zone shares (sampled realism)
+**Coverage**
+- Rows: **16,528**, merchant x country pairs: **1,621** (exactly the escalated set).
+- TZIDs per pair: median **8**, p90 **16**, max **42**.
+
+**Share concentration**
+- Top-1 share quantiles:  
+  p50 **0.991**, p90 **0.99999**, p99 **1.0**.
+- HHI median **0.983**, p75 **0.9985**.
+
+**Effective multi-zone strength**
+- Zones with share > 10%: p50 **1**, p90 **1**.
+- Zones with share > 5%: p50 **1**, p90 **2**.
+- Zones with share > 1%: p50 **1**, p90 **3**.
+
+This means most escalated pairs are multi-zone only on paper; in practice one zone dominates and the others are tiny.
+
+**Priors vs shares**
+- Mean share vs S2 share_effective correlation: **0.998**.
+- Mean absolute difference: **0.0052**.
+
+S3 is essentially reproducing S2 priors with very little merchant-specific variation.
+
+**Variability across merchants within a country/tzid**
+- Std of share_drawn across merchants (n > 1 groups):  
+  p50 **0.003**, p90 **0.023**, p99 **0.099**.
+
+This is very low dispersion: merchants inside the same country see almost identical share patterns.
+
+**Interpretation (realism impact)**
+- S3 does not introduce meaningful heterogeneity; it inherits the concentration of S2.
+- The result is multi-zone in schema but effectively monolithic in behavior.
+
+---
+
+## 11) S4 - Zone counts (integerised reality)
+**Conservation**
+- Perfect: sum of zone_site_count equals reported sum for all pairs (max diff 0).
+
+**Zero inflation**
+- 87% of S4 rows have zone_site_count = **0**.
+
+**Nonzero zones per pair**
+- Median **1**.
+- 86.7% of escalated pairs have exactly **1** nonzero zone.
+- Only **13.3%** of escalated pairs (8.3% of all pairs) end up truly multi-zone.
+
+**Top-1 count share**
+- Median **1.0**, p10 **0.94**, p25 **1.0**.
+
+**Interpretation (realism impact)**
+- Integerisation collapses the already-concentrated shares into single-zone outcomes for most pairs.
+- The end result is that escalation does not translate into real multi-zone behavior for the majority of pairs.
+
+---
+
+## 12) zone_alloc - Final realism outcome
+`zone_alloc` matches S4 exactly (no missing keys or count mismatches), so the final egress reflects the same concentration:
+- Top-1 share median **1.0**.
+- p10 **0.94**, p25 **1.0**.
+
+**Interpretation (realism impact)**
+- The final allocation is almost always single-zone, even though S1 escalates 62% of pairs.
+- This is the key realism failure: the pipeline escalates, but the outputs remain monolithic.
+
+---
+
+## 13) Cross-cutting realism conclusions
+1) **Escalation is high, but effective multi-zone allocation is rare.**  
+   Escalated pairs: 1,621. Multi-zone outcomes: 216 (13.3% of escalated).
+
+2) **The priors are the core bottleneck.**  
+   S2 priors are heavily dominated by a single tzid in most countries, so S3 shares and S4 counts collapse to one zone.
+
+3) **Merchant heterogeneity is weak.**  
+   Shares across merchants within the same country/tzid have very low dispersion (median std 0.003).
+
+4) **Integerisation finishes the collapse.**  
+   Even when multiple tzids exist, rounding pushes most zones to zero counts.
+
+Overall: **3A is structurally correct but behaviorally flat**. The system is consistent and auditable, but the outputs do not express realistic multi-zone allocation at scale.
+
