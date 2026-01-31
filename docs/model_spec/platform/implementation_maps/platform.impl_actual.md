@@ -1142,3 +1142,22 @@ MinIO reads for small Oracle metadata (e.g. `run_receipt.json`) occasionally tim
 ### Platform‑wide impact
 - New env knobs: `OBJECT_STORE_READ_TIMEOUT`, `OBJECT_STORE_CONNECT_TIMEOUT`, `OBJECT_STORE_MAX_ATTEMPTS`.
 - Defaults added to `.env.platform.local` to avoid MinIO read timeouts during heavy local I/O.
+
+---
+
+## Entry: 2026-01-30 23:57 — Parity: WSP uses explicit oracle S3 root for stream view identity
+
+### Trigger
+`STREAM_VIEW_ID_MISMATCH` during parity smoke: SR READY referenced local engine root while the stream view was built from MinIO S3.
+
+### Decision
+- In parity mode, **explicit oracle wiring** (ORACLE_ENGINE_RUN_ROOT/ORACLE_ROOT) is authoritative for WSP READY consumption.
+- Make targets must export these envs so WSP runs deterministically against the S3 oracle store.
+
+### Changes
+- WSP READY runner now prefers profile oracle wiring when provided.
+- WSP Make targets export `ORACLE_ENGINE_RUN_ROOT`, `ORACLE_ROOT`, `ORACLE_SCENARIO_ID` for parity runs.
+- Parity runbook updated with stream view verification and mismatch troubleshooting.
+
+### Rationale
+This keeps SR’s local evidence checks intact while ensuring WSP stream view identity matches the S3 oracle store used in parity/dev/prod.

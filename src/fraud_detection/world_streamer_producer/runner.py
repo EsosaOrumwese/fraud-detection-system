@@ -545,6 +545,12 @@ class WorldStreamProducer:
             if receipt.get("status") not in {"OK", None, ""}:
                 raise IngestionError("STREAM_VIEW_RECEIPT_BAD", output_id)
             if manifest.get("stream_view_id") and manifest.get("stream_view_id") != stream_view_id:
+                logger.warning(
+                    "WSP stream_view_id mismatch output_id=%s expected=%s actual=%s",
+                    output_id,
+                    stream_view_id,
+                    manifest.get("stream_view_id"),
+                )
                 raise IngestionError("STREAM_VIEW_ID_MISMATCH", output_id)
             if manifest.get("output_id") and manifest.get("output_id") != output_id:
                 raise IngestionError("STREAM_VIEW_OUTPUT_MISMATCH", output_id)
@@ -859,7 +865,9 @@ def _read_stream_view_rows_with_index(
             endpoint_override = endpoint.split("://", 1)[1]
         options: dict[str, Any] = {"endpoint_override": endpoint_override, "region": region}
         if path_style:
-            options["path_style_access"] = True
+            # PyArrow uses force_virtual_addressing (not path_style_access).
+            # For MinIO/path-style, keep virtual addressing disabled.
+            options["force_virtual_addressing"] = False
         access_key = os.getenv("AWS_ACCESS_KEY_ID") or None
         secret_key = os.getenv("AWS_SECRET_ACCESS_KEY") or None
         session_token = os.getenv("AWS_SESSION_TOKEN") or None

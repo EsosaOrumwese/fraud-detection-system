@@ -113,6 +113,11 @@ class ReadyConsumerRunner:
         oracle_pack_ref = message.payload.get("oracle_pack_ref") or run_facts.get("oracle_pack_ref") or {}
         engine_run_root = oracle_pack_ref.get("engine_run_root") or self.profile.wiring.oracle_engine_run_root
         oracle_root = oracle_pack_ref.get("oracle_root") or self.profile.wiring.oracle_root
+        # Prefer explicit oracle wiring when provided (parity/dev use s3 oracle root).
+        if self.profile.wiring.oracle_engine_run_root:
+            engine_run_root = self.profile.wiring.oracle_engine_run_root
+        if self.profile.wiring.oracle_root:
+            oracle_root = self.profile.wiring.oracle_root
         if not scenario_id:
             result = ReadyConsumeResult(
                 message_id=message.message_id,

@@ -140,7 +140,7 @@ make platform-oracle-check-strict `
 
 **Note:** Oracle pack uses the MinIO S3 endpoint + credentials from `.env.platform.local` (exported by Make).
 
-**4.3 Build the stream view (per‑output `ts_utc` order, flat output)**
+**4.3 Build the stream view (required; per‑output `ts_utc` order, flat output)**
 ```
 make platform-oracle-stream-sort `
   ORACLE_PROFILE=config/platform/profiles/local_parity.yaml `
@@ -149,6 +149,7 @@ make platform-oracle-stream-sort `
 ```
 
 **What this does:**
+- **Why required:** engine outputs are not guaranteed to be globally `ts_utc`‑sorted; WSP consumes a **stream view** that is strictly ordered by `ts_utc`.
 - Reads the **engine outputs** from MinIO.
 - Builds **one sorted dataset per output_id** under:
   `.../stream_view/ts_utc/output_id=<output_id>/part-*.parquet`
@@ -159,9 +160,17 @@ make platform-oracle-stream-sort `
 
 **Dependency note:** this step uses `duckdb` (declared in `pyproject.toml`). If missing, install deps before running.
 
-`ORACLE_STREAM_VIEW_ROOT` should point to the **base** (`.../stream_view/ts_utc`); WSP appends `output_id=<output_id>`.
+`ORACLE_STREAM_VIEW_ROOT` should point to the **base** (`.../stream_view/ts_utc`); **WSP reads**:
+`<ORACLE_STREAM_VIEW_ROOT>/output_id=<output_id>/part-*.parquet`.
 If you need a fresh view, delete the prior output_id view or set a new base path.
 **If you see `STREAM_VIEW_PARTIAL_EXISTS`:** a prior sort left partial parquet files. Delete the output_id stream view prefix and re‑run Section 4.3.
+**Important:** the stream view ID is derived from `ORACLE_ENGINE_RUN_ROOT` + `ORACLE_SCENARIO_ID` + `output_id`. Ensure `ORACLE_ENGINE_RUN_ROOT` matches the MinIO path you sorted (s3://...), not the local `runs/...` path.
+
+**Verify stream view exists (MinIO):**
+```
+aws --endpoint-url http://localhost:9000 s3 ls `
+  $env:ORACLE_STREAM_VIEW_ROOT/output_id=arrival_events_5B/ | Select-Object -First 5
+```
 
 **Optional tuning knobs (set before running):**
 - `STREAM_SORT_PROGRESS_SECONDS` → DuckDB progress bar refresh (seconds).
@@ -169,6 +178,7 @@ If you need a fresh view, delete the prior output_id view or set a new base path
 - `STREAM_SORT_MEMORY_LIMIT` / `STREAM_SORT_TEMP_DIR` / `STREAM_SORT_THREADS` → performance tuning.
 - `STREAM_SORT_MAX_TEMP_SIZE` → increases DuckDB temp spill allowance (e.g., `50GiB`).
 - `STREAM_SORT_PRESERVE_ORDER` → set `false` to reduce memory (safe because query already `ORDER BY`).
+- `STREAM_SORT_CHUNK_DAYS` → if you hit OOM on large outputs, set to `1` to sort day‑chunks (still produces `part-*.parquet` in order).
 
 ---
 
@@ -242,6 +252,7 @@ $env:WSP_READY_MAX_EVENTS="500000"; make platform-wsp-ready-consumer-once WSP_PR
 **If you see `Invalid endpoint`:** verify `.env.platform.local` has `OBJECT_STORE_ENDPOINT` and MinIO creds; Make exports them to WSP.
 **If you see `CONTROL_BUS_STREAM_MISSING`:** ensure `PARITY_CONTROL_BUS_STREAM/REGION/ENDPOINT_URL` are set in `.env.platform.local` (Make exports them as `CONTROL_BUS_*` for WSP).
 **If you see `CHECKPOINT_DSN_MISSING`:** ensure `PARITY_WSP_CHECKPOINT_DSN` is set in `.env.platform.local` (Make exports it as `WSP_CHECKPOINT_DSN`).
+**If you see `STREAM_VIEW_ID_MISMATCH`:** confirm `.env.platform.local` sets `ORACLE_ENGINE_RUN_ROOT` to the **MinIO** path you used to build the stream view. WSP prefers this explicit oracle root in parity mode.
 **If you see `Invalid URL '/v1/ingest/push'`:** ensure `PARITY_IG_INGEST_URL` is set in `.env.platform.local` (Make exports it as `IG_INGEST_URL`).
 **If you see `STREAM_VIEW_MISSING`:** re‑run Section 4.3 (`platform-oracle-stream-sort`) or confirm `ORACLE_STREAM_VIEW_ROOT` is set.
 

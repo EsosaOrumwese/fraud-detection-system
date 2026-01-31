@@ -855,3 +855,52 @@ Oracle stream view layout was simplified to **flat per output_id** (no `bucket_i
 ### Impact
 - Simplifies operator workflows (no extra path segment).
 - Keeps integrity validation intact (manifest/receipt).
+
+---
+
+## Entry: 2026-01-30 23:57 — WSP READY uses explicit oracle engine root (stream view id consistency)
+
+### Trigger
+`STREAM_VIEW_ID_MISMATCH` during WSP READY consumption after building MinIO stream views. Expected id was derived from a **local** `engine_run_root` provided by SR, while the manifest was built with the **S3 oracle root**.
+
+### Live decision trail (notes as I think)
+- SR still operates against **local engine artifacts** for evidence/gate checks, so its READY payload carries `engine_run_root=runs/...`.
+- WSP must stream from the **Oracle Store in S3** for parity and should not derive stream view identity from local paths.
+- The stream view id is a deterministic hash of `engine_run_root` + `scenario_id` + `output_id` + sort keys. If WSP uses local roots, it **must** mismatch.
+- The safest parity rule is: when an explicit `ORACLE_ENGINE_RUN_ROOT` is provided in the WSP profile (env), treat it as authoritative and ignore SR’s local root for stream‑view identity and reads.
+
+### Decision
+- **WSP READY prefers explicit oracle wiring** (`ORACLE_ENGINE_RUN_ROOT`, `ORACLE_ROOT`) over SR’s local `engine_run_root` when present.
+- Update Make targets to **export oracle wiring** into WSP READY runner so the profile consistently sees the S3 root.
+
+### Changes
+- `src/fraud_detection/world_streamer_producer/ready_consumer.py`: prefer `profile.wiring.oracle_engine_run_root`/`oracle_root` when set.
+- `makefile`: export `ORACLE_ENGINE_RUN_ROOT`, `ORACLE_ROOT`, `ORACLE_SCENARIO_ID` into WSP READY targets.
+- Runbook note added for `STREAM_VIEW_ID_MISMATCH` (ensure `ORACLE_ENGINE_RUN_ROOT` points to S3 path used for sorting).
+
+### Invariants enforced
+- WSP uses **oracle S3 root** for stream view identity in parity mode.
+- SR can continue validating against **local engine outputs** without breaking WSP streaming.
+
+### Validation plan
+- Re‑run `platform-wsp-ready-consumer-once` after SR READY; expect no `STREAM_VIEW_ID_MISMATCH` and successful streaming.
+
+---
+
+## Entry: 2026-01-31 04:05 — Fix MinIO path-style handling in WSP stream reader
+
+### Trigger
+WSP READY failed with `__init__() got an unexpected keyword argument 'path_style_access'` when constructing `pyarrow.fs.S3FileSystem`.
+
+### Reasoning (live)
+- PyArrow 19 uses `force_virtual_addressing` rather than `path_style_access`.
+- For MinIO (path-style), we should **avoid virtual addressing**; with `endpoint_override` set, PyArrow already uses path-style by default unless `force_virtual_addressing=True`.
+
+### Decision
+Remove `path_style_access` and use `force_virtual_addressing=False` when `path_style` is true.
+
+### Change
+- `src/fraud_detection/world_streamer_producer/runner.py`: replace `path_style_access` with `force_virtual_addressing=False`.
+
+### Validation plan
+Re-run `make platform-wsp-ready-consumer-once WSP_PROFILE=config/platform/profiles/local_parity.yaml` and confirm stream starts (no `path_style_access` error).
