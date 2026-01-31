@@ -539,3 +539,70 @@ The final allocation mirrors S4 exactly: a massive spike at 1.0 and almost no sp
 
 **Visual takeaway:**
 Every plot tells the same story: escalation is high, but priors are so dominated by a single tzid that sampling and integerization collapse into single-zone allocations. The system is internally coherent, but behaviorally flat.
+
+---
+
+## 15) Diagnostic deep-dives (plots_diag)
+These are the deeper diagnostic plots used to stress-test the interpretation above. All plots are saved under `docs/reports/reports/eda/segment_3A/plots_diag/`.
+
+### 15.1 S2 lowest top-1 shares (least-dominant countries)
+<img src="plots_diag/d1_s2_top1_share_bottom30.png" width="560" alt="S2 lowest top-1 shares">
+
+This plot shows the **30 countries with the lowest top-1 prior share**. Even the least-dominant cases still sit mostly above ~0.5, with only a handful dipping closer to ~0.15–0.3. That means the *best* cases for multi-zone diversity are still heavily dominated by one tzid. In realism terms: the system has very limited headroom for truly balanced multi-zone countries; even the weakest dominance cases are still tilted.
+
+### 15.2 S2 tz_count vs top-1 share (labeled)
+<img src="plots_diag/d2_s2_tzcount_vs_top1_labeled.png" width="560" alt="S2 tz_count vs top-1 share labeled">
+
+The labeled scatter highlights that **some large, multi‑TZ countries** (e.g., US, RU, BR, CA, MX) do drop below the ~0.9–1.0 dominance band, but **many countries with higher tz_count still sit near 1.0**. This shows the prior construction is not strongly tied to tz_count. If realism were stronger, multi‑TZ countries would more consistently show reduced top‑1 dominance and broader spread.
+
+### 15.3 S2 alpha_effective / alpha_raw (log‑x histogram)
+<img src="plots_diag/d3_alpha_ratio_hist_logx.png" width="560" alt="S2 alpha_effective / alpha_raw log-x">
+
+The ratio distribution is **heavily concentrated at ~1**, with a long but thin right tail. This implies the **floor policy rarely changes the priors**; most zones remain close to their raw alpha. In realism terms, floors are not a major shaping mechanism here — the dominance mostly comes from the raw prior geometry itself.
+
+### 15.4 S2 share_raw vs share_effective
+<img src="plots_diag/d4_share_raw_vs_effective.png" width="560" alt="S2 share_raw vs share_effective">
+
+The hexbin points fall almost perfectly on the diagonal. This confirms that **effective shares are essentially raw shares**, and floor adjustments do not materially reshape country‑level concentration. This backs the interpretation that S2 is structurally locked into heavy dominance.
+
+### 15.5 S3 entropy per merchant-country
+<img src="plots_diag/d5_s3_entropy_hist.png" width="560" alt="S3 entropy per merchant-country">
+
+Entropy is strongly concentrated near 0 with a small tail reaching into higher values (roughly 1.3–1.7). This means **most merchant-country pairs are effectively single-zone** (very low entropy), with only a small minority exhibiting meaningful dispersion. As a realism signal, this indicates that multi-zone behavior is exceptional rather than typical.
+
+### 15.6 S3 std dev of share by country/tzid (log10)
+<img src="plots_diag/d6_s3_std_share_log10_hist.png" width="560" alt="S3 log10 std share by country/tzid">
+
+The mass of the distribution sits at **very negative log10 values**, indicating **extremely small standard deviations** of share across merchants within the same country/tzid. A few extreme outliers appear, but the dominant story is that merchant‑level variation is minimal. This supports the conclusion that S3 sampling produces **near‑identical allocations for merchants in the same country**.
+
+### 15.7 S3 vs S4 top-1 share (rounding effect)
+<img src="plots_diag/d7_s3_vs_s4_top1_hexbin.png" width="560" alt="S3 vs S4 top-1 share">
+
+The cloud tracks the diagonal closely, showing **integerization preserves the dominance pattern**. Where the points sit slightly above the diagonal, rounding pushes the top‑1 zone share marginally higher in S4. This plot reinforces that S4 is not introducing diversity; it slightly **amplifies** the single‑zone effect.
+
+### 15.8 S4 multi‑zone rate by escalation flag (zoomed)
+<img src="plots_diag/d8_multi_zone_rate_by_escalated_zoom.png" width="720" alt="S4 multi-zone rate by escalation flag">
+
+The zoomed panel makes the key contrast visible: **non‑escalated pairs have ~0% multi‑zone**, while **escalated pairs reach only ~13.3%**. This is the clearest quantitative gap between the escalation policy and realized multi‑zone outcomes. Realism-wise, it shows the pipeline is *formally* escalating but **functionally collapsing** back to monolithic allocations.
+
+**Diagnostic takeaway:**
+The deeper diagnostics confirm the earlier conclusion: 3A is structurally correct but **behaviorally flat**. Priors are highly concentrated, floors barely reshape them, sampling adds almost no heterogeneity, and integerization preserves (or slightly amplifies) dominance. The system escalates aggressively but fails to deliver multi-zone realism for most pairs.
+
+---
+
+## 16) Realism grade (robust synthetic realism standard)
+**Grade: C**
+
+This grade reflects your stated expectation: not real-world truth, but **robust synthetic realism** from handcrafted policy. The data is structurally coherent and reproducible, yet behaviorally flat in ways that reduce plausibility.
+
+**Why it earns a C (not a D):**
+- The pipeline is internally consistent: conservation holds, joins are clean, and outputs are reproducible.
+- Escalation, priors, shares, counts, and zone_alloc all line up without structural leakage.
+
+**Why it does not reach B or A:**
+- **Priors are overwhelmingly dominant**, so multi‑TZ countries still act like single‑TZ countries.
+- **Sampling adds almost no heterogeneity**, with near‑identical share patterns across merchants in the same country.
+- **Integerization collapses diversity**, so the final allocation is almost always single‑zone.
+- **Escalation intent vs outcome mismatch**: escalation is high, but only ~13% of escalated pairs end up multi‑zone.
+
+**Bottom line:** 3A is **correct in structure but weak in behavioral realism**. It needs more dispersion in priors and more merchant‑level variation to reach robust synthetic realism.
