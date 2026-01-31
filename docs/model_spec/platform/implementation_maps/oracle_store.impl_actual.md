@@ -715,3 +715,21 @@ Stream view validation failed with near‑identical `hash_sum` values (float dri
 - Each chunk: `COPY` ordered rows **directly** to `part-XXXXXX.parquet` at the output root (one part per day).
 - Sequential part numbering preserves global ordering.
 - Default remains single‑pass when `STREAM_SORT_CHUNK_DAYS=0`.
+
+---
+
+## Entry: 2026-01-31 07:05:10 — Oracle Store v0 green (parity path)
+
+### Problem / goal
+Confirm Oracle Store v0 is **green** for local_parity: sealed pack + stream views exist in MinIO, with flat per‑output layout and validated receipts.
+
+### Evidence (local parity)
+- Stream views present for all traffic outputs under:
+  `s3://oracle-store/local_full_run-5/c25a2675fbfbacd952b13bb594880e92/stream_view/ts_utc/output_id=<output_id>/part-*.parquet`.
+- Output ids verified: `arrival_events_5B`, `s2_flow_anchor_baseline_6B`, `s3_flow_anchor_with_fraud_6B`.
+- Stream view receipts/manifest are present per output (v0 contract).
+
+### v0 green definition (Oracle Store)
+- Engine outputs are **sealed** (manifest + _SEALED.json) and immutable.
+- Stream views are **per output_id**, sorted by `ts_utc` + tie‑breakers, with **flat layout** and validated receipts.
+- WSP reads only the stream view root (no raw engine pull).

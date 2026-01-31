@@ -586,3 +586,19 @@ EB notes referenced `dev_local.yaml` for parity publish tests. That profile has 
 
 ### Impact
 Prior references to `dev_local` are historical; use `local_parity` for parity validation.
+
+---
+
+## Entry: 2026-01-31 07:08:10 — EB v0 green (Kinesis parity)
+
+### Problem / goal
+Confirm EB v0 is **green** for local_parity: IG publishes to Kinesis (LocalStack) and records are readable with offsets.
+
+### Evidence (local parity)
+- LocalStack stream `fp-traffic-bus` contains records after WSP→IG push (Kinesis read returns records).
+- IG receipts written under the active run id; EB refs present (sequence offsets).
+
+### v0 green definition (EB)
+- Kinesis‑compatible adapter is the parity default.
+- Offsets captured in receipts as `offset_kind=kinesis_sequence`.
+- Local smoke proves publish + read from EB without schema drift.

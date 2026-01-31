@@ -107,7 +107,7 @@ Define the **sealed world boundary** for engine outputs as an explicit platform 
 - Inputs are derived from engine run receipt + scenario_id (no SR‑based inputs).
 - Seal + manifest writes are idempotent (create‑if‑absent; fail‑closed on mismatch).
 
-**Status:** in progress.
+**Status:** complete (v0).
 
 ### Phase 4 — Ops + governance hardening
 **Intent:** immutability enforcement, auditability, and operational safety.
@@ -163,4 +163,10 @@ Define the **sealed world boundary** for engine outputs as an explicit platform 
 - WSP reads stream view manifest/receipt and uses it as the single source of events.
 - Local may allow fallback to raw engine outputs; dev/prod require stream view when enabled.
 
-**Status:** implemented (smoke validation pending).
+**Status:** complete (v0).
+
+### v0 green summary (Oracle Store)
+- Sealed Oracle packs (manifest + _SEALED) are written by CLI and remain immutable.
+- Stream views exist for all traffic output_ids with flat layout:
+  `stream_view/ts_utc/output_id=<output_id>/part-*.parquet`.
+- Stream view receipts validate row count + hash sums and are used by WSP as the sole event source.

@@ -184,8 +184,10 @@ These are copied from the EB design‑authority and are treated as **laws**:
 
 ## 6) Status (v0)
 
-- Phase 1: **planned**
-- Phase 2: **planned**
-- Phase 3: **planned**
-- Phase 4: **planned**
-- Phase 5: **planned**
+- Phase 1: **complete**
+- Phase 2: **complete**
+- Phase 3: **complete**
+- Phase 4: **complete**
+- Phase 5: **complete**
+
+**v0 green summary (EB):** LocalStack Kinesis parity adapter active; IG publishes to `fp-traffic-bus`, offsets recorded in receipts; readback confirmed.

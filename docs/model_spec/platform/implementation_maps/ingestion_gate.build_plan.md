@@ -261,4 +261,6 @@ _This alignment supersedes the legacy pull‑ingest posture. IG becomes **push�
 - Phase 6: in progress (READY leases, optional sharding checkpoints, hash-chain integrity, audit CLI; time-budget guard done).
 - Phase 7: complete (streaming‑only docs + contracts alignment).
 - Phase 8: complete (pull/READY implementation removed; config fails closed).
-- Phase 9: in progress (push‑only validation; WSP→IG local smoke pending).
+- Phase 9: complete (push‑only validation; WSP→IG local parity smoke executed).
+
+**v0 green summary (IG):** push‑only ingestion, run‑scoped receipts/health/quarantine in MinIO, EB publish refs recorded, local parity smoke confirmed.

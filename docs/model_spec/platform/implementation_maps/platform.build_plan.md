@@ -192,6 +192,9 @@ Provide a platform-wide, production-shaped build plan for v0 that aligns compone
 - SR READY → WSP streams → IG admits → EB replay works for pinned run.
 - Truth ownership enforced: SR readiness authority; IG admission authority; EB offsets/replay only.
 
+**Status:** complete (v0 green).
+**Meaning of “green”:** a parity run produces SR READY, WSP streams from stream view, IG writes run‑scoped receipts, and EB contains readable offsets for the same platform run id.
+
 ### Phase 4 — Hot-path decision loop (IEG/OFP/DL/DF/AL/DLA)
 **Intent:** turn admitted traffic into decisions and outcomes with correct provenance and audit.
 
@@ -248,5 +251,6 @@ Provide a platform-wide, production-shaped build plan for v0 that aligns compone
 
 ## Status (rolling)
 - Phase 1: complete (rails + substrate pins + validation + profiles).
-- Phase 2: ready to begin (Oracle Store + WSP).
-- SR v0: complete (see `docs/model_spec/platform/implementation_maps/scenario_runner.build_plan.md`); alignment to WSP truth pending under Phase 3.
+- Phase 2: complete (Oracle Store + WSP stream‑view parity).
+- Phase 3: complete (control & ingress plane green for v0).
+- SR v0: complete (see `docs/model_spec/platform/implementation_maps/scenario_runner.build_plan.md`).

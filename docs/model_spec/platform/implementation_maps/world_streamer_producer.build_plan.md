@@ -120,7 +120,7 @@ Implement WSP as the **primary runtime producer** that replays sealed engine `bu
 - Missing gate → `GATE_PASS_MISSING` (fail‑closed).
 - Producer not allowed → `PRODUCER_NOT_ALLOWED` (fail‑closed).
 
-**Status:** implemented (validation harness + make targets). Execution pending.
+**Status:** complete (local parity smoke executed).
 
 ### Phase 5 — Stream view mode (per‑output `ts_utc` ordering)
 **Intent:** consume **per‑output** Oracle Store stream views instead of raw engine parts.
@@ -143,4 +143,10 @@ Implement WSP as the **primary runtime producer** that replays sealed engine `bu
 - Pacing uses `ts_utc` from each output stream view; respects `stream_speedup`.
 - Progress logging works with stream view mode.
 
-**Status:** in progress.
+**Status:** complete (v0).
+
+### v0 green summary (WSP)
+- READY consumption via Kinesis control bus in parity mode.
+- Stream‑view only read path with per‑output receipts/manifest validation.
+- Push‑only delivery to IG; WSP does not publish to EB.
+- Capped smoke runs validated end‑to‑end with receipts + EB offsets present.

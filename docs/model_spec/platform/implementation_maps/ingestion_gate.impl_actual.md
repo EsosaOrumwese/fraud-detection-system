@@ -2135,3 +2135,20 @@ Use `PLATFORM_STORE_ROOT` to detect S3 store and return run_id only for the pref
 
 ### Validation
 Receipts now written under `s3://fraud-platform/<run_id>/ig/receipts/` with EB refs in platform log.
+
+---
+
+## Entry: 2026-01-31 07:07:20 — IG v0 green (push‑only parity)
+
+### Problem / goal
+Confirm IG v0 is **green** for local_parity: push‑only ingestion, receipts/eb_ref visible under the active platform run prefix.
+
+### Evidence (local parity)
+- IG receipts written under `s3://fraud-platform/platform_20260131T065731Z/ig/receipts/`.
+- EB stream (`fp-traffic-bus`) contains records after WSP stream (LocalStack Kinesis).
+- Health endpoint remains AMBER before traffic (expected), then admits/quarantines with receipts after traffic.
+
+### v0 green definition (IG)
+- Push‑only ingestion boundary; READY/pull paths retired.
+- Canonical envelope validation + gate checks enforced; receipts written per run id.
+- EB publish ack captured in receipts (`eb_ref`) and ops index.

@@ -920,3 +920,20 @@ Normalize all WSP `ts_utc` to `YYYY-MM-DDTHH:MM:SS.ffffffZ` before pushing to IG
 
 ### Validation plan
 Re-run WSP READY once and confirm IG no longer quarantines for `ENVELOPE_INVALID`.
+
+---
+
+## Entry: 2026-01-31 07:06:25 — WSP v0 green (stream‑view parity)
+
+### Problem / goal
+Confirm WSP v0 is **green** for local_parity: READY → stream view → IG push, capped runs for smoke.
+
+### Evidence (local parity)
+- WSP READY consumed Kinesis `sr-control-bus` and streamed capped events (`max_events=20`) from MinIO stream views.
+- Stream view root used: `s3://oracle-store/.../stream_view/ts_utc/output_id=<output_id>/part-*.parquet`.
+- WSP emitted narrative logs (`stream start/stop`) and respected `max_events`.
+
+### v0 green definition (WSP)
+- Stream‑view only mode (no raw engine streaming).
+- Canonical envelope (`ts_utc` RFC3339 micros + `Z`) and provenance fields stamped.
+- READY consumption via Kinesis in parity; local smoke via capped runs; checkpoints persisted in Postgres.

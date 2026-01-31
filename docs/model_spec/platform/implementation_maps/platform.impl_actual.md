@@ -200,6 +200,48 @@ User asked to proceed with Phase 1.4 validation (policy vs wiring separation aud
 
 ---
 
+## Entry: 2026-01-31 06:59:40 — Control & ingress parity “green” procedure (run-id‑scoped receipts + EB offsets)
+
+### Problem / goal
+We need a **clean parity run** that proves SR → WSP → IG → EB is functioning for the *current* platform run id, with IG receipts and EB offsets visible under the same run prefix. Prior attempts were “almost green” but failed to attach receipts to the active run due to service ordering (IG started before the new run id) and stale Kinesis messages.
+
+### Inputs / authorities
+- Root `AGENTS.md` (no half-baked phases; logbook + impl_actual discipline).
+- `config/platform/profiles/local_parity.yaml` (S3 root `s3://fraud-platform`, Kinesis control/event buses).
+- Runbook `docs/runbooks/platform_parity_walkthrough_v0.md` (local parity flow).
+- Platform logging / run-id conventions (run-scoped paths under `runs/fraud-platform/<run_id>/`).
+
+### Live decision trail
+- We must **restart IG after `platform-run-new`** so `PLATFORM_RUN_ID` and run-prefix are correct; otherwise receipts land under the old run id.
+- Kinesis control bus is persistent; old READY messages cause WSP to consume the wrong run. For a clean parity smoke, **reset the streams** (`sr-control-bus`, `fp-traffic-bus`) before publishing READY.
+- “Green” needs three proofs in the same run id: SR READY published, WSP streamed (cap), and IG receipts written (with EB offsets). EB offsets are verified separately via LocalStack Kinesis read.
+
+### Procedure (validated)
+1) Stop IG service on port 8081.
+2) `make platform-run-new` → capture new run id (ACTIVE_RUN_ID).
+3) Start IG service (`make platform-ig-service-parity`) **after** run id is created.
+4) Reset Kinesis streams (delete/recreate `sr-control-bus` + `fp-traffic-bus`).
+5) SR publish READY with fresh equivalence key.
+6) WSP `--once` with `max_events=20` (cap) to confirm flow.
+7) Verify:
+   - Receipts exist under `s3://fraud-platform/<run_id>/ig/receipts/`.
+   - EB has records in LocalStack (`fp-traffic-bus`).
+
+### Evidence observed (local parity)
+- Run id: `platform_20260131T065731Z`.
+- SR READY: `run_id=38751de2498b847c3e0a5e895012388e`, message_id `e47e5b8a...`.
+- WSP streamed 20 events and stopped with `reason=max_events`.
+- Receipts present under `platform_20260131T065731Z/ig/receipts/` in `fraud-platform` bucket.
+- EB stream `fp-traffic-bus` returned records via LocalStack Kinesis read.
+
+### Operational invariants to keep
+- **IG must be started after the platform run id is created.**
+- **Control bus must be clean** for a deterministic smoke run.
+- Receipts are the authoritative signal that IG published to EB (eb_ref); platform.log is narrative only.
+
+
+---
+
 ## Entry: 2026-01-25 05:45:40 — Phase 1.4/1.5 audit results (policy vs wiring + secrets)
 
 ### Phase 1.4 — Policy vs wiring separation (results)
