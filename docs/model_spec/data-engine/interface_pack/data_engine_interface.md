@@ -96,6 +96,27 @@ This policy reflects the engine’s design intent: event streams are **intention
 **Case truth**
 - `s4_case_timeline_6B` is case-centric (join via `case_id`), not a direct event/flow join.
 
+### Platform join posture (binding)
+
+**Practical rule (pinned):**
+- **Traffic stays thin.** Only behavioural streams are emitted as traffic.
+- **Joins occur inside the platform** (IEG/OFP or equivalent), using **preloaded indexes/projections** keyed by the join map above. Platform components MUST NOT scan the oracle set per event.
+- **No future leakage.** Only **time-safe** context surfaces may be used in RTDL. Any surface/field that implies future knowledge is **batch‑only** and must not be used for live decisions.
+
+### Time-safety guidance (v0, based on observed schemas)
+
+**Time-safe join surfaces (RTDL‑eligible)**
+- `arrival_events_5B` (arrival skeleton; routing/timezone context).
+- `s1_arrival_entities_6B` (entity attachments for the same arrival).
+- `s2_flow_anchor_baseline_6B`, `s3_flow_anchor_with_fraud_6B` (flow‑level context at event time).
+
+**Oracle‑only / batch‑only surfaces**
+- `s1_session_index_6B` includes `session_end_utc` and `arrival_count` (requires full session closure).
+- All truth products (`s4_*`) are **offline** labels/case truth and must never be used for live decisions.
+
+**Field‑level caution**
+- Any field that implies **future aggregation** (counts over a session, end timestamps, post‑hoc labels) is **not RTDL‑safe** even if the dataset is otherwise used for joins.
+
 ## Catalogue fields (selected)
 
 - `class`: `surface`, `stream`, or `gate` (gate artifacts are not consumption surfaces).
