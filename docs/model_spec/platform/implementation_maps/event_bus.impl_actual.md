@@ -602,3 +602,16 @@ Confirm EB v0 is **green** for local_parity: IG publishes to Kinesis (LocalStack
 - Kinesis‑compatible adapter is the parity default.
 - Offsets captured in receipts as `offset_kind=kinesis_sequence`.
 - Local smoke proves publish + read from EB without schema drift.
+
+---
+
+## Entry: 2026-01-31 07:14:05 — EB diagnostics log (run‑scoped)
+
+### Trigger
+User requested explicit EB logs and platform‑log visibility of EB activity.
+
+### Decision
+Route EB publish diagnostics to a **run‑scoped log** (`runs/fraud-platform/<run_id>/eb/eb.log`) and emit a narrative line in `platform.log` from IG.
+
+### Result
+EB publish activity is visible in both narrative and diagnostic logs without adding a separate EB service.

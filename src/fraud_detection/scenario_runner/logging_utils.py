@@ -18,6 +18,15 @@ class NarrativeFilter(logging.Filter):
         return False
 
 
+class NamePrefixFilter(logging.Filter):
+    def __init__(self, prefix: str) -> None:
+        super().__init__()
+        self.prefix = prefix
+
+    def filter(self, record: logging.LogRecord) -> bool:  # type: ignore[override]
+        return record.name.startswith(self.prefix)
+
+
 def configure_logging(level: int = logging.INFO, log_paths: list[str] | None = None) -> None:
     """Configure default logging if no handlers are present."""
     root = logging.getLogger()
@@ -47,6 +56,20 @@ def configure_logging(level: int = logging.INFO, log_paths: list[str] | None = N
                 handlers.append(logging.FileHandler(component_path, encoding="utf-8"))
         except Exception:
             pass
+
+    try:
+        from fraud_detection.platform_runtime import platform_run_root
+
+        run_root = platform_run_root(create_if_missing=True)
+        if run_root:
+            eb_dir = Path(run_root) / "eb"
+            eb_dir.mkdir(parents=True, exist_ok=True)
+            eb_path = eb_dir / "eb.log"
+            eb_handler = logging.FileHandler(eb_path, encoding="utf-8")
+            eb_handler.addFilter(NamePrefixFilter("fraud_detection.event_bus"))
+            handlers.append(eb_handler)
+    except Exception:
+        pass
 
     logging.basicConfig(
         level=level,

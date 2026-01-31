@@ -31,6 +31,8 @@ from .store import ObjectStore, build_object_store
 from ..platform_runtime import platform_run_prefix
 
 logger = logging.getLogger(__name__)
+narrative_logger = logging.getLogger("fraud_detection.platform_narrative")
+eb_logger = logging.getLogger("fraud_detection.event_bus")
 
 
 @dataclass
@@ -219,6 +221,20 @@ class IngestionGate:
             "IG admitted event_id=%s event_type=%s topic=%s partition=%s offset=%s",
             envelope.get("event_id"),
             envelope.get("event_type"),
+            eb_ref.topic,
+            eb_ref.partition,
+            eb_ref.offset,
+        )
+        narrative_logger.info(
+            "IG published to EB event_id=%s topic=%s partition=%s offset=%s",
+            envelope.get("event_id"),
+            eb_ref.topic,
+            eb_ref.partition,
+            eb_ref.offset,
+        )
+        eb_logger.info(
+            "EB publish event_id=%s topic=%s partition=%s offset=%s",
+            envelope.get("event_id"),
             eb_ref.topic,
             eb_ref.partition,
             eb_ref.offset,

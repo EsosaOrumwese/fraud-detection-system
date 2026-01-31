@@ -2152,3 +2152,21 @@ Confirm IG v0 is **green** for local_parity: push‑only ingestion, receipts/eb_
 - Push‑only ingestion boundary; READY/pull paths retired.
 - Canonical envelope validation + gate checks enforced; receipts written per run id.
 - EB publish ack captured in receipts (`eb_ref`) and ops index.
+
+---
+
+## Entry: 2026-01-31 07:13:40 — EB diagnostics in logs (narrative + eb.log)
+
+### Trigger
+User could not see EB activity in `platform.log` and asked for an EB log.
+
+### Decision trail (live)
+- `platform.log` is narrative‑only; EB publish logs should be **narrative** so the user sees them without opening component logs.
+- EB is not a standalone process, so we will emit **EB publish diagnostics** from IG and route them to a dedicated `eb.log`.
+
+### Changes
+- IG now logs `IG published to EB ...` to the narrative logger (shows in `platform.log`).
+- EB publish diagnostics routed to `runs/fraud-platform/<run_id>/eb/eb.log` via a logger prefix filter.
+
+### Result
+Platform log includes EB publish lines, and an explicit `eb.log` exists for deeper EB diagnostics.

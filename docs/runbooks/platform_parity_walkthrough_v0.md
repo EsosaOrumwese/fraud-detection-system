@@ -23,6 +23,24 @@ manifest/seal files; it does not copy the dataset unless you sync it.
 
 ---
 
+## 0.1) Component vs backend (quick clarity)
+
+In this platform:
+- **Component** = logical platform role (contract + behavior).
+- **Backend** = concrete infrastructure used to implement that role.
+
+**Examples in v0 parity:**
+- **EB (Event Bus)** is a **component**.  
+  **Backend:** Kinesis (LocalStack locally, AWS in dev/prod).
+- **Oracle Store** is a **component**.  
+  **Backend:** S3‑compatible object store (MinIO locally).
+- **IG (Ingestion Gate)** is a **service component**.  
+  It validates/admits and **calls EB’s publisher** (not a separate EB service).
+
+So when you say “EB,” you’re referring to the **component**, and in parity it **uses Kinesis** as its backend.
+
+---
+
 ## 1) Start parity stack
 
 ```
@@ -281,15 +299,16 @@ Tail the platform log (narrative + warnings/errors only):
 Get-Content runs/fraud-platform/<platform_run_id>/platform.log -Wait
 ```
 
-Look for:
-- **SR**: `SR READY published`
-- **WSP**: `WSP stream start` / `WSP stream stop`
-- **IG**: `IG summary admit=...` and `IG receipt stored ... eb_ref=...`
+  Look for:
+  - **SR**: `SR READY published`
+  - **WSP**: `WSP stream start` / `WSP stream stop`
+  - **IG**: `IG published to EB ...` and `IG summary admit=...`
 
-Component detail logs (full diagnostics):
-- SR: `runs/fraud-platform/<platform_run_id>/sr/sr.log`
-- WSP: `runs/fraud-platform/<platform_run_id>/wsp/wsp.log`
-- IG: `runs/fraud-platform/<platform_run_id>/ig/ig.log`
+  Component detail logs (full diagnostics):
+  - SR: `runs/fraud-platform/<platform_run_id>/sr/sr.log`
+  - WSP: `runs/fraud-platform/<platform_run_id>/wsp/wsp.log`
+  - IG: `runs/fraud-platform/<platform_run_id>/ig/ig.log`
+  - EB: `runs/fraud-platform/<platform_run_id>/eb/eb.log` (publish diagnostics)
 
 ---
 
