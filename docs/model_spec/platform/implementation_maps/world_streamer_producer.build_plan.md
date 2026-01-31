@@ -4,6 +4,8 @@ _As of 2026-01-28_
 ## Purpose
 Implement WSP as the **primary runtime producer** that replays sealed engine `business_traffic` into IG **directly from the Oracle Store** (engine‑rooted), preserving bank‑like temporal flow.
 
+**Traffic policy (v0):** WSP emits **two concurrent behavioural channels** — `s2_event_stream_baseline_6B` and `s3_event_stream_with_fraud_6B`. These are **not interleaved** in v0.
+
 ## Planning rules (binding)
 - **Progressive elaboration:** expand only the active phase into sections + DoD.
 - **WSP never writes to EB:** IG remains the only writer.

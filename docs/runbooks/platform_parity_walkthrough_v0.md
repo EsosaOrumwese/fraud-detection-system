@@ -260,6 +260,8 @@ docker exec local-postgres-1 psql -U platform -d platform -c "delete from sr_run
 
 ## 7) WSP consumes READY and streams 500k events
 
+**Traffic policy (dual-stream):** WSP emits **two concurrent traffic channels** only: `s2_event_stream_baseline_6B` and `s3_event_stream_with_fraud_6B`. These are **not interleaved** in v0.
+
 ```
 $env:WSP_READY_MAX_EVENTS="500000"; make platform-wsp-ready-consumer-once WSP_PROFILE=config/platform/profiles/local_parity.yaml
 ```

@@ -267,3 +267,152 @@ During assessment, we should always separate:
 ---
 
 (Next: detailed assessment of the actual 3B outputs under the run folder, once we move to data analysis.)
+
+---
+
+# Segment 3B - Output Assessment (Run: local_full_run-5)
+Run: `runs\local_full_run-5\c25a2675fbfbacd952b13bb594880e92`
+Partition: `seed=42`, `manifest_fingerprint=c8fd43cd60ce0ede0c63d2ceb4610f167c9b107e1d59b9b8c7d7b8d0028b05c8`
+Parameter hash: `56d45126eaabedd083a1d8428a763e0278c89efec5023cfd6cf3cab7fc8dd2d7`
+
+This section records what the 3B outputs actually show in this run. The emphasis is on realism signals, not just schema correctness.
+
+---
+
+## 7) Output inventory and coverage (context only)
+Files present under `data/layer1/3B`:
+- `virtual_classification` (10,000 rows)
+- `virtual_settlement` (309 rows)
+- `edge_catalogue` (154,500 rows)
+- `edge_catalogue_index` (309 merchant rows + 1 global row)
+- `edge_alias_index` (309 merchant rows + 1 global row)
+- `edge_alias_blob` (1,240,944 bytes)
+- `edge_universe_hash` (present)
+- `virtual_routing_policy` (present)
+- `virtual_validation_contract` (2 rows)
+
+All expected surfaces exist and are readable; no missing datasets were observed.
+
+---
+
+## 8) S1 - Virtual classification (realism gate)
+**Virtual rate**
+- Virtual merchants: **309 / 10,000 = 3.09%**.
+
+This rate is plausible in isolation, but the **metadata is unnaturally uniform**:
+- `decision_reason` is **RULE_MATCH for 100%** of merchants.
+- `classification_digest` has **one unique value** across all 10,000 rows.
+- `rule_id` and `rule_version` are **empty** for all rows.
+
+**Interpretation (realism impact)**
+- The virtual rate itself could be fine, but the uniform decision metadata removes explainability and variability that a rule system should show. If different MCC/channel rules are driving classification, the absence of rule IDs and the single digest suggest the classification layer is effectively “flat” in its evidence. This weakens the audit trail and makes it harder to justify realism when challenged.
+
+---
+
+## 9) S1 - Virtual settlement (legal anchor realism)
+**Coverage**
+- `virtual_settlement_3B` contains **309 rows**, matching exactly the 309 virtual merchants.
+
+**Coordinate diversity**
+- Unique settlement coordinates: **260**.
+- Duplicate coordinates: **49 merchants share coordinates** (≈15.9% of virtual merchants).
+- Top duplicate clusters include coordinates in **Monaco, Bermuda, Macau**, and nearby micro‑hubs.
+
+**Timezone distribution**
+- Top tzids include `Europe/Monaco`, `Europe/Luxembourg`, `Europe/Zurich`, `Europe/Dublin`, `Atlantic/Bermuda`, `Asia/Macau`.
+
+**Provenance signals**
+- `coord_source_id`: **geonames:cities500_via_pelias_cached** for all rows.
+- `coord_source_version`: **2026‑01‑03** for all rows.
+- `tz_policy_digest`: **one unique value**.
+- `settlement_coord_digest`: **one unique value**.
+
+**Interpretation (realism impact)**
+- Settlement anchors are **plausibly drawn from a geocode corpus**, but the clustering in a handful of small jurisdictions is heavy, which can feel synthetic unless the classification policy is explicitly skewed toward offshore/financial hubs. The repeated coordinates (≈16%) and single digest values across all rows suggest **low per‑merchant settlement variety**, reducing realism of the legal‑anchor layer.
+
+---
+
+## 10) S2 - Edge catalogue (core realism surface)
+This is the most important realism surface, and the outputs are **highly uniform**.
+
+**Edge counts per merchant**
+- **Every merchant has exactly 500 edges**.
+- Quantiles: min = p50 = p90 = p99 = max = **500**.
+
+**Countries per merchant**
+- **Every merchant has exactly 117 countries** represented in its edge catalogue.
+- Quantiles: min = p50 = p90 = p99 = max = **117**.
+
+**Edge weight distribution**
+- `edge_weight` has **one unique value**: **0.002**.
+- This is exactly **1/500**, meaning **all edges are equal‑weight**.
+
+**Top‑1 share / concentration**
+- Top‑1 share per merchant: **0.002** for all merchants.
+- HHI per merchant: **0.002** (the minimum possible for 500 equal‑weight edges).
+- Entropy per merchant: **6.2146** (≈ ln(500)), i.e. **maximal uniformity**.
+
+**Country mix is identical across merchants**
+- Edge counts per merchant‑country are **identical for every merchant** (zero variance across merchants for all 117 countries).
+- Example of the fixed allocation pattern (applies to every merchant):
+  - CN 112, IN 70, US 27, ID 18, BR 16, RU 12, JP 9, MX 9, NG 8, PH 8, etc.
+
+**Coordinate realism (structural only)**
+- All edge lat/lon values are within valid ranges.
+- No duplicate coordinates (each edge has a unique coordinate).
+
+**Interpretation (realism impact)**
+- The edge catalogue is **structurally valid but behaviorally flat**. Every merchant has the same number of edges, the same country allocation, and the same uniform weights. This eliminates merchant‑level heterogeneity and makes routing behavior identical across merchants. Even for synthetic realism, a CDN edge universe should vary with merchant scale, geography, and policy exposures. This is the strongest realism failure in 3B.
+
+---
+
+## 11) S3 - Alias tables and index consistency
+**Integrity checks**
+- `edge_catalogue_index` counts match the edge catalogue exactly.
+- `edge_alias_index` counts match the edge catalogue exactly.
+- `alias_table_length` is **constant at 500** for all merchants.
+
+**Interpretation (realism impact)**
+- Alias packaging is internally consistent, but because the underlying weights are uniform, alias sampling will also be uniform. The alias system therefore **does not introduce any realism**; it faithfully preserves the flatness of the edge catalogue.
+
+---
+
+## 12) S4 - Routing + validation contracts
+**virtual_validation_contract**
+- Only **two tests** are defined: `IP_COUNTRY_MIX` and `SETTLEMENT_CUTOFF`.
+- Both are enabled and **BLOCKING**.
+
+**virtual_routing_policy**
+- Policy binds to `alias_layout_version = 2B.alias.blob.v1` and the published `edge_universe_hash`.
+- Semantics are defined but the contract surface is **minimal**.
+
+**Interpretation (realism impact)**
+- The contract layer is valid but **narrow in scope**. With only two tests, the system has limited guardrails to detect the heavy uniformity seen in S2/S3. This does not break correctness but reduces realism validation coverage.
+
+---
+
+## 13) S5 - Universe hash and validation surfaces
+- `edge_universe_hash_3B.json` is present and populated with digests for policies and indices.
+- The hash appears stable and ties to S2/S3 outputs.
+
+**Interpretation (realism impact)**
+- Provenance is intact, but it confirms that the “flat” edge universe is canonical and reproducible, not an accident.
+
+---
+
+## 14) Cross‑cutting realism conclusions
+1) **Virtual classification is small but opaque.** The 3.09% rate may be plausible, but the decision metadata is uniform and uninformative (single digest and reason code).
+
+2) **Settlement anchors are plausible in isolation but overly clustered.** Settlement coordinates cluster in a small set of hubs (Monaco, Luxembourg, Bermuda, Macau) and show ~16% duplication, which risks an artificial “offshore hub” signature.
+
+3) **Edge catalogue realism fails on heterogeneity.** Every merchant is identical: 500 edges, 117 countries, uniform weights. This defeats the purpose of “virtual merchant variability” and yields flat routing behavior.
+
+4) **Alias packaging is correct but preserves flatness.** The alias layer faithfully encodes the uniform distributions and cannot restore realism.
+
+5) **Validation contracts are minimal.** With only two tests, there is little enforcement against the uniformity problem.
+
+**Bottom line:** The 3B outputs are structurally correct and reproducible but **behaviorally flat**. The synthetic realism objective is not met because the edge universe lacks merchant‑level and geography‑level heterogeneity.
+
+---
+
+(Next: diagnostic plots and targeted remediation ideas if we decide to improve realism in 3B.)

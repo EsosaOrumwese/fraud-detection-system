@@ -424,6 +424,8 @@ High‑level intent: golden path + duplicate + reuse + fail‑closed + re‑emit
 
 **Intent:** align SR docs and contracts to WSP‑first runtime while preserving SR as readiness authority and Oracle Store as external truth.
 
+**Traffic policy (v0):** SR publishes READY for **two concurrent behavioural channels** (`s2_event_stream_baseline_6B`, `s3_event_stream_with_fraud_6B`) and does not treat `arrival_events_5B` or flow anchors as traffic.
+
 ### Section 9.1 — Control‑plane re‑scope (docs)
 **Definition of done**
 - SR docs/contracts explicitly state SR is **control‑plane only** (readiness authority).
