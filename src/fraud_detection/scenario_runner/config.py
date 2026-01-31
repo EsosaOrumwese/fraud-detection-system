@@ -21,6 +21,7 @@ class WiringProfile(BaseModel):
     gate_map_path: str
     schema_root: str
     engine_contracts_root: str
+    oracle_engine_run_root: str | None = None
     engine_command: list[str] | None = None
     engine_command_cwd: str | None = None
     engine_command_timeout_seconds: int | None = None

@@ -3875,3 +3875,71 @@ Run‑first artifacts require SR authority/lease state to live under the active 
 - `tests/services/scenario_runner/test_security_ops.py`
 - `tests/services/scenario_runner/test_instance_proof_bridge.py`
 - `tests/services/scenario_runner/test_parity_integration.py`
+
+## Entry: 2026-01-31 13:42:00 — SR always uses Oracle Store (S3) + S3‑aware evidence verification (plan)
+
+### Problem / goal
+User requires SR to **always** read engine outputs from the Oracle Store (S3/MinIO) and never from local disk, so local runs match production. Current SR evidence + gate verification paths assume local `Path` access, so S3 roots break (or silently fall back). We need SR to treat `oracle_engine_run_root` as the canonical engine root and to verify gates, locators, and pack manifests directly from S3.
+
+### Constraints / invariants
+- Engine remains a black box (read‑only by‑ref).
+- No‑PASS‑no‑read must remain enforced.
+- SR truth artifacts stay in platform object store (`fraud-platform/<run_id>/sr/...`).
+- No secrets in docs.
+
+### Decision trail (live)
+1) **Introduce `oracle_engine_run_root` in SR wiring** so SR can override request‑level `engine_run_root` and ensure S3/Oracle is always used.
+   - Reason: request input may still point to local paths; wiring is the authority for environment truth.
+2) **Make evidence/gate verification S3‑aware** by reading via `ObjectStore` instead of `Path`.
+   - Reason: gate receipts, passed flags, and bundles exist in MinIO for parity/dev/prod. Local path logic is a ladder friction.
+3) **Keep local path support** for unit tests and legacy runs, but prefer Oracle root when present.
+   - Reason: avoid breaking tests and allow explicit fallback, while still defaulting to Oracle store.
+
+### Planned mechanics
+- Extend `WiringProfile` with optional `oracle_engine_run_root`.
+- In `ScenarioRunner.submit_run`, override canonical intent’s `engine_run_root` with wiring’s `oracle_engine_run_root` when present; log when request root is ignored.
+- Build an engine object store for the resolved engine root and pass it to evidence/gate verification.
+- Update evidence + gate verification to use store for exists/read/digest.
+- Update oracle pack manifest read to use store (S3) instead of `Path`.
+- Update SR wiring files for local_parity/local_kinesis to set Oracle S3 root explicitly.
+- Update runbook to state SR always uses Oracle Store and does not read local engine outputs.
+
+### Validation plan
+- Re‑run SR reuse path with `engine_run_root` pointing to S3 Oracle store and confirm READY completes without local path access.
+- Gate verification tests should continue to pass for local Path roots.
+
+---
+
+## Entry: 2026-01-31 14:05:00 — SR Oracle‑first engine root + S3‑aware evidence verification (implemented)
+
+### What changed
+- Added `oracle_engine_run_root` to SR wiring and made SR **prefer it** over any request‑level engine root (oracle‑first).
+- Made SR evidence collection + gate verification **S3‑aware** by reading engine artifacts via `ObjectStore` (MinIO/S3), not local `Path` only.
+- Updated oracle pack manifest reads to use object store so `_oracle_pack_manifest.json` can live in S3.
+- Updated `make platform-sr-run-reuse` to default `SR_ENGINE_RUN_ROOT` from `ORACLE_ENGINE_RUN_ROOT`.
+- Updated runbook to document oracle‑first SR behavior.
+
+### Decision trail (live)
+- **Why override request root:** request values are operator input; wiring is the environment authority. This avoids local‑path drift and keeps parity with prod.
+- **Why object store in gate verification:** passed flags, bundles, and index files are in Oracle Store (S3). Local‑only gate checks are a ladder friction.
+- **Why keep local compatibility:** tests and non‑parity flows still use local paths; S3 is only required when root is `s3://`.
+
+### Mechanics (explicit)
+- `ScenarioRunner.submit_run` now resolves `engine_run_root = wiring.oracle_engine_run_root || request.engine_run_root`.
+- `GateVerifier` accepts `engine_root` as string and uses S3 store for exists/read/digest when the root is `s3://`.
+- Evidence locator scan uses store listing + wildcard matching for S3 and preserves local globbing for filesystem roots.
+- Oracle pack manifest ref is built as `s3://.../_oracle_pack_manifest.json` when in S3.
+
+### Files touched
+- `src/fraud_detection/scenario_runner/config.py`
+- `src/fraud_detection/scenario_runner/runner.py`
+- `src/fraud_detection/scenario_runner/evidence.py`
+- `src/fraud_detection/scenario_runner/storage.py`
+- `config/platform/sr/wiring_local*.yaml`, `config/platform/sr/wiring_aws.yaml`
+- `makefile`
+- `docs/runbooks/platform_parity_walkthrough_v0.md`
+
+### Tests
+- `\.venv\Scripts\python.exe -m pytest tests/services/scenario_runner/test_gate_verifier.py -q` → 8 passed.
+
+---

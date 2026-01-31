@@ -9,6 +9,7 @@ import os
 import time
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
+from fnmatch import fnmatch
 from typing import Any
 
 import logging as _logging
@@ -171,6 +172,15 @@ class ScenarioRunner:
             request.model_dump(mode="json", exclude_none=True),
         )
         canonical = self._canonicalize(request)
+        resolved_engine_root = self._resolve_engine_root(request.engine_run_root)
+        if resolved_engine_root and resolved_engine_root != request.engine_run_root:
+            self.logger.info(
+                "SR: oracle engine root enforced (request_root=%s, oracle_root=%s)",
+                request.engine_run_root,
+                resolved_engine_root,
+            )
+        if resolved_engine_root:
+            canonical = canonical.model_copy(update={"engine_run_root": resolved_engine_root})
         intent_fingerprint = self._intent_fingerprint(canonical)
         run_id, first_seen = self.equiv_registry.resolve(canonical.run_equivalence_key, intent_fingerprint)
         self.logger.info(
@@ -870,13 +880,14 @@ class ScenarioRunner:
                 outcome = "FAILED"
                 reason_code = "ENGINE_ROOT_MISSING"
             else:
-                receipt_path = Path(engine_run_root) / "run_receipt.json"
-                if not receipt_path.exists():
+                engine_store = self._build_engine_store(engine_run_root)
+                receipt_path = "run_receipt.json"
+                if engine_store is None or not engine_store.exists(receipt_path):
                     outcome = "FAILED"
                     reason_code = "ENGINE_RECEIPT_MISSING"
                 else:
                     try:
-                        receipt_payload = json.loads(receipt_path.read_text(encoding="utf-8"))
+                        receipt_payload = json.loads(engine_store.read_text(receipt_path))
                         self.engine_schemas.validate("run_receipt.schema.yaml", receipt_payload)
                     except (ValueError, json.JSONDecodeError):
                         outcome = "FAILED"
@@ -895,7 +906,7 @@ class ScenarioRunner:
                             outcome = "FAILED"
                             reason_code = "ENGINE_RECEIPT_MISMATCH"
                         else:
-                            run_receipt_ref = str(receipt_path)
+                            run_receipt_ref = self._engine_join(engine_run_root, receipt_path)
 
         ended_at = datetime.now(tz=timezone.utc)
         duration_ms = int((time.monotonic() - started_mono) * 1000)
@@ -954,8 +965,8 @@ class ScenarioRunner:
         plan: RunPlan,
         attempt: EngineAttemptResult,
     ) -> EvidenceBundle:
-        engine_root = Path(attempt.engine_run_root) if attempt.engine_run_root else None
-        if engine_root is None or not engine_root.exists():
+        engine_root = attempt.engine_run_root
+        if engine_root is None:
             return EvidenceBundle(status=EvidenceStatus.FAIL, locators=[], gate_receipts=[], reason="ENGINE_ROOT_MISSING")
 
         self.logger.info(
@@ -969,29 +980,29 @@ class ScenarioRunner:
         locator_by_output: dict[str, EngineOutputLocator] = {}
         missing_outputs: list[str] = []
         optional_missing: list[str] = []
+        engine_store = self._build_engine_store(engine_root)
+        if not engine_root or engine_store is None:
+            return EvidenceBundle(
+                status=EvidenceStatus.FAIL,
+                locators=[],
+                gate_receipts=[],
+                reason="ENGINE_ROOT_MISSING",
+            )
         for output_id in plan.intended_outputs:
             entry = self.catalogue.get(output_id)
             output_path = self._render_template(entry.path_template, intent, plan.run_id)
-            full_path = engine_root / output_path
-            if "*" in output_path:
-                matches = list(full_path.parent.glob(full_path.name))
-                if not matches:
-                    if entry.availability != "optional":
-                        missing_outputs.append(output_id)
-                    else:
-                        optional_missing.append(output_id)
-                    continue
-            elif not full_path.exists():
+            matches = self._resolve_engine_paths(engine_store, engine_root, output_path)
+            if not matches:
                 if entry.availability != "optional":
                     missing_outputs.append(output_id)
                 else:
                     optional_missing.append(output_id)
                 continue
-            content_digest = self._compute_output_digest(full_path)
+            content_digest = self._compute_output_digest(engine_store, matches)
             pins = self._locator_pins(entry, intent, plan.run_id)
             locator = EngineOutputLocator(
                 output_id=output_id,
-                path=str(full_path),
+                path=self._engine_join(engine_root, output_path),
                 content_digest=make_digest(content_digest),
                 **pins,
             )
@@ -1013,7 +1024,7 @@ class ScenarioRunner:
             len(optional_missing),
         )
 
-        gate_verifier = GateVerifier(engine_root, self.gate_map)
+        gate_verifier = GateVerifier(engine_root or "", self.gate_map, store=engine_store)
         gate_receipts: list[GateReceipt] = []
         missing_gates: list[str] = []
         failed_gates: list[str] = []
@@ -1266,11 +1277,12 @@ class ScenarioRunner:
         if not engine_run_root:
             return None, None
         ref: dict[str, Any] = {"engine_run_root": engine_run_root}
-        manifest_path = Path(engine_run_root) / "_oracle_pack_manifest.json"
-        if not manifest_path.exists():
+        engine_store = self._build_engine_store(engine_run_root)
+        manifest_path = "_oracle_pack_manifest.json"
+        if engine_store is None or not engine_store.exists(manifest_path):
             return ref, None
         try:
-            payload = json.loads(manifest_path.read_text(encoding="utf-8"))
+            payload = json.loads(engine_store.read_text(manifest_path))
             self.oracle_schemas.validate("oracle_pack_manifest.schema.yaml", payload)
         except (ValueError, json.JSONDecodeError) as exc:
             self.logger.warning("SR: oracle pack manifest invalid root=%s error=%s", engine_run_root, str(exc))
@@ -1287,7 +1299,7 @@ class ScenarioRunner:
         ref.update(
             {
                 "oracle_pack_id": payload.get("oracle_pack_id"),
-                "manifest_ref": str(manifest_path),
+                "manifest_ref": self._engine_join(engine_run_root, manifest_path),
                 "engine_release": payload.get("engine_release"),
             }
         )
@@ -1423,20 +1435,85 @@ class ScenarioRunner:
         rendered = rendered.replace("{run_id}", run_id)
         return rendered
 
-    def _compute_output_digest(self, path: Path) -> str:
-        def digest_files(files: list[Path]) -> str:
-            hasher = hashlib.sha256()
-            for file_path in files:
-                hasher.update(file_path.read_bytes())
-            return hasher.hexdigest()
+    def _compute_output_digest(self, store: Any, relative_paths: list[str]) -> str:
+        hasher = hashlib.sha256()
+        for rel in sorted(relative_paths):
+            hasher.update(store.read_bytes(rel))
+        return hasher.hexdigest()
 
-        if path.is_file():
-            return digest_files([path])
-        if path.is_dir():
-            files = sorted([p for p in path.rglob("*") if p.is_file()], key=lambda p: str(p))
-            return digest_files(files)
-        matches = sorted([p for p in path.parent.glob(path.name) if p.is_file()], key=lambda p: str(p))
-        return digest_files(matches)
+    def _engine_join(self, engine_root: str | None, relative_path: str) -> str:
+        if not engine_root:
+            return relative_path
+        if engine_root.startswith("s3://"):
+            return f"{engine_root.rstrip('/')}/{relative_path.lstrip('/')}"
+        return str(Path(engine_root) / relative_path)
+
+    def _build_engine_store(self, engine_run_root: str | None) -> Any | None:
+        if not engine_run_root:
+            return None
+        return build_object_store(
+            engine_run_root,
+            s3_endpoint_url=self.wiring.s3_endpoint_url,
+            s3_region=self.wiring.s3_region,
+            s3_path_style=self.wiring.s3_path_style,
+        )
+
+    def _resolve_engine_root(self, request_root: str | None) -> str | None:
+        oracle_root = getattr(self.wiring, "oracle_engine_run_root", None)
+        return oracle_root or request_root
+
+    def _resolve_engine_paths(
+        self, store: Any | None, engine_root: str | None, output_path: str
+    ) -> list[str]:
+        if store is None or engine_root is None:
+            return []
+        if not engine_root.startswith("s3://"):
+            base = Path(engine_root) / output_path
+            if "*" in output_path:
+                matches = list(base.parent.glob(base.name))
+                return [str(path.relative_to(Path(engine_root))) for path in matches if path.is_file()]
+            if base.exists():
+                if base.is_dir():
+                    return [
+                        str(path.relative_to(Path(engine_root)))
+                        for path in base.rglob("*")
+                        if path.is_file()
+                    ]
+                return [output_path]
+            return []
+        if "*" in output_path:
+            parent = output_path.rsplit("/", 1)[0] if "/" in output_path else ""
+            pattern = Path(output_path).name
+            candidates = self._list_relative_files(store, engine_root, parent)
+            matches = [name for name in candidates if fnmatch(name, pattern)]
+            return [f"{parent}/{name}" if parent else name for name in matches]
+        if store.exists(output_path):
+            return [output_path]
+        children = self._list_relative_files(store, engine_root, output_path)
+        return [f"{output_path.rstrip('/')}/{name}" if output_path else name for name in children]
+
+    def _list_relative_files(self, store: Any, engine_root: str, relative_dir: str) -> list[str]:
+        files = store.list_files(relative_dir)
+        if engine_root.startswith("s3://"):
+            base = f"{engine_root.rstrip('/')}/{relative_dir.strip('/')}"
+            if base and not base.endswith("/"):
+                base += "/"
+            rels: list[str] = []
+            for uri in files:
+                if not uri.startswith(base):
+                    continue
+                rel = uri[len(base):]
+                if rel:
+                    rels.append(rel)
+            return rels
+        base = Path(engine_root) / relative_dir
+        rels = []
+        for file_path in files:
+            try:
+                rels.append(str(Path(file_path).relative_to(base)))
+            except ValueError:
+                continue
+        return rels
 
     def _locator_pins(self, entry: OutputEntry, intent: CanonicalRunIntent, run_id: str) -> dict[str, Any]:
         partitions = entry.partitions or []

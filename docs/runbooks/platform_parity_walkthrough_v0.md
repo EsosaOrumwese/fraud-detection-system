@@ -233,7 +233,9 @@ reasons              state
 make platform-sr-run-reuse SR_WIRING=config/platform/sr/wiring_local_kinesis.yaml
 ```
 
-**Note:** SR writes run artifacts to MinIO S3 in parity mode. If you see a `403` here, confirm `.env.platform.local` has the MinIO credentials set and re‑run.
+**Note (oracle‑first):** SR **always** reads engine outputs from the Oracle Store (S3/MinIO) in parity mode. The wiring profile must set `oracle_engine_run_root` to the MinIO path (e.g. `s3://oracle-store/<engine_run_root>`). When present, SR ignores `SR_ENGINE_RUN_ROOT` from the CLI and uses the oracle root instead.
+
+**Note (credentials):** SR writes run artifacts to MinIO S3 in parity mode. If you see a `403` here, confirm `.env.platform.local` has the MinIO credentials set and re‑run.
 
 **Expected in platform log:**
 - `SR: submit request received`

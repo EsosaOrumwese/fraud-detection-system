@@ -12,6 +12,7 @@ from typing import Any
 import yaml
 
 from .models import EvidenceStatus
+from .storage import ObjectStore
 
 
 class GateStatus(str, Enum):
@@ -103,9 +104,18 @@ class GateMap:
 
 
 class GateVerifier:
-    def __init__(self, engine_root: Path, gate_map: GateMap) -> None:
-        self.engine_root = engine_root
+    def __init__(self, engine_root: str | Path, gate_map: GateMap, store: ObjectStore | None = None) -> None:
+        if isinstance(engine_root, Path):
+            engine_root_str = str(engine_root)
+        else:
+            engine_root_str = engine_root
+        self.engine_root = engine_root_str
+        self.engine_root_path = Path(engine_root_str)
         self.gate_map = gate_map
+        self.store = store
+        self._is_s3 = engine_root_str.startswith("s3://")
+        if self._is_s3 and self.store is None:
+            raise RuntimeError("GATE_VERIFIER_STORE_REQUIRED")
 
     def verify(self, gate_id: str, tokens: dict[str, Any]) -> GateVerificationResult:
         entry = self.gate_map.gate_entry(gate_id)
@@ -125,38 +135,34 @@ class GateVerifier:
         if index_path and ("{" in index_path or "}" in index_path):
             return GateVerificationResult(receipt=None, missing=True, conflict=False)
 
-        passed_path = self.engine_root / passed_flag
-        if not passed_path.exists():
+        if not self._exists(passed_flag):
             return GateVerificationResult(receipt=None, missing=True, conflict=False)
 
-        bundle_path = self.engine_root / bundle_root
-        if not bundle_path.exists():
+        if not self._dir_exists(bundle_root):
             return GateVerificationResult(receipt=None, missing=True, conflict=False)
 
-        expected = self._parse_passed_flag(passed_path, digest_field)
+        expected = self._parse_passed_flag(passed_flag, digest_field)
         if expected is None:
             return GateVerificationResult(receipt=None, missing=False, conflict=True)
 
         if method.get("kind") == "sha256_member_digest_concat":
-            index_full = self.engine_root / index_path
-            if not index_full.exists():
+            if not index_path or not self._exists(index_path):
                 return GateVerificationResult(receipt=None, missing=True, conflict=False)
-            actual = self._digest_member_concat(index_full, digest_field)
+            actual = self._digest_member_concat(index_path, digest_field)
         elif method.get("kind") == "sha256_index_json_ascii_lex_raw_bytes":
-            index_full = self.engine_root / index_path
-            if not index_full.exists():
+            if not index_path or not self._exists(index_path):
                 return GateVerificationResult(receipt=None, missing=True, conflict=False)
-            base_root = bundle_path if path_base == "bundle_root" else self.engine_root
-            actual = self._digest_index_raw_bytes(index_full, base_root, ordering, exclude)
+            base_root = bundle_root if path_base == "bundle_root" else ""
+            actual = self._digest_index_raw_bytes(index_path, base_root, ordering, exclude)
             if actual is None:
                 return GateVerificationResult(receipt=None, missing=True, conflict=False)
         else:
-            actual = self._digest_bundle(bundle_path, exclude, ordering)
+            actual = self._digest_bundle(bundle_root, exclude, ordering)
 
         artifacts = GateArtifacts(
-            validation_bundle_root=str(bundle_path),
-            index_path=str(self.engine_root / index_path) if index_path else None,
-            passed_flag_path=str(passed_path),
+            validation_bundle_root=self._artifact_path(bundle_root),
+            index_path=self._artifact_path(index_path) if index_path else None,
+            passed_flag_path=self._artifact_path(passed_flag),
         )
         if actual != expected:
             receipt = GateReceipt(
@@ -184,8 +190,8 @@ class GateVerifier:
             rendered = rendered.replace(f"{{{key}}}", str(value))
         return rendered
 
-    def _parse_passed_flag(self, path: Path, digest_field: str | None) -> str | None:
-        content = path.read_text(encoding="utf-8").strip()
+    def _parse_passed_flag(self, relative_path: str, digest_field: str | None) -> str | None:
+        content = self._read_text(relative_path).strip()
         if not content:
             return None
         if content.startswith("{"):
@@ -198,17 +204,30 @@ class GateVerifier:
             return value.strip()
         return None
 
-    def _digest_bundle(self, root: Path, exclude: set[str], ordering: str) -> str:
-        files = [path for path in root.rglob("*") if path.is_file() and path.name not in exclude]
+    def _digest_bundle(self, root: str, exclude: set[str], ordering: str) -> str:
+        if not self._is_s3:
+            base = self.engine_root_path / root
+            files = [path for path in base.rglob("*") if path.is_file() and path.name not in exclude]
+            if ordering == "ascii_lex":
+                files = sorted(files, key=lambda p: str(p.relative_to(base)))
+            digest = hashlib.sha256()
+            for path in files:
+                digest.update(path.read_bytes())
+            return digest.hexdigest()
+
+        files = self._list_files_relative(root)
         if ordering == "ascii_lex":
-            files = sorted(files, key=lambda p: str(p.relative_to(root)))
+            files = sorted(files)
         digest = hashlib.sha256()
-        for path in files:
-            digest.update(path.read_bytes())
+        for rel in files:
+            if rel in exclude or Path(rel).name in exclude:
+                continue
+            blob_path = f"{root.rstrip('/')}/{rel}" if rel else root
+            digest.update(self._read_bytes(blob_path))
         return digest.hexdigest()
 
-    def _digest_member_concat(self, index_path: Path, digest_field: str | None) -> str:
-        data = json.loads(index_path.read_text(encoding="utf-8"))
+    def _digest_member_concat(self, index_path: str, digest_field: str | None) -> str:
+        data = json.loads(self._read_text(index_path))
         items = data.get("members") or data.get("items") or []
         parts = []
         for item in items:
@@ -220,12 +239,12 @@ class GateVerifier:
 
     def _digest_index_raw_bytes(
         self,
-        index_path: Path,
-        base_root: Path,
+        index_path: str,
+        base_root: str,
         ordering: str,
         exclude: set[str],
     ) -> str | None:
-        data = json.loads(index_path.read_text(encoding="utf-8"))
+        data = json.loads(self._read_text(index_path))
         items: list[dict[str, Any]]
         if isinstance(data, list):
             items = data
@@ -251,12 +270,83 @@ class GateVerifier:
             paths = sorted(paths)
         digest = hashlib.sha256()
         for rel in paths:
-            candidate = Path(rel)
-            full_path = candidate if candidate.is_absolute() else base_root / candidate
-            if not full_path.exists():
-                return None
-            digest.update(full_path.read_bytes())
+            if self._is_s3:
+                resolved = self._resolve_relative_path(rel, base_root)
+                if resolved is None or not self._exists(resolved):
+                    return None
+                digest.update(self._read_bytes(resolved))
+            else:
+                candidate = Path(rel)
+                full_path = candidate if candidate.is_absolute() else (self.engine_root_path / base_root / candidate)
+                if not full_path.exists():
+                    return None
+                digest.update(full_path.read_bytes())
         return digest.hexdigest()
+
+    def _artifact_path(self, relative_path: str) -> str:
+        if not relative_path:
+            return ""
+        if self._is_s3:
+            return f"{self.engine_root.rstrip('/')}/{relative_path.lstrip('/')}"
+        return str(self.engine_root_path / relative_path)
+
+    def _exists(self, relative_path: str) -> bool:
+        if self._is_s3:
+            return bool(self.store and self.store.exists(relative_path))
+        return (self.engine_root_path / relative_path).exists()
+
+    def _dir_exists(self, relative_dir: str) -> bool:
+        if self._is_s3:
+            return bool(self.store and self.store.list_files(relative_dir))
+        return (self.engine_root_path / relative_dir).exists()
+
+    def _read_text(self, relative_path: str) -> str:
+        if self._is_s3:
+            if not self.store:
+                raise RuntimeError("GATE_VERIFIER_STORE_REQUIRED")
+            return self.store.read_text(relative_path)
+        return (self.engine_root_path / relative_path).read_text(encoding="utf-8")
+
+    def _read_bytes(self, relative_path: str) -> bytes:
+        if self._is_s3:
+            if not self.store:
+                raise RuntimeError("GATE_VERIFIER_STORE_REQUIRED")
+            return self.store.read_bytes(relative_path)
+        return (self.engine_root_path / relative_path).read_bytes()
+
+    def _list_files_relative(self, relative_dir: str) -> list[str]:
+        if not self._is_s3:
+            base = self.engine_root_path / relative_dir
+            if not base.exists():
+                return []
+            return [str(path.relative_to(base)) for path in base.rglob("*") if path.is_file()]
+        if not self.store:
+            return []
+        files = self.store.list_files(relative_dir)
+        base = f"{self.engine_root.rstrip('/')}/{relative_dir.strip('/')}"
+        if base and not base.endswith("/"):
+            base += "/"
+        rels = []
+        for uri in files:
+            if not uri.startswith(base):
+                continue
+            rel = uri[len(base):]
+            if rel:
+                rels.append(rel)
+        return rels
+
+    def _resolve_relative_path(self, path: str, base_root: str) -> str | None:
+        if self._is_s3:
+            if path.startswith("s3://"):
+                base = self.engine_root.rstrip("/") + "/"
+                if not path.startswith(base):
+                    return None
+                return path[len(base):]
+            trimmed = path.lstrip("/")
+            if base_root:
+                return f"{base_root.rstrip('/')}/{trimmed}"
+            return trimmed
+        return path
 
 
 def hash_bundle(

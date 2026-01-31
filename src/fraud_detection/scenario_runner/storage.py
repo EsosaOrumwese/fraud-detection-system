@@ -42,6 +42,9 @@ class ObjectStore(Protocol):
     def read_text(self, relative_path: str) -> str:
         ...
 
+    def read_bytes(self, relative_path: str) -> bytes:
+        ...
+
     def list_files(self, relative_dir: str) -> list[str]:
         ...
 
@@ -144,6 +147,10 @@ class LocalObjectStore:
 
     def read_text(self, relative_path: str) -> str:
         return self._read_text_with_retry(self._full_path(relative_path))
+
+    def read_bytes(self, relative_path: str) -> bytes:
+        path = self._full_path(relative_path)
+        return path.read_bytes()
 
     def _read_text_with_retry(self, path: Path) -> str:
         last_err: Exception | None = None
@@ -302,6 +309,11 @@ class S3ObjectStore:
         key = self._key(relative_path)
         response = self._client.get_object(Bucket=self.bucket, Key=key)
         return response["Body"].read().decode("utf-8")
+
+    def read_bytes(self, relative_path: str) -> bytes:
+        key = self._key(relative_path)
+        response = self._client.get_object(Bucket=self.bucket, Key=key)
+        return response["Body"].read()
 
     def list_files(self, relative_dir: str) -> list[str]:
         prefix = self._key(relative_dir).rstrip("/") + "/"

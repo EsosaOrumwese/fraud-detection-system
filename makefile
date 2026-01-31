@@ -2508,7 +2508,7 @@ clean-results:
 PLATFORM_RUNS_ROOT ?= runs/fraud-platform
 SR_WIRING ?= config/platform/sr/wiring_local.yaml
 SR_POLICY ?= config/platform/sr/policy_v0.yaml
-SR_ENGINE_RUN_ROOT ?= runs/local_full_run-5/c25a2675fbfbacd952b13bb594880e92
+SR_ENGINE_RUN_ROOT ?= $(ORACLE_ENGINE_RUN_ROOT)
 SR_RUN_EQUIVALENCE_KEY ?= local_full_run_5_reuse
 SR_REEMIT_RUN_ID ?=
 SR_REEMIT_KIND ?= READY_ONLY
@@ -2634,7 +2634,7 @@ platform-oracle-sync:
 .PHONY: platform-sr-run-reuse
 platform-sr-run-reuse:
 	@if [ -z "$(SR_ENGINE_RUN_ROOT)" ]; then \
-		echo "SR_ENGINE_RUN_ROOT is required (engine run root path)." >&2; \
+		echo "SR_ENGINE_RUN_ROOT (or ORACLE_ENGINE_RUN_ROOT) is required." >&2; \
 		exit 1; \
 	fi
 	@if [ -z "$(SR_MANIFEST_FINGERPRINT)" ] || [ -z "$(SR_PARAMETER_HASH)" ]; then \
