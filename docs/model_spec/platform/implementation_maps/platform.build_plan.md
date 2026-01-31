@@ -195,7 +195,7 @@ Provide a platform-wide, production-shaped build plan for v0 that aligns compone
 **Status:** complete (v0 green).
 **Meaning of “green”:** a parity run produces SR READY, WSP streams from stream view, IG writes run‑scoped receipts, and EB contains readable offsets for the same platform run id.
 
-### Phase 4 — Hot-path decision loop (IEG/OFP/DL/DF/AL/DLA)
+### Phase 4 — Real-time decision loop (IEG/OFP/DL/DF/AL/DLA)
 **Intent:** turn admitted traffic into decisions and outcomes with correct provenance and audit.
 
 **Definition of Done (DoD):**
@@ -206,6 +206,29 @@ Provide a platform-wide, production-shaped build plan for v0 that aligns compone
 - AL executes intents effectively-once with idempotency and emits outcomes.
 - DLA writes append-only audit records by-ref and supports lookup via refs.
 - E2E: admitted event -> decision -> action outcome -> audit record with replayable provenance.
+
+#### RTDL narrative flow (operational story)
+
+- **Event Bus emits immediately (durable log, not a batch buffer).**  
+  When IG admits a record, it publishes to EB (Kinesis/Kafka). EB assigns an offset/sequence and makes the event available **right away** to any consumer. RTDL can read live or replay from a past offset. EB ordering is per‑partition/shard; we do not assume global total order.
+
+- **IEG projects the world with explicit watermarks.**  
+  IEG consumes EB partitions, updates its projection (graph/state), and advances a **graph_version / watermark**. Late or out‑of‑order events are handled by policy (e.g., allowed lateness); the watermark makes the snapshot boundary explicit. The projection is the “world” that every decision will reference.
+
+- **OFP builds features from a pinned snapshot.**  
+  OFP reads the projection at a specific graph_version and produces a **feature snapshot**. That snapshot is hashed and stamped with its **input basis** (graph_version + EB offsets used). This is how we guarantee reproducibility under replay.
+
+- **DF + DL decide with provenance and explicit degrade posture.**  
+  DF deterministically resolves the model bundle from the Registry and computes the decision. DL evaluates staleness/incompleteness and forces an **explicit degrade posture** when required. The decision carries bundle_ref + snapshot_hash + graph_version + EB offset basis.
+
+- **AL executes idempotent effects.**  
+  Actions are executed with idempotency keys derived from the decision + event_id, so replays or retries cannot double‑apply side effects. Outcomes are emitted with a stable outcome_id.
+
+- **DLA records the truth (append‑only).**  
+  DLA writes the permanent audit record that ties together the original EB event offsets, the feature snapshot hash, the decision bundle, and the action outcome. This is the compliance and replay trail.
+
+**Event‑time semantics:**  
+The platform uses the **canonical event time (`ts_utc`)** for windowing and temporal logic. Speedup only changes the pacing of delivery; it does **not** change ordering or event time. This is why the flow can appear “non‑intuitive” if you expect file order—**it is event‑time order**.
 
 ### Phase 5 — Label & Case plane
 **Intent:** crystallize outcomes into authoritative label timelines and case workflows.
@@ -254,3 +277,5 @@ Provide a platform-wide, production-shaped build plan for v0 that aligns compone
 - Phase 2: complete (Oracle Store + WSP stream‑view parity).
 - Phase 3: complete (control & ingress plane green for v0).
 - SR v0: complete (see `docs/model_spec/platform/implementation_maps/scenario_runner.build_plan.md`).
+
+

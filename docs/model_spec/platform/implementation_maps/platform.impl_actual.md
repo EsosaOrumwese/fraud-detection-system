@@ -1304,3 +1304,41 @@ User requested a **single narrative flow** for Phases 1–3 (v0) so the current 
 - EB has offsets for the same platform run.
 
 ---
+
+## Entry: 2026-01-31 13:32:00 — Phase 4 RTDL narrative flow added (story form)
+
+### Why this entry
+User requested the RTDL flow be written as a **narrative story** (not a slide deck) and embedded in both the Phase 4 plan and platform implementation notes.
+
+### Narrative flow (formatted, plain‑language)
+- **Event Bus emits immediately.** IG writes admitted events to EB; EB is a durable log, not a batch buffer.
+- **IEG projects the world.** Stream updates advance a graph_version / watermark.
+- **OFP builds features from a pinned snapshot.** Snapshot is anchored to graph_version and hashed.
+- **DF + DL decide with provenance.** Deterministic bundle selection; explicit degrade posture; decision carries bundle_ref + snapshot_hash + graph_version.
+- **AL executes idempotent effects.** Idempotency prevents duplicate side‑effects under replay.
+- **DLA records the truth.** Append‑only audit record for compliance + replay.
+
+---
+
+## Entry: 2026-01-31 14:05:30 — Expanded Phase 4 RTDL narrative (avoid ambiguity)
+
+### Why this entry
+User flagged the earlier RTDL narrative as too summary‑like and potentially ambiguous. This entry rewrites the Phase‑4 narrative with **more concrete runtime semantics**, especially around EB ordering, watermarks, and event‑time usage.
+
+### Expanded narrative (plain‑language, formatted)
+- **EB is a durable log, not a batch gate.** IG writes admitted events to EB and they become available immediately. EB assigns a partition/shard + offset/sequence, which is the authoritative replay cursor. Ordering is **per partition only**.
+
+- **IEG projects a deterministic world snapshot.** IEG consumes EB partitions and builds/updates a projection (graph or state table). It tracks a **watermark/graph_version** so downstream components can say “this decision used world snapshot X.” Late events are handled by policy (allowed lateness), but they never silently change a previously declared graph_version.
+
+- **OFP materializes features against a pinned snapshot.** OFP reads the projection at a specific graph_version and emits a feature snapshot with a **snapshot_hash** and **input basis** (the EB offset range + graph_version used). This anchors decisions to a reproducible feature state.
+
+- **DF + DL decide with explicit posture.** DF resolves the model bundle deterministically and computes the decision. DL enforces **explicit degrade posture** when inputs are stale or incomplete; no silent bypass. Decision outputs always include bundle_ref + snapshot_hash + graph_version + EB offset basis.
+
+- **AL executes idempotent outcomes.** Actions are executed with idempotency keys derived from event_id + decision hash so retries don’t double‑apply. Outcomes are emitted with outcome_id.
+
+- **DLA records the full chain.** DLA writes an append‑only audit record tying together EB offset(s), graph_version, snapshot_hash, bundle_ref, decision, and action outcome. This is the replay and compliance trace.
+
+### Event‑time semantics (explicit)
+- Streaming is governed by **canonical event time (`ts_utc`)**. Speedup only changes pacing, not order or timestamps. This is why the flow is not “file order” and should not be read as such.
+
+---
