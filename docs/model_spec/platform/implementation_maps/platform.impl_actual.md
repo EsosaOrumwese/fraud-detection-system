@@ -1376,3 +1376,17 @@ Expanded Phase 4 into sub‑phases aligned to the data‑flow order:
 This locks the navigation between platform‑level semantics and component build‑out so we don’t drift or build components out of order.
 
 ---
+
+## Entry: 2026-01-31 14:48:00 — Phase 4.1 expanded (contracts + invariants)
+
+### What changed
+Expanded Phase 4.1 into explicit sub‑sections (A–G) with detailed DoD checklists, reflecting the confirmed recommendations:
+- Canonical envelope reused for RTDL events (no new envelope type).
+- Audit truth in S3 with Postgres index.
+- Allowed lateness is policy‑configurable (default pinned).
+- Feature snapshots stored as JSON in S3 for v0.
+
+### Why
+This locks the contract surface and provenance rules before implementation so components cannot drift or invent incompatible payloads.
+
+---

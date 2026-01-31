@@ -246,14 +246,67 @@ Local‑parity uses the *same service classes* as dev/prod (S3/Kinesis/Postgres)
 **Event‑time semantics:**  
 The platform uses the **canonical event time (`ts_utc`)** for windowing and temporal logic. Speedup only changes the pacing of delivery; it does **not** change ordering or event time. This is why the flow can appear “non‑intuitive” if you expect file order—**it is event‑time order**.
 
-#### Phase 4.1 — RTDL contracts + invariants (platform‑level)
-**Goal:** lock the cross‑cutting RTDL semantics before component build‑out.
+#### Phase 4.1 — RTDL contracts + invariants (expanded)
+
+##### 4.1.A — RTDL envelope + provenance contract
+**Goal:** reuse canonical envelope for RTDL events and pin the provenance fields required for replay.
 
 **DoD checklist:**
-- Canonical decision/feature/audit schemas defined (graph_version, snapshot_hash, input_basis, decision_ref, outcome_ref).
-- Watermark + offset semantics pinned (EB offset basis required in downstream artifacts).
-- Idempotency key rules pinned for AL + DLA.
-- Decision provenance contract pinned (bundle_ref + snapshot_hash + graph_version + offsets).
+- Canonical envelope is used (no separate decision envelope).
+- Envelope includes `payload_kind` (or `decision_kind`) to distinguish RTDL payloads.
+- Required pins are enforced: `run_id`, `manifest_fingerprint`, `parameter_hash`, `scenario_id`, `seed`.
+- Provenance fields are mandatory in RTDL payloads: `eb_offset_basis`, `graph_version`, `snapshot_hash`, `bundle_ref`.
+- Error handling for missing pins/provenance is documented (fail‑closed).
+
+##### 4.1.B — Offset + watermark semantics
+**Goal:** make replay and ordering deterministic.
+
+**DoD checklist:**
+- EB offsets are the authoritative replay cursor (partition/shard scoped).
+- Watermark / graph_version definition pinned and documented.
+- Allowed lateness is **policy‑configurable** (default documented).
+- Mapping `(partition, offset)` → projection state is deterministic.
+
+##### 4.1.C — Feature snapshot contract
+**Goal:** ensure feature snapshots are reproducible.
+
+**DoD checklist:**
+- Snapshot format is **JSON in S3** (v0) with optional compression.
+- Snapshot carries `snapshot_hash`, `graph_version`, `eb_offset_basis`.
+- Snapshot hash rule (ordering + encoding) is documented.
+- Postgres stores snapshot index/refs only (truth in S3).
+
+##### 4.1.D — Bundle resolution + decision contract
+**Goal:** lock deterministic model selection and explicit degrade posture.
+
+**DoD checklist:**
+- `bundle_ref` is mandatory and deterministically resolved.
+- Degrade posture is explicit and required in decision payload.
+- Decision payload includes `bundle_ref`, `snapshot_hash`, `graph_version`, `eb_offset_basis`.
+- Decision provenance rule documented (no silent fallback).
+
+##### 4.1.E — Action intent + outcome contract
+**Goal:** make effects idempotent and auditable.
+
+**DoD checklist:**
+- Action intent carries `decision_id` + `idempotency_key`.
+- Outcome carries `outcome_id` + `decision_id` + action ref.
+- Idempotency rule is pinned (same key → same effect).
+
+##### 4.1.F — Audit record contract (DLA)
+**Goal:** append‑only audit truth with fast lookup.
+
+**DoD checklist:**
+- Audit truth stored in **S3 (append‑only)**.
+- Postgres holds audit index for lookup (not authoritative).
+- Audit record references EB offsets, graph_version, snapshot_hash, bundle_ref, decision_id, outcome_id.
+
+##### 4.1.G — Component compatibility matrix
+**Goal:** ensure contract compatibility across RTDL components.
+
+**DoD checklist:**
+- Compatibility table exists mapping producer → consumer (IEG→OFP→DF/DL→AL→DLA).
+- Each contract references the authoritative schema file path.
 
 #### Phase 4.2 — IEG projector (EB → graph)
 **Goal:** build deterministic projection state from EB offsets.
