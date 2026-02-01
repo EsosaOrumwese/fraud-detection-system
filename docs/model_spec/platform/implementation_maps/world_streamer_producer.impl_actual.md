@@ -996,3 +996,27 @@ User requested a **200‑record run** that demonstrates **dual‑stream concurre
 2) Add `WSP_OUTPUT_CONCURRENCY` (env) to control parallelism; default to `len(output_ids)` when >1.
 3) Add `WSP_MAX_EVENTS_PER_OUTPUT` (env / ready consumer) to cap each output independently.
 4) Update runbook + WSP build plan to make this behavior explicit for local‑parity runs.
+
+---
+
+## Entry: 2026-02-01 05:00:47 — Implement dual-stream concurrency + per-output caps (local parity)
+
+### What changed (mechanics)
+- Added **parallel output streaming** in WSP stream‑view path (per‑output worker threads; default concurrency = number of traffic outputs when >1).
+- Added **per‑output max events** support (`WSP_MAX_EVENTS_PER_OUTPUT`) and passed it through READY consumer → WSP runner.
+- Updated Make targets to pass `--max-events-per-output` when set.
+- Updated WSP build plan + parity runbook to explain dual‑stream concurrency and per‑output caps.
+
+### Why this matches the design intent
+- The design calls for **two concurrent behavioural channels** (baseline + fraud) without interleaving.
+- Prior sequential streaming could exhaust the cap on the first output and never validate the second.
+- Parallel per‑output streaming keeps each channel ordered by `ts_utc` **within its own stream** while allowing simultaneous flow across channels.
+
+### Test / validation (local‑parity)
+- Cleared LocalStack control bus to avoid duplicate READY messages, created a fresh platform run id, restarted IG, then ran SR → WSP.
+- WSP run: `WSP_OUTPUT_CONCURRENCY=2`, `WSP_MAX_EVENTS_PER_OUTPUT=200`, `WSP_READY_MAX_MESSAGES=1`.
+- Observed:
+  - WSP logs show **simultaneous stream start** for `s2_event_stream_baseline_6B` and `s3_event_stream_with_fraud_6B`.
+  - WSP stops at **200 per output** (total emitted=400).
+  - IG logs show **admitted** events for both output_ids, **quarantine=0**.
+  - EB logs show publish lines for **both** `fp.bus.traffic.baseline.v1` and `fp.bus.traffic.fraud.v1`.

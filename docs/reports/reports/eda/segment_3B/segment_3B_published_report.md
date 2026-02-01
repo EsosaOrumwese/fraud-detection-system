@@ -306,6 +306,7 @@ This rate is plausible in isolation, but the **metadata is unnaturally uniform**
 
 **Interpretation (realism impact)**
 - The virtual rate itself could be fine, but the uniform decision metadata removes explainability and variability that a rule system should show. If different MCC/channel rules are driving classification, the absence of rule IDs and the single digest suggest the classification layer is effectively “flat” in its evidence. This weakens the audit trail and makes it harder to justify realism when challenged.
+- Practically, this means we cannot distinguish *why* a merchant was virtual beyond a single opaque flag. Even in synthetic realism, a believable system shows a **mix of rule triggers** and distinct decision hashes by policy slice (e.g., MCC‑driven vs channel‑driven), so a single digest across all rows is a strong indicator of “one‑rule fits all.”
 
 ---
 
@@ -329,6 +330,7 @@ This rate is plausible in isolation, but the **metadata is unnaturally uniform**
 
 **Interpretation (realism impact)**
 - Settlement anchors are **plausibly drawn from a geocode corpus**, but the clustering in a handful of small jurisdictions is heavy, which can feel synthetic unless the classification policy is explicitly skewed toward offshore/financial hubs. The repeated coordinates (≈16%) and single digest values across all rows suggest **low per‑merchant settlement variety**, reducing realism of the legal‑anchor layer.
+- The fact that all rows share the same settlement digests means the settlement policy is effectively a **single global rule**, not a contextual one. If legal country or merchant category were meant to steer settlement selection, we should see more dispersion in both tzids and coordinate digests.
 
 ---
 
@@ -360,6 +362,9 @@ This is the most important realism surface, and the outputs are **highly uniform
 **Coordinate realism (structural only)**
 - All edge lat/lon values are within valid ranges.
 - No duplicate coordinates (each edge has a unique coordinate).
+
+**Note on plot appearance**
+Because the catalogue is perfectly uniform (constant edge counts, constant weights, constant country counts), several visual diagnostics collapse into **single points or flat bars**. That is not a plotting artifact — it is the data signal. The flatness itself is a realism finding.
 
 **Interpretation (realism impact)**
 - The edge catalogue is **structurally valid but behaviorally flat**. Every merchant has the same number of edges, the same country allocation, and the same uniform weights. This eliminates merchant‑level heterogeneity and makes routing behavior identical across merchants. Even for synthetic realism, a CDN edge universe should vary with merchant scale, geography, and policy exposures. This is the strongest realism failure in 3B.
@@ -433,6 +438,7 @@ The distribution is extremely sparse. Nearly every MCC in the top‑20 set has *
 <img src="plots/A2_virtual_rate_by_channel.png" width="520" alt="Virtual rate by channel">
 
 The `card_present` channel is essentially 0% virtual, while `card_not_present` sits around ~0.13. The direction makes intuitive sense, but the separation is too clean: it suggests the channel is being used as a hard gate rather than a probabilistic influence. That rigidity supports the earlier statistical finding that the classification is rule‑dominant rather than organically varied.
+The n‑labels reinforce the imbalance: the **card_present base is much larger**, yet contributes virtually no virtual merchants, so almost all virtual classifications are coming from the smaller card‑not‑present population. This pattern reads as **rule gating** rather than a gradual propensity shift between channels.
 
 ---
 
@@ -440,6 +446,7 @@ The `card_present` channel is essentially 0% virtual, while `card_not_present` s
 <img src="plots/A3_virtual_rate_by_country.png" width="560" alt="Virtual rate by legal country">
 
 Virtual rates are near‑zero in most of the top‑20 countries, with only a couple showing modest elevation (e.g., HK, IS). This suggests very weak country sensitivity in the classification policy. A realistic overlay typically shows some geographic skew (jurisdictions with more digital‑heavy merchant mix), but this plot shows **minimal country differentiation**, reinforcing a flat synthetic profile.
+The bars are not only low but also **clustered tightly**, which implies country is either not used in the rule logic or is being overridden by a dominant MCC/channel rule. For realism, we would expect **some countries to stand out** (even modestly) rather than a near‑zero band across the entire top‑20 list.
 
 ---
 
@@ -447,6 +454,7 @@ Virtual rates are near‑zero in most of the top‑20 countries, with only a cou
 <img src="plots/A4_virtual_rate_mcc_channel_heatmap.png" width="560" alt="Virtual rate heatmap MCC x channel">
 
 Almost every MCC‑channel cell is 0.00, with a single bright stripe at MCC 4812. This provides the clearest visual proof that the virtual classification is driven by **one dominant rule**, not a layered policy. For realism, we expect multiple MCCs to show non‑zero rates (especially within `card_not_present`), but the heatmap is essentially empty outside one cell.
+The heatmap annotation reinforces that this is not a subtle gradient: most cells are **exactly 0.00**. That hard‑zero pattern is consistent with a single “if MCC=4812 then virtual”‑style rule, which produces a **synthetic on/off classification** rather than a plausible blend of policy effects.
 
 ---
 
@@ -454,6 +462,7 @@ Almost every MCC‑channel cell is 0.00, with a single bright stripe at MCC 4812
 <img src="plots/B5_settlement_density_hexbin.png" width="560" alt="Settlement locations with duplicates">
 
 This map shows each unique settlement coordinate, with **size and color encoding how many merchants share the same coordinate**. The clustering in Europe and a few offshore hubs is clear, while much of the globe is lightly covered. This makes the concentration issue visually obvious without the ambiguity of a hexbin: the settlement anchors are plausible in isolation, but the global spread is **narrow** relative to the merchant universe. The larger/bright points indicate small pockets of duplication rather than massive collapse.
+You can see that **most points are small and dark** (single‑merchant locations), while a handful of brighter/larger points indicate 2–4 merchants sharing the same coordinates. The spatial footprint is therefore **not globally uniform**; it is concentrated in Western Europe and a few Atlantic/Asian hubs, which may be plausible for a narrow virtual policy but feels **under‑diversified** for a broad synthetic marketplace.
 
 ---
 
@@ -461,6 +470,7 @@ This map shows each unique settlement coordinate, with **size and color encoding
 <img src="plots/B6_settlement_coord_duplicates.png" width="520" alt="Settlement coordinate duplicate counts">
 
 Most settlement coordinates are unique (226), and a smaller portion are shared by 2–4 merchants. There are no extreme “hotspots” with 6+ merchants. This indicates duplication exists but is not catastrophic. The realism issue here is not mass duplication; it is the **geographic concentration** of settlements in a narrow set of hubs rather than many dispersed legal anchors.
+The counts (226 unique, 23 double, 7 triple, 4 quadruple) show a **steep drop‑off**, which means duplication is real but shallow. This is consistent with the map: the concern is **where** duplicates occur (micro‑jurisdictions) rather than the raw duplication rate itself.
 
 ---
 
@@ -468,6 +478,7 @@ Most settlement coordinates are unique (226), and a smaller portion are shared b
 <img src="plots/B7_settlement_tzid_top15.png" width="560" alt="Top settlement TZIDs">
 
 The top tzids are dominated by **Monaco, Luxembourg, Zurich, Dublin, Bermuda, Macau**, with smaller contributions from a few other cities. This confirms a strong skew toward **financial and offshore hubs**, which may be intended but reads as overly concentrated if the goal is broad synthetic realism. Without more variation in the settlement policy, this tzid distribution makes the virtual layer feel artificially anchored to a small cluster of jurisdictions.
+Another cue is the **low absolute counts** (top values in the ~6–17 range). That indicates there are not many distinct settlement nodes per tzid, reinforcing the idea that a **small set of hubs is being reused** rather than a wide, merchant‑specific spread across legal geographies.
 
 ---
 
@@ -492,6 +503,7 @@ The card panel shows **single‑value outcomes** for all core metrics: every mer
 <img src="plots/C_country_allocation_profile.png" width="560" alt="Country allocation profile">
 
 This bar chart shows the **edge count by country** with a large **“Other”** bucket. The distribution is steep: **CN and IN dominate**, followed by a long tail of smaller countries, while the “Other” bar is the largest block after the top two. The curve shape indicates a **highly skewed global allocation** rather than a flat spread, but it is a **global profile only**—it does not vary by merchant (which the next plot confirms).
+The **Other** bucket being the single largest bar (after CN/IN) implies that the tail is long and individually small, which is realistic at a global level. However, because *every merchant* receives this exact same allocation profile, the chart is effectively the allocation map for **all merchants**, not an average. That uniformity is the realism problem.
 
 ---
 
@@ -506,6 +518,7 @@ All five merchant lines **overlap almost perfectly**, with identical peaks and t
 <img src="plots/C_edge_density_hexbin_log.png" width="560" alt="Edge location density log scale">
 
 The log‑scaled density map shows **visible clustering across Europe, South Asia, and parts of East Asia**, with sparser coverage elsewhere. The pattern reflects the global country allocation (dense in the dominant countries, thinner in the tail). The map is **not uniform**, but because every merchant follows the same country profile, the geography represents a **single shared CDN footprint** rather than merchant‑specific variation.
+The log scale is important here: without it, the dominant regions would wash out the lower‑density areas. Even with log scaling, the densest tiles align with the CN/IN allocation from the bar chart, which is consistent — but it also confirms that **all merchants inherit the same geographic “fingerprint.”** In a realistic CDN overlay, different merchants would have **different footprints**, not a single shared spatial signature.
 
 ---
 
@@ -537,6 +550,7 @@ This scatter compares **decoded alias probabilities** against **edge weights** f
 <img src="plots/E1_edge_distance_to_settlement.png" width="560" alt="Edge distance to settlement">
 
 The histogram is plotted on **log10 distance**, which makes the distribution much easier to read. Most of the mass sits between **log10 ≈ 3.6–4.1**, i.e., **~4,000–12,500 km**, with a **median ~7,929 km** and **p90 ~13,874 km**. That means the typical edge for a merchant is **an ocean away** from its settlement anchor. This is consistent with a fully global footprint, but it also implies **almost no geographic pull toward settlement hubs**. If the intent is to model legal‑anchor influence or regional operational bias, this distance profile is too extreme and reads as *globally randomized* rather than anchored.
+Because the x‑axis is log10, each tick is a **10× change in distance**, so the pile‑up near 10^4 km is not a subtle bias — it indicates **most edges are extremely far** from settlement anchors. That is a strong signal that settlement geography is not acting as a meaningful attractor.
 
 ---
 
@@ -544,6 +558,7 @@ The histogram is plotted on **log10 distance**, which makes the distribution muc
 <img src="plots/E2_settlement_country_overlap.png" width="740" alt="Edge share in settlement country">
 
 The zoomed panel (0–7%) makes the overlap visible: **almost every settlement country is near‑zero**, including the **UNK** group (n=17), which indicates settlements that could not be resolved into a polygon. The **US** is the only country with a modest self‑overlap (~0.05), while the **global baseline is ~0.01**, so even the “best” country is only a few points above the global average. The full‑scale panel confirms that **no settlement country ever dominates** its own edge allocation. This is a strong cross‑layer mismatch: the settlement jurisdiction does **not** meaningfully influence the edge geography. For realism, we would expect at least **some** settlement countries to show higher internal overlap, especially for smaller or regionally‑focused merchants.
+The dashed red baseline makes this explicit: most settlement countries sit **at or below** the global expectation, meaning edges are almost as likely to fall anywhere as they are to fall within the legal settlement country itself. That is the opposite of what a jurisdiction‑anchored virtual overlay should look like.
 
 ---
 

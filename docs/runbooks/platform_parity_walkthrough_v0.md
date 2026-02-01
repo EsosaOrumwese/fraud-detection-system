@@ -330,6 +330,8 @@ $env:WSP_PROGRESS_SECONDS="30"
 ```
 You’ll see lines like `WSP progress emitted=...` during the stream.
 
+**If WSP keeps restarting:** the READY control bus replays **all** messages (TRIM_HORIZON). Clear LocalStack streams (restart localstack + re‑bootstrap) or set `WSP_READY_MAX_MESSAGES=1` after you’ve verified the control bus only contains the newest READY.
+
 ---
 
 **What this SR command does (summary)**
