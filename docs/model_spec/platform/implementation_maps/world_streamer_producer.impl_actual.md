@@ -966,3 +966,33 @@ Confirm WSP v0 is **green** for local_parity: READY → stream view → IG push,
 
 ### Note
 A prior traffic‑alignment entry was inserted above older entries due to patch placement. This note preserves chronology by timestamp without rewriting history. Future entries will be appended only.
+
+---
+
+## Entry: 2026-02-01 04:35:20 — Dual-stream concurrency + per-output caps (READY path)
+
+### Trigger
+User requested a **200‑record run** that demonstrates **dual‑stream concurrency** (baseline + fraud channels) without interleaving, and observed that WSP currently processes `traffic_output_ids` sequentially with `max_events` applying across outputs. This fails the “two channels concurrently” expectation and can stop after the first output.
+
+### Authorities / inputs (binding)
+- WSP build plan: “two concurrent behavioural channels; not interleaved.”
+- Engine interface pack update: primary streams are `s2_event_stream_baseline_6B` + `s3_event_stream_with_fraud_6B`.
+- Platform doctrine: WSP produces, IG admits, EB owns replay offsets (WSP should not shortcut).
+
+### Live decision trail (notes as I think)
+- The current READY consumer is **single‑threaded** and streams outputs sequentially in one loop.
+- Running **two WSP processes** (one per output) would satisfy concurrency, but READY dedupe is **message‑level**, so the second worker gets skipped after the first writes a `STREAMED` record. This makes parallel workers brittle without changing dedupe semantics.
+- The cleanest v0 fix is to make WSP **parallelize output_ids within a single READY run**, so concurrency happens under one READY message, and dedupe semantics remain intact.
+- A per‑output cap is needed to make a 200‑record diagnostic run meaningful for **both** streams. A single global cap would stop after the first output and would not validate the second stream.
+- Concurrency should be **on by default** when multiple outputs exist (to match “dual‑stream” semantics), but still overridable for debugging or resource constraints.
+
+### Decision
+- Implement **output‑level concurrency** inside WSP’s stream‑view path.
+- Add **per‑output max‑events** support (cap each output independently) for READY runs.
+- Keep READY dedupe semantics unchanged (still message‑level), avoiding split workers.
+
+### Planned edits (before code)
+1) Refactor `_stream_from_stream_view` to stream **per‑output** via a helper and support **ThreadPoolExecutor** across output_ids.
+2) Add `WSP_OUTPUT_CONCURRENCY` (env) to control parallelism; default to `len(output_ids)` when >1.
+3) Add `WSP_MAX_EVENTS_PER_OUTPUT` (env / ready consumer) to cap each output independently.
+4) Update runbook + WSP build plan to make this behavior explicit for local‑parity runs.

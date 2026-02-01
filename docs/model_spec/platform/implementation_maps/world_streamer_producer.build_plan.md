@@ -5,6 +5,7 @@ _As of 2026-01-28_
 Implement WSP as the **primary runtime producer** that replays sealed engine `business_traffic` into IG **directly from the Oracle Store** (engine‑rooted), preserving bank‑like temporal flow.
 
 **Traffic policy (v0):** WSP emits **two concurrent behavioural channels** — `s2_event_stream_baseline_6B` and `s3_event_stream_with_fraud_6B`. These are **not interleaved** in v0.
+**Concurrency note:** WSP streams outputs **in parallel by default** when multiple traffic outputs are present (override via `WSP_OUTPUT_CONCURRENCY` if you need sequential debug runs).
 
 ## Planning rules (binding)
 - **Progressive elaboration:** expand only the active phase into sections + DoD.

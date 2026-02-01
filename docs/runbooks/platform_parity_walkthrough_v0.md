@@ -292,9 +292,9 @@ docker exec local-postgres-1 psql -U platform -d platform -c "delete from sr_run
 
 ---
 
-## 7) WSP consumes READY and streams 500k events
+## 7) WSP consumes READY and streams events (dual‑stream)
 
-**Traffic policy (dual-stream):** WSP emits **two concurrent traffic channels** only: `s2_event_stream_baseline_6B` and `s3_event_stream_with_fraud_6B`. These are **not interleaved** in v0.
+**Traffic policy (dual-stream):** WSP emits **two concurrent traffic channels** only: `s2_event_stream_baseline_6B` and `s3_event_stream_with_fraud_6B`. These are **not interleaved** in v0 (separate EB streams).
 
 ```
 $env:WSP_READY_MAX_EVENTS="500000"; make platform-wsp-ready-consumer-once WSP_PROFILE=config/platform/profiles/local_parity.yaml
@@ -302,8 +302,19 @@ $env:WSP_READY_MAX_EVENTS="500000"; make platform-wsp-ready-consumer-once WSP_PR
 
 **Expected:**
 - WSP reads READY from Kinesis
-- WSP streams up to 500k events to IG using the **stream view** (per‑output `ts_utc` order; speedup preserves ordering)
+- WSP streams to IG from the **stream view** (per‑output `ts_utc` order; speedup preserves ordering)
 - IG admits and publishes to EB (Kinesis)
+
+**Concurrency + caps (important):**
+- WSP streams **both outputs concurrently** when multiple traffic outputs exist (default).
+- `WSP_READY_MAX_EVENTS` is treated **per output** in concurrent mode.
+- If you want an explicit per‑output cap, set `WSP_MAX_EVENTS_PER_OUTPUT` (example below).
+
+Example: 200 events **per stream** (baseline + fraud):
+```
+$env:WSP_MAX_EVENTS_PER_OUTPUT="200"
+make platform-wsp-ready-consumer-once WSP_PROFILE=config/platform/profiles/local_parity.yaml
+```
 
 **If you see `Invalid endpoint`:** verify `.env.platform.local` has `OBJECT_STORE_ENDPOINT` and MinIO creds; Make exports them to WSP.
 **If you see `CONTROL_BUS_STREAM_MISSING`:** ensure `PARITY_CONTROL_BUS_STREAM/REGION/ENDPOINT_URL` are set in `.env.platform.local` (Make exports them as `CONTROL_BUS_*` for WSP).

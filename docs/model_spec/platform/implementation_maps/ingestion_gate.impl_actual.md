@@ -2200,3 +2200,21 @@ Platform moved to dual behavioural traffic channels; IG must publish baseline + 
   - `ig.partitioning.v0.traffic.baseline` → `fp.bus.traffic.baseline.v1`
   - `ig.partitioning.v0.traffic.fraud` → `fp.bus.traffic.fraud.v1`
 - Update partitioning selection logic to map class→profile id.
+
+---
+
+## Entry: 2026-02-01 04:15:00 — Fix IG schema refs for 6B event streams
+
+### Trigger
+IG quarantined `s2_event_stream_baseline_6B` with `PointerToNowhere` because the schema ref path did not match the actual schema tree.
+
+### Cause
+`schemas.6B.yaml` nests event stream schemas under `s2/properties/...` and `s3/properties/...`, so refs like `#/s2/event_stream_baseline_6B` are invalid.
+
+### Fix
+Update `config/platform/ig/schema_policy_v0.yaml` to use:
+- `#/s2/properties/event_stream_baseline_6B`
+- `#/s3/properties/event_stream_with_fraud_6B`
+
+### Expected outcome
+IG validates envelopes for both behavioural streams without internal schema resolution errors.

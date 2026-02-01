@@ -6,6 +6,7 @@ from dataclasses import dataclass
 from datetime import datetime, timezone
 import json
 import logging
+import os
 import time
 from pathlib import Path
 from typing import Any
@@ -69,16 +70,29 @@ class ReadyConsumerRunner:
         *,
         max_messages: int | None = None,
         max_events: int | None = None,
+        max_events_per_output: int | None = None,
     ) -> list[ReadyConsumeResult]:
         messages = list(self._reader.iter_ready_messages())
         if max_messages:
             messages = messages[:max_messages]
         results: list[ReadyConsumeResult] = []
         for message in messages:
-            results.append(self._process_message(message, max_events=max_events))
+            results.append(
+                self._process_message(
+                    message,
+                    max_events=max_events,
+                    max_events_per_output=max_events_per_output,
+                )
+            )
         return results
 
-    def _process_message(self, message: ReadyMessage, *, max_events: int | None) -> ReadyConsumeResult:
+    def _process_message(
+        self,
+        message: ReadyMessage,
+        *,
+        max_events: int | None,
+        max_events_per_output: int | None,
+    ) -> ReadyConsumeResult:
         append_session_event(
             "wsp",
             "ready_received",
@@ -143,6 +157,7 @@ class ReadyConsumerRunner:
             engine_run_root=resolved_root,
             scenario_id=scenario_id,
             max_events=max_events,
+            max_events_per_output=max_events_per_output,
         )
         result = ReadyConsumeResult(
             message_id=message.message_id,
@@ -236,6 +251,12 @@ def main() -> None:
     parser.add_argument("--poll-seconds", type=float, default=2.0, help="Polling interval when looping")
     parser.add_argument("--max-messages", type=int, default=0, help="Max READY messages per poll (0 = all)")
     parser.add_argument("--max-events", type=int, default=0, help="Max events per READY stream (0 = all)")
+    parser.add_argument(
+        "--max-events-per-output",
+        type=int,
+        default=0,
+        help="Max events per output_id (0 = follow --max-events / no cap)",
+    )
     args = parser.parse_args()
 
     configure_logging(level=logging.INFO, log_paths=platform_log_paths(create_if_missing=True))
@@ -244,12 +265,30 @@ def main() -> None:
 
     max_messages = args.max_messages or None
     max_events = args.max_events or None
+    max_events_per_output = args.max_events_per_output or None
+    if max_events_per_output is None:
+        env_max = os.getenv("WSP_MAX_EVENTS_PER_OUTPUT")
+        if env_max:
+            try:
+                env_value = int(env_max)
+            except ValueError:
+                env_value = 0
+            if env_value > 0:
+                max_events_per_output = env_value
     if args.once:
-        results = runner.poll_once(max_messages=max_messages, max_events=max_events)
+        results = runner.poll_once(
+            max_messages=max_messages,
+            max_events=max_events,
+            max_events_per_output=max_events_per_output,
+        )
         print(json.dumps([r.__dict__ for r in results], sort_keys=True))
         return
     while True:
-        results = runner.poll_once(max_messages=max_messages, max_events=max_events)
+        results = runner.poll_once(
+            max_messages=max_messages,
+            max_events=max_events,
+            max_events_per_output=max_events_per_output,
+        )
         if results:
             logger.info("WSP READY poll processed=%s", len(results))
         time.sleep(args.poll_seconds)

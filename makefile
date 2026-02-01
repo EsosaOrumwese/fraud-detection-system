@@ -2750,7 +2750,8 @@ platform-wsp-ready-consumer:
 	$(PY_PLATFORM) -m fraud_detection.world_streamer_producer.ready_consumer --profile "$(WSP_PROFILE)" \
 		--poll-seconds "$(WSP_READY_POLL_SECONDS)" \
 		$(if $(WSP_READY_MAX_MESSAGES),--max-messages "$(WSP_READY_MAX_MESSAGES)",) \
-		$(if $(WSP_READY_MAX_EVENTS),--max-events "$(WSP_READY_MAX_EVENTS)",)
+		$(if $(WSP_READY_MAX_EVENTS),--max-events "$(WSP_READY_MAX_EVENTS)",) \
+		$(if $(WSP_MAX_EVENTS_PER_OUTPUT),--max-events-per-output "$(WSP_MAX_EVENTS_PER_OUTPUT)",)
 
 .PHONY: platform-wsp-ready-consumer-once
 platform-wsp-ready-consumer-once:
@@ -2773,7 +2774,8 @@ platform-wsp-ready-consumer-once:
 	AWS_DEFAULT_REGION="$(OBJECT_STORE_REGION)" \
 	$(PY_PLATFORM) -m fraud_detection.world_streamer_producer.ready_consumer --profile "$(WSP_PROFILE)" --once \
 		$(if $(WSP_READY_MAX_MESSAGES),--max-messages "$(WSP_READY_MAX_MESSAGES)",) \
-		$(if $(WSP_READY_MAX_EVENTS),--max-events "$(WSP_READY_MAX_EVENTS)",)
+		$(if $(WSP_READY_MAX_EVENTS),--max-events "$(WSP_READY_MAX_EVENTS)",) \
+		$(if $(WSP_MAX_EVENTS_PER_OUTPUT),--max-events-per-output "$(WSP_MAX_EVENTS_PER_OUTPUT)",)
 
 .PHONY: platform-smoke
 platform-smoke:

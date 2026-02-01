@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from dataclasses import dataclass
 from datetime import datetime, timezone
 import os
@@ -71,6 +72,7 @@ class WorldStreamProducer:
         scenario_id: str | None = None,
         output_ids: list[str] | None = None,
         max_events: int | None = None,
+        max_events_per_output: int | None = None,
     ) -> StreamResult:
         run_root = engine_run_root or self.profile.wiring.oracle_engine_run_root
         if not run_root:
@@ -154,6 +156,7 @@ class WorldStreamProducer:
                 producer_id=self._producer_id,
                 checkpoint_store=checkpoint_store,
                 max_events=max_events,
+                max_events_per_output=max_events_per_output,
                 output_ids=chosen_outputs,
             )
         except IngestionError as exc:
@@ -495,18 +498,25 @@ class WorldStreamProducer:
         producer_id: str,
         checkpoint_store: CheckpointStore,
         max_events: int | None,
+        max_events_per_output: int | None,
         output_ids: list[str],
     ) -> int:
         base_root = self.profile.wiring.stream_view_root or join_engine_path(
             engine_root, "stream_view/ts_utc"
         )
-        emitted = 0
+        emitted_total = 0
         speedup = self.profile.policy.stream_speedup
         checkpoint_every = max(1, self.profile.wiring.checkpoint_every)
         progress_every = max(1, int(os.getenv("WSP_PROGRESS_EVERY", "1000")))
         progress_seconds = max(1.0, float(os.getenv("WSP_PROGRESS_SECONDS", "30")))
-        last_progress_time = time.monotonic()
-        last_progress_emitted = 0
+        output_parallel_env = os.getenv("WSP_OUTPUT_CONCURRENCY")
+        if output_parallel_env is not None:
+            try:
+                output_parallelism = max(1, int(output_parallel_env))
+            except ValueError:
+                output_parallelism = 1
+        else:
+            output_parallelism = len(output_ids) if len(output_ids) > 1 else 1
 
         def _save_checkpoint(cursor: CheckpointCursor, *, reason: str) -> None:
             checkpoint_store.save(cursor)
@@ -524,7 +534,7 @@ class WorldStreamProducer:
                 create_if_missing=False,
             )
 
-        for output_id in output_ids:
+        def _stream_output(output_id: str, *, max_events_output: int | None) -> int:
             stream_view_id = compute_stream_view_id(
                 engine_run_root=engine_root,
                 scenario_id=world_key.scenario_id,
@@ -557,11 +567,12 @@ class WorldStreamProducer:
                 raise IngestionError("STREAM_VIEW_OUTPUT_MISMATCH", output_id)
 
             narrative_logger.info(
-                "WSP stream start run_id=%s output_id=%s max_events=%s speedup=%.2f",
+                "WSP stream start run_id=%s output_id=%s max_events=%s speedup=%.2f concurrency=%s",
                 run_id,
                 output_id,
-                max_events if max_events is not None else "all",
+                max_events_output if max_events_output is not None else "all",
                 speedup,
+                output_parallelism,
             )
 
             files = _list_stream_view_files(store)
@@ -570,6 +581,9 @@ class WorldStreamProducer:
             files = sorted([path for path in files if path.endswith(".parquet")])
             cursor = checkpoint_store.load(pack_key, output_id)
             last_ts: datetime | None = None
+            emitted_output = 0
+            last_progress_time = time.monotonic()
+            last_progress_emitted = 0
             for file_path in files:
                 for row_index, row in _read_stream_view_rows_with_index(
                     file_path,
@@ -614,7 +628,7 @@ class WorldStreamProducer:
                     if current_ts:
                         last_ts = current_ts
                     self._push_to_ig(envelope)
-                    emitted += 1
+                    emitted_output += 1
                     cursor = CheckpointCursor(
                         pack_key=pack_key,
                         output_id=output_id,
@@ -622,32 +636,32 @@ class WorldStreamProducer:
                         last_row_index=row_index,
                         last_ts_utc=envelope.get("ts_utc"),
                     )
-                    if emitted % checkpoint_every == 0:
+                    if emitted_output % checkpoint_every == 0:
                         _save_checkpoint(cursor, reason="periodic_flush")
                     if (
-                        emitted - last_progress_emitted >= progress_every
+                        emitted_output - last_progress_emitted >= progress_every
                         or (time.monotonic() - last_progress_time) >= progress_seconds
                     ):
                         logger.info(
                             "WSP stream_view progress output_id=%s emitted=%s last_file=%s row=%s ts=%s",
                             output_id,
-                            emitted,
+                            emitted_output,
                             file_path,
                             row_index,
                             envelope.get("ts_utc"),
                         )
                         last_progress_time = time.monotonic()
-                        last_progress_emitted = emitted
-                    if max_events is not None and emitted >= max_events:
+                        last_progress_emitted = emitted_output
+                    if max_events_output is not None and emitted_output >= max_events_output:
                         if cursor:
                             _save_checkpoint(cursor, reason="max_events")
                         narrative_logger.info(
                             "WSP stream stop run_id=%s output_id=%s emitted=%s reason=max_events",
                             run_id,
                             output_id,
-                            emitted,
+                            emitted_output,
                         )
-                        return emitted
+                        return emitted_output
                 if cursor:
                     _save_checkpoint(cursor, reason="file_complete")
             if cursor:
@@ -656,9 +670,46 @@ class WorldStreamProducer:
                 "WSP stream complete run_id=%s output_id=%s emitted=%s",
                 run_id,
                 output_id,
-                emitted,
+                emitted_output,
             )
-        return emitted
+            return emitted_output
+
+        def _resolve_output_cap(remaining_total: int | None) -> int | None:
+            if max_events_per_output is not None:
+                return max_events_per_output
+            if remaining_total is not None:
+                return max(0, remaining_total)
+            return max_events
+
+        if output_parallelism > 1 and len(output_ids) > 1:
+            if max_events is not None and max_events_per_output is None:
+                logger.warning(
+                    "WSP max_events applies per-output in concurrent mode; set WSP_MAX_EVENTS_PER_OUTPUT for clarity."
+                )
+            max_workers = min(output_parallelism, len(output_ids))
+            with ThreadPoolExecutor(max_workers=max_workers) as executor:
+                futures = {
+                    executor.submit(
+                        _stream_output, output_id, max_events_output=_resolve_output_cap(None)
+                    ): output_id
+                    for output_id in output_ids
+                }
+                for future in as_completed(futures):
+                    emitted_total += future.result()
+            return emitted_total
+
+        for output_id in output_ids:
+            remaining_total = None
+            if max_events is not None and max_events_per_output is None:
+                remaining_total = max_events - emitted_total
+                if remaining_total <= 0:
+                    break
+            emitted_total += _stream_output(
+                output_id, max_events_output=_resolve_output_cap(remaining_total)
+            )
+            if max_events is not None and max_events_per_output is None and emitted_total >= max_events:
+                break
+        return emitted_total
 
     def _push_to_ig(self, envelope: dict[str, Any]) -> None:
         url = self.profile.wiring.ig_ingest_url.rstrip("/")
