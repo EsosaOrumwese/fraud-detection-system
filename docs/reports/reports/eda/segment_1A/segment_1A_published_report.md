@@ -216,5 +216,29 @@ Plots are saved in: `reports/eda/segment_1A/plots/` and embedded below.
 5) **Emit s3_site_sequence and s3_integerised_counts** to make site‑level realism auditable.
 6) **Ensure sparse_flag and hurdle_stationarity_tests** exist so distributional shape is validated and reproducible.
 
-## 8) Bottom line for platform readiness
+## 8) Realism improvement roadmap (synthetic realism)
+This roadmap assumes **no real‑world policy data**. The goal is not “true reality,” but a **credible synthetic ecosystem** that feels realistic to reviewers and can support fraud modeling.
+
+1) **Re‑shape outlet counts into a realistic merchant pyramid.**  
+   Make single‑site and small multi‑site merchants **dominant by count**, with a long tail of large chains. Use a mixture distribution (e.g., log‑normal + Pareto tail) and enforce **size‑tier rules** (small merchants rarely exceed 3–5 outlets; large merchants can exceed 50+).
+
+2) **Constrain candidate country sets by geography and size.**  
+   Replace “almost global” candidate sets with **region‑bounded sets** for small and mid‑tier merchants (e.g., home country + neighbors + trade hubs). Only large/global merchants should have broad candidate sets. This immediately raises realism because most real businesses are region‑limited.
+
+3) **Re‑align home vs legal country for small merchants.**  
+   Small merchants should almost always have **home==legal**. Allow higher mismatch only for large, multi‑country merchants to represent holding‑company or tax structures. This restores plausible domicile patterns.
+
+4) **Clarify and stabilize `site_id` semantics.**  
+   If `site_id` is a per‑merchant index, state it clearly and prevent cross‑merchant collisions. If you want globally unique site IDs, enforce uniqueness. Ambiguity here breaks downstream assumptions about “shared” physical sites.
+
+5) **Introduce policy‑driven diversity.**  
+   Use MCC/channel to **shape outlet counts and expansion likelihood** (e.g., digital services more global; physical retail more local). This creates explainable heterogeneity without requiring real policy data.
+
+6) **Emit missing audit artefacts.**  
+   Output `s3_site_sequence` and `s3_integerised_counts` so the outlet distribution can be re‑verified and explained. This helps defend realism during review.
+
+**Expected impact:**  
+Implementing steps 1–3 should move 1A toward **B+ or A‑** for synthetic realism, because they directly address the most visible realism gaps (over‑globalization and missing single‑site merchants).
+
+## 9) Bottom line for platform readiness
 You can build v0 on this data, but the outlet universe currently **over‑represents multi‑site and globally legalized merchants**. If you want a platform demo that “feels real,” the first three levers are: (1) add single‑site merchants, (2) lower home/legal mismatch for small merchants, and (3) clarify or de‑duplicate site_ids. Tightening candidate sets is still important, but these outlet_catalogue gaps will be the most visible realism issues to reviewers.

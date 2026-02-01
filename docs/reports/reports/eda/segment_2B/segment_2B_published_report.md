@@ -657,3 +657,26 @@ Segment 2B is structurally correct but behaviorally weak. The routing layer is b
 
 **What would raise the grade:**  
 Introduce non‑uniform, merchant‑specific site weight distributions; ensure S3/S4 coverage for all merchants; add richer temporal structure (merchant‑specific sigma, weekly/seasonal patterns); and expand the arrival roster so routing behavior can be observed across multiple days.
+
+---
+
+## 16) Realism improvement roadmap (synthetic realism)
+This roadmap targets **robust synthetic realism** without real policy data, focusing on the three core datasets: `s1_site_weights`, `s4_group_weights`, and `s3_day_effects`.
+
+1) **Make site weights merchant‑specific (S1).**  
+   Replace the uniform weight profile with **hub‑and‑spoke or Zipf‑like distributions**. Small merchants should have 1–2 dominant sites, while larger merchants can have broader tails. This alone will create believable spatial skew and explainable risk patterns.
+
+2) **Ensure full merchant coverage across S3/S4.**  
+   Right now a large portion of merchants never receive day‑effects or group‑weights. That creates a population split between “dynamic” and “static” merchants. For realism, **every merchant should be routable** and experience temporal/group variation, even if minimal.
+
+3) **Inject temporal heterogeneity (S3).**  
+   Use **merchant‑specific sigma** (not a single global sigma) and add **weekly/seasonal modulation**. Even a small weekly signal (weekends vs weekdays) makes synthetic time series feel more realistic.
+
+4) **Reduce excessive tz‑group dominance (S4).**  
+   The current max‑p_group distribution is too concentrated near 1. Introduce a **floor on secondary groups** (e.g., a 2–5% minimum for the top‑2 group in escalated flows) so multi‑group routing becomes visible.
+
+5) **Expand arrival rosters beyond a single day.**  
+   The current arrival roster is a smoke test, not a realism surface. Provide **multi‑day, multi‑arrival** coverage so that day effects and group mixes can be validated over time.
+
+**Expected impact:**  
+Implementing steps 1–3 should move 2B toward **B‑/B** for synthetic realism. Steps 4–5 stabilize the gains by making multi‑zone routing and temporal variation demonstrable rather than theoretical.

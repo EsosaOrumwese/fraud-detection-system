@@ -162,7 +162,23 @@ The data is internally consistent and shows some real clustering, but the **geog
 
 ---
 
-If you want, next we can:  
-- tighten the regional mix (by adjusting upstream 1A country allocations),  
-- increase urban clustering signals, or  
-- add per‑region zoomed maps for a more realistic presentation.
+## 10) Realism improvement roadmap (synthetic realism)
+This roadmap aims for **credible synthetic realism** without relying on real‑world policy data. The focus is to reduce geographic bias and make site placement feel population‑aware.
+
+1) **Rebalance the regional mix.**  
+   The current distribution is heavily Europe‑weighted. Introduce a **target regional mix** (e.g., Europe/Asia/Americas/Africa/Oceania) and sample countries to meet those targets. This prevents obvious continental gaps while staying synthetic.
+
+2) **Stratify within countries by multiple urban centers.**  
+   Instead of placing most sites along narrow bands, sample **multiple city clusters** per country (major + secondary cities). This creates a more realistic intra‑country spread and improves timezone diversity downstream (2A).
+
+3) **Add population‑weighted sampling.**  
+   Use HRSL or city population proxies to weight site placement. This reduces “spiky” lat/lon histograms and produces smoother, more believable urban density.
+
+4) **Introduce controlled rural tails.**  
+   Realistic geography has urban concentration **plus** a sparse rural tail. Inject a small percentage of low‑density sites away from city centers so the nearest‑neighbor distribution looks more natural.
+
+5) **Increase southern‑hemisphere and Africa coverage.**  
+   Even in synthetic mode, global realism expects visible representation. Add explicit quotas or weighting for under‑represented regions to avoid empty map zones.
+
+**Expected impact:**  
+Implementing steps 1–3 should move 1B toward **B‑/B** for synthetic realism by fixing the most visible coverage biases while preserving structural correctness.

@@ -306,6 +306,26 @@ If we want realism to improve at the 2A layer, the real fix is upstream: broaden
 
 ---
 
+## 13) Realism improvement roadmap (synthetic realism)
+This roadmap assumes we are targeting **credible synthetic realism** without real policy data. For 2A, most realism gains are **upstream** (1B), but there are still levers here.
+
+1) **Expand intra‑country spatial diversity (primary lever).**  
+   2A can only assign tzids based on site locations. If 1B places sites in multiple cities/regions per country, 2A will naturally generate realistic multi‑tz distributions (e.g., US, AU, BR).
+
+2) **Stratify sampling by administrative regions.**  
+   Use province/state buckets to ensure coverage across multiple regions rather than a single “representative” point. This avoids single‑tz collapse in large countries.
+
+3) **Introduce geography‑aware overrides only where needed.**  
+   Keep the deterministic approach, but add **surgical overrides** when a country’s sampled points repeatedly fall into remote/outlier tzids (e.g., Svalbard for NO).
+
+4) **Make fallback usage visible and bounded.**  
+   When polygon lookups fail, fallbacks should be **tracked and capped**, so downstream knows if tzids were assigned by “nearest polygon” rather than direct containment.
+
+**Expected impact:**  
+If 1B is improved to provide richer site placement, 2A should move from **C → B** quickly, because its logic is already correct. The realism weakness is primarily a *location diversity* problem, not a timezone assignment problem.
+
+---
+
 ## 13) Visual diagnostics (core realism lens)
 Below are the four core plots requested (1, 2, 3, 8 equivalents), embedded and interpreted in detail. These are meant to expose **where realism breaks** rather than simply counting rows.
 

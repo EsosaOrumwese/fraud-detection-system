@@ -606,3 +606,26 @@ This grade reflects your stated expectation: not real-world truth, but **robust 
 - **Escalation intent vs outcome mismatch**: escalation is high, but only ~13% of escalated pairs end up multi‑zone.
 
 **Bottom line:** 3A is **correct in structure but weak in behavioral realism**. It needs more dispersion in priors and more merchant‑level variation to reach robust synthetic realism.
+
+---
+
+## 17) Realism improvement roadmap (synthetic realism)
+This roadmap targets **robust synthetic realism** without real policy data. The aim is to preserve determinism while introducing believable diversity.
+
+1) **Reduce dominance in priors (S2).**  
+   The priors are too concentrated, which makes multi‑TZ countries behave like single‑TZ countries. Use a **lower‑concentration Dirichlet** or a mixture of priors (dominant‑hub + regional tail) so the top‑1 share is high but not overwhelming.
+
+2) **Introduce merchant‑level variability (S3).**  
+   Sampling currently produces near‑identical distributions across merchants in the same country. Add **merchant‑specific noise** or tiered dispersion so two merchants in the same country can still differ meaningfully.
+
+3) **Strengthen escalation effects (S4).**  
+   Escalated pairs should reliably show multi‑zone allocation. Add a **minimum secondary‑zone floor** for escalated flows (e.g., guarantee at least 2–5% in zone 2) so escalation becomes visible in outputs.
+
+4) **Control rounding collapse (S4).**  
+   Integerization currently amplifies dominance. Consider **stochastic rounding** or minimum‑count guarantees so low‑share zones survive rounding.
+
+5) **Add validation checks for diversity.**  
+   Include tests for **top‑1 share bounds, entropy floors, and multi‑zone rate targets**, so the pipeline fails if it reverts to flatness.
+
+**Expected impact:**  
+Implementing steps 1–3 should move 3A toward **B‑/B** for synthetic realism. Steps 4–5 stabilize the gains and prevent regressions to single‑zone behavior.
