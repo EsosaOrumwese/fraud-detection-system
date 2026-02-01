@@ -141,10 +141,12 @@ Provide a platform-wide, production-shaped build plan for v0 that aligns compone
 
 **DoD checklist:**
 - WSP consumes READY + `run_facts_view` and derives a StreamPlan (no “latest” scans).
-- Only `business_traffic` is streamed; other roles remain by‑ref.
+- Only `business_traffic` is streamed; other roles remain by‑ref (oracle‑only).
 - Canonical envelope framing is enforced; event identity is stable and compatible with legacy pull framing where required.
 - **Speedup factor is available in all envs** as a policy knob (semantics preserved across speeds).
 - WSP never writes directly to EB; IG remains the only writer.
+- WSP emits **dual traffic channels** (baseline + fraud) and streams **per‑output** from the stream‑view.
+- WSP streams outputs **concurrently by default** when multiple traffic outputs are present (can be overridden for debug).
 
 #### Phase 2.3 — WSP ↔ IG smoke path
 **Goal:** prove WSP → IG admission under rails before refactoring SR/IG for full alignment.
@@ -184,6 +186,7 @@ Provide a platform-wide, production-shaped build plan for v0 that aligns compone
 - EB append ACK implies durable `(stream, partition, offset)` assignment.
 - Replay by offsets works with partition‑only ordering semantics.
 - Idempotent publish and dedupe semantics are validated under retry.
+- Dual traffic streams (`fp.bus.traffic.baseline.v1`, `fp.bus.traffic.fraud.v1`) are both writable and readable.
 
 #### Phase 3.4 — Control & Ingress E2E proof
 **Goal:** demonstrate end‑to‑end READY → WSP stream → IG admission → EB replay under rails.
@@ -191,9 +194,10 @@ Provide a platform-wide, production-shaped build plan for v0 that aligns compone
 **DoD checklist:**
 - SR READY → WSP streams → IG admits → EB replay works for pinned run.
 - Truth ownership enforced: SR readiness authority; IG admission authority; EB offsets/replay only.
+- Both traffic channels receive events in the same parity run (baseline + fraud).
 
 **Status:** complete (v0 green).
-**Meaning of “green”:** a parity run produces SR READY, WSP streams from stream view, IG writes run‑scoped receipts, and EB contains readable offsets for the same platform run id.
+**Meaning of “green”:** a parity run produces SR READY, WSP streams **both** traffic channels from stream view, IG writes run‑scoped receipts, and EB contains readable offsets for **both** traffic streams under the same platform run id.
 
 ### Phase 4 — Real-time decision loop (IEG/OFP/DL/DF/AL/DLA)
 **Intent:** turn admitted traffic into decisions and outcomes with correct provenance and audit.

@@ -1334,6 +1334,29 @@ User requested a **single narrative flow** for Phases 1–3 (v0) so the current 
 
 ---
 
+## Entry: 2026-02-01 05:12:40 — Control & ingress flow updated for dual‑stream concurrency
+
+### Trigger
+User asked to confirm v0 green and to **rewrite the current platform flow** in platform build + implementation notes to reflect the dual‑stream policy and the actual runtime behavior.
+
+### Updated flow (v0 as implemented)
+1) **Oracle Store (truth boundary):** engine outputs are sealed in S3/MinIO; SR/WSP only read by‑ref.
+2) **SR (readiness authority):** reads Oracle Store, verifies gates, publishes READY to control bus.
+3) **WSP (stream head):**
+   - consumes READY,
+   - streams **two concurrent traffic channels**: `s2_event_stream_baseline_6B` and `s3_event_stream_with_fraud_6B`,
+   - uses **stream_view/ts_utc** per output,
+   - concurrency default = number of outputs (override via `WSP_OUTPUT_CONCURRENCY`),
+   - per‑output caps supported (`WSP_MAX_EVENTS_PER_OUTPUT`) for diagnostics.
+4) **IG (admission boundary):** validates canonical envelope, admits, writes receipts.
+5) **EB (durable log):** IG publishes to **two streams** (`fp.bus.traffic.baseline.v1` and `fp.bus.traffic.fraud.v1`) and receipts include `eb_ref`.
+
+### v0 green meaning (updated)
+- A parity run produces SR READY, WSP streams **both** channels, IG receipts are written, and EB offsets are readable for **both** traffic streams under the same platform run id.
+- Observed: per‑output 200‑event run emitted 400 total with no quarantines; EB publish lines present for both streams.
+
+---
+
 ## Entry: 2026-01-31 13:32:00 — Phase 4 RTDL narrative flow added (story form)
 
 ### Why this entry
