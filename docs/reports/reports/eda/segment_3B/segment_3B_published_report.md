@@ -475,3 +475,79 @@ The top tzids are dominated by **Monaco, Luxembourg, Zurich, Dublin, Bermuda, Ma
 - Virtual classification is highly **binary** (single MCC + channel gating) with minimal country nuance.
 - Settlement anchors are **plausible but overly concentrated** in a small set of hubs.
 - These visuals reinforce the main realism concern: the virtual overlay lacks **breadth and heterogeneity**, even before we examine edges and routing.
+
+---
+
+## 16) Visual diagnostics (Set C: edge catalogue realism)
+These plots focus on the edge catalogue itself, since it is the primary realism surface for 3B.
+
+### 16.1 Uniformity summary (edge catalogue)
+<img src="plots/C_uniformity_summary.png" width="520" alt="Edge catalogue uniformity summary">
+
+The card panel shows **single‑value outcomes** for all core metrics: every merchant has **500 edges**, every merchant appears in **117 countries**, the **edge weight is a single value (0.002)**, and the **Top‑1 share is the same for all merchants**. The “unique=1, std=0” notes confirm there is **no variability at all** across merchants. This is a visual proof of uniformity, not a plotting artifact.
+
+---
+
+### 16.2 Country allocation profile (Top 25 + Other)
+<img src="plots/C_country_allocation_profile.png" width="560" alt="Country allocation profile">
+
+This bar chart shows the **edge count by country** with a large **“Other”** bucket. The distribution is steep: **CN and IN dominate**, followed by a long tail of smaller countries, while the “Other” bar is the largest block after the top two. The curve shape indicates a **highly skewed global allocation** rather than a flat spread, but it is a **global profile only**—it does not vary by merchant (which the next plot confirms).
+
+---
+
+### 16.3 Merchant country profiles (Top 5 merchants, Top 20 countries)
+<img src="plots/C_merchant_country_overlay.png" width="560" alt="Merchant country profile overlay">
+
+All five merchant lines **overlap almost perfectly**, with identical peaks and troughs across the same countries. The peak at **CN** is highest, **IN** is the second‑largest, and all other countries follow the same shared contour. This shows that the country allocation is **not merchant‑specific**; it is a single profile applied to every merchant, which is a major realism failure for a virtual CDN layer.
+
+---
+
+### 16.4 Edge location density (hexbin, log scale)
+<img src="plots/C_edge_density_hexbin_log.png" width="560" alt="Edge location density log scale">
+
+The log‑scaled density map shows **visible clustering across Europe, South Asia, and parts of East Asia**, with sparser coverage elsewhere. The pattern reflects the global country allocation (dense in the dominant countries, thinner in the tail). The map is **not uniform**, but because every merchant follows the same country profile, the geography represents a **single shared CDN footprint** rather than merchant‑specific variation.
+
+---
+
+**Set C takeaway:**  
+- The edge catalogue is **structurally consistent but completely uniform across merchants**.  
+- The global allocation profile is skewed (CN/IN heavy), but that profile is **identical for all merchants**, eliminating realistic heterogeneity.  
+- The maps show real geographic clustering, but it is **one shared pattern**, not a diversity of merchant footprints.
+
+---
+
+## 17) Visual diagnostics (Set D + E: alias fidelity & cross‑layer coherence)
+These plots verify whether alias tables preserve the weight distribution and whether edge geography aligns with settlement anchors.
+
+### 17.1 Alias table length vs edge count
+<img src="plots/D1_alias_length_vs_edge_count.png" width="520" alt="Alias table length vs edge count">
+
+This plot collapses to a **single point** at **(500, 500)** with **n=309** overlapping merchants. That means **every merchant has exactly 500 edges** and **every alias table has exactly 500 slots**, so the alias table length scales *perfectly* with edge count — but only because the edge counts are fixed. From a correctness standpoint, this is fine: the alias index is aligned with the edge catalogue. From a realism standpoint, it is a red flag because the system is **not exercising any size variability** (small vs large merchants, regional vs global merchants). The alias mechanism is therefore never tested against different edge volumes, which makes the virtual layer feel artificially uniform.
+
+---
+
+### 17.2 Edge weight vs alias probability (sample merchants)
+<img src="plots/D2_edge_weight_vs_alias_prob.png" width="520" alt="Edge weight vs alias probability">
+
+This scatter compares **decoded alias probabilities** against **edge weights** for three sample merchants (3 × 500 edges = **1,500 points**). All points overlap at **~0.002** (shown clearly by the transparent stacking), which exactly matches the edge weight **1/500**. That is excellent for **alias fidelity**: decoding the blob reproduces the weights without drift or distortion. However, it also shows that the **entire weight distribution is flat**, so the alias layer faithfully preserves uniformity rather than introducing realistic skew. In realism terms, routing will sample edges as if every location is equally likely, which contradicts how real CDN footprints and merchant traffic usually behave.
+
+---
+
+### 17.3 Edge distance to settlement (log10 km)
+<img src="plots/E1_edge_distance_to_settlement.png" width="560" alt="Edge distance to settlement">
+
+The histogram is plotted on **log10 distance**, which makes the distribution much easier to read. Most of the mass sits between **log10 ≈ 3.6–4.1**, i.e., **~4,000–12,500 km**, with a **median ~7,929 km** and **p90 ~13,874 km**. That means the typical edge for a merchant is **an ocean away** from its settlement anchor. This is consistent with a fully global footprint, but it also implies **almost no geographic pull toward settlement hubs**. If the intent is to model legal‑anchor influence or regional operational bias, this distance profile is too extreme and reads as *globally randomized* rather than anchored.
+
+---
+
+### 17.4 Edge share in settlement country (Top settlement countries)
+<img src="plots/E2_settlement_country_overlap.png" width="740" alt="Edge share in settlement country">
+
+The zoomed panel (0–7%) makes the overlap visible: **almost every settlement country is near‑zero**, including the **UNK** group (n=17), which indicates settlements that could not be resolved into a polygon. The **US** is the only country with a modest self‑overlap (~0.05), while the **global baseline is ~0.01**, so even the “best” country is only a few points above the global average. The full‑scale panel confirms that **no settlement country ever dominates** its own edge allocation. This is a strong cross‑layer mismatch: the settlement jurisdiction does **not** meaningfully influence the edge geography. For realism, we would expect at least **some** settlement countries to show higher internal overlap, especially for smaller or regionally‑focused merchants.
+
+---
+
+**Set D + E takeaway:**  
+- The alias layer is **faithful but mirrors uniformity**: it preserves weights exactly, which means it also preserves the flat distribution.  
+- Cross‑layer coherence is **weak**: edges are mostly far from settlement anchors and rarely fall inside the settlement country.  
+- For realism, this undermines the intuition that a virtual merchant’s operational footprint should retain at least **some** bias toward its legal anchor.

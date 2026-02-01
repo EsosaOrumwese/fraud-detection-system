@@ -20,7 +20,16 @@ OUT_DIR = Path("docs/reports/reports/eda/segment_3B/plots")
 POLICY_PATH = Path("config/layer1/2B/policy/alias_layout_policy_v1.json")
 WORLD_COUNTRIES = Path("reference/spatial/world_countries/2024/world_countries.parquet")
 
-sns.set_theme(style="whitegrid")
+sns.set_theme(
+    style="darkgrid",
+    rc={
+        "axes.facecolor": "#EAEAF2",
+        "figure.facecolor": "white",
+        "grid.color": "white",
+        "grid.linestyle": "-",
+        "grid.linewidth": 1.0,
+    },
+)
 
 
 def _glob_one(pattern: str) -> str:
@@ -105,14 +114,14 @@ def main() -> None:
     x = d1_df["edge_count_total"].to_numpy()
     y = d1_df["alias_table_length"].to_numpy()
     fig, ax = plt.subplots(figsize=(6, 5))
-    ax.scatter(x, y, s=140, alpha=0.6, color="#4c72b0", edgecolor="white", linewidth=0.5)
+    ax.scatter(x, y, s=220, alpha=0.7, color="#4c72b0", edgecolor="white", linewidth=0.8)
     ax.plot([x.min(), x.max()], [x.min(), x.max()], linestyle="--", color="#444", linewidth=1)
     ax.set_title("D1: Alias Table Length vs Edge Count")
     ax.set_xlabel("Edge count per merchant")
     ax.set_ylabel("Alias table length")
     ax.set_xlim(x.min() - 5, x.max() + 5)
     ax.set_ylim(y.min() - 5, y.max() + 5)
-    ax.text(x.min() + 1, y.max() - 2, f"n={len(d1_df)} (all overlap)", fontsize=9)
+    ax.text(x.min() + 1, y.max() - 2, f"n={len(d1_df)} (all overlap)", fontsize=9, color="#444")
     fig.tight_layout()
     fig.savefig(OUT_DIR / "D1_alias_length_vs_edge_count.png", dpi=160)
     plt.close(fig)
@@ -148,28 +157,36 @@ def main() -> None:
         for w, p in zip(m_edges, p_hat):
             points.append((merchant_id, w, p))
 
-    d2_df = pl.DataFrame(points, schema=["merchant_id", "edge_weight", "alias_prob"]).to_pandas()
+    d2_df = pl.DataFrame(points, schema=["merchant_id", "edge_weight", "alias_prob"], orient="row").to_pandas()
+    # rescale to avoid unreadable tiny tick labels
+    d2_df["edge_weight_scaled"] = d2_df["edge_weight"] * 1e3
+    d2_df["alias_prob_scaled"] = d2_df["alias_prob"] * 1e3
     fig, ax = plt.subplots(figsize=(6, 5))
-    sns.scatterplot(
-        data=d2_df,
-        x="edge_weight",
-        y="alias_prob",
-        hue="merchant_id",
-        palette="deep",
-        s=30,
-        alpha=0.7,
-        ax=ax,
-        legend=True,
+    ax.scatter(
+        d2_df["edge_weight_scaled"],
+        d2_df["alias_prob_scaled"],
+        s=40,
+        alpha=0.15,
+        color="#4c72b0",
+        linewidth=0,
     )
-    min_v = min(d2_df["edge_weight"].min(), d2_df["alias_prob"].min())
-    max_v = max(d2_df["edge_weight"].max(), d2_df["alias_prob"].max())
+    min_v = min(d2_df["edge_weight_scaled"].min(), d2_df["alias_prob_scaled"].min())
+    max_v = max(d2_df["edge_weight_scaled"].max(), d2_df["alias_prob_scaled"].max())
     ax.plot([min_v, max_v], [min_v, max_v], linestyle="--", color="#444", linewidth=1)
     ax.set_title("D2: Edge Weight vs Alias Probability (sample merchants)")
-    ax.set_xlabel("Edge weight")
-    ax.set_ylabel("Decoded alias probability")
-    ax.set_xlim(min_v * 0.95, max_v * 1.05)
-    ax.set_ylim(min_v * 0.95, max_v * 1.05)
-    ax.legend(title="merchant_id", fontsize=8, title_fontsize=8)
+    ax.set_xlabel("Edge weight (×1e-3)")
+    ax.set_ylabel("Decoded alias probability (×1e-3)")
+    ax.set_xlim(min_v * 0.999, max_v * 1.001)
+    ax.set_ylim(min_v * 0.999, max_v * 1.001)
+    ax.text(
+        min_v * 1.0005,
+        max_v * 0.9995,
+        f"all points overlap at ~{d2_df['edge_weight_scaled'].iloc[0]:.3f}\n(n={len(d2_df)})",
+        fontsize=8,
+        color="#444",
+        ha="left",
+        va="top",
+    )
     fig.tight_layout()
     fig.savefig(OUT_DIR / "D2_edge_weight_vs_alias_prob.png", dpi=160)
     plt.close(fig)
@@ -184,16 +201,16 @@ def main() -> None:
         joined["lat_deg_settle"].to_numpy(),
         joined["lon_deg_settle"].to_numpy(),
     )
+    dist_log = np.log10(dist_km)
     fig, ax = plt.subplots(figsize=(7, 4.5))
-    sns.histplot(dist_km, bins=50, color="#4c72b0", ax=ax)
-    ax.set_xscale("log")
-    ax.set_title("E1: Edge Distance to Settlement (log-x)")
-    ax.set_xlabel("Distance to settlement (km, log scale)")
+    sns.histplot(dist_log, bins=40, color="#4c72b0", ax=ax)
+    ax.set_title("E1: Edge Distance to Settlement (log10 km)")
+    ax.set_xlabel("log10 distance to settlement (km)")
     ax.set_ylabel("Edge count")
     median = float(np.median(dist_km))
     p90 = float(np.percentile(dist_km, 90))
-    ax.axvline(median, color="#d62728", linestyle="--", linewidth=1, label=f"median ~{median:,.0f} km")
-    ax.axvline(p90, color="#ff7f0e", linestyle=":", linewidth=1, label=f"p90 ~{p90:,.0f} km")
+    ax.axvline(np.log10(median), color="#d62728", linestyle="--", linewidth=1, label=f"median ~{median:,.0f} km")
+    ax.axvline(np.log10(p90), color="#ff7f0e", linestyle=":", linewidth=1, label=f"p90 ~{p90:,.0f} km")
     ax.legend(fontsize=8)
     fig.tight_layout()
     fig.savefig(OUT_DIR / "E1_edge_distance_to_settlement.png", dpi=160)
@@ -236,29 +253,38 @@ def main() -> None:
 
     top_n = 15
     plot_df = agg_pd.head(top_n)
-    fig, ax = plt.subplots(figsize=(7.5, 5.5))
-    sns.barplot(
-        data=plot_df,
-        x="same_share",
-        y="settlement_country",
-        color="#4c72b0",
-        ax=ax,
-    )
-    ax.set_xlim(0, 1)
-    ax.set_title("E2: Edge Share in Settlement Country (Top Settlement Countries)")
-    ax.set_xlabel("Share of edges in settlement country")
-    ax.set_ylabel("Settlement country")
-    for i, row in plot_df.iterrows():
-        ax.text(
-            row["same_share"] + 0.01,
-            list(plot_df.index).index(i),
-            f"n={int(row['merchant_count'])}",
-            va="center",
-            fontsize=8,
-        )
     global_share = float(agg_pd["edges_same"].sum() / agg_pd["edges_total"].sum())
-    ax.axvline(global_share, color="#d62728", linestyle="--", linewidth=1, label=f"global ~{global_share:.2f}")
-    ax.legend(fontsize=8)
+
+    max_share = float(plot_df["same_share"].max()) if not plot_df.empty else 0.0
+    zoom_max = min(0.1, max_share + 0.02) if max_share > 0 else 0.1
+    fig, axes = plt.subplots(1, 2, figsize=(10.5, 5.5), sharey=True)
+    for ax, xlim, title in [
+        (axes[0], (0, zoom_max), f"Zoomed (0–{int(zoom_max*100)}%)"),
+        (axes[1], (0, 1.0), "Full scale (0–100%)"),
+    ]:
+        sns.barplot(
+            data=plot_df,
+            x="same_share",
+            y="settlement_country",
+            color="#4c72b0",
+            ax=ax,
+        )
+        ax.set_xlim(*xlim)
+        ax.set_title(title)
+        ax.set_xlabel("Share of edges in settlement country")
+        ax.set_ylabel("Settlement country" if ax is axes[0] else "")
+        for idx, row in plot_df.iterrows():
+            ax.text(
+                min(row["same_share"] + 0.01, xlim[1] - 0.01),
+                list(plot_df.index).index(idx),
+                f"n={int(row['merchant_count'])}",
+                va="center",
+                fontsize=8,
+            )
+        ax.axvline(global_share, color="#d62728", linestyle="--", linewidth=1, label=f"global ~{global_share:.2f}")
+        ax.legend(fontsize=8, loc="lower right")
+
+    fig.suptitle("E2: Edge Share in Settlement Country (Top Settlement Countries)")
     fig.tight_layout()
     fig.savefig(OUT_DIR / "E2_settlement_country_overlap.png", dpi=160)
     plt.close(fig)
