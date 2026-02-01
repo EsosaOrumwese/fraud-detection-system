@@ -190,4 +190,4 @@ These are copied from the EB design‑authority and are treated as **laws**:
 - Phase 4: **complete**
 - Phase 5: **complete**
 
-**v0 green summary (EB):** LocalStack Kinesis parity adapter active; IG publishes to `fp-traffic-bus`, offsets recorded in receipts; readback confirmed.
+**v0 green summary (EB):** LocalStack Kinesis parity adapter active; IG publishes to `fp.bus.traffic.baseline.v1` + `fp.bus.traffic.fraud.v1`, offsets recorded in receipts; readback confirmed.

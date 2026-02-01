@@ -2185,3 +2185,18 @@ Traffic policy now uses `s2_event_stream_baseline_6B` + `s3_event_stream_with_fr
 ### Planned edits
 - Update `config/platform/ig/schema_policy_v0.yaml` to define schemas for the two 6B event streams.
 - Update `config/platform/ig/class_map_v0.yaml` to classify only those two event streams as `traffic`.
+
+---
+
+## Entry: 2026-01-31 20:11:00 — IG dual‑stream publish routing
+
+### Trigger
+Platform moved to dual behavioural traffic channels; IG must publish baseline + fraud to separate EB streams.
+
+### Planned changes
+- Add `traffic_baseline` and `traffic_fraud` classes to class map.
+- Update schema policy entries to set the correct class per event_type.
+- Add partitioning profiles:
+  - `ig.partitioning.v0.traffic.baseline` → `fp.bus.traffic.baseline.v1`
+  - `ig.partitioning.v0.traffic.fraud` → `fp.bus.traffic.fraud.v1`
+- Update partitioning selection logic to map class→profile id.

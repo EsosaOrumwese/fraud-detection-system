@@ -615,3 +615,31 @@ Route EB publish diagnostics to a **run‑scoped log** (`runs/fraud-platform/<ru
 
 ### Result
 EB publish activity is visible in both narrative and diagnostic logs without adding a separate EB service.
+
+---
+
+## Entry: 2026-01-31 20:12:00 — Kinesis publisher topic‑based routing
+
+### Trigger
+Dual EB channels require publishing to different Kinesis streams per topic.
+
+### Planned change
+- Allow Kinesis publisher to use `topic` as the stream name when a default stream is not configured.
+- IG will pass `None`/auto for event_bus_stream in parity so each topic maps to its own stream.
+
+---
+
+## Entry: 2026-01-31 20:20:00 — Dual traffic streams (baseline + fraud)
+
+### Trigger
+Platform traffic policy changed to dual behavioural streams with distinct EB channels.
+
+### Decision
+- EB uses two traffic streams:
+  - `fp.bus.traffic.baseline.v1`
+  - `fp.bus.traffic.fraud.v1`
+- Kinesis publisher uses **topic‑named streams** when `EVENT_BUS_STREAM=auto`.
+
+### Implementation notes
+- LocalStack bootstrap creates both streams.
+- IG publishes to stream = partitioning profile `stream`.

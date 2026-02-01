@@ -46,7 +46,9 @@ services:
       /bin/sh -c "
       sleep 2;
       awslocal kinesis create-stream --stream-name sr-control-bus --shard-count 1 || true;
-      awslocal kinesis create-stream --stream-name fp-traffic-bus --shard-count 1 || true;
+      awslocal kinesis create-stream --stream-name fp.bus.traffic.baseline.v1 --shard-count 1 || true;
+      awslocal kinesis create-stream --stream-name fp.bus.traffic.fraud.v1 --shard-count 1 || true;
+      awslocal kinesis create-stream --stream-name fp.bus.audit.v1 --shard-count 1 || true;
       exit 0;"
     environment:
       AWS_ACCESS_KEY_ID: test

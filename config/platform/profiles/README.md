@@ -68,6 +68,7 @@ Notes:
 - `${VAR}` placeholders are resolved from environment variables at load time.
 - `control_bus` wiring is used by the WSP control plane (SR → WSP); IG ignores it in streaming-only v0.
 - Parity profiles use **Kinesis** control bus with `stream/region/endpoint_url` set (LocalStack locally, AWS in dev/prod).
+- Local parity Kinesis streams (v0): `sr-control-bus` (control), `fp.bus.traffic.baseline.v1`, `fp.bus.traffic.fraud.v1` (traffic), `fp.bus.audit.v1` (audit).
 - `oracle_root` points to the sealed engine world store (Oracle Store); it is wiring, not policy.
 - `oracle_engine_run_root` optionally pins WSP to a specific engine world (no “latest” scanning).
 - `oracle_scenario_id` can be used when a world contains multiple scenarios (avoid ambiguity).
@@ -76,6 +77,7 @@ Notes:
 - `flush_every` defines how often WSP persists its cursor (lower = fewer duplicates after crash).
 - `wsp_producer` pins the producer identity stamped on envelopes; allowlist restricts valid producer_ids.
 - `ig_ingest_url` is the WSP → IG push endpoint (non‑secret; can be local or service DNS).
+- For dual‑stream traffic, Kinesis publishes to **topic‑named streams** (`fp.bus.traffic.baseline.v1`, `fp.bus.traffic.fraud.v1`). Set `EVENT_BUS_STREAM=auto` (or `topic`) so IG uses the topic name as the stream.
 - Local file runs use `object_store.root: runs` so platform artifacts resolve under `runs/fraud-platform/<platform_run_id>/`.
 - Local parity uses **S3‑compatible** storage (`s3://fraud-platform`) and **Kinesis** for event/control buses.
 - `security` is wiring‑scoped: it can enable auth and rate limits without changing policy behavior.

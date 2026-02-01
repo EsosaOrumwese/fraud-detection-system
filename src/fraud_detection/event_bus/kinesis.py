@@ -15,7 +15,7 @@ from .publisher import EbRef
 
 @dataclass(frozen=True)
 class KinesisConfig:
-    stream_name: str
+    stream_name: str | None
     region: str | None
     endpoint_url: str | None
 
@@ -30,9 +30,12 @@ class KinesisEventBusPublisher:
         )
 
     def publish(self, topic: str, partition_key: str, payload: dict[str, Any]) -> EbRef:
+        stream_name = self.config.stream_name or topic
+        if not stream_name:
+            raise RuntimeError("KINESIS_STREAM_NAME_MISSING")
         data = json.dumps(payload, ensure_ascii=True, separators=(",", ":")).encode("utf-8")
         response = self._client.put_record(
-            StreamName=self.config.stream_name,
+            StreamName=stream_name,
             PartitionKey=partition_key,
             Data=data,
         )
@@ -48,7 +51,7 @@ class KinesisEventBusPublisher:
 
 def build_kinesis_publisher(
     *,
-    stream_name: str,
+    stream_name: str | None,
     region: str | None = None,
     endpoint_url: str | None = None,
 ) -> KinesisEventBusPublisher:

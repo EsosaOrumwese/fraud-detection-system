@@ -1547,3 +1547,30 @@ User asked for clarity on “one traffic stream” semantics and concurrent flow
 
 ### Note
 A prior alignment entry (traffic stream policy) was inserted above older entries due to patch placement. Per AGENTS, I will **not** move or rewrite history. This note records that the canonical chronological order is preserved by timestamp, and future entries will be appended only.
+
+---
+
+## Entry: 2026-01-31 20:10:00 — Dual‑stream EB wiring (baseline + fraud channels)
+
+### Trigger
+User requested control & ingress plane handle **concurrent dual streams** (baseline + fraud) as separate channels.
+
+### Reasoning
+- WSP now emits two behavioural streams (`s2_event_stream_baseline_6B`, `s3_event_stream_with_fraud_6B`).
+- IG currently publishes all traffic to a **single** Kinesis stream; this would still interleave events.
+- To honor dual‑channel semantics, IG must publish to **two distinct EB topics/streams**.
+
+### Decision (platform‑wide)
+- Define two EB traffic channels:
+  - `fp.bus.traffic.baseline.v1`
+  - `fp.bus.traffic.fraud.v1`
+- Map event_type → class → partitioning profile → stream name (per IG partitioning profiles).
+- Kinesis publisher must allow **topic‑based routing** (publish to stream = topic) when event_bus_stream is unset/auto.
+
+### Planned edits
+- Update `config/platform/ig/partitioning_profiles_v0.yaml` with baseline/fraud profiles.
+- Update `config/platform/ig/class_map_v0.yaml` + `schema_policy_v0.yaml` to use `traffic_baseline` / `traffic_fraud` classes.
+- Update IG partitioning logic to choose profile by class name.
+- Update Kinesis publisher to use `topic` as stream name when no default stream is configured.
+- Update parity bootstrap to create both Kinesis streams.
+- Update profiles/runbook to document dual EB streams and new env var expectations.

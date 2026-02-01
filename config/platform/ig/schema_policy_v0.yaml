@@ -2,11 +2,11 @@ version: "0.1.0"
 default_action: quarantine
 policies:
   - event_type: s2_event_stream_baseline_6B
-    class: traffic
+    class: traffic_baseline
     schema_version_required: false
     payload_schema_ref: docs/model_spec/data-engine/layer-3/specs/contracts/6B/schemas.6B.yaml#/s2/event_stream_baseline_6B
   - event_type: s3_event_stream_with_fraud_6B
-    class: traffic
+    class: traffic_fraud
     schema_version_required: false
     payload_schema_ref: docs/model_spec/data-engine/layer-3/specs/contracts/6B/schemas.6B.yaml#/s3/event_stream_with_fraud_6B
   - event_type: ig.policy.activation

@@ -10,7 +10,10 @@ It uses **MinIO (S3)** for the Oracle Store + platform artifacts, **LocalStack K
 
 **Required local stack (parity):**
 - MinIO (S3‑compatible) for `oracle-store` and `fraud-platform` buckets
-- LocalStack Kinesis for `sr-control-bus` and `fp-traffic-bus`
+- LocalStack Kinesis (4 streams total):
+  - Control: `sr-control-bus`
+  - Traffic (dual‑stream): `fp.bus.traffic.baseline.v1`, `fp.bus.traffic.fraud.v1`
+  - Audit: `fp.bus.audit.v1`
 - Postgres for IG admission DB + WSP checkpoints
 
 **Profiles used:**
@@ -52,10 +55,10 @@ make platform-parity-stack-status
 **Expected:**
 - MinIO + Postgres + LocalStack are running.
 - Buckets exist: `oracle-store`, `fraud-platform`.
-- Streams exist: `sr-control-bus`, `fp-traffic-bus`.
+- Streams exist: `sr-control-bus`, `fp.bus.traffic.baseline.v1`, `fp.bus.traffic.fraud.v1`, `fp.bus.audit.v1`.
 
 **What bootstrap does:**
-- Creates the **Kinesis streams** in LocalStack (`sr-control-bus`, `fp-traffic-bus`).
+- Creates the **Kinesis streams** in LocalStack (`sr-control-bus`, `fp.bus.traffic.baseline.v1`, `fp.bus.traffic.fraud.v1`, `fp.bus.audit.v1`).
 - Creates the **MinIO buckets** (`oracle-store`, `fraud-platform`).
 
 ---
@@ -78,7 +81,7 @@ PARITY_CONTROL_BUS_STREAM=sr-control-bus
 PARITY_CONTROL_BUS_REGION=us-east-1
 PARITY_CONTROL_BUS_ENDPOINT_URL=http://localhost:4566
 
-PARITY_EVENT_BUS_STREAM=fp-traffic-bus
+PARITY_EVENT_BUS_STREAM=auto
 PARITY_EVENT_BUS_REGION=us-east-1
 PARITY_EVENT_BUS_ENDPOINT_URL=http://localhost:4566
 
@@ -245,6 +248,17 @@ reasons              state
 
 **Why AMBER is OK here:** the event bus has not been exercised yet. After SR publishes READY and WSP streams, health should move toward GREEN.
 
+**If IG fails with `ResourceNotFoundException` for `fp.bus.audit.v1`:**
+
+Run the parity bootstrap (creates the audit stream):
+```
+make platform-parity-bootstrap
+```
+Or create it manually:
+```
+aws --endpoint-url http://localhost:4566 kinesis create-stream --stream-name fp.bus.audit.v1 --shard-count 1
+```
+
 ---
 
 ## 6) SR publishes READY (control bus)
@@ -334,6 +348,11 @@ Get-Content runs/fraud-platform/<platform_run_id>/platform.log -Wait
   - IG: `runs/fraud-platform/<platform_run_id>/ingestion_gate/ingestion_gate.log`
   - EB: `runs/fraud-platform/<platform_run_id>/event_bus/event_bus.log` (publish diagnostics)
 
+**Quick WSP check (baseline + fraud progress):**
+```
+Select-String -Path runs/fraud-platform/<platform_run_id>/world_streamer_producer/world_streamer_producer.log -Pattern 'output_id=s2_event_stream_baseline_6B|output_id=s3_event_stream_with_fraud_6B' -SimpleMatch | Select-Object -First 5
+```
+
 ---
 
 ## 9) Verify artifacts (MinIO)
@@ -355,6 +374,14 @@ aws --endpoint-url http://localhost:9000 s3 cp s3://fraud-platform/<platform_run
 
 **Expected:** receipt contains an `eb_ref` with `offset_kind: kinesis_sequence`.
 
+**Quick IG check (baseline + fraud receipts):**
+```
+aws --endpoint-url http://localhost:9000 s3 ls s3://fraud-platform/<platform_run_id>/ig/receipts/ | Select-Object -First 5
+
+# Optional: grep for event_type in recent receipts (requires jq installed)
+# aws --endpoint-url http://localhost:9000 s3 cp s3://fraud-platform/<platform_run_id>/ig/receipts/<receipt_id>.json - | jq .event_type
+```
+
 ---
 
 ## 10) Verify EB records (LocalStack Kinesis)
@@ -367,11 +394,29 @@ aws --endpoint-url http://localhost:4566 kinesis list-streams
 Read a few records:
 ```
 $iterator = (aws --endpoint-url http://localhost:4566 kinesis get-shard-iterator `
-  --stream-name fp-traffic-bus `
+  --stream-name fp.bus.traffic.baseline.v1 `
   --shard-id shardId-000000000000 `
   --shard-iterator-type TRIM_HORIZON | ConvertFrom-Json).ShardIterator
 
-aws --endpoint-url http://localhost:4566 kinesis get-records --shard-iterator $iterator --limit 5
+  aws --endpoint-url http://localhost:4566 kinesis get-records --shard-iterator $iterator --limit 5
+  ```
+
+Repeat with `--stream-name fp.bus.traffic.fraud.v1` to inspect the post‑overlay channel.
+
+**Quick dual‑stream check (both channels):**
+```
+$baseline = (aws --endpoint-url http://localhost:4566 kinesis get-shard-iterator `
+  --stream-name fp.bus.traffic.baseline.v1 `
+  --shard-id shardId-000000000000 `
+  --shard-iterator-type TRIM_HORIZON | ConvertFrom-Json).ShardIterator
+
+$fraud = (aws --endpoint-url http://localhost:4566 kinesis get-shard-iterator `
+  --stream-name fp.bus.traffic.fraud.v1 `
+  --shard-id shardId-000000000000 `
+  --shard-iterator-type TRIM_HORIZON | ConvertFrom-Json).ShardIterator
+
+aws --endpoint-url http://localhost:4566 kinesis get-records --shard-iterator $baseline --limit 5
+aws --endpoint-url http://localhost:4566 kinesis get-records --shard-iterator $fraud --limit 5
 ```
 
 **Expected:** payloads are canonical envelopes (base64 in Kinesis).
@@ -411,7 +456,7 @@ Use this list to confirm the **v0 control & ingress plane** is green.
 - [ ] `platform.log` includes IG summary lines (admit/duplicate/quarantine) after traffic.
 
 **Event bus offsets**
-- [ ] LocalStack stream `fp-traffic-bus` returns records.
+- [ ] LocalStack streams `fp.bus.traffic.baseline.v1` and `fp.bus.traffic.fraud.v1` return records.
 - [ ] IG receipts include `eb_ref` with `offset_kind=kinesis_sequence`.
 
 **Health posture**

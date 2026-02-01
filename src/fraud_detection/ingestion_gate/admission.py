@@ -396,6 +396,10 @@ class IngestionGate:
             profile_id = "ig.partitioning.v0.control"
         elif class_name == "audit":
             profile_id = "ig.partitioning.v0.audit"
+        elif class_name == "traffic_baseline":
+            profile_id = "ig.partitioning.v0.traffic.baseline"
+        elif class_name == "traffic_fraud":
+            profile_id = "ig.partitioning.v0.traffic.fraud"
         else:
             profile_id = self.wiring.partitioning_profile_id
         profile = self.partitioning.get(profile_id)
@@ -466,8 +470,11 @@ def _build_bus(wiring: WiringProfile) -> EventBusPublisher:
     if wiring.event_bus_kind == "kinesis":
         from fraud_detection.event_bus.kinesis import build_kinesis_publisher
 
+        stream_name = wiring.event_bus_path
+        if isinstance(stream_name, str) and stream_name.lower() in {"", "auto", "topic"}:
+            stream_name = None
         return build_kinesis_publisher(
-            stream_name=wiring.event_bus_path or "fp.bus.traffic.v1",
+            stream_name=stream_name,
             region=wiring.event_bus_region,
             endpoint_url=wiring.event_bus_endpoint_url,
         )

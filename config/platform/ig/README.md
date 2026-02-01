@@ -14,6 +14,8 @@ Use the following `partitioning_profile_id` values by stream class:
 
 | Stream class | Stream name | partitioning_profile_id |
 | --- | --- | --- |
-| traffic | `fp.bus.traffic.v1` | `ig.partitioning.v0.traffic` |
+| traffic_baseline | `fp.bus.traffic.baseline.v1` | `ig.partitioning.v0.traffic.baseline` |
+| traffic_fraud | `fp.bus.traffic.fraud.v1` | `ig.partitioning.v0.traffic.fraud` |
+| traffic (legacy) | `fp.bus.traffic.v1` | `ig.partitioning.v0.traffic` |
 | control | `fp.bus.control.v1` | `ig.partitioning.v0.control` |
 | audit | `fp.bus.audit.v1` | `ig.partitioning.v0.audit` |

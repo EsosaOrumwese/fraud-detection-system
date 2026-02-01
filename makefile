@@ -2559,7 +2559,7 @@ PARITY_OBJECT_STORE_REGION ?= us-east-1
 PARITY_ORACLE_ROOT ?= $(ORACLE_ROOT)
 PARITY_IG_ADMISSION_DSN ?= postgresql://platform:platform@localhost:5434/platform
 PARITY_WSP_CHECKPOINT_DSN ?= postgresql://platform:platform@localhost:5434/platform
-PARITY_EVENT_BUS_STREAM ?= fp-traffic-bus
+PARITY_EVENT_BUS_STREAM ?= auto
 PARITY_EVENT_BUS_REGION ?= $(PARITY_CONTROL_BUS_REGION)
 PARITY_EVENT_BUS_ENDPOINT_URL ?= $(PARITY_CONTROL_BUS_ENDPOINT_URL)
 PARITY_CONTROL_BUS_STREAM ?= sr-control-bus
@@ -2598,7 +2598,7 @@ platform-parity-bootstrap:
 	AWS_SECRET_ACCESS_KEY="$(PARITY_AWS_SECRET_ACCESS_KEY)" \
 	AWS_DEFAULT_REGION="$(PARITY_CONTROL_BUS_REGION)" \
 	AWS_ENDPOINT_URL="$(PARITY_CONTROL_BUS_ENDPOINT_URL)" \
-	$(PY_SCRIPT) -c "import boto3,os; endpoint=os.environ.get('AWS_ENDPOINT_URL'); region=os.environ.get('AWS_DEFAULT_REGION','us-east-1'); client=boto3.client('kinesis',region_name=region,endpoint_url=endpoint); [client.create_stream(StreamName=n,ShardCount=1) if True else None for n in ['sr-control-bus','fp-traffic-bus'] if True] if True else None" 2> /dev/null || true
+	$(PY_SCRIPT) -c "import boto3,os; endpoint=os.environ.get('AWS_ENDPOINT_URL'); region=os.environ.get('AWS_DEFAULT_REGION','us-east-1'); client=boto3.client('kinesis',region_name=region,endpoint_url=endpoint); [client.create_stream(StreamName=n,ShardCount=1) if True else None for n in ['sr-control-bus','fp.bus.traffic.baseline.v1','fp.bus.traffic.fraud.v1','fp.bus.audit.v1'] if True] if True else None" 2> /dev/null || true
 	@AWS_ACCESS_KEY_ID="$(PARITY_MINIO_ACCESS_KEY)" \
 	AWS_SECRET_ACCESS_KEY="$(PARITY_MINIO_SECRET_KEY)" \
 	AWS_DEFAULT_REGION="$(PARITY_OBJECT_STORE_REGION)" \

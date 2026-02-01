@@ -12,6 +12,30 @@ profiles:
       - event_id
     hash_algo: sha256
 
+  ig.partitioning.v0.traffic.baseline:
+    description: >
+      Deterministic routing for baseline behavioural traffic events.
+    stream: fp.bus.traffic.baseline.v1
+    key_precedence:
+      - payload.flow_id
+      - payload.merchant_id
+      - payload.account_id
+      - payload.party_id
+      - event_id
+    hash_algo: sha256
+
+  ig.partitioning.v0.traffic.fraud:
+    description: >
+      Deterministic routing for post-overlay behavioural traffic events.
+    stream: fp.bus.traffic.fraud.v1
+    key_precedence:
+      - payload.flow_id
+      - payload.merchant_id
+      - payload.account_id
+      - payload.party_id
+      - event_id
+    hash_algo: sha256
+
   ig.partitioning.v0.control:
     description: >
       Deterministic routing for control facts. Prefer run-scoped ordering.
