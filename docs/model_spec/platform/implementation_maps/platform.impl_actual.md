@@ -1597,3 +1597,27 @@ User requested control & ingress plane handle **concurrent dual streams** (basel
 - Update Kinesis publisher to use `topic` as stream name when no default stream is configured.
 - Update parity bootstrap to create both Kinesis streams.
 - Update profiles/runbook to document dual EB streams and new env var expectations.
+
+---
+
+## Entry: 2026-02-01 12:05:00 — Traffic stream default now single‑fraud (runtime override)
+
+### Trigger
+User corrected earlier assumption: v0 should run **one traffic stream** by default (fraud) with baseline kept as an optional alternative, not a parallel channel.
+
+### Decision trail (live)
+- Default traffic output list is **single stream** (`s3_event_stream_with_fraud_6B`).
+- Keep baseline stream view **sorted and available** for easy switching.
+- Provide a **runtime override** so operators can switch streams without editing files.
+
+### Implementation notes
+- Updated `config/platform/wsp/traffic_outputs_v0.yaml` to fraud only.
+- Added env overrides in WSP config:
+  - `WSP_TRAFFIC_OUTPUT_IDS` (comma list)
+  - `WSP_TRAFFIC_OUTPUT_IDS_REF` (YAML list)
+- Runbook updated to state single‑stream default and runtime override.
+
+### v0 intent (platform)
+- EB carries **one active traffic stream** by default (fraud).
+- Baseline stream remains **optional** and is activated only via override.
+

@@ -174,6 +174,22 @@ class WspProfile:
 
 
 def _load_output_ids(policy: dict[str, Any], *, base_dir: Path) -> list[str]:
+    env_override = os.getenv("WSP_TRAFFIC_OUTPUT_IDS")
+    if env_override:
+        return [item.strip() for item in env_override.split(",") if item.strip()]
+    env_ref = os.getenv("WSP_TRAFFIC_OUTPUT_IDS_REF")
+    if env_ref:
+        ref_path = Path(env_ref)
+        if not ref_path.is_absolute():
+            if not ref_path.exists():
+                ref_path = base_dir / ref_path
+        payload = yaml.safe_load(ref_path.read_text(encoding="utf-8"))
+        if isinstance(payload, dict):
+            items = payload.get("output_ids") or []
+        else:
+            items = payload or []
+        if isinstance(items, list):
+            return [str(item) for item in items if str(item).strip()]
     explicit = policy.get("traffic_output_ids")
     if isinstance(explicit, list):
         return [str(item) for item in explicit if str(item).strip()]

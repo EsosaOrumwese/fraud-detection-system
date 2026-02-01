@@ -1020,3 +1020,22 @@ User requested a **200‑record run** that demonstrates **dual‑stream concurre
   - WSP stops at **200 per output** (total emitted=400).
   - IG logs show **admitted** events for both output_ids, **quarantine=0**.
   - EB logs show publish lines for **both** `fp.bus.traffic.baseline.v1` and `fp.bus.traffic.fraud.v1`.
+
+---
+
+## Entry: 2026-02-01 12:06:00 — Default traffic output = fraud (override via env)
+
+### Trigger
+User clarified v0 should run a **single traffic stream** by default (fraud) and keep baseline optional.
+
+### Decision trail (live)
+- Keep the dual stream views sorted to allow fast switching.
+- Default policy should emit **fraud only**.
+- Provide runtime override to avoid editing files during experiments.
+
+### Implementation notes
+- `traffic_outputs_v0.yaml` now contains only `s3_event_stream_with_fraud_6B`.
+- Added WSP env overrides:
+  - `WSP_TRAFFIC_OUTPUT_IDS`
+  - `WSP_TRAFFIC_OUTPUT_IDS_REF`
+

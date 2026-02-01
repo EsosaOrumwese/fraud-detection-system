@@ -2915,6 +2915,11 @@ platform-oracle-stream-sort-context-truth:
 	@ORACLE_STREAM_OUTPUT_IDS_REF="config/platform/wsp/context_truth_outputs_v0.yaml" \
 	$(MAKE) platform-oracle-stream-sort
 
+.PHONY: platform-oracle-stream-sort-traffic-both
+platform-oracle-stream-sort-traffic-both:
+	@ORACLE_STREAM_OUTPUT_IDS_REF="config/platform/wsp/traffic_outputs_dual_v0.yaml" \
+	$(MAKE) platform-oracle-stream-sort
+
 .PHONY: platform-oracle-check
 platform-oracle-check:
 	@if [ -z "$(ORACLE_ENGINE_RUN_ROOT)" ]; then \

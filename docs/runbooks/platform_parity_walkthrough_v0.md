@@ -181,19 +181,6 @@ make platform-oracle-stream-sort `
   - **Note:** default (single‑pass) writes a **single** `part-000000.parquet` per output.
     Set `STREAM_SORT_CHUNK_DAYS=1` (or higher) to produce **multiple** ordered parts.
 
-**Behavioural‑context + truth‑product stream views (8 outputs):**
-These are **not traffic**, but are required as **join surfaces / labels** in downstream planes.
-```
-make platform-oracle-stream-sort-context-truth `
-  ORACLE_PROFILE=config/platform/profiles/local_parity.yaml `
-  ORACLE_ENGINE_RUN_ROOT=$env:ORACLE_ENGINE_RUN_ROOT `
-  ORACLE_SCENARIO_ID=$env:ORACLE_SCENARIO_ID
-```
-Output list (default): `config/platform/wsp/context_truth_outputs_v0.yaml`.
-**Note (sort keys):** Some context/truth outputs do **not** carry `ts_utc`. In those cases the stream view uses
-the best available time/identity key: `s1_session_index_6B → session_start_utc`, `s4_event_labels_6B → flow_id,event_seq`,
-`s4_flow_truth_labels_6B → flow_id`, `s4_flow_bank_view_6B → flow_id`. The receipt records the exact `sort_keys`.
-
 **Run one output at a time (separate terminals if you want progress per dataset):**
 ```
 make platform-oracle-stream-sort `
@@ -212,12 +199,21 @@ If you need a fresh view, delete the prior output_id view or set a new base path
 **If you see `STREAM_VIEW_PARTIAL_EXISTS`:** a prior sort left partial parquet files. Delete the output_id stream view prefix and re‑run Section 4.3.
 **Important:** the stream view ID is derived from `ORACLE_ENGINE_RUN_ROOT` + `ORACLE_SCENARIO_ID` + `output_id`. Ensure `ORACLE_ENGINE_RUN_ROOT` matches the MinIO path you sorted (s3://...), not the local `runs/...` path.
 
+**Traffic stream selection (single‑stream default, dual available):**
+- Default traffic output list lives in `config/platform/wsp/traffic_outputs_v0.yaml` (now **fraud only**).
+- **Override at runtime** (no file edits):
+  - `WSP_TRAFFIC_OUTPUT_IDS="s3_event_stream_with_fraud_6B"` (or baseline)
+  - `WSP_TRAFFIC_OUTPUT_IDS_REF="config/platform/wsp/traffic_outputs_v0.yaml"`
+- For a new engine dataset, **sort both baseline + fraud streams** so you can switch later without re‑sorting:
+  - `make platform-oracle-stream-sort-traffic-both ORACLE_PROFILE=... ORACLE_ENGINE_RUN_ROOT=... ORACLE_SCENARIO_ID=...`
+
 **Resource guardrails (recommended):**
 - This step can be **CPU + disk heavy**. If you are on a laptop, set limits before running:
   - `STREAM_SORT_MEMORY_LIMIT="8GB"` (or lower if you see OOM)
   - `STREAM_SORT_MAX_TEMP_SIZE="50GiB"` (or a safe value for your free disk)
   - `STREAM_SORT_THREADS="4"` (fewer threads = lower memory pressure)
   - `STREAM_SORT_TEMP_DIR="temp/duckdb"` (keeps temp inside the repo)
+  - For very large outputs (e.g., `arrival_events_5B`), prefer `STREAM_SORT_THREADS="2"` and `STREAM_SORT_MEMORY_LIMIT="16GB"` if you have enough RAM.
 - If the run still stalls or the system becomes unstable, **stop the sort** and lower `THREADS` + `MEMORY_LIMIT`.
 
 ```

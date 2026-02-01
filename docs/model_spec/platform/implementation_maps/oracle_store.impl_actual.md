@@ -814,3 +814,69 @@ Context/truth stream‑view builds failed with `MISSING_TS_UTC` and later with s
   `.../stream_view/ts_utc/output_id=<output_id>/part-*.parquet`.
 - Raw vs sorted stats now match for the non‑`ts_utc` outputs.
 
+
+---
+
+## Entry: 2026-02-01 11:55:00 — Include `arrival_events_5B` in context/truth stream views
+
+### Trigger
+User requested `arrival_events_5B` be sorted and stored alongside the behavioural_context + truth_products stream views.
+
+### Decision trail (live)
+- `arrival_events_5B` is a **traffic primitive / join surface**, not a behavioural stream, but downstream joins still benefit from time‑sorted access.
+- Keep the same **stream‑view semantics** (pure reorder; no schema changes).
+- Add it to the **context+truth output list** so the existing helper can build/verify it without a one‑off command.
+
+### Implementation notes
+- Added `arrival_events_5B` to `config/platform/wsp/context_truth_outputs_v0.yaml`.
+- Runbook updated to state this explicitly for future operators.
+- Stream sort remains per‑output, idempotent via receipt check.
+
+### Validation / outcome
+- Stream view is expected at:
+  `.../stream_view/ts_utc/output_id=arrival_events_5B/part-*.parquet`
+- Receipt + manifest must match source locator digest for the engine run.
+
+
+---
+
+## Entry: 2026-02-01 16:05:00 — arrival_events_5B stream view built (memory tuning)
+
+### Trigger
+`arrival_events_5B` was added to the context/truth stream‑view list; first run hit DuckDB OOM during source stats with 8GB memory.
+
+### Decision trail (live)
+- Keep the dataset untouched; only change **resource knobs** to avoid OOM.
+- Lower threads to reduce concurrent memory pressure and raise memory limit to a safe ceiling.
+- Keep day‑chunking enabled to preserve spill‑to‑disk safety for large scans.
+
+### Implementation notes
+- Successful build with:
+  - `STREAM_SORT_THREADS=2`
+  - `STREAM_SORT_MEMORY_LIMIT=16GB`
+  - `STREAM_SORT_MAX_TEMP_SIZE=150GiB`
+  - `STREAM_SORT_CHUNK_DAYS=1`
+- Stream view created under:
+  `.../stream_view/ts_utc/output_id=arrival_events_5B/part-*.parquet`
+- Receipt/manifest written with stream_view_id `e99f9536f3019a868e4f2ef1ff27a47f809358d72da2da66d34ce4362d95f523`.
+
+### Outcome
+arrival_events_5B is now present in MinIO alongside the other eight context/truth stream views.
+
+
+---
+
+## Entry: 2026-02-01 12:15:00 — Helper target to sort both traffic streams
+
+### Trigger
+User requested a one‑line helper to sort baseline + fraud traffic streams without manually creating a list.
+
+### Decision
+- Add a dedicated YAML list for dual traffic.
+- Add a make target that sets `ORACLE_STREAM_OUTPUT_IDS_REF` to that list.
+
+### Implementation notes
+- New file: `config/platform/wsp/traffic_outputs_dual_v0.yaml`.
+- New make target: `platform-oracle-stream-sort-traffic-both`.
+- Runbook updated to reference the helper.
+
