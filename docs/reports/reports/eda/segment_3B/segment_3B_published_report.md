@@ -577,3 +577,67 @@ The dashed red baseline makes this explicit: most settlement countries sit **at 
 - **Settlement coherence is weak:** most edges sit thousands of km from settlement anchors and settlement‑country overlap is near the global baseline (~1%). Legal anchors do not shape the operational footprint.
 - **Classification is too binary:** one MCC + channel gate dominates, with uniform metadata and a single digest, so the virtual layer reads as a hard rule rather than a nuanced policy.
 - **Alias fidelity is correct but preserves flatness:** the alias tables accurately reproduce the uniform distribution, which means they do not add realism or variability.
+
+---
+
+## 19) Realism improvement roadmap (synthetic‑realism, no real policies)
+These changes target **credible synthetic realism** without requiring real‑world policy data. They focus on the specific failure modes observed in 3B.
+
+### 19.1 Edge catalogue heterogeneity (S2) — highest impact
+**Current issue:** every merchant has identical edge counts, identical country allocations, and uniform weights.  
+**Improve by introducing merchant‑level variability:**
+- **Edge budget variability:** draw edges per merchant from a distribution (e.g., log‑normal or Pareto) rather than a constant 500.  
+  - Example synthetic bands: small/local 50–200, mid‑tier 200–800, global 800–3,000.
+- **Country allocation variability:** assign a **merchant‑specific country mix** instead of a single global template.  
+  - Use **profile mixtures** (local/regional/global) with profile selection driven by MCC/channel.
+- **Weight distribution variability:** replace uniform weights with a **skewed distribution** (e.g., Dirichlet with merchant‑specific concentration) so each merchant has a realistic “few heavy + long tail” pattern.
+
+**Why it improves realism:** the CDN footprint becomes merchant‑specific, and routing becomes heterogeneous instead of uniform.
+
+---
+
+### 19.2 Settlement coherence (S1 ↔ S2) — high impact
+**Current issue:** edges are far from settlement anchors; settlement‑country overlap is near baseline.  
+**Improve by adding a settlement gravity bias:**
+- Assign a **non‑zero anchor share** to settlement country (e.g., 5–20%) for most merchants.
+- Use **distance‑decay weighting** so closer edges have higher probability, but allow long‑distance edges for global merchants.
+- Tie anchor strength to merchant profile (local merchants stronger anchor, global merchants weaker anchor).
+
+**Why it improves realism:** legal anchors start to influence operational geography without needing real policy data.
+
+---
+
+### 19.3 Virtual classification realism (S1) — high impact
+**Current issue:** virtual classification is binary and dominated by a single MCC/channel rule; metadata is uniform.  
+**Improve by adding multi‑factor, stochastic logic:**
+- Combine MCC, channel, and country as **soft influences**, not hard gates.
+- Use a **probabilistic model** (synthetic coefficients) to produce variability.
+- Emit **distinct reason codes and rule IDs** so decision evidence is not uniform.
+
+**Why it improves realism:** classification becomes explainable and varied rather than a single on/off switch.
+
+---
+
+### 19.4 Alias layer realism (S3) — moderate impact
+**Current issue:** alias tables are correct but encode flat weights.  
+**Improve by validating weight skew once S2 is fixed:**
+- Add checks on **top‑1 share**, **entropy**, **HHI**, and **weight variance** to ensure weights are non‑uniform.
+
+**Why it improves realism:** routing will sample realistic edge dominance patterns.
+
+---
+
+### 19.5 Validation policy expansion (S4/S5) — moderate impact
+**Current issue:** validation contracts don’t guard against uniformity.  
+**Improve by adding distributional tests:**
+- Minimum variance of `edge_count` per merchant  
+- Minimum variance of `edge_weight` per merchant  
+- Minimum settlement‑country overlap for a fraction of merchants  
+- Distance distribution checks (median, p90 bounds)
+
+**Why it improves realism:** prevents regression to flat outputs and makes realism enforceable.
+
+---
+
+**Expected impact on grade:**  
+Implementing 19.1–19.3 should move 3B from **D → C+/B‑**. Adding 19.4–19.5 can stabilize and push toward **B** for synthetic realism.
