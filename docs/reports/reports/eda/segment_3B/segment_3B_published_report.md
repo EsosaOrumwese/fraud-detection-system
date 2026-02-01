@@ -450,10 +450,10 @@ Almost every MCC‑channel cell is 0.00, with a single bright stripe at MCC 4812
 
 ---
 
-### 15.5 Settlement location density (hexbin)
-<img src="plots/B5_settlement_density_hexbin.png" width="560" alt="Settlement location density hexbin">
+### 15.5 Settlement locations (size/color = duplicates)
+<img src="plots/B5_settlement_density_hexbin.png" width="560" alt="Settlement locations with duplicates">
 
-The settlement anchors cluster strongly in Europe with a few isolated hubs elsewhere (e.g., Atlantic and parts of Asia). The clustering itself is plausible, but the spread is **narrow** relative to the global merchant universe. Given that virtual merchants can be globally distributed, this density map suggests settlement anchors are over‑concentrated in a handful of hubs, which aligns with the earlier statistical findings.
+This map shows each unique settlement coordinate, with **size and color encoding how many merchants share the same coordinate**. The clustering in Europe and a few offshore hubs is clear, while much of the globe is lightly covered. This makes the concentration issue visually obvious without the ambiguity of a hexbin: the settlement anchors are plausible in isolation, but the global spread is **narrow** relative to the merchant universe. The larger/bright points indicate small pockets of duplication rather than massive collapse.
 
 ---
 

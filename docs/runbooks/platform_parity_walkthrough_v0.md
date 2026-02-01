@@ -175,6 +175,8 @@ make platform-oracle-stream-sort `
 - Writes `_stream_view_manifest.json` + `_stream_sort_receipt.json` for **each output**.
 - Is **idempotent** per output: if a valid receipt exists, it skips; if it conflicts, it fails.
 - Uses `config/platform/wsp/traffic_outputs_v0.yaml` as the default output_id list unless overridden.
+  - **Note:** default (single‑pass) writes a **single** `part-000000.parquet` per output.
+    Set `STREAM_SORT_CHUNK_DAYS=1` (or higher) to produce **multiple** ordered parts.
 
 **Dependency note:** this step uses `duckdb` (declared in `pyproject.toml`). If missing, install deps before running.
 
@@ -193,11 +195,13 @@ If you need a fresh view, delete the prior output_id view or set a new base path
 - If the run still stalls or the system becomes unstable, **stop the sort** and lower `THREADS` + `MEMORY_LIMIT`.
 
 ```
-$env:STREAM_SORT_THREADS="4"
+$env:STREAM_SORT_THREADS="8"
 $env:STREAM_SORT_MEMORY_LIMIT="8GB"
-$env:STREAM_SORT_MAX_TEMP_SIZE="100GiB"
+$env:STREAM_SORT_MAX_TEMP_SIZE="120GiB"
 $env:STREAM_SORT_TEMP_DIR="temp\duckdb"
 $env:STREAM_SORT_PROGRESS_SECONDS="5"
+$env:STREAM_SORT_PRESERVE_ORDER="false"
+$env:STREAM_SORT_CHUNK_DAYS="1"
 ```
 
 **Verify stream view exists (MinIO):**
