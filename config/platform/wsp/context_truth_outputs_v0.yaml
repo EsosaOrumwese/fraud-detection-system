@@ -1,0 +1,10 @@
+version: "0.1.0"
+output_ids:
+  - s2_flow_anchor_baseline_6B
+  - s3_flow_anchor_with_fraud_6B
+  - s1_arrival_entities_6B
+  - s1_session_index_6B
+  - s4_event_labels_6B
+  - s4_case_timeline_6B
+  - s4_flow_truth_labels_6B
+  - s4_flow_bank_view_6B

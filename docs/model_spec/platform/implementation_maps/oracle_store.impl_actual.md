@@ -755,3 +755,62 @@ The engine interface doc now defines `traffic_primitives` vs `behavioural_stream
 ### Planned edits
 - Update `config/platform/wsp/traffic_outputs_v0.yaml` (source of default output_ids for stream sort) to the two behavioural streams.
 - Update runbook Section 4.3 to target those outputs when verifying stream view existence.
+
+---
+
+## Entry: 2026-02-01 08:35:00 — Behavioural-context + truth-product stream views (sequential, per-output)
+
+### Trigger
+The data‑engine interface now explicitly separates **behavioural_context** and **truth_products** outputs, and the user needs all eight of these datasets **time‑sorted by `ts_utc`** (same process used for behavioural streams) so downstream joins can operate over an ordered stream view. One output (`s1_session_index_6B`) is a single ~5GB parquet file, so the run must be memory‑safe and monitored.
+
+### Decision trail (live)
+- **Do not alter schemas.** Stream sort is a pure re‑ordering by `ts_utc` with deterministic tie‑breakers; no new columns, no hashing in the output, no column re‑arrangement.
+- **Per‑output, sequential runs.** Each output_id is sorted independently and written to its own stream view root; this avoids interleaving datasets and limits memory pressure.
+- **Explicit output list.** Add a dedicated YAML list for `behavioural_context` + `truth_products` so the operator can run these with a single command or one‑by‑one.
+- **CLI ergonomics.** Add a `--output-id` override to the stream‑sort CLI so each dataset can be run in its own terminal if desired (progress/ETA visibility without timeouts).
+- **Memory safety.** Keep the existing `STREAM_SORT_*` tuning knobs (threads, temp dir, max temp size, chunk days). For the 5GB single‑file case, day‑chunking is available if full‑range sort spikes memory.
+- **Idempotency / safety.** Preserve the existing receipt checks: if a receipt exists and matches the source locator digest, skip; if mismatch, fail fast (no partial overwrite).
+
+### Implementation notes
+- New output list file: `config/platform/wsp/context_truth_outputs_v0.yaml` with:
+  - behavioural_context: `s2_flow_anchor_baseline_6B`, `s3_flow_anchor_with_fraud_6B`, `s1_arrival_entities_6B`, `s1_session_index_6B`
+  - truth_products: `s4_event_labels_6B`, `s4_case_timeline_6B`, `s4_flow_truth_labels_6B`, `s4_flow_bank_view_6B`
+- CLI supports `--output-id` to run a single dataset without editing YAML.
+- Make targets updated to support sequential runs and per‑output invocation.
+
+### Validation / success criteria
+- For each output_id, stream view exists at:
+  `.../stream_view/ts_utc/output_id=<output_id>/part-*.parquet`
+- Receipt + manifest exist and match source locator digest.
+- Raw vs sorted stats match (row_count + hash sums + min/max ts).
+
+---
+
+## Entry: 2026-02-01 11:45:00 — Non‑`ts_utc` outputs: explicit sort keys + safe stats
+
+### Trigger
+Context/truth stream‑view builds failed with `MISSING_TS_UTC` and later with stats/min‑max type errors. Several outputs in the interface pack do **not** carry `ts_utc` even though the initial assumption was “all have ts_utc”. We must still provide a deterministic, lossless ordering for these outputs.
+
+### Decision trail (live)
+- **Keep the schema untouched.** Stream view is a re‑ordering only; no new columns, no computed hashes in the output.
+- **Choose explicit, existing keys** for outputs without `ts_utc`:
+  - `s1_session_index_6B` → `session_start_utc` (temporal proxy)
+  - `s4_event_labels_6B` → `flow_id, event_seq` (event ordering)
+  - `s4_flow_truth_labels_6B` → `flow_id`
+  - `s4_flow_bank_view_6B` → `flow_id`
+- **Make overrides explicit + auditable.** Implement a sort‑key override map and allow env overrides for emergencies.
+- **Disable day‑chunking for non‑time keys.** Chunking is time‑window based and would be incorrect for ID‑based keys; warn and fall back to single‑pass sort.
+- **Stats must remain deterministic.** Min/max for non‑datetime keys should be stringified to keep raw vs sorted comparable.
+
+### Implementation notes
+- Added `_sort_key_override()` + `_resolve_sort_keys()` in `src/fraud_detection/oracle_store/stream_sorter.py` and used the resolved keys in ORDER BY.
+- `_compute_stats()` now formats min/max as ISO for datetimes, otherwise `str(value)` to keep comparisons valid.
+- Chunking is auto‑disabled when primary sort key is not time‑based (`*_utc`).
+- CLI already records `sort_keys` in the receipt; that is the authoritative trace of the chosen ordering.
+
+### Validation / outcome
+- Sequential stream‑view builds completed for all eight context/truth outputs with receipts and manifests present.
+- Stream views remain **per‑output** under:
+  `.../stream_view/ts_utc/output_id=<output_id>/part-*.parquet`.
+- Raw vs sorted stats now match for the non‑`ts_utc` outputs.
+

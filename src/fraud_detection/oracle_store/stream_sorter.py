@@ -76,6 +76,46 @@ def compute_stream_view_id(
     return hashlib.sha256(data.encode("utf-8")).hexdigest()
 
 
+def _sort_key_override(output_id: str) -> list[str] | None:
+    override_keys = os.getenv("STREAM_SORT_KEYS")
+    if override_keys:
+        return [key.strip() for key in override_keys.split(",") if key.strip()]
+    override_time = os.getenv("STREAM_SORT_TIME_COLUMN")
+    if override_time:
+        return [override_time.strip()]
+    mapping = {
+        "s1_session_index_6B": ["session_start_utc"],
+        "s4_event_labels_6B": ["flow_id", "event_seq"],
+        "s4_flow_truth_labels_6B": ["flow_id"],
+        "s4_flow_bank_view_6B": ["flow_id"],
+    }
+    return mapping.get(output_id)
+
+
+def _resolve_sort_keys(output_id: str, columns: list[str]) -> list[str]:
+    override = _sort_key_override(output_id)
+    if override:
+        missing = [key for key in override if key not in columns]
+        if missing:
+            raise StreamSortError(f"MISSING_SORT_KEY:{output_id}:{missing}")
+        return override
+    if "ts_utc" in columns:
+        return ["ts_utc"]
+    if "session_start_utc" in columns:
+        return ["session_start_utc"]
+    raise StreamSortError(f"MISSING_TS_UTC:{output_id}")
+
+
+def _is_time_key(key: str) -> bool:
+    return key.endswith("_utc")
+
+
+def _sort_key_expr(key: str) -> str:
+    if _is_time_key(key):
+        return f"CAST({key} AS TIMESTAMP)"
+    return key
+
+
 def load_output_ids(ref_path: str) -> list[str]:
     payload = yaml.safe_load(Path(ref_path).read_text(encoding="utf-8"))
     if isinstance(payload, dict):
@@ -135,8 +175,12 @@ def build_stream_view(
         logger.info("Oracle stream view computing source stats")
         stats_start = time.monotonic()
         columns = _duckdb_columns(con, locators[0]["path"], include_file_meta=True)
-        raw_query = _build_raw_query_for_output_with_columns(columns, output_id, locators[0]["path"])
-        raw_stats = _compute_stats(con, raw_query)
+        sort_keys = _resolve_sort_keys(output_id, columns)
+        primary_sort_key = sort_keys[0]
+        raw_query = _build_raw_query_for_output_with_columns(
+            columns, output_id, locators[0]["path"], sort_keys
+        )
+        raw_stats = _compute_stats(con, raw_query, primary_sort_key)
         stats_seconds = time.monotonic() - stats_start
         progress_time = os.getenv("STREAM_SORT_PROGRESS_SECONDS")
         eta_seconds = None
@@ -157,6 +201,13 @@ def build_stream_view(
         logger.info("Oracle stream view sorting + writing partitions (single pass)")
         sort_start = time.monotonic()
         chunk_days = int(os.getenv("STREAM_SORT_CHUNK_DAYS", "0"))
+        if chunk_days > 0 and not _is_time_key(primary_sort_key):
+            logger.warning(
+                "Oracle stream view chunking disabled (non-time sort key) output_id=%s sort_key=%s",
+                output_id,
+                primary_sort_key,
+            )
+            chunk_days = 0
         if chunk_days > 0:
             logger.info("Oracle stream view chunked sort days=%s", chunk_days)
             _write_sorted_chunked(
@@ -168,9 +219,10 @@ def build_stream_view(
                 raw_stats.max_ts_utc,
                 chunk_days,
                 profile,
+                primary_sort_key,
             )
         else:
-            _write_sorted(con, raw_query, out_path, partition_granularity)
+            _write_sorted(con, raw_query, out_path, partition_granularity, sort_keys)
         sort_seconds = time.monotonic() - sort_start
         logger.info(
             "Oracle stream view sort completed seconds=%.1f%s",
@@ -187,8 +239,8 @@ def build_stream_view(
             existing = store.list_files("")
             logger.error("Oracle stream view output empty existing=%s", existing[:5])
             raise StreamSortError("STREAM_SORT_OUTPUT_EMPTY")
-        sorted_query = _build_stats_query_for_files(columns, parquet_files)
-        sorted_stats = _compute_stats_with_retry(profile, sorted_query)
+        sorted_query = _build_stats_query_for_files(columns, parquet_files, primary_sort_key)
+        sorted_stats = _compute_stats_with_retry(profile, sorted_query, primary_sort_key)
     finally:
         try:
             con.close()
@@ -209,7 +261,7 @@ def build_stream_view(
         stream_view_root=stream_view_root,
         output_id=output_id,
         output_ids=[output_id],
-        sort_keys=["ts_utc", "filename", "file_row_number"],
+        sort_keys=[*sort_keys, "filename", "file_row_number"],
         partition_granularity=partition_granularity,
         source_locator_digest=source_locator_digest,
         raw_stats=raw_stats,
@@ -482,11 +534,15 @@ def _duckdb_connect(profile: OracleProfile) -> "duckdb.DuckDBPyConnection":
 
 
 def _build_raw_query_for_output_with_columns(
-    columns: list[str], output_id: str, locator: str
+    columns: list[str],
+    output_id: str,
+    locator: str,
+    sort_keys: list[str],
 ) -> str:
     columns = [col for col in columns if col not in {"filename", "file_row_number"}]
-    if "ts_utc" not in columns:
-        raise StreamSortError(f"MISSING_TS_UTC:{output_id}")
+    missing = [key for key in sort_keys if key not in columns]
+    if missing:
+        raise StreamSortError(f"MISSING_SORT_KEY:{output_id}:{missing}")
     select_cols = ", ".join([f'"{col}"' for col in columns])
     hash_cols = ", ".join([f'"{col}"' for col in sorted(columns)])
     return (
@@ -512,10 +568,12 @@ def _duckdb_columns(
     return [row[0] for row in rows]
 
 
-def _build_stats_query_for_files(columns: list[str], files: list[str]) -> str:
+def _build_stats_query_for_files(
+    columns: list[str], files: list[str], primary_sort_key: str
+) -> str:
     columns = [col for col in columns if col not in {"filename", "file_row_number"}]
-    if "ts_utc" not in columns:
-        raise StreamSortError("MISSING_TS_UTC")
+    if primary_sort_key not in columns:
+        raise StreamSortError("MISSING_SORT_KEY")
     select_cols = ", ".join([f'"{col}"' for col in columns])
     hash_cols = ", ".join([f'"{col}"' for col in sorted(columns)])
     file_list_sql = _sql_string_list(files)
@@ -527,12 +585,17 @@ def _build_stats_query_for_files(columns: list[str], files: list[str]) -> str:
     )
 
 
-def _compute_stats(con: "duckdb.DuckDBPyConnection", query: str) -> StreamSortStats:
+def _compute_stats(
+    con: "duckdb.DuckDBPyConnection",
+    query: str,
+    primary_sort_key: str,
+) -> StreamSortStats:
+    key_expr = _sort_key_expr(primary_sort_key)
     stats_sql = f"""
         SELECT
             count(*)::BIGINT AS row_count,
-            min(CAST(ts_utc AS TIMESTAMP)) AS min_ts,
-            max(CAST(ts_utc AS TIMESTAMP)) AS max_ts,
+            min({key_expr}) AS min_ts,
+            max({key_expr}) AS max_ts,
             sum(CAST(payload_hash AS HUGEINT))::HUGEINT AS hash_sum,
             sum(CAST(payload_hash % 1000000007 AS BIGINT))::BIGINT AS hash_sum2
         FROM ({query})
@@ -540,23 +603,32 @@ def _compute_stats(con: "duckdb.DuckDBPyConnection", query: str) -> StreamSortSt
     row = con.execute(stats_sql).fetchone()
     if not row:
         raise StreamSortError("STREAM_SORT_STATS_EMPTY")
+    def _format_stat(value: Any) -> str | None:
+        if value is None:
+            return None
+        if isinstance(value, datetime):
+            return value.isoformat()
+        return str(value)
+
     return StreamSortStats(
         row_count=int(row[0]),
         hash_sum=str(row[3]),
         hash_sum2=str(row[4]),
-        min_ts_utc=row[1].isoformat() if row[1] else None,
-        max_ts_utc=row[2].isoformat() if row[2] else None,
+        min_ts_utc=_format_stat(row[1]),
+        max_ts_utc=_format_stat(row[2]),
     )
 
 
-def _compute_stats_with_retry(profile: OracleProfile, query: str) -> StreamSortStats:
+def _compute_stats_with_retry(
+    profile: OracleProfile, query: str, primary_sort_key: str
+) -> StreamSortStats:
     attempts = int(os.getenv("STREAM_SORT_STATS_RETRIES", "3"))
     delay_seconds = float(os.getenv("STREAM_SORT_STATS_RETRY_DELAY", "2.0"))
     last_exc: Exception | None = None
     for attempt in range(1, attempts + 1):
         con = _duckdb_connect(profile)
         try:
-            return _compute_stats(con, query)
+            return _compute_stats(con, query, primary_sort_key)
         except Exception as exc:
             last_exc = exc
             logger.warning(
@@ -576,12 +648,13 @@ def _compute_stats_with_retry(profile: OracleProfile, query: str) -> StreamSortS
     raise StreamSortError("STREAM_SORT_STATS_RETRY_FAILED")
 
 
-def _sort_expr(raw_query: str) -> str:
+def _sort_expr(raw_query: str, sort_keys: list[str]) -> str:
+    sort_cols = ", ".join([_sort_key_expr(key) for key in sort_keys])
     return f"""
         SELECT
             *
         FROM ({raw_query})
-        ORDER BY CAST(ts_utc AS TIMESTAMP), filename, file_row_number
+        ORDER BY {sort_cols}, filename, file_row_number
     """
 
 
@@ -590,10 +663,11 @@ def _write_sorted(
     raw_query: str,
     output_root: str,
     partition_granularity: str,
+    sort_keys: list[str],
 ) -> None:
     if partition_granularity not in {"flat", "none"}:
         raise StreamSortError("PARTITION_GRANULARITY_UNSUPPORTED")
-    sort_expr = _sort_expr(raw_query)
+    sort_expr = _sort_expr(raw_query, sort_keys)
     con.execute(
         "COPY ("
         f"SELECT * EXCLUDE(payload_hash, filename, file_row_number) FROM ({sort_expr}) "
@@ -610,6 +684,7 @@ def _write_sorted_chunked(
     max_ts_utc: str | None,
     chunk_days: int,
     profile: OracleProfile,
+    primary_sort_key: str,
 ) -> None:
     if partition_granularity not in {"flat", "none"}:
         raise StreamSortError("PARTITION_GRANULARITY_UNSUPPORTED")
@@ -631,10 +706,10 @@ def _write_sorted_chunked(
             "SELECT * EXCLUDE(payload_hash, filename, file_row_number) FROM ("
             "SELECT * FROM ("
             f"{raw_query}"
-            ") WHERE CAST(ts_utc AS TIMESTAMP) >= "
-            f"TIMESTAMP '{current.isoformat()}' AND CAST(ts_utc AS TIMESTAMP) < "
+            ") WHERE CAST(" + primary_sort_key + " AS TIMESTAMP) >= "
+            f"TIMESTAMP '{current.isoformat()}' AND CAST(" + primary_sort_key + " AS TIMESTAMP) < "
             f"TIMESTAMP '{chunk_end.isoformat()}' "
-            "ORDER BY CAST(ts_utc AS TIMESTAMP), filename, file_row_number"
+            "ORDER BY CAST(" + primary_sort_key + " AS TIMESTAMP), filename, file_row_number"
             ")"
         )
         if output_root.startswith("s3://"):

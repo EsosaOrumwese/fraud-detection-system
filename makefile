@@ -2907,7 +2907,13 @@ platform-oracle-stream-sort:
 		--engine-run-root "$(ORACLE_ENGINE_RUN_ROOT)" \
 		--scenario-id "$(ORACLE_SCENARIO_ID)" \
 		$(if $(ORACLE_STREAM_VIEW_ROOT),--stream-view-root "$(ORACLE_STREAM_VIEW_ROOT)",) \
-		$(if $(ORACLE_STREAM_OUTPUT_IDS_REF),--output-ids-ref "$(ORACLE_STREAM_OUTPUT_IDS_REF)",)
+		$(if $(ORACLE_STREAM_OUTPUT_IDS_REF),--output-ids-ref "$(ORACLE_STREAM_OUTPUT_IDS_REF)",) \
+		$(if $(ORACLE_STREAM_OUTPUT_ID),--output-id "$(ORACLE_STREAM_OUTPUT_ID)",)
+
+.PHONY: platform-oracle-stream-sort-context-truth
+platform-oracle-stream-sort-context-truth:
+	@ORACLE_STREAM_OUTPUT_IDS_REF="config/platform/wsp/context_truth_outputs_v0.yaml" \
+	$(MAKE) platform-oracle-stream-sort
 
 .PHONY: platform-oracle-check
 platform-oracle-check:

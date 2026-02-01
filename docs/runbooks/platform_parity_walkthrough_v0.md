@@ -181,6 +181,29 @@ make platform-oracle-stream-sort `
   - **Note:** default (single‑pass) writes a **single** `part-000000.parquet` per output.
     Set `STREAM_SORT_CHUNK_DAYS=1` (or higher) to produce **multiple** ordered parts.
 
+**Behavioural‑context + truth‑product stream views (8 outputs):**
+These are **not traffic**, but are required as **join surfaces / labels** in downstream planes.
+```
+make platform-oracle-stream-sort-context-truth `
+  ORACLE_PROFILE=config/platform/profiles/local_parity.yaml `
+  ORACLE_ENGINE_RUN_ROOT=$env:ORACLE_ENGINE_RUN_ROOT `
+  ORACLE_SCENARIO_ID=$env:ORACLE_SCENARIO_ID
+```
+Output list (default): `config/platform/wsp/context_truth_outputs_v0.yaml`.
+**Note (sort keys):** Some context/truth outputs do **not** carry `ts_utc`. In those cases the stream view uses
+the best available time/identity key: `s1_session_index_6B → session_start_utc`, `s4_event_labels_6B → flow_id,event_seq`,
+`s4_flow_truth_labels_6B → flow_id`, `s4_flow_bank_view_6B → flow_id`. The receipt records the exact `sort_keys`.
+
+**Run one output at a time (separate terminals if you want progress per dataset):**
+```
+make platform-oracle-stream-sort `
+  ORACLE_PROFILE=config/platform/profiles/local_parity.yaml `
+  ORACLE_ENGINE_RUN_ROOT=$env:ORACLE_ENGINE_RUN_ROOT `
+  ORACLE_SCENARIO_ID=$env:ORACLE_SCENARIO_ID `
+  ORACLE_STREAM_OUTPUT_ID=s1_session_index_6B
+```
+`s1_session_index_6B` is a **large single parquet**; consider `STREAM_SORT_CHUNK_DAYS=1` if memory spikes.
+
 **Dependency note:** this step uses `duckdb` (declared in `pyproject.toml`). If missing, install deps before running.
 
 `ORACLE_STREAM_VIEW_ROOT` should point to the **base** (`.../stream_view/ts_utc`); **WSP reads**:
