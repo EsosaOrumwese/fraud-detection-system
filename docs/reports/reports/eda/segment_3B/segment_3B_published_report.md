@@ -566,3 +566,14 @@ The dashed red baseline makes this explicit: most settlement countries sit **at 
 - The alias layer is **faithful but mirrors uniformity**: it preserves weights exactly, which means it also preserves the flat distribution.  
 - Cross‑layer coherence is **weak**: edges are mostly far from settlement anchors and rarely fall inside the settlement country.  
 - For realism, this undermines the intuition that a virtual merchant’s operational footprint should retain at least **some** bias toward its legal anchor.
+
+---
+
+## 18) Realism grade (overall)
+**Grade: D (borderline D+)**
+
+**Rationale**
+- **Edge catalogue realism fails outright:** every merchant is identical (500 edges, 117 countries, uniform weights), so there is no merchant‑level or geographic heterogeneity. This is the primary realism surface for 3B, and it is flat.
+- **Settlement coherence is weak:** most edges sit thousands of km from settlement anchors and settlement‑country overlap is near the global baseline (~1%). Legal anchors do not shape the operational footprint.
+- **Classification is too binary:** one MCC + channel gate dominates, with uniform metadata and a single digest, so the virtual layer reads as a hard rule rather than a nuanced policy.
+- **Alias fidelity is correct but preserves flatness:** the alias tables accurately reproduce the uniform distribution, which means they do not add realism or variability.

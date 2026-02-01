@@ -1,5 +1,5 @@
 # Platform Parity Walkthrough (v0) — Oracle Store → SR → WSP → IG → EB
-_As of 2026-01-30_
+_As of 2026-02-01_
 
 This runbook executes a **local_parity** end‑to‑end flow capped to **500,000 events**.
 It uses **MinIO (S3)** for the Oracle Store + platform artifacts, **LocalStack Kinesis** for control/event buses, and **Postgres** for IG/WSP state.
@@ -211,6 +211,9 @@ $env:STREAM_SORT_CHUNK_DAYS="1"
 ```
 aws --endpoint-url http://localhost:9000 s3 ls `
   $env:ORACLE_STREAM_VIEW_ROOT/output_id=s2_event_stream_baseline_6B/ | Select-Object -First 5
+
+aws --endpoint-url http://localhost:9000 s3 ls `
+  $env:ORACLE_STREAM_VIEW_ROOT/output_id=s3_event_stream_with_fraud_6B/ | Select-Object -First 5
 ```
 
 **Optional tuning knobs (set before running):**
@@ -264,6 +267,7 @@ aws --endpoint-url http://localhost:4566 kinesis create-stream --stream-name fp.
 ## 6) SR publishes READY (control bus)
 
 ```
+$env:SR_RUN_EQUIVALENCE_KEY="parity_$(Get-Date -Format 'yyyyMMddTHHmmssZ')"
 make platform-sr-run-reuse SR_WIRING=config/platform/sr/wiring_local_kinesis.yaml
 ```
 
@@ -313,6 +317,8 @@ $env:WSP_READY_MAX_EVENTS="500000"; make platform-wsp-ready-consumer-once WSP_PR
 Example: 200 events **per stream** (baseline + fraud):
 ```
 $env:WSP_MAX_EVENTS_PER_OUTPUT="200"
+$env:WSP_OUTPUT_CONCURRENCY="2"
+$env:WSP_READY_MAX_MESSAGES="1"
 make platform-wsp-ready-consumer-once WSP_PROFILE=config/platform/profiles/local_parity.yaml
 ```
 
@@ -452,7 +458,7 @@ make platform-parity-stack-down
 
 ---
 
-## 11) v0 green checklist (control & ingress)
+## 12) v0 green checklist (control & ingress)
 
 Use this list to confirm the **v0 control & ingress plane** is green.
 
