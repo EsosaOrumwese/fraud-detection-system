@@ -400,6 +400,14 @@ class IngestionGate:
             profile_id = "ig.partitioning.v0.traffic.baseline"
         elif class_name == "traffic_fraud":
             profile_id = "ig.partitioning.v0.traffic.fraud"
+        elif class_name == "context_arrival":
+            profile_id = "ig.partitioning.v0.context.arrival_events"
+        elif class_name == "context_arrival_entities":
+            profile_id = "ig.partitioning.v0.context.arrival_entities"
+        elif class_name == "context_flow_baseline":
+            profile_id = "ig.partitioning.v0.context.flow_anchor.baseline"
+        elif class_name == "context_flow_fraud":
+            profile_id = "ig.partitioning.v0.context.flow_anchor.fraud"
         else:
             profile_id = self.wiring.partitioning_profile_id
         profile = self.partitioning.get(profile_id)

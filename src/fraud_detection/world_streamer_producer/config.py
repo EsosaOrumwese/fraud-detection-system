@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+import logging
 import os
 import re
 from pathlib import Path
@@ -13,6 +14,7 @@ import yaml
 from ..platform_runtime import resolve_run_scoped_path
 
 _ENV_PATTERN = re.compile(r"\$\{([^}]+)\}")
+logger = logging.getLogger(__name__)
 
 
 def _resolve_env(value: str | None) -> str | None:
@@ -30,6 +32,7 @@ class PolicyProfile:
     require_gate_pass: bool
     stream_speedup: float
     traffic_output_ids: list[str]
+    context_output_ids: list[str]
 
 
 @dataclass(frozen=True)
@@ -94,6 +97,11 @@ class WspProfile:
         require_gate_pass = bool(policy.get("require_gate_pass", True))
         stream_speedup = float(policy.get("stream_speedup", 1.0))
         traffic_output_ids = _load_output_ids(policy, base_dir=path.parent)
+        context_output_ids = _load_context_output_ids(
+            policy,
+            base_dir=path.parent,
+            traffic_output_ids=traffic_output_ids,
+        )
 
         control_bus_kind = control_bus.get("kind", "file")
         control_bus_root = control_bus.get("root", "runs/fraud-platform/control_bus")
@@ -143,6 +151,7 @@ class WspProfile:
                 require_gate_pass=require_gate_pass,
                 stream_speedup=stream_speedup,
                 traffic_output_ids=traffic_output_ids,
+                context_output_ids=context_output_ids,
             ),
             wiring=WiringProfile(
                 profile_id=data["profile_id"],
@@ -200,6 +209,54 @@ def _load_output_ids(policy: dict[str, Any], *, base_dir: Path) -> list[str]:
     if not ref_path.is_absolute():
         if not ref_path.exists():
             ref_path = base_dir / ref_path
+    payload = yaml.safe_load(ref_path.read_text(encoding="utf-8"))
+    if isinstance(payload, dict):
+        items = payload.get("output_ids") or []
+    else:
+        items = payload or []
+    if not isinstance(items, list):
+        return []
+    return [str(item) for item in items if str(item).strip()]
+
+
+def _load_context_output_ids(
+    policy: dict[str, Any],
+    *,
+    base_dir: Path,
+    traffic_output_ids: list[str],
+) -> list[str]:
+    env_override = os.getenv("WSP_CONTEXT_OUTPUT_IDS")
+    if env_override:
+        return [item.strip() for item in env_override.split(",") if item.strip()]
+    env_ref = os.getenv("WSP_CONTEXT_OUTPUT_IDS_REF")
+    if env_ref:
+        ref_path = Path(env_ref)
+        if not ref_path.is_absolute():
+            if not ref_path.exists():
+                ref_path = base_dir / ref_path
+        payload = yaml.safe_load(ref_path.read_text(encoding="utf-8"))
+        if isinstance(payload, dict):
+            items = payload.get("output_ids") or []
+        else:
+            items = payload or []
+        if isinstance(items, list):
+            return [str(item) for item in items if str(item).strip()]
+    explicit = policy.get("context_output_ids")
+    if isinstance(explicit, list):
+        return [str(item) for item in explicit if str(item).strip()]
+    baseline_ref = _resolve_env(policy.get("context_output_ids_baseline_ref"))
+    default_ref = _resolve_env(policy.get("context_output_ids_ref"))
+    baseline_run = "s2_event_stream_baseline_6B" in traffic_output_ids
+    fraud_run = "s3_event_stream_with_fraud_6B" in traffic_output_ids
+    if baseline_run and fraud_run:
+        logger.warning("WSP traffic outputs include both baseline+fraud; defaulting context to fraud")
+    ref = baseline_ref if baseline_run and not fraud_run else default_ref
+    if not ref:
+        return []
+    ref_path = Path(ref)
+    if not ref_path.is_absolute():
+        if not ref_path.exists():
+            ref_path = base_dir / ref
     payload = yaml.safe_load(ref_path.read_text(encoding="utf-8"))
     if isinstance(payload, dict):
         items = payload.get("output_ids") or []

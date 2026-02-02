@@ -71,6 +71,7 @@ def _profile(
         require_gate_pass=True,
         stream_speedup=0.0,
         traffic_output_ids=output_ids,
+        context_output_ids=[],
     )
     wiring = WiringProfile(
         profile_id="local",

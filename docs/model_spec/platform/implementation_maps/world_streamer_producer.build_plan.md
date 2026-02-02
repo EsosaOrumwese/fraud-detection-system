@@ -2,10 +2,14 @@
 _As of 2026-01-28_
 
 ## Purpose
-Implement WSP as the **primary runtime producer** that replays sealed engine `business_traffic` into IG **directly from the Oracle Store** (engine‑rooted), preserving bank‑like temporal flow.
+Implement WSP as the **primary runtime producer** that replays sealed engine **behavioural traffic** into IG **directly from the Oracle Store** (engine‑rooted), preserving bank‑like temporal flow. Context/join surfaces are **deferred** to RTDL plane design (not streamed in v0 control & ingress).
 
-**Traffic policy (v0):** WSP emits **two concurrent behavioural channels** — `s2_event_stream_baseline_6B` and `s3_event_stream_with_fraud_6B`. These are **not interleaved** in v0.
-**Concurrency note:** WSP streams outputs **in parallel by default** when multiple traffic outputs are present (override via `WSP_OUTPUT_CONCURRENCY` if you need sequential debug runs).
+**Traffic policy (v0):** WSP emits **one behavioural stream per run**:
+- **Baseline:** `s2_event_stream_baseline_6B`
+- **Fraud (default):** `s3_event_stream_with_fraud_6B`
+
+Traffic outputs are **not interleaved** across modes (baseline vs fraud).  
+**Concurrency note:** WSP streams outputs **in parallel by default** when multiple outputs are present (override via `WSP_OUTPUT_CONCURRENCY` if you need sequential debug runs).
 
 ## Planning rules (binding)
 - **Progressive elaboration:** expand only the active phase into sections + DoD.
@@ -25,13 +29,13 @@ Implement WSP as the **primary runtime producer** that replays sealed engine `bu
 
 #### Phase 1.2 — StreamPlan derivation
 **DoD checklist:**
-- Derive StreamPlan from **policy allowlist** (`traffic_output_ids`).
+- Derive **traffic outputs** from policy allowlist (`traffic_output_ids`).
 - Output IDs must exist in catalogue; unknown outputs are rejected.
 
 #### Phase 1.3 — Oracle Store by‑ref reads
 **DoD checklist:**
 - Use catalogue path templates + world tokens to build locators (no scanning).
-- Enforce “no PASS → no read” using gate pass flags from engine gate map.
+- Enforce “no PASS → no read” using gate pass flags from engine gate map (traffic outputs).
 
 #### Phase 1.4 — Canonical envelope framing
 **DoD checklist:**
@@ -150,6 +154,7 @@ Implement WSP as the **primary runtime producer** that replays sealed engine `bu
 
 ### v0 green summary (WSP)
 - READY consumption via Kinesis control bus in parity mode.
-- Stream‑view only read path with per‑output receipts/manifest validation.
+- Stream‑view only read path with per‑output receipts/manifest validation (traffic only).
 - Push‑only delivery to IG; WSP does not publish to EB.
+- Traffic mode is single‑stream per run (baseline **or** fraud).
 - Capped smoke runs validated end‑to‑end with receipts + EB offsets present.

@@ -880,3 +880,31 @@ User requested a one‑line helper to sort baseline + fraud traffic streams with
 - New make target: `platform-oracle-stream-sort-traffic-both`.
 - Runbook updated to reference the helper.
 
+
+## Entry: 2026-02-02 09:07:18 — Stream-sort alignment for context topics (fraud default)
+
+Context
+- We now require stream views for **context topics** (arrival events/entities + flow anchors), with fraud as the default run mode.
+- The previous `context_truth_outputs_v0.yaml` included truth products (s4_*) and is no longer aligned with the control & ingress contract.
+
+Decisions
+- Keep **fraud as default**; baseline context is opt‑in per run.
+- Create explicit output lists for fraud vs baseline context stream views.
+- Provide dedicated Make targets to sort the correct context set for each run mode.
+
+Changes
+- `config/platform/wsp/context_truth_outputs_v0.yaml` trimmed to **context only** (arrival events/entities + flow anchors).
+- New lists:
+  - `config/platform/wsp/context_fraud_outputs_v0.yaml`
+  - `config/platform/wsp/context_baseline_outputs_v0.yaml`
+- New make targets:
+  - `platform-oracle-stream-sort-context-fraud`
+  - `platform-oracle-stream-sort-context-baseline`
+- Runbook updated with fraud‑default + baseline‑only context sort instructions.
+
+Files touched
+- `config/platform/wsp/context_truth_outputs_v0.yaml`
+- `config/platform/wsp/context_fraud_outputs_v0.yaml`
+- `config/platform/wsp/context_baseline_outputs_v0.yaml`
+- `makefile`
+- `docs/runbooks/platform_parity_walkthrough_v0.md`

@@ -42,7 +42,7 @@ Provide a progressive, component‑scoped build plan for the Ingestion Gate (IG)
 **Goal:** stamp partition key deterministically and append to EB.
 
 **DoD checklist:**
-- `partitioning_profile_id` is applied per stream class.
+- `partitioning_profile_id` is applied per stream class (traffic + control + audit).
 - EB ACK implies durable append with `(stream, partition, offset)`.
 - ADMITTED receipt is emitted only when EB coordinates exist.
 
@@ -263,4 +263,4 @@ _This alignment supersedes the legacy pull‑ingest posture. IG becomes **push�
 - Phase 8: complete (pull/READY implementation removed; config fails closed).
 - Phase 9: complete (push‑only validation; WSP→IG local parity smoke executed).
 
-**v0 green summary (IG):** push‑only ingestion, run‑scoped receipts/health/quarantine in MinIO, EB publish refs recorded, local parity smoke confirmed.
+**v0 green summary (IG):** push‑only ingestion, run‑scoped receipts/health/quarantine in MinIO, EB publish refs recorded for traffic topics, local parity smoke confirmed.

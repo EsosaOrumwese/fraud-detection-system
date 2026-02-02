@@ -2915,6 +2915,16 @@ platform-oracle-stream-sort-context-truth:
 	@ORACLE_STREAM_OUTPUT_IDS_REF="config/platform/wsp/context_truth_outputs_v0.yaml" \
 	$(MAKE) platform-oracle-stream-sort
 
+.PHONY: platform-oracle-stream-sort-context-fraud
+platform-oracle-stream-sort-context-fraud:
+	@ORACLE_STREAM_OUTPUT_IDS_REF="config/platform/wsp/context_fraud_outputs_v0.yaml" \
+	$(MAKE) platform-oracle-stream-sort
+
+.PHONY: platform-oracle-stream-sort-context-baseline
+platform-oracle-stream-sort-context-baseline:
+	@ORACLE_STREAM_OUTPUT_IDS_REF="config/platform/wsp/context_baseline_outputs_v0.yaml" \
+	$(MAKE) platform-oracle-stream-sort
+
 .PHONY: platform-oracle-stream-sort-traffic-both
 platform-oracle-stream-sort-traffic-both:
 	@ORACLE_STREAM_OUTPUT_IDS_REF="config/platform/wsp/traffic_outputs_dual_v0.yaml" \

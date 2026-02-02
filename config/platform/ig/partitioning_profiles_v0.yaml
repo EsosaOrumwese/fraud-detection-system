@@ -54,3 +54,45 @@ profiles:
       - event_id
       - manifest_fingerprint
     hash_algo: sha256
+
+  ig.partitioning.v0.context.arrival_events:
+    description: >
+      Deterministic routing for arrival skeleton context events.
+    stream: fp.bus.context.arrival_events.v1
+    key_precedence:
+      - payload.merchant_id
+      - payload.arrival_seq
+      - event_id
+    hash_algo: sha256
+
+  ig.partitioning.v0.context.arrival_entities:
+    description: >
+      Deterministic routing for arrival entity attachments.
+    stream: fp.bus.context.arrival_entities.v1
+    key_precedence:
+      - payload.merchant_id
+      - payload.arrival_seq
+      - event_id
+    hash_algo: sha256
+
+  ig.partitioning.v0.context.flow_anchor.baseline:
+    description: >
+      Deterministic routing for baseline flow anchor context.
+    stream: fp.bus.context.flow_anchor.baseline.v1
+    key_precedence:
+      - payload.flow_id
+      - payload.merchant_id
+      - payload.arrival_seq
+      - event_id
+    hash_algo: sha256
+
+  ig.partitioning.v0.context.flow_anchor.fraud:
+    description: >
+      Deterministic routing for post-overlay flow anchor context.
+    stream: fp.bus.context.flow_anchor.fraud.v1
+    key_precedence:
+      - payload.flow_id
+      - payload.merchant_id
+      - payload.arrival_seq
+      - event_id
+    hash_algo: sha256

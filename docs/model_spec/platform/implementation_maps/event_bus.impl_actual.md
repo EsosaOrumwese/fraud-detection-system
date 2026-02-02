@@ -643,3 +643,43 @@ Platform traffic policy changed to dual behavioural streams with distinct EB cha
 ### Implementation notes
 - LocalStack bootstrap creates both streams.
 - IG publishes to stream = partitioning profile `stream`.
+
+---
+
+## Entry: 2026-02-02 19:36:00 — Context topics added to EB parity streams
+
+### Trigger
+Control & ingress plane now streams **behavioural_context** outputs as EB topics (arrival + flow anchors) so RTDL can hydrate state without preloading Oracle.
+
+### Decision
+Add dedicated EB topics for context outputs; keep EB adapter unchanged (topic name → stream name in Kinesis).
+
+### Implementation notes
+- LocalStack bootstrap now creates:
+  - `fp.bus.context.arrival_events.v1`
+  - `fp.bus.context.arrival_entities.v1`
+  - `fp.bus.context.flow_anchor.baseline.v1`
+  - `fp.bus.context.flow_anchor.fraud.v1`
+- IG routing uses partitioning profiles to publish to those streams.
+
+### Files touched (no secrets)
+- `infra/local/docker-compose.platform-parity.yaml`
+- `config/platform/ig/partitioning_profiles_v0.yaml`
+
+---
+
+## Entry: 2026-02-02 19:55:44 — EB parity streams narrowed to traffic‑only
+
+### Trigger
+Control & ingress scope reverted to **traffic‑only** streaming; context topics deferred to RTDL Phase 4.
+
+### Decision
+Keep baseline/fraud traffic channels and audit/control streams in parity; remove context stream provisioning to keep local parity aligned with v0 flow.
+
+### Implementation notes
+- LocalStack bootstrap now creates only:
+  - `fp.bus.traffic.baseline.v1`
+  - `fp.bus.traffic.fraud.v1`
+  - `fp.bus.audit.v1`
+  - `sr-control-bus`
+- Context stream names remain reserved in partitioning profiles but are **not used** in v0 parity runs.

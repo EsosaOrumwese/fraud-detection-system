@@ -141,12 +141,12 @@ Provide a platform-wide, production-shaped build plan for v0 that aligns compone
 
 **DoD checklist:**
 - WSP consumes READY + `run_facts_view` and derives a StreamPlan (no “latest” scans).
-- Only `business_traffic` is streamed; other roles remain by‑ref (oracle‑only).
+- `business_traffic` outputs are streamed; truth products remain oracle‑only.
 - Canonical envelope framing is enforced; event identity is stable and compatible with legacy pull framing where required.
 - **Speedup factor is available in all envs** as a policy knob (semantics preserved across speeds).
 - WSP never writes directly to EB; IG remains the only writer.
-- WSP emits **dual traffic channels** (baseline + fraud) and streams **per‑output** from the stream‑view.
-- WSP streams outputs **concurrently by default** when multiple traffic outputs are present (can be overridden for debug).
+- WSP emits **single‑mode traffic** (baseline **or** fraud) and streams **per‑output** from the stream‑view.
+- WSP streams outputs **concurrently by default** when multiple outputs are present (baseline vs fraud); override for debug.
 
 #### Phase 2.3 — WSP ↔ IG smoke path
 **Goal:** prove WSP → IG admission under rails before refactoring SR/IG for full alignment.
@@ -187,11 +187,6 @@ Provide a platform-wide, production-shaped build plan for v0 that aligns compone
 - Replay by offsets works with partition‑only ordering semantics.
 - Idempotent publish and dedupe semantics are validated under retry.
 - Traffic streams are provisioned and writable (`fp.bus.traffic.fraud.v1` default; `fp.bus.traffic.baseline.v1` when baseline mode is enabled).
-- Context streams are provisioned and writable:
-  - `fp.bus.context.arrival_events.v1`
-  - `fp.bus.context.arrival_entities.v1`
-  - `fp.bus.context.flow_anchor_fraud.v1` (fraud mode)
-  - `fp.bus.context.flow_anchor_baseline.v1` (baseline mode)
 
 #### Phase 3.4 — Control & Ingress E2E proof
 **Goal:** demonstrate end‑to‑end READY → WSP stream → IG admission → EB replay under rails.
@@ -199,21 +194,20 @@ Provide a platform-wide, production-shaped build plan for v0 that aligns compone
 **DoD checklist:**
 - SR READY → WSP streams → IG admits → EB replay works for pinned run.
 - Truth ownership enforced: SR readiness authority; IG admission authority; EB offsets/replay only.
-- Both traffic channels receive events in the same parity run (baseline + fraud).
+- The selected traffic channel receives events for the run (baseline or fraud).
 
 **Status:** complete (v0 green).
-**Meaning of “green”:** a parity run produces SR READY, WSP streams **both** traffic channels from stream view, IG writes run‑scoped receipts, and EB contains readable offsets for **both** traffic streams under the same platform run id.
+**Meaning of “green”:** a parity run produces SR READY, WSP streams the **selected** traffic channel from stream view, IG writes run‑scoped receipts, and EB contains readable offsets for traffic streams under the same platform run id.
 
-#### Phase 3 narrative flow (control & ingress with context streams)
-**Intent:** keep Oracle Store offline, push only time‑safe context + traffic into EB, and make RTDL joins possible without preloading the future.
+#### Phase 3 narrative flow (control & ingress, traffic‑only)
+**Intent:** keep Oracle Store offline, push only selected traffic into EB, and defer RTDL join surfaces to Phase 4 design.
 
 **Narrative flow (descriptive):**  
 **Oracle Store** remains the immutable, offline truth. **SR** validates gates and emits READY with `run_facts_view` pins only when evidence passes.  
-**WSP** consumes READY and emits two stream classes into IG:  
-- **Traffic:** `s3_event_stream_with_fraud_6B` (default) and optionally `s2_event_stream_baseline_6B`.  
-- **Context (time‑safe):** `arrival_events_5B`, `s1_arrival_entities_6B`, and `s3_flow_anchor_with_fraud_6B` (plus `s2_flow_anchor_baseline_6B` only when baseline runs are enabled).  
+**WSP** consumes READY and emits a **single traffic stream** into IG:  
+- **Traffic:** `s3_event_stream_with_fraud_6B` (default) or `s2_event_stream_baseline_6B` (baseline mode).  
 **IG** enforces canonical envelope + no‑PASS‑no‑read, then publishes admitted events into **EB**.  
-**EB** is the durable log; RTDL consumes **traffic + context topics** and builds bounded state for joins. No RTDL component reads Oracle Store directly.
+**EB** is the durable log; RTDL consumes the **traffic topic** and builds bounded state for joins in Phase 4. No RTDL component reads Oracle Store directly.
 
 ### Phase 4 — Real-time decision loop (IEG/OFP/DL/DF/AL/DLA)
 **Intent:** turn admitted traffic into decisions and outcomes with correct provenance and audit.
@@ -248,8 +242,8 @@ Local‑parity uses the *same service classes* as dev/prod (S3/Kinesis/Postgres)
 - **Event Bus emits immediately (durable log, not a batch buffer).**  
   When IG admits a record, it publishes to EB (Kinesis/Kafka). EB assigns an offset/sequence and makes the event available **right away** to any consumer. RTDL can read live or replay from a past offset. EB ordering is per‑partition/shard; we do not assume global total order.
 
-- **Context streams feed RTDL join state (no preloading).**  
-  RTDL consumes **context topics** (arrival events/entities + flow anchors) and incrementally builds join state in its own Postgres store. This replaces preloading: the platform only has context once it has streamed in. Missing context triggers explicit degrade, not silent fallback.
+- **Join surfaces are built in RTDL (no preloading).**  
+  v0 control & ingress emits **traffic only**; RTDL Phase 4 will define how join surfaces are derived (feature/graph projection, caches, or additional topics). Missing context must trigger explicit degrade, not silent fallback.
 
 - **IEG projects the world with explicit watermarks.**  
   IEG consumes EB partitions, updates its projection (graph/state), and advances a **graph_version / watermark**. Late or out‑of‑order events are handled by policy (e.g., allowed lateness); the watermark makes the snapshot boundary explicit. The projection is the “world” that every decision will reference.

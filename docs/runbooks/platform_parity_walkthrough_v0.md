@@ -10,9 +10,9 @@ It uses **MinIO (S3)** for the Oracle Store + platform artifacts, **LocalStack K
 
 **Required local stack (parity):**
 - MinIO (S3‑compatible) for `oracle-store` and `fraud-platform` buckets
-- LocalStack Kinesis (4 streams total):
+- LocalStack Kinesis (traffic + audit):
   - Control: `sr-control-bus`
-  - Traffic (dual‑stream): `fp.bus.traffic.baseline.v1`, `fp.bus.traffic.fraud.v1`
+  - Traffic: `fp.bus.traffic.fraud.v1` (baseline optional)
   - Audit: `fp.bus.audit.v1`
 - Postgres for IG admission DB + WSP checkpoints
 
@@ -172,7 +172,7 @@ make platform-oracle-stream-sort `
 **What this does:**
 - **Why required:** engine outputs are not guaranteed to be globally `ts_utc`‑sorted; WSP consumes a **stream view** that is strictly ordered by `ts_utc`.
 - Reads the **engine outputs** from MinIO.
-- Builds **one sorted dataset per output_id** (traffic streams only) under:
+- Builds **one sorted dataset per output_id** (traffic, based on output list) under:
   `.../stream_view/ts_utc/output_id=<output_id>/part-*.parquet`
 - Sorts **within each output** by `ts_utc` with tie‑breakers `filename` + `file_row_number`.
 - Writes `_stream_view_manifest.json` + `_stream_sort_receipt.json` for **each output**.
@@ -187,9 +187,9 @@ make platform-oracle-stream-sort `
   ORACLE_PROFILE=config/platform/profiles/local_parity.yaml `
   ORACLE_ENGINE_RUN_ROOT=$env:ORACLE_ENGINE_RUN_ROOT `
   ORACLE_SCENARIO_ID=$env:ORACLE_SCENARIO_ID `
-  ORACLE_STREAM_OUTPUT_ID=s1_session_index_6B
+  ORACLE_STREAM_OUTPUT_ID=s3_event_stream_with_fraud_6B
 ```
-`s1_session_index_6B` is a **large single parquet**; consider `STREAM_SORT_CHUNK_DAYS=1` if memory spikes.
+For large outputs, consider `STREAM_SORT_CHUNK_DAYS=1` if memory spikes.
 
 **Dependency note:** this step uses `duckdb` (declared in `pyproject.toml`). If missing, install deps before running.
 
@@ -204,6 +204,7 @@ If you need a fresh view, delete the prior output_id view or set a new base path
 - **Override at runtime** (no file edits):
   - `WSP_TRAFFIC_OUTPUT_IDS="s3_event_stream_with_fraud_6B"` (or baseline)
   - `WSP_TRAFFIC_OUTPUT_IDS_REF="config/platform/wsp/traffic_outputs_v0.yaml"`
+  - `WSP_TRAFFIC_OUTPUT_IDS_REF="config/platform/wsp/traffic_outputs_baseline_v0.yaml"`
 - For a new engine dataset, **sort both baseline + fraud streams** so you can switch later without re‑sorting:
   - `make platform-oracle-stream-sort-traffic-both ORACLE_PROFILE=... ORACLE_ENGINE_RUN_ROOT=... ORACLE_SCENARIO_ID=...`
 
@@ -315,9 +316,10 @@ docker exec local-postgres-1 psql -U platform -d platform -c "delete from sr_run
 
 ---
 
-## 7) WSP consumes READY and streams events (dual‑stream)
+## 7) WSP consumes READY and streams events (traffic only)
 
-**Traffic policy (dual-stream):** WSP emits **two concurrent traffic channels** only: `s2_event_stream_baseline_6B` and `s3_event_stream_with_fraud_6B`. These are **not interleaved** in v0 (separate EB streams).
+**Traffic policy (single‑mode):** WSP emits **one traffic stream per run** (baseline **or** fraud; default is fraud).  
+Traffic outputs are **not interleaved** across modes; only the selected stream is produced.
 
 ```
 $env:WSP_READY_MAX_EVENTS="500000"; make platform-wsp-ready-consumer-once WSP_PROFILE=config/platform/profiles/local_parity.yaml
@@ -329,11 +331,11 @@ $env:WSP_READY_MAX_EVENTS="500000"; make platform-wsp-ready-consumer-once WSP_PR
 - IG admits and publishes to EB (Kinesis)
 
 **Concurrency + caps (important):**
-- WSP streams **both outputs concurrently** when multiple traffic outputs exist (default).
+- WSP streams **multiple outputs concurrently** when more than one output exists (default).
 - `WSP_READY_MAX_EVENTS` is treated **per output** in concurrent mode.
 - If you want an explicit per‑output cap, set `WSP_MAX_EVENTS_PER_OUTPUT` (example below).
 
-Example: 200 events **per stream** (baseline + fraud):
+Example: 200 events **per output** (traffic):
 ```
 $env:WSP_MAX_EVENTS_PER_OUTPUT="200"
 $env:WSP_OUTPUT_CONCURRENCY="2"
@@ -412,7 +414,7 @@ aws --endpoint-url http://localhost:9000 s3 cp s3://fraud-platform/<platform_run
 
 **Expected:** receipt contains an `eb_ref` with `offset_kind: kinesis_sequence`.
 
-**Quick IG check (baseline + fraud receipts):**
+**Quick IG check (traffic receipts):**
 ```
 aws --endpoint-url http://localhost:9000 s3 ls s3://fraud-platform/<platform_run_id>/ig/receipts/ | Select-Object -First 5
 
@@ -441,7 +443,7 @@ $iterator = (aws --endpoint-url http://localhost:4566 kinesis get-shard-iterator
 
 Repeat with `--stream-name fp.bus.traffic.fraud.v1` to inspect the post‑overlay channel.
 
-**Quick dual‑stream check (both channels):**
+**Quick traffic channel check (baseline/fraud):**
 ```
 $baseline = (aws --endpoint-url http://localhost:4566 kinesis get-shard-iterator `
   --stream-name fp.bus.traffic.baseline.v1 `
@@ -494,7 +496,7 @@ Use this list to confirm the **v0 control & ingress plane** is green.
 - [ ] `platform.log` includes IG summary lines (admit/duplicate/quarantine) after traffic.
 
 **Event bus offsets**
-- [ ] LocalStack streams `fp.bus.traffic.baseline.v1` and `fp.bus.traffic.fraud.v1` return records.
+- [ ] LocalStack streams `fp.bus.traffic.baseline.v1` / `fp.bus.traffic.fraud.v1` return records (traffic).
 - [ ] IG receipts include `eb_ref` with `offset_kind=kinesis_sequence`.
 
 **Health posture**

@@ -19,3 +19,5 @@ Use the following `partitioning_profile_id` values by stream class:
 | traffic (legacy) | `fp.bus.traffic.v1` | `ig.partitioning.v0.traffic` |
 | control | `fp.bus.control.v1` | `ig.partitioning.v0.control` |
 | audit | `fp.bus.audit.v1` | `ig.partitioning.v0.audit` |
+
+**Note:** context streams/profiles are reserved for RTDL Phase 4 and are **not active** in v0 control & ingress runs.

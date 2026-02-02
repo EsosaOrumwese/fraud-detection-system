@@ -2218,3 +2218,58 @@ Update `config/platform/ig/schema_policy_v0.yaml` to use:
 
 ### Expected outcome
 IG validates envelopes for both behavioural streams without internal schema resolution errors.
+
+---
+
+## Entry: 2026-02-02 19:34:00 — IG routing for behavioural_context topics
+
+### Trigger
+Control & ingress plane now streams **behavioural_context** outputs (arrival + flow anchors) as EB topics so RTDL can build state without preloading the oracle.
+
+### Decision
+- Treat context outputs as **first‑class stream classes** (separate EB topics, not traffic).
+- Keep ContextPins requirements aligned with traffic pins (manifest_fingerprint, parameter_hash, seed, scenario_id, run_id).
+- Publish each context output to its own stream for deterministic routing and independent retention.
+
+### Changes (config + code)
+- **Class map:** added context classes and event_type mappings:
+  - `arrival_events_5B` → `context_arrival`
+  - `s1_arrival_entities_6B` → `context_arrival_entities`
+  - `s2_flow_anchor_baseline_6B` → `context_flow_baseline`
+  - `s3_flow_anchor_with_fraud_6B` → `context_flow_fraud`
+- **Schema policy:** added payload schema refs for each context output:
+- `schemas.5B.yaml#/egress/s4_arrival_events_5B/items`
+- `schemas.6B.yaml#/s1/properties/arrival_entities_6B`
+- `schemas.6B.yaml#/s2/properties/flow_anchor_baseline_6B`
+- `schemas.6B.yaml#/s3/properties/flow_anchor_with_fraud_6B`
+- **Partitioning profiles:** added:
+  - `ig.partitioning.v0.context.arrival_events` → `fp.bus.context.arrival_events.v1`
+  - `ig.partitioning.v0.context.arrival_entities` → `fp.bus.context.arrival_entities.v1`
+  - `ig.partitioning.v0.context.flow_anchor.baseline` → `fp.bus.context.flow_anchor.baseline.v1`
+  - `ig.partitioning.v0.context.flow_anchor.fraud` → `fp.bus.context.flow_anchor.fraud.v1`
+- **Admission routing:** `_partitioning()` maps each context class to its profile id.
+
+### Files touched (no secrets)
+- `config/platform/ig/class_map_v0.yaml`
+- `config/platform/ig/schema_policy_v0.yaml`
+- `config/platform/ig/partitioning_profiles_v0.yaml`
+- `src/fraud_detection/ingestion_gate/admission.py`
+
+### Validation notes
+- Context outputs are admitted with canonical envelope; IG publishes to EB using the profile stream name.
+- EB still does no validation; IG remains the sole trust boundary.
+
+---
+
+## Entry: 2026-02-02 19:55:44 — IG traffic‑only v0 runs (context deferred)
+
+### Trigger
+Control & ingress scope narrowed to **traffic‑only** streaming; context/truth surfaces deferred to RTDL Phase 4.
+
+### Decision trail (live)
+- Keep existing class/partitioning definitions for future RTDL work, but **do not use them by default** in parity/dev/prod profiles.
+- Ensure v0 runs only publish to **traffic baseline/fraud topics**, with a single traffic mode per run.
+
+### Implementation notes
+- Profiles no longer provide context output refs, so IG receives traffic events only in v0 runs.
+- Runbook and build plan updated to treat context streams as **deferred**; traffic topics remain required and provisioned.

@@ -61,9 +61,9 @@ Notes:
 - `policy_rev` must be stamped into receipts/decisions/outcomes where applicable.
 - `partitioning_profile_id` is chosen by IG policy (mapped by stream class); EB never infers partitioning.
 - `partitioning_profiles_ref` anchors the versioned profile set used by IG.
-- `traffic_output_ids_ref` defines the **WSP business_traffic allowlist** (engine output_ids eligible to stream).
-- v0 default traffic streams are **behavioural** and **concurrent**: `s2_event_stream_baseline_6B` and `s3_event_stream_with_fraud_6B`.
-- `arrival_events_5B` remains a join surface (oracle-only) and is **not** emitted to the traffic bus by default.
+- `traffic_output_ids_ref` defines the **WSP behavioural traffic allowlist** (engine output_ids eligible to stream).
+- v0 traffic is **single‑mode per run** (baseline or fraud). Default is **fraud** (`s3_event_stream_with_fraud_6B`). Use `WSP_TRAFFIC_OUTPUT_IDS_REF` (e.g., `config/platform/wsp/traffic_outputs_baseline_v0.yaml`) to switch to baseline.
+- Behavioural context streams are **deferred** for RTDL; v0 parity focuses on **traffic only**.
 - Wiring endpoints are placeholders; actual values come from env/secret store.
 - `${VAR}` placeholders are resolved from environment variables at load time.
 - `control_bus` wiring is used by the WSP control plane (SR → WSP); IG ignores it in streaming-only v0.

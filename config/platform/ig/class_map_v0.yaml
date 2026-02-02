@@ -21,6 +21,34 @@ classes:
       - seed
       - scenario_id
       - run_id
+  context_arrival:
+    required_pins:
+      - manifest_fingerprint
+      - parameter_hash
+      - seed
+      - scenario_id
+      - run_id
+  context_arrival_entities:
+    required_pins:
+      - manifest_fingerprint
+      - parameter_hash
+      - seed
+      - scenario_id
+      - run_id
+  context_flow_baseline:
+    required_pins:
+      - manifest_fingerprint
+      - parameter_hash
+      - seed
+      - scenario_id
+      - run_id
+  context_flow_fraud:
+    required_pins:
+      - manifest_fingerprint
+      - parameter_hash
+      - seed
+      - scenario_id
+      - run_id
   control:
     required_pins:
       - manifest_fingerprint
@@ -31,6 +59,10 @@ classes:
 event_types:
   s2_event_stream_baseline_6B: traffic_baseline
   s3_event_stream_with_fraud_6B: traffic_fraud
+  arrival_events_5B: context_arrival
+  s1_arrival_entities_6B: context_arrival_entities
+  s2_flow_anchor_baseline_6B: context_flow_baseline
+  s3_flow_anchor_with_fraud_6B: context_flow_fraud
   ig.policy.activation: audit
   ig.quarantine.spike: audit
   ig.pull.run: audit

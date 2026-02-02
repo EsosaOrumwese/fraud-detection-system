@@ -58,6 +58,44 @@ User said “Proceed with all 3”: (1) add Oracle/WSP fields to platform profil
 
 ### Live decision trail (notes as I go)
 - **Profiles as the primary surface:** we already use platform profiles for IG; adding WSP/Oracle keys there keeps one canonical profile without introducing new ad‑hoc config files.
+
+---
+
+## Entry: 2026-02-02 19:30:00 — WSP context streams (traffic + behavioural_context outputs)
+
+### Trigger
+Control & ingress plane now requires **context join surfaces** to be published as EB topics (no Context Preloader). WSP must emit context outputs alongside traffic, while keeping traffic **single‑mode per run** (baseline OR fraud).
+
+### Authorities / inputs
+- `docs/model_spec/data-engine/interface_pack/data_engine_interface.md` (roles + join map + time‑safe surfaces).
+- WSP design authority (stream‑view only, no EB writes).
+- Platform decision: traffic + context topics exposed at EB; RTDL storage/retention deferred.
+
+### Live decision trail (notes as I think)
+- WSP must stay **engine‑rooted** and **stream‑view only**; we add context outputs to the WSP plan without changing that boundary.
+- Traffic output list remains a **policy allowlist** (default fraud). Context output list is **policy‑scoped** and auto‑switches to baseline when traffic mode is baseline.
+- Keep channels **separate** (no interleaving at WSP); IG owns topic routing.
+- Output selection must fail closed on unknown outputs (catalogue is the authority).
+
+### Implementation details (what changed)
+- Added policy keys:
+  - `context_output_ids_ref` (default fraud context list)
+  - `context_output_ids_baseline_ref` (baseline mode context list)
+- WSP now merges **traffic outputs + context outputs** into a single stream plan (deduped).
+- Output roles are stamped as `business_traffic` or `behavioural_context` in WSP facts payload.
+- Gate‑PASS checks are enforced across **all** selected outputs.
+
+### Files touched (no secrets)
+- `src/fraud_detection/world_streamer_producer/config.py` (context allowlist resolution).
+- `src/fraud_detection/world_streamer_producer/runner.py` (traffic+context selection + role tagging).
+- `config/platform/profiles/*.yaml` (context output refs wired into profiles).
+- `config/platform/wsp/context_fraud_outputs_v0.yaml`
+- `config/platform/wsp/context_baseline_outputs_v0.yaml`
+
+### Invariants enforced
+- **Single‑mode traffic** per run (baseline OR fraud).
+- Context outputs are **always** emitted (arrival events, arrival entities, and the mode‑aligned flow anchor).
+- WSP continues to **push only to IG**; EB remains IG‑only.
 - **No secrets in profiles:** `oracle_root` and `ig_ingest_url` are wiring only; they can be literals or env placeholders, but never credentials.
 - **WSP should reuse legacy engine‑pull framing** to avoid downstream schema drift. The simplest safe path is to reuse IG’s `EnginePuller` + `OutputCatalogue` for event framing and payload structure, but keep WSP’s control flow separate (push to IG, never EB).
 - **Oracle root resolution:** locators may already be absolute (e.g., `runs/local_full_run-5/...`); WSP must not blindly prefix and double‑nest. Resolve only when locator path is relative and does not already include the oracle root.
@@ -1038,4 +1076,19 @@ User clarified v0 should run a **single traffic stream** by default (fraud) and 
 - Added WSP env overrides:
   - `WSP_TRAFFIC_OUTPUT_IDS`
   - `WSP_TRAFFIC_OUTPUT_IDS_REF`
+
+---
+
+## Entry: 2026-02-02 19:55:44 — WSP traffic‑only default (context streams deferred)
+
+### Trigger
+Control & ingress scope was narrowed to **traffic‑only** streaming. Context/truth products are deferred to RTDL Phase 4.
+
+### Decision trail (live)
+- We keep the **ability** to stream context outputs in code (behind explicit config), but **disable it by default** to keep v0 parity runs simple and aligned to the “single traffic stream per run” policy.
+- The stream‑sort list remains traffic‑only by default; a helper target sorts both baseline + fraud so switching modes does not require re‑sorting.
+
+### Implementation notes
+- Removed `context_output_ids_ref` and `context_output_ids_baseline_ref` from parity/dev/prod profiles so WSP emits **traffic only** unless explicitly overridden.
+- Runbook updated to focus on traffic stream sorting and WSP traffic‑only runs.
 

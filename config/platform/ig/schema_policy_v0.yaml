@@ -9,6 +9,22 @@ policies:
     class: traffic_fraud
     schema_version_required: false
     payload_schema_ref: docs/model_spec/data-engine/layer-3/specs/contracts/6B/schemas.6B.yaml#/s3/properties/event_stream_with_fraud_6B
+  - event_type: arrival_events_5B
+    class: context_arrival
+    schema_version_required: false
+    payload_schema_ref: docs/model_spec/data-engine/layer-2/specs/contracts/5B/schemas.5B.yaml#/egress/s4_arrival_events_5B/items
+  - event_type: s1_arrival_entities_6B
+    class: context_arrival_entities
+    schema_version_required: false
+    payload_schema_ref: docs/model_spec/data-engine/layer-3/specs/contracts/6B/schemas.6B.yaml#/s1/properties/arrival_entities_6B
+  - event_type: s2_flow_anchor_baseline_6B
+    class: context_flow_baseline
+    schema_version_required: false
+    payload_schema_ref: docs/model_spec/data-engine/layer-3/specs/contracts/6B/schemas.6B.yaml#/s2/properties/flow_anchor_baseline_6B
+  - event_type: s3_flow_anchor_with_fraud_6B
+    class: context_flow_fraud
+    schema_version_required: false
+    payload_schema_ref: docs/model_spec/data-engine/layer-3/specs/contracts/6B/schemas.6B.yaml#/s3/properties/flow_anchor_with_fraud_6B
   - event_type: ig.policy.activation
     class: audit
     schema_version_required: false

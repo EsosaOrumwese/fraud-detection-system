@@ -112,9 +112,11 @@ class WorldStreamProducer:
         if not pack_key:
             pack_key = _fallback_pack_key(resolved_root)
 
-        chosen_outputs = self._select_output_ids(output_ids)
-        if not chosen_outputs:
+        traffic_outputs = self._select_output_ids(output_ids)
+        if not traffic_outputs:
             return StreamResult(resolved_root, scenario_value, "FAILED", 0, "NO_TRAFFIC_OUTPUTS")
+        context_outputs = self._select_context_output_ids()
+        chosen_outputs = _merge_outputs(traffic_outputs, context_outputs)
 
         missing_gates = self._missing_required_gates(resolved_root, world_key, chosen_outputs)
         if missing_gates and self.profile.policy.require_gate_pass:
@@ -141,6 +143,8 @@ class WorldStreamProducer:
                     "engine_run_root": resolved_root,
                     "scenario_id": scenario_value,
                     "output_ids": chosen_outputs,
+                    "traffic_output_ids": traffic_outputs,
+                    "context_output_ids": context_outputs,
                     "pack_key": pack_key,
                     "producer_id": self._producer_id,
                     "stream_mode": "stream_view",
@@ -177,6 +181,8 @@ class WorldStreamProducer:
                 "scenario_id": scenario_value,
                 "emitted": emitted,
                 "output_ids": chosen_outputs,
+                "traffic_output_ids": traffic_outputs,
+                "context_output_ids": context_outputs,
             },
             create_if_missing=False,
         )
@@ -308,6 +314,21 @@ class WorldStreamProducer:
             return []
         return chosen
 
+    def _select_context_output_ids(self) -> list[str]:
+        base = list(self.profile.policy.context_output_ids)
+        if not base:
+            return []
+        unknown: list[str] = []
+        for item in base:
+            try:
+                self._catalogue.get(item)
+            except KeyError:
+                unknown.append(item)
+        if unknown:
+            logger.warning("WSP unknown context_output_ids %s", unknown)
+            return []
+        return base
+
     def _missing_required_gates(
         self,
         engine_root: str,
@@ -365,6 +386,8 @@ class WorldStreamProducer:
         }
         locators: list[dict[str, Any]] = []
         output_roles: dict[str, str] = {}
+        traffic_outputs = set(self.profile.policy.traffic_output_ids)
+        context_outputs = set(self.profile.policy.context_output_ids)
         for output_id in output_ids:
             entry = self._catalogue.get(output_id)
             if not entry.path_template:
@@ -375,7 +398,12 @@ class WorldStreamProducer:
                 raise IngestionError("TEMPLATE_TOKEN_MISSING", f"{output_id}:{exc}")
             locator_path = join_engine_path(engine_root, relative)
             locators.append({"output_id": output_id, "path": locator_path})
-            output_roles[output_id] = "business_traffic"
+            if output_id in traffic_outputs:
+                output_roles[output_id] = "business_traffic"
+            elif output_id in context_outputs:
+                output_roles[output_id] = "behavioural_context"
+            else:
+                output_roles[output_id] = "other"
         return {
             "pins": {
                 "manifest_fingerprint": world_key.manifest_fingerprint,
@@ -744,6 +772,17 @@ def _gate_templates(gate_map: dict[str, Any]) -> dict[str, str]:
         if gate_id and template:
             templates[gate_id] = template
     return templates
+
+
+def _merge_outputs(traffic_outputs: list[str], context_outputs: list[str]) -> list[str]:
+    merged: list[str] = []
+    seen: set[str] = set()
+    for item in traffic_outputs + context_outputs:
+        if item in seen:
+            continue
+        seen.add(item)
+        merged.append(item)
+    return merged
 
 
 def _render_path_template(template: str, tokens: dict[str, Any]) -> str | None:

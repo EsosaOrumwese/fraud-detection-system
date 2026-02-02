@@ -1656,9 +1656,26 @@ Locked for control & ingress (v0)
   - `fp.bus.traffic.fraud.v1` (default) / `fp.bus.traffic.baseline.v1` (baseline mode)
   - `fp.bus.context.arrival_events.v1`
   - `fp.bus.context.arrival_entities.v1`
-  - `fp.bus.context.flow_anchor_fraud.v1` (fraud mode)
-  - `fp.bus.context.flow_anchor_baseline.v1` (baseline mode)
+  - `fp.bus.context.flow_anchor.fraud.v1` (fraud mode)
+  - `fp.bus.context.flow_anchor.baseline.v1` (baseline mode)
 
 Deferred to Phase 4 (RTDL)
 - Retention policy and context store shape (schema, TTL, compaction) remain open until RTDL planning.
+
+
+## Entry: 2026-02-02 19:55:44 — Control & Ingress scope narrowed to traffic‑only streams (baseline OR fraud)
+
+Why this change
+- After re‑reviewing the engine interface assumptions and the operational goal, we decided **not** to stream behavioural_context/truth products in v0 control & ingress. That earlier expansion (context streams + preloader) blurred the boundary between control/ingress and RTDL responsibilities and added a heavy runtime cost for data we are not yet using in RTDL.
+- The **minimum correct** control & ingress posture is: stream **exactly one traffic stream per run** (baseline **or** fraud), preserve canonical event‑time ordering, and expose **traffic topics** on EB. Any additional join surfaces are deferred to Phase 4 planning where RTDL ownership can be made explicit.
+
+What was concretely adjusted
+- **WSP policy defaults:** context output refs were removed from parity/dev/prod profiles so WSP emits **traffic only** by default. Context output support remains in code behind explicit config/env overrides if/when RTDL needs it later.
+- **Stream‑sort posture:** the default stream‑sort list is now the traffic allowlist (fraud by default). A dedicated helper target sorts **both baseline + fraud** so we can switch modes without re‑sorting.
+- **Parity bootstrap + runbook:** local parity now creates only traffic/control/audit streams; the runbook focuses on traffic‑only flow and removes context stream steps.
+- **Build plan corrections:** WSP/IG/EB/SR + platform build plans were revised to reflect **traffic‑only v0**, baseline/fraud stream selection, and EB topic expectations.
+
+Operational meaning for v0
+- EB exposes **two traffic topics** (`fp.bus.traffic.fraud.v1` and `fp.bus.traffic.baseline.v1`), but **only one is active per run** depending on the traffic policy selection.
+- No component below EB assumes access to context/truth products in v0; RTDL Phase 4 will explicitly define join surfaces and retention policy if needed.
 
