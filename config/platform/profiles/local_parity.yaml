@@ -6,6 +6,8 @@ policy:
   require_gate_pass: true
   stream_speedup: 600.0
   traffic_output_ids_ref: config/platform/wsp/traffic_outputs_v0.yaml
+  context_output_ids_ref: config/platform/wsp/context_fraud_outputs_v0.yaml
+  context_output_ids_baseline_ref: config/platform/wsp/context_baseline_outputs_v0.yaml
 wiring:
   object_store:
     root: s3://fraud-platform

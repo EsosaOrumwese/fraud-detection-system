@@ -2273,3 +2273,18 @@ Control & ingress scope narrowed to **traffic‑only** streaming; context/truth 
 ### Implementation notes
 - Profiles no longer provide context output refs, so IG receives traffic events only in v0 runs.
 - Runbook and build plan updated to treat context streams as **deferred**; traffic topics remain required and provisioned.
+
+---
+
+## Entry: 2026-02-02 20:05:51 — Correction: IG admits traffic + context in v0
+
+### Trigger
+User clarified that **context streams and business streams are both streamed** from WSP → IG → EB and must be exposed on EB.
+
+### Decision trail (live)
+- Keep context class + partitioning profiles active in v0 parity.
+- Ensure IG policy retains context event_types and schema mappings.
+
+### Implementation notes
+- Parity bootstrap streams include context topics again.
+- Profiles re‑enable context output refs so IG receives context alongside traffic.

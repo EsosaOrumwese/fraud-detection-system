@@ -683,3 +683,20 @@ Keep baseline/fraud traffic channels and audit/control streams in parity; remove
   - `fp.bus.audit.v1`
   - `sr-control-bus`
 - Context stream names remain reserved in partitioning profiles but are **not used** in v0 parity runs.
+
+---
+
+## Entry: 2026-02-02 20:05:51 — Correction: EB parity streams include traffic + context
+
+### Trigger
+User clarified that **context streams and business streams are both streamed** from WSP → IG → EB; EB must expose all topics in v0.
+
+### Decision
+Restore context stream provisioning in LocalStack bootstrap and parity runbook.
+
+### Implementation notes
+- Parity streams again include context topics:
+  - `fp.bus.context.arrival_events.v1`
+  - `fp.bus.context.arrival_entities.v1`
+  - `fp.bus.context.flow_anchor.baseline.v1`
+  - `fp.bus.context.flow_anchor.fraud.v1`

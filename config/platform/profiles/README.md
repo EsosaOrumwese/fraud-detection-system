@@ -19,6 +19,8 @@ policy:
   require_gate_pass: true
   stream_speedup: 1.0
   traffic_output_ids_ref: config/platform/wsp/traffic_outputs_v0.yaml
+  context_output_ids_ref: config/platform/wsp/context_fraud_outputs_v0.yaml
+  context_output_ids_baseline_ref: config/platform/wsp/context_baseline_outputs_v0.yaml
 wiring:
   object_store:
     bucket: fraud-platform
@@ -63,12 +65,14 @@ Notes:
 - `partitioning_profiles_ref` anchors the versioned profile set used by IG.
 - `traffic_output_ids_ref` defines the **WSP behavioural traffic allowlist** (engine output_ids eligible to stream).
 - v0 traffic is **single‑mode per run** (baseline or fraud). Default is **fraud** (`s3_event_stream_with_fraud_6B`). Use `WSP_TRAFFIC_OUTPUT_IDS_REF` (e.g., `config/platform/wsp/traffic_outputs_baseline_v0.yaml`) to switch to baseline.
-- Behavioural context streams are **deferred** for RTDL; v0 parity focuses on **traffic only**.
+- `context_output_ids_ref` defines **behavioural_context allowlist** (join surfaces streamed as separate EB topics).
+- `context_output_ids_baseline_ref` is used automatically when the traffic list is baseline; otherwise fraud context is used.
+- `arrival_events_5B` and `s1_arrival_entities_6B` are streamed as **context topics**, not as traffic.
 - Wiring endpoints are placeholders; actual values come from env/secret store.
 - `${VAR}` placeholders are resolved from environment variables at load time.
 - `control_bus` wiring is used by the WSP control plane (SR → WSP); IG ignores it in streaming-only v0.
 - Parity profiles use **Kinesis** control bus with `stream/region/endpoint_url` set (LocalStack locally, AWS in dev/prod).
-- Local parity Kinesis streams (v0): `sr-control-bus` (control), `fp.bus.traffic.baseline.v1`, `fp.bus.traffic.fraud.v1` (traffic), `fp.bus.audit.v1` (audit).
+- Local parity Kinesis streams (v0): `sr-control-bus` (control), `fp.bus.traffic.baseline.v1`, `fp.bus.traffic.fraud.v1` (traffic), `fp.bus.context.arrival_events.v1`, `fp.bus.context.arrival_entities.v1`, `fp.bus.context.flow_anchor.baseline.v1`, `fp.bus.context.flow_anchor.fraud.v1` (context), `fp.bus.audit.v1` (audit).
 - `oracle_root` points to the sealed engine world store (Oracle Store); it is wiring, not policy.
 - `oracle_engine_run_root` optionally pins WSP to a specific engine world (no “latest” scanning).
 - `oracle_scenario_id` can be used when a world contains multiple scenarios (avoid ambiguity).

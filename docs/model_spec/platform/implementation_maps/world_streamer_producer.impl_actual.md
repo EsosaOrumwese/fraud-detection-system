@@ -1092,3 +1092,18 @@ Control & ingress scope was narrowed to **traffic‑only** streaming. Context/tr
 - Removed `context_output_ids_ref` and `context_output_ids_baseline_ref` from parity/dev/prod profiles so WSP emits **traffic only** unless explicitly overridden.
 - Runbook updated to focus on traffic stream sorting and WSP traffic‑only runs.
 
+---
+
+## Entry: 2026-02-02 20:05:51 — Correction: WSP streams traffic + context (EB exposes both)
+
+### Trigger
+User clarified that **context streams and business streams are both streamed** from WSP → IG → EB and must be exposed on EB in v0.
+
+### Decision trail (live)
+- Re‑enable context output refs in parity/dev/prod profiles so WSP includes context outputs by default.
+- Restore parity bootstrap and runbook steps for context streams.
+
+### Implementation notes
+- WSP continues to stream **one traffic mode per run** (baseline OR fraud) plus **context join surfaces** aligned to that mode.
+- Context output sorting targets remain in Make (`platform-oracle-stream-sort-context-fraud|baseline`).
+

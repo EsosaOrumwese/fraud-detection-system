@@ -1679,3 +1679,20 @@ Operational meaning for v0
 - EB exposes **two traffic topics** (`fp.bus.traffic.fraud.v1` and `fp.bus.traffic.baseline.v1`), but **only one is active per run** depending on the traffic policy selection.
 - No component below EB assumes access to context/truth products in v0; RTDL Phase 4 will explicitly define join surfaces and retention policy if needed.
 
+
+## Entry: 2026-02-02 20:05:51 — Correction: WSP streams traffic + context; EB exposes both
+
+Why this correction
+- User clarified: **context streams and business streams are both streamed** from WSP → IG → EB, and EB must expose all of them. My previous narrowing to traffic‑only was incorrect and not explicitly instructed.
+
+Locked behavior (v0)
+- **WSP emits traffic + context** per run:
+  - Traffic: `s3_event_stream_with_fraud_6B` (default) or `s2_event_stream_baseline_6B` (baseline mode).
+  - Context: `arrival_events_5B`, `s1_arrival_entities_6B`, and the mode‑aligned flow anchor (`s2_flow_anchor_baseline_6B` or `s3_flow_anchor_with_fraud_6B`).
+- **EB exposes all of these topics** (traffic + context + audit/control) in parity mode.
+
+Action items
+- Re‑enable context output refs in profiles + WSP policy.
+- Restore parity bootstrap + runbook steps for context topics.
+- Restore build‑plan and impl_actual statements reflecting traffic+context streaming.
+

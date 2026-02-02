@@ -10,9 +10,10 @@ It uses **MinIO (S3)** for the Oracle Store + platform artifacts, **LocalStack K
 
 **Required local stack (parity):**
 - MinIO (S3‑compatible) for `oracle-store` and `fraud-platform` buckets
-- LocalStack Kinesis (traffic + audit):
+- LocalStack Kinesis (context + traffic + audit):
   - Control: `sr-control-bus`
   - Traffic: `fp.bus.traffic.fraud.v1` (baseline optional)
+  - Context: `fp.bus.context.arrival_events.v1`, `fp.bus.context.arrival_entities.v1`, `fp.bus.context.flow_anchor.baseline.v1`, `fp.bus.context.flow_anchor.fraud.v1`
   - Audit: `fp.bus.audit.v1`
 - Postgres for IG admission DB + WSP checkpoints
 
@@ -55,10 +56,10 @@ make platform-parity-stack-status
 **Expected:**
 - MinIO + Postgres + LocalStack are running.
 - Buckets exist: `oracle-store`, `fraud-platform`.
-- Streams exist: `sr-control-bus`, `fp.bus.traffic.baseline.v1`, `fp.bus.traffic.fraud.v1`, `fp.bus.audit.v1`.
+- Streams exist: `sr-control-bus`, `fp.bus.traffic.baseline.v1`, `fp.bus.traffic.fraud.v1`, `fp.bus.context.arrival_events.v1`, `fp.bus.context.arrival_entities.v1`, `fp.bus.context.flow_anchor.baseline.v1`, `fp.bus.context.flow_anchor.fraud.v1`, `fp.bus.audit.v1`.
 
 **What bootstrap does:**
-- Creates the **Kinesis streams** in LocalStack (`sr-control-bus`, `fp.bus.traffic.baseline.v1`, `fp.bus.traffic.fraud.v1`, `fp.bus.audit.v1`).
+- Creates the **Kinesis streams** in LocalStack (`sr-control-bus`, `fp.bus.traffic.baseline.v1`, `fp.bus.traffic.fraud.v1`, `fp.bus.context.arrival_events.v1`, `fp.bus.context.arrival_entities.v1`, `fp.bus.context.flow_anchor.baseline.v1`, `fp.bus.context.flow_anchor.fraud.v1`, `fp.bus.audit.v1`).
 - Creates the **MinIO buckets** (`oracle-store`, `fraud-platform`).
 
 ---
@@ -172,12 +173,12 @@ make platform-oracle-stream-sort `
 **What this does:**
 - **Why required:** engine outputs are not guaranteed to be globally `ts_utc`‑sorted; WSP consumes a **stream view** that is strictly ordered by `ts_utc`.
 - Reads the **engine outputs** from MinIO.
-- Builds **one sorted dataset per output_id** (traffic, based on output list) under:
+- Builds **one sorted dataset per output_id** (traffic + context, based on output list) under:
   `.../stream_view/ts_utc/output_id=<output_id>/part-*.parquet`
 - Sorts **within each output** by `ts_utc` with tie‑breakers `filename` + `file_row_number`.
 - Writes `_stream_view_manifest.json` + `_stream_sort_receipt.json` for **each output**.
 - Is **idempotent** per output: if a valid receipt exists, it skips; if it conflicts, it fails.
-- Uses `config/platform/wsp/traffic_outputs_v0.yaml` as the default output_id list unless overridden.
+- Uses `config/platform/wsp/traffic_outputs_v0.yaml` as the default **traffic** output_id list unless overridden.
   - **Note:** default (single‑pass) writes a **single** `part-000000.parquet` per output.
     Set `STREAM_SORT_CHUNK_DAYS=1` (or higher) to produce **multiple** ordered parts.
 
@@ -207,6 +208,17 @@ If you need a fresh view, delete the prior output_id view or set a new base path
   - `WSP_TRAFFIC_OUTPUT_IDS_REF="config/platform/wsp/traffic_outputs_baseline_v0.yaml"`
 - For a new engine dataset, **sort both baseline + fraud streams** so you can switch later without re‑sorting:
   - `make platform-oracle-stream-sort-traffic-both ORACLE_PROFILE=... ORACLE_ENGINE_RUN_ROOT=... ORACLE_SCENARIO_ID=...`
+
+**Context stream sorting (single‑mode per run):**
+- Default **fraud** context list:
+  - `config/platform/wsp/context_fraud_outputs_v0.yaml`
+  - Target outputs: `arrival_events_5B`, `s1_arrival_entities_6B`, `s3_flow_anchor_with_fraud_6B`
+- **Baseline** context list (only when running baseline mode):
+  - `config/platform/wsp/context_baseline_outputs_v0.yaml`
+  - Target outputs: `arrival_events_5B`, `s1_arrival_entities_6B`, `s2_flow_anchor_baseline_6B`
+- Run the appropriate stream‑sort target before a run:
+  - `make platform-oracle-stream-sort-context-fraud ORACLE_PROFILE=... ORACLE_ENGINE_RUN_ROOT=... ORACLE_SCENARIO_ID=...`
+  - `make platform-oracle-stream-sort-context-baseline ORACLE_PROFILE=... ORACLE_ENGINE_RUN_ROOT=... ORACLE_SCENARIO_ID=...`
 
 **Resource guardrails (recommended):**
 - This step can be **CPU + disk heavy**. If you are on a laptop, set limits before running:
@@ -316,7 +328,7 @@ docker exec local-postgres-1 psql -U platform -d platform -c "delete from sr_run
 
 ---
 
-## 7) WSP consumes READY and streams events (traffic only)
+## 7) WSP consumes READY and streams events (traffic + context)
 
 **Traffic policy (single‑mode):** WSP emits **one traffic stream per run** (baseline **or** fraud; default is fraud).  
 Traffic outputs are **not interleaved** across modes; only the selected stream is produced.
@@ -414,7 +426,7 @@ aws --endpoint-url http://localhost:9000 s3 cp s3://fraud-platform/<platform_run
 
 **Expected:** receipt contains an `eb_ref` with `offset_kind: kinesis_sequence`.
 
-**Quick IG check (traffic receipts):**
+**Quick IG check (traffic + context receipts):**
 ```
 aws --endpoint-url http://localhost:9000 s3 ls s3://fraud-platform/<platform_run_id>/ig/receipts/ | Select-Object -First 5
 
@@ -459,6 +471,22 @@ aws --endpoint-url http://localhost:4566 kinesis get-records --shard-iterator $b
 aws --endpoint-url http://localhost:4566 kinesis get-records --shard-iterator $fraud --limit 5
 ```
 
+**Context stream check (arrival + flow anchor):**
+```
+$arrival = (aws --endpoint-url http://localhost:4566 kinesis get-shard-iterator `
+  --stream-name fp.bus.context.arrival_events.v1 `
+  --shard-id shardId-000000000000 `
+  --shard-iterator-type TRIM_HORIZON | ConvertFrom-Json).ShardIterator
+
+$anchor = (aws --endpoint-url http://localhost:4566 kinesis get-shard-iterator `
+  --stream-name fp.bus.context.flow_anchor.fraud.v1 `
+  --shard-id shardId-000000000000 `
+  --shard-iterator-type TRIM_HORIZON | ConvertFrom-Json).ShardIterator
+
+aws --endpoint-url http://localhost:4566 kinesis get-records --shard-iterator $arrival --limit 5
+aws --endpoint-url http://localhost:4566 kinesis get-records --shard-iterator $anchor --limit 5
+```
+
 **Expected:** payloads are canonical envelopes (base64 in Kinesis).
 
 ---
@@ -497,6 +525,7 @@ Use this list to confirm the **v0 control & ingress plane** is green.
 
 **Event bus offsets**
 - [ ] LocalStack streams `fp.bus.traffic.baseline.v1` / `fp.bus.traffic.fraud.v1` return records (traffic).
+- [ ] LocalStack streams `fp.bus.context.arrival_events.v1` / `fp.bus.context.flow_anchor.fraud.v1` return records (context).
 - [ ] IG receipts include `eb_ref` with `offset_kind=kinesis_sequence`.
 
 **Health posture**

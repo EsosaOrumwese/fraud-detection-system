@@ -48,6 +48,10 @@ services:
       awslocal kinesis create-stream --stream-name sr-control-bus --shard-count 1 || true;
       awslocal kinesis create-stream --stream-name fp.bus.traffic.baseline.v1 --shard-count 1 || true;
       awslocal kinesis create-stream --stream-name fp.bus.traffic.fraud.v1 --shard-count 1 || true;
+      awslocal kinesis create-stream --stream-name fp.bus.context.arrival_events.v1 --shard-count 1 || true;
+      awslocal kinesis create-stream --stream-name fp.bus.context.arrival_entities.v1 --shard-count 1 || true;
+      awslocal kinesis create-stream --stream-name fp.bus.context.flow_anchor.baseline.v1 --shard-count 1 || true;
+      awslocal kinesis create-stream --stream-name fp.bus.context.flow_anchor.fraud.v1 --shard-count 1 || true;
       awslocal kinesis create-stream --stream-name fp.bus.audit.v1 --shard-count 1 || true;
       exit 0;"
     environment:

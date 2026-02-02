@@ -59,7 +59,7 @@ These are copied from the EB design‑authority and are treated as **laws**:
    - `EventBusPublisher.publish(envelope, partition_key) -> EbRef`
    - `EventBusReader.read(from_position, max_records)` for local inspection.
 3. **Topic class map**
-   - Traffic (baseline/fraud)/control/audit topics bound to `partitioning_profile_id` in IG policy.
+   - Traffic/context/control/audit topics bound to `partitioning_profile_id` in IG policy.
 4. **Schema anchor**
    - EB consumes only **Canonical Event Envelope**; EB does not re‑validate.
 
@@ -190,4 +190,4 @@ These are copied from the EB design‑authority and are treated as **laws**:
 - Phase 4: **complete**
 - Phase 5: **complete**
 
-**v0 green summary (EB):** LocalStack Kinesis parity adapter active; IG publishes to traffic topics with offsets recorded in receipts; readback confirmed.
+**v0 green summary (EB):** LocalStack Kinesis parity adapter active; IG publishes to traffic + context topics with offsets recorded in receipts; readback confirmed.
