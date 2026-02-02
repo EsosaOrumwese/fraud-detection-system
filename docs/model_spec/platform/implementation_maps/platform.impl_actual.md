@@ -1621,3 +1621,44 @@ User corrected earlier assumption: v0 should run **one traffic stream** by defau
 - EB carries **one active traffic stream** by default (fraud).
 - Baseline stream remains **optional** and is activated only via override.
 
+
+## Entry: 2026-02-02 08:52:12 — Control & Ingress correction: Context Preloader removed, context streams on EB
+
+Why this correction
+- We identified a design error: preloading context from Oracle Store violates “you don’t have what you haven’t received” realism and does not scale to multi‑year horizons. The Context Preloader was scrapped; the control & ingress plane must provide **context via streams**, not preloads.
+
+Corrected flow (v0)
+1) **Oracle Store** remains offline truth only.
+2) **SR** emits READY + run_facts_view once gates pass.
+3) **WSP** emits two stream classes into IG:
+   - **Traffic:** `s3_event_stream_with_fraud_6B` (default) + optional `s2_event_stream_baseline_6B`.
+   - **Context (time‑safe):** `arrival_events_5B`, `s1_arrival_entities_6B`, `s3_flow_anchor_with_fraud_6B` (plus `s2_flow_anchor_baseline_6B` only for baseline runs).
+4) **IG** admits and publishes to **EB**.
+5) **RTDL** builds join state incrementally from EB context topics; no direct Oracle reads and no preloading the future.
+
+What RTDL gains
+- Flow‑level join surfaces are available from **context topics** (not preloaded tables).
+- Context retention is bounded (TTL/compaction), keeping runtime state realistic and scalable.
+
+Action items implied
+- Update RTDL narratives and build plan to reflect context streams and baseline flow anchor optionality.
+- Remove any references to Context Preloader as a required gate in control & ingress.
+
+
+## Entry: 2026-02-02 09:02:14 — Control & Ingress alignment: EB topics only; RTDL decisions deferred
+
+What changed
+- We are not finalizing RTDL storage/retention yet. The immediate requirement is to ensure EB exposes the **traffic + context topics** so downstream can subscribe. RTDL storage/retention/shape decisions are explicitly deferred to Phase 4.
+
+Locked for control & ingress (v0)
+- **Single‑mode per run** (fraud OR baseline), not both.
+- EB must provide traffic + context topics:
+  - `fp.bus.traffic.fraud.v1` (default) / `fp.bus.traffic.baseline.v1` (baseline mode)
+  - `fp.bus.context.arrival_events.v1`
+  - `fp.bus.context.arrival_entities.v1`
+  - `fp.bus.context.flow_anchor_fraud.v1` (fraud mode)
+  - `fp.bus.context.flow_anchor_baseline.v1` (baseline mode)
+
+Deferred to Phase 4 (RTDL)
+- Retention policy and context store shape (schema, TTL, compaction) remain open until RTDL planning.
+
