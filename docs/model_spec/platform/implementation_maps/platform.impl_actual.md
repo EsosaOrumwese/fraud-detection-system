@@ -1696,3 +1696,31 @@ Action items
 - Restore parity bootstrap + runbook steps for context topics.
 - Restore build‑plan and impl_actual statements reflecting traffic+context streaming.
 
+---
+
+## Entry: 2026-02-03 18:09:00 — Plan to add RTDL pre‑design gating questions to platform build plan
+
+### Problem / goal
+User asked to add the RTDL design‑gating questions to the RTDL component section of the platform build plan, placed at the bottom to avoid cluttering the main plan.
+
+### Authorities / inputs
+- `docs/model_spec/platform/implementation_maps/platform.build_plan.md` (Phase 4 — Real‑time decision loop)
+- `docs/model_spec/platform/component-specific/flow-narrative-platform-design.md`
+- Platform pins (ContextPins, idempotency, no‑PASS‑no‑read, append‑only truth)
+
+### Decision trail (live)
+1) Append a **Pre‑design gating questions** subsection under Phase 4 (RTDL).
+2) Group questions by design concern and keep bullets concise.
+3) Avoid changing the existing phase structure.
+
+### Intended steps
+- Append the pre‑design gating questions to `docs/model_spec/platform/implementation_maps/platform.build_plan.md` under Phase 4.
+
+---
+
+## Entry: 2026-02-03 18:11:00 — RTDL pre‑design gating questions added to platform build plan
+
+### What was done
+- Added a “Pre‑design gating questions (RTDL)” subsection under Phase 4 in `docs/model_spec/platform/implementation_maps/platform.build_plan.md`.
+- Questions are grouped by design concern (SLOs, EB retention, schema/versioning, join readiness, ordering, state, decision contract, actions, audit, security).
+

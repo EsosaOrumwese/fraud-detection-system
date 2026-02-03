@@ -371,6 +371,22 @@ Context topics are **separate from traffic** and provide join surfaces to downst
 
 ---
 
+#### Pre‑design gating questions (RTDL)
+Placeholders to resolve **before** expanding Phase 4 into detailed component build plans.
+
+- **Objectives & SLOs:** What are p50/p95/p99 latency targets, max worst‑case latency, and expected sustained + burst throughput?
+- **EB contracts & retention:** What are EB retention windows per env, and do we require an object‑store archive for long‑horizon replay? Is the archive co‑authoritative or a derived mirror?
+- **Canonical event + versioning:** What is the event_id contract (hash vs UUID), and what are the schema compatibility rules per topic?
+- **Join readiness rules:** What is the authoritative join key (arrival_seq vs flow_id), and when is context “complete enough” to score? What is the join‑wait policy?
+- **Ordering & watermarks:** Are we assuming per‑partition ordering only, and what is the lateness policy (drop/late‑apply/re‑score)?
+- **State stores & rebuildability:** Which stores are required (Context Store/OFP/IEG), what are their TTLs, and are they fully rebuildable from EB+archive?
+- **Decision Fabric contract:** What is the minimal v0 decision pipeline (guardrails only vs model), and what fields must every decision emit?
+- **Actions semantics:** What is the idempotency key, retry policy, and sync vs async action posture?
+- **Audit / decision log:** What is the audit granularity (full payload vs refs), retention period, and snapshot storage policy?
+- **Security & governance:** What data is sensitive in RTDL logs/archives, and what encryption/residency requirements apply?
+
+---
+
 ### Phase 5 — Label & Case plane
 **Intent:** crystallize outcomes into authoritative label timelines and case workflows.
 
