@@ -3,12 +3,14 @@
 from __future__ import annotations
 
 import json
+import logging
 import os
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Protocol
 
+logger = logging.getLogger("fraud_detection.event_bus")
 
 @dataclass(frozen=True)
 class EbRef:
@@ -48,6 +50,13 @@ class FileEventBusPublisher:
             handle.flush()
             os.fsync(handle.fileno())
         _write_head(head_path, offset + 1)
+        logger.info(
+            "EB publish file topic=%s partition=%s offset=%s bytes=%s",
+            topic,
+            partition,
+            offset,
+            len(json.dumps(record, ensure_ascii=True, separators=(",", ":"))),
+        )
         return EbRef(
             topic=topic,
             partition=partition,

@@ -700,3 +700,21 @@ Restore context stream provisioning in LocalStack bootstrap and parity runbook.
   - `fp.bus.context.arrival_entities.v1`
   - `fp.bus.context.flow_anchor.baseline.v1`
   - `fp.bus.context.flow_anchor.fraud.v1`
+
+---
+
+## Entry: 2026-02-02 23:28:00 — EB publish diagnostics logged (Kinesis + file bus)
+
+### Trigger
+User requested explicit EB logs; `event_bus.log` existed but was empty because the Kinesis adapter emitted no log lines.
+
+### Decision
+Emit a **single publish log line per EB publish** from both Kinesis and file‑bus adapters, using logger name `fraud_detection.event_bus` so the existing run‑scoped handler writes to `runs/fraud-platform/<run_id>/event_bus/event_bus.log`.
+
+### Implementation notes (no secrets)
+- `src/fraud_detection/event_bus/kinesis.py`: log `stream`, `topic`, `partition_key`, `sequence`, `bytes`.
+- `src/fraud_detection/event_bus/publisher.py`: log `topic`, `partition`, `offset`, `bytes`.
+- No payloads are logged; only envelope metadata and sizes.
+
+### Expected outcome
+`event_bus.log` is now non‑empty during parity runs and reflects EB publish activity for both Kinesis and file‑bus modes.

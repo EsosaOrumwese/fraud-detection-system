@@ -5,12 +5,15 @@ from __future__ import annotations
 from dataclasses import dataclass
 from datetime import datetime, timezone
 import json
+import logging
 import os
 from typing import Any
 
 import boto3
 
 from .publisher import EbRef
+
+logger = logging.getLogger("fraud_detection.event_bus")
 
 
 @dataclass(frozen=True)
@@ -38,6 +41,14 @@ class KinesisEventBusPublisher:
             StreamName=stream_name,
             PartitionKey=partition_key,
             Data=data,
+        )
+        logger.info(
+            "EB publish stream=%s topic=%s partition_key=%s seq=%s bytes=%s",
+            stream_name,
+            topic,
+            partition_key,
+            response.get("SequenceNumber", ""),
+            len(data),
         )
         published_at = datetime.now(tz=timezone.utc).isoformat()
         return EbRef(
