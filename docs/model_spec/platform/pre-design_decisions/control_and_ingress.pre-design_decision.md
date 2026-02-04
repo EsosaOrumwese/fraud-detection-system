@@ -16,7 +16,6 @@ Detailed answers (recommended defaults, based on current implementation posture)
 - Platform session `platform_run_id` is separate: "platform_YYYYMMDDTHHMMSSZ" stored at `runs/fraud-platform/ACTIVE_RUN_ID`, overridable via `PLATFORM_RUN_ID`. This controls run-scoped artifact/log paths, not scenario run selection.
 - Multiple scenario runs can be active concurrently. SR uses per-run leases to enforce a single leader for each scenario_run_id; WSP consumes READY messages across runs; IG admits all runs based on envelope pins.
 - Gaps: IG dedupe key omits `platform_run_id`; if event_id collides across platform runs, the later run can be marked DUPLICATE. WSP does not validate READY `scenario_run_id` against the oracle receipt `scenario_run_id` when streaming.
-
 - Pin (P0): carry both `platform_run_id` (execution/session scope) and `scenario_run_id` (deterministic scenario identity). Choose one canonical run_id for downstream evidence/dedupe/receipts and carry the other explicitly. Recommended: canonical = platform_run_id; scenario_run_id is used to resolve run_facts_view/stream views. Update envelope/contracts to prevent mixing.
 
 2. **READY event idempotency**
@@ -98,7 +97,7 @@ Detailed answers (recommended defaults, based on current implementation posture)
 - Stored fields: receipt_ref, eb_topic, eb_partition, eb_offset, eb_offset_kind, eb_published_at_utc.
 - No payload_hash; no anomaly detection; no run_id or event_class in the key.
 - TTL/retention: none. Rows persist until manually purged.
-- Gap: dedupe scope is smaller than (run_id, event_class, event_id) and can mis-dedupe across runs.
+- Gap: dedupe scope is smaller than (platform_run_id, event_class, event_id) and can mis-dedupe across runs.
 - Pin (P0): update dedupe key to include `platform_run_id + event_class + event_id`, and store `payload_hash`. If the same key arrives with a different `payload_hash`, raise ANOMALY and quarantine (never silent).
 
 8. **Publish atomicity and "unknown success"**
