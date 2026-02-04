@@ -26,10 +26,10 @@ Detailed answers (recommended defaults, based on current implementation posture)
 - If WSP restarts mid-run, does it re-emit the same events (same `event_id`) deterministically?
 
 Detailed answers (recommended defaults, based on current implementation posture):
-- READY can be emitted multiple times. SR publishes READY with deterministic message_id = sha256("ready|" + `scenario_run_id` + "|" + (bundle_hash or plan_hash)). Re-emit uses bundle_hash or a hash of run_facts_view if bundle_hash is absent.
+- READY can be emitted multiple times. Current posture: SR publishes READY with message_id derived from scenario_run_id + bundle_hash/plan_hash; re-emit uses bundle_hash or a hash of run_facts_view if bundle_hash is absent.
 - File control bus is idempotent per message_id filename; Kinesis can deliver duplicates. WSP dedupes READY by message_id and skips only if prior status == STREAMED.
 - WSP restart uses checkpoint store per (pack_key, output_id). Missing checkpoints cause a replay; event_id stays deterministic, so IG dedupe absorbs duplicates.
- - Pin (P0): READY message_id is derived from both `platform_run_id` and `scenario_run_id` plus bundle_hash/plan_hash (e.g., sha256("ready|platform_run_id|scenario_run_id|bundle_hash")). READY payload must carry both ids, and WSP must validate scenario_run_id matches the facts_view it loads.
+- Pin (P0): READY message_id is derived from both `platform_run_id` and `scenario_run_id` plus bundle_hash/plan_hash (e.g., sha256("ready|platform_run_id|scenario_run_id|bundle_hash")). READY payload must carry both ids, and WSP must validate scenario_run_id matches the facts_view it loads.
 
 3. **Run facts immutability**
 
@@ -130,10 +130,11 @@ Detailed answers (recommended defaults, based on current implementation posture)
 - audit: event_id -> manifest_fingerprint.
 - traffic (baseline/fraud): payload.flow_id -> payload.merchant_id -> payload.account_id -> payload.party_id -> event_id.
 - context arrival_events/arrival_entities: payload.merchant_id -> payload.arrival_seq -> event_id.
-- context flow_anchor baseline/fraud: payload.merchant_id -> payload.arrival_seq -> payload.flow_id -> event_id.
+- context flow_anchor baseline/fraud (design posture): payload.merchant_id -> payload.arrival_seq -> payload.flow_id -> event_id (merchant_id locality).
 - If required keys are missing, IG falls back to later keys; if all missing, PARTITION_KEY_MISSING -> quarantine.
 - Gap: IG does not enforce payload fields directly; locality relies on payload schema correctness.
 - Pin (P1): default claim is context locality on merchant_id only (arrival_seq is used inside JoinFrameKey, not for partitioning) unless/until we switch to a composite key (merchant_id + arrival_seq).
+ - Note: current IG partitioning profiles use flow_id first for flow_anchor; build plan must align config to posture.
 
 10. **Receipts contract**
 
