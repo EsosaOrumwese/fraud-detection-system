@@ -82,6 +82,12 @@ Open questions to confirm:
 Answers (recommended defaults):
 - Join locality is required for context topics. Full join locality across all four topics is not achievable without enriching traffic events (traffic schema lacks merchant_id/arrival_seq). v0 default: enforce locality for context streams on (merchant_id, arrival_seq) and allow cross-partition joins for traffic -> context. If we require full locality, we must enrich traffic events with merchant_id + arrival_seq (or add a deterministic mapping layer) and align IG partitioning profiles accordingly.
 
+FlowBinding Index rules (required when traffic can cross partitions):
+- Maintain a FlowBinding Index mapping flow_id -> (run_id, merchant_id, arrival_seq).
+- Authority: only flow_anchor events may create/update FlowBinding.
+- Conflict rule: if a different binding for the same flow_id appears, emit audit anomaly and quarantine; never silently replace.
+- Resolution path: traffic event -> lookup FlowBinding by flow_id -> retrieve JoinFrame by JoinFrameKey. If missing within join_wait_budget_ms, degrade with context_missing: flow_binding_missing.
+
 ## 6) State Stores & Rebuildability
 - What exact **state stores** are required (Context Store, OFP, IEG projection), and what are their **durability/TTL policies**?
 - Is the **state rebuildable solely from EB+archive**, or do we allow manual repair?
@@ -92,6 +98,9 @@ Detailed answers (recommended defaults, based on current implementation posture)
 - Durability/TTL: Context Store TTL 7-30 days (aligned to EB retention + safety buffer). OFP TTL is window-based (e.g., 1h/24h/7d). IEG projection retained for run scope with watermark-based versioning.
 - Rebuildability: all derived stores must be rebuildable from EB + archive. Manual repair is allowed only as a last-resort operational procedure and must emit an audit anomaly.
 - Checkpointing: per partition/shard; offsets advance only after durable commit. Checkpoints are stored transactionally with state updates to prevent partial apply. Backfill is offset-driven and deterministic.
+
+FlowBinding durability rule:
+- FlowBinding writes are atomic with JoinFrame updates when processing flow_anchor. Only after both are committed (WAL flushed) may the flow_anchor checkpoint advance. This prevents traffic from resolving a flow_id before its binding is durable.
 
 Open questions to confirm:
 - What is the exact commit point per store (DB transaction committed + WAL flushed, or async write acknowledged)?
@@ -148,6 +157,9 @@ Answers (recommended defaults):
 Evidence offsets vs processing offsets:
 - origin_offset = the EB offset where the evidence event was first admitted (immutable, stored in audit).
 - checkpoint_offset = consumer progress offset (mutable, per consumer group, not evidence).
+
+FlowBinding evidence rule:
+- DLA must record the flow_anchor origin_offset used to resolve flow_id -> JoinFrameKey, in addition to traffic origin_offset and any arrival_events/entities offsets.
 
 ## 10) Security / Governance
 - What data is considered **sensitive** in RTDL (PII, device IDs, etc.) and how is it masked in logs?
