@@ -16,6 +16,7 @@ Detailed answers (recommended defaults, based on current implementation posture)
 - Platform session run_id is separate: "platform_YYYYMMDDTHHMMSSZ" stored at `runs/fraud-platform/ACTIVE_RUN_ID`, overridable via `PLATFORM_RUN_ID`. This controls run-scoped artifact/log paths, not scenario run selection.
 - Multiple scenario runs can be active concurrently. SR uses per-run leases to enforce a single leader for each run_id; WSP consumes READY messages across runs; IG admits all runs based on envelope pins.
 - Gaps: IG dedupe key omits run_id; if event_id collides across runs, the later run can be marked DUPLICATE. WSP does not validate READY run_id against the oracle receipt run_id when streaming.
+- Pin (P0): carry both `platform_run_id` (execution/session scope) and `scenario_run_id` (deterministic scenario identity). Choose one canonical run_id for downstream evidence/dedupe/receipts and carry the other explicitly. Recommended: canonical = platform_run_id; scenario_run_id is used to resolve run_facts_view/stream views. Update envelope/contracts to prevent mixing.
 
 2. **READY event idempotency**
 
@@ -67,6 +68,7 @@ Detailed answers (recommended defaults, based on current implementation posture)
 - Retries are operator-driven (restart WSP). Duplicates are expected and must be deduped by IG.
 - 4xx schema/policy errors stop the stream; WSP does not quarantine locally.
 - There is no local queue/DLQ. Replay window is defined by the last checkpoint; events after the last checkpoint may be resent on restart.
+- Pin (P0): add bounded retries for 429/5xx/timeouts with exponential backoff (same event_id). Treat schema/policy 4xx as non-retryable and stop with explicit surfaced reason.
 
 6. **Time semantics**
 
@@ -95,6 +97,7 @@ Detailed answers (recommended defaults, based on current implementation posture)
 - No payload_hash; no anomaly detection; no run_id or event_class in the key.
 - TTL/retention: none. Rows persist until manually purged.
 - Gap: dedupe scope is smaller than (run_id, event_class, event_id) and can mis-dedupe across runs.
+- Pin (P0): update dedupe key to include platform_run_id + event_class (or event_type) + event_id, and store payload_hash. If the same key arrives with a different payload_hash, raise ANOMALY and quarantine (never silent).
 
 8. **Publish atomicity and "unknown success"**
 
@@ -111,6 +114,7 @@ Detailed answers (recommended defaults, based on current implementation posture)
 - No explicit handling for unknown success. If publish raises, IG quarantines and does not record dedupe.
 - Publish attempts are not recorded as a separate state; only successful publish produces eb_ref + admission row.
 - File EB publish fsyncs and is low-risk for unknown success; Kinesis is at-least-once and still vulnerable to unknown success.
+- Pin (P0): introduce an admission state machine with PUBLISH_IN_FLIGHT written before publish, ADMITTED on success (with eb_ref), and PUBLISH_AMBIGUOUS on timeout/unknown. Do not re-publish keys in IN_FLIGHT/AMBIGUOUS without explicit reconciliation.
 
 9. **Partitioning determinism + join locality guarantees**
 
@@ -127,6 +131,7 @@ Detailed answers (recommended defaults, based on current implementation posture)
 - context flow_anchor baseline/fraud: payload.flow_id -> payload.merchant_id -> payload.arrival_seq -> event_id.
 - If required keys are missing, IG falls back to later keys; if all missing, PARTITION_KEY_MISSING -> quarantine.
 - Gap: IG does not enforce payload fields directly; locality relies on payload schema correctness.
+- Pin (P1): clarify join-locality claim. Either (a) enforce composite partition key (merchant_id + arrival_seq) for context topics, or (b) state locality is only on merchant_id and accept cross-partition joins by arrival_seq.
 
 10. **Receipts contract**
 
@@ -250,6 +255,7 @@ Detailed answers (recommended defaults, based on current implementation posture)
 - IG computes a policy_rev digest from schema_policy + class_map + partitioning profiles and includes it in receipts.
 - READY does not pin these configs; IG uses current wiring config at runtime.
 - Gap: no run-level freeze; config changes mid-run take effect immediately.
+- Pin (P1): accept mid-run config changes only as explicit policy_rev boundaries. Add run_config_digest to READY once run-level freeze is introduced; until then, do not claim run-frozen configs.
 
 6. **Durability of receipts and run facts**
 
@@ -261,6 +267,7 @@ Detailed answers (recommended defaults, based on current implementation posture)
 - ADMIT receipts are written after publish success and include eb_ref (topic, partition, offset, offset_kind, published_at_utc).
 - DUPLICATE and QUARANTINE receipts are also written (no EB publish).
 - Gap: if object store fails after publish, receipt write errors bubble out with no compensation.
+- Pin (P0): if receipt write fails after publish, admission DB must still persist eb_ref + payload_hash and mark receipt_write_failed for backfill. Optionally spool receipts to a local file for later replay.
 
 7. **Cost/retention alignment**
 
