@@ -28,6 +28,7 @@ Detailed answers (recommended defaults, based on current implementation posture)
 - READY can be emitted multiple times. SR publishes READY with deterministic message_id = sha256("ready|" + run_id + "|" + (bundle_hash or plan_hash)). Re-emit uses bundle_hash or a hash of run_facts_view if bundle_hash is absent.
 - File control bus is idempotent per message_id filename; Kinesis can deliver duplicates. WSP dedupes READY by message_id and skips only if prior status == STREAMED.
 - WSP restart uses checkpoint store per (pack_key, output_id). Missing checkpoints cause a replay; event_id stays deterministic, so IG dedupe absorbs duplicates.
+ - Pin (P0): READY message_id is derived from both `platform_run_id` and `scenario_run_id` plus bundle_hash/plan_hash (e.g., sha256("ready|platform_run_id|scenario_run_id|bundle_hash")). READY payload must carry both ids, and WSP must validate scenario_run_id matches the facts_view it loads.
 
 3. **Run facts immutability**
 
@@ -55,6 +56,7 @@ Detailed answers (recommended defaults, based on current implementation posture)
 - event_class is not part of event_id; event_type == output_id. IG derives event_class later via class_map and dedupes on (event_type, event_id).
 - payload_hash is not emitted by WSP and not stored by IG (gap for anomaly detection).
 - run_id is included in the envelope but not in event_id; cross-run collisions remain possible if pins + primary keys match.
+ - Pin (P0): canonical dedupe tuple is (platform_run_id, event_class, event_id). event_type is metadata only. This tuple must be used consistently by IG, admission DB uniqueness, receipts, and platform narrative.
 
 5. **Retry model (HTTP ingest)**
 
@@ -131,7 +133,7 @@ Detailed answers (recommended defaults, based on current implementation posture)
 - context flow_anchor baseline/fraud: payload.flow_id -> payload.merchant_id -> payload.arrival_seq -> event_id.
 - If required keys are missing, IG falls back to later keys; if all missing, PARTITION_KEY_MISSING -> quarantine.
 - Gap: IG does not enforce payload fields directly; locality relies on payload schema correctness.
-- Pin (P1): clarify join-locality claim. Either (a) enforce composite partition key (merchant_id + arrival_seq) for context topics, or (b) state locality is only on merchant_id and accept cross-partition joins by arrival_seq.
+- Pin (P1): default claim is context locality on merchant_id only (arrival_seq is used inside JoinFrameKey, not for partitioning) unless/until we switch to a composite key (merchant_id + arrival_seq).
 
 10. **Receipts contract**
 
@@ -267,7 +269,7 @@ Detailed answers (recommended defaults, based on current implementation posture)
 - ADMIT receipts are written after publish success and include eb_ref (topic, partition, offset, offset_kind, published_at_utc).
 - DUPLICATE and QUARANTINE receipts are also written (no EB publish).
 - Gap: if object store fails after publish, receipt write errors bubble out with no compensation.
-- Pin (P0): if receipt write fails after publish, admission DB must still persist eb_ref + payload_hash and mark receipt_write_failed for backfill. Optionally spool receipts to a local file for later replay.
+- Pin (P0): commit point is admission DB row updated to ADMITTED with eb_ref + payload_hash. Receipt write is required for "green" but may lag; on receipt failure, mark receipt_write_failed for backfill and do not lose eb_ref evidence.
 
 7. **Cost/retention alignment**
 
@@ -285,4 +287,4 @@ Detailed answers (recommended defaults, based on current implementation posture)
 Detailed answers (recommended defaults, based on current implementation posture):
 - Current posture: no explicit handling for publish unknown success. If publish raises, IG quarantines and does not record dedupe. This can lead to duplicates if the publish actually succeeded.
 - Receipt durability: receipts are written after publish success; if the object store fails after publish, receipt write errors bubble out and there is no compensation or retry.
-- Required pin to close this gap: implement publish-attempt logging (outbox) and treat receipt durability as part of the commit point; do not advance dedupe/offset state unless receipt write succeeds. Add an explicit retry/reconcile path for unknown success to avoid duplicate side-effects.
+- Required pin to close this gap: implement publish-attempt logging (outbox) and an admission state machine (PUBLISH_IN_FLIGHT -> ADMITTED; PUBLISH_AMBIGUOUS on unknown). Do not re-publish keys in IN_FLIGHT/AMBIGUOUS without reconciliation. Receipt write can lag, but EB evidence must be preserved in admission DB.
