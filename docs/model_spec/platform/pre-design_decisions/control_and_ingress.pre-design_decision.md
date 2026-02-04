@@ -12,10 +12,11 @@ Below are the design-level questions to settle for Control & Ingress. Answers ar
 - Can multiple runs be active concurrently? If so, how do components choose which run(s) to process?
 
 Detailed answers (recommended defaults, based on current implementation posture):
-- Scenario `run_id` is deterministic: sha256("sr_run|" + run_equivalence_key) -> 32 hex. The SR equivalence registry rejects conflicting intent fingerprints for the same equivalence key (EQUIV_KEY_COLLISION).
+- Scenario `run_id` is deterministic: sha256("sr_run|" + run_equivalence_key), truncated to 32 hex chars (128-bit). Truncation length is fixed and pinned. The SR equivalence registry rejects conflicting intent fingerprints for the same equivalence key (EQUIV_KEY_COLLISION).
 - Platform session run_id is separate: "platform_YYYYMMDDTHHMMSSZ" stored at `runs/fraud-platform/ACTIVE_RUN_ID`, overridable via `PLATFORM_RUN_ID`. This controls run-scoped artifact/log paths, not scenario run selection.
-- Multiple scenario runs can be active concurrently. SR uses per-run leases to enforce a single leader for each run_id; WSP consumes READY messages across runs; IG admits all runs based on envelope pins.
-- Gaps: IG dedupe key omits run_id; if event_id collides across runs, the later run can be marked DUPLICATE. WSP does not validate READY run_id against the oracle receipt run_id when streaming.
+- Multiple scenario runs can be active concurrently. SR uses per-run leases to enforce a single leader for each scenario_run_id; WSP consumes READY messages across runs; IG admits all runs based on envelope pins.
+- Gaps: IG dedupe key omits `platform_run_id`; if event_id collides across platform runs, the later run can be marked DUPLICATE. WSP does not validate READY `scenario_run_id` against the oracle receipt `scenario_run_id` when streaming.
+
 - Pin (P0): carry both `platform_run_id` (execution/session scope) and `scenario_run_id` (deterministic scenario identity). Choose one canonical run_id for downstream evidence/dedupe/receipts and carry the other explicitly. Recommended: canonical = platform_run_id; scenario_run_id is used to resolve run_facts_view/stream views. Update envelope/contracts to prevent mixing.
 
 2. **READY event idempotency**
@@ -25,7 +26,7 @@ Detailed answers (recommended defaults, based on current implementation posture)
 - If WSP restarts mid-run, does it re-emit the same events (same `event_id`) deterministically?
 
 Detailed answers (recommended defaults, based on current implementation posture):
-- READY can be emitted multiple times. SR publishes READY with deterministic message_id = sha256("ready|" + run_id + "|" + (bundle_hash or plan_hash)). Re-emit uses bundle_hash or a hash of run_facts_view if bundle_hash is absent.
+- READY can be emitted multiple times. SR publishes READY with deterministic message_id = sha256("ready|" + `scenario_run_id` + "|" + (bundle_hash or plan_hash)). Re-emit uses bundle_hash or a hash of run_facts_view if bundle_hash is absent.
 - File control bus is idempotent per message_id filename; Kinesis can deliver duplicates. WSP dedupes READY by message_id and skips only if prior status == STREAMED.
 - WSP restart uses checkpoint store per (pack_key, output_id). Missing checkpoints cause a replay; event_id stays deterministic, so IG dedupe absorbs duplicates.
  - Pin (P0): READY message_id is derived from both `platform_run_id` and `scenario_run_id` plus bundle_hash/plan_hash (e.g., sha256("ready|platform_run_id|scenario_run_id|bundle_hash")). READY payload must carry both ids, and WSP must validate scenario_run_id matches the facts_view it loads.
@@ -34,12 +35,12 @@ Detailed answers (recommended defaults, based on current implementation posture)
 
 - Is `run_facts_view` immutable once written?
 - Do you content-hash / include a digest in READY so downstream can validate it did not change?
-- If SR is re-run for the same run_id, what happens?
+- If SR is re-run for the same `scenario_run_id`, what happens?
 
 Detailed answers (recommended defaults, based on current implementation posture):
 - `run_facts_view` is write-once (write_json_if_absent). If content differs on re-run, SR raises FACTS_VIEW_DRIFT. READY signal is also write-once (READY_SIGNAL_DRIFT).
 - READY payload includes facts_view_ref + bundle_hash + optional oracle_pack_ref. There is no explicit run_facts_view digest beyond bundle_hash.
-- If the same run_equivalence_key and intent_fingerprint are used, SR reuses the same run_id and artifacts without rewriting. A different intent_fingerprint for the same equivalence key is rejected (EQUIV_KEY_COLLISION).
+- If the same run_equivalence_key and intent_fingerprint are used, SR reuses the same `scenario_run_id` and artifacts without rewriting. A different intent_fingerprint for the same equivalence key is rejected (EQUIV_KEY_COLLISION).
 
 ---
 
@@ -53,10 +54,9 @@ Detailed answers (recommended defaults, based on current implementation posture)
 
 Detailed answers (recommended defaults, based on current implementation posture):
 - event_id is deterministic: sha256 over output_id + primary key values + pins (manifest_fingerprint, parameter_hash, seed, scenario_id). This is derived by `derive_engine_event_id` and fails if any primary key is missing.
-- event_class is not part of event_id; event_type == output_id. IG derives event_class later via class_map and dedupes on (event_type, event_id).
+- event_class is not part of event_id; event_type == output_id. Current posture: IG derives event_class via class_map and dedupes on (event_type, event_id). Pin (P0): canonical dedupe tuple is `(platform_run_id, event_class, event_id)` (event_type is metadata only).
 - payload_hash is not emitted by WSP and not stored by IG (gap for anomaly detection).
-- run_id is included in the envelope but not in event_id; cross-run collisions remain possible if pins + primary keys match.
- - Pin (P0): canonical dedupe tuple is (platform_run_id, event_class, event_id). event_type is metadata only. This tuple must be used consistently by IG, admission DB uniqueness, receipts, and platform narrative.
+- `platform_run_id` and `scenario_run_id` are included in the envelope but not in event_id; under the current dedupe posture, cross-run collisions remain possible if pins + primary keys match.
 
 5. **Retry model (HTTP ingest)**
 
@@ -99,7 +99,7 @@ Detailed answers (recommended defaults, based on current implementation posture)
 - No payload_hash; no anomaly detection; no run_id or event_class in the key.
 - TTL/retention: none. Rows persist until manually purged.
 - Gap: dedupe scope is smaller than (run_id, event_class, event_id) and can mis-dedupe across runs.
-- Pin (P0): update dedupe key to include platform_run_id + event_class (or event_type) + event_id, and store payload_hash. If the same key arrives with a different payload_hash, raise ANOMALY and quarantine (never silent).
+- Pin (P0): update dedupe key to include `platform_run_id + event_class + event_id`, and store `payload_hash`. If the same key arrives with a different `payload_hash`, raise ANOMALY and quarantine (never silent).
 
 8. **Publish atomicity and "unknown success"**
 
@@ -126,11 +126,11 @@ Detailed answers (recommended defaults, based on current implementation posture)
 
 Detailed answers (recommended defaults, based on current implementation posture):
 - Partitioning uses class_map -> profile_id -> key_precedence (first present value), hashed via sha256.
-- control: run_id -> manifest_fingerprint -> event_id.
+- control: platform_run_id -> manifest_fingerprint -> event_id.
 - audit: event_id -> manifest_fingerprint.
 - traffic (baseline/fraud): payload.flow_id -> payload.merchant_id -> payload.account_id -> payload.party_id -> event_id.
 - context arrival_events/arrival_entities: payload.merchant_id -> payload.arrival_seq -> event_id.
-- context flow_anchor baseline/fraud: payload.flow_id -> payload.merchant_id -> payload.arrival_seq -> event_id.
+- context flow_anchor baseline/fraud: payload.merchant_id -> payload.arrival_seq -> payload.flow_id -> event_id.
 - If required keys are missing, IG falls back to later keys; if all missing, PARTITION_KEY_MISSING -> quarantine.
 - Gap: IG does not enforce payload fields directly; locality relies on payload schema correctness.
 - Pin (P1): default claim is context locality on merchant_id only (arrival_seq is used inside JoinFrameKey, not for partitioning) unless/until we switch to a composite key (merchant_id + arrival_seq).
@@ -153,6 +153,7 @@ Detailed answers (recommended defaults, based on current implementation posture)
 - Receipt fields include: receipt_id, decision, event_id, event_type, ts_utc, manifest_fingerprint, policy_rev, dedupe_key, pins, plus optional schema_version, producer, partitioning_profile_id, partition_key, eb_ref, reason_codes, evidence_refs.
 - ADMIT receipts are written after publish success and include eb_ref with topic/partition/offset/offset_kind/published_at_utc.
 - Gaps: payload_hash not recorded; event_class not recorded; admitted_at timestamp not recorded (only published_at_utc in eb_ref).
+- Pin (P0): receipts MUST record `platform_run_id`, `scenario_run_id`, `event_class`, `payload_hash`, and `admitted_at_utc` (in addition to `eb_ref`). ADMIT receipts remain post-publish; if receipt write fails, preserve `eb_ref + payload_hash` in admission DB and mark `receipt_write_failed` for backfill.
 
 11. **Schema policy authority + compatibility**
 
@@ -199,7 +200,7 @@ Detailed answers (recommended defaults, based on current implementation posture)
 
 Detailed answers (recommended defaults, based on current implementation posture):
 - Topic set is derived from class_map + partitioning profiles. It is not included in READY today.
-- READY payload includes run_id, facts_view_ref, bundle_hash, optional oracle_pack_ref. No run_config_digest or topic list yet.
+- READY payload includes `platform_run_id`, `scenario_run_id`, facts_view_ref, bundle_hash, optional oracle_pack_ref. No run_config_digest or topic list yet.
 - Gap: if run-specific topic sets are needed, READY must carry them (and a config digest) in v1.
 
 ---
