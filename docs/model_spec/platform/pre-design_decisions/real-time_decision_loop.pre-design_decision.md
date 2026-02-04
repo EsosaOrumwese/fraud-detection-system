@@ -12,6 +12,7 @@ Detailed answers (recommended defaults, based on current implementation posture)
 - Latency SLOs (EB ingest -> decision emitted by DF): p50 <= 100 ms, p95 <= 300 ms, p99 <= 800 ms. Max worst-case (hard timeout) 1500 ms, after which we force explicit degrade posture for that event.
 - Throughput target: sustained 1-5k events/sec per run, burst 3-5x sustained for 1-5 minutes. Per-partition design assumes 200-500 events/sec per shard; scale by adding shards/partitions.
 - Optimization stance: default to highest fidelity; do not silently trade correctness for latency. Degrade is explicit and recorded when SLOs or context requirements are violated.
+- Deadline alignment: decision_deadline_ms = 1500 and join_wait_budget_ms = 600-900 (configurable). Join wait must always be <= decision_deadline, leaving budget for compute + logging.
 
 ## 2) EB Contracts & Retention
 - What is the **retention window** for EB in each environment (local/dev/prod)?
@@ -23,6 +24,7 @@ Detailed answers (recommended defaults, based on current implementation posture)
 - Archive requirement: yes. We need an object-store archive to preserve replay and audit beyond EB retention. Archive SLA: write within 5 minutes of EB receipt (v0 target).
 - Archive schema: NDJSON per topic per day (or per hour at high volume). Each record includes the full canonical envelope plus EB metadata (topic, partition, offset, ingested_at_utc) and ContextPins. Optional: record hash for integrity checks.
 - Truth posture: EB is live truth for online consumers; archive is long-term truth for replay/audit once EB retention expires. If EB and archive disagree, treat as audit anomaly and fail closed for replay.
+  Truth sentence: for online processing, EB origin offsets are the evidence boundary; for replay, archive-stored origin offsets and payloads are the evidence boundary. Any mismatch is an audit anomaly; replay fails closed.
 
 Open questions to confirm:
 - Do we require archive storage to preserve per-partition ordering strictly (replay must be partition-ordered), or is ordering derived from stored offsets?
@@ -31,6 +33,7 @@ Open questions to confirm:
 Answers (recommended defaults):
 - Archive storage must preserve per-partition ordering. Store records in partition-ordered sequence (or store offsets and replay by sorting on offset) so replay is deterministic.
 - Archive catch-up SLA target remains 5 minutes; allowable max delay under spikes is 15 minutes before raising a WARN and 30 minutes before raising a FAIL and triggering backpressure to the archive writer.
+- Archive lag does not block decisions in v0 unless EB retention risk is imminent; if gating is required, gate at run-level with explicit degrade posture.
 
 ## 3) Canonical Event & Versioning
 - What is the **canonical event schema versioning policy** for RTDL consumption? (hard fail vs allow older schema with adapter)
@@ -42,13 +45,14 @@ Detailed answers (recommended defaults, based on current implementation posture)
 - Versioning policy: major schema mismatch -> reject/quarantine. Minor forward-compatible versions are accepted only if an adapter exists. No silent coercion.
 - Schema evolution guarantees per topic: additive-only in v0. No renames or removals without explicit alias mapping. New fields must be optional with stable defaults.
 - event_id contract: deterministic content hash of stable fields. Recommended: sha256 over canonical JSON of {event_type, payload, ContextPins, ts_utc}, with stable key ordering and normalized encoding. Exclude volatile fields (ingest time, offsets, retry metadata). If the same event_id arrives with a different payload hash, treat as anomaly and quarantine.
+  Canonicalization rules are pinned in code; event_id is producer-assigned and stable across retries. Persist payload_hash (payload-only) and treat mismatches as audit anomalies with quarantine.
 
 Open questions to confirm:
 - Which ContextPins are mandatory on all four RTDL topics, and which (if any) are optional?
 - Who is the authoritative compatibility source: interface pack schema refs, registry resolution, or repo config revision?
 
 Answers (recommended defaults):
-- Mandatory pins on all RTDL topics: run_id, scenario_id, manifest_fingerprint, parameter_hash, seed. Optional: trace_id, span_id, producer.
+- Mandatory pins on all RTDL topics: run_id, scenario_id, manifest_fingerprint, parameter_hash. Seed is required for synthetic runs; optional otherwise. Optional: trace_id, span_id, producer.
 - Authoritative compatibility source is the interface pack schema refs pinned in repo; registry can override only when explicitly versioned and referenced by run_config_digest.
 
 ## 4) Join Readiness Rules (context ↔ traffic)
@@ -58,7 +62,7 @@ Answers (recommended defaults):
 
 Detailed answers (recommended defaults, based on current implementation posture):
 - Join key: authoritative key is (run_id, merchant_id, arrival_seq). flow_id is secondary and used once flow_anchor is present. If arrival_seq and flow_id disagree, arrival_seq wins and the event is flagged for audit.
-- Join wait policy: bounded in-memory queue per partition; max wait 2 seconds (configurable) per traffic event. If timeout expires or queue is full, emit decision with explicit degrade_posture=context_missing and record missing context fields in the audit payload.
+- Join wait policy: bounded in-memory queue per partition; max wait 600-900 ms (configurable, must be <= decision_deadline) per traffic event. If timeout expires or queue is full, emit decision with explicit degrade_posture=context_missing and record missing context fields in the audit payload.
 - Context completeness: required for scoring is arrival_events + flow_anchor for the same join key. arrival_entities is optional (used when present) and must not block scoring in v0. If flow_anchor is missing, default is degrade (do not infer).
 
 ## 5) Ordering & Watermarks
@@ -76,8 +80,7 @@ Open questions to confirm:
 - If join locality is required, what is the canonical cross-topic partition key (arrival_seq vs flow_id vs merchant_id), and do IG partitioning profiles guarantee compatibility?
 
 Answers (recommended defaults):
-- Join locality is required for v0 to avoid distributed joins. All events for a join frame must land on the same partition.
-- Canonical cross-topic partition key is (merchant_id, arrival_seq) until flow_id is available; for traffic, derive a compatible key using flow_id when present but include merchant_id as a stable tie-break. IG partitioning profiles must be aligned to produce compatible keys across topics; update profiles if they drift.
+- Join locality is required for context topics. Full join locality across all four topics is not achievable without enriching traffic events (traffic schema lacks merchant_id/arrival_seq). v0 default: enforce locality for context streams on (merchant_id, arrival_seq) and allow cross-partition joins for traffic -> context. If we require full locality, we must enrich traffic events with merchant_id + arrival_seq (or add a deterministic mapping layer) and align IG partitioning profiles accordingly.
 
 ## 6) State Stores & Rebuildability
 - What exact **state stores** are required (Context Store, OFP, IEG projection), and what are their **durability/TTL policies**?
@@ -114,7 +117,7 @@ Detailed answers (recommended defaults, based on current implementation posture)
 - Are actions synchronous on the decision path or **async with eventual completion**?
 
 Detailed answers (recommended defaults, based on current implementation posture):
-- Idempotency key: decision_id derived from (event_id + bundle_ref + eb_offset_basis). Use this key for action execution and dedupe.
+- Idempotency key: decision_id derived from (event_id + bundle_ref + origin_offset). Use this key for action execution and dedupe.
 - Failure policy: retry with exponential backoff and capped attempts; on final failure emit action_outcome=FAILED with error_code and reason. No silent success.
 - Execution mode: async by default. Decision is emitted immediately; action outcomes are recorded as separate events for audit/labeling.
 
@@ -140,7 +143,11 @@ Open questions to confirm:
 
 Answers (recommended defaults):
 - Yes. Store explicit context offsets used for the join frame (arrival_events, arrival_entities when present, flow_anchor) in DLA evidence boundary, alongside the traffic offset.
-- decision_id is derived as a deterministic hash of (traffic event_id + bundle_ref + eb_offset_basis). This is stable under replay and aligns with action idempotency.
+- decision_id is derived as a deterministic hash of (traffic event_id + bundle_ref + origin_offset). This is stable under replay and aligns with action idempotency.
+
+Evidence offsets vs processing offsets:
+- origin_offset = the EB offset where the evidence event was first admitted (immutable, stored in audit).
+- checkpoint_offset = consumer progress offset (mutable, per consumer group, not evidence).
 
 ## 10) Security / Governance
 - What data is considered **sensitive** in RTDL (PII, device IDs, etc.) and how is it masked in logs?
