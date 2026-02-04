@@ -275,6 +275,14 @@ The EB traffic plane is **single‑mode per run**: a run is either **fraud** (`s
 **Context stream semantics (post‑EB):**  
 Context topics are **separate from traffic** and provide join surfaces to downstream consumers. Fraud runs require `s3_flow_anchor_with_fraud_6B`; baseline runs require `s2_flow_anchor_baseline_6B`. Context retention/shape decisions are **deferred to Phase 4 (RTDL)**.
 
+#### Control & Ingress open pins (to resolve)
+These are the remaining control-plane pins before we declare the plane fully closed.
+
+- **Dedupe semantics:** update IG dedupe key from `event_id` only to `(run_id, topic_or_class, event_id)` and persist `payload_hash` to detect collisions.
+- **Partition key consistency:** with current schemas, full join locality across all four topics is not guaranteed. Default v0 resolution: enforce locality for context streams on `(merchant_id, arrival_seq)`, and allow cross-partition joins for traffic->context. If we require full locality, we must enrich traffic events with `merchant_id` + `arrival_seq` (or add a deterministic mapping layer) and align IG partitioning profiles accordingly.
+- **Health posture meaning:** AMBER is observational (no gating). RED gates admission (HTTP 503) with retry-after; WSP must backoff.
+- **Receipt minimum fields:** receipts must include eb_offset metadata, dedupe_key, payload_hash, schema_version, policy_rev, and run_config_digest for reconciliation.
+
 #### Phase 4.1 — RTDL contracts + invariants (expanded)
 
 ##### 4.1.A — RTDL envelope + provenance contract
