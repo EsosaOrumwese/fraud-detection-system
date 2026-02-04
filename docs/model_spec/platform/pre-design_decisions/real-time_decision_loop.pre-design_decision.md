@@ -1,4 +1,5 @@
 # Real-Time Decision Loop Pre-design Decisions (Open to adjustment where necessary)
+_As of 2026-02-04_
 
 Below are the **design‑level questions** I think we should settle **now** so the RTDL plan and component build are clean and unambiguous. I’ve grouped them by concern and ordered by impact.
 
