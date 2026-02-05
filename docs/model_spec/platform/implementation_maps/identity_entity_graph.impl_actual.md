@@ -499,3 +499,33 @@ Close run-scope drift against the flow narrative: ensure IEG is run-scoped, buil
 
 ### Validation
 - `python -m pytest tests/services/identity_entity_graph -q` (11 passed)
+---
+
+## Entry: 2026-02-05 22:25:00 — Phase 6 validation plan (corrective entry)
+
+### Problem / goal
+Complete Phase 6 validation for IEG: determinism, watermark monotonicity, and EB→projection integration test coverage.
+
+### Why corrective
+Phase 6 coding began before a formal plan entry. This entry records the intended plan and decisions after the fact to keep the decision trail auditable.
+
+### Planned tests
+1) **Replay determinism**: identical EB offsets ⇒ same graph_version + identical projection counts.
+2) **Watermark monotonicity**: out-of-order event timestamps must not regress watermark (max ts_utc wins).
+3) **Integration projection**: file-bus sample events (traffic + context) yield deterministic, non-empty projection with expected entity/identifier counts and zero apply failures.
+
+### Targets
+- New tests under `tests/services/identity_entity_graph/` using file-bus + projector with a temporary profile.
+- Assertions rely on schema-valid envelopes with full ContextPins.
+---
+
+## Entry: 2026-02-05 22:27:00 — Phase 6 validation implemented (IEG)
+
+### Tests added
+- `tests/services/identity_entity_graph/test_projector_determinism.py`
+  - Replay determinism: same EB sample ⇒ identical graph_version + counts.
+  - Watermark monotonicity: decreasing ts_utc does not regress watermark.
+  - Integration projection: EB sample events ⇒ deterministic projection (dedupe=4, entities=8, identifiers=8, apply_failures=0).
+
+### Validation
+- `python -m pytest tests/services/identity_entity_graph -q` (14 passed)
