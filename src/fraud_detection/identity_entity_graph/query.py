@@ -6,6 +6,7 @@ import base64
 import hashlib
 import json
 from dataclasses import dataclass
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
@@ -89,11 +90,32 @@ class IdentityGraphQuery:
         graph_version = self.store.current_graph_version()
         failure_count = self.store.apply_failure_count(scenario_run_id=scenario_run_id)
         integrity_status = "DEGRADED" if failure_count > 0 else "CLEAN"
+        metrics = self.store.metrics_summary(scenario_run_id=scenario_run_id)
+        checkpoints = self.store.checkpoint_summary()
+        watermark_age = _age_seconds(checkpoints.get("watermark_ts_utc"))
+        checkpoint_age = _age_seconds(checkpoints.get("updated_at_utc"))
+        health = _derive_health(
+            failure_count=failure_count,
+            watermark_age_seconds=watermark_age,
+            checkpoint_age_seconds=checkpoint_age,
+        )
         return {
             "graph_version": graph_version,
             "integrity_status": integrity_status,
             "apply_failure_count": failure_count,
+            "metrics": metrics,
+            "checkpoints": checkpoints,
+            "watermark_age_seconds": watermark_age,
+            "checkpoint_age_seconds": checkpoint_age,
+            "health_state": health["state"],
+            "health_reasons": health["reasons"],
         }
+
+    def reconciliation(self) -> dict[str, Any] | None:
+        basis = self.store.graph_basis()
+        if not basis:
+            return None
+        return basis
 
     def resolve_identity(
         self,
@@ -309,3 +331,67 @@ def _decode_page_token(
     if not last_entity_type or not last_entity_id:
         raise QueryError("PAGE_TOKEN_INVALID", "missing resume keys")
     return str(last_entity_type), str(last_entity_id)
+
+
+def _parse_ts(value: str | None) -> datetime | None:
+    if not value:
+        return None
+    try:
+        if value.endswith("Z"):
+            value = value.replace("Z", "+00:00")
+        return datetime.fromisoformat(value)
+    except Exception:
+        return None
+
+
+def _age_seconds(value: str | None) -> float | None:
+    parsed = _parse_ts(value)
+    if not parsed:
+        return None
+    now = datetime.now(tz=timezone.utc)
+    if parsed.tzinfo is None:
+        parsed = parsed.replace(tzinfo=timezone.utc)
+    return max(0.0, (now - parsed).total_seconds())
+
+
+def _derive_health(
+    *, failure_count: int, watermark_age_seconds: float | None, checkpoint_age_seconds: float | None
+) -> dict[str, Any]:
+    amber_watermark_age = 120.0
+    red_watermark_age = 300.0
+    amber_checkpoint_age = 120.0
+    red_checkpoint_age = 300.0
+    amber_failures = 1
+    red_failures = 100
+
+    reasons: list[str] = []
+    state = "GREEN"
+
+    if watermark_age_seconds is None:
+        reasons.append("WATERMARK_MISSING")
+        state = "AMBER"
+    elif watermark_age_seconds >= red_watermark_age:
+        reasons.append("WATERMARK_TOO_OLD")
+        state = "RED"
+    elif watermark_age_seconds >= amber_watermark_age:
+        reasons.append("WATERMARK_LAGGING")
+        state = "AMBER"
+
+    if checkpoint_age_seconds is None:
+        reasons.append("CHECKPOINT_MISSING")
+        state = "AMBER" if state != "RED" else state
+    elif checkpoint_age_seconds >= red_checkpoint_age:
+        reasons.append("CHECKPOINT_TOO_OLD")
+        state = "RED"
+    elif checkpoint_age_seconds >= amber_checkpoint_age and state != "RED":
+        reasons.append("CHECKPOINT_LAGGING")
+        state = "AMBER"
+
+    if failure_count >= red_failures:
+        reasons.append("APPLY_FAILURES_RED")
+        state = "RED"
+    elif failure_count >= amber_failures and state != "RED":
+        reasons.append("APPLY_FAILURES_AMBER")
+        state = "AMBER"
+
+    return {"state": state, "reasons": reasons}

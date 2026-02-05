@@ -319,3 +319,53 @@ IPs:
 1. `SHARED_IP`: **88.01%**
 2. `HIGH_RISK_IP`: **9.47%**
 3. `CLEAN_IP`: **2.52%**
+
+---
+
+## A) Population & segmentation realism (S1)
+
+### A1. Population structure is internally consistent
+1. **Total parties = 3,281,174** and `party_id` is **unique** (no duplication).  
+   This is a foundational integrity check: the party base is clean and safe for joins downstream.
+2. Coverage spans **77 countries**, **5 regions**, and **17 segments**.  
+   That is a healthy diversity footprint; realism now depends on the distribution of those entities across geography and segment types.
+
+### A2. Party type mix is strongly retail‑weighted
+1. `RETAIL` = **96.77%**, `BUSINESS` = **2.75%**, `OTHER` = **0.48%**.  
+   This is a deliberate posture: the synthetic bank is overwhelmingly retail. That can be realistic *if* the target institution is retail‑dominant; if we expect a larger SME share, this is likely too low and will suppress business‑behavior realism downstream.
+
+### A3. Segment assignment is coherent with party type
+1. **No leakage between party types and segment families**:  
+   All `RETAIL_*` segments appear only under `party_type=RETAIL`, and all `BUSINESS_*` segments appear only under `party_type=BUSINESS`.  
+   This indicates segmentation logic is internally consistent rather than cross‑contaminated.
+2. Segment weight is concentrated in retail cohorts:  
+   `RETAIL_FAMILY` (20.97%), `RETAIL_MATURE` (16.79%), `RETAIL_EARLY_CAREER` (16.35%), `RETAIL_RETIRED` (10.95%), etc.  
+   Business segments are present but tiny (~0.3–0.7% each), which is consistent with the overall low business share.
+
+### A4. Country concentration is high (top‑heavy distribution)
+1. Top country shares are large: `DE` **14.54%**, `FR` **10.79%**, `GB` **10.26%**.  
+   This is a **strong concentration** in the top three countries; it will shape downstream behavior and geography realism.
+2. **HHI = 0.0633**, which implies an “effective” **~15.8 countries** (1/HHI).  
+   Even though 77 countries are present, the distribution behaves like a much smaller set of dominant countries. This is not automatically unrealistic, but it is a posture choice.
+
+### A5. Region mix reflects synthetic hashing, not true geography
+1. Region shares:  
+   `REGION_AFRICA` **31.1%**, `REGION_EMEA` **27.2%**, `REGION_APAC` **20.1%**, `REGION_LATAM` **13.5%**, `REGION_AMER` **8.2%**.  
+   Because regions are derived from a hashed country‑to‑region mapping, this is **not a real demographic distribution**; it is a deterministic partitioning.  
+   The realism implication is: **regional ratios should be treated as synthetic buckets**, not real‑world geography.
+
+### A6. Country‑level segment mix is almost uniform
+1. The L1 distance between each country’s segment mix and the global segment mix is:  
+   p50 **0.148**, p90 **0.178**, max **0.178** (countries with ≥10k parties).  
+   Interpreting L1 as total variation: most countries differ from global by only ~7–9% in total mass.  
+   This means **country‑specific segmentation is weak** and the population is effectively governed by a global segment prior.
+
+### A7. Business share is narrowly ranged across countries
+1. For countries with ≥10k parties, business share ranges roughly **2.0% → 4.0%**.  
+   This is a very tight band; countries do not meaningfully differ in business intensity.  
+   That is consistent with a global business‑share policy and inconsistent with a world where business density varies substantially by country.
+
+### A8. Interpretation for realism
+1. **Strength:** segmentation is consistent and logically clean (no cross‑type leakage).  
+2. **Posture:** the world is strongly retail‑heavy, top‑heavy by country, and geographically uniform in segment mix.  
+3. **Realism impact:** this is *statistically coherent* but **policy‑driven**, not emergent geography. If stronger geo‑specific realism is desired, priors need country‑level modulation.

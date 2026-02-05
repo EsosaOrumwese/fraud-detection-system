@@ -218,3 +218,58 @@ def test_prune_removes_old_entities(tmp_path) -> None:
     with sqlite3.connect(db_path) as conn:
         entity_count = conn.execute("SELECT COUNT(*) FROM ieg_entities").fetchone()[0]
         assert entity_count == 1
+
+
+def test_metrics_counters(tmp_path) -> None:
+    db_path = tmp_path / "ieg.db"
+    store = build_store(str(db_path), stream_id="ieg.v0")
+    pins = _base_pins()
+    class_name = "traffic"
+    pins["dedupe_key"] = dedupe_key(str(pins["scenario_run_id"]), class_name, "evt-m1")
+    hint = IdentityHint(
+        identifier_type="account_id",
+        identifier_value="acc-1",
+        entity_type="account",
+        entity_id="entity-1",
+        source_event_id="evt-m1",
+    )
+    store.apply_mutation(
+        topic="fp.bus.traffic.v1",
+        partition=0,
+        offset="0",
+        offset_kind="file_line",
+        event_id="evt-m1",
+        event_type="s3_event_stream_with_fraud_6B",
+        class_name=class_name,
+        scenario_run_id=str(pins["scenario_run_id"]),
+        pins=pins,
+        payload_hash="hash-m1",
+        identity_hints=[hint],
+        event_ts_utc="2026-02-05T00:00:00.000000+00:00",
+    )
+    store.record_failure(
+        topic="fp.bus.traffic.v1",
+        partition=0,
+        offset="1",
+        offset_kind="file_line",
+        event_id="evt-m2",
+        event_type="s3_event_stream_with_fraud_6B",
+        scenario_run_id=str(pins["scenario_run_id"]),
+        reason_code="IDENTITY_HINTS_MISSING",
+        details=None,
+        event_ts_utc="2026-02-05T00:00:01.000000+00:00",
+    )
+    store.advance_checkpoint(
+        topic="fp.bus.traffic.v1",
+        partition=0,
+        offset="2",
+        offset_kind="file_line",
+        event_ts_utc="2026-02-05T00:00:02.000000+00:00",
+        scenario_run_id=str(pins["scenario_run_id"]),
+        count_as="irrelevant",
+    )
+    metrics = store.metrics_summary(scenario_run_id=str(pins["scenario_run_id"]))
+    assert metrics["events_seen"] == 3
+    assert metrics["mutating_applied"] == 1
+    assert metrics["unusable"] == 1
+    assert metrics["irrelevant"] == 1

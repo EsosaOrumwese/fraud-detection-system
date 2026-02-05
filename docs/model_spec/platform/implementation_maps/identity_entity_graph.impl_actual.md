@@ -328,3 +328,70 @@ Implement Phase 3 of the IEG build plan: a deterministic, read‑only query surf
 
 ### Validation
 - `python -m pytest tests/services/identity_entity_graph -q` (10 passed)
+
+---
+
+## Entry: 2026-02-05 20:30:00 — Phase 3 live query demo (HTTP service)
+
+### Run
+- Service: `src/fraud_detection/identity_entity_graph/service.py`
+- Profile: `config/platform/profiles/local_parity.yaml`
+- Host/port: `127.0.0.1:8091`
+- Projection DB: `runs/fraud-platform/platform_20260205T201203Z/identity_entity_graph/projection/identity_entity_graph.db`
+
+### Results (sample)
+- `/v1/ops/status`: `graph_version=346174b68f8bab4c8248004ec7112f1cb531d82e7e9c559498b977cab2a0a85a`, `integrity_status=CLEAN`, `apply_failure_count=0`
+- `/v1/query/resolve`: returned 1 candidate for `flow_id=2417673993654239652`
+- `/v1/query/profile`: returned flow profile for `entity_id=20ec5d4b...` with first/last seen timestamps
+- `/v1/query/neighbors`: empty neighbor list for this entity (expected for single-identifier flow)
+
+---
+
+## Entry: 2026-02-05 20:35:00 — Phase 4 implementation plan (ops + degrade signals)
+
+### Problem / goal
+Implement Phase 4 of the IEG plan: operational metrics, explicit health posture, and optional reconciliation artifact so RTDL/Obs/Gov can reason about IEG lag/integrity.
+
+### Authorities / inputs
+- `docs/model_spec/platform/implementation_maps/identity_entity_graph.build_plan.md` (Phase 4 DoD)
+- RTDL pre‑design decisions (explicit degrade, watermark meaning, health visibility)
+- IEG design authority (integrity signal; no hidden repairs)
+
+### Decision trail (live)
+1) **Metrics source of truth**: add an `ieg_metrics` counter table keyed by `(stream_id, scenario_run_id, metric_name)` and update counters inside projection store apply paths.
+2) **Counters tracked**: `events_seen`, `mutating_applied`, `unusable`, `irrelevant`, `duplicate`, `payload_mismatch` (v0 minimal; extra counters allowed). These support required DoD counters without external telemetry.
+3) **Health posture**: status endpoint computes `watermark_age_seconds` and `checkpoint_age_seconds` from checkpoints, plus `apply_failure_count` and metrics. Health state is `GREEN/AMBER/RED` with pinned default thresholds (configurable later).
+4) **Integrity signal**: `integrity_status=CLEAN` when apply_failure_count=0 else `DEGRADED` (explicit; no silent masking).
+5) **Reconciliation artifact**: provide a small CLI to write a run‑scoped JSON artifact with `graph_version` + basis snapshot (from `ieg_graph_versions`).
+
+### Planned files / paths
+- `src/fraud_detection/identity_entity_graph/store.py` (metrics table + counters + checkpoint summary)
+- `src/fraud_detection/identity_entity_graph/query.py` (health/metrics computation)
+- `src/fraud_detection/identity_entity_graph/service.py` (status/reconciliation endpoints)
+- `src/fraud_detection/identity_entity_graph/reconcile.py` (artifact writer)
+- Tests: extend `tests/services/identity_entity_graph/test_projection_store.py` for metrics counters
+
+### Validation plan (Phase 4)
+- Unit: counters increment across applied/duplicate/unusable/irrelevant paths.
+- Unit: health status returns expected AMBER/RED with synthetic timestamps.
+- Smoke: reconciliation artifact writes to run‑scoped path with graph_version + basis.
+
+---
+
+## Entry: 2026-02-05 20:45:00 — Phase 4 implemented (ops + degrade signals)
+
+### Summary of changes
+- Added operational metrics counters (`ieg_metrics`) updated on apply paths (events_seen, mutating_applied, unusable, irrelevant, duplicate, payload_mismatch).
+- Added status computation of watermark/checkpoint ages and health posture (GREEN/AMBER/RED) with explicit reasons.
+- Added reconciliation reader endpoint and CLI artifact writer.
+
+### Files updated/added
+- `src/fraud_detection/identity_entity_graph/store.py` (metrics table, counters, checkpoint summary, graph_basis)
+- `src/fraud_detection/identity_entity_graph/query.py` (health + metrics in status)
+- `src/fraud_detection/identity_entity_graph/service.py` (ops reconciliation endpoint)
+- `src/fraud_detection/identity_entity_graph/reconcile.py` (artifact writer)
+- `tests/services/identity_entity_graph/test_projection_store.py` (metrics counter test)
+
+### Validation
+- `python -m pytest tests/services/identity_entity_graph -q` (11 passed)
+- Reconciliation artifact written to `runs/fraud-platform/platform_20260205T201203Z/identity_entity_graph/reconciliation/reconciliation.json`

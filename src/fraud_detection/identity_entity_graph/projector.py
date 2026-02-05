@@ -338,6 +338,8 @@ class IdentityGraphProjector:
                 offset=record.offset,
                 offset_kind=record.offset_kind,
                 event_ts_utc=envelope.get("ts_utc"),
+                scenario_run_id=envelope.get("scenario_run_id") or envelope.get("run_id"),
+                count_as="irrelevant",
             )
 
         scenario_run_id = envelope.get("scenario_run_id")

@@ -26,6 +26,13 @@ def create_app(profile_path: str) -> Flask:
             return jsonify({"error": "MISSING_SCENARIO_RUN_ID"}), 400
         return jsonify(query.status(scenario_run_id=scenario_run_id))
 
+    @app.get("/v1/ops/reconciliation")
+    def ops_reconciliation() -> Any:
+        payload = query.reconciliation()
+        if not payload:
+            return jsonify({"error": "NO_GRAPH_BASIS"}), 404
+        return jsonify(payload)
+
     @app.post("/v1/query/resolve")
     def query_resolve() -> Any:
         payload = request.get_json(force=True)

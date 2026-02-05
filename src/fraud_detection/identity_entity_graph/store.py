@@ -68,6 +68,15 @@ class ProjectionStore:
     def current_graph_version(self) -> str | None:
         raise NotImplementedError
 
+    def graph_basis(self) -> dict[str, Any] | None:
+        raise NotImplementedError
+
+    def checkpoint_summary(self) -> dict[str, Any]:
+        raise NotImplementedError
+
+    def metrics_summary(self, *, scenario_run_id: str) -> dict[str, int]:
+        raise NotImplementedError
+
     def apply_failure_count(self, *, scenario_run_id: str) -> int:
         raise NotImplementedError
 
@@ -79,6 +88,8 @@ class ProjectionStore:
         offset: str,
         offset_kind: str,
         event_ts_utc: str | None,
+        scenario_run_id: str | None = None,
+        count_as: str | None = None,
     ) -> ApplyResult:
         raise NotImplementedError
 
@@ -298,6 +309,18 @@ class SqliteProjectionStore(ProjectionStore):
             )
             conn.execute(
                 """
+                CREATE TABLE IF NOT EXISTS ieg_metrics (
+                    stream_id TEXT,
+                    scenario_run_id TEXT,
+                    metric_name TEXT,
+                    metric_value INTEGER,
+                    updated_at_utc TEXT,
+                    PRIMARY KEY (stream_id, scenario_run_id, metric_name)
+                )
+                """
+            )
+            conn.execute(
+                """
                 CREATE TABLE IF NOT EXISTS ieg_replay_basis (
                     replay_id TEXT PRIMARY KEY,
                     stream_id TEXT,
@@ -317,8 +340,14 @@ class SqliteProjectionStore(ProjectionStore):
         offset: str,
         offset_kind: str,
         event_ts_utc: str | None,
+        scenario_run_id: str | None = None,
+        count_as: str | None = None,
     ) -> ApplyResult:
         with self._connect() as conn:
+            if scenario_run_id:
+                self._increment_metric(conn, scenario_run_id, "events_seen", 1)
+                if count_as:
+                    self._increment_metric(conn, scenario_run_id, count_as, 1)
             self._update_checkpoint(
                 conn,
                 topic=topic,
@@ -353,6 +382,43 @@ class SqliteProjectionStore(ProjectionStore):
             return None
         return str(row[0])
 
+    def graph_basis(self) -> dict[str, Any] | None:
+        with self._connect() as conn:
+            row = conn.execute(
+                "SELECT graph_version, basis_json FROM ieg_graph_versions WHERE stream_id = ?",
+                (self.stream_id,),
+            ).fetchone()
+        if not row or not row[1]:
+            return None
+        basis = json.loads(row[1])
+        return {"graph_version": row[0], "basis": basis}
+
+    def checkpoint_summary(self) -> dict[str, Any]:
+        with self._connect() as conn:
+            row = conn.execute(
+                """
+                SELECT MAX(watermark_ts_utc), MAX(updated_at_utc), COUNT(*)
+                FROM ieg_checkpoints WHERE stream_id = ?
+                """,
+                (self.stream_id,),
+            ).fetchone()
+        return {
+            "watermark_ts_utc": row[0] if row else None,
+            "updated_at_utc": row[1] if row else None,
+            "partition_count": int(row[2]) if row else 0,
+        }
+
+    def metrics_summary(self, *, scenario_run_id: str) -> dict[str, int]:
+        with self._connect() as conn:
+            rows = conn.execute(
+                """
+                SELECT metric_name, metric_value FROM ieg_metrics
+                WHERE stream_id = ? AND scenario_run_id = ?
+                """,
+                (self.stream_id, scenario_run_id),
+            ).fetchall()
+        return {str(row[0]): int(row[1] or 0) for row in rows}
+
     def apply_failure_count(self, *, scenario_run_id: str) -> int:
         with self._connect() as conn:
             row = conn.execute(
@@ -383,6 +449,9 @@ class SqliteProjectionStore(ProjectionStore):
         failure_id = _failure_id(topic, partition, offset, reason_code, event_id)
         recorded_at = _utc_now()
         with self._connect() as conn:
+            if scenario_run_id:
+                self._increment_metric(conn, scenario_run_id, "events_seen", 1)
+                self._increment_metric(conn, scenario_run_id, "unusable", 1)
             conn.execute(
                 """
                 INSERT OR IGNORE INTO ieg_apply_failures
@@ -434,12 +503,14 @@ class SqliteProjectionStore(ProjectionStore):
         event_ts_utc: str | None,
     ) -> ApplyResult:
         with self._connect() as conn:
+            self._increment_metric(conn, scenario_run_id, "events_seen", 1)
             row = conn.execute(
                 "SELECT payload_hash FROM ieg_dedupe WHERE dedupe_key = ?",
                 (pins["dedupe_key"],),
             ).fetchone()
             if row:
                 if row[0] and row[0] != payload_hash:
+                    self._increment_metric(conn, scenario_run_id, "payload_mismatch", 1)
                     conn.execute(
                         """
                         INSERT OR IGNORE INTO ieg_apply_failures
@@ -473,6 +544,7 @@ class SqliteProjectionStore(ProjectionStore):
                     )
                     graph_version = self._update_graph_version(conn)
                     return ApplyResult(status="PAYLOAD_MISMATCH", graph_version=graph_version)
+                self._increment_metric(conn, scenario_run_id, "duplicate", 1)
                 self._update_checkpoint(
                     conn,
                     topic=topic,
@@ -504,6 +576,7 @@ class SqliteProjectionStore(ProjectionStore):
                     _utc_now(),
                 ),
             )
+            self._increment_metric(conn, scenario_run_id, "mutating_applied", 1)
 
             for hint in identity_hints:
                 self._upsert_entity(conn, hint, pins, event_ts_utc)
@@ -663,6 +736,22 @@ class SqliteProjectionStore(ProjectionStore):
         )
         return graph_version
 
+    def _increment_metric(
+        self, conn: sqlite3.Connection, scenario_run_id: str, metric_name: str, delta: int
+    ) -> None:
+        conn.execute(
+            """
+            INSERT INTO ieg_metrics
+            (stream_id, scenario_run_id, metric_name, metric_value, updated_at_utc)
+            VALUES (?, ?, ?, ?, ?)
+            ON CONFLICT(stream_id, scenario_run_id, metric_name)
+            DO UPDATE SET
+                metric_value = ieg_metrics.metric_value + excluded.metric_value,
+                updated_at_utc = excluded.updated_at_utc
+            """,
+            (self.stream_id, scenario_run_id, metric_name, int(delta), _utc_now()),
+        )
+
     def record_replay_basis(
         self,
         *,
@@ -727,6 +816,7 @@ class SqliteProjectionStore(ProjectionStore):
             "ieg_edges",
             "ieg_checkpoints",
             "ieg_graph_versions",
+            "ieg_metrics",
             "ieg_replay_basis",
         ]
         with self._connect() as conn:
@@ -1063,6 +1153,18 @@ class PostgresProjectionStore(ProjectionStore):
             )
             conn.execute(
                 """
+                CREATE TABLE IF NOT EXISTS ieg_metrics (
+                    stream_id TEXT,
+                    scenario_run_id TEXT,
+                    metric_name TEXT,
+                    metric_value INTEGER,
+                    updated_at_utc TEXT,
+                    PRIMARY KEY (stream_id, scenario_run_id, metric_name)
+                )
+                """
+            )
+            conn.execute(
+                """
                 CREATE TABLE IF NOT EXISTS ieg_replay_basis (
                     replay_id TEXT PRIMARY KEY,
                     stream_id TEXT,
@@ -1082,8 +1184,14 @@ class PostgresProjectionStore(ProjectionStore):
         offset: str,
         offset_kind: str,
         event_ts_utc: str | None,
+        scenario_run_id: str | None = None,
+        count_as: str | None = None,
     ) -> ApplyResult:
         with self._connect() as conn:
+            if scenario_run_id:
+                self._increment_metric(conn, scenario_run_id, "events_seen", 1)
+                if count_as:
+                    self._increment_metric(conn, scenario_run_id, count_as, 1)
             self._update_checkpoint(
                 conn,
                 topic=topic,
@@ -1118,6 +1226,43 @@ class PostgresProjectionStore(ProjectionStore):
             return None
         return str(row[0])
 
+    def graph_basis(self) -> dict[str, Any] | None:
+        with self._connect() as conn:
+            row = conn.execute(
+                "SELECT graph_version, basis_json FROM ieg_graph_versions WHERE stream_id = %s",
+                (self.stream_id,),
+            ).fetchone()
+        if not row or not row[1]:
+            return None
+        basis = json.loads(row[1])
+        return {"graph_version": row[0], "basis": basis}
+
+    def checkpoint_summary(self) -> dict[str, Any]:
+        with self._connect() as conn:
+            row = conn.execute(
+                """
+                SELECT MAX(watermark_ts_utc), MAX(updated_at_utc), COUNT(*)
+                FROM ieg_checkpoints WHERE stream_id = %s
+                """,
+                (self.stream_id,),
+            ).fetchone()
+        return {
+            "watermark_ts_utc": row[0] if row else None,
+            "updated_at_utc": row[1] if row else None,
+            "partition_count": int(row[2]) if row else 0,
+        }
+
+    def metrics_summary(self, *, scenario_run_id: str) -> dict[str, int]:
+        with self._connect() as conn:
+            rows = conn.execute(
+                """
+                SELECT metric_name, metric_value FROM ieg_metrics
+                WHERE stream_id = %s AND scenario_run_id = %s
+                """,
+                (self.stream_id, scenario_run_id),
+            ).fetchall()
+        return {str(row[0]): int(row[1] or 0) for row in rows}
+
     def apply_failure_count(self, *, scenario_run_id: str) -> int:
         with self._connect() as conn:
             row = conn.execute(
@@ -1148,6 +1293,9 @@ class PostgresProjectionStore(ProjectionStore):
         failure_id = _failure_id(topic, partition, offset, reason_code, event_id)
         recorded_at = _utc_now()
         with self._connect() as conn:
+            if scenario_run_id:
+                self._increment_metric(conn, scenario_run_id, "events_seen", 1)
+                self._increment_metric(conn, scenario_run_id, "unusable", 1)
             conn.execute(
                 """
                 INSERT INTO ieg_apply_failures
@@ -1200,12 +1348,14 @@ class PostgresProjectionStore(ProjectionStore):
         event_ts_utc: str | None,
     ) -> ApplyResult:
         with self._connect() as conn:
+            self._increment_metric(conn, scenario_run_id, "events_seen", 1)
             row = conn.execute(
                 "SELECT payload_hash FROM ieg_dedupe WHERE dedupe_key = %s",
                 (pins["dedupe_key"],),
             ).fetchone()
             if row:
                 if row[0] and row[0] != payload_hash:
+                    self._increment_metric(conn, scenario_run_id, "payload_mismatch", 1)
                     conn.execute(
                         """
                         INSERT INTO ieg_apply_failures
@@ -1240,6 +1390,7 @@ class PostgresProjectionStore(ProjectionStore):
                     )
                     graph_version = self._update_graph_version(conn)
                     return ApplyResult(status="PAYLOAD_MISMATCH", graph_version=graph_version)
+                self._increment_metric(conn, scenario_run_id, "duplicate", 1)
                 self._update_checkpoint(
                     conn,
                     topic=topic,
@@ -1271,6 +1422,7 @@ class PostgresProjectionStore(ProjectionStore):
                     _utc_now(),
                 ),
             )
+            self._increment_metric(conn, scenario_run_id, "mutating_applied", 1)
 
             for hint in identity_hints:
                 self._upsert_entity(conn, hint, pins, event_ts_utc)
@@ -1416,6 +1568,22 @@ class PostgresProjectionStore(ProjectionStore):
         )
         return graph_version
 
+    def _increment_metric(
+        self, conn: psycopg.Connection, scenario_run_id: str, metric_name: str, delta: int
+    ) -> None:
+        conn.execute(
+            """
+            INSERT INTO ieg_metrics
+            (stream_id, scenario_run_id, metric_name, metric_value, updated_at_utc)
+            VALUES (%s, %s, %s, %s, %s)
+            ON CONFLICT (stream_id, scenario_run_id, metric_name)
+            DO UPDATE SET
+                metric_value = ieg_metrics.metric_value + EXCLUDED.metric_value,
+                updated_at_utc = EXCLUDED.updated_at_utc
+            """,
+            (self.stream_id, scenario_run_id, metric_name, int(delta), _utc_now()),
+        )
+
     def record_replay_basis(
         self,
         *,
@@ -1480,6 +1648,7 @@ class PostgresProjectionStore(ProjectionStore):
             "ieg_edges",
             "ieg_checkpoints",
             "ieg_graph_versions",
+            "ieg_metrics",
             "ieg_replay_basis",
         ]
         with self._connect() as conn:
