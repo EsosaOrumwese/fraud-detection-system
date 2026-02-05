@@ -34,6 +34,7 @@ Detailed answers (recommended defaults, based on current implementation posture)
 - Choose **Option A**: CM consumes explicit `CaseTrigger` events (from RTDL/DLA/AL or a thin trigger writer).
 - CaseTrigger carries ContextPins, CaseSubjectKey, evidence refs (decision_id, action_outcome_id, audit_record_id), and a stable idempotency key.
 - This keeps CM opaque and idempotent, and avoids CM parsing multiple upstream streams directly.
+- Pin (P0): `case_trigger_id = hash(case_id + trigger_type + source_ref_id)` (source_ref_id = decision_id / action_outcome_id / audit_record_id).
 
 ### 3) What is the **idempotency key** for case creation and timeline append?
 
@@ -112,6 +113,7 @@ Detailed answers (recommended defaults, based on current implementation posture)
 - Choose **Option B**: Label Store owns its own writer boundary (IG-equivalent ingress).
 - IG/EB can carry label signals as control-plane events, but authoritative label truth writes only at Label Store.
 - Pin (P0): Label Store writer enforces idempotency + payload_hash anomaly detection and returns a durable ack/ref only after commit (WAL flushed). CM emits `LABEL_ACCEPTED` only on that ack.
+- Pin (P0): Label Store dedupe tuple = `(LabelSubjectKey, label_type, label_assertion_id)`; same tuple + different payload_hash => ANOMALY.
 
 ### 9) What is the **commit/ack point** for “label truth emitted”?
 
