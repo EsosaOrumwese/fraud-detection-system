@@ -44,10 +44,9 @@ Detailed answers (recommended defaults, based on current implementation posture)
 * Collision rule: what happens if the same dedupe key arrives with different payload (anomaly/quarantine)?
 
 Detailed answers (recommended defaults, based on current implementation posture):
-- Case create dedupe key: `hash(case_subject_key + trigger_ref_id)` (or an equivalent stable composite).
+- Case create dedupe key: `CaseSubjectKey` only (aligned to `case_id = hash(CaseSubjectKey)`); trigger refs create timeline events, not new cases.
 - Timeline append dedupe key: `(case_id, timeline_event_type, source_ref_id)` as the default.
 - Collision rule: same dedupe key with different payload => **ANOMALY + reject/flag** (no silent overwrite).
-- Pin (P0): case create dedupe is CaseSubjectKey-only (aligned to `case_id = hash(CaseSubjectKey)`). Trigger refs are timeline events, not case creations.
 
 ### 4) What is the **evidence reference contract** (what refs exist and how they resolve)?
 
@@ -125,8 +124,7 @@ You said CM can’t claim label truth until append succeeds—great. Now pin:
 Detailed answers (recommended defaults, based on current implementation posture):
 - Commit/ack point = durable append in Label Store (WAL flushed / transaction committed).
 - CM records `LABEL_PENDING` then `LABEL_ACCEPTED`/`LABEL_REJECTED`. If Label Store is down, CM remains pending and retries with backoff.
-- Idempotency key = `label_assertion_id` (hash over subject + value + effective_time + observed_time + source).
-- Pin (P0): `label_assertion_id` is derived from a stable CM source (case_timeline_event_id) + LabelSubjectKey + label_type. observed_time is fixed at assertion creation and reused on retries.
+- Idempotency key = `label_assertion_id` derived from a stable CM source (`case_timeline_event_id`) + `LabelSubjectKey` + `label_type`. `observed_time` is fixed at assertion creation and reused on retries.
 
 ---
 
@@ -175,7 +173,7 @@ Not the only ones — the list I gave was the **core “correctness + determinis
 Detailed answers (recommended defaults, based on current implementation posture):
 - v0 posture: external outcomes enter **CM workflow first** and emit LabelAssertions to Label Store (CM remains the human truth workflow).
 - Optional later: a dedicated external label ingest can write directly to Label Store, but must follow the same assertion contract and idempotency rules.
-- Idempotency key: `hash(external_source + external_reference_id + label_subject_key + observed_time)`.
+- Idempotency key: `hash(external_source + external_reference_id + label_subject_key)`; `observed_time` is a field set at first sighting and does not participate in dedupe.
 - Mapping to LabelSubjectKey: use event_id when available; otherwise hold in CM until resolved to a deterministic subject.
 
 ### 2) Human workflow semantics
@@ -218,6 +216,7 @@ Detailed answers (recommended defaults, based on current implementation posture)
 - Precedence order: human investigator > external feed > automated, then observed_time, then assertion_id.
 - v0 supports hard labels plus optional confidence; confidence does not override precedence.
 - Pin (P0): `source_type` is explicit (`HUMAN|EXTERNAL|AUTO`) and `actor_id` is required for HUMAN assertions.
+- Pin (P0): resolved views are computed per `(LabelSubjectKey, label_type)`; never resolve across label types.
 
 ### 6) Backfill + replay behavior
 
