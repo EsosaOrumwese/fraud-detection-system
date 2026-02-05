@@ -69,16 +69,108 @@ External truth signals (chargebacks, disputes, confirmed fraud feeds) enter v0 t
 
 This closes the human truth loop cleanly: **RTDL evidence → CaseTriggers → CM timelines → LabelAssertions → Label Store timelines → training consumption**, with run-scoped pins, append-only history, and explicit commit/ack semantics preventing leakage or silent reinterpretation.
 
-## Planned Learning + Evolution Flow (offline model loop)
+## Planned Learning + Evolution Flow (offline model loop) — pinned, reproducible, and auditable
 
-The Learning + Evolution plane begins once the platform has two durable, pinned truths available: **admitted event history** (EB within retention, Archive beyond) and **label truth timelines** (Label Store, with effective_time vs observed_time). It does not invent new truth; it deterministically **rebuilds** and **packages** learning artifacts from pinned inputs. This plane is explicitly offline and job-driven, but it preserves the same rails as upstream: by-ref inputs, ContextPins everywhere, no-PASS-no-read, and immutable artifacts with audit visibility.
+The Learning + Evolution plane begins once the platform has two durable truths it can trust without interpretation: **admitted event history** (EB within retention, Archive beyond) and **label truth timelines** (Label Store, preserving effective_time vs observed_time). This plane does not create new truth. It deterministically **replays**, **rebuilds**, **evaluates**, and **packages** learning artifacts from pinned inputs, using the same integrity rails as upstream: ContextPins everywhere, by-ref inputs, no-PASS-no-read, immutable outputs, and explicit audit evidence.
 
-The entry vertex is the **Offline Feature Shadow (OFS)**, which runs as an on-demand/scheduled job. OFS is triggered by a build intent (not “always on”), and it resolves only **pinned inputs**: it reads admitted events from EB/Archive using an explicit **replay basis** (offset ranges or time windows anchored to offsets), reads labels from Label Store using an explicit **as-of boundary** (observed_time cutoff), and loads **feature definition versions** from the same authority OFP uses. If OFS needs any world or scenario context, it only obtains those surfaces via SR’s `run_facts_view` and its by-ref locators with PASS evidence; it never scans “latest.” The result of an OFS build is **DatasetManifests** plus materialized artifacts under `ofs/...`, where each manifest pins the replay basis, label as-of boundary, join keys/entity scope, feature version set, and provenance (including any parity anchors if requested).
+### OFS enters on intent, not “always on”
 
-OFS is allowed to perform **parity rebuilds** against online evidence when asked, but parity is optional and explicit: a parity run starts from an online snapshot anchor or audit provenance (e.g., feature snapshot hash + input basis) and produces a match/mismatch evidence artifact. Even in parity mode, OFS remains deterministic and never rewrites history; any rebuild is a new derived artifact, not a mutation of prior manifests.
+The entry vertex is the **Offline Feature Shadow (OFS)**, which runs only when a build intent exists—scheduled or on-demand. A build intent names *what you want to produce* (training dataset, diagnostic dataset, parity rebuild, or evaluation-only dataset), and it must be pinned enough to be reproducible.
 
-The **Model Factory (MF)** consumes OFS outputs via **DatasetManifests only**. MF is a job, triggered by Run/Operate with a training intent and fully pinned inputs (manifest refs + config/profile revisions). MF refuses “latest dataset” or unpinned data. It produces a training run record (train_run_id), evaluation evidence, and a **bundle** if gates PASS. MF is authoritative for its own run evidence and bundle packaging, but it is explicitly **not** an activation authority; it publishes candidates to Registry and can emit governance facts (training started/completed, bundle published) to `fp.bus.control.v1` for auditability.
+OFS resolves its inputs strictly:
 
-The **Model/Policy Registry (MPR)** is the controlled source of deployable truth. It receives bundles + evidence from MF, enforces immutability and compatibility metadata, and governs lifecycle actions (approve, promote, rollback, retire). Only MPR determines **ACTIVE** for a given scope; promotion is auditable and produces registry events. When Decision Fabric resolves what to run, it does so deterministically through MPR, which **fails closed** if a candidate is incompatible with required feature versions or the current degrade capabilities mask.
+* **Replay basis** is defined as **origin_offset ranges per topic/partition**, canonicalized as `{topic/stream, partition/shard_id, sequence_number}`. This is the authoritative basis of replay.
+* Time windows are allowed only as **selectors**: OFS may accept “between time A and time B,” but it immediately translates that into concrete origin_offset ranges and records the resolved offsets in the DatasetManifest. Time alone never remains the truth anchor.
+* **Archive is the durable truth beyond EB retention.** EB may accelerate reads only when the exact same origin_offset ranges are available. If any part of the replay basis falls outside EB retention, OFS reads that portion from Archive. EB is never required for correctness.
+* OFS replays events in **partition order**, and the DatasetManifest records the full replay basis for each stream: topic, partition, start_offset, end_offset.
 
-This plane therefore closes the loop without breaking upstream guarantees: **admitted events + label timelines → deterministic offline reconstruction → manifested datasets → reproducible training → governed bundles → deterministic activation**. Every join remains pinned, every artifact is by-ref and immutable, and every promotion is explicit and auditable, so the learning loop can evolve without introducing drift into the real-time plane.
+Because the replay basis is pinned to the evidence tuple, OFS can detect drift. If EB and Archive disagree for the same `{topic, partition, sequence_number}` (defined as a `payload_hash` mismatch for that tuple), OFS **fails closed** and emits an anomaly report—no dataset is produced.
+
+### Labels are joined “as-of” to prevent future leakage
+
+Labels enter OFS through the Label Store, but only through an explicit **as-of boundary**. OFS reads resolved labels using the rule:
+
+* **Eligible labels satisfy `observed_time <= label_asof_utc`**, always.
+
+This preserves “what was known then.” Late truths (chargebacks weeks later) are allowed in principle, but only if they were observed by the as-of cutoff for the dataset being built. “Unknown yet” negatives are treated as **unlabeled/censored** by default. Weak negatives are allowed only if a **maturity policy** is explicitly declared and recorded (e.g., `label_maturity_days`, and any other label completeness rule). OFS records label coverage in the manifest; training-intent datasets fail closed if coverage is insufficient, while diagnostic datasets may proceed if explicitly marked non-training.
+
+### OFS builds are scoped and deterministic
+
+OFS builds datasets around a pinned **join/entity scope**. In v0, the primary subject is transaction-level and execution-scoped:
+
+* **SubjectKey = `(platform_run_id, event_id)`** to align with LabelSubjectKey and prevent cross-run leakage.
+
+OFS joins only what it can justify from the replay basis and pinned surfaces:
+
+* Context JoinFrames (arrival events/entities + flow anchor) and FlowBinding are allowed, as long as their evidence offsets are within the same replay basis.
+* IEG projection is allowed only if it is built from the same replay basis (no mixing derived state from different evidence windows).
+* Any world/scenario context is fetched only through SR’s `run_facts_view` locators with PASS evidence—never by scanning “latest.”
+
+If required context is missing, OFS defaults to **dropping the example** for training builds, and records drop counts and reasons. A degraded cohort is allowed only when explicitly pinned and consistent with online degrade behavior (so offline doesn’t “invent” a different completeness policy than RTDL).
+
+### DatasetManifest is the contract, and the fingerprint is the identity
+
+Every OFS build produces:
+
+1. materialized artifacts under `ofs/...`, and
+2. a **DatasetManifest** that is the dataset’s identity contract.
+
+The DatasetManifest pins the replay basis (origin_offset ranges), label_asof_utc and label resolution rule, join scope and join sources, feature definition set versions, cohort filters, and build profile/config revisions. From these, OFS computes a deterministic **DatasetFingerprint**. Any change to any identity field yields a **new fingerprint and a new manifest**; manifests are immutable and never mutated.
+
+To preserve reproducibility across code upgrades, OFS and MF also record their code identity:
+
+* `ofs_code_release_id` and `mf_code_release_id` (git SHA or container image digest/tag)
+
+These are provenance anchors that explain why two runs may differ even if the underlying truth inputs are the same.
+
+### Feature definitions are shared, and parity is explicit
+
+OFS does not invent feature definitions. It loads a **version-locked feature definition set** from the same shared authority that Online Feature Plane uses. “Latest” is allowed only if explicitly requested and recorded; otherwise, builds are version-pinned.
+
+Parity checks are optional and explicit. If a build intent requests parity, OFS anchors to online provenance (e.g., a feature snapshot hash plus its evidence basis) and produces a parity evidence artifact:
+
+* `MATCH`, `MISMATCH`, or `UNCHECKABLE`, with refs and basis
+
+In v0, parity compares feature snapshot hashes and a minimal set of key feature values. Deterministic features must match exactly; tolerances are allowed only when explicitly declared in the feature definition. For training builds, mismatches are warnings by default; for parity rebuild intents, mismatches fail the run unless explicitly overridden.
+
+### MF trains only from manifests, and evidence gates publishing
+
+The **Model Factory (MF)** is job-driven. It consumes OFS outputs by **DatasetManifest reference only** and refuses “latest dataset” or unpinned inputs. A training intent must provide:
+
+* DatasetManifest refs
+* training config/profile revisions
+* required gates to run
+
+MF produces a training run record and a full, immutable **EvalReport** that is reproducible from the DatasetManifest + training config refs. PASS gates include compatibility (schema/feature sets), leakage discipline (label_asof enforcement), and explicit thresholded performance checks per bundle slot.
+
+MF must **refuse to publish** a bundle if the required EvalReport or provenance/evidence references are missing. No evidence means no bundle.
+
+### Bundles are immutable, and MPR is the only activation authority
+
+When gates PASS, MF packages a candidate **bundle** that includes model artifact(s), feature schema/version requirements, thresholds/policy config, required capabilities, and full provenance:
+
+* training manifests + eval evidence refs + `ofs_code_release_id` + `mf_code_release_id`
+
+The **Model/Policy Registry (MPR)** is the controlled source of deployable truth. It ingests bundles, enforces immutability (`bundle_id + version` is the unit of truth), and records lifecycle events for approve/promote/rollback/retire as append-only registry events.
+
+Activation is scoped and deterministic. In v0, the ScopeKey is:
+
+* `{ environment, mode, bundle_slot, tenant_id? }` (tenant optional), exactly one ACTIVE per scope
+
+Decision Fabric resolves bundles deterministically through MPR, using a deterministic resolution order:
+
+* tenant-specific ACTIVE → global ACTIVE → explicit safe fallback (if defined) → fail closed
+
+At resolve time, MPR enforces compatibility: feature_def_set match, required capabilities vs degrade mask, and input contract version match. If no compatible ACTIVE exists, resolution fails closed (or routes only to an explicitly defined safe fallback), and the decision record must capture the failure.
+
+### Operability stays pinned: anomalies, sampling, maturity, caching, and multi-run scope
+
+This plane remains operable without drifting:
+
+* Data quality issues (missing partitions, corrupted chunks, schema mismatches, offset gaps) fail closed for training builds; diagnostic builds may proceed only if explicitly tagged incomplete. All such issues produce a replay anomaly report referenced by the DatasetManifest.
+* Sampling (downsample/upsample/stratify) is allowed only when the sampling rule and seed are pinned in the manifest; no implicit sampling.
+* Mature-window training is controlled by `label_maturity_days` recorded in the manifest. Delayed-label EvalReports (T+7d, T+30d) can be generated as requested and stored as evidence variants.
+* Caching is allowed only if cache keys include replay basis + feature_def_set + join scope; caches invalidate on identity change and are never treated as truth.
+* Datasets are scoped to one `platform_run_id` by default. Multi-run datasets are allowed only if the manifest explicitly lists all runs, and subject keys keep run_id to prevent leakage.
+
+This closes the loop without breaking upstream guarantees: **pinned admitted events + pinned label timelines → deterministic offline reconstruction → manifested datasets → reproducible training and evaluation → immutable bundles → governed activation**, with explicit audit evidence at every step so the offline loop evolves without introducing drift into the real-time plane.
