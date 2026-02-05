@@ -258,3 +258,23 @@ Implement Phase 2 of the IEG plan: retention/TTL posture and explicit replay/bac
 
 ### Validation
 - `python -m pytest tests/services/identity_entity_graph -q` (7 passed)
+
+---
+
+## Entry: 2026-02-05 20:15:00 — Phase 2 replay-manifest validation run
+
+### Run
+- Profile: `config/platform/profiles/local_parity.yaml`
+- platform_run_id: `platform_20260205T201203Z`
+- Replay manifest: `scratch_files/ieg_replay_manifest_small.yaml`
+- Projection DB: `runs/fraud-platform/platform_20260205T201203Z/identity_entity_graph/projection/identity_entity_graph.db`
+
+### Results
+- processed: 80
+- `ieg_dedupe`: 80
+- `ieg_entities`: 175
+- `ieg_identifiers`: 175
+- `ieg_apply_failures`: 0
+- `ieg_checkpoints`: 4
+- `ieg_graph_versions`: 1
+- `ieg_replay_basis`: 1
