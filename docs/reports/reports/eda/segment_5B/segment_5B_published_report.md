@@ -223,7 +223,14 @@ Using a 1,000,000‑row sample of arrivals:
 2. Offset ratios are close to uniform:  
    mean **0.4999**, p50 **0.5002**, p90 **0.9000**.
 
-Explanation: Time placement looks uniform within each 1‑hour bucket, which is consistent with a neutral intra‑bucket placement policy. There is no evidence of boundary leakage or time‑window violations.
+Explanation: Time placement looks uniform within each 1‑hour bucket, which is exactly what a neutral intra‑bucket placement policy should produce. If arrivals were clustering at the start or end of buckets, we would see skewed ratios and boundary leaks — that would signal artificial micro‑bursts or a broken placement law. Instead, the distribution is symmetric around 0.5, and there are zero out‑of‑window events, so the micro‑time placement is statistically clean and realism‑compatible.
+
+Additional realism reasoning (C1/C2):  
+1. **C1 — In‑bucket placement looks statistically correct.** Uniform offsets (mean ~0.5, p90 ~0.9) tell us that arrivals are not being “pushed” toward bucket edges or clustered at a specific sub‑bucket time. If that were happening, it would create artificial micro‑bursts that do not correspond to any policy or behavioral signal. Because the offsets are symmetric and bounded, the timing is behaving like a neutral placement law, which is exactly what we want unless a shaped policy was intended.  
+2. **C2 — No bucket leakage confirms temporal integrity.** The zero leak rate means every arrival lives inside the bucket that generated it. This matters because any leakage would break the core consistency between the intensity surface and realized arrivals; a time‑based model could then see demand “shift” into neighboring buckets for purely technical reasons. Since there is no leakage, the time grid remains trustworthy for realism analysis.
+
+Local hour‑of‑day structure (C3 context):  
+The local‑time hour‑of‑day curve peaks around **11–16** (e.g., hour 12 has **~8.85M** arrivals, hours 11/13/16 are all **~8.4–8.5M**), and then gradually declines into the night (e.g., hour 4 has **~1.74M**). This mid‑day peak and smooth taper is consistent with typical commerce behavior and indicates that aggregate temporal rhythm is plausible rather than flat or erratic.
 
 ### 8.7 Routing posture (physical vs virtual)
 Routing mix:
@@ -232,7 +239,7 @@ Routing mix:
 3. Routing field integrity holds:  
    all virtual rows have `edge_id` and null `site_id`; all physical rows have `site_id` and null `edge_id`.
 
-Explanation: The virtual share is small but non‑zero and the physical/virtual field invariants are clean. This indicates routing logic is applied consistently and that virtual traffic is present but rare in this world.
+Explanation: The virtual share is small but non‑zero, which is realistic if the synthetic world is dominated by physical merchants with a minority of virtual activity. The strict null/non‑null integrity between `site_id` and `edge_id` confirms the routing model is internally coherent: virtual events never leak into physical fields and vice‑versa. This gives us confidence that any routing‑mix realism issues (if any) are policy‑level rather than data integrity problems.
 
 ### 8.8 Local‑time correctness and DST mismatch
 Local‑time check (sample of 50,000 arrivals):
@@ -242,4 +249,32 @@ Local‑time check (sample of 50,000 arrivals):
    - **US DST** around **2026‑03‑08** to **2026‑03‑11**
    - **EU DST** around **2026‑03‑29** to **2026‑03‑31**
 
-Explanation: This strongly suggests that local timestamps are being computed without applying DST shifts (standard time only). The error is small in proportion but systematic and clustered; it is the main realism mismatch observed so far.
+Explanation: This strongly suggests that local timestamps are being computed without applying DST shifts (standard time only). The error is small in proportion but **systematic** and **clustered**, which makes it more important than a random 2–3% noise. In other words, the issue is predictable and localized to DST windows rather than scattered. This is the single strongest realism mismatch observed so far in 5B.
+
+Additional realism reasoning (D1/D2/D3):  
+1. **D1 — Small but systematic mismatch.** A consistent 1‑hour error during DST windows is not random noise; it indicates a specific missing step in local‑time construction (DST adjustment). Even though the rate is only ~2.6%, it is concentrated in critical windows, which makes the bias predictable and repeatable.  
+2. **D2 — Localized but impactful.** The mismatch concentrates in high‑volume EU/US timezones, so it disproportionately affects the most influential traffic. This matters for any model that uses hour‑of‑day or “night vs day” features. The error is not large enough to change weekly totals, but it **does** shift hour‑level distributions around DST windows.  
+3. **D3 — Rare +3600 offsets confirm edge‑case TZ gaps.** The small number of +3600s (e.g., Africa/El_Aaiun) shows the issue is not confined to EU/US DST rules; there are timezone‑specific edge cases where the local‑time mapping also deviates. This reinforces that DST handling is globally incomplete, not just a regional oversight.
+
+### 8.9 Weekend‑share alignment (expected vs observed)
+Expected weekend share from intensities (`s2_realised_intensity_5B` + `s1_time_grid_5B`): **0.28617**  
+Observed weekend share from arrivals (`ts_local_primary`): **0.28653**  
+Absolute difference: **0.00036** (0.036 percentage points)
+
+Explanation: The weekend share in arrivals matches the intensity surface almost perfectly. This is the concrete answer to the earlier C3 question: if the hour‑of‑day curve looked plausible but weekend share was off, we would suspect the arrival realisation step was distorting weekly rhythm. Instead, the match is effectively exact, which means the micro‑time placement and count realisation are respecting the weekly structure encoded upstream. That’s a strong realism signal.
+
+### 8.10 DST mismatch impact on features
+Using a 200,000‑row sample:
+1. Overall mismatch rate: **2.6235%**
+2. Hour‑of‑day shift rate: **2.6235%** (every mismatch shifts hour)
+3. Date (day‑of‑week) shift rate: **0.0425%**
+
+Explanation: The DST mismatch primarily affects **hour‑of‑day** features, not day‑of‑week. This means models using hourly patterns will be slightly skewed during DST windows, while weekend/weekday features remain almost entirely correct. The effect is real but narrow: it does not broadly corrupt the calendar structure, it mostly shifts hour‑level positioning for a small slice of events.
+
+### 8.11 DST mismatch attribution (where it comes from)
+Mismatch attribution (200,000‑row sample, 5,352 mismatches):
+1. **EU DST window (2026‑03‑29 to 2026‑04‑04): 87.7%**
+2. **US DST window (2026‑03‑08 to 2026‑03‑14): 3.5%**
+3. **Other dates: 8.8%**
+
+Explanation: The mismatch is overwhelmingly driven by EU DST transitions, with a smaller US DST component. The “other” bucket likely reflects timezone edge cases with non‑standard DST rules (e.g., Africa/El_Aaiun). This confirms the issue is not random; it is a predictable DST handling gap concentrated in specific windows.
