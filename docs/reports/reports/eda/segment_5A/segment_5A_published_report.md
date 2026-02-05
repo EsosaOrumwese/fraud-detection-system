@@ -476,3 +476,144 @@ used to align weekly baseline buckets becomes slightly misaligned for part of
 the horizon. This introduces small local mismatches but does not affect total
 mass. The pattern is isolated to DST‑shifting timezones, which confirms DST is
 the root cause rather than a structural bug.
+
+---
+
+## 10) Policy‑Target Alignment (A/B realism targets)
+
+### 10.1 Observed vs target summary (run subset, 886 merchants)
+Targets from `config/layer2/5A/policy/merchant_class_policy_5A.v1.yaml`:
+- `max_class_share`: **0.55**  
+- `min_nontrivial_classes`: **6**  
+- `min_class_share_for_nontrivial`: **0.02**  
+- `max_single_country_share_within_class`: **0.35**
+
+Observed (segment 5A):
+- `max_class_share`: **0.600** (`consumer_daytime`) → **exceeds target**  
+- `min_nontrivial_classes`: **8** → meets target  
+- `min_class_share_for_nontrivial`: **0.021** → meets target  
+- `max_single_country_share_within_class`: **0.532** (`fuel_convenience`, DE) → **exceeds target**  
+  Additional above‑target classes:  
+  `bills_utilities` 0.457 (DE), `consumer_daytime` 0.412 (DE), `online_bursty` 0.364 (DE)
+
+### 10.2 Suggested edits to align with targets
+
+**A) Reduce `consumer_daytime` share to ≤ 0.55**  
+Main driver is `card_present + sector=other` in MCC mapping.  
+Small, targeted remap of travel‑like MCCs reduces this share:
+
+Edit `config/layer2/5A/policy/merchant_class_policy_5A.v1.yaml`  
+`mcc_sector_map` (change `other → travel_hospitality` for these MCCs):
+```
+4011  # Railroads
+4119  # Local/commuter transport
+4214  # Motor freight
+4215  # Courier services
+4789  # Transportation services (NEC)
+7033  # Campgrounds / RV parks
+```
+
+Expected effect (run subset):
+- `consumer_daytime` **0.600 → ~0.542**  
+- `travel_hospitality` **0.025 → ~0.084**  
+All classes remain under `max_class_share = 0.55`.
+
+**B) Reduce max single‑country share to ≤ 0.35**  
+This is driven primarily by the upstream country distribution, not the class
+decision tree. Adjust the country generation weights to flatten the tail:
+
+Edit `config/layer1/1A/ingress/transaction_schema_merchant_ids.bootstrap.yaml`  
+```
+home_country:
+  floor_weight: 0.20   # was 0.10
+  bucket_base: 1.5     # was 2.0
+  min_distinct: 80     # was 50
+```
+
+Expected effect: lower dominance of any single country within each class, which
+brings `max_single_country_share_within_class` closer to the 0.35 target.
+
+### 10.3 Alternative (accept current realism)
+If the current distributions are acceptable, you can instead adjust targets:
+```
+max_class_share: 0.62
+max_single_country_share_within_class: 0.55
+```
+
+---
+
+## 11) Policy‑Posture for C/D (Temporal Shapes + Scenario Overlays)
+
+### 11.1 C — Temporal shape realism is *explicitly engineered*
+Finding: Weekly shapes are **exactly normalized**. Every
+`(demand_class, country, tzid, channel_group)` shape sums to 1.0
+(`max_abs_diff ≈ 1e‑15`).
+
+Explanation: The shape policy is designed so *distributional* realism
+dominates, not volume. This makes time‑of‑day/weekend patterns explainable
+without confounding scale effects. This is consistent with the shape library
+template intent in `config/layer2/5A/policy/shape_library_5A.v1.yaml`.
+
+Finding: The policy only enforces **minimum realism floors**, and the observed
+patterns exceed those floors by a large margin:
+- `min_night_mass_online24h = 0.08` vs observed **0.357**  
+- `min_weekend_mass_evening_weekend = 0.30` vs observed **0.445**  
+- `min_weekday_mass_office_hours = 0.65` vs observed **0.811**
+
+Explanation: This is a *high‑contrast archetype* regime. The policy sets
+minimum realism but allows strong, stylized patterns. The resulting profiles
+are intentionally sharp and explainable rather than naturally noisy.
+
+Finding: Peakiness is strong relative to the policy’s nonflat floor
+(`shape_nonflat_ratio_min = 1.6`). Observed peak‑to‑mean ratios range from
+~2.1 (`online_24h`) to **~7.4** (`evening_weekend`).
+
+Explanation: The template shapes use large peak amplitudes and powers > 1.0,
+so sharp peaks are expected. This supports explainable patterns but creates a
+clear “synthetic stylization” footprint if you want more organic variation.
+
+Finding: Shape diversity is deliberately limited. Each class has **three**
+template variants, selected deterministically by tzid.
+
+Explanation: This improves determinism and reproducibility, but it reduces
+heterogeneity within a class. If realism requires more within‑class variety,
+the template pool (not the constraints) is the lever.
+
+Finding: Policy expects all channel groups, but the run produces only
+`channel_group = mixed` in `class_zone_shape_5A`.
+
+Explanation: This is a **policy‑realization gap**. Temporal differences between
+card‑present vs card‑not‑present are not realized in this run, even though the
+policy is structured to support them.
+
+### 11.2 D — Overlay realism is bounded and conservative
+Finding: Scenario event amplitudes are **inside policy bounds**:
+- `HOLIDAY` observed **0.65–1.03** (policy bounds **0.50–1.05**)  
+- `PAYDAY` observed **1.000–1.599** (policy bounds **1.00–1.60**)  
+- `CAMPAIGN` observed **1.35** (policy bounds **1.00–2.50**)  
+- `OUTAGE` observed **0.05** (policy bounds **0.00–0.50**)
+
+Explanation: The overlay policy (`config/layer2/5A/scenario/scenario_overlay_policy_5A.v1.yaml`)
+is being respected tightly. This means the “realism posture” is deliberately
+bounded: shocks are explainable and constrained rather than extreme.
+
+Finding: Overlay factors are sparse and mild (mean **1.005**, P95 **1.052**,
+~90% of buckets = 1.0). This also sits inside the validation warning bands
+(baseline mean must be **0.85–1.25**).
+
+Explanation: The baseline scenario is intentionally stable with intermittent
+events, which yields realistic calendar effects without overwhelming the base
+signal. The overlay validation policy supports this conservative posture.
+
+Finding: Event scoping is macro‑level. In baseline_v1, events are only:
+`country + demand_class`, `tzid`, or `demand_class`. No `merchant` or `global`
+events are present, even though the policy allows them.
+
+Explanation: This produces realism that is **systemic** (macro shocks) rather
+than idiosyncratic. It is plausible, but it limits merchant‑level variability.
+
+Finding: DST residuals are not addressed in overlay policy. Residual mismatch
+is confined to DST‑shifting TZIDs and does not affect total mass.
+
+Explanation: This is a technical artifact, not a policy violation. If desired,
+policy could explicitly encode DST alignment or scenario grid correction.
