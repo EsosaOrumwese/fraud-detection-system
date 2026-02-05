@@ -275,19 +275,24 @@ The EB traffic plane is **single‑mode per run**: a run is either **fraud** (`s
 **Context stream semantics (post‑EB):**  
 Context topics are **separate from traffic** and provide join surfaces to downstream consumers. Fraud runs require `s3_flow_anchor_with_fraud_6B`; baseline runs require `s2_flow_anchor_baseline_6B`. Context retention/shape decisions are **deferred to Phase 4 (RTDL)**.
 
-#### Control & Ingress open pins (to resolve)
-These are the remaining control-plane pins before we declare the plane fully closed.
+#### Control & Ingress pins (locked for implementation)
+The following pins are now locked and should be implemented across SR/WSP/IG immediately.
 
-- **Dedupe semantics:** update IG dedupe key from `event_id` only to `(run_id, topic_or_class, event_id)` and persist `payload_hash` to detect collisions.
-- **Run identity boundary (P0):** define `platform_run_id` vs `scenario_run_id`, choose a canonical `run_id` for envelopes/receipts, and carry the other explicitly to avoid cross-run mixing.
-- **Partition key consistency:** with current schemas, full join locality across all four topics is not guaranteed. Default v0 resolution: enforce locality for context streams on `(merchant_id, arrival_seq)`, and allow cross-partition joins for traffic->context. If we require full locality, we must enrich traffic events with `merchant_id` + `arrival_seq` (or add a deterministic mapping layer) and align IG partitioning profiles accordingly.
-- **Partitioning profiles alignment (P1):** current IG flow_anchor profiles use `flow_id` first; update profiles to match design posture (merchant_id locality) or explicitly document the different locality claim.
-- **Health posture meaning:** AMBER is observational (no gating). RED gates admission (HTTP 503) with retry-after; WSP must backoff.
-- **Receipt minimum fields:** receipts must include eb_offset metadata, dedupe_key, payload_hash, schema_version, policy_rev, and run_config_digest for reconciliation.
-- **Publish unknown success (P0):** add admission state machine/outbox (PUBLISH_IN_FLIGHT -> ADMITTED; PUBLISH_AMBIGUOUS on timeout). Do not re-publish keys already in-flight/ambiguous without reconciliation.
-- **Receipt durability after publish (P0):** if receipt write fails post-publish, persist eb_ref + payload_hash and mark receipt_write_failed for backfill (optionally spool locally).
-- **WSP retry posture (P0):** retry 429/5xx/timeouts with bounded exponential backoff (same event_id). Treat schema/policy 4xx as non-retryable.
-- **Run-level config freeze (P1):** treat mid-run config changes as explicit policy_rev boundaries; add run_config_digest to READY once run freeze is enforced.
+- **Dedupe semantics:** IG dedupe tuple is `(platform_run_id, event_class, event_id)` and `payload_hash` is persisted for anomaly detection.
+- **Run identity boundary (P0):** canonical run id for dedupe/receipts is `platform_run_id`; always carry `scenario_run_id` explicitly in READY/envelopes/receipts.
+- **READY idempotency:** `message_id = sha256("ready|platform_run_id|scenario_run_id|bundle_hash_or_plan_hash")`.
+- **Receipt minimum fields:** receipts include `event_class`, `payload_hash`, `admitted_at_utc`, `platform_run_id`, `scenario_run_id`, `eb_ref`, `policy_rev`, and `run_config_digest`.
+- **Publish unknown success (P0):** admission state machine with `PUBLISH_IN_FLIGHT -> ADMITTED` and `PUBLISH_AMBIGUOUS` on timeout/unknown; no auto-republish.
+- **WSP retry posture (P0):** retry 429/5xx/timeouts with bounded exponential backoff (same event_id); schema/policy 4xx are non-retryable.
+- **Run-level config freeze (P1):** `run_config_digest` is stamped into READY; mid-run config changes are explicit policy_rev boundaries.
+
+#### Control & Ingress pins (still open)
+These remain open and will be resolved during RTDL Phase 4 planning and partitioning alignment work.
+
+- **Partition key consistency:** locality across traffic + context topics is not fully guaranteed; decide whether to enrich traffic events with `merchant_id + arrival_seq` or accept cross-partition joins.
+- **Partitioning profiles alignment (P1):** flow_anchor profiles use `flow_id` first; decide whether to pivot to merchant locality or document the different locality claim.
+- **Health posture meaning:** confirm AMBER is observational (no gating) and RED gates admission with retry-after semantics.
+- **Receipt durability after publish (P0):** finalize `receipt_write_failed` backfill behavior and any local spool mechanism.
 
 #### Phase 4.1 — RTDL contracts + invariants (expanded)
 

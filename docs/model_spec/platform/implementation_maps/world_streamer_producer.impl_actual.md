@@ -1107,3 +1107,32 @@ User clarified that **context streams and business streams are both streamed** f
 - WSP continues to stream **one traffic mode per run** (baseline OR fraud) plus **context join surfaces** aligned to that mode.
 - Context output sorting targets remain in Make (`platform-oracle-stream-sort-context-fraud|baseline`).
 
+
+---
+
+## Entry: 2026-02-05 14:05:51 — WSP alignment: run ids + retry posture
+
+### Problem / goal
+Bring WSP behavior in line with Control & Ingress P0 pins: carry both `platform_run_id` and `scenario_run_id` in envelopes, validate READY → facts_view identity, and implement bounded retries on 429/5xx/timeouts (same event_id) while treating schema/policy 4xx as non-retryable.
+
+### Authorities / inputs
+- `docs/model_spec/platform/pre-design_decisions/control_and_ingress.pre-design_decision.md`.
+- WSP build plan + design authority.
+
+### Decisions (locked)
+- Envelopes always carry both run ids when run-scoped.
+- Retry only for 429/5xx/timeouts, exponential backoff with jitter, max attempts 5, cap delay 5s, same event_id.
+- 4xx schema/policy errors are terminal for that output stream.
+
+### Planned implementation steps
+- Ensure READY consumer loads run_facts_view and validates scenario_run_id against READY (fail-closed on mismatch).
+- Include `platform_run_id` + `scenario_run_id` in envelope pins for all outputs.
+- Implement bounded retry/backoff in push path with explicit reasons for terminal 4xx.
+- Expose retry knobs in WSP config (max_attempts, base_delay_ms, max_delay_ms).
+- Add tests for retry on 429/5xx and stop on 4xx.
+
+### Invariants
+- Same event_id across retries; no payload mutation.
+- No EB writes from WSP.
+
+---

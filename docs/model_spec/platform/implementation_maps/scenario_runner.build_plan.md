@@ -486,3 +486,28 @@ High‑level intent: golden path + duplicate + reuse + fail‑closed + re‑emit
 **Definition of done**
 - Pack ref mismatch → FAIL/QUARANTINE with explicit reason.
 - Missing pack refs allowed only when manifest absent (local/dev rules).
+
+---
+
+## Phase 12 — Control & Ingress run identity alignment (PLANNED)
+
+**Intent:** align SR READY + run_facts_view with Control & Ingress P0 pins (canonical run id and READY idempotency).
+
+### Section 12.1 — Dual run id stamps
+**Definition of done**
+- `platform_run_id` and `scenario_run_id` are included in `run_facts_view` and `run_ready_signal`.
+- Schema validation fails closed if either run id is missing.
+
+### Section 12.2 — READY idempotency key
+**Definition of done**
+- READY `message_id` is derived from `sha256("ready|platform_run_id|scenario_run_id|bundle_hash_or_plan_hash")`.
+- Duplicate READY publishes are safe and idempotent under retries.
+
+### Section 12.3 — Run config digest stamp
+**Definition of done**
+- READY includes `run_config_digest` (policy digest) for run-level pinning.
+- Re-emit preserves `run_config_digest`.
+
+### Section 12.4 — Tests
+**Definition of done**
+- Unit tests confirm READY idempotency and schema validation for new fields.

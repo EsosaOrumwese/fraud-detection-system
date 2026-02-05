@@ -1724,3 +1724,43 @@ User asked to add the RTDL design‑gating questions to the RTDL component secti
 - Added a “Pre‑design gating questions (RTDL)” subsection under Phase 4 in `docs/model_spec/platform/implementation_maps/platform.build_plan.md`.
 - Questions are grouped by design concern (SLOs, EB retention, schema/versioning, join readiness, ordering, state, decision contract, actions, audit, security).
 
+
+---
+
+## Entry: 2026-02-05 14:05:51 — Control & Ingress alignment plan (run identity, dedupe, payload hash, admission state)
+
+### Problem / goal
+Close the P0 Control & Ingress gaps from `pre-design_decisions/control_and_ingress.pre-design_decision.md` so the implemented SR→WSP→IG→EB flow matches the narrative (platform_run_id canonical, READY idempotency, IG dedupe tuple + payload_hash anomaly, publish ambiguity handling, and WSP retry posture).
+
+### Authorities / inputs (binding)
+- `docs/model_spec/platform/pre-design_decisions/control_and_ingress.pre-design_decision.md` (P0 pins: canonical run id, READY idempotency key, dedupe tuple + payload_hash, publish ambiguity handling, receipt fields).
+- `docs/model_spec/platform/platform-wide/platform_blueprint_notes_v0.md` (truth ownership + canonical envelope/pins).
+- Component build plans and impl_actual for SR/WSP/IG/EB (alignment targets).
+
+### Decisions locked (confirmed)
+- Canonical run identity for dedupe/receipts: `platform_run_id`.
+- Always carry `scenario_run_id` explicitly (READY + envelopes + receipts).
+- Payload hash scope: canonical JSON over `{event_type, schema_version, payload}` only (exclude envelope pins/ts/trace).
+- WSP retry: bounded exponential backoff on 429/5xx/timeouts with same event_id; 4xx schema/policy are non-retryable.
+- Admission ambiguity: `PUBLISH_AMBIGUOUS` state recorded; no automatic republish.
+
+### Plan (cross-component steps)
+- SR: emit `platform_run_id` + `scenario_run_id` in run_facts_view + READY; derive READY message_id from `{platform_run_id, scenario_run_id, bundle_hash|plan_hash}`; add `run_config_digest` to READY.
+- WSP: validate READY scenario_run_id vs facts_view; include both run ids in envelopes; add bounded retry/backoff; stop output on non-retryable 4xx.
+- IG: change dedupe tuple to `(platform_run_id, event_class, event_id)`; compute/store payload_hash; quarantine on mismatch; implement admission state machine with `PUBLISH_IN_FLIGHT`, `ADMITTED`, `PUBLISH_AMBIGUOUS` and no auto-republish; add receipt fields `event_class`, `payload_hash`, `admitted_at_utc`, and both run ids.
+- EB: no semantic change; ensure receipts carry existing `eb_ref` + `published_at_utc` and align with IG admission state machine.
+
+### Invariants to preserve
+- No PASS → no read.
+- Canonical envelope required at IG boundary.
+- EB append ACK remains the sole admission commit point.
+- Append-only truth (no mutation; ambiguous publish must be reconciled explicitly).
+
+### Validation / tests (targeted)
+- SR READY idempotency uses both run ids; run_facts_view includes both ids + run_config_digest.
+- WSP retries only on 429/5xx/timeouts with same event_id; 4xx halts output.
+- IG dedupe uses platform_run_id + event_class + event_id; payload_hash mismatch quarantines.
+- IG admission state transitions behave as specified; ambiguous publish does not republish.
+- Parity smoke run reproduces the narrative flow.
+
+---

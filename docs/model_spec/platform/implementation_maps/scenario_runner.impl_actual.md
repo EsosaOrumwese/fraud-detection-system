@@ -3961,3 +3961,37 @@ Engine interface now defines traffic policy: only 6B behavioural event streams a
 
 ### Planned edits
 - Align SR policy with WSP allowlist and Oracle stream-view targets.
+
+---
+
+## Entry: 2026-02-05 14:05:51 — SR alignment to Control & Ingress run identity + READY idempotency
+
+### Problem / goal
+Align SR run_facts_view and READY control signal with Control & Ingress P0 pins: carry both `platform_run_id` and `scenario_run_id`, and derive READY idempotency from both run ids + bundle/plan hash. Add `run_config_digest` to READY for run-level policy pinning.
+
+### Authorities / inputs
+- `docs/model_spec/platform/pre-design_decisions/control_and_ingress.pre-design_decision.md`.
+- SR contracts under `docs/model_spec/platform/contracts/scenario_runner/`.
+- Current SR impl_actual + build plan.
+
+### Decisions (locked)
+- Canonical dedupe run id is `platform_run_id`; SR must always carry `scenario_run_id` explicitly.
+- READY `message_id` must be `sha256("ready|platform_run_id|scenario_run_id|bundle_hash_or_plan_hash")` (hex32).
+- READY + run_facts_view must include `run_config_digest` when available.
+
+### Planned implementation steps
+- Update SR contract schemas: `run_ready_signal.schema.yaml`, `run_facts_view.schema.yaml` to require both run ids and add `run_config_digest`.
+- Update SR model/serialization to include `platform_run_id` + `scenario_run_id` in facts view and READY payloads.
+- Update READY idempotency key derivation in publish path.
+- Add or surface run_config_digest (from policy digest) into READY.
+- Add tests for READY idempotency and schema validation.
+
+### Invariants
+- READY emitted only after facts view is committed.
+- No mutation of prior run facts (append-only).
+
+### Validation plan
+- Unit: READY idempotency key includes both run ids.
+- Schema: READY + facts_view validate with new fields.
+
+---

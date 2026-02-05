@@ -34,7 +34,8 @@ Provide a progressive, component‑scoped build plan for the Ingestion Gate (IG)
 **Goal:** admit duplicates safely under at‑least‑once.
 
 **DoD checklist:**
-- Deterministic dedupe key per event class.
+- Deterministic dedupe tuple `(platform_run_id, event_class, event_id)`.
+- `payload_hash` persisted for anomaly detection (same tuple + different hash -> QUARANTINE).
 - Duplicate admissions return the original EB ref and/or receipt ref.
 - Dedupe logic is stable under retries.
 
@@ -46,12 +47,21 @@ Provide a progressive, component‑scoped build plan for the Ingestion Gate (IG)
 - EB ACK implies durable append with `(stream, partition, offset)`.
 - ADMITTED receipt is emitted only when EB coordinates exist.
 
+#### Phase 1.4a — Admission state machine (publish ambiguity)
+**Goal:** handle unknown publish outcomes without double‑publishing.
+
+**DoD checklist:**
+- Admission row created as `PUBLISH_IN_FLIGHT` before publish.
+- On ACK, transition to `ADMITTED` with `eb_ref`.
+- On timeout/unknown, transition to `PUBLISH_AMBIGUOUS` with no auto‑republish.
+
 #### Phase 1.5 — Receipt + quarantine storage
 **Goal:** persist admission outcomes and evidence by‑ref.
 
 **DoD checklist:**
 - Receipts written to `ig/receipts/` by‑ref with schema validation.
 - Quarantine evidence stored under `ig/quarantine/` with reason codes.
+- Receipts include `event_class`, `payload_hash`, `admitted_at_utc`, and both run ids.
 - No secret material is written into receipts/evidence.
 
 ### Phase 2 — Control plane + operations hardening

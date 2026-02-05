@@ -2288,3 +2288,36 @@ User clarified that **context streams and business streams are both streamed** f
 ### Implementation notes
 - Parity bootstrap streams include context topics again.
 - Profiles re‑enable context output refs so IG receives context alongside traffic.
+
+---
+
+## Entry: 2026-02-05 14:05:51 — IG alignment: dedupe tuple + payload_hash + admission state machine
+
+### Problem / goal
+Close Control & Ingress P0 gaps by updating IG dedupe semantics, adding payload_hash anomaly detection, and implementing the publish ambiguity state machine with receipt field updates.
+
+### Authorities / inputs
+- `docs/model_spec/platform/pre-design_decisions/control_and_ingress.pre-design_decision.md`.
+- IG build plan + design authority.
+- IG receipt schema and ops index structures.
+
+### Decisions (locked)
+- Dedupe tuple = `(platform_run_id, event_class, event_id)`.
+- Persist `payload_hash`; same tuple + different hash => QUARANTINE anomaly.
+- Admission state machine: `PUBLISH_IN_FLIGHT` → `ADMITTED`; on timeout/unknown => `PUBLISH_AMBIGUOUS` with no auto-republish.
+- Receipts must include `event_class`, `payload_hash`, `admitted_at_utc`, `platform_run_id`, `scenario_run_id`.
+
+### Planned implementation steps
+- Compute payload_hash from canonical JSON of `{event_type, schema_version, payload}`.
+- Update admission index schema to include dedupe tuple columns + payload_hash + state.
+- Write admission row as `PUBLISH_IN_FLIGHT` before publish.
+- On publish success: update to `ADMITTED` with `eb_ref` + `admitted_at_utc`.
+- On publish timeout/unknown: set `PUBLISH_AMBIGUOUS` and return retryable response without republish.
+- Update receipt/quarantine writers to emit new fields.
+- Update ops index queries and tests.
+
+### Invariants
+- ADMIT only after EB ACK.
+- Ambiguous publish never re-publishes without reconciliation.
+
+---

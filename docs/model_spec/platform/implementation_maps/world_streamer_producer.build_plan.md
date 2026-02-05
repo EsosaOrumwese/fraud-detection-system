@@ -48,6 +48,7 @@ Traffic + context outputs are **not interleaved** (separate EB streams).
 #### Phase 1.4 — Canonical envelope framing
 **DoD checklist:**
 - Emit canonical envelope with stable `event_id`, `event_type`, `ts_utc`, pins.
+- Include both `platform_run_id` and `scenario_run_id` for run-scoped events.
 - Preserve legacy pull compatibility where required (naming + payload structure).
 
 #### Phase 1.5 — Temporal pacing + speedup factor
@@ -59,6 +60,12 @@ Traffic + context outputs are **not interleaved** (separate EB streams).
 **DoD checklist:**
 - WSP pushes to IG ingress; no direct EB writes.
 - Failure handling is explicit (retry vs halt vs quarantine trigger).
+
+#### Phase 1.7 — Retry/backoff posture
+**DoD checklist:**
+- Retry 429/5xx/timeouts with bounded exponential backoff and the same `event_id`.
+- Treat schema/policy 4xx as non-retryable and stop the output stream with explicit reason.
+- Retry knobs are configuration-driven (max attempts, base delay, cap).
 
 **Status:** complete.
 
