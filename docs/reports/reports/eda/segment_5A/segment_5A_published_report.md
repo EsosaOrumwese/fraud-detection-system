@@ -370,3 +370,90 @@ row‑level result is driven by countries with many zones or merchants. The same
 negative elasticity appears, which confirms the relationship is robust to how
 sparsity is summarized. This strengthens the case that `alpha_sum_country` is
 the primary driver of country‑level sparsity in the current configuration.
+
+---
+
+## 8) C) Temporal Shape Realism
+
+### 8.1 Shape normalization (class×zone)
+Finding: Every `(demand_class, zone)` shape sums to **1.0** with no deviations
+above numerical tolerance.
+
+Explanation: This matters because the shape library is supposed to be a
+probability distribution over the weekly grid. Exact normalization means the
+library is internally consistent and any realism issues must come from the
+shape *content*, not from mass leakage or scaling errors.
+
+### 8.2 Class temporal patterns (per‑zone averages)
+Per‑zone averages across all zones show clear, interpretable patterns:
+
+```
+demand_class         weekend_share  night_share  open_hours_share  peak_hour  peak_to_mean
+bills_utilities            0.146        0.044          0.665            10        3.82
+consumer_daytime           0.264        0.057          0.480            11        2.68
+evening_weekend            0.445        0.362          0.023            20        7.42
+fuel_convenience           0.267        0.078          0.243             7        3.22
+office_hours               0.093        0.041          0.736            10        4.34
+online_24h                 0.311        0.479          0.115             1        2.11
+online_bursty              0.416        0.151          0.263            12        6.45
+travel_hospitality         0.392        0.075          0.260             9        3.37
+```
+
+Explanation: The classes are clearly differentiated in a realistic way:
+`office_hours` is strongly weekday/daytime, `evening_weekend` is night‑heavy
+with a late‑evening peak, and `online_24h` is the flattest profile with the
+largest night share. This indicates the class labels correspond to distinct
+behavioral rhythms rather than arbitrary templates.
+
+### 8.3 Baseline construction integrity
+Finding: For every nonzero merchant‑zone, the baseline intensities exactly
+sum to weekly expected volume (`sum(lambda_local_base) = weekly_volume_expected`),
+with **no clipping** and near‑zero error against the class shape.
+
+Explanation: This confirms that 5A’s baseline is a clean “scale × shape”
+composition. The baseline does not distort totals or shapes, so any realism
+issues must come from the inputs or the shape library itself, not from
+implementation artifacts in S3.
+
+---
+
+## 9) D) Scenario and Overlay Realism
+
+### 9.1 Scenario calendar structure
+Finding: 2,000 events over 2026‑01‑01 to 2026‑04‑01.
+Event mix: PAYDAY (1157), HOLIDAY (786), OUTAGE (54), CAMPAIGN (3).
+No global or merchant‑specific events; mostly country + class scoped.
+Amplitude ranges: median **0.85**, min **0.05**, max **1.03**;
+peak amplitudes median **1.25**, max **~1.60**.
+
+Explanation: The event calendar is dense but not chaotic. It emphasizes
+recurrent effects (paydays, holidays) and keeps shocks bounded. The amplitude
+range is plausible: mild suppressions and moderate peaks rather than extreme
+distortions.
+
+### 9.2 Overlay factor distribution
+Finding: ~90% of buckets have factor exactly 1.0, ~6.5% > 1.0, ~3.6% < 1.0,
+with min **0.0325** and max **1.5975**.
+
+Explanation: Overlays are sparse and bounded, which is consistent with
+realistic calendars where most time is baseline and only specific windows are
+perturbed. The factor range suggests modest amplification/suppression rather
+than runaway shocks.
+
+### 9.3 Scenario local consistency (baseline × overlay)
+Finding: When aligning the local horizon with each timezone’s offset at the
+scenario start (2026‑01‑01T00:00Z), the scenario surface matches
+`baseline × overlay` almost exactly (MAE ≈ 0.033; only ~0.7% of rows deviate
+> 1e‑6). The residual mismatch is consistent with DST shifts over the 90‑day
+horizon.
+
+Explanation: This confirms the scenario surface is mechanically correct once
+time alignment is handled properly. The remaining mismatch is small and
+expected in a multi‑timezone horizon that crosses DST boundaries.
+
+### 9.4 Local ↔ UTC conversion
+Finding: Total intensity per merchant‑zone is conserved exactly between local
+and UTC surfaces (MAE = 0, max error = 0).
+
+Explanation: UTC conversion preserves total mass, which means the conversion
+logic is correct and does not introduce drift.
