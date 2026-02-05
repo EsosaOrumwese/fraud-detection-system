@@ -49,6 +49,7 @@ Detailed answers (recommended defaults, based on current implementation posture)
 - Case create dedupe key: `CaseSubjectKey` only (aligned to `case_id = hash(CaseSubjectKey)`); trigger refs create timeline events, not new cases.
 - Timeline append dedupe key: `(case_id, timeline_event_type, source_ref_id)` as the default.
 - Collision rule: same dedupe key with different payload => **ANOMALY + reject/flag** (no silent overwrite).
+- Pin (P0): `timeline_event_type` is a controlled vocabulary (v0 minimal): `CASE_TRIGGERED | EVIDENCE_ATTACHED | ACTION_INTENT_REQUESTED | ACTION_OUTCOME_ATTACHED | LABEL_PENDING | LABEL_ACCEPTED | LABEL_REJECTED | INVESTIGATOR_ASSERTION` (extensions must be versioned).
 
 ### 4) What is the **evidence reference contract** (what refs exist and how they resolve)?
 
@@ -89,6 +90,7 @@ This is the most important label decision.
 Detailed answers (recommended defaults, based on current implementation posture):
 - Primary LabelSubjectKey = `(platform_run_id, event_id)` for v0 (execution-scoped labels; no cross-run leakage).
 - Other identifiers (flow_id/account_id/party_id) may be carried as metadata but are not training-primary in v0.
+- Pin (P0): LabelSubjectKey `event_id` refers to the **traffic/transaction (decision-trigger) event_id**, not context event_ids.
 - Pin (P0): `label_type` is a controlled vocabulary. v0 set: `fraud_disposition | chargeback_status | account_takeover`.
   - `fraud_disposition` values: `FRAUD_CONFIRMED | FRAUD_SUSPECTED | LEGIT_CONFIRMED`.
   - `chargeback_status` values: `CHARGEBACK | NO_CHARGEBACK | PENDING`.
@@ -120,6 +122,8 @@ Detailed answers (recommended defaults, based on current implementation posture)
 - Pin (P0): Label Store writer enforces idempotency + payload_hash anomaly detection and returns a durable ack/ref only after commit (WAL flushed). CM emits `LABEL_ACCEPTED` only on that ack.
 - Pin (P0): Label Store dedupe tuple = `(LabelSubjectKey, label_type, label_assertion_id)`; same tuple + different payload_hash => ANOMALY.
 - Pin (P0): `payload_hash` is computed over canonical LabelAssertion fields only: `LabelSubjectKey`, `label_type`, `label_value`, `effective_time`, `observed_time`, `source_type`, `actor_id` (if HUMAN), and `evidence_refs` (ordered); exclude transport/ack metadata.
+- Pin (P0): `evidence_refs` ordering for payload_hash is canonical: sort by `(ref_type, ref_id)` before hashing (ref_type is a controlled vocabulary).
+- Pin (P0): `ref_type` controlled vocabulary (v0 minimal): `DLA_AUDIT_RECORD | DECISION | ACTION_OUTCOME | EB_ORIGIN_OFFSET | CASE_EVENT | EXTERNAL_REF` (extensions must be versioned).
 
 ### 9) What is the **commit/ack point** for “label truth emitted”?
 
@@ -133,6 +137,7 @@ Detailed answers (recommended defaults, based on current implementation posture)
 - Commit/ack point = durable append in Label Store (WAL flushed / transaction committed).
 - CM records `LABEL_PENDING` then `LABEL_ACCEPTED`/`LABEL_REJECTED`. If Label Store is down, CM remains pending and retries with backoff.
 - Idempotency key = `label_assertion_id` derived from a stable CM source (`case_timeline_event_id`) + `LabelSubjectKey` + `label_type`. `observed_time` is fixed at assertion creation and reused on retries.
+- Pin (P0): `case_timeline_event_id` is stable and deterministic: `hash(case_id + timeline_event_type + source_ref_id)`; it is persisted and reused across retries (never regenerated with non-deterministic inputs).
 
 ---
 
