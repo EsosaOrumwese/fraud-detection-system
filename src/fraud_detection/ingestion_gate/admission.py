@@ -90,6 +90,7 @@ class IngestionGate:
         receipt_writer = ReceiptWriter(store, prefix=f"{run_prefix}/ig")
         admission_index, ops_index = _build_indices(wiring.admission_db_path)
         bus = _build_bus(wiring)
+        bus_probe_streams = _bus_probe_streams(wiring, partitioning, class_map)
         health = HealthProbe(
             store,
             bus,
@@ -98,6 +99,8 @@ class IngestionGate:
             wiring.bus_publish_failure_threshold,
             wiring.store_read_failure_threshold,
             health_path=f"{run_prefix}/ig/health/last_probe.json",
+            bus_probe_mode=wiring.health_bus_probe_mode,
+            bus_probe_streams=bus_probe_streams,
         )
         metrics = MetricsRecorder(flush_interval_seconds=wiring.metrics_flush_seconds)
         governance = GovernanceEmitter(
@@ -463,24 +466,7 @@ class IngestionGate:
 
     def _partitioning(self, envelope: dict[str, Any]) -> tuple[str, PartitionProfile]:
         class_name = self.class_map.class_for(envelope["event_type"])
-        if class_name == "control":
-            profile_id = "ig.partitioning.v0.control"
-        elif class_name == "audit":
-            profile_id = "ig.partitioning.v0.audit"
-        elif class_name == "traffic_baseline":
-            profile_id = "ig.partitioning.v0.traffic.baseline"
-        elif class_name == "traffic_fraud":
-            profile_id = "ig.partitioning.v0.traffic.fraud"
-        elif class_name == "context_arrival":
-            profile_id = "ig.partitioning.v0.context.arrival_events"
-        elif class_name == "context_arrival_entities":
-            profile_id = "ig.partitioning.v0.context.arrival_entities"
-        elif class_name == "context_flow_baseline":
-            profile_id = "ig.partitioning.v0.context.flow_anchor.baseline"
-        elif class_name == "context_flow_fraud":
-            profile_id = "ig.partitioning.v0.context.flow_anchor.fraud"
-        else:
-            profile_id = self.wiring.partitioning_profile_id
+        profile_id = _profile_id_for_class(class_name, self.wiring.partitioning_profile_id)
         profile = self.partitioning.get(profile_id)
         partition_key = self.partitioning.derive_key(profile_id, envelope)
         return partition_key, profile
@@ -574,6 +560,42 @@ def _build_bus(wiring: WiringProfile) -> EventBusPublisher:
             endpoint_url=wiring.event_bus_endpoint_url,
         )
     raise RuntimeError("EB_KIND_UNSUPPORTED")
+
+
+def _profile_id_for_class(class_name: str, default_profile_id: str) -> str:
+    if class_name == "control":
+        return "ig.partitioning.v0.control"
+    if class_name == "audit":
+        return "ig.partitioning.v0.audit"
+    if class_name == "traffic_baseline":
+        return "ig.partitioning.v0.traffic.baseline"
+    if class_name == "traffic_fraud":
+        return "ig.partitioning.v0.traffic.fraud"
+    if class_name == "context_arrival":
+        return "ig.partitioning.v0.context.arrival_events"
+    if class_name == "context_arrival_entities":
+        return "ig.partitioning.v0.context.arrival_entities"
+    if class_name == "context_flow_baseline":
+        return "ig.partitioning.v0.context.flow_anchor.baseline"
+    if class_name == "context_flow_fraud":
+        return "ig.partitioning.v0.context.flow_anchor.fraud"
+    return default_profile_id
+
+
+def _bus_probe_streams(
+    wiring: WiringProfile,
+    partitioning: PartitioningProfiles,
+    class_map: ClassMap,
+) -> list[str]:
+    if wiring.event_bus_kind != "kinesis":
+        return []
+    stream_name = wiring.event_bus_path
+    if isinstance(stream_name, str) and stream_name.lower() not in {"", "auto", "topic"}:
+        return [stream_name]
+    class_names = set(class_map.event_classes.values())
+    profile_ids = {_profile_id_for_class(name, wiring.partitioning_profile_id) for name in class_names}
+    streams = {partitioning.get(profile_id).stream for profile_id in profile_ids if profile_id}
+    return sorted(stream for stream in streams if stream)
 
 
 def _prune_none(payload: dict[str, Any]) -> dict[str, Any]:

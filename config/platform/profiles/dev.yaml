@@ -12,6 +12,7 @@ wiring:
   object_store:
     bucket: fraud-platform
     endpoint: ${OBJECT_STORE_ENDPOINT}
+  health_bus_probe_mode: describe
   oracle_root: ${ORACLE_ROOT}
   oracle_engine_run_root: ${ORACLE_ENGINE_RUN_ROOT}
   oracle_scenario_id: ${ORACLE_SCENARIO_ID}

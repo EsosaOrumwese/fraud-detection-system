@@ -30,6 +30,7 @@ class WiringProfile:
     admission_db_path: str
     engine_root_path: str | None
     health_probe_interval_seconds: int
+    health_bus_probe_mode: str
     health_deny_on_amber: bool
     health_amber_sleep_seconds: float
     bus_publish_failure_threshold: int
@@ -119,6 +120,7 @@ class WiringProfile:
             admission_db_path=admission_db_path,
             engine_root_path=wiring.get("engine_root_path"),
             health_probe_interval_seconds=int(wiring.get("health_probe_interval_seconds", 30)),
+            health_bus_probe_mode=str(wiring.get("health_bus_probe_mode", "none")).strip().lower(),
             health_deny_on_amber=bool(wiring.get("health_deny_on_amber", False)),
             health_amber_sleep_seconds=float(wiring.get("health_amber_sleep_seconds", 0)),
             bus_publish_failure_threshold=int(wiring.get("bus_publish_failure_threshold", 3)),

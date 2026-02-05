@@ -35,6 +35,10 @@ class PartitioningProfiles:
             raise KeyError(f"Unknown partitioning profile: {profile_id}")
         return self._profiles[profile_id]
 
+    def streams(self) -> list[str]:
+        streams = {profile.stream for profile in self._profiles.values() if profile.stream}
+        return sorted(streams)
+
     def derive_key(self, profile_id: str, envelope: dict[str, Any]) -> str:
         profile = self.get(profile_id)
         raw = self._first_key_value(profile.key_precedence, envelope)

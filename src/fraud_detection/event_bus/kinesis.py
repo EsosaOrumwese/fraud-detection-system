@@ -32,6 +32,11 @@ class KinesisEventBusPublisher:
             endpoint_url=config.endpoint_url,
         )
 
+    def describe_stream(self, stream_name: str) -> dict[str, Any]:
+        if not stream_name:
+            raise RuntimeError("KINESIS_STREAM_NAME_MISSING")
+        return self._client.describe_stream_summary(StreamName=stream_name)
+
     def publish(self, topic: str, partition_key: str, payload: dict[str, Any]) -> EbRef:
         stream_name = self.config.stream_name or topic
         if not stream_name:

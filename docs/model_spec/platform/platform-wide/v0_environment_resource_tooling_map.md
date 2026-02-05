@@ -54,6 +54,7 @@ This section enumerates the **minimum resources** and **low-friction tooling** r
   `wsp_sent`, `ig_received`, `admitted`, `duplicate`, `quarantined`, `publish_ambiguous`, `receipts_written`, `receipt_write_failed`.
 - **Structured events only on anomaly paths** (rare by design):  
   `PAYLOAD_HASH_MISMATCH`, `PUBLISH_AMBIGUOUS`, `SCHEMA_INVALID`, etc.
+- **IG health probe**: in v0, use **bus describe** mode for Kinesis to avoid side effects; last probe stored at `s3://fraud-platform/{platform_run_id}/ig/health/last_probe.json`.
 - Deep truth remains in receipts/DLA/archive; avoid per-event logging in v0.
 
 ---

@@ -50,6 +50,7 @@ def test_governance_quarantine_spike_emits_once(tmp_path: Path) -> None:
         quarantine_spike_threshold=2,
         quarantine_spike_window_seconds=60,
         policy_id="ig_policy",
+        prefix="runs/fraud-platform",
     )
 
     emitter.emit_quarantine_spike(1)

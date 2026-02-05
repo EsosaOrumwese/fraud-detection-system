@@ -25,6 +25,7 @@ wiring:
   object_store:
     bucket: fraud-platform
     endpoint: ${OBJECT_STORE_ENDPOINT}
+  health_bus_probe_mode: none | describe
   oracle_root: runs/local_full_run-5
   oracle_engine_run_root: runs/local_full_run-5/<run_id>
   oracle_scenario_id: baseline_v1
@@ -71,6 +72,7 @@ Notes:
 - Wiring endpoints are placeholders; actual values come from env/secret store.
 - `${VAR}` placeholders are resolved from environment variables at load time.
 - `control_bus` wiring is used by the WSP control plane (SR → WSP); IG ignores it in streaming-only v0.
+- `health_bus_probe_mode` controls IG bus health probing (`none` leaves `BUS_HEALTH_UNKNOWN`, `describe` uses bus metadata calls).
 - Parity profiles use **Kinesis** control bus with `stream/region/endpoint_url` set (LocalStack locally, AWS in dev/prod).
 - Local parity Kinesis streams (v0): `sr-control-bus` (control), `fp.bus.traffic.baseline.v1`, `fp.bus.traffic.fraud.v1` (traffic), `fp.bus.context.arrival_events.v1`, `fp.bus.context.arrival_entities.v1`, `fp.bus.context.flow_anchor.baseline.v1`, `fp.bus.context.flow_anchor.fraud.v1` (context), `fp.bus.audit.v1` (audit).
 - `oracle_root` points to the sealed engine world store (Oracle Store); it is wiring, not policy.

@@ -37,6 +37,8 @@ class HealthProbe:
         max_publish_failures: int = 3,
         max_read_failures: int = 3,
         health_path: str | None = None,
+        bus_probe_mode: str = "none",
+        bus_probe_streams: list[str] | None = None,
     ) -> None:
         self.store = store
         self.bus = bus
@@ -44,6 +46,8 @@ class HealthProbe:
         self.probe_interval_seconds = probe_interval_seconds
         self.max_publish_failures = max_publish_failures
         self.max_read_failures = max_read_failures
+        self.bus_probe_mode = (bus_probe_mode or "none").strip().lower()
+        self._bus_probe_streams = list(bus_probe_streams or [])
         self._last_result: HealthResult | None = None
         self._last_checked_at: float | None = None
         self._publish_failures: int = 0
@@ -106,7 +110,32 @@ class HealthProbe:
                 return "BUS_UNHEALTHY"
         if self._publish_failures >= self.max_publish_failures:
             return "BUS_UNHEALTHY"
+        if self.bus_probe_mode in {"", "none"}:
+            return "BUS_HEALTH_UNKNOWN"
+        if self.bus_probe_mode == "describe":
+            return self._bus_describe_ok()
         return "BUS_HEALTH_UNKNOWN"
+
+    def _bus_describe_ok(self) -> str | None:
+        try:
+            from fraud_detection.event_bus.kinesis import KinesisEventBusPublisher
+        except Exception:
+            return "BUS_HEALTH_UNKNOWN"
+        if not isinstance(self.bus, KinesisEventBusPublisher):
+            return "BUS_HEALTH_UNKNOWN"
+        streams = list(self._bus_probe_streams)
+        if not streams:
+            stream_name = getattr(self.bus.config, "stream_name", None)
+            if stream_name:
+                streams = [stream_name]
+        if not streams:
+            return "BUS_HEALTH_UNKNOWN"
+        try:
+            for stream_name in streams:
+                self.bus.describe_stream(stream_name)
+        except Exception:
+            return "BUS_UNHEALTHY"
+        return None
 
     def record_publish_failure(self) -> None:
         self._publish_failures += 1

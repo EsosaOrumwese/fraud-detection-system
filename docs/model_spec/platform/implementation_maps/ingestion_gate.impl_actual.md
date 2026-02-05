@@ -2388,3 +2388,67 @@ Close Control & Ingress Phase 5 validation for IG and correct minor admission‑
 - Result: **tests passed**.
 
 ---
+
+---
+
+## Entry: 2026-02-05 17:06:10 — Plan: IG bus health probe (describe mode)
+
+### Problem
+IG health returns `BUS_HEALTH_UNKNOWN` for Kinesis because no active probe exists, leaving /v1/ops/health in AMBER even when the bus is healthy. This blocks clean closure of Control & Ingress and leaves no signal for Obs/Gov to build on across the env ladder.
+
+### Authorities / inputs
+- Control & Ingress pins (fail‑closed on unknown compatibility; health should be explicit).
+- v0 environment/resource tooling map for local‑parity (LocalStack Kinesis).
+
+### Options considered
+1) **Describe/metadata probe (no side effects)**: call Kinesis `DescribeStreamSummary` for expected streams; GREEN if all succeed.
+2) **Publish probe**: emit a health event to a dedicated stream and verify ack.
+3) **Status‑quo**: keep `BUS_HEALTH_UNKNOWN` and rely on publish failures only.
+
+### Decision
+Implement **describe/metadata probe** as the default path for Kinesis. Keep publish‑probe as a future mode (not implemented now). This gives a deterministic, low‑risk signal that is consistent across local‑parity, dev, and prod.
+
+### Plan
+- Add `health_bus_probe_mode` to IG wiring (default `none`).
+- Add `bus_probe_streams` to HealthProbe; for Kinesis describe mode, probe either:
+  - explicit `event_bus_path` if set and not `auto|topic`, or
+  - all streams referenced in `partitioning_profiles_v0.yaml`.
+- Implement Kinesis describe probe (no payload emission).
+- Set local/dev/prod/parity profiles to `health_bus_probe_mode: describe`.
+- Update docs (platform impl_actual + v0 tooling map) and logbook.
+- Add/adjust tests if needed (ensure existing health tests still pass).
+
+### Invariants
+- No side‑effects on the bus for describe mode.
+- Health must return GREEN if store + ops + bus probe succeed; RED if bus probe fails.
+- Backward compatibility: `health_bus_probe_mode=none` preserves current behavior.
+
+---
+
+## Entry: 2026-02-05 17:22:10 — Implemented IG bus health probe (describe mode)
+
+### Changes applied
+- Added `health_bus_probe_mode` wiring (default `none`); profiles set to `describe`.
+- Health probe now supports **Kinesis describe** checks (no side effects).
+- Probe streams derived from class_map → partitioning profiles when `EVENT_BUS_STREAM=auto|topic`.
+- Added `PartitioningProfiles.streams()` helper and shared class→profile mapping.
+
+### Files touched
+- `src/fraud_detection/ingestion_gate/health.py`
+- `src/fraud_detection/ingestion_gate/admission.py`
+- `src/fraud_detection/ingestion_gate/config.py`
+- `src/fraud_detection/ingestion_gate/partitioning.py`
+- `src/fraud_detection/event_bus/kinesis.py`
+- `config/platform/profiles/{local,local_parity,dev,prod}.yaml`
+- `config/platform/profiles/README.md`
+- `docs/model_spec/platform/platform-wide/v0_environment_resource_tooling_map.md`
+- `tests/services/ingestion_gate/test_health_governance.py` (prefix arg)
+
+### Behavior
+- File bus: unchanged (GREEN if store/ops ok).
+- Kinesis bus:
+  - `health_bus_probe_mode=none` ⇒ `BUS_HEALTH_UNKNOWN` unless publish failures exceed threshold.
+  - `health_bus_probe_mode=describe` ⇒ GREEN if all expected streams describe successfully; RED on failure.
+
+### Tests
+- `python -m pytest tests/services/ingestion_gate/test_health_governance.py -q`

@@ -1924,3 +1924,27 @@ Observed on each record:
 
 ### Conclusion
 Control & Ingress for local‑parity is **green** and aligned to the flow narrative and v0 environment/resource tooling for this plane.
+
+---
+
+## Entry: 2026-02-05 17:06:40 — Plan: Bus health probe for Obs/Gov readiness (C&I)
+
+### Goal
+Provide a deterministic bus health signal in local‑parity (and across env ladder) so Control & Ingress can be marked fully green and Obs/Gov can rely on a stable health signal.
+
+### Decision
+Implement **Kinesis describe‑based probe** (no side effects) as default, configurable via `health_bus_probe_mode`.
+
+---
+
+## Entry: 2026-02-05 17:22:40 — IG bus describe probe enabled (local‑parity/dev/prod)
+
+### Summary
+Implemented bus describe health probe for Kinesis and enabled it in v0 profiles (`health_bus_probe_mode: describe`). This removes `BUS_HEALTH_UNKNOWN` in parity once streams are provisioned and provides a stable signal for Obs/Gov meta layer.
+
+### Evidence
+- Probe reads Kinesis stream metadata (no event emission).
+- Stream list derived from class_map → partitioning profiles when `EVENT_BUS_STREAM=auto|topic`.
+
+### Validation
+- `python -m pytest tests/services/ingestion_gate/test_health_governance.py -q`
