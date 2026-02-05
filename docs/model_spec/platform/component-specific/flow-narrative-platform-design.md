@@ -1,5 +1,5 @@
 # Descriptive Narrative of Flow w/regards to Platform
-_NOTE: You are only allowed to change the doc under the EXPLICIT instruction from the USER. And if done, ensure edit is woven into the narrative flow of the platform_
+_NOTE to AGENT: You are only allowed to change the doc under the EXPLICIT instruction from the USER. And if done, ensure edit is woven into the narrative flow of the platform_
 
 ## Local-Parity SR->WSP->IG->EB Narrative (`platform_20260201T224449Z`) — v0 pins surfaced
 
