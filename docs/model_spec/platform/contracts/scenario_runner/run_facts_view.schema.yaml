@@ -5,6 +5,8 @@ type: object
 additionalProperties: false
 required:
   - run_id
+  - platform_run_id
+  - scenario_run_id
   - pins
   - locators
   - gate_receipts
@@ -16,10 +18,21 @@ required:
 properties:
   run_id:
     $ref: "#/$defs/hex32"
+  platform_run_id:
+    $ref: "#/$defs/platform_run_id"
+  scenario_run_id:
+    $ref: "#/$defs/hex32"
   pins:
     type: object
     additionalProperties: false
-    required: [manifest_fingerprint, parameter_hash, seed, scenario_id, run_id]
+    required:
+      - manifest_fingerprint
+      - parameter_hash
+      - seed
+      - scenario_id
+      - run_id
+      - platform_run_id
+      - scenario_run_id
     properties:
       manifest_fingerprint:
         $ref: "#/$defs/hex64"
@@ -31,6 +44,10 @@ properties:
         type: string
         minLength: 1
       run_id:
+        $ref: "#/$defs/hex32"
+      platform_run_id:
+        $ref: "#/$defs/platform_run_id"
+      scenario_run_id:
         $ref: "#/$defs/hex32"
   locators:
     type: array
@@ -209,6 +226,8 @@ properties:
   status_ref:
     type: string
     minLength: 1
+  run_config_digest:
+    $ref: "#/$defs/hex64"
   oracle_pack_ref:
     $ref: "#/$defs/oracle_pack_ref"
   evidence_notes:
@@ -223,6 +242,9 @@ $defs:
   hex64:
     type: string
     pattern: "^[0-9a-f]{64}$"
+  platform_run_id:
+    type: string
+    pattern: "^platform_[0-9]{8}T[0-9]{6}Z$"
   uint64:
     type: integer
     minimum: 0

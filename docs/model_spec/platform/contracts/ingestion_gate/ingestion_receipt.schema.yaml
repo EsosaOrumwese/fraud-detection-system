@@ -8,8 +8,11 @@ required:
   - decision
   - event_id
   - event_type
+  - event_class
   - ts_utc
   - manifest_fingerprint
+  - platform_run_id
+  - run_config_digest
   - policy_rev
 properties:
   receipt_id:
@@ -25,7 +28,13 @@ properties:
     type: string
     minLength: 1
     maxLength: 256
+  event_class:
+    type: string
+    minLength: 1
+    maxLength: 128
   ts_utc:
+    $ref: "#/$defs/rfc3339_micros"
+  admitted_at_utc:
     $ref: "#/$defs/rfc3339_micros"
   schema_version:
     type: string
@@ -37,13 +46,25 @@ properties:
     maxLength: 128
   manifest_fingerprint:
     $ref: "#/$defs/hex64"
+  platform_run_id:
+    $ref: "#/$defs/platform_run_id"
+  scenario_run_id:
+    $ref: "#/$defs/hex32"
+  run_config_digest:
+    $ref: "#/$defs/hex64"
+  payload_hash:
+    $ref: "#/$defs/digest"
   pins:
     type: object
     additionalProperties: false
-    required: [manifest_fingerprint]
+    required: [manifest_fingerprint, platform_run_id]
     properties:
       manifest_fingerprint:
         $ref: "#/$defs/hex64"
+      platform_run_id:
+        $ref: "#/$defs/platform_run_id"
+      scenario_run_id:
+        $ref: "#/$defs/hex32"
       parameter_hash:
         $ref: "#/$defs/hex64"
       seed:
@@ -128,13 +149,13 @@ allOf:
         decision:
           const: ADMIT
     then:
-      required: [eb_ref]
+      required: [eb_ref, scenario_run_id, payload_hash, admitted_at_utc]
   - if:
       properties:
         decision:
           const: DUPLICATE
     then:
-      required: [eb_ref]
+      required: [eb_ref, scenario_run_id, payload_hash, admitted_at_utc]
   - if:
       properties:
         decision:
@@ -149,6 +170,9 @@ $defs:
   hex64:
     type: string
     pattern: "^[0-9a-f]{64}$"
+  platform_run_id:
+    type: string
+    pattern: "^platform_[0-9]{8}T[0-9]{6}Z$"
   uint64:
     type: integer
     minimum: 0
