@@ -44,6 +44,10 @@ class IdentityGraphProjector:
         self.hints_policy = IdentityHintsPolicy.load(Path(profile.policy.identity_hints_ref))
         self.envelope_registry = SchemaRegistry(Path(profile.wiring.engine_contracts_root))
         self.store = build_store(profile.wiring.projection_db_dsn, stream_id=profile.policy.graph_stream_id)
+        self._graph_stream_base = profile.policy.graph_stream_base
+        self._required_platform_run_id = profile.wiring.required_platform_run_id
+        self._lock_run_scope_on_first_event = profile.wiring.lock_run_scope_on_first_event
+        self._locked_platform_run_id = self._required_platform_run_id
         self._replay_manifest: ReplayManifest | None = None
         self._file_reader = None
         self._kinesis_reader = None
@@ -388,6 +392,7 @@ class IdentityGraphProjector:
                 offset_kind=record.offset_kind,
                 event_id=event_id,
                 event_type=event_type,
+                platform_run_id=envelope.get("platform_run_id"),
                 scenario_run_id=envelope.get("scenario_run_id") or envelope.get("run_id"),
                 reason_code="ENVELOPE_INVALID",
                 details=None,
@@ -406,9 +411,61 @@ class IdentityGraphProjector:
                 offset_kind=record.offset_kind,
                 event_id=event_id,
                 event_type=event_type,
+                platform_run_id=envelope.get("platform_run_id"),
                 scenario_run_id=envelope.get("scenario_run_id") or envelope.get("run_id"),
                 reason_code="REQUIRED_PINS_MISSING",
                 details={"missing": missing},
+                event_ts_utc=envelope.get("ts_utc"),
+            )
+
+        platform_run_id = envelope.get("platform_run_id")
+        if not platform_run_id:
+            return self.store.record_failure(
+                topic=record.topic,
+                partition=record.partition,
+                offset=record.offset,
+                offset_kind=record.offset_kind,
+                event_id=event_id,
+                event_type=event_type,
+                platform_run_id=None,
+                scenario_run_id=envelope.get("scenario_run_id") or envelope.get("run_id"),
+                reason_code="PLATFORM_RUN_ID_MISSING",
+                details=None,
+                event_ts_utc=envelope.get("ts_utc"),
+            )
+
+        if self._required_platform_run_id and str(platform_run_id) != str(self._required_platform_run_id):
+            return self.store.record_failure(
+                topic=record.topic,
+                partition=record.partition,
+                offset=record.offset,
+                offset_kind=record.offset_kind,
+                event_id=event_id,
+                event_type=event_type,
+                platform_run_id=platform_run_id,
+                scenario_run_id=envelope.get("scenario_run_id") or envelope.get("run_id"),
+                reason_code="RUN_SCOPE_MISMATCH",
+                details={"expected": self._required_platform_run_id, "actual": platform_run_id},
+                event_ts_utc=envelope.get("ts_utc"),
+            )
+
+        if self._lock_run_scope_on_first_event and self._locked_platform_run_id is None:
+            self._locked_platform_run_id = str(platform_run_id)
+            new_stream_id = f"{self._graph_stream_base}::{self._locked_platform_run_id}"
+            self.store.rebind_stream_id(new_stream_id)
+
+        if self._locked_platform_run_id and str(platform_run_id) != str(self._locked_platform_run_id):
+            return self.store.record_failure(
+                topic=record.topic,
+                partition=record.partition,
+                offset=record.offset,
+                offset_kind=record.offset_kind,
+                event_id=event_id,
+                event_type=event_type,
+                platform_run_id=platform_run_id,
+                scenario_run_id=envelope.get("scenario_run_id") or envelope.get("run_id"),
+                reason_code="RUN_SCOPE_MISMATCH",
+                details={"expected": self._locked_platform_run_id, "actual": platform_run_id},
                 event_ts_utc=envelope.get("ts_utc"),
             )
 
@@ -421,6 +478,7 @@ class IdentityGraphProjector:
                 offset_kind=record.offset_kind,
                 event_id=event_id,
                 event_type=event_type,
+                platform_run_id=platform_run_id,
                 scenario_run_id=envelope.get("scenario_run_id") or envelope.get("run_id"),
                 reason_code="REPLAY_PINS_MISMATCH",
                 details={"mismatches": replay_mismatch},
@@ -435,6 +493,7 @@ class IdentityGraphProjector:
                 offset=record.offset,
                 offset_kind=record.offset_kind,
                 event_ts_utc=envelope.get("ts_utc"),
+                platform_run_id=platform_run_id,
                 scenario_run_id=envelope.get("scenario_run_id") or envelope.get("run_id"),
                 count_as="irrelevant",
             )
@@ -448,6 +507,7 @@ class IdentityGraphProjector:
                 offset_kind=record.offset_kind,
                 event_id=event_id,
                 event_type=event_type,
+                platform_run_id=platform_run_id,
                 scenario_run_id=envelope.get("run_id"),
                 reason_code="SCENARIO_RUN_ID_MISSING",
                 details=None,
@@ -462,6 +522,7 @@ class IdentityGraphProjector:
                 offset_kind=record.offset_kind,
                 event_id=event_id,
                 event_type=event_type,
+                platform_run_id=platform_run_id,
                 scenario_run_id=scenario_run_id,
                 reason_code="CLASSIFICATION_UNSUPPORTED",
                 details=None,
@@ -477,6 +538,7 @@ class IdentityGraphProjector:
                 offset_kind=record.offset_kind,
                 event_id=event_id,
                 event_type=event_type,
+                platform_run_id=platform_run_id,
                 scenario_run_id=scenario_run_id,
                 reason_code="IDENTITY_HINTS_MISSING",
                 details=None,
@@ -484,7 +546,7 @@ class IdentityGraphProjector:
             )
 
         pins = _pins_for_envelope(envelope, scenario_run_id)
-        dedupe = dedupe_key(scenario_run_id, class_name, event_id)
+        dedupe = dedupe_key(str(platform_run_id), scenario_run_id, class_name, event_id)
         payload_hash = _payload_hash(envelope)
         normalized_hints = _assign_entity_ids(identity_hints, pins)
         pins["dedupe_key"] = dedupe
@@ -496,6 +558,7 @@ class IdentityGraphProjector:
             event_id=event_id,
             event_type=event_type,
             class_name=class_name,
+            platform_run_id=str(platform_run_id),
             scenario_run_id=scenario_run_id,
             pins=pins,
             payload_hash=payload_hash,

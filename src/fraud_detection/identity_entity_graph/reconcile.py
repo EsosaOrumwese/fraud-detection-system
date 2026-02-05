@@ -23,9 +23,15 @@ def main() -> None:
     if not basis:
         raise SystemExit("NO_GRAPH_BASIS")
 
-    platform_run_id = resolve_platform_run_id(create_if_missing=False)
+    graph_scope = basis.get("graph_scope") if isinstance(basis, dict) else None
+    platform_run_id = None
+    if isinstance(graph_scope, dict):
+        platform_run_id = graph_scope.get("platform_run_id")
+    if not platform_run_id:
+        platform_run_id = resolve_platform_run_id(create_if_missing=False)
     payload = {
         "platform_run_id": platform_run_id,
+        "graph_scope": graph_scope,
         "graph_version": basis.get("graph_version"),
         "basis": basis.get("basis"),
         "generated_at_utc": datetime.now(tz=timezone.utc).isoformat(),

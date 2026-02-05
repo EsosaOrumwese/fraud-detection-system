@@ -8,8 +8,8 @@ from typing import Any
 from .hints import IdentityHint
 
 
-def dedupe_key(scenario_run_id: str, class_name: str, event_id: str) -> str:
-    payload = f"{scenario_run_id}:{class_name}:{event_id}"
+def dedupe_key(platform_run_id: str, scenario_run_id: str, class_name: str, event_id: str) -> str:
+    payload = f"{platform_run_id}:{scenario_run_id}:{class_name}:{event_id}"
     return hashlib.sha256(payload.encode("utf-8")).hexdigest()
 
 
@@ -23,6 +23,7 @@ def entity_id_from_hint(hint: IdentityHint, pins: dict[str, Any]) -> str:
 
 def _scope_key(pins: dict[str, Any]) -> str:
     tokens = [
+        str(pins.get("platform_run_id") or ""),
         pins.get("manifest_fingerprint") or "",
         pins.get("parameter_hash") or "",
         str(pins.get("seed") or ""),

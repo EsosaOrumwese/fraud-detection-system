@@ -34,6 +34,21 @@ def _resolve_ref(value: str | None, *, base_dir: Path) -> str | None:
     return str(resolved)
 
 
+def _resolve_bool(value: Any, *, default: bool) -> bool:
+    if value is None:
+        return default
+    if isinstance(value, bool):
+        return value
+    if isinstance(value, (int, float)):
+        return bool(value)
+    if isinstance(value, str):
+        token = value.strip().lower()
+        if token in {"1", "true", "yes", "y", "on"}:
+            return True
+        if token in {"0", "false", "no", "n", "off"}:
+            return False
+    return default
+
 @dataclass(frozen=True)
 class IegPolicy:
     classification_ref: str
@@ -41,6 +56,7 @@ class IegPolicy:
     retention_ref: str
     class_map_ref: str
     partitioning_profiles_ref: str
+    graph_stream_base: str
     graph_stream_id: str
 
 
@@ -61,6 +77,8 @@ class IegWiring:
     checkpoint_every: int
     max_inflight: int
     batch_size: int
+    required_platform_run_id: str | None
+    lock_run_scope_on_first_event: bool
 
 
 @dataclass(frozen=True)
@@ -137,7 +155,18 @@ class IegProfile:
             ),
             base_dir=path.parent,
         )
-        graph_stream_id = str(policy.get("graph_stream_id") or "ieg.v0")
+        graph_stream_base = str(policy.get("graph_stream_id") or "ieg.v0")
+        required_platform_run_id = _resolve_env(wiring.get("required_platform_run_id"))
+        if not required_platform_run_id:
+            required_platform_run_id = os.getenv("IEG_REQUIRED_PLATFORM_RUN_ID") or os.getenv("PLATFORM_RUN_ID")
+        required_platform_run_id = required_platform_run_id or None
+        lock_run_scope_on_first_event = _resolve_bool(
+            wiring.get("lock_run_scope_on_first_event") or os.getenv("IEG_LOCK_RUN_SCOPE"),
+            default=True,
+        )
+        graph_stream_id = graph_stream_base
+        if required_platform_run_id:
+            graph_stream_id = f"{graph_stream_base}::{required_platform_run_id}"
 
         projection_db_dsn = _resolve_env(wiring.get("projection_db_dsn"))
         projection_db_dsn = resolve_run_scoped_path(
@@ -180,6 +209,7 @@ class IegProfile:
                 retention_ref=retention_ref,
                 class_map_ref=class_map_ref,
                 partitioning_profiles_ref=partitioning_profiles_ref,
+                graph_stream_base=graph_stream_base,
                 graph_stream_id=graph_stream_id,
             ),
             wiring=IegWiring(
@@ -198,6 +228,8 @@ class IegProfile:
                 checkpoint_every=checkpoint_every,
                 max_inflight=max_inflight,
                 batch_size=batch_size,
+                required_platform_run_id=required_platform_run_id,
+                lock_run_scope_on_first_event=lock_run_scope_on_first_event,
             ),
             retention=IegRetention.load(Path(retention_ref)),
         )

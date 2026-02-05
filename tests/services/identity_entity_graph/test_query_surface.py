@@ -20,7 +20,7 @@ def _pins() -> dict[str, object]:
 
 def _apply_event(store, pins: dict[str, object], *, event_id: str, entity_id: str) -> None:
     class_name = "traffic"
-    pins["dedupe_key"] = dedupe_key(str(pins["scenario_run_id"]), class_name, event_id)
+    pins["dedupe_key"] = dedupe_key(str(pins["platform_run_id"]), str(pins["scenario_run_id"]), class_name, event_id)
     hint = IdentityHint(
         identifier_type="account_id",
         identifier_value="acc-1",
@@ -36,6 +36,7 @@ def _apply_event(store, pins: dict[str, object], *, event_id: str, entity_id: st
         event_id=event_id,
         event_type="s3_event_stream_with_fraud_6B",
         class_name=class_name,
+        platform_run_id=str(pins["platform_run_id"]),
         scenario_run_id=str(pins["scenario_run_id"]),
         pins=pins,
         payload_hash=f"hash-{event_id}",
@@ -94,6 +95,7 @@ def test_integrity_status_degraded_on_failure(tmp_path) -> None:
         offset_kind="file_line",
         event_id="evt-9",
         event_type="s3_event_stream_with_fraud_6B",
+        platform_run_id=str(pins["platform_run_id"]),
         scenario_run_id=str(pins["scenario_run_id"]),
         reason_code="IDENTITY_HINTS_MISSING",
         details=None,

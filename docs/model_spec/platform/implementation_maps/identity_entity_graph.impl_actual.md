@@ -412,3 +412,90 @@ Implement Phase 4 of the IEG plan: operational metrics, explicit health posture,
 
 ### Validation
 - `python -m pytest tests/services/identity_entity_graph -q` (11 passed)
+---
+
+## Entry: 2026-02-05 21:50:00 — Parity buffering validation + run-scope drift findings
+
+### Run / evidence
+- platform_run_id: `platform_20260205T212544Z`
+- scenario_run_id: `dce02beeb230f669e01fad7f9d061f11`
+- WSP emitted: 800 (200 per output) via READY re-emit (message_id `ccee876be4566994084d2e8c669881b6dd2aee5e3038e4b72ad54f88a5c7d3e6`).
+- IG receipts: 800 under `s3://fraud-platform/platform_20260205T212544Z/ig/receipts/`
+- EB (localstack) counts by stream: traffic.fraud=200, arrival_events=200, arrival_entities=194, flow_anchor.fraud=196 (duplicates dropped by IG).
+- IEG projection DB: `runs/fraud-platform/platform_20260205T212544Z/identity_entity_graph/projection/identity_entity_graph.db`
+
+### Buffering / load behavior
+- IEG run_once loop processed counts: `[200, 200, 200, 190, 0]` (total 790).
+- Multi-pass draining confirms bounded buffering/backpressure behavior under load (batch_size=50, max_inflight=200).
+- IEG counts: `ieg_dedupe=790`, `ieg_apply_failures=0`, `ieg_checkpoints=4`, `ieg_graph_versions=1`.
+
+### Drift vs flow narrative (run-scope / replay-basis)
+Observed drift relative to the flow narrative requirement that IEG be run-scoped and built from a single replay basis:
+1) No platform_run_id gating at intake: IEG currently accepts any EB event and does not filter to a single platform_run_id in non-replay mode.
+2) Dedupe key excludes platform_run_id: dedupe is sha256(scenario_run_id + class_name + event_id); repeated runs with the same scenario_run_id can collide.
+3) Checkpoint/graph_version not run-scoped: ieg_checkpoints, ieg_graph_versions, and ieg_metrics are keyed only by stream_id (no platform_run_id), so multiple runs can mix offsets in a shared projection.
+4) Apply failures lack platform_run_id: failures are only keyed by stream_id + scenario_run_id; cross-run attribution is ambiguous.
+5) Replay-basis enforcement only in explicit replay mode: the “same replay basis” constraint is enforced only when a replay manifest is supplied.
+
+### Proposed fixes (run-scope hardening)
+1) Require platform_run_id for non-replay runs (fail closed): add IEG_REQUIRED_PLATFORM_RUN_ID (or profile flag) and drop/quarantine any EB event whose platform_run_id does not match the required value.
+2) Run-scoped stream identity: incorporate platform_run_id into the IEG stream_id (e.g., ieg.v0::<platform_run_id>), and key ieg_checkpoints, ieg_graph_versions, and ieg_metrics by that composite stream id. This isolates replay bases per run.
+3) Dedupe key update: include platform_run_id in the dedupe key and store it explicitly in ieg_dedupe and ieg_apply_failures for audit and run separation.
+4) Apply-failure attribution: add platform_run_id column + index to ieg_apply_failures so integrity signals are run-scoped.
+5) Optional strict mode for non-manifest runs: when no replay manifest is provided, enforce that all processed events share the same platform_run_id (first seen locks the run scope). If a different run_id appears, record RUN_SCOPE_MISMATCH and halt or quarantine.
+6) Graph_version exposure: include platform_run_id in any graph_version responses/records so downstream consumers can assert they are using the correct run scope.
+
+These fixes align the implementation with the narrative’s “run-scoped + single replay basis” posture and prevent cross-run contamination in local/parity and beyond.
+---
+
+## Entry: 2026-02-05 22:00:00 — Plan to harden IEG run-scope + dedupe (drift fixes)
+
+### Problem / goal
+Close run-scope drift against the flow narrative: ensure IEG is run-scoped, built from a single run evidence basis, and exposes graph_version tied to platform_run_id. Fix dedupe and audit attribution to prevent cross-run contamination.
+
+### Authorities / inputs
+- Flow narrative (IEG run-scoped + single replay basis) in `docs/model_spec/platform/component-specific/flow-narrative-platform-design.md`
+- RTDL pre-design decisions (ContextPins, provenance, fail-closed)
+- IEG build plan Phase 4.2 (run-scoped projection + deterministic replay)
+
+### Decisions (planned)
+1) **Require platform_run_id for non-replay runs** and fail closed when missing (`PLATFORM_RUN_ID_MISSING`) or mismatched (`RUN_SCOPE_MISMATCH`).
+2) **Run-scoped stream identity**: derive stream_id as `graph_stream_base::platform_run_id` and bind store state to that stream id. If platform_run_id is not pre-configured, lock on first valid event and rebind stream id before applying state.
+3) **Dedupe key includes platform_run_id**; persist platform_run_id on dedupe + apply-failure rows for audit attribution.
+4) **Run-scope guardrail**: when run scope is locked, reject any event whose platform_run_id deviates (quarantine via apply-failure).
+5) **Expose run scope in graph_version responses**: include stream_id/platform_run_id in status + reconciliation outputs so downstream consumers can assert correct scope.
+
+### Planned changes
+- `src/fraud_detection/identity_entity_graph/config.py`: add `required_platform_run_id` + `lock_run_scope_on_first_event` wiring; compute `graph_stream_id` from base + platform_run_id.
+- `src/fraud_detection/identity_entity_graph/projector.py`: enforce platform_run_id presence + mismatch handling; lock run scope on first valid event; rebind store stream_id; update dedupe_key call.
+- `src/fraud_detection/identity_entity_graph/ids.py`: include platform_run_id in dedupe key; include platform_run_id in scope key for entity_id derivation.
+- `src/fraud_detection/identity_entity_graph/store.py`: add platform_run_id columns to dedupe + apply_failures; add `rebind_stream_id`; update inserts/queries and failure recording.
+- `src/fraud_detection/identity_entity_graph/query.py`: include graph scope (stream_id + platform_run_id) in status and query responses.
+- `src/fraud_detection/identity_entity_graph/reconcile.py`: include stream_id/platform_run_id in reconciliation artifact.
+- Tests: update IEG store/query tests for new dedupe_key signature and platform_run_id-aware failures.
+
+### Validation plan
+- `python -m pytest tests/services/identity_entity_graph -q`
+- Manual sanity: run IEG projector with parity env and confirm apply failures include RUN_SCOPE_MISMATCH when platform_run_id differs.
+---
+
+## Entry: 2026-02-05 22:10:00 — Run-scope hardening implemented (IEG)
+
+### Summary of changes
+- Enforced platform_run_id run scope at intake (missing/mismatch => apply-failure with RUN_SCOPE_MISMATCH).
+- Dedupe key now includes platform_run_id and platform_run_id is persisted in dedupe + apply-failure rows.
+- Stream identity is run-scoped: graph_stream_id derived as `graph_stream_base::platform_run_id` when required is set, or locked on first valid event with store rebind.
+- Query/reconciliation responses now include graph_scope (stream_id + platform_run_id when available).
+- Added apply-failures scope index and automatic schema column adds for new platform_run_id fields.
+
+### Files updated
+- `src/fraud_detection/identity_entity_graph/config.py` (run-scope wiring + stream_id derivation)
+- `src/fraud_detection/identity_entity_graph/projector.py` (platform_run_id enforcement, run-scope lock + rebind, dedupe change)
+- `src/fraud_detection/identity_entity_graph/ids.py` (dedupe key + scope key includes platform_run_id)
+- `src/fraud_detection/identity_entity_graph/store.py` (platform_run_id columns + rebind + index + failure filtering)
+- `src/fraud_detection/identity_entity_graph/query.py` (graph_scope surfaced in responses)
+- `src/fraud_detection/identity_entity_graph/reconcile.py` (graph_scope in artifact)
+- `tests/services/identity_entity_graph/*` (dedupe + new params)
+
+### Validation
+- `python -m pytest tests/services/identity_entity_graph -q` (11 passed)

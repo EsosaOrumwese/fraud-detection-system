@@ -26,7 +26,7 @@ def test_apply_and_duplicate(tmp_path) -> None:
     event_id = "evt-1"
     class_name = "traffic"
     pins = _base_pins()
-    pins["dedupe_key"] = dedupe_key(str(pins["scenario_run_id"]), class_name, event_id)
+    pins["dedupe_key"] = dedupe_key(str(pins["platform_run_id"]), str(pins["scenario_run_id"]), class_name, event_id)
     hint = IdentityHint(
         identifier_type="account_id",
         identifier_value="acc-1",
@@ -42,6 +42,7 @@ def test_apply_and_duplicate(tmp_path) -> None:
         event_id=event_id,
         event_type="s3_event_stream_with_fraud_6B",
         class_name=class_name,
+        platform_run_id=str(pins["platform_run_id"]),
         scenario_run_id=str(pins["scenario_run_id"]),
         pins=pins,
         payload_hash="hash-1",
@@ -58,6 +59,7 @@ def test_apply_and_duplicate(tmp_path) -> None:
         event_id=event_id,
         event_type="s3_event_stream_with_fraud_6B",
         class_name=class_name,
+        platform_run_id=str(pins["platform_run_id"]),
         scenario_run_id=str(pins["scenario_run_id"]),
         pins=pins,
         payload_hash="hash-1",
@@ -77,7 +79,7 @@ def test_payload_hash_mismatch_records_failure(tmp_path) -> None:
     event_id = "evt-2"
     class_name = "traffic"
     pins = _base_pins()
-    pins["dedupe_key"] = dedupe_key(str(pins["scenario_run_id"]), class_name, event_id)
+    pins["dedupe_key"] = dedupe_key(str(pins["platform_run_id"]), str(pins["scenario_run_id"]), class_name, event_id)
     hint = IdentityHint(
         identifier_type="device_id",
         identifier_value="dev-1",
@@ -93,6 +95,7 @@ def test_payload_hash_mismatch_records_failure(tmp_path) -> None:
         event_id=event_id,
         event_type="s3_event_stream_with_fraud_6B",
         class_name=class_name,
+        platform_run_id=str(pins["platform_run_id"]),
         scenario_run_id=str(pins["scenario_run_id"]),
         pins=pins,
         payload_hash="hash-2",
@@ -107,6 +110,7 @@ def test_payload_hash_mismatch_records_failure(tmp_path) -> None:
         event_id=event_id,
         event_type="s3_event_stream_with_fraud_6B",
         class_name=class_name,
+        platform_run_id=str(pins["platform_run_id"]),
         scenario_run_id=str(pins["scenario_run_id"]),
         pins=pins,
         payload_hash="hash-3",
@@ -126,7 +130,7 @@ def test_graph_version_is_deterministic(tmp_path) -> None:
     event_id = "evt-3"
     class_name = "traffic"
     pins = _base_pins()
-    pins["dedupe_key"] = dedupe_key(str(pins["scenario_run_id"]), class_name, event_id)
+    pins["dedupe_key"] = dedupe_key(str(pins["platform_run_id"]), str(pins["scenario_run_id"]), class_name, event_id)
     hint = IdentityHint(
         identifier_type="email",
         identifier_value="user@example.com",
@@ -142,6 +146,7 @@ def test_graph_version_is_deterministic(tmp_path) -> None:
         event_id=event_id,
         event_type="s3_event_stream_with_fraud_6B",
         class_name=class_name,
+        platform_run_id=str(pins["platform_run_id"]),
         scenario_run_id=str(pins["scenario_run_id"]),
         pins=pins,
         payload_hash="hash-4",
@@ -165,7 +170,7 @@ def test_prune_removes_old_entities(tmp_path) -> None:
         entity_id="entity-old",
         source_event_id="evt-old",
     )
-    pins["dedupe_key"] = dedupe_key(str(pins["scenario_run_id"]), class_name, "evt-old")
+    pins["dedupe_key"] = dedupe_key(str(pins["platform_run_id"]), str(pins["scenario_run_id"]), class_name, "evt-old")
     store.apply_mutation(
         topic="fp.bus.traffic.v1",
         partition=0,
@@ -174,6 +179,7 @@ def test_prune_removes_old_entities(tmp_path) -> None:
         event_id="evt-old",
         event_type="s3_event_stream_with_fraud_6B",
         class_name=class_name,
+        platform_run_id=str(pins["platform_run_id"]),
         scenario_run_id=str(pins["scenario_run_id"]),
         pins=pins,
         payload_hash="hash-old",
@@ -188,7 +194,7 @@ def test_prune_removes_old_entities(tmp_path) -> None:
         entity_id="entity-new",
         source_event_id="evt-new",
     )
-    pins["dedupe_key"] = dedupe_key(str(pins["scenario_run_id"]), class_name, "evt-new")
+    pins["dedupe_key"] = dedupe_key(str(pins["platform_run_id"]), str(pins["scenario_run_id"]), class_name, "evt-new")
     store.apply_mutation(
         topic="fp.bus.traffic.v1",
         partition=0,
@@ -197,6 +203,7 @@ def test_prune_removes_old_entities(tmp_path) -> None:
         event_id="evt-new",
         event_type="s3_event_stream_with_fraud_6B",
         class_name=class_name,
+        platform_run_id=str(pins["platform_run_id"]),
         scenario_run_id=str(pins["scenario_run_id"]),
         pins=pins,
         payload_hash="hash-new",
@@ -225,7 +232,7 @@ def test_metrics_counters(tmp_path) -> None:
     store = build_store(str(db_path), stream_id="ieg.v0")
     pins = _base_pins()
     class_name = "traffic"
-    pins["dedupe_key"] = dedupe_key(str(pins["scenario_run_id"]), class_name, "evt-m1")
+    pins["dedupe_key"] = dedupe_key(str(pins["platform_run_id"]), str(pins["scenario_run_id"]), class_name, "evt-m1")
     hint = IdentityHint(
         identifier_type="account_id",
         identifier_value="acc-1",
@@ -241,6 +248,7 @@ def test_metrics_counters(tmp_path) -> None:
         event_id="evt-m1",
         event_type="s3_event_stream_with_fraud_6B",
         class_name=class_name,
+        platform_run_id=str(pins["platform_run_id"]),
         scenario_run_id=str(pins["scenario_run_id"]),
         pins=pins,
         payload_hash="hash-m1",
@@ -254,6 +262,7 @@ def test_metrics_counters(tmp_path) -> None:
         offset_kind="file_line",
         event_id="evt-m2",
         event_type="s3_event_stream_with_fraud_6B",
+        platform_run_id=str(pins["platform_run_id"]),
         scenario_run_id=str(pins["scenario_run_id"]),
         reason_code="IDENTITY_HINTS_MISSING",
         details=None,
@@ -265,6 +274,7 @@ def test_metrics_counters(tmp_path) -> None:
         offset="2",
         offset_kind="file_line",
         event_ts_utc="2026-02-05T00:00:02.000000+00:00",
+        platform_run_id=str(pins["platform_run_id"]),
         scenario_run_id=str(pins["scenario_run_id"]),
         count_as="irrelevant",
     )

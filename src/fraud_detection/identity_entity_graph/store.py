@@ -77,7 +77,7 @@ class ProjectionStore:
     def metrics_summary(self, *, scenario_run_id: str) -> dict[str, int]:
         raise NotImplementedError
 
-    def apply_failure_count(self, *, scenario_run_id: str) -> int:
+    def apply_failure_count(self, *, scenario_run_id: str, platform_run_id: str | None = None) -> int:
         raise NotImplementedError
 
     def advance_checkpoint(
@@ -88,6 +88,7 @@ class ProjectionStore:
         offset: str,
         offset_kind: str,
         event_ts_utc: str | None,
+        platform_run_id: str | None = None,
         scenario_run_id: str | None = None,
         count_as: str | None = None,
     ) -> ApplyResult:
@@ -102,6 +103,7 @@ class ProjectionStore:
         offset_kind: str,
         event_id: str,
         event_type: str,
+        platform_run_id: str | None,
         scenario_run_id: str | None,
         reason_code: str,
         details: dict[str, Any] | None,
@@ -119,12 +121,16 @@ class ProjectionStore:
         event_id: str,
         event_type: str,
         class_name: str,
+        platform_run_id: str,
         scenario_run_id: str,
         pins: dict[str, Any],
         payload_hash: str,
         identity_hints: list[IdentityHint],
         event_ts_utc: str | None,
     ) -> ApplyResult:
+        raise NotImplementedError
+
+    def rebind_stream_id(self, new_stream_id: str) -> None:
         raise NotImplementedError
 
     def record_replay_basis(
@@ -187,6 +193,7 @@ class SqliteProjectionStore(ProjectionStore):
                 """
                 CREATE TABLE IF NOT EXISTS ieg_dedupe (
                     dedupe_key TEXT PRIMARY KEY,
+                    platform_run_id TEXT,
                     scenario_run_id TEXT,
                     class_name TEXT,
                     topic TEXT,
@@ -210,6 +217,7 @@ class SqliteProjectionStore(ProjectionStore):
                     offset_kind TEXT,
                     event_id TEXT,
                     event_type TEXT,
+                    platform_run_id TEXT,
                     scenario_run_id TEXT,
                     reason_code TEXT,
                     details_json TEXT,
@@ -331,6 +339,14 @@ class SqliteProjectionStore(ProjectionStore):
                 )
                 """
             )
+            _ensure_sqlite_column(conn, "ieg_dedupe", "platform_run_id", "TEXT")
+            _ensure_sqlite_column(conn, "ieg_apply_failures", "platform_run_id", "TEXT")
+            conn.execute(
+                """
+                CREATE INDEX IF NOT EXISTS idx_ieg_apply_failures_scope
+                ON ieg_apply_failures(stream_id, platform_run_id, scenario_run_id)
+                """
+            )
 
     def advance_checkpoint(
         self,
@@ -340,6 +356,7 @@ class SqliteProjectionStore(ProjectionStore):
         offset: str,
         offset_kind: str,
         event_ts_utc: str | None,
+        platform_run_id: str | None = None,
         scenario_run_id: str | None = None,
         count_as: str | None = None,
     ) -> ApplyResult:
@@ -419,15 +436,24 @@ class SqliteProjectionStore(ProjectionStore):
             ).fetchall()
         return {str(row[0]): int(row[1] or 0) for row in rows}
 
-    def apply_failure_count(self, *, scenario_run_id: str) -> int:
+    def apply_failure_count(self, *, scenario_run_id: str, platform_run_id: str | None = None) -> int:
         with self._connect() as conn:
-            row = conn.execute(
-                """
-                SELECT COUNT(*) FROM ieg_apply_failures
-                WHERE stream_id = ? AND scenario_run_id = ?
-                """,
-                (self.stream_id, scenario_run_id),
-            ).fetchone()
+            if platform_run_id:
+                row = conn.execute(
+                    """
+                    SELECT COUNT(*) FROM ieg_apply_failures
+                    WHERE stream_id = ? AND scenario_run_id = ? AND platform_run_id = ?
+                    """,
+                    (self.stream_id, scenario_run_id, platform_run_id),
+                ).fetchone()
+            else:
+                row = conn.execute(
+                    """
+                    SELECT COUNT(*) FROM ieg_apply_failures
+                    WHERE stream_id = ? AND scenario_run_id = ?
+                    """,
+                    (self.stream_id, scenario_run_id),
+                ).fetchone()
         if not row:
             return 0
         return int(row[0] or 0)
@@ -441,6 +467,7 @@ class SqliteProjectionStore(ProjectionStore):
         offset_kind: str,
         event_id: str,
         event_type: str,
+        platform_run_id: str | None,
         scenario_run_id: str | None,
         reason_code: str,
         details: dict[str, Any] | None,
@@ -456,8 +483,8 @@ class SqliteProjectionStore(ProjectionStore):
                 """
                 INSERT OR IGNORE INTO ieg_apply_failures
                 (failure_id, stream_id, topic, partition_id, offset, offset_kind, event_id, event_type,
-                 scenario_run_id, reason_code, details_json, ts_utc, recorded_at_utc)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                 platform_run_id, scenario_run_id, reason_code, details_json, ts_utc, recorded_at_utc)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """,
                 (
                     failure_id,
@@ -468,6 +495,7 @@ class SqliteProjectionStore(ProjectionStore):
                     offset_kind,
                     event_id,
                     event_type,
+                    platform_run_id,
                     scenario_run_id,
                     reason_code,
                     _json_dump(details),
@@ -496,6 +524,7 @@ class SqliteProjectionStore(ProjectionStore):
         event_id: str,
         event_type: str,
         class_name: str,
+        platform_run_id: str,
         scenario_run_id: str,
         pins: dict[str, Any],
         payload_hash: str,
@@ -515,8 +544,8 @@ class SqliteProjectionStore(ProjectionStore):
                         """
                         INSERT OR IGNORE INTO ieg_apply_failures
                         (failure_id, stream_id, topic, partition_id, offset, offset_kind, event_id, event_type,
-                         scenario_run_id, reason_code, details_json, ts_utc, recorded_at_utc)
-                        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                         platform_run_id, scenario_run_id, reason_code, details_json, ts_utc, recorded_at_utc)
+                        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                         """,
                         (
                             _failure_id(topic, partition, offset, "PAYLOAD_HASH_MISMATCH", event_id),
@@ -527,6 +556,7 @@ class SqliteProjectionStore(ProjectionStore):
                             offset_kind,
                             event_id,
                             event_type,
+                            platform_run_id,
                             scenario_run_id,
                             "PAYLOAD_HASH_MISMATCH",
                             None,
@@ -559,12 +589,13 @@ class SqliteProjectionStore(ProjectionStore):
             conn.execute(
                 """
                 INSERT INTO ieg_dedupe
-                (dedupe_key, scenario_run_id, class_name, topic, event_id, payload_hash,
+                (dedupe_key, platform_run_id, scenario_run_id, class_name, topic, event_id, payload_hash,
                  first_offset, offset_kind, first_seen_ts_utc, created_at_utc)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """,
                 (
                     pins["dedupe_key"],
+                    platform_run_id,
                     scenario_run_id,
                     class_name,
                     topic,
@@ -823,6 +854,58 @@ class SqliteProjectionStore(ProjectionStore):
             for table in tables:
                 conn.execute(f"DELETE FROM {table}")
 
+    def rebind_stream_id(self, new_stream_id: str) -> None:
+        if not new_stream_id or new_stream_id == self.stream_id:
+            return
+        with self._connect() as conn:
+            conn.execute(
+                "UPDATE ieg_checkpoints SET stream_id = %s WHERE stream_id = %s",
+                (new_stream_id, self.stream_id),
+            )
+            conn.execute(
+                "UPDATE ieg_graph_versions SET stream_id = %s WHERE stream_id = %s",
+                (new_stream_id, self.stream_id),
+            )
+            conn.execute(
+                "UPDATE ieg_metrics SET stream_id = %s WHERE stream_id = %s",
+                (new_stream_id, self.stream_id),
+            )
+            conn.execute(
+                "UPDATE ieg_apply_failures SET stream_id = %s WHERE stream_id = %s",
+                (new_stream_id, self.stream_id),
+            )
+            conn.execute(
+                "UPDATE ieg_replay_basis SET stream_id = %s WHERE stream_id = %s",
+                (new_stream_id, self.stream_id),
+            )
+        self.stream_id = new_stream_id
+
+    def rebind_stream_id(self, new_stream_id: str) -> None:
+        if not new_stream_id or new_stream_id == self.stream_id:
+            return
+        with self._connect() as conn:
+            conn.execute(
+                "UPDATE ieg_checkpoints SET stream_id = ? WHERE stream_id = ?",
+                (new_stream_id, self.stream_id),
+            )
+            conn.execute(
+                "UPDATE ieg_graph_versions SET stream_id = ? WHERE stream_id = ?",
+                (new_stream_id, self.stream_id),
+            )
+            conn.execute(
+                "UPDATE ieg_metrics SET stream_id = ? WHERE stream_id = ?",
+                (new_stream_id, self.stream_id),
+            )
+            conn.execute(
+                "UPDATE ieg_apply_failures SET stream_id = ? WHERE stream_id = ?",
+                (new_stream_id, self.stream_id),
+            )
+            conn.execute(
+                "UPDATE ieg_replay_basis SET stream_id = ? WHERE stream_id = ?",
+                (new_stream_id, self.stream_id),
+            )
+        self.stream_id = new_stream_id
+
     def resolve_identifier_candidates(
         self,
         *,
@@ -1031,6 +1114,7 @@ class PostgresProjectionStore(ProjectionStore):
                 """
                 CREATE TABLE IF NOT EXISTS ieg_dedupe (
                     dedupe_key TEXT PRIMARY KEY,
+                    platform_run_id TEXT,
                     scenario_run_id TEXT,
                     class_name TEXT,
                     topic TEXT,
@@ -1054,6 +1138,7 @@ class PostgresProjectionStore(ProjectionStore):
                     offset_kind TEXT,
                     event_id TEXT,
                     event_type TEXT,
+                    platform_run_id TEXT,
                     scenario_run_id TEXT,
                     reason_code TEXT,
                     details_json TEXT,
@@ -1175,6 +1260,14 @@ class PostgresProjectionStore(ProjectionStore):
                 )
                 """
             )
+            _ensure_postgres_column(conn, "ieg_dedupe", "platform_run_id", "TEXT")
+            _ensure_postgres_column(conn, "ieg_apply_failures", "platform_run_id", "TEXT")
+            conn.execute(
+                """
+                CREATE INDEX IF NOT EXISTS idx_ieg_apply_failures_scope
+                ON ieg_apply_failures(stream_id, platform_run_id, scenario_run_id)
+                """
+            )
 
     def advance_checkpoint(
         self,
@@ -1184,6 +1277,7 @@ class PostgresProjectionStore(ProjectionStore):
         offset: str,
         offset_kind: str,
         event_ts_utc: str | None,
+        platform_run_id: str | None = None,
         scenario_run_id: str | None = None,
         count_as: str | None = None,
     ) -> ApplyResult:
@@ -1263,15 +1357,24 @@ class PostgresProjectionStore(ProjectionStore):
             ).fetchall()
         return {str(row[0]): int(row[1] or 0) for row in rows}
 
-    def apply_failure_count(self, *, scenario_run_id: str) -> int:
+    def apply_failure_count(self, *, scenario_run_id: str, platform_run_id: str | None = None) -> int:
         with self._connect() as conn:
-            row = conn.execute(
-                """
-                SELECT COUNT(*) FROM ieg_apply_failures
-                WHERE stream_id = %s AND scenario_run_id = %s
-                """,
-                (self.stream_id, scenario_run_id),
-            ).fetchone()
+            if platform_run_id:
+                row = conn.execute(
+                    """
+                    SELECT COUNT(*) FROM ieg_apply_failures
+                    WHERE stream_id = %s AND scenario_run_id = %s AND platform_run_id = %s
+                    """,
+                    (self.stream_id, scenario_run_id, platform_run_id),
+                ).fetchone()
+            else:
+                row = conn.execute(
+                    """
+                    SELECT COUNT(*) FROM ieg_apply_failures
+                    WHERE stream_id = %s AND scenario_run_id = %s
+                    """,
+                    (self.stream_id, scenario_run_id),
+                ).fetchone()
         if not row:
             return 0
         return int(row[0] or 0)
@@ -1285,6 +1388,7 @@ class PostgresProjectionStore(ProjectionStore):
         offset_kind: str,
         event_id: str,
         event_type: str,
+        platform_run_id: str | None,
         scenario_run_id: str | None,
         reason_code: str,
         details: dict[str, Any] | None,
@@ -1300,8 +1404,8 @@ class PostgresProjectionStore(ProjectionStore):
                 """
                 INSERT INTO ieg_apply_failures
                 (failure_id, stream_id, topic, partition_id, offset, offset_kind, event_id, event_type,
-                 scenario_run_id, reason_code, details_json, ts_utc, recorded_at_utc)
-                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                 platform_run_id, scenario_run_id, reason_code, details_json, ts_utc, recorded_at_utc)
+                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
                 ON CONFLICT (failure_id) DO NOTHING
                 """,
                 (
@@ -1313,6 +1417,7 @@ class PostgresProjectionStore(ProjectionStore):
                     offset_kind,
                     event_id,
                     event_type,
+                    platform_run_id,
                     scenario_run_id,
                     reason_code,
                     _json_dump(details),
@@ -1341,6 +1446,7 @@ class PostgresProjectionStore(ProjectionStore):
         event_id: str,
         event_type: str,
         class_name: str,
+        platform_run_id: str,
         scenario_run_id: str,
         pins: dict[str, Any],
         payload_hash: str,
@@ -1360,8 +1466,8 @@ class PostgresProjectionStore(ProjectionStore):
                         """
                         INSERT INTO ieg_apply_failures
                         (failure_id, stream_id, topic, partition_id, offset, offset_kind, event_id, event_type,
-                         scenario_run_id, reason_code, details_json, ts_utc, recorded_at_utc)
-                        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                         platform_run_id, scenario_run_id, reason_code, details_json, ts_utc, recorded_at_utc)
+                        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
                         ON CONFLICT (failure_id) DO NOTHING
                         """,
                         (
@@ -1373,6 +1479,7 @@ class PostgresProjectionStore(ProjectionStore):
                             offset_kind,
                             event_id,
                             event_type,
+                            platform_run_id,
                             scenario_run_id,
                             "PAYLOAD_HASH_MISMATCH",
                             None,
@@ -1405,12 +1512,13 @@ class PostgresProjectionStore(ProjectionStore):
             conn.execute(
                 """
                 INSERT INTO ieg_dedupe
-                (dedupe_key, scenario_run_id, class_name, topic, event_id, payload_hash,
+                (dedupe_key, platform_run_id, scenario_run_id, class_name, topic, event_id, payload_hash,
                  first_offset, offset_kind, first_seen_ts_utc, created_at_utc)
-                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
                 """,
                 (
                     pins["dedupe_key"],
+                    platform_run_id,
                     scenario_run_id,
                     class_name,
                     topic,
@@ -1946,6 +2054,21 @@ def _sqlite_path(dsn: str) -> str:
     if dsn.startswith("sqlite://"):
         return dsn.replace("sqlite://", "", 1)
     return dsn
+
+
+def _ensure_sqlite_column(conn: sqlite3.Connection, table: str, column: str, column_type: str) -> None:
+    try:
+        rows = conn.execute(f"PRAGMA table_info({table})").fetchall()
+    except sqlite3.Error:
+        return
+    existing = {row[1] for row in rows}
+    if column in existing:
+        return
+    conn.execute(f"ALTER TABLE {table} ADD COLUMN {column} {column_type}")
+
+
+def _ensure_postgres_column(conn: psycopg.Connection, table: str, column: str, column_type: str) -> None:
+    conn.execute(f"ALTER TABLE {table} ADD COLUMN IF NOT EXISTS {column} {column_type}")
 
 
 def hashlib_sha256(data: bytes) -> str:

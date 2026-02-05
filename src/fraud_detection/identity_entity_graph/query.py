@@ -87,8 +87,12 @@ class IdentityGraphQuery:
         return cls(store=store, stream_id=profile.policy.graph_stream_id)
 
     def status(self, *, scenario_run_id: str) -> dict[str, Any]:
+        scope = _graph_scope(self.stream_id)
         graph_version = self.store.current_graph_version()
-        failure_count = self.store.apply_failure_count(scenario_run_id=scenario_run_id)
+        failure_count = self.store.apply_failure_count(
+            scenario_run_id=scenario_run_id,
+            platform_run_id=scope.get("platform_run_id"),
+        )
         integrity_status = "DEGRADED" if failure_count > 0 else "CLEAN"
         metrics = self.store.metrics_summary(scenario_run_id=scenario_run_id)
         checkpoints = self.store.checkpoint_summary()
@@ -100,6 +104,7 @@ class IdentityGraphQuery:
             checkpoint_age_seconds=checkpoint_age,
         )
         return {
+            "graph_scope": scope,
             "graph_version": graph_version,
             "integrity_status": integrity_status,
             "apply_failure_count": failure_count,
@@ -115,6 +120,7 @@ class IdentityGraphQuery:
         basis = self.store.graph_basis()
         if not basis:
             return None
+        basis["graph_scope"] = _graph_scope(self.stream_id)
         return basis
 
     def resolve_identity(
@@ -128,7 +134,10 @@ class IdentityGraphQuery:
     ) -> dict[str, Any]:
         pins_obj = QueryPins.from_payload(pins)
         graph_version = self.store.current_graph_version()
-        failure_count = self.store.apply_failure_count(scenario_run_id=pins_obj.scenario_run_id)
+        failure_count = self.store.apply_failure_count(
+            scenario_run_id=pins_obj.scenario_run_id,
+            platform_run_id=pins_obj.platform_run_id,
+        )
         integrity_status = "DEGRADED" if failure_count > 0 else "CLEAN"
 
         after = _decode_page_token(
@@ -163,6 +172,7 @@ class IdentityGraphQuery:
             candidates = candidates[:limit]
         payload = {
             "pins": pins_obj.as_dict(),
+            "graph_scope": _graph_scope(self.stream_id),
             "graph_version": graph_version,
             "integrity_status": integrity_status,
             "identifier": {
@@ -185,7 +195,10 @@ class IdentityGraphQuery:
     ) -> dict[str, Any]:
         pins_obj = QueryPins.from_payload(pins)
         graph_version = self.store.current_graph_version()
-        failure_count = self.store.apply_failure_count(scenario_run_id=pins_obj.scenario_run_id)
+        failure_count = self.store.apply_failure_count(
+            scenario_run_id=pins_obj.scenario_run_id,
+            platform_run_id=pins_obj.platform_run_id,
+        )
         integrity_status = "DEGRADED" if failure_count > 0 else "CLEAN"
         profile = self.store.fetch_entity_profile(
             pins=pins_obj.as_dict(),
@@ -194,6 +207,7 @@ class IdentityGraphQuery:
         )
         return {
             "pins": pins_obj.as_dict(),
+            "graph_scope": _graph_scope(self.stream_id),
             "graph_version": graph_version,
             "integrity_status": integrity_status,
             "profile": profile,
@@ -210,7 +224,10 @@ class IdentityGraphQuery:
     ) -> dict[str, Any]:
         pins_obj = QueryPins.from_payload(pins)
         graph_version = self.store.current_graph_version()
-        failure_count = self.store.apply_failure_count(scenario_run_id=pins_obj.scenario_run_id)
+        failure_count = self.store.apply_failure_count(
+            scenario_run_id=pins_obj.scenario_run_id,
+            platform_run_id=pins_obj.platform_run_id,
+        )
         integrity_status = "DEGRADED" if failure_count > 0 else "CLEAN"
 
         after = _decode_page_token(
@@ -245,6 +262,7 @@ class IdentityGraphQuery:
             neighbors = neighbors[:limit]
         payload = {
             "pins": pins_obj.as_dict(),
+            "graph_scope": _graph_scope(self.stream_id),
             "graph_version": graph_version,
             "integrity_status": integrity_status,
             "entity": {"entity_id": entity_id, "entity_type": entity_type},
@@ -253,6 +271,15 @@ class IdentityGraphQuery:
         if next_token:
             payload["next_page_token"] = next_token
         return payload
+
+
+def _graph_scope(stream_id: str | None) -> dict[str, Any]:
+    if not stream_id:
+        return {}
+    if "::" in stream_id:
+        base, platform_run_id = stream_id.split("::", 1)
+        return {"stream_id": stream_id, "graph_stream_base": base, "platform_run_id": platform_run_id}
+    return {"stream_id": stream_id}
 
 
 def _serialize_candidates(candidates: list[IdentifierCandidate]) -> list[dict[str, Any]]:
