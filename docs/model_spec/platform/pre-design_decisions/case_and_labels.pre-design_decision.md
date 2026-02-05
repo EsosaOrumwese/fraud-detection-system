@@ -35,6 +35,7 @@ Detailed answers (recommended defaults, based on current implementation posture)
 - CaseTrigger carries ContextPins, CaseSubjectKey, evidence refs (decision_id, action_outcome_id, audit_record_id), and a stable idempotency key.
 - This keeps CM opaque and idempotent, and avoids CM parsing multiple upstream streams directly.
 - Pin (P0): `case_trigger_id = hash(case_id + trigger_type + source_ref_id)` (source_ref_id = decision_id / action_outcome_id / audit_record_id).
+- Pin (P0): `trigger_type` enum (v0) = `DECISION_ESCALATION | ACTION_FAILURE | ANOMALY | EXTERNAL_SIGNAL | MANUAL_ASSERTION` (extensions must be versioned).
 
 ### 3) What is the **idempotency key** for case creation and timeline append?
 
@@ -88,6 +89,10 @@ This is the most important label decision.
 Detailed answers (recommended defaults, based on current implementation posture):
 - Primary LabelSubjectKey = `(platform_run_id, event_id)` for v0 (execution-scoped labels; no cross-run leakage).
 - Other identifiers (flow_id/account_id/party_id) may be carried as metadata but are not training-primary in v0.
+- Pin (P0): `label_type` is a controlled vocabulary. v0 set: `fraud_disposition | chargeback_status | account_takeover`.
+  - `fraud_disposition` values: `FRAUD_CONFIRMED | FRAUD_SUSPECTED | LEGIT_CONFIRMED`.
+  - `chargeback_status` values: `CHARGEBACK | NO_CHARGEBACK | PENDING`.
+  - `account_takeover` values: `ATO_CONFIRMED | ATO_SUSPECTED | ATO_NOT_CONFIRMED`.
 
 ### 7) How do we model **effective_time vs observed_time**, and what is “truth” at query time?
 
@@ -114,6 +119,7 @@ Detailed answers (recommended defaults, based on current implementation posture)
 - IG/EB can carry label signals as control-plane events, but authoritative label truth writes only at Label Store.
 - Pin (P0): Label Store writer enforces idempotency + payload_hash anomaly detection and returns a durable ack/ref only after commit (WAL flushed). CM emits `LABEL_ACCEPTED` only on that ack.
 - Pin (P0): Label Store dedupe tuple = `(LabelSubjectKey, label_type, label_assertion_id)`; same tuple + different payload_hash => ANOMALY.
+- Pin (P0): `payload_hash` is computed over canonical LabelAssertion fields only: `LabelSubjectKey`, `label_type`, `label_value`, `effective_time`, `observed_time`, `source_type`, `actor_id` (if HUMAN), and `evidence_refs` (ordered); exclude transport/ack metadata.
 
 ### 9) What is the **commit/ack point** for “label truth emitted”?
 
