@@ -19,6 +19,7 @@ Detailed answers (recommended defaults, based on current implementation posture)
 - CaseSubjectKey = `(platform_run_id, event_class, event_id)` as the canonical default. This aligns with the upstream dedupe tuple and keeps joins deterministic.
 - Multiple triggers referencing the same CaseSubjectKey attach to **one case** (append-only timeline events), not new cases.
 - v0 policy: **no merges**. If cross-entity aggregation is needed later, add an explicit meta-case type rather than silent merges.
+- Pin (P0): `case_id = hash(CaseSubjectKey)`; case creation is idempotent on CaseSubjectKey alone. Triggers become timeline events (deduped), not new cases.
 
 ### 2) What is the **case trigger artifact** CM consumes?
 
@@ -46,6 +47,7 @@ Detailed answers (recommended defaults, based on current implementation posture)
 - Case create dedupe key: `hash(case_subject_key + trigger_ref_id)` (or an equivalent stable composite).
 - Timeline append dedupe key: `(case_id, timeline_event_type, source_ref_id)` as the default.
 - Collision rule: same dedupe key with different payload => **ANOMALY + reject/flag** (no silent overwrite).
+- Pin (P0): case create dedupe is CaseSubjectKey-only (aligned to `case_id = hash(CaseSubjectKey)`). Trigger refs are timeline events, not case creations.
 
 ### 4) What is the **evidence reference contract** (what refs exist and how they resolve)?
 
@@ -84,7 +86,7 @@ This is the most important label decision.
 * If multiple, which is **primary** for training? (v0 should pick one primary to avoid ambiguity.)
 
 Detailed answers (recommended defaults, based on current implementation posture):
-- Primary LabelSubjectKey = `event_id` (transaction-level) for v0.
+- Primary LabelSubjectKey = `(platform_run_id, event_id)` for v0 (execution-scoped labels; no cross-run leakage).
 - Other identifiers (flow_id/account_id/party_id) may be carried as metadata but are not training-primary in v0.
 
 ### 7) How do we model **effective_time vs observed_time**, and what is “truth” at query time?
@@ -110,6 +112,7 @@ Both work, but mixing both creates drift fast.
 Detailed answers (recommended defaults, based on current implementation posture):
 - Choose **Option B**: Label Store owns its own writer boundary (IG-equivalent ingress).
 - IG/EB can carry label signals as control-plane events, but authoritative label truth writes only at Label Store.
+- Pin (P0): Label Store writer enforces idempotency + payload_hash anomaly detection and returns a durable ack/ref only after commit (WAL flushed). CM emits `LABEL_ACCEPTED` only on that ack.
 
 ### 9) What is the **commit/ack point** for “label truth emitted”?
 
@@ -123,6 +126,7 @@ Detailed answers (recommended defaults, based on current implementation posture)
 - Commit/ack point = durable append in Label Store (WAL flushed / transaction committed).
 - CM records `LABEL_PENDING` then `LABEL_ACCEPTED`/`LABEL_REJECTED`. If Label Store is down, CM remains pending and retries with backoff.
 - Idempotency key = `label_assertion_id` (hash over subject + value + effective_time + observed_time + source).
+- Pin (P0): `label_assertion_id` is derived from a stable CM source (case_timeline_event_id) + LabelSubjectKey + label_type. observed_time is fixed at assertion creation and reused on retries.
 
 ---
 
@@ -213,6 +217,7 @@ Detailed answers (recommended defaults, based on current implementation posture)
 - Label Store remains the append-only source of truth; a resolved view is derived as latest by observed_time with explicit precedence.
 - Precedence order: human investigator > external feed > automated, then observed_time, then assertion_id.
 - v0 supports hard labels plus optional confidence; confidence does not override precedence.
+- Pin (P0): `source_type` is explicit (`HUMAN|EXTERNAL|AUTO`) and `actor_id` is required for HUMAN assertions.
 
 ### 6) Backfill + replay behavior
 
@@ -239,4 +244,3 @@ Detailed answers (recommended defaults, based on current implementation posture)
 Detailed answers (recommended defaults, based on current implementation posture):
 - Must-have counters: decisions -> case_triggers -> cases_created -> action_intents -> outcomes_attached -> label_assertions -> labels_accepted/labels_rejected.
 - Reconciliation report location: `s3://fraud-platform/{platform_run_id}/case_labels/reconciliation/YYYY-MM-DD.json`.
-
