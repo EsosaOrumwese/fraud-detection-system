@@ -33,6 +33,7 @@ def _component_dir_name(component: str) -> str:
         "ig": "ingestion_gate",
         "wsp": "world_streamer_producer",
         "eb": "event_bus",
+        "ieg": "identity_entity_graph",
     }
     return mapping.get(component, component)
 

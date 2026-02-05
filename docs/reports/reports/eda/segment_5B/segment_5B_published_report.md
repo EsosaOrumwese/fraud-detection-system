@@ -11,7 +11,7 @@ Segment 5B is the **arrival realisation layer**. It takes 5A scenario intensitie
 2. **Implementation decisions** (how we actually built the states).
 3. **Known deviations** that matter for realism interpretation.
 
-This is a pre‑analysis report. It does not include statistical findings yet.
+This report includes both design/implementation context and the statistical findings gathered so far; later sections expand as analysis proceeds.
 
 ---
 
@@ -136,8 +136,8 @@ Key implementation decisions:
 Given the design and implementation posture, we should expect the following in data analysis:
 1. **Over‑dispersion vs 5A.**  
    `s2_realised_intensity_5B` should show broader variance than the 5A scenario surface due to the LGCP field.
-2. **Poisson‑like bucket counts.**  
-   `s3_bucket_counts_5B` should align with `lambda_realised × bucket_duration`, with variance roughly proportional to mean.
+2. **Bucket counts align with per‑bucket mean.**  
+   `s3_bucket_counts_5B` should align with `lambda_realised` (which is already a per‑bucket mean in this run). If the count law is NB2, variance should exceed the mean (i.e., more bursty than a plain Poisson where variance equals mean).
 3. **Exact count conservation.**  
    Aggregating `arrival_events_5B` by entity×bucket must equal `s3_bucket_counts_5B` exactly.
 4. **Time placement within buckets.**  
@@ -213,7 +213,7 @@ Key statistics (`s3_bucket_counts_5B`):
 4. Standardized residuals `(count_N − mu)/sqrt(mu)` have **sd ≈ 1.40** (over‑dispersion vs Poisson sd ~1).
 5. `count_N / mu` mean **1.0003** with wide upper tail (p99 **~4.14**).
 
-Explanation: Counts are centered correctly on `mu`, but variance is larger than Poisson (sd ≈ 1.40). This matters because real transactional traffic is **over‑dispersed**: you see bursts and lulls that exceed Poisson randomness. The NB2 law is designed to capture exactly that, and the data show it.  
+Explanation: Counts are centered correctly on `mu` (the per‑bucket mean count), but variance is larger than Poisson (sd ≈ 1.40). This matters because real transactional traffic is **over‑dispersed**: you see bursts and lulls that exceed a Poisson baseline where variance equals the mean. The NB2 law is designed to capture exactly that, and the data show it.  
 The observed zero‑rate is almost identical to the Poisson‑implied zero‑rate. That tells us the extra variance is **not** coming from artificially forcing more zeros (zero‑inflation), which would make the dataset look too sparse. Instead, the variance inflation comes from heavier tails on the **positive** side — occasional high‑count buckets — which is a realistic pattern for heterogeneous merchants.  
 Finally, `count_N / mu` has a long but not absurd tail (p99 ≈ 4.14), indicating bursts that are strong but still within plausible bounds. This is the kind of dispersion we expect in synthetic data that aims to feel realistic rather than overly smooth.
 
@@ -278,3 +278,96 @@ Mismatch attribution (200,000‑row sample, 5,352 mismatches):
 3. **Other dates: 8.8%**
 
 Explanation: The mismatch is overwhelmingly driven by EU DST transitions, with a smaller US DST component. The “other” bucket likely reflects timezone edge cases with non‑standard DST rules (e.g., Africa/El_Aaiun). This confirms the issue is not random; it is a predictable DST handling gap concentrated in specific windows.
+
+---
+
+## 9) E — Routing Realism (Physical vs Virtual)
+
+### 9.1 Physical vs virtual mix
+Virtual share = **2.25%** (2,802,007 of 124,724,153); physical share = **97.75%**.
+
+Explanation: This is a small but meaningful virtual presence. If the synthetic world is mostly physical merchants with a minority of virtual activity, this is plausible. It is not so small that virtual is “absent,” and not so large that virtual dominates. The mix feels consistent with a physical‑first world.
+
+### 9.2 Physical site concentration
+Sites: **23,989**.  
+Share of physical arrivals by site concentration:
+1. Top 1% sites: **7.15%**
+2. Top 5% sites: **22.08%**
+3. Top 10% sites: **33.04%**
+
+Explanation: Physical traffic shows **moderate concentration**. A small head of sites carries a disproportionate share of volume, but not to an extreme degree. This is realistic for retail networks, where a few flagship or dense‑area sites dominate, while many sites remain low‑volume.
+
+### 9.3 Virtual edge concentration
+Edges: **5,000**.  
+Share of virtual arrivals by edge concentration:
+1. Top 1% edges: **5.05%**
+2. Top 5% edges: **24.79%**
+3. Top 10% edges: **48.85%**
+
+Explanation: Virtual traffic is **more concentrated** than physical traffic. This is realistic if the virtual catalog has a few dominant “platform‑like” edges alongside a long tail of smaller edges. The concentration is strong but not pathological.
+
+### 9.4 Physical vs virtual temporal profile
+Hour‑of‑day profile summary:
+1. **Physical** peak hour = **12** (mid‑day)  
+   - Day share (09–17): **0.5805**  
+   - Evening share (18–23): **0.2480**  
+   - Night share (00–05): **0.0907**
+2. **Virtual** peak hour = **21** (late evening)  
+   - Day share: **0.3234**  
+   - Evening share: **0.3048**  
+   - Night share: **0.2675**
+
+Explanation: Virtual traffic is clearly later‑hour heavy, while physical traffic is day‑centric. This is exactly the separation we would expect between online and in‑person activity. It is a strong realism indicator: the routing type is not just a label; it is associated with a different temporal rhythm.
+
+### 9.5 Weekend share by routing class
+Weekend share:
+1. Physical = **0.2856**
+2. Virtual = **0.3289**
+
+Explanation: Virtual traffic is more weekend‑heavy, which is consistent with consumer online behavior. This adds realism to the routing mix and shows that virtual activity is not merely a scaled‑down copy of physical traffic.
+
+---
+
+## 10) F — Macro‑Distribution Realism (Arrivals)
+
+### 10.1 Merchant heavy‑tail (arrival totals)
+Merchants: **886**.  
+Arrival totals:
+1. Median **58,385**, p90 **215,799**, p99 **1,543,702**, max **16,954,915**
+2. Top‑1% share **28.80%**
+3. Top‑5% share **49.46%**
+
+Explanation: The arrival distribution is strongly heavy‑tailed, with a small head carrying roughly half of total volume. This is a realistic macro signature for merchant activity: a handful of large merchants dominate, while most remain smaller. The tail is steep but not implausible.
+
+### 10.2 Merchant heavy‑tail vs intensity (is routing inflating?)
+Comparison of arrivals vs S2 intensity by merchant:
+1. Corr(`arrivals`, `sum_lambda`) = **0.999998**
+2. Top‑1% share: arrivals **28.80%** vs intensity **28.78%**
+3. Top‑5% share: arrivals **49.46%** vs intensity **49.44%**
+
+Explanation: The heavy‑tail in arrivals is essentially identical to the heavy‑tail in S2 intensity. This shows that routing and micro‑time placement are **not inflating** the macro distribution; they are faithfully realising the intensity surface. In other words, the heavy‑tail is a **policy/world design feature**, not a routing artifact.
+
+### 10.3 Timezone concentration (global skew)
+Timezones: **139**.  
+Top‑share concentration:
+1. Top 1% TZ share = **13.96%**
+2. Top 5% TZ share = **58.63%**
+3. Top 10% TZ share = **81.30%**
+
+Explanation: The world is heavily concentrated in a small set of timezones, which implies a strong geographic skew. This can be realistic **if** the synthetic world is intentionally Europe‑heavy (which appears to be the case in the upstream world design). If we want a more globally balanced world, this concentration would be too strong.
+
+### 10.4 Virtual vs physical TZ skew
+Top‑10 TZ share comparison:
+1. **Virtual**: **56.82%**
+2. **Physical**: **76.80%**
+
+Top virtual TZs are Asia‑ and LatAm‑leaning (e.g., Asia/Shanghai, Asia/Kolkata, America/Phoenix), while physical is much more Europe‑dominant.
+
+Explanation: Virtual traffic is **less Europe‑skewed** and more globally distributed than physical traffic. This is realistic: online activity can be global even if the physical merchant footprint is concentrated. It also shows that the virtual component adds diversity rather than reinforcing the same geographic skew.
+
+### 10.5 Site/edge concentration (Gini)
+Gini coefficients:
+1. **Sites (physical)** = **0.384**
+2. **Edges (virtual)** = **0.605**
+
+Explanation: Physical traffic shows moderate inequality across sites, while virtual traffic is substantially more concentrated. Here “Gini” is a 0–1 concentration measure (higher means more unequal/clustered). The values indicate that online edges are dominated by a smaller set of large platforms, whereas physical sites are more evenly spread. The difference is strong but plausible.

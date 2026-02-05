@@ -98,7 +98,7 @@ class IegProfile:
         projection_db_dsn = _resolve_env(wiring.get("projection_db_dsn"))
         projection_db_dsn = resolve_run_scoped_path(
             projection_db_dsn,
-            suffix="ieg/projection/ieg.db",
+            suffix="identity_entity_graph/projection/identity_entity_graph.db",
             create_if_missing=True,
         )
         if not projection_db_dsn:

@@ -120,3 +120,77 @@ Implement Phase 1 of the IEG v0 build plan: deterministic EB intake, envelope/pi
 
 ### Validation
 - `python -m pytest tests/services/identity_entity_graph/test_projection_store.py -q` (3 passed)
+
+---
+
+## Entry: 2026-02-05 20:08:00 — Add v0 identity-hints field mapping (payload-level)
+
+### Problem / goal
+IEG v0 requires identity hints for graph mutation. Current EB payloads do not yet carry `observed_identifiers[]`, so a deterministic field-mapping is needed to populate hints from payload fields without introducing ad‑hoc logic.
+
+### Authorities / inputs
+- IEG build plan Phase 1.4 (identity hints extraction)
+- 6B schema pack:
+  - `docs/model_spec/data-engine/layer-3/specs/contracts/6B/schemas.6B.yaml`
+  - `docs/model_spec/data-engine/layer-2/specs/contracts/5B/schemas.5B.yaml`
+- Flow narrative (context streams supply identity context; traffic stream is sparse)
+
+### Decision
+Introduce a **payload field-mapping** for v0 event_types that lack `observed_identifiers[]`:
+- `arrival_events_5B`: map `payload.merchant_id` → `merchant_id` (entity_type `merchant`).
+- `s1_arrival_entities_6B`: map `payload.merchant_id`, `payload.party_id`, `payload.account_id`,
+  `payload.instrument_id`, `payload.device_id`, `payload.ip_id`, `payload.session_id`.
+- `s2_flow_anchor_baseline_6B` + `s3_flow_anchor_with_fraud_6B`: map `payload.flow_id` (entity_type `flow`)
+  plus `merchant_id`, `party_id`, `account_id`, `instrument_id`, `device_id`, `ip_id`.
+- `s2_event_stream_baseline_6B` + `s3_event_stream_with_fraud_6B`: map `payload.flow_id` (entity_type `flow`).
+
+### Files to update
+- `config/platform/ieg/identity_hints_v0.yaml`
+
+### Validation
+- No code changes; config-only. Existing IEG tests remain valid. Field mapping will be exercised in the next projector run.
+
+---
+
+## Entry: 2026-02-05 20:18:00 — Fix IEG topic list to match traffic stream names
+
+### Problem / goal
+IEG topics list used `fp.bus.traffic.v1`, but v0 default traffic is split into fraud/baseline streams. This caused Kinesis read attempts to target a non-existent stream.
+
+### Decision
+Update IEG topics list to include `fp.bus.traffic.fraud.v1` and `fp.bus.traffic.baseline.v1` instead of `fp.bus.traffic.v1`.
+
+### Files updated
+- `config/platform/ieg/topics_v0.yaml`
+
+---
+
+## Entry: 2026-02-05 20:24:00 — IEG projector pass (local_parity)
+
+### Run
+- Profile: `config/platform/profiles/local_parity.yaml`
+- PLATFORM_RUN_ID: `platform_20260205T172824Z`
+- Projection DB: `runs/fraud-platform/platform_20260205T172824Z/ieg/projection/ieg.db`
+
+### Results
+- `ieg_dedupe`: 80
+- `ieg_entities`: 175
+- `ieg_identifiers`: 175
+- `ieg_apply_failures`: 0
+- `ieg_checkpoints`: 4
+- `ieg_graph_versions`: 1
+
+---
+
+## Entry: 2026-02-05 20:30:00 — Use full identity_entity_graph pathing (not `ieg`)
+
+### Problem / goal
+Align run-scoped projection paths with the full component name to avoid `ieg/` shorthand in run artifacts.
+
+### Decision
+Change IEG projection default path suffix from `ieg/projection/ieg.db` to
+`identity_entity_graph/projection/identity_entity_graph.db`. Add logging component map for `ieg` → `identity_entity_graph`.
+
+### Files updated
+- `src/fraud_detection/identity_entity_graph/config.py`
+- `src/fraud_detection/ingestion_gate/logging_utils.py`

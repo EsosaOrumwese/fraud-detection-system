@@ -1,3 +1,93 @@
 version: "0.1.0"
 default_mode: observed_identifiers
-event_types: {}
+event_types:
+  arrival_events_5B:
+    mode: field_map
+    mappings:
+      - identifier_type: merchant_id
+        path: payload.merchant_id
+        entity_type: merchant
+  s1_arrival_entities_6B:
+    mode: field_map
+    mappings:
+      - identifier_type: merchant_id
+        path: payload.merchant_id
+        entity_type: merchant
+      - identifier_type: party_id
+        path: payload.party_id
+        entity_type: party
+      - identifier_type: account_id
+        path: payload.account_id
+        entity_type: account
+      - identifier_type: instrument_id
+        path: payload.instrument_id
+        entity_type: instrument
+      - identifier_type: device_id
+        path: payload.device_id
+        entity_type: device
+      - identifier_type: ip_id
+        path: payload.ip_id
+        entity_type: ip
+      - identifier_type: session_id
+        path: payload.session_id
+        entity_type: session
+  s2_flow_anchor_baseline_6B:
+    mode: field_map
+    mappings:
+      - identifier_type: flow_id
+        path: payload.flow_id
+        entity_type: flow
+      - identifier_type: merchant_id
+        path: payload.merchant_id
+        entity_type: merchant
+      - identifier_type: party_id
+        path: payload.party_id
+        entity_type: party
+      - identifier_type: account_id
+        path: payload.account_id
+        entity_type: account
+      - identifier_type: instrument_id
+        path: payload.instrument_id
+        entity_type: instrument
+      - identifier_type: device_id
+        path: payload.device_id
+        entity_type: device
+      - identifier_type: ip_id
+        path: payload.ip_id
+        entity_type: ip
+  s3_flow_anchor_with_fraud_6B:
+    mode: field_map
+    mappings:
+      - identifier_type: flow_id
+        path: payload.flow_id
+        entity_type: flow
+      - identifier_type: merchant_id
+        path: payload.merchant_id
+        entity_type: merchant
+      - identifier_type: party_id
+        path: payload.party_id
+        entity_type: party
+      - identifier_type: account_id
+        path: payload.account_id
+        entity_type: account
+      - identifier_type: instrument_id
+        path: payload.instrument_id
+        entity_type: instrument
+      - identifier_type: device_id
+        path: payload.device_id
+        entity_type: device
+      - identifier_type: ip_id
+        path: payload.ip_id
+        entity_type: ip
+  s2_event_stream_baseline_6B:
+    mode: field_map
+    mappings:
+      - identifier_type: flow_id
+        path: payload.flow_id
+        entity_type: flow
+  s3_event_stream_with_fraud_6B:
+    mode: field_map
+    mappings:
+      - identifier_type: flow_id
+        path: payload.flow_id
+        entity_type: flow
