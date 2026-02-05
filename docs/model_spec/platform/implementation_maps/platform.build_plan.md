@@ -357,12 +357,89 @@ These remain open and will be resolved during RTDL Phase 4 planning and partitio
 - Each contract references the authoritative schema file path.
 
 #### Phase 4.2 — IEG projector (EB → graph)
-**Goal:** build deterministic projection state from EB offsets.
+**Goal:** build deterministic IEG projection state from EB offsets and provide a stable `graph_version` for downstream RTDL components.
+
+##### 4.2.A — Inputs + replay basis
+**Goal:** pin IEG’s inputs and replay basis so rebuilds are deterministic.
 
 **DoD checklist:**
-- IEG consumes EB and writes projection tables in Postgres.
-- Graph watermark/graph_version advances deterministically.
-- Replay from offsets produces identical graph_version state.
+- IEG consumes EB admitted topics only (no Oracle reads).
+- Replay basis is EB offsets (exclusive‑next) and is recorded per partition.
+- Archive usage (if enabled) follows the RTDL pre‑design decision: archive is long‑term truth for replay, EB is live truth.
+- Stream/topic set is explicit per environment profile.
+
+##### 4.2.B — Envelope validation + event classification
+**Goal:** ensure only valid events mutate the graph and failures are explicit.
+
+**DoD checklist:**
+- Canonical envelope validated for every event.
+- Required pins enforced: `platform_run_id`, `scenario_run_id`, `manifest_fingerprint`, `parameter_hash`, `scenario_id`, `seed` (legacy `run_id` optional alias).
+- Events are classified deterministically as `GRAPH_MUTATING`, `GRAPH_IRRELEVANT`, or `GRAPH_UNUSABLE`.
+- `GRAPH_UNUSABLE` events do not mutate state and emit an explicit apply‑failure record.
+
+##### 4.2.C — Idempotency + payload_hash anomaly
+**Goal:** stable under duplicates and replay.
+
+**DoD checklist:**
+- Dedupe key is `(scenario_run_id, topic_or_class, event_id)`; payload_hash mismatches are recorded as anomalies.
+- Duplicate deliveries do not change graph state or watermark advancement.
+- Payload_hash mismatch never mutates state and is surfaced as an anomaly.
+
+##### 4.2.D — Watermarks + graph_version
+**Goal:** deterministic progress tokens for downstream provenance.
+
+**DoD checklist:**
+- `graph_version` derived from per‑partition next_offset_to_apply map + stream identity.
+- Watermark is monotonic and uses event_time (`ts_utc`) semantics with explicit allowed lateness (per RTDL pre‑design defaults).
+- Offsets advance only after durable state commit (DB transaction with WAL flush).
+- Replay from the same offset basis yields identical `graph_version` and state.
+
+##### 4.2.E — Storage layout + rebuildability
+**Goal:** make IEG fully rebuildable from EB/archive.
+
+**DoD checklist:**
+- Postgres schema separates projection state, applied offsets, and apply‑failure records.
+- All derived state is rebuildable from EB/archive; manual repair emits an audit anomaly.
+- TTL/retention posture for IEG state is pinned (aligned with EB/archive retention).
+
+##### 4.2.F — Query surface + provenance
+**Goal:** downstream can trust the context used for decisions.
+
+**DoD checklist:**
+- Query responses return ContextPins + `graph_version`.
+- No implicit “now”; all responses are deterministic for a given graph_version.
+- Failure responses are explicit and do not fabricate context.
+
+##### 4.2.G — Failure posture + degrade signals
+**Goal:** make IEG health observable and actionable by DL/DF.
+
+**DoD checklist:**
+- IEG emits counters for lag, apply failures, and unusable events.
+- Health thresholds are defined; RED/AMBER signals feed degrade posture decisions.
+- IEG does not reclassify EB truth (IG remains admission authority).
+
+##### 4.2.H — Performance + backpressure
+**Goal:** handle sustained + burst throughput without correctness loss.
+
+**DoD checklist:**
+- Partition‑scoped consumers with bounded in‑memory queues.
+- Batch apply is idempotent; backpressure does not drop events.
+- Latency targets align with RTDL pre‑design SLO defaults.
+
+##### 4.2.I — Observability + reconciliation
+**Goal:** provide minimal but sufficient ops signals.
+
+**DoD checklist:**
+- Counters: events_seen, mutating_applied, unusable, lag, watermark_age.
+- Optional run‑scoped reconciliation artifact records applied offset basis and graph_version.
+
+##### 4.2.J — Validation + tests
+**Goal:** prove determinism and correctness.
+
+**DoD checklist:**
+- Unit tests: idempotency, payload_hash mismatch, watermark monotonicity.
+- Replay test: same offsets → same graph_version and state.
+- Integration test: EB sample events applied to projection with deterministic results.
 
 #### Phase 4.3 — OFP feature plane (graph → features)
 **Goal:** materialize reproducible feature snapshots.

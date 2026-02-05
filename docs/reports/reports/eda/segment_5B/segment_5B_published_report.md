@@ -163,3 +163,114 @@ Given the design and implementation posture, we should expect the following in d
 Proceed to statistical realism assessment starting from:
 1. `arrival_events_5B`
 2. Trace back to `s3_bucket_counts_5B` and `s2_realised_intensity_5B` only when needed to explain patterns.
+
+---
+
+## 8) Preliminary realism checks — findings so far (A/B)
+Run scope: `runs\local_full_run-5\c25a2675fbfbacd952b13bb594880e92\data\layer2\5B`
+
+### 8.1 Scope and totals (sanity)
+Observed partitions: **seed=42, scenario_id=baseline_v1** (single manifest_fingerprint + parameter_hash).
+
+Totals:
+1. `arrival_events_5B` total arrivals = **124,724,153**
+2. `s3_bucket_counts_5B` sum(`count_N`) = **124,724,153**
+
+Explanation: At the run‑partition level, arrivals exactly conserve counts. This is not merely a bookkeeping check — it is the foundational realism requirement for any downstream analysis. The entire arrival process in 5B is supposed to be: **intensity → counts → arrivals**. If the total arrivals differ from total counts, it means arrivals were created or dropped after the stochastic draw, which would invalidate any realism judgments about timing, dispersion, or routing because the baseline mass would be wrong. Since totals match exactly, we can trust that later realism checks are assessing a consistent world.
+
+### 8.2 Key duplication in S2/S3 (structural reality, not a bug)
+Both `s2_realised_intensity_5B` and `s3_bucket_counts_5B` contain **multiple rows per key** `(merchant_id, zone_representation, channel_group, bucket_index)`:
+1. Unique keys: **29,913,840**
+2. Total rows: **35,700,480**
+3. Multiplicity distribution (keys):  
+   1× **25,667,280**, 2× **3,170,880**, 3× **773,280**, 4× **196,560**, 5× **49,680**, 6× **56,160**
+
+Explanation: The surfaces are not strictly unique by key. This is a structural property of the pipeline: multiple modeling components can contribute to the same key (for example, multiple latent sub‑components or grouped fragments). That does **not** imply a bug by itself, but it changes how you interpret the data. For realism analysis, you **must aggregate by key** (sum `lambda_realised` or `count_N`) before comparing to arrivals; otherwise you will see false mismatches because you are comparing a single arrival total to a partial component. Once aggregated, the pipeline is internally consistent (see 8.3). The realism implication is: duplication is an **internal modeling representation**, not an artifact that changes the final arrival mass.
+
+### 8.3 Count conservation at key‑level (after aggregation)
+After aggregating S3 by key and comparing to arrival counts:
+1. **All keys match** (mismatch = 0, total_abs_diff = 0).
+
+Explanation: The apparent mismatches in sampled joins disappear once duplicate keys are aggregated. This confirms that S4 expands the **aggregated** S3 counts exactly as required, and that the duplication is a modeling representation rather than a data quality issue. In practical terms: if you collapse the internal components into their logical bucket, you get **perfect conservation**. That is the key realism guarantee we need before looking at timing, routing, or dispersion.
+
+### 8.4 S2 latent intensity realism (B)
+Key statistics (`s2_realised_intensity_5B`):
+1. Correlation `lambda_baseline` vs `lambda_realised` = **0.965**  
+2. `lambda_random_component` distribution:  
+   mean **0.997**, p50 **0.962**, p90 **1.357**, p99 **1.807**, min **0.2**, max **5.0**  
+3. Clipping is rare: **112** rows at min, **13** at max.
+4. Lag‑1 autocorrelation of `lambda_random_component` across buckets ≈ **0.96** (sample).
+
+Explanation: The latent field perturbs baseline intensities in a smooth, bounded way. The random component is centered near **1.0**, so it **scales** the baseline up or down without changing the overall magnitude drastically. The spread (p90 ≈ 1.36, p99 ≈ 1.81) means most buckets get moderate variation, with occasional larger boosts or suppressions — a realistic pattern for commerce traffic.  
+Clipping is extremely rare (125 rows out of 35.7M), which tells us the field is not being artificially constrained at its limits. That matters because frequent clipping would signal that the latent field is “pushing too hard” and being truncated, which would look synthetic.  
+The lag‑1 correlation of ≈0.96 indicates **strong temporal persistence**: adjacent buckets move together rather than jittering. This is exactly what we expect in real transactional intensity where demand changes gradually, not as white noise. In short: the latent field adds variability, but does so with continuity and realistic magnitude.
+
+### 8.5 S3 bucket‑count realism (A)
+Key statistics (`s3_bucket_counts_5B`):
+1. Mean `mu` ≈ **3.492**; mean `count_N` ≈ **3.494**.
+2. Zero‑rate ≈ **0.88965**, Poisson‑expected zero‑rate `E[e^{-mu}]` ≈ **0.88927** (very close).
+3. `count_law_id` = **nb2** for all rows.
+4. Standardized residuals `(count_N − mu)/sqrt(mu)` have **sd ≈ 1.40** (over‑dispersion vs Poisson sd ~1).
+5. `count_N / mu` mean **1.0003** with wide upper tail (p99 **~4.14**).
+
+Explanation: Counts are centered correctly on `mu`, but variance is larger than Poisson (sd ≈ 1.40). This matters because real transactional traffic is **over‑dispersed**: you see bursts and lulls that exceed Poisson randomness. The NB2 law is designed to capture exactly that, and the data show it.  
+The observed zero‑rate is almost identical to the Poisson‑implied zero‑rate. That tells us the extra variance is **not** coming from artificially forcing more zeros (zero‑inflation), which would make the dataset look too sparse. Instead, the variance inflation comes from heavier tails on the **positive** side — occasional high‑count buckets — which is a realistic pattern for heterogeneous merchants.  
+Finally, `count_N / mu` has a long but not absurd tail (p99 ≈ 4.14), indicating bursts that are strong but still within plausible bounds. This is the kind of dispersion we expect in synthetic data that aims to feel realistic rather than overly smooth.
+
+### 8.6 Micro‑time placement inside buckets
+Using a 1,000,000‑row sample of arrivals:
+1. All timestamps are within bucket windows (`n_before=0`, `n_after=0`).
+2. Offset ratios are close to uniform:  
+   mean **0.4999**, p50 **0.5002**, p90 **0.9000**.
+
+Explanation: Time placement looks uniform within each 1‑hour bucket, which is consistent with a neutral intra‑bucket placement policy. There is no evidence of boundary leakage or time‑window violations.
+
+### 8.7 Routing posture (physical vs virtual)
+Routing mix:
+1. Virtual arrivals = **2,802,007** (share **2.25%**).
+2. Physical arrivals = **121,922,146**.
+3. Routing field integrity holds:  
+   all virtual rows have `edge_id` and null `site_id`; all physical rows have `site_id` and null `edge_id`.
+
+Explanation: The virtual share is small but non‑zero and the physical/virtual field invariants are clean. This indicates routing logic is applied consistently and that virtual traffic is present but rare in this world.
+
+### 8.8 Local‑time correctness and DST mismatch
+Local‑time check (sample of 50,000 arrivals):
+1. Mismatch rate ≈ **2.6%**.
+2. All mismatches are exactly **−3600 seconds** (local time is 1 hour earlier than expected).
+3. Mismatches concentrate on DST transition windows:
+   - **US DST** around **2026‑03‑08** to **2026‑03‑11**
+   - **EU DST** around **2026‑03‑29** to **2026‑03‑31**
+
+Explanation: This strongly suggests that local timestamps are being computed without applying DST shifts (standard time only). The error is small in proportion but systematic and clustered; it is the main realism mismatch observed so far.
+
+---
+
+## 8) Preliminary realism checks — findings so far
+Run scope: `runs\local_full_run-5\c25a2675fbfbacd952b13bb594880e92\data\layer2\5B`
+
+### 8.1 Scope and totals (sanity)
+Observed partitions: **seed=42, scenario_id=baseline_v1** (single manifest_fingerprint + parameter_hash).
+
+Totals:
+1. `arrival_events_5B` total arrivals = **124,724,153**
+2. `s3_bucket_counts_5B` sum(`count_N`) = **124,724,153**
+
+Explanation: At the run‑partition level, arrivals exactly conserve counts. This is the primary integrity requirement of S4 and it holds in this run.
+
+### 8.2 Key duplication in S2/S3 (structural reality, not a bug)
+Both `s2_realised_intensity_5B` and `s3_bucket_counts_5B` contain **multiple rows per key** `(merchant_id, zone_representation, channel_group, bucket_index)`:
+1. Unique keys: **29,913,840**
+2. Total rows: **35,700,480**
+3. Multiplicity distribution (keys):  
+   1× **25,667,280**, 2× **3,170,880**, 3× **773,280**, 4× **196,560**, 5× **49,680**, 6× **56,160**
+
+Explanation: The surfaces are not strictly unique by key. Realism analysis must therefore aggregate by key (sum of `lambda_realised` or `count_N`) before comparing to arrivals. When aggregated, S2→S3 and S3→S4 are perfectly consistent (see 8.3).
+
+### 8.3 Count conservation at key‑level (after aggregation)
+After aggregating S3 by key and comparing to arrival counts:
+1. **All keys match** (mismatch = 0, total_abs_diff = 0).
+
+Explanation: The apparent mismatches in sampled joins disappear once duplicate keys are aggregated. This confirms that S4 expands the **aggregated** S3 counts exactly as required.
+
+### 8.4 S2 latent intensity realism
