@@ -1,3 +1,4 @@
+-- Active: 1770323154960@@127.0.0.1@3306
 # Segment 5B — Design vs Implementation Observations (Arrival Realisation)
 Date: 2026-02-05  
 Run: `runs\local_full_run-5\c25a2675fbfbacd952b13bb594880e92`  

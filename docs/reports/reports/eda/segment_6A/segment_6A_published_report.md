@@ -182,3 +182,140 @@ Proceed to statistical realism assessment, starting from:
 5. `s5_*_fraud_roles_6A`
 
 ---
+
+## 8) Statistical overview / summary (pre‑assessment snapshot)
+Run scope: `runs\local_full_run-5\c25a2675fbfbacd952b13bb594880e92\data\layer3\6A`
+
+### 8.1 Totals (row counts)
+1. `s1_party_base_6A`: **3,281,174** parties
+2. `s2_account_base_6A`: **8,725,420** accounts
+3. `s2_party_product_holdings_6A`: **7,271,622** rows
+4. `s3_instrument_base_6A`: **10,701,854** instruments
+5. `s3_account_instrument_links_6A`: **10,701,854** links
+6. `s4_device_base_6A`: **7,263,186** devices
+7. `s4_ip_base_6A`: **366,161** IPs
+8. `s4_device_links_6A`: **7,263,186** links
+9. `s4_ip_links_6A`: **2,226,704** links
+10. `s5_*_fraud_roles_6A`: party **3,281,174**; account **8,725,420**; merchant **1,238**; device **7,263,186**; IP **366,161**
+
+### 8.2 Coverage and linkage (sanity checks)
+1. Parties with accounts: **3,258,009** (99.29% of parties)
+2. Parties with devices: **3,103,813** (94.59% of parties)
+3. Accounts with instruments: **6,176,060** (70.78% of accounts)
+4. Instruments linked to accounts: **100%** (links == instruments)
+5. Devices linked to parties: **100%** (links == devices)
+6. IPs linked to devices: **334,529** (91.36% of IPs)
+
+Note: `s4_device_links_6A.account_id` is **entirely null** in this run (0 non‑null rows), so device links are party‑level only here.
+
+### 8.3 Population mix (party types and segments)
+Party type mix:
+1. `RETAIL`: **96.77%**
+2. `BUSINESS`: **2.75%**
+3. `OTHER`: **0.48%**
+
+Top segments by count:
+1. `RETAIL_FAMILY`: **687,932**
+2. `RETAIL_MATURE`: **550,809**
+3. `RETAIL_EARLY_CAREER`: **536,394**
+4. `RETAIL_RETIRED`: **359,413**
+5. `RETAIL_STUDENT`: **343,439**
+6. `RETAIL_VALUE`: **326,763**
+7. `RETAIL_MASS_MARKET`: **258,327**
+8. `RETAIL_AFFLUENT`: **112,271**
+9. `BUSINESS_SOLE_TRADER`: **22,773**
+10. `BUSINESS_SME`: **19,204**
+
+Top countries by count:
+1. `DE`: **477,018**
+2. `FR`: **354,149**
+3. `GB`: **336,515**
+4. `DK`: **210,079**
+5. `CH`: **192,274**
+
+Regions by count:
+1. `REGION_AFRICA`: **1,019,075**
+2. `REGION_EMEA`: **891,125**
+3. `REGION_APAC`: **657,966**
+4. `REGION_LATAM`: **443,090**
+5. `REGION_AMER`: **269,918**
+
+### 8.4 Accounts and holdings
+Accounts per party (from `s2_account_base_6A`):
+1. mean **2.678**, p50 **2**, p90 **5**, p99 **8**, max **136**
+
+Account type mix (top shares):
+1. `RETAIL_CURRENT_BASIC`: **36.39%**
+2. `RETAIL_CREDIT_CARD_STANDARD`: **17.97%**
+3. `RETAIL_SAVINGS_INSTANT`: **17.09%**
+4. `RETAIL_CURRENT_PREMIUM`: **9.39%**
+5. `RETAIL_SAVINGS_FIXED`: **7.74%**
+
+Holdings table (`s2_party_product_holdings_6A`):
+1. Parties covered: **3,258,009**
+2. Total accounts per party (sum across holdings): mean **2.678**, p50 **2**, p90 **5**, p99 **8**, max **136**
+
+### 8.5 Instruments
+Instruments per account (accounts with ≥1 instrument):
+1. mean **1.733**, p50 **1**, p90 **3**, p99 **5**, max **13**
+
+Instruments per party:
+1. mean **3.465**, p50 **3**, p90 **6**, p99 **11**, max **189**
+
+Instrument type mix (top shares):
+1. `RETAIL_DEBIT_CARD_PHYSICAL`: **33.38%**
+2. `PARTY_BANK_ACCOUNT_DOMESTIC`: **23.99%**
+3. `RETAIL_CREDIT_CARD_PHYSICAL`: **17.23%**
+4. `RETAIL_DEBIT_CARD_VIRTUAL`: **12.40%**
+5. `WALLET_DEVICE_TOKEN`: **5.55%**
+6. `RETAIL_CREDIT_CARD_VIRTUAL`: **5.40%**
+
+### 8.6 Devices and IPs
+Devices per party:
+1. mean **2.34**, p50 **2**, p90 **4**, p99 **7**, max **14**
+
+Devices per IP:
+1. mean **6.65**, p50 **2**, p90 **5**, p99 **172**, max **6,114**
+
+Device type mix (top shares):
+1. `MOBILE_PHONE`: **58.55%**
+2. `LAPTOP`: **12.67%**
+3. `DESKTOP`: **10.70%**
+4. `TABLET`: **9.94%**
+5. `WEARABLE`: **5.77%**
+
+IP type mix (top shares):
+1. `RESIDENTIAL`: **96.27%**
+2. `CORPORATE`: **1.95%**
+3. `MOBILE`: **1.00%**
+4. `PUBLIC_WIFI`: **0.31%**
+5. `HOTEL_TRAVEL`: **0.27%**
+
+### 8.7 Static fraud posture (role mixes)
+Parties:
+1. `CLEAN`: **94.95%**
+2. `MULE`: **2.45%**
+3. `SYNTHETIC_ID`: **2.03%**
+4. `ORGANISER`: **0.30%**
+5. `ASSOCIATE`: **0.27%**
+
+Accounts:
+1. `CLEAN_ACCOUNT`: **97.92%**
+2. `HIGH_RISK_ACCOUNT`: **1.21%**
+3. `MULE_ACCOUNT`: **0.55%**
+4. `DORMANT_RISKY`: **0.32%**
+
+Merchants:
+1. `NORMAL`: **99.27%**
+2. `HIGH_RISK_MCC`: **0.40%**
+3. `COLLUSIVE`: **0.32%**
+
+Devices:
+1. `CLEAN_DEVICE`: **96.93%**
+2. `HIGH_RISK_DEVICE`: **2.49%**
+3. `REUSED_DEVICE`: **0.58%**
+
+IPs:
+1. `SHARED_IP`: **88.01%**
+2. `HIGH_RISK_IP`: **9.47%**
+3. `CLEAN_IP`: **2.52%**

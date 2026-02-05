@@ -31,6 +31,29 @@ class Checkpoint:
     offset_kind: str
 
 
+@dataclass(frozen=True)
+class IdentifierCandidate:
+    entity_id: str
+    entity_type: str
+    first_seen_ts_utc: str | None
+    last_seen_ts_utc: str | None
+
+
+@dataclass(frozen=True)
+class SharedIdentifier:
+    identifier_type: str
+    identifier_value: str
+
+
+@dataclass(frozen=True)
+class NeighborCandidate:
+    entity_id: str
+    entity_type: str
+    first_seen_ts_utc: str | None
+    last_seen_ts_utc: str | None
+    shared_identifiers: list[SharedIdentifier]
+
+
 def build_store(dsn: str, *, stream_id: str) -> "ProjectionStore":
     if is_postgres_dsn(dsn):
         return PostgresProjectionStore(dsn=dsn, stream_id=stream_id)
@@ -43,6 +66,9 @@ class ProjectionStore:
         raise NotImplementedError
 
     def current_graph_version(self) -> str | None:
+        raise NotImplementedError
+
+    def apply_failure_count(self, *, scenario_run_id: str) -> int:
         raise NotImplementedError
 
     def advance_checkpoint(
@@ -104,6 +130,37 @@ class ProjectionStore:
         raise NotImplementedError
 
     def reset(self) -> None:
+        raise NotImplementedError
+
+    def resolve_identifier_candidates(
+        self,
+        *,
+        pins: dict[str, Any],
+        identifier_type: str,
+        identifier_value: str,
+        limit: int,
+        after: tuple[str, str] | None,
+    ) -> list[IdentifierCandidate]:
+        raise NotImplementedError
+
+    def fetch_entity_profile(
+        self,
+        *,
+        pins: dict[str, Any],
+        entity_id: str,
+        entity_type: str,
+    ) -> dict[str, Any] | None:
+        raise NotImplementedError
+
+    def fetch_neighbors(
+        self,
+        *,
+        pins: dict[str, Any],
+        entity_id: str,
+        entity_type: str,
+        limit: int,
+        after: tuple[str, str] | None,
+    ) -> list[NeighborCandidate]:
         raise NotImplementedError
 
 
@@ -295,6 +352,19 @@ class SqliteProjectionStore(ProjectionStore):
         if not row or not row[0]:
             return None
         return str(row[0])
+
+    def apply_failure_count(self, *, scenario_run_id: str) -> int:
+        with self._connect() as conn:
+            row = conn.execute(
+                """
+                SELECT COUNT(*) FROM ieg_apply_failures
+                WHERE stream_id = ? AND scenario_run_id = ?
+                """,
+                (self.stream_id, scenario_run_id),
+            ).fetchone()
+        if not row:
+            return 0
+        return int(row[0] or 0)
 
     def record_failure(
         self,
@@ -663,6 +733,197 @@ class SqliteProjectionStore(ProjectionStore):
             for table in tables:
                 conn.execute(f"DELETE FROM {table}")
 
+    def resolve_identifier_candidates(
+        self,
+        *,
+        pins: dict[str, Any],
+        identifier_type: str,
+        identifier_value: str,
+        limit: int,
+        after: tuple[str, str] | None,
+    ) -> list[IdentifierCandidate]:
+        platform_run_id, scenario_run_id, scenario_id, manifest_fingerprint, parameter_hash, seed = _pin_tuple(pins)
+        if not platform_run_id or not scenario_run_id:
+            return []
+        params: list[Any] = [
+            platform_run_id,
+            scenario_run_id,
+            scenario_id,
+            manifest_fingerprint,
+            parameter_hash,
+            seed,
+            identifier_type,
+            identifier_value,
+        ]
+        after_clause = ""
+        if after:
+            after_clause = " AND (entity_type > ? OR (entity_type = ? AND entity_id > ?))"
+            params.extend([after[0], after[0], after[1]])
+        params.append(limit)
+        query = f"""
+            SELECT entity_id, entity_type, first_seen_ts_utc, last_seen_ts_utc
+            FROM ieg_identifiers
+            WHERE platform_run_id = ?
+              AND scenario_run_id = ?
+              AND scenario_id = ?
+              AND manifest_fingerprint = ?
+              AND parameter_hash = ?
+              AND seed = ?
+              AND identifier_type = ?
+              AND identifier_value = ?
+              {after_clause}
+            ORDER BY entity_type ASC, entity_id ASC
+            LIMIT ?
+        """
+        with self._connect() as conn:
+            rows = conn.execute(query, params).fetchall()
+        return [
+            IdentifierCandidate(
+                entity_id=str(row[0]),
+                entity_type=str(row[1]),
+                first_seen_ts_utc=row[2],
+                last_seen_ts_utc=row[3],
+            )
+            for row in rows
+        ]
+
+    def fetch_entity_profile(
+        self,
+        *,
+        pins: dict[str, Any],
+        entity_id: str,
+        entity_type: str,
+    ) -> dict[str, Any] | None:
+        platform_run_id, scenario_run_id, scenario_id, manifest_fingerprint, parameter_hash, seed = _pin_tuple(pins)
+        if not platform_run_id or not scenario_run_id:
+            return None
+        with self._connect() as conn:
+            row = conn.execute(
+                """
+                SELECT first_seen_ts_utc, last_seen_ts_utc
+                FROM ieg_entities
+                WHERE platform_run_id = ?
+                  AND scenario_run_id = ?
+                  AND scenario_id = ?
+                  AND manifest_fingerprint = ?
+                  AND parameter_hash = ?
+                  AND seed = ?
+                  AND entity_id = ?
+                  AND entity_type = ?
+                LIMIT 1
+                """,
+                (
+                    platform_run_id,
+                    scenario_run_id,
+                    scenario_id,
+                    manifest_fingerprint,
+                    parameter_hash,
+                    seed,
+                    entity_id,
+                    entity_type,
+                ),
+            ).fetchone()
+        if not row:
+            return None
+        return {"entity_id": entity_id, "entity_type": entity_type, "first_seen_ts_utc": row[0], "last_seen_ts_utc": row[1]}
+
+    def fetch_neighbors(
+        self,
+        *,
+        pins: dict[str, Any],
+        entity_id: str,
+        entity_type: str,
+        limit: int,
+        after: tuple[str, str] | None,
+    ) -> list[NeighborCandidate]:
+        platform_run_id, scenario_run_id, scenario_id, manifest_fingerprint, parameter_hash, seed = _pin_tuple(pins)
+        if not platform_run_id or not scenario_run_id:
+            return []
+        params: list[Any] = [
+            platform_run_id,
+            scenario_run_id,
+            scenario_id,
+            manifest_fingerprint,
+            parameter_hash,
+            seed,
+            entity_id,
+            entity_type,
+            entity_id,
+            entity_type,
+        ]
+        after_clause = ""
+        if after:
+            after_clause = " AND (other.entity_type > ? OR (other.entity_type = ? AND other.entity_id > ?))"
+            params.extend([after[0], after[0], after[1]])
+        query = f"""
+            SELECT other.entity_id, other.entity_type, other.identifier_type, other.identifier_value,
+                   other.first_seen_ts_utc, other.last_seen_ts_utc
+            FROM ieg_identifiers self
+            JOIN ieg_identifiers other
+              ON self.identifier_type = other.identifier_type
+             AND self.identifier_value = other.identifier_value
+             AND self.platform_run_id = other.platform_run_id
+             AND self.scenario_run_id = other.scenario_run_id
+             AND self.scenario_id = other.scenario_id
+             AND self.manifest_fingerprint = other.manifest_fingerprint
+             AND self.parameter_hash = other.parameter_hash
+             AND self.seed = other.seed
+            WHERE self.platform_run_id = ?
+              AND self.scenario_run_id = ?
+              AND self.scenario_id = ?
+              AND self.manifest_fingerprint = ?
+              AND self.parameter_hash = ?
+              AND self.seed = ?
+              AND self.entity_id = ?
+              AND self.entity_type = ?
+              AND NOT (other.entity_id = ? AND other.entity_type = ?)
+              {after_clause}
+            ORDER BY other.entity_type ASC, other.entity_id ASC, other.identifier_type ASC, other.identifier_value ASC
+        """
+        with self._connect() as conn:
+            rows = conn.execute(query, params).fetchall()
+
+        grouped: list[NeighborCandidate] = []
+        current_key: tuple[str, str] | None = None
+        shared: list[SharedIdentifier] = []
+        first_seen = None
+        last_seen = None
+
+        def _flush() -> None:
+            if current_key is None:
+                return
+            grouped.append(
+                NeighborCandidate(
+                    entity_id=current_key[1],
+                    entity_type=current_key[0],
+                    first_seen_ts_utc=first_seen,
+                    last_seen_ts_utc=last_seen,
+                    shared_identifiers=shared.copy(),
+                )
+            )
+
+        for row in rows:
+            neighbor_type = str(row[1])
+            neighbor_id = str(row[0])
+            key = (neighbor_type, neighbor_id)
+            if current_key != key:
+                if current_key is not None and len(grouped) >= limit:
+                    break
+                _flush()
+                current_key = key
+                shared = []
+                first_seen = row[4]
+                last_seen = row[5]
+            shared.append(SharedIdentifier(identifier_type=str(row[2]), identifier_value=str(row[3])))
+            if row[4] and (first_seen is None or row[4] < first_seen):
+                first_seen = row[4]
+            if row[5] and (last_seen is None or row[5] > last_seen):
+                last_seen = row[5]
+
+        if current_key is not None and len(grouped) < limit:
+            _flush()
+        return grouped
+
     def _connect(self) -> sqlite3.Connection:
         conn = sqlite3.connect(self.path)
         conn.execute("PRAGMA journal_mode=WAL")
@@ -856,6 +1117,19 @@ class PostgresProjectionStore(ProjectionStore):
         if not row or not row[0]:
             return None
         return str(row[0])
+
+    def apply_failure_count(self, *, scenario_run_id: str) -> int:
+        with self._connect() as conn:
+            row = conn.execute(
+                """
+                SELECT COUNT(*) FROM ieg_apply_failures
+                WHERE stream_id = %s AND scenario_run_id = %s
+                """,
+                (self.stream_id, scenario_run_id),
+            ).fetchone()
+        if not row:
+            return 0
+        return int(row[0] or 0)
 
     def record_failure(
         self,
@@ -1212,6 +1486,197 @@ class PostgresProjectionStore(ProjectionStore):
             for table in tables:
                 conn.execute(f"DELETE FROM {table}")
 
+    def resolve_identifier_candidates(
+        self,
+        *,
+        pins: dict[str, Any],
+        identifier_type: str,
+        identifier_value: str,
+        limit: int,
+        after: tuple[str, str] | None,
+    ) -> list[IdentifierCandidate]:
+        platform_run_id, scenario_run_id, scenario_id, manifest_fingerprint, parameter_hash, seed = _pin_tuple(pins)
+        if not platform_run_id or not scenario_run_id:
+            return []
+        params: list[Any] = [
+            platform_run_id,
+            scenario_run_id,
+            scenario_id,
+            manifest_fingerprint,
+            parameter_hash,
+            seed,
+            identifier_type,
+            identifier_value,
+        ]
+        after_clause = ""
+        if after:
+            after_clause = " AND (entity_type > %s OR (entity_type = %s AND entity_id > %s))"
+            params.extend([after[0], after[0], after[1]])
+        params.append(limit)
+        query = f"""
+            SELECT entity_id, entity_type, first_seen_ts_utc, last_seen_ts_utc
+            FROM ieg_identifiers
+            WHERE platform_run_id = %s
+              AND scenario_run_id = %s
+              AND scenario_id = %s
+              AND manifest_fingerprint = %s
+              AND parameter_hash = %s
+              AND seed = %s
+              AND identifier_type = %s
+              AND identifier_value = %s
+              {after_clause}
+            ORDER BY entity_type ASC, entity_id ASC
+            LIMIT %s
+        """
+        with self._connect() as conn:
+            rows = conn.execute(query, params).fetchall()
+        return [
+            IdentifierCandidate(
+                entity_id=str(row[0]),
+                entity_type=str(row[1]),
+                first_seen_ts_utc=row[2],
+                last_seen_ts_utc=row[3],
+            )
+            for row in rows
+        ]
+
+    def fetch_entity_profile(
+        self,
+        *,
+        pins: dict[str, Any],
+        entity_id: str,
+        entity_type: str,
+    ) -> dict[str, Any] | None:
+        platform_run_id, scenario_run_id, scenario_id, manifest_fingerprint, parameter_hash, seed = _pin_tuple(pins)
+        if not platform_run_id or not scenario_run_id:
+            return None
+        with self._connect() as conn:
+            row = conn.execute(
+                """
+                SELECT first_seen_ts_utc, last_seen_ts_utc
+                FROM ieg_entities
+                WHERE platform_run_id = %s
+                  AND scenario_run_id = %s
+                  AND scenario_id = %s
+                  AND manifest_fingerprint = %s
+                  AND parameter_hash = %s
+                  AND seed = %s
+                  AND entity_id = %s
+                  AND entity_type = %s
+                LIMIT 1
+                """,
+                (
+                    platform_run_id,
+                    scenario_run_id,
+                    scenario_id,
+                    manifest_fingerprint,
+                    parameter_hash,
+                    seed,
+                    entity_id,
+                    entity_type,
+                ),
+            ).fetchone()
+        if not row:
+            return None
+        return {"entity_id": entity_id, "entity_type": entity_type, "first_seen_ts_utc": row[0], "last_seen_ts_utc": row[1]}
+
+    def fetch_neighbors(
+        self,
+        *,
+        pins: dict[str, Any],
+        entity_id: str,
+        entity_type: str,
+        limit: int,
+        after: tuple[str, str] | None,
+    ) -> list[NeighborCandidate]:
+        platform_run_id, scenario_run_id, scenario_id, manifest_fingerprint, parameter_hash, seed = _pin_tuple(pins)
+        if not platform_run_id or not scenario_run_id:
+            return []
+        params: list[Any] = [
+            platform_run_id,
+            scenario_run_id,
+            scenario_id,
+            manifest_fingerprint,
+            parameter_hash,
+            seed,
+            entity_id,
+            entity_type,
+            entity_id,
+            entity_type,
+        ]
+        after_clause = ""
+        if after:
+            after_clause = " AND (other.entity_type > %s OR (other.entity_type = %s AND other.entity_id > %s))"
+            params.extend([after[0], after[0], after[1]])
+        query = f"""
+            SELECT other.entity_id, other.entity_type, other.identifier_type, other.identifier_value,
+                   other.first_seen_ts_utc, other.last_seen_ts_utc
+            FROM ieg_identifiers self
+            JOIN ieg_identifiers other
+              ON self.identifier_type = other.identifier_type
+             AND self.identifier_value = other.identifier_value
+             AND self.platform_run_id = other.platform_run_id
+             AND self.scenario_run_id = other.scenario_run_id
+             AND self.scenario_id = other.scenario_id
+             AND self.manifest_fingerprint = other.manifest_fingerprint
+             AND self.parameter_hash = other.parameter_hash
+             AND self.seed = other.seed
+            WHERE self.platform_run_id = %s
+              AND self.scenario_run_id = %s
+              AND self.scenario_id = %s
+              AND self.manifest_fingerprint = %s
+              AND self.parameter_hash = %s
+              AND self.seed = %s
+              AND self.entity_id = %s
+              AND self.entity_type = %s
+              AND NOT (other.entity_id = %s AND other.entity_type = %s)
+              {after_clause}
+            ORDER BY other.entity_type ASC, other.entity_id ASC, other.identifier_type ASC, other.identifier_value ASC
+        """
+        with self._connect() as conn:
+            rows = conn.execute(query, params).fetchall()
+
+        grouped: list[NeighborCandidate] = []
+        current_key: tuple[str, str] | None = None
+        shared: list[SharedIdentifier] = []
+        first_seen = None
+        last_seen = None
+
+        def _flush() -> None:
+            if current_key is None:
+                return
+            grouped.append(
+                NeighborCandidate(
+                    entity_id=current_key[1],
+                    entity_type=current_key[0],
+                    first_seen_ts_utc=first_seen,
+                    last_seen_ts_utc=last_seen,
+                    shared_identifiers=shared.copy(),
+                )
+            )
+
+        for row in rows:
+            neighbor_type = str(row[1])
+            neighbor_id = str(row[0])
+            key = (neighbor_type, neighbor_id)
+            if current_key != key:
+                if current_key is not None and len(grouped) >= limit:
+                    break
+                _flush()
+                current_key = key
+                shared = []
+                first_seen = row[4]
+                last_seen = row[5]
+            shared.append(SharedIdentifier(identifier_type=str(row[2]), identifier_value=str(row[3])))
+            if row[4] and (first_seen is None or row[4] < first_seen):
+                first_seen = row[4]
+            if row[5] and (last_seen is None or row[5] > last_seen):
+                last_seen = row[5]
+
+        if current_key is not None and len(grouped) < limit:
+            _flush()
+        return grouped
+
     def _connect(self) -> psycopg.Connection:
         return psycopg.connect(self.dsn)
 
@@ -1259,6 +1724,23 @@ def _next_offset(offset: str, offset_kind: str) -> str:
 def _failure_id(topic: str, partition: int, offset: str, reason: str, event_id: str) -> str:
     payload = f"{topic}:{partition}:{offset}:{reason}:{event_id}"
     return hashlib_sha256(payload.encode("utf-8"))[:32]
+
+
+def _pin_tuple(pins: dict[str, Any]) -> tuple[str | None, str | None, str | None, str | None, str | None, str]:
+    platform_run_id = pins.get("platform_run_id")
+    scenario_run_id = pins.get("scenario_run_id")
+    scenario_id = pins.get("scenario_id")
+    manifest_fingerprint = pins.get("manifest_fingerprint")
+    parameter_hash = pins.get("parameter_hash")
+    seed = str(pins.get("seed") or "")
+    return (
+        str(platform_run_id) if platform_run_id is not None else None,
+        str(scenario_run_id) if scenario_run_id is not None else None,
+        str(scenario_id) if scenario_id is not None else None,
+        str(manifest_fingerprint) if manifest_fingerprint is not None else None,
+        str(parameter_hash) if parameter_hash is not None else None,
+        seed,
+    )
 
 
 def _retention_cutoff(days: int | None) -> str | None:

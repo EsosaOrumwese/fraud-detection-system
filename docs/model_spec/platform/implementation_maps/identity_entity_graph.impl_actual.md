@@ -278,3 +278,53 @@ Implement Phase 2 of the IEG plan: retention/TTL posture and explicit replay/bac
 - `ieg_checkpoints`: 4
 - `ieg_graph_versions`: 1
 - `ieg_replay_basis`: 1
+
+---
+
+## Entry: 2026-02-05 20:18:00 — Phase 3 implementation plan (query surface)
+
+### Problem / goal
+Implement Phase 3 of the IEG build plan: a deterministic, read‑only query surface for identity resolution, entity profiles, and neighbors, aligned to RTDL pins and flow narrative (IEG provides context + graph_version).
+
+### Authorities / inputs
+- `docs/model_spec/platform/implementation_maps/identity_entity_graph.build_plan.md` (Phase 3 DoD)
+- RTDL pre-design decisions (graph_version provenance; explicit failures; no merges)
+- IEG design authority (deterministic ordering, explicit conflicts, graph_version in responses)
+
+### Decision trail (live)
+1) **Query surface is a small Flask service** mirroring IG/SR patterns (`service.py`), with read‑only endpoints: resolve_identity, get_entity_profile, get_neighbors, and status.
+2) **Scope is pinned by ContextPins**: require `{platform_run_id, scenario_run_id, scenario_id, manifest_fingerprint, parameter_hash, seed}` in request payloads; run_id is accepted as legacy but not required.
+3) **Deterministic ordering:** candidates are ordered by `(entity_type, entity_id)`; neighbors are ordered by `(entity_type, entity_id)` and grouped with sorted shared identifiers. Pagination uses stable keyset tokens to avoid offset drift.
+4) **No merges in v0:** resolve_identity returns all candidates with an explicit `conflict=true` when >1; no collapsing.
+5) **Integrity status:** include `graph_version` and `integrity_status` (CLEAN/DEGRADED) on every response; integrity is derived from apply‑failure count for the stream + scenario_run_id (failures do not block, but are visible).
+6) **Neighbors definition (v0):** neighbors are other entities that share identifiers with the target entity under the same pins. This avoids inventing edges and stays deterministic until explicit edge construction is introduced.
+
+### Planned files / paths
+- `src/fraud_detection/identity_entity_graph/query.py` (query logic + validation)
+- `src/fraud_detection/identity_entity_graph/service.py` (Flask API)
+- `src/fraud_detection/identity_entity_graph/store.py` (add read helpers: apply_failure_count)
+- Tests: `tests/services/identity_entity_graph/test_query_surface.py`
+
+### Validation plan (Phase 3)
+- Unit: resolve_identity returns deterministic ordering and conflict markers.
+- Unit: get_neighbors returns stable, grouped shared identifiers and supports page tokens.
+- Unit: integrity_status flips to DEGRADED when apply failures exist.
+
+---
+
+## Entry: 2026-02-05 20:23:00 — Phase 3 implemented (query surface)
+
+### Summary of changes
+- Added read‑only query surface (resolve identity, entity profile, neighbors, status) with deterministic ordering and explicit conflict signaling (no merges).
+- Added query logic with ContextPins validation, graph_version + integrity_status in every response, and keyset pagination tokens bound to pins + graph_version.
+- Implemented neighbor queries via shared identifiers (v0) to avoid invented edges; explicit, deterministic grouping.
+
+### Files added/updated
+- `src/fraud_detection/identity_entity_graph/query.py` (query logic + pagination tokens)
+- `src/fraud_detection/identity_entity_graph/service.py` (Flask API)
+- `src/fraud_detection/identity_entity_graph/store.py` (query helpers + apply_failure_count)
+- `src/fraud_detection/identity_entity_graph/__init__.py` (exports)
+- `tests/services/identity_entity_graph/test_query_surface.py` (query tests)
+
+### Validation
+- `python -m pytest tests/services/identity_entity_graph -q` (10 passed)
