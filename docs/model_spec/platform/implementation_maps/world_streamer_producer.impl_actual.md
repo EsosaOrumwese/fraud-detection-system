@@ -1178,3 +1178,96 @@ Implement the WSP Phase 3 alignment to Control & Ingress pins: validate READY sc
 - Added unit coverage for retry posture (429 retries, 4xx rejection).
 
 ---
+
+## Entry: 2026-02-05 16:07:45 — Phase 5 validation harness updates (stream_view fixtures)
+
+### Problem / goal
+WSP stream‑view mode requires `_stream_view_manifest.json` and `_stream_sort_receipt.json`. The existing tests created engine parquet parts but did not emit stream‑view artifacts, so stream‑view validation failed in tests.
+
+### Decision trail (live)
+- Keep runtime behavior unchanged; fix **test harness only** so tests represent the stream‑view contract.
+- Build minimal stream‑view artifacts per output (`part‑000.parquet`, manifest, receipt) and reuse the same rows written by arrival‑event fixtures.
+
+### Changes applied (test harness only)
+- `tests/services/world_streamer_producer/test_runner.py`:
+  - `_write_arrival_events` now returns the rows it writes.
+  - Added `_write_stream_view(...)` to create the stream‑view parquet + manifest/receipt.
+  - Tests now call `_write_stream_view` for `arrival_events_5B` before streaming.
+
+### Tests run
+- `python -m pytest tests/services/world_streamer_producer/test_runner.py tests/services/world_streamer_producer/test_push_retry.py -q`
+- Result: **tests passed**.
+
+### Notes
+- No WSP runtime code changes; stream‑view fixture alignment only.
+
+---
+
+---
+
+## Entry: 2026-02-05 16:35:40 — Parity validation finding: scenario_run_id sourced from engine receipt
+
+### Observation
+During Control & Ingress parity run (200 events/output), IG receipts show `scenario_run_id` equal to the **engine receipt run_id** (`c25a…`) rather than the SR scenario_run_id (`2afa…`). Example receipt: `platform_20260205T162018Z/ig/receipts/010e4053...json`.
+
+### Root cause (current behavior)
+`WorldStreamProducer.stream_engine_world(...)` sets `run_id = receipt.get("run_id")` (engine receipt) and uses that value for both `run_id` and `scenario_run_id` in the envelope. READY consumer validates SR scenario_run_id against run_facts_view, but does **not** pass it into the stream runner.
+
+### Implications
+- Violates the Control & Ingress pin that `scenario_run_id` in envelopes must match SR scenario_run_id.
+- Downstream receipts carry an engine identifier in place of the scenario run id, breaking replay join assumptions.
+
+### Proposed fix (pending confirmation)
+- Pass `scenario_run_id` from READY/run_facts_view into `stream_engine_world(...)` (and/or set on producer state).
+- Set envelope `scenario_run_id` from SR scenario_run_id, while preserving engine receipt `run_id` as a separate field (e.g., keep `run_id` as engine run id or introduce `engine_run_id` in payload/pins if needed).
+
+### Next action
+Await confirmation on how to retain engine run identity while correcting `scenario_run_id` before implementing.
+
+---
+
+## Entry: 2026-02-05 16:42:10 — Decision: scenario_run_id from SR; engine run_id preserved
+
+### Problem
+Parity run revealed envelopes/receipts using engine receipt `run_id` as `scenario_run_id`, violating Control & Ingress pins (SR scenario_run_id must be carried end‑to‑end).
+
+### Decision
+- **Set envelope `scenario_run_id` from SR (READY/run_facts_view).**
+- **Preserve engine receipt `run_id` in envelope `run_id`** to keep engine provenance intact.
+
+### Rationale
+- Aligns with pinned control/ingress semantics while avoiding a schema change or payload expansion.
+- Canonical envelope already allows `run_id` as a generic correlation id; using it for engine run id is valid.
+- `event_id` derivation does not depend on `run_id`, so idempotency remains stable.
+
+### Plan (immediate)
+- Pass SR scenario_run_id from READY consumer into `WorldStreamProducer.stream_engine_world(...)`.
+- Propagate a `scenario_run_id` argument into stream_view + legacy envelope paths.
+- Force envelope `scenario_run_id` from that argument when provided; fall back to receipt run_id when not.
+- Add/extend unit test to assert `scenario_run_id` override works and engine `run_id` is preserved.
+
+### Files to update
+- `src/fraud_detection/world_streamer_producer/ready_consumer.py`
+- `src/fraud_detection/world_streamer_producer/runner.py`
+- `tests/services/world_streamer_producer/test_runner.py`
+
+---
+
+## Entry: 2026-02-05 16:47:20 — Implemented SR scenario_run_id propagation
+
+### Changes applied
+- READY consumer now passes SR `scenario_run_id` into WSP stream runner.
+- Stream‑view envelopes set `scenario_run_id` from SR while preserving engine receipt `run_id`.
+- Legacy envelope path (`_stream_events`) now prefers explicit `scenario_run_id` when provided and falls back to `run_id`.
+
+### Invariants
+- `event_id` derivation unchanged (still from output_id + primary keys + manifest/param/seed/scenario_id).
+- Engine provenance retained via envelope `run_id`.
+
+### Files touched
+- `src/fraud_detection/world_streamer_producer/ready_consumer.py`
+- `src/fraud_detection/world_streamer_producer/runner.py`
+- `tests/services/world_streamer_producer/test_runner.py`
+
+### Tests
+- `python -m pytest tests/services/world_streamer_producer/test_runner.py -q` (4 passed)

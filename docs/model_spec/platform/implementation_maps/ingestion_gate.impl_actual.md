@@ -2364,3 +2364,27 @@ Implement Control & Ingress P0 admission semantics: dedupe on (platform_run_id, 
 - Tests under `tests/services/ingestion_gate/`
 
 ---
+
+## Entry: 2026-02-05 16:08:15 — Phase 5 validation + admission receipt fixes
+
+### Problem / goal
+Close Control & Ingress Phase 5 validation for IG and correct minor admission‑path issues found while exercising payload_hash mismatch and publish‑ambiguous paths.
+
+### Decision trail (live)
+- Keep runtime semantics unchanged; only fix correctness bugs surfaced by tests.
+- Ensure receipt assembly uses keyword arguments consistently and the ADMIT receipt block is indented correctly so the admission path executes.
+- Add explicit tests for payload_hash mismatch quarantine and publish‑ambiguous state recording.
+
+### Changes applied
+- `src/fraud_detection/ingestion_gate/admission.py`:
+  - Fixed `_receipt_payload(...)` call to use keyword arguments (avoids positional‑after‑keyword error).
+  - Corrected ADMIT receipt block indentation so receipts are created/stored on success.
+- `tests/services/ingestion_gate/test_admission.py`:
+  - Added `test_payload_hash_mismatch_quarantines`.
+  - Added `test_publish_ambiguous_quarantines_and_marks_state`.
+
+### Tests run
+- `python -m pytest tests/services/ingestion_gate/test_admission.py tests/services/ingestion_gate/test_phase5_retries.py -q`
+- Result: **tests passed**.
+
+---

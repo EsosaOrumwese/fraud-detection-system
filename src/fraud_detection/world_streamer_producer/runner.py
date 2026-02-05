@@ -71,6 +71,7 @@ class WorldStreamProducer:
         *,
         engine_run_root: str | None = None,
         scenario_id: str | None = None,
+        scenario_run_id: str | None = None,
         output_ids: list[str] | None = None,
         max_events: int | None = None,
         max_events_per_output: int | None = None,
@@ -102,6 +103,7 @@ class WorldStreamProducer:
         if world_key is None:
             return StreamResult(resolved_root, scenario_value, "FAILED", 0, "WORLD_KEY_MISSING")
         run_id = str(receipt.get("run_id", ""))
+        resolved_scenario_run_id = scenario_run_id or run_id
 
         strict_seal = self.profile.wiring.profile_id in {"dev", "prod"}
         manifest_error, pack_key, engine_release = self._verify_pack_manifest(
@@ -159,6 +161,7 @@ class WorldStreamProducer:
                 engine_root=resolved_root,
                 world_key=world_key,
                 run_id=run_id,
+                scenario_run_id=resolved_scenario_run_id,
                 platform_run_id=platform_run_id,
                 pack_key=pack_key,
                 engine_release=engine_release,
@@ -428,6 +431,7 @@ class WorldStreamProducer:
         pack_key: str,
         engine_release: str | None,
         producer_id: str,
+        scenario_run_id: str | None,
         checkpoint_store: CheckpointStore,
         max_events: int | None,
         output_ids: list[str] | None,
@@ -477,7 +481,9 @@ class WorldStreamProducer:
                 platform_run_id = resolve_platform_run_id(create_if_missing=True)
                 if platform_run_id and not envelope.get("platform_run_id"):
                     envelope["platform_run_id"] = platform_run_id
-                if envelope.get("run_id") and not envelope.get("scenario_run_id"):
+                if scenario_run_id:
+                    envelope["scenario_run_id"] = scenario_run_id
+                elif envelope.get("run_id") and not envelope.get("scenario_run_id"):
                     envelope["scenario_run_id"] = envelope.get("run_id")
                 envelope["producer"] = producer_id
                 if pack_key and not envelope.get("trace_id"):
@@ -531,6 +537,7 @@ class WorldStreamProducer:
         engine_root: str,
         world_key: OracleWorldKey,
         run_id: str,
+        scenario_run_id: str,
         platform_run_id: str,
         pack_key: str,
         engine_release: str | None,
@@ -653,7 +660,7 @@ class WorldStreamProducer:
                         "scenario_id": world_key.scenario_id,
                         "run_id": run_id,
                         "platform_run_id": platform_run_id,
-                        "scenario_run_id": run_id,
+                        "scenario_run_id": scenario_run_id,
                         "producer": producer_id,
                         "payload": payload,
                     }

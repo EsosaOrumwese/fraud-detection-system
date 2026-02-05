@@ -172,3 +172,37 @@ def test_missing_required_pin_quarantines(tmp_path: Path) -> None:
     decision, _receipt = gate.admit_push_with_decision(envelope)
     assert decision.decision == "QUARANTINE"
     assert "PINS_MISSING" in decision.reason_codes
+
+
+def test_payload_hash_mismatch_quarantines(tmp_path: Path) -> None:
+    gate = _build_gate(tmp_path)
+    envelope = _envelope("evt-4")
+    receipt = gate.admit_push(envelope)
+    assert receipt.payload["decision"] == "ADMIT"
+
+    altered = _envelope("evt-4")
+    altered["payload"] = {"flow_id": "different"}
+    decision, _receipt = gate.admit_push_with_decision(altered)
+    assert decision.decision == "QUARANTINE"
+    assert "PAYLOAD_HASH_MISMATCH" in decision.reason_codes
+
+
+def test_publish_ambiguous_quarantines_and_marks_state(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    from fraud_detection.ingestion_gate.ids import dedupe_key
+
+    gate = _build_gate(tmp_path)
+    envelope = _envelope("evt-5")
+
+    def _boom(*_args, **_kwargs):
+        raise RuntimeError("boom")
+
+    monkeypatch.setattr(gate.bus, "publish", _boom)
+    decision, _receipt = gate.admit_push_with_decision(envelope)
+
+    assert decision.decision == "QUARANTINE"
+    assert "PUBLISH_AMBIGUOUS" in decision.reason_codes
+
+    dedupe = dedupe_key(envelope["platform_run_id"], gate.class_map.class_for("test_event"), envelope["event_id"])
+    row = gate.admission_index.lookup(dedupe)
+    assert row is not None
+    assert row.get("state") == "PUBLISH_AMBIGUOUS"

@@ -4026,3 +4026,17 @@ Implemented SR payload updates for Control & Ingress pins and READY idempotency,
 - `tests/services/ingestion_gate/test_ops_rebuild_runs_smoke.py`
 
 ---
+
+## Entry: 2026-02-05 16:07:10 — Phase 5 validation (READY idempotency + run‑id pins)
+
+### Problem / goal
+Close the Control & Ingress Phase 5 validation for SR by confirming READY idempotency and run‑id pin propagation under the updated contracts.
+
+### Actions / tests
+- `python -m pytest tests/services/scenario_runner/test_reemit.py -q`
+- Result: **all SR re‑emit/READY tests passed** (covered READY message_id derived from `platform_run_id + scenario_run_id + bundle_hash`, plus required pins on READY payload).
+
+### Notes
+- No SR runtime changes in this step; validation only.
+
+---

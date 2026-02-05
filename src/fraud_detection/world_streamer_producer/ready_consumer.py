@@ -202,6 +202,7 @@ class ReadyConsumerRunner:
         stream_result: StreamResult = self._producer.stream_engine_world(
             engine_run_root=resolved_root,
             scenario_id=scenario_id,
+            scenario_run_id=facts_scenario_run_id,
             max_events=max_events,
             max_events_per_output=max_events_per_output,
         )

@@ -303,9 +303,9 @@ class IngestionGate:
             scenario_run_id=scenario_run_id,
             payload_hash=payload_hash,
             admitted_at_utc=admitted_at_utc,
-            profile.profile_id,
-            partition_key,
-            eb_ref,
+            profile_id=profile.profile_id,
+            partition_key=partition_key,
+            eb_ref=eb_ref,
         )
         receipt = Receipt(payload=receipt_payload)
         receipt_id = receipt_payload["receipt_id"]

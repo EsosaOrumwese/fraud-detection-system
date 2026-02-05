@@ -22,7 +22,7 @@ def _write_run_receipt(root: Path) -> dict:
     return receipt
 
 
-def _write_arrival_events(root: Path, receipt: dict, scenario_id: str, *, count: int = 1) -> None:
+def _write_arrival_events(root: Path, receipt: dict, scenario_id: str, *, count: int = 1) -> list[dict]:
     path = (
         root
         / "data/layer2/5B/arrival_events"
@@ -53,6 +53,22 @@ def _write_arrival_events(root: Path, receipt: dict, scenario_id: str, *, count:
     )
     gate_flag.parent.mkdir(parents=True, exist_ok=True)
     gate_flag.write_text("PASS", encoding="utf-8")
+    return rows
+
+
+def _write_stream_view(root: Path, *, output_id: str, rows: list[dict]) -> None:
+    stream_root = root / "stream_view" / "ts_utc" / f"output_id={output_id}"
+    stream_root.mkdir(parents=True, exist_ok=True)
+    table = pa.Table.from_pylist(rows)
+    pq.write_table(table, stream_root / "part-000.parquet")
+    manifest = {"output_id": output_id}
+    receipt = {"status": "OK"}
+    (stream_root / "_stream_view_manifest.json").write_text(
+        json.dumps(manifest, sort_keys=True), encoding="utf-8"
+    )
+    (stream_root / "_stream_sort_receipt.json").write_text(
+        json.dumps(receipt, sort_keys=True), encoding="utf-8"
+    )
 
 
 def _profile(
@@ -109,7 +125,8 @@ def test_wsp_streams_engine_world(monkeypatch, tmp_path: Path) -> None:
     engine_root = tmp_path / "engine_run"
     engine_root.mkdir()
     receipt = _write_run_receipt(engine_root)
-    _write_arrival_events(engine_root, receipt, "baseline_v1")
+    rows = _write_arrival_events(engine_root, receipt, "baseline_v1")
+    _write_stream_view(engine_root, output_id="arrival_events_5B", rows=rows)
     profile = _profile(engine_root, output_ids=["arrival_events_5B"])
     producer = WorldStreamProducer(profile)
 
@@ -119,8 +136,12 @@ def test_wsp_streams_engine_world(monkeypatch, tmp_path: Path) -> None:
         sent.append(envelope)
 
     monkeypatch.setattr(producer, "_push_to_ig", _fake_push)
+    scenario_run_id = "a" * 32
     result = producer.stream_engine_world(
-        engine_run_root=str(engine_root), scenario_id="baseline_v1", max_events=5
+        engine_run_root=str(engine_root),
+        scenario_id="baseline_v1",
+        scenario_run_id=scenario_run_id,
+        max_events=5,
     )
 
     assert result.status == "STREAMED"
@@ -129,6 +150,8 @@ def test_wsp_streams_engine_world(monkeypatch, tmp_path: Path) -> None:
     expected_trace = hashlib.sha256(str(engine_root).encode("utf-8")).hexdigest()
     assert sent[0].get("producer") == "svc:world_stream_producer"
     assert sent[0].get("trace_id") == expected_trace
+    assert sent[0].get("scenario_run_id") == scenario_run_id
+    assert sent[0].get("run_id") == receipt["run_id"]
 
 
 def test_wsp_fails_missing_gate(tmp_path: Path) -> None:
@@ -146,7 +169,8 @@ def test_wsp_checkpoint_resume(monkeypatch, tmp_path: Path) -> None:
     engine_root = tmp_path / "engine_run"
     engine_root.mkdir()
     receipt = _write_run_receipt(engine_root)
-    _write_arrival_events(engine_root, receipt, "baseline_v1", count=2)
+    rows = _write_arrival_events(engine_root, receipt, "baseline_v1", count=2)
+    _write_stream_view(engine_root, output_id="arrival_events_5B", rows=rows)
     profile = _profile(engine_root, output_ids=["arrival_events_5B"], checkpoint_root=tmp_path / "cp")
     producer = WorldStreamProducer(profile)
 
@@ -174,7 +198,8 @@ def test_wsp_fails_producer_allowlist(tmp_path: Path) -> None:
     engine_root = tmp_path / "engine_run"
     engine_root.mkdir()
     receipt = _write_run_receipt(engine_root)
-    _write_arrival_events(engine_root, receipt, "baseline_v1")
+    rows = _write_arrival_events(engine_root, receipt, "baseline_v1")
+    _write_stream_view(engine_root, output_id="arrival_events_5B", rows=rows)
     allowlist = tmp_path / "allowlist.txt"
     allowlist.write_text("svc:other\n", encoding="utf-8")
     profile = _profile(

@@ -1801,3 +1801,51 @@ Start Phase 4 by aligning RTDL contracts with the pre-design decisions so decisi
 - Create component build plans for OFP/DF/DL/AL/DLA (progressive elaboration) to prep Phase 4.2+.
 
 ---
+
+## Entry: 2026-02-05 16:06:30 — Control & Ingress Phase 5/6 closure (validation + records)
+
+### Problem / goal
+Fully close Phase 5 (tests/validation) and Phase 6 (records/logging) for the Control & Ingress alignment plan so we can proceed to a 200‑event flow validation.
+
+### Actions (Phase 5 validation)
+- Ran targeted pytest suite covering SR/WSP/IG alignment:
+  - `python -m pytest tests/services/scenario_runner/test_reemit.py tests/services/world_streamer_producer/test_runner.py tests/services/world_streamer_producer/test_push_retry.py tests/services/ingestion_gate/test_admission.py tests/services/ingestion_gate/test_phase5_retries.py -q`
+- Result: **18 passed**.
+
+### Phase 6 documentation updates
+- Appended component‑level impl_actual entries for SR/WSP/IG with the validation results and any test‑harness fixes.
+- Logged the actions and test results in the daily logbook.
+
+### Notes
+- No platform build‑plan edits required for this closure; the Phase‑level pins and DoD already reflect the alignment work. If you want explicit “Phase 5/6 complete” status flags added to build plans, I can append them.
+
+---
+
+---
+
+## Entry: 2026-02-05 16:36:30 — Control & Ingress parity run (200/output) validation
+
+### What ran
+- Reset parity Kinesis streams, ran SR (new run_equivalence_key), ran WSP ready-consumer once with `WSP_MAX_EVENTS_PER_OUTPUT=200`, IG parity service on.
+- `platform_run_id`: `platform_20260205T162018Z`.
+
+### Outcomes
+- IG receipts: **800** objects under `platform_20260205T162018Z/ig/receipts/` (200 per output × 4 outputs).
+- EB records present in Kinesis for traffic + context outputs (fraud traffic, arrival_events, arrival_entities, flow_anchor_fraud).
+
+### Gap found
+- Receipts show `scenario_run_id` equal to **engine receipt run_id** (`c25a…`) instead of SR `scenario_run_id` (`2afa…`). Root cause traced to WSP using engine receipt `run_id` as envelope `scenario_run_id` in `stream_engine_world(...)`.
+- Follow‑up captured in `world_streamer_producer.impl_actual.md` for fix planning.
+
+---
+
+## Entry: 2026-02-05 16:47:55 — Control & Ingress fix: SR scenario_run_id propagation in WSP
+
+### Decision
+Envelopes emitted by WSP must carry SR `scenario_run_id` while preserving engine receipt `run_id` for provenance.
+
+### Implementation
+WSP READY consumer passes SR `scenario_run_id` into stream runner; stream‑view envelopes use it directly.
+
+### Validation
+- `python -m pytest tests/services/world_streamer_producer/test_runner.py -q` (4 passed)
