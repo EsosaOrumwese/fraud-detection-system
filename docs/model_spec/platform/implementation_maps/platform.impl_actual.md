@@ -1774,3 +1774,30 @@ Close the P0 Control & Ingress gaps from `pre-design_decisions/control_and_ingre
 Control & Ingress P0 pins require both run ids on cross-component envelopes; schema had `additionalProperties: false`, so the contract needed explicit fields.
 
 ---
+
+## Entry: 2026-02-05 15:12:12 — Phase 4.1 RTDL contract alignment kickoff (pins → schemas)
+
+### Problem / goal
+Start Phase 4 by aligning RTDL contracts with the pre-design decisions so decision/feature/audit artifacts carry the correct run identity, provenance, degrade posture, and action semantics before code is written.
+
+### Authorities / inputs (binding)
+- `docs/model_spec/platform/pre-design_decisions/real-time_decision_loop.pre-design_decision.md`
+- Component design-authority docs: IEG, OFP, DF, DL, AL, DLA.
+- Platform rails (canonical envelope + ContextPins + no-PASS-no-read).
+- Existing RTDL contracts under `docs/model_spec/platform/contracts/real_time_decision_loop/`.
+
+### Decisions to lock (v0 stance)
+- Adopt the **recommended defaults** from the RTDL pre-design decisions unless explicitly overridden later.
+- Run identity pins for RTDL payloads: **require `platform_run_id` + `scenario_run_id`**; keep legacy `run_id` as optional alias only.
+- **Envelope discriminator:** use `event_type` + payload `*_kind` fields with `schema_version = v1`; do **not** add a new `payload_kind` field to the canonical envelope in v0.
+- **Degrade posture contract:** must include `mode` + `capabilities_mask` + `policy_rev` + `posture_seq`; DF treats mask as hard constraints.
+- **Decision payload contract:** must carry `run_config_digest`, `policy_rev`, explicit **source_event eb_ref**, and snapshot/graph/basis provenance.
+- **Action semantics:** ActionIntent carries `actor_principal` + `origin`; ActionOutcome status vocabulary = `EXECUTED|DENIED|FAILED` and includes `authz_policy_rev`.
+- **Feature snapshot contract:** include `as_of_time_utc`, feature group versions, and feature definition identity; snapshot hash is deterministic over provenance + features.
+
+### Planned edits (Phase 4.1 only)
+- Update RTDL schema files to reflect the above fields and run-id pins.
+- Update RTDL README with event_type names, schema_version usage, and pin semantics.
+- Create component build plans for OFP/DF/DL/AL/DLA (progressive elaboration) to prep Phase 4.2+.
+
+---

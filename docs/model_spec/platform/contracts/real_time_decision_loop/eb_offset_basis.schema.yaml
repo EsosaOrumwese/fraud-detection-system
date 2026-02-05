@@ -12,6 +12,8 @@ properties:
     type: string
     minLength: 1
     maxLength: 256
+  basis_digest:
+    $ref: "#/$defs/hex64"
   offset_kind:
     type: string
     enum: [kinesis_sequence, kafka_offset, file_line]
@@ -38,6 +40,9 @@ properties:
     type: string
     maxLength: 1024
 $defs:
+  hex64:
+    type: string
+    pattern: "^[0-9a-f]{64}$"
   rfc3339_micros:
     type: string
     minLength: 1

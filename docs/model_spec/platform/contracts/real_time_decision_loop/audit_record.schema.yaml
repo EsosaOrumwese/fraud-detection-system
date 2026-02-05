@@ -5,35 +5,53 @@ type: object
 additionalProperties: false
 required:
   - audit_id
-  - decision_ref
-  - outcome_ref
+  - decision_event
   - bundle_ref
   - snapshot_hash
   - graph_version
   - eb_offset_basis
+  - degrade_posture
   - pins
   - recorded_at_utc
+  - policy_rev
+  - run_config_digest
 properties:
   audit_id:
     $ref: "#/$defs/hex32"
-  decision_ref:
-    type: string
-    minLength: 1
-    maxLength: 2048
-  outcome_ref:
-    type: string
-    minLength: 1
-    maxLength: 2048
+  decision_event:
+    $ref: "#/$defs/event_ref"
+  action_intents:
+    type: array
+    items:
+      $ref: "#/$defs/event_ref"
+  action_outcomes:
+    type: array
+    items:
+      $ref: "#/$defs/event_ref"
   bundle_ref:
     $ref: "#/$defs/bundle_ref"
   snapshot_hash:
     $ref: "#/$defs/hex64"
+  snapshot_ref:
+    type: string
+    minLength: 1
+    maxLength: 2048
   graph_version:
     $ref: "#/$defs/graph_version"
   eb_offset_basis:
     $ref: "#/$defs/eb_offset_basis"
+  degrade_posture:
+    $ref: "#/$defs/degrade_posture"
+  policy_rev:
+    $ref: "#/$defs/policy_rev"
+  run_config_digest:
+    $ref: "#/$defs/hex64"
   pins:
     $ref: "#/$defs/pins"
+  context_refs:
+    type: array
+    items:
+      $ref: "#/$defs/context_ref"
   recorded_at_utc:
     $ref: "#/$defs/rfc3339_micros"
   notes:
@@ -46,6 +64,9 @@ $defs:
   hex64:
     type: string
     pattern: "^[0-9a-f]{64}$"
+  platform_run_id:
+    type: string
+    pattern: "^platform_[0-9]{8}T[0-9]{6}Z$"
   uint64:
     type: integer
     minimum: 0
@@ -55,7 +76,13 @@ $defs:
   pins:
     type: object
     additionalProperties: false
-    required: [manifest_fingerprint, parameter_hash, seed, scenario_id, run_id]
+    required:
+      - manifest_fingerprint
+      - parameter_hash
+      - seed
+      - scenario_id
+      - platform_run_id
+      - scenario_run_id
     properties:
       manifest_fingerprint:
         $ref: "#/$defs/hex64"
@@ -67,6 +94,10 @@ $defs:
         type: string
         minLength: 1
         maxLength: 256
+      platform_run_id:
+        $ref: "#/$defs/platform_run_id"
+      scenario_run_id:
+        $ref: "#/$defs/hex32"
       run_id:
         $ref: "#/$defs/hex32"
   bundle_ref:
@@ -93,6 +124,8 @@ $defs:
         type: string
         minLength: 1
         maxLength: 256
+      basis_digest:
+        $ref: "#/$defs/hex64"
       offset_kind:
         type: string
         enum: [kinesis_sequence, kafka_offset, file_line]
@@ -122,7 +155,141 @@ $defs:
     properties:
       version_id:
         $ref: "#/$defs/hex32"
+      stream:
+        type: string
+        minLength: 1
+        maxLength: 256
+      basis_digest:
+        $ref: "#/$defs/hex64"
       watermark_ts_utc:
         $ref: "#/$defs/rfc3339_micros"
       computed_at_utc:
         $ref: "#/$defs/rfc3339_micros"
+  policy_rev:
+    type: object
+    additionalProperties: false
+    required: [policy_id, revision]
+    properties:
+      policy_id:
+        type: string
+      revision:
+        type: string
+      content_digest:
+        $ref: "#/$defs/hex64"
+  degrade_posture:
+    type: object
+    additionalProperties: false
+    required: [mode, capabilities_mask, policy_rev, posture_seq, decided_at_utc]
+    properties:
+      mode:
+        type: string
+        enum: [NORMAL, DEGRADED_1, DEGRADED_2, FAIL_CLOSED]
+      capabilities_mask:
+        type: object
+        additionalProperties: false
+        required:
+          - allow_ieg
+          - allowed_feature_groups
+          - allow_model_primary
+          - allow_model_stage2
+          - allow_fallback_heuristics
+          - action_posture
+        properties:
+          allow_ieg:
+            type: boolean
+          allowed_feature_groups:
+            type: array
+            items:
+              type: string
+              minLength: 1
+              maxLength: 128
+          allow_model_primary:
+            type: boolean
+          allow_model_stage2:
+            type: boolean
+          allow_fallback_heuristics:
+            type: boolean
+          action_posture:
+            type: string
+            enum: [NORMAL, STEP_UP_ONLY]
+      policy_rev:
+        $ref: "#/$defs/policy_rev"
+      posture_seq:
+        type: integer
+        minimum: 0
+      decided_at_utc:
+        $ref: "#/$defs/rfc3339_micros"
+      reason:
+        type: string
+        maxLength: 2048
+      evidence_refs:
+        type: array
+        items:
+          type: object
+          additionalProperties: false
+          required: [kind, ref]
+          properties:
+            kind:
+              type: string
+              minLength: 1
+              maxLength: 64
+            ref:
+              type: string
+              minLength: 1
+              maxLength: 2048
+  eb_ref:
+    type: object
+    additionalProperties: false
+    required: [topic, partition, offset, offset_kind]
+    properties:
+      topic:
+        type: string
+        minLength: 1
+        maxLength: 256
+      partition:
+        type: integer
+        minimum: 0
+      offset:
+        type: string
+        minLength: 1
+        maxLength: 128
+      offset_kind:
+        type: string
+        enum: [file_line, kinesis_sequence, kafka_offset]
+      published_at_utc:
+        $ref: "#/$defs/rfc3339_micros"
+  event_ref:
+    type: object
+    additionalProperties: false
+    required: [event_id, event_type, ts_utc, eb_ref]
+    properties:
+      event_id:
+        type: string
+        minLength: 1
+        maxLength: 256
+      event_type:
+        type: string
+        minLength: 1
+        maxLength: 256
+      ts_utc:
+        $ref: "#/$defs/rfc3339_micros"
+      eb_ref:
+        $ref: "#/$defs/eb_ref"
+  context_ref:
+    type: object
+    additionalProperties: false
+    required: [event_id, event_type, eb_ref, role]
+    properties:
+      event_id:
+        type: string
+        minLength: 1
+        maxLength: 256
+      event_type:
+        type: string
+        minLength: 1
+        maxLength: 256
+      eb_ref:
+        $ref: "#/$defs/eb_ref"
+      role:
+        type: string
+        enum: [arrival_events, arrival_entities, flow_anchor]

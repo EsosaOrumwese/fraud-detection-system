@@ -7,7 +7,13 @@ required:
   - outcome_id
   - decision_id
   - action_id
+  - action_kind
   - status
+  - idempotency_key
+  - actor_principal
+  - origin
+  - authz_policy_rev
+  - run_config_digest
   - pins
   - completed_at_utc
 properties:
@@ -17,13 +23,35 @@ properties:
     $ref: "#/$defs/hex32"
   action_id:
     $ref: "#/$defs/hex32"
+  action_kind:
+    type: string
+    minLength: 1
+    maxLength: 128
   status:
     type: string
-    enum: [SUCCEEDED, FAILED, SKIPPED]
+    enum: [EXECUTED, DENIED, FAILED]
+  idempotency_key:
+    type: string
+    minLength: 1
+    maxLength: 256
+  actor_principal:
+    type: string
+    minLength: 1
+    maxLength: 256
+  origin:
+    type: string
+    enum: [DF, CASE, HUMAN, OPS]
+  authz_policy_rev:
+    $ref: "#/$defs/policy_rev"
+  run_config_digest:
+    $ref: "#/$defs/hex64"
   pins:
     $ref: "#/$defs/pins"
   completed_at_utc:
     $ref: "#/$defs/rfc3339_micros"
+  attempt_seq:
+    type: integer
+    minimum: 1
   outcome_payload:
     type: object
     additionalProperties: true
@@ -37,16 +65,36 @@ $defs:
   hex64:
     type: string
     pattern: "^[0-9a-f]{64}$"
+  platform_run_id:
+    type: string
+    pattern: "^platform_[0-9]{8}T[0-9]{6}Z$"
   uint64:
     type: integer
     minimum: 0
   rfc3339_micros:
     type: string
     minLength: 1
+  policy_rev:
+    type: object
+    additionalProperties: false
+    required: [policy_id, revision]
+    properties:
+      policy_id:
+        type: string
+      revision:
+        type: string
+      content_digest:
+        $ref: "#/$defs/hex64"
   pins:
     type: object
     additionalProperties: false
-    required: [manifest_fingerprint, parameter_hash, seed, scenario_id, run_id]
+    required:
+      - manifest_fingerprint
+      - parameter_hash
+      - seed
+      - scenario_id
+      - platform_run_id
+      - scenario_run_id
     properties:
       manifest_fingerprint:
         $ref: "#/$defs/hex64"
@@ -58,5 +106,9 @@ $defs:
         type: string
         minLength: 1
         maxLength: 256
+      platform_run_id:
+        $ref: "#/$defs/platform_run_id"
+      scenario_run_id:
+        $ref: "#/$defs/hex32"
       run_id:
         $ref: "#/$defs/hex32"
