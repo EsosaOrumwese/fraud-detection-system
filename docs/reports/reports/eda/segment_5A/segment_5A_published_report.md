@@ -617,3 +617,226 @@ is confined to DST‑shifting TZIDs and does not affect total mass.
 
 Explanation: This is a technical artifact, not a policy violation. If desired,
 policy could explicitly encode DST alignment or scenario grid correction.
+
+---
+
+## 12) E/F — Aggregate Realism + Cross‑Surface Coherence
+
+### 12.1 E — Aggregate temporal realism (macro checks)
+**E1. Macro hour‑of‑day + day‑of‑week pattern (baseline)**  
+Finding: The hourly profile shows a clear daytime peak and overnight trough.
+Peak hour is ~12:00 (total ≈ **690k**), trough around ~04:00 (≈ **124k**).
+Day‑of‑week totals are relatively flat with mild weekday lift (Fri highest,
+Sun lowest).
+
+Explanation: The global pattern looks realistic: daytime commerce dominates,
+weekends soften slightly without collapsing. This is consistent with the
+class mix where consumer_daytime is dominant.
+
+**E2. Class‑mix contribution to macro seasonality**  
+Finding (share of total baseline, with temporal shares):
+- `consumer_daytime` share **0.621**, day_share **0.742**, weekend_share **0.261**  
+- `online_24h` share **0.150**, night_share **0.486**  
+- `fuel_convenience` share **0.106**, day_share **0.428**  
+- `evening_weekend` share **0.068**, weekend_share **0.448**, night_share **0.363**  
+- `office_hours` share **0.017**, day_share **0.825**, weekend_share **0.097**
+
+Explanation: The macro pattern is a mix of strong daytime activity (consumer +
+office) and a meaningful night component (online_24h + evening_weekend).
+This composition creates a believable aggregate rhythm.
+
+**E3. Country/TZ peak‑hour dispersion**  
+Finding: Many TZs are effectively zero‑volume. Out of **414 TZIDs**, **262**
+have weekly total ≤ **1.0**, which makes “peak hour” degenerate.
+Filtering to non‑trivial TZs (>1.0 weekly total), peak hours concentrate around
+**11–14 local time**.
+
+Explanation: The raw distribution is distorted by tail‑zone sparsity. For
+realism assessment, peak‑hour dispersion should be computed on non‑trivial
+TZs only, otherwise midnight ties dominate.
+
+**E4. Overlay impact on daily totals (scenario vs baseline)**  
+Finding: Daily ratio `scenario / baseline` over 91 days has mean **1.006**,
+min **0.9695**, max **1.1000**, and IQR ~**0.994–1.006**.
+
+Explanation: Overlays are sparse and bounded; most days stay near baseline,
+with occasional modest uplifts/suppressions. This is consistent with a
+calendar‑driven realism posture.
+
+### 12.2 F — Cross‑surface coherence & conservation
+**F1. Weekly mass conservation (baseline)**  
+Finding: `sum(lambda_local_base)` per merchant×zone equals
+`weekly_volume_expected` to numerical precision (MAE **1.6e‑13**,
+max abs error **8.7e‑11**).
+
+Explanation: The baseline surface is internally consistent; scale and shape
+combine without leakage or drift.
+
+**F2. Scenario composition + UTC conservation**  
+Finding: `scenario_local` ≈ `baseline × overlay` after tz‑aligned bucket
+mapping (MAE **0.032**, mismatch fraction **0.0068**). Mismatch is consistent
+with DST shifts. `scenario_utc` conserves mass exactly (MAE **0**).
+
+Explanation: Scenario construction is correct; remaining mismatch is a DST
+artifact rather than a structural issue.
+
+**F3. Drift / boundary effects (daily ratio)**  
+Finding: Linear slope of daily ratio is **5.7e‑05 per day**. First 7‑day mean
+**0.9974**, last 7‑day mean **1.0119** (Δ ≈ **+0.0145**).
+
+Explanation: There is a mild upward shift across the horizon, consistent with
+event distribution (paydays/holidays) rather than a boundary defect.
+
+**F4. Shape‑baseline coherence**  
+Finding: Normalized baseline `lambda_local_base / weekly_volume_expected`
+matches `class_zone_shape` exactly (MAE **8.5e‑20**, max error **6.9e‑18**).
+
+Explanation: Shapes are applied deterministically with no hidden rescaling.
+
+### 12.3 Event drivers for high/low days (E4 drill‑down)
+**Top uplift days (ratio = scenario / baseline):**
+- Day **44**: **1.1000** (event types: CAMPAIGN, OUTAGE, HOLIDAY, PAYDAY)
+- Day **72**: **1.0948** (PAYDAY, OUTAGE, HOLIDAY, CAMPAIGN)
+- Day **30**: **1.0933** (PAYDAY, HOLIDAY)
+- Day **56**: **1.0770** (HOLIDAY, PAYDAY)
+- Day **15**: **1.0617** (CAMPAIGN, PAYDAY, HOLIDAY)
+
+**Lowest ratio days:**
+- Day **64**: **0.9695** (HOLIDAY only)
+- Day **38**: **0.9814** (OUTAGE + HOLIDAY)
+- Day **54**: **0.9827** (HOLIDAY only)
+- Day **48**: **0.9848** (HOLIDAY only)
+- Day **78**: **0.9876** (HOLIDAY only)
+
+**Event‑type averages (daily ratio):**
+- `HOLIDAY` only: mean **0.9949** (51 days; min **0.9695**, max **1.0038**)
+- `PAYDAY + HOLIDAY`: mean **1.0451** (6 days; max **1.0933**)
+- `CAMPAIGN + PAYDAY + HOLIDAY`: **1.0617** (single day)
+- `OUTAGE + PAYDAY + HOLIDAY + CAMPAIGN`: **1.1000** (single day)
+
+Explanation: Uplift spikes are driven primarily by PAYDAY (often with HOLIDAY
+and occasionally CAMPAIGN). Suppressions are dominated by HOLIDAY‑only days.
+This matches the overlay policy posture: bounded shocks with calendar‑driven
+structure.
+
+### 12.4 Tail‑zone sparsity and realism interpretation (E3 drill‑down)
+Finding: **86.9%** of `merchant_zone_profile` rows have
+`weekly_volume_expected = 0`, almost entirely from `tail_zone` (98.2% zero).
+Primary and secondary zones have no zero volumes.
+
+Evidence:
+- `tail_zone`: 14,635 rows, **98.2%** zero, p99 ≈ **227**  
+- `primary_zone`: 1,527 rows, **0%** zero, p99 ≈ **48,704**  
+- `secondary_zone`: 366 rows, **0%** zero, p99 ≈ **21,484**
+
+Explanation: Low‑volume tzids are a direct consequence of tail‑zone sparsity,
+not a modeling defect. Realism checks that use tz‑level peaks should filter to
+non‑trivial totals or primary/secondary zones to avoid artifacts.
+
+### 12.5 Calendar dates for uplift/suppression days (E4 drill‑down)
+Note: `n` is the number of calendar events active that day for that type.
+`amp` is the event amplitude (constant for HOLIDAY/OUTAGE, ramp peak for PAYDAY).
+
+**Top uplift days (with dates and event drivers):**
+- Day **44** → **2026‑02‑14**: ratio **1.1000**  
+  PAYDAY n=153 (amp **1.03–1.60**, mean ~**1.31**), HOLIDAY n=12 (amp
+  **0.65–1.03**, mean ~**0.84**), CAMPAIGN n=1 (amp **1.35**), OUTAGE n=1
+  (amp **0.05**).
+- Day **72** → **2026‑03‑14**: ratio **1.0948**  
+  PAYDAY n=123 (amp **1.02–1.60**, mean ~**1.26**), HOLIDAY n=9 (amp
+  **0.65–1.03**, mean ~**0.84**), CAMPAIGN n=1 (amp **1.35**), OUTAGE n=1
+  (amp **0.05**).
+- Day **30** → **2026‑01‑31**: ratio **1.0933**  
+  PAYDAY n=158 (amp **1.03–1.60**, mean ~**1.28**), HOLIDAY n=6 (amp
+  **0.65–1.03**, mean ~**0.84**).
+- Day **56** → **2026‑02‑26**: ratio **1.0770**  
+  PAYDAY n=141 (amp **1.10–1.54**, mean ~**1.30**), HOLIDAY n=3 (amp
+  **0.65–1.03**, mean ~**0.84**).
+- Day **15** → **2026‑01‑16**: ratio **1.0617**  
+  PAYDAY n=141 (amp **1.01–1.58**, mean ~**1.26**), HOLIDAY n=3 (amp
+  **0.65–1.03**, mean ~**0.84**), CAMPAIGN n=1 (amp **1.35**).
+- Day **84** → **2026‑03‑26**: ratio **1.0545**  
+  PAYDAY n=96 (amp **1.01–1.57**, mean ~**1.26**), HOLIDAY n=6 (amp
+  **0.65–1.03**, mean ~**0.84**).
+- Day **23** → **2026‑01‑24**: ratio **1.0507**  
+  PAYDAY n=90 (amp **1.06–1.49**, mean ~**1.28**), HOLIDAY n=18 (amp
+  **0.65–1.03**, mean ~**0.84**).
+- Day **43** → **2026‑02‑13**: ratio **1.0445**  
+  PAYDAY n=153 (amp **1.03–1.60**, mean ~**1.31**), HOLIDAY n=15 (amp
+  **0.65–1.03**, mean ~**0.84**), CAMPAIGN n=1 (amp **1.35**).
+- Day **55** → **2026‑02‑25**: ratio **1.0379**  
+  PAYDAY n=141 (amp **1.10–1.54**, mean ~**1.30**), HOLIDAY n=12 (amp
+  **0.65–1.03**, mean ~**0.84**).
+- Day **83** → **2026‑03‑25**: ratio **1.0283**  
+  PAYDAY n=96 (amp **1.01–1.57**, mean ~**1.26**), OUTAGE n=1 (amp **0.05**).
+
+**Lowest ratio days (with dates and event drivers):**
+- Day **26** → **2026‑01‑27**: ratio **0.9901**  
+  HOLIDAY n=6 (amp **0.65–1.03**, mean ~**0.84**).
+- Day **70** → **2026‑03‑12**: ratio **0.9900**  
+  HOLIDAY n=18 (amp **0.65–1.03**, mean ~**0.84**).
+- Day **53** → **2026‑02‑23**: ratio **0.9890**  
+  HOLIDAY n=15 (amp **0.65–1.03**, mean ~**0.84**).
+- Day **51** → **2026‑02‑21**: ratio **0.9889**  
+  HOLIDAY n=24 (amp **0.65–1.03**, mean ~**0.84**).
+- Day **60** → **2026‑03‑02**: ratio **0.9883**  
+  HOLIDAY n=18 (amp **0.65–1.03**, mean ~**0.84**).
+- Day **78** → **2026‑03‑20**: ratio **0.9876**  
+  HOLIDAY n=12 (amp **0.65–1.03**, mean ~**0.84**).
+- Day **48** → **2026‑02‑18**: ratio **0.9848**  
+  HOLIDAY n=9 (amp **0.65–1.03**, mean ~**0.84**).
+- Day **54** → **2026‑02‑24**: ratio **0.9827**  
+  HOLIDAY n=9 (amp **0.65–1.03**, mean ~**0.84**).
+- Day **38** → **2026‑02‑08**: ratio **0.9814**  
+  HOLIDAY n=9 (amp **0.65–1.03**, mean ~**0.84**), OUTAGE n=1 (amp **0.05**).
+- Day **64** → **2026‑03‑06**: ratio **0.9695**  
+  HOLIDAY n=9 (amp **0.65–1.03**, mean ~**0.84**).
+
+Explanation: Uplift spikes are PAYDAY‑driven (often with HOLIDAY and sometimes
+CAMPAIGN). Suppressions are dominated by HOLIDAY‑only days, which aligns with
+the overlay policy posture.
+
+### 12.6 Peak‑hour dispersion with tail‑zone filtering (E3 refinement)
+**Non‑trivial TZIDs only (weekly total > 1.0):**
+- Peak‑hour counts concentrate in business hours:
+  `11: 40`, `12: 28`, `14: 27`, `17: 9`, `18: 7`, `16: 6`, `8: 6`
+  (others ≤ 4).
+
+**Primary + secondary zones only:**
+- Peak‑hour counts remain centered in **11–14**:
+  `11: 21`, `12: 15`, `14: 12`, `16: 5`, `18: 5`, `17: 4`, `8: 4`
+  (others ≤ 3).
+
+Explanation: The “midnight peak” artifact disappears once tail‑zones are
+filtered. The cleaned signal shows plausible mid‑day peaks across TZs, which
+is a more realistic dispersion pattern.
+
+**Hour‑of‑day totals (baseline, summed lambda_local_base)**  
+Totals are shown for non‑trivial TZIDs and for primary+secondary zones.
+
+| Hour | Non‑trivial TZIDs | Primary+Secondary |
+|---:|---:|---:|
+| 0 | 160,008 | 157,534 |
+| 1 | 169,142 | 166,483 |
+| 2 | 163,282 | 160,709 |
+| 3 | 146,561 | 144,297 |
+| 4 | 123,854 | 121,980 |
+| 5 | 128,903 | 127,184 |
+| 6 | 166,673 | 164,722 |
+| 7 | 223,306 | 220,710 |
+| 8 | 296,663 | 292,813 |
+| 9 | 399,872 | 393,723 |
+| 10 | 535,797 | 526,166 |
+| 11 | 665,862 | 653,301 |
+| 12 | 690,420 | 679,016 |
+| 13 | 652,625 | 643,217 |
+| 14 | 621,740 | 613,029 |
+| 15 | 630,831 | 622,147 |
+| 16 | 668,639 | 659,523 |
+| 17 | 659,362 | 650,006 |
+| 18 | 628,705 | 618,808 |
+| 19 | 548,200 | 538,954 |
+| 20 | 452,386 | 445,629 |
+| 21 | 360,682 | 356,452 |
+| 22 | 282,264 | 279,425 |
+| 23 | 211,273 | 209,160 |
