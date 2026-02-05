@@ -118,6 +118,9 @@ def _envelope(event_id: str) -> dict:
         "event_type": "test_event",
         "ts_utc": "2026-01-01T00:00:00.000000Z",
         "manifest_fingerprint": "a" * 64,
+        "platform_run_id": "platform_20260101T000000Z",
+        "scenario_run_id": "b" * 32,
+        "run_id": "b" * 32,
         "payload": {"flow_id": event_id},
     }
 
@@ -139,7 +142,15 @@ def test_duplicate_does_not_republish(tmp_path: Path) -> None:
 def test_push_with_run_scoped_pins_does_not_require_ready(tmp_path: Path) -> None:
     gate = _build_gate(
         tmp_path,
-        required_pins=["manifest_fingerprint", "parameter_hash", "seed", "scenario_id", "run_id"],
+        required_pins=[
+            "platform_run_id",
+            "scenario_run_id",
+            "manifest_fingerprint",
+            "parameter_hash",
+            "seed",
+            "scenario_id",
+            "run_id",
+        ],
     )
     envelope = _envelope("evt-2")
     envelope.update(
@@ -157,6 +168,7 @@ def test_push_with_run_scoped_pins_does_not_require_ready(tmp_path: Path) -> Non
 def test_missing_required_pin_quarantines(tmp_path: Path) -> None:
     gate = _build_gate(tmp_path, required_pins=["manifest_fingerprint", "run_id"])
     envelope = _envelope("evt-3")
+    envelope.pop("run_id", None)
     decision, _receipt = gate.admit_push_with_decision(envelope)
     assert decision.decision == "QUARANTINE"
     assert "PINS_MISSING" in decision.reason_codes

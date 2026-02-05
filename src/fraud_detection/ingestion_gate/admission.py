@@ -4,6 +4,8 @@ from __future__ import annotations
 
 import logging
 import time
+import hashlib
+import json
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import Path
@@ -176,27 +178,53 @@ class IngestionGate:
             envelope.get("event_type"),
         )
 
-        dedupe = dedupe_key(envelope["event_id"], envelope["event_type"])
-        dedupe_started = time.perf_counter()
-        existing = self.admission_index.lookup(dedupe)
-        self.metrics.record_latency("phase.dedupe_seconds", time.perf_counter() - dedupe_started)
-        if existing:
-            logger.info("IG duplicate event_id=%s event_type=%s", envelope["event_id"], envelope["event_type"])
-            eb_ref = _normalize_eb_ref(existing.get("eb_ref"))
+        event_type = envelope["event_type"]
+        event_id = envelope["event_id"]
+        event_class = self.class_map.class_for(event_type)
+        platform_run_id = envelope.get("platform_run_id")
+        scenario_run_id = envelope.get("scenario_run_id") or envelope.get("run_id")
+        payload_hash, payload_hash_hex = _payload_hash(envelope)
+        dedupe = dedupe_key(platform_run_id or "", event_class, event_id)
+
+        def _handle_existing(existing_row: dict[str, Any]) -> tuple[AdmissionDecision, Receipt]:
+            existing_hash = existing_row.get("payload_hash")
+            if existing_hash and existing_hash != payload_hash_hex:
+                return self._quarantine(envelope, IngestionError("PAYLOAD_HASH_MISMATCH"), start)
+            state = existing_row.get("state") or ("ADMITTED" if existing_row.get("eb_ref") else None)
+            if state in {"PUBLISH_IN_FLIGHT", "PUBLISH_AMBIGUOUS"}:
+                return self._quarantine(envelope, IngestionError(state), start)
+            if state not in {"ADMITTED", None}:
+                return self._quarantine(envelope, IngestionError("ADMISSION_STATE_INVALID", state), start)
+            logger.info("IG duplicate event_id=%s event_type=%s", event_id, event_type)
+            eb_ref = _normalize_eb_ref(existing_row.get("eb_ref"))
+            admitted_at_utc = existing_row.get("admitted_at_utc") or (
+                eb_ref.get("published_at_utc") if eb_ref else None
+            ) or datetime.now(tz=timezone.utc).isoformat()
             decision = AdmissionDecision(
                 decision="DUPLICATE",
                 reason_codes=["DUPLICATE"],
                 eb_ref=eb_ref,
-                evidence_refs=[{"kind": "receipt_ref", "ref": existing.get("receipt_ref")}]
-                if existing.get("receipt_ref")
+                evidence_refs=[{"kind": "receipt_ref", "ref": existing_row.get("receipt_ref")}]
+                if existing_row.get("receipt_ref")
                 else None,
             )
             receipt_started = time.perf_counter()
-            receipt_payload = self._receipt_payload(envelope, decision, dedupe)
+            receipt_payload = self._receipt_payload(
+                envelope,
+                decision,
+                dedupe,
+                event_class=event_class,
+                platform_run_id=platform_run_id,
+                scenario_run_id=scenario_run_id,
+                payload_hash=payload_hash,
+                admitted_at_utc=admitted_at_utc,
+            )
             receipt = Receipt(payload=receipt_payload)
             receipt_id = receipt_payload["receipt_id"]
             self.contract_registry.validate("ingestion_receipt.schema.yaml", receipt_payload)
             receipt_ref = self.receipt_writer.write_receipt(receipt_id, receipt_payload)
+            if not existing_row.get("receipt_ref") or existing_row.get("receipt_write_failed"):
+                self.admission_index.record_receipt(dedupe, receipt_ref)
             self._record_ops_receipt(receipt_payload, receipt_ref)
             self.metrics.record_latency("phase.receipt_seconds", time.perf_counter() - receipt_started)
             self.metrics.record_decision("DUPLICATE")
@@ -204,19 +232,40 @@ class IngestionGate:
             self.metrics.flush_if_due(self._metrics_context(envelope))
             return decision, receipt
 
+        dedupe_started = time.perf_counter()
+        existing = self.admission_index.lookup(dedupe)
+        self.metrics.record_latency("phase.dedupe_seconds", time.perf_counter() - dedupe_started)
+        if existing:
+            return _handle_existing(existing)
+
         try:
             partition_key, profile = self._partitioning(envelope)
+        except IngestionError as exc:
+            return self._quarantine(envelope, exc, start)
+
+        inserted = self.admission_index.record_in_flight(
+            dedupe,
+            platform_run_id=platform_run_id or "",
+            event_class=event_class,
+            event_id=event_id,
+            payload_hash=payload_hash_hex,
+        )
+        if not inserted:
+            existing = self.admission_index.lookup(dedupe)
+            if existing:
+                return _handle_existing(existing)
+        try:
             publish_started = time.perf_counter()
             eb_ref = self.bus.publish(profile.stream, partition_key, envelope)
             self.metrics.record_latency("phase.publish_seconds", time.perf_counter() - publish_started)
-        except IngestionError as exc:
-            self.health.record_publish_failure()
-            return self._quarantine(envelope, exc, start)
-        except Exception as exc:
+        except Exception:
             logger.exception("IG event bus publish error")
             self.health.record_publish_failure()
-            return self._quarantine(envelope, IngestionError("EB_PUBLISH_FAILED"), start)
+            self.admission_index.record_ambiguous(dedupe, payload_hash_hex)
+            return self._quarantine(envelope, IngestionError("PUBLISH_AMBIGUOUS"), start)
         self.health.record_publish_success()
+        admitted_at_utc = datetime.now(tz=timezone.utc).isoformat()
+        self.admission_index.record_admitted(dedupe, eb_ref=_eb_ref_payload(eb_ref), admitted_at_utc=admitted_at_utc, payload_hash=payload_hash_hex)
         logger.info(
             "IG admitted event_id=%s event_type=%s topic=%s partition=%s offset=%s",
             envelope.get("event_id"),
@@ -249,6 +298,11 @@ class IngestionGate:
             envelope,
             decision,
             dedupe,
+            event_class=event_class,
+            platform_run_id=platform_run_id,
+            scenario_run_id=scenario_run_id,
+            payload_hash=payload_hash,
+            admitted_at_utc=admitted_at_utc,
             profile.profile_id,
             partition_key,
             eb_ref,
@@ -256,8 +310,13 @@ class IngestionGate:
         receipt = Receipt(payload=receipt_payload)
         receipt_id = receipt_payload["receipt_id"]
         self.contract_registry.validate("ingestion_receipt.schema.yaml", receipt_payload)
-        receipt_ref = self.receipt_writer.write_receipt(receipt_id, receipt_payload)
-        self.admission_index.record(dedupe, receipt_ref, decision.eb_ref)
+        try:
+            receipt_ref = self.receipt_writer.write_receipt(receipt_id, receipt_payload)
+        except Exception:
+            self.admission_index.mark_receipt_failed(dedupe)
+            logger.exception("IG receipt write failed after publish event_id=%s", event_id)
+            raise
+        self.admission_index.record_receipt(dedupe, receipt_ref)
         self._record_ops_receipt(receipt_payload, receipt_ref)
         logger.info(
             "IG receipt stored receipt_id=%s receipt_ref=%s eb_ref=%s",
@@ -295,6 +354,8 @@ class IngestionGate:
             "manifest_fingerprint": envelope.get("manifest_fingerprint", "0" * 64),
             "pins": {
                 "manifest_fingerprint": envelope.get("manifest_fingerprint", "0" * 64),
+                "platform_run_id": envelope.get("platform_run_id"),
+                "scenario_run_id": envelope.get("scenario_run_id"),
                 "parameter_hash": envelope.get("parameter_hash"),
                 "seed": envelope.get("seed"),
                 "scenario_id": envelope.get("scenario_id"),
@@ -316,8 +377,16 @@ class IngestionGate:
             reason_codes=[code],
             evidence_refs=[{"kind": "quarantine_record", "ref": quarantine_ref}],
         )
-        dedupe = dedupe_key(event_id, envelope.get("event_type", "unknown"))
-        receipt_payload = self._receipt_payload(envelope, decision, dedupe)
+        event_class = self.class_map.class_for(envelope.get("event_type", "unknown"))
+        dedupe = dedupe_key(envelope.get("platform_run_id") or "", event_class, event_id)
+        receipt_payload = self._receipt_payload(
+            envelope,
+            decision,
+            dedupe,
+            event_class=event_class,
+            platform_run_id=envelope.get("platform_run_id"),
+            scenario_run_id=envelope.get("scenario_run_id") or envelope.get("run_id"),
+        )
         receipt_id = receipt_payload["receipt_id"]
         self.contract_registry.validate("ingestion_receipt.schema.yaml", receipt_payload)
         receipt_ref = self.receipt_writer.write_receipt(receipt_id, receipt_payload)
@@ -334,6 +403,8 @@ class IngestionGate:
     def _metrics_context(self, envelope: dict[str, Any]) -> dict[str, Any]:
         pins = {
             "manifest_fingerprint": envelope.get("manifest_fingerprint"),
+            "platform_run_id": envelope.get("platform_run_id"),
+            "scenario_run_id": envelope.get("scenario_run_id"),
             "parameter_hash": envelope.get("parameter_hash"),
             "seed": envelope.get("seed"),
             "scenario_id": envelope.get("scenario_id"),
@@ -419,6 +490,11 @@ class IngestionGate:
         envelope: dict[str, Any],
         decision: AdmissionDecision,
         dedupe: str,
+        event_class: str | None = None,
+        platform_run_id: str | None = None,
+        scenario_run_id: str | None = None,
+        payload_hash: dict[str, Any] | None = None,
+        admitted_at_utc: str | None = None,
         profile_id: str | None = None,
         partition_key: str | None = None,
         eb_ref: EbRef | None = None,
@@ -429,8 +505,11 @@ class IngestionGate:
             "decision": decision.decision,
             "event_id": envelope["event_id"],
             "event_type": envelope["event_type"],
+            "event_class": event_class or self.class_map.class_for(envelope["event_type"]),
             "ts_utc": envelope["ts_utc"],
             "manifest_fingerprint": envelope["manifest_fingerprint"],
+            "platform_run_id": platform_run_id or envelope.get("platform_run_id"),
+            "run_config_digest": self.policy_rev.content_digest,
             "policy_rev": {
                 "policy_id": self.policy_rev.policy_id,
                 "revision": self.policy_rev.revision,
@@ -438,6 +517,8 @@ class IngestionGate:
             "dedupe_key": dedupe,
             "pins": {
                 "manifest_fingerprint": envelope["manifest_fingerprint"],
+                "platform_run_id": platform_run_id or envelope.get("platform_run_id"),
+                "scenario_run_id": scenario_run_id or envelope.get("scenario_run_id"),
                 "parameter_hash": envelope.get("parameter_hash"),
                 "seed": envelope.get("seed"),
                 "scenario_id": envelope.get("scenario_id"),
@@ -445,6 +526,12 @@ class IngestionGate:
             },
         }
         payload["pins"] = _prune_none(payload["pins"])
+        if scenario_run_id or envelope.get("scenario_run_id"):
+            payload["scenario_run_id"] = scenario_run_id or envelope.get("scenario_run_id")
+        if payload_hash:
+            payload["payload_hash"] = payload_hash
+        if admitted_at_utc:
+            payload["admitted_at_utc"] = admitted_at_utc
         if envelope.get("schema_version"):
             payload["schema_version"] = envelope["schema_version"]
         if envelope.get("producer"):
@@ -523,3 +610,14 @@ def _normalize_eb_ref(eb_ref: dict[str, Any] | None) -> dict[str, Any] | None:
         eb_ref = dict(eb_ref)
         eb_ref["offset"] = str(eb_ref["offset"])
     return eb_ref
+
+
+def _payload_hash(envelope: dict[str, Any]) -> tuple[dict[str, Any], str]:
+    payload = {
+        "event_type": envelope.get("event_type"),
+        "schema_version": envelope.get("schema_version"),
+        "payload": envelope.get("payload"),
+    }
+    canonical = json.dumps(payload, sort_keys=True, ensure_ascii=True, separators=(",", ":"))
+    digest = hashlib.sha256(canonical.encode("utf-8")).hexdigest()
+    return {"algo": "sha256", "hex": digest}, digest

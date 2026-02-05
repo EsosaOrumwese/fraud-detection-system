@@ -28,7 +28,7 @@ def _write_profile(tmp_path: Path) -> Path:
         class_map,
         {
             "version": "0.1.0",
-            "classes": {"traffic": {"required_pins": ["manifest_fingerprint"]}},
+            "classes": {"traffic": {"required_pins": ["platform_run_id", "scenario_run_id", "manifest_fingerprint"]}},
             "event_types": {"test_event": "traffic"},
         },
     )
@@ -107,6 +107,9 @@ def test_service_push_only(tmp_path: Path) -> None:
         "event_type": "test_event",
         "ts_utc": "2026-01-01T00:00:00.000000Z",
         "manifest_fingerprint": "a" * 64,
+        "platform_run_id": "platform_20260101T000000Z",
+        "scenario_run_id": "b" * 32,
+        "run_id": "b" * 32,
         "payload": {"flow_id": "evt-1"},
     }
     push_resp = client.post("/v1/ingest/push", json=envelope)

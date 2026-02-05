@@ -31,7 +31,7 @@ def _base_profile_files(tmp_path: Path) -> dict[str, Path]:
         class_map,
         {
             "version": "0.1.0",
-            "classes": {"traffic": {"required_pins": ["manifest_fingerprint"]}},
+            "classes": {"traffic": {"required_pins": ["platform_run_id", "scenario_run_id", "manifest_fingerprint"]}},
             "event_types": {"test_event": "traffic"},
         },
     )
@@ -112,6 +112,9 @@ def _envelope(event_id: str) -> dict:
         "event_type": "test_event",
         "ts_utc": "2026-01-01T00:00:00.000000Z",
         "manifest_fingerprint": "a" * 64,
+        "platform_run_id": "platform_20260101T000000Z",
+        "scenario_run_id": "b" * 32,
+        "run_id": "b" * 32,
         "payload": {"flow_id": event_id},
     }
 

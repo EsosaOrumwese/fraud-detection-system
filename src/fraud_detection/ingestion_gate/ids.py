@@ -7,8 +7,9 @@ from typing import Any
 
 from .errors import IngestionError
 
-def dedupe_key(event_id: str, event_type: str) -> str:
-    return hashlib.sha256(f"{event_type}:{event_id}".encode("utf-8")).hexdigest()
+
+def dedupe_key(platform_run_id: str, event_class: str, event_id: str) -> str:
+    return hashlib.sha256(f"{platform_run_id}:{event_class}:{event_id}".encode("utf-8")).hexdigest()
 
 
 def derive_engine_event_id(

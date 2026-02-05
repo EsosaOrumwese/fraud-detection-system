@@ -81,7 +81,7 @@ def _build_gate(tmp_path: Path) -> IngestionGate:
         class_map,
         {
             "version": "0.1.0",
-            "classes": {"traffic": {"required_pins": ["manifest_fingerprint"]}},
+            "classes": {"traffic": {"required_pins": ["platform_run_id", "scenario_run_id", "manifest_fingerprint"]}},
             "event_types": {"smoke.event": "traffic"},
         },
     )
@@ -169,6 +169,8 @@ def test_ops_rebuild_smoke_runs(tmp_path: Path, monkeypatch: pytest.MonkeyPatch)
         "event_type": "smoke.event",
         "ts_utc": "2026-01-01T00:00:00.000000Z",
         "manifest_fingerprint": pins.get("manifest_fingerprint", "0" * 64),
+        "platform_run_id": pins.get("platform_run_id"),
+        "scenario_run_id": pins.get("scenario_run_id") or pins.get("run_id"),
         "parameter_hash": pins.get("parameter_hash"),
         "seed": pins.get("seed"),
         "run_id": pins.get("run_id"),

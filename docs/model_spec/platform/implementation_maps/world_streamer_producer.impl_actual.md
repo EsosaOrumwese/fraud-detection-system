@@ -1136,3 +1136,45 @@ Bring WSP behavior in line with Control & Ingress P0 pins: carry both `platform_
 - No EB writes from WSP.
 
 ---
+
+## Entry: 2026-02-05 14:39:18 — WSP Phase 3 implementation (READY validation + retry/backoff + run ids)
+
+### Problem / goal
+Implement the WSP Phase 3 alignment to Control & Ingress pins: validate READY scenario_run_id vs facts_view, emit platform_run_id + scenario_run_id on envelopes, and add bounded retry/backoff on IG pushes (same event_id) with 4xx as terminal.
+
+### Decisions / constraints
+- Use run_config policy defaults: max_attempts=5, base_delay_ms=250, max_delay_ms=5000 (as pinned in WSP impl_actual).
+- Retry only for 429/5xx/timeouts; treat other 4xx as non-retryable and stop the stream.
+- platform_run_id sourced from PLATFORM_RUN_ID (resolve_platform_run_id) and carried in every envelope; scenario_run_id remains the SR run_id.
+- READY validation fails closed if scenario_run_id or platform_run_id mismatch vs run_facts_view.
+
+### Implementation plan
+- Extend WSP wiring config to accept retry knobs (wsp_retry) with defaults if omitted.
+- Update READY consumer to compare READY payload vs run_facts_view for scenario_run_id (+ platform_run_id) and fail with explicit reason.
+- Update stream_view envelope construction to include platform_run_id + scenario_run_id.
+- Implement retry/backoff with jitter in _push_to_ig and surface terminal 4xx reason.
+- Update tests/fixtures to include new fields and validate retry posture.
+
+---
+
+## Entry: 2026-02-05 14:56:14 — WSP Phase 3 implementation complete
+
+### Implemented changes
+- READY consumer now validates `platform_run_id` and `scenario_run_id` against run_facts_view and fails closed on mismatch.
+- WSP envelopes now carry `platform_run_id` + `scenario_run_id` (run_id remains scenario_run_id) for stream_view and legacy stream paths.
+- Added bounded retry/backoff for IG pushes (429/5xx/timeouts) with jitter; non‑retryable 4xx now stop the stream with `IG_PUSH_REJECTED`.
+- Added retry knobs to WSP wiring (`wsp_retry`), defaulting to max_attempts=5, base_delay_ms=250, max_delay_ms=5000.
+
+### Files touched
+- `src/fraud_detection/world_streamer_producer/ready_consumer.py`
+- `src/fraud_detection/world_streamer_producer/runner.py`
+- `src/fraud_detection/world_streamer_producer/config.py`
+- `config/platform/profiles/{local,dev,prod,local_parity}.yaml`
+- `tests/services/world_streamer_producer/test_ready_consumer.py`
+- `tests/services/world_streamer_producer/test_runner.py`
+- `tests/services/world_streamer_producer/test_push_retry.py`
+
+### Validation notes
+- Added unit coverage for retry posture (429 retries, 4xx rejection).
+
+---

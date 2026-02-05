@@ -8,6 +8,7 @@ from datetime import datetime, timezone
 import os
 import json
 import logging
+import random
 import time
 from pathlib import Path
 from typing import Any
@@ -21,7 +22,7 @@ import yaml
 from fraud_detection.ingestion_gate.catalogue import OutputCatalogue
 from fraud_detection.oracle_store.engine_pull import EnginePuller
 from fraud_detection.ingestion_gate.errors import IngestionError
-from fraud_detection.platform_runtime import append_session_event
+from fraud_detection.platform_runtime import append_session_event, resolve_platform_run_id
 from fraud_detection.scenario_runner.schemas import SchemaRegistry
 from fraud_detection.scenario_runner.storage import LocalObjectStore, S3ObjectStore
 
@@ -85,6 +86,9 @@ class WorldStreamProducer:
             {"engine_run_root": resolved_root},
             create_if_missing=False,
         )
+        platform_run_id = resolve_platform_run_id(create_if_missing=True)
+        if not platform_run_id:
+            return StreamResult(resolved_root, "", "FAILED", 0, "PLATFORM_RUN_ID_MISSING")
 
         receipt = self._load_run_receipt(resolved_root)
         if receipt is None:
@@ -155,6 +159,7 @@ class WorldStreamProducer:
                 engine_root=resolved_root,
                 world_key=world_key,
                 run_id=run_id,
+                platform_run_id=platform_run_id,
                 pack_key=pack_key,
                 engine_release=engine_release,
                 producer_id=self._producer_id,
@@ -469,6 +474,11 @@ class WorldStreamProducer:
             ):
                 if cursor and _should_skip(cursor, path, row_index):
                     continue
+                platform_run_id = resolve_platform_run_id(create_if_missing=True)
+                if platform_run_id and not envelope.get("platform_run_id"):
+                    envelope["platform_run_id"] = platform_run_id
+                if envelope.get("run_id") and not envelope.get("scenario_run_id"):
+                    envelope["scenario_run_id"] = envelope.get("run_id")
                 envelope["producer"] = producer_id
                 if pack_key and not envelope.get("trace_id"):
                     envelope["trace_id"] = pack_key
@@ -521,6 +531,7 @@ class WorldStreamProducer:
         engine_root: str,
         world_key: OracleWorldKey,
         run_id: str,
+        platform_run_id: str,
         pack_key: str,
         engine_release: str | None,
         producer_id: str,
@@ -641,6 +652,8 @@ class WorldStreamProducer:
                         "seed": world_key.seed,
                         "scenario_id": world_key.scenario_id,
                         "run_id": run_id,
+                        "platform_run_id": platform_run_id,
+                        "scenario_run_id": run_id,
                         "producer": producer_id,
                         "payload": payload,
                     }
@@ -741,9 +754,43 @@ class WorldStreamProducer:
 
     def _push_to_ig(self, envelope: dict[str, Any]) -> None:
         url = self.profile.wiring.ig_ingest_url.rstrip("/")
-        response = requests.post(f"{url}/v1/ingest/push", json=envelope, timeout=30)
-        if response.status_code >= 400:
-            raise IngestionError("IG_PUSH_FAILED", response.text)
+        max_attempts = max(1, int(self.profile.wiring.ig_retry_max_attempts))
+        base_delay = max(0, int(self.profile.wiring.ig_retry_base_delay_ms)) / 1000.0
+        max_delay = max(base_delay, int(self.profile.wiring.ig_retry_max_delay_ms) / 1000.0)
+        attempt = 0
+        last_error: str | None = None
+        while attempt < max_attempts:
+            attempt += 1
+            try:
+                response = requests.post(f"{url}/v1/ingest/push", json=envelope, timeout=30)
+            except requests.Timeout:
+                last_error = "timeout"
+                retryable = True
+            except requests.RequestException as exc:
+                last_error = str(exc)[:256]
+                retryable = True
+            else:
+                if response.status_code < 400:
+                    return
+                if response.status_code in (408, 429) or response.status_code >= 500:
+                    last_error = f"http_{response.status_code}"
+                    retryable = True
+                else:
+                    detail = response.text[:256] if response.text else f"http_{response.status_code}"
+                    raise IngestionError("IG_PUSH_REJECTED", detail)
+            if attempt >= max_attempts or not retryable:
+                raise IngestionError("IG_PUSH_RETRY_EXHAUSTED", last_error)
+            delay = min(max_delay, base_delay * (2 ** (attempt - 1)))
+            jitter = random.uniform(0.0, delay) if delay > 0 else 0.0
+            logger.warning(
+                "WSP IG push retry attempt=%s/%s delay=%.3fs reason=%s event_id=%s",
+                attempt,
+                max_attempts,
+                delay + jitter,
+                last_error,
+                envelope.get("event_id"),
+            )
+            time.sleep(delay + jitter)
 
     def _ensure_producer_allowed(self) -> str | None:
         if not self._producer_id:

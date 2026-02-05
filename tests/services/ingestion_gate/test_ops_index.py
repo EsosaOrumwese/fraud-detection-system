@@ -26,10 +26,14 @@ def test_ops_index_records_and_looks_up(tmp_path: Path) -> None:
         "receipt_id": "a" * 32,
         "event_id": "evt-1",
         "event_type": "test_event",
+        "event_class": "traffic",
         "dedupe_key": "d" * 64,
         "decision": "ADMIT",
+        "platform_run_id": "platform_20260101T000000Z",
+        "scenario_run_id": "b" * 32,
+        "run_config_digest": "c" * 64,
         "policy_rev": {"policy_id": "ig", "revision": "v1", "content_digest": "c" * 64},
-        "pins": {"manifest_fingerprint": "b" * 64},
+        "pins": {"manifest_fingerprint": "b" * 64, "platform_run_id": "platform_20260101T000000Z"},
         "eb_ref": {"topic": "fp.bus.traffic.v1", "partition": 0, "offset": "1", "offset_kind": "file_line"},
     }
     index.record_receipt(receipt_payload, f"{RUN_PREFIX}/ig/receipts/abcd.json")
@@ -43,7 +47,7 @@ def test_ops_index_records_and_looks_up(tmp_path: Path) -> None:
         "decision": "QUARANTINE",
         "reason_codes": ["SCHEMA_FAIL"],
         "policy_rev": {"policy_id": "ig", "revision": "v1", "content_digest": "c" * 64},
-        "pins": {"manifest_fingerprint": "b" * 64},
+        "pins": {"manifest_fingerprint": "b" * 64, "platform_run_id": "platform_20260101T000000Z"},
     }
     index.record_quarantine(quarantine_payload, f"{RUN_PREFIX}/ig/quarantine/q.json", "evt-2")
     # ensure no exceptions and DB probe works
@@ -56,10 +60,14 @@ def test_ops_index_rebuild_from_store(tmp_path: Path) -> None:
         "receipt_id": "b" * 32,
         "event_id": "evt-9",
         "event_type": "test_event",
+        "event_class": "traffic",
         "dedupe_key": "e" * 64,
         "decision": "ADMIT",
+        "platform_run_id": "platform_20260101T000000Z",
+        "scenario_run_id": "b" * 32,
+        "run_config_digest": "f" * 64,
         "policy_rev": {"policy_id": "ig", "revision": "v2", "content_digest": "f" * 64},
-        "pins": {"manifest_fingerprint": "c" * 64},
+        "pins": {"manifest_fingerprint": "c" * 64, "platform_run_id": "platform_20260101T000000Z"},
         "eb_ref": {"topic": "fp.bus.traffic.v1", "partition": 0, "offset": "2", "offset_kind": "file_line"},
     }
     quarantine_payload = {
@@ -67,7 +75,7 @@ def test_ops_index_rebuild_from_store(tmp_path: Path) -> None:
         "decision": "QUARANTINE",
         "reason_codes": ["SCHEMA_FAIL"],
         "policy_rev": {"policy_id": "ig", "revision": "v2", "content_digest": "f" * 64},
-        "pins": {"manifest_fingerprint": "c" * 64},
+        "pins": {"manifest_fingerprint": "c" * 64, "platform_run_id": "platform_20260101T000000Z"},
     }
     store.write_json(f"{RUN_PREFIX}/ig/receipts/b.json", receipt_payload)
     store.write_json(f"{RUN_PREFIX}/ig/quarantine/q.json", quarantine_payload)

@@ -2,6 +2,8 @@ version: "0.1.0"
 classes:
   traffic:
     required_pins:
+      - platform_run_id
+      - scenario_run_id
       - manifest_fingerprint
       - parameter_hash
       - seed
@@ -9,6 +11,8 @@ classes:
       - run_id
   traffic_baseline:
     required_pins:
+      - platform_run_id
+      - scenario_run_id
       - manifest_fingerprint
       - parameter_hash
       - seed
@@ -16,6 +20,8 @@ classes:
       - run_id
   traffic_fraud:
     required_pins:
+      - platform_run_id
+      - scenario_run_id
       - manifest_fingerprint
       - parameter_hash
       - seed
@@ -23,6 +29,8 @@ classes:
       - run_id
   context_arrival:
     required_pins:
+      - platform_run_id
+      - scenario_run_id
       - manifest_fingerprint
       - parameter_hash
       - seed
@@ -30,6 +38,8 @@ classes:
       - run_id
   context_arrival_entities:
     required_pins:
+      - platform_run_id
+      - scenario_run_id
       - manifest_fingerprint
       - parameter_hash
       - seed
@@ -37,6 +47,8 @@ classes:
       - run_id
   context_flow_baseline:
     required_pins:
+      - platform_run_id
+      - scenario_run_id
       - manifest_fingerprint
       - parameter_hash
       - seed
@@ -44,6 +56,8 @@ classes:
       - run_id
   context_flow_fraud:
     required_pins:
+      - platform_run_id
+      - scenario_run_id
       - manifest_fingerprint
       - parameter_hash
       - seed
@@ -51,10 +65,14 @@ classes:
       - run_id
   control:
     required_pins:
+      - platform_run_id
+      - scenario_run_id
       - manifest_fingerprint
       - run_id
   audit:
     required_pins:
+      - platform_run_id
+      - scenario_run_id
       - manifest_fingerprint
 event_types:
   s2_event_stream_baseline_6B: traffic_baseline

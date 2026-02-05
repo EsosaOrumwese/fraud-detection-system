@@ -98,6 +98,9 @@ def _profile(
         checkpoint_every=1,
         producer_id=producer_id,
         producer_allowlist_ref=str(allowlist_path),
+        ig_retry_max_attempts=5,
+        ig_retry_base_delay_ms=250,
+        ig_retry_max_delay_ms=5000,
     )
     return WspProfile(policy=policy, wiring=wiring)
 

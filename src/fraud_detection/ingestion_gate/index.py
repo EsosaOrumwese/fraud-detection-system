@@ -19,7 +19,14 @@ class AdmissionIndex:
                 """
                 CREATE TABLE IF NOT EXISTS admissions (
                     dedupe_key TEXT PRIMARY KEY,
-                    receipt_ref TEXT NOT NULL,
+                    state TEXT,
+                    platform_run_id TEXT,
+                    event_class TEXT,
+                    event_id TEXT,
+                    payload_hash TEXT,
+                    receipt_ref TEXT,
+                    receipt_write_failed INTEGER,
+                    admitted_at_utc TEXT,
                     eb_topic TEXT,
                     eb_partition INTEGER,
                     eb_offset TEXT,
@@ -32,6 +39,14 @@ class AdmissionIndex:
                 conn,
                 "admissions",
                 {
+                    "state": "TEXT",
+                    "platform_run_id": "TEXT",
+                    "event_class": "TEXT",
+                    "event_id": "TEXT",
+                    "payload_hash": "TEXT",
+                    "receipt_ref": "TEXT",
+                    "receipt_write_failed": "INTEGER",
+                    "admitted_at_utc": "TEXT",
                     "eb_offset": "TEXT",
                     "eb_offset_kind": "TEXT",
                     "eb_published_at_utc": "TEXT",
@@ -42,41 +57,137 @@ class AdmissionIndex:
     def lookup(self, dedupe_key: str) -> dict[str, Any] | None:
         with self._connect() as conn:
             row = conn.execute(
-                "SELECT receipt_ref, eb_topic, eb_partition, eb_offset, eb_offset_kind, eb_published_at_utc FROM admissions WHERE dedupe_key = ?",
+                """
+                SELECT state, payload_hash, receipt_ref, receipt_write_failed, admitted_at_utc,
+                       eb_topic, eb_partition, eb_offset, eb_offset_kind, eb_published_at_utc,
+                       platform_run_id, event_class, event_id
+                FROM admissions WHERE dedupe_key = ?
+                """,
                 (dedupe_key,),
             ).fetchone()
         if not row:
             return None
+        receipt_ref = row[2] or None
         return {
-            "receipt_ref": row[0],
+            "state": row[0],
+            "payload_hash": row[1],
+            "receipt_ref": receipt_ref,
+            "receipt_write_failed": bool(row[3]) if row[3] is not None else None,
+            "admitted_at_utc": row[4],
             "eb_ref": {
-                "topic": row[1],
-                "partition": row[2],
-                "offset": row[3],
-                "offset_kind": row[4],
-                "published_at_utc": row[5],
+                "topic": row[5],
+                "partition": row[6],
+                "offset": row[7],
+                "offset_kind": row[8],
+                "published_at_utc": row[9],
             }
-            if row[1] is not None
+            if row[5] is not None
             else None,
+            "platform_run_id": row[10],
+            "event_class": row[11],
+            "event_id": row[12],
         }
 
-    def record(self, dedupe_key: str, receipt_ref: str, eb_ref: dict[str, Any] | None) -> None:
+    def record_in_flight(
+        self,
+        dedupe_key: str,
+        *,
+        platform_run_id: str,
+        event_class: str,
+        event_id: str,
+        payload_hash: str,
+    ) -> bool:
         with self._connect() as conn:
-            conn.execute(
+            cursor = conn.execute(
                 """
-                INSERT OR REPLACE INTO admissions
-                (dedupe_key, receipt_ref, eb_topic, eb_partition, eb_offset, eb_offset_kind, eb_published_at_utc)
+                INSERT OR IGNORE INTO admissions
+                (dedupe_key, state, platform_run_id, event_class, event_id, payload_hash, receipt_ref)
                 VALUES (?, ?, ?, ?, ?, ?, ?)
                 """,
                 (
                     dedupe_key,
-                    receipt_ref,
-                    eb_ref.get("topic") if eb_ref else None,
-                    eb_ref.get("partition") if eb_ref else None,
-                    eb_ref.get("offset") if eb_ref else None,
-                    eb_ref.get("offset_kind") if eb_ref else None,
-                    eb_ref.get("published_at_utc") if eb_ref else None,
+                    "PUBLISH_IN_FLIGHT",
+                    platform_run_id,
+                    event_class,
+                    event_id,
+                    payload_hash,
+                    "",
                 ),
+            )
+            conn.commit()
+            return cursor.rowcount == 1
+
+    def record_admitted(
+        self,
+        dedupe_key: str,
+        *,
+        eb_ref: dict[str, Any],
+        admitted_at_utc: str,
+        payload_hash: str,
+    ) -> None:
+        with self._connect() as conn:
+            conn.execute(
+                """
+                UPDATE admissions SET
+                    state = ?,
+                    payload_hash = ?,
+                    admitted_at_utc = ?,
+                    eb_topic = ?,
+                    eb_partition = ?,
+                    eb_offset = ?,
+                    eb_offset_kind = ?,
+                    eb_published_at_utc = ?
+                WHERE dedupe_key = ?
+                """,
+                (
+                    "ADMITTED",
+                    payload_hash,
+                    admitted_at_utc,
+                    eb_ref.get("topic"),
+                    eb_ref.get("partition"),
+                    eb_ref.get("offset"),
+                    eb_ref.get("offset_kind"),
+                    eb_ref.get("published_at_utc"),
+                    dedupe_key,
+                ),
+            )
+            conn.commit()
+
+    def record_ambiguous(self, dedupe_key: str, payload_hash: str | None) -> None:
+        with self._connect() as conn:
+            conn.execute(
+                """
+                UPDATE admissions SET
+                    state = ?,
+                    payload_hash = COALESCE(payload_hash, ?)
+                WHERE dedupe_key = ?
+                """,
+                (
+                    "PUBLISH_AMBIGUOUS",
+                    payload_hash,
+                    dedupe_key,
+                ),
+            )
+            conn.commit()
+
+    def record_receipt(self, dedupe_key: str, receipt_ref: str) -> None:
+        with self._connect() as conn:
+            conn.execute(
+                """
+                UPDATE admissions SET
+                    receipt_ref = ?,
+                    receipt_write_failed = 0
+                WHERE dedupe_key = ?
+                """,
+                (receipt_ref, dedupe_key),
+            )
+            conn.commit()
+
+    def mark_receipt_failed(self, dedupe_key: str) -> None:
+        with self._connect() as conn:
+            conn.execute(
+                "UPDATE admissions SET receipt_write_failed = 1 WHERE dedupe_key = ?",
+                (dedupe_key,),
             )
             conn.commit()
 

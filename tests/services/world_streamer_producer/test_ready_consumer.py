@@ -101,6 +101,9 @@ def _profile(store_root: Path, control_root: Path) -> WspProfile:
         checkpoint_every=1,
         producer_id="svc:world_stream_producer",
         producer_allowlist_ref=str(store_root / "allowlist.txt"),
+        ig_retry_max_attempts=5,
+        ig_retry_base_delay_ms=250,
+        ig_retry_max_delay_ms=5000,
     )
     (store_root / "allowlist.txt").write_text("svc:world_stream_producer\n", encoding="utf-8")
     return WspProfile(policy=policy, wiring=wiring)

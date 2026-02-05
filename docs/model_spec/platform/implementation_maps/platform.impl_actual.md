@@ -1764,3 +1764,13 @@ Close the P0 Control & Ingress gaps from `pre-design_decisions/control_and_ingre
 - Parity smoke run reproduces the narrative flow.
 
 ---
+
+## Entry: 2026-02-05 14:56:14 — Canonical envelope pins extended for run ids
+
+### Change
+- Added `platform_run_id` and `scenario_run_id` properties to `docs/model_spec/data-engine/interface_pack/contracts/canonical_event_envelope.schema.yaml` to allow run-id pins at the IG boundary without violating schema.
+
+### Rationale
+Control & Ingress P0 pins require both run ids on cross-component envelopes; schema had `additionalProperties: false`, so the contract needed explicit fields.
+
+---

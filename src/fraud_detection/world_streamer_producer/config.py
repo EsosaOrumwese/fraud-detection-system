@@ -61,6 +61,9 @@ class WiringProfile:
     checkpoint_every: int
     producer_id: str
     producer_allowlist_ref: str | None
+    ig_retry_max_attempts: int
+    ig_retry_base_delay_ms: int
+    ig_retry_max_delay_ms: int
 
 
 @dataclass(frozen=True)
@@ -77,6 +80,7 @@ class WspProfile:
         control_bus = wiring.get("control_bus", {})
         checkpoint = wiring.get("wsp_checkpoint", {})
         producer = wiring.get("wsp_producer", {})
+        retry = wiring.get("wsp_retry", {})
 
         endpoint = _resolve_env(object_store.get("endpoint"))
         region = _resolve_env(object_store.get("region"))
@@ -178,6 +182,9 @@ class WspProfile:
                 checkpoint_every=checkpoint_every,
                 producer_id=producer_id,
                 producer_allowlist_ref=producer_allowlist_ref,
+                ig_retry_max_attempts=int(retry.get("max_attempts", 5)),
+                ig_retry_base_delay_ms=int(retry.get("base_delay_ms", 250)),
+                ig_retry_max_delay_ms=int(retry.get("max_delay_ms", 5000)),
             ),
         )
 

@@ -34,6 +34,10 @@ properties:
     properties:
       manifest_fingerprint:
         $ref: "#/$defs/hex64"
+      platform_run_id:
+        $ref: "#/$defs/platform_run_id"
+      scenario_run_id:
+        $ref: "#/$defs/hex32"
       parameter_hash:
         $ref: "#/$defs/hex64"
       seed:
@@ -84,6 +88,9 @@ $defs:
   hex64:
     type: string
     pattern: "^[0-9a-f]{64}$"
+  platform_run_id:
+    type: string
+    pattern: "^platform_[0-9]{8}T[0-9]{6}Z$"
   uint64:
     type: integer
     minimum: 0

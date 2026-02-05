@@ -123,6 +123,52 @@ class ReadyConsumerRunner:
             self._append_ready_record(message.message_id, result)
             return result
 
+        facts_pins = run_facts.get("pins") or {}
+        ready_platform_run_id = message.payload.get("platform_run_id")
+        ready_scenario_run_id = message.payload.get("scenario_run_id") or message.payload.get("run_id")
+        facts_platform_run_id = run_facts.get("platform_run_id") or facts_pins.get("platform_run_id")
+        facts_scenario_run_id = (
+            run_facts.get("scenario_run_id")
+            or facts_pins.get("scenario_run_id")
+            or run_facts.get("run_id")
+        )
+        if not ready_platform_run_id or not facts_platform_run_id:
+            result = ReadyConsumeResult(
+                message_id=message.message_id,
+                run_id=message.run_id,
+                status="FAILED",
+                reason="PLATFORM_RUN_ID_MISSING",
+            )
+            self._append_ready_record(message.message_id, result)
+            return result
+        if ready_platform_run_id != facts_platform_run_id:
+            result = ReadyConsumeResult(
+                message_id=message.message_id,
+                run_id=message.run_id,
+                status="FAILED",
+                reason="PLATFORM_RUN_ID_MISMATCH",
+            )
+            self._append_ready_record(message.message_id, result)
+            return result
+        if not ready_scenario_run_id or not facts_scenario_run_id:
+            result = ReadyConsumeResult(
+                message_id=message.message_id,
+                run_id=message.run_id,
+                status="FAILED",
+                reason="SCENARIO_RUN_ID_MISSING",
+            )
+            self._append_ready_record(message.message_id, result)
+            return result
+        if ready_scenario_run_id != facts_scenario_run_id:
+            result = ReadyConsumeResult(
+                message_id=message.message_id,
+                run_id=message.run_id,
+                status="FAILED",
+                reason="SCENARIO_RUN_ID_MISMATCH",
+            )
+            self._append_ready_record(message.message_id, result)
+            return result
+
         scenario_id = (run_facts.get("pins") or {}).get("scenario_id")
         oracle_pack_ref = message.payload.get("oracle_pack_ref") or run_facts.get("oracle_pack_ref") or {}
         engine_run_root = oracle_pack_ref.get("engine_run_root") or self.profile.wiring.oracle_engine_run_root

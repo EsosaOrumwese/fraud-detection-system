@@ -2321,3 +2321,46 @@ Close Control & Ingress P0 gaps by updating IG dedupe semantics, adding payload_
 - Ambiguous publish never re-publishes without reconciliation.
 
 ---
+
+## Entry: 2026-02-05 14:39:18 — IG Phase 3 implementation (dedupe tuple + payload_hash + state machine)
+
+### Problem / goal
+Implement Control & Ingress P0 admission semantics: dedupe on (platform_run_id, event_class, event_id), payload_hash anomaly detection, and admission state machine (PUBLISH_IN_FLIGHT → ADMITTED; timeout/unknown → PUBLISH_AMBIGUOUS). Update receipts to include required pins/fields.
+
+### Decisions / constraints
+- payload_hash = sha256(canonical JSON of {event_type, schema_version, payload}), hex64; stored in admission index and receipts as digest.
+- Admission state machine is authoritative: do not republish events in IN_FLIGHT/AMBIGUOUS; return QUARANTINE with explicit reason.
+- On publish success, write admission row before receipt; if receipt write fails, mark receipt_write_failed but keep eb_ref + payload_hash.
+- Receipts include event_class, platform_run_id, scenario_run_id, run_config_digest, payload_hash, admitted_at_utc.
+
+### Implementation plan
+- Update canonical envelope schema to allow platform_run_id + scenario_run_id.
+- Update class_map_v0 required pins to include platform_run_id + scenario_run_id for run-scoped classes.
+- Expand admission index schema (sqlite + postgres) with state, payload_hash, run ids/class, admitted_at_utc, receipt_write_failed.
+- Adjust admission flow to record PUBLISH_IN_FLIGHT, transition to ADMITTED or PUBLISH_AMBIGUOUS, and enforce payload_hash mismatch quarantine.
+- Update receipt/quarantine payloads + metrics pins.
+- Update tests to cover dedupe tuple, payload_hash mismatch, and ambiguous publish handling.
+
+---
+
+## Entry: 2026-02-05 14:56:14 — IG Phase 3 implementation complete
+
+### Implemented changes
+- Canonical dedupe now uses `(platform_run_id, event_class, event_id)` via new `dedupe_key` definition.
+- Added payload_hash computation (canonical JSON of {event_type, schema_version, payload}) and stored in admission index + receipts.
+- Implemented admission state machine in sqlite/postgres indices: `PUBLISH_IN_FLIGHT` → `ADMITTED`; exceptions after in‑flight mark `PUBLISH_AMBIGUOUS` with no auto‑republish.
+- Receipt payloads now include `event_class`, `platform_run_id`, `scenario_run_id`, `run_config_digest`, `payload_hash`, and `admitted_at_utc`.
+- Admission index now preserves `eb_ref + payload_hash` even if receipt write fails (marks `receipt_write_failed` for backfill).
+- Class map pin requirements updated to include `platform_run_id` + `scenario_run_id`; canonical envelope schema allows these pins.
+
+### Files touched
+- `src/fraud_detection/ingestion_gate/admission.py`
+- `src/fraud_detection/ingestion_gate/index.py`
+- `src/fraud_detection/ingestion_gate/pg_index.py`
+- `src/fraud_detection/ingestion_gate/ids.py`
+- `docs/model_spec/data-engine/interface_pack/contracts/canonical_event_envelope.schema.yaml`
+- `docs/model_spec/platform/contracts/ingestion_gate/quarantine_record.schema.yaml`
+- `config/platform/ig/class_map_v0.yaml`
+- Tests under `tests/services/ingestion_gate/`
+
+---
