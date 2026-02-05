@@ -371,3 +371,37 @@ Gini coefficients:
 2. **Edges (virtual)** = **0.605**
 
 Explanation: Physical traffic shows moderate inequality across sites, while virtual traffic is substantially more concentrated. Here “Gini” is a 0–1 concentration measure (higher means more unequal/clustered). The values indicate that online edges are dominated by a smaller set of large platforms, whereas physical sites are more evenly spread. The difference is strong but plausible.
+
+---
+
+## 11) Realism Grade (5B)
+
+**Grade: B+**
+
+### Why this grade (strengths)
+1. **Internal statistical coherence is excellent.**  
+   Counts conserve exactly into arrivals once keys are aggregated, and intensity → counts → arrivals stay aligned. That is the core realism requirement and it passes cleanly.
+2. **Dispersion is realistically bursty.**  
+   NB2 behavior shows variance > mean without artificial zero‑inflation. This is a realistic statistical posture for heterogeneous commerce data.
+3. **Latent field behavior is plausible.**  
+   It adds variability without clipping, is smooth over time (high lag‑1), and does not distort totals. That gives realism without chaos.
+4. **Routing realism is strong.**  
+   Physical vs virtual traffic differs in time‑of‑day and weekend share, and concentration patterns are plausible (moderate for sites, stronger for edges).
+5. **Macro distributions are plausible.**  
+   Heavy‑tail behavior mirrors the intensity surface almost perfectly, which means routing and timing are not creating artificial skew.
+
+### Why not an A (gaps)
+1. **DST handling is a real realism defect.**  
+   ~2.6% of arrivals have systematic 1‑hour local‑time errors clustered in DST windows, which directly affects hour‑level features and explainability.
+2. **Geographic skew is very strong.**  
+   Top‑10 timezones carry ~81% of volume, implying a Europe‑heavy world. This can be fine if intentional but limits “global realism.”
+3. **Virtual share is small.**  
+   2.25% is plausible but may under‑represent online activity if the intended world should include richer virtual behavior.
+
+### What would move this to A‑ / A
+1. **Fix DST alignment** in local timestamps (this is the main blocker).
+   This would remove the systematic 1‑hour offsets in DST windows and eliminate the only clear realism defect in C/D. It would also reduce feature bias for hour‑of‑day and “night vs day” analyses during DST periods.
+2. **Broaden geographic distribution** or explicitly justify the Europe‑heavy skew in policy.
+   Right now, the top‑10 TZs hold ~81% of volume. If we want global realism, we should either rebalance the world allocation (e.g., more non‑EU sites or merchants) or explicitly document that the synthetic world is intentionally Europe‑centric so the skew becomes a stated design choice rather than a perceived weakness.
+3. **Increase virtual share modestly** if the policy intent is to model more online behavior.
+   Virtual traffic is only ~2.25%. If downstream fraud modeling expects meaningful online patterns (CNP‑like rhythms, weekend‑heavy behavior, late‑hour concentration), a slightly higher virtual share would make those signals more robust and reduce over‑reliance on the physical distribution.
