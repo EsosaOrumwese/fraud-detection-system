@@ -840,3 +840,283 @@ Totals are shown for non‑trivial TZIDs and for primary+secondary zones.
 | 21 | 360,682 | 356,452 |
 | 22 | 282,264 | 279,425 |
 | 23 | 211,273 | 209,160 |
+
+---
+
+## 13) G/H — Micro‑Level Heterogeneity + Scenario Coverage
+
+### 13.1 G — Micro‑level heterogeneity & distribution realism
+**G1. Merchant‑level heavy‑tail (weekly totals)**  
+Finding (886 merchants, nonzero): mean **10,820**, p50 **4,509**, p90 **16,619**,
+p95 **29,458**, p99 **111,961**, max **1,285,624**.  
+Top‑1% merchants account for **29.8%** of total volume; top‑5% account for
+**49.5%**.
+
+Explanation: The distribution is strongly heavy‑tailed. A small head captures
+roughly half of total volume, which is a realistic macro pattern for merchant
+activity in synthetic worlds.
+
+**G1b. Scale‑factor distribution (zone‑level, nonzero)**  
+Finding (2,158 nonzero zones): mean **1.259**, p50 **0.898**, p90 **1.988**,
+p99 **6.344**, min **0.486**, max **26.27**.
+
+Explanation: Scale factors are right‑skewed, with a long upper tail. This is
+consistent with a few zones getting unusually strong scaling (e.g., dense
+merchant activity) without overwhelming the bulk.
+
+**G2. Variability vs flags (CV across 168 buckets)**  
+Finding:  
+- `high_variability_flag = True` (n=43): mean CV **1.284**, p50 **1.315**,
+  p90 **1.398**.  
+- `high_variability_flag = False` (n=2,115): mean CV **0.908**, p50 **0.898**,
+  p90 **1.137**.  
+Low‑volume flags are exclusive to zero‑volume zones (14,370 rows), never on
+nonzero zones.
+
+Explanation: The variability flag behaves as intended: flagged zones are
+statistically more volatile. The low‑volume flag is a strict marker for
+zero‑volume tail zones.
+
+**G3. Primary vs secondary vs tail zones**  
+Finding:  
+- `tail_zone`: 14,635 rows; **98.2%** zero; p99 **227**; max **9,779**  
+- `primary_zone`: 1,527 rows; **0%** zero; p50 **2,087**; p99 **48,704**; max **1,285,624**  
+- `secondary_zone`: 366 rows; **0%** zero; p50 **942**; p99 **21,484**; max **75,188**
+
+Explanation: The subclass hierarchy is strong and coherent: tail zones are
+mostly dormant, while primary/secondary zones carry realistic, heavy‑tailed
+activity.
+
+**G4. Intra‑week persistence (lag‑24 autocorr)**  
+Finding (2,158 nonzero zones): mean **0.986**, p50 **0.996**, p10 **0.965**,
+p90 **0.9996**.
+
+Explanation: The day‑to‑day persistence is extremely high, which matches a
+stable weekly cycle. This is plausible for merchant demand with strong weekly
+regularity.
+
+### 13.2 H — Scenario coverage, edge‑cases, policy alignment
+**H1. Overlay concentration per merchant‑zone**  
+Finding: mean fraction of affected buckets **0.1005**, p50 **0.1208**, p90
+**0.1218**, p99 **0.2319**. Mean overlay factor **1.0051**. Total lambda
+affected **10.94%**.
+
+Explanation: Overlays are sparse but meaningful. Most merchant‑zones are
+affected in ~10–12% of buckets, consistent with a calendar‑driven overlay
+posture rather than pervasive shock.
+
+**H2. Affected volume distribution (country + class)**  
+Finding: Affected volume concentrates in the top countries by base activity:
+DE **17.6%**, GB **14.8%**, FR **14.5%**, NO **6.1%**, CH **5.9%**, DK **5.1%**.
+Each of these countries has ~**9–12%** of its own volume affected.  
+By class: `consumer_daytime` **67.6%** of affected volume (share‑of‑class
+affected **11.96%**), `online_24h` **17.3%** (share‑of‑class **12.5%**),
+`online_bursty` **5.8%** but with a high share‑of‑class **28.3%**.
+
+Explanation: Affected volume follows base volume. The only strong outlier is
+`online_bursty`, which is intentionally more event‑sensitive.
+
+**H3. Outage rarity and locality**  
+Finding: **54** OUTAGE events, all **tzid‑scoped** (no country/class/merchant).
+Rows with `overlay_factor_total ≤ 0.2` are **0.039%** of rows and **0.0027%**
+of total lambda.
+
+Explanation: Outages are rare and very localized, which supports realism and
+avoids unrealistic systemic suppressions.
+
+**H4. Ramp lengths and amplitudes**  
+Finding: PAYDAY ramps in **6h** and out **24h** with amplitudes **1.00–1.60**
+and durations **24–48h**. HOLIDAY is constant for **24h** with amplitudes
+**0.65–1.03**. OUTAGE is constant for **2–8h** with amplitude **0.05**.
+CAMPAIGN ramps in/out **24h** over **168h** with amplitude **1.35**.
+
+Explanation: Transitions are smooth and bounded, avoiding abrupt cliffs while
+still producing material effects.
+
+**H5. Guardrail hits (clipping / clamps)**  
+Finding: `baseline_clip_applied = 0` across all baseline rows. Overlay factors
+remain within clamp bounds (min **0.0325**, max **1.5975**); zero instances at
+hard clamps. Only **13,944** rows fall below the warning threshold (<0.2).
+
+Explanation: Guardrails are not binding. The overlay system operates well
+within expected policy limits.
+
+---
+
+## 14) I–L — “Why” Diagnostics (Deeper Drivers)
+
+### 14.1 I — Where the heavy tail lives
+**I1. High‑volume merchants by class and country**  
+Finding: The top‑1% of merchants (weekly total ≥ **111,961**) are dominated by
+`consumer_daytime` (**76.7%** of top‑1% volume), with `evening_weekend`
+(**14.9%**) and `fuel_convenience` (**8.4%**) as the only other contributors.
+The top‑5% add `online_24h` (**11.3%**) and a small `online_bursty` tail.
+
+By home country (inferred from primary zones), the top‑1% volume is heavily
+concentrated in **GB (45.1%)** and **AT (22.5%)**, then **DK (14.9%)** and
+**NO (7.2%)**. The top‑5% show a similar pattern (AT **27.4%**, GB **27.1%**,
+DK **9.0%**, NO **7.2%**). Some merchants lack a primary‑zone country (shown
+as `None`), which explains the small “None” share.
+
+Explanation: The heavy tail is not only a global effect; it is concentrated
+in specific classes and a small set of home countries. This makes the tail
+both interpretable and policy‑sensitive.
+
+**I2. Scale‑factor outliers by subclass and country**  
+Finding: `scale_factor` outliers (p99 **6.34**) occur mainly in
+`primary_zone` (15/22 of top‑1%), with smaller counts in `secondary_zone` and
+rarely in `tail_zone`. Top‑1% scale outliers are concentrated in a handful of
+countries (FR, DE, AU, ES, US).
+
+Explanation: Extreme scaling is mostly a primary‑zone phenomenon and is
+country‑skewed rather than uniformly distributed. This suggests scale tails
+are driven by country‑level density or allocation decisions.
+
+**I3. Tail‑zone contribution to total volume**  
+Finding: Total volume share by subclass: `primary_zone` **90.36%**,
+`secondary_zone` **8.16%**, `tail_zone` **1.48%**.
+
+Explanation: Tail‑zones are structurally important for realism (presence),
+but contribute very little mass. This is why many tz‑level aggregates look
+empty unless filtered.
+
+### 14.2 J — Merchant‑level temporal dominance
+**J1. Day vs evening vs night dominance**  
+Finding (merchant‑level medians by class):
+- `consumer_daytime`: day_share **0.759**, evening_share **0.166**, night_share **0.033**  
+- `online_24h`: day_share **0.198**, evening_share **0.365**, night_share **0.362**  
+- `evening_weekend`: day_share **0.061**, evening_share **0.815**, night_share **0.097**  
+- `office_hours`: day_share **0.810**, evening_share **0.034**, night_share **0.033**
+
+Overall median shares: day **0.733**, evening **0.190**, night **0.035**.
+
+Explanation: Dominance aligns with class archetypes. Evening‑heavy merchants
+appear only in `evening_weekend`, while `online_24h` splits evening and night.
+
+**J2. Weekend dominance signals**  
+Finding: Weekend‑share medians by class are low for office‑like classes
+(office_hours **0.096**) and high for `evening_weekend` (**0.456**) and
+`online_bursty` (**0.430**). A large fraction of `evening_weekend` and
+`online_bursty` merchants exceed 0.40 weekend share, while virtually none of
+the office/consumer classes do.
+
+Explanation: Weekend dominance is class‑specific and behaves as expected.
+
+**J3. Weekend anomalies in office_hours**  
+Finding: Office‑hours weekend shares are tightly bounded (p50 **0.098**,
+p99 **0.117**). No weekend spikes were observed.
+
+Explanation: The office_hours class remains cleanly weekday‑centric, which
+supports realism.
+
+### 14.3 K — Overlay sensitivity and distribution
+**K1. PAYDAY vs HOLIDAY elasticity by class (UTC‑aligned, integer‑offset TZs)**  
+Finding: Using 256 integer‑offset tzids (out of 268), the mean overlay factor
+by class shows PAYDAY uplifts and HOLIDAY suppressions in expected directions.
+Examples:
+- `consumer_daytime`: PAYDAY **1.152** (ratio **1.149**), HOLIDAY **0.930** (ratio **0.928**)  
+- `online_24h`: PAYDAY **1.184** (ratio **1.167**), HOLIDAY **1.032** (ratio **1.017**)  
+- `fuel_convenience`: PAYDAY **1.205** (ratio **1.198**)  
+- `travel_hospitality`: PAYDAY **1.294** (ratio **1.282**)  
+Some classes have no HOLIDAY rows (no calendar events for that class).
+
+Explanation: PAYDAY acts as a broad uplift; HOLIDAY is typically suppressive
+for consumer‑centric classes but slightly positive for online. This matches
+design intent. The UTC alignment uses fixed offsets (DST not modeled here).
+
+**K2. Are small merchants over‑affected?**  
+Finding: Spearman correlation between merchant volume and fraction of affected
+rows is effectively **0** (ρ **0.0049**, p **0.88**). Volume vs mean overlay
+factor is weakly positive (ρ **0.138**, p **3.6e‑05**). Decile medians of
+`frac_affected` are stable (~0.11–0.12) across volume deciles.
+
+Explanation: Overlays are not disproportionately impacting small merchants.
+Larger merchants see slightly higher mean overlay factors, but the effect is
+small.
+
+**K3. Country‑level coverage uniformity**  
+Finding: The share of a country’s volume affected has p10 **0.080**, p50
+**0.112**, p90 **0.135**. Some countries have **0%** affected volume (no
+calendar events), while a few reach **0.28**.
+
+Explanation: Overlay coverage is mostly uniform but not universal. A handful
+of countries have zero event coverage, which is a deliberate calendar design
+choice rather than a modeling error.
+
+### 14.4 L — Alignment checks across signals
+**L1. High‑variability flag vs night/weekend mass**  
+Finding: `high_variability_flag=True` zones have higher weekend and night
+shares (mean weekend **0.424** vs **0.256**; mean night **0.129** vs **0.085**).
+
+Explanation: The variability flag is not only about CV; it aligns with more
+weekend/night activity, which is a plausible driver of volatility.
+
+**L2. Online classes maintain high night mass across countries**  
+Finding: Country‑level night‑share distributions show:
+- `online_24h`: p10 **0.337**, p50 **0.360**, p90 **0.372**  
+- `online_bursty`: p10 **0.123**, p50 **0.128**, p90 **0.133**  
+- Most other classes cluster around **0.03–0.06**.
+
+Explanation: Online classes are consistently night‑heavy across countries,
+which is a strong realism signal and matches template intent.
+
+**L3. Shape coherence**  
+Finding: Normalized baseline shapes still match class_zone_shape exactly
+(no observed mismatches).
+
+Explanation: The temporal shapes are applied deterministically with no
+unexpected distortions.
+
+---
+
+## 15) Additional “Why” Checks (Zone Breadth, Coupling, Stacking)
+
+### 15.1 Zone breadth vs merchant volume
+Finding: The number of **active zones** per merchant is low but increases
+with volume (median **2**, mean **2.44**, max **18**). Total zones per merchant
+are higher (mean **18.65**), but the correlation with volume is weaker.
+Spearman correlations:
+- volume vs **active_zones**: ρ **0.416** (p ~**1.7e‑38**)  
+- volume vs **total_zones**: ρ **0.191** (p ~**1.0e‑08**)
+
+Decile medians show growth: active‑zone p50 rises from **1** (lowest deciles)
+to **3** (top decile), and p90 rises from **2** to **10**.
+
+Explanation: Larger merchants are active in more zones, which partly explains
+the heavy tail. The total number of zones (including dormant tail zones)
+matters less than the count of **active** zones.
+
+### 15.2 Country‑class coupling (top‑volume countries)
+Finding: Class mix differs substantially by country:
+- **DE**: consumer_daytime **0.521**, online_24h **0.250**, fuel_convenience **0.139**  
+- **AT**: consumer_daytime **0.713**, fuel_convenience **0.156**, online_24h **0.085**  
+- **GB**: consumer_daytime **0.993**, all other classes collectively < **1%**
+
+Explanation: Country‑level class composition is a significant driver of
+aggregate temporal patterns. GB’s volume is almost entirely consumer_daytime,
+while DE is more diversified.
+
+### 15.3 Event stacking intensity
+Finding: The most “stacked” days (event overlaps) have **134–176** active
+events. Top 10 days by overlap count:  
+Day **29** (176), **89** (174), **43** (169), **44** (167), **30** (164),
+**55** (153), **15** (145), **14** (145), **56** (144), **72** (134).
+
+Explanation: Event stacking is concentrated in a limited set of days, which
+is consistent with clustered PAYDAY/HOLIDAY windows rather than uniform
+overlap.
+
+### 15.4 Online_bursty volatility: shape vs overlay
+Finding: For `online_bursty` zones, mean CV in baseline is **1.284** vs
+scenario **1.306** (Δ ≈ **+0.022**).
+
+Explanation: Overlays add **only a small increment** to volatility; the
+baseline shape (high‑variance template) is the dominant driver.
+
+### 15.5 Tail‑zone trimming impact on macro shape
+Finding: Removing tail zones reduces hour‑of‑day totals by only **1–2%**
+uniformly. The trim ratio ranges **0.981–0.990** across hours.
+
+Explanation: Tail zones contribute little mass and do not materially change
+the macro temporal pattern. Their main role is presence/coverage rather than
+shape.

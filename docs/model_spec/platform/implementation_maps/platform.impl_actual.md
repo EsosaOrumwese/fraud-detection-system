@@ -1849,3 +1849,78 @@ WSP READY consumer passes SR `scenario_run_id` into stream runner; stream‑view
 
 ### Validation
 - `python -m pytest tests/services/world_streamer_producer/test_runner.py -q` (4 passed)
+
+---
+
+## Entry: 2026-02-05 16:56:40 — Parity re-run validated SR scenario_run_id propagation
+
+### Validation
+Re-ran parity Control & Ingress flow with 200 events/output after WSP fix.
+- `platform_run_id`: `platform_20260205T164840Z`
+- Receipts count: **800**
+- Sample receipt `scenario_run_id` matches SR `run_facts_view` (`4df8e90c...`)
+
+### Conclusion
+SR `scenario_run_id` now propagates end‑to‑end into IG receipts as pinned.
+
+---
+
+## Control & Ingress Parity Validation Report (Local‑Parity v0)
+Date: 2026-02-05  
+Scope: Control & Ingress plane (SR → WSP → IG → EB) in local‑parity environment.  
+Objective: Validate Control & Ingress flow narrative and v0 environment/resource tooling alignment.
+
+### Run identifiers
+- Platform run: `platform_20260205T164840Z`
+- SR scenario run: `4df8e90cb798686a65f7be99208a1f69`
+- Engine run root: `s3://oracle-store/local_full_run-5/c25a2675fbfbacd952b13bb594880e92`
+
+### Evidence paths (S3 / MinIO)
+- SR run facts view:
+  - `s3://fraud-platform/platform_20260205T164840Z/sr/run_facts_view/4df8e90cb798686a65f7be99208a1f69.json`
+- IG receipts (800 objects):
+  - `s3://fraud-platform/platform_20260205T164840Z/ig/receipts/`
+  - Sample receipt: `s3://fraud-platform/platform_20260205T164840Z/ig/receipts/005a1f8bc238e7bc7935e55908b4358d.json`
+
+### Event Bus (Kinesis) spot‑check
+Streams sampled (TRIM_HORIZON, first record):
+- `fp.bus.traffic.fraud.v1`
+- `fp.bus.context.arrival_events.v1`
+- `fp.bus.context.arrival_entities.v1`
+- `fp.bus.context.flow_anchor.fraud.v1`
+
+Observed on each record:
+- `platform_run_id = platform_20260205T164840Z`
+- `scenario_run_id = 4df8e90cb798686a65f7be99208a1f69`
+
+### Run parameters (WSP)
+- `WSP_MAX_EVENTS_PER_OUTPUT=200`
+- `WSP_OUTPUT_CONCURRENCY=4`
+- `WSP_READY_MAX_MESSAGES=1`
+- Speedup: 600x (per profile)
+
+### Flow narrative alignment (Control & Ingress)
+- SR published READY with platform/scenario run ids; run_facts_view anchored and validated.
+- WSP READY consumer validated `platform_run_id` + `scenario_run_id` against run_facts_view.
+- WSP emitted canonical envelopes for traffic + context outputs, carrying platform/scenario run ids.
+- IG admitted events, emitted receipts with `event_class`, `payload_hash`, `admitted_at_utc`, run ids.
+- EB received canonical envelopes with correct run pins.
+
+### v0 Environment & Resource Tooling (Local‑Parity)
+- Control Bus + Event Bus: LocalStack Kinesis (`PARITY_CONTROL_BUS_*`).
+- Oracle Store + Platform Store: MinIO S3 (`PARITY_OBJECT_STORE_*`).
+- IG admission + checkpoints: Postgres (`PARITY_IG_ADMISSION_DSN`, `PARITY_WSP_CHECKPOINT_DSN`).
+- Configuration anchored via `.env.platform.local` and parity profiles.
+
+### Tests relevant to Control & Ingress pins
+- `python -m pytest tests/services/scenario_runner/test_reemit.py`
+- `python -m pytest tests/services/world_streamer_producer/test_runner.py`
+- `python -m pytest tests/services/world_streamer_producer/test_push_retry.py`
+- `python -m pytest tests/services/ingestion_gate/test_admission.py`
+- `python -m pytest tests/services/ingestion_gate/test_phase5_retries.py`
+
+### Residual checks (non‑blocking)
+- IG health reports `BUS_HEALTH_UNKNOWN` before traffic (expected in parity; can be re‑checked if bus probes are enabled).
+
+### Conclusion
+Control & Ingress for local‑parity is **green** and aligned to the flow narrative and v0 environment/resource tooling for this plane.
