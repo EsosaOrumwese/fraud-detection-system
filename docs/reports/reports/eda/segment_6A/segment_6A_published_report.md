@@ -369,3 +369,111 @@ IPs:
 1. **Strength:** segmentation is consistent and logically clean (no cross‑type leakage).  
 2. **Posture:** the world is strongly retail‑heavy, top‑heavy by country, and geographically uniform in segment mix.  
 3. **Realism impact:** this is *statistically coherent* but **policy‑driven**, not emergent geography. If stronger geo‑specific realism is desired, priors need country‑level modulation.
+
+---
+
+## B) Accounts & holdings realism (S2)
+
+### B1. Account coverage is broad, with a small “no‑account” tail
+1. Parties with accounts: **3,258,009** out of **3,281,174** → **99.29%** coverage.  
+2. Parties without accounts: **23,165** → **0.71%**.  
+   This is a small but non‑zero tail, which is realistic for dormant/placeholder parties. If you intended a fully banked world, this tail should be zero; otherwise it looks plausible.
+
+### B2. Holdings table reconciles exactly with the account base
+1. Accounts per party from `s2_account_base_6A`:  
+   mean **2.678**, p50 **2**, p90 **5**, p99 **8**, max **136**.  
+2. The same distribution reconstructed from `s2_party_product_holdings_6A` matches exactly.  
+   This shows the holdings table is a faithful summary rather than a lossy or diverging view.
+
+### B3. Accounts‑per‑party distribution has a heavy tail but a stable core
+1. Most parties sit in a tight band: p50 **2**, p90 **5**, p99 **8**.  
+2. The extreme tail is long: max **136** accounts for a single party.  
+   That single‑party extreme is the main realism question here. If the priors allow “stacked” accounts for special entities, it is explainable; if not, it is a tail artifact.
+
+### B4. Retail vs business posture is strongly retail‑skewed
+1. Account share by party type:  
+   `RETAIL` **97.61%**, `BUSINESS` **2.14%**, `OTHER` **0.25%**.  
+2. This is even more retail‑heavy than the party mix (business parties are 2.75%), which implies **business parties hold fewer accounts on average** than retail parties.
+
+### B5. Accounts per party by party type show unexpected ordering
+1. Mean accounts per party:  
+   `RETAIL` **2.70**, `BUSINESS` **2.13**, `OTHER` **1.43**.  
+2. In most real systems, business entities tend to hold **more** accounts than retail on average.  
+   Here, business holds **fewer**. That may be by design, but it is a realism flag if you want SMEs to carry more banking surface than individuals.
+
+### B6. Account type mix is cleanly partitioned by party type
+1. There is **no leakage** of retail account types into business and vice versa.  
+   That is good structural realism: retail parties only hold retail products, business parties only hold business products, etc.
+2. The top retail product mix is dominated by:  
+   `RETAIL_CURRENT_BASIC`, `RETAIL_CREDIT_CARD_STANDARD`, `RETAIL_SAVINGS_INSTANT`.  
+   This looks reasonable for a retail‑heavy synthetic bank.
+
+### B7. Account‑type diversity per party is moderate
+1. Distinct account types per party:  
+   mean **2.23**, p50 **2**, p90 **4**, p99 **5**, max **7**.  
+2. This suggests most parties hold **2 types** (e.g., current + savings or current + card), with a long but not extreme tail.  
+   That is a plausible profile for synthetic realism.
+
+### B8. Segment‑level product mix is highly uniform
+1. In the top retail segments, the **account type ordering and mix are almost identical**.  
+   `RETAIL_EARLY_CAREER`, `RETAIL_FAMILY`, `RETAIL_MATURE`, `RETAIL_RETIRED`, `RETAIL_STUDENT` all show the same ranking of account types with similar proportions.
+2. This indicates the **product mix is not strongly segment‑specific**.  
+   If you expected different segment preferences (students less fixed savings, retirees more fixed savings, etc.), the current mix is too uniform.
+
+### B9. Interpretation for realism
+1. **Strength:** account surfaces are structurally consistent and cleanly partitioned.  
+2. **Posture:** retail dominance is reinforced at the account level and segment‑specific product variation is weak.  
+3. **Realism impact:** the dataset is coherent but policy‑driven; realism would improve if business accounts and segment‑specific preferences were strengthened.
+
+---
+
+## C) Instruments realism (S3)
+
+### C1. Coverage and linkage are structurally sound
+1. Accounts with instruments: **6,176,060** out of **8,725,420** → **70.78%**.  
+   About 29% of accounts are un‑instrumented. That is plausible if savings/loan accounts do not carry cards or tokens, but it is a posture decision.
+2. Instruments linked to accounts: **100%** (no unlinked instruments).  
+3. Orphan links to missing accounts: **0**.  
+   Structural integrity is clean and safe for downstream use.
+
+### C2. Instruments per account and per party
+1. Instruments per account: mean **1.733**, p50 **1**, p90 **3**, p99 **5**, max **13**.  
+2. Instruments per party: mean **3.465**, p50 **3**, p90 **6**, p99 **11**, max **189**.  
+   The median shows most accounts are single‑instrument, but the party‑level tail is heavy. If high‑surface entities are intended (e.g., aggregators), the tail is explainable; otherwise it is a realism risk.
+
+### C3. Instrument type mix is plausible but policy‑driven
+Top instrument types by count:
+1. `RETAIL_DEBIT_CARD_PHYSICAL`: **3,572,255**
+2. `PARTY_BANK_ACCOUNT_DOMESTIC`: **2,567,677**
+3. `RETAIL_CREDIT_CARD_PHYSICAL`: **1,843,492**
+4. `RETAIL_DEBIT_CARD_VIRTUAL`: **1,327,292**
+5. `WALLET_DEVICE_TOKEN`: **594,286**
+6. `RETAIL_CREDIT_CARD_VIRTUAL`: **577,921**
+
+This mix reflects a large physical card footprint plus a meaningful tokenized/virtual layer.
+
+### C4. Virtual vs physical ratio
+1. `PHYSICAL`: **5,544,115**
+2. `VIRTUAL`: **1,905,213**
+3. `OTHER` (bank accounts, non‑card handles): **3,252,526**
+
+Virtual instruments are ~**17.8%** of total. That is moderate and may be low if the target world is very digital‑heavy.
+
+### C5. Instrument–account alignment is coherent
+1. `RETAIL_CURRENT_*` accounts map to **debit instruments**.  
+2. `RETAIL_CREDIT_CARD_*` accounts map to **credit instruments**.  
+3. Savings/loan accounts map to **bank account handles**.  
+4. Business accounts follow the same logic with business‑branded instruments.  
+
+This is a strong realism signal: instruments are attached in a way that matches product semantics, not randomly.
+
+### C6. Instruments per account type show intended layering
+1. Current and credit accounts carry **~1.8–2.1 instruments on average** (physical + virtual + tokens).  
+2. Savings and loan accounts are **exactly 1 instrument** (bank account handle).  
+
+This is a clear policy posture and is consistent with realistic product behavior.
+
+### C7. Interpretation for realism
+1. **Strength:** linkage is clean and instrument–product semantics are correct.  
+2. **Posture:** instrument coverage is partial and virtual share is moderate.  
+3. **Realism impact:** plausible overall, but tail heaviness (max 189 instruments per party) and the 29% un‑instrumented accounts should be confirmed as intended.
