@@ -66,3 +66,5 @@ ieg:
     poll_max_records: 200
     poll_sleep_seconds: 0.2
     checkpoint_every: 1
+    max_inflight: 200
+    batch_size: 50

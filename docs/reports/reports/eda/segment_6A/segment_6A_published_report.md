@@ -477,3 +477,86 @@ This is a clear policy posture and is consistent with realistic product behavior
 1. **Strength:** linkage is clean and instrument–product semantics are correct.  
 2. **Posture:** instrument coverage is partial and virtual share is moderate.  
 3. **Realism impact:** plausible overall, but tail heaviness (max 189 instruments per party) and the 29% un‑instrumented accounts should be confirmed as intended.
+
+---
+
+## D) Devices & IP graph realism (S4)
+
+### D1. Device ownership is clean and fully linked
+1. Devices per party (distinct): mean **2.34**, p50 **2**, p90 **4**, p99 **7**, max **14**.  
+   This is a plausible consumer‑device profile (most parties have 1–3 devices, a minority have 6–7, and a very small tail up to 14).
+2. All devices are linked to parties (**100%** coverage).  
+   This is structurally clean and avoids “orphan device” artifacts.
+
+### D2. Account‑level device linkage is absent in this run
+1. `s4_device_links_6A.account_id` is **entirely null** (0 non‑null rows).  
+   This means device graph structure is **party‑level only**, not account‑level.
+2. If your design expects device→account binding (e.g., “this device is used for this account”), that realism dimension is currently missing; it will flatten device usage features downstream.
+
+### D3. IP sharing shows a heavy‑tail but with a sharp core
+1. Devices per IP: mean **6.65**, p50 **2**, p90 **5**, p99 **172**, max **6,114**.  
+   This is a classic heavy‑tail: most IPs are lightly shared (1–5 devices), but a small fraction are **massively shared**.
+2. The top IPs are extremely dense (6k+ devices each).  
+   This is not impossible (e.g., NAT gateways, carrier‑grade NAT, shared public Wi‑Fi, data‑centre proxies), but it is **very strong** and will dominate “shared IP” signals unless bounded by policy.
+
+### D4. IPs per device are tightly capped
+1. IPs per device: mean **2.07**, p50 **2**, p90 **3**, p99 **3**, max **3**.  
+   This is an unusually tight cap — it implies a fixed rule (1–3 typical IPs per device).
+2. That cap is not necessarily unrealistic, but it does indicate a **hard policy limit**, not an emergent pattern. If you expect mobile devices or roaming behavior, you might want a broader tail.
+
+### D5. Device type mix is plausible
+1. `MOBILE_PHONE` **58.55%**, `LAPTOP` **12.67%**, `DESKTOP` **10.70%**, `TABLET` **9.94%**, `WEARABLE` **5.77%**, `IOT_DEVICE` **2.15%**, `SERVER` **0.23%**.  
+   This looks like a modern consumer‑leaning footprint, with a reasonable spread across form factors.
+
+### D6. IP type mix is extremely residential‑heavy
+1. `RESIDENTIAL` **96.27%** dominates; `CORPORATE` **1.95%**, `MOBILE` **1.00%**, other categories <1%.  
+   This is a strong residential posture. If your synthetic world should include substantial corporate or mobile traffic, this is likely too skewed.
+
+### D7. Link roles are single‑mode (no sharing semantics)
+1. Device links are **only** `PRIMARY_OWNER` (100% of links).  
+2. IP links are **only** `TYPICAL_DEVICE_IP`.  
+   This indicates **no secondary ownership or shared‑device semantics**, which can reduce realism if you expect household sharing, fleet devices, or merchant/shared terminals.
+
+### D8. Interpretation for realism
+1. **Strength:** device/IP graph is structurally clean and ownership counts are plausible.  
+2. **Posture:** linkage is party‑only, IP sharing has an extreme tail, and IP‑per‑device is tightly capped.  
+3. **Realism impact:** the graph is coherent but policy‑rigid; realism would improve with account‑level device links, richer link roles, and a less extreme IP‑sharing tail.
+
+---
+
+## E) Cross‑layer consistency (S1–S4)
+
+### E1. Coverage chain across layers
+1. Parties with accounts: **99.29%** (3,258,009 / 3,281,174).  
+2. Accounts with instruments: **70.78%** (6,176,060 / 8,725,420).  
+3. Parties with devices: **94.59%** (3,103,813 / 3,281,174).  
+4. Devices with IP links: **14.82%** (1,076,116 / 7,263,186).  
+
+Interpretation:
+1. The **party→account** coverage is near‑total (expected).  
+2. **Account→instrument** coverage is partial by design (savings/loan likely un‑instrumented).  
+3. **Device→IP linkage is sparse**, implying that most devices do not have IP associations. If IPs were meant to represent typical device endpoints, this is too low; if they represent only salient/high‑risk endpoints, it is plausible.
+
+### E2. Foreign‑key integrity is clean
+1. Accounts referencing missing parties: **0**  
+2. Instruments referencing missing accounts: **0**  
+3. Instrument links referencing missing accounts/instruments: **0**  
+4. Device links referencing missing parties: **0**  
+5. IP links referencing missing devices/IPs: **0**  
+
+This is excellent structural coherence and a strong realism prerequisite.
+
+### E3. Derived ratios (scale posture)
+1. Accounts per party (avg): **2.659**  
+2. Instruments per account (avg): **1.227**  
+3. Devices per party (avg): **2.214**  
+4. IPs per device (avg): **0.0504**  
+
+Interpretation:
+1. The averages are consistent with earlier distributions.  
+2. The IPs‑per‑device average is extremely low, which is consistent with the low device→IP coverage in E1.
+
+### E4. Interpretation for realism
+1. **Strength:** cross‑layer joins are clean and deterministic; no orphan references.  
+2. **Posture:** IP linkage is intentionally sparse.  
+3. **Realism impact:** the chain is coherent, but the device→IP sparsity should be confirmed as intended rather than accidental.

@@ -395,3 +395,20 @@ Implement Phase 4 of the IEG plan: operational metrics, explicit health posture,
 ### Validation
 - `python -m pytest tests/services/identity_entity_graph -q` (11 passed)
 - Reconciliation artifact written to `runs/fraud-platform/platform_20260205T201203Z/identity_entity_graph/reconciliation/reconciliation.json`
+
+---
+
+## Entry: 2026-02-05 21:00:00 — Phase 5 implemented (bounded buffering + batch apply)
+
+### Summary of changes
+- Added explicit `max_inflight` buffering per (topic, partition) and `batch_size` drain logic to the projector. Intake pauses when buffers are full; no drops.
+- Configurable batch size keeps deterministic per-partition ordering while allowing bounded batch processing.
+- Added `max_inflight` and `batch_size` wiring to local/local_parity/dev/prod profiles.
+
+### Files updated
+- `src/fraud_detection/identity_entity_graph/projector.py` (buffered intake + batch drain)
+- `src/fraud_detection/identity_entity_graph/config.py` (wiring knobs)
+- `config/platform/profiles/{local,local_parity,dev,prod}.yaml` (explicit values)
+
+### Validation
+- `python -m pytest tests/services/identity_entity_graph -q` (11 passed)

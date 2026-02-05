@@ -59,6 +59,8 @@ class IegWiring:
     poll_max_records: int
     poll_sleep_seconds: float
     checkpoint_every: int
+    max_inflight: int
+    batch_size: int
 
 
 @dataclass(frozen=True)
@@ -162,6 +164,14 @@ class IegProfile:
         poll_max_records = int(wiring.get("poll_max_records", 200))
         poll_sleep_seconds = float(wiring.get("poll_sleep_seconds", 0.5))
         checkpoint_every = int(wiring.get("checkpoint_every", 1))
+        max_inflight = int(wiring.get("max_inflight", poll_max_records))
+        batch_size = int(wiring.get("batch_size", min(poll_max_records, 50)))
+        if max_inflight < 1:
+            max_inflight = max(1, poll_max_records)
+        if batch_size < 1:
+            batch_size = min(max_inflight, 1)
+        if batch_size > max_inflight:
+            batch_size = max_inflight
 
         return cls(
             policy=IegPolicy(
@@ -186,6 +196,8 @@ class IegProfile:
                 poll_max_records=poll_max_records,
                 poll_sleep_seconds=poll_sleep_seconds,
                 checkpoint_every=checkpoint_every,
+                max_inflight=max_inflight,
+                batch_size=batch_size,
             ),
             retention=IegRetention.load(Path(retention_ref)),
         )

@@ -10,6 +10,7 @@ import time
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Iterable
+from collections import deque
 
 from fraud_detection.event_bus import EbRecord, EventBusReader
 from fraud_detection.ingestion_gate.config import ClassMap
@@ -46,6 +47,9 @@ class IdentityGraphProjector:
         self._replay_manifest: ReplayManifest | None = None
         self._file_reader = None
         self._kinesis_reader = None
+        self._buffers: dict[tuple[str, int], deque[BusRecord]] = {}
+        self._file_next_offsets: dict[tuple[str, int], int] = {}
+        self._kinesis_next_offsets: dict[tuple[str, int], str | None] = {}
         if profile.wiring.event_bus_kind == "file":
             bus_root = profile.wiring.event_bus_root or "runs/fraud-platform/eb"
             self._file_reader = EventBusReader(Path(bus_root))
@@ -107,15 +111,10 @@ class IdentityGraphProjector:
 
     def _consume_file_topic(self, topic: str, partition: int) -> int:
         assert self._file_reader is not None
-        checkpoint = self.store.get_checkpoint(topic=topic, partition=partition)
-        from_offset = int(checkpoint.next_offset) if checkpoint else 0
-        records = self._file_reader.read(
-            topic,
-            partition=partition,
-            from_offset=from_offset,
-            max_records=self.profile.wiring.poll_max_records,
-        )
-        return self._process_records(topic, records, offset_kind="file_line")
+        key = (topic, partition)
+        buffer = self._buffer_for(key)
+        self._fill_file_buffer(topic, partition, buffer)
+        return self._drain_buffer(buffer, batch_size=self.profile.wiring.batch_size)
 
     def _consume_file_topic_range(self, topic_range: ReplayTopicRange, partition_range: ReplayPartitionRange) -> int:
         assert self._file_reader is not None
@@ -167,15 +166,10 @@ class IdentityGraphProjector:
         processed = 0
         for shard_id in shard_ids:
             partition = _partition_id_from_shard(shard_id)
-            checkpoint = self.store.get_checkpoint(topic=topic, partition=partition)
-            from_offset = checkpoint.next_offset if checkpoint else None
-            records = self._kinesis_reader.read(
-                stream_name=stream,
-                shard_id=shard_id,
-                from_sequence=from_offset,
-                limit=self.profile.wiring.poll_max_records,
-            )
-            processed += self._process_kinesis_records(topic, partition, records)
+            key = (topic, partition)
+            buffer = self._buffer_for(key)
+            self._fill_kinesis_buffer(stream, topic, shard_id, partition, buffer)
+            processed += self._drain_buffer(buffer, batch_size=self.profile.wiring.batch_size)
         return processed
 
     def _consume_kinesis_topic_range(self, stream: str, topic_range: ReplayTopicRange) -> int:
@@ -256,6 +250,109 @@ class IdentityGraphProjector:
                 published_at_utc=record.record.get("published_at_utc"),
             )
             self._process_record(bus_record)
+            processed += 1
+        return processed
+
+    def _buffer_for(self, key: tuple[str, int]) -> deque[BusRecord]:
+        buffer = self._buffers.get(key)
+        if buffer is None:
+            buffer = deque()
+            self._buffers[key] = buffer
+        return buffer
+
+    def _fill_file_buffer(self, topic: str, partition: int, buffer: deque[BusRecord]) -> None:
+        assert self._file_reader is not None
+        max_inflight = self.profile.wiring.max_inflight
+        if len(buffer) >= max_inflight:
+            return
+        key = (topic, partition)
+        from_offset = self._file_next_offsets.get(key)
+        if from_offset is None:
+            checkpoint = self.store.get_checkpoint(topic=topic, partition=partition)
+            from_offset = int(checkpoint.next_offset) if checkpoint else 0
+        read_max = min(self.profile.wiring.poll_max_records, max_inflight - len(buffer))
+        if read_max <= 0:
+            return
+        records = self._file_reader.read(
+            topic,
+            partition=partition,
+            from_offset=from_offset,
+            max_records=read_max,
+        )
+        if not records:
+            return
+        last_offset = from_offset
+        for record in records:
+            last_offset = record.offset
+            envelope = _unwrap_envelope(record.record)
+            if not envelope:
+                continue
+            buffer.append(
+                BusRecord(
+                    topic=topic,
+                    partition=record.partition,
+                    offset=str(record.offset),
+                    offset_kind="file_line",
+                    payload=envelope,
+                    published_at_utc=record.record.get("published_at_utc"),
+                )
+            )
+        self._file_next_offsets[key] = int(last_offset) + 1
+
+    def _fill_kinesis_buffer(
+        self,
+        stream: str,
+        topic: str,
+        shard_id: str,
+        partition: int,
+        buffer: deque[BusRecord],
+    ) -> None:
+        assert self._kinesis_reader is not None
+        max_inflight = self.profile.wiring.max_inflight
+        if len(buffer) >= max_inflight:
+            return
+        key = (topic, partition)
+        from_sequence = self._kinesis_next_offsets.get(key)
+        if from_sequence is None:
+            checkpoint = self.store.get_checkpoint(topic=topic, partition=partition)
+            from_sequence = checkpoint.next_offset if checkpoint else None
+        read_max = min(self.profile.wiring.poll_max_records, max_inflight - len(buffer))
+        if read_max <= 0:
+            return
+        records = self._kinesis_reader.read(
+            stream_name=stream,
+            shard_id=shard_id,
+            from_sequence=from_sequence,
+            limit=read_max,
+        )
+        if not records:
+            return
+        last_sequence = from_sequence
+        for record in records:
+            sequence = str(record.get("sequence_number") or "")
+            last_sequence = sequence
+            envelope = record.get("payload")
+            if not isinstance(envelope, dict):
+                continue
+            buffer.append(
+                BusRecord(
+                    topic=topic,
+                    partition=partition,
+                    offset=sequence,
+                    offset_kind="kinesis_sequence",
+                    payload=envelope,
+                    published_at_utc=record.get("published_at_utc"),
+                )
+            )
+        if last_sequence:
+            self._kinesis_next_offsets[key] = last_sequence
+
+    def _drain_buffer(self, buffer: deque[BusRecord], *, batch_size: int) -> int:
+        processed = 0
+        count = min(len(buffer), max(1, batch_size))
+        for _ in range(count):
+            record = buffer.popleft()
+            self._process_record(record)
             processed += 1
         return processed
 
