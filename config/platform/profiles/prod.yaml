@@ -47,6 +47,7 @@ ieg:
   policy:
     classification_ref: config/platform/ieg/classification_v0.yaml
     identity_hints_ref: config/platform/ieg/identity_hints_v0.yaml
+    retention_ref: config/platform/ieg/retention_v0.yaml
     class_map_ref: config/platform/ig/class_map_v0.yaml
     partitioning_profiles_ref: config/platform/ig/partitioning_profiles_v0.yaml
     graph_stream_id: ieg.v0

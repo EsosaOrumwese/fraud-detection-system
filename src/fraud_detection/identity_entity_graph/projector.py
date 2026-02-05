@@ -19,6 +19,7 @@ from .classification import ClassificationMap, GRAPH_IRRELEVANT, GRAPH_MUTATING,
 from .config import IegProfile
 from .hints import IdentityHint, IdentityHintsPolicy, extract_identity_hints
 from .ids import dedupe_key, entity_id_from_hint
+from .replay import ReplayManifest, ReplayPartitionRange, ReplayTopicRange
 from .store import ApplyResult, build_store
 
 logger = logging.getLogger("fraud_detection.ieg")
@@ -42,6 +43,7 @@ class IdentityGraphProjector:
         self.hints_policy = IdentityHintsPolicy.load(Path(profile.policy.identity_hints_ref))
         self.envelope_registry = SchemaRegistry(Path(profile.wiring.engine_contracts_root))
         self.store = build_store(profile.wiring.projection_db_dsn, stream_id=profile.policy.graph_stream_id)
+        self._replay_manifest: ReplayManifest | None = None
         self._file_reader = None
         self._kinesis_reader = None
         if profile.wiring.event_bus_kind == "file":
@@ -63,7 +65,9 @@ class IdentityGraphProjector:
         profile = IegProfile.load(Path(profile_path))
         return cls(profile)
 
-    def run_once(self) -> int:
+    def run_once(self, *, manifest: ReplayManifest | None = None) -> int:
+        if manifest:
+            return self._run_manifest(manifest)
         processed = 0
         topics = self.profile.wiring.event_bus_topics or []
         if self.profile.wiring.event_bus_kind == "file":
@@ -85,6 +89,22 @@ class IdentityGraphProjector:
             if processed == 0:
                 time.sleep(self.profile.wiring.poll_sleep_seconds)
 
+    def _run_manifest(self, manifest: ReplayManifest) -> int:
+        processed = 0
+        self._replay_manifest = manifest
+        try:
+            if self.profile.wiring.event_bus_kind == "file":
+                for topic_range in manifest.topics:
+                    for partition_range in topic_range.partitions:
+                        processed += self._consume_file_topic_range(topic_range, partition_range)
+            else:
+                for topic_range in manifest.topics:
+                    stream_name = self._stream_name(topic_range.topic, override=manifest.stream_id)
+                    processed += self._consume_kinesis_topic_range(stream_name, topic_range)
+        finally:
+            self._replay_manifest = None
+        return processed
+
     def _consume_file_topic(self, topic: str, partition: int) -> int:
         assert self._file_reader is not None
         checkpoint = self.store.get_checkpoint(topic=topic, partition=partition)
@@ -96,6 +116,49 @@ class IdentityGraphProjector:
             max_records=self.profile.wiring.poll_max_records,
         )
         return self._process_records(topic, records, offset_kind="file_line")
+
+    def _consume_file_topic_range(self, topic_range: ReplayTopicRange, partition_range: ReplayPartitionRange) -> int:
+        assert self._file_reader is not None
+        topic = topic_range.topic
+        partition = partition_range.partition
+        start_offset = _coerce_file_offset(partition_range.from_offset, default=0)
+        end_offset = _coerce_file_offset(partition_range.to_offset, default=None)
+        if end_offset is not None and start_offset > end_offset:
+            return 0
+        processed = 0
+        cursor = start_offset
+        while True:
+            records = self._file_reader.read(
+                topic,
+                partition=partition,
+                from_offset=cursor,
+                max_records=self.profile.wiring.poll_max_records,
+            )
+            if not records:
+                break
+            for record in records:
+                if end_offset is not None and record.offset > end_offset:
+                    return processed
+                envelope = _unwrap_envelope(record.record)
+                if not envelope:
+                    cursor = record.offset + 1
+                    continue
+                bus_record = BusRecord(
+                    topic=topic,
+                    partition=partition,
+                    offset=str(record.offset),
+                    offset_kind="file_line",
+                    payload=envelope,
+                    published_at_utc=record.record.get("published_at_utc"),
+                )
+                self._process_record(bus_record)
+                processed += 1
+                cursor = record.offset + 1
+            if len(records) < self.profile.wiring.poll_max_records:
+                break
+            if end_offset is not None and cursor > end_offset:
+                break
+        return processed
 
     def _consume_kinesis_topic(self, topic: str) -> int:
         assert self._kinesis_reader is not None
@@ -113,6 +176,69 @@ class IdentityGraphProjector:
                 limit=self.profile.wiring.poll_max_records,
             )
             processed += self._process_kinesis_records(topic, partition, records)
+        return processed
+
+    def _consume_kinesis_topic_range(self, stream: str, topic_range: ReplayTopicRange) -> int:
+        assert self._kinesis_reader is not None
+        shard_ids = self._kinesis_reader.list_shards(stream)
+        shard_map = {_partition_id_from_shard(shard_id): shard_id for shard_id in shard_ids}
+        processed = 0
+        for partition_range in topic_range.partitions:
+            shard_id = shard_map.get(partition_range.partition)
+            if not shard_id:
+                raise RuntimeError(f"KINESIS_SHARD_MISSING partition={partition_range.partition}")
+            processed += self._consume_kinesis_partition_range(
+                stream=stream,
+                topic=topic_range.topic,
+                shard_id=shard_id,
+                partition_range=partition_range,
+            )
+        return processed
+
+    def _consume_kinesis_partition_range(
+        self,
+        *,
+        stream: str,
+        topic: str,
+        shard_id: str,
+        partition_range: ReplayPartitionRange,
+    ) -> int:
+        assert self._kinesis_reader is not None
+        processed = 0
+        cursor = partition_range.from_offset
+        end_offset = partition_range.to_offset
+        while True:
+            records = self._kinesis_reader.read(
+                stream_name=stream,
+                shard_id=shard_id,
+                from_sequence=cursor,
+                limit=self.profile.wiring.poll_max_records,
+            )
+            if not records:
+                break
+            for record in records:
+                sequence = str(record.get("sequence_number") or "")
+                if end_offset is not None and _sequence_after(sequence, end_offset):
+                    return processed
+                envelope = record.get("payload")
+                if not isinstance(envelope, dict):
+                    cursor = sequence
+                    continue
+                bus_record = BusRecord(
+                    topic=topic,
+                    partition=partition_range.partition,
+                    offset=sequence,
+                    offset_kind="kinesis_sequence",
+                    payload=envelope,
+                    published_at_utc=record.get("published_at_utc"),
+                )
+                self._process_record(bus_record)
+                processed += 1
+                cursor = sequence
+                if end_offset is not None and _sequence_equal_or_after(sequence, end_offset):
+                    return processed
+            if len(records) < self.profile.wiring.poll_max_records:
+                break
         return processed
 
     def _process_records(self, topic: str, records: Iterable[EbRecord], *, offset_kind: str) -> int:
@@ -186,6 +312,21 @@ class IdentityGraphProjector:
                 scenario_run_id=envelope.get("scenario_run_id") or envelope.get("run_id"),
                 reason_code="REQUIRED_PINS_MISSING",
                 details={"missing": missing},
+                event_ts_utc=envelope.get("ts_utc"),
+            )
+
+        replay_mismatch = _replay_pins_mismatch(self._replay_manifest, envelope)
+        if replay_mismatch:
+            return self.store.record_failure(
+                topic=record.topic,
+                partition=record.partition,
+                offset=record.offset,
+                offset_kind=record.offset_kind,
+                event_id=event_id,
+                event_type=event_type,
+                scenario_run_id=envelope.get("scenario_run_id") or envelope.get("run_id"),
+                reason_code="REPLAY_PINS_MISMATCH",
+                details={"mismatches": replay_mismatch},
                 event_ts_utc=envelope.get("ts_utc"),
             )
 
@@ -278,7 +419,9 @@ class IdentityGraphProjector:
                     continue
         return sorted(partitions) or [0]
 
-    def _stream_name(self, topic: str) -> str:
+    def _stream_name(self, topic: str, *, override: str | None = None) -> str:
+        if override:
+            return override
         stream = self.profile.wiring.event_bus_stream
         if not stream or str(stream).lower() in {"", "auto", "topic"}:
             return topic
@@ -341,14 +484,106 @@ def _partition_id_from_shard(shard_id: str) -> int:
         return 0
 
 
+def _coerce_file_offset(value: str | None, *, default: int | None) -> int | None:
+    if value is None:
+        return default
+    try:
+        return int(value)
+    except (TypeError, ValueError):
+        return default
+
+
+def _sequence_compare(left: str, right: str) -> int:
+    try:
+        left_val = int(left)
+        right_val = int(right)
+        if left_val < right_val:
+            return -1
+        if left_val > right_val:
+            return 1
+        return 0
+    except (TypeError, ValueError):
+        if left < right:
+            return -1
+        if left > right:
+            return 1
+        return 0
+
+
+def _sequence_after(left: str, right: str) -> bool:
+    return _sequence_compare(left, right) > 0
+
+
+def _sequence_equal_or_after(left: str, right: str) -> bool:
+    return _sequence_compare(left, right) >= 0
+
+
+def _replay_pins_mismatch(
+    manifest: ReplayManifest | None, envelope: dict[str, Any]
+) -> dict[str, dict[str, Any]] | None:
+    if not manifest or not manifest.pins:
+        return None
+    mismatches: dict[str, dict[str, Any]] = {}
+    for key, expected in manifest.pins.items():
+        if expected is None:
+            continue
+        actual = envelope.get(key)
+        if actual is None or str(actual) != str(expected):
+            mismatches[key] = {"expected": expected, "actual": actual}
+    if not mismatches:
+        return None
+    return mismatches
+
+
+def _manifest_stream_override(profile: IegProfile, manifest: ReplayManifest) -> str | None:
+    if manifest.stream_id:
+        return manifest.stream_id
+    stream = profile.wiring.event_bus_stream
+    if not stream or str(stream).lower() in {"", "auto", "topic"}:
+        return None
+    return str(stream)
+
+
 def main() -> None:
-    parser = argparse.ArgumentParser(description="IEG projector (Phase 1)")
+    parser = argparse.ArgumentParser(description="IEG projector (Phase 2)")
     parser.add_argument("--profile", required=True, help="Path to platform profile YAML")
     parser.add_argument("--once", action="store_true", help="Process a single batch and exit")
+    parser.add_argument("--replay-manifest", help="Path to replay manifest YAML/JSON")
+    parser.add_argument("--reset", action="store_true", help="Reset projection store before processing")
+    parser.add_argument("--prune", action="store_true", help="Apply retention policy before processing")
     args = parser.parse_args()
 
     logging.basicConfig(level=logging.INFO)
     projector = IdentityGraphProjector.build(args.profile)
+    if args.reset:
+        logger.info("IEG reset requested")
+        projector.store.reset()
+    if args.prune:
+        if projector.profile.retention.is_enabled():
+            summary = projector.store.prune(projector.profile.retention)
+            logger.info("IEG retention prune summary=%s", summary)
+        else:
+            logger.info("IEG retention prune skipped: no retention policy enabled")
+
+    manifest = None
+    if args.replay_manifest:
+        manifest = ReplayManifest.load(Path(args.replay_manifest))
+    if manifest:
+        processed = projector.run_once(manifest=manifest)
+        graph_version = projector.store.current_graph_version()
+        stream_override = _manifest_stream_override(projector.profile, manifest)
+        basis = manifest.basis(
+            event_bus_kind=projector.profile.wiring.event_bus_kind,
+            stream_override=stream_override,
+        )
+        projector.store.record_replay_basis(
+            replay_id=manifest.replay_id(),
+            manifest_json=manifest.canonical_json(),
+            basis_json=json.dumps(basis, sort_keys=True, ensure_ascii=True, separators=(",", ":")),
+            graph_version=graph_version,
+        )
+        logger.info("IEG replay processed=%s graph_version=%s", processed, graph_version)
+        return
     if args.once:
         projector.run_once()
     else:

@@ -194,3 +194,67 @@ Change IEG projection default path suffix from `ieg/projection/ieg.db` to
 ### Files updated
 - `src/fraud_detection/identity_entity_graph/config.py`
 - `src/fraud_detection/ingestion_gate/logging_utils.py`
+
+---
+
+## Entry: 2026-02-05 20:36:00 — Phase 2 implementation plan (storage + rebuildability)
+
+### Problem / goal
+Implement Phase 2 of the IEG plan: retention/TTL posture and explicit replay/backfill inputs so rebuilds are deterministic, auditable, and aligned to EB/archive windows.
+
+### Authorities / inputs
+- `docs/model_spec/platform/implementation_maps/identity_entity_graph.build_plan.md` (Phase 2 DoD)
+- RTDL pre‑design decisions (EB retention windows + archive truth posture)
+- IEG design‑authority (rebuild explicit, no silent “latest”)
+
+### Decision trail (live)
+1) **Retention policy is explicit config**: add `retention_ref` per profile; define retention windows aligned to EB (local parity 1 day; dev/prod 7 days).
+2) **Prune is explicit**: provide a `--prune` flag that applies retention policy; no automatic deletion by default.
+3) **Replay/backfill is declared**: add a replay manifest (YAML/JSON) with stream_id, topic/partition ranges, and pins; replay runs only with explicit manifest.
+4) **Auditable basis**: store replay manifest + resulting graph_version in a `ieg_replay_basis` table.
+5) **Reset is explicit**: replay may optionally wipe projection tables before apply (`--reset`).
+
+### Planned files / paths
+- Config: `config/platform/ieg/retention_*.yaml`
+- Profile wiring: add `retention_ref` under `ieg.policy` in `config/platform/profiles/*`
+- Code: `src/fraud_detection/identity_entity_graph/projector.py`, `store.py`, `config.py` (retention + replay)
+- New table: `ieg_replay_basis` in both SQLite/Postgres stores.
+
+### Validation plan (Phase 2)
+- Unit: retention prune deletes only when enabled; no prune when disabled.
+- Unit: replay manifest validation rejects missing basis fields.
+- Smoke: replay manifest is recorded with graph_version after run.
+
+---
+
+## Entry: 2026-02-05 21:12:00 — Phase 2 implemented (retention + replay manifest)
+
+### Summary of changes
+- Implemented explicit retention policy plumbing + manual prune/reset for IEG projection stores.
+- Added replay manifest support (YAML/JSON) with explicit basis recording for auditable replays.
+- Added replay basis persistence (`ieg_replay_basis`) and graph_version lookup for replay runs.
+- Added unit tests for retention pruning and replay manifest/basis recording.
+
+### Key mechanics (as implemented)
+- **Retention policy**: loaded from `retention_ref` (per profile), with explicit TTLs for entities/identifiers/edges/apply_failures/checkpoints. No automatic deletion; prune only on `--prune`.
+- **Prune semantics**: deletes by `last_seen_ts_utc` (entities/identifiers/edges), `recorded_at_utc` (apply_failures), and `updated_at_utc` (checkpoints). Checkpoint pruning recomputes graph_version.
+- **Replay manifest**: declarative basis with `topics[]` + `partitions[]` (+ optional `from_offset`/`to_offset`) and optional `pins`. Run is explicit via `--replay-manifest`; pins mismatches are recorded as apply_failures.
+- **Replay basis**: recorded in `ieg_replay_basis` with manifest_json, basis_json, replay_id (sha256), and resulting graph_version.
+- **Reset**: explicit `--reset` wipes all projection tables prior to replay/backfill.
+
+### Files updated/added
+- Config:
+  - `config/platform/ieg/retention_v0.yaml` (dev/prod defaults)
+  - `config/platform/ieg/retention_local_v0.yaml` (local/local_parity)
+  - `config/platform/profiles/{local,local_parity,dev,prod}.yaml` (added `retention_ref`)
+- Code:
+  - `src/fraud_detection/identity_entity_graph/config.py` (IegRetention policy loader)
+  - `src/fraud_detection/identity_entity_graph/store.py` (prune/reset/replay_basis/current_graph_version)
+  - `src/fraud_detection/identity_entity_graph/replay.py` (ReplayManifest parsing + basis)
+  - `src/fraud_detection/identity_entity_graph/projector.py` (replay ranges, pins mismatch, CLI flags)
+- Tests:
+  - `tests/services/identity_entity_graph/test_projection_store.py` (retention prune)
+  - `tests/services/identity_entity_graph/test_replay_manifest.py` (manifest + basis)
+
+### Validation
+- `python -m pytest tests/services/identity_entity_graph -q` (7 passed)

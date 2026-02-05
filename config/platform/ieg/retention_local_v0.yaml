@@ -1,0 +1,6 @@
+retention:
+  entity_days: 1
+  identifier_days: 1
+  edge_days: 1
+  apply_failure_days: 1
+  checkpoint_days: 1

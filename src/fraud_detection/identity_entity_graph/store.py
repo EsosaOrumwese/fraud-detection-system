@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 import json
 from pathlib import Path
 from typing import Any
@@ -14,6 +14,7 @@ import psycopg
 
 from fraud_detection.ingestion_gate.pg_index import is_postgres_dsn
 
+from .config import IegRetention
 from .hints import IdentityHint
 
 
@@ -39,6 +40,9 @@ def build_store(dsn: str, *, stream_id: str) -> "ProjectionStore":
 
 class ProjectionStore:
     def get_checkpoint(self, *, topic: str, partition: int) -> Checkpoint | None:
+        raise NotImplementedError
+
+    def current_graph_version(self) -> str | None:
         raise NotImplementedError
 
     def advance_checkpoint(
@@ -84,6 +88,22 @@ class ProjectionStore:
         identity_hints: list[IdentityHint],
         event_ts_utc: str | None,
     ) -> ApplyResult:
+        raise NotImplementedError
+
+    def record_replay_basis(
+        self,
+        *,
+        replay_id: str,
+        manifest_json: str,
+        basis_json: str,
+        graph_version: str | None,
+    ) -> None:
+        raise NotImplementedError
+
+    def prune(self, policy: IegRetention) -> dict[str, int]:
+        raise NotImplementedError
+
+    def reset(self) -> None:
         raise NotImplementedError
 
 
@@ -219,6 +239,18 @@ class SqliteProjectionStore(ProjectionStore):
                 )
                 """
             )
+            conn.execute(
+                """
+                CREATE TABLE IF NOT EXISTS ieg_replay_basis (
+                    replay_id TEXT PRIMARY KEY,
+                    stream_id TEXT,
+                    manifest_json TEXT,
+                    basis_json TEXT,
+                    graph_version TEXT,
+                    recorded_at_utc TEXT
+                )
+                """
+            )
 
     def advance_checkpoint(
         self,
@@ -253,6 +285,16 @@ class SqliteProjectionStore(ProjectionStore):
         if not row:
             return None
         return Checkpoint(next_offset=str(row[0]), offset_kind=str(row[1]))
+
+    def current_graph_version(self) -> str | None:
+        with self._connect() as conn:
+            row = conn.execute(
+                "SELECT graph_version FROM ieg_graph_versions WHERE stream_id = ?",
+                (self.stream_id,),
+            ).fetchone()
+        if not row or not row[0]:
+            return None
+        return str(row[0])
 
     def record_failure(
         self,
@@ -551,6 +593,76 @@ class SqliteProjectionStore(ProjectionStore):
         )
         return graph_version
 
+    def record_replay_basis(
+        self,
+        *,
+        replay_id: str,
+        manifest_json: str,
+        basis_json: str,
+        graph_version: str | None,
+    ) -> None:
+        recorded_at = _utc_now()
+        with self._connect() as conn:
+            conn.execute(
+                """
+                INSERT INTO ieg_replay_basis
+                (replay_id, stream_id, manifest_json, basis_json, graph_version, recorded_at_utc)
+                VALUES (?, ?, ?, ?, ?, ?)
+                ON CONFLICT(replay_id) DO UPDATE SET
+                    manifest_json = excluded.manifest_json,
+                    basis_json = excluded.basis_json,
+                    graph_version = excluded.graph_version,
+                    recorded_at_utc = excluded.recorded_at_utc
+                """,
+                (
+                    replay_id,
+                    self.stream_id,
+                    manifest_json,
+                    basis_json,
+                    graph_version,
+                    recorded_at,
+                ),
+            )
+
+    def prune(self, policy: IegRetention) -> dict[str, int]:
+        if not policy.is_enabled():
+            return {}
+        results: dict[str, int] = {}
+        with self._connect() as conn:
+            results["ieg_entities"] = _prune_table_sqlite(
+                conn, "ieg_entities", "last_seen_ts_utc", _retention_cutoff(policy.entity_days)
+            )
+            results["ieg_identifiers"] = _prune_table_sqlite(
+                conn, "ieg_identifiers", "last_seen_ts_utc", _retention_cutoff(policy.identifier_days)
+            )
+            results["ieg_edges"] = _prune_table_sqlite(
+                conn, "ieg_edges", "last_seen_ts_utc", _retention_cutoff(policy.edge_days)
+            )
+            results["ieg_apply_failures"] = _prune_table_sqlite(
+                conn, "ieg_apply_failures", "recorded_at_utc", _retention_cutoff(policy.apply_failure_days)
+            )
+            results["ieg_checkpoints"] = _prune_table_sqlite(
+                conn, "ieg_checkpoints", "updated_at_utc", _retention_cutoff(policy.checkpoint_days)
+            )
+            if results.get("ieg_checkpoints", 0) > 0:
+                self._update_graph_version(conn)
+        return results
+
+    def reset(self) -> None:
+        tables = [
+            "ieg_dedupe",
+            "ieg_apply_failures",
+            "ieg_entities",
+            "ieg_identifiers",
+            "ieg_edges",
+            "ieg_checkpoints",
+            "ieg_graph_versions",
+            "ieg_replay_basis",
+        ]
+        with self._connect() as conn:
+            for table in tables:
+                conn.execute(f"DELETE FROM {table}")
+
     def _connect(self) -> sqlite3.Connection:
         conn = sqlite3.connect(self.path)
         conn.execute("PRAGMA journal_mode=WAL")
@@ -688,6 +800,18 @@ class PostgresProjectionStore(ProjectionStore):
                 )
                 """
             )
+            conn.execute(
+                """
+                CREATE TABLE IF NOT EXISTS ieg_replay_basis (
+                    replay_id TEXT PRIMARY KEY,
+                    stream_id TEXT,
+                    manifest_json TEXT,
+                    basis_json TEXT,
+                    graph_version TEXT,
+                    recorded_at_utc TEXT
+                )
+                """
+            )
 
     def advance_checkpoint(
         self,
@@ -722,6 +846,16 @@ class PostgresProjectionStore(ProjectionStore):
         if not row:
             return None
         return Checkpoint(next_offset=str(row[0]), offset_kind=str(row[1]))
+
+    def current_graph_version(self) -> str | None:
+        with self._connect() as conn:
+            row = conn.execute(
+                "SELECT graph_version FROM ieg_graph_versions WHERE stream_id = %s",
+                (self.stream_id,),
+            ).fetchone()
+        if not row or not row[0]:
+            return None
+        return str(row[0])
 
     def record_failure(
         self,
@@ -1008,6 +1142,76 @@ class PostgresProjectionStore(ProjectionStore):
         )
         return graph_version
 
+    def record_replay_basis(
+        self,
+        *,
+        replay_id: str,
+        manifest_json: str,
+        basis_json: str,
+        graph_version: str | None,
+    ) -> None:
+        recorded_at = _utc_now()
+        with self._connect() as conn:
+            conn.execute(
+                """
+                INSERT INTO ieg_replay_basis
+                (replay_id, stream_id, manifest_json, basis_json, graph_version, recorded_at_utc)
+                VALUES (%s, %s, %s, %s, %s, %s)
+                ON CONFLICT (replay_id) DO UPDATE SET
+                    manifest_json = excluded.manifest_json,
+                    basis_json = excluded.basis_json,
+                    graph_version = excluded.graph_version,
+                    recorded_at_utc = excluded.recorded_at_utc
+                """,
+                (
+                    replay_id,
+                    self.stream_id,
+                    manifest_json,
+                    basis_json,
+                    graph_version,
+                    recorded_at,
+                ),
+            )
+
+    def prune(self, policy: IegRetention) -> dict[str, int]:
+        if not policy.is_enabled():
+            return {}
+        results: dict[str, int] = {}
+        with self._connect() as conn:
+            results["ieg_entities"] = _prune_table_postgres(
+                conn, "ieg_entities", "last_seen_ts_utc", _retention_cutoff(policy.entity_days)
+            )
+            results["ieg_identifiers"] = _prune_table_postgres(
+                conn, "ieg_identifiers", "last_seen_ts_utc", _retention_cutoff(policy.identifier_days)
+            )
+            results["ieg_edges"] = _prune_table_postgres(
+                conn, "ieg_edges", "last_seen_ts_utc", _retention_cutoff(policy.edge_days)
+            )
+            results["ieg_apply_failures"] = _prune_table_postgres(
+                conn, "ieg_apply_failures", "recorded_at_utc", _retention_cutoff(policy.apply_failure_days)
+            )
+            results["ieg_checkpoints"] = _prune_table_postgres(
+                conn, "ieg_checkpoints", "updated_at_utc", _retention_cutoff(policy.checkpoint_days)
+            )
+            if results.get("ieg_checkpoints", 0) > 0:
+                self._update_graph_version(conn)
+        return results
+
+    def reset(self) -> None:
+        tables = [
+            "ieg_dedupe",
+            "ieg_apply_failures",
+            "ieg_entities",
+            "ieg_identifiers",
+            "ieg_edges",
+            "ieg_checkpoints",
+            "ieg_graph_versions",
+            "ieg_replay_basis",
+        ]
+        with self._connect() as conn:
+            for table in tables:
+                conn.execute(f"DELETE FROM {table}")
+
     def _connect(self) -> psycopg.Connection:
         return psycopg.connect(self.dsn)
 
@@ -1055,6 +1259,34 @@ def _next_offset(offset: str, offset_kind: str) -> str:
 def _failure_id(topic: str, partition: int, offset: str, reason: str, event_id: str) -> str:
     payload = f"{topic}:{partition}:{offset}:{reason}:{event_id}"
     return hashlib_sha256(payload.encode("utf-8"))[:32]
+
+
+def _retention_cutoff(days: int | None) -> str | None:
+    if days is None:
+        return None
+    if days <= 0:
+        return None
+    return (datetime.now(tz=timezone.utc) - timedelta(days=days)).isoformat()
+
+
+def _prune_table_sqlite(conn: sqlite3.Connection, table: str, column: str, cutoff: str | None) -> int:
+    if cutoff is None:
+        return 0
+    cursor = conn.execute(
+        f"DELETE FROM {table} WHERE {column} IS NOT NULL AND {column} < ?",
+        (cutoff,),
+    )
+    return int(cursor.rowcount or 0)
+
+
+def _prune_table_postgres(conn: psycopg.Connection, table: str, column: str, cutoff: str | None) -> int:
+    if cutoff is None:
+        return 0
+    cursor = conn.execute(
+        f"DELETE FROM {table} WHERE {column} IS NOT NULL AND {column} < %s",
+        (cutoff,),
+    )
+    return int(cursor.rowcount or 0)
 
 
 def _sqlite_path(dsn: str) -> str:

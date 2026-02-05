@@ -38,6 +38,7 @@ def _resolve_ref(value: str | None, *, base_dir: Path) -> str | None:
 class IegPolicy:
     classification_ref: str
     identity_hints_ref: str
+    retention_ref: str
     class_map_ref: str
     partitioning_profiles_ref: str
     graph_stream_id: str
@@ -61,9 +62,46 @@ class IegWiring:
 
 
 @dataclass(frozen=True)
+class IegRetention:
+    entity_days: int | None
+    identifier_days: int | None
+    edge_days: int | None
+    apply_failure_days: int | None
+    checkpoint_days: int | None
+
+    @classmethod
+    def load(cls, path: Path) -> "IegRetention":
+        payload = yaml.safe_load(path.read_text(encoding="utf-8"))
+        if isinstance(payload, dict) and "retention" in payload:
+            payload = payload["retention"]
+        if not isinstance(payload, dict):
+            payload = {}
+        return cls(
+            entity_days=_parse_days(payload.get("entity_days")),
+            identifier_days=_parse_days(payload.get("identifier_days")),
+            edge_days=_parse_days(payload.get("edge_days")),
+            apply_failure_days=_parse_days(payload.get("apply_failure_days")),
+            checkpoint_days=_parse_days(payload.get("checkpoint_days")),
+        )
+
+    def is_enabled(self) -> bool:
+        return any(
+            value is not None
+            for value in (
+                self.entity_days,
+                self.identifier_days,
+                self.edge_days,
+                self.apply_failure_days,
+                self.checkpoint_days,
+            )
+        )
+
+
+@dataclass(frozen=True)
 class IegProfile:
     policy: IegPolicy
     wiring: IegWiring
+    retention: IegRetention
 
     @classmethod
     def load(cls, path: Path) -> "IegProfile":
@@ -81,6 +119,10 @@ class IegProfile:
         )
         identity_hints_ref = _resolve_ref(
             _resolve_env(policy.get("identity_hints_ref") or "config/platform/ieg/identity_hints_v0.yaml"),
+            base_dir=path.parent,
+        )
+        retention_ref = _resolve_ref(
+            _resolve_env(policy.get("retention_ref") or "config/platform/ieg/retention_v0.yaml"),
             base_dir=path.parent,
         )
         class_map_ref = _resolve_ref(
@@ -125,6 +167,7 @@ class IegProfile:
             policy=IegPolicy(
                 classification_ref=classification_ref,
                 identity_hints_ref=identity_hints_ref,
+                retention_ref=retention_ref,
                 class_map_ref=class_map_ref,
                 partitioning_profiles_ref=partitioning_profiles_ref,
                 graph_stream_id=graph_stream_id,
@@ -144,6 +187,7 @@ class IegProfile:
                 poll_sleep_seconds=poll_sleep_seconds,
                 checkpoint_every=checkpoint_every,
             ),
+            retention=IegRetention.load(Path(retention_ref)),
         )
 
 
@@ -176,3 +220,14 @@ def _load_topics(event_bus: dict[str, Any], *, base_dir: Path) -> list[str]:
     if not isinstance(topics, list):
         return []
     return [str(item) for item in topics if str(item).strip()]
+
+
+def _parse_days(value: Any) -> int | None:
+    if value is None or value == "":
+        return None
+    if isinstance(value, bool):
+        return None
+    try:
+        return int(value)
+    except (TypeError, ValueError):
+        return None
