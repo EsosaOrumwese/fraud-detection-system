@@ -54,11 +54,11 @@ class NeighborCandidate:
     shared_identifiers: list[SharedIdentifier]
 
 
-def build_store(dsn: str, *, stream_id: str) -> "ProjectionStore":
+def build_store(dsn: str, *, stream_id: str, run_config_digest: str | None = None) -> "ProjectionStore":
     if is_postgres_dsn(dsn):
-        return PostgresProjectionStore(dsn=dsn, stream_id=stream_id)
+        return PostgresProjectionStore(dsn=dsn, stream_id=stream_id, run_config_digest=run_config_digest)
     path = _sqlite_path(dsn)
-    return SqliteProjectionStore(path=Path(path), stream_id=stream_id)
+    return SqliteProjectionStore(path=Path(path), stream_id=stream_id, run_config_digest=run_config_digest)
 
 
 class ProjectionStore:
@@ -66,6 +66,9 @@ class ProjectionStore:
         raise NotImplementedError
 
     def current_graph_version(self) -> str | None:
+        raise NotImplementedError
+
+    def current_run_config_digest(self) -> str | None:
         raise NotImplementedError
 
     def graph_basis(self) -> dict[str, Any] | None:
@@ -185,6 +188,7 @@ class ProjectionStore:
 class SqliteProjectionStore(ProjectionStore):
     path: Path
     stream_id: str
+    run_config_digest: str | None = None
 
     def __post_init__(self) -> None:
         self.path.parent.mkdir(parents=True, exist_ok=True)
@@ -309,6 +313,7 @@ class SqliteProjectionStore(ProjectionStore):
                 CREATE TABLE IF NOT EXISTS ieg_graph_versions (
                     stream_id TEXT PRIMARY KEY,
                     graph_version TEXT,
+                    run_config_digest TEXT,
                     basis_json TEXT,
                     watermark_ts_utc TEXT,
                     updated_at_utc TEXT
@@ -341,6 +346,7 @@ class SqliteProjectionStore(ProjectionStore):
             )
             _ensure_sqlite_column(conn, "ieg_dedupe", "platform_run_id", "TEXT")
             _ensure_sqlite_column(conn, "ieg_apply_failures", "platform_run_id", "TEXT")
+            _ensure_sqlite_column(conn, "ieg_graph_versions", "run_config_digest", "TEXT")
             conn.execute(
                 """
                 CREATE INDEX IF NOT EXISTS idx_ieg_apply_failures_scope
@@ -399,16 +405,26 @@ class SqliteProjectionStore(ProjectionStore):
             return None
         return str(row[0])
 
+    def current_run_config_digest(self) -> str | None:
+        with self._connect() as conn:
+            row = conn.execute(
+                "SELECT run_config_digest FROM ieg_graph_versions WHERE stream_id = ?",
+                (self.stream_id,),
+            ).fetchone()
+        if row and row[0]:
+            return str(row[0])
+        return self.run_config_digest
+
     def graph_basis(self) -> dict[str, Any] | None:
         with self._connect() as conn:
             row = conn.execute(
-                "SELECT graph_version, basis_json FROM ieg_graph_versions WHERE stream_id = ?",
+                "SELECT graph_version, basis_json, run_config_digest FROM ieg_graph_versions WHERE stream_id = ?",
                 (self.stream_id,),
             ).fetchone()
         if not row or not row[1]:
             return None
         basis = json.loads(row[1])
-        return {"graph_version": row[0], "basis": basis}
+        return {"graph_version": row[0], "run_config_digest": row[2], "basis": basis}
 
     def checkpoint_summary(self) -> dict[str, Any]:
         with self._connect() as conn:
@@ -755,15 +771,16 @@ class SqliteProjectionStore(ProjectionStore):
         conn.execute(
             """
             INSERT INTO ieg_graph_versions
-            (stream_id, graph_version, basis_json, watermark_ts_utc, updated_at_utc)
-            VALUES (?, ?, ?, ?, ?)
+            (stream_id, graph_version, run_config_digest, basis_json, watermark_ts_utc, updated_at_utc)
+            VALUES (?, ?, ?, ?, ?, ?)
             ON CONFLICT(stream_id) DO UPDATE SET
                 graph_version = excluded.graph_version,
+                run_config_digest = excluded.run_config_digest,
                 basis_json = excluded.basis_json,
                 watermark_ts_utc = excluded.watermark_ts_utc,
                 updated_at_utc = excluded.updated_at_utc
             """,
-            (self.stream_id, graph_version, _json_dump(basis), watermark, now),
+            (self.stream_id, graph_version, self.run_config_digest, _json_dump(basis), watermark, now),
         )
         return graph_version
 
@@ -1107,6 +1124,7 @@ class SqliteProjectionStore(ProjectionStore):
 class PostgresProjectionStore(ProjectionStore):
     dsn: str
     stream_id: str
+    run_config_digest: str | None = None
 
     def __post_init__(self) -> None:
         with self._connect() as conn:
@@ -1230,6 +1248,7 @@ class PostgresProjectionStore(ProjectionStore):
                 CREATE TABLE IF NOT EXISTS ieg_graph_versions (
                     stream_id TEXT PRIMARY KEY,
                     graph_version TEXT,
+                    run_config_digest TEXT,
                     basis_json TEXT,
                     watermark_ts_utc TEXT,
                     updated_at_utc TEXT
@@ -1262,6 +1281,7 @@ class PostgresProjectionStore(ProjectionStore):
             )
             _ensure_postgres_column(conn, "ieg_dedupe", "platform_run_id", "TEXT")
             _ensure_postgres_column(conn, "ieg_apply_failures", "platform_run_id", "TEXT")
+            _ensure_postgres_column(conn, "ieg_graph_versions", "run_config_digest", "TEXT")
             conn.execute(
                 """
                 CREATE INDEX IF NOT EXISTS idx_ieg_apply_failures_scope
@@ -1320,16 +1340,26 @@ class PostgresProjectionStore(ProjectionStore):
             return None
         return str(row[0])
 
+    def current_run_config_digest(self) -> str | None:
+        with self._connect() as conn:
+            row = conn.execute(
+                "SELECT run_config_digest FROM ieg_graph_versions WHERE stream_id = %s",
+                (self.stream_id,),
+            ).fetchone()
+        if row and row[0]:
+            return str(row[0])
+        return self.run_config_digest
+
     def graph_basis(self) -> dict[str, Any] | None:
         with self._connect() as conn:
             row = conn.execute(
-                "SELECT graph_version, basis_json FROM ieg_graph_versions WHERE stream_id = %s",
+                "SELECT graph_version, basis_json, run_config_digest FROM ieg_graph_versions WHERE stream_id = %s",
                 (self.stream_id,),
             ).fetchone()
         if not row or not row[1]:
             return None
         basis = json.loads(row[1])
-        return {"graph_version": row[0], "basis": basis}
+        return {"graph_version": row[0], "run_config_digest": row[2], "basis": basis}
 
     def checkpoint_summary(self) -> dict[str, Any]:
         with self._connect() as conn:
@@ -1664,15 +1694,16 @@ class PostgresProjectionStore(ProjectionStore):
         conn.execute(
             """
             INSERT INTO ieg_graph_versions
-            (stream_id, graph_version, basis_json, watermark_ts_utc, updated_at_utc)
-            VALUES (%s, %s, %s, %s, %s)
+            (stream_id, graph_version, run_config_digest, basis_json, watermark_ts_utc, updated_at_utc)
+            VALUES (%s, %s, %s, %s, %s, %s)
             ON CONFLICT (stream_id) DO UPDATE SET
                 graph_version = excluded.graph_version,
+                run_config_digest = excluded.run_config_digest,
                 basis_json = excluded.basis_json,
                 watermark_ts_utc = excluded.watermark_ts_utc,
                 updated_at_utc = excluded.updated_at_utc
             """,
-            (self.stream_id, graph_version, _json_dump(basis), watermark, now),
+            (self.stream_id, graph_version, self.run_config_digest, _json_dump(basis), watermark, now),
         )
         return graph_version
 

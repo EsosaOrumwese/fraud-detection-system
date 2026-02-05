@@ -43,7 +43,11 @@ class IdentityGraphProjector:
         self.classification = ClassificationMap.load(Path(profile.policy.classification_ref))
         self.hints_policy = IdentityHintsPolicy.load(Path(profile.policy.identity_hints_ref))
         self.envelope_registry = SchemaRegistry(Path(profile.wiring.engine_contracts_root))
-        self.store = build_store(profile.wiring.projection_db_dsn, stream_id=profile.policy.graph_stream_id)
+        self.store = build_store(
+            profile.wiring.projection_db_dsn,
+            stream_id=profile.policy.graph_stream_id,
+            run_config_digest=profile.policy.run_config_digest,
+        )
         self._graph_stream_base = profile.policy.graph_stream_base
         self._required_platform_run_id = profile.wiring.required_platform_run_id
         self._lock_run_scope_on_first_event = profile.wiring.lock_run_scope_on_first_event

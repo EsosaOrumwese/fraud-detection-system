@@ -3,6 +3,8 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+import hashlib
+import json
 import os
 import re
 from pathlib import Path
@@ -58,6 +60,7 @@ class IegPolicy:
     partitioning_profiles_ref: str
     graph_stream_base: str
     graph_stream_id: str
+    run_config_digest: str
 
 
 @dataclass(frozen=True)
@@ -201,6 +204,17 @@ class IegProfile:
             batch_size = min(max_inflight, 1)
         if batch_size > max_inflight:
             batch_size = max_inflight
+        run_config_digest = _run_config_digest(
+            classification_ref=classification_ref,
+            identity_hints_ref=identity_hints_ref,
+            retention_ref=retention_ref,
+            class_map_ref=class_map_ref,
+            partitioning_profiles_ref=partitioning_profiles_ref,
+            event_bus_kind=event_bus_kind,
+            graph_stream_base=graph_stream_base,
+            lock_run_scope_on_first_event=lock_run_scope_on_first_event,
+            event_bus_topics=event_bus_topics,
+        )
 
         return cls(
             policy=IegPolicy(
@@ -211,6 +225,7 @@ class IegProfile:
                 partitioning_profiles_ref=partitioning_profiles_ref,
                 graph_stream_base=graph_stream_base,
                 graph_stream_id=graph_stream_id,
+                run_config_digest=run_config_digest,
             ),
             wiring=IegWiring(
                 profile_id=profile_id,
@@ -264,6 +279,36 @@ def _load_topics(event_bus: dict[str, Any], *, base_dir: Path) -> list[str]:
     if not isinstance(topics, list):
         return []
     return [str(item) for item in topics if str(item).strip()]
+
+
+def _run_config_digest(
+    *,
+    classification_ref: str,
+    identity_hints_ref: str,
+    retention_ref: str,
+    class_map_ref: str,
+    partitioning_profiles_ref: str,
+    event_bus_kind: str,
+    graph_stream_base: str,
+    lock_run_scope_on_first_event: bool,
+    event_bus_topics: list[str],
+) -> str:
+    topics = sorted({str(item) for item in event_bus_topics if str(item).strip()})
+    payload = {
+        "policy_refs": {
+            "classification_ref": classification_ref,
+            "identity_hints_ref": identity_hints_ref,
+            "retention_ref": retention_ref,
+            "class_map_ref": class_map_ref,
+            "partitioning_profiles_ref": partitioning_profiles_ref,
+        },
+        "event_bus_kind": event_bus_kind,
+        "graph_stream_base": graph_stream_base,
+        "lock_run_scope_on_first_event": bool(lock_run_scope_on_first_event),
+        "event_bus_topics": topics,
+    }
+    canonical = json.dumps(payload, sort_keys=True, ensure_ascii=True, separators=(",", ":"))
+    return hashlib.sha256(canonical.encode("utf-8")).hexdigest()
 
 
 def _parse_days(value: Any) -> int | None:

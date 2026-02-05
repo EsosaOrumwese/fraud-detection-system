@@ -86,7 +86,11 @@ def _run_projector(profile_path: Path) -> dict[str, object]:
             break
     db_path = Path(projector.profile.wiring.projection_db_dsn)
     with sqlite3.connect(db_path) as conn:
-        graph_version = conn.execute("SELECT graph_version FROM ieg_graph_versions").fetchone()[0]
+        row = conn.execute(
+            "SELECT graph_version, run_config_digest FROM ieg_graph_versions"
+        ).fetchone()
+        graph_version = row[0]
+        run_config_digest = row[1]
         counts = {
             "dedupe": conn.execute("SELECT COUNT(*) FROM ieg_dedupe").fetchone()[0],
             "entities": conn.execute("SELECT COUNT(*) FROM ieg_entities").fetchone()[0],
@@ -94,7 +98,12 @@ def _run_projector(profile_path: Path) -> dict[str, object]:
             "apply_failures": conn.execute("SELECT COUNT(*) FROM ieg_apply_failures").fetchone()[0],
         }
         watermark = conn.execute("SELECT MAX(watermark_ts_utc) FROM ieg_checkpoints").fetchone()[0]
-    return {"graph_version": graph_version, "counts": counts, "watermark": watermark}
+    return {
+        "graph_version": graph_version,
+        "run_config_digest": run_config_digest,
+        "counts": counts,
+        "watermark": watermark,
+    }
 
 
 def _seed_bus(bus_root: Path, *, platform_run_id: str) -> list[tuple[str, dict[str, object]]]:
@@ -188,6 +197,8 @@ def test_replay_determinism_same_offsets(tmp_path: Path) -> None:
     state_b = _run_projector(profile_b)
 
     assert state_a["graph_version"] == state_b["graph_version"]
+    assert state_a["run_config_digest"] == state_b["run_config_digest"]
+    assert state_a["run_config_digest"]
     assert state_a["counts"] == state_b["counts"]
 
 

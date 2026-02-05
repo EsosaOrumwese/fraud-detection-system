@@ -83,12 +83,17 @@ class IdentityGraphQuery:
     @classmethod
     def from_profile(cls, profile_path: str) -> "IdentityGraphQuery":
         profile = IegProfile.load(Path(profile_path))
-        store = build_store(profile.wiring.projection_db_dsn, stream_id=profile.policy.graph_stream_id)
+        store = build_store(
+            profile.wiring.projection_db_dsn,
+            stream_id=profile.policy.graph_stream_id,
+            run_config_digest=profile.policy.run_config_digest,
+        )
         return cls(store=store, stream_id=profile.policy.graph_stream_id)
 
     def status(self, *, scenario_run_id: str) -> dict[str, Any]:
         scope = _graph_scope(self.stream_id)
         graph_version = self.store.current_graph_version()
+        run_config_digest = self.store.current_run_config_digest()
         failure_count = self.store.apply_failure_count(
             scenario_run_id=scenario_run_id,
             platform_run_id=scope.get("platform_run_id"),
@@ -106,6 +111,7 @@ class IdentityGraphQuery:
         return {
             "graph_scope": scope,
             "graph_version": graph_version,
+            "run_config_digest": run_config_digest,
             "integrity_status": integrity_status,
             "apply_failure_count": failure_count,
             "metrics": metrics,
@@ -134,6 +140,7 @@ class IdentityGraphQuery:
     ) -> dict[str, Any]:
         pins_obj = QueryPins.from_payload(pins)
         graph_version = self.store.current_graph_version()
+        run_config_digest = self.store.current_run_config_digest()
         failure_count = self.store.apply_failure_count(
             scenario_run_id=pins_obj.scenario_run_id,
             platform_run_id=pins_obj.platform_run_id,
@@ -174,6 +181,7 @@ class IdentityGraphQuery:
             "pins": pins_obj.as_dict(),
             "graph_scope": _graph_scope(self.stream_id),
             "graph_version": graph_version,
+            "run_config_digest": run_config_digest,
             "integrity_status": integrity_status,
             "identifier": {
                 "identifier_type": identifier_type,
@@ -195,6 +203,7 @@ class IdentityGraphQuery:
     ) -> dict[str, Any]:
         pins_obj = QueryPins.from_payload(pins)
         graph_version = self.store.current_graph_version()
+        run_config_digest = self.store.current_run_config_digest()
         failure_count = self.store.apply_failure_count(
             scenario_run_id=pins_obj.scenario_run_id,
             platform_run_id=pins_obj.platform_run_id,
@@ -209,6 +218,7 @@ class IdentityGraphQuery:
             "pins": pins_obj.as_dict(),
             "graph_scope": _graph_scope(self.stream_id),
             "graph_version": graph_version,
+            "run_config_digest": run_config_digest,
             "integrity_status": integrity_status,
             "profile": profile,
         }
@@ -224,6 +234,7 @@ class IdentityGraphQuery:
     ) -> dict[str, Any]:
         pins_obj = QueryPins.from_payload(pins)
         graph_version = self.store.current_graph_version()
+        run_config_digest = self.store.current_run_config_digest()
         failure_count = self.store.apply_failure_count(
             scenario_run_id=pins_obj.scenario_run_id,
             platform_run_id=pins_obj.platform_run_id,
@@ -264,6 +275,7 @@ class IdentityGraphQuery:
             "pins": pins_obj.as_dict(),
             "graph_scope": _graph_scope(self.stream_id),
             "graph_version": graph_version,
+            "run_config_digest": run_config_digest,
             "integrity_status": integrity_status,
             "entity": {"entity_id": entity_id, "entity_type": entity_type},
             "neighbors": _serialize_neighbors(neighbors),

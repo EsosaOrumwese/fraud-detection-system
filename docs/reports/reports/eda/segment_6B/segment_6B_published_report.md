@@ -163,3 +163,100 @@ Run scope: `runs\local_full_run-5\c25a2675fbfbacd952b13bb594880e92\data\layer3\6
 4. **Case‑timeline rows per flow:** 2.3044
 
 Interpretation: these ratios are consistent with the lean implementation (one flow per arrival, two events per flow, no S3 count inflation). The case timeline density suggests that, on average, each flow that opens a case yields a small fixed sequence of case events rather than long multi‑event investigations.
+
+## 9) Phase 0 — Policy‑Aligned vs Implementation‑Aligned Posture
+This phase locks the **exact run scope**, maps **policy packs to the surfaces they should shape**, and establishes two baselines we will use for realism judgement:
+1. **Policy‑aligned posture** (what the full spec intends), and
+2. **Implementation‑aligned posture** (what the lean build actually produces).
+
+### 9.1 Run scope (sealed world)
+1. `manifest_fingerprint`: `c8fd43cd60ce0ede0c63d2ceb4610f167c9b107e1d59b9b8c7d7b8d0028b05c8`
+2. `parameter_hash`: `56d45126eaabedd083a1d8428a763e0278c89efec5023cfd6cf3cab7fc8dd2d7`
+3. `seed`: `42`
+4. `scenario_id`: `baseline_v1`
+
+### 9.2 Policy packs → surfaces (authorities)
+**S1 (Attachment + Sessionisation)**
+1. `attachment_policy_6B.yaml` — entity attachment rules and requiredness per channel.
+2. `behaviour_prior_pack_6B.yaml` — geo/channel preferences (home vs global, device/terminal bias, account/instrument/ip weights).
+3. `sessionisation_policy_6B.yaml` — session key, timeouts, and stochastic boundary rules.
+4. `behaviour_config_6B.yaml` — feature flags + guardrails (what is enabled).
+5. `rng_policy_6B.yaml`, `rng_profile_layer3.yaml` — RNG families and keying.
+
+**S2 (Baseline flows + events)**
+1. `flow_shape_policy_6B.yaml` — flow counts, flow types, event templates, branch logic.
+2. `amount_model_6B.yaml` — price points + tail distribution for amounts.
+3. `timing_policy_6B.yaml` — event timing offsets.
+4. `flow_rng_policy_6B.yaml` — RNG families and budgets.
+5. `behaviour_config_6B.yaml` — feature flags (refunds, reversals, partial clearing).
+
+**S3 (Fraud overlay)**
+1. `fraud_campaign_catalogue_config_6B.yaml` — templates, quotas, schedules.
+2. `fraud_overlay_policy_6B.yaml` — mutation constraints.
+3. `fraud_rng_policy_6B.yaml` — RNG families.
+
+**S4 (Truth + bank‑view labels)**
+1. `truth_labelling_policy_6B.yaml` — fraud pattern → truth labels.
+2. `bank_view_policy_6B.yaml` — auth/detect/dispute/chargeback probabilities.
+3. `delay_models_6B.yaml` — detection/dispute/chargeback/case close delay distributions.
+4. `case_policy_6B.yaml` — case grouping, timelines, guardrails.
+5. `label_rng_policy_6B.yaml` — RNG families.
+
+**S5 (Validation gate)**
+1. `segment_validation_policy_6B.yaml` — required checks + realism corridors.
+
+### 9.3 Policy‑aligned statistical posture (full‑spec intent)
+**S1 — Attachment + sessionisation**
+1. Party selection should be **home‑biased** by segment/channel (p_home ~0.65–0.99).
+2. Instrument is optional for `BANK_RAIL`, required elsewhere.
+3. POS/ATM should often use merchant terminals (terminal bias ~0.88 POS, ~0.97 ATM).
+4. Session windows: hard timeout 20 mins, hard break 3 hours; stochastic boundary enabled.
+
+**S2 — Baseline flows + events**
+1. Multi‑flow sessions expected (1–3 flows per session with p={0.78,0.18,0.04}).
+2. Flow types vary by channel (auth/clear, declines, step‑up, ATM, transfers).
+3. Event templates include clearing, step‑up, refunds, reversals.
+4. Amounts draw from discrete price points + lognormal tail.
+5. Timing offsets govern auth→clear/refund events.
+
+**S3 — Fraud overlay**
+1. Six templates: CARD_TESTING, ATO, REFUND_ABUSE, MERCHANT_COLLUSION, PROMO_FRAUD, BONUS_ABUSE.
+2. Quota models determine target counts; guardrails cap targets at 200k/seed‑scenario.
+3. Mutation rules allow amount, time, routing changes (bounded by max multipliers).
+
+**S4 — Labels + cases**
+1. Truth labels map directly from fraud pattern type; unknown patterns should fail.
+2. Bank‑view outcomes follow probabilistic auth/detect/dispute/chargeback rules.
+3. Delays are heavy‑tailed (not fixed), with realism target ranges.
+4. Case grouping is multi‑flow with 3‑day window and reopen gaps.
+
+### 9.4 Implementation‑aligned statistical posture (lean build)
+**S1**
+1. Attachment is **deterministic hash‑based**; scoring + geo bias mostly bypassed if arrival lacks country.
+2. Devices are limited to those with IP links; merchant terminal logic may be skipped.
+3. Sessionisation uses **fixed bucketed windows**; stochastic boundary disabled.
+
+**S2**
+1. **One flow per arrival** (no multi‑flow sessions).
+2. **Only two events per flow**: `AUTH_REQUEST` + `AUTH_RESPONSE`.
+3. Amounts drawn deterministically from discrete price points; tails unused.
+4. Timing uses arrival `ts_utc`; no offsets.
+
+**S3**
+1. Fraud overlay is **tags + bounded amount upshift** only (no new flows/events).
+2. One deterministic campaign instance per template; targeting is hash‑based.
+3. Filters/tactics requiring missing fields are skipped.
+
+**S4**
+1. Truth labels derive directly from campaign_id (no collateral/posture rules).
+2. Bank‑view outcomes are deterministic hash‑draws; no RNG state.
+3. Delays use fixed minimums, not sampled distributions.
+4. Case timelines are **one‑case‑per‑flow** (no grouping).
+
+**S5**
+1. Validation is metadata‑first; realism corridors are WARN‑only and do not block PASS.
+
+### 9.5 Interpretation for realism assessment
+1. We will judge **statistical realism against the implementation‑aligned posture**, not the full‑spec posture, because the lean build intentionally omits several spec features (refunds, step‑ups, multi‑flow sessions).
+2. Spec‑level gaps will still be documented as **design vs implementation deltas**, but they will not be treated as statistical failures if they are explicit lean tradeoffs.
+3. Where policies define explicit targets (fraud prevalence, detection rates, case involvement ranges), those targets remain **binding for realism** even in the lean build and will be checked directly.

@@ -33,6 +33,7 @@ def main() -> None:
         "platform_run_id": platform_run_id,
         "graph_scope": graph_scope,
         "graph_version": basis.get("graph_version"),
+        "run_config_digest": basis.get("run_config_digest"),
         "basis": basis.get("basis"),
         "generated_at_utc": datetime.now(tz=timezone.utc).isoformat(),
     }

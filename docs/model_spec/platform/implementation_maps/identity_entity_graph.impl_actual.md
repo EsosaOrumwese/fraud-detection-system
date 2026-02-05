@@ -529,3 +529,44 @@ Phase 6 coding began before a formal plan entry. This entry records the intended
 
 ### Validation
 - `python -m pytest tests/services/identity_entity_graph -q` (14 passed)
+---
+
+## Entry: 2026-02-05 22:35:00 — Phase 7 plan (deployment + config, run_config_digest)
+
+### Problem / goal
+Complete Phase 7: ensure env ladder config stays aligned, secrets remain runtime-only, and IEG emits a run_config_digest for run-level pinning in query/reconciliation outputs.
+
+### Decisions (plan)
+1) **Compute run_config_digest** for IEG from policy + wiring refs (classification, identity_hints, class_map, partitioning_profiles, retention, topics) plus deterministic extras (event_bus_kind, graph_stream_base, lock_run_scope_on_first_event). Do not include platform_run_id so the digest is stable across runs.
+2) **Persist run_config_digest** in graph_versions table and surface in query/status/reconciliation responses.
+3) **Keep env ladder unchanged**: use existing env placeholders; no secrets added to profiles.
+
+### Planned changes
+- `src/fraud_detection/identity_entity_graph/config.py`: compute run_config_digest during profile load.
+- `src/fraud_detection/identity_entity_graph/store.py`: add run_config_digest to graph_versions table + storage; expose current_run_config_digest.
+- `src/fraud_detection/identity_entity_graph/query.py`: include run_config_digest in status/query responses and graph_scope output.
+- Tests: extend determinism test to assert run_config_digest present when using a profile.
+
+### Validation plan
+- `python -m pytest tests/services/identity_entity_graph -q`
+
+## Entry: 2026-02-05 22:44:00 — Phase 7 implemented (run_config_digest pinning)
+
+### Decisions (implemented)
+1) **run_config_digest inputs**: policy refs (classification, identity_hints, retention, class_map, partitioning_profiles) + deterministic wiring extras (event_bus_kind, graph_stream_base, lock_run_scope_on_first_event, sorted event_bus_topics). Exclude platform_run_id, projection_db_dsn, and runtime secrets so the digest is stable across runs.
+2) **Persistence + exposure**: persist run_config_digest alongside graph_version in ieg_graph_versions and surface in query status/resolve/profile/neighbors plus reconciliation artifacts.
+
+### Implementation
+- `src/fraud_detection/identity_entity_graph/config.py`: added run_config_digest to IegPolicy and compute from normalized config payload during profile load.
+- `src/fraud_detection/identity_entity_graph/store.py`: added run_config_digest column to ieg_graph_versions (SQLite/Postgres + auto-migration), stored with graph_version updates, and exposed via current_run_config_digest + graph_basis.
+- `src/fraud_detection/identity_entity_graph/projector.py`: passes run_config_digest into store.
+- `src/fraud_detection/identity_entity_graph/query.py`: surfaces run_config_digest in status + query responses and reconciliation payloads.
+- `src/fraud_detection/identity_entity_graph/reconcile.py`: includes run_config_digest in reconciliation artifact JSON.
+- `tests/services/identity_entity_graph/test_projector_determinism.py`: assert run_config_digest is populated and consistent across replay runs.
+
+### Invariants / guarantees
+- run_config_digest is deterministic for a given policy/wiring bundle and is run-stable (platform_run_id excluded).
+- graph_version remains replay-deterministic; run_config_digest anchors the configuration used to produce it.
+
+### Validation
+- `python -m pytest tests/services/identity_entity_graph -q` (14 passed).
