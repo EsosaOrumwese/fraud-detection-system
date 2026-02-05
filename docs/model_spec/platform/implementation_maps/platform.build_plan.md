@@ -302,7 +302,7 @@ These remain open and will be resolved during RTDL Phase 4 planning and partitio
 **DoD checklist:**
 - Canonical envelope is used (no separate decision envelope).
 - Envelope includes `payload_kind` (or `decision_kind`) to distinguish RTDL payloads.
-- Required pins are enforced: `run_id`, `manifest_fingerprint`, `parameter_hash`, `scenario_id`, `seed`.
+- Required pins are enforced: `platform_run_id`, `scenario_run_id`, `manifest_fingerprint`, `parameter_hash`, `scenario_id`, `seed` (legacy `run_id` optional alias only).
 - Provenance fields are mandatory in RTDL payloads: `eb_offset_basis`, `graph_version`, `snapshot_hash`, `bundle_ref`.
 - Error handling for missing pins/provenance is documented (fail‑closed).
 
