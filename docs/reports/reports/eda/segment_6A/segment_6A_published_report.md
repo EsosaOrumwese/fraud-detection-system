@@ -367,8 +367,11 @@ IPs:
 
 ### A8. Interpretation for realism
 1. **Strength:** segmentation is consistent and logically clean (no cross‑type leakage).  
+   This matters because downstream models and features can trust that “retail” and “business” segments mean what they say without hidden cross‑mixing.
 2. **Posture:** the world is strongly retail‑heavy, top‑heavy by country, and geographically uniform in segment mix.  
-3. **Realism impact:** this is *statistically coherent* but **policy‑driven**, not emergent geography. If stronger geo‑specific realism is desired, priors need country‑level modulation.
+   That posture will drive most geography‑based signals to reflect a few dominant countries and a global‑prior segment profile rather than local demographic nuance.
+3. **Realism impact:** this is *statistically coherent* but **policy‑driven**, not emergent geography.  
+   If stronger geo‑specific realism is desired, priors need country‑level modulation so that segments differ meaningfully across markets rather than by global averages.
 
 ---
 
@@ -422,8 +425,11 @@ IPs:
 
 ### B9. Interpretation for realism
 1. **Strength:** account surfaces are structurally consistent and cleanly partitioned.  
+   This means product holdings can be explained directly from party type and segment without worrying about schema noise or unexpected mixing.
 2. **Posture:** retail dominance is reinforced at the account level and segment‑specific product variation is weak.  
-3. **Realism impact:** the dataset is coherent but policy‑driven; realism would improve if business accounts and segment‑specific preferences were strengthened.
+   As a result, business patterns are under‑represented and segment‑driven behavioral differences will be muted in 6B.
+3. **Realism impact:** the dataset is coherent but policy‑driven.  
+   Realism would improve if business accounts were more prevalent and segment‑specific product preferences were stronger (e.g., students vs retirees).
 
 ---
 
@@ -475,8 +481,11 @@ This is a clear policy posture and is consistent with realistic product behavior
 
 ### C7. Interpretation for realism
 1. **Strength:** linkage is clean and instrument–product semantics are correct.  
+   This preserves explainability: instruments look like they belong to the right products rather than arbitrary attachments.
 2. **Posture:** instrument coverage is partial and virtual share is moderate.  
-3. **Realism impact:** plausible overall, but tail heaviness (max 189 instruments per party) and the 29% un‑instrumented accounts should be confirmed as intended.
+   That will dampen digital‑channel intensity unless 6B explicitly compensates for it.
+3. **Realism impact:** plausible overall, but tail heaviness (max 189 instruments per party) and the 29% un‑instrumented accounts should be confirmed as intended.  
+   If those are not policy‑driven, they could introduce unrealistic long‑tail behavior into downstream fraud features.
 
 ---
 
@@ -519,8 +528,11 @@ This is a clear policy posture and is consistent with realistic product behavior
 
 ### D8. Interpretation for realism
 1. **Strength:** device/IP graph is structurally clean and ownership counts are plausible.  
+   The party‑level device distribution fits a believable consumer footprint and avoids graph‑integrity noise.
 2. **Posture:** linkage is party‑only, IP sharing has an extreme tail, and IP‑per‑device is tightly capped.  
-3. **Realism impact:** the graph is coherent but policy‑rigid; realism would improve with account‑level device links, richer link roles, and a less extreme IP‑sharing tail.
+   This creates a graph that is easy to explain but less realistic in settings where devices roam and link to multiple accounts.
+3. **Realism impact:** the graph is coherent but policy‑rigid.  
+   Realism would improve with account‑level device links, richer link roles, and a less extreme IP‑sharing tail so that shared‑device and shared‑IP signals are not artificially amplified.
 
 ---
 
@@ -535,7 +547,8 @@ This is a clear policy posture and is consistent with realistic product behavior
 Interpretation:
 1. The **party→account** coverage is near‑total (expected).  
 2. **Account→instrument** coverage is partial by design (savings/loan likely un‑instrumented).  
-3. **Device→IP linkage is sparse**, implying that most devices do not have IP associations. If IPs were meant to represent typical device endpoints, this is too low; if they represent only salient/high‑risk endpoints, it is plausible.
+3. **Device→IP linkage is sparse**, implying that most devices do not have IP associations.  
+   If IPs were meant to represent typical device endpoints, this is too low; if they represent only salient/high‑risk endpoints, it is plausible. The choice determines how much IP‑based features can contribute to realism.
 
 ### E2. Foreign‑key integrity is clean
 1. Accounts referencing missing parties: **0**  
@@ -554,9 +567,256 @@ This is excellent structural coherence and a strong realism prerequisite.
 
 Interpretation:
 1. The averages are consistent with earlier distributions.  
-2. The IPs‑per‑device average is extremely low, which is consistent with the low device→IP coverage in E1.
+2. The IPs‑per‑device average is extremely low, which is consistent with the low device→IP coverage in E1.  
+   This effectively makes IPs a sparse overlay, not a universal attribute; downstream models will treat IPs as “special” rather than standard metadata.
 
 ### E4. Interpretation for realism
 1. **Strength:** cross‑layer joins are clean and deterministic; no orphan references.  
+   This reduces noise in model training and makes errors easier to diagnose.
 2. **Posture:** IP linkage is intentionally sparse.  
-3. **Realism impact:** the chain is coherent, but the device→IP sparsity should be confirmed as intended rather than accidental.
+   That means IP‑based features will be present for a minority of devices and may carry outsized weight.
+3. **Realism impact:** the chain is coherent, but the device→IP sparsity should be confirmed as intended rather than accidental.  
+   If it is accidental, IP realism will be the dominant weak spot in 6A/6B.
+
+---
+
+## F) Fraud posture realism (S5)
+
+### F1. Role proportions are plausible but strongly policy‑driven
+1. Party roles: `CLEAN` **94.95%**, `MULE` **2.45%**, `SYNTHETIC_ID` **2.03%**, `ORGANISER` **0.30%**, `ASSOCIATE` **0.27%**.  
+2. Account roles: `CLEAN_ACCOUNT` **97.92%**, `HIGH_RISK_ACCOUNT` **1.21%**, `MULE_ACCOUNT` **0.55%**, `DORMANT_RISKY` **0.32%**.  
+3. Device roles: `CLEAN_DEVICE` **96.93%**, `HIGH_RISK_DEVICE` **2.49%**, `REUSED_DEVICE` **0.58%**.  
+4. IP roles: `SHARED_IP` **88.01%**, `HIGH_RISK_IP` **9.47%**, `CLEAN_IP` **2.52%**.  
+5. Merchant roles (n=1,238): `NORMAL` **99.27%**, `HIGH_RISK_MCC` **0.40%**, `COLLUSIVE` **0.32%**.  
+
+Interpretation: this is a **low‑fraud‑prevalence posture** with a large clean base.  
+That is plausible for a retail‑heavy bank, but the IP role mix is unusually skewed toward `SHARED_IP` with very little `CLEAN_IP`. If “shared IP” is treated as risky, this will inflate network risk signals; if it is meant to be benign, the label vocabulary may need adjustment.
+
+### F2. Risk tiers discriminate by party role (good realism signal)
+Risk tier distribution by role shows strong separation:
+1. `ORGANISER`: **63.6% HIGH**, 26.2% ELEVATED, 10.1% STANDARD  
+2. `SYNTHETIC_ID`: **53.1% HIGH**, 33.3% ELEVATED, 13.0% STANDARD  
+3. `MULE`: **50.6% HIGH**, 35.4% ELEVATED, 13.4% STANDARD  
+4. `ASSOCIATE`: **47.2% HIGH**, 37.1% ELEVATED  
+5. `CLEAN`: **51.9% STANDARD**, 24.4% ELEVATED, 13.5% LOW, 10.2% HIGH  
+
+This is internally coherent: risky roles skew high/elevated, while clean parties are mostly standard/low.
+
+### F3. Party role is almost uniform across retail segments
+For the top retail segments, role shares are nearly identical:
+1. `CLEAN` ≈ **94.85–94.95%**  
+2. `MULE` ≈ **2.44–2.50%**  
+3. `SYNTHETIC_ID` ≈ **2.04–2.07%**  
+
+Interpretation: there is **no segment‑specific fraud skew**.  
+If we expect certain segments (e.g., students or value cohorts) to be more fraud‑exposed, this uniformity will suppress realistic segment‑level signals and reduce explainability in downstream models.
+
+### F4. Account roles are nearly independent of party roles
+Non‑clean account share by owner role:
+1. `ORGANISER`: **2.17%**  
+2. `SYNTHETIC_ID`: **2.11%**  
+3. `CLEAN`: **2.08%**  
+4. `ASSOCIATE`: **2.07%**  
+5. `MULE`: **2.05%**  
+
+Interpretation: account risk labels are **essentially flat** across owner fraud roles.  
+That means the model will not see a strong “risky party → risky account” pathway, which is often a core realism feature. If mule/synthetic parties should propagate risk, this coupling needs to be strengthened.
+
+### F5. Device roles are also almost independent of party roles
+Non‑clean device share by owner role:
+1. `ASSOCIATE`: **3.08%**  
+2. `CLEAN`: **3.07%**  
+3. `MULE`: **3.04%**  
+4. `SYNTHETIC_ID`: **3.03%**  
+5. `ORGANISER`: **2.92%**  
+
+Interpretation: devices are **not more risky** for risky parties.  
+This weakens “risk propagation” realism and will make device‑risk features less informative in downstream fraud detection.
+
+### F6. Account roles vary by account type, but only modestly
+High‑risk account share by type (top retail types):
+1. `RETAIL_CREDIT_CARD_*`: **~1.76%**  
+2. `RETAIL_CURRENT_*`: **~1.10%**  
+3. `RETAIL_SAVINGS_*`: **~0.87%**  
+
+Interpretation: credit accounts are slightly riskier than current/savings, which is plausible, but the gradient is small.  
+If product‑level risk differentiation is important for 6B realism, this gradient likely needs to be larger.
+
+### F7. IP roles only weakly track high sharing
+1. High‑risk IPs have higher mean degree (≈ **9.85** devices/IP) and the absolute max (6,114 devices).  
+2. But the **top‑1% degree IPs** are **89.0% SHARED**, **8.5% HIGH_RISK**, **2.4% CLEAN** — almost identical to overall shares.  
+
+Interpretation: risk labels are not strongly concentrated in the high‑sharing tail, except at the absolute extreme.  
+This means “shared IP” does not systematically translate into “high‑risk IP,” which may reduce the realism of IP‑based risk signals.
+
+### F8. Interpretation for realism
+1. **Strength:** risk tiering is coherent and aligns with role severity.  
+   This makes the fraud posture interpretable and consistent across entity types.
+2. **Posture:** risk propagation across entities is weak and segment‑level fraud skew is minimal.  
+   As a result, many fraud‑related signals are almost flat across segments and ownership hierarchies.
+3. **Realism impact:** the posture is stable and explainable, but realism would improve if risky parties were more likely to own risky accounts/devices and if high‑sharing IPs skewed more strongly toward high‑risk labels.  
+   That would create more realistic correlation structure for downstream fraud models to learn.
+
+---
+
+## G) Heavy‑tail & concentration diagnostics
+
+### G1. Accounts per party are not highly concentrated
+1. Top‑1% parties (by account count) hold **5.76%** of all accounts.  
+2. The 99th percentile is **8 accounts**, so the “top‑1%” threshold is not extreme.  
+3. HHI for accounts per party is **4.26e‑07**, which is extremely low.  
+
+Interpretation: accounts are **broadly distributed**.  
+The tail exists (max 136) but does not dominate the overall mass, which means extreme parties are rare enough that they should not overwhelm model training.
+
+### G2. Instruments per party show similar mild concentration
+1. Top‑1% parties hold **5.83%** of all instruments.  
+2. The 99th percentile is **11 instruments**.  
+
+Interpretation: the instrument tail is **noticeable but not dominant**.  
+The max of 189 instruments is an outlier rather than a systemic concentration driver, but it should still be explained as a policy feature if it is intended.
+
+### G3. Devices per party are also only mildly concentrated
+1. Top‑1% parties hold **6.26%** of devices.  
+2. The 99th percentile is **7 devices**.  
+
+Interpretation: device ownership is broadly spread and does not look unnaturally concentrated.  
+This suggests that device counts are not being driven by a small elite of parties.
+
+### G4. Devices‑per‑IP is the concentration outlier
+1. Top‑1% IPs hold **33.80%** of all device‑IP links.  
+2. 99th percentile is **172 devices/IP**; 99.9th percentile **206**.  
+3. Top‑N shares of device‑IP links:  
+   Top 10 IPs **2.71%**, Top 50 **5.81%**, Top 100 **6.31%**, Top 500 **10.04%**.  
+4. HHI for devices‑per‑IP is **0.000164**, far higher than the accounts HHI.  
+
+Interpretation: the IP layer is **highly heavy‑tailed** and much more concentrated than any other surface.  
+This will dominate “shared IP” signals unless it is intentionally capped or counter‑balanced by other features.
+
+### G5. Interpretation for realism
+1. **Strength:** accounts, instruments, and devices are diffuse; no unnatural elite concentration.  
+   This keeps the entity world from being dominated by a tiny fraction of hyper‑active actors.
+2. **Posture:** IP sharing is the only extreme concentration hotspot.  
+   The network layer behaves very differently from the rest of the entity surfaces.
+3. **Realism impact:** the main realism risk in 6A is IP tail heaviness; if that is intentional (e.g., carrier‑grade NAT), it should be documented as such.  
+   Otherwise, it will create an exaggerated shared‑IP signal compared to other synthetic dimensions.
+
+---
+
+## H) Policy targets vs observed outcomes
+
+This section compares **design priors** in `config/layer3/6A/priors/*.yaml` to observed distributions. Where the policy is explicit, we check alignment. Where the implementation uses simplified vocabularies, we flag that direct comparison is not possible.
+
+### H1. Segmentation priors are matched almost exactly
+1. **Region→party type mix** is effectively exact: observed shares differ from priors by ~1e‑5 per region/party‑type.  
+2. **Segment mix within region+party_type** shows tiny L1 distances (max ~0.0014).  
+3. **Overall party_type share** matches the prior‑weighted expectation (differences on the order of 1e‑6).  
+
+Interpretation: S1 is essentially **sampling directly from priors** with almost no drift.  
+This explains the uniformity seen in A: geographic and segment variation is policy‑fixed rather than emergent. It also means that any realism issues here are policy issues, not sampling noise.
+
+### H2. Product‑mix priors match observed account type shares
+Using `product_mix_priors_6A` base lambdas (normalized):
+1. Observed account‑type shares by party_type are **very close** to target.  
+2. Largest deviations are ~0.02 absolute share (mostly in OTHER accounts).  
+
+Interpretation: account mix is **faithfully policy‑driven**.  
+The uniformity noted in B is therefore expected: segment‑level tilt is minor compared to the base mix, so most parties look similar within a party type.
+
+### H3. Account‑per‑party caps are **violated**
+`account_per_party_priors_6A` defines **K_max** per account type, but the data exceeds these caps for many types. Examples:
+1. `RETAIL_CREDIT_CARD_STANDARD`: K_max **4**, observed max **79**, **25,163** parties exceed.  
+2. `RETAIL_SAVINGS_INSTANT`: K_max **4**, observed max **70**, **23,495** parties exceed.  
+3. `RETAIL_PERSONAL_LOAN_UNSECURED`: K_max **2**, observed max **23**, **9,434** parties exceed.  
+4. `BUSINESS_CREDIT_CARD`: K_max **5**, observed max **135**, **382** parties exceed.  
+
+Interpretation: either the cap is not enforced in the generator, or per‑party aggregation is not aligned with the cap semantics.  
+This is a **material policy mismatch** because it changes the tail behavior of account holdings and can inflate downstream risk signals.
+
+### H4. Instrument mix composition matches priors, but totals do not
+1. **Instrument‑type shares within each account type** align extremely closely with `instrument_mix_priors_6A` (L1 distances ~1e‑5).  
+2. **Instrument counts per account type** are **higher than lambda_total targets** for several types. Examples:  
+   - `RETAIL_SAVINGS_INSTANT`: expected **0.45**, observed **1.00**  
+   - `RETAIL_SAVINGS_FIXED`: expected **0.25**, observed **1.00**  
+   - `RETAIL_PERSONAL_LOAN_UNSECURED`: expected **0.20**, observed **1.00**  
+   - `BUSINESS_TERM_LOAN`: expected **0.20**, observed **1.00**  
+
+Interpretation: the **composition** is correct, but the **absolute instrument count** is inflated (likely because each account is forced to have at least one bank‑rail instrument).  
+This is a policy mismatch that should be documented or corrected, because it makes instrument totals look “too complete” relative to the intended lambda targets.
+
+### H5. Device priors are mostly respected
+1. Mean devices per party type vs base targets:  
+   - `RETAIL`: **2.32** vs target **2.2**  
+   - `BUSINESS`: **2.99** vs target **2.8**  
+   - `OTHER`: **2.08** vs target **1.6**  
+2. Device type mix by party_type matches base priors extremely closely (L1 ~1e‑5).  
+
+Interpretation: device counts are slightly higher than base targets but **very close**, and type mix is faithful to policy.  
+This suggests the device priors are applied correctly and any deviation is likely due to segment tilts rather than implementation errors.
+
+### H6. IP priors diverge sharply from observations
+1. **IPs per device by group**: expected non‑zero IPs for most device groups, but observed means are **0** for `CONSUMER_MOBILE`, `CONSUMER_COMPUTER`, and `SERVER_BACKEND`. Only `COMPUTER_PORTABLE` (laptops) and `IOT_OTHER` match expected lambdas.  
+2. **IP type mix**: expected residential share ≈ **0.38**, observed **0.96**. All other IP types are far below targets (by 0.02–0.29 absolute share).  
+
+Interpretation: IP generation is **not following the priors**.  
+This is the largest policy mismatch in 6A and is likely responsible for the extreme residential dominance and sparse device→IP linkage. It also explains the heavy‑tail concentration in the IP layer.
+
+### H7. Party role priors: clean share is within target, but caps are breached
+1. Clean share by party_type is **within the realism target ranges**.  
+2. **Cap violations** against `party_role_priors_6A.max_role_share_caps`:  
+   - `ORGANISER` observed **0.296%** vs cap **0.10%**  
+   - `SYNTHETIC_ID` observed **2.03%** vs cap **2.00%**  
+
+Interpretation: global role proportions are close but **not fully policy‑compliant**.  
+If caps are meant to be hard, this is a spec violation; if they are soft, the caps should be documented as guidelines rather than constraints.
+
+### H8. Device/IP role vocabularies do not match priors
+Observed roles use simplified vocabularies (`CLEAN_DEVICE`, `REUSED_DEVICE`, `HIGH_RISK_DEVICE` and `SHARED_IP`, `CLEAN_IP`, `HIGH_RISK_IP`).  
+Policy vocabularies in priors are richer (e.g., `BOT_LIKE_DEVICE`, `PUBLIC_SHARED_IP`, `CORPORATE_NAT_IP`, `NORMAL_IP`).  
+
+Interpretation: **direct policy‑vs‑outcome comparison is not possible** for device/IP roles without a mapping layer.  
+This is an implementation simplification that should be documented as a design deviation, because it hides which risk semantics were intended by the richer vocabulary.
+
+### H9. Interpretation for realism
+1. **Strong alignment:** segmentation, product mix, and instrument‑type composition match priors almost exactly.  
+   This means most of the population and product surfaces are behaving exactly as designed.
+2. **Material mismatches:** account‑type K_max caps, instrument totals, and IP priors (counts + type mix).  
+   These mismatches are large enough to change tail behavior and network realism.
+3. **Design deviation:** device/IP role vocabularies are simplified, so policy targets cannot be directly enforced.  
+   This reduces traceability from policy intent to observed risk labels.
+
+Overall, 6A is **highly policy‑driven** where the priors are used, but there are **clear gaps** where priors are not applied or are overridden by implementation mechanics.
+
+---
+
+## Final realism grade — Segment 6A
+
+**Grade: B‑**
+
+### Why this grade (strengths)
+1. **Structural integrity is excellent.**  
+   Party, account, instrument, device, and IP tables join cleanly with no orphan links. This gives a reliable backbone for 6B and prevents “data quality” artifacts from contaminating realism judgments.
+2. **Policy alignment is strong for core identity and product mix.**  
+   Region→party‑type mix, segment mix, and account mix match priors almost exactly. Instrument **composition** per account type also matches the priors closely, which makes the product surface explainable.
+3. **Distributions are stable and interpretable.**  
+   Accounts, instruments, and devices are diffuse (no extreme concentration outside the IP layer), which is a plausible synthetic posture and avoids an unrealistic elite‑dominance effect.
+
+### Why it is not higher (gaps)
+1. **IP layer deviates sharply from priors.**  
+   IP type mix is far from target (residential ~96% observed vs ~38% expected), device→IP linkage is sparse (14.8% coverage), and device‑per‑IP is extremely heavy‑tailed. This creates a dominant, likely unrealistic, network signal that can overwhelm other realism cues.
+2. **Account cap violations are widespread.**  
+   Many account types exceed their K_max caps by large margins. This suggests enforcement issues or a mismatch between policy semantics and implementation, and it inflates heavy‑tail behavior in holdings.
+3. **Risk propagation is weak.**  
+   Fraud roles do not materially increase risky accounts/devices. Segment‑specific fraud skew is minimal. This reduces explainability of fraud posture downstream because risk does not “flow” along ownership edges.
+4. **Role vocabularies are simplified vs priors.**  
+   Device/IP roles used in data do not align with the richer policy vocabulary, blocking direct policy‑to‑data validation and reducing the nuance of network‑risk labels.
+
+### What would move this to B / B+ / A‑
+1. **Fix IP realism against priors.**  
+   Bring IP type mix and device→IP linkage rates closer to `ip_count_priors_6A`, and reduce extreme device‑per‑IP tails unless explicitly intended. This will make IP features representative rather than dominant anomalies.
+2. **Enforce or redefine account K_max.**  
+   Either cap per‑party account counts as specified or update the priors to reflect the intended tail. This will improve account realism and prevent policy drift in account holdings.
+3. **Strengthen risk propagation.**  
+   Make risky parties meaningfully more likely to own risky accounts/devices and ensure high‑sharing IPs skew toward high‑risk labels. This improves realism and model explainability by restoring causal‑looking chains.
+4. **Align role vocabularies (or document mapping).**  
+   Either use the richer role vocabularies from priors or define a formal mapping so policy targets can be validated. Without that, risk labels cannot be audited against intent.
