@@ -1120,3 +1120,58 @@ uniformly. The trim ratio ranges **0.981–0.990** across hours.
 Explanation: Tail zones contribute little mass and do not materially change
 the macro temporal pattern. Their main role is presence/coverage rather than
 shape.
+
+---
+
+## 16) Realism Grade (5A)
+
+**Grade: B+**
+
+### Why this grade (strengths)
+1. **Macro temporal patterns are plausible.** Daytime peaks, mild weekend
+softening, and class‑driven rhythms align with expected commerce patterns.
+2. **Class archetypes behave correctly.** Day/evening/night dominance and
+weekend shares match class intent (e.g., `evening_weekend`, `online_24h`).
+3. **Heavy‑tail volume looks realistic.** Top‑1% merchants carry ~30% of total
+volume; top‑5% carry ~50%, a believable synthetic skew.
+4. **Overlays are conservative and explainable.** PAYDAY drives uplift,
+HOLIDAY drives mild suppression, OUTAGE is rare and local.
+5. **Cross‑surface coherence is excellent.** Baseline/scenario conserve mass,
+shapes apply exactly, and guardrails are not clipping.
+6. **Flags align with behavior.** `high_variability_flag` zones show higher
+CV and higher night/weekend mass.
+
+### Why not an A (gaps)
+1. **Channel realism is missing.** Outputs are all `channel_group = mixed`, so
+CP/CNP temporal differences are not expressed.
+2. **Country/class concentration is strong.** Heavy‑tail volume is
+concentrated in a few countries and in `consumer_daytime`, which may be too
+sharp unless intended.
+3. **Tail zones are overwhelmingly zero.** ~98% of tail zones have zero
+volume, which can distort tz‑level aggregates unless filtered.
+4. **DST mismatch remains.** Scenario composition residuals in DST zones are
+small but still a realism blemish.
+5. **Overlay coverage is uneven.** Some countries have zero event coverage
+while a few reach ~28% affected share.
+
+### What would move this to A‑ / A
+1. **Enable channel differentiation** (CP/CNP vs mixed) with distinct shapes.
+2. **Soften class/country concentration** (reduce `consumer_daytime` dominance
+or spread high‑volume merchants across more countries).
+3. **Give tail zones minimal background volume** instead of near‑zero.
+4. **Handle DST alignment explicitly** in scenario mapping.
+
+**Additional explanation:**  
+1. **Channel differentiation** would allow realistic temporal differences
+between card‑present and card‑not‑present traffic (e.g., CNP skewing later
+hours and higher night activity). This improves realism for channel‑sensitive
+fraud patterns and removes the current “all mixed” artifact.
+2. **Softening concentration** reduces the synthetic feel that comes from
+volume being dominated by a narrow set of classes/countries. A slightly more
+diverse mix preserves the heavy‑tail but looks more organic.
+3. **Minimal tail‑zone volume** introduces a low‑level trickle in otherwise
+zero zones, which is more realistic and prevents tz‑level aggregates from
+collapsing to hard zeros.
+4. **DST‑aware alignment** would remove the small residual mismatch between
+scenario and baseline×overlay in DST‑shifting zones, leaving the system
+fully coherent across timezones.
