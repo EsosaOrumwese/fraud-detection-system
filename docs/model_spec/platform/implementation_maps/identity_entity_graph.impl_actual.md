@@ -54,3 +54,69 @@ Refactor `identity_entity_graph.build_plan.md` to:
 
 ### File updated
 - `docs/model_spec/platform/implementation_maps/identity_entity_graph.build_plan.md`
+
+---
+
+## Entry: 2026-02-05 19:18:00 — Phase 1 implementation plan (IEG intake + projection core)
+
+### Problem / goal
+Implement Phase 1 of the IEG v0 build plan: deterministic EB intake, envelope/pins validation, classification, identity-hint extraction, idempotent apply, checkpoints, and `graph_version` derivation.
+
+### Authorities / inputs
+- `docs/model_spec/platform/implementation_maps/identity_entity_graph.build_plan.md` (Phase 1 DoD)
+- `docs/model_spec/platform/pre-design_decisions/real-time_decision_loop.pre-design_decision.md`
+- `docs/model_spec/platform/component-specific/identity_entity_graph.design-authority.md`
+- Canonical envelope schema: `docs/model_spec/data-engine/interface_pack/contracts/canonical_event_envelope.schema.yaml`
+- Platform rails (ContextPins, no‑PASS‑no‑read, idempotency, append‑only truths)
+
+### Decision trail (live)
+1) **Bus intake:** implement file-bus + Kinesis readers with identical semantics; Kinesis uses shard list + `AFTER_SEQUENCE_NUMBER` when checkpoints exist. File-bus uses line offsets (exclusive-next).
+2) **Topic set is explicit:** topics list is configured per environment profile; if a fixed Kinesis stream name is configured, IEG reads that stream and filters by event_type/classification rather than assuming per-topic streams.
+3) **Classification map:** deterministic event_type → {GRAPH_MUTATING | GRAPH_IRRELEVANT}; unknown event_type fails closed with `GRAPH_UNUSABLE` and an apply-failure record.
+4) **Identity hints extraction:** v0 uses payload-level `observed_identifiers[]` as the standard identity-hints block; optional per‑event field-mapping is supported via config but not required for baseline.
+5) **Idempotency key:** dedupe key = sha256(`scenario_run_id` + class_name + `event_id`); payload_hash uses canonical JSON of `{event_type, schema_version, payload}`.
+6) **Storage substrate:** support Postgres when DSN is provided; otherwise use run-scoped SQLite for local/dev (same schema and semantics).
+7) **Graph_version:** derived from stream_id + `{topic → {partition → next_offset}}` basis map (exclusive-next). `watermark_ts_utc` tracks max seen `ts_utc` (v0); offsets advance only after durable commit.
+
+### Planned files / paths
+- New package: `src/fraud_detection/identity_entity_graph/` (config, projector, store, ids, hints).
+- Event bus reader extension for Kinesis: `src/fraud_detection/event_bus/kinesis.py`.
+- Config artifacts: `config/platform/ieg/` (classification + identity hints + topics list).
+- Profiles: `config/platform/profiles/{local,local_parity,dev,prod}.yaml` with `ieg` section.
+- Tests: `tests/services/identity_entity_graph/` (idempotency, payload_hash mismatch, checkpoint/graph_version determinism).
+
+### Validation plan (Phase 1)
+- Unit: duplicate event_id with same payload does not mutate state; mismatched payload_hash records apply-failure.
+- Unit: missing identity hints => GRAPH_UNUSABLE + apply-failure; checkpoints still advance.
+- Unit: graph_version stable for same basis vector.
+- Smoke: process a small local file-bus batch and produce non-empty projection + graph_version.
+
+---
+
+## Entry: 2026-02-05 19:46:00 — Phase 1 implemented (IEG intake + projection core)
+
+### Summary of changes
+- Implemented IEG projector package with deterministic intake, envelope validation, classification, identity-hints extraction, idempotent apply, checkpoints, and graph_version derivation.
+- Added config artifacts for IEG classification, identity-hints policy, and explicit topic list; wired profiles for local/local_parity/dev/prod.
+- Added Kinesis read adapter to the Event Bus module (list shards + batch read).
+- Added unit tests for idempotency, payload_hash mismatch, and graph_version presence.
+
+### Key mechanics (as implemented)
+- **Envelope validation:** uses canonical envelope schema via `SchemaRegistry` (`canonical_event_envelope.schema.yaml`).
+- **Required pins:** enforced via IG class_map required pins; missing pins → `REQUIRED_PINS_MISSING` apply-failure.
+- **Classification:** event_type → {GRAPH_MUTATING, GRAPH_IRRELEVANT} via `classification_v0.yaml`; unknown defaults to `GRAPH_UNUSABLE` and records `CLASSIFICATION_UNSUPPORTED`.
+- **Identity hints:** v0 uses `payload.observed_identifiers[]` (optionally field-map in config). Missing hints → `IDENTITY_HINTS_MISSING`.
+- **Idempotency:** dedupe key = sha256(`scenario_run_id` + class_name + `event_id`); payload hash = sha256(canonical JSON of `{event_type, schema_version, payload}`).
+- **Storage:** SQLite (default) or Postgres (dsn) with identical schema; checkpoints are stored with exclusive-next semantics.
+- **Graph_version:** hash of canonical basis `{stream_id, topics → partitions → next_offset, offset_kind}`; watermark uses max seen `ts_utc` (v0).
+
+### Files added/updated
+- `src/fraud_detection/identity_entity_graph/`:
+  - `config.py`, `classification.py`, `hints.py`, `ids.py`, `store.py`, `projector.py`, `__init__.py`
+- `src/fraud_detection/event_bus/kinesis.py` (added read adapter)
+- `config/platform/ieg/` (`classification_v0.yaml`, `identity_hints_v0.yaml`, `topics_v0.yaml`)
+- `config/platform/profiles/{local,local_parity,dev,prod}.yaml` (added `ieg` section)
+- Tests: `tests/services/identity_entity_graph/test_projection_store.py`
+
+### Validation
+- `python -m pytest tests/services/identity_entity_graph/test_projection_store.py -q` (3 passed)

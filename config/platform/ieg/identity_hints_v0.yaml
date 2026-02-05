@@ -1,0 +1,3 @@
+version: "0.1.0"
+default_mode: observed_identifiers
+event_types: {}

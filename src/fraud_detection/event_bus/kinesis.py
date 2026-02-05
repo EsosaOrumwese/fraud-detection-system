@@ -74,3 +74,65 @@ def build_kinesis_publisher(
     region = region or os.getenv("AWS_DEFAULT_REGION") or os.getenv("AWS_REGION")
     endpoint = endpoint_url or os.getenv("AWS_ENDPOINT_URL") or os.getenv("KINESIS_ENDPOINT_URL")
     return KinesisEventBusPublisher(KinesisConfig(stream_name=stream_name, region=region, endpoint_url=endpoint))
+
+
+class KinesisEventBusReader:
+    def __init__(self, *, stream_name: str | None, region: str | None = None, endpoint_url: str | None = None) -> None:
+        self.stream_name = stream_name
+        self._client = boto3.client(
+            "kinesis",
+            region_name=region or os.getenv("AWS_DEFAULT_REGION") or os.getenv("AWS_REGION"),
+            endpoint_url=endpoint_url or os.getenv("AWS_ENDPOINT_URL") or os.getenv("KINESIS_ENDPOINT_URL"),
+        )
+
+    def list_shards(self, stream_name: str) -> list[str]:
+        if not stream_name:
+            raise RuntimeError("KINESIS_STREAM_NAME_MISSING")
+        response = self._client.list_shards(StreamName=stream_name)
+        return [shard.get("ShardId", "") for shard in response.get("Shards", []) if shard.get("ShardId")]
+
+    def read(
+        self,
+        *,
+        stream_name: str,
+        shard_id: str,
+        from_sequence: str | None,
+        limit: int,
+    ) -> list[dict[str, Any]]:
+        if not stream_name:
+            raise RuntimeError("KINESIS_STREAM_NAME_MISSING")
+        iterator_args: dict[str, Any] = {
+            "StreamName": stream_name,
+            "ShardId": shard_id,
+            "ShardIteratorType": "TRIM_HORIZON",
+        }
+        if from_sequence:
+            iterator_args["ShardIteratorType"] = "AFTER_SEQUENCE_NUMBER"
+            iterator_args["StartingSequenceNumber"] = from_sequence
+        iterator_resp = self._client.get_shard_iterator(**iterator_args)
+        shard_iterator = iterator_resp.get("ShardIterator")
+        if not shard_iterator:
+            return []
+        records_resp = self._client.get_records(ShardIterator=shard_iterator, Limit=max(1, int(limit)))
+        records: list[dict[str, Any]] = []
+        for record in records_resp.get("Records", []):
+            payload = json.loads(record.get("Data") or b"{}")
+            published_at = record.get("ApproximateArrivalTimestamp")
+            published_at_utc = None
+            if published_at is not None:
+                try:
+                    if isinstance(published_at, datetime):
+                        published_at_utc = published_at.astimezone(timezone.utc).isoformat()
+                    else:
+                        published_at_utc = str(published_at)
+                except Exception:
+                    published_at_utc = None
+            records.append(
+                {
+                    "sequence_number": record.get("SequenceNumber"),
+                    "partition_key": record.get("PartitionKey"),
+                    "payload": payload,
+                    "published_at_utc": published_at_utc,
+                }
+            )
+        return records

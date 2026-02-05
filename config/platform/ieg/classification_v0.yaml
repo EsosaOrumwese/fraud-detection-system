@@ -1,0 +1,14 @@
+version: "0.1.0"
+default_action: graph_unusable
+graph_mutating:
+  - s2_event_stream_baseline_6B
+  - s3_event_stream_with_fraud_6B
+  - arrival_events_5B
+  - s1_arrival_entities_6B
+  - s2_flow_anchor_baseline_6B
+  - s3_flow_anchor_with_fraud_6B
+graph_irrelevant:
+  - ig.policy.activation
+  - ig.quarantine.spike
+  - ig.pull.run
+  - ig.audit.verify

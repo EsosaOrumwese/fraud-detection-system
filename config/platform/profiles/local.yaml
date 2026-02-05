@@ -39,3 +39,20 @@ wiring:
   wsp_producer:
     producer_id: svc:world_stream_producer
     allowlist_ref: config/platform/wsp/producer_allowlist_v0.txt
+ieg:
+  policy:
+    classification_ref: config/platform/ieg/classification_v0.yaml
+    identity_hints_ref: config/platform/ieg/identity_hints_v0.yaml
+    class_map_ref: config/platform/ig/class_map_v0.yaml
+    partitioning_profiles_ref: config/platform/ig/partitioning_profiles_v0.yaml
+    graph_stream_id: ieg.v0
+  wiring:
+    projection_db_dsn: ${IEG_PROJECTION_DSN}
+    event_bus_kind: file
+    event_bus:
+      root: runs/fraud-platform/eb
+      topics_ref: config/platform/ieg/topics_v0.yaml
+    engine_contracts_root: docs/model_spec/data-engine/interface_pack/contracts
+    poll_max_records: 200
+    poll_sleep_seconds: 0.2
+    checkpoint_every: 1
