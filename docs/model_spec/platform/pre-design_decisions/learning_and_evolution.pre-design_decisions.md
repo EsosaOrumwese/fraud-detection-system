@@ -17,8 +17,10 @@ Here are the questions I’d want settled so planning/implementation is ironed o
 
 Detailed answers (pinned defaults, based on current posture):
 - Replay basis is defined as **origin_offset ranges per topic/partition**. This is the authoritative basis for reproducibility.
+- `origin_offset` is canonicalized as `{topic/stream, partition/shard_id, sequence_number}`; EB vs Archive disagreement is a `payload_hash` mismatch for the same tuple.
 - Time windows are allowed only as **selectors** that are translated to offset ranges at build time; the resulting offsets are recorded in the DatasetManifest.
 - Archive is the durable truth beyond EB retention; EB may be used as an accelerator only when the same offset ranges are available.
+- If any portion of the replay basis is not present in EB retention, OFS reads that portion from Archive; EB is never required for correctness.
 - Partition-ordered replay is required; manifests record topic, partition, start_offset, end_offset for every stream included.
 - If EB and Archive disagree over the same offset range, OFS fails closed and emits an anomaly report (no dataset produced).
 
@@ -30,6 +32,7 @@ Detailed answers (pinned defaults, based on current posture):
 
 Detailed answers (pinned defaults, based on current posture):
 - DatasetFingerprint includes at minimum: replay basis (topic/partition offsets), label_asof_utc + label_resolution_rule_id, join scope (subject key + join sources), feature_def_set versions, filters/cohort rules, and OFS build profile/config revision.
+- Provenance MUST also record `ofs_code_release_id` and `mf_code_release_id` (git SHA or container image digest/tag) to preserve reproducibility across code upgrades.
 - Any change to any identity field yields a **new fingerprint and new DatasetManifest**; manifests are immutable and never mutated.
 
 ### 3) What is the **label cut rule** (anti-leakage) and label completeness policy?
@@ -84,6 +87,7 @@ Detailed answers (pinned defaults, based on current posture):
 - Splits are **time-based** and anchored to the replay basis; random splits are allowed only if the sampling seed + rule are recorded in the manifest.
 - PASS gates include: compatibility (feature/schema), leakage (label_asof discipline), and minimum performance thresholds (explicit metrics + thresholds per bundle slot).
 - A full **EvalReport** is required and must be reproducible from the DatasetManifest + training config refs; MF writes it as immutable evidence.
+- MF must refuse to publish a bundle if the required EvalReport or provenance/evidence references are missing.
 
 ### 7) Bundle contents + compatibility checks
 
@@ -92,7 +96,7 @@ Detailed answers (pinned defaults, based on current posture):
 * What is the bundle’s identity/fingerprint and immutability rule?
 
 Detailed answers (pinned defaults, based on current posture):
-- Bundle must include: model artifact(s), feature schema/version requirements, thresholds/policy config, required capabilities, and full provenance (training manifests + eval evidence refs).
+- Bundle must include: model artifact(s), feature schema/version requirements, thresholds/policy config, required capabilities, and full provenance (training manifests + eval evidence refs + `ofs_code_release_id` + `mf_code_release_id`).
 - MPR compatibility checks at resolve time include: feature_def_set match, required capabilities vs degrade mask, and input contract version match; incompatible bundles fail closed.
 - Bundle identity is immutable: `bundle_id + version` is the unit of truth; any change to artifacts or compatibility metadata requires a new version.
 
@@ -104,7 +108,8 @@ Detailed answers (pinned defaults, based on current posture):
 * What are rollback semantics and audit events (promote/rollback must be explicit and append-only)?
 
 Detailed answers (pinned defaults, based on current posture):
-- v0 ScopeKey = `{ environment, bundle_slot, tenant_id? }` (tenant_id optional); exactly one ACTIVE per scope.
+- v0 ScopeKey = `{ environment, mode, bundle_slot, tenant_id? }` (tenant_id optional); exactly one ACTIVE per scope.
+- Resolution order is deterministic: tenant-specific ACTIVE → global ACTIVE → explicit safe fallback (if defined). If none, fail closed.
 - DF resolves deterministically via MPR; if no compatible ACTIVE exists, resolution fails closed or routes only to an explicitly defined safe fallback, and the decision record must capture the failure.
 - Promotions/rollbacks are explicit lifecycle actions with append-only registry events; idempotent transitions are required under retries.
 
@@ -162,7 +167,7 @@ Detailed answers (pinned defaults, based on current posture):
 
 Detailed answers (pinned defaults, based on current posture):
 - Sampling (downsample/upsample/stratify) is allowed only if the **sampling rule + seed** are pinned in the manifest. No implicit sampling.
-- Selection bias is mitigated by explicit label coverage reporting, mature-window training (see P1.3), and optional weighting rules pinned in the manifest.
+- Selection bias is mitigated by explicit label coverage reporting, mature-window training controlled by `label_maturity_days` recorded in the manifest, and optional weighting rules pinned in the manifest.
 
 ### 3) Ground-truth maturity / label delay modeling
 
@@ -170,7 +175,7 @@ Detailed answers (pinned defaults, based on current posture):
 * Do you create “delayed-label evaluation” reports (performance at T+7d, T+30d)?
 
 Detailed answers (pinned defaults, based on current posture):
-- v0 training defaults to **mature windows**: label_asof_utc is set to ensure sufficient delay (policy-defined, e.g., 30 days).
+- v0 training defaults to **mature windows**: `label_maturity_days` is recorded in the manifest and `label_asof_utc` is set to ensure sufficient delay (policy-defined, e.g., 30 days).
 - Censored/immature windows are allowed only for explicitly tagged datasets.
 - Delayed-label evaluation reports are recommended and recorded as EvalReport variants (e.g., T+7d, T+30d) when requested.
 
