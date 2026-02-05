@@ -1,5 +1,5 @@
 # Learning + Evolution Plane Pre-design Decisions (Open to adjustment where necessary)
-_As of 2026-02-06_
+_As of 2026-02-05_
 
 Your Learning + Evolution narrative *makes sense* end-to-end and it stays faithful to the upstream “pinned truth / no drift” discipline. The remaining designer work is basically: **make the offline loop unambiguous** about (a) *what data is allowed*, (b) *what time it is “as-of”*, (c) *how evaluation avoids leakage*, and (d) *how bundles are activated deterministically*.
 
