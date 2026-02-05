@@ -113,3 +113,43 @@ Proceed to statistical realism assessment starting from:
 1. `merchant_zone_scenario_local_5A`  
 2. Trace back into S3, S2, and S1 only when necessary to explain patterns.
 
+---
+
+## 7) Preliminary realism checks (A/B) — findings so far
+Run scope: `runs\local_full_run-5\c25a2675fbfbacd952b13bb594880e92\data\layer2\5A`
+
+### 7.1 A) Why are most merchant×zone rows zero?
+Join: `merchant_zone_profile_5A` ↔ `layer1/3A/zone_alloc` on  
+`merchant_id + legal_country_iso + tzid`.
+
+Key result: **zero volumes align exactly with zero sites**.
+- Total rows: 16,528
+- Rows with `zone_site_count > 0`: 2,158 (13.06%)
+- Rows with `weekly_volume_expected > 0`: 2,158 (13.06%)
+- Rows with sites but zero volume: 0
+- Rows with volume but zero sites: 0
+- `P(volume | sites) = 1.000`, `P(sites | volume) = 1.000`
+
+Per‑merchant zone coverage (median / p90 / p99):
+- `zones_total`: 12 / 42 / 64.3 (max 70)
+- `zones_with_sites`: 2 / 5 / 10 (max 18)
+- `sites_fraction`: 0.130 / 0.50 / 1.00
+
+Interpretation: **sparsity is intentional upstream**.  
+Only zones allocated sites in `zone_alloc` receive any volume in 5A.
+
+### 7.2 B) Class distribution by merchant size tier
+Size tiers are quartiles of `weekly_volume_total_expected`  
+(`merchant_class_profile_5A`).
+
+Bin edges: `[359.3, 2291.0, 4508.6, 8261.9, 1,285,623.9]`  
+Counts per tier: micro 222, small 221, mid 221, large 222
+
+Top classes per tier:
+- **Micro:** consumer_daytime 62.2%, office_hours 12.2%, bills_utilities 8.6%, online_24h 8.6%
+- **Small:** consumer_daytime 64.7%, online_24h 12.7%, fuel_convenience 5.9%, bills_utilities 5.4%
+- **Mid:** consumer_daytime 62.9%, fuel_convenience 12.2%, online_24h 12.2%
+- **Large:** consumer_daytime 50.5%, online_24h 25.2%, fuel_convenience 14.9%, online_bursty 3.6%
+
+Interpretation: **larger merchants skew toward online_24h and fuel_convenience**,  
+while consumer_daytime dominates smaller tiers.
