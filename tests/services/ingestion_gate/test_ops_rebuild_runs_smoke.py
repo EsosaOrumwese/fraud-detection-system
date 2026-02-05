@@ -10,6 +10,8 @@ from fraud_detection.ingestion_gate.ops_index import OpsIndex
 from fraud_detection.ingestion_gate.store import LocalObjectStore
 from fraud_detection.platform_runtime import platform_run_root
 
+RUN_ID = "platform_20260101T000000Z"
+
 
 def _write_yaml(path: Path, payload: dict) -> None:
     import yaml
@@ -148,7 +150,7 @@ def _build_gate(tmp_path: Path) -> IngestionGate:
 
 def test_ops_rebuild_smoke_runs(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     repo_root = Path(__file__).resolve().parents[3]
-    monkeypatch.setenv("PLATFORM_RUN_ID", "test_ops_rebuild")
+    monkeypatch.setenv("PLATFORM_RUN_ID", RUN_ID)
     pins = None
     for root in _candidate_sr_roots(repo_root):
         if root.exists():
@@ -179,8 +181,8 @@ def test_ops_rebuild_smoke_runs(tmp_path: Path, monkeypatch: pytest.MonkeyPatch)
     store = LocalObjectStore(tmp_path / "store")
     rebuild_db = tmp_path / "ops_rebuild.db"
     index = OpsIndex(rebuild_db)
-    receipts_prefix = "fraud-platform/test_ops_rebuild/ig/receipts"
-    quarantine_prefix = "fraud-platform/test_ops_rebuild/ig/quarantine"
+    receipts_prefix = f"fraud-platform/{RUN_ID}/ig/receipts"
+    quarantine_prefix = f"fraud-platform/{RUN_ID}/ig/quarantine"
     index.rebuild_from_store(store, receipts_prefix=receipts_prefix, quarantine_prefix=quarantine_prefix)
 
     lookup = index.lookup_event(envelope["event_id"])

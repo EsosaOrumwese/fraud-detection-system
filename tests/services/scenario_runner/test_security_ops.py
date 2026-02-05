@@ -13,7 +13,7 @@ from fraud_detection.scenario_runner.runner import ScenarioRunner
 from fraud_detection.scenario_runner.security import redact_dsn
 
 
-RUN_PREFIX = "fraud-platform/test-run"
+RUN_PREFIX = "fraud-platform/platform_20260101T000000Z"
 
 
 def _build_wiring(tmp_path: Path, auth_mode: str = "disabled") -> WiringProfile:
@@ -158,7 +158,7 @@ def test_reemit_dry_run(tmp_path: Path) -> None:
 def test_quarantine_artifact_written(tmp_path: Path) -> None:
     wiring = _build_wiring(tmp_path, auth_mode="disabled")
     policy = _build_policy()
-    runner = ScenarioRunner(wiring, policy, LocalEngineInvoker())
+    runner = ScenarioRunner(wiring, policy, LocalEngineInvoker(), run_prefix=RUN_PREFIX)
 
     run_id = run_id_from_equivalence_key("quarantine")
     run_handle = RunHandle(run_id=run_id, intent_fingerprint="x", leader=True, lease_token="token")

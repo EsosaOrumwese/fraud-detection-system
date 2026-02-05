@@ -3995,3 +3995,34 @@ Align SR run_facts_view and READY control signal with Control & Ingress P0 pins:
 - Schema: READY + facts_view validate with new fields.
 
 ---
+
+## Entry: 2026-02-05 14:27:01 — SR READY/run_facts_view implementation updates
+
+### Summary
+Implemented SR payload updates for Control & Ingress pins and READY idempotency, plus test fixtures to satisfy new schema requirements.
+
+### Key implementation choices
+- READY `message_id` uses full sha256 hex64 via `hash_payload` (correcting earlier note of hex32); formula is `ready|platform_run_id|scenario_run_id|bundle_hash_or_plan_hash`.
+- `platform_run_id` is derived from `run_prefix` when it ends with a valid platform run id, else from `resolve_platform_run_id` with a warning to avoid invalid pins.
+- `run_config_digest` is surfaced from SR policy `content_digest` (via `policy_rev`) and emitted in READY + run_facts_view.
+
+### Code updates
+- SR runner now emits `platform_run_id` + `scenario_run_id` in run_facts_view and READY payloads, includes `message_id`, and sets run_config_digest + manifest/parameter/scenario pins.
+- READY re-emit path now derives message_id from both run ids and emits required pins.
+- Obs pins include `platform_run_id` and `scenario_run_id`.
+
+### Test/fixture updates
+- WSP READY consumer fixtures now include `platform_run_id`, `scenario_run_id`, `message_id`, and `run_config_digest` to satisfy schema validation.
+- Scenario Runner reemit tests updated to include new pins and to compute READY idempotency using platform_run_id.
+- Test run_prefix constants updated to valid platform run id patterns where applicable to avoid mismatched pins.
+
+### Files touched
+- `src/fraud_detection/scenario_runner/runner.py`
+- `tests/services/scenario_runner/test_reemit.py`
+- `tests/services/world_streamer_producer/test_ready_consumer.py`
+- `tests/services/scenario_runner/test_security_ops.py`
+- `tests/services/scenario_runner/test_instance_proof_bridge.py`
+- `tests/services/ingestion_gate/test_ops_index.py`
+- `tests/services/ingestion_gate/test_ops_rebuild_runs_smoke.py`
+
+---

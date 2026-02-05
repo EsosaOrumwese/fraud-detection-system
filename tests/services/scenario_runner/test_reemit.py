@@ -46,6 +46,7 @@ def test_reemit_ready_publishes_control_fact(tmp_path: Path) -> None:
     wiring = _build_wiring(tmp_path)
     policy = _build_policy()
     runner = ScenarioRunner(wiring, policy, LocalEngineInvoker())
+    platform_run_id = runner.platform_run_id
 
     run_id = run_id_from_equivalence_key("reemit-ready")
     anchor_event = runner._event("RUN_ACCEPTED", run_id, {"intent_fingerprint": "x"})
@@ -53,17 +54,22 @@ def test_reemit_ready_publishes_control_fact(tmp_path: Path) -> None:
 
     facts_view = {
         "run_id": run_id,
+        "platform_run_id": platform_run_id,
+        "scenario_run_id": run_id,
         "pins": {
             "manifest_fingerprint": "a" * 64,
             "parameter_hash": "b" * 64,
             "seed": 1,
             "scenario_id": "s1",
             "run_id": run_id,
+            "platform_run_id": platform_run_id,
+            "scenario_run_id": run_id,
         },
         "locators": [],
         "gate_receipts": [],
         "policy_rev": policy.as_rev(),
         "bundle_hash": "c" * 64,
+        "run_config_digest": policy.content_digest,
         "plan_ref": f"{runner.ledger.prefix}/run_plan/{run_id}.json",
         "record_ref": f"{runner.ledger.prefix}/run_record/{run_id}.jsonl",
         "status_ref": f"{runner.ledger.prefix}/run_status/{run_id}.json",
@@ -95,13 +101,15 @@ def test_reemit_ready_publishes_control_fact(tmp_path: Path) -> None:
     assert response.status_state == RunStatusState.READY
     assert response.published
 
-    expected_key = hash_payload(f"ready|{run_id}|{facts_view['bundle_hash']}")
+    expected_key = hash_payload(f"ready|{platform_run_id}|{run_id}|{facts_view['bundle_hash']}")
     assert expected_key in response.published
 
     message = _read_bus_message(Path(wiring.control_bus_root), wiring.control_bus_topic, expected_key)
     assert message["message_id"] == expected_key
     payload = message["payload"]
     assert payload["run_id"] == run_id
+    assert payload["platform_run_id"] == platform_run_id
+    assert payload["scenario_run_id"] == run_id
     assert payload["bundle_hash"] == facts_view["bundle_hash"]
     assert payload.get("oracle_pack_ref") == facts_view["oracle_pack_ref"]
 
@@ -165,6 +173,7 @@ def test_reemit_terminal_only_mismatch(tmp_path: Path) -> None:
     wiring = _build_wiring(tmp_path)
     policy = _build_policy()
     runner = ScenarioRunner(wiring, policy, LocalEngineInvoker())
+    platform_run_id = runner.platform_run_id
 
     run_id = run_id_from_equivalence_key("reemit-terminal-only-mismatch")
     anchor_event = runner._event("RUN_ACCEPTED", run_id, {"intent_fingerprint": "x"})
@@ -172,17 +181,22 @@ def test_reemit_terminal_only_mismatch(tmp_path: Path) -> None:
 
     facts_view = {
         "run_id": run_id,
+        "platform_run_id": platform_run_id,
+        "scenario_run_id": run_id,
         "pins": {
             "manifest_fingerprint": "a" * 64,
             "parameter_hash": "b" * 64,
             "seed": 1,
             "scenario_id": "s1",
             "run_id": run_id,
+            "platform_run_id": platform_run_id,
+            "scenario_run_id": run_id,
         },
         "locators": [],
         "gate_receipts": [],
         "policy_rev": policy.as_rev(),
         "bundle_hash": "c" * 64,
+        "run_config_digest": policy.content_digest,
         "plan_ref": f"{runner.ledger.prefix}/run_plan/{run_id}.json",
         "record_ref": f"{runner.ledger.prefix}/run_record/{run_id}.jsonl",
         "status_ref": f"{runner.ledger.prefix}/run_status/{run_id}.json",
@@ -218,6 +232,7 @@ def test_reemit_ready_missing_facts_view(tmp_path: Path) -> None:
     wiring = _build_wiring(tmp_path)
     policy = _build_policy()
     runner = ScenarioRunner(wiring, policy, LocalEngineInvoker())
+    platform_run_id = runner.platform_run_id
 
     run_id = run_id_from_equivalence_key("reemit-ready-missing-facts")
     anchor_event = runner._event("RUN_ACCEPTED", run_id, {"intent_fingerprint": "x"})
@@ -225,17 +240,22 @@ def test_reemit_ready_missing_facts_view(tmp_path: Path) -> None:
 
     facts_view = {
         "run_id": run_id,
+        "platform_run_id": platform_run_id,
+        "scenario_run_id": run_id,
         "pins": {
             "manifest_fingerprint": "a" * 64,
             "parameter_hash": "b" * 64,
             "seed": 1,
             "scenario_id": "s1",
             "run_id": run_id,
+            "platform_run_id": platform_run_id,
+            "scenario_run_id": run_id,
         },
         "locators": [],
         "gate_receipts": [],
         "policy_rev": policy.as_rev(),
         "bundle_hash": "c" * 64,
+        "run_config_digest": policy.content_digest,
         "plan_ref": f"{runner.ledger.prefix}/run_plan/{run_id}.json",
         "record_ref": f"{runner.ledger.prefix}/run_record/{run_id}.jsonl",
         "status_ref": f"{runner.ledger.prefix}/run_status/{run_id}.json",

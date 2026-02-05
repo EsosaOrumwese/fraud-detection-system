@@ -6,6 +6,7 @@ import json
 import hashlib
 import logging
 import os
+import re
 import time
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
@@ -63,7 +64,19 @@ from .obs import (
 from .security import is_authorized
 from .schemas import SchemaRegistry
 from .storage import build_object_store
-from ..platform_runtime import platform_run_prefix, resolve_run_scoped_path
+from ..platform_runtime import platform_run_prefix, resolve_platform_run_id, resolve_run_scoped_path
+
+
+_PLATFORM_RUN_ID_RE = re.compile(r"^platform_[0-9]{8}T[0-9]{6}Z$")
+
+
+def _platform_run_id_from_prefix(run_prefix: str | None) -> str | None:
+    if not run_prefix:
+        return None
+    candidate = run_prefix.rstrip("/").split("/")[-1]
+    if _PLATFORM_RUN_ID_RE.match(candidate):
+        return candidate
+    return None
 
 
 class ScenarioRunner:
@@ -88,6 +101,16 @@ class ScenarioRunner:
             s3_region=wiring.s3_region,
             s3_path_style=wiring.s3_path_style,
         )
+        prefix_platform_id = _platform_run_id_from_prefix(run_prefix)
+        self.platform_run_id = prefix_platform_id or resolve_platform_run_id(create_if_missing=True)
+        if not self.platform_run_id:
+            raise RuntimeError("PLATFORM_RUN_ID required to build SR run-scoped artifacts.")
+        if run_prefix and not prefix_platform_id:
+            self.logger.warning(
+                "SR: run_prefix '%s' does not end with platform_run_id; using %s for pins.",
+                run_prefix,
+                self.platform_run_id,
+            )
         self.run_prefix = run_prefix or platform_run_prefix(create_if_missing=True)
         if not self.run_prefix:
             raise RuntimeError("PLATFORM_RUN_ID required to build SR run-scoped artifacts.")
@@ -590,11 +613,26 @@ class ScenarioRunner:
             return None
         bundle_hash = facts_view.get("bundle_hash")
         facts_view_hash = bundle_hash or self._hash_payload(facts_view)
-        reemit_key = hash_payload(f"ready|{run_id}|{facts_view_hash}")
+        pins = facts_view.get("pins") or {}
+        platform_run_id = facts_view.get("platform_run_id") or pins.get("platform_run_id") or self.platform_run_id
+        scenario_run_id = facts_view.get("scenario_run_id") or pins.get("scenario_run_id") or run_id
+        reemit_key = hash_payload(f"ready|{platform_run_id}|{scenario_run_id}|{facts_view_hash}")
+        run_config_digest = (
+            facts_view.get("run_config_digest")
+            or (facts_view.get("policy_rev") or {}).get("content_digest")
+            or self.policy.content_digest
+        )
         ready_payload = {
             "run_id": run_id,
+            "platform_run_id": platform_run_id,
+            "scenario_run_id": scenario_run_id,
             "facts_view_ref": status.facts_view_ref or f"{self.ledger.prefix}/run_facts_view/{run_id}.json",
             "bundle_hash": bundle_hash or facts_view_hash,
+            "message_id": reemit_key,
+            "run_config_digest": run_config_digest,
+            "manifest_fingerprint": pins.get("manifest_fingerprint"),
+            "parameter_hash": pins.get("parameter_hash"),
+            "scenario_id": pins.get("scenario_id"),
             "emitted_at_utc": datetime.now(tz=timezone.utc).isoformat(),
         }
         oracle_pack_ref = facts_view.get("oracle_pack_ref")
@@ -1167,14 +1205,19 @@ class ScenarioRunner:
                 )
             )
             return self._response_from_status(plan.run_id, "Oracle pack invalid; run failed.")
+        run_config_digest = plan.policy_rev.get("content_digest") or self.policy.content_digest
         facts_view = {
             "run_id": plan.run_id,
+            "platform_run_id": self.platform_run_id,
+            "scenario_run_id": plan.run_id,
             "pins": {
                 "manifest_fingerprint": intent.manifest_fingerprint,
                 "parameter_hash": intent.parameter_hash,
                 "seed": intent.seed,
                 "scenario_id": intent.scenario_id,
                 "run_id": plan.run_id,
+                "platform_run_id": self.platform_run_id,
+                "scenario_run_id": plan.run_id,
             },
             "locators": [locator_to_wire(locator) for locator in bundle.locators],
             "output_roles": {
@@ -1185,6 +1228,7 @@ class ScenarioRunner:
             "gate_receipts": [receipt_to_wire(receipt) for receipt in bundle.gate_receipts],
             "policy_rev": plan.policy_rev,
             "bundle_hash": bundle.bundle_hash,
+            "run_config_digest": run_config_digest,
             "plan_ref": f"{self.run_prefix}/sr/run_plan/{plan.run_id}.json",
             "record_ref": f"{self.run_prefix}/sr/run_record/{plan.run_id}.jsonl",
             "status_ref": f"{self.run_prefix}/sr/run_status/{plan.run_id}.json",
@@ -1216,16 +1260,28 @@ class ScenarioRunner:
                 "GOV_BUNDLE_HASH",
                 {"bundle_hash": bundle.bundle_hash},
             )
+        publish_key = self._ready_publish_key(
+            self.platform_run_id,
+            plan.run_id,
+            bundle.bundle_hash,
+            plan.plan_hash,
+        )
         ready_payload = {
             "run_id": plan.run_id,
+            "platform_run_id": self.platform_run_id,
+            "scenario_run_id": plan.run_id,
             "facts_view_ref": f"{self.run_prefix}/sr/run_facts_view/{plan.run_id}.json",
             "bundle_hash": bundle.bundle_hash,
+            "message_id": publish_key,
+            "run_config_digest": run_config_digest,
+            "manifest_fingerprint": intent.manifest_fingerprint,
+            "parameter_hash": intent.parameter_hash,
+            "scenario_id": intent.scenario_id,
             "emitted_at_utc": datetime.now(tz=timezone.utc).isoformat(),
         }
         if oracle_pack_ref:
             ready_payload["oracle_pack_ref"] = oracle_pack_ref
         self.ledger.write_ready_signal(plan.run_id, ready_payload)
-        publish_key = self._ready_publish_key(plan.run_id, bundle.bundle_hash, plan.plan_hash)
         try:
             self.control_bus.publish(
                 self.wiring.control_bus_topic,
@@ -1344,9 +1400,15 @@ class ScenarioRunner:
         payload["ts_utc"] = datetime.now(tz=timezone.utc).isoformat()
         return payload
 
-    def _ready_publish_key(self, run_id: str, bundle_hash: str | None, plan_hash: str) -> str:
+    def _ready_publish_key(
+        self,
+        platform_run_id: str,
+        scenario_run_id: str,
+        bundle_hash: str | None,
+        plan_hash: str,
+    ) -> str:
         key_source = bundle_hash or plan_hash
-        return hash_payload(f"ready|{run_id}|{key_source}")
+        return hash_payload(f"ready|{platform_run_id}|{scenario_run_id}|{key_source}")
 
     def _hash_payload(self, payload: dict[str, Any]) -> str:
         return hash_payload(json.dumps(payload, sort_keys=True, ensure_ascii=True))
@@ -1354,6 +1416,8 @@ class ScenarioRunner:
     def _obs_pins(self, intent: CanonicalRunIntent, run_id: str) -> dict[str, Any]:
         return {
             "run_id": run_id,
+            "platform_run_id": self.platform_run_id,
+            "scenario_run_id": run_id,
             "manifest_fingerprint": intent.manifest_fingerprint,
             "parameter_hash": intent.parameter_hash,
             "seed": intent.seed,

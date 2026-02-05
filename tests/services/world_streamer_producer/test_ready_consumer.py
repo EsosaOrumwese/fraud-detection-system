@@ -7,7 +7,7 @@ from fraud_detection.world_streamer_producer.config import PolicyProfile, Wiring
 from fraud_detection.world_streamer_producer.ready_consumer import ReadyConsumerRunner
 from fraud_detection.world_streamer_producer.runner import StreamResult
 
-RUN_ID = "platform_test"
+RUN_ID = "platform_20260101T000000Z"
 RUN_PREFIX = f"fraud-platform/{RUN_ID}"
 
 
@@ -29,12 +29,16 @@ def _write_run_facts(store_root: Path, run_id: str, engine_root: Path, scenario_
     facts_ref = f"{RUN_PREFIX}/sr/run_facts_view/{run_id}.json"
     payload = {
         "run_id": run_id,
+        "platform_run_id": RUN_ID,
+        "scenario_run_id": run_id,
         "pins": {
             "manifest_fingerprint": "a" * 64,
             "parameter_hash": "b" * 64,
             "seed": 7,
             "scenario_id": scenario_id,
             "run_id": run_id,
+            "platform_run_id": RUN_ID,
+            "scenario_run_id": run_id,
         },
         "locators": [
             {
@@ -51,6 +55,7 @@ def _write_run_facts(store_root: Path, run_id: str, engine_root: Path, scenario_
         ],
         "policy_rev": {"policy_id": "sr_policy", "revision": "v0", "content_digest": "c" * 64},
         "bundle_hash": "d" * 64,
+        "run_config_digest": "c" * 64,
         "plan_ref": "ref/plan",
         "record_ref": "ref/record",
         "status_ref": "ref/status",
@@ -112,11 +117,18 @@ def test_ready_consumer_streams_from_ready(tmp_path: Path, monkeypatch) -> None:
     run_id = "a" * 32
     scenario_id = "baseline_v1"
     facts_ref = _write_run_facts(store_root, run_id, engine_root, scenario_id)
-    message_id = "msg-1"
+    message_id = "1" * 64
     ready_payload = {
         "run_id": run_id,
+        "platform_run_id": RUN_ID,
+        "scenario_run_id": run_id,
         "facts_view_ref": facts_ref,
         "bundle_hash": "d" * 64,
+        "message_id": message_id,
+        "run_config_digest": "c" * 64,
+        "manifest_fingerprint": "a" * 64,
+        "parameter_hash": "b" * 64,
+        "scenario_id": scenario_id,
         "oracle_pack_ref": {"engine_run_root": str(engine_root)},
     }
     _write_control_message(control_root, topic="fp.bus.control.v1", message_id=message_id, payload=ready_payload)
@@ -149,11 +161,18 @@ def test_ready_consumer_skips_duplicate(tmp_path: Path, monkeypatch) -> None:
     run_id = "b" * 32
     scenario_id = "baseline_v1"
     facts_ref = _write_run_facts(store_root, run_id, engine_root, scenario_id)
-    message_id = "msg-dup"
+    message_id = "2" * 64
     ready_payload = {
         "run_id": run_id,
+        "platform_run_id": RUN_ID,
+        "scenario_run_id": run_id,
         "facts_view_ref": facts_ref,
         "bundle_hash": "e" * 64,
+        "message_id": message_id,
+        "run_config_digest": "c" * 64,
+        "manifest_fingerprint": "a" * 64,
+        "parameter_hash": "b" * 64,
+        "scenario_id": scenario_id,
         "oracle_pack_ref": {"engine_run_root": str(engine_root)},
     }
     _write_control_message(control_root, topic="fp.bus.control.v1", message_id=message_id, payload=ready_payload)

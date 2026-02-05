@@ -5,7 +5,7 @@ from fraud_detection.ingestion_gate.ops_index import OpsIndex
 from fraud_detection.ingestion_gate.policy_digest import compute_policy_digest
 from fraud_detection.ingestion_gate.store import LocalObjectStore
 
-RUN_PREFIX = "fraud-platform/test-run"
+RUN_PREFIX = "fraud-platform/platform_20260101T000000Z"
 
 
 def test_policy_digest_is_deterministic(tmp_path: Path) -> None:

@@ -10,7 +10,7 @@ from fraud_detection.scenario_runner.ids import run_id_from_equivalence_key
 from fraud_detection.scenario_runner.models import RunRequest, RunWindow, ScenarioBinding, Strategy
 from fraud_detection.scenario_runner.runner import ScenarioRunner
 
-RUN_PREFIX = "fraud-platform/test-run"
+RUN_PREFIX = "fraud-platform/platform_20260101T000000Z"
 
 
 def _write_catalogue(path: Path, read_requires: list[str] | None = None) -> None:
