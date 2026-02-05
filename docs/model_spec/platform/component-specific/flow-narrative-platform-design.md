@@ -71,7 +71,7 @@ This closes the human truth loop cleanly: **RTDL evidence → CaseTriggers → C
 
 ## Planned Learning + Evolution Flow (offline model loop) — pinned, reproducible, and auditable
 
-The Learning + Evolution plane begins once the platform has two durable truths it can trust without interpretation: **admitted event history** (EB within retention, Archive beyond) and **label truth timelines** (Label Store, preserving effective_time vs observed_time). This plane does not create new truth. It deterministically **replays**, **rebuilds**, **evaluates**, and **packages** learning artifacts from pinned inputs, using the same integrity rails as upstream: ContextPins everywhere, by-ref inputs, no-PASS-no-read, immutable outputs, and explicit audit evidence.
+The Learning + Evolution plane begins once the platform has two durable truths it can trust without interpretation: **admitted event history** (Archive as the long-horizon truth; EB as a retention-bounded accelerator) and **label truth timelines** (Label Store, preserving effective_time vs observed_time). This plane does not create new truth. It deterministically **replays**, **rebuilds**, **evaluates**, and **packages** learning artifacts from pinned inputs, using the same integrity rails as upstream: ContextPins everywhere, by-ref inputs, no-PASS-no-read, immutable outputs, and explicit audit evidence.
 
 ### OFS enters on intent, not “always on”
 
