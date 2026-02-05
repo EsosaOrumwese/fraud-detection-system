@@ -457,3 +457,22 @@ and UTC surfaces (MAE = 0, max error = 0).
 
 Explanation: UTC conversion preserves total mass, which means the conversion
 logic is correct and does not introduce drift.
+
+### 9.5 DST‑driven residuals (D3 confirmation)
+Finding: The remaining mismatches in the scenario‑vs‑baseline×overlay check are
+almost entirely explained by DST shifts within the 90‑day horizon.
+
+Evidence:
+- TZs with **no DST shift** (0h):  
+  frac_mismatch ≈ **0.0003**, MAE ≈ **0.0011**, max_err ≈ **0.19**
+- TZs with **+1h DST shift**:  
+  frac_mismatch ≈ **0.0178**, MAE ≈ **0.0773**, max_err ≈ **228.48**
+- Spearman corr(`frac_mismatch`, DST shift) = **0.62**
+- Highest mismatch TZIDs are all DST‑shifting North American zones
+  (e.g., America/New_York, America/Chicago, America/Los_Angeles).
+
+Explanation: When the local horizon crosses a DST boundary, the fixed offset
+used to align weekly baseline buckets becomes slightly misaligned for part of
+the horizon. This introduces small local mismatches but does not affect total
+mass. The pattern is isolated to DST‑shifting timezones, which confirms DST is
+the root cause rather than a structural bug.
