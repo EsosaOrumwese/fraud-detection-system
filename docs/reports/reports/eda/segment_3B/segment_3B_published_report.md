@@ -316,7 +316,8 @@ This rate is plausible in isolation, but the **metadata is unnaturally uniform**
 
 **Coordinate diversity**
 - Unique settlement coordinates: **260**.
-- Duplicate coordinates: **49 merchants share coordinates** (≈15.9% of virtual merchants).
+- Shared-coordinate exposure: **83 merchants (26.9%)** sit on coordinates used by more than one merchant.
+- Duplicate excess over unique baseline: **49 extra merchant placements** (≈15.9% of virtual merchants).
 - Top duplicate clusters include coordinates in **Monaco, Bermuda, Macau**, and nearby micro‑hubs.
 
 **Timezone distribution**
@@ -581,7 +582,7 @@ Because the x‑axis is log10, each tick is a **10× change in distance**, so th
 ### 17.4 Edge share in settlement country (Top settlement countries)
 <img src="plots/E2_settlement_country_overlap.png" width="740" alt="Edge share in settlement country">
 
-The zoomed panel (0–7%) makes the overlap visible: **almost every settlement country is near‑zero**, including the **UNK** group (n=17), which indicates settlements that could not be resolved into a polygon. The **US** is the only country with a modest self‑overlap (~0.05), while the **global baseline is ~0.01**, so even the “best” country is only a few points above the global average. The full‑scale panel confirms that **no settlement country ever dominates** its own edge allocation. This is a strong cross‑layer mismatch: the settlement jurisdiction does **not** meaningfully influence the edge geography. For realism, we would expect at least **some** settlement countries to show higher internal overlap, especially for smaller or regionally‑focused merchants.
+The zoomed panel (0–7%) makes the overlap visible: **almost every settlement country is near‑zero**, including the **UNK** group (n=17), which indicates settlements that could not be resolved into a polygon. The **US** is the only country with a modest self‑overlap (~0.05), while the **global baseline is ~0.005 (0.51%)**, so even the “best” country is only a few points above the global average. The full‑scale panel confirms that **no settlement country ever dominates** its own edge allocation. This is a strong cross‑layer mismatch: the settlement jurisdiction does **not** meaningfully influence the edge geography. For realism, we would expect at least **some** settlement countries to show higher internal overlap, especially for smaller or regionally‑focused merchants.
 The dashed red baseline makes this explicit: most settlement countries sit **at or below** the global expectation, meaning edges are almost as likely to fall anywhere as they are to fall within the legal settlement country itself. That is the opposite of what a jurisdiction‑anchored virtual overlay should look like.
 
 ---
@@ -598,7 +599,7 @@ The dashed red baseline makes this explicit: most settlement countries sit **at 
 
 **Rationale**
 - **Edge catalogue realism fails outright:** every merchant is identical (500 edges, 117 countries, uniform weights), so there is no merchant‑level or geographic heterogeneity. This is the primary realism surface for 3B, and it is flat.
-- **Settlement coherence is weak:** most edges sit thousands of km from settlement anchors and settlement‑country overlap is near the global baseline (~1%). Legal anchors do not shape the operational footprint.
+- **Settlement coherence is weak:** most edges sit thousands of km from settlement anchors and settlement‑country overlap is near the global baseline (~0.5%). Legal anchors do not shape the operational footprint.
 - **Classification is too binary:** one MCC + channel gate dominates, with uniform metadata and a single digest, so the virtual layer reads as a hard rule rather than a nuanced policy.
 - **Alias fidelity is correct but preserves flatness:** the alias tables accurately reproduce the uniform distribution, which means they do not add realism or variability.
 

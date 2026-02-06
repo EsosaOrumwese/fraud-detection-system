@@ -749,3 +749,66 @@ Applied the Phase 8 split-closure model so the plan reflects actual readiness:
 - **Phase 8B (pending by design):**
   - DF compatibility integration assertions.
   - DL consume-path checks for OFP health/degrade signals.
+
+---
+
+## Entry: 2026-02-06 18:28:00 - Local-parity monitored validation (20 then 200) for OFP boundary
+
+### Problem / goal
+Validate OFP runtime behavior against live local-parity flow with active monitoring and concrete evidence:
+1) small pass (20) to detect duds quickly,
+2) larger pass (200) to validate stable ingestion/projector/snapshot behavior.
+
+### Authorities / inputs
+- `docs/model_spec/platform/runbooks/local_parity_ofp_runbook.md`
+- `config/platform/profiles/local_parity.yaml`
+- `config/platform/sr/wiring_local_kinesis.yaml`
+- Live local-parity stack (`postgres/minio/localstack`) and IG service parity target.
+
+### Runtime decisions taken during validation
+1. Cleared host-pinned `PLATFORM_RUN_ID` that was forcing stale run reuse (`platform_20260201T224449Z`) and regenerated active run id using `make platform-run-new PLATFORM_RUN_ID=`.
+2. Forced single IG parity process chain (killed orphan chains from repeated starts) to avoid ambiguous ingress observations.
+3. For 200-event controlled pass, isolated SR READY traffic on a dedicated control stream by using a temporary SR wiring override:
+   - `runs/fraud-platform/tmp/sr_wiring_iso.yaml`
+   - `control_bus_stream: sr-control-bus-20260206T181720Z`
+4. Kept OFP run-scope lock enabled:
+   - `OFP_REQUIRED_PLATFORM_RUN_ID=<active_run>`
+5. Accepted current projector startup behavior (TRIM_HORIZON/backlog scan with run-scope mismatches counted) and advanced with repeated `--once` passes until run-scoped applied rows converged.
+
+### 20-pass evidence (smoke)
+- Active run: `platform_20260206T180502Z`
+- SR scenario run: `e070b450e60eea2c494f3c7d0aa13999`
+- WSP emitted: `80` (20 per output x 4 outputs, concurrent mode)
+- OFP evidence:
+  - Projection DB: `runs/fraud-platform/platform_20260206T180502Z/online_feature_plane/projection/online_feature_plane.db`
+  - Snapshot: `runs/fraud-platform/platform_20260206T180502Z/ofp/snapshots/e070b450e60eea2c494f3c7d0aa13999/17a551efe62b37e154e76cdb53362c876f21590a0367dd5cf160a75fb10b0f78.json`
+  - Metrics/health exported under `runs/fraud-platform/platform_20260206T180502Z/online_feature_plane/{metrics,health}/`
+
+### 200-pass evidence (isolated control stream)
+- Active run: `platform_20260206T181729Z`
+- SR scenario run: `7ac45fb53668e252cd4125f38b067fcd`
+- READY message on isolated stream:
+  - stream: `sr-control-bus-20260206T181720Z`
+  - message_id: `944707c7709f256cfca32c874da20ee9fd9b4eaf002f042b54a0d1a86ac91853`
+- WSP emitted:
+  - `800` (200 per output x 4 outputs, concurrent mode)
+  - result bound to SR scenario run `7ac45fb53668e252cd4125f38b067fcd`
+- IG ingress truth (postgres):
+  - `admissions`: `800` for platform run `platform_20260206T181729Z`
+  - `receipts`: `800` for `pins_json.platform_run_id=platform_20260206T181729Z`
+  - `receipts` scenario grouping: only `7ac45fb53668e252cd4125f38b067fcd` with count `800`
+  - `quarantines`: `0` for this run
+- OFP convergence:
+  - first projector `--once` pass saw backlog (run_scope_mismatch metrics) with `processed=200`, `applied=0`
+  - after two additional `--once` passes: `applied=200`, `feature_state=100`
+- OFP projection/snapshot evidence:
+  - Projection DB: `runs/fraud-platform/platform_20260206T181729Z/online_feature_plane/projection/online_feature_plane.db`
+  - Snapshot: `runs/fraud-platform/platform_20260206T181729Z/ofp/snapshots/7ac45fb53668e252cd4125f38b067fcd/047e0b6b819ffdce783948da371df72778eedcee5b2fca9274854b6e013b69ee.json`
+  - Snapshot basis digest: `19cf8ef9eeb637e29971bc472ce04b3f2dccd38145655d2a4d1f087b591477e3`
+  - Snapshot feature count: `100`
+  - Metrics artifact: `runs/fraud-platform/platform_20260206T181729Z/online_feature_plane/metrics/last_metrics.json`
+  - Health artifact: `runs/fraud-platform/platform_20260206T181729Z/online_feature_plane/health/last_health.json`
+
+### Validation outcome
+- OFP boundary is functioning for both smoke and 200-event local-parity passes when run-scoped pins are enforced.
+- Current operational caveat remains: on fresh run-scoped OFP DB/checkpoint, projector can initially consume historical EB backlog before reaching current run events; repeated `--once` passes converge correctly under run-scope filtering.
