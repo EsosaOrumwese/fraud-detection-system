@@ -1740,3 +1740,377 @@ We verified that campaign types map to truth labels as intended.
 
 **Why it matters for realism:**
 This narrows the fault domain: the truth defect likely sits in **default/override handling** rather than in the campaign mapping rules themselves.
+
+---
+
+## 15) Phase 6 — End‑to‑End Statistical Synthesis (S1→S4)
+Phase 6 ties together all prior phases with **quantified chain metrics**, **signal‑preservation checks**, and **risk‑stratification diagnostics**. This is the final realism posture assessment for 6B.
+
+### 15.1 End‑to‑end chain consistency (full scan)
+**Counts:**
+1. Arrivals (5B): **124,724,153**
+2. Flows (S2 baseline): **124,724,153**
+3. Flows (S3 with‑fraud): **124,724,153**
+4. Truth rows: **124,724,153**
+5. Bank rows: **124,724,153**
+6. Event labels: **249,448,306**
+7. Case rows: **287,408,588**
+
+**Ratios:**
+1. Flows / Arrivals: **1.0000**
+2. Events / Flows: **2.0000**
+3. Case rows / Flows: **2.3044**
+
+**Coverage:**
+1. Flows with events: **124,724,153** (100%)
+2. Flows with cases: **75,728,141** (**60.7%**)
+
+**How to interpret this:**
+1. The chain is **structurally intact** (no drop‑offs across layers).
+2. The case coverage rate is **extremely high** for operational realism; it suggests that case generation is **over‑triggered**.
+
+---
+
+### 15.2 Signal preservation checks (S1/S2 → S4)
+**Truth variance check:**
+1. `is_fraud_truth` min/max: **True / True**
+
+**How to interpret this:**
+1. Truth has **zero variance**, which means signal preservation is **undefined** — there is no legitimate negative class to preserve or compare.
+2. Any statistical linkage between behavioural features (class/geo/amount) and truth labels is **not measurable** until truth is fixed.
+
+**Why it matters for realism:**
+Without truth variance, you cannot evaluate whether the dataset carries explainable or realistic fraud patterns. This is a hard realism blocker.
+
+---
+
+### 15.3 Bank‑view risk stratification (multi‑axis)
+We checked whether bank‑view outcomes respond to any risk features.
+
+**By merchant class (5M‑flow sample):**
+Rates fall in a **tight 0.150–0.158 band**, with no meaningful separation between classes.
+
+**By geography (5M‑flow sample):**
+1. Cross‑border: **0.155140**
+2. Domestic: **0.154675**
+
+**By amount (full scan):**
+1. Bins 0–100 all sit at **~0.155** (flat).
+
+**By merchant size decile (full scan):**
+1. Deciles 1–10 all sit at **0.1546–0.1555**.
+
+**How to interpret this:**
+1. Bank‑view fraud probability is **uniform across class, geography, amount, and merchant size**.
+2. This indicates the bank‑view model is **not risk‑sensitive** — it behaves like a global constant allocator.
+
+**Why it matters for realism:**
+Real bank‑view systems are **risk‑stratified**. Uniform rates erase the very signals fraud systems rely on.
+
+---
+
+### 15.4 Bank‑view vs truth calibration (sample)
+Because truth is all‑True, calibration collapses into a single‑class problem.
+
+**5M‑flow sample confusion:**
+1. Truth=True & Bank=True: **775,539**
+2. Truth=True & Bank=False: **4,224,461**
+3. Truth=False: **0**
+
+**How to interpret this:**
+1. “Recall” is ~15.5%, but **precision and specificity are undefined**.
+2. Calibration cannot be evaluated until truth labels are corrected.
+
+---
+
+### 15.5 Case‑timeline integrity (sample recap)
+From Phase‑5 sampling:
+1. **Every sampled case** has **negative time gaps** (timestamps are not monotonic).
+2. Schema completeness is intact (open/close always present).
+
+**How to interpret this:**
+The case timeline is **structurally present but temporally invalid**. This breaks any temporal realism claims.
+
+---
+
+### 15.6 Phase‑6 conclusion (end‑to‑end realism posture)
+1. **Structural integrity is excellent.** Counts, coverage, and parity checks are all consistent.
+2. **Behavioural realism is shallow but coherent.** S1–S3 behave deterministically but are mechanically valid.
+3. **Label realism is broken.** Truth labels have zero variance, bank‑view labels are uniform, and case timelines violate time ordering.
+
+**Net realism verdict:**  
+The dataset is **mechanically consistent but statistically non‑credible for supervised fraud modelling** until truth and bank‑view labeling are corrected. Phase 6 confirms that the **largest realism blockers are in S4**, not in the behavioural layers.
+
+---
+
+## 16) Phase 7 — Distributional Diagnostics
+Phase 7 focuses on **distributional shape**, **concentration**, and **class imbalance**. These metrics tell us whether the dataset has realistic heavy‑tails and whether it is stratified across regions, classes, or channels.
+
+### 16.1 Heavy‑tail & concentration diagnostics (Gini)
+We computed Gini coefficients for the key concentration surfaces.
+
+**Results:**
+1. **Sessions per party:** Gini **0.178**
+2. **Flows per party:** Gini **0.178**
+3. **Fraud flows per merchant:** Gini **0.669**
+
+**How to interpret this:**
+1. **Sessions and flows are near‑uniform** across parties. A Gini near 0.18 indicates low concentration — most parties have similar volumes.
+2. **Fraud is highly concentrated by merchant.** A Gini of 0.669 indicates a steep heavy‑tail: a small set of merchants absorb a large share of fraud.
+3. This asymmetry suggests the overlay **targets merchants far more than parties**, which aligns with earlier merchant‑centric clustering results.
+
+**Why it matters for realism:**
+Real datasets typically show **heavy‑tails for both merchants and customers** (repeat victimization, repeat offenders). Here, only merchant‑side concentration appears, which makes the fraud surface **one‑sided** and less realistic.
+
+---
+
+### 16.2 Class imbalance (truth, bank, campaign)
+We quantified the distribution of labels and campaigns.
+
+**Truth labels:**
+1. `ABUSE`: **124,721,936**
+2. `FRAUD`: **2,217**
+
+**Bank labels:**
+1. `NO_CASE_OPENED`: **87,552,952**
+2. `CUSTOMER_DISPUTE_REJECTED`: **17,834,900**
+3. `BANK_CONFIRMED_FRAUD`: **9,732,169**
+4. `CHARGEBACK_WRITTEN_OFF`: **9,604,132**
+
+**Campaign counts (fraud flows):**
+1. `T_BONUS_ABUSE_FLOW`: **2,382**
+2. `T_CARD_TESTING_BURST`: **1,986**
+3. `T_PROMO_FRAUD_EVENTS`: **1,374**
+4. `T_REFUND_ABUSE`: **1,369**
+5. `T_ATO_ACCOUNT_SWEEP`: **231**
+
+**How to interpret this:**
+1. Truth labels are **extremely imbalanced**, dominated by ABUSE. This is not just a realism issue — it reflects the truth‑label defect.
+2. Bank labels are also skewed, but the mix is still plausible at face value; the problem is their **lack of conditioning**, not their marginal proportions.
+3. ATO campaigns are **rare** relative to other fraud types, meaning the dataset under‑represents account takeover dynamics.
+
+**Why it matters for realism:**
+Severe imbalance means models learn only the dominant class and fail on rare types. A realistic synthetic dataset should **intentionally shape** rare‑class frequencies, not collapse them.
+
+---
+
+### 16.3 Stratified realism (region, country, class)
+We computed bank‑view fraud rates across regions, countries, and merchant classes (5M‑flow sample).
+
+**By region:**
+All regions sit in the **0.154–0.155** band.
+
+**By country (top‑volume):**
+Top 15 countries all sit in the **0.153–0.156** band.
+
+**By merchant class:**
+Classes sit in the **0.150–0.158** band.
+
+**How to interpret this:**
+1. Bank‑view outcomes are **flat across all stratifications**.
+2. There is **no regional, country, or class risk differentiation**.
+
+**Why it matters for realism:**
+Risk stratification is a core realism requirement. Uniform rates across all strata indicate a **non‑risk‑aware label generator**, which reduces explanatory power for any model trained on this data.
+
+---
+
+### 16.4 Phase‑7 conclusion (distributional posture)
+1. **Merchant‑side fraud concentration is strong**, but **party‑side activity is too uniform**.
+2. **Label and campaign imbalance is extreme**, with under‑representation of ATO.
+3. **Stratified realism is absent**; bank‑view risk is flat by region, country, and class.
+
+**Net distributional verdict:**  
+The dataset has **one‑sided heavy‑tails and uniform risk surfaces**, which is statistically inconsistent with realistic fraud ecosystems.
+
+---
+
+### 16.5 Concentration (HHI) diagnostics
+We computed the Herfindahl–Hirschman Index (HHI) for the same concentration surfaces used in the Gini analysis.
+
+**Results:**
+1. **Sessions per party HHI:** **1.234e‑06**
+2. **Flows per party HHI:** **1.234e‑06**
+3. **Fraud per merchant HHI:** **0.02461**
+
+**How to interpret this:**
+1. HHI near zero means the distribution is **extremely diffuse**. Party activity is nearly uniform.
+2. Fraud per merchant has a **much higher HHI**, indicating strong merchant‑level concentration.
+
+**Why it matters for realism:**
+A realistic dataset usually has **heavy‑tails on both sides** (merchant and party). Here, only merchant‑side concentration is present.
+
+---
+
+### 16.6 Top‑k share curves (tail shape)
+We computed top‑1, top‑1%, top‑5%, and top‑10% shares to visualize tail behavior.
+
+**Sessions per party (n=913,417):**
+1. Top‑1 share: **2.33e‑06**
+2. Top‑1% share: **0.0184**
+3. Top‑5% share: **0.0876**
+4. Top‑10% share: **0.1704**
+
+**Flows per party (n=913,417):**
+1. Top‑1 share: **2.33e‑06**
+2. Top‑1% share: **0.0184**
+3. Top‑5% share: **0.0877**
+4. Top‑10% share: **0.1705**
+
+**Fraud per merchant (n=786):**
+1. Top‑1 share: **0.1350**
+2. Top‑1% share: **0.2765**
+3. Top‑5% share: **0.4869**
+4. Top‑10% share: **0.5880**
+
+**How to interpret this:**
+1. Party/session distributions are **flat**; top‑10% holds only ~17% of volume.
+2. Fraud per merchant is **highly skewed**; top‑10% holds ~59% of fraud.
+
+**Why it matters for realism:**
+This reinforces the one‑sided heavy‑tail diagnosis: merchant‑side concentration exists, but party‑side activity is unrealistically uniform.
+
+---
+
+### 16.7 Stratified Gini — fraud per merchant by region
+We computed merchant‑level fraud concentration by region.
+
+**Results:**
+1. **EMEA:** **0.584**
+2. **AMER:** **0.573**
+3. **APAC:** **0.880**
+4. **LATAM:** **0.714**
+5. **AFRICA:** **0.510**
+
+**How to interpret this:**
+1. Fraud concentration is **not uniform across regions**.
+2. **APAC and LATAM** show extreme merchant‑level concentration, while AFRICA and AMER are more moderate.
+
+**Why it matters for realism:**
+Regional asymmetry suggests the overlay is not evenly balanced across geo surfaces. This can distort regional realism and bias any geo‑stratified models.
+
+---
+
+## 17) Phase 8 — Statistical Tests (Supporting Evidence)
+Phase 8 provides **formal statistical evidence** for the qualitative conclusions in earlier phases. We used a 5M‑flow sample to keep computation tractable and report **effect sizes**, not just p‑values, because with large N even trivial differences appear “significant.”
+
+### 17.1 Bank‑view vs merchant class (Chi‑square)
+**Test:** χ² test of independence between `primary_demand_class` and `is_fraud_bank_view`.
+
+**Result:**
+1. χ² = **15.787**, df = **7**
+2. **Cramer's V = 0.00178**
+
+**How to interpret this:**
+1. Cramer's V is **effect size**, and values below 0.01 are **practically zero**.
+2. This means bank‑view fraud labeling is **statistically independent of merchant class**.
+3. In realism terms, this confirms the bank‑view model does **not** respond to merchant‑type risk differences (e.g., online vs fuel vs travel).
+
+**Why it matters for realism:**
+Real bank‑view systems are class‑sensitive. The near‑zero V demonstrates a **non‑risk‑aware label generator**.
+
+---
+
+### 17.2 Bank‑view vs cross‑border (Chi‑square)
+**Test:** χ² test between `cross_border` (domestic vs cross‑border) and `is_fraud_bank_view`.
+
+**Result:**
+1. χ² = **0.525**
+2. **Cramer's V = 0.000324**
+
+**How to interpret this:**
+1. The effect size is **essentially zero**.
+2. Bank‑view labeling is **not influenced** by cross‑border status, even though real risk models often weight cross‑border traffic higher.
+
+**Why it matters for realism:**
+Geographic risk is one of the most common fraud signals. A zero association indicates **missing realism** in bank‑view decisions.
+
+---
+
+### 17.3 Amount vs bank‑view (effect size + correlation)
+We tested whether higher amounts are more likely to be bank‑flagged.
+
+**Results:**
+1. **Cohen’s d = −0.00051**
+2. **Correlation (amount, bank_fraud) = −0.000185**
+
+**How to interpret this:**
+1. Both effect size and correlation are **effectively zero**.
+2. There is **no measurable relationship** between amount magnitude and bank‑view fraud labeling.
+
+**Why it matters for realism:**
+Real systems exhibit amount‑sensitivity (larger transactions carry higher scrutiny). The absence of any amount effect further confirms a **flat, non‑risk‑aware bank‑view surface**.
+
+---
+
+### 17.4 Bank‑view vs fraud_flag (Chi‑square)
+We tested whether bank‑view labels at least align with the fraud overlay.
+
+**Result:**
+1. χ² = **7.084**
+2. **Cramer's V = 0.00119**
+
+**How to interpret this:**
+1. The association is **almost zero** — bank‑view labels are barely more likely on fraud flows than on legit flows.
+2. This is consistent with the earlier observation that the bank‑view surface is **global and uniform**, not conditional on fraud.
+
+**Why it matters for realism:**
+Bank‑view outcomes should be more strongly tied to fraud overlays. This weak association indicates a **core realism defect** in S4.
+
+---
+
+### 17.5 Fraud overlay vs merchant class (Chi‑square)
+We tested whether fraud overlays are targeted by merchant class.
+
+**Result:**
+1. χ² = **5.257**
+2. **Cramer's V = 0.00103**
+
+**How to interpret this:**
+1. Fraud assignment is **class‑neutral**; there is no measurable targeting by class.
+2. This matches earlier qualitative findings that campaigns are **global rather than targeted**.
+
+**Why it matters for realism:**
+Real fraud campaigns cluster in class‑specific ways (e.g., online tests, travel abuse). The absence of class targeting reduces realism.
+
+---
+
+### 17.6 Fraud overlay vs party segment (Chi‑square)
+We tested whether fraud overlays are targeted by party segment.
+
+**Result:**
+1. χ² = **16.263**
+2. **Cramer's V = 0.00180**
+
+**How to interpret this:**
+1. The effect size is again **negligible**.
+2. Fraud overlays are **segment‑neutral**; they do not reflect affluence or segment‑specific risk posture.
+
+**Why it matters for realism:**
+Segment‑level targeting is a natural realism lever. Its absence means the dataset lacks segment‑conditioned fraud patterns.
+
+---
+
+### 17.7 Amount vs fraud_flag (effect size + correlation)
+We tested whether fraud flows differ in amount magnitude.
+
+**Results:**
+1. **Cohen’s d = 1.252**
+2. **Correlation (amount, fraud_flag) = 0.00932**
+
+**How to interpret this:**
+1. Cohen’s d is **large**, meaning fraud flows are shifted to **higher amounts**.
+2. The correlation is still **very small** because fraud is extremely rare, so even a strong mean shift barely moves the overall correlation.
+3. This indicates that the fraud signal is **strong but sparse** — driven by deterministic uplift rather than broad behavioural differentiation.
+
+**Why it matters for realism:**
+A strong amount shift is realistic only if it is **campaign‑specific and varied**. In this dataset it is **uniform uplift**, which risks over‑separating fraud from legit in a non‑realistic way.
+
+---
+
+### 17.8 Phase‑8 conclusion (statistical evidence)
+1. All Cramer's V values are **~0**, which confirms **no meaningful association** between bank‑view/fraud overlays and class/segment/cross‑border features.
+2. Amount is the **only strong effect** for fraud, and it is driven by a deterministic uplift policy.
+
+**Net statistical verdict:**  
+Phase‑8 tests quantitatively confirm that **risk stratification is absent**, and the only discriminative signal is a **mechanical amount uplift**.
