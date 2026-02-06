@@ -2228,3 +2228,60 @@ Because uplift is uniform, the model can separate fraud using a **single scalar 
 
 **Net statistical verdict:**  
 Phase‑8 tests quantitatively confirm that **risk stratification is absent**, and the only discriminative signal is a **mechanical amount uplift**.
+
+---
+
+## 18) Final Realism Grade (Segment 6B)
+**Grade: D+**
+
+### 18.1 Why this grade (specific, data‑anchored)
+1. **Truth labels are structurally invalid.**  
+   `is_fraud_truth` is True for **100%** of flows. This collapses the negative class and makes every downstream evaluation (precision/recall, ROC/PR, calibration) meaningless. In a fraud dataset, this is a **hard correctness failure**, not a mild realism issue.
+2. **Bank‑view labels are essentially uniform.**  
+   Bank‑view fraud rates sit at **~0.155** across amount, class, geography, and merchant size, with Cramer’s V ≈ **0.001** on all stratification tests. This means the bank‑view process is **not risk‑aware**.
+3. **Case timelines are temporally invalid.**  
+   Case events show **negative timestamp gaps** and fixed 1‑hour / 24‑hour durations. This breaks temporal realism and makes case‑lifecycle analysis unreliable.
+4. **Behavioural layers are coherent but shallow.**  
+   Counts and parity are correct, but amounts are **discrete and uniform**, timing has **no latency**, and fraud overlays are **amount‑only** with no campaign‑specific behavior. This is **mechanically correct but behaviorally thin**.
+
+### 18.2 What would move this to B / A+ (detailed, actionable)
+The following are ordered by impact on realism. “B” requires the first four; “A+” requires all.
+
+1. **Fix truth labels (required for B).**  
+   - Ensure DEFAULT_LEGIT is applied to non‑fraud flows.  
+   - `is_fraud_truth` must be False for LEGIT flows.  
+   - Enforce mapping from `campaign_id` → truth labels for all fraud flows (already correct on fraud flows, but must be enforced globally).  
+   - Add a validation check that truth label distribution matches campaign totals and that LEGIT is non‑zero.
+
+2. **Re‑introduce risk‑aware bank‑view labeling (required for B).**  
+   - Bank‑view probabilities should be conditional on **truth label + campaign type + amount + geography + merchant class**.  
+   - Calibrate base rates so fraud flows have materially higher bank‑fraud rates than non‑fraud (e.g., 5–20×).  
+   - Add explicit parameter targets for dispute/chargeback rates by campaign type.
+
+3. **Repair case timeline temporal integrity (required for B).**  
+   - Enforce **monotonic timestamps** by `case_event_seq`.  
+   - Replace fixed delays (1h/24h) with **distributions** from `delay_models_6B.yaml`.  
+   - Ensure `NO_CASE_OPENED` flows do **not** appear in case timelines.
+
+4. **Add realistic variability to fraud overlay (required for B).**  
+   - Introduce **campaign‑specific targeting** by class, segment, and geography.  
+   - Introduce **burstiness** (time‑windowed targeting) for card‑testing campaigns.  
+   - Allow **event‑level changes** (declines, reversals, step‑ups) for select campaigns.
+
+5. **Restore heavy‑tail amounts (required for A+).**  
+   - Execute the lognormal tail in `amount_model_6B.yaml` for PURCHASE.  
+   - Ensure heavy‑tail ratio (p95/p50) meets target (≥10).  
+   - Add channel‑specific amount distributions (TRANSFER, CASH_WITHDRAWAL).
+
+6. **Session realism upgrade (required for A+).**  
+   - Enable stochastic session boundaries.  
+   - Allow multi‑arrival sessions with richer distributions (not just 2‑arrival).  
+   - Introduce short‑gap retry behavior for online classes.
+
+7. **Regional and segment realism calibration (required for A+).**  
+   - Normalize cross‑border rates to desired policy ranges.  
+   - Ensure segment‑level differences are visible (e.g., affluent vs value segments).  
+   - Validate that risk stratification exists by region/country (non‑flat bank‑view rates).
+
+**Summary:**  
+Fixing truth labels and bank‑view conditioning moves 6B into **usable realism (B)**. To reach **A+**, the dataset must express **tail behavior, temporal dynamics, campaign‑specific signatures, and stratified risk** in a way that matches both policy and narrative expectations.
