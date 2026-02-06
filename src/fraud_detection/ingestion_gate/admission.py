@@ -29,7 +29,7 @@ from .receipts import ReceiptWriter
 from .security import authorize
 from .schema import SchemaEnforcer
 from .schemas import SchemaRegistry
-from .store import ObjectStore, build_object_store
+from .store import ObjectStore, S3ObjectStore, build_object_store
 from ..platform_runtime import platform_run_prefix
 
 logger = logging.getLogger(__name__)
@@ -225,7 +225,11 @@ class IngestionGate:
             receipt = Receipt(payload=receipt_payload)
             receipt_id = receipt_payload["receipt_id"]
             self.contract_registry.validate("ingestion_receipt.schema.yaml", receipt_payload)
-            receipt_ref = self.receipt_writer.write_receipt(receipt_id, receipt_payload)
+            receipt_ref = self.receipt_writer.write_receipt(
+                receipt_id,
+                receipt_payload,
+                prefix=self._receipt_prefix(envelope),
+            )
             if not existing_row.get("receipt_ref") or existing_row.get("receipt_write_failed"):
                 self.admission_index.record_receipt(dedupe, receipt_ref)
             self._record_ops_receipt(receipt_payload, receipt_ref)
@@ -314,7 +318,11 @@ class IngestionGate:
         receipt_id = receipt_payload["receipt_id"]
         self.contract_registry.validate("ingestion_receipt.schema.yaml", receipt_payload)
         try:
-            receipt_ref = self.receipt_writer.write_receipt(receipt_id, receipt_payload)
+            receipt_ref = self.receipt_writer.write_receipt(
+                receipt_id,
+                receipt_payload,
+                prefix=self._receipt_prefix(envelope),
+            )
         except Exception:
             self.admission_index.mark_receipt_failed(dedupe)
             logger.exception("IG receipt write failed after publish event_id=%s", event_id)
@@ -374,7 +382,11 @@ class IngestionGate:
         if self.policy_rev.content_digest:
             quarantine_payload["policy_rev"]["content_digest"] = self.policy_rev.content_digest
         self.contract_registry.validate("quarantine_record.schema.yaml", quarantine_payload)
-        quarantine_ref = self.receipt_writer.write_quarantine(quarantine_id, quarantine_payload)
+        quarantine_ref = self.receipt_writer.write_quarantine(
+            quarantine_id,
+            quarantine_payload,
+            prefix=self._receipt_prefix(envelope),
+        )
         decision = AdmissionDecision(
             decision="QUARANTINE",
             reason_codes=[code],
@@ -392,7 +404,11 @@ class IngestionGate:
         )
         receipt_id = receipt_payload["receipt_id"]
         self.contract_registry.validate("ingestion_receipt.schema.yaml", receipt_payload)
-        receipt_ref = self.receipt_writer.write_receipt(receipt_id, receipt_payload)
+        receipt_ref = self.receipt_writer.write_receipt(
+            receipt_id,
+            receipt_payload,
+            prefix=self._receipt_prefix(envelope),
+        )
         self._record_ops_quarantine(quarantine_payload, quarantine_ref, event_id)
         self._record_ops_receipt(receipt_payload, receipt_ref)
         self.metrics.record_latency("phase.receipt_seconds", time.perf_counter() - receipt_started)
@@ -422,6 +438,20 @@ class IngestionGate:
             "event_type": envelope.get("event_type"),
             "pins": _prune_none(pins),
         }
+
+    def _run_prefix_for(self, platform_run_id: str) -> str:
+        if isinstance(self.store, S3ObjectStore):
+            return platform_run_id
+        root = Path(self.wiring.object_store_root)
+        if root.name == "fraud-platform":
+            return platform_run_id
+        return f"fraud-platform/{platform_run_id}"
+
+    def _receipt_prefix(self, envelope: dict[str, Any]) -> str:
+        platform_run_id = envelope.get("platform_run_id")
+        if platform_run_id:
+            return f"{self._run_prefix_for(platform_run_id)}/ig"
+        return self.receipt_writer.prefix
 
     def _validate_envelope(self, envelope: dict[str, Any]) -> None:
         self.schema_enforcer.validate_envelope(envelope)

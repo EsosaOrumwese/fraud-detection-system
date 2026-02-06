@@ -734,7 +734,130 @@ Merchants are sorted by arrival volume and split into **size deciles**. The tabl
 
 ---
 
-### 11.15 Phase‑2 conclusion (S1 realism verdict)
+### 11.15 Cross‑border vs merchant size deciles within each class
+**What we measured (0.5% sample):**
+Within each `demand_class`, merchants were ranked by arrival volume and split into deciles. The table below summarizes how much **in‑class volume** the top decile controls, and how cross‑border changes between the **bottom** and **top** deciles.
+
+| demand_class | top_decile_share | top_decile_cross_border | bottom_decile_cross_border |
+| --- | --- | --- | --- |
+| evening_weekend | 0.6566 | 0.9005 | 0.9573 |
+| consumer_daytime | 0.6339 | 0.9484 | 0.9062 |
+| fuel_convenience | 0.4575 | 0.9764 | 0.8661 |
+| online_24h | 0.4238 | 0.9416 | 0.9426 |
+| online_bursty | 0.3315 | 0.8521 | 0.9115 |
+| bills_utilities | 0.3268 | 0.9743 | 0.8639 |
+| office_hours | 0.2547 | 0.9448 | 0.9463 |
+| travel_hospitality | 0.1837 | 0.9909 | 0.8553 |
+
+**How to interpret this:**
+1. **Class concentration is extreme.** In `consumer_daytime` and `evening_weekend`, the top decile alone drives **~63–66%** of arrivals. That means class‑level realism is **dominated by a small number of very large merchants** rather than broad merchant behaviour.
+2. **Most classes become more cross‑border at the top.** The gradient is strong in `fuel_convenience` (0.866 → 0.976), `bills_utilities` (0.864 → 0.974), and `travel_hospitality` (0.855 → 0.991). This means **large merchants are structurally more cross‑border** than small merchants inside these classes.
+3. **Two classes invert the gradient.** `evening_weekend` and `online_bursty` show **lower** cross‑border rates in the top decile than in the bottom. That implies a few **domestic‑leaning giants** dominate those classes and drag the arrival‑weighted rate downward.
+4. `online_24h` and `office_hours` are relatively **flat** across deciles, suggesting cross‑border is **volume‑insensitive** in those classes.
+
+**Why it matters for realism:**
+1. This confirms the cross‑border skew is **volume‑driven even within each class**. Tuning a handful of high‑volume merchants can materially change class‑level geography.
+2. The direction of the gradient varies by class, which is a **realistic lever** (some classes could be global, others local), but here the gradients are mostly extreme and may need calibration.
+
+---
+
+### 11.16 Cross‑border corridor matrix (merchant_country → party_country)
+**What we measured (0.2% sample, arrival‑weighted):**
+Top country pairs by arrival count (including domestic pairs):
+
+| merchant_country | party_country | arrivals |
+| --- | --- | --- |
+| DE | FR | 8,448 |
+| DE | DE | 7,262 |
+| AT | FR | 5,794 |
+| GB | FR | 5,666 |
+| DE | DK | 5,329 |
+| AT | DE | 5,045 |
+| GB | DE | 4,891 |
+| DE | GB | 4,515 |
+| AT | DK | 3,703 |
+| GB | DK | 3,675 |
+| DE | ES | 3,582 |
+| GB | GB | 3,046 |
+| AT | GB | 3,039 |
+| CH | FR | 2,766 |
+| AT | ES | 2,507 |
+
+Top **cross‑border** pairs (merchant_country ≠ party_country):
+
+| merchant_country | party_country | arrivals |
+| --- | --- | --- |
+| DE | FR | 8,448 |
+| AT | FR | 5,794 |
+| GB | FR | 5,666 |
+| DE | DK | 5,329 |
+| AT | DE | 5,045 |
+| GB | DE | 4,891 |
+| DE | GB | 4,515 |
+| AT | DK | 3,703 |
+| GB | DK | 3,675 |
+| DE | ES | 3,582 |
+| AT | GB | 3,039 |
+| CH | FR | 2,766 |
+| AT | ES | 2,507 |
+| DK | FR | 2,461 |
+| DE | CH | 2,389 |
+
+**Concentration summary (same sample):**
+1. Total known pairs: **249,134**
+2. Cross‑border count: **233,230**
+3. Cross‑border rate: **0.936**
+4. Top‑10 cross‑border pairs account for **~21.7%** of cross‑border arrivals.
+
+**How to interpret this:**
+1. The corridor matrix is **heavily European** (DE, AT, GB, FR, DK, ES, CH dominate the top pairs). This implies the merchant country distribution is **concentrated in Europe**, even if party countries are diverse.
+2. Domestic pairs exist (DE→DE, GB→GB) but are **not dominant** compared with cross‑border corridors.
+3. The top 10 cross‑border corridors account for only ~22% of cross‑border volume. That means the cross‑border skew is **diffuse across many pairs**, not driven by a single corridor.
+
+**Why it matters for realism:**
+1. If the synthetic world is intended to be globally balanced, the corridor matrix suggests **regional concentration**, which may be an unintended realism artifact.
+2. The diffuse corridor structure implies that simply adjusting a few corridors will **not** fix cross‑border skew; you would need to adjust the **overall home‑bias policy** or merchant geography.
+
+---
+
+### 11.17 Session gap distributions by local hour and timezone region
+**What we measured (full scan of multi‑arrival sessions):**
+Gap distributions are computed per session (max gap in seconds) and grouped by **local hour of session start** (using `ts_local_primary`) and **timezone region** (prefix of `tzid_primary`).
+
+**By local hour (selected view):**
+
+| local_hour | sessions | max_gap_p50 | max_gap_p90 | max_gap_p99 | max_gap_max |
+| --- | --- | --- | --- | --- | --- |
+| 0 | 150 | 315s | 735s | 948s | 993s |
+| 6 | 240 | 382s | 864s | 1,103s | 1,171s |
+| 9 | 1,238 | 368s | 814s | 1,095s | 1,145s |
+| 12 | 8,608 | 353s | 828s | 1,082s | 1,194s |
+| 15 | 6,424 | 352s | 825s | 1,082s | 1,198s |
+| 18 | 4,866 | 345s | 813s | 1,069s | 1,172s |
+| 21 | 3,642 | 350s | 822s | 1,061s | 1,186s |
+
+**By timezone region (top regions):**
+
+| tz_region | sessions | max_gap_p50 | max_gap_p90 | max_gap_p99 | max_gap_max |
+| --- | --- | --- | --- | --- | --- |
+| Europe | 71,679 | 351s | 820s | 1,080s | 1,198s |
+| Asia | 1,377 | 351s | 806s | 1,040s | 1,169s |
+| Arctic | 1,293 | 358s | 840s | 1,062s | 1,185s |
+| Australia | 993 | 372s | 805s | 1,080s | 1,189s |
+| America | 747 | 333s | 812s | 1,092s | 1,171s |
+
+**How to interpret this:**
+1. **Session gaps are remarkably stable across hours.** The p50 is consistently ~345–370s, and the p90/p99 bands stay close to ~820s / ~1,060–1,100s. There is **no strong diurnal effect** on gap length.
+2. **Counts peak during local business hours** (10–15), which is expected. However, the gap size does not change materially with volume, indicating the gap mechanism is **not time‑conditioned**.
+3. Europe dominates the session count (~94% of multi‑arrival sessions), which mirrors the earlier corridor analysis. Other regions are too small to support strong comparative claims.
+
+**Why it matters for realism:**
+1. If the sessionisation policy intended **time‑of‑day burstiness** (e.g., shorter gaps during daytime), that pattern does **not** appear here.
+2. The lack of regional variation suggests session gap mechanics are **uniform**, which is consistent with the lean implementation but not with richer behavioural realism.
+
+---
+
+### 11.18 Phase‑2 conclusion (S1 realism verdict)
 1. **Attachment graph is valid but under‑connected.** The data strongly prefers one‑to‑one mappings across parties, accounts, instruments, devices, and IPs. This is coherent, but it suppresses multi‑entity behaviors that are important for realism and fraud explainability.
 2. **Merchant‑level concentration is very strong.** This is consistent with a compressed merchant universe and likely with upstream intensity priors, but it will make merchant identity a dominant signal.
 3. **Sessionisation is near‑identity.** Most sessions are single arrivals with zero duration. This is consistent with the lean posture, but it limits session‑based realism.
@@ -743,3 +866,159 @@ Merchants are sorted by arrival volume and split into **size deciles**. The tabl
 1. Enable stochastic/session boundary logic to increase multi‑arrival sessions and realistic durations.
 2. Allow multi‑link attachment (party→account, account→instrument, device→IP) with controlled probabilities.
 3. Expand merchant universe or soften intensity concentration to reduce over‑dominance by top merchants.
+
+---
+
+## 12) Phase 3 — Baseline Flow & Event Realism (S2)
+This phase evaluates the **baseline transactional flows and events** produced in S2, focusing on **amount realism**, **timing realism**, and **alignment to the amount policy**.
+
+### 12.1 Amount distribution: bounded, discrete, and uniform
+**What we measured (full scan):**
+1. **Min / Max:** **1.99 → 99.99**
+2. **Mean:** **28.986**
+3. **p50:** **17.97**
+4. **p90 / p99 / p999:** **99.99**
+5. **Non‑positive amounts:** **0**
+
+**Distinct amount values:** **8**
+All flows take one of these eight values:
+`1.99, 4.99, 9.99, 14.99, 19.99, 29.99, 49.99, 99.99`
+
+**Observed shares (full scan):**
+Each price point is ~**12.5%** of all flows (near‑perfect uniformity).
+
+**How to interpret this:**
+1. The amount surface is **fully discrete**, with no tail above 99.99. This is consistent with the lean implementation using **price_points only**, but it removes the heavy‑tail behavior expected in real commerce.
+2. The uniform 12.5% distribution indicates **hash‑uniform selection across points**, not pricing behavior or merchant‑specific pricing.
+3. The fact that p90/p99/p999 all equal the max confirms there is **no graded upper tail**—the distribution is flat until the cap.
+
+**Realism posture:** clean and deterministic, but **not price‑realistic**; it lacks tail mass, skew, and merchant‑specific pricing variety.
+
+---
+
+### 12.2 Policy alignment vs `amount_model_6B`
+**Policy reference (amount_model_6B.yaml):**
+1. PURCHASE uses **8 discrete price points** with **point_mass_total = 0.32** and a **lognormal tail** (mu=7.25, sigma=0.95).
+2. CASH_WITHDRAWAL uses larger points (2,000–100,000 minor units) + tail.
+3. TRANSFER is **pure lognormal** (no discrete points).
+4. Realism targets expect a **heavy‑tail ratio** of **10–250** for PURCHASE.
+
+**Observed vs policy (PURCHASE):**
+1. **Observed discrete mass:** **~1.00** (100% of flows are price points).
+2. **Policy discrete mass:** **0.32** (32% of flows should be discrete points).
+3. **Tail mass observed:** **0** (should be 68% if policy applied).
+4. **Heavy‑tail ratio (p95/p50):** **~5.56**, below the policy min of **10**.
+
+**How to interpret this:**
+1. The observed distribution **does not execute the tail component** of the policy. It is **pure price‑point selection**.
+2. The eight points are consistent with the **PURCHASE** family, but **CASH_WITHDRAWAL** and **TRANSFER** families are absent, implying that channel‑specific routing is not being applied in S2.
+3. The realism target for heavy‑tail ratio is **not met**, which is expected under the lean build but is a realism deficit relative to the policy intent.
+
+**Why it matters for realism:**
+1. The pricing model is **over‑simplified** relative to the policy and will under‑represent high‑value transactions.
+2. Models trained on this data will not learn realistic price‑tail dynamics or channel‑specific pricing ranges.
+
+---
+
+### 12.3 Amount vs merchant size deciles (pricing diversity across merchant scale)
+**What we measured (0.5% sample):**
+Merchants were bucketed into **size deciles** by arrival volume. For each decile, we computed the **share of each price point**.
+
+**Key result:** All deciles show **near‑uniform 12–13% shares** across the eight price points.
+
+**Uniformity check (share spread within each decile):**
+1. Smallest decile spread: **~2.1%**
+2. Largest decile spread: **~0.19%**
+
+**How to interpret this:**
+1. The top decile is **almost perfectly uniform**, which means large merchants do **not** have distinctive pricing profiles.
+2. The bottom deciles show slightly wider spread because of smaller sample sizes, not because of real pricing skew.
+3. This confirms that **merchant size does not drive pricing behavior** in this run.
+
+**Why it matters for realism:**
+Real merchant populations usually show **size‑dependent pricing** (large merchants often have broader catalogs and different price point mix). That signal is absent here.
+
+---
+
+### 12.4 Amount vs geography (domestic vs cross‑border)
+**What we measured (0.5% sample):**
+Domestic = party_country == merchant_country; Cross‑border otherwise.
+
+**Summary:**
+1. **Domestic p50:** **17.36**
+2. **Cross‑border p50:** **17.55**
+3. **p90/p99:** **99.99** for both
+4. **Amount distribution by price point:** nearly identical in both groups
+
+**How to interpret this:**
+1. There is **no pricing premium** for cross‑border traffic, which is often observed in real data (cross‑border transactions tend to have higher average amounts).
+2. This is consistent with the uniform price‑point policy being applied across all flows, independent of geography.
+
+**Why it matters for realism:**
+The absence of any geographic pricing shift removes a plausible fraud and risk signal that would exist in real transaction data.
+
+---
+
+### 12.5 Amount vs party type / segment
+**Party type (0.5% sample):**
+1. Retail mean: **28.98**, share of 99.99: **12.48%**
+2. Business mean: **29.10**, share of 99.99: **12.52%**
+3. Other mean: **28.93**, share of 99.99: **12.22%**
+
+**Selected segment observations:**
+1. `RETAIL_AFFLUENT` mean **28.92**, share_99.99 **12.38%**
+2. `RETAIL_VALUE` mean **28.82**, share_99.99 **12.46%**
+3. `BUSINESS_ECOM_NATIVE` mean **29.43**, share_99.99 **13.28%**
+4. `OTHER_PUBLIC_SECTOR` mean **29.89**, share_99.99 **13.68%**
+
+**How to interpret this:**
+1. Differences across party types and segments are **small and inconsistent**.
+2. There is **no systematic skew** toward higher price points for affluent or business segments.
+3. The observed variation is within sampling noise for a uniform 8‑point distribution.
+
+**Why it matters for realism:**
+Segment‑level economic behavior is not expressed. Realistic data would typically show **affluence‑linked price shifts**, which are absent here.
+
+---
+
+### 12.6 Amount vs local hour and weekday
+**Local hour (0.5% sample):**
+1. Mean amounts range narrowly between **28.45–29.22**.
+2. Share of top price points (49.99 + 99.99) stays in **~24.1–25.3%** across all hours.
+
+**Local weekday (0.5% sample):**
+1. Mean amounts range **28.82–29.13**.
+2. Share of 99.99 stays within **~12.3–12.7%** across weekdays.
+
+**How to interpret this:**
+1. There is **no time‑of‑day or weekday pricing effect**.
+2. The amount distribution is invariant across time, which is consistent with the deterministic price‑point draw but not with real retail dynamics.
+
+**Why it matters for realism:**
+Time‑conditioned pricing patterns (weekend spikes, evening peaks) are not present, reducing behavioral realism for temporal models.
+
+---
+
+### 12.7 Flow/event alignment (amounts and timestamps)
+**What we checked (0.5% sample of flows/events):**
+1. **Event amount mismatch:** **0**
+2. **Event timestamp mismatch vs flow:** **0**
+3. **Event‑seq time differences within a flow:** **0**
+4. **Flow timestamp vs arrival timestamp:** **0**
+
+**How to interpret this:**
+1. Auth request and response events are **timestamp‑identical** to the flow and arrival.
+2. There is **no latency or offset**, which is consistent with the lean implementation but not with realistic event timing.
+
+**Why it matters for realism:**
+Timing signals that are important for fraud detection (response delays, asynchronous settlement) are absent in this baseline.
+
+---
+
+### 12.8 Phase‑3 conclusion (S2 realism verdict)
+1. **Amounts are valid but over‑simplified.** The distribution is bounded, discrete, and uniform, lacking tail dynamics and merchant‑specific pricing.
+2. **Policy intent is not executed.** The observed data ignores the tail component of `amount_model_6B` and fails the heavy‑tail ratio target.
+3. **Context doesn’t shape pricing.** Geography, segment, merchant size, and time have no meaningful effect on amounts.
+4. **Timing is perfectly aligned.** Events and flows occur at identical timestamps, removing latency signals.
+
+**Net realism assessment for Phase 3:** structurally clean and consistent with the lean build, but **pricing and timing realism are shallow**. This is the largest realism gap in S2.

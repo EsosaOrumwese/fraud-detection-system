@@ -2452,3 +2452,59 @@ Implement **describe/metadata probe** as the default path for Kinesis. Keep publ
 
 ### Tests
 - `python -m pytest tests/services/ingestion_gate/test_health_governance.py -q`
+
+---
+
+## Entry: 2026-02-06 08:24:14 — Plan: Fix receipt_ref run-scope mismatch (pins vs path)
+
+### Problem
+In parity runs, IG receipts are pinned with `platform_run_id` from the envelope, but `receipt_ref` paths are written under an older `platform_run_id` (service env/ACTIVE_RUN_ID). This breaks provenance: receipts claim one run in pins while the artifact path points to another.
+
+### Evidence
+- Postgres receipts `pins_json.platform_run_id=platform_20260206T052035Z`, but `receipt_ref=s3://fraud-platform/platform_20260206T042550Z/...`.
+
+### Options considered
+1) **Fix IG startup discipline only**: ensure `PLATFORM_RUN_ID` always matches incoming pins and refuse to start if mismatch. (Operationally fragile; still risks drift if service reused.)
+2) **Bind receipt paths to envelope pins (source of truth)**: compute receipt/quarantine prefix from `envelope.platform_run_id` regardless of service env. (Deterministic and aligns with pins.)
+3) **Dual-write receipts** to both env run prefix and pins run prefix. (Complex; creates ambiguity.)
+
+### Decision
+Adopt **Option 2**. Receipt and quarantine artifacts will be written under the run prefix derived from `envelope.platform_run_id`. Service env remains for logs/health paths only. This preserves provenance and aligns with platform pin doctrine.
+
+### Plan
+- Add a prefix override path in `ReceiptWriter` for receipts/quarantines.
+- Compute `receipt_prefix` per envelope using `platform_run_id` + store type:
+  - S3 store: `run_id`.
+  - Local store: `fraud-platform/{run_id}` unless store root already ends with `fraud-platform`.
+- Update all receipt/quarantine writes in `IngestionGate.admission` to use the computed prefix.
+- Add a test that sets a different `PLATFORM_RUN_ID` env and asserts receipt path uses envelope `platform_run_id`.
+- Run targeted tests for ingestion_gate admission.
+- Log action in `docs/logbook/02-2026/2026-02-06.md`.
+
+### Invariants
+- Receipt/quarantine `receipt_ref` must be in the same run scope as `pins.platform_run_id`.
+- No change to decision semantics or EB publishing.
+
+
+---
+
+## Entry: 2026-02-06 08:26:17 — Implemented envelope-scoped receipt paths
+
+### Changes applied
+- ReceiptWriter now supports per-call prefix overrides.
+- IG computes receipt/quarantine prefix from `envelope.platform_run_id` using store type:
+  - S3 store: `run_id` (so `s3://bucket/<run_id>/ig/receipts/...`).
+  - Local store: `fraud-platform/<run_id>` unless store root already ends with `fraud-platform`.
+- All receipt + quarantine writes in admission now use the envelope-derived prefix (fixes run-scope drift).
+
+### Files touched
+- `src/fraud_detection/ingestion_gate/receipts.py`
+- `src/fraud_detection/ingestion_gate/admission.py`
+- `tests/services/ingestion_gate/test_admission.py`
+
+### Tests
+- `python -m pytest tests/services/ingestion_gate/test_admission.py -q`
+
+### Outcome
+Receipt paths now align with `pins.platform_run_id` even if the IG service environment is stale. Provenance is consistent and deterministic.
+

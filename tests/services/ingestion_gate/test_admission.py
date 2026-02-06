@@ -91,6 +91,7 @@ def _build_gate(
         admission_db_path=str(tmp_path / "ig_admission.db"),
         engine_root_path=None,
         health_probe_interval_seconds=0,
+        health_bus_probe_mode="none",
         health_deny_on_amber=False,
         health_amber_sleep_seconds=0,
         bus_publish_failure_threshold=2,
@@ -123,6 +124,25 @@ def _envelope(event_id: str) -> dict:
         "run_id": "b" * 32,
         "payload": {"flow_id": event_id},
     }
+
+
+def test_receipt_ref_scoped_to_envelope_run_id(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("PLATFORM_RUN_ID", "platform_19990101T000000Z")
+    gate = _build_gate(tmp_path)
+    envelope = _envelope("evt-run-scope")
+    envelope["platform_run_id"] = "platform_20261212T120000Z"
+    receipt = gate.admit_push(envelope)
+    receipt_id = receipt.payload["receipt_id"]
+    expected = (
+        tmp_path
+        / "store"
+        / "fraud-platform"
+        / envelope["platform_run_id"]
+        / "ig"
+        / "receipts"
+        / f"{receipt_id}.json"
+    )
+    assert expected.exists()
 
 
 def test_duplicate_does_not_republish(tmp_path: Path) -> None:
