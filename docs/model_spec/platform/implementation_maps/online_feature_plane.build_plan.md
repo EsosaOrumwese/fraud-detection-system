@@ -66,6 +66,7 @@ Provide a closure-grade, component-scoped plan for OFP aligned to platform Phase
 
 ### Phase 4 - Snapshot materialization and index (4.3.C, 4.3.D)
 **Intent:** serve immutable snapshots without duplicating truth incorrectly.
+**Status:** completed (2026-02-06, component scope).
 
 **DoD checklist:**
 - Snapshot artifact stored by-ref in object store (JSON v0, optional compression).
@@ -77,6 +78,7 @@ Provide a closure-grade, component-scoped plan for OFP aligned to platform Phase
   - object-store ref
 - Snapshot retrieval by hash is deterministic and immutable.
 - Snapshot record includes enough basis to replay and compare with OFS parity builds.
+- Evidence: `python -m pytest tests/services/online_feature_plane -q` -> `10 passed`; details in `docs/model_spec/platform/implementation_maps/online_feature_plane.impl_actual.md`.
 
 ### Phase 5 - Serve API and deterministic semantics (4.3.E)
 **Intent:** DF receives stable features for decision-time use.

@@ -300,3 +300,112 @@ Phase 3 was implemented to remove OFP semantic ambiguity and pin feature semanti
   - no implicit "latest" revision,
   - revision carried into runtime provenance.
 - Integration into serve snapshots/DF responses remains part of later phases (Phase 4+).
+
+---
+
+## Entry: 2026-02-06 17:06:05 - Phase 4 implementation plan (snapshot materialization + index)
+
+### Problem / goal
+Phase 4 DoDs require OFP to emit immutable by-ref feature snapshot artifacts and persist snapshot index metadata for deterministic retrieval by hash. Current OFP has projector state/checkpoints only; no snapshot artifact/index surface exists yet.
+
+### Authorities / inputs
+- `docs/model_spec/platform/implementation_maps/online_feature_plane.build_plan.md` (Phase 4)
+- `docs/model_spec/platform/implementation_maps/platform.build_plan.md` (4.3.C, 4.3.D)
+- `docs/model_spec/platform/contracts/real_time_decision_loop/feature_snapshot.schema.yaml`
+- `docs/model_spec/platform/contracts/real_time_decision_loop/ofp_get_features_response.schema.yaml`
+- `src/fraud_detection/online_feature_plane/contracts.py` (`build_snapshot_hash`)
+
+### Decision
+Implement Phase 4 as component-scoped primitives that Phase 5 serve API can call directly:
+1. Add OFP snapshot materializer that:
+   - reads projection state + input basis + feature policy metadata,
+   - constructs canonical snapshot payload,
+   - computes deterministic `snapshot_hash`,
+   - writes immutable snapshot artifact to object store by-ref path.
+2. Add snapshot index store with SQLite/Postgres backends:
+   - index by `snapshot_hash`,
+   - persist provenance metadata and artifact ref,
+   - support deterministic lookup by hash.
+3. Keep graph_version nullable in Phase 4 (IEG integration remains later); preserve contract fields where available.
+
+### Planned file changes
+- New runtime modules:
+  - `src/fraud_detection/online_feature_plane/snapshots.py`
+  - `src/fraud_detection/online_feature_plane/snapshot_index.py`
+- Extend OFP config:
+  - `src/fraud_detection/online_feature_plane/config.py`
+  - add snapshot index DSN + snapshot object-store root wiring defaults.
+- Extend OFP store query helpers if needed:
+  - `src/fraud_detection/online_feature_plane/store.py`
+- Export Phase 4 primitives:
+  - `src/fraud_detection/online_feature_plane/__init__.py`
+- Tests:
+  - `tests/services/online_feature_plane/test_phase4_snapshots.py`
+
+### Invariants to enforce
+- Snapshot artifact path is content-addressable by `snapshot_hash` and immutable (`write_if_absent`).
+- Snapshot hash is computed from canonical snapshot payload via existing contract helper.
+- Index row for same `snapshot_hash` is idempotent (upsert with same truth).
+- Snapshot retrieval by hash resolves to exactly one artifact ref and provenance payload.
+
+### Validation plan
+- `python -m pytest tests/services/online_feature_plane -q`
+- New checks:
+  - deterministic same-input snapshot hash,
+  - immutable artifact path behavior,
+  - index lookup by hash returns expected provenance + ref.
+
+---
+
+## Entry: 2026-02-06 17:12:05 - Phase 4 implemented (snapshot artifact + index)
+
+### Summary of implementation
+Implemented OFP Phase 4 component primitives for snapshot artifact materialization and metadata indexing.
+
+### Changes applied
+- Added snapshot index persistence backends:
+  - `src/fraud_detection/online_feature_plane/snapshot_index.py`
+  - supports SQLite and Postgres via DSN auto-detection.
+  - stores deterministic lookup metadata keyed by `snapshot_hash`.
+- Added snapshot materializer runtime:
+  - `src/fraud_detection/online_feature_plane/snapshots.py`
+  - builds snapshot from OFP projection state + basis + active feature policy metadata,
+  - computes deterministic `snapshot_hash` via existing contract helper,
+  - writes immutable by-ref snapshot JSON artifact using `write_json_if_absent`,
+  - records index row with provenance payloads (`feature_def_policy_rev`, `run_config_digest`, `eb_offset_basis`, optional `graph_version`).
+- Added materializer CLI utility:
+  - `src/fraud_detection/online_feature_plane/snapshotter.py`
+- Extended OFP config wiring for Phase 4:
+  - `src/fraud_detection/online_feature_plane/config.py`
+  - new wiring fields:
+    - `snapshot_index_dsn`
+    - `snapshot_store_root`
+    - `snapshot_store_endpoint`
+    - `snapshot_store_region`
+    - `snapshot_store_path_style`
+  - defaults resolve from `OFP_*` vars and/or `PLATFORM_STORE_ROOT`.
+- Extended OFP projection store query surface:
+  - `src/fraud_detection/online_feature_plane/store.py`
+  - added `list_group_states(...)` (SQLite/Postgres) for deterministic snapshot assembly.
+- Updated package exports:
+  - `src/fraud_detection/online_feature_plane/__init__.py`
+- Added Phase 4 tests:
+  - `tests/services/online_feature_plane/test_phase4_snapshots.py`
+
+### Invariant checks satisfied
+- Snapshot path is content-addressable (`.../<snapshot_hash>.json`) and immutable on re-materialization.
+- Same basis + state yields same `snapshot_hash`.
+- Snapshot index resolves metadata deterministically by hash.
+- No changes to Phase 2/3 idempotent projector behavior.
+
+### Validation
+- Command: `python -m pytest tests/services/online_feature_plane -q`
+- Result: `10 passed`.
+- New test coverage:
+  - snapshot artifact write + index upsert,
+  - deterministic repeated materialization hash,
+  - index retrieval + artifact load by hash.
+
+### Phase status impact
+- OFP Phase 4 DoDs (4.3.C + 4.3.D) are closed at component scope.
+- Phase 5+ serve semantics/integration remain pending.

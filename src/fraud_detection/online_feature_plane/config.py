@@ -63,6 +63,11 @@ class OfpPolicy:
 class OfpWiring:
     profile_id: str
     projection_db_dsn: str
+    snapshot_index_dsn: str
+    snapshot_store_root: str
+    snapshot_store_endpoint: str | None
+    snapshot_store_region: str | None
+    snapshot_store_path_style: bool | None
     event_bus_kind: str
     event_bus_root: str | None
     event_bus_stream: str | None
@@ -108,6 +113,29 @@ class OfpProfile:
         )
         if not projection_db_dsn:
             raise ValueError("PLATFORM_RUN_ID required to resolve OFP projection_db_dsn.")
+        snapshot_index_dsn = _resolve_env(wiring.get("snapshot_index_dsn") or os.getenv("OFP_SNAPSHOT_INDEX_DSN"))
+        snapshot_index_dsn = resolve_run_scoped_path(
+            snapshot_index_dsn,
+            suffix="online_feature_plane/index/ofp_snapshot_index.db",
+            create_if_missing=True,
+        )
+        if not snapshot_index_dsn:
+            raise ValueError("PLATFORM_RUN_ID required to resolve OFP snapshot_index_dsn.")
+
+        snapshot_store_root = str(
+            _resolve_env(wiring.get("snapshot_store_root") or os.getenv("OFP_SNAPSHOT_STORE_ROOT"))
+            or os.getenv("PLATFORM_STORE_ROOT")
+            or "runs/fraud-platform"
+        )
+        snapshot_store_endpoint = _resolve_env(
+            wiring.get("snapshot_store_endpoint") or os.getenv("OFP_SNAPSHOT_STORE_ENDPOINT") or os.getenv("OBJECT_STORE_ENDPOINT")
+        )
+        snapshot_store_region = _resolve_env(
+            wiring.get("snapshot_store_region") or os.getenv("OFP_SNAPSHOT_STORE_REGION") or os.getenv("OBJECT_STORE_REGION")
+        )
+        snapshot_store_path_style = wiring.get("snapshot_store_path_style")
+        if isinstance(snapshot_store_path_style, str):
+            snapshot_store_path_style = snapshot_store_path_style.lower() in {"1", "true", "yes"}
 
         event_bus_kind = str(wiring.get("event_bus_kind") or "file").strip().lower()
         event_bus_root = _resolve_env(event_bus.get("root") or event_bus.get("path"))
@@ -166,6 +194,11 @@ class OfpProfile:
             wiring=OfpWiring(
                 profile_id=profile_id,
                 projection_db_dsn=projection_db_dsn,
+                snapshot_index_dsn=snapshot_index_dsn,
+                snapshot_store_root=snapshot_store_root,
+                snapshot_store_endpoint=snapshot_store_endpoint,
+                snapshot_store_region=snapshot_store_region,
+                snapshot_store_path_style=snapshot_store_path_style,
                 event_bus_kind=event_bus_kind,
                 event_bus_root=event_bus_root,
                 event_bus_stream=event_bus_stream,

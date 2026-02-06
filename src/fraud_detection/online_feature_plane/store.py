@@ -109,6 +109,16 @@ class OfpStore:
     ) -> dict[str, Any] | None:
         raise NotImplementedError
 
+    def list_group_states(
+        self,
+        *,
+        platform_run_id: str,
+        scenario_run_id: str,
+        group_name: str,
+        group_version: str,
+    ) -> list[dict[str, Any]]:
+        raise NotImplementedError
+
     def metrics_summary(self, *, scenario_run_id: str) -> dict[str, int]:
         raise NotImplementedError
 
@@ -391,6 +401,54 @@ class SqliteOfpStore(OfpStore):
             "last_event_ts_utc": row[2],
             "updated_at_utc": row[3],
         }
+
+    def list_group_states(
+        self,
+        *,
+        platform_run_id: str,
+        scenario_run_id: str,
+        group_name: str,
+        group_version: str,
+    ) -> list[dict[str, Any]]:
+        with self._connect() as conn:
+            rows = conn.execute(
+                """
+                SELECT key_type, key_id, event_count, amount_sum, last_event_ts_utc, updated_at_utc,
+                       scenario_id, run_id, manifest_fingerprint, parameter_hash, seed
+                FROM ofp_feature_state
+                WHERE stream_id = ?
+                  AND platform_run_id = ?
+                  AND scenario_run_id = ?
+                  AND group_name = ?
+                  AND group_version = ?
+                ORDER BY key_type ASC, key_id ASC
+                """,
+                (
+                    self.stream_id,
+                    platform_run_id,
+                    scenario_run_id,
+                    group_name,
+                    group_version,
+                ),
+            ).fetchall()
+        result: list[dict[str, Any]] = []
+        for row in rows:
+            result.append(
+                {
+                    "key_type": str(row[0]),
+                    "key_id": str(row[1]),
+                    "event_count": int(row[2]),
+                    "amount_sum": float(row[3]),
+                    "last_event_ts_utc": row[4],
+                    "updated_at_utc": row[5],
+                    "scenario_id": row[6],
+                    "run_id": row[7],
+                    "manifest_fingerprint": row[8],
+                    "parameter_hash": row[9],
+                    "seed": row[10],
+                }
+            )
+        return result
 
     def metrics_summary(self, *, scenario_run_id: str) -> dict[str, int]:
         with self._connect() as conn:
@@ -836,6 +894,54 @@ class PostgresOfpStore(OfpStore):
             "last_event_ts_utc": row[2],
             "updated_at_utc": row[3],
         }
+
+    def list_group_states(
+        self,
+        *,
+        platform_run_id: str,
+        scenario_run_id: str,
+        group_name: str,
+        group_version: str,
+    ) -> list[dict[str, Any]]:
+        with self._connect() as conn:
+            rows = conn.execute(
+                """
+                SELECT key_type, key_id, event_count, amount_sum, last_event_ts_utc, updated_at_utc,
+                       scenario_id, run_id, manifest_fingerprint, parameter_hash, seed
+                FROM ofp_feature_state
+                WHERE stream_id = %s
+                  AND platform_run_id = %s
+                  AND scenario_run_id = %s
+                  AND group_name = %s
+                  AND group_version = %s
+                ORDER BY key_type ASC, key_id ASC
+                """,
+                (
+                    self.stream_id,
+                    platform_run_id,
+                    scenario_run_id,
+                    group_name,
+                    group_version,
+                ),
+            ).fetchall()
+        result: list[dict[str, Any]] = []
+        for row in rows:
+            result.append(
+                {
+                    "key_type": str(row[0]),
+                    "key_id": str(row[1]),
+                    "event_count": int(row[2]),
+                    "amount_sum": float(row[3]),
+                    "last_event_ts_utc": row[4],
+                    "updated_at_utc": row[5],
+                    "scenario_id": row[6],
+                    "run_id": row[7],
+                    "manifest_fingerprint": row[8],
+                    "parameter_hash": row[9],
+                    "seed": row[10],
+                }
+            )
+        return result
 
     def metrics_summary(self, *, scenario_run_id: str) -> dict[str, int]:
         with self._connect() as conn:
