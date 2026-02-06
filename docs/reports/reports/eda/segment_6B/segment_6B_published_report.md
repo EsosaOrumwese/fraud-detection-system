@@ -1391,3 +1391,257 @@ No repeated frauds were found for the same **campaign+merchant+party** key (uniq
 
 **Why it matters for realism:**
 Burstiness is a core realism signal for fraud campaigns. The current overlay produces **uniform trickle patterns**, which limits the dataset’s ability to train or validate burst‑sensitive fraud detectors.
+
+---
+
+## 14) Phase 5 — Truth, Bank‑View, and Case‑Timeline Realism (S4)
+This phase evaluates the **truth labels**, **bank‑view outcomes**, and **case timelines** produced in S4. If these labels are mis‑aligned, downstream model training and evaluation will be misleading even if behavioural data is sound.
+
+### 14.1 Truth labels — internal consistency and realism
+**Observed (full scan):**
+1. `s4_flow_truth_labels_6B` row count: **124,724,153**
+2. `is_fraud_truth` sum: **124,724,153**
+3. `is_fraud_truth` min/max: **True / True** (every flow is marked as fraud‑truth)
+
+**Truth label distribution:**
+1. `ABUSE`: **124,721,936**
+2. `FRAUD`: **2,217**
+
+**Truth label vs fraud_flag (from S3):**
+1. Fraud flows (7,342): `ABUSE` **5,125**, `FRAUD` **2,217**
+2. Non‑fraud flows (124,716,811): `ABUSE` **124,716,811**
+
+**How to interpret this:**
+1. The truth indicator is **structurally broken** — it is always True. This is not a subtle realism issue; it is a correctness defect.
+2. The truth label `ABUSE` is being used as a **default** for nearly all flows, including non‑fraud flows, which collapses the label space.
+3. Only **2,217** flows are tagged `FRAUD`, which is **below** the 7,342 fraud flows from S3. This means truth labels are **not aligned with campaign reality**.
+
+**Why it matters for realism:**
+Truth labels are the ground truth. If they are saturated and mis‑mapped, they **invalidate model training and evaluation**. Any model trained on this truth surface will learn that “everything is fraud,” which is unusable.
+
+---
+
+### 14.2 Bank‑view labels — alignment and realism
+**Observed (full scan):**
+1. `is_fraud_bank_view` true count: **19,336,301** (15.5% of flows)
+
+**Bank label distribution (all flows):**
+1. `NO_CASE_OPENED`: **87,552,952**
+2. `CUSTOMER_DISPUTE_REJECTED`: **17,834,900**
+3. `BANK_CONFIRMED_FRAUD`: **9,732,169**
+4. `CHARGEBACK_WRITTEN_OFF`: **9,604,132**
+
+**Conditioned on fraud_flag:**
+1. Fraud flows (7,342): bank_fraud True **1,596** (~21.7%)
+2. Non‑fraud flows (124,716,811): bank_fraud True **19,334,705** (~15.5%)
+
+**How to interpret this:**
+1. Bank‑view fraud rate is **almost the same** for fraud and non‑fraud flows. This indicates weak or missing conditioning.
+2. Most fraud flows are still `NO_CASE_OPENED`, while a huge fraction of non‑fraud flows are flagged at the bank‑view level. This is **not realistic**.
+3. Bank‑view outcomes appear **largely independent of truth**, which defeats their purpose as a realistic operational lens.
+
+**Why it matters for realism:**
+Bank‑view labels represent how the institution would detect/handle fraud. If these are not aligned with truth, any “detect vs truth” evaluation will be misleading, and case‑generation realism collapses.
+
+---
+
+### 14.3 Event‑level labels — consistency (sampled)
+We sampled 5 parquet files from `s4_event_labels_6B` and checked intra‑flow consistency.
+
+**Sample stats (634,022 flows):**
+1. Event counts per flow: min **1**, p50 **2**, p90 **2**, max **2**
+2. **0** flows with inconsistent truth flags across events
+3. **0** flows with inconsistent bank‑view flags across events
+4. **0** mismatches between event labels and flow labels in the sample
+
+**How to interpret this:**
+1. Event labels are **consistent within a flow**, which is correct and expected.
+2. A small fraction of flows show only **1 event**, which is inconsistent with the “2 events per flow” expectation. This suggests **minor emission gaps** or partial partitions.
+
+**Why it matters for realism:**
+Label consistency is good, but incomplete event emission can introduce **silent bias** in event‑level training or replay.
+
+---
+
+### 14.4 Case timeline realism
+**Coverage (full scan):**
+1. Case timeline rows: **287,408,588**
+2. Unique case IDs: **75,728,141**
+3. Unique flow IDs with cases: **75,728,141**
+4. Implied case coverage: **~60.7%** of all flows
+
+**Case event types (full scan):**
+1. `CASE_OPENED`: **75,728,141**
+2. `CASE_CLOSED`: **75,728,141**
+3. `CUSTOMER_DISPUTE_FILED`: **68,598,182**
+4. `CHARGEBACK_INITIATED`: **27,439,032**
+5. `CHARGEBACK_DECISION`: **27,439,032**
+6. `DETECTION_EVENT_ATTACHED`: **12,476,060**
+
+**Events per case:**
+1. min **2**, p50 **3**, p90 **5**, p99 **6**, max **6**
+
+**Case duration (sample, 663,528 cases):**
+1. min **3,600s** (1 hour)
+2. p50 **3,600s**
+3. p90 **86,401s** (~24 hours)
+4. p99 **86,401s**
+5. max **86,401s**
+
+**How to interpret this:**
+1. Case coverage is **very high** (over 60%), far above typical operational rates.
+2. Case structure is **template‑bounded** (2–6 events max), indicating deterministic timelines rather than realistic variability.
+3. Durations cluster at **1 hour or ~24 hours**, which is a **fixed‑delay posture**, not a heavy‑tailed operational reality.
+
+**Why it matters for realism:**
+Over‑generated and templated cases make downstream label modelling unrealistic and can create misleading case‑severity patterns.
+
+---
+
+### 14.5 Phase‑5 conclusion (S4 realism verdict)
+1. **Truth labels are structurally invalid.** `is_fraud_truth` is always True, and the label distribution does not match fraud incidence.
+2. **Bank‑view labels are not aligned with truth.** Non‑fraud flows receive a large fraud‑bank signal, and fraud flows are weakly detected.
+3. **Case timelines are over‑saturated and templated.** High case coverage and fixed durations suggest a deterministic posture, not realistic operational behavior.
+
+**Net realism assessment for Phase 5:** This phase contains **hard correctness defects** (truth labels) and **major realism deficits** (bank‑view and case timelines). It is currently the **largest blocker** for statistical realism in 6B.
+
+---
+
+### 14.6 Truth‑label policy sanity vs observed behavior
+**Policy intent (`truth_labelling_policy_6B.yaml`):**
+1. `fraud_pattern_type: NONE` with no overlay anomaly → **LEGIT** (DEFAULT_LEGIT).
+2. `CARD_TESTING`, `ATO`, `MERCHANT_COLLUSION` → **FRAUD**.
+3. `REFUND_ABUSE`, `BONUS_ABUSE`, `PROMO_FRAUD` → **ABUSE**.
+4. Constraints require **full flow coverage** and **campaign consistency**.
+
+**Observed:**
+1. `is_fraud_truth` is **True for every flow** (min=True, max=True).
+2. `fraud_label` is **overwhelmingly ABUSE** (124,721,936 of 124,724,153).
+3. Non‑fraud flows still receive **ABUSE**, contradicting DEFAULT_LEGIT.
+
+**How to interpret this:**
+1. The observed truth surface violates the **core mapping contract**; it is not simply “lean” behavior.
+2. The policy clearly expects **LEGIT** to be present and common. Its absence indicates a **labelling execution defect** (or a default override applied to all flows).
+3. Any realism conclusions about S4 must be treated as invalid until this is corrected.
+
+**Why it matters for realism:**
+Truth is the anchor for realism. If truth is structurally wrong, all downstream labels and case decisions become unreliable for statistical realism assessment.
+
+---
+
+### 14.7 Truth vs bank‑view calibration (confusion)
+**Full‑scan confusion counts:**
+1. Truth=True, Bank=True: **19,336,301**
+2. Truth=True, Bank=False: **105,387,852**
+3. Truth=False, Bank=True: **0**
+4. Truth=False, Bank=False: **0**
+
+**How to interpret this:**
+1. Because truth is saturated, the confusion matrix collapses into a **single‑class problem**.
+2. Bank‑view “recall” is 15.5% (19.3M / 124.7M), but this is **not meaningful** because we have no true negatives.
+
+**Why it matters for realism:**
+Until truth is fixed, **bank‑view calibration cannot be evaluated**. The bank label distribution may still be realistic in isolation, but we cannot quantify alignment.
+
+---
+
+### 14.8 Case coverage by bank label (sample)
+We sampled 5 bank parquet files and checked which flows appear in the case timeline.
+
+**Case coverage by bank label (sample):**
+1. `BANK_CONFIRMED_FRAUD`: **100%** have cases
+2. `CHARGEBACK_WRITTEN_OFF`: **100%** have cases
+3. `CUSTOMER_DISPUTE_REJECTED`: **100%** have cases
+4. `NO_CASE_OPENED`: **~70%** still have cases
+
+**How to interpret this:**
+1. The first three labels naturally imply cases, which is consistent.
+2. The **high case rate for NO_CASE_OPENED** is inconsistent with the label semantics; it suggests either case over‑generation or mis‑labeling.
+
+**Why it matters for realism:**
+Case presence should be coupled to bank‑view outcomes. If `NO_CASE_OPENED` still generates cases at scale, the case timeline becomes **statistically incoherent**.
+
+---
+
+### 14.9 Case timelines by truth and by bank label (sample)
+Using 5 case parquet files (663,528 cases), we measured duration and event count.
+
+**By truth label (sample):**
+1. FRAUD and ABUSE cases show **identical durations** and event counts:
+   - p50 duration: **3,600s**
+   - p90 duration: **86,401s**
+   - p50 events: **3**
+
+**By bank label (sample):**
+1. `NO_CASE_OPENED` and `BANK_CONFIRMED_FRAUD`: p50 duration **3,600s**, p50 events **3**
+2. `CUSTOMER_DISPUTE_REJECTED` and `CHARGEBACK_WRITTEN_OFF`: p50 duration **86,401s**, p50 events **5**
+
+**How to interpret this:**
+1. Durations are **fixed** by label class (1 hour vs 24 hours) rather than distributed.
+2. Fraud vs abuse does **not** influence case dynamics.
+3. This is a **templated timeline**, not a realistic distribution of case durations.
+
+**Why it matters for realism:**
+Real cases show **heavy‑tailed durations** and variability by severity and fraud type. This dataset instead encodes a **two‑point duration system**.
+
+---
+
+### 14.10 Case event ordering and gap realism (sample)
+We examined time gaps between sequential `case_event_seq` events.
+
+**Gap stats (sample):**
+1. min gap **−82,801s** (negative)
+2. p50 gap **1s**
+3. p90/p99/max gaps **82,800s**
+4. Negative gaps count: **240,524**
+
+**Top transitions (median gap):**
+1. `CASE_OPENED → CUSTOMER_DISPUTE_FILED`: **3,600s**
+2. `CUSTOMER_DISPUTE_FILED → CHARGEBACK_INITIATED`: **82,800s**
+3. `CHARGEBACK_INITIATED → CHARGEBACK_DECISION`: **1s**
+4. `CHARGEBACK_DECISION → CASE_CLOSED`: **−82,801s**
+
+**How to interpret this:**
+1. Negative gaps mean **time is not monotonic** within case_event_seq, which is a correctness flaw.
+2. Gap values are **fixed constants**, suggesting deterministic templates rather than realistic variation.
+
+**Why it matters for realism:**
+Non‑monotonic timestamps and fixed gaps make the case timeline **non‑credible** for any temporal analytics or model training.
+
+---
+
+### 14.11 Campaign‑level truth/bank alignment (fraud flows only)
+**Truth label mapping per campaign:**
+1. `T_CARD_TESTING_BURST` → **FRAUD**
+2. `T_ATO_ACCOUNT_SWEEP` → **FRAUD**
+3. `T_REFUND_ABUSE` → **ABUSE**
+4. `T_PROMO_FRAUD_EVENTS` → **ABUSE**
+5. `T_BONUS_ABUSE_FLOW` → **ABUSE**
+
+**Bank‑view behavior (fraud flows only):**
+1. `T_BONUS_ABUSE_FLOW`: **0%** bank_fraud (all NO_CASE_OPENED)
+2. `T_PROMO_FRAUD_EVENTS`: **0%** bank_fraud (all NO_CASE_OPENED)
+3. `T_CARD_TESTING_BURST`: **59.3%** bank_fraud
+4. `T_ATO_ACCOUNT_SWEEP`: **44.6%** bank_fraud
+5. `T_REFUND_ABUSE`: **23.0%** bank_fraud
+
+**How to interpret this:**
+1. Some campaigns are **fully suppressed** by bank‑view rules (bonus/promo), while others are partially detected.
+2. This could be a deliberate policy posture, but it is **not documented** in the realism targets.
+
+**Why it matters for realism:**
+If the suppression is unintentional, it distorts the operational truth. If it is intentional, it should be explicitly documented as part of the bank‑view model.
+
+---
+
+### 14.12 Event‑level label completeness (full scan)
+**Counts:**
+1. Event rows: **249,448,306**
+2. Unique event flow IDs: **124,724,153**
+3. Events per flow ratio: **2.0**
+
+**How to interpret this:**
+Event labels are **complete and fully aligned in count** with the flow surface, confirming that label coverage is consistent at the dataset scale.
+
+**Why it matters for realism:**
+This provides a reliable base for event‑level modelling despite the truth/bank‑view issues. Coverage is not the problem; label semantics are.

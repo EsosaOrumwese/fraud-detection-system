@@ -1,7 +1,7 @@
-# Platform Parity Walkthrough (v0) — Oracle Store → SR → WSP → IG → EB
-_As of 2026-02-01_
+# Platform Parity Walkthrough (v0) — Oracle Store → SR → WSP → IG → EB → IEG
+_As of 2026-02-06_
 
-This runbook executes a **local_parity** end‑to‑end flow capped to **500,000 events**.
+This runbook executes a **local_parity** end‑to‑end flow capped to **500,000 events**, and then runs **IEG** against the admitted EB topics.
 It uses **MinIO (S3)** for the Oracle Store + platform artifacts, **LocalStack Kinesis** for control/event buses, and **Postgres** for IG/WSP state.
 
 ---
@@ -397,8 +397,8 @@ Get-Content runs/fraud-platform/<platform_run_id>/platform.log -Wait
   Component detail logs (full diagnostics):
   - SR: `runs/fraud-platform/<platform_run_id>/scenario_runner/scenario_runner.log`
   - WSP: `runs/fraud-platform/<platform_run_id>/world_streamer_producer/world_streamer_producer.log`
-  - IG: `runs/fraud-platform/<platform_run_id>/ingestion_gate/ingestion_gate.log`
-  - EB: `runs/fraud-platform/<platform_run_id>/event_bus/event_bus.log` (publish diagnostics)
+- IG: `runs/fraud-platform/<platform_run_id>/ingestion_gate/ingestion_gate.log`
+- EB: `runs/fraud-platform/<platform_run_id>/event_bus/event_bus.log` (publish diagnostics)
 
 **Quick WSP check (baseline + fraud progress):**
 ```
@@ -491,7 +491,70 @@ aws --endpoint-url http://localhost:4566 kinesis get-records --shard-iterator $a
 
 ---
 
-## 11) Shutdown (optional)
+## 11) Run IEG (projector + artifacts)
+
+IEG is **not auto‑started** in parity. You must run it explicitly after EB has admitted events.
+
+**11.1 Set run scope (recommended)**
+```
+$env:PLATFORM_RUN_ID = (Get-Content runs/fraud-platform/ACTIVE_RUN_ID).Trim()
+$env:IEG_REQUIRED_PLATFORM_RUN_ID = $env:PLATFORM_RUN_ID
+```
+
+**11.2 Run the projector (Kinesis EB)**
+```
+.venv/Scripts/python.exe -m fraud_detection.identity_entity_graph.projector `
+  --profile config/platform/profiles/local_parity.yaml --once
+```
+
+If you want the projector to keep polling:
+```
+.venv/Scripts/python.exe -m fraud_detection.identity_entity_graph.projector `
+  --profile config/platform/profiles/local_parity.yaml
+```
+
+**11.3 Expected artifacts (run‑scoped)**
+- Projection DB (SQLite in parity):
+  `runs/fraud-platform/<platform_run_id>/identity_entity_graph/projection/identity_entity_graph.db`
+- Health: `runs/fraud-platform/<platform_run_id>/identity_entity_graph/health/last_health.json`
+- Metrics: `runs/fraud-platform/<platform_run_id>/identity_entity_graph/metrics/last_metrics.json`
+- Reconciliation: `runs/fraud-platform/<platform_run_id>/identity_entity_graph/reconciliation/reconciliation.json`
+
+Quick check:
+```
+Get-Content runs/fraud-platform/<platform_run_id>/identity_entity_graph/reconciliation/reconciliation.json
+```
+
+**11.4 (Optional) Write replay manifest (EB basis)**
+```
+.venv/Scripts/python.exe -m fraud_detection.identity_entity_graph.replay_manifest_writer `
+  --profile config/platform/profiles/local_parity.yaml
+```
+This writes:
+`runs/fraud-platform/<platform_run_id>/identity_entity_graph/replay/replay_manifest.json`
+
+---
+
+## 12) (Optional) Start IEG query service
+
+```
+.venv/Scripts/python.exe -m fraud_detection.identity_entity_graph.service `
+  --profile config/platform/profiles/local_parity.yaml --port 8091
+```
+
+**Status check** (requires `scenario_run_id`):
+1) List SR run_facts_view objects:
+```
+aws --endpoint-url http://localhost:9000 s3 ls s3://fraud-platform/<platform_run_id>/sr/run_facts_view/
+```
+2) Use the filename (minus `.json`) as `scenario_run_id`:
+```
+Invoke-RestMethod "http://127.0.0.1:8091/v1/ops/status?scenario_run_id=<scenario_run_id>"
+```
+
+---
+
+## 13) Shutdown (optional)
 ```
 make platform-parity-stack-down
 ```
@@ -503,11 +566,12 @@ make platform-parity-stack-down
 - WSP streams and records READY processing under `wsp/ready_runs`.
 - IG admits events and writes receipts under `ig/receipts`.
 - EB offsets advance and are visible in receipt `eb_ref`.
+- IEG projector creates projection DB + reconciliation artifact under `identity_entity_graph/`.
 - Platform log shows SR → WSP → IG → EB in order for the same run id.
 
 ---
 
-## 12) v0 green checklist (control & ingress)
+## 14) v0 green checklist (control & ingress + IEG)
 
 Use this list to confirm the **v0 control & ingress plane** is green.
 
@@ -517,6 +581,8 @@ Use this list to confirm the **v0 control & ingress plane** is green.
 - [ ] WSP ready logs exist under `runs/fraud-platform/<run_id>/world_streamer_producer/world_streamer_producer.log`.
 - [ ] WSP ready logs exist under `runs/fraud-platform/<run_id>/world_streamer_producer/world_streamer_producer.log`.
 - [ ] IG receipts exist under `s3://fraud-platform/<run_id>/ig/receipts/`.
+- [ ] IEG projection DB exists under `runs/fraud-platform/<run_id>/identity_entity_graph/projection/identity_entity_graph.db`.
+- [ ] IEG reconciliation artifact exists under `runs/fraud-platform/<run_id>/identity_entity_graph/reconciliation/reconciliation.json`.
 
 **Narrative platform log**
 - [ ] `platform.log` includes `SR READY published` for the same run id.
