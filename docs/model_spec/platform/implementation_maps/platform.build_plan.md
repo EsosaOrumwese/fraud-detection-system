@@ -465,8 +465,8 @@ These remain open and will be resolved during RTDL Phase 4 planning and partitio
 **Goal:** ensure OFP only consumes deterministic, run-scoped inputs.
 
 **DoD checklist:**
-- OFP consumes **IEG projection** only (no Oracle reads; no side-door inputs).
-- Every feature computation is tied to a **pinned `graph_version`** and **`eb_offset_basis`**.
+- OFP consumes **admitted EB traffic** as projector input; IEG is optional query support (no Oracle reads; no side-door inputs).
+- Every feature computation is tied to a **pinned `eb_offset_basis`** and carries `graph_version` when IEG is consulted.
 - `run_config_digest` is carried through OFP inputs and outputs (provenance).
 - Input pins required: `platform_run_id`, `scenario_run_id`, `manifest_fingerprint`, `parameter_hash`, `scenario_id`, `seed` (per RTDL pre‑design).
 
