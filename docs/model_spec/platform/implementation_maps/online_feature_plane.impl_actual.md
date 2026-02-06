@@ -409,3 +409,114 @@ Implemented OFP Phase 4 component primitives for snapshot artifact materializati
 ### Phase status impact
 - OFP Phase 4 DoDs (4.3.C + 4.3.D) are closed at component scope.
 - Phase 5+ serve semantics/integration remain pending.
+
+---
+
+## Entry: 2026-02-06 17:20:00 - Phase 5 implementation plan (serve API + deterministic semantics)
+
+### Problem / goal
+Phase 4 snapshot primitives are green, but OFP still lacks a formal `get_features` serve surface that enforces Phase 5 semantics:
+- explicit `as_of_time_utc` (no hidden now),
+- coherent single-response basis/provenance,
+- `graph_version` stamping when identity graph is consulted,
+- explicit dependency posture flags for stale/missing dependencies to support DF/DL degrade handling.
+
+### Authorities / inputs
+- `docs/model_spec/platform/implementation_maps/online_feature_plane.build_plan.md` (Phase 5 DoD)
+- `docs/model_spec/platform/implementation_maps/platform.build_plan.md` (4.3.E)
+- `docs/model_spec/platform/pre-design_decisions/real-time_decision_loop.pre-design_decision.md`
+- `docs/model_spec/platform/component-specific/online_feature_plane.design-authority.md` (PD-OFP-OUT-06/07)
+- Snapshot smoke evidence (local parity):
+  - run: `platform_20260206T143456Z`
+  - scenario_run_id: `dddddddddddddddddddddddddddddddd`
+  - snapshot_hash: `a00d88a2ac4a3a3bbeecc805b05cbb6e253b5cbe427447b95bb5f728b37dd8a6`
+  - artifact: `runs/fraud-platform/platform_20260206T143456Z/ofp/snapshots/dddddddddddddddddddddddddddddddd/a00d88a2ac4a3a3bbeecc805b05cbb6e253b5cbe427447b95bb5f728b37dd8a6.json`
+  - index DB: `runs/fraud-platform/platform_20260206T143456Z/online_feature_plane/index/ofp_snapshot_index.db`
+
+### Decision
+Implement a dedicated OFP serve module that reuses the existing contract validator + snapshot materializer and adds deterministic response shaping:
+1. New `OfpGetFeaturesService` surface:
+   - validates request (`as_of_time_utc` required),
+   - materializes snapshot for request pins and as-of,
+   - filters to requested feature keys.
+2. Graph consultation posture:
+   - optional resolver hook for IEG graph tokens,
+   - stamps `graph_version` when resolver returns a token,
+   - fails closed (`UNAVAILABLE`) when request requires IEG and resolver/token is unavailable.
+3. Dependency posture surface:
+   - always emit explicit freshness posture fields (`state`, `flags`),
+   - mark stale basis when `as_of_time_utc` exceeds basis window end,
+   - mark missing feature dependencies when requested keys/groups are absent.
+4. Keep response basis coherent:
+   - one materialization call per response,
+   - one `eb_offset_basis` token and digest in returned snapshot.
+
+### Planned files
+- `src/fraud_detection/online_feature_plane/serve.py` (new)
+- `src/fraud_detection/online_feature_plane/__init__.py` (export serve surface)
+- `docs/model_spec/platform/contracts/real_time_decision_loop/feature_snapshot.schema.yaml`
+- `docs/model_spec/platform/contracts/real_time_decision_loop/ofp_get_features_response.schema.yaml`
+- `tests/services/online_feature_plane/test_phase5_serve.py` (new)
+
+### Validation plan
+- Unit tests for:
+  - `as_of_time_utc` requirement enforcement,
+  - deterministic basis/provenance in responses,
+  - graph_version stamping when resolver is used,
+  - explicit posture flags for missing/stale dependencies.
+- Full OFP suite:
+  - `python -m pytest tests/services/online_feature_plane -q`
+
+---
+
+## Entry: 2026-02-06 17:24:00 - Phase 5 implemented (serve API + deterministic semantics)
+
+### Summary of implementation
+Implemented OFP Phase 5 query surface with explicit request validation, deterministic response basis/provenance, optional graph-version stamping, and explicit stale/missing dependency posture flags.
+
+### Changes applied
+- Added OFP serve module:
+  - `src/fraud_detection/online_feature_plane/serve.py`
+  - new `OfpGetFeaturesService`:
+    - validates request via `validate_get_features_request` (enforces required `as_of_time_utc`),
+    - materializes snapshot through Phase 4 materializer (single coherent basis per response),
+    - filters response to requested feature keys,
+    - emits explicit freshness posture fields:
+      - `state` (`GREEN|AMBER|RED`)
+      - `flags`
+      - `stale_groups`
+      - `missing_groups`
+      - `missing_feature_keys`
+    - supports optional graph resolver hook:
+      - stamps `graph_version` when resolver returns a token,
+      - fail-closed `UNAVAILABLE` when `graph_resolution_mode=require_ieg` and resolver/token unavailable.
+- Updated exports:
+  - `src/fraud_detection/online_feature_plane/__init__.py` now exports `OfpGetFeaturesService`.
+- Updated RTDL OFP snapshot contract schemas for explicit posture flags:
+  - `docs/model_spec/platform/contracts/real_time_decision_loop/feature_snapshot.schema.yaml`
+  - `docs/model_spec/platform/contracts/real_time_decision_loop/ofp_get_features_response.schema.yaml`
+- Added Phase 5 tests:
+  - `tests/services/online_feature_plane/test_phase5_serve.py`
+  - coverage includes:
+    - required `as_of_time_utc` behavior,
+    - graph_version stamping with resolver,
+    - stale/missing dependency posture flags,
+    - fail-closed behavior for `require_ieg` without resolver.
+
+### Validation
+- Snapshot smoke evidence used as Phase 5 input:
+  - run: `platform_20260206T143456Z`
+  - scenario_run_id: `dddddddddddddddddddddddddddddddd`
+  - snapshot_hash: `a00d88a2ac4a3a3bbeecc805b05cbb6e253b5cbe427447b95bb5f728b37dd8a6`
+- Test command:
+  - `python -m pytest tests/services/online_feature_plane -q`
+- Result:
+  - `14 passed`
+
+### DoD impact
+- Phase 5 DoDs are closed at OFP component scope:
+  - explicit as-of semantics enforced,
+  - deterministic per-response basis/provenance surface,
+  - graph_version stamped when graph dependency is consulted,
+  - stale/missing dependencies surfaced as explicit posture flags for DF/DL degrade handling.
+- Integration-dependent phases (4.3.F-4.3.H) remain pending.

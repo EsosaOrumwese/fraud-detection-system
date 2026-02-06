@@ -460,7 +460,7 @@ These remain open and will be resolved during RTDL Phase 4 planning and partitio
 
 #### Phase 4.3 — OFP feature plane (graph → features)
 **Goal:** materialize reproducible feature snapshots.
-**Status:** in progress. 4.3.A projector intake, 4.3.B feature-definition/window authority, and 4.3.C/4.3.D snapshot artifact+index primitives are implemented at component scope; 4.3.E-4.3.H pending integration closure.
+**Status:** in progress. 4.3.A projector intake, 4.3.B feature-definition/window authority, 4.3.C/4.3.D snapshot artifact+index primitives, and 4.3.E serve semantics are implemented at component scope; 4.3.F-4.3.H pending integration closure.
 
 ##### 4.3.A — Inputs + basis pinning
 **Goal:** ensure OFP only consumes deterministic, run-scoped inputs.
@@ -503,6 +503,7 @@ These remain open and will be resolved during RTDL Phase 4 planning and partitio
 - Query responses return ContextPins + `graph_version` + `snapshot_hash` + `eb_offset_basis`.
 - Responses are deterministic for a given snapshot_hash (no hidden recompute).
 - Failure responses are explicit (no fabricated context).
+- Component-scope evidence: `python -m pytest tests/services/online_feature_plane -q` -> `14 passed` (includes Phase 5 serve tests).
 
 ##### 4.3.F — Rebuild + replay posture
 **Goal:** full rebuildability from EB/archive + IEG basis.

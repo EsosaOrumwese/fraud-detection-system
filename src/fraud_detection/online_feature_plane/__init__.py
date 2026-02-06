@@ -10,6 +10,7 @@ from .contracts import (
     validate_get_features_request,
 )
 from .projector import OnlineFeatureProjector
+from .serve import OfpGetFeaturesService
 from .snapshot_index import SnapshotIndexRecord, build_snapshot_index
 from .snapshots import OfpSnapshotMaterializer
 from .store import ApplyResult, Checkpoint, OfpStore, build_store
@@ -21,6 +22,7 @@ __all__ = [
     "OfpStore",
     "OfpContractError",
     "OfpPins",
+    "OfpGetFeaturesService",
     "OnlineFeatureProjector",
     "OfpSnapshotMaterializer",
     "SnapshotIndexRecord",

@@ -82,12 +82,14 @@ Provide a closure-grade, component-scoped plan for OFP aligned to platform Phase
 
 ### Phase 5 - Serve API and deterministic semantics (4.3.E)
 **Intent:** DF receives stable features for decision-time use.
+**Status:** completed (2026-02-06, component scope).
 
 **DoD checklist:**
 - `get_features` requires `as_of_time_utc` and never defaults to hidden "now".
 - Response basis is atomic per response (single coherent `input_basis` token).
 - If IEG is consulted, returned `graph_version` is stamped in provenance.
 - Missing or stale dependencies surface explicit posture flags for DF/DL degrade handling.
+- Evidence: `python -m pytest tests/services/online_feature_plane -q` -> `14 passed`; details in `docs/model_spec/platform/implementation_maps/online_feature_plane.impl_actual.md`.
 
 ### Phase 6 - Rebuild and replay determinism (4.3.F, 4.3.H)
 **Intent:** prove OFP can be rebuilt and matched.
