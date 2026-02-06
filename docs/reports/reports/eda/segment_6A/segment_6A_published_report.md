@@ -204,7 +204,7 @@ Run scope: `runs\local_full_run-5\c25a2675fbfbacd952b13bb594880e92\data\layer3\6
 3. Accounts with instruments: **6,176,060** (70.78% of accounts)
 4. Instruments linked to accounts: **100%** (links == instruments)
 5. Devices linked to parties: **100%** (links == devices)
-6. IPs linked to devices: **334,529** (91.36% of IPs)
+6. IPs linked to devices: **334,529** (**91.36% of IPs** and **14.82% of devices touched by IP**)
 
 Note: `s4_device_links_6A.account_id` is **entirely null** in this run (0 non‑null rows), so device links are party‑level only here.
 
@@ -509,8 +509,8 @@ This is a clear policy posture and is consistent with realistic product behavior
    This is not impossible (e.g., NAT gateways, carrier‑grade NAT, shared public Wi‑Fi, data‑centre proxies), but it is **very strong** and will dominate “shared IP” signals unless bounded by policy.
 
 ### D4. IPs per device are tightly capped
-1. IPs per device: mean **2.07**, p50 **2**, p90 **3**, p99 **3**, max **3**.  
-   This is an unusually tight cap — it implies a fixed rule (1–3 typical IPs per device).
+1. IPs per device (computed on **devices that have at least one IP link**): mean **2.07**, p50 **2**, p90 **3**, p99 **3**, max **3**.  
+   This is an unusually tight cap — it implies a fixed rule (1–3 typical IPs per linked device), not a broad roaming distribution.
 2. That cap is not necessarily unrealistic, but it does indicate a **hard policy limit**, not an emergent pattern. If you expect mobile devices or roaming behavior, you might want a broader tail.
 
 ### D5. Device type mix is plausible
@@ -563,11 +563,12 @@ This is excellent structural coherence and a strong realism prerequisite.
 1. Accounts per party (avg): **2.659**  
 2. Instruments per account (avg): **1.227**  
 3. Devices per party (avg): **2.214**  
-4. IPs per device (avg): **0.0504**  
+4. IPs per device (avg across **all devices**, including unlinked): **0.0504**  
 
 Interpretation:
 1. The averages are consistent with earlier distributions.  
-2. The IPs‑per‑device average is extremely low, which is consistent with the low device→IP coverage in E1.  
+2. The IPs‑per‑device average is extremely low because most devices are unlinked to IPs; this is consistent with the low device→IP coverage in E1.  
+3. This does not conflict with D4: D4 is conditional on linked devices only, while E3 is unconditional over all devices.  
    This effectively makes IPs a sparse overlay, not a universal attribute; downstream models will treat IPs as “special” rather than standard metadata.
 
 ### E4. Interpretation for realism
@@ -786,6 +787,111 @@ This is an implementation simplification that should be documented as a design d
    This reduces traceability from policy intent to observed risk labels.
 
 Overall, 6A is **highly policy‑driven** where the priors are used, but there are **clear gaps** where priors are not applied or are overridden by implementation mechanics.
+
+---
+
+## I) Visual diagnostics supporting sections A–H
+
+This section anchors the narrative findings to concrete visuals so readers can see the shape of each result, not just summary statistics.
+Each plot is interpreted in the same frame used above: what is measured, what pattern is visible, and how that pattern supports (or challenges) the corresponding statistical claim in A–H.
+
+### I1. Policy-vs-observed parity matrix (supports H1, H2, H6)
+![Policy vs observed parity matrix](plots/01_policy_observed_parity_matrix.png)
+
+Interpretation:
+1. The left matrix shows party/account share targets vs observed and the delta in percentage points. Most party/account rows are near-zero delta, which visually confirms the strong policy alignment described in H1/H2.
+2. The IP rows show the largest divergence. The residential cell has a large positive delta while several non-residential types are negative, which is the same pattern described in H6 (IP prior divergence).
+3. The right matrix shows lambda totals by account type. It confirms mean-level agreement for most account types, but that should not be read as full policy compliance: H4 shows that low-target types are still inflated by minimum-attachment mechanics, which is clearer in I6.
+
+### I2. Country concentration Lorenz + top-k share (supports A4)
+![Country concentration](plots/02_country_concentration_lorenz_topk.png)
+
+Interpretation:
+1. The Lorenz curve bows strongly below the equality line (Gini ~0.73), confirming that party mass is concentrated in a subset of countries rather than evenly spread.
+2. The top-k bars quantify this concentration directly (top 1%, 5%, 10% country groups capturing large party shares), supporting the conclusion that geography is top-heavy.
+3. This visual clarifies that "77 countries present" does not imply broad effective diversification; the distribution behaves like a much smaller effective set.
+
+### I3. Country x segment residual heatmap (supports A6, A7)
+![Country x segment residuals](plots/03_country_segment_residual_heatmap.png)
+
+Interpretation:
+1. Residual magnitudes are mostly small and repeat in similar patterns across countries, showing that country-level segment mixes stay close to the global mix.
+2. The repeated banding supports A6's claim that country-specific segmentation is weak and largely prior-driven.
+3. Limited spread in business-related columns is consistent with A7: business intensity is narrow across major countries rather than strongly localized.
+
+### I4. Accounts-per-party CCDF by party type (supports B3, B5)
+![Accounts per party CCDF](plots/04_accounts_per_party_ccdf_by_party_type.png)
+
+Interpretation:
+1. All curves drop steeply at low counts and then thin into a long tail, visually matching the "stable core + heavy tail" description in B3.
+2. The retail curve extends farther right than business/other, which supports B5's observation that retail averages can exceed business in this run.
+3. Zero-account shares in the legend provide direct context for the non-banked tail discussed in B1.
+
+### I5. K_max breaches by account type (supports H3)
+![K_max breaches](plots/05_account_kmax_breaches.png)
+
+Interpretation:
+1. The top panel compares policy K_max against observed maxima per account type; large vertical gaps indicate hard-cap violations.
+2. The bottom panel shows breach rates and absolute breach counts, making clear that this is not just one or two extreme outliers.
+3. Together, this visual is direct evidence of the material mismatch described in H3 and explains why holding tails are heavier than policy implies.
+
+### I6. Instrument totals identity plot (supports C6, H4)
+![Instrument lambda identity](plots/06_instrument_lambda_identity.png)
+
+Interpretation:
+1. Points near the identity line confirm that account-type average instrument totals are broadly aligned to target lambdas.
+2. The informative region is the low-target end: products with targets near 0.2-0.45 sit around ~1.0 observed, which is a strong visual signature of floor effects (for example, forcing at least one account rail).
+3. This explains why H4 can be true even when many points look close to identity: aggregate means can appear stable while policy intent for sparse products is materially exceeded.
+4. Read this jointly with I7: composition can still be policy-faithful while totals are structurally inflated.
+
+### I7. Instrument composition residual heatmap (supports C3, H4)
+![Instrument composition residuals](plots/07_instrument_mix_residual_heatmap.png)
+
+Interpretation:
+1. Residuals are very close to zero across cells, showing that within-account-type instrument shares are almost exactly policy-shaped.
+2. This strongly supports C3/H4's statement that instrument composition is faithful to priors.
+3. The key realism implication is that instrument behavior is highly controlled by policy, with little emergent drift.
+
+### I8. Device-to-IP linkage funnel (supports D2, E1, E3)
+![Device IP funnel](plots/08_device_ip_linkage_funnel.png)
+
+Interpretation:
+1. The funnel makes the sparsity explicit: only a minority of devices have IP links, and linked IP coverage is small relative to total devices.
+2. The two denominator views should be read together: high linked-IP coverage as a share of IP entities coexists with low device coverage as a share of devices. That combination means IPs are mostly "used" once created, but most devices never enter the IP layer.
+3. This directly supports D2/E1/E3 that IP is a sparse overlay in this run rather than a universal attribute.
+4. The magnitude gap explains why IP-derived features can become high-variance and disproportionately influential downstream.
+
+### I9. IP prior-vs-observed dumbbell (supports D6, H6)
+![IP type prior vs observed](plots/09_ip_type_prior_vs_observed_dumbbell.png)
+
+Interpretation:
+1. The dumbbell spans between expected and observed share for each IP type, making the direction and size of mismatch visible per category.
+2. Residential is materially above target while most other types are below target, matching H6's quantitative divergence.
+3. This visual confirms that the IP realism issue is a distributional shift, not random noise.
+
+### I10. Devices-per-IP CCDF (supports D3, G4)
+![Devices per IP CCDF](plots/10_devices_per_ip_ccdf_loglog.png)
+
+Interpretation:
+1. The log-log CCDF shows a long right tail with slow decay, indicating a concentrated high-degree IP subset.
+2. Quantile markers (p95/p99/p99.9) demonstrate how quickly degree escalates in the upper tail.
+3. This is the clearest visual evidence that IP concentration is the heavy-tail outlier surface in 6A.
+
+### I11. Party-role risk propagation heatmaps (supports F2, F4, F5)
+![Party role risk propagation](plots/11_party_role_risk_propagation_heatmaps.png)
+
+Interpretation:
+1. The first heatmap shows non-clean account/device rates by party role; roles separate directionally as expected.
+2. The uplift heatmap shows those differences relative to global baseline. Uplifts exist but are moderate, supporting the "weak-to-moderate propagation" interpretation in F4/F5.
+3. This explains why fraud posture is coherent but not strongly cascading across ownership layers.
+
+### I12. IP degree vs high-risk enrichment curve (supports F7, G4)
+![IP degree enrichment](plots/12_ip_degree_highrisk_enrichment_curve.png)
+
+Interpretation:
+1. As degree increases, high-risk share and enrichment do not rise sharply enough to fully track the extreme sharing tail.
+2. This supports F7's point that high-sharing IPs are not consistently labeled high-risk except near the far extreme.
+3. Combined with I10, the implication is an IP network that is structurally heavy-tailed but only weakly coupled to risk labels.
 
 ---
 
