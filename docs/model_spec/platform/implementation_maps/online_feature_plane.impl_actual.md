@@ -133,3 +133,73 @@ Begin Phase 1 implementation by making the OFP contract surface explicit and enf
 ### Notes
 - This implementation closes Phase 1 contract authority at component level.
 - Projector/serve runtime and store mechanics remain Phase 2+ work.
+
+---
+
+## Entry: 2026-02-06 16:22:00 — Phase 2 implementation plan (EB projector core + atomic checkpoints)
+
+### Problem / goal
+Implement OFP Phase 2 so the component can consume admitted EB events, apply deterministic/idempotent updates, persist state/checkpoints atomically, and expose `input_basis` for downstream provenance.
+
+### Authorities / inputs
+- `docs/model_spec/platform/implementation_maps/online_feature_plane.build_plan.md` (Phase 2 DoD)
+- `docs/model_spec/platform/pre-design_decisions/real-time_decision_loop.pre-design_decision.md`
+- `docs/model_spec/platform/component-specific/online_feature_plane.design-authority.md`
+- Existing EB adapters (`EventBusReader`, `KinesisEventBusReader`)
+
+### Design choices for Phase 2
+- Build a minimal OFP runtime package with:
+  - `config.py` for profile loading and run-scoped DSN resolution
+  - `store.py` for projection state + idempotency + checkpoint persistence (SQLite/Postgres)
+  - `projector.py` for EB intake (`--once` and continuous mode)
+- Idempotency key for apply path in v0 runtime:
+  - `(stream_id, topic, partition, offset_kind, offset)` for at-least-once replay safety.
+- State model for Phase 2:
+  - deterministic aggregate rows keyed by ContextPins + `key_type/key_id` + `group_name/group_version`
+  - initial feature payload: event_count, optional amount sum, last_event_ts_utc
+- Input basis exposure:
+  - computed from per-partition checkpoints as exclusive-next offsets with stable basis digest.
+
+### Planned files
+- `src/fraud_detection/online_feature_plane/config.py`
+- `src/fraud_detection/online_feature_plane/store.py`
+- `src/fraud_detection/online_feature_plane/projector.py`
+- `tests/services/online_feature_plane/test_phase2_projector.py`
+
+### Validation plan
+- Unit/integration tests with file-bus fixtures:
+  - duplicate replay does not double-apply state
+  - checkpoint vector advances deterministically
+  - input_basis is emitted and stable for same replay basis
+  - restart/re-run yields same state + basis
+
+---
+
+## Entry: 2026-02-06 16:42:00 - Phase 2 implemented (projector/store core + atomic checkpoints)
+
+### Problem / goal
+The initial Phase 2 implementation landed with a corrupted `store.py` class layout (mixed SQLite/Postgres methods), which broke projector persistence (`SqliteOfpStore` attempted Postgres connect path). Goal was to restore a clean backend split and close Phase 2 DoDs with passing tests.
+
+### What was changed
+- Rebuilt `src/fraud_detection/online_feature_plane/store.py` with clean backend boundaries:
+  - `SqliteOfpStore` owns SQLite DDL, idempotent apply, checkpoint advancement, metrics, and basis reconstruction.
+  - `PostgresOfpStore` owns Postgres DDL and equivalent apply/checkpoint/metrics behavior.
+  - `build_store(...)` retains DSN-based backend selection and sqlite DSN normalization.
+- Preserved pinned Phase 2 invariants:
+  - idempotent apply key: `(stream_id, topic, partition, offset_kind, offset)`,
+  - atomic per-record mutation: metrics + apply + checkpoint within one DB transaction scope,
+  - deterministic `input_basis` digest from exclusive-next checkpoint vector.
+- Hardened projector test fixture against ambient env run-scope gates:
+  - `tests/services/online_feature_plane/test_phase2_projector.py` now sets `required_platform_run_id` explicitly in the generated test profile to avoid host `PLATFORM_RUN_ID` bleed-through.
+
+### Validation results
+- Command: `python -m pytest tests/services/online_feature_plane -q`
+- Result: `6 passed` (contracts + phase2 projector/store tests).
+- Verified outcomes:
+  - replaying same offset is `DUPLICATE` and does not increment state totals,
+  - projector file-bus run applies events, writes feature state, and produces deterministic checkpoint basis (`offset=2` after two records),
+  - second `run_once` is a no-op (`processed == 0`) under unchanged input.
+
+### Phase status impact
+- OFP Phase 2 DoDs are closed at component scope for v0 local-parity behavior.
+- Remaining Phase 3+ work (feature definition authority, snapshot materialization, serve API semantics, replay parity, health integration) is unchanged.

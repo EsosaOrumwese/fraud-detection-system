@@ -43,6 +43,7 @@ Provide a closure-grade, component-scoped plan for OFP aligned to platform Phase
 
 ### Phase 2 - Intake projector core (4.3.A, 4.3.F)
 **Intent:** build deterministic state from admitted EB traffic.
+**Status:** completed (2026-02-06, component scope).
 
 **DoD checklist:**
 - OFP consumes admitted EB traffic topics only; no Oracle side reads.
@@ -50,6 +51,7 @@ Provide a closure-grade, component-scoped plan for OFP aligned to platform Phase
 - Checkpoint advance occurs only after durable state commit (transactional state + checkpoint write).
 - `input_basis` vector can be reconstructed from checkpoint state at any time.
 - Required pins are validated per event; run-scope violations fail closed.
+- Evidence: `python -m pytest tests/services/online_feature_plane -q` -> `6 passed`; details logged in `docs/model_spec/platform/implementation_maps/online_feature_plane.impl_actual.md`.
 
 ### Phase 3 - Feature definitions and windows (4.3.B)
 **Intent:** make feature computation versioned and reproducible.

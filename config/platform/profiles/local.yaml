@@ -59,3 +59,19 @@ ieg:
     checkpoint_every: 1
     max_inflight: 200
     batch_size: 50
+ofp:
+  policy:
+    stream_id: ofp.v0
+    feature_group_name: core_features
+    feature_group_version: v1
+    key_precedence: [flow_id, event_id]
+    amount_fields: [amount]
+  wiring:
+    projection_db_dsn: ${OFP_PROJECTION_DSN}
+    event_bus_kind: file
+    event_bus:
+      root: runs/fraud-platform/eb
+      topics_ref: config/platform/ofp/topics_v0.yaml
+    engine_contracts_root: docs/model_spec/data-engine/interface_pack/contracts
+    poll_max_records: 200
+    poll_sleep_seconds: 0.2

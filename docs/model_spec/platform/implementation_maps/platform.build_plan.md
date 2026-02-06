@@ -460,6 +460,7 @@ These remain open and will be resolved during RTDL Phase 4 planning and partitio
 
 #### Phase 4.3 — OFP feature plane (graph → features)
 **Goal:** materialize reproducible feature snapshots.
+**Status:** in progress. 4.3.A projector intake + replay-safe checkpoint core implemented at component scope; 4.3.B-4.3.H pending integration closure.
 
 ##### 4.3.A — Inputs + basis pinning
 **Goal:** ensure OFP only consumes deterministic, run-scoped inputs.
