@@ -68,3 +68,68 @@ The OFP component build plan is still too high-level to execute against the expa
 - Idempotent apply under at-least-once delivery.
 - Deterministic snapshot hash and replay reproducibility.
 - Explicit failure posture (no fabricated context).
+
+---
+
+## Entry: 2026-02-06 16:18:13 — Phase 1 implementation start (contracts + provenance authority)
+
+### Problem / goal
+Begin Phase 1 implementation by making the OFP contract surface explicit and enforceable in code/tests: request shape, success response provenance requirements, error posture, and deterministic snapshot hash behavior.
+
+### Authorities / inputs
+- `docs/model_spec/platform/implementation_maps/online_feature_plane.build_plan.md` (Phase 1 DoD)
+- `docs/model_spec/platform/pre-design_decisions/real-time_decision_loop.pre-design_decision.md`
+- `docs/model_spec/platform/component-specific/online_feature_plane.design-authority.md`
+- RTDL contract folder `docs/model_spec/platform/contracts/real_time_decision_loop/`
+
+### Decisions for this implementation slice
+- Add explicit OFP API contracts under RTDL contracts:
+  - `ofp_get_features_request.schema.yaml`
+  - `ofp_get_features_response.schema.yaml`
+  - `ofp_get_features_error.schema.yaml`
+- Keep `feature_snapshot.schema.yaml` as the canonical by-ref artifact contract; OFP response references the same provenance fields and semantics.
+- Add a minimal OFP contract helper module for deterministic `snapshot_hash` canonicalization and explicit error response mapping.
+- Add targeted tests for:
+  - request validation failures,
+  - snapshot hash determinism,
+  - error semantics (code + retryable posture),
+  - success response required fields.
+
+### Planned files
+- `docs/model_spec/platform/contracts/real_time_decision_loop/ofp_get_features_request.schema.yaml`
+- `docs/model_spec/platform/contracts/real_time_decision_loop/ofp_get_features_response.schema.yaml`
+- `docs/model_spec/platform/contracts/real_time_decision_loop/ofp_get_features_error.schema.yaml`
+- `docs/model_spec/platform/contracts/real_time_decision_loop/README.md`
+- `docs/model_spec/platform/contracts/README.md`
+- `src/fraud_detection/online_feature_plane/__init__.py`
+- `src/fraud_detection/online_feature_plane/contracts.py`
+- `tests/services/online_feature_plane/test_contracts.py`
+
+---
+
+## Entry: 2026-02-06 16:20:47 — Phase 1 implemented (contracts + provenance helpers)
+
+### Changes applied
+- Added OFP request/response/error schemas to the RTDL contract set:
+  - `ofp_get_features_request.schema.yaml`
+  - `ofp_get_features_response.schema.yaml`
+  - `ofp_get_features_error.schema.yaml`
+- Updated RTDL contract indexes to include the OFP schemas:
+  - `docs/model_spec/platform/contracts/real_time_decision_loop/README.md`
+  - `docs/model_spec/platform/contracts/README.md`
+- Added OFP contract helper module:
+  - `src/fraud_detection/online_feature_plane/contracts.py`
+  - `src/fraud_detection/online_feature_plane/__init__.py`
+- Helper module provides:
+  - request validation (`validate_get_features_request`)
+  - deterministic snapshot hash canonicalization (`build_snapshot_hash`)
+  - explicit success/error response builders with pinned error semantics.
+- Added tests for Phase 1 contract behavior:
+  - `tests/services/online_feature_plane/test_contracts.py`
+
+### Validation
+- `python -m pytest tests/services/online_feature_plane/test_contracts.py -q` -> `4 passed`.
+
+### Notes
+- This implementation closes Phase 1 contract authority at component level.
+- Projector/serve runtime and store mechanics remain Phase 2+ work.

@@ -55,6 +55,9 @@ These live under:
 - `eb_offset_basis.schema.yaml`
 - `graph_version.schema.yaml`
 - `feature_snapshot.schema.yaml`
+- `ofp_get_features_request.schema.yaml`
+- `ofp_get_features_response.schema.yaml`
+- `ofp_get_features_error.schema.yaml`
 - `decision_payload.schema.yaml`
 - `degrade_posture.schema.yaml`
 - `action_intent.schema.yaml`
