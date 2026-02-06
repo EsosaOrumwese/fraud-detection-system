@@ -570,3 +570,77 @@ Complete Phase 7: ensure env ladder config stays aligned, secrets remain runtime
 
 ### Validation
 - `python -m pytest tests/services/identity_entity_graph -q` (14 passed).
+
+---
+
+## Entry: 2026-02-06 08:46:47 — Phase 4.2 (IEG) closure plan: IEG-only DoD
+
+### Scope (IEG-only items we can finish now)
+- 4.2.E explicit migrations (replace runtime ALTER posture).
+- 4.2.G partial: health/lag/apply-failure counters + run-scoped health artifact.
+- 4.2.H backpressure/bounded buffers + batch apply safeguards.
+- 4.2.I reconciliation artifact writer (offset basis + graph_version).
+- 4.2.J deepen tests (replay determinism, payload mismatch, watermark monotonicity).
+- 4.2.K partial: OTel-style counters export hooks; EB-only replay manifest generator.
+
+### Authorities / inputs
+- `docs/model_spec/platform/implementation_maps/platform.build_plan.md` Phase 4.2 DoD.
+- `docs/model_spec/platform/component-specific/identity_entity_graph.design-authority.md`
+- `docs/model_spec/platform/pre-design_decisions/real-time_decision_loop.pre-design_decision.md`
+- Platform rails (ContextPins, append-only, idempotency, no-PASS-no-read).
+
+### Decisions
+- Add explicit migration runner for IEG schema (SQLite/Postgres) and replace runtime ALTER usage with versioned migrations.
+- Produce run-scoped reconciliation artifact at `runs/fraud-platform/<run_id>/identity_entity_graph/reconciliation/replay_basis.json` containing topics, partitions, next_offset, graph_version, run_config_digest.
+- Health artifact includes lag counters, apply failures, and last watermark; RED when lag exceeds threshold or apply failures above threshold.
+- Replay manifest generator is EB-only: generates manifest from EB offsets (no Archive dependency).
+
+### Planned steps
+1) Inspect IEG store/schema creation and replace runtime ALTER with migrations.
+2) Implement a migration runner and invoke at projector startup.
+3) Add metrics counters + run-scoped health JSON.
+4) Implement reconciliation writer for offset basis + graph_version.
+5) Implement EB replay manifest generator.
+6) Add tests for replay determinism, payload mismatch, and watermark monotonicity.
+7) Update IEG build plan if needed and logbook.
+
+### Invariants
+- Derived state rebuildable from EB offsets alone.
+- No schema changes without migration entries.
+- Health/metrics are low-overhead and run-scoped; no payload copies.
+
+
+---
+
+## Entry: 2026-02-06 09:00:25 — Implemented Phase 4.2 IEG-only closures (migrations, health, reconciliation, replay manifest)
+
+### Changes applied
+- Introduced explicit IEG migrations and removed runtime ALTER posture.
+- Added run-scoped health + metrics + reconciliation artifacts from projector.
+- Added backpressure logging counters and bounded buffer checks.
+- Added EB-only replay manifest generator from current graph basis.
+
+### Files touched
+- `src/fraud_detection/identity_entity_graph/migrations.py`
+- `src/fraud_detection/identity_entity_graph/store.py`
+- `src/fraud_detection/identity_entity_graph/projector.py`
+- `src/fraud_detection/identity_entity_graph/config.py`
+- `src/fraud_detection/identity_entity_graph/replay_manifest_writer.py`
+- `tests/services/identity_entity_graph/test_replay_manifest.py`
+
+### Behavior
+- Projector writes:
+  - `runs/fraud-platform/<run_id>/identity_entity_graph/health/last_health.json`
+  - `runs/fraud-platform/<run_id>/identity_entity_graph/metrics/last_metrics.json`
+  - `runs/fraud-platform/<run_id>/identity_entity_graph/reconciliation/reconciliation.json`
+- Replay manifest writer outputs:
+  - `runs/fraud-platform/<run_id>/identity_entity_graph/replay/replay_manifest.json`
+
+### Tests
+- `python -m pytest tests/services/identity_entity_graph -q`
+
+### Remaining Phase 4.2 dependencies (non‑IEG)
+- OFP/DF integration compatibility checks.
+- Archive-based replay manifests (beyond EB-only).
+- DL/DF consume IEG health signals for degrade posture.
+

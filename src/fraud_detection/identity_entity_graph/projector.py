@@ -7,6 +7,7 @@ import hashlib
 import json
 import logging
 import time
+from datetime import datetime, timezone
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Iterable
@@ -15,11 +16,13 @@ from collections import deque
 from fraud_detection.event_bus import EbRecord, EventBusReader
 from fraud_detection.ingestion_gate.config import ClassMap
 from fraud_detection.ingestion_gate.schemas import SchemaRegistry
+from fraud_detection.platform_runtime import RUNS_ROOT
 
 from .classification import ClassificationMap, GRAPH_IRRELEVANT, GRAPH_MUTATING, GRAPH_UNUSABLE
 from .config import IegProfile
 from .hints import IdentityHint, IdentityHintsPolicy, extract_identity_hints
 from .ids import dedupe_key, entity_id_from_hint
+from .query import IdentityGraphQuery
 from .replay import ReplayManifest, ReplayPartitionRange, ReplayTopicRange
 from .store import ApplyResult, build_store
 
@@ -52,12 +55,18 @@ class IdentityGraphProjector:
         self._required_platform_run_id = profile.wiring.required_platform_run_id
         self._lock_run_scope_on_first_event = profile.wiring.lock_run_scope_on_first_event
         self._locked_platform_run_id = self._required_platform_run_id
+        self._locked_scenario_run_id: str | None = None
         self._replay_manifest: ReplayManifest | None = None
         self._file_reader = None
         self._kinesis_reader = None
         self._buffers: dict[tuple[str, int], deque[BusRecord]] = {}
         self._file_next_offsets: dict[tuple[str, int], int] = {}
         self._kinesis_next_offsets: dict[tuple[str, int], str | None] = {}
+        self._last_health_emit = 0.0
+        self._last_metrics_emit = 0.0
+        self._last_reconcile_emit = 0.0
+        self._backpressure_hits = 0
+        self._backpressure_last_log: dict[tuple[str, int], float] = {}
         if profile.wiring.event_bus_kind == "file":
             bus_root = profile.wiring.event_bus_root or "runs/fraud-platform/eb"
             self._file_reader = EventBusReader(Path(bus_root))
@@ -93,6 +102,7 @@ class IdentityGraphProjector:
             else:
                 for topic in topics:
                     processed += self._consume_kinesis_topic(topic)
+        self._emit_operational_artifacts()
         return processed
 
     def run_forever(self) -> None:
@@ -272,6 +282,7 @@ class IdentityGraphProjector:
         assert self._file_reader is not None
         max_inflight = self.profile.wiring.max_inflight
         if len(buffer) >= max_inflight:
+            self._record_backpressure(topic, partition, len(buffer))
             return
         key = (topic, partition)
         from_offset = self._file_next_offsets.get(key)
@@ -318,6 +329,7 @@ class IdentityGraphProjector:
         assert self._kinesis_reader is not None
         max_inflight = self.profile.wiring.max_inflight
         if len(buffer) >= max_inflight:
+            self._record_backpressure(topic, partition, len(buffer))
             return
         key = (topic, partition)
         from_sequence = self._kinesis_next_offsets.get(key)
@@ -518,6 +530,9 @@ class IdentityGraphProjector:
                 event_ts_utc=envelope.get("ts_utc"),
             )
 
+        if self._locked_scenario_run_id is None:
+            self._locked_scenario_run_id = str(scenario_run_id)
+
         if classification == GRAPH_UNUSABLE:
             return self.store.record_failure(
                 topic=record.topic,
@@ -592,6 +607,81 @@ class IdentityGraphProjector:
         if not stream or str(stream).lower() in {"", "auto", "topic"}:
             return topic
         return stream
+
+    def _record_backpressure(self, topic: str, partition: int, inflight: int) -> None:
+        self._backpressure_hits += 1
+        now = time.monotonic()
+        key = (topic, partition)
+        last = self._backpressure_last_log.get(key, 0.0)
+        if now - last >= self.profile.wiring.backpressure_log_interval_seconds:
+            logger.warning(
+                "IEG backpressure topic=%s partition=%s inflight=%s max_inflight=%s",
+                topic,
+                partition,
+                inflight,
+                self.profile.wiring.max_inflight,
+            )
+            self._backpressure_last_log[key] = now
+
+    def _run_root(self) -> Path | None:
+        run_id = self._locked_platform_run_id or self._required_platform_run_id
+        if not run_id:
+            return None
+        return RUNS_ROOT / run_id
+
+    def _emit_operational_artifacts(self) -> None:
+        run_root = self._run_root()
+        if not run_root or not self._locked_scenario_run_id:
+            return
+        now = time.monotonic()
+        if now - self._last_health_emit >= self.profile.wiring.health_emit_interval_seconds:
+            self._write_health(run_root, self._locked_scenario_run_id)
+            self._last_health_emit = now
+        if now - self._last_metrics_emit >= self.profile.wiring.metrics_emit_interval_seconds:
+            self._write_metrics(run_root, self._locked_scenario_run_id)
+            self._last_metrics_emit = now
+        if now - self._last_reconcile_emit >= self.profile.wiring.reconciliation_emit_interval_seconds:
+            self._write_reconciliation(run_root)
+            self._last_reconcile_emit = now
+
+    def _write_health(self, run_root: Path, scenario_run_id: str) -> None:
+        query = IdentityGraphQuery(self.store, getattr(self.store, "stream_id", self.profile.policy.graph_stream_id))
+        payload = query.status(scenario_run_id=scenario_run_id)
+        payload["generated_at_utc"] = datetime.now(tz=timezone.utc).isoformat()
+        payload["backpressure_hits"] = self._backpressure_hits
+        _write_json(run_root / "identity_entity_graph" / "health" / "last_health.json", payload)
+
+    def _write_metrics(self, run_root: Path, scenario_run_id: str) -> None:
+        metrics = self.store.metrics_summary(scenario_run_id=scenario_run_id)
+        checkpoints = self.store.checkpoint_summary()
+        payload = {
+            "graph_version": self.store.current_graph_version(),
+            "run_config_digest": self.store.current_run_config_digest(),
+            "scenario_run_id": scenario_run_id,
+            "metrics": metrics,
+            "checkpoints": checkpoints,
+            "apply_failure_count": self.store.apply_failure_count(
+                scenario_run_id=scenario_run_id,
+                platform_run_id=self._locked_platform_run_id,
+            ),
+            "backpressure_hits": self._backpressure_hits,
+            "generated_at_utc": datetime.now(tz=timezone.utc).isoformat(),
+        }
+        _write_json(run_root / "identity_entity_graph" / "metrics" / "last_metrics.json", payload)
+
+    def _write_reconciliation(self, run_root: Path) -> None:
+        basis = self.store.graph_basis()
+        if not basis:
+            return
+        stream_id = getattr(self.store, "stream_id", self.profile.policy.graph_stream_id)
+        payload = {
+            "graph_scope": {"stream_id": stream_id, "platform_run_id": self._locked_platform_run_id},
+            "graph_version": basis.get("graph_version"),
+            "run_config_digest": basis.get("run_config_digest"),
+            "basis": basis.get("basis"),
+            "generated_at_utc": datetime.now(tz=timezone.utc).isoformat(),
+        }
+        _write_json(run_root / "identity_entity_graph" / "reconciliation" / "reconciliation.json", payload)
 
 
 def _unwrap_envelope(record: dict[str, Any]) -> dict[str, Any] | None:
@@ -708,6 +798,12 @@ def _manifest_stream_override(profile: IegProfile, manifest: ReplayManifest) -> 
     if not stream or str(stream).lower() in {"", "auto", "topic"}:
         return None
     return str(stream)
+
+
+def _write_json(path: Path, payload: dict[str, Any]) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    data = json.dumps(payload, sort_keys=True, ensure_ascii=True, separators=(",", ":"))
+    path.write_text(data + "\n", encoding="utf-8")
 
 
 def main() -> None:

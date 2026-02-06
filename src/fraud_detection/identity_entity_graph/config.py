@@ -82,6 +82,10 @@ class IegWiring:
     batch_size: int
     required_platform_run_id: str | None
     lock_run_scope_on_first_event: bool
+    health_emit_interval_seconds: float
+    metrics_emit_interval_seconds: float
+    reconciliation_emit_interval_seconds: float
+    backpressure_log_interval_seconds: float
 
 
 @dataclass(frozen=True)
@@ -198,6 +202,10 @@ class IegProfile:
         checkpoint_every = int(wiring.get("checkpoint_every", 1))
         max_inflight = int(wiring.get("max_inflight", poll_max_records))
         batch_size = int(wiring.get("batch_size", min(poll_max_records, 50)))
+        health_emit_interval_seconds = float(wiring.get("health_emit_interval_seconds", 30.0))
+        metrics_emit_interval_seconds = float(wiring.get("metrics_emit_interval_seconds", 30.0))
+        reconciliation_emit_interval_seconds = float(wiring.get("reconciliation_emit_interval_seconds", 60.0))
+        backpressure_log_interval_seconds = float(wiring.get("backpressure_log_interval_seconds", 5.0))
         if max_inflight < 1:
             max_inflight = max(1, poll_max_records)
         if batch_size < 1:
@@ -245,6 +253,10 @@ class IegProfile:
                 batch_size=batch_size,
                 required_platform_run_id=required_platform_run_id,
                 lock_run_scope_on_first_event=lock_run_scope_on_first_event,
+                health_emit_interval_seconds=health_emit_interval_seconds,
+                metrics_emit_interval_seconds=metrics_emit_interval_seconds,
+                reconciliation_emit_interval_seconds=reconciliation_emit_interval_seconds,
+                backpressure_log_interval_seconds=backpressure_log_interval_seconds,
             ),
             retention=IegRetention.load(Path(retention_ref)),
         )
