@@ -33,6 +33,9 @@ def build_store(
     stream_id: str,
     basis_stream: str,
     run_config_digest: str | None = None,
+    feature_def_policy_id: str | None = None,
+    feature_def_revision: str | None = None,
+    feature_def_content_digest: str | None = None,
 ) -> "OfpStore":
     if is_postgres_dsn(dsn):
         return PostgresOfpStore(
@@ -40,12 +43,18 @@ def build_store(
             stream_id=stream_id,
             basis_stream=basis_stream,
             run_config_digest=run_config_digest,
+            feature_def_policy_id=feature_def_policy_id,
+            feature_def_revision=feature_def_revision,
+            feature_def_content_digest=feature_def_content_digest,
         )
     return SqliteOfpStore(
         path=Path(_sqlite_path(dsn)),
         stream_id=stream_id,
         basis_stream=basis_stream,
         run_config_digest=run_config_digest,
+        feature_def_policy_id=feature_def_policy_id,
+        feature_def_revision=feature_def_revision,
+        feature_def_content_digest=feature_def_content_digest,
     )
 
 
@@ -103,6 +112,9 @@ class OfpStore:
     def metrics_summary(self, *, scenario_run_id: str) -> dict[str, int]:
         raise NotImplementedError
 
+    def projection_meta(self) -> dict[str, str] | None:
+        raise NotImplementedError
+
 
 @dataclass
 class SqliteOfpStore(OfpStore):
@@ -110,6 +122,9 @@ class SqliteOfpStore(OfpStore):
     stream_id: str
     basis_stream: str
     run_config_digest: str | None = None
+    feature_def_policy_id: str | None = None
+    feature_def_revision: str | None = None
+    feature_def_content_digest: str | None = None
 
     def __post_init__(self) -> None:
         self.path.parent.mkdir(parents=True, exist_ok=True)
@@ -173,8 +188,18 @@ class SqliteOfpStore(OfpStore):
                     updated_at_utc TEXT NOT NULL,
                     PRIMARY KEY (stream_id, scenario_run_id, metric_name)
                 );
+
+                CREATE TABLE IF NOT EXISTS ofp_projection_meta (
+                    stream_id TEXT NOT NULL PRIMARY KEY,
+                    run_config_digest TEXT,
+                    feature_def_policy_id TEXT,
+                    feature_def_revision TEXT,
+                    feature_def_content_digest TEXT,
+                    updated_at_utc TEXT NOT NULL
+                );
                 """
             )
+            self._write_projection_meta(conn)
 
     def get_checkpoint(self, *, topic: str, partition: int) -> Checkpoint | None:
         with self._connect() as conn:
@@ -379,6 +404,49 @@ class SqliteOfpStore(OfpStore):
             ).fetchall()
         return {str(row[0]): int(row[1]) for row in rows}
 
+    def projection_meta(self) -> dict[str, str] | None:
+        with self._connect() as conn:
+            row = conn.execute(
+                """
+                SELECT run_config_digest, feature_def_policy_id, feature_def_revision, feature_def_content_digest
+                FROM ofp_projection_meta
+                WHERE stream_id = ?
+                """,
+                (self.stream_id,),
+            ).fetchone()
+        if not row:
+            return None
+        return {
+            "run_config_digest": str(row[0] or ""),
+            "feature_def_policy_id": str(row[1] or ""),
+            "feature_def_revision": str(row[2] or ""),
+            "feature_def_content_digest": str(row[3] or ""),
+        }
+
+    def _write_projection_meta(self, conn: sqlite3.Connection) -> None:
+        conn.execute(
+            """
+            INSERT INTO ofp_projection_meta (
+                stream_id, run_config_digest, feature_def_policy_id, feature_def_revision, feature_def_content_digest, updated_at_utc
+            )
+            VALUES (?, ?, ?, ?, ?, ?)
+            ON CONFLICT(stream_id) DO UPDATE SET
+                run_config_digest = excluded.run_config_digest,
+                feature_def_policy_id = excluded.feature_def_policy_id,
+                feature_def_revision = excluded.feature_def_revision,
+                feature_def_content_digest = excluded.feature_def_content_digest,
+                updated_at_utc = excluded.updated_at_utc
+            """,
+            (
+                self.stream_id,
+                self.run_config_digest,
+                self.feature_def_policy_id,
+                self.feature_def_revision,
+                self.feature_def_content_digest,
+                _utc_now(),
+            ),
+        )
+
     def _input_basis(self, conn: sqlite3.Connection) -> dict[str, Any] | None:
         rows = conn.execute(
             """
@@ -487,6 +555,9 @@ class PostgresOfpStore(OfpStore):
     stream_id: str
     basis_stream: str
     run_config_digest: str | None = None
+    feature_def_policy_id: str | None = None
+    feature_def_revision: str | None = None
+    feature_def_content_digest: str | None = None
 
     def __post_init__(self) -> None:
         with self._connect() as conn:
@@ -560,6 +631,19 @@ class PostgresOfpStore(OfpStore):
                 )
                 """
             )
+            conn.execute(
+                """
+                CREATE TABLE IF NOT EXISTS ofp_projection_meta (
+                    stream_id TEXT NOT NULL PRIMARY KEY,
+                    run_config_digest TEXT,
+                    feature_def_policy_id TEXT,
+                    feature_def_revision TEXT,
+                    feature_def_content_digest TEXT,
+                    updated_at_utc TEXT NOT NULL
+                )
+                """
+            )
+            self._write_projection_meta(conn)
 
     def get_checkpoint(self, *, topic: str, partition: int) -> Checkpoint | None:
         with self._connect() as conn:
@@ -764,6 +848,49 @@ class PostgresOfpStore(OfpStore):
                 (self.stream_id, scenario_run_id),
             ).fetchall()
         return {str(row[0]): int(row[1]) for row in rows}
+
+    def projection_meta(self) -> dict[str, str] | None:
+        with self._connect() as conn:
+            row = conn.execute(
+                """
+                SELECT run_config_digest, feature_def_policy_id, feature_def_revision, feature_def_content_digest
+                FROM ofp_projection_meta
+                WHERE stream_id = %s
+                """,
+                (self.stream_id,),
+            ).fetchone()
+        if not row:
+            return None
+        return {
+            "run_config_digest": str(row[0] or ""),
+            "feature_def_policy_id": str(row[1] or ""),
+            "feature_def_revision": str(row[2] or ""),
+            "feature_def_content_digest": str(row[3] or ""),
+        }
+
+    def _write_projection_meta(self, conn: psycopg.Connection) -> None:
+        conn.execute(
+            """
+            INSERT INTO ofp_projection_meta (
+                stream_id, run_config_digest, feature_def_policy_id, feature_def_revision, feature_def_content_digest, updated_at_utc
+            )
+            VALUES (%s, %s, %s, %s, %s, %s)
+            ON CONFLICT (stream_id) DO UPDATE SET
+                run_config_digest = EXCLUDED.run_config_digest,
+                feature_def_policy_id = EXCLUDED.feature_def_policy_id,
+                feature_def_revision = EXCLUDED.feature_def_revision,
+                feature_def_content_digest = EXCLUDED.feature_def_content_digest,
+                updated_at_utc = EXCLUDED.updated_at_utc
+            """,
+            (
+                self.stream_id,
+                self.run_config_digest,
+                self.feature_def_policy_id,
+                self.feature_def_revision,
+                self.feature_def_content_digest,
+                _utc_now(),
+            ),
+        )
 
     def _input_basis(self, conn: psycopg.Connection) -> dict[str, Any] | None:
         rows = conn.execute(

@@ -68,6 +68,7 @@ ieg:
 ofp:
   policy:
     stream_id: ofp.v0
+    features_ref: config/platform/ofp/features_v0.yaml
     feature_group_name: core_features
     feature_group_version: v1
     key_precedence: [flow_id, event_id]

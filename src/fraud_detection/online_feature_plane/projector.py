@@ -47,6 +47,15 @@ class OnlineFeatureProjector:
             stream_id=profile.policy.stream_id,
             basis_stream=profile.wiring.event_bus_topic,
             run_config_digest=profile.policy.run_config_digest,
+            feature_def_policy_id=profile.policy.feature_def_policy_rev.policy_id,
+            feature_def_revision=profile.policy.feature_def_policy_rev.revision,
+            feature_def_content_digest=profile.policy.feature_def_policy_rev.content_digest,
+        )
+        logger.info(
+            "OFP feature policy active: policy_id=%s revision=%s digest=%s",
+            profile.policy.feature_def_policy_rev.policy_id,
+            profile.policy.feature_def_policy_rev.revision,
+            profile.policy.feature_def_policy_rev.content_digest,
         )
         self.envelope_registry = SchemaRegistry(Path(profile.wiring.engine_contracts_root))
         self._file_reader = None
@@ -334,4 +343,3 @@ def main() -> None:
 
 if __name__ == "__main__":
     main()
-

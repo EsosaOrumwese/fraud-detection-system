@@ -203,3 +203,100 @@ The initial Phase 2 implementation landed with a corrupted `store.py` class layo
 ### Phase status impact
 - OFP Phase 2 DoDs are closed at component scope for v0 local-parity behavior.
 - Remaining Phase 3+ work (feature definition authority, snapshot materialization, serve API semantics, replay parity, health integration) is unchanged.
+
+---
+
+## Entry: 2026-02-06 16:48:36 - Phase 3 implementation plan (feature definition authority + window/TTL policy)
+
+### Problem / goal
+Phase 2 projector/store mechanics are green, but Phase 3 DoDs remain open: OFP still treats feature semantics as inline config (`feature_group_name/version`) without a singular versioned feature-definition authority, window/TTL policy is not explicit in runtime state, and active policy revision is not carried into runtime provenance.
+
+### Authorities / inputs
+- `docs/model_spec/platform/implementation_maps/online_feature_plane.build_plan.md` (Phase 3)
+- `docs/model_spec/platform/implementation_maps/platform.build_plan.md` (4.3.B)
+- `docs/model_spec/platform/pre-design_decisions/real-time_decision_loop.pre-design_decision.md` (window-based OFP TTL)
+- `docs/model_spec/platform/component-specific/online_feature_plane.design-authority.md` (active `feature_def_policy_rev`, singular definition authority)
+
+### Decision
+Implement Phase 3 as a strict configuration/runtime hardening slice:
+1. Introduce a versioned OFP feature-definition artifact (`features_ref`) with explicit policy id/revision and group window/TTL rules.
+2. Make runtime fail closed when this revisioned artifact is missing/invalid; no implicit "latest" fallback.
+3. Thread active `feature_def_policy_rev` into OFP runtime metadata/provenance state so subsequent serve/snapshot phases can stamp outputs without ambiguity.
+
+### Planned file changes
+- Add authoritative v0 feature definition artifact:
+  - `config/platform/ofp/features_v0.yaml`
+- Extend OFP config loader:
+  - `src/fraud_detection/online_feature_plane/config.py`
+  - parse `features_ref`, validate policy revision, parse window/TTL specs (default 1h/24h/7d), and include policy revision in `run_config_digest`.
+- Extend OFP store metadata for provenance:
+  - `src/fraud_detection/online_feature_plane/store.py`
+  - add `ofp_projection_meta` table and read accessor carrying `feature_def_policy_rev` and `run_config_digest`.
+- Wire projector to use authoritative group config and policy metadata:
+  - `src/fraud_detection/online_feature_plane/projector.py`
+- Add/extend tests:
+  - `tests/services/online_feature_plane/test_phase2_projector.py` (adapt profile helper if needed)
+  - `tests/services/online_feature_plane/test_phase3_policy.py` (new)
+
+### Invariants to enforce
+- One authoritative active feature-definition revision per OFP runtime profile.
+- Explicit windows/TTL policy available in-memory; no hidden defaults except the documented v0 default set.
+- Active revision identity is queryable from OFP runtime metadata.
+- Existing Phase 2 idempotency/checkpoint guarantees remain unchanged.
+
+### Validation plan
+- `python -m pytest tests/services/online_feature_plane -q`
+- New assertions:
+  - invalid/missing policy revision fails closed,
+  - window/TTL parsing and defaults deterministic,
+  - runtime metadata includes active feature_def policy revision/digest.
+
+---
+
+## Entry: 2026-02-06 16:54:32 - Phase 3 implemented (feature policy authority + window/TTL rules + provenance metadata)
+
+### Summary of implementation
+Phase 3 was implemented to remove OFP semantic ambiguity and pin feature semantics to a singular revisioned artifact.
+
+### Changes applied
+- Added authoritative OFP feature-definition artifact:
+  - `config/platform/ofp/features_v0.yaml`
+  - includes `policy_id`, `revision`, and explicit window/TTL definitions.
+- Extended OFP runtime config parsing in `src/fraud_detection/online_feature_plane/config.py`:
+  - loads `policy.features_ref` (or `OFP_FEATURES_REF`) as the only definition source,
+  - fails closed when policy revision metadata is missing/invalid,
+  - parses explicit window/TTL durations and applies documented v0 defaults (`1h/24h/7d`) when omitted,
+  - validates configured active group (`feature_group_name/version`) against policy content,
+  - includes `feature_def_policy_rev` + group window specs in `run_config_digest` canonicalization.
+- Wired feature policy revision into runtime/store provenance:
+  - `src/fraud_detection/online_feature_plane/projector.py` passes policy id/revision/content digest to the store at startup.
+  - `src/fraud_detection/online_feature_plane/store.py` now persists `ofp_projection_meta` (SQLite/Postgres) with:
+    - `run_config_digest`
+    - `feature_def_policy_id`
+    - `feature_def_revision`
+    - `feature_def_content_digest`
+  - added `projection_meta()` accessor for downstream provenance use.
+- Updated platform profile stanzas to pin features artifact explicitly:
+  - `config/platform/profiles/local.yaml`
+  - `config/platform/profiles/local_parity.yaml`
+  - `config/platform/profiles/dev.yaml`
+  - `config/platform/profiles/prod.yaml`
+- Added/updated OFP tests:
+  - `tests/services/online_feature_plane/test_phase2_projector.py` (profile fixture now includes `features_ref`)
+  - `tests/services/online_feature_plane/test_phase3_policy.py` (new)
+
+### Validation
+- Command: `python -m pytest tests/services/online_feature_plane -q`
+- Result: `9 passed`.
+- Phase 3-specific checks covered:
+  - fail-closed behavior when policy revision is missing,
+  - deterministic default window/TTL expansion,
+  - projector/store metadata carries active feature policy revision and digest.
+
+### DoD closure impact
+- Phase 3 DoDs are closed at OFP component scope:
+  - singular feature definition source,
+  - explicit window/TTL policy,
+  - no implicit "latest" revision,
+  - revision carried into runtime provenance.
+- Integration into serve snapshots/DF responses remains part of later phases (Phase 4+).

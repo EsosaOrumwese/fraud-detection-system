@@ -49,11 +49,34 @@ def _write_bus_records(bus_root: Path, topic: str, envelopes: list[dict[str, obj
             handle.write(json.dumps({"envelope": envelope}, sort_keys=True, ensure_ascii=True) + "\n")
 
 
+def _write_features(path: Path) -> None:
+    payload = {
+        "policy_id": "ofp.features.v0",
+        "revision": "r1",
+        "feature_groups": [
+            {
+                "name": "core_features",
+                "version": "v1",
+                "key_type": "flow_id",
+                "windows": [
+                    {"window": "1h", "duration": "1h", "ttl": "1h"},
+                    {"window": "24h", "duration": "24h", "ttl": "24h"},
+                    {"window": "7d", "duration": "7d", "ttl": "7d"},
+                ],
+            }
+        ],
+    }
+    path.write_text(json.dumps(payload), encoding="utf-8")
+
+
 def _write_profile(path: Path, *, bus_root: Path, db_path: Path, topic: str) -> None:
+    features_path = path.parent / "features.json"
+    _write_features(features_path)
     profile = {
         "ofp": {
             "policy": {
                 "stream_id": "ofp.v0",
+                "features_ref": str(features_path),
                 "feature_group_name": "core_features",
                 "feature_group_version": "v1",
                 "key_precedence": ["flow_id", "event_id"],

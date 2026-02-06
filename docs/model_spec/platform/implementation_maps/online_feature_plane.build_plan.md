@@ -55,12 +55,14 @@ Provide a closure-grade, component-scoped plan for OFP aligned to platform Phase
 
 ### Phase 3 - Feature definitions and windows (4.3.B)
 **Intent:** make feature computation versioned and reproducible.
+**Status:** completed (2026-02-06, component scope).
 
 **DoD checklist:**
 - Feature definition source is singular and version-locked.
 - Window definitions and TTLs are explicit (v0 defaults: `1h/24h/7d`, configurable).
 - No implicit "latest feature definition" at runtime; active revision is declared and logged.
 - Definition/profile revision is carried into provenance (`feature_def_policy_rev` or digest).
+- Evidence: `python -m pytest tests/services/online_feature_plane -q` -> `9 passed`; details in `docs/model_spec/platform/implementation_maps/online_feature_plane.impl_actual.md`.
 
 ### Phase 4 - Snapshot materialization and index (4.3.C, 4.3.D)
 **Intent:** serve immutable snapshots without duplicating truth incorrectly.
