@@ -644,3 +644,46 @@ Complete Phase 7: ensure env ladder config stays aligned, secrets remain runtime
 - Archive-based replay manifests (beyond EB-only).
 - DL/DF consume IEG health signals for degrade posture.
 
+---
+
+## Entry: 2026-02-06 15:09:54 — IEG flow narrative + operating posture (v0 state)
+
+### Why this entry
+Capture the **current, as‑implemented** IEG flow and how we **operate** it today (local_parity), including the fact that it is **not auto‑started** and defaults to `--once`. This provides a narrative checkpoint for “where we are” before calling the plane green.
+
+### Authorities / inputs
+- IEG design authority: `docs/model_spec/platform/component-specific/identity_entity_graph.design-authority.md`
+- RTDL flow narrative: `docs/model_spec/platform/component-specific/flow-narrative-platform-design.md`
+- Local parity runbook: `docs/runbooks/platform_parity_walkthrough_v0.md`
+- IEG implementation (projector, store, config, hints): `src/fraud_detection/identity_entity_graph/`
+
+### Current flow narrative (implemented)
+1) **EB intake (reader):** `IdentityGraphProjector` reads admitted EB events (Kinesis in parity) using `KinesisEventBusReader`. Topics are explicit in profile or a fixed stream is used with topic filtering.  
+2) **Envelope validation:** canonical envelope schema is enforced; invalid envelopes are recorded in `ieg_apply_failures` and checkpoints advance.  
+3) **Pin validation + run scoping:** required pins are enforced per class map; `platform_run_id` required. If `IEG_REQUIRED_PLATFORM_RUN_ID` is set (parity run‑scoped), mismatches are recorded as failures. Optional lock‑on‑first‑event (run‑scope hardening) rebinds stream_id to the first run.  
+4) **Classification:** event type is mapped to a class; graph‑irrelevant events only advance checkpoints (no mutation).  
+5) **Identity hints:** v0 uses deterministic field‑map rules (`identity_hints_v0.yaml`). Missing hints yield `IDENTITY_HINTS_MISSING` failure.  
+6) **Dedupe + payload hash:** dedupe key = hash(platform_run_id + scenario_run_id + class + event_id); payload hash covers `{event_type, schema_version, payload}`. Duplicates or payload mismatches are recorded and checkpoints advance.  
+7) **Projection writes:** entities + identifiers are upserted with run pins; **edges are not written in v0** (edge logic deferred).  
+8) **Checkpoint + graph_version:** per topic/partition checkpoints advance; `graph_version` is derived from basis offsets and written with `run_config_digest`.  
+9) **Operational artifacts:** projector emits `health`, `metrics`, and `reconciliation` JSON under `runs/fraud-platform/<run_id>/identity_entity_graph/`.
+
+### Current operating posture (local_parity)
+- **IEG is not auto‑started** in parity; it is run explicitly after EB has events.  
+- **Default parity mode:** `--once` (bounded, deterministic validation).  
+- **Live parity mode (optional):** run without `--once` (run_forever) + set `IEG_REQUIRED_PLATFORM_RUN_ID` and `IEG_LOCK_RUN_SCOPE=true` to keep it run‑scoped.  
+- **IEG is a projector, not a service**: it reads EB and materializes projection DB + artifacts. The query service is optional and separate.
+
+### Where to operate it
+- Runbook section: `docs/runbooks/platform_parity_walkthrough_v0.md` → IEG step 11.  
+- Outputs (run‑scoped):  
+  - `runs/fraud-platform/<run_id>/identity_entity_graph/projection/identity_entity_graph.db`  
+  - `runs/fraud-platform/<run_id>/identity_entity_graph/health/last_health.json`  
+  - `runs/fraud-platform/<run_id>/identity_entity_graph/metrics/last_metrics.json`  
+  - `runs/fraud-platform/<run_id>/identity_entity_graph/reconciliation/reconciliation.json`
+
+### Invariants (v0 state)
+- IEG consumes **admitted EB events only**; no side‑door inputs.  
+- **Run‑scoped projection** when `IEG_REQUIRED_PLATFORM_RUN_ID` is set.  
+- **Idempotent apply** under replay; payload mismatch is explicit.  
+- **No edges** written in v0; projection is nodes + identifiers only.  
