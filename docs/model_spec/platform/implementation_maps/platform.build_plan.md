@@ -359,6 +359,12 @@ These remain open and will be resolved during RTDL Phase 4 planning and partitio
 #### Phase 4.2 — IEG projector (EB → graph)
 **Goal:** build deterministic IEG projection state from EB offsets and provide a stable `graph_version` for downstream RTDL components.
 
+**Status:** **IEG‑complete, integration‑pending** (IEG‑only DoD met; RTDL integration items live in 4.2.K).
+
+**v0 parity operating note (non‑DoD):**
+- IEG is **not auto‑started** in local_parity; it is run explicitly.
+- Default parity run uses `--once` for bounded validation; `run_forever` is optional for live parity (with run‑scope locks).
+
 ##### 4.2.A — Inputs + replay basis
 **Goal:** pin IEG’s inputs and replay basis so rebuilds are deterministic.
 
@@ -367,13 +373,14 @@ These remain open and will be resolved during RTDL Phase 4 planning and partitio
 - Replay basis is EB offsets (exclusive‑next) and is recorded per partition.
 - Archive usage (if enabled) follows the RTDL pre‑design decision: archive is long‑term truth for replay, EB is live truth.
 - Stream/topic set is explicit per environment profile.
+- Run‑scope gating is supported: `platform_run_id` can be required and run scope may lock on first valid event (stream_id rebind).
 
 ##### 4.2.B — Envelope validation + event classification
 **Goal:** ensure only valid events mutate the graph and failures are explicit.
 
 **DoD checklist:**
 - Canonical envelope validated for every event.
-- Required pins enforced: `platform_run_id`, `scenario_run_id`, `manifest_fingerprint`, `parameter_hash`, `scenario_id`, `seed` (legacy `run_id` optional alias).
+- Required pins enforced per class map (includes `platform_run_id`, `scenario_run_id`, `manifest_fingerprint`, `parameter_hash`, `scenario_id`, `seed`, `run_id`).
 - Events are classified deterministically as `GRAPH_MUTATING`, `GRAPH_IRRELEVANT`, or `GRAPH_UNUSABLE`.
 - `GRAPH_UNUSABLE` events do not mutate state and emit an explicit apply‑failure record.
 
@@ -381,16 +388,17 @@ These remain open and will be resolved during RTDL Phase 4 planning and partitio
 **Goal:** stable under duplicates and replay.
 
 **DoD checklist:**
-- Dedupe key is `(scenario_run_id, topic_or_class, event_id)`; payload_hash mismatches are recorded as anomalies.
+- Dedupe key is `(platform_run_id, scenario_run_id, class_name, event_id)`; payload_hash mismatches are recorded as anomalies.
 - Duplicate deliveries do not change graph state or watermark advancement.
 - Payload_hash mismatch never mutates state and is surfaced as an anomaly.
+- Payload_hash canonicalization is pinned to `{event_type, schema_version, payload}` canonical JSON.
 
 ##### 4.2.D — Watermarks + graph_version
 **Goal:** deterministic progress tokens for downstream provenance.
 
 **DoD checklist:**
 - `graph_version` derived from per‑partition next_offset_to_apply map + stream identity.
-- Watermark is monotonic and uses event_time (`ts_utc`) semantics with explicit allowed lateness (per RTDL pre‑design defaults).
+- Watermark is monotonic and uses event_time (`ts_utc`) semantics; v0 uses max observed `ts_utc` with **no lateness window** (explicitly 0).
 - Offsets advance only after durable state commit (DB transaction with WAL flush).
 - Replay from the same offset basis yields identical `graph_version` and state.
 
@@ -398,7 +406,7 @@ These remain open and will be resolved during RTDL Phase 4 planning and partitio
 **Goal:** make IEG fully rebuildable from EB/archive.
 
 **DoD checklist:**
-- Postgres schema separates projection state, applied offsets, and apply‑failure records.
+- Projection schema separates projection state, applied offsets, and apply‑failure records (SQLite in parity; Postgres in dev/prod).
 - All derived state is rebuildable from EB/archive; manual repair emits an audit anomaly.
 - TTL/retention posture for IEG state is pinned (aligned with EB/archive retention).
 
@@ -430,7 +438,7 @@ These remain open and will be resolved during RTDL Phase 4 planning and partitio
 **Goal:** provide minimal but sufficient ops signals.
 
 **DoD checklist:**
-- Counters: events_seen, mutating_applied, unusable, lag, watermark_age.
+- Counters: events_seen, mutating_applied, duplicate, payload_mismatch, unusable, lag, watermark_age.
 - Optional run‑scoped reconciliation artifact records applied offset basis and graph_version.
 
 ##### 4.2.J — Validation + tests
@@ -453,10 +461,70 @@ These remain open and will be resolved during RTDL Phase 4 planning and partitio
 #### Phase 4.3 — OFP feature plane (graph → features)
 **Goal:** materialize reproducible feature snapshots.
 
+##### 4.3.A — Inputs + basis pinning
+**Goal:** ensure OFP only consumes deterministic, run-scoped inputs.
+
 **DoD checklist:**
-- Feature snapshot derived from a pinned graph_version.
-- Snapshot hash + input_basis recorded (offset basis + graph_version).
-- Snapshot retrieval is deterministic under replay.
+- OFP consumes **IEG projection** only (no Oracle reads; no side-door inputs).
+- Every feature computation is tied to a **pinned `graph_version`** and **`eb_offset_basis`**.
+- `run_config_digest` is carried through OFP inputs and outputs (provenance).
+- Input pins required: `platform_run_id`, `scenario_run_id`, `manifest_fingerprint`, `parameter_hash`, `scenario_id`, `seed` (per RTDL pre‑design).
+
+##### 4.3.B — Feature definitions + windows
+**Goal:** versioned, reproducible feature definitions.
+
+**DoD checklist:**
+- Feature catalog is versioned and referenced in outputs.
+- Windowed features have explicit TTLs (v0 default: 1h/24h/7d as configured).
+- Feature windows aligned with RTDL pre‑design state‑store TTL rules.
+- No implicit “latest” feature resolution; must reference graph_version + feature catalog version.
+
+##### 4.3.C — Snapshot format + hashing
+**Goal:** immutable, content‑addressable feature snapshots.
+
+**DoD checklist:**
+- Snapshot stored in object store (JSON v0; compression optional).
+- Snapshot includes `snapshot_hash`, `graph_version`, `eb_offset_basis`, and feature catalog version.
+- Snapshot hash rules (canonical JSON ordering/encoding) are documented and enforced.
+
+##### 4.3.D — Storage layout + index
+**Goal:** fast lookup without duplicating truth.
+
+**DoD checklist:**
+- Postgres holds snapshot **index/metadata** only; object store holds full snapshot.
+- Index includes `snapshot_hash`, `graph_version`, `eb_offset_basis`, and `run_config_digest`.
+- Snapshot retrieval uses index to resolve the exact object‑store path.
+
+##### 4.3.E — Query surface + provenance
+**Goal:** deterministic, read‑only feature access for DF/DL.
+
+**DoD checklist:**
+- Query responses return ContextPins + `graph_version` + `snapshot_hash` + `eb_offset_basis`.
+- Responses are deterministic for a given snapshot_hash (no hidden recompute).
+- Failure responses are explicit (no fabricated context).
+
+##### 4.3.F — Rebuild + replay posture
+**Goal:** full rebuildability from EB/archive + IEG basis.
+
+**DoD checklist:**
+- OFP is rebuildable from EB/archive + IEG basis; no manual repair without audit anomaly.
+- Replay from same basis yields identical snapshot_hash and contents.
+- Checkpoints advance only after durable snapshot index commit.
+
+##### 4.3.G — Observability + health
+**Goal:** actionable ops signals for RTDL.
+
+**DoD checklist:**
+- Counters: snapshots_built, snapshot_failures, stale_graph_version, missing_features.
+- Health thresholds defined; RED/AMBER status surfaced to DL/DF.
+
+##### 4.3.H — Validation + tests
+**Goal:** prove determinism and parity.
+
+**DoD checklist:**
+- Unit tests for snapshot hash determinism and window TTL behavior.
+- Replay test: same basis → same snapshot_hash.
+- Integration test: IEG graph_version → OFP snapshot with correct provenance.
 
 #### Phase 4.4 — DF/DL decision core (features → decision)
 **Goal:** compute decisions with explicit degrade posture.
