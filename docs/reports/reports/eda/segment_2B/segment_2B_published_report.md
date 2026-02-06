@@ -319,9 +319,9 @@ This section is a deep statistical assessment of the 2B outputs with a realism l
 ## 7) Output inventory and sizes (context only)
 Present under `data/layer1/2B`:
 - `s1_site_weights` (1 parquet, ~0.04 MB)
-- `s2_alias_index` + `s2_alias_blob` (~0.27 MB total)
-- `s3_day_effects` (1 parquet, ~4.32 MB)
-- `s4_group_weights` (1 parquet, ~6.45 MB)
+- `s2_alias_index` + `s2_alias_blob` (~0.53 MB total)
+- `s3_day_effects` (3 parquet parts, ~4.32 MB total)
+- `s4_group_weights` (3 parquet parts, ~6.45 MB total)
 - `s5_arrival_roster` (1 jsonl, ~0.16 MB)
 - `s0_gate_receipt`, `sealed_inputs`, `s7_audit_report`, `validation` (small gate/audit artefacts)
 
@@ -383,40 +383,47 @@ In realistic commerce data, we expect **heterogeneous concentration** — some m
 #### d) Lorenz curves (sample merchants)
 <img src="plots/s1_lorenz_sample.png" width="520" alt="S1 Lorenz curves for sample merchants">
 
-Every curve lies **exactly on the equality diagonal**. A Lorenz curve bends downward only when a few sites carry most of the weight. Since there is **no curvature at all**, it means **perfect equality** for every merchant sampled.  
-This is the cleanest visual confirmation that **all sites are identical within each merchant**. It is not subtle; the plot says there is **zero concentration** anywhere in S1.
+The left panel still shows the same core signal: sampled merchant Lorenz curves lie on the equality line, so there is no within-merchant concentration structure.  
+The right panel (inequality-gap histogram) reinforces that result numerically: values pile near zero, which is exactly what we expect under enforced uniform weights.
 
 ---
 
 #### e) HHI vs site_count
 <img src="plots/s1_hhi_vs_site_count.png" width="520" alt="S1 HHI vs site count">
 
-The points sit on a **single smooth inverse curve** with no scatter. That is the exact relationship you get when HHI = 1/N. In other words, concentration is **deterministically defined by site_count** and nothing else.  
-In a realistic dataset, merchants with the same number of sites would show different concentration levels (some more skewed, some flatter). Here, that variation is absent. This plot shows that **merchant individuality does not exist in S1**.
+This refreshed view plots the residual `HHI - 1/N` against site count. The points collapse tightly around zero across all merchant sizes, which is a direct falsification check for non-uniformity.  
+If merchants had realistic concentration heterogeneity, we would see positive and negative spread around zero. We do not, so concentration remains deterministically pinned to footprint size.
 
 ---
 
 #### f) Top‑1 weight vs site_count
 <img src="plots/s1_top1_vs_site_count.png" width="520" alt="S1 top-1 weight vs site count">
 
-This plot is the same story as the HHI curve: top‑1 weight follows a **perfect 1/N curve** with zero scatter. Every merchant with 50 sites has exactly the same top‑1 weight as every other merchant with 50 sites.  
-That is unrealistic because real merchants differ in how traffic concentrates even when they have the same footprint size. This plot confirms that **site_count fully determines top‑1** and nothing else is allowed to vary.
+This refreshed view uses `top1 - 1/N` residuals. Like the HHI residual plot, it collapses onto zero with no meaningful dispersion.  
+That means top-site dominance is fully determined by site count and not by merchant behavior. Real data would show clear spread at fixed site counts; this run does not.
 
 ---
 
 #### g) Weight source breakdown
 <img src="plots/s1_weight_source_breakdown.png" width="520" alt="S1 weight source breakdown">
 
-This bar chart looks “weird” because there is only **one category**. All rows are labeled `uniform`, so there is a single massive bar and nothing else. That is not a plotting issue — it is the data stating that **all weights are generated from the same uniform rule**.  
-This is the categorical root cause of the straight‑line plots above.
+This refreshed panel gives provenance in three slices (`weight_source`, `quantised_bits`, `floor_applied`) instead of a single bar. All three collapse to one category/value, confirming that the uniform behavior is policy-driven and globally applied in S1.
 
 ---
 
 #### h) Entropy vs site_count
 <img src="plots/s1_entropy_vs_site_count.png" width="520" alt="S1 entropy vs site count">
 
-Entropy rises in a perfectly smooth curve with no spread, which is exactly **log(N)** for a uniform distribution. This plot is another way of seeing the same result: **entropy is fully determined by site_count**, and there is no merchant‑level variation in dispersion.  
-In realistic data, you would see scatter here because different merchants with the same site_count would have different dispersions. The absence of scatter confirms that **uniformity is enforced, not emergent**.
+This refreshed view plots normalized entropy residuals (`H_norm - 1`). The entire cloud sits at zero, confirming entropy is exactly what a uniform distribution predicts for every merchant.  
+Again, no residual spread means no merchant-level dispersion differences.
+
+---
+
+#### i) Direct uniformity residuals
+<img src="plots/s1_uniformity_residuals.png" width="520" alt="S1 uniformity residuals">
+
+This is the most direct check: row-level `p_weight - 1/site_count`. The distribution is a razor-thin spike at zero, which confirms that every site weight equals the uniform baseline for its merchant.  
+This plot closes the loop on S1: uniformity is not an approximate tendency; it is exact construction.
 
 ---
 
@@ -425,33 +432,31 @@ The “weird” straight lines and the single‑bar chart are not plotting artif
 
 ## 9) Realism core #2 - `s4_group_weights` (routing mix realism)
 **Counts**
-- Rows: **100,000**
-- Merchants: **448**
+- Rows: **278,100**
+- Merchants: **1,238**
 - Days: **90**
-- tz_groups: **56**
+- tz_groups: **90**
 - Day range: **2026-01-01 to 2026-03-31**
 
 **Normalization**
-- `sum_p_group` is ~1 everywhere except one outlier:
-  - merchant_id **7219681017306349439**, day **2026-02-03**, sum **0.04447**
-  - This row has only one tz_group, so the sum is not normalized to 1.
-- `base_share` sums show the same outlier (0.04348).
+- `sum_p_group` is numerically stable for all merchant-days (floating-point range **0.9999999999999996 to 1.0000000000000004**).
+- No merchant-day fails practical normalization checks.
 
 **Group diversity per merchant-day**
-- Total merchant-days: **40,264**
+- Total merchant-days: **111,420**
 - tz-groups per day:
-  - 1 group: **19,081** (47.4%)
-  - 2 groups: **7,740** (19.2%)
-  - 3+ groups: **13,443** (33.4%)
+  - 1 group: **53,820** (48.3%)
+  - 2 groups: **20,970** (18.8%)
+  - 3+ groups: **36,630** (32.9%)
 
 **Dominance**
-- Max p_group >= 0.90: **50.8%** of merchant-days  
-- Max p_group >= 0.95: **48.6%**  
-- Max p_group >= 0.99: **47.4%**
+- Max p_group >= 0.90: **51.7%** of merchant-days  
+- Max p_group >= 0.95: **49.1%**  
+- Max p_group >= 0.99: **48.4%**
 
 **Interpretation (realism):**  
 The dominance metrics show that **routing behavior collapses to a single timezone for roughly half of merchant‑days** (max p_group ≥ 0.9 for ~51%). Even when merchants do have multiple tz groups, the mix is often extremely imbalanced, which implies **little cross‑timezone activity** on most days. This is a strong realism limitation because real merchants with multi‑country or multi‑region footprints rarely have **near‑exclusive** traffic from a single timezone every day.  
-The one outlier with sum_p_group ≈ 0.044 is also a **correctness‑level anomaly**: a single tz group day should still normalize to 1.0. That single merchant‑day is effectively “missing mass,” which can bias downstream sampling (the alias decode would be under‑weighted unless it’s renormalized at runtime). It’s small in absolute count, but it proves that **normalization is not strictly guaranteed** under all conditions and should be traced to its upstream cause.
+Unlike earlier snapshots, this sealed run does **not** show normalization defects in S4. So the problem here is not mass loss; it is behavioral concentration: the system is internally consistent yet still too single‑timezone dominated for strong synthetic realism.
 
 ---
 
@@ -484,7 +489,7 @@ Realism impact: even when tz‑group counts are >1, the **weight distribution is
 #### d) TZ‑group count vs site count
 <img src="plots/s4_groups_vs_site_count.png" width="520" alt="S4 tz-group count vs site count">
 
-As merchant site count grows, the maximum possible tz‑group count increases, but the **dominant band still sits at 1–3 tz‑groups**, even for merchants with dozens or hundreds of sites. There is some upward trend, but it is weak and noisy.  
+The refreshed hexbin view makes density explicit instead of overplotting individual points. As site count grows, upper support increases, but density still concentrates in low tz-group counts (mostly 1-3).  
 Realism impact: merchant size should correlate strongly with geographic reach. The weak relationship here suggests that **size does not reliably translate into tz diversity**, which is another realism limitation.
 
 ---
@@ -492,8 +497,16 @@ Realism impact: merchant size should correlate strongly with geographic reach. T
 #### e) Sum of p_group per merchant-day
 <img src="plots/s4_sum_p_group_distribution.png" width="520" alt="S4 sum of p_group per merchant-day">
 
-The distribution is essentially a single spike at **1.0**, which is expected if normalization is correct. This confirms that the routing mix is properly normalized in almost all cases. However, this plot also hides the rare outlier (the single merchant‑day with sum ≈ 0.044), because it is one row against ~40k merchant‑days.  
-Realism impact: normalization is fine overall, but the existence of any non‑normalized day is a correctness risk and should be traced upstream (it can distort routing probabilities if not renormalized).
+This refreshed plot is centered on `sum(p_group) - 1`, so numerical stability is easier to inspect. The entire distribution is tightly concentrated around zero (floating-point noise only), confirming practical normalization correctness across the panel.  
+Realism impact: probability mass accounting is healthy; the active realism issue is concentration, not normalization leakage.
+
+---
+
+#### f) Dominance by tz-group breadth
+<img src="plots/s4_dominance_by_group_count.png" width="520" alt="S4 dominance by tz-group breadth">
+
+This boxplot stratifies `max p_group` by tz-group-count bucket. Even with broader group counts, dominance remains high in many cases, though medians decline as breadth increases.  
+This confirms that “having more groups” does not automatically produce balanced routing. The concentration problem persists beyond the `n_groups=1` cases.
 
 ---
 
@@ -502,19 +515,19 @@ The plots show a system where **single‑tz dominance is the norm**, multi‑tz 
 
 ## 10) Realism core #3 - `s3_day_effects` (temporal realism)
 **Counts**
-- Rows: **100,000**
-- Merchants: **448**
+- Rows: **278,100**
+- Merchants: **1,238**
 - Days: **90**
-- tz_groups: **56**
+- tz_groups: **90**
 - Day range: **2026-01-01 to 2026-03-31**
 - `sigma_gamma` unique values: **1** (all rows share the same sigma)
 
 **Gamma distribution**
 - `gamma` quantiles:  
-  min **0.574**, p10 **0.852**, p25 **0.916**, p50 **0.993**, p75 **1.077**, p90 **1.158**, p99 **1.316**, max **1.660**
+  min **0.574**, p10 **0.851**, p25 **0.916**, p50 **0.993**, p75 **1.077**, p90 **1.158**, p99 **1.314**, max **1.750**
 - `log_gamma` quantiles:  
-  min **-0.555**, p50 **-0.007**, p90 **0.147**, max **0.507**
-- Means: `gamma` ~ **1.0003**, `log_gamma` ~ **-0.0069**, std ~ **0.12**
+  min **-0.555**, p50 **-0.007**, p90 **0.147**, max **0.560**
+- Means: `gamma` ~ **1.0002**, `log_gamma` ~ **-0.0071**, std ~ **0.121**
 
 **Interpretation (realism):**  
 The gamma distribution looks **statistically plausible** (log‑normal, centered near 1.0, moderate spread), so the *shape* is realistic. However, the realism weakness is **lack of heterogeneity**: sigma_gamma is identical for every merchant, so **every merchant has the same volatility profile** across days. In real data, some merchants are highly seasonal or have bursty patterns (high sigma), while others are stable (low sigma).  
@@ -528,7 +541,7 @@ This uniform sigma also suppresses the emergent property we want from realism: d
 <img src="plots/s3_sigma_gamma_distribution.png" width="520" alt="S3 sigma_gamma per merchant">
 
 This plot collapses to a **single razor‑thin spike** because sigma_gamma is **effectively constant for all merchants**. The odd x‑axis offset text is just the plotting backend trying to show extremely small variation around a fixed value. Visually, there is no spread at all.  
-This is not just “low variance” — it is **one shared volatility parameter** (`sigma_gamma ≈ 0.1200`) for the entire merchant population. That means there is no distinction between stable merchants (low day‑to‑day volatility) and bursty merchants (high volatility). In practical terms, every merchant experiences the **same day‑effect variance**, so the dataset cannot encode merchant‑specific seasonality or stability differences.  
+This is not just “low variance” — it is **one shared volatility parameter** (`sigma_gamma ≈ 0.1206`) for the entire merchant population. That means there is no distinction between stable merchants (low day‑to‑day volatility) and bursty merchants (high volatility). In practical terms, every merchant experiences the **same day‑effect variance**, so the dataset cannot encode merchant‑specific seasonality or stability differences.  
 Realism impact: this removes one of the most important real‑world signals (different merchants have different volatility profiles), so any downstream model that depends on temporal variability will be trained on **uniform behavior** rather than diverse behavior.
 
 ---
@@ -536,7 +549,7 @@ Realism impact: this removes one of the most important real‑world signals (dif
 #### b) Gamma distribution
 <img src="plots/s3_gamma_distribution.png" width="520" alt="S3 gamma distribution">
 
-The gamma histogram has a clean, bell‑shaped profile centered near **1.0**, with a moderate spread and smooth KDE. This is exactly what a log‑normal daily modulation should look like at the aggregate level. The quantiles back this up: values span roughly **0.57 to 1.66**, with most mass between **0.85 and 1.16**.  
+The gamma histogram has a clean, bell‑shaped profile centered near **1.0**, with a moderate spread and smooth KDE. This is exactly what a log‑normal daily modulation should look like at the aggregate level. The quantiles back this up: values span roughly **0.57 to 1.75**, with most mass between **0.85 and 1.16**.  
 However, because sigma is fixed, this distribution is essentially the **same log‑normal repeated across all merchants and tz‑groups**, then stacked together. The dataset therefore looks plausible *in aggregate* while still being **behaviorally homogeneous** underneath.  
 Realism impact: a plausible global shape is necessary but not sufficient — the lack of heterogeneity means the dataset does not encode meaningful merchant‑level or region‑level differences in daily variability.
 
@@ -554,7 +567,8 @@ Realism impact: the system treats all regions as statistically interchangeable, 
 #### d) Gamma over time (sample merchants)
 <img src="plots/s3_gamma_time_series.png" width="520" alt="S3 gamma over time (sample merchants)">
 
-The series are noisy fluctuations around 1.0 with no obvious structured pattern. The dense x‑axis labels make the plot visually busy, but the key signal is that the lines behave like **random jitter** rather than structured seasonality or trend. The three merchants track different noise realizations, but they do not show **weekday/weekly cycles** or **long‑horizon drift**.  
+The refreshed chart uses per-merchant daily means with a 7-day rolling average, so broad dynamics are easier to read. The series still fluctuate around 1.0 with no stable periodic structure.  
+Merchants differ in noise realization but not in volatility regime, and there is no consistent weekly/seasonal signature.  
 This indicates the day effects are likely **i.i.d. draws** per day rather than a time‑structured process. That is fine for a synthetic baseline, but it is **not realistic** if we want recurring cycles (weekends vs weekdays, monthly peaks, holiday effects).  
 Realism impact: day effects look like **white noise** instead of business‑like seasonality. That limits the realism of temporal dynamics that a fraud model might learn to exploit.
 
@@ -572,30 +586,36 @@ Realism impact: the model cannot learn or explain merchant‑specific “baselin
 #### f) Days covered per merchant
 <img src="plots/s3_days_covered_per_merchant.png" width="520" alt="S3 days covered per merchant">
 
-This is essentially a **single spike at ~90 days**, showing that every included merchant is present for the full policy horizon. That is good for coverage consistency within S3, but it also highlights that **only 448 merchants are included at all** (the larger coverage gap described earlier).  
+This is essentially a **single spike at ~90 days**, showing that every included merchant is present for the full policy horizon. That is good for coverage consistency within S3, and in this sealed run the included set matches the full S1 merchant universe (**1,238 merchants**).  
 There is **no partial coverage** or intermittent coverage in S3. That is clean from a pipeline perspective, but it is also less realistic if we expect some merchants to enter/exit over time.  
-Realism impact: within S3 the coverage is complete, but the **merchant‑population coverage is incomplete**, so temporal realism only applies to a subset of merchants and does not reflect real‑world churn.
+Realism impact: within S3 the coverage is now complete for the S1 merchant universe (all **1,238** merchants), but the time panel is still a strict full‑horizon rectangle with no churn, so it does not reflect real‑world merchant entry/exit dynamics.
+
+---
+
+#### g) Merchant-day panel rectangularity (sample)
+<img src="plots/s3_panel_rectangularity.png" width="520" alt="S3 panel rectangularity sample">
+
+The coverage heatmap sample is effectively a full rectangle: almost every sampled merchant has observations for every day in the horizon.  
+That is operationally clean and desirable for deterministic replay, but from a realism standpoint it confirms no lifecycle variation (no entry/exit, no inactivity windows) in the temporal panel.
 
 ---
 
 **S3 visual takeaway:**  
 The aggregate gamma distribution looks plausible, but **all merchant‑level and tz‑group‑level heterogeneity is missing**. The plots consistently show a single global volatility profile, near‑identical tz‑group behavior, and mostly noise‑like time variation. This makes temporal realism **generic rather than merchant‑specific**, which limits the realism of day‑level dynamics for fraud modeling.
 
-## 11) Coverage gaps (major realism impact)
+## 11) Coverage status (re-validated)
 **Merchants present in S1 vs S3/S4**
 - Merchants in `s1_site_weights`: **1,238**
-- Merchants in `s3_day_effects` / `s4_group_weights`: **448**
-- Missing merchants: **790**
+- Merchants in `s3_day_effects` / `s4_group_weights`: **1,238**
+- Missing merchants: **0**
 
-**Missing merchant size profile**
-- Missing merchant site counts: min **2**, median **16**, p90 **35**, max **2,546**
-- Missing bins:  
-  11-25: **383**, 6-10: **165**, 26-50: **123**, <=5: **76**, 51-100: **23**,  
-  101-250: **15**, >250: **5**
+**Panel shape**
+- Merchant coverage is complete across S1, S3, and S4.
+- Day coverage is rectangular and fixed: every included merchant has the same **90-day** window.
 
 **Interpretation (realism):**  
-This gap means **most merchants never enter the day‑effect or group‑mix system at all**. In practice, those merchants become **static**: they have weights but no time or tz‑mix modulation. That destroys realism at scale because the majority of merchants will not exhibit daily variability or timezone‑conditioned routing.  
-What makes this worse is that the missing merchants are **not just tiny accounts**—the median missing merchant still has 16 sites, and some have thousands. So the realism deficit affects **large, potentially important merchants**, not just edge cases. If the downstream platform is expected to model fraud patterns across the full merchant population, this coverage gap creates a structural bias: only a minority of merchants will display the intended realistic behavior.
+The previous merchant-coverage gap is closed in this run, which removes a major structural realism defect. Every merchant now receives day effects and group mixes.  
+The remaining realism limitation is **panel rigidity**: all merchants are present for all 90 days with no entry/exit pattern. This is operationally clean, but less realistic than a population with staggered starts/stops and partial activity windows.
 
 ---
 
@@ -603,6 +623,8 @@ What makes this worse is that the missing merchants are **not just tiny accounts
 - Rows: **1,238** (exactly 1 per merchant)
 - Days: **1** (only 2026-01-01)
 - Virtual rate: **11.23%**
+
+<img src="plots/s5_workload_profile.png" width="680" alt="S5 workload profile">
 
 **Interpretation:**  
 This roster represents **one arrival per merchant on a single day**, which is effectively a **smoke test** rather than a realism‑grade workload. It cannot reveal day‑level seasonality, tz‑mix variation over time, or intra‑merchant routing dynamics because **there is no temporal depth**.  
@@ -619,44 +641,44 @@ If we evaluate realism based on this roster, we will **overestimate** the system
 - `merchants_count` in alias index = **1,238**, matching S1
 - Layout/endianness/alignment consistent with policy
 
-These checks confirm the **internal consistency** of the 2B pipeline (gamma echo and alias integrity), which is important because it means the realism issues are **not caused by broken joins or corrupt artefacts**. Instead, they are **behavioral choices in the data generation** (uniform weights, coverage gaps, concentrated group mixes). That distinction matters: fixes should target **generation logic and coverage policy**, not repair mechanics.
+These checks confirm the **internal consistency** of the 2B pipeline (gamma echo and alias integrity), which is important because it means the realism issues are **not caused by broken joins or corrupt artefacts**. Instead, they are **behavioral choices in the data generation** (uniform weights, concentrated group mixes, homogeneous temporal volatility, and shallow roster). That distinction matters: fixes should target **generation logic and coverage policy**, not repair mechanics.
 
 ---
 
 ## 14) Realism takeaways (actionable)
 1) Uniform weights across all merchants -> the biggest realism failure.  
    This makes routing artificially flat and removes hub/cluster behavior.
-2) Massive merchant coverage gap (790 merchants missing from S3/S4).  
-   Most merchants have no temporal or group mix dynamics.
-3) High tz-group dominance (~50% of merchant-days have max p_group >= 0.9).  
+2) High tz-group dominance (~50% of merchant-days have max p_group >= 0.9).  
    Indicates very low geographic/timezone diversity in daily routing.
-4) Temporal effects are plausible but homogeneous.  
+3) Temporal effects are plausible but homogeneous.  
    All merchants share identical sigma; variability is not merchant-specific.
+4) Full coverage is achieved, but panel shape is rigid (no merchant churn).  
+   This limits realism of population dynamics across time.
 5) Arrival roster too shallow to validate realism in routing behavior.
 
 If realism is the goal, the first fixes should be:
 - **Introduce non‑uniform, merchant‑specific weight distributions in S1.**  
   For example, generate Zipf‑like or hub‑and‑spoke weights so a few sites dominate, with long‑tail sites still active. This alone will create realistic spatial skew and allow the model to explain why some sites are riskier.
-- **Ensure all merchants flow into S3/S4.**  
-  If a merchant exists in S1, it should appear in day‑effects and group‑mix tables, otherwise the system splits into “realistic merchants” and “static merchants.” That breaks realism at population scale.
+- **Preserve full S1↔S3/S4 coverage and add realistic panel churn.**  
+  Coverage is now complete; the next realism step is controlled merchant entry/exit (or activity intermittency) so the panel is not a perfect rectangle.
 - **Expand arrival rosters to multiple days and multiple arrivals per merchant.**  
   This is required to observe temporal variability, tz‑mix changes, and routing stability. Without this, the system never demonstrates the behavior it is supposed to model.
 
 ---
 
 ## 15) Realism Grade (Segment 2B)
-**Grade: C‑**
+**Grade: C**
 
 **Why this grade:**  
 Segment 2B is structurally correct but behaviorally weak. The routing layer is built and audited correctly, yet the data it produces lacks the core realism patterns that would make fraud modeling credible. The grade is pulled down by:
 - **Uniform S1 site weights** (no hub dominance, no realistic spatial skew).  
-- **Large coverage gap** (only 448/1,238 merchants receive day‑effects and group‑weights).  
 - **High tz‑group dominance** (≈50% of merchant‑days are effectively single‑timezone).  
 - **Homogeneous temporal volatility** (single global `sigma_gamma`, minimal merchant differentiation).  
+- **Rigid full-coverage panel** (no merchant churn / no staggered activity windows).  
 - **Shallow arrival roster** (one day, one arrival per merchant; insufficient for realistic routing behavior).
 
 **What would raise the grade:**  
-Introduce non‑uniform, merchant‑specific site weight distributions; ensure S3/S4 coverage for all merchants; add richer temporal structure (merchant‑specific sigma, weekly/seasonal patterns); and expand the arrival roster so routing behavior can be observed across multiple days.
+Introduce non‑uniform, merchant‑specific site weight distributions; keep full S3/S4 coverage but add realistic panel churn; add richer temporal structure (merchant‑specific sigma, weekly/seasonal patterns); and expand the arrival roster so routing behavior can be observed across multiple days.
 
 ---
 
@@ -666,8 +688,8 @@ This roadmap targets **robust synthetic realism** without real policy data, focu
 1) **Make site weights merchant‑specific (S1).**  
    Replace the uniform weight profile with **hub‑and‑spoke or Zipf‑like distributions**. Small merchants should have 1–2 dominant sites, while larger merchants can have broader tails. This alone will create believable spatial skew and explainable risk patterns.
 
-2) **Ensure full merchant coverage across S3/S4.**  
-   Right now a large portion of merchants never receive day‑effects or group‑weights. That creates a population split between “dynamic” and “static” merchants. For realism, **every merchant should be routable** and experience temporal/group variation, even if minimal.
+2) **Maintain full merchant coverage and add panel realism.**  
+   Coverage is now complete across S1/S3/S4, which should be preserved. Next, add controlled **merchant entry/exit or intermittent inactivity** so the panel reflects realistic lifecycle dynamics instead of a perfect rectangle.
 
 3) **Inject temporal heterogeneity (S3).**  
    Use **merchant‑specific sigma** (not a single global sigma) and add **weekly/seasonal modulation**. Even a small weekly signal (weekends vs weekdays) makes synthetic time series feel more realistic.
