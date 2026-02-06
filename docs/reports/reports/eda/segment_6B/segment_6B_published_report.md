@@ -485,7 +485,162 @@ Arrivals per entity distribution (p50 / p90 / p99 / max / top‑1 share).
 
 ---
 
-### 11.5 Phase‑2 conclusion (S1 realism verdict)
+### 11.5 Channel mix + virtual posture (arrival‑weighted)
+**What we measured (full scan of `arrival_events`):**
+1. `channel_group` is **only** `mixed` (no POS vs CNP split appears in this run).
+2. `is_virtual = True` arrivals: **2,802,007** of **124,724,153** → **~2.25%**.
+3. Virtual arrivals appear **only** under `online_24h` demand_class, and within that class they make up **~4.28%** of online_24h arrivals.
+
+**How to interpret this:**
+1. Channel stratification is **collapsed** into a single group (`mixed`), so channel‑conditioned realism cannot be evaluated here.
+2. The synthetic world is overwhelmingly **non‑virtual**. If “virtual” is intended to represent online‑only behavior, its footprint is very small.
+3. The fact that virtual is **only** in `online_24h` implies virtual presence is treated as a narrow sub‑slice of one class, rather than a broader cross‑class channel.
+
+**Why it matters for realism:**
+1. If policy intent included meaningful online share, the observed ~2.25% virtual rate is low.
+2. Any model features keyed on online/virtual behavior will have **thin training signal** in this run.
+
+---
+
+### 11.6 Geographic realism (cross‑border and timezone alignment)
+**Cross‑border posture (arrival‑weighted):**
+1. Overall cross‑border rate (party_country != merchant_country): **~91.4%**.
+2. Party type Retail: **~91.4%**
+3. Party type Business: **~91.8%**
+4. Party type Other: **~91.5%**
+5. Non‑virtual: **~91.5%**
+6. Virtual: **~89.7%**
+
+**Timezone alignment (arrival‑weighted, sample):**
+1. `tzid_primary` matches merchant `tzid` only **~7.7%** of the time.
+
+**How to interpret this:**
+1. The dataset is **heavily cross‑border** across all party types and channels. There is no evidence of a strong home‑bias in S1 attachment.
+2. The low timezone match rate implies arrival timezones are **rarely aligned to merchant home zones**. Combined with the cross‑border rate, this points to a world where merchants serve mostly non‑local traffic.
+
+**Why it matters for realism:**
+1. If the design intent was to bias domestic traffic (p_home ~0.65–0.99), this run is **not consistent** with that intent.
+2. Cross‑border dominance makes geography a **weak discriminant** for risk, which may or may not be desirable for the synthetic world.
+
+---
+
+### 11.7 Linkage diversity (graph connectivity realism)
+**What we measured (0.5% sample):**
+1. **Account → Device (distinct devices per account):** p50=1, p90=1, p99=1, max=1  
+2. **Account → IP (distinct IPs per account):** p50=1, p90=1, p99=1, max=2  
+3. **Device → Merchant (distinct merchants per device):** p50=1, p90=2, p99=4, max=8  
+4. **Party → Merchant (distinct merchants per party):** p50=1, p90=2, p99=4, max=8  
+5. **IP → Device (distinct devices per IP):** p50=1, p90=3, p99=41, max=1,741  
+
+**How to interpret this:**
+1. Accounts are effectively **single‑device** and nearly single‑IP. That means account‑device churn is missing.
+2. Parties and devices transact with **very few merchants**, suggesting limited “shopping diversity.”
+3. IPs are **high‑fanout hubs** (one IP can connect to many devices). This is the only place where the graph shows strong multi‑link behavior.
+
+**Why it matters for realism:**
+1. The graph is **sparse on the customer/device side** but **dense on IPs**. This makes IP a dominant linkage signal, which can skew explainability.
+2. Realistic fraud patterns often depend on **account‑device churn** and **multi‑merchant behavior**, which are muted here.
+
+---
+
+### 11.8 Population weighting (activity vs population realism)
+**What we measured (0.5% sample vs base population):**
+1. Retail parties are **~96.8%** of the party base but **~92.9%** of arrivals.
+2. Business parties are **~2.75%** of the party base but **~6.63%** of arrivals.
+3. Business arrival share is therefore **~2.4×** its population share.
+
+**How to interpret this:**
+1. Business parties are **much more active** than retail parties.
+2. This can be realistic (business customers transact more), but it is a strong skew that should be intentionally policy‑driven.
+
+**Why it matters for realism:**
+1. If business activity weighting is too strong, downstream models may over‑emphasize business vs retail as a primary signal.
+
+---
+
+### 11.9 Merchant class mix (arrival‑weighted)
+**Observed arrival mix by demand_class (approx share of arrivals):**
+1. `consumer_daytime`: **~62.7%**
+2. `online_24h`: **~15.1%**
+3. `fuel_convenience`: **~14.2%**
+4. `evening_weekend`: **~3.5%**
+5. `online_bursty`: **~2.0%**
+6. `office_hours`: **~1.18%**
+7. `bills_utilities`: **~0.89%**
+8. `travel_hospitality`: **~0.42%**
+
+**How to interpret this:**
+1. Three classes (`consumer_daytime`, `online_24h`, `fuel_convenience`) dominate the world.
+2. Several classes are **very small**, which limits realism for those behaviours and reduces their value for modeling.
+
+---
+
+### 11.10 Cross‑border rates by merchant class + volume effects
+**Cross‑border rates by class (arrival‑weighted, deduped merchant dimension):**
+1. `consumer_daytime`: **0.9388**
+2. `fuel_convenience`: **0.9403**
+3. `online_24h`: **0.9298**
+4. `evening_weekend`: **0.9235**
+5. `office_hours`: **0.9389**
+6. `bills_utilities`: **0.9267**
+7. `travel_hospitality`: **0.9258**
+8. `online_bursty`: **0.9047**
+
+**Merchant‑weighted vs arrival‑weighted cross‑border (does volume amplify cross‑border?):**
+1. `consumer_daytime`: **0.9190 → 0.9386**  
+2. `fuel_convenience`: **0.9117 → 0.9403**  
+3. `office_hours`: **0.9303 → 0.9384**  
+4. `bills_utilities`: **0.9059 → 0.9270**  
+5. `online_24h`: **0.9293 → 0.9313**  
+6. `evening_weekend`: **0.9533 → 0.9244**  
+7. `online_bursty`: **0.9236 → 0.9010**  
+8. `travel_hospitality`: **0.9189 → 0.9269**
+
+**How to interpret this:**
+1. Cross‑border is **uniformly high** across all merchant classes; class is not a major differentiator.
+2. In most classes, **high‑volume merchants are more cross‑border** than low‑volume merchants, which pushes the overall cross‑border rate upward.
+3. The exceptions (`evening_weekend`, `online_bursty`) show the opposite pattern, indicating a few large merchants in those classes are **more domestic‑leaning**.
+
+**Why it matters for realism:**
+1. The aggregate cross‑border skew appears to be **volume‑driven** rather than class‑driven. This is a lever we can tune by re‑weighting high‑volume merchants.
+
+---
+
+### 11.11 Session gap structure by merchant class (multi‑arrival sessions)
+**Structural facts (full scan):**
+1. Multi‑arrival sessions are **almost entirely two‑arrival sessions**, with the following counts:
+
+| arrival_count | sessions |
+| --- | --- |
+| 2 | 76,073 |
+| 3 | 196 |
+| 4 | 1 |
+
+**Class conditioning (10% sample of multi‑arrival sessions):**
+1. **Single‑class rate:** **1.0** (all multi‑arrival sessions are within a single merchant class).
+2. Gap distributions by class (max gap in seconds, per‑session):
+
+| demand_class | sessions | max_gap_p50 | max_gap_p90 | max_gap_p99 | max_gap_max |
+| --- | --- | --- | --- | --- | --- |
+| consumer_daytime | 575 | 325s | 798s | 1,026s | 1,159s |
+| evening_weekend | 133 | 302s | 816s | 1,094s | 1,169s |
+| fuel_convenience | 14 | 680s | 823s | 901s | 909s |
+| online_24h | 12 | 223s | 983s | 1,025s | 1,026s |
+| online_bursty | 6 | 340s | 858s | 924s | 931s |
+| travel_hospitality | 1 | 696s | 696s | 696s | 696s |
+| bills_utilities | 1 | 80s | 80s | 80s | 80s |
+
+**How to interpret this:**
+1. Because multi‑arrival sessions are mostly **two‑arrival**, the “max gap” is effectively the session duration. That limits our ability to see truly bursty multi‑step behaviour.
+2. There is **no strong class‑specific burstiness** signal. Online classes do not consistently show shorter gaps than offline‑leaning classes.
+3. The sample sizes for some classes are very small, so we should not over‑interpret class differences at the tail.
+
+**Why it matters for realism:**
+1. The session surface remains **thin** even when class‑conditioned, which confirms that sessionisation is not expressing rich within‑session behaviour.
+
+---
+
+### 11.12 Phase‑2 conclusion (S1 realism verdict)
 1. **Attachment graph is valid but under‑connected.** The data strongly prefers one‑to‑one mappings across parties, accounts, instruments, devices, and IPs. This is coherent, but it suppresses multi‑entity behaviors that are important for realism and fraud explainability.
 2. **Merchant‑level concentration is very strong.** This is consistent with a compressed merchant universe and likely with upstream intensity priors, but it will make merchant identity a dominant signal.
 3. **Sessionisation is near‑identity.** Most sessions are single arrivals with zero duration. This is consistent with the lean posture, but it limits session‑based realism.
