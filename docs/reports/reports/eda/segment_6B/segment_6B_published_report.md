@@ -874,18 +874,29 @@ This phase evaluates the **baseline transactional flows and events** produced in
 
 ### 12.1 Amount distribution: bounded, discrete, and uniform
 **What we measured (full scan):**
-1. **Min / Max:** **1.99 → 99.99**
-2. **Mean:** **28.986**
-3. **p50:** **17.97**
-4. **p90 / p99 / p999:** **99.99**
-5. **Non‑positive amounts:** **0**
+1. **Flows:** **124,724,153**
+2. **Min / Max:** **1.99 → 99.99**
+3. **Mean:** **28.986**
+4. **p50:** **17.97**
+5. **p90 / p99 / p999:** **99.99**
+6. **Non‑positive amounts:** **0**
 
 **Distinct amount values:** **8**
 All flows take one of these eight values:
 `1.99, 4.99, 9.99, 14.99, 19.99, 29.99, 49.99, 99.99`
 
 **Observed shares (full scan):**
-Each price point is ~**12.5%** of all flows (near‑perfect uniformity).
+
+| amount | share |
+| --- | --- |
+| 1.99 | 12.5008% |
+| 4.99 | 12.4964% |
+| 9.99 | 12.5044% |
+| 14.99 | 12.5014% |
+| 19.99 | 12.4976% |
+| 29.99 | 12.5052% |
+| 49.99 | 12.4997% |
+| 99.99 | 12.4946% |
 
 **How to interpret this:**
 1. The amount surface is **fully discrete**, with no tail above 99.99. This is consistent with the lean implementation using **price_points only**, but it removes the heavy‑tail behavior expected in real commerce.
@@ -1022,3 +1033,124 @@ Timing signals that are important for fraud detection (response delays, asynchro
 4. **Timing is perfectly aligned.** Events and flows occur at identical timestamps, removing latency signals.
 
 **Net realism assessment for Phase 3:** structurally clean and consistent with the lean build, but **pricing and timing realism are shallow**. This is the largest realism gap in S2.
+
+---
+
+## 13) Phase 4 — Fraud Overlay Realism (S3)
+This phase evaluates how the fraud overlay is applied on top of baseline flows and events. We focus on **campaign mix**, **fraud rates**, **overlay mechanics**, and **consistency across flows and events**.
+
+### 13.1 Campaign catalogue and target rates
+**Catalogue (6 campaigns):**
+
+| campaign_label | fraud_rate |
+| --- | --- |
+| T_ATO_ACCOUNT_SWEEP | 0.000002 |
+| T_BONUS_ABUSE_FLOW | 0.000019 |
+| T_CARD_TESTING_BURST | 0.000016 |
+| T_MERCHANT_COLLUSION | 0.000000 |
+| T_PROMO_FRAUD_EVENTS | 0.000011 |
+| T_REFUND_ABUSE | 0.000011 |
+
+**Total target fraud rate (sum):** **0.000059** (0.0059%)
+
+**How to interpret this:**
+1. The rates are **extremely low by design**, which is consistent with a strict quota posture.
+2. One campaign (`T_MERCHANT_COLLUSION`) is **explicitly zero**, so we should expect no flows tagged to it.
+
+---
+
+### 13.2 Observed fraud volume vs target rates
+**Observed totals (full scan):**
+1. Fraud flows: **7,342**
+2. Total flows: **124,724,153**
+3. Observed fraud rate: **0.000059** (matches catalogue sum)
+
+**Per campaign (expected vs observed):**
+
+| campaign_label | fraud_rate | expected_flows | observed_flows |
+| --- | --- | --- | --- |
+| T_ATO_ACCOUNT_SWEEP | 0.000002 | 231 | 231 |
+| T_BONUS_ABUSE_FLOW | 0.000019 | 2,382 | 2,382 |
+| T_CARD_TESTING_BURST | 0.000016 | 1,986 | 1,986 |
+| T_MERCHANT_COLLUSION | 0.000000 | 0 | 0 |
+| T_PROMO_FRAUD_EVENTS | 0.000011 | 1,374 | 1,374 |
+| T_REFUND_ABUSE | 0.000011 | 1,369 | 1,369 |
+
+**How to interpret this:**
+1. Observed counts **match targets exactly** (no deviation), indicating that fraud assignment is **deterministic and quota‑exact**.
+2. There is **no stochastic fluctuation** around the target rates, which is consistent with the lean build but unrealistic relative to natural variance.
+
+**Why it matters for realism:**
+1. Models trained on this data will see **perfectly stable fraud rates**, which can make threshold calibration brittle compared to real systems.
+2. This makes it easy to audit, but it reduces realism in the presence of real‑world drift.
+
+---
+
+### 13.3 Fraud flag and campaign ID integrity
+**What we checked (full scan):**
+1. `fraud_flag` true count = **7,342**
+2. `campaign_id` non‑null count = **7,342**
+3. `fraud_flag` without campaign_id = **0**
+4. `campaign_id` without fraud_flag = **0**
+
+**How to interpret this:**
+Fraud tagging is **perfectly aligned** with campaign assignment. There is no leakage, no missing campaign tags, and no “silent” fraud labels.
+
+---
+
+### 13.4 Overlay mechanics: amount uplift only
+We compared baseline amounts (S2) to with‑fraud amounts (S3).
+
+**Fraud vs non‑fraud deltas:**
+1. **Fraud flows:** delta > 0 for **100%** of fraud flows.
+2. **Non‑fraud flows:** delta = 0 for **100%** of sampled non‑fraud flows.
+
+**Fraud delta distribution (all fraud flows):**
+1. **Min delta:** 0.10
+2. **Median delta:** ~18.15
+3. **p90 delta:** ~102.72
+4. **Max delta:** ~249.56
+
+**Fraud ratio distribution (fraud_amount / base_amount):**
+1. **Min ratio:** ~1.05
+2. **Median ratio:** ~2.29
+3. **p90 ratio:** ~3.25
+4. **Max ratio:** ~3.50
+
+**How to interpret this:**
+1. Fraud overlay is **pure amount upshift**. There are no negative deltas, no amount jitter on non‑fraud flows, and no change in event counts.
+2. The uplift ratios are consistent across base price points (median ~2.2–2.3), implying a **uniform multiplicative policy**, not campaign‑specific behavior.
+
+**Why it matters for realism:**
+1. Real fraud often exhibits **behavioral changes** beyond amount (timing anomalies, declines, routing). Those are absent.
+2. Because the uplift is deterministic and always positive, the fraud signal becomes **too clean** and may over‑estimate model separability.
+
+---
+
+### 13.5 Event‑stream consistency under fraud overlay
+**What we checked:**
+1. Fraud events count: **14,684** (exactly 2 per fraud flow).
+2. Event fraud rate equals flow fraud rate.
+3. Event fraud_flag and campaign_id **match flow assignments**.
+4. Event amounts and timestamps **match flow amounts and timestamps** (sample: 0 mismatches).
+
+**How to interpret this:**
+The overlay does **not alter the event template** or timing. Fraud flows are simply tagged and amount‑shifted, then emitted as the same two events.
+
+---
+
+### 13.6 Fraud distribution across merchant classes (sample signal)
+**What we measured (0.5% sample):**
+Fraud counts per class are **very small** (0–15), which makes class‑level rates noisy.
+
+**Interpretation:**
+There is **no strong evidence** of class‑targeted fraud in the observed sample. If campaigns are intended to target specific merchant classes, that targeting is **not observable** at this scale. This is consistent with hash‑based selection but limits realism in class‑specific fraud patterns.
+
+---
+
+### 13.7 Phase‑4 conclusion (S3 realism verdict)
+1. **Fraud rates are quota‑exact and deterministic.** Observed counts match campaign targets perfectly, which is auditable but unrealistic relative to natural variance.
+2. **Overlay mechanics are minimal.** Fraud is expressed only as a **positive amount uplift** with no timing, routing, or event‑template changes.
+3. **Fraud tagging is internally consistent.** fraud_flag and campaign_id are perfectly aligned across flows and events.
+
+**Net realism assessment for Phase 4:** structurally sound and policy‑consistent with the lean build, but **fraud behavior is too clean and too narrow** to mimic real fraud dynamics.
