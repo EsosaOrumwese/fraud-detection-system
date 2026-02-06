@@ -640,7 +640,101 @@ Arrivals per entity distribution (p50 / p90 / p99 / max / top‑1 share).
 
 ---
 
-### 11.12 Phase‑2 conclusion (S1 realism verdict)
+### 11.12 Cross‑border rates by merchant size deciles (volume‑driven skew)
+**What we measured (0.5% sample, arrival‑weighted):**
+Merchants are sorted by arrival volume and split into **size deciles**. The table shows the share of arrivals each decile contributes and the decile’s cross‑border rate.
+
+| size_decile | arrival_share | cross_border_rate |
+| --- | --- | --- |
+| 1 | 0.81% | 0.9115 |
+| 2 | 1.45% | 0.9155 |
+| 3 | 2.10% | 0.9205 |
+| 4 | 2.90% | 0.9110 |
+| 5 | 3.79% | 0.9181 |
+| 6 | 4.73% | 0.9240 |
+| 7 | 5.93% | 0.9266 |
+| 8 | 7.65% | 0.9236 |
+| 9 | 11.35% | 0.9166 |
+| 10 | **59.30%** | **0.9465** |
+
+**Top‑tier concentration (explicit impact):**
+
+| bucket | merchants | arrival_share | cross_border_rate |
+| --- | --- | --- | --- |
+| top_1% | 9 | **30.0%** | **0.9385** |
+| top_5% (next 4%) | 36 | **19.8%** | **0.9657** |
+| rest | 841 | **50.2%** | **0.9231** |
+
+**How to interpret this:**
+1. The **largest decile alone contributes ~59% of arrivals**, and it has the **highest cross‑border rate**. This is the single biggest driver of the global cross‑border skew.
+2. The **top 5% of merchants contribute ~49.8% of arrivals** and are more cross‑border than the rest. That means **cross‑border realism is being set by a small number of very large merchants**, not by broad merchant behaviour.
+3. The lower deciles are relatively flat (~0.91–0.93). The skew is **volume‑driven, not class‑driven** at this level.
+
+**Why it matters for realism:**
+1. If you want a more domestic‑leaning dataset, **re‑weighting the largest merchants** will move the global posture far more than changing the long tail.
+2. This also means that **merchant identity becomes a dominant predictor** because high‑volume merchants are structurally different in cross‑border behaviour.
+
+---
+
+### 11.13 Session gap distributions by virtual vs non‑virtual
+**What we measured (full scan of multi‑arrival sessions):**
+1. Multi‑arrival sessions total: **76,270**
+2. Virtual multi‑arrival sessions: **324** (≈ **0.425%** of multi‑arrival sessions)
+3. Non‑virtual multi‑arrival sessions: **75,946**
+
+**Gap distributions (per‑session max gap in seconds):**
+
+| is_virtual | sessions | max_gap_p50 | max_gap_p90 | max_gap_p99 | max_gap_max |
+| --- | --- | --- | --- | --- | --- |
+| False | 75,946 | 351s | 820s | 1,079s | 1,198s |
+| True | 324 | 348s | 773s | 1,016s | 1,126s |
+
+**How to interpret this:**
+1. Virtual sessions are **extremely rare**, so their distribution is not a strong statistical signal.
+2. The gap profile for virtual vs non‑virtual is **very similar**, indicating **no meaningful burstiness difference** in this run.
+3. This mirrors the overall sessionisation posture: nearly all multi‑arrival sessions are just two events, so the gap distribution largely reflects a single time delta.
+
+**Why it matters for realism:**
+1. If the synthetic world intends online/virtual traffic to have distinct within‑session dynamics, that signal is **not present** here.
+2. The low virtual share means any virtual‑specific models will have **very limited training evidence**.
+
+---
+
+### 11.14 Cross‑border rates by party segment (segment‑level bias check)
+**What we measured (0.5% sample, arrival‑weighted):**
+
+| segment_id | arrivals (sample) | cross_border_rate |
+| --- | --- | --- |
+| RETAIL_FAMILY | 124,093 | 0.9404 |
+| RETAIL_MATURE | 105,251 | 0.9312 |
+| RETAIL_EARLY_CAREER | 95,658 | 0.9381 |
+| RETAIL_VALUE | 65,063 | **0.9153** |
+| RETAIL_RETIRED | 63,812 | 0.9474 |
+| RETAIL_STUDENT | 58,915 | 0.9299 |
+| RETAIL_MASS_MARKET | 46,257 | 0.9398 |
+| RETAIL_AFFLUENT | 21,079 | **0.9501** |
+| BUSINESS_SOLE_TRADER | 10,052 | 0.9356 |
+| BUSINESS_SME | 8,793 | 0.9419 |
+| BUSINESS_MICRO | 8,348 | 0.9401 |
+| BUSINESS_MID_MARKET | 5,306 | 0.9431 |
+| BUSINESS_LOCAL_SERVICE | 4,155 | **0.9526** |
+| BUSINESS_ECOM_NATIVE | 2,633 | 0.9347 |
+| OTHER_NONPROFIT | 1,987 | 0.9371 |
+| BUSINESS_CORPORATE | 1,362 | 0.9325 |
+| OTHER_PUBLIC_SECTOR | 1,154 | 0.9489 |
+
+**How to interpret this:**
+1. Cross‑border rates are **uniformly high across segments** (roughly 0.915–0.953).
+2. There is **no visible segment‑level home‑bias**; even segments that might be expected to be more domestic (e.g., RETAIL_VALUE) are still >0.91 cross‑border.
+3. Small deviations exist (RETAIL_VALUE slightly lower, RETAIL_AFFLUENT and BUSINESS_LOCAL_SERVICE slightly higher), but these are **minor compared to the overall skew**.
+
+**Why it matters for realism:**
+1. If segment‑level geo preferences were intended, they are **not expressed** in this run’s attachment outputs.
+2. The model will learn that **segment does not strongly constrain geography**, which may not be realistic for many markets.
+
+---
+
+### 11.15 Phase‑2 conclusion (S1 realism verdict)
 1. **Attachment graph is valid but under‑connected.** The data strongly prefers one‑to‑one mappings across parties, accounts, instruments, devices, and IPs. This is coherent, but it suppresses multi‑entity behaviors that are important for realism and fraud explainability.
 2. **Merchant‑level concentration is very strong.** This is consistent with a compressed merchant universe and likely with upstream intensity priors, but it will make merchant identity a dominant signal.
 3. **Sessionisation is near‑identity.** Most sessions are single arrivals with zero duration. This is consistent with the lean posture, but it limits session‑based realism.
