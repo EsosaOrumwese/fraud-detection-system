@@ -522,6 +522,9 @@ Arrivals per entity distribution (p50 / p90 / p99 / max / top‑1 share).
 1. If the design intent was to bias domestic traffic (p_home ~0.65–0.99), this run is **not consistent** with that intent.
 2. Cross‑border dominance makes geography a **weak discriminant** for risk, which may or may not be desirable for the synthetic world.
 
+**Additional interpretation:**  
+When cross‑border traffic is this dominant, **country and region features lose explanatory power** because most observations are already “international.” That flattens any geographic risk curve (domestic vs cross‑border, corridor risk, FX exposure). The timezone misalignment further means that local‑time features (hour‑of‑day, weekend/weekday) are effectively **randomized relative to merchant context**, which dilutes realistic temporal behavior.
+
 ---
 
 ### 11.7 Linkage diversity (graph connectivity realism)
@@ -556,6 +559,9 @@ Arrivals per entity distribution (p50 / p90 / p99 / max / top‑1 share).
 **Why it matters for realism:**
 1. If business activity weighting is too strong, downstream models may over‑emphasize business vs retail as a primary signal.
 
+**Additional interpretation:**  
+This skew also changes the **effective economic mix** of the synthetic world. If the intention is to simulate consumer‑driven volume, business dominance can make **spend‑level and frequency statistics** look unrealistic and can distort class‑level patterns (e.g., office_hours or B2B‑like flows becoming a larger share of the signal than intended).
+
 ---
 
 ### 11.9 Merchant class mix (arrival‑weighted)
@@ -572,6 +578,12 @@ Arrivals per entity distribution (p50 / p90 / p99 / max / top‑1 share).
 **How to interpret this:**
 1. Three classes (`consumer_daytime`, `online_24h`, `fuel_convenience`) dominate the world.
 2. Several classes are **very small**, which limits realism for those behaviours and reduces their value for modeling.
+
+**Additional interpretation:**  
+Very small classes (e.g., `travel_hospitality`, `bills_utilities`) become **statistically fragile**. Any per‑class behavior (fraud rate, temporal profile, amount pattern) will be dominated by sampling noise rather than policy intent. If those classes are meant to carry distinct realism signatures, their tiny share makes those signatures almost invisible.
+
+**Why it matters for realism:**  
+Class realism depends on **enough mass to express behavior**. With <1% share, classes become more like “decorations” than functional parts of the synthetic world, which reduces both explainability and model training value.
 
 ---
 
@@ -603,6 +615,9 @@ Arrivals per entity distribution (p50 / p90 / p99 / max / top‑1 share).
 
 **Why it matters for realism:**
 1. The aggregate cross‑border skew appears to be **volume‑driven** rather than class‑driven. This is a lever we can tune by re‑weighting high‑volume merchants.
+
+**Additional interpretation:**  
+If the goal is a more balanced domestic vs cross‑border world, adjusting **a small set of high‑volume merchants** will have a disproportionate effect. That also means cross‑border realism is currently **sensitive to a few merchants**, which can make the dataset unstable if those merchants change.
 
 ---
 
@@ -637,6 +652,9 @@ Arrivals per entity distribution (p50 / p90 / p99 / max / top‑1 share).
 
 **Why it matters for realism:**
 1. The session surface remains **thin** even when class‑conditioned, which confirms that sessionisation is not expressing rich within‑session behaviour.
+
+**Additional interpretation:**  
+Because nearly all sessions are two‑arrival, we cannot observe realistic sequences like **browse → add‑to‑cart → checkout** or **multi‑attempt retries**. This limits the realism of any session‑level features such as dwell time, retry velocity, or multi‑event intent.
 
 ---
 
@@ -949,6 +967,9 @@ Merchants were bucketed into **size deciles** by arrival volume. For each decile
 **Why it matters for realism:**
 Real merchant populations usually show **size‑dependent pricing** (large merchants often have broader catalogs and different price point mix). That signal is absent here.
 
+**Additional interpretation:**  
+With a uniform price‑point mix across all size tiers, any size‑conditioned fraud or spend features will be **statistically neutral**. This removes a common source of explainability (e.g., “large merchants have a broader or higher‑value basket”), making the dataset less realistic for models that use merchant size as a proxy for catalog breadth.
+
 ---
 
 ### 12.4 Amount vs geography (domestic vs cross‑border)
@@ -967,6 +988,9 @@ Domestic = party_country == merchant_country; Cross‑border otherwise.
 
 **Why it matters for realism:**
 The absence of any geographic pricing shift removes a plausible fraud and risk signal that would exist in real transaction data.
+
+**Additional interpretation:**  
+In real systems, cross‑border flows often carry **higher average amounts** and a **fatter tail** because they include travel, lodging, or high‑value ecommerce. The lack of any domestic vs cross‑border differentiation means geography cannot explain price behavior, which weakens both risk stratification and narrative realism.
 
 ---
 
@@ -990,6 +1014,9 @@ The absence of any geographic pricing shift removes a plausible fraud and risk s
 **Why it matters for realism:**
 Segment‑level economic behavior is not expressed. Realistic data would typically show **affluence‑linked price shifts**, which are absent here.
 
+**Additional interpretation:**  
+When affluent or business segments do not show any upward shift, segment labels become **decorative** rather than explanatory. This limits their usefulness as features and removes a natural sanity check (“affluent spends slightly more”) that stakeholders expect to see in realistic synthetic data.
+
 ---
 
 ### 12.6 Amount vs local hour and weekday
@@ -1008,6 +1035,9 @@ Segment‑level economic behavior is not expressed. Realistic data would typical
 **Why it matters for realism:**
 Time‑conditioned pricing patterns (weekend spikes, evening peaks) are not present, reducing behavioral realism for temporal models.
 
+**Additional interpretation:**  
+Temporal pricing effects are a classic realism signature (e.g., weekend leisure spending or evening surges). Their absence means time‑of‑day features can still separate volume (from earlier phases), but **not spend intensity**, which reduces the dataset’s explanatory depth.
+
 ---
 
 ### 12.7 Flow/event alignment (amounts and timestamps)
@@ -1023,6 +1053,9 @@ Time‑conditioned pricing patterns (weekend spikes, evening peaks) are not pres
 
 **Why it matters for realism:**
 Timing signals that are important for fraud detection (response delays, asynchronous settlement) are absent in this baseline.
+
+**Additional interpretation:**  
+Identical timestamps remove **latency‑based signals** (slow auths, delayed reversals, asynchronous clearings). Many production fraud systems use these subtle timing features; without them, models trained on this data will not learn that dimension of risk.
 
 ---
 
@@ -1057,6 +1090,9 @@ This phase evaluates how the fraud overlay is applied on top of baseline flows a
 1. The rates are **extremely low by design**, which is consistent with a strict quota posture.
 2. One campaign (`T_MERCHANT_COLLUSION`) is **explicitly zero**, so we should expect no flows tagged to it.
 
+**Additional interpretation:**  
+Because the total fraud rate is so small, **any downstream realism signal has to be read in a sparse regime**. This makes the dataset sensitive to rounding and quota rounding, and it means rare‑class behavior will be dominated by policy decisions rather than emergent variation.
+
 ---
 
 ### 13.2 Observed fraud volume vs target rates
@@ -1084,6 +1120,9 @@ This phase evaluates how the fraud overlay is applied on top of baseline flows a
 1. Models trained on this data will see **perfectly stable fraud rates**, which can make threshold calibration brittle compared to real systems.
 2. This makes it easy to audit, but it reduces realism in the presence of real‑world drift.
 
+**Additional interpretation:**  
+In real environments, fraud rates **wander and spike**; fixed rates eliminate the “volatility” signal that many monitoring systems use. A model trained on stable rates may **over‑trust** a fixed threshold and under‑react when real rates shift.
+
 ---
 
 ### 13.3 Fraud flag and campaign ID integrity
@@ -1095,6 +1134,9 @@ This phase evaluates how the fraud overlay is applied on top of baseline flows a
 
 **How to interpret this:**
 Fraud tagging is **perfectly aligned** with campaign assignment. There is no leakage, no missing campaign tags, and no “silent” fraud labels.
+
+**Additional interpretation:**  
+This removes a common real‑world ambiguity (unknown fraud without explicit campaign attribution). The synthetic world becomes **too clean** at the labeling boundary, which simplifies audit trails but reduces realism around detection uncertainty.
 
 ---
 
@@ -1125,6 +1167,9 @@ We compared baseline amounts (S2) to with‑fraud amounts (S3).
 1. Real fraud often exhibits **behavioral changes** beyond amount (timing anomalies, declines, routing). Those are absent.
 2. Because the uplift is deterministic and always positive, the fraud signal becomes **too clean** and may over‑estimate model separability.
 
+**Additional interpretation:**  
+Uniform uplift makes the fraud signal **almost entirely amount‑driven**. This can lead to **shortcut learning**, where a model infers “high amount = fraud” rather than learning multi‑feature fraud dynamics.
+
 ---
 
 ### 13.5 Event‑stream consistency under fraud overlay
@@ -1136,6 +1181,9 @@ We compared baseline amounts (S2) to with‑fraud amounts (S3).
 
 **How to interpret this:**
 The overlay does **not alter the event template** or timing. Fraud flows are simply tagged and amount‑shifted, then emitted as the same two events.
+
+**Additional interpretation:**  
+Event‑level signals such as **declines, reversals, step‑ups, or delayed settlements** are absent. That limits the dataset’s usefulness for any model that relies on sequence patterns rather than just static flow features.
 
 ---
 
@@ -1419,6 +1467,9 @@ This phase evaluates the **truth labels**, **bank‑view outcomes**, and **case 
 **Why it matters for realism:**
 Truth labels are the ground truth. If they are saturated and mis‑mapped, they **invalidate model training and evaluation**. Any model trained on this truth surface will learn that “everything is fraud,” which is unusable.
 
+**Additional interpretation:**  
+With truth saturated, even basic metrics like precision/recall or ROC curves become **meaningless** because there is no negative class. This also contaminates any downstream surfaces (bank‑view and cases) that depend on truth, because they are effectively calibrated against a **broken reference**.
+
 ---
 
 ### 14.2 Bank‑view labels — alignment and realism
@@ -1443,6 +1494,9 @@ Truth labels are the ground truth. If they are saturated and mis‑mapped, they 
 **Why it matters for realism:**
 Bank‑view labels represent how the institution would detect/handle fraud. If these are not aligned with truth, any “detect vs truth” evaluation will be misleading, and case‑generation realism collapses.
 
+**Additional interpretation:**  
+The current bank‑view surface effectively treats **non‑fraud as fraud at scale** and fails to elevate many true frauds. This inverts the operational narrative and can lead to unrealistic case volumes, disputes, and chargebacks, which are **critical for explainability** in downstream decision models.
+
 ---
 
 ### 14.3 Event‑level labels — consistency (sampled)
@@ -1460,6 +1514,9 @@ We sampled 5 parquet files from `s4_event_labels_6B` and checked intra‑flow co
 
 **Why it matters for realism:**
 Label consistency is good, but incomplete event emission can introduce **silent bias** in event‑level training or replay.
+
+**Additional interpretation:**  
+Even a small number of missing events can bias temporal models because **event sequences are short** in this lean build. If one of two events is missing, the entire flow‑level sequence becomes ambiguous.
 
 ---
 
@@ -1495,6 +1552,9 @@ Label consistency is good, but incomplete event emission can introduce **silent 
 
 **Why it matters for realism:**
 Over‑generated and templated cases make downstream label modelling unrealistic and can create misleading case‑severity patterns.
+
+**Additional interpretation:**  
+Case timelines in real systems are **long‑tailed and heterogeneous** (some cases resolve quickly, others linger for weeks). Fixed 1‑hour or 24‑hour durations remove that heterogeneity and make the dataset **operationally implausible** for any case‑level analytics.
 
 ---
 
@@ -1769,6 +1829,9 @@ Phase 6 ties together all prior phases with **quantified chain metrics**, **sign
 1. The chain is **structurally intact** (no drop‑offs across layers).
 2. The case coverage rate is **extremely high** for operational realism; it suggests that case generation is **over‑triggered**.
 
+**Additional interpretation:**  
+Perfect parity across arrivals, flows, and labels confirms the pipeline is **mechanically correct**, but it also means any realism issues are **not due to data loss** — they are due to **policy or labeling behavior**. The unusually high case coverage implies that **case creation is closer to a default outcome** than an exception, which is not typical in real portfolios.
+
 ---
 
 ### 15.2 Signal preservation checks (S1/S2 → S4)
@@ -1781,6 +1844,9 @@ Phase 6 ties together all prior phases with **quantified chain metrics**, **sign
 
 **Why it matters for realism:**
 Without truth variance, you cannot evaluate whether the dataset carries explainable or realistic fraud patterns. This is a hard realism blocker.
+
+**Additional interpretation:**  
+Signal preservation is the bridge between **behavioral features** (S1/S2) and **labels** (S4). With a collapsed truth label, that bridge is broken, so any downstream “explainability” narrative is **logically unsupported**, regardless of how clean the upstream statistics look.
 
 ---
 
@@ -1807,6 +1873,9 @@ Rates fall in a **tight 0.150–0.158 band**, with no meaningful separation betw
 **Why it matters for realism:**
 Real bank‑view systems are **risk‑stratified**. Uniform rates erase the very signals fraud systems rely on.
 
+**Additional interpretation:**  
+Uniform bank‑view rates also make **threshold tuning meaningless**, because there is no distributional gradient to tune against. This results in a synthetic environment where “risk” is **decoupled from observable features**, which is not operationally realistic.
+
 ---
 
 ### 15.4 Bank‑view vs truth calibration (sample)
@@ -1821,6 +1890,9 @@ Because truth is all‑True, calibration collapses into a single‑class problem
 1. “Recall” is ~15.5%, but **precision and specificity are undefined**.
 2. Calibration cannot be evaluated until truth labels are corrected.
 
+**Additional interpretation:**  
+Any attempt to compute ROC/AUC or PR curves in this state will **collapse to trivial shapes**, because the negative class is empty. This means the dataset cannot support **quantitative evaluation** of detection quality.
+
 ---
 
 ### 15.5 Case‑timeline integrity (sample recap)
@@ -1830,6 +1902,9 @@ From Phase‑5 sampling:
 
 **How to interpret this:**
 The case timeline is **structurally present but temporally invalid**. This breaks any temporal realism claims.
+
+**Additional interpretation:**  
+Even if case event types are correct, **time reversals** invalidate durations and lag features. That makes analytics like “time‑to‑chargeback” or “dispute delay” **untrustworthy**, which is fatal for any case‑lifecycle modeling.
 
 ---
 
@@ -1862,6 +1937,9 @@ We computed Gini coefficients for the key concentration surfaces.
 **Why it matters for realism:**
 Real datasets typically show **heavy‑tails for both merchants and customers** (repeat victimization, repeat offenders). Here, only merchant‑side concentration appears, which makes the fraud surface **one‑sided** and less realistic.
 
+**Additional interpretation:**  
+A Gini near 0.18 for parties implies **most parties look statistically similar** in activity, which is atypical in payment systems where a long tail of highly active users exists. Without that tail, models that rely on “unusual activity volume” signals will be under‑trained.
+
 ---
 
 ### 16.2 Class imbalance (truth, bank, campaign)
@@ -1892,6 +1970,9 @@ We quantified the distribution of labels and campaigns.
 **Why it matters for realism:**
 Severe imbalance means models learn only the dominant class and fail on rare types. A realistic synthetic dataset should **intentionally shape** rare‑class frequencies, not collapse them.
 
+**Additional interpretation:**  
+If the goal is to simulate a production portfolio, ATO and other rare types should still be **statistically visible**. Otherwise, any model trained on this data will **under‑detect** those behaviors, and any evaluation of case workflows tied to rare types will be misleading.
+
 ---
 
 ### 16.3 Stratified realism (region, country, class)
@@ -1912,6 +1993,9 @@ Classes sit in the **0.150–0.158** band.
 
 **Why it matters for realism:**
 Risk stratification is a core realism requirement. Uniform rates across all strata indicate a **non‑risk‑aware label generator**, which reduces explanatory power for any model trained on this data.
+
+**Additional interpretation:**  
+Uniform stratified rates also make it impossible to validate fairness or bias assumptions. If all strata have the same risk, there is **no way to test** whether the synthetic world preserves realistic disparities or operational priorities.
 
 ---
 
@@ -1939,6 +2023,9 @@ We computed the Herfindahl–Hirschman Index (HHI) for the same concentration su
 
 **Why it matters for realism:**
 A realistic dataset usually has **heavy‑tails on both sides** (merchant and party). Here, only merchant‑side concentration is present.
+
+**Additional interpretation:**  
+An HHI of **0.0246** for fraud per merchant implies the “effective” number of merchants carrying fraud is **small** relative to the total merchant count. This makes fraud look **highly centralized**, which can be realistic for collusion but not for broad fraud ecosystems.
 
 ---
 
@@ -1970,6 +2057,9 @@ We computed top‑1, top‑1%, top‑5%, and top‑10% shares to visualize tail 
 **Why it matters for realism:**
 This reinforces the one‑sided heavy‑tail diagnosis: merchant‑side concentration exists, but party‑side activity is unrealistically uniform.
 
+**Additional interpretation:**  
+The contrast between ~17% top‑10% party share and ~59% top‑10% merchant fraud share is stark. It means **fraud is concentrated far more than legitimate activity**, which can cause models to over‑rely on merchant identity as the dominant fraud signal.
+
 ---
 
 ### 16.7 Stratified Gini — fraud per merchant by region
@@ -1988,6 +2078,9 @@ We computed merchant‑level fraud concentration by region.
 
 **Why it matters for realism:**
 Regional asymmetry suggests the overlay is not evenly balanced across geo surfaces. This can distort regional realism and bias any geo‑stratified models.
+
+**Additional interpretation:**  
+If regional concentration is not policy‑driven, it may indicate **unintended coupling** between region and merchant volume. That can skew fairness assessments and make regional risk interpretation unreliable.
 
 ---
 
@@ -2009,6 +2102,9 @@ Phase 8 provides **formal statistical evidence** for the qualitative conclusions
 **Why it matters for realism:**
 Real bank‑view systems are class‑sensitive. The near‑zero V demonstrates a **non‑risk‑aware label generator**.
 
+**Additional interpretation:**  
+This implies that even if the dataset contains class labels, **those labels do not shape outcomes**. Any analytics that assume higher online risk or lower fuel risk will be **unsupported** by the data.
+
 ---
 
 ### 17.2 Bank‑view vs cross‑border (Chi‑square)
@@ -2024,6 +2120,9 @@ Real bank‑view systems are class‑sensitive. The near‑zero V demonstrates a
 
 **Why it matters for realism:**
 Geographic risk is one of the most common fraud signals. A zero association indicates **missing realism** in bank‑view decisions.
+
+**Additional interpretation:**  
+Without geographic sensitivity, cross‑border risk signals become **non‑explanatory**, which removes a major realism axis for compliance and operational narratives.
 
 ---
 
@@ -2041,6 +2140,9 @@ We tested whether higher amounts are more likely to be bank‑flagged.
 **Why it matters for realism:**
 Real systems exhibit amount‑sensitivity (larger transactions carry higher scrutiny). The absence of any amount effect further confirms a **flat, non‑risk‑aware bank‑view surface**.
 
+**Additional interpretation:**  
+This also means “high‑value” transactions are **not preferentially escalated**, which is counter to typical bank policy. As a result, the dataset cannot be used to validate amount‑based alert thresholds.
+
 ---
 
 ### 17.4 Bank‑view vs fraud_flag (Chi‑square)
@@ -2056,6 +2158,9 @@ We tested whether bank‑view labels at least align with the fraud overlay.
 
 **Why it matters for realism:**
 Bank‑view outcomes should be more strongly tied to fraud overlays. This weak association indicates a **core realism defect** in S4.
+
+**Additional interpretation:**  
+If bank‑view labels barely align with fraud overlays, then **precision/recall analyses are meaningless**, and case timelines derived from bank‑view are effectively decoupled from fraud reality.
 
 ---
 
@@ -2073,6 +2178,9 @@ We tested whether fraud overlays are targeted by merchant class.
 **Why it matters for realism:**
 Real fraud campaigns cluster in class‑specific ways (e.g., online tests, travel abuse). The absence of class targeting reduces realism.
 
+**Additional interpretation:**  
+This makes fraud overlays look like a **global random mask**, which removes the narrative realism of campaign‑specific behavior. It also undermines any attempt to test **class‑aware detection logic**.
+
 ---
 
 ### 17.6 Fraud overlay vs party segment (Chi‑square)
@@ -2088,6 +2196,9 @@ We tested whether fraud overlays are targeted by party segment.
 
 **Why it matters for realism:**
 Segment‑level targeting is a natural realism lever. Its absence means the dataset lacks segment‑conditioned fraud patterns.
+
+**Additional interpretation:**  
+Segment neutrality implies that **affluent vs value** or **business vs retail** profiles do not influence fraud assignment. That removes a common source of explainability and reduces the usefulness of segment features in downstream models.
 
 ---
 
@@ -2105,6 +2216,9 @@ We tested whether fraud flows differ in amount magnitude.
 
 **Why it matters for realism:**
 A strong amount shift is realistic only if it is **campaign‑specific and varied**. In this dataset it is **uniform uplift**, which risks over‑separating fraud from legit in a non‑realistic way.
+
+**Additional interpretation:**  
+Because uplift is uniform, the model can separate fraud using a **single scalar threshold** on amount. That is a **shortcut** compared to real fraud detection, where separation requires multi‑feature context.
 
 ---
 
