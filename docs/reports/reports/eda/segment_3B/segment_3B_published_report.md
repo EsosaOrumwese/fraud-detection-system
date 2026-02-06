@@ -422,6 +422,27 @@ Because the catalogue is perfectly uniform (constant edge counts, constant weigh
 
 (Next: diagnostic plots and targeted remediation ideas if we decide to improve realism in 3B.)
 
+### 14.1 Plot action matrix (keep / fix / replace)
+This pass was done to make each visual directly test a report claim, remove weak chart mechanics, and standardize presentation style across the full deck.
+
+| Plot | Action | Why |
+|---|---|---|
+| `A1_virtual_rate_by_mcc.png` | `fix` | Keep the same evidence surface, but improve ranking/label readability so sparsity is obvious. |
+| `A2_virtual_rate_by_channel.png` | `keep` | Strong direct support for channel-gating claim. |
+| `A3_virtual_rate_by_country.png` | `fix` | Keep country lens but improve readability and sample-size annotation. |
+| `A4_virtual_rate_mcc_channel_heatmap.png` | `keep` | Best compact view of MCC×channel rule sparsity. |
+| `B5_settlement_density_hexbin.png` | `fix` | Shift to coordinate-level duplicate encoding (size+color) to expose concentration/duplication jointly. |
+| `B6_settlement_coord_duplicates.png` | `keep` | Directly quantifies duplicate severity profile. |
+| `B7_settlement_tzid_top15.png` | `keep` | Direct evidence for settlement-hub concentration. |
+| `C_uniformity_summary.png` | `replace` | Replaced card-style summary with merchant-level metric distributions to prove collapse with less ambiguity. |
+| `C_country_allocation_profile.png` | `keep` | Still the cleanest global allocation profile view. |
+| `C_merchant_country_overlay.png` | `fix` | Keep merchant-profile comparison, but normalized and reordered for overlap visibility. |
+| `C_edge_density_hexbin_log.png` | `keep` | Correct macro geography lens for edge placement concentration. |
+| `D1_alias_length_vs_edge_count.png` | `fix` | Keep parity check, add explicit mismatch/uniqueness QC annotation. |
+| `D2_edge_weight_vs_alias_prob.png` | `fix` | Expand sample + add max-error cue so fidelity claim is statistically explicit. |
+| `E1_edge_distance_to_settlement.png` | `keep` | Strong distance realism lens with interpretable quantile markers. |
+| `E2_settlement_country_overlap.png` | `keep` | Best cross-layer coherence diagnostic (zoom + full-scale panel). |
+
 ---
 
 ## 15) Visual diagnostics (Set A + B: virtual classification & settlement anchors)
@@ -445,7 +466,7 @@ The n‑labels reinforce the imbalance: the **card_present base is much larger**
 ### 15.3 Virtual rate by legal country (Top 20)
 <img src="plots/A3_virtual_rate_by_country.png" width="560" alt="Virtual rate by legal country">
 
-Virtual rates are near‑zero in most of the top‑20 countries, with only a couple showing modest elevation (e.g., HK, IS). This suggests very weak country sensitivity in the classification policy. A realistic overlay typically shows some geographic skew (jurisdictions with more digital‑heavy merchant mix), but this plot shows **minimal country differentiation**, reinforcing a flat synthetic profile.
+Virtual rates are near‑zero in most of the top‑20 countries, with only a small subset showing modest elevation. This suggests weak country sensitivity in the classification policy. A realistic overlay typically shows some geographic skew (jurisdictions with more digital‑heavy merchant mix), but this plot shows **minimal country differentiation**, reinforcing a flat synthetic profile.
 The bars are not only low but also **clustered tightly**, which implies country is either not used in the rule logic or is being overridden by a dominant MCC/channel rule. For realism, we would expect **some countries to stand out** (even modestly) rather than a near‑zero band across the entire top‑20 list.
 
 ---
@@ -461,7 +482,7 @@ The heatmap annotation reinforces that this is not a subtle gradient: most cells
 ### 15.5 Settlement locations (size/color = duplicates)
 <img src="plots/B5_settlement_density_hexbin.png" width="560" alt="Settlement locations with duplicates">
 
-This map shows each unique settlement coordinate, with **size and color encoding how many merchants share the same coordinate**. The clustering in Europe and a few offshore hubs is clear, while much of the globe is lightly covered. This makes the concentration issue visually obvious without the ambiguity of a hexbin: the settlement anchors are plausible in isolation, but the global spread is **narrow** relative to the merchant universe. The larger/bright points indicate small pockets of duplication rather than massive collapse.
+This coordinate-level map shows each unique settlement coordinate, with **size and color encoding how many merchants share the same coordinate**. The clustering in Europe and a few offshore hubs is clear, while much of the globe is lightly covered. The settlement anchors are plausible in isolation, but the global spread is **narrow** relative to the merchant universe. The larger/bright points indicate small pockets of duplication rather than massive collapse.
 You can see that **most points are small and dark** (single‑merchant locations), while a handful of brighter/larger points indicate 2–4 merchants sharing the same coordinates. The spatial footprint is therefore **not globally uniform**; it is concentrated in Western Europe and a few Atlantic/Asian hubs, which may be plausible for a narrow virtual policy but feels **under‑diversified** for a broad synthetic marketplace.
 
 ---
@@ -495,7 +516,8 @@ These plots focus on the edge catalogue itself, since it is the primary realism 
 ### 16.1 Uniformity summary (edge catalogue)
 <img src="plots/C_uniformity_summary.png" width="520" alt="Edge catalogue uniformity summary">
 
-The card panel shows **single‑value outcomes** for all core metrics: every merchant has **500 edges**, every merchant appears in **117 countries**, the **edge weight is a single value (0.002)**, and the **Top‑1 share is the same for all merchants**. The “unique=1, std=0” notes confirm there is **no variability at all** across merchants. This is a visual proof of uniformity, not a plotting artifact.
+The refreshed panel now shows merchant-level distributions for four metrics in one view: edge count, distinct country count, top‑1 country share, and normalized entropy. Each subplot collapses into a single spike (or near-single spike), with `unique=1` markers where applicable. That is the clearest possible visual proof that merchant-level edge behavior is effectively identical across the population.
+Because these are distribution plots rather than scalar cards, the reader can immediately verify that the collapse is not a formatting artifact. The evidence now directly matches the claim: **heterogeneity is absent at merchant level**.
 
 ---
 
@@ -535,14 +557,16 @@ These plots verify whether alias tables preserve the weight distribution and whe
 ### 17.1 Alias table length vs edge count
 <img src="plots/D1_alias_length_vs_edge_count.png" width="520" alt="Alias table length vs edge count">
 
-This plot collapses to a **single point** at **(500, 500)** with **n=309** overlapping merchants. That means **every merchant has exactly 500 edges** and **every alias table has exactly 500 slots**, so the alias table length scales *perfectly* with edge count — but only because the edge counts are fixed. From a correctness standpoint, this is fine: the alias index is aligned with the edge catalogue. From a realism standpoint, it is a red flag because the system is **not exercising any size variability** (small vs large merchants, regional vs global merchants). The alias mechanism is therefore never tested against different edge volumes, which makes the virtual layer feel artificially uniform.
+This parity plot still collapses to a single point pattern, but now includes explicit QC annotations (merchant count, mismatch count, and uniqueness of both axes). It shows alias length and edge count are perfectly aligned for all merchants in this run, i.e., no index-table mismatch defects.
+From a realism perspective, the same figure also exposes the structural weakness: parity passes because all merchants share the same edge cardinality. So this is a **correctness pass with realism collapse**.
 
 ---
 
 ### 17.2 Edge weight vs alias probability (sample merchants)
 <img src="plots/D2_edge_weight_vs_alias_prob.png" width="520" alt="Edge weight vs alias probability">
 
-This scatter compares **decoded alias probabilities** against **edge weights** for three sample merchants (3 × 500 edges = **1,500 points**). All points overlap at **~0.002** (shown clearly by the transparent stacking), which exactly matches the edge weight **1/500**. That is excellent for **alias fidelity**: decoding the blob reproduces the weights without drift or distortion. However, it also shows that the **entire weight distribution is flat**, so the alias layer faithfully preserves uniformity rather than introducing realistic skew. In realism terms, routing will sample edges as if every location is equally likely, which contradicts how real CDN footprints and merchant traffic usually behave.
+This scatter compares decoded alias probabilities against edge weights for a 5-merchant sample (5 × 500 = 2,500 points). The refresh adds an explicit max-absolute-error annotation, which remains effectively zero on the plotted scale. So the fidelity claim is now visually and numerically explicit: alias decoding preserves weights.
+The same plot also preserves the realism conclusion: all points sit on the same tiny region because the weight distribution itself is flat. Alias machinery is accurate, but it is accurately encoding a non-realistic uniform profile.
 
 ---
 
