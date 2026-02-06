@@ -144,6 +144,14 @@ concentrated in a small subset of their zones, which is a realistic pattern if
 merchants operate in a few core markets while still being mapped to a wider
 zone universe.
 
+Plot evidence:
+![Site presence vs nonzero volume contingency](plots/01_zero_volume_site_contingency.png)
+
+Interpretation from the figure:
+1. The contingency matrix mass is concentrated in the diagonal cells (`no site/no volume` and `site/volume`), with off-diagonal cells at zero.
+2. This visually confirms that sparsity is induced upstream by site allocation rather than by downstream clipping or missing joins.
+3. The large `no site/no volume` cell explains why overall zero-rate is high while still being mechanically consistent.
+
 ### 7.2 B) Class distribution by merchant size tier
 Size tiers are quartiles of `weekly_volume_total_expected`  
 (`merchant_class_profile_5A`).
@@ -164,6 +172,14 @@ office‑hours patterns. This indicates that size is not arbitrary noise; it has
 an interpretable relationship with behavior class. The effect is not extreme
 (consumer_daytime remains common across all tiers), which is what we want if we
 expect overlap between classes but still some real structural difference.
+
+Plot evidence:
+![Class mix by size tier and top countries](plots/09_class_mix_size_country.png)
+
+Interpretation from the figure:
+1. The left panel shows the same size-tier effect described above: larger tiers carry relatively more `online_24h` and `fuel_convenience` than micro/small tiers.
+2. The mix is not one-hot; `consumer_daytime` remains present in every tier, which supports overlap realism.
+3. The right panel foreshadows the country-coupling finding: top countries have materially different class composition, which contributes to aggregate concentration.
 
 ### 7.3 A) Deeper zone‑sparsity mechanics (S2–S4)
 Key diagnostics:
@@ -231,6 +247,14 @@ still conserve at the merchant‑country level. The mechanics are deterministic
 and auditable, which is desirable for reproducibility and for explaining why
 any given zone is active or inactive.
 
+Plot evidence:
+![Priors to shares to counts transition](plots/03_priors_shares_counts_transition.png)
+
+Interpretation from the figure:
+1. Active and inactive zones separate strongly in `share_drawn` and `fractional_target`, making the activation mechanism visually explicit.
+2. Inactive zones cluster near machine-zero share/target values, which explains why they remain zero after rounding.
+3. The progression from prior/share metrics to target metric shows continuity rather than abrupt, unexplained thresholding.
+
 ### 7.5 B) Deeper class‑size realism tests
 Association strength:
 - Chi‑square p = **2.18e‑15**, dof = 21  
@@ -293,6 +317,16 @@ activity is distributed across the active zones once the total scale is set.
 This separation—allocation controls totals, shares control relative intensity—
 is coherent and interpretable.
 
+Plot evidence:
+![Multicollinearity diagnostics](plots/04_multicollinearity_diagnostics.png)
+![Raw vs log driver dominance](plots/05_driver_dominance_raw_vs_log.png)
+
+Interpretation from the figures:
+1. The predictor-correlation panel and direct scatter show near-degeneracy between `zone_site_count` and `fractional_target`, matching the extreme VIF values.
+2. The raw-scale R² bars show allocation variables saturating explanatory power, while share-only contribution is minimal.
+3. The log-scale panel reverses that emphasis: `share_drawn` becomes comparatively more informative for relative intensity.
+4. Together, these plots make the “magnitude vs distribution” split in driver roles concrete and readable.
+
 ### 7.7 A) Country‑level sparsity elasticity
 Country‑level sparsity uses `row_site_share = rows_with_sites / rows`.
 
@@ -316,6 +350,15 @@ relationship with `alpha_sum_country` implies that countries with higher alpha
 are assigned activity more conservatively across zones. Interpreting the logit
 coefficient, a 1% increase in alpha corresponds to roughly a 3.3% decrease in
 the odds that a zone is active, which is a sizable elasticity.
+
+Plot evidence:
+![Country sparsity elasticity](plots/06_country_sparsity_elasticity.png)
+![share_sum_country invariance](plots/07_share_sum_country_invariance.png)
+
+Interpretation from the figures:
+1. The elasticity plot shows a clear negative slope for both row-level and merchant-level sparsity summaries versus `log(alpha_sum_country)`, supporting robustness.
+2. The invariance panel shows country-level deviations of `share_sum_country` are effectively null, so it cannot explain cross-country sparsity patterns.
+3. This pair isolates the operative lever (`alpha_sum_country`) from a non-operative one (`share_sum_country`).
 
 ### 7.8 A) Regression refit (remove multicollinearity)
 Refit on nonzero rows, dropping one of the collinear predictors.
@@ -405,6 +448,14 @@ with a late‑evening peak, and `online_24h` is the flattest profile with the
 largest night share. This indicates the class labels correspond to distinct
 behavioral rhythms rather than arbitrary templates.
 
+Plot evidence:
+![Class temporal archetype map](plots/10_temporal_archetype_map.png)
+
+Interpretation from the figure:
+1. The heatmap exposes class-specific hour structure directly, including daytime-centric and evening/night-centric signatures.
+2. The weekend-share side panel complements the hour map by showing class-level weekend intensity differences on a single scale.
+3. This visual pairing helps readers separate “shape realism” from “volume realism.”
+
 ### 8.3 Baseline construction integrity
 Finding: For every nonzero merchant‑zone, the baseline intensities exactly
 sum to weekly expected volume (`sum(lambda_local_base) = weekly_volume_expected`),
@@ -476,6 +527,14 @@ used to align weekly baseline buckets becomes slightly misaligned for part of
 the horizon. This introduces small local mismatches but does not affect total
 mass. The pattern is isolated to DST‑shifting timezones, which confirms DST is
 the root cause rather than a structural bug.
+
+Plot evidence:
+![DST residual diagnostics](plots/12_dst_residual_diagnostics.png)
+
+Interpretation from the figure:
+1. The timezone-date heatmap localizes residual mismatch in DST transition windows instead of spreading it uniformly over the horizon.
+2. The grouped mismatch plot by DST-shift category shows higher mismatch for DST-shifting zones than non-shifting zones.
+3. This converts the DST claim from a scalar statistic into a clear spatiotemporal pattern.
 
 ---
 
@@ -585,6 +644,14 @@ Finding: Policy expects all channel groups, but the run produces only
 Explanation: This is a **policy‑realization gap**. Temporal differences between
 card‑present vs card‑not‑present are not realized in this run, even though the
 policy is structured to support them.
+
+Plot evidence:
+![Observed channel-group realization](plots/13_channel_group_realization.png)
+
+Interpretation from the figure:
+1. The bar chart shows effective collapse to `channel_group = mixed`.
+2. This directly supports the report’s “missing channel realism” gap and explains why CP/CNP differences are absent in the observed outputs.
+3. The gap is therefore a realization/configuration issue, not an inference artifact from downstream aggregation.
 
 ### 11.2 D — Overlay realism is bounded and conservative
 Finding: Scenario event amplitudes are **inside policy bounds**:
@@ -811,6 +878,14 @@ Explanation: The “midnight peak” artifact disappears once tail‑zones are
 filtered. The cleaned signal shows plausible mid‑day peaks across TZs, which
 is a more realistic dispersion pattern.
 
+Plot evidence:
+![Tail-zone artifact in macro hour profile](plots/11_tailzone_artifact_macro_shape.png)
+
+Interpretation from the figure:
+1. The left panel shows how the hour profile changes across `all zones`, `non-trivial TZs`, and `primary+secondary`.
+2. The filtered profiles preserve the mid-day structure while removing low-mass artifacts from tail zones.
+3. The trim-ratio panel shows that removing tail zones changes total mass modestly but clarifies temporal shape interpretation.
+
 **Hour‑of‑day totals (baseline, summed lambda_local_base)**  
 Totals are shown for non‑trivial TZIDs and for primary+secondary zones.
 
@@ -855,6 +930,14 @@ Top‑1% merchants account for **29.8%** of total volume; top‑5% account for
 Explanation: The distribution is strongly heavy‑tailed. A small head captures
 roughly half of total volume, which is a realistic macro pattern for merchant
 activity in synthetic worlds.
+
+Plot evidence:
+![Merchant heavy-tail concentration](plots/08_merchant_heavytail_concentration.png)
+
+Interpretation from the figure:
+1. The Lorenz curve quantifies inequality shape and confirms a clear heavy-tail structure.
+2. The top-k panel makes concentration operationally interpretable (`top1`, `top5`, `top10` shares).
+3. This visual form is easier for readers to calibrate than percentile tables alone.
 
 **G1b. Scale‑factor distribution (zone‑level, nonzero)**  
 Finding (2,158 nonzero zones): mean **1.259**, p50 **0.898**, p90 **1.988**,
@@ -1085,6 +1168,14 @@ to **3** (top decile), and p90 rises from **2** to **10**.
 Explanation: Larger merchants are active in more zones, which partly explains
 the heavy tail. The total number of zones (including dormant tail zones)
 matters less than the count of **active** zones.
+
+Plot evidence:
+![Active-zone breadth vs merchant volume](plots/02_active_zone_breadth_vs_volume.png)
+
+Interpretation from the figure:
+1. The hexbin panel shows a positive association between active-zone breadth and merchant scale.
+2. The median trend panel highlights that scale rises as active-zone count increases.
+3. Read with the accompanying decile summaries, this supports using active footprint as the primary explanatory lens for merchant scale.
 
 ### 15.2 Country‑class coupling (top‑volume countries)
 Finding: Class mix differs substantially by country:
