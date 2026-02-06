@@ -1645,3 +1645,98 @@ Event labels are **complete and fully aligned in count** with the flow surface, 
 
 **Why it matters for realism:**
 This provides a reliable base for event‑level modelling despite the truth/bank‑view issues. Coverage is not the problem; label semantics are.
+
+---
+
+### 14.13 Case‑event integrity at scale (monotonicity + schema completeness)
+We sampled 10 case parquet files to test timestamp monotonicity and event completeness.
+
+**Monotonicity (sample):**
+1. Negative timestamp gaps: **461,692**
+2. Cases with at least one negative gap: **461,692** (all sampled cases)
+
+**Schema completeness (sample):**
+1. Missing `CASE_OPENED`: **0**
+2. Missing `CASE_CLOSED`: **0**
+
+**How to interpret this:**
+1. Event types are present (open/close exist), so the **case schema is complete**.
+2. However, **every sampled case violates timestamp monotonicity**. This means `case_event_seq` does **not** represent a time‑ordered sequence, or timestamps are being assigned out of order.
+
+**Why it matters for realism:**
+Case timelines are temporal narratives. If time ordering is broken, the timeline becomes **non‑credible** for any temporal analysis (e.g., dispute lag, chargeback latency).
+
+---
+
+### 14.14 Bank‑view vs amount (risk scaling)
+We measured bank‑view fraud rates across amount bins.
+
+**Bank fraud rate by amount bin:**
+1. (0, 5]: **0.154994**
+2. (5, 10]: **0.154966**
+3. (10, 20]: **0.155131**
+4. (20, 30]: **0.155063**
+5. (30, 50]: **0.155016**
+6. (50, 100]: **0.154961**
+7. (100, 200]: **0.221164** *(tiny n)*
+8. (200, 1000]: **0.195724** *(tiny n)*
+
+**How to interpret this:**
+1. Across all realistic bins (0–100), the bank‑fraud rate is **flat** at ~0.155.
+2. The two highest bins show higher rates, but those bins have **very small counts**, so the increase is likely sampling noise.
+
+**Why it matters for realism:**
+Real bank‑view models show **risk scaling with amount**. The flat profile suggests the bank‑view process is **amount‑agnostic**, which is not realistic.
+
+---
+
+### 14.15 Bank‑view vs merchant size (risk scaling)
+We grouped merchants into size deciles by flow volume and computed bank‑fraud rates.
+
+**Bank fraud rate by size decile:**
+- Deciles 1–10 all fall within **0.1546–0.1555**.
+
+**How to interpret this:**
+1. Bank‑view outcomes are **independent of merchant size**.
+2. This indicates a **uniform label allocator**, not a risk‑sensitive decision model.
+
+**Why it matters for realism:**
+Merchant size often correlates with fraud exposure and detection posture. A flat rate erases this signal entirely.
+
+---
+
+### 14.16 Bank‑view vs geography (sampled 5M flows)
+We computed bank‑fraud rates by cross‑border and by top corridors on a 5M‑flow sample.
+
+**Cross‑border vs domestic:**
+1. Cross‑border: **0.155140**
+2. Domestic: **0.154675**
+
+**Top corridors (sample):**
+- All top corridors fall in the **0.154–0.156** band.
+
+**How to interpret this:**
+1. Bank‑view fraud rates are **flat across geography**.
+2. There is **no corridor risk stratification**; even domestic corridors look identical to cross‑border.
+
+**Why it matters for realism:**
+Geographic risk is a standard feature in operational fraud systems. The uniformity here indicates a **non‑geographic bank‑view policy**.
+
+---
+
+### 14.17 Truth vs campaign enforcement (all fraud flows)
+We verified that campaign types map to truth labels as intended.
+
+**Observed mapping:**
+1. `T_CARD_TESTING_BURST` → **FRAUD**
+2. `T_ATO_ACCOUNT_SWEEP` → **FRAUD**
+3. `T_REFUND_ABUSE` → **ABUSE**
+4. `T_PROMO_FRAUD_EVENTS` → **ABUSE**
+5. `T_BONUS_ABUSE_FLOW` → **ABUSE**
+
+**How to interpret this:**
+1. Campaign‑level truth mapping is **correct** for fraud flows.
+2. Therefore, the global truth defect (all flows flagged True) does **not** come from campaign mapping logic.
+
+**Why it matters for realism:**
+This narrows the fault domain: the truth defect likely sits in **default/override handling** rather than in the campaign mapping rules themselves.
