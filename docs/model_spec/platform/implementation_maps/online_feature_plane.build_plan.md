@@ -93,6 +93,7 @@ Provide a closure-grade, component-scoped plan for OFP aligned to platform Phase
 
 ### Phase 6 - Rebuild and replay determinism (4.3.F, 4.3.H)
 **Intent:** prove OFP can be rebuilt and matched.
+**Status:** completed (2026-02-06, component scope).
 
 **DoD checklist:**
 - Replay from same basis yields identical `snapshot_hash` and values.
@@ -104,6 +105,10 @@ Provide a closure-grade, component-scoped plan for OFP aligned to platform Phase
   - same feature definitions
   - same basis
   - same expected `snapshot_hash` behavior
+- Evidence:
+  - `python -m pytest tests/services/online_feature_plane/test_phase6_replay.py -q` -> `4 passed`
+  - `python -m pytest tests/services/online_feature_plane -q` -> `18 passed`
+  - parity contract doc: `docs/model_spec/platform/contracts/real_time_decision_loop/ofp_ofs_parity_contract_v0.md`
 
 ### Phase 7 - Health and observability (4.3.G)
 **Intent:** expose actionable operational truth to DL and operators.

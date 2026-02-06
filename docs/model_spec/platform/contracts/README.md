@@ -58,6 +58,7 @@ These live under:
 - `ofp_get_features_request.schema.yaml`
 - `ofp_get_features_response.schema.yaml`
 - `ofp_get_features_error.schema.yaml`
+- `ofp_ofs_parity_contract_v0.md`
 - `decision_payload.schema.yaml`
 - `degrade_posture.schema.yaml`
 - `action_intent.schema.yaml`

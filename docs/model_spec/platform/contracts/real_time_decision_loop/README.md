@@ -42,3 +42,6 @@ Decision/audit artifacts must carry:
 - `action_intent.schema.yaml`
 - `action_outcome.schema.yaml`
 - `audit_record.schema.yaml`
+
+## Companion contracts / policy notes
+- `ofp_ofs_parity_contract_v0.md` (offline/online parity identity + basis rules)

@@ -520,3 +520,74 @@ Implemented OFP Phase 5 query surface with explicit request validation, determin
   - graph_version stamped when graph dependency is consulted,
   - stale/missing dependencies surfaced as explicit posture flags for DF/DL degrade handling.
 - Integration-dependent phases (4.3.F-4.3.H) remain pending.
+
+---
+
+## Entry: 2026-02-06 17:31:00 - Phase 6 implementation plan (rebuild + replay determinism)
+
+### Problem / goal
+Close OFP Phase 6 (4.3.F) at component scope by proving deterministic rebuild/replay behavior and pinning OFP/OFS parity expectations around basis and snapshot hash semantics.
+
+### Authorities / inputs
+- `docs/model_spec/platform/implementation_maps/online_feature_plane.build_plan.md` (Phase 6 DoD)
+- `docs/model_spec/platform/implementation_maps/platform.build_plan.md` (4.3.F)
+- `docs/model_spec/platform/pre-design_decisions/real-time_decision_loop.pre-design_decision.md` (parity expectation)
+- `docs/model_spec/platform/component-specific/online_feature_plane.design-authority.md` (input_basis + replay-safe semantics)
+- Existing OFP projector/store/snapshot code and Phase 2-5 tests.
+
+### Decision
+Implement Phase 6 closure in two tracks:
+1. Determinism test coverage:
+   - same basis => same `snapshot_hash` and feature values across isolated rebuilds,
+   - restart/resume from checkpoints produces same terminal snapshot as single-pass processing,
+   - out-of-order event-time delivery (different file order, same event set) produces identical terminal snapshot hash and basis.
+2. Pin OFP/OFS parity contract in docs:
+   - same feature policy revision + same basis token (`eb_offset_basis`) + same graph token policy => same `snapshot_hash` expectations.
+
+### Planned files
+- `tests/services/online_feature_plane/test_phase6_replay.py` (new)
+- `docs/model_spec/platform/contracts/real_time_decision_loop/ofp_ofs_parity_contract_v0.md` (new)
+- `docs/model_spec/platform/contracts/real_time_decision_loop/README.md` (contract index update)
+- Potentially minor OFP runtime adjustments if tests expose non-determinism.
+
+### Validation plan
+- `python -m pytest tests/services/online_feature_plane/test_phase6_replay.py -q`
+- `python -m pytest tests/services/online_feature_plane -q`
+- Record evidence and update Phase 6 status in OFP/platform build plans.
+
+---
+
+## Entry: 2026-02-06 17:33:00 - Phase 6 implemented (rebuild + replay determinism)
+
+### Summary of implementation
+Closed OFP Phase 6 at component scope by adding deterministic replay/rebuild coverage and pinning an OFP/OFS parity identity contract.
+
+### Changes applied
+- Added Phase 6 replay determinism suite:
+  - `tests/services/online_feature_plane/test_phase6_replay.py`
+  - scenarios covered:
+    - isolated rebuilds from same event basis produce identical `snapshot_hash` + values,
+    - restart/resume from checkpoints converges to the same terminal snapshot as single-pass apply,
+    - out-of-order event-time arrival converges to identical terminal snapshot hash/basis,
+    - post-checkpoint reprocessing is a no-op for terminal snapshot hash.
+- Added OFP/OFS parity contract note:
+  - `docs/model_spec/platform/contracts/real_time_decision_loop/ofp_ofs_parity_contract_v0.md`
+  - pins parity identity tuple, basis identity, `graph_version` expectations, and mismatch posture.
+- Updated contract indexes:
+  - `docs/model_spec/platform/contracts/real_time_decision_loop/README.md`
+  - `docs/model_spec/platform/contracts/README.md`
+- Updated build plans:
+  - `docs/model_spec/platform/implementation_maps/online_feature_plane.build_plan.md` (Phase 6 status -> completed with evidence)
+  - `docs/model_spec/platform/implementation_maps/platform.build_plan.md` (4.3 status + 4.3.F evidence and invariant wording)
+
+### Validation
+- `python -m pytest tests/services/online_feature_plane/test_phase6_replay.py -q` -> `4 passed`
+- `python -m pytest tests/services/online_feature_plane -q` -> `18 passed`
+
+### DoD impact
+- Phase 6 DoDs are closed at OFP component scope:
+  - replay determinism proven for v0 projector/snapshot path,
+  - parity identity rules pinned for OFP/OFS comparison.
+- Remaining OFP component phases:
+  - Phase 7 (observability + health)
+  - Phase 8 (integration closure with DF/DL and runbook handoff)

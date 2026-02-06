@@ -460,7 +460,7 @@ These remain open and will be resolved during RTDL Phase 4 planning and partitio
 
 #### Phase 4.3 — OFP feature plane (graph → features)
 **Goal:** materialize reproducible feature snapshots.
-**Status:** in progress. 4.3.A projector intake, 4.3.B feature-definition/window authority, 4.3.C/4.3.D snapshot artifact+index primitives, and 4.3.E serve semantics are implemented at component scope; 4.3.F-4.3.H pending integration closure.
+**Status:** in progress. 4.3.A projector intake, 4.3.B feature-definition/window authority, 4.3.C/4.3.D snapshot artifact+index primitives, 4.3.E serve semantics, and 4.3.F replay determinism are implemented at component scope; 4.3.G-4.3.H pending integration closure.
 
 ##### 4.3.A — Inputs + basis pinning
 **Goal:** ensure OFP only consumes deterministic, run-scoped inputs.
@@ -511,7 +511,10 @@ These remain open and will be resolved during RTDL Phase 4 planning and partitio
 **DoD checklist:**
 - OFP is rebuildable from EB/archive + IEG basis; no manual repair without audit anomaly.
 - Replay from same basis yields identical snapshot_hash and contents.
-- Checkpoints advance only after durable snapshot index commit.
+- Projector checkpoints advance only after durable projection state commit; snapshot materialization is idempotent and does not mutate checkpoints.
+- Component-scope evidence:
+  - `python -m pytest tests/services/online_feature_plane/test_phase6_replay.py -q` -> `4 passed`
+  - `docs/model_spec/platform/contracts/real_time_decision_loop/ofp_ofs_parity_contract_v0.md`
 
 ##### 4.3.G — Observability + health
 **Goal:** actionable ops signals for RTDL.
