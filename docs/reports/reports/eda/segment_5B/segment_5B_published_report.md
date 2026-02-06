@@ -1,4 +1,3 @@
--- Active: 1770323154960@@127.0.0.1@3306
 # Segment 5B — Design vs Implementation Observations (Arrival Realisation)
 Date: 2026-02-05  
 Run: `runs\local_full_run-5\c25a2675fbfbacd952b13bb594880e92`  
@@ -188,11 +187,29 @@ Both `s2_realised_intensity_5B` and `s3_bucket_counts_5B` contain **multiple row
 
 Explanation: The surfaces are not strictly unique by key. This is a structural property of the pipeline: multiple modeling components can contribute to the same key (for example, multiple latent sub‑components or grouped fragments). That does **not** imply a bug by itself, but it changes how you interpret the data. For realism analysis, you **must aggregate by key** (sum `lambda_realised` or `count_N`) before comparing to arrivals; otherwise you will see false mismatches because you are comparing a single arrival total to a partial component. Once aggregated, the pipeline is internally consistent (see 8.3). The realism implication is: duplication is an **internal modeling representation**, not an artifact that changes the final arrival mass.
 
+Plot evidence:
+![S2/S3 duplicate-key anatomy](plots/01_duplicate_key_anatomy.png)
+
+Interpretation from the figure:
+1. The S2 and S3 panels have the same multiplicity shape, with most logical keys at component count `1` and a long but thinning tail from `2` to `6`.
+2. The log-scale y-axis is important. It shows that multiplicity above `3` is not absent, but several orders of magnitude smaller than the mass at `1` and `2`.
+3. This supports the statistical claim that duplication is structural composition, not random corruption. If the two panels diverged materially, that would suggest S3 changed key anatomy relative to S2; they do not.
+
 ### 8.3 Count conservation at key‑level (after aggregation)
 After aggregating S3 by key and comparing to arrival counts:
 1. **All keys match** (mismatch = 0, total_abs_diff = 0).
 
 Explanation: The apparent mismatches in sampled joins disappear once duplicate keys are aggregated. This confirms that S4 expands the **aggregated** S3 counts exactly as required, and that the duplication is a modeling representation rather than a data quality issue. In practical terms: if you collapse the internal components into their logical bucket, you get **perfect conservation**. That is the key realism guarantee we need before looking at timing, routing, or dispersion.
+
+Plot evidence:
+![Conservation before and after aggregation](plots/02_conservation_pre_post_scatter.png)
+![Conservation residual diagnostics](plots/03_conservation_residuals.png)
+
+Interpretation from the figures:
+1. In the pre-aggregation scatter, points are visibly spread away from the 45-degree identity line and the annotated mismatch rate is high. This is expected because component rows are being compared against full logical-key totals.
+2. In the post-aggregation scatter, the cloud collapses onto the identity line and mismatch goes to zero, which is the direct visual proof of conservation after key collapse.
+3. The residual histogram/ECDF pair makes the same point from another angle. Pre-aggregation residuals are broad and heavy; post-aggregation residuals collapse at zero.
+4. This two-view setup prevents a false diagnosis. Looking only at pre-aggregation plots would suggest counting defects; the post-aggregation view shows the pipeline is algebraically correct at logical-key level.
 
 ### 8.4 S2 latent intensity realism (B)
 Key statistics (`s2_realised_intensity_5B`):
@@ -280,6 +297,17 @@ Mismatch attribution (200,000‑row sample, 5,352 mismatches):
 
 Explanation: The mismatch is overwhelmingly driven by EU DST transitions, with a smaller US DST component. The “other” bucket likely reflects timezone edge cases with non‑standard DST rules (e.g., Africa/El_Aaiun). This confirms the issue is not random; it is a predictable DST handling gap concentrated in specific windows.
 
+Plot evidence:
+![DST offset distribution](plots/04_dst_offset_distribution.png)
+![DST mismatch by timezone and date](plots/05_dst_mismatch_date_tz_heatmap.png)
+![DST mismatch hour-shift matrix](plots/06_dst_hour_shift_matrix.png)
+
+Interpretation from the figures:
+1. The offset distribution is tri-modal at `-3600`, `0`, and `+3600` seconds, with `0` dominating. This confirms a mostly-correct clock with a specific one-hour class of failures.
+2. The timezone-date heatmap shows mismatches concentrated in DST boundary windows, not spread uniformly over the calendar. That temporal localization is exactly what we would expect from missing DST adjustment.
+3. The hour-shift matrix is concentrated on off-diagonal one-step bands, showing a one-hour displacement pattern rather than arbitrary hour scrambling.
+4. Together, these plots establish mechanism, not just rate. The defect is a deterministic hour shift tied to transition windows, which is why downstream hour-of-day features are biased in a narrow but systematic way.
+
 ---
 
 ## 9) E — Routing Realism (Physical vs Virtual)
@@ -307,6 +335,15 @@ Share of virtual arrivals by edge concentration:
 
 Explanation: Virtual traffic is **more concentrated** than physical traffic. This is realistic if the virtual catalog has a few dominant “platform‑like” edges alongside a long tail of smaller edges. The concentration is strong but not pathological.
 
+Plot evidence:
+![Site versus edge Lorenz curves](plots/09_site_edge_lorenz.png)
+![Top-k concentration curves](plots/10_topk_concentration_curves.png)
+
+Interpretation from the figures:
+1. In the Lorenz view, the edge curve sits below the site curve across most of the support, directly indicating higher inequality for virtual edges.
+2. The top-k curves quantify how quickly concentration accumulates for each surface. Edges and timezones climb faster than sites, consistent with a stronger head and thinner effective breadth.
+3. Reading both plots together reduces ambiguity. Lorenz gives global inequality shape; top-k gives operational concentration at actionable cutoffs like top 1%, 5%, and 10%.
+
 ### 9.4 Physical vs virtual temporal profile
 Hour‑of‑day profile summary:
 1. **Physical** peak hour = **12** (mid‑day)  
@@ -320,12 +357,28 @@ Hour‑of‑day profile summary:
 
 Explanation: Virtual traffic is clearly later‑hour heavy, while physical traffic is day‑centric. This is exactly the separation we would expect between online and in‑person activity. It is a strong realism indicator: the routing type is not just a label; it is associated with a different temporal rhythm.
 
+Plot evidence:
+![Physical vs virtual hour-of-day profile](plots/07_routing_temporal_profile.png)
+
+Interpretation from the figure:
+1. The physical curve concentrates around mid-day business hours, while the virtual curve is flatter into evening and night.
+2. The separation is sustained across many hours, not a one-bin spike, which makes it behaviorally interpretable rather than statistical noise.
+3. This validates that routing class carries distinct temporal semantics and is not just an ID split.
+
 ### 9.5 Weekend share by routing class
 Weekend share:
 1. Physical = **0.2856**
 2. Virtual = **0.3289**
 
 Explanation: Virtual traffic is more weekend‑heavy, which is consistent with consumer online behavior. This adds realism to the routing mix and shows that virtual activity is not merely a scaled‑down copy of physical traffic.
+
+Plot evidence:
+![Weekend share alignment](plots/08_weekend_share_alignment.png)
+
+Interpretation from the figure:
+1. The expected weekend share from intensity and observed overall weekend share are closely aligned, showing that realization preserves weekly structure.
+2. Physical and virtual bars split in the expected direction, with virtual above physical.
+3. This single chart ties two realism checks together: conservation of weekly rhythm and routing-specific behavioral differentiation.
 
 ---
 
@@ -348,6 +401,14 @@ Comparison of arrivals vs S2 intensity by merchant:
 
 Explanation: The heavy‑tail in arrivals is essentially identical to the heavy‑tail in S2 intensity. This shows that routing and micro‑time placement are **not inflating** the macro distribution; they are faithfully realising the intensity surface. In other words, the heavy‑tail is a **policy/world design feature**, not a routing artifact.
 
+Plot evidence:
+![Merchant tail intensity vs arrivals](plots/11_merchant_tail_intensity_vs_arrivals.png)
+
+Interpretation from the figure:
+1. On log-log axes, points track tightly along the identity line across low, mid, and high merchants.
+2. Alignment in the upper tail is especially important. If routing inflated or damped large merchants, tail points would fan away from identity; they do not.
+3. This is visual confirmation that macro heavy-tail structure is inherited from S2 intensity, not introduced during arrival expansion.
+
 ### 10.3 Timezone concentration (global skew)
 Timezones: **139**.  
 Top‑share concentration:
@@ -356,6 +417,14 @@ Top‑share concentration:
 3. Top 10% TZ share = **81.30%**
 
 Explanation: The world is heavily concentrated in a small set of timezones, which implies a strong geographic skew. This can be realistic **if** the synthetic world is intentionally Europe‑heavy (which appears to be the case in the upstream world design). If we want a more globally balanced world, this concentration would be too strong.
+
+Plot evidence:
+![Timezone concentration profile](plots/12_timezone_concentration_profile.png)
+
+Interpretation from the figure:
+1. The cumulative concentration curve rises steeply at low rank percentiles, which is the geometric signature of concentration rather than broad spread.
+2. The top-timezone bar panel makes the composition visible, showing a Europe-heavy leading set with a smaller secondary tail.
+3. This plot turns an abstract top-k number into an interpretable geography profile, clarifying why timezone skew is a realism lever rather than a mere summary statistic.
 
 ### 10.4 Virtual vs physical TZ skew
 Top‑10 TZ share comparison:
