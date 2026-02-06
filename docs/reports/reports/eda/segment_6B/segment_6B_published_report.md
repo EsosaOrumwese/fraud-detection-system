@@ -160,9 +160,10 @@ Run scope: `runs\local_full_run-5\c25a2675fbfbacd952b13bb594880e92\data\layer3\6
 1. **Flows per arrival:** 1.0000 (S2 flows = S1 arrivals exactly)
 2. **Events per flow:** 2.0000 (both baseline and with‑fraud event streams)
 3. **Sessions per arrival:** 0.9994 → **Arrivals per session:** 1.0006
-4. **Case‑timeline rows per flow:** 2.3044
+4. **Case‑timeline rows per flow (all flows denominator):** 2.3044
 
-Interpretation: these ratios are consistent with the lean implementation (one flow per arrival, two events per flow, no S3 count inflation). The case timeline density suggests that, on average, each flow that opens a case yields a small fixed sequence of case events rather than long multi‑event investigations.
+Interpretation: these ratios are consistent with the lean implementation (one flow per arrival, two events per flow, no S3 count inflation).  
+For case timelines, note the denominator: 2.3044 is over **all flows**, not only case-bearing flows. The value indicates dense templated case-event emission overall, while later case sections (14.4, 14.9, 14.10) explain the within-case timing structure directly.
 
 ## 9) Phase 0 — Policy‑Aligned vs Implementation‑Aligned Posture
 This phase locks the **exact run scope**, maps **policy packs to the surfaces they should shape**, and establishes two baselines we will use for realism judgement:
@@ -2290,12 +2291,13 @@ Fixing truth labels and bank‑view conditioning moves 6B into **usable realism 
 
 ## Appendix A) Visual Diagnostics (Standardized Plot Deck)
 To make the realism assessment easier to review, the Segment 6B plots were regenerated with a single visual style (consistent typography, scales, labels, and annotation conventions). The figures below are not decorative; each one supports a specific statistical claim made earlier in Phases 2–8.
+Scope note: some plots are **full-scan** and others are **deterministic samples** (for example `flow_id % 25 = 0` for ~5M-flow views or `case_id % 20 = 0` for case-time views). Where sampling is used, interpretation should focus on distributional shape and structural effects, not single-point micro-variance.
 
 ### A.1 Truth-label saturation (supports Sections 14.1, 18.1)
 <img src="plots/01_truth_label_saturation.png" width="760" alt="Truth flag and truth label distributions">
 
 What this shows:
-1. `is_fraud_truth` has a single bar (`True`) with full flow volume.
+1. **Full scan:** `is_fraud_truth` has a single bar (`True`) with full flow volume.
 2. Within truth labels, almost all mass is `ABUSE`, with a very small `FRAUD` tail and no `LEGIT`.
 
 Why this matters:
@@ -2308,8 +2310,9 @@ Why this matters:
 <img src="plots/02_bank_view_flatness_heatmap.png" width="760" alt="Bank-view fraud rate heatmap by amount bin and merchant class">
 
 What this shows:
-1. Most cells sit tightly around ~0.15 to ~0.16 across all classes and amount bins.
-2. The high-amount sparse bin is masked, avoiding false interpretation from low-support cells.
+1. **~5M deterministic sample:** most cells sit tightly around ~0.15 to ~0.16 across all classes and amount bins.
+2. Cells with `n < 1,000` are masked, so the color surface reflects only statistically supported bins.
+3. The remaining variation is small enough that class/amount interactions are visually weak.
 
 Why this matters:
 1. The near-uniform color surface confirms weak risk stratification by both class and spend.
@@ -2321,12 +2324,13 @@ Why this matters:
 <img src="plots/03_truth_bank_confusion.png" width="700" alt="Truth vs bank-view confusion matrix">
 
 What this shows:
-1. Entire truth mass is in the `Truth=True` row; `Truth=False` row is zero.
+1. **Full scan:** entire truth mass is in the `Truth=True` row; `Truth=False` row is zero.
 2. Bank-view splits truth-positive flows into a large `Bank=False` block and smaller `Bank=True` block.
 
 Why this matters:
 1. Because truth has no negative class, conventional discrimination diagnostics become uninformative.
 2. This plot makes clear that the core issue is not threshold tuning but truth-label construction.
+3. Any metric interpreted as "detection vs truth" is structurally biased until a true negative class exists.
 
 ---
 
@@ -2334,8 +2338,9 @@ Why this matters:
 <img src="plots/04_case_gap_distribution.png" width="900" alt="Case event time gaps and sign composition">
 
 What this shows:
-1. Gaps occur at a small set of exact values (`-82801`, `0`, `1`, `3599`, `3600`, `82800`) rather than smooth distributions.
+1. **Case sample (`case_id % 20 = 0`):** gaps occur at a small set of exact values (`-82801`, `0`, `1`, `3599`, `3600`, `82800`) rather than smooth distributions.
 2. Negative gaps are material (~12.9% in sample), not rare outliers.
+3. Zero/near-zero and one-hour spikes indicate template-driven scheduling logic, not natural process noise.
 
 Why this matters:
 1. Negative gaps indicate non-monotonic event-time sequences within cases.
@@ -2347,7 +2352,7 @@ Why this matters:
 <img src="plots/05_case_duration_distribution.png" width="700" alt="Case duration distribution with exact values">
 
 What this shows:
-1. Case durations concentrate on two values: ~`3,600s` and ~`86,401s`.
+1. **Case sample (`case_id % 20 = 0`):** durations concentrate on two values: ~`3,600s` and ~`86,401s`.
 2. Shares are heavily split into these two templates (roughly 64% vs 36% in sample).
 
 Why this matters:
@@ -2361,8 +2366,9 @@ Why this matters:
 <img src="plots/07_topk_share_bars.png" width="700" alt="Top-k share comparison for party flow concentration and merchant fraud concentration">
 
 What this shows:
-1. Lorenz curve is strongly bowed below the equality line (Gini ~0.669), indicating concentrated fraud at merchant level.
+1. **Full scan:** Lorenz curve is strongly bowed below the equality line (Gini ~0.669), indicating concentrated fraud at merchant level.
 2. Top-k bars show fraud-per-merchant concentration is much steeper than flows-per-party concentration.
+3. The contrast between the two bars at each k quantifies the difference between normal traffic concentration and fraud concentration.
 
 Why this matters:
 1. Fraud is not uniformly distributed across merchants, which is realistic in direction.
@@ -2374,8 +2380,9 @@ Why this matters:
 <img src="plots/08_amount_distribution.png" width="900" alt="Amount distribution and share by exact price points">
 
 What this shows:
-1. Exactly eight price points are used.
+1. **Full scan:** exactly eight price points are used.
 2. Each point contributes almost identical share (~12.5% each), producing a near-uniform categorical amount surface.
+3. There is no merchant-level or geography-level visible deformation in this global view.
 
 Why this matters:
 1. This is clean and deterministic but lacks heavy-tail realism and merchant-specific pricing signatures.
@@ -2387,12 +2394,13 @@ Why this matters:
 <img src="plots/09_fraud_uplift_by_base_amount.png" width="760" alt="Fraud uplift ratio by base amount">
 
 What this shows:
-1. Uplift-ratio distributions overlap strongly across all base amounts.
+1. **~5M deterministic sample (fraud-flagged flows only):** uplift-ratio distributions overlap strongly across all base amounts.
 2. Medians and spread are broadly similar from low to high price points.
 
 Why this matters:
 1. Fraud amount uplift is present, but mostly shape-invariant across base amounts.
 2. This supports the earlier conclusion that the major separability signal is a mechanical uplift, not context-rich fraud dynamics.
+3. Because the distributions overlap heavily, uplift contributes signal mainly as a global shift rather than a class- or price-conditional discriminator.
 
 ---
 
@@ -2400,8 +2408,9 @@ Why this matters:
 <img src="plots/10_cross_border_rate_by_class.png" width="820" alt="Cross-border rate by merchant class">
 
 What this shows:
-1. All classes are very high cross-border (~0.90+), with narrow spread between classes.
-2. The overall reference line sits near the class-level cluster, indicating limited class differentiation.
+1. **~5M deterministic sample:** all classes are very high cross-border (~0.90+), with narrow spread between classes.
+2. The dashed reference line is the **class-average benchmark** on the plotted sample, and it sits near the class cluster, indicating limited class differentiation.
+3. Rank ordering exists, but spread is small relative to the shared high-cross-border baseline.
 
 Why this matters:
 1. The system expresses a global high cross-border regime rather than class-specific geography behavior.
