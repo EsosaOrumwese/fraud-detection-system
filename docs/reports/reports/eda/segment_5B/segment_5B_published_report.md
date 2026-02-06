@@ -343,6 +343,7 @@ Interpretation from the figures:
 1. In the Lorenz view, the edge curve sits below the site curve across most of the support, directly indicating higher inequality for virtual edges.
 2. The top-k curves quantify how quickly concentration accumulates for each surface. Edges and timezones climb faster than sites, consistent with a stronger head and thinner effective breadth.
 3. Reading both plots together reduces ambiguity. Lorenz gives global inequality shape; top-k gives operational concentration at actionable cutoffs like top 1%, 5%, and 10%.
+4. The top-k chart contains multiple surfaces (`site`, `edge`, `merchant`, `timezone`). In this subsection we only use the **site vs edge** traces; merchant/timezone traces are interpreted later in Section 10.
 
 ### 9.4 Physical vs virtual temporal profile
 Hour‑of‑day profile summary:
@@ -393,6 +394,10 @@ Arrival totals:
 
 Explanation: The arrival distribution is strongly heavy‑tailed, with a small head carrying roughly half of total volume. This is a realistic macro signature for merchant activity: a handful of large merchants dominate, while most remain smaller. The tail is steep but not implausible.
 
+Plot cross-reference:
+1. `plots/10_topk_concentration_curves.png` (merchant trace for top-k concentration shape)
+2. `plots/11_merchant_tail_intensity_vs_arrivals.png` (merchant-level tail alignment vs S2 intensity)
+
 ### 10.2 Merchant heavy‑tail vs intensity (is routing inflating?)
 Comparison of arrivals vs S2 intensity by merchant:
 1. Corr(`arrivals`, `sum_lambda`) = **0.999998**
@@ -441,6 +446,9 @@ Gini coefficients:
 2. **Edges (virtual)** = **0.605**
 
 Explanation: Physical traffic shows moderate inequality across sites, while virtual traffic is substantially more concentrated. Here “Gini” is a 0–1 concentration measure (higher means more unequal/clustered). The values indicate that online edges are dominated by a smaller set of large platforms, whereas physical sites are more evenly spread. The difference is strong but plausible.
+
+Plot cross-reference:
+1. `plots/09_site_edge_lorenz.png` (the Gini values are read from these Lorenz curves)
 
 ---
 
