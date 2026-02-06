@@ -40,18 +40,18 @@ def _set_theme() -> None:
 
 
 def _glob_many(pattern: str) -> list[str]:
-    matches = sorted(glob.glob(pattern))
+    matches = sorted(glob.glob(pattern, recursive=True))
     if not matches:
         raise FileNotFoundError(f"No matches for pattern: {pattern}")
     return matches
 
 
 def _load_frames() -> dict[str, pl.DataFrame]:
-    s1 = pl.read_parquet(_glob_many(str(RUN_ROOT / "s1_escalation_queue" / "seed=*" / "manifest_fingerprint=*" / "*.parquet")))
-    s2 = pl.read_parquet(_glob_many(str(RUN_ROOT / "s2_country_zone_priors" / "seed=*" / "manifest_fingerprint=*" / "*.parquet")))
-    s3 = pl.read_parquet(_glob_many(str(RUN_ROOT / "s3_zone_shares" / "seed=*" / "manifest_fingerprint=*" / "*.parquet")))
-    s4 = pl.read_parquet(_glob_many(str(RUN_ROOT / "s4_zone_counts" / "seed=*" / "manifest_fingerprint=*" / "*.parquet")))
-    za = pl.read_parquet(_glob_many(str(RUN_ROOT / "zone_alloc" / "seed=*" / "manifest_fingerprint=*" / "*.parquet")))
+    s1 = pl.read_parquet(_glob_many(str(RUN_ROOT / "s1_escalation_queue" / "**" / "*.parquet")))
+    s2 = pl.read_parquet(_glob_many(str(RUN_ROOT / "s2_country_zone_priors" / "**" / "*.parquet")))
+    s3 = pl.read_parquet(_glob_many(str(RUN_ROOT / "s3_zone_shares" / "**" / "*.parquet")))
+    s4 = pl.read_parquet(_glob_many(str(RUN_ROOT / "s4_zone_counts" / "**" / "*.parquet")))
+    za = pl.read_parquet(_glob_many(str(RUN_ROOT / "zone_alloc" / "**" / "*.parquet")))
     return {"s1": s1, "s2": s2, "s3": s3, "s4": s4, "za": za}
 
 
@@ -103,7 +103,7 @@ def _precompute(frames: dict[str, pl.DataFrame]) -> dict[str, pl.DataFrame]:
         s4.group_by(["merchant_id", "legal_country_iso"])
         .agg(
             [
-                pl.sum((pl.col("zone_site_count") > 0).cast(pl.Int64)).alias("nonzero_zones"),
+                ((pl.col("zone_site_count") > 0).cast(pl.Int64)).sum().alias("nonzero_zones"),
                 pl.max("zone_site_count").alias("max_zone_count"),
                 pl.sum("zone_site_count").alias("sum_zone_count"),
             ]

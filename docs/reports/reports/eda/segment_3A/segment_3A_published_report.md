@@ -479,23 +479,50 @@ Overall: **3A is structurally correct but behaviorally flat**. The system is con
 
 ---
 
+### 13.1 Plot action matrix (keep / fix / replace)
+This pass aligns each visual to a concrete statistical claim, removes ambiguous chart mechanics, and standardizes style across `plots` and `plots_diag`.
+
+| Plot | Action | Why |
+|---|---|---|
+| `plots/s1_escalation_rate_by_zone_count.png` | `fix` | Keep same evidence, but separate rate vs sample-size scales clearly. |
+| `plots/s1_escalation_rate_by_site_bucket.png` | `fix` | Keep same lens with explicit bucket sample-size labels. |
+| `plots/s2_top1_share_hist.png` | `keep` | Directly supports prior-concentration claim. |
+| `plots/s2_hhi_ecdf.png` | `keep` | Strong concentration summary at country level. |
+| `plots/s2_tzcount_vs_top1.png` | `fix` | Keep relation view with cleaner point readability. |
+| `plots/s3_top1_share_hist.png` | `keep` | Core sampled-concentration evidence. |
+| `plots/s3_effective_zone_count_thresholds.png` | `replace` | Replaced multi-panel style with threshold boxplot to compare effective breadth consistently. |
+| `plots/s3_mean_vs_prior_share_hexbin.png` | `keep` | Best single visual for prior-vs-sample coupling. |
+| `plots/s4_nonzero_zones_hist.png` | `keep` | Direct integerisation collapse evidence. |
+| `plots/s4_top1_share_hist.png` | `keep` | Direct top-1 dominance after counts. |
+| `plots/zone_alloc_top1_share_hist.png` | `keep` | Final-output dominance evidence. |
+| `plots_diag/d1_s2_top1_share_bottom30.png` | `keep` | Shows best-case countries are still dominated. |
+| `plots_diag/d2_s2_tzcount_vs_top1_labeled.png` | `keep` | Country-labeled exception check. |
+| `plots_diag/d3_alpha_ratio_hist_logx.png` | `keep` | Floor/bump impact lens. |
+| `plots_diag/d4_share_raw_vs_effective.png` | `replace` | Rebased to explicit normalized `share_raw` vs `share_effective` comparison. |
+| `plots_diag/d5_s3_entropy_hist.png` | `keep` | Merchant-country dispersion realism check. |
+| `plots_diag/d6_s3_std_share_log10_hist.png` | `keep` | Within-country merchant heterogeneity lens. |
+| `plots_diag/d7_s3_vs_s4_top1_hexbin.png` | `keep` | Rounding amplification check. |
+| `plots_diag/d8_multi_zone_rate_by_escalated_zoom.png` | `fix` | Keep contrast but improve zoom and readability. |
+
+---
+
 ## 14) Visual diagnostics (plots + narrative interpretation)
 All plots are saved under `docs/reports/reports/eda/segment_3A/plots/` and embedded below. Each interpretation is based on the actual image, not an assumption.
 
 ### 14.1 S1 escalation rate by zone_count_country
 <img src="plots/s1_escalation_rate_by_zone_count.png" width="520" alt="S1 escalation rate by zone count">
 
-This plot pairs escalation rate (bars) with pair counts (line). The escalation rate does not rise smoothly with zone_count_country. Some zone counts (6, 11, 12+) show near-forced escalation, while other counts (notably 9) dip sharply despite non-trivial sample sizes. The line indicates that some extreme zone counts are rare, but the non-monotonic pattern is still visible in the mid-range where counts are meaningful. This reinforces that escalation is rule-driven rather than a smooth geographic function.
+This plot overlays escalation rate (line) with sample size (secondary-axis bars). The escalation rate does not rise smoothly with `zone_count_country`: some zone counts trend near forced escalation while nearby counts dip despite non-trivial support. The count bars show where low-support points exist, so the non-monotonic behavior in the mid-range is not just a tiny-sample artifact. This reinforces a rule-threshold feel rather than a smooth geographic response.
 
 ### 14.2 S1 escalation rate by site_count bucket
 <img src="plots/s1_escalation_rate_by_site_bucket.png" width="520" alt="S1 escalation rate by site bucket">
 
-Escalation jumps from near-zero in the 1-2 bucket to very high in 3-5 and 6-10, then dips again in 11-20 and 21-50 before rising in higher buckets. The annotation labels show large sample sizes in the mid buckets, so the shape is not a small-sample artifact. The 1000+ bucket hits 1.0 but is based on only two pairs, so that spike should not be over-weighted. The overall shape confirms a hard-threshold policy feel rather than a gradual size-driven increase.
+Escalation rises sharply from the smallest site-count bucket, stays high through mid buckets, and is visibly non-smooth rather than gradually monotonic. Because each bar is annotated with `n`, the reader can separate true structure from sparse-tail noise. The overall pattern still reads as threshold-driven gating, not a continuous size-response curve.
 
 ### 14.3 S2 top-1 share per country
 <img src="plots/s2_top1_share_hist.png" width="520" alt="S2 top-1 share per country">
 
-The histogram is almost entirely concentrated near 1.0, with the 0.95 and 0.99 reference lines sitting inside the tallest bar. This means most countries allocate nearly all prior mass to a single tzid. The tiny tail below 0.9 confirms that balanced priors are rare. This is the first strong visual signal that S2 is structurally collapsing the zone universe.
+The histogram is heavily concentrated near 1.0. This means most countries allocate nearly all prior mass to a single tzid. The small lower-share tail confirms that balanced priors are rare. This is the first strong visual signal that S2 is structurally collapsing the zone universe.
 
 ### 14.4 S2 HHI per country (ECDF)
 <img src="plots/s2_hhi_ecdf.png" width="520" alt="S2 HHI per country ECDF">
@@ -505,7 +532,7 @@ The ECDF stays low until very high HHI values and then rises steeply near 1.0. T
 ### 14.5 S2 tz_count vs top-1 share
 <img src="plots/s2_tzcount_vs_top1.png" width="520" alt="S2 tz_count vs top-1 share">
 
-Even countries with high tz_count still sit near top-1 share of 1.0. The dashed and dotted reference lines (0.95 and 0.99) cut through the densest region, showing that most multi-tz countries remain effectively single-zone at the prior level. Only a handful of points drop into the 0.3-0.7 range, and they are rare exceptions.
+Even countries with high `tz_count` still sit near top-1 share of 1.0. The densest cloud remains in the high-dominance band, showing that most multi-tz countries are still effectively single-zone at the prior level. Only a small number of points fall into moderate top-1 ranges, and they are exceptions.
 
 ### 14.6 S3 top-1 share per merchant-country
 <img src="plots/s3_top1_share_hist.png" width="520" alt="S3 top-1 share per merchant-country">
@@ -515,7 +542,7 @@ The distribution is even more concentrated than S2, with almost all merchant-cou
 ### 14.7 S3 effective zone counts by share thresholds
 <img src="plots/s3_effective_zone_count_thresholds.png" width="520" alt="S3 effective zone counts by threshold">
 
-Across all three panels, the mass is concentrated at 1. For >10% and >5% thresholds, almost every merchant-country pair has exactly one zone above the threshold. Even at 1%, the median remains 1 and only a thin tail reaches 2-3 zones. This shows that most zone shares are too small to matter in practice.
+The threshold boxplot shows effective-zone breadth collapsing quickly as the threshold increases. At moderate thresholds, most merchant-country pairs retain only one materially active zone; even at low thresholds, breadth expands only modestly. This shows most secondary shares are too small to survive practical significance checks.
 
 ### 14.8 S3 mean share vs S2 prior share
 <img src="plots/s3_mean_vs_prior_share_hexbin.png" width="520" alt="S3 mean share vs S2 prior share">
