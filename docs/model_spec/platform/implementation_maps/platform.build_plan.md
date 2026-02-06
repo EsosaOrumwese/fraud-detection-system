@@ -460,7 +460,7 @@ These remain open and will be resolved during RTDL Phase 4 planning and partitio
 
 #### Phase 4.3 — OFP feature plane (graph → features)
 **Goal:** materialize reproducible feature snapshots.
-**Status:** in progress. 4.3.A projector intake, 4.3.B feature-definition/window authority, 4.3.C/4.3.D snapshot artifact+index primitives, 4.3.E serve semantics, and 4.3.F replay determinism are implemented at component scope; 4.3.G-4.3.H pending integration closure.
+**Status:** in progress. 4.3.A projector intake, 4.3.B feature-definition/window authority, 4.3.C/4.3.D snapshot artifact+index primitives, 4.3.E serve semantics, 4.3.F replay determinism, and 4.3.G observability/health are implemented at component scope; 4.3.H pending integration closure.
 
 ##### 4.3.A — Inputs + basis pinning
 **Goal:** ensure OFP only consumes deterministic, run-scoped inputs.
@@ -522,6 +522,12 @@ These remain open and will be resolved during RTDL Phase 4 planning and partitio
 **DoD checklist:**
 - Counters: snapshots_built, snapshot_failures, stale_graph_version, missing_features.
 - Health thresholds defined; RED/AMBER status surfaced to DL/DF.
+- Component-scope evidence:
+  - `python -m pytest tests/services/online_feature_plane/test_phase7_observability.py -q` -> `2 passed`
+  - export CLI: `python -m fraud_detection.online_feature_plane.observe --profile <profile> --scenario-run-id <id>`
+  - OFP observability exporter writes:
+    - `runs/fraud-platform/<platform_run_id>/online_feature_plane/metrics/last_metrics.json`
+    - `runs/fraud-platform/<platform_run_id>/online_feature_plane/health/last_health.json`
 
 ##### 4.3.H — Validation + tests
 **Goal:** prove determinism and parity.

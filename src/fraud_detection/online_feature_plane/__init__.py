@@ -9,6 +9,7 @@ from .contracts import (
     build_snapshot_hash,
     validate_get_features_request,
 )
+from .observability import OfpHealthThresholds, OfpObservabilityReporter
 from .projector import OnlineFeatureProjector
 from .serve import OfpGetFeaturesService
 from .snapshot_index import SnapshotIndexRecord, build_snapshot_index
@@ -21,6 +22,8 @@ __all__ = [
     "OfpProfile",
     "OfpStore",
     "OfpContractError",
+    "OfpHealthThresholds",
+    "OfpObservabilityReporter",
     "OfpPins",
     "OfpGetFeaturesService",
     "OnlineFeatureProjector",

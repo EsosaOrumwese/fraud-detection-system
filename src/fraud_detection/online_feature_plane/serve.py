@@ -4,7 +4,6 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from datetime import datetime, timezone
-from pathlib import Path
 from typing import Any, Callable
 
 from .contracts import (
@@ -83,10 +82,11 @@ class OfpGetFeaturesService:
                     posture_flags.append("GRAPH_VERSION_UNAVAILABLE")
 
         pins = request["pins"]
+        scenario_run_id = str(pins.get("scenario_run_id") or "")
         try:
             snapshot = self.materializer.materialize(
                 platform_run_id=str(pins["platform_run_id"]),
-                scenario_run_id=str(pins["scenario_run_id"]),
+                scenario_run_id=scenario_run_id,
                 as_of_time_utc=str(request["as_of_time_utc"]),
                 graph_version=graph_version,
             )
@@ -145,6 +145,9 @@ class OfpGetFeaturesService:
         if _is_after(as_of_time_utc, window_end_utc):
             stale_groups = _unique_sorted(stale_groups + requested_group_names)
             posture_flags.append("STALE_INPUT_BASIS")
+        graph_watermark_ts = _read_graph_watermark(graph_version)
+        if _is_after(as_of_time_utc, graph_watermark_ts):
+            posture_flags.append("STALE_GRAPH_VERSION")
 
         if missing_feature_keys:
             missing_groups = _unique_sorted(missing_groups + requested_group_names)
@@ -164,6 +167,19 @@ class OfpGetFeaturesService:
             "missing_groups": missing_groups,
             "missing_feature_keys": _unique_sorted(missing_feature_keys),
         }
+        if scenario_run_id:
+            if missing_feature_keys:
+                self._safe_increment_metric(
+                    scenario_run_id=scenario_run_id,
+                    metric_name="missing_features",
+                    delta=len(missing_feature_keys),
+                )
+            if "STALE_GRAPH_VERSION" in posture_flags:
+                self._safe_increment_metric(
+                    scenario_run_id=scenario_run_id,
+                    metric_name="stale_graph_version",
+                    delta=1,
+                )
 
         return build_get_features_success(
             snapshot,
@@ -171,12 +187,32 @@ class OfpGetFeaturesService:
             served_at_utc=served_at_utc,
         )
 
+    def _safe_increment_metric(self, *, scenario_run_id: str, metric_name: str, delta: int) -> None:
+        try:
+            self.materializer.store.increment_metric(
+                scenario_run_id=scenario_run_id,
+                metric_name=metric_name,
+                delta=delta,
+            )
+        except Exception:
+            # Metric updates are best-effort and must not fail serving.
+            return
+
 
 def _read_basis_window_end(snapshot: dict[str, Any]) -> str | None:
     basis = snapshot.get("eb_offset_basis")
     if not isinstance(basis, dict):
         return None
     value = basis.get("window_end_utc")
+    if value in (None, ""):
+        return None
+    return str(value)
+
+
+def _read_graph_watermark(graph_version: dict[str, Any] | None) -> str | None:
+    if not isinstance(graph_version, dict):
+        return None
+    value = graph_version.get("watermark_ts_utc")
     if value in (None, ""):
         return None
     return str(value)
@@ -227,4 +263,3 @@ def _posture_state(
 
 def _utc_now() -> str:
     return datetime.now(tz=timezone.utc).isoformat()
-

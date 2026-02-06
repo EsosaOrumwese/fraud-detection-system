@@ -112,6 +112,7 @@ Provide a closure-grade, component-scoped plan for OFP aligned to platform Phase
 
 ### Phase 7 - Health and observability (4.3.G)
 **Intent:** expose actionable operational truth to DL and operators.
+**Status:** completed (2026-02-06, component scope).
 
 **DoD checklist:**
 - Core counters exist and are exported:
@@ -124,6 +125,9 @@ Provide a closure-grade, component-scoped plan for OFP aligned to platform Phase
   - lag and watermark age
 - Health status model is explicit (GREEN/AMBER/RED with thresholds).
 - Serve responses can carry stale/missing posture without hiding degraded context.
+- Evidence:
+  - `python -m pytest tests/services/online_feature_plane/test_phase7_observability.py -q` -> `2 passed`
+  - `python -m pytest tests/services/online_feature_plane -q` -> `20 passed`
 
 ### Phase 8 - Integration closure (4.3 -> 4.4 readiness)
 **Intent:** close OFP component DoDs and prepare handoff to DF/DL integration.

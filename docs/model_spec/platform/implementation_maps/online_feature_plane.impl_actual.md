@@ -591,3 +591,100 @@ Closed OFP Phase 6 at component scope by adding deterministic replay/rebuild cov
 - Remaining OFP component phases:
   - Phase 7 (observability + health)
   - Phase 8 (integration closure with DF/DL and runbook handoff)
+
+---
+
+## Entry: 2026-02-06 17:42:00 - Phase 7 implementation plan (health + observability)
+
+### Problem / goal
+Close OFP Phase 7 (4.3.G) by making required counters observable and by defining an explicit OFP health state model (`GREEN|AMBER|RED`) that can be consumed by DL/operators in local parity.
+
+### Authorities / inputs
+- `docs/model_spec/platform/implementation_maps/online_feature_plane.build_plan.md` (Phase 7 DoD)
+- `docs/model_spec/platform/implementation_maps/platform.build_plan.md` (4.3.G)
+- `docs/model_spec/platform/component-specific/online_feature_plane.design-authority.md` (operability/observability posture)
+- Existing OFP modules (`projector`, `snapshots`, `serve`, `store`) and Phase 2-6 tests.
+
+### Decision
+Implement Phase 7 in three layers:
+1. Metric source closure:
+   - make `ofp_metrics` usable as a generic counter sink for all required counters.
+   - increment:
+     - `snapshots_built` / `snapshot_failures` in snapshot materialization path,
+     - `missing_features` / `stale_graph_version` in serve path when relevant.
+2. Health model:
+   - add OFP observability reporter deriving:
+     - required counters,
+     - watermark age and lag/checkpoint age,
+     - explicit health state + reasons via deterministic thresholds.
+3. Export surface:
+   - write run-scoped artifacts (local parity) for operators:
+     - `online_feature_plane/metrics/last_metrics.json`
+     - `online_feature_plane/health/last_health.json`
+
+### Planned files
+- `src/fraud_detection/online_feature_plane/store.py` (public metric/checkpoint summary accessors)
+- `src/fraud_detection/online_feature_plane/snapshots.py` (snapshot success/failure counters)
+- `src/fraud_detection/online_feature_plane/serve.py` (missing/stale counters)
+- `src/fraud_detection/online_feature_plane/observability.py` (new reporter + health derivation)
+- `src/fraud_detection/online_feature_plane/__init__.py` (export reporter)
+- `tests/services/online_feature_plane/test_phase7_observability.py` (new)
+
+### Validation plan
+- `python -m pytest tests/services/online_feature_plane/test_phase7_observability.py -q`
+- `python -m pytest tests/services/online_feature_plane -q`
+- Update Phase 7 status in OFP/platform build plans with evidence.
+
+---
+
+## Entry: 2026-02-06 17:48:00 - Phase 7 implemented (health + observability)
+
+### Summary of implementation
+Closed OFP Phase 7 at component scope by adding explicit counter exports, a deterministic health-state model, and run-scoped observability artifacts.
+
+### Changes applied
+- Extended OFP metric access surface:
+  - `src/fraud_detection/online_feature_plane/store.py`
+  - added public methods:
+    - `increment_metric(...)`
+    - `checkpoints_summary()`
+- Wired required Phase 7 counters into runtime paths:
+  - `src/fraud_detection/online_feature_plane/snapshots.py`
+    - increments `snapshots_built` on successful materialization,
+    - increments `snapshot_failures` on materialization failure (best-effort).
+  - `src/fraud_detection/online_feature_plane/serve.py`
+    - increments `missing_features` when requested feature keys are absent,
+    - increments `stale_graph_version` when request `as_of_time_utc` exceeds returned graph watermark.
+- Added observability reporter:
+  - `src/fraud_detection/online_feature_plane/observability.py`
+  - provides:
+    - required counters payload,
+    - lag/watermark/checkpoint age metrics,
+    - explicit health derivation (`GREEN|AMBER|RED`) with reasons,
+    - run-scoped artifact export:
+      - `online_feature_plane/metrics/last_metrics.json`
+      - `online_feature_plane/health/last_health.json`
+- Added observability CLI:
+  - `src/fraud_detection/online_feature_plane/observe.py`
+  - usage: `python -m fraud_detection.online_feature_plane.observe --profile <...> --scenario-run-id <...> [--output-root <...>]`
+- Updated OFP exports:
+  - `src/fraud_detection/online_feature_plane/__init__.py`
+    - exports `OfpObservabilityReporter` and `OfpHealthThresholds`.
+- Added Phase 7 tests:
+  - `tests/services/online_feature_plane/test_phase7_observability.py`
+  - coverage:
+    - counter presence + increments for snapshot/serve paths,
+    - health-state derivation and artifact export,
+    - snapshot failure counter export.
+
+### Validation
+- `python -m pytest tests/services/online_feature_plane/test_phase7_observability.py -q` -> `2 passed`
+- `python -m pytest tests/services/online_feature_plane -q` -> `20 passed`
+
+### DoD impact
+- Phase 7 DoDs are closed at OFP component scope:
+  - required counters exist and are exportable,
+  - explicit health status model implemented,
+  - serve-side degraded dependency posture remains explicit (Phase 5).
+- Remaining OFP component phase:
+  - Phase 8 (integration closure / 4.3.H).

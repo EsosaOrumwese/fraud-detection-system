@@ -122,6 +122,12 @@ class OfpStore:
     def metrics_summary(self, *, scenario_run_id: str) -> dict[str, int]:
         raise NotImplementedError
 
+    def increment_metric(self, *, scenario_run_id: str, metric_name: str, delta: int = 1) -> None:
+        raise NotImplementedError
+
+    def checkpoints_summary(self) -> dict[str, Any]:
+        raise NotImplementedError
+
     def projection_meta(self) -> dict[str, str] | None:
         raise NotImplementedError
 
@@ -461,6 +467,26 @@ class SqliteOfpStore(OfpStore):
                 (self.stream_id, scenario_run_id),
             ).fetchall()
         return {str(row[0]): int(row[1]) for row in rows}
+
+    def increment_metric(self, *, scenario_run_id: str, metric_name: str, delta: int = 1) -> None:
+        with self._connect() as conn:
+            self._increment_metric(conn, scenario_run_id, metric_name, int(delta))
+
+    def checkpoints_summary(self) -> dict[str, Any]:
+        with self._connect() as conn:
+            row = conn.execute(
+                """
+                SELECT MAX(watermark_ts_utc), MAX(updated_at_utc), COUNT(*)
+                FROM ofp_checkpoints
+                WHERE stream_id = ?
+                """,
+                (self.stream_id,),
+            ).fetchone()
+        return {
+            "watermark_ts_utc": row[0] if row else None,
+            "updated_at_utc": row[1] if row else None,
+            "partition_count": int(row[2]) if row else 0,
+        }
 
     def projection_meta(self) -> dict[str, str] | None:
         with self._connect() as conn:
@@ -954,6 +980,26 @@ class PostgresOfpStore(OfpStore):
                 (self.stream_id, scenario_run_id),
             ).fetchall()
         return {str(row[0]): int(row[1]) for row in rows}
+
+    def increment_metric(self, *, scenario_run_id: str, metric_name: str, delta: int = 1) -> None:
+        with self._connect() as conn, conn.transaction():
+            self._increment_metric(conn, scenario_run_id, metric_name, int(delta))
+
+    def checkpoints_summary(self) -> dict[str, Any]:
+        with self._connect() as conn:
+            row = conn.execute(
+                """
+                SELECT MAX(watermark_ts_utc), MAX(updated_at_utc), COUNT(*)
+                FROM ofp_checkpoints
+                WHERE stream_id = %s
+                """,
+                (self.stream_id,),
+            ).fetchone()
+        return {
+            "watermark_ts_utc": row[0] if row else None,
+            "updated_at_utc": row[1] if row else None,
+            "partition_count": int(row[2]) if row else 0,
+        }
 
     def projection_meta(self) -> dict[str, str] | None:
         with self._connect() as conn:
