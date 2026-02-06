@@ -299,7 +299,7 @@ def plot_06_lorenz(cx: duckdb.DuckDBPyConnection) -> None:
         vals = np.array([0.0])
     cum_y = np.concatenate([[0.0], np.cumsum(vals) / np.sum(vals)])
     cum_x = np.linspace(0, 1, len(cum_y))
-    gini = 1 - 2 * np.trapz(cum_y, cum_x)
+    gini = 1 - 2 * np.trapezoid(cum_y, cum_x)
 
     plt.figure(figsize=(8.5, 8.5))
     plt.plot(cum_x, cum_y, color="#3E6FB0", linewidth=3, label="Fraud per merchant")
@@ -466,21 +466,30 @@ def plot_10_cross_border(cx: duckdb.DuckDBPyConnection) -> None:
         AND m.merchant_country IS NOT NULL
         AND c.primary_demand_class IS NOT NULL
     )
-    SELECT primary_demand_class, avg(is_cross_border) AS cross_border_rate
+    SELECT primary_demand_class, count(*) AS n, avg(is_cross_border) AS cross_border_rate
     FROM joined
     GROUP BY 1
     ORDER BY cross_border_rate DESC
     """
     df = cx.execute(q).fetchdf()
-    overall = float(df["cross_border_rate"].mean())
+    overall = float((df["cross_border_rate"] * df["n"]).sum() / df["n"].sum())
 
     plt.figure(figsize=(13, 7))
     ax = sns.barplot(data=df, y="primary_demand_class", x="cross_border_rate", color="#0B6E77")
-    ax.axvline(overall, color="red", linestyle="--", linewidth=2, label=f"overall {overall:.2f}")
+    ax.axvline(overall, color="red", linestyle="--", linewidth=2, label=f"flow-weighted overall {overall:.2f}")
     ax.set_title("Cross-border Rate by Merchant Class (5M sample)", **TITLE_KW)
     ax.set_xlabel("cross_border_rate")
     ax.set_ylabel("merchant class")
     ax.set_xlim(0, 1.05)
+    ax.text(
+        overall + 0.005,
+        len(df) - 0.2,
+        f"flow-weighted overall={overall:.3f}",
+        color="red",
+        fontsize=10,
+        ha="left",
+        va="top",
+    )
     for p in ax.patches:
         w = p.get_width()
         ax.annotate(f"{w:.3f}", (w, p.get_y() + p.get_height() / 2), xytext=(5, 0), textcoords="offset points", va="center", fontsize=10)

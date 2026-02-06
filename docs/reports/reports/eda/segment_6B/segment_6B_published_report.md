@@ -2409,7 +2409,7 @@ Why this matters:
 
 What this shows:
 1. **~5M deterministic sample:** all classes are very high cross-border (~0.90+), with narrow spread between classes.
-2. The dashed reference line is the **class-average benchmark** on the plotted sample, and it sits near the class cluster, indicating limited class differentiation.
+2. The dashed reference line is the **flow-weighted overall cross-border benchmark** on the plotted sample, and it sits near the class cluster, indicating limited class differentiation.
 3. Rank ordering exists, but spread is small relative to the shared high-cross-border baseline.
 
 Why this matters:
