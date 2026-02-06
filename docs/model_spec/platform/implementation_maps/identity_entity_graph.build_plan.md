@@ -177,8 +177,18 @@ Provide a progressive, component‑scoped build plan for the Identity & Entity G
 
 ---
 
+### Phase 8 — Integration + ops hardening (v0+)
+**Intent:** close remaining integration and ops gaps for RTDL readiness.
+
+**DoD checklist:**
+- OFP/DF integration consumes IEG outputs (`graph_version`, `run_config_digest`, `eb_offset_basis`) with compatibility checks.
+- Metrics/export path exists (OTel‑aligned counters + health signals) beyond DB‑only storage.
+- Archive replay tooling exists to generate explicit replay manifests from EB/archive for deterministic rebuilds.
+- Explicit migrations exist for IEG tables (replace runtime ALTERs for production posture).
+
+---
+
 ## Notes (v0 pins)
 - Identity hints must be standardized and visible at the envelope/payload boundary.
 - IEG does not merge entities in v0; it returns conflicts explicitly.
 - Query plane is read‑only; no “write on read.”
-

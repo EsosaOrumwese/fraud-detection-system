@@ -260,3 +260,237 @@ This phase locks the **exact run scope**, maps **policy packs to the surfaces th
 1. We will judge **statistical realism against the implementation‑aligned posture**, not the full‑spec posture, because the lean build intentionally omits several spec features (refunds, step‑ups, multi‑flow sessions).
 2. Spec‑level gaps will still be documented as **design vs implementation deltas**, but they will not be treated as statistical failures if they are explicit lean tradeoffs.
 3. Where policies define explicit targets (fraud prevalence, detection rates, case involvement ranges), those targets remain **binding for realism** even in the lean build and will be checked directly.
+
+## 10) Phase 1 — Structural Integrity & Parity
+This phase validates the **mechanical correctness** of 6B outputs before we interpret any realism. If these checks fail, statistical patterns cannot be trusted because the data would be structurally inconsistent.
+
+### 10.1 Primary‑key integrity and null safety
+**What we checked (full scan):**
+1. Nulls in key fields across all primary surfaces (arrivals, flows, events, labels, cases).
+2. Presence of required identity columns (`flow_id`, `event_seq`, `session_id`, `case_id`, etc.).
+
+**Results:**
+All key fields are **non‑null across every dataset** (zero nulls in identity columns across S1–S4). This means the core identity lattice is intact and safe for joins.
+
+**Why this matters:**
+Null keys break downstream coverage in subtle ways (joins become lossy, parity checks are distorted). The absence of nulls is a strict structural pass and is the minimum requirement for any realism assessment.
+
+---
+
+### 10.2 Flow parity across S2 → S3 → S4
+**What we checked:**
+1. S2 baseline flows vs S3 with‑fraud flows vs S4 labels (truth + bank view).
+2. Any missing or extra flows across those stages.
+
+**Counts (full scan):**
+1. `s2_flow_anchor_baseline_6B`: **124,724,153**
+2. `s3_flow_anchor_with_fraud_6B`: **124,724,153**
+3. `s4_flow_truth_labels_6B`: **124,724,153**
+4. `s4_flow_bank_view_6B`: **124,724,153**
+
+**Interpretation:**
+This is **perfect parity** across the full flow chain. S3 did not add or drop flows, and S4 labelled every flow exactly once in both truth and bank‑view spaces. This confirms that the lean overlay and lean labelling logic preserve coverage, which is a hard requirement for explainability and model training.
+
+---
+
+### 10.3 Event integrity (type + sequence) across S2 → S3 → S4
+**What we checked:**
+1. Event types in baseline and with‑fraud streams.
+2. Event sequence values per flow.
+3. Consistency across S2/S3/S4.
+
+**Event types (full scan):**
+1. **S2 baseline:** `AUTH_REQUEST` (124,724,153), `AUTH_RESPONSE` (124,724,153)
+2. **S3 with‑fraud:** `AUTH_REQUEST` (124,724,153), `AUTH_RESPONSE` (124,724,153)
+
+**Event sequences (full scan):**
+1. `event_seq = 0`: 124,724,153 rows
+2. `event_seq = 1`: 124,724,153 rows
+3. **No other sequence values exist** (S2/S3/S4 all match)
+
+**Interpretation:**
+The event stream exactly matches the **lean two‑event template** (auth request + response). There is no leakage of extra event types, no missing sequence indices, and no structural drift between baseline and fraud overlays. This makes the event surface **structurally clean**, but it also locks realism into a minimal template (refunds/clearing/step‑ups are absent by design).
+
+---
+
+### 10.4 Session integrity and coverage
+**What we checked:**
+1. Session count relative to arrivals.
+2. Whether arrivals reference sessions that exist in the session index.
+
+**Counts (full scan):**
+1. Arrivals: **124,724,153**
+2. Sessions: **124,647,685**
+
+**Derived ratios:**
+1. **Sessions per arrival:** **0.9993869**
+2. **Arrivals per session:** **1.0006135**
+
+**Interpretation:**
+Sessions are almost one‑to‑one with arrivals. Only ~76k arrivals are grouped into existing sessions at this scale. This is consistent with the simplified sessionisation posture (bucketed windows, no stochastic boundary). Structurally it is correct, but it implies **session‑level realism is minimal** — most sessions are single‑arrival sessions.
+
+---
+
+### 10.5 Case timeline integrity
+**What we checked:**
+1. Case event types and sequence ordering.
+2. Balance between open/close events.
+3. Case timeline density relative to flows.
+
+**Case event counts (full scan):**
+1. `CASE_OPENED`: **75,728,141**
+2. `CASE_CLOSED`: **75,728,141**
+3. `CUSTOMER_DISPUTE_FILED`: **68,598,182**
+4. `CHARGEBACK_INITIATED`: **27,439,032**
+5. `CHARGEBACK_DECISION`: **27,439,032**
+6. `DETECTION_EVENT_ATTACHED`: **12,476,060**
+
+**Sequence bounds:**
+1. `case_event_seq min`: **0**
+2. `case_event_seq max`: **5**
+
+**Derived ratios:**
+1. **Case rows per flow:** **2.3044**
+2. **Approx events per case:** **~3.49** (using approximate distinct case count)
+3. **Approx flows involved in cases:** **~71.1%** of all flows (approximation)
+
+**Interpretation:**
+1. **Lifecycle integrity is clean.** Every case opened is closed (open and close counts are identical). The sequence range 0–5 matches the policy’s 6‑stage lifecycle.
+2. **Case volumes are heavy.** The approximate case‑flow involvement is high for a retail fraud world (this will be evaluated in realism phases, but structurally it is coherent).
+3. **Event mix is plausible within the lean posture.** Disputes and chargebacks are present at scale, with detection events smaller but non‑zero.
+
+---
+
+### 10.6 PK uniqueness — evidence and limitation
+**What we attempted:**
+1. Exact global PK uniqueness checks via `COUNT(DISTINCT ...)` across 100M+ rows.
+
+**Constraint:**
+Exact distinct checks exceeded available disk spill space on this machine (very large intermediate sort states). To avoid incomplete results, we used **two alternative integrity signals**:
+1. **0.1% Bernoulli sample duplicate checks** on PKs — duplicates observed: **0** across all datasets.
+2. **Approximate distinct on hash(PK)** — used only as a sanity signal (not treated as proof).
+
+**Interpretation:**
+There is **no evidence of PK collisions** in sampled data, and key fields are non‑null. Given deterministic key generation, this is strong evidence of PK uniqueness. If you want absolute proof, we would need more disk for a full distinct‑count validation or a dedicated external sort pipeline.
+
+---
+
+## Phase‑1 conclusion (structural verdict)
+**Structural integrity is strong and consistent with the lean implementation:**
+1. All identity fields are non‑null.
+2. Flow and event parity are exact across S2 → S3 → S4.
+3. Event types and sequences are internally consistent.
+4. Sessionisation is coherent, though near‑one‑to‑one with arrivals.
+5. Case timelines are ordered and lifecycle‑complete.
+
+This gives us a **clean structural base**. Any realism issues we find in later phases will be policy‑driven rather than structural corruption.
+
+---
+
+## 11) Phase 2 — Attachment & Sessionisation Realism (S1)
+This phase evaluates whether the **arrival→entity attachment** and **sessionisation** surfaces look statistically realistic for a synthetic world. We focus on two core datasets:
+1. `s1_arrival_entities_6B` (who each arrival is attached to), and
+2. `s1_session_index_6B` (how arrivals are grouped into sessions).
+
+All heavy‑tail and per‑entity distributions below are computed on a **0.5% Bernoulli sample** to keep memory bounded. Approximate distinct counts are HyperLogLog estimates and are treated as **scale indicators**, not exact truth.
+
+### 11.1 Entity scale and coverage (how many unique entities exist)
+**What we measured (approx distinct over full arrivals):**
+1. `party_id`: **~1,045,044**
+2. `account_id`: **~1,205,042**
+3. `instrument_id`: **~857,712**
+4. `device_id`: **~1,017,452**
+5. `ip_id`: **~244,953**
+6. `merchant_id`: **~1,027**
+7. `session_id`: **~135,670,542** (approx)
+
+**How to interpret this:**
+1. The **merchant universe is small** relative to arrival volume. With ~1,027 merchants serving 124.7M arrivals, each merchant receives very high volume on average. This is not automatically unrealistic for a synthetic world (it could be intentionally compressed), but it does mean that **merchant‑level concentration is a dominant driver** of traffic distribution. If the policy intent was to simulate a broad retail market, this is likely too small; if it intended a few large “super‑merchants,” this is consistent.
+2. The **party/account/device counts are ~1M each**, which suggests the world contains about a million actors and devices. That scale is coherent with the sealed world size in 5A/6A, but it implies **high repeat behavior per entity** over the three‑month window.
+3. The **IP universe is much smaller** (~245k). This points to significant IP reuse (NAT, corporate gateways, shared networks). That can be realistic, but it also makes IP a **stronger linkage signal** than in many retail worlds, which matters for explainability and model behavior.
+4. The approximate `session_id` count is higher than actual session row counts (HLL overestimation is expected). We therefore rely on the exact session table for session scale.
+
+**Realism posture:** entity scale is plausible in a compressed synthetic world, but **merchant count is particularly small**, so any realism claims about merchant diversity should be made cautiously.
+
+---
+
+### 11.2 Attachment topology (one‑to‑one vs multi‑link behavior)
+**What we measured (0.5% sample):**
+1. **Accounts per party:** p50=1, p90=1, p99=1, max=2  
+2. **Instruments per account:** p50=1, p90=1, p99=1, max=2  
+3. **Devices per party:** p50=1, p90=1, p99=1, max=2  
+4. **IPs per device:** p50=1, p90=1, p99=1, max=2
+
+**How to interpret this:**
+1. The attachment graph is **almost entirely one‑to‑one**. In practical terms, a party typically has a single account, a single instrument, a single device, and a single IP address in observed traffic.
+2. The rare max=2 values show that multi‑link attachment exists, but it is **exceptionally sparse**. That means the system is not expressing common real‑world behaviors such as a party using multiple cards/accounts, one account used across multiple devices, or devices roaming across multiple IPs (home, work, mobile).
+3. This is consistent with the lean implementation posture (deterministic hash‑based selection from constrained candidate sets). The attachment is valid and coherent, but it is **behaviourally conservative**.
+
+**Why it matters for realism:**
+1. Many fraud patterns (account takeover, device sharing, mule networks) are **amplified by cross‑entity linkage**. If each party/account/device is nearly isolated, the dataset will **under‑represent those patterns**, even if fraud labels exist.
+2. Downstream models that rely on linkage features (graph degree, IP/device sharing, account‑device churn) will see **weaker signals** than they would in a more realistic dataset.
+
+**Realism posture:** acceptable for a lean deterministic build, but **under‑connected** for realistic behavior networks. If realism is a priority, this is one of the clearest places to increase diversity.
+
+---
+
+### 11.3 Arrival concentration by entity (heavy‑tail realism)
+**What we measured (0.5% sample):**
+Arrivals per entity distribution (p50 / p90 / p99 / max / top‑1 share).
+1. **party_id:** 1 / 2 / 4 / 8 / **0.0013%**
+2. **account_id:** 1 / 2 / 4 / 9 / **0.0014%**
+3. **instrument_id:** 1 / 2 / 4 / 7 / **0.0011%**
+4. **device_id:** 1 / 2 / 4 / 8 / **0.0013%**
+5. **ip_id:** 1 / 5 / 60 / 2,776 / **0.44%**
+6. **merchant_id:** 291 / 1,069 / 7,474 / 84,622 / **13.6%**
+7. **session_id:** 1 / 1 / 1 / 2 / **0.0003%**
+
+**How to interpret this:**
+1. **Parties/accounts/devices/instruments are low‑concentration.** The top entity for these categories accounts for only ~0.001–0.0014% of arrivals in the sample. This indicates **no “super‑user” dominance**. It’s a realistic shape for customer‑level traffic, but perhaps slightly *too flat* if we expect heavy‑tail consumer behavior (power users, business users).
+2. **IP concentration is moderate.** A top IP handles ~0.44% of arrivals, and the p99 is 60 arrivals in the sample. This suggests **some shared‑network behavior**, but not an extreme proxy/NAT domination. That is plausible, though IP reuse might be stronger in a more realistic retail world.
+3. **Merchant concentration is very strong.** The top merchant contributes ~13.6% of sampled arrivals, and a single merchant reaches 84k arrivals in the sample. This is a **dominant heavy‑tail**, implying a few merchants absorb a huge fraction of traffic. This is consistent with the small merchant universe (~1k) and the likely heavy‑tail intensity allocation from 6A.
+4. **Session IDs are effectively one‑arrival.** Top‑1 share is negligible and p99=1, which is aligned with the near one‑arrival sessionisation.
+
+**Why it matters for realism:**
+1. Strong merchant concentration can be realistic (large marketplaces dominate), but it **tightens the statistical story**: models will learn that merchant identity is a dominant predictor. That can be useful, but it can also **over‑fit to merchant‑level priors** if we intended a more evenly distributed commerce world.
+2. The lack of heavy‑tail at the party/account/device level suggests **individual behavior variance is limited**, which may reduce the realism of “high‑spend” or “hyper‑active” customers.
+
+**Realism posture:** **merchant‑level heavy‑tail is strong and coherent**, but customer‑level heavy‑tail is mild. This is plausible for a conservative synthetic world, but it under‑represents extreme user behavior.
+
+---
+
+### 11.4 Sessionisation realism (how arrivals are grouped over time)
+**What we measured (full scan + 0.5% sample):**
+1. **Sessions total:** 124,647,685  
+2. **Arrivals total:** 124,724,153  
+3. **Multi‑arrival sessions:** 76,270  
+4. **Multi‑arrival session rate:** **0.061%**  
+5. **Arrival count per session (sample):** p50=1, p90=1, p99=1, max=3  
+6. **Session duration (sample):** p50=0s, p90=0s, p99=0s, max=1,149.7s  
+7. **Zero‑duration sessions in sample:** 622,096 of 622,444 (99.94%)  
+8. **All multi‑arrival sessions had non‑zero duration** in sample.
+
+**How to interpret this:**
+1. **Sessions are almost one‑to‑one with arrivals.** Only 0.061% of sessions have more than one arrival. This implies that sessionisation is **mostly a labelling step**, not a behavioral grouping.
+2. **Session durations are overwhelmingly zero.** This means `session_start_utc == session_end_utc` for almost all sessions; i.e., the session is **just the arrival itself** rather than a window of activity.
+3. **The maximum duration (~1,149.7s)** sits just under the 20‑minute hard timeout, which confirms the implementation is honoring the timeout ceiling but **not populating longer, naturally‑distributed session lengths**.
+4. The fact that **all multi‑arrival sessions have non‑zero durations** is structurally consistent (a session with >1 arrival should span time), so the data is internally coherent even if behaviorally minimal.
+
+**Why it matters for realism:**
+1. Real‑world commerce generally has **meaningful multi‑arrival sessions** (multiple page views, repeated attempts, shopping cart activity). A 0.061% multi‑arrival rate indicates that **most of that behavior is missing**.
+2. Any model features that depend on “session context” (burstiness, within‑session velocity, short‑gap retries) will be **nearly absent**, and thus may not generalize to real data even if other features look plausible.
+3. This behavior is a direct consequence of the **lean sessionisation** described in the implementation notes (bucketed windows, stochastic boundary disabled). So this is **expected**, but it is a realism limitation.
+
+**Realism posture:** sessionisation is **structurally clean but behaviorally shallow**. It is acceptable for a lean deterministic build, but it under‑represents realistic browsing/transaction sequences.
+
+---
+
+### 11.5 Phase‑2 conclusion (S1 realism verdict)
+1. **Attachment graph is valid but under‑connected.** The data strongly prefers one‑to‑one mappings across parties, accounts, instruments, devices, and IPs. This is coherent, but it suppresses multi‑entity behaviors that are important for realism and fraud explainability.
+2. **Merchant‑level concentration is very strong.** This is consistent with a compressed merchant universe and likely with upstream intensity priors, but it will make merchant identity a dominant signal.
+3. **Sessionisation is near‑identity.** Most sessions are single arrivals with zero duration. This is consistent with the lean posture, but it limits session‑based realism.
+
+**Net realism assessment for Phase 2:** coherent and consistent with the lean build, but **behavioural richness is limited**. If we want higher realism, the top improvement levers are:
+1. Enable stochastic/session boundary logic to increase multi‑arrival sessions and realistic durations.
+2. Allow multi‑link attachment (party→account, account→instrument, device→IP) with controlled probabilities.
+3. Expand merchant universe or soften intensity concentration to reduce over‑dominance by top merchants.

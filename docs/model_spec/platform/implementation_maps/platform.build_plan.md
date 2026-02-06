@@ -441,6 +441,15 @@ These remain open and will be resolved during RTDL Phase 4 planning and partitio
 - Replay test: same offsets → same graph_version and state.
 - Integration test: EB sample events applied to projection with deterministic results.
 
+##### 4.2.K — Integration + hardening (IEG‑adjacent)
+**Goal:** close remaining IEG integration and ops hardening gaps before advancing RTDL.
+
+**DoD checklist:**
+- OFP/DF integration consumes IEG outputs (`graph_version`, `run_config_digest`, `eb_offset_basis`) with compatibility checks.
+- IEG metrics/export path exists (OTel‑aligned counters + health signals) beyond DB‑only storage.
+- Archive replay tooling exists to generate explicit replay manifests from EB/archive for deterministic rebuilds.
+- Explicit migrations exist for IEG tables (replace runtime ALTERs for prod posture).
+
 #### Phase 4.3 — OFP feature plane (graph → features)
 **Goal:** materialize reproducible feature snapshots.
 
