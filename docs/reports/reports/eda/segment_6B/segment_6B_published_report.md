@@ -1154,3 +1154,240 @@ There is **no strong evidence** of class‑targeted fraud in the observed sample
 3. **Fraud tagging is internally consistent.** fraud_flag and campaign_id are perfectly aligned across flows and events.
 
 **Net realism assessment for Phase 4:** structurally sound and policy‑consistent with the lean build, but **fraud behavior is too clean and too narrow** to mimic real fraud dynamics.
+
+---
+
+### 13.8 Fraud concentration by entity (clustering vs uniform spread)
+**Fraud entity coverage (all fraud flows):**
+1. Total fraud flows: **7,342**
+2. Fraud‑touched entities:
+   1. Merchants: **786** (avg **9.34** fraud flows per merchant)
+   2. Parties: **7,315** (avg **1.00** fraud flows per party)
+   3. Accounts: **7,315** (avg **1.00** fraud flows per account)
+   4. Devices: **7,315** (avg **1.00** fraud flows per device)
+   5. IPs: **6,001** (avg **1.22** fraud flows per IP)
+
+**Concentration (top‑1 and top‑5% share of fraud flows):**
+
+| entity | top1_fraud_flows | top1_share | top5pct_share |
+| --- | --- | --- | --- |
+| merchant | 991 | 13.50% | 49.07% |
+| ip | 35 | 0.48% | 15.55% |
+| party | 2 | 0.027% | 5.35% |
+| account | 2 | 0.027% | 5.35% |
+| device | 2 | 0.027% | 5.35% |
+
+**How to interpret this:**
+1. Fraud is **highly clustered by merchant**. The top 5% of merchants account for ~49% of all fraud flows, and the single top merchant alone accounts for 13.5%. This means the fraud overlay is **merchant‑dominated** rather than broadly distributed.
+2. Parties/accounts/devices show **near‑uniform spread** (most have exactly one fraud flow). This is not typical of real fraud, where repeat victimization and repeat offenders are common.
+3. IPs show **moderate clustering**, but far less than merchants. This suggests IP‑level repeat fraud exists, but it does not drive the fraud distribution the way merchants do.
+
+**Why it matters for realism:**
+1. Merchant‑centric fraud clustering can be realistic for collusion campaigns, but the **absence of repeat victimization at the customer level** makes ATO and card‑testing behavior look too clean.
+2. A model trained on this data will learn that **merchant identity is the primary fraud driver**, which can be overly strong compared to real environments.
+
+**Additional interpretation:**  
+The concentration pattern suggests that **campaign selection is effectively keyed on merchant_id** (or a merchant‑level surface) rather than on customer‑ or device‑side exposures. That is **plausible for collusive merchant abuse**, but it is **inconsistent with card‑testing or ATO**, where the repeated activity is usually visible on **party/account/device/IP**. If we want more realistic fraud clustering, we need **repeat hits per party/device** and a **broader distribution across merchants** so that both offender‑side and victim‑side signals exist.
+
+---
+
+### 13.9 Fraud targeting by class, segment, and geography
+**Fraud rate by merchant class (1% sample):**
+
+| demand_class | fraud_rate |
+| --- | --- |
+| consumer_daytime | 0.000060 |
+| online_24h | 0.000038 |
+| fuel_convenience | 0.000068 |
+| evening_weekend | 0.000113 |
+| online_bursty | 0.000036 |
+| office_hours | 0.000049 |
+| bills_utilities | 0.000073 |
+| travel_hospitality | 0.000116 |
+
+**Fraud rate by party segment (1% sample, selected):**
+1. `BUSINESS_SOLE_TRADER`: **0.000199**
+2. `BUSINESS_SME`: **0.000114**
+3. `RETAIL_MATURE`: **0.000072**
+4. `RETAIL_FAMILY`: **0.000040**
+5. `RETAIL_MASS_MARKET`: **0.000000** (no fraud in sample)
+6. `OTHER_PUBLIC_SECTOR`: **0.000430** (small sample, high variance)
+
+**Fraud rate by geography (1% sample):**
+1. **Cross‑border:** **0.000055**
+2. **Domestic:** **0.000025**
+
+**Fraud rate by merchant country (top‑volume, 1% sample):**
+1. Highest observed: **US 0.000120**, **BE 0.000099**, **DE 0.000088**
+2. Lowest observed: **AU 0.000018**, **DK 0.000025**
+
+**Fraud rate by party country (top‑volume, 1% sample):**
+1. Highest observed: **US 0.000246**, **HK 0.000137**, **IT 0.000098**
+2. Lowest observed: **NO 0.000025**, **NL 0.000031**, **DE 0.000034**
+
+**How to interpret this:**
+1. Fraud rates across classes and segments are **all near the global rate**, with small differences driven by tiny counts. This looks **more like uniform tagging** than targeted campaigns.
+2. Cross‑border fraud appears ~2× domestic, but the domestic sample is much smaller. This is **directional** evidence rather than a robust differential.
+3. Country‑level rates vary, but again the fraud counts are tiny, so these differences likely reflect **sampling noise** rather than policy‑driven targeting.
+
+**Why it matters for realism:**
+If campaigns are intended to target specific segments or geographies, those signals are **not clearly expressed**. The overlay behaves like a **global rate allocation** rather than targeted fraud behavior.
+
+**Additional interpretation:**  
+Because the **global fraud rate is ~6e‑5**, a 1% sample produces only **tens of frauds per class/segment**. This makes the class/segment deltas **statistically fragile**, and any apparent ranking is likely **noise‑dominated**. For realism, we would expect **clear, repeatable ordering** (e.g., online classes > fuel > bills) or **policy‑linked geography skew** to appear even at small samples; that pattern is not evident here.
+
+---
+
+### 13.10 Fraud temporal clustering and burstiness
+**Fraud rate by local hour (5% sample):**
+1. Hourly rates range **0.000029–0.000103**.
+2. Mild peaks around **hour 6 (0.000103)** and **hour 3 (0.000094)**, but overall variation is small.
+
+**Fraud rate by local day‑of‑week (5% sample):**
+1. Daily rates are nearly flat: **0.000047–0.000064**.
+
+**Fraud rate by local date (5% sample):**
+1. Daily rates range **0** to **0.000133** with only **1–9 frauds per day** in the sample.
+
+**Inter‑arrival gaps within merchant+party (5% sample):**
+1. **Non‑fraud gaps:** p50 ~**1.83e6s** (~21.2d), p90 ~**4.78e6s** (~55d), p99 ~**6.73e6s** (~77.9d)
+2. **Fraud gaps:** p50 ~**1.47e6s** (~17.0d), p90 ~**4.03e6s** (~46.6d), p99 ~**4.79e6s** (~55.5d)
+3. Fraud gap sample size is **very small** (n=29), so these values are unstable.
+
+**How to interpret this:**
+1. Fraud shows **no strong time‑of‑day or day‑of‑week pattern**; the rates are nearly flat.
+2. Inter‑arrival gaps for fraud are **not materially shorter** than non‑fraud, which means we do **not** observe card‑testing‑style bursts.
+3. The gap sample for fraud is extremely sparse, reinforcing the conclusion that **burstiness is not present** in this overlay.
+
+**Why it matters for realism:**
+Real fraud often clusters in time (bursts, campaigns, spikes). The lack of temporal clustering makes the overlay **behaviorally thin**.
+
+**Additional interpretation:**  
+The observed gaps are **weeks**, not **minutes/hours**, which is a strong signal that the overlay does **not encode bursty campaign behavior** (especially for card‑testing or credential stuffing). This is likely a direct consequence of **time‑agnostic hash targeting** and the absence of campaign‑specific schedules. If we want temporal realism, we need campaigns whose **arrival selection is time‑windowed** or whose **targeting probability varies by hour/day**.
+
+---
+
+### 13.11 Fraud uplift sensitivity and scaling
+**Fraud uplift ratio by base amount (all fraud flows):**
+Median uplift ratio is **~2.2–2.33** across all base price points, with p90 ~**3.2–3.3**.
+
+**How to interpret this:**
+1. The uplift ratio is **nearly constant** across base amounts, which implies a **uniform multiplicative policy**.
+2. There is **no evidence of non‑linear scaling** (e.g., larger base amounts being amplified more aggressively).
+
+**Why it matters for realism:**
+In real fraud, attackers often seek to maximize value, which can create **non‑linear amplification** at higher base amounts. That behavior is not represented here.
+
+**Additional interpretation:**  
+The flat ratio implies the uplift model is **single‑parameter and campaign‑agnostic**, so it **cannot produce distinct fraud “signatures”** (e.g., low‑value card‑testing vs high‑value takeover). Combined with the discrete 8‑point pricing, the uplift yields **stepwise amounts** rather than a smooth fraud‑amount tail. This limits the realism of amount‑based fraud detection features.
+
+---
+
+### 13.12 Repeat victimization (repeat offenders / repeat targets)
+**Entities with multiple fraud flows:**
+
+| entity | entities_with_2plus | entities_with_5plus | max_frauds_per_entity |
+| --- | --- | --- | --- |
+| party | 27 | 0 | 2 |
+| account | 27 | 0 | 2 |
+| device | 27 | 0 | 2 |
+| ip | 801 | 26 | 35 |
+| merchant | 635 | 341 | 991 |
+
+**How to interpret this:**
+1. Customer‑side repeat victimization is **almost absent** (no entity has >2 frauds).
+2. Merchants show **heavy repeat concentration** (max 991), which again points to merchant‑clustered fraud.
+3. IPs show some repeat behavior, but far less than merchants.
+
+**Why it matters for realism:**
+The absence of repeat fraud at the party/account/device level is **not realistic** for ATO and card‑testing dynamics, which typically show repeat attempts or repeat victimization.
+
+**Additional interpretation:**  
+This also means features like **recent fraud history**, **repeat decline attempts**, or **device/account re‑use** will be **uninformative** in the synthetic data. The dataset effectively teaches the model that **fraud is one‑off per customer**, which is the opposite of many real‑world patterns. To raise realism, we would want a **long‑tail of repeat victims/offenders** with **short‑gap sequences** inside specific campaigns.
+
+---
+
+### 13.13 Fraud concentration by merchant size deciles
+We bucketed merchants into **size deciles** using total flow volume, then computed fraud volumes and rates per decile.
+
+**Decile summary (full data):**
+
+| decile | merchants | min_flows | max_flows | total_flows | fraud_flows | fraud_rate | fraud_share | flow_share |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| 1 | 89 | 4,339 | 16,331 | 1,005,304 | 67 | 0.000067 | 0.009126 | 0.008060 |
+| 2 | 88 | 16,384 | 25,611 | 1,824,771 | 104 | 0.000057 | 0.014165 | 0.014630 |
+| 3 | 89 | 25,681 | 34,020 | 2,631,675 | 151 | 0.000057 | 0.020567 | 0.021100 |
+| 4 | 88 | 34,263 | 46,551 | 3,535,229 | 190 | 0.000054 | 0.025879 | 0.028344 |
+| 5 | 89 | 46,652 | 58,385 | 4,669,442 | 263 | 0.000056 | 0.035821 | 0.037438 |
+| 6 | 88 | 58,403 | 74,139 | 5,808,577 | 349 | 0.000060 | 0.047535 | 0.046571 |
+| 7 | 89 | 74,216 | 95,618 | 7,441,321 | 434 | 0.000058 | 0.059112 | 0.059662 |
+| 8 | 88 | 95,913 | 124,754 | 9,488,004 | 542 | 0.000057 | 0.073822 | 0.076072 |
+| 9 | 89 | 124,799 | 215,768 | 14,127,470 | 829 | 0.000059 | 0.112912 | 0.113270 |
+| 10 | 89 | 215,799 | 16,954,915 | 74,192,360 | 4,413 | 0.000059 | 0.601062 | 0.594852 |
+
+**How to interpret this:**
+1. Fraud rates are **flat across size deciles** (roughly 5.4e‑5 to 6.7e‑5).  
+2. Fraud share tracks flow share almost perfectly. The top decile holds **~59.5% of flows** and **~60.1% of fraud**, which is a proportional allocation rather than a size‑targeted fraud pattern.  
+3. This indicates that **merchant size does not drive fraud risk** in the current overlay; fraud is assigned in proportion to volume, not to scale‑specific vulnerability.
+
+**Why it matters for realism:**
+In real systems, very large merchants often exhibit **distinct fraud posture** (better controls or higher exposure). The absence of any size effect means the dataset **cannot teach** the model a size‑conditioned fraud signal.
+
+---
+
+### 13.14 Fraud targeting by campaign (class and geography)
+We mapped campaign IDs to labels using `s3_campaign_catalogue_6B` to interpret targeting patterns.
+
+**Campaign ID to label mapping:**
+1. `5d08f5...` → `T_CARD_TESTING_BURST`  
+2. `0916e5...` → `T_ATO_ACCOUNT_SWEEP`  
+3. `968633...` → `T_REFUND_ABUSE`  
+4. `26b5fd...` → `T_PROMO_FRAUD_EVENTS`  
+5. `64ead2...` → `T_BONUS_ABUSE_FLOW`  
+6. `6de458...` → `T_MERCHANT_COLLUSION` (0 flows)
+
+**Per‑campaign class mix (merchant primary class):**
+1. Every campaign is dominated by **consumer_daytime**, followed by **online_24h** and **fuel_convenience**.  
+2. The **rank ordering of classes is identical** across campaigns (consumer_daytime > online_24h > fuel > evening/weekend > online_bursty > office_hours > bills > travel).  
+3. This implies **no campaign‑specific class targeting**; campaigns inherit the base merchant‑class distribution.
+
+**Per‑campaign cross‑border skew:**
+| campaign | cross_border_share |
+| --- | --- |
+| T_ATO_ACCOUNT_SWEEP | 0.948 |
+| T_PROMO_FRAUD_EVENTS | 0.943 |
+| T_CARD_TESTING_BURST | 0.937 |
+| T_BONUS_ABUSE_FLOW | 0.938 |
+| T_REFUND_ABUSE | 0.930 |
+
+**How to interpret this:**
+1. All campaigns are **overwhelmingly cross‑border**, and the shares are tightly clustered (93–95%).  
+2. This suggests **no differential geo targeting** by campaign. Campaigns are simply sampling from a base population that is already cross‑border heavy.
+
+**Why it matters for realism:**
+Real campaigns often show **distinct class and geography fingerprints** (e.g., card‑testing skewing online, refund abuse skewing certain merchant types). The current overlay does not express such differentiation, so fraud signals look **global and uniform** across campaigns.
+
+---
+
+### 13.15 Inter‑arrival gaps within campaign (burstiness per fraud type)
+We computed inter‑arrival gaps by sorting fraud timestamps within each campaign and taking consecutive differences.
+
+**Gap statistics (seconds):**
+| campaign | n_gaps | min_gap | p50_gap | p90_gap | p99_gap | max_gap |
+| --- | --- | --- | --- | --- | --- | --- |
+| T_ATO_ACCOUNT_SWEEP | 230 | 274 | 22,279 | 73,181 | 136,167 | 163,540 |
+| T_PROMO_FRAUD_EVENTS | 1,373 | 6 | 3,426 | 13,632 | 32,215 | 55,653 |
+| T_CARD_TESTING_BURST | 1,985 | 1 | 2,384 | 9,249 | 24,465 | 38,032 |
+| T_BONUS_ABUSE_FLOW | 2,381 | 0 | 2,045 | 7,979 | 17,538 | 40,441 |
+| T_REFUND_ABUSE | 1,368 | 9 | 3,414 | 13,230 | 33,667 | 50,164 |
+
+**Repeat fraud check:**
+No repeated frauds were found for the same **campaign+merchant+party** key (unique in all 7,342 fraud flows).
+
+**How to interpret this:**
+1. Campaigns are **steady‑rate streams**, not bursts. Median gaps are **tens of minutes to hours**, and even p99 gaps are **hours**, not seconds.  
+2. The card‑testing campaign does **not** show the short‑gap, high‑frequency bursts expected for testing attacks.  
+3. The absence of repeated fraud at the campaign+merchant+party level confirms that **repeat‑attack dynamics are not present**.
+
+**Why it matters for realism:**
+Burstiness is a core realism signal for fraud campaigns. The current overlay produces **uniform trickle patterns**, which limits the dataset’s ability to train or validate burst‑sensitive fraud detectors.
