@@ -460,7 +460,7 @@ These remain open and will be resolved during RTDL Phase 4 planning and partitio
 
 #### Phase 4.3 — OFP feature plane (graph → features)
 **Goal:** materialize reproducible feature snapshots.
-**Status:** in progress. 4.3.A projector intake, 4.3.B feature-definition/window authority, 4.3.C/4.3.D snapshot artifact+index primitives, 4.3.E serve semantics, 4.3.F replay determinism, and 4.3.G observability/health are implemented at component scope; 4.3.H pending integration closure.
+**Status:** in progress. 4.3.A projector intake, 4.3.B feature-definition/window authority, 4.3.C/4.3.D snapshot artifact+index primitives, 4.3.E serve semantics, 4.3.F replay determinism, and 4.3.G observability/health are implemented at component scope; 4.3.H is partially closed (component-ready) with DF/DL integration tests pending.
 
 ##### 4.3.A — Inputs + basis pinning
 **Goal:** ensure OFP only consumes deterministic, run-scoped inputs.
@@ -535,7 +535,10 @@ These remain open and will be resolved during RTDL Phase 4 planning and partitio
 **DoD checklist:**
 - Unit tests for snapshot hash determinism and window TTL behavior.
 - Replay test: same basis → same snapshot_hash.
+- local_parity OFP runbook exists for current boundary operation.
 - Integration test: IEG graph_version → OFP snapshot with correct provenance.
+- DF-contract compatibility integration test (pending until DF exists).
+- DL consume-path integration test for OFP health/degrade signals (pending until DL exists).
 
 #### Phase 4.4 — DF/DL decision core (features → decision)
 **Goal:** compute decisions with explicit degrade posture.

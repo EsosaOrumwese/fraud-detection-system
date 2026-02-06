@@ -131,12 +131,19 @@ Provide a closure-grade, component-scoped plan for OFP aligned to platform Phase
 
 ### Phase 8 - Integration closure (4.3 -> 4.4 readiness)
 **Intent:** close OFP component DoDs and prepare handoff to DF/DL integration.
+**Status:** partial closure (2026-02-06). 8A integration-ready complete at OFP scope; 8B DF/DL integration pending.
 
-**DoD checklist:**
+**DoD checklist (8A - OFP integration-ready, complete):**
+- OFS parity checkpoints and evidence format are agreed and documented.
+- Runbook steps exist for local_parity validation of OFP end-to-end path up to OFP boundary.
+- Evidence:
+  - `docs/model_spec/platform/contracts/real_time_decision_loop/ofp_ofs_parity_contract_v0.md`
+  - `docs/model_spec/platform/runbooks/local_parity_ofp_runbook.md`
+  - `python -m pytest tests/services/online_feature_plane -q` -> `20 passed`
+
+**DoD checklist (8B - cross-component integration, pending):**
 - DF compatibility checks pass for required provenance fields.
 - DL can consume OFP health/degrade signals for policy posture.
-- OFS parity checkpoints and evidence format are agreed and documented.
-- Runbook steps exist for local_parity validation of OFP end-to-end path.
 
 ## Validation gate (required before phase advancement)
 - Unit tests for:

@@ -688,3 +688,64 @@ Closed OFP Phase 7 at component scope by adding explicit counter exports, a dete
   - serve-side degraded dependency posture remains explicit (Phase 5).
 - Remaining OFP component phase:
   - Phase 8 (integration closure / 4.3.H).
+
+---
+
+## Entry: 2026-02-06 17:53:00 - Phase 8 split-closure plan (8A now, 8B when DF/DL exist)
+
+### Problem / goal
+We cannot fully close OFP Phase 8 while DF/DL are not yet implemented, because Phase 8 includes explicit DF compatibility and DL consume-path requirements. The goal is to close what is truly closable now and make remaining blockers explicit.
+
+### Authorities / inputs
+- `docs/model_spec/platform/implementation_maps/online_feature_plane.build_plan.md` (Phase 8 DoD)
+- `docs/model_spec/platform/implementation_maps/platform.build_plan.md` (4.3.H + 4.4 adjacency)
+- `docs/model_spec/platform/pre-design_decisions/real-time_decision_loop.pre-design_decision.md`
+- Current OFP completed phases (1-7) and tests.
+
+### Decision
+Split Phase 8 into:
+1. **Phase 8A (integration-ready, closable now)**:
+   - OFP contracts/provenance fields are stable and test-backed.
+   - OFP/OFS parity checkpoint semantics are documented.
+   - local_parity runbook exists for OFP validation up to the current boundary.
+2. **Phase 8B (integration closure, blocked)**:
+   - DF compatibility tests (consumer contract assertions) require DF implementation.
+   - DL policy-posture consumption tests require DL implementation.
+
+### Planned edits
+- Update OFP build plan Phase 8 status/checklist to 8A complete and 8B pending.
+- Update platform build plan 4.3.H wording so it reflects partial closure and explicit block on DF/DL.
+- Add OFP local parity runbook doc under platform docs.
+- Record closure rationale and evidence in this impl map and in the logbook.
+
+---
+
+## Entry: 2026-02-06 17:57:00 - Phase 8 split closure applied (8A complete, 8B pending)
+
+### Summary of implementation
+Applied the Phase 8 split-closure model so the plan reflects actual readiness:
+- closed what OFP can close independently now (8A),
+- marked DF/DL dependent checks as explicit pending work (8B).
+
+### Changes applied
+- Updated OFP build plan:
+  - `docs/model_spec/platform/implementation_maps/online_feature_plane.build_plan.md`
+  - Phase 8 now has explicit status:
+    - 8A integration-ready complete,
+    - 8B cross-component integration pending.
+- Updated platform build plan:
+  - `docs/model_spec/platform/implementation_maps/platform.build_plan.md`
+  - 4.3 status now reflects partial 4.3.H closure and explicit DF/DL dependency.
+  - 4.3.H checklist now distinguishes component-level validation vs pending integration tests.
+- Added OFP local parity runbook:
+  - `docs/model_spec/platform/runbooks/local_parity_ofp_runbook.md`
+  - includes run-scoping, projector, snapshotter, observability export, and verification steps.
+
+### Closure stance
+- **Phase 8A (complete):**
+  - OFP/OFS parity checkpoint semantics documented.
+  - OFP boundary runbook exists for local parity.
+  - OFP component validations green (`20 passed` suite).
+- **Phase 8B (pending by design):**
+  - DF compatibility integration assertions.
+  - DL consume-path checks for OFP health/degrade signals.
