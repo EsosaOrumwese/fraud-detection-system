@@ -2285,3 +2285,136 @@ The following are ordered by impact on realism. “B” requires the first four;
 
 **Summary:**  
 Fixing truth labels and bank‑view conditioning moves 6B into **usable realism (B)**. To reach **A+**, the dataset must express **tail behavior, temporal dynamics, campaign‑specific signatures, and stratified risk** in a way that matches both policy and narrative expectations.
+
+---
+
+## Appendix A) Visual Diagnostics (Standardized Plot Deck)
+To make the realism assessment easier to review, the Segment 6B plots were regenerated with a single visual style (consistent typography, scales, labels, and annotation conventions). The figures below are not decorative; each one supports a specific statistical claim made earlier in Phases 2–8.
+
+### A.1 Truth-label saturation (supports Sections 14.1, 18.1)
+<img src="plots/01_truth_label_saturation.png" width="760" alt="Truth flag and truth label distributions">
+
+What this shows:
+1. `is_fraud_truth` has a single bar (`True`) with full flow volume.
+2. Within truth labels, almost all mass is `ABUSE`, with a very small `FRAUD` tail and no `LEGIT`.
+
+Why this matters:
+1. This visual is direct evidence of target-label collapse.
+2. The collapse is not subtle or sample-specific; it is structural at production-scale row counts.
+
+---
+
+### A.2 Bank-view flatness by class x amount (supports Sections 14.16, 15.3, 17.1–17.3)
+<img src="plots/02_bank_view_flatness_heatmap.png" width="760" alt="Bank-view fraud rate heatmap by amount bin and merchant class">
+
+What this shows:
+1. Most cells sit tightly around ~0.15 to ~0.16 across all classes and amount bins.
+2. The high-amount sparse bin is masked, avoiding false interpretation from low-support cells.
+
+Why this matters:
+1. The near-uniform color surface confirms weak risk stratification by both class and spend.
+2. This aligns with the near-zero effect sizes in Phase 8 and explains why bank-view behaves like a global fixed-rate process.
+
+---
+
+### A.3 Truth vs bank-view confusion (supports Sections 14.7, 15.4, 18.1)
+<img src="plots/03_truth_bank_confusion.png" width="700" alt="Truth vs bank-view confusion matrix">
+
+What this shows:
+1. Entire truth mass is in the `Truth=True` row; `Truth=False` row is zero.
+2. Bank-view splits truth-positive flows into a large `Bank=False` block and smaller `Bank=True` block.
+
+Why this matters:
+1. Because truth has no negative class, conventional discrimination diagnostics become uninformative.
+2. This plot makes clear that the core issue is not threshold tuning but truth-label construction.
+
+---
+
+### A.4 Case-event gap pathology (supports Sections 14.10, 14.13, 15.5)
+<img src="plots/04_case_gap_distribution.png" width="900" alt="Case event time gaps and sign composition">
+
+What this shows:
+1. Gaps occur at a small set of exact values (`-82801`, `0`, `1`, `3599`, `3600`, `82800`) rather than smooth distributions.
+2. Negative gaps are material (~12.9% in sample), not rare outliers.
+
+Why this matters:
+1. Negative gaps indicate non-monotonic event-time sequences within cases.
+2. The discrete spikes indicate templated timing mechanics, not organically variable case workflows.
+
+---
+
+### A.5 Case-duration templating (supports Sections 14.4, 14.9, 15.5, 18.1)
+<img src="plots/05_case_duration_distribution.png" width="700" alt="Case duration distribution with exact values">
+
+What this shows:
+1. Case durations concentrate on two values: ~`3,600s` and ~`86,401s`.
+2. Shares are heavily split into these two templates (roughly 64% vs 36% in sample).
+
+Why this matters:
+1. This confirms fixed-delay policy behavior in implementation, rather than stochastic delay realism.
+2. Combined with gap anomalies, it explains why case timelines were graded as structurally weak.
+
+---
+
+### A.6 Fraud concentration shape (supports Sections 13.8, 16.1, 16.6)
+<img src="plots/06_fraud_lorenz_curve.png" width="620" alt="Lorenz curve for fraud concentration by merchant">
+<img src="plots/07_topk_share_bars.png" width="700" alt="Top-k share comparison for party flow concentration and merchant fraud concentration">
+
+What this shows:
+1. Lorenz curve is strongly bowed below the equality line (Gini ~0.669), indicating concentrated fraud at merchant level.
+2. Top-k bars show fraud-per-merchant concentration is much steeper than flows-per-party concentration.
+
+Why this matters:
+1. Fraud is not uniformly distributed across merchants, which is realistic in direction.
+2. However, concentration arises in a regime with simplified targeting; the plot shows *where* concentration exists, not necessarily that targeting is policy-rich.
+
+---
+
+### A.7 Amount discreteness and uniformity (supports Sections 12.1–12.3, 18.1)
+<img src="plots/08_amount_distribution.png" width="900" alt="Amount distribution and share by exact price points">
+
+What this shows:
+1. Exactly eight price points are used.
+2. Each point contributes almost identical share (~12.5% each), producing a near-uniform categorical amount surface.
+
+Why this matters:
+1. This is clean and deterministic but lacks heavy-tail realism and merchant-specific pricing signatures.
+2. It visually confirms that amount behavior is policy-discrete rather than economically diverse.
+
+---
+
+### A.8 Fraud uplift behavior (supports Sections 13.4, 13.11, 17.7)
+<img src="plots/09_fraud_uplift_by_base_amount.png" width="760" alt="Fraud uplift ratio by base amount">
+
+What this shows:
+1. Uplift-ratio distributions overlap strongly across all base amounts.
+2. Medians and spread are broadly similar from low to high price points.
+
+Why this matters:
+1. Fraud amount uplift is present, but mostly shape-invariant across base amounts.
+2. This supports the earlier conclusion that the major separability signal is a mechanical uplift, not context-rich fraud dynamics.
+
+---
+
+### A.9 Cross-border posture by class (supports Sections 11.10, 11.15, 16.3)
+<img src="plots/10_cross_border_rate_by_class.png" width="820" alt="Cross-border rate by merchant class">
+
+What this shows:
+1. All classes are very high cross-border (~0.90+), with narrow spread between classes.
+2. The overall reference line sits near the class-level cluster, indicating limited class differentiation.
+
+Why this matters:
+1. The system expresses a global high cross-border regime rather than class-specific geography behavior.
+2. This helps explain why class/geography effects on bank-view outcomes remain weak despite large traffic volume.
+
+---
+
+### A.10 Visual synthesis
+Across the full deck, the dominant pattern is consistent:
+1. **Structure is coherent**, but behavioral realism is constrained by deterministic templates.
+2. **Labels and outcomes are weakly stratified**, especially bank-view surfaces.
+3. **Core realism defects are visually obvious**: truth-label collapse, flat bank-view risk surface, templated case timing, and overly discrete uniform pricing.
+
+These visuals therefore reinforce, rather than replace, the Phase 0–8 statistical verdict and final D+ grade.
+
+---

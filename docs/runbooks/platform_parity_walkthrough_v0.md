@@ -513,6 +513,24 @@ If you want the projector to keep polling:
   --profile config/platform/profiles/local_parity.yaml
 ```
 
+**11.2a Live parity mode (run_forever)**
+Use this when you want the projector to behave like dev/prod (always-on). Keep it in a separate terminal.
+
+Recommended scope locks (so it only consumes the active run):
+```
+$env:PLATFORM_RUN_ID = (Get-Content runs/fraud-platform/ACTIVE_RUN_ID).Trim()
+$env:IEG_REQUIRED_PLATFORM_RUN_ID = $env:PLATFORM_RUN_ID
+$env:IEG_LOCK_RUN_SCOPE = "true"
+```
+
+Start the projector in live mode:
+```
+.venv/Scripts/python.exe -m fraud_detection.identity_entity_graph.projector `
+  --profile config/platform/profiles/local_parity.yaml
+```
+
+Stop it explicitly when the run is finished.
+
 **11.3 Expected artifacts (run‑scoped)**
 - Projection DB (SQLite in parity):
   `runs/fraud-platform/<platform_run_id>/identity_entity_graph/projection/identity_entity_graph.db`
