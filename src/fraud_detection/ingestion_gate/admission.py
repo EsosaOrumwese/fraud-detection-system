@@ -597,6 +597,10 @@ def _profile_id_for_class(class_name: str, default_profile_id: str) -> str:
         return "ig.partitioning.v0.control"
     if class_name == "audit":
         return "ig.partitioning.v0.audit"
+    if class_name == "rtdl_decision":
+        return "ig.partitioning.v0.rtdl.decision"
+    if class_name == "rtdl_action_intent":
+        return "ig.partitioning.v0.rtdl.action_intent"
     if class_name == "traffic_baseline":
         return "ig.partitioning.v0.traffic.baseline"
     if class_name == "traffic_fraud":

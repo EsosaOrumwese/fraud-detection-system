@@ -96,3 +96,24 @@ profiles:
       - payload.arrival_seq
       - event_id
     hash_algo: sha256
+
+  ig.partitioning.v0.rtdl.decision:
+    description: >
+      Deterministic routing for Decision Fabric decision responses.
+    stream: fp.bus.traffic.fraud.v1
+    key_precedence:
+      - payload.source_event.event_id
+      - payload.pins.scenario_run_id
+      - event_id
+    hash_algo: sha256
+
+  ig.partitioning.v0.rtdl.action_intent:
+    description: >
+      Deterministic routing for Decision Fabric action intents.
+    stream: fp.bus.traffic.fraud.v1
+    key_precedence:
+      - payload.idempotency_key
+      - payload.decision_id
+      - payload.pins.scenario_run_id
+      - event_id
+    hash_algo: sha256

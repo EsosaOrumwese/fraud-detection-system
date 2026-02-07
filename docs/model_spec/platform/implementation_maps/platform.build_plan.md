@@ -540,6 +540,67 @@ These remain open and will be resolved during RTDL Phase 4 planning and partitio
 - DF-contract compatibility integration test (pending until DF exists).
 - DL consume-path integration test for OFP health/degrade signals (pending until DL exists).
 
+#### Phase 4.3.5 — Shared RTDL join plane (Context Store + FlowBinding)
+**Goal:** pin the runtime join substrate that DF/DL consume at decision time without duplicating IEG or OFP truth ownership.
+**Status:** planning-active; required for full RTDL integration closure, without reopening 4.4 component-boundary completion.
+**Component build map:** `docs/model_spec/platform/implementation_maps/context_store_flow_binding.build_plan.md`
+
+##### 4.3.5.A — Join-plane boundary + ownership
+**Goal:** lock responsibilities for runtime join state.
+
+**DoD checklist:**
+- Context Store owns run-scoped JoinFrames consumed online by DF/DL.
+- FlowBinding Index owns `flow_id -> JoinFrameKey` resolution, with flow-anchor events as the only authoritative writer.
+- IEG remains projection authority; OFP remains feature snapshot authority; join plane remains runtime join-readiness authority.
+
+##### 4.3.5.B — Keys, schema, and pin invariants
+**Goal:** prevent cross-run/cross-flow mixing.
+
+**DoD checklist:**
+- JoinFrameKey is explicit and pinned (`platform_run_id`, `scenario_run_id`, `merchant_id`, `arrival_seq`).
+- FlowBinding records include evidence refs to anchor event offsets and required ContextPins.
+- Unknown or incompatible schema/pin combinations fail closed and are logged as anomalies.
+
+##### 4.3.5.C — Ingest/apply semantics + idempotency
+**Goal:** keep join state deterministic under at-least-once and replay.
+
+**DoD checklist:**
+- Apply path is sourced from admitted EB context topics only (no Oracle side reads).
+- Idempotency tuple is pinned and payload-hash mismatch for same tuple is anomaly/fail-closed.
+- Duplicate deliveries do not mutate committed join state.
+
+##### 4.3.5.D — Commit points + checkpoints
+**Goal:** prevent offset/state divergence.
+
+**DoD checklist:**
+- Join state commit and offset checkpoint advance are transactionally ordered (commit before checkpoint).
+- Recovery from crash/restart replays safely without creating divergent JoinFrames.
+- Replay from same offset basis reproduces identical JoinFrame and FlowBinding state.
+
+##### 4.3.5.E — Query/read contract for DF/DL
+**Goal:** give DF/DL an explicit runtime API for join readiness.
+
+**DoD checklist:**
+- Read contract supports lookup by source traffic event context (`flow_id` and/or JoinFrameKey surfaces).
+- Responses include join completeness status + evidence refs used for resolution.
+- Missing binding/context returns explicit machine-readable reasons; no fabricated joins.
+
+##### 4.3.5.F — Degrade and observability hooks
+**Goal:** make join deficits actionable by DL/DF and Obs/Gov.
+
+**DoD checklist:**
+- Join-miss and binding-conflict reasons are emitted in structured counters/logs.
+- Health posture exposes lag, conflict count, and stale-watermark indicators for DL posture inputs.
+- Reconciliation artifact is available per run with applied offset basis and unresolved conflict summaries.
+
+##### 4.3.5.G — Validation and closure gate
+**Goal:** prove shared join-plane readiness before declaring RTDL integration closure.
+
+**DoD checklist:**
+- Unit tests cover binding authority, conflict handling, idempotent replay, and fail-closed unknowns.
+- Integration test proves EB context intake -> JoinFrame availability -> DF read contract continuity.
+- Local-parity monitored run evidence includes join-plane counters and failure-mode assertions.
+
 #### Phase 4.4 — DF/DL decision core (features → decision)
 **Goal:** compute decisions with explicit degrade posture.
 **Status:** complete at DF/DL decision+intent boundary; Phase 4.5 integration-dependent execution/audit closure remains pending by design.
@@ -734,5 +795,6 @@ Resolved and pinned in:
 - Phase 2: complete (Oracle Store + WSP stream‑view parity).
 - Phase 3: complete (control & ingress plane green for v0).
 - Phase 4.3 (OFP): component-complete, integration-pending (DF/DL-dependent checks remain).
+- Phase 4.3.5 (Context Store + FlowBinding join plane): planning-active.
 - Phase 4.4 (DF/DL): complete at decision+intent boundary; Phase 4.5 AL/DLA integration closure pending.
 - SR v0: complete (see `docs/model_spec/platform/implementation_maps/scenario_runner.build_plan.md`).

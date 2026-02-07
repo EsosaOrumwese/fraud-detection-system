@@ -2508,3 +2508,89 @@ Adopt **Option 2**. Receipt and quarantine artifacts will be written under the r
 ### Outcome
 Receipt paths now align with `pins.platform_run_id` even if the IG service environment is stale. Provenance is consistent and deterministic.
 
+---
+
+## Entry: 2026-02-07 13:51:00 - Plan: onboard DF output families in IG admission policy/routing
+
+### Problem
+IG currently lacks explicit onboarding for RTDL DF output events:
+- `decision_response`
+- `action_intent`
+
+Without explicit class_map + schema_policy + partitioning profile coverage, DF output envelopes cannot be admitted through IG as first-class traffic facts under the same policy rails.
+
+### Authorities / references
+- `docs/model_spec/platform/contracts/real_time_decision_loop/decision_payload.schema.yaml`
+- `docs/model_spec/platform/contracts/real_time_decision_loop/action_intent.schema.yaml`
+- `docs/model_spec/platform/pre-design_decisions/real-time_decision_loop.pre-design_decision.md`
+- `config/platform/ig/class_map_v0.yaml`
+- `config/platform/ig/schema_policy_v0.yaml`
+- `config/platform/ig/partitioning_profiles_v0.yaml`
+- `src/fraud_detection/ingestion_gate/admission.py`
+
+### Decision
+1. Add dedicated IG classes for DF output families with required RTDL pins and optional `run_id`.
+2. Add schema-policy entries pointing to RTDL contract schemas with `schema_version_required=true` and `allowed_schema_versions=[v1]`.
+3. Add explicit partitioning profiles for decision and intent events, routed to existing `fp.bus.traffic.fraud.v1` (v0 parity-safe stream choice).
+4. Add class->profile routing in `_profile_id_for_class`.
+5. Add targeted tests to prevent future regressions in config/routing onboarding.
+
+### Invariants to preserve
+- IG remains the sole EB admission writer.
+- Existing control/context/traffic behavior must remain unchanged.
+- DF outputs must still satisfy canonical envelope validation and schema policy checks.
+- No secret-bearing fields are added to IG receipts/indexes.
+
+### Validation plan
+- Run targeted ingestion-gate tests covering new routing/schema config assertions.
+- Run existing admission tests to ensure no regression in dedupe/quarantine/receipt behavior.
+
+---
+
+## Entry: 2026-02-07 13:53:00 - Implemented DF output onboarding in IG policy/routing
+
+### Changes applied
+1. **Class map onboarding**
+   - Added `decision_response -> rtdl_decision`
+   - Added `action_intent -> rtdl_action_intent`
+   - Added required pin sets for both classes:
+     - `platform_run_id`, `scenario_run_id`, `manifest_fingerprint`, `parameter_hash`, `seed`, `scenario_id`
+   - Intentionally did not require `run_id` for these classes.
+
+2. **Schema policy onboarding**
+   - Added `decision_response` policy:
+     - class `rtdl_decision`
+     - schema version required (`v1`)
+     - payload schema ref:
+       `docs/model_spec/platform/contracts/real_time_decision_loop/decision_payload.schema.yaml`
+   - Added `action_intent` policy:
+     - class `rtdl_action_intent`
+     - schema version required (`v1`)
+     - payload schema ref:
+       `docs/model_spec/platform/contracts/real_time_decision_loop/action_intent.schema.yaml`
+
+3. **Partitioning/routing onboarding**
+   - Added `ig.partitioning.v0.rtdl.decision` and `ig.partitioning.v0.rtdl.action_intent`.
+   - Routed both to existing `fp.bus.traffic.fraud.v1` for v0 parity compatibility.
+   - Added class->profile mapping in `_profile_id_for_class` for both new classes.
+
+4. **Regression guards**
+   - Added `tests/services/ingestion_gate/test_phase10_df_output_onboarding.py`:
+     - asserts class_map + schema_policy entries exist and match expected pins/schema refs.
+     - asserts routing resolves to expected partition profiles/streams.
+     - asserts deterministic partition-key derivation for DF output envelopes.
+
+### Files touched
+- `config/platform/ig/class_map_v0.yaml`
+- `config/platform/ig/schema_policy_v0.yaml`
+- `config/platform/ig/partitioning_profiles_v0.yaml`
+- `src/fraud_detection/ingestion_gate/admission.py`
+- `tests/services/ingestion_gate/test_phase10_df_output_onboarding.py`
+
+### Validation evidence
+- `python -m pytest tests/services/ingestion_gate/test_phase10_df_output_onboarding.py tests/services/ingestion_gate/test_admission.py -q` -> `8 passed`.
+
+### Additional note
+- A full `tests/services/ingestion_gate -q` run in this environment currently includes pre-existing failures unrelated to this change set (Flask/Werkzeug client compatibility in service tests and older wiring/test fixture mismatches). The DF-output onboarding paths added here are covered by targeted passing tests above.
+
+

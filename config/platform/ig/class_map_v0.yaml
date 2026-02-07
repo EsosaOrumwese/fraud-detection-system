@@ -63,6 +63,22 @@ classes:
       - seed
       - scenario_id
       - run_id
+  rtdl_decision:
+    required_pins:
+      - platform_run_id
+      - scenario_run_id
+      - manifest_fingerprint
+      - parameter_hash
+      - seed
+      - scenario_id
+  rtdl_action_intent:
+    required_pins:
+      - platform_run_id
+      - scenario_run_id
+      - manifest_fingerprint
+      - parameter_hash
+      - seed
+      - scenario_id
   control:
     required_pins:
       - platform_run_id
@@ -81,6 +97,8 @@ event_types:
   s1_arrival_entities_6B: context_arrival_entities
   s2_flow_anchor_baseline_6B: context_flow_baseline
   s3_flow_anchor_with_fraud_6B: context_flow_fraud
+  decision_response: rtdl_decision
+  action_intent: rtdl_action_intent
   ig.policy.activation: audit
   ig.quarantine.spike: audit
   ig.pull.run: audit

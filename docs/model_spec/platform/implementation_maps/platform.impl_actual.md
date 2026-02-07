@@ -2277,3 +2277,95 @@ To keep platform 4.4 closure evidence current in this execution pass, reran DL c
 This confirms DF + DL component suites are both green in the same closure cycle.
 
 ---
+
+## Entry: 2026-02-07 13:50:00 - Plan: close confirmed RTDL integration drifts A/B
+
+### Problem statement
+Validated RTDL drift review identified two remaining integration gaps that are outside the already-closed IEG/OFP/DF/DL P0 drift set:
+1. **A) IG routing/schema onboarding for DF outputs** (`decision_response`, `action_intent`) is missing in active IG policy/class/partitioning config.
+2. **B) Shared RTDL join-plane placement** (Context Store + FlowBinding as a runtime substrate) is not explicitly represented in the platform build sequencing, which makes 4.3->4.4 boundaries ambiguous.
+
+### Authorities / inputs used
+- `docs/model_spec/platform/component-specific/flow-narrative-platform-design.md`
+- `docs/model_spec/platform/pre-design_decisions/real-time_decision_loop.pre-design_decision.md`
+- `docs/model_spec/platform/implementation_maps/platform.build_plan.md`
+- `config/platform/ig/class_map_v0.yaml`
+- `config/platform/ig/schema_policy_v0.yaml`
+- `config/platform/ig/partitioning_profiles_v0.yaml`
+- `scratch_files/scratch.md` (validated residual drift report)
+
+### Design decisions (pre-implementation)
+1. **A closure scope:** onboard DF outputs to IG using explicit event-class mapping, explicit schema policy entries, and explicit partition profiles.
+2. **A stream choice:** route DF outputs to existing `fp.bus.traffic.fraud.v1` in v0 to avoid introducing unprovisioned new Kinesis streams during parity runs.
+3. **A pin posture:** require RTDL core pins (`platform_run_id`, `scenario_run_id`, `manifest_fingerprint`, `parameter_hash`, `seed`, `scenario_id`) and do **not** require `run_id` for DF outputs because DF envelope contract treats it as optional.
+4. **B placement:** add an explicit **Phase 4.3.5** in `platform.build_plan.md` between OFP and DF/DL to pin shared join-plane runtime duties and DoDs without claiming a new component that duplicates IEG/OFP.
+
+### Non-duplication boundary (B)
+- **IEG remains** projection/world-state authority.
+- **OFP remains** feature snapshot authority.
+- **4.3.5 join-plane remains** runtime join substrate authority (Context Store + FlowBinding) for bounded decision-time joins.
+- This avoids semantic overlap while making DF/DL ingress assumptions explicit.
+
+### Planned edits
+1. Append IG config/code/test changes for DF-output onboarding.
+2. Add 4.3.5 section and DoDs to platform build plan.
+3. Run targeted ingestion-gate tests for routing/schema/partitioning behavior.
+4. Append post-change evidence entries to implementation maps and logbook.
+
+---
+
+## Entry: 2026-02-07 13:54:00 - Applied A/B RTDL integration drift closure updates
+
+### Summary
+Implemented the requested A/B closures:
+- **A)** IG now explicitly admits/routes DF outputs (`decision_response`, `action_intent`) under policy rails.
+- **B)** Platform build plan now contains explicit **Phase 4.3.5** for shared RTDL join-plane duties and DoDs.
+
+### A) IG onboarding outcome
+- Added class-map, schema-policy, and partitioning coverage for DF output families.
+- Added admission class->profile routing in IG.
+- Added targeted tests locking config/routing behavior.
+- Detailed component notes and file-level evidence captured in:
+  - `docs/model_spec/platform/implementation_maps/ingestion_gate.impl_actual.md`
+
+### B) Platform sequencing outcome
+- Inserted **Phase 4.3.5 — Shared RTDL join plane (Context Store + FlowBinding)** between OFP and DF/DL.
+- Added explicit DoD groups:
+  - boundary/ownership
+  - key/schema invariants
+  - ingest/apply idempotency
+  - commit/checkpoint order
+  - DF/DL query contract
+  - degrade/observability hooks
+  - validation/closure gate
+- Clarified status language so this addition does not rewrite historical 4.4 component-boundary closure.
+
+### Validation evidence
+- `python -m pytest tests/services/ingestion_gate/test_phase10_df_output_onboarding.py tests/services/ingestion_gate/test_admission.py -q` -> `8 passed`.
+
+### Residual caveat (environmental)
+- Full `tests/services/ingestion_gate -q` currently has unrelated pre-existing failures in this environment (service test dependency compatibility + older fixture wiring signatures). These are not introduced by A/B edits and remain separate cleanup work.
+
+---
+
+## Entry: 2026-02-07 14:04:00 - Established standalone component maps for RTDL join plane
+
+### Why this was added
+After closing A/B drift items, implementation needs to proceed on the shared RTDL join-plane runtime surface as a first-class component. Without dedicated component maps, phase execution would stay mixed into platform prose and lose auditable detail.
+
+### Decision
+Create standalone component planning/notebook files:
+- `docs/model_spec/platform/implementation_maps/context_store_flow_binding.build_plan.md`
+- `docs/model_spec/platform/implementation_maps/context_store_flow_binding.impl_actual.md`
+
+### Platform-level updates applied
+1. Added explicit component reference under platform `Phase 4.3.5`.
+2. Added rolling-status line marking `Phase 4.3.5` as planning-active.
+3. Kept 4.4 completion posture unchanged (no regression/rollback of DF/DL boundary closure).
+
+### Ownership boundary reaffirmed
+- Join plane component owns runtime JoinFrame + FlowBinding service boundary.
+- IEG/OFP/DF ownership boundaries remain unchanged.
+- This addition is structural/planning-first; runtime code implementation starts after these docs are established.
+
+---
