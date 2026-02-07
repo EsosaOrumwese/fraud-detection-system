@@ -107,4 +107,11 @@ Provide an executable, phase-by-phase DF build plan aligned to platform Phase 4.
   - Evidence: `tests/services/decision_fabric/test_phase1_ids.py`
   - Evidence: `tests/services/decision_fabric/test_phase1_taxonomy.py`
   - Validation: `python -m pytest tests/services/decision_fabric -q` -> `14 passed`
-- Current focus: Phase 2 (`Inlet boundary + trigger gating`).
+- Phase 2 (`Inlet boundary + trigger gating`): completed on `2026-02-07`.
+  - Evidence: `config/platform/df/trigger_policy_v0.yaml`
+  - Evidence: `src/fraud_detection/decision_fabric/config.py`
+  - Evidence: `src/fraud_detection/decision_fabric/inlet.py`
+  - Evidence: `tests/services/decision_fabric/test_phase2_config.py`
+  - Evidence: `tests/services/decision_fabric/test_phase2_inlet.py`
+  - Validation: `python -m pytest tests/services/decision_fabric -q` -> `24 passed`
+- Current focus: Phase 3 (`DL integration + fail-safe enforcement`).

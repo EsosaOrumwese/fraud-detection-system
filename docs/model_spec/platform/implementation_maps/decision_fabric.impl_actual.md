@@ -197,3 +197,104 @@ After Phase 1 closure, the identity determinism test for reordered offsets used 
 - Phase 1 closure remains valid with stronger determinism evidence.
 
 ---
+
+## Entry: 2026-02-07 10:45:23 — Phase 2 implementation plan (inlet boundary + trigger gating)
+
+### Problem / goal
+Implement DF Phase 2 so the Decision Fabric inlet only forms decision candidates from admitted traffic stimuli and rejects non-trigger/control/looping families deterministically.
+
+### Authorities / inputs
+- `docs/model_spec/platform/implementation_maps/decision_fabric.build_plan.md` (Phase 2)
+- `docs/model_spec/platform/pre-design_decisions/real-time_decision_loop.pre-design_decision.md` (RTDL topic discovery, traffic-trigger posture, fail-closed compatibility)
+- `docs/model_spec/platform/component-specific/flow-narrative-platform-design.md` (context streams are state-builders, traffic is trigger)
+- Existing projector inlet patterns:
+  - `src/fraud_detection/online_feature_plane/projector.py`
+  - `src/fraud_detection/identity_entity_graph/projector.py`
+
+### Decision trail (before coding)
+1. Introduce an explicit, versioned DF trigger policy file under `config/platform/df/` instead of hard-coding trigger sets in Python. This satisfies "allowlist explicit and versioned."
+2. Build two new DF modules:
+   - `config.py` for loading/validating trigger policy and computing a policy content digest.
+   - `inlet.py` for envelope validation + traffic-topic gating + event trigger allowlist + loop prevention + pins validation + evidence-basis extraction.
+3. Preserve fail-closed posture at inlet:
+   - invalid/missing envelope or missing pins -> reject with explicit reason code,
+   - unknown event type/schema mismatch -> reject with explicit reason code,
+   - blocked loop families (DF/AL outputs) -> reject even if they appear on traffic topics.
+4. Capture source evidence basis for accepted candidates as a structured `eb_ref` (`topic`, `partition`, `offset`, `offset_kind`, `published_at_utc`) and `source_event_id`.
+5. Keep this phase runtime-light:
+   - no long-running DF service loop yet,
+   - focus on deterministic, unit-tested inlet semantics that later phases will use.
+
+### Files planned
+- New:
+  - `config/platform/df/trigger_policy_v0.yaml`
+  - `config/platform/df/README.md`
+  - `src/fraud_detection/decision_fabric/config.py`
+  - `src/fraud_detection/decision_fabric/inlet.py`
+  - `tests/services/decision_fabric/test_phase2_config.py`
+  - `tests/services/decision_fabric/test_phase2_inlet.py`
+- Update:
+  - `src/fraud_detection/decision_fabric/__init__.py`
+  - `docs/model_spec/platform/implementation_maps/decision_fabric.build_plan.md` (status after closure)
+
+### Invariants to enforce
+- Only configured admitted traffic topics can produce trigger candidates.
+- Trigger event types are explicit and versioned in policy.
+- Required pins are validated at inlet; `seed` requirement is policy-controlled (default required in v0).
+- DF/AL output families are never trigger-eligible (loop prevention).
+- Accepted candidate always carries `source_event_id` and `source_eb_ref`.
+
+### Validation plan
+- Run `python -m pytest tests/services/decision_fabric -q`.
+- Ensure tests explicitly cover:
+  - non-traffic topic rejection,
+  - context/control rejection,
+  - loop family rejection,
+  - pin-required rejection,
+  - source evidence basis capture on accepted candidate.
+
+---
+
+## Entry: 2026-02-07 10:48:27 — Phase 2 implementation closure (inlet boundary + trigger gating)
+
+### What was implemented
+1. Added versioned DF trigger policy assets:
+   - `config/platform/df/trigger_policy_v0.yaml`
+   - `config/platform/df/README.md`
+2. Added DF trigger policy loader:
+   - `src/fraud_detection/decision_fabric/config.py`
+   - validates policy shape and dedupes trigger rules,
+   - computes deterministic `content_digest`,
+   - exposes `allowed_schema_versions(...)`, `is_blocked_event_type(...)`, and required-pin checks.
+3. Added DF inlet gate:
+   - `src/fraud_detection/decision_fabric/inlet.py`
+   - validates canonical envelope,
+   - enforces traffic-topic-only trigger eligibility,
+   - enforces versioned trigger allowlist (`event_type` + `schema_version`),
+   - enforces loop prevention for blocked DF/AL/IG families,
+   - enforces required pins at ingress,
+   - emits accepted candidate with evidence basis:
+     - `source_event_id`
+     - `source_eb_ref = {topic, partition, offset, offset_kind, published_at_utc}`.
+4. Updated package exports:
+   - `src/fraud_detection/decision_fabric/__init__.py`.
+
+### Validation results
+- Added tests:
+  - `tests/services/decision_fabric/test_phase2_config.py`
+  - `tests/services/decision_fabric/test_phase2_inlet.py`
+- Ran:
+  - `python -m pytest tests/services/decision_fabric -q` -> `24 passed`.
+  - `PYTHONPATH=.;src python -c "import fraud_detection.decision_fabric as df; print('ok', 'DecisionFabricInlet' in df.__all__, 'load_trigger_policy' in df.__all__)"` -> `ok True True`.
+
+### DoD closure mapping (Phase 2)
+- DF consumes admitted traffic topics only; context/control topics never trigger: complete (topic gate in inlet policy).
+- Decision trigger allowlist explicit + versioned: complete (`trigger_policy_v0.yaml` with `event_type` + `schema_versions`).
+- Required pins validated at ingress: complete (policy-driven required pin checks).
+- Loop prevention (DF/AL output families never re-trigger): complete (blocked type/prefix checks).
+- Source evidence basis captured per candidate decision: complete (`source_event_id` + structured `source_eb_ref`).
+
+### Follow-on boundary
+- Phase 3 will integrate DL posture input and enforce fail-safe posture behavior in DF runtime planning.
+
+---
