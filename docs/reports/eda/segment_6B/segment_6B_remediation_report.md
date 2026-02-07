@@ -82,6 +82,53 @@ If any of these fail, Segment 6B cannot be graded `B` regardless of improvement 
    - non-flat, context-sensitive statistical behavior (currently missing in key S4 and S2 surfaces).
 
 ## 3) Root-Cause Trace
+This section traces each observed weakness to its most likely causal mechanism in code/policy terms, including upstream dependencies where relevant. The purpose is to avoid symptom-fixing and target the smallest set of changes that can unlock the largest realism lift.
+
+### 3.1 Causal spine (high-level)
+The observed `D+` posture is not a collection of independent issues. It is a connected cascade:
+1. `S4` truth mapping collapses non-campaign flows into non-LEGIT labels.
+2. `S4` bank-view logic consumes that collapsed truth surface and becomes weakly discriminative.
+3. `S4` case timelines use fixed minimum-delay constants instead of sampled delay distributions, creating template spikes.
+4. `S2` baseline flow generation compresses amounts into fixed points and ignores event timing policy offsets.
+5. `S1` attachment/session mechanics use fallback pools and fixed bucket sessionization, reducing behavioral richness.
+6. `S5` validation treats realism corridor failures as `WARN_ONLY`, so these issues can pass seal.
+
+In effect: structural parity passes, but statistical realism fails in the surfaces that matter most for downstream fraud modelling.
+
+### 3.2 Root-cause matrix by weakness
+| Observed weakness | Root cause trace | Evidence | Confidence |
+|---|---|---|---|
+| Truth-label collapse (`is_fraud_truth` degenerate) | `S4` collapses `direct_pattern_map` rules by `fraud_pattern_type` key only. In policy, `fraud_pattern_type=NONE` appears in more than one rule with different conditions and labels; reduced keying causes overwrite and loss of condition-sensitive branching. Net effect: non-campaign flows are no longer reliably mapped to `LEGIT`. | `packages/engine/src/engine/layers/l3/seg_6B/s4_truth_bank_labels/runner.py` (`_load_truth_maps`, `_map_enum_expr`) and `config/layer3/6B/truth_labelling_policy_6B.yaml` (`RULE_NONE_NO_OVERLAY` vs `RULE_OVERLAY_ANOMALY_NO_CAMPAIGN`). Run aggregates show contradiction: `S3 fraud_true=7,342 / 124,724,153` vs `S4 fraud_true=124,724,153 / 124,724,153`. | Very high |
+| Bank-view stratification collapse | Bank-view probabilities are conditioned on truth subtype/label. Once truth is degenerate, downstream bank-view is constrained to a narrow probability manifold, producing near-flat rates across class/amount/geo. | `runner.py` uses `p_detect_by_truth_subtype`, `p_dispute_by_truth_subtype`, `p_chargeback_given_dispute` keyed from `truth_subtype` (`~1225-1228`). | High |
+| Case timeline temporal invalidity (fixed spikes, invalid dynamics) | Delay policy is loaded but only `min_seconds` is used; delays are applied as constants. Case lifecycle policy is loaded but unused. Event timeline assembly becomes deterministic fixed offsets around those minima. | `runner.py`: `_load_min_delay_seconds`; fixed `detect/dispute/chargeback/case_close` delay assignment; `case_policy` loaded then discarded (`_ = case_policy`); case event timestamps built from `base_ts + fixed_seconds`. `config/layer3/6B/delay_models_6B.yaml` defines rich distributions not executed. | Very high |
+| Amount over-discretization / weak tails | `S2` extracts `price_points_minor` and selects by hash index directly; richer family-level tails and distribution contracts in `amount_model_6B` are not used in current generation path. | `packages/engine/src/engine/layers/l3/seg_6B/s2_baseline_flow/runner.py` (`_extract_price_points`, hash-index `amount_index -> amount_minor`). `config/layer3/6B/amount_model_6B.yaml` includes tail models (`LOGNORMAL`, `TRANSFER`) and realism targets that are bypassed. | High |
+| Event timing realism collapse | Timing policy is loaded but not applied. Event stream in lean path emits `AUTH_REQUEST` and `AUTH_RESPONSE` with no modeled offset process, collapsing latency realism. | `runner.py` (`timing_policy` loaded then `_ = timing_policy`), event build path with fixed pair generation and no offset-model invocation. `config/layer3/6B/timing_policy_6B.yaml` specifies rich offset models not executed. | Very high |
+| Fraud overlay narrowness | `S3` is implemented as a lean deterministic overlay emphasizing campaign tagging + bounded amount shift. Campaign target semantics and multi-instance richness are compressed. | `packages/engine/src/engine/layers/l3/seg_6B/s3_fraud_overlay/runner.py` (`instances = max(1, min(max_instances, 1))` effectively forcing 1 instance/template; overlay path centered on `campaign_id` assignment and `amount_shift_expr`). | High |
+| Session/attachment under-expression | `S1` uses fixed timeout bucket sessionization (ignores hard-break/day-boundary process) and warns that key policy linkage fields are unavailable, falling back to global or reduced candidate pools. | `packages/engine/src/engine/layers/l3/seg_6B/s1_attachment_session/runner.py` warnings for missing `arrival.legal_country_iso` and unavailable merchant-linked device/IP candidates; warning for fixed hard-timeout bucket sessionization. | High |
+| Realism issues escape gating | `S5` realism corridor checks are configured as `WARN_ONLY` and seal rules do not fail on warn failures, so statistical defects can pass final gate when structural checks pass. | `config/layer3/6B/segment_validation_policy_6B.yaml`: `fail_on_any_warn_failure: false`; realism checks `WARN_*`; notes explicitly state realism corridors warn by default. | Very high |
+
+### 3.3 Policy-vs-implementation attribution
+The dominant failure mode in 6B is not simply "bad handcrafted policy values." The stronger pattern is policy richness not being executed by lean runner paths:
+1. Delay, timing, and case policies define stochastic and conditional structures.
+2. Implemented runners often load these policies but execute reduced deterministic mechanics.
+3. Therefore, the remediation priority should start with policy-faithful execution paths (or explicit simplification policies), then tune parameters.
+
+This matters because parameter tuning without execution-faithfulness cannot recover the intended statistical shape.
+
+### 3.4 Upstream dependency footprint
+Some 6B weaknesses are locally generated, others are amplified by upstream data shape:
+1. **Locally generated in 6B:** truth collapse, fixed-delay case templating, amount/time compression.
+2. **Amplified from upstream topology (5B/6A/S1):** thin session behavior, weak attachment diversity, high cross-border posture with limited risk stratification.
+3. **Gate-level amplification:** `S5` allows realism failures to ship as pass, delaying detection of statistical regressions.
+
+### 3.5 Root-cause conclusion for remediation design
+For remediation planning, the minimal high-impact root-cause set is:
+1. `S4` truth mapping logic defect + over-reduction of truth policy semantics.
+2. `S4` delay/timeline execution mismatch with `delay_models` and `case_policy`.
+3. `S2` amount/timing policy non-execution.
+4. `S5` non-blocking realism gates.
+
+Correcting this set should produce the largest immediate grade lift and unlock meaningful downstream improvements before fine-grained parameter tuning.
 
 ## 4) Remediation Options (Ranked + Tradeoffs)
 

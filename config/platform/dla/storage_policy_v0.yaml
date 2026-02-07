@@ -1,0 +1,28 @@
+version: v0
+policy_id: dla.storage.v0
+revision: r1
+profiles:
+  local:
+    object_store_prefix: fraud-platform/local
+    retention:
+      audit_record_ttl_days: 14
+      index_ttl_days: 14
+      reconciliation_ttl_days: 14
+  local_parity:
+    object_store_prefix: fraud-platform/local_parity
+    retention:
+      audit_record_ttl_days: 30
+      index_ttl_days: 30
+      reconciliation_ttl_days: 30
+  dev:
+    object_store_prefix: fraud-platform/dev
+    retention:
+      audit_record_ttl_days: 90
+      index_ttl_days: 90
+      reconciliation_ttl_days: 90
+  prod:
+    object_store_prefix: fraud-platform/prod
+    retention:
+      audit_record_ttl_days: 2555
+      index_ttl_days: 2555
+      reconciliation_ttl_days: 365

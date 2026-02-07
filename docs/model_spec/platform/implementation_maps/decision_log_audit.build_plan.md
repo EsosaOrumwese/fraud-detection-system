@@ -52,6 +52,18 @@ Provide an executable, component-scoped DLA plan aligned to platform `Phase 4.5`
 - DLA writer enforces append-only writes (no update/delete mutation path).
 - Index schema (Postgres/local parity equivalent) is pinned for deterministic lookup keys.
 - Retention posture is defined per environment ladder.
+**Evidence (Phase 2):**
+- Config:
+  - `config/platform/dla/storage_policy_v0.yaml`
+- Code:
+  - `src/fraud_detection/decision_log_audit/storage.py`
+  - `src/fraud_detection/decision_log_audit/__init__.py`
+- Tests:
+  - `tests/services/decision_log_audit/test_dla_phase2_storage.py`
+- Validation:
+  - `$env:PYTHONPATH='.;src'; python -m pytest tests/services/decision_log_audit/test_dla_phase2_storage.py -q`
+  - `$env:PYTHONPATH='.;src'; python -m pytest tests/services/decision_log_audit -q`
+  - `$env:PYTHONPATH='.;src'; python -m pytest tests/services/action_layer tests/services/decision_log_audit -q`
 
 ### Phase 3 — Intake consumer + fail-closed validation
 **Intent:** consume decision/outcome streams safely from admitted EB surfaces.
@@ -109,4 +121,5 @@ Provide an executable, component-scoped DLA plan aligned to platform `Phase 4.5`
 
 ## Status (rolling)
 - Phase 1 (`Audit contracts + evidence model`): completed on `2026-02-07`.
-- Current focus: Phase 2 (`Storage layout + append-only substrate`).
+- Phase 2 (`Storage layout + append-only substrate`): completed on `2026-02-07`.
+- Current focus: Phase 3 (`Intake consumer + fail-closed validation`).
