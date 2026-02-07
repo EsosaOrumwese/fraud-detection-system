@@ -23,36 +23,56 @@ def _bundle_ref() -> dict[str, object]:
     return {"bundle_id": "a" * 64, "bundle_version": "2026.02.07", "registry_ref": "registry://active"}
 
 
-def _offset_basis() -> dict[str, object]:
+def _origin_offset() -> dict[str, object]:
     return {
-        "stream": "topic.rtdl.traffic",
+        "topic": "topic.rtdl.traffic",
+        "partition": 1,
+        "offset": "10",
         "offset_kind": "kafka_offset",
-        "basis_digest": "b" * 64,
-        "offsets": [{"partition": 2, "offset": "20"}, {"partition": 1, "offset": "10"}],
     }
 
 
-def test_deterministic_decision_id_is_stable_for_same_basis() -> None:
-    reordered_offsets_basis = {
+def test_deterministic_decision_id_is_stable_for_same_origin_offset() -> None:
+    reordered_origin_offset = {
         "stream": "topic.rtdl.traffic",
+        "partition": 1,
+        "offset": "10",
         "offset_kind": "kafka_offset",
-        "basis_digest": "b" * 64,
-        "offsets": [{"partition": 1, "offset": "10"}, {"partition": 2, "offset": "20"}],
     }
     left = deterministic_decision_id(
         source_event_id="evt_100",
+        platform_run_id="platform_20260207T102700Z",
         decision_scope="merchant_risk",
         bundle_ref=_bundle_ref(),
-        eb_offset_basis=_offset_basis(),
+        origin_offset=_origin_offset(),
     )
     right = deterministic_decision_id(
         source_event_id="evt_100",
+        platform_run_id="platform_20260207T102700Z",
         decision_scope="merchant_risk",
         bundle_ref={"registry_ref": "registry://active", "bundle_version": "2026.02.07", "bundle_id": "a" * 64},
-        eb_offset_basis=reordered_offsets_basis,
+        origin_offset=reordered_origin_offset,
     )
     assert left == right
     assert len(left) == 32
+
+
+def test_decision_id_changes_when_origin_offset_changes() -> None:
+    first = deterministic_decision_id(
+        source_event_id="evt_100",
+        platform_run_id="platform_20260207T102700Z",
+        decision_scope="merchant_risk",
+        bundle_ref=_bundle_ref(),
+        origin_offset=_origin_offset(),
+    )
+    second = deterministic_decision_id(
+        source_event_id="evt_100",
+        platform_run_id="platform_20260207T102700Z",
+        decision_scope="merchant_risk",
+        bundle_ref=_bundle_ref(),
+        origin_offset={"topic": "topic.rtdl.traffic", "partition": 1, "offset": "11", "offset_kind": "kafka_offset"},
+    )
+    assert first != second
 
 
 def test_decision_response_event_id_changes_with_scope() -> None:

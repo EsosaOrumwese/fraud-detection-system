@@ -164,14 +164,14 @@ class SqliteOfpStore(OfpStore):
                 );
 
                 CREATE TABLE IF NOT EXISTS ofp_semantic_dedupe (
-                    stream_id TEXT NOT NULL,
+                    stream_id TEXT,
                     platform_run_id TEXT NOT NULL,
                     event_class TEXT NOT NULL,
                     event_id TEXT NOT NULL,
                     payload_hash TEXT NOT NULL,
                     scenario_run_id TEXT NOT NULL,
                     first_seen_at_utc TEXT NOT NULL,
-                    PRIMARY KEY (stream_id, platform_run_id, event_class, event_id)
+                    PRIMARY KEY (platform_run_id, event_class, event_id)
                 );
 
                 CREATE TABLE IF NOT EXISTS ofp_feature_state (
@@ -227,6 +227,7 @@ class SqliteOfpStore(OfpStore):
                 );
                 """
             )
+            _migrate_sqlite_semantic_dedupe(conn)
             self._write_projection_meta(conn)
 
     def get_checkpoint(self, *, topic: str, partition: int) -> Checkpoint | None:
@@ -433,9 +434,9 @@ class SqliteOfpStore(OfpStore):
             """
             SELECT payload_hash
             FROM ofp_semantic_dedupe
-            WHERE stream_id = ? AND platform_run_id = ? AND event_class = ? AND event_id = ?
+            WHERE platform_run_id = ? AND event_class = ? AND event_id = ?
             """,
-            (self.stream_id, platform_run_id, event_class, event_id),
+            (platform_run_id, event_class, event_id),
         ).fetchone()
         if not existing:
             return "NEW"
@@ -747,14 +748,14 @@ class PostgresOfpStore(OfpStore):
             conn.execute(
                 """
                 CREATE TABLE IF NOT EXISTS ofp_semantic_dedupe (
-                    stream_id TEXT NOT NULL,
+                    stream_id TEXT,
                     platform_run_id TEXT NOT NULL,
                     event_class TEXT NOT NULL,
                     event_id TEXT NOT NULL,
                     payload_hash TEXT NOT NULL,
                     scenario_run_id TEXT NOT NULL,
                     first_seen_at_utc TEXT NOT NULL,
-                    PRIMARY KEY (stream_id, platform_run_id, event_class, event_id)
+                    PRIMARY KEY (platform_run_id, event_class, event_id)
                 )
                 """
             )
@@ -822,6 +823,7 @@ class PostgresOfpStore(OfpStore):
                 )
                 """
             )
+            _migrate_postgres_semantic_dedupe(conn)
             self._write_projection_meta(conn)
 
     def get_checkpoint(self, *, topic: str, partition: int) -> Checkpoint | None:
@@ -1012,7 +1014,7 @@ class PostgresOfpStore(OfpStore):
                 stream_id, platform_run_id, event_class, event_id, payload_hash, scenario_run_id, first_seen_at_utc
             )
             VALUES (%s, %s, %s, %s, %s, %s, %s)
-            ON CONFLICT (stream_id, platform_run_id, event_class, event_id) DO NOTHING
+            ON CONFLICT (platform_run_id, event_class, event_id) DO NOTHING
             """,
             (
                 self.stream_id,
@@ -1030,9 +1032,9 @@ class PostgresOfpStore(OfpStore):
             """
             SELECT payload_hash
             FROM ofp_semantic_dedupe
-            WHERE stream_id = %s AND platform_run_id = %s AND event_class = %s AND event_id = %s
+            WHERE platform_run_id = %s AND event_class = %s AND event_id = %s
             """,
-            (self.stream_id, platform_run_id, event_class, event_id),
+            (platform_run_id, event_class, event_id),
         ).fetchone()
         if not existing:
             return "NEW"
@@ -1321,6 +1323,104 @@ class PostgresOfpStore(OfpStore):
 
     def _connect(self) -> psycopg.Connection:
         return psycopg.connect(self.dsn)
+
+
+def _migrate_sqlite_semantic_dedupe(conn: sqlite3.Connection) -> None:
+    rows = conn.execute("PRAGMA table_info(ofp_semantic_dedupe)").fetchall()
+    if not rows:
+        return
+    pk_columns = [
+        str(column_name)
+        for _, column_name, _, _, _, pk_index in sorted(rows, key=lambda item: int(item[5] or 0))
+        if int(pk_index or 0) > 0
+    ]
+    if pk_columns == ["platform_run_id", "event_class", "event_id"]:
+        return
+    conn.executescript(
+        """
+        DROP TABLE IF EXISTS ofp_semantic_dedupe_v2;
+        CREATE TABLE ofp_semantic_dedupe_v2 (
+            stream_id TEXT,
+            platform_run_id TEXT NOT NULL,
+            event_class TEXT NOT NULL,
+            event_id TEXT NOT NULL,
+            payload_hash TEXT NOT NULL,
+            scenario_run_id TEXT NOT NULL,
+            first_seen_at_utc TEXT NOT NULL,
+            PRIMARY KEY (platform_run_id, event_class, event_id)
+        );
+        INSERT INTO ofp_semantic_dedupe_v2 (
+            stream_id, platform_run_id, event_class, event_id, payload_hash, scenario_run_id, first_seen_at_utc
+        )
+        SELECT
+            MIN(stream_id),
+            platform_run_id,
+            event_class,
+            event_id,
+            MIN(payload_hash),
+            MIN(scenario_run_id),
+            MIN(first_seen_at_utc)
+        FROM ofp_semantic_dedupe
+        GROUP BY platform_run_id, event_class, event_id;
+        DROP TABLE ofp_semantic_dedupe;
+        ALTER TABLE ofp_semantic_dedupe_v2 RENAME TO ofp_semantic_dedupe;
+        """
+    )
+
+
+def _migrate_postgres_semantic_dedupe(conn: psycopg.Connection) -> None:
+    pk_rows = conn.execute(
+        """
+        SELECT a.attname
+        FROM pg_constraint c
+        JOIN unnest(c.conkey) WITH ORDINALITY AS cols(attnum, ordinality)
+          ON TRUE
+        JOIN pg_attribute a
+          ON a.attrelid = c.conrelid
+         AND a.attnum = cols.attnum
+        WHERE c.conrelid = 'ofp_semantic_dedupe'::regclass
+          AND c.contype = 'p'
+        ORDER BY cols.ordinality
+        """
+    ).fetchall()
+    pk_columns = [str(row[0]) for row in pk_rows]
+    if pk_columns == ["platform_run_id", "event_class", "event_id"]:
+        return
+    conn.execute("DROP TABLE IF EXISTS ofp_semantic_dedupe_v2")
+    conn.execute(
+        """
+        CREATE TABLE ofp_semantic_dedupe_v2 (
+            stream_id TEXT,
+            platform_run_id TEXT NOT NULL,
+            event_class TEXT NOT NULL,
+            event_id TEXT NOT NULL,
+            payload_hash TEXT NOT NULL,
+            scenario_run_id TEXT NOT NULL,
+            first_seen_at_utc TEXT NOT NULL,
+            PRIMARY KEY (platform_run_id, event_class, event_id)
+        )
+        """
+    )
+    conn.execute(
+        """
+        INSERT INTO ofp_semantic_dedupe_v2 (
+            stream_id, platform_run_id, event_class, event_id, payload_hash, scenario_run_id, first_seen_at_utc
+        )
+        SELECT
+            MIN(stream_id),
+            platform_run_id,
+            event_class,
+            event_id,
+            MIN(payload_hash),
+            MIN(scenario_run_id),
+            MIN(first_seen_at_utc)
+        FROM ofp_semantic_dedupe
+        GROUP BY platform_run_id, event_class, event_id
+        ON CONFLICT (platform_run_id, event_class, event_id) DO NOTHING
+        """
+    )
+    conn.execute("DROP TABLE ofp_semantic_dedupe")
+    conn.execute("ALTER TABLE ofp_semantic_dedupe_v2 RENAME TO ofp_semantic_dedupe")
 
 
 def _utc_now() -> str:

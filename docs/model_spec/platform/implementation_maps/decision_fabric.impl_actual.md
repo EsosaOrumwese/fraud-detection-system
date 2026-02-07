@@ -986,3 +986,79 @@ Phase 7 originally shipped replay/checkpoint stores as SQLite-only. Platform `4.
 This closes the `4.4.H` DF store parity gap while preserving SQLite support for lightweight local tests.
 
 ---
+
+## Entry: 2026-02-07 13:00:30 - Plan: DF identity + inlet + scope-key drift closure
+
+### Problem
+Three confirmed drifts remain in DF boundary semantics:
+1. `decision_id` currently includes full `eb_offset_basis`, which can vary with basis vectors and threaten replay-stable identity.
+2. DF inlet lacks explicit corridor tuple + payload-hash collision guard.
+3. DF posture resolver accepts free-form `scope_key` strings while registry uses structured `RegistryScopeKey`.
+
+### Authorities
+- `docs/model_spec/platform/pre-design_decisions/real-time_decision_loop.pre-design_decision.md`
+- `docs/model_spec/platform/component-specific/flow-narrative-platform-design.md`
+- `docs/model_spec/platform/platform-wide/platform_blueprint_notes_v0.md`
+- `docs/model_spec/platform/implementation_maps/decision_fabric.build_plan.md`
+
+### Decision and migration posture
+1. Introduce a new decision identity recipe version that uses stable source evidence identity:
+   - `platform_run_id`, `source_event_id`, traffic `origin_offset`, `bundle_ref`, `decision_scope`.
+   - keep full `eb_offset_basis` in provenance payload only.
+2. Add DF inlet collision guard keyed by `(platform_run_id, event_class, event_id)` with canonical payload hash:
+   - first-seen accepts,
+   - exact replay accepts as duplicate,
+   - same tuple + hash mismatch is anomaly/reject.
+3. Normalize DF posture scope input from registry scope:
+   - derive deterministic canonical scope key from `RegistryScopeKey.canonical_key()`,
+   - retain explicit fail-closed behavior when scope inputs are invalid/unavailable.
+
+### Files planned
+- `src/fraud_detection/decision_fabric/ids.py`
+- `src/fraud_detection/decision_fabric/synthesis.py`
+- `src/fraud_detection/decision_fabric/inlet.py`
+- `src/fraud_detection/decision_fabric/posture.py`
+- `tests/services/decision_fabric/*phase1*`, `*phase2*`, `*phase3*`, `*phase6*`
+
+### Validation plan
+- `python -m pytest tests/services/decision_fabric -q`
+- targeted checks for:
+  - decision_id replay stability under basis vector movement,
+  - inlet collision reject path,
+- deterministic scope-key stamping.
+
+---
+
+## Entry: 2026-02-07 13:09:19 - DF identity/inlet/scope drifts closed
+
+### What changed
+1. Stabilized `decision_id` identity recipe:
+   - now uses `platform_run_id`, `source_event_id`, `decision_scope`, `bundle_ref`, and traffic `origin_offset`.
+   - `eb_offset_basis` remains in decision provenance payload, not in identity key.
+2. Updated synthesis paths to use the new identity inputs for both initial decisions and correction decisions.
+3. Added explicit `origin_offset` token to `source_event` payload for vocabulary clarity.
+4. Added DF inlet semantic collision guard:
+   - tuple `(platform_run_id, event_class, event_id)` + canonical payload hash,
+   - duplicate replays return `DUPLICATE` (no decision),
+   - hash collisions return `PAYLOAD_HASH_MISMATCH` (no decision).
+5. Added canonical `event_class` and `payload_hash` on `DecisionTriggerCandidate` for downstream provenance.
+6. Normalized DF posture scope input:
+   - `DfPostureResolver.resolve` now canonicalizes scope from string, mapping, or scope-like object (`canonical_key`/`as_dict`) before DL call.
+
+### Files changed
+- `src/fraud_detection/decision_fabric/ids.py`
+- `src/fraud_detection/decision_fabric/synthesis.py`
+- `src/fraud_detection/decision_fabric/inlet.py`
+- `src/fraud_detection/decision_fabric/posture.py`
+- `tests/services/decision_fabric/test_phase1_ids.py`
+- `tests/services/decision_fabric/test_phase2_inlet.py`
+- `tests/services/decision_fabric/test_phase3_posture.py`
+- `tests/services/decision_fabric/test_phase5_context.py`
+- `tests/services/decision_fabric/test_phase6_synthesis.py`
+- `tests/services/decision_fabric/test_phase8_validation_matrix.py`
+
+### Validation
+- targeted run:
+  - `python -m pytest tests/services/decision_fabric/test_phase1_ids.py tests/services/decision_fabric/test_phase2_inlet.py tests/services/decision_fabric/test_phase5_context.py tests/services/decision_fabric/test_phase6_synthesis.py tests/services/decision_fabric/test_phase8_validation_matrix.py -q` -> `24 passed`
+- full DF suite:
+  - `python -m pytest tests/services/decision_fabric -q` -> `69 passed`

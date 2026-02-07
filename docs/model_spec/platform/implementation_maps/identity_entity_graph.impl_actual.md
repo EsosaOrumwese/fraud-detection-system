@@ -686,4 +686,58 @@ Capture the **current, as‑implemented** IEG flow and how we **operate** it tod
 - IEG consumes **admitted EB events only**; no side‑door inputs.  
 - **Run‑scoped projection** when `IEG_REQUIRED_PLATFORM_RUN_ID` is set.  
 - **Idempotent apply** under replay; payload mismatch is explicit.  
-- **No edges** written in v0; projection is nodes + identifiers only.  
+- **No edges** written in v0; projection is nodes + identifiers only.
+
+---
+
+## Entry: 2026-02-07 12:59:30 - Plan: align IEG semantic dedupe tuple to corridor law
+
+### Problem
+Current IEG dedupe identity uses `platform_run_id + scenario_run_id + class_name + event_id`. Pinned corridor law for RTDL parity is semantic idempotency by `(platform_run_id, event_class, event_id)` with `payload_hash` anomaly discipline. Keeping `scenario_run_id` inside tuple can cause false non-duplicates for the same platform-scoped event identity.
+
+### Authorities
+- `docs/model_spec/platform/pre-design_decisions/real-time_decision_loop.pre-design_decision.md`
+- `docs/model_spec/platform/component-specific/flow-narrative-platform-design.md`
+- `docs/model_spec/platform/platform-wide/platform_blueprint_notes_v0.md`
+
+### Decision and migration posture
+1. Change dedupe key builder to accept `(platform_run_id, event_class, event_id)` only.
+2. Continue requiring/persisting `scenario_run_id` as a pin for run provenance and failure diagnostics, but not semantic dedupe identity.
+3. Keep `event_class` source as canonical class-map result (`class_for(event_type)`), not classification lane (`GRAPH_*`).
+4. Preserve payload-hash mismatch behavior (`PAYLOAD_HASH_MISMATCH`) on same dedupe key.
+
+### Files planned
+- `src/fraud_detection/identity_entity_graph/ids.py`
+- `src/fraud_detection/identity_entity_graph/projector.py`
+- `tests/services/identity_entity_graph/*` (targeted updates for key recipe expectations)
+
+### Validation plan
+- `python -m pytest tests/services/identity_entity_graph -q`
+- ensure duplicate and payload mismatch semantics remain unchanged except tuple identity axes.
+
+---
+
+## Entry: 2026-02-07 13:09:19 - IEG dedupe tuple drift closed
+
+### What changed
+1. Updated IEG dedupe key recipe from:
+   - `platform_run_id + scenario_run_id + class_name + event_id`
+   to:
+   - `platform_run_id + event_class + event_id`.
+2. Updated projector dedupe generation to use the new tuple while preserving:
+   - required `scenario_run_id` pin checks,
+   - payload hash mismatch anomaly behavior,
+   - class-map canonical event class source.
+3. Updated IEG tests to use the new dedupe key contract.
+
+### Files changed
+- `src/fraud_detection/identity_entity_graph/ids.py`
+- `src/fraud_detection/identity_entity_graph/projector.py`
+- `tests/services/identity_entity_graph/test_query_surface.py`
+- `tests/services/identity_entity_graph/test_projection_store.py`
+
+### Validation
+- `python -m pytest tests/services/identity_entity_graph -q` -> `15 passed`.
+
+### Invariant confirmation
+- `scenario_run_id` remains mandatory run provenance pin for IEG processing, but is no longer part of semantic dedupe identity.

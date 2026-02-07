@@ -68,9 +68,10 @@ class DecisionSynthesizer:
         graph_version = _decision_graph_version(candidate, context_result)
         decision_id = deterministic_decision_id(
             source_event_id=candidate.source_event_id,
+            platform_run_id=str(candidate.pins.get("platform_run_id") or ""),
             decision_scope=decision_scope,
             bundle_ref=bundle_ref,
-            eb_offset_basis=eb_offset_basis,
+            origin_offset=_origin_offset_from_candidate(candidate),
         )
         decision_payload = {
             "decision_id": decision_id,
@@ -146,13 +147,13 @@ class DecisionSynthesizer:
         corrected = dict(base)
         superseded_id = original.decision_id
         bundle_ref = _normalize_bundle_ref(base.get("bundle_ref"))
-        eb_offset_basis = _normalize_eb_offset_basis(base.get("eb_offset_basis"))
         new_scope = f"{decision_scope}:correction:{correction_reason}"
         corrected["decision_id"] = deterministic_decision_id(
             source_event_id=str(base.get("source_event", {}).get("event_id") or ""),
+            platform_run_id=str((base.get("pins") or {}).get("platform_run_id") or ""),
             decision_scope=new_scope,
             bundle_ref=bundle_ref,
-            eb_offset_basis=eb_offset_basis,
+            origin_offset=_origin_offset_from_source_event(base.get("source_event")),
         )
         corrected["decided_at_utc"] = corrected_at_utc
         decision_obj = dict(base.get("decision") or {})
@@ -355,10 +356,17 @@ def _snapshot_hash(context_result: DecisionContextResult) -> str:
 
 
 def _source_event_payload(candidate: DecisionTriggerCandidate) -> dict[str, Any]:
+    origin_offset = {
+        "topic": candidate.source_eb_ref.topic,
+        "partition": int(candidate.source_eb_ref.partition),
+        "offset": str(candidate.source_eb_ref.offset),
+        "offset_kind": candidate.source_eb_ref.offset_kind,
+    }
     return {
         "event_id": candidate.source_event_id,
         "event_type": candidate.source_event_type,
         "ts_utc": candidate.source_ts_utc,
+        "origin_offset": origin_offset,
         "eb_ref": candidate.source_eb_ref.as_dict(),
     }
 
@@ -383,6 +391,34 @@ def _normalize_pins(pins: Mapping[str, Any]) -> dict[str, Any]:
     if "run_id" in pins and pins.get("run_id") not in (None, ""):
         payload["run_id"] = pins.get("run_id")
     return payload
+
+
+def _origin_offset_from_candidate(candidate: DecisionTriggerCandidate) -> dict[str, Any]:
+    return {
+        "topic": candidate.source_eb_ref.topic,
+        "partition": int(candidate.source_eb_ref.partition),
+        "offset": str(candidate.source_eb_ref.offset),
+        "offset_kind": str(candidate.source_eb_ref.offset_kind),
+    }
+
+
+def _origin_offset_from_source_event(source_event: Any) -> dict[str, Any]:
+    source_payload = source_event if isinstance(source_event, Mapping) else {}
+    origin_offset = source_payload.get("origin_offset")
+    if isinstance(origin_offset, Mapping):
+        return {
+            "topic": str(origin_offset.get("topic") or origin_offset.get("stream") or ""),
+            "partition": int(origin_offset.get("partition", 0)),
+            "offset": str(origin_offset.get("offset") or ""),
+            "offset_kind": str(origin_offset.get("offset_kind") or ""),
+        }
+    eb_ref = source_payload.get("eb_ref") if isinstance(source_payload.get("eb_ref"), Mapping) else {}
+    return {
+        "topic": str(eb_ref.get("topic") or ""),
+        "partition": int(eb_ref.get("partition", 0)),
+        "offset": str(eb_ref.get("offset") or ""),
+        "offset_kind": str(eb_ref.get("offset_kind") or ""),
+    }
 
 
 def _normalize_bundle_ref(bundle_ref: Mapping[str, Any] | None) -> dict[str, Any]:

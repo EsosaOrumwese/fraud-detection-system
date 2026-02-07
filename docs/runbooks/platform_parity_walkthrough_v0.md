@@ -1,4 +1,4 @@
-# Platform Parity Walkthrough (v0) — Oracle Store → SR → WSP → IG → EB → IEG/OFP
+# Platform Parity Walkthrough (v0) — Oracle Store → SR → WSP → IG → EB → IEG/OFP/DF/DL
 _As of 2026-02-06_
 
 This runbook executes a **local_parity** end‑to‑end flow capped to **500,000 events**, and then runs **IEG** against the admitted EB topics.
@@ -618,9 +618,10 @@ Use this list to confirm the **v0 control & ingress plane** is green.
 
 ---
 
-## 15) OFP local-parity boundary checks (projector + snapshot + observability)
+## 15) OFP/OFS local-parity boundary checks (projector + snapshot + observability)
 
 Use this section when you want to validate OFP directly from admitted EB traffic for the active run.
+Naming note: in this repo the component is `OFP` (`online_feature_plane`); if you use `OFS` as shorthand, this is the same section.
 
 **15.1 Pin run scope**
 ```powershell
@@ -684,6 +685,72 @@ Expected outputs:
 - `missing_features`
 
 Boundary note:
-This validates OFP up to its current component boundary. DF/DL integration checks are still pending by phase design.
+This validates OFP at its current component boundary (projection, snapshot, observability). Use Sections `16` and `17` for DL and DF boundary checks available today.
+
+---
+
+## 16) DL local-parity boundary checks (policy, posture, governance)
+
+Use this section to validate Degrade Ladder behavior in local-parity with the current implementation surface.
+
+**16.1 Validate DL policy profile load**
+```powershell
+@'
+from pathlib import Path
+from fraud_detection.degrade_ladder.config import load_policy_bundle
+
+bundle = load_policy_bundle(Path("config/platform/dl/policy_profiles_v0.yaml"))
+profile = bundle.profile("local_parity")
+print("policy_rev:", bundle.policy_rev.policy_id, bundle.policy_rev.revision)
+print("profile_id:", profile.profile_id)
+print("mode_sequence:", ",".join(profile.mode_sequence))
+'@ | .venv\Scripts\python.exe -
+```
+
+**16.2 Run DL component validation suite**
+```powershell
+$env:PYTHONPATH='.;src'
+.venv\Scripts\python.exe -m pytest tests/services/degrade_ladder -q
+```
+
+Expected result:
+- all tests pass (`40 passed` on current baseline).
+
+Boundary note:
+DL currently validates through its contract/store/serve/emission/governance surfaces and tests. There is no standalone long-running DL service CLI in this repo yet.
+
+---
+
+## 17) DF local-parity boundary checks (identity, inlet, synthesis, replay)
+
+Use this section to validate Decision Fabric boundary behavior with the current implementation surface.
+
+**17.1 Run DF component validation suite**
+```powershell
+$env:PYTHONPATH='.;src'
+.venv\Scripts\python.exe -m pytest tests/services/decision_fabric -q
+```
+
+Expected result:
+- all tests pass (`69 passed` on current baseline).
+
+**17.2 Optional targeted drift-closure smoke**
+```powershell
+$env:PYTHONPATH='.;src'
+.venv\Scripts\python.exe -m pytest `
+  tests/services/decision_fabric/test_phase1_ids.py `
+  tests/services/decision_fabric/test_phase2_inlet.py `
+  tests/services/decision_fabric/test_phase3_posture.py `
+  tests/services/decision_fabric/test_phase6_synthesis.py -q
+```
+
+What this confirms:
+- deterministic `decision_id` identity anchored to source `origin_offset`,
+- inlet tuple + payload-hash collision discipline,
+- deterministic scope-key normalization at DF<->DL posture boundary,
+- deterministic synthesis output for fixed basis.
+
+Boundary note:
+DF currently validates through component contracts/tests and IG publish boundary logic. There is no standalone long-running DF service CLI in this repo yet.
 
 

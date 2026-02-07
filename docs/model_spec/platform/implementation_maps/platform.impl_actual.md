@@ -200,6 +200,127 @@ User asked to proceed with Phase 1.4 validation (policy vs wiring separation aud
 
 ---
 
+## Entry: 2026-02-07 12:59:00 - RTDL drift-closure campaign (IEG/OFP/DF/DL) pre-implementation plan
+
+### Problem statement
+Review of `scratch_files/scratch.md` against current code confirms remaining RTDL-plane drifts that can cause semantic divergence from pinned v0 rails:
+1. IEG semantic dedupe key includes `scenario_run_id` (must be corridor tuple).
+2. OFP semantic dedupe key includes `stream_id` (must be corridor tuple).
+3. DF decision identity currently includes full `eb_offset_basis` in `decision_id` recipe (must use stable origin evidence identity).
+4. DF inlet has no explicit corridor tuple + payload-hash collision guard.
+5. DF posture boundary still accepts free-form `scope_key` strings, while registry scope is structured (`RegistryScopeKey`).
+
+### Authorities used
+- `docs/model_spec/platform/pre-design_decisions/real-time_decision_loop.pre-design_decision.md`
+- `docs/model_spec/platform/component-specific/flow-narrative-platform-design.md`
+- `docs/model_spec/platform/platform-wide/platform_blueprint_notes_v0.md`
+- component build plans and current impl_actual entries for IEG/OFP/DF/DL.
+
+### Decision
+Implement fixes in strict order to minimize migration risk:
+1. IEG semantic dedupe tuple migration.
+2. DF identity + inlet collision discipline.
+3. OFP semantic dedupe tuple migration.
+4. DF<->DL scope-key normalization to deterministic registry scope token.
+5. Validate with targeted suites and refresh component notes/logbook evidence.
+
+### Cross-component invariants to enforce
+- Canonical semantic tuple is `(platform_run_id, event_class, event_id)`.
+- `payload_hash` mismatch on same tuple is anomaly/fail-closed (no silent overwrite).
+- Decision identity is stable under replay for same source evidence + bundle + scope.
+- Scope keys used by DF posture are deterministic and aligned to registry scope axes.
+- Transport dedupe and checkpoint progress remain independent from semantic dedupe.
+
+### Planned evidence updates
+- Append detailed execution and test outcomes in:
+  - `identity_entity_graph.impl_actual.md`
+  - `online_feature_plane.impl_actual.md`
+  - `decision_fabric.impl_actual.md`
+  - `degrade_ladder.impl_actual.md`
+  - `docs/logbook/02-2026/2026-02-07.md`
+
+---
+
+## Entry: 2026-02-07 13:09:19 - RTDL drift-closure campaign completed (IEG/OFP/DF/DL)
+
+### Outcome summary
+Implemented and validated the remaining confirmed drifts from `scratch_files/scratch.md` in the pinned fix order.
+
+### Closed drift set
+1. IEG semantic dedupe tuple now uses corridor identity `(platform_run_id, event_class, event_id)`.
+2. DF `decision_id` now derives from stable source evidence identity (`platform_run_id + source_event_id + origin_offset + bundle_ref + decision_scope`) and keeps basis vectors in provenance.
+3. DF inlet now enforces explicit tuple/payload-hash collision discipline (`DUPLICATE`, `PAYLOAD_HASH_MISMATCH` no-decide paths).
+4. OFP semantic dedupe now keys by `(platform_run_id, event_class, event_id)` independent of `stream_id`; transport dedupe remains stream/offset-scoped.
+5. DF posture boundary now normalizes scope input to deterministic canonical key semantics (mapping/object/string support) before DL serve.
+6. Vocabulary alignment improved by stamping `origin_offset` explicitly in DF `source_event` payload.
+
+### Validation evidence
+- `python -m pytest tests/services/identity_entity_graph -q` -> `15 passed`
+- `python -m pytest tests/services/online_feature_plane -q` -> `26 passed`
+- `python -m pytest tests/services/decision_fabric -q` -> `69 passed`
+- `python -m pytest tests/services/degrade_ladder -q` -> `40 passed`
+
+### Boundary
+This pass closes the confirmed semantic drifts at component boundaries. Integration runtime proofs across full RTDL E2E remain governed by platform phase execution runs.
+
+---
+
+## Entry: 2026-02-07 13:17:34 - Plan: update platform parity runbook for OFP/OFS + DL + DF execution posture
+
+### Problem
+Current `docs/runbooks/platform_parity_walkthrough_v0.md` stops at OFP boundary and explicitly says DF/DL checks are pending. After recent DF/DL/OFP implementation closure, the runbook must reflect what can be executed now in local-parity.
+
+### Decision
+1. Keep OFP section but clarify naming (`OFP` aka `OFS` in user shorthand) to avoid terminology drift.
+2. Add a DL section with executable local-parity boundary checks:
+   - policy/profile load sanity,
+   - full DL test suite command (authoritative current runtime validation path),
+   - optional inline serve/store smoke snippet.
+3. Add a DF section with executable boundary checks:
+   - full DF suite command,
+   - targeted smoke for inlet/replay/checkpoint semantics using existing tests.
+4. Keep scope honest:
+   - note that DF/DL have no standalone long-running service CLI yet in this repo,
+   - preserve boundary claim that full RTDL live E2E remains integration-gated.
+
+### Files planned
+- `docs/runbooks/platform_parity_walkthrough_v0.md`
+- `docs/logbook/02-2026/2026-02-07.md` (action log)
+
+### Validation plan
+- runbook quality check via grep:
+- verify new OFP/OFS wording and new `DL`/`DF` sections present.
+
+---
+
+## Entry: 2026-02-07 13:18:00 - Runbook updated for OFP/OFS, DL, and DF local-parity boundaries
+
+### Changes applied
+Updated `docs/runbooks/platform_parity_walkthrough_v0.md` to reflect current executable local-parity posture:
+1. Title expanded to include DF/DL in the parity flow chain.
+2. OFP section renamed to `OFP/OFS` with explicit naming note (`OFS` shorthand maps to OFP component in repo).
+3. Added `Section 16` for DL boundary checks:
+   - policy profile load command,
+   - DL suite validation command.
+4. Added `Section 17` for DF boundary checks:
+   - full DF suite validation command,
+   - targeted drift-closure smoke command.
+5. Replaced stale boundary note that said DF/DL checks were pending.
+
+### Validation
+- Presence check in runbook:
+  - `OFP/OFS` section found.
+  - `Section 16` (DL) found.
+  - `Section 17` (DF) found.
+- Commands in new sections were executed:
+  - `python -m pytest tests/services/degrade_ladder -q` -> `40 passed`
+  - `python -m pytest tests/services/decision_fabric -q` -> `69 passed`
+
+### Boundary clarification retained
+Runbook clearly states DF/DL currently validate through component boundaries/tests and do not yet expose standalone long-running service CLIs in this repo.
+
+---
+
 ## Entry: 2026-01-31 18:40:00 — Align traffic streams to Data Engine black‑box interface
 
 ### Trigger

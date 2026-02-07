@@ -26,6 +26,8 @@ def _candidate(index: int) -> DecisionTriggerCandidate:
     offset = str(1000 + index)
     return DecisionTriggerCandidate(
         source_event_id=source_event_id,
+        event_class="traffic_fraud",
+        payload_hash=f"{index:064x}"[-64:],
         source_event_type="transaction_fraud",
         schema_version="v1",
         source_ts_utc="2026-02-07T14:00:00.000000Z",

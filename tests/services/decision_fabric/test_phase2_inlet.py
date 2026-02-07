@@ -5,10 +5,12 @@ from pathlib import Path
 from fraud_detection.decision_fabric.config import load_trigger_policy
 from fraud_detection.decision_fabric.inlet import (
     INLET_ACCEPT,
+    INLET_DUPLICATE,
     INLET_EVENT_TYPE_NOT_ALLOWED,
     INLET_LOOP_PREVENTION,
     INLET_MISSING_REQUIRED_PINS,
     INLET_NON_TRAFFIC_TOPIC,
+    INLET_PAYLOAD_HASH_MISMATCH,
     INLET_SCHEMA_VERSION_NOT_ALLOWED,
     INLET_SCHEMA_VERSION_REQUIRED,
     DecisionFabricInlet,
@@ -171,3 +173,49 @@ def test_accepts_nested_envelope_shape() -> None:
     )
     assert result.accepted is True
     assert result.reason_code == INLET_ACCEPT
+
+
+def test_duplicate_semantic_event_is_deduped() -> None:
+    inlet = _inlet()
+    record = DfBusInput(
+        topic="fp.bus.traffic.fraud.v1",
+        partition=2,
+        offset="910",
+        offset_kind="kinesis_sequence",
+        payload=_valid_envelope(),
+    )
+    first = inlet.evaluate(record)
+    second = inlet.evaluate(record)
+    assert first.accepted is True
+    assert first.reason_code == INLET_ACCEPT
+    assert second.accepted is False
+    assert second.reason_code == INLET_DUPLICATE
+
+
+def test_payload_hash_collision_is_rejected() -> None:
+    inlet = _inlet()
+    first_envelope = _valid_envelope()
+    second_envelope = _valid_envelope()
+    second_envelope["payload"] = {"flow_id": "flow-100", "amount": 999.99}
+    first = inlet.evaluate(
+        DfBusInput(
+            topic="fp.bus.traffic.fraud.v1",
+            partition=2,
+            offset="911",
+            offset_kind="kinesis_sequence",
+            payload=first_envelope,
+        )
+    )
+    second = inlet.evaluate(
+        DfBusInput(
+            topic="fp.bus.traffic.fraud.v1",
+            partition=2,
+            offset="912",
+            offset_kind="kinesis_sequence",
+            payload=second_envelope,
+        )
+    )
+    assert first.accepted is True
+    assert first.reason_code == INLET_ACCEPT
+    assert second.accepted is False
+    assert second.reason_code == INLET_PAYLOAD_HASH_MISMATCH

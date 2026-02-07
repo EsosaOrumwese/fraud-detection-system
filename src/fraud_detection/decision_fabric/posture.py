@@ -6,7 +6,7 @@ from dataclasses import dataclass
 from datetime import datetime, timezone
 import hashlib
 import json
-from typing import Any
+from typing import Any, Mapping
 
 from fraud_detection.degrade_ladder.contracts import CapabilitiesMask, DegradeDecision, MODE_SEQUENCE, PolicyRev
 from fraud_detection.degrade_ladder.health import DlHealthGate
@@ -139,7 +139,7 @@ class DfPostureResolver:
     def resolve(
         self,
         *,
-        scope_key: str,
+        scope_key: Any,
         decision_time_utc: str,
         policy_ok: bool,
         required_signals_ok: bool,
@@ -150,9 +150,10 @@ class DfPostureResolver:
     ) -> DfPostureStamp:
         if not isinstance(self.max_age_seconds, int) or self.max_age_seconds <= 0:
             raise DfPostureError("max_age_seconds must be a positive integer")
+        normalized_scope_key = _canonical_scope_key(scope_key)
 
         dl_result, gate = self.guarded_service.get_guarded_posture(
-            scope_key=scope_key,
+            scope_key=normalized_scope_key,
             decision_time_utc=decision_time_utc,
             max_age_seconds=self.max_age_seconds,
             policy_ok=policy_ok,
@@ -334,3 +335,34 @@ def _parse_utc(value: str) -> datetime:
     if dt.tzinfo is None:
         return dt.replace(tzinfo=timezone.utc)
     return dt.astimezone(timezone.utc)
+
+
+def _canonical_scope_key(scope_key: Any) -> str:
+    if isinstance(scope_key, str):
+        token = scope_key.strip()
+        if not token:
+            raise DfPostureError("scope_key must be a non-empty string")
+        return token
+    if isinstance(scope_key, Mapping):
+        return _canonical_scope_key_from_mapping(scope_key)
+    canonical = getattr(scope_key, "canonical_key", None)
+    if callable(canonical):
+        token = str(canonical()).strip()
+        if token:
+            return token
+    as_dict = getattr(scope_key, "as_dict", None)
+    if callable(as_dict):
+        payload = as_dict()
+        if isinstance(payload, Mapping):
+            return _canonical_scope_key_from_mapping(payload)
+    raise DfPostureError("scope_key must be a canonical string or scope mapping/object")
+
+
+def _canonical_scope_key_from_mapping(scope_key: Mapping[str, Any]) -> str:
+    environment = str(scope_key.get("environment") or "").strip()
+    mode = str(scope_key.get("mode") or "").strip()
+    bundle_slot = str(scope_key.get("bundle_slot") or "").strip()
+    if not environment or not mode or not bundle_slot:
+        raise DfPostureError("scope_key mapping requires environment, mode, bundle_slot")
+    tenant = str(scope_key.get("tenant_id") or "").strip()
+    return "|".join([environment, mode, bundle_slot, tenant])

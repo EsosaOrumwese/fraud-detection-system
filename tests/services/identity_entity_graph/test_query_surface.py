@@ -20,7 +20,7 @@ def _pins() -> dict[str, object]:
 
 def _apply_event(store, pins: dict[str, object], *, event_id: str, entity_id: str) -> None:
     class_name = "traffic"
-    pins["dedupe_key"] = dedupe_key(str(pins["platform_run_id"]), str(pins["scenario_run_id"]), class_name, event_id)
+    pins["dedupe_key"] = dedupe_key(str(pins["platform_run_id"]), class_name, event_id)
     hint = IdentityHint(
         identifier_type="account_id",
         identifier_value="acc-1",

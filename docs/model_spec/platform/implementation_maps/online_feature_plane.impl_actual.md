@@ -959,3 +959,56 @@ User requested removal of `docs/model_spec/platform/runbooks/local_parity_ofp_ru
 
 ### Validation
 - Searched docs for live links to deleted runbook path; no active references remain outside historical log/decision text.
+
+---
+
+## Entry: 2026-02-07 13:00:00 - Plan: align OFP semantic dedupe tuple to corridor law
+
+### Problem
+OFP currently keys semantic dedupe by `(stream_id, platform_run_id, event_class, event_id)`. Corridor semantics require idempotency by `(platform_run_id, event_class, event_id)` plus payload-hash anomaly checks. Including `stream_id` risks semantic divergence across stream-id variants while representing the same admitted event identity.
+
+### Authorities
+- `docs/model_spec/platform/pre-design_decisions/real-time_decision_loop.pre-design_decision.md`
+- `docs/model_spec/platform/component-specific/flow-narrative-platform-design.md`
+- `docs/model_spec/platform/platform-wide/platform_blueprint_notes_v0.md`
+
+### Decision and migration posture
+1. Keep transport dedupe exactly as-is (`stream_id/topic/partition/offset_kind/offset`).
+2. Change semantic dedupe table PK and lookup to `(platform_run_id, event_class, event_id)`.
+3. Preserve `stream_id` as metadata in applied/checkpoint lanes, not semantic identity.
+4. Preserve `payload_hash` mismatch handling and metrics behavior.
+
+### Files planned
+- `src/fraud_detection/online_feature_plane/store.py`
+- `tests/services/online_feature_plane/*` (semantic dedupe/collision tests + migration-sensitive assertions)
+
+### Validation plan
+- `python -m pytest tests/services/online_feature_plane -q`
+- ensure no regressions in projection/apply/checkpoint behavior.
+
+---
+
+## Entry: 2026-02-07 13:09:19 - OFP semantic dedupe tuple drift closed
+
+### What changed
+1. OFP semantic dedupe key was migrated from:
+   - `(stream_id, platform_run_id, event_class, event_id)`
+   to:
+   - `(platform_run_id, event_class, event_id)`.
+2. Kept `stream_id` as metadata on semantic rows and retained transport dedupe unchanged.
+3. Added semantic dedupe schema migration paths for both SQLite and Postgres:
+   - automatic table rebuild when legacy PK includes `stream_id`,
+   - deterministic row collapse by semantic tuple during migration.
+4. Updated semantic insert/select conflict clauses to ignore `stream_id` for semantic identity.
+5. Added regression test proving semantic dedupe is stream-independent.
+
+### Files changed
+- `src/fraud_detection/online_feature_plane/store.py`
+- `tests/services/online_feature_plane/test_phase2_projector.py`
+
+### Validation
+- `python -m pytest tests/services/online_feature_plane -q` -> `26 passed`.
+
+### Invariant confirmation
+- Transport checkpoint/idempotency remains keyed by stream/topic/partition/offset.
+- Semantic payload-hash mismatch is still surfaced as `PAYLOAD_HASH_MISMATCH`.

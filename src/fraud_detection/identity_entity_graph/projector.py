@@ -565,7 +565,7 @@ class IdentityGraphProjector:
             )
 
         pins = _pins_for_envelope(envelope, scenario_run_id)
-        dedupe = dedupe_key(str(platform_run_id), scenario_run_id, class_name, event_id)
+        dedupe = dedupe_key(str(platform_run_id), class_name, event_id)
         payload_hash = _payload_hash(envelope)
         normalized_hints = _assign_entity_ids(identity_hints, pins)
         pins["dedupe_key"] = dedupe

@@ -920,3 +920,44 @@ Run a compact, auditable 20-step DL runtime plumbing pass now (before DF runtime
 - This is a **DL plumbing sanity run**, not full RTDL E2E closure; DF runtime coupling and downstream AL/DLA remain integration gates outside DL scope.
 
 ---
+
+## Entry: 2026-02-07 13:01:00 - Plan: DF-compatible deterministic scope-key posture boundary
+
+### Problem
+DL store/serve is functioning, but DF integration still presents scope as free-form strings in some paths. For deterministic RTDL replay and registry alignment, DF and DL must use the same canonical scope token derived from structured scope axes.
+
+### Authorities
+- `docs/model_spec/platform/pre-design_decisions/real-time_decision_loop.pre-design_decision.md`
+- `docs/model_spec/platform/component-specific/flow-narrative-platform-design.md`
+- `docs/model_spec/platform/platform-wide/platform_blueprint_notes_v0.md`
+
+### Decision
+1. Keep DL internal behavior unchanged (GLOBAL/MANIFEST/RUN logic and anti-flap semantics).
+2. Tighten DF-facing contract so scope key supplied to DL guard is deterministic and derived from registry scope axes.
+3. Validate that posture stamps emitted back to DF retain the same deterministic scope key.
+
+### Files expected (integration-side)
+- primary changes in DF posture integration layer (`decision_fabric/posture.py` + tests).
+- DL-side code change only if compatibility gaps surface during tests.
+
+### Validation plan
+- `python -m pytest tests/services/decision_fabric/test_phase3_posture.py -q`
+- `python -m pytest tests/services/degrade_ladder -q` (if DF-side changes trigger contract assumptions).
+
+---
+
+## Entry: 2026-02-07 13:09:19 - Deterministic DF scope-key boundary validated with DL
+
+### What changed
+No DL core algorithm changes were required. Scope-key normalization was implemented in DF posture integration and validated against DL serving expectations.
+
+### Validation performed
+1. DF posture tests now include scope mapping normalization proof (`environment/mode/bundle_slot` -> canonical token).
+2. DL full suite re-run to confirm no behavioral regressions at DL boundaries.
+
+### Evidence
+- `python -m pytest tests/services/degrade_ladder -q` -> `40 passed`.
+- DF posture coverage is included in `python -m pytest tests/services/decision_fabric -q` -> `69 passed`.
+
+### Outcome
+DL posture service remains stable while accepting deterministic scope tokens from DF integration.

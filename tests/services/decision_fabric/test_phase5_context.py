@@ -38,6 +38,8 @@ def _policy() -> DecisionContextPolicy:
 def _candidate() -> DecisionTriggerCandidate:
     return DecisionTriggerCandidate(
         source_event_id="evt_001",
+        event_class="traffic_fraud",
+        payload_hash="f" * 64,
         source_event_type="transaction_fraud",
         schema_version="v1",
         source_ts_utc="2026-02-07T11:00:00Z",

@@ -181,6 +181,34 @@ def test_store_semantic_dedupe_and_payload_hash_mismatch(tmp_path) -> None:
     assert metrics.get("payload_hash_mismatch") == 1
 
 
+def test_semantic_dedupe_is_stream_independent(tmp_path) -> None:
+    db_path = tmp_path / "ofp.db"
+    store_a = build_store(str(db_path), stream_id="ofp.v0::a", basis_stream="fp.bus.traffic.fraud.v1")
+    store_b = build_store(str(db_path), stream_id="ofp.v0::b", basis_stream="fp.bus.traffic.fraud.v1")
+    pins = _pins()
+    base = {
+        "topic": "fp.bus.traffic.fraud.v1",
+        "partition": 0,
+        "offset_kind": "file_line",
+        "event_class": "traffic_fraud",
+        "event_id": "8" * 64,
+        "event_ts_utc": "2026-02-06T00:00:01.000000Z",
+        "pins": pins,
+        "key_type": "flow_id",
+        "key_id": "flow-8",
+        "group_name": "core_features",
+        "group_version": "v1",
+        "amount": 8.0,
+    }
+    first = store_a.apply_event(offset="0", payload_hash="a" * 64, **base)
+    replay_other_stream = store_b.apply_event(offset="1", payload_hash="a" * 64, **base)
+    mismatch_other_stream = store_b.apply_event(offset="2", payload_hash="b" * 64, **base)
+
+    assert first.status == "APPLIED"
+    assert replay_other_stream.status == "DUPLICATE"
+    assert mismatch_other_stream.status == "PAYLOAD_HASH_MISMATCH"
+
+
 def test_projector_file_bus_updates_state_and_basis(tmp_path) -> None:
     topic = "fp.bus.traffic.fraud.v1"
     bus_root = tmp_path / "bus"

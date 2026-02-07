@@ -168,8 +168,12 @@ def test_transition_guard_allows_immediate_tighten_and_controls_relax() -> None:
 class _StubGuardedService:
     result: DlServeResult
     gate: DlHealthGate
+    last_scope_key: str | None = None
 
-    def get_guarded_posture(self, **_: object) -> tuple[DlServeResult, DlHealthGate]:
+    def get_guarded_posture(self, **kwargs: object) -> tuple[DlServeResult, DlHealthGate]:
+        scope_key = kwargs.get("scope_key")
+        if isinstance(scope_key, str):
+            self.last_scope_key = scope_key
         return self.result, self.gate
 
 
@@ -193,3 +197,25 @@ def test_resolver_carries_failsafe_stale_posture() -> None:
     assert stamp.mode == "FAIL_CLOSED"
     assert stamp.source == "FAILSAFE_STALE"
     assert any(reason.startswith("DL_STALENESS:") for reason in stamp.reasons)
+
+
+def test_resolver_normalizes_scope_key_from_mapping() -> None:
+    stale_result = _serve_result(
+        decision=_decision(mode="FAIL_CLOSED", posture_seq=20, decided_at_utc="2026-02-07T11:00:00.000000Z"),
+        source="FAILSAFE_STALE",
+        trust_state="TRUSTED",
+        staleness_reason="POSTURE_STALE:91s>90s",
+    )
+    service = _StubGuardedService(result=stale_result, gate=_health_gate(state="BLIND"))
+    resolver = DfPostureResolver(guarded_service=service, max_age_seconds=90)
+    resolver.resolve(
+        scope_key={
+            "environment": "local_parity",
+            "mode": "fraud",
+            "bundle_slot": "primary",
+        },
+        decision_time_utc="2026-02-07T11:01:31.000000Z",
+        policy_ok=True,
+        required_signals_ok=False,
+    )
+    assert service.last_scope_key == "local_parity|fraud|primary|"

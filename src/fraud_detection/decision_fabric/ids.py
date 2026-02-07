@@ -7,7 +7,7 @@ import json
 from typing import Any, Mapping
 
 
-DECISION_ID_RECIPE_V1 = "df.decision_id.v1"
+DECISION_ID_RECIPE_V1 = "df.decision_id.v2"
 DECISION_RESPONSE_EVENT_ID_RECIPE_V1 = "df.decision_response.event_id.v1"
 ACTION_INTENT_EVENT_ID_RECIPE_V1 = "df.action_intent.event_id.v1"
 ACTION_INTENT_IDEMPOTENCY_RECIPE_V1 = "df.action_intent.idempotency_key.v1"
@@ -25,16 +25,18 @@ PIN_SCOPE_FIELDS: tuple[str, ...] = (
 def deterministic_decision_id(
     *,
     source_event_id: str,
+    platform_run_id: str,
     decision_scope: str,
     bundle_ref: Mapping[str, Any],
-    eb_offset_basis: Mapping[str, Any],
+    origin_offset: Mapping[str, Any],
 ) -> str:
     """Build deterministic 32-hex decision_id for a source event and decision basis."""
     payload = {
         "source_event_id": str(source_event_id),
+        "platform_run_id": str(platform_run_id),
         "decision_scope": str(decision_scope),
         "bundle_ref": _stable_bundle_ref(bundle_ref),
-        "eb_offset_basis": _stable_eb_offset_basis(eb_offset_basis),
+        "origin_offset": _stable_origin_offset(origin_offset),
     }
     return _hash_with_recipe(DECISION_ID_RECIPE_V1, payload)[:32]
 
@@ -98,26 +100,14 @@ def _stable_bundle_ref(bundle_ref: Mapping[str, Any]) -> dict[str, str]:
     }
 
 
-def _stable_eb_offset_basis(eb_offset_basis: Mapping[str, Any]) -> dict[str, Any]:
-    offsets_raw = eb_offset_basis.get("offsets")
-    offsets: list[dict[str, Any]] = []
-    if isinstance(offsets_raw, list):
-        offsets = sorted(
-            [
-                {
-                    "partition": int(item.get("partition", 0)),
-                    "offset": str(item.get("offset") or ""),
-                }
-                for item in offsets_raw
-                if isinstance(item, Mapping)
-            ],
-            key=lambda item: (item["partition"], item["offset"]),
-        )
+def _stable_origin_offset(origin_offset: Mapping[str, Any]) -> dict[str, Any]:
+    topic = str(origin_offset.get("topic") or origin_offset.get("stream") or "").strip()
+    partition = int(origin_offset.get("partition", 0))
     return {
-        "stream": str(eb_offset_basis.get("stream") or ""),
-        "offset_kind": str(eb_offset_basis.get("offset_kind") or ""),
-        "basis_digest": str(eb_offset_basis.get("basis_digest") or ""),
-        "offsets": offsets,
+        "topic": topic,
+        "partition": partition,
+        "offset": str(origin_offset.get("offset") or ""),
+        "offset_kind": str(origin_offset.get("offset_kind") or ""),
     }
 
 
