@@ -601,3 +601,135 @@ Reasoning:
 - Restart resume without duplicate mutation: satisfied (`test_phase4_restart_resumes_from_checkpoints_without_duplicate_mutation`).
 - Same-basis replay determinism: satisfied (`test_phase4_replay_same_basis_yields_identical_state`).
 - Rebuild/backfill explicit basis requirement: satisfied by strict manifest validator + mandatory `--replay-manifest` entrypoint.
+
+---
+
+## Entry: 2026-02-07 16:59:08 - Phase 5 pre-implementation plan (query/read surface for DF/DL)
+
+### Active-phase objective
+Implement a deterministic read/query surface for DF/DL callers that resolves by `flow_id` or `join_frame_key`, returns explicit readiness posture, and never fabricates join state.
+
+### Inputs/authorities
+- `docs/model_spec/platform/implementation_maps/context_store_flow_binding.build_plan.md` (Phase 5 DoD)
+- `docs/model_spec/platform/contracts/real_time_decision_loop/context_store_flow_binding_query_request.schema.yaml`
+- `docs/model_spec/platform/contracts/real_time_decision_loop/context_store_flow_binding_query_response.schema.yaml`
+- `docs/model_spec/platform/pre-design_decisions/real-time_decision_loop.pre-design_decision.md`
+
+### Decision thread 1: response status mapping
+Decision:
+- `resolve_flow_binding`:
+  - missing binding -> `MISSING_BINDING`
+  - binding exists but referenced join frame missing -> `MISSING_JOIN_FRAME`
+  - both binding + join frame present -> `READY`
+- `fetch_join_frame`:
+  - missing join frame -> `MISSING_JOIN_FRAME`
+  - join frame present -> `READY` (optionally include flow binding when unique binding exists for key)
+
+Reasoning:
+- This gives explicit fail-closed posture with no inferred/fabricated joins.
+
+### Decision thread 2: pin consistency checks
+Decision:
+- Query surface validates request contract first.
+- After data lookup, run-scope in located records must match request pins (`platform_run_id`, `scenario_run_id`), otherwise return `CONFLICT` with reason `PINS_MISMATCH`.
+
+Reasoning:
+- Explicitly prevents cross-run leakage and enforces platform pin invariants at read boundary.
+
+### Decision thread 3: evidence reference encoding
+Decision:
+- Include machine-readable `evidence_refs` pointing to source event lineage:
+  - `kind=flow_binding_source_event` (from binding source event)
+  - `kind=join_frame_source_event` (from join frame source event)
+  - `kind=join_checkpoint` (topic/partition cursor)
+
+Reasoning:
+- Meets DoD for evidence refs while keeping response payload schema-stable.
+
+### Decision thread 4: read surface shape
+Decision:
+- Add read helpers in store for query-only fetches:
+  - fetch flow binding by flow_id
+  - fetch join frame row by key
+  - fetch optional flow binding by join-frame key
+- Add dedicated service module `query.py` for orchestration and response construction.
+
+Reasoning:
+- Keeps SQL access in store boundary while query decisioning remains in service layer.
+
+### Planned file paths (Phase 5)
+- New:
+  - `src/fraud_detection/context_store_flow_binding/query.py`
+  - `tests/services/context_store_flow_binding/test_phase5_query.py`
+- Update:
+  - `src/fraud_detection/context_store_flow_binding/store.py`
+  - `src/fraud_detection/context_store_flow_binding/__init__.py`
+  - `docs/model_spec/platform/implementation_maps/context_store_flow_binding.build_plan.md`
+
+### Validation plan
+- Test `resolve_flow_binding` ready/missing/conflict cases.
+- Test `fetch_join_frame` ready/missing cases.
+- Validate response payloads through `QueryResponse` contract validator.
+
+---
+
+## Entry: 2026-02-07 17:02:00 - Phase 5 implementation completed (query/read surface for DF/DL)
+
+### What was implemented
+- Added deterministic query service:
+  - `src/fraud_detection/context_store_flow_binding/query.py`
+  - Supports both selectors:
+    - `resolve_flow_binding` via `flow_id`
+    - `fetch_join_frame` via `join_frame_key`
+- Extended store read surfaces for query-only access:
+  - `src/fraud_detection/context_store_flow_binding/store.py`
+    - `CsfbJoinFrameRecord`
+    - `read_join_frame_record(...)`
+    - `read_flow_binding(...)`
+    - `read_flow_binding_for_join_frame(...)`
+- Exported query service + read record model:
+  - `src/fraud_detection/context_store_flow_binding/__init__.py`
+
+### Decisions made during implementation (with reasoning)
+1. **Fail-closed status mapping is explicit and minimal**
+   - Decision:
+     - missing binding -> `MISSING_BINDING` / `FLOW_BINDING_NOT_FOUND`
+     - missing join frame -> `MISSING_JOIN_FRAME` / `JOIN_FRAME_NOT_FOUND`
+     - pin mismatch -> `CONFLICT` / `PINS_MISMATCH`
+     - valid lookup -> `READY`
+   - Reasoning: callers (DF/DL) get deterministic posture codes without inference.
+
+2. **Invalid request response is only returned when pins are still contract-valid**
+   - Decision: `INVALID_REQUEST` response path is produced only if `pins` can be validated into response contract; otherwise request contract error is raised.
+   - Reasoning: preserves strict contract guarantees that all responses carry valid pins.
+
+3. **Evidence refs encode lineage + checkpoint rather than embedding extra mutable payloads**
+   - Decision: query responses carry `evidence_refs` for:
+     - flow binding source event
+     - join frame source event
+     - join checkpoint
+   - Reasoning: satisfies lineage/audit requirement while keeping response schema stable and compact.
+
+4. **Pin conflict checks compare full request pin context where available**
+   - Decision: conflict checks include run scope and context pins (`platform_run_id`, `scenario_run_id`, `manifest_fingerprint`, `parameter_hash`, `scenario_id`, `seed`, optional `run_id`).
+   - Reasoning: prevents subtle cross-run/cross-config read leakage.
+
+### Tests added for Phase 5
+- `tests/services/context_store_flow_binding/test_phase5_query.py`
+  - `test_phase5_resolve_flow_binding_ready_returns_evidence`
+  - `test_phase5_resolve_flow_binding_missing_binding_is_fail_closed`
+  - `test_phase5_resolve_flow_binding_missing_join_frame_is_explicit`
+  - `test_phase5_fetch_join_frame_ready_without_binding`
+  - `test_phase5_pin_mismatch_returns_conflict`
+  - `test_phase5_invalid_request_returns_invalid_request_status_when_pins_present`
+
+### Validation executed
+- `$env:PYTHONPATH='.;src'; python -m pytest tests/services/context_store_flow_binding/test_phase5_query.py -q`
+  - Result: `6 passed`
+- `$env:PYTHONPATH='.;src'; python -m pytest tests/services/context_store_flow_binding -q`
+  - Result: `31 passed`
+
+### Phase 5 DoD mapping
+- Query endpoints support both selectors: satisfied.
+- Responses include readiness/reason/evidence/pins: satisfied.
+- Missing state is explicit fail-closed (no fabricated join): satisfied.

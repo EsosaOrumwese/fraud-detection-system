@@ -141,6 +141,21 @@ Provide a component-scoped build plan for the shared RTDL join plane that serves
   - evidence refs (offset lineage)
   - run pins
 - Missing state returns explicit fail-closed response contract (no fabricated joins).
+**Evidence (Phase 5):**
+- Query/read service:
+  - `src/fraud_detection/context_store_flow_binding/query.py`
+- Store read helpers:
+  - `src/fraud_detection/context_store_flow_binding/store.py`
+    - `read_flow_binding(...)`
+    - `read_flow_binding_for_join_frame(...)`
+    - `read_join_frame_record(...)`
+- Package exports:
+  - `src/fraud_detection/context_store_flow_binding/__init__.py`
+- Tests:
+  - `tests/services/context_store_flow_binding/test_phase5_query.py`
+- Validation commands:
+  - `$env:PYTHONPATH='.;src'; python -m pytest tests/services/context_store_flow_binding/test_phase5_query.py -q` (`6 passed`)
+  - `$env:PYTHONPATH='.;src'; python -m pytest tests/services/context_store_flow_binding -q` (`31 passed`)
 
 ### Phase 6 — Degrade and observability hooks
 **Intent:** make join-plane deficits actionable in DL/DF and Obs/Gov.
@@ -178,4 +193,5 @@ Provide a component-scoped build plan for the shared RTDL join plane that serves
 - Phase 2 (`Storage schema + durability`): completed.
 - Phase 3 (`Intake apply worker`): completed.
 - Phase 4 (`Checkpointing + replay determinism`): completed.
-- Current focus: Phase 5 (`Query/read surface for DF/DL`).
+- Phase 5 (`Query/read surface for DF/DL`): completed.
+- Current focus: Phase 6 (`Degrade and observability hooks`).

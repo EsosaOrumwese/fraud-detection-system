@@ -15,6 +15,7 @@ from .taxonomy import (
 )
 from .store import (
     ContextStoreFlowBindingConflictError,
+    CsfbJoinFrameRecord,
     ContextStoreFlowBindingStore,
     ContextStoreFlowBindingStoreError,
     CsfbApplyResult,
@@ -25,6 +26,7 @@ from .store import (
     load_retention_profile,
 )
 from .intake import ContextStoreFlowBindingInlet, CsfbInletPolicy
+from .query import ContextStoreFlowBindingQueryService
 from .replay import CsfbReplayManifest, CsfbReplayPartitionRange, CsfbReplayTopicRange
 
 __all__ = [
@@ -39,11 +41,13 @@ __all__ = [
     "CsfbCheckpoint",
     "CsfbInletPolicy",
     "CsfbIntakeApplyResult",
+    "CsfbJoinFrameRecord",
     "CsfbRetentionProfile",
     "CsfbReplayManifest",
     "CsfbReplayPartitionRange",
     "CsfbReplayTopicRange",
     "ContextStoreFlowBindingInlet",
+    "ContextStoreFlowBindingQueryService",
     "FlowBindingRecord",
     "JoinFrameKey",
     "QueryRequest",

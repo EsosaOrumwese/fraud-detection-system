@@ -64,6 +64,14 @@ class CsfbRetentionProfile:
     checkpoint_days: int | None
 
 
+@dataclass(frozen=True)
+class CsfbJoinFrameRecord:
+    join_frame_key: JoinFrameKey
+    payload_hash: str
+    frame_payload: dict[str, Any]
+    source_event: dict[str, Any]
+
+
 class ContextStoreFlowBindingStore:
     def __init__(self, *, locator: str | Path, stream_id: str) -> None:
         self.locator = str(locator)
@@ -418,6 +426,86 @@ class ContextStoreFlowBindingStore:
         if not isinstance(payload, dict):
             raise ContextStoreFlowBindingStoreError("join frame state row must decode to object")
         return payload
+
+    def read_join_frame_record(self, *, join_frame_key: JoinFrameKey) -> CsfbJoinFrameRecord | None:
+        with self._connect() as conn:
+            row = self._execute(
+                conn,
+                """
+                SELECT payload_hash, frame_payload_json, source_event_json
+                FROM csfb_join_frames
+                WHERE stream_id = ? AND platform_run_id = ? AND scenario_run_id = ?
+                  AND merchant_id = ? AND arrival_seq = ?
+                """,
+                (
+                    self.stream_id,
+                    join_frame_key.platform_run_id,
+                    join_frame_key.scenario_run_id,
+                    join_frame_key.merchant_id,
+                    join_frame_key.arrival_seq,
+                ),
+            ).fetchone()
+        if row is None:
+            return None
+        payload_hash = str(row[0])
+        frame_payload = _load_json_object(row[1], "join frame payload")
+        source_event = _load_json_object(row[2], "join frame source_event")
+        return CsfbJoinFrameRecord(
+            join_frame_key=join_frame_key,
+            payload_hash=payload_hash,
+            frame_payload=frame_payload,
+            source_event=source_event,
+        )
+
+    def read_flow_binding(
+        self,
+        *,
+        platform_run_id: str,
+        scenario_run_id: str,
+        flow_id: str,
+    ) -> FlowBindingRecord | None:
+        with self._connect() as conn:
+            row = self._execute(
+                conn,
+                """
+                SELECT binding_payload_json
+                FROM csfb_flow_bindings
+                WHERE stream_id = ? AND platform_run_id = ? AND scenario_run_id = ? AND flow_id = ?
+                """,
+                (
+                    self.stream_id,
+                    _non_empty(platform_run_id, "platform_run_id"),
+                    _non_empty(scenario_run_id, "scenario_run_id"),
+                    _non_empty(flow_id, "flow_id"),
+                ),
+            ).fetchone()
+        if row is None:
+            return None
+        payload = _load_json_object(row[0], "flow binding payload")
+        return FlowBindingRecord.from_mapping(payload)
+
+    def read_flow_binding_for_join_frame(self, *, join_frame_key: JoinFrameKey) -> FlowBindingRecord | None:
+        with self._connect() as conn:
+            row = self._execute(
+                conn,
+                """
+                SELECT binding_payload_json
+                FROM csfb_flow_bindings
+                WHERE stream_id = ? AND platform_run_id = ? AND scenario_run_id = ?
+                  AND merchant_id = ? AND arrival_seq = ?
+                """,
+                (
+                    self.stream_id,
+                    join_frame_key.platform_run_id,
+                    join_frame_key.scenario_run_id,
+                    join_frame_key.merchant_id,
+                    join_frame_key.arrival_seq,
+                ),
+            ).fetchone()
+        if row is None:
+            return None
+        payload = _load_json_object(row[0], "flow binding payload")
+        return FlowBindingRecord.from_mapping(payload)
 
     def get_checkpoint(self, *, topic: str, partition_id: int) -> CsfbCheckpoint | None:
         with self._connect() as conn:
@@ -848,6 +936,16 @@ def _canonical_json(payload: Mapping[str, Any]) -> str:
     if not isinstance(payload, Mapping):
         raise ContextStoreFlowBindingStoreError("payload must be a mapping")
     return json.dumps(dict(payload), sort_keys=True, ensure_ascii=True, separators=(",", ":"))
+
+
+def _load_json_object(value: Any, field_name: str) -> dict[str, Any]:
+    try:
+        payload = json.loads(str(value))
+    except json.JSONDecodeError as exc:
+        raise ContextStoreFlowBindingStoreError(f"{field_name} row is not valid JSON") from exc
+    if not isinstance(payload, dict):
+        raise ContextStoreFlowBindingStoreError(f"{field_name} row must decode to object")
+    return payload
 
 
 def _non_empty(value: Any, field_name: str) -> str:
