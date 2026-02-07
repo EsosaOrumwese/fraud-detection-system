@@ -17,6 +17,10 @@ RTDL bus-visible payloads use stable `event_type` names with `schema_version = v
 - `action_outcome`
 - `degrade_posture` (optional control/audit emission)
 
+Compatibility posture:
+- major `schema_version` mismatch is fail-closed (reject/quarantine), never silently coerced.
+- minor-compatible versions are allowed only when an explicit adapter exists.
+
 ## Pins (v0)
 RTDL payloads must carry **run identity** and **ContextPins**:
 - Required pins: `platform_run_id`, `scenario_run_id`, `manifest_fingerprint`, `parameter_hash`, `scenario_id`, `seed`.
@@ -37,7 +41,7 @@ Decision/audit artifacts must carry:
 - `ofp_get_features_request.schema.yaml`
 - `ofp_get_features_response.schema.yaml`
 - `ofp_get_features_error.schema.yaml`
-- `decision_payload.schema.yaml`
+- `decision_payload.schema.yaml` (DecisionResponse payload schema for `event_type=decision_response`)
 - `degrade_posture.schema.yaml`
 - `action_intent.schema.yaml`
 - `action_outcome.schema.yaml`

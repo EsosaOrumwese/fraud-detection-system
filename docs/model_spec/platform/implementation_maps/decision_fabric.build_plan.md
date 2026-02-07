@@ -102,4 +102,9 @@ Provide an executable, phase-by-phase DF build plan aligned to platform Phase 4.
   DF component green at decision+intent boundary, with AL/DLA execution/audit closure tracked under platform Phase 4.5.
 
 ## Status (rolling)
-- Current focus: Phase 1 expansion kickoff for implementation mapping.
+- Phase 1 (`DF contracts + deterministic identity`): completed on `2026-02-07`.
+  - Evidence: `tests/services/decision_fabric/test_phase1_contracts.py`
+  - Evidence: `tests/services/decision_fabric/test_phase1_ids.py`
+  - Evidence: `tests/services/decision_fabric/test_phase1_taxonomy.py`
+  - Validation: `python -m pytest tests/services/decision_fabric -q` -> `14 passed`
+- Current focus: Phase 2 (`Inlet boundary + trigger gating`).

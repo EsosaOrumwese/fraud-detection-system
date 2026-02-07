@@ -80,3 +80,120 @@ Updated `docs/model_spec/platform/implementation_maps/decision_fabric.build_plan
 - Added explicit closure statement to keep component-green scope clear vs integration-pending gates.
 
 ---
+
+## Entry: 2026-02-07 10:27:17 — Phase 1 implementation plan (contracts + deterministic identity)
+
+### Problem / goal
+Begin Decision Fabric implementation by closing Phase 1 DoD end-to-end:
+- pin DF contracts and provenance requirements in code-facing helpers,
+- lock deterministic identity recipes for decision and action events,
+- pin RTDL event taxonomy/schema compatibility behavior (major mismatch fail-closed),
+- keep docs/index references drift-safe.
+
+### Authorities / inputs
+- `docs/model_spec/platform/implementation_maps/decision_fabric.build_plan.md` (Phase 1)
+- `docs/model_spec/platform/pre-design_decisions/real-time_decision_loop.pre-design_decision.md`
+- `docs/model_spec/platform/component-specific/decision_fabric.design-authority.md`
+- `docs/model_spec/platform/contracts/real_time_decision_loop/README.md`
+- `docs/model_spec/platform/contracts/real_time_decision_loop/decision_payload.schema.yaml`
+- `docs/model_spec/platform/contracts/real_time_decision_loop/action_intent.schema.yaml`
+
+### Decision trail (before coding)
+1. Create a new `src/fraud_detection/decision_fabric` package now, but keep Phase 1 runtime-surface minimal:
+   - contracts/parsing helpers,
+   - deterministic identity helpers,
+   - taxonomy compatibility helper.
+2. Preserve current contract file names to avoid churn (`decision_payload.schema.yaml` remains authoritative for DecisionResponse payload in v0), while making documentation explicit that DF `decision_response` event_type uses that schema path.
+3. Identity recipes will be canonicalized with stable JSON hashing (sorted keys, compact separators, UTF-8) and explicit recipe constants for:
+   - `decision_id`,
+   - DecisionResponse envelope `event_id`,
+   - ActionIntent envelope `event_id`,
+   - ActionIntent `idempotency_key`.
+4. Taxonomy compatibility guard:
+   - allowed `event_type` set is explicit for Phase 1 (`decision_response`, `action_intent`),
+   - `schema_version` parser enforces `v<major>[.<minor>]` form,
+   - major version mismatch fails closed by raising typed contract/taxonomy error.
+5. Add DF Phase 1 tests under `tests/services/decision_fabric/` for schema validity checks, deterministic identity behavior, and taxonomy compatibility enforcement.
+
+### Files planned
+- New:
+  - `src/fraud_detection/decision_fabric/__init__.py`
+  - `src/fraud_detection/decision_fabric/contracts.py`
+  - `src/fraud_detection/decision_fabric/ids.py`
+  - `src/fraud_detection/decision_fabric/taxonomy.py`
+  - `tests/services/decision_fabric/test_phase1_contracts.py`
+  - `tests/services/decision_fabric/test_phase1_ids.py`
+  - `tests/services/decision_fabric/test_phase1_taxonomy.py`
+- Update:
+  - `docs/model_spec/platform/contracts/real_time_decision_loop/README.md`
+  - `docs/model_spec/platform/contracts/README.md`
+  - `docs/model_spec/platform/implementation_maps/decision_fabric.build_plan.md` (Phase 1 status)
+
+### Invariants to enforce
+- DF contract helpers reject missing required provenance keys.
+- Identity digests are deterministic across process runs and key orderings.
+- Taxonomy acceptance is explicit and fail-closed for unknown event type or incompatible schema major.
+- No silent alias drift in contract docs/index for decision_response/action_intent.
+
+### Validation plan
+- Run `python -m pytest tests/services/decision_fabric -q`.
+- Re-run with package-level import smoke:
+  - `python -c "import fraud_detection.decision_fabric as df; print(sorted(df.__all__))"`.
+- Append implementation closure details and evidence after tests are green.
+
+---
+
+## Entry: 2026-02-07 10:30:56 — Phase 1 implementation closure (DF contracts + deterministic identity)
+
+### What was implemented
+1. Added DF Phase 1 package scaffold:
+   - `src/fraud_detection/decision_fabric/__init__.py`
+   - `src/fraud_detection/decision_fabric/contracts.py`
+   - `src/fraud_detection/decision_fabric/ids.py`
+   - `src/fraud_detection/decision_fabric/taxonomy.py`
+2. Implemented contract helpers:
+   - `DecisionResponse.from_payload(...)` and `ActionIntent.from_payload(...)` enforce required provenance and identity fields,
+   - explicit validation for pins, policy revision, degrade posture mask shape, bundle identity, and lineage linkage (`validate_action_intent_lineage`).
+3. Implemented deterministic identity recipes (v1):
+   - decision ID: deterministic 32-hex hash over source event + scope + bundle + EB basis,
+   - DecisionResponse event ID and ActionIntent event ID: deterministic recipe hashes over source event + pins scope + domain/scope,
+   - ActionIntent idempotency key: deterministic recipe hash over source event + pins scope + action domain.
+4. Implemented fail-closed taxonomy/compatibility guard:
+   - allowlisted event types (`decision_response`, `action_intent`),
+   - parsed schema versions as `v<major>[.<minor>]`,
+   - major mismatch raises explicit compatibility error (fail-closed posture).
+5. Updated contract index/readme references to make DecisionResponse payload authority explicit:
+   - `docs/model_spec/platform/contracts/real_time_decision_loop/README.md`
+   - `docs/model_spec/platform/contracts/README.md`
+
+### Validation results
+- `python -m pytest tests/services/decision_fabric -q` -> `14 passed`.
+- `PYTHONPATH=.;src python -c "import fraud_detection.decision_fabric as df; print(sorted(df.__all__))"` succeeded.
+
+### DoD closure mapping (Phase 1)
+- DecisionResponse + ActionIntent required provenance/identity fields: complete.
+- Deterministic identity rules pinned in code (decision_id + output event IDs + idempotency key): complete.
+- Event taxonomy + compatibility posture (major mismatch fail-closed): complete.
+- Contract docs/index reflect authoritative schema paths without introducing duplicate schema files: complete.
+
+### Follow-on boundary
+- Phase 2 will implement runtime inlet gating against admitted traffic topics and trigger allowlists.
+
+---
+
+## Entry: 2026-02-07 10:32:23 — Phase 1 test hardening follow-up
+
+### Problem / observation
+After Phase 1 closure, the identity determinism test for reordered offsets used a dict-expansion expression that could mask intended field ordering variation.
+
+### Corrective change
+- Updated `tests/services/decision_fabric/test_phase1_ids.py` to build a dedicated `reordered_offsets_basis` object explicitly, ensuring the test truly exercises order-insensitive normalization inside DF identity hashing.
+
+### Re-validation
+- `python -m pytest tests/services/decision_fabric -q` -> `14 passed`.
+
+### Outcome
+- No behavioral code changes were needed.
+- Phase 1 closure remains valid with stronger determinism evidence.
+
+---
