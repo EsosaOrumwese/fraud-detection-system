@@ -209,3 +209,57 @@ Phase 1 validates payload contracts but does not yet expose a dedicated semantic
 - Durable run-scoped idempotency state: **complete**.
 
 ---
+
+## Entry: 2026-02-07 18:44:57 - Corrective planning capture for Phase 3 (authz + execution posture)
+
+### Why this corrective entry exists
+Phase 3 implementation started immediately after user instruction to proceed, and the pre-implementation decision capture was not written before code edits. This entry records the actual planning decisions to keep the implementation map auditable without rewriting prior entries.
+
+### Authorities used
+- `docs/model_spec/platform/implementation_maps/action_layer.build_plan.md` (Phase 3 DoD)
+- `docs/model_spec/platform/pre-design_decisions/real-time_decision_loop.pre-design_decision.md` (actions semantics + fail-safe posture expectations)
+- `docs/model_spec/platform/component-specific/flow-narrative-platform-design.md` (deny/fail-safe before side effects)
+
+### Decisions taken
+1. Add explicit AL policy bundle loader under `config/platform/al/policy_v0.yaml` and code loader in `policy.py`.
+2. Add a dedicated authorization module (`authz.py`) that:
+   - evaluates allow/deny from policy,
+   - fails safe when posture is blocked or missing,
+   - emits deterministic deny reason codes.
+3. Add helper to build immutable `DENIED` outcomes stamped with `authz_policy_rev`.
+4. Keep scope bounded to Phase 3:
+   - no side-effect executor or retry loop yet (Phase 4+).
+
+---
+
+## Entry: 2026-02-07 18:44:57 - Phase 3 implementation closure (authorization + execution posture gates)
+
+### What was implemented
+1. Added AL policy bundle:
+   - `config/platform/al/policy_v0.yaml`
+2. Added policy loader + posture model:
+   - `src/fraud_detection/action_layer/policy.py`
+3. Added authorization/posture gate:
+   - `src/fraud_detection/action_layer/authz.py`
+   - dispositions: `ALLOW` / `DENY`
+   - fail-safe behavior on posture block and missing policy bundle.
+4. Added immutable denied-outcome helper:
+   - `build_denied_outcome_payload(...)` stamped with `authz_policy_rev`.
+5. Updated package exports:
+   - `src/fraud_detection/action_layer/__init__.py`
+
+### Tests added
+- `tests/services/action_layer/test_phase3_policy.py`
+- `tests/services/action_layer/test_phase3_authz.py`
+
+### Validation evidence
+- `$env:PYTHONPATH='.;src'; python -m pytest tests/services/action_layer -q` -> `20 passed`
+- `$env:PYTHONPATH='.;src'; python -m pytest tests/services/action_layer tests/services/decision_log_audit -q` -> `26 passed`
+
+### DoD mapping outcome
+- Authz/policy checks run before execution path: **complete** (policy+authz gate module).
+- Denied intents produce immutable `DENIED` outcomes with policy reason refs: **complete** (denied payload builder + contract-valid test).
+- Missing/invalid execution posture fail-safe (no blind execution): **complete** (`bundle=None`/blocked posture -> deny fail-safe).
+- Policy revision stamps captured on outcomes: **complete** (`authz_policy_rev` derived from policy bundle and asserted in tests).
+
+---

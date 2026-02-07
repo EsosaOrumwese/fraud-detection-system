@@ -70,6 +70,18 @@ Provide an executable, component-scoped AL plan aligned to platform `Phase 4.5` 
 - Denied intents produce immutable `DENIED` outcomes with policy reason refs.
 - Missing/invalid execution posture is fail-safe (no blind execution).
 - Policy revision stamps are captured on outcomes.
+**Evidence (Phase 3):**
+- Config:
+  - `config/platform/al/policy_v0.yaml`
+- Code:
+  - `src/fraud_detection/action_layer/policy.py`
+  - `src/fraud_detection/action_layer/authz.py`
+  - `src/fraud_detection/action_layer/__init__.py`
+- Tests:
+  - `tests/services/action_layer/test_phase3_policy.py`
+  - `tests/services/action_layer/test_phase3_authz.py`
+- Validation:
+  - `$env:PYTHONPATH='.;src'; python -m pytest tests/services/action_layer -q`
 
 ### Phase 4 — Executor adapters + retry/failure semantics
 **Intent:** execute effects safely across retriable/uncertain conditions.
@@ -119,4 +131,5 @@ Provide an executable, component-scoped AL plan aligned to platform `Phase 4.5` 
 ## Status (rolling)
 - Phase 1 (`Intake contracts + pin/shape validation`): completed on `2026-02-07`.
 - Phase 2 (`Semantic idempotency ledger`): completed on `2026-02-07`.
-- Current focus: Phase 3 (`Authorization + execution posture gates`).
+- Phase 3 (`Authorization + execution posture gates`): completed on `2026-02-07`.
+- Current focus: Phase 4 (`Executor adapters + retry/failure semantics`).

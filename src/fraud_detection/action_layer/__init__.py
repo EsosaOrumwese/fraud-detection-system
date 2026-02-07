@@ -9,6 +9,13 @@ from .contracts import (
     build_semantic_idempotency_key,
     validate_outcome_lineage,
 )
+from .authz import (
+    AUTHZ_ALLOW,
+    AUTHZ_DENY,
+    AlAuthzDecision,
+    authorize_intent,
+    build_denied_outcome_payload,
+)
 from .idempotency import (
     AL_DROP_DUPLICATE,
     AL_EXECUTE,
@@ -16,6 +23,15 @@ from .idempotency import (
     ActionIdempotencyDecision,
     ActionIdempotencyGate,
     build_action_payload_hash,
+)
+from .policy import (
+    AL_POSTURE_MODES,
+    AlAuthzPolicy,
+    AlExecutionPosture,
+    AlPolicyBundle,
+    AlPolicyRev,
+    ActionLayerPolicyError,
+    load_policy_bundle,
 )
 from .storage import (
     ActionLayerStorageLayout,
@@ -34,12 +50,24 @@ __all__ = [
     "ActionIntent",
     "ActionLayerContractError",
     "ActionOutcome",
+    "AUTHZ_ALLOW",
+    "AUTHZ_DENY",
+    "AlAuthzDecision",
+    "authorize_intent",
+    "build_denied_outcome_payload",
     "AL_DROP_DUPLICATE",
     "AL_EXECUTE",
     "AL_QUARANTINE",
     "ActionIdempotencyDecision",
     "ActionIdempotencyGate",
     "build_action_payload_hash",
+    "AL_POSTURE_MODES",
+    "AlAuthzPolicy",
+    "AlExecutionPosture",
+    "AlPolicyBundle",
+    "AlPolicyRev",
+    "ActionLayerPolicyError",
+    "load_policy_bundle",
     "build_semantic_idempotency_key",
     "validate_outcome_lineage",
     "ActionLayerStorageLayout",
