@@ -272,6 +272,9 @@ The platform uses the **canonical event time (`ts_utc`)** for windowing and temp
 **Traffic stream semantics (post‑EB):**  
 The EB traffic plane is **single‑mode per run**: a run is either **fraud** (`s3_event_stream_with_fraud_6B`) or **baseline** (`s2_event_stream_baseline_6B`). Each channel carries **one event_type only** (no interleaving in v0). Downstream components subscribe only to the channel that matches the run mode.
 
+**v0 parity pin (shared traffic stream for DF outputs):**  
+`decision_response` and `action_intent` may be admitted onto `fp.bus.traffic.fraud.v1` in local-parity for wiring convenience. OFP/IEG treat these families as explicit non-apply events (ignored/irrelevant), and DF trigger policy continues to block them as decision triggers.
+
 **Context stream semantics (post‑EB):**  
 Context topics are **separate from traffic** and provide join surfaces to downstream consumers. Fraud runs require `s3_flow_anchor_with_fraud_6B`; baseline runs require `s2_flow_anchor_baseline_6B`. Context retention/shape decisions are **deferred to Phase 4 (RTDL)**.
 

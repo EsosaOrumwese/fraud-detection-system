@@ -40,6 +40,28 @@ def _envelope(*, event_id: str, ts_utc: str, flow_id: str, amount: float) -> dic
     }
 
 
+def _df_envelope(*, event_id: str, ts_utc: str, event_type: str) -> dict[str, object]:
+    pins = _pins()
+    return {
+        "event_id": event_id,
+        "event_type": event_type,
+        "schema_version": "v1",
+        "ts_utc": ts_utc,
+        "manifest_fingerprint": pins["manifest_fingerprint"],
+        "parameter_hash": pins["parameter_hash"],
+        "seed": pins["seed"],
+        "scenario_id": pins["scenario_id"],
+        "platform_run_id": pins["platform_run_id"],
+        "scenario_run_id": pins["scenario_run_id"],
+        "run_id": pins["run_id"],
+        "payload": {
+            "decision_id": "d" * 32,
+            "source_event": {"event_id": "s" * 64},
+            "pins": {"scenario_run_id": pins["scenario_run_id"]},
+        },
+    }
+
+
 def _write_bus_records(bus_root: Path, topic: str, envelopes: list[dict[str, object]]) -> None:
     topic_dir = bus_root / topic
     topic_dir.mkdir(parents=True, exist_ok=True)
@@ -309,3 +331,38 @@ def test_projector_file_bus_supports_multiple_topics_and_topic_metrics(tmp_path)
     assert basis["stream"] == "multi"
     assert {"topic": traffic_topic, "partition": 0, "offset": "1"} in basis["offsets"]
     assert {"topic": context_topic, "partition": 0, "offset": "1"} in basis["offsets"]
+
+
+def test_projector_ignores_df_families_on_shared_traffic_topic(tmp_path) -> None:
+    topic = "fp.bus.traffic.fraud.v1"
+    bus_root = tmp_path / "bus"
+    db_path = tmp_path / "ofp_projection.db"
+    profile_path = tmp_path / "profile.json"
+    _write_profile(profile_path, bus_root=bus_root, db_path=db_path, topics=[topic])
+    _write_bus_records(
+        bus_root,
+        topic,
+        [_df_envelope(event_id="9" * 64, ts_utc="2026-02-06T00:00:09.000000Z", event_type="decision_response")],
+    )
+
+    projector = OnlineFeatureProjector.build(str(profile_path))
+    processed = projector.run_once()
+    assert processed == 1
+
+    states = projector.store.list_group_states(
+        platform_run_id="platform_20260206T000000Z",
+        scenario_run_id="a" * 32,
+        group_name="core_features",
+        group_version="v1",
+    )
+    assert states == []
+
+    metrics = projector.store.metrics_summary(scenario_run_id="a" * 32)
+    assert metrics.get("events_seen") == 1
+    assert metrics.get("ignored_event_type") == 1
+    assert metrics.get(f"ignored_event_type|topic={topic}") == 1
+    assert metrics.get("events_applied") in (None, 0)
+
+    basis = projector.store.input_basis()
+    assert basis is not None
+    assert basis["offsets"] == [{"topic": topic, "partition": 0, "offset": "1"}]

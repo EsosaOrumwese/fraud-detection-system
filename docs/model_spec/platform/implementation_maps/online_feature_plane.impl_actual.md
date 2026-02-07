@@ -1012,3 +1012,74 @@ OFP currently keys semantic dedupe by `(stream_id, platform_run_id, event_class,
 ### Invariant confirmation
 - Transport checkpoint/idempotency remains keyed by stream/topic/partition/offset.
 - Semantic payload-hash mismatch is still surfaced as `PAYLOAD_HASH_MISMATCH`.
+
+---
+
+## Entry: 2026-02-07 14:23:00 - Plan: prevent OFP mutation on DF output families in shared v0 traffic stream
+
+### Problem
+OFP currently resolves event class by topic first. With DF outputs routed to `fp.bus.traffic.fraud.v1` in v0 parity, `decision_response`/`action_intent` can be misclassified as `traffic_fraud` and mutate feature state.
+
+### Why this is drift
+This violates the RTDL boundary that DF output families are non-feature inputs in v0 and should not participate in OFP projector mutation.
+
+### Decision threads
+1. **Event-type suppression location**
+   - Option A: config-only topic split.
+   - Option B: projector event-type ignore/blocklist.
+   - Selected: Option B now (minimal and deterministic), while keeping stream topology unchanged.
+2. **Checkpoint semantics for suppressed events**
+   - Option A: skip without checkpoint advance.
+   - Option B: advance checkpoint + count ignored.
+   - Selected: Option B to avoid replay stalls and keep observability explicit.
+3. **Counter posture**
+   - Add dedicated `ignored_event_type` counters (global + per-topic) using existing metric mechanism.
+
+### Planned mechanics
+- In projector `_process_record`, after envelope/run/pin validation and before class resolution/mutation:
+  - if `event_type in {decision_response, action_intent}`:
+    - advance checkpoint,
+    - count as `ignored_event_type`,
+    - return without `apply_event`.
+
+### Validation plan
+- Add targeted OFP test proving:
+  - shared-traffic DF event is consumed,
+  - checkpoint advances,
+  - no feature-state mutation,
+  - `ignored_event_type` metric increments.
+
+---
+
+## Entry: 2026-02-07 14:26:00 - Implemented OFP DF-family ignore path on shared traffic stream
+
+### Code changes
+1. Added explicit OFP ignore set:
+   - `decision_response`
+   - `action_intent`
+2. Added early suppression branch in projector `_process_record`:
+   - validates envelope/pins/run-scope as usual,
+   - advances checkpoint with `count_as="ignored_event_type"`,
+   - exits before key/event_class resolution and before `apply_event`.
+
+File changed:
+- `src/fraud_detection/online_feature_plane/projector.py`
+
+### Why this exact placement
+Suppression was placed after canonical envelope/pin checks and before mutation/classification so:
+- invalid events still surface as invalid,
+- valid DF events do not mutate feature state,
+- offsets always progress for deterministic replay continuity.
+
+### Test coverage added
+- `tests/services/online_feature_plane/test_phase2_projector.py`
+  - `test_projector_ignores_df_families_on_shared_traffic_topic`
+  - asserts:
+    - one shared-stream DF event is consumed,
+    - no feature-state rows are produced,
+    - `ignored_event_type` counters increment,
+    - checkpoint/input basis advances to next offset.
+
+### Validation evidence
+- `python -m pytest tests/services/online_feature_plane/test_phase2_projector.py -q` (included in targeted run) -> pass.
+- `python -m pytest tests/services/online_feature_plane -q` -> `27 passed`.

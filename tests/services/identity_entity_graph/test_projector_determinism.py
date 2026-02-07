@@ -260,3 +260,47 @@ def test_integration_projection_from_file_bus(tmp_path: Path) -> None:
     assert state["counts"]["dedupe"] == 4
     assert state["counts"]["entities"] == 8
     assert state["counts"]["identifiers"] == 8
+
+
+def test_df_output_families_are_irrelevant_no_apply_failure(tmp_path: Path) -> None:
+    bus_root = tmp_path / "eb"
+    publisher = FileEventBusPublisher(bus_root)
+    platform_run_id = "platform_20260205T000000Z"
+    pins = _base_pins(platform_run_id)
+    topic = "fp.bus.traffic.fraud.v1"
+    publisher.publish(
+        topic,
+        "pk",
+        _envelope(
+            "decision_response",
+            "d" * 64,
+            {"decision_id": "x" * 32},
+            "2026-02-05T00:00:05.000000Z",
+            pins,
+        ),
+    )
+
+    profile = _write_profile(
+        tmp_path,
+        bus_root=bus_root,
+        projection_db=tmp_path / "ieg_irrelevant.db",
+        platform_run_id=platform_run_id,
+        topics=[topic],
+    )
+    state = _run_projector(profile)
+
+    assert state["counts"]["apply_failures"] == 0
+    assert state["counts"]["dedupe"] == 0
+
+    with sqlite3.connect(tmp_path / "ieg_irrelevant.db") as conn:
+        irrelevant = conn.execute(
+            "SELECT metric_value FROM ieg_metrics WHERE metric_name = 'irrelevant'"
+        ).fetchone()
+        checkpoint = conn.execute(
+            "SELECT next_offset FROM ieg_checkpoints WHERE topic = ? AND partition_id = 0",
+            (topic,),
+        ).fetchone()
+    assert irrelevant is not None
+    assert int(irrelevant[0]) == 1
+    assert checkpoint is not None
+    assert str(checkpoint[0]) == "1"

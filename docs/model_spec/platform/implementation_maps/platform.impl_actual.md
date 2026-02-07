@@ -2369,3 +2369,75 @@ Create standalone component planning/notebook files:
 - This addition is structural/planning-first; runtime code implementation starts after these docs are established.
 
 ---
+
+## Entry: 2026-02-07 14:21:00 - Plan: implement reviewer-confirmed drift patchset before 4.3.5 runtime work
+
+### Trigger
+User approved a concrete five-step patchset to close the remaining A-side drift hardening:
+1. IG DF partition key scope hardening (`platform_run_id` axis),
+2. OFP explicit ignore of DF output families on shared traffic stream,
+3. IEG classification update to treat DF families as irrelevant,
+4. targeted tests,
+5. short v0 doc pin.
+
+### Why this is required now
+Proceeding to 4.3.5 runtime component work while OFP can still classify DF outputs as traffic on `fp.bus.traffic.fraud.v1` would carry an unresolved semantic drift into the next phase. This must be closed first.
+
+### Ordered decisions and reasoning
+1. **Keep stream-sharing posture in v0 parity.**
+   - Reasoning: avoids environment-ladder friction and stream bootstrap churn; aligns with prior A decision.
+2. **Close drift at consumer semantics rather than stream topology.**
+   - Reasoning: DF stream relocation is v1+ optimization; immediate risk is accidental projector mutation.
+3. **Use explicit event-type suppression in OFP (`decision_response`, `action_intent`).**
+   - Reasoning: topic-based OFP mapping currently tags shared traffic stream as apply-eligible; explicit suppression is deterministic and auditable.
+4. **Extend IEG classification map `graph_irrelevant` with DF families.**
+   - Reasoning: removes noisy apply-failure artifacts and aligns with "non-trigger/non-projection families must be ignored."
+5. **Add `platform_run_id` into IG DF profile key precedence while preserving existing key ordering.**
+   - Reasoning: strengthens canonical run isolation in partition routing without changing DF idempotency identities.
+6. **Document the v0 semantic pin explicitly in platform plan.**
+   - Reasoning: prevents future ambiguity on why shared stream does not imply shared apply semantics.
+
+### Constraints pinned for this pass
+- Implement exactly the approved event families in this patchset (`decision_response`, `action_intent`) to avoid unapproved scope expansion.
+- Preserve existing component ownership and avoid runtime-component code starts until this closure is validated.
+
+### Validation intent
+- Targeted OFP/IEG tests must prove checkpoint progression with no projection mutation for DF families.
+- IG routing test expectations updated for new partition key precedence.
+
+---
+
+## Entry: 2026-02-07 14:28:00 - Applied reviewer-confirmed drift hardening patchset (A-side)
+
+### Scope completed
+Implemented the full approved sequence before starting 4.3.5 runtime component work:
+1. IG DF partition profile run-axis hardening,
+2. OFP DF-family suppression on shared traffic stream,
+3. IEG DF-family irrelevant classification,
+4. targeted test additions and suite reruns,
+5. v0 stream-sharing semantic pin in platform build plan.
+
+### Platform-level reasoning outcome
+- Shared-stream routing remains intact for v0 parity.
+- Consumer semantics are now explicitly hardened so shared stream does not imply shared mutation semantics.
+- This closes the concrete drift where OFP could mutate on DF families.
+
+### Docs pin added
+Added explicit v0 note in:
+- `docs/model_spec/platform/implementation_maps/platform.build_plan.md`
+
+Pin statement summary:
+- `decision_response` and `action_intent` may share `fp.bus.traffic.fraud.v1` in parity,
+- OFP/IEG explicitly ignore them for projection purposes,
+- DF trigger policy keeps them blocked as decision triggers.
+
+### Validation evidence
+- `python -m pytest tests/services/ingestion_gate/test_phase10_df_output_onboarding.py tests/services/online_feature_plane/test_phase2_projector.py tests/services/identity_entity_graph/test_projector_determinism.py -q` -> `12 passed`
+- `python -m pytest tests/services/online_feature_plane -q` -> `27 passed`
+- `python -m pytest tests/services/identity_entity_graph -q` -> `16 passed`
+- `python -m pytest tests/services/ingestion_gate/test_phase10_df_output_onboarding.py -q` -> `2 passed`
+
+### Boundary reminder
+This patchset is a pre-4.3.5 hardening closure only. No runtime implementation work for `context_store_flow_binding` has started in this entry.
+
+---

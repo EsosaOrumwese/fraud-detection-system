@@ -50,6 +50,17 @@ def _action_intent_envelope() -> dict:
     }
 
 
+def _with_platform_run_id(envelope: dict, platform_run_id: str) -> dict:
+    updated = dict(envelope)
+    updated["platform_run_id"] = platform_run_id
+    payload = dict(updated.get("payload") or {})
+    pins = dict(payload.get("pins") or {})
+    pins["platform_run_id"] = platform_run_id
+    payload["pins"] = pins
+    updated["payload"] = payload
+    return updated
+
+
 def test_df_outputs_present_in_class_map_and_schema_policy() -> None:
     class_map = ClassMap.load(CLASS_MAP_PATH)
     schema_policy = SchemaPolicy.load(SCHEMA_POLICY_PATH)
@@ -106,3 +117,26 @@ def test_df_outputs_route_to_expected_partitioning_profiles() -> None:
 
     assert len(decision_key) == 64
     assert len(intent_key) == 64
+
+    decision_fallback = _decision_response_envelope()
+    decision_payload = dict(decision_fallback["payload"])
+    decision_source = dict(decision_payload.get("source_event") or {})
+    decision_source.pop("event_id", None)
+    decision_payload["source_event"] = decision_source
+    decision_fallback["payload"] = decision_payload
+    decision_key_other_run = partitioning.derive_key(
+        decision_profile_id,
+        _with_platform_run_id(decision_fallback, "platform_20260208T000000Z"),
+    )
+
+    intent_fallback = _action_intent_envelope()
+    intent_payload = dict(intent_fallback["payload"])
+    intent_payload.pop("idempotency_key", None)
+    intent_payload.pop("decision_id", None)
+    intent_fallback["payload"] = intent_payload
+    intent_key_other_run = partitioning.derive_key(
+        intent_profile_id,
+        _with_platform_run_id(intent_fallback, "platform_20260208T000000Z"),
+    )
+    assert decision_key_other_run != decision_key
+    assert intent_key_other_run != intent_key

@@ -27,6 +27,10 @@ _REQUIRED_PINS = [
     "scenario_id",
     "seed",
 ]
+_IGNORED_EVENT_TYPES = {
+    "decision_response",
+    "action_intent",
+}
 
 
 @dataclass(frozen=True)
@@ -215,6 +219,19 @@ class OnlineFeatureProjector:
                 event_ts_utc=event_ts_utc,
                 scenario_run_id=scenario_run_id or None,
                 count_as="invalid_pins",
+            )
+            return
+
+        event_type = str(envelope.get("event_type") or "").strip()
+        if event_type in _IGNORED_EVENT_TYPES:
+            self.store.advance_checkpoint(
+                topic=record.topic,
+                partition=record.partition,
+                offset=record.offset,
+                offset_kind=record.offset_kind,
+                event_ts_utc=event_ts_utc,
+                scenario_run_id=scenario_run_id or None,
+                count_as="ignored_event_type",
             )
             return
 

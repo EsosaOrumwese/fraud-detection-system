@@ -2593,4 +2593,62 @@ Without explicit class_map + schema_policy + partitioning profile coverage, DF o
 ### Additional note
 - A full `tests/services/ingestion_gate -q` run in this environment currently includes pre-existing failures unrelated to this change set (Flask/Werkzeug client compatibility in service tests and older wiring/test fixture mismatches). The DF-output onboarding paths added here are covered by targeted passing tests above.
 
+---
+
+## Entry: 2026-02-07 14:22:00 - Decision: tighten DF routing partition keys with canonical run axis
+
+### Problem
+Current DF routing profiles in IG include `scenario_run_id` but omit `platform_run_id` from key precedence. Under replay/ladder scenarios this weakens explicit run-boundary partition isolation.
+
+### Options considered
+1. Keep current precedence unchanged and rely on DF ids only.
+- Rejected: does not encode canonical run boundary in routing key derivation.
+
+2. Insert `platform_run_id` while preserving existing key order for existing fields.
+- Selected: satisfies requested patch, minimal behavior change, and keeps prior locality choices.
+
+3. Rebuild keys into a composite derived field.
+- Deferred: not required for this drift closure and needs broader policy tooling changes.
+
+### Decision
+For both DF profiles in `partitioning_profiles_v0.yaml`:
+- `ig.partitioning.v0.rtdl.decision`
+- `ig.partitioning.v0.rtdl.action_intent`
+
+add `payload.pins.platform_run_id` and keep previous relative ordering of existing keys.
+
+### Expected impact
+- Stronger per-run partition isolation.
+- No schema-policy change, no admission state-machine change, no dedupe identity change.
+
+### Validation plan
+- Update targeted IG onboarding tests to assert the new key precedence participates in deterministic derivation.
+
+---
+
+## Entry: 2026-02-07 14:24:30 - Applied IG DF partition-key run-axis hardening
+
+### What changed
+Updated DF partition profiles to include canonical run boundary key axis:
+- `ig.partitioning.v0.rtdl.decision` now includes `payload.pins.platform_run_id` after `payload.source_event.event_id`.
+- `ig.partitioning.v0.rtdl.action_intent` now includes `payload.pins.platform_run_id` after `payload.decision_id`.
+
+File changed:
+- `config/platform/ig/partitioning_profiles_v0.yaml`
+
+### Implementation reasoning captured during validation
+Initial test assertion expected key changes whenever `platform_run_id` changed. This failed for normal payloads because higher-precedence fields (`source_event.event_id`, `idempotency_key`, `decision_id`) remained present, so routing stayed intentionally anchored to them.
+
+Decision made during test refinement:
+- Keep precedence order unchanged (as requested).
+- Prove `platform_run_id` participation via fallback-path test vectors (remove higher-precedence fields in test fixtures).
+
+This preserves desired locality while ensuring canonical run axis is present when primary keys are missing.
+
+Updated test:
+- `tests/services/ingestion_gate/test_phase10_df_output_onboarding.py`
+
+Validation:
+- `python -m pytest tests/services/ingestion_gate/test_phase10_df_output_onboarding.py -q` -> `2 passed`.
+
 

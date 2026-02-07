@@ -741,3 +741,52 @@ Current IEG dedupe identity uses `platform_run_id + scenario_run_id + class_name
 
 ### Invariant confirmation
 - `scenario_run_id` remains mandatory run provenance pin for IEG processing, but is no longer part of semantic dedupe identity.
+
+---
+
+## Entry: 2026-02-07 14:24:00 - Plan: classify DF output families as graph-irrelevant in v0
+
+### Problem
+IEG classification map defaults unknown event types to `graph_unusable`. With shared v0 traffic stream routing for DF outputs, `decision_response`/`action_intent` currently generate avoidable apply-failure noise.
+
+### Decision and reasoning
+1. Add `decision_response` and `action_intent` to `graph_irrelevant` in `config/platform/ieg/classification_v0.yaml`.
+   - Reasoning: these families are intentionally non-mutating for IEG in v0.
+2. Preserve default action and all existing mutating/irrelevant mappings.
+   - Reasoning: avoid changing broader classification posture.
+3. Validate via targeted projector test that these events advance checkpoints as irrelevant and do not add apply failures.
+
+### Expected outcome
+- Cleaner ops signals (no false unusable failures for DF outputs).
+- Correct projection boundaries while retaining shared-stream parity posture.
+
+---
+
+## Entry: 2026-02-07 14:27:00 - Implemented IEG irrelevant classification for DF output families
+
+### Change applied
+Added DF output families to IEG `graph_irrelevant` classification set:
+- `decision_response`
+- `action_intent`
+
+File changed:
+- `config/platform/ieg/classification_v0.yaml`
+
+### Effect on projector behavior
+When these event types arrive on shared traffic stream:
+- IEG advances checkpoints with `count_as="irrelevant"`,
+- no `apply_mutation`,
+- no `record_failure`/`ieg_apply_failures` noise for these families.
+
+### Test coverage added
+- `tests/services/identity_entity_graph/test_projector_determinism.py`
+  - `test_df_output_families_are_irrelevant_no_apply_failure`
+  - asserts:
+    - `apply_failures == 0`,
+    - dedupe table unchanged for ignored DF events,
+    - `irrelevant` metric increments,
+    - checkpoint advances to next offset.
+
+### Validation evidence
+- `python -m pytest tests/services/identity_entity_graph/test_projector_determinism.py -q` (included in targeted run) -> pass.
+- `python -m pytest tests/services/identity_entity_graph -q` -> `16 passed`.

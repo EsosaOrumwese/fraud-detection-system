@@ -8,6 +8,8 @@ graph_mutating:
   - s2_flow_anchor_baseline_6B
   - s3_flow_anchor_with_fraud_6B
 graph_irrelevant:
+  - decision_response
+  - action_intent
   - ig.policy.activation
   - ig.quarantine.spike
   - ig.pull.run

@@ -103,6 +103,7 @@ profiles:
     stream: fp.bus.traffic.fraud.v1
     key_precedence:
       - payload.source_event.event_id
+      - payload.pins.platform_run_id
       - payload.pins.scenario_run_id
       - event_id
     hash_algo: sha256
@@ -114,6 +115,7 @@ profiles:
     key_precedence:
       - payload.idempotency_key
       - payload.decision_id
+      - payload.pins.platform_run_id
       - payload.pins.scenario_run_id
       - event_id
     hash_algo: sha256
