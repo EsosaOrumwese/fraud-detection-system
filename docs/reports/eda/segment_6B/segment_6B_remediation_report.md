@@ -243,6 +243,120 @@ Section 5 should select one of two practical paths:
 The preferred path is more likely to achieve `B/B+` without hidden residual defects.
 
 ## 5) Chosen Fix Spec (Exact Parameter/Code Deltas)
+This section locks the selected remediation path for Segment 6B, with implementation-level specificity.  
+Chosen path: **Option 1 + Option 3 as Wave A**, **Option 4 as Wave B**, **Option 5 as Wave C**.
+
+### 5.1 Wave A (correctness + core realism recovery)
+Wave A is the minimum set that must be delivered before any re-grade attempt.
+
+#### 5.1.1 S4 truth mapping hardening (critical)
+1. File: `packages/engine/src/engine/layers/l3/seg_6B/s4_truth_bank_labels/runner.py`
+2. Replace reduced truth mapping keyed only by `fraud_pattern_type` with ordered rule evaluation over:
+   - `overlay_applied`
+   - `campaign_type`
+   - `fraud_pattern_type`
+3. Ensure competing `NONE` rules in `truth_labelling_policy_6B.yaml` are not collapsed by key overwrite.
+4. Default path requirement: unmatched or ambiguous non-overlay rows must resolve to `LEGIT`, not non-LEGIT fallback.
+
+Why this exact delta:
+1. Current run evidence shows `S3 fraud_true=7,342` while `S4 is_fraud_truth=True` for all `124,724,153` rows.
+2. That contradiction is only possible if truth mapping semantics were reduced incorrectly in S4.
+
+#### 5.1.2 S4 delay and case-lifecycle execution (critical)
+1. File: `packages/engine/src/engine/layers/l3/seg_6B/s4_truth_bank_labels/runner.py`
+2. Stop using only delay minima from `delay_models_6B.yaml`.
+3. Execute stochastic delay draws from configured distributions for:
+   - detect delay
+   - dispute delay
+   - chargeback delay
+   - case close delay
+4. Replace fixed-template timeline assembly with policy-driven sequencing from `case_policy_6B.yaml`.
+5. Enforce timeline monotonicity in generated case events.
+
+Why this exact delta:
+1. Current case-gap spikes (`-82801`, `0`, `1`, `3599`, `3600`, `82800`) indicate templated constants, not sampled delays.
+2. Delay and case policies already encode richer behavior; runner is currently under-executing them.
+
+#### 5.1.3 S2 timing realism activation (high)
+1. File: `packages/engine/src/engine/layers/l3/seg_6B/s2_baseline_flow/runner.py`
+2. Remove no-op handling of `timing_policy`.
+3. Apply timing offsets at least for:
+   - `AUTH_REQUEST -> AUTH_RESPONSE`
+4. Introduce bounded stochastic latency surface consistent with policy contracts.
+
+Why this exact delta:
+1. Current event timestamps are near-degenerate and suppress real operational timing features.
+2. Timing policy is loaded but effectively ignored.
+
+#### 5.1.4 S2 amount realism activation (high)
+1. File: `packages/engine/src/engine/layers/l3/seg_6B/s2_baseline_flow/runner.py`
+2. Config: `config/layer3/6B/amount_model_6B.yaml`
+3. Replace direct hash-index pick over fixed `price_points_minor` with policy-faithful sampling:
+   - use configured family/tail behavior
+   - support context conditioning where available (class/channel/geo)
+4. Keep deterministic reproducibility via seed-safe stochastic controls.
+
+Why this exact delta:
+1. Current distribution is near-uniform over 8 points (~12.5% each), which is a major realism shortfall.
+2. Policy expresses richer amount structure that is presently bypassed.
+
+#### 5.1.5 S5 realism gate enforcement (critical)
+1. File: `packages/engine/src/engine/layers/l3/seg_6B/s5_validation/runner.py`
+2. Config: `config/layer3/6B/segment_validation_policy_6B.yaml`
+3. Make realism check severities policy-driven instead of hardcoded `WARN_ONLY`.
+4. Promote critical 6B realism checks to fail-closed, especially:
+   - truth degeneracy
+   - case timeline validity
+   - bank-view stratification collapse
+5. Keep non-critical exploratory checks at warning level.
+
+Why this exact delta:
+1. Current seal behavior allows severe realism defects to pass when structural parity passes.
+
+### 5.2 Wave B (fraud mechanism depth)
+Wave B is applied after Wave A passes validation gates.
+
+#### 5.2.1 S3 campaign multiplicity + targeting depth
+1. File: `packages/engine/src/engine/layers/l3/seg_6B/s3_fraud_overlay/runner.py`
+2. Remove forced single-instance compression behavior (`instances -> 1` effect).
+3. Restore bounded multi-instance campaign realization using policy `max_instances_per_seed`.
+4. Expand campaign expression beyond bounded amount uplift:
+   - class-conditioned effects
+   - segment-conditioned effects
+   - geo/time-conditioned signatures
+5. Preserve anti-explosion safeguards on total fraud load.
+
+Why this exact delta:
+1. Current fraud realism is too narrow and shortcut-like, limiting explainability.
+
+### 5.3 Wave C (upstream/context closure)
+Wave C is applied once Waves A/B are stable.
+
+#### 5.3.1 Context carry-through for conditioning fields
+1. Files: `seg_6B` S1/S2/S3/S4 runners (schema pass-through points).
+2. Carry realism-driving context fields (for example `channel_group`) from upstream into 6B surfaces.
+3. Ensure downstream models can condition amount/timing/fraud decisions on these context fields.
+
+Why this exact delta:
+1. Several policy-conditioned realism behaviors cannot execute correctly if required context columns are missing in 6B path.
+2. Upstream layer-2 (`5B`) has context richness that is not fully preserved downstream.
+
+### 5.4 Required implementation order (non-negotiable)
+1. `S4 truth mapping fix` -> must land first.
+2. `S4 delay/case execution` and `S5 gate hardening` -> same wave.
+3. `S2 timing + amount activation` -> complete Wave A.
+4. Re-run and validate Wave A gates.
+5. `S3 campaign depth` -> Wave B.
+6. Re-run and validate Wave B deltas.
+7. `Schema/context carry-through` -> Wave C.
+
+Rationale:
+1. Fixing S3 or S2 before S4 truth validity is restored risks measuring improvements on a broken supervision surface.
+2. Gate hardening must happen early so regressions cannot silently pass seal.
+
+### 5.5 Explicit non-goals in Section 5
+1. This section does not commit to exact numeric retuning values yet (that belongs to per-wave tuning passes after validation evidence).
+2. This section does not apply code changes; it defines the chosen remediation specification to implement next.
 
 ## 6) Validation Tests + Thresholds
 
