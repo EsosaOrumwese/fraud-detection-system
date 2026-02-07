@@ -174,3 +174,80 @@ Initial `DegradeDecision.from_payload` used eager `dict(...)` coercion for neste
 - `python -m pytest tests/services/degrade_ladder -q` -> `7 passed`
 
 ---
+
+## Entry: 2026-02-07 03:17:17 — Phase 2 implementation plan (signal intake + snapshot normalization)
+
+### Problem / goal
+User requested proceeding to DL Phase 2. Phase 1 established contracts/profile authority; Phase 2 now needs concrete signal ingestion and deterministic snapshot normalization behavior to feed the evaluator in later phases.
+
+### Authorities / inputs
+- `docs/model_spec/platform/implementation_maps/degrade_ladder.build_plan.md` (Phase 2 DoD)
+- `docs/model_spec/platform/pre-design_decisions/real-time_decision_loop.pre-design_decision.md` (health gates, freshness, fail-closed stance)
+- `docs/model_spec/platform/component-specific/flow-narrative-platform-design.md` (explicit degrade semantics)
+- Existing DL Phase 1 modules and `config/platform/dl/policy_profiles_v0.yaml`.
+
+### Decision trail (live)
+1. Implement a dedicated `signals.py` module in DL for:
+   - strict signal sample parsing,
+   - deterministic per-scope snapshot build,
+   - explicit per-signal state classification (`OK|STALE|MISSING|ERROR`),
+   - deterministic snapshot hash for replay/equality checks.
+2. Extend DL policy profile parsing with explicit signal policy:
+   - required signal names,
+   - optional signal names,
+   - freshness threshold (`required_max_age_seconds`).
+3. Keep snapshot build fail-safe and explicit:
+   - required stale/missing/error signals set `has_required_gaps=True`,
+   - no hidden default decision time (must be provided).
+4. Add focused Phase 2 tests to prove deterministic behavior and stale/missing semantics.
+
+### Planned edits
+- `src/fraud_detection/degrade_ladder/signals.py` (new)
+- `src/fraud_detection/degrade_ladder/config.py` (signal policy parsing)
+- `src/fraud_detection/degrade_ladder/__init__.py` (exports)
+- `config/platform/dl/policy_profiles_v0.yaml` (add signal policy sections)
+- `tests/services/degrade_ladder/test_phase1_policy_profiles.py` (assert signal policy parse)
+- `tests/services/degrade_ladder/test_phase2_signals.py` (new)
+- `docs/model_spec/platform/implementation_maps/degrade_ladder.build_plan.md` (mark Phase 2 status with evidence when green)
+
+### Validation plan
+- `python -m pytest tests/services/degrade_ladder -q`
+- smoke loader check for policy bundle resolution using new signal policy fields.
+
+---
+
+## Entry: 2026-02-07 03:19:52 — DL Phase 2 implemented (signal intake + snapshot normalization)
+
+### What was implemented
+1. Added signal normalization module:
+   - `src/fraud_detection/degrade_ladder/signals.py`
+   - strict sample parsing (`DlSignalSample`),
+   - deterministic snapshot builder (`DlSignalSnapshot`),
+   - explicit per-signal states (`OK|STALE|MISSING|ERROR`),
+   - deterministic `snapshot_digest` over canonical payload.
+2. Extended DL policy parsing for signal policy authority:
+   - `src/fraud_detection/degrade_ladder/config.py`
+   - new `DlSignalPolicy` with `required_signals`, `optional_signals`, `required_max_age_seconds`.
+3. Extended DL policy profiles:
+   - `config/platform/dl/policy_profiles_v0.yaml`
+   - added explicit `signals` section for `local/local_parity/dev/prod`.
+4. Updated exports and documentation:
+   - `src/fraud_detection/degrade_ladder/__init__.py`
+   - `config/platform/dl/README.md`
+5. Added/updated tests:
+   - `tests/services/degrade_ladder/test_phase2_signals.py`
+   - `tests/services/degrade_ladder/test_phase1_policy_profiles.py` (signal-policy assertions)
+
+### Validation results
+- `python -m pytest tests/services/degrade_ladder -q` -> `11 passed`
+- Policy loader smoke check (`PYTHONPATH=.;src`) confirms all env profiles resolve with expected signal policy:
+  - local/local_parity/dev/prod each with `required_max_age_seconds=120`.
+
+### Phase closure assessment
+- DL Phase 2 DoD is satisfied at component scope:
+  - explicit signal freshness/validity semantics implemented,
+  - snapshot normalization deterministic and scoped,
+  - required stale/missing representation explicit (`has_required_gaps`),
+  - behavior validated via dedicated tests.
+
+---

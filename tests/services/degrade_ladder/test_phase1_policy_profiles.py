@@ -25,6 +25,14 @@ def test_each_profile_contains_full_mode_sequence_and_masks() -> None:
     for profile_id in ("local", "local_parity", "dev", "prod"):
         profile = bundle.profile(profile_id)
         assert profile.mode_sequence == MODE_SEQUENCE
+        assert profile.signal_policy.required_max_age_seconds == 120
+        assert set(profile.signal_policy.required_signals) == {
+            "ofp_health",
+            "ieg_health",
+            "eb_consumer_lag",
+            "registry_health",
+            "posture_store_health",
+        }
         for mode in MODE_SEQUENCE:
             assert mode in profile.modes
             mask = profile.modes[mode].capabilities_mask

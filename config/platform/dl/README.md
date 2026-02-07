@@ -14,6 +14,10 @@ This directory pins DL posture policy profiles used by the RTDL decision core.
   - optional `content_digest` (computed by loader when omitted)
 - Per profile entry (`local`, `local_parity`, `dev`, `prod`):
   - `mode_sequence` (must be exactly: `NORMAL`, `DEGRADED_1`, `DEGRADED_2`, `FAIL_CLOSED`)
+  - `signals`:
+    - `required` (non-empty list)
+    - `optional` (list)
+    - `required_max_age_seconds` (positive integer)
   - `thresholds` (latency budgets, hysteresis, signal freshness)
   - `modes.<MODE>.capabilities_mask`
 

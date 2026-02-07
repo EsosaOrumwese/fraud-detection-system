@@ -18,6 +18,20 @@ class DlConfigError(ValueError):
 
 
 @dataclass(frozen=True)
+class DlSignalPolicy:
+    required_signals: tuple[str, ...]
+    optional_signals: tuple[str, ...]
+    required_max_age_seconds: int
+
+    def as_dict(self) -> dict[str, Any]:
+        return {
+            "required_signals": list(self.required_signals),
+            "optional_signals": list(self.optional_signals),
+            "required_max_age_seconds": self.required_max_age_seconds,
+        }
+
+
+@dataclass(frozen=True)
 class DlModePolicy:
     mode: str
     capabilities_mask: CapabilitiesMask
@@ -31,6 +45,7 @@ class DlPolicyProfile:
     profile_id: str
     mode_sequence: tuple[str, ...]
     modes: dict[str, DlModePolicy]
+    signal_policy: DlSignalPolicy
     thresholds: dict[str, Any]
 
     def as_dict(self) -> dict[str, Any]:
@@ -38,6 +53,7 @@ class DlPolicyProfile:
             "profile_id": self.profile_id,
             "mode_sequence": list(self.mode_sequence),
             "modes": {key: mode.as_dict() for key, mode in self.modes.items()},
+            "signal_policy": self.signal_policy.as_dict(),
             "thresholds": self.thresholds,
         }
 
@@ -130,10 +146,17 @@ def load_policy_bundle(path: Path) -> DlPolicyBundle:
         else:
             thresholds_payload = thresholds
 
+        signal_policy = _parse_signal_policy(
+            profile_key=profile_key,
+            payload=payload.get("signals"),
+            thresholds=thresholds_payload,
+        )
+
         profiles[profile_key] = DlPolicyProfile(
             profile_id=profile_key,
             mode_sequence=mode_sequence,
             modes=modes,
+            signal_policy=signal_policy,
             thresholds=thresholds_payload,
         )
 
@@ -154,3 +177,64 @@ def load_policy_bundle(path: Path) -> DlPolicyBundle:
         policy_rev=PolicyRev(policy_id=policy_id, revision=revision, content_digest=content_digest),
         profiles=profiles,
     )
+
+
+def _parse_signal_policy(
+    *,
+    profile_key: str,
+    payload: Any,
+    thresholds: dict[str, Any],
+) -> DlSignalPolicy:
+    if not isinstance(payload, dict):
+        raise DlConfigError(f"profile '{profile_key}' requires signals mapping")
+
+    required_payload = payload.get("required")
+    if not isinstance(required_payload, list) or not required_payload:
+        raise DlConfigError(f"profile '{profile_key}' signals.required must be a non-empty list")
+    required_signals = _parse_signal_names(required_payload, field=f"profile '{profile_key}' signals.required")
+
+    optional_payload = payload.get("optional")
+    if optional_payload in (None, []):
+        optional_signals: tuple[str, ...] = ()
+    else:
+        if not isinstance(optional_payload, list):
+            raise DlConfigError(f"profile '{profile_key}' signals.optional must be a list")
+        optional_signals = _parse_signal_names(
+            optional_payload, field=f"profile '{profile_key}' signals.optional"
+        )
+
+    overlap = sorted(set(required_signals) & set(optional_signals))
+    if overlap:
+        raise DlConfigError(
+            f"profile '{profile_key}' signals cannot be both required and optional: {','.join(overlap)}"
+        )
+
+    max_age = payload.get("required_max_age_seconds")
+    if max_age is None:
+        freshness = thresholds.get("signal_freshness_seconds")
+        if isinstance(freshness, dict):
+            max_age = freshness.get("required_max_age")
+    if not isinstance(max_age, int) or max_age <= 0:
+        raise DlConfigError(
+            f"profile '{profile_key}' signals.required_max_age_seconds must be a positive integer"
+        )
+
+    return DlSignalPolicy(
+        required_signals=required_signals,
+        optional_signals=optional_signals,
+        required_max_age_seconds=max_age,
+    )
+
+
+def _parse_signal_names(values: list[Any], *, field: str) -> tuple[str, ...]:
+    names: list[str] = []
+    seen: set[str] = set()
+    for index, value in enumerate(values):
+        name = str(value).strip()
+        if not name:
+            raise DlConfigError(f"{field}[{index}] must be a non-empty string")
+        if name in seen:
+            raise DlConfigError(f"{field} contains duplicate signal '{name}'")
+        seen.add(name)
+        names.append(name)
+    return tuple(names)

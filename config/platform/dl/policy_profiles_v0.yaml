@@ -4,6 +4,10 @@ revision: r1
 profiles:
   local:
     mode_sequence: [NORMAL, DEGRADED_1, DEGRADED_2, FAIL_CLOSED]
+    signals:
+      required: [ofp_health, ieg_health, eb_consumer_lag, registry_health, posture_store_health]
+      optional: [control_publish_health]
+      required_max_age_seconds: 120
     thresholds:
       decision_latency_slo_ms:
         p50: 100
@@ -54,6 +58,10 @@ profiles:
 
   local_parity:
     mode_sequence: [NORMAL, DEGRADED_1, DEGRADED_2, FAIL_CLOSED]
+    signals:
+      required: [ofp_health, ieg_health, eb_consumer_lag, registry_health, posture_store_health]
+      optional: [control_publish_health]
+      required_max_age_seconds: 120
     thresholds:
       decision_latency_slo_ms:
         p50: 100
@@ -104,6 +112,10 @@ profiles:
 
   dev:
     mode_sequence: [NORMAL, DEGRADED_1, DEGRADED_2, FAIL_CLOSED]
+    signals:
+      required: [ofp_health, ieg_health, eb_consumer_lag, registry_health, posture_store_health]
+      optional: [control_publish_health]
+      required_max_age_seconds: 120
     thresholds:
       decision_latency_slo_ms:
         p50: 100
@@ -154,6 +166,10 @@ profiles:
 
   prod:
     mode_sequence: [NORMAL, DEGRADED_1, DEGRADED_2, FAIL_CLOSED]
+    signals:
+      required: [ofp_health, ieg_health, eb_consumer_lag, registry_health, posture_store_health]
+      optional: [control_publish_health]
+      required_max_age_seconds: 120
     thresholds:
       decision_latency_slo_ms:
         p50: 100

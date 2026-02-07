@@ -34,12 +34,16 @@ Provide an executable, phase-by-phase DL build plan aligned to platform Phase 4.
 
 ### Phase 2 — Signal intake + snapshot normalization
 **Intent:** build deterministic input snapshots for posture evaluation.
+**Status:** completed (2026-02-07, component scope).
 
 **DoD checklist:**
 - DL ingests required health signals with explicit freshness/validity semantics.
 - Signal snapshots are canonicalized and scoped (global or run/scope key as pinned).
 - Missing or stale required signals are represented explicitly and drive fail-safe behavior.
 - Snapshot build path is deterministic and observable (no hidden default values).
+- Evidence:
+  - `python -m pytest tests/services/degrade_ladder -q` -> `11 passed`
+  - `src/fraud_detection/degrade_ladder/signals.py`
 
 ### Phase 3 — Scope resolution + deterministic evaluator
 **Intent:** compute posture deterministically from policy + snapshot.
