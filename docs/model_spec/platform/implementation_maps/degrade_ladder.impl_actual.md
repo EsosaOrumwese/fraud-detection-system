@@ -27,3 +27,55 @@ Lock DL v0 outer-contract semantics so DF can depend on explicit, deterministic 
 - Emit posture-change facts to obs/gov (optional control bus).
 
 ---
+
+## Entry: 2026-02-07 02:53:29 — Plan: expand DL component build plan phase-by-phase from platform 4.4
+
+### Problem / goal
+Current `degrade_ladder.build_plan.md` is still high-level (3 broad phases). With platform `Phase 4.4` now expanded, DL requires a component-granular phased plan that can be executed and audited without interpretation drift.
+
+### Authorities / inputs
+- `docs/model_spec/platform/implementation_maps/platform.build_plan.md` (expanded Phase 4.4)
+- `docs/model_spec/platform/pre-design_decisions/real-time_decision_loop.pre-design_decision.md`
+- `docs/model_spec/platform/component-specific/flow-narrative-platform-design.md`
+- `docs/model_spec/platform/component-specific/degrade_ladder.design-authority.md`
+- Existing DL build/impl docs.
+
+### Decision trail (live)
+1. Keep DL scoped to posture authority and serving semantics; avoid bleeding into DF decision logic details.
+2. Expand DL plan into clear phases:
+   - contract/policy profile,
+   - signal snapshot + scope resolution,
+   - deterministic evaluator/hysteresis,
+   - posture store + serve contract,
+   - optional control emission + health gates,
+   - validation/parity and handoff.
+3. Encode fail-closed, deterministic, and anti-flap behavior as explicit DoD gates.
+4. Keep visibility/control-bus emission non-critical for correctness (observability-only by default).
+
+### Planned edits
+- Replace current high-level DL plan with phase-by-phase v0 DoD map aligned to platform 4.4.B/J/K/L.
+- Explicitly separate "component-closable now" from integration-dependent checks with DF/Obs-Gov.
+
+---
+
+## Entry: 2026-02-07 02:55:08 — Applied DL phase-by-phase build plan expansion
+
+### Change applied
+Updated `docs/model_spec/platform/implementation_maps/degrade_ladder.build_plan.md` from a 3-phase high-level outline to an executable 8-phase plan with explicit DoD checklists.
+
+### New DL phase map (v0)
+1. Contract + policy profile authority
+2. Signal intake + snapshot normalization
+3. Scope resolution + deterministic evaluator
+4. Posture store + serve surface
+5. Health gate + self-trust clamp
+6. Posture-change emission (observability lane)
+7. Security/governance/ops telemetry
+8. Validation/parity proof/closure boundary
+
+### Alignment checks
+- Mapped to platform Phase 4.4 posture and validation gates while keeping DL scoped to posture authority.
+- Preserved fail-closed semantics and anti-flap/hysteresis requirements from RTDL pre-design decisions.
+- Kept control-bus posture emission explicitly non-critical for correctness (visibility-only lane).
+
+---
