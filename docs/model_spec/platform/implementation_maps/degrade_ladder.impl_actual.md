@@ -673,3 +673,161 @@ Phase 6 is now implemented and validated at component scope.
   - failure/backlog metrics are surfaced for operations.
 
 ---
+
+## Entry: 2026-02-07 07:01:28 — Phase 7 implementation plan (security, governance, ops telemetry)
+
+### Problem / goal
+Proceed to DL Phase 7 and make posture operations attributable + operable:
+1. guarantee governance-relevant posture outputs carry `policy_rev` and provenance stamps,
+2. add structured/queryable governance event recording for key posture-control changes,
+3. add operational metrics covering transitions/fail-safe/evaluator/signal freshness/serve fallback,
+4. enforce payload hygiene to avoid secret leakage in governance/ops artifacts.
+
+### Authorities / inputs
+- `docs/model_spec/platform/implementation_maps/degrade_ladder.build_plan.md` (Phase 7 DoD)
+- `docs/model_spec/platform/component-specific/degrade_ladder.design-authority.md` (S7/S8 visibility/governance posture)
+- `docs/model_spec/platform/pre-design_decisions/real-time_decision_loop.pre-design_decision.md`
+- existing DL modules (`contracts.py`, `signals.py`, `serve.py`, `health.py`, `emission.py`)
+
+### Decision trail (live)
+1. Implement a dedicated persistence-backed governance/telemetry module (`ops.py`) using SQLite/Postgres parity.
+2. Record structured governance events for:
+   - policy activation changes (`dl.policy_activated.v1`),
+   - forced fail-closed transitions (`dl.fail_closed_forced.v1`),
+   - posture transitions (`dl.posture_transition.v1`).
+3. Ensure each governance event stores:
+   - deterministic `event_id`,
+   - `policy_id/revision/content_digest`,
+   - scope, timestamp, and sanitized payload.
+4. Add metrics counters covering Phase 7 DoD:
+   - `posture_transitions_total`,
+   - `forced_fail_closed_total`,
+   - `evaluator_errors_total`,
+   - signal freshness counters (`signal_required_ok_total`, `signal_required_bad_total`),
+   - serve fallback counters (`serve_fallback_total`).
+5. Add payload sanitizer for governance event payloads to redact secret-like fields (`token`, `secret`, `password`, `key`, `credential`, `lease_token`).
+6. Keep correctness coupling explicit:
+   - governance/metrics recording errors should raise explicit ops errors to caller layer; runtime can decide whether to hard-fail or best-effort.
+
+### Planned edits
+- `src/fraud_detection/degrade_ladder/ops.py` (new)
+- `src/fraud_detection/degrade_ladder/__init__.py` (exports)
+- `tests/services/degrade_ladder/test_phase7_ops_governance.py` (new)
+- `docs/model_spec/platform/implementation_maps/degrade_ladder.build_plan.md` (mark Phase 7 status + evidence when green)
+
+### Invariants to enforce
+- Governance events are structured and queryable by type/scope/time.
+- Governance records and posture transition events include `policy_rev` stamps.
+- Secret-like keys are redacted from persisted governance payloads.
+- Metrics include all required Phase 7 categories.
+
+### Validation plan
+- `python -m pytest tests/services/degrade_ladder -q`
+- direct assertions for:
+  - policy stamp presence in governance/posture events,
+  - query/filter behavior over governance event table,
+  - metric counters for transitions/fail-safe/evaluator/signal freshness/serve fallback,
+  - payload redaction behavior.
+
+---
+
+## Entry: 2026-02-07 07:04:36 — DL Phase 7 implemented (security, governance, ops telemetry)
+
+### Implementation summary
+Phase 7 is now implemented and validated at component scope.
+
+### What was implemented
+1. Added governance/ops telemetry module:
+   - `src/fraud_detection/degrade_ladder/ops.py`
+   - queryable governance event store with SQLite/Postgres backends.
+2. Added structured governance events:
+   - `dl.policy_activated.v1`
+   - `dl.posture_transition.v1`
+   - `dl.fail_closed_forced.v1`
+   Each event persists `policy_id`, `policy_revision`, `policy_content_digest`, scope, timestamp, and structured payload.
+3. Added secret redaction guardrails:
+   - payload sanitizer redacts sensitive keys (`token`, `secret`, `password`, `credential`, key-like secret markers) before persistence.
+4. Added required Phase 7 metrics coverage:
+   - `posture_transitions_total`
+   - `forced_fail_closed_total`
+   - `evaluator_errors_total`
+   - `signal_required_ok_total`
+   - `signal_required_bad_total`
+   - `serve_fallback_total`
+5. Added query surfaces:
+   - event queries by type/scope with deterministic ordering,
+   - metric snapshots by scope or aggregate.
+6. Exported Phase 7 APIs:
+   - updated `src/fraud_detection/degrade_ladder/__init__.py`.
+7. Added Phase 7 tests:
+   - `tests/services/degrade_ladder/test_phase7_ops_governance.py`
+   - validates policy stamps, redaction, structured queryability, and metric coverage.
+
+### Additional hardening performed
+- Adjusted Phase 6 outbox enqueue timing in `src/fraud_detection/degrade_ladder/emission.py` so newly enqueued transitions are immediately due based on decision timestamp, removing wall-clock nondeterminism in ordered-drain behavior.
+
+### Invariants enforced
+- Governance events are structured and queryable by type/scope/time.
+- Policy revision/provenance stamps are persisted with posture/policy governance records.
+- Sensitive payload fields are redacted before storage.
+- Required operational metrics are recorded and queryable.
+
+### Security and production posture notes
+- No secrets are persisted from payload metadata in governance events.
+- Governance and telemetry are explicit persistence lanes; production services can decide strictness on recorder failure handling at call sites.
+
+### Validation evidence
+- `python -m pytest tests/services/degrade_ladder -q` -> `37 passed`.
+
+### Phase closure assessment
+- Phase 7 DoD is satisfied at component scope:
+  - policy/provenance stamps carried in governance event outputs,
+  - redaction guardrails prevent secret leakage in persisted payloads,
+  - required ops metrics are covered and queryable,
+  - governance events for policy changes and forced fail-closed transitions are structured and queryable.
+
+---
+
+## Entry: 2026-02-07 07:01:28 — Phase 8 implementation plan (validation, parity proof, closure boundary)
+
+### Problem / goal
+Proceed to DL Phase 8 and explicitly close component readiness with evidence:
+1. validate existing unit behavior coverage remains intact after Phases 1-7,
+2. add integration-level tests for DF-facing posture consumption + mask enforcement semantics,
+3. add replay-style determinism tests (same snapshot/policy => same output),
+4. add local-parity behavior proofs under healthy/degraded signal scenarios,
+5. publish explicit closure boundary statement for DL vs pending DF/AL/DLA coupling.
+
+### Authorities / inputs
+- `docs/model_spec/platform/implementation_maps/degrade_ladder.build_plan.md` (Phase 8 DoD)
+- `docs/model_spec/platform/implementation_maps/platform.build_plan.md` (Phase 4.4/4.5 boundaries)
+- `docs/model_spec/platform/pre-design_decisions/real-time_decision_loop.pre-design_decision.md`
+- existing DL module/test surfaces through Phase 7.
+
+### Decision trail (live)
+1. Use a Phase 8 validation test suite file (`test_phase8_validation_parity.py`) to avoid mixing closure evidence into earlier phase files.
+2. Because `src/fraud_detection/decision_fabric` is not present yet, integration proof will use a deterministic DF-consumption shim in tests that enforces DL capability mask rules exactly as pinned:
+   - `allow_ieg`, `allowed_feature_groups`, model toggles, `action_posture`.
+3. Replay proof will exercise full DL flow (snapshot -> evaluator -> store -> serve) with identical inputs and assert stable digest/output.
+4. Local-parity proof will run a multi-step scenario in `local_parity` profile to show stable transitions:
+   - healthy baseline,
+   - required-signal degradation to fail-closed,
+   - quiet-period gated recovery one rung at a time.
+5. Build-plan closure text will explicitly state:
+   - DL component is green for posture authority/serving/emission/governance,
+   - DF decision coupling + AL/DLA downstream integration remains tracked under platform Phase 4.4/4.5.
+
+### Planned edits
+- `tests/services/degrade_ladder/test_phase8_validation_parity.py` (new)
+- `docs/model_spec/platform/implementation_maps/degrade_ladder.build_plan.md` (Phase 8 status + closure statement evidence)
+
+### Invariants to enforce
+- DF-facing mask enforcement semantics are deterministic and conservative.
+- Replay determinism is insensitive to invocation order for identical inputs.
+- Recovery behavior in local-parity profile respects hysteresis and one-rung upshift posture.
+
+### Validation plan
+- `python -m pytest tests/services/degrade_ladder -q`
+- confirm all prior phase tests still pass and new Phase 8 tests pass with deterministic outputs.
+
+---

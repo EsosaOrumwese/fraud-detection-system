@@ -106,12 +106,17 @@ Provide an executable, phase-by-phase DL build plan aligned to platform Phase 4.
 
 ### Phase 7 — Security, governance, and ops telemetry
 **Intent:** ensure DL posture changes are attributable and operable.
+**Status:** completed (2026-02-07, component scope).
 
 **DoD checklist:**
 - DL outputs carry `policy_rev` and governance-relevant provenance stamps.
 - Secrets remain runtime-only; no secret leakage into posture artifacts/logs/docs.
 - Metrics cover posture transitions, fail-safe clamps, evaluator errors, signal freshness, and serve fallback rates.
 - Governance events for policy revision changes and forced fail-closed transitions are structured and queryable.
+- Evidence:
+  - `python -m pytest tests/services/degrade_ladder -q` -> `37 passed`
+  - `src/fraud_detection/degrade_ladder/ops.py`
+  - `tests/services/degrade_ladder/test_phase7_ops_governance.py`
 
 ### Phase 8 — Validation, parity proof, and closure boundary
 **Intent:** prove DL component readiness and define integration handoff.
@@ -125,4 +130,4 @@ Provide an executable, phase-by-phase DL build plan aligned to platform Phase 4.
   DL component green for posture authority/serving; DF decision coupling and AL/DLA downstream closure remain tracked under platform Phase 4.4/4.5 gates.
 
 ## Status (rolling)
-- Current focus: Phase 7 planning/implementation (security, governance, ops telemetry).
+- Current focus: Phase 8 planning/implementation (validation/parity/closure boundary).

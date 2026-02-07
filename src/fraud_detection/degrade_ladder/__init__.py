@@ -43,6 +43,14 @@ from .health import (
     DlHealthGateController,
     DlHealthPolicy,
 )
+from .ops import (
+    DlGovernanceEvent,
+    DlOpsError,
+    DlOpsStore,
+    PostgresDlOpsStore,
+    SqliteDlOpsStore,
+    build_ops_store,
+)
 from .signals import (
     SIGNAL_INPUT_STATUSES,
     SIGNAL_STATES,
@@ -87,6 +95,9 @@ __all__ = [
     "DlHealthGate",
     "DlHealthGateController",
     "DlHealthPolicy",
+    "DlGovernanceEvent",
+    "DlOpsError",
+    "DlOpsStore",
     "DlPolicyBundle",
     "DlPolicyProfile",
     "DlOutboxStore",
@@ -120,11 +131,14 @@ __all__ = [
     "normalize_signal_samples",
     "PolicyRev",
     "PostgresDlOutboxStore",
+    "PostgresDlOpsStore",
     "PostgresDlPostureStore",
     "resolve_scope",
     "SCOPE_KINDS",
     "SqliteDlPostureStore",
+    "SqliteDlOpsStore",
     "SqliteDlOutboxStore",
+    "build_ops_store",
     "build_store",
     "load_policy_bundle",
 ]
