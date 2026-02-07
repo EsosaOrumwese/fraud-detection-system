@@ -794,3 +794,110 @@ Implement DF Phase 7 so replay/redelivery cannot produce divergent artifacts, pa
 - Phase 8 will implement observability/reconciliation proofs and closure artifacts for DF component-green boundary.
 
 ---
+
+## Entry: 2026-02-07 12:11:40 — Phase 8 implementation plan (observability, validation, closure)
+
+### Problem / goal
+Implement DF Phase 8 so Decision Fabric has a run-scoped observability surface, deterministic reconciliation artifacts, and executable validation hooks that prove component-green behavior at the decision+intent boundary.
+
+### Authorities / inputs
+- `docs/model_spec/platform/implementation_maps/decision_fabric.build_plan.md` (Phase 8 DoD)
+- `docs/model_spec/platform/implementation_maps/platform.build_plan.md` (4.4.J / 4.4.K / 4.4.L)
+- `docs/model_spec/platform/pre-design_decisions/real-time_decision_loop.pre-design_decision.md`
+- `docs/model_spec/platform/component-specific/flow-narrative-platform-design.md`
+- Existing DF Phase 1-7 modules/tests.
+
+### Decision trail (before coding)
+1. Keep Phase 8 runtime-agnostic and composable.
+   - Add an in-process `DfRunMetrics` collector to record required counters and decision latency samples.
+   - Add deterministic percentile reporting (`p50/p95/p99`) from in-memory samples.
+2. Add a reconciliation reporter module that writes a JSON artifact under run-scoped paths and summarizes decisions by:
+   - posture mode,
+   - bundle id,
+   - action kind,
+   - fail-closed/degrade reasons.
+   The reporter will carry explicit evidence refs (source event id + source eb ref + receipt refs where present).
+3. Add a lightweight local-proof summary utility for parity evidence bookkeeping (20-event/200-event artifacts) without assuming always-on DF runtime service.
+4. Keep closure semantics explicit:
+   - DF is green at decision+intent boundary;
+   - AL/DLA execution/audit closure remains tracked under platform Phase 4.5.
+
+### Files planned
+- New:
+  - `src/fraud_detection/decision_fabric/observability.py`
+  - `src/fraud_detection/decision_fabric/reconciliation.py`
+- Update:
+  - `src/fraud_detection/decision_fabric/__init__.py`
+  - `tests/services/decision_fabric/test_phase8_observability.py`
+  - `tests/services/decision_fabric/test_phase8_reconciliation.py`
+  - `docs/model_spec/platform/implementation_maps/decision_fabric.build_plan.md` (Phase 8 status)
+
+### Invariants to enforce
+- Metric counters are run-scoped (`platform_run_id` + `scenario_run_id`) and deterministic for same event stream.
+- Percentiles are monotonic (`p50 <= p95 <= p99`) and derived from explicit latency samples.
+- Reconciliation artifact only summarizes observed records (no synthetic reconstruction) and includes evidence refs.
+- Closure language must not overclaim AL/DLA responsibilities.
+
+### Validation plan
+- Add tests for:
+  - metrics counter increments + latency percentile derivation,
+  - fail-closed/degrade metric accounting,
+  - reconciliation aggregation by mode/bundle/action and evidence ref capture,
+  - parity proof summary helper shape.
+- Re-run `python -m pytest tests/services/decision_fabric -q`.
+
+---
+
+## Entry: 2026-02-07 12:29:20 — Phase 8 implementation closure (observability, validation, component closure)
+
+### What was implemented
+1. Added DF run-scoped observability module:
+   - `src/fraud_detection/decision_fabric/observability.py`
+   - `DfRunMetrics` records required counters and latency samples per `(platform_run_id, scenario_run_id)`.
+   - Counters include:
+     - `decisions_total`
+     - `degrade_total`
+     - `missing_context_total`
+     - `resolver_failures_total`
+     - `fail_closed_total`
+     - `publish_admit_total`
+     - `publish_duplicate_total`
+     - `publish_quarantine_total`
+   - Percentile surface includes deterministic `p50/p95/p99` plus count/max.
+   - Export helper writes run-scoped metrics artifact under `runs/fraud-platform/<platform_run_id>/decision_fabric/metrics/last_metrics.json` by default.
+2. Added DF reconciliation module:
+   - `src/fraud_detection/decision_fabric/reconciliation.py`
+   - `DfReconciliationBuilder` aggregates decision records by mode/bundle/action/publish state and captures evidence refs (`source_event_id`, `source_eb_ref`, receipt refs).
+   - Deterministic parity proof helper (`DfParityProof`) checks expected event counts and quarantine conditions.
+   - Export helper writes run-scoped reconciliation artifact under `runs/fraud-platform/<platform_run_id>/decision_fabric/reconciliation/reconciliation.json` by default.
+3. Updated DF package exports:
+   - `src/fraud_detection/decision_fabric/__init__.py` now exports:
+     - `DfRunMetrics`
+     - `DecisionFabricObservabilityError`
+     - `DfReconciliationBuilder`
+     - `DfParityProof`
+     - `DecisionFabricReconciliationError`
+4. Added Phase 8 validation tests:
+   - `tests/services/decision_fabric/test_phase8_observability.py`
+   - `tests/services/decision_fabric/test_phase8_reconciliation.py`
+   - `tests/services/decision_fabric/test_phase8_validation_matrix.py`
+
+### Validation results
+- Phase 8 targeted tests:
+  - `python -m pytest tests/services/decision_fabric/test_phase8_observability.py tests/services/decision_fabric/test_phase8_reconciliation.py tests/services/decision_fabric/test_phase8_validation_matrix.py -q` -> `6 passed`.
+- Full DF suite:
+  - `python -m pytest tests/services/decision_fabric -q` -> `63 passed`.
+- Import/export smoke:
+  - `$env:PYTHONPATH='.;src'; python -c "import fraud_detection.decision_fabric as df; print('ok', 'DfRunMetrics' in df.__all__, 'DfReconciliationBuilder' in df.__all__)"` -> `ok True True`.
+
+### DoD closure mapping (Phase 8)
+- Run-scoped metrics exist for latency + degrade/missing-context/resolver/fail-closed: complete (`observability.py` + tests).
+- Reconciliation artifact summarizes decisions by mode/bundle/posture with evidence refs: complete (`reconciliation.py` + tests).
+- Test matrix includes unit/integration/replay/parity-proof coverage for DF component boundary: complete (full DF suite + new Phase 8 validation matrix test with 20-event and 200-event component-local proof loops).
+- Closure statement explicit: complete (DF green at decision+intent boundary; AL/DLA execution/audit closure remains tracked under platform Phase 4.5).
+
+### Follow-on boundary
+- DF component scope for platform `4.4` is now implementation-complete at component boundary.
+- Remaining end-to-end execution/audit closure belongs to platform `4.5` (AL/DLA integration authority).
+
+---

@@ -140,4 +140,12 @@ Provide an executable, phase-by-phase DF build plan aligned to platform Phase 4.
   - Evidence: `tests/services/decision_fabric/test_phase7_replay.py`
   - Evidence: `tests/services/decision_fabric/test_phase7_checkpoints.py`
   - Validation: `python -m pytest tests/services/decision_fabric -q` -> `57 passed`
-- Current focus: Phase 8 (`Observability, validation, and component closure`).
+- Phase 8 (`Observability, validation, and component closure`): completed on `2026-02-07`.
+  - Evidence: `src/fraud_detection/decision_fabric/observability.py`
+  - Evidence: `src/fraud_detection/decision_fabric/reconciliation.py`
+  - Evidence: `tests/services/decision_fabric/test_phase8_observability.py`
+  - Evidence: `tests/services/decision_fabric/test_phase8_reconciliation.py`
+  - Evidence: `tests/services/decision_fabric/test_phase8_validation_matrix.py`
+  - Validation: `python -m pytest tests/services/decision_fabric -q` -> `63 passed`
+  - Closure: DF component is green at decision+intent boundary; AL/DLA execution/audit closure remains under platform Phase `4.5`.
+- Current focus: DF Phase 8 closed; awaiting platform Phase `4.4` closure review and Phase `4.5` integration gates.

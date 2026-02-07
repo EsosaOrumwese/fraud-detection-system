@@ -78,6 +78,10 @@ from .posture import (
     enforce_posture_constraints,
     posture_stamp_from_dl,
 )
+from .observability import (
+    DecisionFabricObservabilityError,
+    DfRunMetrics,
+)
 from .publish import (
     PUBLISH_ADMIT,
     PUBLISH_DECISIONS,
@@ -101,6 +105,11 @@ from .registry import (
     RegistryResolver,
     RegistryScopeKey,
     RegistrySnapshot,
+)
+from .reconciliation import (
+    DecisionFabricReconciliationError,
+    DfParityProof,
+    DfReconciliationBuilder,
 )
 from .replay import (
     REPLAY_MATCH,
@@ -165,7 +174,9 @@ __all__ = [
     "DecisionFabricContractError",
     "DecisionFabricInlet",
     "DecisionFabricIgPublisher",
+    "DecisionFabricObservabilityError",
     "DecisionFabricPublishError",
+    "DecisionFabricReconciliationError",
     "DecisionFabricRegistryError",
     "DecisionFabricSynthesisError",
     "DecisionFabricTaxonomyError",
@@ -186,6 +197,7 @@ __all__ = [
     "DecisionTriggerCandidate",
     "DecisionTriggerPolicy",
     "DecisionTriggerRule",
+    "DfParityProof",
     "DfBusInput",
     "DfInletResult",
     "DfPostureEnforcementResult",
@@ -193,6 +205,8 @@ __all__ = [
     "DfPostureResolver",
     "DfPostureStamp",
     "DfPostureTransitionGuard",
+    "DfReconciliationBuilder",
+    "DfRunMetrics",
     "INLET_ACCEPT",
     "INLET_EVENT_TYPE_NOT_ALLOWED",
     "INLET_INVALID_ENVELOPE",
