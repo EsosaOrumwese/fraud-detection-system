@@ -10,6 +10,14 @@ from .contracts import (
     DegradeDecision,
     PolicyRev,
 )
+from .evaluator import (
+    SCOPE_KINDS,
+    DlEvaluationError,
+    DlScope,
+    evaluate_posture,
+    evaluate_posture_safe,
+    resolve_scope,
+)
 from .signals import (
     SIGNAL_INPUT_STATUSES,
     SIGNAL_STATES,
@@ -30,8 +38,10 @@ __all__ = [
     "DegradeContractError",
     "DegradeDecision",
     "DlConfigError",
+    "DlEvaluationError",
     "DlPolicyBundle",
     "DlPolicyProfile",
+    "DlScope",
     "DlSignalPolicy",
     "DlSignalError",
     "DlSignalSample",
@@ -41,7 +51,11 @@ __all__ = [
     "SIGNAL_STATES",
     "build_signal_snapshot",
     "build_signal_snapshot_from_payloads",
+    "evaluate_posture",
+    "evaluate_posture_safe",
     "normalize_signal_samples",
     "PolicyRev",
+    "resolve_scope",
+    "SCOPE_KINDS",
     "load_policy_bundle",
 ]

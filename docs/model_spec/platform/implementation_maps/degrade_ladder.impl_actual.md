@@ -251,3 +251,96 @@ User requested proceeding to DL Phase 2. Phase 1 established contracts/profile a
   - behavior validated via dedicated tests.
 
 ---
+
+## Entry: 2026-02-07 03:23:55 — Phase 3 implementation plan (scope resolution + deterministic evaluator)
+
+### Problem / goal
+Proceed to DL Phase 3 by implementing:
+1. explicit deterministic scope resolution,
+2. deterministic posture evaluator from (policy + normalized snapshot),
+3. hysteresis semantics (immediate downshift, controlled one-rung upshift),
+4. explicit fail-closed on evaluator/policy failures.
+
+### Authorities / inputs
+- `docs/model_spec/platform/implementation_maps/degrade_ladder.build_plan.md` (Phase 3 DoD)
+- `docs/model_spec/platform/pre-design_decisions/real-time_decision_loop.pre-design_decision.md`
+- `docs/model_spec/platform/component-specific/degrade_ladder.design-authority.md`
+- DL Phase 1/2 modules (`contracts.py`, `config.py`, `signals.py`)
+
+### Decision trail (live)
+1. Add dedicated evaluator module (`evaluator.py`) to isolate phase-3 logic from config/contracts.
+2. Scope resolution function will be explicit and deterministic with pinned modes:
+   - `GLOBAL`, `MANIFEST`, `RUN`.
+3. Evaluator baseline posture target from snapshot:
+   - required gaps -> `FAIL_CLOSED`,
+   - optional error -> `DEGRADED_2`,
+   - optional stale/missing -> `DEGRADED_1`,
+   - otherwise `NORMAL`.
+4. Hysteresis:
+   - immediate tighten (move directly to more-degraded target),
+   - relax only after quiet period and by one rung per evaluation.
+5. Add `evaluate_posture_safe` wrapper that guarantees fail-closed output with explicit reason on unexpected evaluator/policy errors.
+
+### Planned edits
+- `src/fraud_detection/degrade_ladder/evaluator.py` (new)
+- `src/fraud_detection/degrade_ladder/__init__.py` (exports)
+- `tests/services/degrade_ladder/test_phase3_evaluator.py` (new)
+- `docs/model_spec/platform/implementation_maps/degrade_ladder.build_plan.md` (Phase 3 status + evidence if green)
+
+### Validation plan
+- `python -m pytest tests/services/degrade_ladder -q`
+- direct assertions for:
+  - deterministic outputs,
+  - scope resolution behavior,
+  - hysteresis down/up transitions,
+  - fail-closed fallback path.
+
+---
+
+## Entry: 2026-02-07 03:52:34 — DL Phase 3 implemented (scope resolution + deterministic evaluator)
+
+### Implementation summary
+Phase 3 is now implemented and validated at component scope.
+
+### What was implemented
+1. Added deterministic evaluator module:
+   - `src/fraud_detection/degrade_ladder/evaluator.py`
+   - explicit scope model + canonical scope keys (`GLOBAL`, `MANIFEST`, `RUN`) via `resolve_scope`.
+   - deterministic baseline mode selection from normalized signal states:
+     - required gaps -> `FAIL_CLOSED`
+     - optional error -> `DEGRADED_2`
+     - optional stale/missing -> `DEGRADED_1`
+     - all healthy -> `NORMAL`
+   - hysteresis transition rules:
+     - immediate downshift on worse baseline
+     - upshift only after policy quiet-period and only one rung per evaluation.
+2. Added fail-safe wrapper:
+   - `evaluate_posture_safe(...)` guarantees a `FAIL_CLOSED` decision with explicit evaluator-failure reason if policy/snapshot/evaluator resolution fails.
+3. Exported Phase 3 APIs for downstream usage:
+   - updated `src/fraud_detection/degrade_ladder/__init__.py` to export evaluator symbols.
+4. Added Phase 3 tests:
+   - `tests/services/degrade_ladder/test_phase3_evaluator.py`
+   - coverage includes scope determinism, evaluator determinism, required-gap downshift, quiet-period hold, one-rung upshift, and fail-closed wrapper behavior.
+
+### Invariants enforced
+- Scope key is explicit and deterministic; snapshot scope mismatch is treated as evaluator error.
+- Decision path has no hidden wall-clock dependency (`decision_time_utc` is caller supplied).
+- Hysteresis cannot disable immediate downshift; invalid policy hysteresis shape is rejected.
+- Evaluator failures do not produce permissive behavior; forced `FAIL_CLOSED` is returned with provenance reason.
+
+### Security and production posture notes
+- No secret-bearing artifacts were introduced.
+- Fail-closed fallback preserves safety under malformed config or runtime evaluator exceptions.
+- Scope mismatch handling reduces cross-run/scope contamination risk.
+
+### Validation evidence
+- `python -m pytest tests/services/degrade_ladder -q` -> `18 passed`.
+
+### Phase closure assessment
+- Phase 3 DoD is satisfied at component scope:
+  - explicit deterministic scope resolution,
+  - deterministic evaluator output for fixed inputs,
+  - downshift/upshift hysteresis semantics implemented,
+  - forced fail-closed wrapper on evaluator/policy failure.
+
+---

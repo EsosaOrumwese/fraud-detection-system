@@ -47,6 +47,7 @@ Provide an executable, phase-by-phase DL build plan aligned to platform Phase 4.
 
 ### Phase 3 — Scope resolution + deterministic evaluator
 **Intent:** compute posture deterministically from policy + snapshot.
+**Status:** completed (2026-02-07, component scope).
 
 **DoD checklist:**
 - Scope resolution for posture evaluation is explicit and deterministic.
@@ -54,6 +55,10 @@ Provide an executable, phase-by-phase DL build plan aligned to platform Phase 4.
 - Hysteresis is enforced:
   immediate downshift on breach, controlled one-rung upshift after quiet period.
 - Policy or evaluator failure yields forced fail-closed posture with explicit reasons.
+- Evidence:
+  - `python -m pytest tests/services/degrade_ladder -q` -> `18 passed`
+  - `src/fraud_detection/degrade_ladder/evaluator.py`
+  - `tests/services/degrade_ladder/test_phase3_evaluator.py`
 
 ### Phase 4 — Posture store + serve surface
 **Intent:** provide DF a stable, low-latency posture read boundary.
@@ -103,4 +108,4 @@ Provide an executable, phase-by-phase DL build plan aligned to platform Phase 4.
   DL component green for posture authority/serving; DF decision coupling and AL/DLA downstream closure remain tracked under platform Phase 4.4/4.5 gates.
 
 ## Status (rolling)
-- Current focus: Phase 1 expansion kickoff for implementation mapping.
+- Current focus: Phase 4 planning/implementation (posture store + serve surface).
