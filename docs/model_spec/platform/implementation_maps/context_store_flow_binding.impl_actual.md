@@ -479,3 +479,125 @@ Reasoning:
 - Authoritative binding updates from flow-anchor only: satisfied in intake binding builder and taxonomy gate.
 - Late/missing context handling explicit and machine-readable: satisfied via `LATE_CONTEXT_EVENT` and `JOIN_KEY_MISSING` failure ledger entries.
 - Apply-failure ledger with reasons and offsets: satisfied via `record_apply_failure(...)` paths across intake gate failures and conflicts.
+
+---
+
+## Entry: 2026-02-07 15:33:00 - Phase 4 pre-implementation plan (checkpointing + replay determinism)
+
+### Active-phase objective
+Implement Phase 4 so checkpoint resume behavior is deterministic after restart, replay over explicit offset basis is supported, and rebuild/backfill cannot run without declared basis.
+
+### Inputs/authorities
+- `docs/model_spec/platform/implementation_maps/context_store_flow_binding.build_plan.md` (Phase 4 DoD)
+- `docs/model_spec/platform/pre-design_decisions/real-time_decision_loop.pre-design_decision.md`
+- `docs/model_spec/platform/component-specific/flow-narrative-platform-design.md`
+- Existing replay posture patterns:
+  - `src/fraud_detection/identity_entity_graph/replay.py`
+  - `src/fraud_detection/identity_entity_graph/replay_manifest_writer.py`
+
+### Decision thread 1: explicit basis artifact shape
+Options considered:
+1. Reuse policy fields for replay ranges.
+2. Introduce a dedicated replay/basis manifest model with strict validation.
+
+Decision:
+- Option 2.
+
+Reasoning:
+- Policy governs steady-state wiring; replay/backfill basis is run-specific evidence and should be explicit, immutable, and separately auditable.
+
+### Decision thread 2: checkpoint source under replay mode
+Options considered:
+1. Replay mode still starts from stored checkpoints.
+2. Replay mode starts from manifest-declared offsets and uses checkpoint table only for post-apply advancement.
+
+Decision:
+- Option 2.
+
+Reasoning:
+- To make replay basis deterministic and reproducible, declared basis must control read window; checkpoint state cannot silently alter window start.
+
+### Decision thread 3: rebuild/backfill entrypoint safety
+Decision:
+- Add dedicated CSFB rebuild entrypoint requiring `--replay-manifest` (no implicit replay path).
+- Manifest validation fails closed if topics/partitions or offset boundaries are missing.
+
+Reasoning:
+- Satisfies DoD that rebuild requires explicit basis declaration; prevents accidental "full tail replay" without scope intent.
+
+### Decision thread 4: replay pin guard
+Decision:
+- Optional manifest pins (`platform_run_id`, etc.) are enforced on consumed envelopes in replay mode, with machine-readable `REPLAY_PINS_MISMATCH` failure reason.
+
+Reasoning:
+- Prevents cross-run contamination during backfills and keeps drift visible in the apply-failure ledger.
+
+### Planned file paths (Phase 4)
+- New:
+  - `src/fraud_detection/context_store_flow_binding/replay.py`
+  - `src/fraud_detection/context_store_flow_binding/rebuild.py`
+  - `tests/services/context_store_flow_binding/test_phase4_replay.py`
+- Update:
+  - `src/fraud_detection/context_store_flow_binding/intake.py`
+  - `src/fraud_detection/context_store_flow_binding/__init__.py`
+  - `docs/model_spec/platform/implementation_maps/context_store_flow_binding.build_plan.md`
+
+### Validation plan
+- Checkpoint resume test (restart continues from checkpoint without extra mutations).
+- Deterministic replay test (same explicit basis => identical join-frames/flow-bindings/checkpoints across independent stores).
+- Basis strictness tests (manifest missing explicit ranges fails closed).
+
+---
+
+## Entry: 2026-02-07 15:36:00 - Phase 4 implementation completed (checkpoint resume + explicit replay basis)
+
+### What was implemented
+- Added CSFB replay manifest model with strict validation:
+  - `src/fraud_detection/context_store_flow_binding/replay.py`
+  - Requires explicit topic/partition basis and explicit offset boundary (`from_offset` or `to_offset`) per partition.
+- Added dedicated rebuild/backfill entrypoint requiring manifest:
+  - `src/fraud_detection/context_store_flow_binding/rebuild.py`
+  - `--replay-manifest` is mandatory.
+- Extended intake runtime for replay execution:
+  - `src/fraud_detection/context_store_flow_binding/intake.py`
+  - Added `run_replay_once(...)` with per-topic/per-partition range application.
+  - Added range-bound file/kinesis consumers.
+  - Added replay pin mismatch guard (`REPLAY_PINS_MISMATCH`) with failure ledger + checkpoint advance.
+- Exported replay contract types:
+  - `src/fraud_detection/context_store_flow_binding/__init__.py`
+
+### Decisions made during implementation (with reasoning)
+1. **Replay range processing bypasses checkpoint start-point selection**
+   - Decision: in replay mode, from/to offsets come from manifest ranges, not from stored checkpoints.
+   - Reasoning: ensures replay determinism and makes basis declaration authoritative.
+
+2. **Checkpoint table remains write target during replay**
+   - Decision: replay processing still advances checkpoints after processing each record.
+   - Reasoning: keeps operational surfaces consistent and records resulting basis watermarks; no alternate hidden checkpoint path.
+
+3. **Replay pin mismatch is fail-closed but non-blocking**
+   - Decision: mismatch is recorded as apply-failure and checkpoint advances past the offending record.
+   - Reasoning: prevents infinite retries while preserving explicit anomaly evidence.
+
+4. **Backfill entrypoint requires explicit basis artifact**
+   - Decision: no fallback default basis in `rebuild.py`; manifest path is required.
+   - Reasoning: satisfies Phase 4 DoD and avoids accidental open-ended replay.
+
+### Tests added for Phase 4
+- `tests/services/context_store_flow_binding/test_phase4_replay.py`
+  - `test_phase4_restart_resumes_from_checkpoints_without_duplicate_mutation`
+  - `test_phase4_replay_same_basis_yields_identical_state`
+  - `test_phase4_replay_manifest_requires_explicit_offset_basis`
+  - `test_phase4_replay_pin_mismatch_is_fail_closed_and_checkpoint_advances`
+
+### Validation executed
+- `$env:PYTHONPATH='.;src'; python -m pytest tests/services/context_store_flow_binding/test_phase4_replay.py -q`
+  - Result: `4 passed`
+- `$env:PYTHONPATH='.;src'; python -m pytest tests/services/context_store_flow_binding -q`
+  - Result: `25 passed`
+
+### Phase 4 DoD mapping
+- Per-partition checkpoint after durable apply: preserved by existing transaction model; verified by restart/replay tests.
+- Restart resume without duplicate mutation: satisfied (`test_phase4_restart_resumes_from_checkpoints_without_duplicate_mutation`).
+- Same-basis replay determinism: satisfied (`test_phase4_replay_same_basis_yields_identical_state`).
+- Rebuild/backfill explicit basis requirement: satisfied by strict manifest validator + mandatory `--replay-manifest` entrypoint.

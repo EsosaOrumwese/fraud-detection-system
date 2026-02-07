@@ -25,6 +25,7 @@ from .store import (
     load_retention_profile,
 )
 from .intake import ContextStoreFlowBindingInlet, CsfbInletPolicy
+from .replay import CsfbReplayManifest, CsfbReplayPartitionRange, CsfbReplayTopicRange
 
 __all__ = [
     "ContextStoreFlowBindingConfigError",
@@ -39,6 +40,9 @@ __all__ = [
     "CsfbInletPolicy",
     "CsfbIntakeApplyResult",
     "CsfbRetentionProfile",
+    "CsfbReplayManifest",
+    "CsfbReplayPartitionRange",
+    "CsfbReplayTopicRange",
     "ContextStoreFlowBindingInlet",
     "FlowBindingRecord",
     "JoinFrameKey",

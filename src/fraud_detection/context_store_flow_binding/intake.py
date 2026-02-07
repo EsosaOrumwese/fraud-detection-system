@@ -20,6 +20,7 @@ from fraud_detection.ingestion_gate.schemas import SchemaRegistry
 from fraud_detection.platform_runtime import resolve_run_scoped_path
 
 from .contracts import FlowBindingRecord, JoinFrameKey
+from .replay import CsfbReplayManifest, CsfbReplayPartitionRange
 from .store import ContextStoreFlowBindingConflictError, build_store
 from .taxonomy import ContextStoreFlowBindingTaxonomyError, ensure_authoritative_flow_binding_event_type
 
@@ -139,7 +140,9 @@ class ContextStoreFlowBindingInlet:
     def build(cls, policy_path: str) -> "ContextStoreFlowBindingInlet":
         return cls(CsfbInletPolicy.load(Path(policy_path)))
 
-    def run_once(self) -> int:
+    def run_once(self, manifest: CsfbReplayManifest | None = None) -> int:
+        if manifest is not None:
+            return self.run_replay_once(manifest)
         processed = 0
         for topic in self.policy.context_topics:
             if self.policy.event_bus_kind == "file":
@@ -154,6 +157,27 @@ class ContextStoreFlowBindingInlet:
             processed = self.run_once()
             if processed == 0:
                 time.sleep(self.policy.poll_sleep_seconds)
+
+    def run_replay_once(self, manifest: CsfbReplayManifest) -> int:
+        processed = 0
+        replay_pins = manifest.pins
+        for topic_range in manifest.topics:
+            if topic_range.topic not in self.policy.context_topics:
+                raise RuntimeError(f"CSFB_REPLAY_TOPIC_NOT_ALLOWED:{topic_range.topic}")
+            for partition_range in topic_range.partitions:
+                if self.policy.event_bus_kind == "file":
+                    processed += self._consume_file_partition_range(
+                        topic=topic_range.topic,
+                        partition_range=partition_range,
+                        replay_pins=replay_pins,
+                    )
+                else:
+                    processed += self._consume_kinesis_partition_range(
+                        topic=topic_range.topic,
+                        partition_range=partition_range,
+                        replay_pins=replay_pins,
+                    )
+        return processed
 
     def _consume_file_partition(self, topic: str, partition: int) -> int:
         assert self._file_reader is not None
@@ -177,6 +201,52 @@ class ContextStoreFlowBindingInlet:
             )
             self._process_record(bus_record)
             processed += 1
+        return processed
+
+    def _consume_file_partition_range(
+        self,
+        *,
+        topic: str,
+        partition_range: CsfbReplayPartitionRange,
+        replay_pins: Mapping[str, Any] | None,
+    ) -> int:
+        assert self._file_reader is not None
+        from_offset = _coerce_file_offset(partition_range.from_offset, default=0)
+        to_offset = _coerce_file_offset(partition_range.to_offset, default=None)
+        if from_offset is None:
+            from_offset = 0
+        if to_offset is not None and to_offset < from_offset:
+            return 0
+
+        processed = 0
+        cursor = from_offset
+        while True:
+            records = self._file_reader.read(
+                topic,
+                partition=partition_range.partition,
+                from_offset=cursor,
+                max_records=self.policy.poll_max_records,
+            )
+            if not records:
+                break
+            for record in records:
+                if to_offset is not None and record.offset > to_offset:
+                    return processed
+                bus_record = BusRecord(
+                    topic=topic,
+                    partition=partition_range.partition,
+                    offset=str(record.offset),
+                    offset_kind=partition_range.offset_kind or "file_line",
+                    payload=record.record,
+                    published_at_utc=record.record.get("published_at_utc") if isinstance(record.record, dict) else None,
+                )
+                self._process_record(bus_record, replay_pins=replay_pins)
+                processed += 1
+                cursor = record.offset + 1
+            if to_offset is not None and cursor > to_offset:
+                break
+            if len(records) < self.policy.poll_max_records:
+                break
         return processed
 
     def _consume_kinesis_topic(self, topic: str) -> int:
@@ -211,7 +281,56 @@ class ContextStoreFlowBindingInlet:
                 processed += 1
         return processed
 
-    def _process_record(self, record: BusRecord) -> None:
+    def _consume_kinesis_partition_range(
+        self,
+        *,
+        topic: str,
+        partition_range: CsfbReplayPartitionRange,
+        replay_pins: Mapping[str, Any] | None,
+    ) -> int:
+        assert self._kinesis_reader is not None
+        stream_name = self._stream_name(topic)
+        shard_id = f"shardId-{int(partition_range.partition):012d}"
+        from_sequence = partition_range.from_offset
+        to_sequence = partition_range.to_offset
+        processed = 0
+        current_from = from_sequence
+        while True:
+            records = self._kinesis_reader.read(
+                stream_name=stream_name,
+                shard_id=shard_id,
+                from_sequence=current_from,
+                limit=self.policy.poll_max_records,
+                start_position=self.policy.event_bus_start_position,
+            )
+            if not records:
+                break
+            for record in records:
+                sequence = str(record.get("sequence_number") or "")
+                if to_sequence and sequence and _sequence_compare(sequence, to_sequence) > 0:
+                    return processed
+                payload = record.get("payload")
+                if not isinstance(payload, dict):
+                    continue
+                self._process_record(
+                    BusRecord(
+                        topic=topic,
+                        partition=partition_range.partition,
+                        offset=sequence,
+                        offset_kind=partition_range.offset_kind or "kinesis_sequence",
+                        payload=payload,
+                        published_at_utc=record.get("published_at_utc"),
+                    ),
+                    replay_pins=replay_pins,
+                )
+                processed += 1
+                if sequence:
+                    current_from = sequence
+            if len(records) < self.policy.poll_max_records:
+                break
+        return processed
+
+    def _process_record(self, record: BusRecord, *, replay_pins: Mapping[str, Any] | None = None) -> None:
         envelope = _unwrap_envelope(record.payload)
         if envelope is None:
             self._record_failure_and_advance(
@@ -239,6 +358,20 @@ class ContextStoreFlowBindingInlet:
                 record=record,
                 reason_code="ENVELOPE_INVALID",
                 details={"event_type": event_type},
+                event_id=event_id,
+                event_type=event_type,
+                platform_run_id=platform_run_id,
+                scenario_run_id=scenario_run_id,
+                event_ts_utc=event_ts_utc,
+            )
+            return
+
+        replay_mismatch = _replay_pins_mismatch(replay_pins, envelope)
+        if replay_mismatch:
+            self._record_failure_and_advance(
+                record=record,
+                reason_code="REPLAY_PINS_MISMATCH",
+                details={"mismatches": replay_mismatch},
                 event_id=event_id,
                 event_type=event_type,
                 platform_run_id=platform_run_id,
@@ -657,14 +790,61 @@ def _partition_id_from_shard(shard_id: str) -> int:
         return 0
 
 
+def _coerce_file_offset(value: str | None, *, default: int | None) -> int | None:
+    if value is None:
+        return default
+    try:
+        return int(value)
+    except (TypeError, ValueError):
+        return default
+
+
+def _sequence_compare(left: str, right: str) -> int:
+    try:
+        left_val = int(left)
+        right_val = int(right)
+        if left_val < right_val:
+            return -1
+        if left_val > right_val:
+            return 1
+        return 0
+    except (TypeError, ValueError):
+        if left < right:
+            return -1
+        if left > right:
+            return 1
+        return 0
+
+
+def _replay_pins_mismatch(replay_pins: Mapping[str, Any] | None, envelope: Mapping[str, Any]) -> dict[str, Any] | None:
+    if not replay_pins:
+        return None
+    mismatches: dict[str, Any] = {}
+    for key, expected in replay_pins.items():
+        if expected is None:
+            continue
+        actual = envelope.get(key)
+        if actual is None or str(actual) != str(expected):
+            mismatches[key] = {"expected": expected, "actual": actual}
+    if not mismatches:
+        return None
+    return mismatches
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description="CSFB intake worker (Phase 3)")
     parser.add_argument("--policy", required=True, help="Path to CSFB intake policy YAML")
     parser.add_argument("--once", action="store_true", help="Process one poll cycle and exit")
+    parser.add_argument("--replay-manifest", help="Path to CSFB replay basis manifest (explicit offsets required)")
     args = parser.parse_args()
 
     logging.basicConfig(level=logging.INFO)
     inlet = ContextStoreFlowBindingInlet.build(args.policy)
+    if args.replay_manifest:
+        manifest = CsfbReplayManifest.load(Path(args.replay_manifest))
+        processed = inlet.run_replay_once(manifest)
+        logger.info("CSFB replay processed=%s replay_id=%s", processed, manifest.replay_id())
+        return
     if args.once:
         processed = inlet.run_once()
         logger.info("CSFB intake processed=%s", processed)

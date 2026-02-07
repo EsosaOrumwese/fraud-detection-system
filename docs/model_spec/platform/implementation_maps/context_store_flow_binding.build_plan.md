@@ -114,6 +114,19 @@ Provide a component-scoped build plan for the shared RTDL join plane that serves
 - Restart resumes from checkpoints with no duplicate state mutation.
 - Replay from the same basis yields identical JoinFrames and FlowBindings.
 - Backfill/rebuild entrypoint requires explicit offset basis declaration.
+**Evidence (Phase 4):**
+- Replay/basis surfaces:
+  - `src/fraud_detection/context_store_flow_binding/replay.py`
+  - `src/fraud_detection/context_store_flow_binding/rebuild.py`
+- Intake replay-mode support:
+  - `src/fraud_detection/context_store_flow_binding/intake.py` (`run_replay_once`, range-bound consumption, replay pin guard)
+- Package exports:
+  - `src/fraud_detection/context_store_flow_binding/__init__.py`
+- Tests:
+  - `tests/services/context_store_flow_binding/test_phase4_replay.py`
+- Validation commands:
+  - `$env:PYTHONPATH='.;src'; python -m pytest tests/services/context_store_flow_binding/test_phase4_replay.py -q` (`4 passed`)
+  - `$env:PYTHONPATH='.;src'; python -m pytest tests/services/context_store_flow_binding -q` (`25 passed`)
 
 ### Phase 5 — Query/read surface for DF/DL
 **Intent:** expose deterministic join readiness without hidden fallbacks.
@@ -164,4 +177,5 @@ Provide a component-scoped build plan for the shared RTDL join plane that serves
 - Phase 1 (`Contracts, keys, and ownership pins`): completed.
 - Phase 2 (`Storage schema + durability`): completed.
 - Phase 3 (`Intake apply worker`): completed.
-- Current focus: Phase 4 (`Checkpointing + replay determinism`).
+- Phase 4 (`Checkpointing + replay determinism`): completed.
+- Current focus: Phase 5 (`Query/read surface for DF/DL`).
