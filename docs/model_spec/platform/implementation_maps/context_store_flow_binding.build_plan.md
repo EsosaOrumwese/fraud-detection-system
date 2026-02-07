@@ -69,6 +69,18 @@ Provide a component-scoped build plan for the shared RTDL join plane that serves
 - Constraints prevent cross-run contamination.
 - Commit point is pinned: DB transaction commit (WAL flush) before checkpoint advance.
 - Retention/TTL posture is pinned for local-parity/dev/prod.
+**Evidence (Phase 2):**
+- Schema migrations (sqlite + postgres):
+  - `src/fraud_detection/context_store_flow_binding/migrations.py`
+- Durable store layer:
+  - `src/fraud_detection/context_store_flow_binding/store.py`
+- Retention policy:
+  - `config/platform/context_store_flow_binding/retention_v0.yaml`
+- Tests:
+  - `tests/services/context_store_flow_binding/test_phase2_store.py`
+  - `tests/services/context_store_flow_binding/test_phase2_retention.py`
+- Validation command:
+  - `$env:PYTHONPATH='.;src'; python -m pytest tests/services/context_store_flow_binding -q` (`17 passed`)
 
 ### Phase 3 — Intake apply worker (context topics -> join plane)
 **Intent:** build deterministic intake from admitted EB context topics.
@@ -136,4 +148,5 @@ Provide a component-scoped build plan for the shared RTDL join plane that serves
 
 ## Status (rolling)
 - Phase 1 (`Contracts, keys, and ownership pins`): completed.
-- Current focus: Phase 2 (not started).
+- Phase 2 (`Storage schema + durability`): completed.
+- Current focus: Phase 3 (not started).

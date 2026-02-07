@@ -201,3 +201,126 @@ Reasoning:
 - All contracts are fail-closed; missing or malformed pins result in explicit contract errors.
 - No fabricated joins: queries can only resolve by explicit FlowBinding or explicit JoinFrameKey.
 - Phase 1 implements contract/policy boundaries only; storage and intake are deferred to Phase 2+.
+
+---
+
+## Entry: 2026-02-07 15:09:00 - Phase 2 pre-implementation plan (storage schema + durability)
+
+### Active-phase objective
+Implement Phase 2 from `context_store_flow_binding.build_plan.md` by delivering durable storage surfaces with explicit run-scoped constraints and checkpoint commit safety.
+
+### Inputs/authorities
+- `docs/model_spec/platform/implementation_maps/context_store_flow_binding.build_plan.md` (Phase 2 DoD)
+- `docs/model_spec/platform/pre-design_decisions/real-time_decision_loop.pre-design_decision.md`
+- `docs/model_spec/platform/component-specific/flow-narrative-platform-design.md`
+- Existing parity patterns in:
+  - `src/fraud_detection/identity_entity_graph/migrations.py`
+  - `src/fraud_detection/degrade_ladder/store.py`
+  - `src/fraud_detection/decision_fabric/checkpoints.py`
+
+### Decision thread 1: migration shape
+Options considered:
+1. Raw `CREATE TABLE IF NOT EXISTS` only in store constructor.
+2. Versioned migrations for sqlite/postgres, called by store initialization.
+
+Decision:
+- Option 2.
+
+Reasoning:
+- Matches mature component posture (IEG) and avoids hidden schema drift when Phase 3+ adds columns.
+
+### Decision thread 2: cross-run contamination guard
+Decision:
+- Every primary key / unique key for mutable truth tables (`join_frames`, `flow_bindings`) includes run pins axis (`platform_run_id` + `scenario_run_id`) plus stream scope.
+- Add explicit composite uniqueness for join-frame key tuple under run scope.
+
+Reasoning:
+- Enforces non-overlap between runs by schema shape, not only caller discipline.
+
+### Decision thread 3: conflict semantics in store layer
+Decision:
+- For both join frames and flow bindings:
+  - existing row with same payload hash => `noop` idempotent.
+  - existing row with different payload hash => raise conflict error (`*_PAYLOAD_HASH_MISMATCH`).
+
+Reasoning:
+- Pushes replay safety into durable layer; Phase 3 worker can remain thinner and fail-closed by exception path.
+
+### Decision thread 4: commit point and checkpoint durability
+Decision:
+- Provide transactional apply methods that persist row mutation and checkpoint advance in a single DB transaction.
+- Checkpoint updates are never performed before mutation write in that transaction body.
+
+Reasoning:
+- Directly encodes Phase 2 commit-point rule: durable commit precedes visibility of checkpoint movement.
+
+### Decision thread 5: retention posture pinning
+Decision:
+- Add versioned retention policy file under `config/platform/context_store_flow_binding/retention_v0.yaml` with explicit env profiles (`local_parity`, `dev`, `prod`).
+- Implement strict policy loader now; pruning execution deferred to later phase.
+
+Reasoning:
+- Phase 2 requires retention posture to be pinned; loader makes it auditable/testable immediately.
+
+### Planned file paths (Phase 2)
+- New:
+  - `src/fraud_detection/context_store_flow_binding/migrations.py`
+  - `src/fraud_detection/context_store_flow_binding/store.py`
+  - `config/platform/context_store_flow_binding/retention_v0.yaml`
+  - `tests/services/context_store_flow_binding/test_phase2_store.py`
+  - `tests/services/context_store_flow_binding/test_phase2_retention.py`
+- Update:
+  - `src/fraud_detection/context_store_flow_binding/__init__.py`
+  - `docs/model_spec/platform/implementation_maps/context_store_flow_binding.build_plan.md`
+
+### Validation plan
+- sqlite-backed tests for table/migration presence and conflict semantics.
+- transaction rollback proof: failed apply does not advance checkpoint.
+- retention loader contract tests for env profile parsing and fail-closed missing fields.
+
+---
+
+## Entry: 2026-02-07 15:22:00 - Phase 2 implementation completed (storage schema + durability)
+
+### What was implemented
+- Added CSFB schema migrations with sqlite/postgres parity:
+  - `src/fraud_detection/context_store_flow_binding/migrations.py`
+- Added durable store surface with run-scoped write paths and checkpoint commit discipline:
+  - `src/fraud_detection/context_store_flow_binding/store.py`
+- Added retention posture policy for env ladder:
+  - `config/platform/context_store_flow_binding/retention_v0.yaml`
+- Added Phase 2 validation tests:
+  - `tests/services/context_store_flow_binding/test_phase2_store.py`
+  - `tests/services/context_store_flow_binding/test_phase2_retention.py`
+- Exported store surfaces from package init:
+  - `src/fraud_detection/context_store_flow_binding/__init__.py`
+
+### Decision threads finalized during implementation
+1. **Single-transaction apply + checkpoint path**
+   - Decision: use `apply_flow_binding_and_checkpoint(...)` with one DB transaction that writes durable state first and only then advances checkpoint row.
+   - Reasoning: direct enforcement of the Phase 2 commit-point invariant (no checkpoint movement on failed apply).
+
+2. **Store-level idempotency/conflict enforcement**
+   - Decision: keep hash conflict checks inside store methods (`JOIN_FRAME_PAYLOAD_HASH_MISMATCH`, `FLOW_BINDING_PAYLOAD_HASH_MISMATCH`) rather than only in intake worker.
+   - Reasoning: puts replay safety at durability boundary and prevents worker regressions from violating invariant.
+
+3. **Cross-run contamination guard via composite keys**
+   - Decision: primary/unique keys include run scope (`platform_run_id`, `scenario_run_id`) together with stream and business keys.
+   - Reasoning: schema-level partitioning avoids accidental inter-run mutation overlap.
+
+4. **Retention posture as versioned policy artifact**
+   - Decision: pin environment-specific retention in `retention_v0.yaml` and validate via loader now; actual pruning execution deferred.
+   - Reasoning: satisfies Phase 2 posture pinning without introducing premature data lifecycle automation in storage bootstrap phase.
+
+### Phase 2 DoD mapping
+- Postgres schema exists for all required tables: satisfied in migrations module.
+- Cross-run constraints: satisfied by composite PK/UNIQUE structures.
+- Commit-point semantics: satisfied by single-transaction apply+checkpoint method and rollback behavior test.
+- Retention/TTL posture pinned: satisfied by env-specific retention policy + parser tests.
+
+### Validation
+- `$env:PYTHONPATH='.;src'; python -m pytest tests/services/context_store_flow_binding -q`
+  - Result: `17 passed`
+
+### Residual scope boundary (intentional)
+- Phase 2 does not implement topic intake worker or replay-backfill orchestration yet; those remain Phase 3/4 scope.
