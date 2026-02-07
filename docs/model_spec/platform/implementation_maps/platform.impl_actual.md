@@ -2708,3 +2708,221 @@ Representative run-scoped parity artifacts verified on disk:
 - No engine internals or out-of-scope docs (`docs/reports/reports`) were touched.
 
 ---
+
+## Entry: 2026-02-07 22:16:20 - Plan: fresh 20/200 local-parity flow validation from SR through RTDL
+
+### Trigger
+User requested fresh local-parity integration validation (20-event and 200-event) and explicit confirmation that actual flow matches the platform flow narrative from SR into the full RTDL surface.
+
+### Authorities consulted
+- `docs/runbooks/platform_parity_walkthrough_v0.md`
+- `docs/model_spec/platform/component-specific/flow-narrative-platform-design.md`
+- `docs/model_spec/platform/pre-design_decisions/real-time_decision_loop.pre-design_decision.md`
+- `docs/model_spec/platform/implementation_maps/platform.build_plan.md` (Phase 4 status/DoD)
+
+### Validation scope decision
+1. Runtime chain validation will execute with real local-parity services for:
+   - `SR -> WSP -> IG -> EB -> IEG/OFP/CSFB`.
+2. DF/DL/AL/DLA are currently validated through their component integration matrices (no standalone always-on runtime services in this repo); they will be re-validated in the same pass via targeted suites after the fresh run data path check.
+3. Two fresh runs will be executed using new run ids:
+   - 20-event cap and 200-event cap (per traffic output control).
+4. Flow conformance will be judged by explicit evidence artifacts/logs:
+   - SR READY artifacts,
+   - IG receipts + EB refs,
+   - IEG/OFP/CSFB run-scoped artifacts for the same run id,
+   - parity validation tests for DF/DL/AL/DLA boundaries.
+
+### Command plan
+- Ensure parity substrate is up and bootstrapped.
+- Start IG parity service in background.
+- For each run (20 then 200):
+  - `make platform-run-new`
+  - `make platform-sr-run-reuse SR_WIRING=config/platform/sr/wiring_local_kinesis.yaml`
+  - `make platform-wsp-ready-consumer-once WSP_PROFILE=config/platform/profiles/local_parity.yaml` with cap env vars
+  - run IEG once for active run scope
+  - run OFP projector once for active run scope
+  - run CSFB intake once for active run scope
+  - collect artifact and log evidence paths.
+- Re-run DF/DL/AL/DLA integration suites to confirm RTDL downstream boundaries remain green with current wiring.
+
+### Risks and handling
+- Pytest module name collisions in broad sweeps are handled with `--import-mode=importlib`.
+- If control bus contains stale READY events, constrain with `WSP_READY_MAX_MESSAGES=1` and run-scoped pinning.
+- If IG service is not reachable, fail run immediately and record as infrastructure failure (not silent skip).
+
+---
+
+## Entry: 2026-02-07 22:20:55 - Executed fresh 20/200 local-parity flow validation (SR -> RTDL runtime surfaces)
+
+### Runs executed
+1. **20-event run**
+   - `platform_run_id`: `platform_20260207T220818Z`
+   - SR READY `run_id`: `ccf17a06ec1da863c7b2ceb21523be32`
+   - WSP cap used: `WSP_MAX_EVENTS_PER_OUTPUT=20` with `WSP_READY_MAX_MESSAGES=1`
+2. **200-event run**
+   - `platform_run_id`: `platform_20260207T221155Z`
+   - SR READY `run_id`: `ac2a3106997e57381f5d7feae284fe9e`
+   - WSP cap used: `WSP_MAX_EVENTS_PER_OUTPUT=200` with `WSP_READY_MAX_MESSAGES=1`
+
+### Runtime decisions made during execution
+1. **Reset Kinesis streams before each run**
+   - Reasoning: READY control bus is trim-horizon; old READY messages can be consumed first and invalidate a "fresh run" check.
+   - Action: deleted/recreated `sr-control-bus` plus traffic/context/audit streams in LocalStack before each run.
+
+2. **Force SR platform run scope from ACTIVE_RUN_ID**
+   - Reasoning: default environment precedence could route SR writes to an older pinned run id.
+   - Action: exported `PLATFORM_RUN_ID=<ACTIVE_RUN_ID>` before `make platform-sr-run-reuse`.
+
+3. **Scope RTDL projectors to each active run id**
+   - Action: set `IEG_REQUIRED_PLATFORM_RUN_ID`, `OFP_REQUIRED_PLATFORM_RUN_ID`, `CSFB_REQUIRED_PLATFORM_RUN_ID` to the active run id for each run.
+
+### Evidence captured (20 run)
+- IG receipts (`s3://fraud-platform/platform_20260207T220818Z/ig/receipts/`):
+  - total receipts: `80`
+  - event_type counts:
+    - `s3_event_stream_with_fraud_6B`: `20`
+    - `arrival_events_5B`: `20`
+    - `s1_arrival_entities_6B`: `20`
+    - `s3_flow_anchor_with_fraud_6B`: `20`
+- IEG artifacts:
+  - `runs/fraud-platform/platform_20260207T220818Z/identity_entity_graph/reconciliation/reconciliation.json`
+  - projection counts: entities=`237`, identifiers=`237`, apply_failures=`0`, checkpoints=`4`.
+- OFP artifacts:
+  - `runs/fraud-platform/platform_20260207T220818Z/online_feature_plane/projection/online_feature_plane.db`
+  - counts: `ofp_feature_state=10`, `ofp_checkpoints=1`.
+- CSFB artifacts:
+  - `runs/fraud-platform/platform_20260207T220818Z/context_store_flow_binding/csfb.sqlite`
+  - counts: join_frames=`50`, flow_bindings=`20`, failures=`0`, checkpoints=`3`.
+
+### Evidence captured (200 run)
+- IG receipts (`s3://fraud-platform/platform_20260207T221155Z/ig/receipts/`):
+  - total receipts: `800`
+  - event_type counts:
+    - `s3_event_stream_with_fraud_6B`: `200`
+    - `arrival_events_5B`: `200`
+    - `s1_arrival_entities_6B`: `200`
+    - `s3_flow_anchor_with_fraud_6B`: `200`
+- IEG artifacts:
+  - `runs/fraud-platform/platform_20260207T221155Z/identity_entity_graph/reconciliation/reconciliation.json`
+  - projection counts: entities=`490`, identifiers=`490`, apply_failures=`0`, checkpoints=`4`.
+- OFP artifacts:
+  - `runs/fraud-platform/platform_20260207T221155Z/online_feature_plane/projection/online_feature_plane.db`
+  - counts: `ofp_feature_state=100`, `ofp_checkpoints=1`.
+- CSFB artifacts:
+  - `runs/fraud-platform/platform_20260207T221155Z/context_store_flow_binding/csfb.sqlite`
+  - counts: join_frames=`240`, flow_bindings=`200`, failures=`0`, checkpoints=`3`.
+
+### Downstream RTDL boundary confirmation (DF/DL/AL/DLA)
+Executed integration/boundary validation suite:
+- `python -m pytest --import-mode=importlib tests/services/degrade_ladder/test_phase8_validation_parity.py tests/services/decision_fabric/test_phase8_validation_matrix.py tests/services/action_layer/test_phase8_validation_matrix.py tests/services/decision_log_audit/test_dla_phase8_validation_matrix.py -q`
+- Result: `12 passed`.
+
+### Flow narrative conformance conclusion
+At current v0 runtime boundaries, the observed path matches the intended narrative:
+- SR publishes READY with run pins,
+- WSP streams traffic + context outputs to IG,
+- IG admits and emits EB-backed receipts for all four expected event families,
+- IEG/OFP/CSFB consume admitted EB streams and materialize run-scoped state with zero apply-failure/anomaly counts in these runs,
+- DF/DL/AL/DLA integration boundaries remain green under current phase-8 validation matrices.
+
+### Operational caveat recorded
+- IG service process was already running before this validation; its own local log-file root may point to an older run folder, but admission receipts and downstream artifacts are correctly run-scoped and were used as authoritative evidence.
+
+---
+
+## Entry: 2026-02-07 22:24:35 - RTDL-focused narrative for fresh 20/200 parity runs
+
+### Purpose
+Document the actual observed RTDL flow for the two fresh parity runs with emphasis on EB inlet into RTDL components and run-scoped evidence.
+
+### Runs in scope
+- **Run A (20 cap):** `platform_20260207T220818Z`
+  - SR READY run id: `ccf17a06ec1da863c7b2ceb21523be32`
+- **Run B (200 cap):** `platform_20260207T221155Z`
+  - SR READY run id: `ac2a3106997e57381f5d7feae284fe9e`
+
+### RTDL flow narrative (observed)
+
+1. **EB inlet population (from IG admissions)**
+   - WSP streamed four output families into IG (fraud traffic + three context outputs).
+   - IG admitted and published to EB, with receipts proving per-event EB references.
+   - Receipt totals by run:
+     - Run A: `80` receipts
+     - Run B: `800` receipts
+   - Event-type distribution is balanced and expected for both runs:
+     - `s3_event_stream_with_fraud_6B`
+     - `arrival_events_5B`
+     - `s1_arrival_entities_6B`
+     - `s3_flow_anchor_with_fraud_6B`
+
+2. **IEG projector consumption (EB -> graph projection)**
+   - IEG projector executed `--once` with strict run pin (`IEG_REQUIRED_PLATFORM_RUN_ID=<active_run>`).
+   - IEG consumed admitted EB records and produced run-scoped reconciliation artifacts:
+     - Run A: `runs/fraud-platform/platform_20260207T220818Z/identity_entity_graph/reconciliation/reconciliation.json`
+     - Run B: `runs/fraud-platform/platform_20260207T221155Z/identity_entity_graph/reconciliation/reconciliation.json`
+   - Projection state evidence:
+     - Run A: entities=`237`, identifiers=`237`, apply_failures=`0`, checkpoints=`4`
+     - Run B: entities=`490`, identifiers=`490`, apply_failures=`0`, checkpoints=`4`
+   - Interpretation:
+     - EB context/traffic events were ingested without unusable-event failure lanes in these runs.
+
+3. **OFP projector consumption (EB -> feature state)**
+   - OFP projector executed `--once` with strict run pin (`OFP_REQUIRED_PLATFORM_RUN_ID=<active_run>`).
+   - Run-scoped projection DBs created:
+     - Run A: `runs/fraud-platform/platform_20260207T220818Z/online_feature_plane/projection/online_feature_plane.db`
+     - Run B: `runs/fraud-platform/platform_20260207T221155Z/online_feature_plane/projection/online_feature_plane.db`
+   - State evidence:
+     - Run A: `ofp_feature_state=10`, `ofp_checkpoints=1`
+     - Run B: `ofp_feature_state=100`, `ofp_checkpoints=1`
+   - Interpretation:
+     - OFP consumed admitted EB traffic/context-derived keys and advanced projection/checkpoint state deterministically.
+
+4. **Context Store + FlowBinding consumption (EB context -> join plane)**
+   - CSFB intake executed `--once` with strict run pin (`CSFB_REQUIRED_PLATFORM_RUN_ID=<active_run>`).
+   - Run-scoped DB artifacts:
+     - Run A: `runs/fraud-platform/platform_20260207T220818Z/context_store_flow_binding/csfb.sqlite`
+     - Run B: `runs/fraud-platform/platform_20260207T221155Z/context_store_flow_binding/csfb.sqlite`
+   - State evidence:
+     - Run A: join_frames=`50`, flow_bindings=`20`, failures=`0`, checkpoints=`3`
+     - Run B: join_frames=`240`, flow_bindings=`200`, failures=`0`, checkpoints=`3`
+   - Interpretation:
+     - Flow-anchor driven bindings materialized correctly for each run, with no anomaly/failure lane activation.
+
+5. **Decision/execution/audit surfaces (DF/DL/AL/DLA) for this validation window**
+   - In current repo posture, these were validated using the Phase-8 integration matrices (component-integrated path) after the fresh runtime runs.
+   - Executed:
+     - `python -m pytest --import-mode=importlib tests/services/degrade_ladder/test_phase8_validation_parity.py tests/services/decision_fabric/test_phase8_validation_matrix.py tests/services/action_layer/test_phase8_validation_matrix.py tests/services/decision_log_audit/test_dla_phase8_validation_matrix.py -q`
+   - Result: `12 passed`.
+   - Interpretation:
+     - RTDL downstream contracts (posture -> decision -> action -> audit) remain consistent with the newly validated runtime ingress/projection state.
+
+### Alignment check against flow narrative intent
+- **Observed as expected:**
+  - EB receives admitted traffic + context from IG.
+  - RTDL projectors consume EB directly (no Oracle side-read in hot path).
+  - Run-scoped pins enforced for IEG/OFP/CSFB intake.
+  - No hidden auto-repair; failures would surface as explicit lanes (none seen in these runs).
+- **Boundary note:**
+  - DF/DL/AL/DLA are currently verified via integration matrices rather than a single always-on runtime daemon chain in this runbook pass.
+  - This is consistent with current v0 execution posture and test-backed closure criteria.
+
+### Operational notes from run execution
+1. **Control-bus freshness handling**
+   - LocalStack streams were reset before each run to avoid stale READY consumption under trim-horizon behavior.
+2. **Run-id precedence handling**
+   - `PLATFORM_RUN_ID` was exported from `ACTIVE_RUN_ID` before SR submit to avoid env precedence drift to older run ids.
+3. **IG log-root caveat**
+   - IG service was already running; its local log path may continue under an older run folder.
+   - Authoritative evidence for this validation remained run-scoped receipts in object store + RTDL run artifacts.
+
+### Evidence pointers (primary)
+- Run A receipts prefix: `s3://fraud-platform/platform_20260207T220818Z/ig/receipts/`
+- Run B receipts prefix: `s3://fraud-platform/platform_20260207T221155Z/ig/receipts/`
+- Run A IEG recon: `runs/fraud-platform/platform_20260207T220818Z/identity_entity_graph/reconciliation/reconciliation.json`
+- Run B IEG recon: `runs/fraud-platform/platform_20260207T221155Z/identity_entity_graph/reconciliation/reconciliation.json`
+- Run A OFP DB: `runs/fraud-platform/platform_20260207T220818Z/online_feature_plane/projection/online_feature_plane.db`
+- Run B OFP DB: `runs/fraud-platform/platform_20260207T221155Z/online_feature_plane/projection/online_feature_plane.db`
+- Run A CSFB DB: `runs/fraud-platform/platform_20260207T220818Z/context_store_flow_binding/csfb.sqlite`
+- Run B CSFB DB: `runs/fraud-platform/platform_20260207T221155Z/context_store_flow_binding/csfb.sqlite`
+
+---
