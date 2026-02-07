@@ -5,6 +5,10 @@ execution_posture:
   mode: NORMAL
   allow_execution: true
   reason: ""
+retry:
+  max_attempts: 3
+  base_backoff_ms: 100
+  max_backoff_ms: 1000
 authz:
   allowed_origins:
     - DF

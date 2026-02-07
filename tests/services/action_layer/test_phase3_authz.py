@@ -12,6 +12,7 @@ from fraud_detection.action_layer.contracts import ActionIntent, ActionOutcome
 from fraud_detection.action_layer.policy import (
     AlExecutionPosture,
     AlPolicyBundle,
+    AlRetryPolicy,
     load_policy_bundle,
 )
 
@@ -65,6 +66,7 @@ def test_authorize_intent_fail_safe_when_posture_blocks_execution() -> None:
         policy_rev=bundle.policy_rev,
         execution_posture=AlExecutionPosture(mode="DRAIN", allow_execution=False, reason="operator_drain"),
         authz=bundle.authz,
+        retry_policy=AlRetryPolicy(max_attempts=3, base_backoff_ms=100, max_backoff_ms=1000),
     )
     intent = ActionIntent.from_payload(_intent_payload())
     decision = authorize_intent(intent, bundle=blocked_bundle)

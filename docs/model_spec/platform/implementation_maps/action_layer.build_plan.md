@@ -91,6 +91,17 @@ Provide an executable, component-scoped AL plan aligned to platform `Phase 4.5` 
 - Final failure emits immutable `FAILED` outcome with stable error taxonomy.
 - Uncertain commit lane is explicit (`UNKNOWN/UNCERTAIN_COMMIT`) and replay-safe.
 - Retries never produce duplicate external effects.
+**Evidence (Phase 4):**
+- Config:
+  - `config/platform/al/policy_v0.yaml` (`retry` section)
+- Code:
+  - `src/fraud_detection/action_layer/execution.py`
+  - `src/fraud_detection/action_layer/policy.py` (retry policy parsing)
+  - `src/fraud_detection/action_layer/__init__.py`
+- Tests:
+  - `tests/services/action_layer/test_phase4_execution.py`
+- Validation:
+  - `$env:PYTHONPATH='.;src'; python -m pytest tests/services/action_layer -q`
 
 ### Phase 5 — Outcome store + IG publish discipline
 **Intent:** keep outcomes immutable and publishable through canonical ingress.
@@ -132,4 +143,5 @@ Provide an executable, component-scoped AL plan aligned to platform `Phase 4.5` 
 - Phase 1 (`Intake contracts + pin/shape validation`): completed on `2026-02-07`.
 - Phase 2 (`Semantic idempotency ledger`): completed on `2026-02-07`.
 - Phase 3 (`Authorization + execution posture gates`): completed on `2026-02-07`.
-- Current focus: Phase 4 (`Executor adapters + retry/failure semantics`).
+- Phase 4 (`Executor adapters + retry/failure semantics`): completed on `2026-02-07`.
+- Current focus: Phase 5 (`Outcome store + IG publish discipline`).

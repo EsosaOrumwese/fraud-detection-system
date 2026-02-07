@@ -47,11 +47,19 @@ class AlAuthzPolicy:
 
 
 @dataclass(frozen=True)
+class AlRetryPolicy:
+    max_attempts: int
+    base_backoff_ms: int
+    max_backoff_ms: int
+
+
+@dataclass(frozen=True)
 class AlPolicyBundle:
     version: str
     policy_rev: AlPolicyRev
     execution_posture: AlExecutionPosture
     authz: AlAuthzPolicy
+    retry_policy: AlRetryPolicy
 
 
 def load_policy_bundle(path: Path) -> AlPolicyBundle:
@@ -95,6 +103,23 @@ def load_policy_bundle(path: Path) -> AlPolicyBundle:
             continue
         actor_allow[origin] = tuple(sorted(set(_to_non_empty_list(prefixes, f"authz.actor_principal_prefix_allowlist.{origin}"))))
 
+    retry_payload = payload.get("retry")
+    if retry_payload is None:
+        retry = AlRetryPolicy(max_attempts=3, base_backoff_ms=100, max_backoff_ms=1000)
+    else:
+        if not isinstance(retry_payload, Mapping):
+            raise ActionLayerPolicyError("retry must be a mapping when provided")
+        max_attempts = _to_positive_int(retry_payload.get("max_attempts"), "retry.max_attempts")
+        base_backoff_ms = _to_positive_int(retry_payload.get("base_backoff_ms"), "retry.base_backoff_ms")
+        max_backoff_ms = _to_positive_int(retry_payload.get("max_backoff_ms"), "retry.max_backoff_ms")
+        if max_backoff_ms < base_backoff_ms:
+            raise ActionLayerPolicyError("retry.max_backoff_ms must be >= retry.base_backoff_ms")
+        retry = AlRetryPolicy(
+            max_attempts=max_attempts,
+            base_backoff_ms=base_backoff_ms,
+            max_backoff_ms=max_backoff_ms,
+        )
+
     digest_payload = {
         "version": version,
         "policy_id": policy_id,
@@ -109,6 +134,11 @@ def load_policy_bundle(path: Path) -> AlPolicyBundle:
             "allowed_action_kinds": list(allowed_action_kinds),
             "actor_principal_prefix_allowlist": {k: list(v) for k, v in sorted(actor_allow.items())},
         },
+        "retry": {
+            "max_attempts": retry.max_attempts,
+            "base_backoff_ms": retry.base_backoff_ms,
+            "max_backoff_ms": retry.max_backoff_ms,
+        },
     }
     canonical = json.dumps(digest_payload, sort_keys=True, ensure_ascii=True, separators=(",", ":"))
     content_digest = hashlib.sha256(canonical.encode("utf-8")).hexdigest()
@@ -122,6 +152,7 @@ def load_policy_bundle(path: Path) -> AlPolicyBundle:
             allowed_action_kinds=allowed_action_kinds,
             actor_principal_prefix_allowlist=actor_allow,
         ),
+        retry_policy=retry,
     )
 
 
@@ -143,3 +174,12 @@ def _to_non_empty_list(value: Any, field_name: str) -> list[str]:
         normalized.append(text)
     return normalized
 
+
+def _to_positive_int(value: Any, field_name: str) -> int:
+    try:
+        parsed = int(value)
+    except (TypeError, ValueError) as exc:
+        raise ActionLayerPolicyError(f"{field_name} must be a positive integer") from exc
+    if parsed <= 0:
+        raise ActionLayerPolicyError(f"{field_name} must be a positive integer")
+    return parsed

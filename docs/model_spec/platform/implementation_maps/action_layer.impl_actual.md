@@ -263,3 +263,86 @@ Phase 3 implementation started immediately after user instruction to proceed, an
 - Policy revision stamps captured on outcomes: **complete** (`authz_policy_rev` derived from policy bundle and asserted in tests).
 
 ---
+
+## Entry: 2026-02-07 18:47:45 - Phase 4 implementation plan (executor adapters + retry/failure semantics)
+
+### Trigger
+User requested to proceed to AL Phase 4.
+
+### Authorities used
+- `docs/model_spec/platform/implementation_maps/action_layer.build_plan.md` (Phase 4 DoD)
+- `docs/model_spec/platform/pre-design_decisions/real-time_decision_loop.pre-design_decision.md` (retry posture + terminal failure semantics)
+- `docs/model_spec/platform/component-specific/flow-narrative-platform-design.md` (idempotent side-effect execution and explicit outcome truth)
+
+### Problem framing
+AL has contracts, idempotency, and authz posture checks, but no execution adapter/retry engine yet. Phase 4 requires explicit, bounded retry behavior, terminal failure taxonomy, and an explicit uncertain-commit lane that remains replay-safe.
+
+### Decisions before implementation
+1. Add a dedicated execution module (`execution.py`) rather than embedding retry logic in authz/idempotency modules.
+2. Keep retry policy deterministic and bounded:
+   - explicit `max_attempts`, `base_backoff_ms`, and `max_backoff_ms`.
+3. Keep uncertain commit explicit even with current outcome schema:
+   - use terminal class `UNCERTAIN_COMMIT` and emit immutable `FAILED` outcome with explicit reason code.
+4. Preserve side-effect idempotency expectations:
+   - executor request carries a stable idempotency token derived from semantic identity.
+5. Keep this phase scoped to execution semantics only:
+   - no IG publish flow yet (Phase 5).
+
+### Planned file/test updates
+- Add:
+  - `src/fraud_detection/action_layer/execution.py`
+  - `tests/services/action_layer/test_phase4_execution.py`
+- Update:
+  - `src/fraud_detection/action_layer/__init__.py` exports
+  - `docs/model_spec/platform/implementation_maps/action_layer.build_plan.md` (Phase 4 evidence/status)
+- implementation/logbook closure entries after validation.
+
+---
+
+## Entry: 2026-02-07 18:50:08 - Phase 4 implementation closure (executor adapters + retry/failure semantics)
+
+### What was implemented
+1. Added retry/execution engine module:
+   - `src/fraud_detection/action_layer/execution.py`
+   - includes:
+     - explicit external execution result states (`COMMITTED`, `RETRYABLE_ERROR`, `PERMANENT_ERROR`, `UNKNOWN_COMMIT`),
+     - bounded retry engine with deterministic terminal outcomes,
+     - explicit terminal lane for uncertain commit (`UNCERTAIN_COMMIT`),
+     - execution outcome payload builder producing immutable ActionOutcome payloads.
+2. Extended AL policy bundle for retry controls:
+   - `src/fraud_detection/action_layer/policy.py`
+   - added `AlRetryPolicy` parsing and validation.
+   - policy now carries `retry_policy` in `AlPolicyBundle`.
+3. Updated AL policy config:
+   - `config/platform/al/policy_v0.yaml`
+   - added `retry.max_attempts`, `retry.base_backoff_ms`, `retry.max_backoff_ms`.
+4. Updated exports:
+   - `src/fraud_detection/action_layer/__init__.py`.
+
+### Decisions made during implementation
+1. Keep uncertain commit explicit without breaking current outcome schema:
+   - represent uncertain terminal as `terminal_state=UNCERTAIN_COMMIT` in `outcome_payload`,
+   - publish contract status remains schema-compatible (`FAILED`) with explicit reason code `UNCERTAIN_COMMIT:*`.
+2. Ensure retry path is side-effect safe:
+   - executor request carries stable `idempotency_token=semantic_key` on every retry attempt.
+3. Keep retry policy configurable from policy bundle:
+   - avoids hardcoded backoff/attempt behavior and keeps phase behavior auditable by revision.
+
+### Tests added/updated
+- Added:
+  - `tests/services/action_layer/test_phase4_execution.py`
+- Updated:
+  - `tests/services/action_layer/test_phase3_policy.py` (retry policy assertion)
+  - `tests/services/action_layer/test_phase3_authz.py` (bundle constructor update for new retry field)
+
+### Validation evidence
+- `$env:PYTHONPATH='.;src'; python -m pytest tests/services/action_layer -q` -> `24 passed`
+- `$env:PYTHONPATH='.;src'; python -m pytest tests/services/action_layer tests/services/decision_log_audit -q` -> `30 passed`
+
+### DoD mapping outcome
+- Bounded retries with explicit terminal behavior: **complete**.
+- Final failure emits immutable `FAILED` outcome with stable reason taxonomy: **complete**.
+- Uncertain commit lane explicit and replay-safe: **complete** (`terminal_state=UNCERTAIN_COMMIT`, deterministic payload identity).
+- Retry requests preserve stable idempotency token to prevent duplicate external effects: **complete**.
+
+---

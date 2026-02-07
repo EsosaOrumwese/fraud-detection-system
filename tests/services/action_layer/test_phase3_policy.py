@@ -17,6 +17,7 @@ def test_load_policy_bundle_parses_required_sections() -> None:
     assert bundle.policy_rev.policy_id == "al.authz.v0"
     assert bundle.execution_posture.mode == "NORMAL"
     assert bundle.execution_posture.allow_execution is True
+    assert bundle.retry_policy.max_attempts == 3
     assert "DF" in bundle.authz.allowed_origins
     assert "txn_disposition_publish" in bundle.authz.allowed_action_kinds
 
@@ -47,4 +48,3 @@ authz:
     )
     with pytest.raises(ActionLayerPolicyError):
         load_policy_bundle(path)
-
