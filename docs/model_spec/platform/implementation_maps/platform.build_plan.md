@@ -460,7 +460,7 @@ These remain open and will be resolved during RTDL Phase 4 planning and partitio
 
 #### Phase 4.3 — OFP feature plane (graph → features)
 **Goal:** materialize reproducible feature snapshots.
-**Status:** in progress. 4.3.A projector intake, 4.3.B feature-definition/window authority, 4.3.C/4.3.D snapshot artifact+index primitives, 4.3.E serve semantics, 4.3.F replay determinism, and 4.3.G observability/health are implemented at component scope; 4.3.H is partially closed (component-ready) with DF/DL integration tests pending.
+**Status:** **component-complete, integration-pending**. 4.3.A projector intake, 4.3.B feature-definition/window authority, 4.3.C/4.3.D snapshot artifact+index primitives, 4.3.E serve semantics, 4.3.F replay determinism, and 4.3.G observability/health are implemented at component scope; 4.3.H is partially closed (component-ready) with DF/DL integration tests pending.
 
 ##### 4.3.A — Inputs + basis pinning
 **Goal:** ensure OFP only consumes deterministic, run-scoped inputs.
@@ -542,6 +542,7 @@ These remain open and will be resolved during RTDL Phase 4 planning and partitio
 
 #### Phase 4.4 — DF/DL decision core (features → decision)
 **Goal:** compute decisions with explicit degrade posture.
+**Status:** planning-active (next implementation focus after 4.3 component closure).
 
 **DoD checklist:**
 - Registry bundle resolution is deterministic.
@@ -610,4 +611,5 @@ Resolved and pinned in:
 - Phase 1: complete (rails + substrate pins + validation + profiles).
 - Phase 2: complete (Oracle Store + WSP stream‑view parity).
 - Phase 3: complete (control & ingress plane green for v0).
+- Phase 4.3 (OFP): component-complete, integration-pending (DF/DL-dependent checks remain).
 - SR v0: complete (see `docs/model_spec/platform/implementation_maps/scenario_runner.build_plan.md`).

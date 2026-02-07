@@ -2000,3 +2000,28 @@ To keep operators on a single local-parity execution guide, OFP boundary instruc
 ## Entry: 2026-02-06 23:09:00 - Platform parity runbook now carries OFP boundary operation
 
 Consolidation completed: OFP local-parity operational instructions now live in `docs/runbooks/platform_parity_walkthrough_v0.md` (Section 15), and the standalone OFP runbook under `docs/model_spec/platform/runbooks/` was removed.
+
+## Entry: 2026-02-06 23:16:00 - Plan to reclassify platform Phase 4.3 status and open Phase 4.4 planning
+
+### Problem
+Platform plan still labels 4.3 as "in progress" even though OFP is component-complete and only cross-component DF/DL integration tests remain.
+
+### Decision
+1. Reclassify 4.3 status to: **component-complete, integration-pending**.
+2. Keep pending DF/DL integration tests explicit under 4.3.H (so no loss of risk visibility).
+3. Mark 4.4 as the active planning target for next implementation focus.
+4. Update rolling status section to reflect 4.3 reclassification.
+
+### File
+- `docs/model_spec/platform/implementation_maps/platform.build_plan.md`
+
+## Entry: 2026-02-06 23:18:00 - Platform plan status reclassified: 4.3 component-complete, 4.4 planning-active
+
+### Change applied
+Updated `docs/model_spec/platform/implementation_maps/platform.build_plan.md` to reflect actual RTDL posture:
+- Phase 4.3 status changed from generic "in progress" to **component-complete, integration-pending**.
+- Phase 4.4 status marked **planning-active** as the next implementation focus.
+- Rolling status updated with explicit 4.3 posture.
+
+### Rationale
+This keeps phase semantics truthful: OFP component DoDs are closed for current boundary, while DF/DL-dependent integration checks remain explicitly pending and are now treated as 4.4 entry constraints.
