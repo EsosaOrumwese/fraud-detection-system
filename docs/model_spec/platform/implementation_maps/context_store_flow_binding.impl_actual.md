@@ -1043,3 +1043,33 @@ To remove ambiguity, the Context Store + FlowBinding runtime stack is explicitly
 Implementation clarification:
 - CSFB store backend selection is backend-aware (`sqlite` vs `postgres`) via locator/DSN detection in `src/fraud_detection/context_store_flow_binding/store.py`.
 - Therefore parity can be switched from SQLite to Postgres by wiring change (no component logic rewrite required).
+
+## Entry: 2026-02-07 22:06:58 - CSFB Phase 8 closure decision (v0 RTDL boundary)
+
+### Trigger
+Platform Phase 4 closure required explicit CSFB `Phase 8` resolution instead of leaving the build plan on "current focus" despite broad existing validation.
+
+### Decision threads
+1. Reuse and aggregate existing failure-drill evidence rather than adding synthetic duplicate tests.
+   - Reasoning: current CSFB test lattice already covers the exact hardening axes:
+     - conflict rollback (`test_phase2_store.py`),
+     - dedupe/hash mismatch anomaly handling (`test_phase3_intake.py`),
+     - replay + pin fail-closed semantics (`test_phase4_replay.py`),
+     - parity monitored 20/200 runs + checkpoint stability (`test_phase7_parity_integration.py`).
+2. Require a full RTDL regression run before changing status labels.
+   - Executed command:
+     - `$env:PYTHONPATH='.;src'; python -m pytest --import-mode=importlib tests/services/identity_entity_graph tests/services/online_feature_plane tests/services/context_store_flow_binding tests/services/degrade_ladder tests/services/decision_fabric tests/services/action_layer tests/services/decision_log_audit tests/services/ingestion_gate/test_phase10_df_output_onboarding.py -q`
+   - Result: `275 passed`.
+3. Close CSFB at join-plane boundary, while keeping downstream decision/execution/audit ownership with DF/AL/DLA.
+   - Reasoning: preserves truth-ownership doctrine and avoids over-claiming component scope.
+
+### Applied plan update
+- Updated `docs/model_spec/platform/implementation_maps/context_store_flow_binding.build_plan.md`:
+  - Marked Phase 8 status as completed.
+  - Added explicit evidence block tying phase-8 hardening claims to existing tests and the RTDL regression sweep.
+  - Updated rolling status to closure statement.
+
+### Outcome
+- CSFB component plan now reflects closure-grade status for v0 RTDL join-plane responsibilities.
+
+---

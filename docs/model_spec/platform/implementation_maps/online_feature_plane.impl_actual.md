@@ -1083,3 +1083,28 @@ Suppression was placed after canonical envelope/pin checks and before mutation/c
 ### Validation evidence
 - `python -m pytest tests/services/online_feature_plane/test_phase2_projector.py -q` (included in targeted run) -> pass.
 - `python -m pytest tests/services/online_feature_plane -q` -> `27 passed`.
+
+## Entry: 2026-02-07 22:06:15 - OFP Phase 8 integration closure decision (v0)
+
+### Trigger
+Platform Phase 4 closure pass required resolving OFP build-plan `Phase 8` from partial closure to explicit cross-component closure.
+
+### Decision and reasoning
+1. Treat OFP `8B` as closed only with cross-component evidence, not component-local assertions.
+   - Reasoning: OFP integration claims require DF and DL compatibility surfaces, not projector-only tests.
+2. Use the full RTDL regression sweep as primary closure evidence.
+   - Command executed:
+     - `$env:PYTHONPATH='.;src'; python -m pytest --import-mode=importlib tests/services/identity_entity_graph tests/services/online_feature_plane tests/services/context_store_flow_binding tests/services/degrade_ladder tests/services/decision_fabric tests/services/action_layer tests/services/decision_log_audit tests/services/ingestion_gate/test_phase10_df_output_onboarding.py -q`
+   - Result: `275 passed`.
+3. Keep closure scoped to current v0 contracts.
+   - Reasoning: any future extension of OFP/DL signal taxonomy is additional hardening, not a blocker for this closure gate.
+
+### Applied plan update
+- Updated `docs/model_spec/platform/implementation_maps/online_feature_plane.build_plan.md`:
+  - Phase 8 status moved from `partial closure` to `completed`.
+  - Added explicit 8B evidence references to DF context and DL signal paths covered by the regression sweep.
+
+### Outcome
+- OFP build plan now reflects integration-closed status at current v0 scope, aligned with platform Phase 4 closeout criteria.
+
+---

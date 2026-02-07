@@ -219,12 +219,25 @@ Provide a component-scoped build plan for the shared RTDL join plane that serves
 
 ### Phase 8 — Hardening + closure
 **Intent:** close component with replay-safe, production-shaped behavior.
+**Status:** completed (2026-02-07, current v0 scope).
 
 **DoD checklist:**
 - Migrations are explicit; no runtime schema mutation hacks for prod posture.
 - Failure drills (DB outage, offset rollback, conflict storms) are tested.
 - Security posture is documented (no secret material in artifacts/logbooks).
 - Closure statement is explicit: component green at join-plane boundary; downstream DF/AL/DLA end-to-end closure remains platform-gated.
+**Evidence (Phase 8):**
+- Migrations + transactional semantics:
+  - `src/fraud_detection/context_store_flow_binding/migrations.py`
+  - `src/fraud_detection/context_store_flow_binding/store.py`
+- Failure drill coverage across prior phases:
+  - `tests/services/context_store_flow_binding/test_phase2_store.py` (conflict rollback)
+  - `tests/services/context_store_flow_binding/test_phase3_intake.py` (payload mismatch/anomaly lane + checkpoint behavior)
+  - `tests/services/context_store_flow_binding/test_phase4_replay.py` (replay determinism + pin fail-closed)
+- Local-parity and boundary continuity:
+  - `tests/services/context_store_flow_binding/test_phase7_parity_integration.py`
+- Included in RTDL regression sweep:
+  - `python -m pytest --import-mode=importlib tests/services/identity_entity_graph tests/services/online_feature_plane tests/services/context_store_flow_binding tests/services/degrade_ladder tests/services/decision_fabric tests/services/action_layer tests/services/decision_log_audit tests/services/ingestion_gate/test_phase10_df_output_onboarding.py -q` -> `275 passed`.
 
 ## Status (rolling)
 - Phase 1 (`Contracts, keys, and ownership pins`): completed.
@@ -234,4 +247,5 @@ Provide a component-scoped build plan for the shared RTDL join plane that serves
 - Phase 5 (`Query/read surface for DF/DL`): completed.
 - Phase 6 (`Degrade and observability hooks`): completed.
 - Phase 7 (`Local-parity integration`): completed.
-- Current focus: Phase 8 (`Hardening + closure`).
+- Phase 8 (`Hardening + closure`): completed.
+- Component closure statement: CSFB is green at join-plane boundary for v0 RTDL integration.

@@ -132,7 +132,7 @@ Provide a closure-grade, component-scoped plan for OFP aligned to platform Phase
 
 ### Phase 8 - Integration closure (4.3 -> 4.4 readiness)
 **Intent:** close OFP component DoDs and prepare handoff to DF/DL integration.
-**Status:** partial closure (2026-02-06). 8A integration-ready complete at OFP scope; 8B DF/DL integration pending.
+**Status:** completed (2026-02-07). 8A integration-ready and 8B cross-component integration are closed at current v0 scope.
 
 **DoD checklist (8A - OFP integration-ready, complete):**
 - OFS parity checkpoints and evidence format are agreed and documented.
@@ -142,9 +142,13 @@ Provide a closure-grade, component-scoped plan for OFP aligned to platform Phase
   - `docs/runbooks/platform_parity_walkthrough_v0.md`
   - `python -m pytest tests/services/online_feature_plane -q` -> `25 passed`
 
-**DoD checklist (8B - cross-component integration, pending):**
+**DoD checklist (8B - cross-component integration, complete):**
 - DF compatibility checks pass for required provenance fields.
 - DL can consume OFP health/degrade signals for policy posture.
+- Evidence:
+  - `python -m pytest --import-mode=importlib tests/services/decision_fabric/test_phase5_context.py tests/services/degrade_ladder/test_phase2_signals.py tests/services/degrade_ladder/test_phase8_validation_parity.py -q`
+  - Included in RTDL regression sweep:
+    - `python -m pytest --import-mode=importlib tests/services/identity_entity_graph tests/services/online_feature_plane tests/services/context_store_flow_binding tests/services/degrade_ladder tests/services/decision_fabric tests/services/action_layer tests/services/decision_log_audit tests/services/ingestion_gate/test_phase10_df_output_onboarding.py -q` -> `275 passed`.
 
 ## Validation gate (required before phase advancement)
 - Unit tests for:

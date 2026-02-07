@@ -372,28 +372,32 @@ It must prevent "looks better" claims without statistically defensible evidence.
 4. Critical failures are fail-closed (no seal override).
 
 ### 6.3 Test catalog (core gates)
-| ID | Surface | Metric | `B` threshold | `B+` threshold | Severity |
-|---|---|---|---|---|---|
-| T1 | Truth validity | `LEGIT share > 0` | pass | pass | CRITICAL |
-| T2 | Truth prevalence | `is_fraud_truth_mean` | `0.02-0.30` (or versioned policy target) | within target plus tighter tolerance | CRITICAL |
-| T3 | Truth coherence | `% non-overlay NONE rows mapped LEGIT` | `>= 99.0%` | `>= 99.5%` | CRITICAL |
-| T4 | S3->S4 coherence | `% campaign-tagged rows mapped non-LEGIT` | `>= 99.0%` | `>= 99.5%` | HIGH |
-| T5 | Bank stratification (class) | Cramer's V(`bank_view_outcome`, `merchant_class`) | `>= 0.05` | `>= 0.08` | CRITICAL |
-| T6 | Bank stratification (amount) | Cramer's V(`bank_view_outcome`, `amount_bin`) | `>= 0.05` | `>= 0.08` | CRITICAL |
-| T7 | Bank spread | `max-min bank fraud rate across classes` | `>= 0.03` | `>= 0.05` | HIGH |
-| T8 | Case validity | negative gap rate | `= 0` | `= 0` | CRITICAL |
-| T9 | Case templating | fixed-spike share (`3600s + 86400/86401s`) | `<= 0.50` | `<= 0.25` | CRITICAL |
-| T10 | Case monotonicity | `% cases with non-monotonic event times` | `= 0` | `= 0` | CRITICAL |
-| T11 | Amount support | distinct amount values | `>= 20` | `>= 40` | HIGH |
-| T12 | Amount tail | `p99 / p50` | `>= 2.5` | `>= 3.5` | HIGH |
-| T13 | Amount concentration | share of top-8 amounts | `<= 0.85` | `<= 0.70` | HIGH |
-| T14 | Timing realism | auth latency median | `0.3s-8s` | `0.5s-5s` | HIGH |
-| T15 | Timing tail | auth latency `p99` | `> 30s` | `> 45s` | HIGH |
-| T16 | Timing degeneracy | exact-zero latency share | `<= 0.20` | `<= 0.05` | HIGH |
-| T17 | Campaign depth | median distinct affected classes per campaign | `>= 2` | `>= 3` | MED |
-| T18 | Campaign geo depth | median distinct countries per campaign | `>= 2` | `>= 3` | MED |
-| T19 | Session realism | singleton-session share | `<= 0.85` | `<= 0.75` | MED |
-| T20 | Attachment richness | median linked entities per party-session key | must exceed current baseline by defined uplift | stronger uplift | MED |
+Baseline values below are from `segment_6B_published_report.md`; where exact numeric values were not computed in the analytical pass, a nearest proxy is marked explicitly.
+
+| ID | Surface | Metric | Current value (baseline run) | `B` threshold | `B+` threshold | Severity |
+|---|---|---|---|---|---|---|
+| T1 | Truth validity | `LEGIT share > 0` | `0.0000` (no `LEGIT` rows) | pass | pass | CRITICAL |
+| T2 | Truth prevalence | `is_fraud_truth_mean` | `1.0000` | `0.02-0.30` (or versioned policy target) | within target plus tighter tolerance | CRITICAL |
+| T3 | Truth coherence | `% non-overlay NONE rows mapped LEGIT` | `0.0%` (non-fraud rows map to `ABUSE`) | `>= 99.0%` | `>= 99.5%` | CRITICAL |
+| T4 | S3->S4 coherence | `% campaign-tagged rows mapped non-LEGIT` | `100.0%` (`7,342/7,342`) | `>= 99.0%` | `>= 99.5%` | HIGH |
+| T5 | Bank stratification (class) | Cramer's V(`bank_view_outcome`, `merchant_class`) | `0.00178` | `>= 0.05` | `>= 0.08` | CRITICAL |
+| T6 | Bank stratification (amount) | association strength(`amount`, `bank_view_outcome`) | proxy: corr = `-0.000185`, d = `-0.00051` | `>= 0.05` effect-size floor | `>= 0.08` effect-size floor | CRITICAL |
+| T7 | Bank spread | `max-min bank fraud rate` (class-conditioned) | approx `<= 0.011` in sampled heatmap; flat core bins ~`0.155` | `>= 0.03` | `>= 0.05` | HIGH |
+| T8 | Case validity | negative gap rate | `~12.9%` (sample) | `= 0` | `= 0` | CRITICAL |
+| T9 | Case templating | fixed-spike share (`3600s + 86400/86401s`) | `~100%` in sampled duration mass | `<= 0.50` | `<= 0.25` | CRITICAL |
+| T10 | Case monotonicity | `% cases with non-monotonic event times` | `100%` sampled cases with at least one negative gap | `= 0` | `= 0` | CRITICAL |
+| T11 | Amount support | distinct amount values | `8` | `>= 20` | `>= 40` | HIGH |
+| T12 | Amount tail | `p99 / p50` | `99.99 / 17.97 = 5.56` | `>= 2.5` | `>= 3.5` | HIGH |
+| T13 | Amount concentration | share of top-8 amounts | `1.00` | `<= 0.85` | `<= 0.70` | HIGH |
+| T14 | Timing realism | auth latency median | `0s` | `0.3s-8s` | `0.5s-5s` | HIGH |
+| T15 | Timing tail | auth latency `p99` | `0s` | `> 30s` | `> 45s` | HIGH |
+| T16 | Timing degeneracy | exact-zero latency share | `1.00` | `<= 0.20` | `<= 0.05` | HIGH |
+| T17 | Campaign depth | median distinct affected classes per campaign | `8` classes observed per campaign but with identical rank profile (no targeting specificity) | `>= 2` + non-uniform targeting evidence | `>= 3` + strong targeting differentiation | MED |
+| T18 | Campaign geo depth | median distinct countries per campaign | not directly measured; proxy shows campaigns all ~`93-95%` cross-border with similar posture | `>= 2` + differentiated corridor profile | `>= 3` + strong differentiated corridor profile | MED |
+| T19 | Session realism | singleton-session share | `99.939%` (`multi-arrival rate = 0.061%`) | `<= 0.85` | `<= 0.75` | MED |
+| T20 | Attachment richness | median linked entities per party-session key | not directly measured; proxies: `party->merchant p50=1, p90=2` | exceed baseline by defined uplift | stronger uplift | MED |
+| T21 | Policy execution coverage | fraction of configured stochastic branches exercised (timing, delay distributions, amount tails) | `0/3` evidenced as bypassed in lean path | `>= 2/3` | `3/3` | CRITICAL |
+| T22 | Truth-rule collision guard | reduced-key truth-map collisions in S4 mapping path | `FAIL` (collision present for `fraud_pattern_type=NONE`) | `0` collisions | `0` collisions + explicit assertion test | CRITICAL |
 
 ### 6.4 Statistical test layer (not just scalar thresholds)
 1. Association tests:
@@ -414,16 +418,19 @@ It must prevent "looks better" claims without statistically defensible evidence.
      - `B`: `CV <= 0.25`
      - `B+`: `CV <= 0.15`
    - No seed is allowed to fail critical gates.
+5. Policy-execution and collision guards:
+   - `T21` requires instrumentation proving configured stochastic branches were actually executed.
+   - `T22` requires an explicit assertion test that truth-rule reduction cannot overwrite multi-condition rules.
 
 ### 6.5 Wave-based validation sequencing
 1. After Wave A:
-   - Must pass: `T1-T16` (critical + high gates).
+   - Must pass: `T1-T16` plus `T21-T22`.
    - If any CRITICAL fails, stop; no Wave B promotion.
 2. After Wave B:
-   - Re-run `T1-T16`, then evaluate `T17-T18`.
+   - Re-run `T1-T16`, `T21-T22`, then evaluate `T17-T18`.
    - Campaign realism must improve without regressing truth/bank/case validity.
 3. After Wave C:
-   - Re-run full suite `T1-T20`.
+   - Re-run full suite `T1-T22`.
    - Focus on conditional realism gains from schema/context carry-through.
 
 ### 6.6 Promotion rules (grade mapping)

@@ -362,7 +362,7 @@ These remain open and will be resolved during RTDL Phase 4 planning and partitio
 #### Phase 4.2 — IEG projector (EB → graph)
 **Goal:** build deterministic IEG projection state from EB offsets and provide a stable `graph_version` for downstream RTDL components.
 
-**Status:** **IEG‑complete, integration‑pending** (IEG‑only DoD met; RTDL integration items live in 4.2.K).
+**Status:** **complete (Phase 4 integration-closed)**. IEG projector + integration-hardening checks under `4.2.K` are validated at current v0 scope.
 
 **v0 parity operating note (non‑DoD):**
 - IEG is **not auto‑started** in local_parity; it is run explicitly.
@@ -463,7 +463,7 @@ These remain open and will be resolved during RTDL Phase 4 planning and partitio
 
 #### Phase 4.3 — OFP feature plane (graph → features)
 **Goal:** materialize reproducible feature snapshots.
-**Status:** **component-complete, integration-pending**. 4.3.A projector intake, 4.3.B feature-definition/window authority, 4.3.C/4.3.D snapshot artifact+index primitives, 4.3.E serve semantics, 4.3.F replay determinism, and 4.3.G observability/health are implemented at component scope; 4.3.H is partially closed (component-ready) with DF/DL integration tests pending.
+**Status:** **complete (Phase 4 integration-closed)**. 4.3.A through 4.3.H are validated at current v0 scope, including DF/DL compatibility paths.
 
 ##### 4.3.A — Inputs + basis pinning
 **Goal:** ensure OFP only consumes deterministic, run-scoped inputs.
@@ -545,11 +545,11 @@ These remain open and will be resolved during RTDL Phase 4 planning and partitio
 
 #### Phase 4.3.5 — Shared RTDL join plane (Context Store + FlowBinding)
 **Goal:** pin the runtime join substrate that DF/DL consume at decision time without duplicating IEG or OFP truth ownership.
-**Status:** implemented through `4.3.5.F` with parity evidence; `4.3.5.G` closure-hardening remains open in component Phase 8.
+**Status:** complete through `4.3.5.G` with parity and replay evidence.
 **Component build map:** `docs/model_spec/platform/implementation_maps/context_store_flow_binding.build_plan.md`
 **Closure snapshot (2026-02-07):**
 - Closed now: `4.3.5.A` through `4.3.5.F` (ownership, invariants, ingest/idempotency, commit/checkpoint order, query surface, observability hooks).
-- Partially closed: `4.3.5.G` (unit coverage + local-parity monitored evidence complete; final hardening drills + formal component closure statement remain in `context_store_flow_binding` Phase 8).
+- Closed now: `4.3.5.G` (unit coverage + local-parity monitored evidence and closure assertions complete at current v0 scope).
 
 ##### 4.3.5.A — Join-plane boundary + ownership
 **Goal:** lock responsibilities for runtime join state.
@@ -609,7 +609,7 @@ These remain open and will be resolved during RTDL Phase 4 planning and partitio
 
 #### Phase 4.4 — DF/DL decision core (features → decision)
 **Goal:** compute decisions with explicit degrade posture.
-**Status:** complete at DF/DL decision+intent boundary; Phase 4.5 integration-dependent execution/audit closure remains pending by design.
+**Status:** complete at DF/DL decision+intent boundary; downstream execution/audit dependencies have been closed by Phase 4.5.
 
 ##### 4.4.A — Decision trigger boundary + run scope
 **Goal:** ensure DF only decides on admissible, run-scoped traffic stimuli.
@@ -740,7 +740,7 @@ These remain open and will be resolved during RTDL Phase 4 planning and partitio
 
 #### Phase 4.5 — AL + DLA (decision → outcome → audit)
 **Goal:** apply effects safely and record audit truth.
-**Status:** expansion-active (execution phase).
+**Status:** complete at v0 platform boundary.
 **Component maps:**
 - `docs/model_spec/platform/implementation_maps/action_layer.build_plan.md`
 - `docs/model_spec/platform/implementation_maps/decision_log_audit.build_plan.md`
@@ -835,6 +835,19 @@ These remain open and will be resolved during RTDL Phase 4 planning and partitio
 - Platform parity runbook includes AL/DLA operation and evidence collection steps.
 - Phase 5 start gate is explicitly met: Label/Case can consume AL outcomes + DLA refs without compatibility gaps.
 
+**4.5 completion entry (2026-02-07):**
+- Closure basis:
+  - AL component phases 1-8 complete with idempotent execution, IG publish discipline, replay/checkpoint safety, and parity proof artifacts.
+  - DLA component phases 1-8 complete with append-only lineage assembly, deterministic query/index behavior, replay safety, and parity proof artifacts.
+  - Cross-component RTDL regression sweep passed at current v0 scope using:
+    - `python -m pytest --import-mode=importlib tests/services/identity_entity_graph tests/services/online_feature_plane tests/services/context_store_flow_binding tests/services/degrade_ladder tests/services/decision_fabric tests/services/action_layer tests/services/decision_log_audit tests/services/ingestion_gate/test_phase10_df_output_onboarding.py -q`
+    - Result: `275 passed`.
+- Representative run-scoped parity artifacts:
+  - `runs/fraud-platform/platform_20260207T200000Z/action_layer/reconciliation/phase8_parity_proof_20.json`
+  - `runs/fraud-platform/platform_20260207T200000Z/action_layer/reconciliation/phase8_parity_proof_200.json`
+  - `runs/fraud-platform/platform_20260207T220000Z/decision_log_audit/reconciliation/phase8_parity_proof_20.json`
+  - `runs/fraud-platform/platform_20260207T220000Z/decision_log_audit/reconciliation/phase8_parity_proof_200.json`
+
 ---
 
 #### Pre‑design gating questions (RTDL)
@@ -889,9 +902,11 @@ Resolved and pinned in:
 - Phase 1: complete (rails + substrate pins + validation + profiles).
 - Phase 2: complete (Oracle Store + WSP stream‑view parity).
 - Phase 3: complete (control & ingress plane green for v0).
-- Phase 4.2 (IEG): IEG-complete, integration-pending.
-- Phase 4.3 (OFP): component-complete, integration-pending (DF/DL-dependent checks remain).
-- Phase 4.3.5 (Context Store + FlowBinding join plane): implemented through A-F with parity evidence; Phase 8 hardening/closure pending at component scope.
-- Phase 4.4 (DF/DL): complete at decision+intent boundary; Phase 4.5 AL/DLA integration closure pending.
-- Next active platform phase: Phase 4.5 (AL + DLA).
+- Phase 4.2 (IEG): complete.
+- Phase 4.3 (OFP): complete.
+- Phase 4.3.5 (Context Store + FlowBinding join plane): complete.
+- Phase 4.4 (DF/DL): complete.
+- Phase 4.5 (AL + DLA): complete.
+- Phase 4 (RTDL plane overall): complete and green at current v0 scope.
+- Next active platform phase: Phase 5 (Label & Case plane).
 - SR v0: complete (see `docs/model_spec/platform/implementation_maps/scenario_runner.build_plan.md`).
