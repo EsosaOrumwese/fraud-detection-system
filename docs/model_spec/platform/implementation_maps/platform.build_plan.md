@@ -545,8 +545,11 @@ These remain open and will be resolved during RTDL Phase 4 planning and partitio
 
 #### Phase 4.3.5 — Shared RTDL join plane (Context Store + FlowBinding)
 **Goal:** pin the runtime join substrate that DF/DL consume at decision time without duplicating IEG or OFP truth ownership.
-**Status:** planning-active; required for full RTDL integration closure, without reopening 4.4 component-boundary completion.
+**Status:** implemented through `4.3.5.F` with parity evidence; `4.3.5.G` closure-hardening remains open in component Phase 8.
 **Component build map:** `docs/model_spec/platform/implementation_maps/context_store_flow_binding.build_plan.md`
+**Closure snapshot (2026-02-07):**
+- Closed now: `4.3.5.A` through `4.3.5.F` (ownership, invariants, ingest/idempotency, commit/checkpoint order, query surface, observability hooks).
+- Partially closed: `4.3.5.G` (unit coverage + local-parity monitored evidence complete; final hardening drills + formal component closure statement remain in `context_store_flow_binding` Phase 8).
 
 ##### 4.3.5.A — Join-plane boundary + ownership
 **Goal:** lock responsibilities for runtime join state.
@@ -797,7 +800,9 @@ Resolved and pinned in:
 - Phase 1: complete (rails + substrate pins + validation + profiles).
 - Phase 2: complete (Oracle Store + WSP stream‑view parity).
 - Phase 3: complete (control & ingress plane green for v0).
+- Phase 4.2 (IEG): IEG-complete, integration-pending.
 - Phase 4.3 (OFP): component-complete, integration-pending (DF/DL-dependent checks remain).
-- Phase 4.3.5 (Context Store + FlowBinding join plane): planning-active.
+- Phase 4.3.5 (Context Store + FlowBinding join plane): implemented through A-F with parity evidence; Phase 8 hardening/closure pending at component scope.
 - Phase 4.4 (DF/DL): complete at decision+intent boundary; Phase 4.5 AL/DLA integration closure pending.
+- Next active platform phase: Phase 4.5 (AL + DLA).
 - SR v0: complete (see `docs/model_spec/platform/implementation_maps/scenario_runner.build_plan.md`).

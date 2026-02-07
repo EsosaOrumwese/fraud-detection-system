@@ -2441,3 +2441,62 @@ Pin statement summary:
 This patchset is a pre-4.3.5 hardening closure only. No runtime implementation work for `context_store_flow_binding` has started in this entry.
 
 ---
+
+## Entry: 2026-02-07 17:57:01 - Plan: close out completed platform phase/DoD groups and pin next active phase
+
+### Trigger
+User requested a platform-level closeout pass so completed RTDL work is explicitly marked, unresolved items stay visible, and the plan cleanly advances to the next platform phase (`4.5`) without ambiguity.
+
+### Authorities consulted
+- `docs/model_spec/platform/implementation_maps/platform.build_plan.md`
+- `docs/model_spec/platform/implementation_maps/context_store_flow_binding.build_plan.md`
+- `docs/model_spec/platform/implementation_maps/identity_entity_graph.build_plan.md`
+- `docs/model_spec/platform/implementation_maps/online_feature_plane.build_plan.md`
+- `docs/model_spec/platform/implementation_maps/decision_fabric.build_plan.md`
+- `docs/model_spec/platform/implementation_maps/decision_log_audit.build_plan.md`
+
+### Working decision model
+1. Keep closure claims evidence-backed only.
+   - If a DoD line is not backed by component tests/runtime evidence, it remains pending.
+2. Distinguish "component complete" from "integration complete".
+   - IEG/OFP/CSFB can be closed at their component boundaries while still carrying explicit RTDL integration caveats.
+3. Preserve unresolved items as explicit residuals.
+   - No silent deletion of pending integration/hardening gates.
+4. Make the platform next step explicit.
+   - Set `4.5` as the next active platform phase while clearly naming any non-blocking residual work.
+
+### Planned file updates (before implementation)
+- Update `docs/model_spec/platform/implementation_maps/platform.build_plan.md`:
+  - refresh `4.3.5` status from planning-only to implemented-through-current-evidence,
+  - add closure snapshot lines under `4.3.5` DoD groups,
+  - refresh rolling status block to show completed vs pending groups and the next active platform phase.
+- Append post-change outcome entry here and logbook entries in `docs/logbook/02-2026/2026-02-07.md`.
+
+---
+
+## Entry: 2026-02-07 17:58:04 - Platform phase closeout applied (evidence-backed only)
+
+### What was updated
+Updated:
+- `docs/model_spec/platform/implementation_maps/platform.build_plan.md`
+
+Applied changes:
+1. `Phase 4.3.5` status updated from planning-only to implementation-backed.
+2. Added explicit closure snapshot under `4.3.5`:
+   - closed now: `4.3.5.A` through `4.3.5.F`,
+   - partial: `4.3.5.G` (validation evidence present; hardening/closure drills still pending in component Phase 8).
+3. Rolling platform status now explicitly includes:
+   - `Phase 4.2` as IEG-complete/integration-pending,
+   - `Phase 4.3.5` implemented-through-current-evidence with pending hardening,
+   - next active platform phase pinned as `Phase 4.5`.
+
+### Why this is correct
+- It closes only what has auditable component evidence (IEG/OFP/DF/DL/CSFB implementation maps and test/runtime proofs).
+- It preserves unresolved hardening/integration gates as explicit pending items (no narrative over-closure).
+- It gives the execution plan a clear immediate target (`4.5`) while keeping residual risk visible.
+
+### Residuals kept explicit
+- `context_store_flow_binding` Phase 8 hardening remains open at component scope and is not hidden.
+- OFP/IEG remain component-complete but integration-pending where cross-component closure is still required.
+
+---
