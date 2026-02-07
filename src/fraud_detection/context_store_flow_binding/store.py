@@ -529,6 +529,198 @@ class ContextStoreFlowBindingStore:
             updated_at_utc=str(row[5]),
         )
 
+    def checkpoints(self) -> list[CsfbCheckpoint]:
+        with self._connect() as conn:
+            rows = self._execute(
+                conn,
+                """
+                SELECT topic, partition_id, next_offset, offset_kind, watermark_ts_utc, updated_at_utc
+                FROM csfb_join_checkpoints
+                WHERE stream_id = ?
+                ORDER BY topic ASC, partition_id ASC
+                """,
+                (self.stream_id,),
+            ).fetchall()
+        checkpoints: list[CsfbCheckpoint] = []
+        for row in rows:
+            checkpoints.append(
+                CsfbCheckpoint(
+                    topic=str(row[0]),
+                    partition_id=int(row[1]),
+                    next_offset=str(row[2]),
+                    offset_kind=str(row[3]),
+                    watermark_ts_utc=None if row[4] in (None, "") else str(row[4]),
+                    updated_at_utc=str(row[5]),
+                )
+            )
+        return checkpoints
+
+    def checkpoint_summary(self) -> dict[str, Any]:
+        checkpoints = self.checkpoints()
+        if not checkpoints:
+            return {
+                "stream_id": self.stream_id,
+                "partitions": [],
+                "watermark_ts_utc": None,
+                "updated_at_utc": None,
+            }
+        watermark = max((item.watermark_ts_utc for item in checkpoints if item.watermark_ts_utc), default=None)
+        updated = max((item.updated_at_utc for item in checkpoints if item.updated_at_utc), default=None)
+        return {
+            "stream_id": self.stream_id,
+            "partitions": [
+                {
+                    "topic": item.topic,
+                    "partition": item.partition_id,
+                    "next_offset": item.next_offset,
+                    "offset_kind": item.offset_kind,
+                    "watermark_ts_utc": item.watermark_ts_utc,
+                    "updated_at_utc": item.updated_at_utc,
+                }
+                for item in checkpoints
+            ],
+            "watermark_ts_utc": watermark,
+            "updated_at_utc": updated,
+        }
+
+    def input_basis(self) -> dict[str, Any] | None:
+        checkpoints = self.checkpoints()
+        if not checkpoints:
+            return None
+        topics: dict[str, Any] = {}
+        watermark = None
+        for item in checkpoints:
+            topic_entry = topics.setdefault(item.topic, {"partitions": {}})
+            topic_entry["partitions"][str(item.partition_id)] = {
+                "next_offset": item.next_offset,
+                "offset_kind": item.offset_kind,
+            }
+            if item.watermark_ts_utc and (watermark is None or item.watermark_ts_utc > watermark):
+                watermark = item.watermark_ts_utc
+        basis = {"stream_id": self.stream_id, "topics": topics}
+        digest = hashlib.sha256(_canonical_json(basis).encode("utf-8")).hexdigest()
+        payload: dict[str, Any] = {
+            "stream_id": self.stream_id,
+            "topics": topics,
+            "basis_digest": digest,
+        }
+        if watermark:
+            payload["window_end_utc"] = watermark
+        return payload
+
+    def metrics_snapshot(
+        self,
+        *,
+        platform_run_id: str | None = None,
+        scenario_run_id: str | None = None,
+    ) -> dict[str, int]:
+        join_hits_sql = """
+            SELECT COUNT(*)
+            FROM csfb_flow_bindings fb
+            JOIN csfb_join_frames jf
+              ON jf.stream_id = fb.stream_id
+             AND jf.platform_run_id = fb.platform_run_id
+             AND jf.scenario_run_id = fb.scenario_run_id
+             AND jf.merchant_id = fb.merchant_id
+             AND jf.arrival_seq = fb.arrival_seq
+            WHERE fb.stream_id = ?
+        """
+        join_miss_sql = """
+            SELECT COUNT(*)
+            FROM csfb_flow_bindings fb
+            LEFT JOIN csfb_join_frames jf
+              ON jf.stream_id = fb.stream_id
+             AND jf.platform_run_id = fb.platform_run_id
+             AND jf.scenario_run_id = fb.scenario_run_id
+             AND jf.merchant_id = fb.merchant_id
+             AND jf.arrival_seq = fb.arrival_seq
+            WHERE fb.stream_id = ? AND jf.stream_id IS NULL
+        """
+        failure_sql = """
+            SELECT COUNT(*)
+            FROM csfb_join_apply_failures
+            WHERE stream_id = ?
+        """
+        conflict_sql = """
+            SELECT COUNT(*)
+            FROM csfb_join_apply_failures
+            WHERE stream_id = ? AND reason_code LIKE 'FLOW_BINDING_%'
+        """
+        fb_scope, fb_params = _scope_suffix(
+            table_alias="fb",
+            platform_run_id=platform_run_id,
+            scenario_run_id=scenario_run_id,
+        )
+        failure_scope, failure_params = _scope_suffix(
+            table_alias="",
+            platform_run_id=platform_run_id,
+            scenario_run_id=scenario_run_id,
+        )
+        with self._connect() as conn:
+            join_hits = int(
+                self._execute(conn, join_hits_sql + fb_scope, (self.stream_id, *fb_params)).fetchone()[0]
+            )
+            join_misses = int(
+                self._execute(conn, join_miss_sql + fb_scope, (self.stream_id, *fb_params)).fetchone()[0]
+            )
+            apply_failures = int(
+                self._execute(conn, failure_sql + failure_scope, (self.stream_id, *failure_params)).fetchone()[0]
+            )
+            binding_conflicts = int(
+                self._execute(conn, conflict_sql + failure_scope, (self.stream_id, *failure_params)).fetchone()[0]
+            )
+        return {
+            "join_hits": join_hits,
+            "join_misses": join_misses,
+            "binding_conflicts": binding_conflicts,
+            "apply_failures": apply_failures,
+        }
+
+    def unresolved_anomalies(
+        self,
+        *,
+        platform_run_id: str | None = None,
+        scenario_run_id: str | None = None,
+        limit: int = 200,
+    ) -> list[dict[str, Any]]:
+        scope_suffix, scope_params = _scope_suffix(
+            table_alias="",
+            platform_run_id=platform_run_id,
+            scenario_run_id=scenario_run_id,
+        )
+        query = (
+            """
+            SELECT failure_id, platform_run_id, scenario_run_id, topic, partition_id,
+                   offset, offset_kind, event_id, event_type, reason_code, details_json, recorded_at_utc
+            FROM csfb_join_apply_failures
+            WHERE stream_id = ?
+            """
+            + scope_suffix
+            + " ORDER BY recorded_at_utc DESC LIMIT ?"
+        )
+        with self._connect() as conn:
+            rows = self._execute(conn, query, (self.stream_id, *scope_params, int(max(1, limit)))).fetchall()
+        payload: list[dict[str, Any]] = []
+        for row in rows:
+            details = _load_json_object(row[10], "apply_failure.details_json") if row[10] not in (None, "") else {}
+            payload.append(
+                {
+                    "failure_id": str(row[0]),
+                    "platform_run_id": None if row[1] in (None, "") else str(row[1]),
+                    "scenario_run_id": None if row[2] in (None, "") else str(row[2]),
+                    "topic": None if row[3] in (None, "") else str(row[3]),
+                    "partition_id": None if row[4] is None else int(row[4]),
+                    "offset": None if row[5] in (None, "") else str(row[5]),
+                    "offset_kind": None if row[6] in (None, "") else str(row[6]),
+                    "event_id": None if row[7] in (None, "") else str(row[7]),
+                    "event_type": None if row[8] in (None, "") else str(row[8]),
+                    "reason_code": str(row[9]),
+                    "details": details,
+                    "recorded_at_utc": str(row[11]),
+                }
+            )
+        return payload
+
     def record_apply_failure(
         self,
         *,
@@ -946,6 +1138,26 @@ def _load_json_object(value: Any, field_name: str) -> dict[str, Any]:
     if not isinstance(payload, dict):
         raise ContextStoreFlowBindingStoreError(f"{field_name} row must decode to object")
     return payload
+
+
+def _scope_suffix(
+    *,
+    table_alias: str,
+    platform_run_id: str | None,
+    scenario_run_id: str | None,
+) -> tuple[str, tuple[Any, ...]]:
+    clauses: list[str] = []
+    params: list[Any] = []
+    prefix = f"{table_alias}." if table_alias else ""
+    if platform_run_id not in (None, ""):
+        clauses.append(f"{prefix}platform_run_id = ?")
+        params.append(str(platform_run_id))
+    if scenario_run_id not in (None, ""):
+        clauses.append(f"{prefix}scenario_run_id = ?")
+        params.append(str(scenario_run_id))
+    if not clauses:
+        return "", ()
+    return " AND " + " AND ".join(clauses), tuple(params)
 
 
 def _non_empty(value: Any, field_name: str) -> str:

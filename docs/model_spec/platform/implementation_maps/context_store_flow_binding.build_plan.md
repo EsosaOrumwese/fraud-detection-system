@@ -169,6 +169,24 @@ Provide a component-scoped build plan for the shared RTDL join plane that serves
   - watermark/lag gauges
 - Health surface emits GREEN/AMBER/RED with threshold policy refs.
 - Reconciliation artifact exists per run with applied offset basis and unresolved anomalies.
+**Evidence (Phase 6):**
+- Observability/reporter surface:
+  - `src/fraud_detection/context_store_flow_binding/observability.py`
+- Threshold policy:
+  - `config/platform/context_store_flow_binding/observability_v0.yaml`
+- Store observability read helpers:
+  - `src/fraud_detection/context_store_flow_binding/store.py`
+    - `metrics_snapshot(...)`
+    - `checkpoint_summary()`
+    - `input_basis()`
+    - `unresolved_anomalies(...)`
+- Package exports:
+  - `src/fraud_detection/context_store_flow_binding/__init__.py`
+- Tests:
+  - `tests/services/context_store_flow_binding/test_phase6_observability.py`
+- Validation commands:
+  - `$env:PYTHONPATH='.;src'; python -m pytest tests/services/context_store_flow_binding/test_phase6_observability.py -q` (`3 passed`)
+  - `$env:PYTHONPATH='.;src'; python -m pytest tests/services/context_store_flow_binding -q` (`34 passed`)
 
 ### Phase 7 — Local-parity integration
 **Intent:** prove runtime behavior with platform parity stack.
@@ -194,4 +212,5 @@ Provide a component-scoped build plan for the shared RTDL join plane that serves
 - Phase 3 (`Intake apply worker`): completed.
 - Phase 4 (`Checkpointing + replay determinism`): completed.
 - Phase 5 (`Query/read surface for DF/DL`): completed.
-- Current focus: Phase 6 (`Degrade and observability hooks`).
+- Phase 6 (`Degrade and observability hooks`): completed.
+- Current focus: Phase 7 (`Local-parity integration`).

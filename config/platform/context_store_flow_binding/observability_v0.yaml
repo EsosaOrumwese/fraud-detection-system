@@ -1,0 +1,16 @@
+context_store_flow_binding:
+  observability:
+    threshold_policy_ref: csfb.observability.v0
+    thresholds:
+      amber_watermark_age_seconds: 120
+      red_watermark_age_seconds: 300
+      amber_checkpoint_age_seconds: 120
+      red_checkpoint_age_seconds: 300
+      amber_join_misses: 1
+      red_join_misses: 10
+      amber_binding_conflicts: 1
+      red_binding_conflicts: 5
+      amber_apply_failures: 1
+      red_apply_failures: 10
+    reconciliation:
+      max_unresolved_anomalies: 200

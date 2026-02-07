@@ -28,6 +28,11 @@ from .store import (
 from .intake import ContextStoreFlowBindingInlet, CsfbInletPolicy
 from .query import ContextStoreFlowBindingQueryService
 from .replay import CsfbReplayManifest, CsfbReplayPartitionRange, CsfbReplayTopicRange
+from .observability import (
+    CsfbHealthThresholds,
+    CsfbObservabilityPolicy,
+    CsfbObservabilityReporter,
+)
 
 __all__ = [
     "ContextStoreFlowBindingConfigError",
@@ -46,6 +51,9 @@ __all__ = [
     "CsfbReplayManifest",
     "CsfbReplayPartitionRange",
     "CsfbReplayTopicRange",
+    "CsfbHealthThresholds",
+    "CsfbObservabilityPolicy",
+    "CsfbObservabilityReporter",
     "ContextStoreFlowBindingInlet",
     "ContextStoreFlowBindingQueryService",
     "FlowBindingRecord",

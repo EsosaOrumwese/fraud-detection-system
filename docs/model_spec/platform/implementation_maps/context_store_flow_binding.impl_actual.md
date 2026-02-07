@@ -733,3 +733,119 @@ Reasoning:
 - Query endpoints support both selectors: satisfied.
 - Responses include readiness/reason/evidence/pins: satisfied.
 - Missing state is explicit fail-closed (no fabricated join): satisfied.
+
+---
+
+## Entry: 2026-02-07 17:08:30 - Phase 6 pre-implementation plan (degrade + observability hooks)
+
+### Active-phase objective
+Implement operational observability surfaces so CSFB emits actionable metrics/health posture and reconciliation artifacts for local-parity and env-ladder progression.
+
+### Inputs/authorities
+- `docs/model_spec/platform/implementation_maps/context_store_flow_binding.build_plan.md` (Phase 6 DoD)
+- `docs/model_spec/platform/pre-design_decisions/real-time_decision_loop.pre-design_decision.md`
+- Existing observability posture patterns:
+  - `src/fraud_detection/online_feature_plane/observability.py`
+  - `src/fraud_detection/identity_entity_graph/query.py` (checkpoint/watermark health posture)
+
+### Decision thread 1: metrics source-of-truth
+Decision:
+- Derive metrics directly from CSFB durable tables on demand (no extra mutable counter table in Phase 6):
+  - `join_hits`: flow bindings with matching join frame
+  - `join_misses`: flow bindings lacking join frame
+  - `binding_conflicts`: apply-failures with `FLOW_BINDING_*` reason family
+  - `apply_failures`: count of apply-failure ledger rows
+  - checkpoint/watermark lag gauges from checkpoint table timestamps
+
+Reasoning:
+- Avoids introducing new write paths while keeping metrics deterministic and replay-safe.
+
+### Decision thread 2: health thresholds policy
+Decision:
+- Introduce versioned threshold policy file under config:
+  - `config/platform/context_store_flow_binding/observability_v0.yaml`
+- Reporter reads policy and emits `GREEN|AMBER|RED` with explicit reason codes and threshold policy ref.
+
+Reasoning:
+- Keeps health posture configurable and auditable for env ladder.
+
+### Decision thread 3: reconciliation artifact shape
+Decision:
+- Export reconciliation artifact containing:
+  - applied offset basis (`stream_id + topics/partitions/next_offset + basis_digest`)
+  - unresolved anomalies (`csfb_join_apply_failures`, bounded list)
+  - health + metrics snapshot and generation timestamp
+
+Reasoning:
+- Satisfies Phase 6 DoD and supports Phase 7 parity evidence.
+
+### Planned file paths (Phase 6)
+- New:
+  - `src/fraud_detection/context_store_flow_binding/observability.py`
+  - `config/platform/context_store_flow_binding/observability_v0.yaml`
+  - `tests/services/context_store_flow_binding/test_phase6_observability.py`
+- Update:
+  - `src/fraud_detection/context_store_flow_binding/store.py`
+  - `src/fraud_detection/context_store_flow_binding/__init__.py`
+  - `docs/model_spec/platform/implementation_maps/context_store_flow_binding.build_plan.md`
+
+### Validation plan
+- Metrics snapshot test (required counters + lag gauges).
+- Health state derivation test (GREEN/AMBER/RED transitions by thresholds).
+- Reconciliation export test (artifact path + basis + unresolved anomalies).
+
+---
+
+## Entry: 2026-02-07 17:11:00 - Phase 6 implementation completed (degrade + observability hooks)
+
+### What was implemented
+- Added CSFB observability reporter and health policy loader:
+  - `src/fraud_detection/context_store_flow_binding/observability.py`
+  - `CsfbObservabilityReporter`
+  - `CsfbObservabilityPolicy`
+  - `CsfbHealthThresholds`
+- Added versioned observability policy:
+  - `config/platform/context_store_flow_binding/observability_v0.yaml`
+- Extended durable store with observability read surfaces:
+  - `src/fraud_detection/context_store_flow_binding/store.py`
+  - `checkpoints()`
+  - `checkpoint_summary()`
+  - `input_basis()`
+  - `metrics_snapshot(...)`
+  - `unresolved_anomalies(...)`
+- Exported observability surfaces from package init:
+  - `src/fraud_detection/context_store_flow_binding/__init__.py`
+
+### Decisions made during implementation (with reasoning)
+1. **Metrics derived from durable truth tables instead of mutable counters**
+   - Decision: compute `join_hits`, `join_misses`, `binding_conflicts`, and `apply_failures` directly from `csfb_flow_bindings`, `csfb_join_frames`, and `csfb_join_apply_failures`.
+   - Reasoning: replay-safe, deterministic, and no extra write hot path required in this phase.
+
+2. **Health policy is explicit and versioned**
+   - Decision: thresholds are loaded from `observability_v0.yaml` and emitted with `threshold_policy_ref`.
+   - Reasoning: allows env-ladder tuning with auditable policy linkage.
+
+3. **Reconciliation artifact includes basis + unresolved anomalies**
+   - Decision: export includes `applied_offset_basis` (with `basis_digest`) and bounded unresolved anomalies list.
+   - Reasoning: directly satisfies Phase 6 reconciliation DoD and sets up Phase 7 run evidence.
+
+4. **Timestamp normalization corrected for sqlite checkpoint rows**
+   - Decision: observability timestamp parser coerces timezone-naive timestamps to UTC.
+   - Reasoning: sqlite `CURRENT_TIMESTAMP` strings are naive; without coercion lag gauge calculation is invalid.
+
+### Tests added for Phase 6
+- `tests/services/context_store_flow_binding/test_phase6_observability.py`
+  - `test_phase6_collect_metrics_and_health`
+  - `test_phase6_health_turns_red_when_checkpoint_and_watermark_stale`
+  - `test_phase6_export_writes_reconciliation_artifact`
+
+### Validation executed
+- `$env:PYTHONPATH='.;src'; python -m pytest tests/services/context_store_flow_binding/test_phase6_observability.py -q`
+  - Result: `3 passed`
+- `$env:PYTHONPATH='.;src'; python -m pytest tests/services/context_store_flow_binding -q`
+  - Result: `34 passed`
+
+### Phase 6 DoD mapping
+- Metrics exported (`join_hits`, `join_misses`, `binding_conflicts`, `apply_failures`, watermark/lag gauges): satisfied.
+- Health surface emits `GREEN|AMBER|RED` with threshold policy ref: satisfied.
+- Reconciliation artifact includes applied offset basis + unresolved anomalies: satisfied.
