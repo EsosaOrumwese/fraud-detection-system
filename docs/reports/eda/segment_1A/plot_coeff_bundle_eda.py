@@ -4,7 +4,7 @@ This script focuses on model-bundle realism diagnostics for:
 - hurdle_coefficients.yaml
 - nb_dispersion_coefficients.yaml
 
-It writes plots into docs/reports/reports/eda/segment_1A/plots.
+It writes plots into docs/reports/eda/segment_1A/plots.
 """
 
 from __future__ import annotations
@@ -21,7 +21,7 @@ import yaml
 
 
 ROOT = Path(__file__).resolve().parents[5]
-PLOTS_DIR = ROOT / "docs/reports/reports/eda/segment_1A/plots"
+PLOTS_DIR = ROOT / "docs/reports/eda/segment_1A/plots"
 PLOTS_DIR.mkdir(parents=True, exist_ok=True)
 
 RUN_BASE = ROOT / "runs/local_full_run-5/c25a2675fbfbacd952b13bb594880e92/data/layer1/1A"

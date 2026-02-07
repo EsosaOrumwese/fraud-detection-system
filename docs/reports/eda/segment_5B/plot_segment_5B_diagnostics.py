@@ -16,7 +16,7 @@ import seaborn as sns
 RUN_BASE = Path(r"runs/local_full_run-5/c25a2675fbfbacd952b13bb594880e92/data")
 BASE_5B = RUN_BASE / "layer2/5B"
 BASE_5A = RUN_BASE / "layer2/5A"
-OUT_DIR = Path(r"docs/reports/reports/eda/segment_5B/plots")
+OUT_DIR = Path(r"docs/reports/eda/segment_5B/plots")
 
 SAMPLE_KEY_MOD = 1000  # ~0.1% key sample for duplication/conservation plots
 SAMPLE_DST_MOD = 200   # ~0.5% arrival sample for DST diagnostics

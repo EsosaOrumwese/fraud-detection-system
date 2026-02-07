@@ -14,7 +14,7 @@ import seaborn as sns
 
 
 RUN_BASE = Path(r"runs/local_full_run-5/c25a2675fbfbacd952b13bb594880e92/data")
-OUT_DIR = Path(r"docs/reports/reports/eda/segment_6B/plots")
+OUT_DIR = Path(r"docs/reports/eda/segment_6B/plots")
 
 TITLE_KW = {"fontsize": 20, "fontweight": "semibold"}
 LABEL_FS = 14

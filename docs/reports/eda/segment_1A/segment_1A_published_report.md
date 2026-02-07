@@ -273,7 +273,7 @@ The current bundle is therefore:
 - **Under-dispersed in dispersion structure** (realism weakness at the coefficient level).
 
 #### 4.8E Coefficient realism plots (weak actual vs stronger expected shape)
-The coefficient-focused plot bundle is in `docs/reports/reports/eda/segment_1A/plots`:
+The coefficient-focused plot bundle is in `docs/reports/eda/segment_1A/plots`:
 - `20_coeff_block_diagnostics.png`
 - `21_eta_contribution_scale_compare.png`
 - `22_phi_actual_vs_reference.png`

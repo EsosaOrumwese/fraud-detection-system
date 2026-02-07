@@ -33,9 +33,9 @@ If any precondition fails, Step 6 is blocked and execution returns to Wave-0 sta
 
 ## 2) Inputs and Authorities
 Primary planning anchors:
-- `docs/reports/reports/eda/engine_realism_step3_hypothesis_acceptance_plan.md`
-- `docs/reports/reports/eda/engine_realism_step4_execution_backlog.md`
-- `docs/reports/reports/eda/engine_realism_step5_wave0_execution_runbook.md`
+- `docs/reports/eda/engine_realism_step3_hypothesis_acceptance_plan.md`
+- `docs/reports/eda/engine_realism_step4_execution_backlog.md`
+- `docs/reports/eda/engine_realism_step5_wave0_execution_runbook.md`
 
 Execution/control anchors:
 - `Makefile` segment targets through `segment6b`.
@@ -181,7 +181,7 @@ Guard evaluation is mandatory for each bundle and consolidated run.
 
 ## 9) Evidence Artifacts (Mandatory)
 Store in:
-- `docs/reports/reports/eda/engine_realism_wave_evidence/wave_1/`
+- `docs/reports/eda/engine_realism_wave_evidence/wave_1/`
 
 Required files:
 1. `wave_1_change_set.md`

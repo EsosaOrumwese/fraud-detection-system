@@ -507,7 +507,7 @@ This pass aligns each visual to a concrete statistical claim, removes ambiguous 
 ---
 
 ## 14) Visual diagnostics (plots + narrative interpretation)
-All plots are saved under `docs/reports/reports/eda/segment_3A/plots/` and embedded below. Each interpretation is based on the actual image, not an assumption.
+All plots are saved under `docs/reports/eda/segment_3A/plots/` and embedded below. Each interpretation is based on the actual image, not an assumption.
 
 ### 14.1 S1 escalation rate by zone_count_country
 <img src="plots/s1_escalation_rate_by_zone_count.png" width="520" alt="S1 escalation rate by zone count">
@@ -570,7 +570,7 @@ Every plot tells the same story: escalation is high, but priors are so dominated
 ---
 
 ## 15) Diagnostic deep-dives (plots_diag)
-These are the deeper diagnostic plots used to stress-test the interpretation above. All plots are saved under `docs/reports/reports/eda/segment_3A/plots_diag/`.
+These are the deeper diagnostic plots used to stress-test the interpretation above. All plots are saved under `docs/reports/eda/segment_3A/plots_diag/`.
 
 ### 15.1 S2 lowest top-1 shares (least-dominant countries)
 <img src="plots_diag/d1_s2_top1_share_bottom30.png" width="560" alt="S2 lowest top-1 shares">

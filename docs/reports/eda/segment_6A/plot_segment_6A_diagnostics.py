@@ -18,7 +18,7 @@ import yaml
 RUN_BASE = Path(r"runs/local_full_run-5/c25a2675fbfbacd952b13bb594880e92/data")
 BASE_6A = RUN_BASE / "layer3/6A"
 PRIORS_DIR = Path(r"config/layer3/6A/priors")
-OUT_DIR = Path(r"docs/reports/reports/eda/segment_6A/plots")
+OUT_DIR = Path(r"docs/reports/eda/segment_6A/plots")
 
 
 def _scan(ds: str) -> str:

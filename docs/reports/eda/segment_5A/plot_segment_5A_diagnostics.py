@@ -18,7 +18,7 @@ import seaborn as sns
 RUN_BASE = Path(r"runs/local_full_run-5/c25a2675fbfbacd952b13bb594880e92/data")
 BASE_5A = RUN_BASE / "layer2/5A"
 BASE_3A = RUN_BASE / "layer1/3A"
-OUT_DIR = Path(r"docs/reports/reports/eda/segment_5A/plots")
+OUT_DIR = Path(r"docs/reports/eda/segment_5A/plots")
 
 SCENARIO_START_UTC = datetime(2026, 1, 1, 0, 0, tzinfo=timezone.utc)
 SCENARIO_END_UTC = datetime(2026, 4, 1, 0, 0, tzinfo=timezone.utc)

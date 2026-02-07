@@ -6,16 +6,16 @@ Scope: published EDA segment reports (`1A, 1B, 2A, 2B, 3A, 3B, 5A, 5B, 6A, 6B`)
 ## 1) Frozen Segment Grades
 | Segment | Frozen grade | Evidence source |
 |---|---|---|
-| 1A | B (segment), B- (outlet_catalogue), B- (coeff realism sub-verdict) | `docs/reports/reports/eda/segment_1A/segment_1A_published_report.md` |
-| 1B | C+ | `docs/reports/reports/eda/segment_1B/segment_1B_published_report.md` |
-| 2A | C | `docs/reports/reports/eda/segment_2A/segment_2A_published_report.md` |
-| 2B | C | `docs/reports/reports/eda/segment_2B/segment_2B_published_report.md` |
-| 3A | C | `docs/reports/reports/eda/segment_3A/segment_3A_published_report.md` |
-| 3B | D (borderline D+) | `docs/reports/reports/eda/segment_3B/segment_3B_published_report.md` |
-| 5A | B+ | `docs/reports/reports/eda/segment_5A/segment_5A_published_report.md` |
-| 5B | B+ | `docs/reports/reports/eda/segment_5B/segment_5B_published_report.md` |
-| 6A | B- | `docs/reports/reports/eda/segment_6A/segment_6A_published_report.md` |
-| 6B | D+ | `docs/reports/reports/eda/segment_6B/segment_6B_published_report.md` |
+| 1A | B (segment), B- (outlet_catalogue), B- (coeff realism sub-verdict) | `docs/reports/eda/segment_1A/segment_1A_published_report.md` |
+| 1B | C+ | `docs/reports/eda/segment_1B/segment_1B_published_report.md` |
+| 2A | C | `docs/reports/eda/segment_2A/segment_2A_published_report.md` |
+| 2B | C | `docs/reports/eda/segment_2B/segment_2B_published_report.md` |
+| 3A | C | `docs/reports/eda/segment_3A/segment_3A_published_report.md` |
+| 3B | D (borderline D+) | `docs/reports/eda/segment_3B/segment_3B_published_report.md` |
+| 5A | B+ | `docs/reports/eda/segment_5A/segment_5A_published_report.md` |
+| 5B | B+ | `docs/reports/eda/segment_5B/segment_5B_published_report.md` |
+| 6A | B- | `docs/reports/eda/segment_6A/segment_6A_published_report.md` |
+| 6B | D+ | `docs/reports/eda/segment_6B/segment_6B_published_report.md` |
 
 ### 1.1) Strict Recalibration (Engine-Impact Weighted)
 This recalibration is intentionally stricter than the per-segment report grades. It keeps the original grades frozen for traceability, but adds an engine-level realism lens that weights each segment by:

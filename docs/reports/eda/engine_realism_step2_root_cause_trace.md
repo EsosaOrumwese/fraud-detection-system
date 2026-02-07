@@ -8,7 +8,7 @@ Status: **Diagnosis only** (no fixes proposed or implemented here).
 
 ## 0) Inputs and Evidence Sources
 Primary evidence:
-- `docs/reports/reports/eda/engine_realism_baseline_gap_ledger.md`
+- `docs/reports/eda/engine_realism_baseline_gap_ledger.md`
 - Segment reports: `segment_1A_published_report.md`, `segment_1B_published_report.md`, `segment_2A_published_report.md`, `segment_2B_published_report.md`, `segment_3A_published_report.md`, `segment_3B_published_report.md`, `segment_5B_published_report.md`, `segment_6A_published_report.md`, `segment_6B_published_report.md`
 
 Policy + implementation anchors (non-exhaustive):

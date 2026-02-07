@@ -447,7 +447,7 @@ This pass was done to make each visual directly test a report claim, remove weak
 ---
 
 ## 15) Visual diagnostics (Set A + B: virtual classification & settlement anchors)
-Plots live in `docs/reports/reports/eda/segment_3B/plots/`. Each interpretation below is based on the actual image.
+Plots live in `docs/reports/eda/segment_3B/plots/`. Each interpretation below is based on the actual image.
 
 ### 15.1 Virtual rate by MCC (Top 20)
 <img src="plots/A1_virtual_rate_by_mcc.png" width="560" alt="Virtual rate by MCC">

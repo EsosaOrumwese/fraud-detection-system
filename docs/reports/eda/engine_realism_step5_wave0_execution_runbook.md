@@ -29,10 +29,10 @@ These are platform-blocking realism defects in the final truth surface. If Wave 
 
 ## 2) Inputs and Authorities
 Primary inputs:
-- `docs/reports/reports/eda/engine_realism_baseline_gap_ledger.md`
-- `docs/reports/reports/eda/engine_realism_step2_root_cause_trace.md`
-- `docs/reports/reports/eda/engine_realism_step3_hypothesis_acceptance_plan.md`
-- `docs/reports/reports/eda/engine_realism_step4_execution_backlog.md`
+- `docs/reports/eda/engine_realism_baseline_gap_ledger.md`
+- `docs/reports/eda/engine_realism_step2_root_cause_trace.md`
+- `docs/reports/eda/engine_realism_step3_hypothesis_acceptance_plan.md`
+- `docs/reports/eda/engine_realism_step4_execution_backlog.md`
 
 Execution/control surfaces:
 - `Makefile` targets `segment6b-s0..segment6b-s5`
@@ -153,7 +153,7 @@ Pass criteria:
 
 ## 8) Evidence Artifacts (Mandatory)
 Store in:
-- `docs/reports/reports/eda/engine_realism_wave_evidence/wave_0/`
+- `docs/reports/eda/engine_realism_wave_evidence/wave_0/`
 
 Required files:
 1. `wave_0_change_set.md`
