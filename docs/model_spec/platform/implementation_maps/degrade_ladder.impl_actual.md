@@ -462,3 +462,111 @@ Phase 4 is now implemented and validated at component scope.
   - corruption/read failure path enforces fail-safe output.
 
 ---
+
+## Entry: 2026-02-07 03:29:49 — Phase 5 implementation plan (health gate + self-trust clamp)
+
+### Problem / goal
+Proceed to DL Phase 5 and make DL explicitly self-protecting:
+1. classify operational trust into explicit health states,
+2. force fail-closed for BLIND/BROKEN regardless of normal posture,
+3. require evidence-based recovery (no elapsed-time-only clear),
+4. control rebuild/re-evaluation triggers to avoid storms.
+
+### Authorities / inputs
+- `docs/model_spec/platform/implementation_maps/degrade_ladder.build_plan.md` (Phase 5 DoD)
+- `docs/model_spec/platform/pre-design_decisions/real-time_decision_loop.pre-design_decision.md` (health gates / fail-closed posture)
+- `docs/model_spec/platform/component-specific/degrade_ladder.design-authority.md` (S8 health gate semantics)
+- existing DL modules (`signals.py`, `serve.py`, `store.py`, `evaluator.py`)
+
+### Decision trail (live)
+1. Add dedicated health gate module (`health.py`) with:
+   - pinned health states: `HEALTHY`, `IMPAIRED`, `BLIND`, `BROKEN`,
+   - explicit gate object carrying `forced_mode`, reasons, and rebuild trigger metadata.
+2. Implement controller semantics with per-scope memory:
+   - immediate escalation on unsafe evidence,
+   - recovery requires consecutive healthy evaluations (`healthy_clear_observations`) and hold-down clearance,
+   - no auto-clear by elapsed time alone.
+3. Rebuild trigger policy:
+   - trigger only on selected reason codes (`POSTURE_MISSING`, `POSTURE_STORE_ERROR`, `POSTURE_STORE_CORRUPT`),
+   - cooldown-backed (`rebuild_cooldown_seconds`) to prevent storming.
+4. Integrate health gate with serving boundary:
+   - add guarded service wrapper that applies health gate before normal posture serving,
+   - BLIND/BROKEN always return fail-closed posture with gate provenance.
+5. Keep scope to component-level behavior:
+   - no external control-bus emission yet (Phase 6),
+   - no DF integration yet.
+
+### Planned edits
+- `src/fraud_detection/degrade_ladder/health.py` (new)
+- `src/fraud_detection/degrade_ladder/serve.py` (guarded serving integration)
+- `src/fraud_detection/degrade_ladder/__init__.py` (exports)
+- `tests/services/degrade_ladder/test_phase5_health_gate.py` (new)
+- `docs/model_spec/platform/implementation_maps/degrade_ladder.build_plan.md` (mark Phase 5 status + evidence if green)
+
+### Invariants to enforce
+- State vocabulary is fixed (`HEALTHY/IMPAIRED/BLIND/BROKEN`).
+- BLIND/BROKEN always force fail-closed.
+- Recovery requires positive evidence; time passage without healthy observations is insufficient.
+- Rebuild triggers are deterministic and cooldown-limited per scope.
+
+### Validation plan
+- `python -m pytest tests/services/degrade_ladder -q`
+- direct assertions on:
+  - health classification transitions,
+  - forced fail-closed behavior under BLIND/BROKEN,
+  - evidence-based recovery gating,
+  - rebuild trigger cooldown behavior.
+
+---
+
+## Entry: 2026-02-07 06:54:21 — DL Phase 5 implemented (health gate + self-trust clamp)
+
+### Implementation summary
+Phase 5 is now implemented and validated at component scope.
+
+### What was implemented
+1. Added health gate module:
+   - `src/fraud_detection/degrade_ladder/health.py`
+   - pinned health states: `HEALTHY`, `IMPAIRED`, `BLIND`, `BROKEN`.
+   - `DlHealthGateController` maintains per-scope memory and evaluates trust state from policy/signal/store/serve/control evidence.
+2. Added forced fail-closed semantics:
+   - gate returns `forced_mode=FAIL_CLOSED` for `BLIND/BROKEN`.
+   - guarded serving path enforces gate clamps before normal posture serving.
+3. Added evidence-based recovery rules:
+   - recovery from BLIND/BROKEN requires configured healthy observation streak (`healthy_clear_observations`) and hold-down clearance.
+   - no elapsed-time-only clearance path exists.
+4. Added controlled rebuild trigger behavior:
+   - rebuild signals emitted only for pinned reasons (`POSTURE_MISSING`, `POSTURE_STORE_ERROR`, `POSTURE_STORE_CORRUPT`).
+   - per-scope cooldown (`rebuild_cooldown_seconds`) prevents rebuild storms.
+5. Integrated health gate with serve boundary:
+   - `src/fraud_detection/degrade_ladder/serve.py` now includes `DlGuardedPostureService`.
+   - guarded service evaluates gate first; BLIND/BROKEN returns explicit fail-closed serve result with health-gate provenance.
+   - guarded service escalates store-missing/store-error serve outcomes back into health gate state.
+6. Exported Phase 5 APIs:
+   - updated `src/fraud_detection/degrade_ladder/__init__.py` for health + guarded serve symbols.
+7. Added Phase 5 tests:
+   - `tests/services/degrade_ladder/test_phase5_health_gate.py`
+   - covers state classification, forced clamp behavior, recovery gating, rebuild cooldown control, and guarded-store escalation behavior.
+
+### Invariants enforced
+- Health state vocabulary is explicit and fixed.
+- BLIND/BROKEN always force fail-closed regardless of evaluator/store posture content.
+- Recovery requires positive evidence; hold-down + streak gating prevents silent flip-flop.
+- Rebuild triggers are deterministic and cooldown-limited.
+
+### Security and production posture notes
+- No secret-bearing artifacts introduced.
+- Trust failures now route through explicit, auditable health gate reasons before serving.
+- Guarded serve prevents accidental permissive posture under partial DL self-observability failure.
+
+### Validation evidence
+- `python -m pytest tests/services/degrade_ladder -q` -> `29 passed`.
+
+### Phase closure assessment
+- Phase 5 DoD is satisfied at component scope:
+  - explicit health classifier states implemented,
+  - BLIND/BROKEN forced fail-closed clamp implemented,
+  - evidence-based recovery semantics enforced,
+  - rebuild/re-evaluation trigger storm controls implemented.
+
+---

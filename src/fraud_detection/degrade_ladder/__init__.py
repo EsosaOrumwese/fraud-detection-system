@@ -18,6 +18,14 @@ from .evaluator import (
     evaluate_posture_safe,
     resolve_scope,
 )
+from .health import (
+    HEALTH_STATES,
+    REBUILD_REASON_CODES,
+    DlHealthError,
+    DlHealthGate,
+    DlHealthGateController,
+    DlHealthPolicy,
+)
 from .signals import (
     SIGNAL_INPUT_STATUSES,
     SIGNAL_STATES,
@@ -29,7 +37,7 @@ from .signals import (
     build_signal_snapshot_from_payloads,
     normalize_signal_samples,
 )
-from .serve import DlCurrentPostureService, DlServeError, DlServeResult
+from .serve import DlCurrentPostureService, DlGuardedPostureService, DlServeError, DlServeResult
 from .store import (
     DlCommitResult,
     DlCurrentPosture,
@@ -53,6 +61,11 @@ __all__ = [
     "DlCurrentPosture",
     "DlCurrentPostureService",
     "DlEvaluationError",
+    "DlGuardedPostureService",
+    "DlHealthError",
+    "DlHealthGate",
+    "DlHealthGateController",
+    "DlHealthPolicy",
     "DlPolicyBundle",
     "DlPolicyProfile",
     "DlPostureStore",
@@ -66,6 +79,8 @@ __all__ = [
     "DlSignalSample",
     "DlSignalSnapshot",
     "DlSignalState",
+    "HEALTH_STATES",
+    "REBUILD_REASON_CODES",
     "SIGNAL_INPUT_STATUSES",
     "SIGNAL_STATES",
     "build_signal_snapshot",

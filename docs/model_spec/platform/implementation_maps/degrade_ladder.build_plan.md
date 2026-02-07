@@ -77,12 +77,18 @@ Provide an executable, phase-by-phase DL build plan aligned to platform Phase 4.
 
 ### Phase 5 — Health gate + self-trust clamp
 **Intent:** make DL explicitly self-protecting under degraded internals.
+**Status:** completed (2026-02-07, component scope).
 
 **DoD checklist:**
 - Health classifier produces explicit state (`HEALTHY/IMPAIRED/BLIND/BROKEN` or equivalent pinned set).
 - BLIND/BROKEN classes force fail-closed clamp regardless of normal evaluator outcome.
 - Recovery/clear semantics are evidence-based (no silent auto-clear by elapsed time only).
 - Rebuild or re-evaluation triggers are controlled and non-storming.
+- Evidence:
+  - `python -m pytest tests/services/degrade_ladder -q` -> `29 passed`
+  - `src/fraud_detection/degrade_ladder/health.py`
+  - `src/fraud_detection/degrade_ladder/serve.py`
+  - `tests/services/degrade_ladder/test_phase5_health_gate.py`
 
 ### Phase 6 — Posture-change emission (observability lane)
 **Intent:** expose posture transitions without introducing correctness coupling.
@@ -114,4 +120,4 @@ Provide an executable, phase-by-phase DL build plan aligned to platform Phase 4.
   DL component green for posture authority/serving; DF decision coupling and AL/DLA downstream closure remain tracked under platform Phase 4.4/4.5 gates.
 
 ## Status (rolling)
-- Current focus: Phase 5 planning/implementation (health gate + self-trust clamp).
+- Current focus: Phase 6 planning/implementation (posture-change emission lane).

@@ -8,6 +8,7 @@ from typing import Any
 
 from .config import DlPolicyProfile
 from .contracts import CapabilitiesMask, DegradeDecision, PolicyRev
+from .health import DlHealthGate, DlHealthGateController
 from .store import DlCurrentPosture, DlPostureStore, DlPostureStoreError
 
 
@@ -129,6 +130,28 @@ class DlCurrentPostureService:
             staleness_reason=None,
         )
 
+    def build_fail_closed_result(
+        self,
+        *,
+        scope_key: str,
+        decision_time_utc: str,
+        trust_state: str,
+        source: str,
+        staleness_reason: str,
+        age_seconds: int | None = None,
+        record: DlCurrentPosture | None = None,
+    ) -> DlServeResult:
+        return self._fail_closed_result(
+            scope_key=scope_key,
+            decision_time_utc=decision_time_utc,
+            served_at_utc=_utc_now(),
+            trust_state=trust_state,
+            source=source,
+            staleness_reason=staleness_reason,
+            age_seconds=age_seconds,
+            record=record,
+        )
+
     def _fail_closed_result(
         self,
         *,
@@ -199,6 +222,86 @@ class DlCurrentPostureService:
             refs.append({"kind": "dl_scope_key", "ref": record.scope_key})
             refs.append({"kind": "dl_record_updated_at", "ref": record.updated_at_utc})
         return tuple(refs)
+
+
+@dataclass
+class DlGuardedPostureService:
+    """Serve posture with health-gate self-trust clamp semantics."""
+
+    base_service: DlCurrentPostureService
+    health_gate: DlHealthGateController
+
+    def get_guarded_posture(
+        self,
+        *,
+        scope_key: str,
+        decision_time_utc: str,
+        max_age_seconds: int,
+        policy_ok: bool,
+        required_signals_ok: bool,
+        store_ok: bool = True,
+        serve_ok: bool = True,
+        control_publish_ok: bool = True,
+        reason_codes: tuple[str, ...] = (),
+    ) -> tuple[DlServeResult, DlHealthGate]:
+        normalized_scope = _normalize_scope(scope_key)
+        gate = self.health_gate.evaluate(
+            scope_key=normalized_scope,
+            decision_time_utc=decision_time_utc,
+            policy_ok=policy_ok,
+            required_signals_ok=required_signals_ok,
+            store_ok=store_ok,
+            serve_ok=serve_ok,
+            control_publish_ok=control_publish_ok,
+            reason_codes=reason_codes,
+        )
+        if gate.is_forced:
+            return (
+                self.base_service.build_fail_closed_result(
+                    scope_key=normalized_scope,
+                    decision_time_utc=decision_time_utc,
+                    trust_state="UNTRUSTED" if gate.state == "BROKEN" else "TRUSTED",
+                    source="FAILSAFE_HEALTH_GATE",
+                    staleness_reason=_gate_reason(gate),
+                ),
+                gate,
+            )
+
+        result = self.base_service.get_current_posture(
+            scope_key=normalized_scope,
+            decision_time_utc=decision_time_utc,
+            max_age_seconds=max_age_seconds,
+        )
+
+        if result.source in {"FAILSAFE_STORE_ERROR", "FAILSAFE_MISSING"}:
+            followup_reasons = tuple(list(reason_codes) + [result.staleness_reason or result.source])
+            gate = self.health_gate.evaluate(
+                scope_key=normalized_scope,
+                decision_time_utc=decision_time_utc,
+                policy_ok=policy_ok,
+                required_signals_ok=required_signals_ok,
+                store_ok=False,
+                serve_ok=False,
+                control_publish_ok=control_publish_ok,
+                reason_codes=followup_reasons,
+            )
+            if gate.is_forced:
+                return (
+                    self.base_service.build_fail_closed_result(
+                        scope_key=normalized_scope,
+                        decision_time_utc=decision_time_utc,
+                        trust_state="UNTRUSTED" if gate.state == "BROKEN" else "TRUSTED",
+                        source="FAILSAFE_HEALTH_GATE",
+                        staleness_reason=_gate_reason(gate),
+                    ),
+                    gate,
+                )
+        return result, gate
+
+
+def _gate_reason(gate: DlHealthGate) -> str:
+    reason_blob = ",".join(gate.reason_codes) if gate.reason_codes else "NO_REASON"
+    return f"HEALTH_GATE_{gate.state}:{reason_blob}"
 
 
 def _parse_utc(value: str, *, field_name: str) -> datetime:
