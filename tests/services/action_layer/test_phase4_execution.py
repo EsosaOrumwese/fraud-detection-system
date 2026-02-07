@@ -37,6 +37,14 @@ class SequenceExecutor:
         return self._states.pop(0)
 
 
+class SleepRecorder:
+    def __init__(self) -> None:
+        self.calls: list[float] = []
+
+    def sleep(self, seconds: float) -> None:
+        self.calls.append(seconds)
+
+
 def _intent_payload() -> dict[str, object]:
     return {
         "action_id": "1" * 32,
@@ -78,13 +86,15 @@ def test_execution_engine_retries_then_commits_with_bounded_attempts(tmp_path: P
             ActionExecutionResult(state=EXECUTION_COMMITTED, provider_code="OK", provider_ref="r-123"),
         ]
     )
-    engine = ActionExecutionEngine(executor=executor, retry_policy=bundle.retry_policy)
+    recorder = SleepRecorder()
+    engine = ActionExecutionEngine(executor=executor, retry_policy=bundle.retry_policy, sleeper=recorder.sleep)
     terminal = engine.execute(intent=intent, semantic_key=semantic_key)
 
     assert terminal.terminal_state == TERMINAL_EXECUTED
     assert terminal.final_attempt_seq == 3
     assert len(terminal.attempts) == 3
     assert all(req.idempotency_token == semantic_key for req in executor.requests)
+    assert recorder.calls == [0.1, 0.2]
 
 
 def test_execution_engine_emits_retry_exhausted_terminal_failure(tmp_path: Path) -> None:
@@ -99,12 +109,14 @@ def test_execution_engine_emits_retry_exhausted_terminal_failure(tmp_path: Path)
             ActionExecutionResult(state=EXECUTION_RETRYABLE_ERROR, provider_code="TIMEOUT"),
         ]
     )
-    engine = ActionExecutionEngine(executor=executor, retry_policy=bundle.retry_policy)
+    recorder = SleepRecorder()
+    engine = ActionExecutionEngine(executor=executor, retry_policy=bundle.retry_policy, sleeper=recorder.sleep)
     terminal = engine.execute(intent=intent, semantic_key=semantic_key)
 
     assert terminal.terminal_state == TERMINAL_FAILED
     assert terminal.reason_code == "RETRY_EXHAUSTED:TIMEOUT"
     assert terminal.final_attempt_seq == bundle.retry_policy.max_attempts
+    assert recorder.calls == [0.1, 0.2]
 
 
 def test_execution_engine_maps_unknown_commit_to_explicit_terminal_lane(tmp_path: Path) -> None:
@@ -114,12 +126,14 @@ def test_execution_engine_maps_unknown_commit_to_explicit_terminal_lane(tmp_path
     executor = SequenceExecutor(
         [ActionExecutionResult(state=EXECUTION_UNKNOWN_COMMIT, provider_code="PROVIDER_UNCERTAIN")]
     )
-    engine = ActionExecutionEngine(executor=executor, retry_policy=bundle.retry_policy)
+    recorder = SleepRecorder()
+    engine = ActionExecutionEngine(executor=executor, retry_policy=bundle.retry_policy, sleeper=recorder.sleep)
     terminal = engine.execute(intent=intent, semantic_key=semantic_key)
 
     assert terminal.terminal_state == TERMINAL_UNCERTAIN_COMMIT
     assert terminal.reason_code == "UNCERTAIN_COMMIT:PROVIDER_UNCERTAIN"
     assert terminal.final_attempt_seq == 1
+    assert recorder.calls == []
 
 
 def test_execution_outcome_payload_is_contract_valid_for_uncertain_lane(tmp_path: Path) -> None:
@@ -129,7 +143,7 @@ def test_execution_outcome_payload_is_contract_valid_for_uncertain_lane(tmp_path
     executor = SequenceExecutor(
         [ActionExecutionResult(state=EXECUTION_UNKNOWN_COMMIT, provider_code="PROVIDER_UNCERTAIN")]
     )
-    engine = ActionExecutionEngine(executor=executor, retry_policy=bundle.retry_policy)
+    engine = ActionExecutionEngine(executor=executor, retry_policy=bundle.retry_policy, sleeper=lambda _: None)
     terminal = engine.execute(intent=intent, semantic_key=semantic_key)
     outcome_payload = build_execution_outcome_payload(
         intent=intent,
@@ -141,4 +155,3 @@ def test_execution_outcome_payload_is_contract_valid_for_uncertain_lane(tmp_path
     assert outcome.payload["status"] == "FAILED"
     assert outcome.payload["reason"].startswith("UNCERTAIN_COMMIT:")
     assert outcome.payload["outcome_payload"]["terminal_state"] == TERMINAL_UNCERTAIN_COMMIT
-

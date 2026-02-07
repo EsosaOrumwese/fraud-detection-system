@@ -2,10 +2,12 @@
 
 from __future__ import annotations
 
+from collections.abc import Callable
 from dataclasses import dataclass
 from datetime import datetime, timezone
 import hashlib
 import json
+import time
 from typing import Any, Protocol
 
 from .contracts import ActionIntent
@@ -81,6 +83,7 @@ class ActionExecutionTerminal:
 class ActionExecutionEngine:
     executor: ActionEffectExecutor
     retry_policy: AlRetryPolicy
+    sleeper: Callable[[float], None] = time.sleep
 
     def __post_init__(self) -> None:
         if self.retry_policy.max_attempts <= 0:
@@ -139,6 +142,8 @@ class ActionExecutionEngine:
                 )
             if result.state == EXECUTION_RETRYABLE_ERROR:
                 if attempt_seq < self.retry_policy.max_attempts:
+                    delay_ms = self.backoff_for_attempt_ms(attempt_seq)
+                    self.sleeper(delay_ms / 1000.0)
                     continue
                 return ActionExecutionTerminal(
                     terminal_state=TERMINAL_FAILED,
@@ -156,9 +161,14 @@ class ActionExecutionEngine:
     def backoff_schedule_ms(self) -> tuple[int, ...]:
         values: list[int] = []
         for attempt_seq in range(1, self.retry_policy.max_attempts + 1):
-            delay = self.retry_policy.base_backoff_ms * (2 ** (attempt_seq - 1))
-            values.append(min(delay, self.retry_policy.max_backoff_ms))
+            values.append(self.backoff_for_attempt_ms(attempt_seq))
         return tuple(values)
+
+    def backoff_for_attempt_ms(self, attempt_seq: int) -> int:
+        if attempt_seq <= 0:
+            raise ActionExecutionError("attempt_seq must be >= 1")
+        delay = self.retry_policy.base_backoff_ms * (2 ** (attempt_seq - 1))
+        return min(delay, self.retry_policy.max_backoff_ms)
 
 
 def build_execution_outcome_payload(
@@ -218,4 +228,3 @@ def _validate_execution_result(result: ActionExecutionResult) -> None:
         raise ActionExecutionError(f"invalid execution state: {result.state!r}")
     if not str(result.provider_code or "").strip():
         raise ActionExecutionError("provider_code must be non-empty")
-

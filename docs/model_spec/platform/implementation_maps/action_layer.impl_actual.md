@@ -346,3 +346,72 @@ AL has contracts, idempotency, and authz posture checks, but no execution adapte
 - Retry requests preserve stable idempotency token to prevent duplicate external effects: **complete**.
 
 ---
+
+## Entry: 2026-02-07 18:59:55 - Phase 4 hardening plan (enforced retry pacing)
+
+### Trigger
+User requested explicit hardening of AL Phase 4 and detailed decision logging.
+
+### Problem framing
+Current Phase 4 engine computes bounded retry backoff schedule but does not enforce wait/pacing between retryable attempts. This can produce tight-loop retry storms under provider faults and does not reflect realistic execution posture expected in dev/prod.
+
+### Decision thread (before coding)
+1. Enforce retry pacing inside `ActionExecutionEngine` rather than delegating pacing to external caller.
+   - Reasoning: pacing is part of execution safety semantics and should be guaranteed by component logic, not optional orchestration behavior.
+2. Keep pacing test-safe via injectable sleeper.
+   - Reasoning: production should sleep; tests must remain fast and deterministic.
+3. Preserve deterministic bounded schedule as policy authority.
+   - Reasoning: no unbounded retry; no random jitter introduction in this hardening pass to avoid changing replay determinism and existing policy contract.
+4. Keep uncertain-commit semantics unchanged.
+   - Reasoning: this hardening is retry pacing only; terminal taxonomy remains the same.
+
+### Planned file changes
+- `src/fraud_detection/action_layer/execution.py`
+  - add enforced sleep between retryable attempts using policy-derived backoff.
+  - add injectable sleeper callable with safe default.
+- `tests/services/action_layer/test_phase4_execution.py`
+  - add assertions that sleep is called with expected delays on retry path.
+  - add assertion that no sleep occurs on immediate terminal paths.
+- `docs/model_spec/platform/implementation_maps/action_layer.build_plan.md`
+  - optionally pin explicit note that backoff is now enforced, not only computed.
+
+### Validation plan
+- Run `python -m pytest tests/services/action_layer -q`.
+- Confirm all Phase 4 tests pass with new pacing semantics.
+
+---
+
+## Entry: 2026-02-07 19:00:00 - Phase 4 hardening closure (enforced retry pacing)
+
+### What changed
+1. Hardened retry loop to enforce pacing between retryable attempts:
+   - `src/fraud_detection/action_layer/execution.py`
+   - `ActionExecutionEngine` now applies policy-derived delay via injectable `sleeper` before next retry attempt.
+2. Refined backoff calculation surface:
+   - added `backoff_for_attempt_ms(attempt_seq)` to keep delay derivation explicit and validated.
+   - `backoff_schedule_ms()` now delegates to the same function to avoid divergence.
+3. Strengthened tests:
+   - `tests/services/action_layer/test_phase4_execution.py`
+   - added `SleepRecorder` and assertions proving:
+     - retries invoke expected delays (`0.1s`, `0.2s` for current policy),
+     - terminal lanes on first attempt do not sleep.
+
+### Decisions made during implementation (with reasoning)
+1. **Inject sleeper as a dependency (`Callable[[float], None]`)**
+   - Reasoning: production behavior should enforce pacing, while tests must remain deterministic and fast.
+2. **No jitter in this hardening pass**
+   - Reasoning: preserves current deterministic replay posture and avoids changing policy surface mid-phase; jitter can be introduced as an explicit future decision if required.
+3. **Pacing applies only on retry transitions**
+   - Reasoning: terminal outcomes (`COMMITTED`, `PERMANENT_ERROR`, `UNKNOWN_COMMIT`) should complete immediately without extra delay.
+
+### Validation evidence
+- `$env:PYTHONPATH='.;src'; python -m pytest tests/services/action_layer -q` -> `24 passed`.
+
+### DoD impact
+- Phase 4 DoD item "bounded retry + backoff" is now **enforced** (not just computed/surfaced).
+- Remaining Phase 4 DoD items unchanged and still satisfied:
+  - stable terminal taxonomy,
+  - explicit uncertain-commit lane,
+  - stable idempotency token per retry attempt.
+
+---

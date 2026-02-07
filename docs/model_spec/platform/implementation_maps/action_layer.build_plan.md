@@ -87,7 +87,7 @@ Provide an executable, component-scoped AL plan aligned to platform `Phase 4.5` 
 **Intent:** execute effects safely across retriable/uncertain conditions.
 
 **DoD checklist:**
-- Executor adapters support bounded retry + backoff with explicit terminal behavior.
+- Executor adapters enforce bounded retry + backoff pacing with explicit terminal behavior.
 - Final failure emits immutable `FAILED` outcome with stable error taxonomy.
 - Uncertain commit lane is explicit (`UNKNOWN/UNCERTAIN_COMMIT`) and replay-safe.
 - Retries never produce duplicate external effects.
