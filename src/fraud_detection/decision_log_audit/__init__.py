@@ -1,12 +1,46 @@
-"""Decision Log & Audit phase-1 surfaces."""
+"""Decision Log & Audit surfaces."""
 
+from .config import (
+    DecisionLogAuditConfigError,
+    DecisionLogAuditIntakePolicy,
+    DecisionLogAuditIntakeRule,
+    load_intake_policy,
+)
 from .contracts import (
     AUDIT_CONTEXT_ROLES,
     AuditRecord,
     DecisionLogAuditContractError,
 )
+from .inlet import (
+    DLA_INLET_ACCEPT,
+    DLA_INLET_INVALID_ENVELOPE,
+    DLA_INLET_MISSING_EVENT_ID,
+    DLA_INLET_MISSING_REQUIRED_PINS,
+    DLA_INLET_NON_AUDIT_TOPIC,
+    DLA_INLET_PAYLOAD_CONTRACT_INVALID,
+    DLA_INLET_RUN_SCOPE_MISMATCH,
+    DLA_INLET_SCHEMA_VERSION_NOT_ALLOWED,
+    DLA_INLET_SCHEMA_VERSION_REQUIRED,
+    DLA_INLET_UNKNOWN_EVENT_FAMILY,
+    DecisionLogAuditInlet,
+    DlaBusInput,
+    DlaInletCandidate,
+    DlaInletResult,
+    DlaSourceEbRef,
+)
+from .intake import (
+    DLA_INTAKE_PAYLOAD_HASH_MISMATCH,
+    DLA_INTAKE_WRITE_FAILED,
+    DecisionLogAuditBusConsumer,
+    DecisionLogAuditIntakeProcessor,
+    DecisionLogAuditIntakeResult,
+    DecisionLogAuditIntakeRuntimeConfig,
+)
 from .storage import (
     DEFAULT_STORAGE_POLICY_PATH,
+    DecisionLogAuditIntakeCheckpoint,
+    DecisionLogAuditIntakeStore,
+    DecisionLogAuditIntakeWriteResult,
     DecisionLogAuditIndexStore,
     DecisionLogAuditIndexRecord,
     DecisionLogAuditIndexStoreError,
@@ -22,9 +56,32 @@ from .storage import (
 )
 
 __all__ = [
+    "DLA_INLET_ACCEPT",
+    "DLA_INLET_INVALID_ENVELOPE",
+    "DLA_INLET_MISSING_EVENT_ID",
+    "DLA_INLET_MISSING_REQUIRED_PINS",
+    "DLA_INLET_NON_AUDIT_TOPIC",
+    "DLA_INLET_PAYLOAD_CONTRACT_INVALID",
+    "DLA_INLET_RUN_SCOPE_MISMATCH",
+    "DLA_INLET_SCHEMA_VERSION_NOT_ALLOWED",
+    "DLA_INLET_SCHEMA_VERSION_REQUIRED",
+    "DLA_INLET_UNKNOWN_EVENT_FAMILY",
+    "DLA_INTAKE_PAYLOAD_HASH_MISMATCH",
+    "DLA_INTAKE_WRITE_FAILED",
     "AUDIT_CONTEXT_ROLES",
     "AuditRecord",
+    "DecisionLogAuditBusConsumer",
+    "DecisionLogAuditConfigError",
     "DecisionLogAuditContractError",
+    "DecisionLogAuditInlet",
+    "DecisionLogAuditIntakeCheckpoint",
+    "DecisionLogAuditIntakePolicy",
+    "DecisionLogAuditIntakeProcessor",
+    "DecisionLogAuditIntakeResult",
+    "DecisionLogAuditIntakeRule",
+    "DecisionLogAuditIntakeRuntimeConfig",
+    "DecisionLogAuditIntakeStore",
+    "DecisionLogAuditIntakeWriteResult",
     "DEFAULT_STORAGE_POLICY_PATH",
     "DecisionLogAuditRetentionWindow",
     "DecisionLogAuditStorageProfile",
@@ -36,6 +93,11 @@ __all__ = [
     "DecisionLogAuditObjectStore",
     "DecisionLogAuditObjectWriteResult",
     "DecisionLogAuditStorageLayout",
+    "DlaBusInput",
+    "DlaInletCandidate",
+    "DlaInletResult",
+    "DlaSourceEbRef",
     "load_storage_policy",
+    "load_intake_policy",
     "build_storage_layout",
 ]

@@ -1,0 +1,24 @@
+version: v0
+policy_id: dla.intake.v0
+revision: r1
+intake:
+  admitted_topics:
+    - fp.bus.traffic.fraud.v1
+  event_allowlist:
+    - event_type: decision_response
+      schema_versions: [v1]
+      payload_contract: decision_response
+    - event_type: action_intent
+      schema_versions: [v1]
+      payload_contract: action_intent
+    - event_type: action_outcome
+      schema_versions: [v1]
+      payload_contract: action_outcome
+  required_pins:
+    - platform_run_id
+    - scenario_run_id
+    - manifest_fingerprint
+    - parameter_hash
+    - scenario_id
+    - seed
+  require_seed: true

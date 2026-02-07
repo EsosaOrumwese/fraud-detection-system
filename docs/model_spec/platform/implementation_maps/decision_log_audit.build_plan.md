@@ -73,6 +73,21 @@ Provide an executable, component-scoped DLA plan aligned to platform `Phase 4.5`
 - Envelope + pins + schema compatibility are validated fail-closed.
 - Invalid or incomplete events are quarantined with explicit reason taxonomy.
 - Checkpoint does not advance on failed validation/write paths.
+**Evidence (Phase 3):**
+- Config:
+  - `config/platform/dla/intake_policy_v0.yaml`
+- Code:
+  - `src/fraud_detection/decision_log_audit/config.py`
+  - `src/fraud_detection/decision_log_audit/inlet.py`
+  - `src/fraud_detection/decision_log_audit/intake.py`
+  - `src/fraud_detection/decision_log_audit/storage.py`
+  - `src/fraud_detection/decision_log_audit/__init__.py`
+- Tests:
+  - `tests/services/decision_log_audit/test_dla_phase3_intake.py`
+- Validation:
+  - `$env:PYTHONPATH='.;src'; python -m pytest tests/services/decision_log_audit/test_dla_phase3_intake.py -q`
+  - `$env:PYTHONPATH='.;src'; python -m pytest tests/services/decision_log_audit -q`
+  - `$env:PYTHONPATH='.;src'; python -m pytest tests/services/action_layer tests/services/decision_log_audit -q`
 
 ### Phase 4 — Lineage assembly (decision -> intent -> outcome)
 **Intent:** materialize deterministic audit-chain linkage.
@@ -122,4 +137,5 @@ Provide an executable, component-scoped DLA plan aligned to platform `Phase 4.5`
 ## Status (rolling)
 - Phase 1 (`Audit contracts + evidence model`): completed on `2026-02-07`.
 - Phase 2 (`Storage layout + append-only substrate`): completed on `2026-02-07`.
-- Current focus: Phase 3 (`Intake consumer + fail-closed validation`).
+- Phase 3 (`Intake consumer + fail-closed validation`): completed on `2026-02-07`.
+- Current focus: Phase 4 (`Lineage assembly (decision -> intent -> outcome)`).

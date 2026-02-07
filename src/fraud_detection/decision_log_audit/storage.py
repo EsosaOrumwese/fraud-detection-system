@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from datetime import datetime, timezone
 import hashlib
 import json
 from pathlib import Path
@@ -87,6 +88,22 @@ class DecisionLogAuditIndexRecord:
     recorded_at_utc: str
     record_digest: str
     object_ref: str
+
+
+@dataclass(frozen=True)
+class DecisionLogAuditIntakeCheckpoint:
+    topic: str
+    partition: int
+    next_offset: str
+    offset_kind: str
+    watermark_ts_utc: str | None
+    updated_at_utc: str
+
+
+@dataclass(frozen=True)
+class DecisionLogAuditIntakeWriteResult:
+    status: str
+    record_id: str
 
 
 DEFAULT_STORAGE_POLICY_PATH = "config/platform/dla/storage_policy_v0.yaml"
@@ -366,6 +383,340 @@ class DecisionLogAuditIndexStore:
         return psycopg.connect(self.locator)
 
 
+class DecisionLogAuditIntakeStore:
+    """Durable intake substrate for Phase 3 gating."""
+
+    def __init__(self, *, locator: str, stream_id: str = "dla.intake.v0") -> None:
+        self.locator = str(locator or "").strip()
+        self.stream_id = str(stream_id or "").strip()
+        if not self.locator:
+            raise DecisionLogAuditIndexStoreError("intake locator must be non-empty")
+        if not self.stream_id:
+            raise DecisionLogAuditIndexStoreError("intake stream_id must be non-empty")
+        self.backend = "postgres" if is_postgres_dsn(self.locator) else "sqlite"
+        if self.backend == "sqlite":
+            path = Path(_sqlite_path(self.locator))
+            path.parent.mkdir(parents=True, exist_ok=True)
+        self._init_schema()
+
+    def append_candidate(
+        self,
+        *,
+        platform_run_id: str,
+        scenario_run_id: str,
+        event_type: str,
+        event_id: str,
+        schema_version: str,
+        payload_hash: str,
+        source_topic: str,
+        source_partition: int,
+        source_offset: str,
+        source_offset_kind: str,
+        source_ts_utc: str | None,
+        published_at_utc: str | None,
+        envelope: Mapping[str, Any],
+    ) -> DecisionLogAuditIntakeWriteResult:
+        with self._connect() as conn:
+            row = _query_one(
+                conn,
+                self.backend,
+                """
+                SELECT payload_hash
+                FROM dla_intake_candidates
+                WHERE platform_run_id = {p1} AND event_type = {p2} AND event_id = {p3}
+                """,
+                (platform_run_id, event_type, event_id),
+            )
+            if row is not None:
+                existing_hash = str(row[0])
+                if existing_hash == payload_hash:
+                    return DecisionLogAuditIntakeWriteResult(status="DUPLICATE", record_id=event_id)
+                return DecisionLogAuditIntakeWriteResult(status="HASH_MISMATCH", record_id=event_id)
+            _execute(
+                conn,
+                self.backend,
+                """
+                INSERT INTO dla_intake_candidates (
+                    platform_run_id,
+                    scenario_run_id,
+                    event_type,
+                    event_id,
+                    schema_version,
+                    payload_hash,
+                    source_topic,
+                    source_partition,
+                    source_offset,
+                    source_offset_kind,
+                    source_ts_utc,
+                    published_at_utc,
+                    envelope_json,
+                    created_at_utc
+                ) VALUES ({p1}, {p2}, {p3}, {p4}, {p5}, {p6}, {p7}, {p8}, {p9}, {p10}, {p11}, {p12}, {p13}, {p14})
+                """,
+                (
+                    platform_run_id,
+                    scenario_run_id,
+                    event_type,
+                    event_id,
+                    schema_version,
+                    payload_hash,
+                    source_topic,
+                    int(source_partition),
+                    source_offset,
+                    source_offset_kind,
+                    source_ts_utc,
+                    published_at_utc,
+                    _canonical_json(envelope),
+                    _utc_now(),
+                ),
+            )
+        return DecisionLogAuditIntakeWriteResult(status="NEW", record_id=event_id)
+
+    def append_quarantine(
+        self,
+        *,
+        reason_code: str,
+        detail: str | None,
+        source_topic: str,
+        source_partition: int,
+        source_offset: str,
+        source_offset_kind: str,
+        platform_run_id: str | None = None,
+        scenario_run_id: str | None = None,
+        event_type: str | None = None,
+        event_id: str | None = None,
+        schema_version: str | None = None,
+        payload_hash: str | None = None,
+        source_ts_utc: str | None = None,
+        published_at_utc: str | None = None,
+        envelope: Mapping[str, Any] | None = None,
+    ) -> DecisionLogAuditIntakeWriteResult:
+        quarantine_id = _quarantine_record_id(
+            source_topic=source_topic,
+            source_partition=source_partition,
+            source_offset=source_offset,
+            source_offset_kind=source_offset_kind,
+            reason_code=reason_code,
+            event_id=event_id or "",
+        )
+        with self._connect() as conn:
+            row = _query_one(
+                conn,
+                self.backend,
+                "SELECT quarantine_id FROM dla_intake_quarantine WHERE quarantine_id = {p1}",
+                (quarantine_id,),
+            )
+            if row is not None:
+                return DecisionLogAuditIntakeWriteResult(status="DUPLICATE", record_id=quarantine_id)
+            _execute(
+                conn,
+                self.backend,
+                """
+                INSERT INTO dla_intake_quarantine (
+                    quarantine_id,
+                    reason_code,
+                    detail,
+                    platform_run_id,
+                    scenario_run_id,
+                    event_type,
+                    event_id,
+                    schema_version,
+                    payload_hash,
+                    source_topic,
+                    source_partition,
+                    source_offset,
+                    source_offset_kind,
+                    source_ts_utc,
+                    published_at_utc,
+                    envelope_json,
+                    created_at_utc
+                ) VALUES ({p1}, {p2}, {p3}, {p4}, {p5}, {p6}, {p7}, {p8}, {p9}, {p10}, {p11}, {p12}, {p13}, {p14}, {p15}, {p16}, {p17})
+                """,
+                (
+                    quarantine_id,
+                    reason_code,
+                    detail,
+                    platform_run_id,
+                    scenario_run_id,
+                    event_type,
+                    event_id,
+                    schema_version,
+                    payload_hash,
+                    source_topic,
+                    int(source_partition),
+                    source_offset,
+                    source_offset_kind,
+                    source_ts_utc,
+                    published_at_utc,
+                    _canonical_json(envelope or {}),
+                    _utc_now(),
+                ),
+            )
+        return DecisionLogAuditIntakeWriteResult(status="NEW", record_id=quarantine_id)
+
+    def get_checkpoint(self, *, topic: str, partition: int) -> DecisionLogAuditIntakeCheckpoint | None:
+        with self._connect() as conn:
+            row = _query_one(
+                conn,
+                self.backend,
+                """
+                SELECT topic, partition_id, next_offset, offset_kind, watermark_ts_utc, updated_at_utc
+                FROM dla_intake_checkpoints
+                WHERE stream_id = {p1} AND topic = {p2} AND partition_id = {p3}
+                """,
+                (self.stream_id, topic, int(partition)),
+            )
+        if row is None:
+            return None
+        return DecisionLogAuditIntakeCheckpoint(
+            topic=str(row[0]),
+            partition=int(row[1]),
+            next_offset=str(row[2]),
+            offset_kind=str(row[3]),
+            watermark_ts_utc=str(row[4]) if row[4] not in (None, "") else None,
+            updated_at_utc=str(row[5]),
+        )
+
+    def advance_checkpoint(
+        self,
+        *,
+        topic: str,
+        partition: int,
+        offset: str,
+        offset_kind: str,
+        event_ts_utc: str | None,
+    ) -> str:
+        next_offset = _next_offset_value(offset=offset, offset_kind=offset_kind)
+        now_utc = _utc_now()
+        with self._connect() as conn:
+            row = _query_one(
+                conn,
+                self.backend,
+                """
+                SELECT next_offset, offset_kind, watermark_ts_utc
+                FROM dla_intake_checkpoints
+                WHERE stream_id = {p1} AND topic = {p2} AND partition_id = {p3}
+                """,
+                (self.stream_id, topic, int(partition)),
+            )
+            if row is None:
+                _execute(
+                    conn,
+                    self.backend,
+                    """
+                    INSERT INTO dla_intake_checkpoints (
+                        stream_id, topic, partition_id, next_offset, offset_kind, watermark_ts_utc, updated_at_utc
+                    ) VALUES ({p1}, {p2}, {p3}, {p4}, {p5}, {p6}, {p7})
+                    """,
+                    (
+                        self.stream_id,
+                        topic,
+                        int(partition),
+                        next_offset,
+                        offset_kind,
+                        event_ts_utc,
+                        now_utc,
+                    ),
+                )
+                return "NEW"
+            current_next_offset = str(row[0])
+            current_offset_kind = str(row[1])
+            current_watermark = str(row[2]) if row[2] not in (None, "") else None
+            if current_offset_kind != offset_kind:
+                raise DecisionLogAuditIndexStoreError(
+                    f"offset_kind mismatch for checkpoint: {current_offset_kind!r} vs {offset_kind!r}"
+                )
+            if not _offset_after(new_offset=next_offset, current_offset=current_next_offset, offset_kind=offset_kind):
+                return "IGNORED"
+            watermark = _max_timestamp(current_watermark, event_ts_utc)
+            _execute(
+                conn,
+                self.backend,
+                """
+                UPDATE dla_intake_checkpoints
+                SET next_offset = {p1}, watermark_ts_utc = {p2}, updated_at_utc = {p3}
+                WHERE stream_id = {p4} AND topic = {p5} AND partition_id = {p6}
+                """,
+                (
+                    next_offset,
+                    watermark,
+                    now_utc,
+                    self.stream_id,
+                    topic,
+                    int(partition),
+                ),
+            )
+        return "ADVANCED"
+
+    def _init_schema(self) -> None:
+        with self._connect() as conn:
+            _execute_script(
+                conn,
+                self.backend,
+                """
+                CREATE TABLE IF NOT EXISTS dla_intake_candidates (
+                    platform_run_id TEXT NOT NULL,
+                    scenario_run_id TEXT NOT NULL,
+                    event_type TEXT NOT NULL,
+                    event_id TEXT NOT NULL,
+                    schema_version TEXT NOT NULL,
+                    payload_hash TEXT NOT NULL,
+                    source_topic TEXT NOT NULL,
+                    source_partition INTEGER NOT NULL,
+                    source_offset TEXT NOT NULL,
+                    source_offset_kind TEXT NOT NULL,
+                    source_ts_utc TEXT,
+                    published_at_utc TEXT,
+                    envelope_json TEXT NOT NULL,
+                    created_at_utc TEXT NOT NULL,
+                    PRIMARY KEY (platform_run_id, event_type, event_id)
+                );
+                CREATE INDEX IF NOT EXISTS ix_dla_intake_candidates_source
+                    ON dla_intake_candidates (source_topic, source_partition, source_offset);
+
+                CREATE TABLE IF NOT EXISTS dla_intake_quarantine (
+                    quarantine_id TEXT PRIMARY KEY,
+                    reason_code TEXT NOT NULL,
+                    detail TEXT,
+                    platform_run_id TEXT,
+                    scenario_run_id TEXT,
+                    event_type TEXT,
+                    event_id TEXT,
+                    schema_version TEXT,
+                    payload_hash TEXT,
+                    source_topic TEXT NOT NULL,
+                    source_partition INTEGER NOT NULL,
+                    source_offset TEXT NOT NULL,
+                    source_offset_kind TEXT NOT NULL,
+                    source_ts_utc TEXT,
+                    published_at_utc TEXT,
+                    envelope_json TEXT NOT NULL,
+                    created_at_utc TEXT NOT NULL
+                );
+                CREATE UNIQUE INDEX IF NOT EXISTS ux_dla_intake_quarantine_source_reason
+                    ON dla_intake_quarantine (source_topic, source_partition, source_offset, source_offset_kind, reason_code);
+
+                CREATE TABLE IF NOT EXISTS dla_intake_checkpoints (
+                    stream_id TEXT NOT NULL,
+                    topic TEXT NOT NULL,
+                    partition_id INTEGER NOT NULL,
+                    next_offset TEXT NOT NULL,
+                    offset_kind TEXT NOT NULL,
+                    watermark_ts_utc TEXT,
+                    updated_at_utc TEXT NOT NULL,
+                    PRIMARY KEY (stream_id, topic, partition_id)
+                );
+                """,
+            )
+
+    def _connect(self) -> Any:
+        if self.backend == "sqlite":
+            conn = sqlite3.connect(_sqlite_path(self.locator))
+            conn.row_factory = sqlite3.Row
+            return conn
+        return psycopg.connect(self.locator)
+
+
 def _row_to_index_record(row: Any) -> DecisionLogAuditIndexRecord:
     return DecisionLogAuditIndexRecord(
         audit_id=str(row[0]),
@@ -462,6 +813,52 @@ def _execute_script(conn: Any, backend: str, sql: str) -> None:
         cur.execute(statement)
     conn.commit()
     cur.close()
+
+
+def _quarantine_record_id(
+    *,
+    source_topic: str,
+    source_partition: int,
+    source_offset: str,
+    source_offset_kind: str,
+    reason_code: str,
+    event_id: str,
+) -> str:
+    digest = hashlib.sha256(
+        f"{source_topic}|{source_partition}|{source_offset}|{source_offset_kind}|{reason_code}|{event_id}".encode("utf-8")
+    ).hexdigest()
+    return digest[:32]
+
+
+def _next_offset_value(*, offset: str, offset_kind: str) -> str:
+    if offset_kind in {"file_line", "kafka_offset"}:
+        return str(int(offset) + 1)
+    if offset_kind == "kinesis_sequence":
+        return str(offset)
+    raise DecisionLogAuditIndexStoreError(f"unsupported offset_kind: {offset_kind!r}")
+
+
+def _offset_after(*, new_offset: str, current_offset: str, offset_kind: str) -> bool:
+    if offset_kind in {"file_line", "kafka_offset"}:
+        return int(new_offset) > int(current_offset)
+    if offset_kind == "kinesis_sequence":
+        try:
+            return int(new_offset) > int(current_offset)
+        except ValueError:
+            return str(new_offset) > str(current_offset)
+    return str(new_offset) > str(current_offset)
+
+
+def _max_timestamp(left: str | None, right: str | None) -> str | None:
+    if left in (None, ""):
+        return right
+    if right in (None, ""):
+        return left
+    return right if str(right) > str(left) else left
+
+
+def _utc_now() -> str:
+    return datetime.now(tz=timezone.utc).isoformat()
 
 
 def _canonical_json(payload: Mapping[str, Any]) -> str:

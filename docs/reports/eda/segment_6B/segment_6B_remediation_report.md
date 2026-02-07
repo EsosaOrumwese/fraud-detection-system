@@ -131,6 +131,116 @@ For remediation planning, the minimal high-impact root-cause set is:
 Correcting this set should produce the largest immediate grade lift and unlock meaningful downstream improvements before fine-grained parameter tuning.
 
 ## 4) Remediation Options (Ranked + Tradeoffs)
+This section converts the root-cause trace into practical remediation options. Ranking is based on:
+1. Statistical impact on 6B grade.
+2. Causal leverage (whether the option fixes root causes or only symptoms).
+3. Risk of unintended regression.
+4. Dependency burden on upstream segments.
+
+### 4.1 Ranked options overview
+| Rank | Option | Primary objective | Grade-lift potential (6B) | Delivery risk |
+|---|---|---|---|---|
+| 1 | Execution-faithfulness rescue (`S4+S2+S5 core`) | Restore policy-faithful execution in truth/timeline/timing and enforce realism gates | `D+ -> B-` quickly; `B` feasible with seed stability | Medium |
+| 2 | `S4` critical containment fix | Remove truth collapse and fixed-delay templating with minimal scope | `D+ -> C+/B-` | Low to Medium |
+| 3 | `S2` amount + timing realism restoration | Replace compressed spend/time surfaces with policy-driven stochastic surfaces | `+0.5 to +1.0` letter after Option 1/2 | Medium |
+| 4 | `S3` campaign depth restoration | Move fraud behavior beyond amount uplift into contextual campaign signatures | `+0.3 to +0.7` letter after Option 1 | Medium to High |
+| 5 | `S1` attachment/session realism uplift | Increase sequence and connectivity realism | `+0.2 to +0.5` letter | High (upstream dependent) |
+| 6 | Policy-only retuning (without code-path fixes) | Tune thresholds/coefficients only | Limited (`D+/C` ceiling) | Low technical, high statistical failure risk |
+
+### 4.2 Option 1 (recommended first): Execution-faithfulness rescue (`S4+S2+S5 core`)
+#### 4.2.1 What changes
+1. `S4 truth`: replace reduced map-lookup behavior with ordered rule evaluation for `direct_pattern_map` conditions so `fraud_pattern_type=NONE` no longer collapses into a single overwritten outcome.
+2. `S4 delays/cases`: sample from configured delay distributions in `delay_models_6B` instead of using only `min_seconds`; execute case lifecycle semantics from `case_policy_6B` rather than fixed event templates.
+3. `S2 timing`: apply timing policy offsets (at minimum `AUTH_REQUEST -> AUTH_RESPONSE`) so event-time deltas are not degenerate.
+4. `S5 gating`: promote critical realism checks from warning-only behavior to fail-closed behavior for truth degeneracy, timeline validity, and bank-view collapse conditions.
+
+#### 4.2.2 Why this is ranked first
+1. It attacks the principal failure chain rather than cosmetic metrics.
+2. It restores validity of the supervision surface before model-level concerns.
+3. It yields the largest realism gain per unit of engineering effort.
+
+#### 4.2.3 Tradeoffs and risks
+1. Multiple key surfaces shift simultaneously, making attribution of post-change movement harder unless validation is staged.
+2. Runtime may increase due to distribution sampling and richer event generation.
+3. Existing downstream assumptions built around lean deterministic behavior may require adaptation.
+
+#### 4.2.4 Expected statistical effect
+1. Truth class balance recovers from degenerate state.
+2. Bank-view outcomes regain conditional variation.
+3. Case-gap spikes weaken materially as distributional delays replace constants.
+4. Segment grade likely moves to `B-` quickly, with `B` possible after seed-stability confirmation.
+
+### 4.3 Option 2: `S4` critical containment fix
+#### 4.3.1 What changes
+1. Fix truth map collision behavior for `NONE` and other multi-condition rule families.
+2. Replace fixed delay constants with sampled delays in S4.
+3. Execute minimal case policy ordering and timeline rules.
+
+#### 4.3.2 Why it is still valuable
+1. It removes the most severe and obviously invalid statistical artifacts.
+2. It can be delivered faster than a broader multi-stage rescue.
+
+#### 4.3.3 Limitation
+1. Even with S4 fixed, 6B remains capped by S2 amount/timing compression and S3 campaign narrowness.
+2. This option is best treated as containment, not completion.
+
+### 4.4 Option 3: `S2` amount and timing realism restoration
+#### 4.4.1 What changes
+1. Use policy-defined amount-family behavior rather than fixed-point hash-only assignment.
+2. Re-enable timing offset models from timing policy so event transitions produce realistic latency surfaces.
+3. Preserve monotonic constraints while allowing non-degenerate spread.
+
+#### 4.4.2 Why it matters
+1. Amount/time features are first-class model signals; if they are template-like, explainability and calibration degrade.
+2. This option removes major synthetic shortcuts that currently dominate separability.
+
+#### 4.4.3 Tradeoffs
+1. Higher computational complexity in generation and validation.
+2. Wider stochastic spread can increase run-to-run variability unless guardrails are tuned.
+
+### 4.5 Option 4: `S3` campaign depth restoration
+#### 4.5.1 What changes
+1. Use true campaign multiplicity (`max_instances_per_seed`) and richer target semantics.
+2. Expand effect channels beyond amount uplift to include contextual and temporal signatures.
+3. Preserve guardrails while introducing campaign heterogeneity by class/segment/geo/time.
+
+#### 4.5.2 Why it matters
+1. Fraud realism should be campaign-structured, not a single scalar uplift overlay.
+2. Better campaign differentiation supports more realistic downstream detection logic.
+
+#### 4.5.3 Tradeoffs
+1. Calibration becomes harder because campaign heterogeneity can alter class balance unexpectedly.
+2. Requires stronger per-campaign validation slices to avoid overfitting one campaign family.
+
+### 4.6 Option 5: `S1` attachment and session realism uplift
+#### 4.6.1 What changes
+1. Move from fixed timeout bucket sessionization toward boundary-aware session formation.
+2. Improve attachment context by reducing fallback/global candidate behavior where feasible.
+3. Increase behavioral network heterogeneity while retaining deterministic reproducibility contracts.
+
+#### 4.6.2 Why this is rank 5
+1. It is meaningful for realism, but not the dominant blocker for 6B grade.
+2. It depends on upstream field/link availability and therefore carries higher dependency risk.
+
+### 4.7 Option 6: policy-only retuning
+#### 4.7.1 Why it is explicitly last
+1. It cannot repair logic paths that currently bypass policy richness.
+2. It risks "metric gaming" where a few summary numbers improve but structural realism defects remain.
+3. It should only be used after execution-faithfulness is restored.
+
+### 4.8 Recommended execution sequence for 6B
+1. Execute Option 1 first as the primary rescue path.
+2. If constrained, use Option 2 as an initial containment pass, then merge into Option 1 scope.
+3. Follow immediately with Option 3 to remove amount/time compression.
+4. Add Option 4 to deepen fraud realism once truth/bank/time surfaces are stable.
+5. Implement Option 5 after upstream dependencies are validated.
+
+### 4.9 Decision framing for Section 5
+Section 5 should select one of two practical paths:
+1. **Preferred path:** Option 1 + Option 3 as Wave A, Option 4 as Wave B, Option 5 as Wave C.
+2. **Constrained path:** Option 2 as immediate containment, then converge to preferred path.
+
+The preferred path is more likely to achieve `B/B+` without hidden residual defects.
 
 ## 5) Chosen Fix Spec (Exact Parameter/Code Deltas)
 

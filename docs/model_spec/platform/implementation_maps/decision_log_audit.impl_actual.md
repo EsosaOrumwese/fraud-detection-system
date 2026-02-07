@@ -244,3 +244,155 @@ Phase 1 delivered contracts and an index foundation, but Phase 2 still requires:
 - Next phase focus in build plan: Phase 3 (`Intake consumer + fail-closed validation`).
 
 ---
+## Entry: 2026-02-07 20:32:35 - Phase 3 pre-implementation plan (intake consumer + fail-closed validation)
+
+### Trigger
+User requested to proceed with DLA Phase 3.
+
+### Authorities used
+- `docs/model_spec/platform/implementation_maps/decision_log_audit.build_plan.md` (Phase 3 DoD)
+- `docs/model_spec/platform/pre-design_decisions/real-time_decision_loop.pre-design_decision.md` (fail-closed schema/version policy, quarantine posture, DLA commit-point requirements)
+- `docs/model_spec/platform/component-specific/flow-narrative-platform-design.md` (EB inlet semantics, ContextPins, payload-hash anomaly posture)
+- `docs/model_spec/platform/component-specific/decision_log_audit.design-authority.md` (admissibility gate, non-wedging quarantine behavior)
+
+### Problem framing
+Phase 2 gave immutable storage primitives, but DLA still lacks the runtime intake boundary that:
+1. consumes admitted EB traffic safely,
+2. applies strict event-family/schema/pin checks,
+3. quarantines malformed/incomplete payloads with explicit reason taxonomy,
+4. keeps checkpoint progression coupled to durable write outcomes.
+
+Without this, Phase 3 DoD remains open and Phase 4 lineage assembly would be built on an unstable inlet.
+
+### Alternatives considered
+1. **Only add an inlet validator module (no durable processor/store coupling yet).**
+   - Pros: fast.
+   - Cons: does not satisfy "checkpoint does not advance on failed validation/write"; insufficient for DoD.
+2. **Add full DLA runtime with lineage assembly now.**
+   - Pros: fewer future rewires.
+   - Cons: crosses into Phase 4 scope and mixes concerns.
+3. **Add bounded Phase 3 intake stack: policy + inlet + intake store + processor + bus consumer wrapper.**
+   - Pros: satisfies all Phase 3 DoD without leaking into Phase 4 lineage semantics.
+   - Cons: adds one more internal surface to evolve in Phase 4.
+
+### Decision
+Choose **Alternative 3**.
+
+### Concrete design decisions (pre-code)
+1. Introduce `config/platform/dla/intake_policy_v0.yaml`.
+   - Will pin admitted topics, allowed DLA event families (`decision_response`, `action_intent`, `action_outcome`), allowed schema versions, and required pins.
+2. Add DLA intake policy loader module.
+   - Mirrors DF policy-loader rigor: strict payload shape, deterministic digest, explicit compatibility checks.
+3. Add DLA inlet evaluator module.
+   - Validates canonical envelope schema, topic admission, event family/version, required pins, and payload contract compatibility.
+   - Payload contract checks use existing contract validators:
+     - `DecisionResponse` + `ActionIntent` from DF contracts,
+     - `ActionOutcome` from AL contracts.
+4. Add explicit quarantine reason taxonomy in inlet results.
+   - Keep reasons machine-readable and stable for ops/reconciliation.
+5. Extend DLA storage with intake-side durable tables.
+   - Intake candidates table (append-only semantics with deterministic dedupe and payload-hash mismatch detection).
+   - Intake quarantine table (durable lane for malformed/incomplete records).
+   - Intake checkpoints table (per topic/partition progress).
+6. Add intake processor service with commit gate semantics.
+   - Checkpoint advances only when candidate/quarantine write succeeds (`NEW` or idempotent `DUPLICATE`).
+   - Any write failure is fail-closed (`checkpoint_advanced=False`).
+7. Add minimal bus consumer wrapper (`run_once`) to process file-bus/Kinesis records through the processor.
+   - Enables parity harness and future phase wiring.
+8. Add targeted Phase 3 tests for:
+   - allowed-family/schema acceptance,
+   - malformed/incomplete quarantine reasons,
+   - checkpoint gating on write failure.
+
+### Planned file changes
+- Add `config/platform/dla/intake_policy_v0.yaml`
+- Add `src/fraud_detection/decision_log_audit/config.py`
+- Add `src/fraud_detection/decision_log_audit/inlet.py`
+- Add `src/fraud_detection/decision_log_audit/intake.py`
+- Update `src/fraud_detection/decision_log_audit/storage.py`
+- Update `src/fraud_detection/decision_log_audit/__init__.py`
+- Add `tests/services/decision_log_audit/test_dla_phase3_intake.py`
+- Update DLA build-plan + impl_actual + logbook on closure
+
+### Validation plan
+- `$env:PYTHONPATH='.;src'; python -m pytest tests/services/decision_log_audit/test_dla_phase3_intake.py -q`
+- `$env:PYTHONPATH='.;src'; python -m pytest tests/services/decision_log_audit -q`
+- `$env:PYTHONPATH='.;src'; python -m pytest tests/services/action_layer tests/services/decision_log_audit -q`
+
+---
+## Entry: 2026-02-07 20:52:01 - Phase 3 implementation closure (intake consumer + fail-closed validation)
+
+### Implementation summary
+Phase 3 is now implemented as a bounded intake layer (policy + inlet + processor + durable intake substrate), without crossing into Phase 4 lineage assembly.
+
+### Decisions made during implementation (with reasoning)
+
+1. **Pinned intake policy in config instead of hardcoded event routing.**
+   - Added `config/platform/dla/intake_policy_v0.yaml` and loader `src/fraud_detection/decision_log_audit/config.py`.
+   - Decision: explicit allowlist for `decision_response`, `action_intent`, `action_outcome` with schema-version constraints.
+   - Reasoning: fail-closed compatibility must be externally auditable and environment-tunable.
+
+2. **Used canonical-envelope + payload-contract dual validation.**
+   - Added `src/fraud_detection/decision_log_audit/inlet.py`.
+   - Decision: inlet first validates canonical envelope schema, then validates payload contract using existing domain contracts:
+     - `DecisionResponse` + `ActionIntent` from DF,
+     - `ActionOutcome` from AL.
+   - Reasoning: this satisfies "invalid or incomplete events are quarantined" without duplicating contract logic in DLA.
+
+3. **Introduced explicit reason taxonomy for quarantine lanes.**
+   - Inlet reason codes now include:
+     - `INVALID_ENVELOPE`, `NON_AUDIT_TOPIC`, `UNKNOWN_EVENT_FAMILY`, `SCHEMA_VERSION_REQUIRED`,
+     - `SCHEMA_VERSION_NOT_ALLOWED`, `MISSING_REQUIRED_PINS`, `RUN_SCOPE_MISMATCH`, `MISSING_EVENT_ID`, `PAYLOAD_CONTRACT_INVALID`.
+   - Processor reason codes add write-path semantics:
+     - `WRITE_FAILED`, `PAYLOAD_HASH_MISMATCH`.
+   - Reasoning: reason-stable taxonomy is needed for reconciliation and operational triage in later phases.
+
+4. **Checkpoint progression is now explicitly gated by durable writes.**
+   - Extended `src/fraud_detection/decision_log_audit/storage.py` with `DecisionLogAuditIntakeStore`:
+     - `dla_intake_candidates` (append-only accepted events),
+     - `dla_intake_quarantine` (durable reject lane),
+     - `dla_intake_checkpoints` (consumer progress).
+   - Added `src/fraud_detection/decision_log_audit/intake.py` processor/consumer.
+   - Decision: checkpoint advances only after successful `append_candidate` or successful `append_quarantine`.
+   - Reasoning: this is the core Phase 3 DoD and aligns with RTDL commit safety posture.
+
+5. **Handled hash-collision anomaly at intake substrate boundary.**
+   - Decision: candidate dedupe key is `(platform_run_id, event_type, event_id)` with stored `payload_hash`.
+   - If same key arrives with different hash, processor writes quarantine (`PAYLOAD_HASH_MISMATCH`) and only then advances checkpoint.
+   - Reasoning: prevents silent overwrite and preserves anomaly evidence deterministically.
+
+6. **Kept bus runtime wrapper minimal but parity-capable.**
+   - Added `DecisionLogAuditBusConsumer` with `run_once`/`run_forever`, supporting both file-bus and Kinesis readers.
+   - Reasoning: enough runtime surface for parity operations while deferring lineage-specific assembly to Phase 4.
+
+### Files added/updated for Phase 3
+- Added:
+  - `config/platform/dla/intake_policy_v0.yaml`
+  - `src/fraud_detection/decision_log_audit/config.py`
+  - `src/fraud_detection/decision_log_audit/inlet.py`
+  - `src/fraud_detection/decision_log_audit/intake.py`
+  - `tests/services/decision_log_audit/test_dla_phase3_intake.py`
+- Updated:
+  - `src/fraud_detection/decision_log_audit/storage.py`
+  - `src/fraud_detection/decision_log_audit/__init__.py`
+  - `docs/model_spec/platform/implementation_maps/decision_log_audit.build_plan.md`
+
+### Validation evidence
+- `$env:PYTHONPATH='.;src'; python -m pytest tests/services/decision_log_audit/test_dla_phase3_intake.py -q`
+  - Result: `8 passed`.
+- `$env:PYTHONPATH='.;src'; python -m pytest tests/services/decision_log_audit -q`
+  - Result: `18 passed`.
+- `$env:PYTHONPATH='.;src'; python -m pytest tests/services/action_layer tests/services/decision_log_audit -q`
+  - Result: `63 passed`.
+
+### Phase 3 DoD closure mapping
+- Consumer accepts only allowed families/schemas: **met** (`intake_policy` + inlet allowlist/version gates).
+- Envelope + pins + schema compatibility validated fail-closed: **met**.
+- Invalid/incomplete events quarantined with explicit reason taxonomy: **met**.
+- Checkpoint does not advance on failed validation/write paths: **met** (processor tests include forced write failures).
+
+### Status handoff
+- DLA Phase 3 is **green** at component boundary.
+- Next DLA build-plan focus: Phase 4 (`Lineage assembly (decision -> intent -> outcome)`).
+
+---
