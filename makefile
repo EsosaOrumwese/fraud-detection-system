@@ -2529,6 +2529,7 @@ WSP_PROFILE ?= config/platform/profiles/local.yaml
 WSP_PROFILE_PARITY ?= config/platform/profiles/local_parity.yaml
 OFP_PROFILE_PARITY ?= config/platform/profiles/local_parity.yaml
 OFP_EVENT_BUS_START_POSITION ?= latest
+CONTEXT_STORE_FLOW_BINDING_PROFILE_PARITY ?= config/platform/profiles/local_parity.yaml
 WSP_MAX_EVENTS ?= 1
 WSP_VALIDATE_MAX_EVENTS ?= 10
 WSP_RESUME_EVENTS ?= 1
@@ -2852,6 +2853,57 @@ platform-ofp-projector-parity-live:
 	AWS_EC2_METADATA_DISABLED="$(PARITY_AWS_EC2_METADATA_DISABLED)" \
 	$(PY_PLATFORM) -m fraud_detection.online_feature_plane.projector \
 		--profile "$(OFP_PROFILE_PARITY)"
+
+.PHONY: platform-context-store-flow-binding-parity-once
+platform-context-store-flow-binding-parity-once:
+	@echo "Ensure parity stack is up: make platform-parity-stack-up"
+	@echo "Ensure run id is set: make platform-run-new"
+	@PLATFORM_RUN_ID="$(shell cat runs/fraud-platform/ACTIVE_RUN_ID 2>/dev/null)" \
+	CSFB_REQUIRED_PLATFORM_RUN_ID="$(shell cat runs/fraud-platform/ACTIVE_RUN_ID 2>/dev/null)" \
+	CSFB_PROJECTION_DSN="$(PLATFORM_RUNS_ROOT)" \
+	PLATFORM_STORE_ROOT="$(PLATFORM_RUNS_ROOT)" \
+	OBJECT_STORE_ENDPOINT="$(PARITY_OBJECT_STORE_ENDPOINT)" \
+	OBJECT_STORE_REGION="$(PARITY_OBJECT_STORE_REGION)" \
+	ORACLE_ROOT="$(PARITY_ORACLE_ROOT)" \
+	IG_ADMISSION_DSN="$(PARITY_IG_ADMISSION_DSN)" \
+	WSP_CHECKPOINT_DSN="$(PARITY_WSP_CHECKPOINT_DSN)" \
+	EVENT_BUS_STREAM="$(PARITY_EVENT_BUS_STREAM)" \
+	EVENT_BUS_REGION="$(PARITY_EVENT_BUS_REGION)" \
+	EVENT_BUS_ENDPOINT_URL="$(PARITY_EVENT_BUS_ENDPOINT_URL)" \
+	CONTROL_BUS_STREAM="$(PARITY_CONTROL_BUS_STREAM)" \
+	CONTROL_BUS_REGION="$(PARITY_CONTROL_BUS_REGION)" \
+	CONTROL_BUS_ENDPOINT_URL="$(PARITY_CONTROL_BUS_ENDPOINT_URL)" \
+	AWS_ACCESS_KEY_ID="$(PARITY_MINIO_ACCESS_KEY)" \
+	AWS_SECRET_ACCESS_KEY="$(PARITY_MINIO_SECRET_KEY)" \
+	AWS_EC2_METADATA_DISABLED="$(PARITY_AWS_EC2_METADATA_DISABLED)" \
+	$(PY_PLATFORM) -m fraud_detection.context_store_flow_binding.intake \
+		--policy "$(CONTEXT_STORE_FLOW_BINDING_PROFILE_PARITY)" \
+		--once
+
+.PHONY: platform-context-store-flow-binding-parity-live
+platform-context-store-flow-binding-parity-live:
+	@echo "Ensure parity stack is up: make platform-parity-stack-up"
+	@echo "Ensure run id is set: make platform-run-new"
+	@PLATFORM_RUN_ID="$(shell cat runs/fraud-platform/ACTIVE_RUN_ID 2>/dev/null)" \
+	CSFB_REQUIRED_PLATFORM_RUN_ID="$(shell cat runs/fraud-platform/ACTIVE_RUN_ID 2>/dev/null)" \
+	CSFB_PROJECTION_DSN="$(PLATFORM_RUNS_ROOT)" \
+	PLATFORM_STORE_ROOT="$(PLATFORM_RUNS_ROOT)" \
+	OBJECT_STORE_ENDPOINT="$(PARITY_OBJECT_STORE_ENDPOINT)" \
+	OBJECT_STORE_REGION="$(PARITY_OBJECT_STORE_REGION)" \
+	ORACLE_ROOT="$(PARITY_ORACLE_ROOT)" \
+	IG_ADMISSION_DSN="$(PARITY_IG_ADMISSION_DSN)" \
+	WSP_CHECKPOINT_DSN="$(PARITY_WSP_CHECKPOINT_DSN)" \
+	EVENT_BUS_STREAM="$(PARITY_EVENT_BUS_STREAM)" \
+	EVENT_BUS_REGION="$(PARITY_EVENT_BUS_REGION)" \
+	EVENT_BUS_ENDPOINT_URL="$(PARITY_EVENT_BUS_ENDPOINT_URL)" \
+	CONTROL_BUS_STREAM="$(PARITY_CONTROL_BUS_STREAM)" \
+	CONTROL_BUS_REGION="$(PARITY_CONTROL_BUS_REGION)" \
+	CONTROL_BUS_ENDPOINT_URL="$(PARITY_CONTROL_BUS_ENDPOINT_URL)" \
+	AWS_ACCESS_KEY_ID="$(PARITY_MINIO_ACCESS_KEY)" \
+	AWS_SECRET_ACCESS_KEY="$(PARITY_MINIO_SECRET_KEY)" \
+	AWS_EC2_METADATA_DISABLED="$(PARITY_AWS_EC2_METADATA_DISABLED)" \
+	$(PY_PLATFORM) -m fraud_detection.context_store_flow_binding.intake \
+		--policy "$(CONTEXT_STORE_FLOW_BINDING_PROFILE_PARITY)"
 
 .PHONY: platform-wsp-validate-local
 platform-wsp-validate-local:

@@ -24,6 +24,13 @@ class ContextStoreFlowBindingQueryService:
         store = build_store(locator, stream_id=stream_id)
         return cls(store=store, stream_id=stream_id)
 
+    @classmethod
+    def build_from_policy(cls, policy_path: str | Path) -> "ContextStoreFlowBindingQueryService":
+        from .intake import CsfbInletPolicy
+
+        policy = CsfbInletPolicy.load(Path(policy_path))
+        return cls.build(locator=policy.projection_db_dsn, stream_id=policy.stream_id)
+
     def query(self, payload: Mapping[str, Any]) -> dict[str, Any]:
         resolved_at_utc = _utc_now()
         try:

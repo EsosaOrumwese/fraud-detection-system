@@ -196,6 +196,26 @@ Provide a component-scoped build plan for the shared RTDL join plane that serves
 - DF/DL can read join readiness from this component with stable contracts.
 - 20-event monitored run evidence is recorded with join hit/miss accounting.
 - 200-event monitored run evidence is recorded with lag and determinism checks.
+**Evidence (Phase 7):**
+- Parity profile wiring + topic map:
+  - `config/platform/profiles/local_parity.yaml` (`context_store_flow_binding` section)
+  - `config/platform/context_store_flow_binding/topics_v0.yaml`
+- Intake profile-root loader + query policy builder:
+  - `src/fraud_detection/context_store_flow_binding/intake.py` (profile-root support + env/topic ref resolution)
+  - `src/fraud_detection/context_store_flow_binding/query.py` (`build_from_policy(...)`)
+- Local-parity execution surfaces:
+  - `makefile`
+    - `platform-context-store-flow-binding-parity-once`
+    - `platform-context-store-flow-binding-parity-live`
+  - `docs/runbooks/platform_parity_walkthrough_v0.md` (Section `18`)
+- Tests:
+  - `tests/services/context_store_flow_binding/test_phase7_parity_integration.py`
+    - parity-profile loader + env resolution
+    - monitored 20-event pass (`join_hits=20`, `join_misses=0`, query `READY`)
+    - monitored 200-event pass (checkpoint-stable re-poll, basis digest stable)
+- Validation commands:
+  - `$env:PYTHONPATH='.;src'; python -m pytest tests/services/context_store_flow_binding/test_phase7_parity_integration.py -q` (`3 passed`)
+  - `$env:PYTHONPATH='.;src'; python -m pytest tests/services/context_store_flow_binding -q` (`37 passed`)
 
 ### Phase 8 — Hardening + closure
 **Intent:** close component with replay-safe, production-shaped behavior.
@@ -213,4 +233,5 @@ Provide a component-scoped build plan for the shared RTDL join plane that serves
 - Phase 4 (`Checkpointing + replay determinism`): completed.
 - Phase 5 (`Query/read surface for DF/DL`): completed.
 - Phase 6 (`Degrade and observability hooks`): completed.
-- Current focus: Phase 7 (`Local-parity integration`).
+- Phase 7 (`Local-parity integration`): completed.
+- Current focus: Phase 8 (`Hardening + closure`).

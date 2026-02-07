@@ -7,7 +7,9 @@ from dataclasses import dataclass
 import hashlib
 import json
 import logging
+import os
 from pathlib import Path
+import re
 import time
 from typing import Any, Mapping
 
@@ -25,6 +27,7 @@ from .store import ContextStoreFlowBindingConflictError, build_store
 from .taxonomy import ContextStoreFlowBindingTaxonomyError, ensure_authoritative_flow_binding_event_type
 
 logger = logging.getLogger("fraud_detection.csfb")
+_ENV_PATTERN = re.compile(r"\$\{([^}]+)\}")
 
 
 @dataclass(frozen=True)
@@ -60,28 +63,53 @@ class CsfbInletPolicy:
         payload = yaml.safe_load(path.read_text(encoding="utf-8"))
         if not isinstance(payload, dict):
             raise ValueError("CSFB intake policy must be a mapping")
-        root = payload.get("context_store_flow_binding")
-        if isinstance(root, dict):
-            payload = root
+        payload = _select_policy_root(payload)
         policy = payload.get("policy", {})
         wiring = payload.get("wiring", {})
+        event_bus = wiring.get("event_bus", {}) if isinstance(wiring.get("event_bus"), Mapping) else {}
+
+        class_map_ref = _resolve_ref(
+            _resolve_env(policy.get("class_map_ref") or "config/platform/ig/class_map_v0.yaml"),
+            base_dir=path.parent,
+        )
+        engine_contracts_root = _resolve_ref(
+            _resolve_env(wiring.get("engine_contracts_root") or "docs/model_spec/data-engine/interface_pack/contracts"),
+            base_dir=path.parent,
+        )
+
+        required_platform_run_id = _none_if_blank(_resolve_env(wiring.get("required_platform_run_id")))
+        if not required_platform_run_id:
+            required_platform_run_id = _none_if_blank(
+                os.getenv("CSFB_REQUIRED_PLATFORM_RUN_ID") or os.getenv("PLATFORM_RUN_ID")
+            )
 
         projection_db_dsn = resolve_run_scoped_path(
-            str(wiring.get("projection_db_dsn") or "runs/fraud-platform/context_store_flow_binding/csfb.sqlite"),
+            str(
+                _resolve_env(wiring.get("projection_db_dsn"))
+                or os.getenv("CSFB_PROJECTION_DSN")
+                or "runs/fraud-platform/context_store_flow_binding/csfb.sqlite"
+            ),
             suffix="context_store_flow_binding/csfb.sqlite",
             create_if_missing=True,
         )
         if not projection_db_dsn:
             raise ValueError("PLATFORM_RUN_ID required to resolve projection_db_dsn")
-        event_bus_root = resolve_run_scoped_path(
-            str(wiring.get("event_bus_root") or "runs/fraud-platform/eb"),
-            suffix="eb",
-            create_if_missing=True,
-        )
+
+        event_bus_kind = str(
+            _resolve_env(wiring.get("event_bus_kind") or event_bus.get("kind") or "file")
+        ).strip().lower()
+        event_bus_root = _none_if_blank(_resolve_env(wiring.get("event_bus_root") or event_bus.get("root") or event_bus.get("path")))
+        if event_bus_kind == "file":
+            event_bus_root = resolve_run_scoped_path(
+                str(event_bus_root or os.getenv("CSFB_EVENT_BUS_ROOT") or "runs/fraud-platform/eb"),
+                suffix="eb",
+                create_if_missing=True,
+            )
+        context_topics = tuple(_load_topics(policy=policy, event_bus=event_bus, base_dir=path.parent))
 
         return cls(
             stream_id=str(policy.get("stream_id") or "csfb.v0"),
-            class_map_ref=str(policy.get("class_map_ref") or "config/platform/ig/class_map_v0.yaml"),
+            class_map_ref=str(class_map_ref),
             context_event_classes=tuple(
                 policy.get("context_event_classes")
                 or [
@@ -91,27 +119,27 @@ class CsfbInletPolicy:
                     "context_flow_fraud",
                 ]
             ),
-            context_topics=tuple(
-                policy.get("context_topics")
-                or [
-                    "fp.bus.context.arrival_events.v1",
-                    "fp.bus.context.arrival_entities.v1",
-                    "fp.bus.context.flow_anchor.baseline.v1",
-                    "fp.bus.context.flow_anchor.fraud.v1",
-                ]
-            ),
+            context_topics=context_topics,
             projection_db_dsn=str(projection_db_dsn),
-            event_bus_kind=str(wiring.get("event_bus_kind") or "file"),
+            event_bus_kind=event_bus_kind,
             event_bus_root=event_bus_root,
-            event_bus_stream=str(wiring.get("event_bus_stream") or "auto"),
-            event_bus_start_position=str(wiring.get("event_bus_start_position") or "trim_horizon"),
-            event_bus_region=_none_if_blank(wiring.get("event_bus_region")),
-            event_bus_endpoint_url=_none_if_blank(wiring.get("event_bus_endpoint_url")),
-            engine_contracts_root=str(
-                wiring.get("engine_contracts_root")
-                or "docs/model_spec/data-engine/interface_pack/contracts"
+            event_bus_stream=str(
+                _resolve_env(wiring.get("event_bus_stream") or event_bus.get("stream") or os.getenv("CSFB_EVENT_BUS_STREAM") or "auto")
             ),
-            required_platform_run_id=_none_if_blank(wiring.get("required_platform_run_id")),
+            event_bus_start_position=str(
+                _resolve_env(
+                    wiring.get("event_bus_start_position")
+                    or event_bus.get("start_position")
+                    or os.getenv("CSFB_EVENT_BUS_START_POSITION")
+                    or "trim_horizon"
+                )
+            ),
+            event_bus_region=_none_if_blank(_resolve_env(wiring.get("event_bus_region") or event_bus.get("region") or os.getenv("CSFB_EVENT_BUS_REGION"))),
+            event_bus_endpoint_url=_none_if_blank(
+                _resolve_env(wiring.get("event_bus_endpoint_url") or event_bus.get("endpoint_url") or os.getenv("CSFB_EVENT_BUS_ENDPOINT_URL"))
+            ),
+            engine_contracts_root=str(engine_contracts_root),
+            required_platform_run_id=required_platform_run_id,
             poll_max_records=max(1, int(wiring.get("poll_max_records") or 200)),
             poll_sleep_seconds=float(wiring.get("poll_sleep_seconds") or 0.5),
         )
@@ -636,6 +664,85 @@ class ContextStoreFlowBindingInlet:
 def _none_if_blank(value: Any) -> str | None:
     text = str(value or "").strip()
     return text or None
+
+
+def _resolve_env(value: Any) -> Any:
+    if not isinstance(value, str):
+        return value
+    match = _ENV_PATTERN.fullmatch(value.strip())
+    if not match:
+        return value
+    return os.getenv(match.group(1), "")
+
+
+def _resolve_ref(value: Any, *, base_dir: Path) -> str:
+    if value in (None, ""):
+        raise ValueError("CSFB required reference path is missing")
+    ref = Path(str(value))
+    if not ref.is_absolute() and not ref.exists():
+        ref = base_dir / ref
+    return str(ref)
+
+
+def _select_policy_root(payload: Mapping[str, Any]) -> Mapping[str, Any]:
+    nested = payload.get("context_store_flow_binding")
+    if isinstance(nested, Mapping):
+        return nested
+    nested = payload.get("csfb")
+    if isinstance(nested, Mapping):
+        return nested
+    return payload
+
+
+def _load_topics(*, policy: Mapping[str, Any], event_bus: Mapping[str, Any], base_dir: Path) -> list[str]:
+    env_topics = os.getenv("CSFB_TOPICS")
+    if env_topics:
+        topics = [item.strip() for item in env_topics.split(",") if item.strip()]
+        if topics:
+            return topics
+    env_topics_ref = os.getenv("CSFB_TOPICS_REF")
+    if env_topics_ref:
+        topics = _load_topics_from_ref(env_topics_ref, base_dir=base_dir)
+        if topics:
+            return topics
+
+    explicit_topics = policy.get("context_topics")
+    if isinstance(explicit_topics, list) and explicit_topics:
+        return [str(item).strip() for item in explicit_topics if str(item).strip()]
+
+    policy_topics_ref = _resolve_env(policy.get("context_topics_ref"))
+    if policy_topics_ref:
+        topics = _load_topics_from_ref(str(policy_topics_ref), base_dir=base_dir)
+        if topics:
+            return topics
+
+    bus_topics = event_bus.get("topics")
+    if isinstance(bus_topics, list) and bus_topics:
+        return [str(item).strip() for item in bus_topics if str(item).strip()]
+
+    bus_topics_ref = _resolve_env(event_bus.get("topics_ref"))
+    if bus_topics_ref:
+        topics = _load_topics_from_ref(str(bus_topics_ref), base_dir=base_dir)
+        if topics:
+            return topics
+
+    return [
+        "fp.bus.context.arrival_events.v1",
+        "fp.bus.context.arrival_entities.v1",
+        "fp.bus.context.flow_anchor.baseline.v1",
+        "fp.bus.context.flow_anchor.fraud.v1",
+    ]
+
+
+def _load_topics_from_ref(ref: str, *, base_dir: Path) -> list[str]:
+    path = Path(ref)
+    if not path.is_absolute() and not path.exists():
+        path = base_dir / path
+    payload = yaml.safe_load(path.read_text(encoding="utf-8"))
+    topics = payload.get("topics") if isinstance(payload, Mapping) else payload
+    if not isinstance(topics, list):
+        return []
+    return [str(item).strip() for item in topics if str(item).strip()]
 
 
 def _unwrap_envelope(value: dict[str, Any] | None) -> dict[str, Any] | None:

@@ -754,3 +754,94 @@ Boundary note:
 DF currently validates through component contracts/tests and IG publish boundary logic. There is no standalone long-running DF service CLI in this repo yet.
 
 
+## 18) Context Store + FlowBinding local-parity checks (join plane intake + query)
+
+Use this section to validate the shared RTDL join plane (`context_store_flow_binding`) for the active platform run.
+
+**18.1 Pin run scope**
+```powershell
+$run = (Get-Content runs/fraud-platform/ACTIVE_RUN_ID -Raw).Trim()
+$run = ($run -replace '[^A-Za-z0-9_:-]','')
+$env:PLATFORM_RUN_ID = $run
+$env:CSFB_REQUIRED_PLATFORM_RUN_ID = $run
+$env:CSFB_PROJECTION_DSN = 'runs/fraud-platform'
+```
+
+**18.2 Run CSFB intake once (parity profile)**
+```powershell
+make platform-context-store-flow-binding-parity-once
+```
+
+Live mode (continuous consume):
+```powershell
+make platform-context-store-flow-binding-parity-live
+```
+
+**18.3 Monitored 20-event pass**
+1. Run SR -> WSP 20-event parity flow first (Sections 6-7 with `WSP_MAX_EVENTS_PER_OUTPUT=20`).
+2. Run `make platform-context-store-flow-binding-parity-once`.
+3. Inspect CSFB metrics/reconciliation:
+```powershell
+@'
+import json
+from pathlib import Path
+from fraud_detection.context_store_flow_binding import CsfbInletPolicy, CsfbObservabilityReporter
+
+run_id = Path("runs/fraud-platform/ACTIVE_RUN_ID").read_text(encoding="utf-8").strip()
+profile = "config/platform/profiles/local_parity.yaml"
+policy = CsfbInletPolicy.load(Path(profile))
+reporter = CsfbObservabilityReporter.build(locator=policy.projection_db_dsn, stream_id=policy.stream_id)
+payload = reporter.collect(platform_run_id=run_id, scenario_run_id=None)
+print(json.dumps({
+    "platform_run_id": run_id,
+    "join_hits": payload["metrics"]["join_hits"],
+    "join_misses": payload["metrics"]["join_misses"],
+    "apply_failures": payload["metrics"]["apply_failures"],
+    "lag_seconds": payload["lag_seconds"],
+    "health_state": payload["health_state"],
+}, indent=2, sort_keys=True))
+'@ | .venv\Scripts\python.exe -
+```
+
+**18.4 Monitored 200-event pass**
+1. Run SR -> WSP parity flow with `WSP_MAX_EVENTS_PER_OUTPUT=200`.
+2. Re-run `make platform-context-store-flow-binding-parity-once`.
+3. Re-run the metrics snippet above and compare:
+- `join_hits` should increase monotonically with context flow.
+- `join_misses`/`apply_failures` should remain bounded and explainable.
+- lag/health should remain non-divergent under repeated `--once` polling.
+
+**18.5 Query join readiness (DF/DL contract surface)**
+```powershell
+@'
+from pathlib import Path
+from fraud_detection.context_store_flow_binding import ContextStoreFlowBindingQueryService
+
+run_id = Path("runs/fraud-platform/ACTIVE_RUN_ID").read_text(encoding="utf-8").strip()
+service = ContextStoreFlowBindingQueryService.build_from_policy("config/platform/profiles/local_parity.yaml")
+
+request = {
+    "request_id": "parity-csfb-query-1",
+    "query_kind": "resolve_flow_binding",
+    "flow_id": "<FLOW_ID_FROM_FLOW_ANCHOR>",
+    "pins": {
+        "platform_run_id": run_id,
+        "scenario_run_id": "<SCENARIO_RUN_ID>",
+        "manifest_fingerprint": "<MANIFEST_FINGERPRINT>",
+        "parameter_hash": "<PARAMETER_HASH>",
+        "scenario_id": "<SCENARIO_ID>",
+        "seed": "<SEED>",
+        "run_id": "<RUN_ID>",
+    },
+}
+
+print(service.query(request))
+'@ | .venv\Scripts\python.exe -
+```
+
+Expected statuses:
+- `READY` when flow binding and join frame exist and pins match.
+- `MISSING_BINDING` / `MISSING_JOIN_FRAME` when context is not ready.
+- `CONFLICT` on pin mismatch (fail-closed).
+
+

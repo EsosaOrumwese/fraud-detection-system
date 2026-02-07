@@ -849,3 +849,197 @@ Reasoning:
 - Metrics exported (`join_hits`, `join_misses`, `binding_conflicts`, `apply_failures`, watermark/lag gauges): satisfied.
 - Health surface emits `GREEN|AMBER|RED` with threshold policy ref: satisfied.
 - Reconciliation artifact includes applied offset basis + unresolved anomalies: satisfied.
+
+## Entry: 2026-02-07 17:16:51 - Phase 7 pre-implementation plan (local-parity integration)
+
+### Active-phase objective
+Close Phase 7 by making CSFB runnable in local-parity with profile-based wiring, then prove stable join-readiness behavior with monitored 20-event and 200-event passes.
+
+### Inputs/authorities
+- `docs/model_spec/platform/implementation_maps/context_store_flow_binding.build_plan.md` (Phase 7 DoD)
+- `docs/model_spec/platform/implementation_maps/platform.build_plan.md` (Phase 4.3.5 join-plane placement)
+- `docs/runbooks/platform_parity_walkthrough_v0.md`
+- `config/platform/profiles/local_parity.yaml`
+- `docs/model_spec/platform/component-specific/flow-narrative-platform-design.md`
+- `docs/model_spec/platform/pre-design_decisions/real-time_decision_loop.pre-design_decision.md`
+
+### Problem statement
+Current CSFB runtime is policy-file-driven only (`--policy`) and defaults to file bus wiring. This leaves a local-parity gap compared with IEG/OFP/DF where profile-driven parity wiring exists. Phase 7 requires run-scoped parity operation evidence and a stable DF/DL-readable join surface under the same contract.
+
+### Alternatives considered
+1. Keep CSFB policy-only and drive parity via ad-hoc env overrides.
+- Rejected: fragile and non-auditable for runbook use; encourages configuration drift.
+
+2. Add a dedicated CSFB profile file separate from platform profile.
+- Rejected for Phase 7: workable but duplicates run wiring and weakens single-source parity posture.
+
+3. Add CSFB section into `local_parity` profile and make inlet policy loader support profile-root configs.
+- Selected: consistent with existing IEG/OFP parity model and keeps run-scoped wiring explicit.
+
+### Decisions pinned before code
+1. **Profile-first parity support**
+- CSFB intake loader will support both existing `context_store_flow_binding` policy files and platform profile files containing a `context_store_flow_binding` section.
+- Local compatibility remains preserved: current policy file shape keeps working.
+
+2. **Run-scoped path resolution remains mandatory in parity**
+- `projection_db_dsn` and artifact output roots continue to resolve through `resolve_run_scoped_path`, fail-closed when `PLATFORM_RUN_ID` is missing.
+
+3. **Parity worker CLI surface remains intake-oriented**
+- No new orchestration daemon is introduced in Phase 7. We wire parity through intake CLI + runbook/make targets (`--once` and live mode).
+
+4. **Phase 7 evidence approach**
+- Add deterministic tests that execute monitored 20-event and 200-event passes using file-bus fixtures to validate join hit/miss accounting, checkpoint progression, and replay-safe idempotent behavior.
+- Keep local-parity runbook steps explicit for operator execution against Kinesis parity stack.
+
+### Planned file changes
+- Update:
+  - `src/fraud_detection/context_store_flow_binding/intake.py`
+  - `config/platform/profiles/local_parity.yaml`
+  - `Makefile`
+  - `docs/runbooks/platform_parity_walkthrough_v0.md`
+  - `docs/model_spec/platform/implementation_maps/context_store_flow_binding.build_plan.md`
+- Add:
+  - `tests/services/context_store_flow_binding/test_phase7_parity_integration.py`
+
+### Validation plan
+1. Run new Phase 7 tests:
+- `python -m pytest tests/services/context_store_flow_binding/test_phase7_parity_integration.py -q`
+2. Run full CSFB suite:
+- `python -m pytest tests/services/context_store_flow_binding -q`
+3. Verify DoD mapping in build plan and record evidence paths/results.
+
+## Entry: 2026-02-07 17:49:30 - Phase 7 implementation completed (local-parity integration)
+
+### What was implemented
+1. **Profile-root CSFB wiring support**
+- Updated `src/fraud_detection/context_store_flow_binding/intake.py` so `CsfbInletPolicy.load(...)` now supports:
+  - existing CSFB policy files (`context_store_flow_binding` root), and
+  - platform profile files containing `context_store_flow_binding` (local-parity shape).
+- Added env/token resolution support for CSFB wiring fields (`${...}`), event-bus nested config parsing, and `topics_ref` loading.
+
+2. **Parity profile wiring pinned**
+- Updated `config/platform/profiles/local_parity.yaml` with a dedicated `context_store_flow_binding` block:
+  - parity event bus kind (`kinesis`)
+  - run-scoped projection DSN via env
+  - context topics reference.
+- Added `config/platform/context_store_flow_binding/topics_v0.yaml` for the parity context topic set.
+
+3. **DF/DL read-contract convenience surface**
+- Added `ContextStoreFlowBindingQueryService.build_from_policy(...)` in `src/fraud_detection/context_store_flow_binding/query.py`.
+- This allows DF/DL-facing tooling to bind query service directly from profile/policy wiring (same contract path as intake).
+
+4. **Local-parity execution surfaces**
+- Added make targets in `makefile`:
+  - `platform-context-store-flow-binding-parity-once`
+  - `platform-context-store-flow-binding-parity-live`
+- Updated runbook (`docs/runbooks/platform_parity_walkthrough_v0.md`) with Section `18`:
+  - run-scoped CSFB parity execution,
+  - monitored 20/200 checks,
+  - query/read surface demonstration.
+
+5. **Phase 7 test coverage**
+- Added `tests/services/context_store_flow_binding/test_phase7_parity_integration.py` with three targeted assertions:
+  - parity profile loader + env resolution + topics ref loading,
+  - monitored 20-event pass with `join_hits/join_misses` accounting + query `READY` proof,
+  - monitored 200-event pass with checkpoint-stable re-poll and basis digest stability.
+
+### Decisions made during implementation (with reasoning)
+1. **Keep intake entrypoint unchanged (`--policy`) and make it profile-aware**
+- Decision: do not add a second intake CLI for profile.
+- Reasoning: backwards compatibility is preserved and parity behavior is unlocked via config shape, not CLI churn.
+
+2. **Use explicit topics reference file in parity profile**
+- Decision: add `config/platform/context_store_flow_binding/topics_v0.yaml` and consume it via `topics_ref`.
+- Reasoning: topic set becomes auditable and versioned like IEG/OFP topic references.
+
+3. **Add query builder from policy/profile rather than introducing a new service process**
+- Decision: add `build_from_policy(...)` helper to query service.
+- Reasoning: satisfies Phase 7 read-contract integration without introducing additional runtime process complexity in this phase.
+
+4. **Test-level correction for late-event noise in 200-event pass**
+- Initial implementation used wrapped minute values in synthetic timestamps, which produced `LATE_CONTEXT_EVENT` artifacts and invalidated the intended deterministic check.
+- Decision: switch synthetic timestamp generation to monotonic event-time progression.
+- Reasoning: aligns test with intended Phase 7 assertion (determinism/checkpoint stability, not lateness policy stress).
+
+### Validation executed
+- `$env:PYTHONPATH='.;src'; python -m pytest tests/services/context_store_flow_binding/test_phase7_parity_integration.py -q`
+  - Result: `3 passed`
+- `$env:PYTHONPATH='.;src'; python -m pytest tests/services/context_store_flow_binding -q`
+  - Result: `37 passed`
+- `make -n platform-context-store-flow-binding-parity-once`
+  - Result: target resolves expected parity env/wiring and CLI invocation.
+
+### Phase 7 DoD mapping
+- Local-parity run wiring exists (profile + make surfaces + runbook): satisfied.
+- DF/DL readable join contract stable from this component (`build_from_policy` + query contract): satisfied.
+- 20-event monitored evidence captured in test (`join_hits=20`, `join_misses=0`, query `READY`): satisfied.
+- 200-event monitored evidence captured in test (checkpoint-stable re-poll + basis digest stability): satisfied.
+
+## Entry: 2026-02-07 17:41:35 - Phase 7 live local-parity execution evidence (20 + 200)
+
+### Objective
+Execute real local-parity runtime passes for CSFB over live SR->WSP->IG->EB flow and capture run-scoped evidence.
+
+### Runtime sequence executed
+1. Brought parity stack up and bootstrapped streams/buckets:
+   - `make platform-parity-stack-up`
+   - `make platform-parity-bootstrap`
+2. Started/validated IG parity service health (`/v1/ops/health`).
+3. Executed SR + WSP 20-event pass:
+   - SR run: `scenario_run_id=8b32f4e42a82977d87fb1de1cf3772df`
+   - WSP emitted `80` total (`20` per output across 4 outputs).
+   - CSFB intake pass: `make platform-context-store-flow-binding-parity-once` -> `processed=60`.
+4. Executed SR + WSP 200-event pass:
+   - SR run: `scenario_run_id=c62f7c678b4866059a257239664fe1c4`
+   - WSP emitted `800` total (`200` per output across 4 outputs).
+   - CSFB intake pass: `make platform-context-store-flow-binding-parity-once` -> `processed=600`.
+
+### Live evidence captured
+- Platform run scope used by emitted envelopes in this pass:
+  - `platform_run_id=platform_20260201T224449Z`
+- CSFB projection DB:
+  - `runs/fraud-platform/platform_20260201T224449Z/context_store_flow_binding/csfb.sqlite`
+- CSFB metrics snapshots (from reporter collect):
+  - `pass20_metrics`: `join_hits=20`, `join_misses=0`, `apply_failures=0`, `binding_conflicts=0`
+  - `pass200_metrics`: `join_hits=200`, `join_misses=0`, `apply_failures=0`, `binding_conflicts=0`
+  - `overall_metrics`: `join_hits=220`, `join_misses=0`, `apply_failures=0`, `binding_conflicts=0`
+- Query/read proof on 200-run sample flow:
+  - `ContextStoreFlowBindingQueryService.build_from_policy(local_parity)`
+  - query `resolve_flow_binding` returned `status=READY`.
+
+### Important runtime caveat observed
+- `make platform-run-new` generated `platform_20260207T172754Z`, but SR invocations still emitted with `platform_run_id=platform_20260201T224449Z` because env/config precedence provided that run id at runtime.
+- For this live validation, all downstream execution was aligned to the emitted run scope (`platform_20260201T224449Z`) to avoid pin mismatches.
+- This is an operator/env precedence concern, not a CSFB Phase 7 code defect.
+
+### Phase 7 live DoD confirmation
+- Local-parity runtime wiring proven via live stack: satisfied.
+- DF/DL join-readiness query contract exercised live (`READY`): satisfied.
+- 20-event monitored pass evidence: satisfied.
+- 200-event monitored pass evidence: satisfied.
+
+## Entry: 2026-02-07 17:45:55 - Explicit CSFB tool-stack note by environment
+
+To remove ambiguity, the Context Store + FlowBinding runtime stack is explicitly pinned as follows:
+
+- **Local (fast smoke)**
+  - Event bus backend: file-bus
+  - CSFB state store backend: SQLite
+  - Runtime mode: Python intake worker (`--once` or `run_forever`)
+
+- **Local parity (current implementation/runtime)**
+  - Event bus backend: Kinesis (LocalStack)
+  - CSFB state store backend: SQLite by default in run-scoped path
+  - Runtime wiring source: `config/platform/profiles/local_parity.yaml` (`context_store_flow_binding` section)
+  - Notes:
+    - CSFB supports profile-root loading and parity Make targets.
+    - If `CSFB_PROJECTION_DSN` is pointed at Postgres DSN, CSFB will use Postgres backend.
+
+- **Dev/Prod target posture (supported path)**
+  - Event bus backend: Kinesis
+  - CSFB state store backend: Postgres DSN
+  - Runtime artifacts/provenance remain run-scoped and by-ref consistent with platform rails.
+
+Implementation clarification:
+- CSFB store backend selection is backend-aware (`sqlite` vs `postgres`) via locator/DSN detection in `src/fraud_detection/context_store_flow_binding/store.py`.
+- Therefore parity can be switched from SQLite to Postgres by wiring change (no component logic rewrite required).
