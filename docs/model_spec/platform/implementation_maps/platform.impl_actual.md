@@ -2105,3 +2105,54 @@ Expanded `docs/model_spec/platform/implementation_maps/platform.build_plan.md` P
 
 ### Residual boundary (intentional)
 This edit does not claim 4.4 implementation completion. It only establishes an executable platform-level DoD map so component plans/implementation can proceed with unambiguous acceptance criteria.
+
+## Entry: 2026-02-07 12:45:50 - Plan: finalize platform 4.4 closure after DF store parity
+
+### Problem
+Platform Phase 4.4 currently remains marked planning-active although DF/DL component phases are complete. The remaining explicit blocker is `4.4.H` store parity language requiring Postgres-aligned DF stores for local-parity/dev/prod, plus the missing formal `4.4.L` closure entry.
+
+### Decision
+1. Complete DF replay/checkpoint backend parity (Postgres-capable while preserving SQLite compatibility).
+2. Re-evaluate 4.4.A-L checklist after tests.
+3. Update `platform.build_plan.md` to:
+   - set Phase 4.4 status to implementation-complete at DF/DL boundary,
+   - include explicit `4.5` dependency/handoff list,
+   - avoid overclaiming AL/DLA closure.
+
+### Validation
+- Evidence from DF test suite and backend parity tests must be recorded before changing platform 4.4 status.
+
+---
+
+## Entry: 2026-02-07 13:03:00 - Applied platform 4.4 closure after DF store-parity correction
+
+### What was closed
+1. `4.4.H` state-store parity gate is now satisfied at platform expectation level:
+   - DL posture store already aligned for parity ladder,
+   - DF replay/checkpoint stores now support Postgres locators for local-parity/dev/prod.
+2. `4.4.L` closure entry has been added in `platform.build_plan.md` with explicit unresolved `4.5` dependencies.
+
+### Platform plan updates
+- `docs/model_spec/platform/implementation_maps/platform.build_plan.md`
+  - Phase 4.4 status updated from planning-active to complete at DF/DL boundary.
+  - Added dated 4.4 completion entry.
+  - Added explicit unresolved risks and dependency list for Phase 4.5 (AL/DLA integration closure).
+  - Rolling status section updated to reflect 4.4 closure posture.
+
+### Validation evidence used
+- `python -m pytest tests/services/decision_fabric/test_phase7_replay.py tests/services/decision_fabric/test_phase7_checkpoints.py -q` -> `7 passed`
+- `python -m pytest tests/services/decision_fabric -q` -> `65 passed`
+
+### Boundary reminder
+Platform 4.4 is closed at the DF/DL decision+intent boundary. End-to-end execution/audit closure remains intentionally tracked under platform 4.5.
+
+---
+
+## Entry: 2026-02-07 13:11:20 — 4.4 closure validation addendum (fresh DL suite run)
+
+To keep platform 4.4 closure evidence current in this execution pass, reran DL component tests after DF parity updates:
+- `python -m pytest tests/services/degrade_ladder -q` -> `40 passed`.
+
+This confirms DF + DL component suites are both green in the same closure cycle.
+
+---

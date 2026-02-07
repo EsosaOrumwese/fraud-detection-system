@@ -2,6 +2,9 @@ from __future__ import annotations
 
 from pathlib import Path
 
+import pytest
+
+import fraud_detection.decision_fabric.replay as replay_module
 from fraud_detection.decision_fabric.replay import (
     REPLAY_MATCH,
     REPLAY_NEW,
@@ -91,3 +94,30 @@ def test_replay_ledger_payload_mismatch_is_anomaly_and_immutable(tmp_path: Path)
     assert entry.payload_hash == first.payload_hash
     assert entry.mismatch_count == 1
     assert ledger.mismatch_count("2" * 32) == 1
+
+
+def test_replay_ledger_routes_postgres_locator(monkeypatch: pytest.MonkeyPatch) -> None:
+    calls: list[str] = []
+
+    class _FakeResult:
+        def fetchone(self) -> tuple[str, int, int] | None:
+            return None
+
+    class _FakeConn:
+        def __enter__(self) -> "_FakeConn":
+            return self
+
+        def __exit__(self, exc_type, exc, tb) -> bool:
+            return False
+
+        def execute(self, *_args, **_kwargs) -> _FakeResult:
+            return _FakeResult()
+
+    def _fake_connect(dsn: str):
+        calls.append(dsn)
+        return _FakeConn()
+
+    monkeypatch.setattr(replay_module.psycopg, "connect", _fake_connect)
+    ledger = DecisionReplayLedger("postgresql://platform:platform@localhost:5434/platform")
+    assert ledger.backend == "postgres"
+    assert calls == ["postgresql://platform:platform@localhost:5434/platform"]

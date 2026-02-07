@@ -542,7 +542,7 @@ These remain open and will be resolved during RTDL Phase 4 planning and partitio
 
 #### Phase 4.4 — DF/DL decision core (features → decision)
 **Goal:** compute decisions with explicit degrade posture.
-**Status:** planning-active (next implementation focus after 4.3 component closure).
+**Status:** complete at DF/DL decision+intent boundary; Phase 4.5 integration-dependent execution/audit closure remains pending by design.
 
 ##### 4.4.A — Decision trigger boundary + run scope
 **Goal:** ensure DF only decides on admissible, run-scoped traffic stimuli.
@@ -654,6 +654,23 @@ These remain open and will be resolved during RTDL Phase 4 planning and partitio
 - Remaining integration gates that require AL execution truth and DLA append-only audit closure stay explicitly tracked under Phase 4.5.
 - 4.4 completion entry includes unresolved integration risks and exact dependency list for 4.5.
 
+**4.4 completion entry (2026-02-07):**
+- Closure basis:
+  - DF component phases 1-8 complete with run-scoped observability/reconciliation and replay/checkpoint safety.
+  - DL component phases 1-8 complete for posture authority + serving semantics.
+  - DF replay/checkpoint stores are backend-aware for `sqlite` and `postgres` locators, closing 4.4.H store parity expectations for local-parity/dev/prod.
+- Validation evidence:
+  - `python -m pytest tests/services/decision_fabric -q` -> `65 passed`
+  - `python -m pytest tests/services/degrade_ladder -q` -> `40 passed`
+- Unresolved integration risks (explicitly deferred to 4.5):
+  - Action Layer side-effect execution truth and idempotent external effect semantics.
+  - Decision Log/Audit append-only closure for decision -> intent -> outcome chain.
+  - End-to-end RTDL run proofs that include AL execution and DLA audit artifacts.
+- 4.5 dependency list:
+  - `action_layer` component implementation/validation map.
+  - `decision_log_audit` component implementation/validation map.
+  - Integrated DF + AL + DLA local-parity runbook/evidence pass (20 and 200 event monitored runs).
+
 #### Phase 4.5 — AL + DLA (decision → outcome → audit)
 **Goal:** apply effects safely and record audit truth.
 
@@ -717,4 +734,5 @@ Resolved and pinned in:
 - Phase 2: complete (Oracle Store + WSP stream‑view parity).
 - Phase 3: complete (control & ingress plane green for v0).
 - Phase 4.3 (OFP): component-complete, integration-pending (DF/DL-dependent checks remain).
+- Phase 4.4 (DF/DL): complete at decision+intent boundary; Phase 4.5 AL/DLA integration closure pending.
 - SR v0: complete (see `docs/model_spec/platform/implementation_maps/scenario_runner.build_plan.md`).

@@ -2,6 +2,9 @@ from __future__ import annotations
 
 from pathlib import Path
 
+import pytest
+
+import fraud_detection.decision_fabric.checkpoints as checkpoints_module
 from fraud_detection.decision_fabric.checkpoints import (
     CHECKPOINT_BLOCKED,
     CHECKPOINT_COMMITTED,
@@ -132,3 +135,42 @@ def test_checkpoint_blocks_when_action_is_quarantined(tmp_path: Path) -> None:
     )
     assert blocked.status == CHECKPOINT_BLOCKED
     assert blocked.reason == "ACTION_QUARANTINED"
+
+
+def test_checkpoint_gate_routes_postgres_locator(monkeypatch: pytest.MonkeyPatch) -> None:
+    calls: list[str] = []
+
+    class _FakeResult:
+        rowcount = 1
+
+        def fetchone(self):
+            return None
+
+    class _FakeConn:
+        def __enter__(self):
+            return self
+
+        def __exit__(self, exc_type, exc, tb) -> bool:
+            return False
+
+        def execute(self, *_args, **_kwargs):
+            return _FakeResult()
+
+        class _Tx:
+            def __enter__(self):
+                return self
+
+            def __exit__(self, exc_type, exc, tb) -> bool:
+                return False
+
+        def transaction(self):
+            return self._Tx()
+
+    def _fake_connect(dsn: str):
+        calls.append(dsn)
+        return _FakeConn()
+
+    monkeypatch.setattr(checkpoints_module.psycopg, "connect", _fake_connect)
+    gate = DecisionCheckpointGate("postgresql://platform:platform@localhost:5434/platform")
+    assert gate.backend == "postgres"
+    assert calls == ["postgresql://platform:platform@localhost:5434/platform"]
