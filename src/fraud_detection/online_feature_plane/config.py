@@ -73,7 +73,10 @@ class OfpWiring:
     event_bus_stream: str | None
     event_bus_region: str | None
     event_bus_endpoint_url: str | None
+    event_bus_start_position: str
+    event_bus_basis_stream: str
     event_bus_topic: str
+    event_bus_topics: list[str]
     engine_contracts_root: str
     poll_max_records: int
     poll_sleep_seconds: float
@@ -142,10 +145,17 @@ class OfpProfile:
         event_bus_stream = _resolve_env(event_bus.get("stream"))
         event_bus_region = _resolve_env(event_bus.get("region"))
         event_bus_endpoint_url = _resolve_env(event_bus.get("endpoint_url"))
+        event_bus_start_position = str(
+            _resolve_env(event_bus.get("start_position") or os.getenv("OFP_EVENT_BUS_START_POSITION") or "trim_horizon")
+        ).strip().lower()
+        if event_bus_start_position not in {"trim_horizon", "latest"}:
+            raise ValueError("OFP event_bus.start_position must be one of: trim_horizon, latest")
         topics = _load_topics(event_bus, base_dir=path.parent)
-        if len(topics) != 1:
-            raise ValueError(f"OFP expects exactly one traffic topic in v0, found {len(topics)}")
-        event_bus_topic = topics[0]
+        if not topics:
+            raise ValueError("OFP requires at least one event bus topic")
+        event_bus_topics = list(dict.fromkeys(topics))
+        event_bus_topic = event_bus_topics[0]
+        event_bus_basis_stream = event_bus_topic if len(event_bus_topics) == 1 else "multi"
 
         engine_contracts_root = str(
             wiring.get("engine_contracts_root")
@@ -177,7 +187,8 @@ class OfpProfile:
             amount_fields=amount_fields,
             stream_id_base=stream_id_base,
             event_bus_kind=event_bus_kind,
-            event_bus_topic=event_bus_topic,
+            event_bus_topics=event_bus_topics,
+            event_bus_start_position=event_bus_start_position,
         )
         return cls(
             policy=OfpPolicy(
@@ -204,7 +215,10 @@ class OfpProfile:
                 event_bus_stream=event_bus_stream,
                 event_bus_region=event_bus_region,
                 event_bus_endpoint_url=event_bus_endpoint_url,
+                event_bus_start_position=event_bus_start_position,
+                event_bus_basis_stream=event_bus_basis_stream,
                 event_bus_topic=event_bus_topic,
+                event_bus_topics=event_bus_topics,
                 engine_contracts_root=engine_contracts_root,
                 poll_max_records=poll_max_records,
                 poll_sleep_seconds=poll_sleep_seconds,
@@ -422,7 +436,8 @@ def _run_config_digest(
     amount_fields: list[str],
     stream_id_base: str,
     event_bus_kind: str,
-    event_bus_topic: str,
+    event_bus_topics: list[str],
+    event_bus_start_position: str,
 ) -> str:
     payload = {
         "feature_def_policy_rev": {
@@ -437,7 +452,8 @@ def _run_config_digest(
         "amount_fields": list(amount_fields),
         "stream_id_base": stream_id_base,
         "event_bus_kind": event_bus_kind,
-        "event_bus_topic": event_bus_topic,
+        "event_bus_topics": sorted([str(topic) for topic in event_bus_topics]),
+        "event_bus_start_position": event_bus_start_position,
     }
     canonical = json.dumps(payload, sort_keys=True, ensure_ascii=True, separators=(",", ":"))
     return hashlib.sha256(canonical.encode("utf-8")).hexdigest()

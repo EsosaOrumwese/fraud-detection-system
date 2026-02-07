@@ -98,6 +98,7 @@ class KinesisEventBusReader:
         shard_id: str,
         from_sequence: str | None,
         limit: int,
+        start_position: str = "trim_horizon",
     ) -> list[dict[str, Any]]:
         if not stream_name:
             raise RuntimeError("KINESIS_STREAM_NAME_MISSING")
@@ -109,6 +110,8 @@ class KinesisEventBusReader:
         if from_sequence:
             iterator_args["ShardIteratorType"] = "AFTER_SEQUENCE_NUMBER"
             iterator_args["StartingSequenceNumber"] = from_sequence
+        elif str(start_position).strip().lower() == "latest":
+            iterator_args["ShardIteratorType"] = "LATEST"
         iterator_resp = self._client.get_shard_iterator(**iterator_args)
         shard_iterator = iterator_resp.get("ShardIterator")
         if not shard_iterator:

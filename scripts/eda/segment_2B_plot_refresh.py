@@ -263,22 +263,26 @@ def _plot_s3_s4(s1: pl.DataFrame, s3: pl.DataFrame, s4: pl.DataFrame) -> None:
     fig.savefig(OUT_PLOTS / "s4_entropy_distribution.png")
     plt.close(fig)
 
-    # s4_groups_vs_site_count (hexbin)
-    fig, ax = plt.subplots(figsize=(7.6, 5.0))
-    hb = ax.hexbin(
-        s4_md["site_count"].to_numpy(),
-        s4_md["n_groups"].to_numpy(),
-        gridsize=42,
-        mincnt=1,
-        cmap="viridis",
-        bins="log",
+    # s4_groups_vs_site_count (bucketed for readability on discrete y)
+    s4_md["site_bucket"] = pd.cut(
+        s4_md["site_count"],
+        bins=[1, 5, 10, 25, 50, 100, 250, 10_000],
+        labels=["2-5", "6-10", "11-25", "26-50", "51-100", "101-250", "251+"],
+        include_lowest=True,
+        right=True,
     )
-    cb = fig.colorbar(hb, ax=ax)
-    cb.set_label("bin count (log10)")
-    ax.set_xscale("log")
-    ax.set_xlabel("sites per merchant (log scale)")
+    fig, ax = plt.subplots(figsize=(8.4, 5.0))
+    sns.boxplot(
+        data=s4_md,
+        x="site_bucket",
+        y="n_groups",
+        color="#0EA5E9",
+        showfliers=False,
+        ax=ax,
+    )
+    ax.set_xlabel("sites per merchant bucket")
     ax.set_ylabel("distinct tz_groups per merchant-day")
-    ax.set_title("S4 TZ-Group Count vs Site Count")
+    ax.set_title("S4 TZ-Group Count vs Site Count Bucket")
     fig.tight_layout()
     fig.savefig(OUT_PLOTS / "s4_groups_vs_site_count.png")
     plt.close(fig)
@@ -333,14 +337,46 @@ def _plot_s3_s4(s1: pl.DataFrame, s3: pl.DataFrame, s4: pl.DataFrame) -> None:
     fig.savefig(OUT_PLOTS / "s3_gamma_distribution.png")
     plt.close(fig)
 
-    # s3_gamma_by_tzgroup (top 10 by volume)
+    # s3_gamma_by_tzgroup (top 10 by volume, horizontal for label readability)
     top_tz = s3_pd["tz_group_id"].value_counts().head(10).index.tolist()
     g10 = s3_pd[s3_pd["tz_group_id"].isin(top_tz)].copy()
     g10["tz_group_id"] = g10["tz_group_id"].astype(str)
-    fig, ax = plt.subplots(figsize=(9.2, 5.2))
-    sns.boxplot(data=g10, x="tz_group_id", y="gamma", showfliers=False, color="#3B82F6", ax=ax)
-    ax.set_xlabel("tz_group_id (top 10 by rows)")
-    ax.set_ylabel("gamma")
+    order = (
+        g10.groupby("tz_group_id", as_index=False)["gamma"]
+        .median()
+        .sort_values("gamma", ascending=False)["tz_group_id"]
+        .tolist()
+    )
+    counts = g10["tz_group_id"].value_counts().to_dict()
+    fig, ax = plt.subplots(figsize=(10.4, 5.8))
+    sns.boxplot(
+        data=g10,
+        y="tz_group_id",
+        x="gamma",
+        order=order,
+        showfliers=False,
+        color="#3B82F6",
+        ax=ax,
+    )
+    # Robust limits: avoid hidden outliers stretching the axis and flattening the boxes.
+    x_lo = float(g10["gamma"].quantile(0.005))
+    x_hi = float(g10["gamma"].quantile(0.995))
+    x_span = max(x_hi - x_lo, 0.25)
+    x_pad = x_span * 0.28
+    ax.set_xlim(x_lo - (x_span * 0.05), x_hi + x_pad)
+    for i, label in enumerate(order):
+        ax.text(
+            x_hi + (x_pad * 0.06),
+            i,
+            f" n={counts.get(label, 0):,}",
+            va="center",
+            ha="left",
+            fontsize=8,
+            color="#4B5563",
+            clip_on=True,
+        )
+    ax.set_xlabel("gamma")
+    ax.set_ylabel("tz_group_id (top 10 by rows)")
     ax.set_title("S3 Gamma by TZ Group (Top 10)")
     fig.tight_layout()
     fig.savefig(OUT_PLOTS / "s3_gamma_by_tzgroup.png")

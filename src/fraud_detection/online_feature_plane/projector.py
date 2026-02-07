@@ -45,7 +45,7 @@ class OnlineFeatureProjector:
         self.store = build_store(
             profile.wiring.projection_db_dsn,
             stream_id=profile.policy.stream_id,
-            basis_stream=profile.wiring.event_bus_topic,
+            basis_stream=profile.wiring.event_bus_basis_stream,
             run_config_digest=profile.policy.run_config_digest,
             feature_def_policy_id=profile.policy.feature_def_policy_rev.policy_id,
             feature_def_revision=profile.policy.feature_def_policy_rev.revision,
@@ -79,14 +79,18 @@ class OnlineFeatureProjector:
         return cls(OfpProfile.load(Path(profile_path)))
 
     def run_once(self) -> int:
-        topic = self.profile.wiring.event_bus_topic
+        topics = self.profile.wiring.event_bus_topics
         if self.profile.wiring.event_bus_kind == "file":
-            partitions = self._file_partitions(topic)
             processed = 0
-            for partition in partitions:
-                processed += self._consume_file_topic(topic, partition)
+            for topic in topics:
+                partitions = self._file_partitions(topic)
+                for partition in partitions:
+                    processed += self._consume_file_topic(topic, partition)
             return processed
-        return self._consume_kinesis_topic(topic)
+        processed = 0
+        for topic in topics:
+            processed += self._consume_kinesis_topic(topic)
+        return processed
 
     def run_forever(self) -> None:
         while True:
@@ -132,6 +136,7 @@ class OnlineFeatureProjector:
                 shard_id=shard_id,
                 from_sequence=from_sequence,
                 limit=self.profile.wiring.poll_max_records,
+                start_position=self.profile.wiring.event_bus_start_position,
             )
             for record in records:
                 bus_record = BusRecord(
@@ -218,12 +223,25 @@ class OnlineFeatureProjector:
             key_precedence=self.profile.policy.key_precedence,
             fallback_event_id=event_id,
         )
+        event_class = _resolve_event_class(envelope=envelope, topic=record.topic)
+        if not event_class:
+            self.store.advance_checkpoint(
+                topic=record.topic,
+                partition=record.partition,
+                offset=record.offset,
+                offset_kind=record.offset_kind,
+                event_ts_utc=event_ts_utc,
+                scenario_run_id=scenario_run_id or None,
+                count_as="invalid_event_class",
+            )
+            return
         amount = _resolve_amount(envelope=envelope, amount_fields=self.profile.policy.amount_fields)
         self.store.apply_event(
             topic=record.topic,
             partition=record.partition,
             offset=record.offset,
             offset_kind=record.offset_kind,
+            event_class=event_class,
             event_id=event_id,
             payload_hash=_payload_hash(envelope),
             event_ts_utc=event_ts_utc,
@@ -299,6 +317,37 @@ def _resolve_amount(*, envelope: dict[str, Any], amount_fields: list[str]) -> fl
             except ValueError:
                 continue
     return 0.0
+
+
+def _resolve_event_class(*, envelope: dict[str, Any], topic: str) -> str:
+    explicit = str(envelope.get("event_class") or "").strip()
+    if explicit:
+        return explicit
+    topic_map = {
+        "fp.bus.traffic.fraud.v1": "traffic_fraud",
+        "fp.bus.traffic.baseline.v1": "traffic_baseline",
+        "fp.bus.context.arrival_events.v1": "context_arrival",
+        "fp.bus.context.arrival_entities.v1": "context_arrival_entities",
+        "fp.bus.context.flow_anchor.fraud.v1": "context_flow_fraud",
+        "fp.bus.context.flow_anchor.baseline.v1": "context_flow_baseline",
+    }
+    resolved = topic_map.get(topic)
+    if resolved:
+        return resolved
+    event_type = str(envelope.get("event_type") or "").strip().lower()
+    if "arrival_entities" in event_type:
+        return "context_arrival_entities"
+    if "arrival_events" in event_type or "arrival_count" in event_type:
+        return "context_arrival"
+    if "flow_anchor" in event_type and "fraud" in event_type:
+        return "context_flow_fraud"
+    if "flow_anchor" in event_type and "baseline" in event_type:
+        return "context_flow_baseline"
+    if "event_stream" in event_type and "fraud" in event_type:
+        return "traffic_fraud"
+    if "event_stream" in event_type and "baseline" in event_type:
+        return "traffic_baseline"
+    return ""
 
 
 def _payload_hash(envelope: dict[str, Any]) -> str:

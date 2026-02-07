@@ -428,7 +428,7 @@ This plot closes the loop on S1: uniformity is not an approximate tendency; it i
 ---
 
 **Bottom line from the plots:**  
-The “weird” straight lines and the single‑bar chart are not plotting artifacts. They are the visual signature of a **fully uniform weighting system**. Every diagnostic plot independently shows the same property: **site_count completely determines the weight distribution**, and there is **zero merchant‑specific variation**. That is the core realism blocker for S1 and therefore for Segment 2B.
+The “weird” straight lines and near‑zero residual clouds are not plotting artifacts. They are the visual signature of a **fully uniform weighting system**. Every diagnostic plot independently shows the same property: **site_count completely determines the weight distribution**, and there is **zero merchant‑specific variation**. That is the core realism blocker for S1 and therefore for Segment 2B.
 
 ## 9) Realism core #2 - `s4_group_weights` (routing mix realism)
 **Counts**
@@ -489,8 +489,9 @@ Realism impact: even when tz‑group counts are >1, the **weight distribution is
 #### d) TZ‑group count vs site count
 <img src="plots/s4_groups_vs_site_count.png" width="520" alt="S4 tz-group count vs site count">
 
-The refreshed hexbin view makes density explicit instead of overplotting individual points. As site count grows, upper support increases, but density still concentrates in low tz-group counts (mostly 1-3).  
-Realism impact: merchant size should correlate strongly with geographic reach. The weak relationship here suggests that **size does not reliably translate into tz diversity**, which is another realism limitation.
+The refreshed **bucketed boxplot** makes the relationship readable for this discrete outcome. As site-count buckets increase, the upper range of `n_groups` expands, but medians stay low for most buckets (typically around 1-2 until very large footprints).  
+Only the largest merchants (`251+` sites) show a materially broader distribution, and even there the spread is wide rather than consistently high.  
+Realism impact: merchant size should correlate strongly with geographic reach. This plot shows that larger footprints *can* support broader tz diversity, but most merchant-days still remain low-diversity, so size does not reliably translate into multi-tz routing behavior.
 
 ---
 
@@ -540,7 +541,7 @@ This uniform sigma also suppresses the emergent property we want from realism: d
 #### a) Sigma_gamma per merchant
 <img src="plots/s3_sigma_gamma_distribution.png" width="520" alt="S3 sigma_gamma per merchant">
 
-This plot collapses to a **single razor‑thin spike** because sigma_gamma is **effectively constant for all merchants**. The odd x‑axis offset text is just the plotting backend trying to show extremely small variation around a fixed value. Visually, there is no spread at all.  
+This plot collapses to a **single razor‑thin spike** because sigma_gamma is **effectively constant for all merchants**. Visually, there is no spread at all.  
 This is not just “low variance” — it is **one shared volatility parameter** (`sigma_gamma ≈ 0.1206`) for the entire merchant population. That means there is no distinction between stable merchants (low day‑to‑day volatility) and bursty merchants (high volatility). In practical terms, every merchant experiences the **same day‑effect variance**, so the dataset cannot encode merchant‑specific seasonality or stability differences.  
 Realism impact: this removes one of the most important real‑world signals (different merchants have different volatility profiles), so any downstream model that depends on temporal variability will be trained on **uniform behavior** rather than diverse behavior.
 
@@ -558,7 +559,7 @@ Realism impact: a plausible global shape is necessary but not sufficient — the
 #### c) Gamma by tz_group (top 10)
 <img src="plots/s3_gamma_by_tzgroup.png" width="520" alt="S3 gamma by tz-group (top 10)">
 
-The boxplots are **nearly identical across all top tz‑groups**: medians around 1.0, similar IQR widths, and symmetric outlier patterns. There is no visible tz‑group‑specific variability.  
+The boxplots are **nearly identical across all top tz‑groups**: medians around 1.0, very similar IQR widths, and near-identical whisker ranges. There is no visible tz‑group‑specific variability.  
 This means tz_group_id is **not acting as a behavioral driver** in the day‑effect model. If the intention was to incorporate regional differences (holiday cycles, climate‑driven seasonality, cultural spend patterns), those signals are absent.  
 Realism impact: the system treats all regions as statistically interchangeable, which suppresses the geographic realism that fraud models often rely on (e.g., different volatility profiles across regions).
 

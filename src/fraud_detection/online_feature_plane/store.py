@@ -82,6 +82,7 @@ class OfpStore:
         partition: int,
         offset: str,
         offset_kind: str,
+        event_class: str,
         event_id: str,
         payload_hash: str,
         event_ts_utc: str | None,
@@ -160,6 +161,17 @@ class SqliteOfpStore(OfpStore):
                     scenario_run_id TEXT,
                     created_at_utc TEXT NOT NULL,
                     PRIMARY KEY (stream_id, topic, partition_id, offset_kind, offset)
+                );
+
+                CREATE TABLE IF NOT EXISTS ofp_semantic_dedupe (
+                    stream_id TEXT NOT NULL,
+                    platform_run_id TEXT NOT NULL,
+                    event_class TEXT NOT NULL,
+                    event_id TEXT NOT NULL,
+                    payload_hash TEXT NOT NULL,
+                    scenario_run_id TEXT NOT NULL,
+                    first_seen_at_utc TEXT NOT NULL,
+                    PRIMARY KEY (stream_id, platform_run_id, event_class, event_id)
                 );
 
                 CREATE TABLE IF NOT EXISTS ofp_feature_state (
@@ -245,8 +257,10 @@ class SqliteOfpStore(OfpStore):
         with self._connect() as conn:
             if scenario_run_id:
                 self._increment_metric(conn, scenario_run_id, "events_seen", 1)
+                self._increment_metric(conn, scenario_run_id, _topic_metric_name("events_seen", topic), 1)
                 if count_as:
                     self._increment_metric(conn, scenario_run_id, count_as, 1)
+                    self._increment_metric(conn, scenario_run_id, _topic_metric_name(count_as, topic), 1)
             self._update_checkpoint(
                 conn,
                 topic=topic,
@@ -263,6 +277,7 @@ class SqliteOfpStore(OfpStore):
         partition: int,
         offset: str,
         offset_kind: str,
+        event_class: str,
         event_id: str,
         payload_hash: str,
         event_ts_utc: str | None,
@@ -274,11 +289,15 @@ class SqliteOfpStore(OfpStore):
         amount: float,
     ) -> ApplyResult:
         scenario_run_id = str(pins.get("scenario_run_id") or "")
-        if not scenario_run_id:
+        platform_run_id = str(pins.get("platform_run_id") or "")
+        if not scenario_run_id or not platform_run_id:
             return ApplyResult(status="INVALID_PINS")
+        if not event_class:
+            return ApplyResult(status="INVALID_EVENT_CLASS")
 
         with self._connect() as conn:
             self._increment_metric(conn, scenario_run_id, "events_seen", 1)
+            self._increment_metric(conn, scenario_run_id, _topic_metric_name("events_seen", topic), 1)
             row = conn.execute(
                 """
                 INSERT OR IGNORE INTO ofp_applied_events (
@@ -296,60 +315,79 @@ class SqliteOfpStore(OfpStore):
                     event_id,
                     payload_hash,
                     event_ts_utc,
-                    str(pins.get("platform_run_id") or ""),
+                    platform_run_id,
                     scenario_run_id,
                     _utc_now(),
                 ),
             )
             inserted = row.rowcount == 1
-            if inserted:
-                self._increment_metric(conn, scenario_run_id, "events_applied", 1)
-                conn.execute(
-                    """
-                    INSERT INTO ofp_feature_state (
-                        stream_id, platform_run_id, scenario_run_id, scenario_id, run_id,
-                        manifest_fingerprint, parameter_hash, seed,
-                        key_type, key_id, group_name, group_version,
-                        event_count, amount_sum, last_event_ts_utc, updated_at_utc
-                    )
-                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-                    ON CONFLICT (
-                        stream_id, platform_run_id, scenario_run_id, key_type, key_id, group_name, group_version
-                    )
-                    DO UPDATE SET
-                        event_count = ofp_feature_state.event_count + excluded.event_count,
-                        amount_sum = ofp_feature_state.amount_sum + excluded.amount_sum,
-                        last_event_ts_utc = CASE
-                            WHEN excluded.last_event_ts_utc IS NULL THEN ofp_feature_state.last_event_ts_utc
-                            WHEN ofp_feature_state.last_event_ts_utc IS NULL THEN excluded.last_event_ts_utc
-                            WHEN excluded.last_event_ts_utc > ofp_feature_state.last_event_ts_utc THEN excluded.last_event_ts_utc
-                            ELSE ofp_feature_state.last_event_ts_utc
-                        END,
-                        updated_at_utc = excluded.updated_at_utc
-                    """,
-                    (
-                        self.stream_id,
-                        str(pins.get("platform_run_id") or ""),
-                        scenario_run_id,
-                        str(pins.get("scenario_id") or ""),
-                        str(pins.get("run_id") or ""),
-                        str(pins.get("manifest_fingerprint") or ""),
-                        str(pins.get("parameter_hash") or ""),
-                        str(pins.get("seed") or ""),
-                        key_type,
-                        key_id,
-                        group_name,
-                        group_version,
-                        1,
-                        float(amount),
-                        event_ts_utc,
-                        _utc_now(),
-                    ),
-                )
-                status = "APPLIED"
-            else:
+            if not inserted:
                 self._increment_metric(conn, scenario_run_id, "duplicates", 1)
+                self._increment_metric(conn, scenario_run_id, _topic_metric_name("duplicates", topic), 1)
                 status = "DUPLICATE"
+            else:
+                semantic_status = self._register_semantic_event(
+                    conn,
+                    platform_run_id=platform_run_id,
+                    scenario_run_id=scenario_run_id,
+                    event_class=event_class,
+                    event_id=event_id,
+                    payload_hash=payload_hash,
+                )
+                if semantic_status == "PAYLOAD_HASH_MISMATCH":
+                    self._increment_metric(conn, scenario_run_id, "payload_hash_mismatch", 1)
+                    self._increment_metric(conn, scenario_run_id, _topic_metric_name("payload_hash_mismatch", topic), 1)
+                    status = "PAYLOAD_HASH_MISMATCH"
+                elif semantic_status == "DUPLICATE":
+                    self._increment_metric(conn, scenario_run_id, "duplicates", 1)
+                    self._increment_metric(conn, scenario_run_id, _topic_metric_name("duplicates", topic), 1)
+                    status = "DUPLICATE"
+                else:
+                    self._increment_metric(conn, scenario_run_id, "events_applied", 1)
+                    self._increment_metric(conn, scenario_run_id, _topic_metric_name("events_applied", topic), 1)
+                    conn.execute(
+                        """
+                        INSERT INTO ofp_feature_state (
+                            stream_id, platform_run_id, scenario_run_id, scenario_id, run_id,
+                            manifest_fingerprint, parameter_hash, seed,
+                            key_type, key_id, group_name, group_version,
+                            event_count, amount_sum, last_event_ts_utc, updated_at_utc
+                        )
+                        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                        ON CONFLICT (
+                            stream_id, platform_run_id, scenario_run_id, key_type, key_id, group_name, group_version
+                        )
+                        DO UPDATE SET
+                            event_count = ofp_feature_state.event_count + excluded.event_count,
+                            amount_sum = ofp_feature_state.amount_sum + excluded.amount_sum,
+                            last_event_ts_utc = CASE
+                                WHEN excluded.last_event_ts_utc IS NULL THEN ofp_feature_state.last_event_ts_utc
+                                WHEN ofp_feature_state.last_event_ts_utc IS NULL THEN excluded.last_event_ts_utc
+                                WHEN excluded.last_event_ts_utc > ofp_feature_state.last_event_ts_utc THEN excluded.last_event_ts_utc
+                                ELSE ofp_feature_state.last_event_ts_utc
+                            END,
+                            updated_at_utc = excluded.updated_at_utc
+                        """,
+                        (
+                            self.stream_id,
+                            platform_run_id,
+                            scenario_run_id,
+                            str(pins.get("scenario_id") or ""),
+                            str(pins.get("run_id") or ""),
+                            str(pins.get("manifest_fingerprint") or ""),
+                            str(pins.get("parameter_hash") or ""),
+                            str(pins.get("seed") or ""),
+                            key_type,
+                            key_id,
+                            group_name,
+                            group_version,
+                            1,
+                            float(amount),
+                            event_ts_utc,
+                            _utc_now(),
+                        ),
+                    )
+                    status = "APPLIED"
 
             self._update_checkpoint(
                 conn,
@@ -361,6 +399,49 @@ class SqliteOfpStore(OfpStore):
             )
             basis = self._input_basis(conn)
         return ApplyResult(status=status, input_basis_digest=(basis or {}).get("basis_digest"))
+
+    def _register_semantic_event(
+        self,
+        conn: sqlite3.Connection,
+        *,
+        platform_run_id: str,
+        scenario_run_id: str,
+        event_class: str,
+        event_id: str,
+        payload_hash: str,
+    ) -> str:
+        row = conn.execute(
+            """
+            INSERT OR IGNORE INTO ofp_semantic_dedupe (
+                stream_id, platform_run_id, event_class, event_id, payload_hash, scenario_run_id, first_seen_at_utc
+            )
+            VALUES (?, ?, ?, ?, ?, ?, ?)
+            """,
+            (
+                self.stream_id,
+                platform_run_id,
+                event_class,
+                event_id,
+                payload_hash,
+                scenario_run_id,
+                _utc_now(),
+            ),
+        )
+        if row.rowcount == 1:
+            return "NEW"
+        existing = conn.execute(
+            """
+            SELECT payload_hash
+            FROM ofp_semantic_dedupe
+            WHERE stream_id = ? AND platform_run_id = ? AND event_class = ? AND event_id = ?
+            """,
+            (self.stream_id, platform_run_id, event_class, event_id),
+        ).fetchone()
+        if not existing:
+            return "NEW"
+        if str(existing[0]) == payload_hash:
+            return "DUPLICATE"
+        return "PAYLOAD_HASH_MISMATCH"
 
     def input_basis(self) -> dict[str, Any] | None:
         with self._connect() as conn:
@@ -548,7 +629,7 @@ class SqliteOfpStore(OfpStore):
         watermark = None
         offset_kind = str(rows[0][3])
         for row in rows:
-            offsets.append({"partition": int(row[1]), "offset": str(row[2])})
+            offsets.append({"topic": str(row[0]), "partition": int(row[1]), "offset": str(row[2])})
             current_watermark = row[4]
             if current_watermark and (watermark is None or str(current_watermark) > str(watermark)):
                 watermark = str(current_watermark)
@@ -665,6 +746,20 @@ class PostgresOfpStore(OfpStore):
             )
             conn.execute(
                 """
+                CREATE TABLE IF NOT EXISTS ofp_semantic_dedupe (
+                    stream_id TEXT NOT NULL,
+                    platform_run_id TEXT NOT NULL,
+                    event_class TEXT NOT NULL,
+                    event_id TEXT NOT NULL,
+                    payload_hash TEXT NOT NULL,
+                    scenario_run_id TEXT NOT NULL,
+                    first_seen_at_utc TEXT NOT NULL,
+                    PRIMARY KEY (stream_id, platform_run_id, event_class, event_id)
+                )
+                """
+            )
+            conn.execute(
+                """
                 CREATE TABLE IF NOT EXISTS ofp_feature_state (
                     stream_id TEXT NOT NULL,
                     platform_run_id TEXT NOT NULL,
@@ -757,8 +852,10 @@ class PostgresOfpStore(OfpStore):
         with self._connect() as conn, conn.transaction():
             if scenario_run_id:
                 self._increment_metric(conn, scenario_run_id, "events_seen", 1)
+                self._increment_metric(conn, scenario_run_id, _topic_metric_name("events_seen", topic), 1)
                 if count_as:
                     self._increment_metric(conn, scenario_run_id, count_as, 1)
+                    self._increment_metric(conn, scenario_run_id, _topic_metric_name(count_as, topic), 1)
             self._update_checkpoint(
                 conn,
                 topic=topic,
@@ -775,6 +872,7 @@ class PostgresOfpStore(OfpStore):
         partition: int,
         offset: str,
         offset_kind: str,
+        event_class: str,
         event_id: str,
         payload_hash: str,
         event_ts_utc: str | None,
@@ -786,11 +884,15 @@ class PostgresOfpStore(OfpStore):
         amount: float,
     ) -> ApplyResult:
         scenario_run_id = str(pins.get("scenario_run_id") or "")
-        if not scenario_run_id:
+        platform_run_id = str(pins.get("platform_run_id") or "")
+        if not scenario_run_id or not platform_run_id:
             return ApplyResult(status="INVALID_PINS")
+        if not event_class:
+            return ApplyResult(status="INVALID_EVENT_CLASS")
 
         with self._connect() as conn, conn.transaction():
             self._increment_metric(conn, scenario_run_id, "events_seen", 1)
+            self._increment_metric(conn, scenario_run_id, _topic_metric_name("events_seen", topic), 1)
             row = conn.execute(
                 """
                 INSERT INTO ofp_applied_events (
@@ -809,60 +911,79 @@ class PostgresOfpStore(OfpStore):
                     event_id,
                     payload_hash,
                     event_ts_utc,
-                    str(pins.get("platform_run_id") or ""),
+                    platform_run_id,
                     scenario_run_id,
                     _utc_now(),
                 ),
             )
             inserted = row.rowcount == 1
-            if inserted:
-                self._increment_metric(conn, scenario_run_id, "events_applied", 1)
-                conn.execute(
-                    """
-                    INSERT INTO ofp_feature_state (
-                        stream_id, platform_run_id, scenario_run_id, scenario_id, run_id,
-                        manifest_fingerprint, parameter_hash, seed,
-                        key_type, key_id, group_name, group_version,
-                        event_count, amount_sum, last_event_ts_utc, updated_at_utc
-                    )
-                    VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
-                    ON CONFLICT (
-                        stream_id, platform_run_id, scenario_run_id, key_type, key_id, group_name, group_version
-                    )
-                    DO UPDATE SET
-                        event_count = ofp_feature_state.event_count + EXCLUDED.event_count,
-                        amount_sum = ofp_feature_state.amount_sum + EXCLUDED.amount_sum,
-                        last_event_ts_utc = CASE
-                            WHEN EXCLUDED.last_event_ts_utc IS NULL THEN ofp_feature_state.last_event_ts_utc
-                            WHEN ofp_feature_state.last_event_ts_utc IS NULL THEN EXCLUDED.last_event_ts_utc
-                            WHEN EXCLUDED.last_event_ts_utc > ofp_feature_state.last_event_ts_utc THEN EXCLUDED.last_event_ts_utc
-                            ELSE ofp_feature_state.last_event_ts_utc
-                        END,
-                        updated_at_utc = EXCLUDED.updated_at_utc
-                    """,
-                    (
-                        self.stream_id,
-                        str(pins.get("platform_run_id") or ""),
-                        scenario_run_id,
-                        str(pins.get("scenario_id") or ""),
-                        str(pins.get("run_id") or ""),
-                        str(pins.get("manifest_fingerprint") or ""),
-                        str(pins.get("parameter_hash") or ""),
-                        str(pins.get("seed") or ""),
-                        key_type,
-                        key_id,
-                        group_name,
-                        group_version,
-                        1,
-                        float(amount),
-                        event_ts_utc,
-                        _utc_now(),
-                    ),
-                )
-                status = "APPLIED"
-            else:
+            if not inserted:
                 self._increment_metric(conn, scenario_run_id, "duplicates", 1)
+                self._increment_metric(conn, scenario_run_id, _topic_metric_name("duplicates", topic), 1)
                 status = "DUPLICATE"
+            else:
+                semantic_status = self._register_semantic_event(
+                    conn,
+                    platform_run_id=platform_run_id,
+                    scenario_run_id=scenario_run_id,
+                    event_class=event_class,
+                    event_id=event_id,
+                    payload_hash=payload_hash,
+                )
+                if semantic_status == "PAYLOAD_HASH_MISMATCH":
+                    self._increment_metric(conn, scenario_run_id, "payload_hash_mismatch", 1)
+                    self._increment_metric(conn, scenario_run_id, _topic_metric_name("payload_hash_mismatch", topic), 1)
+                    status = "PAYLOAD_HASH_MISMATCH"
+                elif semantic_status == "DUPLICATE":
+                    self._increment_metric(conn, scenario_run_id, "duplicates", 1)
+                    self._increment_metric(conn, scenario_run_id, _topic_metric_name("duplicates", topic), 1)
+                    status = "DUPLICATE"
+                else:
+                    self._increment_metric(conn, scenario_run_id, "events_applied", 1)
+                    self._increment_metric(conn, scenario_run_id, _topic_metric_name("events_applied", topic), 1)
+                    conn.execute(
+                        """
+                        INSERT INTO ofp_feature_state (
+                            stream_id, platform_run_id, scenario_run_id, scenario_id, run_id,
+                            manifest_fingerprint, parameter_hash, seed,
+                            key_type, key_id, group_name, group_version,
+                            event_count, amount_sum, last_event_ts_utc, updated_at_utc
+                        )
+                        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                        ON CONFLICT (
+                            stream_id, platform_run_id, scenario_run_id, key_type, key_id, group_name, group_version
+                        )
+                        DO UPDATE SET
+                            event_count = ofp_feature_state.event_count + EXCLUDED.event_count,
+                            amount_sum = ofp_feature_state.amount_sum + EXCLUDED.amount_sum,
+                            last_event_ts_utc = CASE
+                                WHEN EXCLUDED.last_event_ts_utc IS NULL THEN ofp_feature_state.last_event_ts_utc
+                                WHEN ofp_feature_state.last_event_ts_utc IS NULL THEN EXCLUDED.last_event_ts_utc
+                                WHEN EXCLUDED.last_event_ts_utc > ofp_feature_state.last_event_ts_utc THEN EXCLUDED.last_event_ts_utc
+                                ELSE ofp_feature_state.last_event_ts_utc
+                            END,
+                            updated_at_utc = EXCLUDED.updated_at_utc
+                        """,
+                        (
+                            self.stream_id,
+                            platform_run_id,
+                            scenario_run_id,
+                            str(pins.get("scenario_id") or ""),
+                            str(pins.get("run_id") or ""),
+                            str(pins.get("manifest_fingerprint") or ""),
+                            str(pins.get("parameter_hash") or ""),
+                            str(pins.get("seed") or ""),
+                            key_type,
+                            key_id,
+                            group_name,
+                            group_version,
+                            1,
+                            float(amount),
+                            event_ts_utc,
+                            _utc_now(),
+                        ),
+                    )
+                    status = "APPLIED"
 
             self._update_checkpoint(
                 conn,
@@ -874,6 +995,50 @@ class PostgresOfpStore(OfpStore):
             )
             basis = self._input_basis(conn)
         return ApplyResult(status=status, input_basis_digest=(basis or {}).get("basis_digest"))
+
+    def _register_semantic_event(
+        self,
+        conn: psycopg.Connection,
+        *,
+        platform_run_id: str,
+        scenario_run_id: str,
+        event_class: str,
+        event_id: str,
+        payload_hash: str,
+    ) -> str:
+        row = conn.execute(
+            """
+            INSERT INTO ofp_semantic_dedupe (
+                stream_id, platform_run_id, event_class, event_id, payload_hash, scenario_run_id, first_seen_at_utc
+            )
+            VALUES (%s, %s, %s, %s, %s, %s, %s)
+            ON CONFLICT (stream_id, platform_run_id, event_class, event_id) DO NOTHING
+            """,
+            (
+                self.stream_id,
+                platform_run_id,
+                event_class,
+                event_id,
+                payload_hash,
+                scenario_run_id,
+                _utc_now(),
+            ),
+        )
+        if row.rowcount == 1:
+            return "NEW"
+        existing = conn.execute(
+            """
+            SELECT payload_hash
+            FROM ofp_semantic_dedupe
+            WHERE stream_id = %s AND platform_run_id = %s AND event_class = %s AND event_id = %s
+            """,
+            (self.stream_id, platform_run_id, event_class, event_id),
+        ).fetchone()
+        if not existing:
+            return "NEW"
+        if str(existing[0]) == payload_hash:
+            return "DUPLICATE"
+        return "PAYLOAD_HASH_MISMATCH"
 
     def input_basis(self) -> dict[str, Any] | None:
         with self._connect() as conn:
@@ -1061,7 +1226,7 @@ class PostgresOfpStore(OfpStore):
         watermark = None
         offset_kind = str(rows[0][3])
         for row in rows:
-            offsets.append({"partition": int(row[1]), "offset": str(row[2])})
+            offsets.append({"topic": str(row[0]), "partition": int(row[1]), "offset": str(row[2])})
             current_watermark = row[4]
             if current_watermark and (watermark is None or str(current_watermark) > str(watermark)):
                 watermark = str(current_watermark)
@@ -1160,6 +1325,10 @@ class PostgresOfpStore(OfpStore):
 
 def _utc_now() -> str:
     return datetime.now(tz=timezone.utc).isoformat()
+
+
+def _topic_metric_name(base: str, topic: str) -> str:
+    return f"{base}|topic={topic}"
 
 
 def _next_offset(offset: str, offset_kind: str) -> str:

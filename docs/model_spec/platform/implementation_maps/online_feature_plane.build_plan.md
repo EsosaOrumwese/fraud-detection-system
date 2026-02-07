@@ -70,6 +70,7 @@ Provide a closure-grade, component-scoped plan for OFP aligned to platform Phase
 
 **DoD checklist:**
 - Snapshot artifact stored by-ref in object store (JSON v0, optional compression).
+- Snapshot artifact canonical namespace is `online_feature_plane/snapshots/...`; legacy `ofp/snapshots/...` refs remain readable during migration.
 - Snapshot index metadata persisted in Postgres:
   - `snapshot_hash`
   - `graph_version` (nullable)
@@ -127,7 +128,7 @@ Provide a closure-grade, component-scoped plan for OFP aligned to platform Phase
 - Serve responses can carry stale/missing posture without hiding degraded context.
 - Evidence:
   - `python -m pytest tests/services/online_feature_plane/test_phase7_observability.py -q` -> `2 passed`
-  - `python -m pytest tests/services/online_feature_plane -q` -> `20 passed`
+  - `python -m pytest tests/services/online_feature_plane -q` -> `25 passed`
 
 ### Phase 8 - Integration closure (4.3 -> 4.4 readiness)
 **Intent:** close OFP component DoDs and prepare handoff to DF/DL integration.
@@ -139,7 +140,7 @@ Provide a closure-grade, component-scoped plan for OFP aligned to platform Phase
 - Evidence:
   - `docs/model_spec/platform/contracts/real_time_decision_loop/ofp_ofs_parity_contract_v0.md`
   - `docs/model_spec/platform/runbooks/local_parity_ofp_runbook.md`
-  - `python -m pytest tests/services/online_feature_plane -q` -> `20 passed`
+  - `python -m pytest tests/services/online_feature_plane -q` -> `25 passed`
 
 **DoD checklist (8B - cross-component integration, pending):**
 - DF compatibility checks pass for required provenance fields.

@@ -49,7 +49,7 @@ class OfpObservabilityReporter:
         store = build_store(
             profile.wiring.projection_db_dsn,
             stream_id=profile.policy.stream_id,
-            basis_stream=profile.wiring.event_bus_topic,
+            basis_stream=profile.wiring.event_bus_basis_stream,
             run_config_digest=profile.policy.run_config_digest,
             feature_def_policy_id=profile.policy.feature_def_policy_rev.policy_id,
             feature_def_revision=profile.policy.feature_def_policy_rev.revision,
@@ -219,4 +219,3 @@ def _write_json(path: Path, payload: dict[str, Any]) -> None:
 
 def _utc_now() -> str:
     return datetime.now(tz=timezone.utc).isoformat()
-

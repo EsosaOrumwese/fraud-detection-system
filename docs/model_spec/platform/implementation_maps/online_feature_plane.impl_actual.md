@@ -812,3 +812,116 @@ Validate OFP runtime behavior against live local-parity flow with active monitor
 ### Validation outcome
 - OFP boundary is functioning for both smoke and 200-event local-parity passes when run-scoped pins are enforced.
 - Current operational caveat remains: on fresh run-scoped OFP DB/checkpoint, projector can initially consume historical EB backlog before reaching current run events; repeated `--once` passes converge correctly under run-scope filtering.
+
+---
+
+## Entry: 2026-02-06 18:40:00 - Drift-closure implementation plan (approved): inlet semantics, topic scope, live parity, artifact namespace
+
+### Problem statement
+User approved four specific OFP closures to remove drift against the RTDL flow narrative:
+1. inlet dedupe semantics aligned to `(platform_run_id, event_class, event_id)` plus payload hash collision handling,
+2. multi-topic intake (traffic + context capable, policy-bounded),
+3. live parity operation (`run_forever`) with explicit start-position policy,
+4. artifact namespace normalization (`ofp/` vs `online_feature_plane/`).
+
+### Authorities and constraints
+- `docs/model_spec/platform/component-specific/flow-narrative-platform-design.md` (RTDL/OFP narrative)
+- `docs/model_spec/platform/implementation_maps/online_feature_plane.build_plan.md` (phase closure context)
+- OFP v0 contracts and existing tests (`tests/services/online_feature_plane/*`)
+- platform doctrine: fail closed, run-scoped pins, append-only/auditable behavior.
+
+### Design decisions before coding
+1. **Dual idempotency layers (intentional):**
+   - Keep transport dedupe by `(stream_id, topic, partition, offset_kind, offset)` for replay safety.
+   - Add semantic dedupe table keyed by `(stream_id, platform_run_id, event_class, event_id)` with stored payload hash.
+   - Behavior:
+     - same tuple + same hash => semantic duplicate (`duplicates` counter, no state mutation),
+     - same tuple + different hash => collision (`payload_hash_mismatch` counter, no state mutation, fail-closed by non-application).
+2. **Event class derivation in OFP inlet:**
+   - Prefer envelope field `event_class` when present.
+   - Fallback to deterministic topic-to-class mapping from configured topics in profile.
+   - If no class can be resolved, mark invalid (`invalid_event_class`) and advance checkpoint only.
+3. **Multi-topic profile model:**
+   - Replace single `event_bus_topic` assumption with `event_bus_topics: list[str]`.
+   - Preserve backward compatibility by keeping `event_bus_topic` as first topic alias for old call sites during migration.
+4. **Start-position policy:**
+   - Add `event_bus_start_position` in OFP wiring (`trim_horizon` default, `latest` optional).
+   - Apply only when no checkpoint exists for shard/partition.
+5. **Artifact namespace normalization:**
+   - New canonical snapshot path under `online_feature_plane/snapshots/<scenario_run_id>/<snapshot_hash>.json`.
+   - Keep read compatibility for old `ofp/snapshots/...` refs (loader fallback) during migration window.
+
+### Files planned for implementation
+- `src/fraud_detection/online_feature_plane/config.py`
+- `src/fraud_detection/online_feature_plane/projector.py`
+- `src/fraud_detection/online_feature_plane/store.py`
+- `src/fraud_detection/online_feature_plane/snapshots.py`
+- `src/fraud_detection/event_bus/kinesis.py`
+- `makefile` (new local-parity OFP live target)
+- `docs/model_spec/platform/runbooks/local_parity_ofp_runbook.md`
+- OFP tests under `tests/services/online_feature_plane/`
+
+### Validation plan (pre-committed)
+- Unit/integration:
+  - `python -m pytest tests/services/online_feature_plane -q`
+- Focus checks:
+  - semantic duplicate no-op,
+  - payload hash collision detection,
+  - multi-topic projector ingestion,
+  - `latest` start-position behavior with empty checkpoints,
+  - snapshot path canonicalization + backward load compatibility.
+- Parity smoke:
+  - short monitored run to ensure no regression in run-scoped processing and artifact emission.
+
+---
+
+## Entry: 2026-02-06 22:50:00 - Drift-closure implementation completed (OFP): namespace normalization, compatibility, and fresh parity evidence
+
+### Scope closed in this pass
+1. Completed artifact namespace normalization so OFP snapshots write under the canonical component namespace.
+2. Kept backward compatibility for historical `ofp/snapshots/...` refs during read/load.
+3. Revalidated OFP tests and local-parity flow evidence after code changes.
+
+### Code-level outcomes
+- `src/fraud_detection/online_feature_plane/snapshots.py`
+  - canonical snapshot path now writes to: `online_feature_plane/snapshots/<scenario_run_id>/<snapshot_hash>.json`.
+  - materializer prefers canonical path, but if a legacy object already exists it reuses that ref instead of duplicating writes.
+  - loader now tries both canonical and legacy path variants from the stored ref and fails closed only if neither exists.
+- `tests/services/online_feature_plane/test_phase4_snapshots.py`
+  - updated canonical-path assertion.
+  - added legacy-index-ref fallback test to ensure migration compatibility.
+- `docs/model_spec/platform/runbooks/local_parity_ofp_runbook.md`
+  - expected snapshot artifact shape updated to canonical `online_feature_plane/snapshots/...`.
+
+### Validation evidence (unit/integration)
+- `.venv/Scripts/python.exe -m pytest tests/services/online_feature_plane/test_phase4_snapshots.py -q` -> `2 passed`
+- `.venv/Scripts/python.exe -m pytest tests/services/online_feature_plane -q` -> `25 passed`
+
+### Validation evidence (fresh local-parity passes)
+Controlled passes were executed with:
+- fresh platform run ids (`make platform-run-new PLATFORM_RUN_ID=`),
+- isolated SR control stream per pass,
+- WSP `--max-messages 1`,
+- OFP run-scope pinning (`OFP_REQUIRED_PLATFORM_RUN_ID=<run>`),
+- snapshot materialization + observability export after projection.
+
+#### Pass A (20)
+- `platform_run_id`: `platform_20260206T223612Z`
+- `scenario_run_id`: `6bebc0ed93d1606cf8b4bcd87223b64b`
+- OFP projection DB: `runs/fraud-platform/platform_20260206T223612Z/online_feature_plane/projection/online_feature_plane.db`
+- Metrics: `events_seen=20`, `events_applied=20`, `duplicates=0`, `payload_hash_mismatch=0`
+- Feature-state rows: `10`
+- Snapshot: `runs/fraud-platform/platform_20260206T223612Z/online_feature_plane/snapshots/6bebc0ed93d1606cf8b4bcd87223b64b/aef9042de54a88f5ec6869c4d643db7610190c1da94d9951807d4de75b2ad626.json`
+
+#### Pass B (200)
+- `platform_run_id`: `platform_20260206T223857Z`
+- `scenario_run_id`: `e49846109f26d4cd2442a0ccd3241c19`
+- OFP projection DB: `runs/fraud-platform/platform_20260206T223857Z/online_feature_plane/projection/online_feature_plane.db`
+- Metrics: `events_seen=200`, `events_applied=200`, `duplicates=0`, `payload_hash_mismatch=0`
+- Feature-state rows: `100`
+- Snapshot: `runs/fraud-platform/platform_20260206T223857Z/online_feature_plane/snapshots/e49846109f26d4cd2442a0ccd3241c19/fbc946cf89850cf29ade3b0fcce232b991e742f0e137527cfbbeb1bbad030873.json`
+
+### Interpretation
+- Drift item #4 (artifact namespace split) is now closed in code and runbook, with backward read compatibility in place.
+- Drift items #1/#2/#3 remain validated in current code path (semantic dedupe + topic handling + live start-position support) and pass regression (`25` tests).
+- For v0, OFP applies admitted events from the configured topic set in `config/platform/ofp/topics_v0.yaml` (`fp.bus.traffic.fraud.v1`), so applied counts naturally track that topic scope.

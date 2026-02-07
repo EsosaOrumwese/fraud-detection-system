@@ -31,7 +31,7 @@ class OfpSnapshotMaterializer:
         store = build_store(
             profile.wiring.projection_db_dsn,
             stream_id=profile.policy.stream_id,
-            basis_stream=profile.wiring.event_bus_topic,
+            basis_stream=profile.wiring.event_bus_basis_stream,
             run_config_digest=profile.policy.run_config_digest,
             feature_def_policy_id=profile.policy.feature_def_policy_rev.policy_id,
             feature_def_revision=profile.policy.feature_def_policy_rev.revision,
@@ -149,11 +149,21 @@ class OfpSnapshotMaterializer:
                 scenario_run_id=scenario_run_id,
                 snapshot_hash=snapshot_hash,
             )
-            try:
-                artifact = self.object_store.write_json_if_absent(relative_path, snapshot)
-                snapshot_ref = artifact.path
-            except FileExistsError:
+            legacy_path = _legacy_snapshot_relative_path(
+                platform_run_id=platform_run_id,
+                scenario_run_id=scenario_run_id,
+                snapshot_hash=snapshot_hash,
+            )
+            if self.object_store.exists(relative_path):
                 snapshot_ref = _artifact_ref(self.object_store_root, relative_path)
+            elif self.object_store.exists(legacy_path):
+                snapshot_ref = _artifact_ref(self.object_store_root, legacy_path)
+            else:
+                try:
+                    artifact = self.object_store.write_json_if_absent(relative_path, snapshot)
+                    snapshot_ref = artifact.path
+                except FileExistsError:
+                    snapshot_ref = _artifact_ref(self.object_store_root, relative_path)
             snapshot["snapshot_ref"] = snapshot_ref
 
             record = SnapshotIndexRecord(
@@ -215,10 +225,20 @@ class OfpSnapshotMaterializer:
         if not record:
             return None
         relative = _relative_from_ref(self.object_store_root, record.snapshot_ref)
-        return self.object_store.read_json(relative)
+        for candidate in _snapshot_ref_candidates(relative):
+            if self.object_store.exists(candidate):
+                return self.object_store.read_json(candidate)
+        raise RuntimeError("OFP_SNAPSHOT_REF_NOT_FOUND")
 
 
 def _snapshot_relative_path(*, platform_run_id: str, scenario_run_id: str, snapshot_hash: str) -> str:
+    return (
+        f"{platform_run_id}/online_feature_plane/snapshots/"
+        f"{scenario_run_id}/{snapshot_hash}.json"
+    )
+
+
+def _legacy_snapshot_relative_path(*, platform_run_id: str, scenario_run_id: str, snapshot_hash: str) -> str:
     return f"{platform_run_id}/ofp/snapshots/{scenario_run_id}/{snapshot_hash}.json"
 
 
@@ -250,6 +270,30 @@ def _artifact_ref(root: str, relative_path: str) -> str:
         key = f"{prefix}/{relative_path}" if prefix else relative_path
         return f"s3://{parsed.netloc}/{key}"
     return str(Path(root) / relative_path)
+
+
+def _snapshot_ref_candidates(relative_path: str) -> list[str]:
+    candidates = [str(relative_path)]
+    normalized = str(relative_path).replace("\\", "/")
+    if normalized not in candidates:
+        candidates.append(normalized)
+
+    expanded: list[str] = []
+    for candidate in candidates:
+        expanded.append(candidate)
+        if "/ofp/snapshots/" in candidate:
+            expanded.append(candidate.replace("/ofp/snapshots/", "/online_feature_plane/snapshots/"))
+        if "/online_feature_plane/snapshots/" in candidate:
+            expanded.append(candidate.replace("/online_feature_plane/snapshots/", "/ofp/snapshots/"))
+
+    deduped: list[str] = []
+    seen: set[str] = set()
+    for candidate in expanded:
+        if candidate in seen:
+            continue
+        seen.add(candidate)
+        deduped.append(candidate)
+    return deduped
 
 
 def _utc_now() -> str:

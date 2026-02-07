@@ -1948,3 +1948,45 @@ Implemented bus describe health probe for Kinesis and enabled it in v0 profiles 
 
 ### Validation
 - `python -m pytest tests/services/ingestion_gate/test_health_governance.py -q`
+
+---
+
+## Entry: 2026-02-06 18:41:00 - Platform-level note: OFP drift-closure execution approved
+
+### Context
+User approved implementation to close OFP drift relative to the RTDL flow narrative while keeping current phase boundaries.
+
+### Platform-impact decisions (cross-component)
+1. OFP inlet now enforces semantic idempotency tuple `(platform_run_id, event_class, event_id)` in addition to transport offset idempotency.
+2. OFP consumes configured EB topic sets (not single-topic hard assumption), with policy-bounded application.
+3. Local-parity OFP gets a first-class live mode (`run_forever`) and explicit start-position policy (`trim_horizon` vs `latest`) so parity can run as a streaming component.
+4. OFP artifact namespace is normalized under `online_feature_plane/` while maintaining backward read compatibility for existing `ofp/snapshots` refs.
+
+### Rationale
+- Keeps RTDL narrative contract coherent for downstream DF/DL work.
+- Reduces operational ambiguity during parity runs (backlog churn vs live attach behavior).
+- Prevents split artifact ownership confusion as the platform expands.
+
+---
+
+## Entry: 2026-02-06 22:51:00 - Platform-level closure note: OFP namespace drift removed with fresh parity proof
+
+### What is now closed
+The approved OFP drift-closure thread is now complete for the currently buildable scope:
+1. semantic inlet idempotency + payload mismatch handling,
+2. topic-aware intake and metrics,
+3. live attach policy (`latest`/`trim_horizon` behavior),
+4. canonical artifact namespace under `online_feature_plane/` with legacy read compatibility.
+
+### Fresh parity proof points
+- 20-pass:
+  - `platform_run_id=platform_20260206T223612Z`
+  - `scenario_run_id=6bebc0ed93d1606cf8b4bcd87223b64b`
+  - snapshot ref under canonical namespace: `runs/fraud-platform/platform_20260206T223612Z/online_feature_plane/snapshots/...`
+- 200-pass:
+  - `platform_run_id=platform_20260206T223857Z`
+  - `scenario_run_id=e49846109f26d4cd2442a0ccd3241c19`
+  - snapshot ref under canonical namespace: `runs/fraud-platform/platform_20260206T223857Z/online_feature_plane/snapshots/...`
+
+### Cross-component implication
+This removes the prior path-ownership ambiguity (`ofp/` vs `online_feature_plane/`) and gives RTDL consumers a single canonical artifact family for OFP outputs while preserving readability of historical refs.

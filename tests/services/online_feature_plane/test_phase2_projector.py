@@ -69,7 +69,7 @@ def _write_features(path: Path) -> None:
     path.write_text(json.dumps(payload), encoding="utf-8")
 
 
-def _write_profile(path: Path, *, bus_root: Path, db_path: Path, topic: str) -> None:
+def _write_profile(path: Path, *, bus_root: Path, db_path: Path, topics: list[str]) -> None:
     features_path = path.parent / "features.json"
     _write_features(features_path)
     profile = {
@@ -88,7 +88,7 @@ def _write_profile(path: Path, *, bus_root: Path, db_path: Path, topic: str) -> 
                 "required_platform_run_id": "platform_20260206T000000Z",
                 "event_bus": {
                     "root": str(bus_root),
-                    "topics": [topic],
+                    "topics": topics,
                 },
                 "engine_contracts_root": "docs/model_spec/data-engine/interface_pack/contracts",
                 "poll_max_records": 200,
@@ -109,6 +109,7 @@ def test_store_apply_is_idempotent_for_same_offset(tmp_path) -> None:
         "partition": 0,
         "offset": "0",
         "offset_kind": "file_line",
+        "event_class": "traffic_fraud",
         "event_id": "e" * 64,
         "payload_hash": "f" * 64,
         "event_ts_utc": "2026-02-06T00:00:01.000000Z",
@@ -136,12 +137,56 @@ def test_store_apply_is_idempotent_for_same_offset(tmp_path) -> None:
     assert state["amount_sum"] == 10.0
 
 
+def test_store_semantic_dedupe_and_payload_hash_mismatch(tmp_path) -> None:
+    db_path = tmp_path / "ofp.db"
+    store = build_store(str(db_path), stream_id="ofp.v0", basis_stream="fp.bus.traffic.fraud.v1")
+    pins = _pins()
+    base = {
+        "topic": "fp.bus.traffic.fraud.v1",
+        "partition": 0,
+        "offset_kind": "file_line",
+        "event_class": "traffic_fraud",
+        "event_id": "9" * 64,
+        "event_ts_utc": "2026-02-06T00:00:01.000000Z",
+        "pins": pins,
+        "key_type": "flow_id",
+        "key_id": "flow-9",
+        "group_name": "core_features",
+        "group_version": "v1",
+        "amount": 12.0,
+    }
+    first = store.apply_event(offset="0", payload_hash="a" * 64, **base)
+    replay = store.apply_event(offset="1", payload_hash="a" * 64, **base)
+    mismatch = store.apply_event(offset="2", payload_hash="b" * 64, **base)
+
+    state = store.get_group_state(
+        platform_run_id=str(pins["platform_run_id"]),
+        scenario_run_id=str(pins["scenario_run_id"]),
+        key_type="flow_id",
+        key_id="flow-9",
+        group_name="core_features",
+        group_version="v1",
+    )
+    metrics = store.metrics_summary(scenario_run_id=str(pins["scenario_run_id"]))
+
+    assert first.status == "APPLIED"
+    assert replay.status == "DUPLICATE"
+    assert mismatch.status == "PAYLOAD_HASH_MISMATCH"
+    assert state is not None
+    assert state["event_count"] == 1
+    assert state["amount_sum"] == 12.0
+    assert metrics.get("events_seen") == 3
+    assert metrics.get("events_applied") == 1
+    assert metrics.get("duplicates") == 1
+    assert metrics.get("payload_hash_mismatch") == 1
+
+
 def test_projector_file_bus_updates_state_and_basis(tmp_path) -> None:
     topic = "fp.bus.traffic.fraud.v1"
     bus_root = tmp_path / "bus"
     db_path = tmp_path / "ofp_projection.db"
     profile_path = tmp_path / "profile.json"
-    _write_profile(profile_path, bus_root=bus_root, db_path=db_path, topic=topic)
+    _write_profile(profile_path, bus_root=bus_root, db_path=db_path, topics=[topic])
     _write_bus_records(
         bus_root,
         topic,
@@ -171,7 +216,68 @@ def test_projector_file_bus_updates_state_and_basis(tmp_path) -> None:
     assert basis is not None
     assert basis["stream"] == topic
     assert basis["offset_kind"] == "file_line"
-    assert basis["offsets"] == [{"partition": 0, "offset": "2"}]
+    assert basis["offsets"] == [{"topic": topic, "partition": 0, "offset": "2"}]
 
     second_processed = projector.run_once()
     assert second_processed == 0
+
+
+def test_projector_file_bus_supports_multiple_topics_and_topic_metrics(tmp_path) -> None:
+    traffic_topic = "fp.bus.traffic.fraud.v1"
+    context_topic = "fp.bus.context.arrival_events.v1"
+    bus_root = tmp_path / "bus"
+    db_path = tmp_path / "ofp_projection.db"
+    profile_path = tmp_path / "profile.json"
+    _write_profile(
+        profile_path,
+        bus_root=bus_root,
+        db_path=db_path,
+        topics=[traffic_topic, context_topic],
+    )
+    _write_bus_records(
+        bus_root,
+        traffic_topic,
+        [_envelope(event_id="3" * 64, ts_utc="2026-02-06T00:00:03.000000Z", flow_id="flow-a", amount=3.0)],
+    )
+    _write_bus_records(
+        bus_root,
+        context_topic,
+        [_envelope(event_id="4" * 64, ts_utc="2026-02-06T00:00:04.000000Z", flow_id="flow-b", amount=4.0)],
+    )
+
+    projector = OnlineFeatureProjector.build(str(profile_path))
+    processed = projector.run_once()
+    assert processed == 2
+
+    state_a = projector.store.get_group_state(
+        platform_run_id="platform_20260206T000000Z",
+        scenario_run_id="a" * 32,
+        key_type="flow_id",
+        key_id="flow-a",
+        group_name="core_features",
+        group_version="v1",
+    )
+    state_b = projector.store.get_group_state(
+        platform_run_id="platform_20260206T000000Z",
+        scenario_run_id="a" * 32,
+        key_type="flow_id",
+        key_id="flow-b",
+        group_name="core_features",
+        group_version="v1",
+    )
+    assert state_a is not None
+    assert state_b is not None
+    assert state_a["event_count"] == 1
+    assert state_b["event_count"] == 1
+
+    metrics = projector.store.metrics_summary(scenario_run_id="a" * 32)
+    assert metrics.get(f"events_seen|topic={traffic_topic}") == 1
+    assert metrics.get(f"events_seen|topic={context_topic}") == 1
+    assert metrics.get(f"events_applied|topic={traffic_topic}") == 1
+    assert metrics.get(f"events_applied|topic={context_topic}") == 1
+
+    basis = projector.store.input_basis()
+    assert basis is not None
+    assert basis["stream"] == "multi"
+    assert {"topic": traffic_topic, "partition": 0, "offset": "1"} in basis["offsets"]
+    assert {"topic": context_topic, "partition": 0, "offset": "1"} in basis["offsets"]

@@ -50,7 +50,7 @@ for row in rows:
 ```
 
 Expected artifact path shape:
-- `runs/fraud-platform/<platform_run_id>/ofp/snapshots/<scenario_run_id>/<snapshot_hash>.json`
+- `runs/fraud-platform/<platform_run_id>/online_feature_plane/snapshots/<scenario_run_id>/<snapshot_hash>.json`
 
 ## 5) Export OFP observability artifacts
 ```powershell
@@ -75,4 +75,3 @@ Check `online_feature_plane/metrics/last_metrics.json` for:
 ## Boundary note
 This runbook validates OFP up to the current component boundary.  
 DF/DL integration checks are intentionally deferred until those components are implemented.
-

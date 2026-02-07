@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
+import sqlite3
 
 from fraud_detection.online_feature_plane.projector import OnlineFeatureProjector
 from fraud_detection.online_feature_plane.snapshots import OfpSnapshotMaterializer
@@ -102,6 +103,15 @@ def _write_bus_record(bus_root: Path, topic: str) -> None:
     )
 
 
+def _to_legacy_snapshot_ref(snapshot_ref: str) -> str:
+    normalized = snapshot_ref.replace("\\", "/")
+    if "/online_feature_plane/snapshots/" in normalized:
+        normalized = normalized.replace("/online_feature_plane/snapshots/", "/ofp/snapshots/")
+    if "\\" in snapshot_ref and "/" in normalized:
+        return normalized.replace("/", "\\")
+    return normalized
+
+
 def test_snapshot_materialize_writes_artifact_and_index(tmp_path) -> None:
     topic = "fp.bus.traffic.fraud.v1"
     bus_root = tmp_path / "bus"
@@ -133,6 +143,7 @@ def test_snapshot_materialize_writes_artifact_and_index(tmp_path) -> None:
     )
 
     assert snapshot_a["snapshot_hash"] == snapshot_b["snapshot_hash"]
+    assert "/online_feature_plane/snapshots/" in str(snapshot_a["snapshot_ref"]).replace("\\", "/")
     assert snapshot_a["snapshot_ref"].endswith(f"{snapshot_a['snapshot_hash']}.json")
     assert snapshot_a["feature_def_policy_rev"]["policy_id"] == "ofp.features.v0"
     assert snapshot_a["feature_def_policy_rev"]["revision"] == "r1"
@@ -150,3 +161,42 @@ def test_snapshot_materialize_writes_artifact_and_index(tmp_path) -> None:
     assert loaded is not None
     assert loaded["snapshot_hash"] == snapshot_hash
     assert loaded["features"]["flow_id:snap-flow-1"]["event_count"] == 1
+
+
+def test_snapshot_load_supports_legacy_index_ref_fallback(tmp_path) -> None:
+    topic = "fp.bus.traffic.fraud.v1"
+    bus_root = tmp_path / "bus"
+    profile_path = tmp_path / "profile.json"
+    projection_db = tmp_path / "projection.db"
+    snapshot_index_db = tmp_path / "snapshot_index.db"
+    snapshot_store_root = tmp_path / "snapshots"
+    _write_profile(
+        profile_path,
+        bus_root=bus_root,
+        projection_db=projection_db,
+        snapshot_index_db=snapshot_index_db,
+        snapshot_store_root=snapshot_store_root,
+        topic=topic,
+    )
+    _write_bus_record(bus_root, topic)
+
+    projector = OnlineFeatureProjector.build(str(profile_path))
+    assert projector.run_once() == 1
+
+    materializer = OfpSnapshotMaterializer.build(str(profile_path))
+    snapshot = materializer.materialize(
+        platform_run_id="platform_20260206T170000Z",
+        scenario_run_id="d" * 32,
+    )
+
+    snapshot_hash = str(snapshot["snapshot_hash"])
+    legacy_ref = _to_legacy_snapshot_ref(str(snapshot["snapshot_ref"]))
+    with sqlite3.connect(snapshot_index_db) as conn:
+        conn.execute(
+            "UPDATE ofp_snapshot_index SET snapshot_ref = ? WHERE snapshot_hash = ?",
+            (legacy_ref, snapshot_hash),
+        )
+
+    loaded = materializer.load_snapshot(snapshot_hash)
+    assert loaded is not None
+    assert loaded["snapshot_hash"] == snapshot_hash
