@@ -359,5 +359,87 @@ Rationale:
 2. This section does not apply code changes; it defines the chosen remediation specification to implement next.
 
 ## 6) Validation Tests + Thresholds
+### 6.1 Validation objective
+Section 6 is the pass/fail contract for saying 6B has moved from `D+` toward `B/B+`.  
+It must prevent "looks better" claims without statistically defensible evidence.
+
+### 6.2 Validation design rules
+1. Run on full sealed output where possible; sampling only for expensive diagnostics.
+2. Evaluate on seeds `{42, 7, 101, 202}` for stability.
+3. Use two thresholds:
+   - `B` = minimum credible synthetic realism.
+   - `B+` = stronger realism with tighter tolerances.
+4. Critical failures are fail-closed (no seal override).
+
+### 6.3 Test catalog (core gates)
+| ID | Surface | Metric | `B` threshold | `B+` threshold | Severity |
+|---|---|---|---|---|---|
+| T1 | Truth validity | `LEGIT share > 0` | pass | pass | CRITICAL |
+| T2 | Truth prevalence | `is_fraud_truth_mean` | `0.02-0.30` (or versioned policy target) | within target plus tighter tolerance | CRITICAL |
+| T3 | Truth coherence | `% non-overlay NONE rows mapped LEGIT` | `>= 99.0%` | `>= 99.5%` | CRITICAL |
+| T4 | S3->S4 coherence | `% campaign-tagged rows mapped non-LEGIT` | `>= 99.0%` | `>= 99.5%` | HIGH |
+| T5 | Bank stratification (class) | Cramer's V(`bank_view_outcome`, `merchant_class`) | `>= 0.05` | `>= 0.08` | CRITICAL |
+| T6 | Bank stratification (amount) | Cramer's V(`bank_view_outcome`, `amount_bin`) | `>= 0.05` | `>= 0.08` | CRITICAL |
+| T7 | Bank spread | `max-min bank fraud rate across classes` | `>= 0.03` | `>= 0.05` | HIGH |
+| T8 | Case validity | negative gap rate | `= 0` | `= 0` | CRITICAL |
+| T9 | Case templating | fixed-spike share (`3600s + 86400/86401s`) | `<= 0.50` | `<= 0.25` | CRITICAL |
+| T10 | Case monotonicity | `% cases with non-monotonic event times` | `= 0` | `= 0` | CRITICAL |
+| T11 | Amount support | distinct amount values | `>= 20` | `>= 40` | HIGH |
+| T12 | Amount tail | `p99 / p50` | `>= 2.5` | `>= 3.5` | HIGH |
+| T13 | Amount concentration | share of top-8 amounts | `<= 0.85` | `<= 0.70` | HIGH |
+| T14 | Timing realism | auth latency median | `0.3s-8s` | `0.5s-5s` | HIGH |
+| T15 | Timing tail | auth latency `p99` | `> 30s` | `> 45s` | HIGH |
+| T16 | Timing degeneracy | exact-zero latency share | `<= 0.20` | `<= 0.05` | HIGH |
+| T17 | Campaign depth | median distinct affected classes per campaign | `>= 2` | `>= 3` | MED |
+| T18 | Campaign geo depth | median distinct countries per campaign | `>= 2` | `>= 3` | MED |
+| T19 | Session realism | singleton-session share | `<= 0.85` | `<= 0.75` | MED |
+| T20 | Attachment richness | median linked entities per party-session key | must exceed current baseline by defined uplift | stronger uplift | MED |
+
+### 6.4 Statistical test layer (not just scalar thresholds)
+1. Association tests:
+   - Chi-square + Cramer's V for class/amount/geo vs bank-view outcomes.
+   - Require `p < 1e-6` and effect size above threshold (V gate above).
+2. Distributional realism tests:
+   - Jensen-Shannon divergence (JSD) between observed and policy-target distributions for:
+     - truth label mix
+     - campaign-type mix
+     - delay distributions
+   - `B`: `JSD <= 0.08`; `B+`: `JSD <= 0.05`.
+3. Delay shape tests:
+   - KS test comparing sampled delays to policy reference families.
+   - Also track Wasserstein distance for interpretability.
+   - Gate on both significance and effect size (small distance required).
+4. Stability tests across seeds:
+   - For critical metrics (T1-T16), coefficient of variation (CV) across seeds:
+     - `B`: `CV <= 0.25`
+     - `B+`: `CV <= 0.15`
+   - No seed is allowed to fail critical gates.
+
+### 6.5 Wave-based validation sequencing
+1. After Wave A:
+   - Must pass: `T1-T16` (critical + high gates).
+   - If any CRITICAL fails, stop; no Wave B promotion.
+2. After Wave B:
+   - Re-run `T1-T16`, then evaluate `T17-T18`.
+   - Campaign realism must improve without regressing truth/bank/case validity.
+3. After Wave C:
+   - Re-run full suite `T1-T20`.
+   - Focus on conditional realism gains from schema/context carry-through.
+
+### 6.6 Promotion rules (grade mapping)
+1. Minimum for `B`:
+   - All CRITICAL tests pass on all seeds.
+   - At least 80% of HIGH tests pass on all seeds.
+   - No unresolved fail-closed realism gate.
+2. Minimum for `B+`:
+   - All CRITICAL + HIGH tests pass on all seeds.
+   - At least 80% of MED tests pass on all seeds.
+   - Cross-seed stability thresholds satisfied for primary metrics.
+
+### 6.7 Artifacts required per run
+1. `validation_summary.json` with all metric values and pass/fail.
+2. `seed_comparison.csv` with per-seed metrics.
+3. `regression_report.md` highlighting deltas vs previous run.
+4. `gate_decision.json` (`PASS`, `PASS_WITH_RISK`, `FAIL`) with explicit reasons.
 
 ## 7) Expected Grade Lift (Local + Downstream Impact)
