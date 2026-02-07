@@ -86,3 +86,41 @@ Replaced prior 3-phase scaffold with an executable 8-phase map:
 - Current focus is now explicitly Phase 1 in the DLA build plan.
 
 ---
+
+## Entry: 2026-02-07 18:31:23 - Phase 1 lockstep implementation applied (contracts first, then storage foundation)
+
+### Scope executed
+Implemented DLA Phase 1 contract surfaces and lockstep storage/index foundation.
+
+### Decisions made during implementation
+1. Preserve append-only audit contract as strict boundary.
+   - Added code validators for `AuditRecord` required provenance fields and fail-closed semantics.
+2. Keep evidence model by-ref and deterministic.
+   - Enforced event ref/offset structures, context role taxonomy, and run pin requirements.
+3. Start storage in lockstep with AL using foundation primitives.
+   - Added DLA storage layout resolver + deterministic object-key builder.
+   - Added durable index store primitive with deterministic digest-based duplicate/mismatch handling.
+4. Avoid premature consumer/writer runtime.
+   - Kept this pass at contract + storage foundation level; intake pipelines come in later phases.
+
+### Files added/updated
+- Added:
+  - `src/fraud_detection/decision_log_audit/__init__.py`
+  - `src/fraud_detection/decision_log_audit/contracts.py`
+  - `src/fraud_detection/decision_log_audit/storage.py`
+  - `tests/services/decision_log_audit/test_dla_phase1_contracts.py`
+  - `tests/services/decision_log_audit/test_dla_phase1_storage.py`
+- Updated:
+  - `docs/model_spec/platform/implementation_maps/decision_log_audit.build_plan.md` (Phase 1 evidence + status)
+
+### Validation evidence
+- Command:
+  - `$env:PYTHONPATH='.;src'; python -m pytest tests/services/action_layer tests/services/decision_log_audit -q`
+- Result:
+  - `14 passed` (includes DLA Phase 1 tests and lockstep AL tests run together).
+
+### DoD mapping status
+- Phase 1 (DLA contract/evidence model): **complete**.
+- Storage kickoff delivered in lockstep; full Phase 2 closure continues next.
+
+---

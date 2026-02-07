@@ -81,3 +81,43 @@ Replaced prior 3-phase scaffold with an executable 8-phase map:
 - Current focus is now explicitly Phase 1 in the AL build plan.
 
 ---
+
+## Entry: 2026-02-07 18:31:23 - Phase 1 lockstep implementation applied (contracts first, then storage foundation)
+
+### Scope executed
+Implemented AL Phase 1 contract surfaces and the agreed lockstep storage kickoff.
+
+### Decisions made during implementation
+1. Contract authority stays schema-first.
+   - Used existing RTDL schemas as contract authority:
+     - `action_intent.schema.yaml`
+     - `action_outcome.schema.yaml`
+2. Keep AL contract validation deterministic and strict.
+   - Added explicit field, pin, and enum checks in code; missing/invalid fields fail closed.
+3. Pin semantic idempotency identity in code now (used by phase-2 ledger).
+   - Added deterministic semantic identity hash from `(platform_run_id, scenario_run_id, idempotency_key)`.
+4. Start storage in lockstep without over-advancing execution logic.
+   - Implemented durable idempotency ledger primitive (sqlite/postgres-aware) only.
+   - Deferred side-effect executor and outcome publish runtime to later phases.
+
+### Files added/updated
+- Added:
+  - `src/fraud_detection/action_layer/__init__.py`
+  - `src/fraud_detection/action_layer/contracts.py`
+  - `src/fraud_detection/action_layer/storage.py`
+  - `tests/services/action_layer/test_phase1_contracts.py`
+  - `tests/services/action_layer/test_phase1_storage.py`
+- Updated:
+  - `docs/model_spec/platform/implementation_maps/action_layer.build_plan.md` (Phase 1 evidence + status)
+
+### Validation evidence
+- Command:
+  - `$env:PYTHONPATH='.;src'; python -m pytest tests/services/action_layer tests/services/decision_log_audit -q`
+- Result:
+  - `14 passed` (includes AL Phase 1 tests and lockstep DLA tests run together).
+
+### DoD mapping status
+- Phase 1 (AL contracts/pins): **complete**.
+- Storage kickoff delivered in lockstep via ledger foundation; full Phase 2 closure continues next.
+
+---

@@ -35,6 +35,14 @@ Provide an executable, component-scoped DLA plan aligned to platform `Phase 4.5`
 - Required EB evidence boundary fields are explicit (traffic origin_offset + context offsets when used).
 - By-ref evidence contract is pinned; payload copy usage is policy-gated only.
 - Contract validation tests cover missing/incompatible provenance.
+**Evidence (Phase 1):**
+- Code:
+  - `src/fraud_detection/decision_log_audit/contracts.py`
+  - `src/fraud_detection/decision_log_audit/__init__.py`
+- Tests:
+  - `tests/services/decision_log_audit/test_dla_phase1_contracts.py`
+- Validation:
+  - `$env:PYTHONPATH='.;src'; python -m pytest tests/services/decision_log_audit -q`
 
 ### Phase 2 — Storage layout + append-only substrate
 **Intent:** establish immutable record storage and deterministic object paths.
@@ -100,4 +108,5 @@ Provide an executable, component-scoped DLA plan aligned to platform `Phase 4.5`
 - Closure statement is explicit: DLA component green; remaining platform dependencies (if any) are listed for phase handoff.
 
 ## Status (rolling)
-- Current focus: Phase 1 (`Audit contracts + evidence model`).
+- Phase 1 (`Audit contracts + evidence model`): completed on `2026-02-07`.
+- Current focus: Phase 2 (`Storage layout + append-only substrate`).

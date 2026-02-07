@@ -35,6 +35,14 @@ Provide an executable, component-scoped AL plan aligned to platform `Phase 4.5` 
 - AL intake validates envelope + pins fail-closed with explicit reason codes.
 - Normalization path is deterministic and emits machine-readable failure lane (no silent drop).
 - Contract and taxonomy tests exist for accepted/rejected payloads.
+**Evidence (Phase 1):**
+- Code:
+  - `src/fraud_detection/action_layer/contracts.py`
+  - `src/fraud_detection/action_layer/__init__.py`
+- Tests:
+  - `tests/services/action_layer/test_phase1_contracts.py`
+- Validation:
+  - `$env:PYTHONPATH='.;src'; python -m pytest tests/services/action_layer -q`
 
 ### Phase 2 — Semantic idempotency ledger
 **Intent:** guarantee at-least-once safe execution.
@@ -100,4 +108,5 @@ Provide an executable, component-scoped AL plan aligned to platform `Phase 4.5` 
 - Closure statement is explicit: AL component green; DLA-linked audit closure tracked by platform `4.5` gates.
 
 ## Status (rolling)
-- Current focus: Phase 1 (`Intake contracts + pin/shape validation`).
+- Phase 1 (`Intake contracts + pin/shape validation`): completed on `2026-02-07`.
+- Current focus: Phase 2 (`Semantic idempotency ledger`).
