@@ -138,6 +138,16 @@ Provide an executable, component-scoped AL plan aligned to platform `Phase 4.5` 
 - Replay from same basis reproduces identical outcome identity chain.
 - Duplicate storm tests prove no double execution.
 - Crash/restart recovery does not skip or mutate prior outcomes.
+**Evidence (Phase 6):**
+- Code:
+  - `src/fraud_detection/action_layer/checkpoints.py`
+  - `src/fraud_detection/action_layer/replay.py`
+  - `src/fraud_detection/action_layer/__init__.py`
+- Tests:
+  - `tests/services/action_layer/test_phase6_checkpoints.py`
+  - `tests/services/action_layer/test_phase6_replay.py`
+- Validation:
+  - `$env:PYTHONPATH='.;src'; python -m pytest tests/services/action_layer -q`
 
 ### Phase 7 — Observability + governance + security
 **Intent:** make AL operable and auditable without becoming control-path logic.
@@ -163,4 +173,5 @@ Provide an executable, component-scoped AL plan aligned to platform `Phase 4.5` 
 - Phase 3 (`Authorization + execution posture gates`): completed on `2026-02-07`.
 - Phase 4 (`Executor adapters + retry/failure semantics`): completed on `2026-02-07`.
 - Phase 5 (`Outcome store + IG publish discipline`): completed on `2026-02-07`.
-- Current focus: Phase 6 (`Checkpoints + replay determinism`).
+- Phase 6 (`Checkpoints + replay determinism`): completed on `2026-02-07`.
+- Current focus: Phase 7 (`Observability + governance + security`).

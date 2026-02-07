@@ -16,6 +16,15 @@ from .authz import (
     authorize_intent,
     build_denied_outcome_payload,
 )
+from .checkpoints import (
+    CHECKPOINT_BLOCKED,
+    CHECKPOINT_COMMITTED,
+    CHECKPOINT_ISSUED,
+    ActionCheckpointCommitResult,
+    ActionCheckpointError,
+    ActionCheckpointGate,
+    ActionCheckpointToken,
+)
 from .execution import (
     EXECUTION_COMMITTED,
     EXECUTION_PERMANENT_ERROR,
@@ -65,6 +74,15 @@ from .policy import (
     ActionLayerPolicyError,
     load_policy_bundle,
 )
+from .replay import (
+    REPLAY_MATCH,
+    REPLAY_NEW,
+    REPLAY_PAYLOAD_MISMATCH,
+    ActionOutcomeLedgerEntry,
+    ActionOutcomeReplayLedger,
+    ActionReplayError,
+    ReplayRegistrationResult,
+)
 from .storage import (
     ActionOutcomeAppendRecord,
     ActionOutcomeAppendWriteResult,
@@ -92,6 +110,13 @@ __all__ = [
     "AlAuthzDecision",
     "authorize_intent",
     "build_denied_outcome_payload",
+    "CHECKPOINT_BLOCKED",
+    "CHECKPOINT_COMMITTED",
+    "CHECKPOINT_ISSUED",
+    "ActionCheckpointCommitResult",
+    "ActionCheckpointError",
+    "ActionCheckpointGate",
+    "ActionCheckpointToken",
     "EXECUTION_COMMITTED",
     "EXECUTION_PERMANENT_ERROR",
     "EXECUTION_RETRYABLE_ERROR",
@@ -133,6 +158,13 @@ __all__ = [
     "AlRetryPolicy",
     "ActionLayerPolicyError",
     "load_policy_bundle",
+    "REPLAY_MATCH",
+    "REPLAY_NEW",
+    "REPLAY_PAYLOAD_MISMATCH",
+    "ActionOutcomeLedgerEntry",
+    "ActionOutcomeReplayLedger",
+    "ActionReplayError",
+    "ReplayRegistrationResult",
     "build_semantic_idempotency_key",
     "validate_outcome_lineage",
     "ActionLayerStorageLayout",

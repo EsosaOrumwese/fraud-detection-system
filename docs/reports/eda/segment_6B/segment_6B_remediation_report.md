@@ -39,6 +39,47 @@ This section captures the observed statistical weaknesses in Segment 6B exactly 
 3. Remediation should therefore prioritize restoring label validity and risk stratification first, then improving amount/time/campaign behavior depth.
 
 ## 2) Expected Statistical Posture (B/B+)
+This section defines the target statistical posture for Segment 6B at two acceptance bands:
+1. `B` = minimum credible synthetic realism for supervised fraud modeling.
+2. `B+` = strengthened realism with stable stratification and reduced template artifacts.
+
+### 2.1 Non-negotiable `B` gates (hard requirements)
+1. **Truth surface must be non-degenerate.**
+   - `LEGIT` share must be non-zero.
+   - `is_fraud_truth_mean` must be within `0.02` to `0.30` for baseline scenario unless an explicitly versioned policy target states otherwise.
+2. **Bank-view surface must be risk-stratified.**
+   - Cramer’s V(`bank_view_outcome`, `merchant_class`) `>= 0.05`.
+   - Cramer’s V(`bank_view_outcome`, `amount_bin`) `>= 0.05`.
+   - `max_class_bank_fraud_rate - min_class_bank_fraud_rate >= 0.03`.
+3. **Case timelines must be temporally valid.**
+   - Negative case-gap rate `= 0`.
+   - Case events are monotonic by `case_event_seq`.
+   - Combined fixed-gap spike share (`3600s` + `86400s`) `<= 0.50`.
+
+If any of these fail, Segment 6B cannot be graded `B` regardless of improvement elsewhere.
+
+### 2.2 `B` vs `B+` expected posture by realism axis
+| Realism axis | `B` target posture | `B+` target posture |
+|---|---|---|
+| Truth class balance | Non-collapsed truth labels; non-zero `LEGIT`; baseline fraud rate in target band | Seed-stable class balance; truth-label mix aligns tightly with policy target (`JS <= 0.03`) |
+| Bank-view stratification | Measurable class and amount dependence (`V >= 0.05`) and visible class spread | Stronger, stable stratification (`V >= 0.08`) with clear geography/segment conditioning |
+| Truth vs bank coherence | Fraud overlays produce materially higher bank-fraud probability than non-fraud | Calibrated conditional coherence by class/amount/geo/campaign with seed stability |
+| Case temporal realism | No negative gaps; bounded fixed-spike dependence; valid lifecycle ordering | Broad delay support with reduced template spikes (`<= 0.25`) and realistic lag spread |
+| Amount realism | No near-uniform 8-point collapse; meaningful heavy-tail expression | Context-conditioned spend surfaces by class/channel/geo with stable tail behavior |
+| Event timing realism | Non-degenerate auth latency surface (median `0.3s` to `8s`, P99 `> 30s`) | Latency stratifies by risk/context and remains temporally coherent |
+| Campaign realism | Campaign effects not limited to a single amount-uplift mechanism | Distinct campaign signatures (class/segment/geo/time) without trivial separability |
+| Session/attachment realism | Non-trivial multi-arrival session structure appears | Rich but controlled session and linkage heterogeneity supporting sequence-level explainability |
+
+### 2.3 Cross-seed stability expectations for realism claims
+1. All critical metrics must pass at seeds `{42, 7, 101, 202}`.
+2. Cross-seed coefficient of variation for primary gate metrics should be `<= 0.25` unless near-zero by construction.
+3. No `PASS_WITH_RISK` unresolved on truth/bank/case surfaces.
+
+### 2.4 Why this posture is required
+1. Segment 6B is the final supervision surface used by the platform; realism defects here dominate downstream training behavior even when upstream segments look plausible.
+2. A `B/B+` claim must therefore reflect both:
+   - structural correctness (already mostly present), and
+   - non-flat, context-sensitive statistical behavior (currently missing in key S4 and S2 surfaces).
 
 ## 3) Root-Cause Trace
 

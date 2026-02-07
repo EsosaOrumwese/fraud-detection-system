@@ -523,3 +523,101 @@ AL currently has contracts, idempotency, authz, and execution semantics, but doe
 - Receipt/evidence refs persisted for reconciliation: **complete** (`register_publish_result`).
 
 ---
+
+## Entry: 2026-02-07 19:11:52 - Phase 6 pre-implementation plan (checkpoints + replay determinism)
+
+### Trigger
+User requested to proceed to AL Phase 6.
+
+### Authorities used
+- `docs/model_spec/platform/implementation_maps/action_layer.build_plan.md` (Phase 6 DoD)
+- `docs/model_spec/platform/pre-design_decisions/real-time_decision_loop.pre-design_decision.md` (at-least-once + idempotent side effects)
+- `docs/model_spec/platform/component-specific/flow-narrative-platform-design.md` (deterministic replay and provenance)
+
+### Problem framing
+Phase 5 established append-only outcomes and IG publish discipline, but AL still lacks a commit gate that binds checkpoint advancement to durable append+publish completion, and lacks an explicit replay ledger for deterministic mismatch detection under restart/replay pressure.
+
+### Design decisions before coding
+1. Add explicit AL checkpoint gate module (`action_layer/checkpoints.py`) with durable token state.
+   - Reasoning: commit gating must be first-class and auditable, not inferred from ad-hoc state checks.
+2. Gate checkpoint commit on two prerequisites:
+   - outcome append committed,
+   - publish decision recorded and terminal.
+   - Reasoning: aligns with DoD requirement that checkpoint advances only after append/publish gate.
+3. Treat `AMBIGUOUS` publish as non-committable.
+   - Reasoning: ambiguity means admission outcome is unknown; advancing checkpoint would risk dropping work.
+4. Add replay ledger module (`action_layer/replay.py`) keyed by `outcome_id` + payload hash.
+   - Reasoning: enables deterministic replay classification (`NEW|REPLAY_MATCH|PAYLOAD_MISMATCH`) and explicit drift evidence.
+5. Keep backend parity (`sqlite` + `postgres`) for new stores.
+   - Reasoning: local-parity and env-ladder behavior must remain consistent.
+
+### Planned file/test updates
+- Add:
+  - `src/fraud_detection/action_layer/checkpoints.py`
+  - `src/fraud_detection/action_layer/replay.py`
+  - `tests/services/action_layer/test_phase6_checkpoints.py`
+  - `tests/services/action_layer/test_phase6_replay.py`
+- Update:
+  - `src/fraud_detection/action_layer/__init__.py` (exports)
+
+### Validation plan
+- Run `python -m pytest tests/services/action_layer -q`.
+- Ensure explicit coverage for:
+  - commit blocked until append+publish gates,
+  - ambiguous publish blocks checkpoint,
+  - duplicate-storm replay stability,
+  - restart/reopen safety on persisted stores.
+
+---
+
+## Entry: 2026-02-07 19:11:52 - Phase 6 implementation closure (checkpoints + replay determinism)
+
+### What was implemented
+1. Added explicit AL checkpoint commit gate:
+   - `src/fraud_detection/action_layer/checkpoints.py`
+   - introduced:
+     - `ActionCheckpointGate` with deterministic token issuance,
+     - prerequisite markers `mark_outcome_appended(...)` and `mark_publish_result(...)`,
+     - `commit_checkpoint(...)` returning `COMMITTED` or `BLOCKED` with machine-readable reasons.
+2. Added AL replay ledger:
+   - `src/fraud_detection/action_layer/replay.py`
+   - introduced:
+     - `ActionOutcomeReplayLedger` with outcomes `NEW|REPLAY_MATCH|PAYLOAD_MISMATCH`,
+     - mismatch evidence table,
+     - deterministic `identity_chain_hash()` over persisted outcome identities.
+3. Backend parity for new Phase 6 stores:
+   - both modules support sqlite and postgres through backend-aware stores.
+4. Exported Phase 6 surfaces:
+   - `src/fraud_detection/action_layer/__init__.py`.
+
+### Decisions made during implementation (with reasoning)
+1. **Checkpoint commit remains blocked for `PUBLISH_AMBIGUOUS`.**
+   - Reasoning: publish ambiguity means downstream admission truth is unknown; committing checkpoint would risk skipping unresolved work.
+2. **Checkpoint token identity binds `outcome_id + action_id + decision_id`.**
+   - Reasoning: keeps token deterministic and tied to immutable AL execution identity.
+3. **Replay ledger key is `outcome_id` with payload-hash drift detection.**
+   - Reasoning: `outcome_id` is the stable AL identity; hash mismatch indicates deterministic replay drift and must be captured as evidence, never overwritten.
+4. **Identity chain hash derived from persisted `(outcome_id, payload_hash)` ordered set.**
+   - Reasoning: provides fast deterministic parity proof across restarts/replays.
+
+### Tests added
+- `tests/services/action_layer/test_phase6_checkpoints.py`
+  - commit blocked until append+publish complete,
+  - ambiguous publish blocks commit,
+  - restart/reopen idempotent commit behavior.
+- `tests/services/action_layer/test_phase6_replay.py`
+  - new/match/mismatch replay classification,
+  - duplicate storm replay stability,
+  - restart-preserved identity chain hash.
+
+### Validation evidence
+- `$env:PYTHONPATH='.;src'; python -m pytest tests/services/action_layer/test_phase6_checkpoints.py tests/services/action_layer/test_phase6_replay.py -q` -> `6 passed`.
+- `$env:PYTHONPATH='.;src'; python -m pytest tests/services/action_layer -q` -> `37 passed`.
+
+### DoD mapping outcome
+- Checkpoint advances only after durable append/publish gate: **complete**.
+- Replay from same basis reproduces identical outcome identity chain: **complete**.
+- Duplicate storm does not cause replay drift/mismatch: **complete**.
+- Crash/restart recovery preserves checkpoint/replay state without mutation: **complete**.
+
+---
