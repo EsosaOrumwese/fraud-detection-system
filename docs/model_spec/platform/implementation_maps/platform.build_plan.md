@@ -740,11 +740,100 @@ These remain open and will be resolved during RTDL Phase 4 planning and partitio
 
 #### Phase 4.5 — AL + DLA (decision → outcome → audit)
 **Goal:** apply effects safely and record audit truth.
+**Status:** expansion-active (execution phase).
+**Component maps:**
+- `docs/model_spec/platform/implementation_maps/action_layer.build_plan.md`
+- `docs/model_spec/platform/implementation_maps/decision_log_audit.build_plan.md`
+
+##### 4.5.A — Decision→Action intake boundary + pin integrity
+**Goal:** guarantee AL and DLA process only admissible, run-scoped decision artifacts.
 
 **DoD checklist:**
-- Actions executed idempotently; retries do not duplicate effects.
-- Outcomes are recorded with stable outcome_id.
-- Append‑only audit record ties decision → action → outcome with provenance refs.
+- AL intake accepts only admitted decision/intent families with required ContextPins (`platform_run_id`, `scenario_run_id`, `manifest_fingerprint`, `parameter_hash`, `scenario_id`, plus `seed` where required).
+- Intake rejects/flags malformed or scope-mismatched intents with explicit machine-readable failure reasons (no silent drop).
+- DLA intake validates decision and outcome schema compatibility before append.
+- Decision->intent->outcome chain carries immutable source evidence refs (`source_event_id`, traffic `origin_offset`, decision refs).
+
+##### 4.5.B — AL idempotency and side-effect safety
+**Goal:** enforce at-least-once safe execution.
+
+**DoD checklist:**
+- Action execution semantic key is deterministic and stable under replay.
+- Duplicate deliveries do not create duplicate side effects.
+- Payload-hash mismatch on an existing semantic key is anomaly/quarantine (never overwrite).
+- Retry policy is explicit (bounded attempts, backoff policy, terminal failure semantics).
+
+##### 4.5.C — Outcome contract and publication discipline
+**Goal:** make execution results immutable, queryable, and replay-safe.
+
+**DoD checklist:**
+- Outcomes are append-only with stable `outcome_id` identity.
+- AL writes explicit terminal states (`SUCCEEDED`, `FAILED`, `UNKNOWN/UNCERTAIN_COMMIT` where applicable) with reason codes.
+- Outcome publication to IG/EB is idempotent and does not mutate prior outcomes.
+- If outcome publish is ambiguous, AL records deterministic retry/reconciliation posture with evidence pointers.
+
+##### 4.5.D — DLA append-only truth and evidence boundary
+**Goal:** make audit closure deterministic and reconstructable.
+
+**DoD checklist:**
+- DLA stores append-only audit records tying `decision_id -> action_intent_id -> outcome_id`.
+- Audit evidence includes traffic `origin_offset` and explicit context offsets used by the decision path.
+- By-ref evidence model is enforced; payload copies are only stored when policy explicitly requires.
+- DLA index supports lookup by run scope, decision id, action intent id, and outcome id.
+
+##### 4.5.E — Commit-point ordering and checkpoint semantics
+**Goal:** prevent offset advancement without durable audit truth.
+
+**DoD checklist:**
+- DLA durable append success is the v0 commit gate for advancing relevant traffic offsets.
+- Checkpoint advancement order is explicit and tested (durable write before checkpoint move).
+- Failure in DLA append blocks checkpoint progression and forces retry/fail-safe lane.
+- AL outcome lag is permitted only within pinned decoupling semantics and must not violate audit closure guarantees.
+
+##### 4.5.F — Failure lanes, quarantine, and replay determinism
+**Goal:** keep failures explicit and replay-safe.
+
+**DoD checklist:**
+- Poison/invalid events are quarantined with deterministic reason taxonomy.
+- Replays from identical basis reproduce identical decision->outcome->audit chains.
+- Anomaly classes (id collision/payload mismatch/schema incompatibility) are surfaced with durable evidence refs.
+- Recovery drills cover DLA outage, AL publish ambiguity, and duplicate storm behavior.
+
+##### 4.5.G — Security, governance, and retention posture
+**Goal:** ensure production-safe handling of sensitive execution/audit artifacts.
+
+**DoD checklist:**
+- Access controls for AL/DLA reads are least-privilege and auditable.
+- Retention/immutability posture for audit artifacts is pinned per environment ladder.
+- Governance stamps (`policy_rev`, `bundle_ref`, execution profile refs) are recorded on decisions/outcomes/audit records.
+- Sensitive tokens/credentials are excluded from logs, receipts, impl maps, and run artifacts.
+
+##### 4.5.H — Observability and reconciliation surfaces
+**Goal:** make AL/DLA operationally diagnosable without becoming a control plane.
+
+**DoD checklist:**
+- Counters include decision consumed, intents executed, outcomes emitted, audit appends, quarantines, and ambiguous outcomes.
+- Health surfaces expose GREEN/AMBER/RED with explicit reasons and lag signals.
+- Reconciliation artifacts can prove per-run closure of decision->outcome->audit lineage.
+- Alert posture treats audit-chain breakage and outcome quarantine as high-severity signals.
+
+##### 4.5.I — Validation matrix and parity proof
+**Goal:** prove 4.5 behavior under realistic load and replay conditions.
+
+**DoD checklist:**
+- Unit tests cover AL idempotency, retry/finalization semantics, DLA append invariants, and checkpoint ordering.
+- Integration tests prove DF->AL->DLA chain continuity with provenance refs intact.
+- Local-parity monitored runs exist for 20 and 200 events with evidence paths and run ids recorded.
+- Replay test proves deterministic re-run behavior with no duplicate external effects and stable audit identity chain.
+
+##### 4.5.J — Closure gate and Phase 5 handoff boundary
+**Goal:** make Phase 4.5 completion objective and unblock Label/Case safely.
+
+**DoD checklist:**
+- 4.5 is green only when decision->action->outcome->audit closure is deterministic, append-only, and provenance-complete.
+- Residual risks and deferred items (if any) are explicitly documented with owner and phase target.
+- Platform parity runbook includes AL/DLA operation and evidence collection steps.
+- Phase 5 start gate is explicitly met: Label/Case can consume AL outcomes + DLA refs without compatibility gaps.
 
 ---
 

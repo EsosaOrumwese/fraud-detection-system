@@ -2500,3 +2500,78 @@ Applied changes:
 - OFP/IEG remain component-complete but integration-pending where cross-component closure is still required.
 
 ---
+
+## Entry: 2026-02-07 18:17:48 - Plan: expand platform Phase 4.5 (AL + DLA) into executable DoD sections
+
+### Trigger
+User requested to begin Phase `4.5` expansion so execution can proceed with explicit closure gates rather than the current three-line summary checklist.
+
+### Authorities consulted
+- `docs/model_spec/platform/implementation_maps/platform.build_plan.md` (current 4.5 placeholder)
+- `docs/model_spec/platform/pre-design_decisions/real-time_decision_loop.pre-design_decision.md` (sections 6, 8, 9, 14, 17)
+- `docs/model_spec/platform/component-specific/flow-narrative-platform-design.md` (decision -> action -> outcome -> audit flow)
+- `docs/model_spec/platform/implementation_maps/action_layer.build_plan.md`
+- `docs/model_spec/platform/implementation_maps/decision_log_audit.build_plan.md`
+
+### Problem framing
+Current `Phase 4.5` in the platform build plan is under-specified (single checklist with 3 bullets). That is not enough for hardened implementation sequencing or objective closure checks, especially with strict pins around:
+- DLA commit-point semantics,
+- AL idempotent side-effect semantics,
+- append-only evidence chain (decision -> intent -> outcome -> audit),
+- parity-run proof requirements.
+
+### Expansion decisions (pre-coding)
+1. Expand `4.5` into sub-sections (`4.5.A...`) consistent with prior platform phase style (`4.4.A...4.4.L`).
+2. Keep ownership boundaries explicit:
+   - AL owns execution + outcome truth,
+   - DLA owns append-only audit truth,
+   - DF remains decision producer only.
+3. Encode commit-point ordering explicitly from pinned pre-design decisions:
+   - DLA write success gates traffic offset advancement in v0.
+4. Separate "component closure" from "platform integration closure":
+   - component plans remain source of component internals,
+   - platform 4.5 captures cross-component integration gates and run-level proof.
+5. Include a closure handoff subsection that defines what must be true before Phase 5 (Label/Case) can start.
+
+### Planned edits
+- Update `docs/model_spec/platform/implementation_maps/platform.build_plan.md`:
+  - replace the minimal 4.5 checklist with detailed `4.5.A...` sections and DoD lists.
+- After edit, append completion outcome here and logbook entry in `docs/logbook/02-2026/2026-02-07.md`.
+
+---
+
+## Entry: 2026-02-07 18:18:48 - Phase 4.5 expansion applied in platform build plan
+
+### Scope completed
+Expanded `Phase 4.5` in:
+- `docs/model_spec/platform/implementation_maps/platform.build_plan.md`
+
+Replaced the minimal 3-line checklist with explicit execution sections:
+- `4.5.A` intake boundary + pin integrity,
+- `4.5.B` AL idempotency and side-effect safety,
+- `4.5.C` outcome contract/publication discipline,
+- `4.5.D` DLA append-only truth + evidence boundary,
+- `4.5.E` commit-point/checkpoint semantics,
+- `4.5.F` failure lanes + replay determinism,
+- `4.5.G` security/governance/retention,
+- `4.5.H` observability/reconciliation,
+- `4.5.I` validation matrix + parity proof,
+- `4.5.J` closure gate + Phase 5 handoff boundary.
+
+### Why this structure
+1. Matches progressive-elaboration doctrine:
+   - active phase now has executable subsections and objective DoD gates.
+2. Preserves truth ownership boundaries:
+   - AL execution truth vs DLA audit truth are explicit.
+3. Pins critical RTDL invariants from pre-design decisions:
+   - DLA durable append as commit gate,
+   - explicit idempotency/anomaly semantics,
+   - provenance-complete chain closure requirements.
+4. Keeps phase transition objective:
+   - Phase 5 start gate is now explicitly encoded in `4.5.J`.
+
+### Residual posture after this change
+- This is plan expansion only; no runtime/code implementation was started in this entry.
+- Component-level implementation and evidence collection proceed next under `action_layer` and `decision_log_audit` maps.
+
+---
