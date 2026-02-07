@@ -23,11 +23,14 @@
     "candidate_foreign_median": 37.0,
     "membership_median": 0.0,
     "membership_share": 0.46365105008077545,
-    "corr": 0.14263136919226305
+    "corr": 0.14263136919226313,
+    "realization_ratio_median": 0.0
   },
   "dup_pair_rate": {
     "mean": 0.21372379206321548,
     "p90": 0.75,
-    "share_with_dups": 0.3739903069466882
+    "share_with_dups": 0.3739903069466882,
+    "share_with_cross_country_dups": 0.3739903069466882,
+    "share_with_same_country_dup_only": 0.0
   }
 }

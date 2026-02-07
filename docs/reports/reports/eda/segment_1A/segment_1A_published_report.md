@@ -1,7 +1,7 @@
 # Segment 1A — Published Assessment Report (Human‑Readable)
 Date: 2026-01-30
 Run: `runs\local_full_run-5\c25a2675fbfbacd952b13bb594880e92`
-Scope: `data/layer1/1A` outputs only (no RNG logs). No charts by request.
+Scope: `data/layer1/1A` outputs only (no RNG logs), with chart-backed statistical evidence.
 
 ## 0) Why this report exists
 Segment 1A is the **world‑building foundation** for the data engine. It creates the merchant/outlet universe and the scaffolding that later segments use to simulate transactions. Your goal is not “perfect reality,” but **credible realism**: outputs that feel plausible, structurally consistent, and rich enough to support reasonable fraud modeling and explanations.
@@ -127,10 +127,11 @@ Plots are saved in: `reports/eda/segment_1A/plots/` and embedded below.
 <img src="plots/4_topk_share_curve.png" width="520" alt="Top-K merchant concentration">
 
 **3) Home vs legal mismatch by merchant size**  
-`5_mismatch_vs_size_hex.png` and `6_mismatch_by_decile.png` show mismatch rates in the **0.35–0.48** range across nearly all size bands, with only a mild dip in the largest‑merchant decile (**~0.37**). If offshore legal domicile were mostly a “large enterprise” phenomenon, you would expect mismatch to be low for small merchants and increase with size. That is not happening here, which suggests mismatch is baked into the generator broadly, not driven by size. This is a realism concern because everyday merchants typically operate under home‑country legal domicile.  
+`5_mismatch_vs_size_hex.png` and the updated `6_mismatch_by_decile.png` (now rendered with decile means + 95% CI + decile sample sizes) show mismatch rates in the **~0.35–0.48** band across almost all size buckets. The visual spread and confidence intervals indicate that this is not a small‑sample artifact in one or two deciles; it is a broad population pattern. If offshore legal domicile were mostly a large‑enterprise phenomenon, the smallest deciles should sit materially lower than the largest deciles. They do not. That means the mismatch behavior is a structural generator effect, not simply firm size composition.  
 
 <img src="plots/5_mismatch_vs_size_hex.png" width="520" alt="Mismatch rate vs merchant size (hexbin)">
 <img src="plots/6_mismatch_by_decile.png" width="520" alt="Mismatch rate by size decile">
+<img src="plots/16_mismatch_decomposition.png" width="520" alt="Mismatch decomposition by size and legal spread">
 
 **4) Legal‑country spread per merchant**  
 `7_legal_country_ecdf.png` shows most merchants are domestic (**median = 1**), but the tail is meaningful (**p90 = 5**, max 11). `8_size_vs_legal_hex.png` shows that cross‑border spread increases with merchant size, which is expected behavior: larger merchants have more international reach. This is a strong realism signal as long as the tail isn’t too dominant.  
@@ -139,22 +140,41 @@ Plots are saved in: `reports/eda/segment_1A/plots/` and embedded below.
 <img src="plots/8_size_vs_legal_hex.png" width="520" alt="Merchant size vs legal-country spread">
 
 **5) Single vs multi‑site flag sanity**  
-`9_flag_violin.png` and `10_flag_jitter.png` show **all merchants flagged True**, meaning **zero single‑site merchants** in the dataset. That is a realism gap because real retail ecosystems are dominated by single‑site or very small merchants. This is a structural bias that will shape downstream model behavior (e.g., models may over‑fit to multi‑site patterns).  
+`9_flag_violin.png` was replaced with a direct flag‑coverage bar because a one‑class violin is statistically low information. The replacement plus `10_flag_jitter.png` and `15_flag_coverage_bar.png` all confirm the same anomaly: **all 1,238 merchants are flagged True**, **0 are False**. This is not a subtle skew; it is a hard boundary condition in the generated world.  
 
-<img src="plots/9_flag_violin.png" width="520" alt="Outlet count by single_vs_multi_flag (violin)">
+<img src="plots/9_flag_violin.png" width="520" alt="Flag coverage replacement bar (single_vs_multi_flag)">
 <img src="plots/10_flag_jitter.png" width="520" alt="Flag coverage (jitter)">
+<img src="plots/15_flag_coverage_bar.png" width="520" alt="Flag coverage bar">
 
 **6) Candidate breadth vs actual memberships**  
-`11_candidate_vs_membership_hex.png` shows **foreign candidate counts are very high** (median **37**, total candidates median **38**) while actual memberships are sparse (median **0**, only **~46%** of merchants have any foreign membership). The correlation is weak (**~0.14**). `12_candidate_gap_ecdf.png` shows large candidate‑membership gaps for most merchants. This means the policy surface is globally permissive, but realized expansion is limited—reasonable if the generator is conservative in membership assignment, but it creates a realism tension: the “world is open,” yet most merchants don’t expand.  
+`11_candidate_vs_membership_hex.png` shows **foreign candidate counts are very high** (median **37**, total candidates median **38**) while actual memberships are sparse (median **0**, only **~46%** of merchants have any foreign membership). The correlation is weak (**~0.14**). `12_candidate_gap_ecdf.png` and the added `17_candidate_realization_ratio.png` make the under‑realization explicit: median realization ratio is **0.0**, so most merchants convert none of their foreign candidates into actual memberships.  
+
+Interpretively, this is not just "conservative expansion." It creates a two‑stage realism tension:
+1) Candidate generation behaves as if almost every merchant could expand globally.
+2) Realization then collapses that breadth for most merchants.
+
+That combination is valid for some scenarios, but for baseline realism it can look policy‑incoherent unless explicitly intended.
 
 <img src="plots/11_candidate_vs_membership_hex.png" width="520" alt="Candidate vs membership (hexbin)">
 <img src="plots/12_candidate_gap_ecdf.png" width="520" alt="Candidate-membership gap (ECDF)">
+<img src="plots/17_candidate_realization_ratio.png" width="520" alt="Candidate realization ratio diagnostics">
 
 **7) Duplicate merchant‑site pairs**  
-`13_duplicate_site_heatmap.png` and `14_dup_pair_rate_ecdf.png` show that **~37%** of merchants reuse site IDs across multiple legal countries (mean duplicate rate **~0.21**, p90 **~0.75**). This implies `site_id` is a per‑merchant index, not a globally unique location identifier. That can be valid, but it must be explicit; otherwise downstream consumers will mistakenly treat site IDs as unique outlets and misinterpret cross‑border structure.  
+The updated `13_duplicate_site_heatmap.png` now shows duplicate anatomy by merchant and legal‑country multiplicity, and `18_duplicate_semantics_breakdown.png` quantifies mechanism:
+- **37.4%** of merchants have duplicate merchant‑site pairs.
+- Duplicate exposure is entirely **cross‑country reuse** in this run (same‑country duplicate‑only share **0.0%**).
+- Pair‑level duplicate rate remains high (mean **~0.21**, p90 **~0.75**) via `14_dup_pair_rate_ecdf.png`.
+
+This is strong evidence that duplication is not random duplication noise; it is a specific identity semantics choice (`site_id` reused across legal countries). That can be valid if declared as per‑merchant indexing, but it is a real downstream interpretation risk if treated as globally unique location identity.
 
 <img src="plots/13_duplicate_site_heatmap.png" width="520" alt="Duplicate site IDs across legal countries (heatmap)">
 <img src="plots/14_dup_pair_rate_ecdf.png" width="520" alt="Duplicate site-pair rate (ECDF)">
+<img src="plots/18_duplicate_semantics_breakdown.png" width="520" alt="Duplicate semantics breakdown">
+
+**8) Outlet pyramid sanity (new)**  
+`19_outlet_pyramid.png` adds a direct merchant pyramid view using outlet-count buckets. The absence of a `1` bucket mass (single‑site merchants) is immediately visible, confirming that this realism issue is not a minor tail effect but a missing base tier in the generated merchant population.
+
+<img src="plots/19_outlet_pyramid.png" width="520" alt="Outlet pyramid by merchant size buckets">
 
 ### 4.2 Candidate set breadth (how “globally open” merchants are)
 - **Candidate countries per merchant:** min 1, median 38, max 39
@@ -194,6 +214,9 @@ Plots are saved in: `reports/eda/segment_1A/plots/` and embedded below.
 - **Currency diversity is high**, supporting global realism.
 
 ### Weak realism signals
+- **No single-site merchant base tier** (`single_vs_multi_flag=False` count is zero). This is a material population-shape distortion for baseline retail realism.
+- **Home/legal mismatch is broadly elevated** across size buckets rather than concentrated in large/global merchants.
+- **Duplicate identity semantics are cross-country by construction** (`site_id` reused across legal countries), which can create downstream interpretation risk if consumers assume globally unique sites.
 - **Candidate sets are too broad** (median 38 out of 39 countries). This implies most merchants are “allowed” almost everywhere, which is uncommon in real economies.
 - **Missing approved outputs** reduce traceability and make it harder to validate distributional assumptions (e.g., site sequencing and integerised counts).
 
