@@ -875,3 +875,48 @@ Phase 8 is now implemented and validated at component scope.
   remain under platform Phase 4.4/4.5 integration gates.
 
 ---
+
+## Entry: 2026-02-07 07:31:11 — DL 20-event runtime plumbing sanity run (pre-DF integration)
+
+### Goal
+Run a compact, auditable 20-step DL runtime plumbing pass now (before DF runtime integration) to confirm module wiring behavior end-to-end:
+- signals -> evaluator -> posture store -> guarded serve -> emission outbox -> ops/governance telemetry.
+
+### Run details
+- Run id: `dl_sanity_20260207T073111Z`
+- Scope: `scope=GLOBAL`
+- Events processed: `20`
+- Artifacts:
+  - `runs/fraud-platform/dl_sanity_20260207T073111Z/degrade_ladder/dl_20_event_summary.json`
+  - `runs/fraud-platform/dl_sanity_20260207T073111Z/degrade_ladder/dl_20_event_rows.json`
+  - `runs/fraud-platform/dl_sanity_20260207T073111Z/degrade_ladder/posture.sqlite`
+  - `runs/fraud-platform/dl_sanity_20260207T073111Z/degrade_ladder/outbox.sqlite`
+  - `runs/fraud-platform/dl_sanity_20260207T073111Z/degrade_ladder/ops.sqlite`
+
+### Observed outcomes
+- Served mode counts:
+  - `NORMAL`: 10
+  - `FAIL_CLOSED`: 10
+- Health states observed:
+  - `HEALTHY`, `BLIND`
+- Outbox/emission:
+  - posture transitions emitted: `2`
+  - outbox metrics: pending `0`, failed `0`, dead `0`, sent `2`
+- Governance/ops telemetry:
+  - governance events total: `4`
+  - metrics snapshot:
+    - `forced_fail_closed_total`: `1`
+    - `posture_transitions_total`: `2`
+    - `serve_fallback_total`: `5`
+    - `signal_required_bad_total`: `16`
+    - `signal_required_ok_total`: `84`
+
+### Interpretation
+- DL runtime plumbing path is functioning as expected in a pre-DF isolated pass:
+  - posture decisions committed and served,
+  - health gate enforced fail-closed during degraded signal window,
+  - transitions emitted deterministically,
+  - governance + ops metrics recorded and queryable.
+- This is a **DL plumbing sanity run**, not full RTDL E2E closure; DF runtime coupling and downstream AL/DLA remain integration gates outside DL scope.
+
+---
