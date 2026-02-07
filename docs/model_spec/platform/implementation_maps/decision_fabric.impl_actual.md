@@ -490,3 +490,105 @@ Implement DF Phase 4 so bundle/policy selection is deterministic per scope and c
 - Phase 5 will integrate OFP/IEG acquisition under decision-time budgets and DL mask constraints.
 
 ---
+
+## Entry: 2026-02-07 11:25:20 — Phase 5 implementation plan (context/features acquisition + decision-time budgets)
+
+### Problem / goal
+Implement DF Phase 5 so Decision Fabric acquires OFP/IEG context within explicit RTDL budgets, enforces DL mask constraints, and records context evidence refs deterministically with no hidden time.
+
+### Authorities / inputs
+- `docs/model_spec/platform/implementation_maps/decision_fabric.build_plan.md` (Phase 5 DoD)
+- `docs/model_spec/platform/pre-design_decisions/real-time_decision_loop.pre-design_decision.md` (decision_deadline_ms, join_wait_budget_ms, required context)
+- `docs/model_spec/platform/component-specific/decision_fabric.design-authority.md` (DF-E4: OFP as_of_time_utc = event_time; IEG optional; fail-closed)
+- `docs/model_spec/platform/contracts/real_time_decision_loop/ofp_get_features_request.schema.yaml`
+- `docs/model_spec/platform/contracts/real_time_decision_loop/ofp_get_features_response.schema.yaml`
+- `src/fraud_detection/online_feature_plane/serve.py` (OfpGetFeaturesService)
+- `src/fraud_detection/identity_entity_graph/query.py` (IdentityGraphQuery)
+- DF Phase 3 posture enforcement (`src/fraud_detection/decision_fabric/posture.py`)
+
+### Decision trail (before coding)
+1. Create a DF-local context policy file under `config/platform/df/` to pin:
+   - `decision_deadline_ms` and `join_wait_budget_ms` (must be <= decision_deadline),
+   - required vs optional context roles (`arrival_events`, `flow_anchor` required; `arrival_entities` optional),
+   - OFP request defaults (feature_groups, graph_resolution_mode),
+   - IEG requirement flag (default false, but enforceable).
+2. Add a DF context module (`context.py`) to own:
+   - policy loading + deterministic content digest,
+   - decision budget math (explicit `started_at_utc` + `now_utc`, no hidden time),
+   - join readiness evaluation + missing-context reason codes,
+   - OFP request assembly with `as_of_time_utc = source_event.ts_utc`,
+   - DL mask enforcement via `enforce_posture_constraints(...)` before calling OFP/IEG,
+   - acquisition result structure with evidence refs and deterministic digest.
+3. Keep external calls injectable:
+   - accept an `OfpGetFeaturesService` instance and optional `IdentityGraphQuery` or resolver callback,
+   - allow tests to stub OFP/IEG responses without running the services.
+4. Missing required context must return explicit reason codes and not fabricate context; optional context missing is recorded but does not block.
+5. Context evidence refs must include:
+   - traffic `source_eb_ref` from inlet,
+   - context offsets used (join frame refs if provided),
+   - OFP `eb_offset_basis` + `snapshot_hash`,
+   - IEG `graph_version` if used.
+
+### Files planned
+- New:
+  - `config/platform/df/context_policy_v0.yaml`
+  - `src/fraud_detection/decision_fabric/context.py`
+  - `tests/services/decision_fabric/test_phase5_context.py`
+- Update:
+  - `config/platform/df/README.md`
+  - `src/fraud_detection/decision_fabric/__init__.py`
+  - `docs/model_spec/platform/implementation_maps/decision_fabric.build_plan.md` (Phase 5 status)
+
+### Invariants to enforce
+- OFP `as_of_time_utc` equals the source event `ts_utc`; no hidden wall-clock time in decisions.
+- DL mask enforcement is applied before OFP/IEG calls; forbidden capabilities are never attempted.
+- `join_wait_budget_ms` is enforced against explicit `now_utc` and is always <= `decision_deadline_ms`.
+- Missing required context yields explicit degrade reasons (`context_missing:*`) and `status=CONSTRAINED_SAFE`.
+- Context evidence refs are recorded deterministically when context is used.
+
+### Validation plan
+- Add tests covering:
+  - OFP request uses `source_ts_utc` for `as_of_time_utc`.
+  - DL mask blocks IEG/OFP calls when not allowed.
+  - Deadline/join budget enforcement on explicit `now_utc`.
+  - Missing required context surfaces explicit reason codes.
+  - Evidence refs include traffic `source_eb_ref` and OFP basis when used.
+- Run `python -m pytest tests/services/decision_fabric -q`.
+
+---
+
+## Entry: 2026-02-07 11:33:41 — Phase 5 implementation closure (context/features acquisition + decision-time budgets)
+
+### What was implemented
+1. Added DF context policy artifact:
+   - `config/platform/df/context_policy_v0.yaml` pins decision deadlines, join-wait budgets, required/optional context roles, OFP defaults, and IEG requirement flag.
+2. Added DF context acquisition module:
+   - `src/fraud_detection/decision_fabric/context.py`
+   - implements policy loading + deterministic content digest,
+   - decision budget snapshots (`DecisionBudget` + `DecisionBudgetSnapshot`) with explicit `now_utc`,
+   - join readiness checks with `CONTEXT_WAITING` vs `CONTEXT_MISSING` outcomes,
+   - DL mask enforcement before OFP/IEG calls,
+   - OFP request assembly with `as_of_time_utc = source_ts_utc`,
+   - context evidence refs capture (`source_eb_ref`, context refs, OFP basis/snapshot, graph_version).
+3. Updated DF package exports:
+   - `src/fraud_detection/decision_fabric/__init__.py` now includes context policy/acquirer types and status constants.
+4. Updated DF config README:
+   - `config/platform/df/README.md` lists the context policy file.
+
+### Validation results
+- Added tests:
+  - `tests/services/decision_fabric/test_phase5_context.py`
+- Re-ran DF suite:
+  - `python -m pytest tests/services/decision_fabric -q` -> `41 passed`.
+
+### DoD closure mapping (Phase 5)
+- OFP reads use `as_of_time_utc = source event ts_utc`: complete (request assembly + test).
+- IEG/OFP calls obey DL mask and join readiness policy: complete (mask enforcement + waiting/missing outcomes).
+- `decision_deadline_ms` and `join_wait_budget_ms` enforced from policy: complete (budget snapshot + tests).
+- Missing required context yields explicit degrade reasons: complete (`CONTEXT_WAITING`/`CONTEXT_MISSING` with reason codes).
+- Context evidence refs captured when used: complete (ContextEvidence + tests).
+
+### Follow-on boundary
+- Phase 6 will implement deterministic decision synthesis + ActionIntent emission at the IG publish boundary.
+
+---

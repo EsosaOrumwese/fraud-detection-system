@@ -5,6 +5,7 @@ This folder pins Decision Fabric inlet trigger policy for RTDL.
 ## Files
 - `trigger_policy_v0.yaml`
 - `registry_resolution_policy_v0.yaml`
+- `context_policy_v0.yaml`
 
 ## v0 intent
 - Only admitted traffic topics are trigger-eligible.
@@ -18,6 +19,7 @@ This folder pins Decision Fabric inlet trigger policy for RTDL.
   - `bundle_slot`
   - `tenant_id` (optional)
 - Registry compatibility mismatches fail closed by default unless bounded fallback policy is explicitly configured.
+- Context policy pins decision-time budgets and required context roles before OFP/IEG acquisition.
 
 ## Change discipline
 - Bump `revision` when trigger semantics change.

@@ -123,4 +123,9 @@ Provide an executable, phase-by-phase DF build plan aligned to platform Phase 4.
   - Evidence: `src/fraud_detection/decision_fabric/registry.py`
   - Evidence: `tests/services/decision_fabric/test_phase4_registry.py`
   - Validation: `python -m pytest tests/services/decision_fabric -q` -> `36 passed`
-- Current focus: Phase 5 (`Context/features acquisition + decision-time budgets`).
+- Phase 5 (`Context/features acquisition + decision-time budgets`): completed on `2026-02-07`.
+  - Evidence: `config/platform/df/context_policy_v0.yaml`
+  - Evidence: `src/fraud_detection/decision_fabric/context.py`
+  - Evidence: `tests/services/decision_fabric/test_phase5_context.py`
+  - Validation: `python -m pytest tests/services/decision_fabric -q` -> `41 passed`
+- Current focus: Phase 6 (`Decision synthesis + intent emission`).
