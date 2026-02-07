@@ -738,7 +738,7 @@ Applied the Phase 8 split-closure model so the plan reflects actual readiness:
   - 4.3 status now reflects partial 4.3.H closure and explicit DF/DL dependency.
   - 4.3.H checklist now distinguishes component-level validation vs pending integration tests.
 - Added OFP local parity runbook:
-  - `docs/model_spec/platform/runbooks/local_parity_ofp_runbook.md`
+  - `docs/runbooks/platform_parity_walkthrough_v0.md`
   - includes run-scoping, projector, snapshotter, observability export, and verification steps.
 
 ### Closure stance
@@ -760,7 +760,7 @@ Validate OFP runtime behavior against live local-parity flow with active monitor
 2) larger pass (200) to validate stable ingestion/projector/snapshot behavior.
 
 ### Authorities / inputs
-- `docs/model_spec/platform/runbooks/local_parity_ofp_runbook.md`
+- `docs/runbooks/platform_parity_walkthrough_v0.md`
 - `config/platform/profiles/local_parity.yaml`
 - `config/platform/sr/wiring_local_kinesis.yaml`
 - Live local-parity stack (`postgres/minio/localstack`) and IG service parity target.
@@ -858,7 +858,7 @@ User approved four specific OFP closures to remove drift against the RTDL flow n
 - `src/fraud_detection/online_feature_plane/snapshots.py`
 - `src/fraud_detection/event_bus/kinesis.py`
 - `makefile` (new local-parity OFP live target)
-- `docs/model_spec/platform/runbooks/local_parity_ofp_runbook.md`
+- `docs/runbooks/platform_parity_walkthrough_v0.md`
 - OFP tests under `tests/services/online_feature_plane/`
 
 ### Validation plan (pre-committed)
@@ -890,7 +890,7 @@ User approved four specific OFP closures to remove drift against the RTDL flow n
 - `tests/services/online_feature_plane/test_phase4_snapshots.py`
   - updated canonical-path assertion.
   - added legacy-index-ref fallback test to ensure migration compatibility.
-- `docs/model_spec/platform/runbooks/local_parity_ofp_runbook.md`
+- `docs/runbooks/platform_parity_walkthrough_v0.md`
   - expected snapshot artifact shape updated to canonical `online_feature_plane/snapshots/...`.
 
 ### Validation evidence (unit/integration)
@@ -925,3 +925,37 @@ Controlled passes were executed with:
 - Drift item #4 (artifact namespace split) is now closed in code and runbook, with backward read compatibility in place.
 - Drift items #1/#2/#3 remain validated in current code path (semantic dedupe + topic handling + live start-position support) and pass regression (`25` tests).
 - For v0, OFP applies admitted events from the configured topic set in `config/platform/ofp/topics_v0.yaml` (`fp.bus.traffic.fraud.v1`), so applied counts naturally track that topic scope.
+
+---
+
+## Entry: 2026-02-06 23:00:00 - Doc consolidation plan: retire standalone OFP runbook and fold into platform parity walkthrough
+
+### Problem
+User requested removal of `docs/model_spec/platform/runbooks/local_parity_ofp_runbook.md` and consolidation into `docs/runbooks/platform_parity_walkthrough_v0.md`.
+
+### Decision
+1. Move OFP local-parity operating steps into the platform parity walkthrough as an explicit OFP section.
+2. Delete the standalone OFP runbook file.
+3. Update build-plan / implementation-map references so no docs point to deleted paths.
+
+### Files targeted
+- `docs/runbooks/platform_parity_walkthrough_v0.md`
+- `docs/model_spec/platform/implementation_maps/online_feature_plane.build_plan.md`
+- `docs/model_spec/platform/implementation_maps/online_feature_plane.impl_actual.md`
+- delete `docs/model_spec/platform/runbooks/local_parity_ofp_runbook.md`
+
+
+## Entry: 2026-02-06 23:08:00 - Doc consolidation completed: OFP runbook folded into platform parity walkthrough
+
+### Changes applied
+1. Removed standalone file:
+   - `docs/model_spec/platform/runbooks/local_parity_ofp_runbook.md`
+2. Added OFP boundary operation section to platform walkthrough:
+   - `docs/runbooks/platform_parity_walkthrough_v0.md`
+   - new Section 15 includes run-scope pinning, projector invocation, scenario discovery, snapshot materialization, observability export, and required counters.
+3. Updated OFP build-plan and impl-map references to use the platform walkthrough path:
+   - `docs/model_spec/platform/implementation_maps/online_feature_plane.build_plan.md`
+   - `docs/model_spec/platform/implementation_maps/online_feature_plane.impl_actual.md`
+
+### Validation
+- Searched docs for live links to deleted runbook path; no active references remain outside historical log/decision text.

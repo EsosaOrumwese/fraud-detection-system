@@ -1,4 +1,4 @@
-# Platform Parity Walkthrough (v0) — Oracle Store → SR → WSP → IG → EB → IEG
+# Platform Parity Walkthrough (v0) — Oracle Store → SR → WSP → IG → EB → IEG/OFP
 _As of 2026-02-06_
 
 This runbook executes a **local_parity** end‑to‑end flow capped to **500,000 events**, and then runs **IEG** against the admitted EB topics.
@@ -615,5 +615,75 @@ Use this list to confirm the **v0 control & ingress plane** is green.
 **Health posture**
 - [ ] IG health is AMBER before traffic (OK).
 - [ ] After traffic, IG health moves toward GREEN or shows admissions in logs.
+
+---
+
+## 15) OFP local-parity boundary checks (projector + snapshot + observability)
+
+Use this section when you want to validate OFP directly from admitted EB traffic for the active run.
+
+**15.1 Pin run scope**
+```powershell
+$run = (Get-Content runs/fraud-platform/ACTIVE_RUN_ID -Raw).Trim()
+$run = ($run -replace '[^A-Za-z0-9_:-]','')
+$env:PLATFORM_RUN_ID = $run
+$env:OFP_REQUIRED_PLATFORM_RUN_ID = $run
+$env:OFP_PROJECTION_DSN = 'runs/fraud-platform'
+$env:PLATFORM_STORE_ROOT = 'runs/fraud-platform'
+```
+
+**15.2 Run OFP projector once**
+```powershell
+.venv\Scripts\python.exe -m fraud_detection.online_feature_plane.projector `
+  --profile config/platform/profiles/local_parity.yaml `
+  --once
+```
+
+**15.3 Discover `scenario_run_id` in OFP state**
+```powershell
+@'
+import sqlite3
+from pathlib import Path
+run_id = Path("runs/fraud-platform/ACTIVE_RUN_ID").read_text(encoding="utf-8").strip()
+db = Path(f"runs/fraud-platform/{run_id}/online_feature_plane/projection/online_feature_plane.db")
+con = sqlite3.connect(db)
+rows = con.execute("select distinct scenario_run_id from ofp_feature_state order by scenario_run_id").fetchall()
+for row in rows:
+    print(row[0])
+'@ | .venv\Scripts\python.exe -
+```
+
+**15.4 Materialize OFP snapshot**
+```powershell
+.venv\Scripts\python.exe -m fraud_detection.online_feature_plane.snapshotter `
+  --profile config/platform/profiles/local_parity.yaml `
+  --platform-run-id $env:PLATFORM_RUN_ID `
+  --scenario-run-id <SCENARIO_RUN_ID>
+```
+
+Expected snapshot path shape:
+- `runs/fraud-platform/<platform_run_id>/online_feature_plane/snapshots/<scenario_run_id>/<snapshot_hash>.json`
+
+**15.5 Export OFP observability**
+```powershell
+.venv\Scripts\python.exe -m fraud_detection.online_feature_plane.observe `
+  --profile config/platform/profiles/local_parity.yaml `
+  --scenario-run-id <SCENARIO_RUN_ID>
+```
+
+Expected outputs:
+- `runs/fraud-platform/<platform_run_id>/online_feature_plane/metrics/last_metrics.json`
+- `runs/fraud-platform/<platform_run_id>/online_feature_plane/health/last_health.json`
+
+**15.6 Required counters to inspect**
+- `snapshots_built`
+- `snapshot_failures`
+- `events_applied`
+- `duplicates`
+- `stale_graph_version`
+- `missing_features`
+
+Boundary note:
+This validates OFP up to its current component boundary. DF/DL integration checks are still pending by phase design.
 
 

@@ -139,7 +139,7 @@ Provide a closure-grade, component-scoped plan for OFP aligned to platform Phase
 - Runbook steps exist for local_parity validation of OFP end-to-end path up to OFP boundary.
 - Evidence:
   - `docs/model_spec/platform/contracts/real_time_decision_loop/ofp_ofs_parity_contract_v0.md`
-  - `docs/model_spec/platform/runbooks/local_parity_ofp_runbook.md`
+  - `docs/runbooks/platform_parity_walkthrough_v0.md`
   - `python -m pytest tests/services/online_feature_plane -q` -> `25 passed`
 
 **DoD checklist (8B - cross-component integration, pending):**
@@ -162,3 +162,4 @@ Provide a closure-grade, component-scoped plan for OFP aligned to platform Phase
 - No OFP-authored decisionable bus stream.
 - No silent fallback on missing feature definitions.
 - No cross-run shared cache treated as truth.
+

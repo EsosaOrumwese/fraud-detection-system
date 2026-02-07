@@ -1990,3 +1990,13 @@ The approved OFP drift-closure thread is now complete for the currently buildabl
 
 ### Cross-component implication
 This removes the prior path-ownership ambiguity (`ofp/` vs `online_feature_plane/`) and gives RTDL consumers a single canonical artifact family for OFP outputs while preserving readability of historical refs.
+
+---
+
+## Entry: 2026-02-06 23:01:00 - Platform docs consolidation note (OFP runbook folded into parity walkthrough)
+
+To keep operators on a single local-parity execution guide, OFP boundary instructions are being consolidated into `docs/runbooks/platform_parity_walkthrough_v0.md` and the standalone OFP runbook under `docs/model_spec/platform/runbooks/` is retired.
+
+## Entry: 2026-02-06 23:09:00 - Platform parity runbook now carries OFP boundary operation
+
+Consolidation completed: OFP local-parity operational instructions now live in `docs/runbooks/platform_parity_walkthrough_v0.md` (Section 15), and the standalone OFP runbook under `docs/model_spec/platform/runbooks/` was removed.
