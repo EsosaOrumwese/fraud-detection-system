@@ -117,7 +117,7 @@ The choropleth is the most honest representation for a dataset of ~31k points. I
 
 <img src="plots/1_country_choropleth.png" width="520" alt="Country-level site concentration">
 
-**Interpretation:** The map clearly highlights **Europe + North America + Australia** as the dominant regions. Western/Central Europe is the brightest (highest counts), the US/Canada are strong but not dominant, and Australia is unusually high relative to many larger‑population regions. **Large areas of Africa and South America are white or near‑white**, indicating zero or minimal coverage. If your intended design is “global merchant realism,” this is a **material skew**. If the narrative is “Europe‑centric network with selective global reach,” then it is consistent but should be stated explicitly.
+**Interpretation:** The map clearly highlights **Europe + North America + Australia** as the dominant regions. Western/Central Europe is the brightest (highest counts), the **US is present but not a top-tier driver**, and Australia is unusually high relative to many larger‑population regions. **Large areas of Africa and South America are white or near‑white**, indicating zero or minimal coverage. If your intended design is “global merchant realism,” this is a **material skew**. If the narrative is “Europe‑centric network with selective global reach,” then it is consistent but should be stated explicitly.
 
 ### 6.2 Top‑20 country bar chart
 <img src="plots/3_top20_countries.png" width="520" alt="Top 20 countries by site count">
@@ -127,7 +127,21 @@ The choropleth is the most honest representation for a dataset of ~31k points. I
 ### 6.3 Lorenz curve (country concentration)
 <img src="plots/4_country_lorenz.png" width="520" alt="Country concentration Lorenz curve">
 
-**Interpretation:** The curve is **strongly bowed**: the first ~70–80% of countries contribute only a **small fraction** of sites, and the final ~10–20% of countries contribute most of the mass. This is consistent with the top‑20 bar chart and indicates **high geographic concentration**. High concentration is not inherently wrong, but for a global platform story it implies **coverage gaps** that could bias downstream models and use‑cases.
+**Interpretation:** The curve is **strongly bowed** and quantitatively severe (**Gini = 0.753**). The concentration profile confirms this with top‑bucket shares:
+- **Top 1% of countries** (~1 country) hold **13.66%** of all sites.
+- **Top 5% of countries** (~4 countries) hold **39.33%** of all sites.
+- **Top 10% of countries** (~8 countries) hold **59.74%** of all sites.
+
+This is consistent with the top‑20 ranking and indicates that the lower‑ranked majority of countries contribute relatively little to total site mass. In realism terms, this is not just "some skew"; it is a **dominance regime** where a small country subset defines most geospatial behavior.
+
+### 6.4 Concentration profile (complement to Lorenz)
+<img src="plots/8_country_concentration_profile.png" width="700" alt="Country concentration profile and top-country shares">
+
+**Interpretation:** The left panel makes the cumulative dominance visible in percentile space, while the right panel converts it into decision‑ready top‑k shares. This plot is useful because it separates two questions that the Lorenz curve alone can blur:
+1) How quickly concentration accumulates as countries are ranked.
+2) How much of the world must be covered to capture most of the dataset mass.
+
+For this run, concentration accumulates quickly in early percentiles and then flattens, meaning additional countries add coverage breadth but little volume.
 
 ---
 
@@ -136,7 +150,36 @@ The nearest‑neighbor distance distribution provides a direct view of clusterin
 
 <img src="plots/5_nearest_neighbor_dist.png" width="520" alt="Nearest neighbor distance distribution">
 
-**Interpretation:** The distribution is **left‑heavy**: most sites have a nearest neighbor within **~0.1–3 km**, which indicates **local clustering** (not random global scatter). However, the tail extends to **10–1000+ km**, implying many **isolated sites or thinly populated countries/regions**. For strong urban realism you would expect an even **tighter concentration under ~1 km** with fewer long‑distance outliers. This suggests the placement is **moderately clustered but not deeply urban‑dense**.
+**Interpretation:** The distribution is **strongly left‑heavy** with explicit quantiles from the plotted sample (**n=2,500**):
+- **p50 = 0.28 km**
+- **p90 = 1.86 km**
+- **p99 = 11.16 km**
+
+So most sites are close to another site (clustered behavior), but the tail is very long (up to multi‑thousand‑km separations in sample), which signals sparse/isolated placements mixed into dense pockets. That two‑regime shape is realistic for a synthetic global network, but the tail mass is still heavier than what a strongly urban‑weighted policy would usually produce.
+
+### 7.2 Country spread vs site count
+<img src="plots/6_country_spread_vs_site_count.png" width="640" alt="Country spatial spread versus site count">
+
+**Interpretation:** This plot checks whether "more sites" also means "broader country footprint." The relationship is positive in broad terms (large‑site countries often have larger spread), but it is noisy and contains major outliers (for example, large spread with only moderate site counts). That pattern supports the report’s earlier claim that this is not purely population‑driven placement; country geometry and policy rules are strongly shaping outcomes.
+
+### 7.3 Local geometry by top countries
+<img src="plots/7_country_small_multiples.png" width="760" alt="Top-country local site spread small multiples">
+
+**Interpretation:** The small‑multiple panels reveal country‑specific geometry artifacts that are hidden in aggregated statistics:
+- Some countries show very narrow latitude bands with broad longitude spread (strip‑like placement).
+- Some show split clusters or corridor‑like shapes instead of compact urban clouds.
+- A few show denser blobs that look more city‑like.
+
+This is exactly why the global histograms appear "spiky": the final distribution is the superposition of many narrow country‑specific placement templates.
+
+### 7.4 Within-country nearest-neighbor distribution
+<img src="plots/9_nn_by_country_boxplot.png" width="640" alt="Within-country nearest-neighbor distance boxplots">
+
+**Interpretation:** Country‑stratified nearest‑neighbor boxplots show that clustering intensity is not uniform:
+- Some top countries have tight lower quartiles (dense local clustering).
+- Others have wider IQR/upper tails (more diffuse or multi‑cluster placement).
+
+This heterogeneity is good to surface because downstream model behavior will inherit it; any geo‑sensitive model can learn "country template effects" if they are too sharp.
 
 ---
 
@@ -150,7 +193,8 @@ The nearest‑neighbor distance distribution provides a direct view of clusterin
 - **Global imbalance:** heavy Europe bias, weak southern‑hemisphere coverage, and visible under‑representation of Africa/South America.
 - **Sparse global coverage:** large geographic blanks imply **coverage gaps** that would be noticeable in any “global” story.
 - **Synthetic‑looking spikes:** the lat/lon histograms show **distinct peaks** rather than a smooth population‑weighted curve.
-- **Local clustering is moderate, not strongly urban‑dense**, suggesting the placement is spatially spread rather than sharply city‑centric.
+- **Local clustering is mixed-regime:** strong dense core (low NN quantiles) plus heavy long-distance tails, indicating diffuse country templates remain.
+- **Country template effects are visible:** small-multiple geometry indicates shape artifacts (bands/splits) that can reduce perceived realism.
 
 ---
 

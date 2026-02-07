@@ -544,10 +544,115 @@ These remain open and will be resolved during RTDL Phase 4 planning and partitio
 **Goal:** compute decisions with explicit degrade posture.
 **Status:** planning-active (next implementation focus after 4.3 component closure).
 
+##### 4.4.A — Decision trigger boundary + run scope
+**Goal:** ensure DF only decides on admissible, run-scoped traffic stimuli.
+
 **DoD checklist:**
-- Registry bundle resolution is deterministic.
-- DL enforces explicit degrade posture on stale/incomplete inputs.
-- Decision payload includes bundle_ref + snapshot_hash + graph_version + offset basis.
+- DF consumes **admitted EB traffic** only as decision triggers; context/control topics are not trigger sources.
+- Decision-trigger event allowlist is explicit and versioned; DF never re-triggers on its own decision/intent events.
+- Required pins are enforced at decision ingress (`platform_run_id`, `scenario_run_id`, `manifest_fingerprint`, `parameter_hash`, `scenario_id`, `seed` when required).
+- Every decision candidate records immutable source evidence basis (`source_event_id`, `source_event eb_ref/origin_offset`).
+
+##### 4.4.B — DL posture contract + fail-safe semantics
+**Goal:** make degrade posture explicit, deterministic, and enforceable.
+
+**DoD checklist:**
+- DL outputs explicit `DegradeDecision` with `mode`, `capabilities_mask`, `policy_rev`, and provenance reasons.
+- Mode ladder is pinned and tested (`NORMAL -> DEGRADED_1 -> DEGRADED_2 -> FAIL_CLOSED`).
+- DF treats `capabilities_mask` as hard constraints (no silent bypass of forbidden capability).
+- Transition semantics are pinned: immediate downshift; controlled one-rung upshift after quiet period.
+- Missing/invalid DL posture forces explicit fail-closed decision posture with reason codes.
+- Optional posture-change control events are visibility-only and never correctness-critical.
+
+##### 4.4.C — Deterministic bundle resolution + compatibility
+**Goal:** remove ambiguity in model/policy bundle selection.
+
+**DoD checklist:**
+- Registry resolution is deterministic for `(environment, mode, bundle_slot, tenant?)`; no implicit "latest" lookup.
+- Compatibility checks are fail-closed for schema/version/capability mismatch.
+- DF records `bundle_ref` + resolver provenance on every decision, including fallback reason when applicable.
+- Resolver behavior is stable under replay and restarts for the same input basis + policy revision.
+
+##### 4.4.D — Context/feature join readiness + bounded budgets
+**Goal:** bound decision latency while preserving correctness.
+
+**DoD checklist:**
+- Join readiness rules are explicit for required vs optional context surfaces (OFP/IEG/context frame).
+- Decision deadlines and join wait budgets are policy-pinned (`decision_deadline_ms`, `join_wait_budget_ms`) and enforced.
+- OFP reads are `as_of_time_utc = source event ts_utc`; no hidden wall-clock joins.
+- Missing required context yields explicit degrade posture; no fabricated context.
+- Late context updates do not silently re-score v0 decisions.
+
+##### 4.4.E — Decision artifact contract + provenance minimum
+**Goal:** emit replay-defensible decision artifacts.
+
+**DoD checklist:**
+- Decision payload includes `decision_id`, outcome/action posture, reasons, `degrade_mode`, `capabilities_mask`, and schema version.
+- Provenance minimum is mandatory: `bundle_ref`, `snapshot_hash` (when OFP used), `graph_version` (when IEG used), `eb_offset_basis`, `policy_rev`, `run_config_digest`.
+- Source and supporting evidence refs are explicit (traffic origin offset always; context offsets when used).
+- Decision artifacts are immutable once emitted; corrections are append-only superseding facts.
+
+##### 4.4.F — Action intent contract (DF output boundary)
+**Goal:** hand off executable intents safely without leaking into AL semantics.
+
+**DoD checklist:**
+- DF emits `ActionIntent` with deterministic `idempotency_key` and explicit origin/actor metadata.
+- Intent set respects DL `action_posture` constraints (for example, `STEP_UP_ONLY` posture restrictions).
+- Intents are emitted as canonical envelope traffic and published through IG (no side-channel bypass).
+- Intent identity and payload are deterministic for a fixed decision basis.
+
+##### 4.4.G — Idempotency + replay determinism
+**Goal:** make DF/DL safe under at-least-once delivery and replay.
+
+**DoD checklist:**
+- Re-delivered source events do not produce divergent decisions for the same semantic basis.
+- Determinism rule holds: same source event + same DL posture + same bundle + same OFP/IEG basis -> same `decision_id` and intents.
+- Payload hash mismatch for the same semantic decision identity is surfaced as anomaly (never silently replaced).
+- Consumer checkpoints advance only after durable decision emission boundary succeeds (publish + local decision persistence).
+
+##### 4.4.H — State stores + commit points
+**Goal:** pin operationally safe state ownership for DF/DL.
+
+**DoD checklist:**
+- DL posture store and DF decision index/checkpoint stores are explicit and environment-parity aligned (Postgres in local-parity/dev/prod).
+- Commit points are transactionally defined (DB commit + WAL flush before offset advance).
+- State can be rebuilt from authoritative evidence boundaries (EB/archive + decision artifacts) without manual truth edits.
+- Manual repair requires explicit anomaly/governance fact; no silent DB patching.
+
+##### 4.4.I — Security + governance stamps
+**Goal:** keep decision core compliant and attributable.
+
+**DoD checklist:**
+- All decision/intent artifacts carry actor/source attribution and policy revision stamps.
+- Secrets are runtime-only; no secret material in decision payloads, artifacts, impl maps, or logbooks.
+- Governance-relevant transitions (policy change, forced fail-closed posture, resolver fallback) emit structured facts/refs.
+- Unknown compatibility or missing provenance fails closed.
+
+##### 4.4.J — Observability + corridor checks
+**Goal:** provide actionable run-scoped operating signals for DF/DL.
+
+**DoD checklist:**
+- Metrics include latency SLOs (p50/p95/p99), degrade-mode counts, missing-context counts, resolver failures, fail-closed events.
+- Health posture includes explicit GREEN/AMBER/RED semantics with threshold policy refs.
+- Run-scoped reconciliation artifact summarizes decisions by mode/bundle/posture with evidence refs.
+- Observability signals are sufficient for Obs/Gov to drive degrade/corridor policy without reading payload truth.
+
+##### 4.4.K — Validation matrix + parity proof
+**Goal:** prove DF/DL correctness and replay safety before advancing.
+
+**DoD checklist:**
+- Unit tests cover DL mode transitions, mask enforcement, deterministic resolver outcomes, and fail-closed fallbacks.
+- Integration tests cover OFP + IEG + DF + IG publish path with provenance field assertions.
+- Replay tests prove same basis -> same decision ids/intents and stable posture behavior.
+- Local-parity proofs executed with monitored runs (20-event sanity + 200-event pass) and recorded evidence paths.
+
+##### 4.4.L — Closure gate + 4.5 handoff boundary
+**Goal:** make completion criteria explicit without collapsing phase boundaries.
+
+**DoD checklist:**
+- Phase 4.4 is green when DF/DL decisioning is deterministic, fail-safe, and provenance-complete at the decision+intent boundary.
+- Remaining integration gates that require AL execution truth and DLA append-only audit closure stay explicitly tracked under Phase 4.5.
+- 4.4 completion entry includes unresolved integration risks and exact dependency list for 4.5.
 
 #### Phase 4.5 — AL + DLA (decision → outcome → audit)
 **Goal:** apply effects safely and record audit truth.

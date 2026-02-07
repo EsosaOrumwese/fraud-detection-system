@@ -2025,3 +2025,83 @@ Updated `docs/model_spec/platform/implementation_maps/platform.build_plan.md` to
 
 ### Rationale
 This keeps phase semantics truthful: OFP component DoDs are closed for current boundary, while DF/DL-dependent integration checks remain explicitly pending and are now treated as 4.4 entry constraints.
+
+---
+
+## Entry: 2026-02-07 02:48:43 - Plan: expand platform Phase 4.4 into a phased DF/DL closure map
+
+### Problem / goal
+User requested a concrete phased DoD expansion for platform Phase 4.4 (DF/DL decision core) aligned to:
+- `docs/model_spec/platform/component-specific/flow-narrative-platform-design.md`
+- `docs/model_spec/platform/pre-design_decisions/real-time_decision_loop.pre-design_decision.md`
+- component design-authority notes for DF/DL and adjacent RTDL components.
+
+The current 4.4 section is still a short placeholder and is not detailed enough to execute without interpretation drift.
+
+### Authorities / inputs (explicit)
+- Platform build plan current state: `docs/model_spec/platform/implementation_maps/platform.build_plan.md`
+- Flow narrative: `docs/model_spec/platform/component-specific/flow-narrative-platform-design.md`
+- RTDL pre-design decisions: `docs/model_spec/platform/pre-design_decisions/real-time_decision_loop.pre-design_decision.md`
+- Design authority context:
+  - `docs/model_spec/platform/component-specific/decision_fabric.design-authority.md`
+  - `docs/model_spec/platform/component-specific/degrade_ladder.design-authority.md`
+  - `docs/model_spec/platform/component-specific/action_layer.design-authority.md`
+  - `docs/model_spec/platform/component-specific/decision_log_audit.design-authority.md`
+
+### Decision trail (live)
+1. Keep Phase 4.4 scoped to **DF/DL core** and avoid leaking AL/DLA implementation closure from Phase 4.5.
+2. Expand 4.4 into explicit subsections with executable DoD gates so implementation and validation can proceed without subjective interpretation.
+3. Bake in pinned pre-design defaults directly in DoD text (fail-closed compatibility, explicit degrade posture, deterministic bundle resolution, decision provenance minimums, join budgets, replay determinism).
+4. Distinguish:
+   - **component-closable now** (DF/DL internal correctness),
+   - **integration-dependent gates** that require 4.5 components.
+5. Keep each DoD testable with observable artifacts (schemas, stores, counters, run evidence), not prose-only acceptance.
+
+### Alternatives considered
+- Leave 4.4 as a high-level three-bullet checklist:
+  - Rejected; too ambiguous to drive hardened implementation sequencing.
+- Push all detail into component build plans only:
+  - Rejected; platform-level sequencing and cross-component acceptance criteria would remain underspecified.
+- Expand 4.4 with phased sections and explicit handoff points to 4.5:
+  - Selected; preserves platform-level authority while keeping component plans detailed and coherent.
+
+### Planned implementation edits
+1. Replace the short 4.4 DoD list in `platform.build_plan.md` with phased subsections (4.4.A+), each having explicit Goal + DoD checklist.
+2. Add integration handoff language so 4.4 closure is precise: what can be green before AL/DLA full closure and what remains integration-pending.
+3. Keep terminology consistent with already-pinned platform terms (`ContextPins`, `eb_offset_basis`, `graph_version`, `snapshot_hash`, `bundle_ref`, `policy_rev`, explicit degrade posture).
+
+### Validation plan
+- Cross-check each new 4.4 subsection against:
+  - flow narrative RTDL chain from EB -> DF -> AL -> DLA,
+  - RTDL pre-design decisions for deadlines, join budgets, fail-closed behavior, and evidence boundaries.
+- Ensure no conflict with 4.3 status and no premature closure of 4.5 responsibilities.
+
+---
+
+## Entry: 2026-02-07 02:50:03 - Applied Phase 4.4 phased DoD expansion in platform build plan
+
+### What changed
+Expanded `docs/model_spec/platform/implementation_maps/platform.build_plan.md` Phase 4.4 from a 3-bullet placeholder into phased subsections `4.4.A` through `4.4.L`, each with explicit Goal + DoD checklist.
+
+### Scope of the expansion
+- Added explicit DF decision-trigger boundary and run-scope pin enforcement (`4.4.A`).
+- Added DL posture contract, hard-mask semantics, and fail-safe behavior (`4.4.B`).
+- Added deterministic registry resolution and fail-closed compatibility posture (`4.4.C`).
+- Added join-budget and context-readiness rules tied to event-time semantics (`4.4.D`).
+- Added mandatory decision provenance surface (`4.4.E`).
+- Added DF ActionIntent output boundary semantics without collapsing AL responsibilities (`4.4.F`).
+- Added idempotency/replay determinism and checkpoint progression requirements (`4.4.G`).
+- Added state-store/commit-point expectations for ladder parity (`4.4.H`).
+- Added security/governance stamping requirements (`4.4.I`).
+- Added observability and corridor-check minimum signals (`4.4.J`).
+- Added validation matrix and local-parity proof expectations (`4.4.K`).
+- Added explicit 4.4 closure gate and 4.5 handoff boundary (`4.4.L`).
+
+### Consistency checks performed
+1. **Flow narrative alignment:** expansion preserves the planned RTDL chain EB -> DF -> AL -> DLA and keeps AL/DLA closure in 4.5.
+2. **RTDL pre-design alignment:** incorporated explicit fail-closed posture, deterministic bundle resolution, join/deadline budgets, replay determinism, and provenance boundaries.
+3. **Phase boundary integrity:** 4.4 now covers DF/DL core implementation readiness; 4.5 remains responsible for execution and audit closure.
+4. **Status consistency:** retained 4.4 as planning-active; did not mislabel completion.
+
+### Residual boundary (intentional)
+This edit does not claim 4.4 implementation completion. It only establishes an executable platform-level DoD map so component plans/implementation can proceed with unambiguous acceptance criteria.
