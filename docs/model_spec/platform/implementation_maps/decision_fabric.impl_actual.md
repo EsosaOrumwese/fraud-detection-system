@@ -694,3 +694,103 @@ Implement DF Phase 6 so decision/intents are synthesized deterministically from 
 - Phase 7 will add idempotency/checkpoint/replay safety and mismatch anomaly surfacing.
 
 ---
+
+## Entry: 2026-02-07 11:49:10 — Phase 7 implementation plan (idempotency, checkpoints, replay safety)
+
+### Problem / goal
+Implement DF Phase 7 so replay/redelivery cannot produce divergent artifacts, payload mismatches on stable identities are surfaced as anomalies, and checkpoints advance only after durable publish + local persistence commit.
+
+### Authorities / inputs
+- `docs/model_spec/platform/implementation_maps/decision_fabric.build_plan.md` (Phase 7 DoD)
+- `docs/model_spec/platform/pre-design_decisions/real-time_decision_loop.pre-design_decision.md` (at-least-once, anomaly quarantine posture)
+- `docs/model_spec/platform/component-specific/decision_fabric.design-authority.md` (replay safety, no silent replacement)
+- Existing DF Phase 6 modules:
+  - `src/fraud_detection/decision_fabric/synthesis.py`
+  - `src/fraud_detection/decision_fabric/publish.py`
+
+### Decision trail (before coding)
+1. Add a local DF decision ledger module to enforce idempotency and mismatch detection:
+   - keyed by `decision_id`,
+   - stores canonical payload hash + source event id + publish state,
+   - returns explicit outcomes (`NEW`, `REPLAY_MATCH`, `PAYLOAD_MISMATCH`).
+2. Add a checkpoint gate module to enforce commit order:
+   - a checkpoint token is issued per source event after synthesis,
+   - token can be committed only after:
+     - publish boundary result is non-quarantine and stable, and
+     - ledger commit has been recorded.
+3. Keep this phase runtime-agnostic:
+   - modules are deterministic and unit-testable,
+   - no background service loop yet.
+4. Replay rule:
+   - same decision id + same payload hash => replay match (idempotent no divergence),
+   - same decision id + different payload hash => anomaly outcome (no overwrite).
+5. Checkpoint persistence for v0:
+   - SQLite-backed store by default (with strict schema/invariants),
+   - deterministic commit records for replay tests.
+
+### Files planned
+- New:
+  - `src/fraud_detection/decision_fabric/replay.py`
+  - `src/fraud_detection/decision_fabric/checkpoints.py`
+  - `tests/services/decision_fabric/test_phase7_replay.py`
+  - `tests/services/decision_fabric/test_phase7_checkpoints.py`
+- Update:
+  - `src/fraud_detection/decision_fabric/__init__.py`
+  - `docs/model_spec/platform/implementation_maps/decision_fabric.build_plan.md` (Phase 7 status)
+
+### Invariants to enforce
+- Equivalent replay never creates divergent decision artifacts.
+- Payload mismatch on equivalent decision identity is surfaced and immutable.
+- Checkpoint commit is blocked unless publish + persistence commit conditions are met.
+- Replay outcomes and checkpoint states are deterministic.
+
+### Validation plan
+- Add tests for:
+  - first-write + replay-match + payload-mismatch outcomes,
+  - mismatch rows remain immutable and do not replace original payload hash,
+  - checkpoint commit blocked when publish is quarantined or ledger not committed,
+  - checkpoint commit succeeds only after valid publish + ledger commit.
+- Run `python -m pytest tests/services/decision_fabric -q`.
+
+---
+
+## Entry: 2026-02-07 11:53:58 — Phase 7 implementation closure (idempotency, checkpoints, replay safety)
+
+### What was implemented
+1. Added replay/idempotency ledger module:
+   - `src/fraud_detection/decision_fabric/replay.py`
+   - SQLite-backed `DecisionReplayLedger` keyed by `decision_id`,
+   - deterministic payload hashing with outcomes:
+     - `NEW`
+     - `REPLAY_MATCH`
+     - `PAYLOAD_MISMATCH`
+   - immutable mismatch lane (`decision_payload_mismatches`) that records anomaly payloads without replacing stored canonical payload hash.
+2. Added checkpoint commit gate module:
+   - `src/fraud_detection/decision_fabric/checkpoints.py`
+   - `DecisionCheckpointGate` issues deterministic checkpoint tokens and enforces commit ordering:
+     - ledger commit required,
+     - publish result required,
+     - quarantine/halted publish blocks checkpoint advancement,
+     - ADMIT/DUPLICATE publish paths permit commit.
+3. Updated DF package exports:
+   - `src/fraud_detection/decision_fabric/__init__.py` now exports replay/checkpoint types/constants.
+
+### Validation results
+- Added tests:
+  - `tests/services/decision_fabric/test_phase7_replay.py`
+  - `tests/services/decision_fabric/test_phase7_checkpoints.py`
+- Re-ran DF suite:
+  - `python -m pytest tests/services/decision_fabric -q` -> `57 passed`.
+- Import/export smoke:
+  - `$env:PYTHONPATH='.;src'; python -c "import fraud_detection.decision_fabric as df; print('ok', 'DecisionReplayLedger' in df.__all__, 'DecisionCheckpointGate' in df.__all__)"` -> `ok True True`.
+
+### DoD closure mapping (Phase 7)
+- Re-delivered source events do not produce divergent artifacts: complete (`DecisionReplayLedger` replay-match behavior).
+- Determinism rule proven for identical basis paths: complete (replay + existing phase tests under full DF suite).
+- Payload mismatch on equivalent decision identity surfaced as anomaly and never replaced: complete (mismatch lane + tests).
+- Checkpoints advance only after durable publish boundary and local commit condition: complete (`DecisionCheckpointGate` ordering + block rules + tests).
+
+### Follow-on boundary
+- Phase 8 will implement observability/reconciliation proofs and closure artifacts for DF component-green boundary.
+
+---

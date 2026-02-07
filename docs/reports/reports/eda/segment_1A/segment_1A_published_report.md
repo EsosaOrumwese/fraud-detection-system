@@ -206,6 +206,72 @@ This is strong evidence that duplication is not random duplication noise; it is 
 
 **Interpretation:** This is believable: most cross‑border merchants expand to only a few countries. This partially offsets the “too global” candidate sets.
 
+### 4.8 Coefficient bundle realism (hurdle + NB dispersion)
+You flagged an important gap: checking only `hurdle_pi_probs` is not enough. We also need to test whether the authored model bundles themselves have realistic statistical shape, because those coefficients are the mechanism that generates `pi`, `mu`, and dispersion behavior.
+
+Audited sealed inputs for this run:
+- `config/layer1/1A/models/hurdle/exports/version=2026-01-03/20260103T184840Z/hurdle_coefficients.yaml`
+- `config/layer1/1A/models/hurdle/exports/version=2026-01-03/20260103T184840Z/nb_dispersion_coefficients.yaml`
+- `config/layer1/1A/models/hurdle/exports/version=2026-01-03/20260103T184840Z/bundle_selfcheck.json`
+
+#### 4.8A Contract and integrity checks (pass)
+- Dict alignment is exact across both bundles (`dict_mcc` length 290, identical ordering; `dict_ch=["CP","CNP"]`).
+- Shape constraints pass:
+  - `len(beta)=298` (expected `1 + |mcc| + 2 + 5`)
+  - `len(beta_mu)=293` (expected `1 + |mcc| + 2`)
+  - `len(beta_phi)=294` (expected `1 + |mcc| + 2 + 1`)
+- `bundle_selfcheck.json` status is `PASS`.
+
+**Interpretation:** The bundle is technically well-formed and reproducible. The question is not structural validity; it is behavioral realism.
+
+#### 4.8B Hurdle and mean coefficients (statistically active)
+- `beta` (hurdle logit) has broad spread: min `-6.865`, p50 `0.087`, p99 `1.621`, max `1.790`, std `0.881`.
+- GDP-bucket hurdle terms are monotonic from lower to higher GDP bucket:
+  - `[-0.784, -0.481, -0.256, -0.008, 0.390]`
+- Channel effect in hurdle is non-trivial:
+  - `CP=-0.288`, `CNP=-0.852` (CNP lowers multi-site propensity in this build).
+- `beta_mu` (NB mean model) is also active:
+  - min `-0.828`, p50 `0.006`, p99 `0.681`, max `1.781`, std `0.294`.
+
+`pi` re-derivation from coefficient blocks and `hurdle_design_matrix` matches published values almost exactly (mean absolute error `~3.4e-09`, max absolute error `~2.8e-08`).
+
+Observed implications in this run:
+- `pi` distribution: min `0.000088`, p50 `0.142`, p99 `0.470`, max `0.680`, mean `0.161`.
+- `pi` rises with GDP bucket mean (`0.104 -> 0.271` from bucket 1 to 5).
+
+**Interpretation:** The hurdle and mean parts are not degenerate; they are carrying meaningful signal and are internally consistent with observed `pi`.
+
+#### 4.8C NB dispersion coefficients (statistically weak realism signal)
+The dispersion bundle (`beta_phi`) is where realism weakens:
+- `beta_phi` is numerically very concentrated:
+  - p25 `0.005756`, p50 `0.005758`, p75 `0.005761`.
+- Channel terms are almost identical:
+  - `0.8263497` vs `0.8263476`.
+- GDP slope is near zero:
+  - `beta_phi_ln_gdp = 9.27e-06`.
+
+When we reconstruct implied merchant-level `phi` using the runtime coefficient contract (`intercept + mcc + channel + ln_gdp`):
+- `phi` is almost constant across merchants:
+  - min `11.931`, p50 `11.99997`, p99 `12.00022`, max `12.00041`
+  - std `0.00636`, CV `0.00053`
+- Contribution variability is tiny:
+  - std(MCC contribution) `0.00053`
+  - std(channel contribution) `8.96e-07`
+  - std(ln_gdp contribution) `1.08e-05`
+
+**Interpretation:** Dispersion is effectively fixed around `~12` for almost the entire population. That satisfies stability and rejection-control constraints, but it provides very little heterogeneity in count variance across merchant profiles.
+
+#### 4.8D Why this matters for synthetic realism
+For synthetic realism, we want both:
+1) variation in expected count level (`mu`), and
+2) variation in stochastic spread around that level (`phi`).
+
+In this run, (1) is present but (2) is almost absent. This can make generated behavior look overly uniform in variance once you condition on mean intensity. It is a plausible root cause for downstream surfaces that feel "too regular" despite having heavy tails.
+
+The current bundle is therefore:
+- **Contract-valid and operationally stable**, but
+- **Under-dispersed in dispersion structure** (realism weakness at the coefficient level).
+
 ## 5) Where realism is strong vs weak
 ### Strong realism signals
 - **Heavy‑tailed outlet distribution** (few giants, many small merchants).
@@ -218,13 +284,14 @@ This is strong evidence that duplication is not random duplication noise; it is 
 - **Home/legal mismatch is broadly elevated** across size buckets rather than concentrated in large/global merchants.
 - **Duplicate identity semantics are cross-country by construction** (`site_id` reused across legal countries), which can create downstream interpretation risk if consumers assume globally unique sites.
 - **Candidate sets are too broad** (median 38 out of 39 countries). This implies most merchants are “allowed” almost everywhere, which is uncommon in real economies.
+- **NB dispersion coefficients are near-flat in effect**, implying almost constant merchant-level `phi` (~12) and weak variance heterogeneity.
 - **Missing approved outputs** reduce traceability and make it harder to validate distributional assumptions (e.g., site sequencing and integerised counts).
 
 ## 6) Realism grade (1A only)
 **Segment grade: B (Moderate realism)**  
 **Core outlet_catalogue grade: B‑ (Moderate realism, skewed toward multi‑site/global behavior)**
 
-**Why (segment‑level):** The outputs are internally coherent and strongly skewed in a way that matches real merchant ecosystems. However, the **global candidate universe** is too permissive, and several approved data artifacts are missing. This puts the segment in a “credible but improvable” state.
+**Why (segment‑level):** The outputs are internally coherent and strongly skewed in a way that matches real merchant ecosystems. However, the **global candidate universe** is too permissive, NB dispersion is effectively near-flat (weak variance heterogeneity), and several approved data artifacts are missing. This puts the segment in a “credible but improvable” state.
 
 **Why (outlet_catalogue‑level):**
 1) **Strong realism signals:** heavy‑tailed outlet distribution, realistic concentration (Gini ~0.53), and cross‑border spread increasing with merchant size.  
@@ -236,8 +303,9 @@ This is strong evidence that duplication is not random duplication noise; it is 
 2) **Reduce home/legal mismatch for small merchants** (keep high mismatch mostly for large, multi‑country firms). This will make the domicile pattern more believable.
 3) **Clarify site_id semantics** (document it as per‑merchant index or make it globally unique). Downstream assumptions depend on this.
 4) **Constrain candidate sets** so most merchants only see regional or realistically reachable country targets.
-5) **Emit s3_site_sequence and s3_integerised_counts** to make site‑level realism auditable.
-6) **Ensure sparse_flag and hurdle_stationarity_tests** exist so distributional shape is validated and reproducible.
+5) **Re-fit `nb_dispersion_coefficients.yaml` for heterogeneity** so `phi` varies meaningfully by merchant profile (MCC/channel/GDP), instead of collapsing to an almost constant value.
+6) **Emit s3_site_sequence and s3_integerised_counts** to make site‑level realism auditable.
+7) **Ensure sparse_flag and hurdle_stationarity_tests** exist so distributional shape is validated and reproducible.
 
 ## 8) Realism improvement roadmap (synthetic realism)
 This roadmap assumes **no real‑world policy data**. The goal is not “true reality,” but a **credible synthetic ecosystem** that feels realistic to reviewers and can support fraud modeling.
@@ -255,13 +323,16 @@ This roadmap assumes **no real‑world policy data**. The goal is not “true re
    If `site_id` is a per‑merchant index, state it clearly and prevent cross‑merchant collisions. If you want globally unique site IDs, enforce uniqueness. Ambiguity here breaks downstream assumptions about “shared” physical sites.
 
 5) **Introduce policy‑driven diversity.**  
-   Use MCC/channel to **shape outlet counts and expansion likelihood** (e.g., digital services more global; physical retail more local). This creates explainable heterogeneity without requiring real policy data.
+Use MCC/channel to **shape outlet counts and expansion likelihood** (e.g., digital services more global; physical retail more local). This creates explainable heterogeneity without requiring real policy data.
 
-6) **Emit missing audit artefacts.**  
-   Output `s3_site_sequence` and `s3_integerised_counts` so the outlet distribution can be re‑verified and explained. This helps defend realism during review.
+6) **Increase dispersion-model heterogeneity (NB phi).**  
+Re-train dispersion coefficients so `phi` is not effectively constant across merchants. Keep rejection controls and corridor checks, but widen realistic variance differences by MCC/channel/GDP tier. This preserves stability while restoring stochastic realism.
+
+7) **Emit missing audit artefacts.**  
+Output `s3_site_sequence` and `s3_integerised_counts` so the outlet distribution can be re‑verified and explained. This helps defend realism during review.
 
 **Expected impact:**  
-Implementing steps 1–3 should move 1A toward **B+ or A‑** for synthetic realism, because they directly address the most visible realism gaps (over‑globalization and missing single‑site merchants).
+Implementing steps 1–3 addresses the most visible realism gaps (over‑globalization and missing single‑site merchants). Implementing step 6 is the key stochastic-realism lever. Together, these changes should move 1A toward **B+ or A‑** synthetic realism.
 
 ## 9) Bottom line for platform readiness
 You can build v0 on this data, but the outlet universe currently **over‑represents multi‑site and globally legalized merchants**. If you want a platform demo that “feels real,” the first three levers are: (1) add single‑site merchants, (2) lower home/legal mismatch for small merchants, and (3) clarify or de‑duplicate site_ids. Tightening candidate sets is still important, but these outlet_catalogue gaps will be the most visible realism issues to reviewers.
