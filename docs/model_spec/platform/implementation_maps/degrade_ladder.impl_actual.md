@@ -570,3 +570,106 @@ Phase 5 is now implemented and validated at component scope.
   - rebuild/re-evaluation trigger storm controls implemented.
 
 ---
+
+## Entry: 2026-02-07 06:56:29 — Phase 6 implementation plan (posture-change emission lane)
+
+### Problem / goal
+Proceed to DL Phase 6 and implement posture-transition visibility without introducing correctness coupling:
+1. deterministic posture-change event identity and per-scope ordering,
+2. outbox/retry/idempotent emission behavior under restarts/failures,
+3. explicit visibility-only semantics (DF correctness cannot depend on emitter),
+4. emission failure/backlog metrics for operations.
+
+### Authorities / inputs
+- `docs/model_spec/platform/implementation_maps/degrade_ladder.build_plan.md` (Phase 6 DoD)
+- `docs/model_spec/platform/component-specific/degrade_ladder.design-authority.md` (S7 emission lane)
+- `docs/model_spec/platform/pre-design_decisions/real-time_decision_loop.pre-design_decision.md`
+- existing DL modules (`store.py`, `serve.py`, `health.py`, `contracts.py`)
+
+### Decision trail (live)
+1. Add dedicated emission module (`emission.py`) with:
+   - deterministic `event_id = sha256(scope_key|posture_seq)`,
+   - canonical posture-change envelope builder (`dl.posture_changed.v1`),
+   - global scope sentinel manifest handling.
+2. Implement durable outbox store with SQLite/Postgres backends:
+   - primary key `(stream_id, scope_key, posture_seq)` for idempotency,
+   - status lifecycle `PENDING -> SENT` or `FAILED -> DEAD`,
+   - retry scheduling with bounded backoff.
+3. Enforce per-scope publish ordering:
+   - drain processes the lowest unsent `posture_seq` per scope before later ones.
+4. Keep control emission non-critical:
+   - drain returns failure metrics/status; no coupling to serving/store correctness.
+5. Surface operational metrics:
+   - pending/failed/dead counts + oldest pending age seconds.
+
+### Planned edits
+- `src/fraud_detection/degrade_ladder/emission.py` (new)
+- `src/fraud_detection/degrade_ladder/__init__.py` (exports)
+- `tests/services/degrade_ladder/test_phase6_emission.py` (new)
+- `docs/model_spec/platform/implementation_maps/degrade_ladder.build_plan.md` (mark Phase 6 status + evidence when green)
+
+### Invariants to enforce
+- Same `(scope_key, posture_seq)` always maps to the same `event_id`.
+- Outbox enqueue is idempotent for duplicate transition attempts.
+- Per-scope sequence order is preserved by drain behavior.
+- Emission failures do not mutate posture correctness surfaces.
+
+### Validation plan
+- `python -m pytest tests/services/degrade_ladder -q`
+- direct assertions for:
+  - deterministic identity and idempotent enqueue,
+  - retry/backoff and dead-letter transitions,
+  - per-scope ordered drain,
+  - backlog/failure metric exposure.
+
+---
+
+## Entry: 2026-02-07 06:56:29 — DL Phase 6 implemented (posture-change emission lane)
+
+### Implementation summary
+Phase 6 is now implemented and validated at component scope.
+
+### What was implemented
+1. Added emission lane module:
+   - `src/fraud_detection/degrade_ladder/emission.py`
+   - deterministic identity helper `event_id = sha256(scope_key|posture_seq)`,
+   - canonical posture-change envelope builder (`dl.posture_changed.v1`).
+2. Added durable outbox store abstraction:
+   - `build_outbox_store(dsn, stream_id)` with SQLite/Postgres backends,
+   - idempotent keying by `(stream_id, scope_key, posture_seq)`,
+   - lifecycle statuses `PENDING`, `FAILED`, `SENT`, `DEAD`.
+3. Added ordered drain + retry behavior:
+   - per-scope ordering preserved by draining only the earliest unsent sequence per scope,
+   - bounded retry with exponential backoff,
+   - dead-letter transition after max attempts.
+4. Added operational metrics surface:
+   - pending/failed/dead/sent counters,
+   - oldest pending age in seconds.
+5. Exported Phase 6 APIs:
+   - updated `src/fraud_detection/degrade_ladder/__init__.py` to include emission lane symbols.
+6. Added Phase 6 tests:
+   - `tests/services/degrade_ladder/test_phase6_emission.py`
+   - verifies deterministic IDs, idempotent enqueue, ordered drain, retry/backoff/dead-letter transitions, and backlog metrics.
+
+### Invariants enforced
+- Same `(scope_key, posture_seq)` always produces the same event identity.
+- Duplicate enqueue attempts do not duplicate outbox transitions.
+- Later posture sequences in a scope are not emitted before earlier unsent sequences.
+- Emission failures are tracked operationally without affecting posture serving correctness.
+
+### Security and production posture notes
+- Emission lane is visibility-only; serving and posture correctness do not depend on publish success.
+- Error payloads are truncated to bounded length in outbox error fields.
+- Global scope events use explicit manifest sentinel for canonical envelope compliance.
+
+### Validation evidence
+- `python -m pytest tests/services/degrade_ladder -q` -> `34 passed`.
+
+### Phase closure assessment
+- Phase 6 DoD is satisfied at component scope:
+  - deterministic posture-change identity + ordering semantics are implemented,
+  - outbox/retry/idempotent emission path implemented,
+  - correctness remains decoupled from emitter success,
+  - failure/backlog metrics are surfaced for operations.
+
+---

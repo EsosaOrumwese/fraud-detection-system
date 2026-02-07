@@ -92,12 +92,17 @@ Provide an executable, phase-by-phase DL build plan aligned to platform Phase 4.
 
 ### Phase 6 — Posture-change emission (observability lane)
 **Intent:** expose posture transitions without introducing correctness coupling.
+**Status:** completed (2026-02-07, component scope).
 
 **DoD checklist:**
 - Posture-change control facts are emitted with deterministic identity and ordering per scope.
 - Emission path is outbox/retry safe and idempotent under retries/restarts.
 - Control emission is explicitly non-critical for DF correctness (visibility-only lane).
 - Publish failure/backlog metrics are emitted and surfaced to operations.
+- Evidence:
+  - `python -m pytest tests/services/degrade_ladder -q` -> `34 passed`
+  - `src/fraud_detection/degrade_ladder/emission.py`
+  - `tests/services/degrade_ladder/test_phase6_emission.py`
 
 ### Phase 7 — Security, governance, and ops telemetry
 **Intent:** ensure DL posture changes are attributable and operable.
@@ -120,4 +125,4 @@ Provide an executable, phase-by-phase DL build plan aligned to platform Phase 4.
   DL component green for posture authority/serving; DF decision coupling and AL/DLA downstream closure remain tracked under platform Phase 4.4/4.5 gates.
 
 ## Status (rolling)
-- Current focus: Phase 6 planning/implementation (posture-change emission lane).
+- Current focus: Phase 7 planning/implementation (security, governance, ops telemetry).
