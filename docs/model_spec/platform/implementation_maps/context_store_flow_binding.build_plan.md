@@ -40,6 +40,22 @@ Provide a component-scoped build plan for the shared RTDL join plane that serves
   - duplicate binding same hash -> idempotent
   - same key, different hash -> anomaly + fail-closed
 - API contract for DF/DL reads is versioned and documented.
+**Evidence (Phase 1):**
+- Schemas:
+  - `docs/model_spec/platform/contracts/real_time_decision_loop/context_store_flow_binding_join_frame_key.schema.yaml`
+  - `docs/model_spec/platform/contracts/real_time_decision_loop/context_store_flow_binding_flow_binding.schema.yaml`
+  - `docs/model_spec/platform/contracts/real_time_decision_loop/context_store_flow_binding_query_request.schema.yaml`
+  - `docs/model_spec/platform/contracts/real_time_decision_loop/context_store_flow_binding_query_response.schema.yaml`
+- Policy:
+  - `config/platform/context_store_flow_binding/policy_v0.yaml`
+- Code:
+  - `src/fraud_detection/context_store_flow_binding/contracts.py`
+  - `src/fraud_detection/context_store_flow_binding/taxonomy.py`
+  - `src/fraud_detection/context_store_flow_binding/config.py`
+- Tests:
+  - `tests/services/context_store_flow_binding/test_phase1_contracts.py`
+  - `tests/services/context_store_flow_binding/test_phase1_taxonomy.py`
+  - `tests/services/context_store_flow_binding/test_phase1_config.py`
 
 ### Phase 2 — Storage schema + durability
 **Intent:** implement durable runtime state for join reads and replay safety.
@@ -119,5 +135,5 @@ Provide a component-scoped build plan for the shared RTDL join plane that serves
 - Closure statement is explicit: component green at join-plane boundary; downstream DF/AL/DLA end-to-end closure remains platform-gated.
 
 ## Status (rolling)
-- Phase 1 (`Contracts, keys, and ownership pins`): planning-ready.
-- Current focus: Phase 1.
+- Phase 1 (`Contracts, keys, and ownership pins`): completed.
+- Current focus: Phase 2 (not started).

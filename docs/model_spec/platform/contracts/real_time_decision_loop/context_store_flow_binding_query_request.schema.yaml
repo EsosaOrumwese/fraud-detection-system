@@ -1,0 +1,69 @@
+$schema: https://json-schema.org/draft/2020-12/schema
+$id: context_store_flow_binding_query_request.schema.yaml
+title: Context Store FlowBinding Query Request
+type: object
+additionalProperties: false
+required:
+  - request_id
+  - query_kind
+  - pins
+properties:
+  request_id:
+    type: string
+    minLength: 1
+    maxLength: 128
+  query_kind:
+    type: string
+    enum:
+      - resolve_flow_binding
+      - fetch_join_frame
+  flow_id:
+    type: string
+    minLength: 1
+    maxLength: 256
+  join_frame_key:
+    $ref: "context_store_flow_binding_join_frame_key.schema.yaml"
+  as_of_ts_utc:
+    type: string
+    minLength: 1
+  pins:
+    $ref: "#/$defs/pins"
+oneOf:
+  - required:
+      - flow_id
+  - required:
+      - join_frame_key
+$defs:
+  pins:
+    type: object
+    additionalProperties: false
+    required:
+      - platform_run_id
+      - scenario_run_id
+      - manifest_fingerprint
+      - parameter_hash
+      - scenario_id
+      - seed
+    properties:
+      platform_run_id:
+        type: string
+        pattern: "^platform_[0-9]{8}T[0-9]{6}Z$"
+      scenario_run_id:
+        type: string
+        pattern: "^[0-9a-f]{32}$"
+      manifest_fingerprint:
+        type: string
+        pattern: "^[0-9a-f]{64}$"
+      parameter_hash:
+        type: string
+        pattern: "^[0-9a-f]{64}$"
+      scenario_id:
+        type: string
+        minLength: 1
+        maxLength: 256
+      seed:
+        type: integer
+        minimum: 0
+      run_id:
+        type: string
+        pattern: "^[0-9a-f]{32}$"

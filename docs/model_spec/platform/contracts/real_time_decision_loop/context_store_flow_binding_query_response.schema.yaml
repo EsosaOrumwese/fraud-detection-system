@@ -1,0 +1,94 @@
+$schema: https://json-schema.org/draft/2020-12/schema
+$id: context_store_flow_binding_query_response.schema.yaml
+title: Context Store FlowBinding Query Response
+type: object
+additionalProperties: false
+required:
+  - request_id
+  - status
+  - reason_codes
+  - pins
+  - resolved_at_utc
+properties:
+  request_id:
+    type: string
+    minLength: 1
+    maxLength: 128
+  status:
+    type: string
+    enum:
+      - READY
+      - MISSING_BINDING
+      - MISSING_JOIN_FRAME
+      - CONFLICT
+      - INVALID_REQUEST
+  reason_codes:
+    type: array
+    items:
+      type: string
+      minLength: 1
+      maxLength: 128
+  pins:
+    $ref: "#/$defs/pins"
+  flow_id:
+    type: string
+    minLength: 1
+    maxLength: 256
+  join_frame_key:
+    $ref: "context_store_flow_binding_join_frame_key.schema.yaml"
+  flow_binding:
+    $ref: "context_store_flow_binding_flow_binding.schema.yaml"
+  evidence_refs:
+    type: array
+    items:
+      type: object
+      additionalProperties: false
+      required:
+        - kind
+        - ref
+      properties:
+        kind:
+          type: string
+          minLength: 1
+          maxLength: 64
+        ref:
+          type: string
+          minLength: 1
+          maxLength: 2048
+  resolved_at_utc:
+    type: string
+    minLength: 1
+$defs:
+  pins:
+    type: object
+    additionalProperties: false
+    required:
+      - platform_run_id
+      - scenario_run_id
+      - manifest_fingerprint
+      - parameter_hash
+      - scenario_id
+      - seed
+    properties:
+      platform_run_id:
+        type: string
+        pattern: "^platform_[0-9]{8}T[0-9]{6}Z$"
+      scenario_run_id:
+        type: string
+        pattern: "^[0-9a-f]{32}$"
+      manifest_fingerprint:
+        type: string
+        pattern: "^[0-9a-f]{64}$"
+      parameter_hash:
+        type: string
+        pattern: "^[0-9a-f]{64}$"
+      scenario_id:
+        type: string
+        minLength: 1
+        maxLength: 256
+      seed:
+        type: integer
+        minimum: 0
+      run_id:
+        type: string
+        pattern: "^[0-9a-f]{32}$"

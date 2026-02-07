@@ -1,0 +1,118 @@
+$schema: https://json-schema.org/draft/2020-12/schema
+$id: context_store_flow_binding_flow_binding.schema.yaml
+title: Context Store FlowBinding Record
+type: object
+additionalProperties: false
+required:
+  - flow_id
+  - join_frame_key
+  - source_event
+  - authoritative_source_event_type
+  - payload_hash
+  - pins
+  - bound_at_utc
+properties:
+  flow_id:
+    type: string
+    minLength: 1
+    maxLength: 256
+  join_frame_key:
+    $ref: "context_store_flow_binding_join_frame_key.schema.yaml"
+  source_event:
+    type: object
+    additionalProperties: false
+    required:
+      - event_id
+      - event_type
+      - ts_utc
+      - eb_ref
+    properties:
+      event_id:
+        type: string
+        minLength: 1
+        maxLength: 256
+      event_type:
+        type: string
+        minLength: 1
+        maxLength: 256
+      ts_utc:
+        type: string
+        minLength: 1
+      eb_ref:
+        $ref: "#/$defs/eb_ref"
+  authoritative_source_event_type:
+    type: string
+    enum:
+      - s2_flow_anchor_baseline_6B
+      - s3_flow_anchor_with_fraud_6B
+  payload_hash:
+    type: string
+    pattern: "^[0-9a-f]{64}$"
+  pins:
+    $ref: "#/$defs/pins"
+  bound_at_utc:
+    type: string
+    minLength: 1
+$defs:
+  eb_ref:
+    type: object
+    additionalProperties: false
+    required:
+      - topic
+      - partition
+      - offset
+      - offset_kind
+    properties:
+      topic:
+        type: string
+        minLength: 1
+        maxLength: 256
+      partition:
+        type: integer
+        minimum: 0
+      offset:
+        type: string
+        minLength: 1
+        maxLength: 128
+      offset_kind:
+        type: string
+        enum:
+          - file_line
+          - kinesis_sequence
+          - kafka_offset
+      published_at_utc:
+        type: string
+        minLength: 1
+  pins:
+    type: object
+    additionalProperties: false
+    required:
+      - platform_run_id
+      - scenario_run_id
+      - manifest_fingerprint
+      - parameter_hash
+      - scenario_id
+      - seed
+    properties:
+      platform_run_id:
+        type: string
+        pattern: "^platform_[0-9]{8}T[0-9]{6}Z$"
+      scenario_run_id:
+        type: string
+        pattern: "^[0-9a-f]{32}$"
+      manifest_fingerprint:
+        type: string
+        pattern: "^[0-9a-f]{64}$"
+      parameter_hash:
+        type: string
+        pattern: "^[0-9a-f]{64}$"
+      scenario_id:
+        type: string
+        minLength: 1
+        maxLength: 256
+      seed:
+        type: integer
+        minimum: 0
+      run_id:
+        type: string
+        pattern: "^[0-9a-f]{32}$"

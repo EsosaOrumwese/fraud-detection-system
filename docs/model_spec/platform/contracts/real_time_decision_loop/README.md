@@ -38,6 +38,10 @@ Decision/audit artifacts must carry:
 - `eb_offset_basis.schema.yaml`
 - `graph_version.schema.yaml`
 - `feature_snapshot.schema.yaml`
+- `context_store_flow_binding_join_frame_key.schema.yaml`
+- `context_store_flow_binding_flow_binding.schema.yaml`
+- `context_store_flow_binding_query_request.schema.yaml`
+- `context_store_flow_binding_query_response.schema.yaml`
 - `ofp_get_features_request.schema.yaml`
 - `ofp_get_features_response.schema.yaml`
 - `ofp_get_features_error.schema.yaml`
