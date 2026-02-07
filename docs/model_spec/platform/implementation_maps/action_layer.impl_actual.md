@@ -621,3 +621,190 @@ Phase 5 established append-only outcomes and IG publish discipline, but AL still
 - Crash/restart recovery preserves checkpoint/replay state without mutation: **complete**.
 
 ---
+
+## Entry: 2026-02-07 19:24:40 - Phase 7 pre-implementation plan (observability + governance + security)
+
+### Trigger
+User requested AL Phase 7 execution and explicit DoD closure.
+
+### Authorities used
+- docs/model_spec/platform/implementation_maps/action_layer.build_plan.md (Phase 7 DoD)
+- docs/model_spec/platform/pre-design_decisions/real-time_decision_loop.pre-design_decision.md (explicit degrade posture + provenance)
+- docs/model_spec/platform/component-specific/flow-narrative-platform-design.md (decision/outcome provenance continuity)
+- docs/model_spec/platform/implementation_maps/platform.build_plan.md (Phase 4.5 AL/DLA expectations)
+
+### Problem framing
+AL has deterministic execution/idempotency/publish/replay surfaces (Phases 1-6), but still lacks a dedicated operability layer that:
+1. exposes run-scoped metrics/health posture for operations,
+2. enforces governance stamps uniformly across denied and executed outcomes,
+3. redacts sensitive token/credential fields from exported observability artifacts.
+
+### Design decisions before coding
+1. Add a dedicated AL observability module (ction_layer/observability.py) with two explicit surfaces:
+   - run-scoped metrics collector,
+   - health evaluator with explicit GREEN|AMBER|RED + reason codes.
+   - Reasoning: keep observability logic out of execution control paths while still making posture auditable.
+2. Require governance stamps in execution outcomes (not only denied outcomes).
+   - Reasoning: Phase 7 requires policy_rev, xecution_profile_ref, and actor attribution on all outcome families.
+3. Add deterministic sensitive-field redaction for exported payload snapshots.
+   - Reasoning: Phase 7 security DoD requires that credentials/tokens are never emitted in artifacts/logs.
+4. Keep health posture inputs explicit and caller-supplied (lag_events, queue_depth, rror_count/vents_seen) with policy thresholds.
+   - Reasoning: avoids hidden coupling to a specific runtime transport while preserving consistent evaluation semantics across local/dev/prod.
+5. Keep schema backward compatibility for existing tests/consumers by adding governance fields in outcome_payload without removing existing fields.
+
+### Planned file changes
+- Add src/fraud_detection/action_layer/observability.py
+  - counters for intake/attempts/outcome statuses/retries/deny/quarantine/ambiguous,
+  - health posture evaluator and JSON export,
+  - recursive redaction helper for sensitive keys.
+- Update src/fraud_detection/action_layer/execution.py
+  - add governance stamp support in uild_execution_outcome_payload.
+- Update src/fraud_detection/action_layer/__init__.py
+  - export observability/health symbols.
+- Add 	ests/services/action_layer/test_phase7_observability.py
+  - verify counters + health posture + governance stamping + redaction.
+
+### Validation plan
+- python -m pytest tests/services/action_layer/test_phase7_observability.py -q
+- python -m pytest tests/services/action_layer -q
+
+---
+
+## Entry: 2026-02-07 19:27:37 - Phase 7 implementation closure (observability + governance + security)
+
+### What was implemented
+1. Added Action Layer observability + health surfaces:
+   - src/fraud_detection/action_layer/observability.py
+   - introduced:
+     - ActionLayerRunMetrics (run-scoped counters + sanitized recent-events export),
+     - ActionLayerHealthThresholds and ActionLayerHealthStatus,
+     - explicit health evaluation over lag/queue/error-rate with reason codes,
+     - edact_sensitive_fields(...) recursive sanitizer for sensitive key families.
+2. Added governance stamps for execution outcomes:
+   - src/fraud_detection/action_layer/execution.py
+   - uild_execution_outcome_payload(...) now stamps outcome_payload.governance with:
+     - policy_rev,
+     - xecution_profile_ref,
+     - ctor_principal,
+     - origin.
+3. Exported new Phase 7 surfaces:
+   - src/fraud_detection/action_layer/__init__.py.
+4. Added dedicated Phase 7 tests:
+   - 	ests/services/action_layer/test_phase7_observability.py
+   - coverage includes required metrics lanes, health reason codes, governance stamping, redaction, and run-scope fail-closed checks.
+
+### Decisions made during implementation (with reasoning)
+1. **Health posture is signal-driven, not transport-coupled.**
+   - Reasoning: health evaluation accepts explicit lag_events and queue_depth inputs so the same semantics work across local/dev/prod regardless of queue implementation details.
+2. **Error-rate posture derives from AL-relevant failure lanes.**
+   - Reasoning: Phase 7 DoD requires execution/publish anomaly visibility; outcome_failed + publish_quarantine + publish_ambiguous forms a practical, deterministic denominator-based signal.
+3. **Governance stamping is enforced on execution outcomes, not only DENIED outcomes.**
+   - Reasoning: audit consumers should not branch on terminal lane to discover policy attribution.
+4. **Sensitive field protection is recursive and key-marker based.**
+   - Reasoning: credentials often appear nested in payloads; recursive key inspection (	oken, secret, pi_key, uthorization, etc.) ensures exports do not leak values.
+5. **Observability remains non-control-path.**
+   - Reasoning: metrics/health helpers do not alter execution outcomes/checkpoints; they report state and posture only.
+
+### Tests added
+- 	ests/services/action_layer/test_phase7_observability.py
+  - verifies counters for intake/attempts/retries/statuses/quarantine/ambiguous,
+  - verifies AMBER/RED health posture and reason codes,
+  - verifies execution outcome governance stamps,
+  - verifies sensitive-field redaction in exported artifacts,
+  - verifies run-scope mismatch fails closed.
+
+### Validation evidence
+- $env:PYTHONPATH='.;src'; python -m pytest tests/services/action_layer/test_phase7_observability.py -q -> 5 passed.
+- $env:PYTHONPATH='.;src'; python -m pytest tests/services/action_layer -q -> 42 passed.
+
+### DoD mapping outcome
+- Metrics/logs cover intake, attempts, retries, statuses, denies, quarantines, ambiguous: **complete**.
+- Health posture exposes lag/error/queue with reason codes: **complete**.
+- Governance/security stamps present in outcome payloads: **complete**.
+- Sensitive credentials/tokens excluded from observability exports: **complete**.
+
+---
+
+## Entry: 2026-02-07 19:34:08 - Phase 8 pre-implementation plan (platform integration closure)
+
+### Trigger
+User requested to proceed to AL Phase 8.
+
+### Authorities used
+- docs/model_spec/platform/implementation_maps/action_layer.build_plan.md (Phase 8 DoD)
+- docs/model_spec/platform/implementation_maps/platform.build_plan.md (4.5.I, 4.5.J)
+- docs/model_spec/platform/pre-design_decisions/real-time_decision_loop.pre-design_decision.md
+- docs/model_spec/platform/component-specific/flow-narrative-platform-design.md
+
+### Problem framing
+AL Phases 1-7 are complete, but Phase 8 requires explicit component closure proof with integration-grade evidence:
+1. DF decision/intent continuity into AL execution/outcome emission.
+2. Local-parity monitored proof at 20 and 200 event scales.
+3. Replay/no-duplicate side-effect proof with stable outcome lineage.
+4. Explicit closure statement with dependency boundary (DLA remains platform integration peer under 4.5).
+
+### Design decisions before coding
+1. Add a dedicated AL Phase 8 validation matrix test module.
+   - Reasoning: existing AL tests are phase-sliced; Phase 8 requires integrated end-to-end component proof.
+2. Use DF synthesizer outputs as upstream source for ActionIntent continuity checks.
+   - Reasoning: validates DF->AL handoff semantics at the contract boundary rather than synthetic AL-only payloads.
+3. Keep production policy unchanged; use a test-local AL policy bundle variant to permit DF action families for continuity testing.
+   - Reasoning: prevents accidental production policy drift while proving cross-component wiring behavior.
+4. Include explicit 20/200 local-parity proof in tests via deterministic component-run harness.
+   - Reasoning: matches existing DF Phase 8 closure pattern and creates auditable evidence in CI/local without requiring manual long-running service orchestration.
+5. Validate replay/no-duplicate effect safety by injecting duplicate storms and asserting executor call cardinality + replay ledger stability.
+   - Reasoning: Phase 8 requires proof that AL does not double-apply side effects under replay.
+
+### Planned file changes
+- Add 	ests/services/action_layer/test_phase8_validation_matrix.py with:
+  - DF->AL continuity test,
+  - 20/200 component local-parity proof,
+  - replay/no-duplicate side-effect assertions.
+- Update docs/model_spec/platform/implementation_maps/action_layer.build_plan.md status/evidence for Phase 8 closure.
+- Append closure evidence to docs/model_spec/platform/implementation_maps/action_layer.impl_actual.md and docs/logbook/02-2026/2026-02-07.md.
+
+### Validation plan
+- python -m pytest tests/services/action_layer/test_phase8_validation_matrix.py -q
+- python -m pytest tests/services/action_layer -q
+
+---
+
+## Entry: 2026-02-07 19:37:40 - Phase 8 implementation closure (platform integration closure)
+
+### What was implemented
+1. Added AL Phase 8 validation matrix:
+   - `tests/services/action_layer/test_phase8_validation_matrix.py`
+   - includes:
+     - DF decision/intent -> AL execution -> ActionOutcome publish continuity proof,
+     - component local-parity proof at `20` and `200` events,
+     - duplicate-storm no-reexecute assertions,
+     - replay-ledger identity-chain stability after restart.
+2. Added explicit local-parity operational instructions for AL boundary checks:
+   - `docs/runbooks/platform_parity_walkthrough_v0.md` (new Section `19`).
+3. Produced parity proof artifacts during validation run:
+   - `runs/fraud-platform/platform_20260207T200000Z/action_layer/reconciliation/phase8_parity_proof_20.json`
+   - `runs/fraud-platform/platform_20260207T200000Z/action_layer/reconciliation/phase8_parity_proof_200.json`
+
+### Decisions made during implementation (with reasoning)
+1. **Use DF synthesizer outputs as upstream integration source.**
+   - Reasoning: validates real producer->consumer contract continuity instead of AL-only synthetic payloads.
+2. **Keep production AL policy unchanged; allow DF action families via test-local policy bundle only.**
+   - Reasoning: avoids production policy drift while still proving Phase 8 integration behavior.
+3. **Define local-parity proof at component boundary (not full stack orchestration).**
+   - Reasoning: Phase 8 closure here is AL component scope; full platform `4.5` closure still requires DLA integration gates.
+4. **Treat duplicate storm as a semantic idempotency gate assertion.**
+   - Reasoning: duplicate intents must be dropped before external effect execution; proof uses executor call cardinality.
+5. **Replay proof anchored to identity-chain hash stability.**
+   - Reasoning: deterministic lineage is required under restart/replay and directly maps to Phase 8 DoD replay clause.
+
+### Validation evidence
+- `$env:PYTHONPATH='.;src'; python -m pytest tests/services/action_layer/test_phase8_validation_matrix.py -q` -> `3 passed`.
+- `$env:PYTHONPATH='.;src'; python -m pytest tests/services/action_layer -q` -> `45 passed`.
+
+### DoD mapping outcome
+- Integration tests prove DF decision/intent -> AL execution -> outcome emission continuity: **complete**.
+- Local-parity monitored runs exist for 20 and 200 events with AL evidence captured: **complete**.
+- Replay validation confirms no duplicate side effects and stable outcome lineage: **complete**.
+- Closure statement explicit with remaining dependency boundary (DLA under platform 4.5): **complete**.
+
+---

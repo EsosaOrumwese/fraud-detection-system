@@ -8,7 +8,7 @@ from datetime import datetime, timezone
 import hashlib
 import json
 import time
-from typing import Any, Protocol
+from typing import Any, Mapping, Protocol
 
 from .contracts import ActionIntent
 from .policy import AlRetryPolicy
@@ -176,6 +176,8 @@ def build_execution_outcome_payload(
     intent: ActionIntent,
     authz_policy_rev: dict[str, Any],
     terminal: ActionExecutionTerminal,
+    execution_profile_ref: str | None = None,
+    posture_mode: str = "NORMAL",
     completed_at_utc: str | None = None,
 ) -> dict[str, Any]:
     payload = intent.as_dict()
@@ -198,6 +200,13 @@ def build_execution_outcome_payload(
         "final_provider_code": terminal.final_provider_code,
         "final_provider_ref": terminal.final_provider_ref,
         "attempts": [item.as_dict() for item in terminal.attempts],
+        "governance": {
+            "policy_rev": dict(authz_policy_rev),
+            "execution_profile_ref": execution_profile_ref
+            or _default_execution_profile_ref(authz_policy_rev, posture_mode),
+            "actor_principal": payload["actor_principal"],
+            "origin": payload["origin"],
+        },
     }
     return {
         "outcome_id": outcome_id,
@@ -228,3 +237,10 @@ def _validate_execution_result(result: ActionExecutionResult) -> None:
         raise ActionExecutionError(f"invalid execution state: {result.state!r}")
     if not str(result.provider_code or "").strip():
         raise ActionExecutionError("provider_code must be non-empty")
+
+
+def _default_execution_profile_ref(policy_rev: Mapping[str, Any], posture_mode: str) -> str:
+    policy_id = str(policy_rev.get("policy_id") or "").strip() or "unknown_policy"
+    revision = str(policy_rev.get("revision") or "").strip() or "unknown_revision"
+    mode = str(posture_mode or "").strip().upper() or "UNKNOWN"
+    return f"policy://{policy_id}@{revision}#mode={mode}"

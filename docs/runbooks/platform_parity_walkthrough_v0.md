@@ -845,3 +845,44 @@ Expected statuses:
 - `CONFLICT` on pin mismatch (fail-closed).
 
 
+## 19) AL local-parity boundary checks (DF intent -> outcome publish)
+
+Use this section to validate Action Layer Phase 8 closure at component boundary.
+
+**19.1 Run AL Phase 8 validation matrix**
+```powershell
+$env:PYTHONPATH='.;src'
+.venv\Scripts\python.exe -m pytest tests/services/action_layer/test_phase8_validation_matrix.py -q
+```
+
+Expected result:
+- `3 passed` (includes:
+  - DF->AL continuity proof,
+  - `20` event parity proof,
+  - `200` event parity proof + replay/no-duplicate effect proof).
+
+**19.2 Run full AL suite**
+```powershell
+$env:PYTHONPATH='.;src'
+.venv\Scripts\python.exe -m pytest tests/services/action_layer -q
+```
+
+Expected result:
+- full AL suite passes (current baseline: `45 passed`).
+
+**19.3 Inspect parity proof artifacts**
+```powershell
+Get-Content runs/fraud-platform/platform_20260207T200000Z/action_layer/reconciliation/phase8_parity_proof_20.json
+Get-Content runs/fraud-platform/platform_20260207T200000Z/action_layer/reconciliation/phase8_parity_proof_200.json
+```
+
+Expected fields:
+- `status: PASS`
+- `expected_events == observed_outcomes`
+- `duplicate_drops == expected_events`
+- `effect_execution_calls == expected_events`
+
+Boundary note:
+This validates AL at its component boundary for Phase 8. Platform `4.5` closure still requires DLA append-only audit-chain integration gates.
+
+

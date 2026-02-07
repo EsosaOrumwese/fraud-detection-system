@@ -157,6 +157,16 @@ Provide an executable, component-scoped AL plan aligned to platform `Phase 4.5` 
 - Health posture exposes lag/error/queue saturation signals with reason codes.
 - Governance/security stamps are present (`policy_rev`, execution profile ref, actor attribution).
 - Sensitive credentials/tokens are excluded from emitted artifacts/logs.
+**Evidence (Phase 7):**
+- Code:
+  - `src/fraud_detection/action_layer/observability.py`
+  - `src/fraud_detection/action_layer/execution.py` (execution outcome governance stamps)
+  - `src/fraud_detection/action_layer/__init__.py`
+- Tests:
+  - `tests/services/action_layer/test_phase7_observability.py`
+- Validation:
+  - `$env:PYTHONPATH='.;src'; python -m pytest tests/services/action_layer/test_phase7_observability.py -q`
+  - `$env:PYTHONPATH='.;src'; python -m pytest tests/services/action_layer -q`
 
 ### Phase 8 — Platform integration closure (`4.5` AL scope)
 **Intent:** prove AL is green at component boundary and ready for platform `4.5` closure with DLA.
@@ -166,6 +176,15 @@ Provide an executable, component-scoped AL plan aligned to platform `Phase 4.5` 
 - Local-parity monitored runs exist for 20 and 200 events with AL evidence captured.
 - Replay validation confirms no duplicate side effects and stable outcome lineage.
 - Closure statement is explicit: AL component green; DLA-linked audit closure tracked by platform `4.5` gates.
+**Evidence (Phase 8):**
+- Code:
+  - `tests/services/action_layer/test_phase8_validation_matrix.py`
+- Validation:
+  - `$env:PYTHONPATH='.;src'; python -m pytest tests/services/action_layer/test_phase8_validation_matrix.py -q`
+  - `$env:PYTHONPATH='.;src'; python -m pytest tests/services/action_layer -q`
+- Artifacts:
+  - `runs/fraud-platform/platform_20260207T200000Z/action_layer/reconciliation/phase8_parity_proof_20.json`
+  - `runs/fraud-platform/platform_20260207T200000Z/action_layer/reconciliation/phase8_parity_proof_200.json`
 
 ## Status (rolling)
 - Phase 1 (`Intake contracts + pin/shape validation`): completed on `2026-02-07`.
@@ -174,4 +193,6 @@ Provide an executable, component-scoped AL plan aligned to platform `Phase 4.5` 
 - Phase 4 (`Executor adapters + retry/failure semantics`): completed on `2026-02-07`.
 - Phase 5 (`Outcome store + IG publish discipline`): completed on `2026-02-07`.
 - Phase 6 (`Checkpoints + replay determinism`): completed on `2026-02-07`.
-- Current focus: Phase 7 (`Observability + governance + security`).
+- Phase 7 (`Observability + governance + security`): completed on `2026-02-07`.
+- Phase 8 (`Platform integration closure (4.5 AL scope)`): completed on `2026-02-07`.
+- Current focus: AL component complete at boundary; platform Phase `4.5` continues with DLA audit closure integration.

@@ -90,6 +90,7 @@ def build_denied_outcome_payload(
     *,
     intent: ActionIntent,
     decision: AlAuthzDecision,
+    execution_profile_ref: str | None = None,
     completed_at_utc: str | None = None,
 ) -> dict[str, Any]:
     payload = intent.as_dict()
@@ -121,6 +122,16 @@ def build_denied_outcome_payload(
         "completed_at_utc": ts,
         "attempt_seq": 1,
         "reason": reason,
+        "outcome_payload": {
+            "terminal_state": "DENIED",
+            "governance": {
+                "policy_rev": decision.policy_rev.as_dict(),
+                "execution_profile_ref": execution_profile_ref
+                or _default_execution_profile_ref(decision.policy_rev.as_dict(), decision.posture_mode),
+                "actor_principal": payload["actor_principal"],
+                "origin": payload["origin"],
+            },
+        },
     }
 
 
@@ -132,3 +143,9 @@ def _posture_allows_execution(posture: AlExecutionPosture) -> bool:
         return False
     return bool(posture.allow_execution)
 
+
+def _default_execution_profile_ref(policy_rev: dict[str, Any], posture_mode: str) -> str:
+    policy_id = str(policy_rev.get("policy_id") or "").strip() or "unknown_policy"
+    revision = str(policy_rev.get("revision") or "").strip() or "unknown_revision"
+    mode = str(posture_mode or "").strip().upper() or "UNKNOWN"
+    return f"policy://{policy_id}@{revision}#mode={mode}"

@@ -74,6 +74,13 @@ from .policy import (
     ActionLayerPolicyError,
     load_policy_bundle,
 )
+from .observability import (
+    ActionLayerHealthStatus,
+    ActionLayerHealthThresholds,
+    ActionLayerObservabilityError,
+    ActionLayerRunMetrics,
+    redact_sensitive_fields,
+)
 from .replay import (
     REPLAY_MATCH,
     REPLAY_NEW,
@@ -158,6 +165,11 @@ __all__ = [
     "AlRetryPolicy",
     "ActionLayerPolicyError",
     "load_policy_bundle",
+    "ActionLayerHealthStatus",
+    "ActionLayerHealthThresholds",
+    "ActionLayerObservabilityError",
+    "ActionLayerRunMetrics",
+    "redact_sensitive_fields",
     "REPLAY_MATCH",
     "REPLAY_NEW",
     "REPLAY_PAYLOAD_MISMATCH",
