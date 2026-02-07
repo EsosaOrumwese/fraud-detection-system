@@ -592,3 +592,105 @@ Implement DF Phase 5 so Decision Fabric acquires OFP/IEG context within explicit
 - Phase 6 will implement deterministic decision synthesis + ActionIntent emission at the IG publish boundary.
 
 ---
+
+## Entry: 2026-02-07 11:37:15 — Phase 6 implementation plan (decision synthesis + intent emission)
+
+### Problem / goal
+Implement DF Phase 6 so decision/intents are synthesized deterministically from frozen basis and published through IG with explicit ADMIT/DUPLICATE/QUARANTINE handling and correction supersede semantics.
+
+### Authorities / inputs
+- `docs/model_spec/platform/implementation_maps/decision_fabric.build_plan.md` (Phase 6 DoD)
+- `docs/model_spec/platform/pre-design_decisions/real-time_decision_loop.pre-design_decision.md` (explicit degrade, append-only corrections)
+- `docs/model_spec/platform/component-specific/decision_fabric.design-authority.md` (DF->IG->EB trust boundary, deterministic outputs, safe fallback)
+- `docs/model_spec/platform/contracts/real_time_decision_loop/decision_payload.schema.yaml`
+- `docs/model_spec/platform/contracts/real_time_decision_loop/action_intent.schema.yaml`
+- `docs/model_spec/data-engine/interface_pack/contracts/canonical_event_envelope.schema.yaml`
+- `src/fraud_detection/ingestion_gate/service.py` + `src/fraud_detection/ingestion_gate/admission.py` (IG response decisions: ADMIT, DUPLICATE, QUARANTINE)
+
+### Decision trail (before coding)
+1. Split Phase 6 into two modules:
+   - `synthesis.py`: deterministic decision + action intent payload synthesis and correction helpers.
+   - `publish.py`: canonical-envelope emission through IG with explicit publish outcome model.
+2. Deterministic synthesis basis will be explicit:
+   - candidate source refs/pins,
+   - posture stamp + mask,
+   - registry resolution result,
+   - context result (snapshot hashes/basis/graph_version).
+   No wall-clock dependencies beyond explicit `decided_at_utc`/`requested_at_utc` args.
+3. Action posture constraints:
+   - if posture mask is `STEP_UP_ONLY`, synthesized action intent posture is clamped and reason-coded.
+4. IG publish boundary:
+   - emit DecisionResponse envelope first, then ActionIntent envelopes.
+   - map IG decisions (`ADMIT`, `DUPLICATE`, `QUARANTINE`) into typed publish outcomes; unknown responses fail closed.
+5. Correction semantics:
+   - add helper to produce correction decision with `supersedes_decision_id` in decision payload and new deterministic decision/event IDs.
+   - keep append-only shape by never mutating original decision payload.
+
+### Files planned
+- New:
+  - `src/fraud_detection/decision_fabric/synthesis.py`
+  - `src/fraud_detection/decision_fabric/publish.py`
+  - `tests/services/decision_fabric/test_phase6_synthesis.py`
+  - `tests/services/decision_fabric/test_phase6_publish.py`
+- Update:
+  - `src/fraud_detection/decision_fabric/__init__.py`
+  - `docs/model_spec/platform/implementation_maps/decision_fabric.build_plan.md` (Phase 6 status)
+
+### Invariants to enforce
+- Same basis -> byte-stable decision/action payloads (excluding explicit call timestamps supplied by caller).
+- Action intents never violate DL action posture.
+- All DF outputs are canonical envelopes and go through IG push endpoint semantics.
+- Publish handling is explicit and stable per IG decision code.
+- Correction payloads are append-only and reference superseded decision IDs.
+
+### Validation plan
+- Add tests for:
+  - deterministic synthesis output + identity stability,
+  - action posture clamp behavior,
+  - canonical envelope formation for decision_response/action_intent,
+  - publish decision mapping (`ADMIT`/`DUPLICATE`/`QUARANTINE`) and unknown-decision fail-closed,
+  - correction helper produces new decision with explicit supersede linkage.
+- Run `python -m pytest tests/services/decision_fabric -q`.
+
+---
+
+## Entry: 2026-02-07 11:45:52 — Phase 6 implementation closure (decision synthesis + intent emission)
+
+### What was implemented
+1. Added deterministic synthesis module:
+   - `src/fraud_detection/decision_fabric/synthesis.py`
+   - builds DecisionResponse payload from fixed basis (candidate + posture + registry + context),
+   - emits deterministic ActionIntent payload(s) with stable idempotency keys,
+   - emits canonical envelopes for `decision_response` and `action_intent`,
+   - enforces DL action posture clamp (`STEP_UP_ONLY`) in synthesis,
+   - adds correction helper with append-only supersede linkage (`supersedes_decision_id`).
+2. Added IG publish boundary module:
+   - `src/fraud_detection/decision_fabric/publish.py`
+   - validates canonical envelope before send,
+   - publishes only through IG `/v1/ingest/push`,
+   - maps publish outcomes explicitly (`ADMIT`, `DUPLICATE`, `QUARANTINE`),
+   - fail-closes on unknown IG decision or invalid responses,
+   - supports deterministic batch behavior (halt on quarantined decision/action).
+3. Updated DF package exports:
+   - `src/fraud_detection/decision_fabric/__init__.py` now exports synthesis/publish types/constants.
+
+### Validation results
+- Added tests:
+  - `tests/services/decision_fabric/test_phase6_synthesis.py`
+  - `tests/services/decision_fabric/test_phase6_publish.py`
+- Re-ran DF suite:
+  - `python -m pytest tests/services/decision_fabric -q` -> `52 passed`.
+- Import/export smoke:
+  - `$env:PYTHONPATH='.;src'; python -c "import fraud_detection.decision_fabric as df; print('ok', 'DecisionSynthesizer' in df.__all__, 'DecisionFabricIgPublisher' in df.__all__)"` -> `ok True True`.
+
+### DoD closure mapping (Phase 6)
+- Decision synthesis deterministic for fixed basis: complete (synthesis module + determinism tests).
+- ActionIntent emission respects DL action posture: complete (clamp path + tests).
+- DecisionResponse/ActionIntent emitted as canonical envelope traffic via IG boundary helper: complete.
+- Publish boundary handles ADMIT/DUPLICATE/QUARANTINE explicitly with stable behavior: complete.
+- Corrections use append-only supersede semantics (no overwrite): complete (correction helper + tests).
+
+### Follow-on boundary
+- Phase 7 will add idempotency/checkpoint/replay safety and mismatch anomaly surfacing.
+
+---

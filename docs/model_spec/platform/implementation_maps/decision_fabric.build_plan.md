@@ -128,4 +128,10 @@ Provide an executable, phase-by-phase DF build plan aligned to platform Phase 4.
   - Evidence: `src/fraud_detection/decision_fabric/context.py`
   - Evidence: `tests/services/decision_fabric/test_phase5_context.py`
   - Validation: `python -m pytest tests/services/decision_fabric -q` -> `41 passed`
-- Current focus: Phase 6 (`Decision synthesis + intent emission`).
+- Phase 6 (`Decision synthesis + intent emission`): completed on `2026-02-07`.
+  - Evidence: `src/fraud_detection/decision_fabric/synthesis.py`
+  - Evidence: `src/fraud_detection/decision_fabric/publish.py`
+  - Evidence: `tests/services/decision_fabric/test_phase6_synthesis.py`
+  - Evidence: `tests/services/decision_fabric/test_phase6_publish.py`
+  - Validation: `python -m pytest tests/services/decision_fabric -q` -> `52 passed`
+- Current focus: Phase 7 (`Idempotency, checkpoints, and replay safety`).
