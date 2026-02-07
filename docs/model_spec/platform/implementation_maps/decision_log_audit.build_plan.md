@@ -97,6 +97,17 @@ Provide an executable, component-scoped DLA plan aligned to platform `Phase 4.5`
 - Supports partial-order arrivals (decision before outcome, outcome before decision) with deterministic reconciliation semantics.
 - No silent correction: missing links remain explicit unresolved states until resolved by later append.
 - Audit chain stores provenance refs needed for replay and inspection.
+**Evidence (Phase 4):**
+- Code:
+  - `src/fraud_detection/decision_log_audit/storage.py`
+  - `src/fraud_detection/decision_log_audit/intake.py`
+  - `src/fraud_detection/decision_log_audit/__init__.py`
+- Tests:
+  - `tests/services/decision_log_audit/test_dla_phase4_lineage.py`
+- Validation:
+  - `$env:PYTHONPATH='.;src'; python -m pytest tests/services/decision_log_audit/test_dla_phase4_lineage.py -q`
+  - `$env:PYTHONPATH='.;src'; python -m pytest tests/services/decision_log_audit -q`
+  - `$env:PYTHONPATH='.;src'; python -m pytest tests/services/action_layer tests/services/decision_log_audit -q`
 
 ### Phase 5 — Index + query/read contract
 **Intent:** provide deterministic and operationally useful audit lookup.
@@ -106,6 +117,17 @@ Provide an executable, component-scoped DLA plan aligned to platform `Phase 4.5`
 - Responses include provenance refs and chain completeness status.
 - Query contract is deterministic under duplicate/replayed inputs.
 - Access controls and redaction policy hooks are enforced on read paths.
+**Evidence (Phase 5):**
+- Code:
+  - `src/fraud_detection/decision_log_audit/storage.py`
+  - `src/fraud_detection/decision_log_audit/query.py`
+  - `src/fraud_detection/decision_log_audit/__init__.py`
+- Tests:
+  - `tests/services/decision_log_audit/test_dla_phase5_query.py`
+- Validation:
+  - `$env:PYTHONPATH='.;src'; python -m pytest tests/services/decision_log_audit/test_dla_phase5_query.py -q`
+  - `$env:PYTHONPATH='.;src'; python -m pytest tests/services/decision_log_audit -q`
+  - `$env:PYTHONPATH='.;src'; python -m pytest tests/services/action_layer tests/services/decision_log_audit -q`
 
 ### Phase 6 — Commit ordering + checkpoint/replay determinism
 **Intent:** enforce commit semantics required by RTDL v0.
@@ -115,6 +137,17 @@ Provide an executable, component-scoped DLA plan aligned to platform `Phase 4.5`
 - Replay from same basis reproduces identical audit identity chain.
 - Crash/restart tests verify no skipped/duplicated append artifacts.
 - Divergence/mismatch detection emits audit anomalies and blocks unsafe advancement.
+**Evidence (Phase 6):**
+- Code:
+  - `src/fraud_detection/decision_log_audit/storage.py`
+  - `src/fraud_detection/decision_log_audit/intake.py`
+  - `src/fraud_detection/decision_log_audit/__init__.py`
+- Tests:
+  - `tests/services/decision_log_audit/test_dla_phase6_commit_replay.py`
+- Validation:
+  - `$env:PYTHONPATH='.;src'; python -m pytest tests/services/decision_log_audit/test_dla_phase6_commit_replay.py -q`
+  - `$env:PYTHONPATH='.;src'; python -m pytest tests/services/decision_log_audit -q`
+  - `$env:PYTHONPATH='.;src'; python -m pytest tests/services/action_layer tests/services/decision_log_audit -q`
 
 ### Phase 7 — Observability + reconciliation + security
 **Intent:** make audit closure health explicit and operable.
@@ -124,6 +157,18 @@ Provide an executable, component-scoped DLA plan aligned to platform `Phase 4.5`
 - Reconciliation artifact summarizes per-run chain completeness and anomaly lanes.
 - Security controls cover least-privilege reads/writes and secret-safe artifact handling.
 - Governance stamps are retained for policy/bundle/execution profile attribution.
+**Evidence (Phase 7):**
+- Code:
+  - `src/fraud_detection/decision_log_audit/observability.py`
+  - `src/fraud_detection/decision_log_audit/storage.py`
+  - `src/fraud_detection/decision_log_audit/intake.py`
+  - `src/fraud_detection/decision_log_audit/__init__.py`
+- Tests:
+  - `tests/services/decision_log_audit/test_dla_phase7_observability.py`
+- Validation:
+  - `$env:PYTHONPATH='.;src'; python -m pytest tests/services/decision_log_audit/test_dla_phase7_observability.py -q`
+  - `$env:PYTHONPATH='.;src'; python -m pytest tests/services/decision_log_audit -q`
+  - `$env:PYTHONPATH='.;src'; python -m pytest tests/services/action_layer tests/services/decision_log_audit -q`
 
 ### Phase 8 — Platform integration closure (`4.5` DLA scope)
 **Intent:** prove DLA is green at component boundary and satisfies platform audit closure expectations.
@@ -133,9 +178,25 @@ Provide an executable, component-scoped DLA plan aligned to platform `Phase 4.5`
 - Local-parity monitored 20 and 200 event runs produce complete audit evidence artifacts.
 - Replay tests prove deterministic audit-chain reconstruction from the same basis.
 - Closure statement is explicit: DLA component green; remaining platform dependencies (if any) are listed for phase handoff.
+**Evidence (Phase 8):**
+- Code:
+  - `src/fraud_detection/decision_log_audit/storage.py`
+  - `tests/services/decision_log_audit/test_dla_phase8_validation_matrix.py`
+- Validation:
+  - `$env:PYTHONPATH='.;src'; python -m pytest tests/services/decision_log_audit/test_dla_phase8_validation_matrix.py -q`
+  - `$env:PYTHONPATH='.;src'; python -m pytest tests/services/decision_log_audit -q`
+  - `$env:PYTHONPATH='.;src'; python -m pytest tests/services/action_layer tests/services/decision_log_audit -q`
+- Parity artifacts:
+  - `runs/fraud-platform/platform_20260207T220000Z/decision_log_audit/reconciliation/phase8_parity_proof_20.json`
+  - `runs/fraud-platform/platform_20260207T220000Z/decision_log_audit/reconciliation/phase8_parity_proof_200.json`
 
 ## Status (rolling)
 - Phase 1 (`Audit contracts + evidence model`): completed on `2026-02-07`.
 - Phase 2 (`Storage layout + append-only substrate`): completed on `2026-02-07`.
 - Phase 3 (`Intake consumer + fail-closed validation`): completed on `2026-02-07`.
-- Current focus: Phase 4 (`Lineage assembly (decision -> intent -> outcome)`).
+- Phase 4 (`Lineage assembly (decision -> intent -> outcome)`): completed on `2026-02-07`.
+- Phase 5 (`Index + query/read contract`): completed on `2026-02-07`.
+- Phase 6 (`Commit ordering + checkpoint/replay determinism`): completed on `2026-02-07`.
+- Phase 7 (`Observability + reconciliation + security`): completed on `2026-02-07`.
+- Phase 8 (`Platform integration closure (4.5 DLA scope)`): completed on `2026-02-07`.
+- Component closure: DLA `4.5` scope is green at component boundary; remaining end-to-end RTDL closure depends on platform-level integration with still-in-flight components.

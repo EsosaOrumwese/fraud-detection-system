@@ -443,3 +443,52 @@ It must prevent "looks better" claims without statistically defensible evidence.
 4. `gate_decision.json` (`PASS`, `PASS_WITH_RISK`, `FAIL`) with explicit reasons.
 
 ## 7) Expected Grade Lift (Local + Downstream Impact)
+### 7.1 Baseline and grading logic
+1. Baseline 6B grade is `D+`.
+2. Baseline grade is constrained by failure of critical realism gates:
+   - truth class collapse
+   - bank-view stratification collapse
+   - case timeline templating and temporal invalidity
+3. Grade lift in this report is tied to gate attainment from Section 6, not to cosmetic metric movement.
+
+### 7.2 Local grade lift by wave (6B only)
+| Wave | What is fixed | Primary gates impacted | Expected local grade band |
+|---|---|---|---|
+| Wave A | `S4` truth mapping + delays/case execution, `S2` timing/amount activation, `S5` fail-closed realism gates | `T1-T16` (especially `T1`, `T2`, `T5`, `T6`, `T8`, `T9`, `T10`, `T11`, `T14`) | `C+` (low case), `B-` (base case), `B` (high case) |
+| Wave B | `S3` campaign multiplicity and targeting depth | `T17-T18` plus stronger `T5/T6` stratification | `B` (base), `B+` (high case) |
+| Wave C | Context/schema carry-through and attachment/session conditioning | `T19-T20` plus seed-stability tightening | `B+` (base), `B+` with lower variance (high case) |
+
+### 7.3 Why Wave A has the largest lift
+1. Wave A removes supervision invalidity by restoring non-degenerate truth labels.
+2. Wave A restores non-template amount and timing behavior in major model feature families.
+3. Wave A hardens realism gates so severe defects cannot pass seal silently.
+4. Because these are foundational constraints, no later wave can compensate for Wave A failure.
+
+### 7.4 Risk-adjusted uplift envelope
+1. Conservative path: `D+ -> C+ -> B-` if truth/case validity improves but stratification remains weak in one or more slices.
+2. Base path: `D+ -> B- -> B -> B+` across Waves A, B, C.
+3. Upside path: `D+ -> B -> B+` by end of Wave B if campaign-depth improvements materially increase contextual separability and seed stability holds.
+
+### 7.5 Downstream impact (platform-facing)
+| Downstream surface | Expected change after Wave A | Increment after Wave B/C |
+|---|---|---|
+| Supervised model training labels | Becomes usable (non-degenerate positive/negative classes) | Better campaign-specific boundary learning |
+| Feature explainability | Amount/time features become interpretable instead of template artifacts | Segment/geo/campaign explanations become richer and less shortcut-driven |
+| Thresholding/calibration | Threshold tuning becomes meaningful once bank-view is stratified | Calibration stability improves under campaign heterogeneity |
+| Case-management simulation | Case timelines become temporally valid and non-templated | Better priority/SLA realism under richer context |
+| Offline evaluation credibility | Reduced risk of inflated/invalid metrics from collapsed truth | Higher confidence gains reflect realistic signal, not artifacts |
+
+### 7.6 Dependencies and caveats
+1. 6B can reach `B/B+` only if `T1-T10` pass across all required seeds.
+2. If Wave A passes only partially, Wave B can increase complexity without true grade lift.
+3. Wave C is required for durable `B+` because it closes conditioning gaps and reduces seed fragility.
+4. If any CRITICAL gate regresses at a later wave, the grade claim reverts to the last fully passing wave.
+
+### 7.7 Section 7 decision statement
+1. Target commitment:
+   - `B` after Waves A+B
+   - `B+` after Wave C with cross-seed stability
+2. Promotion condition:
+   - no CRITICAL gate failures
+   - required HIGH/MED pass ratios from Section 6
+3. No grade claim should be published from single-seed evidence only.

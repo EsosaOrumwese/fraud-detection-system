@@ -22,6 +22,8 @@ logger = logging.getLogger("fraud_detection.dla")
 
 DLA_INTAKE_WRITE_FAILED = "WRITE_FAILED"
 DLA_INTAKE_PAYLOAD_HASH_MISMATCH = "PAYLOAD_HASH_MISMATCH"
+DLA_INTAKE_LINEAGE_CONFLICT = "LINEAGE_CONFLICT"
+DLA_INTAKE_REPLAY_DIVERGENCE = "REPLAY_DIVERGENCE"
 
 
 @dataclass(frozen=True)
@@ -58,22 +60,84 @@ class DecisionLogAuditIntakeProcessor:
         self.inlet = DecisionLogAuditInlet(policy, engine_contracts_root=engine_contracts_root)
 
     def process_record(self, record: DlaBusInput) -> DecisionLogAuditIntakeResult:
+        envelope = _unwrap_record_envelope(record.payload) or {}
+        event_type = str((envelope or {}).get("event_type") or "") or None
+        event_id = str((envelope or {}).get("event_id") or "") or None
+        pins = _unwrap_record_pins(record.payload) or {}
+        platform_run_id = str(pins.get("platform_run_id") or "") or None
+        scenario_run_id = str(pins.get("scenario_run_id") or "") or None
+
         result = self.inlet.evaluate(record)
         if not result.accepted:
-            return self._quarantine_and_checkpoint(
+            return self._finalize_result(
                 record=record,
-                reason_code=result.reason_code,
-                detail=result.detail,
-                event_type=str(_unwrap_record_event_type(record.payload) or ""),
-                event_id=str(_unwrap_record_event_id(record.payload) or ""),
-                schema_version=str(_unwrap_record_schema_version(record.payload) or ""),
-                payload_hash=None,
-                pins=_unwrap_record_pins(record.payload),
-                envelope=_unwrap_record_envelope(record.payload),
+                platform_run_id=platform_run_id,
+                scenario_run_id=scenario_run_id,
+                event_type=event_type,
+                event_id=event_id,
+                result=self._quarantine_and_checkpoint(
+                    record=record,
+                    reason_code=result.reason_code,
+                    detail=result.detail,
+                    event_type=str(_unwrap_record_event_type(record.payload) or ""),
+                    event_id=str(_unwrap_record_event_id(record.payload) or ""),
+                    schema_version=str(_unwrap_record_schema_version(record.payload) or ""),
+                    payload_hash=None,
+                    pins=_unwrap_record_pins(record.payload),
+                    envelope=_unwrap_record_envelope(record.payload),
+                ),
             )
 
         assert result.candidate is not None
         candidate = result.candidate
+        try:
+            replay = self.store.record_replay_observation(
+                topic=record.topic,
+                partition=record.partition,
+                offset=record.offset,
+                offset_kind=record.offset_kind,
+                platform_run_id=str(candidate.pins.get("platform_run_id") or ""),
+                scenario_run_id=str(candidate.pins.get("scenario_run_id") or ""),
+                event_type=candidate.event_type,
+                event_id=candidate.event_id,
+                payload_hash=candidate.payload_hash,
+            )
+        except Exception as exc:
+            return self._finalize_result(
+                record=record,
+                platform_run_id=str(candidate.pins.get("platform_run_id") or "") or None,
+                scenario_run_id=str(candidate.pins.get("scenario_run_id") or "") or None,
+                event_type=candidate.event_type,
+                event_id=candidate.event_id,
+                result=DecisionLogAuditIntakeResult(
+                    accepted=False,
+                    reason_code=DLA_INTAKE_WRITE_FAILED,
+                    detail=str(exc)[:256],
+                    checkpoint_advanced=False,
+                    write_status=None,
+                ),
+            )
+
+        if replay.status == "DIVERGENCE":
+            return self._finalize_result(
+                record=record,
+                platform_run_id=str(candidate.pins.get("platform_run_id") or "") or None,
+                scenario_run_id=str(candidate.pins.get("scenario_run_id") or "") or None,
+                event_type=candidate.event_type,
+                event_id=candidate.event_id,
+                result=self._quarantine_without_checkpoint(
+                    record=record,
+                    reason_code=DLA_INTAKE_REPLAY_DIVERGENCE,
+                    detail=replay.detail,
+                    event_type=candidate.event_type,
+                    event_id=candidate.event_id,
+                    schema_version=candidate.schema_version,
+                    payload_hash=candidate.payload_hash,
+                    pins=candidate.pins,
+                    envelope=candidate.envelope,
+                ),
+            )
+
         try:
             write = self.store.append_candidate(
                 platform_run_id=str(candidate.pins.get("platform_run_id") or ""),
@@ -91,15 +155,67 @@ class DecisionLogAuditIntakeProcessor:
                 envelope=candidate.envelope,
             )
         except Exception as exc:
-            return DecisionLogAuditIntakeResult(
-                accepted=False,
-                reason_code=DLA_INTAKE_WRITE_FAILED,
-                detail=str(exc)[:256],
-                checkpoint_advanced=False,
-                write_status=None,
+            return self._finalize_result(
+                record=record,
+                platform_run_id=str(candidate.pins.get("platform_run_id") or "") or None,
+                scenario_run_id=str(candidate.pins.get("scenario_run_id") or "") or None,
+                event_type=candidate.event_type,
+                event_id=candidate.event_id,
+                result=DecisionLogAuditIntakeResult(
+                    accepted=False,
+                    reason_code=DLA_INTAKE_WRITE_FAILED,
+                    detail=str(exc)[:256],
+                    checkpoint_advanced=False,
+                    write_status=None,
+                ),
             )
 
         if write.status in {"NEW", "DUPLICATE"}:
+            try:
+                lineage = self.store.apply_lineage_candidate(
+                    platform_run_id=str(candidate.pins.get("platform_run_id") or ""),
+                    scenario_run_id=str(candidate.pins.get("scenario_run_id") or ""),
+                    event_type=candidate.event_type,
+                    event_id=candidate.event_id,
+                    schema_version=candidate.schema_version,
+                    payload_hash=candidate.payload_hash,
+                    payload=(candidate.envelope.get("payload") if isinstance(candidate.envelope.get("payload"), dict) else {}),
+                    source_ref=candidate.source_eb_ref.as_dict(),
+                )
+            except Exception as exc:
+                return self._finalize_result(
+                    record=record,
+                    platform_run_id=str(candidate.pins.get("platform_run_id") or "") or None,
+                    scenario_run_id=str(candidate.pins.get("scenario_run_id") or "") or None,
+                    event_type=candidate.event_type,
+                    event_id=candidate.event_id,
+                    result=DecisionLogAuditIntakeResult(
+                        accepted=False,
+                        reason_code=DLA_INTAKE_WRITE_FAILED,
+                        detail=str(exc)[:256],
+                        checkpoint_advanced=False,
+                        write_status=None,
+                    ),
+                )
+            if lineage.status == "CONFLICT":
+                return self._finalize_result(
+                    record=record,
+                    platform_run_id=str(candidate.pins.get("platform_run_id") or "") or None,
+                    scenario_run_id=str(candidate.pins.get("scenario_run_id") or "") or None,
+                    event_type=candidate.event_type,
+                    event_id=candidate.event_id,
+                    result=self._quarantine_and_checkpoint(
+                        record=record,
+                        reason_code=DLA_INTAKE_LINEAGE_CONFLICT,
+                        detail=f"decision_id={lineage.decision_id};unresolved={','.join(lineage.unresolved_reasons)}",
+                        event_type=candidate.event_type,
+                        event_id=candidate.event_id,
+                        schema_version=candidate.schema_version,
+                        payload_hash=candidate.payload_hash,
+                        pins=candidate.pins,
+                        envelope=candidate.envelope,
+                    ),
+                )
             checkpoint_advanced = self._advance_checkpoint_safely(
                 topic=record.topic,
                 partition=record.partition,
@@ -107,24 +223,115 @@ class DecisionLogAuditIntakeProcessor:
                 offset_kind=record.offset_kind,
                 event_ts_utc=candidate.source_ts_utc or None,
             )
-            return DecisionLogAuditIntakeResult(
-                accepted=True,
-                reason_code=result.reason_code,
-                detail=result.detail,
-                checkpoint_advanced=checkpoint_advanced,
-                write_status=write.status,
+            return self._finalize_result(
+                record=record,
+                platform_run_id=str(candidate.pins.get("platform_run_id") or "") or None,
+                scenario_run_id=str(candidate.pins.get("scenario_run_id") or "") or None,
+                event_type=candidate.event_type,
+                event_id=candidate.event_id,
+                result=DecisionLogAuditIntakeResult(
+                    accepted=True,
+                    reason_code=result.reason_code,
+                    detail=result.detail,
+                    checkpoint_advanced=checkpoint_advanced,
+                    write_status=write.status,
+                ),
             )
 
-        return self._quarantine_and_checkpoint(
+        return self._finalize_result(
             record=record,
-            reason_code=DLA_INTAKE_PAYLOAD_HASH_MISMATCH,
-            detail=f"event_type={candidate.event_type} event_id={candidate.event_id}",
+            platform_run_id=str(candidate.pins.get("platform_run_id") or "") or None,
+            scenario_run_id=str(candidate.pins.get("scenario_run_id") or "") or None,
             event_type=candidate.event_type,
             event_id=candidate.event_id,
-            schema_version=candidate.schema_version,
-            payload_hash=candidate.payload_hash,
-            pins=candidate.pins,
-            envelope=candidate.envelope,
+            result=self._quarantine_and_checkpoint(
+                record=record,
+                reason_code=DLA_INTAKE_PAYLOAD_HASH_MISMATCH,
+                detail=f"event_type={candidate.event_type} event_id={candidate.event_id}",
+                event_type=candidate.event_type,
+                event_id=candidate.event_id,
+                schema_version=candidate.schema_version,
+                payload_hash=candidate.payload_hash,
+                pins=candidate.pins,
+                envelope=candidate.envelope,
+            ),
+        )
+
+    def _finalize_result(
+        self,
+        *,
+        record: DlaBusInput,
+        platform_run_id: str | None,
+        scenario_run_id: str | None,
+        event_type: str | None,
+        event_id: str | None,
+        result: DecisionLogAuditIntakeResult,
+    ) -> DecisionLogAuditIntakeResult:
+        try:
+            self.store.record_intake_attempt(
+                topic=record.topic,
+                partition=record.partition,
+                offset=record.offset,
+                offset_kind=record.offset_kind,
+                platform_run_id=platform_run_id,
+                scenario_run_id=scenario_run_id,
+                event_type=event_type,
+                event_id=event_id,
+                accepted=result.accepted,
+                reason_code=result.reason_code,
+                write_status=result.write_status,
+                checkpoint_advanced=result.checkpoint_advanced,
+                detail=result.detail,
+            )
+        except Exception as exc:
+            logger.error("DLA intake attempt logging failed: %s", exc)
+        return result
+
+    def _quarantine_without_checkpoint(
+        self,
+        *,
+        record: DlaBusInput,
+        reason_code: str,
+        detail: str | None,
+        event_type: str,
+        event_id: str,
+        schema_version: str,
+        payload_hash: str | None,
+        pins: dict[str, Any] | None,
+        envelope: dict[str, Any] | None,
+    ) -> DecisionLogAuditIntakeResult:
+        try:
+            write = self.store.append_quarantine(
+                reason_code=reason_code,
+                detail=detail,
+                source_topic=record.topic,
+                source_partition=record.partition,
+                source_offset=record.offset,
+                source_offset_kind=record.offset_kind,
+                platform_run_id=str((pins or {}).get("platform_run_id") or "") or None,
+                scenario_run_id=str((pins or {}).get("scenario_run_id") or "") or None,
+                event_type=event_type or None,
+                event_id=event_id or None,
+                schema_version=schema_version or None,
+                payload_hash=payload_hash,
+                source_ts_utc=str((envelope or {}).get("ts_utc") or "") or None,
+                published_at_utc=record.published_at_utc,
+                envelope=envelope or {},
+            )
+        except Exception as exc:
+            return DecisionLogAuditIntakeResult(
+                accepted=False,
+                reason_code=DLA_INTAKE_WRITE_FAILED,
+                detail=str(exc)[:256],
+                checkpoint_advanced=False,
+                write_status=None,
+            )
+        return DecisionLogAuditIntakeResult(
+            accepted=False,
+            reason_code=reason_code,
+            detail=detail,
+            checkpoint_advanced=False,
+            write_status=write.status,
         )
 
     def _quarantine_and_checkpoint(
