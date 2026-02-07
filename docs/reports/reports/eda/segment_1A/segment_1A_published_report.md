@@ -272,6 +272,63 @@ The current bundle is therefore:
 - **Contract-valid and operationally stable**, but
 - **Under-dispersed in dispersion structure** (realism weakness at the coefficient level).
 
+#### 4.8E Coefficient realism plots (weak actual vs stronger expected shape)
+The coefficient-focused plot bundle is in `docs/reports/reports/eda/segment_1A/plots`:
+- `20_coeff_block_diagnostics.png`
+- `21_eta_contribution_scale_compare.png`
+- `22_phi_actual_vs_reference.png`
+- `23_phi_by_channel_actual.png`
+- `24_phi_strength_sensitivity.png`
+- `25_prej_actual_vs_reference.png`
+
+The comparison uses two profiles:
+- **Actual profile**: the implied `phi` from the sealed coefficient bundle.
+- **Illustrative strong reference**: a counterfactual `phi` profile (median-matched to actual) with realistic heterogeneity injected along standardized MCC/channel/ln(GDP) directions. This is not the current model output; it is a realism target shape used to show what stronger dispersion signal would look like.
+
+**Plot-by-plot interpretation**
+
+1) **Coefficient block diagnostics (`20_coeff_block_diagnostics.png`)**  
+The hurdle (`beta`) and NB-mean (`beta_mu`) blocks show visible spread, while the NB-dispersion block (`beta_phi`) is tightly concentrated near a narrow value band except for intercept/channel constants. This visual directly supports the claim that dispersion is the weak block, not the entire bundle.
+
+<img src="plots/20_coeff_block_diagnostics.png" width="640" alt="Coefficient block diagnostics for hurdle and NB bundles">
+
+2) **Contribution-scale comparison (`21_eta_contribution_scale_compare.png`)**  
+In eta space, dispersion contributions have very small variation relative to what would usually be expected for a heterogeneous synthetic world. The log-scale bars make this explicit: the channel and GDP terms in the dispersion predictor contribute almost no cross-merchant spread, while mean-model terms remain active.
+
+<img src="plots/21_eta_contribution_scale_compare.png" width="560" alt="Contribution scale comparison between dispersion and mean predictors">
+
+3) **Implied phi: actual vs reference (`22_phi_actual_vs_reference.png`)**  
+Actual implied `phi` is nearly a vertical spike around ~12. The reference profile is visibly broader while anchored to the same median. Metrics from `coeff_bundle_metrics.json`:
+- Actual: `CV(phi)=0.00053`, `P95/P05=1.00004`
+- Reference: `CV(phi)=0.25249`, `P95/P05=2.25334`
+This is the clearest visual/statistical evidence that the current bundle is under-dispersed.
+
+<img src="plots/22_phi_actual_vs_reference.png" width="560" alt="Actual versus reference implied phi distribution">
+
+4) **Channel split in actual phi (`23_phi_by_channel_actual.png`)**  
+`card_present` and `card_not_present` boxplots almost overlap completely. This confirms that channel is not creating meaningful variance heterogeneity through the dispersion path in this run.
+
+<img src="plots/23_phi_by_channel_actual.png" width="520" alt="Implied phi by channel under actual coefficients">
+
+5) **Sensitivity curve (`24_phi_strength_sensitivity.png`)**  
+This plot answers: "How much amplification would the current centered dispersion signal need before it looks materially heterogeneous?" The curve shows you need very large multipliers before `CV(phi)` and `P95/P05` approach plausible "strong" thresholds. That means this is not a small calibration miss; the learned dispersion signal is structurally weak.
+
+<img src="plots/24_phi_strength_sensitivity.png" width="600" alt="Sensitivity of dispersion heterogeneity to signal amplification">
+
+6) **Downstream rejection probability shape (`25_prej_actual_vs_reference.png`)**  
+With actual `phi`, `P(N<=1)` is narrowly concentrated. Under the reference profile, the same mean surface produces a wider rejection-probability distribution (heavier upper tail), which is more consistent with profile-dependent variability. This shows the practical consequence: weak dispersion coefficients suppress stochastic diversity in generated counts.
+
+<img src="plots/25_prej_actual_vs_reference.png" width="560" alt="NB2 rejection probability under actual and reference phi profiles">
+
+**What "strong" would have looked like in this section**
+- Not a different median `phi` level only, but a meaningfully wider distribution across merchant profiles.
+- Clearer separation of dispersion behavior by channel/MCC/GDP strata.
+- A non-trivial spread ratio and coefficient of variation in implied `phi`, without breaking stability.
+
+#### 4.8F Coefficient realism verdict (short)
+**Verdict:** **Mixed realism** - hurdle/mean blocks are statistically active (**B**), but dispersion realism is weak (**C/C+**) because implied `phi` is nearly constant across merchants in the actual bundle.  
+**Net coefficient realism verdict for 1A:** **B-** (operationally stable and coherent, but under-heterogeneous in variance structure).
+
 ## 5) Where realism is strong vs weak
 ### Strong realism signals
 - **Heavy‑tailed outlet distribution** (few giants, many small merchants).
