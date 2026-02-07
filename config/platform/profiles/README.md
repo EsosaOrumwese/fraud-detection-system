@@ -58,6 +58,10 @@ wiring:
     auth_allowlist_ref: path/to/allowlist.txt
     push_rate_limit_per_minute: 0
     store_read_failure_threshold: 3
+dl:
+  policy:
+    profiles_ref: config/platform/dl/policy_profiles_v0.yaml
+    profile_id: <local|local_parity|dev|prod>
 ```
 
 Notes:
@@ -68,6 +72,8 @@ Notes:
 - v0 traffic is **single‑mode per run** (baseline or fraud). Default is **fraud** (`s3_event_stream_with_fraud_6B`). Use `WSP_TRAFFIC_OUTPUT_IDS_REF` (e.g., `config/platform/wsp/traffic_outputs_baseline_v0.yaml`) to switch to baseline.
 - `context_output_ids_ref` defines **behavioural_context allowlist** (join surfaces streamed as separate EB topics).
 - `context_output_ids_baseline_ref` is used automatically when the traffic list is baseline; otherwise fraud context is used.
+- `dl.policy.profiles_ref` pins the versioned Degrade Ladder policy profile set.
+- `dl.policy.profile_id` selects the environment-specific DL policy profile.
 - `arrival_events_5B` and `s1_arrival_entities_6B` are streamed as **context topics**, not as traffic.
 - Wiring endpoints are placeholders; actual values come from env/secret store.
 - `${VAR}` placeholders are resolved from environment variables at load time.

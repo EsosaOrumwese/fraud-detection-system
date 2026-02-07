@@ -76,3 +76,7 @@ ofp:
     engine_contracts_root: docs/model_spec/data-engine/interface_pack/contracts
     poll_max_records: 200
     poll_sleep_seconds: 0.2
+dl:
+  policy:
+    profiles_ref: config/platform/dl/policy_profiles_v0.yaml
+    profile_id: local

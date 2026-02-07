@@ -1,0 +1,203 @@
+schema_version: v1
+policy_id: dl.policy.v0
+revision: r1
+profiles:
+  local:
+    mode_sequence: [NORMAL, DEGRADED_1, DEGRADED_2, FAIL_CLOSED]
+    thresholds:
+      decision_latency_slo_ms:
+        p50: 100
+        p95: 300
+        p99: 800
+        hard_timeout: 1500
+      join_wait_budget_ms:
+        min: 600
+        max: 900
+      hysteresis:
+        downshift_immediate: true
+        upshift_quiet_period_seconds: 30
+      signal_freshness_seconds:
+        required_max_age: 120
+    modes:
+      NORMAL:
+        capabilities_mask:
+          allow_ieg: true
+          allowed_feature_groups: [core_features, velocity, entity_graph]
+          allow_model_primary: true
+          allow_model_stage2: true
+          allow_fallback_heuristics: true
+          action_posture: NORMAL
+      DEGRADED_1:
+        capabilities_mask:
+          allow_ieg: true
+          allowed_feature_groups: [core_features, velocity]
+          allow_model_primary: true
+          allow_model_stage2: false
+          allow_fallback_heuristics: true
+          action_posture: STEP_UP_ONLY
+      DEGRADED_2:
+        capabilities_mask:
+          allow_ieg: false
+          allowed_feature_groups: [core_features]
+          allow_model_primary: true
+          allow_model_stage2: false
+          allow_fallback_heuristics: true
+          action_posture: STEP_UP_ONLY
+      FAIL_CLOSED:
+        capabilities_mask:
+          allow_ieg: false
+          allowed_feature_groups: []
+          allow_model_primary: false
+          allow_model_stage2: false
+          allow_fallback_heuristics: true
+          action_posture: STEP_UP_ONLY
+
+  local_parity:
+    mode_sequence: [NORMAL, DEGRADED_1, DEGRADED_2, FAIL_CLOSED]
+    thresholds:
+      decision_latency_slo_ms:
+        p50: 100
+        p95: 300
+        p99: 800
+        hard_timeout: 1500
+      join_wait_budget_ms:
+        min: 600
+        max: 900
+      hysteresis:
+        downshift_immediate: true
+        upshift_quiet_period_seconds: 60
+      signal_freshness_seconds:
+        required_max_age: 120
+    modes:
+      NORMAL:
+        capabilities_mask:
+          allow_ieg: true
+          allowed_feature_groups: [core_features, velocity, entity_graph]
+          allow_model_primary: true
+          allow_model_stage2: true
+          allow_fallback_heuristics: true
+          action_posture: NORMAL
+      DEGRADED_1:
+        capabilities_mask:
+          allow_ieg: true
+          allowed_feature_groups: [core_features, velocity]
+          allow_model_primary: true
+          allow_model_stage2: false
+          allow_fallback_heuristics: true
+          action_posture: STEP_UP_ONLY
+      DEGRADED_2:
+        capabilities_mask:
+          allow_ieg: false
+          allowed_feature_groups: [core_features]
+          allow_model_primary: true
+          allow_model_stage2: false
+          allow_fallback_heuristics: true
+          action_posture: STEP_UP_ONLY
+      FAIL_CLOSED:
+        capabilities_mask:
+          allow_ieg: false
+          allowed_feature_groups: []
+          allow_model_primary: false
+          allow_model_stage2: false
+          allow_fallback_heuristics: true
+          action_posture: STEP_UP_ONLY
+
+  dev:
+    mode_sequence: [NORMAL, DEGRADED_1, DEGRADED_2, FAIL_CLOSED]
+    thresholds:
+      decision_latency_slo_ms:
+        p50: 100
+        p95: 300
+        p99: 800
+        hard_timeout: 1500
+      join_wait_budget_ms:
+        min: 600
+        max: 900
+      hysteresis:
+        downshift_immediate: true
+        upshift_quiet_period_seconds: 120
+      signal_freshness_seconds:
+        required_max_age: 120
+    modes:
+      NORMAL:
+        capabilities_mask:
+          allow_ieg: true
+          allowed_feature_groups: [core_features, velocity, entity_graph]
+          allow_model_primary: true
+          allow_model_stage2: true
+          allow_fallback_heuristics: true
+          action_posture: NORMAL
+      DEGRADED_1:
+        capabilities_mask:
+          allow_ieg: true
+          allowed_feature_groups: [core_features, velocity]
+          allow_model_primary: true
+          allow_model_stage2: false
+          allow_fallback_heuristics: true
+          action_posture: STEP_UP_ONLY
+      DEGRADED_2:
+        capabilities_mask:
+          allow_ieg: false
+          allowed_feature_groups: [core_features]
+          allow_model_primary: true
+          allow_model_stage2: false
+          allow_fallback_heuristics: true
+          action_posture: STEP_UP_ONLY
+      FAIL_CLOSED:
+        capabilities_mask:
+          allow_ieg: false
+          allowed_feature_groups: []
+          allow_model_primary: false
+          allow_model_stage2: false
+          allow_fallback_heuristics: true
+          action_posture: STEP_UP_ONLY
+
+  prod:
+    mode_sequence: [NORMAL, DEGRADED_1, DEGRADED_2, FAIL_CLOSED]
+    thresholds:
+      decision_latency_slo_ms:
+        p50: 100
+        p95: 300
+        p99: 800
+        hard_timeout: 1500
+      join_wait_budget_ms:
+        min: 600
+        max: 900
+      hysteresis:
+        downshift_immediate: true
+        upshift_quiet_period_seconds: 180
+      signal_freshness_seconds:
+        required_max_age: 120
+    modes:
+      NORMAL:
+        capabilities_mask:
+          allow_ieg: true
+          allowed_feature_groups: [core_features, velocity, entity_graph]
+          allow_model_primary: true
+          allow_model_stage2: true
+          allow_fallback_heuristics: true
+          action_posture: NORMAL
+      DEGRADED_1:
+        capabilities_mask:
+          allow_ieg: true
+          allowed_feature_groups: [core_features, velocity]
+          allow_model_primary: true
+          allow_model_stage2: false
+          allow_fallback_heuristics: true
+          action_posture: STEP_UP_ONLY
+      DEGRADED_2:
+        capabilities_mask:
+          allow_ieg: false
+          allowed_feature_groups: [core_features]
+          allow_model_primary: true
+          allow_model_stage2: false
+          allow_fallback_heuristics: true
+          action_posture: STEP_UP_ONLY
+      FAIL_CLOSED:
+        capabilities_mask:
+          allow_ieg: false
+          allowed_feature_groups: []
+          allow_model_primary: false
+          allow_model_stage2: false
+          allow_fallback_heuristics: true
+          action_posture: STEP_UP_ONLY

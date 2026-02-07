@@ -79,3 +79,98 @@ Updated `docs/model_spec/platform/implementation_maps/degrade_ladder.build_plan.
 - Kept control-bus posture emission explicitly non-critical for correctness (visibility-only lane).
 
 ---
+
+## Entry: 2026-02-07 02:57:10 — Phase 1 implementation plan (DL contracts + policy profile authority)
+
+### Problem / goal
+User requested implementation of DL Phase 1. Current repo has RTDL payload contracts but no DL runtime package and no pinned `config/platform/dl` policy profile artifact. Phase 1 requires:
+1. degrade posture contract completeness and validity,
+2. policy profile format pinned + versioned,
+3. implementation-facing loaders/validators to prevent drift.
+
+### Inputs / authorities
+- `docs/model_spec/platform/implementation_maps/degrade_ladder.build_plan.md` (Phase 1 DoD)
+- `docs/model_spec/platform/pre-design_decisions/real-time_decision_loop.pre-design_decision.md`
+- `docs/model_spec/platform/contracts/real_time_decision_loop/degrade_posture.schema.yaml`
+- platform profile structure under `config/platform/profiles/*.yaml`
+
+### Decision trail (live)
+1. Implement Phase 1 as **contract + config scaffolding**, not evaluator/runtime yet (that belongs to later DL phases).
+2. Add first-class DL package (`src/fraud_detection/degrade_ladder`) with:
+   - contract validator/model helpers for `DegradeDecision`,
+   - policy profile loader/validator for versioned `policy_profiles_v0.yaml`.
+3. Pin policy profiles in `config/platform/dl/policy_profiles_v0.yaml` and reference them from platform profile files to keep ladder wiring explicit.
+4. Add focused tests under `tests/services/degrade_ladder` to prove:
+   - contract shape validity and required fields,
+   - policy profile loading and mode/mask completeness.
+5. Fix existing schema formatting defect in `degrade_posture.schema.yaml` discovered during Phase 1 read-through (mis-indented `evidence_refs`).
+
+### Planned file edits
+- `src/fraud_detection/degrade_ladder/__init__.py` (new)
+- `src/fraud_detection/degrade_ladder/contracts.py` (new)
+- `src/fraud_detection/degrade_ladder/config.py` (new)
+- `config/platform/dl/policy_profiles_v0.yaml` (new)
+- `config/platform/dl/README.md` (new)
+- `config/platform/profiles/local.yaml` (dl policy refs)
+- `config/platform/profiles/local_parity.yaml` (dl policy refs)
+- `config/platform/profiles/dev.yaml` (dl policy refs)
+- `config/platform/profiles/prod.yaml` (dl policy refs)
+- `config/platform/profiles/README.md` (shape update)
+- `docs/model_spec/platform/contracts/real_time_decision_loop/degrade_posture.schema.yaml` (schema fix)
+- `tests/services/degrade_ladder/test_phase1_contracts.py` (new)
+- `tests/services/degrade_ladder/test_phase1_policy_profiles.py` (new)
+
+### Validation plan
+- `python -m pytest tests/services/degrade_ladder -q`
+- optional parse check for `degrade_posture.schema.yaml` via tests to ensure valid YAML + required keys.
+
+---
+
+## Entry: 2026-02-07 03:06:23 — DL Phase 1 implemented (contracts + policy profile authority)
+
+### What was implemented
+1. Added DL Phase 1 runtime scaffolding:
+   - `src/fraud_detection/degrade_ladder/contracts.py`
+   - `src/fraud_detection/degrade_ladder/config.py`
+   - `src/fraud_detection/degrade_ladder/__init__.py`
+2. Added versioned DL policy profile artifact:
+   - `config/platform/dl/policy_profiles_v0.yaml`
+   - `config/platform/dl/README.md`
+3. Wired platform profiles to explicit DL policy profile refs:
+   - `config/platform/profiles/local.yaml`
+   - `config/platform/profiles/local_parity.yaml`
+   - `config/platform/profiles/dev.yaml`
+   - `config/platform/profiles/prod.yaml`
+   - `config/platform/profiles/README.md`
+4. Fixed contract schema defect in:
+   - `docs/model_spec/platform/contracts/real_time_decision_loop/degrade_posture.schema.yaml`
+   (`evidence_refs` indentation under properties was invalid and is now corrected).
+5. Added Phase 1 tests:
+   - `tests/services/degrade_ladder/test_phase1_contracts.py`
+   - `tests/services/degrade_ladder/test_phase1_policy_profiles.py`
+
+### Validation results
+- `python -m pytest tests/services/degrade_ladder -q` -> `7 passed`
+- Parsed all platform profile YAML files post-edit to verify syntax integrity (`4` files parsed).
+
+### Phase closure assessment
+- DL Phase 1 DoD is satisfied at component scope:
+  - contract fields pinned and validated,
+  - mode/mask vocabulary enforced,
+  - policy profile format pinned/versioned with environment profile references,
+  - tests proving contract and profile loading behavior.
+
+---
+
+## Entry: 2026-02-07 03:08:40 — Corrective hardening: contract helper payload coercion
+
+### Issue
+Initial `DegradeDecision.from_payload` used eager `dict(...)` coercion for nested payloads, which could raise non-contract exceptions on malformed non-mapping inputs.
+
+### Correction
+- Updated `src/fraud_detection/degrade_ladder/contracts.py` to pass nested payloads directly into typed validators so malformed shapes consistently raise `DegradeContractError`.
+
+### Validation
+- `python -m pytest tests/services/degrade_ladder -q` -> `7 passed`
+
+---

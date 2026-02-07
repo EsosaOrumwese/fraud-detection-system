@@ -19,6 +19,7 @@ Provide an executable, phase-by-phase DL build plan aligned to platform Phase 4.
 
 ### Phase 1 — DL contract + policy profile authority
 **Intent:** pin DL output contract and the policy profile surface.
+**Status:** completed (2026-02-07, component scope).
 
 **DoD checklist:**
 - `DegradeDecision` contract is pinned with:
@@ -27,6 +28,9 @@ Provide an executable, phase-by-phase DL build plan aligned to platform Phase 4.
   `NORMAL -> DEGRADED_1 -> DEGRADED_2 -> FAIL_CLOSED`.
 - Capability mask vocabulary is pinned (`allow_ieg`, `allowed_feature_groups`, `allow_model_primary`, `allow_model_stage2`, `allow_fallback_heuristics`, `action_posture`).
 - Policy profile schema for thresholds/hysteresis is versioned and fail-closed on invalid config.
+- Evidence:
+  - `python -m pytest tests/services/degrade_ladder -q` -> `7 passed`
+  - `config/platform/dl/policy_profiles_v0.yaml`
 
 ### Phase 2 — Signal intake + snapshot normalization
 **Intent:** build deterministic input snapshots for posture evaluation.
