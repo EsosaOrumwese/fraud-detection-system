@@ -327,7 +327,7 @@ If 1B is improved to provide richer site placement, 2A should move from **C → 
 ---
 
 ## 13) Visual diagnostics (core realism lens)
-Below are the four core plots requested (1, 2, 3, 8 equivalents), embedded and interpreted in detail. These are meant to expose **where realism breaks** rather than simply counting rows.
+Below are the refreshed core plots plus added diagnostics. The goal is to expose **where realism breaks** (and why), not just show row counts.
 
 ### 13.1 Country spatial spread vs site count
 <img src="plots/1_bbox_area_vs_count.png" width="520" alt="Country spatial spread vs site count">
@@ -339,7 +339,9 @@ This plot is **clear and informative**. It compares the **number of sites per co
 <img src="plots/2_tzid_diversity_vs_count.png" width="520" alt="TZID diversity vs site count">
 
 **Assessment:**  
-This plot is **presentable and now readable** (jitter used to separate the 1 vs 2 bands). It shows that **nearly all countries have only 1 or 2 distinct tzids**, even when they have hundreds or thousands of sites. The color encoding (log10 bbox area) indicates that many countries with **large site counts and very small spatial spread** still resolve to a **single tzid**. This strongly supports the conclusion that timezone realism is constrained by **point‑clustered geography**, not by 2A logic. If we want more realistic tzid diversity, the spatial spread in 1B must be widened.
+This refreshed plot keeps integer y semantics explicit (distinct tzids are still 1 or 2 in this run) while using light jitter only for visibility. It shows that countries with large site counts still mostly sit on the `1` band, with fewer on the `2` band.  
+The color channel (`log10 bbox area`) helps explain why: small-area countries cluster on `1`, while countries with broader spread are more likely to reach `2` tzids.  
+This supports the core conclusion that timezone realism is constrained by **spatial collapse upstream**, not by 2A assignment mechanics.
 
 ### 13.3 Country small‑multiples (local lat/lon spread)
 <img src="plots/3_country_small_multiples.png" width="520" alt="Country small multiples lat/lon spread">
@@ -351,9 +353,41 @@ This is the **most revealing plot**. Each subplot shows the local lat/lon spread
 <img src="plots/4_country_tzid_heatmap.png" width="520" alt="Country by TZID heatmap">
 
 **Assessment:**  
-The heatmap is **clean and interpretable**. It shows an almost **one‑to‑one mapping** between countries and tzids: each top country is dominated by a single tzid. This is especially visible for NL → America/Kralendijk and NO → Arctic/Longyearbyen, which are highly unrealistic for mainland national distributions. The heatmap makes the **country‑tzid pairing bias** explicit and highlights that timezone variety is extremely limited across the dataset.
+This refreshed matrix is now **row-normalized share** (not raw counts), which makes dominance directly interpretable. Most country rows are nearly one-hot: one tzid captures almost all mass.  
+The `OTHER` column reveals countries whose secondary mass does not fall into the top global tzid set, but even there top-1 dominance remains high.  
+This matrix is the clearest evidence that the dataset’s timezone assignment has low within-country diversity, consistent with the `tzid_count` result (54 countries at exactly one tzid).
+
+### 13.5 Country top-1 TZID share
+<img src="plots/5_country_top1_tz_share.png" width="520" alt="Country top-1 tzid share">
+
+**Assessment:**  
+This plot quantifies the dominance seen in the matrix. The median top-1 share is ~1.00, meaning at least half of countries are effectively single-timezone in assigned sites.  
+Only a small tail of countries has materially lower top-1 share. This is a direct realism risk because national traffic normally has broader timezone mixing in larger geographies.
+
+### 13.6 TZID entropy vs site count
+<img src="plots/6_country_tz_entropy_vs_site_count.png" width="520" alt="TZID entropy vs site count">
+
+**Assessment:**  
+Normalized entropy is 0 for many countries across a wide site-count range, showing that additional sites do not reliably increase timezone diversity.  
+The non-zero entropy points exist but are sparse; this indicates diversity is present only in a subset of countries, not as a general scaling behavior.
+
+### 13.7 Country TZID dominance gap (top-1 minus top-2)
+<img src="plots/7_country_top1_top2_gap.png" width="520" alt="Country tzid dominance gap">
+
+**Assessment:**  
+This plot measures concentration strength even when two tzids exist. Many countries still have a large top1-top2 gap, and countries with a single tzid collapse to gap=1.  
+Together with top-1 share, this confirms that the issue is not just “low tzid count”; it is also strong imbalance where a second tzid exists.
+
+### 13.8 Country tzid-count diagnostics
+<img src="plots/8_country_tzid_count_ecdf.png" width="680" alt="Country tzid-count diagnostics">
+
+**Assessment:**  
+The histogram/ECDF pair gives the fastest global summary: 54/77 countries (about 70%) have exactly 1 tzid and the remaining 23 have 2.  
+This is a highly compressed support for a global synthetic dataset and explains why most other visuals show one-timezone dominance.
 
 ---
 
 ## 14) Visual takeaway (realism lens)
-Across all four plots, the consistent pattern is: **high site counts with tiny spatial spread → single tzid per country**. The 2A outputs are internally coherent, but the geography feeding them is too collapsed, causing unrealistic timezone diversity and unnatural country‑tzid pairings. The fix is upstream: broaden the spatial distribution in 1B (and/or add explicit multi‑city sampling per country) so 2A can express realistic tzid variation.
+Across the refreshed and added plots, the consistent pattern is: **high site counts with limited spatial spread -> low tzid support and strong top-1 timezone dominance**.  
+The 2A outputs remain internally coherent (assignment logic works), but the assigned timezone diversity is too compressed for stronger realism.  
+The fix remains upstream: broaden 1B spatial spread and multi-city sampling so 2A can map sites into richer, country-appropriate timezone mixtures.
