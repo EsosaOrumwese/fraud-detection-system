@@ -40,6 +40,24 @@ class ActionLedgerWriteResult:
     record: ActionLedgerRecord
 
 
+@dataclass(frozen=True)
+class ActionSemanticLedgerRecord:
+    platform_run_id: str
+    scenario_run_id: str
+    semantic_key: str
+    idempotency_key: str
+    action_id: str
+    decision_id: str
+    payload_hash: str
+    first_seen_at_utc: str
+
+
+@dataclass(frozen=True)
+class ActionSemanticLedgerWriteResult:
+    status: str
+    record: ActionSemanticLedgerRecord
+
+
 def build_storage_layout(config: Mapping[str, Any] | None = None) -> ActionLayerStorageLayout:
     mapped = dict(config or {})
     ledger_locator_raw = str(mapped.get("ledger_locator") or "").strip()
@@ -143,6 +161,83 @@ class ActionLedgerStore:
                 return ActionLedgerWriteResult(status="HASH_MISMATCH", record=existing)
             return ActionLedgerWriteResult(status="DUPLICATE", record=existing)
 
+    def register_semantic_intent(
+        self,
+        *,
+        platform_run_id: str,
+        scenario_run_id: str,
+        semantic_key: str,
+        idempotency_key: str,
+        action_id: str,
+        decision_id: str,
+        payload_hash: str,
+        first_seen_at_utc: str,
+    ) -> ActionSemanticLedgerWriteResult:
+        params = (
+            platform_run_id,
+            scenario_run_id,
+            semantic_key,
+            idempotency_key,
+            action_id,
+            decision_id,
+            payload_hash,
+            first_seen_at_utc,
+        )
+        with self._connect() as conn:
+            row = _query_one(
+                conn,
+                self.backend,
+                """
+                SELECT idempotency_key, action_id, decision_id, payload_hash, first_seen_at_utc
+                FROM al_semantic_ledger
+                WHERE platform_run_id = {p1} AND scenario_run_id = {p2} AND semantic_key = {p3}
+                """,
+                params[:3],
+            )
+            if row is None:
+                _execute(
+                    conn,
+                    self.backend,
+                    """
+                    INSERT INTO al_semantic_ledger (
+                        platform_run_id,
+                        scenario_run_id,
+                        semantic_key,
+                        idempotency_key,
+                        action_id,
+                        decision_id,
+                        payload_hash,
+                        first_seen_at_utc
+                    ) VALUES ({p1}, {p2}, {p3}, {p4}, {p5}, {p6}, {p7}, {p8})
+                    """,
+                    params,
+                )
+                record = ActionSemanticLedgerRecord(
+                    platform_run_id=platform_run_id,
+                    scenario_run_id=scenario_run_id,
+                    semantic_key=semantic_key,
+                    idempotency_key=idempotency_key,
+                    action_id=action_id,
+                    decision_id=decision_id,
+                    payload_hash=payload_hash,
+                    first_seen_at_utc=first_seen_at_utc,
+                )
+                return ActionSemanticLedgerWriteResult(status="NEW", record=record)
+
+            existing = ActionSemanticLedgerRecord(
+                platform_run_id=platform_run_id,
+                scenario_run_id=scenario_run_id,
+                semantic_key=semantic_key,
+                idempotency_key=str(row[0]),
+                action_id=str(row[1]),
+                decision_id=str(row[2]),
+                payload_hash=str(row[3]),
+                first_seen_at_utc=str(row[4]),
+            )
+            if existing.payload_hash != payload_hash:
+                return ActionSemanticLedgerWriteResult(status="HASH_MISMATCH", record=existing)
+            return ActionSemanticLedgerWriteResult(status="DUPLICATE", record=existing)
+
     def _init_schema(self) -> None:
         with self._connect() as conn:
             _execute_script(
@@ -163,6 +258,22 @@ class ActionLedgerStore:
                     ON al_intent_ledger (platform_run_id, scenario_run_id, action_id);
                 CREATE INDEX IF NOT EXISTS ix_al_intent_ledger_decision
                     ON al_intent_ledger (platform_run_id, scenario_run_id, decision_id);
+
+                CREATE TABLE IF NOT EXISTS al_semantic_ledger (
+                    platform_run_id TEXT NOT NULL,
+                    scenario_run_id TEXT NOT NULL,
+                    semantic_key TEXT NOT NULL,
+                    idempotency_key TEXT NOT NULL,
+                    action_id TEXT NOT NULL,
+                    decision_id TEXT NOT NULL,
+                    payload_hash TEXT NOT NULL,
+                    first_seen_at_utc TEXT NOT NULL,
+                    PRIMARY KEY (platform_run_id, scenario_run_id, semantic_key)
+                );
+                CREATE INDEX IF NOT EXISTS ix_al_semantic_ledger_idempotency
+                    ON al_semantic_ledger (platform_run_id, scenario_run_id, idempotency_key);
+                CREATE INDEX IF NOT EXISTS ix_al_semantic_ledger_decision
+                    ON al_semantic_ledger (platform_run_id, scenario_run_id, decision_id);
                 """,
             )
 
@@ -222,4 +333,3 @@ def _execute_script(conn: Any, backend: str, sql: str) -> None:
         cur.execute(statement)
     conn.commit()
     cur.close()
-

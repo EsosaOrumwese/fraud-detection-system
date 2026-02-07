@@ -52,6 +52,15 @@ Provide an executable, component-scoped AL plan aligned to platform `Phase 4.5` 
 - Duplicate intents with same payload do not re-execute effects.
 - Same semantic key with payload hash mismatch is anomaly/quarantine (never overwrite).
 - Idempotency state is durable and scoped by run pins.
+**Evidence (Phase 2):**
+- Code:
+  - `src/fraud_detection/action_layer/idempotency.py`
+  - `src/fraud_detection/action_layer/storage.py` (`al_semantic_ledger` persistence path)
+  - `src/fraud_detection/action_layer/__init__.py`
+- Tests:
+  - `tests/services/action_layer/test_phase2_idempotency.py`
+- Validation:
+  - `$env:PYTHONPATH='.;src'; python -m pytest tests/services/action_layer -q`
 
 ### Phase 3 — Authorization + execution posture gates
 **Intent:** make execution policy explicit and safe.
@@ -109,4 +118,5 @@ Provide an executable, component-scoped AL plan aligned to platform `Phase 4.5` 
 
 ## Status (rolling)
 - Phase 1 (`Intake contracts + pin/shape validation`): completed on `2026-02-07`.
-- Current focus: Phase 2 (`Semantic idempotency ledger`).
+- Phase 2 (`Semantic idempotency ledger`): completed on `2026-02-07`.
+- Current focus: Phase 3 (`Authorization + execution posture gates`).
