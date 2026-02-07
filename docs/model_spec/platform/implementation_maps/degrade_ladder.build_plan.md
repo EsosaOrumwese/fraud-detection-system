@@ -62,12 +62,18 @@ Provide an executable, phase-by-phase DL build plan aligned to platform Phase 4.
 
 ### Phase 4 — Posture store + serve surface
 **Intent:** provide DF a stable, low-latency posture read boundary.
+**Status:** completed (2026-02-07, component scope).
 
 **DoD checklist:**
 - Derived posture store persists current posture with `posture_seq` and policy stamps.
 - Serve surface returns posture + provenance and explicit staleness metadata.
 - Commit point is transactionally defined before posture can be served as current.
 - Store corruption/read-write failure path is fail-safe (serve forced fail-closed if trust is broken).
+- Evidence:
+  - `python -m pytest tests/services/degrade_ladder -q` -> `23 passed`
+  - `src/fraud_detection/degrade_ladder/store.py`
+  - `src/fraud_detection/degrade_ladder/serve.py`
+  - `tests/services/degrade_ladder/test_phase4_store_and_serve.py`
 
 ### Phase 5 — Health gate + self-trust clamp
 **Intent:** make DL explicitly self-protecting under degraded internals.
@@ -108,4 +114,4 @@ Provide an executable, phase-by-phase DL build plan aligned to platform Phase 4.
   DL component green for posture authority/serving; DF decision coupling and AL/DLA downstream closure remain tracked under platform Phase 4.4/4.5 gates.
 
 ## Status (rolling)
-- Current focus: Phase 4 planning/implementation (posture store + serve surface).
+- Current focus: Phase 5 planning/implementation (health gate + self-trust clamp).

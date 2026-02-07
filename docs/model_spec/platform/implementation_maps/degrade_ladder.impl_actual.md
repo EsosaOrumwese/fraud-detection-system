@@ -344,3 +344,121 @@ Phase 3 is now implemented and validated at component scope.
   - forced fail-closed wrapper on evaluator/policy failure.
 
 ---
+
+## Entry: 2026-02-07 03:29:49 — Phase 4 implementation plan (posture store + serve surface)
+
+### Problem / goal
+Proceed to DL Phase 4 and implement the first operational serving boundary DF can consume safely:
+1. durable current-posture store with `posture_seq` + policy stamps,
+2. explicit transaction/commit semantics,
+3. serve API with freshness metadata and fail-safe fallback on store trust failures.
+
+### Authorities / inputs
+- `docs/model_spec/platform/implementation_maps/degrade_ladder.build_plan.md` (Phase 4 DoD)
+- `docs/model_spec/platform/pre-design_decisions/real-time_decision_loop.pre-design_decision.md`
+- `docs/model_spec/platform/component-specific/degrade_ladder.design-authority.md` (S5/S6 expectations)
+- existing DL modules (`contracts.py`, `config.py`, `signals.py`, `evaluator.py`)
+- existing repository patterns for dual SQLite/Postgres stores (`online_feature_plane/store.py`, `scenario_runner/authority.py`)
+
+### Decision trail (live)
+1. Implement DL posture store as a dedicated module (`store.py`) with:
+   - `build_store(dsn, stream_id)` backend selector,
+   - SQLite + Postgres implementations,
+   - a strict store contract that only serves committed/valid records.
+2. Persist one authoritative current row per scope key with:
+   - full `DegradeDecision` payload,
+   - `policy_*` stamps and `updated_at_utc`,
+   - monotonic update rule on `posture_seq`.
+3. Define transaction boundary explicitly:
+   - each write operation uses a DB transaction and returns only after commit; read path only observes committed rows.
+4. Fail-safe trust posture:
+   - malformed row payload, sequence regression, or unreadable/corrupt store state is surfaced as a trusted-state error for serving.
+5. Implement serve surface (`serve.py`) as a deterministic API:
+   - `get_current_posture(scope_key, decision_time_utc, max_age_seconds, policy_bundle?)`,
+   - returns posture + staleness metadata (`age_seconds`, `is_stale`, `staleness_reason`, `served_at_utc`),
+   - if store missing/corrupt/unreadable: return explicit `FAIL_CLOSED` decision with reason evidence.
+6. Keep Phase 4 scope tight:
+   - no outbox/control bus emission (Phase 6),
+   - no health classifier state machine (Phase 5),
+   - no DF wiring yet; only component-level serving contract.
+
+### Planned edits
+- `src/fraud_detection/degrade_ladder/store.py` (new)
+- `src/fraud_detection/degrade_ladder/serve.py` (new)
+- `src/fraud_detection/degrade_ladder/__init__.py` (exports)
+- `tests/services/degrade_ladder/test_phase4_store_and_serve.py` (new)
+- `docs/model_spec/platform/implementation_maps/degrade_ladder.build_plan.md` (mark Phase 4 status + evidence if green)
+
+### Invariants to enforce
+- One current posture per `(stream_id, scope_key)`.
+- `posture_seq` cannot regress.
+- Store payload must deserialize through `DegradeDecision.from_payload`; invalid payloads are treated as trust break.
+- Serve surface never returns permissive posture when trust is broken; must clamp `FAIL_CLOSED`.
+- Staleness is computed against caller-supplied `decision_time_utc` (no hidden now).
+
+### Validation plan
+- `python -m pytest tests/services/degrade_ladder -q`
+- direct assertions on:
+  - transactional write/read behavior,
+  - monotonic sequence enforcement,
+  - freshness metadata correctness,
+  - forced fail-closed on missing/corrupt store state.
+
+---
+
+## Entry: 2026-02-07 03:33:07 — DL Phase 4 implemented (posture store + serve surface)
+
+### Implementation summary
+Phase 4 is now implemented and validated at component scope.
+
+### What was implemented
+1. Added current-posture store module:
+   - `src/fraud_detection/degrade_ladder/store.py`
+   - `build_store(dsn, stream_id)` selector with SQLite/Postgres backends.
+   - `dl_current_posture` schema with persisted decision payload + policy stamps (`policy_id`, `policy_revision`, `policy_content_digest`) and `posture_seq`.
+2. Added transactional commit semantics:
+   - `commit_current(scope_key, decision)` executes under DB transaction with sequence checks:
+     - reject sequence regression (`POSTURE_SEQ_REGRESSION`),
+     - reject same-seq different-decision collisions,
+     - return deterministic commit status (`inserted`, `updated`, `noop`).
+3. Added trust-checked read semantics:
+   - `read_current(scope_key)` parses stored `decision_json` via `DegradeDecision.from_payload`.
+   - row columns are cross-validated against decoded decision payload.
+   - malformed or inconsistent rows raise `DlPostureTrustError` (explicit trust break, not silent read).
+4. Added serving boundary:
+   - `src/fraud_detection/degrade_ladder/serve.py`
+   - `DlCurrentPostureService.get_current_posture(...)` returns:
+     - posture decision,
+     - source/trust state,
+     - `age_seconds`, `is_stale`, and `staleness_reason`,
+     - serve timestamp metadata.
+   - stale, missing, or store-error conditions clamp to explicit `FAIL_CLOSED` with provenance reasons.
+5. Exposed Phase 4 APIs:
+   - updated `src/fraud_detection/degrade_ladder/__init__.py` with store/serve exports.
+6. Added Phase 4 tests:
+   - `tests/services/degrade_ladder/test_phase4_store_and_serve.py`
+   - validates commit/read roundtrip, sequence regression protection, freshness metadata behavior, and fail-safe clamp on corrupt store rows.
+
+### Invariants enforced
+- One current posture row per `(stream_id, scope_key)`.
+- `posture_seq` is monotonic and cannot regress.
+- Only contract-valid decisions are served from the store.
+- Store trust failures and stale posture never produce permissive serve responses; they force fail-closed.
+- Staleness is computed against explicit caller-supplied `decision_time_utc`.
+
+### Security and production posture notes
+- No credential-bearing artifacts introduced.
+- Store corruption path is explicit and conservative (`DlPostureTrustError` -> serve fail-closed).
+- Postgres backend included to preserve env-ladder operability while retaining local-parity SQLite support.
+
+### Validation evidence
+- `python -m pytest tests/services/degrade_ladder -q` -> `23 passed`.
+
+### Phase closure assessment
+- Phase 4 DoD is satisfied at component scope:
+  - derived posture store persisted with policy/posture stamps,
+  - serve surface returns posture + staleness metadata,
+  - transactional commit boundary defined and tested,
+  - corruption/read failure path enforces fail-safe output.
+
+---

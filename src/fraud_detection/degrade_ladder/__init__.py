@@ -29,6 +29,17 @@ from .signals import (
     build_signal_snapshot_from_payloads,
     normalize_signal_samples,
 )
+from .serve import DlCurrentPostureService, DlServeError, DlServeResult
+from .store import (
+    DlCommitResult,
+    DlCurrentPosture,
+    DlPostureStore,
+    DlPostureStoreError,
+    DlPostureTrustError,
+    PostgresDlPostureStore,
+    SqliteDlPostureStore,
+    build_store,
+)
 
 __all__ = [
     "ACTION_POSTURES",
@@ -38,9 +49,17 @@ __all__ = [
     "DegradeContractError",
     "DegradeDecision",
     "DlConfigError",
+    "DlCommitResult",
+    "DlCurrentPosture",
+    "DlCurrentPostureService",
     "DlEvaluationError",
     "DlPolicyBundle",
     "DlPolicyProfile",
+    "DlPostureStore",
+    "DlPostureStoreError",
+    "DlPostureTrustError",
+    "DlServeError",
+    "DlServeResult",
     "DlScope",
     "DlSignalPolicy",
     "DlSignalError",
@@ -55,7 +74,10 @@ __all__ = [
     "evaluate_posture_safe",
     "normalize_signal_samples",
     "PolicyRev",
+    "PostgresDlPostureStore",
     "resolve_scope",
     "SCOPE_KINDS",
+    "SqliteDlPostureStore",
+    "build_store",
     "load_policy_bundle",
 ]
