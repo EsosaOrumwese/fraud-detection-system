@@ -120,6 +120,7 @@ Provide an executable, phase-by-phase DL build plan aligned to platform Phase 4.
 
 ### Phase 8 — Validation, parity proof, and closure boundary
 **Intent:** prove DL component readiness and define integration handoff.
+**Status:** completed (2026-02-07, component scope).
 
 **DoD checklist:**
 - Unit tests cover evaluator determinism, mode transitions, hysteresis, and fail-closed clamps.
@@ -128,6 +129,14 @@ Provide an executable, phase-by-phase DL build plan aligned to platform Phase 4.
 - Local-parity proofs demonstrate stable posture behavior under normal and degraded signal scenarios.
 - Closure statement is explicit:
   DL component green for posture authority/serving; DF decision coupling and AL/DLA downstream closure remain tracked under platform Phase 4.4/4.5 gates.
+- Evidence:
+  - `python -m pytest tests/services/degrade_ladder -q` -> `40 passed`
+  - `tests/services/degrade_ladder/test_phase8_validation_parity.py`
+
+**Closure statement (explicit)**
+- DL is green at component scope for posture authority, serving boundary, health clamp, emission lane, and governance/ops telemetry.
+- Pending integration closure remains outside DL:
+  DF coupling/consumption in runtime path, and AL/DLA downstream end-to-end closure remain tracked under platform Phase 4.4/4.5 gates.
 
 ## Status (rolling)
-- Current focus: Phase 8 planning/implementation (validation/parity/closure boundary).
+- Current focus: DL component complete (Phase 1-8); proceed with DF integration/plane closure tracking.

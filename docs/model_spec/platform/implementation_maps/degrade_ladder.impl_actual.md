@@ -831,3 +831,47 @@ Proceed to DL Phase 8 and explicitly close component readiness with evidence:
 - confirm all prior phase tests still pass and new Phase 8 tests pass with deterministic outputs.
 
 ---
+
+## Entry: 2026-02-07 07:14:13 — DL Phase 8 implemented (validation/parity/closure boundary)
+
+### Implementation summary
+Phase 8 is now implemented and validated at component scope.
+
+### What was implemented
+1. Added dedicated Phase 8 validation suite:
+   - `tests/services/degrade_ladder/test_phase8_validation_parity.py`
+2. Added integration-level DF consumption proof (contract-style):
+   - deterministic DF-like mask enforcement shim validates DL mask semantics for:
+     - `allow_ieg`
+     - `allowed_feature_groups`
+     - `allow_model_primary`
+     - `allow_model_stage2`
+     - `action_posture`.
+   - posture is served from DL store/serve boundary and then enforced by shim.
+3. Added replay determinism proof:
+   - same profile + same snapshot + same decision time + same scope + same posture_seq yields identical decision digest across repeated evaluations.
+   - persisted/readback posture digest remains stable.
+4. Added local-parity transition proof:
+   - `local_parity` profile scenario demonstrates stable lifecycle:
+     - healthy baseline -> `NORMAL`
+     - required-signal gap -> immediate `FAIL_CLOSED`
+     - healthy before quiet period expiry -> hold at `FAIL_CLOSED`
+     - post-quiet recovery -> one-rung steps `DEGRADED_2` -> `DEGRADED_1` -> `NORMAL`.
+
+### Invariants confirmed by Phase 8
+- DF-facing enforcement semantics are deterministic and conservative under degraded masks.
+- Replay-style evaluation is deterministic for identical inputs.
+- Local-parity hysteresis behavior is stable and policy-driven.
+- Full DL component test suite remains green after Phases 1-8.
+
+### Validation evidence
+- `python -m pytest tests/services/degrade_ladder -q` -> `40 passed`.
+
+### Closure boundary statement
+- DL is component-green for posture authority, posture serving, health self-trust clamp, posture-change emission lane, and governance/ops telemetry.
+- Remaining non-DL closure tracks:
+  - runtime DF decision coupling and end-to-end mask consumption in live RTDL path,
+  - AL/DLA downstream closure and full plane end-to-end outcomes,
+  remain under platform Phase 4.4/4.5 integration gates.
+
+---
