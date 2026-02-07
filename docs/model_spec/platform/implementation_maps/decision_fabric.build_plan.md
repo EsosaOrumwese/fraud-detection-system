@@ -114,4 +114,13 @@ Provide an executable, phase-by-phase DF build plan aligned to platform Phase 4.
   - Evidence: `tests/services/decision_fabric/test_phase2_config.py`
   - Evidence: `tests/services/decision_fabric/test_phase2_inlet.py`
   - Validation: `python -m pytest tests/services/decision_fabric -q` -> `24 passed`
-- Current focus: Phase 3 (`DL integration + fail-safe enforcement`).
+- Phase 3 (`DL integration + fail-safe enforcement`): completed on `2026-02-07`.
+  - Evidence: `src/fraud_detection/decision_fabric/posture.py`
+  - Evidence: `tests/services/decision_fabric/test_phase3_posture.py`
+  - Validation: `python -m pytest tests/services/decision_fabric -q` -> `29 passed`
+- Phase 4 (`Registry bundle resolution + compatibility`): completed on `2026-02-07`.
+  - Evidence: `config/platform/df/registry_resolution_policy_v0.yaml`
+  - Evidence: `src/fraud_detection/decision_fabric/registry.py`
+  - Evidence: `tests/services/decision_fabric/test_phase4_registry.py`
+  - Validation: `python -m pytest tests/services/decision_fabric -q` -> `36 passed`
+- Current focus: Phase 5 (`Context/features acquisition + decision-time budgets`).

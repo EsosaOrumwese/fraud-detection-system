@@ -1,5 +1,11 @@
 """Decision Fabric package."""
 
+from .config import (
+    DecisionFabricConfigError,
+    DecisionTriggerPolicy,
+    DecisionTriggerRule,
+    load_trigger_policy,
+)
 from .contracts import (
     ACTION_INTENT_ORIGINS,
     ACTION_INTENT_REQUIRED_FIELDS,
@@ -12,12 +18,6 @@ from .contracts import (
     DecisionFabricContractError,
     DecisionResponse,
     validate_action_intent_lineage,
-)
-from .config import (
-    DecisionFabricConfigError,
-    DecisionTriggerPolicy,
-    DecisionTriggerRule,
-    load_trigger_policy,
 )
 from .ids import (
     ACTION_INTENT_EVENT_ID_RECIPE_V1,
@@ -45,6 +45,29 @@ from .inlet import (
     DfInletResult,
     SourceEbRef,
 )
+from .posture import (
+    DfPostureEnforcementResult,
+    DfPostureError,
+    DfPostureResolver,
+    DfPostureStamp,
+    DfPostureTransitionGuard,
+    enforce_posture_constraints,
+    posture_stamp_from_dl,
+)
+from .registry import (
+    RESOLUTION_FAIL_CLOSED,
+    RESOLUTION_FALLBACK,
+    RESOLUTION_RESOLVED,
+    DecisionFabricRegistryError,
+    RegistryBundleRecord,
+    RegistryCompatibility,
+    RegistryPolicyRev,
+    RegistryResolutionPolicy,
+    RegistryResolutionResult,
+    RegistryResolver,
+    RegistryScopeKey,
+    RegistrySnapshot,
+)
 from .taxonomy import (
     SCHEMA_MAJOR_BY_EVENT_TYPE,
     SUPPORTED_DF_EVENT_TYPES,
@@ -66,12 +89,16 @@ __all__ = [
     "DEGRADE_POSTURE_REQUIRED_FIELDS",
     "PIN_REQUIRED_FIELDS",
     "POLICY_REV_REQUIRED_FIELDS",
+    "RESOLUTION_FAIL_CLOSED",
+    "RESOLUTION_FALLBACK",
+    "RESOLUTION_RESOLVED",
     "SCHEMA_MAJOR_BY_EVENT_TYPE",
     "SUPPORTED_DF_EVENT_TYPES",
     "ActionIntent",
     "DecisionFabricConfigError",
     "DecisionFabricContractError",
     "DecisionFabricInlet",
+    "DecisionFabricRegistryError",
     "DecisionFabricTaxonomyError",
     "DecisionResponse",
     "DecisionTriggerCandidate",
@@ -79,6 +106,11 @@ __all__ = [
     "DecisionTriggerRule",
     "DfBusInput",
     "DfInletResult",
+    "DfPostureEnforcementResult",
+    "DfPostureError",
+    "DfPostureResolver",
+    "DfPostureStamp",
+    "DfPostureTransitionGuard",
     "INLET_ACCEPT",
     "INLET_EVENT_TYPE_NOT_ALLOWED",
     "INLET_INVALID_ENVELOPE",
@@ -88,14 +120,24 @@ __all__ = [
     "INLET_NON_TRAFFIC_TOPIC",
     "INLET_SCHEMA_VERSION_NOT_ALLOWED",
     "INLET_SCHEMA_VERSION_REQUIRED",
+    "RegistryBundleRecord",
+    "RegistryCompatibility",
+    "RegistryPolicyRev",
+    "RegistryResolutionPolicy",
+    "RegistryResolutionResult",
+    "RegistryResolver",
+    "RegistryScopeKey",
+    "RegistrySnapshot",
     "SchemaVersion",
+    "SourceEbRef",
     "deterministic_action_idempotency_key",
     "deterministic_action_intent_event_id",
     "deterministic_decision_id",
     "deterministic_decision_response_event_id",
+    "enforce_posture_constraints",
     "ensure_supported_event_schema",
     "load_trigger_policy",
     "parse_schema_version",
-    "SourceEbRef",
+    "posture_stamp_from_dl",
     "validate_action_intent_lineage",
 ]

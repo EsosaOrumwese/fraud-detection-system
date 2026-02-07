@@ -298,3 +298,195 @@ Implement DF Phase 2 so the Decision Fabric inlet only forms decision candidates
 - Phase 3 will integrate DL posture input and enforce fail-safe posture behavior in DF runtime planning.
 
 ---
+
+## Entry: 2026-02-07 11:05:22 — Phase 3 implementation plan (DL integration + fail-safe enforcement)
+
+### Problem / goal
+Implement DF Phase 3 so Decision Fabric consumes DL posture as a hard runtime constraint and stamps posture provenance deterministically into downstream decision artifacts.
+
+### Authorities / inputs
+- `docs/model_spec/platform/implementation_maps/decision_fabric.build_plan.md` (Phase 3)
+- `docs/model_spec/platform/pre-design_decisions/real-time_decision_loop.pre-design_decision.md` (explicit degrade, fail-closed, deterministic posture provenance)
+- `src/fraud_detection/degrade_ladder/serve.py`
+- `src/fraud_detection/degrade_ladder/contracts.py`
+- `src/fraud_detection/degrade_ladder/health.py`
+
+### Decision trail (before coding)
+1. Add a dedicated DF posture module (`posture.py`) instead of spreading DL logic across inlet/runtime files.
+2. Use DL guarded serve API as the default source of truth:
+   - consume `DlGuardedPostureService.get_guarded_posture(...)`,
+   - map serve output to a DF-native posture stamp object.
+3. Enforce DL mask as hard constraints through a DF helper:
+   - no IEG if `allow_ieg=false`,
+   - no disallowed feature groups,
+   - no model stage usage when respective mask flags are false,
+   - no action posture escalation beyond DL posture.
+4. Missing/invalid/stale posture behavior:
+   - consume DL fail-safe outputs (`FAILSAFE_*`, `FAIL_CLOSED`) directly,
+   - add defensive fallback that produces explicit fail-closed stamp if malformed posture arrives.
+5. Add a transition-compatibility guard to stay aligned with DL anti-flap semantics:
+   - immediate tighten accepted,
+   - relax transitions can be hold-down controlled by a local interval gate (optional but deterministic),
+   - non-monotonic relax posture sequence is blocked.
+6. Provide deterministic posture stamping helpers (`as_dict`/canonical/digest) for Phase 6 artifact emission.
+
+### Files planned
+- New:
+  - `src/fraud_detection/decision_fabric/posture.py`
+  - `tests/services/decision_fabric/test_phase3_posture.py`
+- Update:
+  - `src/fraud_detection/decision_fabric/__init__.py`
+  - `docs/model_spec/platform/implementation_maps/decision_fabric.build_plan.md` (status after closure)
+
+### Invariants to enforce
+- DF never bypasses DL mask constraints.
+- DL missing/stale/untrusted outcomes force explicit fail-closed posture at DF boundary.
+- Posture stamp serialization/digest is deterministic for identical posture inputs.
+- Transition handling is compatible with DL anti-flap posture evolution.
+
+### Validation plan
+- Run `python -m pytest tests/services/decision_fabric -q`.
+- Tests must explicitly cover:
+  - hard mask enforcement failures,
+  - fail-closed on malformed or stale posture,
+  - deterministic posture stamp digest,
+  - immediate tighten + controlled relax transition behavior.
+
+---
+
+## Entry: 2026-02-07 11:08:15 — Phase 3 implementation closure (DL integration + fail-safe enforcement)
+
+### What was implemented
+1. Added DF posture integration module:
+   - `src/fraud_detection/decision_fabric/posture.py`
+   - includes:
+     - `DfPostureResolver` that consumes `DlGuardedPostureService.get_guarded_posture(...)`,
+     - `posture_stamp_from_dl(...)` mapping DL serve outputs into DF posture stamps,
+     - `enforce_posture_constraints(...)` for hard mask enforcement (no bypass),
+     - `DfPostureTransitionGuard` for immediate tighten + controlled relax compatibility.
+2. Added deterministic posture stamp representation:
+   - `DfPostureStamp.as_dict()`, `canonical_json()`, `digest()`.
+3. Added defensive fail-safe behavior:
+   - malformed DL posture payload at DF boundary yields explicit `FAIL_CLOSED` posture stamp with `DL_POSTURE_INVALID:*` reason codes.
+4. Updated DF package exports:
+   - `src/fraud_detection/decision_fabric/__init__.py`.
+
+### Validation results
+- Added tests:
+  - `tests/services/decision_fabric/test_phase3_posture.py`
+- Re-ran full DF suite:
+  - `python -m pytest tests/services/decision_fabric -q` -> `29 passed`.
+- Import/export smoke:
+  - `PYTHONPATH=.;src python -c "import fraud_detection.decision_fabric as df; print('ok', 'DfPostureResolver' in df.__all__, 'enforce_posture_constraints' in df.__all__)"` -> `ok True True`.
+
+### DoD closure mapping (Phase 3)
+- DF consumes `DegradeDecision` posture surface via DL guarded serve: complete.
+- DL mask enforced as hard constraints (no bypass): complete (`enforce_posture_constraints`).
+- Missing/invalid/stale posture forces explicit fail-closed posture mode: complete (DL fail-safe mapping + defensive invalid-result fallback).
+- Posture stamps written deterministically for artifact embedding: complete (`DfPostureStamp` canonical/digest).
+- Transition behavior compatible with DL anti-flap semantics: complete (`DfPostureTransitionGuard` immediate tighten + hold-down controlled relax).
+
+### Follow-on boundary
+- Phase 4 will add deterministic registry bundle resolution + compatibility fail-closed checks.
+
+---
+
+## Entry: 2026-02-07 11:12:21 — Phase 4 implementation plan (registry bundle resolution + compatibility)
+
+### Problem / goal
+Implement DF Phase 4 so bundle/policy selection is deterministic per scope and compatibility-aware under current degrade posture and feature contract basis.
+
+### Authorities / inputs
+- `docs/model_spec/platform/implementation_maps/decision_fabric.build_plan.md` (Phase 4)
+- `docs/model_spec/platform/component-specific/decision_fabric.design-authority.md` (deterministic active-bundle resolution, no implicit latest, incompatibility -> safe fallback/fail-closed)
+- `docs/model_spec/platform/component-specific/model_policy_registry.design-authority.md` (one active per scope, explicit scope key, compatibility gate)
+- `docs/model_spec/platform/pre-design_decisions/real-time_decision_loop.pre-design_decision.md` (fail-closed compatibility posture)
+
+### Decision trail (before coding)
+1. Add a DF-local registry resolution policy file under `config/platform/df/`:
+   - explicit scope axes `(environment, mode, bundle_slot, tenant_id?)`,
+   - explicit fallback posture controls (`allow_last_known_good`, explicit fallback map),
+   - policy revision fields for provenance stamping.
+2. Add a dedicated DF registry module (`registry.py`) with:
+   - typed `RegistryScopeKey`,
+   - typed bundle compatibility contract (required feature groups + required capabilities),
+   - typed resolver output (`RESOLVED`, `FALLBACK`, `FAIL_CLOSED`) including deterministic resolution digest.
+3. Enforce deterministic scope resolution:
+   - exact scope match only, no implicit “latest.”
+   - snapshot loading rejects duplicate active entries for same scope.
+4. Compatibility checks are fail-closed by default:
+   - mismatch between bundle required capabilities and current DL mask -> incompatible,
+   - mismatch between bundle required feature group versions and provided feature basis -> incompatible.
+5. Fallback behavior explicit and bounded:
+   - explicit per-scope fallback bundle allowed when configured,
+   - optional last-known-good allowed only when policy explicitly enables it and data exists,
+   - otherwise return `FAIL_CLOSED` outcome with reason codes.
+6. Ensure replay stability:
+   - identical input basis (`scope_key`, posture stamp, feature basis, policy rev/snapshot) produces identical resolver output + digest.
+
+### Files planned
+- New:
+  - `config/platform/df/registry_resolution_policy_v0.yaml`
+  - `src/fraud_detection/decision_fabric/registry.py`
+  - `tests/services/decision_fabric/test_phase4_registry.py`
+- Update:
+  - `config/platform/df/README.md`
+  - `src/fraud_detection/decision_fabric/__init__.py`
+  - `docs/model_spec/platform/implementation_maps/decision_fabric.build_plan.md` (status after closure)
+
+### Invariants to enforce
+- No implicit latest selection; exact scope resolution only.
+- Compatibility mismatch never silently resolves as normal active bundle.
+- Fallback path is policy-controlled and provenance-stamped.
+- Resolver output and digest are deterministic for identical basis.
+
+### Validation plan
+- Run `python -m pytest tests/services/decision_fabric -q`.
+- Add explicit tests for:
+  - deterministic scope resolution,
+  - capability mismatch fail-closed,
+  - feature-version mismatch fail-closed,
+  - explicit fallback selection,
+  - replay-stable resolution digest.
+
+---
+
+## Entry: 2026-02-07 11:16:34 — Phase 4 implementation closure (registry bundle resolution + compatibility)
+
+### What was implemented
+1. Added DF registry resolution policy artifact:
+   - `config/platform/df/registry_resolution_policy_v0.yaml`
+   - explicit scope axes `(environment, mode, bundle_slot, tenant_id)`,
+   - explicit fallback controls (`allow_last_known_good`, `explicit_by_scope`).
+2. Added DF registry resolution module:
+   - `src/fraud_detection/decision_fabric/registry.py`
+   - includes:
+     - typed `RegistryScopeKey` and exact-scope canonical keying,
+     - `RegistryResolutionPolicy` loader with deterministic content digest,
+     - `RegistrySnapshot` loader with duplicate-scope rejection,
+     - compatibility gate (`feature contract` + `capability contract`) with fail-closed reasoning,
+     - bounded fallback selection (`explicit_by_scope`, optional last-known-good),
+     - deterministic `RegistryResolutionResult` with stable `basis_digest` and result digest.
+3. Updated DF package exports:
+   - `src/fraud_detection/decision_fabric/__init__.py`.
+4. Updated DF config readme:
+   - `config/platform/df/README.md` now includes registry policy intent.
+
+### Validation results
+- Added tests:
+  - `tests/services/decision_fabric/test_phase4_registry.py`
+- Re-ran DF suite:
+  - `python -m pytest tests/services/decision_fabric -q` -> `36 passed`.
+- Import/export smoke:
+  - `PYTHONPATH=.;src python -c "import fraud_detection.decision_fabric as df; print('ok', 'RegistryResolver' in df.__all__, 'RegistryResolutionPolicy' in df.__all__)"` -> `ok True True`.
+
+### DoD closure mapping (Phase 4)
+- Deterministic resolver for scope `(environment, mode, bundle_slot, tenant?)` with no implicit latest: complete.
+- Compatibility checks fail-closed on capability/feature mismatches: complete.
+- Fallback behavior explicit and bounded (policy-gated): complete.
+- Resolver outputs replay-stable for identical basis + policy revision: complete (`basis_digest` + deterministic result digest tests).
+
+### Follow-on boundary
+- Phase 5 will integrate OFP/IEG acquisition under decision-time budgets and DL mask constraints.
+
+---
