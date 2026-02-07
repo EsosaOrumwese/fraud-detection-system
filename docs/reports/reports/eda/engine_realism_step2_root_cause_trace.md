@@ -17,16 +17,21 @@ Policy + implementation anchors (non-exhaustive):
 - `packages/engine/src/engine/layers/l1/seg_1A/s6_foreign_set/runner.py`
 - `packages/engine/src/engine/layers/l1/seg_1A/s8_outlet_catalogue/runner.py`
 - `packages/engine/src/engine/layers/l1/seg_2A/s1_tz_lookup/runner.py`
+- `packages/engine/src/engine/layers/l1/seg_2A/s2_overrides/runner.py`
 - `config/layer1/2B/policy/alias_layout_policy_v1.json`
 - `config/layer1/2B/policy/day_effect_policy_v1.json`
 - `packages/engine/src/engine/layers/l1/seg_2B/s1_site_weights/runner.py`
 - `packages/engine/src/engine/layers/l1/seg_2B/s3_day_effects/runner.py`
+- `packages/engine/src/engine/layers/l1/seg_2B/s4_group_weights/runner.py`
+- `packages/engine/src/engine/layers/l1/seg_2B/s5_router/runner.py`
 - `config/layer1/3A/policy/zone_mixture_policy.yaml`
 - `config/layer1/3A/allocation/country_zone_alphas.yaml`
 - `packages/engine/src/engine/layers/l1/seg_3A/s1_escalation/runner.py`
 - `packages/engine/src/engine/layers/l1/seg_3A/s3_zone_shares/runner.py`
+- `packages/engine/src/engine/layers/l1/seg_3A/s4_zone_counts/runner.py`
 - `config/layer1/3B/virtual/cdn_country_weights.yaml`
 - `config/layer1/3B/virtual/cdn_key_digest.yaml`
+- `packages/engine/src/engine/layers/l1/seg_3B/s1_virtual_classification/runner.py`
 - `packages/engine/src/engine/layers/l1/seg_3B/s2_edge_catalogue/runner.py`
 - `packages/engine/src/engine/layers/l2/seg_5B/s4_arrival_events/numba_kernel.py`
 - `packages/engine/src/engine/layers/l2/seg_5B/s5_validation_bundle/runner.py`
@@ -108,24 +113,45 @@ Policy + implementation anchors (non-exhaustive):
 
 ---
 
-### 1.4) 3B — Edge catalogue uniformity + weak settlement coherence (Critical)
-**Evidence:** Report shows each merchant has `500` edges, uniform weights, and settlement-country overlap ~0.5% with large anchor distances.
+### 1.4) 3B — Edge catalogue is structurally uniform (Critical)
+**Evidence:** Report shows each merchant has fixed `edge_scale=500`, near-identical edge-count profile, and `edge_weight = 1/edge_scale` behavior.
 
-**Most likely root cause:** Policy enforces a fixed `edge_scale`, and implementation assigns **uniform per-edge weights** regardless of merchant or settlement. Country weights are global, not conditioned on merchant settlement or local footprint.
+**Most likely root cause:** Policy sets a fixed edge cardinality and implementation applies uniform per-edge mass. There is no merchant-level heterogeneity layer before final edge materialization.
 
 **Policy anchors:**
-- `config/layer1/3B/virtual/cdn_country_weights.yaml` and `cdn_key_digest.yaml` set `edge_scale: 500` and include many `tail_uniform` notes.
+- `config/layer1/3B/virtual/cdn_country_weights.yaml` and `cdn_key_digest.yaml` define fixed `edge_scale: 500` and uniform-tail behavior.
 
 **Implementation anchors:**
-- `packages/engine/src/engine/layers/l1/seg_3B/s2_edge_catalogue/runner.py`: `edge_scale` read from policy (line ~1220), `edge_weight = 1.0 / edge_scale` (line ~1904), edges allocated by global country weights (line ~1280).
+- `packages/engine/src/engine/layers/l1/seg_3B/s2_edge_catalogue/runner.py`: fixed-scale read path (`edge_scale`), and deterministic uniform edge weights (`edge_weight = 1.0 / edge_scale`).
 
-**Interaction/propagation:** 3B’s uniform graph destroys merchant/geography heterogeneity before 5B/6B; downstream “realism” must fake diversity on top of a flat substrate.
+**Interaction/propagation:** 3B feeds a structurally flat edge substrate into layer-2/layer-3. Later segments can only add realism by overlaying rules, not by inheriting organic network diversity.
 
 **Confidence:** High.
 
-**Falsification check:** Inspect any per-merchant conditional weights or settlement-coupled weighting paths; if none exist, uniformity is by design.
+**Falsification check:** If edge-weight variance within merchant is effectively zero and edge-count distribution is degenerate at 500, this diagnosis holds.
 
-**Expected posture if corrected:** Edge weights should be merchant-heterogeneous; settlement country should be over-represented relative to global weights.
+**Expected posture if corrected:** Edge counts and edge weights should vary by merchant profile (size/class/country), with heterogeneous concentration patterns.
+
+---
+
+### 1.5) 3B — Settlement coherence is weak (Critical)
+**Evidence:** Settlement-country overlap is near baseline (~0.5%), and many edges are far from settlement anchor countries.
+
+**Most likely root cause:** Country-edge allocation is driven by global weight tables with weak settlement-aware conditioning, so settlement information has minimal pull on final edge geography.
+
+**Policy anchors:**
+- `config/layer1/3B/virtual/cdn_country_weights.yaml` emphasizes global/tail weights; settlement affinity terms are weak relative to global mass.
+
+**Implementation anchors:**
+- `packages/engine/src/engine/layers/l1/seg_3B/s2_edge_catalogue/runner.py`: edge-country draw path references global country weights and digest-driven deterministic assignment without strong settlement-coupled reweighting.
+
+**Interaction/propagation:** Legal/settlement identity stops being a strong explanatory variable for virtual footprint, weakening downstream auditability and cross-border realism narratives.
+
+**Confidence:** High.
+
+**Falsification check:** Compare edge-country probabilities conditioned on settlement country versus global baseline. If uplift is weak or absent, coherence failure is confirmed.
+
+**Expected posture if corrected:** Settlement country and proximate legal markets should receive statistically significant uplift over global baseline in edge assignment.
 
 ---
 
@@ -450,6 +476,121 @@ Policy + implementation anchors (non-exhaustive):
 **Falsification check:** Check distinct amounts per merchant; if all merchants see all 8 points, this is confirmed.
 
 **Expected posture if corrected:** Merchant-specific amount profiles with uneven weight and tails.
+
+---
+
+### 2.17) 2A — Non-representative country->tzid outcomes (High)
+**Evidence:** Reported examples include implausible country-timezone pairings (e.g., NL mapped to Caribbean tzid class, NO to Arctic-only tzid class, US collapsing to Phoenix-only posture in sampled outputs).
+
+**Most likely root cause:** The fallback chain in S1 resolves ambiguities using country-singleton and nearest-polygon logic. Under sparse/synthetic upstream site geometry, those fallbacks can produce technically valid but behaviorally implausible assignments.
+
+**Policy anchors:**
+- `config/layer1/2A/timezone/tz_nudge.yml` (country/tz nudges and ambiguity-handling policy inputs consumed by S1).
+- `config/layer1/2A/timezone/tz_overrides.yaml` (country/site/mcc override pathways).
+
+**Implementation anchors:**
+- `packages/engine/src/engine/layers/l1/seg_2A/s1_tz_lookup/runner.py`: country-singleton auto resolution (`overrides_country_singleton_auto`) and nearest fallback (`fallback_nearest_*`) in border/empty-candidate path (lines around 1277–1317).
+- `packages/engine/src/engine/layers/l1/seg_2A/s1_tz_lookup/runner.py`: override precedence paths (`site` -> `mcc` -> `country`) (lines around 1261–1274).
+- `packages/engine/src/engine/layers/l1/seg_2A/s2_overrides/runner.py`: final override reconciliation and mismatch checks against S1 provisional output (lines around 1220–1321).
+
+**Interaction/propagation:** Civil-time realism becomes fragile, and downstream hour/day features become harder to interpret even when schema-level integrity is clean.
+
+**Confidence:** High.
+
+**Falsification check:** Inspect `s1_tz_lookup` run report counters (`overrides_country_singleton_auto`, `fallback_nearest_within_threshold`, `fallback_nearest_outside_threshold`) plus sampled ambiguity logs. If non-trivial, this mechanism is active and sufficient to explain observed outliers.
+
+**Expected posture if corrected:** Multi-tz countries should map to plausible domestic timezone mixtures, with fallback paths rare and auditable exceptions.
+
+---
+
+### 2.18) 2B — Excessive single-tz daily dominance (High)
+**Evidence:** About half of merchant-days have `max p_group >= 0.9`, indicating near-monozone daily routing.
+
+**Most likely root cause:** S4 renormalizes `base_share * gamma`, but both drivers are diversity-thin:
+- S1 site weights are uniform, so any sparse tz footprint in S1 directly hard-codes dominance.
+- S3 uses a single global `sigma_gamma`, so day noise is insufficient to overturn dominant base shares.
+
+**Policy anchors:**
+- `config/layer1/2B/policy/alias_layout_policy_v1.json`: deterministic uniform site weights.
+- `config/layer1/2B/policy/day_effect_policy_v1.json`: global scalar `sigma_gamma`.
+
+**Implementation anchors:**
+- `packages/engine/src/engine/layers/l1/seg_2B/s1_site_weights/runner.py`: uniform weight mode path.
+- `packages/engine/src/engine/layers/l1/seg_2B/s3_day_effects/runner.py`: global `sigma_gamma` applied to every merchant/tz/day row (lines around 636–645, 814).
+- `packages/engine/src/engine/layers/l1/seg_2B/s4_group_weights/runner.py`: `mass_raw = base_share * gamma` and day renormalization to `p_group` (lines around 804–846).
+
+**Interaction/propagation:** 3A and 3B inherit a low-entropy daily routing substrate, reducing the ability to express believable zone diversity.
+
+**Confidence:** High.
+
+**Falsification check:** Compute correlation between per-merchant S1 top-1 `base_share` and S4 daily `max(p_group)`. If correlation is near 1 and day-level spread is narrow, this root cause is confirmed.
+
+**Expected posture if corrected:** High-site and escalated merchants should exhibit materially broader daily `p_group` dispersion, not persistent >0.9 top-1 dominance.
+
+---
+
+### 2.19) 2B — Panel/roster realism shallow (High)
+**Evidence:** Full rectangular 90-day merchant-day panel and one-arrival-per-merchant/day roster behavior.
+
+**Most likely root cause:** Roster generation is deterministic at scenario level; S5 routing consumes sealed `s5_arrival_roster` as fixed input and does not add lifecycle/churn dynamics.
+
+**Policy anchors:**
+- Scenario roster policy (as represented in the sealed `s5_arrival_roster` artifact and documented in the 2B report) sets a rigid daily panel.
+
+**Implementation anchors:**
+- `packages/engine/src/engine/layers/l1/seg_2B/s5_router/runner.py`: treats `s5_arrival_roster` as sealed batch input and only routes group/site choice per row (lines around 818–870, 1125–1137).
+
+**Interaction/propagation:** Downstream layers observe structurally regular activity, reducing realism for lifecycle features (entry/exit, inactivity streaks, burst starts/stops).
+
+**Confidence:** High.
+
+**Falsification check:** Check merchant-day coverage matrix for missing days and within-day multiplicity in roster. If near-rectangular with low within-day count variation, diagnosis holds.
+
+**Expected posture if corrected:** Merchant activity should include entry/exit churn, intermittent inactivity, and variable daily event counts.
+
+---
+
+### 2.20) 3A — Sampling adds little merchant variance (High)
+**Evidence:** Very low within-country/tz share variance despite stochastic sampling stage.
+
+**Most likely root cause:** Dirichlet sampling exists, but effective variance is muted by high/peaked alpha structure and then further damped by count integerization.
+
+**Policy anchors:**
+- `config/layer1/3A/allocation/country_zone_alphas.yaml`: high alpha-mass structure in several countries reduces draw variance.
+
+**Implementation anchors:**
+- `packages/engine/src/engine/layers/l1/seg_3A/s3_zone_shares/runner.py`: merchant-country Dirichlet sampling from provided alphas (lines around 924–959).
+- `packages/engine/src/engine/layers/l1/seg_3A/s4_zone_counts/runner.py`: floor/residual-rank integerization compresses small share differences into identical integer counts (lines around 874–917).
+
+**Interaction/propagation:** Merchant signatures remain weak entering 3B/5A, so downstream heterogeneity is dominated by later deterministic rules rather than organic upstream variance.
+
+**Confidence:** Medium-high.
+
+**Falsification check:** Compare variance before vs after S4 integerization at merchant-country level. If S4 sharply reduces dispersion, the compression mechanism is confirmed.
+
+**Expected posture if corrected:** Distinct merchants in the same country should retain visibly different zone-share/count profiles after S4.
+
+---
+
+### 2.21) 3B — Classification evidence is flat (High)
+**Evidence:** Classification appears dominated by MCC/channel gate with weak supporting variation; metadata/digest posture is near-singleton in effect.
+
+**Most likely root cause:** Classification is a direct join of `(mcc, channel)` to binary decision map; no additional merchant- or geography-conditioned signal enters S1 classification.
+
+**Policy anchors:**
+- `mcc_channel_rules` policy artifact (binary mapping by MCC/channel pair).
+
+**Implementation anchors:**
+- `packages/engine/src/engine/layers/l1/seg_3B/s1_virtual_classification/runner.py`: rule map keyed by `(mcc, channel)` and left-join onto merchant table (lines around 683, 771–774).
+- Same runner stamps shared `classification_digest` derived from one policy artifact across rows (lines around 597, 794).
+
+**Interaction/propagation:** Audit explainability for why a merchant is virtual vs non-virtual is thin; downstream behavior can look policy-flat even when structurally valid.
+
+**Confidence:** High.
+
+**Falsification check:** Measure variance in virtual probability/decision within each MCC-channel pair using additional merchant covariates. If within-pair variance is effectively zero, diagnosis is confirmed.
+
+**Expected posture if corrected:** Classification evidence should include additional conditioning (merchant scale, country context, settlement affinity), producing controlled within-pair variance.
 
 ---
 

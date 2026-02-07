@@ -324,3 +324,158 @@ Reasoning:
 
 ### Residual scope boundary (intentional)
 - Phase 2 does not implement topic intake worker or replay-backfill orchestration yet; those remain Phase 3/4 scope.
+
+---
+
+## Entry: 2026-02-07 15:35:00 - Phase 3 pre-implementation plan (intake apply worker)
+
+### Active-phase objective
+Implement Phase 3 (`Intake apply worker`) so Context Store + FlowBinding consumes admitted EB context topics deterministically and writes replay-safe join state.
+
+### Inputs/authorities
+- `docs/model_spec/platform/implementation_maps/context_store_flow_binding.build_plan.md` (Phase 3 DoD)
+- `docs/model_spec/platform/pre-design_decisions/real-time_decision_loop.pre-design_decision.md`
+- `docs/model_spec/platform/component-specific/flow-narrative-platform-design.md`
+- Existing projector patterns:
+  - `src/fraud_detection/identity_entity_graph/projector.py`
+  - `src/fraud_detection/online_feature_plane/projector.py`
+
+### Decision thread 1: where idempotency tuple lives
+Options considered:
+1. Keep dedupe only in worker memory.
+2. Persist dedupe tuple in durable store and enforce payload-hash mismatch at DB boundary.
+
+Decision:
+- Option 2.
+
+Reasoning:
+- At-least-once + restart safety requires durable dedupe, not process-local memory.
+- Payload-hash mismatch must survive restarts and be auditable.
+
+Planned tuple:
+- `(stream_id, platform_run_id, event_class, event_id)` with persisted `payload_hash`.
+
+### Decision thread 2: join-frame mutation model
+Options considered:
+1. Strict one-hash-per-join-frame row (conflict on any update).
+2. Event-driven frame state updates where different context events can update same join frame while duplicate event hashes remain idempotent.
+
+Decision:
+- Option 2.
+
+Reasoning:
+- Arrival/arrival_entities/flow_anchor are complementary context updates for the same join key; strict single-hash row would block legitimate progression.
+
+### Decision thread 3: authoritative flow-binding writes
+Decision:
+- Only flow-anchor event types (`s2_flow_anchor_baseline_6B`, `s3_flow_anchor_with_fraud_6B`) can create/update FlowBinding records.
+- Any other event type attempting binding update is rejected with machine-readable failure reason.
+
+Reasoning:
+- Aligns with pre-design and phase invariants; prevents silent authority drift.
+
+### Decision thread 4: missing/late handling semantics
+Decision:
+- Missing join key or missing required pins is fail-closed with explicit reason codes in `csfb_join_apply_failures`.
+- Late context (event_ts older than checkpoint watermark) is treated as explicit machine-readable anomaly (`LATE_CONTEXT_EVENT`) while still applying state when valid.
+
+Reasoning:
+- Preserves operational continuity while making late/missing posture inspectable.
+
+### Decision thread 5: intake policy shape
+Decision:
+- Introduce versioned intake policy file under `config/platform/context_store_flow_binding/intake_policy_v0.yaml` with:
+  - context topic allowlist
+  - class map reference
+  - run-scope gating controls
+  - poll settings and event-bus wiring defaults
+
+Reasoning:
+- Keeps intake behavior explicit and auditable, consistent with other components.
+
+### Planned file paths (Phase 3)
+- Update:
+  - `src/fraud_detection/context_store_flow_binding/migrations.py`
+  - `src/fraud_detection/context_store_flow_binding/store.py`
+  - `src/fraud_detection/context_store_flow_binding/__init__.py`
+- New:
+  - `src/fraud_detection/context_store_flow_binding/intake.py`
+  - `config/platform/context_store_flow_binding/intake_policy_v0.yaml`
+  - `tests/services/context_store_flow_binding/test_phase3_intake.py`
+
+### Validation plan
+- Targeted tests proving:
+  - admitted context intake updates join frames deterministically,
+  - flow bindings written only from flow-anchor lineage,
+  - payload-hash mismatch for same dedupe tuple is anomaly/fail-closed,
+  - apply-failure ledger stores machine-readable reason + source offsets.
+
+---
+
+## Entry: 2026-02-07 15:24:00 - Phase 3 implementation completed (intake apply worker + deterministic failure semantics)
+
+### What was implemented
+- Implemented intake runtime worker:
+  - `src/fraud_detection/context_store_flow_binding/intake.py`
+  - Supports file-bus and kinesis-bus read loops (`run_once`, `run_forever`) with per-topic/per-partition checkpoint resume.
+- Implemented intake policy surface:
+  - `config/platform/context_store_flow_binding/intake_policy_v0.yaml`
+  - Pins context topic allowlist, class allowlist, run-scope gate, poll controls, and bus wiring defaults.
+- Extended durable layer for Phase 3 intake invariants:
+  - `src/fraud_detection/context_store_flow_binding/migrations.py`
+    - migration `v2` with `csfb_intake_dedupe`.
+  - `src/fraud_detection/context_store_flow_binding/store.py`
+    - `CsfbIntakeApplyResult`
+    - `apply_context_event_and_checkpoint(...)`
+    - durable dedupe registration and payload-hash mismatch fail-closed path.
+- Exported intake and intake result surfaces:
+  - `src/fraud_detection/context_store_flow_binding/__init__.py`
+
+### Decisions made during implementation (with reasoning)
+1. **Deduplication is enforced in the same transaction as apply/checkpoint**
+   - Decision: perform dedupe registration, join-frame mutation, optional flow-binding mutation, and checkpoint advance in one transaction.
+   - Reasoning: this is the narrowest way to keep at-least-once safety and prevent checkpoint drift under duplicate/restart conditions.
+
+2. **Duplicate replay semantics are checkpoint-advancing but state-stable**
+   - Decision: if dedupe tuple is already known with the same payload hash, mark intake as `duplicate`, skip mutations, still advance checkpoint.
+   - Reasoning: avoids hot-loop reprocessing on restart while preserving deterministic state.
+
+3. **Payload-hash mismatch is fail-closed and machine-readable**
+   - Decision: same dedupe tuple + different payload hash raises `INTAKE_PAYLOAD_HASH_MISMATCH`, records failure row, then advances checkpoint.
+   - Reasoning: protects replay integrity and surfaces anomalies explicitly for operations/reconciliation.
+
+4. **Flow-binding writer authority remains event-type gated**
+   - Decision: only authoritative flow-anchor events produce `FlowBindingRecord`; non-authoritative events never mutate binding.
+   - Reasoning: preserves ownership boundary and avoids accidental binding drift from non-anchor context events.
+
+5. **Late context is explicit anomaly, not silent drop**
+   - Decision: valid late events are applied but ledgered as `LATE_CONTEXT_EVENT` with watermark evidence.
+   - Reasoning: keeps projection continuity while making out-of-order posture auditable.
+
+6. **Missing join keys are hard failures**
+   - Decision: events without required join-key fields (`merchant_id`, `arrival_seq`, scoped run pins) are recorded as `JOIN_KEY_MISSING` and checkpointed forward.
+   - Reasoning: fail-closed posture without blocking partition progress.
+
+7. **Implementation correction discovered by runtime tests**
+   - Decision: corrected `_extract_join_key` callsite to pass keyword-only args (`payload=...`).
+   - Reasoning: this was a real runtime bug in intake path (TypeError) that Phase 3 tests surfaced; fixed immediately before closure.
+
+### Tests added for Phase 3
+- `tests/services/context_store_flow_binding/test_phase3_intake.py`
+  - `test_phase3_context_apply_and_authoritative_binding`
+  - `test_phase3_dedupe_duplicate_advances_checkpoint_no_extra_mutation`
+  - `test_phase3_payload_hash_mismatch_records_failure_and_advances_checkpoint`
+  - `test_phase3_missing_and_late_context_are_machine_readable`
+
+### Validation executed
+- `$env:PYTHONPATH='.;src'; python -m pytest tests/services/context_store_flow_binding/test_phase3_intake.py -q`
+  - Result: `4 passed`
+- `$env:PYTHONPATH='.;src'; python -m pytest tests/services/context_store_flow_binding -q`
+  - Result: `21 passed`
+
+### Phase 3 DoD mapping
+- Intake consumes admitted context streams from EB: satisfied via topic/class allowlists and bus readers.
+- Idempotent tuple and payload-hash mismatch semantics: satisfied via durable `csfb_intake_dedupe` + conflict handling.
+- Authoritative binding updates from flow-anchor only: satisfied in intake binding builder and taxonomy gate.
+- Late/missing context handling explicit and machine-readable: satisfied via `LATE_CONTEXT_EVENT` and `JOIN_KEY_MISSING` failure ledger entries.
+- Apply-failure ledger with reasons and offsets: satisfied via `record_apply_failure(...)` paths across intake gate failures and conflicts.

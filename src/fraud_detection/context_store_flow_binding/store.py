@@ -48,6 +48,14 @@ class CsfbApplyResult:
 
 
 @dataclass(frozen=True)
+class CsfbIntakeApplyResult:
+    dedupe_status: str
+    join_frame_status: str
+    flow_binding_status: str
+    checkpoint_status: str
+
+
+@dataclass(frozen=True)
 class CsfbRetentionProfile:
     profile: str
     join_frame_days: int | None
@@ -223,6 +231,194 @@ class ContextStoreFlowBindingStore:
 
         return self._run_in_tx(work_single_tx)
 
+    def apply_join_frame_and_checkpoint(
+        self,
+        *,
+        join_frame_key: JoinFrameKey,
+        frame_state: Mapping[str, Any],
+        source_event: Mapping[str, Any],
+        topic: str,
+        partition_id: int,
+        next_offset: str,
+        offset_kind: str,
+        watermark_ts_utc: str | None,
+    ) -> CsfbApplyResult:
+        frame_hash = hashlib.sha256(_canonical_json(frame_state).encode("utf-8")).hexdigest()
+
+        def work_single_tx(conn: Any) -> CsfbApplyResult:
+            status = self._upsert_join_frame_state_in_tx(
+                conn=conn,
+                join_frame_key=join_frame_key,
+                frame_state=frame_state,
+                frame_hash=frame_hash,
+                source_event=source_event,
+            )
+            checkpoint_status = self._advance_checkpoint_conn(
+                conn,
+                topic=topic,
+                partition_id=partition_id,
+                next_offset=next_offset,
+                offset_kind=offset_kind,
+                watermark_ts_utc=watermark_ts_utc,
+            )
+            return CsfbApplyResult(status=status, checkpoint_status=checkpoint_status)
+
+        return self._run_in_tx(work_single_tx)
+
+    def apply_context_event_and_checkpoint(
+        self,
+        *,
+        platform_run_id: str,
+        event_class: str,
+        event_id: str,
+        payload_hash: str,
+        join_frame_key: JoinFrameKey,
+        frame_state: Mapping[str, Any],
+        source_event: Mapping[str, Any],
+        topic: str,
+        partition_id: int,
+        event_offset: str,
+        next_offset: str,
+        offset_kind: str,
+        watermark_ts_utc: str | None,
+        flow_binding_record: FlowBindingRecord | None = None,
+    ) -> CsfbIntakeApplyResult:
+        frame_hash = hashlib.sha256(_canonical_json(frame_state).encode("utf-8")).hexdigest()
+
+        def work_single_tx(conn: Any) -> CsfbIntakeApplyResult:
+            dedupe_status = self._register_intake_event_in_tx(
+                conn=conn,
+                platform_run_id=platform_run_id,
+                event_class=event_class,
+                event_id=event_id,
+                payload_hash=payload_hash,
+                topic=topic,
+                partition_id=partition_id,
+                offset=event_offset,
+                offset_kind=offset_kind,
+                event_ts_utc=watermark_ts_utc,
+            )
+            if dedupe_status == "duplicate":
+                checkpoint_status = self._advance_checkpoint_conn(
+                    conn,
+                    topic=topic,
+                    partition_id=partition_id,
+                    next_offset=next_offset,
+                    offset_kind=offset_kind,
+                    watermark_ts_utc=watermark_ts_utc,
+                )
+                return CsfbIntakeApplyResult(
+                    dedupe_status=dedupe_status,
+                    join_frame_status="noop",
+                    flow_binding_status="noop",
+                    checkpoint_status=checkpoint_status,
+                )
+
+            join_frame_status = self._upsert_join_frame_state_in_tx(
+                conn=conn,
+                join_frame_key=join_frame_key,
+                frame_state=frame_state,
+                frame_hash=frame_hash,
+                source_event=source_event,
+            )
+            flow_binding_status = "noop"
+            if flow_binding_record is not None:
+                flow_binding_status = self._upsert_flow_binding_in_tx(conn=conn, record=flow_binding_record)
+            checkpoint_status = self._advance_checkpoint_conn(
+                conn,
+                topic=topic,
+                partition_id=partition_id,
+                next_offset=next_offset,
+                offset_kind=offset_kind,
+                watermark_ts_utc=watermark_ts_utc,
+            )
+            return CsfbIntakeApplyResult(
+                dedupe_status=dedupe_status,
+                join_frame_status=join_frame_status,
+                flow_binding_status=flow_binding_status,
+                checkpoint_status=checkpoint_status,
+            )
+
+        return self._run_in_tx(work_single_tx)
+
+    def advance_checkpoint(
+        self,
+        *,
+        topic: str,
+        partition_id: int,
+        next_offset: str,
+        offset_kind: str,
+        watermark_ts_utc: str | None,
+    ) -> str:
+        def work(conn: Any) -> str:
+            return self._advance_checkpoint_conn(
+                conn,
+                topic=topic,
+                partition_id=partition_id,
+                next_offset=next_offset,
+                offset_kind=offset_kind,
+                watermark_ts_utc=watermark_ts_utc,
+            )
+
+        return self._run_in_tx(work)
+
+    def register_intake_event(
+        self,
+        *,
+        platform_run_id: str,
+        event_class: str,
+        event_id: str,
+        payload_hash: str,
+        topic: str,
+        partition_id: int,
+        offset: str,
+        offset_kind: str,
+        event_ts_utc: str | None,
+    ) -> str:
+        def work(conn: Any) -> str:
+            return self._register_intake_event_in_tx(
+                conn=conn,
+                platform_run_id=platform_run_id,
+                event_class=event_class,
+                event_id=event_id,
+                payload_hash=payload_hash,
+                topic=topic,
+                partition_id=partition_id,
+                offset=offset,
+                offset_kind=offset_kind,
+                event_ts_utc=event_ts_utc,
+            )
+
+        return self._run_in_tx(work)
+
+    def read_join_frame_state(self, *, join_frame_key: JoinFrameKey) -> dict[str, Any] | None:
+        with self._connect() as conn:
+            row = self._execute(
+                conn,
+                """
+                SELECT frame_payload_json
+                FROM csfb_join_frames
+                WHERE stream_id = ? AND platform_run_id = ? AND scenario_run_id = ?
+                  AND merchant_id = ? AND arrival_seq = ?
+                """,
+                (
+                    self.stream_id,
+                    join_frame_key.platform_run_id,
+                    join_frame_key.scenario_run_id,
+                    join_frame_key.merchant_id,
+                    join_frame_key.arrival_seq,
+                ),
+            ).fetchone()
+        if row is None:
+            return None
+        try:
+            payload = json.loads(str(row[0]))
+        except json.JSONDecodeError as exc:
+            raise ContextStoreFlowBindingStoreError("join frame state row is not valid JSON") from exc
+        if not isinstance(payload, dict):
+            raise ContextStoreFlowBindingStoreError("join frame state row must decode to object")
+        return payload
+
     def get_checkpoint(self, *, topic: str, partition_id: int) -> CsfbCheckpoint | None:
         with self._connect() as conn:
             row = self._execute(
@@ -345,6 +541,151 @@ class ContextStoreFlowBindingStore:
             ),
         )
         return "inserted"
+
+    def _upsert_join_frame_state_in_tx(
+        self,
+        *,
+        conn: Any,
+        join_frame_key: JoinFrameKey,
+        frame_state: Mapping[str, Any],
+        frame_hash: str,
+        source_event: Mapping[str, Any],
+    ) -> str:
+        source = _normalize_source_event(source_event)
+        row = self._execute(
+            conn,
+            """
+            SELECT payload_hash
+            FROM csfb_join_frames
+            WHERE stream_id = ? AND platform_run_id = ? AND scenario_run_id = ?
+              AND merchant_id = ? AND arrival_seq = ?
+            """,
+            (
+                self.stream_id,
+                join_frame_key.platform_run_id,
+                join_frame_key.scenario_run_id,
+                join_frame_key.merchant_id,
+                join_frame_key.arrival_seq,
+            ),
+        ).fetchone()
+        if row is None:
+            self._execute(
+                conn,
+                """
+                INSERT INTO csfb_join_frames (
+                    stream_id, platform_run_id, scenario_run_id, merchant_id, arrival_seq, run_id,
+                    payload_hash, frame_payload_json, source_event_json,
+                    source_event_id, source_event_type, source_topic, source_partition,
+                    source_offset, source_offset_kind, source_ts_utc, created_at_utc, updated_at_utc
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+                """,
+                (
+                    self.stream_id,
+                    join_frame_key.platform_run_id,
+                    join_frame_key.scenario_run_id,
+                    join_frame_key.merchant_id,
+                    join_frame_key.arrival_seq,
+                    join_frame_key.run_id,
+                    frame_hash,
+                    _canonical_json(frame_state),
+                    _canonical_json(source),
+                    source["event_id"],
+                    source["event_type"],
+                    source["eb_ref"]["topic"],
+                    source["eb_ref"]["partition"],
+                    source["eb_ref"]["offset"],
+                    source["eb_ref"]["offset_kind"],
+                    source["ts_utc"],
+                ),
+            )
+            return "inserted"
+        if str(row[0]) == frame_hash:
+            return "noop"
+        self._execute(
+            conn,
+            """
+            UPDATE csfb_join_frames
+            SET payload_hash = ?, frame_payload_json = ?, source_event_json = ?,
+                source_event_id = ?, source_event_type = ?, source_topic = ?, source_partition = ?,
+                source_offset = ?, source_offset_kind = ?, source_ts_utc = ?, updated_at_utc = CURRENT_TIMESTAMP
+            WHERE stream_id = ? AND platform_run_id = ? AND scenario_run_id = ?
+              AND merchant_id = ? AND arrival_seq = ?
+            """,
+            (
+                frame_hash,
+                _canonical_json(frame_state),
+                _canonical_json(source),
+                source["event_id"],
+                source["event_type"],
+                source["eb_ref"]["topic"],
+                source["eb_ref"]["partition"],
+                source["eb_ref"]["offset"],
+                source["eb_ref"]["offset_kind"],
+                source["ts_utc"],
+                self.stream_id,
+                join_frame_key.platform_run_id,
+                join_frame_key.scenario_run_id,
+                join_frame_key.merchant_id,
+                join_frame_key.arrival_seq,
+            ),
+        )
+        return "updated"
+
+    def _register_intake_event_in_tx(
+        self,
+        *,
+        conn: Any,
+        platform_run_id: str,
+        event_class: str,
+        event_id: str,
+        payload_hash: str,
+        topic: str,
+        partition_id: int,
+        offset: str,
+        offset_kind: str,
+        event_ts_utc: str | None,
+    ) -> str:
+        _validate_hash(payload_hash, "payload_hash")
+        row = self._execute(
+            conn,
+            """
+            SELECT payload_hash
+            FROM csfb_intake_dedupe
+            WHERE stream_id = ? AND platform_run_id = ? AND event_class = ? AND event_id = ?
+            """,
+            (
+                self.stream_id,
+                _non_empty(platform_run_id, "platform_run_id"),
+                _non_empty(event_class, "event_class"),
+                _non_empty(event_id, "event_id"),
+            ),
+        ).fetchone()
+        if row is None:
+            self._execute(
+                conn,
+                """
+                INSERT INTO csfb_intake_dedupe (
+                    stream_id, platform_run_id, event_class, event_id, payload_hash,
+                    first_topic, first_partition, first_offset, offset_kind, first_seen_ts_utc, created_at_utc
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
+                """,
+                (
+                    self.stream_id,
+                    platform_run_id,
+                    event_class,
+                    event_id,
+                    payload_hash,
+                    _non_empty(topic, "topic"),
+                    int(partition_id),
+                    _non_empty(offset, "offset"),
+                    _non_empty(offset_kind, "offset_kind"),
+                    event_ts_utc,
+                ),
+            )
+            return "inserted"
+        if str(row[0]) == payload_hash:
+            return "duplicate"
+        raise ContextStoreFlowBindingConflictError("INTAKE_PAYLOAD_HASH_MISMATCH")
 
     def _advance_checkpoint_conn(
         self,

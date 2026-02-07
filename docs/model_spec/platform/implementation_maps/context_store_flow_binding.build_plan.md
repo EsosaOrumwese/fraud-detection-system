@@ -91,6 +91,20 @@ Provide a component-scoped build plan for the shared RTDL join plane that serves
 - Binding updates are authoritative only from flow-anchor events.
 - Late/missing context handling is explicit and machine-readable.
 - Apply-failure ledger records reasons and source offsets.
+**Evidence (Phase 3):**
+- Intake/runtime:
+  - `src/fraud_detection/context_store_flow_binding/intake.py`
+  - `config/platform/context_store_flow_binding/intake_policy_v0.yaml`
+- Durable intake support:
+  - `src/fraud_detection/context_store_flow_binding/migrations.py` (v2 `csfb_intake_dedupe`)
+  - `src/fraud_detection/context_store_flow_binding/store.py` (`apply_context_event_and_checkpoint` + dedupe registration)
+- Package exports:
+  - `src/fraud_detection/context_store_flow_binding/__init__.py`
+- Tests:
+  - `tests/services/context_store_flow_binding/test_phase3_intake.py`
+- Validation commands:
+  - `$env:PYTHONPATH='.;src'; python -m pytest tests/services/context_store_flow_binding/test_phase3_intake.py -q` (`4 passed`)
+  - `$env:PYTHONPATH='.;src'; python -m pytest tests/services/context_store_flow_binding -q` (`21 passed`)
 
 ### Phase 4 — Checkpointing + replay determinism
 **Intent:** guarantee restart/replay correctness.
@@ -149,4 +163,5 @@ Provide a component-scoped build plan for the shared RTDL join plane that serves
 ## Status (rolling)
 - Phase 1 (`Contracts, keys, and ownership pins`): completed.
 - Phase 2 (`Storage schema + durability`): completed.
-- Current focus: Phase 3 (not started).
+- Phase 3 (`Intake apply worker`): completed.
+- Current focus: Phase 4 (`Checkpointing + replay determinism`).

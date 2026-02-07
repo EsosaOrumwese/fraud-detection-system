@@ -17,6 +17,8 @@ def apply_sqlite_migrations(conn: sqlite3.Connection) -> None:
             continue
         if version == 1:
             _sqlite_migration_v1(conn)
+        elif version == 2:
+            _sqlite_migration_v2(conn)
         _record_sqlite_migration(conn, version)
 
 
@@ -28,11 +30,13 @@ def apply_postgres_migrations(conn: psycopg.Connection) -> None:
             continue
         if version == 1:
             _postgres_migration_v1(conn)
+        elif version == 2:
+            _postgres_migration_v2(conn)
         _record_postgres_migration(conn, version)
 
 
 def _migration_versions() -> Iterable[int]:
-    return (1,)
+    return (1, 2)
 
 
 def _ensure_migrations_table_sqlite(conn: sqlite3.Connection) -> None:
@@ -295,6 +299,60 @@ def _postgres_migration_v1(conn: psycopg.Connection) -> None:
         """
         CREATE INDEX IF NOT EXISTS idx_csfb_apply_failures_scope
         ON csfb_join_apply_failures(stream_id, platform_run_id, scenario_run_id)
+        """
+    )
+
+
+def _sqlite_migration_v2(conn: sqlite3.Connection) -> None:
+    conn.execute(
+        """
+        CREATE TABLE IF NOT EXISTS csfb_intake_dedupe (
+            stream_id TEXT NOT NULL,
+            platform_run_id TEXT NOT NULL,
+            event_class TEXT NOT NULL,
+            event_id TEXT NOT NULL,
+            payload_hash TEXT NOT NULL,
+            first_topic TEXT NOT NULL,
+            first_partition INTEGER NOT NULL,
+            first_offset TEXT NOT NULL,
+            offset_kind TEXT NOT NULL,
+            first_seen_ts_utc TEXT,
+            created_at_utc TEXT NOT NULL,
+            PRIMARY KEY (stream_id, platform_run_id, event_class, event_id)
+        )
+        """
+    )
+    conn.execute(
+        """
+        CREATE INDEX IF NOT EXISTS idx_csfb_dedupe_scope
+        ON csfb_intake_dedupe(stream_id, platform_run_id, event_class)
+        """
+    )
+
+
+def _postgres_migration_v2(conn: psycopg.Connection) -> None:
+    conn.execute(
+        """
+        CREATE TABLE IF NOT EXISTS csfb_intake_dedupe (
+            stream_id TEXT NOT NULL,
+            platform_run_id TEXT NOT NULL,
+            event_class TEXT NOT NULL,
+            event_id TEXT NOT NULL,
+            payload_hash TEXT NOT NULL,
+            first_topic TEXT NOT NULL,
+            first_partition INTEGER NOT NULL,
+            first_offset TEXT NOT NULL,
+            offset_kind TEXT NOT NULL,
+            first_seen_ts_utc TEXT,
+            created_at_utc TEXT NOT NULL,
+            PRIMARY KEY (stream_id, platform_run_id, event_class, event_id)
+        )
+        """
+    )
+    conn.execute(
+        """
+        CREATE INDEX IF NOT EXISTS idx_csfb_dedupe_scope
+        ON csfb_intake_dedupe(stream_id, platform_run_id, event_class)
         """
     )
 

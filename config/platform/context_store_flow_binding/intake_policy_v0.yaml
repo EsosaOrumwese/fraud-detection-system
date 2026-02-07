@@ -1,0 +1,26 @@
+context_store_flow_binding:
+  policy:
+    stream_id: csfb.v0
+    class_map_ref: config/platform/ig/class_map_v0.yaml
+    context_event_classes:
+      - context_arrival
+      - context_arrival_entities
+      - context_flow_baseline
+      - context_flow_fraud
+    context_topics:
+      - fp.bus.context.arrival_events.v1
+      - fp.bus.context.arrival_entities.v1
+      - fp.bus.context.flow_anchor.baseline.v1
+      - fp.bus.context.flow_anchor.fraud.v1
+  wiring:
+    projection_db_dsn: runs/fraud-platform/context_store_flow_binding/csfb.sqlite
+    event_bus_kind: file
+    event_bus_root: runs/fraud-platform/eb
+    event_bus_stream: auto
+    event_bus_start_position: trim_horizon
+    event_bus_region: null
+    event_bus_endpoint_url: null
+    engine_contracts_root: docs/model_spec/data-engine/interface_pack/contracts
+    required_platform_run_id: null
+    poll_max_records: 200
+    poll_sleep_seconds: 0.5

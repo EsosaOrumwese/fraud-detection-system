@@ -19,10 +19,12 @@ from .store import (
     ContextStoreFlowBindingStoreError,
     CsfbApplyResult,
     CsfbCheckpoint,
+    CsfbIntakeApplyResult,
     CsfbRetentionProfile,
     build_store,
     load_retention_profile,
 )
+from .intake import ContextStoreFlowBindingInlet, CsfbInletPolicy
 
 __all__ = [
     "ContextStoreFlowBindingConfigError",
@@ -34,7 +36,10 @@ __all__ = [
     "ContextStoreFlowBindingStoreError",
     "CsfbApplyResult",
     "CsfbCheckpoint",
+    "CsfbInletPolicy",
+    "CsfbIntakeApplyResult",
     "CsfbRetentionProfile",
+    "ContextStoreFlowBindingInlet",
     "FlowBindingRecord",
     "JoinFrameKey",
     "QueryRequest",
