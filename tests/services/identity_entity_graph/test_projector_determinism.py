@@ -3,6 +3,7 @@ from __future__ import annotations
 import sqlite3
 from pathlib import Path
 
+import pytest
 import yaml
 
 from fraud_detection.event_bus import FileEventBusPublisher
@@ -262,7 +263,8 @@ def test_integration_projection_from_file_bus(tmp_path: Path) -> None:
     assert state["counts"]["identifiers"] == 8
 
 
-def test_df_output_families_are_irrelevant_no_apply_failure(tmp_path: Path) -> None:
+@pytest.mark.parametrize("event_type", ["decision_response", "action_intent", "action_outcome"])
+def test_rtdl_output_families_are_irrelevant_no_apply_failure(tmp_path: Path, event_type: str) -> None:
     bus_root = tmp_path / "eb"
     publisher = FileEventBusPublisher(bus_root)
     platform_run_id = "platform_20260205T000000Z"
@@ -272,7 +274,7 @@ def test_df_output_families_are_irrelevant_no_apply_failure(tmp_path: Path) -> N
         topic,
         "pk",
         _envelope(
-            "decision_response",
+            event_type,
             "d" * 64,
             {"decision_id": "x" * 32},
             "2026-02-05T00:00:05.000000Z",

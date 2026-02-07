@@ -415,3 +415,111 @@ Current Phase 4 engine computes bounded retry backoff schedule but does not enfo
   - stable idempotency token per retry attempt.
 
 ---
+
+## Entry: 2026-02-07 19:04:22 - Phase 5 pre-implementation plan (outcome append + IG publish discipline)
+
+### Trigger
+User requested to proceed with AL Phase 5.
+
+### Authorities used
+- `docs/model_spec/platform/implementation_maps/action_layer.build_plan.md` (Phase 5 DoD)
+- `docs/model_spec/platform/pre-design_decisions/real-time_decision_loop.pre-design_decision.md` (admission via IG, deterministic publish posture)
+- `docs/model_spec/platform/component-specific/flow-narrative-platform-design.md` (DF/AL through IG to EB, provenance-first)
+- `docs/model_spec/platform/contracts/real_time_decision_loop/action_outcome.schema.yaml`
+
+### Problem framing
+AL currently has contracts, idempotency, authz, and execution semantics, but does not yet provide:
+1. durable append-only outcome store,
+2. deterministic IG publish boundary for `action_outcome`,
+3. persisted receipt/evidence linkage for reconciliation.
+
+### Design decisions before coding
+1. Add dedicated `ActionOutcomeStore` under `action_layer.storage`.
+   - Reasoning: append-only outcome truth and publish evidence need durable state with backend parity (sqlite/postgres), analogous to DLA/DF stores.
+2. Use `outcome_id` as canonical AL outcome event identity.
+   - Reasoning: it is deterministic, contract-validated (`hex32`), and already tied to execution terminal identity.
+3. Publish to IG through a dedicated AL publisher module (`action_layer.publish`) with explicit decision taxonomy:
+   - `ADMIT`, `DUPLICATE`, `QUARANTINE`, `AMBIGUOUS`.
+   - Reasoning: AL Phase 5 DoD explicitly includes ambiguous handling; IG may return quarantine for server-side ambiguity, while client-side timeout/network ambiguity must still be represented deterministically.
+4. Keep fail-closed response handling:
+   - unknown IG decision or malformed response => deterministic publish error.
+5. Keep Phase 5 scope bounded:
+   - implement append+publish+evidence persistence surfaces and tests,
+   - do not implement checkpoint/replay cursor progression yet (Phase 6).
+
+### Planned file changes
+- `src/fraud_detection/action_layer/storage.py`
+  - add append-only outcome row model and write API with hash-mismatch protection.
+  - add publish evidence persistence API keyed by `outcome_id`.
+- `src/fraud_detection/action_layer/publish.py` (new)
+  - add IG publish client for action outcomes with bounded retry and explicit ambiguous mapping.
+  - add canonical envelope builder for `event_type=action_outcome` + `schema_version=v1`.
+- `src/fraud_detection/action_layer/__init__.py`
+  - export new Phase 5 surfaces.
+- `tests/services/action_layer/test_phase5_outcomes.py` (new)
+  - append-only behavior + hash mismatch.
+  - IG publish decisions (admit/duplicate/quarantine/ambiguous).
+  - receipt/evidence persistence.
+- Config/IG policy alignment (if missing):
+  - `config/platform/ig/schema_policy_v0.yaml`
+  - `config/platform/ig/class_map_v0.yaml`
+  - `config/platform/ig/partitioning_profiles_v0.yaml`
+
+### Validation plan
+- `python -m pytest tests/services/action_layer -q`
+- If IG config changed, run targeted IG/DF tests for schema/policy compatibility as needed.
+
+---
+
+## Entry: 2026-02-07 19:09:44 - Phase 5 implementation closure (outcome store + IG publish discipline)
+
+### What was implemented
+1. Added append-only outcome store with hash-guarded immutability:
+   - `src/fraud_detection/action_layer/storage.py`
+   - introduced `ActionOutcomeStore` with:
+     - `register_outcome(...)` -> `NEW|DUPLICATE|HASH_MISMATCH` using canonical payload hash,
+     - `register_publish_result(...)` -> deterministic publish evidence persistence keyed by `outcome_id`.
+2. Added AL -> IG publish boundary module:
+   - `src/fraud_detection/action_layer/publish.py`
+   - introduced:
+     - `build_action_outcome_envelope(...)` (canonical envelope for `event_type=action_outcome`, `schema_version=v1`, stable `event_id=outcome_id`),
+     - `ActionLayerIgPublisher.publish_envelope(...)` with bounded retry and deterministic decisions,
+     - publish taxonomy: `ADMIT | DUPLICATE | QUARANTINE | AMBIGUOUS`.
+3. Exported Phase 5 surfaces:
+   - `src/fraud_detection/action_layer/__init__.py`.
+4. Aligned IG policy/routing for AL outcome family:
+   - `config/platform/ig/schema_policy_v0.yaml` -> add `action_outcome` payload schema policy.
+   - `config/platform/ig/class_map_v0.yaml` -> add `rtdl_action_outcome` class + event map.
+   - `config/platform/ig/partitioning_profiles_v0.yaml` -> add `ig.partitioning.v0.rtdl.action_outcome` profile.
+   - `src/fraud_detection/ingestion_gate/admission.py` -> class-to-profile mapping for `rtdl_action_outcome`.
+5. Prevented RTDL projector drift on shared traffic stream:
+   - `src/fraud_detection/online_feature_plane/projector.py` -> `action_outcome` added to ignored non-apply families.
+   - `config/platform/ieg/classification_v0.yaml` -> `action_outcome` added to `graph_irrelevant`.
+
+### Decisions made during implementation (with reasoning)
+1. **Canonical AL publish identity uses `outcome_id` as envelope `event_id`.**
+   - Reasoning: `outcome_id` is already deterministic and contract-pinned for immutable outcome truth.
+2. **Ambiguity is represented explicitly at publisher boundary.**
+   - Reasoning: IG response enum remains `ADMIT|DUPLICATE|QUARANTINE`; network/timeouts/retry exhaustion are represented as `AMBIGUOUS` in AL publish evidence so replay/reconciliation can distinguish transport ambiguity from IG quarantine.
+3. **Outcome append and publish evidence are both hash-guarded.**
+   - Reasoning: protects append-only truth from silent overwrite under retries or accidental shape drift.
+4. **`action_outcome` routed on shared RTDL traffic stream in parity and explicitly ignored/irrelevant by OFP/IEG.**
+   - Reasoning: preserves current shared-stream topology while preventing projector apply-failure drift.
+
+### Tests added/updated
+- Added:
+  - `tests/services/action_layer/test_phase5_outcomes.py`
+- Updated:
+  - `tests/services/online_feature_plane/test_phase2_projector.py` (non-apply families include `action_outcome`)
+  - `tests/services/identity_entity_graph/test_projector_determinism.py` (RTDL output irrelevance includes `action_outcome`)
+
+### Validation evidence
+- `$env:PYTHONPATH='.;src'; python -m pytest tests/services/action_layer tests/services/online_feature_plane/test_phase2_projector.py tests/services/identity_entity_graph/test_projector_determinism.py -q` -> `45 passed`.
+
+### DoD mapping outcome
+- Outcome records append-only with stable identity: **complete** (`ActionOutcomeStore.register_outcome`).
+- Publish path through IG with stable event identity: **complete** (`ActionLayerIgPublisher` + `event_id=outcome_id`).
+- Publish decisions include admit/duplicate/quarantine/ambiguous deterministically: **complete**.
+- Receipt/evidence refs persisted for reconciliation: **complete** (`register_publish_result`).
+
+---

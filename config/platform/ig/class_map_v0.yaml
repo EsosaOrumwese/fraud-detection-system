@@ -79,6 +79,14 @@ classes:
       - parameter_hash
       - seed
       - scenario_id
+  rtdl_action_outcome:
+    required_pins:
+      - platform_run_id
+      - scenario_run_id
+      - manifest_fingerprint
+      - parameter_hash
+      - seed
+      - scenario_id
   control:
     required_pins:
       - platform_run_id
@@ -99,6 +107,7 @@ event_types:
   s3_flow_anchor_with_fraud_6B: context_flow_fraud
   decision_response: rtdl_decision
   action_intent: rtdl_action_intent
+  action_outcome: rtdl_action_outcome
   ig.policy.activation: audit
   ig.quarantine.spike: audit
   ig.pull.run: audit

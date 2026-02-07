@@ -37,6 +37,12 @@ policies:
     allowed_schema_versions:
       - v1
     payload_schema_ref: docs/model_spec/platform/contracts/real_time_decision_loop/action_intent.schema.yaml
+  - event_type: action_outcome
+    class: rtdl_action_outcome
+    schema_version_required: true
+    allowed_schema_versions:
+      - v1
+    payload_schema_ref: docs/model_spec/platform/contracts/real_time_decision_loop/action_outcome.schema.yaml
   - event_type: ig.policy.activation
     class: audit
     schema_version_required: false

@@ -3,7 +3,9 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+import hashlib
 from pathlib import Path
+import json
 import sqlite3
 from typing import Any, Mapping
 
@@ -56,6 +58,45 @@ class ActionSemanticLedgerRecord:
 class ActionSemanticLedgerWriteResult:
     status: str
     record: ActionSemanticLedgerRecord
+
+
+@dataclass(frozen=True)
+class ActionOutcomeAppendRecord:
+    outcome_id: str
+    platform_run_id: str
+    scenario_run_id: str
+    decision_id: str
+    action_id: str
+    status: str
+    idempotency_key: str
+    payload_hash: str
+    completed_at_utc: str
+    recorded_at_utc: str
+
+
+@dataclass(frozen=True)
+class ActionOutcomeAppendWriteResult:
+    status: str
+    record: ActionOutcomeAppendRecord
+
+
+@dataclass(frozen=True)
+class ActionOutcomePublishRecord:
+    outcome_id: str
+    event_id: str
+    event_type: str
+    publish_decision: str
+    receipt_id: str | None
+    receipt_ref: str | None
+    reason_code: str | None
+    published_at_utc: str
+    publish_hash: str
+
+
+@dataclass(frozen=True)
+class ActionOutcomePublishWriteResult:
+    status: str
+    record: ActionOutcomePublishRecord
 
 
 def build_storage_layout(config: Mapping[str, Any] | None = None) -> ActionLayerStorageLayout:
@@ -285,6 +326,272 @@ class ActionLedgerStore:
         return psycopg.connect(self.locator)
 
 
+class ActionOutcomeStore:
+    _PUBLISH_DECISIONS = {"ADMIT", "DUPLICATE", "QUARANTINE", "AMBIGUOUS"}
+
+    def __init__(self, *, locator: str) -> None:
+        self.locator = locator
+        self.backend = "postgres" if is_postgres_dsn(locator) else "sqlite"
+        if self.backend == "sqlite":
+            path = Path(_sqlite_path(locator))
+            path.parent.mkdir(parents=True, exist_ok=True)
+        self._init_schema()
+
+    def register_outcome(
+        self,
+        *,
+        outcome_payload: Mapping[str, Any],
+        recorded_at_utc: str,
+    ) -> ActionOutcomeAppendWriteResult:
+        payload = dict(outcome_payload)
+        pins = payload.get("pins")
+        if not isinstance(pins, Mapping):
+            raise ActionLedgerStoreError("outcome payload pins must be a mapping")
+
+        outcome_id = str(payload.get("outcome_id") or "").strip()
+        platform_run_id = str(pins.get("platform_run_id") or "").strip()
+        scenario_run_id = str(pins.get("scenario_run_id") or "").strip()
+        decision_id = str(payload.get("decision_id") or "").strip()
+        action_id = str(payload.get("action_id") or "").strip()
+        status = str(payload.get("status") or "").strip()
+        idempotency_key = str(payload.get("idempotency_key") or "").strip()
+        completed_at_utc = str(payload.get("completed_at_utc") or "").strip()
+        if not all(
+            (
+                outcome_id,
+                platform_run_id,
+                scenario_run_id,
+                decision_id,
+                action_id,
+                status,
+                idempotency_key,
+                completed_at_utc,
+            )
+        ):
+            raise ActionLedgerStoreError("outcome payload missing required append fields")
+
+        payload_hash = hashlib.sha256(
+            json.dumps(payload, sort_keys=True, ensure_ascii=True, separators=(",", ":")).encode("utf-8")
+        ).hexdigest()
+        params = (
+            outcome_id,
+            platform_run_id,
+            scenario_run_id,
+            decision_id,
+            action_id,
+            status,
+            idempotency_key,
+            payload_hash,
+            json.dumps(payload, sort_keys=True, ensure_ascii=True, separators=(",", ":")),
+            completed_at_utc,
+            recorded_at_utc,
+        )
+
+        with self._connect() as conn:
+            row = _query_one(
+                conn,
+                self.backend,
+                """
+                SELECT platform_run_id, scenario_run_id, decision_id, action_id, status,
+                       idempotency_key, payload_hash, completed_at_utc, recorded_at_utc
+                FROM al_outcomes_append
+                WHERE outcome_id = {p1}
+                """,
+                (outcome_id,),
+            )
+            if row is None:
+                _execute(
+                    conn,
+                    self.backend,
+                    """
+                    INSERT INTO al_outcomes_append (
+                        outcome_id, platform_run_id, scenario_run_id, decision_id, action_id,
+                        status, idempotency_key, payload_hash, payload_json, completed_at_utc, recorded_at_utc
+                    ) VALUES ({p1}, {p2}, {p3}, {p4}, {p5}, {p6}, {p7}, {p8}, {p9}, {p10}, {p11})
+                    """,
+                    params,
+                )
+                record = ActionOutcomeAppendRecord(
+                    outcome_id=outcome_id,
+                    platform_run_id=platform_run_id,
+                    scenario_run_id=scenario_run_id,
+                    decision_id=decision_id,
+                    action_id=action_id,
+                    status=status,
+                    idempotency_key=idempotency_key,
+                    payload_hash=payload_hash,
+                    completed_at_utc=completed_at_utc,
+                    recorded_at_utc=recorded_at_utc,
+                )
+                return ActionOutcomeAppendWriteResult(status="NEW", record=record)
+
+            existing = ActionOutcomeAppendRecord(
+                outcome_id=outcome_id,
+                platform_run_id=str(row[0]),
+                scenario_run_id=str(row[1]),
+                decision_id=str(row[2]),
+                action_id=str(row[3]),
+                status=str(row[4]),
+                idempotency_key=str(row[5]),
+                payload_hash=str(row[6]),
+                completed_at_utc=str(row[7]),
+                recorded_at_utc=str(row[8]),
+            )
+            if existing.payload_hash == payload_hash:
+                return ActionOutcomeAppendWriteResult(status="DUPLICATE", record=existing)
+            return ActionOutcomeAppendWriteResult(status="HASH_MISMATCH", record=existing)
+
+    def register_publish_result(
+        self,
+        *,
+        outcome_id: str,
+        event_id: str,
+        event_type: str,
+        publish_decision: str,
+        receipt: Mapping[str, Any] | None,
+        receipt_ref: str | None,
+        reason_code: str | None,
+        published_at_utc: str,
+    ) -> ActionOutcomePublishWriteResult:
+        decision = str(publish_decision or "").strip().upper()
+        if decision not in self._PUBLISH_DECISIONS:
+            raise ActionLedgerStoreError(f"unsupported publish decision: {decision}")
+        receipt_id = None
+        if isinstance(receipt, Mapping):
+            receipt_id_raw = receipt.get("receipt_id")
+            receipt_id = str(receipt_id_raw).strip() if receipt_id_raw not in (None, "") else None
+        receipt_ref_value = str(receipt_ref).strip() if receipt_ref not in (None, "") else None
+        reason = str(reason_code).strip() if reason_code not in (None, "") else None
+        publish_identity = {
+            "outcome_id": outcome_id,
+            "event_id": event_id,
+            "event_type": event_type,
+            "publish_decision": decision,
+            "receipt_id": receipt_id,
+            "receipt_ref": receipt_ref_value,
+            "reason_code": reason,
+        }
+        publish_hash = hashlib.sha256(
+            json.dumps(publish_identity, sort_keys=True, ensure_ascii=True, separators=(",", ":")).encode("utf-8")
+        ).hexdigest()
+        receipt_json = (
+            json.dumps(dict(receipt), sort_keys=True, ensure_ascii=True, separators=(",", ":"))
+            if isinstance(receipt, Mapping)
+            else None
+        )
+        params = (
+            outcome_id,
+            event_id,
+            event_type,
+            decision,
+            receipt_id,
+            receipt_ref_value,
+            reason,
+            published_at_utc,
+            publish_hash,
+            receipt_json,
+        )
+        with self._connect() as conn:
+            row = _query_one(
+                conn,
+                self.backend,
+                """
+                SELECT event_id, event_type, publish_decision, receipt_id, receipt_ref,
+                       reason_code, published_at_utc, publish_hash
+                FROM al_outcome_publish
+                WHERE outcome_id = {p1}
+                """,
+                (outcome_id,),
+            )
+            if row is None:
+                _execute(
+                    conn,
+                    self.backend,
+                    """
+                    INSERT INTO al_outcome_publish (
+                        outcome_id, event_id, event_type, publish_decision, receipt_id,
+                        receipt_ref, reason_code, published_at_utc, publish_hash, receipt_json
+                    ) VALUES ({p1}, {p2}, {p3}, {p4}, {p5}, {p6}, {p7}, {p8}, {p9}, {p10})
+                    """,
+                    params,
+                )
+                record = ActionOutcomePublishRecord(
+                    outcome_id=outcome_id,
+                    event_id=event_id,
+                    event_type=event_type,
+                    publish_decision=decision,
+                    receipt_id=receipt_id,
+                    receipt_ref=receipt_ref_value,
+                    reason_code=reason,
+                    published_at_utc=published_at_utc,
+                    publish_hash=publish_hash,
+                )
+                return ActionOutcomePublishWriteResult(status="NEW", record=record)
+
+            existing = ActionOutcomePublishRecord(
+                outcome_id=outcome_id,
+                event_id=str(row[0]),
+                event_type=str(row[1]),
+                publish_decision=str(row[2]),
+                receipt_id=None if row[3] in (None, "") else str(row[3]),
+                receipt_ref=None if row[4] in (None, "") else str(row[4]),
+                reason_code=None if row[5] in (None, "") else str(row[5]),
+                published_at_utc=str(row[6]),
+                publish_hash=str(row[7]),
+            )
+            if existing.publish_hash == publish_hash:
+                return ActionOutcomePublishWriteResult(status="DUPLICATE", record=existing)
+            return ActionOutcomePublishWriteResult(status="HASH_MISMATCH", record=existing)
+
+    def _init_schema(self) -> None:
+        with self._connect() as conn:
+            _execute_script(
+                conn,
+                self.backend,
+                """
+                CREATE TABLE IF NOT EXISTS al_outcomes_append (
+                    outcome_id TEXT PRIMARY KEY,
+                    platform_run_id TEXT NOT NULL,
+                    scenario_run_id TEXT NOT NULL,
+                    decision_id TEXT NOT NULL,
+                    action_id TEXT NOT NULL,
+                    status TEXT NOT NULL,
+                    idempotency_key TEXT NOT NULL,
+                    payload_hash TEXT NOT NULL,
+                    payload_json TEXT NOT NULL,
+                    completed_at_utc TEXT NOT NULL,
+                    recorded_at_utc TEXT NOT NULL
+                );
+                CREATE INDEX IF NOT EXISTS ix_al_outcomes_append_run_scope
+                    ON al_outcomes_append (platform_run_id, scenario_run_id, recorded_at_utc);
+                CREATE INDEX IF NOT EXISTS ix_al_outcomes_append_decision
+                    ON al_outcomes_append (decision_id);
+
+                CREATE TABLE IF NOT EXISTS al_outcome_publish (
+                    outcome_id TEXT PRIMARY KEY,
+                    event_id TEXT NOT NULL,
+                    event_type TEXT NOT NULL,
+                    publish_decision TEXT NOT NULL,
+                    receipt_id TEXT,
+                    receipt_ref TEXT,
+                    reason_code TEXT,
+                    published_at_utc TEXT NOT NULL,
+                    publish_hash TEXT NOT NULL,
+                    receipt_json TEXT
+                );
+                CREATE INDEX IF NOT EXISTS ix_al_outcome_publish_decision
+                    ON al_outcome_publish (publish_decision, published_at_utc);
+                """,
+            )
+
+    def _connect(self) -> Any:
+        if self.backend == "sqlite":
+            conn = sqlite3.connect(_sqlite_path(self.locator))
+            conn.row_factory = sqlite3.Row
+            return conn
+        return psycopg.connect(self.locator)
+
+
 def _sqlite_path(locator: str) -> str:
     if locator.startswith("sqlite:///"):
         return locator[len("sqlite:///") :]
@@ -296,11 +603,11 @@ def _sqlite_path(locator: str) -> str:
 def _render_sql(sql: str, backend: str) -> str:
     if backend == "postgres":
         rendered = sql
-        for idx in range(1, 10):
+        for idx in range(1, 31):
             rendered = rendered.replace(f"{{p{idx}}}", f"${idx}")
         return rendered
     rendered = sql
-    for idx in range(1, 10):
+    for idx in range(1, 31):
         rendered = rendered.replace(f"{{p{idx}}}", "?")
     return rendered
 

@@ -10,6 +10,7 @@ graph_mutating:
 graph_irrelevant:
   - decision_response
   - action_intent
+  - action_outcome
   - ig.policy.activation
   - ig.quarantine.spike
   - ig.pull.run

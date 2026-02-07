@@ -3,6 +3,8 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
+import pytest
+
 from fraud_detection.online_feature_plane.projector import OnlineFeatureProjector
 from fraud_detection.online_feature_plane.store import build_store
 
@@ -333,7 +335,8 @@ def test_projector_file_bus_supports_multiple_topics_and_topic_metrics(tmp_path)
     assert {"topic": context_topic, "partition": 0, "offset": "1"} in basis["offsets"]
 
 
-def test_projector_ignores_df_families_on_shared_traffic_topic(tmp_path) -> None:
+@pytest.mark.parametrize("event_type", ["decision_response", "action_intent", "action_outcome"])
+def test_projector_ignores_rtdl_non_apply_families_on_shared_traffic_topic(tmp_path, event_type: str) -> None:
     topic = "fp.bus.traffic.fraud.v1"
     bus_root = tmp_path / "bus"
     db_path = tmp_path / "ofp_projection.db"
@@ -342,7 +345,7 @@ def test_projector_ignores_df_families_on_shared_traffic_topic(tmp_path) -> None
     _write_bus_records(
         bus_root,
         topic,
-        [_df_envelope(event_id="9" * 64, ts_utc="2026-02-06T00:00:09.000000Z", event_type="decision_response")],
+        [_df_envelope(event_id="9" * 64, ts_utc="2026-02-06T00:00:09.000000Z", event_type=event_type)],
     )
 
     projector = OnlineFeatureProjector.build(str(profile_path))

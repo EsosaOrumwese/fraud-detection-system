@@ -30,6 +30,7 @@ _REQUIRED_PINS = [
 _IGNORED_EVENT_TYPES = {
     "decision_response",
     "action_intent",
+    "action_outcome",
 }
 
 

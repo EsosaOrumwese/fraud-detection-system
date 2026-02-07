@@ -119,3 +119,15 @@ profiles:
       - payload.pins.scenario_run_id
       - event_id
     hash_algo: sha256
+
+  ig.partitioning.v0.rtdl.action_outcome:
+    description: >
+      Deterministic routing for Action Layer outcomes.
+    stream: fp.bus.traffic.fraud.v1
+    key_precedence:
+      - payload.idempotency_key
+      - payload.decision_id
+      - payload.pins.platform_run_id
+      - payload.pins.scenario_run_id
+      - event_id
+    hash_algo: sha256

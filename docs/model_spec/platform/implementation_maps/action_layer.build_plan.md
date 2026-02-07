@@ -111,6 +111,24 @@ Provide an executable, component-scoped AL plan aligned to platform `Phase 4.5` 
 - Outcome publish path uses IG with stable event identity.
 - Publish outcomes (`ADMIT`, `DUPLICATE`, `QUARANTINE`, ambiguous) are handled deterministically.
 - Receipt/evidence refs are persisted for reconciliation.
+**Evidence (Phase 5):**
+- Config:
+  - `config/platform/ig/schema_policy_v0.yaml` (`action_outcome` schema policy)
+  - `config/platform/ig/class_map_v0.yaml` (`rtdl_action_outcome` class map)
+  - `config/platform/ig/partitioning_profiles_v0.yaml` (`ig.partitioning.v0.rtdl.action_outcome`)
+  - `config/platform/ieg/classification_v0.yaml` (`action_outcome` marked irrelevant)
+- Code:
+  - `src/fraud_detection/action_layer/storage.py` (`ActionOutcomeStore`)
+  - `src/fraud_detection/action_layer/publish.py`
+  - `src/fraud_detection/action_layer/__init__.py`
+  - `src/fraud_detection/ingestion_gate/admission.py` (`rtdl_action_outcome` partition profile mapping)
+  - `src/fraud_detection/online_feature_plane/projector.py` (`action_outcome` ignored on shared traffic)
+- Tests:
+  - `tests/services/action_layer/test_phase5_outcomes.py`
+  - `tests/services/online_feature_plane/test_phase2_projector.py`
+  - `tests/services/identity_entity_graph/test_projector_determinism.py`
+- Validation:
+  - `$env:PYTHONPATH='.;src'; python -m pytest tests/services/action_layer tests/services/online_feature_plane/test_phase2_projector.py tests/services/identity_entity_graph/test_projector_determinism.py -q`
 
 ### Phase 6 — Checkpoints + replay determinism
 **Intent:** guarantee deterministic AL behavior under restarts/replay.
@@ -144,4 +162,5 @@ Provide an executable, component-scoped AL plan aligned to platform `Phase 4.5` 
 - Phase 2 (`Semantic idempotency ledger`): completed on `2026-02-07`.
 - Phase 3 (`Authorization + execution posture gates`): completed on `2026-02-07`.
 - Phase 4 (`Executor adapters + retry/failure semantics`): completed on `2026-02-07`.
-- Current focus: Phase 5 (`Outcome store + IG publish discipline`).
+- Phase 5 (`Outcome store + IG publish discipline`): completed on `2026-02-07`.
+- Current focus: Phase 6 (`Checkpoints + replay determinism`).
