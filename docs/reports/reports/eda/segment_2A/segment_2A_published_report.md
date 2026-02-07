@@ -326,7 +326,7 @@ If 1B is improved to provide richer site placement, 2A should move from **C → 
 
 ---
 
-## 13) Visual diagnostics (core realism lens)
+## 14) Visual diagnostics (core realism lens)
 Below are the refreshed core plots plus added diagnostics. The goal is to expose **where realism breaks** (and why), not just show row counts.
 
 ### 13.1 Country spatial spread vs site count
@@ -387,7 +387,7 @@ This is a highly compressed support for a global synthetic dataset and explains 
 
 ---
 
-## 14) Visual takeaway (realism lens)
+## 15) Visual takeaway (realism lens)
 Across the refreshed and added plots, the consistent pattern is: **high site counts with limited spatial spread -> low tzid support and strong top-1 timezone dominance**.  
 The 2A outputs remain internally coherent (assignment logic works), but the assigned timezone diversity is too compressed for stronger realism.  
 The fix remains upstream: broaden 1B spatial spread and multi-city sampling so 2A can map sites into richer, country-appropriate timezone mixtures.
