@@ -1,7 +1,7 @@
-# Platform Parity Walkthrough (v0) — Oracle Store → SR → WSP → IG → EB → IEG/OFP/DF/DL
+# Platform Parity Walkthrough (v0) — Oracle Store → SR → WSP → IG → EB → IEG/OFP/CSFB/DF/DL/AL/DLA
 _As of 2026-02-06_
 
-This runbook executes a **local_parity** end‑to‑end flow capped to **500,000 events**, and then runs **IEG** against the admitted EB topics.
+This runbook executes a **local_parity** end‑to‑end flow capped to **500,000 events**, then validates the implemented RTDL component surfaces (**IEG/OFP/CSFB/DF/DL/AL/DLA**) against admitted EB topics.
 It uses **MinIO (S3)** for the Oracle Store + platform artifacts, **LocalStack Kinesis** for control/event buses, and **Postgres** for IG/WSP state.
 
 ---
@@ -883,6 +883,46 @@ Expected fields:
 - `effect_execution_calls == expected_events`
 
 Boundary note:
-This validates AL at its component boundary for Phase 8. Platform `4.5` closure still requires DLA append-only audit-chain integration gates.
+This validates AL at its component boundary for Phase 8.
+
+## 20) DLA local-parity boundary checks (append-only intake + reconciliation)
+
+Use this section to validate Decision Log/Audit Phase 8 closure at component boundary.
+
+**20.1 Run DLA Phase 8 validation matrix**
+```powershell
+$env:PYTHONPATH='.;src'
+.venv\Scripts\python.exe -m pytest tests/services/decision_log_audit/test_dla_phase8_validation_matrix.py -q
+```
+
+Expected result:
+- `3 passed` (includes:
+  - DF->DLA parity proof (`20` events),
+  - AL->DLA parity proof (`20` events),
+  - combined DF/AL->DLA parity proof (`200` events) with replay-safe append behavior).
+
+**20.2 Run full DLA suite**
+```powershell
+$env:PYTHONPATH='.;src'
+.venv\Scripts\python.exe -m pytest tests/services/decision_log_audit -q
+```
+
+Expected result:
+- full DLA suite passes (current baseline expected green).
+
+**20.3 Inspect parity proof artifacts**
+```powershell
+Get-Content runs/fraud-platform/platform_20260207T220000Z/decision_log_audit/reconciliation/phase8_parity_proof_20.json
+Get-Content runs/fraud-platform/platform_20260207T220000Z/decision_log_audit/reconciliation/phase8_parity_proof_200.json
+```
+
+Expected fields:
+- `status: PASS`
+- `records_total` matches expected intake volume for the test scenario
+- `append_only_violations == 0`
+- reconciliation indicates monotonic checkpoint/offset progression
+
+Boundary note:
+This validates DLA at its component boundary for Phase 8 (append-only intake, lineage/reconciliation, and parity proofs).
 
 
