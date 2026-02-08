@@ -215,7 +215,255 @@ Options are ranked on four criteria:
 3. Section 5 should therefore specify exact deltas for Package A first, with Package B changes explicitly marked as phase-2 enhancements.
 
 ## 5) Chosen Fix Spec (Exact Parameter/Code Deltas)
+This section converts Section 4 (Package A) into exact, implementation-grade deltas for `6A`. The objective is to pass all `B` gates first, then expand to `B+`.
+
+### 5.1 Scope and ordering
+1. Phase-1 (mandatory for `B`): `S2 cap enforcement`, `S4 IP realism controls`, `S5 propagation coupling`, `role mapping contract`, `fail-closed validation`.
+2. Phase-2 (only after Phase-1 passes): `S3 instrument floor refinement`, `country-conditioned modulation`, `cross-seed hardening`.
+
+### 5.2 Delta Set A - `S2` global `K_max` enforcement (mandatory)
+1. File to change: `packages/engine/src/engine/layers/l3/seg_6A/s2_accounts/runner.py`.
+2. Current behavior to replace:
+   - `count_model_id` is validated against supported models.
+   - `K_max` is declared in priors, but there is no final hard-cap pass after merge.
+   - Warning-only guard exists for total lambda (`max_total_lambda_by_type`) and does not enforce party-level account caps.
+3. Required code delta:
+   - Add final `enforce_kmax_per_party_account_type(...)` pass after integerization and before artifact writeout.
+   - Pull `K_max` by `(party_type, account_type)` from `config/layer3/6A/priors/account_per_party_priors_6A.v1.yaml`.
+   - If a party exceeds `K_max` for a type, keep top `K_max` rows by deterministic ranking key; move overflow to a typed redistribution pool.
+   - Redistribute overflow within same allocation cell to under-cap parties using residual-weighted sampling; if no legal receiver exists, drop overflow deterministically and record evidence.
+   - Add post-pass invariant check: no `(party_id, account_type)` may exceed cap.
+4. New runtime evidence counters (required):
+   - `kmax_overflow_rows`
+   - `kmax_redistributed_rows`
+   - `kmax_dropped_rows`
+   - `kmax_postcheck_violations`
+5. Policy delta:
+   - File: `config/layer3/6A/priors/account_per_party_priors_6A.v1.yaml`
+   - Add:
+     - `constraints.cap_enforcement_mode: hard_global_postmerge`
+     - `constraints.max_allowed_kmax_violations: 0`
+
+### 5.3 Delta Set B - `S4` IP prior and linkage realism enforcement (mandatory)
+1. File to change: `packages/engine/src/engine/layers/l3/seg_6A/s4_device_graph/runner.py`.
+2. Current behavior to replace:
+   - Lean mode path ignores richer edge semantics and emits simplified link roles.
+   - Missing `region_id` mix currently falls back to first available `ip_type_mix`.
+   - Link construction is driven by floor+fractional expansion and can produce sparse coverage with long reuse tails.
+3. Required code delta:
+   - Remove permissive fallback for missing region mix; fail-closed on `ip_type_mix_missing`.
+   - Implement quota-constrained per-region `ip_type` assignment so observed shares track prior targets.
+   - Replace unconstrained link expansion with explicit coverage control by device group and bounded reuse control.
+   - Add tail clamps with deterministic backoff so `devices_per_ip` stays within target tail envelope.
+4. Validation-policy delta:
+   - File: `config/layer3/6A/policy/validation_policy_6A.v1.yaml`
+   - Change:
+     - `linkage_checks.ip_links.max_devices_per_ip: 20000 -> 600`
+     - `role_distribution_checks.ip_roles.max_risky_fraction: 0.99 -> 0.25`
+   - Add fail-closed realism gates:
+     - `distribution_checks.ip_prior_alignment.max_abs_error_pp: 15` (`B`)
+     - `distribution_checks.device_ip_coverage.min_fraction: 0.25` (`B`)
+     - `distribution_checks.ip_degree_tail.p99_max: 120`
+     - `distribution_checks.ip_degree_tail.max_max: 600`
+
+### 5.4 Delta Set C - `S5` risk propagation coupling (mandatory)
+1. File to change: `packages/engine/src/engine/layers/l3/seg_6A/s5_fraud_posture/runner.py`.
+2. Current behavior to replace:
+   - Role assignment is mostly entity-local (hash-based by entity id), so owner-conditioned propagation is weak.
+   - Raw-to-runtime role collapsing exists but does not encode strong conditional risk transmission.
+3. Required code delta:
+   - Add conditional probability layer before final role draw:
+     - party-risk -> account-risk uplift
+     - party-risk -> device-risk uplift
+     - risky-device/high-sharing-IP context -> ip-risk uplift
+   - Implement bounded log-odds uplift coefficients with clamp to avoid synthetic over-separability.
+4. New policy file:
+   - `config/layer3/6A/policy/risk_propagation_coeffs_6A.v1.yaml`
+   - Include initial coefficient block tuned for `B`:
+     - odds-ratio target for risky account given risky party: `1.6-1.9`
+     - odds-ratio target for risky device given risky party: `1.6-1.9`
+     - bounded contextual uplift for risky IP from linked risky assets
+
+### 5.5 Delta Set D - role mapping contract (mandatory)
+1. Files to change:
+   - `config/layer3/6A/taxonomy/fraud_role_taxonomy_6A.v1.yaml`
+   - `config/layer3/6A/policy/validation_policy_6A.v1.yaml`
+2. Required delta:
+   - Introduce explicit `raw_role -> canonical_role_family` mapping table for both device and IP roles.
+   - Emit both `raw_role` and `canonical_role_family` in S5 outputs.
+   - Add fail-closed mapping checks:
+     - `mapping_coverage: 100%`
+     - `unmapped_role_rate: 0`
+3. Rationale:
+   - Converts the current role-vocabulary simplification into an auditable surface; enables policy-vs-observed diagnostics to be meaningful.
+
+### 5.6 Delta Set E - validation hardening (mandatory)
+1. File to change: `config/layer3/6A/policy/validation_policy_6A.v1.yaml`.
+2. Required delta:
+   - Promote critical realism checks to fail-closed:
+     - post-merge `K_max` invariants
+     - IP prior divergence
+     - device->IP linkage coverage
+     - IP reuse tail bounds
+     - role mapping coverage
+   - Keep existing structural checks, but make distribution checks first-class gate criteria.
+
+### 5.7 Phase-2 deltas for `B+` (apply only after Phase-1 pass)
+1. `S3` instrument floor refinement:
+   - Replace universal floor behavior with account-type-specific floor policy to remove low-lambda inflation artifacts.
+2. Country-conditioned modulation:
+   - Add bounded country-level deltas around global priors to reduce over-uniform geography.
+3. Cross-seed hardening:
+   - Require all critical metrics to pass on seeds `{42, 7, 101, 202}` and meet Section 2 CV stability limits.
+
+### 5.8 Chosen spec summary
+1. Chosen baseline: `Package A` (Delta Sets A-E) to reach `B`.
+2. Chosen extension: Phase-2 deltas to move from `B` toward stable `B+`.
+3. No optional deviations are accepted for Phase-1 because each delta closes a current hard blocker identified in Sections 1-3.
 
 ## 6) Validation Tests + Thresholds
+This section defines the fail-closed validation suite for Segment `6A` after Section 5 fixes are applied. It is the grading gate: if these tests do not pass, `6A` does not qualify for `B`/`B+`.
+
+### 6.1 Validation objective
+1. Verify that the chosen fixes in Section 5 close the four material realism gaps:
+   - account cap semantics (`K_max`)
+   - IP prior/linkage realism
+   - owner->asset/network risk propagation
+   - role traceability to policy semantics
+2. Enforce pass/fail outcomes using explicit thresholds rather than qualitative interpretation.
+3. Separate minimum `B` acceptance from tighter `B+` acceptance.
+
+### 6.2 Grade gate logic
+1. `B` eligibility:
+   - every `B` threshold passes for every required seed.
+2. `B+` eligibility:
+   - every `B` threshold passes, and every `B+` threshold passes for every required seed.
+3. Required seed set:
+   - `{42, 7, 101, 202}`
+4. Gate policy:
+   - any hard-gate failure blocks the corresponding grade.
+
+### 6.3 Test catalog (authoritative)
+| Test ID | Metric | Threshold (`B`) | Threshold (`B+`) | Scope | Why it matters |
+|---|---|---|---|---|---|
+| `T1_KMAX_HARD_INVARIANT` | `max(count_accounts(party_id, account_type) - K_max, 0)` | `= 0` | `= 0` | S2 full output | Proves cap semantics are implemented as hard constraints, not warnings |
+| `T2_KMAX_TAIL_SANITY` | per-type `p99_accounts_per_party`, `max_accounts_per_party` vs cap | `p99 <= K_max`, `max <= K_max` | same | S2 full output | Detects hidden tail leakage that can survive partial cap logic |
+| `T3_IP_PRIOR_ALIGNMENT` | max absolute error of `pi(ip_type|region)` vs policy target (pp) | `<= 15 pp` | `<= 8 pp` | S4 linked IPs | Directly addresses residential-overdominance and prior drift |
+| `T4_DEVICE_IP_COVERAGE` | `linked_devices / total_devices` | `>= 0.25` | `>= 0.35` | S4 | Prevents sparse linkage regime that weakens network realism |
+| `T5_IP_REUSE_TAIL_BOUNDS` | `p99(devices_per_ip)`, `max(devices_per_ip)` | `p99 <= 120`, `max <= 600` | `p99 <= 80`, `max <= 350` | S4 | Prevents extreme shared-IP tails from dominating risk signals |
+| `T6_ROLE_MAPPING_COVERAGE` | `% mapped runtime roles`, `unmapped_count` | `100%`, `0` | same | S5 role outputs | Restores policy traceability and auditability |
+| `T7_RISK_PROPAGATION_EFFECT` | `OR_account`, `OR_device` conditioned on risky party | `>= 1.5` each | `>= 2.0` each | S5 + graph joins | Verifies owner risk actually propagates to asset/network risk |
+| `T8_DISTRIBUTION_ALIGNMENT_JSD` | JSD for key distributions (`ip_type`, role families) | `<= 0.08` | `<= 0.05` | S4/S5 | Ensures full-shape alignment, not only point metrics |
+| `T9_CROSS_SEED_STABILITY` | CV across seeds on critical metrics | `<= 0.25` | `<= 0.15` | multi-seed aggregate | Protects against seed-luck grading |
+| `T10_DOWNSTREAM_COMPAT_6B` | 6B non-regression + realism sensitivity check | must pass | must pass | 6B rerun with remediated 6A | Confirms 6A fixes improve (or at least do not degrade) downstream realism |
+
+### 6.4 Statistical test mechanics
+1. For proportion/rate metrics (`T3`, `T4`, `T7`), compute `95%` bootstrap confidence intervals (`>= 1,000` resamples).
+2. For propagation odds-ratios (`T7`), require:
+   - threshold pass on point estimate
+   - lower confidence bound `> 1.0` for directional validity.
+3. For JSD checks (`T8`), evaluate both:
+   - pooled distribution
+   - region-stratified distributions.
+4. Sample support rule:
+   - if support is insufficient for a metric stratum, mark as `insufficient_evidence` and treat as fail for grade promotion.
+
+### 6.5 Artifact contract (machine-auditable)
+1. Per-run detailed artifact:
+   - `runs/.../layer3/6A/validation/realism_gate_6A.json`
+2. Required fields per test:
+   - `test_id`
+   - `metric_name`
+   - `value`
+   - `threshold_B`
+   - `threshold_Bplus`
+   - `pass_B`
+   - `pass_Bplus`
+   - `ci_low`
+   - `ci_high`
+   - `seed`
+3. Aggregate decision artifact:
+   - `runs/.../layer3/6A/validation/realism_gate_summary_6A.json`
+4. Summary must include:
+   - `eligible_grade` in `{<C, B, B+}`
+   - per-test fail list
+   - seed-level stability summary.
+
+### 6.6 Failure triage routing
+1. `T1-T2` failures route to `S2` cap enforcement logic.
+2. `T3-T5` failures route to `S4` IP prior application and linkage generation controls.
+3. `T6-T8` failures route to `S5` role mapping and propagation coefficients.
+4. `T9` failures route to robustness retuning (not threshold relaxation by default).
+5. `T10` failures route to cross-layer compatibility review before accepting any 6A remediation.
+
+### 6.7 Section-6 acceptance decision
+1. Section 5 is considered statistically validated only when `T1-T10` satisfy the `B` gate on all required seeds.
+2. `B+` classification is only granted when tighter thresholds also pass with no hard-gate exceptions.
+3. Any exception must be explicitly versioned as policy intent and re-baselined, not silently waived.
 
 ## 7) Expected Grade Lift (Local + Downstream Impact)
+This section estimates expected realism-grade movement after applying Section 5 fixes and validating with Section 6 gates. It is an expected-impact forecast, not a claimed achieved outcome.
+
+### 7.1 Local grade lift forecast for `6A`
+1. Current analytical baseline: `B-`.
+2. Expected grade after Phase-1 (`Package A`) and full `B`-gate pass (`T1-T10` at `B` thresholds): `B`.
+3. Expected grade after Phase-2 enhancements and full `B+`-gate pass: `B+`.
+4. Interpretation:
+   - Phase-1 closes the current hard realism blockers.
+   - Phase-2 improves heterogeneity realism and seed robustness for a credible `B+` posture.
+
+### 7.2 Metric-by-metric lift expectation (local `6A`)
+1. `K_max` realism (largest hard-correctness gain):
+   - Current: widespread and large cap breaches by account type.
+   - Expected post-fix: zero post-merge breaches (`T1`) and tail compliance (`T2`).
+   - Grade contribution: removes a direct blocker to `B`.
+2. IP realism and linkage:
+   - Current: severe residential skew, sparse device->IP coverage, and extreme IP sharing tail.
+   - Expected post-fix: bounded share error (`T3`), higher linkage coverage (`T4`), controlled tail (`T5`).
+   - Grade contribution: major realism gain on the weakest axis.
+3. Risk propagation realism:
+   - Current: weak owner->asset/network coupling.
+   - Expected post-fix: propagation odds-ratio floors met (`T7`) with directional confidence.
+   - Grade contribution: materially improves causal explainability.
+4. Traceability and auditability:
+   - Current: role simplification without complete policy-to-runtime mapping.
+   - Expected post-fix: full mapping coverage and zero unmapped roles (`T6`).
+   - Grade contribution: converts ambiguous realism claims into auditable evidence.
+5. Distribution-shape quality:
+   - Current: some surfaces appear plausible but not close to intended policy shape.
+   - Expected post-fix: JSD thresholds met (`T8`) in pooled and stratified views.
+   - Grade contribution: prevents passing by point metrics alone.
+6. Stability:
+   - Current: insufficient robustness assurance.
+   - Expected post-fix: cross-seed CV within gate limits (`T9`).
+   - Grade contribution: ensures grade is durable, not seed-dependent luck.
+
+### 7.3 Downstream impact forecast on `6B`
+1. Why 6A matters to 6B:
+   - `6A` defines the identity and network substrate used by 6B; weak 6A realism propagates into weak or shortcut-driven 6B signals.
+2. Expected effect of 6A remediation alone:
+   - Conservative `6B` lift: `D+ -> C`.
+   - If 6B segment-internal remediation is executed in parallel: `D+ -> C+` or `B-`.
+3. Why 6A fix alone is not enough for `6B` to reach `B/B+`:
+   - 6B retains segment-local weaknesses (for example amount/event mechanics, label/decision dynamics, campaign-expression realism) that must be corrected within 6B itself.
+4. Required downstream confirmation:
+   - `T10` must show no structural regressions and measurable realism improvement in 6B-facing diagnostics after 6A changes.
+
+### 7.4 Confidence profile and major risks
+1. Confidence in achieving local `6A -> B`: High, if `T1-T6` pass on all required seeds.
+2. Confidence in achieving local `6A -> B+`: Medium, because Phase-2 introduces calibration complexity and possible over-tuning.
+3. Confidence in downstream `6B` lift from 6A alone: Medium (helpful but not sufficient).
+4. Main risk to monitor:
+   - Over-coupled propagation may make fraud separability unrealistically easy.
+5. Risk controls:
+   - Use `T7` effect-size thresholds, `T8` shape checks, and `T9` cross-seed stability as hard guardrails against over-correction.
+
+### 7.5 Acceptance statement for this forecast
+1. Section 5 should be considered successful for `B` only when:
+   - all `B` gates in Section 6 pass on every required seed, and
+   - `T10` confirms no downstream regression in 6B.
+2. `B+` should be claimed only when:
+   - Phase-2 deltas are applied,
+   - tighter `B+` thresholds pass on all seeds,
+   - and stability metrics remain within `B+` limits.
+3. Until those conditions are met, Section 7 remains a forecasted lift, not an achieved grade.
