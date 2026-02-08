@@ -200,162 +200,6 @@ SR must:
 
 ---
 
-## Entry: 2026-01-25 09:00:30 — Plan to trigger READY run for IG smoke test (reuse-only, engine blackbox safe)
-
-### Problem / goal
-The IG ops‑rebuild smoke test requires an SR READY run with a valid `run_facts_view` under the SR artifacts root. Current SR artifacts in `temp/artefacts/fraud-platform/sr` show QUARANTINED with no facts view. We need a READY run that reuses existing engine artifacts (engine remains a blackbox) so the IG smoke test can read a real join surface.
-
-### Constraints / invariants honored
-- **Engine remains a blackbox.** No engine code changes or re‑execution; SR will only read existing engine outputs and gate bundles under `runs/`.
-- **No-PASS-no-read.** SR must only publish READY if required gates pass under the interface pack gate map.
-- **Idempotency safe.** A new run_equivalence_key is used to avoid collision with any prior SR runs.
-- **Secrets hygiene.** No credentials or secrets are written to impl_actual; only public artifact paths and fingerprints already in repo.
-
-### Inputs / authorities consulted
-- Engine run receipt at `runs/local_full_run-5/c25a2675fbfbacd952b13bb594880e92/run_receipt.json` for:
-  - manifest_fingerprint: `c8fd43cd60ce0ede0c63d2ceb4610f167c9b107e1d59b9b8c7d7b8d0028b05c8`
-  - parameter_hash: `56d45126eaabedd083a1d8428a763e0278c89efec5023cfd6cf3cab7fc8dd2d7`
-  - seed: `42`
-- Scenario id observed under engine outputs: `scenario_id=baseline_v1` within `runs/local_full_run-5/.../arrival_events/...`.
-- SR wiring profile: `config/platform/sr/wiring_local.yaml` (object_store_root=`artefacts`, control bus file, interface pack paths).
-- SR policy: `config/platform/sr/policy_v0.yaml` (traffic outputs: arrival_events_5B, s2_flow_anchor_baseline_6B, s3_flow_anchor_with_fraud_6B; reuse_policy=ALLOW).
-
-### Decision trail (why this approach)
-1) **Reuse path vs engine invocation**
-   - SR strategy AUTO first attempts reuse when reuse_policy=ALLOW.
-   - Reuse avoids the engine invocation path that would enforce run_receipt run_id equality (SR run_id is deterministic from equivalence key and won’t match engine run_id). This keeps the engine blackbox while still verifying gates and outputs.
-2) **Artifact root selection**
-   - Use existing wiring profile to write SR artifacts under `artefacts/fraud-platform/sr` (already in repo and referenced by IG smoke test search order).
-   - Avoid introducing new wiring variants for this run; keep configuration minimal and explicit.
-3) **Scenario binding**
-   - Use `scenario_id=baseline_v1` to match actual engine output partitions, ensuring locators resolve.
-4) **Run window**
-   - Provide a valid, timezone‑aware window (ISO8601 with `+00:00`) as required by schema; no functional coupling to engine output timestamps.
-
-### Execution plan (pre‑run, explicit)
-1) Submit SR run via CLI using reuse‑only path by providing engine_run_root and using policy reuse (AUTO).
-2) Confirm SR output artifacts:
-   - `artefacts/fraud-platform/<platform_run_id>/sr/run_status/{run_id}.json` state is READY.
-   - `artefacts/fraud-platform/<platform_run_id>/sr/run_facts_view/{run_id}.json` exists with locators + gate receipts.
-3) Run IG smoke test: `tests/services/ingestion_gate/test_ops_rebuild_runs_smoke.py -q` and confirm it reads the SR artifacts.
-4) Log results in logbook + append follow‑up entry here with outcomes and any deviations.
-
-### Planned CLI invocation (values to reuse)
-```
-.\.venv\Scripts\python.exe -m fraud_detection.scenario_runner.cli `
-  --wiring config/platform/sr/wiring_local.yaml `
-  --policy config/platform/sr/policy_v0.yaml `
-  run `
-  --run-equivalence-key sr_local_full_run_5_baseline_v1_2026-01-25 `
-  --manifest-fingerprint c8fd43cd60ce0ede0c63d2ceb4610f167c9b107e1d59b9b8c7d7b8d0028b05c8 `
-  --parameter-hash 56d45126eaabedd083a1d8428a763e0278c89efec5023cfd6cf3cab7fc8dd2d7 `
-  --seed 42 `
-  --scenario-id baseline_v1 `
-  --window-start 2026-01-01T00:00:00+00:00 `
-  --window-end 2026-01-02T00:00:00+00:00 `
-  --engine-run-root runs/local_full_run-5/c25a2675fbfbacd952b13bb594880e92
-```
-
----
-
-## Entry: 2026-01-25 09:02:40 — RUN produced WAITING: arrival_events_5B path_template newline bug (fix in SR catalogue loader)
-
-### What happened (observed)
-Executed the planned SR CLI run and SR returned `WAITING_EVIDENCE` with `missing=['arrival_events_5B']`. This is incorrect: the arrival_events parquet files exist in the engine run root under:
-`runs/local_full_run-5/c25a2675fbfbacd952b13bb594880e92/data/layer2/5B/arrival_events/seed=42/manifest_fingerprint=.../scenario_id=baseline_v1/part-*.parquet`.
-
-### Root cause analysis (decision trail)
-1) Verified the arrival_events files exist at the expected path (seed=42, manifest_fingerprint=..., scenario_id=baseline_v1).
-2) Inspected the interface pack catalogue entry for `arrival_events_5B` and printed `repr(path_template)`.
-3) Found a trailing newline:  
-   `data/layer2/5B/arrival_events/.../part-*.parquet\n`  
-   This newline becomes part of the rendered path, so globbing never matches the real files. Result: SR treats `arrival_events_5B` as missing and moves to WAITING.
-
-### Decision
-Harden SR’s catalogue loader to normalize `path_template` by stripping leading/trailing whitespace when reading the interface pack. This keeps the engine blackbox intact, avoids mutating engine outputs, and makes SR tolerant of benign formatting artifacts in YAML (e.g., trailing newline introduced by the writer).
-
-### Implementation steps (pre‑code)
-1) Update `src/fraud_detection/scenario_runner/catalogue.py` to apply `.strip()` to `entry["path_template"]`.
-2) Re‑run SR CLI with a new `run_equivalence_key` to avoid idempotent collision with the WAITING run.
-3) Verify READY status and a `run_facts_view` under `artefacts/fraud-platform/<platform_run_id>/sr/`.
-4) Re‑run IG smoke test to confirm it can rebuild ops index from the SR facts view.
-5) Log results and update this entry with outcomes.
-
----
-
-## Entry: 2026-01-25 09:05:50 — Fix applied; READY achieved; IG smoke test passes
-
-### Changes applied
-- Hardened SR catalogue loader to strip whitespace from `path_template` on load:
-  - `src/fraud_detection/scenario_runner/catalogue.py` now uses `str(...).strip()` for `path_template`.
-- Added regression test to lock this behavior:
-  - `tests/services/scenario_runner/test_catalogue.py` verifies trailing newline is removed.
-
-### SR run (reuse-only) results
-- New run_equivalence_key: `sr_local_full_run_5_baseline_v1_2026-01-25b`
-- Resulting run_id: `870056d6aaa95c99e1d770a484469563`
-- Evidence reuse COMPLETE; READY committed.
-- Artifacts written under:
-  - `artefacts/fraud-platform/<platform_run_id>/sr/run_status/870056d6aaa95c99e1d770a484469563.json` (state READY)
-  - `artefacts/fraud-platform/<platform_run_id>/sr/run_facts_view/870056d6aaa95c99e1d770a484469563.json`
-  - `artefacts/fraud-platform/<platform_run_id>/sr/run_record/870056d6aaa95c99e1d770a484469563.jsonl`
-
-### Validation (executed)
-- SR unit test: `python -m pytest tests/services/scenario_runner/test_catalogue.py -q` → 1 passed.
-- IG smoke test: `python -m pytest tests/services/ingestion_gate/test_ops_rebuild_runs_smoke.py -q` → 1 passed.
-
-### Notes
-- The earlier WAITING run (run_id=4d0c3c64c3e24c4f3091179259d19004) remains in SR artifacts for audit history; no mutation performed.
-
-**Phase 3 — Evidence + gate verification completeness (fail‑closed)**
-- Implement N5 fully: output intent → required gate closure; gate verification by gate‑specific method.
-- Enforce instance‑proof binding where scope includes seed/scenario_id/parameter_hash/run_id.
-- Classify COMPLETE / WAITING / FAIL / CONFLICT deterministically.
-
-**Phase 4 — Engine invocation integration (true IP1)**
-- Implement N4 job runner adapter with attempt idempotency and retry budget.
-- Record attempt lifecycle in run_record; ensure lease loss halts writes.
-- Return normalized AttemptResult for evidence harvesting.
-
-**Phase 5 — Control bus + re‑emit (operational truth)**
-- Wire to real bus (Kafka/Redpanda). Ensure READY publish idempotency key = (run_id, facts_view_hash).
-- Implement N7 re‑emit with ops micro‑lease and strict “read truth → re‑publish” behavior.
-
-**Phase 6 — Observability + governance (audit‑ready)**
-- Implement N8 normalized eventaxonomy; emit metrics, traces, and governance facts.
-- Stamp policy_rev + plan hash + evidence hash on all runs.
-- Enforce telemetry never blocks truth commits (drop DEBUG first, keep governance facts).
-
-**Phase 7 — Security + ops hardening**
-- AuthN/AuthZ for run submit, re‑emit, correction.
-- Secrets never in artifacts; only key IDs.
-- Quarantine path + operator inspection tooling.
-
-**Phase 8 — Integration tests + CI gates**
-- Golden path, duplicate, reuse, fail‑closed, re‑emit, correction.
-- Contract compliance tests.
-- CI checks for schema compatibility + invariantests.
-
-### Mapping to SR subnetworks
-- N1: ingress validation, scenario normalization, run_equivalence_key enforcement.
-- N2: idempotency binding + lease authority.
-- N3: plan compilation + policy_rev stamping.
-- N4: engine attempt lifecycle with idempotency.
-- N5: evidence + gate verification (COMPLETE/WAITING/FAIL/CONFLICT).
-- N6: ledger + facts_view + READY ordering and immutability.
-- N7: re‑emit control facts (no recompute).
-- N8: observability + governance emission (never truth).
-
-### Guardrails against drift
-- READY without admissible PASS evidence is forbidden.
-- Downstream must start from READY → run_facts_view; scanning “latest” is forbidden.
-- run_plan and run_facts_view are immutable after commit; corrections use supersede.
-- Evidence decisions are deterministic, no “best effort.”
-
-### Immediate next work item (if not overridden)
-Proceed to **Phase 1: Contracts + Truth Surfaces** (schemas + validation wiring), then Phase 2 (durable idempotency/lease store).
-
----
 ## Entry: 2026-01-23 22:14:40 — Phase 1: SR contracts + validation wiring
 
 ### Change summary
@@ -880,32 +724,6 @@ Phase 3 must make SR evidence handling **production‑complete**:
 - Tests for each branch and for mismatched scopes.
 
 ---
-## Entry: 2026-01-24 12:20:05 — Phase 3 scratchpad (live decision notes)
-
-Re‑reading interface pack because the previous entry feels too clean. A few things hitting me immediately:
-- `engine_gates.map.yaml` scopes are all **fingerprint** right now. That means PASS receipts we can verify are tied only to `manifest_fingerprint`.
-- `engine_outputs.catalogue.yaml` lists **many outputs with instance scopes** (`scope_seed_manifest_fingerprint[_scenario_id]`, `scope_seed_manifest_fingerprint_parameter_hash...`, `scope_seed_parameter_hash_run_id`, etc).
-- `data_engine_interface.md` explicitly says: **instance‑scoped outputs require instance proof** (receipt bound to `engine_output_locator` + digest).
-
-This is a tension: **we don’t see any instance‑proof receipts in the pack**, only segment PASS flags and s0_gate_receipts that are fingerprint‑scoped. So if we go strict, SR will likely WAITING/FAIL for a lot of instance‑scoped outputs (because the required receipt doesn’t exist yet).
-
-I need to choose how to handle this in Phase 3:
-1) **Strict fail‑closed**: require an instance‑proof receipt; if missing → WAITING → FAIL at deadline. This aligns with doctrine but may block readiness on most runs.
-2) **Temporary bridge**: accepthe output locator content_digest as “instance proof” even without a receipt. That’s not whathe interface pack says, but it keeps SR usable.
-3) **Policy flag**: default strict, but allow a controlled exception for dev only (still uncomfortable).
-
-My bias: **option 1** (strict fail‑closed) unless you explicitly want a bridge. If we choose strict, we should surface a spec gap to the engine interface pack rather than silently weakening SR.
-
-Concrete implementation notes:
-- Add a **scope classifier** in SR: parse `output.scope` and mark outputs as instance‑scoped when scope includes seed/scenario_id/parameter_hash/run_id.
-- For instance‑scoped outputs, SR should **look for an instance‑proof receipt** bound to locator/digest (not currently available).
-- If that receipt doesn’t exist, evidence should be WAITING/FAIL (explicit reason code like `INSTANCE_PROOF_MISSING`).
-- For fingerprint‑scoped outputs, existing PASS gate receipts remain sufficient.
-
-Open question I need your call on:
-→ Do we enforce strict instance‑proof now and accepthat it may block readiness, or do we allow a temporary bridge (clearly marked) while the interface pack is extended?
-
----
 ## Entry: 2026-01-24 12:18:50 — Phase 3 planning expansion (corrective; detail-first)
 
 I’m correcting the earlier Phase 3 planning entry because it reads like a checklist. Below is the actual decision trail I’m following in real time so the intent and tradeoffs are explicit.
@@ -1004,6 +822,32 @@ ingerprint vs instance.
 
 ### Decision status
 Pending: strict vs temporary bridge. I’m ready to implement strict fail-closed unless you ask for a bridge.
+
+---
+## Entry: 2026-01-24 12:20:05 — Phase 3 scratchpad (live decision notes)
+
+Re‑reading interface pack because the previous entry feels too clean. A few things hitting me immediately:
+- `engine_gates.map.yaml` scopes are all **fingerprint** right now. That means PASS receipts we can verify are tied only to `manifest_fingerprint`.
+- `engine_outputs.catalogue.yaml` lists **many outputs with instance scopes** (`scope_seed_manifest_fingerprint[_scenario_id]`, `scope_seed_manifest_fingerprint_parameter_hash...`, `scope_seed_parameter_hash_run_id`, etc).
+- `data_engine_interface.md` explicitly says: **instance‑scoped outputs require instance proof** (receipt bound to `engine_output_locator` + digest).
+
+This is a tension: **we don’t see any instance‑proof receipts in the pack**, only segment PASS flags and s0_gate_receipts that are fingerprint‑scoped. So if we go strict, SR will likely WAITING/FAIL for a lot of instance‑scoped outputs (because the required receipt doesn’t exist yet).
+
+I need to choose how to handle this in Phase 3:
+1) **Strict fail‑closed**: require an instance‑proof receipt; if missing → WAITING → FAIL at deadline. This aligns with doctrine but may block readiness on most runs.
+2) **Temporary bridge**: accepthe output locator content_digest as “instance proof” even without a receipt. That’s not whathe interface pack says, but it keeps SR usable.
+3) **Policy flag**: default strict, but allow a controlled exception for dev only (still uncomfortable).
+
+My bias: **option 1** (strict fail‑closed) unless you explicitly want a bridge. If we choose strict, we should surface a spec gap to the engine interface pack rather than silently weakening SR.
+
+Concrete implementation notes:
+- Add a **scope classifier** in SR: parse `output.scope` and mark outputs as instance‑scoped when scope includes seed/scenario_id/parameter_hash/run_id.
+- For instance‑scoped outputs, SR should **look for an instance‑proof receipt** bound to locator/digest (not currently available).
+- If that receipt doesn’t exist, evidence should be WAITING/FAIL (explicit reason code like `INSTANCE_PROOF_MISSING`).
+- For fingerprint‑scoped outputs, existing PASS gate receipts remain sufficient.
+
+Open question I need your call on:
+→ Do we enforce strict instance‑proof now and accepthat it may block readiness, or do we allow a temporary bridge (clearly marked) while the interface pack is extended?
 
 ---
 ## Entry: 2026-01-24 12:29:03 — Phase 3 implementation start (evidence strictness + schema alignment)
@@ -1543,25 +1387,6 @@ I implemented the negative evidence case using **real artefacts copied to a temp
 
 ---
 
-## Entry: 2026-01-24 15:42:18 — Phase 3 parity test adjustment (gate conflicts in local_full_run‑5)
-
-I tried to use `s3_flow_anchor_with_fraud_6B` for the full reuse parity test, but SR quarantined the run due to **gate conflicts** across upstream segments. I validated this directly:
-
-- Required gates for 6B include 1A/1B/2A/2B/3A/3B/5A/5B/6A/6B.
-- Only 1A, 1B, 3A, 6B pass with the current artefacts.
-- 2A/2B/3B/5A/5B/6A fail under the gate hashing law in the interface pack.
-
-That means a “deep” 6B output won’t reach READY without also fixing the gate map for those segments (derived from their policies). That’s a larger scope than Phase 3 hardening right now.
-
-### Decision (short‑term, still valid for Phase 3 DoD)
-- Keep the parity reuse test **real** but target a **1A output** (`sealed_inputs_1A`) so the gate closure is just `gate.layer1.1A.validation`, which passes in local_full_run‑5.
-- This still exercises SR reuse flow, real gate verification, locator creation, facts_view commit, and READY emission using real artefacts.
-
-### Follow‑up (future hardening)
-- Derive gate hashing laws for 2A/2B/3B/5A/5B/6A from their segment policies, then re‑enable a deep 6B output for the parity test.
-
----
-
 ## Entry: 2026-01-24 15:40:00 — Phase 3 hardening: parity + negative tests executed
 
 I ran the new parity and negative evidence integration tests after adjusting the parity target to a 1A output.
@@ -1591,6 +1416,25 @@ During the new parity tests, schema validation failed with `Unresolvable: ../lay
 
 ### Result
 - Parity + negative tests now resolve refs correctly under `referencing`.
+
+---
+
+## Entry: 2026-01-24 15:42:18 — Phase 3 parity test adjustment (gate conflicts in local_full_run‑5)
+
+I tried to use `s3_flow_anchor_with_fraud_6B` for the full reuse parity test, but SR quarantined the run due to **gate conflicts** across upstream segments. I validated this directly:
+
+- Required gates for 6B include 1A/1B/2A/2B/3A/3B/5A/5B/6A/6B.
+- Only 1A, 1B, 3A, 6B pass with the current artefacts.
+- 2A/2B/3B/5A/5B/6A fail under the gate hashing law in the interface pack.
+
+That means a “deep” 6B output won’t reach READY without also fixing the gate map for those segments (derived from their policies). That’s a larger scope than Phase 3 hardening right now.
+
+### Decision (short‑term, still valid for Phase 3 DoD)
+- Keep the parity reuse test **real** but target a **1A output** (`sealed_inputs_1A`) so the gate closure is just `gate.layer1.1A.validation`, which passes in local_full_run‑5.
+- This still exercises SR reuse flow, real gate verification, locator creation, facts_view commit, and READY emission using real artefacts.
+
+### Follow‑up (future hardening)
+- Derive gate hashing laws for 2A/2B/3B/5A/5B/6A from their segment policies, then re‑enable a deep 6B output for the parity test.
 
 ---
 
@@ -2657,98 +2501,6 @@ I added a first-pass structured observability scaffold with a stable event model
 
 ---
 
-## Entry: 2026-01-24 20:14:50 — Phase 6.2 governance facts (plan + decision)
-
-I’m moving to Phase 6.2: explicit governance facts in the run_record. This entry captures the decision trail before edits.
-
-### Goal
-Emit explicit governance facts (policy_rev, plan_hash, bundle_hash, re‑emit keys) into run_record as append‑only events, so audit trails are reconstructable without parsing free‑form logs.
-
-### Design choices (pre‑code)
-- Use **dedicated run_record events** rather than embedding these in existing events, so downstream audits can filter explicitly.
-- Event kinds:
-  - `GOV_POLICY_REV` (policy id/revision/digest)
-  - `GOV_PLAN_HASH` (plan hash)
-  - `GOV_BUNDLE_HASH` (bundle hash at READY)
-  - `GOV_REEMIT_KEY` (READY/TERMINAL re‑emit keys)
-- Append these at the same boundaries where the facts become true:
-  - Plan commit (policy_rev + plan_hash)
-  - READY commit (bundle_hash)
-  - Re‑emit publish (reemit_key with kind)
-
-### Invariants
-- Append‑only; never mutate existing ledger entries.
-- Best‑effort; if append fails, SR should continue but log the failure.
-
-### Files to touch
-- `src/fraud_detection/scenario_runner/runner.py`
-- Tests for run_record contents (new or extended)
-
----
-
-## Entry: 2026-01-24 20:22:10 — Phase 6.2 governance facts implemented
-
-I added explicit governance fact events to run_record so audits can query policy_rev, plan_hash, bundle_hash, and re‑emit keys directly.
-
-### What changed
-- `ScenarioRunner._commit_plan` now appends:
-  - `GOV_POLICY_REV` (policy_id/revision/content_digest)
-  - `GOV_PLAN_HASH` (plan_hash)
-- `ScenarioRunner._commit_ready` appends:
-  - `GOV_BUNDLE_HASH` (bundle_hash) when READY is committed.
-- Re‑emit publish appends:
-  - `GOV_REEMIT_KEY` with kind READY/TERMINAL and the reemit_key.
-- Added `_append_governance_fact(...)` helper that is best‑effort and logs warnings without blocking SR flow.
-
-### Tests
-- Added governance fact assertions in:
-  - `tests/services/scenario_runner/test_engine_invocation.py` (policy_rev + plan_hash)
-  - `tests/services/scenario_runner/test_reemit.py` (reemit key)
-- `python -m pytest tests/services/scenario_runner -q` → 35 passed, 3 skipped.
-
----
-
-## Entry: 2026-01-24 20:32:10 — Phase 6.3/6.4 metrics + sinks + degrade posture
-
-I implemented Phase 6.3 (metrics counters/durations) and Phase 6.4 (sink strategy + degrade posture) in a minimal, non‑blocking way.
-
-### What changed
-- Added `MetricsObsSink` in `obs.py`:
-  - Counts events by kind and outcome.
-  - Captures duration_ms metrics from event details (min/max/avg snapshot).
-- Added sink composition + degrade posture:
-  - `CompositeObsSink` fan‑out with per‑sink exception isolation.
-  - `NullObsSink` and `OtlpObsSink` scaffold (feature‑flagged; no external deps).
-  - Drop DEBUG events by default via `SR_OBS_DROP_DEBUG=true`.
-- `ScenarioRunner` now:
-  - accepts optional `obs_sink` for tests,
-  - otherwise uses Console + Metrics sinks (and OTLP if `SR_OTLP_ENABLED=true`).
-
-### Tests
-- Added `test_obs_emission.py` to ensure obs sink failures do not block READY.
-- `python -m pytest tests/services/scenario_runner -q` → 36 passed, 3 skipped.
-
----
-
-## Entry: 2026-01-24 20:41:20 — Phase 6.5 tests completed
-
-Added a metrics‑sink test and re‑ran the SR suite to close out Phase 6.5.
-
-### Tests
-- `python -m pytest tests/services/scenario_runner/test_obs_emission.py -q` → 2 passed.
-- `python -m pytest tests/services/scenario_runner -q` → 37 passed, 3 skipped.
-
-Result:
-- Phase 6 test coverage now includes structured event emission, governance fact presence, and non‑blocking failure posture.
-
----
-
-## Entry: 2026-01-24 20:42:45 — Phase 6 marked COMPLETE
-
-Phase 6 is now complete: structured obs events, governance facts, metrics counters, sink scaffolding + degrade posture, and tests are all in place. Marking Phase 6 COMPLETE in the build plan.
-
----
-
 ## Entry: 2026-01-24 20:13:30 — Phase 6 detailed reasoning expansion (post‑implementation)
 
 This entry expands the Phase 6 decision trail in detail. The earlier Phase 6 entries were too summary‑style, so I’m recording the actual reasoning, trade‑offs, and mechanics in a more complete form here without rewriting history.
@@ -2813,6 +2565,35 @@ I intentionally chose **milestone points** that align with control‑plane decis
 
 ---
 
+## Entry: 2026-01-24 20:14:50 — Phase 6.2 governance facts (plan + decision)
+
+I’m moving to Phase 6.2: explicit governance facts in the run_record. This entry captures the decision trail before edits.
+
+### Goal
+Emit explicit governance facts (policy_rev, plan_hash, bundle_hash, re‑emit keys) into run_record as append‑only events, so audit trails are reconstructable without parsing free‑form logs.
+
+### Design choices (pre‑code)
+- Use **dedicated run_record events** rather than embedding these in existing events, so downstream audits can filter explicitly.
+- Event kinds:
+  - `GOV_POLICY_REV` (policy id/revision/digest)
+  - `GOV_PLAN_HASH` (plan hash)
+  - `GOV_BUNDLE_HASH` (bundle hash at READY)
+  - `GOV_REEMIT_KEY` (READY/TERMINAL re‑emit keys)
+- Append these at the same boundaries where the facts become true:
+  - Plan commit (policy_rev + plan_hash)
+  - READY commit (bundle_hash)
+  - Re‑emit publish (reemit_key with kind)
+
+### Invariants
+- Append‑only; never mutate existing ledger entries.
+- Best‑effort; if append fails, SR should continue but log the failure.
+
+### Files to touch
+- `src/fraud_detection/scenario_runner/runner.py`
+- Tests for run_record contents (new or extended)
+
+---
+
 ## Entry: 2026-01-24 20:20:40 — Phase 7 planning (Security + ops hardening)
 
 Starting Phase 7 planning now. This is a live decision trail (not a summary) to capture the rationale before any code changes.
@@ -2872,6 +2653,28 @@ Phase 7 must deliver:
 
 ---
 
+## Entry: 2026-01-24 20:22:10 — Phase 6.2 governance facts implemented
+
+I added explicit governance fact events to run_record so audits can query policy_rev, plan_hash, bundle_hash, and re‑emit keys directly.
+
+### What changed
+- `ScenarioRunner._commit_plan` now appends:
+  - `GOV_POLICY_REV` (policy_id/revision/content_digest)
+  - `GOV_PLAN_HASH` (plan_hash)
+- `ScenarioRunner._commit_ready` appends:
+  - `GOV_BUNDLE_HASH` (bundle_hash) when READY is committed.
+- Re‑emit publish appends:
+  - `GOV_REEMIT_KEY` with kind READY/TERMINAL and the reemit_key.
+- Added `_append_governance_fact(...)` helper that is best‑effort and logs warnings without blocking SR flow.
+
+### Tests
+- Added governance fact assertions in:
+  - `tests/services/scenario_runner/test_engine_invocation.py` (policy_rev + plan_hash)
+  - `tests/services/scenario_runner/test_reemit.py` (reemit key)
+- `python -m pytest tests/services/scenario_runner -q` → 35 passed, 3 skipped.
+
+---
+
 ## Entry: 2026-01-24 20:26:40 — Phase 7 implementation start (auth, secrets, quarantine, ops guardrails)
 
 Proceeding with Phase 7 implementation now. I will append decisions as I change each section.
@@ -2883,6 +2686,151 @@ Immediate steps (before code edits):
 4) Implement quarantine artifact write for CONFLICT.
 5) Implement re‑emit rate limit + dry‑run support.
 6) Add tests for auth, redaction, quarantine, rate‑limit, dry‑run.
+
+---
+
+## Entry: 2026-01-24 20:30:20 — Lease token exposure mitigation (SR runtime artifacts)
+
+Problem surfaced:
+- GitGuardian flagged a lease token file under `artefacts/fraud-platform/<platform_run_id>/sr/index/leases/...json`.
+- Lease tokens are **capability tokens** (who holds it can renew/act as leader). Even though they are local/dev artifacts, they must be treated as secrets.
+
+Decision:
+- **Do not ignore all of `artefacts/`** (engine depends on it). Instead, ignore only SR runtime subpaths that can contain sensitive tokens.
+- Add an explicit **user‑facing warning** (docs + runtime log) so operators are alerted to review and decide how to handle runtime artifacts after a run.
+
+Actions taken:
+1) Removed the tracked lease token file from git index (left local file intact).
+2) Added `.gitignore` entries for `artefacts/fraud-platform/<platform_run_id>/sr/index/` (covers lease tokens + sqlite authority).
+3) Added a security note in `services/scenario_runner/README.md` warning that SR runtime artifacts may include sensitive capability tokens.
+4) Added a runtime warning in `ScenarioRunner.__init__` for local object_store roots to alert operators.
+
+Rationale:
+- Keeps engine artifacts in git while preventing SR runtime secrets from being committed.
+- Provides an explicit, user‑visible alert so operators can choose whether to delete or preserve runtime artifacts after runs.
+
+---
+
+## Entry: 2026-01-24 20:32:10 — Phase 6.3/6.4 metrics + sinks + degrade posture
+
+I implemented Phase 6.3 (metrics counters/durations) and Phase 6.4 (sink strategy + degrade posture) in a minimal, non‑blocking way.
+
+### What changed
+- Added `MetricsObsSink` in `obs.py`:
+  - Counts events by kind and outcome.
+  - Captures duration_ms metrics from event details (min/max/avg snapshot).
+- Added sink composition + degrade posture:
+  - `CompositeObsSink` fan‑out with per‑sink exception isolation.
+  - `NullObsSink` and `OtlpObsSink` scaffold (feature‑flagged; no external deps).
+  - Drop DEBUG events by default via `SR_OBS_DROP_DEBUG=true`.
+- `ScenarioRunner` now:
+  - accepts optional `obs_sink` for tests,
+  - otherwise uses Console + Metrics sinks (and OTLP if `SR_OTLP_ENABLED=true`).
+
+### Tests
+- Added `test_obs_emission.py` to ensure obs sink failures do not block READY.
+- `python -m pytest tests/services/scenario_runner -q` → 36 passed, 3 skipped.
+
+---
+
+## Entry: 2026-01-24 20:41:20 — Phase 6.5 tests completed
+
+Added a metrics‑sink test and re‑ran the SR suite to close out Phase 6.5.
+
+### Tests
+- `python -m pytest tests/services/scenario_runner/test_obs_emission.py -q` → 2 passed.
+- `python -m pytest tests/services/scenario_runner -q` → 37 passed, 3 skipped.
+
+Result:
+- Phase 6 test coverage now includes structured event emission, governance fact presence, and non‑blocking failure posture.
+
+---
+
+## Entry: 2026-01-24 20:42:45 — Phase 6 marked COMPLETE
+
+Phase 6 is now complete: structured obs events, governance facts, metrics counters, sink scaffolding + degrade posture, and tests are all in place. Marking Phase 6 COMPLETE in the build plan.
+
+---
+
+## Entry: 2026-01-24 20:45:30 — Phase 8 planning (Integration tests + CI gates)
+
+Starting Phase 8 planning now. This is a live decision trail to capture reasoning before any implementation.
+
+### Problem framing (what Phase 8 must solve)
+We have a feature-complete SR through Phase 7, but we still need **confidence at scale**: integration tests that prove cross-cutting behavior (storage + evidence + invocation + control bus + re-emit) and CI gates that prevent regressions. Phase 8 is about **proving correctness across boundaries**, not adding new features.
+
+Key risks to address:
+- Regressions in at-least-once/idempotency under integration conditions.
+- Silent contract drift between SR and engine interface_pack artifacts.
+- Bus + re-emit flows that work in unit tests but fail in LocalStack parity.
+- Tests that are too heavy for PR gates, leading to slow or flaky CI.
+
+### Authorities / inputs
+- Root AGENTS.md: fail-closed, append-only truth, black-box engine boundary.
+- SR contracts and interface_pack gate map (authoritative for gate verification).
+- Existing Phase 2.5/3 parity tests and LocalStack Kinesis tests.
+
+### Decisions to make (Phase 8 scope + strategy)
+1) **Test tiers and gating levels**
+   - I want a **tiered test model** so PR gates are fast but still meaningful:
+     - Tier 0: unit + fast integration (no external services).
+     - Tier 1: local parity (MinIO + Postgres) storage + evidence tests.
+     - Tier 2: LocalStack Kinesis end-to-end control bus + re-emit test.
+     - Tier 3: engine-artifact reuse tests (using real run roots).
+   - CI should run Tier 0 on every PR and defer heavier tiers to nightly/explicit runs.
+
+2) **Contract drift checks**
+   - Add a lightweight **schema compatibility check** that validates SR’s interface_pack reads
+     (gate map, output catalog, instance receipt schema) without touching engine code.
+   - The check should fail-closed if a referenced contract is missing or invalid.
+
+3) **Engine artifacts as fixtures**
+   - Use existing `runs/local_full_run-5/...` artifacts as fixtures (read-only).
+   - Tests will **copy to temp** before mutation to avoid accidental drift.
+   - If the fixture is missing, tests should skip with a clear reason.
+
+4) **CI environment safety**
+   - No credentials in CI config.
+   - Use `.env.localstack.example` + ephemeral LocalStack for Tier 2.
+   - Keep all integration tests opt-in or gated by env vars to avoid accidental CI flakiness.
+
+### Planned Phase 8 sections (build plan expansion)
+- 8.1 Test tiers + markers (unit, parity, localstack, engine-fixture)
+- 8.2 Golden path integration (submit → plan → invoke stub → evidence → READY)
+- 8.3 Duplicate/at-least-once integration (replay + idempotent events)
+- 8.4 Fail-closed integration (missing gates, drifted receipts, unknown output)
+- 8.5 Control bus + re-emit E2E (LocalStack Kinesis)
+- 8.6 Contract compatibility checks (interface_pack validation)
+- 8.7 CI gates + runbooks (what runs when, how to reproduce locally)
+
+### File touchpoints (expected)
+- `tests/services/scenario_runner/` (new integration tests + markers)
+- `scripts/` or `config/ci/` (test runner presets)
+- `docs/model_spec/platform/implementation_maps/scenario_runner.build_plan.md`
+- `docs/model_spec/platform/implementation_maps/scenario_runner.impl_actual.md`
+- `docs/logbook/01-2026/2026-01-24.md`
+
+### Invariants to preserve
+- Engine remains a black box (no engine code changes).
+- Tests must never mutate canonical truth (use temp copies for artifacts).
+- Fail closed on missing/invalid contracts.
+- No secrets or credentials in code/docs/impl_actual.
+
+---
+
+## Entry: 2026-01-24 20:47:10 — Correction: sensitive-artifacts warning moved to AGENTS
+
+I moved the sensitive runtime artifacts warning out of `services/scenario_runner/README.md` and into the root `AGENTS.md` so it is a **platformwide rule**, not SR-scoped.
+
+Why:
+- The risk (runtime capability tokens/credentials) is not SR-specific.
+- Root AGENTS is the correct authority for cross-platform operational rules.
+
+Action taken:
+- Removed the SR README warning.
+- Added a platformwide rule in AGENTS: do not commit sensitive runtime artifacts and explicitly alert the user when such artifacts are created.
+
+No credentials were added or recorded during this change.
 
 ---
 
@@ -2971,110 +2919,6 @@ I completed Phase 7 sections 7.1–7.4 with explicit auth gates, secrets redacti
 ## Entry: 2026-01-24 20:57:10 — Phase 7 marked COMPLETE
 
 Phase 7 is complete: auth allowlists, redaction helpers, quarantine artifacts + CLI tooling, re‑emit guardrails (rate limits + dry‑run), and tests are all in place. Marked Phase 7 COMPLETE in the build plan.
-
----
-
-## Entry: 2026-01-24 20:30:20 — Lease token exposure mitigation (SR runtime artifacts)
-
-Problem surfaced:
-- GitGuardian flagged a lease token file under `artefacts/fraud-platform/<platform_run_id>/sr/index/leases/...json`.
-- Lease tokens are **capability tokens** (who holds it can renew/act as leader). Even though they are local/dev artifacts, they must be treated as secrets.
-
-Decision:
-- **Do not ignore all of `artefacts/`** (engine depends on it). Instead, ignore only SR runtime subpaths that can contain sensitive tokens.
-- Add an explicit **user‑facing warning** (docs + runtime log) so operators are alerted to review and decide how to handle runtime artifacts after a run.
-
-Actions taken:
-1) Removed the tracked lease token file from git index (left local file intact).
-2) Added `.gitignore` entries for `artefacts/fraud-platform/<platform_run_id>/sr/index/` (covers lease tokens + sqlite authority).
-3) Added a security note in `services/scenario_runner/README.md` warning that SR runtime artifacts may include sensitive capability tokens.
-4) Added a runtime warning in `ScenarioRunner.__init__` for local object_store roots to alert operators.
-
-Rationale:
-- Keeps engine artifacts in git while preventing SR runtime secrets from being committed.
-- Provides an explicit, user‑visible alert so operators can choose whether to delete or preserve runtime artifacts after runs.
-
----
-
-## Entry: 2026-01-24 20:45:30 — Phase 8 planning (Integration tests + CI gates)
-
-Starting Phase 8 planning now. This is a live decision trail to capture reasoning before any implementation.
-
-### Problem framing (what Phase 8 must solve)
-We have a feature-complete SR through Phase 7, but we still need **confidence at scale**: integration tests that prove cross-cutting behavior (storage + evidence + invocation + control bus + re-emit) and CI gates that prevent regressions. Phase 8 is about **proving correctness across boundaries**, not adding new features.
-
-Key risks to address:
-- Regressions in at-least-once/idempotency under integration conditions.
-- Silent contract drift between SR and engine interface_pack artifacts.
-- Bus + re-emit flows that work in unit tests but fail in LocalStack parity.
-- Tests that are too heavy for PR gates, leading to slow or flaky CI.
-
-### Authorities / inputs
-- Root AGENTS.md: fail-closed, append-only truth, black-box engine boundary.
-- SR contracts and interface_pack gate map (authoritative for gate verification).
-- Existing Phase 2.5/3 parity tests and LocalStack Kinesis tests.
-
-### Decisions to make (Phase 8 scope + strategy)
-1) **Test tiers and gating levels**
-   - I want a **tiered test model** so PR gates are fast but still meaningful:
-     - Tier 0: unit + fast integration (no external services).
-     - Tier 1: local parity (MinIO + Postgres) storage + evidence tests.
-     - Tier 2: LocalStack Kinesis end-to-end control bus + re-emit test.
-     - Tier 3: engine-artifact reuse tests (using real run roots).
-   - CI should run Tier 0 on every PR and defer heavier tiers to nightly/explicit runs.
-
-2) **Contract drift checks**
-   - Add a lightweight **schema compatibility check** that validates SR’s interface_pack reads
-     (gate map, output catalog, instance receipt schema) without touching engine code.
-   - The check should fail-closed if a referenced contract is missing or invalid.
-
-3) **Engine artifacts as fixtures**
-   - Use existing `runs/local_full_run-5/...` artifacts as fixtures (read-only).
-   - Tests will **copy to temp** before mutation to avoid accidental drift.
-   - If the fixture is missing, tests should skip with a clear reason.
-
-4) **CI environment safety**
-   - No credentials in CI config.
-   - Use `.env.localstack.example` + ephemeral LocalStack for Tier 2.
-   - Keep all integration tests opt-in or gated by env vars to avoid accidental CI flakiness.
-
-### Planned Phase 8 sections (build plan expansion)
-- 8.1 Test tiers + markers (unit, parity, localstack, engine-fixture)
-- 8.2 Golden path integration (submit → plan → invoke stub → evidence → READY)
-- 8.3 Duplicate/at-least-once integration (replay + idempotent events)
-- 8.4 Fail-closed integration (missing gates, drifted receipts, unknown output)
-- 8.5 Control bus + re-emit E2E (LocalStack Kinesis)
-- 8.6 Contract compatibility checks (interface_pack validation)
-- 8.7 CI gates + runbooks (what runs when, how to reproduce locally)
-
-### File touchpoints (expected)
-- `tests/services/scenario_runner/` (new integration tests + markers)
-- `scripts/` or `config/ci/` (test runner presets)
-- `docs/model_spec/platform/implementation_maps/scenario_runner.build_plan.md`
-- `docs/model_spec/platform/implementation_maps/scenario_runner.impl_actual.md`
-- `docs/logbook/01-2026/2026-01-24.md`
-
-### Invariants to preserve
-- Engine remains a black box (no engine code changes).
-- Tests must never mutate canonical truth (use temp copies for artifacts).
-- Fail closed on missing/invalid contracts.
-- No secrets or credentials in code/docs/impl_actual.
-
----
-
-## Entry: 2026-01-24 20:47:10 — Correction: sensitive-artifacts warning moved to AGENTS
-
-I moved the sensitive runtime artifacts warning out of `services/scenario_runner/README.md` and into the root `AGENTS.md` so it is a **platformwide rule**, not SR-scoped.
-
-Why:
-- The risk (runtime capability tokens/credentials) is not SR-specific.
-- Root AGENTS is the correct authority for cross-platform operational rules.
-
-Action taken:
-- Removed the SR README warning.
-- Added a platformwide rule in AGENTS: do not commit sensitive runtime artifacts and explicitly alert the user when such artifacts are created.
-
-No credentials were added or recorded during this change.
 
 ---
 
@@ -3394,6 +3238,162 @@ No code changes; docs only. No credentials will be embedded.
 
 ---
 
+## Entry: 2026-01-25 09:00:30 — Plan to trigger READY run for IG smoke test (reuse-only, engine blackbox safe)
+
+### Problem / goal
+The IG ops‑rebuild smoke test requires an SR READY run with a valid `run_facts_view` under the SR artifacts root. Current SR artifacts in `temp/artefacts/fraud-platform/sr` show QUARANTINED with no facts view. We need a READY run that reuses existing engine artifacts (engine remains a blackbox) so the IG smoke test can read a real join surface.
+
+### Constraints / invariants honored
+- **Engine remains a blackbox.** No engine code changes or re‑execution; SR will only read existing engine outputs and gate bundles under `runs/`.
+- **No-PASS-no-read.** SR must only publish READY if required gates pass under the interface pack gate map.
+- **Idempotency safe.** A new run_equivalence_key is used to avoid collision with any prior SR runs.
+- **Secrets hygiene.** No credentials or secrets are written to impl_actual; only public artifact paths and fingerprints already in repo.
+
+### Inputs / authorities consulted
+- Engine run receipt at `runs/local_full_run-5/c25a2675fbfbacd952b13bb594880e92/run_receipt.json` for:
+  - manifest_fingerprint: `c8fd43cd60ce0ede0c63d2ceb4610f167c9b107e1d59b9b8c7d7b8d0028b05c8`
+  - parameter_hash: `56d45126eaabedd083a1d8428a763e0278c89efec5023cfd6cf3cab7fc8dd2d7`
+  - seed: `42`
+- Scenario id observed under engine outputs: `scenario_id=baseline_v1` within `runs/local_full_run-5/.../arrival_events/...`.
+- SR wiring profile: `config/platform/sr/wiring_local.yaml` (object_store_root=`artefacts`, control bus file, interface pack paths).
+- SR policy: `config/platform/sr/policy_v0.yaml` (traffic outputs: arrival_events_5B, s2_flow_anchor_baseline_6B, s3_flow_anchor_with_fraud_6B; reuse_policy=ALLOW).
+
+### Decision trail (why this approach)
+1) **Reuse path vs engine invocation**
+   - SR strategy AUTO first attempts reuse when reuse_policy=ALLOW.
+   - Reuse avoids the engine invocation path that would enforce run_receipt run_id equality (SR run_id is deterministic from equivalence key and won’t match engine run_id). This keeps the engine blackbox while still verifying gates and outputs.
+2) **Artifact root selection**
+   - Use existing wiring profile to write SR artifacts under `artefacts/fraud-platform/sr` (already in repo and referenced by IG smoke test search order).
+   - Avoid introducing new wiring variants for this run; keep configuration minimal and explicit.
+3) **Scenario binding**
+   - Use `scenario_id=baseline_v1` to match actual engine output partitions, ensuring locators resolve.
+4) **Run window**
+   - Provide a valid, timezone‑aware window (ISO8601 with `+00:00`) as required by schema; no functional coupling to engine output timestamps.
+
+### Execution plan (pre‑run, explicit)
+1) Submit SR run via CLI using reuse‑only path by providing engine_run_root and using policy reuse (AUTO).
+2) Confirm SR output artifacts:
+   - `artefacts/fraud-platform/<platform_run_id>/sr/run_status/{run_id}.json` state is READY.
+   - `artefacts/fraud-platform/<platform_run_id>/sr/run_facts_view/{run_id}.json` exists with locators + gate receipts.
+3) Run IG smoke test: `tests/services/ingestion_gate/test_ops_rebuild_runs_smoke.py -q` and confirm it reads the SR artifacts.
+4) Log results in logbook + append follow‑up entry here with outcomes and any deviations.
+
+### Planned CLI invocation (values to reuse)
+```
+.\.venv\Scripts\python.exe -m fraud_detection.scenario_runner.cli `
+  --wiring config/platform/sr/wiring_local.yaml `
+  --policy config/platform/sr/policy_v0.yaml `
+  run `
+  --run-equivalence-key sr_local_full_run_5_baseline_v1_2026-01-25 `
+  --manifest-fingerprint c8fd43cd60ce0ede0c63d2ceb4610f167c9b107e1d59b9b8c7d7b8d0028b05c8 `
+  --parameter-hash 56d45126eaabedd083a1d8428a763e0278c89efec5023cfd6cf3cab7fc8dd2d7 `
+  --seed 42 `
+  --scenario-id baseline_v1 `
+  --window-start 2026-01-01T00:00:00+00:00 `
+  --window-end 2026-01-02T00:00:00+00:00 `
+  --engine-run-root runs/local_full_run-5/c25a2675fbfbacd952b13bb594880e92
+```
+
+---
+
+## Entry: 2026-01-25 09:02:40 — RUN produced WAITING: arrival_events_5B path_template newline bug (fix in SR catalogue loader)
+
+### What happened (observed)
+Executed the planned SR CLI run and SR returned `WAITING_EVIDENCE` with `missing=['arrival_events_5B']`. This is incorrect: the arrival_events parquet files exist in the engine run root under:
+`runs/local_full_run-5/c25a2675fbfbacd952b13bb594880e92/data/layer2/5B/arrival_events/seed=42/manifest_fingerprint=.../scenario_id=baseline_v1/part-*.parquet`.
+
+### Root cause analysis (decision trail)
+1) Verified the arrival_events files exist at the expected path (seed=42, manifest_fingerprint=..., scenario_id=baseline_v1).
+2) Inspected the interface pack catalogue entry for `arrival_events_5B` and printed `repr(path_template)`.
+3) Found a trailing newline:  
+   `data/layer2/5B/arrival_events/.../part-*.parquet\n`  
+   This newline becomes part of the rendered path, so globbing never matches the real files. Result: SR treats `arrival_events_5B` as missing and moves to WAITING.
+
+### Decision
+Harden SR’s catalogue loader to normalize `path_template` by stripping leading/trailing whitespace when reading the interface pack. This keeps the engine blackbox intact, avoids mutating engine outputs, and makes SR tolerant of benign formatting artifacts in YAML (e.g., trailing newline introduced by the writer).
+
+### Implementation steps (pre‑code)
+1) Update `src/fraud_detection/scenario_runner/catalogue.py` to apply `.strip()` to `entry["path_template"]`.
+2) Re‑run SR CLI with a new `run_equivalence_key` to avoid idempotent collision with the WAITING run.
+3) Verify READY status and a `run_facts_view` under `artefacts/fraud-platform/<platform_run_id>/sr/`.
+4) Re‑run IG smoke test to confirm it can rebuild ops index from the SR facts view.
+5) Log results and update this entry with outcomes.
+
+---
+
+## Entry: 2026-01-25 09:05:50 — Fix applied; READY achieved; IG smoke test passes
+
+### Changes applied
+- Hardened SR catalogue loader to strip whitespace from `path_template` on load:
+  - `src/fraud_detection/scenario_runner/catalogue.py` now uses `str(...).strip()` for `path_template`.
+- Added regression test to lock this behavior:
+  - `tests/services/scenario_runner/test_catalogue.py` verifies trailing newline is removed.
+
+### SR run (reuse-only) results
+- New run_equivalence_key: `sr_local_full_run_5_baseline_v1_2026-01-25b`
+- Resulting run_id: `870056d6aaa95c99e1d770a484469563`
+- Evidence reuse COMPLETE; READY committed.
+- Artifacts written under:
+  - `artefacts/fraud-platform/<platform_run_id>/sr/run_status/870056d6aaa95c99e1d770a484469563.json` (state READY)
+  - `artefacts/fraud-platform/<platform_run_id>/sr/run_facts_view/870056d6aaa95c99e1d770a484469563.json`
+  - `artefacts/fraud-platform/<platform_run_id>/sr/run_record/870056d6aaa95c99e1d770a484469563.jsonl`
+
+### Validation (executed)
+- SR unit test: `python -m pytest tests/services/scenario_runner/test_catalogue.py -q` → 1 passed.
+- IG smoke test: `python -m pytest tests/services/ingestion_gate/test_ops_rebuild_runs_smoke.py -q` → 1 passed.
+
+### Notes
+- The earlier WAITING run (run_id=4d0c3c64c3e24c4f3091179259d19004) remains in SR artifacts for audit history; no mutation performed.
+
+**Phase 3 — Evidence + gate verification completeness (fail‑closed)**
+- Implement N5 fully: output intent → required gate closure; gate verification by gate‑specific method.
+- Enforce instance‑proof binding where scope includes seed/scenario_id/parameter_hash/run_id.
+- Classify COMPLETE / WAITING / FAIL / CONFLICT deterministically.
+
+**Phase 4 — Engine invocation integration (true IP1)**
+- Implement N4 job runner adapter with attempt idempotency and retry budget.
+- Record attempt lifecycle in run_record; ensure lease loss halts writes.
+- Return normalized AttemptResult for evidence harvesting.
+
+**Phase 5 — Control bus + re‑emit (operational truth)**
+- Wire to real bus (Kafka/Redpanda). Ensure READY publish idempotency key = (run_id, facts_view_hash).
+- Implement N7 re‑emit with ops micro‑lease and strict “read truth → re‑publish” behavior.
+
+**Phase 6 — Observability + governance (audit‑ready)**
+- Implement N8 normalized eventaxonomy; emit metrics, traces, and governance facts.
+- Stamp policy_rev + plan hash + evidence hash on all runs.
+- Enforce telemetry never blocks truth commits (drop DEBUG first, keep governance facts).
+
+**Phase 7 — Security + ops hardening**
+- AuthN/AuthZ for run submit, re‑emit, correction.
+- Secrets never in artifacts; only key IDs.
+- Quarantine path + operator inspection tooling.
+
+**Phase 8 — Integration tests + CI gates**
+- Golden path, duplicate, reuse, fail‑closed, re‑emit, correction.
+- Contract compliance tests.
+- CI checks for schema compatibility + invariantests.
+
+### Mapping to SR subnetworks
+- N1: ingress validation, scenario normalization, run_equivalence_key enforcement.
+- N2: idempotency binding + lease authority.
+- N3: plan compilation + policy_rev stamping.
+- N4: engine attempt lifecycle with idempotency.
+- N5: evidence + gate verification (COMPLETE/WAITING/FAIL/CONFLICT).
+- N6: ledger + facts_view + READY ordering and immutability.
+- N7: re‑emit control facts (no recompute).
+- N8: observability + governance emission (never truth).
+
+### Guardrails against drift
+- READY without admissible PASS evidence is forbidden.
+- Downstream must start from READY → run_facts_view; scanning “latest” is forbidden.
+- run_plan and run_facts_view are immutable after commit; corrections use supersede.
+- Evidence decisions are deterministic, no “best effort.”
+
+### Immediate next work item (if not overridden)
+Proceed to **Phase 1: Contracts + Truth Surfaces** (schemas + validation wiring), then Phase 2 (durable idempotency/lease store).
+
+---
 ## Entry: 2026-01-25 20:56:20 — SR runtime root migration + run log output (pre‑change)
 
 ### Trigger
@@ -3818,17 +3818,6 @@ Switch SR local parity + local Kinesis wiring to use the **same bucket** (`s3://
 
 ---
 
-## Entry: 2026-01-30 00:05:50 — SR artifacts moved to run‑first layout
-
-### Decision
-SR artifacts and refs now live under `fraud-platform/<platform_run_id>/sr/*` so each platform run is self‑contained.
-
-### Changes
-- `ScenarioRunner` ledger prefix now `fraud-platform/<platform_run_id>/sr`.
-- Status/record/facts refs updated to the run‑scoped prefix.
-- File control‑bus root rewritten to `runs/fraud-platform/<platform_run_id>/control_bus` when a run is active.
-- CLI now requires an active platform run ID for non‑run commands (reemit/quarantine).
-
 ## Entry: 2026-01-29 19:32:10 — Parity SR authority store DSN alignment
 
 ### Trigger
@@ -3854,6 +3843,17 @@ Align SR S3 root to the **bucket root** so SR’s relative refs (`fraud-platform
 - `config/platform/sr/wiring_local_parity.yaml`: `object_store_root: s3://fraud-platform`
 
 ---
+
+## Entry: 2026-01-30 00:05:50 — SR artifacts moved to run‑first layout
+
+### Decision
+SR artifacts and refs now live under `fraud-platform/<platform_run_id>/sr/*` so each platform run is self‑contained.
+
+### Changes
+- `ScenarioRunner` ledger prefix now `fraud-platform/<platform_run_id>/sr`.
+- Status/record/facts refs updated to the run‑scoped prefix.
+- File control‑bus root rewritten to `runs/fraud-platform/<platform_run_id>/control_bus` when a run is active.
+- CLI now requires an active platform run ID for non‑run commands (reemit/quarantine).
 
 ## Entry: 2026-01-30 00:28:50 — SR local wiring uses run‑scoped authority store
 

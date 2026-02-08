@@ -957,36 +957,6 @@ Current DF replay/checkpoint modules are SQLite-only, so 4.4.H is not yet fully 
 
 ---
 
-## Entry: 2026-02-07 13:02:10 — Corrective closure: DF state-store parity for platform 4.4.H
-
-### Why this corrective entry
-Phase 7 originally shipped replay/checkpoint stores as SQLite-only. Platform `4.4.H` requires DF state stores to be environment-parity aligned (Postgres in local-parity/dev/prod), so this entry records the parity correction without rewriting prior history.
-
-### What changed
-1. Updated DF replay ledger to backend-aware persistence:
-   - `src/fraud_detection/decision_fabric/replay.py`
-   - backend autodetect by locator:
-     - `postgres://` or `postgresql://` -> Postgres backend
-     - otherwise -> SQLite backend (`sqlite://` and filesystem paths supported)
-   - preserved existing replay semantics (`NEW`, `REPLAY_MATCH`, `PAYLOAD_MISMATCH`) and immutable mismatch lane behavior.
-2. Updated DF checkpoint gate to backend-aware persistence:
-   - `src/fraud_detection/decision_fabric/checkpoints.py`
-   - same locator-based backend autodetect (Postgres/SQLite)
-   - preserved commit gating invariants (ledger committed + safe publish decision before checkpoint commit).
-3. Added backend-routing tests:
-   - `tests/services/decision_fabric/test_phase7_replay.py`
-   - `tests/services/decision_fabric/test_phase7_checkpoints.py`
-   - verifies Postgres locator routes to psycopg connection path.
-
-### Validation
-- `python -m pytest tests/services/decision_fabric/test_phase7_replay.py tests/services/decision_fabric/test_phase7_checkpoints.py -q` -> `7 passed`.
-- `python -m pytest tests/services/decision_fabric -q` -> `65 passed`.
-
-### Outcome
-This closes the `4.4.H` DF store parity gap while preserving SQLite support for lightweight local tests.
-
----
-
 ## Entry: 2026-02-07 13:00:30 - Plan: DF identity + inlet + scope-key drift closure
 
 ### Problem
@@ -1026,6 +996,36 @@ Three confirmed drifts remain in DF boundary semantics:
   - decision_id replay stability under basis vector movement,
   - inlet collision reject path,
 - deterministic scope-key stamping.
+
+---
+
+## Entry: 2026-02-07 13:02:10 — Corrective closure: DF state-store parity for platform 4.4.H
+
+### Why this corrective entry
+Phase 7 originally shipped replay/checkpoint stores as SQLite-only. Platform `4.4.H` requires DF state stores to be environment-parity aligned (Postgres in local-parity/dev/prod), so this entry records the parity correction without rewriting prior history.
+
+### What changed
+1. Updated DF replay ledger to backend-aware persistence:
+   - `src/fraud_detection/decision_fabric/replay.py`
+   - backend autodetect by locator:
+     - `postgres://` or `postgresql://` -> Postgres backend
+     - otherwise -> SQLite backend (`sqlite://` and filesystem paths supported)
+   - preserved existing replay semantics (`NEW`, `REPLAY_MATCH`, `PAYLOAD_MISMATCH`) and immutable mismatch lane behavior.
+2. Updated DF checkpoint gate to backend-aware persistence:
+   - `src/fraud_detection/decision_fabric/checkpoints.py`
+   - same locator-based backend autodetect (Postgres/SQLite)
+   - preserved commit gating invariants (ledger committed + safe publish decision before checkpoint commit).
+3. Added backend-routing tests:
+   - `tests/services/decision_fabric/test_phase7_replay.py`
+   - `tests/services/decision_fabric/test_phase7_checkpoints.py`
+   - verifies Postgres locator routes to psycopg connection path.
+
+### Validation
+- `python -m pytest tests/services/decision_fabric/test_phase7_replay.py tests/services/decision_fabric/test_phase7_checkpoints.py -q` -> `7 passed`.
+- `python -m pytest tests/services/decision_fabric -q` -> `65 passed`.
+
+### Outcome
+This closes the `4.4.H` DF store parity gap while preserving SQLite support for lightweight local tests.
 
 ---
 

@@ -115,6 +115,19 @@ User asked to update the Oracle Store build plan so we can start **implementatio
 
 ---
 
+## Entry: 2026-01-28 14:51:51 — Applied: Phase 2 hardening (reason codes + strict‑seal + tests)
+
+### What changed
+- **Stable reason codes:** `OracleCheckReport` now emits `reason_codes` + structured `issues` with `code/detail/severity` (PACK_NOT_SEALED, LOCATOR_MISSING, DIGEST_MISSING, GATE_PASS_MISSING, RUN_FACTS_INVALID/UNREADABLE).
+- **Strict‑seal default for dev/prod:** CLI now enforces strict seal markers for `profile_id in {dev, prod}` unless explicitly overridden.
+- **S3 path validation tests:** added unit tests for S3 head + glob listing and oracle path resolution.
+
+### Notes
+- Local runs still WARN on missing seal markers (v0 transitional rule).
+- Missing digest is treated as error when `require_digest` is true; use `--allow-missing-digest` to relax.
+
+---
+
 ## Entry: 2026-01-28 14:58:40 — Phase 2 hardening (reason codes + strict‑seal + S3 tests)
 
 ### Trigger
@@ -129,19 +142,6 @@ User requested Phase 2 hardening of Oracle Store (stable reason codes, strict‑
 1) Add stable reason codes to `OracleCheckReport` (codes + issue details).
 2) Enforce strict‑seal default for `profile_id in {dev, prod}` in the CLI (override allowed).
 3) Add S3 path validation tests using stubbed clients; add tests for oracle path resolution.
-
----
-
-## Entry: 2026-01-28 14:51:51 — Applied: Phase 2 hardening (reason codes + strict‑seal + tests)
-
-### What changed
-- **Stable reason codes:** `OracleCheckReport` now emits `reason_codes` + structured `issues` with `code/detail/severity` (PACK_NOT_SEALED, LOCATOR_MISSING, DIGEST_MISSING, GATE_PASS_MISSING, RUN_FACTS_INVALID/UNREADABLE).
-- **Strict‑seal default for dev/prod:** CLI now enforces strict seal markers for `profile_id in {dev, prod}` unless explicitly overridden.
-- **S3 path validation tests:** added unit tests for S3 head + glob listing and oracle path resolution.
-
-### Notes
-- Local runs still WARN on missing seal markers (v0 transitional rule).
-- Missing digest is treated as error when `require_digest` is true; use `--allow-missing-digest` to relax.
 
 ---
 
@@ -168,6 +168,28 @@ User asked to proceed to Phase 3 planning once Phase 2 hardening is done.
    - Derive pack root from locators (or use explicit `--pack-root`).
    - Write `_oracle_pack_manifest.json` + `_SEALED.json` only if absent.
 3) Update oracle checker to read and report manifest metadata when present.
+
+---
+
+## Entry: 2026-01-28 15:10:45 — Manifest schema + validation
+
+### What changed
+- Added Oracle Store contract schemas:
+  - `docs/model_spec/platform/contracts/oracle_store/oracle_pack_manifest.schema.yaml`
+  - `docs/model_spec/platform/contracts/oracle_store/oracle_pack_seal.schema.yaml`
+- Checker now validates manifests when present and reports `PACK_MANIFEST_INVALID` on schema failure.
+
+### Rationale
+- Schemas make pack metadata auditable and enforceable without embedding logic in the engine.
+- Validation keeps the seal/manifest tooling honest as we expand to dev/prod.
+
+---
+
+## Entry: 2026-01-28 15:14:20 — Add strict Make target + operator guide
+
+### What changed
+- Added Make target `platform-oracle-check-strict` to enforce seal markers explicitly.
+- Documented a short “oracle store in action” guide for operators (seal → strict check).
 
 ---
 
@@ -203,28 +225,6 @@ User asked to proceed to Phase 3 planning once Phase 2 hardening is done.
 ### Validation (local/dev)
 - Sealed pack for `runs/local_full_run-5/c25a2675fbfbacd952b13bb594880e92` using `run_facts_view` (engine release `engine-local-v0`).
 - Strict‑seal check (dev_local) now passes with status **OK**.
-
----
-
-## Entry: 2026-01-28 15:10:45 — Manifest schema + validation
-
-### What changed
-- Added Oracle Store contract schemas:
-  - `docs/model_spec/platform/contracts/oracle_store/oracle_pack_manifest.schema.yaml`
-  - `docs/model_spec/platform/contracts/oracle_store/oracle_pack_seal.schema.yaml`
-- Checker now validates manifests when present and reports `PACK_MANIFEST_INVALID` on schema failure.
-
-### Rationale
-- Schemas make pack metadata auditable and enforceable without embedding logic in the engine.
-- Validation keeps the seal/manifest tooling honest as we expand to dev/prod.
-
----
-
-## Entry: 2026-01-28 15:14:20 — Add strict Make target + operator guide
-
-### What changed
-- Added Make target `platform-oracle-check-strict` to enforce seal markers explicitly.
-- Documented a short “oracle store in action” guide for operators (seal → strict check).
 
 ---
 
@@ -522,24 +522,6 @@ Stream view build failed with `OutOfRangeException` during `hash_sum2` computati
 
 ---
 
-## Entry: 2026-01-30 11:24:05 — Stream sort performance knobs (memory/temp/threads)
-
-### Trigger
-User observed long stream view build time (multi‑hour ETA) on ~374M rows.
-
-### What I changed
-- Added optional DuckDB tuning knobs:
-  - `STREAM_SORT_MEMORY_LIMIT` → `PRAGMA memory_limit`
-  - `STREAM_SORT_TEMP_DIR` → `PRAGMA temp_directory`
-  - `STREAM_SORT_THREADS` already supported (kept)
-
-### Operator guidance
-- Set `STREAM_SORT_THREADS` to available cores (e.g., 8–16).
-- Use a fast local SSD for `STREAM_SORT_TEMP_DIR`.
-- Increase `STREAM_SORT_MEMORY_LIMIT` to reduce spill to disk.
-
----
-
 ## Entry: 2026-01-30 11:12:00 — Correction: per‑output stream views (no union)
 
 ### Trigger
@@ -555,6 +537,24 @@ User clarified that the requirement is **sorted datasets per output** (`arrival_
   `.../stream_view/ts_utc/output_id=<output_id>/<stream_view_id>/`
 - CLI iterates output_ids and builds each independently.
 - WSP stream_view mode reads per‑output views (no union).
+
+---
+
+## Entry: 2026-01-30 11:24:05 — Stream sort performance knobs (memory/temp/threads)
+
+### Trigger
+User observed long stream view build time (multi‑hour ETA) on ~374M rows.
+
+### What I changed
+- Added optional DuckDB tuning knobs:
+  - `STREAM_SORT_MEMORY_LIMIT` → `PRAGMA memory_limit`
+  - `STREAM_SORT_TEMP_DIR` → `PRAGMA temp_directory`
+  - `STREAM_SORT_THREADS` already supported (kept)
+
+### Operator guidance
+- Set `STREAM_SORT_THREADS` to available cores (e.g., 8–16).
+- Use a fast local SSD for `STREAM_SORT_TEMP_DIR`.
+- Increase `STREAM_SORT_MEMORY_LIMIT` to reduce spill to disk.
 
 ---
 
@@ -840,6 +840,21 @@ User requested `arrival_events_5B` be sorted and stored alongside the behavioura
 
 ---
 
+## Entry: 2026-02-01 12:15:00 — Helper target to sort both traffic streams
+
+### Trigger
+User requested a one‑line helper to sort baseline + fraud traffic streams without manually creating a list.
+
+### Decision
+- Add a dedicated YAML list for dual traffic.
+- Add a make target that sets `ORACLE_STREAM_OUTPUT_IDS_REF` to that list.
+
+### Implementation notes
+- New file: `config/platform/wsp/traffic_outputs_dual_v0.yaml`.
+- New make target: `platform-oracle-stream-sort-traffic-both`.
+- Runbook updated to reference the helper.
+
+
 ## Entry: 2026-02-01 16:05:00 — arrival_events_5B stream view built (memory tuning)
 
 ### Trigger
@@ -865,21 +880,6 @@ arrival_events_5B is now present in MinIO alongside the other eight context/trut
 
 
 ---
-
-## Entry: 2026-02-01 12:15:00 — Helper target to sort both traffic streams
-
-### Trigger
-User requested a one‑line helper to sort baseline + fraud traffic streams without manually creating a list.
-
-### Decision
-- Add a dedicated YAML list for dual traffic.
-- Add a make target that sets `ORACLE_STREAM_OUTPUT_IDS_REF` to that list.
-
-### Implementation notes
-- New file: `config/platform/wsp/traffic_outputs_dual_v0.yaml`.
-- New make target: `platform-oracle-stream-sort-traffic-both`.
-- Runbook updated to reference the helper.
-
 
 ## Entry: 2026-02-02 09:07:18 — Stream-sort alignment for context topics (fraud default)
 

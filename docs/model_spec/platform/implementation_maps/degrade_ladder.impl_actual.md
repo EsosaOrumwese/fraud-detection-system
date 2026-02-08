@@ -297,54 +297,6 @@ Proceed to DL Phase 3 by implementing:
 
 ---
 
-## Entry: 2026-02-07 03:52:34 — DL Phase 3 implemented (scope resolution + deterministic evaluator)
-
-### Implementation summary
-Phase 3 is now implemented and validated at component scope.
-
-### What was implemented
-1. Added deterministic evaluator module:
-   - `src/fraud_detection/degrade_ladder/evaluator.py`
-   - explicit scope model + canonical scope keys (`GLOBAL`, `MANIFEST`, `RUN`) via `resolve_scope`.
-   - deterministic baseline mode selection from normalized signal states:
-     - required gaps -> `FAIL_CLOSED`
-     - optional error -> `DEGRADED_2`
-     - optional stale/missing -> `DEGRADED_1`
-     - all healthy -> `NORMAL`
-   - hysteresis transition rules:
-     - immediate downshift on worse baseline
-     - upshift only after policy quiet-period and only one rung per evaluation.
-2. Added fail-safe wrapper:
-   - `evaluate_posture_safe(...)` guarantees a `FAIL_CLOSED` decision with explicit evaluator-failure reason if policy/snapshot/evaluator resolution fails.
-3. Exported Phase 3 APIs for downstream usage:
-   - updated `src/fraud_detection/degrade_ladder/__init__.py` to export evaluator symbols.
-4. Added Phase 3 tests:
-   - `tests/services/degrade_ladder/test_phase3_evaluator.py`
-   - coverage includes scope determinism, evaluator determinism, required-gap downshift, quiet-period hold, one-rung upshift, and fail-closed wrapper behavior.
-
-### Invariants enforced
-- Scope key is explicit and deterministic; snapshot scope mismatch is treated as evaluator error.
-- Decision path has no hidden wall-clock dependency (`decision_time_utc` is caller supplied).
-- Hysteresis cannot disable immediate downshift; invalid policy hysteresis shape is rejected.
-- Evaluator failures do not produce permissive behavior; forced `FAIL_CLOSED` is returned with provenance reason.
-
-### Security and production posture notes
-- No secret-bearing artifacts were introduced.
-- Fail-closed fallback preserves safety under malformed config or runtime evaluator exceptions.
-- Scope mismatch handling reduces cross-run/scope contamination risk.
-
-### Validation evidence
-- `python -m pytest tests/services/degrade_ladder -q` -> `18 passed`.
-
-### Phase closure assessment
-- Phase 3 DoD is satisfied at component scope:
-  - explicit deterministic scope resolution,
-  - deterministic evaluator output for fixed inputs,
-  - downshift/upshift hysteresis semantics implemented,
-  - forced fail-closed wrapper on evaluator/policy failure.
-
----
-
 ## Entry: 2026-02-07 03:29:49 — Phase 4 implementation plan (posture store + serve surface)
 
 ### Problem / goal
@@ -406,6 +358,62 @@ Proceed to DL Phase 4 and implement the first operational serving boundary DF ca
 
 ---
 
+## Entry: 2026-02-07 03:29:49 — Phase 5 implementation plan (health gate + self-trust clamp)
+
+### Problem / goal
+Proceed to DL Phase 5 and make DL explicitly self-protecting:
+1. classify operational trust into explicit health states,
+2. force fail-closed for BLIND/BROKEN regardless of normal posture,
+3. require evidence-based recovery (no elapsed-time-only clear),
+4. control rebuild/re-evaluation triggers to avoid storms.
+
+### Authorities / inputs
+- `docs/model_spec/platform/implementation_maps/degrade_ladder.build_plan.md` (Phase 5 DoD)
+- `docs/model_spec/platform/pre-design_decisions/real-time_decision_loop.pre-design_decision.md` (health gates / fail-closed posture)
+- `docs/model_spec/platform/component-specific/degrade_ladder.design-authority.md` (S8 health gate semantics)
+- existing DL modules (`signals.py`, `serve.py`, `store.py`, `evaluator.py`)
+
+### Decision trail (live)
+1. Add dedicated health gate module (`health.py`) with:
+   - pinned health states: `HEALTHY`, `IMPAIRED`, `BLIND`, `BROKEN`,
+   - explicit gate object carrying `forced_mode`, reasons, and rebuild trigger metadata.
+2. Implement controller semantics with per-scope memory:
+   - immediate escalation on unsafe evidence,
+   - recovery requires consecutive healthy evaluations (`healthy_clear_observations`) and hold-down clearance,
+   - no auto-clear by elapsed time alone.
+3. Rebuild trigger policy:
+   - trigger only on selected reason codes (`POSTURE_MISSING`, `POSTURE_STORE_ERROR`, `POSTURE_STORE_CORRUPT`),
+   - cooldown-backed (`rebuild_cooldown_seconds`) to prevent storming.
+4. Integrate health gate with serving boundary:
+   - add guarded service wrapper that applies health gate before normal posture serving,
+   - BLIND/BROKEN always return fail-closed posture with gate provenance.
+5. Keep scope to component-level behavior:
+   - no external control-bus emission yet (Phase 6),
+   - no DF integration yet.
+
+### Planned edits
+- `src/fraud_detection/degrade_ladder/health.py` (new)
+- `src/fraud_detection/degrade_ladder/serve.py` (guarded serving integration)
+- `src/fraud_detection/degrade_ladder/__init__.py` (exports)
+- `tests/services/degrade_ladder/test_phase5_health_gate.py` (new)
+- `docs/model_spec/platform/implementation_maps/degrade_ladder.build_plan.md` (mark Phase 5 status + evidence if green)
+
+### Invariants to enforce
+- State vocabulary is fixed (`HEALTHY/IMPAIRED/BLIND/BROKEN`).
+- BLIND/BROKEN always force fail-closed.
+- Recovery requires positive evidence; time passage without healthy observations is insufficient.
+- Rebuild triggers are deterministic and cooldown-limited per scope.
+
+### Validation plan
+- `python -m pytest tests/services/degrade_ladder -q`
+- direct assertions on:
+  - health classification transitions,
+  - forced fail-closed behavior under BLIND/BROKEN,
+  - evidence-based recovery gating,
+  - rebuild trigger cooldown behavior.
+
+---
+
 ## Entry: 2026-02-07 03:33:07 — DL Phase 4 implemented (posture store + serve surface)
 
 ### Implementation summary
@@ -463,59 +471,51 @@ Phase 4 is now implemented and validated at component scope.
 
 ---
 
-## Entry: 2026-02-07 03:29:49 — Phase 5 implementation plan (health gate + self-trust clamp)
+## Entry: 2026-02-07 03:52:34 — DL Phase 3 implemented (scope resolution + deterministic evaluator)
 
-### Problem / goal
-Proceed to DL Phase 5 and make DL explicitly self-protecting:
-1. classify operational trust into explicit health states,
-2. force fail-closed for BLIND/BROKEN regardless of normal posture,
-3. require evidence-based recovery (no elapsed-time-only clear),
-4. control rebuild/re-evaluation triggers to avoid storms.
+### Implementation summary
+Phase 3 is now implemented and validated at component scope.
 
-### Authorities / inputs
-- `docs/model_spec/platform/implementation_maps/degrade_ladder.build_plan.md` (Phase 5 DoD)
-- `docs/model_spec/platform/pre-design_decisions/real-time_decision_loop.pre-design_decision.md` (health gates / fail-closed posture)
-- `docs/model_spec/platform/component-specific/degrade_ladder.design-authority.md` (S8 health gate semantics)
-- existing DL modules (`signals.py`, `serve.py`, `store.py`, `evaluator.py`)
+### What was implemented
+1. Added deterministic evaluator module:
+   - `src/fraud_detection/degrade_ladder/evaluator.py`
+   - explicit scope model + canonical scope keys (`GLOBAL`, `MANIFEST`, `RUN`) via `resolve_scope`.
+   - deterministic baseline mode selection from normalized signal states:
+     - required gaps -> `FAIL_CLOSED`
+     - optional error -> `DEGRADED_2`
+     - optional stale/missing -> `DEGRADED_1`
+     - all healthy -> `NORMAL`
+   - hysteresis transition rules:
+     - immediate downshift on worse baseline
+     - upshift only after policy quiet-period and only one rung per evaluation.
+2. Added fail-safe wrapper:
+   - `evaluate_posture_safe(...)` guarantees a `FAIL_CLOSED` decision with explicit evaluator-failure reason if policy/snapshot/evaluator resolution fails.
+3. Exported Phase 3 APIs for downstream usage:
+   - updated `src/fraud_detection/degrade_ladder/__init__.py` to export evaluator symbols.
+4. Added Phase 3 tests:
+   - `tests/services/degrade_ladder/test_phase3_evaluator.py`
+   - coverage includes scope determinism, evaluator determinism, required-gap downshift, quiet-period hold, one-rung upshift, and fail-closed wrapper behavior.
 
-### Decision trail (live)
-1. Add dedicated health gate module (`health.py`) with:
-   - pinned health states: `HEALTHY`, `IMPAIRED`, `BLIND`, `BROKEN`,
-   - explicit gate object carrying `forced_mode`, reasons, and rebuild trigger metadata.
-2. Implement controller semantics with per-scope memory:
-   - immediate escalation on unsafe evidence,
-   - recovery requires consecutive healthy evaluations (`healthy_clear_observations`) and hold-down clearance,
-   - no auto-clear by elapsed time alone.
-3. Rebuild trigger policy:
-   - trigger only on selected reason codes (`POSTURE_MISSING`, `POSTURE_STORE_ERROR`, `POSTURE_STORE_CORRUPT`),
-   - cooldown-backed (`rebuild_cooldown_seconds`) to prevent storming.
-4. Integrate health gate with serving boundary:
-   - add guarded service wrapper that applies health gate before normal posture serving,
-   - BLIND/BROKEN always return fail-closed posture with gate provenance.
-5. Keep scope to component-level behavior:
-   - no external control-bus emission yet (Phase 6),
-   - no DF integration yet.
+### Invariants enforced
+- Scope key is explicit and deterministic; snapshot scope mismatch is treated as evaluator error.
+- Decision path has no hidden wall-clock dependency (`decision_time_utc` is caller supplied).
+- Hysteresis cannot disable immediate downshift; invalid policy hysteresis shape is rejected.
+- Evaluator failures do not produce permissive behavior; forced `FAIL_CLOSED` is returned with provenance reason.
 
-### Planned edits
-- `src/fraud_detection/degrade_ladder/health.py` (new)
-- `src/fraud_detection/degrade_ladder/serve.py` (guarded serving integration)
-- `src/fraud_detection/degrade_ladder/__init__.py` (exports)
-- `tests/services/degrade_ladder/test_phase5_health_gate.py` (new)
-- `docs/model_spec/platform/implementation_maps/degrade_ladder.build_plan.md` (mark Phase 5 status + evidence if green)
+### Security and production posture notes
+- No secret-bearing artifacts were introduced.
+- Fail-closed fallback preserves safety under malformed config or runtime evaluator exceptions.
+- Scope mismatch handling reduces cross-run/scope contamination risk.
 
-### Invariants to enforce
-- State vocabulary is fixed (`HEALTHY/IMPAIRED/BLIND/BROKEN`).
-- BLIND/BROKEN always force fail-closed.
-- Recovery requires positive evidence; time passage without healthy observations is insufficient.
-- Rebuild triggers are deterministic and cooldown-limited per scope.
+### Validation evidence
+- `python -m pytest tests/services/degrade_ladder -q` -> `18 passed`.
 
-### Validation plan
-- `python -m pytest tests/services/degrade_ladder -q`
-- direct assertions on:
-  - health classification transitions,
-  - forced fail-closed behavior under BLIND/BROKEN,
-  - evidence-based recovery gating,
-  - rebuild trigger cooldown behavior.
+### Phase closure assessment
+- Phase 3 DoD is satisfied at component scope:
+  - explicit deterministic scope resolution,
+  - deterministic evaluator output for fixed inputs,
+  - downshift/upshift hysteresis semantics implemented,
+  - forced fail-closed wrapper on evaluator/policy failure.
 
 ---
 
@@ -731,6 +731,50 @@ Proceed to DL Phase 7 and make posture operations attributable + operable:
 
 ---
 
+## Entry: 2026-02-07 07:01:28 — Phase 8 implementation plan (validation, parity proof, closure boundary)
+
+### Problem / goal
+Proceed to DL Phase 8 and explicitly close component readiness with evidence:
+1. validate existing unit behavior coverage remains intact after Phases 1-7,
+2. add integration-level tests for DF-facing posture consumption + mask enforcement semantics,
+3. add replay-style determinism tests (same snapshot/policy => same output),
+4. add local-parity behavior proofs under healthy/degraded signal scenarios,
+5. publish explicit closure boundary statement for DL vs pending DF/AL/DLA coupling.
+
+### Authorities / inputs
+- `docs/model_spec/platform/implementation_maps/degrade_ladder.build_plan.md` (Phase 8 DoD)
+- `docs/model_spec/platform/implementation_maps/platform.build_plan.md` (Phase 4.4/4.5 boundaries)
+- `docs/model_spec/platform/pre-design_decisions/real-time_decision_loop.pre-design_decision.md`
+- existing DL module/test surfaces through Phase 7.
+
+### Decision trail (live)
+1. Use a Phase 8 validation test suite file (`test_phase8_validation_parity.py`) to avoid mixing closure evidence into earlier phase files.
+2. Because `src/fraud_detection/decision_fabric` is not present yet, integration proof will use a deterministic DF-consumption shim in tests that enforces DL capability mask rules exactly as pinned:
+   - `allow_ieg`, `allowed_feature_groups`, model toggles, `action_posture`.
+3. Replay proof will exercise full DL flow (snapshot -> evaluator -> store -> serve) with identical inputs and assert stable digest/output.
+4. Local-parity proof will run a multi-step scenario in `local_parity` profile to show stable transitions:
+   - healthy baseline,
+   - required-signal degradation to fail-closed,
+   - quiet-period gated recovery one rung at a time.
+5. Build-plan closure text will explicitly state:
+   - DL component is green for posture authority/serving/emission/governance,
+   - DF decision coupling + AL/DLA downstream integration remains tracked under platform Phase 4.4/4.5.
+
+### Planned edits
+- `tests/services/degrade_ladder/test_phase8_validation_parity.py` (new)
+- `docs/model_spec/platform/implementation_maps/degrade_ladder.build_plan.md` (Phase 8 status + closure statement evidence)
+
+### Invariants to enforce
+- DF-facing mask enforcement semantics are deterministic and conservative.
+- Replay determinism is insensitive to invocation order for identical inputs.
+- Recovery behavior in local-parity profile respects hysteresis and one-rung upshift posture.
+
+### Validation plan
+- `python -m pytest tests/services/degrade_ladder -q`
+- confirm all prior phase tests still pass and new Phase 8 tests pass with deterministic outputs.
+
+---
+
 ## Entry: 2026-02-07 07:04:36 — DL Phase 7 implemented (security, governance, ops telemetry)
 
 ### Implementation summary
@@ -785,50 +829,6 @@ Phase 7 is now implemented and validated at component scope.
   - redaction guardrails prevent secret leakage in persisted payloads,
   - required ops metrics are covered and queryable,
   - governance events for policy changes and forced fail-closed transitions are structured and queryable.
-
----
-
-## Entry: 2026-02-07 07:01:28 — Phase 8 implementation plan (validation, parity proof, closure boundary)
-
-### Problem / goal
-Proceed to DL Phase 8 and explicitly close component readiness with evidence:
-1. validate existing unit behavior coverage remains intact after Phases 1-7,
-2. add integration-level tests for DF-facing posture consumption + mask enforcement semantics,
-3. add replay-style determinism tests (same snapshot/policy => same output),
-4. add local-parity behavior proofs under healthy/degraded signal scenarios,
-5. publish explicit closure boundary statement for DL vs pending DF/AL/DLA coupling.
-
-### Authorities / inputs
-- `docs/model_spec/platform/implementation_maps/degrade_ladder.build_plan.md` (Phase 8 DoD)
-- `docs/model_spec/platform/implementation_maps/platform.build_plan.md` (Phase 4.4/4.5 boundaries)
-- `docs/model_spec/platform/pre-design_decisions/real-time_decision_loop.pre-design_decision.md`
-- existing DL module/test surfaces through Phase 7.
-
-### Decision trail (live)
-1. Use a Phase 8 validation test suite file (`test_phase8_validation_parity.py`) to avoid mixing closure evidence into earlier phase files.
-2. Because `src/fraud_detection/decision_fabric` is not present yet, integration proof will use a deterministic DF-consumption shim in tests that enforces DL capability mask rules exactly as pinned:
-   - `allow_ieg`, `allowed_feature_groups`, model toggles, `action_posture`.
-3. Replay proof will exercise full DL flow (snapshot -> evaluator -> store -> serve) with identical inputs and assert stable digest/output.
-4. Local-parity proof will run a multi-step scenario in `local_parity` profile to show stable transitions:
-   - healthy baseline,
-   - required-signal degradation to fail-closed,
-   - quiet-period gated recovery one rung at a time.
-5. Build-plan closure text will explicitly state:
-   - DL component is green for posture authority/serving/emission/governance,
-   - DF decision coupling + AL/DLA downstream integration remains tracked under platform Phase 4.4/4.5.
-
-### Planned edits
-- `tests/services/degrade_ladder/test_phase8_validation_parity.py` (new)
-- `docs/model_spec/platform/implementation_maps/degrade_ladder.build_plan.md` (Phase 8 status + closure statement evidence)
-
-### Invariants to enforce
-- DF-facing mask enforcement semantics are deterministic and conservative.
-- Replay determinism is insensitive to invocation order for identical inputs.
-- Recovery behavior in local-parity profile respects hysteresis and one-rung upshift posture.
-
-### Validation plan
-- `python -m pytest tests/services/degrade_ladder -q`
-- confirm all prior phase tests still pass and new Phase 8 tests pass with deterministic outputs.
 
 ---
 

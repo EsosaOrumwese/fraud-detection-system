@@ -216,6 +216,15 @@ Deliver a **correct local EB implementation** with durable append semantics, sta
 - Do not add consumer coordination or retention logic.
 - Keep EB as append‑only and opaque to payload semantics.
 
+## Entry: 2026-01-29 05:37:33 — Phase 2 tests green
+
+### Test run
+- `.\.venv\Scripts\python.exe -m pytest tests/services/event_bus/test_file_bus.py -q`
+- Result: **3 passed**
+
+### Notes
+- Offset recovery logic now prefers log truth; stale head values no longer resurrect missing offsets.
+
 ## Entry: 2026-01-29 05:39:10 — Phase 2 implementation (file‑bus head + durability)
 
 ### What changed
@@ -253,15 +262,6 @@ Deliver a **correct local EB implementation** with durable append semantics, sta
 
 ### Outcome
 - This prevents stale head state from resurrecting non‑existent offsets.
-
-## Entry: 2026-01-29 05:37:33 — Phase 2 tests green
-
-### Test run
-- `.\.venv\Scripts\python.exe -m pytest tests/services/event_bus/test_file_bus.py -q`
-- Result: **3 passed**
-
-### Notes
-- Offset recovery logic now prefers log truth; stale head values no longer resurrect missing offsets.
 
 ## Entry: 2026-01-29 06:07:06 — Phase 3 planning (replay/tail utilities)
 

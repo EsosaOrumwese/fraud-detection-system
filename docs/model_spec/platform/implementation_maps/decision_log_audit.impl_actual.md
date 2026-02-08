@@ -320,6 +320,48 @@ Choose **Alternative 3**.
 - `$env:PYTHONPATH='.;src'; python -m pytest tests/services/action_layer tests/services/decision_log_audit -q`
 
 ---
+## Entry: 2026-02-07 20:45:46 - Phase 4 pre-implementation plan (lineage assembly)
+
+### Trigger
+User requested move to DLA Phase 4.
+
+### Authorities used
+- `docs/model_spec/platform/implementation_maps/decision_log_audit.build_plan.md` (Phase 4 DoD)
+- `docs/model_spec/platform/pre-design_decisions/real-time_decision_loop.pre-design_decision.md` (append-only audit truth, fail-closed anomaly handling)
+- `docs/model_spec/platform/component-specific/flow-narrative-platform-design.md` (decision -> intent -> outcome lineage)
+- `docs/model_spec/platform/component-specific/decision_log_audit.design-authority.md` (admissibility + unresolved/quarantine posture)
+
+### Problem framing
+Phase 3 admits/quarantines events safely, but DLA does not yet materialize deterministic lineage linkage across decision/intent/outcome arrivals. Without lineage state, Phase 5 query/read and Phase 6 replay determinism are under-specified.
+
+### Design choices locked before coding
+1. Extend DLA intake storage with explicit lineage tables:
+   - chain head per `decision_id`,
+   - intent links per `(decision_id, action_id)`,
+   - outcome links per `(decision_id, outcome_id)`.
+2. Keep lineage writes append-safe and conflict-explicit:
+   - duplicates return idempotent status,
+   - conflicting remaps (same lineage key, different event identity/hash) return conflict status (no overwrite).
+3. Model unresolved states explicitly in chain head:
+   - `MISSING_DECISION`, `MISSING_INTENT_LINK`, `MISSING_OUTCOME_LINK`.
+4. Recompute chain status deterministically after each accepted lineage event.
+5. Integrate lineage apply into Phase 3 intake processor as a commit sub-step:
+   - if lineage write errors -> checkpoint blocked,
+   - if lineage conflict -> quarantine with explicit reason, then checkpoint advance.
+
+### Planned files
+- Update `src/fraud_detection/decision_log_audit/storage.py`
+- Update `src/fraud_detection/decision_log_audit/intake.py`
+- Update `src/fraud_detection/decision_log_audit/__init__.py`
+- Add `tests/services/decision_log_audit/test_dla_phase4_lineage.py`
+- Update build-plan/impl/logbook closure entries
+
+### Validation plan
+- `$env:PYTHONPATH='.;src'; python -m pytest tests/services/decision_log_audit/test_dla_phase4_lineage.py -q`
+- `$env:PYTHONPATH='.;src'; python -m pytest tests/services/decision_log_audit -q`
+- `$env:PYTHONPATH='.;src'; python -m pytest tests/services/action_layer tests/services/decision_log_audit -q`
+
+---
 ## Entry: 2026-02-07 20:52:01 - Phase 3 implementation closure (intake consumer + fail-closed validation)
 
 ### Implementation summary
@@ -396,44 +438,47 @@ Phase 3 is now implemented as a bounded intake layer (policy + inlet + processor
 - Next DLA build-plan focus: Phase 4 (`Lineage assembly (decision -> intent -> outcome)`).
 
 ---
-## Entry: 2026-02-07 20:45:46 - Phase 4 pre-implementation plan (lineage assembly)
+## Entry: 2026-02-07 20:57:44 - Phase 5 pre-implementation plan (index + query/read contract)
 
 ### Trigger
-User requested move to DLA Phase 4.
+User requested move to DLA Phase 5.
 
 ### Authorities used
-- `docs/model_spec/platform/implementation_maps/decision_log_audit.build_plan.md` (Phase 4 DoD)
-- `docs/model_spec/platform/pre-design_decisions/real-time_decision_loop.pre-design_decision.md` (append-only audit truth, fail-closed anomaly handling)
-- `docs/model_spec/platform/component-specific/flow-narrative-platform-design.md` (decision -> intent -> outcome lineage)
-- `docs/model_spec/platform/component-specific/decision_log_audit.design-authority.md` (admissibility + unresolved/quarantine posture)
+- `docs/model_spec/platform/implementation_maps/decision_log_audit.build_plan.md` (Phase 5 DoD)
+- `docs/model_spec/platform/pre-design_decisions/real-time_decision_loop.pre-design_decision.md`
+- `docs/model_spec/platform/component-specific/flow-narrative-platform-design.md`
+- `docs/model_spec/platform/component-specific/decision_log_audit.design-authority.md`
 
 ### Problem framing
-Phase 3 admits/quarantines events safely, but DLA does not yet materialize deterministic lineage linkage across decision/intent/outcome arrivals. Without lineage state, Phase 5 query/read and Phase 6 replay determinism are under-specified.
+Phase 4 established lineage storage, but we still need deterministic read/query surfaces that expose run-scoped audit lineage by keys (`decision_id`, `action_id`, `outcome_id`) and time windows, while supporting access control and redaction hooks.
 
-### Design choices locked before coding
-1. Extend DLA intake storage with explicit lineage tables:
-   - chain head per `decision_id`,
-   - intent links per `(decision_id, action_id)`,
-   - outcome links per `(decision_id, outcome_id)`.
-2. Keep lineage writes append-safe and conflict-explicit:
-   - duplicates return idempotent status,
-   - conflicting remaps (same lineage key, different event identity/hash) return conflict status (no overwrite).
-3. Model unresolved states explicitly in chain head:
-   - `MISSING_DECISION`, `MISSING_INTENT_LINK`, `MISSING_OUTCOME_LINK`.
-4. Recompute chain status deterministically after each accepted lineage event.
-5. Integrate lineage apply into Phase 3 intake processor as a commit sub-step:
-   - if lineage write errors -> checkpoint blocked,
-   - if lineage conflict -> quarantine with explicit reason, then checkpoint advance.
+### Decisions locked before coding
+1. Add dedicated DLA query module (`query.py`) instead of embedding read semantics into intake processor.
+   - Reasoning: separates runtime ingest from read contract and keeps query behavior testable.
+2. Extend `DecisionLogAuditIntakeStore` with lineage-index lookup methods:
+   - run-scope + time-range list,
+   - lookup by `action_id`,
+   - lookup by `outcome_id`.
+   - Reasoning: these are index-backed surfaces required by Phase 5 DoD.
+3. Define deterministic ordering for read responses:
+   - primary sort by chain event time (`decision_ts_utc` fallback `updated_at_utc`), secondary `decision_id`.
+   - Reasoning: ensures stable output under replay/duplicates.
+4. Build read responses with explicit provenance refs + completeness state.
+   - Include `decision_ref`, `intent_refs`, `outcome_refs`, `chain_status`, `unresolved_reasons`.
+5. Add read access policy and redaction hook in query service.
+   - Access control: allowed platform-run set (fail-closed).
+   - Redaction hook: pluggable callable on response payload before return.
+   - Reasoning: Phase 5 requires access controls/redaction hooks without hardcoding one policy.
 
-### Planned files
-- Update `src/fraud_detection/decision_log_audit/storage.py`
-- Update `src/fraud_detection/decision_log_audit/intake.py`
-- Update `src/fraud_detection/decision_log_audit/__init__.py`
-- Add `tests/services/decision_log_audit/test_dla_phase4_lineage.py`
-- Update build-plan/impl/logbook closure entries
+### Planned file updates
+- `src/fraud_detection/decision_log_audit/storage.py`
+- `src/fraud_detection/decision_log_audit/query.py` (new)
+- `src/fraud_detection/decision_log_audit/__init__.py`
+- `tests/services/decision_log_audit/test_dla_phase5_query.py` (new)
+- Build-plan/impl/logbook closure updates
 
 ### Validation plan
-- `$env:PYTHONPATH='.;src'; python -m pytest tests/services/decision_log_audit/test_dla_phase4_lineage.py -q`
+- `$env:PYTHONPATH='.;src'; python -m pytest tests/services/decision_log_audit/test_dla_phase5_query.py -q`
 - `$env:PYTHONPATH='.;src'; python -m pytest tests/services/decision_log_audit -q`
 - `$env:PYTHONPATH='.;src'; python -m pytest tests/services/action_layer tests/services/decision_log_audit -q`
 
@@ -507,51 +552,6 @@ Implemented deterministic lineage assembly on top of Phase 3 intake, with explic
 ### Status handoff
 - DLA Phase 4 is **green** at component scope.
 - Next DLA build-plan focus: Phase 5 (`Index + query/read contract`).
-
----
-## Entry: 2026-02-07 20:57:44 - Phase 5 pre-implementation plan (index + query/read contract)
-
-### Trigger
-User requested move to DLA Phase 5.
-
-### Authorities used
-- `docs/model_spec/platform/implementation_maps/decision_log_audit.build_plan.md` (Phase 5 DoD)
-- `docs/model_spec/platform/pre-design_decisions/real-time_decision_loop.pre-design_decision.md`
-- `docs/model_spec/platform/component-specific/flow-narrative-platform-design.md`
-- `docs/model_spec/platform/component-specific/decision_log_audit.design-authority.md`
-
-### Problem framing
-Phase 4 established lineage storage, but we still need deterministic read/query surfaces that expose run-scoped audit lineage by keys (`decision_id`, `action_id`, `outcome_id`) and time windows, while supporting access control and redaction hooks.
-
-### Decisions locked before coding
-1. Add dedicated DLA query module (`query.py`) instead of embedding read semantics into intake processor.
-   - Reasoning: separates runtime ingest from read contract and keeps query behavior testable.
-2. Extend `DecisionLogAuditIntakeStore` with lineage-index lookup methods:
-   - run-scope + time-range list,
-   - lookup by `action_id`,
-   - lookup by `outcome_id`.
-   - Reasoning: these are index-backed surfaces required by Phase 5 DoD.
-3. Define deterministic ordering for read responses:
-   - primary sort by chain event time (`decision_ts_utc` fallback `updated_at_utc`), secondary `decision_id`.
-   - Reasoning: ensures stable output under replay/duplicates.
-4. Build read responses with explicit provenance refs + completeness state.
-   - Include `decision_ref`, `intent_refs`, `outcome_refs`, `chain_status`, `unresolved_reasons`.
-5. Add read access policy and redaction hook in query service.
-   - Access control: allowed platform-run set (fail-closed).
-   - Redaction hook: pluggable callable on response payload before return.
-   - Reasoning: Phase 5 requires access controls/redaction hooks without hardcoding one policy.
-
-### Planned file updates
-- `src/fraud_detection/decision_log_audit/storage.py`
-- `src/fraud_detection/decision_log_audit/query.py` (new)
-- `src/fraud_detection/decision_log_audit/__init__.py`
-- `tests/services/decision_log_audit/test_dla_phase5_query.py` (new)
-- Build-plan/impl/logbook closure updates
-
-### Validation plan
-- `$env:PYTHONPATH='.;src'; python -m pytest tests/services/decision_log_audit/test_dla_phase5_query.py -q`
-- `$env:PYTHONPATH='.;src'; python -m pytest tests/services/decision_log_audit -q`
-- `$env:PYTHONPATH='.;src'; python -m pytest tests/services/action_layer tests/services/decision_log_audit -q`
 
 ---
 ## Entry: 2026-02-07 21:03:18 - Phase 5 implementation closure (index + query/read contract)

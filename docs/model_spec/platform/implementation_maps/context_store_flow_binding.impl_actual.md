@@ -327,91 +327,6 @@ Reasoning:
 
 ---
 
-## Entry: 2026-02-07 15:35:00 - Phase 3 pre-implementation plan (intake apply worker)
-
-### Active-phase objective
-Implement Phase 3 (`Intake apply worker`) so Context Store + FlowBinding consumes admitted EB context topics deterministically and writes replay-safe join state.
-
-### Inputs/authorities
-- `docs/model_spec/platform/implementation_maps/context_store_flow_binding.build_plan.md` (Phase 3 DoD)
-- `docs/model_spec/platform/pre-design_decisions/real-time_decision_loop.pre-design_decision.md`
-- `docs/model_spec/platform/component-specific/flow-narrative-platform-design.md`
-- Existing projector patterns:
-  - `src/fraud_detection/identity_entity_graph/projector.py`
-  - `src/fraud_detection/online_feature_plane/projector.py`
-
-### Decision thread 1: where idempotency tuple lives
-Options considered:
-1. Keep dedupe only in worker memory.
-2. Persist dedupe tuple in durable store and enforce payload-hash mismatch at DB boundary.
-
-Decision:
-- Option 2.
-
-Reasoning:
-- At-least-once + restart safety requires durable dedupe, not process-local memory.
-- Payload-hash mismatch must survive restarts and be auditable.
-
-Planned tuple:
-- `(stream_id, platform_run_id, event_class, event_id)` with persisted `payload_hash`.
-
-### Decision thread 2: join-frame mutation model
-Options considered:
-1. Strict one-hash-per-join-frame row (conflict on any update).
-2. Event-driven frame state updates where different context events can update same join frame while duplicate event hashes remain idempotent.
-
-Decision:
-- Option 2.
-
-Reasoning:
-- Arrival/arrival_entities/flow_anchor are complementary context updates for the same join key; strict single-hash row would block legitimate progression.
-
-### Decision thread 3: authoritative flow-binding writes
-Decision:
-- Only flow-anchor event types (`s2_flow_anchor_baseline_6B`, `s3_flow_anchor_with_fraud_6B`) can create/update FlowBinding records.
-- Any other event type attempting binding update is rejected with machine-readable failure reason.
-
-Reasoning:
-- Aligns with pre-design and phase invariants; prevents silent authority drift.
-
-### Decision thread 4: missing/late handling semantics
-Decision:
-- Missing join key or missing required pins is fail-closed with explicit reason codes in `csfb_join_apply_failures`.
-- Late context (event_ts older than checkpoint watermark) is treated as explicit machine-readable anomaly (`LATE_CONTEXT_EVENT`) while still applying state when valid.
-
-Reasoning:
-- Preserves operational continuity while making late/missing posture inspectable.
-
-### Decision thread 5: intake policy shape
-Decision:
-- Introduce versioned intake policy file under `config/platform/context_store_flow_binding/intake_policy_v0.yaml` with:
-  - context topic allowlist
-  - class map reference
-  - run-scope gating controls
-  - poll settings and event-bus wiring defaults
-
-Reasoning:
-- Keeps intake behavior explicit and auditable, consistent with other components.
-
-### Planned file paths (Phase 3)
-- Update:
-  - `src/fraud_detection/context_store_flow_binding/migrations.py`
-  - `src/fraud_detection/context_store_flow_binding/store.py`
-  - `src/fraud_detection/context_store_flow_binding/__init__.py`
-- New:
-  - `src/fraud_detection/context_store_flow_binding/intake.py`
-  - `config/platform/context_store_flow_binding/intake_policy_v0.yaml`
-  - `tests/services/context_store_flow_binding/test_phase3_intake.py`
-
-### Validation plan
-- Targeted tests proving:
-  - admitted context intake updates join frames deterministically,
-  - flow bindings written only from flow-anchor lineage,
-  - payload-hash mismatch for same dedupe tuple is anomaly/fail-closed,
-  - apply-failure ledger stores machine-readable reason + source offsets.
-
----
-
 ## Entry: 2026-02-07 15:24:00 - Phase 3 implementation completed (intake apply worker + deterministic failure semantics)
 
 ### What was implemented
@@ -546,6 +461,91 @@ Reasoning:
 - Checkpoint resume test (restart continues from checkpoint without extra mutations).
 - Deterministic replay test (same explicit basis => identical join-frames/flow-bindings/checkpoints across independent stores).
 - Basis strictness tests (manifest missing explicit ranges fails closed).
+
+---
+
+## Entry: 2026-02-07 15:35:00 - Phase 3 pre-implementation plan (intake apply worker)
+
+### Active-phase objective
+Implement Phase 3 (`Intake apply worker`) so Context Store + FlowBinding consumes admitted EB context topics deterministically and writes replay-safe join state.
+
+### Inputs/authorities
+- `docs/model_spec/platform/implementation_maps/context_store_flow_binding.build_plan.md` (Phase 3 DoD)
+- `docs/model_spec/platform/pre-design_decisions/real-time_decision_loop.pre-design_decision.md`
+- `docs/model_spec/platform/component-specific/flow-narrative-platform-design.md`
+- Existing projector patterns:
+  - `src/fraud_detection/identity_entity_graph/projector.py`
+  - `src/fraud_detection/online_feature_plane/projector.py`
+
+### Decision thread 1: where idempotency tuple lives
+Options considered:
+1. Keep dedupe only in worker memory.
+2. Persist dedupe tuple in durable store and enforce payload-hash mismatch at DB boundary.
+
+Decision:
+- Option 2.
+
+Reasoning:
+- At-least-once + restart safety requires durable dedupe, not process-local memory.
+- Payload-hash mismatch must survive restarts and be auditable.
+
+Planned tuple:
+- `(stream_id, platform_run_id, event_class, event_id)` with persisted `payload_hash`.
+
+### Decision thread 2: join-frame mutation model
+Options considered:
+1. Strict one-hash-per-join-frame row (conflict on any update).
+2. Event-driven frame state updates where different context events can update same join frame while duplicate event hashes remain idempotent.
+
+Decision:
+- Option 2.
+
+Reasoning:
+- Arrival/arrival_entities/flow_anchor are complementary context updates for the same join key; strict single-hash row would block legitimate progression.
+
+### Decision thread 3: authoritative flow-binding writes
+Decision:
+- Only flow-anchor event types (`s2_flow_anchor_baseline_6B`, `s3_flow_anchor_with_fraud_6B`) can create/update FlowBinding records.
+- Any other event type attempting binding update is rejected with machine-readable failure reason.
+
+Reasoning:
+- Aligns with pre-design and phase invariants; prevents silent authority drift.
+
+### Decision thread 4: missing/late handling semantics
+Decision:
+- Missing join key or missing required pins is fail-closed with explicit reason codes in `csfb_join_apply_failures`.
+- Late context (event_ts older than checkpoint watermark) is treated as explicit machine-readable anomaly (`LATE_CONTEXT_EVENT`) while still applying state when valid.
+
+Reasoning:
+- Preserves operational continuity while making late/missing posture inspectable.
+
+### Decision thread 5: intake policy shape
+Decision:
+- Introduce versioned intake policy file under `config/platform/context_store_flow_binding/intake_policy_v0.yaml` with:
+  - context topic allowlist
+  - class map reference
+  - run-scope gating controls
+  - poll settings and event-bus wiring defaults
+
+Reasoning:
+- Keeps intake behavior explicit and auditable, consistent with other components.
+
+### Planned file paths (Phase 3)
+- Update:
+  - `src/fraud_detection/context_store_flow_binding/migrations.py`
+  - `src/fraud_detection/context_store_flow_binding/store.py`
+  - `src/fraud_detection/context_store_flow_binding/__init__.py`
+- New:
+  - `src/fraud_detection/context_store_flow_binding/intake.py`
+  - `config/platform/context_store_flow_binding/intake_policy_v0.yaml`
+  - `tests/services/context_store_flow_binding/test_phase3_intake.py`
+
+### Validation plan
+- Targeted tests proving:
+  - admitted context intake updates join frames deterministically,
+  - flow bindings written only from flow-anchor lineage,
+  - payload-hash mismatch for same dedupe tuple is anomaly/fail-closed,
+  - apply-failure ledger stores machine-readable reason + source offsets.
 
 ---
 
@@ -908,73 +908,6 @@ Current CSFB runtime is policy-file-driven only (`--policy`) and defaults to fil
 - `python -m pytest tests/services/context_store_flow_binding -q`
 3. Verify DoD mapping in build plan and record evidence paths/results.
 
-## Entry: 2026-02-07 17:49:30 - Phase 7 implementation completed (local-parity integration)
-
-### What was implemented
-1. **Profile-root CSFB wiring support**
-- Updated `src/fraud_detection/context_store_flow_binding/intake.py` so `CsfbInletPolicy.load(...)` now supports:
-  - existing CSFB policy files (`context_store_flow_binding` root), and
-  - platform profile files containing `context_store_flow_binding` (local-parity shape).
-- Added env/token resolution support for CSFB wiring fields (`${...}`), event-bus nested config parsing, and `topics_ref` loading.
-
-2. **Parity profile wiring pinned**
-- Updated `config/platform/profiles/local_parity.yaml` with a dedicated `context_store_flow_binding` block:
-  - parity event bus kind (`kinesis`)
-  - run-scoped projection DSN via env
-  - context topics reference.
-- Added `config/platform/context_store_flow_binding/topics_v0.yaml` for the parity context topic set.
-
-3. **DF/DL read-contract convenience surface**
-- Added `ContextStoreFlowBindingQueryService.build_from_policy(...)` in `src/fraud_detection/context_store_flow_binding/query.py`.
-- This allows DF/DL-facing tooling to bind query service directly from profile/policy wiring (same contract path as intake).
-
-4. **Local-parity execution surfaces**
-- Added make targets in `makefile`:
-  - `platform-context-store-flow-binding-parity-once`
-  - `platform-context-store-flow-binding-parity-live`
-- Updated runbook (`docs/runbooks/platform_parity_walkthrough_v0.md`) with Section `18`:
-  - run-scoped CSFB parity execution,
-  - monitored 20/200 checks,
-  - query/read surface demonstration.
-
-5. **Phase 7 test coverage**
-- Added `tests/services/context_store_flow_binding/test_phase7_parity_integration.py` with three targeted assertions:
-  - parity profile loader + env resolution + topics ref loading,
-  - monitored 20-event pass with `join_hits/join_misses` accounting + query `READY` proof,
-  - monitored 200-event pass with checkpoint-stable re-poll and basis digest stability.
-
-### Decisions made during implementation (with reasoning)
-1. **Keep intake entrypoint unchanged (`--policy`) and make it profile-aware**
-- Decision: do not add a second intake CLI for profile.
-- Reasoning: backwards compatibility is preserved and parity behavior is unlocked via config shape, not CLI churn.
-
-2. **Use explicit topics reference file in parity profile**
-- Decision: add `config/platform/context_store_flow_binding/topics_v0.yaml` and consume it via `topics_ref`.
-- Reasoning: topic set becomes auditable and versioned like IEG/OFP topic references.
-
-3. **Add query builder from policy/profile rather than introducing a new service process**
-- Decision: add `build_from_policy(...)` helper to query service.
-- Reasoning: satisfies Phase 7 read-contract integration without introducing additional runtime process complexity in this phase.
-
-4. **Test-level correction for late-event noise in 200-event pass**
-- Initial implementation used wrapped minute values in synthetic timestamps, which produced `LATE_CONTEXT_EVENT` artifacts and invalidated the intended deterministic check.
-- Decision: switch synthetic timestamp generation to monotonic event-time progression.
-- Reasoning: aligns test with intended Phase 7 assertion (determinism/checkpoint stability, not lateness policy stress).
-
-### Validation executed
-- `$env:PYTHONPATH='.;src'; python -m pytest tests/services/context_store_flow_binding/test_phase7_parity_integration.py -q`
-  - Result: `3 passed`
-- `$env:PYTHONPATH='.;src'; python -m pytest tests/services/context_store_flow_binding -q`
-  - Result: `37 passed`
-- `make -n platform-context-store-flow-binding-parity-once`
-  - Result: target resolves expected parity env/wiring and CLI invocation.
-
-### Phase 7 DoD mapping
-- Local-parity run wiring exists (profile + make surfaces + runbook): satisfied.
-- DF/DL readable join contract stable from this component (`build_from_policy` + query contract): satisfied.
-- 20-event monitored evidence captured in test (`join_hits=20`, `join_misses=0`, query `READY`): satisfied.
-- 200-event monitored evidence captured in test (checkpoint-stable re-poll + basis digest stability): satisfied.
-
 ## Entry: 2026-02-07 17:41:35 - Phase 7 live local-parity execution evidence (20 + 200)
 
 ### Objective
@@ -1043,6 +976,73 @@ To remove ambiguity, the Context Store + FlowBinding runtime stack is explicitly
 Implementation clarification:
 - CSFB store backend selection is backend-aware (`sqlite` vs `postgres`) via locator/DSN detection in `src/fraud_detection/context_store_flow_binding/store.py`.
 - Therefore parity can be switched from SQLite to Postgres by wiring change (no component logic rewrite required).
+
+## Entry: 2026-02-07 17:49:30 - Phase 7 implementation completed (local-parity integration)
+
+### What was implemented
+1. **Profile-root CSFB wiring support**
+- Updated `src/fraud_detection/context_store_flow_binding/intake.py` so `CsfbInletPolicy.load(...)` now supports:
+  - existing CSFB policy files (`context_store_flow_binding` root), and
+  - platform profile files containing `context_store_flow_binding` (local-parity shape).
+- Added env/token resolution support for CSFB wiring fields (`${...}`), event-bus nested config parsing, and `topics_ref` loading.
+
+2. **Parity profile wiring pinned**
+- Updated `config/platform/profiles/local_parity.yaml` with a dedicated `context_store_flow_binding` block:
+  - parity event bus kind (`kinesis`)
+  - run-scoped projection DSN via env
+  - context topics reference.
+- Added `config/platform/context_store_flow_binding/topics_v0.yaml` for the parity context topic set.
+
+3. **DF/DL read-contract convenience surface**
+- Added `ContextStoreFlowBindingQueryService.build_from_policy(...)` in `src/fraud_detection/context_store_flow_binding/query.py`.
+- This allows DF/DL-facing tooling to bind query service directly from profile/policy wiring (same contract path as intake).
+
+4. **Local-parity execution surfaces**
+- Added make targets in `makefile`:
+  - `platform-context-store-flow-binding-parity-once`
+  - `platform-context-store-flow-binding-parity-live`
+- Updated runbook (`docs/runbooks/platform_parity_walkthrough_v0.md`) with Section `18`:
+  - run-scoped CSFB parity execution,
+  - monitored 20/200 checks,
+  - query/read surface demonstration.
+
+5. **Phase 7 test coverage**
+- Added `tests/services/context_store_flow_binding/test_phase7_parity_integration.py` with three targeted assertions:
+  - parity profile loader + env resolution + topics ref loading,
+  - monitored 20-event pass with `join_hits/join_misses` accounting + query `READY` proof,
+  - monitored 200-event pass with checkpoint-stable re-poll and basis digest stability.
+
+### Decisions made during implementation (with reasoning)
+1. **Keep intake entrypoint unchanged (`--policy`) and make it profile-aware**
+- Decision: do not add a second intake CLI for profile.
+- Reasoning: backwards compatibility is preserved and parity behavior is unlocked via config shape, not CLI churn.
+
+2. **Use explicit topics reference file in parity profile**
+- Decision: add `config/platform/context_store_flow_binding/topics_v0.yaml` and consume it via `topics_ref`.
+- Reasoning: topic set becomes auditable and versioned like IEG/OFP topic references.
+
+3. **Add query builder from policy/profile rather than introducing a new service process**
+- Decision: add `build_from_policy(...)` helper to query service.
+- Reasoning: satisfies Phase 7 read-contract integration without introducing additional runtime process complexity in this phase.
+
+4. **Test-level correction for late-event noise in 200-event pass**
+- Initial implementation used wrapped minute values in synthetic timestamps, which produced `LATE_CONTEXT_EVENT` artifacts and invalidated the intended deterministic check.
+- Decision: switch synthetic timestamp generation to monotonic event-time progression.
+- Reasoning: aligns test with intended Phase 7 assertion (determinism/checkpoint stability, not lateness policy stress).
+
+### Validation executed
+- `$env:PYTHONPATH='.;src'; python -m pytest tests/services/context_store_flow_binding/test_phase7_parity_integration.py -q`
+  - Result: `3 passed`
+- `$env:PYTHONPATH='.;src'; python -m pytest tests/services/context_store_flow_binding -q`
+  - Result: `37 passed`
+- `make -n platform-context-store-flow-binding-parity-once`
+  - Result: target resolves expected parity env/wiring and CLI invocation.
+
+### Phase 7 DoD mapping
+- Local-parity run wiring exists (profile + make surfaces + runbook): satisfied.
+- DF/DL readable join contract stable from this component (`build_from_policy` + query contract): satisfied.
+- 20-event monitored evidence captured in test (`join_hits=20`, `join_misses=0`, query `READY`): satisfied.
+- 200-event monitored evidence captured in test (checkpoint-stable re-poll + basis digest stability): satisfied.
 
 ## Entry: 2026-02-07 22:06:58 - CSFB Phase 8 closure decision (v0 RTDL boundary)
 

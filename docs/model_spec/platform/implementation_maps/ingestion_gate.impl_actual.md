@@ -832,6 +832,53 @@ Phase 5 hardens IG for production: authenticated ingress + READY consumption, no
 
 ---
 
+## Entry: 2026-01-25 14:54:07 — Phase 5 completion plan (retries, per‑phase metrics, runbook/alerts)
+
+### Problem / goal
+Finish Phase 5 hardening: add bounded retries for object‑store reads, expose circuit‑breaker behavior via health gates, add per‑phase latency metrics, and document the operational runbook + alerts. Also tighten boundary auth coverage and fix formatting gaps in IG service docs.
+
+### Live reasoning / decisions
+- **Retry strategy:** use bounded exponential backoff with small defaults (attempts + base delay + max delay). Make values configurable via wiring (no secrets) to suit local vs prod.
+- **Retry scope:** apply to run_facts_view reads (critical) and S3 output reads for pull ingestion. Do **not** retry EB publish automatically to avoid duplicate appends.
+- **Circuit breaker posture:** reuse HealthProbe thresholds (publish/read failures) but call health gate **before** run_facts reads so repeated failures cut intake; record read failures to flip RED deterministically.
+- **Per‑phase latency metrics:** instrument validate, verify, publish, and receipt phases with stable metric keys; keep existing `admission_seconds` as end‑to‑end.
+- **Runbook + alerts:** keep operator guidance in `services/ingestion_gate/README.md`, listing failure modes, recovery steps, and alert triggers (health state changes, quarantine spikes, READY failures). No credentials or secrets.
+- **Tests:** add a focused retry helper test and re‑run Phase‑5 suite to keep green.
+
+### Planned edits (stepwise)
+1) Add `ingestion_gate/retry.py` helper and new wiring fields for store read retries; update profile README.
+2) Wrap run_facts_view reads and S3 output reads with retry; enforce health check before pull reads.
+3) Add per‑phase latency metrics in admission + quarantine paths.
+4) Update IG service README with runbook/alerts, auth boundary note, and fix code‑fence formatting.
+5) Add retry unit test; re‑run Phase‑5 tests.
+6) Update build plan status and logbook after validation.
+
+## Entry: 2026-01-25 14:58:38 — Phase 5 completion (retries + per‑phase metrics + runbook/alerts)
+
+### Implementation decisions applied (live trail)
+- **Bounded retries:** added a small retry helper with exponential backoff (attempts + base + max). Values are wiring‑configurable; defaults keep local runs fast while allowing prod tuning.
+- **Retry scope:** run_facts_view reads and S3 output reads are retried; EB publish is **not retried** to avoid duplicate appends.
+- **Circuit breaker alignment:** health gate is enforced before pull reads; read failures increment HealthProbe counters to trip RED deterministically.
+- **Per‑phase latency metrics:** added timers for validate, verify, publish, receipt (plus dedupe) while keeping `admission_seconds` end‑to‑end.
+- **Auth boundary clarity:** ops endpoints are covered by the same auth boundary as ingest endpoints.
+- **Runbook + alerts:** operator guidance and alert triggers are documented in the IG service README; formatting cleaned to avoid broken code fences.
+
+### Code + doc changes (high‑signal)
+- `src/fraud_detection/ingestion_gate/retry.py`: bounded retry helper.
+- `src/fraud_detection/ingestion_gate/config.py`: new retry wiring fields (`store_read_retry_*`).
+- `src/fraud_detection/ingestion_gate/admission.py`: health gate before pull reads, retry‑wrapped run_facts reads, per‑phase metrics.
+- `src/fraud_detection/ingestion_gate/engine_pull.py`: retry for S3 list/get + wiring passthrough.
+- `config/platform/profiles/README.md`: security + retry wiring docs; auth boundary note.
+- `services/ingestion_gate/README.md`: runbook/alerts + formatting fixes.
+- `tests/services/ingestion_gate/test_phase5_retries.py`: retry helper unit test.
+
+### Tests run / outcomes
+- `python -m pytest tests/services/ingestion_gate/test_phase5_auth_rate.py tests/services/ingestion_gate/test_phase5_runfacts_s3.py tests/services/ingestion_gate/test_phase5_retries.py -q`
+  - Failed (system python missing Flask).
+- Re‑ran via venv:
+  - `.\.venv\Scripts\python.exe -m pytest tests/services/ingestion_gate/test_phase5_auth_rate.py tests/services/ingestion_gate/test_phase5_runfacts_s3.py tests/services/ingestion_gate/test_phase5_retries.py -q` → **5 passed**
+  - Warnings: werkzeug/ast deprecation noise persists (known, upstream dependency constraint).
+
 ## Entry: 2026-01-25 15:10:30 — Phase 5 implementation (auth, rate limits, S3 run_facts)
 
 ### Implementation decisions (live, during coding)
@@ -884,53 +931,6 @@ Phase 5 hardens IG for production: authenticated ingress + READY consumption, no
 - S3 support reads whole objects into memory (v0 tradeoff).
 - Full production runbook + alert wiring remains to be expanded before Phase‑5 completion.
 - During testing, the S3 run_facts test initially failed because the audit partitioning profile was missing; fixed by adding `ig.partitioning.v0.audit` to the test partitioning fixture.
-
-## Entry: 2026-01-25 14:54:07 — Phase 5 completion plan (retries, per‑phase metrics, runbook/alerts)
-
-### Problem / goal
-Finish Phase 5 hardening: add bounded retries for object‑store reads, expose circuit‑breaker behavior via health gates, add per‑phase latency metrics, and document the operational runbook + alerts. Also tighten boundary auth coverage and fix formatting gaps in IG service docs.
-
-### Live reasoning / decisions
-- **Retry strategy:** use bounded exponential backoff with small defaults (attempts + base delay + max delay). Make values configurable via wiring (no secrets) to suit local vs prod.
-- **Retry scope:** apply to run_facts_view reads (critical) and S3 output reads for pull ingestion. Do **not** retry EB publish automatically to avoid duplicate appends.
-- **Circuit breaker posture:** reuse HealthProbe thresholds (publish/read failures) but call health gate **before** run_facts reads so repeated failures cut intake; record read failures to flip RED deterministically.
-- **Per‑phase latency metrics:** instrument validate, verify, publish, and receipt phases with stable metric keys; keep existing `admission_seconds` as end‑to‑end.
-- **Runbook + alerts:** keep operator guidance in `services/ingestion_gate/README.md`, listing failure modes, recovery steps, and alert triggers (health state changes, quarantine spikes, READY failures). No credentials or secrets.
-- **Tests:** add a focused retry helper test and re‑run Phase‑5 suite to keep green.
-
-### Planned edits (stepwise)
-1) Add `ingestion_gate/retry.py` helper and new wiring fields for store read retries; update profile README.
-2) Wrap run_facts_view reads and S3 output reads with retry; enforce health check before pull reads.
-3) Add per‑phase latency metrics in admission + quarantine paths.
-4) Update IG service README with runbook/alerts, auth boundary note, and fix code‑fence formatting.
-5) Add retry unit test; re‑run Phase‑5 tests.
-6) Update build plan status and logbook after validation.
-
-## Entry: 2026-01-25 14:58:38 — Phase 5 completion (retries + per‑phase metrics + runbook/alerts)
-
-### Implementation decisions applied (live trail)
-- **Bounded retries:** added a small retry helper with exponential backoff (attempts + base + max). Values are wiring‑configurable; defaults keep local runs fast while allowing prod tuning.
-- **Retry scope:** run_facts_view reads and S3 output reads are retried; EB publish is **not retried** to avoid duplicate appends.
-- **Circuit breaker alignment:** health gate is enforced before pull reads; read failures increment HealthProbe counters to trip RED deterministically.
-- **Per‑phase latency metrics:** added timers for validate, verify, publish, receipt (plus dedupe) while keeping `admission_seconds` end‑to‑end.
-- **Auth boundary clarity:** ops endpoints are covered by the same auth boundary as ingest endpoints.
-- **Runbook + alerts:** operator guidance and alert triggers are documented in the IG service README; formatting cleaned to avoid broken code fences.
-
-### Code + doc changes (high‑signal)
-- `src/fraud_detection/ingestion_gate/retry.py`: bounded retry helper.
-- `src/fraud_detection/ingestion_gate/config.py`: new retry wiring fields (`store_read_retry_*`).
-- `src/fraud_detection/ingestion_gate/admission.py`: health gate before pull reads, retry‑wrapped run_facts reads, per‑phase metrics.
-- `src/fraud_detection/ingestion_gate/engine_pull.py`: retry for S3 list/get + wiring passthrough.
-- `config/platform/profiles/README.md`: security + retry wiring docs; auth boundary note.
-- `services/ingestion_gate/README.md`: runbook/alerts + formatting fixes.
-- `tests/services/ingestion_gate/test_phase5_retries.py`: retry helper unit test.
-
-### Tests run / outcomes
-- `python -m pytest tests/services/ingestion_gate/test_phase5_auth_rate.py tests/services/ingestion_gate/test_phase5_runfacts_s3.py tests/services/ingestion_gate/test_phase5_retries.py -q`
-  - Failed (system python missing Flask).
-- Re‑ran via venv:
-  - `.\.venv\Scripts\python.exe -m pytest tests/services/ingestion_gate/test_phase5_auth_rate.py tests/services/ingestion_gate/test_phase5_runfacts_s3.py tests/services/ingestion_gate/test_phase5_retries.py -q` → **5 passed**
-  - Warnings: werkzeug/ast deprecation noise persists (known, upstream dependency constraint).
 
 ## Entry: 2026-01-25 17:41:06 — Phase 6 planning (scale + governance hardening)
 

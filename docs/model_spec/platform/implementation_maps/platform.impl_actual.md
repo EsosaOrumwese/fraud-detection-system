@@ -202,318 +202,6 @@ User asked to proceed with Phase 1.4 validation (policy vs wiring separation aud
 
 
 
-## Entry: 2026-02-07 23:14:32 - Pre-run plan: execute DF/DL/AL/DLA on real parity traffic without full orchestration
-
-### Trigger
-User requested a runtime proof that `DF`, `DL`, `AL`, and `DLA` process actual events (not only tests), while explicitly deferring full always-on orchestration/wiring work.
-
-### Observed gap to close
-- Fresh parity runs currently show runtime artifacts for `SR/WSP/IG/EB` plus `IEG/OFP/CSFB`.
-- `DF/DL/AL/DLA` are implemented and test-green, but not executed as a single always-on runtime chain in the current run loop.
-
-### Decision (execution mode)
-Run a **component service pass** against **actual EB traffic records** from an existing fresh run id (`platform_20260207T221155Z`) using component runtime APIs:
-- DL posture service path (`store + serve`) for real posture-stamp generation.
-- DF intake/context/synthesis/publish path for admitted EB traffic events.
-- AL idempotency/authz/execution/outcome/publish path from DF intents.
-- DLA intake processor path over generated DF/AL envelopes with real run pins.
-
-This is intentionally one-shot runtime execution (service behavior) and not a replacement for future continuous orchestration.
-
-### Authority and constraints used
-- Platform doctrine: pins as law, fail-closed semantics, append-only truth, at-least-once safety.
-- RTDL build-plan posture: component closure already achieved; runtime-chain evidence still needed.
-- User directive: defer orchestration wiring for now, but prove runtime on actual events.
-
-### Key runtime choices
-- Source traffic: `fp.bus.traffic.fraud.v1`, filtered by `platform_run_id=platform_20260207T221155Z`.
-- Event count cap: start with bounded pass (`<=20`) to provide deterministic evidence and avoid noisy cross-run effects.
-- Storage substrate for this pass: run-scoped SQLite under `runs/fraud-platform/<run_id>/...` (service semantics preserved, no environment substrate changes).
-- DL seed posture: `NORMAL` from `local_parity` profile when no current posture exists.
-- Registry resolution: use configured policy + runtime empty snapshot fallback (expected to produce explicit fail-closed/fallback reasons rather than implicit behavior).
-- DLA scope: process the DF/AL outputs generated in this pass and emit DLA observability/reconciliation artifacts under the same run root.
-
-### Risk handling
-- Current parity traffic envelopes lack explicit `schema_version` field; DF trigger policy expects one.
-- For this runtime proof only, normalize missing schema version to `v1` in the one-shot runner input path and record normalization counters explicitly in summary artifacts.
-- This keeps the pass transparent and avoids silent behavior.
-
-### Validation plan
-- Assert non-zero processed counts for DF/AL/DLA.
-- Emit run-scoped artifacts for all four components:
-  - `decision_fabric/...`
-  - `degrade_ladder/...`
-  - `action_layer/...`
-  - `decision_log_audit/...`
-- Capture reason code distributions for rejected candidates and publish decisions.
-- Record evidence paths in impl/logbook after run completes.
-
----
-
-## Entry: 2026-02-07 23:18:45 - Post-run evidence: DF/DL/AL/DLA service pass on real parity traffic
-
-### Run and source lane
-- Source run id: `platform_20260207T221155Z`
-- Source topic: `fp.bus.traffic.fraud.v1`
-- Source type: actual admitted traffic records from EB (Kinesis/localstack), filtered by `platform_run_id`.
-- Pass cap: `20` trigger candidates.
-
-### Runtime execution result (non-test)
-- Pass summary artifact:
-  - `runs/fraud-platform/platform_20260207T221155Z/rtdl_runtime_pass/summary.json`
-- Core counters from summary:
-  - `processed_candidates=20`
-  - `df_candidates=20`
-  - `df_processed=20`
-  - `al_processed=20`
-  - `dla_accepted=60` (decision + intent + outcome per trigger)
-  - `normalized_schema_version=20` (see drift note below)
-
-### Component evidence emitted
-- DF:
-  - `runs/fraud-platform/platform_20260207T221155Z/decision_fabric/metrics/ac2a3106997e57381f5d7feae284fe9e.json`
-  - `runs/fraud-platform/platform_20260207T221155Z/decision_fabric/reconciliation/ac2a3106997e57381f5d7feae284fe9e.json`
-  - runtime ledgers: `runs/fraud-platform/platform_20260207T221155Z/runtime_service_pass/decision_fabric/*.sqlite`
-- DL:
-  - `runs/fraud-platform/platform_20260207T221155Z/degrade_ladder/runtime_posture.json`
-  - runtime store: `runs/fraud-platform/platform_20260207T221155Z/runtime_service_pass/degrade_ladder/dl_posture.sqlite`
-- AL:
-  - `runs/fraud-platform/platform_20260207T221155Z/action_layer/observability/ac2a3106997e57381f5d7feae284fe9e.json`
-  - runtime stores: `runs/fraud-platform/platform_20260207T221155Z/runtime_service_pass/action_layer/*.sqlite`
-- DLA:
-  - `runs/fraud-platform/platform_20260207T221155Z/decision_log_audit/metrics/last_metrics.json`
-  - `runs/fraud-platform/platform_20260207T221155Z/decision_log_audit/reconciliation/last_reconciliation.json`
-  - runtime intake store: `runs/fraud-platform/platform_20260207T221155Z/runtime_service_pass/decision_log_audit/dla_intake.sqlite`
-
-### Observed runtime behavior
-- Service-level processing is confirmed end-to-end at component boundaries:
-  - DF synthesized 20 decisions from real EB traffic.
-  - DL posture was served as `NORMAL` for the run-scoped pass.
-  - AL executed 20 intents and produced 20 outcomes.
-  - DLA accepted and chained the 60 generated envelopes (decision/intent/outcome triplets).
-
-### Drift surfaced during runtime proof
-1. **Traffic envelope schema_version omission**
-   - Source WSP/EB traffic records for this run lacked `schema_version`.
-   - DF trigger policy requires schema version gating.
-   - Runtime pass used an explicit, counted normalization (`schema_version -> v1`) to avoid silent behavior.
-2. **IG publish decision for DF/AL outputs**
-   - DF and AL publish decisions recorded as `QUARANTINE` in this pass.
-   - This does not block proving component runtime execution itself, but it is a publish-lane gate that still needs explicit closure for clean admit-path operation in the same runtime lane.
-
-### Decision
-- Keep orchestration deferred as requested.
-- Treat this pass as confirmed evidence that DF/DL/AL/DLA execute against real parity events, with two explicit follow-up drifts now concretely evidenced (schema_version omission and IG quarantine on DF/AL families).
-
-## Entry: 2026-02-07 12:59:00 - RTDL drift-closure campaign (IEG/OFP/DF/DL) pre-implementation plan
-
-### Problem statement
-Review of `scratch_files/scratch.md` against current code confirms remaining RTDL-plane drifts that can cause semantic divergence from pinned v0 rails:
-1. IEG semantic dedupe key includes `scenario_run_id` (must be corridor tuple).
-2. OFP semantic dedupe key includes `stream_id` (must be corridor tuple).
-3. DF decision identity currently includes full `eb_offset_basis` in `decision_id` recipe (must use stable origin evidence identity).
-4. DF inlet has no explicit corridor tuple + payload-hash collision guard.
-5. DF posture boundary still accepts free-form `scope_key` strings, while registry scope is structured (`RegistryScopeKey`).
-
-### Authorities used
-- `docs/model_spec/platform/pre-design_decisions/real-time_decision_loop.pre-design_decision.md`
-- `docs/model_spec/platform/component-specific/flow-narrative-platform-design.md`
-- `docs/model_spec/platform/platform-wide/platform_blueprint_notes_v0.md`
-- component build plans and current impl_actual entries for IEG/OFP/DF/DL.
-
-### Decision
-Implement fixes in strict order to minimize migration risk:
-1. IEG semantic dedupe tuple migration.
-2. DF identity + inlet collision discipline.
-3. OFP semantic dedupe tuple migration.
-4. DF<->DL scope-key normalization to deterministic registry scope token.
-5. Validate with targeted suites and refresh component notes/logbook evidence.
-
-### Cross-component invariants to enforce
-- Canonical semantic tuple is `(platform_run_id, event_class, event_id)`.
-- `payload_hash` mismatch on same tuple is anomaly/fail-closed (no silent overwrite).
-- Decision identity is stable under replay for same source evidence + bundle + scope.
-- Scope keys used by DF posture are deterministic and aligned to registry scope axes.
-- Transport dedupe and checkpoint progress remain independent from semantic dedupe.
-
-### Planned evidence updates
-- Append detailed execution and test outcomes in:
-  - `identity_entity_graph.impl_actual.md`
-  - `online_feature_plane.impl_actual.md`
-  - `decision_fabric.impl_actual.md`
-  - `degrade_ladder.impl_actual.md`
-  - `docs/logbook/02-2026/2026-02-07.md`
-
----
-
-## Entry: 2026-02-07 13:09:19 - RTDL drift-closure campaign completed (IEG/OFP/DF/DL)
-
-### Outcome summary
-Implemented and validated the remaining confirmed drifts from `scratch_files/scratch.md` in the pinned fix order.
-
-### Closed drift set
-1. IEG semantic dedupe tuple now uses corridor identity `(platform_run_id, event_class, event_id)`.
-2. DF `decision_id` now derives from stable source evidence identity (`platform_run_id + source_event_id + origin_offset + bundle_ref + decision_scope`) and keeps basis vectors in provenance.
-3. DF inlet now enforces explicit tuple/payload-hash collision discipline (`DUPLICATE`, `PAYLOAD_HASH_MISMATCH` no-decide paths).
-4. OFP semantic dedupe now keys by `(platform_run_id, event_class, event_id)` independent of `stream_id`; transport dedupe remains stream/offset-scoped.
-5. DF posture boundary now normalizes scope input to deterministic canonical key semantics (mapping/object/string support) before DL serve.
-6. Vocabulary alignment improved by stamping `origin_offset` explicitly in DF `source_event` payload.
-
-### Validation evidence
-- `python -m pytest tests/services/identity_entity_graph -q` -> `15 passed`
-- `python -m pytest tests/services/online_feature_plane -q` -> `26 passed`
-- `python -m pytest tests/services/decision_fabric -q` -> `69 passed`
-- `python -m pytest tests/services/degrade_ladder -q` -> `40 passed`
-
-### Boundary
-This pass closes the confirmed semantic drifts at component boundaries. Integration runtime proofs across full RTDL E2E remain governed by platform phase execution runs.
-
----
-
-## Entry: 2026-02-07 13:17:34 - Plan: update platform parity runbook for OFP/OFS + DL + DF execution posture
-
-### Problem
-Current `docs/runbooks/platform_parity_walkthrough_v0.md` stops at OFP boundary and explicitly says DF/DL checks are pending. After recent DF/DL/OFP implementation closure, the runbook must reflect what can be executed now in local-parity.
-
-### Decision
-1. Keep OFP section but clarify naming (`OFP` aka `OFS` in user shorthand) to avoid terminology drift.
-2. Add a DL section with executable local-parity boundary checks:
-   - policy/profile load sanity,
-   - full DL test suite command (authoritative current runtime validation path),
-   - optional inline serve/store smoke snippet.
-3. Add a DF section with executable boundary checks:
-   - full DF suite command,
-   - targeted smoke for inlet/replay/checkpoint semantics using existing tests.
-4. Keep scope honest:
-   - note that DF/DL have no standalone long-running service CLI yet in this repo,
-   - preserve boundary claim that full RTDL live E2E remains integration-gated.
-
-### Files planned
-- `docs/runbooks/platform_parity_walkthrough_v0.md`
-- `docs/logbook/02-2026/2026-02-07.md` (action log)
-
-### Validation plan
-- runbook quality check via grep:
-- verify new OFP/OFS wording and new `DL`/`DF` sections present.
-
----
-
-## Entry: 2026-02-07 13:18:00 - Runbook updated for OFP/OFS, DL, and DF local-parity boundaries
-
-### Changes applied
-Updated `docs/runbooks/platform_parity_walkthrough_v0.md` to reflect current executable local-parity posture:
-1. Title expanded to include DF/DL in the parity flow chain.
-2. OFP section renamed to `OFP/OFS` with explicit naming note (`OFS` shorthand maps to OFP component in repo).
-3. Added `Section 16` for DL boundary checks:
-   - policy profile load command,
-   - DL suite validation command.
-4. Added `Section 17` for DF boundary checks:
-   - full DF suite validation command,
-   - targeted drift-closure smoke command.
-5. Replaced stale boundary note that said DF/DL checks were pending.
-
-### Validation
-- Presence check in runbook:
-  - `OFP/OFS` section found.
-  - `Section 16` (DL) found.
-  - `Section 17` (DF) found.
-- Commands in new sections were executed:
-  - `python -m pytest tests/services/degrade_ladder -q` -> `40 passed`
-  - `python -m pytest tests/services/decision_fabric -q` -> `69 passed`
-
-### Boundary clarification retained
-Runbook clearly states DF/DL currently validate through component boundaries/tests and do not yet expose standalone long-running service CLIs in this repo.
-
----
-
-## Entry: 2026-01-31 18:40:00 — Align traffic streams to Data Engine black‑box interface
-
-### Trigger
-User provided `docs/model_spec/data-engine/interface_pack/data_engine_interface.md`, which explicitly defines the **traffic policy** and differentiates `traffic_primitives` vs `behavioural_streams`.
-
-### What this fixes (why it matters)
-- We previously treated `arrival_events_5B` and 6B flow anchors as traffic candidates. The new interface clarifies that:
-  - `arrival_events_5B` is **traffic_primitives** (join surface) and **must not** be emitted to the platform traffic bus by default.
-  - The **only** traffic streams are **behavioural streams**: `s2_event_stream_baseline_6B` and `s3_event_stream_with_fraud_6B`.
-- Platform traffic semantics must therefore move from “arrival stream” to **dual behavioural streams** (clean baseline + post‑fraud overlay).
-- This affects SR traffic_output_ids, WSP allowlist, Oracle stream‑view build targets, and runbook instructions.
-
-### Decision (binding)
-- **Traffic streams (v0 default):** `s2_event_stream_baseline_6B`, `s3_event_stream_with_fraud_6B`.
-- **Non‑traffic join surfaces (oracle‑only):** `arrival_events_5B`, `s1_arrival_entities_6B`, `s1_session_index_6B`, `s2_flow_anchor_baseline_6B`, `s3_flow_anchor_with_fraud_6B`.
-- **Truth products (offline only):** all `s4_*` outputs in 6B.
-
-### Planned edits (platform‑wide)
-- Update `config/platform/wsp/traffic_outputs_v0.yaml` to list only the two behavioural streams.
-- Update `config/platform/sr/policy_v0.yaml` `traffic_output_ids` accordingly.
-- Update runbook stream‑view section to build/verify **6B event stream** views (not arrival_events).
-- Update profile README to reflect the new traffic stream policy.
-
-### Validation plan
-- Ensure WSP now pulls only the two behavioural streams and ignores arrival_events_5B by default.
-- Confirm SR publishes READY with policy referencing the updated traffic list.
-- Ensure Oracle stream‑view build targets the two 6B event streams and writes `part-*.parquet` under their `output_id` folders.
-
-
-## Entry: 2026-01-31 06:59:40 — Control & ingress parity “green” procedure (run-id‑scoped receipts + EB offsets)
-
-### Problem / goal
-We need a **clean parity run** that proves SR → WSP → IG → EB is functioning for the *current* platform run id, with IG receipts and EB offsets visible under the same run prefix. Prior attempts were “almost green” but failed to attach receipts to the active run due to service ordering (IG started before the new run id) and stale Kinesis messages.
-
-### Inputs / authorities
-- Root `AGENTS.md` (no half-baked phases; logbook + impl_actual discipline).
-- `config/platform/profiles/local_parity.yaml` (S3 root `s3://fraud-platform`, Kinesis control/event buses).
-- Runbook `docs/runbooks/platform_parity_walkthrough_v0.md` (local parity flow).
-- Platform logging / run-id conventions (run-scoped paths under `runs/fraud-platform/<run_id>/`).
-
-### Live decision trail
-- We must **restart IG after `platform-run-new`** so `PLATFORM_RUN_ID` and run-prefix are correct; otherwise receipts land under the old run id.
-- Kinesis control bus is persistent; old READY messages cause WSP to consume the wrong run. For a clean parity smoke, **reset the streams** (`sr-control-bus`, `fp-traffic-bus`) before publishing READY.
-- “Green” needs three proofs in the same run id: SR READY published, WSP streamed (cap), and IG receipts written (with EB offsets). EB offsets are verified separately via LocalStack Kinesis read.
-
-### Procedure (validated)
-1) Stop IG service on port 8081.
-2) `make platform-run-new` → capture new run id (ACTIVE_RUN_ID).
-3) Start IG service (`make platform-ig-service-parity`) **after** run id is created.
-4) Reset Kinesis streams (delete/recreate `sr-control-bus` + `fp-traffic-bus`).
-5) SR publish READY with fresh equivalence key.
-6) WSP `--once` with `max_events=20` (cap) to confirm flow.
-7) Verify:
-   - Receipts exist under `s3://fraud-platform/<run_id>/ig/receipts/`.
-   - EB has records in LocalStack (`fp-traffic-bus`).
-
-### Evidence observed (local parity)
-- Run id: `platform_20260131T065731Z`.
-- SR READY: `run_id=38751de2498b847c3e0a5e895012388e`, message_id `e47e5b8a...`.
-- WSP streamed 20 events and stopped with `reason=max_events`.
-- Receipts present under `platform_20260131T065731Z/ig/receipts/` in `fraud-platform` bucket.
-- EB stream `fp-traffic-bus` returned records via LocalStack Kinesis read.
-
-### Operational invariants to keep
-- **IG must be started after the platform run id is created.**
-- **Control bus must be clean** for a deterministic smoke run.
-- Receipts are the authoritative signal that IG published to EB (eb_ref); platform.log is narrative only.
-
----
-
-## Entry: 2026-01-31 08:30:45 — Full-name component log directories
-
-### Trigger
-User requested log filenames be **full component names**, not abbreviations (e.g., `sr` → `scenario_runner`).
-
-### Decision
-Keep `PLATFORM_COMPONENT` short for env ergonomics, but **map to full names** for log directories and log file names. EB diagnostics log is now `event_bus/event_bus.log`.
-
-### Outcome
-Component logs now land under:
-- `runs/fraud-platform/<run_id>/scenario_runner/scenario_runner.log`
-- `runs/fraud-platform/<run_id>/world_streamer_producer/world_streamer_producer.log`
-- `runs/fraud-platform/<run_id>/ingestion_gate/ingestion_gate.log`
-- `runs/fraud-platform/<run_id>/event_bus/event_bus.log`
-
-
----
-
 ## Entry: 2026-01-25 05:45:40 — Phase 1.4/1.5 audit results (policy vs wiring + secrets)
 
 ### Phase 1.4 — Policy vs wiring separation (results)
@@ -1511,6 +1199,65 @@ User requested removal of the duplicate `fraud-platform/` prefix in MinIO paths 
 Fresh parity run produced receipts at:
 `s3://fraud-platform/<run_id>/ig/receipts/*.json` and platform log shows `IG receipt stored ... eb_ref=...` with normalized path.
 
+## Entry: 2026-01-31 06:59:40 — Control & ingress parity “green” procedure (run-id‑scoped receipts + EB offsets)
+
+### Problem / goal
+We need a **clean parity run** that proves SR → WSP → IG → EB is functioning for the *current* platform run id, with IG receipts and EB offsets visible under the same run prefix. Prior attempts were “almost green” but failed to attach receipts to the active run due to service ordering (IG started before the new run id) and stale Kinesis messages.
+
+### Inputs / authorities
+- Root `AGENTS.md` (no half-baked phases; logbook + impl_actual discipline).
+- `config/platform/profiles/local_parity.yaml` (S3 root `s3://fraud-platform`, Kinesis control/event buses).
+- Runbook `docs/runbooks/platform_parity_walkthrough_v0.md` (local parity flow).
+- Platform logging / run-id conventions (run-scoped paths under `runs/fraud-platform/<run_id>/`).
+
+### Live decision trail
+- We must **restart IG after `platform-run-new`** so `PLATFORM_RUN_ID` and run-prefix are correct; otherwise receipts land under the old run id.
+- Kinesis control bus is persistent; old READY messages cause WSP to consume the wrong run. For a clean parity smoke, **reset the streams** (`sr-control-bus`, `fp-traffic-bus`) before publishing READY.
+- “Green” needs three proofs in the same run id: SR READY published, WSP streamed (cap), and IG receipts written (with EB offsets). EB offsets are verified separately via LocalStack Kinesis read.
+
+### Procedure (validated)
+1) Stop IG service on port 8081.
+2) `make platform-run-new` → capture new run id (ACTIVE_RUN_ID).
+3) Start IG service (`make platform-ig-service-parity`) **after** run id is created.
+4) Reset Kinesis streams (delete/recreate `sr-control-bus` + `fp-traffic-bus`).
+5) SR publish READY with fresh equivalence key.
+6) WSP `--once` with `max_events=20` (cap) to confirm flow.
+7) Verify:
+   - Receipts exist under `s3://fraud-platform/<run_id>/ig/receipts/`.
+   - EB has records in LocalStack (`fp-traffic-bus`).
+
+### Evidence observed (local parity)
+- Run id: `platform_20260131T065731Z`.
+- SR READY: `run_id=38751de2498b847c3e0a5e895012388e`, message_id `e47e5b8a...`.
+- WSP streamed 20 events and stopped with `reason=max_events`.
+- Receipts present under `platform_20260131T065731Z/ig/receipts/` in `fraud-platform` bucket.
+- EB stream `fp-traffic-bus` returned records via LocalStack Kinesis read.
+
+### Operational invariants to keep
+- **IG must be started after the platform run id is created.**
+- **Control bus must be clean** for a deterministic smoke run.
+- Receipts are the authoritative signal that IG published to EB (eb_ref); platform.log is narrative only.
+
+---
+
+## Entry: 2026-01-31 08:30:45 — Full-name component log directories
+
+### Trigger
+User requested log filenames be **full component names**, not abbreviations (e.g., `sr` → `scenario_runner`).
+
+### Decision
+Keep `PLATFORM_COMPONENT` short for env ergonomics, but **map to full names** for log directories and log file names. EB diagnostics log is now `event_bus/event_bus.log`.
+
+### Outcome
+Component logs now land under:
+- `runs/fraud-platform/<run_id>/scenario_runner/scenario_runner.log`
+- `runs/fraud-platform/<run_id>/world_streamer_producer/world_streamer_producer.log`
+- `runs/fraud-platform/<run_id>/ingestion_gate/ingestion_gate.log`
+- `runs/fraud-platform/<run_id>/event_bus/event_bus.log`
+
+
+---
+
 ## Entry: 2026-01-31 13:10:00 — v0 control & ingress narrative (Phase 1–3) + canonical event time semantics
 
 ### Why this entry
@@ -1557,29 +1304,6 @@ User requested a **single narrative flow** for Phases 1–3 (v0) so the current 
 - WSP streams traffic by `ts_utc` (speedup optional).
 - IG admits/quarantines and emits receipts.
 - EB has offsets for the same platform run.
-
----
-
-## Entry: 2026-02-01 05:12:40 — Control & ingress flow updated for dual‑stream concurrency
-
-### Trigger
-User asked to confirm v0 green and to **rewrite the current platform flow** in platform build + implementation notes to reflect the dual‑stream policy and the actual runtime behavior.
-
-### Updated flow (v0 as implemented)
-1) **Oracle Store (truth boundary):** engine outputs are sealed in S3/MinIO; SR/WSP only read by‑ref.
-2) **SR (readiness authority):** reads Oracle Store, verifies gates, publishes READY to control bus.
-3) **WSP (stream head):**
-   - consumes READY,
-   - streams **two concurrent traffic channels**: `s2_event_stream_baseline_6B` and `s3_event_stream_with_fraud_6B`,
-   - uses **stream_view/ts_utc** per output,
-   - concurrency default = number of outputs (override via `WSP_OUTPUT_CONCURRENCY`),
-   - per‑output caps supported (`WSP_MAX_EVENTS_PER_OUTPUT`) for diagnostics.
-4) **IG (admission boundary):** validates canonical envelope, admits, writes receipts.
-5) **EB (durable log):** IG publishes to **two streams** (`fp.bus.traffic.baseline.v1` and `fp.bus.traffic.fraud.v1`) and receipts include `eb_ref`.
-
-### v0 green meaning (updated)
-- A parity run produces SR READY, WSP streams **both** channels, IG receipts are written, and EB offsets are readable for **both** traffic streams under the same platform run id.
-- Observed: per‑output 200‑event run emitted 400 total with no quarantines; EB publish lines present for both streams.
 
 ---
 
@@ -1669,37 +1393,6 @@ This locks the contract surface and provenance rules before implementation so co
 
 ---
 
-## Entry: 2026-01-31 15:30:00 — Phase 4.1 implementation (RTDL contracts created)
-
-### Decision trail (live)
-- **Canonical envelope reuse**: RTDL events will use the platform’s canonical event envelope. No separate “decision envelope” was created; instead, payloads carry `decision_kind`/`payload_kind` inside the envelope. This prevents divergence between control/ingress and RTDL.
-- **Offset basis**: Added `eb_offset_basis` as an explicit object (stream + offset_kind + offsets). This makes replay boundaries explicit for every downstream artifact and aligns with EB’s per‑partition ordering.
-- **Graph version**: Introduced a minimal `graph_version` object with `version_id` + `watermark_ts_utc` so every feature snapshot/decision/audit can reference a deterministic projection state.
-- **Feature snapshot**: For v0, snapshots are JSON (by‑ref in S3) with a `snapshot_hash` and full provenance (graph_version + eb_offset_basis + pins). Postgres will hold only the index/refs.
-- **Decision payload**: Decision includes `bundle_ref`, `snapshot_hash`, `graph_version`, `eb_offset_basis`, and explicit `degrade_posture`. This is the minimum provenance needed for replay and compliance.
-- **Actions + outcomes**: Added action intent/outcome contracts with idempotency keys and stable IDs to support at‑least‑once execution.
-- **Audit record**: Audit truth is append‑only in S3 with Postgres index for lookup; audit record includes refs to decision/outcome plus provenance chain.
-
-### Schemas added (RTDL)
-Location: `docs/model_spec/platform/contracts/real_time_decision_loop/`
-- `eb_offset_basis.schema.yaml`
-- `graph_version.schema.yaml`
-- `feature_snapshot.schema.yaml`
-- `decision_payload.schema.yaml`
-- `degrade_posture.schema.yaml`
-- `action_intent.schema.yaml`
-- `action_outcome.schema.yaml`
-- `audit_record.schema.yaml`
-
-### Index update
-- Added RTDL contract section to `docs/model_spec/platform/contracts/README.md`.
-
-### Notes / invariants
-- All RTDL artifacts require ContextPins (manifest_fingerprint, parameter_hash, seed, scenario_id, run_id).
-- Event‑time semantics remain canonical `ts_utc`; speedup only changes pacing.
-
----
-
 ## Entry: 2026-01-31 15:10:00 — Phase 4.1 compatibility matrix (contracts → producers/consumers)
 
 ### Purpose
@@ -1769,6 +1462,37 @@ Move into Phase 4.2 by defining the IEG projector’s v0 mechanics with explicit
 
 ---
 
+## Entry: 2026-01-31 15:30:00 — Phase 4.1 implementation (RTDL contracts created)
+
+### Decision trail (live)
+- **Canonical envelope reuse**: RTDL events will use the platform’s canonical event envelope. No separate “decision envelope” was created; instead, payloads carry `decision_kind`/`payload_kind` inside the envelope. This prevents divergence between control/ingress and RTDL.
+- **Offset basis**: Added `eb_offset_basis` as an explicit object (stream + offset_kind + offsets). This makes replay boundaries explicit for every downstream artifact and aligns with EB’s per‑partition ordering.
+- **Graph version**: Introduced a minimal `graph_version` object with `version_id` + `watermark_ts_utc` so every feature snapshot/decision/audit can reference a deterministic projection state.
+- **Feature snapshot**: For v0, snapshots are JSON (by‑ref in S3) with a `snapshot_hash` and full provenance (graph_version + eb_offset_basis + pins). Postgres will hold only the index/refs.
+- **Decision payload**: Decision includes `bundle_ref`, `snapshot_hash`, `graph_version`, `eb_offset_basis`, and explicit `degrade_posture`. This is the minimum provenance needed for replay and compliance.
+- **Actions + outcomes**: Added action intent/outcome contracts with idempotency keys and stable IDs to support at‑least‑once execution.
+- **Audit record**: Audit truth is append‑only in S3 with Postgres index for lookup; audit record includes refs to decision/outcome plus provenance chain.
+
+### Schemas added (RTDL)
+Location: `docs/model_spec/platform/contracts/real_time_decision_loop/`
+- `eb_offset_basis.schema.yaml`
+- `graph_version.schema.yaml`
+- `feature_snapshot.schema.yaml`
+- `decision_payload.schema.yaml`
+- `degrade_posture.schema.yaml`
+- `action_intent.schema.yaml`
+- `action_outcome.schema.yaml`
+- `audit_record.schema.yaml`
+
+### Index update
+- Added RTDL contract section to `docs/model_spec/platform/contracts/README.md`.
+
+### Notes / invariants
+- All RTDL artifacts require ContextPins (manifest_fingerprint, parameter_hash, seed, scenario_id, run_id).
+- Event‑time semantics remain canonical `ts_utc`; speedup only changes pacing.
+
+---
+
 ## Entry: 2026-01-31 16:05:00 — Traffic stream semantics (post‑EB) clarified
 
 ### Why this entry
@@ -1783,6 +1507,35 @@ User asked for clarity on “one traffic stream” semantics and concurrent flow
 ---
 
 ---
+
+## Entry: 2026-01-31 18:40:00 — Align traffic streams to Data Engine black‑box interface
+
+### Trigger
+User provided `docs/model_spec/data-engine/interface_pack/data_engine_interface.md`, which explicitly defines the **traffic policy** and differentiates `traffic_primitives` vs `behavioural_streams`.
+
+### What this fixes (why it matters)
+- We previously treated `arrival_events_5B` and 6B flow anchors as traffic candidates. The new interface clarifies that:
+  - `arrival_events_5B` is **traffic_primitives** (join surface) and **must not** be emitted to the platform traffic bus by default.
+  - The **only** traffic streams are **behavioural streams**: `s2_event_stream_baseline_6B` and `s3_event_stream_with_fraud_6B`.
+- Platform traffic semantics must therefore move from “arrival stream” to **dual behavioural streams** (clean baseline + post‑fraud overlay).
+- This affects SR traffic_output_ids, WSP allowlist, Oracle stream‑view build targets, and runbook instructions.
+
+### Decision (binding)
+- **Traffic streams (v0 default):** `s2_event_stream_baseline_6B`, `s3_event_stream_with_fraud_6B`.
+- **Non‑traffic join surfaces (oracle‑only):** `arrival_events_5B`, `s1_arrival_entities_6B`, `s1_session_index_6B`, `s2_flow_anchor_baseline_6B`, `s3_flow_anchor_with_fraud_6B`.
+- **Truth products (offline only):** all `s4_*` outputs in 6B.
+
+### Planned edits (platform‑wide)
+- Update `config/platform/wsp/traffic_outputs_v0.yaml` to list only the two behavioural streams.
+- Update `config/platform/sr/policy_v0.yaml` `traffic_output_ids` accordingly.
+- Update runbook stream‑view section to build/verify **6B event stream** views (not arrival_events).
+- Update profile README to reflect the new traffic stream policy.
+
+### Validation plan
+- Ensure WSP now pulls only the two behavioural streams and ignores arrival_events_5B by default.
+- Confirm SR publishes READY with policy referencing the updated traffic list.
+- Ensure Oracle stream‑view build targets the two 6B event streams and writes `part-*.parquet` under their `output_id` folders.
+
 
 ## Entry: 2026-01-31 18:44:00 — Correction: traffic stream semantics now dual‑channel
 
@@ -1823,6 +1576,29 @@ User requested control & ingress plane handle **concurrent dual streams** (basel
 - Update Kinesis publisher to use `topic` as stream name when no default stream is configured.
 - Update parity bootstrap to create both Kinesis streams.
 - Update profiles/runbook to document dual EB streams and new env var expectations.
+
+---
+
+## Entry: 2026-02-01 05:12:40 — Control & ingress flow updated for dual‑stream concurrency
+
+### Trigger
+User asked to confirm v0 green and to **rewrite the current platform flow** in platform build + implementation notes to reflect the dual‑stream policy and the actual runtime behavior.
+
+### Updated flow (v0 as implemented)
+1) **Oracle Store (truth boundary):** engine outputs are sealed in S3/MinIO; SR/WSP only read by‑ref.
+2) **SR (readiness authority):** reads Oracle Store, verifies gates, publishes READY to control bus.
+3) **WSP (stream head):**
+   - consumes READY,
+   - streams **two concurrent traffic channels**: `s2_event_stream_baseline_6B` and `s3_event_stream_with_fraud_6B`,
+   - uses **stream_view/ts_utc** per output,
+   - concurrency default = number of outputs (override via `WSP_OUTPUT_CONCURRENCY`),
+   - per‑output caps supported (`WSP_MAX_EVENTS_PER_OUTPUT`) for diagnostics.
+4) **IG (admission boundary):** validates canonical envelope, admits, writes receipts.
+5) **EB (durable log):** IG publishes to **two streams** (`fp.bus.traffic.baseline.v1` and `fp.bus.traffic.fraud.v1`) and receipts include `eb_ref`.
+
+### v0 green meaning (updated)
+- A parity run produces SR READY, WSP streams **both** channels, IG receipts are written, and EB offsets are readable for **both** traffic streams under the same platform run id.
+- Observed: per‑output 200‑event run emitted 400 total with no quarantines; EB publish lines present for both streams.
 
 ---
 
@@ -2350,6 +2126,47 @@ Platform Phase 4.4 currently remains marked planning-active although DF/DL compo
 
 ---
 
+## Entry: 2026-02-07 12:59:00 - RTDL drift-closure campaign (IEG/OFP/DF/DL) pre-implementation plan
+
+### Problem statement
+Review of `scratch_files/scratch.md` against current code confirms remaining RTDL-plane drifts that can cause semantic divergence from pinned v0 rails:
+1. IEG semantic dedupe key includes `scenario_run_id` (must be corridor tuple).
+2. OFP semantic dedupe key includes `stream_id` (must be corridor tuple).
+3. DF decision identity currently includes full `eb_offset_basis` in `decision_id` recipe (must use stable origin evidence identity).
+4. DF inlet has no explicit corridor tuple + payload-hash collision guard.
+5. DF posture boundary still accepts free-form `scope_key` strings, while registry scope is structured (`RegistryScopeKey`).
+
+### Authorities used
+- `docs/model_spec/platform/pre-design_decisions/real-time_decision_loop.pre-design_decision.md`
+- `docs/model_spec/platform/component-specific/flow-narrative-platform-design.md`
+- `docs/model_spec/platform/platform-wide/platform_blueprint_notes_v0.md`
+- component build plans and current impl_actual entries for IEG/OFP/DF/DL.
+
+### Decision
+Implement fixes in strict order to minimize migration risk:
+1. IEG semantic dedupe tuple migration.
+2. DF identity + inlet collision discipline.
+3. OFP semantic dedupe tuple migration.
+4. DF<->DL scope-key normalization to deterministic registry scope token.
+5. Validate with targeted suites and refresh component notes/logbook evidence.
+
+### Cross-component invariants to enforce
+- Canonical semantic tuple is `(platform_run_id, event_class, event_id)`.
+- `payload_hash` mismatch on same tuple is anomaly/fail-closed (no silent overwrite).
+- Decision identity is stable under replay for same source evidence + bundle + scope.
+- Scope keys used by DF posture are deterministic and aligned to registry scope axes.
+- Transport dedupe and checkpoint progress remain independent from semantic dedupe.
+
+### Planned evidence updates
+- Append detailed execution and test outcomes in:
+  - `identity_entity_graph.impl_actual.md`
+  - `online_feature_plane.impl_actual.md`
+  - `decision_fabric.impl_actual.md`
+  - `degrade_ladder.impl_actual.md`
+  - `docs/logbook/02-2026/2026-02-07.md`
+
+---
+
 ## Entry: 2026-02-07 13:03:00 - Applied platform 4.4 closure after DF store-parity correction
 
 ### What was closed
@@ -2374,12 +2191,92 @@ Platform 4.4 is closed at the DF/DL decision+intent boundary. End-to-end executi
 
 ---
 
+## Entry: 2026-02-07 13:09:19 - RTDL drift-closure campaign completed (IEG/OFP/DF/DL)
+
+### Outcome summary
+Implemented and validated the remaining confirmed drifts from `scratch_files/scratch.md` in the pinned fix order.
+
+### Closed drift set
+1. IEG semantic dedupe tuple now uses corridor identity `(platform_run_id, event_class, event_id)`.
+2. DF `decision_id` now derives from stable source evidence identity (`platform_run_id + source_event_id + origin_offset + bundle_ref + decision_scope`) and keeps basis vectors in provenance.
+3. DF inlet now enforces explicit tuple/payload-hash collision discipline (`DUPLICATE`, `PAYLOAD_HASH_MISMATCH` no-decide paths).
+4. OFP semantic dedupe now keys by `(platform_run_id, event_class, event_id)` independent of `stream_id`; transport dedupe remains stream/offset-scoped.
+5. DF posture boundary now normalizes scope input to deterministic canonical key semantics (mapping/object/string support) before DL serve.
+6. Vocabulary alignment improved by stamping `origin_offset` explicitly in DF `source_event` payload.
+
+### Validation evidence
+- `python -m pytest tests/services/identity_entity_graph -q` -> `15 passed`
+- `python -m pytest tests/services/online_feature_plane -q` -> `26 passed`
+- `python -m pytest tests/services/decision_fabric -q` -> `69 passed`
+- `python -m pytest tests/services/degrade_ladder -q` -> `40 passed`
+
+### Boundary
+This pass closes the confirmed semantic drifts at component boundaries. Integration runtime proofs across full RTDL E2E remain governed by platform phase execution runs.
+
+---
+
 ## Entry: 2026-02-07 13:11:20 — 4.4 closure validation addendum (fresh DL suite run)
 
 To keep platform 4.4 closure evidence current in this execution pass, reran DL component tests after DF parity updates:
 - `python -m pytest tests/services/degrade_ladder -q` -> `40 passed`.
 
 This confirms DF + DL component suites are both green in the same closure cycle.
+
+---
+
+## Entry: 2026-02-07 13:17:34 - Plan: update platform parity runbook for OFP/OFS + DL + DF execution posture
+
+### Problem
+Current `docs/runbooks/platform_parity_walkthrough_v0.md` stops at OFP boundary and explicitly says DF/DL checks are pending. After recent DF/DL/OFP implementation closure, the runbook must reflect what can be executed now in local-parity.
+
+### Decision
+1. Keep OFP section but clarify naming (`OFP` aka `OFS` in user shorthand) to avoid terminology drift.
+2. Add a DL section with executable local-parity boundary checks:
+   - policy/profile load sanity,
+   - full DL test suite command (authoritative current runtime validation path),
+   - optional inline serve/store smoke snippet.
+3. Add a DF section with executable boundary checks:
+   - full DF suite command,
+   - targeted smoke for inlet/replay/checkpoint semantics using existing tests.
+4. Keep scope honest:
+   - note that DF/DL have no standalone long-running service CLI yet in this repo,
+   - preserve boundary claim that full RTDL live E2E remains integration-gated.
+
+### Files planned
+- `docs/runbooks/platform_parity_walkthrough_v0.md`
+- `docs/logbook/02-2026/2026-02-07.md` (action log)
+
+### Validation plan
+- runbook quality check via grep:
+- verify new OFP/OFS wording and new `DL`/`DF` sections present.
+
+---
+
+## Entry: 2026-02-07 13:18:00 - Runbook updated for OFP/OFS, DL, and DF local-parity boundaries
+
+### Changes applied
+Updated `docs/runbooks/platform_parity_walkthrough_v0.md` to reflect current executable local-parity posture:
+1. Title expanded to include DF/DL in the parity flow chain.
+2. OFP section renamed to `OFP/OFS` with explicit naming note (`OFS` shorthand maps to OFP component in repo).
+3. Added `Section 16` for DL boundary checks:
+   - policy profile load command,
+   - DL suite validation command.
+4. Added `Section 17` for DF boundary checks:
+   - full DF suite validation command,
+   - targeted drift-closure smoke command.
+5. Replaced stale boundary note that said DF/DL checks were pending.
+
+### Validation
+- Presence check in runbook:
+  - `OFP/OFS` section found.
+  - `Section 16` (DL) found.
+  - `Section 17` (DF) found.
+- Commands in new sections were executed:
+  - `python -m pytest tests/services/degrade_ladder -q` -> `40 passed`
+  - `python -m pytest tests/services/decision_fabric -q` -> `69 passed`
+
+### Boundary clarification retained
+Runbook clearly states DF/DL currently validate through component boundaries/tests and do not yet expose standalone long-running service CLIs in this repo.
 
 ---
 
@@ -3031,6 +2928,109 @@ Document the actual observed RTDL flow for the two fresh parity runs with emphas
 - Run B CSFB DB: `runs/fraud-platform/platform_20260207T221155Z/context_store_flow_binding/csfb.sqlite`
 
 ---
+
+## Entry: 2026-02-07 23:14:32 - Pre-run plan: execute DF/DL/AL/DLA on real parity traffic without full orchestration
+
+### Trigger
+User requested a runtime proof that `DF`, `DL`, `AL`, and `DLA` process actual events (not only tests), while explicitly deferring full always-on orchestration/wiring work.
+
+### Observed gap to close
+- Fresh parity runs currently show runtime artifacts for `SR/WSP/IG/EB` plus `IEG/OFP/CSFB`.
+- `DF/DL/AL/DLA` are implemented and test-green, but not executed as a single always-on runtime chain in the current run loop.
+
+### Decision (execution mode)
+Run a **component service pass** against **actual EB traffic records** from an existing fresh run id (`platform_20260207T221155Z`) using component runtime APIs:
+- DL posture service path (`store + serve`) for real posture-stamp generation.
+- DF intake/context/synthesis/publish path for admitted EB traffic events.
+- AL idempotency/authz/execution/outcome/publish path from DF intents.
+- DLA intake processor path over generated DF/AL envelopes with real run pins.
+
+This is intentionally one-shot runtime execution (service behavior) and not a replacement for future continuous orchestration.
+
+### Authority and constraints used
+- Platform doctrine: pins as law, fail-closed semantics, append-only truth, at-least-once safety.
+- RTDL build-plan posture: component closure already achieved; runtime-chain evidence still needed.
+- User directive: defer orchestration wiring for now, but prove runtime on actual events.
+
+### Key runtime choices
+- Source traffic: `fp.bus.traffic.fraud.v1`, filtered by `platform_run_id=platform_20260207T221155Z`.
+- Event count cap: start with bounded pass (`<=20`) to provide deterministic evidence and avoid noisy cross-run effects.
+- Storage substrate for this pass: run-scoped SQLite under `runs/fraud-platform/<run_id>/...` (service semantics preserved, no environment substrate changes).
+- DL seed posture: `NORMAL` from `local_parity` profile when no current posture exists.
+- Registry resolution: use configured policy + runtime empty snapshot fallback (expected to produce explicit fail-closed/fallback reasons rather than implicit behavior).
+- DLA scope: process the DF/AL outputs generated in this pass and emit DLA observability/reconciliation artifacts under the same run root.
+
+### Risk handling
+- Current parity traffic envelopes lack explicit `schema_version` field; DF trigger policy expects one.
+- For this runtime proof only, normalize missing schema version to `v1` in the one-shot runner input path and record normalization counters explicitly in summary artifacts.
+- This keeps the pass transparent and avoids silent behavior.
+
+### Validation plan
+- Assert non-zero processed counts for DF/AL/DLA.
+- Emit run-scoped artifacts for all four components:
+  - `decision_fabric/...`
+  - `degrade_ladder/...`
+  - `action_layer/...`
+  - `decision_log_audit/...`
+- Capture reason code distributions for rejected candidates and publish decisions.
+- Record evidence paths in impl/logbook after run completes.
+
+---
+
+## Entry: 2026-02-07 23:18:45 - Post-run evidence: DF/DL/AL/DLA service pass on real parity traffic
+
+### Run and source lane
+- Source run id: `platform_20260207T221155Z`
+- Source topic: `fp.bus.traffic.fraud.v1`
+- Source type: actual admitted traffic records from EB (Kinesis/localstack), filtered by `platform_run_id`.
+- Pass cap: `20` trigger candidates.
+
+### Runtime execution result (non-test)
+- Pass summary artifact:
+  - `runs/fraud-platform/platform_20260207T221155Z/rtdl_runtime_pass/summary.json`
+- Core counters from summary:
+  - `processed_candidates=20`
+  - `df_candidates=20`
+  - `df_processed=20`
+  - `al_processed=20`
+  - `dla_accepted=60` (decision + intent + outcome per trigger)
+  - `normalized_schema_version=20` (see drift note below)
+
+### Component evidence emitted
+- DF:
+  - `runs/fraud-platform/platform_20260207T221155Z/decision_fabric/metrics/ac2a3106997e57381f5d7feae284fe9e.json`
+  - `runs/fraud-platform/platform_20260207T221155Z/decision_fabric/reconciliation/ac2a3106997e57381f5d7feae284fe9e.json`
+  - runtime ledgers: `runs/fraud-platform/platform_20260207T221155Z/runtime_service_pass/decision_fabric/*.sqlite`
+- DL:
+  - `runs/fraud-platform/platform_20260207T221155Z/degrade_ladder/runtime_posture.json`
+  - runtime store: `runs/fraud-platform/platform_20260207T221155Z/runtime_service_pass/degrade_ladder/dl_posture.sqlite`
+- AL:
+  - `runs/fraud-platform/platform_20260207T221155Z/action_layer/observability/ac2a3106997e57381f5d7feae284fe9e.json`
+  - runtime stores: `runs/fraud-platform/platform_20260207T221155Z/runtime_service_pass/action_layer/*.sqlite`
+- DLA:
+  - `runs/fraud-platform/platform_20260207T221155Z/decision_log_audit/metrics/last_metrics.json`
+  - `runs/fraud-platform/platform_20260207T221155Z/decision_log_audit/reconciliation/last_reconciliation.json`
+  - runtime intake store: `runs/fraud-platform/platform_20260207T221155Z/runtime_service_pass/decision_log_audit/dla_intake.sqlite`
+
+### Observed runtime behavior
+- Service-level processing is confirmed end-to-end at component boundaries:
+  - DF synthesized 20 decisions from real EB traffic.
+  - DL posture was served as `NORMAL` for the run-scoped pass.
+  - AL executed 20 intents and produced 20 outcomes.
+  - DLA accepted and chained the 60 generated envelopes (decision/intent/outcome triplets).
+
+### Drift surfaced during runtime proof
+1. **Traffic envelope schema_version omission**
+   - Source WSP/EB traffic records for this run lacked `schema_version`.
+   - DF trigger policy requires schema version gating.
+   - Runtime pass used an explicit, counted normalization (`schema_version -> v1`) to avoid silent behavior.
+2. **IG publish decision for DF/AL outputs**
+   - DF and AL publish decisions recorded as `QUARANTINE` in this pass.
+   - This does not block proving component runtime execution itself, but it is a publish-lane gate that still needs explicit closure for clean admit-path operation in the same runtime lane.
+
+### Decision
+- Keep orchestration deferred as requested.
+- Treat this pass as confirmed evidence that DF/DL/AL/DLA execute against real parity events, with two explicit follow-up drifts now concretely evidenced (schema_version omission and IG quarantine on DF/AL families).
 
 ## Entry: 2026-02-08 06:29:30 - RTDL runtime caveat root-cause pin (schema_version + QUARANTINE)
 

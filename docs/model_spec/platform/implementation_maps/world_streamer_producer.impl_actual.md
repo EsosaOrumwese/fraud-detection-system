@@ -61,61 +61,6 @@ User said “Proceed with all 3”: (1) add Oracle/WSP fields to platform profil
 
 ---
 
-## Entry: 2026-02-02 19:30:00 — WSP context streams (traffic + behavioural_context outputs)
-
-### Trigger
-Control & ingress plane now requires **context join surfaces** to be published as EB topics (no Context Preloader). WSP must emit context outputs alongside traffic, while keeping traffic **single‑mode per run** (baseline OR fraud).
-
-### Authorities / inputs
-- `docs/model_spec/data-engine/interface_pack/data_engine_interface.md` (roles + join map + time‑safe surfaces).
-- WSP design authority (stream‑view only, no EB writes).
-- Platform decision: traffic + context topics exposed at EB; RTDL storage/retention deferred.
-
-### Live decision trail (notes as I think)
-- WSP must stay **engine‑rooted** and **stream‑view only**; we add context outputs to the WSP plan without changing that boundary.
-- Traffic output list remains a **policy allowlist** (default fraud). Context output list is **policy‑scoped** and auto‑switches to baseline when traffic mode is baseline.
-- Keep channels **separate** (no interleaving at WSP); IG owns topic routing.
-- Output selection must fail closed on unknown outputs (catalogue is the authority).
-
-### Implementation details (what changed)
-- Added policy keys:
-  - `context_output_ids_ref` (default fraud context list)
-  - `context_output_ids_baseline_ref` (baseline mode context list)
-- WSP now merges **traffic outputs + context outputs** into a single stream plan (deduped).
-- Output roles are stamped as `business_traffic` or `behavioural_context` in WSP facts payload.
-- Gate‑PASS checks are enforced across **all** selected outputs.
-
-### Files touched (no secrets)
-- `src/fraud_detection/world_streamer_producer/config.py` (context allowlist resolution).
-- `src/fraud_detection/world_streamer_producer/runner.py` (traffic+context selection + role tagging).
-- `config/platform/profiles/*.yaml` (context output refs wired into profiles).
-- `config/platform/wsp/context_fraud_outputs_v0.yaml`
-- `config/platform/wsp/context_baseline_outputs_v0.yaml`
-
-### Invariants enforced
-- **Single‑mode traffic** per run (baseline OR fraud).
-- Context outputs are **always** emitted (arrival events, arrival entities, and the mode‑aligned flow anchor).
-- WSP continues to **push only to IG**; EB remains IG‑only.
-- **No secrets in profiles:** `oracle_root` and `ig_ingest_url` are wiring only; they can be literals or env placeholders, but never credentials.
-- **WSP should reuse legacy engine‑pull framing** to avoid downstream schema drift. The simplest safe path is to reuse IG’s `EnginePuller` + `OutputCatalogue` for event framing and payload structure, but keep WSP’s control flow separate (push to IG, never EB).
-- **Oracle root resolution:** locators may already be absolute (e.g., `runs/local_full_run-5/...`); WSP must not blindly prefix and double‑nest. Resolve only when locator path is relative and does not already include the oracle root.
-- **Smoke path must be bounded:** local runs cannot stream full data. Add a CLI `--max-events` guard for WSP; default to a small number for smoke only. This is an operator tool, not a policy rule.
-- **Speedup factor lives in policy** and is available across envs, but it does not change correctness—only pacing.
-
-### Planned edits (before code)
-1) **Profiles + README**
-   - Add `policy.stream_speedup` and `wiring.oracle_root` (and `wiring.ig_ingest_url`) to `config/platform/profiles/*.yaml`.
-   - Update `config/platform/profiles/README.md` to document these fields and their intent.
-2) **WSP package scaffold**
-   - `src/fraud_detection/world_streamer_producer/{__init__,config,control_bus,runner,cli}.py`
-   - Implement config loader (profile + env interpolation).
-   - Implement READY polling (file bus v0) + run_facts_view load/validate.
-3) **Local smoke path**
-   - WSP CLI command that processes READY once and pushes a bounded number of events to IG (`/v1/ingest/push`).
-   - Makefile target `platform-wsp-ready-once` for repeatable local runs.
-
----
-
 ## Entry: 2026-01-28 13:38:12 — Applied: profiles + WSP scaffold + smoke runner
 
 ### What I changed
@@ -236,54 +181,6 @@ I am implementing Phase 1 as **engine‑rooted WSP** with no SR `run_facts_view`
 - Fail if scenario_id cannot be resolved unambiguously.
 - Fail if required gates are missing when `require_gate_pass` is true.
 - Fail if no traffic outputs are selected (to avoid silent no‑ops).
-
----
-
-## Entry: 2026-01-31 18:41:00 — Traffic stream alignment (behavioural streams only)
-
-### Trigger
-`docs/model_spec/data-engine/interface_pack/data_engine_interface.md` clarifies engine output roles and the **dual behavioural stream policy**.
-
-### Reasoning (WSP-specific)
-- WSP is the **traffic producer**, so its allowlist must reflect **behavioural streams**, not join surfaces.
-- `arrival_events_5B` is explicitly a **traffic primitive** (join surface) and must remain oracle‑only.
-- `s2_flow_anchor_baseline_6B` / `s3_flow_anchor_with_fraud_6B` are **behavioural context**, not traffic.
-- The correct traffic feeds are:
-  - `s2_event_stream_baseline_6B` (clean baseline channel)
-  - `s3_event_stream_with_fraud_6B` (post‑overlay channel)
-
-### Decision (binding for WSP v0)
-- Default WSP output allowlist is **exactly the two behavioural event streams**.
-- WSP never emits `arrival_events_5B` unless an explicit future policy adds it.
-
-### Planned edits
-- Update `config/platform/wsp/traffic_outputs_v0.yaml` to list the two event streams only.
-- Ensure the runbook points WSP stream view to those outputs.
-
-
-## Entry: 2026-01-30 10:24:24 — WSP stream_view mode (global ts_utc source)
-
-### Trigger
-Oracle Store Option C was locked: provide **time‑sorted stream views** derived from engine outputs. WSP must consume these views (not raw engine parts) for v0 parity.
-
-### Decision trail (live)
-- WSP must remain **oracle‑rooted** and never rely on SR artifacts for its source.
-- The stream view is **derived** under the engine run root and must be treated as **another oracle asset**, not a platform artifact.
-- WSP needs a **mode switch** so we can keep the legacy engine‑pull path for local smoke while making parity/dev/prod use the stream view.
-
-### Changes I’m making
-- Add `policy.stream_mode` (default `engine`) and `wiring.oracle_stream_view_root` to WSP profiles.
-- Implement **stream_view mode** in the runner:
-  - Compute `stream_view_id` **per output_id** from world identity + output_id + sort keys.
-  - Resolve stream view root (`<engine_run_root>/stream_view/ts_utc/output_id=<output_id>/<stream_view_id>`).
-  - Read `_stream_view_manifest.json` + `_stream_sort_receipt.json` per output and fail closed if missing or mismatched.
-  - Stream events per output in **time order** (no union).
-- Keep existing engine‑pull mode for `local` profile (smoke) only.
-
-### Invariants enforced
-- If `stream_mode=stream_view` and view/receipt missing → **FAIL** (no implicit fallback in parity/dev/prod).
-- Output IDs in the manifest must match the requested output_id.
-- Checkpoints remain **per‑output** (consistent with WSP v0 cursor model).
 
 ---
 
@@ -883,6 +780,32 @@ User requested real-time visibility into WSP streaming progress during parity ru
 
 ---
 
+## Entry: 2026-01-30 10:24:24 — WSP stream_view mode (global ts_utc source)
+
+### Trigger
+Oracle Store Option C was locked: provide **time‑sorted stream views** derived from engine outputs. WSP must consume these views (not raw engine parts) for v0 parity.
+
+### Decision trail (live)
+- WSP must remain **oracle‑rooted** and never rely on SR artifacts for its source.
+- The stream view is **derived** under the engine run root and must be treated as **another oracle asset**, not a platform artifact.
+- WSP needs a **mode switch** so we can keep the legacy engine‑pull path for local smoke while making parity/dev/prod use the stream view.
+
+### Changes I’m making
+- Add `policy.stream_mode` (default `engine`) and `wiring.oracle_stream_view_root` to WSP profiles.
+- Implement **stream_view mode** in the runner:
+  - Compute `stream_view_id` **per output_id** from world identity + output_id + sort keys.
+  - Resolve stream view root (`<engine_run_root>/stream_view/ts_utc/output_id=<output_id>/<stream_view_id>`).
+  - Read `_stream_view_manifest.json` + `_stream_sort_receipt.json` per output and fail closed if missing or mismatched.
+  - Stream events per output in **time order** (no union).
+- Keep existing engine‑pull mode for `local` profile (smoke) only.
+
+### Invariants enforced
+- If `stream_mode=stream_view` and view/receipt missing → **FAIL** (no implicit fallback in parity/dev/prod).
+- Output IDs in the manifest must match the requested output_id.
+- Checkpoints remain **per‑output** (consistent with WSP v0 cursor model).
+
+---
+
 ## Entry: 2026-01-30 14:06:21 — Correction: stream view root is per‑output (no stream_view_id path)
 
 ### Trigger
@@ -1000,6 +923,28 @@ Confirm WSP v0 is **green** for local_parity: READY → stream view → IG push,
 
 ---
 
+## Entry: 2026-01-31 18:41:00 — Traffic stream alignment (behavioural streams only)
+
+### Trigger
+`docs/model_spec/data-engine/interface_pack/data_engine_interface.md` clarifies engine output roles and the **dual behavioural stream policy**.
+
+### Reasoning (WSP-specific)
+- WSP is the **traffic producer**, so its allowlist must reflect **behavioural streams**, not join surfaces.
+- `arrival_events_5B` is explicitly a **traffic primitive** (join surface) and must remain oracle‑only.
+- `s2_flow_anchor_baseline_6B` / `s3_flow_anchor_with_fraud_6B` are **behavioural context**, not traffic.
+- The correct traffic feeds are:
+  - `s2_event_stream_baseline_6B` (clean baseline channel)
+  - `s3_event_stream_with_fraud_6B` (post‑overlay channel)
+
+### Decision (binding for WSP v0)
+- Default WSP output allowlist is **exactly the two behavioural event streams**.
+- WSP never emits `arrival_events_5B` unless an explicit future policy adds it.
+
+### Planned edits
+- Update `config/platform/wsp/traffic_outputs_v0.yaml` to list the two event streams only.
+- Ensure the runbook points WSP stream view to those outputs.
+
+
 ## Entry: 2026-01-31 18:50:30 — Chronology correction (entry placement)
 
 ### Note
@@ -1076,6 +1021,61 @@ User clarified v0 should run a **single traffic stream** by default (fraud) and 
 - Added WSP env overrides:
   - `WSP_TRAFFIC_OUTPUT_IDS`
   - `WSP_TRAFFIC_OUTPUT_IDS_REF`
+
+---
+
+## Entry: 2026-02-02 19:30:00 — WSP context streams (traffic + behavioural_context outputs)
+
+### Trigger
+Control & ingress plane now requires **context join surfaces** to be published as EB topics (no Context Preloader). WSP must emit context outputs alongside traffic, while keeping traffic **single‑mode per run** (baseline OR fraud).
+
+### Authorities / inputs
+- `docs/model_spec/data-engine/interface_pack/data_engine_interface.md` (roles + join map + time‑safe surfaces).
+- WSP design authority (stream‑view only, no EB writes).
+- Platform decision: traffic + context topics exposed at EB; RTDL storage/retention deferred.
+
+### Live decision trail (notes as I think)
+- WSP must stay **engine‑rooted** and **stream‑view only**; we add context outputs to the WSP plan without changing that boundary.
+- Traffic output list remains a **policy allowlist** (default fraud). Context output list is **policy‑scoped** and auto‑switches to baseline when traffic mode is baseline.
+- Keep channels **separate** (no interleaving at WSP); IG owns topic routing.
+- Output selection must fail closed on unknown outputs (catalogue is the authority).
+
+### Implementation details (what changed)
+- Added policy keys:
+  - `context_output_ids_ref` (default fraud context list)
+  - `context_output_ids_baseline_ref` (baseline mode context list)
+- WSP now merges **traffic outputs + context outputs** into a single stream plan (deduped).
+- Output roles are stamped as `business_traffic` or `behavioural_context` in WSP facts payload.
+- Gate‑PASS checks are enforced across **all** selected outputs.
+
+### Files touched (no secrets)
+- `src/fraud_detection/world_streamer_producer/config.py` (context allowlist resolution).
+- `src/fraud_detection/world_streamer_producer/runner.py` (traffic+context selection + role tagging).
+- `config/platform/profiles/*.yaml` (context output refs wired into profiles).
+- `config/platform/wsp/context_fraud_outputs_v0.yaml`
+- `config/platform/wsp/context_baseline_outputs_v0.yaml`
+
+### Invariants enforced
+- **Single‑mode traffic** per run (baseline OR fraud).
+- Context outputs are **always** emitted (arrival events, arrival entities, and the mode‑aligned flow anchor).
+- WSP continues to **push only to IG**; EB remains IG‑only.
+- **No secrets in profiles:** `oracle_root` and `ig_ingest_url` are wiring only; they can be literals or env placeholders, but never credentials.
+- **WSP should reuse legacy engine‑pull framing** to avoid downstream schema drift. The simplest safe path is to reuse IG’s `EnginePuller` + `OutputCatalogue` for event framing and payload structure, but keep WSP’s control flow separate (push to IG, never EB).
+- **Oracle root resolution:** locators may already be absolute (e.g., `runs/local_full_run-5/...`); WSP must not blindly prefix and double‑nest. Resolve only when locator path is relative and does not already include the oracle root.
+- **Smoke path must be bounded:** local runs cannot stream full data. Add a CLI `--max-events` guard for WSP; default to a small number for smoke only. This is an operator tool, not a policy rule.
+- **Speedup factor lives in policy** and is available across envs, but it does not change correctness—only pacing.
+
+### Planned edits (before code)
+1) **Profiles + README**
+   - Add `policy.stream_speedup` and `wiring.oracle_root` (and `wiring.ig_ingest_url`) to `config/platform/profiles/*.yaml`.
+   - Update `config/platform/profiles/README.md` to document these fields and their intent.
+2) **WSP package scaffold**
+   - `src/fraud_detection/world_streamer_producer/{__init__,config,control_bus,runner,cli}.py`
+   - Implement config loader (profile + env interpolation).
+   - Implement READY polling (file bus v0) + run_facts_view load/validate.
+3) **Local smoke path**
+   - WSP CLI command that processes READY once and pushes a bounded number of events to IG (`/v1/ingest/push`).
+   - Makefile target `platform-wsp-ready-once` for repeatable local runs.
 
 ---
 
