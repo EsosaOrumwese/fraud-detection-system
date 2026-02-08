@@ -3720,3 +3720,126 @@ The plan now encodes orchestration as a **platform meta-layer substrate** with e
 ### Validation
 - Post-edit drift checks run via `rg` against previously contradictory phrases (`run_id` canonical text, old IEG tuple, stale DF/DL pending wording, old traffic interleaving claim).
 - Confirmed insertion of new sections `4.6.J` and `4.6.K` and updated 4.6.A mandatory/reserved split.
+---
+## Entry: 2026-02-08 18:07:36 - 4.6.J implementation design decision (live)
+
+### Objective in this step
+Translate Phase `4.6.J` from planning language into concrete platform artifacts that prove orchestration is a **meta layer** (Run/Operate substrate), not RTDL-only wiring.
+
+### Alternatives evaluated now
+1. **Keep using makefile-only manual targets** (`platform-ig-service-parity`, `platform-ieg-projector-parity-live`, etc.)
+   - Pros: zero new runtime code.
+   - Cons: no unified lifecycle contract (`up/down/restart/status`), no shared state/evidence surface, still terminal-by-terminal behavior.
+2. **Procfile + external supervisor (honcho)**
+   - Pros: quick startup for process groups.
+   - Cons: external tool dependency and less native control over run-scope injection, status evidence, and future profile-governed semantics.
+3. **In-repo declarative orchestrator (chosen)**
+   - Pros: platform-native contract, explicit run-scope controls, pid/status evidence, process packs reusable by future planes, no RTDL hardcoding.
+   - Cons: more implementation work now.
+
+### Chosen design (v0)
+Implement a new `run_operate` orchestration module with:
+- declarative process-pack YAML contract,
+- lifecycle commands: `up`, `down`, `restart`, `status`,
+- automatic active-run resolution and run-scope env injection,
+- per-process log files and state snapshots under `runs/fraud-platform/operate/...`,
+- optional readiness probes (default liveness-backed readiness when not specified),
+- strict “no duplicate launch” protection (idempotent `up` behavior).
+
+### Plane-agnostic contract posture
+- The orchestrator will not contain event-family/business logic.
+- Plane onboarding is by process-pack files only.
+- First onboarded packs:
+  - Control/Ingress live pack,
+  - RTDL live-core pack.
+- Future planes can add packs without orchestrator code rewrite.
+
+### Files planned in next edit wave
+- New module:
+  - `src/fraud_detection/run_operate/__init__.py`
+  - `src/fraud_detection/run_operate/orchestrator.py`
+- New process packs:
+  - `config/platform/run_operate/packs/local_parity_control_ingress.v0.yaml`
+  - `config/platform/run_operate/packs/local_parity_rtdl_core.v0.yaml`
+- Make targets for lifecycle operations bound to the same orchestrator contract.
+- Tests under `tests/services/run_operate/`.
+
+### Guardrails
+- No RTDL-specific assumptions in orchestrator core.
+- No secrets persisted in orchestrator state/evidence files.
+- Keep compatibility with existing parity env vars and profile files.
+---
+## Entry: 2026-02-08 18:12:50 - 4.6.J scaffolding applied (orchestrator + packs + lifecycle targets)
+
+### Implementation actions executed
+1. Added new plane-agnostic orchestrator module:
+   - `src/fraud_detection/run_operate/orchestrator.py`
+   - `src/fraud_detection/run_operate/__init__.py`
+
+2. Added declarative process packs (local parity):
+   - `config/platform/run_operate/packs/local_parity_control_ingress.v0.yaml`
+   - `config/platform/run_operate/packs/local_parity_rtdl_core.v0.yaml`
+
+3. Wired make lifecycle targets against the same orchestrator contract:
+   - `platform-operate-control-ingress-{up,down,restart,status}`
+   - `platform-operate-rtdl-core-{up,down,restart,status}`
+   - `platform-operate-parity-{up,down,restart,status}`
+
+4. Added runbook usage section for orchestrated parity mode and evidence paths:
+   - `docs/runbooks/platform_parity_walkthrough_v0.md` section `3.1`.
+
+### Contract behavior implemented in code
+- One orchestration command surface for all packs: `up`, `down`, `restart`, `status`.
+- Pack-defined process model (no process hardcoding in orchestrator).
+- Optional env-file loading with shell-env override precedence.
+- Active run resolution and run-scope env interpolation via `ACTIVE_PLATFORM_RUN_ID`.
+- Required-run fail-closed posture for `up` when pack marks active run required.
+- Per-pack evidence surface under `runs/fraud-platform/operate/<pack_id>/`:
+  - `state.json`, `events.jsonl`, `status/last_status.json`, `logs/*.log`.
+- Readiness/liveness model:
+  - liveness from PID/process checks,
+  - readiness probes supported (`process_alive`, `tcp`, `file_exists`, `command`).
+
+### Specific 4.6.J alignment rationale
+- **Plane-agnostic:** orchestrator only understands pack schema + process lifecycle.
+- **Control/Ingress onboarded:** control_ingress pack includes IG service + WSP READY consumer.
+- **RTDL onboarded:** rtdl_core pack includes IEG/OFP/CSFB with run-scope locks.
+- **Future onboarding path:** new planes add pack files only; no orchestrator code branch required.
+
+### Open verification tasks before closure
+- Run targeted test suite for orchestrator module.
+- Smoke `status` and `up/down` commands through make targets.
+- Validate no regressions in existing platform workflows from makefile changes.
+---
+## Entry: 2026-02-08 18:14:30 - 4.6.J validation fixes and evidence
+
+### Validation pass executed
+- Targeted tests:
+  - `python -m pytest tests/services/run_operate/test_orchestrator.py -q`
+- Command-smoke checks:
+  - `python -m fraud_detection.run_operate.orchestrator --env-file .env.platform.local --pack config/platform/run_operate/packs/local_parity_control_ingress.v0.yaml status --json`
+  - `make platform-operate-control-ingress-status`
+  - `make platform-operate-rtdl-core-status`
+
+### Issues found during validation and fixes applied
+1. **Pack test YAML parsing failure on Windows interpreter path**
+   - Symptom: `yaml.scanner.ScannerError` due backslash escapes in double-quoted `sys.executable` path.
+   - Fix: test pack writer changed to dict + `yaml.safe_dump` (no manual string interpolation).
+   - File: `tests/services/run_operate/test_orchestrator.py`.
+
+2. **Probe port template parse failure in orchestrator**
+   - Symptom: loading pack failed when probe `port` used `${IG_PORT:-8081}` because port was coerced to int too early.
+   - Fix: defer probe-port int conversion until runtime env interpolation (`_resolve_probe`), keep raw token in `ProbeSpec`.
+   - File: `src/fraud_detection/run_operate/orchestrator.py`.
+
+### Results after fixes
+- `tests/services/run_operate/test_orchestrator.py` -> `3 passed`.
+- Orchestrator status command succeeds for both onboarded packs (control_ingress and rtdl_core), emitting expected stopped/not_ready rows when processes are not started.
+- Make lifecycle status targets execute successfully against same orchestrator contract.
+
+### 4.6.J implementation posture after this pass
+- Lifecycle interface is implemented and wired (`up/down/restart/status`).
+- Plane onboarding is declarative via pack files.
+- Control/Ingress and RTDL live-core are both on the same contract.
+- Run-scope enforcement exists for RTDL pack (`active_run.required=true`, `*_REQUIRED_PLATFORM_RUN_ID` interpolation).
+- Evidence surfaces are emitted under run operate state/log/status roots.

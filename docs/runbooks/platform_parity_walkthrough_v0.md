@@ -128,6 +128,39 @@ runs/fraud-platform/<platform_run_id>/
 
 ---
 
+## 3.1) Run/Operate orchestration (meta-layer lifecycle contract)
+
+Use the platform orchestrator for always-on packs instead of terminal-by-terminal startup:
+
+```
+make platform-operate-control-ingress-up
+make platform-operate-rtdl-core-up
+make platform-operate-parity-status
+```
+
+Shutdown/restart:
+
+```
+make platform-operate-parity-down
+make platform-operate-parity-restart
+```
+
+Pack and evidence surfaces:
+- Packs:
+  - `config/platform/run_operate/packs/local_parity_control_ingress.v0.yaml`
+  - `config/platform/run_operate/packs/local_parity_rtdl_core.v0.yaml`
+- Orchestrator state/logs:
+  - `runs/fraud-platform/operate/<pack_id>/state.json`
+  - `runs/fraud-platform/operate/<pack_id>/events.jsonl`
+  - `runs/fraud-platform/operate/<pack_id>/status/last_status.json`
+  - `runs/fraud-platform/operate/<pack_id>/logs/<process>.log`
+
+Notes:
+- RTDL core pack enforces active run scope via `ACTIVE_RUN_ID` -> `*_REQUIRED_PLATFORM_RUN_ID`.
+- Orchestrator contract is plane-agnostic; future planes onboard by adding new process-pack files, not by changing orchestrator code.
+
+---
+
 ## 4) Populate Oracle Store in MinIO (sync + seal + stream view)
 
 This step does **three things**: (1) copy the engine outputs into MinIO, (2) write the Oracle pack manifest + seal,

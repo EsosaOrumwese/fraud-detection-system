@@ -2579,6 +2579,9 @@ PARITY_AWS_SECRET_ACCESS_KEY ?= minio123
 PARITY_MINIO_ACCESS_KEY ?= minio
 PARITY_MINIO_SECRET_KEY ?= minio123
 PARITY_AWS_EC2_METADATA_DISABLED ?= true
+RUN_OPERATE_ENV_FILE ?= .env.platform.local
+RUN_OPERATE_PACK_CONTROL_INGRESS ?= config/platform/run_operate/packs/local_parity_control_ingress.v0.yaml
+RUN_OPERATE_PACK_RTDL_CORE ?= config/platform/run_operate/packs/local_parity_rtdl_core.v0.yaml
 
 .PHONY: platform-stack-up platform-stack-down platform-stack-status
 platform-stack-up:
@@ -2944,6 +2947,67 @@ platform-rtdl-core-parity-live:
 	@echo "  3) make platform-context-store-flow-binding-parity-live"
 	@echo "Scope: live-capable RTDL consumers in v0 parity (IEG/OFP/CSFB)."
 	@echo "DF/DL/AL/DLA remain component-runtime surfaces; they are not long-running daemons in current v0 repo posture."
+
+.PHONY: platform-operate-control-ingress-up platform-operate-control-ingress-down platform-operate-control-ingress-restart platform-operate-control-ingress-status
+platform-operate-control-ingress-up:
+	@$(PY_PLATFORM) -m fraud_detection.run_operate.orchestrator \
+		--env-file "$(RUN_OPERATE_ENV_FILE)" \
+		--pack "$(RUN_OPERATE_PACK_CONTROL_INGRESS)" up
+
+platform-operate-control-ingress-down:
+	@$(PY_PLATFORM) -m fraud_detection.run_operate.orchestrator \
+		--env-file "$(RUN_OPERATE_ENV_FILE)" \
+		--pack "$(RUN_OPERATE_PACK_CONTROL_INGRESS)" down
+
+platform-operate-control-ingress-restart:
+	@$(PY_PLATFORM) -m fraud_detection.run_operate.orchestrator \
+		--env-file "$(RUN_OPERATE_ENV_FILE)" \
+		--pack "$(RUN_OPERATE_PACK_CONTROL_INGRESS)" restart
+
+platform-operate-control-ingress-status:
+	@$(PY_PLATFORM) -m fraud_detection.run_operate.orchestrator \
+		--env-file "$(RUN_OPERATE_ENV_FILE)" \
+		--pack "$(RUN_OPERATE_PACK_CONTROL_INGRESS)" status
+
+.PHONY: platform-operate-rtdl-core-up platform-operate-rtdl-core-down platform-operate-rtdl-core-restart platform-operate-rtdl-core-status
+platform-operate-rtdl-core-up:
+	@$(PY_PLATFORM) -m fraud_detection.run_operate.orchestrator \
+		--env-file "$(RUN_OPERATE_ENV_FILE)" \
+		--pack "$(RUN_OPERATE_PACK_RTDL_CORE)" up
+
+platform-operate-rtdl-core-down:
+	@$(PY_PLATFORM) -m fraud_detection.run_operate.orchestrator \
+		--env-file "$(RUN_OPERATE_ENV_FILE)" \
+		--pack "$(RUN_OPERATE_PACK_RTDL_CORE)" down
+
+platform-operate-rtdl-core-restart:
+	@$(PY_PLATFORM) -m fraud_detection.run_operate.orchestrator \
+		--env-file "$(RUN_OPERATE_ENV_FILE)" \
+		--pack "$(RUN_OPERATE_PACK_RTDL_CORE)" restart
+
+platform-operate-rtdl-core-status:
+	@$(PY_PLATFORM) -m fraud_detection.run_operate.orchestrator \
+		--env-file "$(RUN_OPERATE_ENV_FILE)" \
+		--pack "$(RUN_OPERATE_PACK_RTDL_CORE)" status
+
+.PHONY: platform-operate-parity-up platform-operate-parity-down platform-operate-parity-restart platform-operate-parity-status
+platform-operate-parity-up:
+	@echo "Ensure parity stack is up and bootstrap complete before orchestration start."
+	@echo "Recommended preflight: make platform-parity-stack-up && make platform-parity-bootstrap && make platform-run-new"
+	@$(MAKE) platform-operate-control-ingress-up
+	@$(MAKE) platform-operate-rtdl-core-up
+
+platform-operate-parity-down:
+	@$(MAKE) platform-operate-rtdl-core-down
+	@$(MAKE) platform-operate-control-ingress-down
+
+platform-operate-parity-restart:
+	@$(MAKE) platform-operate-parity-down
+	@$(MAKE) platform-operate-parity-up
+
+platform-operate-parity-status:
+	@$(MAKE) platform-operate-control-ingress-status
+	@$(MAKE) platform-operate-rtdl-core-status
 
 .PHONY: platform-wsp-validate-local
 platform-wsp-validate-local:
