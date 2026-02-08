@@ -5,6 +5,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from datetime import datetime, timezone
 import json
+import os
 import sqlite3
 from pathlib import Path
 from typing import Any
@@ -17,7 +18,11 @@ from fraud_detection.identity_entity_graph.query import IdentityGraphQuery
 from fraud_detection.ingestion_gate.config import WiringProfile
 from fraud_detection.ingestion_gate.pg_index import is_postgres_dsn
 from fraud_detection.online_feature_plane.observability import OfpObservabilityReporter
-from fraud_detection.platform_governance import emit_platform_governance_event
+from fraud_detection.platform_governance import (
+    EvidenceRefResolutionRequest,
+    build_evidence_ref_resolution_corridor,
+    emit_platform_governance_event,
+)
 from fraud_detection.platform_runtime import RUNS_ROOT, resolve_platform_run_id
 from fraud_detection.scenario_runner.storage import (
     LocalObjectStore,
@@ -37,6 +42,7 @@ class PlatformRunReporter:
     platform_run_id: str
     store: ObjectStore
     ig_admission_locator: str
+    evidence_allowlist: tuple[str, ...]
 
     @classmethod
     def build(
@@ -63,6 +69,7 @@ class PlatformRunReporter:
             platform_run_id=run_id,
             store=store,
             ig_admission_locator=ig_wiring.admission_db_path,
+            evidence_allowlist=_evidence_allowlist_from_env(),
         )
 
     def collect(self) -> dict[str, Any]:
@@ -97,6 +104,7 @@ class PlatformRunReporter:
 
     def export(self) -> dict[str, Any]:
         payload = self.collect()
+        self._emit_evidence_resolution_events(payload)
         run_root = RUNS_ROOT / self.platform_run_id
         local_path = run_root / "obs" / "platform_run_report.json"
         local_path.parent.mkdir(parents=True, exist_ok=True)
@@ -104,7 +112,6 @@ class PlatformRunReporter:
 
         store_path = f"{_run_prefix_for_store(self.store, self.platform_run_id)}/obs/platform_run_report.json"
         self.store.write_json(store_path, payload)
-        self._emit_evidence_resolution_events(payload)
         self._emit_report_generated_event(payload)
         payload["artifact_refs"] = {
             "local_path": str(local_path),
@@ -205,6 +212,10 @@ class PlatformRunReporter:
         }
 
     def _emit_evidence_resolution_events(self, payload: dict[str, Any]) -> None:
+        corridor = build_evidence_ref_resolution_corridor(
+            store=self.store,
+            actor_allowlist=list(self.evidence_allowlist),
+        )
         evidence = _mapping(payload.get("evidence_refs"))
         refs: list[tuple[str, str]] = []
         for ref in list(evidence.get("receipt_refs_sample") or []):
@@ -215,23 +226,33 @@ class PlatformRunReporter:
             refs.append(("reconciliation_ref", str(ref)))
         scenario_run_ids = list(payload.get("scenario_run_ids") or [])
         scenario_run_id = str(scenario_run_ids[0]) if scenario_run_ids else None
+        resolved = 0
+        denied = 0
         for ref_type, ref_id in refs[:50]:
-            emit_platform_governance_event(
-                store=self.store,
-                event_family="EVIDENCE_REF_RESOLVED",
-                actor_id="svc:platform_run_reporter",
-                source_type="service",
-                source_component="platform_run_reporter",
-                platform_run_id=self.platform_run_id,
-                scenario_run_id=scenario_run_id,
-                dedupe_key=f"evidence_resolved:{ref_type}:{ref_id}",
-                details={
-                    "ref_type": ref_type,
-                    "ref_id": ref_id,
-                    "purpose": "platform_run_report",
-                    "resolution_status": "RESOLVED",
-                },
+            result = corridor.resolve(
+                EvidenceRefResolutionRequest(
+                    actor_id="svc:platform_run_reporter",
+                    source_type="service",
+                    source_component="platform_run_reporter",
+                    purpose="platform_run_report",
+                    ref_type=ref_type,
+                    ref_id=ref_id,
+                    platform_run_id=self.platform_run_id,
+                    scenario_run_id=scenario_run_id,
+                )
             )
+            if result.resolution_status == "RESOLVED":
+                resolved += 1
+            else:
+                denied += 1
+        basis = _mapping(payload.get("basis"))
+        basis["evidence_ref_resolution"] = {
+            "attempted": min(len(refs), 50),
+            "resolved": resolved,
+            "denied": denied,
+            "allowlist_size": len(self.evidence_allowlist),
+        }
+        payload["basis"] = basis
 
     def _emit_report_generated_event(self, payload: dict[str, Any]) -> None:
         emit_platform_governance_event(
@@ -247,6 +268,16 @@ class PlatformRunReporter:
                 "rtdl": payload.get("rtdl"),
             },
         )
+
+
+def _evidence_allowlist_from_env() -> tuple[str, ...]:
+    raw = (os.getenv("EVIDENCE_REF_RESOLVER_ALLOWLIST") or "").strip()
+    if not raw:
+        return ("svc:platform_run_reporter",)
+    values = tuple(item.strip() for item in raw.split(",") if item.strip())
+    if values:
+        return values
+    return ("svc:platform_run_reporter",)
 
 
 def _collect_wsp_ready_summary(store: ObjectStore, platform_run_id: str) -> dict[str, Any]:

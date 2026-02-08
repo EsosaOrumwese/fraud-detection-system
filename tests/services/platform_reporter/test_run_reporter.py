@@ -82,6 +82,7 @@ def test_platform_run_reporter_exports_cross_plane_artifact(tmp_path: Path, monk
     assert payload["rtdl"]["decision"] == 1
     assert payload["rtdl"]["outcome"] == 1
     assert payload["rtdl"]["audit_append"] == 5
+    assert payload["basis"]["evidence_ref_resolution"]["attempted"] >= 1
     assert payload["artifact_refs"]["local_path"]
     assert payload["artifact_refs"]["object_store_path"].endswith("/obs/platform_run_report.json")
 

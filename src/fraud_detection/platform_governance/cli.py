@@ -6,6 +6,11 @@ import argparse
 import json
 from typing import Any
 
+from .evidence_corridor import (
+    EvidenceRefResolutionError,
+    EvidenceRefResolutionRequest,
+    build_evidence_ref_resolution_corridor,
+)
 from .writer import build_platform_governance_writer, emit_platform_governance_event
 
 
@@ -51,6 +56,24 @@ def main() -> None:
     emit.add_argument("--ts-utc", default=None)
     emit.add_argument("--details", default="{}", help="JSON object")
 
+    resolve_ref = subparsers.add_parser("resolve-ref", help="Resolve one evidence ref through the corridor")
+    resolve_ref.add_argument("--actor-id", required=True)
+    resolve_ref.add_argument("--source-type", required=True)
+    resolve_ref.add_argument("--source-component", required=True)
+    resolve_ref.add_argument("--purpose", required=True)
+    resolve_ref.add_argument("--platform-run-id", required=True)
+    resolve_ref.add_argument("--scenario-run-id", default=None)
+    resolve_ref.add_argument("--ref-type", required=True)
+    resolve_ref.add_argument("--ref-id", required=True)
+    resolve_ref.add_argument("--observed-time", default=None)
+    resolve_ref.add_argument(
+        "--allow-actor",
+        action="append",
+        default=[],
+        help="Optional explicit allowlist actor (repeatable).",
+    )
+    resolve_ref.add_argument("--strict", action="store_true", help="Fail command if resolution is denied.")
+
     args = parser.parse_args()
     path_style: bool | None
     if args.object_store_path_style and args.no_object_store_path_style:
@@ -76,6 +99,31 @@ def main() -> None:
             limit=args.limit if args.limit > 0 else None,
         )
         print(json.dumps(rows, sort_keys=True))
+        return
+
+    if args.cmd == "resolve-ref":
+        corridor = build_evidence_ref_resolution_corridor(
+            store=writer.store,
+            actor_allowlist=list(args.allow_actor or []),
+        )
+        try:
+            result = corridor.resolve(
+                EvidenceRefResolutionRequest(
+                    actor_id=args.actor_id,
+                    source_type=args.source_type,
+                    source_component=args.source_component,
+                    purpose=args.purpose,
+                    ref_type=args.ref_type,
+                    ref_id=args.ref_id,
+                    platform_run_id=args.platform_run_id,
+                    scenario_run_id=args.scenario_run_id,
+                    observed_time=args.observed_time,
+                ),
+                raise_on_denied=args.strict,
+            )
+            print(json.dumps(result.to_dict(), sort_keys=True))
+        except EvidenceRefResolutionError as exc:
+            raise SystemExit(str(exc)) from exc
         return
 
     details = _load_details(args.details)

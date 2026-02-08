@@ -4408,3 +4408,160 @@ Ownership guardrail:
 
 ### Outcome
 - Matrix now reflects true residual scope and avoids contradictory status language.
+---
+## Entry: 2026-02-08 20:31:12 - Phase 4.6.B implementation plan (pre-change, evidence-ref resolution corridor)
+
+### Problem to close
+`4.6.B` remains FAIL because current runtime emits `EVIDENCE_REF_RESOLVED` facts opportunistically (reporter-side) without a dedicated corridor that enforces RBAC/allowlist policy and emits explicit deny/invalid-path governance anomalies.
+
+### Authority and constraints used
+- `docs/model_spec/platform/implementation_maps/platform.build_plan.md` section `4.6.B` DoD.
+- `docs/model_spec/platform/pre-design_decisions/observability_and_governance.pre-design_decisions.md` section 8 (refs visible != refs resolvable; one minimal audit record per resolution; no payload logging).
+- `docs/model_spec/platform/pre-design_decisions/run_and_operate.pre-design_decisions.md` section 10 (service-gated evidence access with authenticated identity, env-specific strictness).
+- Existing platform governance writer contract in `src/fraud_detection/platform_governance/writer.py`.
+
+### Alternatives considered
+1. Keep reporter-side direct governance emission and add only docs/tests.
+- Rejected: does not enforce access control at a corridor boundary.
+
+2. Add a standalone HTTP service first.
+- Rejected for this closure step: larger integration surface; unnecessary to establish enforceable corridor semantics in-repo.
+
+3. Add an in-repo evidence-ref corridor module and route runtime resolution through it now; keep transport-neutral so HTTP wrapping can be added later.
+- Selected: closes `4.6.B` semantics now with low operational risk and testability.
+
+### Design decisions locked before coding
+
+#### A) New corridor module (platform meta-layer)
+- Add `src/fraud_detection/platform_governance/evidence_corridor.py` with:
+  - request/result contracts for resolution attempts,
+  - strict validation of required audit fields (`actor_id`, `source_type`, `ref_type`, `ref_id`, `purpose`, `platform_run_id`),
+  - allowlist gate (`actor_id` RBAC-lite v0 posture),
+  - run-scope check (`ref_id` must match `platform_run_id` path semantics),
+  - resolver support for S3 refs + local run-root refs,
+  - governance emission on every attempt (`EVIDENCE_REF_RESOLVED`) and anomaly emission on deny/invalid/missing (`CORRIDOR_ANOMALY`).
+
+#### B) Policy source and fail-closed behavior
+- Actor allowlist sourced from explicit list or env var (`EVIDENCE_REF_RESOLVER_ALLOWLIST`).
+- If allowlist is empty, default minimal service allowlist includes `svc:platform_run_reporter` to avoid breaking existing reporter run while still enforcing gate semantics.
+- Unauthorized actor -> deny (`REF_ACCESS_DENIED`) + anomaly event.
+- Invalid ref or run-scope mismatch -> deny (`REF_INVALID` or `REF_SCOPE_MISMATCH`) + anomaly event.
+- Ref not found -> deny (`REF_NOT_FOUND`) + anomaly event.
+
+#### C) Runtime integration point
+- Replace reporter’s direct `_emit_evidence_resolution_events` path with corridor-driven resolution attempts.
+- Reporter still emits `RUN_REPORT_GENERATED`.
+- Reporter remains off hot path.
+
+#### D) Operator/validation surface
+- Extend `src/fraud_detection/platform_governance/cli.py` with `resolve-ref` command so allow/deny behavior can be exercised directly and audited.
+- Add make target wrapper for parity usage.
+
+### Invariants to enforce
+- No payload bodies are logged in governance details.
+- Every resolution attempt creates minimal audit facts.
+- Deny/invalid attempts produce explicit anomaly category.
+- Run-scope mismatch never silently resolves.
+
+### Test and evidence plan
+1. Add new unit tests for corridor:
+- allowlisted actor + valid ref -> RESOLVED + `EVIDENCE_REF_RESOLVED` only.
+- unauthorized actor -> DENIED + `EVIDENCE_REF_RESOLVED` and `CORRIDOR_ANOMALY` (`REF_ACCESS_DENIED`).
+- run-scope mismatch / invalid ref -> DENIED + anomaly.
+2. Update reporter test to continue asserting governance emissions under corridor path.
+3. Run targeted suites:
+- platform governance + corridor tests,
+- platform reporter tests,
+- existing touched suites (WSP/IG/orchestrator sanity).
+4. Live parity evidence:
+- regenerate run reporter,
+- invoke `resolve-ref` once allow and once deny,
+- query governance stream to show audit + deny anomaly facts.
+5. Update `platform.phase4_6_validation_matrix.md`, `platform.impl_actual.md`, and logbook with command evidence.
+
+### Scope boundaries
+- In scope: full `4.6.B` closure at v0 (corridor semantics, audit/anomaly events, allowlist gate, validation evidence).
+- Not in scope this step: `4.6.C` env-wide auth standardization beyond actor allowlist corridor, `4.6.E` release-stamp propagation.
+---
+## Entry: 2026-02-08 20:38:58 - Phase 4.6.B implemented and validated (post-change)
+
+### What was implemented
+Closed `4.6.B` by introducing a dedicated evidence-ref resolution corridor with explicit access control, run-scope checks, and mandatory allow/deny audit facts.
+
+#### New corridor module
+- Added `src/fraud_detection/platform_governance/evidence_corridor.py`.
+- Core behavior:
+  - validates mandatory resolution-audit fields (`actor_id`, `source_type`, `source_component`, `purpose`, `ref_type`, `ref_id`, `platform_run_id`),
+  - enforces actor allowlist gate (RBAC-lite v0 posture),
+  - enforces run-scope match (`ref_id` must map to requested `platform_run_id` path segment),
+  - resolves refs across supported locator forms (S3/store/local run-root constrained paths),
+  - emits `EVIDENCE_REF_RESOLVED` for every attempt,
+  - emits `CORRIDOR_ANOMALY` for deny/invalid/missing outcomes (`REF_ACCESS_DENIED`, `REF_SCOPE_MISMATCH`, `REF_NOT_FOUND`, etc.),
+  - never logs payload contents.
+
+#### CLI + operator surface
+- Extended `src/fraud_detection/platform_governance/cli.py` with `resolve-ref` command.
+- Added make wrapper `platform-evidence-ref-resolve` in `makefile`.
+- Added new make vars for actor/source/purpose/ref inputs.
+
+#### Runtime integration
+- Updated `src/fraud_detection/platform_reporter/run_reporter.py`:
+  - reporter evidence-ref auditing now routes through corridor (not direct synthetic governance emits),
+  - reporter basis now records `evidence_ref_resolution` summary (`attempted/resolved/denied/allowlist_size`),
+  - run report export order adjusted so corridor summary is persisted in artifact.
+
+#### Package export updates
+- Updated `src/fraud_detection/platform_governance/__init__.py` to export corridor contracts/builders.
+
+### Tests added/updated
+- Added `tests/services/platform_governance/test_evidence_corridor.py`:
+  - allowlisted resolve path,
+  - denied actor path with anomaly,
+  - run-scope mismatch path with anomaly.
+- Updated `tests/services/platform_reporter/test_run_reporter.py` to assert corridor summary is included in report basis.
+
+### Validation results
+- `python -m pytest tests/services/platform_governance/test_writer.py -q` -> `3 passed`
+- `python -m pytest tests/services/platform_governance/test_evidence_corridor.py -q` -> `3 passed`
+- `python -m pytest tests/services/platform_reporter/test_run_reporter.py -q` -> `1 passed`
+- `python -m pytest tests/services/world_streamer_producer/test_ready_consumer.py -q` -> `4 passed`
+- `python -m pytest tests/services/ingestion_gate/test_admission.py -q` -> `7 passed`
+- `python -m pytest tests/services/run_operate/test_orchestrator.py -q` -> `4 passed`
+
+### Live parity evidence (corridor allow + deny)
+Run scope used: `platform_run_id=platform_20260208T201742Z`, `scenario_run_id=5f10ddc9775b9f95076771be4b0d979d`.
+
+1) Regenerated report with corridor-integrated evidence auditing:
+- `make platform-run-report PLATFORM_PROFILE=config/platform/profiles/local_parity.yaml PLATFORM_RUN_ID=platform_20260208T201742Z`
+- Output included basis summary:
+  - `evidence_ref_resolution={attempted:50,resolved:50,denied:0,allowlist_size:1}`
+- Artifact path:
+  - `runs/fraud-platform/platform_20260208T201742Z/obs/platform_run_report.json`
+
+2) Explicit corridor allow probe:
+- `make platform-evidence-ref-resolve ... EVIDENCE_REF_ACTOR_ID=svc:platform_run_reporter ...`
+- Result: `resolution_status=RESOLVED`, `ref_exists=true`.
+
+3) Explicit corridor deny probe:
+- `make platform-evidence-ref-resolve ... EVIDENCE_REF_ACTOR_ID=svc:unauthorized EVIDENCE_REF_ALLOW_ACTOR=svc:platform_run_reporter`
+- Result: `resolution_status=DENIED`, `reason_code=REF_ACCESS_DENIED`.
+
+4) Governance stream rollup:
+- `make platform-governance-query PLATFORM_RUN_ID=platform_20260208T201742Z GOVERNANCE_QUERY_LIMIT=1000`
+- Parsed rollup captured:
+  - families included `EVIDENCE_REF_RESOLVED` and `CORRIDOR_ANOMALY`,
+  - anomaly reason observed: `REF_ACCESS_DENIED`.
+
+### Execution note (non-functional)
+- A transient `S3_APPEND_CONFLICT` occurred when allow + deny probes were launched in parallel against the same governance JSONL key.
+- No code change required; reran probe sequentially and recorded sequential command outputs as canonical evidence.
+
+### Matrix update applied
+- Updated `docs/model_spec/platform/implementation_maps/platform.phase4_6_validation_matrix.md`:
+  - `4.6.B` changed to PASS with implementation + test + live evidence references.
+  - status summary now: PASS `4.6.A`, `4.6.B`, `4.6.D`, `4.6.F`, `4.6.J`.
+  - overall 4.6 blockers reduced to `4.6.C`, `4.6.E`, `4.6.G`, `4.6.H`, `4.6.I`.
+
+### Security hygiene confirmation
+- Corridor emits metadata-only governance facts.
+- No payload content, capability tokens, or credentials were written to docs/logbook entries.

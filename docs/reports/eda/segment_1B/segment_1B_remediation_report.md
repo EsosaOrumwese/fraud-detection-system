@@ -331,6 +331,259 @@ Below is the ranked option set for 1B, ordered by expected impact on failing rea
 
 ## 5) Chosen Fix Spec (Exact Parameter/Code Deltas)
 
+For Segment 1B, the chosen fix is a coordinated `S2 + S4 + S6 + S9` bundle with contract updates.  
+This is the smallest implementation set that can move concentration and geometry realism without breaking deterministic replay.
+
+### 5.1 Policy delta: upgrade S2 from single-basis weighting to constrained blended weighting
+File to update:
+1. `config/layer1/1B/policy/policy.s2.tile_weights.yaml`
+
+Current posture:
+1. Policy only carries `basis`, `dp`, and minimal metadata.
+2. Weight construction is under-parameterized for concentration and regional breadth control.
+
+Chosen delta:
+1. Keep existing keys for backward compatibility.
+2. Add a new policy block `blend_v2` with:
+- `enabled: true`
+- `basis_mix`:
+- `uniform`
+- `area_m2`
+- `population`
+- `region_floor_share` (per macro region)
+- `country_cap_share_soft` and `country_cap_share_hard`
+- `topk_cap_targets` (`top1`, `top5`, `top10`)
+- `concentration_penalty_strength`
+- `deterministic_seed_namespace`
+3. Add `fallback_mode: legacy_basis_only` when `blend_v2.enabled` is false.
+
+Expected effect:
+1. Prevents pure prior-driven collapse into a few dominant countries.
+2. Gives explicit policy levers for B/B+ concentration bands.
+
+### 5.2 Runner delta: implement constrained deterministic rebalance in S2
+File to update:
+1. `packages/engine/src/engine/layers/l1/seg_1B/s2_tile_weights/runner.py`
+
+Current posture:
+1. Computes normalized tile weights from one basis stream.
+2. No balancing pass for region floors or concentration caps.
+
+Chosen delta:
+1. Add a two-pass algorithm:
+- Pass A: compute raw tile mass from `basis_mix`.
+- Pass B: constrained rebalance loop:
+- enforce region floors first,
+- enforce country soft/hard caps second,
+- apply concentration penalty until convergence or max iterations.
+2. Preserve deterministic ordering and seeded behavior so replay remains stable.
+3. Emit diagnostics sidecar metrics (for validation consumption):
+- `country_share_topk`
+- `country_gini_proxy`
+- `region_share_vector`.
+
+Expected effect:
+1. Changes macro mass shape where current report shows strongest realism failure.
+2. Reduces concentration without random instability.
+
+### 5.3 Allocation delta: enforce anti-collapse in S4 assignment step
+File to update:
+1. `packages/engine/src/engine/layers/l1/seg_1B/s4_alloc_plan/runner.py`
+
+Current posture:
+1. Alloc plan follows requirements and S2 weights but has no explicit anti-collapse controls.
+2. Re-concentration can reappear during integer assignment.
+
+Chosen delta:
+1. Add assignment-time guardrails:
+- `country_share_soft_guard` during running allocation,
+- reroute marginal assignments to next eligible tile when guard breached,
+- retain deterministic tie-breaking key.
+2. Add bounded residual redistribution at end of assignment:
+- fill deficits in under-floor regions,
+- then normalize remainder by weighted priority.
+
+Expected effect:
+1. Keeps S2 realism gains from being undone during discrete allocation.
+2. Improves country coverage breadth in final assigned tile counts.
+
+### 5.4 Jitter delta: replace uniform-in-cell synthesis with policy-driven mixture jitter
+File to update:
+1. `packages/engine/src/engine/layers/l1/seg_1B/s6_site_jitter/runner.py`
+
+Current posture:
+1. Predominantly uniform-in-tile jitter.
+2. Produces template-like stripe/corridor motifs in some countries.
+
+Chosen delta:
+1. Introduce `jitter_policy_v2` mode:
+- `core_cluster_component` (urban center pull),
+- `secondary_cluster_component`,
+- `sparse_tail_component` (bounded probability),
+- per-country-class parameter defaults.
+2. Keep point-in-country validity checks and deterministic retry order.
+3. Add hard clamp to prevent pathological far-tail draws.
+
+Expected effect:
+1. Reduces repeated geometric motifs and improves within-country realism.
+2. Contracts nearest-neighbor extreme tail while preserving dense cores.
+
+### 5.5 Validation delta: promote realism checks to fail-closed gates in S9
+File to update:
+1. `packages/engine/src/engine/layers/l1/seg_1B/s9_validation_bundle/runner.py`
+
+Current posture:
+1. Strong structural and contract checks.
+2. Realism metrics are informative but non-binding.
+
+Chosen delta:
+1. Add hard realism gates:
+- country concentration (`Gini`, `top1`, `top5`, `top10`),
+- active-country coverage floor,
+- region-floor compliance,
+- southern-hemisphere share floor,
+- nearest-neighbor tail ratio ceiling (`p99/p50`).
+2. Gate result:
+- `PASS` only when structural and realism checks both pass.
+3. Emit threshold + observed + breach reason in validation evidence bundle.
+
+Expected effect:
+1. Prevents future structurally-correct but statistically-poor outputs from passing.
+
+### 5.6 Contract and schema deltas (required for clean governance)
+Files to update:
+1. `docs/model_spec/data-engine/layer-1/specs/contracts/1B/schemas.1B.yaml`
+2. `docs/model_spec/data-engine/layer-1/specs/contracts/1B/dataset_dictionary.layer1.1B.yaml`
+
+Chosen delta:
+1. Extend `s2_tile_weights_policy` schema with `blend_v2` and concentration controls.
+2. Activate and formalize `jitter_policy` fields (currently reserved) for `S6`.
+3. Add realism metric fields expected in S9 validation output contract.
+4. Preserve compatibility path:
+- new fields optional under legacy mode,
+- default behavior remains old path when fields absent.
+
+Expected effect:
+1. Makes policy-to-implementation mapping explicit and auditable.
+2. Avoids hidden runtime knobs outside contract governance.
+
+### 5.7 Determinism and migration controls
+Chosen controls:
+1. Keep deterministic seed namespaces per step (`S2`, `S4`, `S6`).
+2. Introduce policy version bump (`v2`) and include version hash in artifacts.
+3. Maintain a legacy fallback path for comparison runs.
+4. Require side-by-side baseline vs v2 replay at identical seeds before promotion.
+
+Why this matters:
+1. Remediation is statistical, but provenance and replay guarantees remain non-negotiable.
+2. We need clean attribution from policy delta to realism lift.
+
+### 5.8 Initial parameterization for first remediation run (wave-0)
+Starting values (to tune in validation loop):
+1. `basis_mix`: `uniform=0.20`, `area_m2=0.35`, `population=0.45`.
+2. `country_cap_share_soft`: set at baseline minus 10-15 percentage points for dominant countries.
+3. `country_cap_share_hard`: soft cap + 3 percentage points.
+4. `region_floor_share`: explicit nonzero floors for underrepresented regions.
+5. `sparse_tail_component`: low bounded mass to avoid long-distance pathologies.
+
+Purpose:
+1. Move quickly out of current failure regime while preserving enough flexibility for tuning.
+
 ## 6) Validation Tests + Thresholds
+
+### 6.1 Validation objective
+Validate that the Section 5 fix bundle (`S2+S4+S6+S9`) produces:
+1. Structural correctness unchanged.
+2. Statistically realistic global spatial posture at `B` minimum.
+3. Stable performance across seeds.
+4. No hidden regressions passed by aggregate-only metrics.
+
+### 6.2 Run protocol (required)
+1. Compare `baseline` vs `v2-remediation` under identical scenario and ingest.
+2. Use seed set: `{42, 7, 101, 202}`.
+3. Run full 1B chain at minimum: `S2 -> S4 -> S6 -> S8 -> S9`.
+4. Store all metrics per seed and pooled aggregate.
+5. Validate both per-seed and pooled; pooled PASS is invalid if any seed fails hard gate.
+
+### 6.3 Hard gates (fail-closed, all must pass)
+1. Structural integrity:
+- row parity and key integrity: PASS
+- coordinate bounds validity: `100%` valid
+- schema/bundle compliance: PASS
+
+2. Concentration realism:
+- country concentration Gini: `<= 0.68` (`B`), `<= 0.60` (`B+`)
+- top-10% country share: `<= 50%` (`B`), `<= 42%` (`B+`)
+- top-5% country share: `<= 33%` (`B`), `<= 27%` (`B+`)
+- top-1% country share: `<= 10%` (`B`), `<= 8%` (`B+`)
+
+3. Coverage realism:
+- eligible countries with nonzero sites: `>= 85%` (`B`), `>= 92%` (`B+`)
+- southern hemisphere site share: `>= 12%` (`B`), `>= 18%` (`B+`)
+- region floor constraints: all configured floors satisfied (no exceptions)
+
+4. Local geometry realism:
+- nearest-neighbor `p99/p50` tail ratio improves by:
+- `>= 20%` vs baseline for `B`
+- `>= 35%` vs baseline for `B+`
+- no country in top-volume cohort may show stripe/corridor collapse sentinel = TRUE
+
+### 6.4 Soft diagnostics (non-blocking but tracked)
+1. Country-level entropy distribution shift.
+2. Within-country multi-cluster evidence score.
+3. Bounding-box dispersion sanity by country class.
+4. Top-country dominance gap (`top1-top2`) distribution.
+5. Country-to-region contribution balance drift.
+
+Soft diagnostics do not fail the run directly, but two consecutive adverse drifts require policy retune before promotion.
+
+### 6.5 Statistical tests (evidence layer)
+1. Distribution shift tests:
+- KS test for NN distance distribution (`baseline` vs `v2`) per seed.
+- Mann-Whitney U for median NN distance shift on top countries.
+
+2. Concentration significance:
+- bootstrap CI for Gini and top-k shares (95% CI).
+- PASS requires upper CI bound below gate threshold for `B/B+`.
+
+3. Stability significance:
+- coefficient of variation across seeds for core metrics:
+- `<= 0.30` for `B`
+- `<= 0.20` for `B+`
+
+### 6.6 Stage-mapped checks (where to test)
+1. `S2` checks:
+- basis mix sums to 1
+- region floors/caps applied
+- country-share preliminary metrics emitted
+
+2. `S4` checks:
+- assignment preserves S2 balancing intent
+- no post-assignment reconcentration breach
+
+3. `S6` checks:
+- jitter mode `v2` active
+- kernel mixture proportions respected
+- point-in-country validity retained
+
+4. `S8` checks:
+- final site location realism metrics computed
+- no contract regressions
+
+5. `S9` checks:
+- realism gates evaluated fail-closed
+- threshold + observed + breach reason written to bundle
+
+### 6.7 Promotion criteria
+1. Promote to `B` when all hard gates pass for all seeds and stability criteria meet `B`.
+2. Promote to `B+` only when all hard gates meet `B+` thresholds for all seeds and stability criteria meet `B+`.
+3. Any single hard-gate fail blocks promotion and triggers retune cycle.
+
+### 6.8 Failure triage map (fast diagnosis)
+1. Gini/top-k fail only -> retune `S2` caps and concentration penalty.
+2. Region floor fail with good Gini -> retune `S4` redistribution guard.
+3. NN tail fail with concentration pass -> retune `S6` sparse-tail component.
+4. Seed instability fail with mean pass -> tighten deterministic balancing and reduce high-sensitivity knobs.
+5. Structural fail at any stage -> rollback and fix implementation before further realism tuning.
 
 ## 7) Expected Grade Lift (Local + Downstream Impact)

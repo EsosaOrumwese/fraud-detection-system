@@ -2529,6 +2529,14 @@ PLATFORM_RUN_ID ?=
 PLATFORM_RUN_ID_NEW ?=
 GOVERNANCE_EVENT_FAMILY ?=
 GOVERNANCE_QUERY_LIMIT ?= 200
+EVIDENCE_REF_ACTOR_ID ?= svc:platform_run_reporter
+EVIDENCE_REF_SOURCE_TYPE ?= service
+EVIDENCE_REF_SOURCE_COMPONENT ?= platform_run_reporter
+EVIDENCE_REF_PURPOSE ?= platform_run_report
+EVIDENCE_REF_TYPE ?=
+EVIDENCE_REF_ID ?=
+EVIDENCE_REF_STRICT ?= 0
+EVIDENCE_REF_ALLOW_ACTOR ?=
 WSP_PROFILE ?= config/platform/profiles/local.yaml
 WSP_PROFILE_PARITY ?= config/platform/profiles/local_parity.yaml
 IEG_PROFILE_PARITY ?= config/platform/profiles/local_parity.yaml
@@ -3058,6 +3066,38 @@ platform-governance-query:
 		query --platform-run-id "$$run_id" \
 		$(if $(GOVERNANCE_EVENT_FAMILY),--event-family "$(GOVERNANCE_EVENT_FAMILY)",) \
 		--limit "$(GOVERNANCE_QUERY_LIMIT)"
+
+.PHONY: platform-evidence-ref-resolve
+platform-evidence-ref-resolve:
+	@if [ -z "$(EVIDENCE_REF_TYPE)" ] || [ -z "$(EVIDENCE_REF_ID)" ]; then \
+		echo "platform-evidence-ref-resolve requires EVIDENCE_REF_TYPE and EVIDENCE_REF_ID" >&2; \
+		exit 1; \
+	fi
+	@run_id="$(PLATFORM_RUN_ID)"; \
+	if [ -z "$$run_id" ] && [ -f runs/fraud-platform/ACTIVE_RUN_ID ]; then \
+		run_id=$$(tr -d '\r\n' < runs/fraud-platform/ACTIVE_RUN_ID); \
+	fi; \
+	if [ -z "$$run_id" ]; then \
+		echo "platform-evidence-ref-resolve requires PLATFORM_RUN_ID or runs/fraud-platform/ACTIVE_RUN_ID" >&2; \
+		exit 1; \
+	fi; \
+	OBJECT_STORE_ENDPOINT="$(PARITY_OBJECT_STORE_ENDPOINT)" \
+	OBJECT_STORE_REGION="$(PARITY_OBJECT_STORE_REGION)" \
+	AWS_ACCESS_KEY_ID="$(PARITY_MINIO_ACCESS_KEY)" \
+	AWS_SECRET_ACCESS_KEY="$(PARITY_MINIO_SECRET_KEY)" \
+	AWS_EC2_METADATA_DISABLED="$(PARITY_AWS_EC2_METADATA_DISABLED)" \
+	$(PY_PLATFORM) -m fraud_detection.platform_governance.cli \
+		$(if $(PLATFORM_STORE_ROOT),--object-store-root "$(PLATFORM_STORE_ROOT)",) \
+		resolve-ref \
+		--actor-id "$(EVIDENCE_REF_ACTOR_ID)" \
+		--source-type "$(EVIDENCE_REF_SOURCE_TYPE)" \
+		--source-component "$(EVIDENCE_REF_SOURCE_COMPONENT)" \
+		--purpose "$(EVIDENCE_REF_PURPOSE)" \
+		--platform-run-id "$$run_id" \
+		--ref-type "$(EVIDENCE_REF_TYPE)" \
+		--ref-id "$(EVIDENCE_REF_ID)" \
+		$(if $(EVIDENCE_REF_ALLOW_ACTOR),--allow-actor "$(EVIDENCE_REF_ALLOW_ACTOR)",) \
+		$(if $(filter 1 true yes,$(EVIDENCE_REF_STRICT)),--strict,)
 
 .PHONY: platform-wsp-validate-local
 platform-wsp-validate-local:
