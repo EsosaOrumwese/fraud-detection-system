@@ -372,7 +372,7 @@ It must prevent "looks better" claims without statistically defensible evidence.
 4. Critical failures are fail-closed (no seal override).
 
 ### 6.3 Test catalog (core gates)
-Baseline values below are from `segment_6B_published_report.md`; where exact numeric values were not computed in the analytical pass, a nearest proxy is marked explicitly.
+Baseline values below are from `segment_6B_published_report.md` plus exact recomputation on the sealed run for the previously proxy-only rows (`T6`, `T7`, `T18`, `T20`).
 
 | ID | Surface | Metric | Current value (baseline run) | `B` threshold | `B+` threshold | Severity |
 |---|---|---|---|---|---|---|
@@ -381,8 +381,8 @@ Baseline values below are from `segment_6B_published_report.md`; where exact num
 | T3 | Truth coherence | `% non-overlay NONE rows mapped LEGIT` | `0.0%` (non-fraud rows map to `ABUSE`) | `>= 99.0%` | `>= 99.5%` | CRITICAL |
 | T4 | S3->S4 coherence | `% campaign-tagged rows mapped non-LEGIT` | `100.0%` (`7,342/7,342`) | `>= 99.0%` | `>= 99.5%` | HIGH |
 | T5 | Bank stratification (class) | Cramer's V(`bank_view_outcome`, `merchant_class`) | `0.00178` | `>= 0.05` | `>= 0.08` | CRITICAL |
-| T6 | Bank stratification (amount) | association strength(`amount`, `bank_view_outcome`) | proxy: corr = `-0.000185`, d = `-0.00051` | `>= 0.05` effect-size floor | `>= 0.08` effect-size floor | CRITICAL |
-| T7 | Bank spread | `max-min bank fraud rate` (class-conditioned) | approx `<= 0.011` in sampled heatmap; flat core bins ~`0.155` | `>= 0.03` | `>= 0.05` | HIGH |
+| T6 | Bank stratification (amount) | association strength(`amount`, `bank_view_outcome`) | exact full-run: corr = `-0.0000512`, Cohen's d = `-0.0001415` | `>= 0.05` effect-size floor | `>= 0.08` effect-size floor | CRITICAL |
+| T7 | Bank spread | `max-min bank fraud rate` (class-conditioned) | exact full-run: spread = `0.001062` (min `0.154206`, max `0.155268`) | `>= 0.03` | `>= 0.05` | HIGH |
 | T8 | Case validity | negative gap rate | `~12.9%` (sample) | `= 0` | `= 0` | CRITICAL |
 | T9 | Case templating | fixed-spike share (`3600s + 86400/86401s`) | `~100%` in sampled duration mass | `<= 0.50` | `<= 0.25` | CRITICAL |
 | T10 | Case monotonicity | `% cases with non-monotonic event times` | `100%` sampled cases with at least one negative gap | `= 0` | `= 0` | CRITICAL |
@@ -393,9 +393,9 @@ Baseline values below are from `segment_6B_published_report.md`; where exact num
 | T15 | Timing tail | auth latency `p99` | `0s` | `> 30s` | `> 45s` | HIGH |
 | T16 | Timing degeneracy | exact-zero latency share | `1.00` | `<= 0.20` | `<= 0.05` | HIGH |
 | T17 | Campaign depth | median distinct affected classes per campaign | `8` classes observed per campaign but with identical rank profile (no targeting specificity) | `>= 2` + non-uniform targeting evidence | `>= 3` + strong targeting differentiation | MED |
-| T18 | Campaign geo depth | median distinct countries per campaign | not directly measured; proxy shows campaigns all ~`93-95%` cross-border with similar posture | `>= 2` + differentiated corridor profile | `>= 3` + strong differentiated corridor profile | MED |
+| T18 | Campaign geo depth | median distinct countries per campaign | exact full-run (campaign-tagged rows): median distinct party countries = `64`, median distinct merchant countries = `47`; campaign cross-border range `0.9004-0.9192` (spread `0.0188`) | `>= 2` + differentiated corridor profile | `>= 3` + strong differentiated corridor profile | MED |
 | T19 | Session realism | singleton-session share | `99.939%` (`multi-arrival rate = 0.061%`) | `<= 0.85` | `<= 0.75` | MED |
-| T20 | Attachment richness | median linked entities per party-session key | not directly measured; proxies: `party->merchant p50=1, p90=2` | exceed baseline by defined uplift | stronger uplift | MED |
+| T20 | Attachment richness | median linked entities per party-session key | exact full-run: median = `5`, p90 = `5`, max = `6` (`n=124,647,685` party-session keys) | exceed baseline by defined uplift | stronger uplift | MED |
 | T21 | Policy execution coverage | fraction of configured stochastic branches exercised (timing, delay distributions, amount tails) | `0/3` evidenced as bypassed in lean path | `>= 2/3` | `3/3` | CRITICAL |
 | T22 | Truth-rule collision guard | reduced-key truth-map collisions in S4 mapping path | `FAIL` (collision present for `fraud_pattern_type=NONE`) | `0` collisions | `0` collisions + explicit assertion test | CRITICAL |
 
