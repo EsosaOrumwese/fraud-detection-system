@@ -3425,3 +3425,119 @@ Replayed with run scope + `OFP_EVENT_BUS_START_POSITION=trim_horizon`:
 The OFP undercount is closed for the validated run, and parity live defaults now prevent this startup-loss mode by default.
 
 ---
+## Entry: 2026-02-08 16:18:00 - Runbook parity walkthrough consistency verification (requested)
+
+### Trigger
+User requested confirmation that `docs/runbooks/platform_parity_walkthrough_v0.md` is correct and up to date.
+
+### Verification executed
+1. Checked all runbook-referenced `make` targets against current makefile phony targets.
+   - Result: `17` referenced targets, missing `0`.
+2. Re-ran baseline validation suites used as expected outcomes in sections 16/17/19/20:
+   - `tests/services/degrade_ladder -q` -> `40 passed`
+   - `tests/services/decision_fabric -q` -> `69 passed`
+   - `tests/services/action_layer/test_phase8_validation_matrix.py -q` -> `3 passed`
+   - `tests/services/action_layer -q` -> `45 passed`
+   - `tests/services/decision_log_audit/test_dla_phase8_validation_matrix.py -q` -> `4 passed`
+   - `tests/services/decision_log_audit -q` -> `36 passed`
+
+### Corrections applied
+- Updated runbook metadata date to `2026-02-08`.
+- Corrected DLA Phase 8 expected result from `3 passed` to `4 passed`.
+- Removed duplicated WSP checklist line under section 14.
+- Preserved prior OFP live startup note (`trim_horizon` default + `latest` override).
+
+### Outcome
+Runbook now matches current repository targets and observed validation baselines for RTDL parity workflow.
+
+---
+## Entry: 2026-02-08 16:25:41 - Consolidated narrative of last 200-event parity run (requested)
+
+### Purpose
+Provide one complete, auditable narrative of the most recent 200-event parity run across components, including explicit clarification of decision-layer validation posture.
+
+### Run identity and scope
+- `platform_run_id=platform_20260208T151238Z`
+- `scenario_run_id=9bad140a881372d00895211fae6b3789`
+- traffic mode: fraud (`s3_event_stream_with_fraud_6B`)
+- cap policy: `WSP_MAX_EVENTS_PER_OUTPUT=200`, concurrency `4` outputs
+
+### End-to-end timeline (UTC)
+1. `15:16:39` - SR committed and published READY on control bus.
+2. `15:16:48` - WSP consumed READY and selected world root.
+3. `15:16:49` - WSP started 4 concurrent output streams:
+   - `s3_event_stream_with_fraud_6B` (traffic),
+   - `arrival_events_5B`,
+   - `s1_arrival_entities_6B`,
+   - `s3_flow_anchor_with_fraud_6B`.
+4. `15:16:52` to `15:21:55` - IG admitted and published events to EB.
+5. `15:21:47` to `15:21:55` - WSP stopped each output at `200` events (`max_events`) and emitted terminal `stream_complete`.
+6. Post-stream reconciliation:
+   - IEG and CSFB reflected expected run-scoped state immediately after consume windows.
+   - OFP initially observed `194/200` due startup-position race, then closed to `200/200` after parity default hardening + run-scoped replay.
+
+### Component-by-component flow narrative
+1. **SR (readiness authority)**
+   - Produced run facts/status and READY control message for the scenario run.
+   - Evidence: session + platform narrative log entries for READY publish.
+
+2. **WSP (world stream producer)**
+   - Read READY and streamed from Oracle stream view with deterministic per-output ordering.
+   - Produced exactly `800` envelopes total (`200 x 4 outputs`) and terminal `STREAMED`.
+   - Event families emitted:
+     - `s3_event_stream_with_fraud_6B` (`traffic_fraud`) `200`
+     - `arrival_events_5B` (`context_arrival`) `200`
+     - `s1_arrival_entities_6B` (`context_arrival_entities`) `200`
+     - `s3_flow_anchor_with_fraud_6B` (`context_flow_fraud`) `200`
+
+3. **IG (trust-boundary admission authority)**
+   - Validated envelopes and emitted receipts with EB refs.
+   - Scenario receipts: `800`
+   - Decisions: `ADMIT=800`, `DUPLICATE=0`, `QUARANTINE=0`
+   - Receipt invariants observed:
+     - `schema_version=v1` across scenario receipts,
+     - single `policy_rev` (`local-parity-v0`),
+     - single `run_config_digest` (`f00e...`) across receipt set.
+
+4. **EB (Kinesis backend for Event Bus component)**
+   - Scenario-filtered records matched admissions exactly:
+     - `fp.bus.traffic.fraud.v1=200`
+     - `fp.bus.context.arrival_events.v1=200`
+     - `fp.bus.context.arrival_entities.v1=200`
+     - `fp.bus.context.flow_anchor.fraud.v1=200`
+
+5. **IEG (live core projector)**
+   - Consumed run-scoped traffic/context stream families under shared-stream rules.
+   - Metrics: `events_seen=800`, `mutating_applied=800`, `apply_failure_count=0`.
+   - No apply-failure rows for run/scenario.
+
+6. **CSFB (join plane)**
+   - Consumed context families and materialized join readiness/bindings.
+   - Run-scoped evidence:
+     - intake dedupe `600` (`200` per context class),
+     - join frames `250`,
+     - flow bindings `200`,
+     - join apply failures `0`.
+
+7. **OFP (feature projector)**
+   - Initial live parity pass showed `events_seen=194`, `events_applied=194` (traffic only).
+   - Root cause: live startup at `LATEST` skipped earliest 6 sequence numbers.
+   - Closure:
+     - parity default changed to `trim_horizon`,
+     - run-scoped OFP replay performed,
+     - final run evidence: `events_seen=200`, `events_applied=200`, missing offsets `0`.
+
+### Clarification: “decision-layer validated in current v0 posture via component matrices (not daemon mode)”
+Meaning in this run:
+1. `IEG/OFP/CSFB` were exercised as live parity consumers (daemon/live runtime posture).
+2. `DF/DL/AL/DLA` were validated at their implemented v0 boundaries through component matrices (pytest suites), not as always-on daemons attached to this live run.
+3. Green evidence captured for this run window:
+   - `tests/services/degrade_ladder -q` -> `40 passed`
+   - `tests/services/decision_fabric -q` -> `69 passed`
+   - `tests/services/action_layer/test_phase8_validation_matrix.py -q` -> `3 passed`
+   - `tests/services/decision_log_audit/test_dla_phase8_validation_matrix.py -q` -> `4 passed`
+
+### Outcome
+The 200-event parity run is now fully documented with closed OFP gap, and the runtime-vs-matrix validation boundary is explicitly pinned for reviewers.
+
+---
