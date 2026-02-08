@@ -370,7 +370,360 @@ Rationale:
 3. It aligns with Section 3 dependency chain (`S1 -> S3 -> S4`, then harden with validation and upstream coordination).
 
 ## 5) Chosen Fix Spec (Exact Parameter/Code Deltas)
+This section locks the exact remediation package selected from Section 4.  
+Scope here is specification only (no implementation in this document).
+
+### 5.1 Chosen package (must ship together)
+1. **S1 heterogeneity activation** (primary causal fix).
+2. **S3 volatility heterogeneity** (secondary causal fix).
+3. **S4 anti-collapse regularization** (bounded tuning layer; applied after S1/S3).
+4. **S5 realism-grade validation roster + hard gates** (governance lock to prevent false PASS).
+
+Rationale for coupling:
+1. S1 fixes spatial prior collapse.
+2. S3 restores merchant/time heterogeneity.
+3. S4 then tunes dominance tails without fabricating diversity.
+4. S5 ensures the segment cannot be re-certified using shallow smoke profiles.
+
+### 5.2 Exact policy deltas
+#### 5.2.1 S1 policy delta (site-weight generator)
+File:
+1. `config/layer1/2B/policy/alias_layout_policy_v1.json`
+
+Current posture:
+1. `weight_source.mode = "uniform"` (deterministic equal-share by construction).
+
+Required delta:
+1. Replace with `weight_source.mode = "profile_mixture_v2"`.
+2. Add block `profile_mixture_v2` with:
+   - `merchant_size_buckets` (`small`, `mid`, `large`)
+   - `mixture_weights` (`hub_spoke`, `heavy_tail`, `near_uniform`)
+   - `concentration_alpha_by_bucket`
+   - `top1_soft_cap_by_bucket`
+   - `min_secondary_mass`
+   - `deterministic_seed_scope = "merchant_id"`
+3. Keep alias/hash/checksum schema unchanged.
+4. Keep hard normalization contract (`sum(weights)=1`) unchanged.
+
+Expected direct movement:
+1. `|p_weight - 1/N|` median rises out of collapse region.
+2. Merchant `top1-top2` gaps become non-zero and cohort-dependent.
+3. HHI/entropy spread broadens from deterministic uniform signature.
+
+#### 5.2.2 S3 policy delta (day-effect volatility structure)
+File:
+1. `config/layer1/2B/policy/day_effect_policy_v1.json`
+
+Current posture:
+1. Single scalar `sigma_gamma` acts as one effective volatility regime.
+
+Required delta:
+1. Replace scalar with `sigma_gamma_policy_v2`:
+   - `sigma_base_by_segment`
+   - `sigma_multiplier_by_tz_group`
+   - `sigma_jitter_by_merchant` (bounded deterministic jitter)
+   - `weekly_component_amp_by_segment`
+   - bounds: `sigma_min`, `sigma_max`, `gamma_clip`
+2. Preserve aggregate gamma center (around 1.0) while increasing local spread.
+
+Expected direct movement:
+1. Non-degenerate merchant-level volatility distribution.
+2. Distinguishable tz-group temporal signatures.
+3. Better explainability of time behavior in downstream routing/fraud features.
+
+#### 5.2.3 S4 policy delta (anti-collapse tuner)
+Policy surface:
+1. Add/extend 2B S4 policy block as `group_mix_regularizer_v1`.
+
+Required fields:
+1. `enabled = true`
+2. `apply_when_groups_ge = 2`
+3. `max_p_group_soft_cap`
+4. `regularization_strength`
+5. `entropy_floor`
+6. `preserve_rank_order = true`
+7. `sum_to_one = true`
+
+Constraint:
+1. This layer is a tuner, not a substitute for S1/S3 fixes.
+
+Expected direct movement:
+1. Lower tail mass at `max_p_group >= 0.95`.
+2. Higher share of effective multi-group days.
+3. Improved entropy center without violating normalization.
+
+### 5.3 Exact code deltas
+#### 5.3.1 S1 implementation delta
+File:
+1. `packages/engine/src/engine/layers/l1/seg_2B/s1_site_weights/runner.py`
+
+Required code behavior:
+1. Implement `profile_mixture_v2` resolver.
+2. Generate per-merchant site-weight vector from chosen mixture branch.
+3. Use deterministic merchant-scoped seed for replay consistency.
+4. Apply clip/floor, then renormalize exactly.
+5. Emit provenance fields:
+   - `weight_profile`
+   - `mixture_component`
+   - `alpha_used`
+
+#### 5.3.2 S3 implementation delta
+File:
+1. `packages/engine/src/engine/layers/l1/seg_2B/s3_day_effects/runner.py`
+
+Required code behavior:
+1. Replace global sigma path with per-row sigma resolution from `sigma_gamma_policy_v2`.
+2. Apply optional weekly component with bounded amplitude.
+3. Keep deterministic seeds and reproducibility contract.
+4. Emit provenance fields:
+   - `sigma_source`
+   - `sigma_value`
+   - `weekly_amp`
+
+#### 5.3.3 S4 implementation delta
+File:
+1. `packages/engine/src/engine/layers/l1/seg_2B/s4_group_weights/runner.py`
+
+Required code behavior:
+1. Apply regularizer only when `n_groups >= apply_when_groups_ge`.
+2. Use soft-cap logic for extreme `max_p_group` (no hard truncation artifacts).
+3. Preserve rank order where policy requires.
+4. Enforce exact `sum(p_group)=1`.
+5. Emit provenance fields:
+   - `regularizer_applied`
+   - `regularizer_strength`
+
+### 5.4 Validation-roster gate (mandatory for realism certification)
+The segment cannot be graded on smoke workload.  
+Certification must require:
+1. horizon `>= 28` days (target: full run horizon),
+2. repeated arrivals per merchant-day,
+3. class/channel coverage retained,
+4. seed panel execution for stability checks (as defined in Section 2).
+
+Fail-closed rule:
+1. If realism roster requirements are not met, Section 6 validation is invalid for grade assignment.
+
+### 5.5 Execution sequencing (sealed-run safe)
+Apply and evaluate in strict order:
+1. S1 policy + code delta,
+2. S3 policy + code delta,
+3. S4 policy + code delta,
+4. realism-grade roster run,
+5. Section 6 gates,
+6. Section 7 grade-lift assessment.
+
+Reason:
+1. This preserves causal attribution and avoids tuning S4 against still-collapsed upstream generators.
+
+### 5.6 Expected metric movement from chosen spec
+After this package, expected movement before final tuning:
+1. `|p_weight - 1/N|` median: out of near-zero collapse band.
+2. `top1-top2` median: materially positive and cohort-sensitive.
+3. `max_p_group` tail (`>=0.95`): significant reduction from current dominance rates.
+4. Effective multi-group-day share: increases into/near Section 2 `B` threshold.
+5. Merchant-level gamma volatility: clear non-zero spread.
 
 ## 6) Validation Tests + Thresholds
+This section defines the acceptance protocol for certifying Segment 2B after the chosen fix package in Section 5.  
+All tests are fail-closed: any hard failure blocks grade upgrade.
+
+### 6.1 Validation preconditions (fail-closed)
+1. Run type must be **realism-grade**, not smoke:
+   - horizon `>= 28` days,
+   - repeated arrivals per merchant-day,
+   - retained class/channel coverage.
+2. Required seed panel: `{42, 7, 101, 202}`.
+3. Active policy fingerprints for S1/S3/S4 must match Section 5 fix spec.
+4. If any precondition fails, certification status is `INVALID_FOR_GRADING`.
+
+### 6.2 S1 spatial heterogeneity tests
+#### T-S1-01 Uniformity residual activation
+1. Metric: median `|p_site - 1/N_sites|` across merchant-site rows.
+2. Thresholds:
+   - `B`: `>= 0.003`
+   - `B+`: `>= 0.006`
+3. Fail condition: median remains below `B` threshold on any required seed.
+
+#### T-S1-02 Dominance gap activation
+1. Metric: median merchant-level `top1_share - top2_share`.
+2. Thresholds:
+   - `B`: `>= 0.03`
+   - `B+`: `>= 0.05`
+3. Fail condition: gap profile remains near zero (uniform-like collapse).
+
+#### T-S1-03 Concentration spread
+1. Metric: IQR of merchant-level HHI (or equivalent concentration metric).
+2. Thresholds:
+   - `B`: `>= 0.06`
+   - `B+`: `>= 0.10`
+3. Fail condition: spread remains collapsed at near-deterministic levels.
+
+### 6.3 S3 temporal heterogeneity tests
+#### T-S3-01 Merchant volatility spread
+1. Metric: distribution spread of merchant-level day-effect standard deviation.
+2. Thresholds:
+   - `B`: median merchant std-dev `>= 0.03`
+   - `B+`: median merchant std-dev `>= 0.04` with visible upper tail
+3. Fail condition: near-point-mass volatility (single effective sigma regime).
+
+#### T-S3-02 TZ-group differentiation
+1. Metric: between-group variance in gamma profile summaries over common horizon.
+2. Thresholds:
+   - `B`: statistically non-zero separation across required seeds
+   - `B+`: stable non-zero separation with controlled drift
+3. Fail condition: top tz-groups remain effectively indistinguishable.
+
+#### T-S3-03 Aggregate stability guardrail
+1. Metric: aggregate gamma center and spread remain within design bounds.
+2. Threshold: no clipping saturation or instability event.
+3. Fail condition: local heterogeneity introduced by destabilizing global shape.
+
+### 6.4 S4 routing realism tests
+#### T-S4-01 Dominance center
+1. Metric: median `max_p_group` over merchant-day.
+2. Thresholds:
+   - `B`: `<= 0.85`
+   - `B+`: `<= 0.78`
+3. Fail condition: median remains in monolithic-routing region.
+
+#### T-S4-02 Dominance tail
+1. Metric: share of merchant-days with `max_p_group >= 0.95`.
+2. Thresholds:
+   - `B`: `<= 35%`
+   - `B+`: `<= 20%`
+3. Fail condition: extreme-tail dominance persists.
+
+#### T-S4-03 Effective multi-group behavior
+1. Metric: share of merchant-days with at least 2 groups where `p_group >= 0.05`.
+2. Thresholds:
+   - `B`: `>= 35%`
+   - `B+`: `>= 50%`
+3. Fail condition: breadth exists structurally but not behaviorally.
+
+#### T-S4-04 Entropy center
+1. Metric: p50 entropy of group weights per merchant-day.
+2. Thresholds:
+   - `B`: `>= 0.35`
+   - `B+`: `>= 0.45`
+3. Fail condition: anti-collapse tuning does not lift entropy distribution.
+
+#### T-S4-05 Mass conservation
+1. Metric: rowwise `sum(p_group)`.
+2. Threshold: all rows within numeric tolerance of `1.0`.
+3. Fail condition: any normalization breach.
+
+### 6.5 Structural integrity non-regression tests
+1. Alias parity/hash/canonicalization checks remain PASS.
+2. Audit and bundle integrity checks remain PASS.
+3. Schema/provenance contracts for added S1/S3/S4 fields remain valid.
+4. Any structural failure overrides realism PASS.
+
+### 6.6 Cross-seed stability tests
+1. All hard `B` gates in Sections 6.2-6.5 must pass for all required seeds.
+2. Cross-seed CV limits for primary medians (`S1 residual`, `S4 max_p_group`, `S4 entropy`):
+   - `B`: `CV <= 0.25`
+   - `B+`: `CV <= 0.15`
+3. No seed-specific collapse is allowed (for example one seed reverting to near-uniform S1 or monolithic S4).
+
+### 6.7 Decision logic
+1. `B` certification requires:
+   - all hard tests pass at `B` thresholds,
+   - structural non-regression passes,
+   - preconditions in Section 6.1 pass.
+2. `B+` certification requires:
+   - all tests pass at `B+` thresholds,
+   - tighter cross-seed stability pass,
+   - no compensating regressions across S1/S3/S4.
+3. Any hard failure returns `NOT_CERTIFIED`.
+
+### 6.8 Mandatory artifacts for evidence pack
+1. Per-seed metric table with PASS/FAIL by test ID.
+2. Cross-seed stability table with CV for primary medians.
+3. Active policy fingerprint snapshot proving Section 5 fix spec.
+4. Final certification record with status and failed gates (if any).
 
 ## 7) Expected Grade Lift (Local + Downstream Impact)
+With Sections 5 and 6 executed as specified, this section defines expected grade movement and downstream impact.
+
+### 7.1 Local grade lift expectation (2B only)
+#### 7.1.1 Baseline (current)
+1. Current statistical posture is in the `C` band: structurally correct but behaviorally weak.
+2. Primary blockers are:
+   - S1 uniform-by-construction,
+   - S3 local temporal homogeneity,
+   - S4 heavy single-group dominance tail,
+   - shallow validation roster that can mask these defects.
+
+#### 7.1.2 After Wave 1 (`S1 + S3 + validation guardrail`)
+1. Expected grade movement: `C -> B- / B`.
+2. Why:
+   - S1 breaks deterministic equal-share collapse.
+   - S3 introduces merchant/tz-level temporal identity.
+   - validation preconditions block smoke-roster false PASS.
+
+#### 7.1.3 After Wave 2 (`S4 anti-collapse tuning`)
+1. Expected grade movement: stable `B`, with credible path to `B+`.
+2. Why:
+   - S4 dominance tail contracts,
+   - effective multi-group routing share rises,
+   - entropy center shifts upward while normalization remains exact.
+
+#### 7.1.4 After Wave 3 (targeted upstream unlock where constrained)
+1. Expected grade movement: `B+` for cohorts not topology-capped.
+2. Why:
+   - residual ceilings from upstream geography/tz constraints are reduced,
+   - 2B can express broader realistic diversity where policy intends.
+
+### 7.2 Metric-by-metric expected movement
+#### 7.2.1 S1 metrics
+1. `|p_site - 1/N|` median:
+   - target movement to `>= 0.003` (`B`), stretch `>= 0.006` (`B+`).
+2. `top1-top2` median:
+   - target movement to `>= 0.03` (`B`), stretch `>= 0.05` (`B+`).
+3. Concentration spread (HHI IQR):
+   - target movement to `>= 0.06` (`B`), stretch `>= 0.10` (`B+`).
+
+#### 7.2.2 S3 metrics
+1. Merchant-level volatility spread:
+   - from near-single regime to non-degenerate spread (`median std-dev >= 0.03` for `B`).
+2. TZ-group differentiation:
+   - from near-indistinguishable to stable non-zero separation.
+3. Aggregate gamma guardrail:
+   - global center/spread remains plausible and bounded (no instability accepted as tradeoff).
+
+#### 7.2.3 S4 metrics
+1. `median(max_p_group)`:
+   - movement to `<= 0.85` (`B`), stretch `<= 0.78` (`B+`).
+2. Share of merchant-days with `max_p_group >= 0.95`:
+   - movement to `<= 35%` (`B`), stretch `<= 20%` (`B+`).
+3. Effective multi-group days (`>= 2` groups with `p_group >= 0.05`):
+   - movement to `>= 35%` (`B`), stretch `>= 50%` (`B+`).
+4. Entropy p50:
+   - movement to `>= 0.35` (`B`), stretch `>= 0.45`.
+
+#### 7.2.4 Validation quality movement
+1. Roster quality shifts from smoke-check capable to realism-certifiable.
+2. Seed stability becomes an explicit hard gate instead of a narrative observation.
+
+### 7.3 Downstream impact expectation
+1. **Improved credibility for downstream segments (5B/6A/6B):**
+   - richer 2B routing diversity reduces downstream over-simplification artifacts.
+2. **Fraud-feature quality uplift:**
+   - better site/time heterogeneity increases discriminability and explainability.
+3. **Governance uplift:**
+   - certification becomes evidence-driven and fail-closed, reducing regression risk.
+
+### 7.4 Residual risks after remediation
+1. **Topology ceiling risk:**
+   - upstream 1B/2A constraints can still cap some cohorts below `B+`.
+2. **Over-regularization risk:**
+   - excessive S4 tuning can manufacture spread and reduce realism fidelity.
+3. **Seed fragility risk:**
+   - single-seed success is insufficient; cross-seed gates remain mandatory.
+
+### 7.5 Certification expectation statement
+If Section 5 is implemented exactly and Section 6 passes on required seeds with realism-grade roster:
+1. Segment 2B is expected to move from `C` to at least `B`.
+2. `B+` is achievable for cohorts not limited by upstream diversity ceilings.
+3. Any hard-gate failure results in `NOT_CERTIFIED` for grade upgrade.
