@@ -158,6 +158,61 @@ This section traces each primary weakness to its most likely originating mechani
 5. Convert realism checks from advisory to fail-closed for these four surfaces.
 
 ## 4) Remediation Options (Ranked + Tradeoffs)
+This section defines candidate remediation paths for the Section 3 causes, ranks them by statistical impact and execution risk, and frames tradeoffs explicitly against the `B/B+` target posture in Section 2.
+
+### 4.1 Ranking framework
+Options are ranked on four criteria:
+1. Direct impact on the non-negotiable `B` gates in Section 2.
+2. Downstream impact on `6B` realism and fraud explainability.
+3. Implementation blast radius and regression risk.
+4. Auditability and repeatability (how easy it is to validate and keep stable across seeds).
+
+### 4.2 Ranked options
+| Rank | Option | What changes | Primary gates impacted | Why it helps | Tradeoffs / risks |
+|---|---|---|---|---|---|
+| 1 | Global `K_max` enforcement pass in `S2` | Add final per-party, per-account-type cap pass after integerization/merge | `K_max` coherence, tail control | Closes the largest hard mismatch quickly; directly reduces unrealistic account tails | May alter account totals by type; may require minor rebalancing to preserve macro product mix |
+| 2 | IP prior-constrained generation in `S4` | Enforce IP type priors, explicit device->IP coverage targets, and bounded IP reuse tail | IP share error, linkage coverage, devices/IP p99/max | Highest realism lift on the weakest surface (IP) | Highest calibration complexity; aggressive tuning can over-correct and mute legitimate shared-IP behavior |
+| 3 | Risk propagation coupling in `S5` | Make account/device/IP risk assignment conditional on party risk state and graph context | Propagation odds-ratio and effect-size thresholds | Restores causal realism chain (`risky owner -> risky assets -> risky network`) and downstream explainability | If coupling is too strong, separability becomes unrealistically easy for downstream models |
+| 4 | Role vocabulary mapping contract | Introduce explicit runtime-role -> policy-role-family mapping with full coverage checks | Policy traceability gate, auditability gate | Converts currently non-auditable device/IP role surfaces into testable surfaces | Does not fix distributions by itself; must be paired with options 2/3 for substantive realism gain |
+| 5 | Instrument floor redesign in `S3` | Replace universal minimum-instrument behavior with account-type-specific floor policy | Instrument totals realism | Eliminates low-lambda inflation while retaining required rails where intended | Can reduce operational completeness if floor policy is over-tightened |
+| 6 | Fail-closed realism gates in validation | Promote distribution conformance checks from advisory/relaxed to hard PASS/FAIL | All critical `B` gates | Prevents recurrence of drift and ensures fixes remain durable across reruns | More run failures during tuning wave until thresholds and code paths are stable |
+| 7 | Country-conditioned modulation of segment/product priors | Add bounded country-level deltas around global priors | `B+` heterogeneity posture | Reduces over-uniform country behavior and improves synthetic geographic realism | Additional policy complexity and calibration overhead; not required for minimum `B` |
+| 8 | Cross-seed robustness hardening | Tune and validate on seeds `{42, 7, 101, 202}` with CV limits | Stability gates | Reduces seed luck risk and improves confidence in grading | Increased runtime and analysis overhead |
+
+### 4.3 Option packages (execution bundles)
+1. Package A - minimum viable path to `B`:
+   - Includes options `1 + 2 + 3 + 4 + 6`.
+   - Rationale: this combination closes all current hard blockers (cap semantics, IP realism, propagation, traceability, fail-closed enforcement).
+2. Package B - path to durable `B+`:
+   - Includes Package A plus options `5 + 7 + 8`.
+   - Rationale: adds heterogeneity realism, removes instrument-floor artifacts, and hardens cross-seed stability.
+
+### 4.4 Tradeoff analysis by realism axis
+1. Account-holding realism:
+   - Best direct lever: Option 1.
+   - Main risk: preserving account-type macro shares after cap enforcement.
+2. IP/network realism:
+   - Best direct lever: Option 2.
+   - Main risk: replacing one unrealistic shape with another through over-correction.
+3. Fraud posture explainability:
+   - Best direct lever: Option 3.
+   - Main risk: synthetic over-separation if conditional uplift is too high.
+4. Governance and auditability:
+   - Best direct levers: Options 4 and 6.
+   - Main risk: temporary friction from stricter PASS/FAIL thresholds during tuning.
+5. B+ nuance (not required for baseline B):
+   - Best levers: Options 5, 7, and 8.
+   - Main risk: increased calibration and runtime overhead.
+
+### 4.5 Recommended ordering
+1. Start with options `1, 2, 3` to fix the largest statistical failures.
+2. Immediately pair with options `4, 6` so improvements become auditable and fail-closed.
+3. Add options `5, 7, 8` only after the `B` gates pass consistently.
+
+### 4.6 Section-4 decision output
+1. The preferred strategy for 6A is Package A as the mandatory baseline.
+2. Package B is the expansion path once Package A passes all Section 2 `B` gates.
+3. Section 5 should therefore specify exact deltas for Package A first, with Package B changes explicitly marked as phase-2 enhancements.
 
 ## 5) Chosen Fix Spec (Exact Parameter/Code Deltas)
 

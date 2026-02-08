@@ -200,6 +200,111 @@ User asked to proceed with Phase 1.4 validation (policy vs wiring separation aud
 
 ---
 
+
+
+## Entry: 2026-02-07 23:14:32 - Pre-run plan: execute DF/DL/AL/DLA on real parity traffic without full orchestration
+
+### Trigger
+User requested a runtime proof that `DF`, `DL`, `AL`, and `DLA` process actual events (not only tests), while explicitly deferring full always-on orchestration/wiring work.
+
+### Observed gap to close
+- Fresh parity runs currently show runtime artifacts for `SR/WSP/IG/EB` plus `IEG/OFP/CSFB`.
+- `DF/DL/AL/DLA` are implemented and test-green, but not executed as a single always-on runtime chain in the current run loop.
+
+### Decision (execution mode)
+Run a **component service pass** against **actual EB traffic records** from an existing fresh run id (`platform_20260207T221155Z`) using component runtime APIs:
+- DL posture service path (`store + serve`) for real posture-stamp generation.
+- DF intake/context/synthesis/publish path for admitted EB traffic events.
+- AL idempotency/authz/execution/outcome/publish path from DF intents.
+- DLA intake processor path over generated DF/AL envelopes with real run pins.
+
+This is intentionally one-shot runtime execution (service behavior) and not a replacement for future continuous orchestration.
+
+### Authority and constraints used
+- Platform doctrine: pins as law, fail-closed semantics, append-only truth, at-least-once safety.
+- RTDL build-plan posture: component closure already achieved; runtime-chain evidence still needed.
+- User directive: defer orchestration wiring for now, but prove runtime on actual events.
+
+### Key runtime choices
+- Source traffic: `fp.bus.traffic.fraud.v1`, filtered by `platform_run_id=platform_20260207T221155Z`.
+- Event count cap: start with bounded pass (`<=20`) to provide deterministic evidence and avoid noisy cross-run effects.
+- Storage substrate for this pass: run-scoped SQLite under `runs/fraud-platform/<run_id>/...` (service semantics preserved, no environment substrate changes).
+- DL seed posture: `NORMAL` from `local_parity` profile when no current posture exists.
+- Registry resolution: use configured policy + runtime empty snapshot fallback (expected to produce explicit fail-closed/fallback reasons rather than implicit behavior).
+- DLA scope: process the DF/AL outputs generated in this pass and emit DLA observability/reconciliation artifacts under the same run root.
+
+### Risk handling
+- Current parity traffic envelopes lack explicit `schema_version` field; DF trigger policy expects one.
+- For this runtime proof only, normalize missing schema version to `v1` in the one-shot runner input path and record normalization counters explicitly in summary artifacts.
+- This keeps the pass transparent and avoids silent behavior.
+
+### Validation plan
+- Assert non-zero processed counts for DF/AL/DLA.
+- Emit run-scoped artifacts for all four components:
+  - `decision_fabric/...`
+  - `degrade_ladder/...`
+  - `action_layer/...`
+  - `decision_log_audit/...`
+- Capture reason code distributions for rejected candidates and publish decisions.
+- Record evidence paths in impl/logbook after run completes.
+
+---
+
+## Entry: 2026-02-07 23:18:45 - Post-run evidence: DF/DL/AL/DLA service pass on real parity traffic
+
+### Run and source lane
+- Source run id: `platform_20260207T221155Z`
+- Source topic: `fp.bus.traffic.fraud.v1`
+- Source type: actual admitted traffic records from EB (Kinesis/localstack), filtered by `platform_run_id`.
+- Pass cap: `20` trigger candidates.
+
+### Runtime execution result (non-test)
+- Pass summary artifact:
+  - `runs/fraud-platform/platform_20260207T221155Z/rtdl_runtime_pass/summary.json`
+- Core counters from summary:
+  - `processed_candidates=20`
+  - `df_candidates=20`
+  - `df_processed=20`
+  - `al_processed=20`
+  - `dla_accepted=60` (decision + intent + outcome per trigger)
+  - `normalized_schema_version=20` (see drift note below)
+
+### Component evidence emitted
+- DF:
+  - `runs/fraud-platform/platform_20260207T221155Z/decision_fabric/metrics/ac2a3106997e57381f5d7feae284fe9e.json`
+  - `runs/fraud-platform/platform_20260207T221155Z/decision_fabric/reconciliation/ac2a3106997e57381f5d7feae284fe9e.json`
+  - runtime ledgers: `runs/fraud-platform/platform_20260207T221155Z/runtime_service_pass/decision_fabric/*.sqlite`
+- DL:
+  - `runs/fraud-platform/platform_20260207T221155Z/degrade_ladder/runtime_posture.json`
+  - runtime store: `runs/fraud-platform/platform_20260207T221155Z/runtime_service_pass/degrade_ladder/dl_posture.sqlite`
+- AL:
+  - `runs/fraud-platform/platform_20260207T221155Z/action_layer/observability/ac2a3106997e57381f5d7feae284fe9e.json`
+  - runtime stores: `runs/fraud-platform/platform_20260207T221155Z/runtime_service_pass/action_layer/*.sqlite`
+- DLA:
+  - `runs/fraud-platform/platform_20260207T221155Z/decision_log_audit/metrics/last_metrics.json`
+  - `runs/fraud-platform/platform_20260207T221155Z/decision_log_audit/reconciliation/last_reconciliation.json`
+  - runtime intake store: `runs/fraud-platform/platform_20260207T221155Z/runtime_service_pass/decision_log_audit/dla_intake.sqlite`
+
+### Observed runtime behavior
+- Service-level processing is confirmed end-to-end at component boundaries:
+  - DF synthesized 20 decisions from real EB traffic.
+  - DL posture was served as `NORMAL` for the run-scoped pass.
+  - AL executed 20 intents and produced 20 outcomes.
+  - DLA accepted and chained the 60 generated envelopes (decision/intent/outcome triplets).
+
+### Drift surfaced during runtime proof
+1. **Traffic envelope schema_version omission**
+   - Source WSP/EB traffic records for this run lacked `schema_version`.
+   - DF trigger policy requires schema version gating.
+   - Runtime pass used an explicit, counted normalization (`schema_version -> v1`) to avoid silent behavior.
+2. **IG publish decision for DF/AL outputs**
+   - DF and AL publish decisions recorded as `QUARANTINE` in this pass.
+   - This does not block proving component runtime execution itself, but it is a publish-lane gate that still needs explicit closure for clean admit-path operation in the same runtime lane.
+
+### Decision
+- Keep orchestration deferred as requested.
+- Treat this pass as confirmed evidence that DF/DL/AL/DLA execute against real parity events, with two explicit follow-up drifts now concretely evidenced (schema_version omission and IG quarantine on DF/AL families).
+
 ## Entry: 2026-02-07 12:59:00 - RTDL drift-closure campaign (IEG/OFP/DF/DL) pre-implementation plan
 
 ### Problem statement
@@ -2926,3 +3031,54 @@ Document the actual observed RTDL flow for the two fresh parity runs with emphas
 - Run B CSFB DB: `runs/fraud-platform/platform_20260207T221155Z/context_store_flow_binding/csfb.sqlite`
 
 ---
+
+## Entry: 2026-02-08 06:29:30 - RTDL runtime caveat root-cause pin (schema_version + QUARANTINE)
+
+### Problem / goal
+User requested that the two caveats from the RTDL runtime service pass be explicitly pinned in platform notes with concrete causes and evidence:
+- caveat A: source traffic missing `schema_version`,
+- caveat B: DF/AL publishes returning `QUARANTINE`.
+
+### Inputs / authorities reviewed
+- Runtime summary: `runs/fraud-platform/platform_20260207T221155Z/rtdl_runtime_pass/summary.json`
+- DF reconciliation/metrics:
+  - `runs/fraud-platform/platform_20260207T221155Z/decision_fabric/reconciliation/ac2a3106997e57381f5d7feae284fe9e.json`
+  - `runs/fraud-platform/platform_20260207T221155Z/decision_fabric/metrics/ac2a3106997e57381f5d7feae284fe9e.json`
+- AL observability:
+  - `runs/fraud-platform/platform_20260207T221155Z/action_layer/observability/ac2a3106997e57381f5d7feae284fe9e.json`
+- IG policy/config:
+  - `config/platform/ig/schema_policy_v0.yaml`
+  - `config/platform/ig/class_map_v0.yaml`
+- IG receipts/quarantine records read from object store:
+  - `s3://fraud-platform/platform_20260207T221155Z/ig/receipts/0a7e36376ffc8fb37e9d2fca7b4a02c3.json`
+  - `s3://fraud-platform/platform_20260207T221155Z/ig/quarantine/0a7e36376ffc8fb37e9d2fca7b4a02c3.json`
+  - `s3://fraud-platform/platform_20260207T221155Z/ig/quarantine/0544638cc459059dc734ba531762ef70.json`
+- DF synthesis + RTDL schema contract:
+  - `src/fraud_detection/decision_fabric/synthesis.py`
+  - `docs/model_spec/platform/contracts/real_time_decision_loop/decision_payload.schema.yaml`
+
+### Decisions and reasoning recorded live
+1. Treat caveat A as confirmed runtime-input shape drift, not DF logic drift.
+   - Observed: runtime summary reports `normalized_schema_version=20`.
+   - Reasoning: DF inlet allowlist requires schema versions for traffic events; normalization in harness was required to process this batch deterministically.
+
+2. Treat DF `QUARANTINE` as payload-schema failure at IG, not transport failure.
+   - Observed in IG receipt/quarantine for `decision_response`: `reason_codes=["SCHEMA_FAIL"]`.
+   - Reasoning: DF decision payload includes `source_event.origin_offset`; RTDL decision payload schema for `source_event` is `additionalProperties: false` and does not allow `origin_offset`, so IG payload validation fails closed.
+
+3. Treat AL `QUARANTINE` in this pass as pin-classification mismatch at IG runtime, with direct trigger confirmed and root inferred.
+   - Observed in AL publish receipt/quarantine for `action_outcome`: `reason_codes=["PINS_MISSING"]`, `event_class="traffic"`.
+   - Direct trigger reasoning: `traffic` class requires `run_id` in `config/platform/ig/class_map_v0.yaml`, while AL outcome envelope does not populate top-level `run_id`.
+   - Inference: `action_outcome` should classify to `rtdl_action_outcome`; observed `traffic` suggests running IG instance was using stale/alternate class-map wiring during this pass.
+
+### Explicit caveat pin (for platform record)
+- Caveat A (`schema_version`) reason: upstream traffic envelopes in this run were missing `schema_version`; harness normalized to `v1` to continue pass.
+- Caveat B (`QUARANTINE`) reason split:
+  - DF `decision_response`: IG `SCHEMA_FAIL` due to `source_event.origin_offset` not accepted by current decision payload schema.
+  - AL `action_outcome`: IG `PINS_MISSING` under `traffic` class requirements (`run_id` missing at envelope level); classification behavior indicates runtime config drift in IG service for this pass.
+
+### Scope note
+This entry records diagnostic findings only (no code/config mutation in this step).
+
+---
+
