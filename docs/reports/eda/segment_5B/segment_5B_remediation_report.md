@@ -248,7 +248,320 @@ Bundle B: B/B+ uplift path
 3. Bundle sequencing matters: correctness first, then calibration, then permanent statistical guardrails.
 
 ## 5) Chosen Fix Spec (Exact Parameter/Code Deltas)
+This section locks the remediation package chosen for Segment 5B. It is intentionally explicit so implementation can be audited line-by-line and validated against Section 2 gates.
+
+### 5.1 Chosen package
+Chosen package: **Bundle B (correctness-first + calibration + sentinels)**, executed in three waves.
+1. `Wave A` (correctness hardening): remove deterministic DST defect and stop pass-through.
+2. `Wave B` (distribution calibration): reduce excessive timezone concentration and raise virtual realism toward B/B+ posture.
+3. `Wave C` (contract hardening): encode thresholds/semantics in policy + schema so behavior remains stable across runs.
+
+Reason for selection:
+1. Wave A addresses the dominant causal chain with highest confidence.
+2. Wave B addresses B/B+ uplift requirements without reworking core mechanics.
+3. Wave C prevents the same class of drift from silently reappearing.
+
+### 5.2 Wave A: correctness hardening (must land first)
+#### A1) Enforce civil-time fail-closed in 5B validation runtime
+Files:
+1. `packages/engine/src/engine/layers/l2/seg_5B/s5_validation_bundle/runner.py`
+
+Current behavior to remove:
+1. Civil-time mismatches are computed but can still pass in lean flow via warning/override path.
+
+Required delta:
+1. Remove warning-only override for civil-time mismatch breach.
+2. If civil mismatch rate exceeds threshold, mark validation failure and surface deterministic fail payload.
+3. Keep sampled validation strategy, but do not soften verdict semantics.
+
+Invariant after change:
+1. If civil mismatch exceeds threshold, bundle verdict is not PASS.
+
+#### A2) Fix local-time contract semantics in S4->S5
+Files:
+1. `packages/engine/src/engine/layers/l2/seg_5B/s4_arrival_events/runner.py`
+2. `packages/engine/src/engine/layers/l2/seg_5B/s5_validation_bundle/runner.py`
+
+Current behavior to remove:
+1. Local wall-clock fields serialized using UTC-style marker semantics and re-parsed ambiguously by validator path.
+
+Required delta:
+1. Serialize local timestamps as true local wall-clock representation (no misleading UTC marker semantics for local fields).
+2. Validator must parse local fields as local wall-clock consistently with producer contract.
+3. Keep UTC fields unchanged for canonical ordering/audit.
+
+Invariant after change:
+1. Civil-time check compares like-for-like representations (local wall-clock vs reconstructed expected local wall-clock).
+
+#### A3) Increase civil-time sample power in S5
+Files:
+1. `packages/engine/src/engine/layers/l2/seg_5B/s5_validation_bundle/runner.py`
+
+Current sampling:
+1. `min(50000, max(10000, int(n_arrivals_total * 0.001)))`
+
+Required delta:
+1. Raise target to: `sample_target = min(200000, max(25000, int(n_arrivals_total * 0.005)))`
+
+Reason:
+1. DST mismatch is window-local and sparse; low sample fractions under-detect transition-local defects.
+
+Invariant after change:
+1. Civil-time defect rates are estimated with enough power to reliably detect sub-0.2% breaches.
+
+#### A4) Add tz-cache horizon guard before 5B runtime consumption
+Files:
+1. `packages/engine/src/engine/layers/l2/seg_5B/s4_arrival_events/runner.py` (or shared tz cache loader used by S4)
+2. Upstream cache publish/check path in 2A (where transition tables are emitted)
+
+Required delta:
+1. Before run, assert transition coverage for each high-mass tzid intersects full scenario horizon.
+2. If coverage is incomplete and tz is not explicitly fixed-offset, raise hard validation error.
+3. Emit structured diagnostics listing tzids with missing horizon coverage.
+
+Invariant after change:
+1. 5B cannot run with stale transition horizon for active, DST-relevant tzids.
+
+### 5.3 Wave B: calibration for B/B+ uplift
+#### B1) Raise effective virtual routing share
+Files:
+1. `config/layer2/5B/arrival_routing_policy_5B.yaml`
+
+Parameter delta:
+1. `hybrid_policy.p_virtual_hybrid: 0.35 -> 0.50`
+
+Expected effect:
+1. Realized virtual share rises from ~2.25% toward Section-2 `B` band (`3% to 8%`), depending on eligibility path.
+
+Guardrail:
+1. If realized share exceeds `12%`, roll back and re-tune by eligibility filters rather than only probability.
+
+#### B2) Reduce deterministic timezone over-concentration from fallback behavior
+Files:
+1. `packages/engine/src/engine/layers/l2/seg_5B/s4_arrival_events/numba_kernel.py`
+
+Current behavior to reduce:
+1. Physical routing miss path can fall back to a default table, reinforcing dominant timezone mass.
+
+Required delta:
+1. Replace fixed/default fallback with bounded random fallback across merchant-eligible timezone/site tables.
+2. Keep deterministic seed control so replayability is preserved.
+3. Do not alter nullability invariants (`site_id` vs `edge_id`) for physical/virtual rows.
+
+Expected effect:
+1. Lowers top-k timezone share without flattening into unrealistic uniformity.
+
+#### B3) Add concentration and virtual sentinels into validation bundle payload
+Files:
+1. `packages/engine/src/engine/layers/l2/seg_5B/s5_validation_bundle/runner.py`
+2. `config/layer2/5B/validation_policy_5B.yaml` (threshold definitions)
+
+Required metrics:
+1. `top5_tz_share`
+2. `top10_tz_share`
+3. `virtual_share`
+4. `weekend_share_delta_pp` (observed minus expected)
+
+Required thresholds (initial):
+1. `top10_tz_share <= 0.72` for B gate.
+2. `virtual_share between 0.03 and 0.08` for B band.
+3. `|weekend_share_delta_pp| <= 0.20`.
+
+Behavior:
+1. Emit metric values always.
+2. Gate verdict according to policy mode.
+
+### 5.4 Wave C: contract and schema hardening
+#### C1) Make civil-time pass criteria policy-driven and schema-pinned
+Files:
+1. `config/layer2/5B/validation_policy_5B.yaml`
+2. `docs/model_spec/data-engine/layer-2/specs/contracts/5B/schemas.5B.yaml`
+
+Add policy keys:
+1. `max_civil_mismatch_rate`
+2. `max_one_hour_shift_rate`
+3. `dst_window_hour_bin_mae_pp_max`
+
+Schema requirement:
+1. Add keys to schema (currently strict with `additionalProperties: false`) so runtime reads are contract-valid.
+
+#### C2) Document local-time representation contract
+Files:
+1. 5B contract/spec markdown for field semantics.
+2. S4/S5 docstrings where timestamps are serialized/parsed.
+
+Required content:
+1. Explicit distinction: UTC canonical timestamp vs local wall-clock timestamp.
+2. Prohibit ambiguous reuse of UTC marker semantics for local fields.
+
+### 5.5 Ordered implementation sequence
+1. `A1 + A2 + A3 + A4` in one correctness branch.
+2. Re-run Segment 5B statistical checks and confirm Section-2 hard gates.
+3. Apply `B1 + B2 + B3` for B/B+ uplift.
+4. Stabilize with `C1 + C2` so thresholds/contracts are enforceable and versioned.
+
+### 5.6 Non-regression constraints (must hold through all waves)
+1. S2->S3->S4 conservation remains exact after logical-key aggregation.
+2. Physical/virtual routing nullability remains exact (`site_id` xor `edge_id` as designed).
+3. No regression to dispersion realism bounds from 5B baseline.
+4. Seeded reproducibility remains intact for deterministic replay.
+
+### 5.7 Expected Section-5 outcome
+If executed in order, this chosen fix package should:
+1. Eliminate the deterministic DST miss that currently dominates 5B realism downgrade.
+2. Lift 5B into B range on correctness gates before calibration.
+3. Make B/B+ posture sustainable through explicit sentinels and schema-pinned policy thresholds.
 
 ## 6) Validation Tests + Thresholds
+This section defines the statistical and structural gates used to validate 5B remediation. The goal is to prove that Wave A fixes correctness defects, Wave B improves realism posture, and neither introduces regressions.
+
+### 6.1 Validation objective
+1. Prove civil-time correctness defects are removed (especially DST-local mismatch signatures).
+2. Prove concentration/virtual-share calibration moves toward B/B+ posture.
+3. Prove conservation, routing integrity, and dispersion realism remain intact.
+4. Prove improvements are stable across seeds, not single-run chance.
+
+### 6.2 Authoritative gate matrix
+| ID | Test | Metric | B Gate | B+ Gate | Gate Class |
+|---|---|---|---|---|---|
+| T1 | Civil-time mismatch rate | `P(observed_local != expected_local)` | `<= 0.20%` | `<= 0.05%` | Hard fail |
+| T2 | One-hour DST signature mass | `P(offset in {-3600,+3600})` | `<= 0.10%` | `<= 0.02%` | Hard fail |
+| T3 | DST-window hour parity | Mean absolute error of hour-bin shares in DST windows (pp) | `<= 1.5 pp` | `<= 0.8 pp` | Hard fail |
+| T4 | Logical-key conservation | `sum(S3_by_key) - sum(S4_arrivals)`, key mismatch count | `0` and `0` | `0` and `0` | Hard fail |
+| T5 | Routing integrity | Physical/virtual nullability violations (`site_id`, `edge_id`) | `0` | `0` | Hard fail |
+| T6 | Timezone concentration | Top-10 timezone share of arrivals | `<= 72%` | `<= 62%` | Major fail |
+| T7 | Virtual realism share | `virtual_share` | `3% to 8%` | `5% to 12%` | Major fail |
+| T8 | Weekly rhythm preservation | `|weekend_share_observed - weekend_share_expected|` | `<= 0.20 pp` | `<= 0.10 pp` | Major fail |
+| T9 | Dispersion preservation | Std-dev of standardized residuals | `1.20 to 1.60` | `1.25 to 1.50` | Major fail |
+| T10 | Cross-seed stability | CV of key metrics (`T1,T2,T6,T7,T8`) | `<= 0.25` | `<= 0.15` | Hard fail |
+| T11 | TZ-cache horizon completeness | Active tzids covered to scenario horizon | `100%` | `100%` | Hard fail |
+| T12 | Local-time contract integrity | Producer/validator local-time parse consistency | `100%` | `100%` | Hard fail |
+
+### 6.3 Metric computation protocol
+1. `T1/T2`: reconstruct expected local timestamps from tz rules, compute signed offset distribution.
+2. `T3`: for each DST transition window and active timezone, compare observed vs expected local hour-bin shares; aggregate MAE in percentage points.
+3. `T4`: collapse S3 component rows to logical keys, compare key-level and total counts to S4.
+4. `T5`: assert strict xor/nullability constraints by routing mode.
+5. `T6`: compute timezone frequency distribution and top-k shares (top1/top5/top10) plus Lorenz diagnostics.
+6. `T8`: derive expected weekend share from scenario calendar and compare against observed arrivals.
+7. `T9`: compute standardized residuals `(observed - expected) / sqrt(expected + eps)` and evaluate spread band.
+8. `T10`: run multi-seed panel and compute coefficient of variation per gate metric.
+
+### 6.4 Sampling and power rules
+1. Civil-time sample size for validation bundle:
+   - `sample_target = min(200000, max(25000, int(n_arrivals_total * 0.005)))`
+2. DST-window minimum support:
+   - Require at least `5000` sampled rows per major DST window when exposure exists.
+3. If DST-window support is below threshold and exposure exists, mark as `insufficient_power` and fail gate.
+4. If no exposure exists for a zone/window, mark `not_applicable` with explicit evidence.
+
+### 6.5 Gate execution order
+1. Execute hard-correctness gates first: `T11`, `T12`, `T1`, `T2`, `T3`, `T4`, `T5`.
+2. Only if hard gates pass, evaluate calibration gates: `T6`, `T7`, `T8`, `T9`.
+3. Run cross-seed stability last: `T10`.
+4. Any hard-gate breach blocks release and grade-lift claims, even if calibration gates pass.
+
+### 6.6 Wave exit criteria
+1. **Wave A exit**:
+   - `T1` to `T5`, `T11`, and `T12` pass on primary seed and verification seed set.
+2. **Wave B exit**:
+   - `T6` to `T9` pass without regressions in Wave A gates.
+3. **Segment-level acceptance for B/B+**:
+   - All gates pass and `T10` stability criterion is satisfied.
+
+### 6.7 Failure attribution map
+1. `T1/T2/T3` fail + `T11` fail:
+   - root cause is upstream cache horizon/transition completeness.
+2. `T1/T2/T3` fail + `T11` pass + `T12` fail:
+   - root cause is local-time serialization/parser contract.
+3. `T6` fail with hard gates passing:
+   - root cause is routing concentration calibration.
+4. `T7` fail while `T6` passes:
+   - root cause is virtual eligibility/mix, not timezone support.
+5. `T9` fails post-calibration:
+   - over-correction has distorted dispersion realism.
+
+### 6.8 Required validation artifacts per run
+1. `civil_time_validation.json`:
+   - mismatch rate, offset histogram, DST-window MAE, sampled support.
+2. `routing_integrity_validation.json`:
+   - physical/virtual integrity violation counts.
+3. `concentration_validation.json`:
+   - top-k timezone shares and Lorenz summary.
+4. `virtual_share_validation.json`:
+   - overall and stratified virtual share.
+5. `seed_stability_summary.json`:
+   - per-metric CV and gate pass/fail matrix.
+
+### 6.9 Section-6 interpretation
+1. Section 6 converts remediation intent into measurable release gates.
+2. The gates are strict on correctness and controlled on calibration, matching the B/B+ objective.
+3. The attribution map prevents ambiguous failures by linking each test breach to a likely causal tier.
 
 ## 7) Expected Grade Lift (Local + Downstream Impact)
+This section forecasts the expected realism-grade movement from the chosen remediation package and clarifies how much of that lift is local to 5B vs propagated downstream.
+
+### 7.1 Baseline framing
+1. Published Segment 5B realism is currently `B+`, but that posture is fragile because a deterministic DST-local-time defect remains.
+2. Under the hard-gate remediation rubric in Section 6, current 5B would fail temporal correctness gates until Wave A lands.
+3. Therefore, the key lift is not only letter-grade movement; it is movement from non-gated plausibility to gated, defensible realism.
+
+### 7.2 Expected local lift by remediation wave
+#### Wave A (correctness hardening)
+Expected metric movement:
+1. `T1` civil-time mismatch rate: from about `2.6%` toward `<= 0.20%` (`B`) with stretch to `<= 0.05%` (`B+` path).
+2. `T2` one-hour DST signature mass: sharp `-3600/+3600` pattern collapses toward gate bounds.
+3. `T3` DST-window hour-bin MAE: transition-window mismatch drops into bounded error band.
+4. `T4/T5` conservation and routing integrity remain exact (no expected regression).
+
+Expected grade effect:
+1. Restores a robust `B` floor under explicit hard-gate compliance.
+2. Keeps `B+` attainable if the same pass condition holds across required seeds.
+
+#### Wave B (calibration)
+Expected metric movement:
+1. `T6` timezone concentration: top-10 share from about `81.3%` toward `<= 72%` for `B`, with stretch to `<= 62%` for `B+`.
+2. `T7` virtual share: from about `2.25%` into `3% to 8%` (`B` band), potentially higher under controlled uplift.
+3. `T8` weekly-rhythm alignment and `T9` dispersion spread should remain within guardrails if calibration is constrained.
+
+Expected grade effect:
+1. Converts corrected `B` posture into durable `B+`.
+2. Creates path to `A-` only if concentration and virtual-share targets improve without new distortions.
+
+#### Wave C (schema/contract hardening)
+Expected metric movement:
+1. Minimal direct distribution change.
+2. Strong governance impact: thresholds and semantics become policy/schema enforced.
+
+Expected grade effect:
+1. Stabilizes achieved grade across reruns and seeds.
+2. Reduces regression risk from implicit behavior drift.
+
+### 7.3 Scenario-based local grade outcomes
+1. `Wave A` only: expected `B` to `B+` (high confidence).
+2. `Wave A + Wave B`: expected `B+` with `A-` potential (medium confidence).
+3. `Wave A + Wave B + Wave C`: expected stable `B+` as the most reliable target; `A-` remains conditional on calibration quality.
+
+### 7.4 Downstream impact forecast (5B -> 6B and later)
+What should improve downstream:
+1. Local-time features in downstream segments become less biased around DST windows.
+2. Geo-temporal signal becomes less over-dominated by a small timezone head.
+3. Explanatory diagnostics become cleaner because deterministic hour-shift artifacts are removed.
+
+What will not be fixed by 5B alone:
+1. Segment-6B-local realism weaknesses unrelated to routing-time correctness remain (for example amount lattice and label-coupling posture).
+2. Upstream concentration sources (for example 5A/2B posture) still cap how far 5B can diversify by itself.
+
+Net downstream expectation:
+1. Meaningful but bounded uplift in downstream realism quality.
+2. Largest benefit is trust and interpretability, not full downstream grade rescue.
+
+### 7.5 Confidence and uncertainty
+1. High confidence in Wave A lift (causal chain is direct and strongly evidenced).
+2. Medium confidence in Wave B lift (calibration overshoot/undershoot risk).
+3. High confidence in Wave C governance value (regression prevention).
+
+### 7.6 Section-7 interpretation
+1. 5B is a high-leverage surgical-remediation segment, not a redesign segment.
+2. The chosen package should produce a defensible `B/B+` posture when executed in wave order and validated with Section 6 gates.
+3. True `A-` posture is possible but conditional on successful concentration/virtual calibration without harming dispersion realism.
