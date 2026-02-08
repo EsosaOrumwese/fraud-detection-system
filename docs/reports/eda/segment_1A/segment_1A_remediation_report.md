@@ -55,6 +55,46 @@ these weaknesses propagate into `2A/2B` topology and weighting behavior, then in
 
 ## 2) Expected Statistical Posture (B/B+)
 
+For segment `1A`, a `B/B+` target means the generated merchant/outlet world remains synthetic and policy-driven, but no longer violates core baseline realism in population shape, geographic structure, candidate logic, or variance behavior.
+
+1. Target posture by surface
+
+| Surface | Metric | `B` target | `B+` target | Why it matters |
+|---|---|---:|---:|---|
+| Merchant pyramid | Single-site merchant share (`outlet_count=1`) | 25% to 45% | 35% to 55% | Restores realistic base tier |
+| Merchant pyramid | `outlets_per_merchant` median | 6 to 20 | 8 to 18 | Avoids giant-heavy bias |
+| Concentration | Top-10% share of outlets | 35% to 55% | 38% to 50% | Keeps heavy-tail without collapse |
+| Concentration | Gini (outlets per merchant) | 0.45 to 0.62 | 0.48 to 0.58 | Plausible inequality range |
+
+| Surface | Metric | `B` target | `B+` target | Why it matters |
+|---|---|---:|---:|---|
+| Geographic/legal realism | `home != legal` row share | 10% to 25% | 12% to 20% | Current level is too globally/offshore biased |
+| Geographic/legal realism | Size gradient in mismatch | Top decile at least +5pp vs bottom deciles | Top decile at least +8pp vs bottom deciles | Legal complexity should be enterprise-skewed |
+| Cross-border topology | Merchants with multi-country legal spread | 20% to 45% | 25% to 40% | Keeps international tail, avoids over-global world |
+
+| Surface | Metric | `B` target | `B+` target | Why it matters |
+|---|---|---:|---:|---|
+| Candidate realism | Foreign candidate count median | 5 to 15 | 7 to 12 | Prevents "almost everyone can go everywhere" |
+| Candidate realism | Candidate->membership correlation | at least 0.30 | at least 0.45 | Makes candidate policy causally meaningful |
+| Candidate realism | Realization ratio median | at least 0.10 | at least 0.20 | Avoids zero-realization collapse |
+
+| Surface | Metric | `B` target | `B+` target | Why it matters |
+|---|---|---:|---:|---|
+| Stochastic realism | Implied `phi` CV | 0.05 to 0.20 | 0.10 to 0.30 | Restores variance heterogeneity |
+| Stochastic realism | Implied `phi` P95/P05 | 1.25 to 2.0 | 1.5 to 3.0 | Prevents near-constant dispersion |
+| Stochastic realism | Channel/size stratified separation in `phi` | Detectable but moderate | Clearly detectable, still stable | Makes variance profile explainable |
+
+| Surface | Metric | `B` target | `B+` target | Why it matters |
+|---|---|---:|---:|---|
+| Identity semantics | Merchant-site duplicate ambiguity | Explicit semantics + low unexplained anomalies | Explicit semantics + near-zero unexplained anomalies | Prevents downstream join/feature errors |
+| Auditability | Required outputs present (`s3_integerised_counts`, `s3_site_sequence`, `sparse_flag`, `merchant_abort_log`, `hurdle_stationarity_tests`) | all present | all present + monitored | Needed for defendable realism claims |
+
+2. Hard gates for passing `B` at all
+1. Single-site tier exists in material volume; no near-zero `outlet_count=1` mass.
+2. Candidate set is no longer near-global by default for most merchants.
+3. Implied dispersion is not near-constant; `phi` heterogeneity is restored.
+4. Missing approved artifacts are emitted so realism can be audited run-over-run.
+
 ## 3) Root-Cause Trace
 
 ## 4) Remediation Options (Ranked + Tradeoffs)
