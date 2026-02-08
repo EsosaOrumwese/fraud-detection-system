@@ -152,7 +152,7 @@ class SqliteOfpStore(OfpStore):
                     stream_id TEXT NOT NULL,
                     topic TEXT NOT NULL,
                     partition_id INTEGER NOT NULL,
-                    offset TEXT NOT NULL,
+                    "offset" TEXT NOT NULL,
                     offset_kind TEXT NOT NULL,
                     event_id TEXT,
                     payload_hash TEXT,
@@ -160,7 +160,7 @@ class SqliteOfpStore(OfpStore):
                     platform_run_id TEXT,
                     scenario_run_id TEXT,
                     created_at_utc TEXT NOT NULL,
-                    PRIMARY KEY (stream_id, topic, partition_id, offset_kind, offset)
+                    PRIMARY KEY (stream_id, topic, partition_id, offset_kind, "offset")
                 );
 
                 CREATE TABLE IF NOT EXISTS ofp_semantic_dedupe (
@@ -302,7 +302,7 @@ class SqliteOfpStore(OfpStore):
             row = conn.execute(
                 """
                 INSERT OR IGNORE INTO ofp_applied_events (
-                    stream_id, topic, partition_id, offset, offset_kind, event_id, payload_hash,
+                    stream_id, topic, partition_id, "offset", offset_kind, event_id, payload_hash,
                     ts_utc, platform_run_id, scenario_run_id, created_at_utc
                 )
                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
@@ -733,7 +733,7 @@ class PostgresOfpStore(OfpStore):
                     stream_id TEXT NOT NULL,
                     topic TEXT NOT NULL,
                     partition_id INTEGER NOT NULL,
-                    offset TEXT NOT NULL,
+                    "offset" TEXT NOT NULL,
                     offset_kind TEXT NOT NULL,
                     event_id TEXT,
                     payload_hash TEXT,
@@ -741,7 +741,7 @@ class PostgresOfpStore(OfpStore):
                     platform_run_id TEXT,
                     scenario_run_id TEXT,
                     created_at_utc TEXT NOT NULL,
-                    PRIMARY KEY (stream_id, topic, partition_id, offset_kind, offset)
+                    PRIMARY KEY (stream_id, topic, partition_id, offset_kind, "offset")
                 )
                 """
             )
@@ -898,11 +898,11 @@ class PostgresOfpStore(OfpStore):
             row = conn.execute(
                 """
                 INSERT INTO ofp_applied_events (
-                    stream_id, topic, partition_id, offset, offset_kind, event_id, payload_hash,
+                    stream_id, topic, partition_id, "offset", offset_kind, event_id, payload_hash,
                     ts_utc, platform_run_id, scenario_run_id, created_at_utc
                 )
                 VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
-                ON CONFLICT (stream_id, topic, partition_id, offset_kind, offset) DO NOTHING
+                ON CONFLICT (stream_id, topic, partition_id, offset_kind, "offset") DO NOTHING
                 """,
                 (
                     self.stream_id,
@@ -1471,3 +1471,4 @@ def _sqlite_path(dsn: str) -> str:
     if dsn.startswith("sqlite://"):
         return dsn.replace("sqlite://", "", 1)
     return dsn
+

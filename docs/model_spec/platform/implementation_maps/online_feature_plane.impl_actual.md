@@ -1159,3 +1159,48 @@ Keep OFP runtime code unchanged and close through explicit parity wiring control
 OFP parity operational path is now pinned to Postgres-default DSN wiring, with no hidden store-mode switch in the normal local_parity flow.
 
 ---
+## Entry: 2026-02-08 14:47:54 - Plan: fix Postgres reserved identifier crash in OFP live projector
+
+### Problem
+`platform-ofp-projector-parity-live` fails during Postgres store init (`ofp_applied_events` DDL) at `offset` column.
+
+### Plan
+- Quote `"offset"` in OFP applied-events table DDL (sqlite + postgres branches for parity consistency).
+- Quote `"offset"` in OFP insert/conflict SQL for applied-events writes.
+- Validate by re-running `make platform-ofp-projector-parity-live` startup.
+
+### Invariant
+No change to OFP basis/dedupe semantics; SQL identifier hardening only.
+
+---
+## Entry: 2026-02-08 15:30:54 - Implemented reserved-identifier fix; parity run shows OFP undercount caveat
+
+### Implementation applied
+- Quoted `"offset"` in OFP applied-events DDL (sqlite + postgres branches).
+- Quoted `"offset"` in applied-events insert + conflict target SQL.
+
+File:
+- `src/fraud_detection/online_feature_plane/store.py`
+
+### Runtime evidence for requested 200-event run
+Run scope:
+- `platform_run_id=platform_20260208T151238Z`
+- `scenario_run_id=9bad140a881372d00895211fae6b3789`
+
+Observed OFP store metrics (`ofp_metrics`):
+- `events_seen=194`
+- `events_applied=194`
+- topic-scoped metric agrees (`events_applied|topic=fp.bus.traffic.fraud.v1=194`)
+
+Cross-check:
+- IG + EB evidence for the same run shows `200` admitted traffic events on `fp.bus.traffic.fraud.v1`.
+
+### Diagnostic action taken
+- Removed run-scoped OFP checkpoints (`ofp_checkpoints` for `ofp.v0::platform_20260208T151238Z`) to test a fresh read path.
+- Attempted explicit one-pass reconsume; runtime auth/environment mismatch prevented a clean replay in that diagnostic attempt.
+- Count remained `194` after diagnostics.
+
+### Decision
+Track as an operational parity caveat (live startup/checkpoint timing/auth path), not as a schema/contract issue and not solved by weakening OFP semantics.
+
+---

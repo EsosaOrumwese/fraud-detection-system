@@ -790,3 +790,43 @@ When these event types arrive on shared traffic stream:
 ### Validation evidence
 - `python -m pytest tests/services/identity_entity_graph/test_projector_determinism.py -q` (included in targeted run) -> pass.
 - `python -m pytest tests/services/identity_entity_graph -q` -> `16 passed`.
+## Entry: 2026-02-08 14:47:54 - Plan: fix Postgres reserved identifier crash in IEG live projector
+
+### Problem
+`platform-ieg-projector-parity-live` fails at runtime with Postgres syntax error near `offset` while writing `ieg_apply_failures`.
+
+### Plan
+- Update IEG Postgres/SQLite migration DDL for `ieg_apply_failures` to quote `"offset"` identifier.
+- Update IEG store SQL statements touching `ieg_apply_failures` inserts to reference `"offset"` consistently.
+- Validate by re-running `make platform-ieg-projector-parity-live` startup.
+
+### Invariant
+No change to IEG replay semantics; only SQL identifier safety fix.
+
+---
+## Entry: 2026-02-08 15:30:54 - Implemented reserved-identifier fix and revalidated live IEG run
+
+### Implementation applied
+- Quoted `"offset"` in `ieg_apply_failures` DDL for sqlite/postgres migration branches.
+- Quoted `"offset"` in insert statements that write `ieg_apply_failures`.
+
+Files:
+- `src/fraud_detection/identity_entity_graph/migrations.py`
+- `src/fraud_detection/identity_entity_graph/store.py`
+
+### Runtime validation evidence
+Run scope:
+- `platform_run_id=platform_20260208T151238Z`
+- `scenario_run_id=9bad140a881372d00895211fae6b3789`
+
+Evidence:
+- live startup no longer fails with Postgres syntax error near `offset`.
+- `runs/fraud-platform/platform_20260208T151238Z/identity_entity_graph/metrics/last_metrics.json`:
+  - `events_seen=800`
+  - `mutating_applied=800`
+  - `apply_failure_count=0`
+
+### Invariant check
+No mutation/replay logic changed; fix is SQL identifier safety only.
+
+---

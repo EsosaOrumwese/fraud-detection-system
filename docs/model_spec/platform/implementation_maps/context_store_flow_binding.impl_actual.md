@@ -1124,3 +1124,46 @@ Reviewer item 8 required local_parity to behave like dev/prod by default for RTD
 CSFB no longer silently falls back to sqlite when parity DSN wiring is absent; local_parity now enforces explicit projection DB wiring.
 
 ---
+## Entry: 2026-02-08 14:47:54 - Plan: fix Postgres reserved identifier crash in CSFB live intake
+
+### Problem
+`platform-context-store-flow-binding-parity-live` fails on apply-failure write path due Postgres syntax error near `offset`.
+
+### Plan
+- Quote `"offset"` in CSFB apply-failure table DDL (sqlite + postgres migration blocks).
+- Quote `"offset"` in CSFB apply-failure select/insert SQL paths in store.
+- Validate by re-running `make platform-context-store-flow-binding-parity-live` startup.
+
+### Invariant
+No change to join-plane semantics/idempotency keys; SQL identifier safety only.
+
+---
+## Entry: 2026-02-08 15:30:54 - Implemented reserved-identifier fix and validated join-plane evidence
+
+### Implementation applied
+- Quoted `"offset"` in CSFB apply-failure table DDL (sqlite + postgres migration blocks).
+- Quoted `"offset"` in apply-failure read/write SQL paths.
+
+Files:
+- `src/fraud_detection/context_store_flow_binding/migrations.py`
+- `src/fraud_detection/context_store_flow_binding/store.py`
+
+### Runtime evidence (requested 200-event run)
+Run scope:
+- `platform_run_id=platform_20260208T151238Z`
+- `scenario_run_id=9bad140a881372d00895211fae6b3789`
+
+Observed join-plane state (Postgres):
+- `csfb_intake_dedupe`: `600` rows for run (`200` each of `context_arrival`, `context_arrival_entities`, `context_flow_fraud`).
+- `csfb_join_frames`: `250` rows for run/scenario.
+- `csfb_flow_bindings`: `200` rows for run/scenario.
+- `csfb_join_apply_failures`: `0` rows for run/scenario.
+
+### Operational note
+- Initial live daemon attempt hit stale Kinesis sequence reference after stream recreation (`ResourceNotFoundException`).
+- One-pass intake (`parity-once`) was used to converge run-scoped evidence cleanly.
+
+### Invariant check
+No idempotency/join semantics changed; fix is SQL identifier safety and runtime stability only.
+
+---

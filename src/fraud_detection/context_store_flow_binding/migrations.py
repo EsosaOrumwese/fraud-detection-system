@@ -152,7 +152,7 @@ def _sqlite_migration_v1(conn: sqlite3.Connection) -> None:
             scenario_run_id TEXT,
             topic TEXT,
             partition_id INTEGER,
-            offset TEXT,
+            "offset" TEXT,
             offset_kind TEXT,
             event_id TEXT,
             event_type TEXT,
@@ -259,7 +259,7 @@ def _postgres_migration_v1(conn: psycopg.Connection) -> None:
             scenario_run_id TEXT,
             topic TEXT,
             partition_id INTEGER,
-            offset TEXT,
+            "offset" TEXT,
             offset_kind TEXT,
             event_id TEXT,
             event_type TEXT,
@@ -359,3 +359,4 @@ def _postgres_migration_v2(conn: psycopg.Connection) -> None:
 
 def _utc_now() -> str:
     return datetime.now(tz=timezone.utc).isoformat()
+

@@ -3234,3 +3234,132 @@ Local parity now has a pinned live-core baseline for RTDL consumers that are dae
 Reviewer P1 items 7/8/9 are closed with runtime behavior and tests now aligned to the intended parity/governance posture.
 
 ---
+## Entry: 2026-02-08 14:44:23 - Plan: 200-event local-parity RTDL live-stream validation against flow narrative
+
+### Problem / goal
+User requested a live-stream validation to confirm implemented runtime flow matches the designed flow in:
+- `docs/model_spec/platform/component-specific/flow-narrative-platform-design.md`
+using the parity runbook:
+- `docs/runbooks/platform_parity_walkthrough_v0.md`.
+
+### Validation authority and scope
+- Control+ingress runtime path: SR -> WSP -> IG -> EB.
+- RTDL live-core daemon surfaces in current v0 posture: IEG/OFP/CSFB (runbook section 21).
+- RTDL component-boundary validation for DF/DL/AL/DLA via test/runtime matrix sections (16/17/19/20).
+- Event cap target: `WSP_MAX_EVENTS_PER_OUTPUT=200` for monitored parity pass.
+
+### Execution plan (explicit)
+1. Ensure parity substrate is up and bootstrapped (`platform-parity-stack-up`, `platform-parity-bootstrap`, status check).
+2. Start live services/consumers needed for run:
+   - IG service parity,
+   - IEG/OFP/CSFB live projectors.
+3. Start a fresh run (`platform-run-new`), publish READY via SR, then stream with WSP at 200/event-per-output cap.
+4. Collect runtime evidence:
+   - platform narrative log, component logs,
+   - IG receipts/quarantine refs,
+   - EB stream reads for traffic+context topics,
+   - IEG/OFP/CSFB health/metrics/reconciliation artifacts.
+5. Run DF/DL/AL/DLA boundary suites to confirm decision-layer semantics and payload/provenance invariants currently implemented.
+6. Compare observed flow against narrative pins:
+   - ingress ordering/ownership,
+   - idempotency tuple behavior,
+   - context-to-traffic join readiness path,
+   - decision identity/provenance expectations.
+7. Record outcomes and any drift in logbook (and platform impl map if new drift is found).
+
+### Invariants enforced during run
+- No contract/policy weakening or permissive fallback additions.
+- Run-scoped pins are required (`platform_run_id` + scenario pins).
+- No secret/token values copied into docs.
+
+### Expected outcome
+An auditable PASS/FAIL report for the 200-event run showing whether runtime behavior matches the designed flow and whether decision-surface outputs align with current RTDL contracts.
+
+---
+## Entry: 2026-02-08 14:47:54 - Runtime blocker remediation plan for 200-event RTDL live validation (reserved SQL identifier)
+
+### Trigger
+During requested 200-event live validation startup, IEG/OFP/CSFB live consumers failed before processing the target run.
+
+### Observed blocker
+- IEG/OFP/CSFB Postgres paths crash with `psycopg.errors.SyntaxError: syntax error at or near "offset"`.
+- Failure occurs in runtime SQL DDL/insert paths that use unquoted `offset` as a column identifier.
+
+### Decision
+Treat this as a cross-component runtime correctness bug that blocks parity live validation and close it immediately.
+
+### Planned remediation scope
+1. Patch SQL schema/queries in IEG/OFP/CSFB stores/migrations to use safe identifier form for the `offset` column (quoted identifier in SQL).
+2. Re-run component startup proof for the three live consumers.
+3. Re-run the requested 200-event SR->WSP stream and collect flow evidence.
+
+### Guardrails
+- No contract weakening or behavior changes beyond SQL identifier safety.
+- Preserve existing payload/offset semantics and replay basis meaning.
+
+---
+## Entry: 2026-02-08 15:30:54 - Executed 200-event RTDL live validation (with blocker remediation)
+
+### Remediation implemented
+Closed the cross-component Postgres runtime blocker discovered at startup:
+- quoted SQL identifier `"offset"` in IEG/OFP/CSFB schema + write paths where `offset` is a column name,
+- re-ran live startup surfaces to confirm the syntax crash no longer occurs at boot.
+
+Component files touched:
+- `src/fraud_detection/identity_entity_graph/migrations.py`
+- `src/fraud_detection/identity_entity_graph/store.py`
+- `src/fraud_detection/online_feature_plane/store.py`
+- `src/fraud_detection/context_store_flow_binding/migrations.py`
+- `src/fraud_detection/context_store_flow_binding/store.py`
+
+### Runtime execution evidence (run-scoped)
+Run under validation:
+- `platform_run_id=platform_20260208T151238Z`
+- `scenario_run_id=9bad140a881372d00895211fae6b3789`
+
+Flow evidence:
+1. SR->WSP completed with capped stream:
+   - `runs/fraud-platform/platform_20260208T151238Z/session.jsonl` records `stream_complete` with `emitted=800` (200 per each of 4 outputs).
+2. IG receipts:
+   - MinIO receipts under `s3://fraud-platform/platform_20260208T151238Z/ig/receipts/`: `800`.
+   - For the scenario: `ADMIT=800`, `QUARANTINE=0`, `DUPLICATE=0`.
+   - Event classes: `traffic_fraud=200`, `context_arrival=200`, `context_arrival_entities=200`, `context_flow_fraud=200`.
+3. EB Kinesis records (scenario-filtered):
+   - `fp.bus.traffic.fraud.v1`: `200`
+   - `fp.bus.context.arrival_events.v1`: `200`
+   - `fp.bus.context.arrival_entities.v1`: `200`
+   - `fp.bus.context.flow_anchor.fraud.v1`: `200`
+4. IEG run-scoped metrics:
+   - `runs/fraud-platform/platform_20260208T151238Z/identity_entity_graph/metrics/last_metrics.json` -> `events_seen=800`, `mutating_applied=800`, `apply_failure_count=0`.
+5. CSFB join-plane evidence (Postgres):
+   - intake dedupe for run: `600` (200 per context family),
+   - join frames: `250`,
+   - flow bindings: `200`,
+   - apply failures: `0`.
+
+### Decision-layer boundary validation executed
+- `python -m pytest tests/services/degrade_ladder -q` -> `40 passed`
+- `python -m pytest tests/services/decision_fabric -q` -> `69 passed`
+- `python -m pytest tests/services/action_layer/test_phase8_validation_matrix.py -q` -> `3 passed`
+- `python -m pytest tests/services/decision_log_audit/test_dla_phase8_validation_matrix.py -q` -> `4 passed`
+
+### Residual caveat (tracked, not masked)
+- OFP run-scoped store metrics for `ofp.v0::platform_20260208T151238Z` show `events_seen=194` / `events_applied=194` on traffic topic versus `200` traffic admissions for the run.
+- This is recorded as a parity-runtime caveat requiring follow-up (startup timing/checkpoint lifecycle in live mode), not as a contract-weakening change.
+
+---
+## Entry: 2026-02-08 15:37:10 - Post-fix RTDL component regression pass
+
+### Validation intent
+After the `offset` identifier hardening edits, re-run RTDL component suites that exercise IEG/OFP/CSFB SQL write paths.
+
+### Command
+- `$env:PYTHONPATH='.;src'; python -m pytest tests/services/identity_entity_graph tests/services/online_feature_plane tests/services/context_store_flow_binding -q`
+
+### Result
+- `85 passed in 31.19s`
+
+### Outcome
+Confirms no regression introduced by SQL quoting changes in the three touched RTDL components.
+
+---

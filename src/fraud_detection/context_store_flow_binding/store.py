@@ -691,7 +691,7 @@ class ContextStoreFlowBindingStore:
         query = (
             """
             SELECT failure_id, platform_run_id, scenario_run_id, topic, partition_id,
-                   offset, offset_kind, event_id, event_type, reason_code, details_json, recorded_at_utc
+                   "offset", offset_kind, event_id, event_type, reason_code, details_json, recorded_at_utc
             FROM csfb_join_apply_failures
             WHERE stream_id = ?
             """
@@ -747,7 +747,7 @@ class ContextStoreFlowBindingStore:
                 """
                 INSERT INTO csfb_join_apply_failures (
                     failure_id, stream_id, platform_run_id, scenario_run_id,
-                    topic, partition_id, offset, offset_kind, event_id, event_type,
+                    topic, partition_id, "offset", offset_kind, event_id, event_type,
                     reason_code, details_json, recorded_at_utc
                 ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
                 """,
@@ -1176,3 +1176,4 @@ def _sqlite_path(locator: str) -> str:
     if value.startswith("sqlite://"):
         return value[len("sqlite://") :]
     return value
+

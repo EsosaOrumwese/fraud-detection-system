@@ -340,7 +340,7 @@ class SqliteProjectionStore(ProjectionStore):
             conn.execute(
                 """
                 INSERT OR IGNORE INTO ieg_apply_failures
-                (failure_id, stream_id, topic, partition_id, offset, offset_kind, event_id, event_type,
+                (failure_id, stream_id, topic, partition_id, "offset", offset_kind, event_id, event_type,
                  platform_run_id, scenario_run_id, reason_code, details_json, ts_utc, recorded_at_utc)
                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """,
@@ -401,7 +401,7 @@ class SqliteProjectionStore(ProjectionStore):
                     conn.execute(
                         """
                         INSERT OR IGNORE INTO ieg_apply_failures
-                        (failure_id, stream_id, topic, partition_id, offset, offset_kind, event_id, event_type,
+                        (failure_id, stream_id, topic, partition_id, "offset", offset_kind, event_id, event_type,
                          platform_run_id, scenario_run_id, reason_code, details_json, ts_utc, recorded_at_utc)
                         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                         """,
@@ -1116,7 +1116,7 @@ class PostgresProjectionStore(ProjectionStore):
             conn.execute(
                 """
                 INSERT INTO ieg_apply_failures
-                (failure_id, stream_id, topic, partition_id, offset, offset_kind, event_id, event_type,
+                (failure_id, stream_id, topic, partition_id, "offset", offset_kind, event_id, event_type,
                  platform_run_id, scenario_run_id, reason_code, details_json, ts_utc, recorded_at_utc)
                 VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
                 ON CONFLICT (failure_id) DO NOTHING
@@ -1178,7 +1178,7 @@ class PostgresProjectionStore(ProjectionStore):
                     conn.execute(
                         """
                         INSERT INTO ieg_apply_failures
-                        (failure_id, stream_id, topic, partition_id, offset, offset_kind, event_id, event_type,
+                        (failure_id, stream_id, topic, partition_id, "offset", offset_kind, event_id, event_type,
                          platform_run_id, scenario_run_id, reason_code, details_json, ts_utc, recorded_at_utc)
                         VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
                         ON CONFLICT (failure_id) DO NOTHING
@@ -1774,3 +1774,4 @@ def hashlib_sha256(data: bytes) -> str:
     import hashlib
 
     return hashlib.sha256(data).hexdigest()
+
