@@ -1,6 +1,8 @@
 from pathlib import Path
 
-from fraud_detection.ingestion_gate.admission import _profile_id_for_class
+import pytest
+
+from fraud_detection.ingestion_gate.admission import _profile_id_for_class, _validate_rtdl_policy_alignment
 from fraud_detection.ingestion_gate.config import ClassMap, SchemaPolicy
 from fraud_detection.ingestion_gate.partitioning import PartitioningProfiles
 
@@ -140,3 +142,20 @@ def test_df_outputs_route_to_expected_partitioning_profiles() -> None:
     )
     assert decision_key_other_run != decision_key
     assert intent_key_other_run != intent_key
+
+
+def test_rtdl_policy_alignment_passes_for_repo_defaults() -> None:
+    class_map = ClassMap.load(CLASS_MAP_PATH)
+    schema_policy = SchemaPolicy.load(SCHEMA_POLICY_PATH)
+    _validate_rtdl_policy_alignment(schema_policy, class_map)
+
+
+def test_rtdl_policy_alignment_rejects_action_outcome_misclassification() -> None:
+    class_map = ClassMap.load(CLASS_MAP_PATH)
+    schema_policy = SchemaPolicy.load(SCHEMA_POLICY_PATH)
+    mutated_event_classes = dict(class_map.event_classes)
+    mutated_event_classes["action_outcome"] = "traffic"
+    bad_class_map = ClassMap(required_pins=class_map.required_pins, event_classes=mutated_event_classes)
+
+    with pytest.raises(RuntimeError, match="IG_RTLD_POLICY_ALIGNMENT_FAILED"):
+        _validate_rtdl_policy_alignment(schema_policy, bad_class_map)

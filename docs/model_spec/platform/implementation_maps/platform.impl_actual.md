@@ -3082,3 +3082,65 @@ This entry records diagnostic findings only (no code/config mutation in this ste
 
 ---
 
+
+## Entry: 2026-02-08 12:36:14 - Open-drift closure plan (schema_version, decision schema, IG runtime guard, live baseline)
+
+### Trigger
+User asked to "straight up close what's actually open" after reviewing drift findings.
+
+### Open set locked for this change wave
+1. Upstream traffic envelope must always carry `schema_version` without runtime normalization.
+2. DF decision payload must align with IG schema validation (`source_event.origin_offset` mismatch).
+3. IG should fail fast when runtime class-map/schema-policy drift would misclassify `action_outcome`.
+4. Local parity needs an explicit RTDL live-mode baseline entrypoint/runbook section for currently live-capable runtime consumers.
+
+### Non-open items explicitly excluded (already closed)
+- DF partition profiles already include `payload.pins.platform_run_id`.
+- OFP ignore/block for `decision_response`/`action_intent`/`action_outcome` is in code+tests.
+- IEG `graph_irrelevant` classification for DF/AL families is in config+tests.
+- DF inlet loop prevention via blocked event-types/prefixes is in trigger policy.
+
+### Decision sequence and reasoning
+- Execute in this order: WSP envelope fix -> DF schema fix -> IG startup/runtime guard -> live-mode baseline docs/targets -> tests.
+- Keep payload-level and envelope-level contracts strict; do not add permissive fallbacks.
+- For IG stale-runtime caveat, close with enforceable startup assertions against loaded config, because this prevents silent misclassification in newly started service instances.
+- For live-mode baseline, do not fabricate daemon behavior for components that currently do not expose long-running daemons; document and automate only live-capable surfaces.
+
+### Validation targets
+- `tests/services/world_streamer_producer/*` relevant to envelope emission.
+- `tests/services/decision_fabric/*phase1*/*phase6*` and schema contract validation.
+- `tests/services/ingestion_gate/*` targeted runtime/config guard tests.
+- Existing OFP/IEG tests remain as regression guard for already-closed shared-stream hygiene.
+
+### Security and provenance posture
+- No secrets or tokens are added to docs or code.
+- All changes remain run-scoped and pin-preserving.
+
+---
+
+## Entry: 2026-02-08 12:41:48 - RTDL live-core baseline pinned (live-capable v0 surfaces)
+
+### Problem / goal
+Close the "RTDL feels batch/manual" drift for parity by providing an explicit live baseline entrypoint for currently live-capable RTDL consumers.
+
+### Decision and boundaries
+- Added a practical v0 live-core bundle for components that already expose long-running daemons:
+  - `IEG`, `OFP`, `CSFB`.
+- Explicitly did **not** fake daemon semantics for `DF/DL/AL/DLA` in this step; those remain component-runtime/test-matrix validated in current repo posture.
+
+### Changes applied
+1. Makefile targets added:
+   - `platform-ieg-projector-parity-live`
+   - `platform-rtdl-core-parity-live` (launcher plan output for 3-terminal live startup)
+2. Runbook updated with RTDL live-core section and scope note:
+   - `docs/runbooks/platform_parity_walkthrough_v0.md` section `21`.
+3. Runbook now explicitly states shared-stream hygiene expectation for OFP:
+   - DF/AL output families on `fp.bus.traffic.fraud.v1` are ignored (checkpoint advances; no feature mutation).
+
+### Validation
+- `make platform-rtdl-core-parity-live` executed successfully (plan output confirmed).
+
+### Closure statement
+Local parity now has a pinned live-core baseline for RTDL consumers that are daemon-capable in v0, removing ambiguity on how to run live from EB into RTDL state surfaces.
+
+---

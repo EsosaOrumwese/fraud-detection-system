@@ -150,6 +150,7 @@ def test_wsp_streams_engine_world(monkeypatch, tmp_path: Path) -> None:
     expected_trace = hashlib.sha256(str(engine_root).encode("utf-8")).hexdigest()
     assert sent[0].get("producer") == "svc:world_stream_producer"
     assert sent[0].get("trace_id") == expected_trace
+    assert sent[0].get("schema_version") == "v1"
     assert sent[0].get("scenario_run_id") == scenario_run_id
     assert sent[0].get("run_id") == receipt["run_id"]
 

@@ -686,6 +686,7 @@ Expected outputs:
 
 Boundary note:
 This validates OFP at its current component boundary (projection, snapshot, observability). Use Sections `16` and `17` for DL and DF boundary checks available today.
+In parity, DF/AL output families can share `fp.bus.traffic.fraud.v1`; OFP explicitly ignores `decision_response`, `action_intent`, and `action_outcome` while still advancing checkpoints.
 
 ---
 
@@ -924,5 +925,25 @@ Expected fields:
 
 Boundary note:
 This validates DLA at its component boundary for Phase 8 (append-only intake, lineage/reconciliation, and parity proofs).
+
+## 21) RTDL live-core baseline (current v0 daemon surfaces)
+
+Use this when you want always-on parity consumers for the RTDL lane that currently supports live daemons.
+
+Run in separate terminals (same `ACTIVE_RUN_ID`):
+```powershell
+make platform-ieg-projector-parity-live
+make platform-ofp-projector-parity-live
+make platform-context-store-flow-binding-parity-live
+```
+
+Or print the launch plan:
+```powershell
+make platform-rtdl-core-parity-live
+```
+
+Scope note:
+- This live-core baseline covers `IEG/OFP/CSFB`.
+- `DF/DL/AL/DLA` in current v0 repo posture are validated via component-runtime passes and test matrices, not long-running daemon targets.
 
 

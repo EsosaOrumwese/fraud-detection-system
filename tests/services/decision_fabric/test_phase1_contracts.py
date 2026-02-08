@@ -56,6 +56,12 @@ def _decision_payload() -> dict[str, object]:
             "event_id": "evt_abc",
             "event_type": "transaction_authorization",
             "ts_utc": "2026-02-07T10:26:59.000000Z",
+            "origin_offset": {
+                "topic": "topic.rtdl.traffic",
+                "partition": 0,
+                "offset": "100",
+                "offset_kind": "kafka_offset",
+            },
             "eb_ref": {"topic": "topic.rtdl.traffic", "partition": 0, "offset": "100", "offset_kind": "kafka_offset"},
         },
         "decision": {"disposition": "ALLOW"},

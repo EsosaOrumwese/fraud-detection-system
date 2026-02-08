@@ -653,6 +653,7 @@ class WorldStreamProducer:
                     envelope = {
                         "event_id": event_id,
                         "event_type": output_id,
+                        "schema_version": "v1",
                         "ts_utc": _normalize_ts(ts_utc),
                         "manifest_fingerprint": world_key.manifest_fingerprint,
                         "parameter_hash": world_key.parameter_hash,
@@ -760,6 +761,8 @@ class WorldStreamProducer:
         return emitted_total
 
     def _push_to_ig(self, envelope: dict[str, Any]) -> None:
+        if not envelope.get("schema_version"):
+            envelope["schema_version"] = "v1"
         url = self.profile.wiring.ig_ingest_url.rstrip("/")
         max_attempts = max(1, int(self.profile.wiring.ig_retry_max_attempts))
         base_delay = max(0, int(self.profile.wiring.ig_retry_base_delay_ms)) / 1000.0

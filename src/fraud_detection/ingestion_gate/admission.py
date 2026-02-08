@@ -36,6 +36,20 @@ logger = logging.getLogger(__name__)
 narrative_logger = logging.getLogger("fraud_detection.platform_narrative")
 eb_logger = logging.getLogger("fraud_detection.event_bus")
 
+_RTDL_EXPECTED_CLASS_BY_EVENT: dict[str, str] = {
+    "decision_response": "rtdl_decision",
+    "action_intent": "rtdl_action_intent",
+    "action_outcome": "rtdl_action_outcome",
+}
+_RTDL_REQUIRED_PINS: set[str] = {
+    "platform_run_id",
+    "scenario_run_id",
+    "manifest_fingerprint",
+    "parameter_hash",
+    "seed",
+    "scenario_id",
+}
+
 
 @dataclass
 class IngestionGate:
@@ -63,6 +77,7 @@ class IngestionGate:
     def build(cls, wiring: WiringProfile) -> "IngestionGate":
         policy = SchemaPolicy.load(Path(wiring.schema_policy_ref))
         class_map = ClassMap.load(Path(wiring.class_map_ref))
+        _validate_rtdl_policy_alignment(policy, class_map)
         digest = compute_policy_digest(
             [
                 Path(wiring.schema_policy_ref),
@@ -616,6 +631,49 @@ def _profile_id_for_class(class_name: str, default_profile_id: str) -> str:
     if class_name == "context_flow_fraud":
         return "ig.partitioning.v0.context.flow_anchor.fraud"
     return default_profile_id
+
+
+def _validate_rtdl_policy_alignment(policy: SchemaPolicy, class_map: ClassMap) -> None:
+    present_events = {
+        event_type
+        for event_type in _RTDL_EXPECTED_CLASS_BY_EVENT
+        if event_type in class_map.event_classes or policy.for_event(event_type) is not None
+    }
+    if not present_events:
+        return
+    mismatches: list[str] = []
+    missing_events = sorted(set(_RTDL_EXPECTED_CLASS_BY_EVENT) - present_events)
+    if missing_events:
+        mismatches.append(f"missing_rtdl_events={','.join(missing_events)}")
+    for event_type in sorted(present_events):
+        expected_class = _RTDL_EXPECTED_CLASS_BY_EVENT[event_type]
+        actual_class = class_map.class_for(event_type)
+        if actual_class != expected_class:
+            mismatches.append(
+                f"{event_type}:class_map={actual_class}:expected={expected_class}"
+            )
+        policy_entry = policy.for_event(event_type)
+        if policy_entry is None:
+            mismatches.append(f"{event_type}:schema_policy=missing")
+            continue
+        if policy_entry.class_name != expected_class:
+            mismatches.append(
+                f"{event_type}:schema_policy_class={policy_entry.class_name}:expected={expected_class}"
+            )
+        if not policy_entry.schema_version_required:
+            mismatches.append(f"{event_type}:schema_version_required=false")
+        allowed = set(policy_entry.allowed_schema_versions or [])
+        if "v1" not in allowed:
+            mismatches.append(f"{event_type}:allowed_schema_versions_missing_v1")
+        required = set(class_map.required_pins_for(event_type))
+        if "run_id" in required:
+            mismatches.append(f"{event_type}:required_pins_contains_run_id")
+        if not _RTDL_REQUIRED_PINS.issubset(required):
+            missing = sorted(_RTDL_REQUIRED_PINS - required)
+            mismatches.append(f"{event_type}:required_pins_missing={','.join(missing)}")
+    if mismatches:
+        joined = ";".join(mismatches)
+        raise RuntimeError(f"IG_RTLD_POLICY_ALIGNMENT_FAILED:{joined}")
 
 
 def _bus_probe_streams(

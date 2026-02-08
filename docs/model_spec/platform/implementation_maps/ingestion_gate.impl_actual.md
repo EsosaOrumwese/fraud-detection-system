@@ -2652,3 +2652,61 @@ Validation:
 - `python -m pytest tests/services/ingestion_gate/test_phase10_df_output_onboarding.py -q` -> `2 passed`.
 
 
+
+## Entry: 2026-02-08 12:36:14 - Pre-change decision: IG runtime guard for RTDL class-map/schema-policy coherence
+
+### Problem
+Operational caveat showed `action_outcome` processed as `traffic` in a running instance, causing `PINS_MISSING` (run_id required under traffic class). Repo config is correct; risk is stale/misaligned runtime policy load.
+
+### Options considered
+1. Rely only on external ops discipline (restart/check manually).
+- Rejected: too easy to miss; no fail-fast mechanism.
+2. Add permissive fallback in admission logic.
+- Rejected: hides policy drift and weakens fail-closed behavior.
+3. Add startup/runtime config coherence assertions for RTDL families (selected).
+- Selected: fail-fast if loaded class-map/schema-policy are inconsistent for `decision_response`, `action_intent`, `action_outcome`.
+
+### Decision
+- Add IG admission initialization validation that asserts:
+  - event_type -> expected RTDL class mapping,
+  - schema policy class matches class-map class,
+  - required pins for RTDL classes exclude `run_id` (as designed).
+- Raise explicit configuration error when assertions fail.
+- Add targeted tests for guard behavior.
+
+### Planned files
+- `src/fraud_detection/ingestion_gate/admission.py`
+- `tests/services/ingestion_gate/test_phase10_df_output_onboarding.py` (or dedicated guard test file)
+
+---
+
+## Entry: 2026-02-08 12:41:48 - Applied fail-fast RTDL policy/class alignment guard at IG startup
+
+### Change details
+1. Added `_validate_rtdl_policy_alignment(policy, class_map)` and invoked it in `IngestionGate.build(...)` immediately after loading config.
+2. Guard validates RTDL families (`decision_response`, `action_intent`, `action_outcome`) for:
+   - expected class-map mapping,
+   - schema-policy class match,
+   - schema version requirement + `v1` allowance,
+   - required pin subset presence,
+   - absence of `run_id` in RTDL required pin set.
+3. Guard behavior refined to avoid breaking minimal non-RTDL test profiles:
+   - no-op when RTDL families are absent from both class-map and schema-policy,
+   - fail-fast if any RTDL family is present but alignment is incomplete/mismatched.
+
+### Reasoning during implementation
+- Initial strict version broke generic unit fixtures that intentionally define only `test_event`.
+- Refined scope to "validate when RTDL is configured" preserves testability while still enforcing fail-fast for real RTDL runtime profiles.
+
+### File edits
+- `src/fraud_detection/ingestion_gate/admission.py`
+- `tests/services/ingestion_gate/test_phase10_df_output_onboarding.py`
+
+### Validation
+- `python -m pytest tests/services/ingestion_gate/test_phase10_df_output_onboarding.py tests/services/ingestion_gate/test_admission.py -q`
+- Result: `10 passed`.
+
+### Closure statement
+IG now fails fast on RTDL mapping/policy drift at startup, reducing risk of silent `action_outcome` misclassification in fresh runtime starts.
+
+---

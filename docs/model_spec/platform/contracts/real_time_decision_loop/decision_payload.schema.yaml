@@ -277,6 +277,8 @@ $defs:
         maxLength: 256
       ts_utc:
         $ref: "#/$defs/rfc3339_micros"
+      origin_offset:
+        $ref: "#/$defs/eb_ref"
       eb_ref:
         $ref: "#/$defs/eb_ref"
   context_ref:

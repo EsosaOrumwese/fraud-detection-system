@@ -1271,3 +1271,50 @@ Parity run revealed envelopes/receipts using engine receipt `run_id` as `scenari
 
 ### Tests
 - `python -m pytest tests/services/world_streamer_producer/test_runner.py -q` (4 passed)
+
+## Entry: 2026-02-08 12:36:14 - Pre-change decision: guarantee schema_version on WSP-emitted traffic envelopes
+
+### Problem
+Runtime DF service pass required schema normalization (`schema_version -> v1`) on upstream traffic records. This indicates WSP did not guarantee `schema_version` on all emitted envelopes.
+
+### Options considered
+1. Keep runtime normalizer downstream.
+- Rejected: violates fail-closed schema discipline and hides producer contract drift.
+2. Set default schema at IG/DF inlet when missing.
+- Rejected: weakens source contract and can mask mixed producer behavior.
+3. Guarantee schema_version at WSP emission source (selected).
+- Selected: upstream contract correctness, deterministic downstream behavior, no hidden adaptation.
+
+### Decision
+- Ensure all WSP emission paths stamp canonical `schema_version` (v1) when absent.
+- Add/adjust tests to assert emitted envelopes include schema_version on stream-view path.
+
+### Planned files
+- `src/fraud_detection/world_streamer_producer/runner.py`
+- `tests/services/world_streamer_producer/test_runner.py`
+
+---
+
+## Entry: 2026-02-08 12:41:48 - Applied schema_version source guarantee for emitted envelopes
+
+### Change details
+1. Stream-view emission path now stamps `schema_version: v1` directly when constructing each envelope.
+2. Final send path (`_push_to_ig`) now enforces a defensive fallback:
+   - if upstream envelope arrives without `schema_version`, set it to `v1` before publish.
+
+### Why both layers were kept
+- Build-time stamp on stream-view path preserves explicit producer contract shape.
+- Send-time guard protects legacy/non-stream-view envelope paths and prevents regressions from future emitter changes.
+
+### File edits
+- `src/fraud_detection/world_streamer_producer/runner.py`
+- `tests/services/world_streamer_producer/test_runner.py`
+
+### Validation
+- `python -m pytest tests/services/world_streamer_producer/test_runner.py tests/services/world_streamer_producer/test_push_retry.py -q`
+- Result: `6 passed`.
+
+### Closure statement
+The runtime normalization requirement for missing `schema_version` is now removed at source for WSP-emitted traffic envelopes.
+
+---

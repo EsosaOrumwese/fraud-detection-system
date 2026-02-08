@@ -1062,3 +1062,51 @@ This closes the `4.4.H` DF store parity gap while preserving SQLite support for 
   - `python -m pytest tests/services/decision_fabric/test_phase1_ids.py tests/services/decision_fabric/test_phase2_inlet.py tests/services/decision_fabric/test_phase5_context.py tests/services/decision_fabric/test_phase6_synthesis.py tests/services/decision_fabric/test_phase8_validation_matrix.py -q` -> `24 passed`
 - full DF suite:
   - `python -m pytest tests/services/decision_fabric -q` -> `69 passed`
+
+## Entry: 2026-02-08 12:36:14 - Pre-change decision: align decision payload schema with emitted source_event.origin_offset
+
+### Problem
+DF synthesis emits `source_event.origin_offset`, but RTDL decision payload schema currently rejects it (`source_event.additionalProperties: false` with no `origin_offset`). IG correctly quarantines as `SCHEMA_FAIL`.
+
+### Options considered
+1. Remove `origin_offset` from DF payload.
+- Rejected: loses explicit evidence vocabulary now used in identity/provenance and parity analysis.
+2. Move origin offset into another already-allowed field.
+- Rejected: obscures semantics and duplicates `eb_ref` meaning.
+3. Add `origin_offset` explicitly to decision payload schema (selected).
+- Selected: preserves explicit provenance contract and keeps schema strict.
+
+### Decision
+- Extend `decision_payload.schema.yaml` `event_ref` definition to include `origin_offset` with strict structure.
+- Keep `source_event.eb_ref` required and unchanged.
+- Add/adjust tests to validate contract acceptance path.
+
+### Planned files
+- `docs/model_spec/platform/contracts/real_time_decision_loop/decision_payload.schema.yaml`
+- `tests/services/decision_fabric/test_phase1_contracts.py` (or nearest schema-contract test surface)
+
+---
+
+## Entry: 2026-02-08 12:41:48 - Applied decision payload schema alignment for source_event.origin_offset
+
+### Change details
+- Extended `event_ref` in decision payload schema to allow optional `origin_offset` with strict `eb_ref` shape.
+- Kept `source_event.eb_ref` required; no relaxation of required evidence fields.
+
+### Reasoning during implementation
+- The drift root was schema rejection (`SCHEMA_FAIL`) despite DF intentionally emitting `origin_offset` as explicit provenance.
+- Removing `origin_offset` would reduce evidence clarity and conflict with current decision identity/provenance usage.
+- Schema extension is the minimal strict fix: explicit allowance without permissive wildcard properties.
+
+### File edits
+- `docs/model_spec/platform/contracts/real_time_decision_loop/decision_payload.schema.yaml`
+- `tests/services/decision_fabric/test_phase1_contracts.py`
+
+### Validation
+- `python -m pytest tests/services/decision_fabric/test_phase1_contracts.py tests/services/decision_fabric/test_phase6_synthesis.py -q`
+- Result: `9 passed`.
+
+### Closure statement
+DF decision payload now matches IG schema-policy expectations for emitted `source_event.origin_offset`; the previous schema mismatch drift is closed.
+
+---
