@@ -4800,3 +4800,90 @@ Updated file:
 
 ### Rationale
 - Prevent stale planning signals after closure; the build plan must match objective matrix posture and unblock sequencing references for subsequent work.
+
+## 2026-02-08 09:20PM - Narrative entry: expected flow across the four EB topics (implemented posture)
+
+### Scope
+Capture the expected end-to-end narrative for the four admitted fraud-mode topics as currently implemented, aligned to live parity behavior and current RTDL component posture.
+
+### Four-topic flow narrative
+1. `fp.bus.context.arrival_events.v1` (context skeleton lane)
+- WSP emits arrival events with canonical envelope pins (`platform_run_id`, `scenario_run_id`, `manifest_fingerprint`, `parameter_hash`, etc.).
+- IG applies writer auth, schema/class checks, dedupe by `(platform_run_id, event_class, event_id)`, and payload-hash anomaly checks.
+- On admit, IG publishes to EB and records receipt/runtime evidence with provenance fields (`service_release_id`, `environment`).
+- RTDL context path treats these as state-building events and opens/updates the join frame keyed by `(platform_run_id, merchant_id, arrival_seq)`.
+- This lane does not trigger decisions directly.
+
+2. `fp.bus.context.arrival_entities.v1` (entity enrichment lane)
+- WSP emits entity attachment events for the same arrival scope.
+- IG re-applies the same boundary contract (auth, schema, dedupe, routing, evidence).
+- RTDL context path idempotently attaches entity references (`party/account/device/ip` style refs) to existing join frames.
+- IEG/OFP/CSFB consumers ingest under at-least-once semantics with replay-safe idempotency.
+- This lane enriches context and remains non-triggering for decision execution.
+
+3. `fp.bus.context.flow_anchor.fraud.v1` (binding and ordering lane)
+- WSP emits flow-anchor events linking `flow_id` to arrival context.
+- IG admits with the same controls and collapses duplicate retry traffic before downstream fanout.
+- RTDL context path updates flow binding (`flow_id -> (platform_run_id, merchant_id, arrival_seq)`) and advances join readiness when frame completeness is satisfied.
+- Binding conflicts are fail-closed/anomaly posture, never silent overwrite.
+- This lane is the deterministic bridge used by traffic to resolve join context.
+
+4. `fp.bus.traffic.fraud.v1` (decision-trigger lane)
+- WSP emits fraud traffic events concurrently with all context lanes.
+- IG validates/dedupes/routes and writes admit evidence (`eb_ref`, receipt/provenance).
+- RTDL treats traffic as decision trigger: resolve flow binding by `(platform_run_id, flow_id)`, load join frame, proceed when join-ready.
+- Missing/incomplete context follows explicit wait/degrade posture (no implicit guesses).
+- Downstream DF/DL/AL/DLA logic remains validated in current v0 through component matrices/runtime tests rather than long-running daemon mode.
+
+### Cross-topic invariants currently expected
+- All four lanes are concurrent and run-scoped under the same `platform_run_id`/`scenario_run_id` pins.
+- EB is at-least-once; IG dedupe makes admitted stream canonical for downstream replay safety.
+- Admission outcomes are explicit (`ADMITTED`, `DUPLICATE`, `QUARANTINE`, `PUBLISH_AMBIGUOUS`) with evidence preserved.
+- Governance/meta surfaces capture lifecycle/corridor/report facts with actor attribution and provenance stamps.
+
+## 2026-02-08 09:20PM - Narrative entry: implemented platform flow (live vs non-live) and orchestrator handling
+
+### Scope
+Capture the expected platform flow as implemented now, explicitly separating always-on live-stream surfaces from bounded/job or matrix-only surfaces, and documenting orchestrator handling semantics.
+
+### Implemented run/operate flow (local parity)
+1. Orchestration substrate and pack model
+- Plane-agnostic orchestrator lives in `src/fraud_detection/run_operate/orchestrator.py`.
+- `make platform-operate-parity-up` starts two packs:
+  - control/ingress pack: `ig_service`, `wsp_ready_consumer`.
+  - RTDL core pack: `ieg_projector`, `ofp_projector`, `csfb_intake`.
+- RTDL core pack enforces active run scope via `runs/fraud-platform/ACTIVE_RUN_ID` -> required platform-run env wiring.
+- Orchestrator writes operation evidence under `runs/fraud-platform/operate/<pack_id>/` (`state.json`, `events.jsonl`, `status/last_status.json`, process logs).
+
+2. Run initiation boundary
+- Scenario Runner (SR) is run as a bounded command (`platform-sr-run-reuse`), not an always-on daemon in current packs.
+- SR writes run facts view and emits READY control fact (`fp.bus.control.v1`) that wakes the ready consumer.
+
+3. Live Control + Ingress path
+- `wsp_ready_consumer` is always-on and consumes READY facts, validates run context, and streams the four fraud outputs concurrently.
+- `ig_service` is always-on and handles auth, schema/class policy, dedupe/anomaly checks, EB publish, and receipt/quarantine evidence write paths.
+
+4. Live RTDL-core path (current daemonized scope)
+- `ieg_projector`: live EB consumer maintaining IEG projection surfaces.
+- `ofp_projector`: live EB consumer maintaining OFP projection/snapshot surfaces.
+- `csfb_intake`: live EB consumer maintaining context store + flow-binding projection.
+
+5. Non-daemonized/posture-separated components in current v0
+- DF/DL/AL/DLA are currently validated via component-runtime matrices/tests and parity proofs, not operated as long-running orchestrated daemons.
+- Meta jobs are bounded/on-demand commands:
+  - platform run reporter,
+  - governance query/ref-resolution probes,
+  - environment conformance checker.
+- Label/Case and Learning/Registry planes are not yet onboarded into run/operate packs.
+
+### Orchestrator handling semantics (operational contract)
+- `up`: starts only non-running processes; preserves already-running workers.
+- `status`: evaluates readiness per probe type (`tcp`, `process_alive`, `file_exists`, or command probe) and writes status artifact.
+- `down`: graceful terminate then forced kill on timeout.
+- `restart`: deterministic `down` then `up`.
+- Environment resolution merges env-file defaults with runtime shell env overrides; process-level env expansion is explicit and auditable.
+
+### Current expected outcome
+- Control/Ingress + RTDL core are live-stream capable as a single orchestration substrate.
+- Remaining decision-layer services are explicitly non-daemon in current repo posture and remain green via matrix validation.
+- This preserves one meta-layer orchestration contract while enabling future plane onboarding by new pack definitions rather than orchestrator rewrites.
