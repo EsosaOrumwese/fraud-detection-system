@@ -26,7 +26,12 @@ Provide a platform-wide, production-shaped build plan for v0 that aligns compone
 
 **DoD checklist:**
 - Canonical envelope fields are pinned and versioned (including `ts_utc`, `event_type`, `event_id`, `schema_version`, `manifest_fingerprint` + optional pins).
-- ContextPins are pinned as `{scenario_id, run_id, manifest_fingerprint, parameter_hash}` and `seed` is treated as a separate, required field when seed‑variant.
+- Run identity pins are explicit and versioned:
+  - canonical execution scope is `platform_run_id`,
+  - scenario execution scope is `scenario_run_id`,
+  - scenario/world pins include `scenario_id`, `manifest_fingerprint`, `parameter_hash`,
+  - `seed` remains a required field for synthetic runs,
+  - legacy `run_id` is optional alias only (never canonical).
 - Time semantics are pinned (domain `ts_utc`, optional `emitted_at_utc`, ingestion time in IG receipts).
 - Naming/alias mapping for any legacy fields is documented (no hidden drift).
 
@@ -37,7 +42,8 @@ Provide a platform-wide, production-shaped build plan for v0 that aligns compone
 - Platform object‑store prefix map is pinned (bucket + prefixes for SR/IG/DLA/Registry/etc.).
 - Locator schema and digest posture are pinned (content digest, bundle manifest digest rules).
 - Instance‑proof receipts path conventions are pinned (engine vs SR verifier receipts).
-- Token order rules are pinned for partitioned paths (seed → parameter_hash → manifest_fingerprint → scenario_id → run_id → utc_day).
+- Token order rules are pinned for partitioned paths (seed → parameter_hash → manifest_fingerprint → scenario_id → scenario_run_id → platform_run_id → utc_day).
+- Canonical run-scoped roots use `platform_run_id`; `scenario_run_id` is retained for provenance and scenario reuse.
 
 #### Phase 1.3 — Event bus taxonomy + partitioning rules
 **Goal:** prevent drift on how traffic/control/audit are separated and replayed.
@@ -270,7 +276,7 @@ Local‑parity uses the *same service classes* as dev/prod (S3/Kinesis/Postgres)
 The platform uses the **canonical event time (`ts_utc`)** for windowing and temporal logic. Speedup only changes the pacing of delivery; it does **not** change ordering or event time. This is why the flow can appear “non‑intuitive” if you expect file order—**it is event‑time order**.
 
 **Traffic stream semantics (post‑EB):**  
-The EB traffic plane is **single‑mode per run**: a run is either **fraud** (`s3_event_stream_with_fraud_6B`) or **baseline** (`s2_event_stream_baseline_6B`). Each channel carries **one event_type only** (no interleaving in v0). Downstream components subscribe only to the channel that matches the run mode.
+The EB traffic plane is **single‑mode for traffic stimuli per run**: a run is either **fraud** (`s3_event_stream_with_fraud_6B`) or **baseline** (`s2_event_stream_baseline_6B`). In local-parity wiring, derived families (for example DF/AL emissions) may share the traffic stream; non-trigger families are explicit non-apply/non-trigger inputs for RTDL projectors and trigger policy.
 
 **v0 parity pin (shared traffic stream for DF outputs):**  
 `decision_response` and `action_intent` may be admitted onto `fp.bus.traffic.fraud.v1` in local-parity for wiring convenience. OFP/IEG treat these families as explicit non-apply events (ignored/irrelevant), and DF trigger policy continues to block them as decision triggers.
@@ -383,7 +389,7 @@ These remain open and will be resolved during RTDL Phase 4 planning and partitio
 
 **DoD checklist:**
 - Canonical envelope validated for every event.
-- Required pins enforced per class map (includes `platform_run_id`, `scenario_run_id`, `manifest_fingerprint`, `parameter_hash`, `scenario_id`, `seed`, `run_id`).
+- Required pins enforced per class map (includes `platform_run_id`, `scenario_run_id`, `manifest_fingerprint`, `parameter_hash`, `scenario_id`, `seed`; legacy `run_id` accepted only as optional alias).
 - Events are classified deterministically as `GRAPH_MUTATING`, `GRAPH_IRRELEVANT`, or `GRAPH_UNUSABLE`.
 - `GRAPH_UNUSABLE` events do not mutate state and emit an explicit apply‑failure record.
 
@@ -391,7 +397,8 @@ These remain open and will be resolved during RTDL Phase 4 planning and partitio
 **Goal:** stable under duplicates and replay.
 
 **DoD checklist:**
-- Dedupe key is `(platform_run_id, scenario_run_id, class_name, event_id)`; payload_hash mismatches are recorded as anomalies.
+- Semantic idempotency tuple is `(platform_run_id, event_class, event_id)`; payload_hash mismatches are recorded as anomalies.
+- `scenario_run_id` remains required for provenance/scope checks but is not part of semantic identity.
 - Duplicate deliveries do not change graph state or watermark advancement.
 - Payload_hash mismatch never mutates state and is surfaced as an anomaly.
 - Payload_hash canonicalization is pinned to `{event_type, schema_version, payload}` canonical JSON.
@@ -540,8 +547,8 @@ These remain open and will be resolved during RTDL Phase 4 planning and partitio
 - Replay test: same basis → same snapshot_hash.
 - local_parity OFP runbook exists for current boundary operation.
 - Integration test: IEG graph_version → OFP snapshot with correct provenance.
-- DF-contract compatibility integration test (pending until DF exists).
-- DL consume-path integration test for OFP health/degrade signals (pending until DL exists).
+- DF-contract compatibility integration test is closed at current v0 scope (evidence in implementation maps/logbook).
+- DL consume-path integration test for OFP health/degrade signals is closed at current v0 scope (evidence in implementation maps/logbook).
 
 #### Phase 4.3.5 — Shared RTDL join plane (Context Store + FlowBinding)
 **Goal:** pin the runtime join substrate that DF/DL consume at decision time without duplicating IEG or OFP truth ownership.
@@ -863,12 +870,14 @@ Resolved and pinned in:
 **Goal:** make lifecycle-changing actions uniformly auditable as append-only governance facts.
 
 **DoD checklist:**
-- Required v0 governance event families are emitted and queryable:
+- Required v0 governance event families are emitted and queryable (**MUST EMIT in Phase 4.6**):
   - run lifecycle (`RUN_READY_SEEN`, `RUN_STARTED`, `RUN_ENDED`, `RUN_CANCELLED`),
   - policy/config (`POLICY_REV_CHANGED`),
-  - registry lifecycle (publish/approve/promote/rollback/retire),
-  - label lifecycle (`LABEL_SUBMITTED`, `LABEL_ACCEPTED`, `LABEL_REJECTED`),
+  - corridor/anomaly lifecycle for fail-closed boundaries (for example schema/policy missing, publish ambiguous, ref access denied, incompatible resolution),
   - evidence access (`EVIDENCE_REF_RESOLVED`).
+- Reserved governance families are pinned now as schema/plumbing contracts and become **MUST EMIT** only when owning planes are active:
+  - label lifecycle (`LABEL_SUBMITTED`, `LABEL_ACCEPTED`, `LABEL_REJECTED`) [Phase 5+],
+  - registry lifecycle (publish/approve/promote/rollback/retire) [Phase 6+ activation path].
 - Governance events are idempotent, append-only, and include actor attribution + scope/pins.
 - Missing mandatory governance fields fail closed at writer boundaries.
 
@@ -945,6 +954,29 @@ Resolved and pinned in:
   - platform-level reconciliation artifact generation.
 - Validation suite and runbook evidence are attached in implementation maps/logbook.
 - Explicit handoff note marks Phase 5 unblocked only after 4.6 PASS.
+
+##### 4.6.J — Platform orchestration contract (meta-layer, plane-agnostic)
+**Goal:** ensure orchestration is implemented once as platform Run/Operate substrate and reused by all planes.
+
+**DoD checklist:**
+- A single orchestration contract is pinned for all planes: lifecycle (`up/down/restart/status`), readiness/liveness checks, run-scope controls, restart/replay-safe behavior, and log/evidence surfacing.
+- `local_parity`, `dev`, and `prod` use the same orchestration semantics and env var keys; only wiring/auth/scale posture differs by profile.
+- Current plane packs are onboarded through this same contract (Control/Ingress + RTDL live-capable workers) without bespoke orchestrator logic.
+- Future planes (Label/Case, Learning/Registry, Obs/Gov workers) are onboarded by declarative process-pack entries and config only, not orchestrator code rewrites.
+- Orchestrator layer contains no RTDL-specific business assumptions (no hardcoded stream families, no DF/OFP-specific policy logic).
+
+##### 4.6.K — Objective meta-layer quality gate
+**Goal:** make 4.6 PASS measurable and audit-ready, not narrative-only.
+
+**DoD checklist:**
+- A written 4.6 validation matrix exists with explicit PASS/FAIL criteria per subsection `4.6.A`..`4.6.J`.
+- At least one monitored parity run executes under orchestrated mode and produces evidence for:
+  - run lifecycle governance facts,
+  - corridor anomaly emission on injected negative checks,
+  - platform reconciliation artifact generation,
+  - restart/recovery behavior for at least one always-on worker pack.
+- Evidence pack paths are pinned in implementation maps/logbook with run IDs, timestamps, and command traces (no payload secret leakage).
+- Phase 5 remains blocked unless all mandatory 4.6 gates are PASS (reserved families excluded until owning plane activation).
 
 ---
 

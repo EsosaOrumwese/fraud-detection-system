@@ -3607,3 +3607,116 @@ Updated `docs/model_spec/platform/implementation_maps/platform.build_plan.md` to
 - Aligns platform sequencing with live-operability intent rather than component-isolated completion.
 
 ---
+## Entry: 2026-02-08 17:54:30 - Plan: harden platform build DoD for plane-agnostic orchestration meta-layer
+
+### Trigger
+User requested confirmation and explicit planning posture that orchestration is a **platform meta layer** (Run/Operate), not RTDL-only glue, and asked to update the platform build plan with DoD that can objectively gauge quality before implementation.
+
+### Authorities and context read before planning
+Read in AGENTS order and relevant extensions:
+- `docs/model_spec/platform/platform-wide/platform_blueprint_notes_v0.md`
+- `docs/model_spec/platform/component-specific/world_streamer_producer.design-authority.md`
+- `docs/model_spec/platform/platform-wide/deployment_tooling_notes_v0.md`
+- `docs/model_spec/data-engine/interface_pack/README.md`
+- `docs/model_spec/data-engine/interface_pack/data_engine_interface.md`
+- Platform narratives (`control_and_ingress`, `real-time_decision_loop`, `label_and_case`, `learning_and_evolution`, `observability_and_governance`)
+- Meta-layer pre-design decisions:
+  - `docs/model_spec/platform/pre-design_decisions/run_and_operate.pre-design_decisions.md`
+  - `docs/model_spec/platform/pre-design_decisions/observability_and_governance.pre-design_decisions.md`
+- Current narrative integration note:
+  - `docs/model_spec/platform/component-specific/flow-narrative-platform-design.md`
+- Current plan and implementation trail:
+  - `docs/model_spec/platform/implementation_maps/platform.build_plan.md`
+  - `docs/model_spec/platform/implementation_maps/platform.impl_actual.md`
+
+### Problem framing
+Current `platform.build_plan.md` already blocks Phase 5 behind Phase 4.6, but it still has text-level drifts and one architectural ambiguity that weaken implementation quality gates:
+1. Legacy run-id wording persists in Phase 1 identity/token-order lines and conflicts with current platform pins (`platform_run_id` canonical + explicit `scenario_run_id`).
+2. IEG semantic idempotency tuple wording in Phase 4.2 still includes `scenario_run_id`/`class_name` in a way that conflicts with the currently pinned semantic identity tuple.
+3. OFP validation text still says DF/DL integration tests are pending until DF/DL exist, which contradicts current plan status where DF/DL phases are complete.
+4. Phase 4.6.A requires label/registry lifecycle families as mandatory now, which can create sequencing deadlock when 4.6 blocks later planes.
+5. Most importantly for this request: the orchestration DoD is not explicit enough yet that the supervisor/launcher contract is platform-meta and plane-agnostic.
+
+### Alternatives considered
+- **Option A (minimal):** only add one sentence saying orchestration is meta-layer.
+  - Rejected: too weak; does not produce measurable DoD, leaves drift contradictions in place.
+- **Option B (targeted hardening):** patch known drifts and add explicit plane-agnostic orchestration DoD under 4.6 with objective pass criteria.
+  - Chosen: smallest change set that makes implementer intent unambiguous and auditable.
+
+### Decisions
+1. Keep Phase 4.6 as the blocking meta-layer gate.
+2. Patch plan-level drift text that would otherwise cause execution ambiguity.
+3. Split governance lifecycle families into:
+   - **MUST EMIT now (v0 pre-Phase5)**
+   - **SCHEMA RESERVED now, MUST EMIT once owning plane exists**
+4. Add explicit **platform orchestration contract DoD** proving:
+   - one launcher contract across planes,
+   - no RTDL-specific assumptions in orchestrator semantics,
+   - new planes onboard by process/config entries, not orchestrator rewrites.
+5. Add objective meta-layer quality gate criteria so completion is measurable.
+
+### Planned file changes
+- Update `docs/model_spec/platform/implementation_maps/platform.build_plan.md`:
+  - identity/token-order wording updates,
+  - RTDL stream semantics wording cleanup,
+  - IEG idempotency wording correction,
+  - OFP validation wording correction,
+  - 4.6.A must-vs-reserved split,
+  - new 4.6 J/K sections for plane-agnostic orchestration and objective quality gates.
+- Append post-change decision/outcome entry here.
+- Log action in `docs/logbook/02-2026/2026-02-08.md`.
+
+### Risks and guardrails
+- Risk: over-constraining future planes with premature mechanics.
+  - Guardrail: keep orchestration contract generic (lifecycle/readiness/run-scope/restart semantics), leave plane-specific process packs as config-driven entries.
+- Risk: plan inconsistencies after section insertion.
+  - Guardrail: preserve numbering continuity and phase block semantics; review references around Phase 5 start gate and rolling status.
+---
+## Entry: 2026-02-08 17:55:25 - Applied build-plan DoD hardening for platform meta-layer orchestration
+
+### Scope executed
+Updated `docs/model_spec/platform/implementation_maps/platform.build_plan.md` to make Run/Operate orchestration explicitly platform-meta and to strengthen objective DoD quality gates before Phase 5.
+
+### Changes applied
+1. **Identity drift corrections (Phase 1)**
+- Replaced legacy canonical `run_id` wording with explicit run pins:
+  - `platform_run_id` (canonical),
+  - `scenario_run_id` (explicit scenario execution scope),
+  - legacy `run_id` optional alias only.
+- Updated partition token-order rule to include `scenario_run_id` then `platform_run_id`.
+
+2. **RTDL stream semantics wording cleanup**
+- Replaced absolute “one event_type only / no interleaving” traffic-channel statement with single-mode stimulus semantics and explicit shared-stream derived-family handling in parity (non-trigger/non-apply families remain blocked by policy).
+
+3. **IEG semantic idempotency correction**
+- Updated 4.2.B pin wording to keep `run_id` alias optional only.
+- Updated 4.2.C semantic idempotency tuple to `(platform_run_id, event_class, event_id)` with `scenario_run_id` retained for provenance/scope checks, not semantic identity.
+
+4. **OFP stale pending text correction**
+- Replaced “pending until DF/DL exists” language in 4.3.H with “closed at current v0 scope; evidence in implementation maps/logbook.”
+
+5. **4.6.A deadlock-safe governance split**
+- Split into:
+  - **MUST EMIT in 4.6**: run lifecycle, policy/config, fail-closed corridor/anomaly lifecycle, evidence access.
+  - **Reserved now / MUST EMIT when owning plane exists**: label lifecycle (Phase 5+), registry lifecycle (Phase 6+ activation path).
+
+6. **New meta-layer orchestration DoD (4.6.J)**
+- Added explicit platform orchestration contract requirements:
+  - one lifecycle/readiness/run-scope/restart-safe contract across all planes,
+  - same semantics across env ladder,
+  - current and future planes onboard by declarative process packs/config,
+  - no RTDL-specific business logic in orchestrator layer.
+
+7. **New objective quality gate (4.6.K)**
+- Added measurable 4.6 PASS posture:
+  - written validation matrix,
+  - monitored orchestrated parity evidence (governance, anomalies, reconciliation, restart behavior),
+  - evidence-pack path pinning,
+  - explicit mandatory-vs-reserved gating rule for Phase 5 unblock.
+
+### Why this resolves the user concern
+The plan now encodes orchestration as a **platform meta-layer substrate** with explicit non-RTDL assumptions and objective completion criteria. Future planes are designed to onboard through config/process declarations, not orchestrator redesign.
+
+### Validation
+- Post-edit drift checks run via `rg` against previously contradictory phrases (`run_id` canonical text, old IEG tuple, stale DF/DL pending wording, old traffic interleaving claim).
+- Confirmed insertion of new sections `4.6.J` and `4.6.K` and updated 4.6.A mandatory/reserved split.
