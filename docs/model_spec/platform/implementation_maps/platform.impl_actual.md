@@ -4021,3 +4021,92 @@ uns/fraud-platform/ACTIVE_RUN_ID in-command.
 - `4.6.K` monitored parity evidence requirement: satisfied for orchestrated mode with explicit run id, command trace, lifecycle evidence, capped-stream proof, and run-scoped store counters.
 - Residual note: WSP READY consumer still emits repetitive duplicate-skip logs for already-seen READY messages in continuous loop; functionally safe, but log-noise optimization remains open.
 ---
+## Entry: 2026-02-08 19:52:06 - Plan for next-step execution (4.6 validation matrix artifact + WSP duplicate-log suppression)
+
+### Objective
+Execute the two immediate next steps:
+1. Publish a written Phase 4.6 validation matrix (4.6.A..4.6.J) with explicit PASS/FAIL criteria, current status, and evidence/gap pointers.
+2. Reduce WSP READY-consumer duplicate polling noise without changing correctness semantics.
+
+### Current-state assessment used for planning
+- 4.6.J orchestration contract is implemented and validated with orchestrated parity evidence.
+- 4.6.F run/operate durability is materially implemented for always-on control/ingress + RTDL core packs, with explicit matrix-vs-daemon boundary notes for DF/DL/AL/DLA.
+- Most other 4.6 subsections remain incomplete or partial (governance lifecycle emission set, evidence-ref access corridor, service identity parity, platform-wide run reporter, release stamp uniformity, full corridor closure, env conformance checklist, closure handoff).
+
+### Design decisions
+1. **Matrix artifact placement**
+- Add a dedicated file under implementation maps:
+  - docs/model_spec/platform/implementation_maps/platform.phase4_6_validation_matrix.md
+- Rationale: keeps gate status auditable and close to build/impl authority docs, while avoiding noise inside runbook prose.
+
+2. **Matrix status model**
+- Use explicit PASS/FAIL status per subsection with deterministic criteria text and evidence references.
+- Use FAIL for partial coverage if DoD is not fully met (no SOFT_PASS ambiguity).
+
+3. **Duplicate-log suppression mechanics**
+- In world_streamer_producer.ready_consumer duplicate branch:
+  - throttle identical duplicate-skip INFO logs per message_id by interval,
+  - do not append duplicate result rows to ready-record storage when terminal state already exists.
+- Keep behavior deterministic:
+  - duplicate result still returned to caller as SKIPPED_DUPLICATE.
+- Add env-tunable interval (default 60s) to avoid hardcoded operator posture.
+
+### Planned code/docs changes
+- New docs artifact:
+  - docs/model_spec/platform/implementation_maps/platform.phase4_6_validation_matrix.md
+- Code update:
+  - src/fraud_detection/world_streamer_producer/ready_consumer.py
+- Tests:
+  - extend 	ests/services/world_streamer_producer/test_ready_consumer.py with duplicate-log throttling assertion.
+- Append completion evidence to:
+  - docs/model_spec/platform/implementation_maps/platform.impl_actual.md
+  - docs/logbook/02-2026/2026-02-08.md
+
+### Risks and guardrails
+- Risk: suppressing duplicate records could reduce post-hoc trace volume.
+  - Guardrail: terminal ready record (STREAMED / SKIPPED_OUT_OF_SCOPE) remains persisted; duplicate status is operational noise, not state transition.
+- Risk: matrix assertions drift from repo reality.
+  - Guardrail: each row includes concrete evidence path and command/source anchor; unknowns marked FAIL.
+---
+## Entry: 2026-02-08 19:53:49 - Completed next steps: 4.6 validation matrix artifact + WSP duplicate-log suppression
+
+### Scope delivered
+1. Published the written Phase 4.6 gate matrix with explicit PASS/FAIL per 4.6.A..4.6.J.
+2. Reduced WSP READY duplicate-skip polling noise while preserving behavior semantics.
+
+### Changes applied
+1. **New 4.6 matrix artifact**
+- Added file:
+  - docs/model_spec/platform/implementation_maps/platform.phase4_6_validation_matrix.md
+- Contents:
+  - explicit gate criteria/status for 4.6.A..4.6.J,
+  - evidence baseline run ids (platform_20260208T193407Z, 24827c0356195144a6d9a847c3563347),
+  - PASS summary (4.6.F, 4.6.J) and FAIL summary for remaining gates,
+  - Phase 5 unblock posture (NO).
+
+2. **Build plan linkage update**
+- Updated docs/model_spec/platform/implementation_maps/platform.build_plan.md (4.6.K) to pin current matrix artifact path.
+
+3. **WSP duplicate-noise suppression**
+- Updated src/fraud_detection/world_streamer_producer/ready_consumer.py:
+  - duplicate skip logs now throttle per message_id by interval,
+  - duplicate skip no longer appends repeated ready-record rows when terminal state already exists,
+  - added env-tunable interval helper: WSP_READY_DUPLICATE_LOG_INTERVAL_SECONDS (default 60).
+- Behavior preserved:
+  - duplicate READY still returns SKIPPED_DUPLICATE result.
+
+4. **Tests updated**
+- Updated 	ests/services/world_streamer_producer/test_ready_consumer.py:
+  - assert duplicate path does not append extra record lines,
+  - added duplicate-log throttling test (two polls, one duplicate info log).
+- Validation commands:
+  - python -m pytest tests/services/world_streamer_producer/test_ready_consumer.py -q -> 4 passed
+  - python -m pytest tests/services/run_operate/test_orchestrator.py -q -> 4 passed
+
+### 4.6 gate posture after this step
+- 4.6.K matrix-existence sub-requirement: **closed** (artifact exists and linked in build plan).
+- Overall Phase 4.6 mandatory-gate posture: still **blocked**, with explicit fail list captured in matrix.
+
+### Residual note
+- Prior implementation-map entries around 19:07 contain historical text corruption artifacts from earlier shell formatting; no decision semantics were changed in this step, but a cleanup pass may be applied later for readability.
+---

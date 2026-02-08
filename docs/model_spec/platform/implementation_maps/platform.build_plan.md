@@ -970,6 +970,7 @@ Resolved and pinned in:
 
 **DoD checklist:**
 - A written 4.6 validation matrix exists with explicit PASS/FAIL criteria per subsection `4.6.A`..`4.6.J`.
+  - current artifact path: `docs/model_spec/platform/implementation_maps/platform.phase4_6_validation_matrix.md`
 - At least one monitored parity run executes under orchestrated mode and produces evidence for:
   - run lifecycle governance facts,
   - corridor anomaly emission on injected negative checks,

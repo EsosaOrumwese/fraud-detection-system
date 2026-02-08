@@ -4,6 +4,7 @@ import json
 from pathlib import Path
 
 from fraud_detection.world_streamer_producer.config import PolicyProfile, WiringProfile, WspProfile
+from fraud_detection.world_streamer_producer import ready_consumer as ready_consumer_module
 from fraud_detection.world_streamer_producer.ready_consumer import ReadyConsumerRunner
 from fraud_detection.world_streamer_producer.runner import StreamResult
 
@@ -204,6 +205,56 @@ def test_ready_consumer_skips_duplicate(tmp_path: Path, monkeypatch) -> None:
     assert results
     assert results[0].status == "SKIPPED_DUPLICATE"
     assert called["value"] is False
+    assert len(record_path.read_text(encoding="utf-8").splitlines()) == 1
+
+
+def test_ready_consumer_duplicate_logging_is_throttled(tmp_path: Path, monkeypatch) -> None:
+    monkeypatch.setenv("PLATFORM_RUN_ID", RUN_ID)
+    store_root = tmp_path / "store"
+    control_root = tmp_path / "control_bus"
+    engine_root = tmp_path / "engine_run"
+    engine_root.mkdir(parents=True, exist_ok=True)
+    profile = _profile(store_root, control_root)
+
+    run_id = "d" * 32
+    scenario_id = "baseline_v1"
+    facts_ref = _write_run_facts(store_root, run_id, engine_root, scenario_id)
+    message_id = "4" * 64
+    ready_payload = {
+        "run_id": run_id,
+        "platform_run_id": RUN_ID,
+        "scenario_run_id": run_id,
+        "facts_view_ref": facts_ref,
+        "bundle_hash": "a" * 64,
+        "message_id": message_id,
+        "run_config_digest": "c" * 64,
+        "manifest_fingerprint": "a" * 64,
+        "parameter_hash": "b" * 64,
+        "scenario_id": scenario_id,
+        "oracle_pack_ref": {"engine_run_root": str(engine_root)},
+    }
+    _write_control_message(control_root, topic="fp.bus.control.v1", message_id=message_id, payload=ready_payload)
+
+    record_path = store_root / RUN_PREFIX / "wsp" / "ready_runs" / f"{message_id}.jsonl"
+    record_path.parent.mkdir(parents=True, exist_ok=True)
+    record_path.write_text(json.dumps({"status": "STREAMED"}) + "\n", encoding="utf-8")
+
+    runner = ReadyConsumerRunner(profile)
+    runner._duplicate_log_interval_seconds = 3600.0
+
+    calls: list[tuple[object, ...]] = []
+
+    def _capture_info(*args, **_kwargs):
+        calls.append(args)
+
+    monkeypatch.setattr(ready_consumer_module.logger, "info", _capture_info)
+
+    first = runner.poll_once()
+    second = runner.poll_once()
+    assert first[0].status == "SKIPPED_DUPLICATE"
+    assert second[0].status == "SKIPPED_DUPLICATE"
+    duplicate_messages = [args[0] for args in calls if args and isinstance(args[0], str) and "duplicate skipped" in args[0]]
+    assert len(duplicate_messages) == 1
 
 
 def test_ready_consumer_skips_out_of_scope_platform_run(tmp_path: Path, monkeypatch) -> None:

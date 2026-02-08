@@ -53,6 +53,8 @@ class ReadyConsumerRunner:
         self._store = store or _build_store(profile)
         self._producer = producer or WorldStreamProducer(profile)
         self._sr_registry = SchemaRegistry(Path(profile.wiring.schema_root) / "scenario_runner")
+        self._duplicate_log_interval_seconds = _duplicate_log_interval_seconds()
+        self._last_duplicate_log_by_message_id: dict[str, float] = {}
         kind = (profile.wiring.control_bus_kind or "file").lower()
         if kind == "kinesis":
             if not profile.wiring.control_bus_stream:
@@ -105,13 +107,13 @@ class ReadyConsumerRunner:
             create_if_missing=False,
         )
         if self._already_streamed(message.message_id):
-            logger.info("WSP READY duplicate skipped message_id=%s run_id=%s", message.message_id, message.run_id)
+            if self._should_log_duplicate_skip(message.message_id):
+                logger.info("WSP READY duplicate skipped message_id=%s run_id=%s", message.message_id, message.run_id)
             result = ReadyConsumeResult(
                 message_id=message.message_id,
                 run_id=message.run_id,
                 status="SKIPPED_DUPLICATE",
             )
-            self._append_ready_record(message.message_id, result)
             return result
 
         try:
@@ -266,6 +268,14 @@ class ReadyConsumerRunner:
         }
         self._store.append_jsonl(_ready_record_path(message_id), [payload])
 
+    def _should_log_duplicate_skip(self, message_id: str) -> bool:
+        now = time.time()
+        last = self._last_duplicate_log_by_message_id.get(message_id)
+        if last is None or now - last >= self._duplicate_log_interval_seconds:
+            self._last_duplicate_log_by_message_id[message_id] = now
+            return True
+        return False
+
 
 def _ready_record_path(message_id: str) -> str:
     run_prefix = platform_run_prefix(create_if_missing=True)
@@ -303,6 +313,19 @@ def _read_run_facts(store: ObjectStore, ref: str, profile: WspProfile) -> dict[s
     if candidate.is_absolute():
         return json.loads(candidate.read_text(encoding="utf-8"))
     return store.read_json(ref)
+
+
+def _duplicate_log_interval_seconds() -> float:
+    raw = (os.getenv("WSP_READY_DUPLICATE_LOG_INTERVAL_SECONDS") or "").strip()
+    if not raw:
+        return 60.0
+    try:
+        value = float(raw)
+    except ValueError:
+        return 60.0
+    if value <= 0.0:
+        return 60.0
+    return value
 
 
 def main() -> None:
