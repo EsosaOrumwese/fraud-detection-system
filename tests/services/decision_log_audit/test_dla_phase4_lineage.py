@@ -105,7 +105,13 @@ def _action_intent_payload(*, decision_id: str = "a" * 32, action_id: str = "5" 
     }
 
 
-def _action_outcome_payload(*, decision_id: str = "a" * 32, action_id: str = "5" * 32, outcome_id: str = "8" * 32) -> dict[str, object]:
+def _action_outcome_payload(
+    *,
+    decision_id: str = "a" * 32,
+    action_id: str = "5" * 32,
+    outcome_id: str = "8" * 32,
+    run_config_digest: str = "4" * 64,
+) -> dict[str, object]:
     return {
         "outcome_id": outcome_id,
         "decision_id": decision_id,
@@ -116,7 +122,7 @@ def _action_outcome_payload(*, decision_id: str = "a" * 32, action_id: str = "5"
         "actor_principal": "SYSTEM::action_layer",
         "origin": "DF",
         "authz_policy_rev": {"policy_id": "al.authz.v0", "revision": "r5"},
-        "run_config_digest": "7" * 64,
+        "run_config_digest": run_config_digest,
         "pins": {
             "platform_run_id": PINS["platform_run_id"],
             "scenario_run_id": PINS["scenario_run_id"],
@@ -321,6 +327,59 @@ def test_phase4_lineage_conflict_is_quarantined_without_silent_correction(tmp_pa
     conn.close()
     assert row is not None
     assert row[0] == DLA_INTAKE_LINEAGE_CONFLICT
+
+
+def test_phase4_lineage_run_config_digest_mismatch_is_quarantined(tmp_path: Path) -> None:
+    locator = str(tmp_path / "dla_intake.sqlite")
+    store = DecisionLogAuditIntakeStore(locator=locator)
+    processor = DecisionLogAuditIntakeProcessor(_policy(), store)
+
+    decision_id = "e" * 32
+    action_id = "f" * 32
+
+    first = _process(
+        processor,
+        offset="0",
+        envelope=_envelope(
+            event_id="evt_decision",
+            event_type="decision_response",
+            payload=_decision_payload(decision_id=decision_id),
+            ts_utc="2026-02-07T10:27:00.000000Z",
+        ),
+    )
+    second = _process(
+        processor,
+        offset="1",
+        envelope=_envelope(
+            event_id="evt_outcome",
+            event_type="action_outcome",
+            payload=_action_outcome_payload(
+                decision_id=decision_id,
+                action_id=action_id,
+                outcome_id="7" * 32,
+                run_config_digest="7" * 64,
+            ),
+            ts_utc="2026-02-07T10:27:02.000000Z",
+        ),
+    )
+
+    assert first.accepted is True
+    assert second.accepted is False
+    assert second.reason_code == DLA_INTAKE_LINEAGE_CONFLICT
+    assert second.detail is not None
+    assert "RUN_CONFIG_DIGEST_MISMATCH" in second.detail
+    assert second.checkpoint_advanced is True
+
+    conn = sqlite3.connect(locator)
+    row = conn.execute(
+        "SELECT reason_code, detail FROM dla_intake_quarantine WHERE source_partition = ? AND source_offset = ?",
+        (0, "1"),
+    ).fetchone()
+    conn.close()
+    assert row is not None
+    assert row[0] == DLA_INTAKE_LINEAGE_CONFLICT
+    assert row[1] is not None
+    assert "RUN_CONFIG_DIGEST_MISMATCH" in str(row[1])
 
 
 def test_phase4_lineage_write_error_blocks_checkpoint(tmp_path: Path, monkeypatch) -> None:

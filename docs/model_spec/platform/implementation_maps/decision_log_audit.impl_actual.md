@@ -27,6 +27,39 @@ Pin the DLA v0 audit-record requirements and ingestion posture before implementa
 
 ---
 
+## Entry: 2026-02-08 13:28:02 - DLA evidence vocabulary + run_config_digest runtime propagation (reviewer items 7/9)
+
+### Problem statement
+Two runtime-surface drifts remained:
+1. Intake attempt artifacts expose `source_offset*` fields but do not provide an explicit `origin_offset` object alias, making evidence vocabulary less obvious.
+2. Lineage/query surfaces do not persist/expose chain-level `run_config_digest`, despite contracts/governance expectations emphasizing digest-based correlation.
+
+### Design constraints
+- Must be additive/non-breaking for existing readers.
+- Must preserve append-only lineage semantics and deterministic replay behavior.
+- Must not weaken run-scope conflict handling.
+
+### Decision
+1. Evidence vocabulary:
+   - Keep existing `source_offset`/`source_offset_kind` fields for compatibility.
+   - Add additive `origin_offset` object in runtime query/attempt outputs to normalize provenance naming.
+2. Digest propagation:
+   - Persist chain-level `run_config_digest` in lineage chain storage.
+   - Set from incoming payload on first write and enforce consistency on subsequent linked events where digest is provided.
+   - Expose digest in query/read surfaces.
+
+### Reasoning
+- Additive aliases avoid downstream breakage while clarifying terminology.
+- Chain-level digest materially improves cross-component provenance joins for Obs/Gov without changing event identities.
+
+### Validation expectations
+- DLA phase 4/5/7/8 tests remain green after schema extension.
+- New targeted tests cover:
+  - `origin_offset` additive alias in recent attempt surfaces.
+  - run_config_digest propagation/consistency in lineage query paths.
+
+---
+
 ## Entry: 2026-02-07 18:20:38 - Plan: expand DLA build plan to executable Phase 4.5 component map
 
 ### Trigger
@@ -977,3 +1010,50 @@ Completed DLA Phase 8 by adding a dedicated component-boundary validation matrix
 
 ---
 
+
+## Entry: 2026-02-08 13:11:26 - Runtime closure for reviewer items 7 and 9 (evidence vocabulary + digest consistency)
+
+### Trigger
+Reviewer P1 asked for explicit runtime closure on:
+- item 7 evidence vocabulary normalization,
+- item 9 `run_config_digest` consistency/visibility.
+
+### Decisions made and why
+1. Keep additive compatibility for evidence vocabulary.
+   - Decision: publish `origin_offset` object in `recent_attempts` while retaining `source_offset` and `source_offset_kind` fields.
+   - Reasoning: preserves existing consumers and exposes clear evidence terminology.
+2. Enforce chain-level digest consistency across decision/intent/outcome.
+   - Decision: lineage scope checks now distinguish `RUN_SCOPE_MISMATCH` from `RUN_CONFIG_DIGEST_MISMATCH`.
+   - Reasoning: mixed digests inside one lineage chain are replay/governance drift and must fail closed.
+3. Carry digest into query/runtime outputs.
+   - Decision: persist and expose `run_config_digest` on lineage chains and query read records.
+   - Reasoning: digest must be visible in operational query surfaces, not only in policy/governance summaries.
+4. Keep migration behavior safe for existing stores.
+   - Decision: add schema column with sqlite/postgres migration-safe path (`ALTER TABLE ... ADD COLUMN IF NOT EXISTS` and sqlite pragma check).
+   - Reasoning: supports existing local/dev stores without reset.
+
+### Implementation details
+- `DecisionLogAuditLineageChain` now includes `run_config_digest`.
+- Lineage SELECTs + query serialization now include `run_config_digest`.
+- Action-intent/action-outcome lineage scope conflicts now return precise reason code via `_ensure_chain_scope`.
+- Added sqlite helper `_ensure_sqlite_column` and optional hex digest validator `_optional_hex64`.
+
+### Tests updated
+- `tests/services/decision_log_audit/test_dla_phase4_lineage.py`
+  - aligned default outcome digest with decision/intent digest for resolved-chain tests,
+  - added explicit mismatch quarantine test for `RUN_CONFIG_DIGEST_MISMATCH`.
+- `tests/services/decision_log_audit/test_dla_phase5_query.py`
+  - asserts query outputs include `run_config_digest`.
+- `tests/services/decision_log_audit/test_dla_phase7_observability.py`
+  - asserts `origin_offset` alias is present and consistent.
+- `tests/services/decision_log_audit/test_dla_phase8_validation_matrix.py`
+  - aligned baseline event fixtures to consistent digest for deterministic parity proofs.
+
+### Validation
+- `python -m pytest tests/services/decision_log_audit/test_dla_phase4_lineage.py tests/services/decision_log_audit/test_dla_phase5_query.py tests/services/decision_log_audit/test_dla_phase7_observability.py -q` -> `11 passed`.
+- `python -m pytest tests/services/decision_log_audit -q` -> `36 passed`.
+
+### Outcome
+DLA runtime evidence surfaces now expose normalized provenance naming and chain-level digest correlation, with digest mismatch treated as explicit fail-closed lineage conflict.
+
+---

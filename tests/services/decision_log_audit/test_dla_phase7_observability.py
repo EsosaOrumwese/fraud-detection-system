@@ -144,6 +144,13 @@ def test_phase7_observability_collects_metrics_reconciliation_and_governance(tmp
     assert "policy://df.policy.v0@r8" in governance["policy_refs"]
     assert "bundle://%s@2026.02.07" % ("b" * 64) in governance["bundle_refs"]
     assert "4" * 64 in governance["run_config_digests"]
+    recent_attempts = payload["reconciliation"]["recent_attempts"]
+    assert recent_attempts
+    first_attempt = recent_attempts[0]
+    assert first_attempt["origin_offset"]["topic"] == first_attempt["topic"]
+    assert first_attempt["origin_offset"]["partition"] == first_attempt["partition"]
+    assert first_attempt["origin_offset"]["offset"] == first_attempt["source_offset"]
+    assert first_attempt["origin_offset"]["offset_kind"] == first_attempt["source_offset_kind"]
 
 
 def test_phase7_export_redacts_sensitive_anomaly_details(tmp_path: Path) -> None:
@@ -183,6 +190,7 @@ def test_phase7_export_redacts_sensitive_anomaly_details(tmp_path: Path) -> None
     sensitive_attempts = [item for item in attempts if item["reason_code"] == "TEST_SENSITIVE"]
     assert sensitive_attempts
     assert sensitive_attempts[0]["detail"] == "[REDACTED]"
+    assert sensitive_attempts[0]["origin_offset"]["offset"] == sensitive_attempts[0]["source_offset"]
 
 
 def test_phase7_security_policy_blocks_unapproved_output_root(tmp_path: Path) -> None:

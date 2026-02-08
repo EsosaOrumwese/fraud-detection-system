@@ -200,6 +200,52 @@ User asked to proceed with Phase 1.4 validation (policy vs wiring separation aud
 
 ---
 
+## Entry: 2026-02-08 13:24:55 - Reviewer P1 closure wave (items 7/8/9 only)
+
+### Trigger and scope lock
+Reviewer P1 items targeted in this wave:
+1. Normalize evidence vocabulary (`origin_offset` evidence vs checkpoint/progress offsets).
+2. Make Postgres the effective local_parity default for RTDL state stores where supported.
+3. Ensure `run_config_digest` stamping is visible/consistent across READY -> IG receipts -> RTDL component surfaces (with specific focus on DLA runtime record surfaces).
+
+Explicitly excluded in this wave (user-directed): items 3/6 from reviewer list.
+
+### Authority inputs used for this decision
+- `docs/model_spec/platform/platform-wide/platform_blueprint_notes_v0.md`
+- `docs/model_spec/platform/platform-wide/deployment_tooling_notes_v0.md`
+- `docs/model_spec/platform/pre-design_decisions/real-time_decision_loop.pre-design_decision.md`
+- `docs/model_spec/platform/component-specific/flow-narrative-platform-design.md`
+- Current component impl notes (`context_store_flow_binding.impl_actual.md`, `online_feature_plane.impl_actual.md`, `decision_log_audit.impl_actual.md`)
+
+### Audit findings that materially affect implementation choice
+1. local_parity currently leaves CSFB with a silent SQLite fallback path when DSN env is absent (`CsfbInletPolicy.load` fallback literal path).
+2. local_parity make targets for IEG/OFP/CSFB explicitly pass `runs/fraud-platform` DSNs, forcing SQLite projection/index paths even with parity Postgres available.
+3. DLA lineage/query runtime stores do not currently persist/expose chain-level `run_config_digest`, even though contracts and governance summaries include digest terms.
+4. DLA attempt outputs use `source_offset` naming without an explicit `origin_offset` object alias, making evidence/progress vocabulary less explicit for operators.
+
+### Decision and ordering
+Implementation order fixed as:
+1. Postgres-default local_parity closure (config/make/runbook + remove CSFB silent sqlite fallback).
+2. Evidence vocabulary normalization (add explicit `origin_offset` alias in DLA runtime attempt surfaces while preserving backward compatibility fields).
+3. DLA run_config_digest propagation in lineage/query surfaces (additive schema/store/query extension with migration-safe behavior).
+
+Reasoning for this order:
+- Item 8 is runtime-environmental and highest leverage for parity realism.
+- Item 7 is naming clarity and should be additive/non-breaking.
+- Item 9 touches storage schema/query surfaces and is safest after runtime/default wiring is stabilized.
+
+### Validation plan pinned before edits
+- CSFB/OFP/IEG local-parity profile/loader and runtime target checks.
+- DLA storage/query test suites (especially phase 4/5/7/8 coverage).
+- Targeted regression for OFP/IEG shared-stream hygiene to ensure no behavioral drift while touching parity wiring/docs.
+
+### Security/provenance constraints for this wave
+- No secrets or runtime tokens in docs.
+- No destructive history rewriting.
+- No edits under `docs/reports/*` (user-owned working area).
+
+---
+
 
 
 ## Entry: 2026-01-25 05:45:40 — Phase 1.4/1.5 audit results (policy vs wiring + secrets)
@@ -3142,5 +3188,49 @@ Close the "RTDL feels batch/manual" drift for parity by providing an explicit li
 
 ### Closure statement
 Local parity now has a pinned live-core baseline for RTDL consumers that are daemon-capable in v0, removing ambiguity on how to run live from EB into RTDL state surfaces.
+
+---
+
+## Entry: 2026-02-08 13:10:42 - Reviewer P1 closure for items 7/8/9 (post-change verification)
+
+### Scope closed in this pass
+1. Item 7: normalize evidence vocabulary in runtime-facing DLA attempt payloads.
+2. Item 8: Postgres-default local_parity posture for RTDL projection stores where supported.
+3. Item 9: consistent and visible `run_config_digest` propagation in DLA lineage/query runtime surfaces.
+
+### Decisions made during implementation
+1. Keep storage schema compatibility while improving evidence vocabulary.
+   - Decision: add additive `origin_offset` object in DLA `recent_attempts` output while retaining legacy `source_offset` fields.
+   - Reasoning: avoids breaking existing consumers and clarifies evidence vocabulary for operators.
+2. Enforce digest consistency as a hard lineage invariant.
+   - Decision: treat cross-event `run_config_digest` mismatch as lineage conflict (`RUN_CONFIG_DIGEST_MISMATCH`) rather than silently accepting mixed chain state.
+   - Reasoning: digest correlation must remain deterministic for replay/governance.
+3. Remove silent local fallback for CSFB projection locator.
+   - Decision: `CsfbInletPolicy.load` now requires explicit `projection_db_dsn` source (policy env interpolation or `CSFB_PROJECTION_DSN`) and fails closed if missing.
+   - Reasoning: prevents accidental sqlite fallback under local_parity and aligns with Postgres-default intent.
+4. Keep local_parity Postgres-default through profile + make + runbook, not ad hoc command overrides.
+   - Decision: use explicit parity DSN variables in make targets and runbook steps.
+   - Reasoning: reduces operator drift and keeps parity reproducible.
+
+### Files changed (this closure wave)
+- `makefile`
+- `config/platform/profiles/local_parity.yaml`
+- `docs/runbooks/platform_parity_walkthrough_v0.md`
+- `src/fraud_detection/context_store_flow_binding/intake.py`
+- `src/fraud_detection/decision_log_audit/storage.py`
+- `src/fraud_detection/decision_log_audit/query.py`
+- `tests/services/context_store_flow_binding/test_phase7_parity_integration.py`
+- `tests/services/decision_log_audit/test_dla_phase4_lineage.py`
+- `tests/services/decision_log_audit/test_dla_phase5_query.py`
+- `tests/services/decision_log_audit/test_dla_phase7_observability.py`
+- `tests/services/decision_log_audit/test_dla_phase8_validation_matrix.py`
+
+### Validation executed
+- `python -m pytest tests/services/context_store_flow_binding/test_phase7_parity_integration.py -q` -> `4 passed`.
+- `python -m pytest tests/services/decision_log_audit/test_dla_phase4_lineage.py tests/services/decision_log_audit/test_dla_phase5_query.py tests/services/decision_log_audit/test_dla_phase7_observability.py -q` -> `11 passed`.
+- `python -m pytest tests/services/decision_log_audit -q` -> `36 passed`.
+
+### Closure result
+Reviewer P1 items 7/8/9 are closed with runtime behavior and tests now aligned to the intended parity/governance posture.
 
 ---

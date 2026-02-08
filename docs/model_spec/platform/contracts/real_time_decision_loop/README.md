@@ -17,6 +17,10 @@ RTDL bus-visible payloads use stable `event_type` names with `schema_version = v
 - `action_outcome`
 - `degrade_posture` (optional control/audit emission)
 
+v0 local parity stream note:
+- DF/AL outputs may share the traffic stream (`fp.bus.traffic.fraud.v1`).
+- Projectors consuming that shared stream must explicitly ignore non-applicable DF/AL families (advance checkpoint, no state mutation).
+
 Compatibility posture:
 - major `schema_version` mismatch is fail-closed (reject/quarantine), never silently coerced.
 - minor-compatible versions are allowed only when an explicit adapter exists.
@@ -33,6 +37,10 @@ Decision/audit artifacts must carry:
 - `graph_version` (if IEG was consulted)
 - `snapshot_hash` + optional snapshot ref
 - `bundle_ref` and explicit `degrade_posture` (mode + capabilities_mask)
+
+Evidence vocabulary note:
+- `origin_offset` is the canonical evidence pointer in runtime artifacts.
+- component-internal checkpoint columns may still use `source_offset` naming for ingestion progress.
 
 ## Schema list
 - `eb_offset_basis.schema.yaml`

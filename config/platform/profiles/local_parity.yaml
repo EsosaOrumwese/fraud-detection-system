@@ -78,6 +78,7 @@ ofp:
     amount_fields: [amount]
   wiring:
     projection_db_dsn: ${OFP_PROJECTION_DSN}
+    snapshot_index_dsn: ${OFP_SNAPSHOT_INDEX_DSN}
     event_bus_kind: kinesis
     event_bus:
       stream: ${EVENT_BUS_STREAM}

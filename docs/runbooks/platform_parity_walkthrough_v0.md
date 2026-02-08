@@ -88,6 +88,10 @@ PARITY_EVENT_BUS_ENDPOINT_URL=http://localhost:4566
 
 PARITY_IG_ADMISSION_DSN=<postgres_dsn>
 PARITY_WSP_CHECKPOINT_DSN=<postgres_dsn>
+PARITY_IEG_PROJECTION_DSN=<postgres_dsn>
+PARITY_OFP_PROJECTION_DSN=<postgres_dsn>
+PARITY_OFP_SNAPSHOT_INDEX_DSN=<postgres_dsn>
+PARITY_CSFB_PROJECTION_DSN=<postgres_dsn>
 
 OBJECT_STORE_ENDPOINT=http://localhost:9000
 OBJECT_STORE_REGION=us-east-1
@@ -499,6 +503,7 @@ IEG is **not auto‑started** in parity. You must run it explicitly after EB has
 ```
 $env:PLATFORM_RUN_ID = (Get-Content runs/fraud-platform/ACTIVE_RUN_ID).Trim()
 $env:IEG_REQUIRED_PLATFORM_RUN_ID = $env:PLATFORM_RUN_ID
+$env:IEG_PROJECTION_DSN = $env:PARITY_IEG_PROJECTION_DSN
 ```
 
 **11.2 Run the projector (Kinesis EB)**
@@ -531,9 +536,10 @@ Start the projector in live mode:
 
 Stop it explicitly when the run is finished.
 
-**11.3 Expected artifacts (run‑scoped)**
-- Projection DB (SQLite in parity):
-  `runs/fraud-platform/<platform_run_id>/identity_entity_graph/projection/identity_entity_graph.db`
+**11.3 Expected artifacts (run-scoped)**
+- Projection store:
+  - local_parity default: Postgres (`$env:PARITY_IEG_PROJECTION_DSN`)
+  - optional local override: run-scoped SQLite path
 - Health: `runs/fraud-platform/<platform_run_id>/identity_entity_graph/health/last_health.json`
 - Metrics: `runs/fraud-platform/<platform_run_id>/identity_entity_graph/metrics/last_metrics.json`
 - Reconciliation: `runs/fraud-platform/<platform_run_id>/identity_entity_graph/reconciliation/reconciliation.json`
@@ -599,7 +605,7 @@ Use this list to confirm the **v0 control & ingress plane** is green.
 - [ ] WSP ready logs exist under `runs/fraud-platform/<run_id>/world_streamer_producer/world_streamer_producer.log`.
 - [ ] WSP ready logs exist under `runs/fraud-platform/<run_id>/world_streamer_producer/world_streamer_producer.log`.
 - [ ] IG receipts exist under `s3://fraud-platform/<run_id>/ig/receipts/`.
-- [ ] IEG projection DB exists under `runs/fraud-platform/<run_id>/identity_entity_graph/projection/identity_entity_graph.db`.
+- [ ] IEG projection store is reachable (local_parity default DSN: `PARITY_IEG_PROJECTION_DSN`).
 - [ ] IEG reconciliation artifact exists under `runs/fraud-platform/<run_id>/identity_entity_graph/reconciliation/reconciliation.json`.
 
 **Narrative platform log**
@@ -629,7 +635,8 @@ $run = (Get-Content runs/fraud-platform/ACTIVE_RUN_ID -Raw).Trim()
 $run = ($run -replace '[^A-Za-z0-9_:-]','')
 $env:PLATFORM_RUN_ID = $run
 $env:OFP_REQUIRED_PLATFORM_RUN_ID = $run
-$env:OFP_PROJECTION_DSN = 'runs/fraud-platform'
+$env:OFP_PROJECTION_DSN = $env:PARITY_OFP_PROJECTION_DSN
+$env:OFP_SNAPSHOT_INDEX_DSN = $env:PARITY_OFP_SNAPSHOT_INDEX_DSN
 $env:PLATFORM_STORE_ROOT = 'runs/fraud-platform'
 ```
 
@@ -643,12 +650,19 @@ $env:PLATFORM_STORE_ROOT = 'runs/fraud-platform'
 **15.3 Discover `scenario_run_id` in OFP state**
 ```powershell
 @'
-import sqlite3
+import os
 from pathlib import Path
+import psycopg
 run_id = Path("runs/fraud-platform/ACTIVE_RUN_ID").read_text(encoding="utf-8").strip()
-db = Path(f"runs/fraud-platform/{run_id}/online_feature_plane/projection/online_feature_plane.db")
-con = sqlite3.connect(db)
-rows = con.execute("select distinct scenario_run_id from ofp_feature_state order by scenario_run_id").fetchall()
+dsn = os.environ.get("OFP_PROJECTION_DSN") or os.environ.get("PARITY_OFP_PROJECTION_DSN")
+if not dsn:
+    raise SystemExit("OFP_PROJECTION_DSN is required")
+stream_id = f"ofp.v0::{run_id}"
+with psycopg.connect(dsn) as conn:
+    rows = conn.execute(
+        "select distinct scenario_run_id from ofp_feature_state where stream_id=%s order by scenario_run_id",
+        (stream_id,),
+    ).fetchall()
 for row in rows:
     print(row[0])
 '@ | .venv\Scripts\python.exe -
@@ -765,7 +779,7 @@ $run = (Get-Content runs/fraud-platform/ACTIVE_RUN_ID -Raw).Trim()
 $run = ($run -replace '[^A-Za-z0-9_:-]','')
 $env:PLATFORM_RUN_ID = $run
 $env:CSFB_REQUIRED_PLATFORM_RUN_ID = $run
-$env:CSFB_PROJECTION_DSN = 'runs/fraud-platform'
+$env:CSFB_PROJECTION_DSN = $env:PARITY_CSFB_PROJECTION_DSN
 ```
 
 **18.2 Run CSFB intake once (parity profile)**

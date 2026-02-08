@@ -26,28 +26,44 @@ def _source_ref(*, offset: str) -> dict[str, object]:
     }
 
 
-def _decision_payload(*, decision_id: str, decided_at_utc: str) -> dict[str, object]:
+def _decision_payload(*, decision_id: str, decided_at_utc: str, run_config_digest: str = "4" * 64) -> dict[str, object]:
     return {
         "decision_id": decision_id,
         "decided_at_utc": decided_at_utc,
+        "run_config_digest": run_config_digest,
     }
 
 
-def _intent_payload(*, decision_id: str, action_id: str, requested_at_utc: str) -> dict[str, object]:
+def _intent_payload(
+    *,
+    decision_id: str,
+    action_id: str,
+    requested_at_utc: str,
+    run_config_digest: str = "4" * 64,
+) -> dict[str, object]:
     return {
         "decision_id": decision_id,
         "action_id": action_id,
         "requested_at_utc": requested_at_utc,
+        "run_config_digest": run_config_digest,
     }
 
 
-def _outcome_payload(*, decision_id: str, action_id: str, outcome_id: str, completed_at_utc: str) -> dict[str, object]:
+def _outcome_payload(
+    *,
+    decision_id: str,
+    action_id: str,
+    outcome_id: str,
+    completed_at_utc: str,
+    run_config_digest: str = "4" * 64,
+) -> dict[str, object]:
     return {
         "decision_id": decision_id,
         "action_id": action_id,
         "outcome_id": outcome_id,
         "status": "EXECUTED",
         "completed_at_utc": completed_at_utc,
+        "run_config_digest": run_config_digest,
     }
 
 
@@ -63,14 +79,25 @@ def _apply_resolved_chain(
     intent_event_id: str,
     outcome_event_id: str,
     decision_ts_utc: str,
+    run_config_digest: str = "4" * 64,
 ) -> None:
-    decision_payload = _decision_payload(decision_id=decision_id, decided_at_utc=decision_ts_utc)
-    intent_payload = _intent_payload(decision_id=decision_id, action_id=action_id, requested_at_utc=decision_ts_utc)
+    decision_payload = _decision_payload(
+        decision_id=decision_id,
+        decided_at_utc=decision_ts_utc,
+        run_config_digest=run_config_digest,
+    )
+    intent_payload = _intent_payload(
+        decision_id=decision_id,
+        action_id=action_id,
+        requested_at_utc=decision_ts_utc,
+        run_config_digest=run_config_digest,
+    )
     outcome_payload = _outcome_payload(
         decision_id=decision_id,
         action_id=action_id,
         outcome_id=outcome_id,
         completed_at_utc=decision_ts_utc,
+        run_config_digest=run_config_digest,
     )
 
     store.apply_lineage_candidate(
@@ -139,6 +166,7 @@ def test_phase5_query_run_scope_time_range_and_provenance(tmp_path: Path) -> Non
     records = query.query_run_scope(platform_run_id=run_id, scenario_run_id=scenario_run_id, limit=10)
     assert [item["decision_id"] for item in records] == ["a" * 32, "b" * 32]
     assert records[0]["chain_status"] == "RESOLVED"
+    assert records[0]["run_config_digest"] == "4" * 64
     assert records[0]["decision_ref"]["event_type"] == "decision_response"
     assert len(records[0]["intent_refs"]) == 1
     assert len(records[0]["outcome_refs"]) == 1
@@ -191,6 +219,7 @@ def test_phase5_query_by_decision_action_outcome_and_duplicate_determinism(tmp_p
     assert decision is not None
     assert decision["intent_count"] == 1
     assert decision["outcome_count"] == 1
+    assert decision["run_config_digest"] == "4" * 64
 
     by_action = query.query_action_id(action_id=action_id)
     assert len(by_action) == 1

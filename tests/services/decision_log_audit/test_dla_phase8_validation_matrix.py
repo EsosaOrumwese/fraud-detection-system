@@ -130,7 +130,7 @@ def _action_outcome_payload(*, decision_id: str, action_id: str, outcome_id: str
         "actor_principal": "SYSTEM::action_layer",
         "origin": "DF",
         "authz_policy_rev": {"policy_id": "al.authz.v0", "revision": "r5"},
-        "run_config_digest": "7" * 64,
+        "run_config_digest": "4" * 64,
         "pins": {
             "platform_run_id": PINS["platform_run_id"],
             "scenario_run_id": PINS["scenario_run_id"],

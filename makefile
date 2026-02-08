@@ -2563,6 +2563,10 @@ PARITY_OBJECT_STORE_REGION ?= us-east-1
 PARITY_ORACLE_ROOT ?= $(ORACLE_ROOT)
 PARITY_IG_ADMISSION_DSN ?= postgresql://platform:platform@localhost:5434/platform
 PARITY_WSP_CHECKPOINT_DSN ?= postgresql://platform:platform@localhost:5434/platform
+PARITY_IEG_PROJECTION_DSN ?= postgresql://platform:platform@localhost:5434/platform
+PARITY_OFP_PROJECTION_DSN ?= postgresql://platform:platform@localhost:5434/platform
+PARITY_OFP_SNAPSHOT_INDEX_DSN ?= postgresql://platform:platform@localhost:5434/platform
+PARITY_CSFB_PROJECTION_DSN ?= postgresql://platform:platform@localhost:5434/platform
 PARITY_EVENT_BUS_STREAM ?= auto
 PARITY_EVENT_BUS_REGION ?= $(PARITY_CONTROL_BUS_REGION)
 PARITY_EVENT_BUS_ENDPOINT_URL ?= $(PARITY_CONTROL_BUS_ENDPOINT_URL)
@@ -2835,7 +2839,8 @@ platform-ofp-projector-parity-live:
 	@echo "Ensure run id is set: make platform-run-new"
 	@PLATFORM_RUN_ID="$(shell cat runs/fraud-platform/ACTIVE_RUN_ID 2>/dev/null)" \
 	OFP_REQUIRED_PLATFORM_RUN_ID="$(shell cat runs/fraud-platform/ACTIVE_RUN_ID 2>/dev/null)" \
-	OFP_PROJECTION_DSN="$(PLATFORM_RUNS_ROOT)" \
+	OFP_PROJECTION_DSN="$(PARITY_OFP_PROJECTION_DSN)" \
+	OFP_SNAPSHOT_INDEX_DSN="$(PARITY_OFP_SNAPSHOT_INDEX_DSN)" \
 	PLATFORM_STORE_ROOT="$(PLATFORM_RUNS_ROOT)" \
 	OFP_EVENT_BUS_START_POSITION="$(OFP_EVENT_BUS_START_POSITION)" \
 	OBJECT_STORE_ENDPOINT="$(PARITY_OBJECT_STORE_ENDPOINT)" \
@@ -2861,7 +2866,7 @@ platform-ieg-projector-parity-live:
 	@echo "Ensure run id is set: make platform-run-new"
 	@PLATFORM_RUN_ID="$(shell cat runs/fraud-platform/ACTIVE_RUN_ID 2>/dev/null)" \
 	IEG_REQUIRED_PLATFORM_RUN_ID="$(shell cat runs/fraud-platform/ACTIVE_RUN_ID 2>/dev/null)" \
-	IEG_PROJECTION_DSN="$(PLATFORM_RUNS_ROOT)" \
+	IEG_PROJECTION_DSN="$(PARITY_IEG_PROJECTION_DSN)" \
 	PLATFORM_STORE_ROOT="$(PLATFORM_RUNS_ROOT)" \
 	OBJECT_STORE_ENDPOINT="$(PARITY_OBJECT_STORE_ENDPOINT)" \
 	OBJECT_STORE_REGION="$(PARITY_OBJECT_STORE_REGION)" \
@@ -2886,7 +2891,7 @@ platform-context-store-flow-binding-parity-once:
 	@echo "Ensure run id is set: make platform-run-new"
 	@PLATFORM_RUN_ID="$(shell cat runs/fraud-platform/ACTIVE_RUN_ID 2>/dev/null)" \
 	CSFB_REQUIRED_PLATFORM_RUN_ID="$(shell cat runs/fraud-platform/ACTIVE_RUN_ID 2>/dev/null)" \
-	CSFB_PROJECTION_DSN="$(PLATFORM_RUNS_ROOT)" \
+	CSFB_PROJECTION_DSN="$(PARITY_CSFB_PROJECTION_DSN)" \
 	PLATFORM_STORE_ROOT="$(PLATFORM_RUNS_ROOT)" \
 	OBJECT_STORE_ENDPOINT="$(PARITY_OBJECT_STORE_ENDPOINT)" \
 	OBJECT_STORE_REGION="$(PARITY_OBJECT_STORE_REGION)" \
@@ -2912,7 +2917,7 @@ platform-context-store-flow-binding-parity-live:
 	@echo "Ensure run id is set: make platform-run-new"
 	@PLATFORM_RUN_ID="$(shell cat runs/fraud-platform/ACTIVE_RUN_ID 2>/dev/null)" \
 	CSFB_REQUIRED_PLATFORM_RUN_ID="$(shell cat runs/fraud-platform/ACTIVE_RUN_ID 2>/dev/null)" \
-	CSFB_PROJECTION_DSN="$(PLATFORM_RUNS_ROOT)" \
+	CSFB_PROJECTION_DSN="$(PARITY_CSFB_PROJECTION_DSN)" \
 	PLATFORM_STORE_ROOT="$(PLATFORM_RUNS_ROOT)" \
 	OBJECT_STORE_ENDPOINT="$(PARITY_OBJECT_STORE_ENDPOINT)" \
 	OBJECT_STORE_REGION="$(PARITY_OBJECT_STORE_REGION)" \

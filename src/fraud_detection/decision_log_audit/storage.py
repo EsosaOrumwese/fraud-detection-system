@@ -131,6 +131,7 @@ class DecisionLogAuditLineageChain:
     decision_id: str
     platform_run_id: str
     scenario_run_id: str
+    run_config_digest: str | None
     decision_event_id: str | None
     decision_payload_hash: str | None
     decision_ref: dict[str, Any] | None
@@ -1014,6 +1015,12 @@ class DecisionLogAuditIntakeStore:
                     "partition": int(row[1]),
                     "source_offset": str(row[2]),
                     "source_offset_kind": str(row[3]),
+                    "origin_offset": {
+                        "topic": str(row[0]),
+                        "partition": int(row[1]),
+                        "offset": str(row[2]),
+                        "offset_kind": str(row[3]),
+                    },
                     "event_type": str(row[4]) if row[4] not in (None, "") else None,
                     "event_id": str(row[5]) if row[5] not in (None, "") else None,
                     "accepted": bool(int(row[6])),
@@ -1049,6 +1056,7 @@ class DecisionLogAuditIntakeStore:
             lineage_payload["chains"].append(
                 {
                     "decision_id": chain.decision_id,
+                    "run_config_digest": chain.run_config_digest,
                     "decision_event_id": chain.decision_event_id,
                     "decision_payload_hash": chain.decision_payload_hash,
                     "decision_ref": dict(chain.decision_ref) if isinstance(chain.decision_ref, Mapping) else chain.decision_ref,
@@ -1228,7 +1236,7 @@ class DecisionLogAuditIntakeStore:
                 conn,
                 self.backend,
                 """
-                SELECT decision_id, platform_run_id, scenario_run_id, decision_event_id, decision_payload_hash,
+                SELECT decision_id, platform_run_id, scenario_run_id, run_config_digest, decision_event_id, decision_payload_hash,
                        decision_ref_json, intent_count, outcome_count, unresolved_reasons_json, chain_status,
                        created_at_utc, updated_at_utc
                 FROM dla_lineage_chains
@@ -1255,7 +1263,7 @@ class DecisionLogAuditIntakeStore:
                 conn,
                 self.backend,
                 """
-                SELECT decision_id, platform_run_id, scenario_run_id, decision_event_id, decision_payload_hash,
+                SELECT decision_id, platform_run_id, scenario_run_id, run_config_digest, decision_event_id, decision_payload_hash,
                        decision_ref_json, intent_count, outcome_count, unresolved_reasons_json, chain_status,
                        created_at_utc, updated_at_utc
                 FROM dla_lineage_chains
@@ -1284,7 +1292,7 @@ class DecisionLogAuditIntakeStore:
                 conn,
                 self.backend,
                 """
-                SELECT c.decision_id, c.platform_run_id, c.scenario_run_id, c.decision_event_id, c.decision_payload_hash,
+                SELECT c.decision_id, c.platform_run_id, c.scenario_run_id, c.run_config_digest, c.decision_event_id, c.decision_payload_hash,
                        c.decision_ref_json, c.intent_count, c.outcome_count, c.unresolved_reasons_json, c.chain_status,
                        c.created_at_utc, c.updated_at_utc
                 FROM dla_lineage_chains c
@@ -1313,7 +1321,7 @@ class DecisionLogAuditIntakeStore:
                 conn,
                 self.backend,
                 """
-                SELECT c.decision_id, c.platform_run_id, c.scenario_run_id, c.decision_event_id, c.decision_payload_hash,
+                SELECT c.decision_id, c.platform_run_id, c.scenario_run_id, c.run_config_digest, c.decision_event_id, c.decision_payload_hash,
                        c.decision_ref_json, c.intent_count, c.outcome_count, c.unresolved_reasons_json, c.chain_status,
                        c.created_at_utc, c.updated_at_utc
                 FROM dla_lineage_chains c
@@ -1398,6 +1406,7 @@ class DecisionLogAuditIntakeStore:
         source_ref: Mapping[str, Any],
     ) -> DecisionLogAuditLineageApplyResult:
         decision_id = _require_non_empty_str(payload.get("decision_id"), "decision_response.payload.decision_id")
+        run_config_digest = _optional_hex64(payload.get("run_config_digest"), "decision_response.payload.run_config_digest")
         decision_ts_utc = str(payload.get("decided_at_utc") or "") or None
         source_ref_json = _canonical_json(
             {
@@ -1414,7 +1423,7 @@ class DecisionLogAuditIntakeStore:
                 conn,
                 self.backend,
                 """
-                SELECT platform_run_id, scenario_run_id, decision_event_id, decision_payload_hash
+                SELECT platform_run_id, scenario_run_id, run_config_digest, decision_event_id, decision_payload_hash
                 FROM dla_lineage_chains
                 WHERE decision_id = {p1}
                 """,
@@ -1426,15 +1435,16 @@ class DecisionLogAuditIntakeStore:
                     self.backend,
                     """
                     INSERT INTO dla_lineage_chains (
-                        decision_id, platform_run_id, scenario_run_id, decision_event_id, decision_payload_hash,
+                        decision_id, platform_run_id, scenario_run_id, run_config_digest, decision_event_id, decision_payload_hash,
                         decision_ref_json, decision_ts_utc, intent_count, outcome_count, unresolved_reasons_json,
                         chain_status, created_at_utc, updated_at_utc
-                    ) VALUES ({p1}, {p2}, {p3}, {p4}, {p5}, {p6}, {p7}, 0, 0, {p8}, 'UNRESOLVED', {p9}, {p10})
+                    ) VALUES ({p1}, {p2}, {p3}, {p4}, {p5}, {p6}, {p7}, {p8}, 0, 0, {p9}, 'UNRESOLVED', {p10}, {p11})
                     """,
                     (
                         decision_id,
                         platform_run_id,
                         scenario_run_id,
+                        run_config_digest,
                         event_id,
                         payload_hash,
                         source_ref_json,
@@ -1453,25 +1463,54 @@ class DecisionLogAuditIntakeStore:
                         chain_status="UNRESOLVED",
                         unresolved_reasons=("RUN_SCOPE_MISMATCH",),
                     )
-                existing_event = str(chain[2]) if chain[2] not in (None, "") else None
-                existing_hash = str(chain[3]) if chain[3] not in (None, "") else None
+                existing_run_config = str(chain[2]) if chain[2] not in (None, "") else None
+                if run_config_digest and existing_run_config and existing_run_config != run_config_digest:
+                    return DecisionLogAuditLineageApplyResult(
+                        status="CONFLICT",
+                        decision_id=decision_id,
+                        chain_status="UNRESOLVED",
+                        unresolved_reasons=("RUN_CONFIG_DIGEST_MISMATCH",),
+                    )
+                existing_event = str(chain[3]) if chain[3] not in (None, "") else None
+                existing_hash = str(chain[4]) if chain[4] not in (None, "") else None
                 if existing_event in (None, ""):
                     _execute(
                         conn,
                         self.backend,
                         """
                         UPDATE dla_lineage_chains
-                        SET decision_event_id = {p1},
-                            decision_payload_hash = {p2},
-                            decision_ref_json = {p3},
-                            decision_ts_utc = {p4},
-                            updated_at_utc = {p5}
-                        WHERE decision_id = {p6}
+                        SET run_config_digest = COALESCE(run_config_digest, {p1}),
+                            decision_event_id = {p2},
+                            decision_payload_hash = {p3},
+                            decision_ref_json = {p4},
+                            decision_ts_utc = {p5},
+                            updated_at_utc = {p6}
+                        WHERE decision_id = {p7}
                         """,
-                        (event_id, payload_hash, source_ref_json, decision_ts_utc, now_utc, decision_id),
+                        (
+                            run_config_digest,
+                            event_id,
+                            payload_hash,
+                            source_ref_json,
+                            decision_ts_utc,
+                            now_utc,
+                            decision_id,
+                        ),
                     )
                     event_status = "NEW"
                 elif existing_event == event_id and existing_hash == payload_hash:
+                    if run_config_digest and not existing_run_config:
+                        _execute(
+                            conn,
+                            self.backend,
+                            """
+                            UPDATE dla_lineage_chains
+                            SET run_config_digest = {p1},
+                                updated_at_utc = {p2}
+                            WHERE decision_id = {p3}
+                            """,
+                            (run_config_digest, now_utc, decision_id),
+                        )
                     event_status = "DUPLICATE"
                 else:
                     return DecisionLogAuditLineageApplyResult(
@@ -1500,6 +1539,7 @@ class DecisionLogAuditIntakeStore:
         source_ref: Mapping[str, Any],
     ) -> DecisionLogAuditLineageApplyResult:
         decision_id = _require_non_empty_str(payload.get("decision_id"), "action_intent.payload.decision_id")
+        run_config_digest = _optional_hex64(payload.get("run_config_digest"), "action_intent.payload.run_config_digest")
         action_id = _require_non_empty_str(payload.get("action_id"), "action_intent.payload.action_id")
         requested_at_utc = str(payload.get("requested_at_utc") or "") or None
         source_ref_json = _canonical_json(
@@ -1513,18 +1553,20 @@ class DecisionLogAuditIntakeStore:
         )
         now_utc = _utc_now()
         with self._connect() as conn:
-            if not self._ensure_chain_scope(
+            scope_error = self._ensure_chain_scope(
                 conn,
                 decision_id=decision_id,
                 platform_run_id=platform_run_id,
                 scenario_run_id=scenario_run_id,
+                run_config_digest=run_config_digest,
                 created_at_utc=now_utc,
-            ):
+            )
+            if scope_error:
                 return DecisionLogAuditLineageApplyResult(
                     status="CONFLICT",
                     decision_id=decision_id,
                     chain_status="UNRESOLVED",
-                    unresolved_reasons=("RUN_SCOPE_MISMATCH",),
+                    unresolved_reasons=(scope_error,),
                 )
             row = _query_one(
                 conn,
@@ -1588,6 +1630,7 @@ class DecisionLogAuditIntakeStore:
         source_ref: Mapping[str, Any],
     ) -> DecisionLogAuditLineageApplyResult:
         decision_id = _require_non_empty_str(payload.get("decision_id"), "action_outcome.payload.decision_id")
+        run_config_digest = _optional_hex64(payload.get("run_config_digest"), "action_outcome.payload.run_config_digest")
         action_id = _require_non_empty_str(payload.get("action_id"), "action_outcome.payload.action_id")
         outcome_id = _require_non_empty_str(payload.get("outcome_id"), "action_outcome.payload.outcome_id")
         status_value = str(payload.get("status") or "") or None
@@ -1603,18 +1646,20 @@ class DecisionLogAuditIntakeStore:
         )
         now_utc = _utc_now()
         with self._connect() as conn:
-            if not self._ensure_chain_scope(
+            scope_error = self._ensure_chain_scope(
                 conn,
                 decision_id=decision_id,
                 platform_run_id=platform_run_id,
                 scenario_run_id=scenario_run_id,
+                run_config_digest=run_config_digest,
                 created_at_utc=now_utc,
-            ):
+            )
+            if scope_error:
                 return DecisionLogAuditLineageApplyResult(
                     status="CONFLICT",
                     decision_id=decision_id,
                     chain_status="UNRESOLVED",
-                    unresolved_reasons=("RUN_SCOPE_MISMATCH",),
+                    unresolved_reasons=(scope_error,),
                 )
             row = _query_one(
                 conn,
@@ -1675,13 +1720,14 @@ class DecisionLogAuditIntakeStore:
         decision_id: str,
         platform_run_id: str,
         scenario_run_id: str,
+        run_config_digest: str | None,
         created_at_utc: str,
-    ) -> bool:
+    ) -> str | None:
         row = _query_one(
             conn,
             self.backend,
             """
-            SELECT platform_run_id, scenario_run_id
+            SELECT platform_run_id, scenario_run_id, run_config_digest
             FROM dla_lineage_chains
             WHERE decision_id = {p1}
             """,
@@ -1693,15 +1739,40 @@ class DecisionLogAuditIntakeStore:
                 self.backend,
                 """
                 INSERT INTO dla_lineage_chains (
-                    decision_id, platform_run_id, scenario_run_id, decision_event_id, decision_payload_hash,
+                    decision_id, platform_run_id, scenario_run_id, run_config_digest, decision_event_id, decision_payload_hash,
                     decision_ref_json, decision_ts_utc, intent_count, outcome_count, unresolved_reasons_json,
                     chain_status, created_at_utc, updated_at_utc
-                ) VALUES ({p1}, {p2}, {p3}, NULL, NULL, NULL, NULL, 0, 0, {p4}, 'UNRESOLVED', {p5}, {p6})
+                ) VALUES ({p1}, {p2}, {p3}, {p4}, NULL, NULL, NULL, NULL, 0, 0, {p5}, 'UNRESOLVED', {p6}, {p7})
                 """,
-                (decision_id, platform_run_id, scenario_run_id, "[]", created_at_utc, created_at_utc),
+                (
+                    decision_id,
+                    platform_run_id,
+                    scenario_run_id,
+                    run_config_digest,
+                    "[]",
+                    created_at_utc,
+                    created_at_utc,
+                ),
             )
-            return True
-        return str(row[0]) == platform_run_id and str(row[1]) == scenario_run_id
+            return None
+        if str(row[0]) != platform_run_id or str(row[1]) != scenario_run_id:
+            return "RUN_SCOPE_MISMATCH"
+        existing_run_config = str(row[2]) if row[2] not in (None, "") else None
+        if run_config_digest and existing_run_config and existing_run_config != run_config_digest:
+            return "RUN_CONFIG_DIGEST_MISMATCH"
+        if run_config_digest and not existing_run_config:
+            _execute(
+                conn,
+                self.backend,
+                """
+                UPDATE dla_lineage_chains
+                SET run_config_digest = {p1},
+                    updated_at_utc = {p2}
+                WHERE decision_id = {p3}
+                """,
+                (run_config_digest, _utc_now(), decision_id),
+            )
+        return None
 
     def _refresh_lineage_chain(self, conn: Any, *, decision_id: str) -> tuple[str, list[str]]:
         chain_row = _query_one(
@@ -1893,6 +1964,7 @@ class DecisionLogAuditIntakeStore:
                     decision_id TEXT PRIMARY KEY,
                     platform_run_id TEXT NOT NULL,
                     scenario_run_id TEXT NOT NULL,
+                    run_config_digest TEXT,
                     decision_event_id TEXT,
                     decision_payload_hash TEXT,
                     decision_ref_json TEXT,
@@ -1940,6 +2012,15 @@ class DecisionLogAuditIntakeStore:
                     ON dla_lineage_outcomes (decision_id, created_at_utc);
                 """,
             )
+            if self.backend == "sqlite":
+                _ensure_sqlite_column(conn, "dla_lineage_chains", "run_config_digest", "TEXT")
+            else:
+                _execute(
+                    conn,
+                    self.backend,
+                    "ALTER TABLE dla_lineage_chains ADD COLUMN IF NOT EXISTS run_config_digest TEXT",
+                    tuple(),
+                )
 
     def _connect(self) -> Any:
         if self.backend == "sqlite":
@@ -1962,22 +2043,23 @@ def _row_to_index_record(row: Any) -> DecisionLogAuditIndexRecord:
 
 
 def _row_to_lineage_chain(row: Any) -> DecisionLogAuditLineageChain:
-    decision_ref_raw = str(row[5]) if row[5] not in (None, "") else None
+    decision_ref_raw = str(row[6]) if row[6] not in (None, "") else None
     decision_ref = json.loads(decision_ref_raw) if decision_ref_raw else None
-    unresolved = tuple(json.loads(str(row[8]) or "[]"))
+    unresolved = tuple(json.loads(str(row[9]) or "[]"))
     return DecisionLogAuditLineageChain(
         decision_id=str(row[0]),
         platform_run_id=str(row[1]),
         scenario_run_id=str(row[2]),
-        decision_event_id=str(row[3]) if row[3] not in (None, "") else None,
-        decision_payload_hash=str(row[4]) if row[4] not in (None, "") else None,
+        run_config_digest=str(row[3]) if row[3] not in (None, "") else None,
+        decision_event_id=str(row[4]) if row[4] not in (None, "") else None,
+        decision_payload_hash=str(row[5]) if row[5] not in (None, "") else None,
         decision_ref=decision_ref,
-        intent_count=int(row[6]),
-        outcome_count=int(row[7]),
+        intent_count=int(row[7]),
+        outcome_count=int(row[8]),
         unresolved_reasons=unresolved,
-        chain_status=str(row[9]),
-        created_at_utc=str(row[10]),
-        updated_at_utc=str(row[11]),
+        chain_status=str(row[10]),
+        created_at_utc=str(row[11]),
+        updated_at_utc=str(row[12]),
     )
 
 
@@ -2005,6 +2087,14 @@ def _sqlite_path(locator: str) -> str:
     if locator.startswith("sqlite://"):
         return locator[len("sqlite://") :]
     return locator
+
+
+def _ensure_sqlite_column(conn: sqlite3.Connection, table_name: str, column_name: str, column_sql: str) -> None:
+    existing = {str(row[1]) for row in conn.execute(f"PRAGMA table_info({table_name})").fetchall()}
+    if column_name in existing:
+        return
+    conn.execute(f"ALTER TABLE {table_name} ADD COLUMN {column_name} {column_sql}")
+    conn.commit()
 
 
 def _render_sql(sql: str, backend: str) -> str:
@@ -2138,6 +2228,21 @@ def _require_non_empty_str(value: Any, field_name: str) -> str:
     text = str(value or "").strip()
     if not text:
         raise DecisionLogAuditIndexStoreError(f"{field_name} must be non-empty")
+    return text
+
+
+def _optional_hex64(value: Any, field_name: str) -> str | None:
+    if value in (None, ""):
+        return None
+    text = _require_non_empty_str(value, field_name)
+    if len(text) != 64:
+        raise DecisionLogAuditIndexStoreError(f"{field_name} must be 64-char lowercase hex when provided")
+    try:
+        int(text, 16)
+    except ValueError as exc:
+        raise DecisionLogAuditIndexStoreError(f"{field_name} must be 64-char lowercase hex when provided") from exc
+    if text.lower() != text:
+        raise DecisionLogAuditIndexStoreError(f"{field_name} must be 64-char lowercase hex when provided")
     return text
 
 

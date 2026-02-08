@@ -29,6 +29,7 @@ class DecisionLogAuditLineageReadRecord:
     decision_id: str
     platform_run_id: str
     scenario_run_id: str
+    run_config_digest: str | None
     chain_status: str
     unresolved_reasons: tuple[str, ...]
     intent_count: int
@@ -46,6 +47,7 @@ class DecisionLogAuditLineageReadRecord:
             "decision_id": self.decision_id,
             "platform_run_id": self.platform_run_id,
             "scenario_run_id": self.scenario_run_id,
+            "run_config_digest": self.run_config_digest,
             "chain_status": self.chain_status,
             "unresolved_reasons": list(self.unresolved_reasons),
             "intent_count": self.intent_count,
@@ -176,6 +178,7 @@ class DecisionLogAuditQueryService:
             decision_id=chain.decision_id,
             platform_run_id=chain.platform_run_id,
             scenario_run_id=chain.scenario_run_id,
+            run_config_digest=chain.run_config_digest,
             chain_status=chain.chain_status,
             unresolved_reasons=chain.unresolved_reasons,
             intent_count=chain.intent_count,

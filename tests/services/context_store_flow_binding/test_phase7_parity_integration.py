@@ -178,6 +178,33 @@ def test_phase7_profile_loader_supports_parity_profile_shape_and_env(monkeypatch
     )
 
 
+def test_phase7_profile_loader_requires_explicit_projection_locator(monkeypatch, tmp_path: Path) -> None:
+    platform_run_id = "platform_20260207T171701Z"
+    topics_ref = tmp_path / "topics.yaml"
+    _write_topics(topics_ref)
+    profile_path = tmp_path / "profile.yaml"
+    bus_root = tmp_path / "eb"
+
+    monkeypatch.delenv("CSFB_PROJECTION_DSN", raising=False)
+    monkeypatch.setenv("CSFB_EVENT_BUS_ROOT", str(bus_root))
+    monkeypatch.setenv("CSFB_REQUIRED_PLATFORM_RUN_ID", platform_run_id)
+
+    _write_profile(
+        profile_path,
+        projection_dsn="${CSFB_PROJECTION_DSN}",
+        event_bus_root="${CSFB_EVENT_BUS_ROOT}",
+        topics_ref=topics_ref,
+        required_platform_run_id="${CSFB_REQUIRED_PLATFORM_RUN_ID}",
+    )
+
+    try:
+        CsfbInletPolicy.load(profile_path)
+    except ValueError as exc:
+        assert "projection_db_dsn is required" in str(exc)
+    else:
+        raise AssertionError("Expected explicit projection_db_dsn requirement error")
+
+
 def test_phase7_monitored_20_event_pass_records_join_hits_and_ready_query(tmp_path: Path) -> None:
     platform_run_id = "platform_20260207T171800Z"
     pins = _pins(platform_run_id)

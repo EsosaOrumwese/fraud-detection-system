@@ -3,6 +3,27 @@ _As of 2026-02-05_
 
 ---
 
+## Entry: 2026-02-08 13:27:06 - OFP parity Postgres-default alignment note (reviewer item 8)
+
+### Problem framing
+OFP runtime supports both SQLite and Postgres locators, but parity launcher defaults were still passing run-root filesystem locators. That creates backend drift versus dev/prod posture.
+
+### Decision
+Switch parity launcher defaults and runbook guidance to Postgres DSN-backed OFP stores:
+- projection store
+- snapshot index store
+
+### Why this is the right scope
+- No OFP business logic changes are required.
+- Keeps dual-backend support intact while making local_parity behavior operationally closer to dev/prod.
+- Reduces parity-only drift caused by implicit filesystem defaults.
+
+### Guardrails
+- Keep explicit override path for local SQLite testing.
+- Ensure runbook clearly separates "default parity backend" from "optional local override."
+
+---
+
 ## Entry: 2026-02-05 15:13:10 — Phase 4 planning kickoff (OFP scope + pins)
 
 ### Problem / goal
@@ -1106,5 +1127,35 @@ Platform Phase 4 closure pass required resolving OFP build-plan `Phase 8` from p
 
 ### Outcome
 - OFP build plan now reflects integration-closed status at current v0 scope, aligned with platform Phase 4 closeout criteria.
+
+---
+
+## Entry: 2026-02-08 13:11:44 - Parity Postgres-default wiring closure (reviewer item 8)
+
+### Trigger
+Reviewer item 8 required local_parity RTDL stores to default to Postgres instead of implicit sqlite behavior.
+
+### Decision
+Keep OFP runtime code unchanged and close through explicit parity wiring controls:
+1. profile wiring includes explicit snapshot index DSN source,
+2. make parity-live target passes Postgres DSNs by default,
+3. runbook commands use parity DSN environment variables directly.
+
+### Applied changes touching OFP operation
+- `config/platform/profiles/local_parity.yaml`
+  - added `ofp.wiring.snapshot_index_dsn: ${OFP_SNAPSHOT_INDEX_DSN}`.
+- `makefile`
+  - `platform-ofp-projector-parity-live` now exports:
+    - `OFP_PROJECTION_DSN=$(PARITY_OFP_PROJECTION_DSN)`
+    - `OFP_SNAPSHOT_INDEX_DSN=$(PARITY_OFP_SNAPSHOT_INDEX_DSN)`
+- `docs/runbooks/platform_parity_walkthrough_v0.md`
+  - OFP parity steps now set/use the Postgres parity DSN variables.
+
+### Why this approach
+- Preserves existing OFP projector semantics while making environment posture deterministic.
+- Avoids accidental sqlite fallback in parity operation and keeps parity/dev/prod substrate alignment clearer.
+
+### Outcome
+OFP parity operational path is now pinned to Postgres-default DSN wiring, with no hidden store-mode switch in the normal local_parity flow.
 
 ---

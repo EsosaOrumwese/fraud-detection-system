@@ -83,17 +83,19 @@ class CsfbInletPolicy:
                 os.getenv("CSFB_REQUIRED_PLATFORM_RUN_ID") or os.getenv("PLATFORM_RUN_ID")
             )
 
+        projection_db_locator = _none_if_blank(
+            _resolve_env(wiring.get("projection_db_dsn"))
+            or os.getenv("CSFB_PROJECTION_DSN")
+        )
+        if not projection_db_locator:
+            raise ValueError("CSFB projection_db_dsn is required (set wiring.projection_db_dsn or CSFB_PROJECTION_DSN)")
         projection_db_dsn = resolve_run_scoped_path(
-            str(
-                _resolve_env(wiring.get("projection_db_dsn"))
-                or os.getenv("CSFB_PROJECTION_DSN")
-                or "runs/fraud-platform/context_store_flow_binding/csfb.sqlite"
-            ),
+            projection_db_locator,
             suffix="context_store_flow_binding/csfb.sqlite",
             create_if_missing=True,
         )
         if not projection_db_dsn:
-            raise ValueError("PLATFORM_RUN_ID required to resolve projection_db_dsn")
+            raise ValueError("CSFB projection_db_dsn is required (set wiring.projection_db_dsn or CSFB_PROJECTION_DSN)")
 
         event_bus_kind = str(
             _resolve_env(wiring.get("event_bus_kind") or event_bus.get("kind") or "file")

@@ -71,6 +71,31 @@ Treat the shared join plane as its own component:
 
 ---
 
+## Entry: 2026-02-08 13:26:17 - CSFB parity-store default hardening (reviewer item 8 dependency)
+
+### Problem
+`CsfbInletPolicy.load(...)` currently resolves `projection_db_dsn` with a fallback literal SQLite path when env/profile DSN is empty. In local_parity this can silently downgrade state storage to SQLite.
+
+### Alternatives considered
+1. Keep SQLite fallback and rely on runbook instructions to set DSN.
+2. Keep fallback but emit warnings.
+3. Remove silent fallback for parity path and require explicit DSN resolution from profile/env (aligned with IEG/OFP behavior).
+
+### Decision
+Adopt option 3 for parity-aligned behavior: no silent SQLite fallback in parity wiring path. Missing DSN should fail fast instead of drifting backend class.
+
+### Expected implementation shape
+- Update CSFB DSN resolution path to require explicit `projection_db_dsn` from profile/env variables.
+- Keep support for SQLite where explicitly supplied as a locator.
+- Preserve run-scoped path resolution semantics for local filesystem locators.
+
+### Invariants to preserve
+- Run-scope enforcement (`required_platform_run_id`) unchanged.
+- Context topic allowlist + schema validation behavior unchanged.
+- Existing explicit SQLite use cases remain possible when explicitly configured.
+
+---
+
 ## Entry: 2026-02-07 14:38:00 - Phase 1 implementation plan (contracts/keys/ownership pins)
 
 ### Active-phase objective
@@ -1071,5 +1096,31 @@ Platform Phase 4 closure required explicit CSFB `Phase 8` resolution instead of 
 
 ### Outcome
 - CSFB component plan now reflects closure-grade status for v0 RTDL join-plane responsibilities.
+
+---
+
+## Entry: 2026-02-08 13:11:03 - Explicit projection locator requirement for parity Postgres-default
+
+### Trigger
+Reviewer item 8 required local_parity to behave like dev/prod by default for RTDL state stores and to eliminate silent sqlite fallback.
+
+### Decision thread
+1. Require explicit projection locator before run-scoping.
+   - Previous behavior could pass `None` into run-scoped resolution and silently derive a local sqlite path via active run context.
+   - Decision: fail closed when neither `wiring.projection_db_dsn` nor `CSFB_PROJECTION_DSN` resolve to a non-empty locator.
+2. Keep run-scoped rewriting for explicit `runs/fraud-platform/...` locators only.
+   - Reasoning: preserve existing run-scoped path convenience while removing implicit fallback.
+
+### Code changes
+- `src/fraud_detection/context_store_flow_binding/intake.py`
+  - Added explicit `projection_db_locator` pre-check.
+  - `CsfbInletPolicy.load` now raises a clear ValueError if projection locator is missing.
+
+### Validation
+- `python -m pytest tests/services/context_store_flow_binding/test_phase7_parity_integration.py -q` -> `4 passed`.
+- Added/validated test: `test_phase7_profile_loader_requires_explicit_projection_locator`.
+
+### Outcome
+CSFB no longer silently falls back to sqlite when parity DSN wiring is absent; local_parity now enforces explicit projection DB wiring.
 
 ---
