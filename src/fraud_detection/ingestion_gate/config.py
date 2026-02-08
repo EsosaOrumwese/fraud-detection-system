@@ -54,6 +54,8 @@ class WiringProfile:
     api_key_header: str = "X-IG-Api-Key"
     auth_allowlist: list[str] | None = None
     auth_allowlist_ref: str | None = None
+    service_token_secrets: list[str] | None = None
+    service_token_secrets_env: str = "IG_SERVICE_TOKEN_SECRETS"
     push_rate_limit_per_minute: int = 0
     store_read_failure_threshold: int = 3
 
@@ -111,6 +113,12 @@ class WiringProfile:
         auth_allowlist_ref = security.get("auth_allowlist_ref")
         if auth_allowlist_ref:
             auth_allowlist.extend(load_allowlist(auth_allowlist_ref))
+        token_secrets = list(security.get("service_token_secrets") or [])
+        token_secrets_env = str(security.get("service_token_secrets_env") or "IG_SERVICE_TOKEN_SECRETS").strip()
+        if token_secrets_env:
+            env_value = os.getenv(token_secrets_env)
+            if env_value:
+                token_secrets.extend([item.strip() for item in env_value.split(",") if item.strip()])
         return cls(
             profile_id=profile_id,
             object_store_root=object_store_root,
@@ -165,6 +173,8 @@ class WiringProfile:
             api_key_header=security.get("api_key_header", "X-IG-Api-Key"),
             auth_allowlist=auth_allowlist or None,
             auth_allowlist_ref=auth_allowlist_ref,
+            service_token_secrets=token_secrets or None,
+            service_token_secrets_env=token_secrets_env or "IG_SERVICE_TOKEN_SECRETS",
             push_rate_limit_per_minute=int(security.get("push_rate_limit_per_minute", 0)),
             store_read_failure_threshold=int(security.get("store_read_failure_threshold", 3)),
         )

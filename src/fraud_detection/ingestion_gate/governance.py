@@ -10,6 +10,7 @@ import json
 from typing import Any
 
 from fraud_detection.event_bus import EventBusPublisher
+from fraud_detection.platform_provenance import runtime_provenance
 from fraud_detection.platform_governance import emit_platform_governance_event
 from .partitioning import PartitioningProfiles
 from .store import ObjectStore
@@ -48,8 +49,8 @@ class GovernanceEmitter:
         emit_platform_governance_event(
             store=self.store,
             event_family="POLICY_REV_CHANGED",
-            actor_id="svc:ingestion_gate",
-            source_type="service",
+            actor_id="SYSTEM::ingestion_gate",
+            source_type="SYSTEM",
             source_component="ingestion_gate",
             platform_run_id=platform_run_id,
             dedupe_key=f"ig_policy_activation:{digest}",
@@ -58,6 +59,12 @@ class GovernanceEmitter:
                 "revision": payload["revision"],
                 "content_digest": payload["content_digest"],
                 "activated_at_utc": payload["activated_at_utc"],
+                "run_config_digest": payload["content_digest"],
+                "provenance": runtime_provenance(
+                    component="ingestion_gate",
+                    config_revision=str(payload["revision"]),
+                    run_config_digest=str(payload["content_digest"]),
+                ),
             },
         )
         envelope = _make_envelope("ig.policy.activation", payload)

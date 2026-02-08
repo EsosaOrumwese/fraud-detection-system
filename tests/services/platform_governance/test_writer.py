@@ -35,6 +35,8 @@ def test_writer_is_append_only_and_idempotent(tmp_path: Path) -> None:
     payload = json.loads(lines[0])
     assert payload["event_family"] == "RUN_STARTED"
     assert payload["actor"]["actor_id"] == "svc:test"
+    assert payload["actor"]["source_type"] == "SYSTEM"
+    assert payload["provenance"]["service_release_id"] == "dev-local"
     assert payload["pins"]["platform_run_id"] == "platform_20260208T200000Z"
 
 

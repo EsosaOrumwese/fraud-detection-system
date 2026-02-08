@@ -1,8 +1,10 @@
 from pathlib import Path
 
 import pytest
+import werkzeug
 
 from fraud_detection.ingestion_gate.config import WiringProfile
+from fraud_detection.ingestion_gate.security import build_service_token
 from fraud_detection.ingestion_gate.service import create_app
 
 
@@ -119,6 +121,12 @@ def _envelope(event_id: str) -> dict:
     }
 
 
+def _test_client(app):
+    if not hasattr(werkzeug, "__version__"):
+        werkzeug.__version__ = "3"
+    return app.test_client()
+
+
 def test_push_requires_api_key(tmp_path: Path) -> None:
     allowlist = tmp_path / "allowlist.txt"
     allowlist.write_text("key-1\n", encoding="utf-8")
@@ -131,7 +139,7 @@ def test_push_requires_api_key(tmp_path: Path) -> None:
         },
     )
     app = create_app(str(profile_path))
-    client = app.test_client()
+    client = _test_client(app)
 
     resp = client.post("/v1/ingest/push", json=_envelope("evt-1"))
     assert resp.status_code == 401
@@ -139,6 +147,41 @@ def test_push_requires_api_key(tmp_path: Path) -> None:
     resp_ok = client.post("/v1/ingest/push", json=_envelope("evt-2"), headers={"X-IG-Api-Key": "key-1"})
     assert resp_ok.status_code == 200
     assert resp_ok.get_json()["decision"] == "ADMIT"
+    actor = resp_ok.get_json()["receipt"].get("actor")
+    assert actor is not None
+    assert actor["actor_id"] == "SYSTEM::key-1"
+    assert actor["source_type"] == "SYSTEM"
+
+
+def test_push_accepts_service_token_mode(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("IG_SERVICE_TOKEN_SECRETS", "test-secret-1")
+    profile_path = _write_profile(
+        tmp_path,
+        security={
+            "auth_mode": "service_token",
+            "api_key_header": "X-IG-Service-Token",
+            "auth_allowlist": ["world_stream_producer"],
+            "service_token_secrets_env": "IG_SERVICE_TOKEN_SECRETS",
+        },
+    )
+    token = build_service_token("world_stream_producer", "test-secret-1")
+    app = create_app(str(profile_path))
+    client = _test_client(app)
+
+    denied = client.post("/v1/ingest/push", json=_envelope("evt-token-denied"))
+    assert denied.status_code == 401
+
+    admitted = client.post(
+        "/v1/ingest/push",
+        json=_envelope("evt-token-ok"),
+        headers={"X-IG-Service-Token": token},
+    )
+    assert admitted.status_code == 200
+    receipt = admitted.get_json()["receipt"]
+    actor = receipt.get("actor")
+    assert actor is not None
+    assert actor["actor_id"] == "SYSTEM::world_stream_producer"
+    assert actor["source_type"] == "SYSTEM"
 
 
 def test_push_rate_limit(tmp_path: Path) -> None:
@@ -147,7 +190,7 @@ def test_push_rate_limit(tmp_path: Path) -> None:
         security={"push_rate_limit_per_minute": 1},
     )
     app = create_app(str(profile_path))
-    client = app.test_client()
+    client = _test_client(app)
 
     first = client.post("/v1/ingest/push", json=_envelope("evt-10"))
     assert first.status_code == 200

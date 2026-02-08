@@ -32,6 +32,33 @@ properties:
     $ref: "#/$defs/hex64"
   run_config_digest:
     $ref: "#/$defs/hex64"
+  service_release_id:
+    type: string
+    minLength: 1
+    maxLength: 256
+  environment:
+    type: string
+    minLength: 1
+    maxLength: 64
+  provenance:
+    type: object
+    additionalProperties: false
+    required: [service_release_id, environment]
+    properties:
+      service_release_id:
+        type: string
+        minLength: 1
+        maxLength: 256
+      environment:
+        type: string
+        minLength: 1
+        maxLength: 64
+      config_revision:
+        type: string
+        minLength: 1
+        maxLength: 128
+      run_config_digest:
+        $ref: "#/$defs/hex64"
   manifest_fingerprint:
     $ref: "#/$defs/hex64"
   parameter_hash:

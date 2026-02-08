@@ -767,12 +767,15 @@ class WorldStreamProducer:
         max_attempts = max(1, int(self.profile.wiring.ig_retry_max_attempts))
         base_delay = max(0, int(self.profile.wiring.ig_retry_base_delay_ms)) / 1000.0
         max_delay = max(base_delay, int(self.profile.wiring.ig_retry_max_delay_ms) / 1000.0)
+        headers: dict[str, str] = {}
+        if self.profile.wiring.ig_auth_token:
+            headers[self.profile.wiring.ig_auth_header] = self.profile.wiring.ig_auth_token
         attempt = 0
         last_error: str | None = None
         while attempt < max_attempts:
             attempt += 1
             try:
-                response = requests.post(f"{url}/v1/ingest/push", json=envelope, timeout=30)
+                response = requests.post(f"{url}/v1/ingest/push", json=envelope, headers=headers, timeout=30)
             except requests.Timeout:
                 last_error = "timeout"
                 retryable = True

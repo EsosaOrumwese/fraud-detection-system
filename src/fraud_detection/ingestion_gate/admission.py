@@ -26,11 +26,13 @@ from .partitioning import PartitionProfile, PartitioningProfiles
 from .policy_digest import compute_policy_digest
 from .rate_limit import RateLimiter
 from .receipts import ReceiptWriter
-from .security import authorize
+from .security import AuthContext, authorize
 from .schema import SchemaEnforcer
 from .schemas import SchemaRegistry
 from .store import ObjectStore, S3ObjectStore, build_object_store
 from ..platform_runtime import platform_run_prefix, resolve_platform_run_id
+from ..platform_provenance import runtime_provenance
+from ..platform_governance.anomaly_taxonomy import classify_anomaly
 from ..platform_governance import emit_platform_governance_event
 
 logger = logging.getLogger(__name__)
@@ -71,6 +73,7 @@ class IngestionGate:
     governance: GovernanceEmitter
     auth_mode: str
     auth_allowlist: list[str]
+    auth_service_token_secrets: list[str]
     api_key_header: str
     push_limiter: RateLimiter
 
@@ -150,29 +153,37 @@ class IngestionGate:
             governance=governance,
             auth_mode=wiring.auth_mode,
             auth_allowlist=auth_allowlist,
+            auth_service_token_secrets=list(wiring.service_token_secrets or []),
             api_key_header=wiring.api_key_header,
             push_limiter=RateLimiter(wiring.push_rate_limit_per_minute),
         )
 
-    def admit_push(self, envelope: dict[str, Any]) -> Receipt:
+    def admit_push(self, envelope: dict[str, Any], *, auth_context: AuthContext | None = None) -> Receipt:
         logger.info("IG admit_push start event_id=%s event_type=%s", envelope.get("event_id"), envelope.get("event_type"))
-        decision, receipt = self._admit_event(envelope)
+        decision, receipt = self._admit_event(envelope, auth_context=auth_context)
         if decision.decision == "QUARANTINE":
             raise RuntimeError("QUARANTINED")
         return receipt
 
-    def admit_push_with_decision(self, envelope: dict[str, Any]) -> tuple[AdmissionDecision, Receipt]:
+    def admit_push_with_decision(
+        self,
+        envelope: dict[str, Any],
+        *,
+        auth_context: AuthContext | None = None,
+    ) -> tuple[AdmissionDecision, Receipt]:
         logger.info(
             "IG admit_push(decision) event_id=%s event_type=%s",
             envelope.get("event_id"),
             envelope.get("event_type"),
         )
-        decision, receipt = self._admit_event(envelope)
+        decision, receipt = self._admit_event(envelope, auth_context=auth_context)
         return decision, receipt
 
     def _admit_event(
         self,
         envelope: dict[str, Any],
+        *,
+        auth_context: AuthContext | None = None,
     ) -> tuple[AdmissionDecision, Receipt]:
         start = time.perf_counter()
         validate_started = time.perf_counter()
@@ -187,10 +198,10 @@ class IngestionGate:
         except IngestionError as exc:
             if exc.code == "IG_UNHEALTHY":
                 raise
-            return self._quarantine(envelope, exc, start)
+            return self._quarantine(envelope, exc, start, auth_context=auth_context)
         except Exception as exc:  # pragma: no cover - defensive
             logger.exception("IG admission validation error")
-            return self._quarantine(envelope, IngestionError("INTERNAL_ERROR"), start)
+            return self._quarantine(envelope, IngestionError("INTERNAL_ERROR"), start, auth_context=auth_context)
         logger.info(
             "IG validated event_id=%s event_type=%s",
             envelope.get("event_id"),
@@ -208,12 +219,12 @@ class IngestionGate:
         def _handle_existing(existing_row: dict[str, Any]) -> tuple[AdmissionDecision, Receipt]:
             existing_hash = existing_row.get("payload_hash")
             if existing_hash and existing_hash != payload_hash_hex:
-                return self._quarantine(envelope, IngestionError("PAYLOAD_HASH_MISMATCH"), start)
+                return self._quarantine(envelope, IngestionError("PAYLOAD_HASH_MISMATCH"), start, auth_context=auth_context)
             state = existing_row.get("state") or ("ADMITTED" if existing_row.get("eb_ref") else None)
             if state in {"PUBLISH_IN_FLIGHT", "PUBLISH_AMBIGUOUS"}:
-                return self._quarantine(envelope, IngestionError(state), start)
+                return self._quarantine(envelope, IngestionError(state), start, auth_context=auth_context)
             if state not in {"ADMITTED", None}:
-                return self._quarantine(envelope, IngestionError("ADMISSION_STATE_INVALID", state), start)
+                return self._quarantine(envelope, IngestionError("ADMISSION_STATE_INVALID", state), start, auth_context=auth_context)
             logger.info("IG duplicate event_id=%s event_type=%s", event_id, event_type)
             eb_ref = _normalize_eb_ref(existing_row.get("eb_ref"))
             admitted_at_utc = existing_row.get("admitted_at_utc") or (
@@ -237,6 +248,7 @@ class IngestionGate:
                 scenario_run_id=scenario_run_id,
                 payload_hash=payload_hash,
                 admitted_at_utc=admitted_at_utc,
+                auth_context=auth_context,
             )
             receipt = Receipt(payload=receipt_payload)
             receipt_id = receipt_payload["receipt_id"]
@@ -264,7 +276,7 @@ class IngestionGate:
         try:
             partition_key, profile = self._partitioning(envelope)
         except IngestionError as exc:
-            return self._quarantine(envelope, exc, start)
+            return self._quarantine(envelope, exc, start, auth_context=auth_context)
 
         inserted = self.admission_index.record_in_flight(
             dedupe,
@@ -285,7 +297,7 @@ class IngestionGate:
             logger.exception("IG event bus publish error")
             self.health.record_publish_failure()
             self.admission_index.record_ambiguous(dedupe, payload_hash_hex)
-            return self._quarantine(envelope, IngestionError("PUBLISH_AMBIGUOUS"), start)
+            return self._quarantine(envelope, IngestionError("PUBLISH_AMBIGUOUS"), start, auth_context=auth_context)
         self.health.record_publish_success()
         admitted_at_utc = datetime.now(tz=timezone.utc).isoformat()
         self.admission_index.record_admitted(dedupe, eb_ref=_eb_ref_payload(eb_ref), admitted_at_utc=admitted_at_utc, payload_hash=payload_hash_hex)
@@ -329,6 +341,7 @@ class IngestionGate:
             profile_id=profile.profile_id,
             partition_key=partition_key,
             eb_ref=eb_ref,
+            auth_context=auth_context,
         )
         receipt = Receipt(payload=receipt_payload)
         receipt_id = receipt_payload["receipt_id"]
@@ -362,6 +375,8 @@ class IngestionGate:
         envelope: dict[str, Any],
         exc: Exception,
         started_at: float,
+        *,
+        auth_context: AuthContext | None = None,
     ) -> tuple[AdmissionDecision, Receipt]:
         code = reason_code(exc)
         logger.warning(
@@ -394,6 +409,22 @@ class IngestionGate:
             },
             "envelope": {k: envelope.get(k) for k in envelope if k != "payload"},
         }
+        if auth_context:
+            quarantine_payload["actor"] = {
+                "actor_id": auth_context.actor_id,
+                "source_type": auth_context.source_type,
+                "auth_mode": auth_context.auth_mode,
+                "principal": auth_context.principal,
+            }
+        provenance = runtime_provenance(
+            component="ingestion_gate",
+            environment=self.wiring.profile_id,
+            config_revision=self.policy_rev.revision,
+            run_config_digest=self.policy_rev.content_digest,
+        )
+        quarantine_payload["service_release_id"] = provenance["service_release_id"]
+        quarantine_payload["environment"] = provenance["environment"]
+        quarantine_payload["provenance"] = provenance
         quarantine_payload["pins"] = _prune_none(quarantine_payload["pins"])
         if self.policy_rev.content_digest:
             quarantine_payload["policy_rev"]["content_digest"] = self.policy_rev.content_digest
@@ -417,6 +448,7 @@ class IngestionGate:
             event_class=event_class,
             platform_run_id=envelope.get("platform_run_id"),
             scenario_run_id=envelope.get("scenario_run_id") or envelope.get("run_id"),
+            auth_context=auth_context,
         )
         receipt_id = receipt_payload["receipt_id"]
         self.contract_registry.validate("ingestion_receipt.schema.yaml", receipt_payload)
@@ -430,7 +462,13 @@ class IngestionGate:
         self.metrics.record_latency("phase.receipt_seconds", time.perf_counter() - receipt_started)
         self.metrics.record_decision("QUARANTINE", code)
         self.metrics.record_latency("admission_seconds", time.perf_counter() - started_at)
-        self._emit_governance_anomaly(envelope, code, quarantine_ref=quarantine_ref, receipt_ref=receipt_ref)
+        self._emit_governance_anomaly(
+            envelope,
+            code,
+            quarantine_ref=quarantine_ref,
+            receipt_ref=receipt_ref,
+            auth_context=auth_context,
+        )
         self.governance.emit_quarantine_spike(self.metrics.counters.get("decision.QUARANTINE", 0))
         self.metrics.flush_if_due(self._metrics_context(envelope))
         receipt = Receipt(payload=receipt_payload)
@@ -490,10 +528,18 @@ class IngestionGate:
             if self.wiring.health_amber_sleep_seconds > 0:
                 time.sleep(self.wiring.health_amber_sleep_seconds)
 
-    def authorize_request(self, token: str | None) -> None:
-        allowed, reason = authorize(self.auth_mode, token, self.auth_allowlist)
+    def authorize_request(self, token: str | None) -> AuthContext:
+        allowed, reason, context = authorize(
+            self.auth_mode,
+            token,
+            self.auth_allowlist,
+            service_token_secrets=self.auth_service_token_secrets,
+        )
         if not allowed:
             raise IngestionError(reason or "UNAUTHORIZED")
+        if context is None:
+            raise IngestionError("UNAUTHORIZED")
+        return context
 
     def enforce_push_rate_limit(self) -> None:
         if not self.push_limiter.allow():
@@ -518,6 +564,7 @@ class IngestionGate:
         *,
         quarantine_ref: str | None,
         receipt_ref: str | None,
+        auth_context: AuthContext | None = None,
     ) -> None:
         platform_run_id = str(envelope.get("platform_run_id") or "").strip()
         if not platform_run_id:
@@ -536,11 +583,14 @@ class IngestionGate:
         scenario_id = str(envelope.get("scenario_id") or "").strip() or None
         event_id = str(envelope.get("event_id") or "").strip() or "unknown"
         dedupe_key = f"ig_quarantine:{event_id}:{reason_code}"
+        actor_id = auth_context.actor_id if auth_context else "SYSTEM::ingestion_gate"
+        source_type = auth_context.source_type if auth_context else "SYSTEM"
+        anomaly_category = classify_anomaly(reason_code)
         emit_platform_governance_event(
             store=self.store,
             event_family="CORRIDOR_ANOMALY",
-            actor_id="svc:ingestion_gate",
-            source_type="service",
+            actor_id=actor_id,
+            source_type=source_type,
             source_component="ingestion_gate",
             platform_run_id=platform_run_id,
             scenario_run_id=scenario_run_id,
@@ -552,10 +602,17 @@ class IngestionGate:
             details={
                 "boundary": "ingestion_gate",
                 "reason_code": reason_code,
+                "anomaly_category": anomaly_category,
                 "event_id": event_id,
                 "event_type": envelope.get("event_type"),
                 "quarantine_ref": quarantine_ref,
                 "receipt_ref": receipt_ref,
+                "policy_rev": {
+                    "policy_id": self.policy_rev.policy_id,
+                    "revision": self.policy_rev.revision,
+                    "content_digest": self.policy_rev.content_digest,
+                },
+                "run_config_digest": self.policy_rev.content_digest,
             },
         )
 
@@ -579,6 +636,7 @@ class IngestionGate:
         profile_id: str | None = None,
         partition_key: str | None = None,
         eb_ref: EbRef | None = None,
+        auth_context: AuthContext | None = None,
     ) -> dict[str, Any]:
         receipt_id = receipt_id_from(envelope["event_id"], decision.decision)
         payload: dict[str, Any] = {
@@ -629,6 +687,22 @@ class IngestionGate:
             payload["reason_codes"] = decision.reason_codes
         if decision.evidence_refs:
             payload["evidence_refs"] = decision.evidence_refs
+        if auth_context:
+            payload["actor"] = {
+                "actor_id": auth_context.actor_id,
+                "source_type": auth_context.source_type,
+                "auth_mode": auth_context.auth_mode,
+                "principal": auth_context.principal,
+            }
+        provenance = runtime_provenance(
+            component="ingestion_gate",
+            environment=self.wiring.profile_id,
+            config_revision=self.policy_rev.revision,
+            run_config_digest=self.policy_rev.content_digest,
+        )
+        payload["service_release_id"] = provenance["service_release_id"]
+        payload["environment"] = provenance["environment"]
+        payload["provenance"] = provenance
         return payload
 
 

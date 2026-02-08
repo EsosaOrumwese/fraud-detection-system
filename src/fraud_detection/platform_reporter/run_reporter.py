@@ -23,6 +23,7 @@ from fraud_detection.platform_governance import (
     build_evidence_ref_resolution_corridor,
     emit_platform_governance_event,
 )
+from fraud_detection.platform_provenance import runtime_provenance
 from fraud_detection.platform_runtime import RUNS_ROOT, resolve_platform_run_id
 from fraud_detection.scenario_runner.storage import (
     LocalObjectStore,
@@ -43,6 +44,8 @@ class PlatformRunReporter:
     store: ObjectStore
     ig_admission_locator: str
     evidence_allowlist: tuple[str, ...]
+    profile_id: str
+    config_revision: str
 
     @classmethod
     def build(
@@ -70,6 +73,8 @@ class PlatformRunReporter:
             store=store,
             ig_admission_locator=ig_wiring.admission_db_path,
             evidence_allowlist=_evidence_allowlist_from_env(),
+            profile_id=ig_wiring.profile_id,
+            config_revision=ig_wiring.policy_rev,
         )
 
     def collect(self) -> dict[str, Any]:
@@ -98,6 +103,11 @@ class PlatformRunReporter:
                 "profile_path": str(self.profile_path),
                 "ig_admission_locator": self.ig_admission_locator,
                 "run_prefix": _run_prefix_for_store(self.store, self.platform_run_id),
+                "provenance": runtime_provenance(
+                    component="platform_run_reporter",
+                    environment=self.profile_id,
+                    config_revision=self.config_revision,
+                ),
             },
         }
         return payload
@@ -231,8 +241,8 @@ class PlatformRunReporter:
         for ref_type, ref_id in refs[:50]:
             result = corridor.resolve(
                 EvidenceRefResolutionRequest(
-                    actor_id="svc:platform_run_reporter",
-                    source_type="service",
+                    actor_id="SYSTEM::platform_run_reporter",
+                    source_type="SYSTEM",
                     source_component="platform_run_reporter",
                     purpose="platform_run_report",
                     ref_type=ref_type,
@@ -258,14 +268,21 @@ class PlatformRunReporter:
         emit_platform_governance_event(
             store=self.store,
             event_family="RUN_REPORT_GENERATED",
-            actor_id="svc:platform_run_reporter",
-            source_type="service",
+            actor_id="SYSTEM::platform_run_reporter",
+            source_type="SYSTEM",
             source_component="platform_run_reporter",
             platform_run_id=self.platform_run_id,
             dedupe_key=f"run_report_generated:{self.platform_run_id}",
             details={
                 "ingress": payload.get("ingress"),
                 "rtdl": payload.get("rtdl"),
+                "run_config_digest": self.config_revision,
+                "provenance": runtime_provenance(
+                    component="platform_run_reporter",
+                    environment=self.profile_id,
+                    config_revision=self.config_revision,
+                    run_config_digest=self.config_revision,
+                ),
             },
         )
 
@@ -273,11 +290,11 @@ class PlatformRunReporter:
 def _evidence_allowlist_from_env() -> tuple[str, ...]:
     raw = (os.getenv("EVIDENCE_REF_RESOLVER_ALLOWLIST") or "").strip()
     if not raw:
-        return ("svc:platform_run_reporter",)
+        return ("SYSTEM::platform_run_reporter",)
     values = tuple(item.strip() for item in raw.split(",") if item.strip())
     if values:
         return values
-    return ("svc:platform_run_reporter",)
+    return ("SYSTEM::platform_run_reporter",)
 
 
 def _collect_wsp_ready_summary(store: ObjectStore, platform_run_id: str) -> dict[str, Any]:

@@ -2529,8 +2529,9 @@ PLATFORM_RUN_ID ?=
 PLATFORM_RUN_ID_NEW ?=
 GOVERNANCE_EVENT_FAMILY ?=
 GOVERNANCE_QUERY_LIMIT ?= 200
-EVIDENCE_REF_ACTOR_ID ?= svc:platform_run_reporter
-EVIDENCE_REF_SOURCE_TYPE ?= service
+PLATFORM_CONFORMANCE_OUTPUT_PATH ?=
+EVIDENCE_REF_ACTOR_ID ?= SYSTEM::platform_run_reporter
+EVIDENCE_REF_SOURCE_TYPE ?= SYSTEM
 EVIDENCE_REF_SOURCE_COMPONENT ?= platform_run_reporter
 EVIDENCE_REF_PURPOSE ?= platform_run_report
 EVIDENCE_REF_TYPE ?=
@@ -3066,6 +3067,23 @@ platform-governance-query:
 		query --platform-run-id "$$run_id" \
 		$(if $(GOVERNANCE_EVENT_FAMILY),--event-family "$(GOVERNANCE_EVENT_FAMILY)",) \
 		--limit "$(GOVERNANCE_QUERY_LIMIT)"
+
+.PHONY: platform-env-conformance
+platform-env-conformance:
+	@run_id="$(PLATFORM_RUN_ID)"; \
+	if [ -z "$$run_id" ] && [ -f runs/fraud-platform/ACTIVE_RUN_ID ]; then \
+		run_id=$$(tr -d '\r\n' < runs/fraud-platform/ACTIVE_RUN_ID); \
+	fi; \
+	if [ -z "$$run_id" ]; then \
+		echo "platform-env-conformance requires PLATFORM_RUN_ID or runs/fraud-platform/ACTIVE_RUN_ID" >&2; \
+		exit 1; \
+	fi; \
+	$(PY_PLATFORM) -m fraud_detection.platform_conformance.cli \
+		--platform-run-id "$$run_id" \
+		--local-parity-profile config/platform/profiles/local_parity.yaml \
+		--dev-profile config/platform/profiles/dev.yaml \
+		--prod-profile config/platform/profiles/prod.yaml \
+		$(if $(PLATFORM_CONFORMANCE_OUTPUT_PATH),--output-path "$(PLATFORM_CONFORMANCE_OUTPUT_PATH)",)
 
 .PHONY: platform-evidence-ref-resolve
 platform-evidence-ref-resolve:

@@ -65,6 +65,7 @@ from .security import is_authorized
 from .schemas import SchemaRegistry
 from .storage import build_object_store
 from ..platform_runtime import platform_run_prefix, resolve_platform_run_id, resolve_run_scoped_path
+from ..platform_provenance import runtime_provenance
 
 
 _PLATFORM_RUN_ID_RE = re.compile(r"^platform_[0-9]{8}T[0-9]{6}Z$")
@@ -1206,6 +1207,12 @@ class ScenarioRunner:
             )
             return self._response_from_status(plan.run_id, "Oracle pack invalid; run failed.")
         run_config_digest = plan.policy_rev.get("content_digest") or self.policy.content_digest
+        provenance = runtime_provenance(
+            component="scenario_runner",
+            environment=self.wiring.profile_id,
+            config_revision=str(plan.policy_rev.get("revision") or self.policy.policy_rev),
+            run_config_digest=run_config_digest,
+        )
         facts_view = {
             "run_id": plan.run_id,
             "platform_run_id": self.platform_run_id,
@@ -1229,6 +1236,9 @@ class ScenarioRunner:
             "policy_rev": plan.policy_rev,
             "bundle_hash": bundle.bundle_hash,
             "run_config_digest": run_config_digest,
+            "service_release_id": provenance["service_release_id"],
+            "environment": provenance["environment"],
+            "provenance": provenance,
             "plan_ref": f"{self.run_prefix}/sr/run_plan/{plan.run_id}.json",
             "record_ref": f"{self.run_prefix}/sr/run_record/{plan.run_id}.jsonl",
             "status_ref": f"{self.run_prefix}/sr/run_status/{plan.run_id}.json",
@@ -1274,6 +1284,9 @@ class ScenarioRunner:
             "bundle_hash": bundle.bundle_hash,
             "message_id": publish_key,
             "run_config_digest": run_config_digest,
+            "service_release_id": provenance["service_release_id"],
+            "environment": provenance["environment"],
+            "provenance": provenance,
             "manifest_fingerprint": intent.manifest_fingerprint,
             "parameter_hash": intent.parameter_hash,
             "scenario_id": intent.scenario_id,

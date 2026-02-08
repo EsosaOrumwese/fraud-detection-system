@@ -7,6 +7,7 @@ from .evidence_corridor import (
     EvidenceRefResolutionResult,
     build_evidence_ref_resolution_corridor,
 )
+from .anomaly_taxonomy import classify_anomaly
 from .writer import (
     GovernanceEvent,
     PlatformGovernanceError,
@@ -22,6 +23,7 @@ __all__ = [
     "EvidenceRefResolutionRequest",
     "EvidenceRefResolutionResult",
     "build_evidence_ref_resolution_corridor",
+    "classify_anomaly",
     "PlatformGovernanceError",
     "PlatformGovernanceWriter",
     "build_platform_governance_writer",

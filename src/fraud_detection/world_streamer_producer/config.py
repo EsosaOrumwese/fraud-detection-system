@@ -55,6 +55,8 @@ class WiringProfile:
     oracle_scenario_id: str | None
     stream_view_root: str | None
     ig_ingest_url: str
+    ig_auth_header: str
+    ig_auth_token: str | None
     checkpoint_backend: str
     checkpoint_root: str
     checkpoint_dsn: str | None
@@ -80,6 +82,7 @@ class WspProfile:
         control_bus = wiring.get("control_bus", {})
         checkpoint = wiring.get("wsp_checkpoint", {})
         producer = wiring.get("wsp_producer", {})
+        security = wiring.get("security", {})
         retry = wiring.get("wsp_retry", {})
 
         endpoint = _resolve_env(object_store.get("endpoint"))
@@ -129,6 +132,8 @@ class WspProfile:
         oracle_scenario_id = _resolve_env(wiring.get("oracle_scenario_id"))
         stream_view_root = _resolve_env(wiring.get("oracle_stream_view_root"))
         ig_ingest_url = _resolve_env(wiring.get("ig_ingest_url") or "http://localhost:8081")
+        ig_auth_header = str(security.get("api_key_header") or "X-IG-Api-Key").strip() or "X-IG-Api-Key"
+        ig_auth_token = _resolve_env(security.get("wsp_auth_token"))
 
         checkpoint_backend = checkpoint.get("backend", "file")
         checkpoint_root = resolve_run_scoped_path(
@@ -176,6 +181,8 @@ class WspProfile:
                 oracle_scenario_id=oracle_scenario_id,
                 stream_view_root=stream_view_root,
                 ig_ingest_url=ig_ingest_url,
+                ig_auth_header=ig_auth_header,
+                ig_auth_token=ig_auth_token,
                 checkpoint_backend=checkpoint_backend,
                 checkpoint_root=checkpoint_root,
                 checkpoint_dsn=checkpoint_dsn,

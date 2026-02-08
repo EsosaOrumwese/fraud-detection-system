@@ -79,6 +79,8 @@ def test_evidence_corridor_denied_actor_emits_audit_and_anomaly(tmp_path: Path) 
     denied = [item for item in events if item["event_family"] == "EVIDENCE_REF_RESOLVED"][-1]
     assert denied["details"]["resolution_status"] == "DENIED"
     assert denied["details"]["reason_code"] == "REF_ACCESS_DENIED"
+    anomaly = [item for item in events if item["event_family"] == "CORRIDOR_ANOMALY"][-1]
+    assert anomaly["details"]["anomaly_category"] == "REF_ACCESS_DENIED"
 
 
 def test_evidence_corridor_scope_mismatch_emits_anomaly(tmp_path: Path) -> None:
@@ -114,3 +116,4 @@ def test_evidence_corridor_scope_mismatch_emits_anomaly(tmp_path: Path) -> None:
     anomalies = [item for item in events if item["event_family"] == "CORRIDOR_ANOMALY"]
     assert anomalies
     assert anomalies[-1]["details"]["reason_code"] == "REF_SCOPE_MISMATCH"
+    assert anomalies[-1]["details"]["anomaly_category"] == "UNKNOWN"

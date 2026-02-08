@@ -83,6 +83,8 @@ def test_platform_run_reporter_exports_cross_plane_artifact(tmp_path: Path, monk
     assert payload["rtdl"]["outcome"] == 1
     assert payload["rtdl"]["audit_append"] == 5
     assert payload["basis"]["evidence_ref_resolution"]["attempted"] >= 1
+    assert payload["basis"]["provenance"]["service_release_id"] == "dev-local"
+    assert payload["basis"]["provenance"]["environment"] == "test"
     assert payload["artifact_refs"]["local_path"]
     assert payload["artifact_refs"]["object_store_path"].endswith("/obs/platform_run_report.json")
 
@@ -95,6 +97,15 @@ def test_platform_run_reporter_exports_cross_plane_artifact(tmp_path: Path, monk
     ]
     assert "EVIDENCE_REF_RESOLVED" in event_families
     assert "RUN_REPORT_GENERATED" in event_families
+    events = [
+        json.loads(line)
+        for line in governance_path.read_text(encoding="utf-8").splitlines()
+        if line.strip()
+    ]
+    reporter_events = [item for item in events if item.get("event_family") == "RUN_REPORT_GENERATED"]
+    assert reporter_events
+    assert reporter_events[-1]["actor"]["actor_id"] == "SYSTEM::platform_run_reporter"
+    assert reporter_events[-1]["provenance"]["environment"] == "test"
 
 
 def _write_profile(

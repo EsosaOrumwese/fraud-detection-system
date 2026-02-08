@@ -108,6 +108,8 @@ def _profile(
         oracle_scenario_id="baseline_v1",
         stream_view_root=None,
         ig_ingest_url="http://localhost:8081",
+        ig_auth_header="X-IG-Api-Key",
+        ig_auth_token=None,
         checkpoint_backend="file",
         checkpoint_root=str(checkpoint_root or (root / "wsp" / "checkpoints")),
         checkpoint_dsn=None,

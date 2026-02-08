@@ -10,6 +10,7 @@ import os
 from pathlib import Path
 from typing import Any
 
+from fraud_detection.platform_provenance import runtime_provenance
 from fraud_detection.scenario_runner.storage import (
     LocalObjectStore,
     ObjectStore,
@@ -179,6 +180,7 @@ def _normalize_event(event: GovernanceEvent) -> dict[str, Any]:
     source_component = _required(event.source_component, "source_component")
     platform_run_id = _required(event.platform_run_id, "platform_run_id")
     details = _mapping(event.details, "details")
+    run_config_digest = _run_config_digest_from_details(details)
 
     pins: dict[str, Any] = {"platform_run_id": platform_run_id}
     if event.scenario_run_id:
@@ -201,16 +203,21 @@ def _normalize_event(event: GovernanceEvent) -> dict[str, Any]:
         dedupe_key=event.dedupe_key,
         details=details,
     )
+    provenance = _provenance_from_details(details) or runtime_provenance(
+        component=source_component,
+        run_config_digest=run_config_digest,
+    )
     return {
         "event_id": event_id,
         "event_family": family,
         "ts_utc": ts_utc,
         "actor": {
             "actor_id": actor_id,
-            "source_type": source_type,
+            "source_type": _normalize_source_type(source_type),
             "source_component": source_component,
         },
         "pins": pins,
+        "provenance": provenance,
         "details": details,
     }
 
@@ -265,3 +272,35 @@ def _strip_or_none(value: str | None) -> str | None:
         return None
     text = value.strip()
     return text or None
+
+
+def _run_config_digest_from_details(details: dict[str, Any]) -> str | None:
+    candidate = details.get("run_config_digest")
+    text = str(candidate or "").strip()
+    if text:
+        return text
+    policy = details.get("policy_rev")
+    if isinstance(policy, dict):
+        digest = str(policy.get("content_digest") or "").strip()
+        if digest:
+            return digest
+    return None
+
+
+def _normalize_source_type(source_type: str) -> str:
+    text = str(source_type or "").strip().upper()
+    if text in {"SERVICE", "SYSTEM"}:
+        return "SYSTEM"
+    if text in {"HUMAN", "USER", "OPERATOR"}:
+        return "HUMAN"
+    return text or "SYSTEM"
+
+
+def _provenance_from_details(details: dict[str, Any]) -> dict[str, Any] | None:
+    value = details.get("provenance")
+    if not isinstance(value, dict):
+        return None
+    payload = dict(value)
+    if not payload.get("service_release_id") or not payload.get("environment"):
+        return None
+    return payload

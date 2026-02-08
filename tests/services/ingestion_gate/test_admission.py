@@ -154,6 +154,9 @@ def test_duplicate_does_not_republish(tmp_path: Path) -> None:
     receipt2 = gate.admit_push(envelope)
 
     assert receipt1.payload["decision"] == "ADMIT"
+    assert receipt1.payload["service_release_id"] == "dev-local"
+    assert receipt1.payload["environment"] == "test"
+    assert receipt1.payload["provenance"]["service_release_id"] == "dev-local"
     assert receipt2.payload["decision"] == "DUPLICATE"
     bus_log = tmp_path / "bus" / "fp.bus.traffic.v1" / "partition=0.jsonl"
     assert bus_log.exists()
@@ -254,3 +257,12 @@ def test_policy_activation_emits_platform_governance_event(tmp_path: Path, monke
         if line.strip()
     }
     assert "POLICY_REV_CHANGED" in event_families
+    payloads = [
+        json.loads(line)
+        for line in governance_path.read_text(encoding="utf-8").splitlines()
+        if line.strip()
+    ]
+    policy_events = [item for item in payloads if item.get("event_family") == "POLICY_REV_CHANGED"]
+    assert policy_events
+    provenance = policy_events[-1].get("provenance") or {}
+    assert provenance.get("service_release_id") == "dev-local"

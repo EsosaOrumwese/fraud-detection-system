@@ -4565,3 +4565,238 @@ Run scope used: `platform_run_id=platform_20260208T201742Z`, `scenario_run_id=5f
 ### Security hygiene confirmation
 - Corridor emits metadata-only governance facts.
 - No payload content, capability tokens, or credentials were written to docs/logbook entries.
+---
+## Entry: 2026-02-08 20:48:47 - Phase 4.6.C/4.6.E/4.6.G/4.6.H/4.6.I closure plan (pre-change, live reasoning)
+
+### Problem framing
+After closing 4.6.A, 4.6.B, 4.6.D, 4.6.F, and 4.6.J, remaining mandatory blockers are:
+- 4.6.C (service identity/auth posture by environment),
+- 4.6.E (deployment provenance/release stamping),
+- 4.6.G (corridor checks + anomaly policy closure),
+- 4.6.H (environment parity conformance gate),
+- 4.6.I (closure evidence + handoff).
+
+Current implementation shows local corridor mechanics but not yet a platform-wide env-ladder identity contract, not yet uniform release stamping, and not yet an executable parity conformance artifact tying local/dev/prod semantics together.
+
+### Authorities and constraints consulted
+- docs/model_spec/platform/implementation_maps/platform.build_plan.md (4.6.C..4.6.I DoD rows).
+- docs/model_spec/platform/pre-design_decisions/run_and_operate.pre-design_decisions.md:
+  - env ladder parity contract,
+  - local pi_key posture,
+  - dev/prod uniform stronger identity mechanism,
+  - actor/source from auth context,
+  - immutable deployment + service_release_id recorded on runtime records.
+- docs/model_spec/platform/pre-design_decisions/observability_and_governance.pre-design_decisions.md:
+  - corridor checks at IG/DLA/AL/MPR/evidence resolution,
+  - anomaly categories,
+  - fail-closed governance posture,
+  - run-scoped observability evidence with low hot-path overhead.
+- Existing code evidence in:
+  - src/fraud_detection/ingestion_gate/security.py,
+  - src/fraud_detection/ingestion_gate/admission.py,
+  - src/fraud_detection/ingestion_gate/governance.py,
+  - src/fraud_detection/platform_governance/writer.py,
+  - src/fraud_detection/platform_governance/evidence_corridor.py,
+  - src/fraud_detection/platform_reporter/run_reporter.py,
+  - src/fraud_detection/decision_log_audit/intake.py,
+  - src/fraud_detection/action_layer/publish.py,
+  - src/fraud_detection/decision_fabric/registry.py.
+
+### Alternatives considered
+1. **Docs-only closure for remaining rows**
+- Rejected: does not satisfy objective closure requirement in 4.6.K; would leave runtime behavior unchanged and unverifiable under tests.
+
+2. **Large new auth stack (full mTLS/JWT infra) in one wave**
+- Rejected for this phase: high operational and integration blast radius; unnecessary for v0 gate closure where profile-pinned, uniform service identity semantics are sufficient.
+
+3. **Introduce a platform auth context + release provenance substrate and wire only required boundaries now**
+- Selected: closes mandatory semantics with bounded change set, explicit tests, and keeps plane-agnostic substrate direction.
+
+### Decisions locked before coding
+
+#### D1) 4.6.C identity mechanism
+- Add an explicit service-identity mode for writer boundaries:
+  - keep pi_key mode for local parity,
+  - add service_token mode for dev/prod uniform posture.
+- Standardize auth context extraction at IG boundary (derive ctor_id + source_type from auth mode/token metadata, never payload).
+- Profile-level wiring.security will pin env posture:
+  - local_parity: pi_key + allowlist,
+  - dev/prod: service_token + shared verification knobs.
+- Governance/audit surfaces emitted by IG and evidence corridors will consume auth-derived actor/source primitives.
+
+#### D2) 4.6.E release/environment provenance
+- Add a shared runtime provenance helper (release stamp + environment + config revision context).
+- Stamp required runtime/governance surfaces:
+  - IG receipts (runtime),
+  - SR run-facts surface and/or run-record details where schema permits,
+  - governance events emitted through platform-governance writer,
+  - platform run report artifact basis.
+- Source service_release_id from explicit env (SERVICE_RELEASE_ID) with deterministic fallback (dev-local).
+
+#### D3) 4.6.G corridor/anomaly closure
+- Treat existing DLA/AL/registry fail-closed logic as baseline and add explicit corridor matrix tests proving:
+  - DLA append boundary fail-closed on replay/provenance mismatch,
+  - AL publish boundary fail-closed/ambiguous posture on IG uncertainty,
+  - registry incompatibility fail-closed or explicit fallback only,
+  - anomaly categories mapped to required minimum taxonomy.
+- Keep hot-path lean: use existing reason-code/counter surfaces; emit governance anomalies only where boundary already owns governance emission.
+
+#### D4) 4.6.H environment conformance gate
+- Add executable conformance checker for profile semantics (local_parity, dev, prod) validating:
+  - envelope/pins expectations are unchanged,
+  - governance schema/event family compatibility,
+  - policy/config revision stamping knobs present,
+  - corridor enforcement knobs present and semantically aligned.
+- Emit run-scoped conformance artifact under obs path and expose via make target.
+
+#### D5) 4.6.I closure/handoff
+- Close only after objective evidence bundle exists:
+  - targeted tests green,
+  - conformance artifact generated,
+  - monitored parity evidence references for governance lifecycle + ref corridor + run reporter,
+  - matrix rows updated to PASS,
+  - explicit Phase 5 unblock note added.
+
+### Security + artifact hygiene plan
+- No secrets/tokens written to implementation maps/logbook.
+- New artifact payloads remain metadata-only (no payload body logging).
+- Respect user instruction: do not touch docs/reports/*.
+
+### Execution sequence
+1. Implement identity substrate + IG auth-context derivation + profile posture (4.6.C).
+2. Implement release/environment provenance stamping surfaces (4.6.E).
+3. Add corridor closure tests and any minimal glue needed (4.6.G).
+4. Build and run environment conformance checker + artifact output (4.6.H).
+5. Run validation + monitored evidence commands; update matrix/handoff (4.6.I).
+
+## 2026-02-08 09:04PM - Phase 4.6 C/E/G/H/I stabilization pass: targeted matrix run and harness compatibility decision
+
+### Context and objective
+- Objective in-progress: close remaining Phase 4.6 rows (`4.6.C`, `4.6.E`, `4.6.G`, `4.6.H`, `4.6.I`) with objective evidence, not doc-only updates.
+- Action taken first: execute the targeted validation matrix spanning IG auth/rate, governance writer/corridor, anomaly taxonomy, run reporter, env conformance checker, and WSP ingress paths.
+
+### Evidence from first matrix execution
+- Command:
+  - `python -m pytest tests/services/ingestion_gate/test_phase5_auth_rate.py tests/services/ingestion_gate/test_admission.py tests/services/platform_governance/test_writer.py tests/services/platform_governance/test_evidence_corridor.py tests/services/platform_governance/test_anomaly_taxonomy.py tests/services/platform_reporter/test_run_reporter.py tests/services/platform_conformance/test_checker.py tests/services/world_streamer_producer/test_runner.py tests/services/world_streamer_producer/test_push_retry.py tests/services/world_streamer_producer/test_ready_consumer.py`
+- Result summary:
+  - `32 collected`, `29 passed`, `3 failed`.
+  - All failures are isolated to `tests/services/ingestion_gate/test_phase5_auth_rate.py` and occur when building Flask test client due to `werkzeug.__version__` missing in current dependency set.
+
+### Diagnosis
+- Failure is test-harness compatibility drift (Flask test client assumes `werkzeug.__version__`) and is not a behavior regression in newly implemented `service_token`/auth-context logic.
+- The IG behavior tests did not execute their endpoint assertions because client setup failed early.
+
+### Decision
+- Apply a minimal, test-local compatibility shim in `tests/services/ingestion_gate/test_phase5_auth_rate.py`:
+  - helper that injects `werkzeug.__version__ = "3"` only if absent,
+  - route all `app.test_client()` calls through this helper.
+- Rationale:
+  - keeps production code untouched,
+  - preserves intent of auth/rate tests,
+  - avoids broad dependency pin churn in this closure wave.
+
+### Next immediate steps
+1. Patch test file with compatibility helper.
+2. Re-run targeted matrix command.
+3. If green, run `make platform-env-conformance` for artifact evidence.
+4. Update `platform.phase4_6_validation_matrix.md` and append closure notes in this map + logbook.
+
+## 2026-02-08 09:09PM - Phase 4.6 C/E/G/H/I closure evidence pack and gate posture finalization
+
+### Entry A - Detailed run/validation narrative for the latest closure pass
+
+#### Objective
+- Close remaining Phase 4.6 blockers (`4.6.C`, `4.6.E`, `4.6.G`, `4.6.H`, `4.6.I`) with executable evidence.
+- Confirm no regressions in already-green `4.6.A/B/D/F/J` behavior while integrating auth/provenance/taxonomy/conformance changes.
+
+#### Commands executed and outcomes
+1. Targeted closure matrix (IG + governance + reporter + conformance + WSP):
+   - Command:
+     - `python -m pytest tests/services/ingestion_gate/test_phase5_auth_rate.py tests/services/ingestion_gate/test_admission.py tests/services/platform_governance/test_writer.py tests/services/platform_governance/test_evidence_corridor.py tests/services/platform_governance/test_anomaly_taxonomy.py tests/services/platform_reporter/test_run_reporter.py tests/services/platform_conformance/test_checker.py tests/services/world_streamer_producer/test_runner.py tests/services/world_streamer_producer/test_push_retry.py tests/services/world_streamer_producer/test_ready_consumer.py`
+   - First run: `32 collected`, `29 passed`, `3 failed`.
+   - Failure diagnosis:
+     - All 3 failures in `tests/services/ingestion_gate/test_phase5_auth_rate.py` during Flask test client creation because `werkzeug.__version__` is absent in current dependency combination.
+   - Remediation decision and implementation:
+     - Added a test-local compatibility helper in `tests/services/ingestion_gate/test_phase5_auth_rate.py` that sets `werkzeug.__version__ = "3"` if absent and routes `app.test_client()` calls through helper.
+     - No production code modified for this compatibility fix.
+   - Re-run result: `32 passed`.
+
+2. Remaining boundary evidence required for `4.6.G` (DLA/AL/DF fail-closed posture):
+   - Command:
+     - `python -m pytest tests/services/decision_log_audit/test_dla_phase6_commit_replay.py tests/services/action_layer/test_phase6_checkpoints.py tests/services/decision_fabric/test_phase4_registry.py -q`
+   - Result: `13 passed`.
+   - Confirmed semantics:
+     - DLA replay divergence blocks checkpoint and emits anomaly reason.
+     - AL checkpoint remains blocked under `PUBLISH_AMBIGUOUS`.
+     - DF registry incompatibility resolves fail-closed (and bounded fallback behavior remains explicit only).
+
+3. Environment conformance artifact (`4.6.H`):
+   - Command:
+     - `make platform-env-conformance PLATFORM_RUN_ID=platform_20260208T201742Z`
+   - Result:
+     - Artifact written at `runs/fraud-platform/platform_20260208T201742Z/obs/environment_conformance.json`.
+     - Overall `status=PASS` with checks:
+       - `semantic_contract_alignment=PASS`
+       - `policy_revision_presence=PASS`
+       - `security_corridor_posture=PASS`
+       - `governance_event_schema_contract=PASS`
+
+4. Live reporter/governance refresh with new provenance semantics:
+   - Command:
+     - `make platform-run-report PLATFORM_PROFILE=config/platform/profiles/local_parity.yaml PLATFORM_RUN_ID=platform_20260208T201742Z`
+   - Result:
+     - Report regenerated at `runs/fraud-platform/platform_20260208T201742Z/obs/platform_run_report.json`.
+     - Basis includes `provenance` (`service_release_id=dev-local`, `environment=local_parity`, `config_revision=local-parity-v0`).
+   - Additional command for new run-level governance evidence (dedupe-safe):
+     - `make platform-run-report PLATFORM_PROFILE=config/platform/profiles/local_parity.yaml PLATFORM_RUN_ID=platform_20260208T210900Z`
+     - `make platform-governance-query PLATFORM_RUN_ID=platform_20260208T210900Z GOVERNANCE_EVENT_FAMILY=RUN_REPORT_GENERATED GOVERNANCE_QUERY_LIMIT=5`
+   - Result:
+     - Governance event `RUN_REPORT_GENERATED` now shows normalized actor (`SYSTEM::platform_run_reporter`/`SYSTEM`) and top-level provenance block.
+
+5. Live anomaly taxonomy evidence (corridor deny path):
+   - Command (expected non-zero due strict deny):
+     - `make platform-evidence-ref-resolve PLATFORM_RUN_ID=platform_20260208T201742Z EVIDENCE_REF_TYPE=receipt_ref EVIDENCE_REF_ID=s3://fraud-platform/platform_20260208T201742Z/ig/receipts/e22142534b6a6624947bb6094a88af32.json EVIDENCE_REF_ACTOR_ID=svc:unauthorized EVIDENCE_REF_SOURCE_TYPE=service EVIDENCE_REF_SOURCE_COMPONENT=manual_probe EVIDENCE_REF_PURPOSE=manual_corridor_check EVIDENCE_REF_ALLOW_ACTOR=SYSTEM::platform_run_reporter EVIDENCE_REF_STRICT=1`
+   - Expected behavior observed:
+     - command exits with `REF_ACCESS_DENIED`.
+     - follow-up query shows new `CORRIDOR_ANOMALY` record with `details.anomaly_category=REF_ACCESS_DENIED`, normalized actor source type, and provenance block.
+
+#### Security and artifact hygiene notes
+- No secrets or token contents were written to this map/logbook.
+- Access-denied probe used synthetic actor id and existing receipt reference path only.
+
+### Entry B - Gate posture per matrix after closure execution
+
+Updated file:
+- `docs/model_spec/platform/implementation_maps/platform.phase4_6_validation_matrix.md`
+
+#### Status transition
+- Before this pass:
+  - PASS: `4.6.A`, `4.6.B`, `4.6.D`, `4.6.F`, `4.6.J`
+  - FAIL: `4.6.C`, `4.6.E`, `4.6.G`, `4.6.H`, `4.6.I`
+- After this pass:
+  - PASS: `4.6.A`, `4.6.B`, `4.6.C`, `4.6.D`, `4.6.E`, `4.6.F`, `4.6.G`, `4.6.H`, `4.6.I`, `4.6.J`
+  - FAIL: none
+
+#### Gate-specific closure assertion references
+- `4.6.C` closed by env-ladder auth context + WSP/IG auth wiring + profile pinning and green tests.
+- `4.6.E` closed by runtime/governance provenance stamping substrate + schema updates + live `RUN_REPORT_GENERATED` provenance evidence.
+- `4.6.G` closed by taxonomy mapping + corridor anomaly category emission + DLA/AL/DF fail-closed matrix tests.
+- `4.6.H` closed by executable conformance checker + PASS artifact.
+- `4.6.I` closed by combined monitored evidence set and updated matrix rollup.
+
+#### Rollup decision
+- `4.6.K` rollup changed to PASS.
+- Phase 5 unblock is now explicitly `YES` in matrix.
+
+## 2026-02-08 09:10PM - Build plan status synchronization after Phase 4.6 gate closure
+
+### Decision
+- Synchronize rolling status in `docs/model_spec/platform/implementation_maps/platform.build_plan.md` with the newly updated Phase 4.6 validation matrix.
+
+### Action
+- Updated status section lines to reflect:
+  - Phase 4.6 complete (all `4.6.A..4.6.J` PASS in matrix artifact),
+  - Next active phase switched to Phase 5 (Label & Case).
+
+### Rationale
+- Prevent stale planning signals after closure; the build plan must match objective matrix posture and unblock sequencing references for subsequent work.

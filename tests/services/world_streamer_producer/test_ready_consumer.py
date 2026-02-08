@@ -103,6 +103,8 @@ def _profile(store_root: Path, control_root: Path) -> WspProfile:
         oracle_scenario_id=None,
         stream_view_root=None,
         ig_ingest_url="http://localhost:8081",
+        ig_auth_header="X-IG-Api-Key",
+        ig_auth_token=None,
         checkpoint_backend="file",
         checkpoint_root=str(store_root / "wsp" / "checkpoints"),
         checkpoint_dsn=None,

@@ -27,6 +27,14 @@ properties:
       maxLength: 128
   manifest_fingerprint:
     $ref: "#/$defs/hex64"
+  service_release_id:
+    type: string
+    minLength: 1
+    maxLength: 256
+  environment:
+    type: string
+    minLength: 1
+    maxLength: 64
   pins:
     type: object
     additionalProperties: false
@@ -58,6 +66,45 @@ properties:
       revision:
         type: string
       content_digest:
+        $ref: "#/$defs/hex64"
+  actor:
+    type: object
+    additionalProperties: false
+    required: [actor_id, source_type]
+    properties:
+      actor_id:
+        type: string
+        minLength: 1
+        maxLength: 256
+      source_type:
+        type: string
+        enum: [SYSTEM, HUMAN]
+      auth_mode:
+        type: string
+        minLength: 1
+        maxLength: 64
+      principal:
+        type: string
+        minLength: 1
+        maxLength: 256
+  provenance:
+    type: object
+    additionalProperties: false
+    required: [service_release_id, environment]
+    properties:
+      service_release_id:
+        type: string
+        minLength: 1
+        maxLength: 256
+      environment:
+        type: string
+        minLength: 1
+        maxLength: 64
+      config_revision:
+        type: string
+        minLength: 1
+        maxLength: 128
+      run_config_digest:
         $ref: "#/$defs/hex64"
   envelope:
     type: object

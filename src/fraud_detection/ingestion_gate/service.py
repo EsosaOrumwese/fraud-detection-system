@@ -26,9 +26,9 @@ def create_app(profile_path: str) -> Flask:
     def ingest_push() -> Any:
         payload = request.get_json(force=True)
         try:
-            _require_auth(gate, request)
+            auth_context = _require_auth(gate, request)
             gate.enforce_push_rate_limit()
-            decision, receipt = gate.admit_push_with_decision(payload)
+            decision, receipt = gate.admit_push_with_decision(payload, auth_context=auth_context)
             receipt_id = receipt.payload.get("receipt_id")
             receipt_ref = None
             if receipt_id:
@@ -66,16 +66,21 @@ def create_app(profile_path: str) -> Flask:
 
 
 def _error_status(exc: IngestionError) -> int:
-    if exc.code in {"UNAUTHORIZED", "AUTH_MODE_UNKNOWN", "AUTH_MODE_UNSUPPORTED"}:
+    if exc.code in {
+        "UNAUTHORIZED",
+        "AUTH_MODE_UNKNOWN",
+        "AUTH_MODE_UNSUPPORTED",
+        "AUTH_SERVICE_TOKEN_SECRET_MISSING",
+    }:
         return 401
     if exc.code == "RATE_LIMITED":
         return 429
     return 400
 
 
-def _require_auth(gate: IngestionGate, req) -> None:
+def _require_auth(gate: IngestionGate, req):
     token = req.headers.get(gate.api_key_header)
-    gate.authorize_request(token)
+    return gate.authorize_request(token)
 
 
 def main() -> None:

@@ -53,9 +53,12 @@ wiring:
     producer_id: svc:world_stream_producer
     allowlist_ref: config/platform/wsp/producer_allowlist_v0.txt
   security:
-    auth_mode: disabled | api_key
-    api_key_header: X-IG-Api-Key
+    auth_mode: disabled | api_key | service_token
+    api_key_header: X-IG-Api-Key | X-IG-Service-Token
     auth_allowlist_ref: path/to/allowlist.txt
+    auth_allowlist: [world_stream_producer, ...]
+    service_token_secrets_env: IG_SERVICE_TOKEN_SECRETS
+    wsp_auth_token: ${IG_SERVICE_TOKEN}
     push_rate_limit_per_minute: 0
     store_read_failure_threshold: 3
 dl:
@@ -94,6 +97,9 @@ Notes:
 - Local parity uses **S3‑compatible** storage (`s3://fraud-platform`) and **Kinesis** for event/control buses.
 - `security` is wiring‑scoped: it can enable auth and rate limits without changing policy behavior.
 - Auth applies to **ingest and ops endpoints** when enabled; only CLI/internal calls bypass it.
+- `local_parity` pins `api_key` mode for writer ingress parity checks.
+- `dev`/`prod` pin `service_token` mode with one uniform token-verification mechanism (`service_token_secrets_env`).
+- Writer-boundary actor attribution is derived from auth context (`SYSTEM::<principal>`), not payload.
 - IG rejects legacy pull wiring keys (`ready_lease`, `pull_sharding`, `pull_time_budget_seconds`, `security.ready_*`) in streaming‑only v0.
 - `stream_speedup` is a **policy knob** that affects pacing only (same semantics across envs).
 

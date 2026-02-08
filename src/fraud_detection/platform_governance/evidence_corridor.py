@@ -12,10 +12,11 @@ from urllib.parse import urlparse
 from fraud_detection.platform_runtime import RUNS_ROOT
 from fraud_detection.scenario_runner.storage import LocalObjectStore, ObjectStore, S3ObjectStore
 
+from .anomaly_taxonomy import classify_anomaly
 from .writer import emit_platform_governance_event
 
 
-DEFAULT_ALLOWLIST: frozenset[str] = frozenset({"svc:platform_run_reporter"})
+DEFAULT_ALLOWLIST: frozenset[str] = frozenset({"SYSTEM::platform_run_reporter", "svc:platform_run_reporter"})
 ALLOWED_REF_TYPES: frozenset[str] = frozenset(
     {
         "receipt_ref",
@@ -149,6 +150,7 @@ class EvidenceRefResolutionCorridor:
             details=details,
         )
         if status != "RESOLVED":
+            anomaly_category = classify_anomaly(reason_code)
             emit_platform_governance_event(
                 store=self.store,
                 event_family="CORRIDOR_ANOMALY",
@@ -160,6 +162,7 @@ class EvidenceRefResolutionCorridor:
                 details={
                     "boundary": "evidence_ref_resolution",
                     "reason_code": reason_code or "REF_RESOLUTION_DENIED",
+                    "anomaly_category": anomaly_category,
                     "ref_type": normalized.ref_type,
                     "ref_id": normalized.ref_id,
                     "purpose": normalized.purpose,

@@ -1034,6 +1034,6 @@ Resolved and pinned in:
 - Phase 4.4 (DF/DL): complete.
 - Phase 4.5 (AL + DLA): complete.
 - Phase 4 (RTDL plane overall): complete and green at current v0 scope.
-- Phase 4.6 (Run/Operate + Obs/Gov meta-layer closure gate): pending (blocking).
-- Next active platform phase: Phase 4.6 (meta-layer closure before Phase 5).
+- Phase 4.6 (Run/Operate + Obs/Gov meta-layer closure gate): complete (all `4.6.A..4.6.J` PASS in `platform.phase4_6_validation_matrix.md`).
+- Next active platform phase: Phase 5 (Label & Case plane).
 - SR v0: complete (see `docs/model_spec/platform/implementation_maps/scenario_runner.build_plan.md`).

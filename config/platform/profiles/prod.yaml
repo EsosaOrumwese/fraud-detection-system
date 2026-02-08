@@ -43,6 +43,18 @@ wiring:
   wsp_producer:
     producer_id: svc:world_stream_producer
     allowlist_ref: config/platform/wsp/producer_allowlist_v0.txt
+  security:
+    auth_mode: service_token
+    api_key_header: X-IG-Service-Token
+    service_token_secrets_env: IG_SERVICE_TOKEN_SECRETS
+    auth_allowlist:
+      - world_stream_producer
+      - platform_run_reporter
+      - decision_fabric
+      - action_layer
+    wsp_auth_token: ${IG_SERVICE_TOKEN}
+    push_rate_limit_per_minute: 0
+    store_read_failure_threshold: 3
 ieg:
   policy:
     classification_ref: config/platform/ieg/classification_v0.yaml

@@ -228,6 +228,33 @@ properties:
     minLength: 1
   run_config_digest:
     $ref: "#/$defs/hex64"
+  service_release_id:
+    type: string
+    minLength: 1
+    maxLength: 256
+  environment:
+    type: string
+    minLength: 1
+    maxLength: 64
+  provenance:
+    type: object
+    additionalProperties: false
+    required: [service_release_id, environment]
+    properties:
+      service_release_id:
+        type: string
+        minLength: 1
+        maxLength: 256
+      environment:
+        type: string
+        minLength: 1
+        maxLength: 64
+      config_revision:
+        type: string
+        minLength: 1
+        maxLength: 128
+      run_config_digest:
+        $ref: "#/$defs/hex64"
   oracle_pack_ref:
     $ref: "#/$defs/oracle_pack_ref"
   evidence_notes:
