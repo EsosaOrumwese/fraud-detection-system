@@ -408,6 +408,9 @@ Expected effect:
 2. Improves country coverage breadth in final assigned tile counts.
 
 ### 5.4 Jitter delta: replace uniform-in-cell synthesis with policy-driven mixture jitter
+Policy file to add:
+1. `config/layer1/1B/policy/policy.s6.jitter.yaml`
+
 File to update:
 1. `packages/engine/src/engine/layers/l1/seg_1B/s6_site_jitter/runner.py`
 
@@ -501,9 +504,10 @@ Validate that the Section 5 fix bundle (`S2+S4+S6+S9`) produces:
 ### 6.2 Run protocol (required)
 1. Compare `baseline` vs `v2-remediation` under identical scenario and ingest.
 2. Use seed set: `{42, 7, 101, 202}`.
-3. Run full 1B chain at minimum: `S2 -> S4 -> S6 -> S8 -> S9`.
-4. Store all metrics per seed and pooled aggregate.
-5. Validate both per-seed and pooled; pooled PASS is invalid if any seed fails hard gate.
+3. Certification run must execute the full 1B chain: `S0 -> S1 -> S2 -> S3 -> S4 -> S5 -> S6 -> S7 -> S8 -> S9`.
+4. Optional sensitivity run may execute `S2 -> S4 -> S6 -> S8 -> S9` for faster parameter iteration, but sensitivity PASS is not certification PASS.
+5. Store all metrics per seed and pooled aggregate.
+6. Validate both per-seed and pooled; pooled PASS is invalid if any seed fails hard gate.
 
 ### 6.3 Hard gates (fail-closed, all must pass)
 1. Structural integrity:
@@ -519,7 +523,7 @@ Validate that the Section 5 fix bundle (`S2+S4+S6+S9`) produces:
 
 3. Coverage realism:
 - eligible countries with nonzero sites: `>= 85%` (`B`), `>= 92%` (`B+`)
-- southern hemisphere site share: `>= 12%` (`B`), `>= 18%` (`B+`)
+- southern hemisphere site share: `>= 12%` (`B`), `>= 18%` (`B+`), unless scenario policy explicitly constrains southern-hemisphere allocation
 - region floor constraints: all configured floors satisfied (no exceptions)
 
 4. Local geometry realism:
@@ -587,3 +591,51 @@ Soft diagnostics do not fail the run directly, but two consecutive adverse drift
 5. Structural fail at any stage -> rollback and fix implementation before further realism tuning.
 
 ## 7) Expected Grade Lift (Local + Downstream Impact)
+
+### 7.1 Local lift in Segment 1B
+If Section 5 fixes are implemented and Section 6 gates pass across all required seeds, expected local lift is:
+1. Baseline -> B (expected): move from current sub-B posture to `B` by removing dominance-collapse geography.
+2. Baseline -> B+ (conditional): achievable if concentration, coverage, and NN-tail metrics all hit B+ thresholds with cross-seed stability.
+
+### 7.2 Quantified lift targets vs observed baseline
+Using current observed 1B baseline from the analysis report:
+1. `country_gini`: `0.753 -> <=0.68 (B)` or `<=0.60 (B+)`.
+2. `top10_country_share`: `59.74% -> <=50% (B)` or `<=42% (B+)`.
+3. `top5_country_share`: `39.33% -> <=33% (B)` or `<=27% (B+)`.
+4. `top1_country_share`: `13.66% -> <=10% (B)` or `<=8% (B+)`.
+5. `southern_hemisphere_share`: raise to `>=12% (B)` or `>=18% (B+)`.
+6. `NN tail ratio (p99/p50)`: contract by `>=20% (B)` or `>=35% (B+)` vs baseline.
+
+Interpretation:
+1. The biggest grade-lift driver is concentration relaxation.
+2. Coverage breadth and tail control are the second and third drivers.
+3. Structural PASS remains mandatory but is not a lift driver (already strong).
+
+### 7.3 Downstream impact lift (causal expectation)
+1. `2A` (timezone realism): high expected lift.
+- Better country spread in 1B increases realistic multi-timezone exposure where applicable.
+- Reduces single-timezone-per-country collapse frequency downstream.
+
+2. `3A/3B` (temporal shaping): medium expected lift.
+- Better timezone geography improves local-time distribution credibility and day-shape interpretability.
+- Reduces synthetic civil-time artifacts amplified by geography imbalance.
+
+3. `5A/5B` (allocation and arrival realism): medium expected lift.
+- Less geographic concentration reduces policy-induced skew in allocation surfaces.
+- Improves plausibility of country/zone intensity relationships.
+
+4. `6A/6B` (entity/fraud surfaces): medium expected lift.
+- Geography-linked features become less biased by upstream site placement collapse.
+- Improves interpretability of cross-border and risk pattern diagnostics.
+
+### 7.4 Promotion logic for grade claim
+1. Claim `B` for 1B only when all Section 6 hard gates pass on all required seeds.
+2. Claim `B+` for 1B only when B+ thresholds pass on all seeds and CV stability target is satisfied.
+3. Do not claim downstream grade lift directly; claim downstream risk reduction and expected uplift, then verify per-segment reports.
+
+### 7.5 Residual caveat after lift
+Even with 1B lifted to B/B+, downstream segments can still miss B/B+ due to their own policy or post-processing weaknesses.
+
+Conclusion:
+1. 1B remediation is necessary and high-leverage.
+2. 1B remediation alone is not sufficient for whole-engine B/B+.
