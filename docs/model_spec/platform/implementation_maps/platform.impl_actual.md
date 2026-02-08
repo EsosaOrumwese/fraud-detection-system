@@ -4110,3 +4110,97 @@ Execute the two immediate next steps:
 ### Residual note
 - Prior implementation-map entries around 19:07 contain historical text corruption artifacts from earlier shell formatting; no decision semantics were changed in this step, but a cleanup pass may be applied later for readability.
 ---
+## Entry: 2026-02-08 19:58:25 - Requested standalone run record (latest clean orchestrated 200-event run)
+
+### Run identity
+- `platform_run_id`: `platform_20260208T193407Z`
+- `scenario_run_id`: `24827c0356195144a6d9a847c3563347`
+- SR READY message id: `b180b126fde8de25e6510e8499263b176e4732f4ba0321bf895e1982975932a0`
+
+### Launch sequence used
+1. `make platform-run-new`
+2. `make platform-operate-parity-restart WSP_MAX_EVENTS_PER_OUTPUT=200`
+3. `make platform-sr-run-reuse SR_WIRING=config/platform/sr/wiring_local_kinesis.yaml SR_RUN_EQUIVALENCE_KEY=parity_20260208T193419Z`
+
+### Stream completion evidence
+- WSP stop markers reached once for all targeted outputs at cap:
+  - `s3_event_stream_with_fraud_6B`: `emitted=200 reason=max_events`
+  - `arrival_events_5B`: `emitted=200 reason=max_events`
+  - `s1_arrival_entities_6B`: `emitted=200 reason=max_events`
+  - `s3_flow_anchor_with_fraud_6B`: `emitted=200 reason=max_events`
+- Post-stop duplicate control check:
+  - `START_AFTER_FIRST4=0` (no second stream-start wave after the first four cap-stop markers for this READY message).
+
+### Ingestion outcomes (IG receipts)
+- Receipt prefix: `s3://fraud-platform/platform_20260208T193407Z/ig/receipts/`
+- Totals:
+  - `receipt_count=800`
+  - `ADMIT=800`
+  - `DUPLICATE=0`
+  - `QUARANTINE=0`
+- Event-type distribution:
+  - `s3_event_stream_with_fraud_6B=200`
+  - `arrival_events_5B=200`
+  - `s1_arrival_entities_6B=200`
+  - `s3_flow_anchor_with_fraud_6B=200`
+- `scenario_run_id` in receipts: `24827c0356195144a6d9a847c3563347` for all records.
+
+### RTDL persistence checks
+- OFP:
+  - `ofp_applied_events=200` (stream `ofp.v0::platform_20260208T193407Z`)
+  - `ofp_feature_state_rows=100`
+- CSFB:
+  - `csfb_intake_dedupe=600`
+  - `csfb_join_frames=250`
+  - `csfb_flow_bindings=200`
+  - `csfb_join_apply_failures=0`
+- IEG:
+  - `ieg_dedupe=800`
+  - `ieg_apply_failures=0`
+
+### Runtime status snapshot (post-run)
+- `make platform-operate-parity-status` on active run showed all expected orchestrated workers `running/ready`:
+  - Control/Ingress: `ig_service`, `wsp_ready_consumer`
+  - RTDL core: `ieg_projector`, `ofp_projector`, `csfb_intake`
+  - active run reported as `platform_20260208T193407Z`.
+
+### Evidence paths used
+- Orchestrator logs/status:
+  - `runs/fraud-platform/operate/local_parity_control_ingress_v0/logs/wsp_ready_consumer.log`
+  - `runs/fraud-platform/operate/local_parity_control_ingress_v0/status/last_status.json`
+  - `runs/fraud-platform/operate/local_parity_rtdl_core_v0/status/last_status.json`
+- Run-scoped root:
+  - `runs/fraud-platform/platform_20260208T193407Z/`
+---
+## Entry: 2026-02-08 19:58:40 - Requested standalone gate posture record (Phase 4.6 matrix snapshot)
+
+### Source of truth
+- Matrix artifact: `docs/model_spec/platform/implementation_maps/platform.phase4_6_validation_matrix.md`
+- Build-plan gate reference: `docs/model_spec/platform/implementation_maps/platform.build_plan.md` (`4.6.K`)
+
+### PASS gates (current)
+- `4.6.F` Run/operate durability for downstream services: PASS
+- `4.6.J` Platform orchestration contract (plane-agnostic): PASS
+
+### FAIL gates (current)
+- `4.6.A` Governance lifecycle fact stream: FAIL
+- `4.6.B` Evidence-ref resolution corridor + access audit: FAIL
+- `4.6.C` Service identity/auth posture by environment: FAIL
+- `4.6.D` Platform run reporter: FAIL
+- `4.6.E` Deployment provenance stamp uniformity (`service_release_id`): FAIL
+- `4.6.G` Corridor checks + anomaly policy closure: FAIL
+- `4.6.H` Environment parity conformance gate: FAIL
+- `4.6.I` Closure evidence + handoff gate: FAIL
+
+### Quality-gate rollup
+- `4.6.K` written-matrix requirement: satisfied (matrix exists and is linked in build plan).
+- Mandatory 4.6 closure posture: **BLOCKED**.
+- Phase 5 start gate posture: **NOT UNBLOCKED**.
+
+### Immediate closure priority (execution order)
+1. `4.6.A` governance lifecycle emission set
+2. `4.6.D` platform run reporter
+3. `4.6.B` evidence-ref resolution audit corridor
+4. `4.6.E` release-stamp propagation
+5. `4.6.G/H/I` conformance + closure handoff
+---

@@ -74,6 +74,87 @@ Segment 1B currently has a structurally sound but geographically imbalanced post
 
 ## 2) Expected Statistical Posture (B/B+)
 
+This section defines the target statistical shape for Segment 1B after remediation.  
+Goal: preserve deterministic, auditable spatial generation while producing geographically credible synthetic site distributions.
+
+### 2.1 Hard `B` gates (fail-closed)
+1. Structural integrity remains perfect
+- Row parity across key 1B outputs must hold.
+- Duplicate key rate on site identity surfaces must be `0`.
+- Coordinate validity (lat/lon in legal ranges) must be `100%`.
+- Bundle and validation gates must remain PASS.
+
+2. Country concentration must relax from dominance regime
+- Country-site concentration Gini must be:
+  - `<= 0.68` for `B`
+  - `<= 0.60` for `B+`.
+- Top-country concentration limits:
+  - top 10% country share `<= 50%` for `B`, `<= 42%` for `B+`
+  - top 5% country share `<= 33%` for `B`, `<= 27%` for `B+`
+  - top 1% country share `<= 10%` for `B`, `<= 8%` for `B+`.
+
+3. Global coverage breadth improves materially
+- Minimum active-country coverage:
+  - at least `85%` of configured eligible countries must have nonzero sites for `B`
+  - at least `92%` for `B+`.
+- Regional floor guardrails:
+  - no major region (Africa, South America, Oceania, Asia, Europe, North America) should be near-empty when eligible countries exist in that region.
+- Southern-hemisphere share floor:
+  - site share in southern hemisphere `>= 12%` for `B`
+  - `>= 18%` for `B+`, unless scenario policy explicitly constrains this.
+
+4. Within-country representativeness improves
+- For high-site countries (`C_large`), enforce:
+  - no persistent strip/corridor collapse in coordinate spread diagnostics,
+  - multi-cluster support where population and urban priors imply it.
+- Proxy thresholds:
+  - country-level spatial dispersion (bbox or convex-hull proxy) must increase versus baseline for previously collapsed countries.
+  - median nearest-neighbor distance in `C_large` remains in plausible urban range while reducing extreme tail mass.
+
+5. Nearest-neighbor tail is controlled
+- Keep dense clustering signal, but reduce extreme sparse artifacts:
+  - `p50` NN distance remains low (urban clustering preserved),
+  - `p99/p50` ratio must contract versus baseline by at least `20%` for `B`, `35%` for `B+`.
+
+### 2.2 `B` vs `B+` target table
+| Axis | `B` target | `B+` target |
+|---|---|---|
+| Country concentration Gini | `<= 0.68` | `<= 0.60` |
+| Top 10% country share | `<= 50%` | `<= 42%` |
+| Top 5% country share | `<= 33%` | `<= 27%` |
+| Top 1% country share | `<= 10%` | `<= 8%` |
+| Eligible countries with nonzero sites | `>= 85%` | `>= 92%` |
+| Southern hemisphere site share | `>= 12%` | `>= 18%` |
+| NN tail contraction (`p99/p50` vs baseline) | `>= 20%` better | `>= 35%` better |
+| Structural parity / validity / bundles | PASS required | PASS required |
+
+### 2.3 Coupling expectations with downstream segments
+1. Segment 2A timezone realism should improve.
+- As country spatial representativeness improves, country-level timezone diversity in 2A should increase for multi-timezone countries.
+
+2. Segment 3A and 3B temporal realism should stabilize.
+- Better timezone geography in 2A should reduce downstream civil-time skew artifacts.
+
+3. Segment 5A, 5B, 6A, and 6B interpretability should improve.
+- Reduced spatial bias should reduce geography-induced distortions in allocation, cross-border behavior, and fraud targeting interpretation.
+
+### 2.4 Cross-seed stability gates
+Required seeds: `{42, 7, 101, 202}`.
+
+1. All hard `B` gates must pass on all seeds.
+2. Cross-seed CV thresholds for core metrics:
+- `B`: `<= 0.30`
+- `B+`: `<= 0.20`.
+3. No seed should revert to dominance-collapse mode (for example Gini or top-share returning near baseline failure posture).
+
+### 2.5 Interpretation of expected posture
+For Segment 1B, `B/B+` means:
+1. The pipeline remains mechanically perfect and deterministic.
+2. Country mass is still realistically concentrated, but no longer dominated by a narrow set of countries.
+3. Coverage breadth is credible for a synthetic global narrative.
+4. Within-country geometry looks population-aware rather than template-collapsed.
+5. Downstream timezone and temporal realism improve for causal reasons, not post-hoc corrections.
+
 ## 3) Root-Cause Trace
 
 ## 4) Remediation Options (Ranked + Tradeoffs)
