@@ -1,5 +1,5 @@
 # Platform Parity Walkthrough (v0) — Oracle Store → SR → WSP → IG → EB → IEG/OFP/CSFB/DF/DL/AL/DLA
-_As of 2026-02-06_
+_As of 2026-02-08_
 
 This runbook executes a **local_parity** end‑to‑end flow capped to **500,000 events**, then validates the implemented RTDL component surfaces (**IEG/OFP/CSFB/DF/DL/AL/DLA**) against admitted EB topics.
 It uses **MinIO (S3)** for the Oracle Store + platform artifacts, **LocalStack Kinesis** for control/event buses, and **Postgres** for IG/WSP state.
@@ -603,7 +603,6 @@ Use this list to confirm the **v0 control & ingress plane** is green.
 - [ ] `runs/fraud-platform/ACTIVE_RUN_ID` points to the latest run.
 - [ ] SR artifacts exist under `s3://fraud-platform/<run_id>/sr/` (status/record/facts).
 - [ ] WSP ready logs exist under `runs/fraud-platform/<run_id>/world_streamer_producer/world_streamer_producer.log`.
-- [ ] WSP ready logs exist under `runs/fraud-platform/<run_id>/world_streamer_producer/world_streamer_producer.log`.
 - [ ] IG receipts exist under `s3://fraud-platform/<run_id>/ig/receipts/`.
 - [ ] IEG projection store is reachable (local_parity default DSN: `PARITY_IEG_PROJECTION_DSN`).
 - [ ] IEG reconciliation artifact exists under `runs/fraud-platform/<run_id>/identity_entity_graph/reconciliation/reconciliation.json`.
@@ -911,7 +910,7 @@ $env:PYTHONPATH='.;src'
 ```
 
 Expected result:
-- `3 passed` (includes:
+- `4 passed` (includes:
   - DF->DLA parity proof (`20` events),
   - AL->DLA parity proof (`20` events),
   - combined DF/AL->DLA parity proof (`200` events) with replay-safe append behavior).
@@ -949,6 +948,13 @@ Run in separate terminals (same `ACTIVE_RUN_ID`):
 make platform-ieg-projector-parity-live
 make platform-ofp-projector-parity-live
 make platform-context-store-flow-binding-parity-live
+```
+
+OFP parity live startup note:
+- `platform-ofp-projector-parity-live` defaults `OFP_EVENT_BUS_START_POSITION=trim_horizon` to avoid missing earliest run records during consumer startup.
+- Override only when intentionally tailing new traffic:
+```powershell
+make platform-ofp-projector-parity-live OFP_EVENT_BUS_START_POSITION=latest
 ```
 
 Or print the launch plan:

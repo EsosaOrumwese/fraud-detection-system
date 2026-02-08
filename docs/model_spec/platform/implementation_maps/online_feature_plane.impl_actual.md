@@ -1204,3 +1204,63 @@ Cross-check:
 Track as an operational parity caveat (live startup/checkpoint timing/auth path), not as a schema/contract issue and not solved by weakening OFP semantics.
 
 ---
+## Entry: 2026-02-08 15:59:29 - Plan: eliminate OFP parity undercount via start-position hardening
+
+### Problem
+OFP run-scoped applied rows are `194` while traffic admissions/records are `200` for the same run.
+
+### Diagnosis summary
+- Compared Kinesis traffic sequence numbers with `ofp_applied_events.offset`.
+- The 6 missing offsets are the earliest 6 in the stream.
+- This indicates startup race under `LATEST` consumer start position.
+
+### Change plan
+1. Update parity live launcher default to `trim_horizon`.
+2. Keep explicit override path for `latest`.
+3. Reconcile affected run by run-scoped OFP replay from trim_horizon after clearing only OFP rows for the run stream id.
+
+### Validation to require
+- Sequence diff closes to zero missing.
+- `ofp_applied_events` run/scenario count reaches `200`.
+- OFP projector/phase tests remain green.
+
+---
+## Entry: 2026-02-08 16:01:22 - OFP undercount remediation implemented and validated
+
+### Implementation
+1. Updated parity OFP live default:
+   - `makefile`: `OFP_EVENT_BUS_START_POSITION ?= trim_horizon`.
+2. Updated parity runbook note to document default and override:
+   - `docs/runbooks/platform_parity_walkthrough_v0.md` section 21.
+
+### Why this closes the issue
+The prior default (`latest`) could attach after initial stream records already existed, causing early-record loss on startup in live parity mode.
+`trim_horizon` removes that startup race for run-scoped parity validation while preserving explicit operator override when tailing-only behavior is desired.
+
+### Run-scoped proof (same affected run)
+- run: `platform_20260208T151238Z`
+- scenario: `9bad140a881372d00895211fae6b3789`
+- OFP stream id: `ofp.v0::platform_20260208T151238Z`
+
+Actions:
+- cleared only OFP rows for this stream id,
+- replayed once with `trim_horizon`.
+
+Evidence:
+- `ofp_run_once_processed=200`
+- `ofp_applied_events_for_run=200`
+- metrics:
+  - `events_seen=200`
+  - `events_applied=200`
+- sequence diff:
+  - Kinesis traffic records: `200`
+  - OFP applied offsets: `200`
+  - missing offsets: `0`
+
+### Regression validation
+- `python -m pytest tests/services/online_feature_plane -q` -> `29 passed`.
+
+### Outcome
+OFP 194/200 parity gap is closed and default parity launcher behavior is hardened to avoid recurrence.
+
+---

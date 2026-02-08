@@ -3363,3 +3363,65 @@ After the `offset` identifier hardening edits, re-run RTDL component suites that
 Confirms no regression introduced by SQL quoting changes in the three touched RTDL components.
 
 ---
+## Entry: 2026-02-08 15:59:29 - Plan: close OFP 194/200 parity gap (startup position race)
+
+### Trigger
+User requested deep diagnosis and closure of OFP undercount observed in the 200-event parity validation run.
+
+### Root-cause evidence gathered
+For run `platform_20260208T151238Z` / scenario `9bad140a881372d00895211fae6b3789`:
+- Kinesis traffic stream has `200` scenario records.
+- OFP applied table has `194` records.
+- Missing offsets are exactly the first 6 sequence numbers in the stream for that run.
+- This pattern is consistent with consumer startup at `LATEST` after early records were already published.
+
+### Decision
+Close via parity runtime default correction:
+1. Change parity OFP live target default `OFP_EVENT_BUS_START_POSITION` from `latest` to `trim_horizon`.
+2. Keep operator override capability (explicit env can still set `latest`).
+3. Reconcile the affected run by run-scoped OFP replay from trim_horizon after clearing OFP run-scoped state tables.
+
+### Validation plan
+1. Recompute stream-vs-applied offset diff to preserve baseline proof.
+2. Apply makefile change and update parity runbook note.
+3. Reset OFP run-scoped tables for `ofp.v0::platform_20260208T151238Z`.
+4. Re-run OFP once with run scope + trim_horizon and verify:
+   - `ofp_applied_events=200` for run/scenario,
+   - metrics show no residual undercount.
+5. Add targeted OFP regression test coverage for start-position behavior (if absent).
+
+### Guardrails
+- No OFP contract weakening.
+- Keep run-scope pin filtering unchanged.
+- No destructive changes outside run-scoped OFP rows used for this validation.
+
+---
+## Entry: 2026-02-08 16:01:22 - OFP 194/200 gap closed (parity startup default + replay reconciliation)
+
+### Root cause confirmed
+- Sequence-level diff showed OFP missed the first 6 Kinesis sequence numbers for the run.
+- Pattern matched consumer start-at-`LATEST` race under live parity startup.
+
+### Changes applied
+1. Parity launcher hardening:
+   - `makefile`: `OFP_EVENT_BUS_START_POSITION ?= trim_horizon` (was `latest`).
+2. Runbook clarification:
+   - `docs/runbooks/platform_parity_walkthrough_v0.md` section 21 now states OFP parity live defaults to `trim_horizon` and documents explicit override to `latest`.
+
+### Runtime reconciliation performed
+For `ofp.v0::platform_20260208T151238Z`, reset only run-scoped OFP tables:
+- `ofp_applied_events`, `ofp_semantic_dedupe`, `ofp_feature_state`, `ofp_metrics`, `ofp_checkpoints`.
+
+Replayed with run scope + `OFP_EVENT_BUS_START_POSITION=trim_horizon`:
+- OFP one-pass processed `200`.
+- `ofp_applied_events` for run/scenario: `200`.
+- OFP metrics: `events_seen=200`, `events_applied=200`.
+- Offset diff re-check: Kinesis traffic `200` vs OFP applied `200`, missing `0`.
+
+### Regression verification
+- `python -m pytest tests/services/online_feature_plane -q` -> `29 passed`.
+
+### Closure
+The OFP undercount is closed for the validated run, and parity live defaults now prevent this startup-loss mode by default.
+
+---
