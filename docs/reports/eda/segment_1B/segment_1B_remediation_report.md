@@ -157,7 +157,177 @@ For Segment 1B, `B/B+` means:
 
 ## 3) Root-Cause Trace
 
+This section traces each observed 1B realism weakness to concrete mechanisms and ownership surfaces, so remediation addresses causes rather than symptoms.
+
+### 3.1 Root-cause map (weakness -> mechanism -> locus)
+| Weakness | Immediate mechanism | Primary locus | Secondary locus |
+|---|---|---|---|
+| Excessive country concentration (`Gini` and top-k too high) | Country mass allocation priors over-weight a narrow set of countries; weak balancing constraints | **1B country allocation policy** | 1A merchant-country composition |
+| Europe-centric profile and weak southern/emerging-region coverage | Regional priors and eligibility mix skew toward Europe-like footprint; insufficient regional floor constraints | **1B regional weighting policy** | Scenario-level mix assumptions |
+| Within-country stripe and corridor template artifacts | Coordinate synthesis relies on narrow geometric bands or limited sub-country support points | **1B intra-country placement policy** | Tile granularity and jitter mechanics |
+| Heavy nearest-neighbor tail with sparse outliers | Mix of dense clusters plus under-constrained sparse placement in low-density areas | **1B tile-weight and sampling shape** | Jitter magnitude and tail controls |
+| Realism shortfall despite structural PASS | Validation emphasizes mechanics (parity and bounds) but underweights representativeness gates | **1B validation contract scope** | Segment-grade rubric |
+
+### 3.2 What is working correctly (not the bottleneck)
+1. Structural pipeline integrity is strong (row parity, deterministic lineage, no key corruption).
+2. Coordinate validity is strong (lat/lon ranges are legal).
+3. Reproducibility controls are functioning.
+
+Implication:
+1. Segment 1B is not failing on mechanics; it is failing on distributional realism.
+
+### 3.3 Primary cause: country allocation priors induce dominance regime
+Evidence-linked mechanism:
+1. Concentration metrics (Gini and top-k shares) indicate small-country-set dominance.
+2. This pattern is consistent with strong allocation priors and weak anti-concentration constraints.
+3. Once country counts are fixed this way, downstream intra-country logic cannot recover global balance.
+
+Bounded conclusion:
+1. The top realism bottleneck is country-level mass policy, not coordinate jitter or minor mapping details.
+
+### 3.4 Secondary cause: regional balancing guardrails are too weak
+Evidence-linked mechanism:
+1. Visible continental imbalance (thin southern hemisphere, sparse Africa and South America).
+2. This indicates lack of hard regional floor constraints in allocation objectives.
+3. Even globally eligible scenarios can collapse into a narrow regional footprint without explicit guardrails.
+
+Bounded conclusion:
+1. Regional coverage defects are policy-structural, not random noise.
+
+### 3.5 Tertiary cause: intra-country placement templates are too rigid
+Evidence-linked mechanism:
+1. Small-multiple plots show recurring narrow-band and split-corridor geometries.
+2. That is typical when placement kernels are simplistic (few anchors or bands) relative to country complexity.
+3. Resulting shapes look synthetic even when coordinates remain technically valid.
+
+Bounded conclusion:
+1. Intra-country representativeness needs richer multi-cluster kernels and stronger dispersion controls.
+
+### 3.6 Quaternary cause: realism validation under-specifies representativeness
+Evidence-linked mechanism:
+1. Current segment PASS surfaces confirm structural correctness.
+2. Realism defects still persisted to published output, so representativeness thresholds were not binding.
+3. Without hard concentration and coverage gates, low-realism outputs can pass operational checks.
+
+Bounded conclusion:
+1. Validation must include explicit statistical realism gates, not only mechanical checks.
+
+### 3.7 Responsibility split (to avoid mis-targeted fixes)
+1. 1B policy owner surface
+- Country mass priors
+- Regional balancing constraints
+- Intra-country placement kernels
+- Tail controls for sparse placement
+
+2. 1B implementation owner surface
+- Faithful execution of policy shape
+- Deterministic seeded sampling and provenance
+- Metric emission for realism diagnostics
+
+3. Validation owner surface
+- Hard gates for concentration and coverage
+- Cross-seed stability criteria
+- Explicit fail-closed rules for realism threshold breaches
+
+4. Upstream influence (non-primary)
+- 1A merchant-country composition can amplify concentration, but 1B is still responsible for preventing extreme spatial collapse.
+
+### 3.8 Root-cause conclusion
+Segment 1B misses `B/B+` mainly because representativeness controls are too weak at the allocation-policy layer:
+1. country-level mass is over-concentrated,
+2. regional breadth lacks hard balancing floors,
+3. intra-country placement kernels generate synthetic-looking geometry motifs,
+4. realism thresholds are not yet enforced as hard validation gates.
+
+This establishes remediation direction: strengthen 1B allocation and placement policy first, then harden realism validation so these failures cannot silently recur.
+
 ## 4) Remediation Options (Ranked + Tradeoffs)
+
+Below is the ranked option set for 1B, ordered by expected impact on failing realism axes (`country concentration`, `regional breadth`, `within-country geometry`, `nearest-neighbor tail`) and by downstream leverage into `2A+`.
+
+### Rank 1: Rebuild country allocation as a constrained sampler (highest impact)
+1. Change:
+- Replace raw country priors with a constrained draw that enforces:
+- concentration-cap constraints (`Gini`, top-k share ceilings),
+- minimum-breadth constraints (active-country floor and region-floor mass).
+2. Why it ranks first:
+- Most of 1B failure is macro-allocation shape; this directly attacks the largest error source.
+3. Expected gain:
+- Immediate movement on concentration and global coverage targets.
+- Prevents few-country dominance from propagating downstream.
+4. Tradeoffs:
+- Hard constraints can feel less organic if set too tightly.
+- Requires careful seed-stability tuning so runs do not become boundary-brittle.
+
+### Rank 2: Add region-level balancing layer above country priors
+1. Change:
+- Use two-stage allocation:
+- allocate mass by macro-region to target bands,
+- then allocate countries within each region.
+2. Why it ranks second:
+- Fixes Europe-heavy collapse and southern/emerging under-coverage without overfitting country-level knobs.
+3. Expected gain:
+- Better continental realism and stronger global narrative plausibility.
+4. Tradeoffs:
+- Slight increase in policy complexity.
+- If region bands are too rigid, output can look engineered rather than emergent.
+
+### Rank 3: Replace rigid intra-country templates with mixture-of-kernels
+1. Change:
+- Move from stripe/corridor-like placement to a mixture:
+- dense urban cores,
+- secondary city clusters,
+- controlled rural/sparse tail.
+2. Why it ranks third:
+- Directly targets the visible geometric artifacts in country panels.
+3. Expected gain:
+- Better micro-shape realism and less template repetition.
+4. Tradeoffs:
+- More parameters to calibrate per country class.
+- Added diagnostic burden to prevent overfitting shape controls.
+
+### Rank 4: Tail calibrator for nearest-neighbor distance (anti-pathology control)
+1. Change:
+- Add post-draw tail calibration guardrails for nearest-neighbor distance:
+- cap pathological ultra-sparse tail mass,
+- preserve realistic urban clustering.
+2. Why it ranks fourth:
+- Useful cleanup after macro-allocation and kernel fixes.
+3. Expected gain:
+- Reduces outlier-heavy sparse behavior that looks synthetic.
+4. Tradeoffs:
+- If overused, can flatten legitimate heterogeneity.
+- Must be monitored so it does not hide upstream sampling defects.
+
+### Rank 5: Upstream coupling control from 1A into 1B (stability option)
+1. Change:
+- Limit amplification from 1A merchant-country composition into 1B concentration.
+- Add coupling limits or a reweighting bridge for stability.
+2. Why it ranks fifth:
+- Not primary root cause, but can reintroduce concentration drift if untreated.
+3. Expected gain:
+- Better cross-seed and cross-run stability of 1B realism.
+4. Tradeoffs:
+- Added coupling logic between segments.
+- Requires clear ownership boundaries so 1A and 1B responsibilities do not blur.
+
+### Rank 6: Upgrade validation from PASS mechanics to PASS realism gates
+1. Change:
+- Promote concentration, coverage, and shape diagnostics to fail-closed realism gates.
+2. Why it ranks sixth:
+- Does not fix generation directly, but prevents regression and false green states.
+3. Expected gain:
+- Sustained quality and auditable acceptance criteria.
+4. Tradeoffs:
+- More failed runs during tuning windows.
+- Requires threshold governance and exception discipline.
+
+### Recommended package for `B/B+`
+1. Minimum high-confidence package:
+- Rank 1 + Rank 2 + Rank 3 + Rank 6.
+2. Optional hardening:
+- Add Rank 4 for additional tail cleanup.
+- Add Rank 5 only if 1A-driven drift remains after first rerun.
 
 ## 5) Chosen Fix Spec (Exact Parameter/Code Deltas)
 

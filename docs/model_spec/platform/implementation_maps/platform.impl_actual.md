@@ -4204,3 +4204,207 @@ Execute the two immediate next steps:
 4. `4.6.E` release-stamp propagation
 5. `4.6.G/H/I` conformance + closure handoff
 ---
+---
+## Entry: 2026-02-08 20:03:29 - Phase 4.6.A + 4.6.D implementation plan (pre-change, live reasoning)
+
+### Problem statement and closure target
+We need to close two blocked meta-layer gates without introducing plane-coupled shortcuts:
+1. `4.6.A` Governance lifecycle fact stream (platform-wide families, append-only, idempotent, actor attribution, fail-closed mandatory fields).
+2. `4.6.D` Platform run reporter (single run-scoped reconciliation artifact with minimum ingress/RTDL counters and evidence refs).
+
+Current state from repo walk:
+- SR has local governance append calls (`_append_governance_fact`) but not platform-wide event family semantics.
+- IG has `ingestion_gate/governance.py` emitter with IG-specific event types (`ig.policy.activation`, `ig.quarantine.spike`) and no platform meta taxonomy.
+- No platform-wide run reporter module currently aggregates ingress + RTDL counters into one artifact.
+- Existing reusable rails are strong:
+  - object-store abstraction (`scenario_runner.storage` Local/S3),
+  - run-scope resolution (`platform_runtime`),
+  - component observability/query surfaces (IEG query, OFP/CSFB observability, IG ops/admission indices).
+
+### Alternatives considered
+1. **Patch each component with ad-hoc governance JSON append logic**
+- Pros: fastest local edits.
+- Cons: drifts schema and idempotency behavior across components; violates platform-wide governance contract intent.
+- Decision: rejected.
+
+2. **Reuse only IG governance emitter and overload its event taxonomy for platform lifecycle**
+- Pros: smaller diff.
+- Cons: semantically IG-owned emitter; would blur truth ownership and keep event naming coupled to IG audit class.
+- Decision: rejected.
+
+3. **Introduce a platform-governance module with canonical writer + small integration hooks in SR/WSP/IG + add platform run reporter module**
+- Pros: explicit platform-meta boundary; single schema/idempotency enforcement; reusable by later planes.
+- Cons: broader code touch.
+- Decision: selected.
+
+### Design decisions locked before coding
+
+#### A) Platform governance writer contract (new module)
+- New package path: `src/fraud_detection/platform_governance/`.
+- Writer responsibilities:
+  - enforce required fields (`event_family`, `event_id`, `ts_utc`, actor/source attribution, run-scope pins as applicable),
+  - append events to run-scoped JSONL ledger under object-store path,
+  - idempotency via deterministic marker key write (`write_json_if_absent`) + append only on first write,
+  - fail closed on missing mandatory fields.
+- Storage path target:
+  - `<run_prefix>/obs/governance/events.jsonl`
+  - `<run_prefix>/obs/governance/markers/<event_id>.json`
+- Rationale:
+  - append-only truth + at-least-once safe retries,
+  - works with Local/S3 backends using existing abstractions,
+  - gives queryable surface for 4.6.A via lightweight reader CLI.
+
+#### B) Governance event family mapping for Phase 4.6 scope
+- MUST-EMIT families for this closure wave:
+  - `RUN_READY_SEEN`
+  - `RUN_STARTED`
+  - `RUN_ENDED`
+  - `POLICY_REV_CHANGED`
+- `RUN_CANCELLED` remains schema-supported but emission depends on cancellation path activation in current runtime.
+- `EVIDENCE_REF_RESOLVED` remains schema-supported and can be emitted by explicit resolver corridor work (4.6.B); not forced in this wave unless touched by run reporter evidence read path.
+- Corridor anomaly family emission for fail-closed boundaries will be wired to currently observable IG anomaly points in this wave (`PUBLISH_AMBIGUOUS`, quarantine reason codes) without widening scope into 4.6.B implementation.
+
+#### C) Integration points (minimal-risk hooks)
+- SR hooks:
+  - READY publish path emits `RUN_READY_SEEN`.
+  - run start/terminal transitions emit `RUN_STARTED` / `RUN_ENDED` where lifecycle is already recorded in ledger.
+  - plan/policy digest activation emits `POLICY_REV_CHANGED`.
+- WSP READY consumer hooks:
+  - start and completion outcomes emit run lifecycle facts where SR does not own runtime execution boundary.
+  - out-of-scope duplicate skips do not emit start/end.
+- IG hooks:
+  - policy activation emits standardized `POLICY_REV_CHANGED` in addition to current IG-local audit emission.
+  - quarantine/publish-ambiguous paths emit standardized anomaly governance facts.
+
+Ownership guardrail:
+- keep SR as readiness authority, IG as admission authority; platform governance layer only records lifecycle/anomaly facts and does not own business decisions.
+
+#### D) Platform run reporter contract (new module + CLI)
+- New package path: `src/fraud_detection/platform_reporter/`.
+- On-demand reporter writes:
+  - `<run_root>/obs/platform_run_report.json` (and optional object-store mirror under run prefix).
+- Counter model for this wave:
+  - ingress:
+    - `sent` from WSP ready-run records (`STREAMED` emitted sums),
+    - `received/admit/duplicate/quarantine` from IG ops receipts filtered by `pins.platform_run_id`,
+    - `publish_ambiguous/receipt_write_failed` from IG admissions state rows for run id.
+  - RTDL:
+    - `inlet_seen` from IEG metrics (`events_seen`) for active scenario_run_id,
+    - `deduped` from IEG `duplicate` + OFP `duplicates` (explicitly annotated as v0 aggregate basis),
+    - `degraded/decision/outcome/audit_append` populated from currently available runtime sources; where not daemonized in v0, emit zero + basis note.
+- Evidence joins:
+  - include sampled `receipt_ref` and `quarantine_ref` lists (by-ref only, no payload copy),
+  - include paths to component reconciliation artifacts when present.
+- Reporter remains off hot path (CLI/on-demand invocation).
+
+### Performance and safety constraints
+- All new reads are run-scoped filters; no full-bucket scans beyond run prefix.
+- Governance writer stores only metadata refs (no secret payloads).
+- No token/credential material will be written to implementation maps/logbook or run artifacts.
+
+### Validation plan
+1. Add unit tests for governance writer:
+- idempotent append under repeated emit,
+- missing mandatory field fail-closed behavior,
+- event family payload shape checks.
+2. Add unit tests for platform reporter:
+- synthetic run fixture with IG receipts/admissions + WSP ready records + mocked RTDL metrics.
+3. Execute targeted suites:
+- new platform governance tests,
+- new platform reporter tests,
+- existing SR/WSP/IG tests touched by integration points.
+4. Generate one run report artifact on latest run and capture evidence paths in implementation map/logbook.
+
+### Dynamic-scope boundaries for this step
+- In scope now: `4.6.A`, `4.6.D`.
+- Explicitly not closing in this wave: full `4.6.B`, `4.6.C`, `4.6.E`, `4.6.G/H/I`.
+- But code is designed to avoid repaint when these gates activate.
+---
+## Entry: 2026-02-08 20:25:49 - Phase 4.6.A + 4.6.D closure evidence, hardening, and matrix update (post-change)
+
+### Closure objective reached in this step
+- Closed `4.6.A` (governance lifecycle fact stream) and `4.6.D` (platform run reporter) at current v0 DoD scope.
+- Preserved platform-meta ownership boundaries:
+  - WSP emits run lifecycle governance facts around READY stream execution.
+  - IG emits policy-change and corridor anomaly governance facts at admission boundaries.
+  - Platform reporter emits run-scoped reconciliation artifact and evidence-resolution governance facts off hot path.
+
+### Code surfaces finalized
+- Governance substrate:
+  - `src/fraud_detection/platform_governance/writer.py`
+  - `src/fraud_detection/platform_governance/cli.py`
+  - `src/fraud_detection/platform_governance/__init__.py`
+- Runtime integrations:
+  - `src/fraud_detection/world_streamer_producer/ready_consumer.py`
+  - `src/fraud_detection/ingestion_gate/governance.py`
+  - `src/fraud_detection/ingestion_gate/admission.py`
+- Platform run reporter:
+  - `src/fraud_detection/platform_reporter/run_reporter.py`
+  - `src/fraud_detection/platform_reporter/cli.py`
+  - `src/fraud_detection/platform_reporter/__init__.py`
+- Run targets:
+  - `makefile` targets `platform-run-report`, `platform-governance-query`
+
+### Additional hardening decision applied during validation
+- Added explicit governance-family assertions in existing integration suites to make `4.6.A` closure objective and auditable instead of inferred from code inspection alone:
+  - `tests/services/world_streamer_producer/test_ready_consumer.py`
+    - asserts live-stream path emits `RUN_READY_SEEN`, `RUN_STARTED`, `RUN_ENDED`.
+    - asserts out-of-scope READY path emits `RUN_CANCELLED` with scope-mismatch reason.
+  - `tests/services/ingestion_gate/test_admission.py`
+    - asserts publish-ambiguous quarantine path emits `CORRIDOR_ANOMALY`.
+    - asserts policy activation path emits `POLICY_REV_CHANGED`.
+- Rationale:
+  - directly satisfies DoD requirement that required governance families are emitted and queryable,
+  - prevents future silent drift in meta-layer semantics.
+
+### Validation evidence (tests)
+- `python -m pytest tests/services/platform_governance/test_writer.py -q` -> `3 passed`
+- `python -m pytest tests/services/platform_reporter/test_run_reporter.py -q` -> `1 passed`
+- `python -m pytest tests/services/world_streamer_producer/test_ready_consumer.py -q` -> `4 passed`
+- `python -m pytest tests/services/ingestion_gate/test_health_governance.py -q` -> `2 passed`
+- `python -m pytest tests/services/ingestion_gate/test_admission.py -q` -> `7 passed`
+- `python -m pytest tests/services/run_operate/test_orchestrator.py -q` -> `4 passed`
+
+### Validation evidence (live parity surfaces)
+- Active run used for obs/gov artifact proof:
+  - `platform_run_id=platform_20260208T201742Z`
+  - `scenario_run_id=5f10ddc9775b9f95076771be4b0d979d`
+- Run reporter command:
+  - `make platform-run-report PLATFORM_PROFILE=config/platform/profiles/local_parity.yaml PLATFORM_RUN_ID=platform_20260208T201742Z`
+  - emitted artifact refs:
+    - local: `runs/fraud-platform/platform_20260208T201742Z/obs/platform_run_report.json`
+    - object-store key: `platform_20260208T201742Z/obs/platform_run_report.json`
+  - ingress counters in artifact: `sent=80`, `received=80`, `admit=80`, `duplicate=0`, `quarantine=0`, `publish_ambiguous=0`, `receipt_write_failed=0`.
+- Governance query command:
+  - `make platform-governance-query PLATFORM_RUN_ID=platform_20260208T201742Z GOVERNANCE_QUERY_LIMIT=500`
+  - family-count rollup observed in query payload: `RUN_READY_SEEN=1`, `RUN_STARTED=1`, `RUN_ENDED=1`, `EVIDENCE_REF_RESOLVED=50`, `RUN_REPORT_GENERATED=1`.
+  - additional required families (`RUN_CANCELLED`, `POLICY_REV_CHANGED`, `CORRIDOR_ANOMALY`) are covered by deterministic negative-path tests listed above.
+
+### Residual notes discovered in closure run
+- Reporter basis notes currently include a CSFB metrics format warning (`only '%s', '%b', '%t' are allowed as placeholders, got '%'`).
+- This does not block `4.6.D` artifact existence/counter contract, but remains a quality cleanup item under remaining 4.6 closure rows (`4.6.G/H` quality hardening lane).
+
+### Matrix posture update made
+- Updated `docs/model_spec/platform/implementation_maps/platform.phase4_6_validation_matrix.md`:
+  - `4.6.A` -> PASS.
+  - `4.6.D` -> PASS.
+  - Status summary now: PASS `4.6.A`, `4.6.D`, `4.6.F`, `4.6.J`; FAIL `4.6.B`, `4.6.C`, `4.6.E`, `4.6.G`, `4.6.H`, `4.6.I`.
+- Phase 5 remains blocked by remaining mandatory fails.
+
+### Security and artifact hygiene confirmation
+- Governance/reporter artifacts written in this step carry refs/metadata and counters only.
+- No capability tokens, lease tokens, or credentials were persisted in implementation-map/logbook entries.
+---
+## Entry: 2026-02-08 20:27:12 - Matrix evidence correction (`4.6.B` wording)
+
+### Reason for correction
+- After marking `4.6.A/4.6.D` PASS, the `4.6.B` row still contained stale text claiming there was no `EVIDENCE_REF_RESOLVED` run evidence.
+- This became inaccurate once reporter-driven governance emissions were proven on `platform_20260208T201742Z`.
+
+### Correction applied
+- Updated `docs/model_spec/platform/implementation_maps/platform.phase4_6_validation_matrix.md` row `4.6.B` evidence text to:
+  - acknowledge current `EVIDENCE_REF_RESOLVED` emission,
+  - keep `4.6.B` in FAIL because RBAC/allowlist-gated resolution corridor + deny-path audit is still missing.
+
+### Outcome
+- Matrix now reflects true residual scope and avoids contradictory status language.

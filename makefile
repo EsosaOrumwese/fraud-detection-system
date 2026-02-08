@@ -2521,11 +2521,14 @@ SR_WINDOW_END ?= 2026-01-02T00:00:00Z
 
 IG_PROFILE ?= config/platform/profiles/local.yaml
 IG_PROFILE_PARITY ?= config/platform/profiles/local_parity.yaml
+PLATFORM_PROFILE ?= config/platform/profiles/local_parity.yaml
 IG_HOST ?= 127.0.0.1
 IG_PORT ?= 8081
 IG_AUDIT_RUN_ID ?=
 PLATFORM_RUN_ID ?=
 PLATFORM_RUN_ID_NEW ?=
+GOVERNANCE_EVENT_FAMILY ?=
+GOVERNANCE_QUERY_LIMIT ?= 200
 WSP_PROFILE ?= config/platform/profiles/local.yaml
 WSP_PROFILE_PARITY ?= config/platform/profiles/local_parity.yaml
 IEG_PROFILE_PARITY ?= config/platform/profiles/local_parity.yaml
@@ -3010,6 +3013,51 @@ platform-operate-parity-restart:
 platform-operate-parity-status:
 	@$(MAKE) platform-operate-control-ingress-status
 	@$(MAKE) platform-operate-rtdl-core-status
+
+.PHONY: platform-run-report
+platform-run-report:
+	@run_id="$(PLATFORM_RUN_ID)"; \
+	if [ -z "$$run_id" ] && [ -f runs/fraud-platform/ACTIVE_RUN_ID ]; then \
+		run_id=$$(tr -d '\r\n' < runs/fraud-platform/ACTIVE_RUN_ID); \
+	fi; \
+	if [ -z "$$run_id" ]; then \
+		echo "platform-run-report requires PLATFORM_RUN_ID or runs/fraud-platform/ACTIVE_RUN_ID" >&2; \
+		exit 1; \
+	fi; \
+	IG_ADMISSION_DSN="$(PARITY_IG_ADMISSION_DSN)" \
+	IEG_PROJECTION_DSN="$(PARITY_IEG_PROJECTION_DSN)" \
+	OFP_PROJECTION_DSN="$(PARITY_OFP_PROJECTION_DSN)" \
+	OFP_SNAPSHOT_INDEX_DSN="$(PARITY_OFP_SNAPSHOT_INDEX_DSN)" \
+	CSFB_PROJECTION_DSN="$(PARITY_CSFB_PROJECTION_DSN)" \
+	OBJECT_STORE_ENDPOINT="$(PARITY_OBJECT_STORE_ENDPOINT)" \
+	OBJECT_STORE_REGION="$(PARITY_OBJECT_STORE_REGION)" \
+	AWS_ACCESS_KEY_ID="$(PARITY_MINIO_ACCESS_KEY)" \
+	AWS_SECRET_ACCESS_KEY="$(PARITY_MINIO_SECRET_KEY)" \
+	AWS_EC2_METADATA_DISABLED="$(PARITY_AWS_EC2_METADATA_DISABLED)" \
+	$(PY_PLATFORM) -m fraud_detection.platform_reporter.cli \
+		--profile "$(PLATFORM_PROFILE)" \
+		--platform-run-id "$$run_id"
+
+.PHONY: platform-governance-query
+platform-governance-query:
+	@run_id="$(PLATFORM_RUN_ID)"; \
+	if [ -z "$$run_id" ] && [ -f runs/fraud-platform/ACTIVE_RUN_ID ]; then \
+		run_id=$$(tr -d '\r\n' < runs/fraud-platform/ACTIVE_RUN_ID); \
+	fi; \
+	if [ -z "$$run_id" ]; then \
+		echo "platform-governance-query requires PLATFORM_RUN_ID or runs/fraud-platform/ACTIVE_RUN_ID" >&2; \
+		exit 1; \
+	fi; \
+	OBJECT_STORE_ENDPOINT="$(PARITY_OBJECT_STORE_ENDPOINT)" \
+	OBJECT_STORE_REGION="$(PARITY_OBJECT_STORE_REGION)" \
+	AWS_ACCESS_KEY_ID="$(PARITY_MINIO_ACCESS_KEY)" \
+	AWS_SECRET_ACCESS_KEY="$(PARITY_MINIO_SECRET_KEY)" \
+	AWS_EC2_METADATA_DISABLED="$(PARITY_AWS_EC2_METADATA_DISABLED)" \
+	$(PY_PLATFORM) -m fraud_detection.platform_governance.cli \
+		$(if $(PLATFORM_STORE_ROOT),--object-store-root "$(PLATFORM_STORE_ROOT)",) \
+		query --platform-run-id "$$run_id" \
+		$(if $(GOVERNANCE_EVENT_FAMILY),--event-family "$(GOVERNANCE_EVENT_FAMILY)",) \
+		--limit "$(GOVERNANCE_QUERY_LIMIT)"
 
 .PHONY: platform-wsp-validate-local
 platform-wsp-validate-local:

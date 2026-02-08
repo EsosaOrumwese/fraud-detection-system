@@ -159,6 +159,14 @@ def test_ready_consumer_streams_from_ready(tmp_path: Path, monkeypatch) -> None:
     assert results[0].status == "STREAMED"
     assert captured["engine_run_root"] == str(store_root)
     assert captured["scenario_id"] == scenario_id
+    governance_path = store_root / RUN_PREFIX / "obs" / "governance" / "events.jsonl"
+    assert governance_path.exists()
+    event_families = {
+        json.loads(line).get("event_family")
+        for line in governance_path.read_text(encoding="utf-8").splitlines()
+        if line.strip()
+    }
+    assert {"RUN_READY_SEEN", "RUN_STARTED", "RUN_ENDED"}.issubset(event_families)
 
 
 def test_ready_consumer_skips_duplicate(tmp_path: Path, monkeypatch) -> None:
@@ -305,3 +313,13 @@ def test_ready_consumer_skips_out_of_scope_platform_run(tmp_path: Path, monkeypa
     assert results[0].status == "SKIPPED_OUT_OF_SCOPE"
     assert results[0].reason == "PLATFORM_RUN_SCOPE_MISMATCH"
     assert called["value"] is False
+    governance_path = store_root / "fraud-platform" / other_platform_run_id / "obs" / "governance" / "events.jsonl"
+    assert governance_path.exists()
+    events = [
+        json.loads(line)
+        for line in governance_path.read_text(encoding="utf-8").splitlines()
+        if line.strip()
+    ]
+    cancelled = [event for event in events if event.get("event_family") == "RUN_CANCELLED"]
+    assert cancelled
+    assert cancelled[0]["details"].get("reason") == "PLATFORM_RUN_SCOPE_MISMATCH"

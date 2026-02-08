@@ -1,4 +1,5 @@
 from pathlib import Path
+import json
 
 import pytest
 
@@ -226,3 +227,30 @@ def test_publish_ambiguous_quarantines_and_marks_state(tmp_path: Path, monkeypat
     row = gate.admission_index.lookup(dedupe)
     assert row is not None
     assert row.get("state") == "PUBLISH_AMBIGUOUS"
+    governance_path = tmp_path / "store" / "fraud-platform" / envelope["platform_run_id"] / "obs" / "governance" / "events.jsonl"
+    assert governance_path.exists()
+    events = [
+        json.loads(line)
+        for line in governance_path.read_text(encoding="utf-8").splitlines()
+        if line.strip()
+    ]
+    anomalies = [event for event in events if event.get("event_family") == "CORRIDOR_ANOMALY"]
+    assert anomalies
+    assert anomalies[0]["details"].get("reason_code") == "PUBLISH_AMBIGUOUS"
+
+
+def test_policy_activation_emits_platform_governance_event(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    run_id = "platform_20260101T000000Z"
+    monkeypatch.setenv("PLATFORM_RUN_ID", run_id)
+    gate = _build_gate(tmp_path)
+    envelope = _envelope("evt-policy")
+    envelope["platform_run_id"] = run_id
+    gate.admit_push(envelope)
+    governance_path = tmp_path / "store" / "fraud-platform" / run_id / "obs" / "governance" / "events.jsonl"
+    assert governance_path.exists()
+    event_families = {
+        json.loads(line).get("event_family")
+        for line in governance_path.read_text(encoding="utf-8").splitlines()
+        if line.strip()
+    }
+    assert "POLICY_REV_CHANGED" in event_families

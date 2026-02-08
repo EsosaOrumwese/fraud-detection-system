@@ -30,7 +30,8 @@ from .security import authorize
 from .schema import SchemaEnforcer
 from .schemas import SchemaRegistry
 from .store import ObjectStore, S3ObjectStore, build_object_store
-from ..platform_runtime import platform_run_prefix
+from ..platform_runtime import platform_run_prefix, resolve_platform_run_id
+from ..platform_governance import emit_platform_governance_event
 
 logger = logging.getLogger(__name__)
 narrative_logger = logging.getLogger("fraud_detection.platform_narrative")
@@ -429,6 +430,7 @@ class IngestionGate:
         self.metrics.record_latency("phase.receipt_seconds", time.perf_counter() - receipt_started)
         self.metrics.record_decision("QUARANTINE", code)
         self.metrics.record_latency("admission_seconds", time.perf_counter() - started_at)
+        self._emit_governance_anomaly(envelope, code, quarantine_ref=quarantine_ref, receipt_ref=receipt_ref)
         self.governance.emit_quarantine_spike(self.metrics.counters.get("decision.QUARANTINE", 0))
         self.metrics.flush_if_due(self._metrics_context(envelope))
         receipt = Receipt(payload=receipt_payload)
@@ -508,6 +510,54 @@ class IngestionGate:
             self.ops_index.record_quarantine(payload, quarantine_ref, event_id)
         except Exception:
             logger.exception("IG ops index quarantine write failed")
+
+    def _emit_governance_anomaly(
+        self,
+        envelope: dict[str, Any],
+        reason_code: str,
+        *,
+        quarantine_ref: str | None,
+        receipt_ref: str | None,
+    ) -> None:
+        platform_run_id = str(envelope.get("platform_run_id") or "").strip()
+        if not platform_run_id:
+            platform_run_id = str(resolve_platform_run_id(create_if_missing=False) or "").strip()
+        if not platform_run_id:
+            logger.warning(
+                "IG governance anomaly emit skipped (event_id=%s reason=%s platform_run_id missing)",
+                envelope.get("event_id"),
+                reason_code,
+            )
+            return
+        scenario_run_id = str(envelope.get("scenario_run_id") or envelope.get("run_id") or "").strip() or None
+        manifest_fingerprint = str(envelope.get("manifest_fingerprint") or "").strip() or None
+        parameter_hash = str(envelope.get("parameter_hash") or "").strip() or None
+        seed = envelope.get("seed")
+        scenario_id = str(envelope.get("scenario_id") or "").strip() or None
+        event_id = str(envelope.get("event_id") or "").strip() or "unknown"
+        dedupe_key = f"ig_quarantine:{event_id}:{reason_code}"
+        emit_platform_governance_event(
+            store=self.store,
+            event_family="CORRIDOR_ANOMALY",
+            actor_id="svc:ingestion_gate",
+            source_type="service",
+            source_component="ingestion_gate",
+            platform_run_id=platform_run_id,
+            scenario_run_id=scenario_run_id,
+            manifest_fingerprint=manifest_fingerprint,
+            parameter_hash=parameter_hash,
+            seed=seed,
+            scenario_id=scenario_id,
+            dedupe_key=dedupe_key,
+            details={
+                "boundary": "ingestion_gate",
+                "reason_code": reason_code,
+                "event_id": event_id,
+                "event_type": envelope.get("event_type"),
+                "quarantine_ref": quarantine_ref,
+                "receipt_ref": receipt_ref,
+            },
+        )
 
     def _partitioning(self, envelope: dict[str, Any]) -> tuple[str, PartitionProfile]:
         class_name = self.class_map.class_for(envelope["event_type"])

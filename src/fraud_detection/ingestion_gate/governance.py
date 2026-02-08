@@ -10,6 +10,7 @@ import json
 from typing import Any
 
 from fraud_detection.event_bus import EventBusPublisher
+from fraud_detection.platform_governance import emit_platform_governance_event
 from .partitioning import PartitioningProfiles
 from .store import ObjectStore
 
@@ -43,6 +44,22 @@ class GovernanceEmitter:
             "activated_at_utc": datetime.now(tz=timezone.utc).isoformat(),
         }
         self.store.write_json(active_path, payload)
+        platform_run_id = _platform_run_id_from_prefix(self.prefix)
+        emit_platform_governance_event(
+            store=self.store,
+            event_family="POLICY_REV_CHANGED",
+            actor_id="svc:ingestion_gate",
+            source_type="service",
+            source_component="ingestion_gate",
+            platform_run_id=platform_run_id,
+            dedupe_key=f"ig_policy_activation:{digest}",
+            details={
+                "policy_id": payload["policy_id"],
+                "revision": payload["revision"],
+                "content_digest": payload["content_digest"],
+                "activated_at_utc": payload["activated_at_utc"],
+            },
+        )
         envelope = _make_envelope("ig.policy.activation", payload)
         self._emit_audit(envelope)
 
@@ -88,3 +105,17 @@ def _make_envelope(event_type: str, payload: dict[str, Any]) -> dict[str, Any]:
         "manifest_fingerprint": "0" * 64,
         "payload": payload,
     }
+
+
+def _platform_run_id_from_prefix(prefix: str) -> str:
+    text = str(prefix or "").strip().rstrip("/")
+    if not text:
+        raise ValueError("governance prefix missing run scope")
+    if text.startswith("fraud-platform/"):
+        run_id = text.split("/", 1)[1]
+        if run_id:
+            return run_id
+    parts = [item for item in text.split("/") if item]
+    if not parts:
+        raise ValueError("governance prefix missing run scope")
+    return parts[-1]

@@ -13,6 +13,7 @@ from typing import Any
 from urllib.parse import urlparse
 
 from fraud_detection.oracle_store.engine_reader import resolve_engine_root
+from fraud_detection.platform_governance import emit_platform_governance_event
 from fraud_detection.platform_runtime import (
     append_session_event,
     platform_log_paths,
@@ -178,6 +179,21 @@ class ReadyConsumerRunner:
 
         active_platform_run_id = resolve_platform_run_id(create_if_missing=False)
         if active_platform_run_id and ready_platform_run_id != active_platform_run_id:
+            self._emit_governance_event(
+                event_family="RUN_CANCELLED",
+                platform_run_id=ready_platform_run_id,
+                scenario_run_id=facts_scenario_run_id,
+                manifest_fingerprint=facts_pins.get("manifest_fingerprint"),
+                parameter_hash=facts_pins.get("parameter_hash"),
+                seed=facts_pins.get("seed"),
+                scenario_id=facts_pins.get("scenario_id"),
+                dedupe_key=f"cancelled:{message.message_id}:scope_mismatch",
+                details={
+                    "message_id": message.message_id,
+                    "reason": "PLATFORM_RUN_SCOPE_MISMATCH",
+                    "active_platform_run_id": active_platform_run_id,
+                },
+            )
             result = ReadyConsumeResult(
                 message_id=message.message_id,
                 run_id=message.run_id,
@@ -197,6 +213,17 @@ class ReadyConsumerRunner:
         if self.profile.wiring.oracle_root:
             oracle_root = self.profile.wiring.oracle_root
         if not scenario_id:
+            self._emit_governance_event(
+                event_family="RUN_CANCELLED",
+                platform_run_id=ready_platform_run_id,
+                scenario_run_id=facts_scenario_run_id,
+                manifest_fingerprint=facts_pins.get("manifest_fingerprint"),
+                parameter_hash=facts_pins.get("parameter_hash"),
+                seed=facts_pins.get("seed"),
+                scenario_id=facts_pins.get("scenario_id"),
+                dedupe_key=f"cancelled:{message.message_id}:scenario_missing",
+                details={"message_id": message.message_id, "reason": "SCENARIO_ID_MISSING"},
+            )
             result = ReadyConsumeResult(
                 message_id=message.message_id,
                 run_id=message.run_id,
@@ -206,6 +233,17 @@ class ReadyConsumerRunner:
             self._append_ready_record(message.message_id, result)
             return result
         if not engine_run_root:
+            self._emit_governance_event(
+                event_family="RUN_CANCELLED",
+                platform_run_id=ready_platform_run_id,
+                scenario_run_id=facts_scenario_run_id,
+                manifest_fingerprint=facts_pins.get("manifest_fingerprint"),
+                parameter_hash=facts_pins.get("parameter_hash"),
+                seed=facts_pins.get("seed"),
+                scenario_id=scenario_id,
+                dedupe_key=f"cancelled:{message.message_id}:engine_root_missing",
+                details={"message_id": message.message_id, "reason": "ENGINE_ROOT_MISSING"},
+            )
             result = ReadyConsumeResult(
                 message_id=message.message_id,
                 run_id=message.run_id,
@@ -217,6 +255,32 @@ class ReadyConsumerRunner:
             return result
 
         resolved_root = resolve_engine_root(engine_run_root, oracle_root)
+        self._emit_governance_event(
+            event_family="RUN_READY_SEEN",
+            platform_run_id=ready_platform_run_id,
+            scenario_run_id=facts_scenario_run_id,
+            manifest_fingerprint=facts_pins.get("manifest_fingerprint"),
+            parameter_hash=facts_pins.get("parameter_hash"),
+            seed=facts_pins.get("seed"),
+            scenario_id=scenario_id,
+            dedupe_key=f"ready_seen:{message.message_id}",
+            details={
+                "message_id": message.message_id,
+                "facts_view_ref": message.facts_view_ref,
+                "run_id": message.run_id,
+            },
+        )
+        self._emit_governance_event(
+            event_family="RUN_STARTED",
+            platform_run_id=ready_platform_run_id,
+            scenario_run_id=facts_scenario_run_id,
+            manifest_fingerprint=facts_pins.get("manifest_fingerprint"),
+            parameter_hash=facts_pins.get("parameter_hash"),
+            seed=facts_pins.get("seed"),
+            scenario_id=scenario_id,
+            dedupe_key=f"started:{message.message_id}",
+            details={"message_id": message.message_id, "engine_run_root": resolved_root},
+        )
         stream_result: StreamResult = self._producer.stream_engine_world(
             engine_run_root=resolved_root,
             scenario_id=scenario_id,
@@ -232,6 +296,23 @@ class ReadyConsumerRunner:
             emitted=stream_result.emitted,
             engine_run_root=resolved_root,
             scenario_id=scenario_id,
+        )
+        self._emit_governance_event(
+            event_family="RUN_ENDED",
+            platform_run_id=ready_platform_run_id,
+            scenario_run_id=facts_scenario_run_id,
+            manifest_fingerprint=facts_pins.get("manifest_fingerprint"),
+            parameter_hash=facts_pins.get("parameter_hash"),
+            seed=facts_pins.get("seed"),
+            scenario_id=scenario_id,
+            dedupe_key=f"ended:{message.message_id}",
+            details={
+                "message_id": message.message_id,
+                "status": stream_result.status,
+                "reason": stream_result.reason,
+                "emitted": stream_result.emitted,
+                "engine_run_root": resolved_root,
+            },
         )
         self._append_ready_record(message.message_id, result)
         return result
@@ -275,6 +356,35 @@ class ReadyConsumerRunner:
             self._last_duplicate_log_by_message_id[message_id] = now
             return True
         return False
+
+    def _emit_governance_event(
+        self,
+        *,
+        event_family: str,
+        platform_run_id: str,
+        scenario_run_id: str | None,
+        manifest_fingerprint: str | None,
+        parameter_hash: str | None,
+        seed: str | int | None,
+        scenario_id: str | None,
+        dedupe_key: str,
+        details: dict[str, Any],
+    ) -> None:
+        emit_platform_governance_event(
+            store=self._store,
+            event_family=event_family,
+            actor_id="svc:wsp_ready_consumer",
+            source_type="service",
+            source_component="wsp_ready_consumer",
+            platform_run_id=platform_run_id,
+            scenario_run_id=scenario_run_id,
+            manifest_fingerprint=manifest_fingerprint,
+            parameter_hash=parameter_hash,
+            seed=seed,
+            scenario_id=scenario_id,
+            dedupe_key=dedupe_key,
+            details=details,
+        )
 
 
 def _ready_record_path(message_id: str) -> str:
