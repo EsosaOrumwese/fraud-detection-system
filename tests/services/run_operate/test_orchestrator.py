@@ -85,3 +85,21 @@ def test_required_active_run_fails_closed(tmp_path: Path, monkeypatch: pytest.Mo
     assert status_payload["active_platform_run_id"] is None
     with pytest.raises(RuntimeError, match="ACTIVE_PLATFORM_RUN_ID_MISSING"):
         orch.up()
+
+
+def test_active_run_resolution_prefers_active_file_over_legacy_platform_env(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setattr(ro, "RUNS_ROOT", tmp_path / "runs" / "fraud-platform")
+    pack_path = tmp_path / "pack_precedence.yaml"
+    active_run_path = tmp_path / "ACTIVE_RUN_ID"
+    active_run_path.write_text("platform_from_active_file\n", encoding="utf-8")
+    _write_pack(pack_path, required_run=True, source_path=active_run_path)
+
+    env = dict(os.environ)
+    env["PLATFORM_RUN_ID"] = "platform_from_legacy_env"
+    pack = ro.PackSpec.load(pack_path)
+    orch = ro.ProcessOrchestrator(pack=pack, env=env)
+
+    status_payload = orch.status()
+    assert status_payload["active_platform_run_id"] == "platform_from_active_file"

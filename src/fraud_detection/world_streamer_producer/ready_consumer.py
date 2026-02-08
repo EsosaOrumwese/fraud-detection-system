@@ -13,7 +13,12 @@ from typing import Any
 from urllib.parse import urlparse
 
 from fraud_detection.oracle_store.engine_reader import resolve_engine_root
-from fraud_detection.platform_runtime import append_session_event, platform_log_paths, platform_run_prefix
+from fraud_detection.platform_runtime import (
+    append_session_event,
+    platform_log_paths,
+    platform_run_prefix,
+    resolve_platform_run_id,
+)
 from fraud_detection.scenario_runner.logging_utils import configure_logging
 from fraud_detection.scenario_runner.schemas import SchemaRegistry
 from fraud_detection.scenario_runner.storage import LocalObjectStore, ObjectStore, S3ObjectStore
@@ -169,6 +174,17 @@ class ReadyConsumerRunner:
             self._append_ready_record(message.message_id, result)
             return result
 
+        active_platform_run_id = resolve_platform_run_id(create_if_missing=False)
+        if active_platform_run_id and ready_platform_run_id != active_platform_run_id:
+            result = ReadyConsumeResult(
+                message_id=message.message_id,
+                run_id=message.run_id,
+                status="SKIPPED_OUT_OF_SCOPE",
+                reason="PLATFORM_RUN_SCOPE_MISMATCH",
+            )
+            self._append_ready_record(message.message_id, result)
+            return result
+
         scenario_id = (run_facts.get("pins") or {}).get("scenario_id")
         oracle_pack_ref = message.payload.get("oracle_pack_ref") or run_facts.get("oracle_pack_ref") or {}
         engine_run_root = oracle_pack_ref.get("engine_run_root") or self.profile.wiring.oracle_engine_run_root
@@ -233,7 +249,7 @@ class ReadyConsumerRunner:
                 payload = json.loads(line)
             except json.JSONDecodeError:
                 continue
-            if payload.get("status") == "STREAMED":
+            if payload.get("status") in {"STREAMED", "SKIPPED_OUT_OF_SCOPE"}:
                 return True
         return False
 

@@ -3843,3 +3843,181 @@ Implement a new `run_operate` orchestration module with:
 - Control/Ingress and RTDL live-core are both on the same contract.
 - Run-scope enforcement exists for RTDL pack (`active_run.required=true`, `*_REQUIRED_PLATFORM_RUN_ID` interpolation).
 - Evidence surfaces are emitted under run operate state/log/status roots.
+---
+## Entry: 2026-02-08 18:16:40 - Runtime conflict decision before orchestrated launch
+
+### Observation
+Before starting 4.6.J orchestrated control_ingress pack, port `127.0.0.1:8081` was already bound by a non-orchestrated IG python process (`-m fraud_detection.ingestion_gate.service`, pid `26788`, started `14:46:26`).
+
+### Decision
+- Treat this as stale/manual runtime from prior validation.
+- Terminate it before orchestrated launch to avoid false startup failures and ambiguous ownership of ingress traffic.
+- Record this as operational hygiene action, not product-behavior change.
+
+### Additional implementation adjustment approved
+To support the requested 200-event orchestrated proof run without leaving orchestrator contract, update control_ingress process pack so WSP ready consumer accepts `--max-events-per-output` from env (`WSP_MAX_EVENTS_PER_OUTPUT`) with parity-safe default.
+---
+## Entry: 2026-02-08 18:53:27 - Pre-launch remediation complete for orchestrated 200-event run
+
+### Actions completed before launch
+1. Updated control_ingress pack to support env-driven WSP per-output cap:
+   - added `WSP_MAX_EVENTS_PER_OUTPUT` default and wired `--max-events-per-output` in `wsp_ready_consumer` command.
+   - file: `config/platform/run_operate/packs/local_parity_control_ingress.v0.yaml`.
+
+2. Cleared stale non-orchestrated IG listeners on `8081`.
+   - Observed multiple legacy manual IG service instances (different start times) occupying ingress port.
+   - Terminated these to guarantee orchestrator-owned ingress lifecycle.
+   - Verified no listener remained on `8081` (`NO_LISTENER_8081`).
+
+### Why this was required
+- 4.6.J validation requires deterministic lifecycle ownership by orchestrator.
+- Existing manual services would have produced false-positive/false-negative launch behavior (orchestrator reports stopped while ingress is externally active).
+- WSP cap wiring is required to execute the requested 200-event proof run under orchestrated mode without abandoning the process-pack contract.
+
+### Next launch plan (immediate)
+- bring parity stack up/bootstrap,
+- create fresh `platform_run_id`,
+- start orchestrated control_ingress and rtdl_core packs,
+- run SR reuse to emit READY,
+- let orchestrated WSP/IG/RTDL workers process run,
+- collect receipts/EB/worker evidence + orchestrator state/status artifacts.
+---
+## Entry: 2026-02-08 18:54:41 - Interpreter drift fix decision for orchestrated packs
+
+### Failure observed
+Orchestrated IG/IEG/OFP/CSFB workers exited immediately with `ModuleNotFoundError: psycopg`.
+
+### Root cause
+- Process-pack commands were `python -m ...`, resolving to system Python 3.12 in this workstation context.
+- Parity dependencies (including `psycopg`) are installed in project `.venv`, not guaranteed in system Python.
+
+### Decision
+Pin process-pack interpreter through env-driven executable token:
+- add `RUN_OPERATE_PYTHON` to pack defaults (fallback `.venv/Scripts/python.exe`),
+- replace command launcher token `python` with `${RUN_OPERATE_PYTHON}` in both packs.
+
+### Why this is meta-layer aligned
+- Keeps orchestrator plane-agnostic (orchestrator core unchanged).
+- Interpreter binding remains declarative per pack/environment.
+- Future envs can override interpreter path without code changes.
+## Entry: 2026-02-08 19:07:47 - Run-scope precedence hardening and clean rerun plan (live)
+
+### Problem observed
+- Orchestrator status could report an incorrect ctive_platform_run_id when .env.platform.local carried a stale PLATFORM_RUN_ID value.
+- platform-sr-run-reuse also inherited ambient PLATFORM_RUN_ID, allowing READY emission against an unintended run scope if local env drifted.
+
+### Decisions taken
+1. **Orchestrator run-id precedence hardening**
+- In 
+un_operate/orchestrator.py, active run resolution now prioritizes:
+  - explicit ACTIVE_PLATFORM_RUN_ID / RUN_OPERATE_PLATFORM_RUN_ID,
+  - then 
+uns/fraud-platform/ACTIVE_RUN_ID (pack source path),
+  - then legacy fallback PLATFORM_RUN_ID only if no active-run source exists.
+- Rationale: run/operate must default to platform active-run truth, not stale environment leftovers.
+
+2. **SR invocation scope pinning**
+- make platform-sr-run-reuse now sets PLATFORM_RUN_ID from 
+uns/fraud-platform/ACTIVE_RUN_ID in-command.
+- Rationale: SR READY emission should be aligned with active run scope by default in parity execution.
+
+3. **Evidence plan for this step**
+- Run targeted tests for orchestrator behavior.
+- Re-check orchestrated status surface.
+- Execute controlled restart evidence for RTDL pack.
+- Execute a clean orchestrated 200-event rerun (new platform run id), then collect run-scoped counters (IG receipts + RTDL store state) to confirm alignment and absence of run-scope ambiguity.
+
+### Risks and guardrails
+- Risk: changing run-id precedence could break explicit overrides.
+  - Guardrail: explicit overrides remain supported (ACTIVE_PLATFORM_RUN_ID/RUN_OPERATE_PLATFORM_RUN_ID) and legacy PLATFORM_RUN_ID retained as fallback.
+- Risk: restart evidence may race with status sampling.
+  - Guardrail: take post-restart status snapshot after restart completion and collect events.jsonl stop/start sequence.
+---
+## Entry: 2026-02-08 19:43:27 - Run-scope hardening + clean orchestrated parity validation closure (4.6.J -> 4.6.K evidence)
+
+### Implementation fixes completed in this wave
+1. **Orchestrator active-run precedence fix**
+- File: `src/fraud_detection/run_operate/orchestrator.py`
+- Change: `_resolve_active_run_id` now resolves in this order:
+  - explicit `ACTIVE_PLATFORM_RUN_ID` or `RUN_OPERATE_PLATFORM_RUN_ID`,
+  - pack source path `runs/fraud-platform/ACTIVE_RUN_ID`,
+  - legacy fallback `PLATFORM_RUN_ID`.
+- Why: prevented stale `.env.platform.local` `PLATFORM_RUN_ID` values from hijacking status run scope.
+- Validation:
+  - `python -m pytest tests/services/run_operate/test_orchestrator.py -q` -> `4 passed`.
+  - `make platform-operate-parity-status` reports active run id from `ACTIVE_RUN_ID`.
+
+2. **SR invocation run-scope pinning + fresh run id target hardening**
+- File: `makefile`
+- Changes:
+  - `platform-sr-run-reuse` now exports `PLATFORM_RUN_ID` from `runs/fraud-platform/ACTIVE_RUN_ID`.
+  - `platform-run-new` now uses `PLATFORM_RUN_ID_NEW` (default empty) instead of inherited `PLATFORM_RUN_ID`, ensuring fresh ID minting by default.
+- Why: removed accidental reuse of stale run ids from shell/env context.
+
+3. **WSP READY scope guard to prevent historical-control replay contamination**
+- File: `src/fraud_detection/world_streamer_producer/ready_consumer.py`
+- Changes:
+  - Added active-run gate: if READY `platform_run_id` does not match the current active run id, result is `SKIPPED_OUT_OF_SCOPE` (`PLATFORM_RUN_SCOPE_MISMATCH`) and no stream is executed.
+  - `_already_streamed` treats `SKIPPED_OUT_OF_SCOPE` as terminal for dedupe.
+- Why: previously, a new platform run could re-consume historical READY messages from control bus history and trigger extra capped stream batches.
+- Test coverage:
+  - Added out-of-scope test in `tests/services/world_streamer_producer/test_ready_consumer.py`.
+  - Validation: `python -m pytest tests/services/world_streamer_producer/test_ready_consumer.py -q` -> `3 passed`.
+
+### Runtime contamination diagnosis and remediation (critical)
+- Detected stale/manual projector shells and processes (IEG/OFP/CSFB) running outside orchestrator with hardcoded old required run ids (`platform_20260208T151238Z`), causing false `RUN_SCOPE_MISMATCH` apply-failure noise.
+- Remediation:
+  - terminated stale non-orchestrated projector shells/processes,
+  - restarted orchestrated RTDL pack (`make platform-operate-rtdl-core-up`),
+  - verified pack status returns orchestrator-owned runtime for active run.
+
+### Clean final evidence run executed
+- **Final clean run id:** `platform_20260208T193407Z`
+- **Scenario run id:** `24827c0356195144a6d9a847c3563347`
+- Launch flow:
+  - `make platform-run-new`
+  - `make platform-operate-parity-restart WSP_MAX_EVENTS_PER_OUTPUT=200`
+  - `make platform-sr-run-reuse SR_WIRING=config/platform/sr/wiring_local_kinesis.yaml SR_RUN_EQUIVALENCE_KEY=parity_20260208T193419Z`
+- WSP capped-stream closure:
+  - four stop markers reached (`emitted=200 reason=max_events`) for:
+    - `s3_event_stream_with_fraud_6B`
+    - `arrival_events_5B`
+    - `s1_arrival_entities_6B`
+    - `s3_flow_anchor_with_fraud_6B`
+  - post-stop verification: no subsequent `WSP stream start` for that READY message (`START_AFTER_FIRST4=0`); only duplicate-skip logs for the message id.
+
+### Run-scoped evidence (final clean run)
+1. IG receipts (S3 prefix `s3://fraud-platform/platform_20260208T193407Z/ig/receipts/`)
+- `receipt_count=800`
+- decisions: `ADMIT=800`
+- event types:
+  - `s3_event_stream_with_fraud_6B=200`
+  - `arrival_events_5B=200`
+  - `s1_arrival_entities_6B=200`
+  - `s3_flow_anchor_with_fraud_6B=200`
+- `scenario_run_id=24827c0356195144a6d9a847c3563347` across all receipts.
+
+2. RTDL store checks (Postgres)
+- OFP:
+  - `ofp_applied_events=200` (stream `ofp.v0::platform_20260208T193407Z`)
+  - `ofp_feature_state_rows=100`
+- CSFB:
+  - `csfb_intake_dedupe=600`
+  - `csfb_join_frames=250`
+  - `csfb_flow_bindings=200`
+  - `csfb_join_apply_failures=0`
+- IEG:
+  - `ieg_dedupe=800`
+  - `ieg_apply_failures=0`
+
+3. Orchestrator status (post-run)
+- `make platform-operate-parity-status`:
+  - control_ingress: `ig_service` and `wsp_ready_consumer` running/ready
+  - rtdl_core: `ieg_projector`, `ofp_projector`, and `csfb_intake` running/ready
+  - `active_platform_run_id=platform_20260208T193407Z`
+
+### 4.6 gate impact
+- `4.6.J` (platform orchestration contract): strengthened with run-scope precedence fixes and validated restart/liveness semantics.
+- `4.6.K` monitored parity evidence requirement: satisfied for orchestrated mode with explicit run id, command trace, lifecycle evidence, capped-stream proof, and run-scoped store counters.
+- Residual note: WSP READY consumer still emits repetitive duplicate-skip logs for already-seen READY messages in continuous loop; functionally safe, but log-noise optimization remains open.
+---

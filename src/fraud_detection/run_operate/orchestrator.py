@@ -214,6 +214,7 @@ class PackSpec:
 @dataclass(frozen=True)
 class ResolvedProcess:
     spec: ProcessSpec
+    command: list[str]
     env: dict[str, str]
     cwd: Path
     log_path: Path
@@ -268,7 +269,7 @@ class ProcessOrchestrator:
                 popen_kwargs["creationflags"] = subprocess.CREATE_NEW_PROCESS_GROUP
             else:
                 popen_kwargs["start_new_session"] = True
-            process = subprocess.Popen(proc.spec.command, **popen_kwargs)  # noqa: S603
+            process = subprocess.Popen(proc.command, **popen_kwargs)  # noqa: S603
             # The child keeps inherited handles; close parent handle immediately.
             handle.close()
             time.sleep(0.15)
@@ -280,7 +281,7 @@ class ProcessOrchestrator:
             state["processes"][proc.spec.process_id] = {
                 "pid": process.pid,
                 "pid_create_time": ps_proc.create_time(),
-                "command": proc.spec.command,
+                "command": proc.command,
                 "cwd": str(proc.cwd),
                 "log_path": str(proc.log_path),
                 "started_at_utc": _utc_now(),
@@ -429,15 +430,19 @@ class ProcessOrchestrator:
         return {"ready": False, "reason": "probe_unknown", "probe": probe.kind}
 
     def _resolve_active_run_id(self, *, allow_missing: bool = False) -> str | None:
-        env_run = (self.env.get("PLATFORM_RUN_ID") or "").strip()
-        if env_run:
-            return env_run
+        for key in ("ACTIVE_PLATFORM_RUN_ID", "RUN_OPERATE_PLATFORM_RUN_ID"):
+            explicit = (self.env.get(key) or "").strip()
+            if explicit:
+                return explicit
         source_token = _expand_vars(self.pack.active_run.source_path, self.env)
         source_path = Path(source_token)
         if source_path.exists():
             value = source_path.read_text(encoding="utf-8").strip()
             if value:
                 return value
+        legacy_env_run = (self.env.get("PLATFORM_RUN_ID") or "").strip()
+        if legacy_env_run:
+            return legacy_env_run
         if self.pack.active_run.required and not allow_missing:
             raise RuntimeError("ACTIVE_PLATFORM_RUN_ID_MISSING")
         return None
@@ -471,9 +476,11 @@ class ProcessOrchestrator:
             cwd = Path(_expand_vars(cwd_token, env))
             log_path = self.logs_root / f"{spec.process_id}.log"
             readiness = _resolve_probe(spec.readiness, env)
+            command = [_expand_vars(token, env) for token in spec.command]
             resolved.append(
                 ResolvedProcess(
                     spec=spec,
+                    command=command,
                     env=env,
                     cwd=cwd,
                     log_path=log_path,

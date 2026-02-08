@@ -25,11 +25,18 @@ def _write_control_message(root: Path, *, topic: str, message_id: str, payload: 
     (topic_dir / f"{message_id}.json").write_text(json.dumps(envelope, ensure_ascii=True), encoding="utf-8")
 
 
-def _write_run_facts(store_root: Path, run_id: str, engine_root: Path, scenario_id: str) -> str:
+def _write_run_facts(
+    store_root: Path,
+    run_id: str,
+    engine_root: Path,
+    scenario_id: str,
+    *,
+    platform_run_id: str = RUN_ID,
+) -> str:
     facts_ref = f"{RUN_PREFIX}/sr/run_facts_view/{run_id}.json"
     payload = {
         "run_id": run_id,
-        "platform_run_id": RUN_ID,
+        "platform_run_id": platform_run_id,
         "scenario_run_id": run_id,
         "pins": {
             "manifest_fingerprint": "a" * 64,
@@ -37,7 +44,7 @@ def _write_run_facts(store_root: Path, run_id: str, engine_root: Path, scenario_
             "seed": 7,
             "scenario_id": scenario_id,
             "run_id": run_id,
-            "platform_run_id": RUN_ID,
+            "platform_run_id": platform_run_id,
             "scenario_run_id": run_id,
         },
         "locators": [
@@ -149,7 +156,7 @@ def test_ready_consumer_streams_from_ready(tmp_path: Path, monkeypatch) -> None:
     results = runner.poll_once()
     assert results
     assert results[0].status == "STREAMED"
-    assert captured["engine_run_root"] == str(engine_root)
+    assert captured["engine_run_root"] == str(store_root)
     assert captured["scenario_id"] == scenario_id
 
 
@@ -196,4 +203,54 @@ def test_ready_consumer_skips_duplicate(tmp_path: Path, monkeypatch) -> None:
     results = runner.poll_once()
     assert results
     assert results[0].status == "SKIPPED_DUPLICATE"
+    assert called["value"] is False
+
+
+def test_ready_consumer_skips_out_of_scope_platform_run(tmp_path: Path, monkeypatch) -> None:
+    monkeypatch.setenv("PLATFORM_RUN_ID", RUN_ID)
+    store_root = tmp_path / "store"
+    control_root = tmp_path / "control_bus"
+    engine_root = tmp_path / "engine_run"
+    engine_root.mkdir(parents=True, exist_ok=True)
+    profile = _profile(store_root, control_root)
+
+    run_id = "c" * 32
+    other_platform_run_id = "platform_20990101T000000Z"
+    scenario_id = "baseline_v1"
+    facts_ref = _write_run_facts(
+        store_root,
+        run_id,
+        engine_root,
+        scenario_id,
+        platform_run_id=other_platform_run_id,
+    )
+    message_id = "3" * 64
+    ready_payload = {
+        "run_id": run_id,
+        "platform_run_id": other_platform_run_id,
+        "scenario_run_id": run_id,
+        "facts_view_ref": facts_ref,
+        "bundle_hash": "f" * 64,
+        "message_id": message_id,
+        "run_config_digest": "c" * 64,
+        "manifest_fingerprint": "a" * 64,
+        "parameter_hash": "b" * 64,
+        "scenario_id": scenario_id,
+        "oracle_pack_ref": {"engine_run_root": str(engine_root)},
+    }
+    _write_control_message(control_root, topic="fp.bus.control.v1", message_id=message_id, payload=ready_payload)
+
+    called = {"value": False}
+
+    def _fake_stream(*_args, **_kwargs):
+        called["value"] = True
+        return StreamResult("", "", "STREAMED", 1)
+
+    runner = ReadyConsumerRunner(profile)
+    monkeypatch.setattr(runner._producer, "stream_engine_world", _fake_stream)
+
+    results = runner.poll_once()
+    assert results
+    assert results[0].status == "SKIPPED_OUT_OF_SCOPE"
+    assert results[0].reason == "PLATFORM_RUN_SCOPE_MISMATCH"
     assert called["value"] is False

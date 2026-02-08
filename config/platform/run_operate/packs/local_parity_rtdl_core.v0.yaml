@@ -9,6 +9,7 @@ defaults:
   env:
     PYTHONUNBUFFERED: "1"
     PYTHONPATH: src
+    RUN_OPERATE_PYTHON: ${RUN_OPERATE_PYTHON:-.venv/Scripts/python.exe}
     PLATFORM_STORE_ROOT: ${PLATFORM_STORE_ROOT:-s3://fraud-platform}
     PLATFORM_RUN_ID: ${ACTIVE_PLATFORM_RUN_ID}
     OBJECT_STORE_ENDPOINT: ${PARITY_OBJECT_STORE_ENDPOINT}
@@ -28,7 +29,7 @@ defaults:
 processes:
   - id: ieg_projector
     command:
-      - python
+      - ${RUN_OPERATE_PYTHON}
       - -m
       - fraud_detection.identity_entity_graph.projector
       - --profile
@@ -40,7 +41,7 @@ processes:
       type: process_alive
   - id: ofp_projector
     command:
-      - python
+      - ${RUN_OPERATE_PYTHON}
       - -m
       - fraud_detection.online_feature_plane.projector
       - --profile
@@ -54,7 +55,7 @@ processes:
       type: process_alive
   - id: csfb_intake
     command:
-      - python
+      - ${RUN_OPERATE_PYTHON}
       - -m
       - fraud_detection.context_store_flow_binding.intake
       - --policy
@@ -65,4 +66,3 @@ processes:
       CSFB_EVENT_BUS_START_POSITION: ${CSFB_EVENT_BUS_START_POSITION:-trim_horizon}
     readiness:
       type: process_alive
-

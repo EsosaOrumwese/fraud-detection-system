@@ -9,6 +9,7 @@ defaults:
   env:
     PYTHONUNBUFFERED: "1"
     PYTHONPATH: src
+    RUN_OPERATE_PYTHON: ${RUN_OPERATE_PYTHON:-.venv/Scripts/python.exe}
     PLATFORM_STORE_ROOT: ${PLATFORM_STORE_ROOT:-s3://fraud-platform}
     PLATFORM_RUN_ID: ${ACTIVE_PLATFORM_RUN_ID:-}
     OBJECT_STORE_ENDPOINT: ${PARITY_OBJECT_STORE_ENDPOINT}
@@ -31,10 +32,11 @@ defaults:
     AWS_EC2_METADATA_DISABLED: ${PARITY_AWS_EC2_METADATA_DISABLED}
     AWS_DEFAULT_REGION: ${PARITY_CONTROL_BUS_REGION}
     AWS_ENDPOINT_URL: ${PARITY_CONTROL_BUS_ENDPOINT_URL}
+    WSP_MAX_EVENTS_PER_OUTPUT: ${WSP_MAX_EVENTS_PER_OUTPUT:-500000}
 processes:
   - id: ig_service
     command:
-      - python
+      - ${RUN_OPERATE_PYTHON}
       - -m
       - fraud_detection.ingestion_gate.service
       - --profile
@@ -50,13 +52,14 @@ processes:
       timeout_seconds: 2.0
   - id: wsp_ready_consumer
     command:
-      - python
+      - ${RUN_OPERATE_PYTHON}
       - -m
       - fraud_detection.world_streamer_producer.ready_consumer
       - --profile
       - config/platform/profiles/local_parity.yaml
       - --poll-seconds
       - ${WSP_READY_POLL_SECONDS:-0.5}
+      - --max-events-per-output
+      - ${WSP_MAX_EVENTS_PER_OUTPUT}
     readiness:
       type: process_alive
-

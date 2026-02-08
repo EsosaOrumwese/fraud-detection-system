@@ -2525,6 +2525,7 @@ IG_HOST ?= 127.0.0.1
 IG_PORT ?= 8081
 IG_AUDIT_RUN_ID ?=
 PLATFORM_RUN_ID ?=
+PLATFORM_RUN_ID_NEW ?=
 WSP_PROFILE ?= config/platform/profiles/local.yaml
 WSP_PROFILE_PARITY ?= config/platform/profiles/local_parity.yaml
 IEG_PROFILE_PARITY ?= config/platform/profiles/local_parity.yaml
@@ -2623,7 +2624,7 @@ platform-bus-clean:
 .PHONY: platform-run-new
 platform-run-new:
 	rm -f runs/fraud-platform/ACTIVE_RUN_ID
-	@PLATFORM_RUN_ID="$(PLATFORM_RUN_ID)" $(PY_PLATFORM) -c "from fraud_detection.platform_runtime import resolve_platform_run_id; print(resolve_platform_run_id(create_if_missing=True))"
+	@PLATFORM_RUN_ID="$(PLATFORM_RUN_ID_NEW)" $(PY_PLATFORM) -c "from fraud_detection.platform_runtime import resolve_platform_run_id; print(resolve_platform_run_id(create_if_missing=True))"
 
 .PHONY: platform-oracle-sync
 platform-oracle-sync:
@@ -2654,6 +2655,7 @@ platform-sr-run-reuse:
 	fi
 	@OBJECT_STORE_ENDPOINT="$(OBJECT_STORE_ENDPOINT)" \
 	OBJECT_STORE_REGION="$(OBJECT_STORE_REGION)" \
+	PLATFORM_RUN_ID="$(shell cat runs/fraud-platform/ACTIVE_RUN_ID 2>/dev/null)" \
 	PLATFORM_STORE_ROOT="$(PLATFORM_STORE_ROOT)" \
 	PLATFORM_COMPONENT="sr" \
 	AWS_ACCESS_KEY_ID="$(AWS_ACCESS_KEY_ID)" \
