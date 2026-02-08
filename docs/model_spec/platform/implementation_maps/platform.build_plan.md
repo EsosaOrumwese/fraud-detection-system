@@ -1,5 +1,5 @@
 # Platform Build Plan (v0)
-_As of 2026-01-24_
+_As of 2026-02-08_
 
 ## Purpose
 Provide a platform-wide, production-shaped build plan for v0 that aligns component sequencing to the platform blueprint and truth-ownership doctrine. This plan is intentionally high-level and **progressively elaborated**: phases are pinned now; detailed steps are added only when a phase begins.
@@ -855,9 +855,102 @@ Resolved and pinned in:
 `docs/model_spec/platform/pre-design_decisions/real-time_decision_loop.pre-design_decision.md`
 
 ---
+### Phase 4.6 — Meta-layer closure gate (Run/Operate + Obs/Gov)
+**Intent:** close platform-meta obligations before moving to Label/Case so downstream planes run under live, governed operating semantics.
+**Blocking rule:** Phase 5 is blocked until Phase 4.6 DoD is fully satisfied.
+
+##### 4.6.A — Governance lifecycle fact stream (platform-wide)
+**Goal:** make lifecycle-changing actions uniformly auditable as append-only governance facts.
+
+**DoD checklist:**
+- Required v0 governance event families are emitted and queryable:
+  - run lifecycle (`RUN_READY_SEEN`, `RUN_STARTED`, `RUN_ENDED`, `RUN_CANCELLED`),
+  - policy/config (`POLICY_REV_CHANGED`),
+  - registry lifecycle (publish/approve/promote/rollback/retire),
+  - label lifecycle (`LABEL_SUBMITTED`, `LABEL_ACCEPTED`, `LABEL_REJECTED`),
+  - evidence access (`EVIDENCE_REF_RESOLVED`).
+- Governance events are idempotent, append-only, and include actor attribution + scope/pins.
+- Missing mandatory governance fields fail closed at writer boundaries.
+
+##### 4.6.B — Evidence-ref resolution corridor + access audit
+**Goal:** enforce “refs visible != refs resolvable” with auditable resolution decisions.
+
+**DoD checklist:**
+- Evidence-ref resolution is RBAC/allowlist gated (not open direct read by default in dev/prod).
+- Every ref resolution emits minimal audit record (`actor_id`, `source_type`, `ref_type`, `ref_id`, `purpose`, `platform_run_id?`, `observed_time`).
+- Resolution failures (`REF_ACCESS_DENIED`, expired/invalid ref) emit structured anomaly/governance events.
+- No payload contents are logged in access audit records.
+
+##### 4.6.C — Service identity and auth posture by environment
+**Goal:** remove auth ambiguity between local parity and higher environments.
+
+**DoD checklist:**
+- `local_parity`: API-key/allowlist mode pinned and tested at all writer corridors.
+- `dev/prod`: one uniform service identity mechanism across platform writers (mTLS or signed service tokens), enforced at corridor boundaries.
+- `actor_id` and `source_type` are derived from auth context (not payload) and stamped consistently in governance/audit surfaces.
+
+##### 4.6.D — Platform run reporter (cross-plane reconciliation artifact)
+**Goal:** provide one cheap, run-scoped platform reconciliation truth rather than only component-local snapshots.
+
+**DoD checklist:**
+- A platform run reporter writes run-scoped reconciliation artifact under the obs prefix.
+- Artifact includes minimum cross-plane counters and references:
+  - ingress (`sent/received/admit/duplicate/quarantine/publish_ambiguous/receipt_write_failed`),
+  - RTDL (`inlet_seen/deduped/degraded/decision/outcome/audit append`),
+  - join to evidence refs (receipt/audit refs), not payload duplication.
+- Reporter is periodic or on-demand and does not sit on hot path.
+
+##### 4.6.E — Deployment provenance stamp uniformity
+**Goal:** make runtime behavior attributable to immutable deploy artifacts.
+
+**DoD checklist:**
+- `service_release_id` (digest/tag/SHA) is present on required runtime/governance records across SR/IG/RTDL surfaces.
+- Provenance records include `environment` and run/config revision context where applicable.
+- Release stamp propagation is validated in parity and in at least one non-local profile config path.
+
+##### 4.6.F — Run/operate durability for downstream services
+**Goal:** ensure decision-lane services are operated as durable units, not only test matrices.
+
+**DoD checklist:**
+- Operational runbook/targets exist for always-on posture of live-capable downstream services.
+- Supervision/restart posture is pinned (crash recovery, checkpoint safety, replay-safe restart behavior).
+- Where a component is still matrix-validated in v0 (not daemonized), that boundary is explicit with a migration gate to durable service mode.
+
+##### 4.6.G — Corridor checks + anomaly policy closure
+**Goal:** make fail-closed behavior observable and enforceable at platform choke points.
+
+**DoD checklist:**
+- Corridor checks are pinned and tested for IG, DLA append boundary, AL publish boundary, evidence-ref resolution, and registry promotion boundary.
+- Structured anomaly taxonomy is wired for minimum required categories (schema/policy missing, publish ambiguous, replay basis mismatch, ref access denied, incompatibility).
+- Training/governance fail-closed posture is explicit and verified for anomaly families that must not degrade silently.
+
+##### 4.6.H — Environment parity conformance gate
+**Goal:** prevent local-only behavior drift in meta layers.
+
+**DoD checklist:**
+- Conformance checklist validates same semantics across `local_parity`, `dev`, `prod` profiles for:
+  - envelope/pins,
+  - governance event schema,
+  - policy/config revision stamping,
+  - corridor enforcement behavior.
+- Differences are limited to operational envelope (auth strictness, capacity, retention, sampling), not semantics.
+
+##### 4.6.I — Closure evidence and handoff gate
+**Goal:** make meta-layer completion objective before starting Phase 5.
+
+**DoD checklist:**
+- Monitored parity run demonstrates:
+  - full governance fact emission path for a run lifecycle,
+  - evidence-ref resolution audit path,
+  - platform-level reconciliation artifact generation.
+- Validation suite and runbook evidence are attached in implementation maps/logbook.
+- Explicit handoff note marks Phase 5 unblocked only after 4.6 PASS.
+
+---
 
 ### Phase 5 — Label & Case plane
 **Intent:** crystallize outcomes into authoritative label timelines and case workflows.
+**Start gate:** blocked until Phase 4.6 meta-layer closure gate is complete.
 
 **Definition of Done (DoD):**
 - Label Store supports append-only timelines with as-of queries (effective vs observed time).
@@ -875,15 +968,15 @@ Resolved and pinned in:
 - Registry resolves ACTIVE bundle deterministically and rejects incompatible bundles.
 - E2E: decision audit + labels -> dataset manifest -> model bundle -> registry resolution -> DF uses ref.
 
-### Phase 7 — Observability & Governance hardening
-**Intent:** make behavior visible, safe to change, and auditable across planes.
+### Phase 7 — P1 observability/governance and scale hardening
+**Intent:** extend the already-closed v0 meta-layer foundation with higher-cost production hardening and scale posture.
 
 **Definition of Done (DoD):**
-- OTel-aligned metrics/logs/traces for SR/IG/DF/AL/DLA/OFP/IEG with ContextPins tags.
-- Golden-signal dashboards and corridor checks for control/decision/label/learning planes.
-- Governance facts emitted for policy changes, backfills, promotions, and readiness failures.
-- Policy revision stamps are recorded on receipts/decisions/outcomes where applicable.
-- Kill-switch / degrade ladder triggers are wired and tested end-to-end.
+- Wider OTel tracing coverage with controlled sampling + retention at scale.
+- Golden-signal dashboards + SLO alerts tuned for sustained dev/prod traffic.
+- Automated corridor-compliance checks as code with periodic PASS/FAIL artifacts.
+- Stronger security posture automation (token/cert rotation, stricter egress controls, tenant isolation hardening).
+- DR/replay runbooks validated under fault-injection scenarios.
 
 ## v1 expectations (beyond v0)
 - Multi-tenant and multi-world concurrency with stronger isolation.
@@ -908,5 +1001,6 @@ Resolved and pinned in:
 - Phase 4.4 (DF/DL): complete.
 - Phase 4.5 (AL + DLA): complete.
 - Phase 4 (RTDL plane overall): complete and green at current v0 scope.
-- Next active platform phase: Phase 5 (Label & Case plane).
+- Phase 4.6 (Run/Operate + Obs/Gov meta-layer closure gate): pending (blocking).
+- Next active platform phase: Phase 4.6 (meta-layer closure before Phase 5).
 - SR v0: complete (see `docs/model_spec/platform/implementation_maps/scenario_runner.build_plan.md`).

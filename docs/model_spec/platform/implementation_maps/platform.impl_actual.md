@@ -3541,3 +3541,69 @@ Meaning in this run:
 The 200-event parity run is now fully documented with closed OFP gap, and the runtime-vs-matrix validation boundary is explicitly pinned for reviewers.
 
 ---
+## Entry: 2026-02-08 16:25:41 - Plan: enforce meta-layer closure gate before Phase 5
+
+### Trigger
+User requested that missing Run/Operate + Observability/Governance meta-plane items be fully ironed out before moving to the next business plane.
+
+### Problem framing
+Current platform sequencing marks RTDL complete and points directly to Phase 5 (Label/Case), while several meta-plane obligations remain partially implemented or not closed with platform-level gates:
+- governance lifecycle fact stream completeness,
+- evidence-ref resolution audit corridor,
+- production-like service identity/auth posture (dev/prod),
+- platform-level run reconciliation reporter (cross-plane),
+- deployment provenance stamp uniformity (`service_release_id`),
+- durable run/operate posture for downstream decision services.
+
+### Decision
+Insert a **new blocking phase** in the platform build plan:
+- `Phase 4.6 — Meta-layer closure gate (Run/Operate + Obs/Gov)` placed after RTDL Phase 4.5 and before Phase 5.
+- Mark Phase 5 as blocked until Phase 4.6 DoD is satisfied.
+- Update rolling status so next active phase is 4.6, not 5.
+
+### Why this ordering
+- Preserves already-closed RTDL component scope without reopening completed component phases.
+- Converts meta-plane requirements from “later hardening” into explicit release gates.
+- Aligns with user goal of operating the built platform as a coherent live system instead of isolated component islands.
+
+### Planned edits
+1. Update `docs/model_spec/platform/implementation_maps/platform.build_plan.md`:
+   - add Phase 4.6 intent + expanded DoD sections (`4.6.A`..`4.6.I`),
+   - add start gate language on Phase 5,
+   - adjust Phase 7 wording to P1 extension posture (non-duplicate with 4.6),
+   - update rolling status `Next active platform phase`.
+2. Append logbook entry in `docs/logbook/02-2026/2026-02-08.md` with decision and actions.
+
+---
+## Entry: 2026-02-08 16:36:58 - Applied platform build-plan update: meta-layer closure gate before Phase 5
+
+### What was changed
+Updated `docs/model_spec/platform/implementation_maps/platform.build_plan.md` to enforce meta-plane closure before moving to Label/Case:
+
+1. Added `Phase 4.6 — Meta-layer closure gate (Run/Operate + Obs/Gov)` with expanded closure sections:
+   - `4.6.A` governance lifecycle fact stream,
+   - `4.6.B` evidence-ref resolution corridor + access audit,
+   - `4.6.C` environment-specific service identity/auth posture,
+   - `4.6.D` platform run reporter (cross-plane reconciliation),
+   - `4.6.E` deployment provenance (`service_release_id`) uniformity,
+   - `4.6.F` downstream run/operate durability posture,
+   - `4.6.G` corridor checks + anomaly policy closure,
+   - `4.6.H` environment parity conformance gate,
+   - `4.6.I` closure evidence + handoff gate.
+
+2. Added explicit block on Phase 5 start:
+   - Phase 5 now states `Start gate: blocked until Phase 4.6 meta-layer closure gate is complete.`
+
+3. Repositioned Phase 7 wording:
+   - Phase 7 is now framed as P1 scale/hardening extension (non-duplicate with v0 meta-layer closure in 4.6).
+
+4. Updated rolling status:
+   - Added `Phase 4.6 ... pending (blocking)`.
+   - Set `Next active platform phase: Phase 4.6`.
+
+### Why this closes the user concern
+- Converts previously diffuse run/operate + obs/gov obligations into explicit, auditable release gates.
+- Prevents progression to Phase 5 while meta-layer semantics remain partial.
+- Aligns platform sequencing with live-operability intent rather than component-isolated completion.
+
+---
