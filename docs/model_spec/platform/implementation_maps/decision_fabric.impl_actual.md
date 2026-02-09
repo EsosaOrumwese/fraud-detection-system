@@ -1110,3 +1110,128 @@ DF synthesis emits `source_event.origin_offset`, but RTDL decision payload schem
 DF decision payload now matches IG schema-policy expectations for emitted `source_event.origin_offset`; the previous schema mismatch drift is closed.
 
 ---
+
+## Entry: 2026-02-08 09:56:40 PM - Pre-change plan: DF live worker onboarding for orchestrated decision lane
+
+### Problem in DF scope
+- DF component logic is complete (inlet/posture/context/registry/synthesis/publish/checkpoint/replay), but no daemon consumes admitted traffic in parity packs.
+- Current parity flow therefore cannot emit live decision_response and ction_intent from DF in orchestrated mode.
+
+### Decision
+1. Add a DF worker CLI that continuously:
+   - consumes admitted traffic topics from EB,
+   - applies inlet validation and replay/checkpoint gates,
+   - resolves DL posture, CSFB context refs, OFP snapshot features, and registry bundle choice,
+   - synthesizes decision/action artifacts and publishes via IG,
+   - writes DF observability and reconciliation artifacts under run scope.
+2. Add an explicit local registry snapshot input file and fail closed if snapshot or policy compatibility is invalid.
+3. Keep publication corridor strict: DF worker publishes only through IG (no direct EB writer bypass).
+
+### Planned files
+- src/fraud_detection/decision_fabric/worker.py
+- config/platform/df/registry_snapshot_local_parity_v0.yaml
+- config/platform/profiles/local_parity.yaml (df runtime section)
+
+### Validation focus
+- New DF worker tests for config loading and single-cycle flow.
+- Existing DF suites remain green.
+
+## Entry: 2026-02-08 10:02PM - Plan refinement before coding: DF worker orchestration loop and publish gate order
+
+### Added reasoning before implementation
+- The DF worker must preserve explicit ordering: inlet validation -> context/posture/registry synthesis -> replay ledger gate -> publish corridor -> checkpoint commit.
+- Decision replay safety must prevent duplicate side effects on restart/replay.
+
+### Pipeline order locked
+1. Read bus record and validate canonical envelope + trigger policy (`DecisionFabricInlet`).
+2. Preserve full source envelope for downstream context-key extraction (`flow_id`).
+3. Resolve posture via DL serve boundary (`DfPostureResolver`) with fail-closed fallback semantics.
+4. Resolve context via CSFB + OFP (`DecisionContextAcquirer`), with waiting/missing outcomes explicit.
+5. Resolve registry compatibility (`RegistryResolver`).
+6. Synthesize decision/action artifacts (`DecisionSynthesizer`).
+7. Register replay ledger (`DecisionReplayLedger`); publish only on `NEW`.
+8. Issue/mark checkpoint gate and commit only when publish corridor terminal allows commit.
+9. Export metrics/reconciliation artifacts.
+
+### Fail-closed choices locked
+- Unknown registry snapshot/policy compatibility -> `RESOLUTION_FAIL_CLOSED` path.
+- Missing context roles at deadline -> degrade reasoned output, not optimistic pass-through.
+- Replay payload mismatch -> quarantine-style block with no publish commit.
+
+## Entry: 2026-02-08 10:24PM - Pre-code execution lock: concrete worker algorithms and checkpoint posture
+
+### Scope this entry locks
+This entry freezes the exact implementation mechanics before code edits for decision-lane daemonization (DL/DF/AL/DLA) so runtime behavior remains auditable and deterministic.
+
+### Concrete runtime mechanics selected
+1. DL worker
+- Keep current worker implementation as the periodic posture evaluator/emitter.
+- Signal posture remains fail-closed on missing/invalid required sources.
+- Outbox drain remains the only control-event emission path.
+
+2. DF worker
+- Consume admitted traffic from EB (file or kinesis) with explicit per-topic/partition checkpoint state.
+- Pipeline order remains strict: inlet -> posture -> context -> registry -> synthesis -> replay gate -> IG publish -> checkpoint gate -> observability/reconciliation export.
+- Source envelope is retained alongside DecisionTriggerCandidate so flow/context keys can be derived from payload fields.
+- Replay PAYLOAD_MISMATCH blocks publish and records anomaly event; REPLAY_MATCH is treated as replay-safe duplicate (no new side effect publish).
+
+3. AL worker
+- Consume only action_intent events from admitted traffic topics.
+- Pipeline remains strict: contract validate -> semantic idempotency -> authz -> execution/deny outcome build -> append outcome -> IG publish -> checkpoint gate -> replay register -> observability export.
+- Duplicate intents are dropped before execution side effects.
+- Runtime executor is deterministic no-op effector in local parity (committed provider code), keeping effect calls auditable and idempotent.
+
+4. DLA worker
+- Existing worker is onboarded as live daemon in decision-lane pack.
+- Intake/policy semantics unchanged (append-only, replay divergence quarantine/blocked semantics preserved).
+
+### Checkpoint model decision
+- Each worker keeps durable consumer checkpoints in worker-owned SQLite store (run-scoped by default) keyed by topic+partition.
+- file_line offsets advance by +1; kinesis_sequence stores last consumed sequence and uses AFTER_SEQUENCE_NUMBER semantics.
+- Worker checkpoints are distinct from component checkpoint gates (which remain decision/outcome safety gates).
+
+### Config and corridor wiring locked
+- local_parity profile is extended with dl/df/al/dla runtime wiring sections (policy refs + store locators + poll settings + bus mode).
+- DF/AL IG corridor publish auth uses local parity API keys and explicit allowlist entries.
+- New decision-lane pack is added and included in parity aggregate lifecycle targets.
+
+### Validation lock for this implementation pass
+- Component suites remain green: degrade_ladder, decision_fabric, action_layer, decision_log_audit.
+- Run/Operate suite remains green.
+- Worker smoke: each worker --once under local parity profile with active run scope.
+- Pack smoke: decision-lane pack up/status/down command path resolves.
+
+## Entry: 2026-02-08 10:28PM - Mid-pass lock: DF worker integration closure tasks
+
+### Current status
+- `src/fraud_detection/decision_fabric/worker.py` is present and compiles.
+- local parity profile + registry snapshot references are present.
+
+### Remaining DF-specific closure tasks
+1. Verify run-operate decision-lane pack executes DF worker with required run scope env.
+2. Confirm IG writer credentials are allowlisted for DF publish corridor.
+3. Re-run DF suite after wiring changes and record evidence.
+
+### Invariants
+- pipeline order remains inlet -> posture -> context -> registry -> synthesis -> replay -> publish -> checkpoint.
+- publish remains IG-only.
+- replay mismatch remains fail-closed/no side effects.
+
+## Entry: 2026-02-08 10:35PM - DF daemon onboarding evidence and runtime fix
+
+### What was finalized
+1. DF worker daemon is now orchestrated in decision-lane pack:
+- `config/platform/run_operate/packs/local_parity_rtdl_decision_lane.v0.yaml` (`df_worker`).
+2. IG corridor auth is aligned for DF publish path:
+- allowlist includes `local-parity-df`.
+
+### Runtime issue encountered and fixed
+- Initial DF daemon smoke failed with:
+  - `ValueError: CSFB projection_db_dsn is required`.
+- Root cause: missing projection DSNs in decision-lane pack defaults for DF dependencies.
+- Fix: added `IEG_PROJECTION_DSN`, `OFP_PROJECTION_DSN`, `OFP_SNAPSHOT_INDEX_DSN`, `CSFB_PROJECTION_DSN` defaults to pack.
+
+### Validation
+- `python -m py_compile src/fraud_detection/decision_fabric/worker.py` -> PASS.
+- `python -m pytest tests/services/decision_fabric -q` -> `69 passed`.
+- `make platform-operate-rtdl-decision-up` + `status` -> `df_worker running ready` after pack fix.

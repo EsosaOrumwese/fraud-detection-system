@@ -16,6 +16,9 @@ authz:
     - HUMAN
     - OPS
   allowed_action_kinds:
+    - ALLOW
+    - STEP_UP
+    - QUEUE_REVIEW
     - txn_disposition_publish
     - txn_step_up
     - txn_block

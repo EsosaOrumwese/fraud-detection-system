@@ -135,6 +135,7 @@ Use the platform orchestrator for always-on packs instead of terminal-by-termina
 ```
 make platform-operate-control-ingress-up
 make platform-operate-rtdl-core-up
+make platform-operate-rtdl-decision-up
 make platform-operate-parity-status
 ```
 
@@ -149,6 +150,7 @@ Pack and evidence surfaces:
 - Packs:
   - `config/platform/run_operate/packs/local_parity_control_ingress.v0.yaml`
   - `config/platform/run_operate/packs/local_parity_rtdl_core.v0.yaml`
+  - `config/platform/run_operate/packs/local_parity_rtdl_decision_lane.v0.yaml`
 - Orchestrator state/logs:
   - `runs/fraud-platform/operate/<pack_id>/state.json`
   - `runs/fraud-platform/operate/<pack_id>/events.jsonl`
@@ -157,6 +159,7 @@ Pack and evidence surfaces:
 
 Notes:
 - RTDL core pack enforces active run scope via `ACTIVE_RUN_ID` -> `*_REQUIRED_PLATFORM_RUN_ID`.
+- RTDL decision-lane pack enforces active run scope for `DL/DF/AL/DLA` with the same run pin.
 - Orchestrator contract is plane-agnostic; future planes onboard by adding new process-pack files, not by changing orchestrator code.
 
 ---
@@ -766,7 +769,7 @@ Expected result:
 - all tests pass (`40 passed` on current baseline).
 
 Boundary note:
-DL currently validates through its contract/store/serve/emission/governance surfaces and tests. There is no standalone long-running DL service CLI in this repo yet.
+DL validates through its contract/store/serve/emission/governance surfaces and tests, and now also has a standalone daemon worker (`fraud_detection.degrade_ladder.worker`) for run/operate parity.
 
 ---
 
@@ -800,7 +803,7 @@ What this confirms:
 - deterministic synthesis output for fixed basis.
 
 Boundary note:
-DF currently validates through component contracts/tests and IG publish boundary logic. There is no standalone long-running DF service CLI in this repo yet.
+DF validates through component contracts/tests and IG publish boundary logic, and now also has a standalone daemon worker (`fraud_detection.decision_fabric.worker`) for run/operate parity.
 
 
 ## 18) Context Store + FlowBinding local-parity checks (join plane intake + query)
@@ -932,7 +935,7 @@ Expected fields:
 - `effect_execution_calls == expected_events`
 
 Boundary note:
-This validates AL at its component boundary for Phase 8.
+This validates AL at its component boundary for Phase 8. AL is also daemonized for parity via `fraud_detection.action_layer.worker` in the decision-lane run/operate pack.
 
 ## 20) DLA local-parity boundary checks (append-only intake + reconciliation)
 
@@ -972,33 +975,36 @@ Expected fields:
 - reconciliation indicates monotonic checkpoint/offset progression
 
 Boundary note:
-This validates DLA at its component boundary for Phase 8 (append-only intake, lineage/reconciliation, and parity proofs).
+This validates DLA at its component boundary for Phase 8 (append-only intake, lineage/reconciliation, and parity proofs). DLA is also daemonized for parity via `fraud_detection.decision_log_audit.worker` in the decision-lane run/operate pack.
 
-## 21) RTDL live-core baseline (current v0 daemon surfaces)
+## 21) RTDL live daemon baseline (current v0 daemon surfaces)
 
-Use this when you want always-on parity consumers for the RTDL lane that currently supports live daemons.
+Use this when you want always-on parity consumers for the full RTDL lane under run/operate.
 
-Run in separate terminals (same `ACTIVE_RUN_ID`):
+Bring all packs up:
 ```powershell
-make platform-ieg-projector-parity-live
-make platform-ofp-projector-parity-live
-make platform-context-store-flow-binding-parity-live
+make platform-operate-control-ingress-up
+make platform-operate-rtdl-core-up
+make platform-operate-rtdl-decision-up
+make platform-operate-parity-status
 ```
 
-OFP parity live startup note:
-- `platform-ofp-projector-parity-live` defaults `OFP_EVENT_BUS_START_POSITION=trim_horizon` to avoid missing earliest run records during consumer startup.
-- Override only when intentionally tailing new traffic:
+Shutdown sequence:
 ```powershell
-make platform-ofp-projector-parity-live OFP_EVENT_BUS_START_POSITION=latest
+make platform-operate-rtdl-decision-down
+make platform-operate-rtdl-core-down
+make platform-operate-control-ingress-down
 ```
 
-Or print the launch plan:
+Optional manual terminal mode (without run/operate pack) for RTDL core only:
 ```powershell
 make platform-rtdl-core-parity-live
 ```
 
 Scope note:
-- This live-core baseline covers `IEG/OFP/CSFB`.
-- `DF/DL/AL/DLA` in current v0 repo posture are validated via component-runtime passes and test matrices, not long-running daemon targets.
+- `control_ingress` pack covers `IG + WSP ready_consumer`.
+- `rtdl_core` pack covers `IEG/OFP/CSFB`.
+- `rtdl_decision_lane` pack covers `DL/DF/AL/DLA`.
+- Component matrices in Sections 16/17/19/20 remain required as deterministic boundary checks; they now complement (not replace) daemonized runtime operation.
 
 

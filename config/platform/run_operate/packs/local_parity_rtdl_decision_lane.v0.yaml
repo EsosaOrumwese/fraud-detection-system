@@ -1,0 +1,80 @@
+version: 1
+pack_id: local_parity_rtdl_decision_lane_v0
+description: "RTDL decision-lane worker pack (DL/DF/AL/DLA) for local parity."
+active_run:
+  required: true
+  source_path: runs/fraud-platform/ACTIVE_RUN_ID
+defaults:
+  cwd: .
+  env:
+    PYTHONUNBUFFERED: "1"
+    PYTHONPATH: src
+    RUN_OPERATE_PYTHON: ${RUN_OPERATE_PYTHON:-.venv/Scripts/python.exe}
+    PLATFORM_STORE_ROOT: ${PLATFORM_STORE_ROOT:-s3://fraud-platform}
+    PLATFORM_RUN_ID: ${ACTIVE_PLATFORM_RUN_ID}
+    OBJECT_STORE_ENDPOINT: ${PARITY_OBJECT_STORE_ENDPOINT}
+    OBJECT_STORE_REGION: ${PARITY_OBJECT_STORE_REGION}
+    ORACLE_ROOT: ${ORACLE_ROOT}
+    IG_ADMISSION_DSN: ${PARITY_IG_ADMISSION_DSN}
+    WSP_CHECKPOINT_DSN: ${PARITY_WSP_CHECKPOINT_DSN}
+    IEG_PROJECTION_DSN: ${PARITY_IEG_PROJECTION_DSN}
+    OFP_PROJECTION_DSN: ${PARITY_OFP_PROJECTION_DSN}
+    OFP_SNAPSHOT_INDEX_DSN: ${PARITY_OFP_SNAPSHOT_INDEX_DSN}
+    CSFB_PROJECTION_DSN: ${PARITY_CSFB_PROJECTION_DSN}
+    EVENT_BUS_STREAM: ${PARITY_EVENT_BUS_STREAM}
+    EVENT_BUS_REGION: ${PARITY_EVENT_BUS_REGION}
+    EVENT_BUS_ENDPOINT_URL: ${PARITY_EVENT_BUS_ENDPOINT_URL}
+    CONTROL_BUS_STREAM: ${PARITY_CONTROL_BUS_STREAM}
+    CONTROL_BUS_REGION: ${PARITY_CONTROL_BUS_REGION}
+    CONTROL_BUS_ENDPOINT_URL: ${PARITY_CONTROL_BUS_ENDPOINT_URL}
+    IG_INGEST_URL: ${PARITY_IG_INGEST_URL}
+    AWS_ACCESS_KEY_ID: ${PARITY_MINIO_ACCESS_KEY}
+    AWS_SECRET_ACCESS_KEY: ${PARITY_MINIO_SECRET_KEY}
+    AWS_EC2_METADATA_DISABLED: ${PARITY_AWS_EC2_METADATA_DISABLED}
+processes:
+  - id: dl_worker
+    command:
+      - ${RUN_OPERATE_PYTHON}
+      - -m
+      - fraud_detection.degrade_ladder.worker
+      - --profile
+      - config/platform/profiles/local_parity.yaml
+    env:
+      DL_SCOPE_KIND: ${DL_SCOPE_KIND:-GLOBAL}
+    readiness:
+      type: process_alive
+  - id: df_worker
+    command:
+      - ${RUN_OPERATE_PYTHON}
+      - -m
+      - fraud_detection.decision_fabric.worker
+      - --profile
+      - config/platform/profiles/local_parity.yaml
+    env:
+      DF_REQUIRED_PLATFORM_RUN_ID: ${ACTIVE_PLATFORM_RUN_ID}
+      DF_IG_API_KEY: ${PARITY_DF_IG_API_KEY:-local-parity-df}
+    readiness:
+      type: process_alive
+  - id: al_worker
+    command:
+      - ${RUN_OPERATE_PYTHON}
+      - -m
+      - fraud_detection.action_layer.worker
+      - --profile
+      - config/platform/profiles/local_parity.yaml
+    env:
+      AL_REQUIRED_PLATFORM_RUN_ID: ${ACTIVE_PLATFORM_RUN_ID}
+      AL_IG_API_KEY: ${PARITY_AL_IG_API_KEY:-local-parity-al}
+    readiness:
+      type: process_alive
+  - id: dla_worker
+    command:
+      - ${RUN_OPERATE_PYTHON}
+      - -m
+      - fraud_detection.decision_log_audit.worker
+      - --profile
+      - config/platform/profiles/local_parity.yaml
+    env:
+      DLA_REQUIRED_PLATFORM_RUN_ID: ${ACTIVE_PLATFORM_RUN_ID}
+    readiness:
+      type: process_alive

@@ -2595,6 +2595,7 @@ PARITY_AWS_EC2_METADATA_DISABLED ?= true
 RUN_OPERATE_ENV_FILE ?= .env.platform.local
 RUN_OPERATE_PACK_CONTROL_INGRESS ?= config/platform/run_operate/packs/local_parity_control_ingress.v0.yaml
 RUN_OPERATE_PACK_RTDL_CORE ?= config/platform/run_operate/packs/local_parity_rtdl_core.v0.yaml
+RUN_OPERATE_PACK_RTDL_DECISION ?= config/platform/run_operate/packs/local_parity_rtdl_decision_lane.v0.yaml
 
 .PHONY: platform-stack-up platform-stack-down platform-stack-status
 platform-stack-up:
@@ -2959,8 +2960,9 @@ platform-rtdl-core-parity-live:
 	@echo "  1) make platform-ieg-projector-parity-live"
 	@echo "  2) make platform-ofp-projector-parity-live"
 	@echo "  3) make platform-context-store-flow-binding-parity-live"
-	@echo "Scope: live-capable RTDL consumers in v0 parity (IEG/OFP/CSFB)."
-	@echo "DF/DL/AL/DLA remain component-runtime surfaces; they are not long-running daemons in current v0 repo posture."
+	@echo "Scope: live-capable RTDL core consumers in v0 parity (IEG/OFP/CSFB)."
+	@echo "Decision lane (DL/DF/AL/DLA) is orchestrated via run/operate:"
+	@echo "  make platform-operate-rtdl-decision-up"
 
 .PHONY: platform-operate-control-ingress-up platform-operate-control-ingress-down platform-operate-control-ingress-restart platform-operate-control-ingress-status
 platform-operate-control-ingress-up:
@@ -3004,14 +3006,37 @@ platform-operate-rtdl-core-status:
 		--env-file "$(RUN_OPERATE_ENV_FILE)" \
 		--pack "$(RUN_OPERATE_PACK_RTDL_CORE)" status
 
+.PHONY: platform-operate-rtdl-decision-up platform-operate-rtdl-decision-down platform-operate-rtdl-decision-restart platform-operate-rtdl-decision-status
+platform-operate-rtdl-decision-up:
+	@$(PY_PLATFORM) -m fraud_detection.run_operate.orchestrator \
+		--env-file "$(RUN_OPERATE_ENV_FILE)" \
+		--pack "$(RUN_OPERATE_PACK_RTDL_DECISION)" up
+
+platform-operate-rtdl-decision-down:
+	@$(PY_PLATFORM) -m fraud_detection.run_operate.orchestrator \
+		--env-file "$(RUN_OPERATE_ENV_FILE)" \
+		--pack "$(RUN_OPERATE_PACK_RTDL_DECISION)" down
+
+platform-operate-rtdl-decision-restart:
+	@$(PY_PLATFORM) -m fraud_detection.run_operate.orchestrator \
+		--env-file "$(RUN_OPERATE_ENV_FILE)" \
+		--pack "$(RUN_OPERATE_PACK_RTDL_DECISION)" restart
+
+platform-operate-rtdl-decision-status:
+	@$(PY_PLATFORM) -m fraud_detection.run_operate.orchestrator \
+		--env-file "$(RUN_OPERATE_ENV_FILE)" \
+		--pack "$(RUN_OPERATE_PACK_RTDL_DECISION)" status
+
 .PHONY: platform-operate-parity-up platform-operate-parity-down platform-operate-parity-restart platform-operate-parity-status
 platform-operate-parity-up:
 	@echo "Ensure parity stack is up and bootstrap complete before orchestration start."
 	@echo "Recommended preflight: make platform-parity-stack-up && make platform-parity-bootstrap && make platform-run-new"
 	@$(MAKE) platform-operate-control-ingress-up
 	@$(MAKE) platform-operate-rtdl-core-up
+	@$(MAKE) platform-operate-rtdl-decision-up
 
 platform-operate-parity-down:
+	@$(MAKE) platform-operate-rtdl-decision-down
 	@$(MAKE) platform-operate-rtdl-core-down
 	@$(MAKE) platform-operate-control-ingress-down
 
@@ -3022,6 +3047,7 @@ platform-operate-parity-restart:
 platform-operate-parity-status:
 	@$(MAKE) platform-operate-control-ingress-status
 	@$(MAKE) platform-operate-rtdl-core-status
+	@$(MAKE) platform-operate-rtdl-decision-status
 
 .PHONY: platform-run-report
 platform-run-report:

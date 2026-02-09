@@ -961,3 +961,118 @@ No DL core algorithm changes were required. Scope-key normalization was implemen
 
 ### Outcome
 DL posture service remains stable while accepting deterministic scope tokens from DF integration.
+
+## Entry: 2026-02-08 09:56:40 PM - Pre-change plan: DL runtime worker onboarding for orchestrated decision lane
+
+### Problem in DL scope
+- DL has mature evaluation/serve/emission primitives, but no long-running worker process that continuously commits posture for DF live reads.
+- This leaves DF posture sourcing dependent on matrix/runtime harnesses instead of active run/operate service state.
+
+### Decision
+1. Add a dedicated DL worker CLI that:
+   - loads policy profile (config/platform/dl/policy_profiles_v0.yaml via platform profile),
+   - samples required/optional health signals each loop,
+   - evaluates posture with monotonic sequence enforcement,
+   - commits current posture, records ops/governance events, and drains DL control outbox.
+2. Keep fail-closed semantics: any missing/unreadable required signals produce degraded/fail-closed posture rather than inferred OK.
+3. Keep scope explicit via worker-configured scope key (default scope=GLOBAL) so DF and DL use the same deterministic lookup target.
+
+### Planned files
+- src/fraud_detection/degrade_ladder/worker.py
+- config/platform/profiles/local_parity.yaml (runtime wiring section)
+
+### Validation focus
+- New DL worker tests (config + one-cycle commit/emission smoke).
+- Existing DL suite remains green.
+
+## Entry: 2026-02-08 10:02PM - Plan refinement before coding: DL worker signal sourcing and serve boundary
+
+### Added reasoning before implementation
+- DL worker must be useful even when upstream observability artifacts are incomplete; otherwise it deadlocks DF posture reads.
+- Selected behavior: produce deterministic signal samples each cycle from available artifacts + store self-check, with missing/unreadable sources marked `ERROR` (not silently `OK`).
+
+### Signal source mechanics locked
+- `ofp_health` -> read OFP health artifact (`online_feature_plane/health/last_health.json`) when present.
+- `ieg_health` -> read IEG health artifact (`identity_entity_graph/health/last_health.json`) when present.
+- `registry_health` -> validate registry snapshot file readability/digest path from DF runtime config.
+- `eb_consumer_lag` -> derive from run-operate status artifacts where available; fallback to `ERROR` if unknown.
+- `posture_store_health` -> store read/write probe in current DL posture store.
+- `control_publish_health` -> based on outbox drain result in current cycle.
+
+### Core worker invariants
+- Missing required signal never coerced to success.
+- Posture sequence monotonicity is store-enforced (`POSTURE_SEQ_*` guards remain authoritative).
+- Worker emits posture transitions only through outbox store and never bypasses emission lane.
+- Health-gate clamp remains active through `DlGuardedPostureService` path.
+
+## Entry: 2026-02-08 10:24PM - Pre-code execution lock: concrete worker algorithms and checkpoint posture
+
+### Scope this entry locks
+This entry freezes the exact implementation mechanics before code edits for decision-lane daemonization (DL/DF/AL/DLA) so runtime behavior remains auditable and deterministic.
+
+### Concrete runtime mechanics selected
+1. DL worker
+- Keep current worker implementation as the periodic posture evaluator/emitter.
+- Signal posture remains fail-closed on missing/invalid required sources.
+- Outbox drain remains the only control-event emission path.
+
+2. DF worker
+- Consume admitted traffic from EB (file or kinesis) with explicit per-topic/partition checkpoint state.
+- Pipeline order remains strict: inlet -> posture -> context -> registry -> synthesis -> replay gate -> IG publish -> checkpoint gate -> observability/reconciliation export.
+- Source envelope is retained alongside DecisionTriggerCandidate so flow/context keys can be derived from payload fields.
+- Replay PAYLOAD_MISMATCH blocks publish and records anomaly event; REPLAY_MATCH is treated as replay-safe duplicate (no new side effect publish).
+
+3. AL worker
+- Consume only action_intent events from admitted traffic topics.
+- Pipeline remains strict: contract validate -> semantic idempotency -> authz -> execution/deny outcome build -> append outcome -> IG publish -> checkpoint gate -> replay register -> observability export.
+- Duplicate intents are dropped before execution side effects.
+- Runtime executor is deterministic no-op effector in local parity (committed provider code), keeping effect calls auditable and idempotent.
+
+4. DLA worker
+- Existing worker is onboarded as live daemon in decision-lane pack.
+- Intake/policy semantics unchanged (append-only, replay divergence quarantine/blocked semantics preserved).
+
+### Checkpoint model decision
+- Each worker keeps durable consumer checkpoints in worker-owned SQLite store (run-scoped by default) keyed by topic+partition.
+- file_line offsets advance by +1; kinesis_sequence stores last consumed sequence and uses AFTER_SEQUENCE_NUMBER semantics.
+- Worker checkpoints are distinct from component checkpoint gates (which remain decision/outcome safety gates).
+
+### Config and corridor wiring locked
+- local_parity profile is extended with dl/df/al/dla runtime wiring sections (policy refs + store locators + poll settings + bus mode).
+- DF/AL IG corridor publish auth uses local parity API keys and explicit allowlist entries.
+- New decision-lane pack is added and included in parity aggregate lifecycle targets.
+
+### Validation lock for this implementation pass
+- Component suites remain green: degrade_ladder, decision_fabric, action_layer, decision_log_audit.
+- Run/Operate suite remains green.
+- Worker smoke: each worker --once under local parity profile with active run scope.
+- Pack smoke: decision-lane pack up/status/down command path resolves.
+
+## Entry: 2026-02-08 10:28PM - Mid-pass lock: DL orchestration closure tasks
+
+### Current status
+- `src/fraud_detection/degrade_ladder/worker.py` is present and compiles.
+
+### Remaining DL-specific closure tasks
+1. Ensure decision-lane run-operate pack includes DL worker with explicit scope/run env.
+2. Validate DL suite remains green after orchestration/config updates.
+3. Keep runbook parity instructions aligned with live DL daemon usage.
+
+### Invariants
+- required-signal uncertainty remains fail-closed.
+- posture sequence monotonicity remains store-enforced.
+- outbox remains the sole emission path.
+
+## Entry: 2026-02-08 10:35PM - DL daemon onboarding evidence
+
+### What was finalized
+1. DL worker is now part of decision-lane orchestrated runtime:
+- `config/platform/run_operate/packs/local_parity_rtdl_decision_lane.v0.yaml` (`dl_worker`).
+2. Local profile now pins explicit DL runtime locators via env-token surface:
+- `config/platform/profiles/local_parity.yaml` -> `dl.wiring.store_dsn`, `outbox_dsn`, `ops_dsn`.
+- This aligns DL write path with DF posture read path default behavior (same run-scoped suffix resolution).
+
+### Validation
+- `python -m py_compile src/fraud_detection/degrade_ladder/worker.py` -> PASS.
+- `python -m pytest tests/services/degrade_ladder -q` -> `40 passed`.
+- decision-lane pack smoke shows `dl_worker running ready` under active run scope.

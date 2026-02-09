@@ -51,6 +51,8 @@ wiring:
     api_key_header: X-IG-Api-Key
     auth_allowlist_ref: config/platform/ig/ingest_api_keys_local_parity_v0.txt
     wsp_auth_token: local-parity-wsp
+    df_auth_token: local-parity-df
+    al_auth_token: local-parity-al
     push_rate_limit_per_minute: 0
     store_read_failure_threshold: 3
 ieg:
@@ -120,3 +122,57 @@ dl:
   policy:
     profiles_ref: config/platform/dl/policy_profiles_v0.yaml
     profile_id: local_parity
+  wiring:
+    stream_id: dl.v0
+    scope_kind: GLOBAL
+    store_dsn: ${DL_POSTURE_DSN:-}
+    outbox_dsn: ${DL_OUTBOX_DSN:-}
+    ops_dsn: ${DL_OPS_DSN:-}
+    max_age_seconds: 120
+    poll_seconds: 1.0
+df:
+  policy:
+    trigger_policy_ref: config/platform/df/trigger_policy_v0.yaml
+    context_policy_ref: config/platform/df/context_policy_v0.yaml
+    registry_resolution_policy_ref: config/platform/df/registry_resolution_policy_v0.yaml
+    registry_snapshot_ref: config/platform/df/registry_snapshot_local_parity_v0.yaml
+  wiring:
+    stream_id: df.v0
+    event_bus_kind: kinesis
+    event_bus_stream: ${EVENT_BUS_STREAM}
+    event_bus_region: ${EVENT_BUS_REGION}
+    event_bus_endpoint_url: ${EVENT_BUS_ENDPOINT_URL}
+    event_bus_start_position: trim_horizon
+    poll_max_records: 200
+    poll_sleep_seconds: 0.2
+    environment: local_parity
+    bundle_slot: primary
+al:
+  policy:
+    authz_policy_ref: config/platform/al/policy_v0.yaml
+  wiring:
+    stream_id: al.v0
+    event_bus_kind: kinesis
+    event_bus_stream: ${EVENT_BUS_STREAM}
+    event_bus_region: ${EVENT_BUS_REGION}
+    event_bus_endpoint_url: ${EVENT_BUS_ENDPOINT_URL}
+    event_bus_start_position: trim_horizon
+    admitted_topics:
+      - fp.bus.traffic.fraud.v1
+    poll_max_records: 200
+    poll_sleep_seconds: 0.2
+dla:
+  policy:
+    intake_policy_ref: config/platform/dla/intake_policy_v0.yaml
+    storage_policy_ref: config/platform/dla/storage_policy_v0.yaml
+    storage_profile_id: local_parity
+  wiring:
+    stream_id: dla.intake.v0
+    index_locator: ${DLA_INDEX_DSN:-}
+    event_bus_kind: kinesis
+    event_bus_stream: ${EVENT_BUS_STREAM}
+    event_bus_region: ${EVENT_BUS_REGION}
+    event_bus_endpoint_url: ${EVENT_BUS_ENDPOINT_URL}
+    event_bus_start_position: trim_horizon
+    poll_max_records: 200
+    poll_sleep_seconds: 0.5

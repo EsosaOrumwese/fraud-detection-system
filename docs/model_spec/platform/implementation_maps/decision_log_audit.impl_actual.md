@@ -1057,3 +1057,108 @@ Reviewer P1 asked for explicit runtime closure on:
 DLA runtime evidence surfaces now expose normalized provenance naming and chain-level digest correlation, with digest mismatch treated as explicit fail-closed lineage conflict.
 
 ---
+
+## Entry: 2026-02-08 09:56:40 PM - Pre-change plan: DLA worker runtime onboarding in decision-lane pack
+
+### Problem in DLA scope
+- DLA now has a worker entrypoint draft, but parity orchestration does not yet onboard it as a live decision-lane daemon.
+- DLA therefore remains matrix/runtime validated but not guaranteed to ingest live DF/AL records during orchestrated runs.
+
+### Decision
+1. Finalize DLA worker configuration pathing and runtime export behavior for run-scoped observability.
+2. Onboard DLA worker into the new decision-lane orchestration pack with explicit run scope/env wiring.
+3. Keep quarantine/replay-divergence posture unchanged (append-only, fail-closed on mismatch).
+
+### Planned files
+- src/fraud_detection/decision_log_audit/worker.py (final fit checks if needed)
+- config/platform/profiles/local_parity.yaml (dla runtime section)
+- run-operate pack wiring + make lifecycle targets
+
+### Validation focus
+- DLA worker single-cycle smoke and existing DLA suite checks.
+
+## Entry: 2026-02-08 10:02PM - Plan refinement before coding: DLA daemon onboarding completion details
+
+### Added reasoning before implementation
+- DLA worker code exists and already encodes append-only intake, replay divergence handling, and periodic observability export.
+- Remaining work is strict run/operate onboarding, config normalization, and parity pack lifecycle integration.
+
+### Integration details locked
+- Keep current intake policy (`decision_response`, `action_intent`, `action_outcome`) and fail-closed inlet checks unchanged.
+- Ensure stream id and index locator are explicitly run-scoped through profile/pack env.
+- Keep observability export periodic and best-effort; no mutation of intake checkpoint semantics.
+- On replay divergence, keep checkpoint blocked behavior unchanged.
+
+## Entry: 2026-02-08 10:24PM - Pre-code execution lock: concrete worker algorithms and checkpoint posture
+
+### Scope this entry locks
+This entry freezes the exact implementation mechanics before code edits for decision-lane daemonization (DL/DF/AL/DLA) so runtime behavior remains auditable and deterministic.
+
+### Concrete runtime mechanics selected
+1. DL worker
+- Keep current worker implementation as the periodic posture evaluator/emitter.
+- Signal posture remains fail-closed on missing/invalid required sources.
+- Outbox drain remains the only control-event emission path.
+
+2. DF worker
+- Consume admitted traffic from EB (file or kinesis) with explicit per-topic/partition checkpoint state.
+- Pipeline order remains strict: inlet -> posture -> context -> registry -> synthesis -> replay gate -> IG publish -> checkpoint gate -> observability/reconciliation export.
+- Source envelope is retained alongside DecisionTriggerCandidate so flow/context keys can be derived from payload fields.
+- Replay PAYLOAD_MISMATCH blocks publish and records anomaly event; REPLAY_MATCH is treated as replay-safe duplicate (no new side effect publish).
+
+3. AL worker
+- Consume only action_intent events from admitted traffic topics.
+- Pipeline remains strict: contract validate -> semantic idempotency -> authz -> execution/deny outcome build -> append outcome -> IG publish -> checkpoint gate -> replay register -> observability export.
+- Duplicate intents are dropped before execution side effects.
+- Runtime executor is deterministic no-op effector in local parity (committed provider code), keeping effect calls auditable and idempotent.
+
+4. DLA worker
+- Existing worker is onboarded as live daemon in decision-lane pack.
+- Intake/policy semantics unchanged (append-only, replay divergence quarantine/blocked semantics preserved).
+
+### Checkpoint model decision
+- Each worker keeps durable consumer checkpoints in worker-owned SQLite store (run-scoped by default) keyed by topic+partition.
+- file_line offsets advance by +1; kinesis_sequence stores last consumed sequence and uses AFTER_SEQUENCE_NUMBER semantics.
+- Worker checkpoints are distinct from component checkpoint gates (which remain decision/outcome safety gates).
+
+### Config and corridor wiring locked
+- local_parity profile is extended with dl/df/al/dla runtime wiring sections (policy refs + store locators + poll settings + bus mode).
+- DF/AL IG corridor publish auth uses local parity API keys and explicit allowlist entries.
+- New decision-lane pack is added and included in parity aggregate lifecycle targets.
+
+### Validation lock for this implementation pass
+- Component suites remain green: degrade_ladder, decision_fabric, action_layer, decision_log_audit.
+- Run/Operate suite remains green.
+- Worker smoke: each worker --once under local parity profile with active run scope.
+- Pack smoke: decision-lane pack up/status/down command path resolves.
+
+## Entry: 2026-02-08 10:28PM - Mid-pass lock: DLA daemon onboarding closure tasks
+
+### Current status
+- `src/fraud_detection/decision_log_audit/worker.py` is present and compiles.
+- worker run-scope override path is wired (`required_platform_run_id`).
+
+### Remaining DLA-specific closure tasks
+1. Ensure decision-lane run-operate pack starts DLA worker with scoped env.
+2. Validate DLA suite after pack/wiring updates.
+3. Update runbook wording to reflect DLA daemon posture in parity orchestration.
+
+### Invariants
+- intake remains append-only.
+- replay divergence remains fail-closed.
+- observability export remains derived from committed intake facts.
+
+## Entry: 2026-02-08 10:35PM - DLA daemon onboarding evidence
+
+### What was finalized
+1. DLA worker is now part of decision-lane orchestrated runtime:
+- `config/platform/run_operate/packs/local_parity_rtdl_decision_lane.v0.yaml` (`dla_worker`).
+2. Run-scope wiring remains explicit via pack env:
+- `DLA_REQUIRED_PLATFORM_RUN_ID=${ACTIVE_PLATFORM_RUN_ID}`.
+3. Local profile now includes explicit index locator token:
+- `config/platform/profiles/local_parity.yaml` -> `dla.wiring.index_locator`.
+
+### Validation
+- `python -m py_compile src/fraud_detection/decision_log_audit/worker.py` -> PASS.
+- `python -m pytest tests/services/decision_log_audit -q` -> `36 passed`.
+- decision-lane pack smoke shows `dla_worker running ready` under active run scope.

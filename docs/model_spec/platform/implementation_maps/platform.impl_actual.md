@@ -4887,3 +4887,334 @@ Capture the expected platform flow as implemented now, explicitly separating alw
 - Control/Ingress + RTDL core are live-stream capable as a single orchestration substrate.
 - Remaining decision-layer services are explicitly non-daemon in current repo posture and remain green via matrix validation.
 - This preserves one meta-layer orchestration contract while enabling future plane onboarding by new pack definitions rather than orchestrator rewrites.
+
+## 2026-02-08 09:47PM - Pre-change plan: daemonize decision lane (DL/DF/AL/DLA) and enforce orchestration gate
+
+### Trigger and problem statement
+- User requested immediate closure of the decision-lane orchestration gap after confirming current packs only daemonize `IEG/OFP/CSFB` while `DF/DL/AL/DLA` remain matrix-only.
+- Current posture creates a semantics mismatch between platform narrative and actual run/operate behavior: decision outputs are validated in component matrices, but not produced by live orchestrated workers during parity runs.
+
+### Authorities and context used
+- `docs/model_spec/platform/platform-wide/platform_blueprint_notes_v0.md`
+- `docs/model_spec/platform/platform-wide/deployment_tooling_notes_v0.md`
+- `docs/model_spec/platform/component-specific/flow-narrative-platform-design.md`
+- `docs/model_spec/platform/implementation_maps/platform.build_plan.md` (Phase 4.6 and RTDL closure semantics)
+- `docs/runbooks/platform_parity_walkthrough_v0.md`
+- Runtime pack state:
+  - `config/platform/run_operate/packs/local_parity_control_ingress.v0.yaml`
+  - `config/platform/run_operate/packs/local_parity_rtdl_core.v0.yaml`
+
+### Current-state diagnosis (objective)
+1. Orchestrator substrate is plane-agnostic and healthy, but decision lane processes are not defined in packs.
+2. DLA has bus-consumer runtime primitives (`DecisionLogAuditBusConsumer`) but no dedicated service CLI entrypoint.
+3. DF and AL have complete component logic (inlet/context/posture/registry/synthesis/publish/checkpoint/replay and authz/execution/publish/checkpoint/replay), but no long-running EB worker wrappers.
+4. DL has policy/evaluator/store/serve/emission primitives but no periodic runtime evaluator worker to populate posture state for DF live reads.
+5. Runbook still represents DF/DL/AL/DLA as matrix-validated boundaries, not live daemons.
+
+### Design options considered
+- Option A: keep decision lane matrix-only and only update docs.
+  - Rejected: does not satisfy user request; preserves narrative/runtime mismatch.
+- Option B: orchestrate only DF/AL/DLA and keep DL in-process fallback inside DF.
+  - Rejected: keeps DL non-live and repeats the same gap later.
+- Option C (selected): add explicit daemon workers for DL/DF/AL/DLA and onboard them via a dedicated decision-lane pack.
+  - Selected because it keeps orchestration as a true cross-plane meta layer and prevents RTDL-specific one-off behavior.
+
+### Selected implementation scope
+1. Add `DL` worker: periodic scope evaluation + posture commit to DL store using policy profile and health-safe semantics.
+2. Add `DF` worker: consume admitted traffic topics, resolve posture/context/registry deterministically, publish `decision_response` + `action_intent` through IG, and maintain replay/checkpoint/metrics/reconciliation state.
+3. Add `AL` worker: consume admitted `action_intent` events, enforce idempotency/authz/execution boundary, publish `action_outcome`, maintain replay/checkpoint/metrics state.
+4. Add `DLA` worker entrypoint: wire existing intake bus consumer + periodic observability export.
+5. Add decision-lane run/operate pack and make targets; include it in parity up/down/status aggregate targets.
+6. Add runtime config surface in profile for `dl/df/al/dla` wiring/policy references and DSN locators.
+7. Update runbook sections to reflect live daemon posture and command sequence.
+
+### Invariants to enforce during implementation
+- Fail-closed by default when compatibility/evidence is unavailable (no silent best-effort bypass).
+- Run-scope boundary remains explicit (`platform_run_id` filtering where required).
+- At-least-once safe behavior: replay/idempotency gates must remain source of truth for duplicate safety.
+- Decision-lane workers publish via IG only (no direct EB write bypass).
+- Orchestration remains pack-driven and plane-agnostic (no component-specific special casing in orchestrator core).
+
+### Validation matrix for this change
+1. Unit/targeted worker tests:
+   - DF worker `--once` file-bus smoke with deterministic publish stubs.
+   - AL worker `--once` file-bus smoke with deterministic executor/publish stubs.
+   - DLA worker `--once` smoke and observability artifact write.
+   - DL worker periodic evaluation smoke and posture store update assertion.
+2. Orchestrator tests:
+   - existing `tests/services/run_operate/test_orchestrator.py` remains green,
+   - new pack references resolve and status probes succeed.
+3. Command-smoke:
+   - `make platform-operate-rtdl-decision-status` after `up` reports processes running.
+4. Documentation synchronization:
+   - runbook and implementation map explicitly state decision lane is now daemonized in parity mode.
+
+### Security/artifact posture
+- No secrets will be added to docs; runtime auth tokens remain env-driven.
+- No edits to `docs/reports/*` per user instruction.
+
+## 2026-02-08 10:02PM - Pre-implementation refinement: decision-lane daemonization mechanics and invariants lock
+
+### Why this entry exists
+Before touching code, this entry captures the exact runtime mechanics selected for `DL/DF/AL/DLA` daemon onboarding so implementation follows a deterministic path and remains auditable.
+
+### Additional diagnosis completed
+- Existing run/operate packs are healthy and plane-agnostic, but decision-lane producers/consumers are missing from pack definitions.
+- `DF` and `AL` lack durable consumer checkpoint state beyond component checkpoint gates; restarting from stream start is acceptable only if replay/idempotency is enforced before side effects.
+- `DF` trigger candidate does not carry full source payload (`flow_id`), so worker loop must retain both validated candidate and original envelope payload.
+- IG ingress auth currently uses API-key allowlist with only WSP principal, so DF/AL live publish requires explicit allowlist entries.
+
+### Runtime strategy locked
+1. Worker model
+- Add dedicated module entrypoints:
+  - `fraud_detection.degrade_ladder.worker`
+  - `fraud_detection.decision_fabric.worker`
+  - `fraud_detection.action_layer.worker`
+- Keep `fraud_detection.decision_log_audit.worker` and wire it into run/operate decision pack.
+
+2. Bus replay/start posture
+- `DF` and `AL` workers keep in-process cursor state for active session.
+- On cold start/restart, workers may replay from configured start position (`trim_horizon` by default); correctness depends on replay/idempotency stores (not on best-effort cursor durability).
+
+3. Decision safety invariants
+- DF must register replay ledger before publish.
+- DF must checkpoint only when ledger/publish corridor gate allows commit.
+- AL must run semantic idempotency gate before execution.
+- AL must append outcome before publish checkpoint commit.
+- Any compatibility uncertainty (context missing, registry mismatch, posture missing) resolves to degrade/fail-closed behavior, never optimistic ALLOW.
+
+4. Context acquisition behavior in worker
+- Use CSFB query service to resolve flow-binding when `flow_id` exists in source payload.
+- Build context-role refs from CSFB readiness responses.
+- If missing flow/context, return context waiting/missing posture and continue deterministic synthesis (degrade/step-up path).
+
+5. Registry/runtime compatibility posture
+- Add local parity registry snapshot file and resolve through existing policy gate.
+- Fail closed when snapshot/policy is unreadable or incompatible.
+
+6. IG corridor auth for live DF/AL
+- Add dedicated local-parity DF/AL principals to IG API-key allowlist file.
+- Wire API keys through profile/pack env for DF/AL publisher clients.
+
+7. Orchestration wiring
+- Add new pack: `config/platform/run_operate/packs/local_parity_rtdl_decision_lane.v0.yaml`.
+- Add lifecycle targets:
+  - `platform-operate-rtdl-decision-up/down/restart/status`.
+- Parity aggregate targets (`platform-operate-parity-*`) include decision lane alongside control_ingress and rtdl_core packs.
+
+### Files scheduled for code/config updates
+- Runtime workers:
+  - `src/fraud_detection/degrade_ladder/worker.py`
+  - `src/fraud_detection/decision_fabric/worker.py`
+  - `src/fraud_detection/action_layer/worker.py`
+- Config/runtime wiring:
+  - `config/platform/profiles/local_parity.yaml`
+  - `config/platform/df/registry_snapshot_local_parity_v0.yaml`
+  - `config/platform/al/policy_v0.yaml`
+  - `config/platform/ig/ingest_api_keys_local_parity_v0.txt`
+  - `config/platform/run_operate/packs/local_parity_rtdl_decision_lane.v0.yaml`
+- Tooling/docs:
+  - `Makefile`
+  - `docs/runbooks/platform_parity_walkthrough_v0.md`
+
+### Validation plan locked
+- Targeted tests:
+  - `tests/services/run_operate/test_orchestrator.py`
+  - `tests/services/decision_fabric -q`
+  - `tests/services/action_layer -q`
+  - `tests/services/decision_log_audit -q`
+  - `tests/services/degrade_ladder -q`
+- Command smoke:
+  - decision-lane pack `status` output after `up`/`down` cycle.
+- Documentation sync:
+  - runbook updated to show decision-lane daemon pack in parity workflow.
+
+## Entry: 2026-02-08 10:24PM - Pre-code execution lock: concrete worker algorithms and checkpoint posture
+
+### Scope this entry locks
+This entry freezes the exact implementation mechanics before code edits for decision-lane daemonization (DL/DF/AL/DLA) so runtime behavior remains auditable and deterministic.
+
+### Concrete runtime mechanics selected
+1. DL worker
+- Keep current worker implementation as the periodic posture evaluator/emitter.
+- Signal posture remains fail-closed on missing/invalid required sources.
+- Outbox drain remains the only control-event emission path.
+
+2. DF worker
+- Consume admitted traffic from EB (file or kinesis) with explicit per-topic/partition checkpoint state.
+- Pipeline order remains strict: inlet -> posture -> context -> registry -> synthesis -> replay gate -> IG publish -> checkpoint gate -> observability/reconciliation export.
+- Source envelope is retained alongside DecisionTriggerCandidate so flow/context keys can be derived from payload fields.
+- Replay PAYLOAD_MISMATCH blocks publish and records anomaly event; REPLAY_MATCH is treated as replay-safe duplicate (no new side effect publish).
+
+3. AL worker
+- Consume only action_intent events from admitted traffic topics.
+- Pipeline remains strict: contract validate -> semantic idempotency -> authz -> execution/deny outcome build -> append outcome -> IG publish -> checkpoint gate -> replay register -> observability export.
+- Duplicate intents are dropped before execution side effects.
+- Runtime executor is deterministic no-op effector in local parity (committed provider code), keeping effect calls auditable and idempotent.
+
+4. DLA worker
+- Existing worker is onboarded as live daemon in decision-lane pack.
+- Intake/policy semantics unchanged (append-only, replay divergence quarantine/blocked semantics preserved).
+
+### Checkpoint model decision
+- Each worker keeps durable consumer checkpoints in worker-owned SQLite store (run-scoped by default) keyed by topic+partition.
+- file_line offsets advance by +1; kinesis_sequence stores last consumed sequence and uses AFTER_SEQUENCE_NUMBER semantics.
+- Worker checkpoints are distinct from component checkpoint gates (which remain decision/outcome safety gates).
+
+### Config and corridor wiring locked
+- local_parity profile is extended with dl/df/al/dla runtime wiring sections (policy refs + store locators + poll settings + bus mode).
+- DF/AL IG corridor publish auth uses local parity API keys and explicit allowlist entries.
+- New decision-lane pack is added and included in parity aggregate lifecycle targets.
+
+### Validation lock for this implementation pass
+- Component suites remain green: degrade_ladder, decision_fabric, action_layer, decision_log_audit.
+- Run/Operate suite remains green.
+- Worker smoke: each worker --once under local parity profile with active run scope.
+- Pack smoke: decision-lane pack up/status/down command path resolves.
+
+## 2026-02-08 10:28PM - Mid-implementation checkpoint: finalize decision-lane daemonization closure
+
+### Why this entry is appended now
+Code edits for worker modules already landed in-flight, but orchestration/config/docs closure and validation evidence are still open. This entry locks the remaining concrete steps before additional edits.
+
+### Current in-repo state observed
+1. New worker modules exist and compile:
+- `src/fraud_detection/degrade_ladder/worker.py`
+- `src/fraud_detection/decision_fabric/worker.py`
+- `src/fraud_detection/action_layer/worker.py`
+- `src/fraud_detection/decision_log_audit/worker.py`
+2. `config/platform/profiles/local_parity.yaml` already contains `dl/df/al/dla` sections.
+3. `config/platform/df/registry_snapshot_local_parity_v0.yaml` exists.
+4. Run/operate parity aggregation still only starts `control_ingress` + `rtdl_core`; no decision-lane pack is wired yet.
+5. Runbook still contains stale statements that DF/DL/AL/DLA are matrix-only and not daemons.
+
+### Remaining closure tasks locked (do not reorder)
+1. Complete wiring artifacts:
+- create decision-lane pack file under `config/platform/run_operate/packs/`.
+- update `Makefile` vars and lifecycle targets (`platform-operate-rtdl-decision-*`) and include in `platform-operate-parity-*` aggregate commands.
+2. Complete corridor config alignment:
+- extend `config/platform/ig/ingest_api_keys_local_parity_v0.txt` with DF and AL principals for IG publish boundary.
+- extend `config/platform/al/policy_v0.yaml` allowed action kinds for DF synthesized intents (`ALLOW`, `STEP_UP`, `QUEUE_REVIEW`).
+3. Synchronize operator documentation:
+- update `docs/runbooks/platform_parity_walkthrough_v0.md` sections that currently claim decision-layer is matrix-only.
+4. Validate end-to-end changed surfaces:
+- syntax compile for all worker modules,
+- run operate/orchestrator tests,
+- run DF/AL/DLA/DL service suites,
+- command smoke for decision-lane pack status path.
+
+### Runtime invariants re-affirmed for this pass
+- Orchestration remains meta-layer pack-driven and plane-agnostic.
+- Decision publish paths remain IG-mediated (no direct EB bypass).
+- Run-scope mismatch remains fail-closed.
+- Replay/idempotency gates remain authoritative for at-least-once safety.
+
+### Evidence commitment
+After the above completes, append a post-change evidence entry with exact commands, pass/fail counts, and any residual risks.
+
+## 2026-02-08 10:35PM - Post-change evidence: decision-lane daemonization closure completed
+
+### Implementation completed in this pass
+1. Orchestration pack + lifecycle wiring
+- Added decision-lane pack:
+  - `config/platform/run_operate/packs/local_parity_rtdl_decision_lane.v0.yaml`
+- Updated make lifecycle wiring:
+  - new var: `RUN_OPERATE_PACK_RTDL_DECISION`
+  - new targets: `platform-operate-rtdl-decision-up/down/restart/status`
+  - parity aggregate includes decision lane:
+    - `platform-operate-parity-up` now starts decision lane after RTDL core,
+    - `platform-operate-parity-down` now stops decision lane first,
+    - `platform-operate-parity-status` now includes decision lane status.
+
+2. Decision-lane corridor config alignment
+- Updated AL authz policy to permit DF synthesized action kinds:
+  - `config/platform/al/policy_v0.yaml`
+  - added `ALLOW`, `STEP_UP`, `QUEUE_REVIEW`.
+- Expanded IG local parity writer allowlist:
+  - `config/platform/ig/ingest_api_keys_local_parity_v0.txt`
+  - added `local-parity-df`, `local-parity-al`.
+- Hardened local parity profile for deterministic DL store alignment:
+  - `config/platform/profiles/local_parity.yaml`
+  - added `dl.wiring.store_dsn`, `outbox_dsn`, `ops_dsn` env-token paths,
+  - added `dla.wiring.index_locator` env-token path.
+
+3. Runbook posture synchronization
+- Updated `docs/runbooks/platform_parity_walkthrough_v0.md` to reflect daemonized decision lane.
+- Removed matrix-only wording for `DL/DF/AL/DLA` and clarified that matrix checks remain deterministic boundary validation in addition to daemon operation.
+
+### Runtime issue found and closed during smoke
+1. First decision-lane `up/status` smoke showed `df_worker` crash.
+- Error in `runs/fraud-platform/operate/local_parity_rtdl_decision_lane_v0/logs/df_worker.log`:
+  - `ValueError: CSFB projection_db_dsn is required`.
+2. Root cause
+- Decision-lane pack defaults were missing projection DSNs required by DF runtime (`IEG/OFP/CSFB`).
+3. Fix applied
+- Updated decision-lane pack defaults to include:
+  - `IEG_PROJECTION_DSN`, `OFP_PROJECTION_DSN`, `OFP_SNAPSHOT_INDEX_DSN`, `CSFB_PROJECTION_DSN`.
+4. Re-smoke result
+- all four workers (`dl_worker`, `df_worker`, `al_worker`, `dla_worker`) became `running ready`.
+
+### Validation evidence (commands + outcomes)
+1. Syntax + YAML
+- `python -m py_compile src/fraud_detection/degrade_ladder/worker.py src/fraud_detection/decision_fabric/worker.py src/fraud_detection/action_layer/worker.py src/fraud_detection/decision_log_audit/worker.py` -> PASS.
+- YAML parse check for profile + pack + registry snapshot -> PASS (`yaml-ok`).
+
+2. Test suites
+- `python -m pytest tests/services/run_operate/test_orchestrator.py -q` -> `4 passed`.
+- `python -m pytest tests/services/degrade_ladder -q` -> `40 passed`.
+- `python -m pytest tests/services/decision_fabric -q` -> `69 passed`.
+- `python -m pytest tests/services/action_layer -q` -> `45 passed`.
+- `python -m pytest tests/services/decision_log_audit -q` -> `36 passed`.
+
+3. Command smoke
+- `make platform-operate-rtdl-decision-status` -> pack resolved with active run id and process status rows.
+- `make platform-operate-rtdl-decision-up` -> all four processes started.
+- `make platform-operate-rtdl-decision-status` (post-fix) -> all four processes `running ready`.
+- `make platform-operate-rtdl-decision-down` + status -> all four processes stopped.
+- `make platform-operate-parity-status` -> aggregate command includes decision-lane status section successfully.
+
+### Closure statement
+This pass closes the decision-lane daemonization gap for parity orchestration. `DL/DF/AL/DLA` are now pack-orchestrated under the same run/operate meta layer as other RTDL processes, with tested lifecycle commands and synchronized runbook posture.
+
+## 2026-02-08 10:40PM - Pre-change plan: hard drift sentinel law + executable guardrail
+
+### Trigger
+User requested a binding anti-drift law after the decision-lane daemonization gap was discovered late. Requirement: prevent silent divergence between designed flow and implemented runtime posture, and force explicit escalation before proceeding when drift appears.
+
+### Problem framing
+- Current process relies on agent diligence + matrix runs + narrative sync, which can still miss topology/flow drift when implementation and docs diverge.
+- The specific failure mode was runtime topology drift (`DL/DF/AL/DLA` expected live in narrative, but orchestration posture lagged), detected only by ad-hoc challenge.
+
+### Decision
+Implement dual guardrail:
+1. **Policy layer (binding)** in `AGENTS.md`:
+- add explicit "Drift Sentinel Law" requiring pre/post drift checks for platform changes,
+- define mandatory escalation protocol: STOP, warn user, append implementation-map/logbook entries, request go/no-go before further changes.
+2. **Executable layer** in code/tests:
+- add run-operate drift guard module that checks critical parity invariants:
+  - decision-lane pack existence/process set,
+  - Make target + parity aggregate wiring,
+  - local parity profile sections present,
+  - IG allowlist + AL policy alignment for DF/AL action corridor,
+  - runbook posture text includes decision-lane daemon flow and excludes known stale matrix-only claims.
+- add test that must pass in-repo and fails CI if drift appears,
+- add Make target to run guard explicitly.
+
+### Files planned
+- `AGENTS.md`
+- `src/fraud_detection/run_operate/flow_drift_guard.py` (new)
+- `tests/services/run_operate/test_flow_drift_guard.py` (new)
+- `Makefile` (new target)
+
+### Invariants
+- Guard is deterministic and fail-closed: any missing required signal is failure.
+- No secrets inspected or emitted.
+- Guard remains narrow to critical runtime-flow topology semantics (avoid noisy subjective checks).
+
+### Validation plan
+- `python -m pytest tests/services/run_operate/test_flow_drift_guard.py -q`
+- `python -m pytest tests/services/run_operate/test_orchestrator.py -q`
+- `make platform-flow-drift-check`
+
+### Expected operational behavior after merge
+Any future drift in designed-vs-implemented RTDL decision lane (pack/targets/profile/corridor/runbook posture) triggers immediate red state in guard/test, forcing pause-and-escalate before progression.

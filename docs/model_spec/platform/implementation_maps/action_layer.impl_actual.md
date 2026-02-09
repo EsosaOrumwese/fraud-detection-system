@@ -808,3 +808,122 @@ AL Phases 1-7 are complete, but Phase 8 requires explicit component closure proo
 - Closure statement explicit with remaining dependency boundary (DLA under platform 4.5): **complete**.
 
 ---
+
+## Entry: 2026-02-08 09:56:40 PM - Pre-change plan: AL live worker onboarding for orchestrated decision lane
+
+### Problem in AL scope
+- AL executes correctly in validation matrices, but no daemon consumes live DF intents in run/operate packs.
+- This prevents live ction_outcome emission during parity orchestration despite implemented idempotency/authz/execution/publish gates.
+
+### Decision
+1. Add an AL worker CLI that:
+   - consumes ction_intent events from EB,
+   - enforces semantic idempotency and authz policy,
+   - executes side effects via execution engine posture,
+   - appends/publishes outcomes and commits checkpoints,
+   - exports AL observability artifacts.
+2. Align local policy allowlist with DF synthesized action kinds (ALLOW, STEP_UP, QUEUE_REVIEW) while preserving existing kinds.
+3. Preserve at-least-once safety: duplicates drop before effect execution.
+
+### Planned files
+- src/fraud_detection/action_layer/worker.py
+- config/platform/al/policy_v0.yaml (allowlist extension)
+- config/platform/profiles/local_parity.yaml (al runtime section)
+
+### Validation focus
+- New AL worker tests for config + one-cycle behavior.
+- Existing AL suites remain green.
+
+## Entry: 2026-02-08 10:02PM - Plan refinement before coding: AL worker execution posture and idempotent side-effect discipline
+
+### Added reasoning before implementation
+- AL daemon must remain safe under at-least-once replay from shared traffic stream.
+- Execution implementation in current v0 is an explicit no-op effector contract that returns committed receipts for supported action kinds.
+
+### Pipeline order locked
+1. Consume and validate `action_intent` envelopes only.
+2. Enforce semantic idempotency gate before authz/execution (`ActionIdempotencyGate`).
+3. Apply authz/posture gate (`authorize_intent`).
+4. If allowed, execute through deterministic effector (`ActionExecutionEngine` + no-op executor).
+5. Build outcome payload, append to outcome store, publish via IG publisher.
+6. Commit AL checkpoint gate only after append+publish records are terminal-safe.
+7. Register replay ledger and export observability snapshots.
+
+### Policy/runtime decision
+- Extend local parity AL allowlist to include DF synthesized action kinds:
+  - `ALLOW`, `STEP_UP`, `QUEUE_REVIEW`.
+- Existing action kinds remain allowed; no removals.
+
+## Entry: 2026-02-08 10:24PM - Pre-code execution lock: concrete worker algorithms and checkpoint posture
+
+### Scope this entry locks
+This entry freezes the exact implementation mechanics before code edits for decision-lane daemonization (DL/DF/AL/DLA) so runtime behavior remains auditable and deterministic.
+
+### Concrete runtime mechanics selected
+1. DL worker
+- Keep current worker implementation as the periodic posture evaluator/emitter.
+- Signal posture remains fail-closed on missing/invalid required sources.
+- Outbox drain remains the only control-event emission path.
+
+2. DF worker
+- Consume admitted traffic from EB (file or kinesis) with explicit per-topic/partition checkpoint state.
+- Pipeline order remains strict: inlet -> posture -> context -> registry -> synthesis -> replay gate -> IG publish -> checkpoint gate -> observability/reconciliation export.
+- Source envelope is retained alongside DecisionTriggerCandidate so flow/context keys can be derived from payload fields.
+- Replay PAYLOAD_MISMATCH blocks publish and records anomaly event; REPLAY_MATCH is treated as replay-safe duplicate (no new side effect publish).
+
+3. AL worker
+- Consume only action_intent events from admitted traffic topics.
+- Pipeline remains strict: contract validate -> semantic idempotency -> authz -> execution/deny outcome build -> append outcome -> IG publish -> checkpoint gate -> replay register -> observability export.
+- Duplicate intents are dropped before execution side effects.
+- Runtime executor is deterministic no-op effector in local parity (committed provider code), keeping effect calls auditable and idempotent.
+
+4. DLA worker
+- Existing worker is onboarded as live daemon in decision-lane pack.
+- Intake/policy semantics unchanged (append-only, replay divergence quarantine/blocked semantics preserved).
+
+### Checkpoint model decision
+- Each worker keeps durable consumer checkpoints in worker-owned SQLite store (run-scoped by default) keyed by topic+partition.
+- file_line offsets advance by +1; kinesis_sequence stores last consumed sequence and uses AFTER_SEQUENCE_NUMBER semantics.
+- Worker checkpoints are distinct from component checkpoint gates (which remain decision/outcome safety gates).
+
+### Config and corridor wiring locked
+- local_parity profile is extended with dl/df/al/dla runtime wiring sections (policy refs + store locators + poll settings + bus mode).
+- DF/AL IG corridor publish auth uses local parity API keys and explicit allowlist entries.
+- New decision-lane pack is added and included in parity aggregate lifecycle targets.
+
+### Validation lock for this implementation pass
+- Component suites remain green: degrade_ladder, decision_fabric, action_layer, decision_log_audit.
+- Run/Operate suite remains green.
+- Worker smoke: each worker --once under local parity profile with active run scope.
+- Pack smoke: decision-lane pack up/status/down command path resolves.
+
+## Entry: 2026-02-08 10:28PM - Mid-pass lock: AL worker integration closure tasks
+
+### Current status
+- `src/fraud_detection/action_layer/worker.py` is present and compiles.
+- local parity profile includes AL runtime wiring.
+
+### Remaining AL-specific closure tasks
+1. Align authz allowlist in `config/platform/al/policy_v0.yaml` with DF synthesized action kinds.
+2. Ensure IG API-key allowlist includes AL principal for publish corridor.
+3. Verify AL worker is in decision-lane run-operate pack and run AL suite after wiring updates.
+
+### Invariants
+- idempotency gate executes before side effects.
+- outcome append happens before checkpoint commit.
+- publish anomalies remain explicit and auditable.
+
+## Entry: 2026-02-08 10:35PM - AL daemon onboarding evidence
+
+### What was finalized
+1. AL worker daemon is now orchestrated in decision-lane pack:
+- `config/platform/run_operate/packs/local_parity_rtdl_decision_lane.v0.yaml` (`al_worker`).
+2. Local policy now admits DF synthesized action kinds:
+- `config/platform/al/policy_v0.yaml` includes `ALLOW`, `STEP_UP`, `QUEUE_REVIEW`.
+3. IG corridor auth now includes AL writer principal:
+- `config/platform/ig/ingest_api_keys_local_parity_v0.txt` includes `local-parity-al`.
+
+### Validation
+- `python -m py_compile src/fraud_detection/action_layer/worker.py` -> PASS.
+- `python -m pytest tests/services/action_layer -q` -> `45 passed`.
+- decision-lane pack smoke shows `al_worker running ready` under active run scope.
