@@ -158,12 +158,12 @@ al:
     event_bus_endpoint_url: ${EVENT_BUS_ENDPOINT_URL}
     event_bus_start_position: trim_horizon
     admitted_topics:
-      - fp.bus.traffic.fraud.v1
+      - fp.bus.rtdl.v1
     poll_max_records: 200
     poll_sleep_seconds: 0.2
 dla:
   policy:
-    intake_policy_ref: config/platform/dla/intake_policy_v0.yaml
+    intake_policy_ref: config/platform/dla/intake_policy_local_parity_v0.yaml
     storage_policy_ref: config/platform/dla/storage_policy_v0.yaml
     storage_profile_id: local_parity
   wiring:

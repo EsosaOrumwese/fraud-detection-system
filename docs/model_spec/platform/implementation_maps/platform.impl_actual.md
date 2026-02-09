@@ -5941,3 +5941,133 @@ Fresh bounded run after pack restart shows:
 - IEG no longer red solely due replay watermark age,
 - DL no longer pinned 100% by `WORKER_LOOP_REQUIRED_SIGNAL_GAP`,
 - DF fail-closed share drops from 100% baseline in this run wave.
+
+## 2026-02-09 12:36PM - Pre-change execution lock: DF contract alignment + orchestration sequencing + DLA intake topology split
+
+### Trigger and objective
+Residual posture from the latest parity runs still shows two blocking patterns:
+1. DF remains over-indexed on `FAIL_CLOSED` because local-parity compatibility assumptions do not match DL degraded posture windows and DF context gating blocks too early when posture is not `NORMAL`.
+2. DLA consumes mixed traffic lane (`fp.bus.traffic.fraud.v1`) and correctly quarantines non-audit families, but this creates avoidable red-noise pressure and obscures decision-lane evidence quality.
+3. Current parity bring-up order can start WSP stream emission before downstream RTDL packs are alive, increasing race risk for first-window processing.
+
+Goal for this patch wave is to close these together as one bounded architecture pass, while keeping production fail-closed semantics intact and preserving env-ladder safety.
+
+### Options evaluated
+1. Keep mixed topic topology and suppress unknown-family alarms in DLA.
+- Rejected: hides topology drift instead of fixing it; weakens intake signal quality.
+2. Route RTDL outputs to `fp.bus.audit.v1`.
+- Rejected: audit stream is pointer-oriented/optional and should not become primary decision-lane truth bus.
+3. Introduce dedicated RTDL stream and retarget lane consumers (selected).
+- Selected: explicit topic ownership, cleaner DLA intake domain, no semantic overload on audit stream.
+4. Fix DF only by relaxing registry fallback globally.
+- Rejected: global relaxation is unsafe for env ladder; should stay local-parity-scoped.
+5. Fix sequencing only by reordering make targets.
+- Rejected: helps but not sufficient; WSP still needs a runtime downstream-readiness gate to prevent accidental early stream starts.
+
+### Decisions locked before edits
+1. **DF local-parity alignment**
+- Adjust local-parity registry snapshot compatibility to match v0 posture realities (capability expectations no longer hard-require model-primary + `NORMAL` action posture in this profile).
+- Keep feature-group contract explicit (`core_features`) and keep global registry resolution policy fail-closed defaults unchanged.
+- Add context-acquisition posture-aware gating fallback when compatibility is not yet resolved so DF can still acquire context/evidence under degraded posture rather than hard-blocking at pre-registry stage.
+
+2. **Sequencing + orchestration hardening**
+- Reorder parity orchestrator bring-up to start RTDL core + decision lane before control/ingress.
+- Add WSP READY downstream gate that checks required run/operate packs are running+ready for the active platform run before streaming starts.
+- Keep gate fail-closed on unknown status and configurable via env so non-parity environments can opt in/out intentionally.
+
+3. **DLA architectural fix**
+- Create dedicated RTDL stream `fp.bus.rtdl.v1`.
+- Route IG partitioning profiles for `rtdl_decision`, `rtdl_action_intent`, `rtdl_action_outcome` to `fp.bus.rtdl.v1`.
+- Update AL worker admitted topics and DLA intake policy admitted topics to consume `fp.bus.rtdl.v1`.
+- Keep DF trigger topics unchanged (traffic streams), so DF does not self-trigger from RTDL outputs.
+- Update parity bootstrap stream provisioning and parity runbook stream inventory accordingly.
+
+### Invariants to preserve
+- No relaxation of fail-closed on unknown compatibility/scope.
+- No cross-component truth ownership drift.
+- Append-only lineage/audit semantics remain unchanged.
+- Idempotency and replay checkpoint invariants stay intact.
+- Environment ladder remains explicit: local-parity tuning only where intended; no silent prod/dev behavior change.
+
+### Planned validation matrix
+1. Targeted unit suites:
+- `tests/services/decision_fabric/*` (focus: context+registry+worker helpers)
+- `tests/services/world_streamer_producer/test_ready_consumer.py`
+- `tests/services/run_operate/test_orchestrator.py`
+- `tests/services/ingestion_gate/test_phase10_df_output_onboarding.py`
+- `tests/services/decision_log_audit/test_dla_phase3_intake.py`
+- `tests/services/action_layer/*` (focus: worker/config intake topics)
+2. Post-merge runtime proof:
+- Fresh bounded parity 200-event run.
+- Confirm no DLA `UNKNOWN_EVENT_FAMILY` quarantine for raw traffic on the DLA lane.
+- Confirm DF non-zero non-fail-closed decisions during healthy windows and improved reconciliation reason distribution.
+- Confirm WSP does not begin streaming until required downstream packs are alive/ready for the active run.
+
+## 2026-02-09 12:46PM - Implementation applied + validation evidence: DF posture alignment, orchestration gating, DLA topology split
+
+### Changes implemented
+1. **DF contract/posture alignment (local parity safe)**
+- Updated `config/platform/df/registry_snapshot_local_parity_v0.yaml`:
+  - `require_model_primary: false`
+  - `required_action_posture: STEP_UP_ONLY`
+  - kept `required_feature_groups.core_features=v1` explicit.
+- Updated `src/fraud_detection/decision_fabric/context.py`:
+  - when registry compatibility is not yet resolved, context requirements now inherit posture action posture (`NORMAL` or `STEP_UP_ONLY`) instead of hard-coding `NORMAL`.
+  - effect: DF can still acquire context evidence under degraded posture instead of early `CONTEXT_BLOCKED` from requested-action-posture mismatch.
+- Added regression `tests/services/decision_fabric/test_phase5_context.py::test_context_uses_posture_action_posture_before_registry_compatibility`.
+
+2. **Orchestration sequencing + runtime dependency gate**
+- `Makefile` parity lifecycle changed:
+  - `platform-operate-parity-up`: start `rtdl_core` -> `rtdl_decision` -> `control_ingress`.
+  - `platform-operate-parity-down`: stop `control_ingress` first, then decision/core.
+- `src/fraud_detection/run_operate/orchestrator.py`:
+  - persist `active_platform_run_id` in pack `state.json`,
+  - fail closed on live-process run-scope drift (`ACTIVE_PLATFORM_RUN_ID_MISMATCH_RESTART_REQUIRED`),
+  - expose `state_active_platform_run_id` in status payload.
+- `src/fraud_detection/world_streamer_producer/ready_consumer.py`:
+  - added downstream required-pack gate via `WSP_READY_REQUIRED_PACKS` (comma-separated pack files),
+  - validates pack state + expected process liveness + (optional) active-run match before streaming,
+  - returns `DEFERRED_DOWNSTREAM_NOT_READY` until dependencies are ready (does not mark READY as streamed),
+  - check/log intervals are configurable for low-noise polling.
+- `config/platform/run_operate/packs/local_parity_control_ingress.v0.yaml` now sets required-pack gate defaults for local parity (RTDL core + decision lane packs).
+- Added regressions in:
+  - `tests/services/world_streamer_producer/test_ready_consumer.py` (defer-until-ready + success-after-ready),
+  - `tests/services/run_operate/test_orchestrator.py` (active-run mismatch restart requirement).
+
+3. **DLA architectural stream split**
+- Routed RTDL output classes in `config/platform/ig/partitioning_profiles_v0.yaml`:
+  - `ig.partitioning.v0.rtdl.decision` -> `fp.bus.rtdl.v1`
+  - `ig.partitioning.v0.rtdl.action_intent` -> `fp.bus.rtdl.v1`
+  - `ig.partitioning.v0.rtdl.action_outcome` -> `fp.bus.rtdl.v1`
+- Local parity AL wiring updated in `config/platform/profiles/local_parity.yaml`:
+  - `al.wiring.admitted_topics: [fp.bus.rtdl.v1]`
+- Added local-parity DLA intake policy:
+  - `config/platform/dla/intake_policy_local_parity_v0.yaml` with `admitted_topics: [fp.bus.rtdl.v1]`
+  - referenced by `config/platform/profiles/local_parity.yaml`.
+- Bootstrap/runbook/doc updates:
+  - `Makefile platform-parity-bootstrap` now provisions `fp.bus.rtdl.v1`,
+  - `docs/runbooks/platform_parity_walkthrough_v0.md` stream inventory + troubleshooting + checklist updated,
+  - `docs/model_spec/platform/contracts/real_time_decision_loop/README.md` RTDL stream note updated,
+  - `config/platform/ig/README.md` stream class table now includes RTDL lane row,
+  - `config/platform/profiles/README.md` local parity stream list updated.
+
+### Validation evidence
+Executed with `PYTHONPATH=.;src`:
+1. Targeted suite:
+- `python -m pytest -q tests/services/decision_fabric/test_phase5_context.py tests/services/run_operate/test_orchestrator.py tests/services/world_streamer_producer/test_ready_consumer.py tests/services/ingestion_gate/test_phase10_df_output_onboarding.py tests/services/platform_conformance/test_checker.py`
+- Result: `23 passed`.
+
+2. Broader impacted suites:
+- `python -m pytest -q tests/services/decision_fabric tests/services/world_streamer_producer tests/services/run_operate tests/services/ingestion_gate/test_phase10_df_output_onboarding.py tests/services/platform_conformance/test_checker.py`
+- Result: `98 passed`.
+
+3. DF/AL/DLA adjacency sweep:
+- `python -m pytest -q tests/services/action_layer tests/services/decision_log_audit`
+- Result: `87 passed`.
+
+### Residual runtime validation still required
+Code/test closure is complete for this pass, but parity runtime closure is still pending:
+1. Fresh 200-event parity run with updated topology.
+2. Confirm DLA no longer accumulates raw-traffic `UNKNOWN_EVENT_FAMILY` from decision lane.
+3. Confirm WSP does not stream until required packs are alive for the active run.
+4. Re-check DF reconciliation reason distribution under the new local-parity compatibility posture.

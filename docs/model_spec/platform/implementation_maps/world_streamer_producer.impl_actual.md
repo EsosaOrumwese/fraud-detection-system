@@ -1318,3 +1318,33 @@ Runtime DF service pass required schema normalization (`schema_version -> v1`) o
 The runtime normalization requirement for missing `schema_version` is now removed at source for WSP-emitted traffic envelopes.
 
 ---
+
+## Entry: 2026-02-09 12:46PM - WSP READY dependency gate + orchestration run-scope hardening
+
+### Trigger
+Parity sequencing could start WSP streaming before RTDL downstream packs were fully alive, creating race-prone first-window behavior.
+
+### Implemented decisions
+1. Added READY dependency gate in `ready_consumer`:
+- `WSP_READY_REQUIRED_PACKS` defines required run/operate pack specs.
+- For each pack, WSP checks pack state presence, expected process liveness, and active run match (configurable).
+- If not ready, WSP returns `DEFERRED_DOWNSTREAM_NOT_READY` and does not mark the READY message as streamed.
+2. Added run-scope drift guard in run/operate orchestrator:
+- pack `state.json` now persists `active_platform_run_id`,
+- `up` fails closed when active run changes while prior processes remain alive (`ACTIVE_PLATFORM_RUN_ID_MISMATCH_RESTART_REQUIRED`).
+3. Updated parity lifecycle ordering in `Makefile`:
+- start RTDL packs before control/ingress,
+- stop control/ingress before RTDL packs on shutdown.
+
+### Files changed
+- `src/fraud_detection/world_streamer_producer/ready_consumer.py`
+- `src/fraud_detection/run_operate/orchestrator.py`
+- `config/platform/run_operate/packs/local_parity_control_ingress.v0.yaml`
+- `Makefile`
+- `tests/services/world_streamer_producer/test_ready_consumer.py`
+- `tests/services/run_operate/test_orchestrator.py`
+
+### Validation
+- Targeted impact tests included in green runs:
+  - targeted matrix: `23 passed`
+  - broader impacted suites: `98 passed`

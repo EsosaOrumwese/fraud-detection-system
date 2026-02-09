@@ -19,5 +19,6 @@ Use the following `partitioning_profile_id` values by stream class:
 | traffic (legacy) | `fp.bus.traffic.v1` | `ig.partitioning.v0.traffic` |
 | control | `fp.bus.control.v1` | `ig.partitioning.v0.control` |
 | audit | `fp.bus.audit.v1` | `ig.partitioning.v0.audit` |
+| rtdl_decision_lane | `fp.bus.rtdl.v1` | `ig.partitioning.v0.rtdl.decision` / `ig.partitioning.v0.rtdl.action_intent` / `ig.partitioning.v0.rtdl.action_outcome` |
 
 **Note:** v0 control & ingress streams **traffic + context**; context topics are active and feed RTDL join state.

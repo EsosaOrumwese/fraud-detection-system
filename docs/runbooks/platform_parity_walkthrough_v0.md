@@ -13,6 +13,7 @@ It uses **MinIO (S3)** for the Oracle Store + platform artifacts, **LocalStack K
 - LocalStack Kinesis (context + traffic + audit):
   - Control: `sr-control-bus`
   - Traffic: `fp.bus.traffic.fraud.v1` (baseline optional)
+  - RTDL lane: `fp.bus.rtdl.v1`
   - Context: `fp.bus.context.arrival_events.v1`, `fp.bus.context.arrival_entities.v1`, `fp.bus.context.flow_anchor.baseline.v1`, `fp.bus.context.flow_anchor.fraud.v1`
   - Audit: `fp.bus.audit.v1`
 - Postgres for IG admission DB + WSP checkpoints
@@ -56,10 +57,10 @@ make platform-parity-stack-status
 **Expected:**
 - MinIO + Postgres + LocalStack are running.
 - Buckets exist: `oracle-store`, `fraud-platform`.
-- Streams exist: `sr-control-bus`, `fp.bus.traffic.baseline.v1`, `fp.bus.traffic.fraud.v1`, `fp.bus.context.arrival_events.v1`, `fp.bus.context.arrival_entities.v1`, `fp.bus.context.flow_anchor.baseline.v1`, `fp.bus.context.flow_anchor.fraud.v1`, `fp.bus.audit.v1`.
+- Streams exist: `sr-control-bus`, `fp.bus.traffic.baseline.v1`, `fp.bus.traffic.fraud.v1`, `fp.bus.context.arrival_events.v1`, `fp.bus.context.arrival_entities.v1`, `fp.bus.context.flow_anchor.baseline.v1`, `fp.bus.context.flow_anchor.fraud.v1`, `fp.bus.rtdl.v1`, `fp.bus.audit.v1`.
 
 **What bootstrap does:**
-- Creates the **Kinesis streams** in LocalStack (`sr-control-bus`, `fp.bus.traffic.baseline.v1`, `fp.bus.traffic.fraud.v1`, `fp.bus.context.arrival_events.v1`, `fp.bus.context.arrival_entities.v1`, `fp.bus.context.flow_anchor.baseline.v1`, `fp.bus.context.flow_anchor.fraud.v1`, `fp.bus.audit.v1`).
+- Creates the **Kinesis streams** in LocalStack (`sr-control-bus`, `fp.bus.traffic.baseline.v1`, `fp.bus.traffic.fraud.v1`, `fp.bus.context.arrival_events.v1`, `fp.bus.context.arrival_entities.v1`, `fp.bus.context.flow_anchor.baseline.v1`, `fp.bus.context.flow_anchor.fraud.v1`, `fp.bus.rtdl.v1`, `fp.bus.audit.v1`).
 - Creates the **MinIO buckets** (`oracle-store`, `fraud-platform`).
 
 ---
@@ -332,6 +333,12 @@ make platform-parity-bootstrap
 Or create it manually:
 ```
 aws --endpoint-url http://localhost:4566 kinesis create-stream --stream-name fp.bus.audit.v1 --shard-count 1
+
+**If decision-lane publish fails with `ResourceNotFoundException` for `fp.bus.rtdl.v1`:**
+
+```powershell
+aws --endpoint-url http://localhost:4566 kinesis create-stream --stream-name fp.bus.rtdl.v1 --shard-count 1
+```
 ```
 
 ---
@@ -496,6 +503,7 @@ $iterator = (aws --endpoint-url http://localhost:4566 kinesis get-shard-iterator
   ```
 
 Repeat with `--stream-name fp.bus.traffic.fraud.v1` to inspect the post‑overlay channel.
+Inspect `fp.bus.rtdl.v1` to confirm decision-lane events (`decision_response`, `action_intent`, `action_outcome`) are routed off the traffic stream.
 
 **Quick traffic channel check (baseline/fraud):**
 ```
@@ -652,6 +660,7 @@ Use this list to confirm the **v0 control & ingress plane** is green.
 
 **Event bus offsets**
 - [ ] LocalStack streams `fp.bus.traffic.baseline.v1` / `fp.bus.traffic.fraud.v1` return records (traffic).
+- [ ] LocalStack stream `fp.bus.rtdl.v1` returns records (decision lane).
 - [ ] LocalStack streams `fp.bus.context.arrival_events.v1` / `fp.bus.context.flow_anchor.fraud.v1` return records (context).
 - [ ] IG receipts include `eb_ref` with `offset_kind=kinesis_sequence`.
 
@@ -737,7 +746,7 @@ Expected outputs:
 
 Boundary note:
 This validates OFP at its current component boundary (projection, snapshot, observability). Use Sections `16` and `17` for DL and DF boundary checks available today.
-In parity, DF/AL output families can share `fp.bus.traffic.fraud.v1`; OFP explicitly ignores `decision_response`, `action_intent`, and `action_outcome` while still advancing checkpoints.
+In parity, DF/AL/DLA decision-lane families publish on `fp.bus.rtdl.v1`; OFP continues to ignore RTDL families and only mutates state from admitted traffic/context families.
 
 ---
 

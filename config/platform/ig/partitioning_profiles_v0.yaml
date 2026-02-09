@@ -100,7 +100,7 @@ profiles:
   ig.partitioning.v0.rtdl.decision:
     description: >
       Deterministic routing for Decision Fabric decision responses.
-    stream: fp.bus.traffic.fraud.v1
+    stream: fp.bus.rtdl.v1
     key_precedence:
       - payload.source_event.event_id
       - payload.pins.platform_run_id
@@ -111,7 +111,7 @@ profiles:
   ig.partitioning.v0.rtdl.action_intent:
     description: >
       Deterministic routing for Decision Fabric action intents.
-    stream: fp.bus.traffic.fraud.v1
+    stream: fp.bus.rtdl.v1
     key_precedence:
       - payload.idempotency_key
       - payload.decision_id
@@ -123,7 +123,7 @@ profiles:
   ig.partitioning.v0.rtdl.action_outcome:
     description: >
       Deterministic routing for Action Layer outcomes.
-    stream: fp.bus.traffic.fraud.v1
+    stream: fp.bus.rtdl.v1
     key_precedence:
       - payload.idempotency_key
       - payload.decision_id

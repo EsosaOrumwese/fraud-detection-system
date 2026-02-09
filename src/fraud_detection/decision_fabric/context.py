@@ -299,7 +299,7 @@ class DecisionContextAcquirer:
                 graph_version=None,
             )
 
-        requirements = _context_requirements(self.policy, compatibility)
+        requirements = _context_requirements(self.policy, compatibility, posture)
         enforcement = enforce_posture_constraints(
             posture=posture,
             require_ieg=requirements.require_ieg,
@@ -505,15 +505,19 @@ class _ContextRequirements:
 def _context_requirements(
     policy: DecisionContextPolicy,
     compatibility: RegistryCompatibility | None,
+    posture: DfPostureStamp,
 ) -> _ContextRequirements:
     if compatibility is None:
+        action_posture = str(posture.capabilities_mask.action_posture or "").strip().upper() or "NORMAL"
+        if action_posture not in {"NORMAL", "STEP_UP_ONLY"}:
+            action_posture = "NORMAL"
         return _ContextRequirements(
             feature_groups=policy.ofp_feature_groups,
             require_ieg=policy.require_ieg,
             require_model_primary=False,
             require_model_stage2=False,
             require_fallback_heuristics=False,
-            required_action_posture="NORMAL",
+            required_action_posture=action_posture,
         )
     feature_groups = compatibility.required_feature_groups or policy.ofp_feature_groups
     return _ContextRequirements(

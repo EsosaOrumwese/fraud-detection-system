@@ -7,19 +7,22 @@ from datetime import datetime, timezone
 import json
 import logging
 import os
+import psutil
 import time
 from pathlib import Path
-from typing import Any
+from typing import Any, Mapping
 from urllib.parse import urlparse
 
 from fraud_detection.oracle_store.engine_reader import resolve_engine_root
 from fraud_detection.platform_governance import emit_platform_governance_event
 from fraud_detection.platform_runtime import (
+    RUNS_ROOT,
     append_session_event,
     platform_log_paths,
     platform_run_prefix,
     resolve_platform_run_id,
 )
+from fraud_detection.run_operate.orchestrator import PackSpec
 from fraud_detection.scenario_runner.logging_utils import configure_logging
 from fraud_detection.scenario_runner.schemas import SchemaRegistry
 from fraud_detection.scenario_runner.storage import LocalObjectStore, ObjectStore, S3ObjectStore
@@ -56,6 +59,14 @@ class ReadyConsumerRunner:
         self._sr_registry = SchemaRegistry(Path(profile.wiring.schema_root) / "scenario_runner")
         self._duplicate_log_interval_seconds = _duplicate_log_interval_seconds()
         self._last_duplicate_log_by_message_id: dict[str, float] = {}
+        self._required_pack_paths = _required_pack_paths()
+        self._required_pack_check_interval_seconds = _required_pack_check_interval_seconds()
+        self._required_pack_log_interval_seconds = _required_pack_log_interval_seconds()
+        self._require_active_run_match = _require_active_run_match()
+        self._last_required_pack_eval_at: float = 0.0
+        self._last_required_pack_eval_run_id: str | None = None
+        self._last_required_pack_eval_result: tuple[bool, tuple[str, ...]] = (True, tuple())
+        self._last_required_pack_log_at: float = 0.0
         kind = (profile.wiring.control_bus_kind or "file").lower()
         if kind == "kinesis":
             if not profile.wiring.control_bus_stream:
@@ -203,6 +214,23 @@ class ReadyConsumerRunner:
             self._append_ready_record(message.message_id, result)
             return result
 
+        dependencies_ready, dependency_reasons = self._required_packs_ready(ready_platform_run_id)
+        if not dependencies_ready:
+            reason = ";".join(dependency_reasons[:4]) if dependency_reasons else "DEPENDENCY_NOT_READY"
+            if self._should_log_dependency_wait():
+                logger.info(
+                    "WSP READY deferred message_id=%s run_id=%s reason=%s",
+                    message.message_id,
+                    message.run_id,
+                    reason,
+                )
+            return ReadyConsumeResult(
+                message_id=message.message_id,
+                run_id=message.run_id,
+                status="DEFERRED_DOWNSTREAM_NOT_READY",
+                reason=reason,
+            )
+
         scenario_id = (run_facts.get("pins") or {}).get("scenario_id")
         oracle_pack_ref = message.payload.get("oracle_pack_ref") or run_facts.get("oracle_pack_ref") or {}
         engine_run_root = oracle_pack_ref.get("engine_run_root") or self.profile.wiring.oracle_engine_run_root
@@ -349,11 +377,79 @@ class ReadyConsumerRunner:
         }
         self._store.append_jsonl(_ready_record_path(message_id), [payload])
 
+    def _required_packs_ready(self, ready_platform_run_id: str) -> tuple[bool, tuple[str, ...]]:
+        if not self._required_pack_paths:
+            return True, tuple()
+        now = time.time()
+        if (
+            self._last_required_pack_eval_run_id == ready_platform_run_id
+            and now - self._last_required_pack_eval_at < self._required_pack_check_interval_seconds
+        ):
+            return self._last_required_pack_eval_result
+        result = self._evaluate_required_packs(ready_platform_run_id)
+        self._last_required_pack_eval_at = now
+        self._last_required_pack_eval_run_id = ready_platform_run_id
+        self._last_required_pack_eval_result = result
+        return result
+
+    def _evaluate_required_packs(self, ready_platform_run_id: str) -> tuple[bool, tuple[str, ...]]:
+        reasons: list[str] = []
+        for pack_path in self._required_pack_paths:
+            if not pack_path.exists():
+                reasons.append(f"PACK_FILE_MISSING:{pack_path}")
+                continue
+            try:
+                pack = PackSpec.load(pack_path)
+            except Exception as exc:
+                reasons.append(f"PACK_SPEC_INVALID:{pack_path}:{str(exc)[:120]}")
+                continue
+            state_path = RUNS_ROOT / "operate" / pack.pack_id / "state.json"
+            if not state_path.exists():
+                reasons.append(f"PACK_STATE_MISSING:{pack.pack_id}")
+                continue
+            try:
+                state_payload = json.loads(state_path.read_text(encoding="utf-8"))
+            except Exception as exc:
+                reasons.append(f"PACK_STATE_INVALID:{pack.pack_id}:{str(exc)[:120]}")
+                continue
+            if not isinstance(state_payload, Mapping):
+                reasons.append(f"PACK_STATE_INVALID:{pack.pack_id}:not_mapping")
+                continue
+            state_run_id = str(state_payload.get("active_platform_run_id") or "").strip() or None
+            if self._require_active_run_match:
+                if not state_run_id:
+                    reasons.append(f"PACK_ACTIVE_RUN_MISSING:{pack.pack_id}")
+                elif state_run_id != ready_platform_run_id:
+                    reasons.append(
+                        f"PACK_ACTIVE_RUN_MISMATCH:{pack.pack_id}:{state_run_id}->{ready_platform_run_id}"
+                    )
+            processes = state_payload.get("processes")
+            if not isinstance(processes, Mapping):
+                reasons.append(f"PACK_PROCESSES_MISSING:{pack.pack_id}")
+                continue
+            for process in pack.processes:
+                record = processes.get(process.process_id)
+                if not isinstance(record, Mapping):
+                    reasons.append(f"PACK_PROCESS_MISSING:{pack.pack_id}:{process.process_id}")
+                    continue
+                if not _process_record_alive(record):
+                    reasons.append(f"PACK_PROCESS_NOT_RUNNING:{pack.pack_id}:{process.process_id}")
+        if reasons:
+            return False, tuple(reasons)
+        return True, tuple()
+
     def _should_log_duplicate_skip(self, message_id: str) -> bool:
         now = time.time()
         last = self._last_duplicate_log_by_message_id.get(message_id)
         if last is None or now - last >= self._duplicate_log_interval_seconds:
             self._last_duplicate_log_by_message_id[message_id] = now
+            return True
+        return False
+
+    def _should_log_dependency_wait(self) -> bool:
+        now = time.time()
+        if now - self._last_required_pack_log_at >= self._required_pack_log_interval_seconds:
+            self._last_required_pack_log_at = now
             return True
         return False
 
@@ -436,6 +532,72 @@ def _duplicate_log_interval_seconds() -> float:
     if value <= 0.0:
         return 60.0
     return value
+
+
+def _required_pack_paths() -> tuple[Path, ...]:
+    raw = (os.getenv("WSP_READY_REQUIRED_PACKS") or "").strip()
+    if not raw:
+        return tuple()
+    paths: list[Path] = []
+    for token in raw.split(","):
+        candidate = token.strip()
+        if not candidate:
+            continue
+        paths.append(Path(candidate))
+    return tuple(paths)
+
+
+def _required_pack_check_interval_seconds() -> float:
+    raw = (os.getenv("WSP_READY_REQUIRED_PACK_CHECK_INTERVAL_SECONDS") or "").strip()
+    if not raw:
+        return 2.0
+    try:
+        value = float(raw)
+    except ValueError:
+        return 2.0
+    if value <= 0.0:
+        return 2.0
+    return value
+
+
+def _required_pack_log_interval_seconds() -> float:
+    raw = (os.getenv("WSP_READY_REQUIRED_PACK_LOG_INTERVAL_SECONDS") or "").strip()
+    if not raw:
+        return 20.0
+    try:
+        value = float(raw)
+    except ValueError:
+        return 20.0
+    if value <= 0.0:
+        return 20.0
+    return value
+
+
+def _require_active_run_match() -> bool:
+    raw = (os.getenv("WSP_READY_REQUIRE_ACTIVE_RUN_MATCH") or "").strip().lower()
+    if raw in {"0", "false", "no"}:
+        return False
+    return True
+
+
+def _process_record_alive(record: Mapping[str, Any]) -> bool:
+    pid = record.get("pid")
+    pid_create_time = record.get("pid_create_time")
+    if not isinstance(pid, int):
+        return False
+    try:
+        proc = psutil.Process(pid)
+    except (psutil.NoSuchProcess, psutil.ZombieProcess):
+        return False
+    if not proc.is_running():
+        return False
+    if isinstance(pid_create_time, (int, float)):
+        try:
+            if abs(float(proc.create_time()) - float(pid_create_time)) > 1e-3:
+                return False
+        except (psutil.Error, OSError):
+            return False
+    return True
 
 
 def main() -> None:

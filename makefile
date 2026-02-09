@@ -2623,7 +2623,7 @@ platform-parity-bootstrap:
 	AWS_SECRET_ACCESS_KEY="$(PARITY_AWS_SECRET_ACCESS_KEY)" \
 	AWS_DEFAULT_REGION="$(PARITY_CONTROL_BUS_REGION)" \
 	AWS_ENDPOINT_URL="$(PARITY_CONTROL_BUS_ENDPOINT_URL)" \
-	$(PY_SCRIPT) -c "import boto3,os; endpoint=os.environ.get('AWS_ENDPOINT_URL'); region=os.environ.get('AWS_DEFAULT_REGION','us-east-1'); client=boto3.client('kinesis',region_name=region,endpoint_url=endpoint); [client.create_stream(StreamName=n,ShardCount=1) if True else None for n in ['sr-control-bus','fp.bus.traffic.baseline.v1','fp.bus.traffic.fraud.v1','fp.bus.context.arrival_events.v1','fp.bus.context.arrival_entities.v1','fp.bus.context.flow_anchor.baseline.v1','fp.bus.context.flow_anchor.fraud.v1','fp.bus.audit.v1'] if True] if True else None" 2> /dev/null || true
+	$(PY_SCRIPT) -c "import boto3,os; endpoint=os.environ.get('AWS_ENDPOINT_URL'); region=os.environ.get('AWS_DEFAULT_REGION','us-east-1'); client=boto3.client('kinesis',region_name=region,endpoint_url=endpoint); [client.create_stream(StreamName=n,ShardCount=1) if True else None for n in ['sr-control-bus','fp.bus.traffic.baseline.v1','fp.bus.traffic.fraud.v1','fp.bus.context.arrival_events.v1','fp.bus.context.arrival_entities.v1','fp.bus.context.flow_anchor.baseline.v1','fp.bus.context.flow_anchor.fraud.v1','fp.bus.rtdl.v1','fp.bus.audit.v1'] if True] if True else None" 2> /dev/null || true
 	@AWS_ACCESS_KEY_ID="$(PARITY_MINIO_ACCESS_KEY)" \
 	AWS_SECRET_ACCESS_KEY="$(PARITY_MINIO_SECRET_KEY)" \
 	AWS_DEFAULT_REGION="$(PARITY_OBJECT_STORE_REGION)" \
@@ -3031,14 +3031,14 @@ platform-operate-rtdl-decision-status:
 platform-operate-parity-up:
 	@echo "Ensure parity stack is up and bootstrap complete before orchestration start."
 	@echo "Recommended preflight: make platform-parity-stack-up && make platform-parity-bootstrap && make platform-run-new"
-	@$(MAKE) platform-operate-control-ingress-up
 	@$(MAKE) platform-operate-rtdl-core-up
 	@$(MAKE) platform-operate-rtdl-decision-up
+	@$(MAKE) platform-operate-control-ingress-up
 
 platform-operate-parity-down:
+	@$(MAKE) platform-operate-control-ingress-down
 	@$(MAKE) platform-operate-rtdl-decision-down
 	@$(MAKE) platform-operate-rtdl-core-down
-	@$(MAKE) platform-operate-control-ingress-down
 
 platform-operate-parity-restart:
 	@$(MAKE) platform-operate-parity-down

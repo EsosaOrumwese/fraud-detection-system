@@ -111,8 +111,8 @@ def test_df_outputs_route_to_expected_partitioning_profiles() -> None:
 
     decision_profile = partitioning.get(decision_profile_id)
     intent_profile = partitioning.get(intent_profile_id)
-    assert decision_profile.stream == "fp.bus.traffic.fraud.v1"
-    assert intent_profile.stream == "fp.bus.traffic.fraud.v1"
+    assert decision_profile.stream == "fp.bus.rtdl.v1"
+    assert intent_profile.stream == "fp.bus.rtdl.v1"
 
     decision_key = partitioning.derive_key(decision_profile_id, _decision_response_envelope())
     intent_key = partitioning.derive_key(intent_profile_id, _action_intent_envelope())

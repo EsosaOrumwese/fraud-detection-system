@@ -2710,3 +2710,28 @@ Operational caveat showed `action_outcome` processed as `traffic` in a running i
 IG now fails fast on RTDL mapping/policy drift at startup, reducing risk of silent `action_outcome` misclassification in fresh runtime starts.
 
 ---
+
+## Entry: 2026-02-09 12:46PM - RTDL stream topology separation for decision lane
+
+### Trigger
+DLA intake noise indicated that RTDL families sharing the traffic stream complicated downstream ownership boundaries and observability clarity.
+
+### Decision
+Route RTDL event classes to a dedicated stream (`fp.bus.rtdl.v1`) while preserving traffic/context routing unchanged.
+
+### Implemented change
+- Updated `config/platform/ig/partitioning_profiles_v0.yaml`:
+  - `ig.partitioning.v0.rtdl.decision` -> `fp.bus.rtdl.v1`
+  - `ig.partitioning.v0.rtdl.action_intent` -> `fp.bus.rtdl.v1`
+  - `ig.partitioning.v0.rtdl.action_outcome` -> `fp.bus.rtdl.v1`
+- Updated test expectations in `tests/services/ingestion_gate/test_phase10_df_output_onboarding.py`.
+- Updated `config/platform/ig/README.md` stream mapping table to include RTDL lane.
+
+### Invariants preserved
+- RTDL class-map and schema-policy alignment unchanged.
+- Partition-key derivation logic unchanged.
+- IG admission/idempotency/quarantine semantics unchanged.
+
+### Validation
+- Included in aggregate green runs:
+  - targeted matrix + broader impacted suites (`98 passed` aggregate includes IG phase10).

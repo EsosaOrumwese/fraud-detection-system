@@ -1,7 +1,11 @@
 from __future__ import annotations
 
 import json
+import os
 from pathlib import Path
+
+import psutil
+import yaml
 
 from fraud_detection.world_streamer_producer.config import PolicyProfile, WiringProfile, WspProfile
 from fraud_detection.world_streamer_producer import ready_consumer as ready_consumer_module
@@ -10,6 +14,13 @@ from fraud_detection.world_streamer_producer.runner import StreamResult
 
 RUN_ID = "platform_20260101T000000Z"
 RUN_PREFIX = f"fraud-platform/{RUN_ID}"
+
+
+def _reset_ready_gate_env(monkeypatch) -> None:
+    monkeypatch.delenv("WSP_READY_REQUIRED_PACKS", raising=False)
+    monkeypatch.delenv("WSP_READY_REQUIRE_ACTIVE_RUN_MATCH", raising=False)
+    monkeypatch.delenv("WSP_READY_REQUIRED_PACK_CHECK_INTERVAL_SECONDS", raising=False)
+    monkeypatch.delenv("WSP_READY_REQUIRED_PACK_LOG_INTERVAL_SECONDS", raising=False)
 
 
 def _write_control_message(root: Path, *, topic: str, message_id: str, payload: dict) -> None:
@@ -119,7 +130,20 @@ def _profile(store_root: Path, control_root: Path) -> WspProfile:
     return WspProfile(policy=policy, wiring=wiring)
 
 
+def _write_dependency_pack(path: Path, *, pack_id: str = "dep_pack", process_id: str = "dep_proc") -> None:
+    payload = {
+        "version": 1,
+        "pack_id": pack_id,
+        "description": "dependency pack",
+        "active_run": {"required": True, "source_path": "runs/fraud-platform/ACTIVE_RUN_ID"},
+        "defaults": {"cwd": ".", "env": {"PYTHONUNBUFFERED": "1"}},
+        "processes": [{"id": process_id, "command": ["python", "-c", "print('noop')"]}],
+    }
+    path.write_text(yaml.safe_dump(payload, sort_keys=False), encoding="utf-8")
+
+
 def test_ready_consumer_streams_from_ready(tmp_path: Path, monkeypatch) -> None:
+    _reset_ready_gate_env(monkeypatch)
     monkeypatch.setenv("PLATFORM_RUN_ID", RUN_ID)
     store_root = tmp_path / "store"
     control_root = tmp_path / "control_bus"
@@ -172,6 +196,7 @@ def test_ready_consumer_streams_from_ready(tmp_path: Path, monkeypatch) -> None:
 
 
 def test_ready_consumer_skips_duplicate(tmp_path: Path, monkeypatch) -> None:
+    _reset_ready_gate_env(monkeypatch)
     monkeypatch.setenv("PLATFORM_RUN_ID", RUN_ID)
     store_root = tmp_path / "store"
     control_root = tmp_path / "control_bus"
@@ -219,6 +244,7 @@ def test_ready_consumer_skips_duplicate(tmp_path: Path, monkeypatch) -> None:
 
 
 def test_ready_consumer_duplicate_logging_is_throttled(tmp_path: Path, monkeypatch) -> None:
+    _reset_ready_gate_env(monkeypatch)
     monkeypatch.setenv("PLATFORM_RUN_ID", RUN_ID)
     store_root = tmp_path / "store"
     control_root = tmp_path / "control_bus"
@@ -268,6 +294,7 @@ def test_ready_consumer_duplicate_logging_is_throttled(tmp_path: Path, monkeypat
 
 
 def test_ready_consumer_skips_out_of_scope_platform_run(tmp_path: Path, monkeypatch) -> None:
+    _reset_ready_gate_env(monkeypatch)
     monkeypatch.setenv("PLATFORM_RUN_ID", RUN_ID)
     store_root = tmp_path / "store"
     control_root = tmp_path / "control_bus"
@@ -325,3 +352,122 @@ def test_ready_consumer_skips_out_of_scope_platform_run(tmp_path: Path, monkeypa
     cancelled = [event for event in events if event.get("event_family") == "RUN_CANCELLED"]
     assert cancelled
     assert cancelled[0]["details"].get("reason") == "PLATFORM_RUN_SCOPE_MISMATCH"
+
+
+def test_ready_consumer_defers_when_required_pack_not_ready(tmp_path: Path, monkeypatch) -> None:
+    _reset_ready_gate_env(monkeypatch)
+    monkeypatch.setenv("PLATFORM_RUN_ID", RUN_ID)
+    dependency_pack = tmp_path / "dep_pack.yaml"
+    _write_dependency_pack(dependency_pack)
+    monkeypatch.setenv("WSP_READY_REQUIRED_PACKS", str(dependency_pack))
+    monkeypatch.setattr(ready_consumer_module, "RUNS_ROOT", tmp_path / "runs" / "fraud-platform")
+
+    store_root = tmp_path / "store"
+    control_root = tmp_path / "control_bus"
+    engine_root = tmp_path / "engine_run"
+    engine_root.mkdir(parents=True, exist_ok=True)
+    profile = _profile(store_root, control_root)
+
+    run_id = "e" * 32
+    scenario_id = "baseline_v1"
+    facts_ref = _write_run_facts(store_root, run_id, engine_root, scenario_id)
+    message_id = "5" * 64
+    ready_payload = {
+        "run_id": run_id,
+        "platform_run_id": RUN_ID,
+        "scenario_run_id": run_id,
+        "facts_view_ref": facts_ref,
+        "bundle_hash": "a" * 64,
+        "message_id": message_id,
+        "run_config_digest": "c" * 64,
+        "manifest_fingerprint": "a" * 64,
+        "parameter_hash": "b" * 64,
+        "scenario_id": scenario_id,
+        "oracle_pack_ref": {"engine_run_root": str(engine_root)},
+    }
+    _write_control_message(control_root, topic="fp.bus.control.v1", message_id=message_id, payload=ready_payload)
+
+    called = {"value": False}
+
+    def _fake_stream(*_args, **_kwargs):
+        called["value"] = True
+        return StreamResult("", "", "STREAMED", 1)
+
+    runner = ReadyConsumerRunner(profile)
+    monkeypatch.setattr(runner._producer, "stream_engine_world", _fake_stream)
+
+    results = runner.poll_once()
+    assert results
+    assert results[0].status == "DEFERRED_DOWNSTREAM_NOT_READY"
+    assert "PACK_STATE_MISSING:dep_pack" in str(results[0].reason or "")
+    assert called["value"] is False
+
+
+def test_ready_consumer_streams_after_required_pack_becomes_ready(tmp_path: Path, monkeypatch) -> None:
+    _reset_ready_gate_env(monkeypatch)
+    monkeypatch.setenv("PLATFORM_RUN_ID", RUN_ID)
+    dependency_pack = tmp_path / "dep_pack.yaml"
+    _write_dependency_pack(dependency_pack)
+    monkeypatch.setenv("WSP_READY_REQUIRED_PACKS", str(dependency_pack))
+    monkeypatch.setenv("WSP_READY_REQUIRE_ACTIVE_RUN_MATCH", "1")
+    runs_root = tmp_path / "runs" / "fraud-platform"
+    monkeypatch.setattr(ready_consumer_module, "RUNS_ROOT", runs_root)
+
+    dep_state_path = runs_root / "operate" / "dep_pack" / "state.json"
+    dep_state_path.parent.mkdir(parents=True, exist_ok=True)
+    dep_state_path.write_text(
+        json.dumps(
+            {
+                "pack_id": "dep_pack",
+                "active_platform_run_id": RUN_ID,
+                "processes": {
+                    "dep_proc": {
+                        "pid": os.getpid(),
+                        "pid_create_time": psutil.Process(os.getpid()).create_time(),
+                    }
+                },
+            },
+            sort_keys=True,
+            ensure_ascii=True,
+        ),
+        encoding="utf-8",
+    )
+
+    store_root = tmp_path / "store"
+    control_root = tmp_path / "control_bus"
+    engine_root = tmp_path / "engine_run"
+    engine_root.mkdir(parents=True, exist_ok=True)
+    profile = _profile(store_root, control_root)
+
+    run_id = "f" * 32
+    scenario_id = "baseline_v1"
+    facts_ref = _write_run_facts(store_root, run_id, engine_root, scenario_id)
+    message_id = "6" * 64
+    ready_payload = {
+        "run_id": run_id,
+        "platform_run_id": RUN_ID,
+        "scenario_run_id": run_id,
+        "facts_view_ref": facts_ref,
+        "bundle_hash": "a" * 64,
+        "message_id": message_id,
+        "run_config_digest": "c" * 64,
+        "manifest_fingerprint": "a" * 64,
+        "parameter_hash": "b" * 64,
+        "scenario_id": scenario_id,
+        "oracle_pack_ref": {"engine_run_root": str(engine_root)},
+    }
+    _write_control_message(control_root, topic="fp.bus.control.v1", message_id=message_id, payload=ready_payload)
+
+    called = {"value": False}
+
+    def _fake_stream(*, engine_run_root: str | None = None, scenario_id: str | None = None, **_kwargs):
+        called["value"] = True
+        return StreamResult(engine_run_root or "", scenario_id or "", "STREAMED", 3)
+
+    runner = ReadyConsumerRunner(profile)
+    monkeypatch.setattr(runner._producer, "stream_engine_world", _fake_stream)
+
+    results = runner.poll_once()
+    assert results
+    assert results[0].status == "STREAMED"
+    assert called["value"] is True

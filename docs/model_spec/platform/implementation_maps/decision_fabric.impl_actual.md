@@ -1235,3 +1235,24 @@ This entry freezes the exact implementation mechanics before code edits for deci
 - `python -m py_compile src/fraud_detection/decision_fabric/worker.py` -> PASS.
 - `python -m pytest tests/services/decision_fabric -q` -> `69 passed`.
 - `make platform-operate-rtdl-decision-up` + `status` -> `df_worker running ready` after pack fix.
+
+## Entry: 2026-02-09 12:46PM - DF local-parity compatibility alignment + pre-registry context posture fallback
+
+### Trigger
+Active parity runs remained heavily `FAIL_CLOSED` with repeated compatibility reasons tied to local-parity registry expectations and pre-registry context gating that assumed `NORMAL` action posture.
+
+### Decisions implemented
+1. Local-parity registry snapshot compatibility now reflects degraded-safe posture assumptions:
+- `require_model_primary=false`
+- `required_action_posture=STEP_UP_ONLY`
+- feature-group contract remained explicit (`core_features=v1`).
+2. Context acquisition now uses current posture action posture (`NORMAL`/`STEP_UP_ONLY`) when registry compatibility is not yet available, preventing premature `CONTEXT_BLOCKED` solely from hardcoded `NORMAL` expectation.
+
+### Files changed
+- `config/platform/df/registry_snapshot_local_parity_v0.yaml`
+- `src/fraud_detection/decision_fabric/context.py`
+- `tests/services/decision_fabric/test_phase5_context.py`
+
+### Validation
+- Targeted + broad suites executed under `PYTHONPATH=.;src` and remained green (`decision_fabric` suite included in `98 passed` aggregate).
+- New regression confirms context can proceed under `STEP_UP_ONLY` posture before registry compatibility resolution.

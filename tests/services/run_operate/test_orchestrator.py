@@ -54,6 +54,8 @@ def test_up_status_down_lifecycle(tmp_path: Path, monkeypatch: pytest.MonkeyPatc
 
     up_payload = orch.up()
     assert up_payload["started"] == ["sleeper"]
+    state_payload = orch._load_state()
+    assert state_payload["active_platform_run_id"] == up_payload["active_platform_run_id"]
 
     status_payload = orch.status()
     process_row = status_payload["processes"][0]
@@ -103,3 +105,29 @@ def test_active_run_resolution_prefers_active_file_over_legacy_platform_env(
 
     status_payload = orch.status()
     assert status_payload["active_platform_run_id"] == "platform_from_active_file"
+
+
+def test_up_requires_restart_when_active_run_changes_with_live_process(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setattr(ro, "RUNS_ROOT", tmp_path / "runs" / "fraud-platform")
+    pack_path = tmp_path / "pack_required.yaml"
+    active_run_path = tmp_path / "ACTIVE_RUN_ID"
+    active_run_path.write_text("platform_run_a\n", encoding="utf-8")
+    _write_pack(pack_path, required_run=True, source_path=active_run_path)
+
+    env = dict(os.environ)
+    env.pop("PLATFORM_RUN_ID", None)
+    pack = ro.PackSpec.load(pack_path)
+    orch = ro.ProcessOrchestrator(pack=pack, env=env)
+
+    up_payload = orch.up()
+    assert up_payload["started"] == ["sleeper"]
+    state_payload = orch._load_state()
+    assert state_payload["active_platform_run_id"] == "platform_run_a"
+
+    active_run_path.write_text("platform_run_b\n", encoding="utf-8")
+    with pytest.raises(RuntimeError, match="ACTIVE_PLATFORM_RUN_ID_MISMATCH_RESTART_REQUIRED"):
+        orch.up()
+
+    orch.down(timeout_seconds=2.0)

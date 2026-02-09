@@ -14,10 +14,10 @@ records:
       required_feature_groups:
         core_features: v1
       require_ieg: false
-      require_model_primary: true
+      require_model_primary: false
       require_model_stage2: false
       require_fallback_heuristics: true
-      required_action_posture: NORMAL
+      required_action_posture: STEP_UP_ONLY
     registry_event_id: reg_evt_local_parity_fraud_primary
     activated_at_utc: "2026-02-08T22:30:00Z"
     policy_rev:
@@ -35,10 +35,10 @@ records:
       required_feature_groups:
         core_features: v1
       require_ieg: false
-      require_model_primary: true
+      require_model_primary: false
       require_model_stage2: false
       require_fallback_heuristics: true
-      required_action_posture: NORMAL
+      required_action_posture: STEP_UP_ONLY
     registry_event_id: reg_evt_local_parity_baseline_primary
     activated_at_utc: "2026-02-08T22:30:00Z"
     policy_rev:

@@ -234,6 +234,21 @@ class ProcessOrchestrator:
     def up(self, process_filter: set[str] | None = None) -> dict[str, Any]:
         active_run_id = self._resolve_active_run_id()
         state = self._load_state()
+        previous_active_run_id = str(state.get("active_platform_run_id") or "").strip() or None
+        if (
+            active_run_id
+            and previous_active_run_id
+            and previous_active_run_id != active_run_id
+            and any(
+                _is_alive(record)
+                for record in (state.get("processes") or {}).values()
+                if isinstance(record, dict)
+            )
+        ):
+            raise RuntimeError(
+                f"ACTIVE_PLATFORM_RUN_ID_MISMATCH_RESTART_REQUIRED:{previous_active_run_id}->{active_run_id}"
+            )
+        state["active_platform_run_id"] = active_run_id
         resolved = self._resolve_processes(active_run_id=active_run_id, process_filter=process_filter)
         started: list[str] = []
         already_running: list[str] = []
@@ -347,6 +362,7 @@ class ProcessOrchestrator:
     def status(self, process_filter: set[str] | None = None) -> dict[str, Any]:
         active_run_id = self._resolve_active_run_id(allow_missing=True)
         state = self._load_state()
+        state_active_run_id = str(state.get("active_platform_run_id") or "").strip() or None
         resolved = self._resolve_processes(active_run_id=active_run_id, process_filter=process_filter, allow_missing_run=True)
         rows: list[dict[str, Any]] = []
         for proc in resolved:
@@ -368,6 +384,7 @@ class ProcessOrchestrator:
             "pack_path": str(self.pack.source_path),
             "ts_utc": _utc_now(),
             "active_platform_run_id": active_run_id,
+            "state_active_platform_run_id": state_active_run_id,
             "processes": rows,
         }
         self.status_root.mkdir(parents=True, exist_ok=True)
@@ -495,6 +512,7 @@ class ProcessOrchestrator:
                 "pack_id": self.pack.pack_id,
                 "pack_path": str(self.pack.source_path),
                 "updated_at_utc": _utc_now(),
+                "active_platform_run_id": None,
                 "processes": {},
             }
         payload = json.loads(self.state_path.read_text(encoding="utf-8"))

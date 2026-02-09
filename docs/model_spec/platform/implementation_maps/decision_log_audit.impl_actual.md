@@ -1162,3 +1162,33 @@ This entry freezes the exact implementation mechanics before code edits for deci
 - `python -m py_compile src/fraud_detection/decision_log_audit/worker.py` -> PASS.
 - `python -m pytest tests/services/decision_log_audit -q` -> `36 passed`.
 - decision-lane pack smoke shows `dla_worker running ready` under active run scope.
+
+## Entry: 2026-02-09 12:46PM - DLA lane isolation (local parity) from mixed traffic stream
+
+### Trigger
+DLA intake on `fp.bus.traffic.fraud.v1` was valid-by-policy but produced persistent `UNKNOWN_EVENT_FAMILY` quarantine pressure from raw traffic events, obscuring decision-lane audit signal quality.
+
+### Architectural decision
+Move local-parity DLA intake to a dedicated RTDL stream (`fp.bus.rtdl.v1`) and keep event-family allowlist unchanged.
+
+### Implemented wiring
+1. IG routing for RTDL classes now targets `fp.bus.rtdl.v1`:
+- `ig.partitioning.v0.rtdl.decision`
+- `ig.partitioning.v0.rtdl.action_intent`
+- `ig.partitioning.v0.rtdl.action_outcome`
+2. Added local-parity DLA intake policy file:
+- `config/platform/dla/intake_policy_local_parity_v0.yaml` (`admitted_topics=[fp.bus.rtdl.v1]`)
+3. Local parity profile now points DLA to the local-parity intake policy.
+4. Parity bootstrap/runbook stream inventory now includes `fp.bus.rtdl.v1`.
+
+### Files changed
+- `config/platform/ig/partitioning_profiles_v0.yaml`
+- `config/platform/dla/intake_policy_local_parity_v0.yaml`
+- `config/platform/profiles/local_parity.yaml`
+- `Makefile`
+- `docs/runbooks/platform_parity_walkthrough_v0.md`
+
+### Validation
+- DLA suite remained green within aggregate run:
+  - `python -m pytest -q tests/services/action_layer tests/services/decision_log_audit` -> `87 passed`.
+- Runtime evidence closure for unknown-family reduction is pending the next fresh 200-event parity replay.

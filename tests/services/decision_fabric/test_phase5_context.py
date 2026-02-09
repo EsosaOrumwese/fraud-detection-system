@@ -83,6 +83,33 @@ def _posture(*, allow_ieg: bool, allowed_feature_groups: tuple[str, ...]) -> DfP
     )
 
 
+def _posture_with_action(
+    *,
+    allow_ieg: bool,
+    allowed_feature_groups: tuple[str, ...],
+    action_posture: str,
+) -> DfPostureStamp:
+    return DfPostureStamp(
+        scope_key="env:local_parity",
+        mode="NORMAL",
+        capabilities_mask=CapabilitiesMask(
+            allow_ieg=allow_ieg,
+            allowed_feature_groups=allowed_feature_groups,
+            allow_model_primary=False,
+            allow_model_stage2=False,
+            allow_fallback_heuristics=True,
+            action_posture=action_posture,
+        ),
+        policy_rev=PolicyRev(policy_id="dl.policy.v0", revision="r1"),
+        posture_seq=1,
+        decided_at_utc="2026-02-07T11:00:00Z",
+        source="DL",
+        trust_state="TRUSTED",
+        served_at_utc="2026-02-07T11:00:00Z",
+        reasons=(),
+    )
+
+
 def _ofp_snapshot() -> dict[str, object]:
     return {
         "snapshot_hash": "d" * 64,
@@ -201,3 +228,26 @@ def test_evidence_refs_include_ofp_basis() -> None:
     assert result.status == CONTEXT_READY
     assert result.evidence.ofp_eb_offset_basis is not None
     assert result.evidence.source_eb_ref["topic"] == "fp.bus.traffic.fraud.v1"
+
+
+def test_context_uses_posture_action_posture_before_registry_compatibility() -> None:
+    policy = _policy()
+    stub = StubOfpClient(snapshot=_ofp_snapshot())
+    acquirer = DecisionContextAcquirer(policy=policy, ofp_client=stub)
+    result = acquirer.acquire(
+        candidate=_candidate(),
+        posture=_posture_with_action(
+            allow_ieg=False,
+            allowed_feature_groups=("core_features",),
+            action_posture="STEP_UP_ONLY",
+        ),
+        decision_started_at_utc="2026-02-07T11:00:00Z",
+        now_utc="2026-02-07T11:00:00Z",
+        context_refs={
+            "arrival_events": {"topic": "fp.bus.context.arrival_events.v1", "partition": 0, "offset": "1"},
+            "flow_anchor": {"topic": "fp.bus.context.flow_anchor.fraud.v1", "partition": 0, "offset": "2"},
+        },
+        feature_keys=[{"key_type": "flow_id", "key_id": "flow_1"}],
+    )
+    assert result.status == CONTEXT_READY
+    assert stub.last_payload is not None

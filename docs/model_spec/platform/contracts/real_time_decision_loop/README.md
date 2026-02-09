@@ -18,8 +18,8 @@ RTDL bus-visible payloads use stable `event_type` names with `schema_version = v
 - `degrade_posture` (optional control/audit emission)
 
 v0 local parity stream note:
-- DF/AL outputs may share the traffic stream (`fp.bus.traffic.fraud.v1`).
-- Projectors consuming that shared stream must explicitly ignore non-applicable DF/AL families (advance checkpoint, no state mutation).
+- DF/AL/DLA decision-lane outputs are routed to `fp.bus.rtdl.v1`.
+- Traffic/context projectors continue consuming traffic/context streams and must ignore non-applicable RTDL families if they are ever co-routed by profile override.
 
 Compatibility posture:
 - major `schema_version` mismatch is fail-closed (reject/quarantine), never silently coerced.
