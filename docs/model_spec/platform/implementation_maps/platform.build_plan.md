@@ -979,6 +979,23 @@ Resolved and pinned in:
 - Evidence pack paths are pinned in implementation maps/logbook with run IDs, timestamps, and command traces (no payload secret leakage).
 - Phase 5 remains blocked unless all mandatory 4.6 gates are PASS (reserved families excluded until owning plane activation).
 
+##### 4.6.L — Remaining-open closure TODOs from full parity run `platform_20260209T144746Z`
+**Goal:** convert the latest strict-green blockers into explicit closure tasks while preserving truthful gate posture.
+
+**TODO checklist (must close before declaring Phase 4.6 PASS):**
+- `TODO-4.6L-01` OFP watermark-age policy closure:
+  - decide whether local-parity `WATERMARK_TOO_OLD` is a must-fix gate or an explicitly accepted bounded-run posture,
+  - codify that decision in matrix criteria + runbook checks to avoid ambiguous PASS/FAIL interpretation.
+- `TODO-4.6L-02` IEG/DL run-scoped observability completeness:
+  - restore deterministic emission of run-scoped `health/last_health.json` and `metrics/last_metrics.json` in orchestrated parity runs,
+  - fail the matrix row when either artifact family is absent for active run scope.
+- `TODO-4.6L-03` DF fail-closed posture closure:
+  - close or explicitly justify the observed run posture (`degrade_total=200`, `fail_closed_total=200`, `resolver_failures_total=200`),
+  - if temporarily accepted in local parity, pin bounded acceptance criteria and an env-ladder-safe remediation path for dev/prod parity.
+- `TODO-4.6L-04` Matrix/status truth sync:
+  - keep `platform.phase4_6_validation_matrix.md` and this build-plan status block in non-PASS posture until `TODO-4.6L-01..03` are evidenced closed,
+  - attach closure evidence in `platform.impl_actual.md` + logbook with run IDs/commands.
+
 ---
 
 ### Phase 5 — Label & Case plane
@@ -1033,7 +1050,7 @@ Resolved and pinned in:
 - Phase 4.3.5 (Context Store + FlowBinding join plane): complete.
 - Phase 4.4 (DF/DL): complete.
 - Phase 4.5 (AL + DLA): complete.
-- Phase 4 (RTDL plane overall): complete and green at current v0 scope.
-- Phase 4.6 (Run/Operate + Obs/Gov meta-layer closure gate): complete (all `4.6.A..4.6.J` PASS in `platform.phase4_6_validation_matrix.md`).
-- Next active platform phase: Phase 5 (Label & Case plane).
+- Phase 4 (RTDL plane overall): functionally green for end-to-end throughput on full run `platform_20260209T144746Z`, with strict-green closure items tracked under `4.6.L`.
+- Phase 4.6 (Run/Operate + Obs/Gov meta-layer closure gate): in progress; `4.6.A..4.6.K` framework is implemented, `4.6.L` runtime closure TODOs remain open.
+- Next active platform phase: Phase 5 (Label & Case plane) with `4.6.L` closure TODOs carried in parallel until formal 4.6 PASS is evidenced.
 - SR v0: complete (see `docs/model_spec/platform/implementation_maps/scenario_runner.build_plan.md`).

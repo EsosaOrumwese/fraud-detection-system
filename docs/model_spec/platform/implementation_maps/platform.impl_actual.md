@@ -6498,3 +6498,26 @@ Observed evidence after stream completion and report export:
 1. Decide whether OFP watermark-age red in local parity is an accepted non-blocking posture or a must-fix gate.
 2. Restore/standardize IEG + DL run-scoped health/metrics emission so matrix completeness is enforced.
 3. Resolve DF fail-closed posture root cause (or explicitly document accepted local-parity degrade policy) before declaring RTDL fully green.
+
+## 2026-02-09 03:16PM - Planning pivot: convert full-run residuals into explicit Phase 4.6 closure TODOs
+
+### Objective
+- User-directed sequencing: continue toward Label/Case work while explicitly tracking unresolved strict-green closure items from the latest full 200-event parity run.
+- Ensure build-plan status is truthful (no narrative PASS drift) and residual items are auditable as concrete TODOs.
+
+### Inputs/authority used
+- Latest full parity evidence in this file (`platform_run_id=platform_20260209T144746Z`).
+- Platform build plan (`docs/model_spec/platform/implementation_maps/platform.build_plan.md`) Phase 4.6 gate definitions.
+
+### Decision
+- Added explicit `4.6.L` closure TODO section in the platform build plan to carry remaining open items:
+  1. OFP watermark-age policy closure,
+  2. IEG/DL run-scoped observability artifact completeness,
+  3. DF fail-closed posture closure/justified acceptance,
+  4. matrix/status truth synchronization.
+- Updated rolling status lines so Phase 4.6 is no longer shown as fully PASS while these residuals remain open.
+
+### Rationale
+- The full run proves dataflow/accounting correctness (C&I + RTDL throughput) but does not satisfy strict-green reliability posture.
+- Carrying this as explicit TODOs prevents silent drift between claimed completion and observed runtime evidence.
+- This keeps Phase 5 momentum possible while preserving a hard list of closure obligations before formal 4.6 PASS declaration.
