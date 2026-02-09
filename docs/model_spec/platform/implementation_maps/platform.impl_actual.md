@@ -5431,3 +5431,65 @@ User requested thorough implementation of the parity-run fixes after diagnosing 
 
 ### Next immediate step
 Run targeted tests, then execute a fresh parity restart + 200-event run and validate artifact/metrics/posture deltas against the failure roots.
+
+## 2026-02-09 06:08AM - Post-change DL/DLA evidence breakdown for run `platform_20260209T054217Z` (with pre-fix delta)
+
+### Scope and comparison basis
+- Primary post-fix run under assessment: `runs/fraud-platform/platform_20260209T054217Z/*`
+- Pre-fix comparator run: `runs/fraud-platform/platform_20260209T045202Z/*`
+- DLA run-window for post-fix evidence (from intake attempts): `2026-02-09T05:44:38.064977+00:00` to `2026-02-09T05:51:13.191805+00:00`
+- DLA run-window for pre-fix evidence: `2026-02-09T04:57:20.839141+00:00` to `2026-02-09T05:02:53.870048+00:00`
+
+### DLA intake/reason distribution delta (pre-fix -> post-fix)
+1. Intake volume and acceptance:
+- Pre-fix (`platform_20260209T045202Z`): `200` attempts, accepted=`0`, rejected/quarantine=`200`.
+- Post-fix (`platform_20260209T054217Z`): `600` attempts, accepted=`400`, quarantine=`200`.
+- Interpretation: decision-lane envelopes (`decision_response` + `action_intent`) are now flowing through IG and being appended by DLA; previously they were absent.
+
+2. Reason-code distribution:
+- Pre-fix attempts: `UNKNOWN_EVENT_FAMILY=200` only.
+- Post-fix attempts: `ACCEPT=400`, `UNKNOWN_EVENT_FAMILY=200`.
+- Post-fix quarantine table: `fp.bus.traffic.fraud.v1 | UNKNOWN_EVENT_FAMILY | 200`.
+- Interpretation: residual quarantine is from raw traffic events (`s3_event_stream_with_fraud_6B`) not in DLA accepted event family; this is expected under current DLA inlet contract posture.
+
+3. Event-type distribution in post-fix run:
+- `decision_response` accepted=`200`
+- `action_intent` accepted=`200`
+- `s3_event_stream_with_fraud_6B` unknown-family=`200`
+- Contract check confirms symmetry of DF outputs reaching DLA in 1:1 pairs per source event.
+
+### DL posture lifecycle evidence (post-fix run)
+1. DL mode transition matrix within active post-fix run window:
+- `dl.posture_transition.v1=383`
+- `dl.fail_closed_forced.v1=171`
+- Transition pairs: `FAIL_CLOSED -> FAIL_CLOSED = 383` (no mode switch event in this run window).
+- Source split:
+  - `dl.posture_transition.v1 | WORKER_LOOP = 212`
+  - `dl.posture_transition.v1 | WORKER_LOOP_REQUIRED_SIGNAL_GAP = 171`
+  - `dl.fail_closed_forced.v1 | WORKER_LOOP_REQUIRED_SIGNAL_GAP = 171`
+
+2. DL pre-fix comparator in equivalent run window:
+- `dl.posture_transition.v1=319`
+- `dl.fail_closed_forced.v1=319`
+- Source split was entirely required-signal-gap:
+  - `dl.posture_transition.v1 | WORKER_LOOP_REQUIRED_SIGNAL_GAP = 319`
+  - `dl.fail_closed_forced.v1 | WORKER_LOOP_REQUIRED_SIGNAL_GAP = 319`
+- Interpretation: post-fix DL entered mixed behavior (not continuously in required-signal-gap forcing), confirming OFP/CSFB observability closure improved signal availability.
+
+3. DL posture as observed in accepted `decision_response` payloads (post-fix run):
+- `degrade_posture.mode=FAIL_CLOSED` for all `200` accepted decisions.
+- `degrade_posture.posture_seq` range during accepted decisions: `128` to `510`.
+- Top `degrade_posture.reason` variants:
+  - `baseline=all_signals_ok;transition=upshift_held_quiet_period:1s<60s` -> `142`
+  - `baseline=required_signal_gap:ieg_health;transition=steady_state` -> `57`
+  - `baseline=required_signal_gap:ieg_health,ofp_health;transition=steady_state` -> `1`
+- Interpretation: of required-signal-gap decisions, OFP signal gap nearly eliminated in this run (`1/200`), while IEG health still contributes to fail-closed retention; quiet-period upshift guard is also actively holding mode.
+
+4. DL control-topic emission note:
+- `degrade_ladder/control_events.jsonl` remains `1` line (initial posture-change event).
+- Governance lifecycle stream is emitted in `degrade_ladder/ops.sqlite` (`dl_governance_events`) and is the authoritative high-cardinality lifecycle record for this phase.
+
+### Consolidated conclusion for this step
+- Post-fix, DLA now ingests and appends the expected decision-lane envelopes (400 accepted), which did not occur pre-fix.
+- DL remains in `FAIL_CLOSED` during this run (by policy and signal posture), but no longer exhibits the pre-fix pattern of 100% required-signal-gap-forced ticks.
+- Remaining observable posture pressure is concentrated in IEG health and configured quiet-period hold semantics, not OFP artifact absence.
