@@ -6864,3 +6864,31 @@ Implement CaseTrigger Phase 1 and provide an executable runtime contract boundar
 
 ### Platform impact
 - Phase 5.2 now has concrete source-adapter mechanics and gating behavior, reducing ambiguity before entering identity/collision runtime handling (Phase 3).
+
+## 2026-02-09 04:05PM - Phase 5.2 Phase-3 execution lock (identity + collision)
+
+### Scope
+- Implement runtime replay/collision ledger for CaseTrigger.
+
+### Decision
+- Use append-safe registration semantics (`NEW`/`REPLAY_MATCH`/`PAYLOAD_MISMATCH`) keyed by deterministic `case_trigger_id`.
+- Validate incoming CaseTrigger payloads through existing Phase-1 contract gate before ledger registration.
+
+### Acceptance gate
+- CaseTrigger phase3 replay suite green + full Phase1/2/3 CaseTrigger suite green.
+
+## 2026-02-09 04:07PM - CaseTrigger Phase 3 closure (identity + collision)
+
+### What closed
+- Implemented deterministic replay/collision runtime behavior for CaseTrigger identities.
+
+### Delivered artifacts
+- `src/fraud_detection/case_trigger/replay.py`
+- `src/fraud_detection/case_trigger/__init__.py` (replay exports)
+- `tests/services/case_trigger/test_phase3_replay.py`
+
+### Validation
+- Combined CaseTrigger Phase1+2+3 suite: `22 passed`.
+
+### Platform impact
+- CaseTrigger now has explicit collision anomaly handling (`PAYLOAD_MISMATCH`) with no-overwrite semantics, satisfying Phase 5.2 deterministic identity/collision gate before publish corridor implementation.

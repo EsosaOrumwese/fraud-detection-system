@@ -234,3 +234,74 @@ Close CaseTrigger Phase 2 by adding explicit adapter boundaries for `DF`/`AL`/`D
   - explicit source adapters exist for DF/AL/DLA/external/manual,
   - unsupported/insufficient source facts fail closed,
   - adapter outputs remain minimal by-ref and contract-validated.
+
+## Entry: 2026-02-09 04:05PM - Pre-change lock for Phase 3 (deterministic identity + collision handling)
+
+### Objective
+Close CaseTrigger Phase 3 by adding deterministic replay/collision handling for CaseTrigger identities under at-least-once retries.
+
+### Why additional runtime logic is needed
+- Phase 1 already enforces deterministic identity/payload hash at contract parse time.
+- Phase 3 requires operational collision behavior: duplicate replay vs same-key/different-payload anomaly handling.
+- This requires append-safe registration storage, not only stateless validation.
+
+### Implementation decision
+- Add a dedicated CaseTrigger replay ledger module: `src/fraud_detection/case_trigger/replay.py`.
+- Ledger semantics:
+  - `NEW` on first seen `case_trigger_id`.
+  - `REPLAY_MATCH` when same `case_trigger_id` and same canonical payload hash.
+  - `PAYLOAD_MISMATCH` when same `case_trigger_id` but different canonical payload hash (collision anomaly, no overwrite).
+- Ledger input path validates payload through Phase 1 contract gate (`validate_case_trigger_payload`) before registration; this guarantees deterministic `case_id`/`case_trigger_id` and payload hash rules are enforced before persistence.
+- Backends: sqlite + postgres parity (mirroring existing DF/AL replay modules).
+
+### Planned files
+- New code:
+  - `src/fraud_detection/case_trigger/replay.py`
+- Export update:
+  - `src/fraud_detection/case_trigger/__init__.py`
+- New tests:
+  - `tests/services/case_trigger/test_phase3_replay.py`
+
+### Validation plan
+- `python -m pytest -q tests/services/case_trigger/test_phase3_replay.py tests/services/case_trigger/test_phase2_adapters.py tests/services/case_trigger/test_phase1_taxonomy.py tests/services/case_trigger/test_phase1_config.py tests/services/case_trigger/test_phase1_contracts.py`
+- compile check for updated/new modules.
+
+## Entry: 2026-02-09 04:07PM - Phase 3 implemented and validated (deterministic identity + collision handling)
+
+### Implementation completed
+1. Added CaseTrigger replay/collision ledger:
+- `src/fraud_detection/case_trigger/replay.py`
+
+2. Updated package exports:
+- `src/fraud_detection/case_trigger/__init__.py`
+
+3. Added Phase 3 replay validation suite:
+- `tests/services/case_trigger/test_phase3_replay.py`
+
+### Runtime mechanics implemented
+- Replay ledger registration now validates payload via `validate_case_trigger_payload(...)` before persistence, enforcing deterministic `case_id`/`case_trigger_id` and canonical payload hash posture from Phase 1.
+- Registration outcomes:
+  - `NEW`: first-seen deterministic `case_trigger_id`.
+  - `REPLAY_MATCH`: same `case_trigger_id` + same canonical payload hash.
+  - `PAYLOAD_MISMATCH`: same `case_trigger_id` + different canonical payload hash (collision anomaly; overwrite blocked).
+- Persistence backends are parity-aligned with existing platform patterns:
+  - sqlite backend,
+  - postgres backend (dsn-detected).
+- Ledger stores append-safe replay/mismatch counters and mismatch evidence rows (`case_trigger_payload_mismatches`) for auditability.
+
+### DoD closure mapping (Phase 3)
+- Deterministic identity recipes enforced:
+  - by upstream contract parsing in replay registration path.
+- Canonical payload hash stability:
+  - hash computed from canonicalized validated payload.
+- Collision posture:
+  - same key with payload drift emits `PAYLOAD_MISMATCH` and preserves stored canonical payload hash (no silent overwrite).
+
+### Validation evidence
+- `python -m py_compile src/fraud_detection/case_trigger/__init__.py src/fraud_detection/case_trigger/replay.py src/fraud_detection/case_trigger/adapters.py src/fraud_detection/case_trigger/contracts.py src/fraud_detection/case_trigger/config.py src/fraud_detection/case_trigger/taxonomy.py tests/services/case_trigger/test_phase3_replay.py tests/services/case_trigger/test_phase2_adapters.py tests/services/case_trigger/test_phase1_taxonomy.py tests/services/case_trigger/test_phase1_config.py tests/services/case_trigger/test_phase1_contracts.py`
+  - result: pass
+- `python -m pytest -q tests/services/case_trigger/test_phase3_replay.py tests/services/case_trigger/test_phase2_adapters.py tests/services/case_trigger/test_phase1_taxonomy.py tests/services/case_trigger/test_phase1_config.py tests/services/case_trigger/test_phase1_contracts.py`
+  - result: `22 passed`
+
+### Phase closure statement
+- Phase 3 DoD is satisfied for current scope with explicit replay/collision behavior and deterministic identity enforcement in runtime registration path.

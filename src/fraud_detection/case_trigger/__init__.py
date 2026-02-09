@@ -18,6 +18,15 @@ from .config import (
     load_trigger_policy,
 )
 from .contracts import CaseTriggerContractError, validate_case_trigger_payload
+from .replay import (
+    REPLAY_MATCH,
+    REPLAY_NEW,
+    REPLAY_PAYLOAD_MISMATCH,
+    CaseTriggerLedgerEntry,
+    CaseTriggerReplayError,
+    CaseTriggerReplayLedger,
+    ReplayRegistrationResult,
+)
 from .taxonomy import (
     SUPPORTED_CASE_TRIGGER_TYPES,
     SUPPORTED_SOURCE_CLASSES,
@@ -40,12 +49,19 @@ __all__ = [
     "DEFAULT_CASE_EVENT_CLASS",
     "TRIGGER_ALLOWED_SOURCE_CLASSES",
     "TRIGGER_REQUIRED_EVIDENCE_REF_TYPES",
+    "REPLAY_MATCH",
+    "REPLAY_NEW",
+    "REPLAY_PAYLOAD_MISMATCH",
     "CaseTriggerAdapterError",
     "CaseTriggerConfigError",
     "CaseTriggerContractError",
+    "CaseTriggerLedgerEntry",
+    "CaseTriggerReplayError",
+    "CaseTriggerReplayLedger",
     "CaseTriggerPolicy",
     "CaseTriggerRule",
     "CaseTriggerTaxonomyError",
+    "ReplayRegistrationResult",
     "adapt_case_trigger_from_source",
     "adapt_from_al_outcome",
     "adapt_from_df_decision",

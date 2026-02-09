@@ -99,4 +99,5 @@ Provide an executable, component-scoped plan for the CaseTrigger service aligned
 ## Status (rolling)
 - Phase 1 (`Contract + taxonomy lock`): complete (`10 passed` on 2026-02-09).
 - Phase 2 (`Source adapters + eligibility gates`): complete (`8 passed` adapter suite; `18 passed` combined Phase1+2 suite on 2026-02-09).
-- Next action: begin Phase 3 (`Deterministic identity + collision handling`) and pin replay/collision anomaly surfaces.
+- Phase 3 (`Deterministic identity + collision handling`): complete (`4 passed` replay suite; `22 passed` combined Phase1+2+3 suite on 2026-02-09).
+- Next action: begin Phase 4 (`Publish corridor`) with explicit ADMIT/DUPLICATE/QUARANTINE/AMBIGUOUS outcomes and actor attribution.
