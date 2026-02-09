@@ -55,6 +55,23 @@ class LabelAssertionWriteRecord:
     assertion_ref: str
 
 
+@dataclass(frozen=True)
+class LabelTimelineEntry:
+    label_assertion_id: str
+    platform_run_id: str
+    event_id: str
+    label_type: str
+    label_value: str
+    effective_time: str
+    observed_time: str
+    source_type: str
+    actor_id: str | None
+    payload_hash: str
+    evidence_refs: tuple[dict[str, str], ...]
+    assertion_ref: str
+    committed_at_utc: str
+
+
 class LabelStoreWriterBoundary:
     """Append-safe writer lane that enforces LS idempotency and collision policy."""
 
@@ -136,6 +153,102 @@ class LabelStoreWriterBoundary:
             )
         return int((row[0] if row is not None else 0) or 0)
 
+    def list_timeline(
+        self,
+        *,
+        platform_run_id: str,
+        event_id: str,
+        label_type: str | None = None,
+    ) -> tuple[LabelTimelineEntry, ...]:
+        run_id = _non_empty(platform_run_id, "platform_run_id")
+        event = _non_empty(event_id, "event_id")
+        kind = str(label_type or "").strip() or None
+        with self._connect() as conn:
+            if kind is None:
+                rows = _query_all(
+                    conn,
+                    self.backend,
+                    """
+                    SELECT label_assertion_id, platform_run_id, event_id, label_type, label_value,
+                           effective_time, observed_time, source_type, actor_id, payload_hash,
+                           evidence_refs_json, assertion_ref, committed_at_utc
+                    FROM ls_label_timeline
+                    WHERE platform_run_id = {p1} AND event_id = {p2}
+                    ORDER BY observed_time ASC, effective_time ASC, label_assertion_id ASC
+                    """,
+                    (run_id, event),
+                )
+            else:
+                rows = _query_all(
+                    conn,
+                    self.backend,
+                    """
+                    SELECT label_assertion_id, platform_run_id, event_id, label_type, label_value,
+                           effective_time, observed_time, source_type, actor_id, payload_hash,
+                           evidence_refs_json, assertion_ref, committed_at_utc
+                    FROM ls_label_timeline
+                    WHERE platform_run_id = {p1} AND event_id = {p2} AND label_type = {p3}
+                    ORDER BY observed_time ASC, effective_time ASC, label_assertion_id ASC
+                    """,
+                    (run_id, event, kind),
+                )
+        items: list[LabelTimelineEntry] = []
+        for row in rows:
+            items.append(
+                LabelTimelineEntry(
+                    label_assertion_id=str(row[0]),
+                    platform_run_id=str(row[1]),
+                    event_id=str(row[2]),
+                    label_type=str(row[3]),
+                    label_value=str(row[4]),
+                    effective_time=str(row[5]),
+                    observed_time=str(row[6]),
+                    source_type=str(row[7]),
+                    actor_id=_none_if_blank(row[8]),
+                    payload_hash=str(row[9]),
+                    evidence_refs=_evidence_refs_tuple(row[10]),
+                    assertion_ref=str(row[11]),
+                    committed_at_utc=str(row[12]),
+                )
+            )
+        return tuple(items)
+
+    def rebuild_timeline_from_assertion_ledger(self) -> int:
+        def _tx(conn: Any) -> int:
+            rows = _query_all(
+                conn,
+                self.backend,
+                """
+                SELECT assertion_json, first_committed_at_utc, assertion_ref
+                FROM ls_label_assertions
+                ORDER BY first_committed_at_utc ASC, label_assertion_id ASC
+                """,
+                tuple(),
+            )
+            inserted = 0
+            for row in rows:
+                payload = _json_to_mapping(row[0])
+                if not payload:
+                    raise LabelStoreWriterError("cannot rebuild timeline: invalid assertion_json in ledger")
+                try:
+                    assertion = LabelAssertion.from_payload(payload)
+                except Exception as exc:
+                    raise LabelStoreWriterError(
+                        f"cannot rebuild timeline: assertion payload invalid ({exc.__class__.__name__})"
+                    ) from exc
+                added = self._append_timeline_entry(
+                    conn=conn,
+                    assertion=assertion,
+                    assertion_json=_canonical_json(assertion.as_dict()),
+                    committed_at_utc=str(row[1]),
+                    assertion_ref=str(row[2]),
+                )
+                if added:
+                    inserted += 1
+            return inserted
+
+        return int(self._run_write_tx(_tx) or 0)
+
     def _write_tx(
         self,
         *,
@@ -179,6 +292,13 @@ class LabelStoreWriterBoundary:
                     committed_at_utc,
                     assertion_ref,
                 ),
+            )
+            self._append_timeline_entry(
+                conn=conn,
+                assertion=assertion,
+                assertion_json=assertion_json,
+                committed_at_utc=committed_at_utc,
+                assertion_ref=assertion_ref,
             )
             return LabelStoreWriteResult(
                 status=LS_WRITE_ACCEPTED,
@@ -302,6 +422,61 @@ class LabelStoreWriterBoundary:
             mismatch_count=mismatch_count,
         )
 
+    def _append_timeline_entry(
+        self,
+        *,
+        conn: Any,
+        assertion: LabelAssertion,
+        assertion_json: str,
+        committed_at_utc: str,
+        assertion_ref: str,
+    ) -> bool:
+        subject = assertion.label_subject_key
+        evidence_refs_json = _canonical_json([item.as_dict() for item in assertion.evidence_refs])
+        prior = _query_one(
+            conn,
+            self.backend,
+            """
+            SELECT 1
+            FROM ls_label_timeline
+            WHERE label_assertion_id = {p1}
+            """,
+            (assertion.label_assertion_id,),
+        )
+        _execute(
+            conn,
+            self.backend,
+            """
+            INSERT INTO ls_label_timeline (
+                label_assertion_id, platform_run_id, event_id, label_type, label_value,
+                effective_time, observed_time, source_type, actor_id, payload_hash,
+                evidence_refs_json, assertion_ref, assertion_json, committed_at_utc
+            ) VALUES (
+                {p1}, {p2}, {p3}, {p4}, {p5},
+                {p6}, {p7}, {p8}, {p9}, {p10},
+                {p11}, {p12}, {p13}, {p14}
+            )
+            ON CONFLICT (label_assertion_id) DO NOTHING
+            """,
+            (
+                assertion.label_assertion_id,
+                subject.platform_run_id,
+                subject.event_id,
+                assertion.label_type,
+                assertion.label_value,
+                assertion.effective_time,
+                assertion.observed_time,
+                assertion.source_type,
+                assertion.actor_id,
+                assertion.payload_hash,
+                evidence_refs_json,
+                assertion_ref,
+                assertion_json,
+                committed_at_utc,
+            ),
+        )
+        return prior is None
+
     def _run_write_tx(self, func: Any) -> Any:
         with self._connect() as conn:
             if self.backend == "sqlite":
@@ -346,6 +521,24 @@ class LabelStoreWriterBoundary:
                 );
                 CREATE INDEX IF NOT EXISTS ix_ls_label_assertion_mismatches_id
                     ON ls_label_assertion_mismatches (label_assertion_id, observed_at_utc);
+                CREATE TABLE IF NOT EXISTS ls_label_timeline (
+                    label_assertion_id TEXT PRIMARY KEY,
+                    platform_run_id TEXT NOT NULL,
+                    event_id TEXT NOT NULL,
+                    label_type TEXT NOT NULL,
+                    label_value TEXT NOT NULL,
+                    effective_time TEXT NOT NULL,
+                    observed_time TEXT NOT NULL,
+                    source_type TEXT NOT NULL,
+                    actor_id TEXT,
+                    payload_hash TEXT NOT NULL,
+                    evidence_refs_json TEXT NOT NULL,
+                    assertion_ref TEXT NOT NULL,
+                    assertion_json TEXT NOT NULL,
+                    committed_at_utc TEXT NOT NULL
+                );
+                CREATE INDEX IF NOT EXISTS ix_ls_label_timeline_subject_order
+                    ON ls_label_timeline (platform_run_id, event_id, label_type, observed_time, effective_time, label_assertion_id);
                 """,
             )
 
@@ -384,6 +577,59 @@ def _canonical_json(value: Any) -> str:
     return json.dumps(value, sort_keys=True, ensure_ascii=True, separators=(",", ":"))
 
 
+def _none_if_blank(value: Any) -> str | None:
+    text = str(value or "").strip()
+    return text or None
+
+
+def _json_to_mapping(value: Any) -> dict[str, Any]:
+    if value in (None, ""):
+        return {}
+    if isinstance(value, Mapping):
+        return dict(value)
+    if isinstance(value, str):
+        try:
+            parsed = json.loads(value)
+        except json.JSONDecodeError:
+            return {}
+        return dict(parsed) if isinstance(parsed, Mapping) else {}
+    return {}
+
+
+def _evidence_refs_tuple(value: Any) -> tuple[dict[str, str], ...]:
+    if value in (None, ""):
+        return tuple()
+    payload: list[Any]
+    if isinstance(value, list):
+        payload = list(value)
+    elif isinstance(value, str):
+        try:
+            parsed = json.loads(value)
+        except json.JSONDecodeError:
+            return tuple()
+        if not isinstance(parsed, list):
+            return tuple()
+        payload = list(parsed)
+    else:
+        return tuple()
+
+    refs: list[dict[str, str]] = []
+    for item in payload:
+        if not isinstance(item, Mapping):
+            continue
+        ref_type = str(item.get("ref_type") or "").strip()
+        ref_id = str(item.get("ref_id") or "").strip()
+        ref_scope = str(item.get("ref_scope") or "").strip()
+        if not ref_type or not ref_id:
+            continue
+        row = {"ref_type": ref_type, "ref_id": ref_id}
+        if ref_scope:
+            row["ref_scope"] = ref_scope
+        refs.append(row)
+    refs.sort(key=lambda item: (item["ref_type"], item["ref_id"], str(item.get("ref_scope") or "")))
+    return tuple(refs)
+
+
 def _render_sql(sql: str, backend: str) -> str:
     rendered = sql
     if backend == "postgres":
@@ -399,6 +645,12 @@ def _query_one(conn: Any, backend: str, sql: str, params: tuple[Any, ...]) -> An
     rendered = _render_sql(sql, backend)
     cur = conn.execute(rendered, params) if backend == "sqlite" else conn.cursor().execute(rendered, params)
     return cur.fetchone()
+
+
+def _query_all(conn: Any, backend: str, sql: str, params: tuple[Any, ...]) -> list[Any]:
+    rendered = _render_sql(sql, backend)
+    cur = conn.execute(rendered, params) if backend == "sqlite" else conn.cursor().execute(rendered, params)
+    return list(cur.fetchall())
 
 
 def _execute(conn: Any, backend: str, sql: str, params: tuple[Any, ...]) -> None:

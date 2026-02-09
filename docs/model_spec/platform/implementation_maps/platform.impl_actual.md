@@ -7446,3 +7446,42 @@ Execute Label Store Phase 2 (writer boundary + idempotency corridor) with determ
   - CM label/phase8 regression `10 passed`
   - CM full regression `44 passed`
   - platform reporter regression `2 passed`
+
+## Entry: 2026-02-09 06:34PM - LS Phase 3 execution lock (platform Phase 5.6 progression)
+
+### Scope
+Execute Label Store Phase 3 (append-only timeline persistence) with deterministic read ordering and rebuild-safe recovery support.
+
+### Locked implementation posture
+- Add explicit timeline truth table separate from idempotency ledger.
+- Preserve append-only guarantees: timeline rows inserted on new accepted assertions only.
+- Add deterministic timeline read API and rebuild helper from assertion ledger.
+- Validate via dedicated LS phase3 matrix + LS full suite + CM handshake regression.
+
+### Acceptance gate
+- LS Phase 3 matrix green.
+- LS Phase1..3 suite green.
+- CM label-handshake + CM phase8 matrix regression green.
+- Build-plan/impl-map/logbook updated with exact evidence.
+
+## Entry: 2026-02-09 06:38PM - LS Phase 3 closure (platform Phase 5.6 progression)
+
+### What was closed
+- Label Store Phase 3 append-only timeline persistence is implemented and validated.
+
+### Platform-level impact
+- Platform Phase `5.6` is advanced on LS side with explicit immutable timeline storage and deterministic timeline ordering semantics.
+- Recovery posture improved through rebuild utility from assertion ledger truth, reducing risk during backup/restore recovery workflows.
+
+### Evidence references
+- Code:
+  - `src/fraud_detection/label_store/writer_boundary.py`
+  - `src/fraud_detection/label_store/__init__.py`
+- Tests:
+  - `tests/services/label_store/test_phase3_timeline_persistence.py`
+- Validation:
+  - LS Phase 3 matrix `4 passed`
+  - LS Phase1..3 `19 passed`
+  - CM label/phase8 regressions `10 passed`
+  - CM full regression `44 passed`
+  - platform reporter regression `2 passed`

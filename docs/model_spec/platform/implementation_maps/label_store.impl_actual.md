@@ -207,3 +207,110 @@ Phase 1 pins schema/identity, but no concrete LS writer boundary exists yet. Mis
   - dedupe + payload-hash collision policy is enforced fail-closed,
   - write acknowledgement is returned only after transactional commit,
   - retry outcomes are deterministic.
+
+## Entry: 2026-02-09 06:34PM - Pre-change lock for Phase 3 (LS append-only timeline persistence)
+
+### Objective
+Close LS Phase 3 by persisting authoritative append-only label timeline entries, enforcing deterministic timeline ordering semantics, and adding rebuild-safe timeline recovery support from assertion ledger truth.
+
+### Authority inputs used
+- `docs/model_spec/platform/implementation_maps/label_store.build_plan.md` (Phase 3 DoD)
+- `docs/model_spec/platform/implementation_maps/platform.build_plan.md` (Phase 5.6 expectations)
+- `docs/model_spec/platform/component-specific/label_store.design-authority.md` (append-only labels, correction semantics, deterministic timeline reads)
+- Existing LS Phase 2 writer corridor in `src/fraud_detection/label_store/writer_boundary.py`
+
+### Problem framing
+Phase 2 implemented writer idempotency corridor but current persisted shape is assertion-ledger centric and does not expose an explicit append-only timeline surface nor rebuild utility. Missing gates:
+1. no dedicated immutable timeline table optimized for subject-history reads,
+2. no deterministic timeline read API with pinned ordering rules,
+3. no explicit rebuild path to restore timeline rows from assertion ledger truth.
+
+### Alternatives considered
+1. Treat `ls_label_assertions` as both idempotency ledger and timeline read surface.
+- Rejected: concerns are conflated; timeline reads and rebuild semantics are less explicit.
+2. Add dedicated `ls_label_timeline` append-only table fed only on accepted-new assertions, with deterministic read API and rebuild helper from assertion ledger.
+- Selected: clean truth/read separation, auditable append-only lane, explicit restore posture.
+
+### Decisions locked before edits
+1. Add `ls_label_timeline` table with one immutable row per accepted assertion id (`label_assertion_id` PK).
+2. Insert timeline row only when write outcome is `ASSERTION_COMMITTED_NEW`; duplicate replay/mismatch never appends new timeline truth.
+3. Define deterministic timeline ordering as:
+- `observed_time ASC`, tie-break `effective_time ASC`, tie-break `label_assertion_id ASC`.
+4. Persist provenance/evidence by reference on timeline rows (`source_type`, `actor_id`, `evidence_refs_json`, pins via assertion payload reference fields).
+5. Provide `rebuild_timeline_from_assertion_ledger()` utility that repopulates missing timeline rows from `ls_label_assertions.assertion_json` without mutating existing rows.
+6. Add dedicated Phase 3 matrix tests for append-only behavior, deterministic ordering, provenance refs persistence, and rebuild safety.
+
+### Planned files
+- Update:
+  - `src/fraud_detection/label_store/writer_boundary.py`
+  - `src/fraud_detection/label_store/__init__.py`
+- New:
+  - `tests/services/label_store/test_phase3_timeline_persistence.py`
+- Documentation updates after validation:
+  - `docs/model_spec/platform/implementation_maps/label_store.build_plan.md`
+  - `docs/model_spec/platform/implementation_maps/platform.build_plan.md`
+  - `docs/model_spec/platform/implementation_maps/label_store.impl_actual.md`
+  - `docs/model_spec/platform/implementation_maps/platform.impl_actual.md`
+  - `docs/logbook/02-2026/2026-02-09.md`
+
+### Validation plan
+- `python -m py_compile src/fraud_detection/label_store/writer_boundary.py src/fraud_detection/label_store/__init__.py tests/services/label_store/test_phase3_timeline_persistence.py`
+- `python -m pytest -q tests/services/label_store/test_phase3_timeline_persistence.py`
+- `python -m pytest -q tests/services/label_store/test_phase1_label_store_contracts.py tests/services/label_store/test_phase1_label_store_ids.py tests/services/label_store/test_phase2_writer_boundary.py tests/services/label_store/test_phase3_timeline_persistence.py`
+- `python -m pytest -q tests/services/case_mgmt/test_phase5_label_handshake.py tests/services/case_mgmt/test_phase8_validation_matrix.py`
+
+## Entry: 2026-02-09 06:38PM - Phase 3 implemented and validated (LS append-only timeline persistence)
+
+### Implementation completed
+1. Extended LS writer boundary with explicit append-only timeline truth:
+- updated `src/fraud_detection/label_store/writer_boundary.py`
+- added immutable `ls_label_timeline` table (one row per accepted assertion id), separate from idempotency ledger.
+- timeline row insert now occurs only for `ASSERTION_COMMITTED_NEW` outcomes.
+
+2. Added deterministic timeline read surface:
+- `list_timeline(platform_run_id, event_id, label_type=None)`
+- ordering pinned as:
+  - `observed_time ASC`
+  - tie-break `effective_time ASC`
+  - tie-break `label_assertion_id ASC`
+
+3. Added rebuild-safe restore utility:
+- `rebuild_timeline_from_assertion_ledger()`
+- repopulates missing timeline rows from `ls_label_assertions.assertion_json` using contract re-validation and idempotent insert semantics.
+
+4. Added Phase 3 data type exports:
+- `LabelTimelineEntry` exported via `src/fraud_detection/label_store/__init__.py`.
+
+5. Added Phase 3 validation matrix:
+- `tests/services/label_store/test_phase3_timeline_persistence.py`
+- coverage includes:
+  - append-only correction behavior,
+  - deterministic ordering under out-of-order writes,
+  - duplicate replay non-append guarantee + evidence-ref persistence,
+  - rebuild restore from assertion ledger after timeline wipe.
+
+### Key mechanics delivered
+- Label timeline truth is now an explicit append-only surface independent from mutable replay/mismatch counters.
+- Corrections are represented as new assertions (new timeline rows) with historical continuity preserved.
+- Rebuild utility provides operational safety for timeline recovery without mutating assertion truth.
+
+### Validation evidence
+- `python -m py_compile src/fraud_detection/label_store/writer_boundary.py src/fraud_detection/label_store/__init__.py tests/services/label_store/test_phase3_timeline_persistence.py`
+  - result: pass
+- `python -m pytest -q tests/services/label_store/test_phase3_timeline_persistence.py`
+  - result: `4 passed`
+- `python -m pytest -q tests/services/label_store/test_phase1_label_store_contracts.py tests/services/label_store/test_phase1_label_store_ids.py tests/services/label_store/test_phase2_writer_boundary.py tests/services/label_store/test_phase3_timeline_persistence.py`
+  - result: `19 passed`
+- `python -m pytest -q tests/services/case_mgmt/test_phase5_label_handshake.py tests/services/case_mgmt/test_phase8_validation_matrix.py`
+  - result: `10 passed`
+- `python -m pytest -q tests/services/case_mgmt/test_phase1_contracts.py tests/services/case_mgmt/test_phase1_ids.py tests/services/case_mgmt/test_phase2_intake.py tests/services/case_mgmt/test_phase3_projection.py tests/services/case_mgmt/test_phase4_evidence_resolution.py tests/services/case_mgmt/test_phase5_label_handshake.py tests/services/case_mgmt/test_phase6_action_handshake.py tests/services/case_mgmt/test_phase7_observability.py tests/services/case_mgmt/test_phase8_validation_matrix.py`
+  - result: `44 passed`
+- `python -m pytest -q tests/services/platform_reporter/test_run_reporter.py`
+  - result: `2 passed`
+
+### Phase closure statement
+- LS Phase 3 DoD is satisfied:
+  - append-only timeline persistence is implemented,
+  - deterministic timeline ordering is enforced,
+  - provenance/evidence refs are persisted by reference,
+  - rebuild-safe restore path is available and tested.
