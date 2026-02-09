@@ -1,5 +1,5 @@
 # Platform Parity Walkthrough (v0) — Oracle Store → SR → WSP → IG → EB → IEG/OFP/CSFB/DF/DL/AL/DLA
-_As of 2026-02-08_
+_As of 2026-02-09_
 
 This runbook executes a **local_parity** end‑to‑end flow capped to **500,000 events**, then validates the implemented RTDL component surfaces (**IEG/OFP/CSFB/DF/DL/AL/DLA**) against admitted EB topics.
 It uses **MinIO (S3)** for the Oracle Store + platform artifacts, **LocalStack Kinesis** for control/event buses, and **Postgres** for IG/WSP state.
@@ -140,6 +140,11 @@ make platform-operate-rtdl-decision-up
 make platform-operate-parity-status
 ```
 
+Equivalent shorthand:
+```
+make platform-operate-parity-up
+```
+
 Shutdown/restart:
 
 ```
@@ -162,6 +167,9 @@ Notes:
 - RTDL core pack enforces active run scope via `ACTIVE_RUN_ID` -> `*_REQUIRED_PLATFORM_RUN_ID`.
 - RTDL decision-lane pack enforces active run scope for `DL/DF/AL/DLA` with the same run pin.
 - Orchestrator contract is plane-agnostic; future planes onboard by adding new process-pack files, not by changing orchestrator code.
+- Mode boundary:
+  - If packs are running, treat them as source-of-truth daemons and avoid launching duplicate manual consumers for the same component.
+  - Use manual component commands only for targeted diagnosis or matrix/boundary checks.
 
 ---
 
@@ -333,12 +341,12 @@ make platform-parity-bootstrap
 Or create it manually:
 ```
 aws --endpoint-url http://localhost:4566 kinesis create-stream --stream-name fp.bus.audit.v1 --shard-count 1
+```
 
 **If decision-lane publish fails with `ResourceNotFoundException` for `fp.bus.rtdl.v1`:**
 
 ```powershell
 aws --endpoint-url http://localhost:4566 kinesis create-stream --stream-name fp.bus.rtdl.v1 --shard-count 1
-```
 ```
 
 ---
@@ -385,6 +393,8 @@ Traffic outputs are **not interleaved** across modes; only the selected stream i
 ```
 $env:WSP_READY_MAX_EVENTS="500000"; make platform-wsp-ready-consumer-once WSP_PROFILE=config/platform/profiles/local_parity.yaml
 ```
+
+If `control_ingress` pack is already up (`make platform-operate-control-ingress-up`), do not run this command in parallel; the pack already runs WSP ready-consumer.
 
 **Expected:**
 - WSP reads READY from Kinesis
@@ -447,7 +457,8 @@ Get-Content runs/fraud-platform/<platform_run_id>/platform.log -Wait
   - SR: `runs/fraud-platform/<platform_run_id>/scenario_runner/scenario_runner.log`
   - WSP: `runs/fraud-platform/<platform_run_id>/world_streamer_producer/world_streamer_producer.log`
 - IG: `runs/fraud-platform/<platform_run_id>/ingestion_gate/ingestion_gate.log`
-- EB: `runs/fraud-platform/<platform_run_id>/event_bus/event_bus.log` (publish diagnostics)
+- EB publisher diagnostics: `runs/fraud-platform/<platform_run_id>/event_bus/event_bus.log` (emitted by components that call EB publisher)
+- Run/operate diagnostics: `runs/fraud-platform/operate/<pack_id>/logs/<process>.log`
 
 **Quick WSP check (baseline + fraud progress):**
 ```
@@ -543,7 +554,7 @@ aws --endpoint-url http://localhost:4566 kinesis get-records --shard-iterator $a
 
 ## 11) Run IEG (projector + artifacts)
 
-IEG is **not auto‑started** in parity. You must run it explicitly after EB has admitted events.
+If you are **not** running the `rtdl_core` pack, IEG is not auto-started in parity and must be run explicitly after EB has admitted events.
 
 **11.1 Set run scope (recommended)**
 ```
@@ -667,6 +678,28 @@ Use this list to confirm the **v0 control & ingress plane** is green.
 **Health posture**
 - [ ] IG health is AMBER before traffic (OK).
 - [ ] After traffic, IG health moves toward GREEN or shows admissions in logs.
+
+---
+
+## 14.1) Meta-layer closure checks (run/operate + obs/gov)
+
+Run these after each parity stream pass (`20` gate and `200` full):
+
+```powershell
+make platform-run-report
+make platform-governance-query GOVERNANCE_QUERY_LIMIT=20
+make platform-env-conformance
+```
+
+Expected artifacts:
+- Platform run report: `runs/fraud-platform/<platform_run_id>/obs/platform_run_report.json`
+- Governance log (object store): `s3://fraud-platform/<platform_run_id>/obs/governance/events.jsonl`
+- Environment conformance: `runs/fraud-platform/<platform_run_id>/obs/environment_conformance.json`
+
+Use this as the operator closeout:
+- Verify ingress counters and RTDL counters are internally consistent for the active run.
+- Verify governance stream includes `RUN_REPORT_GENERATED` and evidence-resolution events.
+- Verify conformance gate reports pass for active profile expectations before moving to the next plane.
 
 ---
 
