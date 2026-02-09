@@ -7628,3 +7628,51 @@ Execute LS Phase 6 by adding component-level observability, lifecycle-governance
 
 ### Residual notes
 - LS next active step is Phase 7 (OFS integration + as-of training safety) before Phase 8 closure proofs.
+
+## Entry: 2026-02-09 07:12PM - LS Phase 7 execution lock (platform Phase 5.9 progression)
+
+### Scope
+Execute LS Phase 7 by adding OFS-consumable bulk as-of slice surfaces with explicit basis, deterministic digests, and dataset-gating signals.
+
+### Locked implementation posture
+- Implement LS-owned S7 slice builder module (separate from writer boundary control-path).
+- Enforce explicit `observed_as_of`, finite target universe, and run-scope consistency (no mixed platform-run target sets).
+- Enforce bulk parity with single `label_as_of` by composing existing S6 semantics.
+- Emit reproducible by-ref slice artifacts with basis echo + digest.
+- Expose label maturity/coverage/conflict signals for downstream dataset gating.
+
+### Acceptance gate
+- LS Phase 7 matrix green.
+- LS Phase1..7 suite green.
+- CM label/phase8 regressions green.
+- Platform reporter regression green.
+- Build-plan + implementation maps + logbook updated with exact command evidence.
+
+## Entry: 2026-02-09 07:17PM - LS Phase 7 closure (platform Phase 5.9 progression)
+
+### What was closed
+- LS Phase 7 OFS integration posture is implemented with deterministic bulk as-of slice surfaces.
+- Added explicit basis/digest export semantics and dataset gate signals required for learning-plane joins.
+
+### Platform-level impact
+- Case+Labels to Learning handoff posture is now stronger and less drift-prone:
+  - OFS can consume bulk slices with explicit `observed_as_of` basis,
+  - target universes are finite and run-scoped,
+  - slice artifacts are digest-pinned and reproducible,
+  - gate signals are available for training-readiness checks.
+- This advances platform Phase 5.9 readiness for LS-side integration closure evidence.
+
+### Evidence references
+- Code:
+  - `src/fraud_detection/label_store/slices.py`
+  - `src/fraud_detection/label_store/__init__.py`
+- Tests:
+  - `tests/services/label_store/test_phase7_ofs_slices.py`
+- Validation:
+  - Phase 7 matrix `4 passed`
+  - LS Phase1..7 `36 passed`
+  - CM label/phase8 regression `10 passed`
+  - platform reporter regression `2 passed`
+
+### Residual notes
+- LS next active step is Phase 8 integration closure/parity proof.

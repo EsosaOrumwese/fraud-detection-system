@@ -680,3 +680,140 @@ LS currently has write/read correctness (Phases 1..5) but lacks component-level 
   - lifecycle governance events include actor attribution + evidence refs,
   - evidence access-audit hook surfaces are available for caller integration,
   - sensitive payload details are excluded from governance/audit artifacts.
+
+## Entry: 2026-02-09 07:12PM - Pre-change lock for Phase 7 (LS OFS integration and as-of training safety)
+
+### Objective
+Close LS Phase 7 by adding manifest-grade bulk `label_as_of` slice surfaces that OFS can consume deterministically, with explicit as-of basis, run-scope safety, and dataset gating signals (coverage/maturity/conflict posture).
+
+### Authority inputs used
+- `docs/model_spec/platform/implementation_maps/label_store.build_plan.md` (Phase 7 DoD)
+- `docs/model_spec/platform/implementation_maps/platform.build_plan.md` (Phase 5 progression context)
+- `docs/model_spec/platform/component-specific/label_store.design-authority.md`:
+  - `P-X1` bulk `label_as_of` slice posture,
+  - explicit `observed_as_of` requirement (no hidden now),
+  - bulk parity with single `label_as_of`,
+  - finite target universe requirement,
+  - basis echo + digest/by-ref artifact posture.
+- Existing LS surfaces:
+  - `src/fraud_detection/label_store/writer_boundary.py` (`label_as_of`, `resolved_labels_as_of`, rebuild utility)
+  - `src/fraud_detection/label_store/observability.py` (artifact export style and run-root conventions)
+
+### Problem framing
+Phase 1..6 gives LS correctness + observability but no OFS-scale deterministic slice surface yet. Missing gaps:
+1. no explicit bulk `label_as_of` interface with mandatory as-of basis,
+2. no finite-target-universe bulk contract for training joins,
+3. no built-in coverage/maturity signals for dataset gating,
+4. no digest-pinned slice artifact for reproducible OFS consumption.
+
+### Alternatives considered
+1. Extend `writer_boundary.py` with one large bulk SQL method.
+- Rejected for now: over-couples writer lane and slice/export semantics; harder to evolve independently.
+2. Add dedicated LS Phase 7 module that composes existing single-read semantics into deterministic bulk slices with basis/digest export.
+- Selected: enforces bulk/single parity by construction while keeping writer boundary stable.
+
+### Decisions locked before edits
+1. Add `src/fraud_detection/label_store/slices.py` with:
+- `LabelStoreSliceBuilder` bulk resolved slice API,
+- explicit basis datamodel (`observed_as_of`, `effective_at`, `ls_policy_rev`, target-set fingerprint, basis digest),
+- deterministic slice digest and by-ref artifact export,
+- dataset gate signal evaluation surfaces.
+2. Bulk resolved slices require:
+- non-empty finite target universe,
+- explicit `observed_as_of`,
+- run-scope consistency (all targets share one `platform_run_id`),
+- label-family validation against LS taxonomy.
+3. Parity requirement will be implemented by reusing existing `writer_boundary.label_as_of(...)` per `(target,label_type)` in bulk builder.
+4. Add coverage/maturity signals per label type:
+- counts for `RESOLVED`, `CONFLICT`, `NOT_FOUND`,
+- coverage ratio and conflict ratio,
+- gate evaluator that returns explicit pass/fail reasons.
+5. Add replay/rebuild determinism test:
+- slice digest equality before/after timeline rebuild from assertion ledger truth.
+
+### Planned files
+- New:
+  - `src/fraud_detection/label_store/slices.py`
+  - `tests/services/label_store/test_phase7_ofs_slices.py`
+- Update:
+  - `src/fraud_detection/label_store/__init__.py`
+- Documentation updates after validation:
+  - `docs/model_spec/platform/implementation_maps/label_store.build_plan.md`
+  - `docs/model_spec/platform/implementation_maps/platform.build_plan.md`
+  - `docs/model_spec/platform/implementation_maps/label_store.impl_actual.md`
+  - `docs/model_spec/platform/implementation_maps/platform.impl_actual.md`
+  - `docs/logbook/02-2026/2026-02-09.md`
+
+### Validation plan
+- `python -m py_compile src/fraud_detection/label_store/slices.py src/fraud_detection/label_store/__init__.py tests/services/label_store/test_phase7_ofs_slices.py`
+- `python -m pytest -q tests/services/label_store/test_phase7_ofs_slices.py`
+- `python -m pytest -q tests/services/label_store/test_phase1_label_store_contracts.py tests/services/label_store/test_phase1_label_store_ids.py tests/services/label_store/test_phase2_writer_boundary.py tests/services/label_store/test_phase3_timeline_persistence.py tests/services/label_store/test_phase4_as_of_queries.py tests/services/label_store/test_phase5_ingest_adapters.py tests/services/label_store/test_phase6_observability.py tests/services/label_store/test_phase7_ofs_slices.py`
+- `python -m pytest -q tests/services/case_mgmt/test_phase5_label_handshake.py tests/services/case_mgmt/test_phase8_validation_matrix.py`
+- `python -m pytest -q tests/services/platform_reporter/test_run_reporter.py`
+
+## Entry: 2026-02-09 07:17PM - Phase 7 implemented and validated (LS OFS integration and as-of training safety)
+
+### Implementation completed
+1. Added LS S7 bulk slice module:
+- `src/fraud_detection/label_store/slices.py`
+- Introduced `LabelStoreSliceBuilder` for deterministic bulk resolved slices built from explicit target universes.
+
+2. Added explicit-basis as-of semantics for bulk surfaces:
+- `build_resolved_as_of_slice(...)` requires non-empty finite `target_subjects` and explicit `observed_as_of`.
+- `effective_at` is supported and defaults to `observed_as_of`.
+- request fails closed if `effective_at > observed_as_of`.
+
+3. Added run-scope safety enforcement:
+- bulk requests reject mixed-run target sets (`target_subjects` must share one `platform_run_id`).
+- target canonicalization dedupes/sorts deterministically by `(platform_run_id,event_id)`.
+
+4. Enforced bulk/single parity by construction:
+- bulk rows are resolved by reusing `writer_boundary.label_as_of(...)` per `(target,label_type)`.
+- this guarantees consistent semantics with S6 single-read posture (`RESOLVED/CONFLICT/NOT_FOUND`).
+
+5. Added manifest-grade basis + digest posture:
+- policy metadata constants and digest recipes added:
+  - `LS_SLICE_POLICY_ID`, `LS_SLICE_POLICY_REVISION`, `LS_SLICE_POLICY_DIGEST_RECIPE_V1`,
+  - `LS_SLICE_BASIS_DIGEST_RECIPE_V1`, `LS_SLICE_PAYLOAD_DIGEST_RECIPE_V1`.
+- slice payload includes basis echo fields:
+  - `observed_as_of`, `effective_at`, `ls_policy_rev`, `target_set_fingerprint`, `basis_digest`.
+- deterministic `slice_digest` is computed over `basis_digest + rows` and validated on artifact export.
+
+6. Added by-ref slice artifact export with immutability posture:
+- `export_slice_artifact(...)` writes under `label_store/slices/`.
+- if artifact path exists, digest mismatch triggers fail-closed immutability violation.
+
+7. Added dataset gating signals:
+- per-label coverage/maturity/conflict signals via `LabelCoverageSignal`.
+- explicit gate evaluator via `evaluate_dataset_gate(...)` returning pass/fail + reasons.
+
+8. Added Phase 7 exports:
+- updated `src/fraud_detection/label_store/__init__.py` with all new slice/gate/artifact surfaces and constants.
+
+### Drift sentinel assessment (explicit)
+- Checked against flow intent for LS S7 bulk paths in `label_store.design-authority` (`P-X1`):
+  - explicit `observed_as_of` enforced,
+  - finite target universe enforced,
+  - bulk/single parity preserved,
+  - basis echo + digest artifact posture implemented,
+  - run-scope target safety enforced.
+- No designed-flow contradiction detected for current Phase 7 scope; no escalation required.
+
+### Validation evidence
+- `python -m py_compile src/fraud_detection/label_store/slices.py src/fraud_detection/label_store/__init__.py tests/services/label_store/test_phase7_ofs_slices.py`
+  - result: pass
+- `python -m pytest -q tests/services/label_store/test_phase7_ofs_slices.py`
+  - result: `4 passed`
+- `python -m pytest -q tests/services/label_store/test_phase1_label_store_contracts.py tests/services/label_store/test_phase1_label_store_ids.py tests/services/label_store/test_phase2_writer_boundary.py tests/services/label_store/test_phase3_timeline_persistence.py tests/services/label_store/test_phase4_as_of_queries.py tests/services/label_store/test_phase5_ingest_adapters.py tests/services/label_store/test_phase6_observability.py tests/services/label_store/test_phase7_ofs_slices.py`
+  - result: `36 passed`
+- `python -m pytest -q tests/services/case_mgmt/test_phase5_label_handshake.py tests/services/case_mgmt/test_phase8_validation_matrix.py`
+  - result: `10 passed`
+- `python -m pytest -q tests/services/platform_reporter/test_run_reporter.py`
+  - result: `2 passed`
+
+### Phase closure statement
+- LS Phase 7 DoD is satisfied:
+  - OFS-consumable bulk `label_as_of` surface exists with explicit as-of boundary,
+  - label maturity/coverage signals are available for dataset gating,
+  - multi-run safety is enforced at bulk target-scope boundary,
+  - replay/rebuild determinism is validated via stable slice digest before/after timeline rebuild.
