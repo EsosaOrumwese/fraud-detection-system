@@ -163,4 +163,14 @@ Provide an executable, component-scoped plan for Case Management (CM) aligned to
     - `python -m pytest -q tests/services/case_mgmt/test_phase3_projection.py` -> `4 passed`
     - `python -m pytest -q tests/services/case_mgmt/test_phase1_contracts.py tests/services/case_mgmt/test_phase1_ids.py tests/services/case_mgmt/test_phase2_intake.py tests/services/case_mgmt/test_phase3_projection.py` -> `20 passed`
     - `python -m pytest -q tests/services/case_trigger/test_phase1_config.py tests/services/case_trigger/test_phase1_contracts.py tests/services/case_trigger/test_phase1_taxonomy.py tests/services/case_trigger/test_phase2_adapters.py tests/services/case_trigger/test_phase3_replay.py tests/services/case_trigger/test_phase4_publish.py tests/services/case_trigger/test_phase5_checkpoints.py tests/services/case_trigger/test_phase7_observability.py tests/services/case_trigger/test_phase8_validation_matrix.py tests/services/ingestion_gate/test_phase11_case_trigger_onboarding.py` -> `45 passed`
-- Next action: Phase 4 implementation (evidence-by-ref resolution corridor).
+- Phase 4 (`Evidence-by-ref resolution corridor`): completed on `2026-02-09`.
+  - Evidence:
+    - `src/fraud_detection/case_mgmt/evidence.py`
+    - `config/platform/case_mgmt/evidence_resolution_policy_v0.yaml`
+    - `src/fraud_detection/case_mgmt/__init__.py` (Phase 4 exports)
+    - `tests/services/case_mgmt/test_phase4_evidence_resolution.py`
+  - Validation:
+    - `python -m pytest -q tests/services/case_mgmt/test_phase4_evidence_resolution.py` -> `4 passed`
+    - `python -m pytest -q tests/services/case_mgmt/test_phase1_contracts.py tests/services/case_mgmt/test_phase1_ids.py tests/services/case_mgmt/test_phase2_intake.py tests/services/case_mgmt/test_phase3_projection.py tests/services/case_mgmt/test_phase4_evidence_resolution.py` -> `24 passed`
+    - `python -m pytest -q tests/services/case_trigger/test_phase1_config.py tests/services/case_trigger/test_phase1_contracts.py tests/services/case_trigger/test_phase1_taxonomy.py tests/services/case_trigger/test_phase2_adapters.py tests/services/case_trigger/test_phase3_replay.py tests/services/case_trigger/test_phase4_publish.py tests/services/case_trigger/test_phase5_checkpoints.py tests/services/case_trigger/test_phase7_observability.py tests/services/case_trigger/test_phase8_validation_matrix.py tests/services/ingestion_gate/test_phase11_case_trigger_onboarding.py` -> `45 passed`
+- Next action: Phase 5 implementation (label emission handshake to Label Store).

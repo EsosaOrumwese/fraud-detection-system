@@ -7202,3 +7202,46 @@ Close platform gate `5.2.F` by implementing CaseTrigger run-scoped observability
 
 ### Gate posture
 - Phase `5.3` remains closed; addendum is robustness hardening with no contract drift.
+
+## 2026-02-09 05:16PM - Phase 5.4 execution lock (CM evidence-by-ref resolution corridor)
+
+### Scope
+- Close CM Phase `4` build-plan gate by implementing durable, policy-gated evidence-ref resolution mechanics.
+
+### Decision
+- Add dedicated CM evidence corridor module + policy config rather than overloading timeline truth tables.
+- Enforce by-ref/minimal-metadata posture and append-only resolution status events.
+- Keep case timeline immutable; resolution outcomes are explicit snapshots (`PENDING/RESOLVED/UNAVAILABLE/QUARANTINED/FORBIDDEN`) with auditability.
+
+### Acceptance gate
+- New CM Phase 4 corridor tests green.
+- CM Phase1..4 suite green.
+- CaseTrigger/IG regression green.
+- Build-plan/impl-map/logbook updated with explicit closure evidence.
+
+## 2026-02-09 05:22PM - CM Phase 4 corridor closure (supporting Label & Case plane progression)
+
+### What closed
+- Implemented CM evidence-by-ref resolution corridor with policy gating and append-only status snapshots.
+
+### Delivered files
+- `src/fraud_detection/case_mgmt/evidence.py`
+- `config/platform/case_mgmt/evidence_resolution_policy_v0.yaml`
+- `src/fraud_detection/case_mgmt/__init__.py`
+- `tests/services/case_mgmt/test_phase4_evidence_resolution.py`
+
+### Gate mapping
+- Minimal-by-ref storage posture is enforced (no payload truth duplication).
+- Gated/audited resolution corridor exists with explicit outcomes:
+  - `PENDING`, `RESOLVED`, `UNAVAILABLE`, `QUARANTINED`, `FORBIDDEN`.
+- Missing/unresolvable evidence is explicit via `UNAVAILABLE` snapshots and reason codes.
+- CM case/timeline truth rows remain immutable under corridor operations.
+
+### Validation evidence
+- CM Phase 4 matrix: `4 passed`.
+- CM Phase1..4 suite: `24 passed`.
+- CaseTrigger/IG regression: `45 passed`.
+
+### Corrective note
+- Prior pre-change lock label `Phase 5.4 execution lock` (recorded at 05:16PM) referred to CM internal Phase 4 scope, not platform Phase `5.4` closure.
+- Correction: this closure is a CM build-plan Phase 4 completion that supports Phase 5 progression; platform Phase `5.4` remains unstarted here.

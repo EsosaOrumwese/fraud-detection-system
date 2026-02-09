@@ -307,3 +307,107 @@ Start CM Phase 3 by implementing the first production-safe slice of S2/S3 semant
 - `python -m pytest -q tests/services/case_mgmt/test_phase3_projection.py tests/services/case_mgmt/test_phase2_intake.py` -> `8 passed`.
 - `python -m pytest -q tests/services/case_mgmt/test_phase1_contracts.py tests/services/case_mgmt/test_phase1_ids.py tests/services/case_mgmt/test_phase2_intake.py tests/services/case_mgmt/test_phase3_projection.py` -> `20 passed`.
 - `python -m pytest -q tests/services/case_trigger/test_phase1_config.py tests/services/case_trigger/test_phase1_contracts.py tests/services/case_trigger/test_phase1_taxonomy.py tests/services/case_trigger/test_phase2_adapters.py tests/services/case_trigger/test_phase3_replay.py tests/services/case_trigger/test_phase4_publish.py tests/services/case_trigger/test_phase5_checkpoints.py tests/services/case_trigger/test_phase7_observability.py tests/services/case_trigger/test_phase8_validation_matrix.py tests/services/ingestion_gate/test_phase11_case_trigger_onboarding.py` -> `45 passed`.
+
+## Entry: 2026-02-09 05:16PM - Pre-change lock for Phase 4 (evidence-by-ref resolution corridor)
+
+### Objective
+Implement CM Phase 4 by adding a policy-gated evidence-resolution corridor that keeps evidence by-reference, records append-only status evolution, and makes missing/unresolvable evidence explicit without mutating case truth.
+
+### Problem framing
+- Phase 3 added linked-ref indexing and queryability, but there is no explicit CM evidence-resolution workflow boundary yet.
+- Missing for Phase 4 closure:
+  - policy-gated request/resolve corridor for evidence refs,
+  - auditable, append-only status evolution per evidence ref,
+  - explicit representation of `pending/unavailable` outcomes.
+- Without this corridor, later CM phases may embed ad-hoc evidence reads and lose deterministic/auditable behavior.
+
+### Alternatives considered
+1. Embed evidence resolution state directly into `cm_case_timeline` rows.
+- Rejected: mixes investigation truth with operational resolution state and increases mutation risk.
+
+2. Keep resolution as in-memory helper only.
+- Rejected: no durable audit trail and not replay-safe.
+
+3. Add a dedicated CM evidence corridor store with append-only status events and policy gate.
+- Selected: aligns with append-only/no-bypass rails and keeps timeline truth immutable.
+
+### Decisions locked before edits
+1. Add new module `src/fraud_detection/case_mgmt/evidence.py` for corridor logic (separate from timeline truth tables).
+2. Add policy config `config/platform/case_mgmt/evidence_resolution_policy_v0.yaml` and loader in module.
+3. Corridor behavior:
+- deterministic `request_id = hash(case_id + case_timeline_event_id + ref_type + ref_id)[:32]`,
+- request gate validates allowed ref types + actor principal prefixes,
+- append-only status events with explicit statuses:
+  - `PENDING`, `RESOLVED`, `UNAVAILABLE`, `QUARANTINED`, `FORBIDDEN`,
+- terminal statuses are idempotent (duplicate attempts return current snapshot; no rewrite).
+4. Minimal metadata posture:
+- store only case/timeline ids, ref type/id, actor/source, status/reason, optional locator ref,
+- no external payload snapshots.
+5. Add API surfaces for tests/operations:
+- `request_resolution(...)`, `record_resolution(...)`, `snapshot(...)`, `list_case_snapshots(...)`.
+
+### Planned file changes
+- New code:
+  - `src/fraud_detection/case_mgmt/evidence.py`
+  - `config/platform/case_mgmt/evidence_resolution_policy_v0.yaml`
+- Export update:
+  - `src/fraud_detection/case_mgmt/__init__.py`
+- New tests:
+  - `tests/services/case_mgmt/test_phase4_evidence_resolution.py`
+- Plan/status updates after validation:
+  - `docs/model_spec/platform/implementation_maps/case_mgmt.build_plan.md`
+  - `docs/model_spec/platform/implementation_maps/platform.build_plan.md`
+
+### Validation plan
+- `python -m py_compile src/fraud_detection/case_mgmt/evidence.py src/fraud_detection/case_mgmt/__init__.py tests/services/case_mgmt/test_phase4_evidence_resolution.py`
+- `python -m pytest -q tests/services/case_mgmt/test_phase4_evidence_resolution.py`
+- CM regression:
+  - `python -m pytest -q tests/services/case_mgmt/test_phase1_contracts.py tests/services/case_mgmt/test_phase1_ids.py tests/services/case_mgmt/test_phase2_intake.py tests/services/case_mgmt/test_phase3_projection.py tests/services/case_mgmt/test_phase4_evidence_resolution.py`
+- CaseTrigger/IG regression:
+  - `python -m pytest -q tests/services/case_trigger/test_phase1_config.py tests/services/case_trigger/test_phase1_contracts.py tests/services/case_trigger/test_phase1_taxonomy.py tests/services/case_trigger/test_phase2_adapters.py tests/services/case_trigger/test_phase3_replay.py tests/services/case_trigger/test_phase4_publish.py tests/services/case_trigger/test_phase5_checkpoints.py tests/services/case_trigger/test_phase7_observability.py tests/services/case_trigger/test_phase8_validation_matrix.py tests/services/ingestion_gate/test_phase11_case_trigger_onboarding.py`
+
+## Entry: 2026-02-09 05:22PM - Phase 4 implemented and validated (evidence-by-ref resolution corridor)
+
+### Implementation completed
+1. Added dedicated CM evidence corridor module:
+- `src/fraud_detection/case_mgmt/evidence.py`
+
+2. Added Phase 4 policy config:
+- `config/platform/case_mgmt/evidence_resolution_policy_v0.yaml`
+
+3. Updated CM exports for Phase 4 surfaces:
+- `src/fraud_detection/case_mgmt/__init__.py`
+
+4. Added Phase 4 test matrix:
+- `tests/services/case_mgmt/test_phase4_evidence_resolution.py`
+
+### Corridor mechanics delivered
+- Deterministic request identity:
+  - `request_id = sha256(case_id + case_timeline_event_id + ref_type + ref_id)[:32]`.
+- Policy-gated request intake:
+  - allowed ref types + allowed actor principal prefixes + allowed source types.
+- Append-only status evolution with explicit states:
+  - `PENDING`, `RESOLVED`, `UNAVAILABLE`, `QUARANTINED`, `FORBIDDEN`.
+- Explicit fail-closed posture:
+  - unsupported ref type / actor prefix produce `FORBIDDEN` snapshots with reason code.
+- Minimal metadata-only storage:
+  - stores only case/timeline ids, ref identifiers, actor/source, status/reason, optional locator ref.
+  - no evidence payload copies.
+- No CM truth mutation:
+  - resolution corridor writes only corridor tables and does not mutate `cm_cases` or `cm_case_timeline` truth rows.
+
+### Validation evidence
+- `python -m py_compile src/fraud_detection/case_mgmt/evidence.py src/fraud_detection/case_mgmt/__init__.py tests/services/case_mgmt/test_phase4_evidence_resolution.py`
+  - result: pass
+- `python -m pytest -q tests/services/case_mgmt/test_phase4_evidence_resolution.py`
+  - result: `4 passed`
+- `python -m pytest -q tests/services/case_mgmt/test_phase1_contracts.py tests/services/case_mgmt/test_phase1_ids.py tests/services/case_mgmt/test_phase2_intake.py tests/services/case_mgmt/test_phase3_projection.py tests/services/case_mgmt/test_phase4_evidence_resolution.py`
+  - result: `24 passed`
+- `python -m pytest -q tests/services/case_trigger/test_phase1_config.py tests/services/case_trigger/test_phase1_contracts.py tests/services/case_trigger/test_phase1_taxonomy.py tests/services/case_trigger/test_phase2_adapters.py tests/services/case_trigger/test_phase3_replay.py tests/services/case_trigger/test_phase4_publish.py tests/services/case_trigger/test_phase5_checkpoints.py tests/services/case_trigger/test_phase7_observability.py tests/services/case_trigger/test_phase8_validation_matrix.py tests/services/ingestion_gate/test_phase11_case_trigger_onboarding.py`
+  - result: `45 passed`
+
+### Phase closure statement
+- CM Phase 4 DoD is satisfied:
+  - refs remain minimal/by-ref,
+  - resolution path is policy-gated and auditable,
+  - missing/unresolvable evidence is explicit (`UNAVAILABLE`) without mutating case truth.

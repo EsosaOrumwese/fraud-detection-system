@@ -1,0 +1,19 @@
+version: "v1"
+policy_id: "cm.evidence_resolution.v0"
+revision: "r1"
+
+evidence_resolution:
+  allowed_ref_types:
+    - DLA_AUDIT_RECORD
+    - DECISION
+    - ACTION_OUTCOME
+    - EB_ORIGIN_OFFSET
+    - CASE_EVENT
+  allowed_actor_prefixes:
+    - "SYSTEM::"
+    - "HUMAN::"
+  allowed_source_types:
+    - SYSTEM
+    - HUMAN
+    - EXTERNAL
+    - AUTO
