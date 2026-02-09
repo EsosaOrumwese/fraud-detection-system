@@ -181,3 +181,129 @@ Implement CM Phase 2 by adding an intake boundary that consumes CaseTrigger cont
 - `python -m pytest -q tests/services/case_mgmt/test_phase2_intake.py` -> `4 passed`.
 - `python -m pytest -q tests/services/case_mgmt/test_phase1_contracts.py tests/services/case_mgmt/test_phase1_ids.py tests/services/case_mgmt/test_phase2_intake.py` -> `16 passed`.
 - `python -m pytest -q tests/services/case_trigger/test_phase1_config.py tests/services/case_trigger/test_phase1_contracts.py tests/services/case_trigger/test_phase1_taxonomy.py tests/services/case_trigger/test_phase2_adapters.py tests/services/case_trigger/test_phase3_replay.py tests/services/case_trigger/test_phase4_publish.py tests/services/case_trigger/test_phase5_checkpoints.py tests/services/ingestion_gate/test_phase11_case_trigger_onboarding.py` -> `36 passed`.
+
+## Entry: 2026-02-09 05:00PM - Pre-change lock for Phase 3 (append-only timeline truth + workflow projection)
+
+### Objective
+Start CM Phase 3 by implementing the first production-safe slice of S2/S3 semantics:
+- explicit append API for non-trigger timeline events with actor attribution,
+- deterministic, projection-only case header/status derivation from timeline events,
+- query surfaces for linked refs and state/time-window filters.
+
+### Problem framing
+- Phase 2 currently appends `CASE_TRIGGERED` events from intake and stores core case/timeline rows.
+- Missing for Phase 3 closure:
+  - actor-attributed append path for broader timeline event vocabulary,
+  - deterministic workflow projection from timeline events only,
+  - query surfaces beyond `case_id` lookup (`decision_id`/`action_outcome_id`/`audit_record_id`/`event_id`, queue/state, time-window).
+- If we defer this, later phases (manual actions, label handshake) would risk hidden mutable state shortcuts.
+
+### Alternatives considered
+1. Add a separate S3 projection component now with independent tables/worker loop.
+- Deferred: valid end-state, but too large for first Phase 3 slice; introduces premature run/operate complexity before projection semantics are pinned in tests.
+
+2. Compute projections on read from existing timeline rows only (no projection cache), with deterministic ordering and filter support.
+- Selected for this slice: keeps truth boundary strict, avoids hidden mutable bypass, and is sufficient to close core Phase 3 mechanics.
+
+3. Store mutable header fields directly in `cm_cases` and update on writes.
+- Rejected as primary source of truth: risks drift from append-only timeline and violates Phase 3 projection-only posture.
+
+### Decisions locked before edits
+1. Extend `CaseTriggerIntakeLedger` (existing CM boundary) with Phase 3 APIs rather than adding a parallel store class.
+2. Add actor attribution at timeline row level (`actor_id`, `source_type`) and enforce it on non-trigger appends.
+3. Add append semantics for timeline events:
+- same deterministic key + same payload hash => duplicate no-op,
+- same deterministic key + different payload hash => fail-closed mismatch anomaly,
+- no updates/deletes to historical timeline rows.
+4. Add deterministic projection function derived exclusively from ordered timeline events (order: `observed_time`, tie-break `case_timeline_event_id`).
+5. Add link-index table for queryability by refs extracted from source refs, evidence refs, and known timeline payload fields.
+6. Query surfaces to provide now:
+- by `case_id` timeline + projection,
+- by linked ref (`event_id`, `decision_id`, `action_outcome_id`, `audit_record_id`),
+- by derived `status`/`queue`,
+- by last-activity time window.
+
+### Planned file changes
+- `src/fraud_detection/case_mgmt/intake.py`
+  - Phase 3 append/projection/query APIs and schema extensions.
+- `src/fraud_detection/case_mgmt/__init__.py`
+  - export new Phase 3 surfaces.
+- `tests/services/case_mgmt/test_phase3_projection.py`
+  - append-only + projection + linked-ref/time-window query matrix.
+- `docs/model_spec/platform/implementation_maps/case_mgmt.build_plan.md`
+  - expand Phase 3 section into executable sub-steps and DoD checks.
+
+### Validation plan
+- `python -m py_compile src/fraud_detection/case_mgmt/intake.py src/fraud_detection/case_mgmt/__init__.py tests/services/case_mgmt/test_phase3_projection.py`
+- `python -m pytest -q tests/services/case_mgmt/test_phase3_projection.py`
+- `python -m pytest -q tests/services/case_mgmt/test_phase1_contracts.py tests/services/case_mgmt/test_phase1_ids.py tests/services/case_mgmt/test_phase2_intake.py tests/services/case_mgmt/test_phase3_projection.py`
+- CaseTrigger/IG regression to guard boundary compatibility:
+  - `python -m pytest -q tests/services/case_trigger/test_phase1_config.py tests/services/case_trigger/test_phase1_contracts.py tests/services/case_trigger/test_phase1_taxonomy.py tests/services/case_trigger/test_phase2_adapters.py tests/services/case_trigger/test_phase3_replay.py tests/services/case_trigger/test_phase4_publish.py tests/services/case_trigger/test_phase5_checkpoints.py tests/services/case_trigger/test_phase7_observability.py tests/services/case_trigger/test_phase8_validation_matrix.py tests/services/ingestion_gate/test_phase11_case_trigger_onboarding.py`
+
+## Entry: 2026-02-09 05:08PM - Phase 3 implemented and validated (append-only timeline truth + workflow projection)
+
+### Implementation completed
+1. Extended CM intake ledger with explicit Phase 3 timeline append surfaces:
+- `append_timeline_event(...)` with required `actor_id`, `source_type`, and append timestamp.
+- Deterministic append outcomes:
+  - `TIMELINE_EVENT_NEW`
+  - `TIMELINE_EVENT_DUPLICATE`
+  - `TIMELINE_EVENT_PAYLOAD_MISMATCH`
+
+2. Added projection and query APIs on CM ledger:
+- `project_case(case_id)`
+- `query_case_projections(status/queue/ref/time-window filters)`
+- `find_case_ids_by_linked_ref(ref_type, ref_id)`
+
+3. Added schema surfaces needed for Phase 3 queryability/auditability:
+- `cm_case_timeline_stats` (actor/source attribution + replay/mismatch counters)
+- `cm_case_timeline_mismatches` (fail-closed mismatch evidence)
+- `cm_case_timeline_links` (linked-ref index by `ref_type/ref_id/observed_time`)
+
+4. Updated trigger-intake timeline appends to include explicit system actor attribution:
+- actor pinned as `SYSTEM::case_trigger_intake` + `source_type=SYSTEM`.
+
+5. Added Phase 3 validation matrix:
+- `tests/services/case_mgmt/test_phase3_projection.py`
+  - append-only + duplicate/mismatch behavior,
+  - projection mapping for status/queue/pending flags,
+  - linked-ref queries (`decision_id`, `audit_record_id`) and state/time-window filters,
+  - deterministic ordering under same-timestamp timeline appends.
+
+### Key decisions during implementation
+- Actor attribution is stored as timeline metadata persisted alongside each timeline event via `cm_case_timeline_stats`; timeline event content remains append-only and immutable.
+- Projection is computed from timeline rows ordered by `observed_time ASC` then deterministic `case_timeline_event_id ASC`, avoiding hidden mutable-case-state bypass.
+- Linked-ref queryability is implemented by indexing deterministic refs extracted from case-subject/event source refs/evidence refs/timeline payload keys, keeping evidence-by-ref posture while enabling operational queries.
+
+### Validation evidence
+- `python -m py_compile src/fraud_detection/case_mgmt/intake.py src/fraud_detection/case_mgmt/__init__.py tests/services/case_mgmt/test_phase3_projection.py`
+  - result: pass
+- `python -m pytest -q tests/services/case_mgmt/test_phase3_projection.py`
+  - result: `4 passed`
+- `python -m pytest -q tests/services/case_mgmt/test_phase1_contracts.py tests/services/case_mgmt/test_phase1_ids.py tests/services/case_mgmt/test_phase2_intake.py tests/services/case_mgmt/test_phase3_projection.py`
+  - result: `20 passed`
+- `python -m pytest -q tests/services/case_trigger/test_phase1_config.py tests/services/case_trigger/test_phase1_contracts.py tests/services/case_trigger/test_phase1_taxonomy.py tests/services/case_trigger/test_phase2_adapters.py tests/services/case_trigger/test_phase3_replay.py tests/services/case_trigger/test_phase4_publish.py tests/services/case_trigger/test_phase5_checkpoints.py tests/services/case_trigger/test_phase7_observability.py tests/services/case_trigger/test_phase8_validation_matrix.py tests/services/ingestion_gate/test_phase11_case_trigger_onboarding.py`
+  - result: `45 passed`
+
+### Phase closure statement
+- CM Phase 3 DoD is satisfied:
+  - timeline truth is append-only with actor attribution,
+  - workflow state is derived projection-only,
+  - required query surfaces for refs/state/time windows are implemented,
+  - deterministic behavior under replay/concurrent timestamp ties is evidenced.
+
+## Entry: 2026-02-09 05:12PM - Phase 3 hardening addendum (timeline stats bootstrap on legacy rows)
+
+### Why this addendum was applied
+- During Phase 3 validation review, timeline duplicate/mismatch handling depended on `cm_case_timeline_stats` existence for each event id.
+- Legacy rows (or partial migrations) could have timeline rows without stats rows, causing replay/mismatch counters to skip durable updates.
+
+### Change applied
+- `src/fraud_detection/case_mgmt/intake.py`
+  - In `_append_timeline_tx`, when stats row is missing for an existing timeline event id, bootstrap stats row with actor/source and zero counters before continuing duplicate/mismatch handling.
+
+### Validation refresh
+- `python -m py_compile src/fraud_detection/case_mgmt/intake.py src/fraud_detection/case_mgmt/__init__.py tests/services/case_mgmt/test_phase3_projection.py` -> pass.
+- `python -m pytest -q tests/services/case_mgmt/test_phase3_projection.py tests/services/case_mgmt/test_phase2_intake.py` -> `8 passed`.
+- `python -m pytest -q tests/services/case_mgmt/test_phase1_contracts.py tests/services/case_mgmt/test_phase1_ids.py tests/services/case_mgmt/test_phase2_intake.py tests/services/case_mgmt/test_phase3_projection.py` -> `20 passed`.
+- `python -m pytest -q tests/services/case_trigger/test_phase1_config.py tests/services/case_trigger/test_phase1_contracts.py tests/services/case_trigger/test_phase1_taxonomy.py tests/services/case_trigger/test_phase2_adapters.py tests/services/case_trigger/test_phase3_replay.py tests/services/case_trigger/test_phase4_publish.py tests/services/case_trigger/test_phase5_checkpoints.py tests/services/case_trigger/test_phase7_observability.py tests/services/case_trigger/test_phase8_validation_matrix.py tests/services/ingestion_gate/test_phase11_case_trigger_onboarding.py` -> `45 passed`.

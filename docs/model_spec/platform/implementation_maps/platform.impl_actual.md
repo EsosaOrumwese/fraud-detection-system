@@ -7130,3 +7130,75 @@ Close platform gate `5.2.F` by implementing CaseTrigger run-scoped observability
 
 ### Platform impact
 - Platform Phase `5.2` closure now includes explicit parity-evidence gate (`5.2.H`), reducing drift risk between component readiness claims and recorded proof artifacts.
+
+## 2026-02-09 05:00PM - Phase 5.3 execution lock (CM timeline truth + workflow projection)
+
+### Scope
+- Begin platform Phase `5.3` by implementing CM append-only timeline + projection/query mechanics required to keep Case/Label plane truthful and operable.
+
+### Decision
+- Implement a deterministic, projection-only Phase 3 slice inside existing CM intake ledger boundary:
+  - actor-attributed timeline appends for non-trigger workflow events,
+  - deterministic case header/status derivation from timeline events only,
+  - linked-ref and state/time-window query surfaces.
+- Keep projection source-of-truth discipline strict:
+  - S2 timeline remains authoritative,
+  - derived header/query views are computed from timeline ordering (`observed_time`, then deterministic event id),
+  - no hidden mutable state bypass.
+
+### Acceptance gate
+- New CM Phase 3 test matrix green.
+- CM Phase1+2+3 suite green.
+- CaseTrigger/IG regression green (no boundary drift).
+- Build-plan/impl-map/logbook updated with explicit Phase 3 closure evidence.
+
+## 2026-02-09 05:08PM - Phase 5.3 closure (CM timeline truth + workflow projection)
+
+### What closed
+- Implemented the first full CM S2/S3 slice for platform Phase `5.3`:
+  - append-only actor-attributed timeline appends,
+  - projection-only workflow/header derivation,
+  - linked-ref/state/time-window query surfaces.
+
+### Delivered files
+- `src/fraud_detection/case_mgmt/intake.py`
+- `src/fraud_detection/case_mgmt/__init__.py`
+- `tests/services/case_mgmt/test_phase3_projection.py`
+- plan/status updates:
+  - `docs/model_spec/platform/implementation_maps/case_mgmt.build_plan.md`
+  - `docs/model_spec/platform/implementation_maps/platform.build_plan.md`
+
+### Gate mapping to Phase 5.3 DoD
+- `append-only + actor-attribution`:
+  - timeline append API enforces actor/source fields and persists attribution metadata.
+- `projection-only state`:
+  - status/queue/open/pending states are derived from timeline ordering only.
+- `query surfaces`:
+  - by case id + linked refs (`event_id/decision_id/action_outcome_id/audit_record_id`) + state/time windows.
+- `determinism under concurrent-like ties`:
+  - ordering tie-break uses deterministic timeline event id; matrix asserts deterministic output.
+
+### Validation evidence
+- CM Phase 3 matrix: `4 passed`.
+- CM Phase1+2+3 suite: `20 passed`.
+- CaseTrigger/IG regression: `45 passed`.
+
+### Platform impact
+- Platform can now move from CaseTrigger-only intake to operationally queryable CM timeline truth for the Case+Labels plane.
+- Next CM workstream is Phase 4 (evidence-by-ref resolution corridor), followed by label/action handshake phases.
+
+## 2026-02-09 05:12PM - Phase 5.3 hardening addendum (legacy timeline stats bootstrap)
+
+### Adjustment
+- Added a defensive bootstrap in CM timeline append path so existing timeline rows without stats metadata are backfilled lazily on next append attempt.
+
+### Why
+- Prevents replay/mismatch counter loss on mixed-schema/legacy rows and keeps actor/source attribution/query surfaces consistent.
+
+### Validation refresh
+- CM Phase3 + Phase2: `8 passed`.
+- CM Phase1+2+3: `20 passed`.
+- CaseTrigger/IG regression: `45 passed`.
+
+### Gate posture
+- Phase `5.3` remains closed; addendum is robustness hardening with no contract drift.

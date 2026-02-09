@@ -57,6 +57,41 @@ Provide an executable, component-scoped plan for Case Management (CM) aligned to
 - Query surfaces cover case, subject refs, queue state, and time windows.
 - Concurrent writer behavior is deterministic and auditable.
 
+#### Phase 3.A — Timeline append API + actor attribution lock
+**Intent:** expose explicit append API for non-trigger timeline events and enforce actor/source typing.
+
+**DoD checklist:**
+- CM append API accepts `CaseTimelineEvent` payload + `actor_id` + `source_type` + append timestamp.
+- Duplicate append (`same id + same payload hash`) is deterministic no-op.
+- Payload mismatch on deterministic event id fails closed and is recorded as anomaly evidence.
+- Trigger-intake-generated timeline rows are also actor-attributed (`SYSTEM::case_trigger_intake`).
+
+#### Phase 3.B — Projection semantics lock (S2 -> derived header/status)
+**Intent:** pin deterministic projection mapping and remove hidden mutable-state dependence.
+
+**DoD checklist:**
+- Projection ordering is deterministic: `observed_time ASC`, tie-break `case_timeline_event_id ASC`.
+- Header/status/queue flags are computed from timeline events only.
+- Projection API returns explicit fields (`status`, `queue_state`, `is_open`, pending flags, `last_activity_observed_time`).
+- Projection remains rebuildable from timeline rows alone.
+
+#### Phase 3.C — Query surfaces for refs/state/time
+**Intent:** provide investigation-safe lookup interfaces required by Phase 5.3.
+
+**DoD checklist:**
+- Query by `case_id` returns timeline + projection.
+- Query by linked refs supports `event_id`, `decision_id`, `action_outcome_id`, `audit_record_id`.
+- Query supports derived `status`/`queue_state` filters.
+- Query supports last-activity time-window filtering.
+
+#### Phase 3.D — Determinism/concurrency validation matrix
+**Intent:** prove append-only/concurrent-safe behavior with deterministic projection outputs.
+
+**DoD checklist:**
+- Same-event concurrent-style append replay yields deterministic no-op/mismatch outcomes.
+- Projection outputs are invariant under duplicate appends.
+- Linked-ref queries remain deterministic and auditable across replay order ties.
+
 ### Phase 4 — Evidence-by-ref resolution corridor
 **Intent:** support investigation context without duplicating payload truth.
 
@@ -119,4 +154,13 @@ Provide an executable, component-scoped plan for Case Management (CM) aligned to
     - `tests/services/case_mgmt/test_phase2_intake.py`
   - Validation:
     - `python -m pytest -q tests/services/case_mgmt/test_phase1_contracts.py tests/services/case_mgmt/test_phase1_ids.py tests/services/case_mgmt/test_phase2_intake.py` -> `16 passed`
-- Next action: Phase 3 implementation (append-only timeline truth + workflow projection).
+- Phase 3 (`Append-only timeline truth + workflow projection`): completed on `2026-02-09`.
+  - Evidence:
+    - `src/fraud_detection/case_mgmt/intake.py` (append API, actor attribution, projection/query surfaces, linked-ref index)
+    - `src/fraud_detection/case_mgmt/__init__.py` (Phase 3 exports)
+    - `tests/services/case_mgmt/test_phase3_projection.py`
+  - Validation:
+    - `python -m pytest -q tests/services/case_mgmt/test_phase3_projection.py` -> `4 passed`
+    - `python -m pytest -q tests/services/case_mgmt/test_phase1_contracts.py tests/services/case_mgmt/test_phase1_ids.py tests/services/case_mgmt/test_phase2_intake.py tests/services/case_mgmt/test_phase3_projection.py` -> `20 passed`
+    - `python -m pytest -q tests/services/case_trigger/test_phase1_config.py tests/services/case_trigger/test_phase1_contracts.py tests/services/case_trigger/test_phase1_taxonomy.py tests/services/case_trigger/test_phase2_adapters.py tests/services/case_trigger/test_phase3_replay.py tests/services/case_trigger/test_phase4_publish.py tests/services/case_trigger/test_phase5_checkpoints.py tests/services/case_trigger/test_phase7_observability.py tests/services/case_trigger/test_phase8_validation_matrix.py tests/services/ingestion_gate/test_phase11_case_trigger_onboarding.py` -> `45 passed`
+- Next action: Phase 4 implementation (evidence-by-ref resolution corridor).

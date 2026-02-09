@@ -1201,5 +1201,6 @@ Resolved and pinned in:
 - Phase 5 (Label & Case plane): planning-active (`5.1..5.9` sectioned DoD map pinned; implementation pending phase-by-phase execution evidence).
 - Phase 5.1 (contracts + identity pins): complete (`CM/LS` contract code + schemas + tests, `22 passed` on 2026-02-09).
 - Phase 5.2 (CaseTrigger service + CM intake boundary): complete (Phase `5.2.A..5.2.H` closed on 2026-02-09; CaseTrigger Phase 8 matrix `4 passed`; CaseTrigger+IG regression `45 passed`; CM Phase1+2 regression `16 passed`; parity artifacts at `runs/fraud-platform/platform_20260209T180000Z/case_trigger/reconciliation/phase8_parity_proof_{20,200}.json` and `phase8_negative_path_proof.json`; reconciliation refs exposed to platform reporter).
+- Phase 5.3 (CM timeline truth + workflow projection): complete (Phase-3 CM matrix `4 passed`; CM Phase1+2+3 suite `20 passed`; deterministic append-only actor-attributed timeline + projection/query surfaces landed in `src/fraud_detection/case_mgmt/intake.py` on 2026-02-09).
 - Next active platform phase: Phase 5 (Label & Case plane) with `4.6.L` closure TODOs carried in parallel until formal 4.6 PASS is evidenced.
 - SR v0: complete (see `docs/model_spec/platform/implementation_maps/scenario_runner.build_plan.md`).
