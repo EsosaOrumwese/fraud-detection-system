@@ -18,6 +18,15 @@ Validation baseline for orchestrated parity evidence:
 - FAIL: none
 - Phase 5 unblock: **YES** (all mandatory 4.6 gates are PASS)
 
+## Operational Addendum (2026-02-09)
+- Historical matrix PASS above remains the 2026-02-08 evidence baseline.
+- Current platform execution posture is governed by:
+  - `docs/model_spec/platform/implementation_maps/platform.build_plan.md` (`4.6.L` remaining-open closure TODOs),
+  - `docs/model_spec/platform/implementation_maps/platform.impl_actual.md` entry `2026-02-09 03:14PM` and follow-up planning entries.
+- Practical status as of 2026-02-09:
+  - Phase 4.6 should be treated as **in progress** until `4.6.L` residuals are evidenced closed.
+  - Phase 5 implementation planning/execution may proceed in parallel, but formal closure remains gated by mandatory 4.6 completion.
+
 ## Matrix
 | Gate | PASS Criteria (DoD Extract) | Current Status | Evidence | Gap to Close |
 | --- | --- | --- | --- | --- |

@@ -6521,3 +6521,96 @@ Observed evidence after stream completion and report export:
 - The full run proves dataflow/accounting correctness (C&I + RTDL throughput) but does not satisfy strict-green reliability posture.
 - Carrying this as explicit TODOs prevents silent drift between claimed completion and observed runtime evidence.
 - This keeps Phase 5 momentum possible while preserving a hard list of closure obligations before formal 4.6 PASS declaration.
+
+## 2026-02-09 03:24PM - Pre-change planning lock: Phase 5 (Label + Case) expansion from pinned flow and pre-design decisions
+
+### Objective
+- Start Phase 5 planning with executable detail (not narrative-only) while preserving the current `4.6.L` residual closure obligations in parallel.
+- Convert Label/Case intent into concrete phase/section DoD gates that can drive implementation without contract drift.
+
+### Authorities reviewed for this lock
+- Core platform notes:
+  - `docs/model_spec/platform/platform-wide/platform_blueprint_notes_v0.md`
+  - `docs/model_spec/platform/platform-wide/deployment_tooling_notes_v0.md`
+- Engine boundary:
+  - `docs/model_spec/data-engine/interface_pack/README.md`
+  - `docs/model_spec/data-engine/interface_pack/data_engine_interface.md`
+- Platform narratives:
+  - `docs/model_spec/platform/narrative/narrative_control_and_ingress.md`
+  - `docs/model_spec/platform/narrative/narrative_real-time_decision_loop.md`
+  - `docs/model_spec/platform/narrative/narrative_label_and_case.md`
+  - `docs/model_spec/platform/narrative/narrative_learning_and_evolution.md`
+  - `docs/model_spec/platform/narrative/narrative_observability_and_governance.md`
+- Phase-5-shaping authorities:
+  - `docs/model_spec/platform/component-specific/flow-narrative-platform-design.md`
+  - `docs/model_spec/platform/component-specific/case_mgmt.design-authority.md`
+  - `docs/model_spec/platform/component-specific/label_store.design-authority.md`
+  - `docs/model_spec/platform/pre-design_decisions/case_and_labels.pre-design_decision.md`
+  - `docs/model_spec/platform/pre-design_decisions/run_and_operate.pre-design_decisions.md`
+  - `docs/model_spec/platform/pre-design_decisions/observability_and_governance.pre-design_decisions.md`
+
+### Planning alternatives considered
+1. Keep Phase 5 as a short top-level DoD (current posture):
+   - rejected; too ambiguous for implementation sequencing and easy to drift from CaseSubject/LabelSubject/timeline semantics.
+2. Expand only platform Phase 5 and defer component build plans:
+   - partially acceptable, but weak for execution because `case_mgmt` and `label_store` still lack their own progressive plans.
+3. Expand platform Phase 5 and simultaneously create component build plans + component decision notebooks:
+   - selected; gives a plane-level execution map plus component-level authoritative tracks before coding starts.
+
+### Chosen planning shape
+- Update `platform.build_plan.md`:
+  - Replace coarse Phase 5 with sectioned `5.1..5.x` DoD gates covering CaseTrigger contract, CM timeline truth, CM->AL loop, CM->LS label lane, LS as-of/resolution, engine truth ingest, and observability/reconciliation closure.
+  - Keep Phase 5 progression explicit about parallel `4.6.L` closure obligations.
+- Create component plans:
+  - `docs/model_spec/platform/implementation_maps/case_mgmt.build_plan.md`
+  - `docs/model_spec/platform/implementation_maps/label_store.build_plan.md`
+- Create component decision-trail notebooks:
+  - `docs/model_spec/platform/implementation_maps/case_mgmt.impl_actual.md`
+  - `docs/model_spec/platform/implementation_maps/label_store.impl_actual.md`
+
+### Invariants to preserve
+- Truth ownership boundaries remain strict: CM owns case timeline truth, LS owns label truth, AL owns side-effects, DLA owns audit truth.
+- Append-only + idempotent semantics at every write boundary.
+- ContextPins and by-ref evidence as non-negotiable cross-component join posture.
+- Effective vs observed time semantics remain explicit and leakage-safe for learning as-of joins.
+- No narrative PASS claims; status language must stay evidence-backed and honest while 4.6 residuals remain open.
+
+## 2026-02-09 03:27PM - Applied Phase 5 planning expansion (platform + CM + LS maps)
+
+### Changes applied
+1. Expanded platform Phase 5 from coarse bullets into executable subsections in:
+   - `docs/model_spec/platform/implementation_maps/platform.build_plan.md`
+   - Added `5.1..5.9` gates spanning:
+     - contracts/identity,
+     - CM trigger intake and timeline truth,
+     - CM->AL and CM->LS handshake boundaries,
+     - LS as-of/resolved reads,
+     - engine truth ingest translation lane,
+     - Case/Labels observability-governance,
+     - integration closure criteria.
+2. Clarified gate posture:
+   - Phase 5 execution can proceed in parallel with `4.6.L` residual closure,
+   - formal Phase 5 closure still requires evidence-backed gate completion.
+3. Created component build plans:
+   - `docs/model_spec/platform/implementation_maps/case_mgmt.build_plan.md`
+   - `docs/model_spec/platform/implementation_maps/label_store.build_plan.md`
+4. Created component implementation notebooks for live decision trail capture:
+   - `docs/model_spec/platform/implementation_maps/case_mgmt.impl_actual.md`
+   - `docs/model_spec/platform/implementation_maps/label_store.impl_actual.md`
+
+### Rationale
+- Existing Phase 5 wording was too high-level to safely drive implementation sequencing.
+- Flow narrative + pre-design decisions already pin concrete contracts (CaseSubjectKey, LabelSubjectKey, dual-time semantics, idempotent handshakes); build plans needed to reflect those explicitly.
+- Creating component maps now prevents planning drift once coding begins and satisfies the project doctrine of progressive elaboration with auditable reasoning.
+
+### Next implementation planning step
+- Enter Phase 5.1 execution planning for contract artifacts (CM + LS schemas/config/test matrix), then begin code-level implementation in strict phase order.
+
+### Addendum (gate language consistency)
+- Updated Phase `4.6.K` wording in `platform.build_plan.md` to remove a policy contradiction:
+  - clarified that **formal Phase 5 closure** stays blocked on mandatory 4.6 PASS,
+  - while allowing Phase 5 implementation sequencing in parallel when `4.6.L` residuals are explicitly tracked.
+- Added rolling status line for `Phase 5` as `planning-active` to keep state truthful.
+- Synced matrix posture narrative by appending an operational addendum in:
+  - `docs/model_spec/platform/implementation_maps/platform.phase4_6_validation_matrix.md`
+  clarifying that the 2026-02-08 PASS block is historical baseline and current execution posture remains `4.6 in progress` until `4.6.L` closure.

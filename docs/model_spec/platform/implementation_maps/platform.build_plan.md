@@ -977,7 +977,7 @@ Resolved and pinned in:
   - platform reconciliation artifact generation,
   - restart/recovery behavior for at least one always-on worker pack.
 - Evidence pack paths are pinned in implementation maps/logbook with run IDs, timestamps, and command traces (no payload secret leakage).
-- Phase 5 remains blocked unless all mandatory 4.6 gates are PASS (reserved families excluded until owning plane activation).
+- Phase 5 **formal closure gate** remains blocked unless all mandatory 4.6 gates are PASS (reserved families excluded until owning plane activation); implementation sequencing may run in parallel when residual 4.6 gaps are explicitly tracked.
 
 ##### 4.6.L — Remaining-open closure TODOs from full parity run `platform_20260209T144746Z`
 **Goal:** convert the latest strict-green blockers into explicit closure tasks while preserving truthful gate posture.
@@ -1000,13 +1000,94 @@ Resolved and pinned in:
 
 ### Phase 5 — Label & Case plane
 **Intent:** crystallize outcomes into authoritative label timelines and case workflows.
-**Start gate:** blocked until Phase 4.6 meta-layer closure gate is complete.
+**Execution posture:** implementation may proceed in parallel with `4.6.L` residual closure items; formal Phase 5 closure still requires Phase 4.6 PASS evidence.
 
 **Definition of Done (DoD):**
 - Label Store supports append-only timelines with as-of queries (effective vs observed time).
 - Case management backend can open/advance/close cases and emit label assertions.
 - Engine 6B truth/bank-view/case surfaces can be ingested via IG into Label Store.
 - E2E: action outcome + case event -> label timeline update visible to learning plane.
+
+#### Phase 5.1 — Contracts + identity pins (CaseTrigger, timeline, LabelAssertion)
+**Goal:** pin non-ambiguous contracts and identity rules before service implementation.
+
+**DoD checklist:**
+- `CaseSubjectKey` is pinned to `(platform_run_id, event_class, event_id)` with deterministic `case_id = hash(CaseSubjectKey)`.
+- `CaseTrigger` contract is pinned (trigger type vocabulary + required ContextPins + by-ref evidence refs + deterministic `case_trigger_id`).
+- Case timeline event contract is pinned with controlled `timeline_event_type` vocabulary and idempotency key `(case_id, timeline_event_type, source_ref_id)`.
+- Label assertion contract is pinned with `LabelSubjectKey=(platform_run_id,event_id)`, `label_type`, `label_value`, `effective_time`, `observed_time`, provenance, and evidence refs.
+- Payload-hash canonicalization rule is pinned for CM and LS writer boundaries (sorted refs, stable field set).
+
+#### Phase 5.2 — CaseTrigger intake + case creation boundary (CM S1/S2)
+**Goal:** make CM intake deterministic and safe under at-least-once delivery.
+
+**DoD checklist:**
+- CM intake consumes explicit `CaseTrigger` events (or equivalent trigger writer output), not ad-hoc parsing of unrelated upstream streams.
+- Case creation is idempotent on `CaseSubjectKey`; duplicate triggers append timeline events rather than creating new cases.
+- v0 no-merge policy is enforced (cross-subject aggregation deferred to explicit meta-case design).
+- Collision posture is explicit: same dedupe key + different payload emits anomaly and is never silently overwritten.
+
+#### Phase 5.3 — Case timeline truth + workflow projection (CM S2/S3)
+**Goal:** establish CM as append-only investigation truth with deterministic projections.
+
+**DoD checklist:**
+- Case timeline is append-only and actor-attributed (`actor_id`, `source_type`, `observed_time`) for all meaningful state transitions.
+- Header/status views are derived from timeline events only; no hidden mutable state bypass.
+- Concurrent edits are represented as append-only events with deterministic projection ordering.
+- Required query surfaces exist for `case_id`, linked references (`event_id`, `decision_id`, `action_outcome_id`, `audit_record_id`), queue/state, and time-window filters.
+
+#### Phase 5.4 — CM manual-action lane via AL (CM S6)
+**Goal:** preserve action truth ownership boundaries while enabling human intervention.
+
+**DoD checklist:**
+- CM never executes side effects directly; manual interventions are emitted as ActionIntents to AL with deterministic idempotency keys.
+- CM records action request + outcome attachment on timeline by reference (`action_outcome_id`) only.
+- Failure modes are explicit (`ACTION_PENDING`, retry, denied/failed attached) without claiming execution truth before AL outcome.
+
+#### Phase 5.5 — CM->LS label emission handshake (J13)
+**Goal:** close the human truth loop without ambiguity about commit points.
+
+**DoD checklist:**
+- CM emits LabelAssertions to LS writer boundary and records `LABEL_PENDING` until durable LS ack.
+- LS ack/reject drives timeline transitions (`LABEL_ACCEPTED`, `LABEL_REJECTED`, optional `LABEL_RETRYING`); CM never claims label truth before ack.
+- Idempotent retries are stable (same assertion id and observed_time across retries).
+- Same assertion key + mismatched payload hash is surfaced as anomaly and rejected fail-closed.
+
+#### Phase 5.6 — Label Store append-only truth + as-of query surfaces
+**Goal:** make LS authoritative for label truth and leakage-safe for learning.
+
+**DoD checklist:**
+- LS write boundary enforces append-only assertions with idempotent dedupe and provenance stamping.
+- Effective vs observed time semantics are enforced and queryable.
+- LS exposes deterministic read surfaces: timeline-by-subject and `label_as_of(subject, T)` with explicit observed-time eligibility rule.
+- Resolved view conflict posture is pinned (deterministic precedence or explicit conflict state; no silent ambiguity).
+
+#### Phase 5.7 — Engine truth/bank-view/case ingest into LS (v0 synthetic truth lane)
+**Goal:** ingest 6B truth products through platform rails while preserving LS truth ownership.
+
+**DoD checklist:**
+- Adapter path ingests engine 6B truth/bank-view/case surfaces via IG/EB (or explicitly pinned equivalent ingress) with PASS gate verification.
+- Ingested truth is translated into LS LabelAssertions with explicit source provenance and dual-time semantics.
+- No direct bypass writes to LS without writer-boundary validation/idempotency.
+- Replay/re-run behavior is deterministic and scoped by ContextPins (no cross-run leakage).
+
+#### Phase 5.8 — Observability/governance for Case+Labels plane
+**Goal:** make the plane operable and auditable under v0 meta-layer posture.
+
+**DoD checklist:**
+- Required counters are emitted/run-scoped: `case_triggers`, `cases_created`, `timeline_events_appended`, `label_assertions`, `labels_accepted`, `labels_rejected`, `label_pending`.
+- Governance lifecycle events for labels are emitted with actor attribution and evidence refs (`LABEL_SUBMITTED`, `LABEL_ACCEPTED`, `LABEL_REJECTED`).
+- Corridor anomalies for CM/LS boundaries are structured and fail-closed where required.
+- Reconciliation artifact exists at `s3://fraud-platform/{platform_run_id}/case_labels/reconciliation/YYYY-MM-DD.json` (or environment-equivalent prefix).
+
+#### Phase 5.9 — Integration closure gate (CM + LS + RTDL handoff)
+**Goal:** prove end-to-end Case+Labels continuity and unblock Phase 6 safely.
+
+**DoD checklist:**
+- Integration proof covers `DLA/AL evidence -> CaseTrigger -> CM timeline -> LabelAssertion -> LS timeline -> as-of read`.
+- Negative-path proof exists: LS unavailable, hash mismatch, invalid subject mapping, and retry idempotency.
+- Monitored parity evidence includes run-scoped artifacts/logs for CM + LS and reconciliation outputs.
+- Phase 6 start is unblocked only when this section is PASS with implementation-map + logbook evidence.
 
 ### Phase 6 — Learning & Registry plane
 **Intent:** create deterministic learning loop with reproducible datasets and controlled deployment.
@@ -1052,5 +1133,6 @@ Resolved and pinned in:
 - Phase 4.5 (AL + DLA): complete.
 - Phase 4 (RTDL plane overall): functionally green for end-to-end throughput on full run `platform_20260209T144746Z`, with strict-green closure items tracked under `4.6.L`.
 - Phase 4.6 (Run/Operate + Obs/Gov meta-layer closure gate): in progress; `4.6.A..4.6.K` framework is implemented, `4.6.L` runtime closure TODOs remain open.
+- Phase 5 (Label & Case plane): planning-active (`5.1..5.9` sectioned DoD map pinned; implementation pending phase-by-phase execution evidence).
 - Next active platform phase: Phase 5 (Label & Case plane) with `4.6.L` closure TODOs carried in parallel until formal 4.6 PASS is evidenced.
 - SR v0: complete (see `docs/model_spec/platform/implementation_maps/scenario_runner.build_plan.md`).
