@@ -112,4 +112,11 @@ Provide an executable, component-scoped plan for Case Management (CM) aligned to
     - `tests/services/case_mgmt/test_phase1_ids.py`
   - Validation:
     - `python -m pytest -q tests/services/case_mgmt/test_phase1_contracts.py tests/services/case_mgmt/test_phase1_ids.py` -> `12 passed`
-- Next action: Phase 2 implementation (trigger intake + idempotent case creation boundary).
+- Phase 2 (`Trigger intake + idempotent case creation`): completed on `2026-02-09`.
+  - Evidence:
+    - `src/fraud_detection/case_mgmt/intake.py`
+    - `src/fraud_detection/case_mgmt/__init__.py`
+    - `tests/services/case_mgmt/test_phase2_intake.py`
+  - Validation:
+    - `python -m pytest -q tests/services/case_mgmt/test_phase1_contracts.py tests/services/case_mgmt/test_phase1_ids.py tests/services/case_mgmt/test_phase2_intake.py` -> `16 passed`
+- Next action: Phase 3 implementation (append-only timeline truth + workflow projection).

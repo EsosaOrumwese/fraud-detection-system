@@ -6961,3 +6961,71 @@ Implement CaseTrigger Phase 1 and provide an executable runtime contract boundar
 ### Platform impact
 - Phase `5.2.E` (retry/checkpoint/replay safety) is now closed with evidence.
 - Next execution gate is `5.2.G` (CM intake integration assertions on idempotent case creation/no-merge behavior).
+
+## 2026-02-09 04:26PM - Phase 5.2 execution lock for 5.2.G (CaseTrigger->CM intake integration)
+
+### Objective
+Close platform gate `5.2.G` by implementing and validating CM intake behavior against the explicit CaseTrigger contract.
+
+### Locked implementation posture
+- CM remains the owner for case/timeline truth; integration code lands under `case_mgmt` module boundary.
+- Integration gate criteria mapped to code-level assertions:
+  - CM consumes CaseTrigger contract directly (`CaseTrigger.from_payload`),
+  - case creation idempotency keyed by `CaseSubjectKey` (`case_id` deterministic),
+  - duplicate CaseTrigger deliveries remain deterministic (append/no-op),
+  - no-merge policy is preserved.
+- Collision policy remains fail-closed:
+  - same `case_trigger_id` + different payload hash produces mismatch outcome; no overwrite.
+
+### Planned implementation/test surfaces
+- `src/fraud_detection/case_mgmt/intake.py`
+- `src/fraud_detection/case_mgmt/__init__.py`
+- `tests/services/case_mgmt/test_phase2_intake.py`
+
+### Validation gate
+- Compile pass for new CM intake files.
+- Combined regression set across CM Phase1/2 and CaseTrigger Phase1-5 + IG onboarding to ensure integration does not regress upstream gates.
+
+## 2026-02-09 04:33PM - Phase 5.2 gate 5.2.G closed (CaseTrigger->CM intake integration)
+
+### What closed
+- Implemented CM intake boundary for CaseTrigger and validated idempotent/no-merge behavior under at-least-once delivery.
+
+### Delivered files
+- `src/fraud_detection/case_mgmt/intake.py`
+- `src/fraud_detection/case_mgmt/__init__.py`
+- `tests/services/case_mgmt/test_phase2_intake.py`
+
+### Gate mapping to objective criteria
+- `CM consumes explicit CaseTrigger contract`:
+  - intake path validates payload with `CaseTrigger.from_payload(...)`.
+- `Case creation idempotent on CaseSubjectKey`:
+  - case rows keyed by deterministic `case_id` and guarded by `case_subject_hash` uniqueness.
+- `Duplicate trigger behavior deterministic (append/no-op)`:
+  - `NEW_TRIGGER` appends a deterministic `CASE_TRIGGERED` timeline event.
+  - `DUPLICATE_TRIGGER` and `TRIGGER_PAYLOAD_MISMATCH` perform timeline no-op.
+- `v0 no-merge posture`:
+  - subject-hash mismatch for existing `case_id` is rejected fail-closed.
+
+### Validation evidence
+- `python -m py_compile src/fraud_detection/case_mgmt/intake.py src/fraud_detection/case_mgmt/__init__.py tests/services/case_mgmt/test_phase2_intake.py` -> pass.
+- `python -m pytest -q tests/services/case_mgmt/test_phase2_intake.py` -> `4 passed`.
+- `python -m pytest -q tests/services/case_mgmt/test_phase1_contracts.py tests/services/case_mgmt/test_phase1_ids.py tests/services/case_mgmt/test_phase2_intake.py` -> `16 passed`.
+- `python -m pytest -q tests/services/case_trigger/test_phase1_config.py tests/services/case_trigger/test_phase1_contracts.py tests/services/case_trigger/test_phase1_taxonomy.py tests/services/case_trigger/test_phase2_adapters.py tests/services/case_trigger/test_phase3_replay.py tests/services/case_trigger/test_phase4_publish.py tests/services/case_trigger/test_phase5_checkpoints.py tests/services/ingestion_gate/test_phase11_case_trigger_onboarding.py` -> `36 passed`.
+
+### Platform impact
+- Platform `5.2.G` integration gate is now evidenced closed.
+- Next CaseTrigger gate is observability/governance (`5.2.F` / CaseTrigger Phase 7).
+
+## 2026-02-09 04:36PM - Post-closure hardening addendum for 5.2.G
+
+### Adjustment
+- Added a defensive JSON decode guard on CM intake lookup path (`_json_to_dict`) to avoid runtime exceptions on malformed persisted rows.
+
+### Validation refresh
+- Re-ran compile + CM Phase1/2 + CaseTrigger Phase1-5 + IG onboarding suites:
+  - CM set: `16 passed`
+  - CaseTrigger+IG set: `36 passed`
+
+### Gate posture
+- `5.2.G` remains closed; addendum is a robustness hardening only (no contract or behavior drift).

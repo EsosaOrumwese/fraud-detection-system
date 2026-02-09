@@ -83,3 +83,101 @@ Close CM Phase 1 by implementing concrete contract and identity artifacts that c
 ### Notes
 - Identity and payload-hash recipes are deterministic and stable under evidence-ref ordering differences.
 - Contract posture is fail-closed on deterministic key mismatches and payload hash mismatches.
+
+## Entry: 2026-02-09 04:26PM - Pre-change lock for Phase 2 (CaseTrigger intake + idempotent case creation)
+
+### Objective
+Implement CM Phase 2 by adding an intake boundary that consumes CaseTrigger contracts directly and enforces idempotent case creation with deterministic duplicate behavior.
+
+### Inputs / authorities
+- `docs/model_spec/platform/implementation_maps/case_mgmt.build_plan.md` (Phase 2 DoD)
+- `docs/model_spec/platform/implementation_maps/case_trigger.build_plan.md` (Phase 6 CM integration gate)
+- `docs/model_spec/platform/component-specific/case_mgmt.design-authority.md`
+- `docs/model_spec/platform/pre-design_decisions/case_and_labels.pre-design_decision.md`
+- Existing CM contract/identity modules:
+  - `src/fraud_detection/case_mgmt/contracts.py`
+  - `src/fraud_detection/case_mgmt/ids.py`
+
+### Decisions locked before coding
+1. Create `case_mgmt/intake.py` as explicit CM trigger intake service + persistence boundary.
+2. Intake must parse/validate incoming triggers using `CaseTrigger.from_payload(...)` to guarantee direct contract conformance.
+3. Case create semantics:
+   - case identity = deterministic `case_id` from `CaseSubjectKey`,
+   - first trigger creates case record,
+   - subsequent triggers with same case subject attach to existing case,
+   - no-merge policy remains enforced.
+4. Trigger replay/collision semantics:
+   - same `case_trigger_id` + same payload hash => `DUPLICATE_TRIGGER` (no new timeline append),
+   - same `case_trigger_id` + different payload hash => `TRIGGER_PAYLOAD_MISMATCH` fail-closed.
+5. Timeline semantics for this phase:
+   - append one deterministic `CASE_TRIGGERED` timeline event per new trigger (`source_ref_id=case_trigger_id`),
+   - duplicate trigger intake produces no duplicate timeline truth.
+6. Backend posture:
+   - sqlite and postgres parity in the intake store layer.
+
+### Planned file changes
+- New module: `src/fraud_detection/case_mgmt/intake.py`
+- Export update: `src/fraud_detection/case_mgmt/__init__.py`
+- New tests: `tests/services/case_mgmt/test_phase2_intake.py`
+
+### Validation gate
+- Compile checks on new/updated CM files.
+- Pytest: CM Phase1+2 plus CaseTrigger Phase1-5 + IG onboarding regression set.
+
+## Entry: 2026-02-09 04:33PM - Phase 2 implemented and validated (CaseTrigger intake + idempotent case creation)
+
+### Implementation completed
+1. Added explicit CM intake boundary:
+- `src/fraud_detection/case_mgmt/intake.py`
+
+2. Updated package exports:
+- `src/fraud_detection/case_mgmt/__init__.py`
+
+3. Added Phase 2 test suite:
+- `tests/services/case_mgmt/test_phase2_intake.py`
+
+### Runtime mechanics delivered
+- Intake parses incoming payloads through `CaseTrigger.from_payload(...)`; invalid trigger contracts are rejected fail-closed before persistence.
+- Case creation is idempotent on deterministic `case_id` (`CaseSubjectKey` identity). Cases are unique per `case_subject_hash`; no-merge posture is enforced.
+- Trigger intake ledger outcomes are explicit:
+  - `NEW_TRIGGER`
+  - `DUPLICATE_TRIGGER`
+  - `TRIGGER_PAYLOAD_MISMATCH`
+- Collision discipline:
+  - same `case_trigger_id` + same payload hash => duplicate/no-op,
+  - same `case_trigger_id` + different payload hash => mismatch anomaly, no timeline append.
+- Timeline behavior:
+  - new triggers append one deterministic `CASE_TRIGGERED` timeline event,
+  - duplicate/mismatch triggers do not append duplicate truth (`TIMELINE_NOOP`).
+
+### Validation evidence
+- `python -m py_compile src/fraud_detection/case_mgmt/intake.py src/fraud_detection/case_mgmt/__init__.py tests/services/case_mgmt/test_phase2_intake.py`
+  - result: pass
+- `python -m pytest -q tests/services/case_mgmt/test_phase2_intake.py`
+  - result: `4 passed`
+- `python -m pytest -q tests/services/case_mgmt/test_phase1_contracts.py tests/services/case_mgmt/test_phase1_ids.py tests/services/case_mgmt/test_phase2_intake.py`
+  - result: `16 passed`
+- `python -m pytest -q tests/services/case_trigger/test_phase1_config.py tests/services/case_trigger/test_phase1_contracts.py tests/services/case_trigger/test_phase1_taxonomy.py tests/services/case_trigger/test_phase2_adapters.py tests/services/case_trigger/test_phase3_replay.py tests/services/case_trigger/test_phase4_publish.py tests/services/case_trigger/test_phase5_checkpoints.py tests/services/ingestion_gate/test_phase11_case_trigger_onboarding.py`
+  - result: `36 passed`
+
+### Phase closure statement
+- CM Phase 2 DoD is satisfied:
+  - trigger intake consumes CaseTrigger contract directly,
+  - case creation is idempotent on CaseSubjectKey,
+  - duplicate trigger behavior is deterministic and no-merge remains enforced.
+
+## Entry: 2026-02-09 04:36PM - Phase 2 hardening addendum (defensive JSON decode on lookup path)
+
+### Why this addendum was needed
+- Post-closure review identified a small robustness gap: lookup helpers in `case_mgmt/intake.py` parsed persisted JSON without guarding decode failures.
+- While persisted rows are expected to be valid, defensive handling avoids lookup-path crashes under corrupted/test-fixture rows.
+
+### Change applied
+- `src/fraud_detection/case_mgmt/intake.py`
+  - `_json_to_dict(...)` now catches `json.JSONDecodeError` and returns `{}` instead of raising.
+
+### Validation evidence
+- `python -m py_compile src/fraud_detection/case_mgmt/intake.py src/fraud_detection/case_mgmt/__init__.py tests/services/case_mgmt/test_phase2_intake.py` -> pass.
+- `python -m pytest -q tests/services/case_mgmt/test_phase2_intake.py` -> `4 passed`.
+- `python -m pytest -q tests/services/case_mgmt/test_phase1_contracts.py tests/services/case_mgmt/test_phase1_ids.py tests/services/case_mgmt/test_phase2_intake.py` -> `16 passed`.
+- `python -m pytest -q tests/services/case_trigger/test_phase1_config.py tests/services/case_trigger/test_phase1_contracts.py tests/services/case_trigger/test_phase1_taxonomy.py tests/services/case_trigger/test_phase2_adapters.py tests/services/case_trigger/test_phase3_replay.py tests/services/case_trigger/test_phase4_publish.py tests/services/case_trigger/test_phase5_checkpoints.py tests/services/ingestion_gate/test_phase11_case_trigger_onboarding.py` -> `36 passed`.

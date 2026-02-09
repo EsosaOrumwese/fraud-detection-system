@@ -488,3 +488,90 @@ Close CaseTrigger Phase 5 by implementing deterministic checkpoint gating couple
   - retry-safe identity/token behavior is deterministic,
   - checkpoint progression is publish-outcome-gated and fail-closed on unsafe outcomes,
   - replay path preserves trigger identity and checkpoint committability under duplicate-safe publish outcomes.
+
+## Entry: 2026-02-09 04:26PM - Pre-change lock for Phase 6 (CM intake integration gate)
+
+### Objective
+Close CaseTrigger Phase 6 by proving the CaseTrigger->CM intake boundary with deterministic case creation and duplicate-safe trigger intake behavior.
+
+### Problem framing
+- CaseTrigger phases 1-5 are complete and validated at writer/replay/publish/checkpoint boundaries.
+- Integration gate remains open until CM consumes CaseTrigger contract directly and enforces idempotent case creation + deterministic duplicate/no-op behavior under at-least-once delivery.
+
+### Implementation decisions locked before edits
+1. Implement explicit CM intake module in `case_mgmt` (authoritative owner), not inside `case_trigger`, to preserve truth ownership boundaries.
+2. Intake path must validate input through `CaseTrigger.from_payload(...)` (direct contract consumption; no shadow parser).
+3. Case creation idempotency key is `CaseSubjectKey` via deterministic `case_id`; no-merge remains strict for v0.
+4. Trigger duplicates are deterministic:
+   - same `case_trigger_id` + same payload hash => duplicate/no-op,
+   - same `case_trigger_id` + different payload hash => fail-closed anomaly (`PAYLOAD_MISMATCH`).
+5. Timeline append semantics:
+   - append `CASE_TRIGGERED` once per trigger using deterministic `case_timeline_event_id`,
+   - duplicate trigger intake does not append duplicate timeline truth.
+6. Keep backend parity (sqlite + postgres) and add regression tests covering:
+   - new case + append,
+   - same-subject second trigger attaches to existing case,
+   - exact duplicate trigger no-op,
+   - payload mismatch anomaly.
+
+### Planned files
+- New code:
+  - `src/fraud_detection/case_mgmt/intake.py`
+- Export update:
+  - `src/fraud_detection/case_mgmt/__init__.py`
+- New tests:
+  - `tests/services/case_mgmt/test_phase2_intake.py`
+- Status updates after validation:
+  - `docs/model_spec/platform/implementation_maps/case_trigger.build_plan.md`
+  - `docs/model_spec/platform/implementation_maps/platform.build_plan.md`
+  - `docs/model_spec/platform/implementation_maps/case_mgmt.build_plan.md`
+
+### Validation plan
+- `python -m py_compile src/fraud_detection/case_mgmt/intake.py src/fraud_detection/case_mgmt/__init__.py tests/services/case_mgmt/test_phase2_intake.py`
+- `python -m pytest -q tests/services/case_mgmt/test_phase1_contracts.py tests/services/case_mgmt/test_phase1_ids.py tests/services/case_mgmt/test_phase2_intake.py tests/services/case_trigger/test_phase1_config.py tests/services/case_trigger/test_phase1_contracts.py tests/services/case_trigger/test_phase1_taxonomy.py tests/services/case_trigger/test_phase2_adapters.py tests/services/case_trigger/test_phase3_replay.py tests/services/case_trigger/test_phase4_publish.py tests/services/case_trigger/test_phase5_checkpoints.py tests/services/ingestion_gate/test_phase11_case_trigger_onboarding.py`
+
+## Entry: 2026-02-09 04:33PM - Phase 6 implemented and validated (CM intake integration gate)
+
+### What closed
+- Implemented and validated the CaseTrigger->CM boundary by adding deterministic CM intake behavior that consumes CaseTrigger contracts directly.
+
+### Delivered artifacts
+- `src/fraud_detection/case_mgmt/intake.py`
+- `src/fraud_detection/case_mgmt/__init__.py`
+- `tests/services/case_mgmt/test_phase2_intake.py`
+
+### Integration behavior now pinned
+- CM intake validates trigger payloads through `CaseTrigger.from_payload(...)` (direct contract consumption).
+- Case creation remains idempotent on `CaseSubjectKey`/deterministic `case_id`.
+- Trigger duplicate semantics are deterministic and explicit:
+  - `NEW_TRIGGER` appends one `CASE_TRIGGERED` timeline event.
+  - `DUPLICATE_TRIGGER` is no-op on timeline append.
+  - `TRIGGER_PAYLOAD_MISMATCH` is fail-closed and no-op on timeline append.
+- No-merge posture remains enforced via case subject hash consistency for persisted case identity.
+
+### Validation evidence
+- `python -m py_compile src/fraud_detection/case_mgmt/intake.py src/fraud_detection/case_mgmt/__init__.py tests/services/case_mgmt/test_phase2_intake.py`
+  - result: pass
+- `python -m pytest -q tests/services/case_mgmt/test_phase2_intake.py`
+  - result: `4 passed`
+- `python -m pytest -q tests/services/case_mgmt/test_phase1_contracts.py tests/services/case_mgmt/test_phase1_ids.py tests/services/case_mgmt/test_phase2_intake.py`
+  - result: `16 passed`
+- `python -m pytest -q tests/services/case_trigger/test_phase1_config.py tests/services/case_trigger/test_phase1_contracts.py tests/services/case_trigger/test_phase1_taxonomy.py tests/services/case_trigger/test_phase2_adapters.py tests/services/case_trigger/test_phase3_replay.py tests/services/case_trigger/test_phase4_publish.py tests/services/case_trigger/test_phase5_checkpoints.py tests/services/ingestion_gate/test_phase11_case_trigger_onboarding.py`
+  - result: `36 passed`
+
+### Phase closure statement
+- Phase 6 DoD is satisfied:
+  - CM consumes CaseTrigger contract directly,
+  - case creation idempotency holds on CaseSubjectKey,
+  - duplicate trigger handling is deterministic (append/no-op) and no-merge is preserved.
+
+## Entry: 2026-02-09 04:36PM - Phase 6 hardening addendum (CM lookup robustness)
+
+### Adjustment
+- Added defensive JSON-decode handling in CM intake lookup helper (`_json_to_dict`) so malformed rows do not raise runtime exceptions.
+
+### Validation refresh
+- `python -m py_compile src/fraud_detection/case_mgmt/intake.py src/fraud_detection/case_mgmt/__init__.py tests/services/case_mgmt/test_phase2_intake.py` -> pass.
+- `python -m pytest -q tests/services/case_mgmt/test_phase2_intake.py` -> `4 passed`.
+- `python -m pytest -q tests/services/case_mgmt/test_phase1_contracts.py tests/services/case_mgmt/test_phase1_ids.py tests/services/case_mgmt/test_phase2_intake.py` -> `16 passed`.
+- `python -m pytest -q tests/services/case_trigger/test_phase1_config.py tests/services/case_trigger/test_phase1_contracts.py tests/services/case_trigger/test_phase1_taxonomy.py tests/services/case_trigger/test_phase2_adapters.py tests/services/case_trigger/test_phase3_replay.py tests/services/case_trigger/test_phase4_publish.py tests/services/case_trigger/test_phase5_checkpoints.py tests/services/ingestion_gate/test_phase11_case_trigger_onboarding.py` -> `36 passed`.
