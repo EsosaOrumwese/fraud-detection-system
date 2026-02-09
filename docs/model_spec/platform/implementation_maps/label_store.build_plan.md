@@ -159,4 +159,16 @@ Provide an executable, component-scoped plan for Label Store (LS) aligned to pla
     - `python -m pytest -q tests/services/label_store/test_phase5_ingest_adapters.py` -> `5 passed`
     - `python -m pytest -q tests/services/label_store/test_phase1_label_store_contracts.py tests/services/label_store/test_phase1_label_store_ids.py tests/services/label_store/test_phase2_writer_boundary.py tests/services/label_store/test_phase3_timeline_persistence.py tests/services/label_store/test_phase4_as_of_queries.py tests/services/label_store/test_phase5_ingest_adapters.py` -> `28 passed`
     - `python -m pytest -q tests/services/case_mgmt/test_phase5_label_handshake.py tests/services/case_mgmt/test_phase8_validation_matrix.py` -> `10 passed`
-- Next action: Phase 6 implementation (observability, governance, and access audit).
+- Phase 6 (`Observability, governance, and access audit`): completed on `2026-02-09`.
+  - Evidence:
+    - `src/fraud_detection/label_store/observability.py` (run-scoped LS reporter, lifecycle governance emission, and evidence access-audit hook surfaces)
+    - `src/fraud_detection/label_store/__init__.py` (Phase 6 exports)
+    - `src/fraud_detection/platform_reporter/run_reporter.py` (LS reconciliation refs included for platform report evidence surfaces)
+    - `tests/services/label_store/test_phase6_observability.py`
+  - Validation:
+    - `python -m py_compile src/fraud_detection/label_store/observability.py src/fraud_detection/label_store/__init__.py src/fraud_detection/platform_reporter/run_reporter.py tests/services/label_store/test_phase6_observability.py` -> pass
+    - `python -m pytest -q tests/services/label_store/test_phase6_observability.py` -> `4 passed`
+    - `python -m pytest -q tests/services/label_store/test_phase1_label_store_contracts.py tests/services/label_store/test_phase1_label_store_ids.py tests/services/label_store/test_phase2_writer_boundary.py tests/services/label_store/test_phase3_timeline_persistence.py tests/services/label_store/test_phase4_as_of_queries.py tests/services/label_store/test_phase5_ingest_adapters.py tests/services/label_store/test_phase6_observability.py` -> `32 passed`
+    - `python -m pytest -q tests/services/case_mgmt/test_phase5_label_handshake.py tests/services/case_mgmt/test_phase8_validation_matrix.py` -> `10 passed`
+    - `python -m pytest -q tests/services/platform_reporter/test_run_reporter.py` -> `2 passed`
+- Next action: Phase 7 implementation (OFS integration and as-of training safety).

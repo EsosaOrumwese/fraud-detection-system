@@ -7,6 +7,14 @@ from .adapters import (
     LabelStoreAdapterResult,
     ingest_label_from_source,
 )
+from .observability import (
+    LabelStoreEvidenceAccessAuditRequest,
+    LabelStoreEvidenceAccessAuditResult,
+    LabelStoreEvidenceAccessAuditor,
+    LabelStoreHealthThresholds,
+    LabelStoreObservabilityError,
+    LabelStoreRunReporter,
+)
 from .contracts import (
     EVIDENCE_REF_TYPES,
     LABEL_TYPES,
@@ -61,6 +69,12 @@ __all__ = [
     "LabelAssertionWriteRecord",
     "LabelStoreAdapterError",
     "LabelStoreAdapterResult",
+    "LabelStoreEvidenceAccessAuditRequest",
+    "LabelStoreEvidenceAccessAuditResult",
+    "LabelStoreEvidenceAccessAuditor",
+    "LabelStoreHealthThresholds",
+    "LabelStoreObservabilityError",
+    "LabelStoreRunReporter",
     "LabelTimelineEntry",
     "LS_AS_OF_CONFLICT",
     "LS_AS_OF_NOT_FOUND",

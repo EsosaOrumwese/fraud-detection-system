@@ -7580,3 +7580,51 @@ Execute LS Phase 5 ingest adapters so CM/external/engine truth lanes converge on
 
 ### Residual notes
 - LS next active step is Phase 6 (observability/governance/access audit surfaces) before full Phase 8 closure proof for Case+Labels plane.
+
+## Entry: 2026-02-09 06:57PM - LS Phase 6 execution lock (platform Phase 5.8 progression)
+
+### Scope
+Execute LS Phase 6 by adding component-level observability, lifecycle-governance emission, and evidence access-audit hooks.
+
+### Locked implementation posture
+- Build a dedicated LS run reporter over append-only LS ledgers (no write-path coupling).
+- Emit run-scoped counters/anomaly lanes and health posture artifacts.
+- Emit idempotent lifecycle-governance facts with actor attribution + evidence refs while redacting sensitive payload content.
+- Provide explicit LS access-audit hook API so evidence-ref access can be logged append-only with allow/deny status.
+- Add LS reconciliation contribution artifact under Case+Labels prefix and include in platform reporter reconciliation refs.
+
+### Acceptance gate
+- LS Phase 6 matrix green.
+- LS Phase1..6 suite green.
+- CM label/phase8 regressions green.
+- Platform reporter regression green.
+- Build-plan + implementation maps + logbook updated with exact command evidence.
+
+## Entry: 2026-02-09 07:02PM - LS Phase 6 closure (platform Phase 5.8 progression)
+
+### What was closed
+- LS Phase 6 observability/governance/access-audit surfaces are implemented and validated.
+- Component now emits run-scoped metrics/health/reconciliation artifacts, idempotent lifecycle governance events, and explicit evidence access-audit hook events.
+
+### Platform-level impact
+- Case+Labels operate posture is strengthened:
+  - LS now contributes explicit run diagnostics and reconciliation evidence,
+  - lifecycle governance lane is auditable and idempotent,
+  - access-audit hooks are available for evidence-ref usage controls.
+- Platform reporter reconciliation discovery now includes LS component contribution refs.
+
+### Evidence references
+- Code:
+  - `src/fraud_detection/label_store/observability.py`
+  - `src/fraud_detection/label_store/__init__.py`
+  - `src/fraud_detection/platform_reporter/run_reporter.py`
+- Tests:
+  - `tests/services/label_store/test_phase6_observability.py`
+- Validation:
+  - Phase 6 matrix `4 passed`
+  - LS Phase1..6 `32 passed`
+  - CM label/phase8 regression `10 passed`
+  - platform reporter regression `2 passed`
+
+### Residual notes
+- LS next active step is Phase 7 (OFS integration + as-of training safety) before Phase 8 closure proofs.

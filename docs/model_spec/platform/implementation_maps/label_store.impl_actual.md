@@ -536,3 +536,147 @@ Phase 1..4 closed contracts, writer corridor, timeline persistence, and as-of re
   - engine/external truth lanes now have explicit adapters with provenance + dual-time semantics,
   - all lanes converge on the same idempotent writer checks,
   - no bypass path writes label truth outside LS writer boundary.
+
+## Entry: 2026-02-09 06:57PM - Pre-change lock for Phase 6 (LS observability, governance, access audit)
+
+### Objective
+Close LS Phase 6 by adding run-scoped metrics/anomaly reporting, lifecycle-governance emission with actor/evidence attribution, and explicit evidence-access audit hook surfaces.
+
+### Authority inputs used
+- `docs/model_spec/platform/implementation_maps/label_store.build_plan.md` (Phase 6 DoD)
+- `docs/model_spec/platform/implementation_maps/platform.build_plan.md` (Phase 5.8 alignment)
+- `docs/model_spec/platform/component-specific/label_store.design-authority.md` (truth ownership, by-ref evidence, idempotency, non-leaky governance posture)
+- Existing implementation context:
+  - `src/fraud_detection/label_store/writer_boundary.py` (assertion/mismatch/timeline truth)
+  - `src/fraud_detection/case_mgmt/observability.py` (component observability/governance emission pattern)
+  - `src/fraud_detection/platform_governance/evidence_corridor.py` (access-audit posture reference)
+
+### Problem framing
+LS currently has write/read correctness (Phases 1..5) but lacks component-level operate/audit surfaces:
+1. no run-scoped metrics export artifact for accepted/rejected/duplicates/pending/anomaly classes,
+2. no LS lifecycle governance emission artifact with actor/evidence attribution,
+3. no explicit access-audit hook for LS evidence reference resolution/use,
+4. no explicit redaction posture in LS governance artifacts.
+
+### Alternatives considered
+1. Add ad-hoc counters to writer-boundary write path and emit inline artifacts.
+- Rejected: mixes control path with observability concerns and misses historical/backfill export from existing ledgers.
+2. Add dedicated LS observability module that derives run-scoped posture from append-only ledgers and writes artifacts idempotently.
+- Selected: keeps write control path clean and aligns with component reporter patterns already used in CM/OFP/CSFB.
+
+### Decisions locked before edits
+1. Introduce `src/fraud_detection/label_store/observability.py` with:
+- `LabelStoreRunReporter.collect()` and `.export()` over existing LS tables.
+2. Metrics will be run-scoped by parsing assertion pins (`platform_run_id`, `scenario_run_id`) from assertion JSON and include DoD lanes:
+- `accepted`, `rejected`, `duplicate`, `pending`, and anomaly classes.
+- `pending` is emitted explicitly; v0 default is `0` until asynchronous LS pending lanes are introduced.
+3. Lifecycle governance events are emitted to component-local `label_store/governance/events.jsonl` using marker-based idempotency and include:
+- actor attribution (`actor_id`, `source_type`, `source_component`),
+- evidence refs by-ref only,
+- pins and subject identifiers,
+- explicit exclusion of sensitive `label_payload` and full assertion JSON.
+4. Add explicit evidence access-audit hooks in LS module:
+- append-only audit event writer for access attempts (`ALLOWED`/`DENIED`) with by-ref metadata,
+- reusable request/result dataclasses so caller components can integrate where required.
+5. Export artifacts under run root:
+- `label_store/metrics/last_metrics.json`
+- `label_store/health/last_health.json`
+- `label_store/reconciliation/last_reconciliation.json`
+- `label_store/governance/events.jsonl`
+- `label_store/access_audit/events.jsonl`
+- plus `case_labels/reconciliation/label_store_reconciliation.json` and dated file contribution.
+6. Add Phase 6 matrix tests for metrics/anomalies, governance idempotency/redaction, and access-audit hooks.
+
+### Planned files
+- New:
+  - `src/fraud_detection/label_store/observability.py`
+  - `tests/services/label_store/test_phase6_observability.py`
+- Update:
+  - `src/fraud_detection/label_store/__init__.py`
+  - `src/fraud_detection/platform_reporter/run_reporter.py` (reconciliation ref discovery for LS contribution)
+- Documentation updates after validation:
+  - `docs/model_spec/platform/implementation_maps/label_store.build_plan.md`
+  - `docs/model_spec/platform/implementation_maps/platform.build_plan.md`
+  - `docs/model_spec/platform/implementation_maps/label_store.impl_actual.md`
+  - `docs/model_spec/platform/implementation_maps/platform.impl_actual.md`
+  - `docs/logbook/02-2026/2026-02-09.md`
+
+### Validation plan
+- `python -m py_compile src/fraud_detection/label_store/observability.py src/fraud_detection/label_store/__init__.py tests/services/label_store/test_phase6_observability.py`
+- `python -m pytest -q tests/services/label_store/test_phase6_observability.py`
+- `python -m pytest -q tests/services/label_store/test_phase1_label_store_contracts.py tests/services/label_store/test_phase1_label_store_ids.py tests/services/label_store/test_phase2_writer_boundary.py tests/services/label_store/test_phase3_timeline_persistence.py tests/services/label_store/test_phase4_as_of_queries.py tests/services/label_store/test_phase5_ingest_adapters.py tests/services/label_store/test_phase6_observability.py`
+- `python -m pytest -q tests/services/case_mgmt/test_phase5_label_handshake.py tests/services/case_mgmt/test_phase8_validation_matrix.py`
+- `python -m pytest -q tests/services/platform_reporter/test_run_reporter.py`
+
+## Entry: 2026-02-09 07:02PM - Phase 6 implemented and validated (LS observability, governance, access audit)
+
+### Implementation completed
+1. Added dedicated LS observability module:
+- `src/fraud_detection/label_store/observability.py`
+- Introduced `LabelStoreRunReporter.collect()/export()` over LS append-only ledgers.
+
+2. Implemented run-scoped metrics and anomaly posture:
+- run-scope gate uses assertion pins (`platform_run_id`, `scenario_run_id`) from canonical assertion JSON.
+- emitted DoD counters:
+  - `accepted`, `rejected`, `duplicate`, `pending`,
+  - plus anomaly counters (`payload_hash_mismatch`, `dedupe_tuple_collision`, `mismatch_rows`).
+- explicit `pending` lane is emitted as `0` for current synchronous LS posture.
+
+3. Implemented lifecycle governance emission with idempotent markers:
+- governance events emitted to `label_store/governance/events.jsonl` with marker dedupe.
+- lifecycle event posture: `LABEL_ACCEPTED` from LS timeline truth.
+- actor attribution is preserved (`actor_id`, `source_type`, `source_component=label_store`).
+- evidence refs are preserved by-ref only.
+
+4. Enforced sensitive-payload exclusion in governance/audit outputs:
+- governance details intentionally exclude `label_payload` and full assertion payloads.
+- emitted details are minimal/auditable (`label_assertion_id`, subject refs, label_type, evidence refs).
+
+5. Added explicit evidence access-audit hook surfaces:
+- `LabelStoreEvidenceAccessAuditor`
+- `LabelStoreEvidenceAccessAuditRequest/Result`
+- append-only audit emission to `label_store/access_audit/events.jsonl` with marker dedupe.
+- allow/deny status (`ALLOWED`/`DENIED`) and reason-code carriage for fail-closed caller integration.
+
+6. Added reconciliation contribution export for Case+Labels plane:
+- `case_labels/reconciliation/label_store_reconciliation.json`
+- dated contribution `case_labels/reconciliation/YYYY-MM-DD.json`.
+
+7. Exported Phase 6 surfaces:
+- updated `src/fraud_detection/label_store/__init__.py`.
+
+8. Updated platform reporter reconciliation discovery for LS:
+- `src/fraud_detection/platform_reporter/run_reporter.py` now includes:
+  - `label_store/reconciliation/last_reconciliation.json`
+  - `case_labels/reconciliation/label_store_reconciliation.json`.
+
+9. Added dedicated Phase 6 test matrix:
+- `tests/services/label_store/test_phase6_observability.py`
+- coverage includes:
+  - run-scoped metrics/anomalies,
+  - lifecycle governance emission + redaction,
+  - governance idempotency,
+  - evidence access-audit hook allow/deny + idempotency + status validation.
+
+### Decision trail and rationale
+- We chose a dedicated reporter module instead of inlining metrics into writer control-path to preserve control-path determinism and avoid coupling write commits to artifact export mechanics.
+- We intentionally modeled access-audit as hook surfaces (not forced side-effects inside read APIs) so callers can integrate according to corridor/policy context while still producing append-only audit evidence when required.
+
+### Validation evidence
+- `python -m py_compile src/fraud_detection/label_store/observability.py src/fraud_detection/label_store/__init__.py src/fraud_detection/platform_reporter/run_reporter.py tests/services/label_store/test_phase6_observability.py`
+  - result: pass
+- `python -m pytest -q tests/services/label_store/test_phase6_observability.py`
+  - result: `4 passed`
+- `python -m pytest -q tests/services/label_store/test_phase1_label_store_contracts.py tests/services/label_store/test_phase1_label_store_ids.py tests/services/label_store/test_phase2_writer_boundary.py tests/services/label_store/test_phase3_timeline_persistence.py tests/services/label_store/test_phase4_as_of_queries.py tests/services/label_store/test_phase5_ingest_adapters.py tests/services/label_store/test_phase6_observability.py`
+  - result: `32 passed`
+- `python -m pytest -q tests/services/case_mgmt/test_phase5_label_handshake.py tests/services/case_mgmt/test_phase8_validation_matrix.py`
+  - result: `10 passed`
+- `python -m pytest -q tests/services/platform_reporter/test_run_reporter.py`
+  - result: `2 passed`
+
+### Phase closure statement
+- LS Phase 6 DoD is satisfied:
+  - run-scoped LS counters are emitted,
+  - lifecycle governance events include actor attribution + evidence refs,
+  - evidence access-audit hook surfaces are available for caller integration,
+  - sensitive payload details are excluded from governance/audit artifacts.
