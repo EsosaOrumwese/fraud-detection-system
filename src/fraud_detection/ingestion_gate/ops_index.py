@@ -22,7 +22,8 @@ class OpsIndex:
             conn.execute(
                 """
                 CREATE TABLE IF NOT EXISTS receipts (
-                    receipt_id TEXT PRIMARY KEY,
+                    receipt_id TEXT,
+                    platform_run_id TEXT,
                     event_id TEXT,
                     event_type TEXT,
                     dedupe_key TEXT,
@@ -46,10 +47,12 @@ class OpsIndex:
                 conn,
                 "receipts",
                 {
+                    "platform_run_id": "TEXT",
                     "eb_offset": "TEXT",
                     "eb_offset_kind": "TEXT",
                 },
             )
+            _ensure_receipts_run_scoped_uniqueness(conn)
             conn.execute(
                 """
                 CREATE TABLE IF NOT EXISTS quarantines (
@@ -72,17 +75,19 @@ class OpsIndex:
         created_at = datetime.now(tz=timezone.utc).isoformat()
         eb_ref = receipt_payload.get("eb_ref") or {}
         policy_rev = receipt_payload.get("policy_rev") or {}
+        platform_run_id = _receipt_platform_run_id(receipt_payload)
         with self._connect() as conn:
             conn.execute(
                 """
                 INSERT OR IGNORE INTO receipts
-                (receipt_id, event_id, event_type, dedupe_key, decision, eb_topic, eb_partition, eb_offset, eb_offset_kind,
+                (receipt_id, platform_run_id, event_id, event_type, dedupe_key, decision, eb_topic, eb_partition, eb_offset, eb_offset_kind,
                  policy_id, policy_revision, policy_digest, created_at_utc, receipt_ref, pins_json,
                  reason_codes_json, evidence_refs_json)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """,
                 (
                     receipt_payload.get("receipt_id"),
+                    platform_run_id,
                     receipt_payload.get("event_id"),
                     receipt_payload.get("event_type"),
                     receipt_payload.get("dedupe_key"),
@@ -138,7 +143,13 @@ class OpsIndex:
     def lookup_receipt(self, receipt_id: str) -> dict[str, Any] | None:
         with self._connect() as conn:
             row = conn.execute(
-                "SELECT receipt_id, event_id, event_type, decision, receipt_ref FROM receipts WHERE receipt_id = ?",
+                """
+                SELECT receipt_id, event_id, event_type, decision, receipt_ref
+                FROM receipts
+                WHERE receipt_id = ?
+                ORDER BY created_at_utc DESC
+                LIMIT 1
+                """,
                 (receipt_id,),
             ).fetchone()
         if not row:
@@ -225,6 +236,109 @@ def _ensure_columns(conn: sqlite3.Connection, table: str, columns: dict[str, str
     for name, col_type in columns.items():
         if name not in existing:
             conn.execute(f"ALTER TABLE {table} ADD COLUMN {name} {col_type}")
+
+
+def _ensure_receipts_run_scoped_uniqueness(conn: sqlite3.Connection) -> None:
+    _backfill_receipt_platform_run_id(conn)
+    if _is_legacy_receipts_pk(conn):
+        _rebuild_receipts_table(conn)
+    conn.execute(
+        """
+        CREATE UNIQUE INDEX IF NOT EXISTS ux_receipts_platform_run_receipt_id
+        ON receipts(platform_run_id, receipt_id)
+        """
+    )
+
+
+def _backfill_receipt_platform_run_id(conn: sqlite3.Connection) -> None:
+    rows = conn.execute(
+        """
+        SELECT rowid, platform_run_id, pins_json
+        FROM receipts
+        WHERE platform_run_id IS NULL OR TRIM(platform_run_id) = ''
+        """
+    ).fetchall()
+    for rowid, platform_run_id, pins_json in rows:
+        if str(platform_run_id or "").strip():
+            continue
+        parsed = _json_load_object(pins_json)
+        resolved = str(parsed.get("platform_run_id") or "").strip()
+        conn.execute(
+            "UPDATE receipts SET platform_run_id = ? WHERE rowid = ?",
+            (resolved, rowid),
+        )
+
+
+def _is_legacy_receipts_pk(conn: sqlite3.Connection) -> bool:
+    table_info = conn.execute("PRAGMA table_info(receipts)").fetchall()
+    pk_columns = [row[1] for row in sorted(table_info, key=lambda item: int(item[5] or 0)) if int(row[5] or 0) > 0]
+    return pk_columns == ["receipt_id"]
+
+
+def _rebuild_receipts_table(conn: sqlite3.Connection) -> None:
+    conn.execute(
+        """
+        CREATE TABLE receipts_v2 (
+            receipt_id TEXT,
+            platform_run_id TEXT NOT NULL,
+            event_id TEXT,
+            event_type TEXT,
+            dedupe_key TEXT,
+            decision TEXT,
+            eb_topic TEXT,
+            eb_partition INTEGER,
+            eb_offset TEXT,
+            eb_offset_kind TEXT,
+            policy_id TEXT,
+            policy_revision TEXT,
+            policy_digest TEXT,
+            created_at_utc TEXT,
+            receipt_ref TEXT,
+            pins_json TEXT,
+            reason_codes_json TEXT,
+            evidence_refs_json TEXT,
+            UNIQUE(platform_run_id, receipt_id)
+        )
+        """
+    )
+    conn.execute(
+        """
+        INSERT INTO receipts_v2 (
+            receipt_id, platform_run_id, event_id, event_type, dedupe_key, decision,
+            eb_topic, eb_partition, eb_offset, eb_offset_kind, policy_id, policy_revision,
+            policy_digest, created_at_utc, receipt_ref, pins_json, reason_codes_json, evidence_refs_json
+        )
+        SELECT
+            receipt_id, COALESCE(platform_run_id, ''), event_id, event_type, dedupe_key, decision,
+            eb_topic, eb_partition, eb_offset, eb_offset_kind, policy_id, policy_revision,
+            policy_digest, created_at_utc, receipt_ref, pins_json, reason_codes_json, evidence_refs_json
+        FROM receipts
+        """
+    )
+    conn.execute("DROP TABLE receipts")
+    conn.execute("ALTER TABLE receipts_v2 RENAME TO receipts")
+
+
+def _receipt_platform_run_id(receipt_payload: dict[str, Any]) -> str:
+    direct = str(receipt_payload.get("platform_run_id") or "").strip()
+    if direct:
+        return direct
+    pins = receipt_payload.get("pins")
+    if not isinstance(pins, dict):
+        return ""
+    return str(pins.get("platform_run_id") or "").strip()
+
+
+def _json_load_object(value: Any) -> dict[str, Any]:
+    if value in (None, ""):
+        return {}
+    if isinstance(value, dict):
+        return dict(value)
+    try:
+        payload = json.loads(str(value))
+    except json.JSONDecodeError:
+        return {}
+    return dict(payload) if isinstance(payload, dict) else {}
 
 
 def _json_dump(value: Any) -> str | None:

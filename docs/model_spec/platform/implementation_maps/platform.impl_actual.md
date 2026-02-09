@@ -6148,3 +6148,110 @@ Decision taken for this validation:
 - Runtime validation objective (20-gate then 200-full with component evidence) is complete.
 - DLA topology split objective validated (`decision_response/action_intent/action_outcome` all present at `200` with `0` DLA quarantine in full run).
 - Sequencing/readiness gating behavior validated operationally (no early-stream induced service crash; packs remained ready).
+
+## 2026-02-09 01:30PM - Pre-change lock for high-impact cleanup (ops-index/reporter ingress undercount)
+
+### Problem statement (active defect)
+- Run-scoped platform report ingress counters (`received`, `admit`) undercount relative to authoritative object-store receipts during replay/parity cycles.
+- Root mismatch is deterministic receipt key reuse across runs while ops-index persistence is globally keyed by bare `receipt_id`.
+
+### Evidence and causal chain
+1. `ingestion_gate/ops_index.py` persists receipts with `receipt_id TEXT PRIMARY KEY` + `INSERT OR IGNORE`.
+2. `admission.py` generates deterministic `receipt_id` from `event_id+decision` (stable across replays).
+3. Reporter ingress query filters ops rows by `pins_json.platform_run_id`; replayed rows for new runs never insert when prior-run key exists.
+4. Result: object-store run-scoped receipts are complete; ops index/reporter counters are stale/low.
+
+### Alternatives considered
+- Alternative A: make receipt IDs globally unique per run. Rejected for now because receipt-id determinism is useful for idempotent contract semantics and would ripple through lookup/replay surfaces.
+- Alternative B: keep deterministic receipt IDs but make ops-index persistence run-aware. Chosen because it addresses reporting/ops truth drift with minimal contract blast radius.
+
+### Design choice for this patch wave
+- Add explicit `platform_run_id` storage column to ops `receipts` table and enforce uniqueness on `(platform_run_id, receipt_id)`.
+- Preserve existing `receipt_id` and dedupe lookup semantics while making insert idempotency run-scoped.
+- Make migration path safe for existing sqlite files by rebuilding the `receipts` table when legacy PK shape is detected.
+- Keep reporter logic unchanged except benefiting from corrected run-scoped row presence.
+
+### Invariants to enforce
+- No duplicate rows for same `(platform_run_id, receipt_id)`.
+- Distinct runs can store same deterministic `receipt_id` without conflict.
+- Existing lookup surfaces remain functional (`lookup_receipt`, `lookup_event`, `lookup_dedupe`).
+- Rebuild path does not lose ability to repopulate from object store.
+
+### File-level execution plan
+1. `src/fraud_detection/ingestion_gate/ops_index.py`
+   - add `platform_run_id` column handling,
+   - add/run migration helper for legacy schema,
+   - update insert SQL to populate run ID from payload pins/top-level,
+   - adjust receipt lookup query ordering for deterministic earliest row.
+2. `tests/services/ingestion_gate/test_ops_index.py`
+   - add regression covering same `receipt_id` across two platform runs.
+3. `tests/services/platform_reporter/test_run_reporter.py`
+   - add regression proving reporter counts both run-scoped rows when IDs collide across runs.
+
+### Validation gates
+- `python -m pytest -q tests/services/ingestion_gate/test_ops_index.py tests/services/platform_reporter/test_run_reporter.py`
+- If green, run a focused smoke command for the reporter/IG matrix used in parity runs.
+- Append post-change evidence + residuals to implementation map and logbook.
+
+## 2026-02-09 01:30PM - High-impact cleanup implemented: run-aware ops-index receipt persistence
+
+### Decision recap
+- Implemented Alternative B from pre-change lock: keep deterministic `receipt_id` contract, but make IG ops-index persistence run-scoped.
+- Objective: eliminate reporter ingress undercount caused by cross-run `receipt_id` collisions in sqlite ops index.
+
+### Code changes (completed)
+1. `src/fraud_detection/ingestion_gate/ops_index.py`
+- Receipt schema updated to include explicit `platform_run_id` and run-scoped uniqueness.
+- Added schema hardening flow in `__post_init__`:
+  - column backfill support (`platform_run_id`, `eb_offset`, `eb_offset_kind`),
+  - legacy-PK detection (`receipt_id` single-column PK),
+  - automatic table rebuild to new shape when legacy PK is present,
+  - unique index creation: `ux_receipts_platform_run_receipt_id` on `(platform_run_id, receipt_id)`.
+- Added backfill helper to recover `platform_run_id` from `pins_json` for legacy rows.
+- Updated `record_receipt()` to persist resolved run id (top-level first, then `pins.platform_run_id`).
+- Updated `lookup_receipt()` to resolve potential multi-run collisions by selecting most recent row.
+
+2. `tests/services/ingestion_gate/test_ops_index.py`
+- Added regression: same deterministic `receipt_id` can be stored for two different `platform_run_id` values.
+- Hardened rebuild test to pass explicit store prefixes (removed dependence on ambient run-id environment state).
+
+3. `tests/services/platform_reporter/test_run_reporter.py`
+- Added regression: reporter ops query returns correct run-scoped counts even when receipt IDs collide across runs.
+
+### Validation evidence
+- `python -m pytest -q tests/services/ingestion_gate/test_ops_index.py` -> `4 passed`.
+- `python -m pytest -q tests/services/platform_reporter/test_run_reporter.py` -> `2 passed`.
+- `python -m py_compile src/fraud_detection/ingestion_gate/ops_index.py tests/services/ingestion_gate/test_ops_index.py tests/services/platform_reporter/test_run_reporter.py` -> pass.
+
+### Runtime impact expectation
+- On next parity run with replayed deterministic IDs, ops-index should retain per-run receipt rows.
+- `platform_run_report` ingress counters (`received`, `admit`) should align much closer to run-scoped receipt truth, removing the 600/1400 style undercount caused by prior global PK collisions.
+
+### Residual gate to execute next
+- Run bounded parity (`20`) then full parity (`200`) and compare:
+  - object-store receipt counts vs reporter ingress counts,
+  - run-scoped ops index row counts,
+  - DF/DL/AL/DLA matrix stability.
+
+## 2026-02-09 01:32PM - Additional hardening decision: explicit legacy-schema migration regression
+
+### Why this was added
+- The first patch validated run-scoped inserts on fresh schema, but did not yet prove migration behavior for already-existing sqlite ops databases.
+- Given local-parity and env-ladder needs, migration correctness is a production-critical risk point.
+
+### Action taken
+- Added `test_ops_index_migrates_legacy_receipts_pk_to_run_scoped_uniqueness` in `tests/services/ingestion_gate/test_ops_index.py`.
+- Test mechanics:
+  - manually creates legacy `receipts(receipt_id PRIMARY KEY, ...)` table,
+  - inserts a legacy row with run id only in `pins_json`,
+  - initializes `OpsIndex` to trigger migration/backfill,
+  - inserts a second-run row using same deterministic `receipt_id`,
+  - asserts both run-scoped rows persist.
+
+### Validation
+- `python -m pytest -q tests/services/ingestion_gate/test_ops_index.py` -> `5 passed`.
+- `python -m pytest -q tests/services/platform_reporter/test_run_reporter.py` -> `2 passed`.
+
+### Risk posture after hardening
+- Migration path now covered for both fresh and legacy sqlite ops-index schemas.
+- Remaining unvalidated scope is runtime parity confirmation under daemon orchestration (20/200 run gates).

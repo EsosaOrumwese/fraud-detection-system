@@ -6,6 +6,7 @@ import sqlite3
 
 import yaml
 
+from fraud_detection.ingestion_gate.ops_index import OpsIndex
 from fraud_detection.platform_reporter import run_reporter as run_reporter_module
 from fraud_detection.platform_reporter.run_reporter import PlatformRunReporter
 
@@ -107,6 +108,47 @@ def test_platform_run_reporter_exports_cross_plane_artifact(tmp_path: Path, monk
     assert reporter_events
     assert reporter_events[-1]["actor"]["actor_id"] == "SYSTEM::platform_run_reporter"
     assert reporter_events[-1]["provenance"]["environment"] == "test"
+
+
+def test_query_ops_receipts_counts_run_scoped_rows_with_colliding_receipt_ids(tmp_path: Path) -> None:
+    db_path = tmp_path / "ig.sqlite"
+    index = OpsIndex(db_path)
+    shared_receipt_id = "d" * 32
+
+    def _receipt(platform_run_id: str, scenario_run_id: str, event_id: str) -> dict[str, object]:
+        return {
+            "receipt_id": shared_receipt_id,
+            "event_id": event_id,
+            "event_type": "s3_event_stream_with_fraud_6B",
+            "event_class": "traffic",
+            "dedupe_key": "z" * 64,
+            "decision": "ADMIT",
+            "platform_run_id": platform_run_id,
+            "scenario_run_id": scenario_run_id,
+            "run_config_digest": "1" * 64,
+            "policy_rev": {"policy_id": "ig", "revision": "v1", "content_digest": "1" * 64},
+            "pins": {
+                "manifest_fingerprint": "m" * 64,
+                "platform_run_id": platform_run_id,
+                "scenario_run_id": scenario_run_id,
+            },
+            "eb_ref": {"topic": "fp.bus.traffic.v1", "partition": 0, "offset": "1", "offset_kind": "file_line"},
+        }
+
+    index.record_receipt(
+        _receipt("platform_20260101T000000Z", "scenario_a", "evt-1"),
+        "fraud-platform/platform_20260101T000000Z/ig/receipts/r1.json",
+    )
+    index.record_receipt(
+        _receipt("platform_20260102T000000Z", "scenario_b", "evt-2"),
+        "fraud-platform/platform_20260102T000000Z/ig/receipts/r1.json",
+    )
+
+    run2 = run_reporter_module._query_ops_receipts(str(db_path), "platform_20260102T000000Z")
+    assert run2["total"] == 1
+    assert run2["decision_counts"] == {"ADMIT": 1}
+    assert run2["event_type_counts"] == {"s3_event_stream_with_fraud_6B": 1}
+    assert run2["scenario_run_ids"] == ["scenario_b"]
 
 
 def _write_profile(
