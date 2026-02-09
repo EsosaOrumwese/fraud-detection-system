@@ -6711,3 +6711,57 @@ Implement Phase `5.1` as a contract-first, cross-plane slice that establishes sh
 
 ### Next step
 - Start Phase 5.2 implementation: CM trigger intake + idempotent case creation boundary against the new contract surfaces.
+
+## 2026-02-09 03:48PM - Pre-change planning lock: elevate CaseTrigger to explicit component for Phase 5.2
+
+### Objective
+- Move into platform Phase `5.2` by treating `CaseTrigger` as a standalone service/component with explicit ownership and DoD, instead of an implicit helper folded into CM.
+- Produce both:
+  1. component implementation notes (`case_trigger.impl_actual.md`),
+  2. full component build plan (`case_trigger.build_plan.md`),
+  and wire this into platform Phase `5.2` wording.
+
+### Authorities used
+- `docs/model_spec/platform/component-specific/flow-narrative-platform-design.md` (CaseTrigger narrative and idempotency formulas)
+- `docs/model_spec/platform/pre-design_decisions/case_and_labels.pre-design_decision.md` (Option A: explicit CaseTrigger events)
+- `docs/model_spec/platform/platform-wide/v0_environment_resource_tooling_map.md` (CaseTrigger writer deployment posture)
+- `docs/model_spec/platform/component-specific/case_mgmt.design-authority.md` (CM intake boundary expectation)
+- `docs/model_spec/platform/implementation_maps/platform.build_plan.md` (current `5.2` scope statement)
+
+### Decision
+- Add dedicated component maps:
+  - `docs/model_spec/platform/implementation_maps/case_trigger.build_plan.md`
+  - `docs/model_spec/platform/implementation_maps/case_trigger.impl_actual.md`
+- Expand platform `5.2` from CM-centric wording to explicit `CaseTrigger service + CM intake boundary`, with sectioned DoD for:
+  - source eligibility,
+  - evidence-by-ref enrichment,
+  - deterministic IDs + collision posture,
+  - publish corridor/auth,
+  - retry/checkpoint/reconciliation,
+  - integration gate into CM.
+
+### Rationale
+- Without an explicit component plan, trigger generation can drift into ad-hoc logic inside RTDL/CM and become hard to audit.
+- The pre-design pin already prefers explicit CaseTrigger events to keep CM opaque; formalizing the component now preserves that boundary.
+- This also sets up cleaner run/operate onboarding (pack-level process) for Case/Labels plane.
+
+## 2026-02-09 03:52PM - Applied Phase 5.2 planning expansion for explicit CaseTrigger service
+
+### Changes applied
+1. Expanded platform Phase `5.2` in `platform.build_plan.md` from a short CM bullet-list into explicit CaseTrigger service gates:
+   - source eligibility + mapping,
+   - by-ref enrichment,
+   - deterministic id/collision discipline,
+   - publish corridor/auth posture,
+   - retry/checkpoint safety,
+   - CM integration gate.
+2. Added dedicated CaseTrigger component maps:
+   - `docs/model_spec/platform/implementation_maps/case_trigger.build_plan.md`
+   - `docs/model_spec/platform/implementation_maps/case_trigger.impl_actual.md`
+3. Updated rolling status in `platform.build_plan.md`:
+   - Phase `5.2` now explicitly marked planning-active with CaseTrigger maps pinned.
+
+### Resulting planning posture
+- Phase `5.2` is now a service-level plan, not just a CM intake note.
+- `CaseTrigger` joins CM and LS as an explicit implementable component in the Label/Case plane.
+- Next implementation step is CaseTrigger Phase 1 contract/taxonomy code work with targeted tests.

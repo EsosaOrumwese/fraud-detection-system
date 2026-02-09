@@ -1018,14 +1018,71 @@ Resolved and pinned in:
 - Label assertion contract is pinned with `LabelSubjectKey=(platform_run_id,event_id)`, `label_type`, `label_value`, `effective_time`, `observed_time`, provenance, and evidence refs.
 - Payload-hash canonicalization rule is pinned for CM and LS writer boundaries (sorted refs, stable field set).
 
-#### Phase 5.2 — CaseTrigger intake + case creation boundary (CM S1/S2)
-**Goal:** make CM intake deterministic and safe under at-least-once delivery.
+#### Phase 5.2 — CaseTrigger service + CM intake boundary
+**Goal:** make trigger production deterministic, auditable, and explicit before CM case creation logic.
 
 **DoD checklist:**
-- CM intake consumes explicit `CaseTrigger` events (or equivalent trigger writer output), not ad-hoc parsing of unrelated upstream streams.
-- Case creation is idempotent on `CaseSubjectKey`; duplicate triggers append timeline events rather than creating new cases.
-- v0 no-merge policy is enforced (cross-subject aggregation deferred to explicit meta-case design).
-- Collision posture is explicit: same dedupe key + different payload emits anomaly and is never silently overwritten.
+- CaseTrigger is operated as an explicit service boundary (standalone writer/emitter path), not hidden CM side logic.
+- Source eligibility is pinned (DF/DLA/AL/external/manual signals) with explicit trigger-type mapping.
+- Trigger identity and dedupe are deterministic (`case_id`, `case_trigger_id`, canonical payload hash) and collision-fail-closed.
+- Publish path is pinned through approved corridor (`IG`/`EB` control or dedicated trigger stream by profile), with run-scoped auth attribution.
+- CM intake consumes this explicit trigger contract and remains deterministic under at-least-once delivery.
+
+##### 5.2.A — Source eligibility + trigger mapping
+**Goal:** prevent ambiguous trigger generation semantics.
+
+**DoD checklist:**
+- Allowed CaseTrigger source classes are explicitly versioned (`DECISION_ESCALATION`, `ACTION_FAILURE`, `ANOMALY`, `EXTERNAL_SIGNAL`, `MANUAL_ASSERTION`).
+- Each source class has a pinned trigger mapping rule with evidence-ref requirements (`decision_id`, `action_outcome_id`, `audit_record_id`, etc.).
+- Unsupported source events fail closed (no implicit coercion into trigger types).
+
+##### 5.2.B — Evidence-by-ref enrichment boundary
+**Goal:** ensure trigger payloads are minimal, joinable, and non-duplicative.
+
+**DoD checklist:**
+- CaseTrigger payload carries refs + minimal metadata only; no raw payload mirroring from upstream truth stores.
+- Required ContextPins and `CaseSubjectKey` are enforced.
+- Evidence refs are normalized to controlled ref vocab and canonical ordering.
+
+##### 5.2.C — Deterministic identity + collision discipline
+**Goal:** make trigger stream safe under retries/replays.
+
+**DoD checklist:**
+- `case_id = hash(CaseSubjectKey)` and `case_trigger_id = hash(case_id + trigger_type + source_ref_id)` are enforced.
+- Canonical payload hash is persisted for collision detection.
+- Same deterministic dedupe key + hash mismatch emits structured anomaly and blocks silent overwrite.
+
+##### 5.2.D — Publish corridor + environment auth posture
+**Goal:** keep trigger writes policy-safe across env ladder.
+
+**DoD checklist:**
+- Writer boundary enforces authn/authz posture by environment (`local_parity` API-key allowlist; stronger dev/prod identity mechanism).
+- Trigger writes are actor-attributed from auth context (`SYSTEM::<service>` or `HUMAN::<id>`).
+- Publish outcomes are explicit and reconciliation-friendly (`ADMIT`/`DUPLICATE`/`QUARANTINE`/ambiguous).
+
+##### 5.2.E — Retry/checkpoint/replay safety
+**Goal:** keep trigger emission deterministic under at-least-once transport.
+
+**DoD checklist:**
+- Retry policy preserves stable identity (no regenerated IDs on retries).
+- Checkpoint progression occurs only after durable publish outcome is known.
+- Replay of the same source evidence yields the same trigger identity and no duplicate case creation downstream.
+
+##### 5.2.F — Observability + governance surfaces
+**Goal:** make trigger service operable and auditable at low overhead.
+
+**DoD checklist:**
+- Run-scoped counters are emitted (`triggers_seen`, `triggers_published`, `duplicates`, `quarantine`, `publish_ambiguous`).
+- Trigger anomalies emit structured governance/anomaly events with evidence refs.
+- Reconciliation artifact references trigger counts and IDs without payload leakage.
+
+##### 5.2.G — CM intake integration gate
+**Goal:** prove CaseTrigger service and CM boundary align correctly.
+
+**DoD checklist:**
+- CM consumes explicit CaseTrigger contract and validates pins/IDs/hash discipline.
+- Case creation remains idempotent on `CaseSubjectKey`; duplicate triggers append/no-op as expected.
+- v0 no-merge posture remains enforced for case identity.
 
 #### Phase 5.3 — Case timeline truth + workflow projection (CM S2/S3)
 **Goal:** establish CM as append-only investigation truth with deterministic projections.
@@ -1135,5 +1192,6 @@ Resolved and pinned in:
 - Phase 4.6 (Run/Operate + Obs/Gov meta-layer closure gate): in progress; `4.6.A..4.6.K` framework is implemented, `4.6.L` runtime closure TODOs remain open.
 - Phase 5 (Label & Case plane): planning-active (`5.1..5.9` sectioned DoD map pinned; implementation pending phase-by-phase execution evidence).
 - Phase 5.1 (contracts + identity pins): complete (`CM/LS` contract code + schemas + tests, `22 passed` on 2026-02-09).
+- Phase 5.2 (CaseTrigger service + CM intake boundary): planning-active (`case_trigger` component maps created; service-wide DoD gates pinned).
 - Next active platform phase: Phase 5 (Label & Case plane) with `4.6.L` closure TODOs carried in parallel until formal 4.6 PASS is evidenced.
 - SR v0: complete (see `docs/model_spec/platform/implementation_maps/scenario_runner.build_plan.md`).
