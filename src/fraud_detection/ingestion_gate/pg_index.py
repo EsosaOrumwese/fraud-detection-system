@@ -8,6 +8,7 @@ from datetime import datetime, timezone
 from typing import Any
 
 import psycopg
+from psycopg import sql
 
 
 def is_postgres_dsn(value: str | None) -> bool:
@@ -207,7 +208,8 @@ class PostgresOpsIndex:
             conn.execute(
                 """
                 CREATE TABLE IF NOT EXISTS receipts (
-                    receipt_id TEXT PRIMARY KEY,
+                    receipt_id TEXT,
+                    platform_run_id TEXT NOT NULL DEFAULT '',
                     event_id TEXT,
                     event_type TEXT,
                     dedupe_key TEXT,
@@ -227,6 +229,8 @@ class PostgresOpsIndex:
                 )
                 """
             )
+            conn.execute("ALTER TABLE receipts ADD COLUMN IF NOT EXISTS platform_run_id TEXT")
+            _ensure_receipts_run_scoped_uniqueness(conn)
             conn.execute(
                 """
                 CREATE TABLE IF NOT EXISTS quarantines (
@@ -248,18 +252,20 @@ class PostgresOpsIndex:
         created_at = datetime.now(tz=timezone.utc).isoformat()
         eb_ref = receipt_payload.get("eb_ref") or {}
         policy_rev = receipt_payload.get("policy_rev") or {}
+        platform_run_id = _receipt_platform_run_id(receipt_payload)
         with self._connect() as conn:
             conn.execute(
                 """
                 INSERT INTO receipts
-                (receipt_id, event_id, event_type, dedupe_key, decision, eb_topic, eb_partition, eb_offset, eb_offset_kind,
+                (receipt_id, platform_run_id, event_id, event_type, dedupe_key, decision, eb_topic, eb_partition, eb_offset, eb_offset_kind,
                  policy_id, policy_revision, policy_digest, created_at_utc, receipt_ref, pins_json,
                  reason_codes_json, evidence_refs_json)
-                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
-                ON CONFLICT (receipt_id) DO NOTHING
+                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                ON CONFLICT (platform_run_id, receipt_id) DO NOTHING
                 """,
                 (
                     receipt_payload.get("receipt_id"),
+                    platform_run_id,
                     receipt_payload.get("event_id"),
                     receipt_payload.get("event_type"),
                     receipt_payload.get("dedupe_key"),
@@ -308,7 +314,13 @@ class PostgresOpsIndex:
     def lookup_receipt(self, receipt_id: str) -> dict[str, Any] | None:
         with self._connect() as conn:
             row = conn.execute(
-                "SELECT receipt_id, event_id, event_type, decision, receipt_ref FROM receipts WHERE receipt_id = %s",
+                """
+                SELECT receipt_id, event_id, event_type, decision, receipt_ref
+                FROM receipts
+                WHERE receipt_id = %s
+                ORDER BY created_at_utc DESC
+                LIMIT 1
+                """,
                 (receipt_id,),
             ).fetchone()
         if not row:
@@ -375,3 +387,72 @@ def _json_dump(value: Any) -> str | None:
     if value is None:
         return None
     return json.dumps(value, sort_keys=True, ensure_ascii=True, separators=(",", ":"))
+
+
+def _ensure_receipts_run_scoped_uniqueness(conn: psycopg.Connection) -> None:
+    conn.execute("ALTER TABLE receipts ALTER COLUMN platform_run_id SET DEFAULT ''")
+    conn.execute(
+        """
+        UPDATE receipts
+        SET platform_run_id = COALESCE(
+            NULLIF(TRIM(platform_run_id), ''),
+            CASE
+                WHEN pins_json IS NULL OR TRIM(pins_json) = '' THEN ''
+                ELSE COALESCE((pins_json::jsonb ->> 'platform_run_id'), '')
+            END
+        )
+        WHERE platform_run_id IS NULL OR TRIM(platform_run_id) = ''
+        """
+    )
+    conn.execute("UPDATE receipts SET platform_run_id = '' WHERE platform_run_id IS NULL")
+    conn.execute("ALTER TABLE receipts ALTER COLUMN platform_run_id SET NOT NULL")
+    constraint_name = _legacy_receipts_pk_constraint(conn)
+    if constraint_name:
+        conn.execute(
+            sql.SQL("ALTER TABLE receipts DROP CONSTRAINT {}").format(
+                sql.Identifier(constraint_name),
+            )
+        )
+    conn.execute(
+        """
+        CREATE UNIQUE INDEX IF NOT EXISTS ux_receipts_platform_run_receipt_id
+        ON receipts (platform_run_id, receipt_id)
+        """
+    )
+    conn.execute(
+        """
+        CREATE INDEX IF NOT EXISTS ix_receipts_receipt_id
+        ON receipts (receipt_id)
+        """
+    )
+
+
+def _legacy_receipts_pk_constraint(conn: psycopg.Connection) -> str | None:
+    rows = conn.execute(
+        """
+        SELECT con.conname, ARRAY_AGG(att.attname ORDER BY ord.ordinality) AS columns
+        FROM pg_constraint con
+        JOIN pg_class rel ON rel.oid = con.conrelid
+        JOIN pg_namespace nsp ON nsp.oid = rel.relnamespace
+        JOIN LATERAL unnest(con.conkey) WITH ORDINALITY AS ord(attnum, ordinality) ON TRUE
+        JOIN pg_attribute att ON att.attrelid = rel.oid AND att.attnum = ord.attnum
+        WHERE con.contype = 'p'
+          AND rel.relname = 'receipts'
+          AND nsp.nspname = current_schema()
+        GROUP BY con.conname
+        """
+    ).fetchall()
+    for name, columns in rows:
+        if list(columns or []) == ["receipt_id"]:
+            return str(name)
+    return None
+
+
+def _receipt_platform_run_id(receipt_payload: dict[str, Any]) -> str:
+    direct = str(receipt_payload.get("platform_run_id") or "").strip()
+    if direct:
+        return direct
+    pins = receipt_payload.get("pins")
+    if not isinstance(pins, dict):
+        return ""
+    return str(pins.get("platform_run_id") or "").strip()

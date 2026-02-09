@@ -6324,3 +6324,177 @@ Decision taken for this validation:
 ### Outcome
 - Runbook is now aligned with current parity orchestration and meta-layer validation posture.
 - Operator error risk from duplicate startup paths and broken command fences is reduced.
+
+## 2026-02-09 02:40PM - Pre-change lock for Postgres ops-index drift closure (receipt collision across runs)
+
+### Problem
+- Local-parity runtime uses Postgres for IG ops index (`PARITY_IG_ADMISSION_DSN`).
+- Existing Postgres `receipts` table uses `receipt_id` as global PK and `ON CONFLICT(receipt_id) DO NOTHING`.
+- Deterministic replayed `receipt_id` collides across runs, suppressing run-scoped rows and undercounting reporter ingress for active run.
+
+### Root-cause scope
+- `src/fraud_detection/ingestion_gate/pg_index.py` currently mirrors old sqlite behavior before run-scoped patch.
+- SQLite path already fixed; parity drift persists because Postgres path remained legacy.
+
+### Alternatives considered
+1) Change receipt id contract to include run id (rejected: contract blast radius/idempotency semantics).
+2) Keep deterministic receipt ids and make Postgres persistence run-scoped (chosen).
+
+### Chosen design
+- Add/ensure `platform_run_id` column on Postgres `receipts` table.
+- Backfill existing rows from `pins_json` (`platform_run_id`) and normalize nulls to empty-string sentinel.
+- Drop legacy single-column PK when it is `PRIMARY KEY(receipt_id)`.
+- Enforce unique index on `(platform_run_id, receipt_id)`.
+- Update insert path to include `platform_run_id` and conflict on `(platform_run_id, receipt_id)`.
+- Keep lookup surfaces stable; choose deterministic `lookup_receipt` ordering by newest `created_at_utc` when collisions exist across runs.
+
+### Invariants
+- Same `(platform_run_id, receipt_id)` remains idempotent.
+- Same deterministic `receipt_id` across different runs is accepted.
+- Migration is in-place and compatible with existing parity Postgres DB.
+
+### Validation plan
+- Add targeted postgres ops-index regression tests (schema-isolated, skip if Postgres unavailable).
+- Run:
+  - `python -m pytest -q tests/services/ingestion_gate/test_pg_ops_index.py`
+  - `python -m pytest -q tests/services/platform_reporter/test_run_reporter.py`
+- Run compile check on touched modules.
+- Optional live sanity: regenerate run report for active run and verify behavior on next replay run.
+
+## 2026-02-09 02:49PM - Postgres ops-index drift closure implemented and runtime-validated
+
+### Code implementation completed
+1. `src/fraud_detection/ingestion_gate/pg_index.py`
+- Updated Postgres ops `receipts` schema posture to support run-scoped uniqueness:
+  - `platform_run_id` column ensured and normalized.
+  - insert path now writes `platform_run_id` and uses `ON CONFLICT (platform_run_id, receipt_id) DO NOTHING`.
+- Added Postgres migration/safety helpers:
+  - backfill `platform_run_id` from `pins_json` when missing,
+  - drop legacy `PRIMARY KEY(receipt_id)` constraint when detected,
+  - enforce `platform_run_id NOT NULL` with default `''`,
+  - create unique index `ux_receipts_platform_run_receipt_id` on `(platform_run_id, receipt_id)`.
+- Kept lookup API stable while making `lookup_receipt()` deterministic under multi-run collisions (`ORDER BY created_at_utc DESC LIMIT 1`).
+
+2. Added parity regression suite `tests/services/ingestion_gate/test_pg_ops_index.py`
+- `test_postgres_ops_index_accepts_same_receipt_id_across_platform_runs`
+- `test_postgres_ops_index_migrates_legacy_receipt_pk`
+- Tests run in isolated temporary schemas and skip cleanly if Postgres is unavailable.
+
+### Validation (test + compile)
+- `python -m pytest -q tests/services/ingestion_gate/test_pg_ops_index.py` -> `2 passed`.
+- `python -m pytest -q tests/services/platform_reporter/test_run_reporter.py` -> `2 passed`.
+- `python -m py_compile src/fraud_detection/ingestion_gate/pg_index.py tests/services/ingestion_gate/test_pg_ops_index.py` -> pass.
+
+### Runtime proof on fresh bounded run
+Run used for live closure evidence:
+- `platform_run_id=platform_20260209T144006Z`
+- Run/operate packs restarted with `WSP_MAX_EVENTS_PER_OUTPUT=20`.
+- SR READY committed+published for scenario run `d27dc83de42e6cce5a0e2be044708654`.
+
+Observed evidence after stream completion and report export:
+1. Object-store receipt truth:
+- total `109`, with event-type mix including ingress classes and RTDL emissions currently produced at snapshot time.
+
+2. Postgres ops-index receipt truth for active run (`pins_json.platform_run_id` filter):
+- total `109`, event-type mix aligned with object store (includes ingress classes `arrival_events_5B`, `s1_arrival_entities_6B`, `s3_event_stream_with_fraud_6B`, `s3_flow_anchor_with_fraud_6B`).
+
+3. `platform_run_report` ingress counters:
+- `sent=80`, `received=109`, `admit=109`.
+- This now matches ops/object receipt truth for the active run snapshot; prior drift pattern (ingress undercount due global `receipt_id` collision) did not recur.
+
+### Interpretation
+- Postgres-side collision drift is closed for new run writes.
+- Remaining variance vs theoretical final `140` for this bounded run is timing/drain state (decision lane still appending while report snapshot was taken), not ops-index key collision.
+- Closure criterion for this ticket (run-scoped Postgres receipt persistence + reporter alignment against active-run ops rows) is satisfied.
+
+## 2026-02-09 02:58PM - Pre-run lock for full 200-event parity closure gate (C&I + RTDL)
+
+### Objective
+- Execute a fresh 200-event parity pass and decide closure posture for Control/Ingress + RTDL planes.
+- Closure criterion requested: if run is green, mark C&I and RTDL closed and move to Case/Labels plane.
+
+### Execution plan (no code edits)
+1. Mint fresh `platform_run_id`.
+2. Restart parity orchestrator packs with `WSP_MAX_EVENTS_PER_OUTPUT=200`.
+3. Publish SR READY (`platform-sr-run-reuse`) for fresh run scope.
+4. Wait for WSP stop markers for all four outputs.
+5. Export run artifacts (`platform-run-report`, `platform-env-conformance`).
+6. Collect evidence matrix:
+   - object-store receipt truth,
+   - Postgres admissions + ops receipt truth,
+   - run-report ingress/RTDL counters,
+   - pack readiness snapshot,
+   - component metrics/health for IEG/OFP/CSFB/DL/DF/AL/DLA.
+7. Issue strict closure call and list any blockers if non-green.
+
+### Decision discipline
+- Use active-run-scoped evidence only.
+- Distinguish functional-flow success from health-aging posture and from policy fail-closed posture.
+- No closure claim if unresolved red gates remain.
+
+## 2026-02-09 03:14PM - Full 200-event parity pass after Postgres ops-index closure (C&I + RTDL closure gate)
+
+### Run context
+- Active run: `platform_20260209T144746Z`.
+- Execution posture:
+  - `make platform-run-new`
+  - `WSP_MAX_EVENTS_PER_OUTPUT=200 make platform-operate-parity-restart`
+  - `make platform-sr-run-reuse SR_WIRING=config/platform/sr/wiring_local_kinesis.yaml`
+- Scenario run id: `c5dd96fd6bced93cd18786325b850592`.
+
+### Stream completion evidence
+- Platform log confirms all four WSP outputs stopped at exactly `emitted=200`:
+  - `s3_event_stream_with_fraud_6B=200`
+  - `arrival_events_5B=200`
+  - `s1_arrival_entities_6B=200`
+  - `s3_flow_anchor_with_fraud_6B=200`
+
+### Authoritative truth alignment (post-drain)
+1. Object store receipts (`s3://fraud-platform/platform_20260209T144746Z/ig/receipts/`):
+- total `1400`
+- event types:
+  - `s3_event_stream_with_fraud_6B=200`
+  - `arrival_events_5B=200`
+  - `s1_arrival_entities_6B=200`
+  - `s3_flow_anchor_with_fraud_6B=200`
+  - `decision_response=200`
+  - `action_intent=200`
+  - `action_outcome=200`
+
+2. Postgres admission truth (`admissions` for active run):
+- total `1400`, states: `ADMITTED=1400` only.
+
+3. Postgres ops-index truth (`receipts` filtered by `pins_json.platform_run_id`):
+- total `1400`, event-type distribution exactly matches object store.
+
+4. Platform run report (fresh export after drain):
+- ingress: `sent=800`, `received=1400`, `admit=1400`, `duplicate=0`, `quarantine=0`, `receipt_write_failed=0`.
+- RTDL: `decision=200`, `outcome=200`, `audit_append=600`.
+
+### Postgres drift closure conclusion
+- Prior defect signature (ops/report ingress undercount from cross-run deterministic `receipt_id` collision) is no longer present in this full run.
+- Closure is confirmed at full-load parity scale (`200` per output).
+
+### Component posture snapshot (same run)
+- Run/operate packs: all running + ready for active run (`control_ingress`, `rtdl_core`, `rtdl_decision_lane`).
+- Environment conformance: `PASS`.
+- RTDL component health/metrics:
+  - `CSFB`: health `GREEN`, `join_hits=200`, `join_misses=0`, `apply_failures_hard=0`.
+  - `DF`: health `GREEN` but metrics show `degrade_total=200`, `fail_closed_total=200`, `resolver_failures_total=200`.
+  - `AL`: health `GREEN`, `intake_total=200`, `outcome_executed_total=200`.
+  - `DLA`: health `GREEN`, `candidate_total=600`, `accepted_total=600`, `append_success_total=600`.
+  - `OFP`: health `RED` with reason `WATERMARK_TOO_OLD` (metrics otherwise clean: `events_seen=200`, `events_applied=200`).
+  - `IEG`: run-scoped health/metrics artifacts absent in this run snapshot.
+  - `DL`: run-scoped health/metrics artifacts absent in this run snapshot.
+
+### Closure decision against strict “all green” criterion
+- **Not strictly all-green** due:
+  1) OFP health `RED` (`WATERMARK_TOO_OLD`),
+  2) missing IEG and DL health/metrics artifacts for this run,
+  3) DF metrics still indicate full fail-closed/degrade posture despite successful downstream throughput.
+- **However**, C&I flow integrity and Postgres ops-index drift closure are validated and green from a dataflow/accounting perspective.
+
+### Recommended next actions before formal plane closure
+1. Decide whether OFP watermark-age red in local parity is an accepted non-blocking posture or a must-fix gate.
+2. Restore/standardize IEG + DL run-scoped health/metrics emission so matrix completeness is enforced.
+3. Resolve DF fail-closed posture root cause (or explicitly document accepted local-parity degrade policy) before declaring RTDL fully green.
