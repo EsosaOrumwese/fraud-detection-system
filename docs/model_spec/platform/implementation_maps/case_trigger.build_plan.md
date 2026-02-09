@@ -97,5 +97,5 @@ Provide an executable, component-scoped plan for the CaseTrigger service aligned
 - Closure statement is explicit in impl map and linked to platform Phase `5.2` gate.
 
 ## Status (rolling)
-- Phase 1 (`Contract + taxonomy lock`): planning-active.
-- Next action: implement Phase 1 CaseTrigger runtime contract and source mapping skeleton with tests.
+- Phase 1 (`Contract + taxonomy lock`): complete (`10 passed` on 2026-02-09).
+- Next action: begin Phase 2 (`Source adapters + eligibility gates`) with explicit DF/AL/DLA/external/manual adapter boundaries.

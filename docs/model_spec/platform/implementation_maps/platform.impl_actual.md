@@ -6765,3 +6765,73 @@ Implement Phase `5.1` as a contract-first, cross-plane slice that establishes sh
 - Phase `5.2` is now a service-level plan, not just a CM intake note.
 - `CaseTrigger` joins CM and LS as an explicit implementable component in the Label/Case plane.
 - Next implementation step is CaseTrigger Phase 1 contract/taxonomy code work with targeted tests.
+
+## 2026-02-09 03:50PM - Pre-change implementation lock: CaseTrigger Phase 1 (contract + taxonomy)
+
+### Objective
+Implement CaseTrigger Phase 1 and provide an executable runtime contract boundary for subsequent source-adapter and publish phases.
+
+### Scope for this pass
+- `case_trigger` package (contracts/taxonomy/config) + tests + policy config.
+- No publisher/worker/checkpoint runtime yet (that belongs to later 5.2 phases).
+
+### Key mechanics pinned
+- Trigger payload shape is validated via the already-pinned `CaseTrigger` contract model from Phase 5.1.
+- Writer-side contract adds source compatibility rules (`trigger_type` x `source_class`) and required evidence-ref checks.
+- Trigger policy is versioned/configured and hashed to `content_digest`.
+
+### Validation gate
+- New `tests/services/case_trigger/` suite must pass fully before marking Phase 1 complete.
+
+## 2026-02-09 03:53PM - Phase 5.2 Phase-1 execution lock confirmed (CaseTrigger)
+
+### Objective
+- Begin executable implementation of CaseTrigger `Phase 1` (`Contract + taxonomy lock`) after interruption-safe state verification.
+
+### Scope locked
+- Add `case_trigger` runtime package (`taxonomy/config/contracts`) plus v0 policy config and tests.
+- Keep implementation strictly within Phase 1 boundaries; no publisher/checkpoint/runtime worker logic in this pass.
+
+### Why this order
+- Phase 5.2.A/5.2.B/5.2.C all depend on explicit source eligibility and evidence-ref discipline before adapters/publish corridor work.
+- Reusing CM structural contract keeps CaseTrigger and CM intake contract-aligned by construction.
+
+### Acceptance gate for this step
+- `tests/services/case_trigger/test_phase1_taxonomy.py`
+- `tests/services/case_trigger/test_phase1_config.py`
+- `tests/services/case_trigger/test_phase1_contracts.py`
+- compile pass on new `src/fraud_detection/case_trigger/*.py`
+
+## 2026-02-09 03:56PM - Phase 5.2 progress update: CaseTrigger Phase 1 closed
+
+### What was closed
+- Phase 5.2 / CaseTrigger Phase 1 (`Contract + taxonomy lock`) has been implemented and validated.
+
+### Delivered artifacts
+- Runtime package: `src/fraud_detection/case_trigger/{taxonomy.py,config.py,contracts.py,__init__.py}`
+- Policy config: `config/platform/case_trigger/trigger_policy_v0.yaml`
+- Test matrix: `tests/services/case_trigger/test_phase1_{taxonomy,config,contracts}.py`
+
+### Validation evidence
+- compile: pass
+- pytest: `9 passed` (targeted CaseTrigger phase-1 suite)
+
+### Platform implications
+- Platform Phase 5.2 is moved from planning-only into implementation-active state.
+- Trigger-source eligibility and evidence-ref requirements are now explicit runtime rails, reducing risk of hidden trigger coercion as CM integration begins.
+
+### Next gate
+- Start CaseTrigger Phase 2 (source adapters + eligibility gates) while keeping deterministic identity and by-ref discipline pinned from Phase 1.
+
+## 2026-02-09 03:58PM - CaseTrigger Phase 1 hardening update
+
+### Update
+- Added a fail-closed guard in CaseTrigger policy loading so unsupported `required_evidence_ref_types` are rejected at config-load time.
+- Added regression coverage and re-ran full targeted Phase-1 suite.
+
+### Evidence
+- py_compile: pass
+- pytest (CaseTrigger Phase-1 set): `10 passed`
+
+### Impact on gate
+- Phase 5.2 Phase-1 closure remains PASS and now has stronger taxonomy/config drift protection.

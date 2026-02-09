@@ -1,0 +1,23 @@
+version: "0.1.0"
+policy_id: case_trigger.policy.v0
+revision: r1
+
+case_trigger:
+  trigger_rules:
+    - trigger_type: DECISION_ESCALATION
+      source_classes: [DF_DECISION]
+      required_evidence_ref_types: [DECISION, DLA_AUDIT_RECORD]
+    - trigger_type: ACTION_FAILURE
+      source_classes: [AL_OUTCOME]
+      required_evidence_ref_types: [ACTION_OUTCOME, DLA_AUDIT_RECORD]
+    - trigger_type: ANOMALY
+      source_classes: [DLA_AUDIT]
+      required_evidence_ref_types: [DLA_AUDIT_RECORD]
+    - trigger_type: EXTERNAL_SIGNAL
+      source_classes: [EXTERNAL_SIGNAL]
+      required_evidence_ref_types: [EXTERNAL_REF]
+    - trigger_type: MANUAL_ASSERTION
+      source_classes: [MANUAL_ASSERTION]
+      required_evidence_ref_types: [EXTERNAL_REF]
+  required_pins: [platform_run_id, scenario_run_id, manifest_fingerprint, parameter_hash, scenario_id, seed]
+  require_seed: true
