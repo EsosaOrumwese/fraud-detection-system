@@ -39,3 +39,48 @@ Start Label Store planning with explicit phase gates that enforce append-only la
 - Label assertions are replay-safe and deterministic under retries.
 - As-of reads are explicit and leakage-safe by construction.
 - Governance records include actor attribution + evidence refs, without payload leakage.
+
+## Entry: 2026-02-09 03:30PM - Pre-change lock for Phase 1 implementation (LabelAssertion contract + IDs)
+
+### Problem / goal
+Close LS Phase 1 by pinning a runtime-validated LabelAssertion contract and deterministic identity/hashing behavior.
+
+### Decisions locked before code
+- LabelSubjectKey is execution-scoped: `(platform_run_id, event_id)`.
+- Assertion identity is deterministic and derived from a stable anchor (`case_timeline_event_id`) + subject + label_type.
+- Dual-time (`effective_time`, `observed_time`) is mandatory at write boundary.
+- Payload hash canonicalization sorts evidence refs and excludes transport metadata.
+- Human-source assertions require explicit `actor_id`; non-human sources remain provenance stamped but actor optional.
+
+### Planned module set
+- `src/fraud_detection/label_store/contracts.py`
+- `src/fraud_detection/label_store/ids.py`
+- `src/fraud_detection/label_store/__init__.py`
+- tests under `tests/services/label_store/` for contracts and identity/hash determinism.
+
+## Entry: 2026-02-09 03:40PM - Phase 1 implemented (LabelAssertion contract + deterministic IDs)
+
+### Changes applied
+- Added deterministic identity/hash helpers:
+  - `src/fraud_detection/label_store/ids.py`
+  - recipes pinned for `label_assertion_id` and canonical assertion payload hash.
+- Added Label Store contract validators:
+  - `src/fraud_detection/label_store/contracts.py`
+  - `LabelSubjectKey`, `LabelAssertion`, `EvidenceRef`, label vocabulary enforcement, source/actor rules, pin checks, deterministic-id and hash checks.
+- Added package exports:
+  - `src/fraud_detection/label_store/__init__.py`
+- Added authoritative schema:
+  - `docs/model_spec/platform/contracts/case_and_labels/label_assertion.schema.yaml`
+- Added taxonomy pin config:
+  - `config/platform/label_store/taxonomy_v0.yaml`
+- Added tests:
+  - `tests/services/label_store/test_phase1_label_store_contracts.py`
+  - `tests/services/label_store/test_phase1_label_store_ids.py`
+
+### Validation
+- `python -m pytest -q tests/services/label_store/test_phase1_label_store_contracts.py tests/services/label_store/test_phase1_label_store_ids.py` -> `10 passed`.
+- `python -m py_compile src/fraud_detection/label_store/__init__.py src/fraud_detection/label_store/contracts.py src/fraud_detection/label_store/ids.py` -> pass.
+
+### Notes
+- Canonical payload hash ordering rule (sorted evidence refs) is implemented and tested.
+- Human assertions require `actor_id`; non-human sources are provenance-stamped with optional actor.

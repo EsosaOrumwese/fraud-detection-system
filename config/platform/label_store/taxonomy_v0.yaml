@@ -1,0 +1,40 @@
+version: "0.1.0"
+policy_id: label_store.taxonomy.v0
+revision: r1
+
+label_subject_key:
+  fields:
+    - platform_run_id
+    - event_id
+
+source_types:
+  - HUMAN
+  - EXTERNAL
+  - AUTO
+  - SYSTEM
+
+label_types:
+  fraud_disposition:
+    values:
+      - FRAUD_CONFIRMED
+      - FRAUD_SUSPECTED
+      - LEGIT_CONFIRMED
+  chargeback_status:
+    values:
+      - CHARGEBACK
+      - NO_CHARGEBACK
+      - PENDING
+  account_takeover:
+    values:
+      - ATO_CONFIRMED
+      - ATO_SUSPECTED
+      - ATO_NOT_CONFIRMED
+
+evidence_refs:
+  ref_types:
+    - DLA_AUDIT_RECORD
+    - DECISION
+    - ACTION_OUTCOME
+    - EB_ORIGIN_OFFSET
+    - CASE_EVENT
+    - EXTERNAL_REF

@@ -38,3 +38,48 @@ Start Case Management planning with an explicit, auditable execution map aligned
 - Append-only timeline semantics (no destructive edits).
 - Actor attribution is mandatory on timeline and governance surfaces.
 - At-least-once safe behavior for all inbound and outbound CM interactions.
+
+## Entry: 2026-02-09 03:30PM - Pre-change lock for Phase 1 implementation (contracts + deterministic IDs)
+
+### Problem / goal
+Close CM Phase 1 by implementing concrete contract and identity artifacts that can be reused by later CM phases.
+
+### Decisions locked before code
+- CaseSubjectKey remains canonical `(platform_run_id, event_class, event_id)`.
+- CaseTrigger shape is explicit and idempotent with stable `case_trigger_id`.
+- Timeline event dedupe/identity uses `(case_id, timeline_event_type, source_ref_id)` and deterministic hash ID.
+- Collision rule is fail-closed (same dedupe key + different payload hash => anomaly path).
+
+### Planned module set
+- `src/fraud_detection/case_mgmt/contracts.py`
+- `src/fraud_detection/case_mgmt/ids.py`
+- `src/fraud_detection/case_mgmt/__init__.py`
+- tests under `tests/services/case_mgmt/` for contracts and identity determinism.
+
+## Entry: 2026-02-09 03:40PM - Phase 1 implemented (CM contracts + deterministic IDs)
+
+### Changes applied
+- Added deterministic identity helpers:
+  - `src/fraud_detection/case_mgmt/ids.py`
+  - recipes pinned for `case_id`, `case_trigger_id`, `case_timeline_event_id`, and canonical payload hashes.
+- Added CM contract validators:
+  - `src/fraud_detection/case_mgmt/contracts.py`
+  - `CaseSubjectKey`, `CaseTrigger`, `CaseTimelineEvent`, `EvidenceRef`, strict pin checks, deterministic-id validation, collision fail-closed checks.
+- Added package exports:
+  - `src/fraud_detection/case_mgmt/__init__.py`
+- Added authoritative schemas:
+  - `docs/model_spec/platform/contracts/case_and_labels/case_trigger.schema.yaml`
+  - `docs/model_spec/platform/contracts/case_and_labels/case_timeline_event.schema.yaml`
+- Added taxonomy pin config:
+  - `config/platform/case_mgmt/taxonomy_v0.yaml`
+- Added tests:
+  - `tests/services/case_mgmt/test_phase1_contracts.py`
+  - `tests/services/case_mgmt/test_phase1_ids.py`
+
+### Validation
+- `python -m pytest -q tests/services/case_mgmt/test_phase1_contracts.py tests/services/case_mgmt/test_phase1_ids.py` -> `12 passed`.
+- `python -m py_compile src/fraud_detection/case_mgmt/__init__.py src/fraud_detection/case_mgmt/contracts.py src/fraud_detection/case_mgmt/ids.py` -> pass.
+
+### Notes
+- Identity and payload-hash recipes are deterministic and stable under evidence-ref ordering differences.
+- Contract posture is fail-closed on deterministic key mismatches and payload hash mismatches.

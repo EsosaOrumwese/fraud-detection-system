@@ -64,3 +64,11 @@ These live under:
 - `action_intent.schema.yaml`
 - `action_outcome.schema.yaml`
 - `audit_record.schema.yaml`
+
+## Platform-native contracts (Case + Labels, v0)
+These live under:
+`docs/model_spec/platform/contracts/case_and_labels/`
+
+- `case_trigger.schema.yaml`
+- `case_timeline_event.schema.yaml`
+- `label_assertion.schema.yaml`

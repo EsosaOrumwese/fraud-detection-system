@@ -102,5 +102,14 @@ Provide an executable, component-scoped plan for Case Management (CM) aligned to
 - Closure statement is explicit and tied to platform Phase 5 section `5.9`.
 
 ## Status (rolling)
-- Phase 1 (`Contracts + identity model lock`): planning-active.
-- Next action: implement Phase 1 contract artifacts and tests, then record evidence in `case_mgmt.impl_actual.md`.
+- Phase 1 (`Contracts + identity model lock`): completed on `2026-02-09`.
+  - Evidence:
+    - `src/fraud_detection/case_mgmt/contracts.py`
+    - `src/fraud_detection/case_mgmt/ids.py`
+    - `docs/model_spec/platform/contracts/case_and_labels/case_trigger.schema.yaml`
+    - `docs/model_spec/platform/contracts/case_and_labels/case_timeline_event.schema.yaml`
+    - `tests/services/case_mgmt/test_phase1_contracts.py`
+    - `tests/services/case_mgmt/test_phase1_ids.py`
+  - Validation:
+    - `python -m pytest -q tests/services/case_mgmt/test_phase1_contracts.py tests/services/case_mgmt/test_phase1_ids.py` -> `12 passed`
+- Next action: Phase 2 implementation (trigger intake + idempotent case creation boundary).

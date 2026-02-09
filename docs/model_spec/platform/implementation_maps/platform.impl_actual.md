@@ -6614,3 +6614,100 @@ Observed evidence after stream completion and report export:
 - Synced matrix posture narrative by appending an operational addendum in:
   - `docs/model_spec/platform/implementation_maps/platform.phase4_6_validation_matrix.md`
   clarifying that the 2026-02-08 PASS block is historical baseline and current execution posture remains `4.6 in progress` until `4.6.L` closure.
+
+## 2026-02-09 03:30PM - Pre-change implementation lock: Phase 5.1 cross-plane contracts + identities
+
+### Objective
+Implement Phase `5.1` as a contract-first, cross-plane slice that establishes shared truth boundaries before any workflow/runtime loops:
+- CaseSubjectKey and deterministic case identity,
+- CaseTrigger contract and deterministic trigger identity,
+- case timeline event contract and deterministic append identity,
+- LabelSubjectKey + LabelAssertion contract + deterministic assertion identity,
+- canonical payload-hash rule for CM/LS collision detection.
+
+### Files planned (code + contracts + tests)
+- New code packages:
+  - `src/fraud_detection/case_mgmt/`
+  - `src/fraud_detection/label_store/`
+- New platform-native contracts:
+  - `docs/model_spec/platform/contracts/case_and_labels/case_trigger.schema.yaml`
+  - `docs/model_spec/platform/contracts/case_and_labels/case_timeline_event.schema.yaml`
+  - `docs/model_spec/platform/contracts/case_and_labels/label_assertion.schema.yaml`
+  - `docs/model_spec/platform/contracts/case_and_labels/README.md`
+- Contract index update:
+  - `docs/model_spec/platform/contracts/README.md`
+- New tests:
+  - `tests/services/case_mgmt/test_phase1_contracts.py`
+  - `tests/services/case_mgmt/test_phase1_ids.py`
+  - `tests/services/label_store/test_phase1_contracts.py`
+  - `tests/services/label_store/test_phase1_ids.py`
+- Optional taxonomy config pinning (v0):
+  - `config/platform/case_mgmt/taxonomy_v0.yaml`
+  - `config/platform/label_store/taxonomy_v0.yaml`
+
+### Chosen implementation mechanics
+1. Deterministic identity recipes will use stable JSON canonicalization + SHA-256:
+   - `case_id = H(case_subject_key)[:32]`
+   - `case_trigger_id = H(case_id + trigger_type + source_ref_id)[:32]`
+   - `case_timeline_event_id = H(case_id + timeline_event_type + source_ref_id)[:32]`
+   - `label_assertion_id = H(case_timeline_event_id + label_subject_key + label_type)[:32]`
+2. Payload-hash canonicalization will normalize and sort `evidence_refs` by `(ref_type, ref_id)` before hashing.
+3. Contract classes will fail closed on:
+   - missing required ContextPins,
+   - vocabulary violations,
+   - invalid identity formats,
+   - key/payload collisions.
+4. Schemas and runtime validators will be kept aligned by reusing identical field vocabularies and pin patterns.
+
+### Alternatives considered
+- Implement only schemas/docs first:
+  - rejected; would leave code/runtime contract drift unchecked.
+- Implement only code validators without schema artifacts:
+  - rejected; would weaken cross-team authority and CI schema checking.
+- Chosen: schema + runtime + tests in same wave for auditable closure of 5.1.
+
+### Validation plan
+- Contract schema validation and runtime tests:
+  - `python -m pytest -q tests/services/case_mgmt/test_phase1_contracts.py tests/services/case_mgmt/test_phase1_ids.py tests/services/label_store/test_phase1_contracts.py tests/services/label_store/test_phase1_ids.py`
+- Compile check on new modules:
+  - `python -m py_compile ...` for touched `case_mgmt` and `label_store` modules.
+
+### Security/performance notes
+- No sensitive payload logging is added; hash/canonicalization logic handles only contract fields.
+- This slice is control-plane contract code (no hot-path loops yet), so runtime overhead is negligible.
+
+## 2026-02-09 03:42PM - Phase 5.1 implemented (cross-plane contract/identity closure)
+
+### Implementation completed
+1. New cross-plane Phase 5.1 code surfaces:
+   - `src/fraud_detection/case_mgmt/` (`contracts.py`, `ids.py`, `__init__.py`)
+   - `src/fraud_detection/label_store/` (`contracts.py`, `ids.py`, `__init__.py`)
+2. New platform-native contract schemas:
+   - `docs/model_spec/platform/contracts/case_and_labels/case_trigger.schema.yaml`
+   - `docs/model_spec/platform/contracts/case_and_labels/case_timeline_event.schema.yaml`
+   - `docs/model_spec/platform/contracts/case_and_labels/label_assertion.schema.yaml`
+   - `docs/model_spec/platform/contracts/case_and_labels/README.md`
+   - index update in `docs/model_spec/platform/contracts/README.md`
+3. New taxonomy pin configs:
+   - `config/platform/case_mgmt/taxonomy_v0.yaml`
+   - `config/platform/label_store/taxonomy_v0.yaml`
+4. New tests:
+   - `tests/services/case_mgmt/test_phase1_contracts.py`
+   - `tests/services/case_mgmt/test_phase1_ids.py`
+   - `tests/services/label_store/test_phase1_label_store_contracts.py`
+   - `tests/services/label_store/test_phase1_label_store_ids.py`
+
+### Validation evidence
+- `python -m pytest -q tests/services/case_mgmt/test_phase1_contracts.py tests/services/case_mgmt/test_phase1_ids.py tests/services/label_store/test_phase1_label_store_contracts.py tests/services/label_store/test_phase1_label_store_ids.py`
+  - result: `22 passed`.
+- `python -m py_compile src/fraud_detection/case_mgmt/__init__.py src/fraud_detection/case_mgmt/contracts.py src/fraud_detection/case_mgmt/ids.py src/fraud_detection/label_store/__init__.py src/fraud_detection/label_store/contracts.py src/fraud_detection/label_store/ids.py`
+  - result: pass.
+
+### Closure call for 5.1 scope
+- Phase 5.1 objective is satisfied for current codebase scope:
+  - CaseSubject/CaseTrigger/CaseTimeline contracts and identities are implemented and validated.
+  - LabelSubject/LabelAssertion contract and identity are implemented and validated.
+  - Canonical payload-hash ordering rule is implemented in CM+LS paths and tested.
+
+### Next step
+- Start Phase 5.2 implementation: CM trigger intake + idempotent case creation boundary against the new contract surfaces.

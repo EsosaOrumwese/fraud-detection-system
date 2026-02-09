@@ -106,5 +106,13 @@ Provide an executable, component-scoped plan for Label Store (LS) aligned to pla
 - Closure statement is explicit and tied to platform Phase 5 section `5.9`.
 
 ## Status (rolling)
-- Phase 1 (`LabelAssertion contract + subject model lock`): planning-active.
-- Next action: implement Phase 1 contract artifacts/tests and record evidence in `label_store.impl_actual.md`.
+- Phase 1 (`LabelAssertion contract + subject model lock`): completed on `2026-02-09`.
+  - Evidence:
+    - `src/fraud_detection/label_store/contracts.py`
+    - `src/fraud_detection/label_store/ids.py`
+    - `docs/model_spec/platform/contracts/case_and_labels/label_assertion.schema.yaml`
+    - `tests/services/label_store/test_phase1_label_store_contracts.py`
+    - `tests/services/label_store/test_phase1_label_store_ids.py`
+  - Validation:
+    - `python -m pytest -q tests/services/label_store/test_phase1_label_store_contracts.py tests/services/label_store/test_phase1_label_store_ids.py` -> `10 passed`
+- Next action: Phase 2 implementation (writer boundary + idempotency corridor).

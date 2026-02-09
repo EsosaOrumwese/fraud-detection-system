@@ -1134,5 +1134,6 @@ Resolved and pinned in:
 - Phase 4 (RTDL plane overall): functionally green for end-to-end throughput on full run `platform_20260209T144746Z`, with strict-green closure items tracked under `4.6.L`.
 - Phase 4.6 (Run/Operate + Obs/Gov meta-layer closure gate): in progress; `4.6.A..4.6.K` framework is implemented, `4.6.L` runtime closure TODOs remain open.
 - Phase 5 (Label & Case plane): planning-active (`5.1..5.9` sectioned DoD map pinned; implementation pending phase-by-phase execution evidence).
+- Phase 5.1 (contracts + identity pins): complete (`CM/LS` contract code + schemas + tests, `22 passed` on 2026-02-09).
 - Next active platform phase: Phase 5 (Label & Case plane) with `4.6.L` closure TODOs carried in parallel until formal 4.6 PASS is evidenced.
 - SR v0: complete (see `docs/model_spec/platform/implementation_maps/scenario_runner.build_plan.md`).

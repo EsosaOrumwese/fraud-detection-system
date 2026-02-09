@@ -1,0 +1,127 @@
+$schema: https://json-schema.org/draft/2020-12/schema
+$id: case_timeline_event.schema.yaml
+title: Case Timeline Event
+type: object
+additionalProperties: false
+required:
+  - case_id
+  - case_timeline_event_id
+  - timeline_event_type
+  - source_ref_id
+  - pins
+  - observed_time
+  - payload_hash
+properties:
+  case_id:
+    $ref: "#/$defs/hex32"
+  case_timeline_event_id:
+    $ref: "#/$defs/hex32"
+  timeline_event_type:
+    type: string
+    enum:
+      - CASE_TRIGGERED
+      - EVIDENCE_ATTACHED
+      - ACTION_INTENT_REQUESTED
+      - ACTION_OUTCOME_ATTACHED
+      - LABEL_PENDING
+      - LABEL_ACCEPTED
+      - LABEL_REJECTED
+      - INVESTIGATOR_ASSERTION
+  source_ref_id:
+    type: string
+    minLength: 1
+    maxLength: 512
+  case_subject_key:
+    $ref: "#/$defs/case_subject_key"
+  pins:
+    $ref: "#/$defs/pins"
+  observed_time:
+    $ref: "#/$defs/rfc3339_micros"
+  evidence_refs:
+    type: array
+    items:
+      $ref: "#/$defs/evidence_ref"
+  payload_hash:
+    $ref: "#/$defs/hex64"
+  timeline_payload:
+    type: object
+    additionalProperties: true
+$defs:
+  hex32:
+    type: string
+    pattern: "^[0-9a-f]{32}$"
+  hex64:
+    type: string
+    pattern: "^[0-9a-f]{64}$"
+  platform_run_id:
+    type: string
+    pattern: "^platform_[0-9]{8}T[0-9]{6}Z$"
+  uint64:
+    type: integer
+    minimum: 0
+  rfc3339_micros:
+    type: string
+    minLength: 1
+  case_subject_key:
+    type: object
+    additionalProperties: false
+    required: [platform_run_id, event_class, event_id]
+    properties:
+      platform_run_id:
+        $ref: "#/$defs/platform_run_id"
+      event_class:
+        type: string
+        minLength: 1
+        maxLength: 128
+      event_id:
+        type: string
+        minLength: 1
+        maxLength: 256
+  pins:
+    type: object
+    additionalProperties: false
+    required:
+      - platform_run_id
+      - scenario_run_id
+      - manifest_fingerprint
+      - parameter_hash
+      - scenario_id
+      - seed
+    properties:
+      platform_run_id:
+        $ref: "#/$defs/platform_run_id"
+      scenario_run_id:
+        $ref: "#/$defs/hex32"
+      manifest_fingerprint:
+        $ref: "#/$defs/hex64"
+      parameter_hash:
+        $ref: "#/$defs/hex64"
+      scenario_id:
+        type: string
+        minLength: 1
+        maxLength: 256
+      seed:
+        $ref: "#/$defs/uint64"
+      run_id:
+        $ref: "#/$defs/hex32"
+  evidence_ref:
+    type: object
+    additionalProperties: false
+    required: [ref_type, ref_id]
+    properties:
+      ref_type:
+        type: string
+        enum:
+          - DLA_AUDIT_RECORD
+          - DECISION
+          - ACTION_OUTCOME
+          - EB_ORIGIN_OFFSET
+          - CASE_EVENT
+          - EXTERNAL_REF
+      ref_id:
+        type: string
+        minLength: 1
+        maxLength: 2048
+      ref_scope:
+        type: string
+        maxLength: 256
