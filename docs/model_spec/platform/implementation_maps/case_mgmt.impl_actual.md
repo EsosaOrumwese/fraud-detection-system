@@ -788,3 +788,104 @@ CM Phases 1..6 are implemented, but CM still lacks a unified run-scoped report s
   - lifecycle governance events are emitted with actor attribution and evidence refs,
   - anomaly lanes are structured/low-noise,
   - CM contributes reconciliation under case/labels prefix.
+
+## Entry: 2026-02-09 06:12PM - Pre-change lock for Phase 8 (CM integration closure and parity proof)
+
+### Objective
+Close CM Phase 8 by producing explicit end-to-end integration proof and negative-path parity evidence for the Case+Labels continuity lane.
+
+### Authority inputs used
+- `docs/model_spec/platform/implementation_maps/case_mgmt.build_plan.md` (Phase 8 DoD)
+- `docs/model_spec/platform/implementation_maps/platform.build_plan.md` (Phase 5.9 integration closure gate)
+- `docs/model_spec/platform/pre-design_decisions/case_and_labels.pre-design_decision.md`
+- `docs/model_spec/platform/component-specific/flow-narrative-platform-design.md`
+- Existing component parity closure pattern: `tests/services/case_trigger/test_phase8_validation_matrix.py`
+
+### Problem framing
+CM Phases 1..7 are green, but Phase 8 requires concrete closure artifacts proving full continuity and fail-closed behavior under replay/negative paths. Missing gates to close:
+1. No dedicated CM integration matrix proving `DLA/AL evidence -> CaseTrigger -> CM timeline -> LabelAssertion submit -> LS ack`.
+2. No CM-owned parity proof artifacts for `20`/`200` event monitored runs under deterministic checks.
+3. No CM-owned negative-path proof artifact covering duplicate trigger replay, payload mismatch fail-closed, LS unavailable retry posture/idempotency.
+
+### Alternatives considered
+1. Reuse only existing unit tests from Phases 2..7 as closure evidence.
+- Rejected: does not provide an explicit phase-level integrated proof artifact.
+2. Add a dedicated Phase 8 CM matrix that composes existing CM lanes and emits proof files under run-scoped reconciliation path.
+- Selected: aligns with CaseTrigger Phase 8 evidence style and satisfies auditable closure requirements.
+
+### Decisions locked before code edits
+1. Add `tests/services/case_mgmt/test_phase8_validation_matrix.py` as the authoritative CM Phase 8 matrix.
+2. Matrix will include:
+- single-flow continuity proof,
+- parameterized parity proof for `20` and `200` events,
+- negative-path injections for duplicate replay, hash mismatch fail-closed, LS unavailable + retry idempotency.
+3. Proof artifacts will be written under:
+- `runs/fraud-platform/<platform_run_id>/case_mgmt/reconciliation/phase8_parity_proof_{20,200}.json`
+- `runs/fraud-platform/<platform_run_id>/case_mgmt/reconciliation/phase8_negative_path_proof.json`
+4. Build-plan and platform status will only mark Phase 8 complete after matrix + regressions pass.
+
+### Planned files
+- New:
+  - `tests/services/case_mgmt/test_phase8_validation_matrix.py`
+- Update:
+  - `docs/model_spec/platform/implementation_maps/case_mgmt.build_plan.md`
+  - `docs/model_spec/platform/implementation_maps/platform.build_plan.md`
+  - `docs/model_spec/platform/implementation_maps/case_mgmt.impl_actual.md`
+  - `docs/model_spec/platform/implementation_maps/platform.impl_actual.md`
+  - `docs/logbook/02-2026/2026-02-09.md`
+
+### Validation plan
+- `python -m py_compile tests/services/case_mgmt/test_phase8_validation_matrix.py`
+- `python -m pytest -q tests/services/case_mgmt/test_phase8_validation_matrix.py`
+- `python -m pytest -q tests/services/case_mgmt/test_phase1_contracts.py tests/services/case_mgmt/test_phase1_ids.py tests/services/case_mgmt/test_phase2_intake.py tests/services/case_mgmt/test_phase3_projection.py tests/services/case_mgmt/test_phase4_evidence_resolution.py tests/services/case_mgmt/test_phase5_label_handshake.py tests/services/case_mgmt/test_phase6_action_handshake.py tests/services/case_mgmt/test_phase7_observability.py tests/services/case_mgmt/test_phase8_validation_matrix.py`
+- `python -m pytest -q tests/services/case_trigger/test_phase1_config.py tests/services/case_trigger/test_phase1_contracts.py tests/services/case_trigger/test_phase1_taxonomy.py tests/services/case_trigger/test_phase2_adapters.py tests/services/case_trigger/test_phase3_replay.py tests/services/case_trigger/test_phase4_publish.py tests/services/case_trigger/test_phase5_checkpoints.py tests/services/case_trigger/test_phase7_observability.py tests/services/case_trigger/test_phase8_validation_matrix.py tests/services/ingestion_gate/test_phase11_case_trigger_onboarding.py`
+- `python -m pytest -q tests/services/platform_reporter/test_run_reporter.py`
+
+## Entry: 2026-02-09 06:17PM - Phase 8 implemented and validated (CM integration closure + parity proof)
+
+### Implementation completed
+1. Added dedicated CM Phase 8 validation matrix:
+- `tests/services/case_mgmt/test_phase8_validation_matrix.py`
+- test coverage includes:
+  - end-to-end continuity proof from RTDL evidence lanes into CM + LS handshake,
+  - component-local parity proof for `20` and `200` events,
+  - negative-path proof for duplicate replay, trigger payload mismatch fail-closed, and LS-unavailable retry/idempotency.
+
+2. Added parity proof artifact generation (run-scoped, auditable):
+- `runs/fraud-platform/platform_20260209T210000Z/case_mgmt/reconciliation/phase8_parity_proof_20.json`
+- `runs/fraud-platform/platform_20260209T210000Z/case_mgmt/reconciliation/phase8_parity_proof_200.json`
+- `runs/fraud-platform/platform_20260209T210000Z/case_mgmt/reconciliation/phase8_negative_path_proof.json`
+
+### Key mechanics delivered
+- End-to-end continuity assertion now proves:
+  - Trigger ingress with DLA/decision evidence refs,
+  - CM timeline append continuity,
+  - AL action submission + by-ref action outcome attach,
+  - Label assertion submission and LS durable ack path (`LABEL_PENDING` -> `LABEL_ACCEPTED`).
+- Parity matrix enforces deterministic idempotency at scale:
+  - duplicate trigger replay remains duplicate-safe,
+  - duplicate label submission remains duplicate-safe after terminal acceptance,
+  - anomaly total remains zero in nominal parity loops.
+- Negative-path matrix enforces fail-closed behavior:
+  - same trigger identity + payload drift -> `TRIGGER_PAYLOAD_MISMATCH`,
+  - LS write exception -> pending posture,
+  - retry preserves assertion identity and converges via deterministic retry lane.
+
+### Validation evidence
+- `python -m py_compile tests/services/case_mgmt/test_phase8_validation_matrix.py`
+  - result: pass
+- `python -m pytest -q tests/services/case_mgmt/test_phase8_validation_matrix.py`
+  - result: `4 passed`
+- `python -m pytest -q tests/services/case_mgmt/test_phase1_contracts.py tests/services/case_mgmt/test_phase1_ids.py tests/services/case_mgmt/test_phase2_intake.py tests/services/case_mgmt/test_phase3_projection.py tests/services/case_mgmt/test_phase4_evidence_resolution.py tests/services/case_mgmt/test_phase5_label_handshake.py tests/services/case_mgmt/test_phase6_action_handshake.py tests/services/case_mgmt/test_phase7_observability.py tests/services/case_mgmt/test_phase8_validation_matrix.py`
+  - result: `44 passed`
+- `python -m pytest -q tests/services/case_trigger/test_phase1_config.py tests/services/case_trigger/test_phase1_contracts.py tests/services/case_trigger/test_phase1_taxonomy.py tests/services/case_trigger/test_phase2_adapters.py tests/services/case_trigger/test_phase3_replay.py tests/services/case_trigger/test_phase4_publish.py tests/services/case_trigger/test_phase5_checkpoints.py tests/services/case_trigger/test_phase7_observability.py tests/services/case_trigger/test_phase8_validation_matrix.py tests/services/ingestion_gate/test_phase11_case_trigger_onboarding.py`
+  - result: `45 passed`
+- `python -m pytest -q tests/services/platform_reporter/test_run_reporter.py`
+  - result: `2 passed`
+
+### Phase closure statement
+- CM Phase 8 DoD is satisfied:
+  - end-to-end CM continuity evidence exists,
+  - required negative-path proofs exist,
+  - monitored parity artifacts are captured and referenced.
+- This closes CM-side integration closure and advances platform Phase `5.9` gating; full plane closure still depends on Label Store timeline/as-of integration closure evidence.

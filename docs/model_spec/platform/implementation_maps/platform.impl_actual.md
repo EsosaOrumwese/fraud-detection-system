@@ -7369,3 +7369,42 @@ Execute CM Phase 7 to close the platform's Case+Labels observability/governance/
   - CM Phase1..7 `40 passed`
   - CaseTrigger/IG regression `45 passed`
   - Platform reporter regression `2 passed`
+
+## Entry: 2026-02-09 06:12PM - CM Phase 8 execution lock (platform Phase 5.9 progression)
+
+### Scope
+Execute CM Phase 8 integration closure by adding explicit parity matrix evidence and negative-path proof artifacts.
+
+### Locked implementation posture
+- Build a dedicated CM Phase 8 validation matrix test module (integration-level, deterministic, artifact-backed).
+- Generate run-scoped proof artifacts for `20` and `200` event passes and one negative-path proof artifact.
+- Treat Phase 8 closure as evidence-driven only after full CM + CaseTrigger/IG + platform reporter regressions remain green.
+
+### Acceptance gate
+- CM Phase 8 matrix green with artifact proof files created.
+- CM Phase1..8 suite green.
+- CaseTrigger/IG regression matrix green.
+- Platform reporter regression green.
+- Build-plan and implementation maps updated with explicit closure references.
+
+## Entry: 2026-02-09 06:17PM - CM Phase 8 closure (platform Phase 5.9 progression)
+
+### What was closed
+- CM Phase 8 integration closure is implemented and validated via dedicated matrix + artifact-backed parity proofs.
+
+### Platform-level impact
+- Platform Phase `5.9` is now advanced on CM side with explicit continuity and fail-closed evidence.
+- Remaining full-plane closure dependency is LS-side timeline/as-of integration proof and final joint handoff evidence.
+
+### Evidence references
+- Tests:
+  - `tests/services/case_mgmt/test_phase8_validation_matrix.py`
+- Artifacts:
+  - `runs/fraud-platform/platform_20260209T210000Z/case_mgmt/reconciliation/phase8_parity_proof_20.json`
+  - `runs/fraud-platform/platform_20260209T210000Z/case_mgmt/reconciliation/phase8_parity_proof_200.json`
+  - `runs/fraud-platform/platform_20260209T210000Z/case_mgmt/reconciliation/phase8_negative_path_proof.json`
+- Validation:
+  - Phase 8 matrix `4 passed`
+  - CM Phase1..8 `44 passed`
+  - CaseTrigger/IG regression `45 passed`
+  - Platform reporter regression `2 passed`

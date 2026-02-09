@@ -208,4 +208,17 @@ Provide an executable, component-scoped plan for Case Management (CM) aligned to
     - `python -m pytest -q tests/services/case_mgmt/test_phase1_contracts.py tests/services/case_mgmt/test_phase1_ids.py tests/services/case_mgmt/test_phase2_intake.py tests/services/case_mgmt/test_phase3_projection.py tests/services/case_mgmt/test_phase4_evidence_resolution.py tests/services/case_mgmt/test_phase5_label_handshake.py tests/services/case_mgmt/test_phase6_action_handshake.py tests/services/case_mgmt/test_phase7_observability.py` -> `40 passed`
     - `python -m pytest -q tests/services/case_trigger/test_phase1_config.py tests/services/case_trigger/test_phase1_contracts.py tests/services/case_trigger/test_phase1_taxonomy.py tests/services/case_trigger/test_phase2_adapters.py tests/services/case_trigger/test_phase3_replay.py tests/services/case_trigger/test_phase4_publish.py tests/services/case_trigger/test_phase5_checkpoints.py tests/services/case_trigger/test_phase7_observability.py tests/services/case_trigger/test_phase8_validation_matrix.py tests/services/ingestion_gate/test_phase11_case_trigger_onboarding.py` -> `45 passed`
     - `python -m pytest -q tests/services/platform_reporter/test_run_reporter.py` -> `2 passed`
-- Next action: Phase 8 integration closure and parity proof.
+- Phase 8 (`Integration closure and parity proof`): completed on `2026-02-09`.
+  - Evidence:
+    - `tests/services/case_mgmt/test_phase8_validation_matrix.py`
+    - parity proof artifacts:
+      - `runs/fraud-platform/platform_20260209T210000Z/case_mgmt/reconciliation/phase8_parity_proof_20.json`
+      - `runs/fraud-platform/platform_20260209T210000Z/case_mgmt/reconciliation/phase8_parity_proof_200.json`
+      - `runs/fraud-platform/platform_20260209T210000Z/case_mgmt/reconciliation/phase8_negative_path_proof.json`
+  - Validation:
+    - `python -m py_compile tests/services/case_mgmt/test_phase8_validation_matrix.py` -> pass
+    - `python -m pytest -q tests/services/case_mgmt/test_phase8_validation_matrix.py` -> `4 passed`
+    - `python -m pytest -q tests/services/case_mgmt/test_phase1_contracts.py tests/services/case_mgmt/test_phase1_ids.py tests/services/case_mgmt/test_phase2_intake.py tests/services/case_mgmt/test_phase3_projection.py tests/services/case_mgmt/test_phase4_evidence_resolution.py tests/services/case_mgmt/test_phase5_label_handshake.py tests/services/case_mgmt/test_phase6_action_handshake.py tests/services/case_mgmt/test_phase7_observability.py tests/services/case_mgmt/test_phase8_validation_matrix.py` -> `44 passed`
+    - `python -m pytest -q tests/services/case_trigger/test_phase1_config.py tests/services/case_trigger/test_phase1_contracts.py tests/services/case_trigger/test_phase1_taxonomy.py tests/services/case_trigger/test_phase2_adapters.py tests/services/case_trigger/test_phase3_replay.py tests/services/case_trigger/test_phase4_publish.py tests/services/case_trigger/test_phase5_checkpoints.py tests/services/case_trigger/test_phase7_observability.py tests/services/case_trigger/test_phase8_validation_matrix.py tests/services/ingestion_gate/test_phase11_case_trigger_onboarding.py` -> `45 passed`
+    - `python -m pytest -q tests/services/platform_reporter/test_run_reporter.py` -> `2 passed`
+- Next action: plane-level Phase `5.9` closure with Label Store timeline/as-of integration proof.
