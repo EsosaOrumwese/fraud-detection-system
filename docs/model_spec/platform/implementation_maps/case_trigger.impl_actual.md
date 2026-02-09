@@ -151,3 +151,86 @@ Close CaseTrigger Phase 1 by implementing:
 
 ### Updated closure posture
 - Phase 1 remains closed with strengthened config guardrails and updated evidence count (`10 passed`).
+
+## Entry: 2026-02-09 04:00PM - Pre-change lock for Phase 2 (source adapters + eligibility gates)
+
+### Objective
+Close CaseTrigger Phase 2 by adding explicit adapter boundaries for `DF`/`AL`/`DLA`/`external`/`manual` sources, with fail-closed source eligibility.
+
+### Inputs / authorities used now
+- `docs/model_spec/platform/implementation_maps/case_trigger.build_plan.md` (Phase 2 DoD)
+- `src/fraud_detection/decision_fabric/contracts.py` (`DecisionResponse` contract)
+- `src/fraud_detection/action_layer/contracts.py` (`ActionOutcome` contract)
+- `src/fraud_detection/decision_log_audit/contracts.py` (`AuditRecord` contract)
+- Existing CaseTrigger Phase 1 modules in `src/fraud_detection/case_trigger/`
+
+### Key design decisions before implementation
+1. Add a new adapter module (`src/fraud_detection/case_trigger/adapters.py`) as the single source adapter boundary for Phase 2.
+2. Reuse existing source contract validators (`DecisionResponse`, `ActionOutcome`, `AuditRecord`) inside adapters so source shape checks are inherited from owning components.
+3. Build minimal by-ref CaseTrigger payloads only:
+   - no source payload mirroring,
+   - refs + controlled metadata only.
+4. Enforce fail-closed gating:
+   - unsupported source class rejected,
+   - AL `ACTION_FAILURE` adapter accepts only non-success outcomes (`FAILED`/`DENIED`),
+   - required additional refs (`audit_record_id`, `source_event_id`) required where source payload cannot provide them.
+
+### Planned files for this phase
+- New code:
+  - `src/fraud_detection/case_trigger/adapters.py`
+- Update exports:
+  - `src/fraud_detection/case_trigger/__init__.py`
+- New tests:
+  - `tests/services/case_trigger/test_phase2_adapters.py`
+
+### Validation plan
+- `python -m pytest -q tests/services/case_trigger/test_phase2_adapters.py tests/services/case_trigger/test_phase1_taxonomy.py tests/services/case_trigger/test_phase1_config.py tests/services/case_trigger/test_phase1_contracts.py`
+- compile check for updated/new CaseTrigger modules.
+
+## Entry: 2026-02-09 04:03PM - Phase 2 implemented and validated (source adapters + eligibility gates)
+
+### Implementation completed
+1. Added explicit source adapter boundary:
+- `src/fraud_detection/case_trigger/adapters.py`
+
+2. Updated package exports for adapter surfaces:
+- `src/fraud_detection/case_trigger/__init__.py`
+
+3. Added Phase 2 validation suite:
+- `tests/services/case_trigger/test_phase2_adapters.py`
+
+### Adapter boundaries delivered
+- `DF_DECISION -> DECISION_ESCALATION`
+  - source contract validation via `DecisionResponse`.
+  - requires explicit `audit_record_id` (fail closed when absent).
+- `AL_OUTCOME -> ACTION_FAILURE`
+  - source contract validation via `ActionOutcome`.
+  - trigger eligibility restricted to `FAILED|DENIED` statuses (EXECUTED rejected).
+  - requires explicit `source_event_id` and `audit_record_id` (fail closed when absent).
+- `DLA_AUDIT -> ANOMALY`
+  - source contract validation via `AuditRecord`.
+  - case subject event defaults to `decision_event.event_id` unless overridden.
+- `EXTERNAL_SIGNAL -> EXTERNAL_SIGNAL`
+  - explicit payload contract requires `external_ref_id/ref_id`, `case_subject_key`, `pins`, `observed_time`.
+- `MANUAL_ASSERTION -> MANUAL_ASSERTION`
+  - explicit payload contract requires `manual_assertion_id/ref_id`, `case_subject_key`, `pins`, `observed_time`.
+
+### Fail-closed posture implemented
+- Unsupported `source_class` values are rejected in dispatcher.
+- Source payloads are validated through owning component contracts before mapping.
+- Adapter outputs still pass through Phase 1 CaseTrigger writer-side validation (`validate_case_trigger_payload`) with source_class + policy checks.
+
+### By-ref minimal enrichment posture
+- Adapter payloads include refs and minimal metadata only (e.g., status/action kind/mode), no source payload mirroring.
+
+### Validation evidence
+- `python -m py_compile src/fraud_detection/case_trigger/__init__.py src/fraud_detection/case_trigger/adapters.py src/fraud_detection/case_trigger/taxonomy.py src/fraud_detection/case_trigger/config.py src/fraud_detection/case_trigger/contracts.py tests/services/case_trigger/test_phase2_adapters.py tests/services/case_trigger/test_phase1_taxonomy.py tests/services/case_trigger/test_phase1_config.py tests/services/case_trigger/test_phase1_contracts.py`
+  - result: pass
+- `python -m pytest -q tests/services/case_trigger/test_phase2_adapters.py tests/services/case_trigger/test_phase1_taxonomy.py tests/services/case_trigger/test_phase1_config.py tests/services/case_trigger/test_phase1_contracts.py`
+  - result: `18 passed`
+
+### Phase closure statement
+- Phase 2 DoD is satisfied for current scope:
+  - explicit source adapters exist for DF/AL/DLA/external/manual,
+  - unsupported/insufficient source facts fail closed,
+  - adapter outputs remain minimal by-ref and contract-validated.

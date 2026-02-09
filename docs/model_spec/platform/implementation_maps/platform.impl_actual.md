@@ -6835,3 +6835,32 @@ Implement CaseTrigger Phase 1 and provide an executable runtime contract boundar
 
 ### Impact on gate
 - Phase 5.2 Phase-1 closure remains PASS and now has stronger taxonomy/config drift protection.
+
+## 2026-02-09 04:00PM - Phase 5.2 Phase-2 execution lock (source adapters)
+
+### Scope
+- Implement CaseTrigger Phase 2 explicit source adapters and eligibility gates.
+
+### Decisions locked
+- Adapter boundary lives in `case_trigger` package and reuses upstream source contracts (DF/AL/DLA).
+- Unsupported source class and missing required refs are fail-closed (no implicit coercion).
+- Adapter output remains minimal by-ref CaseTrigger payload (no payload truth duplication).
+
+### Validation gate
+- New adapter-focused test suite + existing Phase 1 CaseTrigger suite must pass together.
+
+## 2026-02-09 04:03PM - CaseTrigger Phase 2 closure (source adapters + eligibility)
+
+### What closed
+- Implemented explicit CaseTrigger source adapters for all v0 source classes with fail-closed gates.
+
+### Delivered files
+- `src/fraud_detection/case_trigger/adapters.py`
+- `src/fraud_detection/case_trigger/__init__.py` (adapter exports)
+- `tests/services/case_trigger/test_phase2_adapters.py`
+
+### Validation
+- Combined CaseTrigger suite (Phase 1 + Phase 2): `18 passed`.
+
+### Platform impact
+- Phase 5.2 now has concrete source-adapter mechanics and gating behavior, reducing ambiguity before entering identity/collision runtime handling (Phase 3).
