@@ -195,7 +195,7 @@ class PlatformRunReporter:
                     scenario_run_id=scenario_run_id,
                 )
                 metrics = _mapping(snapshot.get("metrics"))
-                degraded_total += int(metrics.get("apply_failures", 0))
+                degraded_total += int(metrics.get("apply_failures_hard", metrics.get("apply_failures", 0)))
         except Exception as exc:
             notes.append(f"CSFB metrics unavailable: {str(exc)[:256]}")
 

@@ -155,3 +155,22 @@ def test_execution_outcome_payload_is_contract_valid_for_uncertain_lane(tmp_path
     assert outcome.payload["status"] == "FAILED"
     assert outcome.payload["reason"].startswith("UNCERTAIN_COMMIT:")
     assert outcome.payload["outcome_payload"]["terminal_state"] == TERMINAL_UNCERTAIN_COMMIT
+
+
+def test_execution_outcome_payload_default_timestamp_is_canonical_z(tmp_path: Path) -> None:
+    intent = ActionIntent.from_payload(_intent_payload())
+    semantic_key = _semantic_key(intent, tmp_path)
+    bundle = load_policy_bundle(Path("config/platform/al/policy_v0.yaml"))
+    executor = SequenceExecutor(
+        [ActionExecutionResult(state=EXECUTION_COMMITTED, provider_code="OK", provider_ref="r-1")]
+    )
+    engine = ActionExecutionEngine(executor=executor, retry_policy=bundle.retry_policy, sleeper=lambda _: None)
+    terminal = engine.execute(intent=intent, semantic_key=semantic_key)
+    outcome_payload = build_execution_outcome_payload(
+        intent=intent,
+        authz_policy_rev=bundle.policy_rev.as_dict(),
+        terminal=terminal,
+    )
+    completed = str(outcome_payload["completed_at_utc"])
+    assert completed.endswith("Z")
+    assert "." in completed

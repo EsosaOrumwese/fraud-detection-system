@@ -5,6 +5,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from datetime import datetime, timezone
 import json
+import os
 from pathlib import Path
 from typing import Any
 
@@ -54,16 +55,40 @@ class CsfbObservabilityPolicy:
             raise ValueError("CSFB observability reconciliation policy must be mapping")
 
         thresholds = CsfbHealthThresholds(
-            amber_watermark_age_seconds=float(thresholds_raw.get("amber_watermark_age_seconds", 120.0)),
-            red_watermark_age_seconds=float(thresholds_raw.get("red_watermark_age_seconds", 300.0)),
-            amber_checkpoint_age_seconds=float(thresholds_raw.get("amber_checkpoint_age_seconds", 120.0)),
-            red_checkpoint_age_seconds=float(thresholds_raw.get("red_checkpoint_age_seconds", 300.0)),
-            amber_join_misses=int(thresholds_raw.get("amber_join_misses", 1)),
-            red_join_misses=int(thresholds_raw.get("red_join_misses", 10)),
-            amber_binding_conflicts=int(thresholds_raw.get("amber_binding_conflicts", 1)),
-            red_binding_conflicts=int(thresholds_raw.get("red_binding_conflicts", 5)),
-            amber_apply_failures=int(thresholds_raw.get("amber_apply_failures", 1)),
-            red_apply_failures=int(thresholds_raw.get("red_apply_failures", 10)),
+            amber_watermark_age_seconds=_env_float(
+                "CSFB_HEALTH_AMBER_WATERMARK_AGE_SECONDS",
+                float(thresholds_raw.get("amber_watermark_age_seconds", 120.0)),
+            ),
+            red_watermark_age_seconds=_env_float(
+                "CSFB_HEALTH_RED_WATERMARK_AGE_SECONDS",
+                float(thresholds_raw.get("red_watermark_age_seconds", 300.0)),
+            ),
+            amber_checkpoint_age_seconds=_env_float(
+                "CSFB_HEALTH_AMBER_CHECKPOINT_AGE_SECONDS",
+                float(thresholds_raw.get("amber_checkpoint_age_seconds", 120.0)),
+            ),
+            red_checkpoint_age_seconds=_env_float(
+                "CSFB_HEALTH_RED_CHECKPOINT_AGE_SECONDS",
+                float(thresholds_raw.get("red_checkpoint_age_seconds", 300.0)),
+            ),
+            amber_join_misses=_env_int("CSFB_HEALTH_AMBER_JOIN_MISSES", int(thresholds_raw.get("amber_join_misses", 1))),
+            red_join_misses=_env_int("CSFB_HEALTH_RED_JOIN_MISSES", int(thresholds_raw.get("red_join_misses", 10))),
+            amber_binding_conflicts=_env_int(
+                "CSFB_HEALTH_AMBER_BINDING_CONFLICTS",
+                int(thresholds_raw.get("amber_binding_conflicts", 1)),
+            ),
+            red_binding_conflicts=_env_int(
+                "CSFB_HEALTH_RED_BINDING_CONFLICTS",
+                int(thresholds_raw.get("red_binding_conflicts", 5)),
+            ),
+            amber_apply_failures=_env_int(
+                "CSFB_HEALTH_AMBER_APPLY_FAILURES",
+                int(thresholds_raw.get("amber_apply_failures", 1)),
+            ),
+            red_apply_failures=_env_int(
+                "CSFB_HEALTH_RED_APPLY_FAILURES",
+                int(thresholds_raw.get("red_apply_failures", 10)),
+            ),
         )
         max_unresolved_anomalies = int((rec_raw or {}).get("max_unresolved_anomalies", 200))
         if max_unresolved_anomalies <= 0:
@@ -240,7 +265,7 @@ def _derive_health(
 
     join_misses = int(metrics.get("join_misses", 0))
     binding_conflicts = int(metrics.get("binding_conflicts", 0))
-    apply_failures = int(metrics.get("apply_failures", 0))
+    apply_failures = int(metrics.get("apply_failures_hard", metrics.get("apply_failures", 0)))
 
     if join_misses >= thresholds.red_join_misses:
         reasons.append("JOIN_MISSES_RED")
@@ -298,3 +323,23 @@ def _write_json(path: Path, payload: dict[str, Any]) -> None:
 
 def _utc_now() -> str:
     return datetime.now(tz=timezone.utc).isoformat()
+
+
+def _env_float(name: str, default: float) -> float:
+    raw = str(os.getenv(name) or "").strip()
+    if not raw:
+        return default
+    try:
+        return float(raw)
+    except ValueError:
+        return default
+
+
+def _env_int(name: str, default: int) -> int:
+    raw = str(os.getenv(name) or "").strip()
+    if not raw:
+        return default
+    try:
+        return int(raw)
+    except ValueError:
+        return default

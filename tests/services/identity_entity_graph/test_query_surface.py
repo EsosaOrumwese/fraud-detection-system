@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from fraud_detection.identity_entity_graph import query as query_module
 from fraud_detection.identity_entity_graph.hints import IdentityHint
 from fraud_detection.identity_entity_graph.ids import dedupe_key
 from fraud_detection.identity_entity_graph.query import IdentityGraphQuery
@@ -109,3 +110,16 @@ def test_integrity_status_degraded_on_failure(tmp_path) -> None:
         limit=10,
     )
     assert result["integrity_status"] == "DEGRADED"
+
+
+def test_health_thresholds_support_env_overrides(monkeypatch) -> None:
+    monkeypatch.setenv("IEG_HEALTH_AMBER_WATERMARK_AGE_SECONDS", "10")
+    monkeypatch.setenv("IEG_HEALTH_RED_WATERMARK_AGE_SECONDS", "20")
+
+    health = query_module._derive_health(
+        failure_count=0,
+        watermark_age_seconds=15.0,
+        checkpoint_age_seconds=0.0,
+    )
+    assert health["state"] == "AMBER"
+    assert "WATERMARK_LAGGING" in health["reasons"]

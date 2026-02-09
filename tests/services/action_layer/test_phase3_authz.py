@@ -94,3 +94,15 @@ def test_denied_outcome_payload_includes_policy_rev_stamp_and_is_contract_valid(
     assert denied["authz_policy_rev"]["policy_id"] == bundle.policy_rev.policy_id
     outcome = ActionOutcome.from_payload(denied)
     assert outcome.payload["status"] == "DENIED"
+
+
+def test_denied_outcome_payload_default_timestamp_is_canonical_z() -> None:
+    bundle = load_policy_bundle(Path("config/platform/al/policy_v0.yaml"))
+    payload = _intent_payload()
+    payload["action_kind"] = "unsupported_action"
+    intent = ActionIntent.from_payload(payload)
+    decision = authorize_intent(intent, bundle=bundle)
+    denied = build_denied_outcome_payload(intent=intent, decision=decision)
+    completed = str(denied["completed_at_utc"])
+    assert completed.endswith("Z")
+    assert "." in completed

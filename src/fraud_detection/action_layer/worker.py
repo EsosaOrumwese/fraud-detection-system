@@ -515,7 +515,7 @@ def _none_if_blank(value: Any) -> str | None:
 
 
 def _utc_now() -> str:
-    return datetime.now(tz=timezone.utc).isoformat()
+    return datetime.now(tz=timezone.utc).strftime("%Y-%m-%dT%H:%M:%S.%fZ")
 
 
 def main() -> None:

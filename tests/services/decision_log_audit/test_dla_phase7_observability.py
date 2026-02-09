@@ -134,6 +134,8 @@ def test_phase7_observability_collects_metrics_reconciliation_and_governance(tmp
     metrics = payload["metrics"]
 
     assert metrics["append_success_total"] >= 2
+    assert metrics["accepted_total"] == 1
+    assert metrics["rejected_total"] >= 1
     assert metrics["candidate_total"] == 1
     assert metrics["quarantine_total"] >= 1
     assert metrics["replay_divergence_total"] >= 1

@@ -641,6 +641,13 @@ class ContextStoreFlowBindingStore:
             FROM csfb_join_apply_failures
             WHERE stream_id = ?
         """
+        late_applied_sql = """
+            SELECT COUNT(*)
+            FROM csfb_join_apply_failures
+            WHERE stream_id = ?
+              AND reason_code = 'LATE_CONTEXT_EVENT'
+              AND details_json LIKE '%%"applied":true%%'
+        """
         conflict_sql = """
             SELECT COUNT(*)
             FROM csfb_join_apply_failures
@@ -663,17 +670,23 @@ class ContextStoreFlowBindingStore:
             join_misses = int(
                 self._execute(conn, join_miss_sql + fb_scope, (self.stream_id, *fb_params)).fetchone()[0]
             )
-            apply_failures = int(
+            apply_failures_total = int(
                 self._execute(conn, failure_sql + failure_scope, (self.stream_id, *failure_params)).fetchone()[0]
+            )
+            late_context_applied = int(
+                self._execute(conn, late_applied_sql + failure_scope, (self.stream_id, *failure_params)).fetchone()[0]
             )
             binding_conflicts = int(
                 self._execute(conn, conflict_sql + failure_scope, (self.stream_id, *failure_params)).fetchone()[0]
             )
+        apply_failures_hard = max(0, apply_failures_total - late_context_applied)
         return {
             "join_hits": join_hits,
             "join_misses": join_misses,
             "binding_conflicts": binding_conflicts,
-            "apply_failures": apply_failures,
+            "apply_failures": apply_failures_total,
+            "apply_failures_hard": apply_failures_hard,
+            "late_context_applied": late_context_applied,
         }
 
     def unresolved_anomalies(

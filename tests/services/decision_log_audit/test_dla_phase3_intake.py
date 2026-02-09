@@ -279,3 +279,51 @@ def test_phase3_processor_routes_hash_mismatch_to_quarantine_and_advances_checkp
     conn.close()
     assert row is not None
     assert row[0] == DLA_INTAKE_PAYLOAD_HASH_MISMATCH
+
+
+def test_phase3_intake_metrics_snapshot_counts_accepted_attempts(tmp_path: Path) -> None:
+    locator = str(tmp_path / "dla_intake.sqlite")
+    store = DecisionLogAuditIntakeStore(locator=locator)
+    platform_run_id = "platform_20260209T102145Z"
+    scenario_run_id = "001e5209754de3e6332eb3e100d420ee"
+
+    accepted = store.record_intake_attempt(
+        topic="fp.bus.traffic.fraud.v1",
+        partition=0,
+        offset="0",
+        offset_kind="file_line",
+        platform_run_id=platform_run_id,
+        scenario_run_id=scenario_run_id,
+        event_type="decision_response",
+        event_id="evt_accept",
+        accepted=True,
+        reason_code=DLA_INLET_ACCEPT,
+        write_status="NEW",
+        checkpoint_advanced=True,
+        detail=None,
+    )
+    rejected = store.record_intake_attempt(
+        topic="fp.bus.traffic.fraud.v1",
+        partition=0,
+        offset="1",
+        offset_kind="file_line",
+        platform_run_id=platform_run_id,
+        scenario_run_id=scenario_run_id,
+        event_type="decision_response",
+        event_id="evt_reject",
+        accepted=False,
+        reason_code=DLA_INTAKE_PAYLOAD_HASH_MISMATCH,
+        write_status="NEW",
+        checkpoint_advanced=True,
+        detail=None,
+    )
+
+    assert accepted.status == "NEW"
+    assert rejected.status == "NEW"
+
+    metrics = store.intake_metrics_snapshot(
+        platform_run_id=platform_run_id,
+        scenario_run_id=scenario_run_id,
+    )
+    assert metrics["accepted_total"] == 1
+    assert metrics["rejected_total"] == 1

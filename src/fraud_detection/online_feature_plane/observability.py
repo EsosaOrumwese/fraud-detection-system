@@ -5,6 +5,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from datetime import datetime, timezone
 import json
+import os
 from pathlib import Path
 from typing import Any
 
@@ -55,7 +56,19 @@ class OfpObservabilityReporter:
             feature_def_revision=profile.policy.feature_def_policy_rev.revision,
             feature_def_content_digest=profile.policy.feature_def_policy_rev.content_digest,
         )
-        return cls(profile=profile, store=store)
+        thresholds = OfpHealthThresholds(
+            amber_watermark_age_seconds=_env_float("OFP_HEALTH_AMBER_WATERMARK_AGE_SECONDS", 120.0),
+            red_watermark_age_seconds=_env_float("OFP_HEALTH_RED_WATERMARK_AGE_SECONDS", 300.0),
+            amber_checkpoint_age_seconds=_env_float("OFP_HEALTH_AMBER_CHECKPOINT_AGE_SECONDS", 120.0),
+            red_checkpoint_age_seconds=_env_float("OFP_HEALTH_RED_CHECKPOINT_AGE_SECONDS", 300.0),
+            amber_missing_features=_env_int("OFP_HEALTH_AMBER_MISSING_FEATURES", 1),
+            red_missing_features=_env_int("OFP_HEALTH_RED_MISSING_FEATURES", 10),
+            amber_stale_graph_version=_env_int("OFP_HEALTH_AMBER_STALE_GRAPH_VERSION", 1),
+            red_stale_graph_version=_env_int("OFP_HEALTH_RED_STALE_GRAPH_VERSION", 10),
+            amber_snapshot_failures=_env_int("OFP_HEALTH_AMBER_SNAPSHOT_FAILURES", 1),
+            red_snapshot_failures=_env_int("OFP_HEALTH_RED_SNAPSHOT_FAILURES", 5),
+        )
+        return cls(profile=profile, store=store, thresholds=thresholds)
 
     def collect(self, *, scenario_run_id: str) -> dict[str, Any]:
         generated_at_utc = _utc_now()
@@ -219,3 +232,23 @@ def _write_json(path: Path, payload: dict[str, Any]) -> None:
 
 def _utc_now() -> str:
     return datetime.now(tz=timezone.utc).isoformat()
+
+
+def _env_float(name: str, default: float) -> float:
+    raw = str(os.getenv(name) or "").strip()
+    if not raw:
+        return default
+    try:
+        return float(raw)
+    except ValueError:
+        return default
+
+
+def _env_int(name: str, default: int) -> int:
+    raw = str(os.getenv(name) or "").strip()
+    if not raw:
+        return default
+    try:
+        return int(raw)
+    except ValueError:
+        return default

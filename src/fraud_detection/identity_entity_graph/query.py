@@ -7,6 +7,7 @@ import hashlib
 import json
 from dataclasses import dataclass
 from datetime import datetime, timezone
+import os
 from pathlib import Path
 from typing import Any
 
@@ -396,12 +397,12 @@ def _age_seconds(value: str | None) -> float | None:
 def _derive_health(
     *, failure_count: int, watermark_age_seconds: float | None, checkpoint_age_seconds: float | None
 ) -> dict[str, Any]:
-    amber_watermark_age = 120.0
-    red_watermark_age = 300.0
-    amber_checkpoint_age = 120.0
-    red_checkpoint_age = 300.0
-    amber_failures = 1
-    red_failures = 100
+    amber_watermark_age = _env_float("IEG_HEALTH_AMBER_WATERMARK_AGE_SECONDS", 120.0)
+    red_watermark_age = _env_float("IEG_HEALTH_RED_WATERMARK_AGE_SECONDS", 300.0)
+    amber_checkpoint_age = _env_float("IEG_HEALTH_AMBER_CHECKPOINT_AGE_SECONDS", 120.0)
+    red_checkpoint_age = _env_float("IEG_HEALTH_RED_CHECKPOINT_AGE_SECONDS", 300.0)
+    amber_failures = _env_int("IEG_HEALTH_AMBER_APPLY_FAILURES", 1)
+    red_failures = _env_int("IEG_HEALTH_RED_APPLY_FAILURES", 100)
 
     reasons: list[str] = []
     state = "GREEN"
@@ -434,3 +435,23 @@ def _derive_health(
         state = "AMBER"
 
     return {"state": state, "reasons": reasons}
+
+
+def _env_float(name: str, default: float) -> float:
+    raw = str(os.getenv(name) or "").strip()
+    if not raw:
+        return default
+    try:
+        return float(raw)
+    except ValueError:
+        return default
+
+
+def _env_int(name: str, default: int) -> int:
+    raw = str(os.getenv(name) or "").strip()
+    if not raw:
+        return default
+    try:
+        return int(raw)
+    except ValueError:
+        return default

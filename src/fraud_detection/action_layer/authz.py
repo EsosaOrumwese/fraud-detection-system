@@ -94,7 +94,7 @@ def build_denied_outcome_payload(
     completed_at_utc: str | None = None,
 ) -> dict[str, Any]:
     payload = intent.as_dict()
-    ts = completed_at_utc or datetime.now(tz=timezone.utc).isoformat()
+    ts = completed_at_utc or _utc_now()
     reason = ";".join(decision.reason_codes) if decision.reason_codes else "AUTHZ_DENIED"
     identity = {
         "decision_id": payload["decision_id"],
@@ -149,3 +149,7 @@ def _default_execution_profile_ref(policy_rev: dict[str, Any], posture_mode: str
     revision = str(policy_rev.get("revision") or "").strip() or "unknown_revision"
     mode = str(posture_mode or "").strip().upper() or "UNKNOWN"
     return f"policy://{policy_id}@{revision}#mode={mode}"
+
+
+def _utc_now() -> str:
+    return datetime.now(tz=timezone.utc).strftime("%Y-%m-%dT%H:%M:%S.%fZ")

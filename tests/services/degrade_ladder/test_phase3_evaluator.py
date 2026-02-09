@@ -80,7 +80,13 @@ def _required_gap_snapshot(scope_key: str, decision_time_utc: str):
     )
 
 
-def _prior_decision(*, mode: str, decided_at_utc: str, posture_seq: int = 1) -> DegradeDecision:
+def _prior_decision(
+    *,
+    mode: str,
+    decided_at_utc: str,
+    posture_seq: int = 1,
+    reason: str = "seed prior",
+) -> DegradeDecision:
     profile, policy_rev = _profile()
     return DegradeDecision(
         mode=mode,
@@ -88,7 +94,7 @@ def _prior_decision(*, mode: str, decided_at_utc: str, posture_seq: int = 1) -> 
         policy_rev=policy_rev,
         posture_seq=posture_seq,
         decided_at_utc=decided_at_utc,
-        reason="seed prior",
+        reason=reason,
         evidence_refs=(),
     )
 
@@ -193,6 +199,32 @@ def test_hysteresis_allows_one_rung_upshift_after_quiet_period() -> None:
         scope_key=scope_key,
         posture_seq=6,
         prior_decision=_prior_decision(mode="FAIL_CLOSED", decided_at_utc="2026-02-07T03:05:00.000000Z"),
+    )
+    assert decision.mode == "DEGRADED_2"
+    assert "upshift_one_rung:FAIL_CLOSED->DEGRADED_2" in (decision.reason or "")
+
+
+def test_hysteresis_accumulates_held_elapsed_across_iterations() -> None:
+    profile, policy_rev = _profile()
+    scope_key = resolve_scope(scope_kind="GLOBAL").scope_key
+    prior_reason = (
+        "baseline=all_signals_ok;"
+        "transition=upshift_held_quiet_period:59s<60s;"
+        "profile=local_parity;"
+        "scope=scope=GLOBAL"
+    )
+    decision = evaluate_posture(
+        profile=profile,
+        policy_rev=policy_rev,
+        snapshot=_healthy_snapshot(scope_key, "2026-02-07T03:06:30.000000Z"),
+        decision_time_utc="2026-02-07T03:06:30.000000Z",
+        scope_key=scope_key,
+        posture_seq=7,
+        prior_decision=_prior_decision(
+            mode="FAIL_CLOSED",
+            decided_at_utc="2026-02-07T03:06:29.000000Z",
+            reason=prior_reason,
+        ),
     )
     assert decision.mode == "DEGRADED_2"
     assert "upshift_one_rung:FAIL_CLOSED->DEGRADED_2" in (decision.reason or "")

@@ -198,3 +198,18 @@ def test_outcome_store_persists_publish_evidence_for_reconciliation(tmp_path: Pa
     )
     assert mismatch.status == "HASH_MISMATCH"
 
+
+def test_build_outcome_envelope_normalizes_offset_timestamp_to_canonical_z() -> None:
+    payload = _outcome_payload(outcome_id="f" * 32)
+    payload["completed_at_utc"] = "2026-02-07T19:00:00.123456+00:00"
+    outcome = ActionOutcome.from_payload(payload)
+    envelope = build_action_outcome_envelope(outcome)
+    assert envelope["ts_utc"] == "2026-02-07T19:00:00.123456Z"
+
+
+def test_build_outcome_envelope_rejects_invalid_timestamp() -> None:
+    payload = _outcome_payload(outcome_id="a" * 32)
+    payload["completed_at_utc"] = "not-a-timestamp"
+    outcome = ActionOutcome.from_payload(payload)
+    with pytest.raises(ActionLayerPublishError, match="payload.completed_at_utc must be an ISO-8601 timestamp"):
+        build_action_outcome_envelope(outcome)

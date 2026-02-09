@@ -5493,3 +5493,451 @@ Run targeted tests, then execute a fresh parity restart + 200-event run and vali
 - Post-fix, DLA now ingests and appends the expected decision-lane envelopes (400 accepted), which did not occur pre-fix.
 - DL remains in `FAIL_CLOSED` during this run (by policy and signal posture), but no longer exhibits the pre-fix pattern of 100% required-signal-gap-forced ticks.
 - Remaining observable posture pressure is concentrated in IEG health and configured quiet-period hold semantics, not OFP artifact absence.
+
+## 2026-02-09 09:41AM - Ordered fix queue for latest active run and start of remediation
+
+### Trigger
+User requested explicit issue list and immediate remediation in priority order. Active/latest run remains `platform_20260209T054217Z` (not a historical-only comparator), so this queue is derived from current-state evidence.
+
+### Evidence-backed issue register (active run)
+1. **P0 - AL outcome publish contract broken**
+- Evidence source: `runs/fraud-platform/platform_20260209T054217Z/action_layer/observability/last_metrics.json`, `action_layer/al_outcomes.sqlite`.
+- Facts:
+  - `publish_ambiguous_total=200`.
+  - `al_outcome_publish` decision distribution: `AMBIGUOUS=200`.
+  - All ambiguous reasons are `CANONICAL_ENVELOPE_INVALID` with timestamp shape mismatch (`+00:00` vs required `...Z`).
+- Impact:
+  - AL outcomes do not reach IG/EB.
+  - Blocks `fp.bus.action.outcome.v1` lane and prevents DLA lineage closure.
+
+2. **P0 - DF stays fully fail-closed**
+- Evidence source: `decision_fabric/health/last_health.json`, `decision_fabric/reconciliation/reconciliation.json`.
+- Facts:
+  - `decisions_total=200`, `fail_closed_total=200`, `degrade_total=200`.
+  - reason counts all 200: `FAIL_CLOSED_NO_COMPATIBLE_BUNDLE`, `ACTIVE_BUNDLE_INCOMPATIBLE`, `REGISTRY_FAIL_CLOSED`, plus context-waiting/capability mismatches.
+- Impact:
+  - Decision lane runs but policy posture is permanently fail-closed.
+
+3. **P1 - DL posture never exits FAIL_CLOSED in run window**
+- Evidence source: DLA accepted decision payloads + DL governance stream.
+- Facts:
+  - `degrade_posture.mode=FAIL_CLOSED` in all accepted `decision_response` rows.
+  - DL reasons show quiet-period hold and residual required-signal-gap (mostly IEG health).
+- Impact:
+  - No progression to intended live decision posture.
+
+4. **P1 - Health freshness red across runtime components under parity replay timing**
+- Evidence source: IEG/OFP/CSFB health artifacts.
+- Facts:
+  - IEG/OFP/CSFB health currently `RED` from `WATERMARK_TOO_OLD`/`CHECKPOINT_TOO_OLD`.
+- Impact:
+  - DL required-signal evaluation receives red pressure outside active ingest window.
+
+5. **P1 - DLA lineage unresolved**
+- Evidence source: `decision_log_audit/dla_index.sqlite`.
+- Facts:
+  - `dla_lineage_intents=200`, `dla_lineage_outcomes=0`, `chain_status=UNRESOLVED (200)`, reason `MISSING_OUTCOME_LINK`.
+- Impact:
+  - Audit truth remains incomplete for decision->intent->outcome chain.
+
+6. **P2 - DLA acceptance metric drift**
+- Evidence source: `decision_log_audit/health/last_health.json` vs `dla_intake_attempts`.
+- Facts:
+  - intake table shows `ACCEPT=400` but health metrics expose `accepted_total=0`.
+- Impact:
+  - Observability inconsistency in run reporter/health summaries.
+
+7. **P2 - DLA raw traffic quarantine remains explicit**
+- Evidence source: DLA intake/quarantine tables.
+- Facts:
+  - `UNKNOWN_EVENT_FAMILY=200` from raw `s3_event_stream_with_fraud_6B` envelopes.
+- Impact:
+  - Likely acceptable by current contract, but must be documented as intentional or redesigned.
+
+### Ordered remediation plan to execute now
+1. `P0-1` Fix AL canonical timestamp emission at publish boundary.
+- Primary targets:
+  - `src/fraud_detection/action_layer/worker.py`
+  - `src/fraud_detection/action_layer/execution.py`
+  - `src/fraud_detection/action_layer/authz.py`
+- Invariant to enforce:
+  - all AL outcome timestamps used in canonical envelopes are `YYYY-MM-DDTHH:MM:SS.ffffffZ`.
+- Validation:
+  - action-layer tests around outcome payload generation + publish boundary.
+  - fresh parity run evidence: `publish_ambiguous_total` must drop to 0 for canonical timestamp reasons; outcome lane events must appear.
+
+2. `P0-2` Resolve DF registry/bundle fail-closed resolution causes.
+- Focus:
+  - verify local parity registry ACTIVE bundle compatibility against DF capabilities mask and feature groups.
+  - correct run-time registry resolution inputs/config drift.
+
+3. `P1` DL signal posture tuning for parity run semantics.
+- Focus:
+  - quiet-period hold and required-signal behavior under finite replay streams.
+  - avoid perpetual fail-closed lock after stream drain when active run finished.
+
+4. `P1` Freshness-health policy adjustments for replayed datasets.
+- Focus:
+  - ensure health/lag reasons are phase-correct for bounded replay runs.
+
+5. `P2` DLA metric parity and raw-traffic handling posture cleanup.
+- Fix `accepted_total` accounting drift.
+- Decide/document `UNKNOWN_EVENT_FAMILY` for raw traffic as intentional or route split.
+
+### Immediate execution start
+Proceeding with step `P0-1` now (AL canonical timestamp fix), then rerun targeted validation before moving to `P0-2`.
+
+## 2026-02-09 09:44AM - P0-1 implementation complete: AL canonical timestamp contract fix
+
+### Decision and rationale
+`P0-1` was implemented first because it directly blocks AL outcome publication and therefore blocks DLA lineage closure. Evidence showed all `al_outcome_publish` rows were `AMBIGUOUS` with canonical envelope timestamp mismatch.
+
+### Code changes applied
+1. `src/fraud_detection/action_layer/worker.py`
+- Changed worker `_utc_now()` to canonical UTC format `YYYY-MM-DDTHH:MM:SS.ffffffZ`.
+- Effect: all runtime timestamps emitted by worker-side outcome generation/publish/checkpoint paths are canonical.
+
+2. `src/fraud_detection/action_layer/execution.py`
+- Changed default `completed_at_utc` generation in `build_execution_outcome_payload()` from `isoformat()` to canonical `...Z` helper.
+- Effect: execution-lane outcomes generated without explicit timestamp now satisfy canonical shape.
+
+3. `src/fraud_detection/action_layer/authz.py`
+- Changed default `completed_at_utc` generation in `build_denied_outcome_payload()` from `isoformat()` to canonical `...Z` helper.
+- Effect: denied outcomes also satisfy canonical shape when timestamp is auto-generated.
+
+4. `src/fraud_detection/action_layer/publish.py`
+- Added timestamp normalization at envelope build: `payload.completed_at_utc` is canonicalized to UTC `...Z` before `ts_utc` assignment.
+- Effect: defensive boundary hardening even when upstream payload supplies `+00:00` style timestamp.
+
+### Tests added/updated for regression protection
+1. `tests/services/action_layer/test_phase5_outcomes.py`
+- Added normalization test for `+00:00` -> `Z`.
+- Added invalid timestamp rejection test for envelope build.
+
+2. `tests/services/action_layer/test_phase4_execution.py`
+- Added default execution outcome timestamp canonical-shape assertion.
+
+3. `tests/services/action_layer/test_phase3_authz.py`
+- Added default denied outcome timestamp canonical-shape assertion.
+
+### Validation executed
+- `python -m py_compile` on edited AL source and test modules: **PASS**.
+- `python -m pytest -q tests/services/action_layer/test_phase5_outcomes.py tests/services/action_layer/test_phase4_execution.py tests/services/action_layer/test_phase3_authz.py`: **20 passed**.
+
+### Closure status for P0-1
+- Code-level closure complete with targeted regression coverage.
+- Runtime closure (drop of `publish_ambiguous_total` and emergence of AL outcomes on bus) still requires next parity execution evidence.
+
+### Next ordered step
+Proceed to `P0-2` (DF full fail-closed resolution) while planning the next parity run to validate both `P0-1` and `P0-2` together.
+
+## 2026-02-09 09:56AM - P0-2 root-cause closure plan before code edits (WSP checkpoint scope drift -> DF fail-closed)
+
+### Problem statement (active run evidence)
+`P0-2` originally appeared as a DF registry/bundle compatibility failure (`ACTIVE_BUNDLE_INCOMPATIBLE`, `FAIL_CLOSED_NO_COMPATIBLE_BUNDLE`). Deep diagnosis on the active run (`platform_20260209T054217Z`) shows the compatibility errors are downstream symptoms of a deterministic upstream contract drift:
+
+1. DF context acquisition is `CONTEXT_WAITING` for all 200 decisions (`arrival_events`, `flow_anchor` missing).
+2. CSFB service returns:
+   - `MISSING_BINDING` for a traffic `flow_id` from the same run.
+   - `READY` for a flow-anchor `flow_id` from the same run.
+3. Cross-stream set evidence for the same run window:
+   - traffic `flow_id` unique set (200 events -> 100 flow_ids) has **zero overlap** with
+   - flow-anchor/CSFB flow-binding unique set (200 flow_ids).
+4. WSP checkpoint table (`wsp_checkpoint`) is keyed only by `(pack_key, output_id)` and is shared across runs. For this engine pack, all output cursors were already around row `~5k` before this run.
+5. Data check against Oracle stream-view confirms this drift is causal:
+   - first-200 traffic vs first-200 anchor overlap is non-zero (expected),
+   - resumed windows around row `~5k` for traffic/anchor produce zero overlap.
+
+Conclusion: New platform runs are not starting from run-coherent checkpoint scope. This creates traffic/context cohort drift, which then guarantees DF context-missing and registry fail-closed posture regardless of otherwise-correct DF code.
+
+### Alternatives considered
+1. **Relax DF/registry contracts** (allow empty feature groups / step-up-only compatibility):
+- Rejected as primary fix. It masks the upstream cohort drift and weakens fail-closed guarantees.
+
+2. **Change DF context policy to not require CSFB roles**:
+- Rejected as primary fix. This bypasses intended provenance coupling and would let drift persist undetected.
+
+3. **Reset checkpoints manually before each run**:
+- Rejected as operationally fragile and non-deterministic; does not harden code path.
+
+4. **Run-scope checkpoint namespace in WSP** (selected):
+- Scope checkpoint key by active platform/scenario run so a new platform run starts from coherent offsets while restart within the same run still resumes.
+
+### Selected implementation mechanics
+1. In `world_streamer_producer.runner`, derive a deterministic checkpoint scope key from:
+   - base `pack_key`
+   - `platform_run_id`
+   - `scenario_run_id`
+2. Use this scoped key for all checkpoint `load/save` operations in stream-view mode.
+3. Keep envelope `trace_id` semantics unchanged (still base pack identity).
+4. Keep existing DB/file schemas unchanged; this is a namespace change (safe migration-by-key).
+
+### Invariants to enforce
+- New platform run id MUST not reuse checkpoint cursor state from prior runs.
+- Same platform run id MUST preserve resume behavior across restarts.
+- Checkpoint keys used for file backend MUST remain filesystem-safe.
+
+### Validation plan
+1. Add unit regression proving run-scope isolation:
+- First call (`platform_run_id=A`) emits row1 with max_events=1.
+- Second call (`platform_run_id=B`) emits row1 again (fresh scope), not row2.
+2. Keep existing checkpoint resume test green for same run scope behavior.
+3. Re-run WSP runner test module.
+4. Runtime follow-up (next parity run): verify traffic/context flow-id overlap is restored and DF context-waiting rate drops accordingly.
+
+### Security/ops considerations
+- No secret changes.
+- No destructive checkpoint table rewrite.
+- Old rows remain for audit and rollback; new scoped keys isolate future runs.
+## 2026-02-09 09:58AM - P0-2 execution checkpoint: unblock scoped-checkpoint regression and continue ordered closure
+
+### Why this entry now
+The ordered fix sequence is already active (`P0-1` complete, `P0-2` in progress). Before any further edits, this entry captures the exact next implementation move and acceptance criteria so the decision trail remains live and auditable.
+
+### Current blocker
+The new run-scoped checkpoint helper (`_checkpoint_scope_key`) references `hashlib` without a module-level import in `world_streamer_producer.runner`, causing the WSP runner test module to fail with `NameError`.
+
+### Decision
+Apply the smallest deterministic correction first:
+1. Add module-level `import hashlib` in `runner.py`.
+2. Remove local import duplication in `_fallback_pack_key` so hashing behavior is centralized and explicit.
+3. Re-run targeted WSP runner tests, especially the new run-scope isolation regression.
+
+### Why this is the correct order
+- It restores a green unit baseline for `P0-2` without changing runtime semantics.
+- It preserves the run-scoped checkpoint design while eliminating an incidental implementation defect.
+- It allows immediate progression to runtime parity validation with confidence that failures (if any) are functional rather than syntax/import faults.
+
+### Validation gate for this step
+- `python -m pytest -q tests/services/world_streamer_producer/test_runner.py` passes.
+- No unrelated file/system behavior changes introduced.
+
+### Follow-on after this step
+If WSP runner tests pass, execute a fresh 200-event local-parity run and verify:
+- traffic/context `flow_id` overlap restored,
+- CSFB lookup parity for traffic flow ids,
+- DF `CONTEXT_WAITING` and fail-closed rates move from pathological posture.
+## 2026-02-09 10:19AM - P0-2 runtime closure evidence + pivot to P1 DL hysteresis defect
+
+### Runtime verification outcome for scoped WSP checkpoints
+Fresh run `platform_20260209T100615Z` completed with bounded WSP stream (`max_events_per_output=200`) and produced deterministic scoped checkpoint rows keyed by a new run-scoped `pack_key` (`cabe...`), with each output cursor ending at `last_row_index=199`.
+
+Evidence highlights:
+1. `wsp_checkpoint` (postgres):
+   - current run-scoped key rows at `row_index=199` for all four outputs,
+   - prior run-scoped key rows remain separate (`row_index=19`), confirming cross-run isolation.
+2. CSFB (postgres + metrics):
+   - `csfb_flow_bindings`: `200` rows, `200` unique flows for this platform run.
+   - `join_hits=200`, `join_misses=0`.
+3. Event-bus cohort check (kinesis):
+   - filtered traffic events (`event_type=s3_event_stream_with_fraud_6B`) = `200` for this run;
+   - filtered flow-anchor events (`event_type=s3_flow_anchor_with_fraud_6B`) = `200`;
+   - all traffic flow ids present in CSFB bindings (`missing=0`).
+
+Conclusion:
+- The original P0-2 root cause (cross-run checkpoint scope drift causing context/traffic cohort mismatch) is closed.
+
+### Newly isolated remaining failure mode (next ordered fix)
+Despite restored context binding, DF remained `FAIL_CLOSED` for decisions due capability/registry incompatibility reasons, now traced to DL posture persistence behavior:
+- DL stayed in `FAIL_CLOSED` with repeated reasons like `upshift_held_quiet_period:1s<60s`.
+- This indicates hysteresis elapsed time is effectively reset every loop, preventing mode recovery even when baseline is healthy.
+
+### Decision for immediate patch
+Proceed to `P1` DL hysteresis fix in evaluator:
+1. Preserve fail-closed safety semantics.
+2. Add elapsed accumulation across consecutive `upshift_held_quiet_period` decisions when mode remains unchanged.
+3. Keep deterministic behavior and no schema/store migration.
+4. Add regression test proving chained held decisions can progress to one-rung upshift once cumulative elapsed reaches quiet threshold.
+
+### Acceptance criteria for this patch
+- Degrade-ladder evaluator tests pass, including new accumulation regression.
+- In parity runtime follow-up, DL transitions away from perpetual `FAIL_CLOSED` lock when required signals remain healthy long enough.
+## 2026-02-09 10:21AM - P1 DL hysteresis patch validation plan before runtime replay
+
+### Patch summary
+`degrade_ladder.evaluator` now accumulates held-upshift elapsed time across consecutive `upshift_held_quiet_period` decisions instead of resetting to loop delta each cycle.
+
+### Why runtime replay is required
+Unit tests prove evaluator logic, but live parity validation is required to verify worker-loop behavior and downstream effect on DF resolver outcomes.
+
+### Runtime validation design
+1. Start fresh platform run with bounded WSP stream (`WSP_MAX_EVENTS_PER_OUTPUT=200`).
+2. Ensure patched worker binaries are active (pack restart).
+3. Drive SR READY using Kinesis wiring.
+4. Wait for WSP completion markers (`4 x emitted=200`).
+5. Validate:
+   - DL transitions beyond perpetual `FAIL_CLOSED` (expect `upshift_one_rung` evidence in DL store/events).
+   - DF reason distribution shifts away from all-`REGISTRY_FAIL_CLOSED`/`ACTIVE_BUNDLE_INCOMPATIBLE`.
+   - AL/DLA remain healthy (`publish_ambiguous_total=0`, append success intact).
+
+### Pass criteria
+- At least one DL upshift event is observed during run.
+- DF decisions are no longer `100%` fail-closed due capability/action posture mismatch.
+- No new schema quarantine regressions introduced.
+## 2026-02-09 11:00AM - P1/P2 continuation plan before edits: freshness posture + DLA metric drift
+
+### Trigger and current residuals
+Post `P0-1`, `P0-2`, and `P1` hysteresis fixes, the latest 200-event run (`platform_20260209T102145Z`) shows two active residuals from the ordered queue:
+1. **P1 freshness posture pressure** still drives extended DL required-signal-gap windows, keeping many DF decisions in fail-closed posture (`reason_code_counts` dominated by registry compatibility failures under degraded/fail-closed masks).
+2. **P2 DLA observability drift** persists: DLA health/metrics export reports `accepted_total=0` while intake table evidence for the same run scope has `accepted=600` and `candidate_total=600`.
+
+### Root-cause findings captured before code edits
+#### A) DLA accepted metric drift is deterministic SQL placeholder binding defect (not runtime data absence)
+- Verified directly from `runs/fraud-platform/platform_20260209T102145Z/decision_log_audit/dla_index.sqlite`:
+  - `dla_intake_attempts` contains `accepted=1` rows (`600`) and run-scoped rows for current run/scope.
+- Reproduced via in-process reporter call:
+  - `DecisionLogAuditObservabilityReporter.collect()` still emits `accepted_total=0`.
+- Isolated causal defect in `DecisionLogAuditIntakeStore.intake_metrics_snapshot` query execution path:
+  - SQL uses numbered placeholders out-of-order (`{p3}`, `{p4}`, then `{p1}`, `{p2}`, `{p5}`).
+  - SQLite adapter currently replaces placeholders with positional `?` tokens but **does not reorder params by placeholder index order**.
+  - Result: parameter binding mismatch for sqlite, where clause no longer matches intended run scope, aggregate sums return null -> coerced zero.
+
+#### B) Freshness pressure closure for bounded replay semantics
+- DL currently treats non-GREEN component health as required-signal `ERROR` (`_signal_component_health`), and local-parity health thresholds are tuned for live cadence (`~120/300s`), not bounded replay drain windows.
+- This causes post-drain/late-run signals to flip to required gap too aggressively for parity replay timing, increasing fail-closed residency.
+- Closure approach for this wave: **local-parity threshold tuning** (not global semantic relaxation), keeping fail-closed semantics intact while aligning replay cadence windows.
+
+### Chosen implementation sequence (ordered)
+1. **P2 first (low blast radius, deterministic):**
+- Patch DLA storage SQL rendering/binding helpers so sqlite uses placeholder-order-aware param mapping.
+- Add regression test proving out-of-order numbered placeholders bind correctly.
+- Add/strengthen DLA observability test asserting non-zero `accepted_total` when accepted rows exist.
+
+2. **P1 freshness next:**
+- Introduce local-parity-only observability threshold overrides for IEG/OFP (and CSFB where relevant for reporter consistency) so bounded 200-event runs do not prematurely degrade due replay wall-clock drift.
+- Keep default thresholds unchanged for non-local-parity profiles.
+- Re-run targeted suites and one fresh bounded parity run to verify DL spends materially less time in required-signal-gap fail-closed windows and DF fail-closed percentage drops.
+
+### Invariants and guardrails
+- No relaxation of fail-closed-on-unknown compatibility.
+- No truth-ownership boundary changes.
+- No destructive data migrations; only runtime logic + profile/config threshold controls.
+- Preserve append-only semantics and idempotency.
+
+### Validation gates for this wave
+- Unit:
+  - DLA storage/observability tests pass with accepted_total regression coverage.
+  - IEG/OFP/CSFB observability tests pass with new local-parity threshold behavior.
+- Runtime:
+  - Fresh 200-event parity run exhibits corrected DLA `accepted_total` parity with intake evidence.
+  - DL governance events show reduced `WORKER_LOOP_REQUIRED_SIGNAL_GAP` dominance for active run window.
+  - DF reconciliation shows reduced fail-closed share relative to pre-fix baseline.
+## 2026-02-09 10:50AM - P2 closure: DLA accepted_total drift fixed via sqlite placeholder-order binding
+
+### What was fixed
+Implemented deterministic SQL binding correction in `src/fraud_detection/decision_log_audit/storage.py` for sqlite backend:
+- Added `_render_sql_with_params(sql, backend, params)` that:
+  - preserves existing postgres numbered placeholder behavior,
+  - for sqlite, replaces `{pN}` placeholders in **textual appearance order** and builds a reordered parameter tuple accordingly.
+- Updated `_query_one`, `_query_all`, and `_execute` to use the new renderer+ordered params path.
+
+### Root cause resolved
+The prior sqlite path converted numbered placeholders to positional `?` markers without reordering parameters. Queries with out-of-order placeholders (for example `{p3}`, `{p4}`, then `{p1}`, `{p2}`, `{p5}`) silently bound wrong values and produced null aggregates. This directly caused DLA observability to emit `accepted_total=0` despite accepted rows existing.
+
+### Regression coverage added
+1. `tests/services/decision_log_audit/test_dla_phase3_intake.py`
+- Added `test_phase3_intake_metrics_snapshot_counts_accepted_attempts`:
+  - records one accepted + one rejected intake attempt,
+  - asserts snapshot counters (`accepted_total=1`, `rejected_total=1`).
+
+2. `tests/services/decision_log_audit/test_dla_phase7_observability.py`
+- Strengthened observability assertions to include `accepted_total` non-zero expectation for the accepted sample path.
+
+### Validation results
+- Targeted tests:
+  - `python -m pytest -q tests/services/decision_log_audit/test_dla_phase3_intake.py tests/services/decision_log_audit/test_dla_phase7_observability.py`
+  - Result: **13 passed**.
+- Runtime evidence check on latest run DB (`platform_20260209T102145Z`):
+  - `DecisionLogAuditObservabilityReporter.collect()['metrics']` now returns:
+    - `accepted_total=600`
+    - `rejected_total=200`
+    - `append_success_total=800`
+  - This matches direct intake table evidence and closes P2 metric parity drift.
+
+### Residual queue after this closure
+- Remaining ordered item is `P1 freshness-health policy adjustments for bounded replay` to reduce DL required-signal-gap residency and downstream DF fail-closed share in parity runs.
+## 2026-02-09 11:09AM - P1 continuation pre-edit: CSFB late-applied anomaly counted as hard failure (DL fail-closed pin)
+
+### Trigger and residual observation
+Fresh bounded run `platform_20260209T105409Z` still held DL mostly in `WORKER_LOOP_REQUIRED_SIGNAL_GAP` fail-closed posture despite prior P0/P1/P2 fixes. Runtime evidence now isolates this to CSFB health classification rather than IEG/OFP freshness:
+- `context_store_flow_binding/metrics/last_metrics.json` reports `apply_failures=600`, `join_hits=200`, `join_misses=0`, `binding_conflicts=0`.
+- `context_store_flow_binding/reconciliation/last_reconciliation.json` unresolved anomalies are overwhelmingly `LATE_CONTEXT_EVENT` with details `{..., "applied": true}` (events were accepted and checkpointed).
+- CSFB health state resolves `RED` via `APPLY_FAILURES_RED`, and DL required-signal gate consumes this as `ERROR`, forcing fail-closed transitions.
+
+### Root-cause determination
+CSFB currently treats all rows in `csfb_join_apply_failures` as equivalent hard apply failures in observability metrics:
+- `ContextStoreFlowBindingStore.metrics_snapshot` computes `apply_failures` as `COUNT(*)` over all failure ledger rows.
+- Phase 3 semantics intentionally record `LATE_CONTEXT_EVENT` for machine-readable provenance even when the event was successfully applied (`details.applied=true`).
+- Therefore, replay/out-of-order-but-applied context traffic inflates hard-failure counters and falsely drives red health posture.
+
+### Decision and closure strategy
+Implement a split-failure metric posture while preserving append-only anomaly truth:
+1. Keep `csfb_join_apply_failures` append-only ledger unchanged.
+2. Extend CSFB metrics snapshot to expose:
+   - `apply_failures`: total anomaly/failure rows (backward compatibility + visibility),
+   - `late_context_applied`: rows where `reason_code=LATE_CONTEXT_EVENT` and `details.applied=true`,
+   - `apply_failures_hard`: hard failure count used for health (`apply_failures - late_context_applied`).
+3. Update CSFB health derivation to gate on `apply_failures_hard` (fallback to `apply_failures` if absent).
+4. Update platform run reporter degraded tally to prefer `apply_failures_hard` when present.
+5. Add targeted regression tests proving late-applied anomalies remain visible but no longer trigger apply-failure red posture by themselves.
+
+### Invariants preserved
+- No data deletion, no migration, no change to anomaly recording behavior.
+- Fail-closed semantics remain for genuine apply failures (missing keys, conflicts, payload mismatches, etc.).
+- Replay provenance remains first-class and queryable via unresolved anomalies.
+
+### Validation gates for this patch
+- `tests/services/context_store_flow_binding/test_phase6_observability.py` remains green with new assertions.
+- `tests/services/platform_reporter/test_run_reporter.py` remains green after reporter fallback tweak.
+- Fresh bounded parity run shows CSFB health no longer red from late-applied-only pressure, and DL forced fail-closed rate materially drops relative to `platform_20260209T105409Z`.
+## 2026-02-09 11:28AM - Runtime corrective entry: CSFB observability SQL wildcard escaped incorrectly for Postgres
+
+### What happened in the fresh 200-event run
+During active run `platform_20260209T111201Z` (scenario run `3428b5fc544db2a972083fadc86499bd`), WSP completed bounded streaming (`200` per output), but CSFB observability artifacts were absent and DL remained forced fail-closed.
+
+Runtime evidence:
+- `runs/fraud-platform/operate/local_parity_rtdl_core_v0/logs/csfb_intake.log` repeatedly logged:
+  - `CSFB observability export failed: only '%s', '%b', '%t' are allowed as placeholders, got '%"'`.
+- `runs/fraud-platform/platform_20260209T111201Z/context_store_flow_binding/*` artifacts were not emitted.
+- DL posture remained dominated by `WORKER_LOOP_REQUIRED_SIGNAL_GAP` (`dl.fail_closed_forced.v1` high-volume) because required CSFB health signal was missing/error.
+
+### Root cause
+The new `late_applied_sql` filter added in `ContextStoreFlowBindingStore.metrics_snapshot` used a Postgres SQL literal with unescaped `%` in `LIKE '%"applied":true%'`.
+- In postgres mode, `%` is parsed by the driver placeholder system and must be escaped as `%%` when used literally.
+- Result: CSFB reporter query fails before metric payload generation.
+
+### Immediate corrective decision
+Patch SQL wildcard literal to be backend-safe by using escaped wildcard syntax in the query literal (`%%...%%`) so postgres no longer interprets `%"` as an invalid placeholder token.
+
+### Validation plan after patch
+1. Targeted CSFB observability tests remain green.
+2. Direct runtime reporter call against parity CSFB Postgres DSN succeeds (no placeholder error).
+3. Restart RTDL core pack, re-run bounded 200-event stream, and confirm:
+   - CSFB health/metrics artifacts are emitted for active run.
+   - DL required-signal fail-closed pressure drops vs pre-fix run snapshot.
+## 2026-02-09 11:43AM - P1 residual isolation after CSFB hotfix: IEG watermark-age posture still forces DL fail-closed
+
+### Post-hotfix run evidence
+After fixing CSFB observability SQL and rerunning bounded parity (`platform_20260209T112929Z`, scenario `1af0489a8d3505c892116b96f8309670`):
+- CSFB artifacts now emit successfully and show intended split metrics:
+  - `apply_failures=600`, `apply_failures_hard=0`, `late_context_applied=600`, health=`GREEN`.
+- OFP health=`GREEN`.
+- IEG health remained `RED` with `WATERMARK_TOO_OLD` (`watermark_age_seconds~5229`, checkpoint age fresh).
+- DL remained fully forced fail-closed:
+  - `dl.posture_transition.v1=745`, `dl.fail_closed_forced.v1=745`, source=`WORKER_LOOP_REQUIRED_SIGNAL_GAP` only.
+- DF consequently remained `FAIL_CLOSED` for all observed decisions.
+
+### Interpretation
+With CSFB now healthy, the dominant required-signal gap in this run is IEG watermark-age posture under replay cadence. Event-time watermark ages keep growing in wall-clock terms during/after bounded replay and cross current local-parity IEG red threshold (`1800s`), even while checkpoints are current.
+
+### Decision for immediate continuation patch
+Adjust local-parity replay thresholds for IEG watermark age (and OFP parity for symmetry) to replay-safe values aligned with CSFB posture:
+- IEG watermark thresholds: amber/red -> large replay-safe envelope (`5_000_000` / `8_000_000` seconds).
+- OFP watermark thresholds: align same envelope to avoid future replay drift false-reds.
+- Keep checkpoint thresholds unchanged (`900/1800`) so stalled consumers still surface via checkpoint age.
+
+### Acceptance gate for this step
+Fresh bounded run after pack restart shows:
+- IEG no longer red solely due replay watermark age,
+- DL no longer pinned 100% by `WORKER_LOOP_REQUIRED_SIGNAL_GAP`,
+- DF fail-closed share drops from 100% baseline in this run wave.

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from datetime import datetime, timezone
 from pathlib import Path
 import random
 import time
@@ -173,7 +174,10 @@ def build_action_outcome_envelope(
         "event_id": str(payload["outcome_id"]),
         "event_type": ACTION_OUTCOME_EVENT_TYPE,
         "schema_version": ACTION_OUTCOME_SCHEMA_VERSION,
-        "ts_utc": str(payload["completed_at_utc"]),
+        "ts_utc": _canonicalize_utc_timestamp(
+            payload.get("completed_at_utc"),
+            field_name="payload.completed_at_utc",
+        ),
         "manifest_fingerprint": str(pins["manifest_fingerprint"]),
         "parameter_hash": str(pins["parameter_hash"]),
         "seed": int(pins["seed"]),
@@ -195,3 +199,20 @@ def _response_text(response: Any) -> str:
     text = str(value or "").strip()
     return text[:256]
 
+
+def _canonicalize_utc_timestamp(value: Any, *, field_name: str) -> str:
+    raw = str(value or "").strip()
+    if not raw:
+        raise ActionLayerPublishError(f"{field_name} is required")
+
+    parse_input = raw[:-1] + "+00:00" if raw.endswith("Z") else raw
+    try:
+        parsed = datetime.fromisoformat(parse_input)
+    except ValueError as exc:
+        raise ActionLayerPublishError(f"{field_name} must be an ISO-8601 timestamp") from exc
+
+    if parsed.tzinfo is None:
+        parsed = parsed.replace(tzinfo=timezone.utc)
+    else:
+        parsed = parsed.astimezone(timezone.utc)
+    return parsed.strftime("%Y-%m-%dT%H:%M:%S.%fZ")

@@ -223,3 +223,14 @@ def test_snapshot_failure_counter_is_exported(tmp_path) -> None:
     reporter = OfpObservabilityReporter.build(str(profile_path))
     summary = reporter.collect(scenario_run_id=str(_pins()["scenario_run_id"]))
     assert summary["metrics"]["snapshot_failures"] >= 1
+
+
+def test_phase7_build_applies_env_threshold_overrides(tmp_path, monkeypatch) -> None:
+    profile_path, _ = _setup_profile(tmp_path, write_event=False)
+    monkeypatch.setenv("OFP_HEALTH_AMBER_CHECKPOINT_AGE_SECONDS", "777")
+    monkeypatch.setenv("OFP_HEALTH_RED_CHECKPOINT_AGE_SECONDS", "999")
+
+    reporter = OfpObservabilityReporter.build(str(profile_path))
+
+    assert reporter.thresholds.amber_checkpoint_age_seconds == 777.0
+    assert reporter.thresholds.red_checkpoint_age_seconds == 999.0

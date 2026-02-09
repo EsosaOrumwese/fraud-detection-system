@@ -82,6 +82,7 @@ def test_platform_run_reporter_exports_cross_plane_artifact(tmp_path: Path, monk
     assert payload["rtdl"]["decision"] == 1
     assert payload["rtdl"]["outcome"] == 1
     assert payload["rtdl"]["audit_append"] == 5
+    assert payload["rtdl"]["degraded"] == 1
     assert payload["basis"]["evidence_ref_resolution"]["attempted"] >= 1
     assert payload["basis"]["provenance"]["service_release_id"] == "dev-local"
     assert payload["basis"]["provenance"]["environment"] == "test"
@@ -337,5 +338,22 @@ def _seed_csfb_store(*, db_path: Path, platform_run_id: str, scenario_run_id: st
         offset="1",
         offset_kind="file_line",
         event_id="c1",
+        event_type="arrival_events_5B",
+    )
+    store.record_apply_failure(
+        reason_code="LATE_CONTEXT_EVENT",
+        details={
+            "applied": True,
+            "event_type": "arrival_events_5B",
+            "event_ts_utc": "2026-02-08T20:59:58.000000Z",
+            "watermark_ts_utc": "2026-02-08T21:00:00.000000Z",
+        },
+        platform_run_id=platform_run_id,
+        scenario_run_id=scenario_run_id,
+        topic="fp.bus.context.arrival_events.v1",
+        partition_id=0,
+        offset="2",
+        offset_kind="file_line",
+        event_id="c2",
         event_type="arrival_events_5B",
     )

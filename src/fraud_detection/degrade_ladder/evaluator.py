@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from datetime import datetime, timezone
+import re
 from typing import Iterable
 
 from .config import DlPolicyProfile
@@ -12,6 +13,7 @@ from .signals import DlSignalSnapshot
 
 
 SCOPE_KINDS: tuple[str, ...] = ("GLOBAL", "MANIFEST", "RUN")
+_UPSHIFT_HELD_REASON_PATTERN = re.compile(r"upshift_held_quiet_period:(?P<elapsed>\d+)s<(?P<quiet>\d+)s")
 
 
 class DlEvaluationError(ValueError):
@@ -230,8 +232,11 @@ def _apply_hysteresis(
         return current_mode, "steady_state"
 
     quiet_seconds = _quiet_period_seconds(profile)
-    prior_dt = _parse_utc(prior_decision.decided_at_utc, field_name="prior_decision.decided_at_utc")
-    elapsed_seconds = int((decision_dt - prior_dt).total_seconds())
+    elapsed_seconds = _held_elapsed_seconds(
+        prior_decision=prior_decision,
+        decision_dt=decision_dt,
+        quiet_seconds=quiet_seconds,
+    )
     if elapsed_seconds < quiet_seconds:
         return current_mode, f"upshift_held_quiet_period:{elapsed_seconds}s<{quiet_seconds}s"
 
@@ -240,6 +245,33 @@ def _apply_hysteresis(
         candidate_index = baseline_index
     next_mode = MODE_SEQUENCE[candidate_index]
     return next_mode, f"upshift_one_rung:{current_mode}->{next_mode}"
+
+
+def _held_elapsed_seconds(
+    *,
+    prior_decision: DegradeDecision,
+    decision_dt: datetime,
+    quiet_seconds: int,
+) -> int:
+    """Carry held-upshift elapsed across loop iterations to avoid perpetual reset."""
+    prior_dt = _parse_utc(prior_decision.decided_at_utc, field_name="prior_decision.decided_at_utc")
+    delta_seconds = max(0, int((decision_dt - prior_dt).total_seconds()))
+    prior_elapsed = _parse_held_elapsed(prior_decision.reason, quiet_seconds=quiet_seconds)
+    if prior_elapsed is None:
+        return delta_seconds
+    return prior_elapsed + delta_seconds
+
+
+def _parse_held_elapsed(reason: str | None, *, quiet_seconds: int) -> int | None:
+    text = _norm(reason)
+    if not text:
+        return None
+    match = _UPSHIFT_HELD_REASON_PATTERN.search(text)
+    if match is None:
+        return None
+    if int(match.group("quiet")) != quiet_seconds:
+        return None
+    return int(match.group("elapsed"))
 
 
 def _quiet_period_seconds(profile: DlPolicyProfile) -> int:

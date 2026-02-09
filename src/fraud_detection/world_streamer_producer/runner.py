@@ -5,6 +5,7 @@ from __future__ import annotations
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from dataclasses import dataclass
 from datetime import datetime, timezone
+import hashlib
 import os
 import json
 import logging
@@ -563,6 +564,11 @@ class WorldStreamProducer:
                 output_parallelism = 1
         else:
             output_parallelism = len(output_ids) if len(output_ids) > 1 else 1
+        checkpoint_pack_key = _checkpoint_scope_key(
+            pack_key=pack_key,
+            platform_run_id=platform_run_id,
+            scenario_run_id=scenario_run_id,
+        )
 
         def _save_checkpoint(cursor: CheckpointCursor, *, reason: str) -> None:
             checkpoint_store.save(cursor)
@@ -571,6 +577,9 @@ class WorldStreamProducer:
                 "checkpoint_saved",
                 {
                     "pack_key": cursor.pack_key,
+                    "pack_key_base": pack_key,
+                    "platform_run_id": platform_run_id,
+                    "scenario_run_id": scenario_run_id,
                     "output_id": cursor.output_id,
                     "last_file": cursor.last_file,
                     "last_row_index": cursor.last_row_index,
@@ -625,7 +634,7 @@ class WorldStreamProducer:
             if not files:
                 raise IngestionError("STREAM_VIEW_EMPTY", output_id)
             files = sorted([path for path in files if path.endswith(".parquet")])
-            cursor = checkpoint_store.load(pack_key, output_id)
+            cursor = checkpoint_store.load(checkpoint_pack_key, output_id)
             last_ts: datetime | None = None
             emitted_output = 0
             last_progress_time = time.monotonic()
@@ -679,7 +688,7 @@ class WorldStreamProducer:
                     self._push_to_ig(envelope)
                     emitted_output += 1
                     cursor = CheckpointCursor(
-                        pack_key=pack_key,
+                        pack_key=checkpoint_pack_key,
                         output_id=output_id,
                         last_file=file_path,
                         last_row_index=row_index,
@@ -955,9 +964,13 @@ def _build_checkpoint_store(profile: WspProfile) -> CheckpointStore:
 
 
 def _fallback_pack_key(engine_root: str) -> str:
-    import hashlib
-
     return hashlib.sha256(engine_root.encode("utf-8")).hexdigest()
+
+
+def _checkpoint_scope_key(*, pack_key: str, platform_run_id: str, scenario_run_id: str) -> str:
+    # Keep checkpoint scope run-bound so new platform runs never resume prior offsets.
+    payload = "|".join((pack_key, platform_run_id, scenario_run_id))
+    return hashlib.sha256(payload.encode("utf-8")).hexdigest()
 
 
 def _should_skip(cursor: CheckpointCursor, path: str, row_index: int) -> bool:

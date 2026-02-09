@@ -7,6 +7,7 @@ from datetime import datetime, timezone
 import hashlib
 import json
 from pathlib import Path
+import re
 import sqlite3
 from typing import Any, Mapping
 from urllib.parse import urlparse
@@ -2109,38 +2110,60 @@ def _render_sql(sql: str, backend: str) -> str:
     return rendered
 
 
+_SQL_PARAM_PATTERN = re.compile(r"\{p(?P<index>\d+)\}")
+
+
+def _render_sql_with_params(sql: str, backend: str, params: tuple[Any, ...]) -> tuple[str, tuple[Any, ...]]:
+    if backend == "postgres":
+        return _render_sql(sql, backend), params
+
+    ordered_params: list[Any] = []
+
+    def _replace(match: re.Match[str]) -> str:
+        index = int(match.group("index"))
+        if index <= 0 or index > len(params):
+            raise DecisionLogAuditIndexStoreError(
+                f"SQL placeholder index p{index} out of range for {len(params)} params"
+            )
+        ordered_params.append(params[index - 1])
+        return "?"
+
+    rendered = _SQL_PARAM_PATTERN.sub(_replace, sql)
+    return rendered, tuple(ordered_params)
+
+
 def _query_one(conn: Any, backend: str, sql: str, params: tuple[Any, ...]) -> Any:
-    rendered = _render_sql(sql, backend)
+    rendered, ordered_params = _render_sql_with_params(sql, backend, params)
     if backend == "sqlite":
-        cur = conn.execute(rendered, params)
+        cur = conn.execute(rendered, ordered_params)
         return cur.fetchone()
     cur = conn.cursor()
-    cur.execute(rendered, params)
+    cur.execute(rendered, ordered_params)
     row = cur.fetchone()
     cur.close()
     return row
 
 
 def _query_all(conn: Any, backend: str, sql: str, params: tuple[Any, ...]) -> list[Any]:
-    rendered = _render_sql(sql, backend)
+    rendered, ordered_params = _render_sql_with_params(sql, backend, params)
     if backend == "sqlite":
-        cur = conn.execute(rendered, params)
+        cur = conn.execute(rendered, ordered_params)
         return list(cur.fetchall())
     cur = conn.cursor()
-    cur.execute(rendered, params)
+    cur.execute(rendered, ordered_params)
     rows = list(cur.fetchall())
     cur.close()
     return rows
 
 
 def _execute(conn: Any, backend: str, sql: str, params: tuple[Any, ...]) -> None:
-    rendered = _render_sql(sql, backend)
+    rendered, ordered_params = _render_sql_with_params(sql, backend, params)
     if backend == "sqlite":
-        conn.execute(rendered, params)
+        conn.execute(rendered, ordered_params)
         conn.commit()
         return
     cur = conn.cursor()
-    cur.execute(rendered, params)
+    cur.execute(rendered, ordered_params)
     conn.commit()
     cur.close()
 

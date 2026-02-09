@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from datetime import datetime, timezone
 import json
 import sqlite3
 from pathlib import Path
@@ -129,6 +130,8 @@ def test_phase6_collect_metrics_and_health(tmp_path: Path) -> None:
     assert metrics["join_misses"] == 1
     assert metrics["binding_conflicts"] == 1
     assert metrics["apply_failures"] == 1
+    assert metrics["apply_failures_hard"] == 1
+    assert metrics["late_context_applied"] == 0
     assert payload["threshold_policy_ref"] == "csfb.observability.v0"
     assert payload["applied_offset_basis"] is not None
     assert payload["applied_offset_basis"]["basis_digest"]
@@ -180,3 +183,56 @@ def test_phase6_export_writes_reconciliation_artifact(tmp_path: Path) -> None:
     recon = json.loads(recon_path.read_text(encoding="utf-8"))
     assert recon["applied_offset_basis"] == payload["applied_offset_basis"]
     assert recon["unresolved_anomalies"] == payload["unresolved_anomalies"]
+
+
+def test_phase6_policy_load_applies_env_threshold_overrides(tmp_path: Path, monkeypatch) -> None:
+    db_path = tmp_path / "csfb.sqlite"
+    _seed_store(db_path)
+    monkeypatch.setenv("CSFB_HEALTH_AMBER_CHECKPOINT_AGE_SECONDS", "777")
+    monkeypatch.setenv("CSFB_HEALTH_RED_CHECKPOINT_AGE_SECONDS", "999")
+
+    reporter = CsfbObservabilityReporter.build(locator=db_path, stream_id="csfb.v0")
+
+    assert reporter.policy.thresholds.amber_checkpoint_age_seconds == 777.0
+    assert reporter.policy.thresholds.red_checkpoint_age_seconds == 999.0
+
+
+def test_phase6_late_applied_anomaly_not_counted_as_hard_apply_failure(tmp_path: Path) -> None:
+    db_path = tmp_path / "csfb.sqlite"
+    store = build_store(locator=db_path, stream_id="csfb.v0")
+    now = datetime.now(tz=timezone.utc).isoformat().replace("+00:00", "Z")
+    store.record_apply_failure(
+        reason_code="LATE_CONTEXT_EVENT",
+        details={
+            "applied": True,
+            "event_type": "arrival_events_5B",
+            "event_ts_utc": "2026-02-07T03:00:00.000000Z",
+            "watermark_ts_utc": "2026-02-07T03:00:10.000000Z",
+        },
+        platform_run_id=str(_pins()["platform_run_id"]),
+        scenario_run_id=str(_pins()["scenario_run_id"]),
+        topic="fp.bus.context.arrival_events.v1",
+        partition_id=0,
+        offset="99",
+        offset_kind="file_line",
+        event_id="9" * 64,
+        event_type="arrival_events_5B",
+    )
+    store.advance_checkpoint(
+        topic="fp.bus.context.arrival_events.v1",
+        partition_id=0,
+        next_offset="100",
+        offset_kind="file_line",
+        watermark_ts_utc=now,
+    )
+    reporter = CsfbObservabilityReporter.build(locator=db_path, stream_id="csfb.v0")
+    payload = reporter.collect(
+        platform_run_id=str(_pins()["platform_run_id"]),
+        scenario_run_id=str(_pins()["scenario_run_id"]),
+    )
+
+    metrics = payload["metrics"]
+    assert metrics["apply_failures"] == 1
+    assert metrics["late_context_applied"] == 1
+    assert metrics["apply_failures_hard"] == 0
+    assert "APPLY_FAILURES_RED" not in set(payload["health_reasons"])

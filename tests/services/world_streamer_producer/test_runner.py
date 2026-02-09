@@ -197,6 +197,46 @@ def test_wsp_checkpoint_resume(monkeypatch, tmp_path: Path) -> None:
     assert second.emitted == 1
 
 
+def test_wsp_checkpoint_isolated_by_platform_run_scope(monkeypatch, tmp_path: Path) -> None:
+    engine_root = tmp_path / "engine_run"
+    engine_root.mkdir()
+    receipt = _write_run_receipt(engine_root)
+    rows = _write_arrival_events(engine_root, receipt, "baseline_v1", count=2)
+    _write_stream_view(engine_root, output_id="arrival_events_5B", rows=rows)
+    profile = _profile(engine_root, output_ids=["arrival_events_5B"], checkpoint_root=tmp_path / "cp")
+    producer = WorldStreamProducer(profile)
+
+    sent: list[dict] = []
+
+    def _fake_push(envelope: dict) -> None:
+        sent.append(envelope)
+
+    run_ids = iter(["platform_20260209T010101Z", "platform_20260209T010102Z"])
+    monkeypatch.setattr(
+        "fraud_detection.world_streamer_producer.runner.resolve_platform_run_id",
+        lambda create_if_missing=True: next(run_ids),
+    )
+    monkeypatch.setattr(producer, "_push_to_ig", _fake_push)
+
+    first = producer.stream_engine_world(
+        engine_run_root=str(engine_root), scenario_id="baseline_v1", max_events=1
+    )
+    assert first.status == "STREAMED"
+    assert first.emitted == 1
+    first_arrival_seq = int(sent[0]["payload"]["arrival_seq"])
+
+    sent.clear()
+    second = producer.stream_engine_world(
+        engine_run_root=str(engine_root), scenario_id="baseline_v1", max_events=1
+    )
+    assert second.status == "STREAMED"
+    assert second.emitted == 1
+    second_arrival_seq = int(sent[0]["payload"]["arrival_seq"])
+
+    assert first_arrival_seq == 1
+    assert second_arrival_seq == 1
+
+
 def test_wsp_fails_producer_allowlist(tmp_path: Path) -> None:
     engine_root = tmp_path / "engine_run"
     engine_root.mkdir()
