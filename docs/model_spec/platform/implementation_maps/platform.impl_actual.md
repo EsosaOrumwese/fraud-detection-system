@@ -7676,3 +7676,71 @@ Execute LS Phase 7 by adding OFS-consumable bulk as-of slice surfaces with expli
 
 ### Residual notes
 - LS next active step is Phase 8 integration closure/parity proof.
+
+## Entry: 2026-02-09 07:21PM - LS Phase 8 execution lock (platform Phase 5.9 closure gate)
+
+### Scope
+Execute Label Store Phase 8 integration closure with explicit parity proof and negative-path evidence so platform Phase `5.9` can treat LS as closure-ready at component scope.
+
+### Locked implementation posture
+- Implement LS Phase 8 matrix with real CM->LS continuity path:
+  - `CaseTriggerIntakeLedger` admission,
+  - `CaseLabelHandshakeCoordinator` emission,
+  - `LabelStoreWriterBoundary` commit + `label_as_of` read proof.
+- Emit component parity artifacts for `20` and `200` event loops under run-scoped `label_store/reconciliation` paths.
+- Emit negative-path proof artifact for:
+  - LS payload hash mismatch reject,
+  - deterministic duplicate assertion replay,
+  - invalid subject contract reject,
+  - unavailable writer-store yielding CM pending posture.
+- Ensure reconciliation proof payloads contain accepted/rejected/pending counts and evidence refs needed for auditability.
+- Keep truth-ownership boundaries intact:
+  - CM emits assertions only,
+  - LS writer remains authoritative truth commit/read boundary.
+
+### Acceptance gate
+- LS Phase 8 matrix green.
+- LS Phase1..8 suite green.
+- CM label/phase8 regression green.
+- Platform reporter regression green.
+- Build plans + implementation maps + logbook updated with exact artifact refs and command evidence.
+
+### Drift sentinel pre-check
+- No planned divergence from flow narrative or pinned ownership boundaries detected for this lock.
+- Any runtime mismatch discovered during matrix execution will be escalated as blocker before closure claim.
+
+## Entry: 2026-02-09 07:27PM - LS Phase 8 closure (platform Phase 5.9 closure gate progression)
+
+### What was closed
+- LS Phase 8 integration closure is implemented and validated with component-scope parity proofs and negative-path evidence.
+- Closure now explicitly demonstrates:
+  - `CM disposition -> LabelAssertion -> LS ack -> LS as-of read`,
+  - fail-closed mismatch/invalid-subject behavior at LS boundary,
+  - deterministic duplicate replay behavior,
+  - unavailable writer-store posture captured as CM pending emission.
+
+### Platform-level impact
+- Platform Phase `5.9` is advanced with LS-side closure evidence now complete.
+- Case+Labels handoff posture is stronger for Phase 6 readiness:
+  - LS truth loop is proven from CM-originated assertion through authoritative read-back,
+  - reconciliation artifacts now include dedicated parity and negative-path proof docs under run-scoped paths.
+- Truth ownership boundaries remain aligned:
+  - CM owns workflow and emission intent,
+  - LS owns label truth commit/replay/reject and as-of resolution.
+
+### Evidence references
+- Tests:
+  - `tests/services/label_store/test_phase8_validation_matrix.py`
+- Artifacts:
+  - `runs/fraud-platform/platform_20260209T213020Z/label_store/reconciliation/phase8_parity_proof_20.json`
+  - `runs/fraud-platform/platform_20260209T213200Z/label_store/reconciliation/phase8_parity_proof_200.json`
+  - `runs/fraud-platform/platform_20260209T213400Z/label_store/reconciliation/phase8_negative_path_proof.json`
+- Validation:
+  - LS Phase 8 matrix `4 passed`
+  - LS Phase1..8 suite `40 passed`
+  - CM label/phase8 regression `10 passed`
+  - platform reporter regression `2 passed`
+
+### Drift sentinel assessment
+- No designed-flow drift detected in this closure step.
+- Runtime behavior observed in matrices matches flow intent and pinned ownership boundaries for Phase `5.9`.

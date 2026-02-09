@@ -817,3 +817,133 @@ Phase 1..6 gives LS correctness + observability but no OFS-scale deterministic s
   - label maturity/coverage signals are available for dataset gating,
   - multi-run safety is enforced at bulk target-scope boundary,
   - replay/rebuild determinism is validated via stable slice digest before/after timeline rebuild.
+
+## Entry: 2026-02-09 07:21PM - Pre-change lock for Phase 8 (LS integration closure and parity proof)
+
+### Objective
+Close LS Phase 8 with explicit evidence for the full human-truth loop:
+`CM disposition -> LabelAssertion -> LS ack -> as-of read`, plus fail-closed negative-path proofs and reconciliation artifacts tied to platform Phase `5.9`.
+
+### Authority inputs used
+- `docs/model_spec/platform/implementation_maps/label_store.build_plan.md` (Phase 8 DoD)
+- `docs/model_spec/platform/implementation_maps/platform.build_plan.md` (Phase `5.9` closure gate)
+- `docs/model_spec/platform/component-specific/flow-narrative-platform-design.md` (Case+Label runtime flow intent)
+- Existing CM/LS handshake/runtime surfaces:
+  - `src/fraud_detection/case_mgmt/label_handshake.py`
+  - `src/fraud_detection/case_mgmt/intake.py`
+  - `src/fraud_detection/label_store/writer_boundary.py`
+  - `src/fraud_detection/label_store/observability.py`
+
+### Problem framing
+Phase 1..7 establishes contracts, writer correctness, timelines, as-of reads, adapters, observability, and OFS slices. Remaining closure gap is cross-component proof quality:
+1. direct continuity proof from CM disposition semantics into LS truth and LS read-back surfaces,
+2. explicit negative-path evidence for mismatch/duplicate/invalid/unavailable conditions,
+3. reconciliation proof artifacts that expose accepted/rejected/pending counts and evidence refs in run-scoped outputs.
+
+### Alternatives considered
+1. Standalone LS-only phase8 matrix against writer boundary.
+- Rejected: insufficient to prove CM->LS continuity required by DoD.
+2. Full platform daemon run for LS phase8 closure.
+- Rejected for this phase gate: expensive and broad; component-scope closure is better served by deterministic matrix tests that generate parity artifacts.
+3. CM+LS integration matrix with real CM ledger + real LS writer boundary plus targeted negative-path injectors.
+- Selected: proves required continuity without adding orchestration dependencies; enables deterministic `20/200` artifacts and repeatable failure-lane evidence.
+
+### Decisions locked before edits
+1. Add dedicated LS Phase 8 matrix test module:
+- `tests/services/label_store/test_phase8_validation_matrix.py`
+2. Use real CM+LS surfaces in continuity/parity proof path:
+- `CaseTriggerIntakeLedger` + `CaseLabelHandshakeCoordinator` + `LabelStoreWriterBoundary`.
+3. Use explicit negative-path bundles:
+- payload hash mismatch (LS writer fail-closed),
+- duplicate assertion replay (LS writer deterministic accept/replay),
+- invalid subject payload (contract-invalid reject),
+- unavailable writer store (CM emission remains `PENDING` with explicit reason).
+4. Write run-scoped parity artifacts under:
+- `runs/fraud-platform/<platform_run_id>/label_store/reconciliation/phase8_parity_proof_20.json`
+- `runs/fraud-platform/<platform_run_id>/label_store/reconciliation/phase8_parity_proof_200.json`
+- `runs/fraud-platform/<platform_run_id>/label_store/reconciliation/phase8_negative_path_proof.json`
+5. Reconciliation proof payloads will carry:
+- accepted/rejected/pending counts,
+- duplicate and mismatch counters,
+- evidence refs (governance/ref pointers and assertion refs where available).
+
+### Drift sentinel check before implementation
+- Intended flow for Phase 8 requires CM-originated label assertions to become LS authoritative truth and be queryable by as-of surfaces. Planned implementation uses that exact runtime graph and does not rely on matrix-only shortcuts for decision ownership.
+- No designed-flow contradiction identified at pre-change lock stage; proceed with implementation.
+
+### Planned files
+- New:
+  - `tests/services/label_store/test_phase8_validation_matrix.py`
+- Update (if export surface changes are needed after implementation):
+  - `src/fraud_detection/label_store/__init__.py`
+- Documentation updates after validation:
+  - `docs/model_spec/platform/implementation_maps/label_store.build_plan.md`
+  - `docs/model_spec/platform/implementation_maps/platform.build_plan.md`
+  - `docs/model_spec/platform/implementation_maps/label_store.impl_actual.md`
+  - `docs/model_spec/platform/implementation_maps/platform.impl_actual.md`
+  - `docs/logbook/02-2026/2026-02-09.md`
+
+### Validation plan
+- `python -m py_compile tests/services/label_store/test_phase8_validation_matrix.py`
+- `python -m pytest -q tests/services/label_store/test_phase8_validation_matrix.py`
+- `python -m pytest -q tests/services/label_store/test_phase1_label_store_contracts.py tests/services/label_store/test_phase1_label_store_ids.py tests/services/label_store/test_phase2_writer_boundary.py tests/services/label_store/test_phase3_timeline_persistence.py tests/services/label_store/test_phase4_as_of_queries.py tests/services/label_store/test_phase5_ingest_adapters.py tests/services/label_store/test_phase6_observability.py tests/services/label_store/test_phase7_ofs_slices.py tests/services/label_store/test_phase8_validation_matrix.py`
+- `python -m pytest -q tests/services/case_mgmt/test_phase5_label_handshake.py tests/services/case_mgmt/test_phase8_validation_matrix.py`
+- `python -m pytest -q tests/services/platform_reporter/test_run_reporter.py`
+
+## Entry: 2026-02-09 07:27PM - Phase 8 implemented and validated (LS integration closure and parity proof)
+
+### Implementation completed
+1. Added LS Phase 8 matrix module:
+- `tests/services/label_store/test_phase8_validation_matrix.py`
+- includes continuity proof from CM emission to LS commit and LS as-of read.
+
+2. Closed end-to-end continuity proof lane:
+- `CaseTriggerIntakeLedger` ingests decision trigger.
+- `CaseLabelHandshakeCoordinator` emits LabelAssertion to LS boundary.
+- `LabelStoreWriterBoundary` commits assertion and returns deterministic ack.
+- `label_as_of(...)` resolves the committed assertion for the same run-scoped subject.
+
+3. Added parity proof matrix (`20`, `200`) with deterministic artifacts:
+- each parity loop validates:
+  - CM label emission accepted,
+  - LS as-of resolution for each subject,
+  - LS duplicate replay semantics via direct writer replay.
+- generated artifacts:
+  - `runs/fraud-platform/platform_20260209T213020Z/label_store/reconciliation/phase8_parity_proof_20.json`
+  - `runs/fraud-platform/platform_20260209T213200Z/label_store/reconciliation/phase8_parity_proof_200.json`
+
+4. Added negative-path closure proof with fail-closed posture:
+- payload hash mismatch -> `REJECTED/PAYLOAD_HASH_MISMATCH`,
+- duplicate assertion replay -> `ACCEPTED/ASSERTION_REPLAY_MATCH`,
+- invalid subject payload -> `REJECTED/CONTRACT_INVALID:*`,
+- unavailable writer store in CM handshake -> `PENDING/LS_WRITE_EXCEPTION:*`.
+- generated artifact:
+  - `runs/fraud-platform/platform_20260209T213400Z/label_store/reconciliation/phase8_negative_path_proof.json`
+
+5. Reconciliation artifact posture is explicit:
+- parity and negative-path artifacts include accepted/rejected/pending counts and evidence refs to LS reconciliation and governance outputs.
+
+### Drift sentinel assessment (post-implementation)
+- Verified implemented flow preserves intended ownership graph:
+  - CM emits assertion requests but does not mutate label truth.
+  - LS writer remains sole authority for commit/replay/reject semantics.
+  - LS as-of read surfaces authoritative truth consistent with write acknowledgements.
+- No designed-flow drift was observed in the Phase 8 matrix runs.
+
+### Validation evidence
+- `python -m py_compile tests/services/label_store/test_phase8_validation_matrix.py`
+  - result: pass
+- `python -m pytest -q tests/services/label_store/test_phase8_validation_matrix.py`
+  - result: `4 passed`
+- `python -m pytest -q tests/services/label_store/test_phase1_label_store_contracts.py tests/services/label_store/test_phase1_label_store_ids.py tests/services/label_store/test_phase2_writer_boundary.py tests/services/label_store/test_phase3_timeline_persistence.py tests/services/label_store/test_phase4_as_of_queries.py tests/services/label_store/test_phase5_ingest_adapters.py tests/services/label_store/test_phase6_observability.py tests/services/label_store/test_phase7_ofs_slices.py tests/services/label_store/test_phase8_validation_matrix.py`
+  - result: `40 passed`
+- `python -m pytest -q tests/services/case_mgmt/test_phase5_label_handshake.py tests/services/case_mgmt/test_phase8_validation_matrix.py`
+  - result: `10 passed`
+- `python -m pytest -q tests/services/platform_reporter/test_run_reporter.py`
+  - result: `2 passed`
+
+### Phase closure statement
+- LS Phase 8 DoD is satisfied and tied to platform Phase `5.9`:
+  - end-to-end continuity proof exists (`CM -> LS ack -> as-of read`),
+  - required negative-path evidence exists (`hash mismatch`, `duplicate`, `invalid subject`, `writer unavailable`),
+  - reconciliation artifacts include accepted/rejected/pending counts with evidence refs.

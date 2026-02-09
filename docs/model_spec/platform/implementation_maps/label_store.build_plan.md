@@ -182,4 +182,16 @@ Provide an executable, component-scoped plan for Label Store (LS) aligned to pla
     - `python -m pytest -q tests/services/label_store/test_phase1_label_store_contracts.py tests/services/label_store/test_phase1_label_store_ids.py tests/services/label_store/test_phase2_writer_boundary.py tests/services/label_store/test_phase3_timeline_persistence.py tests/services/label_store/test_phase4_as_of_queries.py tests/services/label_store/test_phase5_ingest_adapters.py tests/services/label_store/test_phase6_observability.py tests/services/label_store/test_phase7_ofs_slices.py` -> `36 passed`
     - `python -m pytest -q tests/services/case_mgmt/test_phase5_label_handshake.py tests/services/case_mgmt/test_phase8_validation_matrix.py` -> `10 passed`
     - `python -m pytest -q tests/services/platform_reporter/test_run_reporter.py` -> `2 passed`
-- Next action: Phase 8 implementation (integration closure and parity proof).
+- Phase 8 (`Integration closure and parity proof`): completed on `2026-02-09`.
+  - Evidence:
+    - `tests/services/label_store/test_phase8_validation_matrix.py`
+    - `runs/fraud-platform/platform_20260209T213020Z/label_store/reconciliation/phase8_parity_proof_20.json`
+    - `runs/fraud-platform/platform_20260209T213200Z/label_store/reconciliation/phase8_parity_proof_200.json`
+    - `runs/fraud-platform/platform_20260209T213400Z/label_store/reconciliation/phase8_negative_path_proof.json`
+  - Validation:
+    - `python -m py_compile tests/services/label_store/test_phase8_validation_matrix.py` -> pass
+    - `python -m pytest -q tests/services/label_store/test_phase8_validation_matrix.py` -> `4 passed`
+    - `python -m pytest -q tests/services/label_store/test_phase1_label_store_contracts.py tests/services/label_store/test_phase1_label_store_ids.py tests/services/label_store/test_phase2_writer_boundary.py tests/services/label_store/test_phase3_timeline_persistence.py tests/services/label_store/test_phase4_as_of_queries.py tests/services/label_store/test_phase5_ingest_adapters.py tests/services/label_store/test_phase6_observability.py tests/services/label_store/test_phase7_ofs_slices.py tests/services/label_store/test_phase8_validation_matrix.py` -> `40 passed`
+    - `python -m pytest -q tests/services/case_mgmt/test_phase5_label_handshake.py tests/services/case_mgmt/test_phase8_validation_matrix.py` -> `10 passed`
+    - `python -m pytest -q tests/services/platform_reporter/test_run_reporter.py` -> `2 passed`
+- Next action: Phase 5.9 platform-level closure consolidation (consume CM+LS Phase 8 artifacts and record final plane handoff posture).
