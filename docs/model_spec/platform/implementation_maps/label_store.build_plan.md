@@ -115,4 +115,16 @@ Provide an executable, component-scoped plan for Label Store (LS) aligned to pla
     - `tests/services/label_store/test_phase1_label_store_ids.py`
   - Validation:
     - `python -m pytest -q tests/services/label_store/test_phase1_label_store_contracts.py tests/services/label_store/test_phase1_label_store_ids.py` -> `10 passed`
-- Next action: Phase 2 implementation (writer boundary + idempotency corridor).
+- Phase 2 (`Writer boundary + idempotency corridor`): completed on `2026-02-09`.
+  - Evidence:
+    - `src/fraud_detection/label_store/writer_boundary.py`
+    - `src/fraud_detection/label_store/__init__.py` (Phase 2 exports)
+    - `tests/services/label_store/test_phase2_writer_boundary.py`
+  - Validation:
+    - `python -m py_compile src/fraud_detection/label_store/writer_boundary.py src/fraud_detection/label_store/__init__.py tests/services/label_store/test_phase2_writer_boundary.py` -> pass
+    - `python -m pytest -q tests/services/label_store/test_phase2_writer_boundary.py` -> `5 passed`
+    - `python -m pytest -q tests/services/label_store/test_phase1_label_store_contracts.py tests/services/label_store/test_phase1_label_store_ids.py tests/services/label_store/test_phase2_writer_boundary.py` -> `15 passed`
+    - `python -m pytest -q tests/services/case_mgmt/test_phase5_label_handshake.py tests/services/case_mgmt/test_phase8_validation_matrix.py` -> `10 passed`
+    - `python -m pytest -q tests/services/case_mgmt/test_phase1_contracts.py tests/services/case_mgmt/test_phase1_ids.py tests/services/case_mgmt/test_phase2_intake.py tests/services/case_mgmt/test_phase3_projection.py tests/services/case_mgmt/test_phase4_evidence_resolution.py tests/services/case_mgmt/test_phase5_label_handshake.py tests/services/case_mgmt/test_phase6_action_handshake.py tests/services/case_mgmt/test_phase7_observability.py tests/services/case_mgmt/test_phase8_validation_matrix.py` -> `44 passed`
+    - `python -m pytest -q tests/services/platform_reporter/test_run_reporter.py` -> `2 passed`
+- Next action: Phase 3 implementation (append-only timeline persistence).

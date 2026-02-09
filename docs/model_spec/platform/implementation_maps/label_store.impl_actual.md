@@ -84,3 +84,126 @@ Close LS Phase 1 by pinning a runtime-validated LabelAssertion contract and dete
 ### Notes
 - Canonical payload hash ordering rule (sorted evidence refs) is implemented and tested.
 - Human assertions require `actor_id`; non-human sources are provenance-stamped with optional actor.
+
+## Entry: 2026-02-09 06:28PM - Pre-change lock for Phase 2 (LS writer boundary + idempotency corridor)
+
+### Objective
+Close LS Phase 2 by implementing a deterministic writer boundary that validates assertions, enforces idempotency + payload-hash collision policy fail-closed, and returns durable acknowledgements only after commit.
+
+### Authority inputs used
+- `docs/model_spec/platform/implementation_maps/label_store.build_plan.md` (Phase 2 DoD)
+- `docs/model_spec/platform/implementation_maps/platform.build_plan.md` (Phase 5.6/5.9 expectations)
+- `docs/model_spec/platform/component-specific/flow-narrative-platform-design.md` (LS boundary semantics)
+- `docs/model_spec/platform/component-specific/label_store.design-authority.md`
+- Existing LS Phase 1 contracts/ids/tests in:
+  - `src/fraud_detection/label_store/contracts.py`
+  - `src/fraud_detection/label_store/ids.py`
+  - `tests/services/label_store/test_phase1_label_store_contracts.py`
+  - `tests/services/label_store/test_phase1_label_store_ids.py`
+
+### Problem framing
+Phase 1 pins schema/identity, but no concrete LS writer boundary exists yet. Missing capabilities:
+1. no durable assertion write path,
+2. no dedupe tuple enforcement against persisted rows,
+3. no payload hash mismatch anomaly logging + fail-closed outcome,
+4. no deterministic retry semantics for repeated writes.
+
+### Alternatives considered
+1. Integrate directly into CM label handshake persistence tables.
+- Rejected: violates LS truth ownership boundary and couples CM/LS state.
+2. Add dedicated LS writer ledger module with its own storage boundary and deterministic write outcomes.
+- Selected: aligns with ownership doctrine and enables later Phase 3/4 expansion.
+
+### Decisions locked before edits
+1. Implement a dedicated LS writer ledger module in `label_store` package supporting sqlite/postgres locators.
+2. Writer API will accept LabelAssertion payload mapping and return deterministic write result (`ACCEPTED` or `REJECTED`) plus stable assertion reference.
+3. Dedupe semantics:
+- first insert => `ACCEPTED`,
+- same assertion id + same payload hash => `ACCEPTED` (replay-safe duplicate),
+- same assertion id + different payload hash => `REJECTED` with mismatch evidence persisted.
+4. Provenance enforcement at writer boundary:
+- requires non-empty evidence refs,
+- otherwise fail-closed rejection (`MISSING_EVIDENCE_REFS`).
+5. Add Phase 2 tests covering new write, duplicate replay, mismatch fail-closed, invalid contract rejection, and deterministic retry outcomes.
+
+### Planned files
+- New:
+  - `src/fraud_detection/label_store/writer_boundary.py`
+  - `tests/services/label_store/test_phase2_writer_boundary.py`
+- Update:
+  - `src/fraud_detection/label_store/__init__.py`
+  - `docs/model_spec/platform/implementation_maps/label_store.build_plan.md`
+  - `docs/model_spec/platform/implementation_maps/platform.build_plan.md`
+  - `docs/model_spec/platform/implementation_maps/label_store.impl_actual.md`
+  - `docs/model_spec/platform/implementation_maps/platform.impl_actual.md`
+  - `docs/logbook/02-2026/2026-02-09.md`
+
+### Validation plan
+- `python -m py_compile src/fraud_detection/label_store/writer_boundary.py src/fraud_detection/label_store/__init__.py tests/services/label_store/test_phase2_writer_boundary.py`
+- `python -m pytest -q tests/services/label_store/test_phase2_writer_boundary.py`
+- `python -m pytest -q tests/services/label_store/test_phase1_label_store_contracts.py tests/services/label_store/test_phase1_label_store_ids.py tests/services/label_store/test_phase2_writer_boundary.py`
+- `python -m pytest -q tests/services/case_mgmt/test_phase5_label_handshake.py tests/services/case_mgmt/test_phase8_validation_matrix.py`
+
+## Entry: 2026-02-09 06:30PM - Phase 2 implemented and validated (LS writer boundary + idempotency corridor)
+
+### Implementation completed
+1. Added concrete LS writer boundary module:
+- `src/fraud_detection/label_store/writer_boundary.py`
+- sqlite/postgres locator support with transaction-safe writes.
+- writer API: `write_label_assertion(assertion_payload)`.
+
+2. Added deterministic outcome semantics:
+- new assertion commit -> `ACCEPTED` / `ASSERTION_COMMITTED_NEW`.
+- duplicate replay with same payload hash -> `ACCEPTED` / `ASSERTION_REPLAY_MATCH`.
+- same deterministic assertion id with different payload hash -> `REJECTED` / `PAYLOAD_HASH_MISMATCH` (fail-closed).
+- invalid contract -> `REJECTED` / `CONTRACT_INVALID:*`.
+- missing evidence refs -> `REJECTED` / `MISSING_EVIDENCE_REFS`.
+
+3. Added durable state + anomaly persistence:
+- assertion ledger table: `ls_label_assertions`.
+- mismatch evidence table: `ls_label_assertion_mismatches`.
+- deterministic assertion reference generation:
+  - `runs/fraud-platform/<platform_run_id>/label_store/assertions/<label_assertion_id>.json`.
+
+4. Added lookup/testing helper surfaces:
+- `lookup_assertion(label_assertion_id=...)`
+- `mismatch_count(label_assertion_id=...)`
+
+5. Added Phase 2 test matrix:
+- `tests/services/label_store/test_phase2_writer_boundary.py`.
+- coverage:
+  - new assertion commit,
+  - deterministic duplicate replay,
+  - payload hash mismatch fail-closed + mismatch log,
+  - invalid-contract rejection,
+  - missing-evidence-ref rejection.
+
+6. Updated package exports:
+- `src/fraud_detection/label_store/__init__.py` now exports Phase 2 writer surfaces/constants.
+
+### Key mechanics delivered
+- LS now has its own concrete writer corridor and no longer depends on hypothetical storage behavior.
+- Idempotency is deterministic under at-least-once retries.
+- Collision policy is explicit and fail-closed with persisted mismatch evidence.
+- Writer outcome semantics are stable for CM/adapter integration in subsequent phases.
+
+### Validation evidence
+- `python -m py_compile src/fraud_detection/label_store/writer_boundary.py src/fraud_detection/label_store/__init__.py tests/services/label_store/test_phase2_writer_boundary.py`
+  - result: pass
+- `python -m pytest -q tests/services/label_store/test_phase2_writer_boundary.py`
+  - result: `5 passed`
+- `python -m pytest -q tests/services/label_store/test_phase1_label_store_contracts.py tests/services/label_store/test_phase1_label_store_ids.py tests/services/label_store/test_phase2_writer_boundary.py`
+  - result: `15 passed`
+- `python -m pytest -q tests/services/case_mgmt/test_phase5_label_handshake.py tests/services/case_mgmt/test_phase8_validation_matrix.py`
+  - result: `10 passed`
+- `python -m pytest -q tests/services/case_mgmt/test_phase1_contracts.py tests/services/case_mgmt/test_phase1_ids.py tests/services/case_mgmt/test_phase2_intake.py tests/services/case_mgmt/test_phase3_projection.py tests/services/case_mgmt/test_phase4_evidence_resolution.py tests/services/case_mgmt/test_phase5_label_handshake.py tests/services/case_mgmt/test_phase6_action_handshake.py tests/services/case_mgmt/test_phase7_observability.py tests/services/case_mgmt/test_phase8_validation_matrix.py`
+  - result: `44 passed`
+- `python -m pytest -q tests/services/platform_reporter/test_run_reporter.py`
+  - result: `2 passed`
+
+### Phase closure statement
+- LS Phase 2 DoD is satisfied:
+  - writer boundary validates schema/pins/provenance,
+  - dedupe + payload-hash collision policy is enforced fail-closed,
+  - write acknowledgement is returned only after transactional commit,
+  - retry outcomes are deterministic.

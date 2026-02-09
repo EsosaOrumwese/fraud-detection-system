@@ -7408,3 +7408,41 @@ Execute CM Phase 8 integration closure by adding explicit parity matrix evidence
   - CM Phase1..8 `44 passed`
   - CaseTrigger/IG regression `45 passed`
   - Platform reporter regression `2 passed`
+
+## Entry: 2026-02-09 06:28PM - LS Phase 2 execution lock (platform Phase 5.6 progression)
+
+### Scope
+Execute Label Store Phase 2 (writer boundary + idempotency corridor) with deterministic write outcomes and fail-closed mismatch handling.
+
+### Locked implementation posture
+- Add dedicated LS writer ledger module with append-safe idempotent writes and mismatch logging.
+- Preserve strict ownership boundary: CM remains client/emitter; LS owns truth write acceptance.
+- Validate with dedicated LS phase matrix plus CM label-handshake regression.
+
+### Acceptance gate
+- LS Phase 2 matrix green.
+- LS Phase1+2 suite green.
+- CM label-handshake and CM phase8 matrix regressions green.
+- Build-plan/impl-map/logbook updated with explicit command evidence.
+
+## Entry: 2026-02-09 06:30PM - LS Phase 2 closure (platform Phase 5.6 progression)
+
+### What was closed
+- Label Store Phase 2 writer boundary is implemented and validated with deterministic idempotency and fail-closed collision posture.
+
+### Platform-level impact
+- Platform Phase `5.6` progression now has concrete LS write-corridor mechanics in place (contract validation, commit-safe acks, mismatch evidence logging).
+- Case+Labels plane can now integrate CM->LS handshake with a real LS acceptance corridor in subsequent integration closure work.
+
+### Evidence references
+- Code:
+  - `src/fraud_detection/label_store/writer_boundary.py`
+  - `src/fraud_detection/label_store/__init__.py`
+- Tests:
+  - `tests/services/label_store/test_phase2_writer_boundary.py`
+- Validation:
+  - LS Phase 2 matrix `5 passed`
+  - LS Phase1+2 `15 passed`
+  - CM label/phase8 regression `10 passed`
+  - CM full regression `44 passed`
+  - platform reporter regression `2 passed`
