@@ -6924,3 +6924,40 @@ Implement CaseTrigger Phase 1 and provide an executable runtime contract boundar
 
 ### Platform impact
 - Phase 5.2 now has a policy-pinned IG publish lane for CaseTrigger with explicit terminal outcomes and persisted publish evidence, unblocking Phase 5 checkpoint/retry coupling.
+
+## 2026-02-09 04:17PM - Phase 5.2 Phase-5 execution lock (retry/checkpoint/replay)
+
+### Scope
+- Implement CaseTrigger checkpoint progression gate linked to replay/publish outcomes.
+
+### Locked invariants
+- Checkpoint progression cannot advance without durable publish result.
+- Retry path preserves deterministic identity and token stability.
+- Unsafe publish outcomes (`QUARANTINE`/`AMBIGUOUS`) block progression.
+
+## 2026-02-09 04:21PM - Phase 5.2 Phase-5 closure (checkpoint gate + replay safety)
+
+### What closed
+- Implemented CaseTrigger checkpoint progression gate and validated replay/retry safety coupling.
+
+### Delivered files
+- `src/fraud_detection/case_trigger/checkpoints.py`
+- `src/fraud_detection/case_trigger/__init__.py` (checkpoint exports)
+- `tests/services/case_trigger/test_phase5_checkpoints.py`
+
+### Runtime behavior now pinned
+- Deterministic token id per `(source_ref_id, case_trigger_id)` pair.
+- Checkpoint commit remains blocked until both ledger commit and publish result are durable.
+- Unsafe/uncertain publish outcomes remain fail-closed (`PUBLISH_HALTED`, `PUBLISH_QUARANTINED`, `PUBLISH_AMBIGUOUS`).
+- Duplicate-safe publish outcome (`DUPLICATE`) remains committable for replay-at-least-once behavior.
+
+### Validation evidence
+- `python -m py_compile src/fraud_detection/case_trigger/checkpoints.py src/fraud_detection/case_trigger/__init__.py tests/services/case_trigger/test_phase5_checkpoints.py` -> pass.
+- `python -m pytest -q tests/services/case_trigger/test_phase1_config.py tests/services/case_trigger/test_phase1_contracts.py tests/services/case_trigger/test_phase1_taxonomy.py tests/services/case_trigger/test_phase2_adapters.py tests/services/case_trigger/test_phase3_replay.py tests/services/case_trigger/test_phase4_publish.py tests/services/case_trigger/test_phase5_checkpoints.py tests/services/ingestion_gate/test_phase11_case_trigger_onboarding.py` -> `36 passed`.
+
+### Additional implementation note
+- Test harness was hardened away from sqlite `:memory:` because checkpoint store intentionally opens per-operation connections for durability parity; file-backed sqlite was selected to preserve realistic checkpoint persistence semantics during validation.
+
+### Platform impact
+- Phase `5.2.E` (retry/checkpoint/replay safety) is now closed with evidence.
+- Next execution gate is `5.2.G` (CM intake integration assertions on idempotent case creation/no-merge behavior).

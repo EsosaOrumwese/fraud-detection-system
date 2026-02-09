@@ -101,4 +101,5 @@ Provide an executable, component-scoped plan for the CaseTrigger service aligned
 - Phase 2 (`Source adapters + eligibility gates`): complete (`8 passed` adapter suite; `18 passed` combined Phase1+2 suite on 2026-02-09).
 - Phase 3 (`Deterministic identity + collision handling`): complete (`4 passed` replay suite; `22 passed` combined Phase1+2+3 suite on 2026-02-09).
 - Phase 4 (`Publish corridor`): complete (`7 passed` phase4+IG onboarding suite; `31 passed` combined Phase1+2+3+4 suite on 2026-02-09).
-- Next action: begin Phase 5 (`Retry/checkpoint/replay safety`) by coupling publish outcomes to deterministic checkpoint progression.
+- Phase 5 (`Retry/checkpoint/replay safety`): complete (`5 passed` phase5 checkpoint suite; `36 passed` combined Phase1+2+3+4+5 suite on 2026-02-09).
+- Next action: begin Phase 6 (`CM intake integration gate`) with idempotent case-creation assertions on CaseSubjectKey.

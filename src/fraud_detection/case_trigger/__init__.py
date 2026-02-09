@@ -11,6 +11,15 @@ from .adapters import (
     adapt_from_external_signal,
     adapt_from_manual_assertion,
 )
+from .checkpoints import (
+    CHECKPOINT_BLOCKED,
+    CHECKPOINT_COMMITTED,
+    CHECKPOINT_ISSUED,
+    CaseTriggerCheckpointError,
+    CaseTriggerCheckpointGate,
+    CheckpointCommitResult,
+    CheckpointToken,
+)
 from .config import (
     CaseTriggerConfigError,
     CaseTriggerPolicy,
@@ -65,6 +74,9 @@ from .taxonomy import (
 __all__ = [
     "SUPPORTED_CASE_TRIGGER_TYPES",
     "SUPPORTED_SOURCE_CLASSES",
+    "CHECKPOINT_BLOCKED",
+    "CHECKPOINT_COMMITTED",
+    "CHECKPOINT_ISSUED",
     "CASE_TRIGGER_EVENT_TYPE",
     "CASE_TRIGGER_SCHEMA_VERSION",
     "AL_TRIGGERABLE_FAILURE_STATUSES",
@@ -81,6 +93,8 @@ __all__ = [
     "REPLAY_NEW",
     "REPLAY_PAYLOAD_MISMATCH",
     "CaseTriggerAdapterError",
+    "CaseTriggerCheckpointError",
+    "CaseTriggerCheckpointGate",
     "CaseTriggerConfigError",
     "CaseTriggerContractError",
     "CaseTriggerLedgerEntry",
@@ -95,6 +109,8 @@ __all__ = [
     "CaseTriggerPolicy",
     "CaseTriggerRule",
     "CaseTriggerTaxonomyError",
+    "CheckpointCommitResult",
+    "CheckpointToken",
     "PublishedCaseTriggerRecord",
     "ReplayRegistrationResult",
     "adapt_case_trigger_from_source",

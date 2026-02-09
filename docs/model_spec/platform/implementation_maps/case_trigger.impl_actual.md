@@ -398,3 +398,93 @@ Implement CaseTrigger Phase 4 publish corridor with explicit outcomes and persis
   - publish outcomes are explicit,
   - publish outcome records are persistable with actor attribution,
   - onboarding drift is test-guarded.
+
+## Entry: 2026-02-09 04:17PM - Pre-change lock for Phase 5 (retry/checkpoint/replay safety)
+
+### Objective
+Close CaseTrigger Phase 5 by implementing deterministic checkpoint gating coupled to replay/publish outcomes.
+
+### Problem framing
+- Phase 3 provides identity/collision replay ledger.
+- Phase 4 provides explicit publish outcomes + persistence.
+- A checkpoint progression gate is still missing, so there is no enforced rule that source progression waits for durable publish outcomes.
+
+### Implementation decisions locked before edits
+1. Add CaseTrigger checkpoint gate module (`src/fraud_detection/case_trigger/checkpoints.py`) modeled on DF checkpoint semantics.
+2. Gate transitions:
+   - token issued deterministically from `(source_ref_id, case_trigger_id)`,
+   - ledger committed mark required,
+   - publish result mark required,
+   - checkpoint commit allowed only when publish decision is safe (`ADMIT` or `DUPLICATE`) and not halted.
+   - `QUARANTINE`/`AMBIGUOUS` block commit.
+3. Keep backend parity:
+   - sqlite + postgres support.
+4. Add focused tests to prove:
+   - checkpoint blocked until ledger+publish are recorded,
+   - retry-safe token stability (same source tuple -> same token id),
+   - duplicate publish remains committable,
+   - ambiguous/quarantine remain blocked.
+5. Add a replay-coupled test showing same CaseTrigger payload replay reuses identity and can commit with duplicate-safe publish result.
+
+### Planned files
+- New code:
+  - `src/fraud_detection/case_trigger/checkpoints.py`
+- Update exports:
+  - `src/fraud_detection/case_trigger/__init__.py`
+- New tests:
+  - `tests/services/case_trigger/test_phase5_checkpoints.py`
+
+### Validation plan
+- `python -m pytest -q tests/services/case_trigger/test_phase5_checkpoints.py tests/services/case_trigger/test_phase4_publish.py tests/services/case_trigger/test_phase3_replay.py tests/services/case_trigger/test_phase2_adapters.py tests/services/case_trigger/test_phase1_taxonomy.py tests/services/case_trigger/test_phase1_config.py tests/services/case_trigger/test_phase1_contracts.py`
+- compile checks for new/updated modules.
+
+## Entry: 2026-02-09 04:21PM - Phase 5 implemented and validated (retry/checkpoint/replay safety)
+
+### Implementation completed
+1. Added deterministic checkpoint gate module:
+- `src/fraud_detection/case_trigger/checkpoints.py`
+
+2. Updated package exports for checkpoint surfaces:
+- `src/fraud_detection/case_trigger/__init__.py`
+
+3. Added and hardened Phase 5 checkpoint tests:
+- `tests/services/case_trigger/test_phase5_checkpoints.py`
+
+### Gate mechanics delivered
+- Deterministic checkpoint token id derived from `sha256(source_ref_id + ":" + case_trigger_id)[:32]`.
+- Progression stages are explicit:
+  - token issued,
+  - ledger committed mark,
+  - publish result mark,
+  - checkpoint commit.
+- Commit is blocked unless:
+  - ledger is committed,
+  - publish result exists,
+  - publish is non-halted and in safe set (`ADMIT`, `DUPLICATE`).
+- Block reasons are explicit and persisted by result:
+  - `LEDGER_NOT_COMMITTED`,
+  - `PUBLISH_NOT_RECORDED`,
+  - `PUBLISH_HALTED`,
+  - `PUBLISH_QUARANTINED`,
+  - `PUBLISH_AMBIGUOUS`,
+  - `PUBLISH_DECISION_UNSAFE`.
+- Backend parity is maintained with sqlite and postgres stores.
+
+### Implementation decisions during test hardening
+- Initial Phase 5 safety test used sqlite `:memory:` locator. Because checkpoint store opens a fresh sqlite connection per operation, `:memory:` created isolated databases per call and would not preserve issued tokens.
+- Decision: use file-backed sqlite (`tmp_path / "checkpoint.sqlite"`) in tests to match durable checkpoint semantics and avoid false negatives.
+- Expanded publish-safety coverage to assert both quarantine and halt paths independently:
+  - `PUBLISH_QUARANTINED` when publish decision is `QUARANTINE` and not halted,
+  - `PUBLISH_HALTED` when halted flag is true even with an otherwise safe decision.
+
+### Validation evidence
+- `python -m py_compile src/fraud_detection/case_trigger/checkpoints.py src/fraud_detection/case_trigger/__init__.py tests/services/case_trigger/test_phase5_checkpoints.py`
+  - result: pass
+- `python -m pytest -q tests/services/case_trigger/test_phase1_config.py tests/services/case_trigger/test_phase1_contracts.py tests/services/case_trigger/test_phase1_taxonomy.py tests/services/case_trigger/test_phase2_adapters.py tests/services/case_trigger/test_phase3_replay.py tests/services/case_trigger/test_phase4_publish.py tests/services/case_trigger/test_phase5_checkpoints.py tests/services/ingestion_gate/test_phase11_case_trigger_onboarding.py`
+  - result: `36 passed`
+
+### Phase closure statement
+- Phase 5 DoD is satisfied for current scope:
+  - retry-safe identity/token behavior is deterministic,
+  - checkpoint progression is publish-outcome-gated and fail-closed on unsafe outcomes,
+  - replay path preserves trigger identity and checkpoint committability under duplicate-safe publish outcomes.
