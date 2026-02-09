@@ -6071,3 +6071,80 @@ Code/test closure is complete for this pass, but parity runtime closure is still
 2. Confirm DLA no longer accumulates raw-traffic `UNKNOWN_EVENT_FAMILY` from decision lane.
 3. Confirm WSP does not stream until required packs are alive for the active run.
 4. Re-check DF reconciliation reason distribution under the new local-parity compatibility posture.
+
+## 2026-02-09 01:24PM - Runtime closure for staged parity validation (20-event gate then 200-event full)
+
+### Intent and execution order
+Closed the pending runtime validation gates after the topology/sequencing patch by running:
+1. bounded gate run (`20` events per WSP output) to avoid wasting full-run cycles on obvious regressions,
+2. full parity run (`200` events per WSP output) only after the gate run drained green.
+
+Runs executed:
+- Gate run: `platform_20260209T125442Z`, scenario run `808e512c5ae335b14379365598b47940`.
+- Full run: `platform_20260209T130406Z`, scenario run `338fa8239f32b958cc97a8ebc7b99a3a`.
+
+### Runtime evidence and interpretation
+1. **Gate run (`20`) outcome**
+- WSP stream controls hit exactly `20` emits for each output and stopped with `reason=max_events`.
+- Decision lane workers stayed running/ready.
+- Authoritative receipt truth (object store) closed at `140` ADMITs:
+  - context+traffic: `4 x 20`,
+  - RTDL emissions: `decision_response=20`, `action_intent=20`, `action_outcome=20`.
+- Conclusion: run-control, ingress routing, and decision-lane continuity were functional at gate scale.
+
+2. **Full run (`200`) outcome**
+- Platform narrative log recorded all four WSP stream stops at `emitted=200`.
+- Authoritative receipt truth (object store) closed at `1400` ADMITs:
+  - `s3_event_stream_with_fraud_6B=200`,
+  - `arrival_events_5B=200`,
+  - `s1_arrival_entities_6B=200`,
+  - `s3_flow_anchor_with_fraud_6B=200`,
+  - `decision_response=200`,
+  - `action_intent=200`,
+  - `action_outcome=200`.
+- All receipts retained `pins.platform_run_id` for the active run (`missing_platform_run_id=0`).
+- Orchestrator packs remained running+ready for active run scope throughout validation.
+
+3. **Component matrix (full run)**
+- DF (`runs/fraud-platform/platform_20260209T130406Z/decision_fabric/metrics/last_metrics.json`):
+  - `decisions_total=200`,
+  - `publish_admit_total=200`,
+  - `fail_closed_total=200`,
+  - `resolver_failures_total=200`.
+- AL (`runs/fraud-platform/platform_20260209T130406Z/action_layer/observability/last_metrics.json`):
+  - `intake_total=200`,
+  - `execution_attempts_total=200`,
+  - `outcome_executed_total=200`,
+  - `publish_admit_total=200`,
+  - no deny/fail/ambiguous/quarantine increments.
+- DLA (`runs/fraud-platform/platform_20260209T130406Z/decision_log_audit/metrics/last_metrics.json`):
+  - `candidate_total=600`,
+  - `accepted_total=600`,
+  - `append_success_total=600`,
+  - `quarantine_total=0`.
+- CSFB (`runs/fraud-platform/platform_20260209T130406Z/context_store_flow_binding/metrics/last_metrics.json`):
+  - `join_hits=200`, `join_misses=0`,
+  - `apply_failures=600`, `apply_failures_hard=0`, `late_context_applied=600`.
+- OFP (`runs/fraud-platform/platform_20260209T130406Z/online_feature_plane/metrics/last_metrics.json`):
+  - `events_seen=200`, `events_applied=200`, `duplicates=0`, `missing_features=0`.
+
+### Diagnostic thread: reporter undercount vs authoritative receipt truth
+`platform_run_report` for the full run emits:
+- ingress `sent=800`, `received=600`, `admit=600`,
+- RTDL `decision=200`, `outcome=200`, `audit_append=600`.
+
+This does **not** match authoritative receipt truth (`1400` ADMIT).
+
+Root cause isolated:
+- IG ops index table `receipts` keys by deterministic `receipt_id` and uses `INSERT OR IGNORE`.
+- Replayed ingress events reuse deterministic `event_id -> receipt_id`; rows from earlier runs remain, so current run does not insert those duplicates into ops index even though fresh run-scoped object-store receipts are written.
+- Reporter ingress counters depend on ops index rows filtered by `pins.platform_run_id`, so replayed ingress families are undercounted.
+
+Decision taken for this validation:
+- Treat object-store receipts and component metrics as authoritative runtime truth.
+- Keep reporter artifact for governance continuity but explicitly classify ingress `received/admit` as undercounted under replayed deterministic receipt IDs until ops-index keying is made run-aware.
+
+### Gate-closure outcome
+- Runtime validation objective (20-gate then 200-full with component evidence) is complete.
+- DLA topology split objective validated (`decision_response/action_intent/action_outcome` all present at `200` with `0` DLA quarantine in full run).
+- Sequencing/readiness gating behavior validated operationally (no early-stream induced service crash; packs remained ready).
