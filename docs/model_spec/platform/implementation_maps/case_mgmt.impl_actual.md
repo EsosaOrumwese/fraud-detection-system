@@ -411,3 +411,140 @@ Implement CM Phase 4 by adding a policy-gated evidence-resolution corridor that 
   - refs remain minimal/by-ref,
   - resolution path is policy-gated and auditable,
   - missing/unresolvable evidence is explicit (`UNAVAILABLE`) without mutating case truth.
+
+## Entry: 2026-02-09 05:27PM - Pre-change lock for Phase 5 (CM -> LS label emission handshake)
+
+### Objective
+Implement CM Phase 5 by adding deterministic LabelAssertion emission handshake logic that keeps LS as truth owner while CM records pending/accepted/rejected lifecycle on timeline.
+
+### Problem framing
+- CM Phase 1..4 are closed; there is no runtime module yet for CM label handshake behavior.
+- Missing for Phase 5 closure:
+  - deterministic LabelAssertion emission surface from CM,
+  - pending-first timeline semantics before LS durable ack,
+  - explicit ack/reject handling with append-only timeline events,
+  - retry-safe idempotent emission tracking.
+
+### Alternatives considered
+1. Implement direct LS writes inline inside CM timeline append code.
+- Rejected: mixes handshake side effects into core timeline store and increases coupling.
+
+2. Add dedicated CM label handshake coordinator with pluggable LS writer boundary.
+- Selected: keeps truth ownership boundaries explicit and testable.
+
+3. Delay retry bookkeeping until Phase 7.
+- Rejected: Phase 5 DoD explicitly requires idempotent retry-safe pending posture.
+
+### Decisions locked before edits
+1. Add new module `src/fraud_detection/case_mgmt/label_handshake.py` with:
+- deterministic assertion construction via `label_store.contracts.LabelAssertion`,
+- handshake state ledger (pending/accepted/rejected + attempts + mismatch anomaly),
+- pending-first timeline append, then terminal ack/reject timeline append only after LS write outcome.
+2. Keep CM truth discipline:
+- CM appends `LABEL_PENDING` before submission,
+- CM appends `LABEL_ACCEPTED` only on LS `ACCEPTED`,
+- CM appends `LABEL_REJECTED` only on LS `REJECTED`,
+- LS unavailable/unknown outcome leaves CM in pending state (no false acceptance claim).
+3. Idempotency and collision handling:
+- use deterministic `label_assertion_id` from `case_timeline_event_id + LabelSubjectKey + label_type`,
+- same assertion id + payload hash match => duplicate-safe,
+- same assertion id + payload hash mismatch => fail-closed anomaly (`PAYLOAD_MISMATCH`).
+4. Add policy config for emission guardrails (actor prefix/source type/label type allowlist + retry cap).
+
+### Planned files
+- New code:
+  - `src/fraud_detection/case_mgmt/label_handshake.py`
+  - `config/platform/case_mgmt/label_emission_policy_v0.yaml`
+- Export update:
+  - `src/fraud_detection/case_mgmt/__init__.py`
+- New tests:
+  - `tests/services/case_mgmt/test_phase5_label_handshake.py`
+- Status updates after validation:
+  - `docs/model_spec/platform/implementation_maps/case_mgmt.build_plan.md`
+  - `docs/model_spec/platform/implementation_maps/platform.build_plan.md`
+
+### Validation plan
+- `python -m py_compile src/fraud_detection/case_mgmt/label_handshake.py src/fraud_detection/case_mgmt/__init__.py tests/services/case_mgmt/test_phase5_label_handshake.py`
+- `python -m pytest -q tests/services/case_mgmt/test_phase5_label_handshake.py`
+- CM regression:
+  - `python -m pytest -q tests/services/case_mgmt/test_phase1_contracts.py tests/services/case_mgmt/test_phase1_ids.py tests/services/case_mgmt/test_phase2_intake.py tests/services/case_mgmt/test_phase3_projection.py tests/services/case_mgmt/test_phase4_evidence_resolution.py tests/services/case_mgmt/test_phase5_label_handshake.py`
+- CaseTrigger/IG regression:
+  - `python -m pytest -q tests/services/case_trigger/test_phase1_config.py tests/services/case_trigger/test_phase1_contracts.py tests/services/case_trigger/test_phase1_taxonomy.py tests/services/case_trigger/test_phase2_adapters.py tests/services/case_trigger/test_phase3_replay.py tests/services/case_trigger/test_phase4_publish.py tests/services/case_trigger/test_phase5_checkpoints.py tests/services/case_trigger/test_phase7_observability.py tests/services/case_trigger/test_phase8_validation_matrix.py tests/services/ingestion_gate/test_phase11_case_trigger_onboarding.py`
+
+## Entry: 2026-02-09 05:32PM - Phase 5 correction lock (SQLite nested-write hazard + handshake sequencing)
+
+### New risk discovered before Phase 5 code finalization
+- The in-progress `label_handshake.py` draft calls `CaseTriggerIntakeLedger.append_timeline_event(...)` from inside an open label-emission DB transaction.
+- On SQLite this is a high-risk nested-write pattern (same DB file, separate connections) and can produce `database is locked` under normal operation.
+- This also weakens failure semantics because pending timeline rows can commit independently while the enclosing emission transaction rolls back on writer exceptions.
+
+### Correction decision
+1. Rework Phase 5 handshake sequencing to avoid nested write transactions entirely:
+- perform emission-row upsert/mismatch checks in short, isolated DB transactions,
+- perform timeline appends outside those transactions via CM intake ledger API,
+- apply status updates in subsequent short transactions.
+2. Preserve DoD semantics explicitly:
+- `LABEL_PENDING` emitted before LS write attempt,
+- `LABEL_ACCEPTED`/`LABEL_REJECTED` emitted only after LS durable outcome,
+- unknown LS outcome remains `PENDING` and never claims accepted truth.
+3. Add exception hardening:
+- LS writer exceptions map to `PENDING` with explicit reason (`LS_WRITE_EXCEPTION`) rather than aborting the handshake path.
+4. Add stronger matrix tests covering:
+- accepted/rejected/pending transitions,
+- duplicate-safe re-submit,
+- deterministic payload mismatch fail-closed,
+- retry limit rejection path.
+
+### Why this is the selected path
+- Satisfies v0 rails (`at-least-once`, `append-only truth`, `fail-closed on ambiguity`) while removing a concrete local-parity deadlock risk.
+- Keeps CM/LS boundary pluggable without forcing a wider refactor of `CaseTriggerIntakeLedger` internals.
+
+## Entry: 2026-02-09 05:42PM - Phase 5 implemented and validated (CM -> LS label emission handshake)
+
+### Implementation completed
+1. Implemented lock-safe CM label handshake coordinator:
+- `src/fraud_detection/case_mgmt/label_handshake.py`
+- deterministic LabelAssertion build using LS contract,
+- emission state ledger (`PENDING/ACCEPTED/REJECTED`) with retry counts,
+- payload-mismatch anomaly recording (`cm_label_emission_mismatches`).
+
+2. Added Phase 5 policy config:
+- `config/platform/case_mgmt/label_emission_policy_v0.yaml`
+- allowlists for `label_type`, actor prefixes, source types, and `max_retry_attempts`.
+
+3. Updated CM public exports:
+- `src/fraud_detection/case_mgmt/__init__.py` now exports Phase 5 constants/types/policy loader/coordinator.
+
+4. Added Phase 5 validation matrix:
+- `tests/services/case_mgmt/test_phase5_label_handshake.py`.
+
+### Key mechanics delivered
+- Pending-first semantics:
+  - CM appends `LABEL_PENDING` before LS write attempt.
+- LS truth ownership preserved:
+  - `LABEL_ACCEPTED` appended only on LS `ACCEPTED`,
+  - `LABEL_REJECTED` appended only on LS `REJECTED` or retry-limit fail-closed,
+  - LS unknown/exception path remains `PENDING` (`LS_WRITE_EXCEPTION:*` reason retained).
+- Deterministic idempotency/fail-closed:
+  - stable `label_assertion_id` from LS contract,
+  - same assertion id + payload mismatch => `PAYLOAD_MISMATCH` result + durable mismatch log,
+  - source-case-event reference must exist in CM timeline for the same case (`fail closed` when missing).
+- Local parity hardening:
+  - removed nested write pattern that could lock SQLite (`intake timeline append` is no longer executed under open emission transaction).
+
+### Validation evidence
+- `python -m py_compile src/fraud_detection/case_mgmt/label_handshake.py src/fraud_detection/case_mgmt/__init__.py tests/services/case_mgmt/test_phase5_label_handshake.py`
+  - result: pass
+- `python -m pytest -q tests/services/case_mgmt/test_phase5_label_handshake.py`
+  - result: `6 passed`
+- `python -m pytest -q tests/services/case_mgmt/test_phase1_contracts.py tests/services/case_mgmt/test_phase1_ids.py tests/services/case_mgmt/test_phase2_intake.py tests/services/case_mgmt/test_phase3_projection.py tests/services/case_mgmt/test_phase4_evidence_resolution.py tests/services/case_mgmt/test_phase5_label_handshake.py`
+  - result: `30 passed`
+- `python -m pytest -q tests/services/case_trigger/test_phase1_config.py tests/services/case_trigger/test_phase1_contracts.py tests/services/case_trigger/test_phase1_taxonomy.py tests/services/case_trigger/test_phase2_adapters.py tests/services/case_trigger/test_phase3_replay.py tests/services/case_trigger/test_phase4_publish.py tests/services/case_trigger/test_phase5_checkpoints.py tests/services/case_trigger/test_phase7_observability.py tests/services/case_trigger/test_phase8_validation_matrix.py tests/services/ingestion_gate/test_phase11_case_trigger_onboarding.py`
+  - result: `45 passed`
+
+### Phase closure statement
+- CM Phase 5 DoD is satisfied:
+  - LabelAssertion emission is deterministic and policy-gated,
+  - pending/accepted/rejected lifecycle is append-only and provenance-carrying,
+  - CM does not claim label truth before LS durable acknowledgement,
+  - retry/idempotency/mismatch fail-closed behavior is evidenced.

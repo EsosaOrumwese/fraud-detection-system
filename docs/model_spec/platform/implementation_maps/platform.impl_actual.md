@@ -7245,3 +7245,53 @@ Close platform gate `5.2.F` by implementing CaseTrigger run-scoped observability
 ### Corrective note
 - Prior pre-change lock label `Phase 5.4 execution lock` (recorded at 05:16PM) referred to CM internal Phase 4 scope, not platform Phase `5.4` closure.
 - Correction: this closure is a CM build-plan Phase 4 completion that supports Phase 5 progression; platform Phase `5.4` remains unstarted here.
+
+## 2026-02-09 05:27PM - CM Phase 5 execution lock (Label emission handshake to LS)
+
+### Scope
+- Implement CM->LS label handshake boundary with deterministic idempotency and pending/ack/reject timeline semantics.
+
+### Decision
+- Add dedicated CM label handshake module with internal emission state ledger and pluggable LS writer adapter.
+- Keep truth ownership boundaries strict:
+  - LS remains label truth owner,
+  - CM records lifecycle events only (`LABEL_PENDING`, `LABEL_ACCEPTED`, `LABEL_REJECTED`) based on writer outcomes.
+- Enforce retry-safe deterministic assertion identity and fail-closed mismatch detection.
+
+### Acceptance gate
+- New CM Phase 5 handshake matrix green.
+- CM Phase1..5 suite green.
+- CaseTrigger/IG regression green.
+- Build-plan/impl-map/logbook updated with explicit closure evidence.
+
+## Entry: 2026-02-09 05:32PM - CM Phase 5 risk correction (nested-write lock hazard)
+
+- During CM Phase 5 implementation, we identified a concrete local-parity hazard: CM label-handshake draft performed timeline append writes through CM intake ledger while an emission transaction remained open on the same DB.
+- This is unsafe for SQLite parity and can surface lock contention/non-deterministic rollback splits.
+- We are correcting by enforcing lock-safe sequencing (short transaction boundaries + out-of-transaction timeline append calls) while preserving pending-first semantics and LS-truth ownership.
+- Additional Phase 5 matrix tests are being added to prevent regression of this exact posture.
+
+## Entry: 2026-02-09 05:42PM - CM Phase 5 closure (platform Phase 5.5 progression)
+
+### What was closed
+- CM->LS handshake lane is now implemented with deterministic idempotency, pending-first semantics, and fail-closed mismatch posture.
+- Local-parity lock hazard identified during implementation was resolved by sequencing writes to avoid nested SQLite write transactions.
+
+### Platform-level impact
+- Platform Phase `5.5` CM side is now concretely implemented and validated.
+- Label truth ownership boundary remains intact:
+  - CM emits and tracks lifecycle,
+  - LS remains authoritative for acceptance/rejection outcome truth.
+- Case+Labels plane progression is unblocked for next CM phase (`5.6` manual action/AL boundary on CM build plan).
+
+### Evidence references
+- Code:
+  - `src/fraud_detection/case_mgmt/label_handshake.py`
+  - `config/platform/case_mgmt/label_emission_policy_v0.yaml`
+  - `src/fraud_detection/case_mgmt/__init__.py`
+- Tests:
+  - `tests/services/case_mgmt/test_phase5_label_handshake.py`
+- Validation:
+  - Phase 5 matrix `6 passed`
+  - CM Phase1..5 suite `30 passed`
+  - CaseTrigger/IG regression `45 passed`
