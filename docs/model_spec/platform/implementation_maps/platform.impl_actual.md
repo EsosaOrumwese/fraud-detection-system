@@ -7485,3 +7485,49 @@ Execute Label Store Phase 3 (append-only timeline persistence) with deterministi
   - CM label/phase8 regressions `10 passed`
   - CM full regression `44 passed`
   - platform reporter regression `2 passed`
+
+## Entry: 2026-02-09 06:42PM - LS Phase 4 execution lock (platform Phase 5.6 progression)
+
+### Scope
+Execute Label Store Phase 4 by adding as-of and resolved-query read surfaces with explicit conflict posture.
+
+### Locked implementation posture
+- Implement observed-time-gated as-of reads in LS (not caller-side ad hoc logic).
+- Implement deterministic resolved view with explicit conflict-state output where precedence ties disagree on value.
+- Keep append-only truth model intact; no mutations for read-surface delivery.
+- Validate with dedicated LS Phase 4 matrix + LS full suite + CM label regression.
+
+### Acceptance gate
+- LS Phase 4 matrix green.
+- LS Phase1..4 suite green.
+- CM label/phase8 regressions green.
+- Build-plan/impl-map/logbook updated with exact evidence.
+
+## Entry: 2026-02-09 06:47PM - LS Phase 4 closure (platform Phase 5.6 progression)
+
+### What was closed
+- Label Store Phase 4 is now closed with evidence-backed as-of/resolved read semantics over append-only label truth.
+- Implemented/validated behavior includes:
+  - observed-time-gated `label_as_of(...)` reads,
+  - deterministic resolved view across label types,
+  - explicit `CONFLICT` posture when top-precedence candidates disagree,
+  - explicit `NOT_FOUND` posture when no eligible assertion exists.
+
+### Platform-level impact
+- Platform Phase `5.6` progressed from write/timeline readiness to read-surface readiness for learning/governance consumption.
+- OFS/MF-facing semantics are now centralized in LS (not caller-side ad hoc logic), reducing leakage/drift risk.
+- Truth ownership remains intact: LS resolves label truth views; CM remains assertion emitter; downstream consumers read deterministic outcomes.
+
+### Evidence references
+- Code:
+  - `src/fraud_detection/label_store/writer_boundary.py`
+  - `src/fraud_detection/label_store/__init__.py`
+- Tests:
+  - `tests/services/label_store/test_phase4_as_of_queries.py`
+- Validation:
+  - Phase 4 matrix `4 passed`
+  - LS Phase1..4 `23 passed`
+  - CM label/phase8 regression `10 passed`
+
+### Residual notes
+- LS build-plan next action is Phase 5 ingest adapters; this remains separate from RTDL parity closure items still tracked under platform `4.6.L`.

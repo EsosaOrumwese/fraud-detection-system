@@ -26,6 +26,10 @@ REASON_CONTRACT_INVALID = "CONTRACT_INVALID"
 REASON_MISSING_EVIDENCE_REFS = "MISSING_EVIDENCE_REFS"
 REASON_DEDUPE_TUPLE_COLLISION = "DEDUPE_TUPLE_COLLISION"
 
+LS_AS_OF_RESOLVED = "RESOLVED"
+LS_AS_OF_CONFLICT = "CONFLICT"
+LS_AS_OF_NOT_FOUND = "NOT_FOUND"
+
 
 class LabelStoreWriterError(RuntimeError):
     """Raised when LS writer operations fail unexpectedly."""
@@ -70,6 +74,19 @@ class LabelTimelineEntry:
     evidence_refs: tuple[dict[str, str], ...]
     assertion_ref: str
     committed_at_utc: str
+
+
+@dataclass(frozen=True)
+class LabelAsOfResolution:
+    status: str
+    platform_run_id: str
+    event_id: str
+    label_type: str
+    as_of_observed_time: str
+    selected_assertion_id: str | None
+    selected_label_value: str | None
+    candidate_assertion_ids: tuple[str, ...]
+    candidate_label_values: tuple[str, ...]
 
 
 class LabelStoreWriterBoundary:
@@ -212,6 +229,93 @@ class LabelStoreWriterBoundary:
                 )
             )
         return tuple(items)
+
+    def label_as_of(
+        self,
+        *,
+        platform_run_id: str,
+        event_id: str,
+        label_type: str,
+        as_of_observed_time: str,
+    ) -> LabelAsOfResolution:
+        run_id = _non_empty(platform_run_id, "platform_run_id")
+        event = _non_empty(event_id, "event_id")
+        kind = _non_empty(label_type, "label_type")
+        as_of = _non_empty(as_of_observed_time, "as_of_observed_time")
+
+        timeline = self.list_timeline(platform_run_id=run_id, event_id=event, label_type=kind)
+        eligible = [item for item in timeline if _ts_leq(item.observed_time, as_of)]
+        if not eligible:
+            return LabelAsOfResolution(
+                status=LS_AS_OF_NOT_FOUND,
+                platform_run_id=run_id,
+                event_id=event,
+                label_type=kind,
+                as_of_observed_time=as_of,
+                selected_assertion_id=None,
+                selected_label_value=None,
+                candidate_assertion_ids=tuple(),
+                candidate_label_values=tuple(),
+            )
+
+        best = max(eligible, key=_resolution_sort_key)
+        top_tied = [
+            item
+            for item in eligible
+            if (
+                item.effective_time == best.effective_time
+                and item.observed_time == best.observed_time
+            )
+        ]
+        candidate_ids = tuple(sorted(item.label_assertion_id for item in top_tied))
+        candidate_values = tuple(sorted({item.label_value for item in top_tied}))
+        if len(candidate_values) > 1:
+            return LabelAsOfResolution(
+                status=LS_AS_OF_CONFLICT,
+                platform_run_id=run_id,
+                event_id=event,
+                label_type=kind,
+                as_of_observed_time=as_of,
+                selected_assertion_id=None,
+                selected_label_value=None,
+                candidate_assertion_ids=candidate_ids,
+                candidate_label_values=candidate_values,
+            )
+        return LabelAsOfResolution(
+            status=LS_AS_OF_RESOLVED,
+            platform_run_id=run_id,
+            event_id=event,
+            label_type=kind,
+            as_of_observed_time=as_of,
+            selected_assertion_id=best.label_assertion_id,
+            selected_label_value=best.label_value,
+            candidate_assertion_ids=candidate_ids,
+            candidate_label_values=candidate_values,
+        )
+
+    def resolved_labels_as_of(
+        self,
+        *,
+        platform_run_id: str,
+        event_id: str,
+        as_of_observed_time: str,
+    ) -> tuple[LabelAsOfResolution, ...]:
+        run_id = _non_empty(platform_run_id, "platform_run_id")
+        event = _non_empty(event_id, "event_id")
+        as_of = _non_empty(as_of_observed_time, "as_of_observed_time")
+        timeline = self.list_timeline(platform_run_id=run_id, event_id=event)
+        label_types = sorted({item.label_type for item in timeline})
+        resolutions: list[LabelAsOfResolution] = []
+        for label_type in label_types:
+            resolutions.append(
+                self.label_as_of(
+                    platform_run_id=run_id,
+                    event_id=event,
+                    label_type=label_type,
+                    as_of_observed_time=as_of,
+                )
+            )
+        return tuple(resolutions)
 
     def rebuild_timeline_from_assertion_ledger(self) -> int:
         def _tx(conn: Any) -> int:
@@ -628,6 +732,28 @@ def _evidence_refs_tuple(value: Any) -> tuple[dict[str, str], ...]:
         refs.append(row)
     refs.sort(key=lambda item: (item["ref_type"], item["ref_id"], str(item.get("ref_scope") or "")))
     return tuple(refs)
+
+
+def _parse_ts(value: str) -> datetime:
+    text = str(value)
+    if text.endswith("Z"):
+        text = text[:-1] + "+00:00"
+    parsed = datetime.fromisoformat(text)
+    if parsed.tzinfo is None:
+        return parsed.replace(tzinfo=timezone.utc)
+    return parsed.astimezone(timezone.utc)
+
+
+def _ts_leq(left: str, right: str) -> bool:
+    return _parse_ts(left) <= _parse_ts(right)
+
+
+def _resolution_sort_key(entry: LabelTimelineEntry) -> tuple[datetime, datetime, str]:
+    return (
+        _parse_ts(entry.effective_time),
+        _parse_ts(entry.observed_time),
+        entry.label_assertion_id,
+    )
 
 
 def _render_sql(sql: str, backend: str) -> str:

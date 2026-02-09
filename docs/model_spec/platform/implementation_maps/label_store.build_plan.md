@@ -139,4 +139,14 @@ Provide an executable, component-scoped plan for Label Store (LS) aligned to pla
     - `python -m pytest -q tests/services/case_mgmt/test_phase5_label_handshake.py tests/services/case_mgmt/test_phase8_validation_matrix.py` -> `10 passed`
     - `python -m pytest -q tests/services/case_mgmt/test_phase1_contracts.py tests/services/case_mgmt/test_phase1_ids.py tests/services/case_mgmt/test_phase2_intake.py tests/services/case_mgmt/test_phase3_projection.py tests/services/case_mgmt/test_phase4_evidence_resolution.py tests/services/case_mgmt/test_phase5_label_handshake.py tests/services/case_mgmt/test_phase6_action_handshake.py tests/services/case_mgmt/test_phase7_observability.py tests/services/case_mgmt/test_phase8_validation_matrix.py` -> `44 passed`
     - `python -m pytest -q tests/services/platform_reporter/test_run_reporter.py` -> `2 passed`
-- Next action: Phase 4 implementation (as-of and resolved-query surfaces).
+- Phase 4 (`As-of and resolved-query surfaces`): completed on `2026-02-09`.
+  - Evidence:
+    - `src/fraud_detection/label_store/writer_boundary.py` (`label_as_of(...)`, `resolved_labels_as_of(...)`, explicit `RESOLVED/CONFLICT/NOT_FOUND` posture, deterministic precedence and conflict-candidate refs)
+    - `src/fraud_detection/label_store/__init__.py` (Phase 4 exports)
+    - `tests/services/label_store/test_phase4_as_of_queries.py`
+  - Validation:
+    - `python -m py_compile src/fraud_detection/label_store/writer_boundary.py src/fraud_detection/label_store/__init__.py tests/services/label_store/test_phase4_as_of_queries.py` -> pass
+    - `python -m pytest -q tests/services/label_store/test_phase4_as_of_queries.py` -> `4 passed`
+    - `python -m pytest -q tests/services/label_store/test_phase1_label_store_contracts.py tests/services/label_store/test_phase1_label_store_ids.py tests/services/label_store/test_phase2_writer_boundary.py tests/services/label_store/test_phase3_timeline_persistence.py tests/services/label_store/test_phase4_as_of_queries.py` -> `23 passed`
+    - `python -m pytest -q tests/services/case_mgmt/test_phase5_label_handshake.py tests/services/case_mgmt/test_phase8_validation_matrix.py` -> `10 passed`
+- Next action: Phase 5 implementation (ingest adapters for CM and external/engine truth lanes).

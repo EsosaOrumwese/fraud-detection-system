@@ -314,3 +314,101 @@ Phase 2 implemented writer idempotency corridor but current persisted shape is a
   - deterministic timeline ordering is enforced,
   - provenance/evidence refs are persisted by reference,
   - rebuild-safe restore path is available and tested.
+
+## Entry: 2026-02-09 06:42PM - Pre-change lock for Phase 4 (LS as-of and resolved-query surfaces)
+
+### Objective
+Close LS Phase 4 by implementing leakage-safe `label_as_of` and deterministic resolved-query surfaces over append-only timeline truth.
+
+### Authority inputs used
+- `docs/model_spec/platform/implementation_maps/label_store.build_plan.md` (Phase 4 DoD)
+- `docs/model_spec/platform/implementation_maps/platform.build_plan.md` (Phase 5.6 requirements)
+- `docs/model_spec/platform/component-specific/label_store.design-authority.md` (as-of semantics, conflict posture)
+- Existing LS timeline truth from Phase 3 in `src/fraud_detection/label_store/writer_boundary.py`
+
+### Problem framing
+LS now persists append-only timeline rows, but Phase 4 requires explicit read surfaces for learning/governance safety:
+1. no dedicated `label_as_of(subject, T)` API yet,
+2. no explicit conflict posture surface for resolved view,
+3. no stable read contract for consumers (OFS/MF) beyond raw timeline listing.
+
+### Alternatives considered
+1. Return only raw timeline rows and leave as-of/resolution to callers.
+- Rejected: repeats interpretation logic across consumers and increases leakage risk.
+2. Implement explicit as-of/resolved APIs in LS writer boundary with deterministic precedence and conflict signaling.
+- Selected: centralizes semantics and satisfies DoD directly.
+
+### Decisions locked before edits
+1. Add `label_as_of(...)` method with required `as_of_observed_time` parameter and strict observed-time eligibility (`observed_time <= T_asof`).
+2. Add `resolved_labels_as_of(...)` method returning per-label-type resolved snapshots for a subject at `T_asof`.
+3. Conflict posture will be explicit:
+- if multiple eligible assertions for the same label_type share the highest precedence key (`effective_time`, `observed_time`) but disagree on `label_value`, return `CONFLICT` with candidate refs.
+4. Deterministic precedence for non-conflict resolution:
+- highest `effective_time`, then highest `observed_time`, then highest `label_assertion_id`.
+5. Add Phase 4 test matrix covering:
+- observed-time eligibility,
+- deterministic resolution,
+- explicit conflict surface,
+- query contract stability.
+
+### Planned files
+- Update:
+  - `src/fraud_detection/label_store/writer_boundary.py`
+  - `src/fraud_detection/label_store/__init__.py`
+- New:
+  - `tests/services/label_store/test_phase4_as_of_queries.py`
+- Documentation updates after validation:
+  - `docs/model_spec/platform/implementation_maps/label_store.build_plan.md`
+  - `docs/model_spec/platform/implementation_maps/platform.build_plan.md`
+  - `docs/model_spec/platform/implementation_maps/label_store.impl_actual.md`
+  - `docs/model_spec/platform/implementation_maps/platform.impl_actual.md`
+  - `docs/logbook/02-2026/2026-02-09.md`
+
+### Validation plan
+- `python -m py_compile src/fraud_detection/label_store/writer_boundary.py src/fraud_detection/label_store/__init__.py tests/services/label_store/test_phase4_as_of_queries.py`
+- `python -m pytest -q tests/services/label_store/test_phase4_as_of_queries.py`
+- `python -m pytest -q tests/services/label_store/test_phase1_label_store_contracts.py tests/services/label_store/test_phase1_label_store_ids.py tests/services/label_store/test_phase2_writer_boundary.py tests/services/label_store/test_phase3_timeline_persistence.py tests/services/label_store/test_phase4_as_of_queries.py`
+- `python -m pytest -q tests/services/case_mgmt/test_phase5_label_handshake.py tests/services/case_mgmt/test_phase8_validation_matrix.py`
+
+## Entry: 2026-02-09 06:47PM - Phase 4 implemented and validated (LS as-of and resolved-query surfaces)
+
+### Implementation completed
+1. Finalized leakage-safe as-of read surface in `src/fraud_detection/label_store/writer_boundary.py`:
+- `label_as_of(platform_run_id, event_id, label_type, as_of_observed_time)` now enforces explicit observed-time eligibility (`observed_time <= as_of_observed_time`).
+- Resolution outputs explicit status posture: `RESOLVED`, `CONFLICT`, `NOT_FOUND`.
+
+2. Finalized deterministic resolved-query surface:
+- `resolved_labels_as_of(platform_run_id, event_id, as_of_observed_time)` returns stable per-label-type outputs by delegating to the same `label_as_of(...)` semantics.
+- Label types are emitted in deterministic sorted order for caller stability.
+
+3. Finalized deterministic precedence + conflict posture:
+- non-conflict precedence key is pinned as highest `(effective_time, observed_time, label_assertion_id)`.
+- if top-precedence ties disagree on `label_value`, the surface returns explicit `CONFLICT` with candidate assertion IDs + values.
+
+4. Finalized package exports for Phase 4 consumers:
+- `src/fraud_detection/label_store/__init__.py` exports `LabelAsOfResolution` and `LS_AS_OF_*` status constants.
+
+5. Added and validated dedicated Phase 4 matrix tests:
+- `tests/services/label_store/test_phase4_as_of_queries.py`
+- covers observed-time eligibility, explicit conflict handling, stable per-label-type contract, and `NOT_FOUND` posture.
+
+### Decision trail and rationale
+- During Phase 4 execution, the core code/test surfaces were already present in working state from the active implementation thread. I treated this as an in-progress draft, then executed the full Phase 4 validation gate before closure so closure is evidence-backed rather than inferred.
+- No additional architectural change was required beyond the pre-change lock decisions at `06:42PM`; behavior matched the pinned Phase 4 decisions.
+
+### Validation evidence
+- `python -m py_compile src/fraud_detection/label_store/writer_boundary.py src/fraud_detection/label_store/__init__.py tests/services/label_store/test_phase4_as_of_queries.py`
+  - result: pass
+- `python -m pytest -q tests/services/label_store/test_phase4_as_of_queries.py`
+  - result: `4 passed`
+- `python -m pytest -q tests/services/label_store/test_phase1_label_store_contracts.py tests/services/label_store/test_phase1_label_store_ids.py tests/services/label_store/test_phase2_writer_boundary.py tests/services/label_store/test_phase3_timeline_persistence.py tests/services/label_store/test_phase4_as_of_queries.py`
+  - result: `23 passed`
+- `python -m pytest -q tests/services/case_mgmt/test_phase5_label_handshake.py tests/services/case_mgmt/test_phase8_validation_matrix.py`
+  - result: `10 passed`
+
+### Phase closure statement
+- LS Phase 4 DoD is satisfied:
+  - timeline-by-subject and as-of read surfaces are implemented,
+  - observed-time eligibility is explicit and enforced,
+  - resolved conflict posture is explicit and deterministic,
+  - query contract is stable for downstream OFS/MF consumers.
