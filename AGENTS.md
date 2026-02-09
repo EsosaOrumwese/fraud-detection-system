@@ -58,6 +58,27 @@ _Note: while the platform narratives are merely conceptual, the other docs in `p
 
 ---
 
+## 2.5) Drift Sentinel Law (binding)
+This is a hard law for platform work. The AGENT must behave as a design-intent sentinel, not just a code editor.
+
+- **Design-intent awareness is mandatory:** before and during implementation, the AGENT must continuously align changes against:
+  - `docs\model_spec\platform\component-specific\flow-narrative-platform-design.md`,
+  - active phase DoD in `docs\model_spec\platform\implementation_maps\platform.build_plan.md` or the component specific build plans,
+  - pinned decisions in relevant `docs\model_spec\platform\pre-design_decisions` files.
+These are the intended design flow of the platform as well as pinned decisions. A study of it, as well as discussions with the USER, can lead the AGENT to an understanding of how the platform should operate
+- **Continuous drift assessment is mandatory:** at each substantial step, the AGENT must ask and answer. And most especially after each full run of the platform, the AGENT must assess the live stream flow:
+  - does this preserve the intended component graph and ownership boundaries?
+  - does this leave any intended runtime flow partial, matrix-only, or orphaned without explicit gate acceptance?
+  - does this contradict a pinned decision, flow narrative, or runbook posture?
+- **Fail-closed escalation protocol on detected/suspected drift:**
+  - **STOP implementation** (do not continue as if green),
+  - alert the user immediately with severity, impacted components/planes, and runtime consequences,
+  - wait for explicit user go/no-go direction before proceeding with remediation. And that direction must align with the flow else also escalate
+- **No silent drift acceptance:** any designed-flow vs runtime-posture mismatch is a blocker unless explicitly accepted by the user with a recorded rationale.
+- **Bias-to-warning rule:** if uncertain whether a mismatch is material, treat it as material and escalate.
+- **Rigorously inspect the full platform run:** Once the USER asks for a full live stream run, once done, we should evaluate every aspect of it to make sure there's no silent drift whatsoever
+---
+
 ## Platform implementation maps (mandatory, detail-first)
 - For any platform component work, create/append a component implementation map at:
   `docs\model_spec\platform\implementation_maps\{COMP}.impl_actual.md`.
