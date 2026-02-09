@@ -980,27 +980,35 @@ Resolved and pinned in:
 - Phase 5 **formal closure gate** remains blocked unless all mandatory 4.6 gates are PASS (reserved families excluded until owning plane activation); implementation sequencing may run in parallel when residual 4.6 gaps are explicitly tracked.
 
 ##### 4.6.L — Remaining-open closure TODOs from full parity run `platform_20260209T144746Z`
-**Goal:** convert the latest strict-green blockers into explicit closure tasks while preserving truthful gate posture.
+**Goal:** close strict-green residuals with explicit criteria/evidence and synchronize platform status truth.
 
-**TODO checklist (must close before declaring Phase 4.6 PASS):**
-- `TODO-4.6L-01` OFP watermark-age policy closure:
-  - decide whether local-parity `WATERMARK_TOO_OLD` is a must-fix gate or an explicitly accepted bounded-run posture,
-  - codify that decision in matrix criteria + runbook checks to avoid ambiguous PASS/FAIL interpretation.
-- `TODO-4.6L-02` IEG/DL run-scoped observability completeness:
-  - restore deterministic emission of run-scoped `health/last_health.json` and `metrics/last_metrics.json` in orchestrated parity runs,
-  - fail the matrix row when either artifact family is absent for active run scope.
-- `TODO-4.6L-03` DF fail-closed posture closure:
-  - close or explicitly justify the observed run posture (`degrade_total=200`, `fail_closed_total=200`, `resolver_failures_total=200`),
-  - if temporarily accepted in local parity, pin bounded acceptance criteria and an env-ladder-safe remediation path for dev/prod parity.
-- `TODO-4.6L-04` Matrix/status truth sync:
-  - keep `platform.phase4_6_validation_matrix.md` and this build-plan status block in non-PASS posture until `TODO-4.6L-01..03` are evidenced closed,
-  - attach closure evidence in `platform.impl_actual.md` + logbook with run IDs/commands.
+**Closure checklist (2026-02-09):**
+- `TODO-4.6L-01` OFP watermark-age policy closure: **CLOSED**
+  - local-parity rule is now explicit in runbook (`platform_parity_walkthrough_v0.md` section `14.1`):
+    - `WATERMARK_TOO_OLD` is gate-failing during active ingress progression,
+    - post-idle bounded-run watermark drift is informational in local parity and must be recorded.
+  - matrix criteria updated in `platform.phase4_6_validation_matrix.md`.
+- `TODO-4.6L-02` IEG/DL run-scoped observability completeness: **CLOSED**
+  - DL worker now emits run-scoped artifacts each tick:
+    - `runs/fraud-platform/<platform_run_id>/degrade_ladder/metrics/last_metrics.json`
+    - `runs/fraud-platform/<platform_run_id>/degrade_ladder/health/last_health.json`
+  - validation:
+    - `python -m pytest -q tests/services/degrade_ladder/test_phase7_worker_observability.py` -> `2 passed`
+    - `python -m pytest -q tests/services/degrade_ladder` -> `43 passed`
+  - runtime smoke on active run `platform_20260209T144746Z` confirms both files present.
+- `TODO-4.6L-03` DF fail-closed posture closure: **CLOSED (bounded local-parity acceptance)**
+  - deterministic posture evidence retained on active run:
+    - `runs/fraud-platform/platform_20260209T144746Z/decision_fabric/metrics/last_metrics.json` (`degrade_total=200`, `fail_closed_total=200`, `resolver_failures_total=200`)
+    - `runs/fraud-platform/platform_20260209T144746Z/decision_fabric/reconciliation/reconciliation.json` (deterministic reason families).
+  - acceptance bound is local parity only; env-ladder remediation for dev/prod is mandatory (compatible ACTIVE bundle and feature-group contract closure required).
+- `TODO-4.6L-04` Matrix/status truth sync: **CLOSED**
+  - matrix and status block are now synchronized with closed `4.6.L` posture and evidence links.
 
 ---
 
 ### Phase 5 — Label & Case plane
 **Intent:** crystallize outcomes into authoritative label timelines and case workflows.
-**Execution posture:** implementation may proceed in parallel with `4.6.L` residual closure items; formal Phase 5 closure still requires Phase 4.6 PASS evidence.
+**Execution posture:** Phase 4.6 residuals are closed; Phase 5 proceeds under normal closure gates.
 
 **Definition of Done (DoD):**
 - Label Store supports append-only timelines with as-of queries (effective vs observed time).
@@ -1199,8 +1207,8 @@ Resolved and pinned in:
 - Phase 4.3.5 (Context Store + FlowBinding join plane): complete.
 - Phase 4.4 (DF/DL): complete.
 - Phase 4.5 (AL + DLA): complete.
-- Phase 4 (RTDL plane overall): functionally green for end-to-end throughput on full run `platform_20260209T144746Z`, with strict-green closure items tracked under `4.6.L`.
-- Phase 4.6 (Run/Operate + Obs/Gov meta-layer closure gate): in progress; `4.6.A..4.6.K` framework is implemented, `4.6.L` runtime closure TODOs remain open.
+- Phase 4 (RTDL plane overall): strict-green closure complete for current scope; residual `4.6.L` items are closed with explicit criteria/evidence.
+- Phase 4.6 (Run/Operate + Obs/Gov meta-layer closure gate): complete (`4.6.A..4.6.K` PASS and `4.6.L` residual closure complete as of 2026-02-09).
 - Phase 5 (Label & Case plane): in progress (`5.1..5.9` sectioned DoD map pinned; implementation now active with staged closure evidence across CaseTrigger/CM/LS sub-phases).
 - Phase 5.1 (contracts + identity pins): complete (`CM/LS` contract code + schemas + tests, `22 passed` on 2026-02-09).
 - LS build-plan Phase 2 (writer boundary + idempotency corridor): complete (`5 passed` Phase 2 matrix; LS Phase1+2 `15 passed`; CM label/phase8 regressions `10 passed`; CM full regression `44 passed`; deterministic LS write corridor landed in `src/fraud_detection/label_store/writer_boundary.py` with fail-closed payload hash mismatch handling).
@@ -1217,5 +1225,5 @@ Resolved and pinned in:
 - CM build-plan Phase 6 (CM->AL manual action boundary): complete (`6 passed` Phase 6 matrix; CM Phase1..6 `36 passed`; CaseTrigger/IG regression `45 passed`; deterministic manual ActionIntent emission + by-ref outcome attach lane landed in `src/fraud_detection/case_mgmt/action_handshake.py` with policy at `config/platform/case_mgmt/action_emission_policy_v0.yaml` and projection semantics updated in `src/fraud_detection/case_mgmt/intake.py`).
 - CM build-plan Phase 7 (observability, governance, reconciliation): complete (`4 passed` Phase 7 matrix; CM Phase1..7 `40 passed`; CaseTrigger/IG regression `45 passed`; platform reporter regression `2 passed`; CM run-scoped metrics/health/reconciliation and lifecycle governance emission landed in `src/fraud_detection/case_mgmt/observability.py`; Case+Labels reconciliation contribution now emits under `runs/<platform_run_id>/case_labels/reconciliation/{YYYY-MM-DD}.json` and `case_mgmt_reconciliation.json`).
 - CM build-plan Phase 8 (integration closure/parity proof): complete (`4 passed` Phase 8 matrix; CM Phase1..8 `44 passed`; CaseTrigger/IG regression `45 passed`; platform reporter regression `2 passed`; parity artifacts captured at `runs/fraud-platform/platform_20260209T210000Z/case_mgmt/reconciliation/phase8_parity_proof_{20,200}.json` and `phase8_negative_path_proof.json`).
-- Next active platform phase: Phase 5 (Label & Case plane) with `4.6.L` closure TODOs carried in parallel until formal 4.6 PASS is evidenced.
+- Next active platform phase: Phase 5 (Label & Case plane) under normal phase gates (no open `4.6.L` carry-over).
 - SR v0: complete (see `docs/model_spec/platform/implementation_maps/scenario_runner.build_plan.md`).

@@ -157,6 +157,14 @@ class DegradeLadderWorker:
             now_utc=now_utc,
         )
         outbox_metrics = self.outbox.metrics(now_utc=now_utc).as_dict()
+        ops_metrics = self.ops.metrics_snapshot(scope_key=self.config.scope_key)
+        run_observability = self._emit_run_scoped_observability(
+            now_utc=now_utc,
+            decision=decision,
+            snapshot=snapshot,
+            outbox_metrics=outbox_metrics,
+            ops_metrics=ops_metrics,
+        )
 
         return {
             "ts_utc": now_utc,
@@ -177,6 +185,7 @@ class DegradeLadderWorker:
             "required_signal_states": {
                 state.name: state.state for state in snapshot.states if state.required
             },
+            "run_observability": run_observability,
         }
 
     def run_forever(self) -> None:
@@ -408,6 +417,87 @@ class DegradeLadderWorker:
 
     def _control_events_path(self) -> Path:
         return self._run_root() / "degrade_ladder" / "control_events.jsonl"
+
+    def _emit_run_scoped_observability(
+        self,
+        *,
+        now_utc: str,
+        decision: Any,
+        snapshot: Any,
+        outbox_metrics: dict[str, Any],
+        ops_metrics: dict[str, int],
+    ) -> dict[str, Any]:
+        required_signal_states = {
+            state.name: str(state.state)
+            for state in snapshot.states
+            if bool(state.required)
+        }
+        optional_signal_states = {
+            state.name: str(state.state)
+            for state in snapshot.states
+            if not bool(state.required)
+        }
+        bad_required = sorted(
+            name
+            for name, state in required_signal_states.items()
+            if state in {"MISSING", "STALE", "ERROR"}
+        )
+        health_state = "GREEN"
+        reasons: list[str] = []
+        if bad_required:
+            health_state = "RED"
+            reasons.append("REQUIRED_SIGNAL_NOT_OK")
+        if self._last_drain_result and (
+            self._last_drain_result.failed > 0 or self._last_drain_result.dead_lettered > 0
+        ):
+            health_state = "RED"
+            reasons.append("OUTBOX_DRAIN_ERRORS")
+        elif not bad_required and str(decision.mode).upper() != "NORMAL":
+            health_state = "AMBER"
+            reasons.append(f"POSTURE_{str(decision.mode).upper()}")
+
+        component_root = self._run_root() / "degrade_ladder"
+        metrics_path = component_root / "metrics" / "last_metrics.json"
+        health_path = component_root / "health" / "last_health.json"
+        metrics_payload = {
+            "platform_run_id": self.config.platform_run_id,
+            "scope_key": self.config.scope_key,
+            "stream_id": self.config.stream_id,
+            "ts_utc": now_utc,
+            "metrics": ops_metrics,
+            "outbox_metrics": outbox_metrics,
+            "required_signal_states": required_signal_states,
+            "optional_signal_states": optional_signal_states,
+            "decision_mode": str(decision.mode),
+            "posture_seq": int(decision.posture_seq),
+        }
+        health_payload = {
+            "platform_run_id": self.config.platform_run_id,
+            "scope_key": self.config.scope_key,
+            "stream_id": self.config.stream_id,
+            "ts_utc": now_utc,
+            "health_state": health_state,
+            "reason_codes": sorted(set(reasons)),
+            "decision_mode": str(decision.mode),
+            "required_signal_states": required_signal_states,
+            "bad_required_signals": bad_required,
+            "outbox_failed": int(self._last_drain_result.failed) if self._last_drain_result else 0,
+            "outbox_dead_lettered": int(self._last_drain_result.dead_lettered) if self._last_drain_result else 0,
+        }
+        self._write_json(metrics_path, metrics_payload)
+        self._write_json(health_path, health_payload)
+        return {
+            "metrics_path": str(metrics_path),
+            "health_path": str(health_path),
+            "health_state": health_state,
+        }
+
+    def _write_json(self, path: Path, payload: dict[str, Any]) -> None:
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text(
+            json.dumps(payload, sort_keys=True, ensure_ascii=True) + "\n",
+            encoding="utf-8",
+        )
 
     def _run_root(self) -> Path:
         run_id = self.config.platform_run_id

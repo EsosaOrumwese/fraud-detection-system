@@ -1076,3 +1076,69 @@ This entry freezes the exact implementation mechanics before code edits for deci
 - `python -m py_compile src/fraud_detection/degrade_ladder/worker.py` -> PASS.
 - `python -m pytest tests/services/degrade_ladder -q` -> `40 passed`.
 - decision-lane pack smoke shows `dl_worker running ready` under active run scope.
+
+## Entry: 2026-02-09 07:45PM - Pre-change lock: DL run-scoped observability closure for platform 4.6.L
+
+### Problem statement
+`DL` worker currently evaluates/commits posture and drains control outbox, but does not export run-scoped observability files expected by platform closure checks (`degrade_ladder/metrics/last_metrics.json`, `degrade_ladder/health/last_health.json`). This leaves `4.6L-02` open and creates drift between component runtime behavior and matrix guardrails.
+
+### Design options considered
+1. Add a separate DL observability CLI and run it from orchestrator.
+- Pros: separation of concerns.
+- Cons: additional process coupling/order risk; more moving parts for run parity.
+
+2. Emit DL observability artifacts directly from worker tick (selected).
+- Pros: single-source-of-truth from the actor that computes posture; deterministic and always fresh after tick.
+- Cons: worker payload grows slightly.
+
+### Selected mechanics
+- Extend `DegradeLadderWorker.run_once()` to write both artifacts under active run root:
+  - `runs/fraud-platform/<run_id>/degrade_ladder/metrics/last_metrics.json`
+  - `runs/fraud-platform/<run_id>/degrade_ladder/health/last_health.json`
+- Metrics export includes stable run/scope identity plus outbox and signal-state counters needed for matrix verification.
+- Health export includes deterministic `health_state` derived from required signal states and outbox failure posture.
+- Writes are idempotent overwrite of `last_*` files per existing platform observability pattern.
+
+### Safety/compatibility constraints
+- Keep fail-closed evaluator behavior unchanged.
+- Do not alter control-event payload contracts.
+- Preserve local parity and env-ladder portability (artifact shape is additive and run-scoped).
+
+### Validation lock
+- Add worker-focused tests covering artifact emission + health-state derivation.
+- Run full DL test suite post-change.
+
+## Entry: 2026-02-09 07:50PM - DL run-scoped observability closure implemented (`4.6L-02`)
+
+### Implemented changes
+- Updated `src/fraud_detection/degrade_ladder/worker.py`:
+  - `run_once()` now captures `ops_metrics` and emits run-scoped observability payloads every tick.
+  - Added `_emit_run_scoped_observability(...)` to write deterministic artifacts:
+    - `runs/fraud-platform/<platform_run_id>/degrade_ladder/metrics/last_metrics.json`
+    - `runs/fraud-platform/<platform_run_id>/degrade_ladder/health/last_health.json`
+  - Added `_write_json(...)` helper for stable artifact write semantics.
+  - Worker return payload now includes `run_observability` metadata (artifact paths + health state).
+
+### Health derivation logic pinned
+- `RED` when required signals have `MISSING/STALE/ERROR` or outbox drain failures/dead-letters exist.
+- `AMBER` when required signals are OK but posture mode is non-`NORMAL`.
+- `GREEN` when required signals are healthy and posture is `NORMAL`.
+
+### Tests added
+- New test module: `tests/services/degrade_ladder/test_phase7_worker_observability.py`
+  - verifies artifact emission under healthy signal setup,
+  - verifies `RED` posture and required-signal reason evidence when required component health artifacts are missing.
+
+### Validation evidence
+- `python -m py_compile src/fraud_detection/degrade_ladder/worker.py tests/services/degrade_ladder/test_phase7_worker_observability.py` -> PASS
+- `python -m pytest -q tests/services/degrade_ladder/test_phase7_worker_observability.py` -> `2 passed`
+- `python -m pytest -q tests/services/degrade_ladder` -> `43 passed`
+- Runtime smoke:
+  - `python -m fraud_detection.degrade_ladder.worker --profile config/platform/profiles/local_parity.yaml --once`
+  - verified active-run artifact presence:
+    - `runs/fraud-platform/platform_20260209T144746Z/degrade_ladder/health/last_health.json`
+    - `runs/fraud-platform/platform_20260209T144746Z/degrade_ladder/metrics/last_metrics.json`
+
+### Drift-sentinel assessment
+- Change is additive and remains within DL ownership boundaries.
+- No contract drift detected against flow narrative/pinned decision posture for run-scoped observability.

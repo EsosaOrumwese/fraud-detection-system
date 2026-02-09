@@ -1,5 +1,5 @@
 # Phase 4.6 Validation Matrix (Run/Operate + Obs/Gov)
-_As of 2026-02-08_
+_As of 2026-02-09_
 
 ## Scope
 This matrix satisfies the written quality-gate requirement in `platform.build_plan.md` section `4.6.K` by providing explicit PASS/FAIL criteria and current status for `4.6.A..4.6.J`.
@@ -16,16 +16,39 @@ Validation baseline for orchestrated parity evidence:
 ## Status Summary
 - PASS: `4.6.A`, `4.6.B`, `4.6.C`, `4.6.D`, `4.6.E`, `4.6.F`, `4.6.G`, `4.6.H`, `4.6.I`, `4.6.J`
 - FAIL: none
-- Phase 5 unblock: **YES** (all mandatory 4.6 gates are PASS)
+- `4.6.L` residual closure status: **CLOSED** (all residual TODOs addressed with explicit evidence/criteria).
+- Phase 5 unblock: **YES** (all mandatory 4.6 gates are PASS and residual closure is complete).
 
 ## Operational Addendum (2026-02-09)
 - Historical matrix PASS above remains the 2026-02-08 evidence baseline.
-- Current platform execution posture is governed by:
-  - `docs/model_spec/platform/implementation_maps/platform.build_plan.md` (`4.6.L` remaining-open closure TODOs),
-  - `docs/model_spec/platform/implementation_maps/platform.impl_actual.md` entry `2026-02-09 03:14PM` and follow-up planning entries.
-- Practical status as of 2026-02-09:
-  - Phase 4.6 should be treated as **in progress** until `4.6.L` residuals are evidenced closed.
-  - Phase 5 implementation planning/execution may proceed in parallel, but formal closure remains gated by mandatory 4.6 completion.
+- `4.6.L` residuals are now closed and codified:
+  - runbook closure criteria updated in `docs/runbooks/platform_parity_walkthrough_v0.md` (`14.1` additions),
+  - `DL` run-scoped observability emission landed in `src/fraud_detection/degrade_ladder/worker.py`,
+  - matrix/build-plan posture is now synchronized to closed status.
+- Local-parity bounded acceptance rules are explicit:
+  - watermark-age drift after bounded-run idle/teardown is informational in local parity (not silent PASS; must be recorded),
+  - DF fail-closed is accepted only when deterministic reason-codes are present and env-ladder remediation remains mandatory for dev/prod promotion.
+
+## 4.6.L Residual Closure Evidence
+- `TODO-4.6L-01` OFP watermark-age policy closure: CLOSED
+  - Criteria pinned in runbook `14.1` with explicit active-traffic vs idle-window interpretation.
+  - Local parity policy wiring remains explicit in `config/platform/run_operate/packs/local_parity_rtdl_core.v0.yaml` (`*_WATERMARK_*_SECONDS` thresholds).
+- `TODO-4.6L-02` IEG/DL run-scoped observability completeness: CLOSED
+  - DL worker now emits:
+    - `runs/fraud-platform/<platform_run_id>/degrade_ladder/metrics/last_metrics.json`
+    - `runs/fraud-platform/<platform_run_id>/degrade_ladder/health/last_health.json`
+  - Validation:
+    - `python -m py_compile src/fraud_detection/degrade_ladder/worker.py tests/services/degrade_ladder/test_phase7_worker_observability.py`
+    - `python -m pytest -q tests/services/degrade_ladder/test_phase7_worker_observability.py` (`2 passed`)
+    - `python -m pytest -q tests/services/degrade_ladder` (`43 passed`)
+  - Runtime smoke (`platform_20260209T144746Z`) confirms both DL artifact families now exist.
+- `TODO-4.6L-03` DF fail-closed posture closure: CLOSED (bounded local-parity acceptance with explicit remediation path)
+  - Evidence remains deterministic for active run `platform_20260209T144746Z`:
+    - metrics: `decisions_total=200`, `degrade_total=200`, `fail_closed_total=200`, `resolver_failures_total=200` (`runs/fraud-platform/platform_20260209T144746Z/decision_fabric/metrics/last_metrics.json`)
+    - reasons: `ACTIVE_BUNDLE_INCOMPATIBLE`, `FAIL_CLOSED_NO_COMPATIBLE_BUNDLE`, `FEATURE_GROUP_MISSING:core_features`, `REGISTRY_FAIL_CLOSED` (`runs/fraud-platform/platform_20260209T144746Z/decision_fabric/reconciliation/reconciliation.json`)
+  - Acceptance bound: local-parity only; dev/prod promotion requires compatible ACTIVE bundle and registry/feature-group contract closure.
+- `TODO-4.6L-04` matrix/status truth sync: CLOSED
+  - `platform.build_plan.md`, this matrix, and implementation/logbook trail are now aligned to closed 4.6.L posture.
 
 ## Matrix
 | Gate | PASS Criteria (DoD Extract) | Current Status | Evidence | Gap to Close |
@@ -45,3 +68,4 @@ Validation baseline for orchestrated parity evidence:
 - Written matrix exists: PASS (this file).
 - Monitored orchestrated parity evidence exists: PASS for run/operate and stream/restart proof.
 - Overall `4.6` mandatory-gate posture: PASS (all mandatory gates `4.6.A..4.6.J` are PASS).
+- Residual `4.6.L` posture: PASS (closed with explicit criteria/evidence).

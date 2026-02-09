@@ -701,6 +701,19 @@ Use this as the operator closeout:
 - Verify governance stream includes `RUN_REPORT_GENERATED` and evidence-resolution events.
 - Verify conformance gate reports pass for active profile expectations before moving to the next plane.
 
+`4.6.L` strict closeout additions (required for Phase 4.6 PASS):
+- Verify `IEG` and `DL` both publish run-scoped observability files for the active run:
+  - `runs/fraud-platform/<platform_run_id>/identity_entity_graph/metrics/last_metrics.json`
+  - `runs/fraud-platform/<platform_run_id>/identity_entity_graph/health/last_health.json`
+  - `runs/fraud-platform/<platform_run_id>/degrade_ladder/metrics/last_metrics.json`
+  - `runs/fraud-platform/<platform_run_id>/degrade_ladder/health/last_health.json`
+- Apply bounded local-parity watermark-age rule:
+  - treat `WATERMARK_TOO_OLD` as gate-failing only while ingress is actively progressing for the run,
+  - after bounded-run stream idle/teardown, stale watermark is informational for local parity and must be recorded in implementation notes.
+- Apply bounded local-parity DF fail-closed acceptance rule:
+  - acceptable only when posture is deterministic and explainable from compatibility reasons (`ACTIVE_BUNDLE_INCOMPATIBLE`, `FAIL_CLOSED_NO_COMPATIBLE_BUNDLE`, `REGISTRY_FAIL_CLOSED`, etc.),
+  - must include explicit env-ladder remediation note: dev/prod promotion requires compatible ACTIVE bundle + feature-group contract, not continued fail-closed operation.
+
 ---
 
 ## 15) OFP/OFS local-parity boundary checks (projector + snapshot + observability)
