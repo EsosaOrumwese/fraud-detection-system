@@ -22,6 +22,7 @@ from fraud_detection.ingestion_gate.schemas import SchemaRegistry
 from fraud_detection.platform_runtime import resolve_run_scoped_path
 
 from .contracts import FlowBindingRecord, JoinFrameKey
+from .observability import CsfbObservabilityReporter
 from .replay import CsfbReplayManifest, CsfbReplayPartitionRange
 from .store import ContextStoreFlowBindingConflictError, build_store
 from .taxonomy import ContextStoreFlowBindingTaxonomyError, ensure_authoritative_flow_binding_event_type
@@ -153,6 +154,12 @@ class ContextStoreFlowBindingInlet:
         self.class_map = ClassMap.load(Path(policy.class_map_ref))
         self.schema_registry = SchemaRegistry(Path(policy.engine_contracts_root))
         self.store = build_store(policy.projection_db_dsn, stream_id=policy.stream_id)
+        self._latest_scenario_run_id: str | None = None
+        self._last_observability_export = 0.0
+        self._observability = CsfbObservabilityReporter.build(
+            locator=policy.projection_db_dsn,
+            stream_id=policy.stream_id,
+        )
         self._file_reader: EventBusReader | None = None
         self._kinesis_reader: KinesisEventBusReader | None = None
         if policy.event_bus_kind == "file":
@@ -172,7 +179,9 @@ class ContextStoreFlowBindingInlet:
 
     def run_once(self, manifest: CsfbReplayManifest | None = None) -> int:
         if manifest is not None:
-            return self.run_replay_once(manifest)
+            processed = self.run_replay_once(manifest)
+            self._maybe_export_observability(force=processed > 0)
+            return processed
         processed = 0
         for topic in self.policy.context_topics:
             if self.policy.event_bus_kind == "file":
@@ -180,6 +189,7 @@ class ContextStoreFlowBindingInlet:
                     processed += self._consume_file_partition(topic, partition)
             else:
                 processed += self._consume_kinesis_topic(topic)
+        self._maybe_export_observability(force=processed > 0)
         return processed
 
     def run_forever(self) -> None:
@@ -380,6 +390,8 @@ class ContextStoreFlowBindingInlet:
         event_ts_utc = _none_if_blank(envelope.get("ts_utc"))
         platform_run_id = _none_if_blank(envelope.get("platform_run_id"))
         scenario_run_id = _none_if_blank(envelope.get("scenario_run_id") or envelope.get("run_id"))
+        if scenario_run_id:
+            self._latest_scenario_run_id = scenario_run_id
 
         try:
             self.schema_registry.validate("canonical_event_envelope.schema.yaml", envelope)
@@ -641,6 +653,23 @@ class ContextStoreFlowBindingInlet:
             offset_kind=record.offset_kind,
             watermark_ts_utc=event_ts_utc,
         )
+
+    def _maybe_export_observability(self, *, force: bool) -> None:
+        if not self._latest_scenario_run_id:
+            return
+        interval_seconds = max(1.0, float(os.getenv("CSFB_OBSERVABILITY_EXPORT_SECONDS") or "10"))
+        now = time.monotonic()
+        if not force and (now - self._last_observability_export) < interval_seconds:
+            return
+        try:
+            self._observability.export(
+                platform_run_id=self.policy.required_platform_run_id,
+                scenario_run_id=self._latest_scenario_run_id,
+            )
+        except Exception as exc:  # pragma: no cover - defensive runtime guard
+            logger.warning("CSFB observability export failed: %s", str(exc)[:256])
+            return
+        self._last_observability_export = now
 
     def _file_partitions(self, topic: str) -> list[int]:
         assert self._file_reader is not None

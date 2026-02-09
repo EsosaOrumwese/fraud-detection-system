@@ -618,7 +618,7 @@ def _with_scope(base_stream: str, run_id: str | None) -> str:
 
 def _flow_id(envelope: Mapping[str, Any]) -> str | None:
     payload = envelope.get("payload") if isinstance(envelope.get("payload"), Mapping) else {}
-    for token in (payload.get("flow_id"), envelope.get("flow_id"), payload.get("event_id")):
+    for token in (payload.get("flow_id"), envelope.get("flow_id")):
         text = str(token or "").strip()
         if text:
             return text
@@ -687,7 +687,8 @@ def _none_if_blank(value: Any) -> str | None:
 
 
 def _utc_now() -> str:
-    return datetime.now(tz=timezone.utc).isoformat()
+    # Canonical envelope contract expects UTC RFC3339 with microseconds and trailing Z.
+    return datetime.now(tz=timezone.utc).strftime("%Y-%m-%dT%H:%M:%S.%fZ")
 
 
 def main() -> None:

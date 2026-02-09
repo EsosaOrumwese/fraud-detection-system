@@ -644,7 +644,7 @@ class ContextStoreFlowBindingStore:
         conflict_sql = """
             SELECT COUNT(*)
             FROM csfb_join_apply_failures
-            WHERE stream_id = ? AND reason_code LIKE 'FLOW_BINDING_%'
+            WHERE stream_id = ? AND reason_code LIKE 'FLOW_BINDING_%%'
         """
         fb_scope, fb_params = _scope_suffix(
             table_alias="fb",

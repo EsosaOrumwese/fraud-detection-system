@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from dataclasses import replace
 import sqlite3
 from pathlib import Path
 
@@ -7,6 +8,7 @@ from fraud_detection.decision_log_audit.config import load_intake_policy
 from fraud_detection.decision_log_audit.inlet import (
     DLA_INLET_ACCEPT,
     DLA_INLET_PAYLOAD_CONTRACT_INVALID,
+    DLA_INLET_RUN_SCOPE_MISMATCH,
     DLA_INLET_UNKNOWN_EVENT_FAMILY,
     DlaBusInput,
     DecisionLogAuditInlet,
@@ -132,6 +134,25 @@ def test_phase3_inlet_rejects_unknown_event_family() -> None:
     )
     assert result.accepted is False
     assert result.reason_code == DLA_INLET_UNKNOWN_EVENT_FAMILY
+
+
+def test_phase3_inlet_enforces_run_scope_before_event_family() -> None:
+    policy = replace(_policy(), required_platform_run_id="platform_20260207T102700Z")
+    inlet = DecisionLogAuditInlet(policy)
+    envelope = _decision_envelope()
+    envelope["event_type"] = "arrival_events_5B"
+    envelope["platform_run_id"] = "platform_20260207T102701Z"
+    result = inlet.evaluate(
+        DlaBusInput(
+            topic="fp.bus.traffic.fraud.v1",
+            partition=0,
+            offset="100",
+            offset_kind="kinesis_sequence",
+            payload=envelope,
+        )
+    )
+    assert result.accepted is False
+    assert result.reason_code == DLA_INLET_RUN_SCOPE_MISMATCH
 
 
 def test_phase3_inlet_rejects_incomplete_payload_contract() -> None:

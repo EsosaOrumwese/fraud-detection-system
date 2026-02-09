@@ -7,6 +7,7 @@ from dataclasses import dataclass
 import hashlib
 import json
 import logging
+import os
 import time
 from pathlib import Path
 from typing import Any
@@ -15,6 +16,7 @@ from fraud_detection.event_bus import EventBusReader
 from fraud_detection.ingestion_gate.schemas import SchemaRegistry
 
 from .config import OfpProfile
+from .observability import OfpObservabilityReporter
 from .store import build_store
 
 logger = logging.getLogger("fraud_detection.ofp")
@@ -78,6 +80,9 @@ class OnlineFeatureProjector:
             )
         else:
             raise RuntimeError("OFP_EVENT_BUS_KIND_UNSUPPORTED")
+        self._scenario_run_id: str | None = None
+        self._last_observability_export = 0.0
+        self._observability = OfpObservabilityReporter(profile=self.profile, store=self.store)
 
     @classmethod
     def build(cls, profile_path: str) -> "OnlineFeatureProjector":
@@ -91,10 +96,12 @@ class OnlineFeatureProjector:
                 partitions = self._file_partitions(topic)
                 for partition in partitions:
                     processed += self._consume_file_topic(topic, partition)
+            self._maybe_export_observability(force=processed > 0)
             return processed
         processed = 0
         for topic in topics:
             processed += self._consume_kinesis_topic(topic)
+        self._maybe_export_observability(force=processed > 0)
         return processed
 
     def run_forever(self) -> None:
@@ -172,6 +179,8 @@ class OnlineFeatureProjector:
         event_id = str(envelope.get("event_id") or "")
         event_ts_utc = str(envelope.get("ts_utc") or "") or None
         scenario_run_id = str(envelope.get("scenario_run_id") or "")
+        if scenario_run_id:
+            self._scenario_run_id = scenario_run_id
         try:
             self.envelope_registry.validate("canonical_event_envelope.schema.yaml", envelope)
         except Exception:
@@ -300,6 +309,20 @@ class OnlineFeatureProjector:
         if not partitions:
             return [0]
         return sorted(set(partitions))
+
+    def _maybe_export_observability(self, *, force: bool) -> None:
+        if not self._scenario_run_id:
+            return
+        interval_seconds = max(1.0, float(os.getenv("OFP_OBSERVABILITY_EXPORT_SECONDS") or "10"))
+        now = time.monotonic()
+        if not force and (now - self._last_observability_export) < interval_seconds:
+            return
+        try:
+            self._observability.export(scenario_run_id=self._scenario_run_id)
+        except Exception as exc:  # pragma: no cover - defensive runtime guard
+            logger.warning("OFP observability export failed: %s", str(exc)[:256])
+            return
+        self._last_observability_export = now
 
 
 def _resolve_key(

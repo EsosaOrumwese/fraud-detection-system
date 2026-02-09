@@ -5311,3 +5311,123 @@ Produce a full live 200-event proof run and capture component-by-component evide
 3. Remaining posture gaps surfaced for follow-up:
 - CSFB metrics extraction path in run reporter is currently broken (`basis_note` above).
 - OFP/CSFB do not currently emit dedicated run-root component metrics folders in this run shape (evidence resides in daemon logs and shared report basis).
+
+## 2026-02-09 05:40AM - Pre-change implementation plan: close RTDL decision-lane hard blockers from live 200-event evidence
+
+### Trigger and scope
+User requested thorough implementation of the parity-run fixes after diagnosing decision-lane failure behavior. This pass addresses the concrete blockers observed in live artifacts and stores, not speculative cleanup.
+
+### Inputs and authority consulted in this plan thread
+- Active run evidence: `runs/fraud-platform/platform_20260209T045202Z/*`
+- Historical data inspection approved by user: `runs/local_full_run-5/c25a2675fbfbacd952b13bb594880e92/data`
+- Component mechanics reviewed:
+  - `src/fraud_detection/online_feature_plane/projector.py`
+  - `src/fraud_detection/context_store_flow_binding/intake.py`
+  - `src/fraud_detection/context_store_flow_binding/store.py`
+  - `src/fraud_detection/degrade_ladder/worker.py`
+  - `src/fraud_detection/decision_fabric/worker.py`
+  - `src/fraud_detection/decision_log_audit/inlet.py`
+- Runtime orchestration packs:
+  - `config/platform/run_operate/packs/local_parity_rtdl_core.v0.yaml`
+  - `config/platform/run_operate/packs/local_parity_rtdl_decision_lane.v0.yaml`
+
+### Confirmed failure/bad-posture roots (evidence-backed)
+1. OFP health signal artifact missing in run root caused DL required-signal gap and fail-closed posture pressure.
+2. CSFB observability reporter SQL used `LIKE 'FLOW_BINDING_%'` with postgres placeholder translation path and raises `only '%s', '%b', '%t' are allowed as placeholders`.
+3. DF publish path quarantined all decisions because DF worker produced canonical envelope timestamps like `2026-02-09T04:57:20.950676+00:00`, while canonical schema requires `...Z` format.
+4. DF-CSFB key contract is weak in worker extraction (`_flow_id` fell back to payload event_id), guaranteeing misses when flow_id is absent/misaligned.
+5. DLA intake reason ordering classified many cross-run events as `UNKNOWN_EVENT_FAMILY` before enforcing required run scope, creating posture noise and weak diagnostics.
+
+### Design decisions for this implementation pass
+1. **OFP runtime observability emission inside daemon loop**
+- Add low-overhead periodic exporter wiring in OFP projector using `OfpObservabilityReporter`.
+- Export cadence will be interval-driven and also forced on active ingestion cycles.
+- Invariant: OFP `last_health.json` + `last_metrics.json` must exist for active run once scenario context is observed.
+
+2. **CSFB runtime observability emission inside daemon loop**
+- Add periodic reporter export in CSFB intake loop once scenario run id is known.
+- Invariant: CSFB run-root observability artifacts are refreshed during daemon execution.
+
+3. **CSFB postgres wildcard compatibility fix**
+- Replace SQL wildcard literal in conflict query with postgres-safe escaped wildcard form that remains sqlite-compatible.
+- Invariant: `metrics_snapshot()` works for sqlite and postgres backends.
+
+4. **DF canonical timestamp emission fix (new P0 discovered now)**
+- Normalize DF worker `ts_utc` generation to canonical UTC Z format with microseconds.
+- Invariant: DF-generated `decision_response`/`action_intent` envelopes pass canonical schema at IG boundary.
+
+5. **DF-CSFB key extraction contract hardening**
+- Remove implicit fallback to payload event_id when deriving flow_id; only explicit flow-id fields count.
+- This avoids deterministic false-key queries and produces truthful missing-context posture when true mapping is unavailable.
+- Invariant: DF CSFB query key must represent flow identity, not event identity.
+
+6. **DLA run-scope-first gating**
+- Enforce platform run scope check before event-family allowlist resolution so trim-horizon historical traffic is classified as `RUN_SCOPE_MISMATCH` rather than `UNKNOWN_EVENT_FAMILY`.
+- Invariant: intake reason codes are causally accurate and lower noise for active-run monitoring.
+
+### Security and operational posture for this pass
+- No secret values will be committed; only code/config behavior changes.
+- No alteration of owner boundaries: IG admission remains publish boundary; DL remains posture authority; DLA remains append-only truth.
+- All fixes remain at-least-once safe; no replay/idempotency behavior is relaxed.
+
+### Validation plan (must execute after edits)
+1. Targeted unit test runs for changed modules:
+- `tests/services/context_store_flow_binding/*` (observability + store paths)
+- `tests/services/decision_fabric/*` (publish and worker helper behavior)
+- `tests/services/decision_log_audit/*` (inlet gating)
+2. Syntax check on edited modules.
+3. Fresh parity restart + 200-event run.
+4. Evidence checks:
+- OFP/CSFB run-root `health/last_health.json` existence and freshness.
+- DL posture mode progression and required-signal states.
+- DF checkpoint tokens publish result distribution (drop in canonical-envelope quarantine reason).
+- DLA quarantine reason distribution shift (`RUN_SCOPE_MISMATCH` correctly applied for out-of-scope records).
+
+### Expected closure criteria for this pass
+- Decision lane no longer blocked by DF canonical timestamp contract error.
+- OFP/CSFB health artifacts are continuously emitted in daemon mode.
+- CSFB reporter no longer throws postgres placeholder errors.
+- DF flow key extraction stops using incorrect event-id fallback.
+- DLA reason coding reflects run-scope-first enforcement.
+
+## 2026-02-09 05:52AM - In-flight decision/action entry: runtime code patches applied for RTDL closure set
+
+### Code changes implemented in this step
+1. **DF publish contract hard fix**
+- File: `src/fraud_detection/decision_fabric/worker.py`
+- Changed `_utc_now()` to canonical UTC `YYYY-MM-DDTHH:MM:SS.ffffffZ` formatting.
+- Rationale: checkpoint evidence showed every publish halted at `CANONICAL_ENVELOPE_INVALID` because timestamps were emitted as `+00:00`.
+
+2. **DF-CSFB key derivation hardening**
+- File: `src/fraud_detection/decision_fabric/worker.py`
+- Removed `_flow_id()` fallback to `payload.event_id`; now only explicit flow-id fields are eligible.
+- Rationale: event-id fallback created deterministic false-key CSFB lookups and masked true contract mismatch posture.
+
+3. **OFP daemon observability emission**
+- File: `src/fraud_detection/online_feature_plane/projector.py`
+- Added periodic reporter export wiring (`OfpObservabilityReporter`) with scenario-run tracking and interval/force semantics.
+- Rationale: DL required signal `ofp_health` depends on run-root health artifact; artifact was absent during daemon runs.
+
+4. **CSFB daemon observability emission**
+- File: `src/fraud_detection/context_store_flow_binding/intake.py`
+- Added periodic reporter export wiring (`CsfbObservabilityReporter`) with scenario tracking.
+- Rationale: parity run report and downstream diagnostics require live CSFB observability artifacts during daemon mode.
+
+5. **CSFB postgres wildcard compatibility**
+- File: `src/fraud_detection/context_store_flow_binding/store.py`
+- Adjusted conflict metric SQL pattern to postgres-safe wildcard literal form (`FLOW_BINDING_%%`).
+- Rationale: fixed repro of psycopg placeholder parsing failure in run report basis path.
+
+6. **DLA run-scope-first intake posture**
+- File: `src/fraud_detection/decision_log_audit/inlet.py`
+- Reordered checks to enforce required pins + platform run scope before event-family allowlist resolution.
+- Rationale: reduces misleading `UNKNOWN_EVENT_FAMILY` noise for trim-horizon out-of-scope events and makes reason codes causal.
+
+7. **Regression tests added/updated**
+- Added: `tests/services/decision_fabric/test_worker_helpers.py`
+  - validates `_flow_id` behavior and DF UTC timestamp shape.
+- Updated: `tests/services/decision_log_audit/test_dla_phase3_intake.py`
+  - added assertion that run scope mismatch is enforced before unknown event family when both are true.
+
+### Next immediate step
+Run targeted tests, then execute a fresh parity restart + 200-event run and validate artifact/metrics/posture deltas against the failure roots.

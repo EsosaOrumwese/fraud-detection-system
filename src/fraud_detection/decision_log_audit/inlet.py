@@ -106,23 +106,6 @@ class DecisionLogAuditInlet:
             )
 
         event_type = str(envelope.get("event_type") or "").strip()
-        allowed_schema_versions = self.policy.allowed_schema_versions(event_type)
-        if allowed_schema_versions is None:
-            return DlaInletResult(
-                accepted=False,
-                reason_code=DLA_INLET_UNKNOWN_EVENT_FAMILY,
-                detail=f"event_type={event_type}",
-            )
-
-        schema_version = str(envelope.get("schema_version") or "").strip()
-        if not schema_version:
-            return DlaInletResult(accepted=False, reason_code=DLA_INLET_SCHEMA_VERSION_REQUIRED)
-        if schema_version not in allowed_schema_versions:
-            return DlaInletResult(
-                accepted=False,
-                reason_code=DLA_INLET_SCHEMA_VERSION_NOT_ALLOWED,
-                detail=f"event_type={event_type} schema_version={schema_version}",
-            )
 
         missing_pins = self.policy.missing_required_pins(envelope)
         if missing_pins:
@@ -139,6 +122,24 @@ class DecisionLogAuditInlet:
                 accepted=False,
                 reason_code=DLA_INLET_RUN_SCOPE_MISMATCH,
                 detail=f"platform_run_id={platform_run_id}",
+            )
+
+        allowed_schema_versions = self.policy.allowed_schema_versions(event_type)
+        if allowed_schema_versions is None:
+            return DlaInletResult(
+                accepted=False,
+                reason_code=DLA_INLET_UNKNOWN_EVENT_FAMILY,
+                detail=f"event_type={event_type}",
+            )
+
+        schema_version = str(envelope.get("schema_version") or "").strip()
+        if not schema_version:
+            return DlaInletResult(accepted=False, reason_code=DLA_INLET_SCHEMA_VERSION_REQUIRED)
+        if schema_version not in allowed_schema_versions:
+            return DlaInletResult(
+                accepted=False,
+                reason_code=DLA_INLET_SCHEMA_VERSION_NOT_ALLOWED,
+                detail=f"event_type={event_type} schema_version={schema_version}",
             )
 
         event_id = str(envelope.get("event_id") or "").strip()
