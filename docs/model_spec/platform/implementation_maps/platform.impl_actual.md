@@ -6892,3 +6892,35 @@ Implement CaseTrigger Phase 1 and provide an executable runtime contract boundar
 
 ### Platform impact
 - CaseTrigger now has explicit collision anomaly handling (`PAYLOAD_MISMATCH`) with no-overwrite semantics, satisfying Phase 5.2 deterministic identity/collision gate before publish corridor implementation.
+
+## 2026-02-09 04:12PM - Phase 5.2 Phase-4 execution lock (publish corridor)
+
+### Scope
+- Implement CaseTrigger publish corridor + persistence and pin IG route via config/profile onboarding.
+
+### Locked invariants
+- Outcomes are explicit (`ADMIT`/`DUPLICATE`/`QUARANTINE`/`AMBIGUOUS`) and persistable.
+- Actor attribution in publish records derives from writer-boundary auth token hint (not from mutable source payload fields).
+- CaseTrigger IG routing is versioned/policy-pinned, not ad-hoc runtime inference.
+
+## 2026-02-09 04:15PM - CaseTrigger Phase 4 closure (publish corridor)
+
+### What closed
+- Implemented CaseTrigger publish corridor + persistence, and pinned IG routing/onboarding config for `case_trigger` events.
+
+### Delivered artifacts
+- `src/fraud_detection/case_trigger/publish.py`
+- `src/fraud_detection/case_trigger/storage.py`
+- `src/fraud_detection/case_trigger/__init__.py` (publish/storage exports)
+- `config/platform/ig/class_map_v0.yaml`
+- `config/platform/ig/schema_policy_v0.yaml`
+- `config/platform/ig/partitioning_profiles_v0.yaml`
+- `src/fraud_detection/ingestion_gate/admission.py`
+- `tests/services/case_trigger/test_phase4_publish.py`
+- `tests/services/ingestion_gate/test_phase11_case_trigger_onboarding.py`
+
+### Validation
+- Combined CaseTrigger Phase1+2+3+4 + IG onboarding suite: `31 passed`.
+
+### Platform impact
+- Phase 5.2 now has a policy-pinned IG publish lane for CaseTrigger with explicit terminal outcomes and persisted publish evidence, unblocking Phase 5 checkpoint/retry coupling.

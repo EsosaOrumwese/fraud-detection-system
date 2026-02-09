@@ -87,6 +87,14 @@ classes:
       - parameter_hash
       - seed
       - scenario_id
+  case_trigger:
+    required_pins:
+      - platform_run_id
+      - scenario_run_id
+      - manifest_fingerprint
+      - parameter_hash
+      - seed
+      - scenario_id
   control:
     required_pins:
       - platform_run_id
@@ -108,6 +116,7 @@ event_types:
   decision_response: rtdl_decision
   action_intent: rtdl_action_intent
   action_outcome: rtdl_action_outcome
+  case_trigger: case_trigger
   ig.policy.activation: audit
   ig.quarantine.spike: audit
   ig.pull.run: audit

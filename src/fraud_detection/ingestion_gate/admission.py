@@ -742,6 +742,8 @@ def _profile_id_for_class(class_name: str, default_profile_id: str) -> str:
         return "ig.partitioning.v0.rtdl.action_intent"
     if class_name == "rtdl_action_outcome":
         return "ig.partitioning.v0.rtdl.action_outcome"
+    if class_name == "case_trigger":
+        return "ig.partitioning.v0.case.trigger"
     if class_name == "traffic_baseline":
         return "ig.partitioning.v0.traffic.baseline"
     if class_name == "traffic_fraud":

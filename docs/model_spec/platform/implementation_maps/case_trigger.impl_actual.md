@@ -305,3 +305,96 @@ Close CaseTrigger Phase 3 by adding deterministic replay/collision handling for 
 
 ### Phase closure statement
 - Phase 3 DoD is satisfied for current scope with explicit replay/collision behavior and deterministic identity enforcement in runtime registration path.
+
+## Entry: 2026-02-09 04:12PM - Phase 4 pre-change lock (publish corridor + IG onboarding)
+
+### Objective
+Implement CaseTrigger Phase 4 publish corridor with explicit outcomes and persisted publish evidence, and pin IG path by policy/profile.
+
+### Implementation decisions locked before edits
+1. Add CaseTrigger publish boundary module (`publish.py`) modeled on DF/AL IG push helpers:
+   - explicit outcomes: `ADMIT`, `DUPLICATE`, `QUARANTINE`, `AMBIGUOUS`.
+   - canonical envelope validation before send.
+   - transient retry with bounded backoff.
+   - retry exhaustion returns explicit `AMBIGUOUS` record.
+2. Add CaseTrigger publish store (`storage.py`) to persist publish outcomes (`NEW`/`DUPLICATE`/`HASH_MISMATCH`) keyed by `case_trigger_id`.
+3. Integrate optional persistence from publisher into store so Phase 4 outcomes are not only in-memory return values.
+4. Pin IG onboarding for CaseTrigger lane in config + admission profile mapping:
+   - class map: `case_trigger` class + event mapping,
+   - schema policy: `case_trigger` payload schema path + `v1` version gate,
+   - partitioning profile: dedicated `ig.partitioning.v0.case.trigger` route.
+5. Add ingestion-gate onboarding test to keep publish path pinned and auditable.
+
+### Planned file edits
+- New:
+  - `src/fraud_detection/case_trigger/publish.py`
+  - `src/fraud_detection/case_trigger/storage.py`
+  - `tests/services/case_trigger/test_phase4_publish.py`
+  - `tests/services/ingestion_gate/test_phase11_case_trigger_onboarding.py`
+- Update:
+  - `src/fraud_detection/case_trigger/__init__.py`
+  - `src/fraud_detection/ingestion_gate/admission.py` (`_profile_id_for_class`)
+  - `config/platform/ig/class_map_v0.yaml`
+  - `config/platform/ig/schema_policy_v0.yaml`
+  - `config/platform/ig/partitioning_profiles_v0.yaml`
+
+### Validation plan
+- Compile check on new/updated CaseTrigger and IG files.
+- Pytest suites:
+  - `tests/services/case_trigger/test_phase4_publish.py`
+  - `tests/services/ingestion_gate/test_phase11_case_trigger_onboarding.py`
+  - plus existing CaseTrigger Phase1/2/3 suites.
+
+## Entry: 2026-02-09 04:15PM - Phase 4 implemented and validated (publish corridor)
+
+### Implementation completed
+1. Added CaseTrigger publish corridor module:
+- `src/fraud_detection/case_trigger/publish.py`
+
+2. Added publish outcome persistence module:
+- `src/fraud_detection/case_trigger/storage.py`
+
+3. Updated package exports:
+- `src/fraud_detection/case_trigger/__init__.py`
+
+4. Pinned IG path for CaseTrigger lane:
+- `config/platform/ig/class_map_v0.yaml` (`case_trigger` class + event mapping)
+- `config/platform/ig/schema_policy_v0.yaml` (`case_trigger` payload schema + `v1` gate)
+- `config/platform/ig/partitioning_profiles_v0.yaml` (`ig.partitioning.v0.case.trigger` -> `fp.bus.case.v1`)
+- `src/fraud_detection/ingestion_gate/admission.py` (`_profile_id_for_class` maps `case_trigger` class)
+
+5. Added Phase 4 tests:
+- `tests/services/case_trigger/test_phase4_publish.py`
+- `tests/services/ingestion_gate/test_phase11_case_trigger_onboarding.py`
+
+### Publish corridor mechanics delivered
+- Publish outcomes are explicit terminal states:
+  - `ADMIT`, `DUPLICATE`, `QUARANTINE`, `AMBIGUOUS`.
+- Retry exhaustion on transient errors returns explicit `AMBIGUOUS` record (not silent failure).
+- Non-retryable 4xx push responses fail closed.
+- Envelope is validated against canonical envelope schema before send.
+- Envelope builder pins:
+  - `event_type=case_trigger`,
+  - `schema_version=v1`,
+  - `event_id=case_trigger_id`,
+  - `ts_utc` canonicalized from trigger `observed_time`.
+
+### Actor attribution + persistence posture
+- Publisher enforces auth-token presence by default (`require_auth_token=True`) so writer boundary attribution is not optional.
+- Publish records persist actor attribution derived from writer auth token hint (`actor_principal` + `actor_source_type`) in `CaseTriggerPublishStore`.
+- Publish store dedupe semantics:
+  - same `case_trigger_id` + same publish identity => `DUPLICATE`,
+  - same `case_trigger_id` + different publish identity => `HASH_MISMATCH`.
+
+### Validation evidence
+- `python -m py_compile src/fraud_detection/case_trigger/__init__.py src/fraud_detection/case_trigger/publish.py src/fraud_detection/case_trigger/storage.py src/fraud_detection/ingestion_gate/admission.py tests/services/case_trigger/test_phase4_publish.py tests/services/ingestion_gate/test_phase11_case_trigger_onboarding.py`
+  - result: pass
+- `python -m pytest -q tests/services/case_trigger/test_phase4_publish.py tests/services/ingestion_gate/test_phase11_case_trigger_onboarding.py tests/services/case_trigger/test_phase3_replay.py tests/services/case_trigger/test_phase2_adapters.py tests/services/case_trigger/test_phase1_taxonomy.py tests/services/case_trigger/test_phase1_config.py tests/services/case_trigger/test_phase1_contracts.py`
+  - result: `31 passed`
+
+### Phase closure statement
+- Phase 4 DoD is satisfied for current scope:
+  - publish path is pinned in IG policy/profile,
+  - publish outcomes are explicit,
+  - publish outcome records are persistable with actor attribution,
+  - onboarding drift is test-guarded.

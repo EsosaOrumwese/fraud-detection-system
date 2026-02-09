@@ -131,3 +131,14 @@ profiles:
       - payload.pins.scenario_run_id
       - event_id
     hash_algo: sha256
+
+  ig.partitioning.v0.case.trigger:
+    description: >
+      Deterministic routing for CaseTrigger events into the case/labels lane.
+    stream: fp.bus.case.v1
+    key_precedence:
+      - payload.case_id
+      - payload.case_subject_key.event_id
+      - payload.pins.platform_run_id
+      - event_id
+    hash_algo: sha256
