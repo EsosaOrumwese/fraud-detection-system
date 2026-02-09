@@ -7085,3 +7085,48 @@ Close platform gate `5.2.F` by implementing CaseTrigger run-scoped observability
 ### Platform impact
 - `5.2.A..5.2.G` are now evidence-backed closed; Phase 5.2 is complete.
 - Next CaseTrigger-focused gate is Phase 8 parity closure evidence.
+
+## 2026-02-09 04:52PM - Phase 5.2 Phase-8 execution lock (CaseTrigger parity closure)
+
+### Scope
+- Close remaining CaseTrigger Phase 8 gate with deterministic matrix evidence.
+
+### Decision
+- Follow AL/DLA Phase 8 precedent: component-boundary validation matrix + run-scoped parity proof artifacts.
+- Include CaseTrigger-specific negative-path checks in the same phase closure:
+  - unsupported source class fail-closed,
+  - deterministic collision mismatch (`PAYLOAD_MISMATCH`) with governance anomaly emission.
+- Keep orchestration scope unchanged in this gate (no new daemon/pack wiring); this closure is matrix-evidence based and phase-appropriate.
+
+### Acceptance gate
+- CaseTrigger Phase 8 matrix suite green with `20`/`200` parity proof artifacts under run-scoped CaseTrigger reconciliation path.
+- Runbook updated with executable CaseTrigger Phase 8 boundary section.
+- Build-plan/impl-map/logbook entries updated with closure evidence and explicit phase-close statement.
+
+## 2026-02-09 05:05PM - Phase 5.2 gate 5.2.H closed (CaseTrigger parity closure evidence)
+
+### What closed
+- Added CaseTrigger Phase 8 component-boundary validation matrix with parity and fail-closed proofs.
+- Added runbook execution section for CaseTrigger parity boundary checks and artifact inspection.
+
+### Delivered artifacts
+- `tests/services/case_trigger/test_phase8_validation_matrix.py`
+- `docs/runbooks/platform_parity_walkthrough_v0.md` (new CaseTrigger boundary section)
+- Build-plan status updates:
+  - `docs/model_spec/platform/implementation_maps/case_trigger.build_plan.md`
+  - `docs/model_spec/platform/implementation_maps/platform.build_plan.md`
+
+### Gate mapping
+- `20` and `200` monitored parity evidence generated under run-scoped reconciliation path.
+- Negative-path injections prove fail-closed posture:
+  - unsupported source class rejected,
+  - collision mismatch produces `PAYLOAD_MISMATCH` and governance anomaly emission.
+- CaseTrigger Phase 8 closure is now explicit and linked to platform Phase `5.2.H`.
+
+### Validation evidence
+- `python -m pytest -q tests/services/case_trigger/test_phase8_validation_matrix.py` -> `4 passed`.
+- CaseTrigger+IG regression -> `45 passed`.
+- CM Phase1+2 regression -> `16 passed`.
+
+### Platform impact
+- Platform Phase `5.2` closure now includes explicit parity-evidence gate (`5.2.H`), reducing drift risk between component readiness claims and recorded proof artifacts.

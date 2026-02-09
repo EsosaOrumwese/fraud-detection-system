@@ -1019,7 +1019,56 @@ Expected fields:
 Boundary note:
 This validates DLA at its component boundary for Phase 8 (append-only intake, lineage/reconciliation, and parity proofs). DLA is also daemonized for parity via `fraud_detection.decision_log_audit.worker` in the decision-lane run/operate pack.
 
-## 21) RTDL live daemon baseline (current v0 daemon surfaces)
+## 21) CaseTrigger local-parity boundary checks (DF evidence -> trigger corridor -> checkpoint)
+
+Use this section to validate CaseTrigger Phase 8 closure at component boundary.
+
+**21.1 Run CaseTrigger Phase 8 validation matrix**
+```powershell
+$env:PYTHONPATH='.;src'
+.venv\Scripts\python.exe -m pytest tests/services/case_trigger/test_phase8_validation_matrix.py -q
+```
+
+Expected result:
+- `4 passed` (includes:
+  - DF->CaseTrigger continuity proof,
+  - `20` event parity proof,
+  - `200` event parity proof with replay/duplicate-safe checkpoint behavior,
+  - negative-path fail-closed proof for unsupported source + collision mismatch).
+
+**21.2 Run CaseTrigger + CM integration regression**
+```powershell
+$env:PYTHONPATH='.;src'
+.venv\Scripts\python.exe -m pytest tests/services/case_trigger/test_phase1_config.py tests/services/case_trigger/test_phase1_contracts.py tests/services/case_trigger/test_phase1_taxonomy.py tests/services/case_trigger/test_phase2_adapters.py tests/services/case_trigger/test_phase3_replay.py tests/services/case_trigger/test_phase4_publish.py tests/services/case_trigger/test_phase5_checkpoints.py tests/services/case_trigger/test_phase7_observability.py tests/services/case_trigger/test_phase8_validation_matrix.py tests/services/ingestion_gate/test_phase11_case_trigger_onboarding.py -q
+.venv\Scripts\python.exe -m pytest tests/services/case_mgmt/test_phase1_contracts.py tests/services/case_mgmt/test_phase1_ids.py tests/services/case_mgmt/test_phase2_intake.py -q
+```
+
+Expected result:
+- CaseTrigger+IG suite passes (current baseline: `45 passed`).
+- CM Phase1+2 suite passes (current baseline: `16 passed`).
+
+**21.3 Inspect CaseTrigger parity proof artifacts**
+```powershell
+Get-Content runs/fraud-platform/platform_20260209T180000Z/case_trigger/reconciliation/phase8_parity_proof_20.json
+Get-Content runs/fraud-platform/platform_20260209T180000Z/case_trigger/reconciliation/phase8_parity_proof_200.json
+Get-Content runs/fraud-platform/platform_20260209T180000Z/case_trigger/reconciliation/phase8_negative_path_proof.json
+```
+
+Expected fields:
+- `status: PASS` on both parity proof artifacts.
+- `triggers_seen_total == 2 * expected_events`.
+- `published_total == expected_events`.
+- `duplicate_total == expected_events`.
+- `checkpoint_committed_total == 2 * expected_events`.
+- negative-path proof reports:
+  - `unsupported_source_fail_closed: true`,
+  - `collision_mismatch_outcome: PAYLOAD_MISMATCH`,
+  - governance dedupe working with exactly one emitted collision event.
+
+Boundary note:
+This validates CaseTrigger at its component boundary for Phase 8 closure. CaseTrigger daemon/orchestrator onboarding for full Case+Label plane operation is handled in later Phase 5 sections.
+
+## 22) RTDL live daemon baseline (current v0 daemon surfaces)
 
 Use this when you want always-on parity consumers for the full RTDL lane under run/operate.
 

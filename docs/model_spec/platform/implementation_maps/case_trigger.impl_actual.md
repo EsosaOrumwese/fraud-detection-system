@@ -662,3 +662,114 @@ Implement CaseTrigger Phase 7 by adding run-scoped counters, structured governan
   - required run-scoped counters exist and export correctly,
   - structured corridor anomaly events are emitted for collision/publish anomaly families,
   - CaseTrigger reconciliation refs are exportable and discoverable by platform run reporting.
+
+## Entry: 2026-02-09 04:52PM - Pre-change lock for Phase 8 (parity closure evidence)
+
+### Objective
+Close CaseTrigger Phase 8 with evidence-backed parity closure using the same proof posture used by AL/DLA Phase 8 matrices, while preserving CaseTrigger-specific fail-closed assertions (collision + unsupported source).
+
+### Problem framing
+- Phase 1..7 are closed and green for CaseTrigger.
+- Phase 8 DoD remains open and explicitly requires:
+  - monitored `20` and `200` event parity proofs,
+  - negative-path injections proving fail-closed behavior,
+  - explicit closure statement linked to platform Phase `5.2`.
+- Current repository has no CaseTrigger Phase 8 matrix test or runbook entry, which leaves closure evidence non-uniform relative to AL/DLA.
+
+### Alternatives considered
+1. Run only manual parity commands and record logs.
+- Rejected: less deterministic/repeatable and weaker than component matrix pattern already adopted for AL/DLA.
+
+2. Implement a CaseTrigger daemon and validate with live service mode first.
+- Rejected for this gate: Phase 8 here is component-boundary closure, not full service-orchestration expansion for the whole Case/Label plane.
+
+3. Add a dedicated CaseTrigger Phase 8 matrix test that emits run-scoped proof artifacts plus negative-path tests.
+- Selected: aligns with existing AL/DLA closure pattern and satisfies DoD with deterministic replayable evidence.
+
+### Decisions locked before edits
+1. Add `tests/services/case_trigger/test_phase8_validation_matrix.py` with:
+- continuity check (`DF_DECISION` adapter -> CaseTrigger replay/publish/checkpoint path),
+- parity proof parametrized on `20` and `200` events producing run-scoped artifacts,
+- negative-path assertions for:
+  - unsupported source class (adapter fail-closed),
+  - payload collision mismatch (replay `PAYLOAD_MISMATCH` + governance emission).
+
+2. Artifact location pin:
+- `runs/fraud-platform/<platform_run_id>/case_trigger/reconciliation/phase8_parity_proof_20.json`
+- `runs/fraud-platform/<platform_run_id>/case_trigger/reconciliation/phase8_parity_proof_200.json`
+
+3. Keep runtime surfaces unchanged for this phase:
+- no new CaseTrigger daemon/orchestrator wiring in this pass,
+- closure is matrix-evidence based (same as AL/DLA component-boundary closure pattern).
+
+4. Update docs/runbook/build-plan after matrix green:
+- `docs/runbooks/platform_parity_walkthrough_v0.md` new CaseTrigger section,
+- `docs/model_spec/platform/implementation_maps/case_trigger.build_plan.md` Phase 8 completion,
+- `docs/model_spec/platform/implementation_maps/platform.build_plan.md` status/evidence refresh,
+- append closure entries to impl maps + logbook.
+
+### Planned files
+- New tests:
+  - `tests/services/case_trigger/test_phase8_validation_matrix.py`
+- Runbook update:
+  - `docs/runbooks/platform_parity_walkthrough_v0.md`
+- Plan/status updates:
+  - `docs/model_spec/platform/implementation_maps/case_trigger.build_plan.md`
+  - `docs/model_spec/platform/implementation_maps/platform.build_plan.md`
+- Decision trail:
+  - `docs/model_spec/platform/implementation_maps/case_trigger.impl_actual.md`
+  - `docs/model_spec/platform/implementation_maps/platform.impl_actual.md`
+  - `docs/logbook/02-2026/2026-02-09.md`
+
+### Validation plan
+- `python -m py_compile tests/services/case_trigger/test_phase8_validation_matrix.py`
+- `python -m pytest -q tests/services/case_trigger/test_phase8_validation_matrix.py`
+- CaseTrigger regression:
+  - `python -m pytest -q tests/services/case_trigger/test_phase1_config.py tests/services/case_trigger/test_phase1_contracts.py tests/services/case_trigger/test_phase1_taxonomy.py tests/services/case_trigger/test_phase2_adapters.py tests/services/case_trigger/test_phase3_replay.py tests/services/case_trigger/test_phase4_publish.py tests/services/case_trigger/test_phase5_checkpoints.py tests/services/case_trigger/test_phase7_observability.py tests/services/case_trigger/test_phase8_validation_matrix.py tests/services/ingestion_gate/test_phase11_case_trigger_onboarding.py`
+- CM integration regression:
+  - `python -m pytest -q tests/services/case_mgmt/test_phase1_contracts.py tests/services/case_mgmt/test_phase1_ids.py tests/services/case_mgmt/test_phase2_intake.py`
+
+## Entry: 2026-02-09 05:05PM - Phase 8 implemented and validated (parity closure)
+
+### Implementation completed
+1. Added CaseTrigger Phase 8 validation matrix:
+- `tests/services/case_trigger/test_phase8_validation_matrix.py`
+
+2. Added parity runbook section for CaseTrigger boundary execution/proof inspection:
+- `docs/runbooks/platform_parity_walkthrough_v0.md` (Section `21`, CaseTrigger local-parity boundary checks)
+
+3. Updated component/platform build-plan status for Phase 8 closure:
+- `docs/model_spec/platform/implementation_maps/case_trigger.build_plan.md`
+- `docs/model_spec/platform/implementation_maps/platform.build_plan.md`
+
+### Matrix behavior delivered
+- Continuity proof (`DF_DECISION` source evidence -> CaseTrigger adapter -> replay ledger -> IG publish corridor -> checkpoint commit).
+- Monitored parity proofs for `20` and `200` events:
+  - first pass: `NEW + ADMIT + CHECKPOINT_COMMITTED`,
+  - replay pass: `REPLAY_MATCH + DUPLICATE + CHECKPOINT_COMMITTED`.
+- Run-scoped parity artifacts emitted to:
+  - `runs/fraud-platform/platform_20260209T180000Z/case_trigger/reconciliation/phase8_parity_proof_20.json`
+  - `runs/fraud-platform/platform_20260209T180000Z/case_trigger/reconciliation/phase8_parity_proof_200.json`
+- Negative-path injection proof emitted to:
+  - `runs/fraud-platform/platform_20260209T180000Z/case_trigger/reconciliation/phase8_negative_path_proof.json`
+
+### Negative-path gate evidence
+- Unsupported source class injection fails closed at adapter boundary (`CaseTriggerAdapterError`).
+- Collision injection (same deterministic trigger identity with changed payload hash) yields replay `PAYLOAD_MISMATCH`.
+- Collision governance event emission is idempotent/deduped (single persisted event for repeated emit attempts).
+
+### Validation evidence
+- `python -m py_compile tests/services/case_trigger/test_phase8_validation_matrix.py`
+  - result: pass
+- `python -m pytest -q tests/services/case_trigger/test_phase8_validation_matrix.py`
+  - result: `4 passed`
+- `python -m pytest -q tests/services/case_trigger/test_phase1_config.py tests/services/case_trigger/test_phase1_contracts.py tests/services/case_trigger/test_phase1_taxonomy.py tests/services/case_trigger/test_phase2_adapters.py tests/services/case_trigger/test_phase3_replay.py tests/services/case_trigger/test_phase4_publish.py tests/services/case_trigger/test_phase5_checkpoints.py tests/services/case_trigger/test_phase7_observability.py tests/services/case_trigger/test_phase8_validation_matrix.py tests/services/ingestion_gate/test_phase11_case_trigger_onboarding.py`
+  - result: `45 passed`
+- `python -m pytest -q tests/services/case_mgmt/test_phase1_contracts.py tests/services/case_mgmt/test_phase1_ids.py tests/services/case_mgmt/test_phase2_intake.py`
+  - result: `16 passed`
+
+### Phase closure statement
+- CaseTrigger Phase 8 DoD is satisfied:
+  - monitored `20` and `200` parity proofs exist with PASS status,
+  - fail-closed negative paths (unsupported-source + collision mismatch) are evidenced,
+  - closure is linked to platform Phase `5.2.H` and reflected in runbook/build-plan status.

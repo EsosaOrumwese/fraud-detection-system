@@ -104,4 +104,5 @@ Provide an executable, component-scoped plan for the CaseTrigger service aligned
 - Phase 5 (`Retry/checkpoint/replay safety`): complete (`5 passed` phase5 checkpoint suite; `36 passed` combined Phase1+2+3+4+5 suite on 2026-02-09).
 - Phase 6 (`CM intake integration gate`): complete (`4 passed` CM intake suite; CM Phase1+2 `16 passed` on 2026-02-09).
 - Phase 7 (`Observability + governance`): complete (`5 passed` phase7 observability suite; CaseTrigger Phase1+2+3+4+5+7 + IG onboarding `41 passed` on 2026-02-09).
-- Next action: begin Phase 8 (`Parity closure`) with monitored 20-event and 200-event evidence capture for CaseTrigger artifacts.
+- Phase 8 (`Parity closure`): complete (`4 passed` phase8 matrix on 2026-02-09; parity artifacts emitted at `runs/fraud-platform/platform_20260209T180000Z/case_trigger/reconciliation/phase8_parity_proof_{20,200}.json` plus `phase8_negative_path_proof.json`; CaseTrigger+IG regression `45 passed`; CM Phase1+2 regression `16 passed`).
+- Next action: hand off CaseTrigger closure evidence into platform Phase `5.3` planning/execution gates.
