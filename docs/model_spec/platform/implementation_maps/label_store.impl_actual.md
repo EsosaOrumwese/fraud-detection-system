@@ -412,3 +412,127 @@ LS now persists append-only timeline rows, but Phase 4 requires explicit read su
   - observed-time eligibility is explicit and enforced,
   - resolved conflict posture is explicit and deterministic,
   - query contract is stable for downstream OFS/MF consumers.
+
+## Entry: 2026-02-09 06:50PM - Pre-change lock for Phase 5 (LS ingest adapters for CM + engine/external truth lanes)
+
+### Objective
+Close LS Phase 5 by implementing adapter boundaries that admit CM/external/engine truth lanes into LS exclusively through the same writer-boundary contract, with deterministic source identity and fail-closed posture.
+
+### Authority inputs used
+- `docs/model_spec/platform/implementation_maps/label_store.build_plan.md` (Phase 5 DoD)
+- `docs/model_spec/platform/implementation_maps/platform.build_plan.md` (Phase 5.6 + Phase 5.7 alignment)
+- `docs/model_spec/platform/component-specific/label_store.design-authority.md`:
+  - external adjudication allowed as delayed truth writer,
+  - engine truth_products must be translated through explicit writer,
+  - idempotency + dual-time + by-ref evidence non-negotiables.
+- Existing LS foundations:
+  - `src/fraud_detection/label_store/contracts.py`
+  - `src/fraud_detection/label_store/writer_boundary.py`
+- Existing CM->LS handshake lane in `src/fraud_detection/case_mgmt/label_handshake.py`.
+
+### Problem framing
+Phase 1..4 closed contracts, writer corridor, timeline persistence, and as-of reads. Phase 5 still lacks an explicit adapter boundary for non-CM truth lanes. Without this, external/engine writes are ad hoc and can drift from contract/provenance/idempotency expectations.
+
+### Alternatives considered
+1. Reuse `write_label_assertion(...)` directly everywhere and leave adaptation to callers.
+- Rejected: semantics and provenance discipline would fragment across services.
+2. Add a single LS-owned ingest adapter module with source-specific adapter functions that always produce canonical LabelAssertion payloads and call writer boundary.
+- Selected: central contract gate, deterministic source identity, and auditable lane behavior.
+
+### Decisions locked before edits
+1. Introduce `src/fraud_detection/label_store/adapters.py` with explicit source lanes:
+- `CM_ASSERTION` (pass-through normalized write),
+- `EXTERNAL_ADJUDICATION` (mapped write),
+- `ENGINE_TRUTH` (mapped write).
+2. Non-CM lanes must derive deterministic `case_timeline_event_id` from `(writer_namespace, source_ref_id, label_subject_key, label_type)` to satisfy LS identity contract under retries.
+3. Adapters remain thin and policy-safe:
+- no direct table writes,
+- all writes must call `LabelStoreWriterBoundary.write_label_assertion(...)`.
+4. Evidence is by-ref only and required for all writes; adapters fail closed if minimum references are absent.
+5. Source provenance is explicit:
+- CM keeps submitted source_type/actor semantics,
+- external lane defaults to `source_type=EXTERNAL` and actor namespace `EXTERNAL::<provider>` unless explicit actor provided,
+- engine lane uses `source_type=SYSTEM` and actor namespace `SYSTEM::engine_truth_writer`.
+6. Add dedicated Phase 5 tests to prove acceptance/replay/fail-closed posture per source lane.
+
+### Planned files
+- New:
+  - `src/fraud_detection/label_store/adapters.py`
+  - `tests/services/label_store/test_phase5_ingest_adapters.py`
+- Update:
+  - `src/fraud_detection/label_store/__init__.py`
+- Documentation updates after validation:
+  - `docs/model_spec/platform/implementation_maps/label_store.build_plan.md`
+  - `docs/model_spec/platform/implementation_maps/platform.build_plan.md`
+  - `docs/model_spec/platform/implementation_maps/label_store.impl_actual.md`
+  - `docs/model_spec/platform/implementation_maps/platform.impl_actual.md`
+  - `docs/logbook/02-2026/2026-02-09.md`
+
+### Validation plan
+- `python -m py_compile src/fraud_detection/label_store/adapters.py src/fraud_detection/label_store/__init__.py tests/services/label_store/test_phase5_ingest_adapters.py`
+- `python -m pytest -q tests/services/label_store/test_phase5_ingest_adapters.py`
+- `python -m pytest -q tests/services/label_store/test_phase1_label_store_contracts.py tests/services/label_store/test_phase1_label_store_ids.py tests/services/label_store/test_phase2_writer_boundary.py tests/services/label_store/test_phase3_timeline_persistence.py tests/services/label_store/test_phase4_as_of_queries.py tests/services/label_store/test_phase5_ingest_adapters.py`
+- `python -m pytest -q tests/services/case_mgmt/test_phase5_label_handshake.py tests/services/case_mgmt/test_phase8_validation_matrix.py`
+
+## Entry: 2026-02-09 06:53PM - Phase 5 implemented and validated (LS ingest adapters)
+
+### Implementation completed
+1. Added dedicated LS ingest adapter module:
+- `src/fraud_detection/label_store/adapters.py`
+- Introduced explicit source lanes:
+  - `CM_ASSERTION`
+  - `EXTERNAL_ADJUDICATION`
+  - `ENGINE_TRUTH`
+- Added `ingest_label_from_source(...)` as the single adapter entrypoint.
+
+2. Enforced fail-closed adaptation discipline:
+- unsupported source classes are rejected.
+- required source identity fields are mandatory per lane (`external_ref_id`, `provider_id`, `truth_record_id`, `engine_bundle_id`, etc.).
+- source-type constraints are lane-specific and fail-closed (`EXTERNAL` for external lane, `SYSTEM` for engine lane).
+
+3. Implemented deterministic identity input for non-CM writes:
+- added recipe constant `ls.adapter.case_timeline_event_id.v1`.
+- non-CM lanes derive deterministic `case_timeline_event_id` from:
+  - writer namespace,
+  - source ref id,
+  - label subject key,
+  - label type.
+- This keeps retries stable without introducing mutable caller-side IDs.
+
+4. Preserved writer-boundary ownership:
+- adapters do not write tables directly.
+- all adapted payloads are validated through `LabelAssertion.from_payload(...)` then committed only via `LabelStoreWriterBoundary.write_label_assertion(...)`.
+
+5. Added Phase 5 exports for consumers:
+- updated `src/fraud_detection/label_store/__init__.py` with adapter surfaces/constants.
+
+6. Added dedicated Phase 5 matrix tests:
+- `tests/services/label_store/test_phase5_ingest_adapters.py`
+- coverage includes:
+  - CM assertion pass-through + replay determinism,
+  - external adjudication mapping + provenance + deterministic replay,
+  - engine truth mapping + provenance + deterministic replay,
+  - fail-closed unsupported source,
+  - fail-closed missing required external identity.
+
+### Decision trail and rationale
+- We considered leaving source adaptation to callers and exposing only writer boundary APIs.
+- Rejected because it would duplicate mapping/provenance semantics across components and increase drift risk.
+- We centralized lane mapping in LS to keep one canonical adaptation behavior while still preserving LS as a simple truth writer (adapters map + validate; writer enforces commit discipline).
+
+### Validation evidence
+- `python -m py_compile src/fraud_detection/label_store/adapters.py src/fraud_detection/label_store/__init__.py tests/services/label_store/test_phase5_ingest_adapters.py`
+  - result: pass
+- `python -m pytest -q tests/services/label_store/test_phase5_ingest_adapters.py`
+  - result: `5 passed`
+- `python -m pytest -q tests/services/label_store/test_phase1_label_store_contracts.py tests/services/label_store/test_phase1_label_store_ids.py tests/services/label_store/test_phase2_writer_boundary.py tests/services/label_store/test_phase3_timeline_persistence.py tests/services/label_store/test_phase4_as_of_queries.py tests/services/label_store/test_phase5_ingest_adapters.py`
+  - result: `28 passed`
+- `python -m pytest -q tests/services/case_mgmt/test_phase5_label_handshake.py tests/services/case_mgmt/test_phase8_validation_matrix.py`
+  - result: `10 passed`
+
+### Phase closure statement
+- LS Phase 5 DoD is satisfied:
+  - CM assertion lane remains accepted through writer boundary,
+  - engine/external truth lanes now have explicit adapters with provenance + dual-time semantics,
+  - all lanes converge on the same idempotent writer checks,
+  - no bypass path writes label truth outside LS writer boundary.

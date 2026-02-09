@@ -1,5 +1,12 @@
 """Label Store contract and identity surfaces (Phase 5.1)."""
 
+from .adapters import (
+    DERIVED_CASE_EVENT_RECIPE_V1,
+    SUPPORTED_INGEST_SOURCE_CLASSES,
+    LabelStoreAdapterError,
+    LabelStoreAdapterResult,
+    ingest_label_from_source,
+)
 from .contracts import (
     EVIDENCE_REF_TYPES,
     LABEL_TYPES,
@@ -37,6 +44,7 @@ from .writer_boundary import (
 )
 
 __all__ = [
+    "DERIVED_CASE_EVENT_RECIPE_V1",
     "EVIDENCE_REF_TYPES",
     "LABEL_ASSERTION_ID_RECIPE_V1",
     "LABEL_ASSERTION_PAYLOAD_HASH_RECIPE_V1",
@@ -51,6 +59,8 @@ __all__ = [
     "LabelStoreWriterError",
     "LabelAsOfResolution",
     "LabelAssertionWriteRecord",
+    "LabelStoreAdapterError",
+    "LabelStoreAdapterResult",
     "LabelTimelineEntry",
     "LS_AS_OF_CONFLICT",
     "LS_AS_OF_NOT_FOUND",
@@ -63,7 +73,9 @@ __all__ = [
     "REASON_DEDUPE_TUPLE_COLLISION",
     "REASON_MISSING_EVIDENCE_REFS",
     "REASON_PAYLOAD_HASH_MISMATCH",
+    "SUPPORTED_INGEST_SOURCE_CLASSES",
     "LabelSubjectKey",
     "canonical_label_assertion_payload_hash",
     "deterministic_label_assertion_id",
+    "ingest_label_from_source",
 ]

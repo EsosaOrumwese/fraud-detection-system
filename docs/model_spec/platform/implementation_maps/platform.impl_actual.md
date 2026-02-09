@@ -7531,3 +7531,52 @@ Execute Label Store Phase 4 by adding as-of and resolved-query read surfaces wit
 
 ### Residual notes
 - LS build-plan next action is Phase 5 ingest adapters; this remains separate from RTDL parity closure items still tracked under platform `4.6.L`.
+
+## Entry: 2026-02-09 06:50PM - LS Phase 5 execution lock (platform Phase 5.6/5.7 progression)
+
+### Scope
+Execute LS Phase 5 ingest adapters so CM/external/engine truth lanes converge on one writer-boundary contract.
+
+### Locked implementation posture
+- Add LS-owned adapter surface for source-specific mapping (`CM_ASSERTION`, `EXTERNAL_ADJUDICATION`, `ENGINE_TRUTH`).
+- Enforce fail-closed source contract checks and required by-ref evidence.
+- Ensure non-CM lanes derive deterministic assertion identity inputs (stable `case_timeline_event_id` derivation).
+- Keep truth ownership boundaries intact: adapters normalize payloads only; `LabelStoreWriterBoundary` remains the sole write gate.
+
+### Acceptance gate
+- LS Phase 5 matrix green with per-lane acceptance + replay + fail-closed coverage.
+- LS Phase1..5 suite green.
+- CM label/phase8 regression green.
+- Build-plan + implementation-map + logbook updated with exact command evidence.
+
+## Entry: 2026-02-09 06:53PM - LS Phase 5 closure (platform Phase 5.6/5.7 progression)
+
+### What was closed
+- LS Phase 5 ingest adapters are implemented and validated.
+- Platform now has explicit source-lane ingestion into LS for:
+  - `CM_ASSERTION`
+  - `EXTERNAL_ADJUDICATION`
+  - `ENGINE_TRUTH`
+- Non-CM lanes use deterministic derived case-event identity inputs for retry safety.
+
+### Platform-level impact
+- Phase 5.6/5.7 continuity improved: external and engine truth can be translated into canonical LabelAssertions without bypassing LS writer checks.
+- Truth ownership boundaries remain intact:
+  - adapters normalize/validate source payloads,
+  - LS writer remains the commit/idempotency authority,
+  - downstream learning still reads label truth only from LS.
+- This reduces environment drift risk by pinning one adapter behavior across local parity and higher environments.
+
+### Evidence references
+- Code:
+  - `src/fraud_detection/label_store/adapters.py`
+  - `src/fraud_detection/label_store/__init__.py`
+- Tests:
+  - `tests/services/label_store/test_phase5_ingest_adapters.py`
+- Validation:
+  - Phase 5 matrix `5 passed`
+  - LS Phase1..5 `28 passed`
+  - CM label/phase8 regression `10 passed`
+
+### Residual notes
+- LS next active step is Phase 6 (observability/governance/access audit surfaces) before full Phase 8 closure proof for Case+Labels plane.
