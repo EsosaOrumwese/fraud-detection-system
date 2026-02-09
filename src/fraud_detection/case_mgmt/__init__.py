@@ -75,6 +75,11 @@ from .label_handshake import (
     LabelStoreWriteResult,
     load_label_emission_policy,
 )
+from .observability import (
+    CaseMgmtHealthThresholds,
+    CaseMgmtObservabilityError,
+    CaseMgmtRunReporter,
+)
 from .ids import (
     CASE_ID_RECIPE_V1,
     CASE_TIMELINE_EVENT_ID_RECIPE_V1,
@@ -173,6 +178,8 @@ __all__ = [
     "TIMELINE_EVENT_PAYLOAD_MISMATCH",
     "TIMELINE_NOOP",
     "CaseMgmtContractError",
+    "CaseMgmtHealthThresholds",
+    "CaseMgmtObservabilityError",
     "ActionEmissionPolicy",
     "ActionIntentRecord",
     "ActionIntentSubmissionResult",
@@ -181,6 +188,7 @@ __all__ = [
     "ActionSubmitWriteResult",
     "CaseActionHandshakeCoordinator",
     "CaseActionHandshakeError",
+    "CaseMgmtRunReporter",
     "CaseEvidenceResolutionCorridor",
     "CaseEvidenceResolutionError",
     "CaseLabelHandshakeCoordinator",

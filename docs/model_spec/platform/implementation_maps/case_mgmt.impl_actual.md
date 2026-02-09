@@ -673,3 +673,118 @@ Current CM phases close trigger/timeline/evidence/label lanes, but no explicit C
   - manual actions are emitted to AL with deterministic idempotency + evidence refs,
   - AL outcomes attach back by reference only,
   - failures/denials are explicit in append-only CM timeline without side-effect truth claims in CM.
+
+## Entry: 2026-02-09 06:02PM - Pre-change lock for Phase 7 (CM observability/governance/reconciliation)
+
+### Objective
+Close CM Phase 7 by delivering run-scoped operational counters, governance lifecycle emission, low-noise anomaly surfacing, and CM contribution artifacts under `case_labels/reconciliation`.
+
+### Authority inputs used
+- `docs/model_spec/platform/implementation_maps/case_mgmt.build_plan.md` (Phase 7 DoD)
+- `docs/model_spec/platform/implementation_maps/platform.build_plan.md` (Phase 5.8 closure expectations)
+- `docs/model_spec/platform/pre-design_decisions/observability_and_governance.pre-design_decisions.md`
+- `docs/model_spec/platform/pre-design_decisions/run_and_operate.pre-design_decisions.md`
+- Existing component patterns:
+  - `src/fraud_detection/case_trigger/observability.py`
+  - `src/fraud_detection/case_trigger/reconciliation.py`
+  - `src/fraud_detection/decision_log_audit/observability.py`
+  - `src/fraud_detection/platform_governance/writer.py`
+
+### Problem framing
+CM Phases 1..6 are implemented, but CM still lacks a unified run-scoped report surface that can be consumed by operations and platform reconciliation. Required gaps:
+1. No durable CM counters artifact for run-level posture (`case_triggers`, `cases_created`, timeline and label lifecycle counts).
+2. No deterministic lifecycle governance emission derived from CM timeline facts.
+3. No single low-noise anomaly summary for mismatch/forbidden/unavailable lanes.
+4. No case/labels-plane reconciliation contribution written by CM.
+
+### Discovery before edits
+- An interrupted run already created `src/fraud_detection/case_mgmt/observability.py` in the worktree.
+- Decision: treat it as draft input, not as accepted implementation; validate against current rails and fill missing wiring/tests/docs before closure claim.
+
+### Alternatives considered
+1. Emit governance events inline during every CM mutation path (intake/label/action/evidence).
+- Rejected for now: wider intrusive edits across stable Phase 1..6 paths and higher regression surface.
+2. Build an offline run reporter over CM tables and emit idempotent governance/reconciliation artifacts from that reporter.
+- Selected: least invasive to truth paths, deterministic from append-only tables, compatible with current v0 parity posture.
+
+### Decisions locked before code edits
+1. Keep CM truth ownership unchanged; observability module is read-only on CM domain tables and write-only for observability/governance outputs.
+2. Counters will be filtered run-scoped by `pins` (`platform_run_id`, `scenario_run_id`) via `cm_cases.pins_json` membership.
+3. Governance lifecycle events are mapped from timeline event types and deduped with marker files (`event_id` markers) to ensure replay-safe emission.
+4. Anomaly reporting is lane-based and low-noise (counts only; no raw payload leaks).
+5. CM writes contribution artifact to `runs/<platform_run_id>/case_labels/reconciliation/case_mgmt_reconciliation.json`.
+6. Phase closure requires dedicated Phase 7 tests plus CM regression and CaseTrigger/IG boundary regression.
+
+### Planned files
+- New:
+  - `tests/services/case_mgmt/test_phase7_observability.py`
+- Update:
+  - `src/fraud_detection/case_mgmt/observability.py` (finalize draft and contract hardening)
+  - `src/fraud_detection/case_mgmt/__init__.py` (Phase 7 exports)
+  - `docs/model_spec/platform/implementation_maps/case_mgmt.build_plan.md`
+  - `docs/model_spec/platform/implementation_maps/platform.build_plan.md`
+  - `docs/model_spec/platform/implementation_maps/platform.impl_actual.md`
+  - `docs/logbook/02-2026/2026-02-09.md`
+
+### Validation plan
+- `python -m py_compile src/fraud_detection/case_mgmt/observability.py src/fraud_detection/case_mgmt/__init__.py tests/services/case_mgmt/test_phase7_observability.py`
+- `python -m pytest -q tests/services/case_mgmt/test_phase7_observability.py`
+- `python -m pytest -q tests/services/case_mgmt/test_phase1_contracts.py tests/services/case_mgmt/test_phase1_ids.py tests/services/case_mgmt/test_phase2_intake.py tests/services/case_mgmt/test_phase3_projection.py tests/services/case_mgmt/test_phase4_evidence_resolution.py tests/services/case_mgmt/test_phase5_label_handshake.py tests/services/case_mgmt/test_phase6_action_handshake.py tests/services/case_mgmt/test_phase7_observability.py`
+- `python -m pytest -q tests/services/case_trigger/test_phase1_config.py tests/services/case_trigger/test_phase1_contracts.py tests/services/case_trigger/test_phase1_taxonomy.py tests/services/case_trigger/test_phase2_adapters.py tests/services/case_trigger/test_phase3_replay.py tests/services/case_trigger/test_phase4_publish.py tests/services/case_trigger/test_phase5_checkpoints.py tests/services/case_trigger/test_phase7_observability.py tests/services/case_trigger/test_phase8_validation_matrix.py tests/services/ingestion_gate/test_phase11_case_trigger_onboarding.py`
+
+## Entry: 2026-02-09 06:09PM - Phase 7 implemented and validated (CM observability/governance/reconciliation)
+
+### Implementation completed
+1. Finalized CM observability reporter module:
+- `src/fraud_detection/case_mgmt/observability.py`
+- run-scoped metrics now include Phase 5.8 names (`case_triggers`, `cases_created`, `timeline_events_appended`, `label_assertions`, `labels_pending`, `labels_accepted`, `labels_rejected`) while retaining compatibility aliases used by earlier matrices.
+- lifecycle governance extraction from timeline now carries actor attribution + normalized evidence refs and pin enrichment (`manifest_fingerprint`, `parameter_hash`, `scenario_id`, `seed` when present).
+- optional-table-safe query posture added for phased/partial deployments (missing optional tables resolve to empty lanes instead of failing reporter execution).
+
+2. Reconciliation artifact posture aligned to authority path intent:
+- `export()` now writes Case+Labels contribution to both:
+  - `runs/<platform_run_id>/case_labels/reconciliation/<YYYY-MM-DD>.json`
+  - `runs/<platform_run_id>/case_labels/reconciliation/case_mgmt_reconciliation.json`
+- component-local reconciliation remains at:
+  - `runs/<platform_run_id>/case_mgmt/reconciliation/last_reconciliation.json`
+
+3. Wiring/exports updates:
+- `src/fraud_detection/case_mgmt/__init__.py` exports Phase 7 surfaces (`CaseMgmtRunReporter`, thresholds, error type).
+- `src/fraud_detection/platform_reporter/run_reporter.py` reconciliation-ref discovery now includes:
+  - `case_mgmt/reconciliation/last_reconciliation.json`
+  - `case_labels/reconciliation/case_mgmt_reconciliation.json`
+
+4. Added Phase 7 matrix tests:
+- `tests/services/case_mgmt/test_phase7_observability.py`
+- coverage includes:
+  - full export path (metrics, governance, anomalies, case_labels reconciliation),
+  - idempotent lifecycle governance emission (marker-deduped),
+  - strict run-scope filtering by `platform_run_id` + `scenario_run_id`,
+  - optional-table-absent resilience.
+
+### Key mechanics delivered
+- Governance lifecycle emission is deterministic and replay-safe:
+  - event id basis: `sha256(platform_run_id|case_timeline_event_id|lifecycle_type)`
+  - marker files prevent duplicate governance writes under repeated export.
+- Low-noise anomaly reporting:
+  - structured lane counts only (`TRIGGER/TIMELINE/LABEL/ACTION payload mismatch`, `EVIDENCE_FORBIDDEN`, `EVIDENCE_UNAVAILABLE`).
+- Reconciliation contribution under case/labels prefix is now explicit and date-stamped to support daily append posture.
+
+### Validation evidence
+- `python -m py_compile src/fraud_detection/case_mgmt/observability.py src/fraud_detection/case_mgmt/__init__.py src/fraud_detection/platform_reporter/run_reporter.py tests/services/case_mgmt/test_phase7_observability.py`
+  - result: pass
+- `python -m pytest -q tests/services/case_mgmt/test_phase7_observability.py`
+  - result: `4 passed`
+- `python -m pytest -q tests/services/case_mgmt/test_phase1_contracts.py tests/services/case_mgmt/test_phase1_ids.py tests/services/case_mgmt/test_phase2_intake.py tests/services/case_mgmt/test_phase3_projection.py tests/services/case_mgmt/test_phase4_evidence_resolution.py tests/services/case_mgmt/test_phase5_label_handshake.py tests/services/case_mgmt/test_phase6_action_handshake.py tests/services/case_mgmt/test_phase7_observability.py`
+  - result: `40 passed`
+- `python -m pytest -q tests/services/case_trigger/test_phase1_config.py tests/services/case_trigger/test_phase1_contracts.py tests/services/case_trigger/test_phase1_taxonomy.py tests/services/case_trigger/test_phase2_adapters.py tests/services/case_trigger/test_phase3_replay.py tests/services/case_trigger/test_phase4_publish.py tests/services/case_trigger/test_phase5_checkpoints.py tests/services/case_trigger/test_phase7_observability.py tests/services/case_trigger/test_phase8_validation_matrix.py tests/services/ingestion_gate/test_phase11_case_trigger_onboarding.py`
+  - result: `45 passed`
+- `python -m pytest -q tests/services/platform_reporter/test_run_reporter.py`
+  - result: `2 passed`
+
+### Phase closure statement
+- CM Phase 7 DoD is satisfied:
+  - run-scoped counters are emitted,
+  - lifecycle governance events are emitted with actor attribution and evidence refs,
+  - anomaly lanes are structured/low-noise,
+  - CM contributes reconciliation under case/labels prefix.

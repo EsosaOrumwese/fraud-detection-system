@@ -7329,3 +7329,43 @@ Close platform gate `5.2.F` by implementing CaseTrigger run-scoped observability
   - Phase 6 matrix `6 passed`
   - CM Phase1..6 suite `36 passed`
   - CaseTrigger/IG regression `45 passed`
+
+## Entry: 2026-02-09 06:02PM - CM Phase 7 execution lock (platform Phase 5.8 progression)
+
+### Scope
+Execute CM Phase 7 to close the platform's Case+Labels observability/governance/reconciliation rail for CM.
+
+### Locked implementation posture
+- Use CM run reporter pattern over append-only CM tables (no mutation path rewrites).
+- Enforce run-scope filtering through CM pins to avoid cross-run contamination.
+- Emit lifecycle governance events from CM timeline with idempotent markers.
+- Publish low-noise anomaly lanes and CM contribution artifact under `case_labels/reconciliation`.
+- Preserve at-least-once safety: repeated exports must not duplicate lifecycle emissions.
+
+### Acceptance gate
+- CM Phase 7 matrix test green.
+- CM Phase1..7 suite green.
+- CaseTrigger/IG regression matrix green.
+- Build-plan and implementation maps updated with explicit evidence.
+
+## Entry: 2026-02-09 06:09PM - CM Phase 7 closure (platform Phase 5.8 progression)
+
+### What was closed
+- CM Phase 7 is implemented and validated, providing operational observability/governance/reconciliation coverage for the Case+Labels plane.
+
+### Platform-level impact
+- Platform Phase `5.8` CM side is now concretely implemented with run-scoped metrics, lifecycle governance emission, and case/labels reconciliation contribution.
+- Reconciliation visibility for platform reporting is improved by including CM and case_labels contribution refs in run-reporter discovery.
+
+### Evidence references
+- Code:
+  - `src/fraud_detection/case_mgmt/observability.py`
+  - `src/fraud_detection/case_mgmt/__init__.py`
+  - `src/fraud_detection/platform_reporter/run_reporter.py`
+- Tests:
+  - `tests/services/case_mgmt/test_phase7_observability.py`
+- Validation:
+  - Phase 7 matrix `4 passed`
+  - CM Phase1..7 `40 passed`
+  - CaseTrigger/IG regression `45 passed`
+  - Platform reporter regression `2 passed`
