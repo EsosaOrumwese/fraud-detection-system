@@ -1020,14 +1020,20 @@ def _project_case(*, case: CaseRecord, timeline: list[CaseTimelineRecord]) -> Ca
             if assignee_value:
                 assignee = assignee_value
         elif event_type == "ACTION_INTENT_REQUESTED":
-            status = "ACTION_PENDING"
-            queue_state = "pending_action"
-            pending_action_outcome = True
+            submit_status = str(timeline_payload.get("submit_status") or "REQUESTED").strip().upper()
+            if submit_status in {"PRECHECK_REJECTED", "SUBMIT_FAILED_FATAL"}:
+                status = "ACTION_FAILED"
+                queue_state = "triage"
+                pending_action_outcome = False
+            else:
+                status = "ACTION_PENDING"
+                queue_state = "pending_action"
+                pending_action_outcome = True
             is_open = True
         elif event_type == "ACTION_OUTCOME_ATTACHED":
             pending_action_outcome = False
             outcome_status = str(timeline_payload.get("outcome_status") or "").strip().upper()
-            if outcome_status in {"FAILED", "DENIED"}:
+            if outcome_status in {"FAILED", "DENIED", "TIMED_OUT", "UNKNOWN"}:
                 status = "ACTION_FAILED"
                 queue_state = "triage"
             else:

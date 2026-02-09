@@ -1,0 +1,24 @@
+version: "v1"
+policy_id: "cm.action_emission.v0"
+revision: "r1"
+
+action_emission:
+  allowed_action_kinds:
+    - BLOCK_ACCOUNT
+    - UNBLOCK_ACCOUNT
+    - NOTIFY_CUSTOMER
+    - FREEZE_CARD
+    - RELEASE_HOLD
+  allowed_actor_prefixes:
+    - "HUMAN::"
+    - "SYSTEM::"
+  allowed_source_types:
+    - HUMAN
+    - SYSTEM
+    - EXTERNAL
+    - AUTO
+  origin: CASE
+  al_policy_rev:
+    policy_id: "al.policy.bundle.v0"
+    revision: "r1"
+  max_submit_attempts: 3

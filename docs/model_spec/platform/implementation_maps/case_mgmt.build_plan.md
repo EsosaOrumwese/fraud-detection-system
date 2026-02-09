@@ -184,4 +184,16 @@ Provide an executable, component-scoped plan for Case Management (CM) aligned to
     - `python -m pytest -q tests/services/case_mgmt/test_phase5_label_handshake.py` -> `6 passed`
     - `python -m pytest -q tests/services/case_mgmt/test_phase1_contracts.py tests/services/case_mgmt/test_phase1_ids.py tests/services/case_mgmt/test_phase2_intake.py tests/services/case_mgmt/test_phase3_projection.py tests/services/case_mgmt/test_phase4_evidence_resolution.py tests/services/case_mgmt/test_phase5_label_handshake.py` -> `30 passed`
     - `python -m pytest -q tests/services/case_trigger/test_phase1_config.py tests/services/case_trigger/test_phase1_contracts.py tests/services/case_trigger/test_phase1_taxonomy.py tests/services/case_trigger/test_phase2_adapters.py tests/services/case_trigger/test_phase3_replay.py tests/services/case_trigger/test_phase4_publish.py tests/services/case_trigger/test_phase5_checkpoints.py tests/services/case_trigger/test_phase7_observability.py tests/services/case_trigger/test_phase8_validation_matrix.py tests/services/ingestion_gate/test_phase11_case_trigger_onboarding.py` -> `45 passed`
-- Next action: Phase 6 implementation (manual actions via AL boundary).
+- Phase 6 (`Manual actions via AL boundary`): completed on `2026-02-09`.
+  - Evidence:
+    - `src/fraud_detection/case_mgmt/action_handshake.py`
+    - `config/platform/case_mgmt/action_emission_policy_v0.yaml`
+    - `src/fraud_detection/case_mgmt/intake.py` (projection semantics for submit statuses and outcome classes)
+    - `src/fraud_detection/case_mgmt/__init__.py` (Phase 6 exports)
+    - `tests/services/case_mgmt/test_phase6_action_handshake.py`
+  - Validation:
+    - `python -m py_compile src/fraud_detection/case_mgmt/action_handshake.py src/fraud_detection/case_mgmt/intake.py src/fraud_detection/case_mgmt/__init__.py tests/services/case_mgmt/test_phase6_action_handshake.py` -> pass
+    - `python -m pytest -q tests/services/case_mgmt/test_phase6_action_handshake.py` -> `6 passed`
+    - `python -m pytest -q tests/services/case_mgmt/test_phase1_contracts.py tests/services/case_mgmt/test_phase1_ids.py tests/services/case_mgmt/test_phase2_intake.py tests/services/case_mgmt/test_phase3_projection.py tests/services/case_mgmt/test_phase4_evidence_resolution.py tests/services/case_mgmt/test_phase5_label_handshake.py tests/services/case_mgmt/test_phase6_action_handshake.py` -> `36 passed`
+    - `python -m pytest -q tests/services/case_trigger/test_phase1_config.py tests/services/case_trigger/test_phase1_contracts.py tests/services/case_trigger/test_phase1_taxonomy.py tests/services/case_trigger/test_phase2_adapters.py tests/services/case_trigger/test_phase3_replay.py tests/services/case_trigger/test_phase4_publish.py tests/services/case_trigger/test_phase5_checkpoints.py tests/services/case_trigger/test_phase7_observability.py tests/services/case_trigger/test_phase8_validation_matrix.py tests/services/ingestion_gate/test_phase11_case_trigger_onboarding.py` -> `45 passed`
+- Next action: Phase 7 implementation (observability, governance, and reconciliation).

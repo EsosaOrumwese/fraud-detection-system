@@ -548,3 +548,128 @@ Implement CM Phase 5 by adding deterministic LabelAssertion emission handshake l
   - pending/accepted/rejected lifecycle is append-only and provenance-carrying,
   - CM does not claim label truth before LS durable acknowledgement,
   - retry/idempotency/mismatch fail-closed behavior is evidenced.
+
+## Entry: 2026-02-09 05:49PM - Pre-change lock for Phase 6 (CM -> AL manual action handshake)
+
+### Objective
+Implement CM Phase 6 by adding a deterministic, policy-gated manual ActionIntent emission boundary to AL plus by-ref ActionOutcome attachment back to CM timeline.
+
+### Authority inputs used
+- `docs/model_spec/platform/implementation_maps/case_mgmt.build_plan.md` (Phase 6 DoD)
+- `docs/model_spec/platform/pre-design_decisions/case_and_labels.pre-design_decision.md` (ActionIntent key + outcome attach by `action_outcome_id`)
+- `docs/model_spec/platform/component-specific/case_mgmt.design-authority.md` sections `J-CM-02`, `B2`, `I-J12`, `I-J13`
+- Existing AL contract: `src/fraud_detection/action_layer/contracts.py`
+
+### Problem framing
+Current CM phases close trigger/timeline/evidence/label lanes, but no explicit CM->AL manual-action boundary exists. Missing pieces for Phase 6 closure:
+1. deterministic ActionIntent identity/idempotency contract at CM boundary,
+2. submission-state recording without claiming execution truth,
+3. attach-by-ref outcome linkage (`action_outcome_id`) into append-only timeline.
+
+### Alternatives considered
+1. Reuse label-handshake module pattern and store everything in timeline only.
+- Rejected: submission-state and retry posture become opaque and difficult to query/operate.
+
+2. Directly mutate case projection status on action submit/outcome updates.
+- Rejected: violates append-only truth discipline.
+
+3. Add dedicated CM action-handshake module with durable intent ledger + append-only timeline events.
+- Selected: aligns with authority notes (CM requests only, AL executes, outcomes by-ref).
+
+### Decisions locked before edits
+1. New module `src/fraud_detection/case_mgmt/action_handshake.py` with:
+- deterministic `action_idempotency_key = hash(case_id + source_case_event_id + action_kind + target_ref)`,
+- deterministic `action_id` and fallback deterministic `decision_id` when explicit decision id is unavailable,
+- AL ActionIntent payload validation via `action_layer.ActionIntent`.
+2. Submission-state discipline:
+- CM appends baseline `ACTION_INTENT_REQUESTED` (`submit_status=REQUESTED`),
+- writer outcomes map to explicit statuses:
+  - `SUBMITTED` (accepted),
+  - `PRECHECK_REJECTED` (rejected),
+  - `SUBMIT_FAILED_RETRYABLE` (pending/exception),
+  - `SUBMIT_FAILED_FATAL` (retry ceiling),
+- statuses are appended as timeline events (append-only; dedupe by stable source_ref suffix).
+3. Outcome attachment discipline:
+- CM attaches AL outcomes only by refs through `ACTION_OUTCOME_ATTACHED`,
+- includes `ACTION_OUTCOME` ref + optional DLA/EB refs,
+- no execution payload snapshots in CM.
+4. Local parity lock-safety:
+- avoid nested write transactions when appending timeline rows (same correction posture as Phase 5).
+5. Projection hardening:
+- `ACTION_INTENT_REQUESTED` handling will key off `submit_status` so rejected/fatal submission states are explicit and not treated as pending execution.
+
+### Planned files
+- New:
+  - `src/fraud_detection/case_mgmt/action_handshake.py`
+  - `config/platform/case_mgmt/action_emission_policy_v0.yaml`
+  - `tests/services/case_mgmt/test_phase6_action_handshake.py`
+- Update:
+  - `src/fraud_detection/case_mgmt/intake.py` (projection semantics for submit statuses)
+  - `src/fraud_detection/case_mgmt/__init__.py` (Phase 6 exports)
+  - build-plan/impl-map/logbook status files after validation.
+
+### Validation plan
+- `python -m py_compile src/fraud_detection/case_mgmt/action_handshake.py src/fraud_detection/case_mgmt/intake.py src/fraud_detection/case_mgmt/__init__.py tests/services/case_mgmt/test_phase6_action_handshake.py`
+- `python -m pytest -q tests/services/case_mgmt/test_phase6_action_handshake.py`
+- CM regression:
+  - `python -m pytest -q tests/services/case_mgmt/test_phase1_contracts.py tests/services/case_mgmt/test_phase1_ids.py tests/services/case_mgmt/test_phase2_intake.py tests/services/case_mgmt/test_phase3_projection.py tests/services/case_mgmt/test_phase4_evidence_resolution.py tests/services/case_mgmt/test_phase5_label_handshake.py tests/services/case_mgmt/test_phase6_action_handshake.py`
+- CaseTrigger/IG regression:
+  - existing `45` test matrix.
+
+## Entry: 2026-02-09 05:55PM - Phase 6 implemented and validated (CM -> AL manual action boundary)
+
+### Implementation completed
+1. Added CM action-handshake coordinator:
+- `src/fraud_detection/case_mgmt/action_handshake.py`
+- deterministic `action_idempotency_key = hash(case_id + source_case_event_id + action_kind + target_ref)`,
+- deterministic `action_id` + fallback deterministic `decision_id`,
+- ActionIntent payload validation through AL contract (`action_layer.ActionIntent`),
+- durable submission ledger + payload-mismatch anomaly ledger,
+- by-ref ActionOutcome attachment to CM timeline.
+
+2. Added Phase 6 policy config:
+- `config/platform/case_mgmt/action_emission_policy_v0.yaml`
+- allowlists for action kinds, actor principal prefixes, source types,
+- fixed `origin=CASE`, AL policy-rev pins, and retry budget (`max_submit_attempts`).
+
+3. Updated CM exports:
+- `src/fraud_detection/case_mgmt/__init__.py` now exports Phase 6 constants, types, coordinator, and policy loader.
+
+4. Updated projection semantics for action submission truth:
+- `src/fraud_detection/case_mgmt/intake.py`
+- `ACTION_INTENT_REQUESTED` now reads `submit_status` to distinguish pending vs precheck/fatal failures,
+- `ACTION_OUTCOME_ATTACHED` treats `FAILED|DENIED|TIMED_OUT|UNKNOWN` as failed posture.
+
+5. Added Phase 6 validation matrix:
+- `tests/services/case_mgmt/test_phase6_action_handshake.py`.
+
+### Key mechanics delivered
+- CM remains request-only for side effects (no execution path in CM).
+- Submission-state timeline discipline is append-only:
+  - `REQUESTED` baseline event,
+  - then explicit submission-state event: `SUBMITTED` | `PRECHECK_REJECTED` | `SUBMIT_FAILED_RETRYABLE` | `SUBMIT_FAILED_FATAL`.
+- AL outcome closure is attach-by-ref only:
+  - `ACTION_OUTCOME_ATTACHED` carries ids/status/refs,
+  - includes `ACTION_OUTCOME` ref and optional DLA/EB refs,
+  - no execution payload snapshots stored in CM.
+- Fail-closed posture:
+  - source-case-event mismatch rejects submission,
+  - same idempotency key + payload hash mismatch is recorded and rejected.
+- Lock-safety posture preserved:
+  - timeline appends are not executed under open action-ledger write transactions (no nested SQLite write-lock pattern).
+
+### Validation evidence
+- `python -m py_compile src/fraud_detection/case_mgmt/action_handshake.py src/fraud_detection/case_mgmt/intake.py src/fraud_detection/case_mgmt/__init__.py tests/services/case_mgmt/test_phase6_action_handshake.py`
+  - result: pass
+- `python -m pytest -q tests/services/case_mgmt/test_phase6_action_handshake.py`
+  - result: `6 passed`
+- `python -m pytest -q tests/services/case_mgmt/test_phase1_contracts.py tests/services/case_mgmt/test_phase1_ids.py tests/services/case_mgmt/test_phase2_intake.py tests/services/case_mgmt/test_phase3_projection.py tests/services/case_mgmt/test_phase4_evidence_resolution.py tests/services/case_mgmt/test_phase5_label_handshake.py tests/services/case_mgmt/test_phase6_action_handshake.py`
+  - result: `36 passed`
+- `python -m pytest -q tests/services/case_trigger/test_phase1_config.py tests/services/case_trigger/test_phase1_contracts.py tests/services/case_trigger/test_phase1_taxonomy.py tests/services/case_trigger/test_phase2_adapters.py tests/services/case_trigger/test_phase3_replay.py tests/services/case_trigger/test_phase4_publish.py tests/services/case_trigger/test_phase5_checkpoints.py tests/services/case_trigger/test_phase7_observability.py tests/services/case_trigger/test_phase8_validation_matrix.py tests/services/ingestion_gate/test_phase11_case_trigger_onboarding.py`
+  - result: `45 passed`
+
+### Phase closure statement
+- CM Phase 6 DoD is satisfied:
+  - manual actions are emitted to AL with deterministic idempotency + evidence refs,
+  - AL outcomes attach back by reference only,
+  - failures/denials are explicit in append-only CM timeline without side-effect truth claims in CM.

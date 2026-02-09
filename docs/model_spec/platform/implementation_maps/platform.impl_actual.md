@@ -7295,3 +7295,37 @@ Close platform gate `5.2.F` by implementing CaseTrigger run-scoped observability
   - Phase 5 matrix `6 passed`
   - CM Phase1..5 suite `30 passed`
   - CaseTrigger/IG regression `45 passed`
+
+## Entry: 2026-02-09 05:49PM - CM Phase 6 execution lock (manual ActionIntent boundary)
+
+- Locked implementation scope for CM Phase 6 to close `CM -> AL` manual action boundary with deterministic idempotency and append-only submission/outcome timeline truth.
+- Chosen design is a dedicated CM action-handshake coordinator (not inline mutations), with explicit submission status evolution and by-ref outcome attach semantics.
+- Lock-safe sequencing is mandated (no nested SQLite write transactions while appending timeline events), consistent with Phase 5 correction posture.
+- Planned validation includes dedicated Phase 6 matrix + full CM regression + CaseTrigger/IG boundary regression.
+
+## Entry: 2026-02-09 05:55PM - CM Phase 6 closure (platform Phase 5.4 progression)
+
+### What was closed
+- Implemented CM manual-action boundary to AL with deterministic ActionIntent identity/idempotency and append-only submission-state recording.
+- Implemented by-ref ActionOutcome attach pathway back into CM timeline (`ACTION_OUTCOME_ATTACHED`) without payload truth duplication.
+
+### Platform impact
+- Platform Phase `5.4` CM side is now concretely implemented and validated.
+- Truth ownership boundaries remain intact:
+  - CM requests and records,
+  - AL executes and owns side-effect/outcome truth,
+  - DLA/refs remain evidence backbone.
+- Case+Labels plane progression is unblocked for next CM phase (`5.8` observability/governance/reconciliation on CM build plan).
+
+### Evidence references
+- Code:
+  - `src/fraud_detection/case_mgmt/action_handshake.py`
+  - `config/platform/case_mgmt/action_emission_policy_v0.yaml`
+  - `src/fraud_detection/case_mgmt/intake.py`
+  - `src/fraud_detection/case_mgmt/__init__.py`
+- Tests:
+  - `tests/services/case_mgmt/test_phase6_action_handshake.py`
+- Validation:
+  - Phase 6 matrix `6 passed`
+  - CM Phase1..6 suite `36 passed`
+  - CaseTrigger/IG regression `45 passed`
