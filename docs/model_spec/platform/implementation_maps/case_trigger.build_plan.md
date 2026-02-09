@@ -103,4 +103,5 @@ Provide an executable, component-scoped plan for the CaseTrigger service aligned
 - Phase 4 (`Publish corridor`): complete (`7 passed` phase4+IG onboarding suite; `31 passed` combined Phase1+2+3+4 suite on 2026-02-09).
 - Phase 5 (`Retry/checkpoint/replay safety`): complete (`5 passed` phase5 checkpoint suite; `36 passed` combined Phase1+2+3+4+5 suite on 2026-02-09).
 - Phase 6 (`CM intake integration gate`): complete (`4 passed` CM intake suite; CM Phase1+2 `16 passed` on 2026-02-09).
-- Next action: begin Phase 7 (`Observability + governance`) with run-scoped trigger counters and structured anomaly emission.
+- Phase 7 (`Observability + governance`): complete (`5 passed` phase7 observability suite; CaseTrigger Phase1+2+3+4+5+7 + IG onboarding `41 passed` on 2026-02-09).
+- Next action: begin Phase 8 (`Parity closure`) with monitored 20-event and 200-event evidence capture for CaseTrigger artifacts.

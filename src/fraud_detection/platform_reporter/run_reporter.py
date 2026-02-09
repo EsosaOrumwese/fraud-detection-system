@@ -468,6 +468,7 @@ def _component_reconciliation_refs(platform_run_id: str) -> list[str]:
         root / "identity_entity_graph" / "reconciliation" / "reconciliation.json",
         root / "context_store_flow_binding" / "reconciliation" / "last_reconciliation.json",
         root / "decision_fabric" / "reconciliation" / "reconciliation.json",
+        root / "case_trigger" / "reconciliation" / "reconciliation.json",
         root / "decision_log_audit" / "reconciliation" / "last_reconciliation.json",
     ]
     return [str(path) for path in candidates if path.exists()]

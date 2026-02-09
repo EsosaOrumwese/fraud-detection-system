@@ -20,6 +20,11 @@ from .checkpoints import (
     CheckpointCommitResult,
     CheckpointToken,
 )
+from .observability import (
+    CaseTriggerGovernanceEmitter,
+    CaseTriggerObservabilityError,
+    CaseTriggerRunMetrics,
+)
 from .config import (
     CaseTriggerConfigError,
     CaseTriggerPolicy,
@@ -40,6 +45,10 @@ from .publish import (
     CaseTriggerPublishError,
     PublishedCaseTriggerRecord,
     build_case_trigger_envelope,
+)
+from .reconciliation import (
+    CaseTriggerReconciliationBuilder,
+    CaseTriggerReconciliationError,
 )
 from .replay import (
     REPLAY_MATCH,
@@ -97,13 +106,18 @@ __all__ = [
     "CaseTriggerCheckpointGate",
     "CaseTriggerConfigError",
     "CaseTriggerContractError",
+    "CaseTriggerGovernanceEmitter",
     "CaseTriggerLedgerEntry",
     "CaseTriggerIgPublisher",
+    "CaseTriggerObservabilityError",
     "CaseTriggerPublishError",
     "CaseTriggerPublishRecord",
     "CaseTriggerPublishStore",
     "CaseTriggerPublishWriteResult",
+    "CaseTriggerReconciliationBuilder",
+    "CaseTriggerReconciliationError",
     "CaseTriggerReplayError",
+    "CaseTriggerRunMetrics",
     "CaseTriggerReplayLedger",
     "CaseTriggerStorageError",
     "CaseTriggerPolicy",

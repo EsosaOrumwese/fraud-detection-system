@@ -575,3 +575,90 @@ Close CaseTrigger Phase 6 by proving the CaseTrigger->CM intake boundary with de
 - `python -m pytest -q tests/services/case_mgmt/test_phase2_intake.py` -> `4 passed`.
 - `python -m pytest -q tests/services/case_mgmt/test_phase1_contracts.py tests/services/case_mgmt/test_phase1_ids.py tests/services/case_mgmt/test_phase2_intake.py` -> `16 passed`.
 - `python -m pytest -q tests/services/case_trigger/test_phase1_config.py tests/services/case_trigger/test_phase1_contracts.py tests/services/case_trigger/test_phase1_taxonomy.py tests/services/case_trigger/test_phase2_adapters.py tests/services/case_trigger/test_phase3_replay.py tests/services/case_trigger/test_phase4_publish.py tests/services/case_trigger/test_phase5_checkpoints.py tests/services/ingestion_gate/test_phase11_case_trigger_onboarding.py` -> `36 passed`.
+
+## Entry: 2026-02-09 04:41PM - Pre-change lock for Phase 7 (observability + governance)
+
+### Objective
+Implement CaseTrigger Phase 7 by adding run-scoped counters, structured governance anomaly emission, and reconciliation refs consumable by platform run reporting.
+
+### DoD mapping to implementation
+1. Run-scoped counters (`triggers_seen`, `published`, `duplicates`, `quarantine`, `publish_ambiguous`):
+   - add `case_trigger/observability.py` with a metrics collector/exporter.
+2. Structured anomaly/governance events:
+   - add a CaseTrigger governance emitter that writes `CORRIDOR_ANOMALY` events through `platform_governance.emit_platform_governance_event`.
+   - emit anomaly category via shared taxonomy classifier for publish ambiguity and collision anomalies.
+3. Reconciliation refs:
+   - add `case_trigger/reconciliation.py` for run-scoped reconciliation artifact export under `runs/<platform_run_id>/case_trigger/reconciliation/reconciliation.json`.
+   - update platform reporter reconciliation candidate list to include CaseTrigger reconciliation artifact path.
+
+### Implementation decisions locked before edits
+- Keep observability/governance surfaces as helper modules first (worker wiring can call them incrementally later) to preserve existing runtime behavior while closing Phase 7 contract surfaces.
+- Reuse run-scope validation discipline from existing DF/AL observability modules.
+- Keep governance emission idempotent via deterministic dedupe keys.
+- Preserve no payload leakage posture: artifacts and governance details include refs/ids and minimal reason metadata only.
+
+### Planned files
+- New code:
+  - `src/fraud_detection/case_trigger/observability.py`
+  - `src/fraud_detection/case_trigger/reconciliation.py`
+- Update exports:
+  - `src/fraud_detection/case_trigger/__init__.py`
+- Platform reporter ref discovery:
+  - `src/fraud_detection/platform_reporter/run_reporter.py`
+- New tests:
+  - `tests/services/case_trigger/test_phase7_observability.py`
+  - update `tests/services/platform_reporter/test_run_reporter.py` for CaseTrigger reconciliation ref discovery.
+
+### Validation plan
+- `python -m py_compile` for new/updated modules/tests.
+- `python -m pytest -q tests/services/case_trigger/test_phase7_observability.py tests/services/platform_reporter/test_run_reporter.py`
+- regression reruns:
+  - `python -m pytest -q tests/services/case_mgmt/test_phase1_contracts.py tests/services/case_mgmt/test_phase1_ids.py tests/services/case_mgmt/test_phase2_intake.py`
+  - `python -m pytest -q tests/services/case_trigger/test_phase1_config.py tests/services/case_trigger/test_phase1_contracts.py tests/services/case_trigger/test_phase1_taxonomy.py tests/services/case_trigger/test_phase2_adapters.py tests/services/case_trigger/test_phase3_replay.py tests/services/case_trigger/test_phase4_publish.py tests/services/case_trigger/test_phase5_checkpoints.py tests/services/case_trigger/test_phase7_observability.py tests/services/ingestion_gate/test_phase11_case_trigger_onboarding.py`
+
+## Entry: 2026-02-09 04:46PM - Phase 7 implemented and validated (observability + governance)
+
+### Implementation completed
+1. Added CaseTrigger observability/governance helper module:
+- `src/fraud_detection/case_trigger/observability.py`
+
+2. Added CaseTrigger reconciliation artifact helper module:
+- `src/fraud_detection/case_trigger/reconciliation.py`
+
+3. Updated package exports:
+- `src/fraud_detection/case_trigger/__init__.py`
+
+4. Updated platform run reporter reconciliation discovery:
+- `src/fraud_detection/platform_reporter/run_reporter.py`
+
+5. Added/updated tests:
+- `tests/services/case_trigger/test_phase7_observability.py`
+- `tests/services/platform_reporter/test_run_reporter.py`
+
+### DoD closure mapping
+- Run-scoped counters:
+  - `CaseTriggerRunMetrics` emits `triggers_seen`, `published`, `duplicates`, `quarantine`, `publish_ambiguous` and writes run-scoped metrics artifacts.
+- Structured anomaly/governance events:
+  - `CaseTriggerGovernanceEmitter` emits `CORRIDOR_ANOMALY` facts with deterministic dedupe keys, anomaly taxonomy classification, and provenance stamps.
+  - collision and publish anomaly families are both covered.
+- Reconciliation refs:
+  - `CaseTriggerReconciliationBuilder` exports run-scoped reconciliation artifact under `case_trigger/reconciliation/reconciliation.json`.
+  - platform reporter reconciliation discovery now includes CaseTrigger reconciliation path, making refs available at plane-level reporting surfaces.
+
+### Validation evidence
+- `python -m py_compile src/fraud_detection/case_trigger/observability.py src/fraud_detection/case_trigger/reconciliation.py src/fraud_detection/case_trigger/__init__.py src/fraud_detection/platform_reporter/run_reporter.py tests/services/case_trigger/test_phase7_observability.py tests/services/platform_reporter/test_run_reporter.py`
+  - result: pass
+- `python -m pytest -q tests/services/case_trigger/test_phase7_observability.py`
+  - result: `5 passed`
+- `python -m pytest -q tests/services/platform_reporter/test_run_reporter.py`
+  - result: `2 passed`
+- `python -m pytest -q tests/services/case_mgmt/test_phase1_contracts.py tests/services/case_mgmt/test_phase1_ids.py tests/services/case_mgmt/test_phase2_intake.py`
+  - result: `16 passed`
+- `python -m pytest -q tests/services/case_trigger/test_phase1_config.py tests/services/case_trigger/test_phase1_contracts.py tests/services/case_trigger/test_phase1_taxonomy.py tests/services/case_trigger/test_phase2_adapters.py tests/services/case_trigger/test_phase3_replay.py tests/services/case_trigger/test_phase4_publish.py tests/services/case_trigger/test_phase5_checkpoints.py tests/services/case_trigger/test_phase7_observability.py tests/services/ingestion_gate/test_phase11_case_trigger_onboarding.py`
+  - result: `41 passed`
+
+### Phase closure statement
+- Phase 7 DoD is satisfied:
+  - required run-scoped counters exist and export correctly,
+  - structured corridor anomaly events are emitted for collision/publish anomaly families,
+  - CaseTrigger reconciliation refs are exportable and discoverable by platform run reporting.

@@ -7029,3 +7029,59 @@ Close platform gate `5.2.G` by implementing and validating CM intake behavior ag
 
 ### Gate posture
 - `5.2.G` remains closed; addendum is a robustness hardening only (no contract or behavior drift).
+
+## 2026-02-09 04:41PM - Phase 5.2 execution lock for 5.2.F (CaseTrigger observability/governance)
+
+### Objective
+Close platform gate `5.2.F` by implementing CaseTrigger run-scoped observability/governance surfaces and reconciliation ref export.
+
+### Locked implementation posture
+- Add CaseTrigger metrics collector with explicit run-scoped counters required by build-plan DoD.
+- Add structured governance anomaly emitter using the shared platform governance writer/event family.
+- Add CaseTrigger reconciliation artifact builder and ensure run reporter can discover CaseTrigger reconciliation refs.
+- Preserve low-noise/no-leakage policy: anomaly payloads carry ids/reason refs, not sensitive payload bodies.
+
+### Planned files
+- `src/fraud_detection/case_trigger/observability.py`
+- `src/fraud_detection/case_trigger/reconciliation.py`
+- `src/fraud_detection/case_trigger/__init__.py`
+- `src/fraud_detection/platform_reporter/run_reporter.py`
+- `tests/services/case_trigger/test_phase7_observability.py`
+- `tests/services/platform_reporter/test_run_reporter.py`
+
+### Validation gate
+- Compile checks on new/updated files.
+- Targeted tests for CaseTrigger phase7 + platform reporter reconciliation refs.
+- Regression checks on existing CaseTrigger/CM suites to guard against contract drift.
+
+## 2026-02-09 04:46PM - Phase 5.2 gate 5.2.F closed (CaseTrigger observability/governance)
+
+### What closed
+- Implemented CaseTrigger observability/governance surfaces and reconciliation ref exposure required by `5.2.F`.
+
+### Delivered files
+- `src/fraud_detection/case_trigger/observability.py`
+- `src/fraud_detection/case_trigger/reconciliation.py`
+- `src/fraud_detection/case_trigger/__init__.py`
+- `src/fraud_detection/platform_reporter/run_reporter.py`
+- `tests/services/case_trigger/test_phase7_observability.py`
+- `tests/services/platform_reporter/test_run_reporter.py`
+
+### Gate mapping to objective criteria
+- Required counters are implemented and exported run-scoped:
+  - `triggers_seen`, `published`, `duplicates`, `quarantine`, `publish_ambiguous`.
+- Structured anomaly/governance events:
+  - corridor anomaly emitter uses shared governance writer and taxonomy classification for collision/publish anomaly paths.
+- Reconciliation refs available for run reporting:
+  - CaseTrigger reconciliation artifact path is now included in platform reporter component reconciliation ref discovery.
+
+### Validation evidence
+- `python -m py_compile src/fraud_detection/case_trigger/observability.py src/fraud_detection/case_trigger/reconciliation.py src/fraud_detection/case_trigger/__init__.py src/fraud_detection/platform_reporter/run_reporter.py tests/services/case_trigger/test_phase7_observability.py tests/services/platform_reporter/test_run_reporter.py` -> pass.
+- `python -m pytest -q tests/services/case_trigger/test_phase7_observability.py` -> `5 passed`.
+- `python -m pytest -q tests/services/platform_reporter/test_run_reporter.py` -> `2 passed`.
+- `python -m pytest -q tests/services/case_mgmt/test_phase1_contracts.py tests/services/case_mgmt/test_phase1_ids.py tests/services/case_mgmt/test_phase2_intake.py` -> `16 passed`.
+- `python -m pytest -q tests/services/case_trigger/test_phase1_config.py tests/services/case_trigger/test_phase1_contracts.py tests/services/case_trigger/test_phase1_taxonomy.py tests/services/case_trigger/test_phase2_adapters.py tests/services/case_trigger/test_phase3_replay.py tests/services/case_trigger/test_phase4_publish.py tests/services/case_trigger/test_phase5_checkpoints.py tests/services/case_trigger/test_phase7_observability.py tests/services/ingestion_gate/test_phase11_case_trigger_onboarding.py` -> `41 passed`.
+
+### Platform impact
+- `5.2.A..5.2.G` are now evidence-backed closed; Phase 5.2 is complete.
+- Next CaseTrigger-focused gate is Phase 8 parity closure evidence.
