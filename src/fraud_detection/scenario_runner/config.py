@@ -10,6 +10,7 @@ from pydantic import BaseModel
 
 
 class WiringProfile(BaseModel):
+    profile_id: str = "local"
     object_store_root: str
     control_bus_topic: str
     control_bus_root: str

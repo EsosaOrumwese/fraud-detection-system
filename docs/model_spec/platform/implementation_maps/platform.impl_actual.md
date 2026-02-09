@@ -5218,3 +5218,96 @@ Implement dual guardrail:
 
 ### Expected operational behavior after merge
 Any future drift in designed-vs-implemented RTDL decision lane (pack/targets/profile/corridor/runbook posture) triggers immediate red state in guard/test, forcing pause-and-escalate before progression.
+
+## 2026-02-09 04:28AM - Pre-change fix to unblock parity run: SR wiring profile_id runtime fault
+
+### Context
+During requested 200-event live run execution, `make platform-sr-run-reuse SR_WIRING=config/platform/sr/wiring_local_kinesis.yaml` failed before READY commit with:
+- `AttributeError: 'WiringProfile' object has no attribute 'profile_id'`
+- fault point: `scenario_runner/runner.py` provenance stamp (`environment=self.wiring.profile_id`).
+
+### Decision
+Apply minimal schema-compatible fix:
+1. Add `profile_id` to `WiringProfile` model with safe default.
+2. Set explicit `profile_id` in SR wiring YAMLs (`local`, `local_parity`) to remove ambiguity.
+
+### Why this is chosen
+- smallest change that preserves intended provenance stamping behavior,
+- avoids adding brittle fallback logic in runner call sites,
+- unblocks immediate user-requested live run without changing control flow semantics.
+
+### Validation plan
+- rerun SR command that failed,
+- continue 200-event stream and verify component artifacts.
+
+## 2026-02-09 05:10AM - 200-event live parity run evidence capture (RTDL + decision lane)
+
+### Objective
+Produce a full live 200-event proof run and capture component-by-component evidence under run artifacts, including daemon logs and reconciliation outputs.
+
+### Commands executed
+1. Set run context and restart orchestrated packs with 200-event cap:
+- `make platform-run-new` -> active run `platform_20260209T045202Z`
+- `$env:WSP_MAX_EVENTS_PER_OUTPUT='200'; make platform-operate-parity-restart`
+- `make platform-operate-parity-status` -> all packs/processes `running ready` (`ig_service`, `wsp_ready_consumer`, `ieg_projector`, `ofp_projector`, `csfb_intake`, `dl_worker`, `df_worker`, `al_worker`, `dla_worker`)
+2. Trigger SR READY for live stream:
+- `make platform-sr-run-reuse SR_WIRING=config/platform/sr/wiring_local_kinesis.yaml SR_RUN_EQUIVALENCE_KEY=parity_20260209T045537Z`
+- SR READY committed for scenario run `eb55b3fe818bc7a780421c8a407b2bd3`
+3. Generate consolidated run evidence:
+- `make platform-run-report PLATFORM_PROFILE=config/platform/profiles/local_parity.yaml PLATFORM_RUN_ID=platform_20260209T045202Z`
+
+### Evidence collected
+1. Stream stop markers (WSP)
+- `runs/fraud-platform/platform_20260209T045202Z/platform.log` contains stop markers for all 4 outputs with `emitted=200`:
+  - `s3_event_stream_with_fraud_6B`
+  - `s3_flow_anchor_with_fraud_6B`
+  - `s1_arrival_entities_6B`
+  - `arrival_events_5B`
+
+2. Event bus topic counts
+- `runs/fraud-platform/platform_20260209T045202Z/event_bus/event_bus.log`
+- count of `EB publish event_id=` rows by topic:
+  - `fp.bus.context.arrival_events.v1 = 200`
+  - `fp.bus.context.arrival_entities.v1 = 200`
+  - `fp.bus.context.flow_anchor.fraud.v1 = 200`
+  - `fp.bus.traffic.fraud.v1 = 200`
+
+3. Ingress + RTDL run report
+- `runs/fraud-platform/platform_20260209T045202Z/obs/platform_run_report.json`
+- key figures:
+  - ingress: `received=800`, `admit=800`, `quarantine=0`
+  - RTDL: `inlet_seen=800`, `component_bases.ieg_events_seen=800`, `component_bases.ofp_events_seen=200`
+  - decision-lane summary: `decision=0`, `audit_append=200`, `outcome=0`
+  - basis note: `CSFB metrics unavailable: only '%s', '%b', '%t' are allowed as placeholders, got '%'`
+
+4. Component artifact folders under run root
+- present at `runs/fraud-platform/platform_20260209T045202Z/`:
+  - `scenario_runner`, `event_bus`, `identity_entity_graph`, `degrade_ladder`, `decision_fabric`, `action_layer`, `decision_log_audit`, `obs`
+- daemon log folders for orchestrated services:
+  - `runs/fraud-platform/operate/local_parity_control_ingress_v0/logs/`
+  - `runs/fraud-platform/operate/local_parity_rtdl_core_v0/logs/`
+  - `runs/fraud-platform/operate/local_parity_rtdl_decision_lane_v0/logs/`
+
+5. Component-level numeric proofs
+- IEG (`runs/fraud-platform/platform_20260209T045202Z/identity_entity_graph/metrics/last_metrics.json`):
+  - `events_seen=800`, `mutating_applied=800`
+- DF (`runs/fraud-platform/platform_20260209T045202Z/decision_fabric/metrics/last_metrics.json`):
+  - `decisions_total=200`, `publish_quarantine_total=200`, `fail_closed_total=200`, `missing_context_total=200`
+- DLA (`runs/fraud-platform/platform_20260209T045202Z/decision_log_audit/metrics/last_metrics.json`):
+  - `append_success_total=200`, `quarantine_total=200`
+- DLA sqlite (`runs/fraud-platform/platform_20260209T045202Z/decision_log_audit/dla_index.sqlite`):
+  - `dla_intake_attempts=1420`, `distinct event_id=1420`, `dla_intake_quarantine=1420`
+- DL posture sqlite (`runs/fraud-platform/platform_20260209T045202Z/degrade_ladder/posture.sqlite`):
+  - current posture row `scope=GLOBAL`, `mode=FAIL_CLOSED`, posture sequence advancing
+- AL sqlite (`runs/fraud-platform/platform_20260209T045202Z/action_layer/*.sqlite`):
+  - outcome/ledger/replay tables remained `0` rows in this run because DF produced quarantine-only decisions.
+
+### Interpretation
+1. Live stream requirement is satisfied:
+- all 4 ingress topics emitted and admitted at 200 each in the active run;
+- RTDL core and decision-lane daemons were live and healthy at process status level during run.
+2. Decision behavior in this run is intentionally conservative/fail-closed:
+- DF generated 200 decisions, all quarantined; no downstream AL outcomes were emitted.
+3. Remaining posture gaps surfaced for follow-up:
+- CSFB metrics extraction path in run reporter is currently broken (`basis_note` above).
+- OFP/CSFB do not currently emit dedicated run-root component metrics folders in this run shape (evidence resides in daemon logs and shared report basis).

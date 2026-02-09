@@ -1,3 +1,4 @@
+profile_id: local_parity
 object_store_root: s3://fraud-platform
 control_bus_topic: fp.bus.control.v1
 control_bus_kind: kinesis

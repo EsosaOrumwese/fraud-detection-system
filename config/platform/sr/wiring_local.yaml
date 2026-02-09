@@ -1,3 +1,4 @@
+profile_id: local
 object_store_root: runs
 control_bus_topic: fp.bus.control.v1
 control_bus_root: runs/fraud-platform/control_bus
