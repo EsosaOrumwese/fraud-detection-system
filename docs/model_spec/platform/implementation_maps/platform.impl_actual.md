@@ -9693,3 +9693,56 @@ User requested progression to OFS Phase 2.
 ### Drift sentinel assessment
 - No designed-flow mismatch detected in Phase 2 scope.
 - Guard condition requested in pre-change lock was satisfied: publish-only retry path does not increment full-run attempts.
+
+## Entry: 2026-02-10 11:37AM - Platform-level pre-change lock for OFS Phase 3
+
+### Why platform-level note is required
+Phase 3 introduces the first OFS resolver that touches cross-plane meaning boundaries (SR join surface, OFP feature authority, optional DLA/DF provenance anchors). This must be recorded at platform scope because incorrect resolution semantics can create silent drift across Learning and RTDL planes.
+
+### Platform-level decisions pinned for this implementation pass
+- OFS must resolve from explicit refs only (`run_facts_ref`, optional `parity_anchor_ref`); no scanning fallback is allowed.
+- No-PASS-no-read is enforced as a consumer law at OFS boundary, not only as SR producer law.
+- Feature authority for OFS is shared with OFP, and resolution evidence must stamp revision + digest into the resolved plan artifact.
+- Resolved BuildPlan artifact is immutable and run-scoped, preserving replay/audit provenance continuity.
+
+### Expected closure evidence
+- New OFS resolver module and tests are green.
+- Component build plan Phase 3 status updated with concrete validation evidence.
+- No drift findings against flow narrative or learning pre-design pins.
+
+## Entry: 2026-02-10 11:41AM - Platform-level applied closure for OFS Phase 3
+
+### What was applied
+- OFS Phase 3 resolver lane landed in code with tests:
+  - `src/fraud_detection/offline_feature_plane/phase3.py`
+  - `tests/services/offline_feature_plane/test_phase3_resolver.py`
+- Platform/OFS build-plan status blocks updated to mark OFS Phase 3 complete.
+
+### Platform-significant outcomes
+- Cross-plane meaning resolution is now explicit and test-backed:
+  - SR join surface consumption is explicit-ref only.
+  - No-PASS-no-read is enforced on consumer side for OFS world-context refs.
+  - Shared feature authority (with OFP) is enforced with deterministic revision/digest stamping.
+  - Optional parity anchors are typed, scoped, and fail-closed on mismatch.
+- OFS resolved BuildPlan is immutable per run, reducing silent drift risk across replay/rebuild workflows.
+
+### Validation evidence
+- `python -m pytest tests/services/offline_feature_plane/test_phase1_contracts.py tests/services/offline_feature_plane/test_phase1_ids.py tests/services/offline_feature_plane/test_phase2_run_ledger.py tests/services/offline_feature_plane/test_phase3_resolver.py tests/services/learning_registry/test_phase61_contracts.py -q --import-mode=importlib` (`27 passed`).
+
+### Drift sentinel assessment
+- No conflict observed versus:
+  - flow narrative OFS section,
+  - learning/evolution pre-design pins,
+  - platform fail-closed/no-PASS-no-read doctrine.
+- Remaining risk is downstream (Phase 4+) where replay-basis completeness across EB+Archive must be enforced with the same strictness.
+
+## Entry: 2026-02-10 11:43AM - Platform corrective note: OFS Phase 3 error-surface hardening
+
+### Correction summary
+Post-closure hardening mapped raw ref-resolution/parsing exceptions in OFS Phase 3 into stable fail-closed taxonomy codes (`RUN_FACTS_UNAVAILABLE`, `FEATURE_PROFILE_UNRESOLVED`, `PARITY_ANCHOR_INVALID`).
+
+### Why this matters at platform scope
+Run/operate and observability/governance layers rely on stable reason-code semantics for gating/reporting. This correction removes ambiguity from filesystem/object-store failure surfaces without changing functional flow.
+
+### Validation evidence
+- OFS/learning regression matrix rerun: `27 passed` (same command set as Phase 3 closure).

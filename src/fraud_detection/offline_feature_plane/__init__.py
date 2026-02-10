@@ -12,6 +12,16 @@ from .ids import (
     dataset_fingerprint,
     deterministic_dataset_manifest_id,
 )
+from .phase3 import (
+    OfsBuildPlanResolver,
+    OfsBuildPlanResolverConfig,
+    OfsPhase3ResolverError,
+    ResolvedBuildPlan,
+    ResolvedFeatureProfile,
+    ResolvedParityAnchor,
+    ResolvedParityBasisSlice,
+    ResolvedWorldLocator,
+)
 from .run_control import OfsRunControl, OfsRunControlPolicy
 from .run_ledger import (
     OFS_RUN_DONE,
@@ -51,4 +61,12 @@ __all__ = [
     "dataset_fingerprint",
     "deterministic_dataset_manifest_id",
     "deterministic_run_key",
+    "OfsBuildPlanResolver",
+    "OfsBuildPlanResolverConfig",
+    "OfsPhase3ResolverError",
+    "ResolvedBuildPlan",
+    "ResolvedFeatureProfile",
+    "ResolvedParityAnchor",
+    "ResolvedParityBasisSlice",
+    "ResolvedWorldLocator",
 ]

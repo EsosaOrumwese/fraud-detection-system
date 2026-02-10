@@ -237,3 +237,122 @@ OFS currently has Phase 1 contracts and identity pins but no durable run ledger 
 ### Plan status
 - OFS Phase 2 is complete and validated.
 - Next active OFS phase is Phase 3 (`pin and provenance resolver`).
+
+## Entry: 2026-02-10 11:37AM - Pre-change implementation lock for OFS Phase 3 (pin + provenance resolver)
+
+### Trigger
+User directed continuation to OFS Phase 3 implementation.
+
+### Phase objective (DoD-locked)
+Resolve all meaning-shaping references before any replay work starts, with fail-closed posture:
+- resolve SR `run_facts_view` by explicit ref,
+- enforce no-PASS-no-read for gated world references,
+- deterministically resolve feature profile revision/digest,
+- optionally resolve parity anchor into a typed structure,
+- emit an immutable resolved BuildPlan artifact per run.
+
+### Authorities used for this lock
+- `docs/model_spec/platform/implementation_maps/offline_feature_plane.build_plan.md` (Phase 3 DoD)
+- `docs/model_spec/platform/component-specific/offline_feature_plane.design-authority.md` (OFS outer contract; run_facts_view + no scanning + parity anchor posture)
+- `docs/model_spec/platform/pre-design_decisions/learning_and_evolution.pre-design_decisions.md` (shared feature authority, fail-closed, parity posture)
+- `docs/model_spec/platform/contracts/scenario_runner/run_facts_view.schema.yaml` (gate receipts + instance receipts structure)
+- `docs/model_spec/platform/contracts/real_time_decision_loop/audit_record.schema.yaml` and `decision_payload.schema.yaml` (parity anchor shape)
+
+### Problem framing and options considered
+1. **How to read referenced artifacts**
+   - Option A: require only local relative refs under `runs/`.
+   - Option B: support local absolute refs + platform-relative refs + `s3://` refs.
+   - Decision: Option B. It preserves local-parity and env-ladder behavior without changing contract meaning.
+2. **How to enforce no-PASS-no-read**
+   - Option A: require one global PASS gate only.
+   - Option B: require explicit PASS receipts per selected world output when available (`instance_receipts`), otherwise fallback to manifest-scoped gate PASS.
+   - Decision: Option B. It is stricter where proofs exist and still compatible with older run_facts payloads.
+3. **How to resolve feature profile deterministically**
+   - Option A: trust intent fields only.
+   - Option B: resolve against shared authority file (OFP features profile), verify set+version existence, and stamp deterministic digest+revision.
+   - Decision: Option B. This enforces anti-drift with OFP and records reproducible provenance.
+4. **How to represent parity anchor**
+   - Option A: leave parity_anchor_ref as raw string.
+   - Option B: resolve optional ref to typed object with explicit basis and snapshot fields.
+   - Decision: Option B. Matches DoD requirement that parity anchor resolution is explicit and typed.
+
+### Implementation plan
+1. Add `phase3.py` under OFS package with:
+   - typed resolved-plan dataclasses,
+   - resolver error taxonomy,
+   - deterministic serialization/digest helpers,
+   - BuildPlan emission with write-once immutability semantics.
+2. Export Phase 3 surfaces via `offline_feature_plane/__init__.py`.
+3. Add Phase 3 tests covering:
+   - success path,
+   - run scope mismatch fail-closed,
+   - no-PASS-no-read enforcement,
+   - feature profile unresolved fail-closed,
+   - parity anchor typed resolution,
+   - build-plan immutability semantics.
+4. Validate with targeted pytest + OFS regression matrix.
+
+### Drift sentinel checkpoint (pre-code)
+No designed-flow contradiction detected in this phase lock. If parity anchor or run_facts structures in live data violate typed assumptions, implementation must stop and escalate before broadening acceptance.
+
+## Entry: 2026-02-10 11:41AM - Applied OFS Phase 3 implementation and validation closure
+
+### Implemented files
+- `src/fraud_detection/offline_feature_plane/phase3.py` (new)
+- `src/fraud_detection/offline_feature_plane/__init__.py` (Phase 3 exports)
+- `tests/services/offline_feature_plane/test_phase3_resolver.py` (new)
+
+### Implemented behavior
+1. **Explicit run-facts resolution by ref**
+   - Resolver now loads `run_facts_view` from the explicit `run_facts_ref` only (absolute local path, platform-relative object-store path, or `s3://` path).
+   - Scope checks are fail-closed: `platform_run_id` and `scenario_run_id` are validated against BuildIntent.
+2. **No-PASS-no-read enforcement**
+   - For selected world refs, resolver enforces PASS evidence:
+     - prefers output-level `instance_receipts` PASS when present,
+     - otherwise requires manifest-scoped `gate_receipts` PASS.
+   - Missing PASS evidence blocks plan resolution (`NO_PASS_NO_READ`).
+3. **Deterministic shared feature-profile resolution**
+   - Resolver reads shared feature authority (configured ref), verifies `feature_set_id/version` existence, and records resolved `policy_id@revision` plus deterministic digests.
+   - Unresolved feature profile fails closed (`FEATURE_PROFILE_UNRESOLVED`).
+4. **Optional parity anchor typed resolution**
+   - Optional `parity_anchor_ref` is resolved into a typed anchor object with snapshot hash, replay basis, and optional feature-set inference.
+   - Run-scope mismatches in anchor pins fail closed (`RUN_SCOPE_INVALID`).
+5. **Immutable resolved BuildPlan artifact**
+   - Resolved plan is emitted to run-scoped object-store path:
+     - `{platform_run_id}/ofs/resolved_build_plan/{run_key}.json`
+   - Write-once semantics enforced; existing drift triggers `BUILD_PLAN_IMMUTABILITY_VIOLATION`.
+
+### Validation evidence
+- Syntax:
+  - `python -m py_compile src/fraud_detection/offline_feature_plane/phase3.py src/fraud_detection/offline_feature_plane/__init__.py tests/services/offline_feature_plane/test_phase3_resolver.py` (`PASS`).
+- Tests:
+  - `python -m pytest tests/services/offline_feature_plane/test_phase1_contracts.py tests/services/offline_feature_plane/test_phase1_ids.py tests/services/offline_feature_plane/test_phase2_run_ledger.py tests/services/offline_feature_plane/test_phase3_resolver.py tests/services/learning_registry/test_phase61_contracts.py -q --import-mode=importlib` (`27 passed`).
+
+### Drift sentinel assessment after implementation
+- No designed-flow mismatch detected for Phase 3 scope.
+- Phase 3 now enforces SR join-surface and shared feature-authority pins in executable code (not narrative-only).
+- No ownership-boundary contradiction introduced; OFS remains consumer-only for run_facts/parity evidence and authoritative only for its run-scoped build-plan artifact.
+
+### Plan progression
+- OFS Phase 3 is closed.
+- Next active OFS step is Phase 4 (`replay basis resolver + completeness receipts`).
+
+## Entry: 2026-02-10 11:43AM - Corrective hardening pass: deterministic Phase 3 error taxonomy mapping
+
+### Why this corrective patch was needed
+After Phase 3 closure, unresolved file/ref failures for run-facts, feature-profile, and parity-anchor paths could bubble as raw I/O errors instead of stable Phase 3 taxonomy codes. This weakens fail-closed observability and downstream gate handling consistency.
+
+### Applied correction
+- Updated `src/fraud_detection/offline_feature_plane/phase3.py` to wrap unexpected loader/parsing failures into explicit resolver codes:
+  - `RUN_FACTS_UNAVAILABLE`
+  - `FEATURE_PROFILE_UNRESOLVED`
+  - `PARITY_ANCHOR_INVALID`
+- Kept artifact-ref return semantics deterministic for local roots without forced absolute-path rewrite.
+
+### Validation evidence
+- `python -m py_compile src/fraud_detection/offline_feature_plane/phase3.py` (`PASS`)
+- `python -m pytest tests/services/offline_feature_plane/test_phase1_contracts.py tests/services/offline_feature_plane/test_phase1_ids.py tests/services/offline_feature_plane/test_phase2_run_ledger.py tests/services/offline_feature_plane/test_phase3_resolver.py tests/services/learning_registry/test_phase61_contracts.py -q --import-mode=importlib` (`27 passed`)
+
+### Drift sentinel assessment
+- No behavior drift introduced to Phase 3 DoD; this is an error-surface hardening only.
+- Fail-closed taxonomy is now more stable for run/operate and obs/gov consumption.

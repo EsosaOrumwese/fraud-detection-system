@@ -95,6 +95,13 @@ Provide a closure-grade, component-scoped plan for Offline Feature Plane (OFS) a
 - Optional parity anchor resolution from DLA/DF provenance is explicit and typed.
 - Resolved BuildPlan artifact is emitted and immutable per run.
 
+**Implementation status note (2026-02-10):**
+- Phase 3 pin/provenance resolver implemented:
+  - `src/fraud_detection/offline_feature_plane/phase3.py`
+  - `src/fraud_detection/offline_feature_plane/__init__.py` (exports)
+- Validation evidence:
+  - `python -m pytest tests/services/offline_feature_plane/test_phase1_contracts.py tests/services/offline_feature_plane/test_phase1_ids.py tests/services/offline_feature_plane/test_phase2_run_ledger.py tests/services/offline_feature_plane/test_phase3_resolver.py tests/services/learning_registry/test_phase61_contracts.py -q --import-mode=importlib` (`27 passed`).
+
 ### Phase 4 - Replay basis resolver + completeness receipts (S3)
 **Intent:** make EB/Archive replay deterministic and auditable.
 
@@ -190,4 +197,5 @@ Provide a closure-grade, component-scoped plan for Offline Feature Plane (OFS) a
 ## Status (rolling)
 - Phase 1 (`BuildIntent + dataset identity + contract lock`): complete (implemented and validated on `2026-02-10`).
 - Phase 2 (`run control + idempotent run ledger`): complete (implemented and validated on `2026-02-10`).
-- Next action: begin Phase 3 implementation (`pin and provenance resolver`).
+- Phase 3 (`pin and provenance resolver`): complete (implemented and validated on `2026-02-10`).
+- Next action: begin Phase 4 implementation (`replay basis resolver + completeness receipts`).
