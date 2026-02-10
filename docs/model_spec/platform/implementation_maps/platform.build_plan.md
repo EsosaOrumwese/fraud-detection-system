@@ -1284,8 +1284,12 @@ Resolved and pinned in:
   - explicit EB/Archive cutover semantics (archive authority beyond EB hot coverage),
   - payload-hash mismatch anomaly emission and training-intent fail-closed behavior,
   - immutable replay-completeness receipt emission and publication-complete guard.
+- OFS Phase 5 complete (`label as-of resolver + coverage gate`) with:
+  - Label Store surface-only as-of resolution (`observed_time <= label_asof_utc`),
+  - coverage-policy gate enforcement with training-intent fail-closed posture,
+  - maturity diagnostics and immutable label-resolution receipt evidence.
 - Validation evidence:
-  - `python -m pytest tests/services/offline_feature_plane/test_phase1_contracts.py tests/services/offline_feature_plane/test_phase1_ids.py tests/services/offline_feature_plane/test_phase2_run_ledger.py tests/services/offline_feature_plane/test_phase3_resolver.py tests/services/offline_feature_plane/test_phase4_replay_basis.py tests/services/learning_registry/test_phase61_contracts.py -q --import-mode=importlib` (`33 passed`).
+  - `python -m pytest tests/services/offline_feature_plane/test_phase1_contracts.py tests/services/offline_feature_plane/test_phase1_ids.py tests/services/offline_feature_plane/test_phase2_run_ledger.py tests/services/offline_feature_plane/test_phase3_resolver.py tests/services/offline_feature_plane/test_phase4_replay_basis.py tests/services/offline_feature_plane/test_phase5_label_resolver.py tests/services/learning_registry/test_phase61_contracts.py -q --import-mode=importlib` (`37 passed`).
 
 #### Phase 6.3 — MF train/eval/publish corridor
 **Goal:** make model training and publication evidence-first and reproducible.
@@ -1440,6 +1444,7 @@ Resolved and pinned in:
 - OFS build-plan Phase 1: complete (`BuildIntent + dataset identity + contract lock` implemented on 2026-02-10 in `src/fraud_detection/offline_feature_plane/*` with `15 passed`).
 - OFS build-plan Phase 2: complete (`run control + idempotent run ledger` implemented on 2026-02-10 in `src/fraud_detection/offline_feature_plane/run_ledger.py` and `run_control.py`; combined OFS/learning regression `21 passed`).
 - OFS build-plan Phase 3: complete (`pin and provenance resolver` implemented on 2026-02-10 in `src/fraud_detection/offline_feature_plane/phase3.py`; combined OFS/learning regression `27 passed`).
-- OFS build-plan Phase 4: complete (`replay basis resolver + completeness receipts` implemented on 2026-02-10 in `src/fraud_detection/offline_feature_plane/phase4.py`; combined OFS/learning regression `33 passed`; next OFS step is Phase 5 label as-of/coverage gate).
+- OFS build-plan Phase 4: complete (`replay basis resolver + completeness receipts` implemented on 2026-02-10 in `src/fraud_detection/offline_feature_plane/phase4.py`; combined OFS/learning regression `33 passed`).
+- OFS build-plan Phase 5: complete (`label as-of resolver + coverage gate` implemented on 2026-02-10 in `src/fraud_detection/offline_feature_plane/phase5.py`; combined OFS/learning regression `37 passed`; next OFS step is Phase 6 deterministic feature reconstruction).
 - Next active platform phase: Phase 6.2 (OFS dataset build corridor).
 - SR v0: complete (see `docs/model_spec/platform/implementation_maps/scenario_runner.build_plan.md`).

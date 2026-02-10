@@ -33,6 +33,16 @@ from .phase4 import (
     ReplayResolvedTuple,
     ReplayTupleObservation,
 )
+from .phase5 import (
+    OfsLabelAsOfResolver,
+    OfsLabelCoveragePolicy,
+    OfsLabelMaturityDiagnostics,
+    OfsLabelMaturitySignal,
+    OfsLabelResolverConfig,
+    OfsLabelResolutionReceipt,
+    OfsLabelTarget,
+    OfsPhase5LabelError,
+)
 from .run_control import OfsRunControl, OfsRunControlPolicy
 from .run_ledger import (
     OFS_RUN_DONE,
@@ -89,4 +99,12 @@ __all__ = [
     "ReplayCutover",
     "ReplayResolvedTuple",
     "ReplayTupleObservation",
+    "OfsLabelAsOfResolver",
+    "OfsLabelCoveragePolicy",
+    "OfsLabelMaturityDiagnostics",
+    "OfsLabelMaturitySignal",
+    "OfsLabelResolverConfig",
+    "OfsLabelResolutionReceipt",
+    "OfsLabelTarget",
+    "OfsPhase5LabelError",
 ]

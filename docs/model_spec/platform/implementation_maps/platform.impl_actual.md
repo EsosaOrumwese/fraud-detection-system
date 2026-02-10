@@ -9786,3 +9786,47 @@ Phase 4 is where OFS replay determinism becomes operational truth for later MF p
 ### Drift sentinel assessment
 - No conflict observed versus learning pre-design replay pins or flow narrative archive-authority posture.
 - Next risk surface moves to Phase 5 (label as-of leakage/coverage correctness), which should remain equally fail-closed.
+
+## Entry: 2026-02-10 11:56AM - Platform-level pre-change lock for OFS Phase 5
+
+### Why platform-level tracking is required
+OFS Phase 5 is the first learning-plane point that enforces leakage-safe label truth and training-admissibility gates. Any drift here propagates directly into MF/registry lineage and can create silent supervision bias.
+
+### Platform-level decisions pinned for this pass
+- OFS label reads must stay on Label Store public as-of surfaces only; no direct OFS table reads.
+- As-of eligibility remains explicit and fail-closed (`observed_time <= label_asof_utc`).
+- Coverage + maturity diagnostics are required evidence artifacts for downstream manifest publication.
+- Coverage-policy violations block training-intent datasets unless the intent is explicitly non-training.
+
+### Expected closure evidence
+- OFS Phase 5 module + tests implemented and green.
+- OFS/platform build-plan status updated with Phase 5 closure evidence.
+- Drift-sentinel assessment explicitly recorded after implementation.
+
+## Entry: 2026-02-10 12:02PM - Platform-level applied closure for OFS Phase 5
+
+### What was applied
+- OFS Phase 5 label corridor landed with tests:
+  - `src/fraud_detection/offline_feature_plane/phase5.py`
+  - `tests/services/offline_feature_plane/test_phase5_label_resolver.py`
+- OFS/platform build-plan status sections updated for Phase 5 closure and Phase 6 next-step posture.
+
+### Platform-significant outcomes
+- Learning-plane label truth posture is now explicit and executable:
+  - OFS reads labels only via Label Store as-of/query surfaces.
+  - as-of leakage law is enforced (`observed_time <= label_asof_utc`) with fail-closed violation handling.
+- Coverage gating is now policy-driven and deterministic:
+  - training-intent coverage violations fail closed,
+  - non-training intent posture is explicit (`NOT_READY_FOR_TRAINING`) with recorded reasons.
+- Label maturity/coverage diagnostics are now captured in immutable run-scoped OFS evidence receipts.
+
+### Validation evidence
+- OFS/learning regression matrix:
+  - `python -m pytest tests/services/offline_feature_plane/test_phase1_contracts.py tests/services/offline_feature_plane/test_phase1_ids.py tests/services/offline_feature_plane/test_phase2_run_ledger.py tests/services/offline_feature_plane/test_phase3_resolver.py tests/services/offline_feature_plane/test_phase4_replay_basis.py tests/services/offline_feature_plane/test_phase5_label_resolver.py tests/services/learning_registry/test_phase61_contracts.py -q --import-mode=importlib` (`37 passed`).
+
+### Drift sentinel assessment
+- No conflict observed versus:
+  - flow narrative label-as-of and coverage fail-closed intent,
+  - learning/evolution pre-design maturity/coverage posture,
+  - platform truth-ownership doctrine (Label Store ownership preserved).
+- Next material risk surface moves to OFS Phase 6 deterministic feature reconstruction.

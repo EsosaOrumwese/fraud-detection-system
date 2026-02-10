@@ -456,3 +456,100 @@ No design-intent contradiction detected. If live archive offsets are non-numeric
 ### Plan progression
 - OFS Phase 4 is closed.
 - Next active OFS step is Phase 5 (`label as-of resolver and coverage gate`).
+
+## Entry: 2026-02-10 11:56AM - Pre-change implementation lock for OFS Phase 5 (label as-of resolver + coverage gate)
+
+### Trigger
+User requested progression to OFS Phase 5 implementation.
+
+### Phase objective (DoD-locked)
+Implement S4 label corridor so OFS consumes label truth only through Label Store as-of surfaces and enforces training-time coverage gates:
+- Label reads only through Label Store resolved timeline/query surfaces.
+- Eligibility law enforced: `observed_time <= label_asof_utc`.
+- Label maturity/coverage diagnostics emitted as immutable build evidence.
+- Training-intent builds fail closed on coverage-policy violations unless explicitly non-training.
+
+### Authorities used
+- `docs/model_spec/platform/implementation_maps/offline_feature_plane.build_plan.md` (Phase 5 DoD)
+- `docs/model_spec/platform/component-specific/flow-narrative-platform-design.md` (label as-of + training fail-closed posture)
+- `docs/model_spec/platform/component-specific/offline_feature_plane.design-authority.md` (S4 boundary and receipts)
+- `docs/model_spec/platform/pre-design_decisions/learning_and_evolution.pre-design_decisions.md` (label coverage + maturity posture)
+- Existing Label Store authority surfaces:
+  - `src/fraud_detection/label_store/writer_boundary.py`
+  - `src/fraud_detection/label_store/slices.py`
+
+### Problem framing and alternatives considered
+1. **How OFS should read labels**
+   - Option A: query Label Store tables directly from OFS.
+   - Option B: consume only Label Store public surfaces (`LabelStoreWriterBoundary` + `LabelStoreSliceBuilder`).
+   - Decision: Option B to preserve ownership boundaries and avoid a second truth path.
+2. **How to implement coverage gate semantics**
+   - Option A: add ad-hoc coverage math inside OFS.
+   - Option B: reuse Label Store coverage and gate signals (`evaluate_dataset_gate`) and only enforce OFS fail-closed policy at boundary.
+   - Decision: Option B to keep label semantics single-sourced.
+3. **How to represent maturity diagnostics in OFS evidence**
+   - Option A: emit only coverage summary.
+   - Option B: emit coverage plus maturity-window diagnostics keyed by `label_maturity_days` when provided.
+   - Decision: Option B so manifest-ready evidence includes maturity posture explicitly.
+
+### Implementation plan
+1. Add `src/fraud_detection/offline_feature_plane/phase5.py` with:
+   - typed label target/spec/receipt dataclasses,
+   - resolver that builds as-of slices via `LabelStoreSliceBuilder`,
+   - coverage gate policy evaluation and training-intent fail-closed guard,
+   - immutable receipt emission under run-scoped `ofs/label_resolution/` path.
+2. Export Phase 5 surfaces through `offline_feature_plane/__init__.py`.
+3. Add `tests/services/offline_feature_plane/test_phase5_label_resolver.py` covering:
+   - as-of eligibility enforcement,
+   - coverage diagnostics emission,
+   - training-intent fail-closed behavior,
+   - non-training allowance behavior,
+   - immutable receipt drift protection.
+4. Run OFS regression matrix (Phase 1..5 + learning registry phase61 contracts) and update build-plan/impl/logbook evidence.
+
+### Drift sentinel checkpoint (pre-code)
+No design-intent contradiction detected for this phase lock. Any attempt to bypass Label Store public as-of surfaces or relax training coverage gates without explicit non-training intent must be treated as material drift and blocked.
+
+## Entry: 2026-02-10 12:02PM - Applied OFS Phase 5 implementation and validation closure
+
+### Implemented files
+- `src/fraud_detection/offline_feature_plane/phase5.py` (new)
+- `src/fraud_detection/offline_feature_plane/__init__.py` (Phase 5 exports)
+- `tests/services/offline_feature_plane/test_phase5_label_resolver.py` (new)
+
+### Implemented behavior
+1. **Label Store surface-only read posture**
+   - OFS Phase 5 resolves labels through `LabelStoreSliceBuilder` / `LabelStoreWriterBoundary` surfaces only.
+   - No direct OFS SQL/table reads were introduced.
+2. **As-of eligibility enforcement**
+   - As-of resolution is performed using Label Store observed-time cutoff semantics.
+   - Phase 5 verifies selected assertion observed-time never exceeds `label_asof_utc`; violations fail closed (`LEAKAGE_POLICY_VIOLATION`).
+3. **Coverage + maturity diagnostics evidence**
+   - Phase 5 emits deterministic label-resolution receipts containing:
+     - label basis echo,
+     - label coverage policy used,
+     - coverage signals and gate reasons,
+     - maturity diagnostics (`label_maturity_days` aware),
+     - row digest and selected value counts.
+   - Receipt is immutable and run-scoped under:
+     - `{platform_run_id}/ofs/label_resolution/{run_key}.json`
+4. **Training-intent fail-closed coverage gate**
+   - For `dataset_build` with `non_training_allowed=false`, coverage-policy violations raise explicit fail-closed error (`COVERAGE_POLICY_VIOLATION`).
+   - Non-training intents may continue with explicit `NOT_READY_FOR_TRAINING` status captured in receipt evidence.
+
+### Validation evidence
+- Syntax:
+  - `python -m py_compile src/fraud_detection/offline_feature_plane/phase5.py src/fraud_detection/offline_feature_plane/__init__.py tests/services/offline_feature_plane/test_phase5_label_resolver.py` (`PASS`).
+- Phase 5 targeted tests:
+  - `python -m pytest tests/services/offline_feature_plane/test_phase5_label_resolver.py -q --import-mode=importlib` (`4 passed`).
+- OFS regression matrix:
+  - `python -m pytest tests/services/offline_feature_plane/test_phase1_contracts.py tests/services/offline_feature_plane/test_phase1_ids.py tests/services/offline_feature_plane/test_phase2_run_ledger.py tests/services/offline_feature_plane/test_phase3_resolver.py tests/services/offline_feature_plane/test_phase4_replay_basis.py tests/services/offline_feature_plane/test_phase5_label_resolver.py tests/services/learning_registry/test_phase61_contracts.py -q --import-mode=importlib` (`37 passed`).
+
+### Drift sentinel assessment after implementation
+- No designed-flow contradiction detected for Phase 5 scope.
+- Ownership boundary preserved: Label Store remains truth owner; OFS consumes only resolved as-of surfaces.
+- Training fail-closed posture for insufficient coverage is now executable and test-backed.
+
+### Plan progression
+- OFS Phase 5 is closed.
+- Next active OFS phase is Phase 6 (`deterministic feature reconstruction and dataset drafting`).

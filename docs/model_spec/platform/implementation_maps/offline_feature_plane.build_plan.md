@@ -127,6 +127,13 @@ Provide a closure-grade, component-scoped plan for Offline Feature Plane (OFS) a
 - Label maturity and coverage diagnostics are emitted and pinned into build evidence.
 - Training-intent builds fail closed on coverage policy violations unless explicitly tagged non-training.
 
+**Implementation status note (2026-02-10):**
+- Phase 5 label as-of/coverage corridor implemented:
+  - `src/fraud_detection/offline_feature_plane/phase5.py`
+  - `src/fraud_detection/offline_feature_plane/__init__.py` (exports)
+- Validation evidence:
+  - `python -m pytest tests/services/offline_feature_plane/test_phase1_contracts.py tests/services/offline_feature_plane/test_phase1_ids.py tests/services/offline_feature_plane/test_phase2_run_ledger.py tests/services/offline_feature_plane/test_phase3_resolver.py tests/services/offline_feature_plane/test_phase4_replay_basis.py tests/services/offline_feature_plane/test_phase5_label_resolver.py tests/services/learning_registry/test_phase61_contracts.py -q --import-mode=importlib` (`37 passed`).
+
 ### Phase 6 - Deterministic feature reconstruction and dataset drafting (S5)
 **Intent:** produce reproducible, version-locked offline feature rows.
 
@@ -206,4 +213,5 @@ Provide a closure-grade, component-scoped plan for Offline Feature Plane (OFS) a
 - Phase 2 (`run control + idempotent run ledger`): complete (implemented and validated on `2026-02-10`).
 - Phase 3 (`pin and provenance resolver`): complete (implemented and validated on `2026-02-10`).
 - Phase 4 (`replay basis resolver + completeness receipts`): complete (implemented and validated on `2026-02-10`).
-- Next action: begin Phase 5 implementation (`label as-of resolver and coverage gate`).
+- Phase 5 (`label as-of resolver and coverage gate`): complete (implemented and validated on `2026-02-10`).
+- Next action: begin Phase 6 implementation (`deterministic feature reconstruction and dataset drafting`).
