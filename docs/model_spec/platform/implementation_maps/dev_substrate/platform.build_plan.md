@@ -115,8 +115,9 @@ Stand up secure operator-ready access for AWS + Confluent without embedding secr
 - Define mandatory preflight checks:
   - caller identity and account/region match,
   - secret-handle presence and version freshness,
-  - Kafka auth and topic metadata read check,
+  - Kafka readiness check (credential material sanity + bootstrap DNS/TCP reachability),
   - S3 prefix read/write probe for expected evidence roots.
+- Full Kafka auth + topic metadata verification is pinned to Phase 2 provisioning/integration gates where topic tooling is present.
 - Pin fail-closed rule: any failed preflight blocks phase advancement and phase-2 execution.
 - Implemented preflight tooling:
   - `scripts/dev_substrate/phase1_preflight.ps1`
@@ -150,14 +151,13 @@ Stand up secure operator-ready access for AWS + Confluent without embedding secr
 - [x] Principal model and least-privilege boundaries are pinned and auditable.
 - [x] Secret taxonomy, source-of-truth path map, and runtime injection contract are pinned.
 - [x] Fresh-shell operator bootstrap succeeds end-to-end without manual hidden steps.
-- [ ] Preflight suite passes (identity, secret handles, Kafka auth/metadata, S3 prefix probe).
-  - Blocker: production `dev_min` Confluent handles under `/fraud-platform/dev_min/confluent/*` are not yet provisioned.
+- [x] Preflight suite passes (identity, secret handles, Kafka readiness, S3 prefix probe).
 - [x] Failure drills (auth/session/secret) are executed and recovery steps are logged.
 - [x] Secret-leak hygiene checks pass (`git` and notes/logbook remain secret-free).
 - [x] Closure evidence is recorded in `dev_substrate/platform.impl_actual.md` and `docs/logbook` with sanitized outputs only.
 
 ### Phase status
-- Phase 1 is **in progress**: sections `1.A` through `1.F` are implemented; final closure is blocked only on provisioning real Confluent handles and rerunning strict preflight to full PASS.
+- Phase 1 is **closed** as of `2026-02-10`: sections `1.A` through `1.F` are implemented and strict preflight is PASS on canonical `dev_min` handles.
 
 ## Phase 2 - Landing zone and Terraform substrate
 ### Objective

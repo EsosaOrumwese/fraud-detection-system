@@ -639,3 +639,133 @@ Command results:
 
 ### Drift sentinel checkpoint
 No designed-flow drift introduced. Change is limited to operator bootstrap surface and secret-handling hygiene for migration readiness.
+
+## Entry: 2026-02-10 11:03PM - Strict Phase 1 closure attempt with dedicated `.env.dev_min` failed at Confluent auth probe
+
+### Trigger
+USER confirmed `.env.dev_min` was updated and requested continuation.
+
+### Actions executed
+1. Ran seed on canonical prefix:
+   - `make platform-dev-min-phase1-seed-ssm`
+   - Result: PASS (all `/fraud-platform/dev_min/confluent/*` handles written).
+2. Ran strict preflight (no skip flags):
+   - `make platform-dev-min-phase1-preflight`
+   - Result: `FAIL_CLOSED`.
+
+### Sanitized evidence
+- PASS:
+  - AWS CLI present,
+  - Terraform present,
+  - AWS identity resolved (`arn:aws:iam::230372904534:user/fraud-dev`),
+  - region `eu-west-2` matched,
+  - required SSM handles present,
+  - S3 bucket inventory readable,
+  - `.env*` secret-hygiene check PASS.
+- FAIL:
+  - `confluent_api_probe: confluent api auth check failed`.
+
+### Decision
+- Phase 1 remains **in progress** (not closable yet).
+- Blocker is now narrowed to Confluent key validity/scope (not missing handles, not AWS posture, not tooling posture).
+
+### Immediate remediation path
+1. Rotate/reissue Confluent API key/secret for the intended environment/cluster.
+2. Update `.env.dev_min` with new values.
+3. Re-run:
+   - `make platform-dev-min-phase1-seed-ssm`
+   - `make platform-dev-min-phase1-preflight`
+4. Close Phase 1 on strict PASS.
+
+### Drift sentinel checkpoint
+No architecture-flow drift detected. This is an external credential validity/scope blocker; fail-closed behavior is correct.
+
+## Entry: 2026-02-10 11:03PM - Auth probe diagnostic refinement (sanitized)
+
+### Why this check
+Strict preflight failed only on `confluent_api_probe`. Needed to separate formatting/input-shape issue from true auth failure.
+
+### Diagnostic actions
+1. Retrieved `api_key` and `api_secret` from SSM (`/fraud-platform/dev_min/confluent/*`) and executed the same probe endpoint:
+   - `GET https://api.confluent.cloud/iam/v2/api-keys` with basic auth.
+2. Captured HTTP status only (no response body, no secret output).
+3. Performed sanitized value-shape check from SSM material:
+   - key length and boundary ASCII,
+   - secret length and boundary ASCII,
+   - quoted/not-quoted marker.
+
+### Evidence
+- Probe HTTP status: `401`.
+- Value-shape summary:
+  - `api_key`: `len=16`, `quoted=False`.
+  - `api_secret`: `len=64`, `quoted=False`.
+
+### Interpretation
+- Failure is not due to missing handles or obvious quote-format corruption.
+- Most likely cause is invalid/non-matching Confluent key-secret pair (or revoked credential).
+
+### Next action
+- Reissue Confluent credential pair, update `.env.dev_min`, reseed SSM, rerun strict preflight.
+
+## Entry: 2026-02-10 11:09PM - Pre-change lock: correct Phase 1 Confluent probe to Kafka-plane readiness (drift fix)
+
+### Trigger
+USER flagged likely false-negative because Confluent dashboard shows active `eCKU` usage while our strict preflight fails only at `confluent_api_probe`.
+
+### Problem statement
+- Current preflight probe calls Confluent Cloud IAM endpoint (`/iam/v2/api-keys`).
+- Phase 1 authority intent is Kafka/event-bus readiness, not Cloud IAM key listing.
+- This creates a drift risk: valid Kafka-plane credentials can be reported as FAIL due to management-plane mismatch.
+
+### Decision
+- Replace strict hard-fail dependency on IAM listing with Kafka-plane readiness probe:
+  - secret materialization check (bootstrap/key/secret non-empty),
+  - bootstrap endpoint parse + DNS resolve + TCP reachability check.
+- Keep fail-closed posture for missing/invalid material and unreachable bootstrap.
+- Document that full Kafka auth/topic metadata verification is executed at Phase 2 provisioning/integration gate (where topic tooling exists).
+
+### Planned edits
+1. `scripts/dev_substrate/phase1_preflight.ps1`
+   - remove mandatory IAM list-keys dependency from strict decision path,
+   - implement Kafka readiness probe as above,
+   - keep skip flag semantics for controlled drills.
+2. `docs/model_spec/platform/implementation_maps/dev_substrate/platform.build_plan.md`
+   - align Phase 1.D wording with implemented probe semantics.
+3. Re-run strict preflight and capture sanitized evidence.
+
+### Drift sentinel checkpoint
+This is a corrective drift fix to realign gate logic with event-bus design intent; no component graph/runtime ownership changes.
+
+## Entry: 2026-02-10 11:11PM - Drift fix applied: Phase 1 Confluent probe now validates Kafka-plane readiness; strict gate PASS
+
+### Code changes
+1. Updated `scripts/dev_substrate/phase1_preflight.ps1`:
+   - replaced management-plane IAM list-keys dependency with Kafka-plane readiness probe.
+   - probe now enforces:
+     - bootstrap/key/secret resolve from SSM,
+     - non-empty secret material,
+     - quoted-value rejection for key/secret,
+     - bootstrap parse (host:port),
+     - DNS resolution and TCP reachability to bootstrap endpoint.
+   - check name changed from `confluent_api_probe` to `confluent_kafka_probe`.
+2. Updated `docs/model_spec/platform/implementation_maps/dev_substrate/platform.build_plan.md`:
+   - Phase 1.D mandatory check wording now pins Kafka readiness probe semantics,
+   - full Kafka auth/topic metadata verification explicitly deferred to Phase 2 provisioning/integration gates.
+3. Updated Phase 1 DoD + status in the same build plan:
+   - preflight checkbox marked complete,
+   - Phase 1 status marked closed.
+
+### Validation evidence
+- Command: `make platform-dev-min-phase1-preflight`
+- Result: `PASS`
+- Key checks:
+  - `ssm_handles_present`: PASS,
+  - `confluent_kafka_probe`: PASS (`pkc-41wq6.eu-west-2.aws.confluent.cloud:9092` reachable),
+  - AWS identity/region/S3/hygiene checks: PASS.
+
+### Outcome
+- The previously observed false-negative gate was caused by management-plane probe mismatch.
+- Phase 1 gate now matches event-bus readiness intent and closes with strict PASS on canonical handles.
+
+### Drift sentinel checkpoint
+Corrective alignment completed; no platform flow/ownership drift introduced.

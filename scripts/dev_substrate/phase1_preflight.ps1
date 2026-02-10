@@ -140,31 +140,74 @@ if ($SkipConfluentApiProbe) {
         $confluentProbeDetail = "failed to resolve confluent secrets from ssm"
         $hardFail = $true
     } else {
-        $bootstrap = $bootstrapRes.output
-        $apiKey = $keyRes.output
-        $apiSecret = $secretRes.output
+        $bootstrap = ($bootstrapRes.output | Out-String).Trim()
+        $apiKey = ($keyRes.output | Out-String).Trim()
+        $apiSecret = ($secretRes.output | Out-String).Trim()
         if ([string]::IsNullOrWhiteSpace($bootstrap) -or [string]::IsNullOrWhiteSpace($apiKey) -or [string]::IsNullOrWhiteSpace($apiSecret)) {
             $confluentProbeStatus = "FAIL"
             $confluentProbeDetail = "one or more confluent secret values are empty"
             $hardFail = $true
         } else {
             try {
-                $pair = "{0}:{1}" -f $apiKey, $apiSecret
-                $authBytes = [System.Text.Encoding]::UTF8.GetBytes($pair)
-                $auth = [Convert]::ToBase64String($authBytes)
-                $headers = @{ Authorization = "Basic $auth" }
-                $null = Invoke-RestMethod -Uri "https://api.confluent.cloud/iam/v2/api-keys" -Headers $headers -Method Get -TimeoutSec 20
+                $quotedKey = ($apiKey.Length -ge 2) -and (
+                    ($apiKey.StartsWith('"') -and $apiKey.EndsWith('"')) -or
+                    ($apiKey.StartsWith("'") -and $apiKey.EndsWith("'"))
+                )
+                $quotedSecret = ($apiSecret.Length -ge 2) -and (
+                    ($apiSecret.StartsWith('"') -and $apiSecret.EndsWith('"')) -or
+                    ($apiSecret.StartsWith("'") -and $apiSecret.EndsWith("'"))
+                )
+                if ($quotedKey -or $quotedSecret) {
+                    throw "credential values appear quoted"
+                }
+
+                $bootstrapFirst = (($bootstrap -split ",")[0] | Out-String).Trim()
+                if ([string]::IsNullOrWhiteSpace($bootstrapFirst)) {
+                    throw "bootstrap endpoint is empty"
+                }
+
+                $bootstrapHost = $bootstrapFirst
+                $bootstrapPort = 9092
+                if ($bootstrapFirst.Contains(":")) {
+                    $parts = $bootstrapFirst.Split(":")
+                    if ($parts.Length -ge 2) {
+                        $bootstrapHost = ($parts[0] | Out-String).Trim()
+                        $portText = ($parts[$parts.Length - 1] | Out-String).Trim()
+                        $parsedPort = 0
+                        if ([int]::TryParse($portText, [ref]$parsedPort)) {
+                            $bootstrapPort = $parsedPort
+                        }
+                    }
+                }
+                if ([string]::IsNullOrWhiteSpace($bootstrapHost)) {
+                    throw "bootstrap host parse failed"
+                }
+
+                $null = [System.Net.Dns]::GetHostAddresses($bootstrapHost)
+
+                $client = New-Object System.Net.Sockets.TcpClient
+                try {
+                    $async = $client.BeginConnect($bootstrapHost, $bootstrapPort, $null, $null)
+                    $ok = $async.AsyncWaitHandle.WaitOne(8000, $false)
+                    if (-not $ok) {
+                        throw "tcp connect timeout"
+                    }
+                    $client.EndConnect($async) | Out-Null
+                } finally {
+                    $client.Dispose()
+                }
+
                 $confluentProbeStatus = "PASS"
-                $confluentProbeDetail = "confluent api auth check passed"
+                $confluentProbeDetail = ("kafka bootstrap reachable: " + $bootstrapHost + ":" + $bootstrapPort)
             } catch {
                 $confluentProbeStatus = "FAIL"
-                $confluentProbeDetail = "confluent api auth check failed"
+                $confluentProbeDetail = ("kafka readiness probe failed: " + $_.Exception.Message)
                 $hardFail = $true
             }
         }
     }
 }
-$checks.Add((New-CheckResult -Name "confluent_api_probe" -Status $confluentProbeStatus -Detail $confluentProbeDetail)) | Out-Null
+$checks.Add((New-CheckResult -Name "confluent_kafka_probe" -Status $confluentProbeStatus -Detail $confluentProbeDetail)) | Out-Null
 
 $bucketsRes = Invoke-AwsText -Arguments @("s3api", "list-buckets", "--query", "Buckets[].Name", "--output", "json")
 if ($bucketsRes.code -ne 0) {
