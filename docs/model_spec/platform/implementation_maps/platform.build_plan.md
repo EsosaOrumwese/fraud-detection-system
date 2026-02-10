@@ -1420,6 +1420,6 @@ Resolved and pinned in:
 - Phase 6.0 (Archive readiness gate): complete (archive writer corridor implemented + run/operate onboarding + reporter/reconciliation evidence surfaces validated on 2026-02-10).
 - Phase 6.1 (Learning/Registry contracts + ownership lock): complete (authoritative schema set + typed validators + ownership boundaries pinned on 2026-02-10).
 - Phase 6 (Learning & Registry plane): active (`6.2` OFS dataset-build corridor is next; `6.6/6.7` remain mandatory closure gates before plane completion).
-- OFS build-plan initialization: complete (`offline_feature_plane.build_plan.md` + `offline_feature_plane.impl_actual.md` established on 2026-02-10; Phase 1 planning-active).
+- OFS build-plan Phase 1: complete (`BuildIntent + dataset identity + contract lock` implemented on 2026-02-10 in `src/fraud_detection/offline_feature_plane/*` with `15 passed`; next OFS step is Phase 2 run-ledger implementation).
 - Next active platform phase: Phase 6.2 (OFS dataset build corridor).
 - SR v0: complete (see `docs/model_spec/platform/implementation_maps/scenario_runner.build_plan.md`).

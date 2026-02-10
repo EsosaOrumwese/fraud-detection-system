@@ -57,6 +57,18 @@ Provide a closure-grade, component-scoped plan for Offline Feature Plane (OFS) a
 - Rejection taxonomy is explicit for inadmissible intents (`BASIS_UNRESOLVED`, `LABEL_ASOF_MISSING`, `FEATURE_PROFILE_UNRESOLVED`, `RUN_FACTS_UNAVAILABLE`, etc.).
 - Contracts align to `dataset_manifest_v0` authority and ownership boundaries from `learning_registry/ownership_boundaries_v0.yaml`.
 
+**Implementation status note (2026-02-10):**
+- Phase 1 contract + identity surfaces implemented:
+  - `src/fraud_detection/offline_feature_plane/contracts.py`
+  - `src/fraud_detection/offline_feature_plane/ids.py`
+  - `src/fraud_detection/offline_feature_plane/__init__.py`
+  - `docs/model_spec/platform/contracts/learning_registry/ofs_build_intent_v0.schema.yaml`
+- Contract indexes updated:
+  - `docs/model_spec/platform/contracts/learning_registry/README.md`
+  - `docs/model_spec/platform/contracts/README.md`
+- Validation evidence:
+  - `python -m pytest tests/services/offline_feature_plane/test_phase1_contracts.py tests/services/offline_feature_plane/test_phase1_ids.py tests/services/learning_registry/test_phase61_contracts.py -q --import-mode=importlib` (`15 passed`).
+
 ### Phase 2 - Run control + idempotent run ledger (S1)
 **Intent:** ensure retries/restarts cannot create semantic drift.
 
@@ -168,5 +180,5 @@ Provide a closure-grade, component-scoped plan for Offline Feature Plane (OFS) a
 - No implicit "latest dataset/profile" discovery by scanning.
 
 ## Status (rolling)
-- Phase 1 (`BuildIntent + dataset identity + contract lock`): planning-active.
-- Next action: begin Phase 1 implementation with contract artifacts and deterministic dataset identity utilities.
+- Phase 1 (`BuildIntent + dataset identity + contract lock`): complete (implemented and validated on `2026-02-10`).
+- Next action: begin Phase 2 implementation (`run control + idempotent run ledger`).

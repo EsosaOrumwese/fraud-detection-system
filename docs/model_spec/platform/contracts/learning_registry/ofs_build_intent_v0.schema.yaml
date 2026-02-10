@@ -1,0 +1,117 @@
+$schema: "https://json-schema.org/draft/2020-12/schema"
+title: OFS BuildIntent v0
+type: object
+additionalProperties: false
+required:
+  - schema_version
+  - request_id
+  - intent_kind
+  - platform_run_id
+  - replay_basis
+  - label_basis
+  - feature_definition_set
+  - run_facts_ref
+  - policy_revision
+  - config_revision
+  - ofs_code_release_id
+properties:
+  schema_version:
+    type: string
+    const: "learning.ofs_build_intent.v0"
+  request_id:
+    type: string
+    minLength: 8
+    maxLength: 128
+    pattern: "^[A-Za-z0-9_.:-]+$"
+  intent_kind:
+    type: string
+    enum:
+      - dataset_build
+      - parity_rebuild
+      - forensic_rebuild
+  platform_run_id:
+    type: string
+    minLength: 1
+  scenario_run_ids:
+    type: array
+    items:
+      type: string
+      minLength: 1
+  replay_basis:
+    type: array
+    minItems: 1
+    items:
+      type: object
+      additionalProperties: false
+      required:
+        - topic
+        - partition
+        - offset_kind
+        - start_offset
+        - end_offset
+      properties:
+        topic:
+          type: string
+          minLength: 1
+        partition:
+          type: integer
+          minimum: 0
+        offset_kind:
+          type: string
+          minLength: 1
+        start_offset:
+          type: string
+          minLength: 1
+        end_offset:
+          type: string
+          minLength: 1
+  label_basis:
+    type: object
+    additionalProperties: false
+    required:
+      - label_asof_utc
+      - resolution_rule
+    properties:
+      label_asof_utc:
+        type: string
+        minLength: 1
+      resolution_rule:
+        type: string
+        minLength: 1
+      maturity_days:
+        type: integer
+        minimum: 0
+  feature_definition_set:
+    type: object
+    additionalProperties: false
+    required:
+      - feature_set_id
+      - feature_set_version
+    properties:
+      feature_set_id:
+        type: string
+        minLength: 1
+      feature_set_version:
+        type: string
+        minLength: 1
+  join_scope:
+    type: object
+  filters:
+    type: object
+  run_facts_ref:
+    type: string
+    minLength: 1
+  parity_anchor_ref:
+    type: string
+    minLength: 1
+  policy_revision:
+    type: string
+    minLength: 1
+  config_revision:
+    type: string
+    minLength: 1
+  ofs_code_release_id:
+    type: string
+    minLength: 1
+  non_training_allowed:
+    type: boolean

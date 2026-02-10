@@ -9598,3 +9598,55 @@ Create an OFS-specific component build plan and initialize its component impleme
 ### Drift sentinel assessment
 - This planning change reduces drift risk by converting a high-level plane gate into an auditable component gate sequence.
 - No design-intent mismatch detected against current flow narrative/pinned pre-design decisions.
+
+## Entry: 2026-02-10 11:22AM - Pre-change implementation lock for OFS Phase 1
+
+### Trigger
+User requested immediate implementation of OFS Phase 1 after plan initialization.
+
+### Decision
+Implement only OFS Phase 1 scope now:
+- BuildIntent contract + rejection taxonomy,
+- deterministic dataset identity/fingerprint helpers,
+- schema authority update and tests.
+
+### Why this ordering
+- Phase 1 is a hard dependency for all subsequent OFS phases (`S1..S7`), especially run ledger idempotency and manifest publication correctness.
+- Implementing replay/mechanics before contract identity lock would increase drift risk and violate fail-closed planning posture.
+
+### Drift sentinel checkpoint
+- No designed-flow contradiction detected in this scope.
+- If implementation reveals ownership ambiguity between OFS and learning_registry schema authority, stop and escalate before proceeding to Phase 2.
+
+## Entry: 2026-02-10 11:25AM - Applied OFS Phase 1 implementation closure
+
+### Applied scope
+- Implemented OFS Phase 1 artifacts:
+  - `src/fraud_detection/offline_feature_plane/contracts.py`
+  - `src/fraud_detection/offline_feature_plane/ids.py`
+  - `src/fraud_detection/offline_feature_plane/__init__.py`
+- Added OFS BuildIntent schema authority:
+  - `docs/model_spec/platform/contracts/learning_registry/ofs_build_intent_v0.schema.yaml`
+- Updated contract indexes:
+  - `docs/model_spec/platform/contracts/learning_registry/README.md`
+  - `docs/model_spec/platform/contracts/README.md`
+- Added phase matrix tests:
+  - `tests/services/offline_feature_plane/test_phase1_contracts.py`
+  - `tests/services/offline_feature_plane/test_phase1_ids.py`
+
+### Behavioral closure
+- OFS now has explicit Phase 1 contract surfaces for:
+  - build-intent admission with typed rejection taxonomy,
+  - deterministic dataset identity fingerprinting,
+  - deterministic dataset manifest id derivation,
+  - ownership boundary enforcement against learning-registry ownership config.
+- OFS BuildIntent to DatasetManifest path is now schema-validated against learning authority contracts.
+
+### Validation evidence
+- `python -m py_compile src/fraud_detection/offline_feature_plane/__init__.py src/fraud_detection/offline_feature_plane/contracts.py src/fraud_detection/offline_feature_plane/ids.py tests/services/offline_feature_plane/test_phase1_contracts.py tests/services/offline_feature_plane/test_phase1_ids.py` (`PASS`)
+- `python -m pytest tests/services/offline_feature_plane/test_phase1_contracts.py tests/services/offline_feature_plane/test_phase1_ids.py tests/services/learning_registry/test_phase61_contracts.py -q --import-mode=importlib` (`15 passed`)
+
+### Drift sentinel assessment
+- No drift from pinned OFS outer contract detected in this implementation slice.
+- Contract-level fail-closed posture and deterministic identity rules are now enforceable in code.
+- Meta-layer onboarding remains explicitly pending in OFS plan Phase 8/9; not bypassed.

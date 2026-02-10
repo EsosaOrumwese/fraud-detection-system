@@ -83,6 +83,7 @@ These live under:
 These live under:
 `docs/model_spec/platform/contracts/learning_registry/`
 
+- `ofs_build_intent_v0.schema.yaml`
 - `dataset_manifest_v0.schema.yaml`
 - `eval_report_v0.schema.yaml`
 - `bundle_publication_v0.schema.yaml`
