@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 from urllib.parse import urlparse
@@ -21,6 +21,11 @@ class SchemaEnforcer:
     envelope_registry: SchemaRegistry
     payload_registry_root: Path
     policy: SchemaPolicy
+    _payload_schema_cache: dict[str, tuple[dict[str, Any], Registry]] = field(
+        default_factory=dict,
+        init=False,
+        repr=False,
+    )
 
     def validate_envelope(self, envelope: dict[str, Any]) -> None:
         try:
@@ -38,11 +43,19 @@ class SchemaEnforcer:
         if entry.allowed_schema_versions and schema_version not in entry.allowed_schema_versions:
             raise IngestionError("SCHEMA_VERSION_NOT_ALLOWED")
         if entry.payload_schema_ref:
-            schema, registry = _load_schema_ref(self.payload_registry_root, entry.payload_schema_ref)
+            schema, registry = self._resolve_payload_schema(entry.payload_schema_ref)
             try:
                 _validate_with_schema(schema, envelope.get("payload", {}), registry=registry)
             except ValueError as exc:
                 raise IngestionError("SCHEMA_FAIL") from exc
+
+    def _resolve_payload_schema(self, schema_ref: str) -> tuple[dict[str, Any], Registry]:
+        cached = self._payload_schema_cache.get(schema_ref)
+        if cached is not None:
+            return cached
+        resolved = _load_schema_ref(self.payload_registry_root, schema_ref)
+        self._payload_schema_cache[schema_ref] = resolved
+        return resolved
 
 
 def _load_schema_ref(root: Path, schema_ref: str) -> tuple[dict[str, Any], Registry]:

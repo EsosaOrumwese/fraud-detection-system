@@ -8834,3 +8834,171 @@ User asked whether to optimize now or only after full platform completion, then 
 
 ### Immediate next implementation implication
 - Next execution work should target hot-path throughput closure (`WSP -> IG -> EB`) and produce run-scoped budget evidence for the new 5.10 gate before opening Phase 6 implementation.
+
+## Entry: 2026-02-10 08:24AM - Pre-change plan: Phase 5.10 hot-path throughput patch set (WSP->IG->EB)
+
+### Trigger
+Phase `5.10` moved active/open and user requested immediate implementation. Latest accepted full run (`platform_20260210T052919Z`) is green but violates new throughput budgets (200-event wall-clock ~`1984.87s`).
+
+### Diagnosed bottlenecks in current implementation
+1. IG Postgres indices open a new psycopg connection per operation (`lookup`, `record_in_flight`, `record_admitted`, `record_receipt`, ops inserts/lookups). At runtime this happens multiple times per event and creates significant connection churn.
+2. IG payload schema validation loads/parses payload schema YAML and rebuilds validator registry per event (`SchemaEnforcer._load_schema_ref(...)` path is uncached).
+3. IG service runs Flask dev server default mode (single-thread request handling), while WSP emits concurrent pushes by output; this amplifies queueing/tail latency under load.
+4. WSP default output concurrency is auto=`len(output_ids)` (4 for parity), which may overdrive local parity substrate during bounded replay.
+
+### Alternatives considered
+1. Tune only WSP speedup/concurrency env values in runbook.
+   - Rejected: does not remove structural per-event IG overhead and is brittle across runs.
+2. Deep async re-architecture (queue-based IG intake + batched publish).
+   - Rejected for this phase: too invasive for a closure gate pass.
+3. Targeted, low-risk hot-path hardening:
+   - persistent thread-local Postgres connections in IG indices,
+   - schema-ref caching in IG validator,
+   - threaded IG service runtime mode for parity,
+   - parity-pack default WSP concurrency cap.
+   - Selected.
+
+### Planned patch scope
+1. `src/fraud_detection/ingestion_gate/pg_index.py`
+   - Introduce thread-local persistent connections (autocommit) for both admission and ops indices.
+   - Reuse connection per thread; reconnect on closed/broken connection.
+   - Preserve SQL semantics and idempotency behaviors.
+2. `src/fraud_detection/ingestion_gate/schema.py`
+   - Add in-memory cache for payload schema reference resolution so payload validators are not rebuilt per event.
+   - Preserve fail-closed semantics on invalid schema refs.
+3. `src/fraud_detection/ingestion_gate/service.py`
+   - Run Flask with `threaded=True` (and keep `use_reloader=False`) to avoid single-thread ingress bottleneck in local parity daemon mode.
+4. `config/platform/run_operate/packs/local_parity_control_ingress.v0.yaml`
+   - Add default `WSP_OUTPUT_CONCURRENCY` cap for parity (initially `2`) as bounded substrate-pressure control.
+5. Tests
+   - Add focused regression tests for IG Postgres connection reuse and schema cache behavior.
+
+### Validation plan (ordered)
+1. Run targeted unit tests for modified modules.
+2. Run 20-event full-pack parity gate and capture:
+   - wall-clock runtime,
+   - IG latency summaries,
+   - WSP retry count.
+3. If 20-event is green and faster, run 200-event gate and compare against Phase `5.10` budgets.
+4. Record outcomes (PASS/FAIL vs each budget) in implementation map + logbook with run-scoped evidence refs.
+
+### Invariants
+- No changes to canonical envelope, pin requirements, dedupe semantics, or receipt/audit truth ownership.
+- No bypass of quarantine/fail-closed posture.
+- No environment-ladder divergence: changes remain valid for dev/prod (parity-only defaults remain config-scoped).
+
+## Entry: 2026-02-10 08:25AM - Pre-change plan: Kinesis consumer resilience hardening for Phase 5.10 drift closure (CSFB + DLA stop conditions)
+
+### Trigger
+After the Phase 5.10 hot-path patch and 20-event parity rerun, run/operate status showed `csfb_intake` and `dla_worker` transitioned to `stopped` while other packs remained alive. This violates meta-layer coverage intent and blocks proceeding to the 200-event gate.
+
+### Evidence observed
+- Runtime logs from `runs/fraud-platform/operate/...` showed repeated Kinesis reader failures in LocalStack parity mode:
+  - `InternalError` / backend connection failures during `list_shards` / `get_shard_iterator`.
+  - `ResourceNotFoundException` when attempting to continue from stale sequence checkpoints.
+- Both services consume via shared adapter `src/fraud_detection/event_bus/kinesis.py`; failures bubble out and terminate worker loops.
+
+### Drift assessment (against intended platform flow)
+- This is material runtime drift: designed live stream requires CSFB (join-plane continuity) and DLA (audit truth continuity) to remain continuously operated under run/operate.
+- Not acceptable as silent degradation: service exits make lane coverage partial and can hide downstream correctness gaps.
+
+### Alternatives considered
+1. Patch CSFB and DLA loops independently with local try/except wrappers.
+   - Rejected: duplicates logic and leaves identical failure class in DF/AL/CaseTrigger/IEG/OFP consumers.
+2. Rely on stack restarts when LocalStack Kinesis hiccups.
+   - Rejected: operationally brittle and does not satisfy deterministic run posture.
+3. Harden shared `KinesisEventBusReader` with explicit transient/stale-checkpoint handling, then add focused unit tests.
+   - Selected: single fix path for all consumers; preserves consistent behavior across planes.
+
+### Decision and mechanics
+- Implement resilience in `KinesisEventBusReader`:
+  1. `list_shards`: catch transient Kinesis client failures and return `[]` with structured warning (worker stays alive and retries next poll).
+  2. `read`: if `from_sequence` iterator build fails with stale-sequence class (`ResourceNotFoundException`/`InvalidArgumentException`), reset to configured start position (`trim_horizon`/`latest`) and retry once.
+  3. `read`: catch transient `get_records` failures (`InternalError`, `InternalFailure`, `ServiceUnavailableException`, etc.) and return `[]` rather than crash.
+  4. Keep fail-closed posture for obviously invalid caller state (missing stream/shard arguments).
+- Add regression tests in event-bus test suite for:
+  - stale-sequence fallback behavior,
+  - transient list/read failure non-crash behavior.
+
+### Security / correctness / ladder posture
+- No schema/identity/pin semantics are changed.
+- No data mutation behavior is changed; this is read-loop availability hardening only.
+- Behavior remains environment-ladder compatible (applies to parity/dev/prod Kinesis backends).
+
+### Validation plan
+1. Run new/updated unit tests for Kinesis reader behavior.
+2. Execute `make platform-operate-parity-status` + 20-event run to confirm `csfb_intake`/`dla_worker` remain running.
+3. If green, execute 200-event full-platform parity gate and capture run-scoped evidence.
+4. Record gate/matrix outcomes in implementation map and logbook.
+
+## Entry: 2026-02-10 08:35AM - Phase 5.10 implementation result: shared Kinesis consumer resilience + 20/200 parity gate PASS
+
+### Implemented code changes (drift-closure patch set)
+1. `src/fraud_detection/event_bus/kinesis.py`
+   - Hardened `KinesisEventBusReader.list_shards(...)` against runtime backend faults:
+     - catches client errors and returns empty shard set with structured warning instead of process crash.
+   - Hardened `KinesisEventBusReader.read(...)`:
+     - catches `get_shard_iterator/get_records` failures and returns empty batch with warning.
+     - explicit stale-sequence fallback: if iterator creation fails from checkpoint sequence with stale codes (`ResourceNotFoundException` / `InvalidArgumentException`), retry once using configured start position (`trim_horizon`/`latest`).
+     - payload decode guard: malformed record payload does not crash poll loop.
+   - Added per-reader stale-checkpoint suppression cache (`_stale_sequence_by_shard`) so identical stale sequence is not retried/logged on every poll cycle.
+
+2. Tests added/updated
+   - Added `tests/services/event_bus/test_kinesis_reader_resilience.py`:
+     - stale-sequence fallback path,
+     - stale-sequence suppression on subsequent poll,
+     - transient `list_shards` failure non-crash behavior,
+     - transient `get_records` failure non-crash behavior.
+
+### Validation executed (code-level)
+- `python -m pytest tests/services/event_bus/test_kinesis_reader_resilience.py tests/services/online_feature_plane/test_phase2_kinesis_start_position.py -q --import-mode=importlib` -> `5 passed`
+- `python -m pytest tests/services/event_bus -q --import-mode=importlib` -> `8 passed, 1 skipped`
+- `python -m pytest tests/services/context_store_flow_binding/test_phase3_intake.py -q --import-mode=importlib` -> `4 passed`
+- `python -m pytest tests/services/decision_log_audit/test_dla_phase3_intake.py -q --import-mode=importlib` -> `10 passed`
+
+### Validation executed (runtime-level, strict 20 -> 200)
+#### 20-event gate run
+- Platform run: `platform_20260210T082746Z`
+- Session evidence:
+  - `stream_start`: `2026-02-10T08:29:23.030447+00:00`
+  - `stream_complete`: `2026-02-10T08:29:33.734141+00:00`
+  - `duration`: `10.703694s`
+  - `emitted`: `80` (`20 x 4 outputs`)
+- Health/status evidence:
+  - `make platform-operate-parity-status` shows all services in all packs `running ready`.
+  - `csfb_intake` and `dla_worker` remained alive (no crash loop).
+
+#### 200-event gate run
+- Platform run: `platform_20260210T083021Z`
+- Session evidence:
+  - `stream_start`: `2026-02-10T08:31:46.353986+00:00`
+  - `stream_complete`: `2026-02-10T08:33:12.177393+00:00`
+  - `duration`: `85.823407s`
+  - `emitted`: `800` (`200 x 4 outputs`)
+- Run/operate liveness:
+  - all packs/components `running ready` after stream completion (`control_ingress`, `rtdl_core`, `rtdl_decision_lane`, `case_labels`, `obs_gov`).
+- Obs/Gov evidence:
+  - `runs/fraud-platform/platform_20260210T083021Z/obs/platform_run_report.json`
+  - `runs/fraud-platform/platform_20260210T083021Z/obs/environment_conformance.json` (`status=PASS`)
+
+### Budget comparison vs Phase 5.10 DoD
+1. 20-event wall-clock `<= 300s`
+   - observed `10.703694s` -> **PASS**
+2. 200-event wall-clock `<= 1200s`
+   - observed `85.823407s` -> **PASS**
+3. IG `admission_seconds` p95 `<= 8s`
+   - run-scoped sampled max p95 (`platform_20260210T083021Z`): `1.4493895999912638s` -> **PASS**
+4. IG `phase.publish_seconds` p95 `<= 5s`
+   - run-scoped sampled max p95 (`platform_20260210T083021Z`): `0.16315989999566227s` -> **PASS**
+5. WSP retry pressure (`retry_exhausted=0`, ratio `<=1%`)
+   - retries in stream window: `0`
+   - retry_exhausted in stream window: `0`
+   - ratio: `0 / 800 = 0%` -> **PASS**
+
+### Residual operational note
+- On cold restart with stale historical checkpoints, each consumer now emits a single stale-checkpoint reset warning and self-recovers to configured start-position behavior. This is expected and no longer causes process termination or repeated warning storms.
+
+### Drift-closure conclusion
+- The material drift that previously stopped `csfb_intake`/`dla_worker` under parity Kinesis faults is closed for current scope.
+- Phase 5.10 acceptance budgets are satisfied with run-scoped evidence.
+- Platform is ready to reopen Phase 6 (Learning & Registry) subject to user confirmation.

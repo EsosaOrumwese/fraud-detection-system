@@ -92,7 +92,13 @@ def main() -> None:
     args = parser.parse_args()
 
     app = create_app(args.profile)
-    app.run(host=args.host, port=args.port, debug=args.debug)
+    app.run(
+        host=args.host,
+        port=args.port,
+        debug=args.debug,
+        threaded=True,
+        use_reloader=False,
+    )
 
 
 if __name__ == "__main__":

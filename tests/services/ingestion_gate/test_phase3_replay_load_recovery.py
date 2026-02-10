@@ -102,6 +102,7 @@ def _build_gate(tmp_path: Path, *, deny_on_amber: bool = False) -> IngestionGate
         admission_db_path=str(tmp_path / "ig_admission.db"),
         engine_root_path=None,
         health_probe_interval_seconds=0,
+        health_bus_probe_mode="none",
         health_deny_on_amber=deny_on_amber,
         health_amber_sleep_seconds=0,
         bus_publish_failure_threshold=2,
