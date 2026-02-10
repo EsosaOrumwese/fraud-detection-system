@@ -402,3 +402,57 @@ This is a contract-surface simplification for migration execution clarity. No ru
 
 ### Drift sentinel checkpoint
 No runtime behavior changed. This is a migration-friction reduction and contract-authority simplification aligned to USER direction.
+
+## Entry: 2026-02-10 10:12PM - Pre-change lock: expand Phase 1 (accounts/credentials/secrets) to full execution detail
+
+### Context
+USER requested Phase 1 expansion so no aspect is left ambiguous in the active dev-substrate build plan.
+
+### Problem
+Phase 1 currently has only three broad bullets and three coarse DoD checks. It is insufficient to drive execution rigor for secure bootstrap and reproducible operator onboarding.
+
+### Decision
+Expand Phase 1 in-place within `docs/model_spec/platform/implementation_maps/dev_substrate/platform.build_plan.md` into explicit sub-sections with:
+- account/tenancy and billing posture,
+- IAM and principal model,
+- secret taxonomy and path map,
+- operator preflight command gates,
+- security hygiene and leak prevention controls,
+- failure/recovery drills,
+- tightened DoD gate with evidence expectations.
+
+### Constraints from user direction
+- Keep Phase 1 inside the build plan (no extra supporting docs unless explicitly requested).
+- Avoid local-parity vs dev performance comparison framing.
+- Keep references anchored to existing authorities and implementation history.
+
+### Drift sentinel checkpoint
+Planning-only expansion; no runtime code/infrastructure behavior changes.
+
+## Entry: 2026-02-10 10:13PM - Applied Phase 1 expansion in active dev-substrate build plan
+
+### What changed
+Expanded Phase 1 in `docs/model_spec/platform/implementation_maps/dev_substrate/platform.build_plan.md` from coarse bullets into execution-ready detail.
+
+### New Phase 1 structure
+- Added authority anchors for Phase 1 execution.
+- Expanded work into six explicit sections:
+  - 1.A account and tenancy bootstrap,
+  - 1.B principal and permission model,
+  - 1.C secret taxonomy and source of truth,
+  - 1.D operator bootstrap and preflight gate,
+  - 1.E security hygiene and leak prevention,
+  - 1.F failure and recovery drills.
+- Tightened DoD from 3 coarse checks to 8 explicit closure checks with auditable criteria.
+
+### Why
+- Removes ambiguity before implementation and prevents hidden assumptions around identity/secrets/bootstrap.
+- Aligns with user requirement to leave no phase under-specified.
+- Keeps execution inside the build plan (no extra support documents).
+
+### Validation
+- Verified Phase 1 section markers and DoD are present and correctly scoped.
+- Verified later phases remained intact and unchanged.
+
+### Drift sentinel checkpoint
+Planning expansion only; no runtime/infrastructure behavior changes.

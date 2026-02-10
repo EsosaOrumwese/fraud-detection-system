@@ -52,23 +52,68 @@ Start migration from authoritative sources only, without duplicative planning ar
 ### Objective
 Stand up secure operator-ready access for AWS + Confluent without embedding secrets in repo.
 
+### Authority anchors
+- `docs/model_spec/platform/pre-design_decisions/dev-min_managed-substrate_migration.design-authority.v0.md`
+- `docs/model_spec/platform/pre-design_decisions/run_and_operate.pre-design_decisions.md`
+- `docs/model_spec/platform/pre-design_decisions/observability_and_governance.pre-design_decisions.md`
+- `docs/model_spec/platform/implementation_maps/local_parity/platform.impl_actual.md`
+
 ### Work sections
-1. Account and tenancy bootstrap
-- Confirm AWS account/region and Confluent environment/cluster ownership model.
-- Confirm cost-accountability tags and naming policy.
+1. Phase 1.A - Account and tenancy bootstrap
+- Pin AWS account id, region, and billing owner for `dev_min`.
+- Pin Confluent organization/environment/cluster ownership and operating region.
+- Pin resource naming and cost-tag schema (`project`, `env`, `owner`, `expires_at`) for all provisioned resources.
+- Confirm budget alert ownership path and escalation destination.
 
-2. Identity and permission model
-- Define operator identities and least-privilege policy sets.
-- Pin IAM + Confluent API key scopes required for `dev_min`.
+2. Phase 1.B - Principal and permission model
+- Define operator principal set (human operator, automation principal, optional break-glass principal).
+- Pin least-privilege boundaries per substrate:
+  - AWS: S3 prefixes, Parameter Store paths, Terraform state access, budget/readonly billing visibility.
+  - Confluent: cluster/topic admin for setup, runtime producer/consumer ACL scopes.
+- Pin deny-by-default posture for unknown principals and wildcard credentials.
 
-3. Secret flow
-- Pin secret source of truth and local materialization contract.
-- Add operator checks for missing/stale credentials before runtime.
+3. Phase 1.C - Secret taxonomy and source of truth
+- Pin secret classes:
+  - cloud auth/session material,
+  - Kafka bootstrap + API key/secret,
+  - data-store DSNs and service tokens.
+- Pin source-of-truth paths and naming conventions for each class.
+- Pin runtime injection contract (env var keys and process boundaries) without storing secret values in repo.
+
+4. Phase 1.D - Operator bootstrap and preflight gate
+- Define deterministic bootstrap sequence for a fresh shell session:
+  - authenticate to AWS and Confluent,
+  - resolve required secret handles,
+  - materialize runtime env for operator commands.
+- Define mandatory preflight checks:
+  - caller identity and account/region match,
+  - secret-handle presence and version freshness,
+  - Kafka auth and topic metadata read check,
+  - S3 prefix read/write probe for expected evidence roots.
+- Pin fail-closed rule: any failed preflight blocks phase advancement and phase-2 execution.
+
+5. Phase 1.E - Security hygiene and leak prevention
+- Enforce no-secret-in-repo posture for `.env`, logs, notes, and implementation maps.
+- Pin redaction posture for command output copied into logbook/implementation notes.
+- Pin routine credential hygiene steps (rotation awareness, stale-session invalidation, revoke path).
+
+6. Phase 1.F - Failure and recovery drills
+- Execute and document at least one controlled failure drill for each class:
+  - expired/invalid AWS session,
+  - revoked/rotated Confluent key,
+  - missing/incorrect secret handle.
+- Verify operator guidance leads to deterministic recovery without manual console drift.
+- Record fail signatures and recovery steps in logbook for runbook carry-forward.
 
 ### Definition of Done
-- [ ] AWS and Confluent access path is reproducible for a fresh operator session.
-- [ ] Required secrets paths are pinned and validated by preflight checks.
-- [ ] No credentials committed to repo or notes.
+- [ ] Account/tenancy ownership and region posture are pinned for AWS + Confluent.
+- [ ] Principal model and least-privilege boundaries are pinned and auditable.
+- [ ] Secret taxonomy, source-of-truth path map, and runtime injection contract are pinned.
+- [ ] Fresh-shell operator bootstrap succeeds end-to-end without manual hidden steps.
+- [ ] Preflight suite passes (identity, secret handles, Kafka auth/metadata, S3 prefix probe).
+- [ ] Failure drills (auth/session/secret) are executed and recovery steps are logged.
+- [ ] Secret-leak hygiene checks pass (`git` and notes/logbook remain secret-free).
+- [ ] Closure evidence is recorded in `dev_substrate/platform.impl_actual.md` and `docs/logbook` with sanitized outputs only.
 
 ## Phase 2 - Landing zone and Terraform substrate
 ### Objective
