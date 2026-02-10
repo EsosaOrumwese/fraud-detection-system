@@ -12,6 +12,7 @@ import time
 from typing import Any
 
 import psycopg
+from fraud_detection.postgres_runtime import postgres_threadlocal_connection
 import sqlite3
 import yaml
 
@@ -322,7 +323,7 @@ def _latest_scenario_run_id(
             return str(row[0]).strip() if row and row[0] not in (None, "") else None
 
     pg_sql = sql.replace("?", "%s")
-    with psycopg.connect(locator) as conn:
+    with postgres_threadlocal_connection(locator) as conn:
         with conn.cursor() as cur:
             cur.execute(pg_sql, params)
             row = cur.fetchone()
@@ -347,3 +348,4 @@ def main() -> None:
 
 if __name__ == "__main__":
     main()
+

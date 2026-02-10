@@ -12,6 +12,7 @@ import sqlite3
 from typing import Any, Mapping
 
 import psycopg
+from fraud_detection.postgres_runtime import postgres_threadlocal_connection
 
 from fraud_detection.ingestion_gate.pg_index import is_postgres_dsn
 from fraud_detection.platform_runtime import RUNS_ROOT
@@ -350,7 +351,7 @@ class CaseMgmtRunReporter:
             conn = sqlite3.connect(_sqlite_path(self.locator))
             conn.row_factory = sqlite3.Row
             return conn
-        return psycopg.connect(self.locator)
+        return postgres_threadlocal_connection(self.locator)
 
 
 def _pins_match_run(pins: Mapping[str, Any], *, platform_run_id: str, scenario_run_id: str) -> bool:
@@ -694,3 +695,4 @@ def _is_missing_table_error(exc: Exception) -> bool:
         or "undefinedtable" in text
         or "relation" in text and "does not exist" in text
     )
+

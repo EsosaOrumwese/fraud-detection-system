@@ -12,6 +12,7 @@ import sqlite3
 from typing import Any, Mapping
 
 import psycopg
+from fraud_detection.postgres_runtime import postgres_threadlocal_connection
 
 from fraud_detection.ingestion_gate.pg_index import is_postgres_dsn
 from fraud_detection.platform_runtime import RUNS_ROOT
@@ -335,7 +336,7 @@ class LabelStoreRunReporter:
             conn = sqlite3.connect(_sqlite_path(self.locator))
             conn.row_factory = sqlite3.Row
             return conn
-        return psycopg.connect(self.locator)
+        return postgres_threadlocal_connection(self.locator)
 
 
 def _normalize_access_request(request: LabelStoreEvidenceAccessAuditRequest) -> LabelStoreEvidenceAccessAuditRequest:
@@ -668,3 +669,4 @@ def _optional(value: Any) -> str | None:
 
 def _utc_now() -> str:
     return datetime.now(tz=timezone.utc).isoformat()
+

@@ -11,6 +11,7 @@ import sqlite3
 from typing import Any, Protocol
 
 import psycopg
+from fraud_detection.postgres_runtime import postgres_threadlocal_connection
 
 from fraud_detection.ingestion_gate.pg_index import is_postgres_dsn
 
@@ -753,7 +754,7 @@ class PostgresDlOutboxStore(DlOutboxStore):
             )
 
     def _connect(self) -> psycopg.Connection:
-        return psycopg.connect(self.dsn)
+        return postgres_threadlocal_connection(self.dsn)
 
 
 def _normalize_scope(scope_key: str) -> str:
@@ -835,3 +836,4 @@ def _sqlite_path(dsn: str) -> str:
 
 def _utc_now() -> str:
     return datetime.now(tz=timezone.utc).isoformat()
+

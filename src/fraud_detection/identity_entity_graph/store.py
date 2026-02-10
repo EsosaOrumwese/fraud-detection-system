@@ -11,6 +11,7 @@ from typing import Any
 import sqlite3
 
 import psycopg
+from fraud_detection.postgres_runtime import postgres_threadlocal_connection
 
 from fraud_detection.ingestion_gate.pg_index import is_postgres_dsn
 
@@ -1669,7 +1670,7 @@ class PostgresProjectionStore(ProjectionStore):
         return grouped
 
     def _connect(self) -> psycopg.Connection:
-        return psycopg.connect(self.dsn)
+        return postgres_threadlocal_connection(self.dsn)
 
 
 def _basis_from_rows(stream_id: str, rows: list[tuple[Any, ...]]) -> tuple[dict[str, Any], str | None]:
@@ -1774,4 +1775,5 @@ def hashlib_sha256(data: bytes) -> str:
     import hashlib
 
     return hashlib.sha256(data).hexdigest()
+
 

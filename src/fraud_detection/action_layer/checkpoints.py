@@ -10,6 +10,7 @@ import sqlite3
 from typing import Any
 
 import psycopg
+from fraud_detection.postgres_runtime import postgres_threadlocal_connection
 
 from fraud_detection.ingestion_gate.pg_index import is_postgres_dsn
 
@@ -424,7 +425,7 @@ class _PostgresCheckpointStore(_CheckpointStore):
         )
 
     def _connect(self) -> psycopg.Connection[Any]:
-        return psycopg.connect(self.dsn)
+        return postgres_threadlocal_connection(self.dsn)
 
     def _init_db(self) -> None:
         with self._connect() as conn:
@@ -467,4 +468,5 @@ def _sqlite_path(locator: str) -> str:
     if locator.startswith("sqlite://"):
         return locator[len("sqlite://") :]
     return locator
+
 

@@ -11,6 +11,7 @@ import sqlite3
 from typing import Any
 
 import psycopg
+from fraud_detection.postgres_runtime import postgres_threadlocal_connection
 import yaml
 
 from fraud_detection.ingestion_gate.pg_index import is_postgres_dsn
@@ -480,7 +481,7 @@ class CaseEvidenceResolutionCorridor:
             conn = sqlite3.connect(_sqlite_path(self.locator))
             conn.row_factory = sqlite3.Row
             return conn
-        return psycopg.connect(self.locator)
+        return postgres_threadlocal_connection(self.locator)
 
 
 def load_evidence_resolution_policy(path: Path) -> EvidenceResolutionPolicy:
@@ -747,3 +748,4 @@ def _execute_script(conn: Any, backend: str, sql: str) -> None:
     for statement in statements:
         cur.execute(statement)
     cur.close()
+

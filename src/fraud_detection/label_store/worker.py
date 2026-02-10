@@ -14,6 +14,7 @@ import time
 from typing import Any, Mapping
 
 import psycopg
+from fraud_detection.postgres_runtime import postgres_threadlocal_connection
 import yaml
 
 from fraud_detection.ingestion_gate.pg_index import is_postgres_dsn
@@ -97,7 +98,7 @@ class LabelStoreWorker:
                 raise
         else:
             try:
-                with psycopg.connect(self.config.locator) as conn:
+                with postgres_threadlocal_connection(self.config.locator) as conn:
                     with conn.cursor() as cur:
                         cur.execute(sql, params)
                         rows = cur.fetchall()
@@ -198,3 +199,4 @@ def main() -> None:
 
 if __name__ == "__main__":
     main()
+

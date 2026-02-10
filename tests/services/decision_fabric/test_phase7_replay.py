@@ -113,11 +113,11 @@ def test_replay_ledger_routes_postgres_locator(monkeypatch: pytest.MonkeyPatch) 
         def execute(self, *_args, **_kwargs) -> _FakeResult:
             return _FakeResult()
 
-    def _fake_connect(dsn: str):
+    def _fake_connect(dsn: str, **_kwargs):
         calls.append(dsn)
         return _FakeConn()
 
-    monkeypatch.setattr(replay_module.psycopg, "connect", _fake_connect)
+    monkeypatch.setattr(replay_module, "postgres_threadlocal_connection", _fake_connect)
     ledger = DecisionReplayLedger("postgresql://platform:platform@localhost:5434/platform")
     assert ledger.backend == "postgres"
     assert calls == ["postgresql://platform:platform@localhost:5434/platform"]

@@ -11,6 +11,7 @@ import sqlite3
 from typing import Any, Callable, Mapping, TypeVar
 
 import psycopg
+from fraud_detection.postgres_runtime import postgres_threadlocal_connection
 import yaml
 
 from fraud_detection.ingestion_gate.pg_index import is_postgres_dsn
@@ -1052,7 +1053,7 @@ class ContextStoreFlowBindingStore:
     def _connect(self) -> Any:
         if self.backend == "sqlite":
             return sqlite3.connect(_sqlite_path(self.locator))
-        return psycopg.connect(self.locator)
+        return postgres_threadlocal_connection(self.locator)
 
     def _execute(self, conn: Any, query: str, params: tuple[Any, ...]) -> Any:
         if self.backend == "postgres":
@@ -1189,4 +1190,5 @@ def _sqlite_path(locator: str) -> str:
     if value.startswith("sqlite://"):
         return value[len("sqlite://") :]
     return value
+
 

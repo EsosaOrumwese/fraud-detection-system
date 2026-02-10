@@ -9,6 +9,7 @@ from pathlib import Path
 from typing import Protocol
 
 import psycopg
+from fraud_detection.postgres_runtime import postgres_threadlocal_connection
 
 
 @dataclass(frozen=True)
@@ -74,7 +75,7 @@ class PostgresCheckpointStore:
         self._ensure_table()
 
     def load(self, pack_key: str, output_id: str) -> CheckpointCursor | None:
-        with psycopg.connect(self.dsn) as conn:
+        with postgres_threadlocal_connection(self.dsn) as conn:
             row = conn.execute(
                 """
                 SELECT last_file, last_row_index, last_ts_utc
@@ -94,7 +95,7 @@ class PostgresCheckpointStore:
         )
 
     def save(self, cursor: CheckpointCursor) -> None:
-        with psycopg.connect(self.dsn) as conn:
+        with postgres_threadlocal_connection(self.dsn) as conn:
             conn.execute(
                 """
                 INSERT INTO wsp_checkpoint (pack_key, output_id, last_file, last_row_index, last_ts_utc, updated_at_utc)
@@ -116,7 +117,7 @@ class PostgresCheckpointStore:
             )
 
     def _ensure_table(self) -> None:
-        with psycopg.connect(self.dsn) as conn:
+        with postgres_threadlocal_connection(self.dsn) as conn:
             conn.execute(
                 """
                 CREATE TABLE IF NOT EXISTS wsp_checkpoint (
@@ -130,3 +131,4 @@ class PostgresCheckpointStore:
                 )
                 """
             )
+

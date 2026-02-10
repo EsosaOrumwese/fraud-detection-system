@@ -11,6 +11,7 @@ from pathlib import Path
 from typing import Any
 
 import psycopg
+from fraud_detection.postgres_runtime import postgres_threadlocal_connection
 
 from fraud_detection.context_store_flow_binding.intake import CsfbInletPolicy
 from fraud_detection.context_store_flow_binding.observability import CsfbObservabilityReporter
@@ -432,7 +433,7 @@ def _query_admissions(locator: str, platform_run_id: str) -> dict[str, int]:
     publish_ambiguous = 0
     receipt_write_failed = 0
     if is_postgres_dsn(locator):
-        with psycopg.connect(locator) as conn:
+        with postgres_threadlocal_connection(locator) as conn:
             rows = conn.execute(
                 """
                 SELECT state, receipt_write_failed
@@ -470,7 +471,7 @@ def _query_ops_receipt_rows(locator: str) -> list[dict[str, Any]]:
         FROM receipts
     """
     if is_postgres_dsn(locator):
-        with psycopg.connect(locator) as conn:
+        with postgres_threadlocal_connection(locator) as conn:
             rows = conn.execute(query).fetchall()
         return [
             {
@@ -503,7 +504,7 @@ def _query_ops_quarantine_rows(locator: str) -> list[dict[str, Any]]:
         FROM quarantines
     """
     if is_postgres_dsn(locator):
-        with psycopg.connect(locator) as conn:
+        with postgres_threadlocal_connection(locator) as conn:
             rows = conn.execute(query).fetchall()
         return [{"evidence_ref": row[0], "pins_json": row[1]} for row in rows]
     path = _sqlite_path(locator)
@@ -624,3 +625,4 @@ def _evidence_ref_values(raw: Any) -> list[str]:
 
 def _utc_now() -> str:
     return datetime.now(tz=timezone.utc).isoformat()
+

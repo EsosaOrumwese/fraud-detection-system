@@ -13,6 +13,7 @@ from typing import Any, Mapping
 import psycopg
 
 from fraud_detection.ingestion_gate.pg_index import is_postgres_dsn
+from fraud_detection.postgres_runtime import postgres_threadlocal_connection
 from fraud_detection.platform_runtime import resolve_run_scoped_path
 
 
@@ -324,7 +325,7 @@ class ActionLedgerStore:
             conn = sqlite3.connect(_sqlite_path(self.locator))
             conn.row_factory = sqlite3.Row
             return conn
-        return psycopg.connect(self.locator)
+        return postgres_threadlocal_connection(self.locator)
 
 
 class ActionOutcomeStore:
@@ -590,7 +591,7 @@ class ActionOutcomeStore:
             conn = sqlite3.connect(_sqlite_path(self.locator))
             conn.row_factory = sqlite3.Row
             return conn
-        return psycopg.connect(self.locator)
+        return postgres_threadlocal_connection(self.locator)
 
 
 def _sqlite_path(locator: str) -> str:
@@ -660,3 +661,5 @@ def _execute_script(conn: Any, backend: str, sql: str) -> None:
         cur.execute(statement)
     conn.commit()
     cur.close()
+
+

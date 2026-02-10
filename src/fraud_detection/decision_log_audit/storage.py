@@ -13,6 +13,7 @@ from typing import Any, Mapping
 from urllib.parse import urlparse
 
 import psycopg
+from fraud_detection.postgres_runtime import postgres_threadlocal_connection
 import yaml
 
 from fraud_detection.ingestion_gate.pg_index import is_postgres_dsn
@@ -442,7 +443,7 @@ class DecisionLogAuditIndexStore:
             conn = sqlite3.connect(_sqlite_path(self.locator))
             conn.row_factory = sqlite3.Row
             return conn
-        return psycopg.connect(self.locator)
+        return postgres_threadlocal_connection(self.locator)
 
 
 class DecisionLogAuditIntakeStore:
@@ -2028,7 +2029,7 @@ class DecisionLogAuditIntakeStore:
             conn = sqlite3.connect(_sqlite_path(self.locator))
             conn.row_factory = sqlite3.Row
             return conn
-        return psycopg.connect(self.locator)
+        return postgres_threadlocal_connection(self.locator)
 
 
 def _row_to_index_record(row: Any) -> DecisionLogAuditIndexRecord:
@@ -2268,3 +2269,4 @@ def _positive_int(value: Any, field_name: str) -> int:
     if parsed <= 0:
         raise DecisionLogAuditIndexStoreError(f"{field_name} must be a positive integer")
     return parsed
+

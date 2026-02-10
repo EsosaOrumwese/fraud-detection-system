@@ -11,6 +11,7 @@ import sqlite3
 from typing import Any
 
 import psycopg
+from fraud_detection.postgres_runtime import postgres_threadlocal_connection
 
 from fraud_detection.ingestion_gate.pg_index import is_postgres_dsn
 
@@ -1322,7 +1323,7 @@ class PostgresOfpStore(OfpStore):
         )
 
     def _connect(self) -> psycopg.Connection:
-        return psycopg.connect(self.dsn)
+        return postgres_threadlocal_connection(self.dsn)
 
 
 def _migrate_sqlite_semantic_dedupe(conn: sqlite3.Connection) -> None:
@@ -1471,4 +1472,5 @@ def _sqlite_path(dsn: str) -> str:
     if dsn.startswith("sqlite://"):
         return dsn.replace("sqlite://", "", 1)
     return dsn
+
 

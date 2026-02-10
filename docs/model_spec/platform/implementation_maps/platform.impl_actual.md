@@ -9002,3 +9002,257 @@ After the Phase 5.10 hot-path patch and 20-event parity rerun, run/operate statu
 - The material drift that previously stopped `csfb_intake`/`dla_worker` under parity Kinesis faults is closed for current scope.
 - Phase 5.10 acceptance budgets are satisfied with run-scoped evidence.
 - Platform is ready to reopen Phase 6 (Learning & Registry) subject to user confirmation.
+
+## Entry: 2026-02-10 08:53AM - P0 bug record + remediation plan: platform-wide Postgres connect churn causes daemon collapse
+
+### Trigger
+Post-200-event parity (`platform_20260210T083021Z`) all live-stream packs except obs/gov dropped to stopped. This is a material designed-flow drift (meta-layer no longer covering implemented services).
+
+### Evidence (component-by-component)
+From run/operate process logs (latest tails) every affected worker exited with the same runtime failure class:
+- `psycopg.OperationalError`
+- connect target: `localhost:5434`
+- message includes `Address already in use (0x00002740/10048)`
+- callsite pattern: `with self._connect() as conn` where `_connect()` performs fresh `psycopg.connect(...)` per operation.
+
+Observed crash points include:
+- `identity_entity_graph/store.py` (`get_checkpoint`)
+- `online_feature_plane/store.py` (`get_checkpoint`)
+- `context_store_flow_binding/store.py` (`get_checkpoint/read_flow_binding`)
+- `degrade_ladder/emission.py` (metrics call during worker loop)
+- `action_layer/storage.py` (`register_outcome`)
+- `decision_log_audit/storage.py` (observability path)
+- `case_trigger/replay.py`
+- `case_mgmt/observability.py`
+- `label_store/observability.py`
+
+### Root-cause assessment
+- Systemic DB connection lifecycle drift: multiple workers open/close Postgres connections at high cadence (hot loops + observability calls), causing local parity socket pressure and connection establishment failures.
+- Secondary resilience gap: worker `run_forever` loops generally do not catch transient DB operation errors, so one failed connect exits the process.
+
+### Alternatives considered
+1. Reduce stream pressure only (`WSP_OUTPUT_CONCURRENCY=1`) and keep current connection model.
+   - Rejected: masks root cause and fails environment-ladder robustness.
+2. Add restart-supervision only in run/operate and tolerate crashes.
+   - Rejected: still causes coverage gaps, duplicate churn, and noisy crash loops.
+3. Platform-wide DB lifecycle hardening + worker transient-error resilience.
+   - Selected.
+
+### Selected remediation plan
+1. Introduce shared thread-local Postgres connector utility (persistent per-thread connection with lightweight reconnect/retry and safe rollback on exception).
+2. Replace per-call `psycopg.connect(...)` in high-frequency Postgres store adapters for implemented live packs to use this shared connector.
+3. Harden worker `run_forever` loops (and observability emit paths where needed) to treat transient DB connection errors as retryable runtime faults (log + sleep + continue), not process-fatal.
+4. Re-run parity in strict order (`20` then `200`) and include post-stream liveness check to ensure packs remain running.
+
+### Invariants
+- No ownership boundary changes.
+- No envelope/pin/idempotency contract changes.
+- No fail-open on policy/gate semantics; only runtime-connectivity resilience and lifecycle hardening.
+
+## Entry: 2026-02-10 08:56AM - P0 implementation kickoff: shared Postgres runtime connector + live-pack adapter migration
+
+### Trigger
+Proceed from approved P0 remediation: implement concrete fix for parity worker collapse caused by repeated Postgres connect churn.
+
+### Additional inspection before coding
+- Confirmed all stopped services shared the same failure class (`psycopg.OperationalError`, connect to `localhost:5434`, WinSock `10048`) and all failed along `with self._connect() as conn` paths that create fresh `psycopg.connect(...)` repeatedly.
+- Re-scanned `src/fraud_detection` callsites:
+  - High-frequency live-pack adapters in RTDL core (`IEG/OFP/CSFB`), decision lane (`DF/AL/DLA`), and case/label (`CaseTrigger/CaseMgmt/LabelStore`) all still open new postgres connections per call.
+  - `ingestion_gate/pg_index.py` already uses thread-local persistent postgres connections; this serves as in-repo proof that persistent connection model is acceptable in this codebase.
+
+### Decision
+Implement a reusable shared utility for postgres connection lifecycle, then migrate live-pack adapters to that utility instead of raw `psycopg.connect(...)`.
+
+### Design choice and rationale
+1. Add `fraud_detection.postgres_runtime` utility:
+   - thread-local connection cache keyed by `(dsn + connect kwargs)`,
+   - lightweight reconnect with bounded retry/backoff on enter,
+   - rollback-on-error at context exit so persistent connections do not remain in failed transaction state after exceptions.
+2. Keep existing caller surface unchanged:
+   - adapters continue `with self._connect() as conn` and receive a psycopg connection object.
+   - no changes to SQL payloads, idempotency keys, pin semantics, or ownership boundaries.
+3. Apply migration first to all currently orchestrated live packs and parity reporters that participate in the full-platform stream posture.
+
+### Alternatives rejected
+1. Per-worker try/except only:
+   - rejected because it preserves high churn and only masks the underlying lifecycle fault.
+2. Reduce stream throughput as primary fix:
+   - rejected because it weakens parity representativeness and fails environment-ladder robustness.
+3. Introduce external pooler dependency in this phase:
+   - rejected for now; higher operational complexity and unnecessary for local-parity closure.
+
+### Concrete patch scope
+- New shared module:
+  - `src/fraud_detection/postgres_runtime.py`
+- Adapter migrations (postgres-only connect paths):
+  - `src/fraud_detection/context_store_flow_binding/store.py`
+  - `src/fraud_detection/identity_entity_graph/store.py`
+  - `src/fraud_detection/online_feature_plane/store.py`
+  - `src/fraud_detection/decision_fabric/checkpoints.py`
+  - `src/fraud_detection/decision_fabric/replay.py`
+  - `src/fraud_detection/action_layer/storage.py`
+  - `src/fraud_detection/action_layer/checkpoints.py`
+  - `src/fraud_detection/action_layer/replay.py`
+  - `src/fraud_detection/decision_log_audit/storage.py`
+  - `src/fraud_detection/decision_log_audit/worker.py` (latest-scenario probe path)
+  - `src/fraud_detection/case_trigger/storage.py`
+  - `src/fraud_detection/case_trigger/checkpoints.py`
+  - `src/fraud_detection/case_trigger/replay.py`
+  - `src/fraud_detection/case_mgmt/intake.py`
+  - `src/fraud_detection/case_mgmt/label_handshake.py`
+  - `src/fraud_detection/case_mgmt/action_handshake.py`
+  - `src/fraud_detection/case_mgmt/evidence.py`
+  - `src/fraud_detection/case_mgmt/observability.py`
+  - `src/fraud_detection/label_store/writer_boundary.py`
+  - `src/fraud_detection/label_store/observability.py`
+  - `src/fraud_detection/label_store/worker.py` (scenario discovery probe)
+- Optional parity helper migration if touched by validation:
+  - `src/fraud_detection/platform_reporter/run_reporter.py`
+  - `src/fraud_detection/world_streamer_producer/checkpoints.py`
+
+### Validation plan
+1. Run focused unit tests for touched services (action, case, label, DLA, CSFB/OFP/IEG where available).
+2. Run `make platform-operate-parity-status` to confirm all packs are running-ready post patch.
+3. Execute strict stream gates:
+   - 20-event full-platform parity run,
+   - then 200-event full-platform parity run.
+4. Re-check liveness after stream idle window to confirm no worker collapse recurrence.
+
+## Entry: 2026-02-10 08:59AM - P0 implementation progress: connector utility added + live-pack postgres callsites migrated
+
+### Completed implementation step
+Implemented the selected connector strategy and applied it to the currently orchestrated live packs.
+
+### Code changes executed
+1. Added shared connector utility:
+   - `src/fraud_detection/postgres_runtime.py`
+   - behavior:
+     - thread-local cached psycopg connection keyed by DSN + kwargs,
+     - bounded reconnect retry (`OperationalError`) with short backoff,
+     - rollback-on-exception in context exit to keep persistent connection transaction state clean,
+     - connection drop on broken/closed state.
+2. Migrated live-pack postgres adapters from `psycopg.connect(...)` to `postgres_threadlocal_connection(...)`:
+   - RTDL core:
+     - `src/fraud_detection/identity_entity_graph/store.py`
+     - `src/fraud_detection/online_feature_plane/store.py`
+     - `src/fraud_detection/online_feature_plane/snapshot_index.py`
+     - `src/fraud_detection/context_store_flow_binding/store.py`
+   - Decision lane:
+     - `src/fraud_detection/decision_fabric/checkpoints.py`
+     - `src/fraud_detection/decision_fabric/replay.py`
+     - `src/fraud_detection/action_layer/storage.py`
+     - `src/fraud_detection/action_layer/checkpoints.py`
+     - `src/fraud_detection/action_layer/replay.py`
+     - `src/fraud_detection/decision_log_audit/storage.py`
+     - `src/fraud_detection/decision_log_audit/worker.py` (scenario probe query)
+     - `src/fraud_detection/degrade_ladder/store.py`
+     - `src/fraud_detection/degrade_ladder/ops.py`
+     - `src/fraud_detection/degrade_ladder/emission.py`
+   - Case/Label plane:
+     - `src/fraud_detection/case_trigger/storage.py`
+     - `src/fraud_detection/case_trigger/checkpoints.py`
+     - `src/fraud_detection/case_trigger/replay.py`
+     - `src/fraud_detection/case_mgmt/intake.py`
+     - `src/fraud_detection/case_mgmt/label_handshake.py`
+     - `src/fraud_detection/case_mgmt/action_handshake.py`
+     - `src/fraud_detection/case_mgmt/evidence.py`
+     - `src/fraud_detection/case_mgmt/observability.py`
+     - `src/fraud_detection/label_store/writer_boundary.py`
+     - `src/fraud_detection/label_store/observability.py`
+     - `src/fraud_detection/label_store/worker.py` (scenario probe query)
+   - Meta/reporting paths touched for parity coherence:
+     - `src/fraud_detection/platform_reporter/run_reporter.py`
+     - `src/fraud_detection/world_streamer_producer/checkpoints.py`
+
+### Guardrails preserved
+- Did not change ingestion-gate postgres indexes (`ingestion_gate/pg_index.py`) because they already use persistent thread-local connections with explicit reconnect/reset.
+- Did not alter envelope/pins/policy semantics or idempotency logic.
+
+### Immediate validation
+- Syntax check pass across modified Python files via `python -m py_compile`.
+
+### Next validation step (in progress)
+1. Run focused pytest suites on touched services.
+2. Run parity liveness/status, then strict `20 -> 200` run sequence.
+3. Re-assess drift state after stream idle.
+
+## Entry: 2026-02-10 09:12AM - Corrective fix: transaction lifecycle parity with psycopg context semantics
+
+### Trigger
+After first connector rollout, run/operate status showed `ig_service` repeatedly non-ready and Postgres inspection showed multiple sessions `idle in transaction` plus lock waits (notably `ALTER TABLE admissions ...` blocked).
+
+### Root cause
+The new shared connection context kept persistent connections open across scopes but did not commit successful scopes. Read-heavy calls therefore left transactions open and held locks longer than intended.
+
+### Decision
+Update the shared connector context manager to mirror psycopg connection-context behavior on successful scope exit:
+- `commit()` on success (when `autocommit=False`),
+- `rollback()` on exception,
+- drop cached connection on commit/rollback failure.
+
+### Code delta
+- `src/fraud_detection/postgres_runtime.py`
+  - `__exit__` now commits successful scopes to close transaction boundaries and release locks deterministically.
+
+### Validation
+- Re-ran focused suites covering modified postgres-backed checkpoints/replay/storage paths:
+  - `tests/services/decision_fabric/test_phase7_checkpoints.py`
+  - `tests/services/decision_fabric/test_phase7_replay.py`
+  - `tests/services/case_trigger/test_phase5_checkpoints.py`
+  - `tests/services/action_layer/test_phase1_storage.py`
+  - `tests/services/decision_log_audit/test_dla_phase3_intake.py`
+  - `tests/services/context_store_flow_binding/test_phase3_intake.py`
+  - Result: `30 passed`.
+
+## Entry: 2026-02-10 09:28AM - Runtime validation closure: strict 20 -> 200 full-stream parity pass after Postgres lifecycle hardening
+
+### Runtime setup
+- New active run created: `platform_20260210T091951Z`.
+- All run/operate packs restarted to bind to the new active run id.
+- 20-event gate:
+  - `WSP_MAX_EVENTS_PER_OUTPUT=20`,
+  - `WSP_READY_MAX_MESSAGES=1`.
+- 200-event gate:
+  - `WSP_MAX_EVENTS_PER_OUTPUT=200`,
+  - `WSP_READY_MAX_MESSAGES=1`.
+
+### Evidence: 20-event gate
+- SR READY published for `scenario_run_id=942a906c0fe7414bbe0fdc26f32f4a74`.
+- WSP stream session:
+  - start: `2026-02-10T09:21:46.780111+00:00`
+  - complete: `2026-02-10T09:22:00.188588+00:00`
+  - emitted: `80` (`20 x 4 outputs`).
+- Platform narrative confirms per-output bounded stops:
+  - `s3_event_stream_with_fraud_6B` emitted `20`,
+  - `arrival_events_5B` emitted `20`,
+  - `s1_arrival_entities_6B` emitted `20`,
+  - `s3_flow_anchor_with_fraud_6B` emitted `20`.
+
+### Evidence: 200-event gate
+- SR READY published for `scenario_run_id=74bd83db1ad3d1fa136e579115d55429`.
+- WSP stream session:
+  - start: `2026-02-10T09:24:36.354654+00:00`
+  - complete: `2026-02-10T09:25:55.947318+00:00`
+  - emitted: `800` (`200 x 4 outputs`).
+- Platform narrative confirms per-output bounded stops:
+  - `s3_event_stream_with_fraud_6B` emitted `200`,
+  - `arrival_events_5B` emitted `200`,
+  - `s1_arrival_entities_6B` emitted `200`,
+  - `s3_flow_anchor_with_fraud_6B` emitted `200`.
+
+### Post-stream liveness + drift check
+- `make platform-operate-parity-status` immediately post-stream and after idle hold remained fully green:
+  - `control_ingress`: `ig_service`, `wsp_ready_consumer` running ready,
+  - `rtdl_core`: `IEG/OFP/CSFB` running ready,
+  - `rtdl_decision_lane`: `DL/DF/AL/DLA` running ready,
+  - `case_labels`: `CaseTrigger/CM/LS` running ready,
+  - `obs_gov`: `platform_run_reporter_worker`, `platform_conformance_worker` running ready.
+- Operate logs scan found no recurrence of `OperationalError` / `Address already in use` after fix window.
+
+### Obs/Gov artifacts
+- `runs/fraud-platform/platform_20260210T091951Z/obs/platform_run_report.json`
+- `runs/fraud-platform/platform_20260210T091951Z/obs/environment_conformance.json` (`status=PASS`, generated `2026-02-10T09:26:58.136297+00:00`).
+
+### Drift-sentinel conclusion
+- The material runtime drift (pack collapse from postgres connection churn) is closed for current local-parity scope.
+- Runtime graph now matches intended live orchestration posture across all implemented packs during and after bounded full-stream runs.

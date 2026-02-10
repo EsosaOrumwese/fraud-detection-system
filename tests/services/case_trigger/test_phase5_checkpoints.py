@@ -280,11 +280,11 @@ def test_phase5_checkpoint_gate_routes_postgres_locator(monkeypatch: pytest.Monk
         def transaction(self):
             return self._Tx()
 
-    def _fake_connect(dsn: str):
+    def _fake_connect(dsn: str, **_kwargs):
         calls.append(dsn)
         return _FakeConn()
 
-    monkeypatch.setattr(checkpoints_module.psycopg, "connect", _fake_connect)
+    monkeypatch.setattr(checkpoints_module, "postgres_threadlocal_connection", _fake_connect)
     gate = CaseTriggerCheckpointGate("postgresql://platform:platform@localhost:5434/platform")
     assert gate.backend == "postgres"
     assert calls == ["postgresql://platform:platform@localhost:5434/platform"]
