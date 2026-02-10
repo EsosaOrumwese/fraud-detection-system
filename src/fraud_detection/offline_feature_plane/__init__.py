@@ -51,6 +51,12 @@ from .phase6 import (
     OfsPhase6FeatureError,
     ReplayFeatureInputEvent,
 )
+from .phase7 import (
+    OfsManifestPublicationReceipt,
+    OfsManifestPublisher,
+    OfsManifestPublisherConfig,
+    OfsPhase7PublishError,
+)
 from .run_control import OfsRunControl, OfsRunControlPolicy
 from .run_ledger import (
     OFS_RUN_DONE,
@@ -121,4 +127,8 @@ __all__ = [
     "OfsFeatureDraftRow",
     "OfsPhase6FeatureError",
     "ReplayFeatureInputEvent",
+    "OfsManifestPublicationReceipt",
+    "OfsManifestPublisher",
+    "OfsManifestPublisherConfig",
+    "OfsPhase7PublishError",
 ]

@@ -159,6 +159,13 @@ Provide a closure-grade, component-scoped plan for Offline Feature Plane (OFS) a
 - Manifest includes replay basis, label basis, feature refs, digests, provenance refs, and policy/config revision.
 - Supersession/backfill linkage is append-only and explicit.
 
+**Implementation status note (2026-02-10):**
+- Phase 7 publication corridor implemented:
+  - `src/fraud_detection/offline_feature_plane/phase7.py`
+  - `src/fraud_detection/offline_feature_plane/__init__.py` (exports)
+- Validation evidence:
+  - `python -m pytest tests/services/offline_feature_plane/test_phase1_contracts.py tests/services/offline_feature_plane/test_phase1_ids.py tests/services/offline_feature_plane/test_phase2_run_ledger.py tests/services/offline_feature_plane/test_phase3_resolver.py tests/services/offline_feature_plane/test_phase4_replay_basis.py tests/services/offline_feature_plane/test_phase5_label_resolver.py tests/services/offline_feature_plane/test_phase6_dataset_draft.py tests/services/offline_feature_plane/test_phase7_manifest_publication.py tests/services/learning_registry/test_phase61_contracts.py -q --import-mode=importlib` (`47 passed`).
+
 ### Phase 8 - Run/Operate onboarding (meta-layer gate)
 **Intent:** make OFS first-class in orchestration from day one.
 
@@ -222,4 +229,5 @@ Provide a closure-grade, component-scoped plan for Offline Feature Plane (OFS) a
 - Phase 4 (`replay basis resolver + completeness receipts`): complete (implemented and validated on `2026-02-10`).
 - Phase 5 (`label as-of resolver and coverage gate`): complete (implemented and validated on `2026-02-10`).
 - Phase 6 (`deterministic feature reconstruction and dataset drafting`): complete (implemented and validated on `2026-02-10`).
-- Next action: begin Phase 7 implementation (`artifact publication + DatasetManifest authority`).
+- Phase 7 (`artifact publication + DatasetManifest authority`): complete (implemented and validated on `2026-02-10`).
+- Next action: begin Phase 8 implementation (`run/operate onboarding`).

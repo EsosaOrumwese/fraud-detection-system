@@ -647,3 +647,71 @@ No design-intent contradiction detected for this phase lock. Any Phase 6 path th
 ### Plan progression
 - OFS Phase 6 is closed.
 - Next active OFS phase is Phase 7 (`artifact publication + DatasetManifest authority`).
+
+## Entry: 2026-02-10 12:16PM - Applied OFS Phase 7 implementation and validation closure
+
+### Implemented files
+- `src/fraud_detection/offline_feature_plane/phase7.py` (new)
+- `src/fraud_detection/offline_feature_plane/__init__.py` (Phase 7 exports)
+- `tests/services/offline_feature_plane/test_phase7_manifest_publication.py` (new)
+
+### Implemented behavior
+1. **Gate-first publication posture**
+   - Publish now requires replay completeness (`replay_receipt.status == COMPLETE`).
+   - Training-intent publish additionally requires label gate readiness (`ready_for_training`).
+   - Gate violations fail closed before manifest commit.
+2. **Atomic-ish immutable manifest authority corridor**
+   - Manifest payload is staged then committed immutably to:
+     - `{platform_run_id}/ofs/manifests/{dataset_manifest_id}.json`
+   - Existing manifest drift fails closed (`MANIFEST_IMMUTABILITY_VIOLATION`).
+3. **Immutable dataset materialization publish**
+   - Dataset draft materialization is published immutably under:
+     - `{platform_run_id}/ofs/datasets/{dataset_manifest_id}/dataset_draft.json`
+   - Existing materialization drift fails closed (`DATASET_ARTIFACT_IMMUTABILITY_VIOLATION`).
+4. **Explicit supersession/backfill linkage**
+   - Supersession/backfill links publish as immutable by-ref artifacts:
+     - `{platform_run_id}/ofs/supersession/{run_key}.json`
+   - Invalid posture (backfill reason without supersedes refs) fails closed.
+5. **Idempotent publish receipt surface**
+   - Publication receipts write immutably under:
+     - `{platform_run_id}/ofs/publication_receipts/{run_key}.json`
+   - Compatible re-publish requests converge to `ALREADY_PUBLISHED` semantics.
+
+### Validation evidence
+- Syntax:
+  - `python -m py_compile src/fraud_detection/offline_feature_plane/phase7.py src/fraud_detection/offline_feature_plane/__init__.py tests/services/offline_feature_plane/test_phase7_manifest_publication.py` (`PASS`).
+- Phase 7 targeted tests:
+  - `python -m pytest tests/services/offline_feature_plane/test_phase7_manifest_publication.py -q --import-mode=importlib` (`5 passed`).
+- OFS regression matrix:
+  - `python -m pytest tests/services/offline_feature_plane/test_phase1_contracts.py tests/services/offline_feature_plane/test_phase1_ids.py tests/services/offline_feature_plane/test_phase2_run_ledger.py tests/services/offline_feature_plane/test_phase3_resolver.py tests/services/offline_feature_plane/test_phase4_replay_basis.py tests/services/offline_feature_plane/test_phase5_label_resolver.py tests/services/offline_feature_plane/test_phase6_dataset_draft.py tests/services/offline_feature_plane/test_phase7_manifest_publication.py tests/services/learning_registry/test_phase61_contracts.py -q --import-mode=importlib` (`47 passed`).
+
+### Drift sentinel assessment after implementation
+- No designed-flow contradiction detected for Phase 7 scope.
+- Manifest authority remains strict and immutable; no silent overwrite path was introduced.
+- Supersession/backfill linkage is explicit and by-ref, preserving append-only correction posture.
+
+### Plan progression
+- OFS Phase 7 is closed.
+- Next active OFS phase is Phase 8 (`run/operate onboarding`).
+
+## Entry: 2026-02-10 12:17PM - Corrective pre-change record for OFS Phase 7
+
+### Why this corrective entry is required
+Phase 7 implementation was executed before this pre-change lock was written into the component map. Per implementation-map law, missing in-flight planning records must be appended as corrective entries rather than rewritten history.
+
+### Original pre-change intent (captured now for audit continuity)
+- Implement S6 publication authority corridor for OFS with immutable manifest commit.
+- Enforce gate-first publication posture (`replay COMPLETE`, training label gate readiness).
+- Publish immutable dataset materialization artifacts and explicit supersession/backfill links.
+- Ensure idempotent re-publish convergence without silent overwrite.
+
+### Alternatives considered pre-implementation
+1. Publish dataset artifacts and manifest in one mutable file update path.
+   - Rejected: violates immutable publish law and risks silent drift.
+2. Commit manifest first without replay/label gates.
+   - Rejected: allows authoritative manifest creation before completeness evidence.
+3. Gate-first then immutable writes for manifest/materialization/receipt.
+   - Selected and implemented.
+
+### Drift sentinel note
+No design-intent conflict was identified in the chosen approach; corrective entry added solely to restore decision-trail completeness.

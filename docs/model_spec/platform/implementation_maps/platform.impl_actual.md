@@ -9873,3 +9873,41 @@ OFS Phase 6 is the first point where replay + label evidence is converted into c
   - learning/evolution pre-design replay determinism and feature-authority pins,
   - truth-ownership boundaries.
 - Next material risk surface moves to OFS Phase 7 publish/manifest authority (atomic commit + no-overwrite corridor).
+
+## Entry: 2026-02-10 12:16PM - Platform-level applied closure for OFS Phase 7
+
+### What was applied
+- OFS Phase 7 publication authority corridor landed with tests:
+  - `src/fraud_detection/offline_feature_plane/phase7.py`
+  - `tests/services/offline_feature_plane/test_phase7_manifest_publication.py`
+- OFS/platform build-plan status sections updated for Phase 7 closure and Phase 8 next-step posture.
+
+### Platform-significant outcomes
+- OFS now enforces explicit publish gates before a dataset becomes authoritative:
+  - replay completeness required,
+  - training-intent label readiness required.
+- DatasetManifest commit is immutable and fail-closed on drift, preventing silent meaning rewrite.
+- Dataset materialization publication is immutable and tied by-ref to manifest/publication receipts.
+- Supersession/backfill links are explicit immutable artifacts, preserving append-only correction lineage.
+
+### Validation evidence
+- OFS/learning regression matrix:
+  - `python -m pytest tests/services/offline_feature_plane/test_phase1_contracts.py tests/services/offline_feature_plane/test_phase1_ids.py tests/services/offline_feature_plane/test_phase2_run_ledger.py tests/services/offline_feature_plane/test_phase3_resolver.py tests/services/offline_feature_plane/test_phase4_replay_basis.py tests/services/offline_feature_plane/test_phase5_label_resolver.py tests/services/offline_feature_plane/test_phase6_dataset_draft.py tests/services/offline_feature_plane/test_phase7_manifest_publication.py tests/services/learning_registry/test_phase61_contracts.py -q --import-mode=importlib` (`47 passed`).
+
+### Drift sentinel assessment
+- No conflict observed versus OFS publication intent in flow narrative and learning pre-design pins.
+- Next material risk surface shifts to Phase 8/9 meta-layer onboarding (orchestration and obs/gov coverage of OFS job unit).
+
+## Entry: 2026-02-10 12:17PM - Platform corrective pre-change record for OFS Phase 7
+
+### Why this corrective entry is required
+The platform-level pre-change lock for OFS Phase 7 was not recorded before code execution. To preserve auditable reasoning chronology, this corrective entry captures the original decision posture without rewriting prior entries.
+
+### Original platform-level pre-change decisions
+- DatasetManifest commit must remain immutable and fail closed on drift.
+- Publication gates must block authoritative commit until replay and label evidence pass policy.
+- Supersession/backfill correction lineage must be explicit and append-only by-ref.
+- Re-publish attempts must converge deterministically and avoid silent overwrite.
+
+### Corrective note
+This is a documentation-order correction, not a functional behavior change.

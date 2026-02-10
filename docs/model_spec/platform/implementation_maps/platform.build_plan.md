@@ -1293,8 +1293,13 @@ Resolved and pinned in:
   - deterministic replay dedupe/tie-break ordering under at-least-once input realities,
   - canonical row-order rules + digestable dataset draft artifacts,
   - parity hash emission for parity-intent runs.
+- OFS Phase 7 complete (`artifact publication + DatasetManifest authority`) with:
+  - gate-first publication checks (`replay COMPLETE`, training label gate readiness),
+  - immutable manifest commit under `ofs/manifests/` with drift fail-closed posture,
+  - immutable dataset materialization publication under `ofs/datasets/`,
+  - explicit supersession/backfill linkage artifacts under `ofs/supersession/`.
 - Validation evidence:
-  - `python -m pytest tests/services/offline_feature_plane/test_phase1_contracts.py tests/services/offline_feature_plane/test_phase1_ids.py tests/services/offline_feature_plane/test_phase2_run_ledger.py tests/services/offline_feature_plane/test_phase3_resolver.py tests/services/offline_feature_plane/test_phase4_replay_basis.py tests/services/offline_feature_plane/test_phase5_label_resolver.py tests/services/offline_feature_plane/test_phase6_dataset_draft.py tests/services/learning_registry/test_phase61_contracts.py -q --import-mode=importlib` (`42 passed`).
+  - `python -m pytest tests/services/offline_feature_plane/test_phase1_contracts.py tests/services/offline_feature_plane/test_phase1_ids.py tests/services/offline_feature_plane/test_phase2_run_ledger.py tests/services/offline_feature_plane/test_phase3_resolver.py tests/services/offline_feature_plane/test_phase4_replay_basis.py tests/services/offline_feature_plane/test_phase5_label_resolver.py tests/services/offline_feature_plane/test_phase6_dataset_draft.py tests/services/offline_feature_plane/test_phase7_manifest_publication.py tests/services/learning_registry/test_phase61_contracts.py -q --import-mode=importlib` (`47 passed`).
 
 #### Phase 6.3 — MF train/eval/publish corridor
 **Goal:** make model training and publication evidence-first and reproducible.
@@ -1452,5 +1457,6 @@ Resolved and pinned in:
 - OFS build-plan Phase 4: complete (`replay basis resolver + completeness receipts` implemented on 2026-02-10 in `src/fraud_detection/offline_feature_plane/phase4.py`; combined OFS/learning regression `33 passed`).
 - OFS build-plan Phase 5: complete (`label as-of resolver + coverage gate` implemented on 2026-02-10 in `src/fraud_detection/offline_feature_plane/phase5.py`; combined OFS/learning regression `37 passed`; next OFS step is Phase 6 deterministic feature reconstruction).
 - OFS build-plan Phase 6: complete (`deterministic feature reconstruction + dataset drafting` implemented on 2026-02-10 in `src/fraud_detection/offline_feature_plane/phase6.py`; combined OFS/learning regression `42 passed`; next OFS step is Phase 7 artifact publication corridor).
+- OFS build-plan Phase 7: complete (`artifact publication + DatasetManifest authority` implemented on 2026-02-10 in `src/fraud_detection/offline_feature_plane/phase7.py`; combined OFS/learning regression `47 passed`; next OFS step is Phase 8 run/operate onboarding).
 - Next active platform phase: Phase 6.2 (OFS dataset build corridor).
 - SR v0: complete (see `docs/model_spec/platform/implementation_maps/scenario_runner.build_plan.md`).
