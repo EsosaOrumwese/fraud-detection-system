@@ -53,6 +53,7 @@ wiring:
     wsp_auth_token: local-parity-wsp
     df_auth_token: local-parity-df
     al_auth_token: local-parity-al
+    case_trigger_auth_token: local-parity-case-trigger
     push_rate_limit_per_minute: 0
     store_read_failure_threshold: 3
 ieg:
@@ -176,3 +177,42 @@ dla:
     event_bus_start_position: trim_horizon
     poll_max_records: 200
     poll_sleep_seconds: 0.5
+case_trigger:
+  policy:
+    trigger_policy_ref: config/platform/case_trigger/trigger_policy_v0.yaml
+  wiring:
+    stream_id: case_trigger.v0
+    event_bus_kind: kinesis
+    event_bus_stream: ${EVENT_BUS_STREAM}
+    event_bus_region: ${EVENT_BUS_REGION}
+    event_bus_endpoint_url: ${EVENT_BUS_ENDPOINT_URL}
+    event_bus_start_position: trim_horizon
+    admitted_topics:
+      - fp.bus.rtdl.v1
+    poll_max_records: 200
+    poll_sleep_seconds: 0.5
+case_mgmt:
+  policy:
+    label_emission_policy_ref: config/platform/case_mgmt/label_emission_policy_v0.yaml
+  wiring:
+    stream_id: case_mgmt.v0
+    event_bus_kind: kinesis
+    event_bus_stream: ${EVENT_BUS_STREAM}
+    event_bus_region: ${EVENT_BUS_REGION}
+    event_bus_endpoint_url: ${EVENT_BUS_ENDPOINT_URL}
+    event_bus_start_position: trim_horizon
+    admitted_topics:
+      - fp.bus.case.v1
+    poll_max_records: 200
+    poll_sleep_seconds: 0.5
+    locator: ${CASE_MGMT_LOCATOR:-}
+    label_store_locator: ${LABEL_STORE_LOCATOR:-}
+    default_label_type: fraud_disposition
+    default_label_value: FRAUD_SUSPECTED
+    default_source_type: AUTO
+    default_actor_id: SYSTEM::case_mgmt_worker
+label_store:
+  wiring:
+    stream_id: label_store.v0
+    locator: ${LABEL_STORE_LOCATOR:-}
+    poll_seconds: 2.0

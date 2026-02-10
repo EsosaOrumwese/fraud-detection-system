@@ -2592,10 +2592,13 @@ PARITY_AWS_SECRET_ACCESS_KEY ?= minio123
 PARITY_MINIO_ACCESS_KEY ?= minio
 PARITY_MINIO_SECRET_KEY ?= minio123
 PARITY_AWS_EC2_METADATA_DISABLED ?= true
+PARITY_CASE_TRIGGER_IG_API_KEY ?= local-parity-case-trigger
 RUN_OPERATE_ENV_FILE ?= .env.platform.local
 RUN_OPERATE_PACK_CONTROL_INGRESS ?= config/platform/run_operate/packs/local_parity_control_ingress.v0.yaml
 RUN_OPERATE_PACK_RTDL_CORE ?= config/platform/run_operate/packs/local_parity_rtdl_core.v0.yaml
 RUN_OPERATE_PACK_RTDL_DECISION ?= config/platform/run_operate/packs/local_parity_rtdl_decision_lane.v0.yaml
+RUN_OPERATE_PACK_CASE_LABELS ?= config/platform/run_operate/packs/local_parity_case_labels.v0.yaml
+RUN_OPERATE_PACK_OBS_GOV ?= config/platform/run_operate/packs/local_parity_obs_gov.v0.yaml
 
 .PHONY: platform-stack-up platform-stack-down platform-stack-status
 platform-stack-up:
@@ -2623,12 +2626,12 @@ platform-parity-bootstrap:
 	AWS_SECRET_ACCESS_KEY="$(PARITY_AWS_SECRET_ACCESS_KEY)" \
 	AWS_DEFAULT_REGION="$(PARITY_CONTROL_BUS_REGION)" \
 	AWS_ENDPOINT_URL="$(PARITY_CONTROL_BUS_ENDPOINT_URL)" \
-	$(PY_SCRIPT) -c "import boto3,os; endpoint=os.environ.get('AWS_ENDPOINT_URL'); region=os.environ.get('AWS_DEFAULT_REGION','us-east-1'); client=boto3.client('kinesis',region_name=region,endpoint_url=endpoint); [client.create_stream(StreamName=n,ShardCount=1) if True else None for n in ['sr-control-bus','fp.bus.traffic.baseline.v1','fp.bus.traffic.fraud.v1','fp.bus.context.arrival_events.v1','fp.bus.context.arrival_entities.v1','fp.bus.context.flow_anchor.baseline.v1','fp.bus.context.flow_anchor.fraud.v1','fp.bus.rtdl.v1','fp.bus.audit.v1'] if True] if True else None" 2> /dev/null || true
+	$(PY_SCRIPT) -c "import boto3, os; endpoint=os.environ.get('AWS_ENDPOINT_URL'); region=os.environ.get('AWS_DEFAULT_REGION','us-east-1'); client=boto3.client('kinesis',region_name=region,endpoint_url=endpoint); names=['sr-control-bus','fp.bus.traffic.baseline.v1','fp.bus.traffic.fraud.v1','fp.bus.context.arrival_events.v1','fp.bus.context.arrival_entities.v1','fp.bus.context.flow_anchor.baseline.v1','fp.bus.context.flow_anchor.fraud.v1','fp.bus.rtdl.v1','fp.bus.case.v1','fp.bus.audit.v1']; existing=set(client.list_streams(Limit=200).get('StreamNames', [])); [client.create_stream(StreamName=n,ShardCount=1) for n in names if n not in existing]" 2> /dev/null || true
 	@AWS_ACCESS_KEY_ID="$(PARITY_MINIO_ACCESS_KEY)" \
 	AWS_SECRET_ACCESS_KEY="$(PARITY_MINIO_SECRET_KEY)" \
 	AWS_DEFAULT_REGION="$(PARITY_OBJECT_STORE_REGION)" \
 	AWS_ENDPOINT_URL="$(PARITY_OBJECT_STORE_ENDPOINT)" \
-	$(PY_SCRIPT) -c "import boto3,os; endpoint=os.environ.get('AWS_ENDPOINT_URL'); region=os.environ.get('AWS_DEFAULT_REGION','us-east-1'); client=boto3.client('s3',region_name=region,endpoint_url=endpoint); [client.create_bucket(Bucket=b) if True else None for b in ['oracle-store','fraud-platform'] if True] if True else None" 2> /dev/null || true
+	$(PY_SCRIPT) -c "import boto3,os; endpoint=os.environ.get('AWS_ENDPOINT_URL'); region=os.environ.get('AWS_DEFAULT_REGION','us-east-1'); client=boto3.client('s3',region_name=region,endpoint_url=endpoint); existing={item.get('Name') for item in client.list_buckets().get('Buckets', [])}; [client.create_bucket(Bucket=b) for b in ['oracle-store','fraud-platform'] if b not in existing]" 2> /dev/null || true
 
 .PHONY: platform-bus-clean
 platform-bus-clean:
@@ -3027,16 +3030,62 @@ platform-operate-rtdl-decision-status:
 		--env-file "$(RUN_OPERATE_ENV_FILE)" \
 		--pack "$(RUN_OPERATE_PACK_RTDL_DECISION)" status
 
+.PHONY: platform-operate-case-labels-up platform-operate-case-labels-down platform-operate-case-labels-restart platform-operate-case-labels-status
+platform-operate-case-labels-up:
+	@$(PY_PLATFORM) -m fraud_detection.run_operate.orchestrator \
+		--env-file "$(RUN_OPERATE_ENV_FILE)" \
+		--pack "$(RUN_OPERATE_PACK_CASE_LABELS)" up
+
+platform-operate-case-labels-down:
+	@$(PY_PLATFORM) -m fraud_detection.run_operate.orchestrator \
+		--env-file "$(RUN_OPERATE_ENV_FILE)" \
+		--pack "$(RUN_OPERATE_PACK_CASE_LABELS)" down
+
+platform-operate-case-labels-restart:
+	@$(PY_PLATFORM) -m fraud_detection.run_operate.orchestrator \
+		--env-file "$(RUN_OPERATE_ENV_FILE)" \
+		--pack "$(RUN_OPERATE_PACK_CASE_LABELS)" restart
+
+platform-operate-case-labels-status:
+	@$(PY_PLATFORM) -m fraud_detection.run_operate.orchestrator \
+		--env-file "$(RUN_OPERATE_ENV_FILE)" \
+		--pack "$(RUN_OPERATE_PACK_CASE_LABELS)" status
+
+.PHONY: platform-operate-obs-gov-up platform-operate-obs-gov-down platform-operate-obs-gov-restart platform-operate-obs-gov-status
+platform-operate-obs-gov-up:
+	@$(PY_PLATFORM) -m fraud_detection.run_operate.orchestrator \
+		--env-file "$(RUN_OPERATE_ENV_FILE)" \
+		--pack "$(RUN_OPERATE_PACK_OBS_GOV)" up
+
+platform-operate-obs-gov-down:
+	@$(PY_PLATFORM) -m fraud_detection.run_operate.orchestrator \
+		--env-file "$(RUN_OPERATE_ENV_FILE)" \
+		--pack "$(RUN_OPERATE_PACK_OBS_GOV)" down
+
+platform-operate-obs-gov-restart:
+	@$(PY_PLATFORM) -m fraud_detection.run_operate.orchestrator \
+		--env-file "$(RUN_OPERATE_ENV_FILE)" \
+		--pack "$(RUN_OPERATE_PACK_OBS_GOV)" restart
+
+platform-operate-obs-gov-status:
+	@$(PY_PLATFORM) -m fraud_detection.run_operate.orchestrator \
+		--env-file "$(RUN_OPERATE_ENV_FILE)" \
+		--pack "$(RUN_OPERATE_PACK_OBS_GOV)" status
+
 .PHONY: platform-operate-parity-up platform-operate-parity-down platform-operate-parity-restart platform-operate-parity-status
 platform-operate-parity-up:
 	@echo "Ensure parity stack is up and bootstrap complete before orchestration start."
 	@echo "Recommended preflight: make platform-parity-stack-up && make platform-parity-bootstrap && make platform-run-new"
 	@$(MAKE) platform-operate-rtdl-core-up
 	@$(MAKE) platform-operate-rtdl-decision-up
+	@$(MAKE) platform-operate-case-labels-up
+	@$(MAKE) platform-operate-obs-gov-up
 	@$(MAKE) platform-operate-control-ingress-up
 
 platform-operate-parity-down:
 	@$(MAKE) platform-operate-control-ingress-down
+	@$(MAKE) platform-operate-obs-gov-down
+	@$(MAKE) platform-operate-case-labels-down
 	@$(MAKE) platform-operate-rtdl-decision-down
 	@$(MAKE) platform-operate-rtdl-core-down
 
@@ -3048,6 +3097,8 @@ platform-operate-parity-status:
 	@$(MAKE) platform-operate-control-ingress-status
 	@$(MAKE) platform-operate-rtdl-core-status
 	@$(MAKE) platform-operate-rtdl-decision-status
+	@$(MAKE) platform-operate-case-labels-status
+	@$(MAKE) platform-operate-obs-gov-status
 
 .PHONY: platform-run-report
 platform-run-report:

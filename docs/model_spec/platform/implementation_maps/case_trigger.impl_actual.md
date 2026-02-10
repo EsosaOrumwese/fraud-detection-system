@@ -773,3 +773,21 @@ Close CaseTrigger Phase 8 with evidence-backed parity closure using the same pro
   - monitored `20` and `200` parity proofs exist with PASS status,
   - fail-closed negative paths (unsupported-source + collision mismatch) are evidenced,
   - closure is linked to platform Phase `5.2.H` and reflected in runbook/build-plan status.
+
+## Entry: 2026-02-09 08:07PM - Pre-change lock: CaseTrigger live worker onboarding (meta-layer closure)
+
+### Scope
+Implement CaseTrigger daemon worker for parity run/operate so CaseTrigger is live-streamed (not matrix-only), with deterministic replay/checkpoint/publish semantics and run-scoped observability artifacts.
+
+### Locked mechanics
+- Consume admitted RTDL topic(s) from EB (`kinesis`/`file`), unwrap canonical envelope.
+- Source adaptation paths:
+  - `decision_response` -> `DF_DECISION`
+  - `action_outcome` (failure-class only) -> `AL_OUTCOME`
+- Emit `case_trigger` via IG corridor with auth attribution.
+- Replay ledger and checkpoint gate enforce at-least-once safety.
+- Export `case_trigger/metrics/last_metrics.json`, `case_trigger/reconciliation/reconciliation.json`, and health surface each loop.
+
+### Deferred/non-goals for this pass
+- No external/manual source ingestion path in daemon mode yet (kept to explicit service lanes).
+- No cross-run aggregation; strictly active-run scoped.

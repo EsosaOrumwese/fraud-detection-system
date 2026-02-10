@@ -501,6 +501,11 @@ class IdentityGraphProjector:
                 event_ts_utc=envelope.get("ts_utc"),
             )
 
+        scenario_run_id_hint = str(envelope.get("scenario_run_id") or envelope.get("run_id") or "").strip()
+        if scenario_run_id_hint and self._locked_scenario_run_id is None:
+            # Lock scenario scope as soon as run-scoped traffic is valid, even when event class is irrelevant.
+            self._locked_scenario_run_id = scenario_run_id_hint
+
         classification = self.classification.classify(event_type)
         if classification == GRAPH_IRRELEVANT:
             return self.store.advance_checkpoint(
@@ -631,14 +636,15 @@ class IdentityGraphProjector:
 
     def _emit_operational_artifacts(self) -> None:
         run_root = self._run_root()
-        if not run_root or not self._locked_scenario_run_id:
+        if not run_root:
             return
+        scenario_run_id = self._locked_scenario_run_id or ""
         now = time.monotonic()
         if now - self._last_health_emit >= self.profile.wiring.health_emit_interval_seconds:
-            self._write_health(run_root, self._locked_scenario_run_id)
+            self._write_health(run_root, scenario_run_id)
             self._last_health_emit = now
         if now - self._last_metrics_emit >= self.profile.wiring.metrics_emit_interval_seconds:
-            self._write_metrics(run_root, self._locked_scenario_run_id)
+            self._write_metrics(run_root, scenario_run_id)
             self._last_metrics_emit = now
         if now - self._last_reconcile_emit >= self.profile.wiring.reconciliation_emit_interval_seconds:
             self._write_reconciliation(run_root)

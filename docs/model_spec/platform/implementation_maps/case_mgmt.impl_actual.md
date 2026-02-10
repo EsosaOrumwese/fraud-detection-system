@@ -889,3 +889,21 @@ CM Phases 1..7 are green, but Phase 8 requires concrete closure artifacts provin
   - required negative-path proofs exist,
   - monitored parity artifacts are captured and referenced.
 - This closes CM-side integration closure and advances platform Phase `5.9` gating; full plane closure still depends on Label Store timeline/as-of integration closure evidence.
+
+## Entry: 2026-02-09 08:07PM - Pre-change lock: CaseMgmt live worker onboarding (meta-layer closure)
+
+### Scope
+Implement CaseMgmt daemon worker consuming `case_trigger` stream for active run, persisting timeline/workflow state, and driving deterministic CM->LS auto-label handshake for live-plane continuity.
+
+### Locked mechanics
+- Consume `case_trigger` envelopes from case topic.
+- Intake through `CaseTriggerIntakeLedger` with idempotent replay/mismatch behavior preserved.
+- For newly-ingested triggers, submit deterministic auto label assertions through `CaseLabelHandshakeCoordinator` into LS writer boundary.
+- Export CM run-scoped metrics/health/reconciliation/governance each loop via `CaseMgmtRunReporter`.
+
+### Policy choices
+- Auto-label defaults pinned to policy-safe values (`fraud_disposition` + `FRAUD_SUSPECTED`, source_type `AUTO`, actor `SYSTEM::case_mgmt_worker`).
+- Evidence refs inherit trigger evidence + case-event linkage.
+
+### Non-goals for this pass
+- Manual investigator action loops are unchanged and remain existing service interfaces.

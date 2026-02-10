@@ -56,6 +56,10 @@ class OfpObservabilityReporter:
             feature_def_revision=profile.policy.feature_def_policy_rev.revision,
             feature_def_content_digest=profile.policy.feature_def_policy_rev.content_digest,
         )
+        return cls.from_runtime(profile=profile, store=store)
+
+    @classmethod
+    def from_runtime(cls, *, profile: OfpProfile, store: OfpStore) -> "OfpObservabilityReporter":
         thresholds = OfpHealthThresholds(
             amber_watermark_age_seconds=_env_float("OFP_HEALTH_AMBER_WATERMARK_AGE_SECONDS", 120.0),
             red_watermark_age_seconds=_env_float("OFP_HEALTH_RED_WATERMARK_AGE_SECONDS", 300.0),

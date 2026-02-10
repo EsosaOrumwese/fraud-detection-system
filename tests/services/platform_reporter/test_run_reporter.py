@@ -69,6 +69,7 @@ def test_platform_run_reporter_exports_cross_plane_artifact(tmp_path: Path, monk
         "{}",
         encoding="utf-8",
     )
+    _seed_case_label_observability_artifacts(runs_root=runs_root, platform_run_id=platform_run_id, scenario_run_id=scenario_run_id)
     (runs_root / platform_run_id / "decision_log_audit" / "metrics").mkdir(parents=True, exist_ok=True)
     (runs_root / platform_run_id / "decision_log_audit" / "metrics" / "last_metrics.json").write_text(
         json.dumps({"metrics": {"append_success_total": 5}}, ensure_ascii=True),
@@ -89,6 +90,11 @@ def test_platform_run_reporter_exports_cross_plane_artifact(tmp_path: Path, monk
     assert payload["rtdl"]["outcome"] == 1
     assert payload["rtdl"]["audit_append"] == 5
     assert payload["rtdl"]["degraded"] == 1
+    assert payload["case_labels"]["summary"]["triggers_seen"] == 3
+    assert payload["case_labels"]["summary"]["cases_created"] == 2
+    assert payload["case_labels"]["summary"]["labels_accepted"] == 2
+    assert payload["case_labels"]["summary"]["labels_rejected"] == 1
+    assert payload["case_labels"]["health_states"]["case_trigger"] == "GREEN"
     assert payload["basis"]["evidence_ref_resolution"]["attempted"] >= 1
     assert payload["basis"]["provenance"]["service_release_id"] == "dev-local"
     assert payload["basis"]["provenance"]["environment"] == "test"
@@ -407,4 +413,62 @@ def _seed_csfb_store(*, db_path: Path, platform_run_id: str, scenario_run_id: st
         offset_kind="file_line",
         event_id="c2",
         event_type="arrival_events_5B",
+    )
+
+
+def _seed_case_label_observability_artifacts(*, runs_root: Path, platform_run_id: str, scenario_run_id: str) -> None:
+    base = runs_root / platform_run_id
+
+    (base / "case_trigger" / "metrics").mkdir(parents=True, exist_ok=True)
+    (base / "case_trigger" / "health").mkdir(parents=True, exist_ok=True)
+    (base / "case_trigger" / "metrics" / "last_metrics.json").write_text(
+        json.dumps(
+            {
+                "platform_run_id": platform_run_id,
+                "scenario_run_id": scenario_run_id,
+                "metrics": {"triggers_seen": 3, "published": 2},
+            },
+            ensure_ascii=True,
+        ),
+        encoding="utf-8",
+    )
+    (base / "case_trigger" / "health" / "last_health.json").write_text(
+        json.dumps({"health_state": "GREEN"}, ensure_ascii=True),
+        encoding="utf-8",
+    )
+
+    (base / "case_mgmt" / "metrics").mkdir(parents=True, exist_ok=True)
+    (base / "case_mgmt" / "health").mkdir(parents=True, exist_ok=True)
+    (base / "case_mgmt" / "metrics" / "last_metrics.json").write_text(
+        json.dumps(
+            {
+                "platform_run_id": platform_run_id,
+                "scenario_run_id": scenario_run_id,
+                "metrics": {"cases_created": 2},
+            },
+            ensure_ascii=True,
+        ),
+        encoding="utf-8",
+    )
+    (base / "case_mgmt" / "health" / "last_health.json").write_text(
+        json.dumps({"health_state": "GREEN", "anomalies": {"total": 0}}, ensure_ascii=True),
+        encoding="utf-8",
+    )
+
+    (base / "label_store" / "metrics").mkdir(parents=True, exist_ok=True)
+    (base / "label_store" / "health").mkdir(parents=True, exist_ok=True)
+    (base / "label_store" / "metrics" / "last_metrics.json").write_text(
+        json.dumps(
+            {
+                "platform_run_id": platform_run_id,
+                "scenario_run_id": scenario_run_id,
+                "metrics": {"accepted": 2, "rejected": 1, "pending": 0},
+            },
+            ensure_ascii=True,
+        ),
+        encoding="utf-8",
+    )
+    (base / "label_store" / "health" / "last_health.json").write_text(
+        json.dumps({"health_state": "GREEN", "anomalies": {"total": 0}}, ensure_ascii=True),
+        encoding="utf-8",
     )

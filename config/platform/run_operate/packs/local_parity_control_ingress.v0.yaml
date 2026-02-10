@@ -33,7 +33,7 @@ defaults:
     AWS_DEFAULT_REGION: ${PARITY_CONTROL_BUS_REGION}
     AWS_ENDPOINT_URL: ${PARITY_CONTROL_BUS_ENDPOINT_URL}
     WSP_MAX_EVENTS_PER_OUTPUT: ${WSP_MAX_EVENTS_PER_OUTPUT:-500000}
-    WSP_READY_REQUIRED_PACKS: ${WSP_READY_REQUIRED_PACKS:-config/platform/run_operate/packs/local_parity_rtdl_core.v0.yaml,config/platform/run_operate/packs/local_parity_rtdl_decision_lane.v0.yaml}
+    WSP_READY_REQUIRED_PACKS: ${WSP_READY_REQUIRED_PACKS:-config/platform/run_operate/packs/local_parity_rtdl_core.v0.yaml,config/platform/run_operate/packs/local_parity_rtdl_decision_lane.v0.yaml,config/platform/run_operate/packs/local_parity_case_labels.v0.yaml,config/platform/run_operate/packs/local_parity_obs_gov.v0.yaml}
     WSP_READY_REQUIRE_ACTIVE_RUN_MATCH: ${WSP_READY_REQUIRE_ACTIVE_RUN_MATCH:-1}
     WSP_READY_REQUIRED_PACK_CHECK_INTERVAL_SECONDS: ${WSP_READY_REQUIRED_PACK_CHECK_INTERVAL_SECONDS:-2}
     WSP_READY_REQUIRED_PACK_LOG_INTERVAL_SECONDS: ${WSP_READY_REQUIRED_PACK_LOG_INTERVAL_SECONDS:-20}

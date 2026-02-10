@@ -947,3 +947,17 @@ Phase 1..7 establishes contracts, writer correctness, timelines, as-of reads, ad
   - end-to-end continuity proof exists (`CM -> LS ack -> as-of read`),
   - required negative-path evidence exists (`hash mismatch`, `duplicate`, `invalid subject`, `writer unavailable`),
   - reconciliation artifacts include accepted/rejected/pending counts with evidence refs.
+
+## Entry: 2026-02-09 08:07PM - Pre-change lock: LabelStore live reporter worker onboarding (meta-layer closure)
+
+### Scope
+Add LabelStore daemon reporter worker so LS is present in run/operate and continuously emits run-scoped observability/governance/reconciliation artifacts for active runs.
+
+### Locked mechanics
+- Periodically evaluate LS store state for active run scope.
+- Export LS metrics/health/reconciliation and lifecycle governance via `LabelStoreRunReporter`.
+- Keep worker read-only on LS truth tables (writer boundary ownership unchanged).
+
+### Constraints
+- Fail-closed posture on invalid run scope or unreadable store locator.
+- No mutation path in reporter worker.

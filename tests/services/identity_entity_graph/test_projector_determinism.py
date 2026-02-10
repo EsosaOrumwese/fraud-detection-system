@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 import sqlite3
 from pathlib import Path
 
@@ -306,3 +307,44 @@ def test_rtdl_output_families_are_irrelevant_no_apply_failure(tmp_path: Path, ev
     assert int(irrelevant[0]) == 1
     assert checkpoint is not None
     assert str(checkpoint[0]) == "1"
+
+
+def test_irrelevant_events_emit_run_scoped_health_artifact(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    bus_root = tmp_path / "eb"
+    publisher = FileEventBusPublisher(bus_root)
+    platform_run_id = "platform_20260209T220000Z"
+    pins = _base_pins(platform_run_id)
+    topic = "fp.bus.traffic.fraud.v1"
+    publisher.publish(
+        topic,
+        "pk",
+        _envelope(
+            "decision_response",
+            "9" * 64,
+            {"decision_id": "x" * 32},
+            "2026-02-09T22:00:05.000000Z",
+            pins,
+        ),
+    )
+
+    profile = _write_profile(
+        tmp_path,
+        bus_root=bus_root,
+        projection_db=tmp_path / "ieg_irrelevant_health.db",
+        platform_run_id=platform_run_id,
+        topics=[topic],
+    )
+    fake_runs_root = tmp_path / "runs-root"
+    monkeypatch.setattr("fraud_detection.identity_entity_graph.projector.RUNS_ROOT", fake_runs_root)
+
+    projector = IdentityGraphProjector.build(str(profile))
+    while True:
+        processed = projector.run_once()
+        if processed == 0:
+            break
+
+    health_path = fake_runs_root / platform_run_id / "identity_entity_graph" / "health" / "last_health.json"
+    assert health_path.exists()
+    payload = json.loads(health_path.read_text(encoding="utf-8"))
+    assert payload["graph_scope"]["platform_run_id"] == platform_run_id
+    assert int(payload["metrics"].get("irrelevant", 0)) == 1

@@ -830,3 +830,70 @@ Evidence:
 No mutation/replay logic changed; fix is SQL identifier safety only.
 
 ---
+## Entry: 2026-02-09 21:39:00 - Live-stream drift hardening: guarantee IEG health artifact emission for irrelevant-branch traffic
+
+### Trigger
+Full-platform live run showed `dl_health=RED` with required signal failure on `ieg_health` because run-scoped IEG health artifact was missing in the acceptance run path.
+
+### Root cause
+`IdentityGraphProjector` only emitted run-scoped artifacts once `_locked_scenario_run_id` was set, but this lock occurred late in record handling (after classification branch checks). For run-scoped traffic that resolves as `graph_irrelevant`, lock could remain unset and observability artifact emission could be skipped.
+
+### Decision
+Capture scenario scope immediately after envelope/run-scope/replay validation and before classification branching.
+
+### Implementation
+File: `src/fraud_detection/identity_entity_graph/projector.py`
+- Added early scenario-run lock:
+  - `scenario_run_id_hint = envelope.scenario_run_id or envelope.run_id`
+  - if present and no prior lock, set `_locked_scenario_run_id`.
+- Left mutation/failure semantics unchanged.
+
+### Why this is safe
+- No ownership drift: only observability emission gating changed.
+- No event classification or projection mutation logic altered.
+- Maintains fail-closed behavior for actual invalid/mismatched scope events.
+
+### Regression coverage
+File: `tests/services/identity_entity_graph/test_projector_determinism.py`
+- Added `test_irrelevant_events_emit_run_scoped_health_artifact`:
+  - publishes `decision_response` (IEG-irrelevant) with valid run pins,
+  - runs projector,
+  - asserts run-scoped health artifact exists,
+  - asserts graph scope run ID and `irrelevant` metric value.
+
+### Validation results
+- `python -m py_compile src/fraud_detection/identity_entity_graph/projector.py tests/services/identity_entity_graph/test_projector_determinism.py` -> pass
+- `python -m pytest -q tests/services/identity_entity_graph/test_projector_determinism.py` -> `7 passed`
+- `python -m pytest -q tests/services/degrade_ladder/test_phase7_worker_observability.py` -> `2 passed`
+## Entry: 2026-02-09 21:48:00 - Hardening: emit IEG run-scoped health/metrics even before scenario lock settles
+
+### Problem
+IEG observability emission was gated on `_locked_scenario_run_id`. During trim-horizon catch-up and mixed historical streams, that lock can lag while checkpoints are already advancing for the active run, leaving `identity_entity_graph/health/last_health.json` absent and causing downstream DL required-signal failure.
+
+### Implementation
+File changed:
+- `src/fraud_detection/identity_entity_graph/projector.py`
+  - `_emit_operational_artifacts` now emits whenever run root is known; scenario lock is no longer a hard gate.
+  - uses `scenario_run_id = _locked_scenario_run_id or ""` for health/metrics writes.
+
+### Validation
+- Existing/new determinism tests still pass, including health-artifact emission coverage.
+- Combined evidence run:
+  - `pytest -q tests/services/identity_entity_graph/test_projector_determinism.py` -> pass.
+
+### Invariant
+No projection/mutation ownership changes; this is observability-availability hardening so DL can evaluate IEG signal from component-owned artifact path.
+## Entry: 2026-02-09 22:10:00 - Pre-change lock: add IEG Kinesis start-position control for bounded parity runs
+
+### Problem
+IEG Kinesis consume path always used trim-horizon semantics. In local-parity bounded validation (`20/200`), this causes historical catch-up before current run flow and delays/obscures run-scoped closure.
+
+### Decision
+- Add `event_bus_start_position` to IEG profile wiring (`trim_horizon|latest`).
+- Pass this value to Kinesis reader calls in projector.
+- Keep default `trim_horizon` for backward compatibility; allow parity override via env/profile when needed.
+
+### Validation
+- run targeted identity graph tests after patch,
+- confirm no regression in existing trim-horizon behavior,
+- verify bounded parity run can use `latest` override.

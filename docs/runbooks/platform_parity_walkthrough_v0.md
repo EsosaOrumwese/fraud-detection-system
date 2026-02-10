@@ -1,7 +1,7 @@
-# Platform Parity Walkthrough (v0) — Oracle Store → SR → WSP → IG → EB → IEG/OFP/CSFB/DF/DL/AL/DLA
+# Platform Parity Walkthrough (v0) — Oracle Store → SR → WSP → IG → EB → IEG/OFP/CSFB/DF/DL/AL/DLA/CaseTrigger/CM/LS
 _As of 2026-02-09_
 
-This runbook executes a **local_parity** end‑to‑end flow capped to **500,000 events**, then validates the implemented RTDL component surfaces (**IEG/OFP/CSFB/DF/DL/AL/DLA**) against admitted EB topics.
+This runbook executes a **local_parity** end‑to‑end flow capped to **500,000 events**, then validates the implemented RTDL + Case/Label surfaces (**IEG/OFP/CSFB/DF/DL/AL/DLA/CaseTrigger/CM/LS**) against admitted EB topics.
 It uses **MinIO (S3)** for the Oracle Store + platform artifacts, **LocalStack Kinesis** for control/event buses, and **Postgres** for IG/WSP state.
 
 ---
@@ -137,6 +137,7 @@ Use the platform orchestrator for always-on packs instead of terminal-by-termina
 make platform-operate-control-ingress-up
 make platform-operate-rtdl-core-up
 make platform-operate-rtdl-decision-up
+make platform-operate-case-labels-up
 make platform-operate-parity-status
 ```
 
@@ -157,6 +158,7 @@ Pack and evidence surfaces:
   - `config/platform/run_operate/packs/local_parity_control_ingress.v0.yaml`
   - `config/platform/run_operate/packs/local_parity_rtdl_core.v0.yaml`
   - `config/platform/run_operate/packs/local_parity_rtdl_decision_lane.v0.yaml`
+  - `config/platform/run_operate/packs/local_parity_case_labels.v0.yaml`
 - Orchestrator state/logs:
   - `runs/fraud-platform/operate/<pack_id>/state.json`
   - `runs/fraud-platform/operate/<pack_id>/events.jsonl`
@@ -166,6 +168,7 @@ Pack and evidence surfaces:
 Notes:
 - RTDL core pack enforces active run scope via `ACTIVE_RUN_ID` -> `*_REQUIRED_PLATFORM_RUN_ID`.
 - RTDL decision-lane pack enforces active run scope for `DL/DF/AL/DLA` with the same run pin.
+- Case/Label pack enforces active run scope for `CaseTrigger/CM/LS` with the same run pin.
 - Orchestrator contract is plane-agnostic; future planes onboard by adding new process-pack files, not by changing orchestrator code.
 - Mode boundary:
   - If packs are running, treat them as source-of-truth daemons and avoid launching duplicate manual consumers for the same component.
@@ -672,6 +675,7 @@ Use this list to confirm the **v0 control & ingress plane** is green.
 **Event bus offsets**
 - [ ] LocalStack streams `fp.bus.traffic.baseline.v1` / `fp.bus.traffic.fraud.v1` return records (traffic).
 - [ ] LocalStack stream `fp.bus.rtdl.v1` returns records (decision lane).
+- [ ] LocalStack stream `fp.bus.case.v1` returns records (case trigger lane).
 - [ ] LocalStack streams `fp.bus.context.arrival_events.v1` / `fp.bus.context.flow_anchor.fraud.v1` return records (context).
 - [ ] IG receipts include `eb_ref` with `offset_kind=kinesis_sequence`.
 
@@ -690,6 +694,8 @@ make platform-run-report
 make platform-governance-query GOVERNANCE_QUERY_LIMIT=20
 make platform-env-conformance
 ```
+
+If `platform-operate-obs-gov-up` is active, these artifacts are emitted continuously; keep the commands above as explicit spot-check re-runs.
 
 Expected artifacts:
 - Platform run report: `runs/fraud-platform/<platform_run_id>/obs/platform_run_report.json`
@@ -1079,22 +1085,26 @@ Expected fields:
   - governance dedupe working with exactly one emitted collision event.
 
 Boundary note:
-This validates CaseTrigger at its component boundary for Phase 8 closure. CaseTrigger daemon/orchestrator onboarding for full Case+Label plane operation is handled in later Phase 5 sections.
+This validates CaseTrigger at its component boundary for Phase 8 closure. CaseTrigger is now also daemonized in the run/operate Case+Label pack for live parity operation.
 
-## 22) RTDL live daemon baseline (current v0 daemon surfaces)
+## 22) Full live daemon baseline (current v0 daemon surfaces)
 
-Use this when you want always-on parity consumers for the full RTDL lane under run/operate.
+Use this when you want always-on parity consumers for the full implemented lane under run/operate (C&I + RTDL + Case/Label).
 
 Bring all packs up:
 ```powershell
 make platform-operate-control-ingress-up
 make platform-operate-rtdl-core-up
 make platform-operate-rtdl-decision-up
+make platform-operate-case-labels-up
+make platform-operate-obs-gov-up
 make platform-operate-parity-status
 ```
 
 Shutdown sequence:
 ```powershell
+make platform-operate-obs-gov-down
+make platform-operate-case-labels-down
 make platform-operate-rtdl-decision-down
 make platform-operate-rtdl-core-down
 make platform-operate-control-ingress-down
@@ -1109,6 +1119,8 @@ Scope note:
 - `control_ingress` pack covers `IG + WSP ready_consumer`.
 - `rtdl_core` pack covers `IEG/OFP/CSFB`.
 - `rtdl_decision_lane` pack covers `DL/DF/AL/DLA`.
+- `case_labels` pack covers `CaseTrigger/CM/LS`.
+- `obs_gov` pack covers `platform_run_reporter + environment_conformance` daemon workers.
 - Component matrices in Sections 16/17/19/20 remain required as deterministic boundary checks; they now complement (not replace) daemonized runtime operation.
 
 

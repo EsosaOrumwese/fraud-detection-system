@@ -274,6 +274,25 @@ def test_projector_file_bus_updates_state_and_basis(tmp_path) -> None:
     assert second_processed == 0
 
 
+def test_projector_uses_runtime_observability_threshold_env_overrides(tmp_path, monkeypatch: pytest.MonkeyPatch) -> None:
+    topic = "fp.bus.traffic.fraud.v1"
+    bus_root = tmp_path / "bus"
+    db_path = tmp_path / "ofp_projection.db"
+    profile_path = tmp_path / "profile.json"
+    _write_profile(profile_path, bus_root=bus_root, db_path=db_path, topics=[topic])
+    monkeypatch.setenv("OFP_HEALTH_AMBER_WATERMARK_AGE_SECONDS", "111")
+    monkeypatch.setenv("OFP_HEALTH_RED_WATERMARK_AGE_SECONDS", "222")
+    monkeypatch.setenv("OFP_HEALTH_AMBER_CHECKPOINT_AGE_SECONDS", "333")
+    monkeypatch.setenv("OFP_HEALTH_RED_CHECKPOINT_AGE_SECONDS", "444")
+
+    projector = OnlineFeatureProjector.build(str(profile_path))
+
+    assert projector._observability.thresholds.amber_watermark_age_seconds == 111.0
+    assert projector._observability.thresholds.red_watermark_age_seconds == 222.0
+    assert projector._observability.thresholds.amber_checkpoint_age_seconds == 333.0
+    assert projector._observability.thresholds.red_checkpoint_age_seconds == 444.0
+
+
 def test_projector_file_bus_supports_multiple_topics_and_topic_metrics(tmp_path) -> None:
     traffic_topic = "fp.bus.traffic.fraud.v1"
     context_topic = "fp.bus.context.arrival_events.v1"

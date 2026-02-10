@@ -396,7 +396,7 @@ def _derive_health(
     reasons: list[str] = []
 
     pending_actions = int(metrics.get("action_pending", 0))
-    pending_labels = int(metrics.get("label_pending", 0))
+    pending_labels = int(metrics.get("labels_pending", metrics.get("label_pending", 0)))
 
     if anomalies_total >= thresholds.red_anomalies_total:
         state = "RED"

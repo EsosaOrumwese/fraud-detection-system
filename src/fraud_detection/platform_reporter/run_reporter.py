@@ -86,6 +86,7 @@ class PlatformRunReporter:
             }
         )
         rtdl = self._collect_rtdl(scenario_run_ids=scenario_run_ids, ingress=ingress)
+        case_labels = self._collect_case_labels()
         reconciliation_refs = _component_reconciliation_refs(self.platform_run_id)
         evidence_refs = {
             "receipt_refs_sample": ingress["receipt_refs_sample"],
@@ -98,6 +99,7 @@ class PlatformRunReporter:
             "scenario_run_ids": scenario_run_ids,
             "ingress": ingress["counters"],
             "rtdl": rtdl,
+            "case_labels": case_labels,
             "evidence_refs": evidence_refs,
             "basis": {
                 "profile_path": str(self.profile_path),
@@ -111,6 +113,54 @@ class PlatformRunReporter:
             },
         }
         return payload
+
+    def _collect_case_labels(self) -> dict[str, Any]:
+        run_root = RUNS_ROOT / self.platform_run_id
+
+        case_trigger_metrics = _load_json_file(run_root / "case_trigger" / "metrics" / "last_metrics.json")
+        case_trigger_health = _load_json_file(run_root / "case_trigger" / "health" / "last_health.json")
+        case_mgmt_metrics = _load_json_file(run_root / "case_mgmt" / "metrics" / "last_metrics.json")
+        case_mgmt_health = _load_json_file(run_root / "case_mgmt" / "health" / "last_health.json")
+        label_store_metrics = _load_json_file(run_root / "label_store" / "metrics" / "last_metrics.json")
+        label_store_health = _load_json_file(run_root / "label_store" / "health" / "last_health.json")
+
+        notes: list[str] = []
+        if not case_trigger_metrics:
+            notes.append("CaseTrigger metrics unavailable for run.")
+        if not case_mgmt_metrics:
+            notes.append("CaseMgmt metrics unavailable for run.")
+        if not label_store_metrics:
+            notes.append("LabelStore metrics unavailable for run.")
+
+        ct_metrics = _mapping(case_trigger_metrics.get("metrics"))
+        cm_metrics = _mapping(case_mgmt_metrics.get("metrics"))
+        ls_metrics = _mapping(label_store_metrics.get("metrics"))
+        cm_anomalies = _mapping(case_mgmt_health.get("anomalies"))
+        ls_anomalies = _mapping(label_store_health.get("anomalies"))
+
+        anomalies_total = int(cm_anomalies.get("total", 0)) + int(ls_anomalies.get("total", 0))
+        summary = {
+            "triggers_seen": int(ct_metrics.get("triggers_seen", 0)),
+            "cases_created": int(cm_metrics.get("cases_created", 0)),
+            "labels_pending": int(ls_metrics.get("pending", 0)),
+            "labels_accepted": int(ls_metrics.get("accepted", 0)),
+            "labels_rejected": int(ls_metrics.get("rejected", 0)),
+            "anomalies_total": anomalies_total,
+        }
+        return {
+            "summary": summary,
+            "health_states": {
+                "case_trigger": str(case_trigger_health.get("health_state") or "UNKNOWN"),
+                "case_mgmt": str(case_mgmt_health.get("health_state") or "UNKNOWN"),
+                "label_store": str(label_store_health.get("health_state") or "UNKNOWN"),
+            },
+            "component_metrics": {
+                "case_trigger": ct_metrics,
+                "case_mgmt": cm_metrics,
+                "label_store": ls_metrics,
+            },
+            "basis_notes": notes,
+        }
 
     def export(self) -> dict[str, Any]:
         payload = self.collect()
@@ -538,6 +588,16 @@ def _json_object(raw: Any) -> dict[str, Any]:
         return dict(raw)
     try:
         payload = json.loads(str(raw))
+    except json.JSONDecodeError:
+        return {}
+    return dict(payload) if isinstance(payload, dict) else {}
+
+
+def _load_json_file(path: Path) -> dict[str, Any]:
+    if not path.exists():
+        return {}
+    try:
+        payload = json.loads(path.read_text(encoding="utf-8"))
     except json.JSONDecodeError:
         return {}
     return dict(payload) if isinstance(payload, dict) else {}

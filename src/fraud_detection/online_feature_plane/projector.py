@@ -82,7 +82,7 @@ class OnlineFeatureProjector:
             raise RuntimeError("OFP_EVENT_BUS_KIND_UNSUPPORTED")
         self._scenario_run_id: str | None = None
         self._last_observability_export = 0.0
-        self._observability = OfpObservabilityReporter(profile=self.profile, store=self.store)
+        self._observability = OfpObservabilityReporter.from_runtime(profile=self.profile, store=self.store)
 
     @classmethod
     def build(cls, profile_path: str) -> "OnlineFeatureProjector":

@@ -1,0 +1,60 @@
+version: 1
+pack_id: local_parity_case_labels_v0
+description: "Case/Label live worker pack (CaseTrigger/CaseMgmt/LabelStore) for local parity."
+active_run:
+  required: true
+  source_path: runs/fraud-platform/ACTIVE_RUN_ID
+defaults:
+  cwd: .
+  env:
+    PYTHONUNBUFFERED: "1"
+    PYTHONPATH: src
+    RUN_OPERATE_PYTHON: ${RUN_OPERATE_PYTHON:-.venv/Scripts/python.exe}
+    PLATFORM_STORE_ROOT: ${PLATFORM_STORE_ROOT:-s3://fraud-platform}
+    PLATFORM_RUN_ID: ${ACTIVE_PLATFORM_RUN_ID}
+    OBJECT_STORE_ENDPOINT: ${PARITY_OBJECT_STORE_ENDPOINT}
+    OBJECT_STORE_REGION: ${PARITY_OBJECT_STORE_REGION}
+    ORACLE_ROOT: ${ORACLE_ROOT}
+    IG_ADMISSION_DSN: ${PARITY_IG_ADMISSION_DSN}
+    EVENT_BUS_STREAM: ${PARITY_EVENT_BUS_STREAM}
+    EVENT_BUS_REGION: ${PARITY_EVENT_BUS_REGION}
+    EVENT_BUS_ENDPOINT_URL: ${PARITY_EVENT_BUS_ENDPOINT_URL}
+    IG_INGEST_URL: ${PARITY_IG_INGEST_URL}
+    AWS_ACCESS_KEY_ID: ${PARITY_MINIO_ACCESS_KEY}
+    AWS_SECRET_ACCESS_KEY: ${PARITY_MINIO_SECRET_KEY}
+    AWS_EC2_METADATA_DISABLED: ${PARITY_AWS_EC2_METADATA_DISABLED}
+processes:
+  - id: case_trigger_worker
+    command:
+      - ${RUN_OPERATE_PYTHON}
+      - -m
+      - fraud_detection.case_trigger.worker
+      - --profile
+      - config/platform/profiles/local_parity.yaml
+    env:
+      CASE_TRIGGER_REQUIRED_PLATFORM_RUN_ID: ${ACTIVE_PLATFORM_RUN_ID}
+      CASE_TRIGGER_IG_API_KEY: ${PARITY_CASE_TRIGGER_IG_API_KEY:-local-parity-case-trigger}
+    readiness:
+      type: process_alive
+  - id: case_mgmt_worker
+    command:
+      - ${RUN_OPERATE_PYTHON}
+      - -m
+      - fraud_detection.case_mgmt.worker
+      - --profile
+      - config/platform/profiles/local_parity.yaml
+    env:
+      CASE_MGMT_REQUIRED_PLATFORM_RUN_ID: ${ACTIVE_PLATFORM_RUN_ID}
+    readiness:
+      type: process_alive
+  - id: label_store_worker
+    command:
+      - ${RUN_OPERATE_PYTHON}
+      - -m
+      - fraud_detection.label_store.worker
+      - --profile
+      - config/platform/profiles/local_parity.yaml
+    env:
+      LABEL_STORE_REQUIRED_PLATFORM_RUN_ID: ${ACTIVE_PLATFORM_RUN_ID}
+    readiness:
+      type: process_alive

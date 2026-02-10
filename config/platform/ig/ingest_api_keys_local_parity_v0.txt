@@ -2,3 +2,4 @@
 local-parity-wsp
 local-parity-df
 local-parity-al
+local-parity-case-trigger

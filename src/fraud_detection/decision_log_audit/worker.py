@@ -19,7 +19,7 @@ from fraud_detection.platform_runtime import resolve_platform_run_id, resolve_ru
 
 from .config import load_intake_policy
 from .intake import DecisionLogAuditBusConsumer, DecisionLogAuditIntakeRuntimeConfig
-from .observability import DecisionLogAuditObservabilityReporter
+from .observability import DecisionLogAuditHealthThresholds, DecisionLogAuditObservabilityReporter
 from .storage import DecisionLogAuditIntakeStore, build_storage_layout
 
 
@@ -107,6 +107,7 @@ class DecisionLogAuditWorker:
             store=self.store,
             platform_run_id=self.config.platform_run_id,
             scenario_run_id=self._scenario_run_id,
+            thresholds=_health_thresholds_from_env(),
         )
         reporter.export()
         self._last_export_at = now
@@ -267,6 +268,39 @@ def _resolve_env_token(value: Any) -> Any:
 def _none_if_blank(value: Any) -> str | None:
     text = str(value or "").strip()
     return text or None
+
+
+def _health_thresholds_from_env() -> DecisionLogAuditHealthThresholds:
+    def _f(name: str, default: float) -> float:
+        raw = os.getenv(name)
+        if raw in (None, ""):
+            return default
+        try:
+            return float(raw)
+        except ValueError:
+            return default
+
+    def _i(name: str, default: int) -> int:
+        raw = os.getenv(name)
+        if raw in (None, ""):
+            return default
+        try:
+            return int(raw)
+        except ValueError:
+            return default
+
+    return DecisionLogAuditHealthThresholds(
+        amber_checkpoint_age_seconds=_f("DLA_HEALTH_AMBER_CHECKPOINT_AGE_SECONDS", 120.0),
+        red_checkpoint_age_seconds=_f("DLA_HEALTH_RED_CHECKPOINT_AGE_SECONDS", 300.0),
+        amber_quarantine_total=_i("DLA_HEALTH_AMBER_QUARANTINE_TOTAL", 1),
+        red_quarantine_total=_i("DLA_HEALTH_RED_QUARANTINE_TOTAL", 25),
+        amber_unresolved_total=_i("DLA_HEALTH_AMBER_UNRESOLVED_TOTAL", 1),
+        red_unresolved_total=_i("DLA_HEALTH_RED_UNRESOLVED_TOTAL", 20),
+        amber_append_failure_total=_i("DLA_HEALTH_AMBER_APPEND_FAILURE_TOTAL", 1),
+        red_append_failure_total=_i("DLA_HEALTH_RED_APPEND_FAILURE_TOTAL", 5),
+        amber_replay_divergence_total=_i("DLA_HEALTH_AMBER_REPLAY_DIVERGENCE_TOTAL", 1),
+        red_replay_divergence_total=_i("DLA_HEALTH_RED_REPLAY_DIVERGENCE_TOTAL", 1),
+    )
 
 
 def _latest_scenario_run_id(
