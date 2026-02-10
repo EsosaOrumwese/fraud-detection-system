@@ -26,6 +26,14 @@ from .phase5 import (
     MfPhase5PolicyResult,
     MfPublishEligibilityReceipt,
 )
+from .phase6 import (
+    MfBundlePublication,
+    MfBundlePublisher,
+    MfBundlePublisherConfig,
+    MfPhase6PublishError,
+    MfPhase6PublishResult,
+    MfPublishHandshakeReceipt,
+)
 from .run_control import MfRunControl, MfRunControlPolicy
 from .run_ledger import (
     MF_RETRY_ALLOWED,
@@ -74,6 +82,12 @@ __all__ = [
     "MfPublishEligibilityReceipt",
     "MfPhase5PolicyResult",
     "MfPhase5GateError",
+    "MfBundlePublisher",
+    "MfBundlePublisherConfig",
+    "MfBundlePublication",
+    "MfPublishHandshakeReceipt",
+    "MfPhase6PublishResult",
+    "MfPhase6PublishError",
     "MfRunControl",
     "MfRunControlPolicy",
     "MfRunLedger",

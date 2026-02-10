@@ -180,6 +180,7 @@ class MfTrainPlanResolver:
                 "dataset_manifest_refs": list(manifest_refs),
                 "training_config_ref": request.training_config_ref,
                 "governance_profile_ref": request.governance_profile_ref,
+                "target_scope": request.target_scope.as_dict(),
                 "policy_revision": request.policy_revision,
                 "config_revision": request.config_revision,
                 "mf_code_release_id": request.mf_code_release_id,

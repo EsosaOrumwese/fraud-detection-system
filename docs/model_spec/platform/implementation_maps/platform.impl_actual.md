@@ -10404,3 +10404,49 @@ Any implementation that allows publish eligibility when gate/eval evidence is ab
 ### Drift sentinel assessment
 - No mismatch detected against flow narrative and learning-plane pins for this scope.
 - Platform Phase `6.3` remains active; next closure surface is MF Phase 6 (`bundle packaging + MPR publish handshake`).
+
+## Entry: 2026-02-10 2:19PM - Platform-level corrective pre-change lock for MF Phase 6 (`6.3.E`)
+
+### Corrective reason
+This platform-level lock entry is appended as a chronology correction because implementation started before this explicit pre-change record was captured.
+
+### Platform-level decisions pinned for this pass
+- Bundle publication payloads must be immutable and contract-valid.
+- Publish handshake idempotency is keyed by `(bundle_id, bundle_version)` and append-only.
+- Same identity with divergent bytes is hard conflict/fail-closed.
+- MF publish artifacts must remain discoverable by reference and activation remains outside MF authority.
+
+### Expected closure evidence
+- Phase 6 module + tests with explicit idempotent and conflict paths.
+- Build-plan status updates and implementation/log trails with validation outputs.
+
+### Drift sentinel checkpoint
+Identity collision with payload drift must be a hard blocker (`PUBLISH_CONFLICT`).
+
+## Entry: 2026-02-10 2:23PM - Platform-level applied closure for MF Phase 6 (`6.3.E` bundle packaging + publish handshake)
+
+### What was applied
+- MF Phase 6 package/publish surfaces landed in:
+  - `src/fraud_detection/model_factory/phase6.py`
+  - `src/fraud_detection/model_factory/__init__.py`
+- MF Phase 6 matrix added:
+  - `tests/services/model_factory/test_phase6_bundle_publish.py`
+- Build-plan status surfaces updated:
+  - `docs/model_spec/platform/implementation_maps/model_factory.build_plan.md`
+  - `docs/model_spec/platform/implementation_maps/platform.build_plan.md`
+
+### Platform-significant outcomes
+- Phase `6.3.E` is now executable with immutable bundle packaging and publish handshake proofs.
+- Publish idempotency is enforced by identity tuple (`bundle_id`, `bundle_version`) under append-only posture.
+- Conflict drift (`same identity, different payload`) is fail-closed and explicit.
+- Registry lifecycle publication facts are schema-validated and tied to evidence refs.
+
+### Validation evidence
+- `python -m py_compile src/fraud_detection/model_factory/phase3.py src/fraud_detection/model_factory/phase6.py src/fraud_detection/model_factory/__init__.py tests/services/model_factory/test_phase6_bundle_publish.py` (`PASS`).
+- `python -m pytest tests/services/model_factory/test_phase6_bundle_publish.py -q --import-mode=importlib` (`5 passed`).
+- `python -m pytest tests/services/model_factory/test_phase1_contracts.py tests/services/model_factory/test_phase1_ids.py tests/services/model_factory/test_phase2_run_ledger.py tests/services/model_factory/test_phase3_resolver.py tests/services/model_factory/test_phase4_execution.py tests/services/model_factory/test_phase5_gate_policy.py tests/services/model_factory/test_phase6_bundle_publish.py tests/services/learning_registry/test_phase61_contracts.py -q --import-mode=importlib` (`42 passed`).
+- `python -m pytest tests/services/model_factory/test_phase1_contracts.py tests/services/model_factory/test_phase1_ids.py tests/services/model_factory/test_phase2_run_ledger.py tests/services/model_factory/test_phase3_resolver.py tests/services/model_factory/test_phase4_execution.py tests/services/model_factory/test_phase5_gate_policy.py tests/services/model_factory/test_phase6_bundle_publish.py tests/services/offline_feature_plane/test_phase1_contracts.py tests/services/offline_feature_plane/test_phase1_ids.py tests/services/offline_feature_plane/test_phase2_run_ledger.py tests/services/offline_feature_plane/test_phase3_resolver.py tests/services/learning_registry/test_phase61_contracts.py -q --import-mode=importlib` (`65 passed`).
+
+### Drift sentinel assessment
+- No mismatch detected against flow narrative and learning-plane pins for this scope.
+- Platform Phase `6.3` remains active; next closure surface is MF Phase 7 (`negative-path matrix + fail-closed taxonomy`).

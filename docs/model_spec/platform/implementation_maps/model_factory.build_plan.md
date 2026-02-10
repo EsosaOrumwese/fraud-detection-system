@@ -174,6 +174,23 @@ Provide an executable, component-scoped plan for Model Factory (MF) aligned to p
 - Packaging or publish drift (digest mismatch, missing compatibility metadata) is fail-closed.
 - MF publish success/failure artifacts are immutable and discoverable by ref.
 
+**Implementation status note (2026-02-10):**
+- Phase 6 packaging/publish surfaces implemented:
+  - `src/fraud_detection/model_factory/phase6.py`
+  - `src/fraud_detection/model_factory/__init__.py` (Phase 6 exports)
+  - `tests/services/model_factory/test_phase6_bundle_publish.py`
+- Phase 6 publisher now enforces:
+  - immutable bundle publication payload packaging with schema validation via `BundlePublicationContract`,
+  - compatibility metadata inclusion (`feature_set_id`, `feature_set_version`, `input_contract_version`, required capabilities),
+  - idempotent append-only publish handshake at registry boundary by `(bundle_id, bundle_version)`,
+  - conflict fail-closed posture when prior registry payload drifts for the same identity,
+  - immutable publish handshake receipt + lifecycle event artifacts with repeat-publish idempotency handling.
+- Validation evidence:
+  - `python -m py_compile src/fraud_detection/model_factory/phase3.py src/fraud_detection/model_factory/phase6.py src/fraud_detection/model_factory/__init__.py tests/services/model_factory/test_phase6_bundle_publish.py` (`PASS`).
+  - `python -m pytest tests/services/model_factory/test_phase6_bundle_publish.py -q --import-mode=importlib` (`5 passed`).
+  - `python -m pytest tests/services/model_factory/test_phase1_contracts.py tests/services/model_factory/test_phase1_ids.py tests/services/model_factory/test_phase2_run_ledger.py tests/services/model_factory/test_phase3_resolver.py tests/services/model_factory/test_phase4_execution.py tests/services/model_factory/test_phase5_gate_policy.py tests/services/model_factory/test_phase6_bundle_publish.py tests/services/learning_registry/test_phase61_contracts.py -q --import-mode=importlib` (`42 passed`).
+  - `python -m pytest tests/services/model_factory/test_phase1_contracts.py tests/services/model_factory/test_phase1_ids.py tests/services/model_factory/test_phase2_run_ledger.py tests/services/model_factory/test_phase3_resolver.py tests/services/model_factory/test_phase4_execution.py tests/services/model_factory/test_phase5_gate_policy.py tests/services/model_factory/test_phase6_bundle_publish.py tests/services/offline_feature_plane/test_phase1_contracts.py tests/services/offline_feature_plane/test_phase1_ids.py tests/services/offline_feature_plane/test_phase2_run_ledger.py tests/services/offline_feature_plane/test_phase3_resolver.py tests/services/learning_registry/test_phase61_contracts.py -q --import-mode=importlib` (`65 passed`).
+
 ### Phase 7 - Negative-path matrix and fail-closed taxonomy hardening
 **Intent:** prove the corridor blocks unsafe states under real failure modes.
 
@@ -244,9 +261,9 @@ Provide an executable, component-scoped plan for Model Factory (MF) aligned to p
 - Phase 3 (`input resolver + provenance lock`): complete (implemented and validated on `2026-02-10`).
 - Phase 4 (`train/eval execution corridor`): complete (implemented and validated on `2026-02-10`).
 - Phase 5 (`gate receipt + publish eligibility policy`): complete (implemented and validated on `2026-02-10`).
-- Phase 6 (`bundle packaging + MPR publish handshake`): pending.
+- Phase 6 (`bundle packaging + MPR publish handshake`): complete (implemented and validated on `2026-02-10`).
 - Phase 7 (`negative-path matrix + fail-closed taxonomy`): pending.
 - Phase 8 (`run/operate onboarding`): pending.
 - Phase 9 (`obs/gov onboarding`): pending.
 - Phase 10 (`integration closure gate`): pending.
-- Next action: implement Phase 6 (`bundle packaging + MPR publish handshake`).
+- Next action: implement Phase 7 (`negative-path matrix + fail-closed taxonomy`).

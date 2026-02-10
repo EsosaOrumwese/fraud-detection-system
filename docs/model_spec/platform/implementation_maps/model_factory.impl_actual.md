@@ -579,3 +579,87 @@ If Phase 5 permits publish eligibility without explicit PASS receipt and validat
 ### Plan progression
 - MF Phase 5 is closed.
 - Next MF phase is Phase 6 (`bundle packaging + MPR publish handshake`).
+
+## Entry: 2026-02-10 2:19PM - Corrective pre-change lock for MF Phase 6 (documentation-order fix)
+
+### Corrective reason
+Implementation work for MF Phase 6 began before this explicit pre-change lock entry was appended. This corrective entry is added immediately to preserve auditable chronology without rewriting prior history.
+
+### Phase objective (DoD-locked)
+Implement MF Phase 6 bundle packaging + MPR publish handshake with idempotent append-only semantics:
+- immutable bundle publication payload packaging with required compatibility metadata,
+- schema-validated publication payloads,
+- idempotent publish handshake keyed by `(bundle_id, bundle_version)`,
+- fail-closed conflict posture for identity payload drift,
+- immutable publish success/evidence artifacts.
+
+### Authorities used
+- `docs/model_spec/platform/implementation_maps/model_factory.build_plan.md` (Phase 6 DoD)
+- `docs/model_spec/platform/implementation_maps/platform.build_plan.md` (`6.3.E`)
+- `docs/model_spec/platform/component-specific/model_factory.design-authority.md`
+- `docs/model_spec/platform/component-specific/flow-narrative-platform-design.md`
+- `docs/model_spec/platform/pre-design_decisions/learning_and_evolution.pre-design_decisions.md`
+- `src/fraud_detection/learning_registry/contracts.py` (`BundlePublicationContract`, `RegistryLifecycleEventContract`)
+- Existing MF corridor outputs:
+  - `src/fraud_detection/model_factory/phase3.py`
+  - `src/fraud_detection/model_factory/phase5.py`
+
+### Planned file changes
+- New code:
+  - `src/fraud_detection/model_factory/phase6.py`
+- Update exports:
+  - `src/fraud_detection/model_factory/__init__.py`
+- New tests:
+  - `tests/services/model_factory/test_phase6_bundle_publish.py`
+- Documentation/status updates:
+  - build plans + implementation maps + logbook entries.
+
+### Validation plan
+- Compile Phase 6 code/tests.
+- Run targeted Phase 6 matrix.
+- Run combined MF regression and OFS/MF learning compatibility regression.
+
+### Drift sentinel checkpoint
+If publish handshake allows identity reuse with divergent payload bytes, Phase 6 must remain blocked as material drift.
+
+## Entry: 2026-02-10 2:23PM - Applied MF Phase 6 implementation (bundle packaging + MPR publish handshake)
+
+### Implemented files and surfaces
+- Added MF Phase 6 package/publish module:
+  - `src/fraud_detection/model_factory/phase6.py`
+- Updated MF exports for Phase 6 surfaces:
+  - `src/fraud_detection/model_factory/__init__.py`
+- Added MF Phase 6 matrix:
+  - `tests/services/model_factory/test_phase6_bundle_publish.py`
+- Minor Phase 3 provenance completion for publish scope carry-forward:
+  - `src/fraud_detection/model_factory/phase3.py` now includes `target_scope` in `input_refs`.
+
+### Phase 6 outcomes
+- Bundle packaging now emits immutable, schema-valid `BundlePublication` payloads with:
+  - artifact/eval/manifest lineage refs,
+  - compatibility metadata,
+  - release provenance.
+- Publish handshake is idempotent and append-only by `(bundle_id, bundle_version)`:
+  - same identity + same payload -> converges (already-published posture),
+  - same identity + different payload -> fail-closed conflict (`PUBLISH_CONFLICT`).
+- Registry-lifecycle publication fact emission is now explicit and schema-validated.
+- Publish handshake receipts are immutable and discoverable by ref.
+
+### Validation evidence
+- Syntax:
+  - `python -m py_compile src/fraud_detection/model_factory/phase3.py src/fraud_detection/model_factory/phase6.py src/fraud_detection/model_factory/__init__.py tests/services/model_factory/test_phase6_bundle_publish.py` (`PASS`).
+- Targeted Phase 6:
+  - `python -m pytest tests/services/model_factory/test_phase6_bundle_publish.py -q --import-mode=importlib` (`5 passed`).
+- MF + learning contracts regression:
+  - `python -m pytest tests/services/model_factory/test_phase1_contracts.py tests/services/model_factory/test_phase1_ids.py tests/services/model_factory/test_phase2_run_ledger.py tests/services/model_factory/test_phase3_resolver.py tests/services/model_factory/test_phase4_execution.py tests/services/model_factory/test_phase5_gate_policy.py tests/services/model_factory/test_phase6_bundle_publish.py tests/services/learning_registry/test_phase61_contracts.py -q --import-mode=importlib` (`42 passed`).
+- MF + OFS + learning compatibility regression:
+  - `python -m pytest tests/services/model_factory/test_phase1_contracts.py tests/services/model_factory/test_phase1_ids.py tests/services/model_factory/test_phase2_run_ledger.py tests/services/model_factory/test_phase3_resolver.py tests/services/model_factory/test_phase4_execution.py tests/services/model_factory/test_phase5_gate_policy.py tests/services/model_factory/test_phase6_bundle_publish.py tests/services/offline_feature_plane/test_phase1_contracts.py tests/services/offline_feature_plane/test_phase1_ids.py tests/services/offline_feature_plane/test_phase2_run_ledger.py tests/services/offline_feature_plane/test_phase3_resolver.py tests/services/learning_registry/test_phase61_contracts.py -q --import-mode=importlib` (`65 passed`).
+
+### Drift sentinel assessment
+- No designed-flow contradiction detected for Phase 6 scope.
+- Packaging and publish handshake are now explicit, immutable, and conflict-safe.
+- Residual risk surface moves to MF Phase 7 (`negative-path matrix + fail-closed taxonomy hardening`).
+
+### Plan progression
+- MF Phase 6 is closed.
+- Next MF phase is Phase 7 (`negative-path matrix + fail-closed taxonomy hardening`).
