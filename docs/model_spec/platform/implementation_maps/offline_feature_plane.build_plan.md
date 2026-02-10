@@ -111,6 +111,13 @@ Provide a closure-grade, component-scoped plan for Offline Feature Plane (OFS) a
 - Payload hash mismatch on same offset tuple is emitted as anomaly and fails closed for training-intent builds.
 - Completeness receipts are produced and required before publication as `COMPLETE`.
 
+**Implementation status note (2026-02-10):**
+- Phase 4 replay/completeness corridor implemented:
+  - `src/fraud_detection/offline_feature_plane/phase4.py`
+  - `src/fraud_detection/offline_feature_plane/__init__.py` (exports)
+- Validation evidence:
+  - `python -m pytest tests/services/offline_feature_plane/test_phase1_contracts.py tests/services/offline_feature_plane/test_phase1_ids.py tests/services/offline_feature_plane/test_phase2_run_ledger.py tests/services/offline_feature_plane/test_phase3_resolver.py tests/services/offline_feature_plane/test_phase4_replay_basis.py tests/services/learning_registry/test_phase61_contracts.py -q --import-mode=importlib` (`33 passed`).
+
 ### Phase 5 - Label as-of resolver and coverage gate (S4)
 **Intent:** enforce leakage-safe labels and explicit coverage posture.
 
@@ -198,4 +205,5 @@ Provide a closure-grade, component-scoped plan for Offline Feature Plane (OFS) a
 - Phase 1 (`BuildIntent + dataset identity + contract lock`): complete (implemented and validated on `2026-02-10`).
 - Phase 2 (`run control + idempotent run ledger`): complete (implemented and validated on `2026-02-10`).
 - Phase 3 (`pin and provenance resolver`): complete (implemented and validated on `2026-02-10`).
-- Next action: begin Phase 4 implementation (`replay basis resolver + completeness receipts`).
+- Phase 4 (`replay basis resolver + completeness receipts`): complete (implemented and validated on `2026-02-10`).
+- Next action: begin Phase 5 implementation (`label as-of resolver and coverage gate`).

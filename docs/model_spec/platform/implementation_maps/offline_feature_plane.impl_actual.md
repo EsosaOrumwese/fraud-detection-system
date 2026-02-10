@@ -356,3 +356,103 @@ After Phase 3 closure, unresolved file/ref failures for run-facts, feature-profi
 ### Drift sentinel assessment
 - No behavior drift introduced to Phase 3 DoD; this is an error-surface hardening only.
 - Fail-closed taxonomy is now more stable for run/operate and obs/gov consumption.
+
+## Entry: 2026-02-10 11:47AM - Pre-change implementation lock for OFS Phase 4 (replay basis resolver + completeness receipts)
+
+### Trigger
+User requested immediate implementation of OFS Phase 4.
+
+### Phase objective (DoD-locked)
+Implement deterministic replay-basis resolution and completeness evidence so publication can be gated on objective replay truth:
+- canonical offset tuples per topic/partition,
+- explicit EB/Archive cutover with archive authority beyond retention,
+- payload-hash mismatch anomaly detection on same offset tuple,
+- completeness receipt emission and publication-complete enforcement hook.
+
+### Authorities used
+- `docs/model_spec/platform/implementation_maps/offline_feature_plane.build_plan.md` (Phase 4 DoD)
+- `docs/model_spec/platform/pre-design_decisions/learning_and_evolution.pre-design_decisions.md` (origin-offset authority, archive-as-truth beyond retention, mismatch fail-closed)
+- `docs/model_spec/platform/component-specific/flow-narrative-platform-design.md` (OFS replay + archive truth posture)
+- Archive contract/implementation surfaces:
+  - `docs/model_spec/platform/contracts/archive/archive_event_record_v0.schema.yaml`
+  - `src/fraud_detection/archive_writer/contracts.py`
+  - `src/fraud_detection/archive_writer/store.py`
+
+### Problem framing and choices
+1. **Evidence source for replay tuples**
+   - Option A: only explicit injected evidence refs.
+   - Option B: support injected evidence refs and default archive discovery from `archive/events/...` records.
+   - Decision: Option B for practicality in local parity and future ladder reuse.
+2. **Cutover semantics**
+   - Decision: represent cutover explicitly per requested slice with `cutover_mode`, `cutover_offset`, and `archive_authoritative_from_offset`.
+   - Archive is authoritative for offsets beyond EB hot coverage; archive may also backfill pre-cutover EB gaps when present.
+3. **Mismatch failure policy**
+   - Decision: if same offset tuple has EB-vs-Archive hash mismatch, emit mismatch anomaly always.
+   - Training-intent builds (`dataset_build` + `non_training_allowed=false`) fail closed immediately.
+   - Non-training/parity/forensic intents retain anomaly in receipt and remain review-gated.
+4. **Completeness posture**
+   - Decision: resolver always emits a completeness receipt (`COMPLETE` or `INCOMPLETE`).
+   - Publication helper enforces `COMPLETE` before downstream publication pathways.
+
+### Implementation plan
+1. Add `src/fraud_detection/offline_feature_plane/phase4.py` with:
+   - typed evidence/tuple/anomaly/receipt dataclasses,
+   - resolver with interval-based canonical tuple construction,
+   - mismatch + gap anomaly handling,
+   - immutable receipt emission and `require_complete_for_publication(...)` guard.
+2. Export Phase 4 surfaces via `offline_feature_plane/__init__.py`.
+3. Add `tests/services/offline_feature_plane/test_phase4_replay_basis.py` covering:
+   - green cutover path,
+   - training-intent mismatch fail-closed,
+   - non-training mismatch recorded but not hard-fail,
+   - incomplete coverage + publication gate block,
+   - immutable receipt drift detection.
+4. Run OFS full regression matrix and update plans/maps/logbook with closure evidence.
+
+### Drift sentinel checkpoint (pre-code)
+No design-intent contradiction detected. If live archive offsets are non-numeric for configured offset kinds, resolver must fail closed instead of silently coercing/ordering incorrectly.
+
+## Entry: 2026-02-10 11:52AM - Applied OFS Phase 4 implementation and validation closure
+
+### Implemented files
+- `src/fraud_detection/offline_feature_plane/phase4.py` (new)
+- `src/fraud_detection/offline_feature_plane/__init__.py` (Phase 4 exports)
+- `tests/services/offline_feature_plane/test_phase4_replay_basis.py` (new)
+
+### Implemented behavior
+1. **Canonical replay-basis tuple resolution**
+   - Replay slices are resolved to canonical, source-tagged offset tuples (`EB` / `ARCHIVE`) by `topic/partition/offset_kind`.
+   - Resolution uses interval-based coverage logic, not naive input ordering, so tuple output is deterministic.
+2. **Explicit EB/Archive cutover semantics**
+   - For each replay slice, cutover metadata is emitted with:
+     - `cutover_mode`,
+     - optional `cutover_offset`,
+     - optional `archive_authoritative_from_offset`,
+     - explicit coverage/selected/missing ranges.
+   - Archive authority beyond EB hot coverage is now explicit in receipt artifacts.
+3. **Payload hash mismatch anomaly handling**
+   - Same offset tuple with conflicting hashes emits `REPLAY_BASIS_MISMATCH` anomaly.
+   - Training-intent posture (`dataset_build` + `non_training_allowed=false`) fails closed immediately on mismatch.
+   - Non-training posture records mismatch into receipt and remains publication-gated.
+4. **Completeness receipt corridor**
+   - Resolver emits run-scoped completeness receipt (`COMPLETE` or `INCOMPLETE`) with totals, cutovers, anomalies, and evidence digest.
+   - Added publication gate helper `require_complete_for_publication(...)` enforcing no-`COMPLETE` no-publish behavior.
+   - Receipt emission is write-once and immutable (`COMPLETENESS_RECEIPT_IMMUTABILITY_VIOLATION` on drift).
+5. **Evidence sourcing posture**
+   - Supports explicit evidence refs (`eb_observations_ref`, `archive_observations_ref`).
+   - Supports archive-event discovery from object-store `archive/events/...` records when explicit refs are not provided.
+
+### Validation evidence
+- Syntax:
+  - `python -m py_compile src/fraud_detection/offline_feature_plane/phase4.py src/fraud_detection/offline_feature_plane/__init__.py tests/services/offline_feature_plane/test_phase4_replay_basis.py` (`PASS`).
+- Tests:
+  - `python -m pytest tests/services/offline_feature_plane/test_phase1_contracts.py tests/services/offline_feature_plane/test_phase1_ids.py tests/services/offline_feature_plane/test_phase2_run_ledger.py tests/services/offline_feature_plane/test_phase3_resolver.py tests/services/offline_feature_plane/test_phase4_replay_basis.py tests/services/learning_registry/test_phase61_contracts.py -q --import-mode=importlib` (`33 passed`).
+
+### Drift sentinel assessment after implementation
+- No designed-flow contradiction detected for Phase 4 scope.
+- Archive authority and mismatch fail-closed posture moved from narrative intent into executable logic.
+- Remaining OFS closure work shifts to Phase 5 (label as-of + coverage gates) and beyond.
+
+### Plan progression
+- OFS Phase 4 is closed.
+- Next active OFS step is Phase 5 (`label as-of resolver and coverage gate`).

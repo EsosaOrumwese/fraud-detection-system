@@ -9746,3 +9746,43 @@ Run/operate and observability/governance layers rely on stable reason-code seman
 
 ### Validation evidence
 - OFS/learning regression matrix rerun: `27 passed` (same command set as Phase 3 closure).
+
+## Entry: 2026-02-10 11:47AM - Platform-level pre-change lock for OFS Phase 4
+
+### Why platform-level tracking is required
+Phase 4 is where OFS replay determinism becomes operational truth for later MF publication and registry lineage. Incorrect cutover or mismatch handling here can silently poison Learning/Registry and violate cross-plane replay doctrine.
+
+### Platform-level decisions pinned for this pass
+- Replay basis is resolved on canonical origin offsets per topic/partition.
+- Archive authority beyond EB retention is explicit in resolver outputs (not implicit behavior).
+- EB-vs-Archive payload hash disagreement on same offset tuple is a first-class anomaly; training-intent posture is fail-closed.
+- Completeness evidence is required before a run can claim publication-complete readiness.
+
+### Expected closure evidence
+- OFS Phase 4 module + tests green.
+- OFS/platform build-plan status updates for Phase 4 progression.
+- Drift-sentinel assessment explicitly recorded post-run.
+
+## Entry: 2026-02-10 11:52AM - Platform-level applied closure for OFS Phase 4
+
+### What was applied
+- OFS Phase 4 replay/completeness corridor landed in code and tests:
+  - `src/fraud_detection/offline_feature_plane/phase4.py`
+  - `tests/services/offline_feature_plane/test_phase4_replay_basis.py`
+- OFS/platform build-plan status updated to mark Phase 4 complete.
+
+### Platform-significant outcomes
+- Replay basis resolution now has objective, machine-checkable closure semantics:
+  - canonical source-tagged tuples,
+  - explicit EB/Archive cutover metadata,
+  - first-class mismatch anomalies,
+  - publication completeness gating.
+- Training-intent fail-closed behavior for replay hash disagreement is executable and test-backed.
+- Completeness receipt immutability closes a drift vector where publication-readiness could otherwise be silently rewritten.
+
+### Validation evidence
+- `python -m pytest tests/services/offline_feature_plane/test_phase1_contracts.py tests/services/offline_feature_plane/test_phase1_ids.py tests/services/offline_feature_plane/test_phase2_run_ledger.py tests/services/offline_feature_plane/test_phase3_resolver.py tests/services/offline_feature_plane/test_phase4_replay_basis.py tests/services/learning_registry/test_phase61_contracts.py -q --import-mode=importlib` (`33 passed`).
+
+### Drift sentinel assessment
+- No conflict observed versus learning pre-design replay pins or flow narrative archive-authority posture.
+- Next risk surface moves to Phase 5 (label as-of leakage/coverage correctness), which should remain equally fail-closed.

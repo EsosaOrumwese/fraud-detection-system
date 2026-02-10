@@ -22,6 +22,17 @@ from .phase3 import (
     ResolvedParityBasisSlice,
     ResolvedWorldLocator,
 )
+from .phase4 import (
+    OfsPhase4ReplayError,
+    OfsReplayBasisResolver,
+    OfsReplayBasisResolverConfig,
+    ReplayAnomaly,
+    ReplayBasisEvidence,
+    ReplayCompletenessReceipt,
+    ReplayCutover,
+    ReplayResolvedTuple,
+    ReplayTupleObservation,
+)
 from .run_control import OfsRunControl, OfsRunControlPolicy
 from .run_ledger import (
     OFS_RUN_DONE,
@@ -69,4 +80,13 @@ __all__ = [
     "ResolvedParityAnchor",
     "ResolvedParityBasisSlice",
     "ResolvedWorldLocator",
+    "OfsPhase4ReplayError",
+    "OfsReplayBasisResolver",
+    "OfsReplayBasisResolverConfig",
+    "ReplayAnomaly",
+    "ReplayBasisEvidence",
+    "ReplayCompletenessReceipt",
+    "ReplayCutover",
+    "ReplayResolvedTuple",
+    "ReplayTupleObservation",
 ]
