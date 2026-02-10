@@ -163,3 +163,72 @@ The dev-min migration authority is now internally consistent and backed by concr
 
 ### Drift sentinel checkpoint
 No platform behavior was changed; this pass only closes documentation/contract drift holes and strengthens authority traceability.
+
+## Entry: 2026-02-10 9:51PM - Pre-change lock: formalize full local_parity -> dev_min migration program
+
+### Context
+USER approved the recommended migration posture (controlled wave migration, no semantic rewrite, no big-bang cutover) and requested that we proceed by noting it down before execution.
+
+### Problem statement
+Current active plan file is too coarse (5 broad phase lines) and is not sufficient to run an end-to-end migration program covering account/credential bootstrap, substrate rollout, wave sequencing, meta-layer saturation, and final acceptance gates.
+
+### Authorities considered
+- `docs/model_spec/platform/platform-wide/platform_blueprint_notes_v0.md`
+- `docs/model_spec/platform/platform-wide/deployment_tooling_notes_v0.md`
+- `docs/model_spec/platform/component-specific/flow-narrative-platform-design.md`
+- `docs/model_spec/platform/pre-design_decisions/dev-min_managed-substrate_migration.design-authority.v0.md`
+- `docs/model_spec/platform/pre-design_decisions/run_and_operate.pre-design_decisions.md`
+- `docs/model_spec/platform/pre-design_decisions/observability_and_governance.pre-design_decisions.md`
+
+### Decision
+Rewrite `docs/model_spec/platform/implementation_maps/dev_substrate/platform.build_plan.md` into an explicit migration program with:
+1) wave-first sequencing,
+2) hard DoD gates per phase,
+3) meta-layer requirements embedded into each wave,
+4) final acceptance gates tied to live-stream validation and drift sentinel checks.
+
+### Planned content shape
+- Program principles and non-negotiable rails.
+- Phase 0: mobilization + semantic freeze.
+- Phase 1: account/credential and secret bootstrap.
+- Phase 2: Terraform landing zone (`core` persistent + `demo` ephemeral).
+- Phase 3: Wave 1 control/ingress migration.
+- Phase 4: Wave 2 RTDL migration.
+- Phase 5: Wave 3 case/labels migration.
+- Phase 6: Wave 4 learning/registry migration.
+- Phase 7: run/operate + obs/gov saturation (all services).
+- Phase 8: full-run validation + cutover readiness gate.
+- Deferred backlog list (post-acceptance).
+
+### Drift sentinel checkpoint
+Plan rewrite only; no runtime behavior changes. This increases execution precision and reduces drift risk.
+
+## Entry: 2026-02-10 9:52PM - Applied migration program rewrite in dev_substrate build plan
+
+### What changed
+Replaced the coarse placeholder plan in `docs/model_spec/platform/implementation_maps/dev_substrate/platform.build_plan.md` with an explicit end-to-end migration program.
+
+### New plan structure (pinned)
+- Program posture + non-negotiable rails.
+- Phase 0: mobilization and semantic freeze.
+- Phase 1: accounts/credentials/secrets bootstrap.
+- Phase 2: Terraform landing zone (`core` + `demo`) and teardown/cost guardrails.
+- Phase 3: Wave 1 control/ingress migration.
+- Phase 4: Wave 2 RTDL migration.
+- Phase 5: Wave 3 case/labels migration.
+- Phase 6: Wave 4 learning/registry migration.
+- Phase 7: run/operate + obs/gov saturation across all onboarded services.
+- Phase 8: integrated 20/200 run validation, drift audit, and cutover readiness.
+- Deferred backlog and strict phase progression rule.
+
+### Why this was chosen
+- Matches approved migration posture: controlled wave execution, no semantic rewrite, no big-bang cutover.
+- Adds execution precision for operator bootstrap and substrate concerns that were previously implicit.
+- Bakes meta-layer coverage into the plan rather than treating it as optional cleanup.
+
+### Validation
+- Verified all phases and DoD sections are present (`rg` sweep).
+- Verified plan references active dev_substrate implementation-map/logbook recording requirement.
+
+### Drift sentinel checkpoint
+No runtime/infrastructure behavior changed. This is planning rigor and execution-control hardening only.
