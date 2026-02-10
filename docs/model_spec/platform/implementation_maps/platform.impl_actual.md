@@ -8247,3 +8247,100 @@ Manual `make platform-run-report` while `platform_run_reporter_worker` is active
 
 ### Closure posture
 User request satisfied for full-platform live-stream validation with meta-layer coverage and strict all-green result on final 200 run.
+## Entry: 2026-02-10 03:31AM - Successful full-platform run evidence + current live-stream flow narrative (implemented posture)
+
+### Purpose
+Document the accepted successful run and the current runtime flow across implemented services before moving to the next plane.
+
+### Accepted successful run evidence (final gate)
+Run id:
+- `platform_20260209T231403Z`
+
+Primary matrix artifacts:
+- `runs/fraud-platform/platform_20260209T231403Z/obs/fullstream_snapshot_200_green.json`
+- `runs/fraud-platform/platform_20260209T231403Z/obs/platform_run_report.json`
+- `runs/fraud-platform/platform_20260209T231403Z/obs/environment_conformance.json`
+
+Gate counters from snapshot/report:
+- ingress `sent=800`, `received=1600`
+- RTDL `decision=200`, `outcome=200`
+- case/label `labels_accepted=200`
+
+Health closure at run closeout (all green):
+- `identity_entity_graph`
+- `online_feature_plane`
+- `context_store_flow_binding`
+- `degrade_ladder`
+- `decision_fabric`
+- `action_layer`
+- `decision_log_audit`
+- `case_trigger`
+- `case_mgmt`
+- `label_store`
+
+Companion smoke-gate evidence:
+- `runs/fraud-platform/platform_20260209T221444Z/obs/fullstream_snapshot_20_green.json`
+
+### Current live-stream runtime flow (as implemented)
+1. Orchestration / meta layer
+- `run/operate` starts and supervises five packs:
+  - `control_ingress`: IG service + WSP ready consumer
+  - `rtdl_core`: IEG + OFP + CSFB
+  - `rtdl_decision_lane`: DL + DF + AL + DLA
+  - `case_labels`: CaseTrigger + CaseMgmt + LabelStore
+  - `obs_gov`: platform_run_reporter + platform_conformance
+- active run scope is propagated from `runs/fraud-platform/ACTIVE_RUN_ID` into each worker’s required run env.
+
+2. Control and ingress
+- SR resolves run and publishes READY on control bus.
+- WSP consumes READY and streams bounded traffic/context to IG.
+- IG validates/admits, writes receipts, and publishes admitted envelopes to EB topics.
+
+3. RTDL core live stream
+- IEG consumes admitted stream and maintains graph projection + health/metrics artifacts.
+- OFP consumes admitted stream and maintains feature state + snapshots + health/metrics artifacts.
+- CSFB consumes context/traffic classes and maintains run-scoped join plane + observability artifacts.
+
+4. Decision lane live stream
+- DL continuously evaluates required signals and emits posture/degrade decisions.
+- DF consumes triggers, resolves context (CSFB/OFP/IEG), synthesizes decision responses.
+- AL consumes decision responses, executes action intents/outcomes, and publishes outcomes.
+- DLA consumes decision/action families and appends audit truth + reconciliation artifacts.
+
+5. Case/label live stream
+- CaseTrigger consumes decision-lane evidence and emits case triggers.
+- CaseMgmt materializes case state/timeline and coordinates label/action handshake state.
+- LabelStore ingests label assertions, applies idempotent append-only label truth, and serves as-of views.
+
+6. Obs/Gov live stream
+- platform_run_reporter continuously emits run report artifact for active run.
+- platform_conformance continuously emits env-conformance artifact.
+- governance lifecycle/evidence events are emitted under run-scoped obs paths.
+
+### Boundary notes (current posture)
+- Full implemented lane above is daemonized and live-streamed in local parity through run/operate packs.
+- Component boundary matrices remain required verification complements (not replacements) for deterministic contract behavior.
+- Operational caveat: avoid running manual `platform-run-report` concurrently with reporter worker; concurrent append may produce governance `S3_APPEND_CONFLICT`.
+## Entry: 2026-02-10 03:34AM - Documentation sweep closure (runbook + logbook normalization)
+
+### Trigger
+User requested pre-next-plane documentation hardening:
+1) ensure successful-run details + live-stream flow are captured in platform notes,
+2) correct logbook timestamp format drift,
+3) bring parity runbook fully up to date with newly added services.
+
+### Actions completed
+- Added explicit successful-run evidence + live-stream narrative entry (see previous entry at `03:31AM`).
+- Updated parity walkthrough for current architecture:
+  - includes `fp.bus.case.v1` in required/expected stream inventory,
+  - includes `platform-operate-obs-gov-up` in explicit pack startup sequence,
+  - includes `local_parity_obs_gov_v0` in pack list,
+  - includes reporter concurrency caveat (`S3_APPEND_CONFLICT`) when obs/gov worker is active,
+  - includes explicit `20 -> 200` full-stream gate pattern and evidence paths,
+  - refreshed runbook header date to `2026-02-10`.
+- Normalized time-stamp heading style in `docs/logbook/02-2026/2026-02-09.md` to bullet-time format for consistency with day-file convention.
+- Created today logbook file and recorded the above actions:
+  - `docs/logbook/02-2026/2026-02-10.md`.
+
+### Result
+Platform notes + parity runbook + logbook formatting are synchronized to current implemented runtime posture and accepted 20/200 evidence baseline.

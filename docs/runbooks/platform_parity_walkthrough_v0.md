@@ -1,7 +1,7 @@
-# Platform Parity Walkthrough (v0) — Oracle Store → SR → WSP → IG → EB → IEG/OFP/CSFB/DF/DL/AL/DLA/CaseTrigger/CM/LS
-_As of 2026-02-09_
+# Platform Parity Walkthrough (v0) — Oracle Store → SR → WSP → IG → EB → IEG/OFP/CSFB/DF/DL/AL/DLA/CaseTrigger/CM/LS + Platform Reporter/Conformance
+_As of 2026-02-10_
 
-This runbook executes a **local_parity** end‑to‑end flow capped to **500,000 events**, then validates the implemented RTDL + Case/Label surfaces (**IEG/OFP/CSFB/DF/DL/AL/DLA/CaseTrigger/CM/LS**) against admitted EB topics.
+This runbook executes a **local_parity** end‑to‑end flow capped to **500,000 events**, then validates the implemented RTDL + Case/Label + Obs/Gov surfaces (**IEG/OFP/CSFB/DF/DL/AL/DLA/CaseTrigger/CM/LS + Platform Reporter/Conformance**) against admitted EB topics.
 It uses **MinIO (S3)** for the Oracle Store + platform artifacts, **LocalStack Kinesis** for control/event buses, and **Postgres** for IG/WSP state.
 
 ---
@@ -14,6 +14,7 @@ It uses **MinIO (S3)** for the Oracle Store + platform artifacts, **LocalStack K
   - Control: `sr-control-bus`
   - Traffic: `fp.bus.traffic.fraud.v1` (baseline optional)
   - RTDL lane: `fp.bus.rtdl.v1`
+  - Case lane: `fp.bus.case.v1`
   - Context: `fp.bus.context.arrival_events.v1`, `fp.bus.context.arrival_entities.v1`, `fp.bus.context.flow_anchor.baseline.v1`, `fp.bus.context.flow_anchor.fraud.v1`
   - Audit: `fp.bus.audit.v1`
 - Postgres for IG admission DB + WSP checkpoints
@@ -57,10 +58,10 @@ make platform-parity-stack-status
 **Expected:**
 - MinIO + Postgres + LocalStack are running.
 - Buckets exist: `oracle-store`, `fraud-platform`.
-- Streams exist: `sr-control-bus`, `fp.bus.traffic.baseline.v1`, `fp.bus.traffic.fraud.v1`, `fp.bus.context.arrival_events.v1`, `fp.bus.context.arrival_entities.v1`, `fp.bus.context.flow_anchor.baseline.v1`, `fp.bus.context.flow_anchor.fraud.v1`, `fp.bus.rtdl.v1`, `fp.bus.audit.v1`.
+- Streams exist: `sr-control-bus`, `fp.bus.traffic.baseline.v1`, `fp.bus.traffic.fraud.v1`, `fp.bus.context.arrival_events.v1`, `fp.bus.context.arrival_entities.v1`, `fp.bus.context.flow_anchor.baseline.v1`, `fp.bus.context.flow_anchor.fraud.v1`, `fp.bus.rtdl.v1`, `fp.bus.case.v1`, `fp.bus.audit.v1`.
 
 **What bootstrap does:**
-- Creates the **Kinesis streams** in LocalStack (`sr-control-bus`, `fp.bus.traffic.baseline.v1`, `fp.bus.traffic.fraud.v1`, `fp.bus.context.arrival_events.v1`, `fp.bus.context.arrival_entities.v1`, `fp.bus.context.flow_anchor.baseline.v1`, `fp.bus.context.flow_anchor.fraud.v1`, `fp.bus.rtdl.v1`, `fp.bus.audit.v1`).
+- Creates the **Kinesis streams** in LocalStack (`sr-control-bus`, `fp.bus.traffic.baseline.v1`, `fp.bus.traffic.fraud.v1`, `fp.bus.context.arrival_events.v1`, `fp.bus.context.arrival_entities.v1`, `fp.bus.context.flow_anchor.baseline.v1`, `fp.bus.context.flow_anchor.fraud.v1`, `fp.bus.rtdl.v1`, `fp.bus.case.v1`, `fp.bus.audit.v1`).
 - Creates the **MinIO buckets** (`oracle-store`, `fraud-platform`).
 
 ---
@@ -138,6 +139,7 @@ make platform-operate-control-ingress-up
 make platform-operate-rtdl-core-up
 make platform-operate-rtdl-decision-up
 make platform-operate-case-labels-up
+make platform-operate-obs-gov-up
 make platform-operate-parity-status
 ```
 
@@ -159,6 +161,7 @@ Pack and evidence surfaces:
   - `config/platform/run_operate/packs/local_parity_rtdl_core.v0.yaml`
   - `config/platform/run_operate/packs/local_parity_rtdl_decision_lane.v0.yaml`
   - `config/platform/run_operate/packs/local_parity_case_labels.v0.yaml`
+  - `config/platform/run_operate/packs/local_parity_obs_gov.v0.yaml`
 - Orchestrator state/logs:
   - `runs/fraud-platform/operate/<pack_id>/state.json`
   - `runs/fraud-platform/operate/<pack_id>/events.jsonl`
@@ -169,6 +172,7 @@ Notes:
 - RTDL core pack enforces active run scope via `ACTIVE_RUN_ID` -> `*_REQUIRED_PLATFORM_RUN_ID`.
 - RTDL decision-lane pack enforces active run scope for `DL/DF/AL/DLA` with the same run pin.
 - Case/Label pack enforces active run scope for `CaseTrigger/CM/LS` with the same run pin.
+- Obs/Gov pack enforces active run scope for `platform_run_reporter/platform_conformance` with the same run pin.
 - Orchestrator contract is plane-agnostic; future planes onboard by adding new process-pack files, not by changing orchestrator code.
 - Mode boundary:
   - If packs are running, treat them as source-of-truth daemons and avoid launching duplicate manual consumers for the same component.
@@ -350,6 +354,12 @@ aws --endpoint-url http://localhost:4566 kinesis create-stream --stream-name fp.
 
 ```powershell
 aws --endpoint-url http://localhost:4566 kinesis create-stream --stream-name fp.bus.rtdl.v1 --shard-count 1
+```
+
+**If case-lane publish fails with `ResourceNotFoundException` for `fp.bus.case.v1`:**
+
+```powershell
+aws --endpoint-url http://localhost:4566 kinesis create-stream --stream-name fp.bus.case.v1 --shard-count 1
 ```
 
 ---
@@ -695,7 +705,9 @@ make platform-governance-query GOVERNANCE_QUERY_LIMIT=20
 make platform-env-conformance
 ```
 
-If `platform-operate-obs-gov-up` is active, these artifacts are emitted continuously; keep the commands above as explicit spot-check re-runs.
+If `platform-operate-obs-gov-up` is active, these artifacts are emitted continuously.
+Do not run manual `make platform-run-report` concurrently with the reporter worker (can race and produce governance `S3_APPEND_CONFLICT` on append).
+Use manual commands as explicit spot-check re-runs only when the obs/gov pack is stopped.
 
 Expected artifacts:
 - Platform run report: `runs/fraud-platform/<platform_run_id>/obs/platform_run_report.json`
@@ -1122,5 +1134,15 @@ Scope note:
 - `case_labels` pack covers `CaseTrigger/CM/LS`.
 - `obs_gov` pack covers `platform_run_reporter + environment_conformance` daemon workers.
 - Component matrices in Sections 16/17/19/20 remain required as deterministic boundary checks; they now complement (not replace) daemonized runtime operation.
+
+### 22.1) Full-stream gate pattern (`20` then `200`)
+Use this sequence for platform acceptance:
+- run `20` bounded stream first (`WSP_MAX_EVENTS_PER_OUTPUT=20`) and require all-green component health.
+- run `200` bounded stream next (`WSP_MAX_EVENTS_PER_OUTPUT=200`) and require all-green component health + throughput closure.
+- take matrix snapshots from:
+  - `runs/fraud-platform/<platform_run_id>/obs/fullstream_snapshot_20_*.json`
+  - `runs/fraud-platform/<platform_run_id>/obs/fullstream_snapshot_200_*.json`
+- verify canonical reporter artifact:
+  - `runs/fraud-platform/<platform_run_id>/obs/platform_run_report.json`
 
 
