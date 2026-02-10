@@ -10614,3 +10614,59 @@ Implementation is intentionally paused by user for strategic discussion.
 ### Drift sentinel assessment
 - No design-flow drift is introduced by this decision.
 - Drift risk is explicitly controlled by freezing current baseline and requiring parity/contract gates in the next-track migration plan.
+
+## Entry: 2026-02-10 7:16PM - Pre-change lock: implementation-map restructure for dev substrate track
+
+### Problem / goal
+The current platform implementation maps at `docs/model_spec/platform/implementation_maps/` conflate local-parity history with upcoming dev substrate promotion work. `platform.impl_actual.md` has grown large enough that day-to-day decision traceability is degraded.
+
+### User-directed decision
+- Introduce `dev_substrate` and record all new promotion work there.
+- Move existing implementation map files into a baseline folder that represents the completed local-parity track.
+- Update `AGENTS.md` so routing/discipline points to the new dev substrate map locations.
+- Append a routing entry to preserve audit continuity between the baseline and the new track.
+
+### Options considered
+1. Keep single-file history in existing root.
+- Rejected: high audit/search friction and active-track conflation.
+2. Keep files in place and only add naming suffixes.
+- Rejected: does not fully separate active and baseline tracks.
+3. Folder split by track (`local_parity`, `dev_substrate`).
+- Selected: explicit scope separation while preserving append-only history.
+
+### Planned file operations
+- Create:
+  - `docs/model_spec/platform/implementation_maps/local_parity/`
+  - `docs/model_spec/platform/implementation_maps/dev_substrate/`
+- Move current root map files to `local_parity/`.
+- Create new dev substrate map starters:
+  - `dev_substrate/platform.build_plan.md`
+  - `dev_substrate/platform.impl_actual.md`
+- Replace root implementation-maps README with a route/index README.
+- Update `AGENTS.md` map paths and current-focus language for dev substrate phase.
+- Append routing entry in baseline and new dev substrate platform impl maps.
+
+### Invariants to preserve
+- Append-only history (no deleting/rewording prior entries).
+- All prior local-parity evidence remains intact in moved files.
+- New entries clearly mark baseline vs active dev substrate track.
+
+### Validation plan
+- Verify new directory tree and moved files.
+- Verify `AGENTS.md` references resolve to new locations.
+- Verify routing entries exist in both baseline and dev substrate platform implementation maps.
+
+## Entry: 2026-02-10 7:24PM - Routing continuity after implementation-map track split
+
+### Context
+Implementation-map files were restructured to separate baseline local-parity history from active dev substrate promotion work.
+
+### Routing decision
+- This file (`local_parity/platform.impl_actual.md`) remains the baseline history ledger.
+- Active platform-wide entries now append in:
+  - `docs/model_spec/platform/implementation_maps/dev_substrate/platform.impl_actual.md`
+- Active build-plan phases now live in:
+  - `docs/model_spec/platform/implementation_maps/dev_substrate/platform.build_plan.md`
+
+### Invariant
+No historical entries were rewritten; prior local-parity decision trail remains append-only in this folder.
