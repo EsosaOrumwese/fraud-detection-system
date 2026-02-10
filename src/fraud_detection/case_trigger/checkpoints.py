@@ -154,7 +154,7 @@ class _SqliteCheckpointStore(_CheckpointStore):
         with sqlite3.connect(self.path) as conn:
             conn.execute(
                 """
-                INSERT OR IGNORE INTO checkpoint_tokens (
+                INSERT OR IGNORE INTO case_trigger_checkpoint_tokens (
                     token_id, source_ref_id, case_trigger_id, issued_at_utc,
                     ledger_committed, publish_decision, halted, halt_reason,
                     checkpoint_committed, checkpoint_ref_json, committed_at_utc
@@ -172,7 +172,7 @@ class _SqliteCheckpointStore(_CheckpointStore):
     def mark_ledger_committed(self, *, token_id: str) -> None:
         with sqlite3.connect(self.path) as conn:
             updated = conn.execute(
-                "UPDATE checkpoint_tokens SET ledger_committed = 1 WHERE token_id = ?",
+                "UPDATE case_trigger_checkpoint_tokens SET ledger_committed = 1 WHERE token_id = ?",
                 (token_id,),
             ).rowcount
         if updated == 0:
@@ -192,7 +192,7 @@ class _SqliteCheckpointStore(_CheckpointStore):
         with sqlite3.connect(self.path) as conn:
             updated = conn.execute(
                 """
-                UPDATE checkpoint_tokens
+                UPDATE case_trigger_checkpoint_tokens
                 SET publish_decision = ?, halted = ?, halt_reason = ?
                 WHERE token_id = ?
                 """,
@@ -212,7 +212,7 @@ class _SqliteCheckpointStore(_CheckpointStore):
             row = conn.execute(
                 """
                 SELECT ledger_committed, publish_decision, halted, checkpoint_committed
-                FROM checkpoint_tokens
+                FROM case_trigger_checkpoint_tokens
                 WHERE token_id = ?
                 """,
                 (token_id,),
@@ -247,7 +247,7 @@ class _SqliteCheckpointStore(_CheckpointStore):
 
             conn.execute(
                 """
-                UPDATE checkpoint_tokens
+                UPDATE case_trigger_checkpoint_tokens
                 SET checkpoint_committed = 1, checkpoint_ref_json = ?, committed_at_utc = ?
                 WHERE token_id = ?
                 """,
@@ -268,7 +268,7 @@ class _SqliteCheckpointStore(_CheckpointStore):
         with sqlite3.connect(self.path) as conn:
             conn.execute(
                 """
-                CREATE TABLE IF NOT EXISTS checkpoint_tokens (
+                CREATE TABLE IF NOT EXISTS case_trigger_checkpoint_tokens (
                     token_id TEXT PRIMARY KEY,
                     source_ref_id TEXT NOT NULL,
                     case_trigger_id TEXT NOT NULL,
@@ -305,7 +305,7 @@ class _PostgresCheckpointStore(_CheckpointStore):
         with self._connect() as conn:
             conn.execute(
                 """
-                INSERT INTO checkpoint_tokens (
+                INSERT INTO case_trigger_checkpoint_tokens (
                     token_id, source_ref_id, case_trigger_id, issued_at_utc,
                     ledger_committed, publish_decision, halted, halt_reason,
                     checkpoint_committed, checkpoint_ref_json, committed_at_utc
@@ -324,7 +324,7 @@ class _PostgresCheckpointStore(_CheckpointStore):
     def mark_ledger_committed(self, *, token_id: str) -> None:
         with self._connect() as conn:
             updated = conn.execute(
-                "UPDATE checkpoint_tokens SET ledger_committed = 1 WHERE token_id = %s",
+                "UPDATE case_trigger_checkpoint_tokens SET ledger_committed = 1 WHERE token_id = %s",
                 (token_id,),
             ).rowcount
         if updated == 0:
@@ -344,7 +344,7 @@ class _PostgresCheckpointStore(_CheckpointStore):
         with self._connect() as conn:
             updated = conn.execute(
                 """
-                UPDATE checkpoint_tokens
+                UPDATE case_trigger_checkpoint_tokens
                 SET publish_decision = %s, halted = %s, halt_reason = %s
                 WHERE token_id = %s
                 """,
@@ -365,7 +365,7 @@ class _PostgresCheckpointStore(_CheckpointStore):
                 row = conn.execute(
                     """
                     SELECT ledger_committed, publish_decision, halted, checkpoint_committed
-                    FROM checkpoint_tokens
+                    FROM case_trigger_checkpoint_tokens
                     WHERE token_id = %s
                     FOR UPDATE
                     """,
@@ -401,7 +401,7 @@ class _PostgresCheckpointStore(_CheckpointStore):
 
                 conn.execute(
                     """
-                    UPDATE checkpoint_tokens
+                    UPDATE case_trigger_checkpoint_tokens
                     SET checkpoint_committed = 1, checkpoint_ref_json = %s, committed_at_utc = %s
                     WHERE token_id = %s
                     """,
@@ -425,7 +425,7 @@ class _PostgresCheckpointStore(_CheckpointStore):
         with self._connect() as conn:
             conn.execute(
                 """
-                CREATE TABLE IF NOT EXISTS checkpoint_tokens (
+                CREATE TABLE IF NOT EXISTS case_trigger_checkpoint_tokens (
                     token_id TEXT PRIMARY KEY,
                     source_ref_id TEXT NOT NULL,
                     case_trigger_id TEXT NOT NULL,
@@ -469,3 +469,4 @@ def _sqlite_path(locator: str) -> str:
     if locator.startswith("sqlite://"):
         return locator.replace("sqlite://", "", 1)
     return locator
+

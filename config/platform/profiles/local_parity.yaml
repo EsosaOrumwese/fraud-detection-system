@@ -72,6 +72,7 @@ ieg:
       region: ${EVENT_BUS_REGION}
       endpoint_url: ${EVENT_BUS_ENDPOINT_URL}
       topics_ref: config/platform/ieg/topics_v0.yaml
+      start_position: latest
     engine_contracts_root: docs/model_spec/data-engine/interface_pack/contracts
     poll_max_records: 200
     poll_sleep_seconds: 0.2
@@ -95,6 +96,7 @@ ofp:
       region: ${EVENT_BUS_REGION}
       endpoint_url: ${EVENT_BUS_ENDPOINT_URL}
       topics_ref: config/platform/ofp/topics_v0.yaml
+      start_position: latest
     engine_contracts_root: docs/model_spec/data-engine/interface_pack/contracts
     poll_max_records: 200
     poll_sleep_seconds: 0.2
@@ -115,7 +117,7 @@ context_store_flow_binding:
       region: ${EVENT_BUS_REGION}
       endpoint_url: ${EVENT_BUS_ENDPOINT_URL}
       topics_ref: config/platform/context_store_flow_binding/topics_v0.yaml
-      start_position: trim_horizon
+      start_position: latest
     engine_contracts_root: docs/model_spec/data-engine/interface_pack/contracts
     poll_max_records: 200
     poll_sleep_seconds: 0.2
@@ -143,11 +145,13 @@ df:
     event_bus_stream: ${EVENT_BUS_STREAM}
     event_bus_region: ${EVENT_BUS_REGION}
     event_bus_endpoint_url: ${EVENT_BUS_ENDPOINT_URL}
-    event_bus_start_position: trim_horizon
+    event_bus_start_position: latest
     poll_max_records: 200
     poll_sleep_seconds: 0.2
     environment: local_parity
     bundle_slot: primary
+    replay_dsn: ${DF_REPLAY_DSN:-}
+    checkpoint_dsn: ${DF_CHECKPOINT_DSN:-}
 al:
   policy:
     authz_policy_ref: config/platform/al/policy_v0.yaml
@@ -157,11 +161,15 @@ al:
     event_bus_stream: ${EVENT_BUS_STREAM}
     event_bus_region: ${EVENT_BUS_REGION}
     event_bus_endpoint_url: ${EVENT_BUS_ENDPOINT_URL}
-    event_bus_start_position: trim_horizon
+    event_bus_start_position: latest
     admitted_topics:
       - fp.bus.rtdl.v1
     poll_max_records: 200
     poll_sleep_seconds: 0.2
+    ledger_dsn: ${AL_LEDGER_DSN:-}
+    outcomes_dsn: ${AL_OUTCOMES_DSN:-}
+    replay_dsn: ${AL_REPLAY_DSN:-}
+    checkpoint_dsn: ${AL_CHECKPOINT_DSN:-}
 dla:
   policy:
     intake_policy_ref: config/platform/dla/intake_policy_local_parity_v0.yaml
@@ -174,7 +182,7 @@ dla:
     event_bus_stream: ${EVENT_BUS_STREAM}
     event_bus_region: ${EVENT_BUS_REGION}
     event_bus_endpoint_url: ${EVENT_BUS_ENDPOINT_URL}
-    event_bus_start_position: trim_horizon
+    event_bus_start_position: latest
     poll_max_records: 200
     poll_sleep_seconds: 0.5
 case_trigger:
@@ -186,11 +194,14 @@ case_trigger:
     event_bus_stream: ${EVENT_BUS_STREAM}
     event_bus_region: ${EVENT_BUS_REGION}
     event_bus_endpoint_url: ${EVENT_BUS_ENDPOINT_URL}
-    event_bus_start_position: trim_horizon
+    event_bus_start_position: latest
     admitted_topics:
       - fp.bus.rtdl.v1
     poll_max_records: 200
     poll_sleep_seconds: 0.5
+    replay_dsn: ${CASE_TRIGGER_REPLAY_DSN:-}
+    checkpoint_dsn: ${CASE_TRIGGER_CHECKPOINT_DSN:-}
+    publish_store_dsn: ${CASE_TRIGGER_PUBLISH_STORE_DSN:-}
 case_mgmt:
   policy:
     label_emission_policy_ref: config/platform/case_mgmt/label_emission_policy_v0.yaml
@@ -200,7 +211,7 @@ case_mgmt:
     event_bus_stream: ${EVENT_BUS_STREAM}
     event_bus_region: ${EVENT_BUS_REGION}
     event_bus_endpoint_url: ${EVENT_BUS_ENDPOINT_URL}
-    event_bus_start_position: trim_horizon
+    event_bus_start_position: latest
     admitted_topics:
       - fp.bus.case.v1
     poll_max_records: 200

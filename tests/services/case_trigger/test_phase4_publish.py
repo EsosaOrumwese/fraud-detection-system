@@ -5,6 +5,7 @@ from pathlib import Path
 import pytest
 import requests
 
+import fraud_detection.case_trigger.storage as storage_module
 from fraud_detection.case_mgmt.contracts import CaseTrigger
 from fraud_detection.case_trigger.publish import (
     PUBLISH_ADMIT,
@@ -15,7 +16,7 @@ from fraud_detection.case_trigger.publish import (
     CaseTriggerPublishError,
     build_case_trigger_envelope,
 )
-from fraud_detection.case_trigger.storage import CaseTriggerPublishStore
+from fraud_detection.case_trigger.storage import CaseTriggerPublishStore, CaseTriggerStorageError
 
 
 class _StubResponse:
@@ -185,3 +186,19 @@ def test_phase4_publish_store_detects_hash_mismatch(tmp_path: Path) -> None:
         published_at_utc="2026-02-09T16:14:02.000000Z",
     )
     assert mismatch.status == "HASH_MISMATCH"
+
+
+def test_phase4_postgres_sql_placeholders_follow_psycopg_contract() -> None:
+    rendered, ordered = storage_module._render_sql_with_params(  # noqa: SLF001
+        "SELECT 1 FROM case_trigger_publish WHERE case_trigger_id = {p2} AND published_at_utc = {p1}",
+        "postgres",
+        ("2026-02-10T04:42:00.000000Z", "trigger_001"),
+    )
+    assert rendered.count("%s") == 2
+    assert "{p1}" not in rendered and "{p2}" not in rendered
+    assert ordered == ("trigger_001", "2026-02-10T04:42:00.000000Z")
+
+
+def test_phase4_placeholder_index_out_of_range_fails_closed() -> None:
+    with pytest.raises(CaseTriggerStorageError, match="out of range"):
+        storage_module._render_sql_with_params("SELECT * FROM case_trigger_publish WHERE case_trigger_id = {p4}", "postgres", ("trigger_001",))  # noqa: SLF001

@@ -466,21 +466,31 @@ class ReadyConsumerRunner:
         dedupe_key: str,
         details: dict[str, Any],
     ) -> None:
-        emit_platform_governance_event(
-            store=self._store,
-            event_family=event_family,
-            actor_id="svc:wsp_ready_consumer",
-            source_type="service",
-            source_component="wsp_ready_consumer",
-            platform_run_id=platform_run_id,
-            scenario_run_id=scenario_run_id,
-            manifest_fingerprint=manifest_fingerprint,
-            parameter_hash=parameter_hash,
-            seed=seed,
-            scenario_id=scenario_id,
-            dedupe_key=dedupe_key,
-            details=details,
-        )
+        try:
+            emit_platform_governance_event(
+                store=self._store,
+                event_family=event_family,
+                actor_id="svc:wsp_ready_consumer",
+                source_type="service",
+                source_component="wsp_ready_consumer",
+                platform_run_id=platform_run_id,
+                scenario_run_id=scenario_run_id,
+                manifest_fingerprint=manifest_fingerprint,
+                parameter_hash=parameter_hash,
+                seed=seed,
+                scenario_id=scenario_id,
+                dedupe_key=dedupe_key,
+                details=details,
+            )
+        except RuntimeError as exc:
+            if "S3_APPEND_CONFLICT" not in str(exc):
+                raise
+            logger.warning(
+                "WSP governance emit skipped due to append conflict event_family=%s run_id=%s dedupe_key=%s",
+                event_family,
+                platform_run_id,
+                dedupe_key,
+            )
 
 
 def _ready_record_path(message_id: str) -> str:

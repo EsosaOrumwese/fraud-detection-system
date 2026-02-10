@@ -2580,6 +2580,21 @@ PARITY_IEG_PROJECTION_DSN ?= postgresql://platform:platform@localhost:5434/platf
 PARITY_OFP_PROJECTION_DSN ?= postgresql://platform:platform@localhost:5434/platform
 PARITY_OFP_SNAPSHOT_INDEX_DSN ?= postgresql://platform:platform@localhost:5434/platform
 PARITY_CSFB_PROJECTION_DSN ?= postgresql://platform:platform@localhost:5434/platform
+PARITY_DL_POSTURE_DSN ?= $(PARITY_IG_ADMISSION_DSN)
+PARITY_DL_OUTBOX_DSN ?= $(PARITY_IG_ADMISSION_DSN)
+PARITY_DL_OPS_DSN ?= $(PARITY_IG_ADMISSION_DSN)
+PARITY_DF_REPLAY_DSN ?= $(PARITY_IG_ADMISSION_DSN)
+PARITY_DF_CHECKPOINT_DSN ?= $(PARITY_IG_ADMISSION_DSN)
+PARITY_AL_LEDGER_DSN ?= $(PARITY_IG_ADMISSION_DSN)
+PARITY_AL_OUTCOMES_DSN ?= $(PARITY_IG_ADMISSION_DSN)
+PARITY_AL_REPLAY_DSN ?= $(PARITY_IG_ADMISSION_DSN)
+PARITY_AL_CHECKPOINT_DSN ?= $(PARITY_IG_ADMISSION_DSN)
+PARITY_DLA_INDEX_DSN ?= $(PARITY_IG_ADMISSION_DSN)
+PARITY_CASE_TRIGGER_REPLAY_DSN ?= $(PARITY_IG_ADMISSION_DSN)
+PARITY_CASE_TRIGGER_CHECKPOINT_DSN ?= $(PARITY_IG_ADMISSION_DSN)
+PARITY_CASE_TRIGGER_PUBLISH_STORE_DSN ?= $(PARITY_IG_ADMISSION_DSN)
+PARITY_CASE_MGMT_LOCATOR ?= $(PARITY_IG_ADMISSION_DSN)
+PARITY_LABEL_STORE_LOCATOR ?= $(PARITY_IG_ADMISSION_DSN)
 PARITY_EVENT_BUS_STREAM ?= auto
 PARITY_EVENT_BUS_REGION ?= $(PARITY_CONTROL_BUS_REGION)
 PARITY_EVENT_BUS_ENDPOINT_URL ?= $(PARITY_CONTROL_BUS_ENDPOINT_URL)
@@ -3102,9 +3117,12 @@ platform-operate-parity-status:
 
 .PHONY: platform-run-report
 platform-run-report:
-	@run_id="$(PLATFORM_RUN_ID)"; \
-	if [ -z "$$run_id" ] && [ -f runs/fraud-platform/ACTIVE_RUN_ID ]; then \
+	@run_id=""; \
+	if [ -f runs/fraud-platform/ACTIVE_RUN_ID ]; then \
 		run_id=$$(tr -d '\r\n' < runs/fraud-platform/ACTIVE_RUN_ID); \
+	fi; \
+	if [ -z "$$run_id" ]; then \
+		run_id="$(PLATFORM_RUN_ID)"; \
 	fi; \
 	if [ -z "$$run_id" ]; then \
 		echo "platform-run-report requires PLATFORM_RUN_ID or runs/fraud-platform/ACTIVE_RUN_ID" >&2; \
@@ -3126,9 +3144,12 @@ platform-run-report:
 
 .PHONY: platform-governance-query
 platform-governance-query:
-	@run_id="$(PLATFORM_RUN_ID)"; \
-	if [ -z "$$run_id" ] && [ -f runs/fraud-platform/ACTIVE_RUN_ID ]; then \
+	@run_id=""; \
+	if [ -f runs/fraud-platform/ACTIVE_RUN_ID ]; then \
 		run_id=$$(tr -d '\r\n' < runs/fraud-platform/ACTIVE_RUN_ID); \
+	fi; \
+	if [ -z "$$run_id" ]; then \
+		run_id="$(PLATFORM_RUN_ID)"; \
 	fi; \
 	if [ -z "$$run_id" ]; then \
 		echo "platform-governance-query requires PLATFORM_RUN_ID or runs/fraud-platform/ACTIVE_RUN_ID" >&2; \
@@ -3147,9 +3168,12 @@ platform-governance-query:
 
 .PHONY: platform-env-conformance
 platform-env-conformance:
-	@run_id="$(PLATFORM_RUN_ID)"; \
-	if [ -z "$$run_id" ] && [ -f runs/fraud-platform/ACTIVE_RUN_ID ]; then \
+	@run_id=""; \
+	if [ -f runs/fraud-platform/ACTIVE_RUN_ID ]; then \
 		run_id=$$(tr -d '\r\n' < runs/fraud-platform/ACTIVE_RUN_ID); \
+	fi; \
+	if [ -z "$$run_id" ]; then \
+		run_id="$(PLATFORM_RUN_ID)"; \
 	fi; \
 	if [ -z "$$run_id" ]; then \
 		echo "platform-env-conformance requires PLATFORM_RUN_ID or runs/fraud-platform/ACTIVE_RUN_ID" >&2; \
@@ -3168,9 +3192,12 @@ platform-evidence-ref-resolve:
 		echo "platform-evidence-ref-resolve requires EVIDENCE_REF_TYPE and EVIDENCE_REF_ID" >&2; \
 		exit 1; \
 	fi
-	@run_id="$(PLATFORM_RUN_ID)"; \
-	if [ -z "$$run_id" ] && [ -f runs/fraud-platform/ACTIVE_RUN_ID ]; then \
+	@run_id=""; \
+	if [ -f runs/fraud-platform/ACTIVE_RUN_ID ]; then \
 		run_id=$$(tr -d '\r\n' < runs/fraud-platform/ACTIVE_RUN_ID); \
+	fi; \
+	if [ -z "$$run_id" ]; then \
+		run_id="$(PLATFORM_RUN_ID)"; \
 	fi; \
 	if [ -z "$$run_id" ]; then \
 		echo "platform-evidence-ref-resolve requires PLATFORM_RUN_ID or runs/fraud-platform/ACTIVE_RUN_ID" >&2; \

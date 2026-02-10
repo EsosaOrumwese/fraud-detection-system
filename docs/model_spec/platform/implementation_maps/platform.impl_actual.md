@@ -8344,3 +8344,436 @@ User requested pre-next-plane documentation hardening:
 
 ### Result
 Platform notes + parity runbook + logbook formatting are synchronized to current implemented runtime posture and accepted 20/200 evidence baseline.
+## Entry: 2026-02-10 03:56AM - Local-parity stack realignment sweep (DL/DF/AL/DLA + Case/Label)
+
+### Trigger
+User requested full stack conformance before moving to Learning/Evolution. Investigation against the accepted run `platform_20260209T231403Z` showed that several implemented services still persisted primary state in run-scoped SQLite despite local-parity intent being Postgres-backed.
+
+### Authorities consulted
+- `docs/model_spec/platform/platform-wide/v0_environment_resource_tooling_map.md`
+- `docs/model_spec/platform/implementation_maps/platform.build_plan.md`
+- `docs/model_spec/platform/component-specific/flow-narrative-platform-design.md`
+- Runtime evidence:
+  - `runs/fraud-platform/platform_20260209T231403Z/obs/platform_run_report.json`
+  - `runs/fraud-platform/platform_20260209T231403Z/**` (sqlite artifact inspection)
+  - `runs/fraud-platform/operate/**` logs
+
+### Problem statement
+Local-parity run was mixed substrate:
+- C&I and RTDL core used expected MinIO/Kinesis/Postgres parity stack.
+- Decision lane + Case/Label workers persisted core state in SQLite (`runs/.../*.sqlite`) due unresolved/empty locator wiring and fallback behavior.
+
+This is an environment-ladder risk and contradicts local-parity posture in tooling map/build-plan intent.
+
+### Root-cause notes (detailed)
+1. Profile placeholder short-circuit:
+- For fields like `store_dsn: ${DL_POSTURE_DSN:-}`, loader code evaluates `wiring.get("store_dsn") or ...`.
+- `wiring.get(...)` is a non-empty placeholder string before env resolution, so fallback alternatives are bypassed.
+- Env resolution then yields empty string -> locator resolver falls back to run-scoped SQLite path.
+
+2. Missing explicit DSN/locator keys in some component wirings:
+- DF/AL/CaseTrigger did not pin replay/checkpoint/publish DSNs in `local_parity` profile; workers therefore defaulted to run-scoped SQLite suffixes.
+
+3. Potential Postgres table-name collision if DSNs are unified without schema isolation:
+- `decision_fabric/checkpoints.py` and `case_trigger/checkpoints.py` both used unqualified `checkpoint_tokens` with differing schemas.
+- If both components are moved to shared Postgres schema, this can conflict.
+
+### Alternatives considered
+A) Keep current code, only add env vars
+- Rejected: does not resolve short-circuit/placeholder pattern reliably across all workers and leaves collision risk.
+
+B) Introduce per-component Postgres schemas via DSN `search_path`
+- Considered viable but requires bootstrap schema lifecycle and escaping/DSN hygiene complexity in env/runbook.
+
+C) Normalize component table naming + explicit parity DSN wiring
+- Selected: lowest operational ambiguity for current v0; keeps parity stack deterministic without schema bootstrap dependency.
+
+### Selected implementation plan
+1. **Code hardening (collision prevention)**
+- Rename generic checkpoint table names to component-scoped names:
+  - DF: `checkpoint_tokens` -> `df_checkpoint_tokens`
+  - CaseTrigger: `checkpoint_tokens` -> `case_trigger_checkpoint_tokens`
+- Apply to both sqlite/postgres SQL paths and all query/update statements.
+
+2. **Profile wiring completion (local parity)**
+- Add missing wiring keys in `config/platform/profiles/local_parity.yaml`:
+  - DF replay/checkpoint DSNs
+  - AL ledger/outcomes/replay/checkpoint DSNs
+  - CaseTrigger replay/checkpoint/publish-store DSNs
+- Keep existing CM/LS/DL/DLA keys but drive with explicit env export in packs.
+
+3. **Run/Operate pack env propagation**
+- Extend parity packs to export generic DSN/locator env vars consumed by profile/worker wiring:
+  - RTDL decision pack: DL/DF/AL/DLA DSNs
+  - Case/Label pack: CaseTrigger/CM/LS DSNs/locators
+
+4. **Env defaults + runbook parity contract**
+- Add parity DSN defaults to `.env.platform.local` and Makefile defaults (`PARITY_*`) with generic var pass-through where needed.
+- Update parity runbook env section and validation checklist to include new DSN/locator set.
+
+5. **Validation gates (strict)**
+- Run targeted tests for modified modules.
+- Run full platform parity 20-event first; require all implemented components green.
+- Run full platform parity 200-event; require all implemented components green.
+- Explicitly verify absence (or non-growth) of new sqlite primary stores in active run for aligned components and confirm Postgres-backed operation from artifacts/logs.
+
+### Invariants to enforce
+- Local-parity must not silently downgrade decision-lane/case-label primary stores to SQLite.
+- All run/operate onboarded services continue run-scoped semantics (`ACTIVE_RUN_ID` binding) and at-least-once idempotency behavior.
+- No change to component ownership boundaries or by-ref evidence discipline.
+
+### Security and operations notes
+- No credentials will be committed.
+- Existing local `.env.platform.local` remains local-only, but variable names are documented for parity reproducibility.
+- If any runtime artifact includes capability/lease tokens, those will remain out of docs.
+
+## Entry: 2026-02-10 04:19AM - Postgres parity blocker diagnosis (DLA placeholder contract)
+
+### Trigger
+While executing the parity stack-alignment validation gate (`platform_20260210T040009Z`), the RTDL decision-lane pack was non-ready because `dla_worker` exited immediately. WSP readiness consumer therefore deferred READY and no events streamed (`sent=0`).
+
+### Evidence inspected
+- `runs/fraud-platform/operate/local_parity_rtdl_decision_lane_v0/status/last_status.json`
+- `runs/fraud-platform/operate/local_parity_rtdl_decision_lane_v0/logs/dla_worker.log`
+- `runs/fraud-platform/platform_20260210T040009Z/obs/platform_run_report.json`
+
+Observed failure in DLA worker log:
+- `psycopg.ProgrammingError: the query has 0 placeholders but 3 parameters were passed`
+- raised during `DecisionLogAuditIntakeStore.get_checkpoint(...)` in `src/fraud_detection/decision_log_audit/storage.py`.
+
+### Root cause reasoning
+- DLA storage SQL helper renders `{pN}` placeholders to `$N` for Postgres.
+- `psycopg` parameterized execution in this codepath expects `%s` placeholders, not `$N`.
+- Under sqlite this bug is masked because sqlite renderer uses `?` and a reordered parameter list.
+- The parity stack realignment switched DLA primary state to Postgres, exposing this latent defect.
+
+### Drift impact assessment
+- This is a hard runtime drift from intended local-parity flow: decision lane cannot become READY, so orchestration blocks world streaming.
+- Consequence: C&I/RTDL/case-label live-stream conformance cannot be claimed until fixed.
+
+### Remediation decision (selected)
+1. Patch DLA SQL rendering helper to generate backend-correct placeholders for Postgres and maintain deterministic param ordering.
+2. Re-run targeted DLA tests (and any directly impacted tests).
+3. Re-run full parity gates in strict order: 20-event, then 200-event, both requiring all implemented packs/processes green.
+4. If additional Postgres placeholder defects appear in other onboarded services during gates, treat each as parity blocker and patch before continuing.
+
+### Why this option
+- Fixes the true runtime contract break at source.
+- Preserves existing `{pN}` query authoring style with minimal invasive change.
+- Keeps environment-ladder fidelity (same codepath for parity/dev/prod Postgres substrate).
+
+## Entry: 2026-02-10 04:25AM - WSP READY control-bus starvation diagnosis (Kinesis iterator semantics)
+
+### Trigger
+After unblocking DLA, parity run `platform_20260210T042030Z` still showed zero ingress/decision/outcome counters while all orchestrated processes were `running/ready`.
+
+### Evidence inspected
+- `runs/fraud-platform/platform_20260210T042030Z/obs/platform_run_report.json` (all stream counters remained zero)
+- `runs/fraud-platform/operate/local_parity_control_ingress_v0/logs/wsp_ready_consumer.log`
+- `src/fraud_detection/world_streamer_producer/ready_consumer.py`
+- `src/fraud_detection/world_streamer_producer/control_bus.py`
+
+### Findings
+- `KinesisControlBusReader.iter_ready_messages()` currently:
+  1) acquires a shard iterator at `TRIM_HORIZON` on every poll,
+  2) performs exactly one `get_records(...)` call per shard,
+  3) returns that first page only.
+- This replays the head of history forever and never advances to newer READY records when history > one page.
+- READY consumer then repeatedly reports historical missing refs (`NoSuchKey`) for stale messages, leaving new run READY unseen.
+
+### Drift impact
+- This is a control-plane orchestration drift: runtime graph appears healthy but ingress never activates for the new run.
+- It silently violates intended live-stream semantics and can produce false-green process matrices with zero data movement.
+
+### Remediation decision
+- Patch `KinesisControlBusReader` to maintain per-shard iterator progress across polls and drain pages until shard catches up (or no records), then persist next iterator in-memory for subsequent polls.
+- Keep READY dedupe behavior unchanged; this fix addresses upstream starvation directly.
+- Add focused unit tests for Kinesis reader paging/progress behavior.
+- Re-run WSP ready-consumer tests and then parity 20-event gate.
+
+### Rationale
+- Fixes root cause at control-bus read semantics rather than masking via environment tweaks.
+- Preserves design intent: WSP READY consumer should process new SR READY signals in-order without manual stream resets.
+
+## Entry: 2026-02-10 04:33AM - RTDL consumer backlog starvation in local parity (trim_horizon drift)
+
+### Trigger
+After fixing DLA SQL placeholders and WSP control-bus iterator starvation, 20-event run `platform_20260210T042533Z` still failed parity posture:
+- IG ingress admitted/published events,
+- RTDL decision metrics remained zero for the run window.
+
+### Evidence trail
+- IG live logs confirmed active publish to topic streams (for current run):
+  - `fp.bus.traffic.fraud.v1`, `fp.bus.context.flow_anchor.fraud.v1`, `fp.bus.context.arrival_entities.v1`, `fp.bus.context.arrival_events.v1`.
+- Reporter tick for run showed ingress movement but no decision progression.
+- DB probes for current run:
+  - `admissions`, `receipts`, `csfb_flow_bindings` populated,
+  - `decision_replay_ledger` remained empty.
+- CSFB failure table filled with `LATE_CONTEXT_EVENT` rows for current run while watermark had already moved far ahead.
+
+### Root cause
+Local parity profile leaves multiple event consumers on `trim_horizon` (RTDL + downstream plane). On each new run, consumers traverse historical stream backlog before catching up to current-run offsets. In parity validation windows this produces two harmful effects:
+1) current run decision lane is effectively starved, and
+2) context watermarking sees cross-window ordering noise that inflates `LATE_CONTEXT_EVENT` failures.
+
+This is a designed-flow drift for local-parity execution: process matrix can be green while active-run dataflow is not timely/representative.
+
+### Remediation decision
+For `local_parity` profile only, set kinesis consumer start positions to `latest` for live workers that are started before SR READY is emitted:
+- IEG, OFP, CSFB, DF, AL, DLA, CaseTrigger, CaseMgmt.
+
+Rationale:
+- In parity orchestration, workers are up before READY publish, so `latest` captures exactly the active-run window.
+- Prevents historical replay from dominating validation runs.
+- Keeps run-scoped gate behavior and ownership boundaries intact.
+
+### Validation plan
+1. Restart packs with new run id.
+2. Execute 20-event run; require:
+   - ingress sent > 0,
+   - RTDL decisions > 0,
+   - outcome/label/case propagation visible.
+3. If green, execute 200-event run and capture full matrix/evidence.
+## Entry: 2026-02-10 04:42AM - Stack conformance closure sweep before Learning/Evolution handoff
+
+### Trigger
+User requested final stack alignment confirmation across all implemented planes before moving to Learning/Evolution and explicit green validation in local parity.
+
+### Authorities consulted
+- `docs/model_spec/platform/platform-wide/v0_environment_resource_tooling_map.md`
+- `docs/model_spec/platform/component-specific/flow-narrative-platform-design.md`
+- `docs/model_spec/platform/implementation_maps/platform.build_plan.md`
+- latest parity evidence/logs from `runs/fraud-platform/**`
+
+### Current blockers carried into this sweep
+1. `al_worker` crash in Postgres mode due to placeholder rendering mismatch (`$N` vs psycopg param contract).
+2. `case_trigger_worker` crash in Postgres mode due to same placeholder mismatch.
+3. `wsp_ready_consumer` process abort on governance append contention (`S3_APPEND_CONFLICT`) during lifecycle emission.
+
+### Problem framing
+These are not isolated unit issues; they are runtime conformance blockers against local-parity stack intent (Kinesis + MinIO + Postgres, daemonized by run/operate packs). If unresolved, platform matrix can look partially live while key services are dead, violating the designed flow and DoD posture for meta layers.
+
+### Alternatives considered
+A) Keep code unchanged and tolerate occasional worker restarts.
+- Rejected: creates silent drift risk and non-deterministic 20/200 gates.
+
+B) Downgrade affected workers to sqlite in local parity.
+- Rejected: contradicts stack-alignment requirement and environment-ladder intent.
+
+C) Patch Postgres SQL placeholder renderer in AL + CaseTrigger to match DLA fix pattern; harden WSP governance emission to degrade-on-conflict rather than crash; then re-run 20/200 gates.
+- Selected.
+
+### Selected implementation steps
+1. **AL storage contract fix**
+- Update `src/fraud_detection/action_layer/storage.py` SQL helper to:
+  - parse `{pN}` placeholders,
+  - render `%s` for Postgres and `?` for sqlite,
+  - order params by placeholder occurrence,
+  - fail-closed on out-of-range placeholder indices.
+
+2. **CaseTrigger storage contract fix**
+- Apply same helper pattern in `src/fraud_detection/case_trigger/storage.py`.
+
+3. **WSP governance emission resilience**
+- Update `src/fraud_detection/world_streamer_producer/ready_consumer.py` so governance write contention (`S3_APPEND_CONFLICT`) does not terminate worker loop.
+- Behavior: log structured warning + continue streaming lifecycle (best-effort governance emission under conflict).
+
+4. **Validation gates**
+- Run targeted service tests for AL/CaseTrigger/WSP.
+- Execute full-platform local parity 20-event gate.
+- If green, execute full-platform local parity 200-event gate.
+- Confirm stack conformance from artifacts/logs:
+  - active workers alive,
+  - key downstream counters non-zero,
+  - no new primary sqlite fallback for aligned services.
+
+### Invariants to enforce
+- Local parity remains Postgres-first for implemented online stores.
+- Governance emission failures must not crash core stream workers.
+- Designed ownership boundaries and by-ref/audit semantics unchanged.
+## Entry: 2026-02-10 04:44AM - Contract fixes applied (AL + CaseTrigger + WSP governance conflict resilience)
+
+### Actions executed
+1. Patched Postgres placeholder contracts to match psycopg expectations:
+- `src/fraud_detection/action_layer/storage.py`
+- `src/fraud_detection/case_trigger/storage.py`
+
+Both modules now:
+- parse `{pN}` placeholders via regex,
+- render `%s` for Postgres (`?` for sqlite),
+- build ordered param tuple from placeholder occurrence,
+- fail-closed on placeholder index out of range.
+
+2. Hardened READY consumer governance lifecycle emission under object-store append contention:
+- `src/fraud_detection/world_streamer_producer/ready_consumer.py`
+- `_emit_governance_event(...)` now treats `S3_APPEND_CONFLICT` as non-fatal (warning + continue), preventing process crash while preserving fail-closed behavior for unrelated runtime errors.
+
+3. Added regression tests:
+- `tests/services/action_layer/test_phase1_storage.py`
+  - Postgres placeholder contract rendering/ordering test
+  - out-of-range placeholder fail-closed test
+- `tests/services/case_trigger/test_phase4_publish.py`
+  - Postgres placeholder contract rendering/ordering test
+  - out-of-range placeholder fail-closed test
+- `tests/services/world_streamer_producer/test_ready_consumer.py`
+  - governance append conflict does not abort streaming test
+
+### Validation results
+- `python -m pytest tests/services/action_layer/test_phase1_storage.py -q` -> `4 passed`
+- `python -m pytest tests/services/case_trigger/test_phase4_publish.py -q` -> `9 passed`
+- `python -m pytest tests/services/world_streamer_producer/test_ready_consumer.py tests/services/world_streamer_producer/test_control_bus_reader.py -q` -> `9 passed`
+
+### Outcome
+Known runtime crash signatures from previous parity run are now addressed in code and covered by focused regression checks. Next step is full-platform local-parity gate reruns (20-event then 200-event) to confirm end-to-end green and stack conformance.
+## Entry: 2026-02-10 05:12AM - CaseMgmt/LabelStore Postgres contract drift closure (stack-alignment continuation)
+
+### Trigger
+During full-platform parity validation, `case_mgmt_worker` remained non-running while all other packs were healthy. User asked to proceed with full platform stack alignment before moving to Learning/Evolution.
+
+### Drift assessment (material)
+- Runtime posture drift: `case_mgmt_worker` crash under local-parity daemon mode while designed flow requires live orchestration across Case/Label plane.
+- Impacted plane/components:
+  - Label + Case plane: `CaseMgmt` intake/obs path.
+  - Potentially latent in same lane: CaseMgmt handshake helpers and LabelStore SQL helpers using identical SQL renderer pattern.
+- Runtime consequence:
+  - Case lifecycle progression is partial (trigger + label may proceed, but CM ownership and projection are not continuously live).
+  - This violates run/operate and obs/gov meta-layer expectations for full-service coverage.
+
+### Root cause
+CaseMgmt and LabelStore modules still used legacy `{pN} -> $N` rendering for Postgres in helper functions (`_render_sql`). In this codebase, psycopg execution paths require DB-API placeholders (`%s`) with ordered bound params. This creates `ProgrammingError: query has 0 placeholders but N parameters were passed` at runtime.
+
+### Alternatives considered
+1. Patch only `case_mgmt/intake.py` and restart.
+   - Rejected: leaves the same defect pattern in CM observability/handshake/evidence and LabelStore modules; high risk of next crash under the same run.
+2. Downgrade CaseMgmt/LabelStore local parity to sqlite.
+   - Rejected: violates current stack-alignment objective and environment-ladder intent.
+3. Sweep-fix all active CaseMgmt and LabelStore SQL helper renderers to shared behavior (`%s` postgres, `?` sqlite, ordered placeholder mapping, out-of-range fail-closed), then validate by tests + parity rerun.
+   - Selected.
+
+### Planned implementation steps
+1. Patch helper layers in:
+   - `src/fraud_detection/case_mgmt/intake.py`
+   - `src/fraud_detection/case_mgmt/observability.py`
+   - `src/fraud_detection/case_mgmt/evidence.py`
+   - `src/fraud_detection/case_mgmt/action_handshake.py`
+   - `src/fraud_detection/case_mgmt/label_handshake.py`
+   - `src/fraud_detection/label_store/writer_boundary.py`
+   - `src/fraud_detection/label_store/observability.py`
+2. Preserve transaction ownership semantics (no behavioral rewrite of commit boundaries).
+3. Add/extend targeted tests for CaseMgmt and LabelStore placeholder rendering.
+4. Restart parity packs and run:
+   - 20-event gate (must be all workers running + non-zero CM/LS progression).
+   - 200-event full run (all packs healthy and final stream-stop evidence).
+5. Record full outcome and residual risks in implementation map + logbook.
+
+### Invariants and acceptance for this closure
+- Local parity remains Postgres-first for Case/Label services.
+- No worker crash from SQL placeholder mismatch in CaseMgmt/LabelStore paths.
+- Orchestrator status remains green for all packs after stream completion.
+## Entry: 2026-02-10 05:35AM - CaseMgmt/LabelStore Postgres sweep completed + parity reruns (20/200) recovered
+
+### Implementation completed
+1. SQL placeholder contract sweep (Postgres-safe renderer) landed in:
+   - `src/fraud_detection/case_mgmt/intake.py`
+   - `src/fraud_detection/case_mgmt/observability.py`
+   - `src/fraud_detection/case_mgmt/evidence.py`
+   - `src/fraud_detection/case_mgmt/action_handshake.py`
+   - `src/fraud_detection/case_mgmt/label_handshake.py`
+   - `src/fraud_detection/label_store/writer_boundary.py`
+   - `src/fraud_detection/label_store/observability.py`
+2. CaseMgmt observability missing-table transaction abort bug was fixed:
+   - in `_query_all_optional(...)`, Postgres missing-table path now issues `conn.rollback()` before returning empty optional result.
+3. Added regression:
+   - `tests/services/case_mgmt/test_phase7_observability.py::test_phase7_optional_query_rolls_back_postgres_on_missing_table`
+
+### Validation executed
+- `python -m pytest tests/services/case_mgmt/test_phase7_observability.py -q --import-mode=importlib` -> `5 passed`
+- `python -m pytest tests/services/case_mgmt -q --import-mode=importlib` -> `45 passed`
+- `python -m pytest tests/services/label_store -q --import-mode=importlib` -> `40 passed`
+
+### Parity reruns (fresh run IDs)
+- 20-event gate:
+  - run: `platform_20260210T052406Z`
+  - WSP stream stop reached `emitted=20` for all configured outputs.
+  - `platform-operate-parity-status` showed all packs running and ready during gate.
+- 200-event gate:
+  - run: `platform_20260210T052919Z`
+  - WSP stream stop reached `emitted=200` on:
+    - `s3_flow_anchor_with_fraud_6B`
+    - `s1_arrival_entities_6B`
+    - `s3_event_stream_with_fraud_6B`
+    - `arrival_events_5B`
+  - Case/Label metrics materialized as GREEN in run report.
+
+### Residual runtime note
+- Intermittent WSP->IG push retries/timeouts were observed during 200-event run. Run converged to full completion but with longer wall-clock duration. This is a hardening target, not a functional blocker for current closure.
+
+## Entry: 2026-02-10 06:10AM - Run/operate run-id selection drift in make targets (active-run evidence safety)
+
+### Trigger
+During stack-alignment verification, `make platform-env-conformance` emitted artifact path under an old run id (`platform_20260201T224449Z`) while `runs/fraud-platform/ACTIVE_RUN_ID` pointed to `platform_20260210T052919Z`.
+
+### Root cause
+Run-oriented make targets resolve run id in `PLATFORM_RUN_ID`-first order. A stale shell environment variable (`PLATFORM_RUN_ID`) silently overrode `ACTIVE_RUN_ID`, causing evidence to be written against the wrong run scope.
+
+### Drift impact
+- This is operational evidence drift (not data-path drift): conformance/report/governance commands can attach outputs to an unintended run.
+- Consequence: false confidence and cross-run evidence contamination risk in closure reviews.
+
+### Alternatives considered
+1. Keep current behavior and rely on users to unset stale `PLATFORM_RUN_ID`.
+   - Rejected: fragile and repeatable footgun.
+2. Add warning only on mismatch.
+   - Rejected: still emits wrong run unless user notices.
+3. Prefer `ACTIVE_RUN_ID` by default, fallback to `PLATFORM_RUN_ID` only when no active run exists.
+   - Selected.
+
+### Planned patch scope
+- Makefile targets:
+  - `platform-run-report`
+  - `platform-governance-query`
+  - `platform-env-conformance`
+  - `platform-evidence-ref-resolve`
+- Resolution order update:
+  - `ACTIVE_RUN_ID` first,
+  - then `PLATFORM_RUN_ID` fallback.
+- Re-validate by rerunning conformance/report commands and checking artifact path/run id consistency.
+## Entry: 2026-02-10 06:15AM - Run-id selection patch landed + parity substrate recovery validated
+
+### Implementation completed
+1. Patched run-id resolution order in `makefile` for:
+   - `platform-run-report`
+   - `platform-governance-query`
+   - `platform-env-conformance`
+   - `platform-evidence-ref-resolve`
+2. Resolution order now is:
+   - read `runs/fraud-platform/ACTIVE_RUN_ID` first when present,
+   - fallback to `PLATFORM_RUN_ID` only if active run file is unavailable/empty.
+
+### Validation evidence (run-id drift closure)
+- With stale shell `PLATFORM_RUN_ID` still set, command outputs now resolve to active run:
+  - `make platform-env-conformance` -> artifact path under `runs/fraud-platform/platform_20260210T052919Z/obs/environment_conformance.json` (`status=PASS`).
+  - `make platform-run-report` -> artifact path under `runs/fraud-platform/platform_20260210T052919Z/obs/platform_run_report.json`.
+
+### Additional runtime drift observed and closed during validation
+- During immediate post-patch liveness checks, multiple workers exited due Kinesis internal errors surfaced by LocalStack backend (`ListShards/GetShardIterator` internal port connection refusal).
+- This was substrate health drift (not code regression from the makefile patch).
+- Remediation executed:
+  1. `make platform-parity-stack-down`
+  2. `make platform-parity-stack-up`
+  3. `make platform-parity-bootstrap`
+  4. `make platform-operate-parity-restart`
+
+### Post-remediation status
+- `make platform-operate-parity-status` now reports all packs/processes running + ready for active run `platform_20260210T052919Z`:
+  - Control/Ingress: IG + WSP READY consumer GREEN
+  - RTDL core: IEG/OFP/CSFB GREEN
+  - RTDL decision lane: DL/DF/AL/DLA GREEN
+  - Case/Label: CaseTrigger/CaseMgmt/LabelStore GREEN
+  - Obs/Gov: reporter + conformance workers GREEN
+
+### Closure posture
+- Stack-alignment gate is satisfied for implemented planes:
+  - substrates in use: MinIO (S3), LocalStack Kinesis, Postgres;
+  - run/operate + obs/gov meta layer covers all implemented services;
+  - run-scoped conformance/report evidence now binds deterministically to active run context by default.

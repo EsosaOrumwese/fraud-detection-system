@@ -6,6 +6,7 @@ from dataclasses import dataclass
 import hashlib
 import json
 from pathlib import Path
+import re
 import sqlite3
 from typing import Any
 
@@ -679,34 +680,62 @@ def _sqlite_path(locator: str) -> str:
 
 
 def _render_sql(sql: str, backend: str) -> str:
-    rendered = sql
-    if backend == "postgres":
-        for idx in range(1, 41):
-            rendered = rendered.replace(f"{{p{idx}}}", f"${idx}")
-    else:
-        for idx in range(1, 41):
-            rendered = rendered.replace(f"{{p{idx}}}", "?")
-    return rendered
+    placeholder = "%s" if backend == "postgres" else "?"
+    return _SQL_PARAM_PATTERN.sub(placeholder, sql)
+
+
+_SQL_PARAM_PATTERN = re.compile(r"\{p(?P<index>\d+)\}")
+
+
+def _render_sql_with_params(sql: str, backend: str, params: tuple[Any, ...]) -> tuple[str, tuple[Any, ...]]:
+    ordered_params: list[Any] = []
+    placeholder = "%s" if backend == "postgres" else "?"
+
+    def _replace(match: re.Match[str]) -> str:
+        index = int(match.group("index"))
+        if index <= 0 or index > len(params):
+            raise CaseEvidenceResolutionError(
+                f"SQL placeholder index p{index} out of range for {len(params)} params"
+            )
+        ordered_params.append(params[index - 1])
+        return placeholder
+
+    rendered = _SQL_PARAM_PATTERN.sub(_replace, sql)
+    return rendered, tuple(ordered_params)
 
 
 def _query_one(conn: Any, backend: str, sql: str, params: tuple[Any, ...]) -> Any:
-    rendered = _render_sql(sql, backend)
-    cur = conn.execute(rendered, params) if backend == "sqlite" else conn.cursor().execute(rendered, params)
-    return cur.fetchone()
+    rendered, ordered_params = _render_sql_with_params(sql, backend, params)
+    if backend == "sqlite":
+        cur = conn.execute(rendered, ordered_params)
+        return cur.fetchone()
+    cur = conn.cursor()
+    cur.execute(rendered, ordered_params)
+    row = cur.fetchone()
+    cur.close()
+    return row
 
 
 def _query_all(conn: Any, backend: str, sql: str, params: tuple[Any, ...]) -> list[Any]:
-    rendered = _render_sql(sql, backend)
-    cur = conn.execute(rendered, params) if backend == "sqlite" else conn.cursor().execute(rendered, params)
-    return list(cur.fetchall())
+    rendered, ordered_params = _render_sql_with_params(sql, backend, params)
+    if backend == "sqlite":
+        cur = conn.execute(rendered, ordered_params)
+        return list(cur.fetchall())
+    cur = conn.cursor()
+    cur.execute(rendered, ordered_params)
+    rows = list(cur.fetchall())
+    cur.close()
+    return rows
 
 
 def _execute(conn: Any, backend: str, sql: str, params: tuple[Any, ...]) -> None:
-    rendered = _render_sql(sql, backend)
+    rendered, ordered_params = _render_sql_with_params(sql, backend, params)
     if backend == "sqlite":
-        conn.execute(rendered, params)
-    else:
-        conn.cursor().execute(rendered, params)
+        conn.execute(rendered, ordered_params)
+        return
+    cur = conn.cursor()
+    cur.execute(rendered, ordered_params)
+    cur.close()
 
 
 def _execute_script(conn: Any, backend: str, sql: str) -> None:
@@ -717,3 +746,4 @@ def _execute_script(conn: Any, backend: str, sql: str) -> None:
     cur = conn.cursor()
     for statement in statements:
         cur.execute(statement)
+    cur.close()

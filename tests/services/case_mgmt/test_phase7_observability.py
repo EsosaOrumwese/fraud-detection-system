@@ -4,6 +4,8 @@ from dataclasses import dataclass
 import json
 from pathlib import Path
 
+import fraud_detection.case_mgmt.observability as case_mgmt_observability
+
 from fraud_detection.case_mgmt import (
     AL_SUBMIT_ACCEPTED,
     LS_WRITE_ACCEPTED,
@@ -357,3 +359,24 @@ def test_phase7_collect_handles_optional_tables_absent(tmp_path: Path) -> None:
     assert payload["metrics"]["labels_pending"] == 0
     assert payload["metrics"]["labels_accepted"] == 0
     assert payload["metrics"]["labels_rejected"] == 0
+
+
+@dataclass
+class _RollbackTrackingConn:
+    rollback_calls: int = 0
+
+    def rollback(self) -> None:
+        self.rollback_calls += 1
+
+
+def test_phase7_optional_query_rolls_back_postgres_on_missing_table(monkeypatch: object) -> None:
+    conn = _RollbackTrackingConn()
+
+    def _raise_missing_table(*args: object, **kwargs: object) -> list[object]:
+        raise RuntimeError('relation "cm_action_intent_mismatches" does not exist')
+
+    monkeypatch.setattr(case_mgmt_observability, "_query_all", _raise_missing_table)
+    rows = case_mgmt_observability._query_all_optional(conn, "postgres", "SELECT 1", tuple())
+
+    assert rows == []
+    assert conn.rollback_calls == 1

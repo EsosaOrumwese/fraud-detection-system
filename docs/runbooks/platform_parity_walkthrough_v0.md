@@ -2,7 +2,7 @@
 _As of 2026-02-10_
 
 This runbook executes a **local_parity** end‑to‑end flow capped to **500,000 events**, then validates the implemented RTDL + Case/Label + Obs/Gov surfaces (**IEG/OFP/CSFB/DF/DL/AL/DLA/CaseTrigger/CM/LS + Platform Reporter/Conformance**) against admitted EB topics.
-It uses **MinIO (S3)** for the Oracle Store + platform artifacts, **LocalStack Kinesis** for control/event buses, and **Postgres** for IG/WSP state.
+It uses **MinIO (S3)** for the Oracle Store + platform artifacts, **LocalStack Kinesis** for control/event buses, and **Postgres** for IG/WSP/RTDL decision-lane/Case-Label primary state.
 
 ---
 
@@ -17,7 +17,7 @@ It uses **MinIO (S3)** for the Oracle Store + platform artifacts, **LocalStack K
   - Case lane: `fp.bus.case.v1`
   - Context: `fp.bus.context.arrival_events.v1`, `fp.bus.context.arrival_entities.v1`, `fp.bus.context.flow_anchor.baseline.v1`, `fp.bus.context.flow_anchor.fraud.v1`
   - Audit: `fp.bus.audit.v1`
-- Postgres for IG admission DB + WSP checkpoints
+- Postgres for IG admission DB + WSP checkpoints + decision-lane + case-label primary stores
 
 **Profiles used:**
 - `config/platform/profiles/local_parity.yaml`
@@ -94,6 +94,21 @@ PARITY_IEG_PROJECTION_DSN=<postgres_dsn>
 PARITY_OFP_PROJECTION_DSN=<postgres_dsn>
 PARITY_OFP_SNAPSHOT_INDEX_DSN=<postgres_dsn>
 PARITY_CSFB_PROJECTION_DSN=<postgres_dsn>
+PARITY_DL_POSTURE_DSN=<postgres_dsn>
+PARITY_DL_OUTBOX_DSN=<postgres_dsn>
+PARITY_DL_OPS_DSN=<postgres_dsn>
+PARITY_DF_REPLAY_DSN=<postgres_dsn>
+PARITY_DF_CHECKPOINT_DSN=<postgres_dsn>
+PARITY_AL_LEDGER_DSN=<postgres_dsn>
+PARITY_AL_OUTCOMES_DSN=<postgres_dsn>
+PARITY_AL_REPLAY_DSN=<postgres_dsn>
+PARITY_AL_CHECKPOINT_DSN=<postgres_dsn>
+PARITY_DLA_INDEX_DSN=<postgres_dsn>
+PARITY_CASE_TRIGGER_REPLAY_DSN=<postgres_dsn>
+PARITY_CASE_TRIGGER_CHECKPOINT_DSN=<postgres_dsn>
+PARITY_CASE_TRIGGER_PUBLISH_STORE_DSN=<postgres_dsn>
+PARITY_CASE_MGMT_LOCATOR=<postgres_dsn>
+PARITY_LABEL_STORE_LOCATOR=<postgres_dsn>
 
 OBJECT_STORE_ENDPOINT=http://localhost:9000
 OBJECT_STORE_REGION=us-east-1

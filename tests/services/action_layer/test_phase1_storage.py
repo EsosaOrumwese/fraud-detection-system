@@ -2,7 +2,10 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from fraud_detection.action_layer.storage import ActionLedgerStore, build_storage_layout
+import pytest
+
+import fraud_detection.action_layer.storage as storage_module
+from fraud_detection.action_layer.storage import ActionLedgerStore, ActionLedgerStoreError, build_storage_layout
 
 
 def test_action_storage_layout_uses_configured_locators(tmp_path: Path) -> None:
@@ -53,3 +56,18 @@ def test_action_ledger_registers_new_duplicate_and_hash_mismatch(tmp_path: Path)
     assert mismatch.status == "HASH_MISMATCH"
     assert mismatch.record.payload_hash == "3" * 64
 
+
+def test_phase1_postgres_sql_placeholders_follow_psycopg_contract() -> None:
+    rendered, ordered = storage_module._render_sql_with_params(  # noqa: SLF001
+        "SELECT 1 FROM al_intent_ledger WHERE platform_run_id = {p2} AND scenario_run_id = {p1}",
+        "postgres",
+        ("scenario_x", "platform_y"),
+    )
+    assert rendered.count("%s") == 2
+    assert "{p1}" not in rendered and "{p2}" not in rendered
+    assert ordered == ("platform_y", "scenario_x")
+
+
+def test_phase1_placeholder_index_out_of_range_fails_closed() -> None:
+    with pytest.raises(ActionLedgerStoreError, match="out of range"):
+        storage_module._render_sql_with_params("SELECT * FROM al_intent_ledger WHERE idempotency_key = {p3}", "postgres", ("x",))  # noqa: SLF001

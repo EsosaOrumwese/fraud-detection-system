@@ -2099,25 +2099,16 @@ def _ensure_sqlite_column(conn: sqlite3.Connection, table_name: str, column_name
 
 
 def _render_sql(sql: str, backend: str) -> str:
-    if backend == "postgres":
-        rendered = sql
-        for idx in range(1, 21):
-            rendered = rendered.replace(f"{{p{idx}}}", f"${idx}")
-        return rendered
-    rendered = sql
-    for idx in range(1, 21):
-        rendered = rendered.replace(f"{{p{idx}}}", "?")
-    return rendered
+    placeholder = "%s" if backend == "postgres" else "?"
+    return _SQL_PARAM_PATTERN.sub(placeholder, sql)
 
 
 _SQL_PARAM_PATTERN = re.compile(r"\{p(?P<index>\d+)\}")
 
 
 def _render_sql_with_params(sql: str, backend: str, params: tuple[Any, ...]) -> tuple[str, tuple[Any, ...]]:
-    if backend == "postgres":
-        return _render_sql(sql, backend), params
-
     ordered_params: list[Any] = []
+    placeholder = "%s" if backend == "postgres" else "?"
 
     def _replace(match: re.Match[str]) -> str:
         index = int(match.group("index"))
@@ -2126,7 +2117,7 @@ def _render_sql_with_params(sql: str, backend: str, params: tuple[Any, ...]) -> 
                 f"SQL placeholder index p{index} out of range for {len(params)} params"
             )
         ordered_params.append(params[index - 1])
-        return "?"
+        return placeholder
 
     rendered = _SQL_PARAM_PATTERN.sub(_replace, sql)
     return rendered, tuple(ordered_params)

@@ -195,6 +195,53 @@ def test_ready_consumer_streams_from_ready(tmp_path: Path, monkeypatch) -> None:
     assert {"RUN_READY_SEEN", "RUN_STARTED", "RUN_ENDED"}.issubset(event_families)
 
 
+def test_ready_consumer_survives_governance_append_conflict(tmp_path: Path, monkeypatch) -> None:
+    _reset_ready_gate_env(monkeypatch)
+    monkeypatch.setenv("PLATFORM_RUN_ID", RUN_ID)
+    store_root = tmp_path / "store"
+    control_root = tmp_path / "control_bus"
+    engine_root = tmp_path / "engine_run"
+    engine_root.mkdir(parents=True, exist_ok=True)
+    profile = _profile(store_root, control_root)
+
+    run_id = "9" * 32
+    scenario_id = "baseline_v1"
+    facts_ref = _write_run_facts(store_root, run_id, engine_root, scenario_id)
+    message_id = "7" * 64
+    ready_payload = {
+        "run_id": run_id,
+        "platform_run_id": RUN_ID,
+        "scenario_run_id": run_id,
+        "facts_view_ref": facts_ref,
+        "bundle_hash": "d" * 64,
+        "message_id": message_id,
+        "run_config_digest": "c" * 64,
+        "manifest_fingerprint": "a" * 64,
+        "parameter_hash": "b" * 64,
+        "scenario_id": scenario_id,
+        "oracle_pack_ref": {"engine_run_root": str(engine_root)},
+    }
+    _write_control_message(control_root, topic="fp.bus.control.v1", message_id=message_id, payload=ready_payload)
+
+    called = {"value": False}
+
+    def _fake_emit(**_kwargs):
+        raise RuntimeError("S3_APPEND_CONFLICT")
+
+    def _fake_stream(*, engine_run_root: str | None = None, scenario_id: str | None = None, **_kwargs):
+        called["value"] = True
+        return StreamResult(engine_run_root or "", scenario_id or "", "STREAMED", 3)
+
+    runner = ReadyConsumerRunner(profile)
+    monkeypatch.setattr(ready_consumer_module, "emit_platform_governance_event", _fake_emit)
+    monkeypatch.setattr(runner._producer, "stream_engine_world", _fake_stream)
+
+    results = runner.poll_once()
+    assert results
+    assert results[0].status == "STREAMED"
+    assert called["value"] is True
+
+
 def test_ready_consumer_skips_duplicate(tmp_path: Path, monkeypatch) -> None:
     _reset_ready_gate_env(monkeypatch)
     monkeypatch.setenv("PLATFORM_RUN_ID", RUN_ID)
