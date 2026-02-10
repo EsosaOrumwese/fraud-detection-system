@@ -909,3 +909,16 @@ User requested a temporary implementation pause for strategic discussion.
 - Phase 8 is closed and green.
 - Worker/pack/profile/runbook/Makefile onboarding is complete for MF under `learning_jobs`.
 - Next closure surfaces are MF Phase 9 (obs/gov) then Phase 10 (integration closure gate).
+
+## Entry: 2026-02-10 4:15PM - Component freeze note under platform-level transition
+
+### Decision linkage
+- This component note mirrors the user-approved platform freeze/merge decision.
+- MF implementation work is paused at current validated state while repository progression moves toward `dev` merge and PR to `main`.
+
+### MF carry-forward state at freeze
+- MF Phase 8 is complete and validated green.
+- MF Phase 9 (`obs/gov onboarding`) remains the next pending implementation step when execution resumes.
+
+### Transition guardrail
+- MF semantics/contracts and evidence posture remain baseline authority artifacts for the next managed-substrate planning track.

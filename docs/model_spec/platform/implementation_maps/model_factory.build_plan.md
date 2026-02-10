@@ -301,3 +301,9 @@ Provide an executable, component-scoped plan for Model Factory (MF) aligned to p
 - Phase 9 (`obs/gov onboarding`): pending.
 - Phase 10 (`integration closure gate`): pending.
 - Next action: implement Phase 9 (`obs/gov onboarding`).
+
+## Freeze transition note (2026-02-10)
+- Program decision: freeze current MF baseline at the current validated point.
+- Branch progression intent: merge through `dev`, then open PR to `main`.
+- Resume pointer: MF Phase 9 (`obs/gov onboarding`) remains next when execution restarts.
+- Transition guardrail: preserve MF contract/authority semantics while planning managed-substrate dev-environment execution.

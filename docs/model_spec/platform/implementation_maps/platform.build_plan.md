@@ -1550,3 +1550,9 @@ Resolved and pinned in:
 - MF build-plan Phase 8: complete (`run/operate onboarding` implemented on 2026-02-10 across `src/fraud_detection/model_factory/worker.py`, `config/platform/mf/launcher_policy_v0.yaml`, `config/platform/run_operate/packs/local_parity_learning_jobs.v0.yaml`, `config/platform/profiles/local_parity.yaml`, `Makefile`, and `docs/runbooks/platform_parity_walkthrough_v0.md`; Phase 8 matrix `3 passed`; MF + learning contracts `48 passed`; MF+OFS+learning regression `71 passed`; learning-jobs pack now runs `ofs_job_worker + mf_job_worker` under the same active-run/digest guard semantics).
 - Next active platform phase: Phase 6.3 (MF train/eval/publish corridor, Phase 9 next).
 - SR v0: complete (see `docs/model_spec/platform/implementation_maps/scenario_runner.build_plan.md`).
+
+## Freeze transition note (2026-02-10)
+- Program decision: freeze current baseline implementation due schedule constraints.
+- Branch progression intent: merge through `dev`, then open PR to `main`.
+- Execution posture: implementation work paused after this checkpoint.
+- Carry-forward for next cycle: resume from current active platform area (`Phase 6.3` continuation context) under a managed-substrate dev-environment planning track, preserving pinned platform authority semantics.
