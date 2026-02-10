@@ -250,6 +250,22 @@ ofs:
     evidence_ref_source_type: ${OFS_EVIDENCE_REF_SOURCE_TYPE:-SYSTEM}
     evidence_ref_purpose: ${OFS_EVIDENCE_REF_PURPOSE:-ofs_dataset_build}
     evidence_ref_strict: ${OFS_EVIDENCE_REF_STRICT:-true}
+mf:
+  policy:
+    launcher_policy_ref: config/platform/mf/launcher_policy_v0.yaml
+  wiring:
+    stream_id: mf.v0
+    required_platform_run_id: ${MF_REQUIRED_PLATFORM_RUN_ID:-}
+    run_ledger_locator: ${MF_RUN_LEDGER_DSN:-}
+    object_store_root: ${PLATFORM_STORE_ROOT:-s3://fraud-platform}
+    object_store_endpoint: ${OBJECT_STORE_ENDPOINT}
+    object_store_region: ${OBJECT_STORE_REGION}
+    object_store_path_style: true
+    request_prefix: ${MF_REQUEST_PREFIX:-}
+    request_poll_seconds: ${MF_REQUEST_POLL_SECONDS:-2.0}
+    request_batch_limit: ${MF_REQUEST_BATCH_LIMIT:-20}
+    max_publish_retry_attempts: ${MF_MAX_PUBLISH_RETRY_ATTEMPTS:-3}
+    service_release_id: ${MF_SERVICE_RELEASE_ID:-git:local}
 archive_writer:
   policy:
     policy_ref: config/platform/archive_writer/policy_v0.yaml

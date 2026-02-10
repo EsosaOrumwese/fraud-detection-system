@@ -10498,3 +10498,79 @@ Any success path through a required negative scenario (or untyped failure surfac
 ### Drift sentinel assessment
 - No mismatch detected against flow narrative and learning-plane pinned decisions for this scope.
 - Platform Phase `6.3` remains active; next closure surface is MF Phase 8 (`run/operate onboarding`).
+
+## Entry: 2026-02-10 2:37PM - Platform-level pre-change lock for MF Phase 8 (`6.3` meta-layer run/operate onboarding)
+
+### Why this is platform-significant
+MF must be promoted from matrix-only implementation to orchestrated runtime posture under the same run/operate law that already governs C&I, RTDL, Case/Label, and OFS jobs. Without this, the learning plane remains partially operational and violates the meta-layer coverage intent.
+
+### Locked platform decisions for this pass
+- `learning_jobs` pack must include explicit MF worker process with active-run env scoping.
+- Local parity profile must expose MF wiring through pinned substrate classes (`object_store`, `run_ledger`) with no implicit fallback.
+- Operator invoke/retry controls must be available via Make/CLI runbook paths.
+- Publish retry must remain publish-only and require `PUBLISH_PENDING` state.
+
+### Planned closure evidence
+- MF worker + request launcher surfaces and targeted tests.
+- Pack/profile/Makefile/runbook updates proving MF onboarding to run/operate.
+- Build-plan/implementation-map/logbook updates with executed test evidence.
+
+### Drift sentinel checkpoint
+If MF can execute without active-run + run-config digest guards, or if onboarding bypasses the learning-jobs pack, this is blocker-level drift.
+
+## Entry: 2026-02-10 2:49PM - Platform-level continuation lock for MF Phase 8 closure
+
+### Why this lock is needed
+The previous implementation turn was interrupted with partial MF onboarding. Platform `6.3` cannot claim closure progress while run/operate evidence still reflects OFS-only coverage in the learning jobs pack/runbook.
+
+### Platform decisions for completion
+- Learning plane run/operate pack must explicitly run both `ofs_job_worker` and `mf_job_worker` under active-run scope.
+- Operator control surface must expose MF request enqueue targets in parity tooling.
+- Phase 8 evidence remains test-first: targeted matrix + regression suites before status flip.
+
+### Completion evidence expected
+- Updated pack/profile/Makefile/runbook + MF Phase 8 worker tests.
+- Passing targeted and regression commands recorded in implementation maps/logbook.
+- Build-plan status updated to `Phase 8 complete` with evidence summary.
+
+### Drift sentinel checkpoint
+Any residual OFS-only learning-jobs narrative after edits is blocker drift against meta-layer plane-agnostic orchestration law.
+
+## Entry: 2026-02-10 2:54PM - Platform-level applied closure for MF Phase 8 (`6.3` run/operate onboarding)
+
+### Platform-significant outcomes
+- Learning jobs orchestration now covers both OFS and MF under one pack contract:
+  - `config/platform/run_operate/packs/local_parity_learning_jobs.v0.yaml` now runs `ofs_job_worker` and `mf_job_worker`.
+- MF local-parity runtime wiring is explicit and profile-driven:
+  - `config/platform/profiles/local_parity.yaml` + `config/platform/mf/launcher_policy_v0.yaml`.
+- Operator launch surfaces are standardized in `Makefile` (train-build + publish-retry enqueue targets).
+- Runbook now documents MF invoke/retry posture in the same section as OFS learning jobs.
+
+### Evidence summary
+- Phase 8 targeted matrix: `3 passed`.
+- MF regression with Phase 8 included: `48 passed`.
+- MF+OFS+learning compatibility regression: `71 passed`.
+- Build-plan status surfaces updated in:
+  - `docs/model_spec/platform/implementation_maps/model_factory.build_plan.md`
+  - `docs/model_spec/platform/implementation_maps/platform.build_plan.md`
+
+### Drift sentinel assessment
+- Previous OFS-only learning-jobs posture is now closed.
+- No RTDL-specific assumptions were introduced in orchestration; MF onboarding is declarative pack/profile wiring, consistent with Phase 4.6 orchestration law.
+
+### Next platform step
+- Continue Phase `6.3` with MF Phase 9 (obs/gov onboarding), then proceed to closure gate sequence.
+
+## Entry: 2026-02-10 2:57PM - Platform-level correction after MF Phase 8 closure
+
+### Correction summary
+- Fixed MF launcher policy path resolution so local parity can resolve `config/platform/mf/launcher_policy_v0.yaml` correctly under orchestrated runs.
+- Alignment target: keep MF loader semantics consistent with OFS loader semantics to avoid pack-start drift.
+
+### Validation summary
+- Phase 8 targeted matrix remained green (`3 passed`) after correction.
+- MF regression remained green (`48 passed`).
+- MF+OFS+learning compatibility remained green (`71 passed`).
+
+### Drift sentinel assessment
+- No outstanding run/operate drift remains in MF Phase 8 onboarding path after this correction.

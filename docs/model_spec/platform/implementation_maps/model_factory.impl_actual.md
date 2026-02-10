@@ -753,3 +753,146 @@ If any negative path executes without typed fail-closed code, or if taxonomy map
 ### Plan progression
 - MF Phase 7 is closed.
 - Next MF phase is Phase 8 (`run/operate onboarding`).
+
+## Entry: 2026-02-10 2:37PM - Pre-change implementation lock for MF Phase 8 (run/operate onboarding)
+
+### Problem framing
+MF phases 1..7 are closed but not yet operating as a run/operate-managed job unit. Without Phase 8 onboarding, MF remains matrix-only and not reachable through the orchestrator packs used for live parity operation.
+
+### Authorities and constraints used
+- `docs/model_spec/platform/implementation_maps/model_factory.build_plan.md` (Phase 8 DoD)
+- `docs/model_spec/platform/implementation_maps/platform.build_plan.md` (`6.6` dependency posture)
+- `docs/model_spec/platform/pre-design_decisions/run_and_operate.pre-design_decisions.md`
+- `docs/model_spec/platform/platform-wide/v0_environment_resource_tooling_map.md`
+- Existing local-parity patterns from OFS Phase 8:
+  - `src/fraud_detection/offline_feature_plane/worker.py`
+  - `config/platform/run_operate/packs/local_parity_learning_jobs.v0.yaml`
+  - `config/platform/profiles/local_parity.yaml`
+
+### Alternatives considered
+1. Add only run/operate pack process command for MF and no worker request lane.
+   - Pros: quick.
+   - Cons: fails DoD requirement for explicit launcher/worker and retry posture checks.
+2. Reuse OFS worker schema with MF-specific embedded command shim.
+   - Pros: fewer files.
+   - Cons: blurs component boundaries and increases drift risk.
+3. Add MF-dedicated worker/launcher module mirroring OFS shape, then wire pack/profile/Make targets.
+   - Pros: clear ownership, deterministic request schema, explicit retry boundary, easier env-ladder portability.
+   - Decision: choose option 3.
+
+### Implementation decisions
+- Add `src/fraud_detection/model_factory/worker.py` with:
+  - profile-driven config loader,
+  - deterministic run-config digest stamping,
+  - request queue processing (`train_build`, `publish_retry`),
+  - run-control integration (`enqueue/start/mark_*`),
+  - immutable run-scoped invocation receipts.
+- Add MF launcher policy file and profile wiring:
+  - `config/platform/mf/launcher_policy_v0.yaml`
+  - extend `config/platform/profiles/local_parity.yaml` with `mf.policy/wiring` block.
+- Onboard MF worker into run/operate learning pack:
+  - update `config/platform/run_operate/packs/local_parity_learning_jobs.v0.yaml` env + `mf_job_worker` process.
+- Add Makefile env vars and enqueue targets for MF train build and publish retry.
+- Update runbook with MF launcher invocation/retry/posture checks.
+- Add Phase 8 worker tests:
+  - `tests/services/model_factory/test_phase8_run_operate_worker.py`.
+
+### Invariants to enforce
+- Active run scope check: request `platform_run_id` must match required active run.
+- Run-config digest mismatch fails closed before execution.
+- Publish retry path must not retrain and must require `PUBLISH_PENDING` state.
+- No hidden filesystem fallback: wiring must use profile-declared object store + ledger locators.
+
+### Validation plan
+- Compile MF worker + updated surfaces.
+- Run targeted Phase 8 matrix.
+- Run MF Phase1..8 regression.
+- Run MF+OFS+learning compatibility regression.
+
+### Drift sentinel checkpoint
+If MF remains absent from `learning_jobs` pack or lacks active-run guard/digest guard, Phase 8 remains blocked.
+
+## Entry: 2026-02-10 2:49PM - MF Phase 8 continuation lock after interrupted turn
+
+### Continuation context
+- Prior turn was interrupted during MF Phase 8 onboarding while `src/fraud_detection/model_factory/worker.py` and `config/platform/mf/launcher_policy_v0.yaml` were being assembled.
+- Current workspace confirms `worker.py` exists but run/operate onboarding closure remains partial (pack/Makefile/runbook/tests/status docs still pending).
+
+### Remaining closure decisions (locked before edits)
+- Keep MF as a request-driven job worker under `learning_jobs` pack, parallel to OFS (no always-on daemon mode).
+- Enforce active-run and run-config digest guards as hard fail-closed gates in worker receipts.
+- Add MF enqueue controls to Makefile so operators use the same run/operate-managed invocation surface.
+- Add Phase 8 matrix tests focused on run/operate invariants (request success path, digest mismatch fail-closed, publish-retry pending-state gate).
+- Update runbook and build-plan statuses only after tests pass.
+
+### Planned validation
+- `py_compile` on MF worker + new Phase 8 tests.
+- Targeted Phase 8 matrix test module.
+- MF regression (`phase1..phase8`).
+- MF+OFS+learning compatibility regression.
+
+### Drift sentinel checkpoint
+If MF is not present in `learning_jobs` pack or runbook still claims OFS-only learning jobs coverage, Phase 8 remains open.
+
+## Entry: 2026-02-10 2:54PM - Applied MF Phase 8 closure (run/operate onboarding)
+
+### What was implemented
+- Completed MF Phase 8 runtime onboarding surfaces:
+  - `src/fraud_detection/model_factory/worker.py`
+  - `tests/services/model_factory/test_phase8_run_operate_worker.py`
+  - `config/platform/mf/launcher_policy_v0.yaml`
+  - `config/platform/run_operate/packs/local_parity_learning_jobs.v0.yaml`
+  - `config/platform/profiles/local_parity.yaml`
+  - `Makefile`
+  - `docs/runbooks/platform_parity_walkthrough_v0.md`
+
+### Key mechanics now enforced
+- MF is a request-driven worker unit under run/operate (`mf_job_worker`), co-located with OFS in the `learning_jobs` pack.
+- Active-run scoping is fail-closed via `required_platform_run_id` checks.
+- Run-config digest mismatch is fail-closed before any train/retry execution.
+- Operator invoke surface is explicit:
+  - `make platform-mf-enqueue-train-build`
+  - `make platform-mf-enqueue-publish-retry`
+- Publish retry remains publish-only and requires `PUBLISH_PENDING` state from MF run-control/ledger.
+
+### Validation evidence
+- Syntax:
+  - `python -m py_compile src/fraud_detection/model_factory/worker.py tests/services/model_factory/test_phase8_run_operate_worker.py` (`PASS`).
+- Targeted Phase 8 matrix:
+  - `python -m pytest tests/services/model_factory/test_phase8_run_operate_worker.py -q --import-mode=importlib` (`3 passed`).
+- MF + learning regression:
+  - `python -m pytest tests/services/model_factory/test_phase1_contracts.py tests/services/model_factory/test_phase1_ids.py tests/services/model_factory/test_phase2_run_ledger.py tests/services/model_factory/test_phase3_resolver.py tests/services/model_factory/test_phase4_execution.py tests/services/model_factory/test_phase5_gate_policy.py tests/services/model_factory/test_phase6_bundle_publish.py tests/services/model_factory/test_phase7_negative_matrix.py tests/services/model_factory/test_phase8_run_operate_worker.py tests/services/learning_registry/test_phase61_contracts.py -q --import-mode=importlib` (`48 passed`).
+- MF + OFS + learning compatibility regression:
+  - `python -m pytest tests/services/model_factory/test_phase1_contracts.py tests/services/model_factory/test_phase1_ids.py tests/services/model_factory/test_phase2_run_ledger.py tests/services/model_factory/test_phase3_resolver.py tests/services/model_factory/test_phase4_execution.py tests/services/model_factory/test_phase5_gate_policy.py tests/services/model_factory/test_phase6_bundle_publish.py tests/services/model_factory/test_phase7_negative_matrix.py tests/services/model_factory/test_phase8_run_operate_worker.py tests/services/offline_feature_plane/test_phase1_contracts.py tests/services/offline_feature_plane/test_phase1_ids.py tests/services/offline_feature_plane/test_phase2_run_ledger.py tests/services/offline_feature_plane/test_phase3_resolver.py tests/services/learning_registry/test_phase61_contracts.py -q --import-mode=importlib` (`71 passed`).
+
+### Plan/status updates applied
+- `docs/model_spec/platform/implementation_maps/model_factory.build_plan.md`
+  - Phase 8 marked complete with implementation note + validation evidence.
+  - Next action moved to Phase 9.
+- `docs/model_spec/platform/implementation_maps/platform.build_plan.md`
+  - Phase 6 status updated to MF phases `1..8` complete.
+  - Added MF Phase 8 completion line and shifted next active step to `6.3` Phase 9.
+
+### Drift sentinel assessment
+- No designed-flow/runtime drift remains for MF Phase 8 scope.
+- `learning_jobs` run/operate lane now matches plane-agnostic orchestration law for both OFS and MF job units.
+
+## Entry: 2026-02-10 2:57PM - Post-closure correction: MF launcher policy path resolution
+
+### Issue found during closure review
+- MF Phase 8 worker initially resolved `mf.policy.launcher_policy_ref` relative to `profile_path.parent` unconditionally.
+- In local parity (`config/platform/profiles/local_parity.yaml`), this would incorrectly rewrite `config/platform/mf/launcher_policy_v0.yaml` into `config/platform/profiles/config/platform/mf/...`.
+
+### Applied fix
+- Updated `load_worker_config(...)` in `src/fraud_detection/model_factory/worker.py`:
+  - keep configured relative path as-is (repo/CWD resolution first, matching OFS posture),
+  - only fallback to profile-relative path when the configured relative path does not exist.
+
+### Validation rerun (post-fix)
+- `python -m py_compile src/fraud_detection/model_factory/worker.py tests/services/model_factory/test_phase8_run_operate_worker.py` (`PASS`).
+- `python -m pytest tests/services/model_factory/test_phase8_run_operate_worker.py -q --import-mode=importlib` (`3 passed`).
+- `python -m pytest tests/services/model_factory/test_phase1_contracts.py tests/services/model_factory/test_phase1_ids.py tests/services/model_factory/test_phase2_run_ledger.py tests/services/model_factory/test_phase3_resolver.py tests/services/model_factory/test_phase4_execution.py tests/services/model_factory/test_phase5_gate_policy.py tests/services/model_factory/test_phase6_bundle_publish.py tests/services/model_factory/test_phase7_negative_matrix.py tests/services/model_factory/test_phase8_run_operate_worker.py tests/services/learning_registry/test_phase61_contracts.py -q --import-mode=importlib` (`48 passed`).
+- `python -m pytest tests/services/model_factory/test_phase1_contracts.py tests/services/model_factory/test_phase1_ids.py tests/services/model_factory/test_phase2_run_ledger.py tests/services/model_factory/test_phase3_resolver.py tests/services/model_factory/test_phase4_execution.py tests/services/model_factory/test_phase5_gate_policy.py tests/services/model_factory/test_phase6_bundle_publish.py tests/services/model_factory/test_phase7_negative_matrix.py tests/services/model_factory/test_phase8_run_operate_worker.py tests/services/offline_feature_plane/test_phase1_contracts.py tests/services/offline_feature_plane/test_phase1_ids.py tests/services/offline_feature_plane/test_phase2_run_ledger.py tests/services/offline_feature_plane/test_phase3_resolver.py tests/services/learning_registry/test_phase61_contracts.py -q --import-mode=importlib` (`71 passed`).
+
+### Drift sentinel assessment
+- This correction removes a latent local parity launch-time drift and aligns MF with existing OFS path-resolution semantics.

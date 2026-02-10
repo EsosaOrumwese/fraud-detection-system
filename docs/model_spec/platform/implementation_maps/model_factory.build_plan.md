@@ -228,6 +228,25 @@ Provide an executable, component-scoped plan for Model Factory (MF) aligned to p
 - Local parity profile wiring uses pinned substrate classes from environment map (no hidden filesystem fallback).
 - Runbook includes MF invoke/retry/posture checks.
 
+**Implementation status note (2026-02-10):**
+- Phase 8 onboarding landed across:
+  - `src/fraud_detection/model_factory/worker.py`
+  - `tests/services/model_factory/test_phase8_run_operate_worker.py`
+  - `config/platform/mf/launcher_policy_v0.yaml`
+  - `config/platform/run_operate/packs/local_parity_learning_jobs.v0.yaml`
+  - `config/platform/profiles/local_parity.yaml`
+  - `Makefile`
+  - `docs/runbooks/platform_parity_walkthrough_v0.md`
+- MF is now onboarded as a request-driven run/operate unit (`mf_job_worker`) in the learning jobs pack, with:
+  - explicit active-run scope guard (`required_platform_run_id`),
+  - deterministic run-config digest fail-closed checks,
+  - explicit enqueue surfaces for train-build and publish-only retry.
+- Validation evidence:
+  - `python -m py_compile src/fraud_detection/model_factory/worker.py tests/services/model_factory/test_phase8_run_operate_worker.py` (`PASS`).
+  - `python -m pytest tests/services/model_factory/test_phase8_run_operate_worker.py -q --import-mode=importlib` (`3 passed`).
+  - `python -m pytest tests/services/model_factory/test_phase1_contracts.py tests/services/model_factory/test_phase1_ids.py tests/services/model_factory/test_phase2_run_ledger.py tests/services/model_factory/test_phase3_resolver.py tests/services/model_factory/test_phase4_execution.py tests/services/model_factory/test_phase5_gate_policy.py tests/services/model_factory/test_phase6_bundle_publish.py tests/services/model_factory/test_phase7_negative_matrix.py tests/services/model_factory/test_phase8_run_operate_worker.py tests/services/learning_registry/test_phase61_contracts.py -q --import-mode=importlib` (`48 passed`).
+  - `python -m pytest tests/services/model_factory/test_phase1_contracts.py tests/services/model_factory/test_phase1_ids.py tests/services/model_factory/test_phase2_run_ledger.py tests/services/model_factory/test_phase3_resolver.py tests/services/model_factory/test_phase4_execution.py tests/services/model_factory/test_phase5_gate_policy.py tests/services/model_factory/test_phase6_bundle_publish.py tests/services/model_factory/test_phase7_negative_matrix.py tests/services/model_factory/test_phase8_run_operate_worker.py tests/services/offline_feature_plane/test_phase1_contracts.py tests/services/offline_feature_plane/test_phase1_ids.py tests/services/offline_feature_plane/test_phase2_run_ledger.py tests/services/offline_feature_plane/test_phase3_resolver.py tests/services/learning_registry/test_phase61_contracts.py -q --import-mode=importlib` (`71 passed`).
+
 ### Phase 9 - Obs/Gov onboarding (meta-layer gate)
 **Intent:** make MF lifecycle auditable without hot-path drag.
 
@@ -278,7 +297,7 @@ Provide an executable, component-scoped plan for Model Factory (MF) aligned to p
 - Phase 5 (`gate receipt + publish eligibility policy`): complete (implemented and validated on `2026-02-10`).
 - Phase 6 (`bundle packaging + MPR publish handshake`): complete (implemented and validated on `2026-02-10`).
 - Phase 7 (`negative-path matrix + fail-closed taxonomy`): complete (implemented and validated on `2026-02-10`).
-- Phase 8 (`run/operate onboarding`): pending.
+- Phase 8 (`run/operate onboarding`): complete (implemented and validated on `2026-02-10`).
 - Phase 9 (`obs/gov onboarding`): pending.
 - Phase 10 (`integration closure gate`): pending.
-- Next action: implement Phase 8 (`run/operate onboarding`).
+- Next action: implement Phase 9 (`obs/gov onboarding`).

@@ -190,14 +190,14 @@ Notes:
 - RTDL core pack enforces active run scope via `ACTIVE_RUN_ID` -> `*_REQUIRED_PLATFORM_RUN_ID`.
 - RTDL decision-lane pack enforces active run scope for `DL/DF/AL/DLA` with the same run pin.
 - Case/Label pack enforces active run scope for `CaseTrigger/CM/LS` with the same run pin.
-- Learning jobs pack enforces active run scope for `OFS` with the same run pin.
+- Learning jobs pack enforces active run scope for `OFS/MF` with the same run pin.
 - Obs/Gov pack enforces active run scope for `platform_run_reporter/platform_conformance` with the same run pin.
 - Orchestrator contract is plane-agnostic; future planes onboard by adding new process-pack files, not by changing orchestrator code.
 - Mode boundary:
   - If packs are running, treat them as source-of-truth daemons and avoid launching duplicate manual consumers for the same component.
   - Use manual component commands only for targeted diagnosis or matrix/boundary checks.
 
-### 3.2) OFS launcher (explicit job invocation and publish-only retry)
+### 3.2) Learning jobs launcher (OFS + MF explicit invocation and publish-only retry)
 
 OFS is job-driven. The `learning_jobs` pack runs a request worker that consumes request envelopes from:
 
@@ -231,6 +231,35 @@ Worker outputs (immutable, run-scoped):
 - Requests: `<platform_run_id>/ofs/job_requests/<request_id>.json`
 - Invocation receipts: `<platform_run_id>/ofs/job_invocations/<request_id>.json`
 - Component artifacts: `ofs/resolved_build_plan`, `ofs/replay_completeness`, `ofs/label_resolution`, `ofs/dataset_draft`, `ofs/manifests`, `ofs/publication_receipts`.
+
+MF is also job-driven. The `learning_jobs` pack runs an MF request worker that consumes request envelopes from:
+
+`<platform_run_id>/mf/job_requests/*.json`
+
+Enqueue an MF train/build request:
+
+```powershell
+make platform-mf-enqueue-train-build `
+  MF_PROFILE=config/platform/profiles/local_parity.yaml `
+  MF_REQUEST_PATH=runs/fraud-platform/<platform_run_id>/mf/requests/train_build_request.json
+```
+
+Enqueue an MF publish-only retry request for a `PUBLISH_PENDING` run:
+
+```powershell
+make platform-mf-enqueue-publish-retry `
+  MF_PROFILE=config/platform/profiles/local_parity.yaml `
+  MF_PUBLISH_RETRY_RUN_KEY=<run_key> `
+  MF_PUBLISH_RETRY_PLATFORM_RUN_ID=<platform_run_id> `
+  MF_PUBLISH_RETRY_RESOLVED_TRAIN_PLAN_REF=s3://fraud-platform/<platform_run_id>/mf/resolved_train_plan/<run_key>.json `
+  MF_PUBLISH_RETRY_GATE_RECEIPT_REF=s3://fraud-platform/<platform_run_id>/mf/train_runs/<run_key>/gate/gate_receipt.json `
+  MF_PUBLISH_RETRY_PUBLISH_ELIGIBILITY_REF=s3://fraud-platform/<platform_run_id>/mf/train_runs/<run_key>/gate/publish_eligibility.json
+```
+
+MF worker outputs (immutable, run-scoped):
+- Requests: `<platform_run_id>/mf/job_requests/<request_id>.json`
+- Invocation receipts: `<platform_run_id>/mf/job_invocations/<request_id>.json`
+- Component artifacts: `mf/resolved_train_plan`, `mf/train_runs`, `mf/bundle_publications`, `mf/publish_receipts`, `mf/registry`.
 
 ---
 
@@ -1155,7 +1184,7 @@ This validates CaseTrigger at its component boundary for Phase 8 closure. CaseTr
 
 ## 22) Full live daemon baseline (current v0 daemon surfaces)
 
-Use this when you want always-on parity consumers for the full implemented lane under run/operate (C&I + RTDL + Case/Label + OFS job worker).
+Use this when you want always-on parity consumers for the full implemented lane under run/operate (C&I + RTDL + Case/Label + OFS/MF job workers).
 
 Bring all packs up:
 ```powershell
@@ -1187,7 +1216,7 @@ Scope note:
 - `rtdl_core` pack covers `ArchiveWriter/IEG/OFP/CSFB`.
 - `rtdl_decision_lane` pack covers `DL/DF/AL/DLA`.
 - `case_labels` pack covers `CaseTrigger/CM/LS`.
-- `learning_jobs` pack covers `OFS job worker` (request-driven offline builds + publish-only retries).
+- `learning_jobs` pack covers `OFS + MF job workers` (request-driven offline builds/train-builds + publish-only retries).
 - `obs_gov` pack covers `platform_run_reporter + environment_conformance` daemon workers.
 - Component matrices in Sections 16/17/19/20 remain required as deterministic boundary checks; they now complement (not replace) daemonized runtime operation.
 

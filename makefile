@@ -2597,6 +2597,7 @@ PARITY_CASE_MGMT_LOCATOR ?= $(PARITY_IG_ADMISSION_DSN)
 PARITY_LABEL_STORE_LOCATOR ?= $(PARITY_IG_ADMISSION_DSN)
 PARITY_ARCHIVE_WRITER_LEDGER_DSN ?= $(PARITY_IG_ADMISSION_DSN)
 PARITY_OFS_RUN_LEDGER_DSN ?= $(PARITY_IG_ADMISSION_DSN)
+PARITY_MF_RUN_LEDGER_DSN ?= $(PARITY_IG_ADMISSION_DSN)
 PARITY_EVENT_BUS_STREAM ?= auto
 PARITY_EVENT_BUS_REGION ?= $(PARITY_CONTROL_BUS_REGION)
 PARITY_EVENT_BUS_ENDPOINT_URL ?= $(PARITY_CONTROL_BUS_ENDPOINT_URL)
@@ -2632,6 +2633,14 @@ OFS_PUBLISH_RETRY_REPLAY_RECEIPT_PATH ?=
 OFS_PUBLISH_RETRY_LABEL_RECEIPT_PATH ?=
 OFS_SUPERSEDES_MANIFEST_REFS ?=
 OFS_BACKFILL_REASON ?=
+MF_PROFILE ?= config/platform/profiles/local_parity.yaml
+MF_REQUEST_PATH ?=
+MF_REQUEST_ID ?=
+MF_PUBLISH_RETRY_RUN_KEY ?=
+MF_PUBLISH_RETRY_PLATFORM_RUN_ID ?=
+MF_PUBLISH_RETRY_RESOLVED_TRAIN_PLAN_REF ?=
+MF_PUBLISH_RETRY_GATE_RECEIPT_REF ?=
+MF_PUBLISH_RETRY_PUBLISH_ELIGIBILITY_REF ?=
 
 .PHONY: platform-stack-up platform-stack-down platform-stack-status
 platform-stack-up:
@@ -3192,6 +3201,34 @@ platform-ofs-enqueue-publish-retry:
 		$(if $(OFS_REQUEST_ID),--request-id "$(OFS_REQUEST_ID)",) \
 		$(foreach ref,$(OFS_SUPERSEDES_MANIFEST_REFS),--supersedes-manifest-ref "$(ref)") \
 		$(if $(OFS_BACKFILL_REASON),--backfill-reason "$(OFS_BACKFILL_REASON)",)
+
+.PHONY: platform-mf-enqueue-train-build
+platform-mf-enqueue-train-build:
+	@if [ -z "$(MF_REQUEST_PATH)" ]; then \
+		echo "MF_REQUEST_PATH is required for platform-mf-enqueue-train-build." >&2; \
+		exit 1; \
+	fi
+	@$(PY_PLATFORM) -m fraud_detection.model_factory.worker \
+		--profile "$(MF_PROFILE)" \
+		enqueue-train-build \
+		--request-path "$(MF_REQUEST_PATH)" \
+		$(if $(MF_REQUEST_ID),--request-id "$(MF_REQUEST_ID)",)
+
+.PHONY: platform-mf-enqueue-publish-retry
+platform-mf-enqueue-publish-retry:
+	@if [ -z "$(MF_PUBLISH_RETRY_RUN_KEY)" ] || [ -z "$(MF_PUBLISH_RETRY_PLATFORM_RUN_ID)" ]; then \
+		echo "platform-mf-enqueue-publish-retry requires MF_PUBLISH_RETRY_RUN_KEY and MF_PUBLISH_RETRY_PLATFORM_RUN_ID." >&2; \
+		exit 1; \
+	fi
+	@$(PY_PLATFORM) -m fraud_detection.model_factory.worker \
+		--profile "$(MF_PROFILE)" \
+		enqueue-publish-retry \
+		--run-key "$(MF_PUBLISH_RETRY_RUN_KEY)" \
+		--platform-run-id "$(MF_PUBLISH_RETRY_PLATFORM_RUN_ID)" \
+		$(if $(MF_REQUEST_ID),--request-id "$(MF_REQUEST_ID)",) \
+		$(if $(MF_PUBLISH_RETRY_RESOLVED_TRAIN_PLAN_REF),--resolved-train-plan-ref "$(MF_PUBLISH_RETRY_RESOLVED_TRAIN_PLAN_REF)",) \
+		$(if $(MF_PUBLISH_RETRY_GATE_RECEIPT_REF),--gate-receipt-ref "$(MF_PUBLISH_RETRY_GATE_RECEIPT_REF)",) \
+		$(if $(MF_PUBLISH_RETRY_PUBLISH_ELIGIBILITY_REF),--publish-eligibility-ref "$(MF_PUBLISH_RETRY_PUBLISH_ELIGIBILITY_REF)",)
 
 .PHONY: platform-run-report
 platform-run-report:
