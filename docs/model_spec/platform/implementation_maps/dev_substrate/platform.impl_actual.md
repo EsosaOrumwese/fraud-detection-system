@@ -769,3 +769,44 @@ This is a corrective drift fix to realign gate logic with event-bus design inten
 
 ### Drift sentinel checkpoint
 Corrective alignment completed; no platform flow/ownership drift introduced.
+
+## Entry: 2026-02-10 11:14PM - Pre-change lock: add binding budget sentinel for dev-substrate execution discipline
+
+### Trigger
+USER explicitly requested stronger vigilance for paid-service usage and explicit shutdown guidance when stepping away.
+
+### Problem
+Current build plan includes cost guardrails in Phase 2 but does not define an always-on operator behavior contract for cost posture across all phases.
+
+### Decision
+Add a dedicated, binding `Budget Sentinel` section to the active dev-substrate build plan that applies to every execution step, not only infra provisioning phases.
+
+### Planned policy content
+1. Mandatory pre-action cost surface declaration (what paid services may be touched).
+2. Mandatory post-action decision (`KEEP ON` vs `TURN OFF NOW`) with explicit rationale.
+3. Immediate teardown on user-away/no-work state for ephemeral resources.
+4. No unattended paid resources after command completion unless explicitly approved.
+5. Cost action evidence must be logged in logbook and impl notes.
+
+### Drift sentinel checkpoint
+Process hardening only; no semantic/component/runtime-flow change.
+
+## Entry: 2026-02-10 11:14PM - Applied binding budget sentinel in dev-substrate build plan
+
+### Implemented change
+- Updated `docs/model_spec/platform/implementation_maps/dev_substrate/platform.build_plan.md` with new section:
+  - `Budget Sentinel (binding for all dev_substrate phases)`.
+
+### Policy now pinned
+1. Pre-action paid-surface declaration is mandatory.
+2. Post-action explicit `KEEP ON` vs `TURN OFF NOW` decision is mandatory.
+3. Away/no-work state requires immediate teardown confirmation for ephemeral paid resources.
+4. No unattended paid runtime without explicit approval.
+5. Cost-relevant actions must be logged in both logbook and impl notes.
+
+### Outcome
+- Budget discipline is now a standing execution law for the migration track, not phase-local guidance.
+- This directly addresses USER requirement for active noob-safe cost posture.
+
+### Drift sentinel checkpoint
+Governance/process hardening only; no platform logic/runtime ownership drift.

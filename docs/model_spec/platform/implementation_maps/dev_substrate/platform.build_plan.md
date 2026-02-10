@@ -17,6 +17,28 @@ Execute a controlled migration from `local_parity` to `dev_min` managed substrat
 - At-least-once safety and idempotency remain mandatory.
 - Drift sentinel law applies at each substantial step and after every full run.
 
+## Budget Sentinel (binding for all dev_substrate phases)
+### Objective
+Prevent accidental spend escalation while preserving migration progress.
+
+### Operating law
+1. Pre-action cost declaration is mandatory:
+- Before any command set, explicitly state which paid services/resources may be touched.
+2. Post-action cost decision is mandatory:
+- After every substantial run/change, explicitly declare `KEEP ON` or `TURN OFF NOW`.
+3. Away-state teardown is mandatory:
+- If USER indicates they are stepping away or no further work is queued, shut down/teardown all ephemeral paid resources immediately and confirm completion.
+4. No unattended paid runtime:
+- Do not leave paid ephemeral resources running without explicit user approval and an expiration intent.
+5. Cost evidence logging is mandatory:
+- Record cost-relevant start/stop/teardown actions and posture decisions in `docs/logbook` and `dev_substrate/platform.impl_actual.md`.
+
+### Definition of Done (continuous)
+- [ ] Every dev_substrate execution step includes pre-action cost declaration.
+- [ ] Every dev_substrate execution step ends with explicit `KEEP ON`/`TURN OFF NOW`.
+- [ ] Away-state detection always triggers teardown confirmation.
+- [ ] Cost-relevant actions are logged with timestamped evidence.
+
 ## Phase 0 - Mobilization and semantic freeze
 ### Objective
 Start migration from authoritative sources only, without duplicative planning artifacts.
