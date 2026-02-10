@@ -563,3 +563,79 @@ Validation evidence:
 
 ### Drift sentinel checkpoint
 No semantic/runtime drift introduced. This is a secret-materialization dependency blocker only.
+
+## Entry: 2026-02-10 10:54PM - Pre-change lock: move Phase 1 bootstrap to dedicated `.env.dev_min`
+
+### Context
+USER requested dedicated dev-substrate environment file instead of relying on local/parity env surfaces.
+
+### Decision
+- Introduce dedicated env file convention for Phase 1 commands:
+  - runtime file: `.env.dev_min` (local, untracked),
+  - template file: `.env.dev_min.example` (tracked).
+- Update Make targets to source dedicated env file before invoking Phase 1 scripts.
+- Keep inline make-variable overrides available.
+
+### Planned edits
+1. `Makefile`
+   - add `DEV_MIN_ENV_FILE ?= .env.dev_min`.
+   - update `platform-dev-min-phase1-preflight` and `platform-dev-min-phase1-seed-ssm` to source `DEV_MIN_ENV_FILE` and pass env-backed values.
+2. `.gitignore`
+   - add `.env.dev_min` to prevent accidental secret commit.
+3. `.env.dev_min.example`
+   - add required key names with placeholders (no secrets).
+4. `docs/model_spec/platform/implementation_maps/dev_substrate/platform.build_plan.md`
+   - note dedicated env surface under Phase 1 secret/bootstrap sections.
+
+### Validation plan
+- run seed/preflight using a temporary dedicated env file + drill SSM prefix.
+- cleanup drill SSM handles after test.
+
+### Drift sentinel checkpoint
+No platform semantic/runtime changes; this is execution-surface hygiene and migration-friction reduction.
+
+## Entry: 2026-02-10 10:58PM - Applied dedicated Phase 1 env surface (`.env.dev_min`) with validation evidence
+
+### Implemented changes
+1. Updated Phase 1 Make defaults and targets in `Makefile`:
+   - added `DEV_MIN_ENV_FILE ?= .env.dev_min`,
+   - `platform-dev-min-phase1-preflight` now:
+     - requires `DEV_MIN_ENV_FILE` file presence,
+     - sources file with `set -a; . "$DEV_MIN_ENV_FILE"; set +a`,
+     - resolves args from env surface and invokes `phase1_preflight.ps1`.
+   - `platform-dev-min-phase1-seed-ssm` now:
+     - requires `DEV_MIN_ENV_FILE` file presence,
+     - sources file with the same export semantics,
+     - resolves `DEV_MIN_KAFKA_*` values and invokes `phase1_seed_ssm.ps1`.
+2. Updated `.gitignore` to ignore `.env.dev_min`.
+3. Added `.env.dev_min.example` with non-secret placeholders and required key names.
+4. Updated build-plan Phase 1 text in:
+   - `docs/model_spec/platform/implementation_maps/dev_substrate/platform.build_plan.md`
+   - pinned dedicated env surface and `DEV_MIN_ENV_FILE` override handle.
+
+### Validation evidence (sanitized)
+Executed isolated drill using temporary env file `.tmp/dev_min_env_test.env`:
+- `DEV_MIN_SSM_PREFIX=/fraud-platform/dev_min_envfile_drill`
+- `DEV_MIN_SKIP_CONFLUENT_API_PROBE=1` (to avoid false-negative on dummy credentials)
+
+Command results:
+1. `make platform-dev-min-phase1-seed-ssm DEV_MIN_ENV_FILE=.tmp/dev_min_env_test.env`
+   - PASS: wrote handles under `/fraud-platform/dev_min_envfile_drill/confluent/*`.
+2. `make platform-dev-min-phase1-preflight DEV_MIN_ENV_FILE=.tmp/dev_min_env_test.env`
+   - PASS with expected probe skip warning:
+     - AWS identity/region checks PASS,
+     - SSM handle presence PASS,
+     - Confluent API probe WARN (skipped by flag),
+     - S3 bucket inventory check PASS,
+     - secret hygiene check PASS.
+3. Cleanup:
+   - deleted drill SSM parameters under `/fraud-platform/dev_min_envfile_drill/confluent/*`,
+   - removed temporary `.tmp` drill env/output artifacts.
+
+### Outcome
+- Dedicated env path is now deterministic and explicit for Phase 1 commands.
+- Secret sourcing no longer depends on ambient shell inheritance.
+- Phase 1 strict closure still depends on real Confluent values in `.env.dev_min` (or alternate file passed via `DEV_MIN_ENV_FILE`) and strict preflight run against `/fraud-platform/dev_min`.
+
+### Drift sentinel checkpoint
+No designed-flow drift introduced. Change is limited to operator bootstrap surface and secret-handling hygiene for migration readiness.

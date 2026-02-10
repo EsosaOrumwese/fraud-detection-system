@@ -220,6 +220,7 @@ MATH_PROFILE_VERSION ?= openlibm-v0.8.7
 # Dev substrate migration defaults (Phase 1 bootstrap/preflight)
 # ---------------------------------------------------------------------------
 DEV_MIN_AWS_REGION ?= eu-west-2
+DEV_MIN_ENV_FILE ?= .env.dev_min
 DEV_MIN_SSM_PREFIX ?= /fraud-platform/dev_min
 DEV_MIN_PHASE1_PREFLIGHT_OUTPUT ?=
 DEV_MIN_ALLOW_MISSING_CONFLUENT_HANDLES ?=
@@ -3271,21 +3272,40 @@ platform-run-report:
 
 .PHONY: platform-dev-min-phase1-preflight
 platform-dev-min-phase1-preflight:
-	@MSYS_NO_PATHCONV=1 pwsh -NoProfile -File scripts/dev_substrate/phase1_preflight.ps1 \
-		-RequiredRegion "$(DEV_MIN_AWS_REGION)" \
-		-SsmPrefix "$(DEV_MIN_SSM_PREFIX)" \
-		$(if $(DEV_MIN_ALLOW_MISSING_CONFLUENT_HANDLES),-AllowMissingConfluentHandles,) \
-		$(if $(DEV_MIN_SKIP_CONFLUENT_API_PROBE),-SkipConfluentApiProbe,) \
-		$(if $(DEV_MIN_PHASE1_PREFLIGHT_OUTPUT),-OutputPath "$(DEV_MIN_PHASE1_PREFLIGHT_OUTPUT)",)
+	@env_file="$(DEV_MIN_ENV_FILE)"; \
+	if [ ! -f "$$env_file" ]; then \
+		echo "platform-dev-min-phase1-preflight requires $$env_file (copy from .env.dev_min.example)" >&2; \
+		exit 1; \
+	fi; \
+	set -a; . "$$env_file"; set +a; \
+	required_region="$${DEV_MIN_AWS_REGION:-$(DEV_MIN_AWS_REGION)}"; \
+	ssm_prefix="$${DEV_MIN_SSM_PREFIX:-$(DEV_MIN_SSM_PREFIX)}"; \
+	allow_missing="$${DEV_MIN_ALLOW_MISSING_CONFLUENT_HANDLES:-$(DEV_MIN_ALLOW_MISSING_CONFLUENT_HANDLES)}"; \
+	skip_probe="$${DEV_MIN_SKIP_CONFLUENT_API_PROBE:-$(DEV_MIN_SKIP_CONFLUENT_API_PROBE)}"; \
+	output_path="$${DEV_MIN_PHASE1_PREFLIGHT_OUTPUT:-$(DEV_MIN_PHASE1_PREFLIGHT_OUTPUT)}"; \
+	args=(-NoProfile -File scripts/dev_substrate/phase1_preflight.ps1 -RequiredRegion "$$required_region" -SsmPrefix "$$ssm_prefix"); \
+	if [ -n "$$allow_missing" ]; then args+=(-AllowMissingConfluentHandles); fi; \
+	if [ -n "$$skip_probe" ]; then args+=(-SkipConfluentApiProbe); fi; \
+	if [ -n "$$output_path" ]; then args+=(-OutputPath "$$output_path"); fi; \
+	MSYS_NO_PATHCONV=1 pwsh "$${args[@]}"
 
 .PHONY: platform-dev-min-phase1-seed-ssm
 platform-dev-min-phase1-seed-ssm:
-	@MSYS_NO_PATHCONV=1 pwsh -NoProfile -File scripts/dev_substrate/phase1_seed_ssm.ps1 \
-		-SsmPrefix "$(DEV_MIN_SSM_PREFIX)" \
-		-FromEnv \
-		$(if $(DEV_MIN_KAFKA_BOOTSTRAP),-Bootstrap "$(DEV_MIN_KAFKA_BOOTSTRAP)",) \
-		$(if $(DEV_MIN_KAFKA_API_KEY),-ApiKey "$(DEV_MIN_KAFKA_API_KEY)",) \
-		$(if $(DEV_MIN_KAFKA_API_SECRET),-ApiSecret "$(DEV_MIN_KAFKA_API_SECRET)",)
+	@env_file="$(DEV_MIN_ENV_FILE)"; \
+	if [ ! -f "$$env_file" ]; then \
+		echo "platform-dev-min-phase1-seed-ssm requires $$env_file (copy from .env.dev_min.example)" >&2; \
+		exit 1; \
+	fi; \
+	set -a; . "$$env_file"; set +a; \
+	ssm_prefix="$${DEV_MIN_SSM_PREFIX:-$(DEV_MIN_SSM_PREFIX)}"; \
+	bootstrap="$${DEV_MIN_KAFKA_BOOTSTRAP:-$(DEV_MIN_KAFKA_BOOTSTRAP)}"; \
+	api_key="$${DEV_MIN_KAFKA_API_KEY:-$(DEV_MIN_KAFKA_API_KEY)}"; \
+	api_secret="$${DEV_MIN_KAFKA_API_SECRET:-$(DEV_MIN_KAFKA_API_SECRET)}"; \
+	args=(-NoProfile -File scripts/dev_substrate/phase1_seed_ssm.ps1 -SsmPrefix "$$ssm_prefix" -FromEnv); \
+	if [ -n "$$bootstrap" ]; then args+=(-Bootstrap "$$bootstrap"); fi; \
+	if [ -n "$$api_key" ]; then args+=(-ApiKey "$$api_key"); fi; \
+	if [ -n "$$api_secret" ]; then args+=(-ApiSecret "$$api_secret"); fi; \
+	MSYS_NO_PATHCONV=1 pwsh "$${args[@]}"
 
 .PHONY: platform-governance-query
 platform-governance-query:

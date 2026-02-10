@@ -101,10 +101,15 @@ Stand up secure operator-ready access for AWS + Confluent without embedding secr
   - `DEV_MIN_QUARANTINE_BUCKET`
   - `DEV_MIN_ARCHIVE_BUCKET`
   - `DEV_MIN_AWS_REGION`
+- Dedicated operator env surface for Phase 1 commands:
+  - runtime file: `.env.dev_min` (untracked),
+  - template: `.env.dev_min.example` (tracked),
+  - override handle: `DEV_MIN_ENV_FILE` for alternate file paths.
 
 4. Phase 1.D - Operator bootstrap and preflight gate
 - Define deterministic bootstrap sequence for a fresh shell session:
   - authenticate to AWS and Confluent,
+  - load `DEV_MIN_ENV_FILE` (default `.env.dev_min`) for Phase 1 command execution,
   - resolve required secret handles,
   - materialize runtime env for operator commands.
 - Define mandatory preflight checks:
