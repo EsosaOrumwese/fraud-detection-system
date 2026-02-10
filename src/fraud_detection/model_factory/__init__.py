@@ -34,6 +34,15 @@ from .phase6 import (
     MfPhase6PublishResult,
     MfPublishHandshakeReceipt,
 )
+from .phase7 import (
+    MF_FAILURE_TAXONOMY_V0,
+    MF_RETRYABLE_FAILURE_CODES_V0,
+    MfFailureClassification,
+    classify_failure_code,
+    failure_taxonomy_snapshot,
+    is_known_failure_code,
+    known_failure_codes,
+)
 from .run_control import MfRunControl, MfRunControlPolicy
 from .run_ledger import (
     MF_RETRY_ALLOWED,
@@ -88,6 +97,13 @@ __all__ = [
     "MfPublishHandshakeReceipt",
     "MfPhase6PublishResult",
     "MfPhase6PublishError",
+    "MF_FAILURE_TAXONOMY_V0",
+    "MF_RETRYABLE_FAILURE_CODES_V0",
+    "MfFailureClassification",
+    "classify_failure_code",
+    "is_known_failure_code",
+    "known_failure_codes",
+    "failure_taxonomy_snapshot",
     "MfRunControl",
     "MfRunControlPolicy",
     "MfRunLedger",

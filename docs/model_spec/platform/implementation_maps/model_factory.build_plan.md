@@ -204,6 +204,21 @@ Provide an executable, component-scoped plan for Model Factory (MF) aligned to p
 - Typed anomaly/failure taxonomy is stable and low-volume.
 - Idempotency under retries is validated for train and publish paths.
 
+**Implementation status note (2026-02-10):**
+- Phase 7 taxonomy + negative-path matrix surfaces implemented:
+  - `src/fraud_detection/model_factory/phase7.py`
+  - `src/fraud_detection/model_factory/__init__.py` (Phase 7 exports)
+  - `tests/services/model_factory/test_phase7_negative_matrix.py`
+- Phase 7 now enforces:
+  - explicit pinned Phase-7 failure taxonomy map with stable code classification helpers,
+  - executable fail-closed matrix proofs for missing refs, digest mismatch, feature/schema incompatibility, missing eval/gate evidence, and publish retry partial-outcome recovery,
+  - deterministic idempotency checks for train identity and publish handshake retries.
+- Validation evidence:
+  - `python -m py_compile src/fraud_detection/model_factory/phase7.py src/fraud_detection/model_factory/__init__.py tests/services/model_factory/test_phase7_negative_matrix.py` (`PASS`).
+  - `python -m pytest tests/services/model_factory/test_phase7_negative_matrix.py -q --import-mode=importlib` (`3 passed`).
+  - `python -m pytest tests/services/model_factory/test_phase1_contracts.py tests/services/model_factory/test_phase1_ids.py tests/services/model_factory/test_phase2_run_ledger.py tests/services/model_factory/test_phase3_resolver.py tests/services/model_factory/test_phase4_execution.py tests/services/model_factory/test_phase5_gate_policy.py tests/services/model_factory/test_phase6_bundle_publish.py tests/services/model_factory/test_phase7_negative_matrix.py tests/services/learning_registry/test_phase61_contracts.py -q --import-mode=importlib` (`45 passed`).
+  - `python -m pytest tests/services/model_factory/test_phase1_contracts.py tests/services/model_factory/test_phase1_ids.py tests/services/model_factory/test_phase2_run_ledger.py tests/services/model_factory/test_phase3_resolver.py tests/services/model_factory/test_phase4_execution.py tests/services/model_factory/test_phase5_gate_policy.py tests/services/model_factory/test_phase6_bundle_publish.py tests/services/model_factory/test_phase7_negative_matrix.py tests/services/offline_feature_plane/test_phase1_contracts.py tests/services/offline_feature_plane/test_phase1_ids.py tests/services/offline_feature_plane/test_phase2_run_ledger.py tests/services/offline_feature_plane/test_phase3_resolver.py tests/services/learning_registry/test_phase61_contracts.py -q --import-mode=importlib` (`68 passed`).
+
 ### Phase 8 - Run/Operate onboarding (meta-layer gate)
 **Intent:** onboard MF into orchestrated operation under environment-ladder semantics.
 
@@ -262,8 +277,8 @@ Provide an executable, component-scoped plan for Model Factory (MF) aligned to p
 - Phase 4 (`train/eval execution corridor`): complete (implemented and validated on `2026-02-10`).
 - Phase 5 (`gate receipt + publish eligibility policy`): complete (implemented and validated on `2026-02-10`).
 - Phase 6 (`bundle packaging + MPR publish handshake`): complete (implemented and validated on `2026-02-10`).
-- Phase 7 (`negative-path matrix + fail-closed taxonomy`): pending.
+- Phase 7 (`negative-path matrix + fail-closed taxonomy`): complete (implemented and validated on `2026-02-10`).
 - Phase 8 (`run/operate onboarding`): pending.
 - Phase 9 (`obs/gov onboarding`): pending.
 - Phase 10 (`integration closure gate`): pending.
-- Next action: implement Phase 7 (`negative-path matrix + fail-closed taxonomy`).
+- Next action: implement Phase 8 (`run/operate onboarding`).

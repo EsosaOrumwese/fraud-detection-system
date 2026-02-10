@@ -663,3 +663,93 @@ If publish handshake allows identity reuse with divergent payload bytes, Phase 6
 ### Plan progression
 - MF Phase 6 is closed.
 - Next MF phase is Phase 7 (`negative-path matrix + fail-closed taxonomy hardening`).
+
+## Entry: 2026-02-10 2:30PM - Pre-change implementation lock for MF Phase 7 (negative-path matrix + fail-closed taxonomy hardening)
+
+### Problem framing
+MF phases 1..6 are implemented and green, but the closure surface for `6.3.F` is still open: we need explicit executable proof that unsafe states are blocked across the whole corridor and that failure codes remain stable enough for later obs/gov onboarding.
+
+### Authorities and constraints used
+- `docs/model_spec/platform/implementation_maps/model_factory.build_plan.md` (Phase 7 DoD)
+- `docs/model_spec/platform/implementation_maps/platform.build_plan.md` (`6.3.F`)
+- `docs/model_spec/platform/component-specific/model_factory.design-authority.md` (publish retry, idempotency, fail-closed edges)
+- `docs/model_spec/platform/component-specific/flow-narrative-platform-design.md` (append-only + fail-closed rails)
+- `docs/model_spec/platform/pre-design_decisions/learning_and_evolution.pre-design_decisions.md` (unknown compatibility/evidence => fail closed)
+
+### Alternatives considered
+1. Test-only matrix without new source surfaces.
+   - Pros: minimal code.
+   - Cons: failure taxonomy remains implicit and can drift silently as more phases are added.
+2. New runtime classifier with broad behavior changes.
+   - Pros: stronger runtime semantics.
+   - Cons: too invasive for Phase 7 scope and risks changing already-green lanes.
+3. Minimal new taxonomy authority module + executable negative-path matrix.
+   - Pros: explicit stable taxonomy anchor, minimal runtime risk, directly satisfies DoD.
+   - Decision: choose option 3.
+
+### Implementation decisions
+- Add `src/fraud_detection/model_factory/phase7.py` to pin MF Phase-7 failure taxonomy (class->codes map, stable code set helpers).
+- Add `tests/services/model_factory/test_phase7_negative_matrix.py` with executable proofs for required failures:
+  - missing manifest/config refs,
+  - digest mismatch,
+  - incompatible feature/schema,
+  - missing EvalReport/gate receipt,
+  - partial publish retry behavior,
+  - train + publish idempotency checks.
+- Export Phase 7 taxonomy helpers from `src/fraud_detection/model_factory/__init__.py`.
+
+### Invariants to enforce
+- Unknown or missing evidence remains fail-closed.
+- Publish retry never forces retraining and converges deterministically.
+- Failure codes used in matrix remain members of the pinned taxonomy set.
+- Taxonomy cardinality remains bounded (low-volume posture).
+
+### Validation plan
+- Compile Phase 7 module/tests.
+- Run targeted Phase 7 matrix.
+- Run MF regression (Phase1..7).
+- Run MF+OFS+learning compatibility regression.
+
+### Drift sentinel checkpoint
+If any negative path executes without typed fail-closed code, or if taxonomy mapping returns unknown for expected failures, Phase 7 remains blocked and must not be marked complete.
+
+## Entry: 2026-02-10 2:33PM - Applied MF Phase 7 implementation (negative-path matrix + fail-closed taxonomy hardening)
+
+### Implemented files and surfaces
+- Added MF Phase 7 taxonomy authority module:
+  - `src/fraud_detection/model_factory/phase7.py`
+- Updated MF exports for Phase 7 helpers:
+  - `src/fraud_detection/model_factory/__init__.py`
+- Added MF Phase 7 matrix:
+  - `tests/services/model_factory/test_phase7_negative_matrix.py`
+
+### Phase 7 outcomes
+- MF now has an explicit pinned Phase-7 failure taxonomy surface (category->code map, code classification helpers, known-code set) for stable fail-closed semantics.
+- Required negative-path proofs are executable and green for:
+  - missing manifest/config refs,
+  - manifest digest mismatch,
+  - feature/schema incompatibility,
+  - missing eval/gate evidence,
+  - partial publish retry recovery.
+- Train and publish retry idempotency are now validated in one corridor matrix:
+  - deterministic train identity remains stable across re-resolve/re-execute,
+  - publish retries converge to `ALREADY_PUBLISHED` and recover missing receipt/event artifacts without retrain.
+
+### Validation evidence
+- Syntax:
+  - `python -m py_compile src/fraud_detection/model_factory/phase7.py src/fraud_detection/model_factory/__init__.py tests/services/model_factory/test_phase7_negative_matrix.py` (`PASS`).
+- Targeted Phase 7:
+  - `python -m pytest tests/services/model_factory/test_phase7_negative_matrix.py -q --import-mode=importlib` (`3 passed`).
+- MF + learning contracts regression:
+  - `python -m pytest tests/services/model_factory/test_phase1_contracts.py tests/services/model_factory/test_phase1_ids.py tests/services/model_factory/test_phase2_run_ledger.py tests/services/model_factory/test_phase3_resolver.py tests/services/model_factory/test_phase4_execution.py tests/services/model_factory/test_phase5_gate_policy.py tests/services/model_factory/test_phase6_bundle_publish.py tests/services/model_factory/test_phase7_negative_matrix.py tests/services/learning_registry/test_phase61_contracts.py -q --import-mode=importlib` (`45 passed`).
+- MF + OFS + learning compatibility regression:
+  - `python -m pytest tests/services/model_factory/test_phase1_contracts.py tests/services/model_factory/test_phase1_ids.py tests/services/model_factory/test_phase2_run_ledger.py tests/services/model_factory/test_phase3_resolver.py tests/services/model_factory/test_phase4_execution.py tests/services/model_factory/test_phase5_gate_policy.py tests/services/model_factory/test_phase6_bundle_publish.py tests/services/model_factory/test_phase7_negative_matrix.py tests/services/offline_feature_plane/test_phase1_contracts.py tests/services/offline_feature_plane/test_phase1_ids.py tests/services/offline_feature_plane/test_phase2_run_ledger.py tests/services/offline_feature_plane/test_phase3_resolver.py tests/services/learning_registry/test_phase61_contracts.py -q --import-mode=importlib` (`68 passed`).
+
+### Drift sentinel assessment
+- No designed-flow contradiction detected for Phase 7 scope.
+- Required `6.3.F` fail-closed proof set is explicit, typed, and replay/retry safe.
+- Residual risk surface moves to MF Phase 8 (`run/operate onboarding`).
+
+### Plan progression
+- MF Phase 7 is closed.
+- Next MF phase is Phase 8 (`run/operate onboarding`).

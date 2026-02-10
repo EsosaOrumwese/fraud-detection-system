@@ -10450,3 +10450,51 @@ Identity collision with payload drift must be a hard blocker (`PUBLISH_CONFLICT`
 ### Drift sentinel assessment
 - No mismatch detected against flow narrative and learning-plane pins for this scope.
 - Platform Phase `6.3` remains active; next closure surface is MF Phase 7 (`negative-path matrix + fail-closed taxonomy`).
+
+## Entry: 2026-02-10 2:30PM - Platform-level pre-change lock for MF Phase 7 (`6.3.F` negative-path matrix + taxonomy hardening)
+
+### Why this is platform-significant
+`6.3.F` is the fail-closed proof point for the Learning corridor. Without executable negative-path evidence and stable typed taxonomy, the platform cannot reliably distinguish deterministic rejects from infrastructure noise and cannot support governed phase progression to `6.4`.
+
+### Locked platform decisions for this pass
+- MF must provide executable negative-path proofs for the minimum required failure set in `6.3.F`.
+- Failures must emit typed codes that are stable and bounded (low-volume taxonomy posture).
+- Idempotency under retries must be proven for both train identity and publish handshake (including partial prior publish outcomes).
+
+### Planned closure evidence
+- Phase 7 taxonomy source + targeted matrix test:
+  - `src/fraud_detection/model_factory/phase7.py`
+  - `tests/services/model_factory/test_phase7_negative_matrix.py`
+- Export update:
+  - `src/fraud_detection/model_factory/__init__.py`
+- Build-plan and implementation-map/logbook updates with executed test evidence.
+
+### Drift sentinel checkpoint
+Any success path through a required negative scenario (or untyped failure surface) is blocker-level drift and halts `6.3` closure progression.
+
+## Entry: 2026-02-10 2:33PM - Platform-level applied closure for MF Phase 7 (`6.3.F` negative-path matrix + taxonomy hardening)
+
+### What was applied
+- MF Phase 7 taxonomy + matrix surfaces landed in:
+  - `src/fraud_detection/model_factory/phase7.py`
+  - `src/fraud_detection/model_factory/__init__.py`
+  - `tests/services/model_factory/test_phase7_negative_matrix.py`
+- Build-plan status surfaces updated:
+  - `docs/model_spec/platform/implementation_maps/model_factory.build_plan.md`
+  - `docs/model_spec/platform/implementation_maps/platform.build_plan.md`
+
+### Platform-significant outcomes
+- Phase `6.3.F` now has executable fail-closed proof coverage across all required negative-path classes in current corridor scope.
+- MF failure taxonomy is explicitly anchored, enabling stable downstream obs/gov categorization instead of ad-hoc error interpretation.
+- Publish partial-outcome recovery is proven idempotent (`ALREADY_PUBLISHED` convergence, missing receipt/event regeneration) without retraining.
+- `6.3` corridor progression is now blocked on Phase 8/9 meta-layer onboarding rather than unresolved failure-posture semantics.
+
+### Validation evidence
+- `python -m py_compile src/fraud_detection/model_factory/phase7.py src/fraud_detection/model_factory/__init__.py tests/services/model_factory/test_phase7_negative_matrix.py` (`PASS`).
+- `python -m pytest tests/services/model_factory/test_phase7_negative_matrix.py -q --import-mode=importlib` (`3 passed`).
+- `python -m pytest tests/services/model_factory/test_phase1_contracts.py tests/services/model_factory/test_phase1_ids.py tests/services/model_factory/test_phase2_run_ledger.py tests/services/model_factory/test_phase3_resolver.py tests/services/model_factory/test_phase4_execution.py tests/services/model_factory/test_phase5_gate_policy.py tests/services/model_factory/test_phase6_bundle_publish.py tests/services/model_factory/test_phase7_negative_matrix.py tests/services/learning_registry/test_phase61_contracts.py -q --import-mode=importlib` (`45 passed`).
+- `python -m pytest tests/services/model_factory/test_phase1_contracts.py tests/services/model_factory/test_phase1_ids.py tests/services/model_factory/test_phase2_run_ledger.py tests/services/model_factory/test_phase3_resolver.py tests/services/model_factory/test_phase4_execution.py tests/services/model_factory/test_phase5_gate_policy.py tests/services/model_factory/test_phase6_bundle_publish.py tests/services/model_factory/test_phase7_negative_matrix.py tests/services/offline_feature_plane/test_phase1_contracts.py tests/services/offline_feature_plane/test_phase1_ids.py tests/services/offline_feature_plane/test_phase2_run_ledger.py tests/services/offline_feature_plane/test_phase3_resolver.py tests/services/learning_registry/test_phase61_contracts.py -q --import-mode=importlib` (`68 passed`).
+
+### Drift sentinel assessment
+- No mismatch detected against flow narrative and learning-plane pinned decisions for this scope.
+- Platform Phase `6.3` remains active; next closure surface is MF Phase 8 (`run/operate onboarding`).
