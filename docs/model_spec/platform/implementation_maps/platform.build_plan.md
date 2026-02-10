@@ -1191,6 +1191,10 @@ Resolved and pinned in:
 - Shared Kinesis consumer resilience hardening landed (`src/fraud_detection/event_bus/kinesis.py`) with stale-checkpoint fallback + suppression and transient-read tolerance.
 - 20-event gate PASS: `platform_20260210T082746Z` (`emitted=80`, wall-clock `10.703694s`).
 - 200-event gate PASS: `platform_20260210T083021Z` (`emitted=800`, wall-clock `85.823407s`).
+- Post-fix reconfirmation PASS on fresh active run `platform_20260210T091951Z`:
+  - 20-event gate (`emitted=80`, `stream_start=2026-02-10T09:21:46.780111+00:00`, `stream_complete=2026-02-10T09:22:00.188588+00:00`).
+  - 200-event gate (`emitted=800`, `stream_start=2026-02-10T09:24:36.354654+00:00`, `stream_complete=2026-02-10T09:25:55.947318+00:00`).
+  - Post-stream idle hold remained all-green in run/operate status across all five packs (`control_ingress`, `rtdl_core`, `rtdl_decision_lane`, `case_labels`, `obs_gov`).
 - Budget checks PASS:
   - 20 wall-clock `10.703694s <= 300s`
   - 200 wall-clock `85.823407s <= 1200s`
@@ -1243,7 +1247,7 @@ Resolved and pinned in:
 - Phase 4 (RTDL plane overall): strict-green closure complete for current scope; residual `4.6.L` items are closed with explicit criteria/evidence.
 - Phase 4.6 (Run/Operate + Obs/Gov meta-layer closure gate): complete (`4.6.A..4.6.K` PASS and `4.6.L` residual closure complete as of 2026-02-09).
 - Phase 5 (Label & Case plane): complete (`5.1..5.9` closed; CaseTrigger/CM/LS integration lane is live under run/operate and reflected in platform reporter/conformance artifacts; latest parity evidence anchored to run `platform_20260210T083021Z`).
-- Phase 5.10 (cross-cutting efficiency hardening, pre-Phase 6): complete (`20 -> 200` budget PASS validated on `platform_20260210T082746Z` and `platform_20260210T083021Z`; run-scoped evidence captured in implementation map + logbook).
+- Phase 5.10 (cross-cutting efficiency hardening, pre-Phase 6): complete (`20 -> 200` budget PASS validated on `platform_20260210T082746Z` and `platform_20260210T083021Z`, then reconfirmed post-fix on `platform_20260210T091951Z`; run-scoped evidence captured in implementation map + logbook).
 - Phase 5.1 (contracts + identity pins): complete (`CM/LS` contract code + schemas + tests, `22 passed` on 2026-02-09).
 - LS build-plan Phase 2 (writer boundary + idempotency corridor): complete (`5 passed` Phase 2 matrix; LS Phase1+2 `15 passed`; CM label/phase8 regressions `10 passed`; CM full regression `44 passed`; deterministic LS write corridor landed in `src/fraud_detection/label_store/writer_boundary.py` with fail-closed payload hash mismatch handling).
 - LS build-plan Phase 3 (append-only timeline persistence): complete (`4 passed` Phase 3 matrix; LS Phase1..3 `19 passed`; CM label/phase8 regressions `10 passed`; CM full regression `44 passed`; append-only timeline storage + deterministic subject ordering + rebuild utility landed in `src/fraud_detection/label_store/writer_boundary.py`).
