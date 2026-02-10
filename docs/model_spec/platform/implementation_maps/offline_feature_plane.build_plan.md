@@ -222,6 +222,19 @@ Provide a closure-grade, component-scoped plan for Offline Feature Plane (OFS) a
   - PASS-gated world ref denial (`no PASS -> no read`).
 - Platform report/reconciliation surfaces include OFS outputs with run-scoped evidence refs.
 
+**Implementation status note (2026-02-10):**
+- Phase 10 integration closure matrix implemented:
+  - `tests/services/offline_feature_plane/test_phase10_validation_matrix.py`
+- Closure evidence covered:
+  - positive-path worker continuity from BuildIntent through manifest publication and OFS reconciliation emission,
+  - MF handoff readiness by validating emitted manifest with `DatasetManifestContract`,
+  - negative-path fail-closed proofs for replay mismatch, missing label basis, unresolved feature profile, and `no PASS -> no read`,
+  - platform reporter reconciliation-ref discovery includes OFS run-scoped reconciliation outputs.
+- Validation evidence:
+  - `python -m pytest tests/services/offline_feature_plane/test_phase10_validation_matrix.py -q --import-mode=importlib` (`2 passed`)
+  - `python -m pytest tests/services/offline_feature_plane/test_phase1_contracts.py tests/services/offline_feature_plane/test_phase1_ids.py tests/services/offline_feature_plane/test_phase2_run_ledger.py tests/services/offline_feature_plane/test_phase3_resolver.py tests/services/offline_feature_plane/test_phase4_replay_basis.py tests/services/offline_feature_plane/test_phase5_label_resolver.py tests/services/offline_feature_plane/test_phase6_dataset_draft.py tests/services/offline_feature_plane/test_phase7_manifest_publication.py tests/services/offline_feature_plane/test_phase8_run_operate_worker.py tests/services/offline_feature_plane/test_phase9_observability.py tests/services/offline_feature_plane/test_phase10_validation_matrix.py tests/services/learning_registry/test_phase61_contracts.py -q --import-mode=importlib` (`55 passed`)
+  - `python -m pytest tests/services/platform_reporter/test_run_reporter.py -q --import-mode=importlib` (`2 passed`)
+
 ## Validation gate (required before phase advancement)
 - Contract tests:
   - BuildIntent validation,
@@ -255,4 +268,5 @@ Provide a closure-grade, component-scoped plan for Offline Feature Plane (OFS) a
 - Phase 7 (`artifact publication + DatasetManifest authority`): complete (implemented and validated on `2026-02-10`).
 - Phase 8 (`run/operate onboarding`): complete (implemented and validated on `2026-02-10`).
 - Phase 9 (`obs/gov onboarding`): complete (implemented and validated on `2026-02-10`).
-- Next action: begin Phase 10 implementation (`integration closure gate`).
+- Phase 10 (`integration closure gate`): complete (implemented and validated on `2026-02-10`).
+- Next action: handoff to platform Phase `6.3` (`MF train/eval/publish corridor`).

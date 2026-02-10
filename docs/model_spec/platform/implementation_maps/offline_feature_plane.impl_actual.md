@@ -938,3 +938,103 @@ During final review, protected-ref enforcement in `worker.py` could be weakened 
 
 ### Drift sentinel note
 This hardening removes a potential silent governance bypass and strengthens alignment with fail-closed doctrine for protected evidence refs.
+
+## Entry: 2026-02-10 1:07PM - Pre-change implementation lock for OFS Phase 10 (integration closure gate)
+
+### Trigger
+User directed progression to OFS Phase 10 (`integration closure gate`) after Phase 9 completion.
+
+### Phase objective (DoD-locked)
+Produce explicit closure evidence that OFS corridor is complete and safe:
+- positive-path continuity: `build intent -> replay/label resolution -> DatasetManifest commit -> OFS reconciliation artifact`,
+- MF handoff readiness: produced DatasetManifest validates against learning contract authority,
+- negative-path fail-closed proofs:
+  - replay mismatch,
+  - missing label basis,
+  - unresolved feature profile,
+  - PASS-gated world-ref denial (`no PASS -> no read`),
+- platform report/reconciliation evidence refs include OFS run-scoped outputs.
+
+### Authorities used
+- `docs/model_spec/platform/implementation_maps/offline_feature_plane.build_plan.md` (Phase 10 DoD)
+- `docs/model_spec/platform/implementation_maps/platform.build_plan.md` (Phase 6.2 closure posture)
+- `docs/model_spec/platform/component-specific/flow-narrative-platform-design.md`
+- `docs/model_spec/platform/pre-design_decisions/learning_and_evolution.pre-design_decisions.md`
+- `docs/model_spec/platform/pre-design_decisions/observability_and_governance.pre-design_decisions.md`
+- Existing OFS implementation surfaces (`phase3/4/5/7`, worker, observability, reporter discovery)
+
+### Problem framing and alternatives considered
+1. Add only another status note without executable closure proofs.
+   - Rejected: violates Phase 10 requirement for auditable positive and negative matrix evidence.
+2. Build closure proofs only by direct unit-level calls to phase modules.
+   - Rejected: does not prove end-to-end worker corridor and reconciliation artifact emission.
+3. Build Phase 10 matrix with:
+   - worker-driven positive path,
+   - contract-validated manifest handoff,
+   - targeted fail-closed negative-path assertions for phase3/4 + phase1 schema gate,
+   - run-scoped artifact outputs under OFS reconciliation.
+   - Selected.
+
+### Planned implementation steps
+1. Add `tests/services/offline_feature_plane/test_phase10_validation_matrix.py` with:
+   - positive-path continuity proof,
+   - MF-admissible manifest contract validation,
+   - negative-path fail-closed proof set,
+   - run-scoped evidence artifact writes.
+2. If any run/reconciliation/report surface is missing for assertions, patch minimal code path and keep behavior additive/fail-closed.
+3. Execute targeted Phase 10 tests and full OFS regression matrix.
+4. Update OFS + platform build-plan status and append applied decision entries and logbook evidence.
+
+### Drift sentinel checkpoint
+Any Phase 10 completion without explicit negative-path fail-closed proof artifacts is a material closure drift and must remain blocked.
+
+## Entry: 2026-02-10 1:10PM - Applied OFS Phase 10 integration closure gate
+
+### Implemented files and evidence surfaces
+- Added Phase 10 validation matrix:
+  - `tests/services/offline_feature_plane/test_phase10_validation_matrix.py`
+- Proof artifacts emitted by matrix runs:
+  - positive-path proof: `<tmp>/runs/<platform_run_id>/ofs/reconciliation/phase10_integration_proof.json`
+  - negative-path proof: `<tmp>/runs/<platform_run_id>/ofs/reconciliation/phase10_negative_path_proof.json`
+
+### What the closure matrix now proves
+1. Positive-path continuity
+   - request-driven OFS worker path completes:
+     - BuildIntent admission,
+     - replay/label/feature resolution,
+     - dataset draft + DatasetManifest publication,
+     - OFS reconciliation export.
+   - Required refs are materialized and path-resolvable:
+     - `resolved_build_plan_ref`,
+     - `replay_receipt_ref`,
+     - `label_receipt_ref`,
+     - `dataset_draft_ref`,
+     - `manifest_ref`,
+     - `publication_receipt_ref`.
+2. MF handoff readiness
+   - Published manifest payload from worker flow is validated via:
+     - `fraud_detection.learning_registry.contracts.DatasetManifestContract`.
+3. Negative-path fail-closed coverage
+   - replay mismatch blocks training-intent run (`REPLAY_BASIS_MISMATCH`),
+   - missing label basis blocks intent admission (fail-closed schema/contract error),
+   - unresolved feature profile blocks Phase 3 resolver (`FEATURE_PROFILE_UNRESOLVED`),
+   - missing PASS gate evidence blocks world-ref resolution (`NO_PASS_NO_READ`).
+4. Reporter/reconciliation visibility
+   - OFS reconciliation and `learning/ofs_reconciliation` refs are verified as discoverable through platform reporter reconciliation-ref discovery.
+
+### Validation evidence
+- Phase 10 targeted:
+  - `python -m pytest tests/services/offline_feature_plane/test_phase10_validation_matrix.py -q --import-mode=importlib` (`2 passed`)
+- OFS full regression:
+  - `python -m pytest tests/services/offline_feature_plane/test_phase1_contracts.py tests/services/offline_feature_plane/test_phase1_ids.py tests/services/offline_feature_plane/test_phase2_run_ledger.py tests/services/offline_feature_plane/test_phase3_resolver.py tests/services/offline_feature_plane/test_phase4_replay_basis.py tests/services/offline_feature_plane/test_phase5_label_resolver.py tests/services/offline_feature_plane/test_phase6_dataset_draft.py tests/services/offline_feature_plane/test_phase7_manifest_publication.py tests/services/offline_feature_plane/test_phase8_run_operate_worker.py tests/services/offline_feature_plane/test_phase9_observability.py tests/services/offline_feature_plane/test_phase10_validation_matrix.py tests/services/learning_registry/test_phase61_contracts.py -q --import-mode=importlib` (`55 passed`)
+- Platform reporter regression:
+  - `python -m pytest tests/services/platform_reporter/test_run_reporter.py -q --import-mode=importlib` (`2 passed`)
+
+### Drift sentinel assessment after implementation
+- No designed-flow mismatch detected for OFS closure scope.
+- Phase 10 closure now has explicit executable proofs for both continuity and fail-closed posture; no matrix-only gap remains for OFS `6.2` corridor.
+- Residual note: missing-label-basis path currently yields fail-closed `SCHEMA_INVALID` in one schema-message shape; behavior is blocking and was accepted for closure because admission remains fail closed.
+
+### Plan progression
+- OFS component build-plan Phase 10 is closed.
+- OFS corridor is ready to hand off to platform Phase `6.3` planning/implementation.

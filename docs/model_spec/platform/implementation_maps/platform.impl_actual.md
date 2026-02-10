@@ -10022,3 +10022,53 @@ If OFS Phase 9 introduces unbounded logging overhead, non-idempotent lifecycle e
 ### Validation evidence
 - OFS Phase 9 targeted matrix: `3 passed`.
 - OFS full regression matrix (Phase 1..9 + learning contracts): `53 passed`.
+
+## Entry: 2026-02-10 1:07PM - Platform-level pre-change lock for OFS Phase 10 (integration closure gate)
+
+### Why platform-level tracking is required
+Phase 10 is the closure gate for platform Phase `6.2`. Without explicit continuity + fail-closed evidence, Learning-plane progression to MF/Registry risks advancing on partial corridor confidence.
+
+### Platform-level decisions pinned for this pass
+- OFS closure is evidence-first: positive-path continuity and negative-path fail-closed proofs are both mandatory.
+- DatasetManifest handoff readiness must be contract-validated against learning authority (not inferred from file existence).
+- Negative-path matrix must prove replay/label/feature/no-PASS gates are enforced as hard blockers.
+- Reconciliation/report surfaces must continue to expose OFS run-scoped contribution refs.
+
+### Expected closure evidence
+- New OFS Phase 10 validation matrix test suite with proof artifacts.
+- Targeted Phase 10 tests green plus full OFS regression green.
+- Build-plan status updates marking OFS Phase 10 closure and advancing platform next step.
+- Implementation maps + logbook entries documenting outcome and residual risk posture.
+
+### Drift sentinel checkpoint
+Any claim of OFS closure without executable negative-path fail-closed evidence is material drift from platform closure law and must be blocked.
+
+## Entry: 2026-02-10 1:10PM - Platform-level applied closure for OFS Phase 10 (integration closure gate)
+
+### What was applied
+- Added OFS Phase 10 integration-closure matrix:
+  - `tests/services/offline_feature_plane/test_phase10_validation_matrix.py`
+- Updated closure status in planning surfaces:
+  - `docs/model_spec/platform/implementation_maps/offline_feature_plane.build_plan.md`
+  - `docs/model_spec/platform/implementation_maps/platform.build_plan.md`
+
+### Platform-significant closure evidence
+- Positive continuity proof now exists through executable worker flow:
+  - BuildIntent -> replay/label/feature resolution -> DatasetManifest publication -> OFS reconciliation.
+- MF handoff readiness is contract-validated:
+  - emitted DatasetManifest passes `DatasetManifestContract` validation.
+- Negative-path fail-closed proofs are explicit and executable:
+  - replay mismatch (`REPLAY_BASIS_MISMATCH`),
+  - missing label basis (fail-closed intent admission),
+  - unresolved feature profile (`FEATURE_PROFILE_UNRESOLVED`),
+  - no-PASS-no-read world-ref denial (`NO_PASS_NO_READ`).
+- Platform reconciliation-ref discovery continues to surface OFS run-scoped reconciliation outputs.
+
+### Validation evidence
+- `python -m pytest tests/services/offline_feature_plane/test_phase10_validation_matrix.py -q --import-mode=importlib` (`2 passed`).
+- `python -m pytest tests/services/offline_feature_plane/test_phase1_contracts.py tests/services/offline_feature_plane/test_phase1_ids.py tests/services/offline_feature_plane/test_phase2_run_ledger.py tests/services/offline_feature_plane/test_phase3_resolver.py tests/services/offline_feature_plane/test_phase4_replay_basis.py tests/services/offline_feature_plane/test_phase5_label_resolver.py tests/services/offline_feature_plane/test_phase6_dataset_draft.py tests/services/offline_feature_plane/test_phase7_manifest_publication.py tests/services/offline_feature_plane/test_phase8_run_operate_worker.py tests/services/offline_feature_plane/test_phase9_observability.py tests/services/offline_feature_plane/test_phase10_validation_matrix.py tests/services/learning_registry/test_phase61_contracts.py -q --import-mode=importlib` (`55 passed`).
+- `python -m pytest tests/services/platform_reporter/test_run_reporter.py -q --import-mode=importlib` (`2 passed`).
+
+### Drift sentinel assessment
+- No platform-flow contradiction detected for OFS closure scope.
+- Phase `6.2` OFS corridor now has explicit closure-grade positive and negative proofs; progression can move to Phase `6.3` without carrying a hidden OFS integration risk.
