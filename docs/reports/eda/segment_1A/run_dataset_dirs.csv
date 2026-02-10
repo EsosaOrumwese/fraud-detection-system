@@ -1,0 +1,14 @@
+dataset_dir,path,file_count_total,file_count_sampled,sample_bytes,suffixes
+ccy_country_weights_cache,runs\local_full_run-5\c25a2675fbfbacd952b13bb594880e92\data\layer1\1A\ccy_country_weights_cache,3,3,127384,".flag,.json,.parquet"
+crossborder_eligibility_flags,runs\local_full_run-5\c25a2675fbfbacd952b13bb594880e92\data\layer1\1A\crossborder_eligibility_flags,1,1,87785,.parquet
+crossborder_features,runs\local_full_run-5\c25a2675fbfbacd952b13bb594880e92\data\layer1\1A\crossborder_features,1,1,93074,.parquet
+hurdle_design_matrix,runs\local_full_run-5\c25a2675fbfbacd952b13bb594880e92\data\layer1\1A\hurdle_design_matrix,1,1,98552,.parquet
+hurdle_pi_probs,runs\local_full_run-5\c25a2675fbfbacd952b13bb594880e92\data\layer1\1A\hurdle_pi_probs,1,1,141223,.parquet
+merchant_currency,runs\local_full_run-5\c25a2675fbfbacd952b13bb594880e92\data\layer1\1A\merchant_currency,1,1,88611,.parquet
+outlet_catalogue,runs\local_full_run-5\c25a2675fbfbacd952b13bb594880e92\data\layer1\1A\outlet_catalogue,1,1,61643,.parquet
+s0_gate_receipt,runs\local_full_run-5\c25a2675fbfbacd952b13bb594880e92\data\layer1\1A\s0_gate_receipt,1,1,3251,.json
+s3_base_weight_priors,runs\local_full_run-5\c25a2675fbfbacd952b13bb594880e92\data\layer1\1A\s3_base_weight_priors,1,1,29101,.parquet
+s3_candidate_set,runs\local_full_run-5\c25a2675fbfbacd952b13bb594880e92\data\layer1\1A\s3_candidate_set,1,1,55742,.parquet
+s6,runs\local_full_run-5\c25a2675fbfbacd952b13bb594880e92\data\layer1\1A\s6,4,4,506323,".flag,.json,.jsonl,.parquet"
+sealed_inputs,runs\local_full_run-5\c25a2675fbfbacd952b13bb594880e92\data\layer1\1A\sealed_inputs,1,1,9543,.json
+validation,runs\local_full_run-5\c25a2675fbfbacd952b13bb594880e92\data\layer1\1A\validation,8,8,16921,".flag,.json"

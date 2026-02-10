@@ -1,4 +1,10 @@
 version: '1.0'
+compatibility_notes:
+  - id: gate.layer3.6A.validation.index_order
+    status: active
+    summary: "6A validation_bundle_index_6A items are not ASCII-lex ordered in current engine outputs."
+    decision: "SR verifies `_passed.flag` using the index order (`ordering: index_order`) to match real engine artifacts."
+    scope: "applies until engine emits sorted items; then revert to ascii_lex ordering."
 gates:
 - gate_id: gate.layer1.1A.validation
   segment: 1A
@@ -66,7 +72,7 @@ gates:
   input_set_authority: index.json
   receipt_schema_ref: schemas.2A.yaml#/validation/passed_flag
   verification_method:
-    kind: sha256_bundle_digest
+    kind: sha256_index_json_ascii_lex_raw_bytes
     digest_field: sha256_hex
     ordering: ascii_lex
     exclude_filenames:
@@ -95,9 +101,10 @@ gates:
   input_set_authority: index.json
   receipt_schema_ref: schemas.1B.yaml#/validation/passed_flag
   verification_method:
-    kind: sha256_bundle_digest
+    kind: sha256_index_json_ascii_lex_raw_bytes
     digest_field: sha256_hex
     ordering: ascii_lex
+    path_base: run_root
     exclude_filenames:
     - _passed.flag
   authorizes_outputs:
@@ -162,7 +169,7 @@ gates:
   input_set_authority: index.json
   receipt_schema_ref: schemas.layer1.yaml#/validation/passed_flag_3B
   verification_method:
-    kind: sha256_bundle_digest
+    kind: sha256_index_json_ascii_lex_raw_bytes
     digest_field: sha256_hex
     ordering: ascii_lex
     exclude_filenames:
@@ -202,7 +209,7 @@ gates:
   input_set_authority: validation_bundle_index_5A.json
   receipt_schema_ref: schemas.layer2.yaml#/validation/passed_flag_5A
   verification_method:
-    kind: sha256_bundle_digest
+    kind: sha256_index_json_ascii_lex_raw_bytes
     digest_field: bundle_digest_sha256
     ordering: ascii_lex
     exclude_filenames:
@@ -243,7 +250,7 @@ gates:
   input_set_authority: index.json
   receipt_schema_ref: schemas.layer2.yaml#/validation/passed_flag_5B
   verification_method:
-    kind: sha256_bundle_digest
+    kind: sha256_index_json_ascii_lex_raw_bytes
     digest_field: bundle_digest_sha256
     ordering: ascii_lex
     exclude_filenames:
@@ -284,9 +291,9 @@ gates:
   input_set_authority: validation_bundle_index_6A.json
   receipt_schema_ref: schemas.layer3.yaml#/validation/6A/passed_flag_6A
   verification_method:
-    kind: sha256_bundle_digest
+    kind: sha256_index_json_ascii_lex_raw_bytes
     digest_field: sha256_hex
-    ordering: ascii_lex
+    ordering: index_order
     exclude_filenames:
     - _passed.flag
   authorizes_outputs:
@@ -339,11 +346,12 @@ gates:
   input_set_authority: index.json
   receipt_schema_ref: schemas.layer3.yaml#/validation/6B/passed_flag_6B
   verification_method:
-    kind: sha256_bundle_digest
+    kind: sha256_index_json_ascii_lex_raw_bytes
     digest_field: sha256_hex
     ordering: ascii_lex
     exclude_filenames:
     - _passed.flag
+    - index.json
   authorizes_outputs:
   - s1_arrival_entities_6B
   - s1_session_index_6B

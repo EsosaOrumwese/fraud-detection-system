@@ -1,0 +1,33 @@
+$schema: https://json-schema.org/draft/2020-12/schema
+$id: ofp_get_features_error.schema.yaml
+title: OFP Get Features Error
+type: object
+additionalProperties: false
+required:
+  - status
+  - code
+  - retryable
+properties:
+  status:
+    type: string
+    const: ERROR
+  code:
+    type: string
+    enum:
+      - MISSING_PINS
+      - INVALID_REQUEST
+      - NOT_FOUND
+      - UNAVAILABLE
+      - MISSING_PROVENANCE
+  retryable:
+    type: boolean
+  detail:
+    type: string
+    maxLength: 2048
+  request_id:
+    type: string
+    minLength: 1
+    maxLength: 128
+  served_at_utc:
+    type: string
+    minLength: 1

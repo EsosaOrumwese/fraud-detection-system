@@ -1,0 +1,30 @@
+version: "0.1.0"
+policy_id: df.trigger_policy.v0
+revision: r1
+
+decision_trigger:
+  admitted_traffic_topics:
+    - fp.bus.traffic.fraud.v1
+    - fp.bus.traffic.baseline.v1
+  trigger_allowlist:
+    - event_type: s3_event_stream_with_fraud_6B
+      schema_versions: [v1]
+    - event_type: s2_event_stream_baseline_6B
+      schema_versions: [v1]
+  blocked_event_types:
+    - decision_response
+    - action_intent
+    - action_outcome
+    - degrade_posture
+  blocked_event_type_prefixes:
+    - ig.
+    - al.
+    - df.
+  required_pins:
+    - platform_run_id
+    - scenario_run_id
+    - manifest_fingerprint
+    - parameter_hash
+    - scenario_id
+    - seed
+  require_seed: true

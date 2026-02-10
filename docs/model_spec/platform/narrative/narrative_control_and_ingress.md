@@ -10,9 +10,9 @@ The Control & Ingress plane is the strip in the middle that says:
 
 It has four main actors:
 
-* a **Scenario Runner** that decides *which* synthetic world exists today and how it should move,
-* the **Data Engine** itself (already fully spec’d),
-* a set of **Authority Surfaces (RO)** that publish the world’s laws as read-only tables, and
+* a **Scenario Runner** that decides *which* synthetic world is admissible today (control‑plane),
+* the **Data Engine** itself (already fully spec’d) whose outputs live in an external Oracle Store,
+* a **World Stream Producer (WSP)** that streams sealed engine traffic into the platform over time, and
 * a thin but strict **Ingestion Gate** that admits events from that world into the platform.
 
 Everything else in the platform takes these decisions as given.
@@ -21,7 +21,7 @@ Everything else in the platform takes these decisions as given.
 
 ## 1. Scenario Runner — choosing a universe and hitting “play”
 
-The scenario runner’s job is not to simulate fraud or calculate features. Its job is to **choose a universe and schedule it**.
+The scenario runner’s job is not to simulate fraud or calculate features. Its job is to **choose a universe and declare it admissible**.
 
 It takes four knobs:
 
@@ -39,11 +39,11 @@ The scenario runner:
 * asks the Data Engine to build or reuse a world with `(parameter_hash, manifest_fingerprint)`,
 * instructs it which scenario(s) to realise and at what rate,
 * keeps a registry of these runs: start/end timestamps, world IDs, scenario IDs, and the resulting engine HashGates,
-* and exposes simple facts to the rest of the platform, such as “run R is emitting events tagged with world F, params P, seed S, scenario SC”.
+* and exposes simple facts to the rest of the platform, such as “run R is admissible for world F, params P, seed S, scenario SC”.
 
 It **does not** peek into engine internals. It treats the engine as a sealed black box that can be told:
 
-> “Given these inputs, please produce a world and a stream that looks like production.”
+> “Given these inputs, please produce a world; the platform will stream it via WSP.”
 
 ---
 
@@ -95,7 +95,7 @@ The Ingestion Gate is the **first “pure platform” component** that touches e
 
 It is deliberately thin:
 
-* It receives events from the engine’s run (or from an engine-shaped connector in a real deployment).
+* It receives events from the **World Stream Producer** (or from an engine-shaped connector in a real deployment).
 * It validates those events against **schemas** and **lineage expectations**:
 
   * schema refs match the platform’s contracts,

@@ -1,0 +1,16 @@
+policy_id: ofp.features.v0
+revision: r1
+feature_groups:
+  - name: core_features
+    version: v1
+    key_type: flow_id
+    windows:
+      - window: 1h
+        duration: 1h
+        ttl: 1h
+      - window: 24h
+        duration: 24h
+        ttl: 24h
+      - window: 7d
+        duration: 7d
+        ttl: 7d

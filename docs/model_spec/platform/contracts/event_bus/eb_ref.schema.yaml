@@ -1,0 +1,28 @@
+$schema: https://json-schema.org/draft/2020-12/schema
+$id: eb_ref.schema.yaml
+title: Event Bus Reference
+type: object
+additionalProperties: false
+required:
+  - topic
+  - partition
+  - offset
+  - offset_kind
+properties:
+  topic:
+    type: string
+    minLength: 1
+    maxLength: 256
+  partition:
+    type: integer
+    minimum: 0
+  offset:
+    type: string
+    minLength: 1
+    maxLength: 128
+  offset_kind:
+    type: string
+    enum: [file_line, kinesis_sequence]
+  published_at_utc:
+    type: string
+    minLength: 1

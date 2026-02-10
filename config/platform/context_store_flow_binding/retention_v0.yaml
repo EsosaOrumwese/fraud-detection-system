@@ -1,0 +1,16 @@
+retention:
+  local_parity:
+    join_frame_days: 2
+    flow_binding_days: 2
+    apply_failure_days: 14
+    checkpoint_days: 14
+  dev:
+    join_frame_days: 7
+    flow_binding_days: 7
+    apply_failure_days: 30
+    checkpoint_days: 30
+  prod:
+    join_frame_days: 30
+    flow_binding_days: 30
+    apply_failure_days: 90
+    checkpoint_days: 90

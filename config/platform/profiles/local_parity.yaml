@@ -1,0 +1,282 @@
+profile_id: local_parity
+policy:
+  policy_rev: local-parity-v0
+  partitioning_profiles_ref: config/platform/ig/partitioning_profiles_v0.yaml
+  partitioning_profile_id: ig.partitioning.v0.traffic
+  require_gate_pass: true
+  stream_speedup: 600.0
+  traffic_output_ids_ref: config/platform/wsp/traffic_outputs_v0.yaml
+  context_output_ids_ref: config/platform/wsp/context_fraud_outputs_v0.yaml
+  context_output_ids_baseline_ref: config/platform/wsp/context_baseline_outputs_v0.yaml
+wiring:
+  object_store:
+    root: s3://fraud-platform
+    endpoint: ${OBJECT_STORE_ENDPOINT}
+    region: ${OBJECT_STORE_REGION}
+    path_style: true
+  health_bus_probe_mode: describe
+  oracle_root: ${ORACLE_ROOT}
+  oracle_engine_run_root: ${ORACLE_ENGINE_RUN_ROOT}
+  oracle_scenario_id: ${ORACLE_SCENARIO_ID}
+  oracle_stream_view_root: ${ORACLE_STREAM_VIEW_ROOT}
+  ig_ingest_url: ${IG_INGEST_URL}
+  admission_db_path: ${IG_ADMISSION_DSN}
+  event_bus_kind: kinesis
+  event_bus:
+    topic_traffic: fp.bus.traffic.v1
+    topic_control: fp.bus.control.v1
+    topic_audit: fp.bus.audit.v1
+    stream: ${EVENT_BUS_STREAM}
+    region: ${EVENT_BUS_REGION}
+    endpoint_url: ${EVENT_BUS_ENDPOINT_URL}
+  control_bus:
+    kind: kinesis
+    topic: fp.bus.control.v1
+    stream: ${CONTROL_BUS_STREAM}
+    region: ${CONTROL_BUS_REGION}
+    endpoint_url: ${CONTROL_BUS_ENDPOINT_URL}
+  wsp_checkpoint:
+    backend: postgres
+    dsn: ${WSP_CHECKPOINT_DSN}
+    flush_every: 10
+  wsp_retry:
+    max_attempts: 5
+    base_delay_ms: 250
+    max_delay_ms: 5000
+  wsp_producer:
+    producer_id: svc:world_stream_producer
+    allowlist_ref: config/platform/wsp/producer_allowlist_v0.txt
+  security:
+    auth_mode: api_key
+    api_key_header: X-IG-Api-Key
+    auth_allowlist_ref: config/platform/ig/ingest_api_keys_local_parity_v0.txt
+    wsp_auth_token: local-parity-wsp
+    df_auth_token: local-parity-df
+    al_auth_token: local-parity-al
+    case_trigger_auth_token: local-parity-case-trigger
+    push_rate_limit_per_minute: 0
+    store_read_failure_threshold: 3
+ieg:
+  policy:
+    classification_ref: config/platform/ieg/classification_v0.yaml
+    identity_hints_ref: config/platform/ieg/identity_hints_v0.yaml
+    retention_ref: config/platform/ieg/retention_local_v0.yaml
+    class_map_ref: config/platform/ig/class_map_v0.yaml
+    partitioning_profiles_ref: config/platform/ig/partitioning_profiles_v0.yaml
+    graph_stream_id: ieg.v0
+  wiring:
+    projection_db_dsn: ${IEG_PROJECTION_DSN}
+    event_bus_kind: kinesis
+    event_bus:
+      stream: ${EVENT_BUS_STREAM}
+      region: ${EVENT_BUS_REGION}
+      endpoint_url: ${EVENT_BUS_ENDPOINT_URL}
+      topics_ref: config/platform/ieg/topics_v0.yaml
+      start_position: latest
+    engine_contracts_root: docs/model_spec/data-engine/interface_pack/contracts
+    poll_max_records: 200
+    poll_sleep_seconds: 0.2
+    checkpoint_every: 1
+    max_inflight: 200
+    batch_size: 50
+ofp:
+  policy:
+    stream_id: ofp.v0
+    features_ref: config/platform/ofp/features_v0.yaml
+    feature_group_name: core_features
+    feature_group_version: v1
+    key_precedence: [flow_id, event_id]
+    amount_fields: [amount]
+  wiring:
+    projection_db_dsn: ${OFP_PROJECTION_DSN}
+    snapshot_index_dsn: ${OFP_SNAPSHOT_INDEX_DSN}
+    event_bus_kind: kinesis
+    event_bus:
+      stream: ${EVENT_BUS_STREAM}
+      region: ${EVENT_BUS_REGION}
+      endpoint_url: ${EVENT_BUS_ENDPOINT_URL}
+      topics_ref: config/platform/ofp/topics_v0.yaml
+      start_position: latest
+    engine_contracts_root: docs/model_spec/data-engine/interface_pack/contracts
+    poll_max_records: 200
+    poll_sleep_seconds: 0.2
+context_store_flow_binding:
+  policy:
+    stream_id: csfb.v0
+    class_map_ref: config/platform/ig/class_map_v0.yaml
+    context_event_classes:
+      - context_arrival
+      - context_arrival_entities
+      - context_flow_baseline
+      - context_flow_fraud
+  wiring:
+    projection_db_dsn: ${CSFB_PROJECTION_DSN}
+    event_bus_kind: kinesis
+    event_bus:
+      stream: ${EVENT_BUS_STREAM}
+      region: ${EVENT_BUS_REGION}
+      endpoint_url: ${EVENT_BUS_ENDPOINT_URL}
+      topics_ref: config/platform/context_store_flow_binding/topics_v0.yaml
+      start_position: latest
+    engine_contracts_root: docs/model_spec/data-engine/interface_pack/contracts
+    poll_max_records: 200
+    poll_sleep_seconds: 0.2
+dl:
+  policy:
+    profiles_ref: config/platform/dl/policy_profiles_v0.yaml
+    profile_id: local_parity
+  wiring:
+    stream_id: dl.v0
+    scope_kind: GLOBAL
+    store_dsn: ${DL_POSTURE_DSN:-}
+    outbox_dsn: ${DL_OUTBOX_DSN:-}
+    ops_dsn: ${DL_OPS_DSN:-}
+    max_age_seconds: 120
+    poll_seconds: 1.0
+df:
+  policy:
+    trigger_policy_ref: config/platform/df/trigger_policy_v0.yaml
+    context_policy_ref: config/platform/df/context_policy_v0.yaml
+    registry_resolution_policy_ref: config/platform/df/registry_resolution_policy_v0.yaml
+    registry_snapshot_ref: config/platform/df/registry_snapshot_local_parity_v0.yaml
+  wiring:
+    stream_id: df.v0
+    event_bus_kind: kinesis
+    event_bus_stream: ${EVENT_BUS_STREAM}
+    event_bus_region: ${EVENT_BUS_REGION}
+    event_bus_endpoint_url: ${EVENT_BUS_ENDPOINT_URL}
+    event_bus_start_position: latest
+    poll_max_records: 200
+    poll_sleep_seconds: 0.2
+    environment: local_parity
+    bundle_slot: primary
+    replay_dsn: ${DF_REPLAY_DSN:-}
+    checkpoint_dsn: ${DF_CHECKPOINT_DSN:-}
+al:
+  policy:
+    authz_policy_ref: config/platform/al/policy_v0.yaml
+  wiring:
+    stream_id: al.v0
+    event_bus_kind: kinesis
+    event_bus_stream: ${EVENT_BUS_STREAM}
+    event_bus_region: ${EVENT_BUS_REGION}
+    event_bus_endpoint_url: ${EVENT_BUS_ENDPOINT_URL}
+    event_bus_start_position: latest
+    admitted_topics:
+      - fp.bus.rtdl.v1
+    poll_max_records: 200
+    poll_sleep_seconds: 0.2
+    ledger_dsn: ${AL_LEDGER_DSN:-}
+    outcomes_dsn: ${AL_OUTCOMES_DSN:-}
+    replay_dsn: ${AL_REPLAY_DSN:-}
+    checkpoint_dsn: ${AL_CHECKPOINT_DSN:-}
+dla:
+  policy:
+    intake_policy_ref: config/platform/dla/intake_policy_local_parity_v0.yaml
+    storage_policy_ref: config/platform/dla/storage_policy_v0.yaml
+    storage_profile_id: local_parity
+  wiring:
+    stream_id: dla.intake.v0
+    index_locator: ${DLA_INDEX_DSN:-}
+    event_bus_kind: kinesis
+    event_bus_stream: ${EVENT_BUS_STREAM}
+    event_bus_region: ${EVENT_BUS_REGION}
+    event_bus_endpoint_url: ${EVENT_BUS_ENDPOINT_URL}
+    event_bus_start_position: latest
+    poll_max_records: 200
+    poll_sleep_seconds: 0.5
+case_trigger:
+  policy:
+    trigger_policy_ref: config/platform/case_trigger/trigger_policy_v0.yaml
+  wiring:
+    stream_id: case_trigger.v0
+    event_bus_kind: kinesis
+    event_bus_stream: ${EVENT_BUS_STREAM}
+    event_bus_region: ${EVENT_BUS_REGION}
+    event_bus_endpoint_url: ${EVENT_BUS_ENDPOINT_URL}
+    event_bus_start_position: latest
+    admitted_topics:
+      - fp.bus.rtdl.v1
+    poll_max_records: 200
+    poll_sleep_seconds: 0.5
+    replay_dsn: ${CASE_TRIGGER_REPLAY_DSN:-}
+    checkpoint_dsn: ${CASE_TRIGGER_CHECKPOINT_DSN:-}
+    publish_store_dsn: ${CASE_TRIGGER_PUBLISH_STORE_DSN:-}
+case_mgmt:
+  policy:
+    label_emission_policy_ref: config/platform/case_mgmt/label_emission_policy_v0.yaml
+  wiring:
+    stream_id: case_mgmt.v0
+    event_bus_kind: kinesis
+    event_bus_stream: ${EVENT_BUS_STREAM}
+    event_bus_region: ${EVENT_BUS_REGION}
+    event_bus_endpoint_url: ${EVENT_BUS_ENDPOINT_URL}
+    event_bus_start_position: latest
+    admitted_topics:
+      - fp.bus.case.v1
+    poll_max_records: 200
+    poll_sleep_seconds: 0.5
+    locator: ${CASE_MGMT_LOCATOR:-}
+    label_store_locator: ${LABEL_STORE_LOCATOR:-}
+    default_label_type: fraud_disposition
+    default_label_value: FRAUD_SUSPECTED
+    default_source_type: AUTO
+    default_actor_id: SYSTEM::case_mgmt_worker
+label_store:
+  wiring:
+    stream_id: label_store.v0
+    locator: ${LABEL_STORE_LOCATOR:-}
+    poll_seconds: 2.0
+ofs:
+  policy:
+    launcher_policy_ref: config/platform/ofs/launcher_policy_v0.yaml
+  wiring:
+    stream_id: ofs.v0
+    required_platform_run_id: ${OFS_REQUIRED_PLATFORM_RUN_ID:-}
+    run_ledger_locator: ${OFS_RUN_LEDGER_DSN:-}
+    label_store_locator: ${LABEL_STORE_LOCATOR:-}
+    object_store_root: ${PLATFORM_STORE_ROOT:-s3://fraud-platform}
+    object_store_endpoint: ${OBJECT_STORE_ENDPOINT}
+    object_store_region: ${OBJECT_STORE_REGION}
+    object_store_path_style: true
+    feature_profile_ref: config/platform/ofp/features_v0.yaml
+    request_prefix: ${OFS_REQUEST_PREFIX:-}
+    request_poll_seconds: ${OFS_REQUEST_POLL_SECONDS:-2.0}
+    request_batch_limit: ${OFS_REQUEST_BATCH_LIMIT:-20}
+    max_publish_retry_attempts: ${OFS_MAX_PUBLISH_RETRY_ATTEMPTS:-3}
+    replay_discover_archive_events: ${OFS_REPLAY_DISCOVER_ARCHIVE_EVENTS:-true}
+    require_complete_for_dataset_build: ${OFS_REQUIRE_COMPLETE_FOR_DATASET_BUILD:-true}
+    evidence_ref_actor_id: ${OFS_EVIDENCE_REF_ACTOR_ID:-SYSTEM::ofs_worker}
+    evidence_ref_source_type: ${OFS_EVIDENCE_REF_SOURCE_TYPE:-SYSTEM}
+    evidence_ref_purpose: ${OFS_EVIDENCE_REF_PURPOSE:-ofs_dataset_build}
+    evidence_ref_strict: ${OFS_EVIDENCE_REF_STRICT:-true}
+mf:
+  policy:
+    launcher_policy_ref: config/platform/mf/launcher_policy_v0.yaml
+  wiring:
+    stream_id: mf.v0
+    required_platform_run_id: ${MF_REQUIRED_PLATFORM_RUN_ID:-}
+    run_ledger_locator: ${MF_RUN_LEDGER_DSN:-}
+    object_store_root: ${PLATFORM_STORE_ROOT:-s3://fraud-platform}
+    object_store_endpoint: ${OBJECT_STORE_ENDPOINT}
+    object_store_region: ${OBJECT_STORE_REGION}
+    object_store_path_style: true
+    request_prefix: ${MF_REQUEST_PREFIX:-}
+    request_poll_seconds: ${MF_REQUEST_POLL_SECONDS:-2.0}
+    request_batch_limit: ${MF_REQUEST_BATCH_LIMIT:-20}
+    max_publish_retry_attempts: ${MF_MAX_PUBLISH_RETRY_ATTEMPTS:-3}
+    service_release_id: ${MF_SERVICE_RELEASE_ID:-git:local}
+archive_writer:
+  policy:
+    policy_ref: config/platform/archive_writer/policy_v0.yaml
+  wiring:
+    stream_id: archive_writer.v0
+    ledger_dsn: ${ARCHIVE_WRITER_LEDGER_DSN:-}
+    event_bus_kind: kinesis
+    event_bus_stream: ${EVENT_BUS_STREAM}
+    event_bus_region: ${EVENT_BUS_REGION}
+    event_bus_endpoint_url: ${EVENT_BUS_ENDPOINT_URL}
+    event_bus_start_position: latest
+    topics_ref: config/platform/archive_writer/topics_v0.yaml
+    poll_max_records: 200
+    poll_sleep_seconds: 0.5

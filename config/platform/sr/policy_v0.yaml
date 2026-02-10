@@ -1,0 +1,9 @@
+policy_id: sr_policy
+revision: v0-local
+content_digest: c7f6da0172c57228940231844b9a6c4457aa809fc7929ff72ca5512197d0c412
+reuse_policy: ALLOW
+evidence_wait_seconds: 600
+attempt_limit: 1
+traffic_output_ids:
+  - s2_event_stream_baseline_6B
+  - s3_event_stream_with_fraud_6B

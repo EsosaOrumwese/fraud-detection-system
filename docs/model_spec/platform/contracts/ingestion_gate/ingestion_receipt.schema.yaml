@@ -1,0 +1,239 @@
+$schema: https://json-schema.org/draft/2020-12/schema
+$id: ingestion_receipt.schema.yaml
+title: Ingestion Receipt
+type: object
+additionalProperties: false
+required:
+  - receipt_id
+  - decision
+  - event_id
+  - event_type
+  - event_class
+  - ts_utc
+  - manifest_fingerprint
+  - platform_run_id
+  - run_config_digest
+  - policy_rev
+properties:
+  receipt_id:
+    $ref: "#/$defs/hex32"
+  decision:
+    type: string
+    enum: [ADMIT, DUPLICATE, QUARANTINE]
+  event_id:
+    type: string
+    minLength: 1
+    maxLength: 256
+  event_type:
+    type: string
+    minLength: 1
+    maxLength: 256
+  event_class:
+    type: string
+    minLength: 1
+    maxLength: 128
+  ts_utc:
+    $ref: "#/$defs/rfc3339_micros"
+  admitted_at_utc:
+    $ref: "#/$defs/rfc3339_micros"
+  schema_version:
+    type: string
+    minLength: 1
+    maxLength: 64
+  producer:
+    type: string
+    minLength: 1
+    maxLength: 128
+  manifest_fingerprint:
+    $ref: "#/$defs/hex64"
+  platform_run_id:
+    $ref: "#/$defs/platform_run_id"
+  service_release_id:
+    type: string
+    minLength: 1
+    maxLength: 256
+  environment:
+    type: string
+    minLength: 1
+    maxLength: 64
+  scenario_run_id:
+    $ref: "#/$defs/hex32"
+  run_config_digest:
+    $ref: "#/$defs/hex64"
+  payload_hash:
+    $ref: "#/$defs/digest"
+  pins:
+    type: object
+    additionalProperties: false
+    required: [manifest_fingerprint, platform_run_id]
+    properties:
+      manifest_fingerprint:
+        $ref: "#/$defs/hex64"
+      platform_run_id:
+        $ref: "#/$defs/platform_run_id"
+      scenario_run_id:
+        $ref: "#/$defs/hex32"
+      parameter_hash:
+        $ref: "#/$defs/hex64"
+      seed:
+        $ref: "#/$defs/uint64"
+      scenario_id:
+        type: string
+        minLength: 1
+        maxLength: 256
+      run_id:
+        $ref: "#/$defs/hex32"
+  policy_rev:
+    type: object
+    additionalProperties: false
+    required: [policy_id, revision]
+    properties:
+      policy_id:
+        type: string
+      revision:
+        type: string
+      content_digest:
+        $ref: "#/$defs/hex64"
+  actor:
+    type: object
+    additionalProperties: false
+    required: [actor_id, source_type]
+    properties:
+      actor_id:
+        type: string
+        minLength: 1
+        maxLength: 256
+      source_type:
+        type: string
+        enum: [SYSTEM, HUMAN]
+      auth_mode:
+        type: string
+        minLength: 1
+        maxLength: 64
+      principal:
+        type: string
+        minLength: 1
+        maxLength: 256
+  provenance:
+    type: object
+    additionalProperties: false
+    required: [service_release_id, environment]
+    properties:
+      service_release_id:
+        type: string
+        minLength: 1
+        maxLength: 256
+      environment:
+        type: string
+        minLength: 1
+        maxLength: 64
+      config_revision:
+        type: string
+        minLength: 1
+        maxLength: 128
+      run_config_digest:
+        $ref: "#/$defs/hex64"
+  partitioning_profile_id:
+    type: string
+    minLength: 1
+    maxLength: 128
+  partition_key:
+    type: string
+    minLength: 1
+    maxLength: 256
+  dedupe_key:
+    type: string
+    minLength: 1
+    maxLength: 256
+  eb_ref:
+    type: object
+    additionalProperties: false
+    required: [topic, partition, offset, offset_kind]
+    properties:
+      topic:
+        type: string
+        minLength: 1
+        maxLength: 256
+      partition:
+        type: integer
+        minimum: 0
+      offset:
+        type: string
+        minLength: 1
+        maxLength: 128
+      offset_kind:
+        type: string
+        enum: [file_line, kinesis_sequence]
+      published_at_utc:
+        $ref: "#/$defs/rfc3339_micros"
+  evidence_refs:
+    type: array
+    items:
+      type: object
+      additionalProperties: false
+      required: [kind, ref]
+      properties:
+        kind:
+          type: string
+          minLength: 1
+          maxLength: 64
+        ref:
+          type: string
+          minLength: 1
+          maxLength: 2048
+        digest:
+          $ref: "#/$defs/digest"
+  reason_codes:
+    type: array
+    items:
+      type: string
+      minLength: 1
+      maxLength: 128
+
+allOf:
+  - if:
+      properties:
+        decision:
+          const: ADMIT
+    then:
+      required: [eb_ref, scenario_run_id, payload_hash, admitted_at_utc]
+  - if:
+      properties:
+        decision:
+          const: DUPLICATE
+    then:
+      required: [eb_ref, scenario_run_id, payload_hash, admitted_at_utc]
+  - if:
+      properties:
+        decision:
+          const: QUARANTINE
+    then:
+      required: [evidence_refs]
+
+$defs:
+  hex32:
+    type: string
+    pattern: "^[0-9a-f]{32}$"
+  hex64:
+    type: string
+    pattern: "^[0-9a-f]{64}$"
+  platform_run_id:
+    type: string
+    pattern: "^platform_[0-9]{8}T[0-9]{6}Z$"
+  uint64:
+    type: integer
+    minimum: 0
+  rfc3339_micros:
+    type: string
+    minLength: 1
+  digest:
+    type: object
+    additionalProperties: false
+    required: [algo, hex]
+    properties:
+      algo:
+        type: string
+        enum: [sha256]
+      hex:
+        type: string
+        pattern: "^[0-9a-f]{64}$"

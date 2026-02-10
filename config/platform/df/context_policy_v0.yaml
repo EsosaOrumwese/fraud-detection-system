@@ -1,0 +1,17 @@
+version: v1
+policy_id: df.context.v0
+revision: r1
+budgets:
+  decision_deadline_ms: 1500
+  join_wait_budget_ms: 900
+context_roles:
+  required: [arrival_events, flow_anchor]
+  optional: [arrival_entities]
+ofp:
+  require_ofp: true
+  graph_resolution_mode: resolve_if_needed
+  feature_groups:
+    - name: core_features
+      version: v1
+ieg:
+  require_ieg: false

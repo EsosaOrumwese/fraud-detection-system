@@ -1,0 +1,36 @@
+version: v0
+policy_id: al.authz.v0
+revision: r1
+execution_posture:
+  mode: NORMAL
+  allow_execution: true
+  reason: ""
+retry:
+  max_attempts: 3
+  base_backoff_ms: 100
+  max_backoff_ms: 1000
+authz:
+  allowed_origins:
+    - DF
+    - CASE
+    - HUMAN
+    - OPS
+  allowed_action_kinds:
+    - ALLOW
+    - STEP_UP
+    - QUEUE_REVIEW
+    - txn_disposition_publish
+    - txn_step_up
+    - txn_block
+    - case_queue
+  actor_principal_prefix_allowlist:
+    DF:
+      - SYSTEM::decision_fabric
+    CASE:
+      - SYSTEM::case_management
+      - HUMAN::analyst
+    HUMAN:
+      - HUMAN::
+    OPS:
+      - SYSTEM::ops
+      - HUMAN::ops

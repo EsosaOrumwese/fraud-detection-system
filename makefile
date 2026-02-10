@@ -1,6 +1,9 @@
 SHELL := C:/Progra~1/Git/bin/bash.exe
 .SHELLFLAGS := -eu -o pipefail -c
 
+-include .env.platform.local
+-include .env.local
+
 PY ?= $(if $(wildcard .venv/Scripts/python.exe),.venv/Scripts/python.exe,python)
 ENGINE_PYTHONPATH ?= packages/engine/src
 PYTHONUNBUFFERED ?= 1
@@ -8,6 +11,7 @@ PYTHONUNBUFFERED ?= 1
 # Python command wrappers (unbuffered to keep console output responsive).
 PY_ENGINE = PYTHONUNBUFFERED=$(PYTHONUNBUFFERED) PYTHONPATH=$(ENGINE_PYTHONPATH) $(PY)
 PY_SCRIPT = PYTHONUNBUFFERED=$(PYTHONUNBUFFERED) $(PY)
+PY_PLATFORM = PYTHONUNBUFFERED=$(PYTHONUNBUFFERED) PYTHONPATH=src $(PY)
 
 # ---------------------------------------------------------------------------
 # Engine CLI defaults (dev/prod contract switching)
@@ -2497,4 +2501,1011 @@ profile-seg1b:
 clean-results:
 	rm -rf "$(SUMMARY_DIR)"
 	rm -f profile.segment1a profile.segment1b
+
+# ---------------------------------------------------------------------------
+# Platform (SR/IG) local workflow
+# ---------------------------------------------------------------------------
+PLATFORM_RUNS_ROOT ?= runs/fraud-platform
+SR_WIRING ?= config/platform/sr/wiring_local.yaml
+SR_POLICY ?= config/platform/sr/policy_v0.yaml
+SR_ENGINE_RUN_ROOT ?= $(ORACLE_ENGINE_RUN_ROOT)
+SR_RUN_EQUIVALENCE_KEY ?= local_full_run_5_reuse
+SR_REEMIT_RUN_ID ?=
+SR_REEMIT_KIND ?= READY_ONLY
+SR_MANIFEST_FINGERPRINT ?= c8fd43cd60ce0ede0c63d2ceb4610f167c9b107e1d59b9b8c7d7b8d0028b05c8
+SR_PARAMETER_HASH ?= 56d45126eaabedd083a1d8428a763e0278c89efec5023cfd6cf3cab7fc8dd2d7
+SR_SEED ?= 42
+SR_SCENARIO_ID ?= baseline_v1
+SR_WINDOW_START ?= 2026-01-01T00:00:00Z
+SR_WINDOW_END ?= 2026-01-02T00:00:00Z
+
+IG_PROFILE ?= config/platform/profiles/local.yaml
+IG_PROFILE_PARITY ?= config/platform/profiles/local_parity.yaml
+PLATFORM_PROFILE ?= config/platform/profiles/local_parity.yaml
+IG_HOST ?= 127.0.0.1
+IG_PORT ?= 8081
+IG_AUDIT_RUN_ID ?=
+PLATFORM_RUN_ID ?=
+PLATFORM_RUN_ID_NEW ?=
+GOVERNANCE_EVENT_FAMILY ?=
+GOVERNANCE_QUERY_LIMIT ?= 200
+PLATFORM_CONFORMANCE_OUTPUT_PATH ?=
+EVIDENCE_REF_ACTOR_ID ?= SYSTEM::platform_run_reporter
+EVIDENCE_REF_SOURCE_TYPE ?= SYSTEM
+EVIDENCE_REF_SOURCE_COMPONENT ?= platform_run_reporter
+EVIDENCE_REF_PURPOSE ?= platform_run_report
+EVIDENCE_REF_TYPE ?=
+EVIDENCE_REF_ID ?=
+EVIDENCE_REF_STRICT ?= 0
+EVIDENCE_REF_ALLOW_ACTOR ?=
+WSP_PROFILE ?= config/platform/profiles/local.yaml
+WSP_PROFILE_PARITY ?= config/platform/profiles/local_parity.yaml
+IEG_PROFILE_PARITY ?= config/platform/profiles/local_parity.yaml
+OFP_PROFILE_PARITY ?= config/platform/profiles/local_parity.yaml
+OFP_EVENT_BUS_START_POSITION ?= trim_horizon
+CONTEXT_STORE_FLOW_BINDING_PROFILE_PARITY ?= config/platform/profiles/local_parity.yaml
+WSP_MAX_EVENTS ?= 1
+WSP_VALIDATE_MAX_EVENTS ?= 10
+WSP_RESUME_EVENTS ?= 1
+WSP_VALIDATE_CHECK_FAILURES ?=
+WSP_VALIDATE_SKIP_RESUME ?=
+WSP_READY_POLL_SECONDS ?= 2.0
+WSP_READY_MAX_MESSAGES ?=
+WSP_READY_MAX_EVENTS ?=
+PLATFORM_SMOKE_MAX_EVENTS ?= 20
+WSP_ENGINE_RUN_ROOT ?=
+WSP_SCENARIO_ID ?=
+WSP_OUTPUT_IDS ?=
+ORACLE_PROFILE ?= config/platform/profiles/local.yaml
+ORACLE_PROFILE_PARITY ?= config/platform/profiles/local_parity.yaml
+ORACLE_ROOT ?= s3://oracle-store
+ORACLE_ENGINE_RUN_ROOT ?=
+ORACLE_SCENARIO_ID ?=
+ORACLE_ENGINE_RELEASE ?= unknown
+ORACLE_PACK_ROOT ?=
+ORACLE_OUTPUT_IDS ?=
+SR_WIRING_PARITY ?= config/platform/sr/wiring_local_kinesis.yaml
+CONTROL_BUS_STREAM ?= $(PARITY_CONTROL_BUS_STREAM)
+CONTROL_BUS_REGION ?= $(PARITY_CONTROL_BUS_REGION)
+CONTROL_BUS_ENDPOINT_URL ?= $(PARITY_CONTROL_BUS_ENDPOINT_URL)
+WSP_CHECKPOINT_DSN ?= $(PARITY_WSP_CHECKPOINT_DSN)
+IG_INGEST_URL ?= $(PARITY_IG_INGEST_URL)
+
+PARITY_OBJECT_STORE_ENDPOINT ?= http://localhost:9000
+PARITY_OBJECT_STORE_REGION ?= us-east-1
+PARITY_ORACLE_ROOT ?= $(ORACLE_ROOT)
+PARITY_IG_ADMISSION_DSN ?= postgresql://platform:platform@localhost:5434/platform
+PARITY_WSP_CHECKPOINT_DSN ?= postgresql://platform:platform@localhost:5434/platform
+PARITY_IEG_PROJECTION_DSN ?= postgresql://platform:platform@localhost:5434/platform
+PARITY_OFP_PROJECTION_DSN ?= postgresql://platform:platform@localhost:5434/platform
+PARITY_OFP_SNAPSHOT_INDEX_DSN ?= postgresql://platform:platform@localhost:5434/platform
+PARITY_CSFB_PROJECTION_DSN ?= postgresql://platform:platform@localhost:5434/platform
+PARITY_DL_POSTURE_DSN ?= $(PARITY_IG_ADMISSION_DSN)
+PARITY_DL_OUTBOX_DSN ?= $(PARITY_IG_ADMISSION_DSN)
+PARITY_DL_OPS_DSN ?= $(PARITY_IG_ADMISSION_DSN)
+PARITY_DF_REPLAY_DSN ?= $(PARITY_IG_ADMISSION_DSN)
+PARITY_DF_CHECKPOINT_DSN ?= $(PARITY_IG_ADMISSION_DSN)
+PARITY_AL_LEDGER_DSN ?= $(PARITY_IG_ADMISSION_DSN)
+PARITY_AL_OUTCOMES_DSN ?= $(PARITY_IG_ADMISSION_DSN)
+PARITY_AL_REPLAY_DSN ?= $(PARITY_IG_ADMISSION_DSN)
+PARITY_AL_CHECKPOINT_DSN ?= $(PARITY_IG_ADMISSION_DSN)
+PARITY_DLA_INDEX_DSN ?= $(PARITY_IG_ADMISSION_DSN)
+PARITY_CASE_TRIGGER_REPLAY_DSN ?= $(PARITY_IG_ADMISSION_DSN)
+PARITY_CASE_TRIGGER_CHECKPOINT_DSN ?= $(PARITY_IG_ADMISSION_DSN)
+PARITY_CASE_TRIGGER_PUBLISH_STORE_DSN ?= $(PARITY_IG_ADMISSION_DSN)
+PARITY_CASE_MGMT_LOCATOR ?= $(PARITY_IG_ADMISSION_DSN)
+PARITY_LABEL_STORE_LOCATOR ?= $(PARITY_IG_ADMISSION_DSN)
+PARITY_ARCHIVE_WRITER_LEDGER_DSN ?= $(PARITY_IG_ADMISSION_DSN)
+PARITY_OFS_RUN_LEDGER_DSN ?= $(PARITY_IG_ADMISSION_DSN)
+PARITY_MF_RUN_LEDGER_DSN ?= $(PARITY_IG_ADMISSION_DSN)
+PARITY_EVENT_BUS_STREAM ?= auto
+PARITY_EVENT_BUS_REGION ?= $(PARITY_CONTROL_BUS_REGION)
+PARITY_EVENT_BUS_ENDPOINT_URL ?= $(PARITY_CONTROL_BUS_ENDPOINT_URL)
+PARITY_CONTROL_BUS_STREAM ?= sr-control-bus
+PARITY_CONTROL_BUS_REGION ?= us-east-1
+PARITY_CONTROL_BUS_ENDPOINT_URL ?= http://localhost:4566
+PARITY_IG_INGEST_URL ?= http://localhost:8081
+PARITY_AWS_ACCESS_KEY_ID ?= minio
+PARITY_AWS_SECRET_ACCESS_KEY ?= minio123
+PARITY_MINIO_ACCESS_KEY ?= minio
+PARITY_MINIO_SECRET_KEY ?= minio123
+PARITY_AWS_EC2_METADATA_DISABLED ?= true
+PARITY_CASE_TRIGGER_IG_API_KEY ?= local-parity-case-trigger
+RUN_OPERATE_ENV_FILE ?= .env.platform.local
+RUN_OPERATE_PACK_CONTROL_INGRESS ?= config/platform/run_operate/packs/local_parity_control_ingress.v0.yaml
+RUN_OPERATE_PACK_RTDL_CORE ?= config/platform/run_operate/packs/local_parity_rtdl_core.v0.yaml
+RUN_OPERATE_PACK_RTDL_DECISION ?= config/platform/run_operate/packs/local_parity_rtdl_decision_lane.v0.yaml
+RUN_OPERATE_PACK_CASE_LABELS ?= config/platform/run_operate/packs/local_parity_case_labels.v0.yaml
+RUN_OPERATE_PACK_OBS_GOV ?= config/platform/run_operate/packs/local_parity_obs_gov.v0.yaml
+RUN_OPERATE_PACK_LEARNING_JOBS ?= config/platform/run_operate/packs/local_parity_learning_jobs.v0.yaml
+
+OFS_PROFILE ?= config/platform/profiles/local_parity.yaml
+OFS_INTENT_PATH ?=
+OFS_REPLAY_EVENTS_PATH ?=
+OFS_TARGET_SUBJECTS_PATH ?=
+OFS_REPLAY_EVIDENCE_PATH ?=
+OFS_REQUEST_ID ?=
+OFS_PUBLISH_RETRY_RUN_KEY ?=
+OFS_PUBLISH_RETRY_PLATFORM_RUN_ID ?=
+OFS_PUBLISH_RETRY_INTENT_PATH ?=
+OFS_PUBLISH_RETRY_DRAFT_PATH ?=
+OFS_PUBLISH_RETRY_REPLAY_RECEIPT_PATH ?=
+OFS_PUBLISH_RETRY_LABEL_RECEIPT_PATH ?=
+OFS_SUPERSEDES_MANIFEST_REFS ?=
+OFS_BACKFILL_REASON ?=
+MF_PROFILE ?= config/platform/profiles/local_parity.yaml
+MF_REQUEST_PATH ?=
+MF_REQUEST_ID ?=
+MF_PUBLISH_RETRY_RUN_KEY ?=
+MF_PUBLISH_RETRY_PLATFORM_RUN_ID ?=
+MF_PUBLISH_RETRY_RESOLVED_TRAIN_PLAN_REF ?=
+MF_PUBLISH_RETRY_GATE_RECEIPT_REF ?=
+MF_PUBLISH_RETRY_PUBLISH_ELIGIBILITY_REF ?=
+
+.PHONY: platform-stack-up platform-stack-down platform-stack-status
+platform-stack-up:
+	docker compose -f infra/local/docker-compose.sr-parity.yaml up -d
+
+platform-stack-down:
+	docker compose -f infra/local/docker-compose.sr-parity.yaml down
+
+platform-stack-status:
+	docker compose -f infra/local/docker-compose.sr-parity.yaml ps
+
+.PHONY: platform-parity-stack-up platform-parity-stack-down platform-parity-stack-status
+platform-parity-stack-up:
+	docker compose -f infra/local/docker-compose.platform-parity.yaml up -d
+
+platform-parity-stack-down:
+	docker compose -f infra/local/docker-compose.platform-parity.yaml down
+
+platform-parity-stack-status:
+	docker compose -f infra/local/docker-compose.platform-parity.yaml ps
+
+.PHONY: platform-parity-bootstrap
+platform-parity-bootstrap:
+	@AWS_ACCESS_KEY_ID="$(PARITY_AWS_ACCESS_KEY_ID)" \
+	AWS_SECRET_ACCESS_KEY="$(PARITY_AWS_SECRET_ACCESS_KEY)" \
+	AWS_DEFAULT_REGION="$(PARITY_CONTROL_BUS_REGION)" \
+	AWS_ENDPOINT_URL="$(PARITY_CONTROL_BUS_ENDPOINT_URL)" \
+	$(PY_SCRIPT) -c "import boto3, os; endpoint=os.environ.get('AWS_ENDPOINT_URL'); region=os.environ.get('AWS_DEFAULT_REGION','us-east-1'); client=boto3.client('kinesis',region_name=region,endpoint_url=endpoint); names=['sr-control-bus','fp.bus.traffic.baseline.v1','fp.bus.traffic.fraud.v1','fp.bus.context.arrival_events.v1','fp.bus.context.arrival_entities.v1','fp.bus.context.flow_anchor.baseline.v1','fp.bus.context.flow_anchor.fraud.v1','fp.bus.rtdl.v1','fp.bus.case.v1','fp.bus.audit.v1']; existing=set(client.list_streams(Limit=200).get('StreamNames', [])); [client.create_stream(StreamName=n,ShardCount=1) for n in names if n not in existing]" 2> /dev/null || true
+	@AWS_ACCESS_KEY_ID="$(PARITY_MINIO_ACCESS_KEY)" \
+	AWS_SECRET_ACCESS_KEY="$(PARITY_MINIO_SECRET_KEY)" \
+	AWS_DEFAULT_REGION="$(PARITY_OBJECT_STORE_REGION)" \
+	AWS_ENDPOINT_URL="$(PARITY_OBJECT_STORE_ENDPOINT)" \
+	$(PY_SCRIPT) -c "import boto3,os; endpoint=os.environ.get('AWS_ENDPOINT_URL'); region=os.environ.get('AWS_DEFAULT_REGION','us-east-1'); client=boto3.client('s3',region_name=region,endpoint_url=endpoint); existing={item.get('Name') for item in client.list_buckets().get('Buckets', [])}; [client.create_bucket(Bucket=b) for b in ['oracle-store','fraud-platform'] if b not in existing]" 2> /dev/null || true
+
+.PHONY: platform-bus-clean
+platform-bus-clean:
+	rm -f runs/fraud-platform/control_bus/fp.bus.control.v1/*.json
+
+.PHONY: platform-run-new
+platform-run-new:
+	rm -f runs/fraud-platform/ACTIVE_RUN_ID
+	@PLATFORM_RUN_ID="$(PLATFORM_RUN_ID_NEW)" $(PY_PLATFORM) -c "from fraud_detection.platform_runtime import resolve_platform_run_id; print(resolve_platform_run_id(create_if_missing=True))"
+
+.PHONY: platform-oracle-sync
+platform-oracle-sync:
+	@if [ -z "$(ORACLE_SYNC_SOURCE)" ]; then \
+		echo "ORACLE_SYNC_SOURCE is required for platform-oracle-sync." >&2; \
+		exit 1; \
+	fi
+	@if [ -z "$(ORACLE_ENGINE_RUN_ROOT)" ]; then \
+		echo "ORACLE_ENGINE_RUN_ROOT is required for platform-oracle-sync." >&2; \
+		exit 1; \
+	fi
+	@AWS_ACCESS_KEY_ID="$(PARITY_MINIO_ACCESS_KEY)" \
+	AWS_SECRET_ACCESS_KEY="$(PARITY_MINIO_SECRET_KEY)" \
+	AWS_DEFAULT_REGION="$(PARITY_OBJECT_STORE_REGION)" \
+	AWS_EC2_METADATA_DISABLED="$(PARITY_AWS_EC2_METADATA_DISABLED)" \
+	aws --endpoint-url "$(PARITY_OBJECT_STORE_ENDPOINT)" s3 sync \
+		"$(ORACLE_SYNC_SOURCE)" "$(ORACLE_ENGINE_RUN_ROOT)"
+
+.PHONY: platform-sr-run-reuse
+platform-sr-run-reuse:
+	@if [ -z "$(SR_ENGINE_RUN_ROOT)" ]; then \
+		echo "SR_ENGINE_RUN_ROOT (or ORACLE_ENGINE_RUN_ROOT) is required." >&2; \
+		exit 1; \
+	fi
+	@if [ -z "$(SR_MANIFEST_FINGERPRINT)" ] || [ -z "$(SR_PARAMETER_HASH)" ]; then \
+		echo "SR_MANIFEST_FINGERPRINT and SR_PARAMETER_HASH are required." >&2; \
+		exit 1; \
+	fi
+	@OBJECT_STORE_ENDPOINT="$(OBJECT_STORE_ENDPOINT)" \
+	OBJECT_STORE_REGION="$(OBJECT_STORE_REGION)" \
+	PLATFORM_RUN_ID="$(shell cat runs/fraud-platform/ACTIVE_RUN_ID 2>/dev/null)" \
+	PLATFORM_STORE_ROOT="$(PLATFORM_STORE_ROOT)" \
+	PLATFORM_COMPONENT="sr" \
+	AWS_ACCESS_KEY_ID="$(AWS_ACCESS_KEY_ID)" \
+	AWS_SECRET_ACCESS_KEY="$(AWS_SECRET_ACCESS_KEY)" \
+	AWS_EC2_METADATA_DISABLED="$(AWS_EC2_METADATA_DISABLED)" \
+	AWS_DEFAULT_REGION="$(OBJECT_STORE_REGION)" \
+	$(PY_PLATFORM) -m fraud_detection.scenario_runner.cli run \
+		--wiring "$(SR_WIRING)" \
+		--policy "$(SR_POLICY)" \
+		--run-equivalence-key "$(SR_RUN_EQUIVALENCE_KEY)" \
+		--manifest-fingerprint "$(SR_MANIFEST_FINGERPRINT)" \
+		--parameter-hash "$(SR_PARAMETER_HASH)" \
+		--seed "$(SR_SEED)" \
+		--scenario-id "$(SR_SCENARIO_ID)" \
+		--window-start "$(SR_WINDOW_START)" \
+		--window-end "$(SR_WINDOW_END)" \
+		--engine-run-root "$(SR_ENGINE_RUN_ROOT)"
+
+.PHONY: platform-sr-reemit
+platform-sr-reemit:
+	@if [ -z "$(SR_REEMIT_RUN_ID)" ]; then \
+		echo "SR_REEMIT_RUN_ID is required for platform-sr-reemit." >&2; \
+		exit 1; \
+	fi
+	@$(PY_PLATFORM) -m fraud_detection.scenario_runner.cli reemit \
+		--wiring "$(SR_WIRING)" \
+		--policy "$(SR_POLICY)" \
+		--run-id "$(SR_REEMIT_RUN_ID)" \
+		--kind "$(SR_REEMIT_KIND)"
+
+.PHONY: platform-ig-service
+platform-ig-service:
+	@PLATFORM_RUN_ID="$(shell cat runs/fraud-platform/ACTIVE_RUN_ID 2>/dev/null)" \
+	PLATFORM_STORE_ROOT="$(PLATFORM_STORE_ROOT)" \
+	PLATFORM_COMPONENT="ig" \
+	$(PY_PLATFORM) -m fraud_detection.ingestion_gate.service \
+		--profile "$(IG_PROFILE)" \
+		--host "$(IG_HOST)" \
+		--port "$(IG_PORT)"
+
+.PHONY: platform-ig-service-parity
+platform-ig-service-parity:
+	@OBJECT_STORE_ENDPOINT="$(PARITY_OBJECT_STORE_ENDPOINT)" \
+	OBJECT_STORE_REGION="$(PARITY_OBJECT_STORE_REGION)" \
+	ORACLE_ROOT="$(PARITY_ORACLE_ROOT)" \
+	IG_ADMISSION_DSN="$(PARITY_IG_ADMISSION_DSN)" \
+	WSP_CHECKPOINT_DSN="$(PARITY_WSP_CHECKPOINT_DSN)" \
+	EVENT_BUS_STREAM="$(PARITY_EVENT_BUS_STREAM)" \
+	EVENT_BUS_REGION="$(PARITY_EVENT_BUS_REGION)" \
+	EVENT_BUS_ENDPOINT_URL="$(PARITY_EVENT_BUS_ENDPOINT_URL)" \
+	CONTROL_BUS_STREAM="$(PARITY_CONTROL_BUS_STREAM)" \
+	CONTROL_BUS_REGION="$(PARITY_CONTROL_BUS_REGION)" \
+	CONTROL_BUS_ENDPOINT_URL="$(PARITY_CONTROL_BUS_ENDPOINT_URL)" \
+	IG_INGEST_URL="$(PARITY_IG_INGEST_URL)" \
+	AWS_ACCESS_KEY_ID="$(PARITY_MINIO_ACCESS_KEY)" \
+	AWS_SECRET_ACCESS_KEY="$(PARITY_MINIO_SECRET_KEY)" \
+	AWS_DEFAULT_REGION="$(PARITY_CONTROL_BUS_REGION)" \
+	AWS_ENDPOINT_URL="$(PARITY_CONTROL_BUS_ENDPOINT_URL)" \
+	AWS_EC2_METADATA_DISABLED="$(PARITY_AWS_EC2_METADATA_DISABLED)" \
+	PLATFORM_RUN_ID="$(shell cat runs/fraud-platform/ACTIVE_RUN_ID 2>/dev/null)" \
+	PLATFORM_STORE_ROOT="$(PLATFORM_STORE_ROOT)" \
+	PLATFORM_COMPONENT="ig" \
+	$(PY_PLATFORM) -m fraud_detection.ingestion_gate.service \
+		--profile "$(IG_PROFILE_PARITY)" \
+		--host "$(IG_HOST)" \
+		--port "$(IG_PORT)"
+
+
+.PHONY: platform-wsp-ready-once
+platform-wsp-ready-once:
+	@if [ -z "$(WSP_ENGINE_RUN_ROOT)" ]; then \
+		echo "WSP_ENGINE_RUN_ROOT is required for platform-wsp-ready-once." >&2; \
+		exit 1; \
+	fi
+	@if [ -z "$(WSP_SCENARIO_ID)" ]; then \
+		echo "WSP_SCENARIO_ID is required for platform-wsp-ready-once." >&2; \
+		exit 1; \
+	fi
+	@ORACLE_STREAM_VIEW_ROOT="$(ORACLE_STREAM_VIEW_ROOT)" \
+	$(PY_PLATFORM) -m fraud_detection.world_streamer_producer.cli --profile "$(WSP_PROFILE)" \
+		--engine-run-root "$(WSP_ENGINE_RUN_ROOT)" \
+		--scenario-id "$(WSP_SCENARIO_ID)" \
+		$(if $(WSP_OUTPUT_IDS),--output-ids "$(WSP_OUTPUT_IDS)",) \
+		$(if $(WSP_MAX_EVENTS),--max-events "$(WSP_MAX_EVENTS)",)
+
+.PHONY: platform-wsp-ready-consumer
+platform-wsp-ready-consumer:
+	@OBJECT_STORE_ENDPOINT="$(OBJECT_STORE_ENDPOINT)" \
+	OBJECT_STORE_REGION="$(OBJECT_STORE_REGION)" \
+	PLATFORM_STORE_ROOT="$(PLATFORM_STORE_ROOT)" \
+	PLATFORM_COMPONENT="wsp" \
+	ORACLE_ROOT="$(ORACLE_ROOT)" \
+	ORACLE_ENGINE_RUN_ROOT="$(ORACLE_ENGINE_RUN_ROOT)" \
+	ORACLE_SCENARIO_ID="$(ORACLE_SCENARIO_ID)" \
+	ORACLE_STREAM_VIEW_ROOT="$(ORACLE_STREAM_VIEW_ROOT)" \
+	CONTROL_BUS_STREAM="$(CONTROL_BUS_STREAM)" \
+	CONTROL_BUS_REGION="$(CONTROL_BUS_REGION)" \
+	CONTROL_BUS_ENDPOINT_URL="$(CONTROL_BUS_ENDPOINT_URL)" \
+	WSP_CHECKPOINT_DSN="$(WSP_CHECKPOINT_DSN)" \
+	IG_INGEST_URL="$(IG_INGEST_URL)" \
+	AWS_ACCESS_KEY_ID="$(AWS_ACCESS_KEY_ID)" \
+	AWS_SECRET_ACCESS_KEY="$(AWS_SECRET_ACCESS_KEY)" \
+	AWS_EC2_METADATA_DISABLED="$(AWS_EC2_METADATA_DISABLED)" \
+	AWS_DEFAULT_REGION="$(OBJECT_STORE_REGION)" \
+	$(PY_PLATFORM) -m fraud_detection.world_streamer_producer.ready_consumer --profile "$(WSP_PROFILE)" \
+		--poll-seconds "$(WSP_READY_POLL_SECONDS)" \
+		$(if $(WSP_READY_MAX_MESSAGES),--max-messages "$(WSP_READY_MAX_MESSAGES)",) \
+		$(if $(WSP_READY_MAX_EVENTS),--max-events "$(WSP_READY_MAX_EVENTS)",) \
+		$(if $(WSP_MAX_EVENTS_PER_OUTPUT),--max-events-per-output "$(WSP_MAX_EVENTS_PER_OUTPUT)",)
+
+.PHONY: platform-wsp-ready-consumer-once
+platform-wsp-ready-consumer-once:
+	@OBJECT_STORE_ENDPOINT="$(OBJECT_STORE_ENDPOINT)" \
+	OBJECT_STORE_REGION="$(OBJECT_STORE_REGION)" \
+	PLATFORM_STORE_ROOT="$(PLATFORM_STORE_ROOT)" \
+	PLATFORM_COMPONENT="wsp" \
+	ORACLE_ROOT="$(ORACLE_ROOT)" \
+	ORACLE_ENGINE_RUN_ROOT="$(ORACLE_ENGINE_RUN_ROOT)" \
+	ORACLE_SCENARIO_ID="$(ORACLE_SCENARIO_ID)" \
+	ORACLE_STREAM_VIEW_ROOT="$(ORACLE_STREAM_VIEW_ROOT)" \
+	CONTROL_BUS_STREAM="$(CONTROL_BUS_STREAM)" \
+	CONTROL_BUS_REGION="$(CONTROL_BUS_REGION)" \
+	CONTROL_BUS_ENDPOINT_URL="$(CONTROL_BUS_ENDPOINT_URL)" \
+	WSP_CHECKPOINT_DSN="$(WSP_CHECKPOINT_DSN)" \
+	IG_INGEST_URL="$(IG_INGEST_URL)" \
+	AWS_ACCESS_KEY_ID="$(AWS_ACCESS_KEY_ID)" \
+	AWS_SECRET_ACCESS_KEY="$(AWS_SECRET_ACCESS_KEY)" \
+	AWS_EC2_METADATA_DISABLED="$(AWS_EC2_METADATA_DISABLED)" \
+	AWS_DEFAULT_REGION="$(OBJECT_STORE_REGION)" \
+	$(PY_PLATFORM) -m fraud_detection.world_streamer_producer.ready_consumer --profile "$(WSP_PROFILE)" --once \
+		$(if $(WSP_READY_MAX_MESSAGES),--max-messages "$(WSP_READY_MAX_MESSAGES)",) \
+		$(if $(WSP_READY_MAX_EVENTS),--max-events "$(WSP_READY_MAX_EVENTS)",) \
+		$(if $(WSP_MAX_EVENTS_PER_OUTPUT),--max-events-per-output "$(WSP_MAX_EVENTS_PER_OUTPUT)",)
+
+.PHONY: platform-smoke
+platform-smoke:
+	@echo "Ensure IG service is running (in another terminal): make platform-ig-service"
+	@$(MAKE) platform-run-new
+	@$(MAKE) platform-bus-clean
+	@SR_RUN_EQUIVALENCE_KEY="local_smoke_$$(date +%Y%m%dT%H%M%SZ)" \
+		$(MAKE) platform-sr-run-reuse
+	@WSP_READY_MAX_EVENTS="$(PLATFORM_SMOKE_MAX_EVENTS)" $(MAKE) platform-wsp-ready-consumer-once
+
+.PHONY: platform-parity-smoke
+platform-parity-smoke:
+	@echo "Ensure parity stack is up: make platform-parity-stack-up"
+	@$(MAKE) platform-parity-bootstrap
+	@echo "Ensure IG service is running (in another terminal): make platform-ig-service-parity"
+	@$(MAKE) platform-run-new
+	@OBJECT_STORE_ENDPOINT="$(PARITY_OBJECT_STORE_ENDPOINT)" \
+	OBJECT_STORE_REGION="$(PARITY_OBJECT_STORE_REGION)" \
+	ORACLE_ROOT="$(PARITY_ORACLE_ROOT)" \
+	IG_ADMISSION_DSN="$(PARITY_IG_ADMISSION_DSN)" \
+	WSP_CHECKPOINT_DSN="$(PARITY_WSP_CHECKPOINT_DSN)" \
+	EVENT_BUS_STREAM="$(PARITY_EVENT_BUS_STREAM)" \
+	CONTROL_BUS_STREAM="$(PARITY_CONTROL_BUS_STREAM)" \
+	CONTROL_BUS_REGION="$(PARITY_CONTROL_BUS_REGION)" \
+	CONTROL_BUS_ENDPOINT_URL="$(PARITY_CONTROL_BUS_ENDPOINT_URL)" \
+	IG_INGEST_URL="$(PARITY_IG_INGEST_URL)" \
+	AWS_ACCESS_KEY_ID="$(PARITY_MINIO_ACCESS_KEY)" \
+	AWS_SECRET_ACCESS_KEY="$(PARITY_MINIO_SECRET_KEY)" \
+	AWS_EC2_METADATA_DISABLED="$(PARITY_AWS_EC2_METADATA_DISABLED)" \
+	SR_WIRING="$(SR_WIRING_PARITY)" WSP_PROFILE="$(WSP_PROFILE_PARITY)" IG_PROFILE="$(IG_PROFILE_PARITY)" \
+	ORACLE_PROFILE="$(ORACLE_PROFILE_PARITY)" \
+	SR_RUN_EQUIVALENCE_KEY="parity_smoke_$$(date +%Y%m%dT%H%M%SZ)" \
+	$(MAKE) platform-sr-run-reuse
+	@OBJECT_STORE_ENDPOINT="$(PARITY_OBJECT_STORE_ENDPOINT)" \
+	OBJECT_STORE_REGION="$(PARITY_OBJECT_STORE_REGION)" \
+	ORACLE_ROOT="$(PARITY_ORACLE_ROOT)" \
+	IG_ADMISSION_DSN="$(PARITY_IG_ADMISSION_DSN)" \
+	WSP_CHECKPOINT_DSN="$(PARITY_WSP_CHECKPOINT_DSN)" \
+	EVENT_BUS_STREAM="$(PARITY_EVENT_BUS_STREAM)" \
+	CONTROL_BUS_STREAM="$(PARITY_CONTROL_BUS_STREAM)" \
+	CONTROL_BUS_REGION="$(PARITY_CONTROL_BUS_REGION)" \
+	CONTROL_BUS_ENDPOINT_URL="$(PARITY_CONTROL_BUS_ENDPOINT_URL)" \
+	IG_INGEST_URL="$(PARITY_IG_INGEST_URL)" \
+	AWS_ACCESS_KEY_ID="$(PARITY_MINIO_ACCESS_KEY)" \
+	AWS_SECRET_ACCESS_KEY="$(PARITY_MINIO_SECRET_KEY)" \
+	AWS_EC2_METADATA_DISABLED="$(PARITY_AWS_EC2_METADATA_DISABLED)" \
+	WSP_PROFILE="$(WSP_PROFILE_PARITY)" WSP_READY_MAX_EVENTS="$(PLATFORM_SMOKE_MAX_EVENTS)" \
+	$(MAKE) platform-wsp-ready-consumer-once
+
+.PHONY: platform-ofp-projector-parity-live
+platform-ofp-projector-parity-live:
+	@echo "Ensure parity stack is up: make platform-parity-stack-up"
+	@echo "Ensure run id is set: make platform-run-new"
+	@PLATFORM_RUN_ID="$(shell cat runs/fraud-platform/ACTIVE_RUN_ID 2>/dev/null)" \
+	OFP_REQUIRED_PLATFORM_RUN_ID="$(shell cat runs/fraud-platform/ACTIVE_RUN_ID 2>/dev/null)" \
+	OFP_PROJECTION_DSN="$(PARITY_OFP_PROJECTION_DSN)" \
+	OFP_SNAPSHOT_INDEX_DSN="$(PARITY_OFP_SNAPSHOT_INDEX_DSN)" \
+	PLATFORM_STORE_ROOT="$(PLATFORM_RUNS_ROOT)" \
+	OFP_EVENT_BUS_START_POSITION="$(OFP_EVENT_BUS_START_POSITION)" \
+	OBJECT_STORE_ENDPOINT="$(PARITY_OBJECT_STORE_ENDPOINT)" \
+	OBJECT_STORE_REGION="$(PARITY_OBJECT_STORE_REGION)" \
+	ORACLE_ROOT="$(PARITY_ORACLE_ROOT)" \
+	IG_ADMISSION_DSN="$(PARITY_IG_ADMISSION_DSN)" \
+	WSP_CHECKPOINT_DSN="$(PARITY_WSP_CHECKPOINT_DSN)" \
+	EVENT_BUS_STREAM="$(PARITY_EVENT_BUS_STREAM)" \
+	EVENT_BUS_REGION="$(PARITY_EVENT_BUS_REGION)" \
+	EVENT_BUS_ENDPOINT_URL="$(PARITY_EVENT_BUS_ENDPOINT_URL)" \
+	CONTROL_BUS_STREAM="$(PARITY_CONTROL_BUS_STREAM)" \
+	CONTROL_BUS_REGION="$(PARITY_CONTROL_BUS_REGION)" \
+	CONTROL_BUS_ENDPOINT_URL="$(PARITY_CONTROL_BUS_ENDPOINT_URL)" \
+	AWS_ACCESS_KEY_ID="$(PARITY_MINIO_ACCESS_KEY)" \
+	AWS_SECRET_ACCESS_KEY="$(PARITY_MINIO_SECRET_KEY)" \
+	AWS_EC2_METADATA_DISABLED="$(PARITY_AWS_EC2_METADATA_DISABLED)" \
+	$(PY_PLATFORM) -m fraud_detection.online_feature_plane.projector \
+		--profile "$(OFP_PROFILE_PARITY)"
+
+.PHONY: platform-ieg-projector-parity-live
+platform-ieg-projector-parity-live:
+	@echo "Ensure parity stack is up: make platform-parity-stack-up"
+	@echo "Ensure run id is set: make platform-run-new"
+	@PLATFORM_RUN_ID="$(shell cat runs/fraud-platform/ACTIVE_RUN_ID 2>/dev/null)" \
+	IEG_REQUIRED_PLATFORM_RUN_ID="$(shell cat runs/fraud-platform/ACTIVE_RUN_ID 2>/dev/null)" \
+	IEG_PROJECTION_DSN="$(PARITY_IEG_PROJECTION_DSN)" \
+	PLATFORM_STORE_ROOT="$(PLATFORM_RUNS_ROOT)" \
+	OBJECT_STORE_ENDPOINT="$(PARITY_OBJECT_STORE_ENDPOINT)" \
+	OBJECT_STORE_REGION="$(PARITY_OBJECT_STORE_REGION)" \
+	ORACLE_ROOT="$(PARITY_ORACLE_ROOT)" \
+	IG_ADMISSION_DSN="$(PARITY_IG_ADMISSION_DSN)" \
+	WSP_CHECKPOINT_DSN="$(PARITY_WSP_CHECKPOINT_DSN)" \
+	EVENT_BUS_STREAM="$(PARITY_EVENT_BUS_STREAM)" \
+	EVENT_BUS_REGION="$(PARITY_EVENT_BUS_REGION)" \
+	EVENT_BUS_ENDPOINT_URL="$(PARITY_EVENT_BUS_ENDPOINT_URL)" \
+	CONTROL_BUS_STREAM="$(PARITY_CONTROL_BUS_STREAM)" \
+	CONTROL_BUS_REGION="$(PARITY_CONTROL_BUS_REGION)" \
+	CONTROL_BUS_ENDPOINT_URL="$(PARITY_CONTROL_BUS_ENDPOINT_URL)" \
+	AWS_ACCESS_KEY_ID="$(PARITY_MINIO_ACCESS_KEY)" \
+	AWS_SECRET_ACCESS_KEY="$(PARITY_MINIO_SECRET_KEY)" \
+	AWS_EC2_METADATA_DISABLED="$(PARITY_AWS_EC2_METADATA_DISABLED)" \
+	$(PY_PLATFORM) -m fraud_detection.identity_entity_graph.projector \
+		--profile "$(IEG_PROFILE_PARITY)"
+
+.PHONY: platform-context-store-flow-binding-parity-once
+platform-context-store-flow-binding-parity-once:
+	@echo "Ensure parity stack is up: make platform-parity-stack-up"
+	@echo "Ensure run id is set: make platform-run-new"
+	@PLATFORM_RUN_ID="$(shell cat runs/fraud-platform/ACTIVE_RUN_ID 2>/dev/null)" \
+	CSFB_REQUIRED_PLATFORM_RUN_ID="$(shell cat runs/fraud-platform/ACTIVE_RUN_ID 2>/dev/null)" \
+	CSFB_PROJECTION_DSN="$(PARITY_CSFB_PROJECTION_DSN)" \
+	PLATFORM_STORE_ROOT="$(PLATFORM_RUNS_ROOT)" \
+	OBJECT_STORE_ENDPOINT="$(PARITY_OBJECT_STORE_ENDPOINT)" \
+	OBJECT_STORE_REGION="$(PARITY_OBJECT_STORE_REGION)" \
+	ORACLE_ROOT="$(PARITY_ORACLE_ROOT)" \
+	IG_ADMISSION_DSN="$(PARITY_IG_ADMISSION_DSN)" \
+	WSP_CHECKPOINT_DSN="$(PARITY_WSP_CHECKPOINT_DSN)" \
+	EVENT_BUS_STREAM="$(PARITY_EVENT_BUS_STREAM)" \
+	EVENT_BUS_REGION="$(PARITY_EVENT_BUS_REGION)" \
+	EVENT_BUS_ENDPOINT_URL="$(PARITY_EVENT_BUS_ENDPOINT_URL)" \
+	CONTROL_BUS_STREAM="$(PARITY_CONTROL_BUS_STREAM)" \
+	CONTROL_BUS_REGION="$(PARITY_CONTROL_BUS_REGION)" \
+	CONTROL_BUS_ENDPOINT_URL="$(PARITY_CONTROL_BUS_ENDPOINT_URL)" \
+	AWS_ACCESS_KEY_ID="$(PARITY_MINIO_ACCESS_KEY)" \
+	AWS_SECRET_ACCESS_KEY="$(PARITY_MINIO_SECRET_KEY)" \
+	AWS_EC2_METADATA_DISABLED="$(PARITY_AWS_EC2_METADATA_DISABLED)" \
+	$(PY_PLATFORM) -m fraud_detection.context_store_flow_binding.intake \
+		--policy "$(CONTEXT_STORE_FLOW_BINDING_PROFILE_PARITY)" \
+		--once
+
+.PHONY: platform-context-store-flow-binding-parity-live
+platform-context-store-flow-binding-parity-live:
+	@echo "Ensure parity stack is up: make platform-parity-stack-up"
+	@echo "Ensure run id is set: make platform-run-new"
+	@PLATFORM_RUN_ID="$(shell cat runs/fraud-platform/ACTIVE_RUN_ID 2>/dev/null)" \
+	CSFB_REQUIRED_PLATFORM_RUN_ID="$(shell cat runs/fraud-platform/ACTIVE_RUN_ID 2>/dev/null)" \
+	CSFB_PROJECTION_DSN="$(PARITY_CSFB_PROJECTION_DSN)" \
+	PLATFORM_STORE_ROOT="$(PLATFORM_RUNS_ROOT)" \
+	OBJECT_STORE_ENDPOINT="$(PARITY_OBJECT_STORE_ENDPOINT)" \
+	OBJECT_STORE_REGION="$(PARITY_OBJECT_STORE_REGION)" \
+	ORACLE_ROOT="$(PARITY_ORACLE_ROOT)" \
+	IG_ADMISSION_DSN="$(PARITY_IG_ADMISSION_DSN)" \
+	WSP_CHECKPOINT_DSN="$(PARITY_WSP_CHECKPOINT_DSN)" \
+	EVENT_BUS_STREAM="$(PARITY_EVENT_BUS_STREAM)" \
+	EVENT_BUS_REGION="$(PARITY_EVENT_BUS_REGION)" \
+	EVENT_BUS_ENDPOINT_URL="$(PARITY_EVENT_BUS_ENDPOINT_URL)" \
+	CONTROL_BUS_STREAM="$(PARITY_CONTROL_BUS_STREAM)" \
+	CONTROL_BUS_REGION="$(PARITY_CONTROL_BUS_REGION)" \
+	CONTROL_BUS_ENDPOINT_URL="$(PARITY_CONTROL_BUS_ENDPOINT_URL)" \
+	AWS_ACCESS_KEY_ID="$(PARITY_MINIO_ACCESS_KEY)" \
+	AWS_SECRET_ACCESS_KEY="$(PARITY_MINIO_SECRET_KEY)" \
+	AWS_EC2_METADATA_DISABLED="$(PARITY_AWS_EC2_METADATA_DISABLED)" \
+	$(PY_PLATFORM) -m fraud_detection.context_store_flow_binding.intake \
+		--policy "$(CONTEXT_STORE_FLOW_BINDING_PROFILE_PARITY)"
+
+.PHONY: platform-rtdl-core-parity-live
+platform-rtdl-core-parity-live:
+	@echo "RTDL live core (open these in separate terminals, same ACTIVE_RUN_ID):"
+	@echo "  1) make platform-ieg-projector-parity-live"
+	@echo "  2) make platform-ofp-projector-parity-live"
+	@echo "  3) make platform-context-store-flow-binding-parity-live"
+	@echo "Scope: live-capable RTDL core consumers in v0 parity (IEG/OFP/CSFB)."
+	@echo "Decision lane (DL/DF/AL/DLA) is orchestrated via run/operate:"
+	@echo "  make platform-operate-rtdl-decision-up"
+
+.PHONY: platform-operate-control-ingress-up platform-operate-control-ingress-down platform-operate-control-ingress-restart platform-operate-control-ingress-status
+platform-operate-control-ingress-up:
+	@$(PY_PLATFORM) -m fraud_detection.run_operate.orchestrator \
+		--env-file "$(RUN_OPERATE_ENV_FILE)" \
+		--pack "$(RUN_OPERATE_PACK_CONTROL_INGRESS)" up
+
+platform-operate-control-ingress-down:
+	@$(PY_PLATFORM) -m fraud_detection.run_operate.orchestrator \
+		--env-file "$(RUN_OPERATE_ENV_FILE)" \
+		--pack "$(RUN_OPERATE_PACK_CONTROL_INGRESS)" down
+
+platform-operate-control-ingress-restart:
+	@$(PY_PLATFORM) -m fraud_detection.run_operate.orchestrator \
+		--env-file "$(RUN_OPERATE_ENV_FILE)" \
+		--pack "$(RUN_OPERATE_PACK_CONTROL_INGRESS)" restart
+
+platform-operate-control-ingress-status:
+	@$(PY_PLATFORM) -m fraud_detection.run_operate.orchestrator \
+		--env-file "$(RUN_OPERATE_ENV_FILE)" \
+		--pack "$(RUN_OPERATE_PACK_CONTROL_INGRESS)" status
+
+.PHONY: platform-operate-rtdl-core-up platform-operate-rtdl-core-down platform-operate-rtdl-core-restart platform-operate-rtdl-core-status
+platform-operate-rtdl-core-up:
+	@$(PY_PLATFORM) -m fraud_detection.run_operate.orchestrator \
+		--env-file "$(RUN_OPERATE_ENV_FILE)" \
+		--pack "$(RUN_OPERATE_PACK_RTDL_CORE)" up
+
+platform-operate-rtdl-core-down:
+	@$(PY_PLATFORM) -m fraud_detection.run_operate.orchestrator \
+		--env-file "$(RUN_OPERATE_ENV_FILE)" \
+		--pack "$(RUN_OPERATE_PACK_RTDL_CORE)" down
+
+platform-operate-rtdl-core-restart:
+	@$(PY_PLATFORM) -m fraud_detection.run_operate.orchestrator \
+		--env-file "$(RUN_OPERATE_ENV_FILE)" \
+		--pack "$(RUN_OPERATE_PACK_RTDL_CORE)" restart
+
+platform-operate-rtdl-core-status:
+	@$(PY_PLATFORM) -m fraud_detection.run_operate.orchestrator \
+		--env-file "$(RUN_OPERATE_ENV_FILE)" \
+		--pack "$(RUN_OPERATE_PACK_RTDL_CORE)" status
+
+.PHONY: platform-operate-rtdl-decision-up platform-operate-rtdl-decision-down platform-operate-rtdl-decision-restart platform-operate-rtdl-decision-status
+platform-operate-rtdl-decision-up:
+	@$(PY_PLATFORM) -m fraud_detection.run_operate.orchestrator \
+		--env-file "$(RUN_OPERATE_ENV_FILE)" \
+		--pack "$(RUN_OPERATE_PACK_RTDL_DECISION)" up
+
+platform-operate-rtdl-decision-down:
+	@$(PY_PLATFORM) -m fraud_detection.run_operate.orchestrator \
+		--env-file "$(RUN_OPERATE_ENV_FILE)" \
+		--pack "$(RUN_OPERATE_PACK_RTDL_DECISION)" down
+
+platform-operate-rtdl-decision-restart:
+	@$(PY_PLATFORM) -m fraud_detection.run_operate.orchestrator \
+		--env-file "$(RUN_OPERATE_ENV_FILE)" \
+		--pack "$(RUN_OPERATE_PACK_RTDL_DECISION)" restart
+
+platform-operate-rtdl-decision-status:
+	@$(PY_PLATFORM) -m fraud_detection.run_operate.orchestrator \
+		--env-file "$(RUN_OPERATE_ENV_FILE)" \
+		--pack "$(RUN_OPERATE_PACK_RTDL_DECISION)" status
+
+.PHONY: platform-operate-case-labels-up platform-operate-case-labels-down platform-operate-case-labels-restart platform-operate-case-labels-status
+platform-operate-case-labels-up:
+	@$(PY_PLATFORM) -m fraud_detection.run_operate.orchestrator \
+		--env-file "$(RUN_OPERATE_ENV_FILE)" \
+		--pack "$(RUN_OPERATE_PACK_CASE_LABELS)" up
+
+platform-operate-case-labels-down:
+	@$(PY_PLATFORM) -m fraud_detection.run_operate.orchestrator \
+		--env-file "$(RUN_OPERATE_ENV_FILE)" \
+		--pack "$(RUN_OPERATE_PACK_CASE_LABELS)" down
+
+platform-operate-case-labels-restart:
+	@$(PY_PLATFORM) -m fraud_detection.run_operate.orchestrator \
+		--env-file "$(RUN_OPERATE_ENV_FILE)" \
+		--pack "$(RUN_OPERATE_PACK_CASE_LABELS)" restart
+
+platform-operate-case-labels-status:
+	@$(PY_PLATFORM) -m fraud_detection.run_operate.orchestrator \
+		--env-file "$(RUN_OPERATE_ENV_FILE)" \
+		--pack "$(RUN_OPERATE_PACK_CASE_LABELS)" status
+
+.PHONY: platform-operate-obs-gov-up platform-operate-obs-gov-down platform-operate-obs-gov-restart platform-operate-obs-gov-status
+platform-operate-obs-gov-up:
+	@$(PY_PLATFORM) -m fraud_detection.run_operate.orchestrator \
+		--env-file "$(RUN_OPERATE_ENV_FILE)" \
+		--pack "$(RUN_OPERATE_PACK_OBS_GOV)" up
+
+platform-operate-obs-gov-down:
+	@$(PY_PLATFORM) -m fraud_detection.run_operate.orchestrator \
+		--env-file "$(RUN_OPERATE_ENV_FILE)" \
+		--pack "$(RUN_OPERATE_PACK_OBS_GOV)" down
+
+platform-operate-obs-gov-restart:
+	@$(PY_PLATFORM) -m fraud_detection.run_operate.orchestrator \
+		--env-file "$(RUN_OPERATE_ENV_FILE)" \
+		--pack "$(RUN_OPERATE_PACK_OBS_GOV)" restart
+
+platform-operate-obs-gov-status:
+	@$(PY_PLATFORM) -m fraud_detection.run_operate.orchestrator \
+		--env-file "$(RUN_OPERATE_ENV_FILE)" \
+		--pack "$(RUN_OPERATE_PACK_OBS_GOV)" status
+
+.PHONY: platform-operate-learning-jobs-up platform-operate-learning-jobs-down platform-operate-learning-jobs-restart platform-operate-learning-jobs-status
+platform-operate-learning-jobs-up:
+	@$(PY_PLATFORM) -m fraud_detection.run_operate.orchestrator \
+		--env-file "$(RUN_OPERATE_ENV_FILE)" \
+		--pack "$(RUN_OPERATE_PACK_LEARNING_JOBS)" up
+
+platform-operate-learning-jobs-down:
+	@$(PY_PLATFORM) -m fraud_detection.run_operate.orchestrator \
+		--env-file "$(RUN_OPERATE_ENV_FILE)" \
+		--pack "$(RUN_OPERATE_PACK_LEARNING_JOBS)" down
+
+platform-operate-learning-jobs-restart:
+	@$(PY_PLATFORM) -m fraud_detection.run_operate.orchestrator \
+		--env-file "$(RUN_OPERATE_ENV_FILE)" \
+		--pack "$(RUN_OPERATE_PACK_LEARNING_JOBS)" restart
+
+platform-operate-learning-jobs-status:
+	@$(PY_PLATFORM) -m fraud_detection.run_operate.orchestrator \
+		--env-file "$(RUN_OPERATE_ENV_FILE)" \
+		--pack "$(RUN_OPERATE_PACK_LEARNING_JOBS)" status
+
+.PHONY: platform-operate-parity-up platform-operate-parity-down platform-operate-parity-restart platform-operate-parity-status
+platform-operate-parity-up:
+	@echo "Ensure parity stack is up and bootstrap complete before orchestration start."
+	@echo "Recommended preflight: make platform-parity-stack-up && make platform-parity-bootstrap && make platform-run-new"
+	@$(MAKE) platform-operate-rtdl-core-up
+	@$(MAKE) platform-operate-rtdl-decision-up
+	@$(MAKE) platform-operate-case-labels-up
+	@$(MAKE) platform-operate-learning-jobs-up
+	@$(MAKE) platform-operate-obs-gov-up
+	@$(MAKE) platform-operate-control-ingress-up
+
+platform-operate-parity-down:
+	@$(MAKE) platform-operate-control-ingress-down
+	@$(MAKE) platform-operate-obs-gov-down
+	@$(MAKE) platform-operate-learning-jobs-down
+	@$(MAKE) platform-operate-case-labels-down
+	@$(MAKE) platform-operate-rtdl-decision-down
+	@$(MAKE) platform-operate-rtdl-core-down
+
+platform-operate-parity-restart:
+	@$(MAKE) platform-operate-parity-down
+	@$(MAKE) platform-operate-parity-up
+
+platform-operate-parity-status:
+	@$(MAKE) platform-operate-control-ingress-status
+	@$(MAKE) platform-operate-rtdl-core-status
+	@$(MAKE) platform-operate-rtdl-decision-status
+	@$(MAKE) platform-operate-case-labels-status
+	@$(MAKE) platform-operate-learning-jobs-status
+	@$(MAKE) platform-operate-obs-gov-status
+
+.PHONY: platform-ofs-enqueue-build
+platform-ofs-enqueue-build:
+	@if [ -z "$(OFS_INTENT_PATH)" ]; then \
+		echo "OFS_INTENT_PATH is required for platform-ofs-enqueue-build." >&2; \
+		exit 1; \
+	fi
+	@$(PY_PLATFORM) -m fraud_detection.offline_feature_plane.worker \
+		--profile "$(OFS_PROFILE)" \
+		enqueue-build \
+		--intent-path "$(OFS_INTENT_PATH)" \
+		$(if $(OFS_REPLAY_EVENTS_PATH),--replay-events-path "$(OFS_REPLAY_EVENTS_PATH)",) \
+		$(if $(OFS_TARGET_SUBJECTS_PATH),--target-subjects-path "$(OFS_TARGET_SUBJECTS_PATH)",) \
+		$(if $(OFS_REPLAY_EVIDENCE_PATH),--replay-evidence-path "$(OFS_REPLAY_EVIDENCE_PATH)",) \
+		$(if $(OFS_REQUEST_ID),--request-id "$(OFS_REQUEST_ID)",) \
+		$(foreach ref,$(OFS_SUPERSEDES_MANIFEST_REFS),--supersedes-manifest-ref "$(ref)") \
+		$(if $(OFS_BACKFILL_REASON),--backfill-reason "$(OFS_BACKFILL_REASON)",)
+
+.PHONY: platform-ofs-enqueue-publish-retry
+platform-ofs-enqueue-publish-retry:
+	@if [ -z "$(OFS_PUBLISH_RETRY_RUN_KEY)" ] || [ -z "$(OFS_PUBLISH_RETRY_PLATFORM_RUN_ID)" ] || [ -z "$(OFS_PUBLISH_RETRY_INTENT_PATH)" ] || [ -z "$(OFS_PUBLISH_RETRY_DRAFT_PATH)" ] || [ -z "$(OFS_PUBLISH_RETRY_REPLAY_RECEIPT_PATH)" ]; then \
+		echo "platform-ofs-enqueue-publish-retry requires OFS_PUBLISH_RETRY_RUN_KEY, OFS_PUBLISH_RETRY_PLATFORM_RUN_ID, OFS_PUBLISH_RETRY_INTENT_PATH, OFS_PUBLISH_RETRY_DRAFT_PATH, and OFS_PUBLISH_RETRY_REPLAY_RECEIPT_PATH." >&2; \
+		exit 1; \
+	fi
+	@$(PY_PLATFORM) -m fraud_detection.offline_feature_plane.worker \
+		--profile "$(OFS_PROFILE)" \
+		enqueue-publish-retry \
+		--run-key "$(OFS_PUBLISH_RETRY_RUN_KEY)" \
+		--platform-run-id "$(OFS_PUBLISH_RETRY_PLATFORM_RUN_ID)" \
+		--intent-path "$(OFS_PUBLISH_RETRY_INTENT_PATH)" \
+		--draft-path "$(OFS_PUBLISH_RETRY_DRAFT_PATH)" \
+		--replay-receipt-path "$(OFS_PUBLISH_RETRY_REPLAY_RECEIPT_PATH)" \
+		$(if $(OFS_PUBLISH_RETRY_LABEL_RECEIPT_PATH),--label-receipt-path "$(OFS_PUBLISH_RETRY_LABEL_RECEIPT_PATH)",) \
+		$(if $(OFS_REQUEST_ID),--request-id "$(OFS_REQUEST_ID)",) \
+		$(foreach ref,$(OFS_SUPERSEDES_MANIFEST_REFS),--supersedes-manifest-ref "$(ref)") \
+		$(if $(OFS_BACKFILL_REASON),--backfill-reason "$(OFS_BACKFILL_REASON)",)
+
+.PHONY: platform-mf-enqueue-train-build
+platform-mf-enqueue-train-build:
+	@if [ -z "$(MF_REQUEST_PATH)" ]; then \
+		echo "MF_REQUEST_PATH is required for platform-mf-enqueue-train-build." >&2; \
+		exit 1; \
+	fi
+	@$(PY_PLATFORM) -m fraud_detection.model_factory.worker \
+		--profile "$(MF_PROFILE)" \
+		enqueue-train-build \
+		--request-path "$(MF_REQUEST_PATH)" \
+		$(if $(MF_REQUEST_ID),--request-id "$(MF_REQUEST_ID)",)
+
+.PHONY: platform-mf-enqueue-publish-retry
+platform-mf-enqueue-publish-retry:
+	@if [ -z "$(MF_PUBLISH_RETRY_RUN_KEY)" ] || [ -z "$(MF_PUBLISH_RETRY_PLATFORM_RUN_ID)" ]; then \
+		echo "platform-mf-enqueue-publish-retry requires MF_PUBLISH_RETRY_RUN_KEY and MF_PUBLISH_RETRY_PLATFORM_RUN_ID." >&2; \
+		exit 1; \
+	fi
+	@$(PY_PLATFORM) -m fraud_detection.model_factory.worker \
+		--profile "$(MF_PROFILE)" \
+		enqueue-publish-retry \
+		--run-key "$(MF_PUBLISH_RETRY_RUN_KEY)" \
+		--platform-run-id "$(MF_PUBLISH_RETRY_PLATFORM_RUN_ID)" \
+		$(if $(MF_REQUEST_ID),--request-id "$(MF_REQUEST_ID)",) \
+		$(if $(MF_PUBLISH_RETRY_RESOLVED_TRAIN_PLAN_REF),--resolved-train-plan-ref "$(MF_PUBLISH_RETRY_RESOLVED_TRAIN_PLAN_REF)",) \
+		$(if $(MF_PUBLISH_RETRY_GATE_RECEIPT_REF),--gate-receipt-ref "$(MF_PUBLISH_RETRY_GATE_RECEIPT_REF)",) \
+		$(if $(MF_PUBLISH_RETRY_PUBLISH_ELIGIBILITY_REF),--publish-eligibility-ref "$(MF_PUBLISH_RETRY_PUBLISH_ELIGIBILITY_REF)",)
+
+.PHONY: platform-run-report
+platform-run-report:
+	@run_id=""; \
+	if [ -f runs/fraud-platform/ACTIVE_RUN_ID ]; then \
+		run_id=$$(tr -d '\r\n' < runs/fraud-platform/ACTIVE_RUN_ID); \
+	fi; \
+	if [ -z "$$run_id" ]; then \
+		run_id="$(PLATFORM_RUN_ID)"; \
+	fi; \
+	if [ -z "$$run_id" ]; then \
+		echo "platform-run-report requires PLATFORM_RUN_ID or runs/fraud-platform/ACTIVE_RUN_ID" >&2; \
+		exit 1; \
+	fi; \
+	IG_ADMISSION_DSN="$(PARITY_IG_ADMISSION_DSN)" \
+	IEG_PROJECTION_DSN="$(PARITY_IEG_PROJECTION_DSN)" \
+	OFP_PROJECTION_DSN="$(PARITY_OFP_PROJECTION_DSN)" \
+	OFP_SNAPSHOT_INDEX_DSN="$(PARITY_OFP_SNAPSHOT_INDEX_DSN)" \
+	CSFB_PROJECTION_DSN="$(PARITY_CSFB_PROJECTION_DSN)" \
+	OBJECT_STORE_ENDPOINT="$(PARITY_OBJECT_STORE_ENDPOINT)" \
+	OBJECT_STORE_REGION="$(PARITY_OBJECT_STORE_REGION)" \
+	AWS_ACCESS_KEY_ID="$(PARITY_MINIO_ACCESS_KEY)" \
+	AWS_SECRET_ACCESS_KEY="$(PARITY_MINIO_SECRET_KEY)" \
+	AWS_EC2_METADATA_DISABLED="$(PARITY_AWS_EC2_METADATA_DISABLED)" \
+	$(PY_PLATFORM) -m fraud_detection.platform_reporter.cli \
+		--profile "$(PLATFORM_PROFILE)" \
+		--platform-run-id "$$run_id"
+
+.PHONY: platform-governance-query
+platform-governance-query:
+	@run_id=""; \
+	if [ -f runs/fraud-platform/ACTIVE_RUN_ID ]; then \
+		run_id=$$(tr -d '\r\n' < runs/fraud-platform/ACTIVE_RUN_ID); \
+	fi; \
+	if [ -z "$$run_id" ]; then \
+		run_id="$(PLATFORM_RUN_ID)"; \
+	fi; \
+	if [ -z "$$run_id" ]; then \
+		echo "platform-governance-query requires PLATFORM_RUN_ID or runs/fraud-platform/ACTIVE_RUN_ID" >&2; \
+		exit 1; \
+	fi; \
+	OBJECT_STORE_ENDPOINT="$(PARITY_OBJECT_STORE_ENDPOINT)" \
+	OBJECT_STORE_REGION="$(PARITY_OBJECT_STORE_REGION)" \
+	AWS_ACCESS_KEY_ID="$(PARITY_MINIO_ACCESS_KEY)" \
+	AWS_SECRET_ACCESS_KEY="$(PARITY_MINIO_SECRET_KEY)" \
+	AWS_EC2_METADATA_DISABLED="$(PARITY_AWS_EC2_METADATA_DISABLED)" \
+	$(PY_PLATFORM) -m fraud_detection.platform_governance.cli \
+		$(if $(PLATFORM_STORE_ROOT),--object-store-root "$(PLATFORM_STORE_ROOT)",) \
+		query --platform-run-id "$$run_id" \
+		$(if $(GOVERNANCE_EVENT_FAMILY),--event-family "$(GOVERNANCE_EVENT_FAMILY)",) \
+		--limit "$(GOVERNANCE_QUERY_LIMIT)"
+
+.PHONY: platform-env-conformance
+platform-env-conformance:
+	@run_id=""; \
+	if [ -f runs/fraud-platform/ACTIVE_RUN_ID ]; then \
+		run_id=$$(tr -d '\r\n' < runs/fraud-platform/ACTIVE_RUN_ID); \
+	fi; \
+	if [ -z "$$run_id" ]; then \
+		run_id="$(PLATFORM_RUN_ID)"; \
+	fi; \
+	if [ -z "$$run_id" ]; then \
+		echo "platform-env-conformance requires PLATFORM_RUN_ID or runs/fraud-platform/ACTIVE_RUN_ID" >&2; \
+		exit 1; \
+	fi; \
+	$(PY_PLATFORM) -m fraud_detection.platform_conformance.cli \
+		--platform-run-id "$$run_id" \
+		--local-parity-profile config/platform/profiles/local_parity.yaml \
+		--dev-profile config/platform/profiles/dev.yaml \
+		--prod-profile config/platform/profiles/prod.yaml \
+		$(if $(PLATFORM_CONFORMANCE_OUTPUT_PATH),--output-path "$(PLATFORM_CONFORMANCE_OUTPUT_PATH)",)
+
+.PHONY: platform-evidence-ref-resolve
+platform-evidence-ref-resolve:
+	@if [ -z "$(EVIDENCE_REF_TYPE)" ] || [ -z "$(EVIDENCE_REF_ID)" ]; then \
+		echo "platform-evidence-ref-resolve requires EVIDENCE_REF_TYPE and EVIDENCE_REF_ID" >&2; \
+		exit 1; \
+	fi
+	@run_id=""; \
+	if [ -f runs/fraud-platform/ACTIVE_RUN_ID ]; then \
+		run_id=$$(tr -d '\r\n' < runs/fraud-platform/ACTIVE_RUN_ID); \
+	fi; \
+	if [ -z "$$run_id" ]; then \
+		run_id="$(PLATFORM_RUN_ID)"; \
+	fi; \
+	if [ -z "$$run_id" ]; then \
+		echo "platform-evidence-ref-resolve requires PLATFORM_RUN_ID or runs/fraud-platform/ACTIVE_RUN_ID" >&2; \
+		exit 1; \
+	fi; \
+	OBJECT_STORE_ENDPOINT="$(PARITY_OBJECT_STORE_ENDPOINT)" \
+	OBJECT_STORE_REGION="$(PARITY_OBJECT_STORE_REGION)" \
+	AWS_ACCESS_KEY_ID="$(PARITY_MINIO_ACCESS_KEY)" \
+	AWS_SECRET_ACCESS_KEY="$(PARITY_MINIO_SECRET_KEY)" \
+	AWS_EC2_METADATA_DISABLED="$(PARITY_AWS_EC2_METADATA_DISABLED)" \
+	$(PY_PLATFORM) -m fraud_detection.platform_governance.cli \
+		$(if $(PLATFORM_STORE_ROOT),--object-store-root "$(PLATFORM_STORE_ROOT)",) \
+		resolve-ref \
+		--actor-id "$(EVIDENCE_REF_ACTOR_ID)" \
+		--source-type "$(EVIDENCE_REF_SOURCE_TYPE)" \
+		--source-component "$(EVIDENCE_REF_SOURCE_COMPONENT)" \
+		--purpose "$(EVIDENCE_REF_PURPOSE)" \
+		--platform-run-id "$$run_id" \
+		--ref-type "$(EVIDENCE_REF_TYPE)" \
+		--ref-id "$(EVIDENCE_REF_ID)" \
+		$(if $(EVIDENCE_REF_ALLOW_ACTOR),--allow-actor "$(EVIDENCE_REF_ALLOW_ACTOR)",) \
+		$(if $(filter 1 true yes,$(EVIDENCE_REF_STRICT)),--strict,)
+
+.PHONY: platform-wsp-validate-local
+platform-wsp-validate-local:
+	@if [ -z "$(WSP_ENGINE_RUN_ROOT)" ]; then \
+		echo "WSP_ENGINE_RUN_ROOT is required for platform-wsp-validate-local." >&2; \
+		exit 1; \
+	fi
+	@if [ -z "$(WSP_SCENARIO_ID)" ]; then \
+		echo "WSP_SCENARIO_ID is required for platform-wsp-validate-local." >&2; \
+		exit 1; \
+	fi
+	@$(PY_PLATFORM) -m fraud_detection.world_streamer_producer.validate_cli --profile "$(WSP_PROFILE)" \
+		--engine-run-root "$(WSP_ENGINE_RUN_ROOT)" \
+		--scenario-id "$(WSP_SCENARIO_ID)" \
+		--mode local \
+		$(if $(WSP_OUTPUT_IDS),--output-ids "$(WSP_OUTPUT_IDS)",) \
+		$(if $(WSP_VALIDATE_MAX_EVENTS),--max-events "$(WSP_VALIDATE_MAX_EVENTS)",) \
+		$(if $(WSP_RESUME_EVENTS),--resume-events "$(WSP_RESUME_EVENTS)",) \
+		$(if $(filter 1 true yes,$(WSP_VALIDATE_SKIP_RESUME)),--skip-resume,) \
+		$(if $(filter 1 true yes,$(WSP_VALIDATE_CHECK_FAILURES)),--check-failures,)
+
+.PHONY: platform-wsp-validate-dev
+platform-wsp-validate-dev:
+	@if [ -z "$(WSP_ENGINE_RUN_ROOT)" ]; then \
+		echo "WSP_ENGINE_RUN_ROOT is required for platform-wsp-validate-dev." >&2; \
+		exit 1; \
+	fi
+	@if [ -z "$(WSP_SCENARIO_ID)" ]; then \
+		echo "WSP_SCENARIO_ID is required for platform-wsp-validate-dev." >&2; \
+		exit 1; \
+	fi
+	@$(PY_PLATFORM) -m fraud_detection.world_streamer_producer.validate_cli --profile "$(WSP_PROFILE)" \
+		--engine-run-root "$(WSP_ENGINE_RUN_ROOT)" \
+		--scenario-id "$(WSP_SCENARIO_ID)" \
+		--mode dev \
+		$(if $(WSP_OUTPUT_IDS),--output-ids "$(WSP_OUTPUT_IDS)",)
+
+.PHONY: platform-oracle-pack
+platform-oracle-pack:
+	@if [ -z "$(ORACLE_ENGINE_RUN_ROOT)" ]; then \
+		echo "ORACLE_ENGINE_RUN_ROOT is required for platform-oracle-pack." >&2; \
+		exit 1; \
+	fi
+	@if [ -z "$(ORACLE_SCENARIO_ID)" ]; then \
+		echo "ORACLE_SCENARIO_ID is required for platform-oracle-pack." >&2; \
+		exit 1; \
+	fi
+	@if [ -z "$(ORACLE_ENGINE_RELEASE)" ]; then \
+		echo "ORACLE_ENGINE_RELEASE is required for platform-oracle-pack." >&2; \
+		exit 1; \
+	fi
+	@OBJECT_STORE_ENDPOINT="$(OBJECT_STORE_ENDPOINT)" \
+	OBJECT_STORE_REGION="$(OBJECT_STORE_REGION)" \
+	AWS_ACCESS_KEY_ID="$(AWS_ACCESS_KEY_ID)" \
+	AWS_SECRET_ACCESS_KEY="$(AWS_SECRET_ACCESS_KEY)" \
+	AWS_EC2_METADATA_DISABLED="$(AWS_EC2_METADATA_DISABLED)" \
+	AWS_DEFAULT_REGION="$(OBJECT_STORE_REGION)" \
+	$(PY_PLATFORM) -m fraud_detection.oracle_store.pack_cli --profile "$(ORACLE_PROFILE)" \
+		--engine-run-root "$(ORACLE_ENGINE_RUN_ROOT)" \
+		--scenario-id "$(ORACLE_SCENARIO_ID)" \
+		$(if $(ORACLE_PACK_ROOT),--pack-root "$(ORACLE_PACK_ROOT)",) \
+		--engine-release "$(ORACLE_ENGINE_RELEASE)"
+
+.PHONY: platform-oracle-stream-sort
+platform-oracle-stream-sort:
+	@if [ -z "$(ORACLE_ENGINE_RUN_ROOT)" ]; then \
+		echo "ORACLE_ENGINE_RUN_ROOT is required for platform-oracle-stream-sort." >&2; \
+		exit 1; \
+	fi
+	@if [ -z "$(ORACLE_SCENARIO_ID)" ]; then \
+		echo "ORACLE_SCENARIO_ID is required for platform-oracle-stream-sort." >&2; \
+		exit 1; \
+	fi
+	@OBJECT_STORE_ENDPOINT="$(OBJECT_STORE_ENDPOINT)" \
+	OBJECT_STORE_REGION="$(OBJECT_STORE_REGION)" \
+	AWS_ACCESS_KEY_ID="$(AWS_ACCESS_KEY_ID)" \
+	AWS_SECRET_ACCESS_KEY="$(AWS_SECRET_ACCESS_KEY)" \
+	AWS_EC2_METADATA_DISABLED="$(AWS_EC2_METADATA_DISABLED)" \
+	AWS_DEFAULT_REGION="$(OBJECT_STORE_REGION)" \
+	$(PY_PLATFORM) -m fraud_detection.oracle_store.stream_sort_cli --profile "$(ORACLE_PROFILE)" \
+		--engine-run-root "$(ORACLE_ENGINE_RUN_ROOT)" \
+		--scenario-id "$(ORACLE_SCENARIO_ID)" \
+		$(if $(ORACLE_STREAM_VIEW_ROOT),--stream-view-root "$(ORACLE_STREAM_VIEW_ROOT)",) \
+		$(if $(ORACLE_STREAM_OUTPUT_IDS_REF),--output-ids-ref "$(ORACLE_STREAM_OUTPUT_IDS_REF)",) \
+		$(if $(ORACLE_STREAM_OUTPUT_ID),--output-id "$(ORACLE_STREAM_OUTPUT_ID)",)
+
+.PHONY: platform-oracle-stream-sort-context-truth
+platform-oracle-stream-sort-context-truth:
+	@ORACLE_STREAM_OUTPUT_IDS_REF="config/platform/wsp/context_truth_outputs_v0.yaml" \
+	$(MAKE) platform-oracle-stream-sort
+
+.PHONY: platform-oracle-stream-sort-context-fraud
+platform-oracle-stream-sort-context-fraud:
+	@ORACLE_STREAM_OUTPUT_IDS_REF="config/platform/wsp/context_fraud_outputs_v0.yaml" \
+	$(MAKE) platform-oracle-stream-sort
+
+.PHONY: platform-oracle-stream-sort-context-baseline
+platform-oracle-stream-sort-context-baseline:
+	@ORACLE_STREAM_OUTPUT_IDS_REF="config/platform/wsp/context_baseline_outputs_v0.yaml" \
+	$(MAKE) platform-oracle-stream-sort
+
+.PHONY: platform-oracle-stream-sort-traffic-both
+platform-oracle-stream-sort-traffic-both:
+	@ORACLE_STREAM_OUTPUT_IDS_REF="config/platform/wsp/traffic_outputs_dual_v0.yaml" \
+	$(MAKE) platform-oracle-stream-sort
+
+.PHONY: platform-oracle-check
+platform-oracle-check:
+	@if [ -z "$(ORACLE_ENGINE_RUN_ROOT)" ]; then \
+		echo "ORACLE_ENGINE_RUN_ROOT is required for platform-oracle-check." >&2; \
+		exit 1; \
+	fi
+	@OBJECT_STORE_ENDPOINT="$(OBJECT_STORE_ENDPOINT)" \
+	OBJECT_STORE_REGION="$(OBJECT_STORE_REGION)" \
+	AWS_ACCESS_KEY_ID="$(AWS_ACCESS_KEY_ID)" \
+	AWS_SECRET_ACCESS_KEY="$(AWS_SECRET_ACCESS_KEY)" \
+	AWS_EC2_METADATA_DISABLED="$(AWS_EC2_METADATA_DISABLED)" \
+	AWS_DEFAULT_REGION="$(OBJECT_STORE_REGION)" \
+	$(PY_PLATFORM) -m fraud_detection.oracle_store.cli --profile "$(ORACLE_PROFILE)" \
+		--engine-run-root "$(ORACLE_ENGINE_RUN_ROOT)" \
+		$(if $(ORACLE_SCENARIO_ID),--scenario-id "$(ORACLE_SCENARIO_ID)",) \
+		$(if $(ORACLE_OUTPUT_IDS),--output-ids "$(ORACLE_OUTPUT_IDS)",)
+
+.PHONY: platform-oracle-check-strict
+platform-oracle-check-strict:
+	@if [ -z "$(ORACLE_ENGINE_RUN_ROOT)" ]; then \
+		echo "ORACLE_ENGINE_RUN_ROOT is required for platform-oracle-check-strict." >&2; \
+		exit 1; \
+	fi
+	@OBJECT_STORE_ENDPOINT="$(OBJECT_STORE_ENDPOINT)" \
+	OBJECT_STORE_REGION="$(OBJECT_STORE_REGION)" \
+	AWS_ACCESS_KEY_ID="$(AWS_ACCESS_KEY_ID)" \
+	AWS_SECRET_ACCESS_KEY="$(AWS_SECRET_ACCESS_KEY)" \
+	AWS_EC2_METADATA_DISABLED="$(AWS_EC2_METADATA_DISABLED)" \
+	AWS_DEFAULT_REGION="$(OBJECT_STORE_REGION)" \
+	$(PY_PLATFORM) -m fraud_detection.oracle_store.cli --profile "$(ORACLE_PROFILE)" \
+		--engine-run-root "$(ORACLE_ENGINE_RUN_ROOT)" \
+		$(if $(ORACLE_SCENARIO_ID),--scenario-id "$(ORACLE_SCENARIO_ID)",) \
+		$(if $(ORACLE_OUTPUT_IDS),--output-ids "$(ORACLE_OUTPUT_IDS)",) \
+		--strict-seal
+
+# ---------------------------------------------------------------------------
+# Scenario Runner test tiers (Makefile-based, no PowerShell)
+# ---------------------------------------------------------------------------
+.PHONY: sr-tests-tier0 sr-tests-parity sr-tests-localstack sr-tests-engine-fixture sr-tests-all
+sr-tests-tier0:
+	@$(PY_SCRIPT) -m pytest tests/services/scenario_runner -m "not parity and not localstack and not engine_fixture" -q
+
+sr-tests-parity:
+	@$(PY_SCRIPT) -m pytest tests/services/scenario_runner -m "parity" -q
+
+sr-tests-localstack:
+	@$(PY_SCRIPT) -m pytest tests/services/scenario_runner -m "localstack" -q
+
+sr-tests-engine-fixture:
+	@$(PY_SCRIPT) -m pytest tests/services/scenario_runner -m "engine_fixture" -q
+
+sr-tests-all:
+	@$(PY_SCRIPT) -m pytest tests/services/scenario_runner -q
+
+# ---------------------------------------------------------------------------
+# LocalStack helpers (Makefile-based)
+# ---------------------------------------------------------------------------
+.PHONY: localstack-up localstack-down localstack-logs
+localstack-up:
+	@docker rm -f localstack >/dev/null 2>&1 || true
+	@docker run -d --name localstack -p 4566:4566 -e SERVICES=kinesis localstack/localstack:latest
+
+localstack-down:
+	@docker rm -f localstack >/dev/null 2>&1 || true
+
+localstack-logs:
+	@docker logs -f localstack
 

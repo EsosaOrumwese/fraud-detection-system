@@ -1,0 +1,78 @@
+services:
+  minio:
+    image: minio/minio:latest
+    command: server /data --console-address ":9001"
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER:-minio}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-minio123}
+    volumes:
+      - minio_data:/data
+
+  minio-init:
+    image: minio/mc:latest
+    depends_on:
+      - minio
+    entrypoint: >
+      /bin/sh -c "
+      sleep 2;
+      mc alias set local http://minio:9000 $${MINIO_ROOT_USER} $${MINIO_ROOT_PASSWORD};
+      mc mb -p local/oracle-store || true;
+      mc mb -p local/fraud-platform || true;
+      exit 0;"
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER:-minio}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-minio123}
+
+  localstack:
+    image: localstack/localstack:latest
+    ports:
+      - "4566:4566"
+    environment:
+      SERVICES: kinesis
+      DEFAULT_REGION: us-east-1
+      AWS_ACCESS_KEY_ID: test
+      AWS_SECRET_ACCESS_KEY: test
+    volumes:
+      - localstack_data:/var/lib/localstack
+
+  localstack-init:
+    image: localstack/localstack:latest
+    depends_on:
+      - localstack
+    entrypoint: >
+      /bin/sh -c "
+      sleep 2;
+      awslocal kinesis create-stream --stream-name sr-control-bus --shard-count 1 || true;
+      awslocal kinesis create-stream --stream-name fp.bus.traffic.baseline.v1 --shard-count 1 || true;
+      awslocal kinesis create-stream --stream-name fp.bus.traffic.fraud.v1 --shard-count 1 || true;
+      awslocal kinesis create-stream --stream-name fp.bus.context.arrival_events.v1 --shard-count 1 || true;
+      awslocal kinesis create-stream --stream-name fp.bus.context.arrival_entities.v1 --shard-count 1 || true;
+      awslocal kinesis create-stream --stream-name fp.bus.context.flow_anchor.baseline.v1 --shard-count 1 || true;
+      awslocal kinesis create-stream --stream-name fp.bus.context.flow_anchor.fraud.v1 --shard-count 1 || true;
+      awslocal kinesis create-stream --stream-name fp.bus.audit.v1 --shard-count 1 || true;
+      exit 0;"
+    environment:
+      AWS_ACCESS_KEY_ID: test
+      AWS_SECRET_ACCESS_KEY: test
+      AWS_DEFAULT_REGION: us-east-1
+      AWS_REGION: us-east-1
+      AWS_ENDPOINT_URL: http://localstack:4566
+
+  postgres:
+    image: postgres:16
+    ports:
+      - "5434:5432"
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-platform}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-platform}
+      POSTGRES_DB: ${POSTGRES_DB:-platform}
+    volumes:
+      - pg_data:/var/lib/postgresql/data
+
+volumes:
+  minio_data:
+  localstack_data:
+  pg_data:

@@ -1,0 +1,37 @@
+version: "0.1.0"
+policy_id: case_mgmt.taxonomy.v0
+revision: r1
+
+case_subject_key:
+  fields:
+    - platform_run_id
+    - event_class
+    - event_id
+
+case_trigger:
+  trigger_types:
+    - DECISION_ESCALATION
+    - ACTION_FAILURE
+    - ANOMALY
+    - EXTERNAL_SIGNAL
+    - MANUAL_ASSERTION
+
+case_timeline:
+  event_types:
+    - CASE_TRIGGERED
+    - EVIDENCE_ATTACHED
+    - ACTION_INTENT_REQUESTED
+    - ACTION_OUTCOME_ATTACHED
+    - LABEL_PENDING
+    - LABEL_ACCEPTED
+    - LABEL_REJECTED
+    - INVESTIGATOR_ASSERTION
+
+evidence_refs:
+  ref_types:
+    - DLA_AUDIT_RECORD
+    - DECISION
+    - ACTION_OUTCOME
+    - EB_ORIGIN_OFFSET
+    - CASE_EVENT
+    - EXTERNAL_REF

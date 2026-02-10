@@ -1,0 +1,86 @@
+$schema: https://json-schema.org/draft/2020-12/schema
+$id: degrade_posture.schema.yaml
+title: Degrade Posture
+type: object
+additionalProperties: false
+required:
+  - mode
+  - capabilities_mask
+  - policy_rev
+  - posture_seq
+  - decided_at_utc
+properties:
+  mode:
+    type: string
+    enum: [NORMAL, DEGRADED_1, DEGRADED_2, FAIL_CLOSED]
+  capabilities_mask:
+    type: object
+    additionalProperties: false
+    required:
+      - allow_ieg
+      - allowed_feature_groups
+      - allow_model_primary
+      - allow_model_stage2
+      - allow_fallback_heuristics
+      - action_posture
+    properties:
+      allow_ieg:
+        type: boolean
+      allowed_feature_groups:
+        type: array
+        items:
+          type: string
+          minLength: 1
+          maxLength: 128
+      allow_model_primary:
+        type: boolean
+      allow_model_stage2:
+        type: boolean
+      allow_fallback_heuristics:
+        type: boolean
+      action_posture:
+        type: string
+        enum: [NORMAL, STEP_UP_ONLY]
+  policy_rev:
+    $ref: "#/$defs/policy_rev"
+  posture_seq:
+    type: integer
+    minimum: 0
+  decided_at_utc:
+    $ref: "#/$defs/rfc3339_micros"
+  reason:
+    type: string
+    maxLength: 2048
+  evidence_refs:
+    type: array
+    items:
+      type: object
+      additionalProperties: false
+      required: [kind, ref]
+      properties:
+        kind:
+          type: string
+          minLength: 1
+          maxLength: 64
+        ref:
+          type: string
+          minLength: 1
+          maxLength: 2048
+$defs:
+  hex64:
+    type: string
+    pattern: "^[0-9a-f]{64}$"
+  rfc3339_micros:
+    type: string
+    minLength: 1
+  policy_rev:
+    type: object
+    additionalProperties: false
+    required: [policy_id, revision]
+    properties:
+      policy_id:
+        type: string
+      revision:
+        type: string
+      content_digest:
+        $ref: "#/$defs/hex64"

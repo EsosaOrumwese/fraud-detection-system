@@ -1,0 +1,7 @@
+policy_id: ofs.launcher.v0
+revision: r1
+description: "Offline Feature Plane launcher/worker policy for run/operate onboarding."
+launcher:
+  max_publish_retry_attempts: 3
+  request_poll_seconds: 2.0
+  request_batch_limit: 20

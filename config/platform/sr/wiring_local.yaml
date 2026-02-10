@@ -1,0 +1,12 @@
+profile_id: local
+object_store_root: runs
+control_bus_topic: fp.bus.control.v1
+control_bus_root: runs/fraud-platform/control_bus
+engine_catalogue_path: docs/model_spec/data-engine/interface_pack/engine_outputs.catalogue.yaml
+gate_map_path: docs/model_spec/data-engine/interface_pack/engine_gates.map.yaml
+schema_root: docs/model_spec/platform/contracts/scenario_runner
+engine_contracts_root: docs/model_spec/data-engine/interface_pack/contracts
+oracle_engine_run_root: s3://oracle-store/local_full_run-5/c25a2675fbfbacd952b13bb594880e92
+s3_endpoint_url: http://localhost:9000
+s3_region: us-east-1
+s3_path_style: true

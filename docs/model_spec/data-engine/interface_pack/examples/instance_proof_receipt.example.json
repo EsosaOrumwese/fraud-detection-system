@@ -1,0 +1,22 @@
+{
+  "output_id": "arrival_events_5B",
+  "status": "PASS",
+  "scope": {
+    "manifest_fingerprint": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "seed": 1,
+    "scenario_id": "s1"
+  },
+  "target_ref": {
+    "output_id": "arrival_events_5B",
+    "path": "data/layer2/5B/arrival_events/seed=1/manifest_fingerprint=aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa/scenario_id=s1/part-000.parquet",
+    "manifest_fingerprint": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "seed": 1,
+    "scenario_id": "s1",
+    "content_digest": { "algo": "sha256", "hex": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb" }
+  },
+  "target_digest": { "algo": "sha256", "hex": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb" },
+  "receipt_kind": "instance_proof",
+  "artifacts": {
+    "receipt_path": "data/layer2/5B/receipts/instance/output_id=arrival_events_5B/seed=1/manifest_fingerprint=aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa/scenario_id=s1/instance_receipt.json"
+  }
+}

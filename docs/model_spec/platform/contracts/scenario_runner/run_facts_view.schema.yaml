@@ -1,0 +1,331 @@
+$schema: https://json-schema.org/draft/2020-12/schema
+$id: run_facts_view.schema.yaml
+title: Scenario Runner RunFactsView
+type: object
+additionalProperties: false
+required:
+  - run_id
+  - platform_run_id
+  - scenario_run_id
+  - pins
+  - locators
+  - gate_receipts
+  - policy_rev
+  - bundle_hash
+  - plan_ref
+  - record_ref
+  - status_ref
+properties:
+  run_id:
+    $ref: "#/$defs/hex32"
+  platform_run_id:
+    $ref: "#/$defs/platform_run_id"
+  scenario_run_id:
+    $ref: "#/$defs/hex32"
+  pins:
+    type: object
+    additionalProperties: false
+    required:
+      - manifest_fingerprint
+      - parameter_hash
+      - seed
+      - scenario_id
+      - run_id
+      - platform_run_id
+      - scenario_run_id
+    properties:
+      manifest_fingerprint:
+        $ref: "#/$defs/hex64"
+      parameter_hash:
+        $ref: "#/$defs/hex64"
+      seed:
+        $ref: "#/$defs/uint64"
+      scenario_id:
+        type: string
+        minLength: 1
+      run_id:
+        $ref: "#/$defs/hex32"
+      platform_run_id:
+        $ref: "#/$defs/platform_run_id"
+      scenario_run_id:
+        $ref: "#/$defs/hex32"
+  locators:
+    type: array
+    items:
+      type: object
+      additionalProperties: false
+      required: [output_id, path]
+      properties:
+        output_id:
+          type: string
+          minLength: 1
+        path:
+          type: string
+          minLength: 1
+        manifest_fingerprint:
+          $ref: "#/$defs/hex64"
+        parameter_hash:
+          $ref: "#/$defs/hex64"
+        seed:
+          $ref: "#/$defs/uint64"
+        scenario_id:
+          type: string
+          minLength: 1
+        run_id:
+          $ref: "#/$defs/hex32"
+        schema_ref:
+          type: string
+          minLength: 1
+        dictionary_ref:
+          type: string
+          minLength: 1
+        produced_at_utc:
+          $ref: "#/$defs/rfc3339_micros"
+        content_digest:
+          $ref: "#/$defs/digest"
+  output_roles:
+    type: object
+    additionalProperties:
+      type: string
+  intended_outputs:
+    type: array
+    items:
+      type: string
+      minLength: 1
+  gate_receipts:
+    type: array
+    items:
+      type: object
+      additionalProperties: false
+      required: [gate_id, status, scope]
+      properties:
+        gate_id:
+          type: string
+          minLength: 1
+          maxLength: 128
+          pattern: "^[A-Za-z0-9_\\.\\-]+$"
+        status:
+          type: string
+          enum: [PASS, FAIL]
+        scope:
+          $ref: "#/$defs/gate_scope"
+        produced_at_utc:
+          $ref: "#/$defs/rfc3339_micros"
+        receipt_kind:
+          type: string
+          enum: [passed_flag, json_receipt, bundle_flag]
+        digest:
+          $ref: "#/$defs/digest"
+        artifacts:
+          type: object
+          additionalProperties: false
+          properties:
+            validation_bundle_root:
+              type: string
+              minLength: 1
+              maxLength: 2048
+            index_path:
+              type: string
+              minLength: 1
+              maxLength: 2048
+            passed_flag_path:
+              type: string
+              minLength: 1
+              maxLength: 2048
+        notes:
+          type: string
+          maxLength: 2048
+  instance_receipts:
+    type: array
+    items:
+      type: object
+      additionalProperties: false
+      required: [output_id, status, scope, target_ref, target_digest]
+      properties:
+        output_id:
+          type: string
+          minLength: 1
+          maxLength: 128
+          pattern: "^[A-Za-z0-9_\\.\\-]+$"
+        status:
+          type: string
+          enum: [PASS, FAIL]
+        scope:
+          $ref: "#/$defs/gate_scope"
+        target_ref:
+          type: object
+          additionalProperties: false
+          required: [output_id, path]
+          properties:
+            output_id:
+              type: string
+              minLength: 1
+            path:
+              type: string
+              minLength: 1
+            manifest_fingerprint:
+              $ref: "#/$defs/hex64"
+            parameter_hash:
+              $ref: "#/$defs/hex64"
+            seed:
+              $ref: "#/$defs/uint64"
+            scenario_id:
+              type: string
+              minLength: 1
+            run_id:
+              $ref: "#/$defs/hex32"
+            schema_ref:
+              type: string
+              minLength: 1
+            dictionary_ref:
+              type: string
+              minLength: 1
+            produced_at_utc:
+              $ref: "#/$defs/rfc3339_micros"
+            content_digest:
+              $ref: "#/$defs/digest"
+        target_digest:
+          $ref: "#/$defs/digest"
+        bundle_manifest_ref:
+          type: string
+          minLength: 1
+          maxLength: 2048
+        receipt_kind:
+          type: string
+          enum: [instance_proof]
+        artifacts:
+          type: object
+          additionalProperties: false
+          properties:
+            receipt_path:
+              type: string
+              minLength: 1
+              maxLength: 2048
+        notes:
+          type: string
+          maxLength: 2048
+  policy_rev:
+    type: object
+    additionalProperties: false
+    required: [policy_id, revision, content_digest]
+    properties:
+      policy_id:
+        type: string
+      revision:
+        type: string
+      content_digest:
+        $ref: "#/$defs/hex64"
+  bundle_hash:
+    $ref: "#/$defs/hex64"
+  plan_ref:
+    type: string
+    minLength: 1
+  record_ref:
+    type: string
+    minLength: 1
+  status_ref:
+    type: string
+    minLength: 1
+  run_config_digest:
+    $ref: "#/$defs/hex64"
+  service_release_id:
+    type: string
+    minLength: 1
+    maxLength: 256
+  environment:
+    type: string
+    minLength: 1
+    maxLength: 64
+  provenance:
+    type: object
+    additionalProperties: false
+    required: [service_release_id, environment]
+    properties:
+      service_release_id:
+        type: string
+        minLength: 1
+        maxLength: 256
+      environment:
+        type: string
+        minLength: 1
+        maxLength: 64
+      config_revision:
+        type: string
+        minLength: 1
+        maxLength: 128
+      run_config_digest:
+        $ref: "#/$defs/hex64"
+  oracle_pack_ref:
+    $ref: "#/$defs/oracle_pack_ref"
+  evidence_notes:
+    type: array
+    items:
+      type: string
+      minLength: 1
+$defs:
+  hex32:
+    type: string
+    pattern: "^[0-9a-f]{32}$"
+  hex64:
+    type: string
+    pattern: "^[0-9a-f]{64}$"
+  platform_run_id:
+    type: string
+    pattern: "^platform_[0-9]{8}T[0-9]{6}Z$"
+  uint64:
+    type: integer
+    minimum: 0
+  rfc3339_micros:
+    type: string
+    minLength: 1
+  digest:
+    type: object
+    additionalProperties: false
+    required: [algo, hex]
+    properties:
+      algo:
+        type: string
+        enum: [sha256]
+      hex:
+        type: string
+        pattern: "^[0-9a-f]{64}$"
+  gate_scope:
+    type: object
+    additionalProperties: false
+    required: [manifest_fingerprint]
+    properties:
+      manifest_fingerprint:
+        $ref: "#/$defs/hex64"
+      parameter_hash:
+        $ref: "#/$defs/hex64"
+      seed:
+        $ref: "#/$defs/uint64"
+      scenario_id:
+        type: string
+        minLength: 1
+        maxLength: 256
+      run_id:
+        $ref: "#/$defs/hex32"
+  oracle_pack_ref:
+    type: object
+    additionalProperties: false
+    minProperties: 1
+    properties:
+      oracle_pack_id:
+        $ref: "#/$defs/hex64"
+      manifest_ref:
+        type: string
+        minLength: 1
+        maxLength: 2048
+      engine_run_root:
+        type: string
+        minLength: 1
+        maxLength: 2048
+      oracle_root:
+        type: string
+        minLength: 1
+        maxLength: 2048
+      engine_release:
+        type: string
+        minLength: 1
+        maxLength: 256

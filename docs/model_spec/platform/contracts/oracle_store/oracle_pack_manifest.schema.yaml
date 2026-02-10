@@ -1,0 +1,50 @@
+$schema: https://json-schema.org/draft/2020-12/schema
+$id: oracle_pack_manifest.schema.yaml
+title: Oracle Pack Manifest
+type: object
+additionalProperties: false
+required:
+  - version
+  - oracle_pack_id
+  - world_key
+  - engine_release
+  - catalogue_digest
+  - gate_map_digest
+  - created_at_utc
+properties:
+  version:
+    type: string
+  oracle_pack_id:
+    $ref: "#/$defs/hex64"
+  world_key:
+    type: object
+    additionalProperties: false
+    required: [manifest_fingerprint, parameter_hash, scenario_id, seed]
+    properties:
+      manifest_fingerprint:
+        $ref: "#/$defs/hex64"
+      parameter_hash:
+        $ref: "#/$defs/hex64"
+      scenario_id:
+        type: string
+        minLength: 1
+        maxLength: 256
+      seed:
+        $ref: "#/$defs/uint64"
+  engine_release:
+    type: string
+  catalogue_digest:
+    $ref: "#/$defs/hex64"
+  gate_map_digest:
+    $ref: "#/$defs/hex64"
+  created_at_utc:
+    type: string
+    minLength: 1
+
+$defs:
+  hex64:
+    type: string
+    pattern: "^[0-9a-f]{64}$"
+  uint64:
+    type: integer
+    minimum: 0

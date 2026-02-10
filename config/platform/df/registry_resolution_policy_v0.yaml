@@ -1,0 +1,17 @@
+version: "0.1.0"
+policy_id: df.registry_resolution.v0
+revision: r1
+
+scope_axes:
+  - environment
+  - mode
+  - bundle_slot
+  - tenant_id
+
+compatibility:
+  require_feature_contract: true
+  require_capability_contract: true
+
+fallback:
+  allow_last_known_good: false
+  explicit_by_scope: {}

@@ -1,0 +1,4 @@
+version: "0.1.0"
+output_ids:
+  - s2_event_stream_baseline_6B
+  - s3_event_stream_with_fraud_6B

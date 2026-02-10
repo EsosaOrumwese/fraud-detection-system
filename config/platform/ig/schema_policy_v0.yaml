@@ -1,0 +1,67 @@
+version: "0.1.0"
+default_action: quarantine
+policies:
+  - event_type: s2_event_stream_baseline_6B
+    class: traffic_baseline
+    schema_version_required: false
+    payload_schema_ref: docs/model_spec/data-engine/layer-3/specs/contracts/6B/schemas.6B.yaml#/s2/properties/event_stream_baseline_6B
+  - event_type: s3_event_stream_with_fraud_6B
+    class: traffic_fraud
+    schema_version_required: false
+    payload_schema_ref: docs/model_spec/data-engine/layer-3/specs/contracts/6B/schemas.6B.yaml#/s3/properties/event_stream_with_fraud_6B
+  - event_type: arrival_events_5B
+    class: context_arrival
+    schema_version_required: false
+    payload_schema_ref: docs/model_spec/data-engine/layer-2/specs/contracts/5B/schemas.5B.yaml#/egress/s4_arrival_events_5B/items
+  - event_type: s1_arrival_entities_6B
+    class: context_arrival_entities
+    schema_version_required: false
+    payload_schema_ref: docs/model_spec/data-engine/layer-3/specs/contracts/6B/schemas.6B.yaml#/s1/properties/arrival_entities_6B
+  - event_type: s2_flow_anchor_baseline_6B
+    class: context_flow_baseline
+    schema_version_required: false
+    payload_schema_ref: docs/model_spec/data-engine/layer-3/specs/contracts/6B/schemas.6B.yaml#/s2/properties/flow_anchor_baseline_6B
+  - event_type: s3_flow_anchor_with_fraud_6B
+    class: context_flow_fraud
+    schema_version_required: false
+    payload_schema_ref: docs/model_spec/data-engine/layer-3/specs/contracts/6B/schemas.6B.yaml#/s3/properties/flow_anchor_with_fraud_6B
+  - event_type: decision_response
+    class: rtdl_decision
+    schema_version_required: true
+    allowed_schema_versions:
+      - v1
+    payload_schema_ref: docs/model_spec/platform/contracts/real_time_decision_loop/decision_payload.schema.yaml
+  - event_type: action_intent
+    class: rtdl_action_intent
+    schema_version_required: true
+    allowed_schema_versions:
+      - v1
+    payload_schema_ref: docs/model_spec/platform/contracts/real_time_decision_loop/action_intent.schema.yaml
+  - event_type: action_outcome
+    class: rtdl_action_outcome
+    schema_version_required: true
+    allowed_schema_versions:
+      - v1
+    payload_schema_ref: docs/model_spec/platform/contracts/real_time_decision_loop/action_outcome.schema.yaml
+  - event_type: case_trigger
+    class: case_trigger
+    schema_version_required: true
+    allowed_schema_versions:
+      - v1
+    payload_schema_ref: docs/model_spec/platform/contracts/case_and_labels/case_trigger.schema.yaml
+  - event_type: ig.policy.activation
+    class: audit
+    schema_version_required: false
+    payload_schema_ref: docs/model_spec/platform/contracts/ingestion_gate/ig_policy_activation.schema.yaml
+  - event_type: ig.quarantine.spike
+    class: audit
+    schema_version_required: false
+    payload_schema_ref: docs/model_spec/platform/contracts/ingestion_gate/ig_quarantine_spike.schema.yaml
+  - event_type: ig.pull.run
+    class: audit
+    schema_version_required: false
+    payload_schema_ref: docs/model_spec/platform/contracts/ingestion_gate/ig_pull_run.schema.yaml
+  - event_type: ig.audit.verify
+    class: audit
+    schema_version_required: false
+    payload_schema_ref: docs/model_spec/platform/contracts/ingestion_gate/ig_audit_verify.schema.yaml

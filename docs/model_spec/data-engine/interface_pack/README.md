@@ -19,7 +19,7 @@ This interface pack is authoritative for:
 - **Identity tuple definitions** and the determinism/immutability promises tied to them
 - **Output inventory** (streams + surfaces) and how they are addressed/discovered
 - **HashGate semantics** (“no PASS → no read”) and operational verification rules
-- **Schemas** used at the engine/platform boundary (invocation, envelope, locators, gate receipts)
+- **Schemas** used at the engine/platform boundary (invocation, envelope, locators, gate receipts, instance-proof receipts)
 
 ### 0.2 Non-scope (Binding)
 This pack does **not** describe:
@@ -42,12 +42,14 @@ interface_pack/
 │  ├─ engine_invocation.schema.yaml
 │  ├─ canonical_event_envelope.schema.yaml
 │  ├─ engine_output_locator.schema.yaml
-│  └─ gate_receipt.schema.yaml
+│  ├─ gate_receipt.schema.yaml
+│  └─ instance_proof_receipt.schema.yaml
 ├─ examples/                               # Informative – concrete examples for implementers
 │  ├─ engine_invocation.min.json
 │  ├─ canonical_event.example.json
 │  ├─ output_locator.example.json
-│  └─ gate_receipt.example.json
+│  ├─ gate_receipt.example.json
+│  └─ instance_proof_receipt.example.json
 └─ diagrams/                               # Informative – one boundary flow diagram
    └─ engine_boundary_flow.ascii.txt
 
@@ -129,6 +131,11 @@ Defines how downstream systems **pin** engine outputs for discovery (e.g., insid
 ### 3.4 `gate_receipt.schema.yaml`
 Defines the payload shape for `_passed.flag` / gate receipts:
 - `{ gate_id, status, produced_at, identity tuple, digest(s), index_hash?, … }`
+
+### 3.5 `instance_proof_receipt.schema.yaml`
+Defines the payload shape for instance-scoped output proof receipts:
+- `{ output_id, status, scope, target_ref, target_digest, bundle_manifest_ref?, … }`
+Receipts may be emitted by the engine **or** by Scenario Runner as verifier receipts when the engine is a strict black box (path conventions documented in `data_engine_interface.md` and SR contracts).
 
 ---
 

@@ -1,24 +1,54 @@
 # AGENTS.md - Router for the Closed-World Enterprise Fraud System
 _As of 2026-01-23_
 
-Use this to orient yourself before touching code. It captures what is in scope, what to read first, and where the detailed routers live.
+Use this to orient yourself before touching code. It captures what is in scope, what to read first, and where the detailed routers live. Ensure to read this file to the end before routing away
 
 ---
 
 ## 0) Scope (current focus)
-- **Build status:** Engine specs are sealed and implementation is complete for layer-1 (1A-3B), layer-2 (5A-5B), and layer-3 (6A-6B). Current focus is the full end-to-end validation run (1A.S0 → 6B.S5).
-- After the conceptual reading order, follow `packages\engine\AGENTS.md` for engine implementation routing.
-- For platform integration, treat the engine as a black box and use `docs\model_spec\data-engine\interface_pack\` as the boundary contract.
-- For now, all other components of the fraud enterprise platform are not yet built.
+- **Build status:** Data Engine is sealed + green; treat it as a **black box** for platform work. Use `docs\model_spec\data-engine\interface_pack\` as the boundary contract.
+- **Current focus:** Platform build (vertical-slice v0 → full platform). Start with Scenario Runner + Ingestion Gate + Event Bus + Decision Fabric + Actions Layer + Decision Log/Audit, then expand to IEG/OFP/DL, then Label/Case, then Learning/Registry, then Obs/Gov hardening.
+- **Engine code:** Only touch the engine if explicitly requested; if so, follow `packages\engine\AGENTS.md`.
+
+---
+
+## 0.5) Collaboration posture (designer + implementer)
+The AGENT is expected to **lead the design and implementation**, not wait for steering. With the entire view of the platform in mind (having read ALL the component design authority notes and the implementation decision taking so far), the AGENT is expect
+
+- **Drive the process:** propose concrete production ready options, surface risks/edge cases, and ask for confirmation only on material decisions with the aim of reaching the goal of building the interconnected, fully-functional, and production ready platform.
+- **Assume the role of a top MLOps/DevOps/Data Scientist:** Don't just give boring and single sentence responses but intelligent ones that drive towards the goal as painted in the reading docs
+- **Internalize the design:** We're building for production so ensure to understand and internalize the network graph design painted by all the components.
+- **Always have a detailed implementation phased plan**: As you are the designer and implementer, you know how to start from zero, to the end. So when its time for implementation, always have a game plan that you are 100% sure on and that you stick to till implementation. This doesn't mean the plan is rigid. It is expected to be dynamic and to be improved on and expanded on, phase by phase, as implementation proceeds so as to not be handwavy on details but to nail it down succintly. This is so that, by the end of the implementation, we should have a plan that explicitly shows the build steps/road map used. This living doc resides in: `docs\model_spec\platform\implementation_maps\{COMP}.build_plan.md`.
+- **Living plan = progressive elaboration**: Start with Phase 1..Phase X only. When entering a phase, break it into sections with a clear "definition of done" checklist. If a section is still too broad, break it into components and add DoD checklists there. Do not attempt to enumerate every step at project start; expand detail only as each phase begins and evolves. 
+- **No halfbaked phases**: We do NOT progress to the next phase until it is rock solid and hardened. No halfbaked phases or sections for any reason what so ever. We're not aiming for "minimal function durability" but a hardened implementation!
 
 ---
 
 ## 1) Reading order (strict)
 Read these in order before modifying code so you share the project context:
-1. `docs/references/closed-world-enterprise-conceptual-design*.md`
-2. `docs\model_spec\data-engine\layer-1\narrative\narrative_1A-to-3B.md` 
-3. `docs\model_spec\data-engine\layer-2\narrative\narrative_5A-and-5B.md`
-4. `docs\model_spec\data-engine\layer-3\narrative\narrative_6A-and-6B.md`
+1. `docs\model_spec\platform\platform-wide\platform_blueprint_notes_v0.md`
+   * New component (WSP) to replace data engine (as it now exists outside the platform): `docs\model_spec\platform\component-specific\world_streamer_producer.design-authority.md`. This trumps all other assumptions of the data engine as a vertex in the network
+2. `docs\model_spec\platform\platform-wide\deployment_tooling_notes_v0.md`
+3. `docs\model_spec\data-engine\interface_pack`
+4. Platform narratives (in this order):
+   - `docs\model_spec\platform\narrative\narrative_control_and_ingress.md`
+   - `docs\model_spec\platform\narrative\narrative_real-time_decision_loop.md`
+   - `docs\model_spec\platform\narrative\narrative_label_and_case.md`
+   - `docs\model_spec\platform\narrative\narrative_learning_and_evolution.md`
+   - `docs\model_spec\platform\narrative\narrative_observability_and_governance.md`
+5. Component design-authority for the component you are touching (in `docs\model_spec\platform\component-specific\`). [Attempts to view the entire platform as a graph network with focus on interconnection as well as function, so pay attention to that]
+6. Implementation decisions taken so far: `docs\model_spec\platform\implementation_maps\{COMP}.impl_actual.md`
+7. Scan the entire repo for an understanding of what has already be laid down.
+7. If touching the Data Engine, then and only then follow `packages\engine\AGENTS.md` [USER has to explicitly state this].
+
+_Note: while the platform narratives are merely conceptual, the other docs in `platform-wide` and `component-specific` are not. However, that doesn't mean they're rigid or binding specifications. They mere attempt to paint the kind of design that will be needed. You (AGENT) as the implementer and design are free to design and implement based on the design intent (and this may not have been fully capture in those "design authority" docs)_
+
+**Authority clarification (platform-wide docs):**
+- The **core authority** docs are the two platform-wide notes you authored:
+  - `platform_blueprint_notes_v0.md`
+  - `deployment_tooling_notes_v0.md`
+- Other `platform-wide` files (e.g., `byref_validation`, `partitioning_policy`, `rails_and_substrate`) are **guardrail supplements** to make cross-cutting rails explicit. They **do not override** the two core notes.
+- If any conflict appears: prefer the core notes above, then the relevant component design‑authority doc; if still unclear, pause and ask the user.
 
 ---
 
@@ -28,76 +58,60 @@ Read these in order before modifying code so you share the project context:
 
 ---
 
-## Run isolation + external roots (authoritative)
-- A run is logically isolated: all writes go to runs/<run_id>/... (data/logs/tmp/cache).
-- Inputs may be read from shared roots and are not “missing” if present there.
-- Resolution order: run-local staged → shared external roots → error.
-- S0 must record all external inputs in sealed_inputs_* (path + hash).
-- Default: do NOT copy large immutable datasets (e.g., hrsl_raster).
-- Optional: staged/hermetic mode copies small/medium inputs into runs/<run_id>/reference/.
+## 2.5) Drift Sentinel Law (binding)
+This is a hard law for platform work. The AGENT must behave as a design-intent sentinel, not just a code editor.
 
-## Implementation map discipline (mandatory, detail-first)
-- For every segment/state you touch, you MUST append entries to
-  `docs/model_spec/data-engine/implementation_maps/segment_{SEG}.impl_actual.md`.
-- Each entry MUST be detailed and auditable. A 1-2 line summary is allowed, but
-  the plan itself must be explicit and stepwise. No vague "we will implement"
-  phrasing and no skipped rationale.
-- The implementation map is a running **brainstorming notebook**. As you reason
-  through a state, capture the full thought process (assumptions, alternatives,
-  decision criteria, edge cases, and intended mechanics). Do this **during** the
-  design, not just before/after. The goal is to make the entire reasoning trail
-  reviewable later, not a minimal recap.
-- This is NOT a two-time update doc. Append entries repeatedly while you are
-  actively thinking and deciding. If you explore multiple approaches or adjust
-  your plan mid-stream, record each thread as it happens so the reader can see
-  the full evolution of the decision process.
-- The plan MUST include: exact inputs/authorities, file paths, algorithm or
-  data-flow choices, invariants to enforce, logging points, resumability hooks,
-  performance considerations, and validation/testing steps.
-- Before implementing any change, append a detailed plan entry that captures
-  your full thought process: the problem, alternatives considered, the decision
-  and why, and the exact steps you intend to take. Do this *before* coding so
-  the record reflects the real decision path (not a retrospective summary).
-- For every decision or review during implementation (no matter how small),
-  append another entry describing the reasoning and the outcome. If you realize
-  a missing decision later, append a corrective entry rather than rewriting
-  history.
-- If you are about to implement a change and the in-progress reasoning is not
-  captured yet, stop and append a new entry first. The map must mirror the live
-  design process, not a reconstructed summary.
-- If a plan changes, append a new entry describing the change and why. Never
-  delete or rewrite prior entries.
-- Before implementing a state, read ALL expanded docs for that segment/state
-  and note the files read in the logbook (time-stamped).
-- Log every decision and action as it happens in `docs/logbook` with local time.
-  The logbook must reference the matching implementation-map entry (or note
-  that one was added).
+- **Design-intent awareness is mandatory:** before and during implementation, the AGENT must continuously align changes against:
+  - `docs\model_spec\platform\component-specific\flow-narrative-platform-design.md`,
+  - active phase DoD in `docs\model_spec\platform\implementation_maps\platform.build_plan.md` or the component specific build plans,
+  - pinned decisions in relevant `docs\model_spec\platform\pre-design_decisions` files.
+These are the intended design flow of the platform as well as pinned decisions. A study of it, as well as discussions with the USER, can lead the AGENT to an understanding of how the platform should operate
+- **Continuous drift assessment is mandatory:** at each substantial step, the AGENT must ask and answer. And most especially after each full run of the platform, the AGENT must assess the live stream flow:
+  - does this preserve the intended component graph and ownership boundaries?
+  - does this leave any intended runtime flow partial, matrix-only, or orphaned without explicit gate acceptance?
+  - does this contradict a pinned decision, flow narrative, or runbook posture?
+- **Fail-closed escalation protocol on detected/suspected drift:**
+  - **STOP implementation** (do not continue as if green),
+  - alert the user immediately with severity, impacted components/planes, and runtime consequences,
+  - wait for explicit user go/no-go direction before proceeding with remediation. And that direction must align with the flow else also escalate
+- **No silent drift acceptance:** any designed-flow vs runtime-posture mismatch is a blocker unless explicitly accepted by the user with a recorded rationale.
+- **Bias-to-warning rule:** if uncertain whether a mismatch is material, treat it as material and escalate.
+- **Rigorously inspect the full platform run:** Once the USER asks for a full live stream run, once done, we should evaluate every aspect of it to make sure there's no silent drift whatsoever
+---
+
+## Platform implementation maps (mandatory, detail-first)
+- For any platform component work, create/append a component implementation map at:
+  `docs\model_spec\platform\implementation_maps\{COMP}.impl_actual.md`.
+- **Scope separation (platform vs component impl_actual):**
+  - `platform.impl_actual.md` records **platform-wide** decisions that affect multiple components, shared rails/semantics, substrate choices, environment ladder, or phase sequencing.
+  - `{COMP}.impl_actual.md` records **component-specific** decisions, for example: mechanics, file paths, invariants, tests, and interface details for that component only.
+- Each entry MUST be detailed and auditable. Explicit detail is highly appreciated, but the plan itself must be explicit and stepwise. No vague "we will implement" phrasing and no skipped rationale.
+- The implementation map is a running **brainstorming notebook**. As you reason through a problem, capture the full thought process (e.g. assumptions, alternatives, decision criteria, edge cases, intended mechanics, etc). Do this **during** the design, not just before/after. The goal is to make the entire reasoning trail reviewable later, not a minimal recap.
+- This is NOT a two-time update doc. Append entries repeatedly while you are actively thinking and deciding. If you explore multiple approaches or adjust your plan mid-stream, record each thread as it happens so the reader can see the full evolution of the decision process.
+- The plan MUST include: exact inputs/authorities, file paths, algorithm or data-flow choices, invariants to enforce, logging points, security plan, performance considerations, deployment/environment/production considerations and validation/testing steps.
+- Before implementing any change, append a detailed plan entry that captures your full thought process: the problem, alternatives considered, the decision and why, and the exact steps you intend to take. Do this *before* coding so the record reflects the real decision path (not a retrospective summary).
+- For every decision or review during implementation (no matter how small), append another entry describing the reasoning and the outcome. If you realize a missing decision later, append a corrective entry rather than rewriting history.
+- If you are about to implement a change and the in-progress reasoning is not captured yet, stop and append a new entry first. The map must mirror the live design process, not a reconstructed summary.
+- If a plan changes, append a new entry describing the change and why. Never delete or rewrite prior entries.
+- Log every decision and action as it happens in `docs/logbook` with local time. The logbook if necessary can reference the matching implementation-map entry (or note that one was added) but the implementation-map doesn't replace the logbook as it's concern is with implementation decisions with regards to a component.
 - If you are unsure, stop and add a detailed plan entry first, then proceed.
 
 ## Extra information
 - Stay proactive: surface TODOs, challenge suspect contract assumptions, and suggest stronger designs where appropriate.
-- As it's very difficult to know your approach to implementation. Ensure in high detail and for auditability, ensure you create a file in `docs\model_spec\data-engine\implementation_maps` called segment_{SEG}.impl_actual.md. You will section it according to the states there in that segment. For every single design element that you want to tackle in a state, you document what that design problem is in summary, but in detail, you articulate your plan to resolve it. Even if you have lots of trials, you append it to the previous and don't remove the former. This is very essential (especially the detail) so the USER can review your thought process and suggests improvements where necessary. Remember, your decisions or plans aren't to be summarized there but to be dropped in detail
+- Keep in mind that you're building for production 
 - Keep `pyproject.toml` aligned with any new dependencies you introduce.
-- Ensure to check truly large files into git LFS
-- Kindly note that the makefile calls for the engine is in no way binding. You are free to remove it and put yours. Do not try to reverse engineer it and code around it. Work with yours and replace the old stuff there
-- As we build this project, constantly update the makefile so the USER will find it easy to run these processes that involve long CLI commands. Also try to make the Makefile human readable.
-- When working on a task, log every decision and action taken (not just the summary at the end) in the associated logbook in `docs\logbook` ensuring that you use one with the actual local date (if none exist, create one in the same format as the other logs) and log at the local time and not any random time. This will allow the USER to review the AGENTS actions and decisions
-- Ensure to employ the use of loggers in your implementation. Whilst the USER doesn't want to be spammed with logs, it's important that whilst having a heartbeat log, there's a log that gives information (with appropriate states) of what's going on in every process (and not just start and completed) such that at no point is console blank and the USER left confused on whether the run is hanging or not
-- Log lines must be narrative and state-aware: whenever you log counts or progress (e.g., “processing merchants=…”, “merchants_in_scope=…”), include what the count represents, the gates that define the scope, and the stage/output being produced so the operator can follow the story of the state. Logs should read like a guided walkthrough of the state flow.
-- For each state, emit a short story header log that states the objective, the gated inputs being validated, and the outputs/gates being produced; keep phase logs aligned to that story so the run is intelligible without consulting the specs.
-- For any long-running loop (per-row/per-partition/per-file), progress logs MUST include elapsed time, processed count/total, rate (items/sec), and ETA. Use monotonic time for calculations and log at a predictable cadence (e.g., every N items or % complete). This is required for later review of performance and to diagnose stalls.
-- Before we implement, I want to know where you will be taking your source of contracts from. As we're in dev mode, I can allow you running from the model_spec but when we switch to production, it should be easy and not a code break to switch to having the contracts in the root. Also realize that some of the data/artefacts/etc that engine would need are in the root of the repo. For no reason should we use placeholders, instead using the contract (artefact registry or data dictionary) locate the possible location of the external.
-- Also be aware of the engine's interaction of the root 
+- Ensure to check truly large files into git LFS.
+- **Sensitive artifacts and credentials (platformwide):** Runtime artifacts/logs may include capability tokens, lease tokens, or other secrets. Never commit these or paste them into implementation maps, build plans, or logbooks. If a run creates such artifacts, explicitly alert the user so they can decide whether to delete or quarantine them.
+- Log every decision and action in `docs\logbook` with local time (create the day file if needed).
 
 ---
 
 ## Implementation doctrine (binding for every agent)
-- **Chase project outcomes, not verbatim spec text.** Specs capture intent; if the implementation path in the doc would violate determinism, performance, or robustness targets, design a compliant alternative and call it out in the logbook before landing changes. Deviations must still honour the published contracts.
-- **Engineer for efficiency from day zero.** Profile early, stream large artefacts, and design kernels that cope with the actual data volumes (Segment 1B S1 is your cautionary tale). Aim for multi-minute, not multi-hour, execution envelopes.
-- **Control memory usage deliberately.** Prefer chunked/iterator-based flows, deterministic temp directories, and spill-to-disk patterns over loading entire datasets into RAM. Treat OS-level crashes or thrash as regressions.
-- **Build for resumability.** Leverage run receipts, `_passed.flag`, and determinism records so the orchestrator can skip completed states, resume at the point of failure, or clearly instruct the operator how to recover.
-- **Instrument heavy paths.** Add structured logging around long-running loops and RNG envelopes so operators can observe progress in real time.
-- **Protect reproducibility.** Deterministic artefacts must hash identical across seeded runs. Volatile metadata (timestamps, `run_id`, temp paths) should be isolated from comparisons or normalised through tooling.
+- **Treat the platform pins as law.** ContextPins + canonical envelope, by‑ref artifacts, no‑PASS‑no‑read, idempotency, append‑only truths, deterministic registry resolution, and explicit degrade posture are non‑negotiable.
+- **Respect truth ownership boundaries.** SR owns run readiness + join surface; IG owns admission decisions; EB owns replay offsets; Engine owns world artifacts; DLA owns audit truth; Label Store owns labels; Registry owns ACTIVE bundle resolution; AL owns side‑effects/outcomes.
+- **Fail closed when compatibility is unknown.** If schema version, bundle compatibility, or gate evidence is missing/invalid, reject/quarantine rather than guessing.
+- **Build for at‑least‑once reality.** All side effects and state transitions must be safe under duplicates and replay; idempotency keys and append‑only histories are required.
+- **Make provenance first‑class.** Every cross‑component output must carry the pins, policy/bundle version, and evidence refs needed for replay and audit.
 
 _This router stays deliberately light on mechanics so it evolves slowly while the project grows._
 

@@ -1,0 +1,54 @@
+version: 1
+pack_id: local_parity_learning_jobs_v0
+description: "Learning-plane OFS + MF job worker pack for local parity."
+active_run:
+  required: true
+  source_path: runs/fraud-platform/ACTIVE_RUN_ID
+defaults:
+  cwd: .
+  env:
+    PYTHONUNBUFFERED: "1"
+    PYTHONPATH: src
+    RUN_OPERATE_PYTHON: ${RUN_OPERATE_PYTHON:-.venv/Scripts/python.exe}
+    PLATFORM_STORE_ROOT: ${PLATFORM_STORE_ROOT:-s3://fraud-platform}
+    PLATFORM_RUN_ID: ${ACTIVE_PLATFORM_RUN_ID}
+    OFS_REQUIRED_PLATFORM_RUN_ID: ${ACTIVE_PLATFORM_RUN_ID}
+    OFS_RUN_LEDGER_DSN: ${PARITY_OFS_RUN_LEDGER_DSN}
+    OFS_REQUEST_PREFIX: ${OFS_REQUEST_PREFIX:-${ACTIVE_PLATFORM_RUN_ID}/ofs/job_requests}
+    OFS_REQUEST_POLL_SECONDS: ${OFS_REQUEST_POLL_SECONDS:-2.0}
+    OFS_REQUEST_BATCH_LIMIT: ${OFS_REQUEST_BATCH_LIMIT:-20}
+    OFS_MAX_PUBLISH_RETRY_ATTEMPTS: ${OFS_MAX_PUBLISH_RETRY_ATTEMPTS:-3}
+    MF_REQUIRED_PLATFORM_RUN_ID: ${ACTIVE_PLATFORM_RUN_ID}
+    MF_RUN_LEDGER_DSN: ${PARITY_MF_RUN_LEDGER_DSN}
+    MF_REQUEST_PREFIX: ${MF_REQUEST_PREFIX:-${ACTIVE_PLATFORM_RUN_ID}/mf/job_requests}
+    MF_REQUEST_POLL_SECONDS: ${MF_REQUEST_POLL_SECONDS:-2.0}
+    MF_REQUEST_BATCH_LIMIT: ${MF_REQUEST_BATCH_LIMIT:-20}
+    MF_MAX_PUBLISH_RETRY_ATTEMPTS: ${MF_MAX_PUBLISH_RETRY_ATTEMPTS:-3}
+    MF_SERVICE_RELEASE_ID: ${MF_SERVICE_RELEASE_ID:-git:local}
+    LABEL_STORE_LOCATOR: ${PARITY_LABEL_STORE_LOCATOR}
+    OBJECT_STORE_ENDPOINT: ${PARITY_OBJECT_STORE_ENDPOINT}
+    OBJECT_STORE_REGION: ${PARITY_OBJECT_STORE_REGION}
+    AWS_ACCESS_KEY_ID: ${PARITY_MINIO_ACCESS_KEY}
+    AWS_SECRET_ACCESS_KEY: ${PARITY_MINIO_SECRET_KEY}
+    AWS_EC2_METADATA_DISABLED: ${PARITY_AWS_EC2_METADATA_DISABLED}
+processes:
+  - id: ofs_job_worker
+    command:
+      - ${RUN_OPERATE_PYTHON}
+      - -m
+      - fraud_detection.offline_feature_plane.worker
+      - --profile
+      - config/platform/profiles/local_parity.yaml
+      - run
+    readiness:
+      type: process_alive
+  - id: mf_job_worker
+    command:
+      - ${RUN_OPERATE_PYTHON}
+      - -m
+      - fraud_detection.model_factory.worker
+      - --profile
+      - config/platform/profiles/local_parity.yaml
+      - run
+    readiness:
+      type: process_alive

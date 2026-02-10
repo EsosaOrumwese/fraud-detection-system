@@ -1,0 +1,46 @@
+# contracts/run_receipt.schema.yaml
+version: "0.1.0"
+$id: run_receipt.schema.yaml
+$schema: https://json-schema.org/draft/2020-12/schema
+title: Data Engine Run Receipt
+description: >
+  Minimal black-box run identity receipt. Required fields are limited to the
+  world/parameter/seed/run identifiers; additional engine metadata is allowed.
+
+$defs:
+  hex64:
+    $ref: "../layer-1/specs/contracts/1A/schemas.layer1.yaml#/$defs/hex64"
+  hex32:
+    $ref: "../layer-1/specs/contracts/1A/schemas.layer1.yaml#/$defs/hex32"
+  uint64:
+    $ref: "../layer-1/specs/contracts/1A/schemas.layer1.yaml#/$defs/uint64"
+
+type: object
+additionalProperties: true
+required:
+  - run_id
+  - manifest_fingerprint
+  - parameter_hash
+  - seed
+properties:
+  run_id:
+    $ref: "#/$defs/hex32"
+  manifest_fingerprint:
+    $ref: "#/$defs/hex64"
+  parameter_hash:
+    $ref: "#/$defs/hex64"
+  seed:
+    $ref: "#/$defs/uint64"
+  created_utc:
+    type: string
+    format: date-time
+  contracts_layout:
+    type: string
+  contracts_root:
+    type: string
+  runs_root:
+    type: string
+  external_roots:
+    type: array
+    items:
+      type: string

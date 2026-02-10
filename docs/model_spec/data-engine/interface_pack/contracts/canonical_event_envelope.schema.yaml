@@ -17,6 +17,10 @@ $defs:
     $ref: "../layer-1/specs/contracts/1A/schemas.layer1.yaml#/$defs/uint64"
   rfc3339_micros:
     $ref: "../layer-1/specs/contracts/1A/schemas.layer1.yaml#/$defs/rfc3339_micros"
+  platform_run_id:
+    description: Platform session run identifier.
+    type: string
+    pattern: "^platform_[0-9]{8}T[0-9]{6}Z$"
 
   scenario_id:
     description: Scenario identifier (used where scenario overlays apply).
@@ -71,6 +75,12 @@ properties:
     description: >
       Correlation identifier for the execution run. May partition logs/events but is not required
       for all event classes.
+    $ref: "#/$defs/hex32"
+  platform_run_id:
+    description: Platform session run identifier for admission/dedupe scope.
+    $ref: "#/$defs/platform_run_id"
+  scenario_run_id:
+    description: Deterministic scenario run identifier (SR run_id).
     $ref: "#/$defs/hex32"
 
   # ---- time + typing ----

@@ -1,0 +1,68 @@
+$schema: https://json-schema.org/draft/2020-12/schema
+$id: engine_attempt.schema.yaml
+title: Scenario Runner Engine Attempt
+type: object
+additionalProperties: false
+required:
+  - run_id
+  - attempt_id
+  - attempt_no
+  - outcome
+  - started_at_utc
+  - ended_at_utc
+  - invocation
+properties:
+  run_id:
+    $ref: "#/$defs/hex32"
+  attempt_id:
+    $ref: "#/$defs/hex32"
+  attempt_no:
+    type: integer
+    minimum: 1
+  invoker:
+    type: string
+    minLength: 1
+    maxLength: 128
+  outcome:
+    type: string
+    enum: [SUCCEEDED, FAILED]
+  reason_code:
+    type: string
+    minLength: 1
+    maxLength: 128
+  engine_run_root:
+    type: string
+    minLength: 1
+    maxLength: 2048
+  run_receipt_ref:
+    type: string
+    minLength: 1
+    maxLength: 2048
+  started_at_utc:
+    type: string
+    format: date-time
+  ended_at_utc:
+    type: string
+    format: date-time
+  duration_ms:
+    type: integer
+    minimum: 0
+  invocation:
+    type: object
+    additionalProperties: true
+  logs_ref:
+    type: object
+    additionalProperties: false
+    properties:
+      stdout_ref:
+        type: string
+        minLength: 1
+        maxLength: 2048
+      stderr_ref:
+        type: string
+        minLength: 1
+        maxLength: 2048
+$defs:
+  hex32:
+    type: string
+    pattern: "^[0-9a-f]{32}$"

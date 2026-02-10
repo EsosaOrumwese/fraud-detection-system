@@ -1,0 +1,23 @@
+$schema: https://json-schema.org/draft/2020-12/schema
+$id: ig_quarantine_spike.schema.yaml
+title: IG Quarantine Spike Payload
+type: object
+additionalProperties: false
+required:
+  - policy_id
+  - quarantine_count
+  - window_seconds
+  - detected_at_utc
+properties:
+  policy_id:
+    type: string
+    minLength: 1
+  quarantine_count:
+    type: integer
+    minimum: 0
+  window_seconds:
+    type: integer
+    minimum: 1
+  detected_at_utc:
+    type: string
+    minLength: 1

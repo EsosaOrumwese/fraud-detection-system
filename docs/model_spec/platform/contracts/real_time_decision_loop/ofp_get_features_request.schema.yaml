@@ -1,0 +1,97 @@
+$schema: https://json-schema.org/draft/2020-12/schema
+$id: ofp_get_features_request.schema.yaml
+title: OFP Get Features Request
+type: object
+additionalProperties: false
+required:
+  - pins
+  - as_of_time_utc
+  - feature_keys
+  - feature_groups
+properties:
+  pins:
+    $ref: "#/$defs/pins"
+  as_of_time_utc:
+    $ref: "#/$defs/rfc3339_micros"
+  feature_keys:
+    type: array
+    minItems: 1
+    items:
+      type: object
+      additionalProperties: false
+      required: [key_type, key_id]
+      properties:
+        key_type:
+          type: string
+          minLength: 1
+          maxLength: 64
+        key_id:
+          type: string
+          minLength: 1
+          maxLength: 256
+  feature_groups:
+    type: array
+    minItems: 1
+    items:
+      type: object
+      additionalProperties: false
+      required: [name, version]
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 128
+        version:
+          type: string
+          minLength: 1
+          maxLength: 64
+  graph_resolution_mode:
+    type: string
+    enum: [none, resolve_if_needed, require_ieg]
+  request_id:
+    type: string
+    minLength: 1
+    maxLength: 128
+$defs:
+  hex32:
+    type: string
+    pattern: "^[0-9a-f]{32}$"
+  hex64:
+    type: string
+    pattern: "^[0-9a-f]{64}$"
+  platform_run_id:
+    type: string
+    pattern: "^platform_[0-9]{8}T[0-9]{6}Z$"
+  uint64:
+    type: integer
+    minimum: 0
+  rfc3339_micros:
+    type: string
+    minLength: 1
+  pins:
+    type: object
+    additionalProperties: false
+    required:
+      - manifest_fingerprint
+      - parameter_hash
+      - seed
+      - scenario_id
+      - platform_run_id
+      - scenario_run_id
+    properties:
+      manifest_fingerprint:
+        $ref: "#/$defs/hex64"
+      parameter_hash:
+        $ref: "#/$defs/hex64"
+      seed:
+        $ref: "#/$defs/uint64"
+      scenario_id:
+        type: string
+        minLength: 1
+        maxLength: 256
+      platform_run_id:
+        $ref: "#/$defs/platform_run_id"
+      scenario_run_id:
+        $ref: "#/$defs/hex32"
+      run_id:
+        $ref: "#/$defs/hex32"

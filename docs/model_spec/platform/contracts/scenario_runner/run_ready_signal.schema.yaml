@@ -1,0 +1,106 @@
+$schema: https://json-schema.org/draft/2020-12/schema
+$id: run_ready_signal.schema.yaml
+title: Scenario Runner RunReadySignal
+type: object
+additionalProperties: false
+required:
+  - run_id
+  - platform_run_id
+  - scenario_run_id
+  - facts_view_ref
+  - bundle_hash
+  - message_id
+  - run_config_digest
+  - manifest_fingerprint
+  - parameter_hash
+  - scenario_id
+properties:
+  run_id:
+    $ref: "#/$defs/hex32"
+  platform_run_id:
+    $ref: "#/$defs/platform_run_id"
+  scenario_run_id:
+    $ref: "#/$defs/hex32"
+  facts_view_ref:
+    type: string
+    minLength: 1
+  bundle_hash:
+    $ref: "#/$defs/hex64"
+  plan_hash:
+    $ref: "#/$defs/hex64"
+  message_id:
+    $ref: "#/$defs/hex64"
+  run_config_digest:
+    $ref: "#/$defs/hex64"
+  service_release_id:
+    type: string
+    minLength: 1
+    maxLength: 256
+  environment:
+    type: string
+    minLength: 1
+    maxLength: 64
+  provenance:
+    type: object
+    additionalProperties: false
+    required: [service_release_id, environment]
+    properties:
+      service_release_id:
+        type: string
+        minLength: 1
+        maxLength: 256
+      environment:
+        type: string
+        minLength: 1
+        maxLength: 64
+      config_revision:
+        type: string
+        minLength: 1
+        maxLength: 128
+      run_config_digest:
+        $ref: "#/$defs/hex64"
+  manifest_fingerprint:
+    $ref: "#/$defs/hex64"
+  parameter_hash:
+    $ref: "#/$defs/hex64"
+  scenario_id:
+    type: string
+    minLength: 1
+  emitted_at_utc:
+    type: string
+    format: date-time
+  oracle_pack_ref:
+    $ref: "#/$defs/oracle_pack_ref"
+$defs:
+  hex32:
+    type: string
+    pattern: "^[0-9a-f]{32}$"
+  hex64:
+    type: string
+    pattern: "^[0-9a-f]{64}$"
+  platform_run_id:
+    type: string
+    pattern: "^platform_[0-9]{8}T[0-9]{6}Z$"
+  oracle_pack_ref:
+    type: object
+    additionalProperties: false
+    minProperties: 1
+    properties:
+      oracle_pack_id:
+        $ref: "#/$defs/hex64"
+      manifest_ref:
+        type: string
+        minLength: 1
+        maxLength: 2048
+      engine_run_root:
+        type: string
+        minLength: 1
+        maxLength: 2048
+      oracle_root:
+        type: string
+        minLength: 1
+        maxLength: 2048
+      engine_release:
+        type: string
+        minLength: 1
+        maxLength: 256

@@ -1,0 +1,39 @@
+$schema: https://json-schema.org/draft/2020-12/schema
+$id: run_terminal_signal.schema.yaml
+title: Scenario Runner RunTerminalSignal
+type: object
+additionalProperties: false
+required:
+  - run_id
+  - status_state
+  - status_ref
+  - record_ref
+  - reemit_key
+properties:
+  run_id:
+    $ref: "#/$defs/hex32"
+  status_state:
+    type: string
+    enum: [FAILED, QUARANTINED]
+  status_ref:
+    type: string
+    minLength: 1
+  record_ref:
+    type: string
+    minLength: 1
+  reason_code:
+    type: string
+    minLength: 1
+    maxLength: 256
+  reemit_key:
+    $ref: "#/$defs/hex64"
+  emitted_at_utc:
+    type: string
+    format: date-time
+$defs:
+  hex32:
+    type: string
+    pattern: "^[0-9a-f]{32}$"
+  hex64:
+    type: string
+    pattern: "^[0-9a-f]{64}$"

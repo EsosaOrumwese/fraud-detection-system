@@ -300,7 +300,7 @@ Why now: the “downstream contract” to OFP/DF is impossible to define without
 
 ### One extra pin that’s implied by your SR ingest decision
 
-Because v0 uses **pull ingestion** (traffic starts after READY), IEG can assume “hot-path traffic for a run arrives after SR READY exists,” and it should not need to handle a long-lived pre-READY backlog for that run context.
+Because v0 uses **WSP push ingestion** (traffic starts after READY), IEG can assume “hot-path traffic for a run arrives after SR READY exists,” and it should not need to handle a long-lived pre-READY backlog for that run context.
 
 ---
 

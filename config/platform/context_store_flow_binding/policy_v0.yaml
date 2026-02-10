@@ -1,0 +1,15 @@
+version: "0.1.0"
+policy_id: context_store_flow_binding.policy.v0
+revision: r1
+query_schema_version: v1
+required_pins:
+  - platform_run_id
+  - scenario_run_id
+  - manifest_fingerprint
+  - parameter_hash
+  - scenario_id
+  - seed
+require_seed: true
+authoritative_flow_binding_event_types:
+  - s2_flow_anchor_baseline_6B
+  - s3_flow_anchor_with_fraud_6B

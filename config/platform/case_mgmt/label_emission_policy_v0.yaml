@@ -1,0 +1,18 @@
+version: "v1"
+policy_id: "cm.label_emission.v0"
+revision: "r1"
+
+label_emission:
+  allowed_label_types:
+    - fraud_disposition
+    - chargeback_status
+    - account_takeover
+  allowed_actor_prefixes:
+    - "SYSTEM::"
+    - "HUMAN::"
+  allowed_source_types:
+    - SYSTEM
+    - HUMAN
+    - EXTERNAL
+    - AUTO
+  max_retry_attempts: 3

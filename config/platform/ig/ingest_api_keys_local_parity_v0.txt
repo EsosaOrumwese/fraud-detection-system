@@ -1,0 +1,5 @@
+# Local parity service identity token(s) for IG writer boundary. (non-secret btw)
+local-parity-wsp
+local-parity-df
+local-parity-al
+local-parity-case-trigger

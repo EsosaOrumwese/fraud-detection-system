@@ -19,15 +19,17 @@ RunRequest
 
 SR is explicitly “conductor + ledger” and the system-of-record for run identity, readiness, and the downstream join surface (`run_facts_view`).
 Data Engine is a black box that promises deterministic, immutable outputs per partition identity and exposes output discovery + gates via its interface pack. 
+World Stream Producer (WSP) is the inlet vertex that **streams** the sealed world into the platform over time; it is triggered by SR READY + pack refs and streams from the Oracle Store into IG (WSP does not depend on SR for data-plane payloads).
 
 **Key join artifact:** `run_facts_view` is literally the “bridge” that points downstream to engine evidence + authoritative outputs by ref.
+Compatibility note: `run_facts_view` uses engine-contract shapes (digest objects + receipt artifacts) and may include optional `instance_receipts` for instance-scoped outputs.
 
 ---
 
 ### B. Event intake → durable log (trust boundary + distribution)
 
 ```
-Producers (engine streams, DF outputs, AL outcomes, case/label emissions)
+Producers (WSP stream, DF outputs, AL outcomes, case/label emissions)
   -> Ingestion Gate (IG)  [admit | quarantine | duplicate] + receipts
   -> Event Bus (EB)       durable append + replay (at-least-once)
 ```
@@ -307,7 +309,8 @@ At minimum, that join surface must carry:
 
 * the **pins** (run/world identity),
 * **refs/locators** to the engine outputs that matter for downstream,
-* the **PASS evidence** that makes those refs admissible.
+* the **PASS evidence** that makes those refs admissible,
+* **Oracle pack references** (pack id / manifest ref / engine run root) so the data‑plane can bind to the exact sealed world.
 
 (How these are stored can be implementation; the *meaning* is what’s pinned.)
 

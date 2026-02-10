@@ -1,0 +1,198 @@
+# Action Layer Build Plan (v0)
+_As of 2026-02-07_
+
+## Purpose
+Provide an executable, component-scoped AL plan aligned to platform `Phase 4.5` (`decision -> outcome -> audit`) and RTDL pinned decisions.
+
+## Authorities (binding)
+- `docs/model_spec/platform/implementation_maps/platform.build_plan.md` (`4.5.A...4.5.J`)
+- `docs/model_spec/platform/pre-design_decisions/real-time_decision_loop.pre-design_decision.md`
+- `docs/model_spec/platform/component-specific/flow-narrative-platform-design.md`
+- `docs/model_spec/platform/component-specific/action_layer.design-authority.md`
+
+## Planning rules (binding)
+- Progressive elaboration: expand only active phase sections while preserving explicit DoD gates.
+- No half-baked transitions: do not advance until phase DoD is validated.
+- Rails are non-negotiable: admitted ingress only, idempotent side effects, append-only outcomes, provenance first.
+
+## Component boundary
+- This component owns:
+  - intake/normalization of admitted ActionIntent events,
+  - execution idempotency and side-effect attempts,
+  - immutable ActionOutcome truth and publish behavior.
+- This component does not own:
+  - decision synthesis (DF),
+  - append-only audit truth (DLA),
+  - admission decisions (IG).
+
+## Phase plan (v0)
+
+### Phase 1 — Intake contracts + pin/shape validation
+**Intent:** lock strict ActionIntent and ActionOutcome contracts at AL boundary.
+
+**DoD checklist:**
+- ActionIntent required fields are pinned (`actor_principal`, `origin`, `decision_id`, `idempotency_key`, required ContextPins).
+- AL intake validates envelope + pins fail-closed with explicit reason codes.
+- Normalization path is deterministic and emits machine-readable failure lane (no silent drop).
+- Contract and taxonomy tests exist for accepted/rejected payloads.
+**Evidence (Phase 1):**
+- Code:
+  - `src/fraud_detection/action_layer/contracts.py`
+  - `src/fraud_detection/action_layer/__init__.py`
+- Tests:
+  - `tests/services/action_layer/test_phase1_contracts.py`
+- Validation:
+  - `$env:PYTHONPATH='.;src'; python -m pytest tests/services/action_layer -q`
+
+### Phase 2 — Semantic idempotency ledger
+**Intent:** guarantee at-least-once safe execution.
+
+**DoD checklist:**
+- Semantic execution key is deterministic and replay-stable.
+- Duplicate intents with same payload do not re-execute effects.
+- Same semantic key with payload hash mismatch is anomaly/quarantine (never overwrite).
+- Idempotency state is durable and scoped by run pins.
+**Evidence (Phase 2):**
+- Code:
+  - `src/fraud_detection/action_layer/idempotency.py`
+  - `src/fraud_detection/action_layer/storage.py` (`al_semantic_ledger` persistence path)
+  - `src/fraud_detection/action_layer/__init__.py`
+- Tests:
+  - `tests/services/action_layer/test_phase2_idempotency.py`
+- Validation:
+  - `$env:PYTHONPATH='.;src'; python -m pytest tests/services/action_layer -q`
+
+### Phase 3 — Authorization + execution posture gates
+**Intent:** make execution policy explicit and safe.
+
+**DoD checklist:**
+- Authz/policy checks execute before side effects.
+- Denied intents produce immutable `DENIED` outcomes with policy reason refs.
+- Missing/invalid execution posture is fail-safe (no blind execution).
+- Policy revision stamps are captured on outcomes.
+**Evidence (Phase 3):**
+- Config:
+  - `config/platform/al/policy_v0.yaml`
+- Code:
+  - `src/fraud_detection/action_layer/policy.py`
+  - `src/fraud_detection/action_layer/authz.py`
+  - `src/fraud_detection/action_layer/__init__.py`
+- Tests:
+  - `tests/services/action_layer/test_phase3_policy.py`
+  - `tests/services/action_layer/test_phase3_authz.py`
+- Validation:
+  - `$env:PYTHONPATH='.;src'; python -m pytest tests/services/action_layer -q`
+
+### Phase 4 — Executor adapters + retry/failure semantics
+**Intent:** execute effects safely across retriable/uncertain conditions.
+
+**DoD checklist:**
+- Executor adapters enforce bounded retry + backoff pacing with explicit terminal behavior.
+- Final failure emits immutable `FAILED` outcome with stable error taxonomy.
+- Uncertain commit lane is explicit (`UNKNOWN/UNCERTAIN_COMMIT`) and replay-safe.
+- Retries never produce duplicate external effects.
+**Evidence (Phase 4):**
+- Config:
+  - `config/platform/al/policy_v0.yaml` (`retry` section)
+- Code:
+  - `src/fraud_detection/action_layer/execution.py`
+  - `src/fraud_detection/action_layer/policy.py` (retry policy parsing)
+  - `src/fraud_detection/action_layer/__init__.py`
+- Tests:
+  - `tests/services/action_layer/test_phase4_execution.py`
+- Validation:
+  - `$env:PYTHONPATH='.;src'; python -m pytest tests/services/action_layer -q`
+
+### Phase 5 — Outcome store + IG publish discipline
+**Intent:** keep outcomes immutable and publishable through canonical ingress.
+
+**DoD checklist:**
+- Outcome records are append-only with stable `outcome_id`.
+- Outcome publish path uses IG with stable event identity.
+- Publish outcomes (`ADMIT`, `DUPLICATE`, `QUARANTINE`, ambiguous) are handled deterministically.
+- Receipt/evidence refs are persisted for reconciliation.
+**Evidence (Phase 5):**
+- Config:
+  - `config/platform/ig/schema_policy_v0.yaml` (`action_outcome` schema policy)
+  - `config/platform/ig/class_map_v0.yaml` (`rtdl_action_outcome` class map)
+  - `config/platform/ig/partitioning_profiles_v0.yaml` (`ig.partitioning.v0.rtdl.action_outcome`)
+  - `config/platform/ieg/classification_v0.yaml` (`action_outcome` marked irrelevant)
+- Code:
+  - `src/fraud_detection/action_layer/storage.py` (`ActionOutcomeStore`)
+  - `src/fraud_detection/action_layer/publish.py`
+  - `src/fraud_detection/action_layer/__init__.py`
+  - `src/fraud_detection/ingestion_gate/admission.py` (`rtdl_action_outcome` partition profile mapping)
+  - `src/fraud_detection/online_feature_plane/projector.py` (`action_outcome` ignored on shared traffic)
+- Tests:
+  - `tests/services/action_layer/test_phase5_outcomes.py`
+  - `tests/services/online_feature_plane/test_phase2_projector.py`
+  - `tests/services/identity_entity_graph/test_projector_determinism.py`
+- Validation:
+  - `$env:PYTHONPATH='.;src'; python -m pytest tests/services/action_layer tests/services/online_feature_plane/test_phase2_projector.py tests/services/identity_entity_graph/test_projector_determinism.py -q`
+
+### Phase 6 — Checkpoints + replay determinism
+**Intent:** guarantee deterministic AL behavior under restarts/replay.
+
+**DoD checklist:**
+- Checkpoints advance only after durable outcome append/publish gate.
+- Replay from same basis reproduces identical outcome identity chain.
+- Duplicate storm tests prove no double execution.
+- Crash/restart recovery does not skip or mutate prior outcomes.
+**Evidence (Phase 6):**
+- Code:
+  - `src/fraud_detection/action_layer/checkpoints.py`
+  - `src/fraud_detection/action_layer/replay.py`
+  - `src/fraud_detection/action_layer/__init__.py`
+- Tests:
+  - `tests/services/action_layer/test_phase6_checkpoints.py`
+  - `tests/services/action_layer/test_phase6_replay.py`
+- Validation:
+  - `$env:PYTHONPATH='.;src'; python -m pytest tests/services/action_layer -q`
+
+### Phase 7 — Observability + governance + security
+**Intent:** make AL operable and auditable without becoming control-path logic.
+
+**DoD checklist:**
+- Metrics/logs cover intent intake, exec attempts, outcome status, retries, denies, quarantines, ambiguous commits.
+- Health posture exposes lag/error/queue saturation signals with reason codes.
+- Governance/security stamps are present (`policy_rev`, execution profile ref, actor attribution).
+- Sensitive credentials/tokens are excluded from emitted artifacts/logs.
+**Evidence (Phase 7):**
+- Code:
+  - `src/fraud_detection/action_layer/observability.py`
+  - `src/fraud_detection/action_layer/execution.py` (execution outcome governance stamps)
+  - `src/fraud_detection/action_layer/__init__.py`
+- Tests:
+  - `tests/services/action_layer/test_phase7_observability.py`
+- Validation:
+  - `$env:PYTHONPATH='.;src'; python -m pytest tests/services/action_layer/test_phase7_observability.py -q`
+  - `$env:PYTHONPATH='.;src'; python -m pytest tests/services/action_layer -q`
+
+### Phase 8 — Platform integration closure (`4.5` AL scope)
+**Intent:** prove AL is green at component boundary and ready for platform `4.5` closure with DLA.
+
+**DoD checklist:**
+- Integration tests prove DF decision/intent -> AL execution -> outcome emission continuity.
+- Local-parity monitored runs exist for 20 and 200 events with AL evidence captured.
+- Replay validation confirms no duplicate side effects and stable outcome lineage.
+- Closure statement is explicit: AL component green; DLA-linked audit closure tracked by platform `4.5` gates.
+**Evidence (Phase 8):**
+- Code:
+  - `tests/services/action_layer/test_phase8_validation_matrix.py`
+- Validation:
+  - `$env:PYTHONPATH='.;src'; python -m pytest tests/services/action_layer/test_phase8_validation_matrix.py -q`
+  - `$env:PYTHONPATH='.;src'; python -m pytest tests/services/action_layer -q`
+- Artifacts:
+  - `runs/fraud-platform/platform_20260207T200000Z/action_layer/reconciliation/phase8_parity_proof_20.json`
+  - `runs/fraud-platform/platform_20260207T200000Z/action_layer/reconciliation/phase8_parity_proof_200.json`
+
+## Status (rolling)
+- Phase 1 (`Intake contracts + pin/shape validation`): completed on `2026-02-07`.
+- Phase 2 (`Semantic idempotency ledger`): completed on `2026-02-07`.
+- Phase 3 (`Authorization + execution posture gates`): completed on `2026-02-07`.
+- Phase 4 (`Executor adapters + retry/failure semantics`): completed on `2026-02-07`.
+- Phase 5 (`Outcome store + IG publish discipline`): completed on `2026-02-07`.
+- Phase 6 (`Checkpoints + replay determinism`): completed on `2026-02-07`.
+- Phase 7 (`Observability + governance + security`): completed on `2026-02-07`.
+- Phase 8 (`Platform integration closure (4.5 AL scope)`): completed on `2026-02-07`.
+- Current focus: AL component complete at boundary; platform Phase `4.5` continues with DLA audit closure integration.

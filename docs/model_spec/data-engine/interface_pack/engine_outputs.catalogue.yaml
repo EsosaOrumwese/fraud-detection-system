@@ -3418,12 +3418,17 @@ outputs:
   - scenario_id
   - merchant_id
   - arrival_seq
-  join_keys: []
+  join_keys:
+  - seed
+  - manifest_fingerprint
+  - scenario_id
+  - merchant_id
+  - arrival_seq
   read_requires_gates:
   - gate.layer2.5B.validation
   immutability:
     immutable_once_written: true
-  description: Canonical arrival skeleton stream per scenarioxseed (final egress).
+  description: Canonical arrival skeleton per scenario x seed; traffic primitive / join surface (not emitted as traffic by default).
 - output_id: arrival_lgcp_config_5B
   class: surface
   exposure: internal
@@ -5746,12 +5751,17 @@ outputs:
   - scenario_id
   - merchant_id
   - arrival_seq
-  join_keys: []
+  join_keys:
+  - seed
+  - manifest_fingerprint
+  - scenario_id
+  - merchant_id
+  - arrival_seq
   read_requires_gates:
   - gate.layer3.6B.validation
   immutability:
     immutable_once_written: true
-  description: 'Arrival events from 5B enriched with entity attachments and session
+  description: Arrival-level entity attachments; join surface for enrichment (not traffic).
     identifiers for Layer-3 behaviour; one row per arrival.
 
     '
@@ -5773,12 +5783,16 @@ outputs:
   - manifest_fingerprint
   - scenario_id
   - session_id
-  join_keys: []
+  join_keys:
+  - seed
+  - manifest_fingerprint
+  - scenario_id
+  - session_id
   read_requires_gates:
   - gate.layer3.6B.validation
   immutability:
     immutable_once_written: true
-  description: 'Session index for 6B arrivals; one row per session with party/device/IP
+  description: Session grouping index for arrivals; join surface (not traffic).
     relationships and anchor metadata.
 
     '
@@ -5801,12 +5815,18 @@ outputs:
   - scenario_id
   - flow_id
   - event_seq
-  join_keys: []
+  join_keys:
+  - seed
+  - manifest_fingerprint
+  - parameter_hash
+  - scenario_id
+  - flow_id
+  - event_seq
   read_requires_gates:
   - gate.layer3.6B.validation
   immutability:
     immutable_once_written: true
-  description: 'Baseline event stream for each flow (auth/clearing/refund/etc.).
+  description: Baseline behavioural traffic event stream (pre-overlay).
 
     '
 - output_id: s2_flow_anchor_baseline_6B
@@ -5827,12 +5847,19 @@ outputs:
   - manifest_fingerprint
   - scenario_id
   - flow_id
-  join_keys: []
+  join_keys:
+  - seed
+  - manifest_fingerprint
+  - parameter_hash
+  - scenario_id
+  - flow_id
+  - merchant_id
+  - arrival_seq
   read_requires_gates:
   - gate.layer3.6B.validation
   immutability:
     immutable_once_written: true
-  description: 'Baseline flow anchors (all-legit) for 6B. One row per flow_id per
+  description: Flow-level context surface for baseline stream; join surface for enrichment.
     (seed, manifest_fingerprint, scenario_id).
 
     '
@@ -5882,12 +5909,18 @@ outputs:
   - scenario_id
   - flow_id
   - event_seq
-  join_keys: []
+  join_keys:
+  - seed
+  - manifest_fingerprint
+  - parameter_hash
+  - scenario_id
+  - flow_id
+  - event_seq
   read_requires_gates:
   - gate.layer3.6B.validation
   immutability:
     immutable_once_written: true
-  description: 'Event stream after fraud overlays. Contains synthetic fraud behaviours
+  description: Post-overlay behavioural traffic event stream (fraud/abuse injected).
     for training/labelling flows.
 
     '
@@ -5909,12 +5942,19 @@ outputs:
   - manifest_fingerprint
   - scenario_id
   - flow_id
-  join_keys: []
+  join_keys:
+  - seed
+  - manifest_fingerprint
+  - parameter_hash
+  - scenario_id
+  - flow_id
+  - merchant_id
+  - arrival_seq
   read_requires_gates:
   - gate.layer3.6B.validation
   immutability:
     immutable_once_written: true
-  description: 'Flow anchors after fraud overlays and campaign adjustments are applied.
+  description: Flow-level context surface for post-overlay stream; join surface for enrichment.
 
     '
 - output_id: s4_case_timeline_6B
@@ -5936,12 +5976,18 @@ outputs:
   - scenario_id
   - case_id
   - case_event_seq
-  join_keys: []
+  join_keys:
+  - seed
+  - manifest_fingerprint
+  - parameter_hash
+  - scenario_id
+  - case_id
+  - case_event_seq
   read_requires_gates:
   - gate.layer3.6B.validation
   immutability:
     immutable_once_written: true
-  description: 'Case timeline events for flows promoted to manual review or automated
+  description: Case lifecycle timeline (truth product; not traffic).
     cases.
 
     '
@@ -5964,12 +6010,18 @@ outputs:
   - scenario_id
   - flow_id
   - event_seq
-  join_keys: []
+  join_keys:
+  - seed
+  - manifest_fingerprint
+  - parameter_hash
+  - scenario_id
+  - flow_id
+  - event_seq
   read_requires_gates:
   - gate.layer3.6B.validation
   immutability:
     immutable_once_written: true
-  description: 'Event-level truth and bank-view labels keyed to s3_event_stream_with_fraud_6B.
+  description: Event-level truth labels aligned to post-overlay stream (not traffic).
 
     '
 - output_id: s4_flow_bank_view_6B
@@ -5990,12 +6042,17 @@ outputs:
   - manifest_fingerprint
   - scenario_id
   - flow_id
-  join_keys: []
+  join_keys:
+  - seed
+  - manifest_fingerprint
+  - parameter_hash
+  - scenario_id
+  - flow_id
   read_requires_gates:
   - gate.layer3.6B.validation
   immutability:
     immutable_once_written: true
-  description: 'Bank-view classification of each flow (what the institution sees /
+  description: Flow-level bank-view labels aligned to post-overlay stream (not traffic).
     would act on).
 
     '
@@ -6017,12 +6074,17 @@ outputs:
   - manifest_fingerprint
   - scenario_id
   - flow_id
-  join_keys: []
+  join_keys:
+  - seed
+  - manifest_fingerprint
+  - parameter_hash
+  - scenario_id
+  - flow_id
   read_requires_gates:
   - gate.layer3.6B.validation
   immutability:
     immutable_once_written: true
-  description: 'Flow-level ground truth labels used by 4A/4B and model training.
+  description: Flow-level truth labels aligned to post-overlay stream (not traffic).
 
     '
 - output_id: s5_issue_table_6B

@@ -1,0 +1,3 @@
+version: "0.1.0"
+output_ids:
+  - s3_event_stream_with_fraud_6B

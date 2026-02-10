@@ -1,0 +1,30 @@
+$schema: https://json-schema.org/draft/2020-12/schema
+$id: run_status.schema.yaml
+title: Scenario Runner RunStatus
+type: object
+additionalProperties: false
+required:
+  - run_id
+  - state
+  - updated_at_utc
+  - record_ref
+properties:
+  run_id:
+    $ref: "#/$defs/hex32"
+  state:
+    type: string
+    enum: [OPEN, PLANNED, EXECUTING, VERIFYING, WAITING_EVIDENCE, READY, FAILED, QUARANTINED]
+  updated_at_utc:
+    type: string
+    format: date-time
+  reason_code:
+    type: string
+  record_ref:
+    type: string
+    minLength: 1
+  facts_view_ref:
+    type: string
+$defs:
+  hex32:
+    type: string
+    pattern: "^[0-9a-f]{32}$"

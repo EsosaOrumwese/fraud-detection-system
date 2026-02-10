@@ -1,0 +1,144 @@
+version: "0.1.0"
+profiles:
+  ig.partitioning.v0.traffic:
+    description: >
+      Deterministic routing for admitted traffic events. Prefer entity-local ordering.
+    stream: fp.bus.traffic.v1
+    key_precedence:
+      - payload.flow_id
+      - payload.merchant_id
+      - payload.account_id
+      - payload.party_id
+      - event_id
+    hash_algo: sha256
+
+  ig.partitioning.v0.traffic.baseline:
+    description: >
+      Deterministic routing for baseline behavioural traffic events.
+    stream: fp.bus.traffic.baseline.v1
+    key_precedence:
+      - payload.flow_id
+      - payload.merchant_id
+      - payload.account_id
+      - payload.party_id
+      - event_id
+    hash_algo: sha256
+
+  ig.partitioning.v0.traffic.fraud:
+    description: >
+      Deterministic routing for post-overlay behavioural traffic events.
+    stream: fp.bus.traffic.fraud.v1
+    key_precedence:
+      - payload.flow_id
+      - payload.merchant_id
+      - payload.account_id
+      - payload.party_id
+      - event_id
+    hash_algo: sha256
+
+  ig.partitioning.v0.control:
+    description: >
+      Deterministic routing for control facts. Prefer run-scoped ordering.
+    stream: fp.bus.control.v1
+    key_precedence:
+      - run_id
+      - manifest_fingerprint
+      - event_id
+    hash_algo: sha256
+
+  ig.partitioning.v0.audit:
+    description: >
+      Deterministic routing for audit pointer events. Stable ordering only.
+    stream: fp.bus.audit.v1
+    key_precedence:
+      - event_id
+      - manifest_fingerprint
+    hash_algo: sha256
+
+  ig.partitioning.v0.context.arrival_events:
+    description: >
+      Deterministic routing for arrival skeleton context events.
+    stream: fp.bus.context.arrival_events.v1
+    key_precedence:
+      - payload.merchant_id
+      - payload.arrival_seq
+      - event_id
+    hash_algo: sha256
+
+  ig.partitioning.v0.context.arrival_entities:
+    description: >
+      Deterministic routing for arrival entity attachments.
+    stream: fp.bus.context.arrival_entities.v1
+    key_precedence:
+      - payload.merchant_id
+      - payload.arrival_seq
+      - event_id
+    hash_algo: sha256
+
+  ig.partitioning.v0.context.flow_anchor.baseline:
+    description: >
+      Deterministic routing for baseline flow anchor context.
+    stream: fp.bus.context.flow_anchor.baseline.v1
+    key_precedence:
+      - payload.flow_id
+      - payload.merchant_id
+      - payload.arrival_seq
+      - event_id
+    hash_algo: sha256
+
+  ig.partitioning.v0.context.flow_anchor.fraud:
+    description: >
+      Deterministic routing for post-overlay flow anchor context.
+    stream: fp.bus.context.flow_anchor.fraud.v1
+    key_precedence:
+      - payload.flow_id
+      - payload.merchant_id
+      - payload.arrival_seq
+      - event_id
+    hash_algo: sha256
+
+  ig.partitioning.v0.rtdl.decision:
+    description: >
+      Deterministic routing for Decision Fabric decision responses.
+    stream: fp.bus.rtdl.v1
+    key_precedence:
+      - payload.source_event.event_id
+      - payload.pins.platform_run_id
+      - payload.pins.scenario_run_id
+      - event_id
+    hash_algo: sha256
+
+  ig.partitioning.v0.rtdl.action_intent:
+    description: >
+      Deterministic routing for Decision Fabric action intents.
+    stream: fp.bus.rtdl.v1
+    key_precedence:
+      - payload.idempotency_key
+      - payload.decision_id
+      - payload.pins.platform_run_id
+      - payload.pins.scenario_run_id
+      - event_id
+    hash_algo: sha256
+
+  ig.partitioning.v0.rtdl.action_outcome:
+    description: >
+      Deterministic routing for Action Layer outcomes.
+    stream: fp.bus.rtdl.v1
+    key_precedence:
+      - payload.idempotency_key
+      - payload.decision_id
+      - payload.pins.platform_run_id
+      - payload.pins.scenario_run_id
+      - event_id
+    hash_algo: sha256
+
+  ig.partitioning.v0.case.trigger:
+    description: >
+      Deterministic routing for CaseTrigger events into the case/labels lane.
+    stream: fp.bus.case.v1
+    key_precedence:
+      - payload.case_id
+      - payload.case_subject_key.event_id
+      - payload.pins.platform_run_id
+      - event_id
+    hash_algo: sha256

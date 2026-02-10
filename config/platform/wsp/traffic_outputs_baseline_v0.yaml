@@ -1,0 +1,3 @@
+version: "0.1.0"
+output_ids:
+  - s2_event_stream_baseline_6B

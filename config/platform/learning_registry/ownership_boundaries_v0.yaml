@@ -1,0 +1,17 @@
+owners:
+  ofs: "Offline Feature Plane owns dataset-manifest materialization truth."
+  mf: "Model Factory owns train/eval evidence and bundle publication intent."
+  mpr_registry: "Model/Policy Registry owns ACTIVE lifecycle and deterministic scope resolution."
+  df: "Decision Fabric consumes registry resolution and records resolved bundle provenance."
+inputs:
+  - dataset_manifest_refs
+  - eval_report_refs
+  - bundle_publication_refs
+  - registry_lifecycle_events
+  - df_resolution_requests
+outputs:
+  - dataset_manifest
+  - eval_report
+  - bundle_publication
+  - registry_event
+  - df_resolution_response

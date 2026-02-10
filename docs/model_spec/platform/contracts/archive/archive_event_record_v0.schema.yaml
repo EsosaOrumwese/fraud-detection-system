@@ -1,0 +1,70 @@
+$schema: "https://json-schema.org/draft/2020-12/schema"
+title: Archive Event Record v0
+type: object
+additionalProperties: false
+required:
+  - archived_at_utc
+  - platform_run_id
+  - scenario_run_id
+  - manifest_fingerprint
+  - parameter_hash
+  - scenario_id
+  - event_id
+  - event_type
+  - ts_utc
+  - payload_hash
+  - origin_offset
+  - envelope
+properties:
+  archived_at_utc:
+    type: string
+    minLength: 1
+  platform_run_id:
+    type: string
+    minLength: 1
+  scenario_run_id:
+    type: string
+    minLength: 1
+  manifest_fingerprint:
+    type: string
+    minLength: 1
+  parameter_hash:
+    type: string
+    minLength: 1
+  scenario_id:
+    type: string
+    minLength: 1
+  seed:
+    type: string
+  event_id:
+    type: string
+    minLength: 1
+  event_type:
+    type: string
+    minLength: 1
+  ts_utc:
+    type: string
+    minLength: 1
+  payload_hash:
+    type: string
+    minLength: 8
+  origin_offset:
+    type: object
+    additionalProperties: false
+    required: [topic, partition, offset, offset_kind]
+    properties:
+      topic:
+        type: string
+        minLength: 1
+      partition:
+        type: integer
+        minimum: 0
+      offset:
+        type: string
+        minLength: 1
+      offset_kind:
+        type: string
+        minLength: 1
+  envelope:
+    type: object
+    additionalProperties: true

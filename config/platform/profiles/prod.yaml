@@ -1,0 +1,102 @@
+profile_id: prod
+policy:
+  policy_rev: prod-v0
+  partitioning_profiles_ref: config/platform/ig/partitioning_profiles_v0.yaml
+  partitioning_profile_id: ig.partitioning.v0.traffic
+  require_gate_pass: true
+  stream_speedup: 1.0
+  traffic_output_ids_ref: config/platform/wsp/traffic_outputs_v0.yaml
+  context_output_ids_ref: config/platform/wsp/context_fraud_outputs_v0.yaml
+  context_output_ids_baseline_ref: config/platform/wsp/context_baseline_outputs_v0.yaml
+wiring:
+  object_store:
+    bucket: fraud-platform
+    endpoint: ${OBJECT_STORE_ENDPOINT}
+  health_bus_probe_mode: describe
+  oracle_root: ${ORACLE_ROOT}
+  oracle_engine_run_root: ${ORACLE_ENGINE_RUN_ROOT}
+  oracle_scenario_id: ${ORACLE_SCENARIO_ID}
+  oracle_stream_view_root: ${ORACLE_STREAM_VIEW_ROOT}
+  ig_ingest_url: ${IG_INGEST_URL}
+  admission_db_path: ${IG_ADMISSION_DSN}
+  event_bus_kind: kinesis
+  event_bus:
+    topic_traffic: fp.bus.traffic.v1
+    topic_control: fp.bus.control.v1
+    topic_audit: fp.bus.audit.v1
+    stream: ${EVENT_BUS_STREAM}
+  control_bus:
+    kind: kinesis
+    root: runs/fraud-platform/control_bus
+    topic: fp.bus.control.v1
+    stream: ${CONTROL_BUS_STREAM}
+    region: ${CONTROL_BUS_REGION}
+    endpoint_url: ${CONTROL_BUS_ENDPOINT_URL}
+  wsp_checkpoint:
+    backend: postgres
+    dsn: ${WSP_CHECKPOINT_DSN}
+    flush_every: 100
+  wsp_retry:
+    max_attempts: 5
+    base_delay_ms: 250
+    max_delay_ms: 5000
+  wsp_producer:
+    producer_id: svc:world_stream_producer
+    allowlist_ref: config/platform/wsp/producer_allowlist_v0.txt
+  security:
+    auth_mode: service_token
+    api_key_header: X-IG-Service-Token
+    service_token_secrets_env: IG_SERVICE_TOKEN_SECRETS
+    auth_allowlist:
+      - world_stream_producer
+      - platform_run_reporter
+      - decision_fabric
+      - action_layer
+    wsp_auth_token: ${IG_SERVICE_TOKEN}
+    push_rate_limit_per_minute: 0
+    store_read_failure_threshold: 3
+ieg:
+  policy:
+    classification_ref: config/platform/ieg/classification_v0.yaml
+    identity_hints_ref: config/platform/ieg/identity_hints_v0.yaml
+    retention_ref: config/platform/ieg/retention_v0.yaml
+    class_map_ref: config/platform/ig/class_map_v0.yaml
+    partitioning_profiles_ref: config/platform/ig/partitioning_profiles_v0.yaml
+    graph_stream_id: ieg.v0
+  wiring:
+    projection_db_dsn: ${IEG_PROJECTION_DSN}
+    event_bus_kind: kinesis
+    event_bus:
+      stream: ${EVENT_BUS_STREAM}
+      region: ${EVENT_BUS_REGION}
+      endpoint_url: ${EVENT_BUS_ENDPOINT_URL}
+      topics_ref: config/platform/ieg/topics_v0.yaml
+    engine_contracts_root: docs/model_spec/data-engine/interface_pack/contracts
+    poll_max_records: 200
+    poll_sleep_seconds: 0.2
+    checkpoint_every: 1
+    max_inflight: 200
+    batch_size: 50
+ofp:
+  policy:
+    stream_id: ofp.v0
+    features_ref: config/platform/ofp/features_v0.yaml
+    feature_group_name: core_features
+    feature_group_version: v1
+    key_precedence: [flow_id, event_id]
+    amount_fields: [amount]
+  wiring:
+    projection_db_dsn: ${OFP_PROJECTION_DSN}
+    event_bus_kind: kinesis
+    event_bus:
+      stream: ${EVENT_BUS_STREAM}
+      region: ${EVENT_BUS_REGION}
+      endpoint_url: ${EVENT_BUS_ENDPOINT_URL}
+      topics_ref: config/platform/ofp/topics_v0.yaml
+    engine_contracts_root: docs/model_spec/data-engine/interface_pack/contracts
+    poll_max_records: 200
+    poll_sleep_seconds: 0.2
+dl:
+  policy:
+    profiles_ref: config/platform/dl/policy_profiles_v0.yaml
+    profile_id: prod

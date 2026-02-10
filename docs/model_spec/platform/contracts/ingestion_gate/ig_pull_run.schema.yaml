@@ -1,0 +1,55 @@
+# DEPRECATED: legacy pull ingestion (streaming-only v0); retained for historical reference.
+$schema: https://json-schema.org/draft/2020-12/schema
+$id: ig_pull_run.schema.yaml
+title: IG Pull Run Summary
+type: object
+additionalProperties: false
+required:
+  - run_id
+  - status
+  - counts
+  - output_ids
+  - started_at_utc
+properties:
+  run_id:
+    $ref: "#/$defs/hex32"
+  message_id:
+    type: string
+    minLength: 1
+    maxLength: 256
+  status:
+    type: string
+    enum: [IN_PROGRESS, COMPLETED, PARTIAL, FAILED]
+  counts:
+    type: object
+    additionalProperties: false
+    required: [ADMIT, DUPLICATE, QUARANTINE]
+    properties:
+      ADMIT:
+        type: integer
+        minimum: 0
+      DUPLICATE:
+        type: integer
+        minimum: 0
+      QUARANTINE:
+        type: integer
+        minimum: 0
+  output_ids:
+    type: array
+    items:
+      type: string
+      minLength: 1
+      maxLength: 256
+  facts_view_ref:
+    type: string
+    minLength: 1
+  started_at_utc:
+    type: string
+    format: date-time
+  completed_at_utc:
+    type: string
+    format: date-time
+$defs:
+  hex32:
+    type: string
+    pattern: "^[0-9a-f]{32}$"
