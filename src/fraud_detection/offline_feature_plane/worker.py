@@ -17,10 +17,16 @@ from urllib.parse import urlparse
 
 import yaml
 
+from fraud_detection.platform_governance import (
+    EvidenceRefResolutionError,
+    EvidenceRefResolutionRequest,
+    build_evidence_ref_resolution_corridor,
+)
 from fraud_detection.platform_runtime import resolve_platform_run_id, resolve_run_scoped_path
 from fraud_detection.scenario_runner.storage import S3ObjectStore, build_object_store
 
 from .contracts import OfsBuildIntent
+from .observability import OfsRunReporter
 from .phase3 import OfsBuildPlanResolver, OfsBuildPlanResolverConfig
 from .phase4 import OfsReplayBasisResolver, OfsReplayBasisResolverConfig, ReplayBasisEvidence
 from .phase5 import OfsLabelAsOfResolver, OfsLabelResolverConfig
@@ -83,6 +89,10 @@ class OfsWorkerConfig:
     launcher_policy_id: str
     launcher_policy_revision: str
     run_config_digest: str
+    evidence_ref_actor_id: str
+    evidence_ref_source_type: str
+    evidence_ref_purpose: str
+    evidence_ref_strict: bool
 
 
 class OfsJobWorker:
@@ -98,6 +108,18 @@ class OfsJobWorker:
         self.control = OfsRunControl(
             ledger=self.ledger,
             policy=OfsRunControlPolicy(max_publish_retry_attempts=config.max_publish_retry_attempts),
+        )
+        self.corridor = build_evidence_ref_resolution_corridor(
+            store=self.store,
+            actor_allowlist=[config.evidence_ref_actor_id],
+        )
+        self.reporter = OfsRunReporter(
+            locator=config.run_ledger_locator,
+            platform_run_id=config.required_platform_run_id or config.platform_run_id or "_unknown",
+            object_store_root=config.object_store_root,
+            object_store_endpoint=config.object_store_endpoint,
+            object_store_region=config.object_store_region,
+            object_store_path_style=config.object_store_path_style,
         )
 
     def run_once(self) -> int:
@@ -116,6 +138,7 @@ class OfsJobWorker:
             processed += 1
             if processed >= self.config.request_batch_limit:
                 break
+        self._export_observability()
         return processed
 
     def run_forever(self) -> None:
@@ -217,6 +240,28 @@ class OfsJobWorker:
         request_run_id = self._request_platform_run_id(request_payload)
         if intent.platform_run_id != request_run_id:
             raise _RequestError("RUN_SCOPE_INVALID", "request platform_run_id does not match intent")
+        scenario_run_id = str(intent.scenario_run_ids[0]) if intent.scenario_run_ids else None
+        self._enforce_protected_ref(
+            platform_run_id=intent.platform_run_id,
+            scenario_run_id=scenario_run_id,
+            purpose=f"{self.config.evidence_ref_purpose}:run_facts_ref",
+            ref_type="artifact_ref",
+            ref_id=intent.run_facts_ref,
+        )
+        self._enforce_protected_ref(
+            platform_run_id=intent.platform_run_id,
+            scenario_run_id=scenario_run_id,
+            purpose=f"{self.config.evidence_ref_purpose}:replay_eb_observations_ref",
+            ref_type="artifact_ref",
+            ref_id=self.config.replay_eb_observations_ref,
+        )
+        self._enforce_protected_ref(
+            platform_run_id=intent.platform_run_id,
+            scenario_run_id=scenario_run_id,
+            purpose=f"{self.config.evidence_ref_purpose}:replay_archive_observations_ref",
+            ref_type="artifact_ref",
+            ref_id=self.config.replay_archive_observations_ref,
+        )
 
         submitted = self.control.enqueue(intent=intent, queued_at_utc=_utc_now())
         run_key = submitted.run_key
@@ -534,6 +579,43 @@ class OfsJobWorker:
             }
         return _normalize_mapping(payload)
 
+    def _enforce_protected_ref(
+        self,
+        *,
+        platform_run_id: str,
+        scenario_run_id: str | None,
+        purpose: str,
+        ref_type: str,
+        ref_id: str | None,
+    ) -> None:
+        ref = _none_if_blank(ref_id)
+        if not ref:
+            return
+        try:
+            result = self.corridor.resolve(
+                EvidenceRefResolutionRequest(
+                    actor_id=self.config.evidence_ref_actor_id,
+                    source_type=self.config.evidence_ref_source_type,
+                    source_component="offline_feature_plane",
+                    purpose=str(purpose),
+                    ref_type=str(ref_type),
+                    ref_id=str(ref),
+                    platform_run_id=str(platform_run_id),
+                    scenario_run_id=scenario_run_id,
+                ),
+                raise_on_denied=bool(self.config.evidence_ref_strict),
+            )
+            if str(result.resolution_status).upper() != "RESOLVED":
+                raise _RequestError("REF_ACCESS_DENIED", str(result.reason_code or "REF_ACCESS_DENIED"))
+        except EvidenceRefResolutionError as exc:
+            raise _RequestError("REF_ACCESS_DENIED", str(exc)) from exc
+
+    def _export_observability(self) -> None:
+        try:
+            self.reporter.export()
+        except Exception:
+            logger.exception("OFS observability export failed platform_run_id=%s", self.config.required_platform_run_id or self.config.platform_run_id)
+
 def load_worker_config(profile_path: Path) -> OfsWorkerConfig:
     payload = yaml.safe_load(profile_path.read_text(encoding="utf-8"))
     if not isinstance(payload, Mapping):
@@ -612,6 +694,34 @@ def load_worker_config(profile_path: Path) -> OfsWorkerConfig:
         )
         or "unknown"
     )
+    evidence_ref_actor_id = str(
+        _env(
+            ofs_wiring.get("evidence_ref_actor_id")
+            or os.getenv("OFS_EVIDENCE_REF_ACTOR_ID")
+            or "SYSTEM::ofs_worker"
+        )
+    ).strip() or "SYSTEM::ofs_worker"
+    evidence_ref_source_type = str(
+        _env(
+            ofs_wiring.get("evidence_ref_source_type")
+            or os.getenv("OFS_EVIDENCE_REF_SOURCE_TYPE")
+            or "SYSTEM"
+        )
+    ).strip() or "SYSTEM"
+    evidence_ref_purpose = str(
+        _env(
+            ofs_wiring.get("evidence_ref_purpose")
+            or os.getenv("OFS_EVIDENCE_REF_PURPOSE")
+            or "ofs_dataset_build"
+        )
+    ).strip() or "ofs_dataset_build"
+    evidence_ref_strict = _bool_env(
+        _env(
+            ofs_wiring.get("evidence_ref_strict")
+            or os.getenv("OFS_EVIDENCE_REF_STRICT")
+            or "true"
+        )
+    )
 
     max_publish_retry_attempts = _int_or_default(
         _env(ofs_wiring.get("max_publish_retry_attempts")),
@@ -640,6 +750,10 @@ def load_worker_config(profile_path: Path) -> OfsWorkerConfig:
         object_store_root=object_store_root,
         feature_profile_ref=feature_profile_ref,
         service_release_id=service_release_id,
+        evidence_ref_actor_id=evidence_ref_actor_id,
+        evidence_ref_source_type=evidence_ref_source_type,
+        evidence_ref_purpose=evidence_ref_purpose,
+        evidence_ref_strict=evidence_ref_strict,
     )
 
     return OfsWorkerConfig(
@@ -668,6 +782,10 @@ def load_worker_config(profile_path: Path) -> OfsWorkerConfig:
         launcher_policy_id=launcher_policy.policy_id,
         launcher_policy_revision=launcher_policy.revision,
         run_config_digest=run_config_digest,
+        evidence_ref_actor_id=evidence_ref_actor_id,
+        evidence_ref_source_type=evidence_ref_source_type,
+        evidence_ref_purpose=evidence_ref_purpose,
+        evidence_ref_strict=evidence_ref_strict,
     )
 
 
@@ -817,6 +935,10 @@ def _run_config_digest(
     object_store_root: str,
     feature_profile_ref: str,
     service_release_id: str,
+    evidence_ref_actor_id: str,
+    evidence_ref_source_type: str,
+    evidence_ref_purpose: str,
+    evidence_ref_strict: bool,
 ) -> str:
     payload = {
         "recipe": "ofs.phase8.run_config_digest.v1",
@@ -836,6 +958,10 @@ def _run_config_digest(
             "object_store_root": object_store_root,
             "feature_profile_ref": feature_profile_ref,
             "service_release_id": service_release_id,
+            "evidence_ref_actor_id": evidence_ref_actor_id,
+            "evidence_ref_source_type": evidence_ref_source_type,
+            "evidence_ref_purpose": evidence_ref_purpose,
+            "evidence_ref_strict": bool(evidence_ref_strict),
         },
     }
     return _sha256_payload(payload)

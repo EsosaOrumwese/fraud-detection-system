@@ -246,6 +246,10 @@ ofs:
     max_publish_retry_attempts: ${OFS_MAX_PUBLISH_RETRY_ATTEMPTS:-3}
     replay_discover_archive_events: ${OFS_REPLAY_DISCOVER_ARCHIVE_EVENTS:-true}
     require_complete_for_dataset_build: ${OFS_REQUIRE_COMPLETE_FOR_DATASET_BUILD:-true}
+    evidence_ref_actor_id: ${OFS_EVIDENCE_REF_ACTOR_ID:-SYSTEM::ofs_worker}
+    evidence_ref_source_type: ${OFS_EVIDENCE_REF_SOURCE_TYPE:-SYSTEM}
+    evidence_ref_purpose: ${OFS_EVIDENCE_REF_PURPOSE:-ofs_dataset_build}
+    evidence_ref_strict: ${OFS_EVIDENCE_REF_STRICT:-true}
 archive_writer:
   policy:
     policy_ref: config/platform/archive_writer/policy_v0.yaml

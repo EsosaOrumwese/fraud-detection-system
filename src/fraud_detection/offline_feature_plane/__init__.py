@@ -57,6 +57,11 @@ from .phase7 import (
     OfsManifestPublisherConfig,
     OfsPhase7PublishError,
 )
+from .observability import (
+    OfsHealthThresholds,
+    OfsObservabilityError,
+    OfsRunReporter,
+)
 from .run_control import OfsRunControl, OfsRunControlPolicy
 from .run_ledger import (
     OFS_RUN_DONE,
@@ -131,4 +136,7 @@ __all__ = [
     "OfsManifestPublisher",
     "OfsManifestPublisherConfig",
     "OfsPhase7PublishError",
+    "OfsHealthThresholds",
+    "OfsObservabilityError",
+    "OfsRunReporter",
 ]

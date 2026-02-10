@@ -541,6 +541,8 @@ def _component_reconciliation_refs(platform_run_id: str) -> list[str]:
         root / "identity_entity_graph" / "reconciliation" / "reconciliation.json",
         root / "context_store_flow_binding" / "reconciliation" / "last_reconciliation.json",
         root / "archive" / "reconciliation" / "archive_writer_reconciliation.json",
+        root / "ofs" / "reconciliation" / "last_reconciliation.json",
+        root / "learning" / "reconciliation" / "ofs_reconciliation.json",
         root / "decision_fabric" / "reconciliation" / "reconciliation.json",
         root / "case_trigger" / "reconciliation" / "reconciliation.json",
         root / "case_mgmt" / "reconciliation" / "last_reconciliation.json",

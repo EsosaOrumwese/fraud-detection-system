@@ -9961,3 +9961,64 @@ If onboarding introduces undocumented manual-only pathways, bypasses run-config 
   - OFS did not bypass label-store/public truth boundaries,
   - run/operate integration did not introduce plane-specific orchestrator forks.
 - Phase 8 now satisfies meta-layer onboarding expectation for OFS before advancing to Phase 9/10 closure gates.
+
+## Entry: 2026-02-10 12:48PM - Platform-level pre-change lock for OFS Phase 9 (obs/gov onboarding)
+
+### Why platform-level tracking is required
+Phase 9 is a meta-layer gate; it determines whether OFS remains operable/auditable as part of full-platform governance, not just as a functionally-correct build corridor.
+
+### Platform-level decisions pinned for this pass
+- OFS observability stays low-cost and run-scoped: counters + compact reconciliation artifacts, not verbose per-event hot-path logs.
+- OFS lifecycle governance facts must be idempotent and attributable, and must not rewrite run history.
+- Evidence-ref consumption by OFS must pass through corridor checks with auditable resolution outcomes.
+- OFS reconciliation outputs must be discoverable by platform-level report/reconciliation surfaces.
+
+### Expected closure evidence
+- OFS observability reporter surfaces landed (metrics/health/reconciliation/governance files).
+- Worker enforces evidence-ref resolution checks on protected refs before consumption.
+- Platform reconciliation discovery includes OFS contribution refs.
+- Targeted Phase 9 tests + full OFS regression matrix pass and are logged.
+
+### Drift sentinel checkpoint
+If OFS Phase 9 introduces unbounded logging overhead, non-idempotent lifecycle emission, or ref-consumption paths that bypass evidence corridor checks, treat as material drift and block closure.
+
+## Entry: 2026-02-10 1:00PM - Platform-level applied closure for OFS Phase 9 (obs/gov onboarding)
+
+### What was applied
+- OFS obs/gov onboarding landed with run-scoped metrics/governance/reconciliation export surfaces:
+  - `src/fraud_detection/offline_feature_plane/observability.py`
+  - `src/fraud_detection/offline_feature_plane/worker.py` (corridor enforcement + reporter export integration)
+  - `src/fraud_detection/offline_feature_plane/__init__.py` (exports)
+  - `src/fraud_detection/platform_reporter/run_reporter.py` (OFS reconciliation ref discovery)
+- Local parity profile now carries explicit OFS evidence-ref corridor wiring defaults:
+  - `config/platform/profiles/local_parity.yaml`
+
+### Platform-significant outcomes
+- Learning plane now has explicit run-scoped OFS counters and reconciliation artifacts, closing a meta-layer visibility gap before MF/MPR deepening.
+- OFS protected-ref consumption is now corridor-governed and auditable under platform governance facts (`EVIDENCE_REF_RESOLVED` + denial anomalies).
+- Platform reporter reconciliation discovery now includes OFS contribution refs when present, improving cross-plane reconciliation completeness.
+
+### Validation evidence
+- `python -m pytest tests/services/offline_feature_plane/test_phase9_observability.py -q --import-mode=importlib` (`3 passed`).
+- `python -m pytest tests/services/platform_reporter/test_run_reporter.py -q --import-mode=importlib` (`2 passed`).
+- `python -m pytest tests/services/offline_feature_plane/test_phase1_contracts.py tests/services/offline_feature_plane/test_phase1_ids.py tests/services/offline_feature_plane/test_phase2_run_ledger.py tests/services/offline_feature_plane/test_phase3_resolver.py tests/services/offline_feature_plane/test_phase4_replay_basis.py tests/services/offline_feature_plane/test_phase5_label_resolver.py tests/services/offline_feature_plane/test_phase6_dataset_draft.py tests/services/offline_feature_plane/test_phase7_manifest_publication.py tests/services/offline_feature_plane/test_phase8_run_operate_worker.py tests/services/offline_feature_plane/test_phase9_observability.py tests/services/learning_registry/test_phase61_contracts.py -q --import-mode=importlib` (`53 passed`).
+
+### Drift sentinel assessment
+- No platform-flow contradiction detected for Phase 9 scope.
+- Added telemetry/governance remained bounded and run-scoped, consistent with Obs/Gov pre-design pins.
+- Ref-access enforcement now blocks cross-run protected reads fail-closed, reducing silent cross-scope drift risk.
+
+## Entry: 2026-02-10 1:05PM - Platform hardening follow-up for OFS protected-ref enforcement
+
+### What changed
+- Tightened OFS protected-ref corridor posture so denial is always fail-closed even if corridor strict mode is configured off.
+- Updated file:
+  - `src/fraud_detection/offline_feature_plane/worker.py`
+
+### Why this matters platform-wide
+- Removes a configuration path that could have weakened evidence-governance enforcement.
+- Keeps OFS aligned with platform doctrine: unknown/denied protected evidence access must reject, not continue.
+
+### Validation evidence
+- OFS Phase 9 targeted matrix: `3 passed`.
+- OFS full regression matrix (Phase 1..9 + learning contracts): `53 passed`.

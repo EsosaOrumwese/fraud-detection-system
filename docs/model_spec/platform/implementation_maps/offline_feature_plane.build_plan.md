@@ -196,6 +196,17 @@ Provide a closure-grade, component-scoped plan for Offline Feature Plane (OFS) a
 - Reconciliation artifact includes OFS contribution refs and compact run summary.
 - Evidence-ref resolution audit is enforced for protected refs consumed by OFS.
 
+**Implementation status note (2026-02-10):**
+- Phase 9 obs/gov corridor implemented:
+  - `src/fraud_detection/offline_feature_plane/observability.py`
+  - `src/fraud_detection/offline_feature_plane/worker.py` (evidence-ref corridor enforcement + reporter export hook)
+  - `src/fraud_detection/offline_feature_plane/__init__.py` (Phase 9 exports)
+  - `src/fraud_detection/platform_reporter/run_reporter.py` (OFS reconciliation ref discovery)
+- Validation evidence:
+  - `python -m pytest tests/services/offline_feature_plane/test_phase9_observability.py -q --import-mode=importlib` (`3 passed`)
+  - `python -m pytest tests/services/platform_reporter/test_run_reporter.py -q --import-mode=importlib` (`2 passed`)
+  - `python -m pytest tests/services/offline_feature_plane/test_phase1_contracts.py tests/services/offline_feature_plane/test_phase1_ids.py tests/services/offline_feature_plane/test_phase2_run_ledger.py tests/services/offline_feature_plane/test_phase3_resolver.py tests/services/offline_feature_plane/test_phase4_replay_basis.py tests/services/offline_feature_plane/test_phase5_label_resolver.py tests/services/offline_feature_plane/test_phase6_dataset_draft.py tests/services/offline_feature_plane/test_phase7_manifest_publication.py tests/services/offline_feature_plane/test_phase8_run_operate_worker.py tests/services/offline_feature_plane/test_phase9_observability.py tests/services/learning_registry/test_phase61_contracts.py -q --import-mode=importlib` (`53 passed`)
+
 ### Phase 10 - Integration closure gate (platform Phase 6.2 closure evidence)
 **Intent:** prove OFS corridor is complete and safe before deeper Phase 6 work advances.
 
@@ -243,4 +254,5 @@ Provide a closure-grade, component-scoped plan for Offline Feature Plane (OFS) a
 - Phase 6 (`deterministic feature reconstruction and dataset drafting`): complete (implemented and validated on `2026-02-10`).
 - Phase 7 (`artifact publication + DatasetManifest authority`): complete (implemented and validated on `2026-02-10`).
 - Phase 8 (`run/operate onboarding`): complete (implemented and validated on `2026-02-10`).
-- Next action: begin Phase 9 implementation (`obs/gov onboarding`).
+- Phase 9 (`obs/gov onboarding`): complete (implemented and validated on `2026-02-10`).
+- Next action: begin Phase 10 implementation (`integration closure gate`).

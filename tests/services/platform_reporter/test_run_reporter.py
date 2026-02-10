@@ -69,6 +69,16 @@ def test_platform_run_reporter_exports_cross_plane_artifact(tmp_path: Path, monk
         "{}",
         encoding="utf-8",
     )
+    (runs_root / platform_run_id / "ofs" / "reconciliation").mkdir(parents=True, exist_ok=True)
+    (runs_root / platform_run_id / "ofs" / "reconciliation" / "last_reconciliation.json").write_text(
+        "{}",
+        encoding="utf-8",
+    )
+    (runs_root / platform_run_id / "learning" / "reconciliation").mkdir(parents=True, exist_ok=True)
+    (runs_root / platform_run_id / "learning" / "reconciliation" / "ofs_reconciliation.json").write_text(
+        "{}",
+        encoding="utf-8",
+    )
     _seed_case_label_observability_artifacts(runs_root=runs_root, platform_run_id=platform_run_id, scenario_run_id=scenario_run_id)
     (runs_root / platform_run_id / "decision_log_audit" / "metrics").mkdir(parents=True, exist_ok=True)
     (runs_root / platform_run_id / "decision_log_audit" / "metrics" / "last_metrics.json").write_text(
@@ -102,6 +112,10 @@ def test_platform_run_reporter_exports_cross_plane_artifact(tmp_path: Path, monk
     assert payload["artifact_refs"]["object_store_path"].endswith("/obs/platform_run_report.json")
     assert any(
         ("case_trigger" in item) and ("reconciliation" in item)
+        for item in payload["evidence_refs"]["component_reconciliation_refs"]
+    )
+    assert any(
+        ("ofs" in item) and ("reconciliation" in item)
         for item in payload["evidence_refs"]["component_reconciliation_refs"]
     )
 

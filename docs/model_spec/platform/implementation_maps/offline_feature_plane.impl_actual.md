@@ -818,3 +818,123 @@ Two matrix gaps were discovered while validating Phase 8 and were closed immedia
 ### Plan progression
 - OFS Phase 8 is closed.
 - Next active OFS phase is Phase 9 (`obs/gov onboarding`).
+
+## Entry: 2026-02-10 12:48PM - Pre-change implementation lock for OFS Phase 9 (obs/gov onboarding)
+
+### Trigger
+User requested progression to OFS Phase 9 implementation.
+
+### Phase objective (DoD-locked)
+Implement OFS obs/gov surfaces without hot-path bloat:
+- run-scoped OFS counters (`build_requested/completed/failed`, `datasets_built`, anomaly classes),
+- governance lifecycle facts for dataset build completion/failure and parity outcomes,
+- OFS reconciliation artifact with contribution refs + compact summary,
+- evidence-ref resolution audit enforcement for protected refs consumed by OFS.
+
+### Authorities used
+- `docs/model_spec/platform/implementation_maps/offline_feature_plane.build_plan.md` (Phase 9 DoD)
+- `docs/model_spec/platform/implementation_maps/platform.build_plan.md` (Phase 6.2/6.6/6.7 meta-layer closure intent)
+- `docs/model_spec/platform/pre-design_decisions/observability_and_governance.pre-design_decisions.md`
+- `docs/model_spec/platform/pre-design_decisions/learning_and_evolution.pre-design_decisions.md`
+- `docs/model_spec/platform/component-specific/flow-narrative-platform-design.md` (Learning + Obs/Gov lane)
+- `docs/model_spec/platform/component-specific/offline_feature_plane.design-authority.md` (S7 announce/prove/observe posture)
+
+### Problem framing and alternatives considered
+1. **How to emit governance lifecycle facts for OFS without increasing hot-path cost**
+   - Option A: emit synchronous governance writes on every low-level OFS action.
+   - Option B: derive low-volume lifecycle facts from durable run ledger state and emit idempotently during periodic reporter export.
+   - Decision: Option B to preserve low overhead and deterministic replayability.
+2. **How to enforce evidence-ref access auditing for OFS consumed refs**
+   - Option A: ad-hoc local file existence checks only.
+   - Option B: enforce via `EvidenceRefResolutionCorridor` before consuming protected refs, with audit/anomaly emission on each resolution.
+   - Decision: Option B; this aligns with pinned corridor checks and ref-access governance.
+3. **How to expose OFS reconciliation to platform-wide reporter**
+   - Option A: keep OFS reconciliation private to component path only.
+   - Option B: write OFS component reconciliation + learning-lane contribution artifact and add reporter discovery refs.
+   - Decision: Option B to keep Phase 9 evidence visible in platform reconciliation surfaces.
+
+### Implementation plan
+1. Add OFS observability/governance module with run reporter + metrics/health/reconciliation export and idempotent lifecycle event emission.
+2. Integrate OFS worker with:
+   - evidence-ref resolution corridor checks for protected consumed refs,
+   - periodic run-scoped observability export after request processing cycles.
+3. Add OFS Phase 9 tests covering:
+   - counters + anomaly classes + reconciliation payload,
+   - lifecycle governance idempotency,
+   - evidence-ref denial fail-closed behavior in worker flow.
+4. Extend platform reporter reconciliation-ref discovery for OFS contribution artifacts.
+5. Run Phase 9 targeted matrix + full OFS regression matrix, then update build-plan status and decision trail.
+
+### Drift sentinel checkpoint (pre-code)
+No design-intent contradiction detected for this phase lock. Any implementation that performs heavy per-event logging on OFS hot paths, bypasses evidence-ref corridor checks, or emits mutable/non-run-scoped reconciliation artifacts is material drift and must be blocked.
+
+## Entry: 2026-02-10 1:00PM - Applied OFS Phase 9 implementation and validation closure
+
+### Implemented files and surfaces
+- `src/fraud_detection/offline_feature_plane/observability.py` (new)
+  - `OfsRunReporter` with run-scoped counters, anomaly-class summaries, health derivation, lifecycle governance event emission, and reconciliation export.
+  - OFS governance markers + append-only event emission under `runs/<platform_run_id>/ofs/governance/`.
+  - OFS reconciliation contribution artifact under `runs/<platform_run_id>/learning/reconciliation/ofs_reconciliation.json`.
+  - Evidence-ref resolution audit summary extraction from run-scoped governance stream (`obs/governance/events.jsonl`) for OFS source actor/component.
+- `src/fraud_detection/offline_feature_plane/worker.py`
+  - integrated `EvidenceRefResolutionCorridor` for protected ref consumption checks.
+  - enforced fail-closed protected-ref checks before build execution:
+    - `intent.run_facts_ref`,
+    - `replay_eb_observations_ref`,
+    - `replay_archive_observations_ref`.
+  - integrated periodic OFS observability export after worker poll cycles.
+  - added explicit evidence-ref fields in worker config and run-config digest basis.
+- `src/fraud_detection/offline_feature_plane/__init__.py`
+  - exported Phase 9 observability surfaces.
+- `src/fraud_detection/platform_reporter/run_reporter.py`
+  - added OFS reconciliation candidates in component reconciliation ref discovery:
+    - `ofs/reconciliation/last_reconciliation.json`
+    - `learning/reconciliation/ofs_reconciliation.json`.
+- `config/platform/profiles/local_parity.yaml`
+  - added OFS evidence-ref corridor wiring defaults (`actor_id`, `source_type`, `purpose`, strict mode).
+
+### Validation evidence
+- Syntax:
+  - `python -m py_compile src/fraud_detection/offline_feature_plane/observability.py src/fraud_detection/offline_feature_plane/worker.py src/fraud_detection/offline_feature_plane/__init__.py src/fraud_detection/platform_reporter/run_reporter.py tests/services/offline_feature_plane/test_phase9_observability.py tests/services/platform_reporter/test_run_reporter.py` (`PASS`).
+- Phase 9 targeted:
+  - `python -m pytest tests/services/offline_feature_plane/test_phase9_observability.py -q --import-mode=importlib` (`3 passed`).
+- Reporter regression:
+  - `python -m pytest tests/services/platform_reporter/test_run_reporter.py -q --import-mode=importlib` (`2 passed`).
+- OFS full regression:
+  - `python -m pytest tests/services/offline_feature_plane/test_phase1_contracts.py tests/services/offline_feature_plane/test_phase1_ids.py tests/services/offline_feature_plane/test_phase2_run_ledger.py tests/services/offline_feature_plane/test_phase3_resolver.py tests/services/offline_feature_plane/test_phase4_replay_basis.py tests/services/offline_feature_plane/test_phase5_label_resolver.py tests/services/offline_feature_plane/test_phase6_dataset_draft.py tests/services/offline_feature_plane/test_phase7_manifest_publication.py tests/services/offline_feature_plane/test_phase8_run_operate_worker.py tests/services/offline_feature_plane/test_phase9_observability.py tests/services/learning_registry/test_phase61_contracts.py -q --import-mode=importlib` (`53 passed`).
+
+### Test additions
+- `tests/services/offline_feature_plane/test_phase9_observability.py` (new):
+  - validates OFS metrics/health/reconciliation/governance exports from run ledger state,
+  - validates governance marker idempotency on repeated exports,
+  - validates worker fail-closed behavior on protected-ref scope mismatch (`REF_ACCESS_DENIED`).
+- `tests/services/platform_reporter/test_run_reporter.py` updated:
+  - validates OFS reconciliation refs are discoverable in platform reporter evidence surfaces when present.
+
+### Drift sentinel assessment after implementation
+- No designed-flow contradiction detected.
+- OFS observability remains low-cost and run-scoped (no high-volume per-event logging path added to hot processing loops).
+- Governance lifecycle facts are idempotent via marker files and preserve append-only semantics.
+- Evidence-ref consumption now has explicit audited corridor enforcement and fail-closed denial posture.
+
+### Plan progression
+- OFS Phase 9 is closed.
+- Next active OFS phase is Phase 10 (`integration closure gate`).
+
+## Entry: 2026-02-10 1:05PM - Post-validation hardening: unconditional fail-closed protected-ref enforcement
+
+### Why this hardening was required
+During final review, protected-ref enforcement in `worker.py` could be weakened by configuration (`evidence_ref_strict=false`) because denial handling depended on corridor exception mode.
+
+### Applied decision
+- Keep corridor audit emission behavior but enforce fail-closed regardless of strict-mode toggle:
+  - if corridor returns non-`RESOLVED`, worker now raises `REF_ACCESS_DENIED`.
+- File updated:
+  - `src/fraud_detection/offline_feature_plane/worker.py`
+
+### Validation evidence
+- `python -m pytest tests/services/offline_feature_plane/test_phase9_observability.py -q --import-mode=importlib` (`3 passed`).
+- `python -m pytest tests/services/offline_feature_plane/test_phase1_contracts.py tests/services/offline_feature_plane/test_phase1_ids.py tests/services/offline_feature_plane/test_phase2_run_ledger.py tests/services/offline_feature_plane/test_phase3_resolver.py tests/services/offline_feature_plane/test_phase4_replay_basis.py tests/services/offline_feature_plane/test_phase5_label_resolver.py tests/services/offline_feature_plane/test_phase6_dataset_draft.py tests/services/offline_feature_plane/test_phase7_manifest_publication.py tests/services/offline_feature_plane/test_phase8_run_operate_worker.py tests/services/offline_feature_plane/test_phase9_observability.py tests/services/learning_registry/test_phase61_contracts.py -q --import-mode=importlib` (`53 passed`).
+
+### Drift sentinel note
+This hardening removes a potential silent governance bypass and strengthens alignment with fail-closed doctrine for protected evidence refs.
