@@ -1165,6 +1165,28 @@ Resolved and pinned in:
 **Implementation status note (2026-02-09):**
 - CM Phase 8 and LS Phase 8 component matrices are complete with parity and negative-path artifacts recorded under `runs/fraud-platform/.../case_mgmt/reconciliation/` and `runs/fraud-platform/.../label_store/reconciliation/`.
 
+#### Phase 5.10 — Cross-cutting efficiency hardening gate (meta-layer pre-Phase 6 execution)
+**Goal:** reduce full-stream validation cycle time through shared hot-path hardening without scope-creeping into deep per-component tuning.
+
+**DoD checklist:**
+- Efficiency baseline artifact is produced from a fresh active run and includes:
+  - WSP wall-clock stream runtime from `session.jsonl` (`stream_start` -> `stream_complete`).
+  - Per-output source window (`first_event_ts_utc`, `event_200_ts_utc`) and replay-delay estimate:
+    - `expected_wall_seconds = (event_200_ts_utc - first_event_ts_utc) / stream_speedup`.
+  - IG latency summaries from run-scoped metrics (`admission_seconds`, `phase.publish_seconds`) with median/p95/max.
+  - WSP retry pressure (`retry_total`, `retry_exhausted_total`) from run logs/counters.
+- Local-parity performance budgets are pinned for acceptance:
+  - `20` event full-stream gate wall-clock `<= 300s`.
+  - `200` event full-stream gate wall-clock `<= 1200s`.
+  - IG `admission_seconds` p95 `<= 8s`.
+  - IG `phase.publish_seconds` p95 `<= 5s`.
+  - WSP `retry_exhausted_total = 0` and `retry_total / pushed_events <= 1%`.
+- Scope boundary is explicit and enforced for this gate:
+  - in scope now: `WSP -> IG -> EB` path, run/operate sequencing, and obs/gov measurement surfaces;
+  - deferred: deep micro-optimization inside non-hot-path component internals (captured as post-Phase-6 hardening backlog unless they block these budgets).
+- Validation is rerun in strict order (`20` then `200`) with run-scoped evidence paths in implementation map + logbook.
+- Phase 6 execution is blocked until this gate is PASS, or an explicit user-approved risk acceptance is recorded with rationale and expiry.
+
 ### Phase 6 — Learning & Registry plane
 **Intent:** create deterministic learning loop with reproducible datasets and controlled deployment.
 
@@ -1210,6 +1232,7 @@ Resolved and pinned in:
 - Phase 4 (RTDL plane overall): strict-green closure complete for current scope; residual `4.6.L` items are closed with explicit criteria/evidence.
 - Phase 4.6 (Run/Operate + Obs/Gov meta-layer closure gate): complete (`4.6.A..4.6.K` PASS and `4.6.L` residual closure complete as of 2026-02-09).
 - Phase 5 (Label & Case plane): complete (`5.1..5.9` closed; CaseTrigger/CM/LS integration lane is live under run/operate and reflected in platform reporter/conformance artifacts; latest parity evidence anchored to active run `platform_20260210T052919Z`).
+- Phase 5.10 (cross-cutting efficiency hardening, pre-Phase 6): active/open (baseline captured from `platform_20260210T052919Z`; closure requires `20 -> 200` budget PASS for shared hot path and run-scoped evidence).
 - Phase 5.1 (contracts + identity pins): complete (`CM/LS` contract code + schemas + tests, `22 passed` on 2026-02-09).
 - LS build-plan Phase 2 (writer boundary + idempotency corridor): complete (`5 passed` Phase 2 matrix; LS Phase1+2 `15 passed`; CM label/phase8 regressions `10 passed`; CM full regression `44 passed`; deterministic LS write corridor landed in `src/fraud_detection/label_store/writer_boundary.py` with fail-closed payload hash mismatch handling).
 - LS build-plan Phase 3 (append-only timeline persistence): complete (`4 passed` Phase 3 matrix; LS Phase1..3 `19 passed`; CM label/phase8 regressions `10 passed`; CM full regression `44 passed`; append-only timeline storage + deterministic subject ordering + rebuild utility landed in `src/fraud_detection/label_store/writer_boundary.py`).
@@ -1225,5 +1248,5 @@ Resolved and pinned in:
 - CM build-plan Phase 6 (CM->AL manual action boundary): complete (`6 passed` Phase 6 matrix; CM Phase1..6 `36 passed`; CaseTrigger/IG regression `45 passed`; deterministic manual ActionIntent emission + by-ref outcome attach lane landed in `src/fraud_detection/case_mgmt/action_handshake.py` with policy at `config/platform/case_mgmt/action_emission_policy_v0.yaml` and projection semantics updated in `src/fraud_detection/case_mgmt/intake.py`).
 - CM build-plan Phase 7 (observability, governance, reconciliation): complete (`4 passed` Phase 7 matrix; CM Phase1..7 `40 passed`; CaseTrigger/IG regression `45 passed`; platform reporter regression `2 passed`; CM run-scoped metrics/health/reconciliation and lifecycle governance emission landed in `src/fraud_detection/case_mgmt/observability.py`; Case+Labels reconciliation contribution now emits under `runs/<platform_run_id>/case_labels/reconciliation/{YYYY-MM-DD}.json` and `case_mgmt_reconciliation.json`).
 - CM build-plan Phase 8 (integration closure/parity proof): complete (`4 passed` Phase 8 matrix; CM Phase1..8 `44 passed`; CaseTrigger/IG regression `45 passed`; platform reporter regression `2 passed`; parity artifacts captured at `runs/fraud-platform/platform_20260209T210000Z/case_mgmt/reconciliation/phase8_parity_proof_{20,200}.json` and `phase8_negative_path_proof.json`).
-- Next active platform phase: Phase 6 (Learning & Registry plane), with Phase 5 closure evidence recorded and no open `4.6.L` carry-over blockers.
+- Next active platform phase: Phase 5.10 (cross-cutting efficiency hardening gate); Phase 6 (Learning & Registry) starts only after Phase 5.10 PASS or explicit user-approved risk acceptance.
 - SR v0: complete (see `docs/model_spec/platform/implementation_maps/scenario_runner.build_plan.md`).

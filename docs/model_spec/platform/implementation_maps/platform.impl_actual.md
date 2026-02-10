@@ -8777,3 +8777,60 @@ Run-oriented make targets resolve run id in `PLATFORM_RUN_ID`-first order. A sta
   - substrates in use: MinIO (S3), LocalStack Kinesis, Postgres;
   - run/operate + obs/gov meta layer covers all implemented services;
   - run-scoped conformance/report evidence now binds deterministically to active run context by default.
+
+## Entry: 2026-02-10 08:10AM - Pre-change plan: add cross-cutting efficiency gate before Learning/Registry execution
+
+### Trigger
+User asked whether to optimize now or only after full platform completion, then requested immediate action to encode the chosen approach in the platform plan.
+
+### Evidence informing this decision
+- Latest full-platform run (`platform_20260210T052919Z`) is functionally green but slow in wall-clock:
+  - WSP stream window: `2026-02-10T05:31:26.917437+00:00` -> `2026-02-10T06:04:31.790058+00:00` (`1984.872621s`).
+  - Replay-delay expectation from source `ts_utc` windows at `stream_speedup=600.0` is sub-second per output window (`~0.018s` to `~0.035s`), so runtime is dominated by downstream processing/backpressure, not synthetic sleep.
+  - IG run-scoped metrics for same run show latency pressure:
+    - `admission_seconds` median `~2.05s`, p95 `~19.07s`, max `~25.78s`.
+    - dominant component: `phase.publish_seconds` p95 `~18.77s`, max `~25.44s`.
+- Conclusion: no functional drift; clear cross-cutting throughput inefficiency on hot path (`WSP -> IG -> EB`).
+
+### Alternatives considered
+1. Defer all efficiency work until post-Phase 6/7.
+   - Rejected: would make every upcoming parity loop expensive and can hide regressions behind long feedback cycles.
+2. Pause feature progress and perform broad optimization sweep now.
+   - Rejected: too wide; risks scope creep and rework before Learning/Registry interfaces stabilize.
+3. Hybrid: introduce a narrow pre-Phase-6 cross-cutting efficiency gate now (meta-layer path only), defer deep per-component tuning.
+   - Selected.
+
+### Planned changes (documentation/plan only)
+1. Update `docs/model_spec/platform/implementation_maps/platform.build_plan.md` to add a dedicated pre-Phase-6 section for cross-cutting efficiency hardening (new Phase `5.10`).
+2. Encode explicit DoD, measurement method, and budgets tied to full-stream `20 -> 200` gates.
+3. Update rolling status so next active phase is this efficiency gate, and Phase 6 execution is blocked until gate PASS or explicit user risk acceptance.
+4. Record action in `docs/logbook/02-2026/2026-02-10.md` using project time-bullet format.
+
+## Entry: 2026-02-10 08:14AM - Platform plan updated with Phase 5.10 efficiency gate and explicit pre-Phase-6 control
+
+### Changes applied
+1. Updated `docs/model_spec/platform/implementation_maps/platform.build_plan.md` with a new section:
+   - `Phase 5.10 — Cross-cutting efficiency hardening gate (meta-layer pre-Phase 6 execution)`.
+2. Added explicit DoD for this gate:
+   - mandatory baseline artifact composition,
+   - runtime-vs-replay-delay comparison method,
+   - run-scoped IG latency and WSP retry pressure evidence,
+   - strict `20 -> 200` validation rerun requirement.
+3. Pinned local-parity acceptance budgets in the plan:
+   - `20` events wall-clock `<= 300s`,
+   - `200` events wall-clock `<= 1200s`,
+   - IG admission p95 `<= 8s`,
+   - IG publish p95 `<= 5s`,
+   - WSP retry exhaustion `= 0` and retry ratio `<= 1%`.
+4. Updated rolling status posture:
+   - Phase `5.10` marked active/open.
+   - Next active phase switched from Phase 6 to Phase 5.10.
+   - Phase 6 start now explicitly blocked pending Phase 5.10 PASS or user-approved risk acceptance.
+
+### Why this is the selected control
+- Preserves momentum: avoids broad optimization scope creep before Learning/Registry interfaces are finalized.
+- Reduces upcoming iteration cost: addresses the shared bottleneck path that affects every subsequent plane.
+- Improves governance quality: turns performance drift into an explicit tracked gate rather than an implicit observation.
+
+### Immediate next implementation implication
+- Next execution work should target hot-path throughput closure (`WSP -> IG -> EB`) and produce run-scoped budget evidence for the new 5.10 gate before opening Phase 6 implementation.
