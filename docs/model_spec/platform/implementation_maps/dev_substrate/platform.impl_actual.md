@@ -533,3 +533,33 @@ This pass should only harden migration readiness posture and operator controls; 
 
 ### Drift sentinel checkpoint
 No platform semantic-law change. This pass implements migration readiness controls, secret handling discipline, and fail-closed operator gates.
+
+## Entry: 2026-02-10 10:49PM - Phase 1 closure blocker: dev_min Kafka secrets not visible in execution shell
+
+### Observed blocker
+After implementing Phase 1 tooling, strict closure path remains blocked because required secret inputs are absent in the active shell/session:
+- `DEV_MIN_KAFKA_BOOTSTRAP`
+- `DEV_MIN_KAFKA_API_KEY`
+- `DEV_MIN_KAFKA_API_SECRET`
+
+Validation evidence:
+- `make platform-dev-min-phase1-seed-ssm` fails with explicit missing-value error.
+- `make platform-dev-min-phase1-preflight` fails closed on missing SSM handles:
+  - `/fraud-platform/dev_min/confluent/bootstrap`
+  - `/fraud-platform/dev_min/confluent/api_key`
+  - `/fraud-platform/dev_min/confluent/api_secret`
+- `.env.platform.local` and `.env.local` currently contain no `DEV_MIN|CONFLUENT|KAFKA` key names.
+
+### Confirmed-good behavior
+- Fail-closed posture works as intended (no silent bypass).
+- permissive bootstrap mode still passes with explicit WARNs.
+
+### Unblock path (next action)
+1. Set `DEV_MIN_KAFKA_*` env variables in the same execution context (or add to `.env.platform.local` with those exact names).
+2. Run:
+   - `make platform-dev-min-phase1-seed-ssm`
+   - `make platform-dev-min-phase1-preflight`
+3. Phase 1 closes immediately on strict preflight PASS.
+
+### Drift sentinel checkpoint
+No semantic/runtime drift introduced. This is a secret-materialization dependency blocker only.
