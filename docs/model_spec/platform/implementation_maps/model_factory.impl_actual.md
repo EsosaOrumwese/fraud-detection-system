@@ -176,3 +176,106 @@ If implementation allows non-ref dataset selection, omits deterministic run iden
 ### Plan progression
 - MF Phase 1 is closed.
 - Next MF phase is Phase 2 (`run control + idempotent run ledger`).
+
+## Entry: 2026-02-10 1:42PM - Pre-change implementation lock for MF Phase 2 (run control + idempotent run ledger)
+
+### Trigger
+User directed progression: "Let's move to implementing MF Phase 2."
+
+### Phase objective (DoD-locked)
+Implement durable MF run ledger/control semantics so retries/restarts cannot fork training meaning:
+- stable lifecycle states,
+- deterministic submission identity behavior,
+- explicit publish-only retry path that cannot retrigger full training,
+- persisted input/provenance summary in run receipts.
+
+### Authorities used
+- `docs/model_spec/platform/implementation_maps/model_factory.build_plan.md` (Phase 2 DoD)
+- `docs/model_spec/platform/implementation_maps/platform.build_plan.md` (Phase `6.3` corridor)
+- `src/fraud_detection/offline_feature_plane/run_ledger.py` (reference pattern)
+- `src/fraud_detection/offline_feature_plane/run_control.py` (reference pattern)
+- `tests/services/offline_feature_plane/test_phase2_run_ledger.py` (reference matrix)
+- `src/fraud_detection/model_factory/contracts.py` and `ids.py` (Phase 1 identity boundary)
+
+### Problem framing and alternatives considered
+1. Keep MF Phase 2 in-memory only and defer durable ledger semantics.
+   - Rejected: violates at-least-once/idempotency doctrine and restart safety.
+2. Copy OFS ledger semantics without MF-specific state model.
+   - Rejected: MF requires explicit `EVAL_READY`, `PASS/FAIL`, and publication outcome states.
+3. Reuse OFS ledger architecture but adapt MF-specific state machine and payload summaries.
+   - Selected: high implementation reliability with low drift risk.
+
+### Planned MF Phase 2 state model
+- Core states:
+  - `QUEUED`
+  - `RUNNING`
+  - `EVAL_READY`
+  - `PASS`
+  - `FAIL`
+  - `PUBLISH_PENDING`
+  - `PUBLISHED`
+- Execution modes:
+  - `FULL`
+  - `PUBLISH_ONLY`
+- Retry policy:
+  - bounded publish-only retries from `PUBLISH_PENDING`,
+  - no full-run counter increase on publish-only retry.
+
+### Planned file changes
+- New:
+  - `src/fraud_detection/model_factory/run_ledger.py`
+  - `src/fraud_detection/model_factory/run_control.py`
+  - `tests/services/model_factory/test_phase2_run_ledger.py`
+- Update:
+  - `src/fraud_detection/model_factory/__init__.py` exports
+  - build-plan/status docs and implementation/logbook trails.
+
+### Validation plan
+- Compile new MF phase2 files/tests.
+- Run targeted matrix:
+  - `tests/services/model_factory/test_phase2_run_ledger.py`
+- Run combined MF regression:
+  - Phase1 + Phase2 + learning contracts (and OFS phase1 compatibility sanity).
+
+### Drift sentinel checkpoint
+If publish-only retry can increment full-run attempts or if run submission accepts payload mismatch under same idempotency identity, this phase must remain blocked.
+
+## Entry: 2026-02-10 1:51PM - Applied MF Phase 2 implementation (run control + idempotent run ledger)
+
+### Implemented files and surfaces
+- Added MF Phase 2 runtime modules:
+  - `src/fraud_detection/model_factory/run_ledger.py`
+  - `src/fraud_detection/model_factory/run_control.py`
+- Updated MF exports:
+  - `src/fraud_detection/model_factory/__init__.py`
+- Added MF Phase 2 matrix:
+  - `tests/services/model_factory/test_phase2_run_ledger.py`
+
+### Phase 2 outcomes
+- Durable MF run ledger is now available with explicit lifecycle states:
+  - `QUEUED`, `RUNNING`, `EVAL_READY`, `PASS`, `FAIL`, `PUBLISH_PENDING`, `PUBLISHED`.
+- Idempotent submission and fail-closed mismatch posture are enforced:
+  - same request returns duplicate outcome with same run identity,
+  - request payload drift under same request id fails closed (`REQUEST_ID_PAYLOAD_MISMATCH`),
+  - semantic duplicates converge by deterministic run key.
+- Publish-only retry is explicit, bounded, and does not increment full-train attempts.
+- Run receipts persist deterministic input summary and provenance summaries for audit/reconciliation surfaces.
+
+### Validation evidence
+- Syntax:
+  - `python -m py_compile src/fraud_detection/model_factory/run_ledger.py src/fraud_detection/model_factory/run_control.py src/fraud_detection/model_factory/__init__.py tests/services/model_factory/test_phase2_run_ledger.py` (`PASS`).
+- Targeted Phase 2:
+  - `python -m pytest tests/services/model_factory/test_phase2_run_ledger.py -q --import-mode=importlib` (`7 passed`).
+- MF + learning contracts:
+  - `python -m pytest tests/services/model_factory/test_phase1_contracts.py tests/services/model_factory/test_phase1_ids.py tests/services/model_factory/test_phase2_run_ledger.py tests/services/learning_registry/test_phase61_contracts.py -q --import-mode=importlib` (`22 passed`).
+- MF + OFS + learning regression:
+  - `python -m pytest tests/services/model_factory/test_phase1_contracts.py tests/services/model_factory/test_phase1_ids.py tests/services/model_factory/test_phase2_run_ledger.py tests/services/offline_feature_plane/test_phase1_contracts.py tests/services/offline_feature_plane/test_phase1_ids.py tests/services/offline_feature_plane/test_phase2_run_ledger.py tests/services/learning_registry/test_phase61_contracts.py -q --import-mode=importlib` (`39 passed`).
+
+### Drift sentinel assessment
+- No designed-flow contradiction detected for Phase 2 scope.
+- Ownership boundaries remain intact and explicit.
+- Retry and idempotency semantics are now durable and bounded, reducing hidden restart/replay drift risk before Phase 3 resolver work.
+
+### Plan progression
+- MF Phase 2 is closed.
+- Next MF phase is Phase 3 (`input resolver + provenance lock`).

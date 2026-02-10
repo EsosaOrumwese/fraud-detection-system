@@ -1,4 +1,4 @@
-"""Model Factory Phase 1 surfaces."""
+"""Model Factory Phase 1..2 surfaces."""
 
 from .contracts import MfPhase1ContractError, MfTrainBuildRequest, TargetScope
 from .ids import (
@@ -7,6 +7,27 @@ from .ids import (
     canonical_train_run_key_payload,
     deterministic_train_run_id,
     train_run_key,
+)
+from .run_control import MfRunControl, MfRunControlPolicy
+from .run_ledger import (
+    MF_RETRY_ALLOWED,
+    MF_RETRY_EXHAUSTED,
+    MF_RETRY_NOT_PENDING,
+    MF_RUN_EVAL_READY,
+    MF_RUN_FAIL,
+    MF_RUN_PASS,
+    MF_RUN_PUBLISHED,
+    MF_RUN_PUBLISH_PENDING,
+    MF_RUN_QUEUED,
+    MF_RUN_RUNNING,
+    MfPublishRetryDecision,
+    MfRunEvent,
+    MfRunLedger,
+    MfRunLedgerError,
+    MfRunReceipt,
+    MfRunSubmission,
+    canonical_request_payload_hash,
+    deterministic_run_key,
 )
 
 __all__ = [
@@ -18,5 +39,24 @@ __all__ = [
     "canonical_train_run_key_payload",
     "train_run_key",
     "deterministic_train_run_id",
+    "MfRunControl",
+    "MfRunControlPolicy",
+    "MfRunLedger",
+    "MfRunLedgerError",
+    "MfRunReceipt",
+    "MfRunSubmission",
+    "MfRunEvent",
+    "MfPublishRetryDecision",
+    "MF_RUN_QUEUED",
+    "MF_RUN_RUNNING",
+    "MF_RUN_EVAL_READY",
+    "MF_RUN_PASS",
+    "MF_RUN_FAIL",
+    "MF_RUN_PUBLISH_PENDING",
+    "MF_RUN_PUBLISHED",
+    "MF_RETRY_ALLOWED",
+    "MF_RETRY_NOT_PENDING",
+    "MF_RETRY_EXHAUSTED",
+    "deterministic_run_key",
+    "canonical_request_payload_hash",
 ]
-

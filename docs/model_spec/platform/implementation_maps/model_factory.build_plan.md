@@ -78,6 +78,17 @@ Provide an executable, component-scoped plan for Model Factory (MF) aligned to p
 - Publish-only retry is explicit and cannot retrigger training silently.
 - Run records persist deterministic input summary and code/config release IDs.
 
+**Implementation status note (2026-02-10):**
+- Phase 2 run ledger/control implemented:
+  - `src/fraud_detection/model_factory/run_ledger.py`
+  - `src/fraud_detection/model_factory/run_control.py`
+  - `src/fraud_detection/model_factory/__init__.py` (Phase 2 exports)
+  - `tests/services/model_factory/test_phase2_run_ledger.py`
+- Validation evidence:
+  - `python -m pytest tests/services/model_factory/test_phase2_run_ledger.py -q --import-mode=importlib` (`7 passed`).
+  - `python -m pytest tests/services/model_factory/test_phase1_contracts.py tests/services/model_factory/test_phase1_ids.py tests/services/model_factory/test_phase2_run_ledger.py tests/services/learning_registry/test_phase61_contracts.py -q --import-mode=importlib` (`22 passed`).
+  - `python -m pytest tests/services/model_factory/test_phase1_contracts.py tests/services/model_factory/test_phase1_ids.py tests/services/model_factory/test_phase2_run_ledger.py tests/services/offline_feature_plane/test_phase1_contracts.py tests/services/offline_feature_plane/test_phase1_ids.py tests/services/offline_feature_plane/test_phase2_run_ledger.py tests/services/learning_registry/test_phase61_contracts.py -q --import-mode=importlib` (`39 passed`).
+
 ### Phase 3 - Input resolver + provenance lock
 **Intent:** resolve and lock all meaning-shaping refs before train/eval starts.
 
@@ -180,7 +191,7 @@ Provide an executable, component-scoped plan for Model Factory (MF) aligned to p
 
 ## Status (rolling)
 - Phase 1 (`TrainBuildRequest contract + deterministic run identity`): complete (implemented and validated on `2026-02-10`).
-- Phase 2 (`run control + idempotent run ledger`): pending.
+- Phase 2 (`run control + idempotent run ledger`): complete (implemented and validated on `2026-02-10`).
 - Phase 3 (`input resolver + provenance lock`): pending.
 - Phase 4 (`train/eval execution corridor`): pending.
 - Phase 5 (`gate receipt + publish eligibility policy`): pending.
@@ -189,4 +200,4 @@ Provide an executable, component-scoped plan for Model Factory (MF) aligned to p
 - Phase 8 (`run/operate onboarding`): pending.
 - Phase 9 (`obs/gov onboarding`): pending.
 - Phase 10 (`integration closure gate`): pending.
-- Next action: implement Phase 2 (`run control + idempotent run ledger`).
+- Next action: implement Phase 3 (`input resolver + provenance lock`).

@@ -10195,3 +10195,50 @@ Any Phase 1 implementation lacking deterministic run identity or accepting unpin
   - learning/evolution fail-closed compatibility posture,
   - platform ownership doctrine.
 - Residual risk surface now moves to MF Phase 2 run ledger/idempotent lifecycle semantics.
+
+## Entry: 2026-02-10 1:42PM - Platform-level pre-change lock for MF Phase 2
+
+### Why platform-level tracking is required
+MF Phase 2 controls lifecycle semantics that downstream phases assume are stable (`train/eval/gate/publish`). If idempotency or transition rules are weak, Phase `6.3` can pass unit checks but fail under retries/restarts in real orchestrated runs.
+
+### Platform-level decisions pinned for this pass
+- MF run ledger must be durable and replay-safe with explicit transition constraints.
+- Publish-only retry posture must be bounded and must not retrigger full-train semantics.
+- Receipts must preserve deterministic input/provenance summaries for audit and reconciliation.
+- Phase 2 will be implemented as component-local mechanics (no meta-layer bypass, no ACTIVE lifecycle assumptions).
+
+### Expected closure evidence
+- MF run-ledger and run-control modules implemented with tests.
+- Targeted Phase 2 matrix and combined MF regression pass.
+- Build plans and implementation maps updated with closure status and next-phase posture.
+
+### Drift sentinel checkpoint
+Any transition path that allows hidden retraining during publish retry, or silent acceptance of payload mismatch on idempotent submission, is blocker-level drift.
+
+## Entry: 2026-02-10 1:51PM - Platform-level applied closure for MF Phase 2
+
+### What was applied
+- MF Phase 2 run lifecycle surfaces landed:
+  - `src/fraud_detection/model_factory/run_ledger.py`
+  - `src/fraud_detection/model_factory/run_control.py`
+  - `src/fraud_detection/model_factory/__init__.py` (Phase 2 exports)
+- MF Phase 2 matrix added:
+  - `tests/services/model_factory/test_phase2_run_ledger.py`
+- Planning/status surfaces updated:
+  - `docs/model_spec/platform/implementation_maps/model_factory.build_plan.md`
+  - `docs/model_spec/platform/implementation_maps/platform.build_plan.md`
+
+### Platform-significant outcomes
+- Phase `6.3` corridor now has durable MF lifecycle control instead of contract-only posture.
+- Publish-only retry semantics are bounded and explicit, reducing risk of silent retraining during transient registry/publish failures.
+- Deterministic receipt summaries and event timelines are available for later run/operate and obs/gov onboarding phases.
+
+### Validation evidence
+- `python -m py_compile src/fraud_detection/model_factory/run_ledger.py src/fraud_detection/model_factory/run_control.py src/fraud_detection/model_factory/__init__.py tests/services/model_factory/test_phase2_run_ledger.py` (`PASS`).
+- `python -m pytest tests/services/model_factory/test_phase2_run_ledger.py -q --import-mode=importlib` (`7 passed`).
+- `python -m pytest tests/services/model_factory/test_phase1_contracts.py tests/services/model_factory/test_phase1_ids.py tests/services/model_factory/test_phase2_run_ledger.py tests/services/learning_registry/test_phase61_contracts.py -q --import-mode=importlib` (`22 passed`).
+- `python -m pytest tests/services/model_factory/test_phase1_contracts.py tests/services/model_factory/test_phase1_ids.py tests/services/model_factory/test_phase2_run_ledger.py tests/services/offline_feature_plane/test_phase1_contracts.py tests/services/offline_feature_plane/test_phase1_ids.py tests/services/offline_feature_plane/test_phase2_run_ledger.py tests/services/learning_registry/test_phase61_contracts.py -q --import-mode=importlib` (`39 passed`).
+
+### Drift sentinel assessment
+- No mismatch detected against platform flow narrative or pinned learning-plane decisions for Phase 2 scope.
+- Residual risk surface now moves to MF Phase 3 input/provenance resolver enforcement.
