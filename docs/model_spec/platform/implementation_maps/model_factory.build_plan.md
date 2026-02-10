@@ -149,6 +149,22 @@ Provide an executable, component-scoped plan for Model Factory (MF) aligned to p
 - FAIL outcomes remain forensics-only and cannot publish.
 - Missing gate/eval evidence is a hard fail-closed blocker.
 
+**Implementation status note (2026-02-10):**
+- Phase 5 gate/eligibility policy surfaces implemented:
+  - `src/fraud_detection/model_factory/phase5.py`
+  - `src/fraud_detection/model_factory/__init__.py` (Phase 5 exports)
+  - `tests/services/model_factory/test_phase5_gate_policy.py`
+- Phase 5 evaluator now enforces:
+  - explicit immutable gate receipt emission for `PASS|FAIL`,
+  - explicit immutable publish-eligibility receipt emission (`ELIGIBLE|INELIGIBLE`),
+  - required evidence refs validation before eligibility decisions,
+  - fail-closed posture when eval evidence is missing/invalid.
+- Validation evidence:
+  - `python -m py_compile src/fraud_detection/model_factory/phase5.py src/fraud_detection/model_factory/__init__.py tests/services/model_factory/test_phase5_gate_policy.py` (`PASS`).
+  - `python -m pytest tests/services/model_factory/test_phase5_gate_policy.py -q --import-mode=importlib` (`4 passed`).
+  - `python -m pytest tests/services/model_factory/test_phase1_contracts.py tests/services/model_factory/test_phase1_ids.py tests/services/model_factory/test_phase2_run_ledger.py tests/services/model_factory/test_phase3_resolver.py tests/services/model_factory/test_phase4_execution.py tests/services/model_factory/test_phase5_gate_policy.py tests/services/learning_registry/test_phase61_contracts.py -q --import-mode=importlib` (`37 passed`).
+  - `python -m pytest tests/services/model_factory/test_phase1_contracts.py tests/services/model_factory/test_phase1_ids.py tests/services/model_factory/test_phase2_run_ledger.py tests/services/model_factory/test_phase3_resolver.py tests/services/model_factory/test_phase4_execution.py tests/services/model_factory/test_phase5_gate_policy.py tests/services/offline_feature_plane/test_phase1_contracts.py tests/services/offline_feature_plane/test_phase1_ids.py tests/services/offline_feature_plane/test_phase2_run_ledger.py tests/services/offline_feature_plane/test_phase3_resolver.py tests/services/learning_registry/test_phase61_contracts.py -q --import-mode=importlib` (`60 passed`).
+
 ### Phase 6 - Bundle packaging + MPR publish handshake
 **Intent:** publish immutable candidate bundles with compatibility metadata.
 
@@ -227,10 +243,10 @@ Provide an executable, component-scoped plan for Model Factory (MF) aligned to p
 - Phase 2 (`run control + idempotent run ledger`): complete (implemented and validated on `2026-02-10`).
 - Phase 3 (`input resolver + provenance lock`): complete (implemented and validated on `2026-02-10`).
 - Phase 4 (`train/eval execution corridor`): complete (implemented and validated on `2026-02-10`).
-- Phase 5 (`gate receipt + publish eligibility policy`): pending.
+- Phase 5 (`gate receipt + publish eligibility policy`): complete (implemented and validated on `2026-02-10`).
 - Phase 6 (`bundle packaging + MPR publish handshake`): pending.
 - Phase 7 (`negative-path matrix + fail-closed taxonomy`): pending.
 - Phase 8 (`run/operate onboarding`): pending.
 - Phase 9 (`obs/gov onboarding`): pending.
 - Phase 10 (`integration closure gate`): pending.
-- Next action: implement Phase 5 (`gate receipt + publish eligibility policy`).
+- Next action: implement Phase 6 (`bundle packaging + MPR publish handshake`).

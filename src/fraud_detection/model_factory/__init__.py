@@ -18,6 +18,14 @@ from .phase3 import (
     ResolvedTrainPlan,
 )
 from .phase4 import MfPhase4ExecutionError, MfTrainEvalExecutor, MfTrainEvalExecutorConfig, MfTrainEvalReceipt
+from .phase5 import (
+    MfGatePolicyConfig,
+    MfGatePolicyEvaluator,
+    MfGateReceipt,
+    MfPhase5GateError,
+    MfPhase5PolicyResult,
+    MfPublishEligibilityReceipt,
+)
 from .run_control import MfRunControl, MfRunControlPolicy
 from .run_ledger import (
     MF_RETRY_ALLOWED,
@@ -60,6 +68,12 @@ __all__ = [
     "MfTrainEvalExecutorConfig",
     "MfTrainEvalReceipt",
     "MfPhase4ExecutionError",
+    "MfGatePolicyEvaluator",
+    "MfGatePolicyConfig",
+    "MfGateReceipt",
+    "MfPublishEligibilityReceipt",
+    "MfPhase5PolicyResult",
+    "MfPhase5GateError",
     "MfRunControl",
     "MfRunControlPolicy",
     "MfRunLedger",

@@ -483,3 +483,99 @@ If Phase 4 allows training/eval to proceed without explicit split/seed posture o
 ### Plan progression
 - MF Phase 4 is closed.
 - Next MF phase is Phase 5 (`gate receipt + publish eligibility policy`).
+
+## Entry: 2026-02-10 2:13PM - Pre-change implementation lock for MF Phase 5 (gate receipt + publish eligibility policy)
+
+### Trigger
+User directed progression: "Proceed to phase 5 implementation of MF."
+
+### Phase objective (DoD-locked)
+Implement MF Phase 5 policy layer so publish eligibility is explicit and auditable:
+- emit explicit PASS/FAIL gate receipt bound to `run_key` (train run identity),
+- evaluate publish eligibility using PASS + required evidence refs,
+- enforce fail-closed posture for missing/invalid eval/gate evidence,
+- keep FAIL outcomes as forensics-only (explicit ineligible posture, no publish eligibility).
+
+### Authorities used
+- `docs/model_spec/platform/implementation_maps/model_factory.build_plan.md` (Phase 5 DoD)
+- `docs/model_spec/platform/implementation_maps/platform.build_plan.md` (Phase `6.3.D` intent)
+- `docs/model_spec/platform/component-specific/model_factory.design-authority.md`
+- `docs/model_spec/platform/component-specific/flow-narrative-platform-design.md`
+- `docs/model_spec/platform/pre-design_decisions/learning_and_evolution.pre-design_decisions.md`
+- `docs/model_spec/platform/contracts/learning_registry/eval_report_v0.schema.yaml`
+- `src/fraud_detection/learning_registry/contracts.py` (`EvalReportContract`)
+- Existing MF phase dependencies:
+  - `src/fraud_detection/model_factory/phase3.py`
+  - `src/fraud_detection/model_factory/phase4.py`
+
+### Problem framing and alternatives considered
+1. Reuse Phase 4 gate_decision as implicit gate receipt and defer explicit eligibility artifacts.
+   - Rejected: Phase 5 DoD requires explicit gate and publish-eligibility artifacts.
+2. Emit eligibility only for PASS runs and skip FAIL receipts.
+   - Rejected: FAIL outcomes must remain explicit for forensics and governance continuity.
+3. Implement dedicated Phase 5 evaluator that:
+   - validates eval evidence refs and schema,
+   - emits immutable gate receipt for both PASS/FAIL,
+   - emits immutable publish-eligibility receipt with explicit reason taxonomy,
+   - blocks missing/invalid evidence fail-closed.
+   - Selected.
+
+### Planned file changes
+- New code:
+  - `src/fraud_detection/model_factory/phase5.py`
+- Update exports:
+  - `src/fraud_detection/model_factory/__init__.py`
+- New tests:
+  - `tests/services/model_factory/test_phase5_gate_policy.py`
+- Documentation/status updates after validation:
+  - `docs/model_spec/platform/implementation_maps/model_factory.build_plan.md`
+  - `docs/model_spec/platform/implementation_maps/platform.build_plan.md`
+  - `docs/model_spec/platform/implementation_maps/model_factory.impl_actual.md`
+  - `docs/model_spec/platform/implementation_maps/platform.impl_actual.md`
+  - `docs/logbook/02-2026/2026-02-10.md`
+
+### Validation plan
+- Compile MF Phase 5 module/tests.
+- Targeted Phase 5 matrix.
+- Combined MF regression (Phases 1..5 + learning contracts).
+- OFS/MF/learning compatibility sanity matrix.
+
+### Drift sentinel checkpoint
+If Phase 5 permits publish eligibility without explicit PASS receipt and validated eval evidence refs, phase closure is blocked as material drift.
+
+## Entry: 2026-02-10 2:15PM - Applied MF Phase 5 implementation (gate receipt + publish eligibility policy)
+
+### Implemented files and surfaces
+- Added MF Phase 5 gate/eligibility module:
+  - `src/fraud_detection/model_factory/phase5.py`
+- Updated MF exports for Phase 5 surfaces:
+  - `src/fraud_detection/model_factory/__init__.py`
+- Added MF Phase 5 matrix:
+  - `tests/services/model_factory/test_phase5_gate_policy.py`
+
+### Phase 5 outcomes
+- MF now emits explicit immutable gate receipt artifacts for both PASS and FAIL outcomes.
+- MF now emits explicit immutable publish-eligibility artifacts with clear decision posture:
+  - `ELIGIBLE` when PASS and required evidence refs are present/valid,
+  - `INELIGIBLE` for FAIL outcomes (forensics-only posture).
+- Missing/invalid eval evidence now fails closed before eligibility decisions.
+- Gate/eligibility artifacts are run-scoped and idempotent under reruns; immutability drift is detected and blocked.
+
+### Validation evidence
+- Syntax:
+  - `python -m py_compile src/fraud_detection/model_factory/phase5.py src/fraud_detection/model_factory/__init__.py tests/services/model_factory/test_phase5_gate_policy.py` (`PASS`).
+- Targeted Phase 5:
+  - `python -m pytest tests/services/model_factory/test_phase5_gate_policy.py -q --import-mode=importlib` (`4 passed`).
+- MF + learning contracts regression:
+  - `python -m pytest tests/services/model_factory/test_phase1_contracts.py tests/services/model_factory/test_phase1_ids.py tests/services/model_factory/test_phase2_run_ledger.py tests/services/model_factory/test_phase3_resolver.py tests/services/model_factory/test_phase4_execution.py tests/services/model_factory/test_phase5_gate_policy.py tests/services/learning_registry/test_phase61_contracts.py -q --import-mode=importlib` (`37 passed`).
+- MF + OFS + learning compatibility regression:
+  - `python -m pytest tests/services/model_factory/test_phase1_contracts.py tests/services/model_factory/test_phase1_ids.py tests/services/model_factory/test_phase2_run_ledger.py tests/services/model_factory/test_phase3_resolver.py tests/services/model_factory/test_phase4_execution.py tests/services/model_factory/test_phase5_gate_policy.py tests/services/offline_feature_plane/test_phase1_contracts.py tests/services/offline_feature_plane/test_phase1_ids.py tests/services/offline_feature_plane/test_phase2_run_ledger.py tests/services/offline_feature_plane/test_phase3_resolver.py tests/services/learning_registry/test_phase61_contracts.py -q --import-mode=importlib` (`60 passed`).
+
+### Drift sentinel assessment
+- No designed-flow contradiction detected for Phase 5 scope.
+- PASS/FAIL policy boundary is now explicit, immutable, and fail-closed on missing eval evidence.
+- Residual risk surface moves to MF Phase 6 (`bundle packaging + MPR publish handshake`).
+
+### Plan progression
+- MF Phase 5 is closed.
+- Next MF phase is Phase 6 (`bundle packaging + MPR publish handshake`).

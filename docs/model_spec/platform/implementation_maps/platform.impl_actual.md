@@ -10353,3 +10353,54 @@ Any Phase 4 implementation that permits hidden split/seed semantics or ambiguous
 ### Drift sentinel assessment
 - No mismatch detected against flow narrative and learning-plane pins for this scope.
 - Platform Phase `6.3` remains active; next closure surface is MF Phase 5 (`gate receipt + publish eligibility policy`).
+
+## Entry: 2026-02-10 2:13PM - Platform-level pre-change lock for MF Phase 5 (`6.3.D` gate + publish eligibility)
+
+### Why platform-level tracking is required
+Phase `6.3.D` is the explicit policy boundary that decides whether Phase 4 evidence can proceed toward packaging/publish. If gate and eligibility semantics remain implicit, downstream publish behavior can drift silently under retries or partial evidence.
+
+### Platform-level decisions pinned for this pass
+- MF must emit explicit immutable gate receipt artifacts for PASS and FAIL outcomes.
+- Publish eligibility is a separate explicit artifact and requires PASS + required evidence refs.
+- Missing/invalid eval evidence is hard fail-closed and must block eligibility evaluation.
+- FAIL outcomes remain forensics-only and cannot be marked publish-eligible.
+
+### Expected closure evidence
+- New MF Phase 5 evaluator module + tests proving:
+  - PASS -> eligible path with required evidence,
+  - FAIL -> ineligible forensic path,
+  - missing evidence fail-closed,
+  - immutable gate/eligibility receipt drift detection.
+- Build-plan status updates marking MF Phase 5 complete.
+- Implementation maps + logbook updated with executed matrix outputs.
+
+### Drift sentinel checkpoint
+Any implementation that allows publish eligibility when gate/eval evidence is absent or invalid is blocker-level drift from Learning-plane pinned decisions.
+
+## Entry: 2026-02-10 2:15PM - Platform-level applied closure for MF Phase 5 (`6.3.D` gate + publish eligibility)
+
+### What was applied
+- MF Phase 5 policy lane landed in:
+  - `src/fraud_detection/model_factory/phase5.py`
+  - `src/fraud_detection/model_factory/__init__.py`
+- MF Phase 5 matrix added:
+  - `tests/services/model_factory/test_phase5_gate_policy.py`
+- Build-plan status surfaces updated:
+  - `docs/model_spec/platform/implementation_maps/model_factory.build_plan.md`
+  - `docs/model_spec/platform/implementation_maps/platform.build_plan.md`
+
+### Platform-significant outcomes
+- Phase `6.3.D` is now executable with explicit, immutable policy artifacts.
+- PASS/FAIL gate semantics are no longer implicit in eval-only payloads; a dedicated gate receipt now anchors this boundary.
+- Publish eligibility is now explicit and auditable as its own receipt, with FAIL outcomes pinned as ineligible.
+- Missing/invalid eval evidence is hard fail-closed at eligibility boundary, preventing silent publish drift.
+
+### Validation evidence
+- `python -m py_compile src/fraud_detection/model_factory/phase5.py src/fraud_detection/model_factory/__init__.py tests/services/model_factory/test_phase5_gate_policy.py` (`PASS`).
+- `python -m pytest tests/services/model_factory/test_phase5_gate_policy.py -q --import-mode=importlib` (`4 passed`).
+- `python -m pytest tests/services/model_factory/test_phase1_contracts.py tests/services/model_factory/test_phase1_ids.py tests/services/model_factory/test_phase2_run_ledger.py tests/services/model_factory/test_phase3_resolver.py tests/services/model_factory/test_phase4_execution.py tests/services/model_factory/test_phase5_gate_policy.py tests/services/learning_registry/test_phase61_contracts.py -q --import-mode=importlib` (`37 passed`).
+- `python -m pytest tests/services/model_factory/test_phase1_contracts.py tests/services/model_factory/test_phase1_ids.py tests/services/model_factory/test_phase2_run_ledger.py tests/services/model_factory/test_phase3_resolver.py tests/services/model_factory/test_phase4_execution.py tests/services/model_factory/test_phase5_gate_policy.py tests/services/offline_feature_plane/test_phase1_contracts.py tests/services/offline_feature_plane/test_phase1_ids.py tests/services/offline_feature_plane/test_phase2_run_ledger.py tests/services/offline_feature_plane/test_phase3_resolver.py tests/services/learning_registry/test_phase61_contracts.py -q --import-mode=importlib` (`60 passed`).
+
+### Drift sentinel assessment
+- No mismatch detected against flow narrative and learning-plane pins for this scope.
+- Platform Phase `6.3` remains active; next closure surface is MF Phase 6 (`bundle packaging + MPR publish handshake`).
