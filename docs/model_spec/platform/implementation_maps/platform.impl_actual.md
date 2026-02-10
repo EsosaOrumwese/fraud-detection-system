@@ -10072,3 +10072,72 @@ Any claim of OFS closure without executable negative-path fail-closed evidence i
 ### Drift sentinel assessment
 - No platform-flow contradiction detected for OFS closure scope.
 - Phase `6.2` OFS corridor now has explicit closure-grade positive and negative proofs; progression can move to Phase `6.3` without carrying a hidden OFS integration risk.
+
+## Entry: 2026-02-10 1:26PM - Platform-level pre-change lock for Phase 6.3 planning elaboration (MF corridor)
+
+### Why platform-level tracking is required
+Phase `6.3` is the bridge from dataset authority (OFS) to deployable bundle authority (MPR via MF). If this planning surface stays high-level, implementation can drift into ad-hoc training/publish behavior that breaks reproducibility, governance, or environment-ladder parity.
+
+### Authorities used
+- `docs/model_spec/platform/platform-wide/platform_blueprint_notes_v0.md`
+- `docs/model_spec/platform/platform-wide/deployment_tooling_notes_v0.md`
+- `docs/model_spec/data-engine/interface_pack/README.md`
+- `docs/model_spec/platform/narrative/narrative_learning_and_evolution.md`
+- `docs/model_spec/platform/component-specific/flow-narrative-platform-design.md`
+- `docs/model_spec/platform/component-specific/model_factory.design-authority.md`
+- `docs/model_spec/platform/component-specific/model_policy_registry.design-authority.md`
+- `docs/model_spec/platform/pre-design_decisions/learning_and_evolution.pre-design_decisions.md`
+- `docs/model_spec/platform/pre-design_decisions/run_and_operate.pre-design_decisions.md`
+- `docs/model_spec/platform/pre-design_decisions/observability_and_governance.pre-design_decisions.md`
+- `docs/model_spec/platform/platform-wide/v0_environment_resource_tooling_map.md`
+
+### Problem framing and alternatives considered
+1. Keep platform Phase `6.3` as a short DoD list and proceed directly to coding.
+   - Rejected: too much interpretation room for a governance-sensitive corridor.
+2. Create only a component build plan and leave platform Phase `6.3` coarse.
+   - Rejected: platform-level sequencing and closure gates (`6.3` vs `6.6/6.7`) remain ambiguous.
+3. Expand both the platform Phase `6.3` section and a dedicated MF component build plan before code.
+   - Selected: this keeps component mechanics detailed while preserving plane-level closure logic and meta-layer dependencies.
+
+### Platform-level decisions pinned for this pass
+- MF remains a job deployment unit; no always-on compute posture is introduced in `6.3`.
+- MF input authority is explicit DatasetManifest refs + pinned config/profile refs only; no implicit dataset discovery.
+- Publish eligibility is evidence-first and fail-closed (`EvalReport + PASS receipt + lineage + compatibility metadata` required).
+- `6.3` closure is component-corridor closure only; plane closure still requires `6.6/6.7` meta-layer onboarding and `6.8` integration gate.
+
+### Expected closure evidence for this planning task
+- `platform.build_plan.md` Phase `6.3` elaborated into implementation-grade subsections and validation gates.
+- `model_factory.build_plan.md` created with phased plan + DoD + boundary/authority posture.
+- Matching logbook and component implementation-map entries added for full trail continuity.
+
+### Drift sentinel checkpoint
+If the planning update allows MF to bypass DatasetManifest authority, publish without explicit gate evidence, or treat `6.3` as full plane closure without meta-layer gates, it is material drift and must be blocked.
+
+## Entry: 2026-02-10 1:28PM - Platform-level applied update for Phase 6.3 planning and MF build-plan bootstrap
+
+### What was applied
+- Expanded Phase `6.3` corridor definition in:
+  - `docs/model_spec/platform/implementation_maps/platform.build_plan.md`
+- Added MF component build plan:
+  - `docs/model_spec/platform/implementation_maps/model_factory.build_plan.md`
+- Updated platform rolling status with explicit `6.3` planning-elaboration closure note.
+
+### Platform-significant outcomes
+- Phase `6.3` now has execution-order detail (`6.3.A..6.3.G`) instead of a short checklist, reducing interpretation drift before implementation.
+- MF planning is now first-class and auditable as a component roadmap, aligned with:
+  - OFS handoff authority,
+  - MPR publish boundary,
+  - required meta-layer gates (`6.6/6.7`) before plane closure.
+- Closure posture is explicit: `6.3` completion does not imply full Learning-plane completion without `6.4/6.6/6.7/6.8`.
+
+### Validation evidence
+- Documentation consistency sweep:
+  - verified new/updated planning files are present and referenced in rolling status.
+- Runtime/code-path changes: none in this pass.
+
+### Drift sentinel assessment
+- No designed-flow contradiction detected in this planning update.
+- Ownership boundaries remain explicit and unchanged:
+  - OFS owns DatasetManifest authority,
+  - MF owns train/eval/bundle publication intent,
+  - MPR owns ACTIVE lifecycle.

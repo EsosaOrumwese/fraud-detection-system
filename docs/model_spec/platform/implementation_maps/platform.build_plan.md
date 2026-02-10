@@ -1304,11 +1304,89 @@ Resolved and pinned in:
 #### Phase 6.3 — MF train/eval/publish corridor
 **Goal:** make model training and publication evidence-first and reproducible.
 
-**DoD checklist:**
+**Scope lock and boundary:**
+- MF remains a **job unit** (triggered by run/operate), not an always-on service.
+- Input authority is explicit by-ref artifacts:
+  - `DatasetManifestRef[]` from OFS,
+  - pinned train/eval config/profile refs,
+  - trigger provenance/intent.
+- MF output authority is immutable training/eval/publish evidence under `mf/...` and candidate bundle publication intent toward MPR.
+- Phase `6.3` closes MF component corridor behavior only; plane closure still requires `6.6/6.7` onboarding and `6.8` integration proof.
+
+**Execution sections (closure order):**
+
+**6.3.A - MF request contract and deterministic run identity**
+- Train request contract is pinned with explicit fields:
+  - `dataset_manifest_refs[]`,
+  - `training_config_ref`,
+  - `governance_profile_ref`,
+  - `requester_principal`/trigger provenance,
+  - optional explicit intent (`baseline_train|backfill_retrain|candidate_eval|regression_check`).
+- Deterministic `TrainRunKey` and `train_run_id` are pinned; retries with same semantic inputs converge idempotently.
+- Missing pinned refs or malformed request semantics are rejected fail-closed.
+
+**6.3.B - Input resolution and provenance lock**
+- MF resolves all DatasetManifest refs explicitly and verifies digest/immutability posture before training starts.
+- MF verifies manifest compatibility with pinned feature/schema requirements; unknown compatibility fails closed.
+- MF records full run-scoped provenance lock artifact (resolved manifests/config/profile/code release IDs) before train/eval execution.
+- No "latest dataset/config" discovery is permitted anywhere in this corridor.
+
+**6.3.C - Train/eval execution and immutable evidence**
+- MF executes train/eval with explicit as-of/leakage-safe posture inherited from manifest basis.
+- MF emits immutable evidence artifacts:
+  - run record,
+  - eval report,
+  - metric schema/version,
+  - data split basis,
+  - anomaly/failure evidence when applicable.
+- EvalReport is reproducible from pinned inputs and required for any publish-eligible outcome.
+
+**6.3.D - Gate receipt and publish eligibility**
+- MF emits explicit gate receipt (`PASS|FAIL`) bound to `train_run_id` and evidence refs.
+- Publish eligibility law:
+  - only `PASS` runs are publish-eligible,
+  - `FAIL` runs may write forensic artifacts but cannot publish candidate bundles.
+- Missing gate evidence, unresolved lineage refs, or compatibility uncertainty causes fail-closed publish denial.
+
+**6.3.E - Bundle packaging and MPR publish handshake**
+- Bundle packaging is immutable and includes:
+  - artifact refs/digests,
+  - manifest lineage refs,
+  - eval evidence refs,
+  - compatibility metadata (feature def set, input contract, required capabilities),
+  - code/profile release identifiers.
+- Publish handshake to MPR is idempotent by `(bundle_id, version)` and append-only.
+- MF does not activate bundles; MPR lifecycle (`APPROVE/PROMOTE/ROLLBACK/RETIRED`) remains separate under Phase `6.4`.
+
+**6.3.F - Negative-path fail-closed matrix (required)**
+- Executable negative-path proofs cover at minimum:
+  - missing/invalid DatasetManifest refs,
+  - digest mismatch on manifest or evidence refs,
+  - missing EvalReport/gate receipt,
+  - incompatible feature/schema contract,
+  - publish retry idempotency with partial prior outcomes.
+- All negative paths produce typed failure taxonomy with low-volume governance/anomaly emission posture.
+
+**6.3.G - Closure evidence and handoff to 6.4**
+- MF corridor closure requires:
+  - targeted component matrix for `6.3.A..6.3.F`,
+  - combined regression matrix with OFS/MF contract compatibility checks,
+  - run-scoped evidence refs discoverable for reporter/reconciliation surfaces.
+- Handoff outputs to `6.4` must include:
+  - at least one publish-eligible bundle artifact set,
+  - explicit gate receipts and lineage refs suitable for MPR lifecycle ingestion.
+
+**DoD checklist (closure gate):**
 - MF consumes only pinned DatasetManifest refs (no implicit dataset discovery).
-- Eval outputs are produced with metric schema/version and evidence refs suitable for promotion checks.
+- Deterministic run identity/idempotency is enforced for train/eval/publish retries.
+- Eval outputs are produced with metric schema/version and immutable evidence refs suitable for promotion checks.
 - Bundle publication writes immutable bundle refs + manifests with compatibility metadata and lineage to dataset/eval artifacts.
-- Failure posture is explicit and fail-closed for missing evidence, incompatible feature definitions, or unresolved lineage refs.
+- Failure posture is explicit and fail-closed for missing evidence, incompatible feature definitions, unresolved lineage refs, and unknown compatibility.
+- Executable negative-path matrix exists and is green.
+
+**Implementation status note (2026-02-10):**
+- Planning surface was expanded to closure-grade detail for `6.3.A..6.3.G`.
+- Next required deliverable is component-plan execution under `model_factory.build_plan.md` before corridor code changes.
 
 #### Phase 6.4 — Registry/MPR lifecycle + deterministic resolution
 **Goal:** enforce governed, deterministic ACTIVE lifecycle across environments/scopes.
@@ -1451,6 +1529,7 @@ Resolved and pinned in:
 - Phase 6.0 (Archive readiness gate): complete (archive writer corridor implemented + run/operate onboarding + reporter/reconciliation evidence surfaces validated on 2026-02-10).
 - Phase 6.1 (Learning/Registry contracts + ownership lock): complete (authoritative schema set + typed validators + ownership boundaries pinned on 2026-02-10).
 - Phase 6 (Learning & Registry plane): active (`6.2` OFS dataset-build corridor closure is complete; `6.3` MF train/eval/publish is next; `6.6/6.7` remain mandatory closure gates before plane completion).
+- Phase 6.3 planning elaboration: complete (`6.3.A..6.3.G` corridor detail and closure-grade DoD were expanded on 2026-02-10; component execution plan is tracked in `docs/model_spec/platform/implementation_maps/model_factory.build_plan.md`).
 - OFS build-plan Phase 1: complete (`BuildIntent + dataset identity + contract lock` implemented on 2026-02-10 in `src/fraud_detection/offline_feature_plane/*` with `15 passed`).
 - OFS build-plan Phase 2: complete (`run control + idempotent run ledger` implemented on 2026-02-10 in `src/fraud_detection/offline_feature_plane/run_ledger.py` and `run_control.py`; combined OFS/learning regression `21 passed`).
 - OFS build-plan Phase 3: complete (`pin and provenance resolver` implemented on 2026-02-10 in `src/fraud_detection/offline_feature_plane/phase3.py`; combined OFS/learning regression `27 passed`).
