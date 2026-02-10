@@ -181,7 +181,7 @@ Guarantee run/operate and obs/gov cover every migrated service end-to-end.
 - Ensure lifecycle, anomalies, reconciliation, and run reporter outputs are emitted and persisted.
 
 3. Schema and evidence conformance
-- Validate emitted evidence against pinned `dev_min` evidence bundle schema family.
+- Validate emitted evidence against existing platform contract families (IG receipts, RTDL audit/offset basis, archive records, learning dataset manifests) and run-scoped reporter outputs.
 
 ### Definition of Done
 - [ ] No onboarded service is orphaned from orchestration.

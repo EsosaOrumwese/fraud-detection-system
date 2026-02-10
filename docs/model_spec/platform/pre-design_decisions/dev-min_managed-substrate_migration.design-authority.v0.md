@@ -1615,13 +1615,13 @@ This section records items that were previously open and are now pinned for v0 a
 ### 17.2 Additional closures (formerly open; now pinned)
 
 7. **Evidence bundle exact schema**
-   - **CLOSED (PINNED):** evidence bundle schema files are fixed to:
-     - `docs/model_spec/platform/contracts/dev_min/run_header.v0.schema.yaml`
-     - `docs/model_spec/platform/contracts/dev_min/ingress_receipt_summary.v0.schema.yaml`
-     - `docs/model_spec/platform/contracts/dev_min/audit_summary.v0.schema.yaml`
-     - `docs/model_spec/platform/contracts/dev_min/replay_anchor_summary.v0.schema.yaml`
-     - `docs/model_spec/platform/contracts/dev_min/metrics_anomaly_reconciliation_snapshot.v0.schema.yaml`
-   - **PINNED:** these schemas are required deliverables for implementation closure and must be referenced in run evidence metadata.
+   - **CLOSED (PINNED):** `dev_min` evidence outputs must reuse existing platform contract families (no new `dev_min` schema family):
+     - `docs/model_spec/platform/contracts/ingestion_gate/ingestion_receipt.schema.yaml` (admission evidence)
+     - `docs/model_spec/platform/contracts/real_time_decision_loop/audit_record.schema.yaml` (audit evidence)
+     - `docs/model_spec/platform/contracts/real_time_decision_loop/eb_offset_basis.schema.yaml` (replay/offset basis)
+     - `docs/model_spec/platform/contracts/archive/archive_event_record_v0.schema.yaml` (archive evidence)
+     - `docs/model_spec/platform/contracts/learning_registry/dataset_manifest_v0.schema.yaml` (learning evidence)
+   - **PINNED:** run-level summary artifacts (`platform_run_report.json`, `environment_conformance.json`) are operational evidence outputs and MUST be referenced in run evidence metadata.
 
 8. **Budget enforcement mechanism**
    - **CLOSED (PINNED):** v0 uses a **manual hard-stop protocol** (no automation required):

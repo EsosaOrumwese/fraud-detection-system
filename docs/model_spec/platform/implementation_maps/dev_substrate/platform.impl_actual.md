@@ -351,3 +351,54 @@ This is a planning-surface simplification only; no semantic/runtime behavior cha
 
 ### Drift sentinel checkpoint
 No runtime/infrastructure behavior changed. This is a planning-surface simplification and authority alignment correction.
+
+## Entry: 2026-02-10 10:08PM - Pre-change lock: remove dev_min auxiliary contracts and repin authority
+
+### Context
+USER approved removing `dev_min` contract artifacts to avoid unnecessary migration friction and to rely on contracts proven through local-parity implementation.
+
+### Decision
+1. Remove `docs/model_spec/platform/contracts/dev_min/` entirely.
+2. Repin migration authority (`dev-min_managed-substrate_migration.design-authority.v0.md`) evidence contract closure to existing platform contract families and operational evidence artifacts.
+3. Remove dev_min contract index section from `docs/model_spec/platform/contracts/README.md`.
+4. Update active dev-substrate build plan references that currently require the removed dev_min schema family.
+
+### Planned repin targets (existing contract sources)
+- `docs/model_spec/platform/contracts/ingestion_gate/ingestion_receipt.schema.yaml`
+- `docs/model_spec/platform/contracts/real_time_decision_loop/audit_record.schema.yaml`
+- `docs/model_spec/platform/contracts/real_time_decision_loop/eb_offset_basis.schema.yaml`
+- `docs/model_spec/platform/contracts/archive/archive_event_record_v0.schema.yaml`
+- `docs/model_spec/platform/contracts/learning_registry/dataset_manifest_v0.schema.yaml`
+
+### Drift sentinel checkpoint
+This is a contract-surface simplification for migration execution clarity. No runtime semantics or ownership boundaries are changed.
+
+## Entry: 2026-02-10 10:09PM - Applied cleanup: removed dev_min auxiliary contract family
+
+### Changes applied
+1. Removed auxiliary contract folder via tracked delete:
+   - deleted `docs/model_spec/platform/contracts/dev_min/` (README + 5 schema files).
+
+2. Repinned migration authority evidence schema closure to existing contract families:
+   - updated `docs/model_spec/platform/pre-design_decisions/dev-min_managed-substrate_migration.design-authority.v0.md` Section 17.2(7)
+   - pinned evidence sources now reference:
+     - `contracts/ingestion_gate/ingestion_receipt.schema.yaml`
+     - `contracts/real_time_decision_loop/audit_record.schema.yaml`
+     - `contracts/real_time_decision_loop/eb_offset_basis.schema.yaml`
+     - `contracts/archive/archive_event_record_v0.schema.yaml`
+     - `contracts/learning_registry/dataset_manifest_v0.schema.yaml`
+   - run summary artifacts now explicitly treated as operational evidence outputs (`platform_run_report.json`, `environment_conformance.json`).
+
+3. Removed `dev_min` section from contracts index:
+   - `docs/model_spec/platform/contracts/README.md`
+
+4. Updated active build-plan evidence-conformance wording:
+   - `docs/model_spec/platform/implementation_maps/dev_substrate/platform.build_plan.md`
+   - now references existing contract families + reporter outputs (no dev_min schema family).
+
+### Validation
+- `rg` sweep confirms no active references to `docs/model_spec/platform/contracts/dev_min/*` outside historical append-only logs/impl notes.
+- authority + build-plan references now align with existing local-parity-derived contracts.
+
+### Drift sentinel checkpoint
+No runtime behavior changed. This is a migration-friction reduction and contract-authority simplification aligned to USER direction.
