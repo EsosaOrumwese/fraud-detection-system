@@ -158,3 +158,82 @@ User directed implementation start for OFS Phase 1 (`BuildIntent + dataset ident
 ### Plan status
 - OFS Phase 1 is complete and validated.
 - Next active OFS phase is Phase 2 (`run control + idempotent run ledger`).
+
+## Entry: 2026-02-10 11:29AM - Pre-change implementation lock for OFS Phase 2
+
+### Trigger
+User requested proceeding to OFS Phase 2 (`run control + idempotent run ledger`).
+
+### Problem statement
+OFS currently has Phase 1 contracts and identity pins but no durable run ledger or explicit run-control transitions. Without this, retries/restarts can create semantic drift and publish retry behavior is undefined.
+
+### Authorities used
+- `docs/model_spec/platform/implementation_maps/offline_feature_plane.build_plan.md` (Phase 2 DoD)
+- `docs/model_spec/platform/component-specific/offline_feature_plane.design-authority.md` (S1 run orchestration and idempotency pins)
+- `docs/model_spec/platform/pre-design_decisions/learning_and_evolution.pre-design_decisions.md` (fail-closed and reproducibility posture)
+- Existing platform patterns for durable ledgers/checkpoints:
+  - `src/fraud_detection/archive_writer/store.py`
+  - `src/fraud_detection/case_trigger/checkpoints.py`
+  - `src/fraud_detection/scenario_runner/ledger.py`
+
+### Implementation plan
+1. Add durable OFS run ledger module with sqlite/postgres support:
+   - deterministic `run_key` from `request_id`,
+   - request-id uniqueness and payload-hash collision detection,
+   - append-only run events + state snapshot table.
+2. Encode Phase 2 state machine:
+   - `QUEUED -> RUNNING -> DONE|FAILED|PUBLISH_PENDING`
+   - `PUBLISH_PENDING -> RUNNING` (publish-only retry path only)
+   - terminal idempotency for `DONE` and `FAILED`.
+3. Add run-control wrapper:
+   - bounded publish-only retry policy (`max_publish_retry_attempts`),
+   - enforce that publish-only retries do not increment full-run attempts.
+4. Add tests for:
+   - duplicate request convergence,
+   - request-id payload mismatch fail-closed,
+   - valid/invalid transitions,
+   - bounded publish-only retry,
+   - receipt payload containing pinned input summary and provenance.
+
+### Drift sentinel assessment before code
+- No authority conflict detected.
+- Material risk noted: if publish-only retry mutates full-run attempt counters, it creates hidden retrain semantics drift.
+- Phase 2 implementation must therefore separate `full_run_attempts` and `publish_retry_attempts`.
+
+## Entry: 2026-02-10 11:32AM - Applied OFS Phase 2 implementation and validation
+
+### Implemented files
+- `src/fraud_detection/offline_feature_plane/run_ledger.py`
+- `src/fraud_detection/offline_feature_plane/run_control.py`
+- `src/fraud_detection/offline_feature_plane/__init__.py` (Phase 2 exports)
+- `tests/services/offline_feature_plane/test_phase2_run_ledger.py`
+
+### Functional outcomes
+1. Durable run ledger:
+   - deterministic `run_key` from `request_id`,
+   - request-id uniqueness with payload-hash mismatch fail-closed posture,
+   - append-only run events table + state snapshot table.
+2. State machine enforcement:
+   - `QUEUED -> RUNNING -> DONE|FAILED|PUBLISH_PENDING`,
+   - `PUBLISH_PENDING -> RUNNING` only via publish-only retry path.
+3. Retry posture:
+   - bounded publish-only retry via run-control policy,
+   - retry budget exhaustion emits explicit fail-closed error (`PUBLISH_RETRY_EXHAUSTED`),
+   - publish-only retries do not increment full-run attempts.
+4. Receipt posture:
+   - run receipts include pinned input summary and provenance summary for auditability.
+
+### Validation results
+- Syntax:
+  - `python -m py_compile src/fraud_detection/offline_feature_plane/__init__.py src/fraud_detection/offline_feature_plane/run_ledger.py src/fraud_detection/offline_feature_plane/run_control.py tests/services/offline_feature_plane/test_phase2_run_ledger.py` (`PASS`).
+- Tests:
+  - `python -m pytest tests/services/offline_feature_plane/test_phase1_contracts.py tests/services/offline_feature_plane/test_phase1_ids.py tests/services/offline_feature_plane/test_phase2_run_ledger.py tests/services/learning_registry/test_phase61_contracts.py -q --import-mode=importlib` (`21 passed`).
+
+### Drift sentinel assessment after implementation
+- Designed-flow alignment preserved for Phase 2 scope.
+- Publish-only retry path is explicit and bounded; no hidden full-run increment drift detected.
+- No ownership-boundary contradiction introduced.
+
+### Plan status
+- OFS Phase 2 is complete and validated.
+- Next active OFS phase is Phase 3 (`pin and provenance resolver`).

@@ -9650,3 +9650,46 @@ Implement only OFS Phase 1 scope now:
 - No drift from pinned OFS outer contract detected in this implementation slice.
 - Contract-level fail-closed posture and deterministic identity rules are now enforceable in code.
 - Meta-layer onboarding remains explicitly pending in OFS plan Phase 8/9; not bypassed.
+
+## Entry: 2026-02-10 11:29AM - Pre-change implementation lock for OFS Phase 2
+
+### Trigger
+User requested progression to OFS Phase 2.
+
+### Scope lock
+- Implement OFS run control and idempotent run ledger only (no replay/mechanics yet):
+  - deterministic run-key admission,
+  - durable state machine,
+  - bounded publish-only retry posture.
+
+### Key risk and explicit guard
+- Risk: publish-only retry path could accidentally behave like full retrain/replay.
+- Guard: enforce separate counters (`full_run_attempts`, `publish_retry_attempts`) and require `PUBLISH_PENDING` state before publish-only start.
+
+## Entry: 2026-02-10 11:32AM - Applied OFS Phase 2 implementation closure
+
+### Applied scope
+- Added OFS Phase 2 run-control surfaces:
+  - `src/fraud_detection/offline_feature_plane/run_ledger.py`
+  - `src/fraud_detection/offline_feature_plane/run_control.py`
+  - `src/fraud_detection/offline_feature_plane/__init__.py` updates
+- Added Phase 2 regression matrix:
+  - `tests/services/offline_feature_plane/test_phase2_run_ledger.py`
+
+### Behavioral closure
+- Deterministic run identity and duplicate-admission behavior are now durable in ledger state.
+- Stable state machine is enforced for OFS run lifecycle:
+  - `QUEUED -> RUNNING -> DONE|FAILED|PUBLISH_PENDING`
+  - publish-only retry starts only from `PUBLISH_PENDING`.
+- Bounded publish-only retry posture is explicit and fail-closed:
+  - retry decision returns `ALLOWED|NOT_PENDING|EXHAUSTED`,
+  - run-control raises explicit `PUBLISH_RETRY_EXHAUSTED` on budget breach.
+- Receipt surface now carries pinned input summary and run provenance summaries.
+
+### Validation evidence
+- `python -m py_compile src/fraud_detection/offline_feature_plane/__init__.py src/fraud_detection/offline_feature_plane/run_ledger.py src/fraud_detection/offline_feature_plane/run_control.py tests/services/offline_feature_plane/test_phase2_run_ledger.py` (`PASS`)
+- `python -m pytest tests/services/offline_feature_plane/test_phase1_contracts.py tests/services/offline_feature_plane/test_phase1_ids.py tests/services/offline_feature_plane/test_phase2_run_ledger.py tests/services/learning_registry/test_phase61_contracts.py -q --import-mode=importlib` (`21 passed`)
+
+### Drift sentinel assessment
+- No designed-flow mismatch detected in Phase 2 scope.
+- Guard condition requested in pre-change lock was satisfied: publish-only retry path does not increment full-run attempts.

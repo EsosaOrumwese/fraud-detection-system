@@ -78,6 +78,14 @@ Provide a closure-grade, component-scoped plan for Offline Feature Plane (OFS) a
 - Retry posture is explicit and bounded; publish-only retry does not retrain/replay.
 - Run receipts include pinned input summary and run-level provenance.
 
+**Implementation status note (2026-02-10):**
+- Phase 2 run ledger/control implemented:
+  - `src/fraud_detection/offline_feature_plane/run_ledger.py`
+  - `src/fraud_detection/offline_feature_plane/run_control.py`
+  - `src/fraud_detection/offline_feature_plane/__init__.py` (exports)
+- Validation evidence:
+  - `python -m pytest tests/services/offline_feature_plane/test_phase1_contracts.py tests/services/offline_feature_plane/test_phase1_ids.py tests/services/offline_feature_plane/test_phase2_run_ledger.py tests/services/learning_registry/test_phase61_contracts.py -q --import-mode=importlib` (`21 passed`).
+
 ### Phase 3 - Pin and provenance resolver (S2)
 **Intent:** resolve all meaning-shaping refs before replay starts.
 
@@ -181,4 +189,5 @@ Provide a closure-grade, component-scoped plan for Offline Feature Plane (OFS) a
 
 ## Status (rolling)
 - Phase 1 (`BuildIntent + dataset identity + contract lock`): complete (implemented and validated on `2026-02-10`).
-- Next action: begin Phase 2 implementation (`run control + idempotent run ledger`).
+- Phase 2 (`run control + idempotent run ledger`): complete (implemented and validated on `2026-02-10`).
+- Next action: begin Phase 3 implementation (`pin and provenance resolver`).

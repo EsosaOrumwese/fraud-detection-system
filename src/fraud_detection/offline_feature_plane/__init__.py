@@ -12,6 +12,21 @@ from .ids import (
     dataset_fingerprint,
     deterministic_dataset_manifest_id,
 )
+from .run_control import OfsRunControl, OfsRunControlPolicy
+from .run_ledger import (
+    OFS_RUN_DONE,
+    OFS_RUN_FAILED,
+    OFS_RUN_PUBLISH_PENDING,
+    OFS_RUN_QUEUED,
+    OFS_RUN_RUNNING,
+    OfsPublishRetryDecision,
+    OfsRunEvent,
+    OfsRunLedger,
+    OfsRunLedgerError,
+    OfsRunReceipt,
+    OfsRunSubmission,
+    deterministic_run_key,
+)
 
 __all__ = [
     "FeatureDefinitionSet",
@@ -19,7 +34,21 @@ __all__ = [
     "OfsBuildIntent",
     "OfsPhase1ContractError",
     "ReplayBasisSlice",
+    "OfsRunControl",
+    "OfsRunControlPolicy",
+    "OfsRunEvent",
+    "OfsRunLedger",
+    "OfsRunLedgerError",
+    "OfsRunReceipt",
+    "OfsRunSubmission",
+    "OfsPublishRetryDecision",
+    "OFS_RUN_QUEUED",
+    "OFS_RUN_RUNNING",
+    "OFS_RUN_DONE",
+    "OFS_RUN_FAILED",
+    "OFS_RUN_PUBLISH_PENDING",
     "canonical_dataset_identity",
     "dataset_fingerprint",
     "deterministic_dataset_manifest_id",
+    "deterministic_run_key",
 ]

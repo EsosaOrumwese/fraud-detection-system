@@ -1421,5 +1421,6 @@ Resolved and pinned in:
 - Phase 6.1 (Learning/Registry contracts + ownership lock): complete (authoritative schema set + typed validators + ownership boundaries pinned on 2026-02-10).
 - Phase 6 (Learning & Registry plane): active (`6.2` OFS dataset-build corridor is next; `6.6/6.7` remain mandatory closure gates before plane completion).
 - OFS build-plan Phase 1: complete (`BuildIntent + dataset identity + contract lock` implemented on 2026-02-10 in `src/fraud_detection/offline_feature_plane/*` with `15 passed`; next OFS step is Phase 2 run-ledger implementation).
+- OFS build-plan Phase 2: complete (`run control + idempotent run ledger` implemented on 2026-02-10 in `src/fraud_detection/offline_feature_plane/run_ledger.py` and `run_control.py`; combined OFS/learning regression `21 passed`; next OFS step is Phase 3 provenance resolver).
 - Next active platform phase: Phase 6.2 (OFS dataset build corridor).
 - SR v0: complete (see `docs/model_spec/platform/implementation_maps/scenario_runner.build_plan.md`).
