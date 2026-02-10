@@ -10574,3 +10574,20 @@ Any residual OFS-only learning-jobs narrative after edits is blocker drift again
 
 ### Drift sentinel assessment
 - No outstanding run/operate drift remains in MF Phase 8 onboarding path after this correction.
+
+## Entry: 2026-02-10 3:00PM - User-requested pause checkpoint
+
+### Pause intent
+Implementation is intentionally paused by user for strategic discussion.
+
+### Resume point (pinned)
+- Platform phase: `6.3` (MF train/eval/publish corridor)
+- Next MF step: `Phase 9` (obs/gov onboarding)
+
+### State at pause
+- MF Phase 8 run/operate onboarding is complete and validated green.
+- Latest validation set at pause:
+  - targeted Phase 8 matrix: `3 passed`
+  - MF regression with Phase 8: `48 passed`
+  - MF+OFS+learning compatibility: `71 passed`
+- No unresolved blocker carried into pause from Phase 8 scope.
