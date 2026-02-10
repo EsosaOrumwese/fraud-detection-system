@@ -8,6 +8,15 @@ from .ids import (
     deterministic_train_run_id,
     train_run_key,
 )
+from .phase3 import (
+    MfPhase3ResolverError,
+    MfTrainPlanResolver,
+    MfTrainPlanResolverConfig,
+    ResolvedDatasetManifest,
+    ResolvedGovernanceProfile,
+    ResolvedTrainingProfile,
+    ResolvedTrainPlan,
+)
 from .run_control import MfRunControl, MfRunControlPolicy
 from .run_ledger import (
     MF_RETRY_ALLOWED,
@@ -39,6 +48,13 @@ __all__ = [
     "canonical_train_run_key_payload",
     "train_run_key",
     "deterministic_train_run_id",
+    "MfTrainPlanResolver",
+    "MfTrainPlanResolverConfig",
+    "MfPhase3ResolverError",
+    "ResolvedTrainPlan",
+    "ResolvedDatasetManifest",
+    "ResolvedTrainingProfile",
+    "ResolvedGovernanceProfile",
     "MfRunControl",
     "MfRunControlPolicy",
     "MfRunLedger",

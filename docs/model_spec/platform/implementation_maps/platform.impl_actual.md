@@ -10242,3 +10242,58 @@ Any transition path that allows hidden retraining during publish retry, or silen
 ### Drift sentinel assessment
 - No mismatch detected against platform flow narrative or pinned learning-plane decisions for Phase 2 scope.
 - Residual risk surface now moves to MF Phase 3 input/provenance resolver enforcement.
+
+## Entry: 2026-02-10 2:00PM - Platform-level pre-change lock for MF Phase 3 (`6.3.B` input resolver + provenance lock)
+
+### Why platform-level tracking is required
+Phase `6.3.B` is the last boundary before MF starts compute work. If manifest/profile resolution is weak, downstream train/eval/publish can appear green while carrying irreproducible or incompatible semantics.
+
+### Platform-level decisions pinned for this pass
+- MF must consume DatasetManifests by-ref only with explicit schema/run-scope checks.
+- Compatibility posture is fail-closed when manifest feature/schema basis does not match training profile requirements.
+- MF must persist immutable run-scoped `resolved_train_plan` evidence before train/eval starts.
+- Ref resolution for training/governance profiles must be explicit and auditable (ref + digest + revision), not implicit environment state.
+
+### Expected closure evidence
+- New MF Phase 3 resolver module + tests proving:
+  - positive resolve path,
+  - run-scope mismatch fail-closed,
+  - feature/schema mismatch fail-closed,
+  - unresolved ref fail-closed,
+  - immutable resolved-plan drift detection.
+- Build-plan status updates marking MF Phase 3 complete.
+- Implementation-map and logbook entries with executed validation matrix outputs.
+
+### Drift sentinel checkpoint
+Any implementation that permits MF to start with unvalidated manifest/profile compatibility is blocker-level drift from the pinned Learning-plane boundary.
+
+## Entry: 2026-02-10 2:03PM - Platform-level applied closure for MF Phase 3 (`6.3.B` input resolver + provenance lock)
+
+### What was applied
+- MF Phase 3 resolver boundary landed in:
+  - `src/fraud_detection/model_factory/phase3.py`
+  - `src/fraud_detection/model_factory/__init__.py`
+- MF Phase 3 matrix added:
+  - `tests/services/model_factory/test_phase3_resolver.py`
+- Build-plan status surfaces updated:
+  - `docs/model_spec/platform/implementation_maps/model_factory.build_plan.md`
+  - `docs/model_spec/platform/implementation_maps/platform.build_plan.md`
+
+### Platform-significant outcomes
+- Phase `6.3.B` is now executable and fail-closed, not planning-only.
+- OFS->MF boundary now enforces explicit admissibility checks before train/eval starts:
+  - DatasetManifest schema validity,
+  - run-scope alignment,
+  - feature/schema compatibility with pinned training profile.
+- MF now emits immutable run-scoped `resolved_train_plan` artifacts for reproducibility/audit continuity before compute phases.
+- Immutability drift detection is explicit and typed, reducing hidden provenance drift risk under retries/restarts.
+
+### Validation evidence
+- `python -m py_compile src/fraud_detection/model_factory/phase3.py src/fraud_detection/model_factory/__init__.py tests/services/model_factory/test_phase3_resolver.py` (`PASS`).
+- `python -m pytest tests/services/model_factory/test_phase3_resolver.py -q --import-mode=importlib` (`6 passed`).
+- `python -m pytest tests/services/model_factory/test_phase1_contracts.py tests/services/model_factory/test_phase1_ids.py tests/services/model_factory/test_phase2_run_ledger.py tests/services/model_factory/test_phase3_resolver.py tests/services/learning_registry/test_phase61_contracts.py -q --import-mode=importlib` (`28 passed`).
+- `python -m pytest tests/services/model_factory/test_phase1_contracts.py tests/services/model_factory/test_phase1_ids.py tests/services/model_factory/test_phase2_run_ledger.py tests/services/model_factory/test_phase3_resolver.py tests/services/offline_feature_plane/test_phase1_contracts.py tests/services/offline_feature_plane/test_phase1_ids.py tests/services/offline_feature_plane/test_phase2_run_ledger.py tests/services/offline_feature_plane/test_phase3_resolver.py tests/services/learning_registry/test_phase61_contracts.py -q --import-mode=importlib` (`51 passed`).
+
+### Drift sentinel assessment
+- No mismatch detected against flow narrative and learning-plane pins for this scope.
+- Platform Phase `6.3` remains active; next closure surface is MF Phase 4 (`train/eval execution corridor`) before gate/publish phases.

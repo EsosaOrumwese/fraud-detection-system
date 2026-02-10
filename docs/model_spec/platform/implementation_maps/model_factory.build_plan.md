@@ -98,6 +98,22 @@ Provide an executable, component-scoped plan for Model Factory (MF) aligned to p
 - MF records immutable `resolved_train_plan` artifact with all pinned refs/revisions.
 - Missing or incompatible refs fail closed with typed taxonomy.
 
+**Implementation status note (2026-02-10):**
+- Phase 3 resolver/provenance surfaces implemented:
+  - `src/fraud_detection/model_factory/phase3.py`
+  - `src/fraud_detection/model_factory/__init__.py` (Phase 3 exports)
+  - `tests/services/model_factory/test_phase3_resolver.py`
+- Phase 3 resolver now enforces:
+  - explicit by-ref DatasetManifest resolution with schema validation via `DatasetManifestContract`,
+  - run-scope checks (`manifest.platform_run_id == request.platform_run_id`) fail-closed,
+  - feature/schema compatibility checks against pinned training profile,
+  - immutable resolved-train-plan artifact emission (`mf/resolved_train_plan/...`) with drift detection.
+- Validation evidence:
+  - `python -m py_compile src/fraud_detection/model_factory/phase3.py src/fraud_detection/model_factory/__init__.py tests/services/model_factory/test_phase3_resolver.py` (`PASS`).
+  - `python -m pytest tests/services/model_factory/test_phase3_resolver.py -q --import-mode=importlib` (`6 passed`).
+  - `python -m pytest tests/services/model_factory/test_phase1_contracts.py tests/services/model_factory/test_phase1_ids.py tests/services/model_factory/test_phase2_run_ledger.py tests/services/model_factory/test_phase3_resolver.py tests/services/learning_registry/test_phase61_contracts.py -q --import-mode=importlib` (`28 passed`).
+  - `python -m pytest tests/services/model_factory/test_phase1_contracts.py tests/services/model_factory/test_phase1_ids.py tests/services/model_factory/test_phase2_run_ledger.py tests/services/model_factory/test_phase3_resolver.py tests/services/offline_feature_plane/test_phase1_contracts.py tests/services/offline_feature_plane/test_phase1_ids.py tests/services/offline_feature_plane/test_phase2_run_ledger.py tests/services/offline_feature_plane/test_phase3_resolver.py tests/services/learning_registry/test_phase61_contracts.py -q --import-mode=importlib` (`51 passed`).
+
 ### Phase 4 - Train/eval execution corridor
 **Intent:** produce reproducible model/eval outputs from pinned inputs.
 
@@ -192,7 +208,7 @@ Provide an executable, component-scoped plan for Model Factory (MF) aligned to p
 ## Status (rolling)
 - Phase 1 (`TrainBuildRequest contract + deterministic run identity`): complete (implemented and validated on `2026-02-10`).
 - Phase 2 (`run control + idempotent run ledger`): complete (implemented and validated on `2026-02-10`).
-- Phase 3 (`input resolver + provenance lock`): pending.
+- Phase 3 (`input resolver + provenance lock`): complete (implemented and validated on `2026-02-10`).
 - Phase 4 (`train/eval execution corridor`): pending.
 - Phase 5 (`gate receipt + publish eligibility policy`): pending.
 - Phase 6 (`bundle packaging + MPR publish handshake`): pending.
@@ -200,4 +216,4 @@ Provide an executable, component-scoped plan for Model Factory (MF) aligned to p
 - Phase 8 (`run/operate onboarding`): pending.
 - Phase 9 (`obs/gov onboarding`): pending.
 - Phase 10 (`integration closure gate`): pending.
-- Next action: implement Phase 3 (`input resolver + provenance lock`).
+- Next action: implement Phase 4 (`train/eval execution corridor`).

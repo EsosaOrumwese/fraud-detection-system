@@ -279,3 +279,102 @@ If publish-only retry can increment full-run attempts or if run submission accep
 ### Plan progression
 - MF Phase 2 is closed.
 - Next MF phase is Phase 3 (`input resolver + provenance lock`).
+
+## Entry: 2026-02-10 2:00PM - Pre-change implementation lock for MF Phase 3 (input resolver + provenance lock)
+
+### Trigger
+User directed progression: "Let's move to Phase 3 implementation of the MF plan."
+
+### Phase objective (DoD-locked)
+Implement MF Phase 3 as the strict input-admissibility and provenance-lock boundary before any train/eval logic:
+- resolve all `dataset_manifest_refs` explicitly by reference (no scanning/latest),
+- validate manifest schema and run-scope compatibility fail-closed,
+- validate manifest feature/schema compatibility against pinned training profile requirements,
+- resolve training/governance profile refs and capture immutable provenance digests,
+- emit immutable `resolved_train_plan` artifact under run scope.
+
+### Authorities used
+- `docs/model_spec/platform/implementation_maps/model_factory.build_plan.md` (Phase 3 DoD)
+- `docs/model_spec/platform/implementation_maps/platform.build_plan.md` (Phase `6.3.B`)
+- `docs/model_spec/platform/component-specific/model_factory.design-authority.md`
+- `docs/model_spec/platform/component-specific/flow-narrative-platform-design.md`
+- `docs/model_spec/platform/pre-design_decisions/learning_and_evolution.pre-design_decisions.md`
+- `docs/model_spec/platform/contracts/learning_registry/dataset_manifest_v0.schema.yaml`
+- Existing reference implementation pattern:
+  - `src/fraud_detection/offline_feature_plane/phase3.py`
+  - `tests/services/offline_feature_plane/test_phase3_resolver.py`
+
+### Problem framing and alternatives considered
+1. Resolve manifests as raw JSON without contract validation.
+   - Rejected: violates fail-closed compatibility posture and weakens OFS->MF boundary.
+2. Add only shallow path-existence checks and defer feature/schema compatibility to later phases.
+   - Rejected: Phase 3 explicitly owns pre-train meaning lock; deferral risks hidden drift.
+3. Implement typed MF resolver boundary with:
+   - contract validation (`DatasetManifestContract`),
+   - run-scope checks (`platform_run_id` match),
+   - training-profile compatibility checks for feature-definition set + expected manifest schema,
+   - immutable resolved-plan emission with drift detection.
+   - Selected.
+
+### Planned file changes
+- New code:
+  - `src/fraud_detection/model_factory/phase3.py`
+- Update exports:
+  - `src/fraud_detection/model_factory/__init__.py`
+- New tests:
+  - `tests/services/model_factory/test_phase3_resolver.py`
+- Documentation/status updates after validation:
+  - `docs/model_spec/platform/implementation_maps/model_factory.build_plan.md`
+  - `docs/model_spec/platform/implementation_maps/platform.build_plan.md`
+  - `docs/model_spec/platform/implementation_maps/model_factory.impl_actual.md`
+  - `docs/model_spec/platform/implementation_maps/platform.impl_actual.md`
+  - `docs/logbook/02-2026/2026-02-10.md`
+
+### Validation plan
+- Syntax compile of new MF Phase 3 module and tests.
+- Targeted Phase 3 resolver matrix.
+- Combined MF regression (Phases 1..3 + learning contracts).
+- OFS/MF learning-lane compatibility sanity matrix (existing OFS Phase 1..3 + MF Phase 1..3 + learning contracts).
+
+### Drift sentinel checkpoint
+If Phase 3 allows unresolved refs, run-scope mismatch, or feature/schema incompatibility to proceed into train/eval, that is material drift and Phase 3 remains blocked.
+
+## Entry: 2026-02-10 2:03PM - Applied MF Phase 3 implementation (input resolver + provenance lock)
+
+### Implemented files and surfaces
+- Added MF Phase 3 resolver module:
+  - `src/fraud_detection/model_factory/phase3.py`
+- Updated MF public exports for Phase 3 surfaces:
+  - `src/fraud_detection/model_factory/__init__.py`
+- Added MF Phase 3 validation matrix:
+  - `tests/services/model_factory/test_phase3_resolver.py`
+
+### Phase 3 outcomes
+- MF now resolves DatasetManifest refs explicitly via by-ref reads and schema validation (`DatasetManifestContract`).
+- Fail-closed run-scope enforcement is now explicit:
+  - manifest `platform_run_id` must equal request `platform_run_id`.
+- Feature/schema compatibility guard is now enforced before train/eval:
+  - manifest `feature_definition_set` must match training profile feature requirements,
+  - manifest schema version must match expected training-profile schema basis.
+- Resolver records immutable `resolved_train_plan` artifacts under run scope:
+  - `<platform_run_id>/mf/resolved_train_plan/<run_key>.json`.
+- Re-emission drift is blocked with typed immutability violation (`RESOLVED_TRAIN_PLAN_IMMUTABILITY_VIOLATION`).
+
+### Validation evidence
+- Syntax:
+  - `python -m py_compile src/fraud_detection/model_factory/phase3.py src/fraud_detection/model_factory/__init__.py tests/services/model_factory/test_phase3_resolver.py` (`PASS`).
+- Targeted Phase 3:
+  - `python -m pytest tests/services/model_factory/test_phase3_resolver.py -q --import-mode=importlib` (`6 passed`).
+- MF + learning contracts regression:
+  - `python -m pytest tests/services/model_factory/test_phase1_contracts.py tests/services/model_factory/test_phase1_ids.py tests/services/model_factory/test_phase2_run_ledger.py tests/services/model_factory/test_phase3_resolver.py tests/services/learning_registry/test_phase61_contracts.py -q --import-mode=importlib` (`28 passed`).
+- MF + OFS + learning compatibility regression:
+  - `python -m pytest tests/services/model_factory/test_phase1_contracts.py tests/services/model_factory/test_phase1_ids.py tests/services/model_factory/test_phase2_run_ledger.py tests/services/model_factory/test_phase3_resolver.py tests/services/offline_feature_plane/test_phase1_contracts.py tests/services/offline_feature_plane/test_phase1_ids.py tests/services/offline_feature_plane/test_phase2_run_ledger.py tests/services/offline_feature_plane/test_phase3_resolver.py tests/services/learning_registry/test_phase61_contracts.py -q --import-mode=importlib` (`51 passed`).
+
+### Drift sentinel assessment
+- No designed-flow contradiction detected in Phase 3 scope.
+- J15 intake boundary is now stricter and explicit (by-ref manifests, fail-closed compatibility, immutable provenance lock).
+- Residual risk surface moves to MF Phase 4 (`train/eval execution corridor`) for evidence production and leakage-policy execution mechanics.
+
+### Plan progression
+- MF Phase 3 is closed.
+- Next MF phase is Phase 4 (`train/eval execution corridor`).
