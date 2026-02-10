@@ -1,0 +1,48 @@
+$schema: https://json-schema.org/draft/2020-12/schema
+title: DevMinIngressReceiptSummary v0
+type: object
+additionalProperties: false
+required:
+  - schema_version
+  - platform_run_id
+  - totals
+  - anomaly_counts
+  - evidence_refs
+properties:
+  schema_version:
+    type: string
+    const: dev_min.ingress_receipt_summary.v0
+  platform_run_id:
+    type: string
+    minLength: 1
+  totals:
+    type: object
+    additionalProperties: false
+    required: [admit, duplicate, quarantine]
+    properties:
+      admit:
+        type: integer
+        minimum: 0
+      duplicate:
+        type: integer
+        minimum: 0
+      quarantine:
+        type: integer
+        minimum: 0
+  anomaly_counts:
+    type: object
+    additionalProperties: false
+    required: [payload_hash_mismatch, schema_reject]
+    properties:
+      payload_hash_mismatch:
+        type: integer
+        minimum: 0
+      schema_reject:
+        type: integer
+        minimum: 0
+  evidence_refs:
+    type: array
+    minItems: 1
+    items:
+      type: string
+      minLength: 1

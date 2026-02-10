@@ -11,7 +11,7 @@ config/platform/profiles/
 
 ## Shape (v0)
 ```
-profile_id: <local|local_parity|dev|prod>
+profile_id: <local|local_parity|dev_min|dev|prod>
 policy:
   policy_rev: <version tag>
   partitioning_profiles_ref: config/platform/ig/partitioning_profiles_v0.yaml
@@ -64,7 +64,7 @@ wiring:
 dl:
   policy:
     profiles_ref: config/platform/dl/policy_profiles_v0.yaml
-    profile_id: <local|local_parity|dev|prod>
+    profile_id: <local|local_parity|dev_min|dev|prod>
 ```
 
 Notes:
@@ -114,5 +114,5 @@ Parity env vars (local_parity/dev/prod):
 Testing policy (current):
 - **local.yaml** → fast smoke validation (file‑bus + SQLite).
 - **local_parity.yaml** → parity validation (MinIO + LocalStack + Postgres).
-- **local_parity.yaml** → parity validation (MinIO + LocalStack + Postgres).
+- **dev_min.yaml** → managed-substrate migration profile contract (Confluent Kafka + AWS S3 evidence posture).
 - **dev.yaml** → dev infra (S3/Kinesis/RDS).

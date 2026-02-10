@@ -1,0 +1,47 @@
+$schema: https://json-schema.org/draft/2020-12/schema
+title: DevMinAuditSummary v0
+type: object
+additionalProperties: false
+required:
+  - schema_version
+  - platform_run_id
+  - append_only_check
+  - counts
+  - evidence_refs
+properties:
+  schema_version:
+    type: string
+    const: dev_min.audit_summary.v0
+  platform_run_id:
+    type: string
+    minLength: 1
+  append_only_check:
+    type: object
+    additionalProperties: false
+    required: [status]
+    properties:
+      status:
+        type: string
+        enum: [PASS, FAIL]
+      detail:
+        type: string
+  counts:
+    type: object
+    additionalProperties: false
+    required: [audit_records, decision_events, action_events]
+    properties:
+      audit_records:
+        type: integer
+        minimum: 0
+      decision_events:
+        type: integer
+        minimum: 0
+      action_events:
+        type: integer
+        minimum: 0
+  evidence_refs:
+    type: array
+    minItems: 1
+    items:
+      type: string
+      minLength: 1

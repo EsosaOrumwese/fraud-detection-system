@@ -4,7 +4,7 @@
 
 ### 0.1 Status
 
-* **Status:** v0 (Design-Authority; implementer execution authorized)
+* **Status:** v0 (LOCKED: all Section 17 decision items are resolved and pinned)
 * **As-of:** 2026-02-10 (Europe/London)
 * **Scope of v0:** define the **dev-min rung** (budget-safe managed substrate) and its relationship to the existing env ladder; pin non-negotiable decisions + guardrails; leave implementation choices to Codex where explicitly marked.
 
@@ -45,12 +45,24 @@
 
 ### 0.5 References (Normative)
 
-* Platform flow narrative (overall intended flow + invariant laws). 
-* Run/Operate pre-design decisions (env ladder, identity/config/promotion posture). 
-* Observability & Governance pre-design decisions (counters, anomalies, reconciliation, corridors). 
-* Control & Ingress pre-design decisions (IG admission laws, dedupe tuple, receipts, publish ambiguity). 
-* RTDL pre-design decisions (evidence basis, archive posture, idempotency, replay). 
-* Platform parity walkthrough (local_parity harness baseline). 
+**Pinned normative file paths (exact):**
+
+1. `docs/model_spec/platform/platform-wide/platform_blueprint_notes_v0.md`
+2. `docs/model_spec/platform/platform-wide/deployment_tooling_notes_v0.md`
+3. `docs/model_spec/platform/component-specific/flow-narrative-platform-design.md`
+4. `docs/model_spec/platform/pre-design_decisions/run_and_operate.pre-design_decisions.md`
+5. `docs/model_spec/platform/pre-design_decisions/observability_and_governance.pre-design_decisions.md`
+6. `docs/model_spec/platform/pre-design_decisions/control_and_ingress.pre-design_decision.md`
+7. `docs/model_spec/platform/pre-design_decisions/real-time_decision_loop.pre-design_decision.md`
+8. `docs/runbooks/platform_parity_walkthrough_v0.md`
+
+**Pinned precedence rule (highest to lowest):**
+- Core platform-wide authority (`platform_blueprint_notes_v0.md`, `deployment_tooling_notes_v0.md`)
+- This document (`dev-min_managed-substrate_migration.design-authority.v0.md`)
+- Plane/component pre-design decisions listed above
+- Flow narrative and runbook execution posture
+
+If any conflict appears, implementer MUST follow the precedence order above and raise a stop-the-line repin request before implementing.
 
 ### 0.6 References (Non-normative / Working Notes)
 
@@ -181,6 +193,7 @@ In short: **local_parity remains the correctness harness**, while **dev-min beco
 * **`dev_min`**: The **managed-substrate proof rung** defined by this document. It MUST preserve all semantic laws, but swaps substrate primitives to **managed Kafka + AWS S3 evidence** under a strict **demo → destroy** budget posture.  
 * **`dev_full`**: An optional later rung that adds stronger operational posture (richer observability, stricter identity, richer runbooks/alerts). Not required to complete v0 dev_min.  
 * **`prod_target`**: Aspirational “late-stage” production architecture target used for design direction only. Not required to run as a paid always-on environment for portfolio purposes. 
+* **`dev_min` profile artifact (pinned):** `config/platform/profiles/dev_min.yaml` is the normative runtime profile for this rung. Where variable expansion is used, this profile remains the semantic authority for run wiring keys.
 
 ### 3.2 Run Identity and Correlation Terms
 
@@ -289,6 +302,11 @@ The following selections are **pinned** for v0 `dev_min`:
 1. **Event Bus (EB) substrate**
 
    * **MUST:** Use **managed Kafka** via **Confluent Cloud** as the EB backend for `dev_min`.
+   * **MUST:** Confluent cluster parameters for `dev_min` are pinned:
+     * **type:** `Basic`
+     * **cloud:** `AWS`
+     * **region:** `eu-west-2 (London)`
+   * **MUST:** Confluent resources are **demo-scoped** (destroy-by-default; created in demo stack).
    * **MUST:** Provision Kafka resources via IaC where possible (Terraform preferred).
    * **MUST:** Use Kafka topics for the platform buses required to run the demo (traffic/context/control/audit/case/labels as applicable).
 
@@ -314,10 +332,9 @@ The following selections are **pinned** for v0 `dev_min`:
 
 5. **Orchestration**
 
-   * **MUST:** Use a lightweight orchestration approach compatible with demo → destroy:
-
-     * **Option pinned for v0:** AWS **Step Functions** is permitted and recommended for `dev_min` run orchestration.
-   * **MAY:** Continue to use the existing local run orchestrator for local runs (this does not violate dev_min), but dev_min must have a repeatable operator run procedure.
+   * **MUST:** Phase 1 `dev_min` orchestration is **CLI-only** via the existing `run_operate` / Make-driven run procedure.
+   * **MUST NOT:** Introduce Step Functions in Phase 1.
+   * **MAY:** Step Functions may be added later as a **dev_full** upgrade (explicit repin required).
 
 6. **Observability backend**
 
@@ -418,9 +435,9 @@ Regardless of environment (`local_parity`, `dev_min`, later rungs), the followin
 * **Oracle Store:** MinIO → **AWS S3**
 
   * Engine outputs are uploaded to S3 under run-scoped paths.
-* **READY/control signaling:** local control bus → **Kafka control topic** (Confluent Cloud) OR Step Functions trigger path
+* **READY/control signaling:** local control bus → **Kafka control topic** (Confluent Cloud)
 
-  * Pinned choice for v0: Kafka control topic is allowed; Step Functions may orchestrate around it.
+  * Phase 1 is CLI-orchestrated (no Step Functions).
 
 **Pinned `dev_min` resources used by this plane:**
 
@@ -552,7 +569,7 @@ Regardless of environment (`local_parity`, `dev_min`, later rungs), the followin
 **What changes in `dev_min` (substrate wiring):**
 
 * Archive lake is S3 (even if only Parquet/event dumps for now).
-* Orchestration may be Step Functions for offline pipelines (optional in v0 dev_min).
+* Phase 1 orchestration remains CLI-only; Step Functions is **not** part of v0 `dev_min` and is reserved for `dev_full` upgrades.
 
 **Pinned `dev_min` resources used by this plane:**
 
@@ -583,7 +600,6 @@ Regardless of environment (`local_parity`, `dev_min`, later rungs), the followin
 **Pinned `dev_min` resources used by this plane:**
 
 * S3 prefix: `evidence/runs/<platform_run_id>/...`
-* (Optional) Step Functions state machine(s) for “demo run orchestration”
 * CloudWatch logs/metrics (minimal posture)
 
 **Implementer freedom:**
@@ -758,7 +774,7 @@ Core **MUST NOT** include Kafka clusters, always-on compute, NAT gateways, or lo
 
 * Confluent Cloud Kafka:
 
-  * environment + cluster
+  * environment + cluster (**Basic**, **AWS**, **eu-west-2 (London)**)
   * required topics for the demo run (traffic/context/control/audit/case/labels as applicable)
   * service account(s) + ACLs/RBAC
   * API keys (written to SSM SecureString)
@@ -766,7 +782,7 @@ Core **MUST NOT** include Kafka clusters, always-on compute, NAT gateways, or lo
 Demo **MAY** provision (only if you choose to run compute in AWS for demos):
 
 * ECS tasks/services to run components in AWS during demo windows
-* Step Functions state machine(s) to orchestrate the demo run
+  * NOTE: Phase 1 is CLI-orchestrated; no Step Functions in v0.
 
 Demo **MUST NOT** provision NAT Gateway.
 Demo **MUST NOT** provision always-on load balancers as a dependency for running the demo.
@@ -877,6 +893,7 @@ This is the key “dev/prod reality” constraint:
 * **MUST:** For each `platform_run_id`, the platform MUST produce a **run config digest** (or equivalent) and store it in the evidence bundle.
 * **MUST:** The “run config” MUST include at minimum:
 
+  * profile artifact ref (`config/platform/profiles/dev_min.yaml`)
   * environment name (`dev_min`)
   * `platform_run_id`, `scenario_run_id`
   * Kafka cluster endpoint identity (bootstrap or cluster ID)
@@ -884,6 +901,7 @@ This is the key “dev/prod reality” constraint:
   * S3 bucket/prefix map used in the run (oracle/archive/quarantine/evidence)
   * any policy/bundle pointers used by the run (if applicable to your current stage)
 * **MUST:** Mid-run config changes are forbidden; any change requires a new run (or an explicitly recorded boundary event).
+* **MUST:** Runtime configuration for `dev_min` runs is resolved from the pinned profile artifact above plus secret/materialized endpoints from SSM; ad hoc untracked config sources are prohibited.
 
 **Implementer freedom:** how the digest is computed (hash algorithm, JSON canonicalization), so long as:
 
@@ -1042,11 +1060,10 @@ This section pins how a `dev_min` demo run is initiated, executed, and closed in
 
 ### 12.2 Dev-min workflow backbone (pinned)
 
-The `dev_min` workflow is defined as the following stages. Implementer may choose whether these are implemented as:
-
-* a Make-driven CLI sequence, or
-* an AWS Step Functions state machine,
-  but the stage semantics MUST be preserved.
+The `dev_min` workflow is defined as the following stages.
+**MUST:** Phase 1 implementation is a Make-driven / `run_operate` **CLI sequence**.
+**MUST NOT:** Phase 1 uses Step Functions.
+Stage semantics below MUST be preserved.
 
 **Stage 0 — Preconditions**
 
@@ -1567,60 +1584,50 @@ This is the recurring guardrail that prevents slow drift into a “glorified toy
 
 ---
 
-## 17. Open Decisions Log (v0)
+## 17. Decision Registry (v0, pinned)
 
-This section explicitly lists items that are **not pinned** yet. Codex must not “fill gaps” by invention; if any of these become necessary to implement, they must be surfaced as a decision request and then pinned.
+This section records items that were previously open and are now pinned for v0 authority closure. Any new decision requests MUST be added as new entries and remain non-authoritative until explicitly pinned by the designer/user.
 
-### 17.1 Open items (not pinned yet)
+### 17.1 Decisions closed in v0 (formerly open; now pinned)
 
 1. **Exact Kafka topic name map**
-
-* We have pinned “Kafka topics exist for traffic/context/control/audit/case/labels,” but we have **not pinned** the exact canonical topic names, partition counts, retention, or compaction policies for dev_min.
-* Action: Codex proposes a topic map in Appendix C and we pin it.
+   - **CLOSED:** Appendix C is normative; topic names/partitions/retention defaults are pinned there.
 
 2. **Confluent cluster type/region**
-
-* Not pinned: Confluent cluster “type” (basic/standard/dedicated), cloud provider/region pairing, and whether clusters are created per demo or reused across multiple demos.
-* Pinned constraint still applies: demo → destroy as the default. If reuse is proposed, it must include a cost justification and a teardown policy.
+   - **CLOSED (PINNED):** `Basic` / `AWS` / `eu-west-2 (London)`.
+   - **PINNED:** demo-scoped (destroy-by-default).
 
 3. **Compute placement for demos**
-
-* Not pinned: whether demo-day compute runs entirely local (recommended baseline) or partly in AWS (ECS tasks).
-* Pinned constraint: if AWS compute is used, it must be ephemeral and must not require NAT or always-on ALB.
+   - **CLOSED (PINNED):** Phase 1 default is **local compute**.
+   - **PINNED:** AWS compute is optional and, if used, must be demo-only and respect “no NAT / no always-on LB”.
 
 4. **Managed Postgres vs local Postgres in dev_min**
-
-* Not pinned: whether CM/LS and receipts use a managed Postgres in dev_min or remain local with evidence export.
-* Constraint: evidence bundle must be complete regardless.
+   - **CLOSED (PINNED):** Phase 1 uses **local Postgres** (existing local runtime DB) for CM/LS/receipts.
+   - **PINNED:** evidence bundle exports to S3 are mandatory regardless.
 
 5. **Join plane substrate in dev_min**
-
-* Not pinned: whether CSFB/join-plane state is moved to managed Redis in dev_min.
-* Constraint: do not let this become a blocker for dev_min; it’s optional.
+   - **CLOSED (PINNED):** Phase 1 **defers Redis**; keep current join-store path (Postgres-backed and/or in-memory as implemented).
 
 6. **Step Functions vs CLI orchestration**
+   - **CLOSED (PINNED):** Phase 1 is **CLI-only** (`run_operate` / Make targets). No Step Functions in v0.
+   - **Future:** Step Functions is allowed only as an explicit **dev_full** upgrade.
 
-* Allowed: Step Functions.
-* Not pinned: whether it is required for v0 dev_min or whether a CLI pipeline is sufficient.
-* Constraint: operator run procedure must exist and be repeatable.
+### 17.2 Additional closures (formerly open; now pinned)
 
 7. **Evidence bundle exact schema**
-
-* We pinned required contents and S3 prefix layout, but not the exact JSON schema files for run.json, receipt summary, offset summary, etc.
-* Action: Codex proposes minimal schemas; we pin them.
+   - **CLOSED (PINNED):** evidence bundle schema files are fixed to:
+     - `docs/model_spec/platform/contracts/dev_min/run_header.v0.schema.yaml`
+     - `docs/model_spec/platform/contracts/dev_min/ingress_receipt_summary.v0.schema.yaml`
+     - `docs/model_spec/platform/contracts/dev_min/audit_summary.v0.schema.yaml`
+     - `docs/model_spec/platform/contracts/dev_min/replay_anchor_summary.v0.schema.yaml`
+     - `docs/model_spec/platform/contracts/dev_min/metrics_anomaly_reconciliation_snapshot.v0.schema.yaml`
+   - **PINNED:** these schemas are required deliverables for implementation closure and must be referenced in run evidence metadata.
 
 8. **Budget enforcement mechanism**
-
-* We pinned “AWS Budgets alerts exist,” but did not pin whether a hard-stop mechanism exists (e.g., teardown on threshold).
-* Constraint: do not add complex automation until the base is stable.
-
-### 17.2 How to close open decisions (pinned process)
-
-For each open item that becomes implementation-relevant:
-
-* Codex drafts the proposed decision in PR notes (one screen max).
-* Designer pins it by updating this section and (if needed) the relevant pinned sections.
-* Only then does Codex implement it.
+   - **CLOSED (PINNED):** v0 uses a **manual hard-stop protocol** (no automation required):
+     - if any budget alert threshold at or above `£28` is triggered, operator MUST run `dev-min-down` immediately after active run closure,
+     - `dev-min-up` is blocked until operator records a budget-reset intent in logbook and confirms spend posture for the current month,
+     - no new automation dependency is introduced in v0.
 
 ### 17.3 Future upgrades (not pinned, direction only)
 
@@ -1641,9 +1648,9 @@ This table is **normative for dev_min direction**: it pins what dev_min is allow
 | ------------------ | --------------------- | -------------------------------- | ---------------------------------------------------------- | ---------------------------------- | ---------------------------------- |
 | World Builder      | Oracle Store          | MinIO                            | **AWS S3**                                                 | S3 + tighter posture               | S3 + Object Lock/WORM + governance |
 | World Builder      | Scenario Runner (SR)  | Compose/local                    | **Local (default)** or ephemeral ECS                       | ECS/EKS + autoscale                | EKS + policy releases              |
-| World Builder      | READY/control         | Local control bus                | **Kafka control topic** (Confluent)                        | Kafka + orchestration signals      | Kafka + Temporal signaling         |
+| World Builder      | READY/control         | Local control bus                | **Kafka control topic** (Confluent; CLI-orchestrated)      | Kafka + orchestration signals      | Kafka + Temporal signaling         |
 | World Builder      | WSP                   | Compose/local                    | **Local (default)** or ephemeral ECS task                  | KStreams/Flink if needed           | Managed Flink/Spark Streaming      |
-| Control/Ingress    | Event Bus (EB)        | Redpanda/LocalStack              | **Confluent Cloud Kafka**                                  | Kafka tuned (retention/partitions) | Kafka multi-AZ + tiered storage    |
+| Control/Ingress    | Event Bus (EB)        | Redpanda/LocalStack              | **Confluent Cloud Kafka (Basic; AWS eu-west-2)**           | Kafka tuned (retention/partitions) | Kafka multi-AZ + tiered storage    |
 | Control/Ingress    | IG                    | Compose/local                    | **Local (default)** or ephemeral ECS                       | ECS/EKS + autoscale                | EKS + strict mTLS/rate controls    |
 | Control/Ingress    | Quarantine payloads   | Local/MinIO                      | **S3**                                                     | S3 + lifecycle + alarms            | S3 + compliance posture            |
 | Control/Ingress    | Quarantine index      | Local DB/files                   | **DynamoDB (recommended)**                                 | DynamoDB + TTL + alarms            | DynamoDB streams → workflows       |
@@ -1656,7 +1663,7 @@ This table is **normative for dev_min direction**: it pins what dev_min is allow
 | Label/Case         | CM/LS services        | Local                            | **Local (default)** with evidence export                   | ECS/EKS optional                   | Enterprise auth + compliance       |
 | Learning/Evolution | Archive               | Local                            | **S3 archive prefix (bounded)**                            | S3 Parquet/Iceberg                 | Iceberg/Delta lakehouse            |
 | Learning/Evolution | OFS                   | Local job                        | **Optional** (not required for dev_min)                    | Glue/EMR/Databricks                | Databricks/Snowflake pipelines     |
-| Learning/Evolution | MF orchestration      | Scripts                          | **Optional** Step Functions (allowed)                      | Step/SageMaker/Temporal            | Kubeflow/SageMaker                 |
+| Learning/Evolution | MF orchestration      | Scripts                          | **CLI-only run flow (`run_operate` / Make) (PINNED)**      | Step/SageMaker/Temporal            | Kubeflow/SageMaker                 |
 | Meta               | IaC                   | Compose                          | **Terraform (MUST)**                                       | Terraform + policy checks          | modules + drift detection          |
 | Meta               | Budgets               | None/manual                      | **AWS Budgets alerts (MUST)**                              | + anomaly detection                | org-wide cost governance           |
 | Meta               | Logs/Metrics/Traces   | Local logs                       | **Minimal posture + S3 evidence (MUST)**                   | OTel collector + dashboards        | Datadog/Prometheus/Jaeger          |
@@ -1706,9 +1713,10 @@ Only these are permitted to accumulate cost across months:
 **Demo (allowed to cost money only during demo windows)**
 
 * Confluent Cloud Kafka cluster + topics
-* Optional Step Functions state machine executions
 * Optional ECS tasks/services (only if you choose to run compute in AWS)
 * Optional load balancer (only if explicitly needed for a demo) 
+
+NOTE: Phase 1 `dev_min` is CLI-orchestrated; Step Functions is out of scope for v0.
 
 ---
 
@@ -1724,9 +1732,10 @@ Only these are permitted to accumulate cost across months:
 2. **CloudWatch**
 
    * Log ingestion volume + retention duration (cap via retention policy)
-3. **Step Functions (if used)**
+3. **Step Functions**
 
-   * State transitions per run (keep workflow simple; avoid chatty state machines)
+   * Not applicable in Phase 1 `dev_min` (CLI-only pinned).
+   * If introduced in `dev_full`, keep state transitions per run bounded.
 4. **ECS/Compute (if used)**
 
    * CPU/RAM hours (keep tasks short-lived)
@@ -1813,6 +1822,7 @@ If Codex adds an optional MSK Serverless “AWS-native Kafka” module, it MUST 
 Dev-min is considered budget-safe only if:
 
 * You can run at least **two demo sessions in a month** (each including an incident drill + evidence bundle) and remain **≤ £30/month** by destroying demo infra afterwards.
+* If the `£28` budget alert is hit, operator hard-stop protocol is followed (`dev-min-down`, run lock until explicit reset note).
 
 ---
 
