@@ -378,3 +378,108 @@ If Phase 3 allows unresolved refs, run-scope mismatch, or feature/schema incompa
 ### Plan progression
 - MF Phase 3 is closed.
 - Next MF phase is Phase 4 (`train/eval execution corridor`).
+
+## Entry: 2026-02-10 2:06PM - Pre-change implementation lock for MF Phase 4 (train/eval execution corridor)
+
+### Trigger
+User directed progression: "Proceed to implementing MF Phase 4."
+
+### Phase objective (DoD-locked)
+Implement MF Phase 4 execution mechanics so pinned Phase 3 plans produce reproducible, immutable train/eval evidence:
+- enforce explicit split strategy and seed policy recording in execution records,
+- produce immutable train artifact and eval evidence artifacts under `mf/...`,
+- emit schema-valid `EvalReport` with reproducibility basis and deterministic metrics,
+- enforce leakage guardrails fail-closed using manifest as-of/resolution posture (no hidden now).
+
+### Authorities used
+- `docs/model_spec/platform/implementation_maps/model_factory.build_plan.md` (Phase 4 DoD)
+- `docs/model_spec/platform/implementation_maps/platform.build_plan.md` (Phase `6.3.C` intent)
+- `docs/model_spec/platform/component-specific/model_factory.design-authority.md`
+- `docs/model_spec/platform/component-specific/flow-narrative-platform-design.md`
+- `docs/model_spec/platform/pre-design_decisions/learning_and_evolution.pre-design_decisions.md`
+- `docs/model_spec/platform/contracts/learning_registry/eval_report_v0.schema.yaml`
+- `src/fraud_detection/learning_registry/contracts.py` (`EvalReportContract`)
+- Existing immutable-publication patterns:
+  - `src/fraud_detection/offline_feature_plane/phase6.py`
+  - `src/fraud_detection/offline_feature_plane/phase7.py`
+
+### Problem framing and alternatives considered
+1. Stub train/eval with ad-hoc files and skip schema-validated EvalReport until Phase 5.
+   - Rejected: Phase 4 DoD explicitly requires eval evidence quality and reproducibility surfaces now.
+2. Compute-only in-memory outputs and defer immutable artifact writes to worker integration.
+   - Rejected: corridor would be non-auditable and not restart-safe for later phases.
+3. Build a deterministic Phase 4 executor with:
+   - immutable execution record/model artifact/eval report/evidence pack receipts,
+   - typed fail-closed taxonomy for profile/leakage/immutability violations,
+   - explicit split/seed policy capture + deterministic metric derivation from pinned inputs.
+   - Selected.
+
+### Planned file changes
+- New code:
+  - `src/fraud_detection/model_factory/phase4.py`
+- Update exports:
+  - `src/fraud_detection/model_factory/__init__.py`
+- New tests:
+  - `tests/services/model_factory/test_phase4_execution.py`
+- Documentation/status updates after validation:
+  - `docs/model_spec/platform/implementation_maps/model_factory.build_plan.md`
+  - `docs/model_spec/platform/implementation_maps/platform.build_plan.md`
+  - `docs/model_spec/platform/implementation_maps/model_factory.impl_actual.md`
+  - `docs/model_spec/platform/implementation_maps/platform.impl_actual.md`
+  - `docs/logbook/02-2026/2026-02-10.md`
+
+### Validation plan
+- Compile new MF Phase 4 module/tests.
+- Targeted MF Phase 4 matrix.
+- Combined MF regression (Phases 1..4 + learning contracts).
+- OFS/MF/learning compatibility sanity matrix.
+
+### Drift sentinel checkpoint
+If Phase 4 allows training/eval to proceed without explicit split/seed posture or accepts ambiguous as-of leakage posture, phase closure is blocked as material drift.
+
+## Entry: 2026-02-10 2:10PM - Applied MF Phase 4 implementation (train/eval execution corridor)
+
+### Implemented files and surfaces
+- Added MF Phase 4 execution module:
+  - `src/fraud_detection/model_factory/phase4.py`
+- Updated MF exports for Phase 4 surfaces:
+  - `src/fraud_detection/model_factory/__init__.py`
+- Added MF Phase 4 matrix:
+  - `tests/services/model_factory/test_phase4_execution.py`
+
+### Phase 4 outcomes
+- MF can now execute deterministic train/eval evidence flow from a pinned `ResolvedTrainPlan`.
+- Execution corridor explicitly records and enforces:
+  - split strategy,
+  - seed policy,
+  - deterministic stage seed.
+- Eval evidence is now schema-validated at emission time (`EvalReportContract`) and written immutably by-ref under run scope.
+- Required immutable artifacts are emitted under `mf/train_runs/<run_key>/...`:
+  - execution record,
+  - train artifact,
+  - eval report,
+  - evidence pack,
+  - train/eval receipt.
+- Leakage guardrails are fail-closed:
+  - manifest label rule alignment to `observed_time<=label_asof_utc` (or pinned equivalent),
+  - label as-of timestamps cannot exceed execution start,
+  - multi-manifest label-as-of mismatch is blocked.
+
+### Validation evidence
+- Syntax:
+  - `python -m py_compile src/fraud_detection/model_factory/phase4.py src/fraud_detection/model_factory/__init__.py tests/services/model_factory/test_phase4_execution.py` (`PASS`).
+- Targeted Phase 4:
+  - `python -m pytest tests/services/model_factory/test_phase4_execution.py -q --import-mode=importlib` (`5 passed`).
+- MF + learning contracts regression:
+  - `python -m pytest tests/services/model_factory/test_phase1_contracts.py tests/services/model_factory/test_phase1_ids.py tests/services/model_factory/test_phase2_run_ledger.py tests/services/model_factory/test_phase3_resolver.py tests/services/model_factory/test_phase4_execution.py tests/services/learning_registry/test_phase61_contracts.py -q --import-mode=importlib` (`33 passed`).
+- MF + OFS + learning compatibility regression:
+  - `python -m pytest tests/services/model_factory/test_phase1_contracts.py tests/services/model_factory/test_phase1_ids.py tests/services/model_factory/test_phase2_run_ledger.py tests/services/model_factory/test_phase3_resolver.py tests/services/model_factory/test_phase4_execution.py tests/services/offline_feature_plane/test_phase1_contracts.py tests/services/offline_feature_plane/test_phase1_ids.py tests/services/offline_feature_plane/test_phase2_run_ledger.py tests/services/offline_feature_plane/test_phase3_resolver.py tests/services/learning_registry/test_phase61_contracts.py -q --import-mode=importlib` (`56 passed`).
+
+### Drift sentinel assessment
+- No designed-flow contradiction detected for Phase 4 scope.
+- MF corridor now has executable, immutable train/eval evidence with explicit leakage policy enforcement before gate/publish phases.
+- Residual risk surface moves to MF Phase 5 (`gate receipt + publish eligibility policy`).
+
+### Plan progression
+- MF Phase 4 is closed.
+- Next MF phase is Phase 5 (`gate receipt + publish eligibility policy`).

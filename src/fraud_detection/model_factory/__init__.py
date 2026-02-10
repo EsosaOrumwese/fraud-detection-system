@@ -17,6 +17,7 @@ from .phase3 import (
     ResolvedTrainingProfile,
     ResolvedTrainPlan,
 )
+from .phase4 import MfPhase4ExecutionError, MfTrainEvalExecutor, MfTrainEvalExecutorConfig, MfTrainEvalReceipt
 from .run_control import MfRunControl, MfRunControlPolicy
 from .run_ledger import (
     MF_RETRY_ALLOWED,
@@ -55,6 +56,10 @@ __all__ = [
     "ResolvedDatasetManifest",
     "ResolvedTrainingProfile",
     "ResolvedGovernanceProfile",
+    "MfTrainEvalExecutor",
+    "MfTrainEvalExecutorConfig",
+    "MfTrainEvalReceipt",
+    "MfPhase4ExecutionError",
     "MfRunControl",
     "MfRunControlPolicy",
     "MfRunLedger",

@@ -123,6 +123,23 @@ Provide an executable, component-scoped plan for Model Factory (MF) aligned to p
 - Required artifacts are written immutably under `mf/...` with by-ref linkage.
 - Leakage guardrails (as-of basis adherence, no hidden "now") are enforced fail-closed.
 
+**Implementation status note (2026-02-10):**
+- Phase 4 execution corridor implemented:
+  - `src/fraud_detection/model_factory/phase4.py`
+  - `src/fraud_detection/model_factory/__init__.py` (Phase 4 exports)
+  - `tests/services/model_factory/test_phase4_execution.py`
+- Phase 4 executor now enforces:
+  - explicit split strategy + seed policy extraction/recording from pinned training profile,
+  - deterministic stage seed and deterministic metric derivation from pinned inputs,
+  - schema-validated `EvalReport` emission via `EvalReportContract`,
+  - immutable execution/evidence artifact writes under `mf/train_runs/<run_key>/...`,
+  - leakage guard fail-closed posture (`label_asof_utc` scope + `observed_time<=label_asof_utc` rule alignment).
+- Validation evidence:
+  - `python -m py_compile src/fraud_detection/model_factory/phase4.py src/fraud_detection/model_factory/__init__.py tests/services/model_factory/test_phase4_execution.py` (`PASS`).
+  - `python -m pytest tests/services/model_factory/test_phase4_execution.py -q --import-mode=importlib` (`5 passed`).
+  - `python -m pytest tests/services/model_factory/test_phase1_contracts.py tests/services/model_factory/test_phase1_ids.py tests/services/model_factory/test_phase2_run_ledger.py tests/services/model_factory/test_phase3_resolver.py tests/services/model_factory/test_phase4_execution.py tests/services/learning_registry/test_phase61_contracts.py -q --import-mode=importlib` (`33 passed`).
+  - `python -m pytest tests/services/model_factory/test_phase1_contracts.py tests/services/model_factory/test_phase1_ids.py tests/services/model_factory/test_phase2_run_ledger.py tests/services/model_factory/test_phase3_resolver.py tests/services/model_factory/test_phase4_execution.py tests/services/offline_feature_plane/test_phase1_contracts.py tests/services/offline_feature_plane/test_phase1_ids.py tests/services/offline_feature_plane/test_phase2_run_ledger.py tests/services/offline_feature_plane/test_phase3_resolver.py tests/services/learning_registry/test_phase61_contracts.py -q --import-mode=importlib` (`56 passed`).
+
 ### Phase 5 - Gate receipt and publish eligibility policy
 **Intent:** make publish eligibility explicit and auditable.
 
@@ -209,11 +226,11 @@ Provide an executable, component-scoped plan for Model Factory (MF) aligned to p
 - Phase 1 (`TrainBuildRequest contract + deterministic run identity`): complete (implemented and validated on `2026-02-10`).
 - Phase 2 (`run control + idempotent run ledger`): complete (implemented and validated on `2026-02-10`).
 - Phase 3 (`input resolver + provenance lock`): complete (implemented and validated on `2026-02-10`).
-- Phase 4 (`train/eval execution corridor`): pending.
+- Phase 4 (`train/eval execution corridor`): complete (implemented and validated on `2026-02-10`).
 - Phase 5 (`gate receipt + publish eligibility policy`): pending.
 - Phase 6 (`bundle packaging + MPR publish handshake`): pending.
 - Phase 7 (`negative-path matrix + fail-closed taxonomy`): pending.
 - Phase 8 (`run/operate onboarding`): pending.
 - Phase 9 (`obs/gov onboarding`): pending.
 - Phase 10 (`integration closure gate`): pending.
-- Next action: implement Phase 4 (`train/eval execution corridor`).
+- Next action: implement Phase 5 (`gate receipt + publish eligibility policy`).

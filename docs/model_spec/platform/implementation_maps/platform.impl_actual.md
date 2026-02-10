@@ -10297,3 +10297,59 @@ Any implementation that permits MF to start with unvalidated manifest/profile co
 ### Drift sentinel assessment
 - No mismatch detected against flow narrative and learning-plane pins for this scope.
 - Platform Phase `6.3` remains active; next closure surface is MF Phase 4 (`train/eval execution corridor`) before gate/publish phases.
+
+## Entry: 2026-02-10 2:06PM - Platform-level pre-change lock for MF Phase 4 (`6.3.C` train/eval execution corridor)
+
+### Why platform-level tracking is required
+Phase `6.3.C` is where MF starts producing the evidence chain that gates all downstream publish behavior. If this execution corridor is non-deterministic, non-immutable, or leakage-ambiguous, later gate/publish phases can pass superficially while violating reproducibility rails.
+
+### Platform-level decisions pinned for this pass
+- Phase 4 must persist immutable execution evidence under `mf/...` before any gate/publish logic.
+- EvalReport must be schema-valid and reproducible from pinned manifests + config/profile refs.
+- Split strategy and seed policy must be explicit and recorded as part of execution evidence.
+- Leakage posture is fail-closed: ambiguous/missing label as-of rule alignment is blocked.
+
+### Expected closure evidence
+- New MF Phase 4 executor module + tests proving:
+  - positive deterministic evidence emission,
+  - profile/split/seed missing posture fail-closed,
+  - leakage guard violations fail-closed,
+  - immutable artifact drift detection.
+- Build-plan status updates marking MF Phase 4 complete.
+- Implementation maps + logbook updated with validation matrix outputs.
+
+### Drift sentinel checkpoint
+Any Phase 4 implementation that permits hidden split/seed semantics or ambiguous as-of policy progression is blocker-level drift from learning-plane pins.
+
+## Entry: 2026-02-10 2:10PM - Platform-level applied closure for MF Phase 4 (`6.3.C` train/eval execution corridor)
+
+### What was applied
+- MF Phase 4 execution lane landed in:
+  - `src/fraud_detection/model_factory/phase4.py`
+  - `src/fraud_detection/model_factory/__init__.py`
+- MF Phase 4 matrix added:
+  - `tests/services/model_factory/test_phase4_execution.py`
+- Build-plan status surfaces updated:
+  - `docs/model_spec/platform/implementation_maps/model_factory.build_plan.md`
+  - `docs/model_spec/platform/implementation_maps/platform.build_plan.md`
+
+### Platform-significant outcomes
+- Phase `6.3.C` is now executable and evidence-bearing, not planning-only.
+- MF now emits immutable train/eval evidence chain before gate/publish:
+  - execution record,
+  - train artifact,
+  - schema-valid EvalReport,
+  - evidence pack,
+  - execution receipt.
+- Deterministic split/seed posture is explicit and auditable in run-scoped artifacts.
+- Leakage guardrails are enforced fail-closed using manifest label-as-of/rule alignment.
+
+### Validation evidence
+- `python -m py_compile src/fraud_detection/model_factory/phase4.py src/fraud_detection/model_factory/__init__.py tests/services/model_factory/test_phase4_execution.py` (`PASS`).
+- `python -m pytest tests/services/model_factory/test_phase4_execution.py -q --import-mode=importlib` (`5 passed`).
+- `python -m pytest tests/services/model_factory/test_phase1_contracts.py tests/services/model_factory/test_phase1_ids.py tests/services/model_factory/test_phase2_run_ledger.py tests/services/model_factory/test_phase3_resolver.py tests/services/model_factory/test_phase4_execution.py tests/services/learning_registry/test_phase61_contracts.py -q --import-mode=importlib` (`33 passed`).
+- `python -m pytest tests/services/model_factory/test_phase1_contracts.py tests/services/model_factory/test_phase1_ids.py tests/services/model_factory/test_phase2_run_ledger.py tests/services/model_factory/test_phase3_resolver.py tests/services/model_factory/test_phase4_execution.py tests/services/offline_feature_plane/test_phase1_contracts.py tests/services/offline_feature_plane/test_phase1_ids.py tests/services/offline_feature_plane/test_phase2_run_ledger.py tests/services/offline_feature_plane/test_phase3_resolver.py tests/services/learning_registry/test_phase61_contracts.py -q --import-mode=importlib` (`56 passed`).
+
+### Drift sentinel assessment
+- No mismatch detected against flow narrative and learning-plane pins for this scope.
+- Platform Phase `6.3` remains active; next closure surface is MF Phase 5 (`gate receipt + publish eligibility policy`).
