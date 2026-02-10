@@ -217,6 +217,18 @@ NUMERIC_POLICY_VERSION ?= 2025-12-31
 MATH_PROFILE_VERSION ?= openlibm-v0.8.7
 
 # ---------------------------------------------------------------------------
+# Dev substrate migration defaults (Phase 1 bootstrap/preflight)
+# ---------------------------------------------------------------------------
+DEV_MIN_AWS_REGION ?= eu-west-2
+DEV_MIN_SSM_PREFIX ?= /fraud-platform/dev_min
+DEV_MIN_PHASE1_PREFLIGHT_OUTPUT ?=
+DEV_MIN_ALLOW_MISSING_CONFLUENT_HANDLES ?=
+DEV_MIN_SKIP_CONFLUENT_API_PROBE ?=
+DEV_MIN_KAFKA_BOOTSTRAP ?=
+DEV_MIN_KAFKA_API_KEY ?=
+DEV_MIN_KAFKA_API_SECRET ?=
+
+# ---------------------------------------------------------------------------
 # External paths (aligned to registries)
 # ---------------------------------------------------------------------------
 MERCHANT_TABLE ?= reference/layer1/transaction_schema_merchant_ids/$(MERCHANT_VERSION)/transaction_schema_merchant_ids.parquet
@@ -3256,6 +3268,24 @@ platform-run-report:
 	$(PY_PLATFORM) -m fraud_detection.platform_reporter.cli \
 		--profile "$(PLATFORM_PROFILE)" \
 		--platform-run-id "$$run_id"
+
+.PHONY: platform-dev-min-phase1-preflight
+platform-dev-min-phase1-preflight:
+	@MSYS_NO_PATHCONV=1 pwsh -NoProfile -File scripts/dev_substrate/phase1_preflight.ps1 \
+		-RequiredRegion "$(DEV_MIN_AWS_REGION)" \
+		-SsmPrefix "$(DEV_MIN_SSM_PREFIX)" \
+		$(if $(DEV_MIN_ALLOW_MISSING_CONFLUENT_HANDLES),-AllowMissingConfluentHandles,) \
+		$(if $(DEV_MIN_SKIP_CONFLUENT_API_PROBE),-SkipConfluentApiProbe,) \
+		$(if $(DEV_MIN_PHASE1_PREFLIGHT_OUTPUT),-OutputPath "$(DEV_MIN_PHASE1_PREFLIGHT_OUTPUT)",)
+
+.PHONY: platform-dev-min-phase1-seed-ssm
+platform-dev-min-phase1-seed-ssm:
+	@MSYS_NO_PATHCONV=1 pwsh -NoProfile -File scripts/dev_substrate/phase1_seed_ssm.ps1 \
+		-SsmPrefix "$(DEV_MIN_SSM_PREFIX)" \
+		-FromEnv \
+		$(if $(DEV_MIN_KAFKA_BOOTSTRAP),-Bootstrap "$(DEV_MIN_KAFKA_BOOTSTRAP)",) \
+		$(if $(DEV_MIN_KAFKA_API_KEY),-ApiKey "$(DEV_MIN_KAFKA_API_KEY)",) \
+		$(if $(DEV_MIN_KAFKA_API_SECRET),-ApiSecret "$(DEV_MIN_KAFKA_API_SECRET)",)
 
 .PHONY: platform-governance-query
 platform-governance-query:

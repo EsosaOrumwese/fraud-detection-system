@@ -456,3 +456,80 @@ Expanded Phase 1 in `docs/model_spec/platform/implementation_maps/dev_substrate/
 
 ### Drift sentinel checkpoint
 Planning expansion only; no runtime/infrastructure behavior changes.
+
+## Entry: 2026-02-10 10:15PM - Pre-change lock: implement Phase 1 (1.A -> 1.F)
+
+### Context
+USER approved implementation of Phase 1 end-to-end and indicated AWS IAM user credentials are enabled in this shell environment.
+
+### Phase 1 implementation objective
+Close sections 1.A through 1.F with auditable evidence:
+- account/tenancy bootstrap,
+- principal/permission model,
+- secret taxonomy/source map,
+- operator bootstrap + preflight,
+- security hygiene,
+- failure/recovery drills.
+
+### Planned execution steps
+1. Discover runtime tooling and identity context (AWS CLI, region/account identity, Confluent tooling presence).
+2. Implement reproducible Phase 1 preflight executable (sanitized output only; no secret values logged).
+3. Pin secret-handle map and env injection contract in existing docs/build plan.
+4. Execute positive preflight and targeted negative drills (missing secret handle, invalid AWS auth context, invalid Kafka credential shape check).
+5. Update Phase 1 DoD status lines in build plan based on observed evidence (PASS/fail-closed where appropriate).
+
+### Security guardrails for this pass
+- Never print or store secret values in logs/notes.
+- Record only secret handles, env var names, and pass/fail outcomes.
+- Keep all outputs sanitized in implementation/logbook entries.
+
+### Drift sentinel checkpoint
+This pass should only harden migration readiness posture and operator controls; no platform semantic-law changes are allowed.
+
+## Entry: 2026-02-10 10:22PM - Phase 1 implementation pass (1.A -> 1.F) with executable preflight and drills
+
+### Implemented changes
+1. Added executable Phase 1 preflight tool:
+   - `scripts/dev_substrate/phase1_preflight.ps1`
+   - behavior: fail-closed checks for AWS identity/region, terraform presence, required SSM handle presence, optional Confluent API auth probe, S3 bucket visibility, and secret-hygiene git check.
+
+2. Added executable SSM seed helper for Confluent handles:
+   - `scripts/dev_substrate/phase1_seed_ssm.ps1`
+   - behavior: writes secure parameters for bootstrap/api_key/api_secret under configured prefix; no secret values printed.
+
+3. Added Make targets for Phase 1 operations:
+   - `platform-dev-min-phase1-preflight`
+   - `platform-dev-min-phase1-seed-ssm`
+   - plus dev_min defaults for region/ssm prefix and flags.
+
+4. Applied Git-Bash path-conversion guard for SSM-style paths:
+   - `MSYS_NO_PATHCONV=1` on both new targets.
+
+5. Expanded Phase 1 execution detail and status in:
+   - `docs/model_spec/platform/implementation_maps/dev_substrate/platform.build_plan.md`
+   - includes explicit handle map, runtime env injection keys, drill evidence summary, and DoD status updates.
+
+### Execution evidence (sanitized)
+- AWS identity probe:
+  - account `230372904534`
+  - principal `arn:aws:iam::230372904534:user/fraud-dev`
+  - region `eu-west-2`
+- strict preflight (expected fail-closed because prod handles absent):
+  - `make platform-dev-min-phase1-preflight` -> `FAIL_CLOSED` on missing `/fraud-platform/dev_min/confluent/*`.
+- permissive bootstrap preflight (for baseline operator path):
+  - `make platform-dev-min-phase1-preflight DEV_MIN_ALLOW_MISSING_CONFLUENT_HANDLES=1 DEV_MIN_SKIP_CONFLUENT_API_PROBE=1` -> `PASS` with warnings.
+- failure drill 1 (invalid AWS auth context):
+  - set `AWS_PROFILE=__missing_profile__` and run preflight -> `FAIL_CLOSED` (identity/region/bucket checks fail as expected).
+- failure drill 2 (invalid Confluent credentials):
+  - seeded isolated drill handles under `/fraud-platform/dev_min_drill/confluent/*` with dummy values,
+  - ran strict preflight on drill prefix -> `FAIL_CLOSED` at Confluent API auth probe,
+  - cleaned drill handles via `aws ssm delete-parameters`.
+- failure drill 3 (missing secret material for seed helper):
+  - `make platform-dev-min-phase1-seed-ssm` without values -> explicit failure (expected).
+
+### Phase status outcome
+- `1.A` through `1.F` implementation surfaces are now present and executable.
+- Phase 1 closure remains blocked on provisioning real Confluent handles under `/fraud-platform/dev_min/confluent/*` and rerunning strict preflight to full PASS.
+
+### Drift sentinel checkpoint
+No platform semantic-law change. This pass implements migration readiness controls, secret handling discipline, and fail-closed operator gates.

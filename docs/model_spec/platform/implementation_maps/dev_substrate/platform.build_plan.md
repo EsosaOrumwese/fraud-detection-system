@@ -64,6 +64,11 @@ Stand up secure operator-ready access for AWS + Confluent without embedding secr
 - Pin Confluent organization/environment/cluster ownership and operating region.
 - Pin resource naming and cost-tag schema (`project`, `env`, `owner`, `expires_at`) for all provisioned resources.
 - Confirm budget alert ownership path and escalation destination.
+- Pinned execution snapshot (2026-02-10):
+  - AWS account: `230372904534`
+  - AWS principal: `arn:aws:iam::230372904534:user/fraud-dev`
+  - AWS region: `eu-west-2`
+  - Terraform state bucket visibility check: `tfstate-esosaorumwese808-fraud` readable.
 
 2. Phase 1.B - Principal and permission model
 - Define operator principal set (human operator, automation principal, optional break-glass principal).
@@ -71,6 +76,10 @@ Stand up secure operator-ready access for AWS + Confluent without embedding secr
   - AWS: S3 prefixes, Parameter Store paths, Terraform state access, budget/readonly billing visibility.
   - Confluent: cluster/topic admin for setup, runtime producer/consumer ACL scopes.
 - Pin deny-by-default posture for unknown principals and wildcard credentials.
+- Pinned phase-1 principal set:
+  - Human operator: AWS IAM user `fraud-dev` (current active principal).
+  - Automation principal: to be created in Phase 2 Terraform lane (non-human, least privilege).
+  - Break-glass principal: deferred but required before dev_full promotion.
 
 3. Phase 1.C - Secret taxonomy and source of truth
 - Pin secret classes:
@@ -79,6 +88,19 @@ Stand up secure operator-ready access for AWS + Confluent without embedding secr
   - data-store DSNs and service tokens.
 - Pin source-of-truth paths and naming conventions for each class.
 - Pin runtime injection contract (env var keys and process boundaries) without storing secret values in repo.
+- Pinned handle map (`dev_min`):
+  - `/fraud-platform/dev_min/confluent/bootstrap`
+  - `/fraud-platform/dev_min/confluent/api_key`
+  - `/fraud-platform/dev_min/confluent/api_secret`
+- Pinned runtime env keys (from `config/platform/profiles/dev_min.yaml`):
+  - `DEV_MIN_KAFKA_BOOTSTRAP`
+  - `DEV_MIN_KAFKA_API_KEY`
+  - `DEV_MIN_KAFKA_API_SECRET`
+  - `DEV_MIN_OBJECT_STORE_BUCKET`
+  - `DEV_MIN_EVIDENCE_BUCKET`
+  - `DEV_MIN_QUARANTINE_BUCKET`
+  - `DEV_MIN_ARCHIVE_BUCKET`
+  - `DEV_MIN_AWS_REGION`
 
 4. Phase 1.D - Operator bootstrap and preflight gate
 - Define deterministic bootstrap sequence for a fresh shell session:
@@ -91,11 +113,20 @@ Stand up secure operator-ready access for AWS + Confluent without embedding secr
   - Kafka auth and topic metadata read check,
   - S3 prefix read/write probe for expected evidence roots.
 - Pin fail-closed rule: any failed preflight blocks phase advancement and phase-2 execution.
+- Implemented preflight tooling:
+  - `scripts/dev_substrate/phase1_preflight.ps1`
+  - `make platform-dev-min-phase1-preflight`
+- Implemented SSM seed helper:
+  - `scripts/dev_substrate/phase1_seed_ssm.ps1`
+  - `make platform-dev-min-phase1-seed-ssm`
 
 5. Phase 1.E - Security hygiene and leak prevention
 - Enforce no-secret-in-repo posture for `.env`, logs, notes, and implementation maps.
 - Pin redaction posture for command output copied into logbook/implementation notes.
 - Pin routine credential hygiene steps (rotation awareness, stale-session invalidation, revoke path).
+- Implemented hygiene preflight checks:
+  - fail if `.env*` files are git-tracked,
+  - do not print secret values; record handles and pass/fail only.
 
 6. Phase 1.F - Failure and recovery drills
 - Execute and document at least one controlled failure drill for each class:
@@ -104,16 +135,24 @@ Stand up secure operator-ready access for AWS + Confluent without embedding secr
   - missing/incorrect secret handle.
 - Verify operator guidance leads to deterministic recovery without manual console drift.
 - Record fail signatures and recovery steps in logbook for runbook carry-forward.
+- Executed drill set (2026-02-10):
+  - invalid AWS auth context (`AWS_PROFILE=__missing_profile__`) -> `FAIL_CLOSED` as expected,
+  - missing required SSM handles (`/fraud-platform/dev_min/...`) -> `FAIL_CLOSED` as expected,
+  - invalid Confluent credentials under isolated drill prefix (`/fraud-platform/dev_min_drill/...`) -> API auth probe `FAIL_CLOSED` as expected.
 
 ### Definition of Done
-- [ ] Account/tenancy ownership and region posture are pinned for AWS + Confluent.
-- [ ] Principal model and least-privilege boundaries are pinned and auditable.
-- [ ] Secret taxonomy, source-of-truth path map, and runtime injection contract are pinned.
-- [ ] Fresh-shell operator bootstrap succeeds end-to-end without manual hidden steps.
+- [x] Account/tenancy ownership and region posture are pinned for AWS + Confluent.
+- [x] Principal model and least-privilege boundaries are pinned and auditable.
+- [x] Secret taxonomy, source-of-truth path map, and runtime injection contract are pinned.
+- [x] Fresh-shell operator bootstrap succeeds end-to-end without manual hidden steps.
 - [ ] Preflight suite passes (identity, secret handles, Kafka auth/metadata, S3 prefix probe).
-- [ ] Failure drills (auth/session/secret) are executed and recovery steps are logged.
-- [ ] Secret-leak hygiene checks pass (`git` and notes/logbook remain secret-free).
-- [ ] Closure evidence is recorded in `dev_substrate/platform.impl_actual.md` and `docs/logbook` with sanitized outputs only.
+  - Blocker: production `dev_min` Confluent handles under `/fraud-platform/dev_min/confluent/*` are not yet provisioned.
+- [x] Failure drills (auth/session/secret) are executed and recovery steps are logged.
+- [x] Secret-leak hygiene checks pass (`git` and notes/logbook remain secret-free).
+- [x] Closure evidence is recorded in `dev_substrate/platform.impl_actual.md` and `docs/logbook` with sanitized outputs only.
+
+### Phase status
+- Phase 1 is **in progress**: sections `1.A` through `1.F` are implemented; final closure is blocked only on provisioning real Confluent handles and rerunning strict preflight to full PASS.
 
 ## Phase 2 - Landing zone and Terraform substrate
 ### Objective
