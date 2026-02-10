@@ -9360,3 +9360,61 @@ Updated `docs/model_spec/platform/implementation_maps/platform.build_plan.md` to
 ### Validation of the document change
 - Verified numbering continuity (`6.1..6.8`, `7.1..7.5`) and preserved prior completed-phase records.
 - Verified no new contradictions with existing Phase 5.10 closure and current `Next active` status.
+
+## Entry: 2026-02-10 10:30AM - Pre-change planning lock: add explicit Phase 6.0 Archive readiness gate
+
+### Trigger
+User requested an explicit archive readiness gate in Phase 6 to ensure planning covers the full intended flow and not only OFS/MF/MPR service mechanics.
+
+### Problem statement
+Archive dependency was present only as embedded wording (`EB/archive replay basis`) across existing Phase 6 gates. This leaves room for interpretation and does not create a standalone closure checkpoint before Learning implementation starts.
+
+### Authorities used
+- `docs/model_spec/platform/component-specific/flow-narrative-platform-design.md` (archive writer and archive truth posture)
+- `docs/model_spec/platform/narrative/narrative_learning_and_evolution.md`
+- `docs/model_spec/platform/pre-design_decisions/run_and_operate.pre-design_decisions.md`
+- `docs/model_spec/platform/pre-design_decisions/observability_and_governance.pre-design_decisions.md`
+- `docs/model_spec/platform/implementation_maps/platform.build_plan.md`
+
+### Decision
+Insert a blocking **`Phase 6.0 — Archive readiness gate`** ahead of `6.1`, with explicit DoD that pins:
+1. event archive writer contract and write surface,
+2. immutable archive object layout carrying `origin_offset` + `ContextPins` + payload digest,
+3. EB/archive replay-basis integrity checks and mismatch fail-closed behavior,
+4. run/operate + obs/gov visibility for archive writer and archive health.
+
+Also align rolling status so `Phase 6.0` is the next active gate.
+
+### Files to update
+- `docs/model_spec/platform/implementation_maps/platform.build_plan.md`
+- `docs/logbook/02-2026/2026-02-10.md`
+
+### Validation plan
+- Confirm section ordering remains coherent (`6.0` before `6.1`).
+- Confirm active status points to `6.0`.
+- Confirm no contradiction with existing Phase 5.10 closure or Phase 7 sequencing.
+
+## Entry: 2026-02-10 10:31AM - Applied plan update: explicit Phase 6.0 Archive readiness gate
+
+### What was changed
+Updated `docs/model_spec/platform/implementation_maps/platform.build_plan.md` with a new blocking section:
+- `Phase 6.0 — Archive readiness gate (blocking precondition)`.
+
+The new DoD explicitly requires:
+1. archive writer corridor contract,
+2. immutable archive records with `origin_offset` + `ContextPins` + payload digest fields,
+3. fail-closed EB/archive integrity mismatch posture for training-intent builds,
+4. run/operate + obs/gov visibility (health/counters/reconciliation refs) for archive readiness.
+
+Also aligned rolling status:
+- Phase 6 planning-active gate changed from `6.1` to `6.0`.
+- Next active platform phase changed to `Phase 6.0 (Archive readiness gate)`.
+
+### Why this matters
+- Removes ambiguity around archive being “implied.”
+- Establishes archive truth readiness as an explicit precondition for Learning flow correctness.
+- Reduces drift risk by forcing archive operability evidence before OFS/MF/MPR implementation deepens.
+
+### Validation
+- Verified `6.0` appears before `6.1` and existing `6.1..6.8` structure remains intact.
+- Verified rolling status now points to `6.0`.

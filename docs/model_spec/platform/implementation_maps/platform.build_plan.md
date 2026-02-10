@@ -1205,6 +1205,16 @@ Resolved and pinned in:
 ### Phase 6 — Learning & Registry plane
 **Intent:** implement reproducible learning and deterministic bundle lifecycle while keeping new services first-class citizens under run/operate + obs/gov meta layers from day one.
 
+#### Phase 6.0 — Archive readiness gate (blocking precondition)
+**Goal:** make long-horizon replay truth explicit and operational before Learning service implementation.
+
+**DoD checklist:**
+- Archive writer contract is pinned and implemented as an explicit corridor: admitted EB events are copied to archive storage with immutable refs.
+- Archive records carry mandatory provenance fields: `origin_offset` tuple, `ContextPins`, payload digest/hash, schema/event class, and observed write time.
+- Replay integrity check is defined and enforced: EB/archive mismatch for the same offset tuple is an anomaly and fails closed for training-intent dataset builds.
+- Run/operate and obs/gov surfaces include archive writer health/counters and reconciliation refs so archive readiness is visible in parity and higher environments.
+- Phase `6.1` does not begin until this gate is PASS, or explicit user-approved risk acceptance is recorded with rationale and expiry.
+
 #### Phase 6.1 — Contracts + ownership lock (Learning/Registry)
 **Goal:** pin cross-component learning/registry contracts and prevent authority drift before service implementation.
 
@@ -1373,6 +1383,6 @@ Resolved and pinned in:
 - CM build-plan Phase 6 (CM->AL manual action boundary): complete (`6 passed` Phase 6 matrix; CM Phase1..6 `36 passed`; CaseTrigger/IG regression `45 passed`; deterministic manual ActionIntent emission + by-ref outcome attach lane landed in `src/fraud_detection/case_mgmt/action_handshake.py` with policy at `config/platform/case_mgmt/action_emission_policy_v0.yaml` and projection semantics updated in `src/fraud_detection/case_mgmt/intake.py`).
 - CM build-plan Phase 7 (observability, governance, reconciliation): complete (`4 passed` Phase 7 matrix; CM Phase1..7 `40 passed`; CaseTrigger/IG regression `45 passed`; platform reporter regression `2 passed`; CM run-scoped metrics/health/reconciliation and lifecycle governance emission landed in `src/fraud_detection/case_mgmt/observability.py`; Case+Labels reconciliation contribution now emits under `runs/<platform_run_id>/case_labels/reconciliation/{YYYY-MM-DD}.json` and `case_mgmt_reconciliation.json`).
 - CM build-plan Phase 8 (integration closure/parity proof): complete (`4 passed` Phase 8 matrix; CM Phase1..8 `44 passed`; CaseTrigger/IG regression `45 passed`; platform reporter regression `2 passed`; parity artifacts captured at `runs/fraud-platform/platform_20260209T210000Z/case_mgmt/reconciliation/phase8_parity_proof_{20,200}.json` and `phase8_negative_path_proof.json`).
-- Phase 6 (Learning & Registry plane): planning-active (`6.1` contract/ownership lock is the current gate; run/operate + obs/gov onboarding are explicit `6.6` and `6.7` closure requirements).
-- Next active platform phase: Phase 6.1 (Learning & Registry contracts + ownership lock).
+- Phase 6 (Learning & Registry plane): planning-active (`6.0` archive readiness gate is the current blocking precondition; run/operate + obs/gov onboarding remain explicit `6.6` and `6.7` closure requirements).
+- Next active platform phase: Phase 6.0 (Archive readiness gate).
 - SR v0: complete (see `docs/model_spec/platform/implementation_maps/scenario_runner.build_plan.md`).
