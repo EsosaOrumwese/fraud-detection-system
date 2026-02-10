@@ -227,6 +227,25 @@ label_store:
     stream_id: label_store.v0
     locator: ${LABEL_STORE_LOCATOR:-}
     poll_seconds: 2.0
+ofs:
+  policy:
+    launcher_policy_ref: config/platform/ofs/launcher_policy_v0.yaml
+  wiring:
+    stream_id: ofs.v0
+    required_platform_run_id: ${OFS_REQUIRED_PLATFORM_RUN_ID:-}
+    run_ledger_locator: ${OFS_RUN_LEDGER_DSN:-}
+    label_store_locator: ${LABEL_STORE_LOCATOR:-}
+    object_store_root: ${PLATFORM_STORE_ROOT:-s3://fraud-platform}
+    object_store_endpoint: ${OBJECT_STORE_ENDPOINT}
+    object_store_region: ${OBJECT_STORE_REGION}
+    object_store_path_style: true
+    feature_profile_ref: config/platform/ofp/features_v0.yaml
+    request_prefix: ${OFS_REQUEST_PREFIX:-}
+    request_poll_seconds: ${OFS_REQUEST_POLL_SECONDS:-2.0}
+    request_batch_limit: ${OFS_REQUEST_BATCH_LIMIT:-20}
+    max_publish_retry_attempts: ${OFS_MAX_PUBLISH_RETRY_ATTEMPTS:-3}
+    replay_discover_archive_events: ${OFS_REPLAY_DISCOVER_ARCHIVE_EVENTS:-true}
+    require_complete_for_dataset_build: ${OFS_REQUIRE_COMPLETE_FOR_DATASET_BUILD:-true}
 archive_writer:
   policy:
     policy_ref: config/platform/archive_writer/policy_v0.yaml

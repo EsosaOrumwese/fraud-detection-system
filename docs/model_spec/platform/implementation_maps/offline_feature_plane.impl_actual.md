@@ -715,3 +715,106 @@ Phase 7 implementation was executed before this pre-change lock was written into
 
 ### Drift sentinel note
 No design-intent conflict was identified in the chosen approach; corrective entry added solely to restore decision-trail completeness.
+
+## Entry: 2026-02-10 12:28PM - Pre-change implementation lock for OFS Phase 8 (run/operate onboarding)
+
+### Trigger
+User requested progression to OFS Phase 8 implementation.
+
+### Phase objective (DoD-locked)
+Onboard OFS as a first-class run/operate job unit with explicit launcher semantics and bounded retry posture:
+- add explicit OFS command entrypoints for build and publish-only retry requests,
+- wire OFS worker into run/operate packs for local parity,
+- enforce active-run scoping and run-config digest stamping on launcher surfaces,
+- document invocation + publish-only retry steps in parity runbook.
+
+### Authorities used
+- `docs/model_spec/platform/implementation_maps/offline_feature_plane.build_plan.md` (Phase 8 DoD)
+- `docs/model_spec/platform/implementation_maps/platform.build_plan.md` (Phase 6.2 + 6.6 run/operate gate intent)
+- `docs/model_spec/platform/component-specific/offline_feature_plane.design-authority.md` (OFS is explicit job unit)
+- `docs/model_spec/platform/pre-design_decisions/run_and_operate.pre-design_decisions.md` (explicit jobs + bounded retry + pinned inputs)
+- `docs/model_spec/platform/component-specific/flow-narrative-platform-design.md` (job-driven learning-plane posture)
+- `docs/model_spec/platform/platform-wide/v0_environment_resource_tooling_map.md` (OFS job runner resource map)
+
+### Problem framing and alternatives considered
+1. **How to expose OFS in run/operate without forcing hot-path daemon semantics**
+   - Option A: keep OFS matrix-only and postpone run/operate onboarding.
+   - Option B: add a long-running OFS worker that polls explicit job requests and executes bounded job runs.
+   - Decision: Option B. This preserves job-driven semantics while satisfying run/operate onboarding now.
+2. **How to carry pinned job meaning through orchestration launchers**
+   - Option A: fire arbitrary shell commands from pack entries.
+   - Option B: add explicit OFS launcher commands (`enqueue-build`, `enqueue-publish-retry`) with request envelopes and digest checks.
+   - Decision: Option B to make run intent auditable and deterministic.
+3. **How to enforce config drift protection for requests**
+   - Option A: rely only on runtime env and profile references.
+   - Option B: stamp `run_config_digest` on request creation and verify at worker consume-time.
+   - Decision: Option B for fail-closed drift protection in launcher surfaces.
+
+### Implementation plan
+1. Add `src/fraud_detection/offline_feature_plane/worker.py` implementing:
+   - profile/policy loading for OFS launcher wiring,
+   - request enqueue commands for `dataset_build` and `publish_retry`,
+   - run-scoped request polling + execution lifecycle,
+   - run-config digest stamping and verification,
+   - bounded publish-only retry integration via `OfsRunControlPolicy`.
+2. Add OFS launcher policy artifact under `config/platform/ofs/` and wire `ofs` section in profile(s).
+3. Add run/operate onboarding pack:
+   - `config/platform/run_operate/packs/local_parity_learning_jobs.v0.yaml`.
+4. Update `makefile` with:
+   - run/operate targets for learning jobs pack,
+   - parity aggregate targets including learning-jobs pack,
+   - OFS enqueue convenience targets for build and publish-only retry.
+5. Update runbook:
+   - include learning-jobs pack in orchestration lists,
+   - add OFS invocation and publish-only retry command steps.
+6. Add/extend tests for OFS Phase 8 launcher/worker flows and run regression matrix.
+
+### Drift sentinel checkpoint (pre-code)
+No design-intent contradiction detected for this phase lock. Any implementation that turns OFS into implicit always-on compute (instead of explicit request-driven jobs), or allows config/run-scope drift without fail-closed rejection, is material drift and must be blocked.
+
+## Entry: 2026-02-10 12:44PM - Applied OFS Phase 8 implementation and validation closure
+
+### Implemented files and surfaces
+- `src/fraud_detection/offline_feature_plane/worker.py`
+  - request-driven worker loop (`run` / `run --once`) for `dataset_build` and `publish_retry` command envelopes.
+  - active-run scope checks (`required_platform_run_id`) and run-config digest stamping/verification (`run_config_digest`).
+  - Phase 3..7 execution wiring for full dataset-build runs plus bounded publish-only retry routing through `OfsRunControl`.
+  - immutable request/receipt artifact paths under run scope:
+    - `{platform_run_id}/ofs/job_requests/*.json`
+    - `{platform_run_id}/ofs/job_invocations/*.json`
+- `config/platform/ofs/launcher_policy_v0.yaml`
+  - bounded launcher controls (`max_publish_retry_attempts`, `request_poll_seconds`, `request_batch_limit`).
+- `config/platform/profiles/local_parity.yaml`
+  - added `ofs` policy/wiring lane with parity stack endpoints, run-scoping, and object-store/replay settings.
+- `config/platform/run_operate/packs/local_parity_learning_jobs.v0.yaml`
+  - added `ofs_job_worker` process for run/operate onboarding under active-run guard.
+- `makefile`
+  - added learning-jobs pack lifecycle targets and parity aggregate inclusion.
+  - added OFS enqueue helper targets (`platform-ofs-enqueue-build`, `platform-ofs-enqueue-publish-retry`).
+- `docs/runbooks/platform_parity_walkthrough_v0.md`
+  - added OFS invocation and publish-only retry procedures within local parity walkthrough.
+
+### Validation-driven corrective alignment (test contract hardening)
+Two matrix gaps were discovered while validating Phase 8 and were closed immediately:
+1. Phase 8 build-request fixture omitted `label_types`, causing Phase 5 policy resolution to fail closed (`LABEL_TYPE_SCOPE_UNRESOLVED`).
+   - Corrective action: updated Phase 8 test intent fixture to include `filters.label_types`.
+2. Publish-retry negative-path fixture used a non-existent `run_key`, which correctly returned `RUN_NOT_FOUND` instead of the intended `RETRY_NOT_PENDING`.
+   - Corrective action: seeded ledger state for an existing non-pending run (`DONE`) before retry request and asserted `RETRY_NOT_PENDING`.
+
+### Validation evidence
+- Syntax:
+  - `python -m py_compile src/fraud_detection/offline_feature_plane/worker.py tests/services/offline_feature_plane/test_phase8_run_operate_worker.py` (`PASS`).
+- Phase 8 targeted matrix:
+  - `python -m pytest tests/services/offline_feature_plane/test_phase8_run_operate_worker.py -q --import-mode=importlib` (`3 passed`).
+- OFS regression matrix:
+  - `python -m pytest tests/services/offline_feature_plane/test_phase1_contracts.py tests/services/offline_feature_plane/test_phase1_ids.py tests/services/offline_feature_plane/test_phase2_run_ledger.py tests/services/offline_feature_plane/test_phase3_resolver.py tests/services/offline_feature_plane/test_phase4_replay_basis.py tests/services/offline_feature_plane/test_phase5_label_resolver.py tests/services/offline_feature_plane/test_phase6_dataset_draft.py tests/services/offline_feature_plane/test_phase7_manifest_publication.py tests/services/offline_feature_plane/test_phase8_run_operate_worker.py tests/services/learning_registry/test_phase61_contracts.py -q --import-mode=importlib` (`50 passed`).
+
+### Drift sentinel assessment after implementation
+- No designed-flow contradiction detected.
+- OFS remains explicit request-driven compute (not implicit hot-path serving).
+- Run/operate onboarding preserves active-run boundaries and config-digest fail-closed behavior.
+- Local parity wiring stayed on object-store + DB stack classes; no filesystem-only parity fallback was introduced.
+
+### Plan progression
+- OFS Phase 8 is closed.
+- Next active OFS phase is Phase 9 (`obs/gov onboarding`).

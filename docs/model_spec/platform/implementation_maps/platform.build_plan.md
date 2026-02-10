@@ -1458,5 +1458,6 @@ Resolved and pinned in:
 - OFS build-plan Phase 5: complete (`label as-of resolver + coverage gate` implemented on 2026-02-10 in `src/fraud_detection/offline_feature_plane/phase5.py`; combined OFS/learning regression `37 passed`; next OFS step is Phase 6 deterministic feature reconstruction).
 - OFS build-plan Phase 6: complete (`deterministic feature reconstruction + dataset drafting` implemented on 2026-02-10 in `src/fraud_detection/offline_feature_plane/phase6.py`; combined OFS/learning regression `42 passed`; next OFS step is Phase 7 artifact publication corridor).
 - OFS build-plan Phase 7: complete (`artifact publication + DatasetManifest authority` implemented on 2026-02-10 in `src/fraud_detection/offline_feature_plane/phase7.py`; combined OFS/learning regression `47 passed`; next OFS step is Phase 8 run/operate onboarding).
+- OFS build-plan Phase 8: complete (`run/operate onboarding` implemented on 2026-02-10 across `src/fraud_detection/offline_feature_plane/worker.py`, learning-jobs run/operate pack wiring, profile/Makefile/runbook updates; Phase 8 targeted matrix `3 passed`; combined OFS/learning regression `50 passed`; next OFS step is Phase 9 obs/gov onboarding).
 - Next active platform phase: Phase 6.2 (OFS dataset build corridor).
 - SR v0: complete (see `docs/model_spec/platform/implementation_maps/scenario_runner.build_plan.md`).

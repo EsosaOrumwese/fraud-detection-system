@@ -2596,6 +2596,7 @@ PARITY_CASE_TRIGGER_PUBLISH_STORE_DSN ?= $(PARITY_IG_ADMISSION_DSN)
 PARITY_CASE_MGMT_LOCATOR ?= $(PARITY_IG_ADMISSION_DSN)
 PARITY_LABEL_STORE_LOCATOR ?= $(PARITY_IG_ADMISSION_DSN)
 PARITY_ARCHIVE_WRITER_LEDGER_DSN ?= $(PARITY_IG_ADMISSION_DSN)
+PARITY_OFS_RUN_LEDGER_DSN ?= $(PARITY_IG_ADMISSION_DSN)
 PARITY_EVENT_BUS_STREAM ?= auto
 PARITY_EVENT_BUS_REGION ?= $(PARITY_CONTROL_BUS_REGION)
 PARITY_EVENT_BUS_ENDPOINT_URL ?= $(PARITY_CONTROL_BUS_ENDPOINT_URL)
@@ -2615,6 +2616,22 @@ RUN_OPERATE_PACK_RTDL_CORE ?= config/platform/run_operate/packs/local_parity_rtd
 RUN_OPERATE_PACK_RTDL_DECISION ?= config/platform/run_operate/packs/local_parity_rtdl_decision_lane.v0.yaml
 RUN_OPERATE_PACK_CASE_LABELS ?= config/platform/run_operate/packs/local_parity_case_labels.v0.yaml
 RUN_OPERATE_PACK_OBS_GOV ?= config/platform/run_operate/packs/local_parity_obs_gov.v0.yaml
+RUN_OPERATE_PACK_LEARNING_JOBS ?= config/platform/run_operate/packs/local_parity_learning_jobs.v0.yaml
+
+OFS_PROFILE ?= config/platform/profiles/local_parity.yaml
+OFS_INTENT_PATH ?=
+OFS_REPLAY_EVENTS_PATH ?=
+OFS_TARGET_SUBJECTS_PATH ?=
+OFS_REPLAY_EVIDENCE_PATH ?=
+OFS_REQUEST_ID ?=
+OFS_PUBLISH_RETRY_RUN_KEY ?=
+OFS_PUBLISH_RETRY_PLATFORM_RUN_ID ?=
+OFS_PUBLISH_RETRY_INTENT_PATH ?=
+OFS_PUBLISH_RETRY_DRAFT_PATH ?=
+OFS_PUBLISH_RETRY_REPLAY_RECEIPT_PATH ?=
+OFS_PUBLISH_RETRY_LABEL_RECEIPT_PATH ?=
+OFS_SUPERSEDES_MANIFEST_REFS ?=
+OFS_BACKFILL_REASON ?=
 
 .PHONY: platform-stack-up platform-stack-down platform-stack-status
 platform-stack-up:
@@ -3088,6 +3105,27 @@ platform-operate-obs-gov-status:
 		--env-file "$(RUN_OPERATE_ENV_FILE)" \
 		--pack "$(RUN_OPERATE_PACK_OBS_GOV)" status
 
+.PHONY: platform-operate-learning-jobs-up platform-operate-learning-jobs-down platform-operate-learning-jobs-restart platform-operate-learning-jobs-status
+platform-operate-learning-jobs-up:
+	@$(PY_PLATFORM) -m fraud_detection.run_operate.orchestrator \
+		--env-file "$(RUN_OPERATE_ENV_FILE)" \
+		--pack "$(RUN_OPERATE_PACK_LEARNING_JOBS)" up
+
+platform-operate-learning-jobs-down:
+	@$(PY_PLATFORM) -m fraud_detection.run_operate.orchestrator \
+		--env-file "$(RUN_OPERATE_ENV_FILE)" \
+		--pack "$(RUN_OPERATE_PACK_LEARNING_JOBS)" down
+
+platform-operate-learning-jobs-restart:
+	@$(PY_PLATFORM) -m fraud_detection.run_operate.orchestrator \
+		--env-file "$(RUN_OPERATE_ENV_FILE)" \
+		--pack "$(RUN_OPERATE_PACK_LEARNING_JOBS)" restart
+
+platform-operate-learning-jobs-status:
+	@$(PY_PLATFORM) -m fraud_detection.run_operate.orchestrator \
+		--env-file "$(RUN_OPERATE_ENV_FILE)" \
+		--pack "$(RUN_OPERATE_PACK_LEARNING_JOBS)" status
+
 .PHONY: platform-operate-parity-up platform-operate-parity-down platform-operate-parity-restart platform-operate-parity-status
 platform-operate-parity-up:
 	@echo "Ensure parity stack is up and bootstrap complete before orchestration start."
@@ -3095,12 +3133,14 @@ platform-operate-parity-up:
 	@$(MAKE) platform-operate-rtdl-core-up
 	@$(MAKE) platform-operate-rtdl-decision-up
 	@$(MAKE) platform-operate-case-labels-up
+	@$(MAKE) platform-operate-learning-jobs-up
 	@$(MAKE) platform-operate-obs-gov-up
 	@$(MAKE) platform-operate-control-ingress-up
 
 platform-operate-parity-down:
 	@$(MAKE) platform-operate-control-ingress-down
 	@$(MAKE) platform-operate-obs-gov-down
+	@$(MAKE) platform-operate-learning-jobs-down
 	@$(MAKE) platform-operate-case-labels-down
 	@$(MAKE) platform-operate-rtdl-decision-down
 	@$(MAKE) platform-operate-rtdl-core-down
@@ -3114,7 +3154,44 @@ platform-operate-parity-status:
 	@$(MAKE) platform-operate-rtdl-core-status
 	@$(MAKE) platform-operate-rtdl-decision-status
 	@$(MAKE) platform-operate-case-labels-status
+	@$(MAKE) platform-operate-learning-jobs-status
 	@$(MAKE) platform-operate-obs-gov-status
+
+.PHONY: platform-ofs-enqueue-build
+platform-ofs-enqueue-build:
+	@if [ -z "$(OFS_INTENT_PATH)" ]; then \
+		echo "OFS_INTENT_PATH is required for platform-ofs-enqueue-build." >&2; \
+		exit 1; \
+	fi
+	@$(PY_PLATFORM) -m fraud_detection.offline_feature_plane.worker \
+		--profile "$(OFS_PROFILE)" \
+		enqueue-build \
+		--intent-path "$(OFS_INTENT_PATH)" \
+		$(if $(OFS_REPLAY_EVENTS_PATH),--replay-events-path "$(OFS_REPLAY_EVENTS_PATH)",) \
+		$(if $(OFS_TARGET_SUBJECTS_PATH),--target-subjects-path "$(OFS_TARGET_SUBJECTS_PATH)",) \
+		$(if $(OFS_REPLAY_EVIDENCE_PATH),--replay-evidence-path "$(OFS_REPLAY_EVIDENCE_PATH)",) \
+		$(if $(OFS_REQUEST_ID),--request-id "$(OFS_REQUEST_ID)",) \
+		$(foreach ref,$(OFS_SUPERSEDES_MANIFEST_REFS),--supersedes-manifest-ref "$(ref)") \
+		$(if $(OFS_BACKFILL_REASON),--backfill-reason "$(OFS_BACKFILL_REASON)",)
+
+.PHONY: platform-ofs-enqueue-publish-retry
+platform-ofs-enqueue-publish-retry:
+	@if [ -z "$(OFS_PUBLISH_RETRY_RUN_KEY)" ] || [ -z "$(OFS_PUBLISH_RETRY_PLATFORM_RUN_ID)" ] || [ -z "$(OFS_PUBLISH_RETRY_INTENT_PATH)" ] || [ -z "$(OFS_PUBLISH_RETRY_DRAFT_PATH)" ] || [ -z "$(OFS_PUBLISH_RETRY_REPLAY_RECEIPT_PATH)" ]; then \
+		echo "platform-ofs-enqueue-publish-retry requires OFS_PUBLISH_RETRY_RUN_KEY, OFS_PUBLISH_RETRY_PLATFORM_RUN_ID, OFS_PUBLISH_RETRY_INTENT_PATH, OFS_PUBLISH_RETRY_DRAFT_PATH, and OFS_PUBLISH_RETRY_REPLAY_RECEIPT_PATH." >&2; \
+		exit 1; \
+	fi
+	@$(PY_PLATFORM) -m fraud_detection.offline_feature_plane.worker \
+		--profile "$(OFS_PROFILE)" \
+		enqueue-publish-retry \
+		--run-key "$(OFS_PUBLISH_RETRY_RUN_KEY)" \
+		--platform-run-id "$(OFS_PUBLISH_RETRY_PLATFORM_RUN_ID)" \
+		--intent-path "$(OFS_PUBLISH_RETRY_INTENT_PATH)" \
+		--draft-path "$(OFS_PUBLISH_RETRY_DRAFT_PATH)" \
+		--replay-receipt-path "$(OFS_PUBLISH_RETRY_REPLAY_RECEIPT_PATH)" \
+		$(if $(OFS_PUBLISH_RETRY_LABEL_RECEIPT_PATH),--label-receipt-path "$(OFS_PUBLISH_RETRY_LABEL_RECEIPT_PATH)",) \
+		$(if $(OFS_REQUEST_ID),--request-id "$(OFS_REQUEST_ID)",) \
+		$(foreach ref,$(OFS_SUPERSEDES_MANIFEST_REFS),--supersedes-manifest-ref "$(ref)") \
+		$(if $(OFS_BACKFILL_REASON),--backfill-reason "$(OFS_BACKFILL_REASON)",)
 
 .PHONY: platform-run-report
 platform-run-report:

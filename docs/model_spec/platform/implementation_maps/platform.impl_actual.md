@@ -9911,3 +9911,53 @@ The platform-level pre-change lock for OFS Phase 7 was not recorded before code 
 
 ### Corrective note
 This is a documentation-order correction, not a functional behavior change.
+
+## Entry: 2026-02-10 12:28PM - Platform-level pre-change lock for OFS Phase 8 run/operate onboarding
+
+### Why platform-level tracking is required
+Phase 8 is a meta-layer gate. It changes orchestration posture, launcher semantics, and runbook behavior for Learning plane execution. Mistakes here can create silent runtime drift even if OFS component logic remains green.
+
+### Platform-level decisions pinned for this pass
+- OFS remains an explicit job deployment unit; orchestration may host a request worker but must not reinterpret OFS as hot-path serving compute.
+- Run/operate onboarding must preserve active-run scope boundaries and reject cross-run requests fail-closed.
+- Launcher surfaces must stamp and verify a deterministic run-config digest to prevent silent config drift.
+- Publish-only retry posture must stay bounded and routed through OFS run-control policy/ledger semantics (no ad-hoc retry loops).
+- Local parity wiring must stay aligned to environment map stack classes (object store + Postgres-backed run state + no hidden filesystem fallback in parity mode).
+
+### Expected closure evidence
+- OFS worker + launcher command entrypoints implemented and test-backed.
+- Learning-jobs run/operate pack added and wired into parity operate targets.
+- Runbook includes explicit OFS invocation and publish-only retry procedures.
+- OFS/platform build-plan status updated with Phase 8 closure evidence and next-step progression.
+
+### Drift sentinel checkpoint
+If onboarding introduces undocumented manual-only pathways, bypasses run-config digest validation, or allows requests to execute outside active-run scope, treat as material drift and block closure.
+
+## Entry: 2026-02-10 12:44PM - Platform-level applied closure for OFS Phase 8 (run/operate onboarding)
+
+### What was applied
+- OFS run/operate onboarding landed across platform control surfaces:
+  - OFS worker/launcher: `src/fraud_detection/offline_feature_plane/worker.py`
+  - launcher policy: `config/platform/ofs/launcher_policy_v0.yaml`
+  - local parity profile wiring: `config/platform/profiles/local_parity.yaml`
+  - learning-jobs pack: `config/platform/run_operate/packs/local_parity_learning_jobs.v0.yaml`
+  - orchestration/make targets: `makefile`
+  - parity runbook updates: `docs/runbooks/platform_parity_walkthrough_v0.md`
+
+### Platform-significant outcomes
+- Learning plane now has first-class run/operate onboarding under the same meta-layer posture as existing planes.
+- OFS stayed request-driven while becoming orchestrator-hosted (explicit job requests, bounded retry policy, active-run scoping).
+- Config-digest stamping/verification became executable in launcher surfaces, reducing silent config drift risk during long-running parity sessions.
+- Parity operator UX now includes explicit OFS enqueue + publish-retry steps in the canonical walkthrough.
+
+### Validation evidence
+- `python -m pytest tests/services/offline_feature_plane/test_phase8_run_operate_worker.py -q --import-mode=importlib` (`3 passed`).
+- `python -m pytest tests/services/offline_feature_plane/test_phase1_contracts.py tests/services/offline_feature_plane/test_phase1_ids.py tests/services/offline_feature_plane/test_phase2_run_ledger.py tests/services/offline_feature_plane/test_phase3_resolver.py tests/services/offline_feature_plane/test_phase4_replay_basis.py tests/services/offline_feature_plane/test_phase5_label_resolver.py tests/services/offline_feature_plane/test_phase6_dataset_draft.py tests/services/offline_feature_plane/test_phase7_manifest_publication.py tests/services/offline_feature_plane/test_phase8_run_operate_worker.py tests/services/learning_registry/test_phase61_contracts.py -q --import-mode=importlib` (`50 passed`).
+
+### Drift sentinel assessment
+- No platform-flow contradiction detected for Phase 8 scope.
+- Ownership boundaries remained intact:
+  - OFS did not assume registry promotion authority,
+  - OFS did not bypass label-store/public truth boundaries,
+  - run/operate integration did not introduce plane-specific orchestrator forks.
+- Phase 8 now satisfies meta-layer onboarding expectation for OFS before advancing to Phase 9/10 closure gates.

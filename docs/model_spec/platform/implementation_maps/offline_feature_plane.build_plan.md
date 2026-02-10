@@ -175,6 +175,18 @@ Provide a closure-grade, component-scoped plan for Offline Feature Plane (OFS) a
 - Active-run scoping and run-config digest stamping are enforced in launcher surfaces.
 - Runbook steps for OFS invocation and rerun/publish-only retry are documented.
 
+**Implementation status note (2026-02-10):**
+- Phase 8 run/operate onboarding corridor implemented:
+  - `src/fraud_detection/offline_feature_plane/worker.py`
+  - `config/platform/ofs/launcher_policy_v0.yaml`
+  - `config/platform/profiles/local_parity.yaml` (`ofs` policy/wiring lane)
+  - `config/platform/run_operate/packs/local_parity_learning_jobs.v0.yaml`
+  - `makefile` (learning-jobs pack targets + OFS enqueue helpers + parity aggregate wiring)
+  - `docs/runbooks/platform_parity_walkthrough_v0.md` (OFS invocation + publish-retry usage)
+- Validation evidence:
+  - `python -m pytest tests/services/offline_feature_plane/test_phase8_run_operate_worker.py -q --import-mode=importlib` (`3 passed`)
+  - `python -m pytest tests/services/offline_feature_plane/test_phase1_contracts.py tests/services/offline_feature_plane/test_phase1_ids.py tests/services/offline_feature_plane/test_phase2_run_ledger.py tests/services/offline_feature_plane/test_phase3_resolver.py tests/services/offline_feature_plane/test_phase4_replay_basis.py tests/services/offline_feature_plane/test_phase5_label_resolver.py tests/services/offline_feature_plane/test_phase6_dataset_draft.py tests/services/offline_feature_plane/test_phase7_manifest_publication.py tests/services/offline_feature_plane/test_phase8_run_operate_worker.py tests/services/learning_registry/test_phase61_contracts.py -q --import-mode=importlib` (`50 passed`)
+
 ### Phase 9 - Obs/Gov onboarding (meta-layer gate)
 **Intent:** keep OFS auditable without hot-path overhead.
 
@@ -230,4 +242,5 @@ Provide a closure-grade, component-scoped plan for Offline Feature Plane (OFS) a
 - Phase 5 (`label as-of resolver and coverage gate`): complete (implemented and validated on `2026-02-10`).
 - Phase 6 (`deterministic feature reconstruction and dataset drafting`): complete (implemented and validated on `2026-02-10`).
 - Phase 7 (`artifact publication + DatasetManifest authority`): complete (implemented and validated on `2026-02-10`).
-- Next action: begin Phase 8 implementation (`run/operate onboarding`).
+- Phase 8 (`run/operate onboarding`): complete (implemented and validated on `2026-02-10`).
+- Next action: begin Phase 9 implementation (`obs/gov onboarding`).

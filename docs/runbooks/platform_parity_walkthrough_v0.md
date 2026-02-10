@@ -1,7 +1,7 @@
-# Platform Parity Walkthrough (v0) — Oracle Store → SR → WSP → IG → EB → ArchiveWriter/IEG/OFP/CSFB/DF/DL/AL/DLA/CaseTrigger/CM/LS + Platform Reporter/Conformance
+# Platform Parity Walkthrough (v0) — Oracle Store → SR → WSP → IG → EB → ArchiveWriter/IEG/OFP/CSFB/DF/DL/AL/DLA/CaseTrigger/CM/LS + OFS Worker + Platform Reporter/Conformance
 _As of 2026-02-10_
 
-This runbook executes a **local_parity** end‑to‑end flow capped to **500,000 events**, then validates the implemented RTDL + Case/Label + Obs/Gov surfaces (**ArchiveWriter/IEG/OFP/CSFB/DF/DL/AL/DLA/CaseTrigger/CM/LS + Platform Reporter/Conformance**) against admitted EB topics.
+This runbook executes a **local_parity** end‑to‑end flow capped to **500,000 events**, then validates the implemented RTDL + Case/Label + Learning-job + Obs/Gov surfaces (**ArchiveWriter/IEG/OFP/CSFB/DF/DL/AL/DLA/CaseTrigger/CM/LS + OFS Worker + Platform Reporter/Conformance**) against admitted EB topics.
 It uses **MinIO (S3)** for the Oracle Store + platform artifacts, **LocalStack Kinesis** for control/event buses, and **Postgres** for IG/WSP/RTDL decision-lane/Case-Label primary state.
 
 ---
@@ -155,6 +155,7 @@ make platform-operate-control-ingress-up
 make platform-operate-rtdl-core-up
 make platform-operate-rtdl-decision-up
 make platform-operate-case-labels-up
+make platform-operate-learning-jobs-up
 make platform-operate-obs-gov-up
 make platform-operate-parity-status
 ```
@@ -177,6 +178,7 @@ Pack and evidence surfaces:
   - `config/platform/run_operate/packs/local_parity_rtdl_core.v0.yaml`
   - `config/platform/run_operate/packs/local_parity_rtdl_decision_lane.v0.yaml`
   - `config/platform/run_operate/packs/local_parity_case_labels.v0.yaml`
+  - `config/platform/run_operate/packs/local_parity_learning_jobs.v0.yaml`
   - `config/platform/run_operate/packs/local_parity_obs_gov.v0.yaml`
 - Orchestrator state/logs:
   - `runs/fraud-platform/operate/<pack_id>/state.json`
@@ -188,11 +190,47 @@ Notes:
 - RTDL core pack enforces active run scope via `ACTIVE_RUN_ID` -> `*_REQUIRED_PLATFORM_RUN_ID`.
 - RTDL decision-lane pack enforces active run scope for `DL/DF/AL/DLA` with the same run pin.
 - Case/Label pack enforces active run scope for `CaseTrigger/CM/LS` with the same run pin.
+- Learning jobs pack enforces active run scope for `OFS` with the same run pin.
 - Obs/Gov pack enforces active run scope for `platform_run_reporter/platform_conformance` with the same run pin.
 - Orchestrator contract is plane-agnostic; future planes onboard by adding new process-pack files, not by changing orchestrator code.
 - Mode boundary:
   - If packs are running, treat them as source-of-truth daemons and avoid launching duplicate manual consumers for the same component.
   - Use manual component commands only for targeted diagnosis or matrix/boundary checks.
+
+### 3.2) OFS launcher (explicit job invocation and publish-only retry)
+
+OFS is job-driven. The `learning_jobs` pack runs a request worker that consumes request envelopes from:
+
+`<platform_run_id>/ofs/job_requests/*.json`
+
+Enqueue a dataset build request:
+
+```powershell
+make platform-ofs-enqueue-build `
+  OFS_PROFILE=config/platform/profiles/local_parity.yaml `
+  OFS_INTENT_PATH=runs/fraud-platform/<platform_run_id>/ofs/requests/build_intent.json `
+  OFS_REPLAY_EVENTS_PATH=runs/fraud-platform/<platform_run_id>/ofs/requests/replay_events.json `
+  OFS_TARGET_SUBJECTS_PATH=runs/fraud-platform/<platform_run_id>/ofs/requests/target_subjects.json `
+  OFS_REPLAY_EVIDENCE_PATH=runs/fraud-platform/<platform_run_id>/ofs/requests/replay_evidence.json
+```
+
+Enqueue a publish-only retry request for a `PUBLISH_PENDING` run:
+
+```powershell
+make platform-ofs-enqueue-publish-retry `
+  OFS_PROFILE=config/platform/profiles/local_parity.yaml `
+  OFS_PUBLISH_RETRY_RUN_KEY=<run_key> `
+  OFS_PUBLISH_RETRY_PLATFORM_RUN_ID=<platform_run_id> `
+  OFS_PUBLISH_RETRY_INTENT_PATH=runs/fraud-platform/<platform_run_id>/ofs/retry/intent.json `
+  OFS_PUBLISH_RETRY_DRAFT_PATH=runs/fraud-platform/<platform_run_id>/ofs/retry/draft.json `
+  OFS_PUBLISH_RETRY_REPLAY_RECEIPT_PATH=runs/fraud-platform/<platform_run_id>/ofs/retry/replay_receipt.json `
+  OFS_PUBLISH_RETRY_LABEL_RECEIPT_PATH=runs/fraud-platform/<platform_run_id>/ofs/retry/label_receipt.json
+```
+
+Worker outputs (immutable, run-scoped):
+- Requests: `<platform_run_id>/ofs/job_requests/<request_id>.json`
+- Invocation receipts: `<platform_run_id>/ofs/job_invocations/<request_id>.json`
+- Component artifacts: `ofs/resolved_build_plan`, `ofs/replay_completeness`, `ofs/label_resolution`, `ofs/dataset_draft`, `ofs/manifests`, `ofs/publication_receipts`.
 
 ---
 
@@ -1117,7 +1155,7 @@ This validates CaseTrigger at its component boundary for Phase 8 closure. CaseTr
 
 ## 22) Full live daemon baseline (current v0 daemon surfaces)
 
-Use this when you want always-on parity consumers for the full implemented lane under run/operate (C&I + RTDL + Case/Label).
+Use this when you want always-on parity consumers for the full implemented lane under run/operate (C&I + RTDL + Case/Label + OFS job worker).
 
 Bring all packs up:
 ```powershell
@@ -1125,6 +1163,7 @@ make platform-operate-control-ingress-up
 make platform-operate-rtdl-core-up
 make platform-operate-rtdl-decision-up
 make platform-operate-case-labels-up
+make platform-operate-learning-jobs-up
 make platform-operate-obs-gov-up
 make platform-operate-parity-status
 ```
@@ -1148,6 +1187,7 @@ Scope note:
 - `rtdl_core` pack covers `ArchiveWriter/IEG/OFP/CSFB`.
 - `rtdl_decision_lane` pack covers `DL/DF/AL/DLA`.
 - `case_labels` pack covers `CaseTrigger/CM/LS`.
+- `learning_jobs` pack covers `OFS job worker` (request-driven offline builds + publish-only retries).
 - `obs_gov` pack covers `platform_run_reporter + environment_conformance` daemon workers.
 - Component matrices in Sections 16/17/19/20 remain required as deterministic boundary checks; they now complement (not replace) daemonized runtime operation.
 
