@@ -232,3 +232,122 @@ Replaced the coarse placeholder plan in `docs/model_spec/platform/implementation
 
 ### Drift sentinel checkpoint
 No runtime/infrastructure behavior changed. This is planning rigor and execution-control hardening only.
+
+## Entry: 2026-02-10 9:54PM - Pre-change lock: implement Phase 0 (mobilization + semantic freeze)
+
+### Context
+USER directed immediate execution of Phase 0 from the active dev-substrate build plan.
+
+### Phase 0 DoD to close
+1. baseline matrix snapshot recorded,
+2. service-wave matrix recorded with owners/dependencies,
+3. acceptance gate templates published and linked.
+
+### Inputs and baseline anchors
+- `docs/model_spec/platform/implementation_maps/local_parity/platform.build_plan.md`
+- component build-plan rolling status sections under `docs/model_spec/platform/implementation_maps/local_parity/*.build_plan.md`
+- accepted local-parity full-run evidence anchors in `docs/logbook/02-2026/2026-02-10.md`:
+  - `platform_20260210T082746Z` (20-event gate)
+  - `platform_20260210T083021Z` (200-event gate)
+  - post-fix reconfirmation `platform_20260210T091951Z`
+- `docs/runbooks/platform_parity_walkthrough_v0.md`
+
+### Planned implementation artifacts
+- `docs/model_spec/platform/implementation_maps/dev_substrate/phase0_baseline_snapshot.md`
+- `docs/model_spec/platform/implementation_maps/dev_substrate/phase0_service_wave_matrix.md`
+- `docs/model_spec/platform/implementation_maps/dev_substrate/phase0_acceptance_gate_templates.md`
+- update `docs/model_spec/platform/implementation_maps/dev_substrate/platform.build_plan.md` Phase 0 DoD checkboxes to checked with references.
+
+### Drift sentinel checkpoint
+This pass is planning/control closure only. No runtime code/infrastructure behavior changes will be made.
+
+## Entry: 2026-02-10 9:56PM - Phase 0 implemented and closed (mobilization + semantic freeze)
+
+### Implemented artifacts
+- Baseline freeze snapshot:
+  - `docs/model_spec/platform/implementation_maps/dev_substrate/phase0_baseline_snapshot.md`
+- Service-wave migration matrix:
+  - `docs/model_spec/platform/implementation_maps/dev_substrate/phase0_service_wave_matrix.md`
+- Acceptance gate templates:
+  - `docs/model_spec/platform/implementation_maps/dev_substrate/phase0_acceptance_gate_templates.md`
+
+### Build-plan closure updates
+- Updated Phase 0 DoD checkboxes to complete in:
+  - `docs/model_spec/platform/implementation_maps/dev_substrate/platform.build_plan.md`
+- Added explicit evidence links to the three Phase 0 artifacts.
+- Added Phase 0 status line (`closed as of 2026-02-10`).
+
+### Baseline anchors pinned inside Phase 0 snapshot
+- local-parity accepted runs:
+  - `platform_20260210T082746Z` (20-event),
+  - `platform_20260210T083021Z` (200-event),
+  - `platform_20260210T091951Z` (post-fix reconfirmation).
+- runbook authority:
+  - `docs/runbooks/platform_parity_walkthrough_v0.md`.
+
+### Drift sentinel assessment
+- No designed-flow contradiction introduced.
+- Ownership boundaries preserved in wave matrix.
+- Meta-layer saturation retained as explicit migration wave/gate requirement.
+
+### Outcome
+Phase 0 is now formally closed; migration execution can proceed to Phase 1 (accounts/credentials/secrets bootstrap).
+
+## Entry: 2026-02-10 10:05PM - Corrective lock: simplify Phase 0 and remove auxiliary docs
+
+### Context
+USER explicitly rejected the extra Phase 0 documents as distracting and not adding meaningful value versus already-pinned authorities and local-parity implementation history.
+
+### User-directed correction
+- Remove auxiliary Phase 0 files:
+  - `phase0_baseline_snapshot.md`
+  - `phase0_service_wave_matrix.md`
+  - `phase0_acceptance_gate_templates.md`
+- Refactor Phase 0 in active build plan so closure references only:
+  - pre-design authority notes,
+  - local-parity implementation maps/notes.
+
+### Decision
+Adopt a minimal-authority Phase 0 posture:
+1) read/lock authority decisions,
+2) read/lock baseline local-parity implementation history,
+3) proceed without generating comparative/duplicative artifacts.
+
+### Planned edits
+- Update `docs/model_spec/platform/implementation_maps/dev_substrate/platform.build_plan.md`:
+  - rewrite Phase 0 work sections and DoD evidence links to authoritative sources only,
+  - preserve closed status while removing references to deleted files.
+- Delete the three Phase 0 artifact files.
+
+### Drift sentinel checkpoint
+This is a planning-surface simplification only; no semantic/runtime behavior changes.
+
+## Entry: 2026-02-10 10:06PM - Applied Phase 0 simplification (auxiliary docs removed)
+
+### Changes applied
+1. Refactored Phase 0 in active build plan:
+   - file: `docs/model_spec/platform/implementation_maps/dev_substrate/platform.build_plan.md`
+   - replaced auxiliary-artifact framing with authority-first references:
+     - pre-design migration authority,
+     - run/operate pre-design decisions,
+     - obs/gov pre-design decisions,
+     - local-parity platform implementation maps,
+     - local-parity runbook.
+
+2. Removed auxiliary Phase 0 files:
+   - `docs/model_spec/platform/implementation_maps/dev_substrate/phase0_baseline_snapshot.md`
+   - `docs/model_spec/platform/implementation_maps/dev_substrate/phase0_service_wave_matrix.md`
+   - `docs/model_spec/platform/implementation_maps/dev_substrate/phase0_acceptance_gate_templates.md`
+
+### Rationale
+- Align with USER instruction to avoid distracting/duplicative documentation.
+- Keep Phase 0 grounded in existing authoritative sources and implementation history.
+- Avoid implying invalid cross-environment performance comparability.
+
+### Validation
+- Build plan Phase 0 now references only authority/baseline docs.
+- Deleted file paths no longer referenced by active build plan.
+- Deleted files removed from workspace.
+
+### Drift sentinel checkpoint
+No runtime/infrastructure behavior changed. This is a planning-surface simplification and authority alignment correction.

@@ -19,24 +19,34 @@ Execute a controlled migration from `local_parity` to `dev_min` managed substrat
 
 ## Phase 0 - Mobilization and semantic freeze
 ### Objective
-Start migration with explicit acceptance criteria, frozen baseline assumptions, and clear service-wave matrix.
+Start migration from authoritative sources only, without duplicative planning artifacts.
 
 ### Work sections
-1. Freeze baseline references
-- Pin baseline to latest green `local_parity` matrix and runbook posture.
-- Record baseline component states (green/yellow/red) before migration starts.
+1. Lock pre-design authorities
+- Use pinned migration authority and platform pre-design decisions as the controlling design intent.
+- Confirm run/operate and obs/gov meta-layer decisions are part of migration scope from day one.
 
-2. Define migration matrix
-- Build per-service matrix: current substrate, target substrate, owner, required adapters, required meta-layer hooks.
-- Group services into waves (Control/Ingress, RTDL, Case/Label, Learning/Registry).
+2. Lock local-parity baseline history
+- Use local-parity platform/component implementation maps as baseline decision history and known closure posture.
+- Use local-parity runbook as operational reference for rails and acceptance sequencing (`20 -> 200`).
 
-3. Acceptance gate definition
-- Define gate templates for 20-event, 200-event, drift audit, and teardown checks.
+3. Lock phase progression posture
+- Keep gate posture in this build plan and implementation notes/logbook entries.
+- Avoid standalone phase artifacts unless explicitly requested by USER.
 
 ### Definition of Done
-- [ ] Baseline matrix snapshot recorded.
-- [ ] Service-wave matrix recorded with owners and dependencies.
-- [ ] Acceptance gate templates published and referenced by later phases.
+- [x] Pre-design authority set for migration is locked and referenced.
+  - Evidence: `docs/model_spec/platform/pre-design_decisions/dev-min_managed-substrate_migration.design-authority.v0.md`
+  - Evidence: `docs/model_spec/platform/pre-design_decisions/run_and_operate.pre-design_decisions.md`
+  - Evidence: `docs/model_spec/platform/pre-design_decisions/observability_and_governance.pre-design_decisions.md`
+- [x] Local-parity implementation history is the pinned baseline reference.
+  - Evidence: `docs/model_spec/platform/implementation_maps/local_parity/platform.build_plan.md`
+  - Evidence: `docs/model_spec/platform/implementation_maps/local_parity/platform.impl_actual.md`
+- [x] Local-parity operational runbook is pinned as execution reference.
+  - Evidence: `docs/runbooks/platform_parity_walkthrough_v0.md`
+
+### Phase status
+- Phase 0 is closed as of `2026-02-10` with authority + baseline references pinned (no auxiliary phase documents).
 
 ## Phase 1 - Accounts, credentials, and secret bootstrap
 ### Objective
