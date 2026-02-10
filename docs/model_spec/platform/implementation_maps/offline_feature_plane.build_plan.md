@@ -143,6 +143,13 @@ Provide a closure-grade, component-scoped plan for Offline Feature Plane (OFS) a
 - Dataset drafts/snapshots include digestable row-order canonicalization rules.
 - Optional parity hashes are emitted when parity intent is requested.
 
+**Implementation status note (2026-02-10):**
+- Phase 6 deterministic draft corridor implemented:
+  - `src/fraud_detection/offline_feature_plane/phase6.py`
+  - `src/fraud_detection/offline_feature_plane/__init__.py` (exports)
+- Validation evidence:
+  - `python -m pytest tests/services/offline_feature_plane/test_phase1_contracts.py tests/services/offline_feature_plane/test_phase1_ids.py tests/services/offline_feature_plane/test_phase2_run_ledger.py tests/services/offline_feature_plane/test_phase3_resolver.py tests/services/offline_feature_plane/test_phase4_replay_basis.py tests/services/offline_feature_plane/test_phase5_label_resolver.py tests/services/offline_feature_plane/test_phase6_dataset_draft.py tests/services/learning_registry/test_phase61_contracts.py -q --import-mode=importlib` (`42 passed`).
+
 ### Phase 7 - Artifact publication + DatasetManifest authority (S6)
 **Intent:** define when a dataset becomes authoritative.
 
@@ -214,4 +221,5 @@ Provide a closure-grade, component-scoped plan for Offline Feature Plane (OFS) a
 - Phase 3 (`pin and provenance resolver`): complete (implemented and validated on `2026-02-10`).
 - Phase 4 (`replay basis resolver + completeness receipts`): complete (implemented and validated on `2026-02-10`).
 - Phase 5 (`label as-of resolver and coverage gate`): complete (implemented and validated on `2026-02-10`).
-- Next action: begin Phase 6 implementation (`deterministic feature reconstruction and dataset drafting`).
+- Phase 6 (`deterministic feature reconstruction and dataset drafting`): complete (implemented and validated on `2026-02-10`).
+- Next action: begin Phase 7 implementation (`artifact publication + DatasetManifest authority`).

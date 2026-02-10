@@ -9830,3 +9830,46 @@ OFS Phase 5 is the first learning-plane point that enforces leakage-safe label t
   - learning/evolution pre-design maturity/coverage posture,
   - platform truth-ownership doctrine (Label Store ownership preserved).
 - Next material risk surface moves to OFS Phase 6 deterministic feature reconstruction.
+
+## Entry: 2026-02-10 12:05PM - Platform-level pre-change lock for OFS Phase 6
+
+### Why platform-level tracking is required
+OFS Phase 6 is the first point where replay + label evidence is converted into concrete offline feature rows. Determinism or provenance drift here directly impacts MF training reproducibility and registry promotion trust.
+
+### Platform-level decisions pinned for this pass
+- Phase 6 must consume version-locked feature provenance resolved in OFS Phase 3 (no independent "latest" resolution path).
+- Replay dedupe/tie-break semantics must be deterministic and explicit under at-least-once realities.
+- Dataset draft output must carry canonical row-order rules and stable content digest to support rebuild checks.
+- Parity hash emission is required for parity-intent runs as explicit evidence for later parity/governance lanes.
+
+### Expected closure evidence
+- OFS Phase 6 module + tests implemented and green.
+- OFS/platform build plans updated with Phase 6 closure notes.
+- Drift-sentinel assessment recorded post implementation with explicit residual risk surface for Phase 7 publication authority.
+
+## Entry: 2026-02-10 12:08PM - Platform-level applied closure for OFS Phase 6
+
+### What was applied
+- OFS Phase 6 deterministic reconstruction corridor landed with tests:
+  - `src/fraud_detection/offline_feature_plane/phase6.py`
+  - `tests/services/offline_feature_plane/test_phase6_dataset_draft.py`
+- OFS/platform build plans updated to mark Phase 6 complete and shift next step to Phase 7 publication authority.
+
+### Platform-significant outcomes
+- OFS replay-to-feature draft conversion is now deterministic and auditable:
+  - explicit dedupe/tie-break rules for at-least-once replay,
+  - fail-closed conflict posture for duplicate-offset and event-id payload drift,
+  - canonical row-order and digestable draft artifacts for rebuild checks.
+- Feature version provenance remains aligned to shared OFP authority via enforced Phase 3 resolved-profile linkage.
+- Parity-intent draft runs now emit parity hash evidence suitable for downstream parity/governance corridors.
+
+### Validation evidence
+- OFS/learning regression matrix:
+  - `python -m pytest tests/services/offline_feature_plane/test_phase1_contracts.py tests/services/offline_feature_plane/test_phase1_ids.py tests/services/offline_feature_plane/test_phase2_run_ledger.py tests/services/offline_feature_plane/test_phase3_resolver.py tests/services/offline_feature_plane/test_phase4_replay_basis.py tests/services/offline_feature_plane/test_phase5_label_resolver.py tests/services/offline_feature_plane/test_phase6_dataset_draft.py tests/services/learning_registry/test_phase61_contracts.py -q --import-mode=importlib` (`42 passed`).
+
+### Drift sentinel assessment
+- No conflict observed versus:
+  - flow narrative deterministic OFS build posture,
+  - learning/evolution pre-design replay determinism and feature-authority pins,
+  - truth-ownership boundaries.
+- Next material risk surface moves to OFS Phase 7 publish/manifest authority (atomic commit + no-overwrite corridor).

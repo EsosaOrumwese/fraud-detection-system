@@ -43,6 +43,14 @@ from .phase5 import (
     OfsLabelTarget,
     OfsPhase5LabelError,
 )
+from .phase6 import (
+    OfsDatasetDraft,
+    OfsDatasetDraftBuilder,
+    OfsDatasetDraftBuilderConfig,
+    OfsFeatureDraftRow,
+    OfsPhase6FeatureError,
+    ReplayFeatureInputEvent,
+)
 from .run_control import OfsRunControl, OfsRunControlPolicy
 from .run_ledger import (
     OFS_RUN_DONE,
@@ -107,4 +115,10 @@ __all__ = [
     "OfsLabelResolutionReceipt",
     "OfsLabelTarget",
     "OfsPhase5LabelError",
+    "OfsDatasetDraft",
+    "OfsDatasetDraftBuilder",
+    "OfsDatasetDraftBuilderConfig",
+    "OfsFeatureDraftRow",
+    "OfsPhase6FeatureError",
+    "ReplayFeatureInputEvent",
 ]

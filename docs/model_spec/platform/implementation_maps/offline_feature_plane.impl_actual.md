@@ -553,3 +553,97 @@ No design-intent contradiction detected for this phase lock. Any attempt to bypa
 ### Plan progression
 - OFS Phase 5 is closed.
 - Next active OFS phase is Phase 6 (`deterministic feature reconstruction and dataset drafting`).
+
+## Entry: 2026-02-10 12:05PM - Pre-change implementation lock for OFS Phase 6 (deterministic feature reconstruction + dataset drafting)
+
+### Trigger
+User requested progression to OFS Phase 6 implementation.
+
+### Phase objective (DoD-locked)
+Implement S5 deterministic reconstruction corridor from pinned replay + label inputs:
+- enforce version-locked feature-definition provenance (shared authority with OFP),
+- make replay ordering/dedupe/tie-break deterministic under at-least-once realities,
+- emit digestable dataset draft snapshots with explicit canonical row-order rules,
+- emit parity hash evidence when parity intent is requested.
+
+### Authorities used
+- `docs/model_spec/platform/implementation_maps/offline_feature_plane.build_plan.md` (Phase 6 DoD)
+- `docs/model_spec/platform/component-specific/flow-narrative-platform-design.md` (OFS deterministic build posture)
+- `docs/model_spec/platform/component-specific/offline_feature_plane.design-authority.md` (S5 boundary + deterministic join posture)
+- `docs/model_spec/platform/pre-design_decisions/learning_and_evolution.pre-design_decisions.md` (shared feature authority + replay safety)
+- Existing OFS phase outputs as upstream evidence surfaces:
+  - `src/fraud_detection/offline_feature_plane/phase3.py` (resolved feature-profile provenance)
+  - `src/fraud_detection/offline_feature_plane/phase4.py` (replay completeness posture)
+  - `src/fraud_detection/offline_feature_plane/phase5.py` (label as-of coverage posture)
+
+### Problem framing and alternatives considered
+1. **Where to source feature-definition version lock in Phase 6**
+   - Option A: re-read profile files in Phase 6.
+   - Option B: consume Phase 3 resolved profile artifact/surface as input and fail closed on mismatch.
+   - Decision: Option B to keep S2 meaning authority single-sourced.
+2. **Replay duplicate handling semantics**
+   - Option A: keep all duplicates and rely on downstream training dedupe.
+   - Option B: deterministic dedupe with explicit tie-break and fail-closed on payload conflicts.
+   - Decision: Option B; aligns to at-least-once safety and deterministic rebuild law.
+3. **Parity hash emission trigger**
+   - Option A: always emit parity hash.
+   - Option B: emit only for parity-intent runs (`parity_rebuild` / explicit anchor intent context).
+   - Decision: Option B per DoD wording.
+
+### Implementation plan
+1. Add `src/fraud_detection/offline_feature_plane/phase6.py` with:
+   - deterministic replay event normalization + dedupe/tie-break machinery,
+   - feature-draft row projection with canonical row ordering rules,
+   - dataset draft artifact dataclasses and immutable emission surface,
+   - parity hash emission path for parity-intent builds.
+2. Export Phase 6 surfaces through `offline_feature_plane/__init__.py`.
+3. Add `tests/services/offline_feature_plane/test_phase6_dataset_draft.py` covering:
+   - deterministic output under out-of-order/duplicate replay input,
+   - payload conflict fail-closed behavior,
+   - feature-profile mismatch fail-closed behavior,
+   - parity hash emission behavior,
+   - draft immutability enforcement.
+4. Run OFS regression matrix (Phase 1..6 + learning registry phase61 contracts), then update build-plan/impl/logbook evidence.
+
+### Drift sentinel checkpoint (pre-code)
+No design-intent contradiction detected for this phase lock. Any Phase 6 path that bypasses Phase 3 feature-profile provenance, weakens deterministic dedupe/tie-break behavior, or silently emits mutable draft artifacts is material drift and must fail closed.
+
+## Entry: 2026-02-10 12:08PM - Applied OFS Phase 6 implementation and validation closure
+
+### Implemented files
+- `src/fraud_detection/offline_feature_plane/phase6.py` (new)
+- `src/fraud_detection/offline_feature_plane/__init__.py` (Phase 6 exports)
+- `tests/services/offline_feature_plane/test_phase6_dataset_draft.py` (new)
+
+### Implemented behavior
+1. **Version-locked feature provenance enforcement**
+   - Phase 6 requires Phase 3 `ResolvedFeatureProfile` alignment with BuildIntent feature set/version.
+   - Mismatch fails closed (`FEATURE_PROFILE_MISMATCH`).
+2. **Deterministic replay dedupe + tie-break mechanics**
+   - Offset-tuple dedupe first (`topic/partition/offset_kind/offset/event_id`) with fail-closed payload mismatch detection.
+   - Event-level dedupe second (`event_id`) using deterministic tie-break key (`topic,partition,offset_kind,offset_int,payload_hash`).
+   - Conflicting payload hashes for same `event_id` fail closed (`REPLAY_EVENT_ID_CONFLICT`).
+3. **Digestable canonical dataset draft output**
+   - Draft rows are emitted with explicit row-order rules and deterministic `row_id` derivation.
+   - Draft carries stable `rows_digest` plus dedupe statistics for replay auditability.
+   - Draft artifact emission is immutable under run-scoped path:
+     - `{platform_run_id}/ofs/dataset_draft/{run_key}.json`
+4. **Parity-intent evidence output**
+   - Parity hash is emitted when parity intent is requested (`parity_rebuild`/`forensic_rebuild` or parity anchor present).
+
+### Validation evidence
+- Syntax:
+  - `python -m py_compile src/fraud_detection/offline_feature_plane/phase6.py src/fraud_detection/offline_feature_plane/__init__.py tests/services/offline_feature_plane/test_phase6_dataset_draft.py` (`PASS`).
+- Phase 6 targeted tests:
+  - `python -m pytest tests/services/offline_feature_plane/test_phase6_dataset_draft.py -q --import-mode=importlib` (`5 passed`).
+- OFS regression matrix:
+  - `python -m pytest tests/services/offline_feature_plane/test_phase1_contracts.py tests/services/offline_feature_plane/test_phase1_ids.py tests/services/offline_feature_plane/test_phase2_run_ledger.py tests/services/offline_feature_plane/test_phase3_resolver.py tests/services/offline_feature_plane/test_phase4_replay_basis.py tests/services/offline_feature_plane/test_phase5_label_resolver.py tests/services/offline_feature_plane/test_phase6_dataset_draft.py tests/services/learning_registry/test_phase61_contracts.py -q --import-mode=importlib` (`42 passed`).
+
+### Drift sentinel assessment after implementation
+- No designed-flow contradiction detected for Phase 6 scope.
+- Feature authority remained single-sourced (Phase 3 resolver output), preventing duplicate "latest" resolution paths.
+- Deterministic replay handling and immutable draft artifacts are now executable and test-backed.
+
+### Plan progression
+- OFS Phase 6 is closed.
+- Next active OFS phase is Phase 7 (`artifact publication + DatasetManifest authority`).
