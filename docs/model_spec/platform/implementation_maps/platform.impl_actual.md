@@ -10141,3 +10141,57 @@ If the planning update allows MF to bypass DatasetManifest authority, publish wi
   - OFS owns DatasetManifest authority,
   - MF owns train/eval/bundle publication intent,
   - MPR owns ACTIVE lifecycle.
+
+## Entry: 2026-02-10 1:34PM - Platform-level pre-change lock for MF Phase 1 implementation
+
+### Why platform-level tracking is required
+MF Phase 1 establishes the entry boundary for the entire train/eval/publish corridor. If request semantics or run identity are ambiguous, downstream phases can appear to work while carrying unreproducible behavior and governance drift.
+
+### Platform-level decisions pinned for this pass
+- MF Phase 1 must enforce by-ref DatasetManifest input posture at request boundary (no "latest" semantics).
+- Deterministic run identity must include dataset manifest basis + pinned config/profile + release identifiers as recipe inputs.
+- Fail-closed rejection taxonomy must be explicit and machine-actionable for run/operate + obs/gov surfaces.
+- Contract/schema surfaces must integrate with existing learning contract registry rather than introducing side-channel validation.
+
+### Expected closure evidence
+- MF Phase 1 code surfaces and tests are implemented and green.
+- Learning contract indexes include the new MF request schema.
+- Build plans and implementation maps reflect Phase 1 closure and next-step readiness.
+
+### Drift sentinel checkpoint
+Any Phase 1 implementation lacking deterministic run identity or accepting unpinned request inputs must be treated as blocker-level drift.
+
+## Entry: 2026-02-10 1:38PM - Platform-level applied closure for MF Phase 1
+
+### What was applied
+- Implemented MF Phase 1 component surfaces:
+  - `src/fraud_detection/model_factory/contracts.py`
+  - `src/fraud_detection/model_factory/ids.py`
+  - `src/fraud_detection/model_factory/__init__.py`
+- Added MF request schema and contract index updates:
+  - `docs/model_spec/platform/contracts/learning_registry/mf_train_build_request_v0.schema.yaml`
+  - `docs/model_spec/platform/contracts/learning_registry/README.md`
+  - `docs/model_spec/platform/contracts/README.md`
+- Added MF Phase 1 tests:
+  - `tests/services/model_factory/test_phase1_contracts.py`
+  - `tests/services/model_factory/test_phase1_ids.py`
+- Updated planning status:
+  - `docs/model_spec/platform/implementation_maps/model_factory.build_plan.md`
+  - `docs/model_spec/platform/implementation_maps/platform.build_plan.md`
+
+### Platform-significant outcomes
+- Phase `6.3` now has executable MF entry-boundary semantics instead of planning-only posture.
+- Deterministic MF run identity is now pinned in code, reducing retry/restart ambiguity before Phase 2 run-ledger work.
+- Learning contract set now includes MF train-build request schema, aligning OFS -> MF -> MPR corridor contract indexing.
+
+### Validation evidence
+- `python -m py_compile src/fraud_detection/model_factory/contracts.py src/fraud_detection/model_factory/ids.py src/fraud_detection/model_factory/__init__.py tests/services/model_factory/test_phase1_contracts.py tests/services/model_factory/test_phase1_ids.py` (`PASS`).
+- `python -m pytest tests/services/model_factory/test_phase1_contracts.py tests/services/model_factory/test_phase1_ids.py tests/services/learning_registry/test_phase61_contracts.py -q --import-mode=importlib` (`15 passed`).
+- `python -m pytest tests/services/model_factory/test_phase1_contracts.py tests/services/model_factory/test_phase1_ids.py tests/services/offline_feature_plane/test_phase1_contracts.py tests/services/offline_feature_plane/test_phase1_ids.py tests/services/learning_registry/test_phase61_contracts.py -q --import-mode=importlib` (`26 passed`).
+
+### Drift sentinel assessment
+- No mismatch detected against:
+  - MF authority boundary (job unit, by-ref inputs),
+  - learning/evolution fail-closed compatibility posture,
+  - platform ownership doctrine.
+- Residual risk surface now moves to MF Phase 2 run ledger/idempotent lifecycle semantics.

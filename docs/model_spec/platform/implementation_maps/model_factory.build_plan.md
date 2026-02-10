@@ -56,6 +56,19 @@ Provide an executable, component-scoped plan for Model Factory (MF) aligned to p
 - Request rejection taxonomy is explicit (`MANIFEST_REF_MISSING`, `CONFIG_REF_MISSING`, `REQUEST_INVALID`, etc.).
 - Inputs align with OFS/MF boundary contract and ownership rails.
 
+**Implementation status note (2026-02-10):**
+- Phase 1 contract and identity surfaces implemented:
+  - `src/fraud_detection/model_factory/contracts.py`
+  - `src/fraud_detection/model_factory/ids.py`
+  - `src/fraud_detection/model_factory/__init__.py`
+  - `docs/model_spec/platform/contracts/learning_registry/mf_train_build_request_v0.schema.yaml`
+- Contract indexes updated:
+  - `docs/model_spec/platform/contracts/learning_registry/README.md`
+  - `docs/model_spec/platform/contracts/README.md`
+- Validation evidence:
+  - `python -m pytest tests/services/model_factory/test_phase1_contracts.py tests/services/model_factory/test_phase1_ids.py tests/services/learning_registry/test_phase61_contracts.py -q --import-mode=importlib` (`15 passed`).
+  - `python -m pytest tests/services/model_factory/test_phase1_contracts.py tests/services/model_factory/test_phase1_ids.py tests/services/offline_feature_plane/test_phase1_contracts.py tests/services/offline_feature_plane/test_phase1_ids.py tests/services/learning_registry/test_phase61_contracts.py -q --import-mode=importlib` (`26 passed`).
+
 ### Phase 2 - Run control + idempotent run ledger
 **Intent:** ensure retries/restarts cannot fork training meaning.
 
@@ -166,7 +179,7 @@ Provide an executable, component-scoped plan for Model Factory (MF) aligned to p
 - No always-on training daemon mode.
 
 ## Status (rolling)
-- Phase 1 (`TrainBuildRequest contract + deterministic run identity`): pending.
+- Phase 1 (`TrainBuildRequest contract + deterministic run identity`): complete (implemented and validated on `2026-02-10`).
 - Phase 2 (`run control + idempotent run ledger`): pending.
 - Phase 3 (`input resolver + provenance lock`): pending.
 - Phase 4 (`train/eval execution corridor`): pending.
@@ -176,4 +189,4 @@ Provide an executable, component-scoped plan for Model Factory (MF) aligned to p
 - Phase 8 (`run/operate onboarding`): pending.
 - Phase 9 (`obs/gov onboarding`): pending.
 - Phase 10 (`integration closure gate`): pending.
-- Next action: implement Phase 1 after user go-ahead.
+- Next action: implement Phase 2 (`run control + idempotent run ledger`).

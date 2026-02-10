@@ -77,3 +77,102 @@ Any planning statement that permits "latest dataset" scans, mutable bundle rewri
 ### Drift sentinel assessment
 - No mismatch detected between flow narrative, pinned learning decisions, and this MF planning surface.
 - Residual risk remains implementation-phase: runtime contracts and failure taxonomy still need code/test enforcement in subsequent phases.
+
+## Entry: 2026-02-10 1:34PM - Pre-change implementation lock for MF Phase 1 (contract + run identity)
+
+### Trigger
+User directed execution: "Proceed to Model Factory Phase 1 Implementation."
+
+### Phase objective (DoD-locked)
+Implement MF Phase 1 with executable contract and deterministic identity surfaces:
+- `TrainBuildRequest` contract validation with typed fail-closed taxonomy.
+- Deterministic run identity primitives (`TrainRunKey` canonicalization + `train_run_id` derivation).
+- Explicit phase-1 admissibility posture (no implicit dataset discovery; by-ref manifest inputs only).
+
+### Authorities used for this implementation lock
+- `docs/model_spec/platform/implementation_maps/model_factory.build_plan.md` (Phase 1 DoD)
+- `docs/model_spec/platform/implementation_maps/platform.build_plan.md` (Phase `6.3` corridor expectations)
+- `docs/model_spec/platform/component-specific/model_factory.design-authority.md`
+- `docs/model_spec/platform/component-specific/flow-narrative-platform-design.md`
+- `docs/model_spec/platform/pre-design_decisions/learning_and_evolution.pre-design_decisions.md`
+- `docs/model_spec/platform/contracts/learning_registry/*.schema.yaml`
+- Existing OFS/learning contract patterns:
+  - `src/fraud_detection/offline_feature_plane/contracts.py`
+  - `src/fraud_detection/offline_feature_plane/ids.py`
+  - `src/fraud_detection/learning_registry/contracts.py`
+
+### Problem framing and alternatives considered
+1. Implement Phase 1 with ad-hoc dataclasses and no schema-backed validation.
+   - Rejected: inconsistent with existing learning contract posture and weak failure taxonomy control.
+2. Reuse existing schemas only and avoid MF-specific request schema/contract type.
+   - Rejected: Phase 1 requires explicit MF trigger semantics and deterministic request boundary.
+3. Add MF Phase 1 as:
+   - a new MF request schema under learning contracts,
+   - typed contract parser/validator with taxonomy mapping,
+   - deterministic run key/id helpers,
+   - focused tests for contract acceptance/rejection and identity determinism.
+   - Selected.
+
+### Planned file changes
+- New MF package surfaces:
+  - `src/fraud_detection/model_factory/contracts.py`
+  - `src/fraud_detection/model_factory/ids.py`
+  - `src/fraud_detection/model_factory/__init__.py`
+- New contract schema:
+  - `docs/model_spec/platform/contracts/learning_registry/mf_train_build_request_v0.schema.yaml`
+- Contract index updates:
+  - `docs/model_spec/platform/contracts/learning_registry/README.md`
+  - `docs/model_spec/platform/contracts/README.md`
+- New tests:
+  - `tests/services/model_factory/test_phase1_contracts.py`
+  - `tests/services/model_factory/test_phase1_ids.py`
+
+### Validation plan
+- Syntax compile for new MF files/tests.
+- Targeted MF phase1 tests.
+- Keep existing learning-registry contract tests green to detect schema-registry regressions.
+
+### Drift sentinel checkpoint
+If implementation allows non-ref dataset selection, omits deterministic run identity, or treats missing pinned refs as warnings, this is material drift and must fail closed.
+
+## Entry: 2026-02-10 1:38PM - Applied MF Phase 1 implementation (contract + deterministic run identity)
+
+### Implemented files and surfaces
+- New MF Phase 1 code:
+  - `src/fraud_detection/model_factory/contracts.py`
+  - `src/fraud_detection/model_factory/ids.py`
+  - `src/fraud_detection/model_factory/__init__.py`
+- New learning contract schema:
+  - `docs/model_spec/platform/contracts/learning_registry/mf_train_build_request_v0.schema.yaml`
+- Contract index updates:
+  - `docs/model_spec/platform/contracts/learning_registry/README.md`
+  - `docs/model_spec/platform/contracts/README.md`
+- New tests:
+  - `tests/services/model_factory/test_phase1_contracts.py`
+  - `tests/services/model_factory/test_phase1_ids.py`
+
+### Phase 1 outcomes
+- MF now has an explicit `TrainBuildRequest` boundary with schema-backed validation and typed fail-closed taxonomy.
+- `TargetScope` semantics are explicit at request boundary (`environment/mode/bundle_slot`, optional `tenant_id`).
+- Deterministic run identity is executable:
+  - canonical TrainRunKey payload,
+  - `train_run_key` digest recipe,
+  - deterministic `train_run_id` recipe.
+- Ownership-boundary assertions are enforced at request admission (`owners.mf` plus expected MF outputs).
+
+### Validation evidence
+- Syntax:
+  - `python -m py_compile src/fraud_detection/model_factory/contracts.py src/fraud_detection/model_factory/ids.py src/fraud_detection/model_factory/__init__.py tests/services/model_factory/test_phase1_contracts.py tests/services/model_factory/test_phase1_ids.py` (`PASS`).
+- Targeted MF + learning contracts:
+  - `python -m pytest tests/services/model_factory/test_phase1_contracts.py tests/services/model_factory/test_phase1_ids.py tests/services/learning_registry/test_phase61_contracts.py -q --import-mode=importlib` (`15 passed`).
+- Cross-check with OFS Phase 1 contract/identity lane:
+  - `python -m pytest tests/services/model_factory/test_phase1_contracts.py tests/services/model_factory/test_phase1_ids.py tests/services/offline_feature_plane/test_phase1_contracts.py tests/services/offline_feature_plane/test_phase1_ids.py tests/services/learning_registry/test_phase61_contracts.py -q --import-mode=importlib` (`26 passed`).
+
+### Drift sentinel assessment
+- No designed-flow contradiction detected.
+- MF Phase 1 preserves by-ref manifest posture and fail-closed semantics.
+- Ownership boundaries remain intact: OFS manifest authority, MF train/eval/bundle intent authority, MPR ACTIVE authority.
+
+### Plan progression
+- MF Phase 1 is closed.
+- Next MF phase is Phase 2 (`run control + idempotent run ledger`).

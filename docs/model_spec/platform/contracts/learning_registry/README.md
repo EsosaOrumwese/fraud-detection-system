@@ -4,6 +4,7 @@ Authoritative schema set for Phase 6.1:
 
 - `dataset_manifest_v0.schema.yaml`
 - `ofs_build_intent_v0.schema.yaml`
+- `mf_train_build_request_v0.schema.yaml`
 - `eval_report_v0.schema.yaml`
 - `bundle_publication_v0.schema.yaml`
 - `registry_lifecycle_event_v0.schema.yaml`

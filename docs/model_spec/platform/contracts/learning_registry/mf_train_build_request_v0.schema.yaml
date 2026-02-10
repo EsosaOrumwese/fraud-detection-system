@@ -1,0 +1,80 @@
+$schema: "https://json-schema.org/draft/2020-12/schema"
+title: MF TrainBuildRequest v0
+type: object
+additionalProperties: false
+required:
+  - schema_version
+  - request_id
+  - intent_kind
+  - platform_run_id
+  - dataset_manifest_refs
+  - training_config_ref
+  - governance_profile_ref
+  - requester_principal
+  - target_scope
+  - policy_revision
+  - config_revision
+  - mf_code_release_id
+properties:
+  schema_version:
+    type: string
+    const: "learning.mf_train_build_request.v0"
+  request_id:
+    type: string
+    pattern: "^[A-Za-z0-9_.:-]{8,128}$"
+  intent_kind:
+    type: string
+    enum:
+      - baseline_train
+      - backfill_retrain
+      - candidate_eval
+      - regression_check
+  platform_run_id:
+    type: string
+    minLength: 1
+  dataset_manifest_refs:
+    type: array
+    minItems: 1
+    items:
+      type: string
+      minLength: 1
+  training_config_ref:
+    type: string
+    minLength: 1
+  governance_profile_ref:
+    type: string
+    minLength: 1
+  requester_principal:
+    type: string
+    minLength: 1
+  target_scope:
+    type: object
+    additionalProperties: false
+    required:
+      - environment
+      - mode
+      - bundle_slot
+    properties:
+      environment:
+        type: string
+        minLength: 1
+      mode:
+        type: string
+        minLength: 1
+      bundle_slot:
+        type: string
+        minLength: 1
+      tenant_id:
+        type: string
+        minLength: 1
+  policy_revision:
+    type: string
+    minLength: 1
+  config_revision:
+    type: string
+    minLength: 1
+  mf_code_release_id:
+    type: string
+    minLength: 1
+  publish_allowed:
+    type: boolean
