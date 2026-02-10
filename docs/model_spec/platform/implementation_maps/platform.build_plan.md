@@ -1215,6 +1215,22 @@ Resolved and pinned in:
 - Run/operate and obs/gov surfaces include archive writer health/counters and reconciliation refs so archive readiness is visible in parity and higher environments.
 - Phase `6.1` does not begin until this gate is PASS, or explicit user-approved risk acceptance is recorded with rationale and expiry.
 
+**Implementation status note (2026-02-10):**
+- Archive writer corridor implemented under `src/fraud_detection/archive_writer/`:
+  - immutable archive record contract with `origin_offset` + ContextPins (`contracts.py`),
+  - replay-basis mismatch detection (`same offset tuple + different payload hash`) and anomaly posture (`store.py`, `observability.py`),
+  - runtime worker (`worker.py`) writing archive artifacts + metrics/health/reconciliation.
+- Run/operate onboarding completed:
+  - `archive_writer_worker` added to `config/platform/run_operate/packs/local_parity_rtdl_core.v0.yaml`.
+  - parity env/make defaults wired (`PARITY_ARCHIVE_WRITER_LEDGER_DSN`).
+- Obs/Gov onboarding completed:
+  - archive summary added to platform report payload,
+  - archive reconciliation refs included in reporter discovery.
+- Validation evidence:
+  - targeted tests green: `tests/services/archive_writer/*`,
+  - pack status confirms process-up: `archive_writer_worker: running ready` in `local_parity_rtdl_core_v0`,
+  - run-scoped artifacts present under `runs/fraud-platform/<platform_run_id>/archive_writer/*` and `runs/fraud-platform/<platform_run_id>/archive/reconciliation/archive_writer_reconciliation.json`.
+
 #### Phase 6.1 — Contracts + ownership lock (Learning/Registry)
 **Goal:** pin cross-component learning/registry contracts and prevent authority drift before service implementation.
 
@@ -1226,6 +1242,19 @@ Resolved and pinned in:
   - MPR/Registry owns ACTIVE lifecycle and deterministic resolution truth.
 - Replay basis contract is pinned: EB/archive offsets + label as-of basis + feature definition version are mandatory; no `latest` lookup semantics.
 - Compatibility contract is pinned for DF resolution (`bundle_ref`, compatibility metadata, policy/bundle version gates, fail-closed behavior).
+
+**Implementation status note (2026-02-10):**
+- Authoritative schema set added under `docs/model_spec/platform/contracts/learning_registry/`:
+  - `dataset_manifest_v0.schema.yaml`
+  - `eval_report_v0.schema.yaml`
+  - `bundle_publication_v0.schema.yaml`
+  - `registry_lifecycle_event_v0.schema.yaml`
+  - `df_bundle_resolution_v0.schema.yaml`
+- Typed contract validators added in `src/fraud_detection/learning_registry/` and validated via tests.
+- Ownership boundaries pinned in `config/platform/learning_registry/ownership_boundaries_v0.yaml`.
+- Contracts index updated (`docs/model_spec/platform/contracts/README.md`) to reference Archive + Learning/Registry authorities.
+- Validation evidence:
+  - `tests/services/learning_registry/test_phase61_contracts.py` green.
 
 #### Phase 6.2 — OFS dataset build corridor
 **Goal:** produce deterministic, rebuildable datasets with strict basis/provenance.
@@ -1383,6 +1412,8 @@ Resolved and pinned in:
 - CM build-plan Phase 6 (CM->AL manual action boundary): complete (`6 passed` Phase 6 matrix; CM Phase1..6 `36 passed`; CaseTrigger/IG regression `45 passed`; deterministic manual ActionIntent emission + by-ref outcome attach lane landed in `src/fraud_detection/case_mgmt/action_handshake.py` with policy at `config/platform/case_mgmt/action_emission_policy_v0.yaml` and projection semantics updated in `src/fraud_detection/case_mgmt/intake.py`).
 - CM build-plan Phase 7 (observability, governance, reconciliation): complete (`4 passed` Phase 7 matrix; CM Phase1..7 `40 passed`; CaseTrigger/IG regression `45 passed`; platform reporter regression `2 passed`; CM run-scoped metrics/health/reconciliation and lifecycle governance emission landed in `src/fraud_detection/case_mgmt/observability.py`; Case+Labels reconciliation contribution now emits under `runs/<platform_run_id>/case_labels/reconciliation/{YYYY-MM-DD}.json` and `case_mgmt_reconciliation.json`).
 - CM build-plan Phase 8 (integration closure/parity proof): complete (`4 passed` Phase 8 matrix; CM Phase1..8 `44 passed`; CaseTrigger/IG regression `45 passed`; platform reporter regression `2 passed`; parity artifacts captured at `runs/fraud-platform/platform_20260209T210000Z/case_mgmt/reconciliation/phase8_parity_proof_{20,200}.json` and `phase8_negative_path_proof.json`).
-- Phase 6 (Learning & Registry plane): planning-active (`6.0` archive readiness gate is the current blocking precondition; run/operate + obs/gov onboarding remain explicit `6.6` and `6.7` closure requirements).
-- Next active platform phase: Phase 6.0 (Archive readiness gate).
+- Phase 6.0 (Archive readiness gate): complete (archive writer corridor implemented + run/operate onboarding + reporter/reconciliation evidence surfaces validated on 2026-02-10).
+- Phase 6.1 (Learning/Registry contracts + ownership lock): complete (authoritative schema set + typed validators + ownership boundaries pinned on 2026-02-10).
+- Phase 6 (Learning & Registry plane): active (`6.2` OFS dataset-build corridor is next; `6.6/6.7` remain mandatory closure gates before plane completion).
+- Next active platform phase: Phase 6.2 (OFS dataset build corridor).
 - SR v0: complete (see `docs/model_spec/platform/implementation_maps/scenario_runner.build_plan.md`).

@@ -1,0 +1,79 @@
+$schema: "https://json-schema.org/draft/2020-12/schema"
+title: RegistryLifecycleEvent v0
+type: object
+additionalProperties: false
+required:
+  - schema_version
+  - registry_event_id
+  - event_type
+  - scope_key
+  - bundle_ref
+  - actor
+  - ts_utc
+properties:
+  schema_version:
+    type: string
+    const: "learning.registry_lifecycle.v0"
+  registry_event_id:
+    type: string
+    minLength: 1
+  event_type:
+    type: string
+    enum: [BUNDLE_PUBLISHED, BUNDLE_APPROVED, BUNDLE_PROMOTED_ACTIVE, BUNDLE_ROLLED_BACK, BUNDLE_RETIRED]
+  scope_key:
+    type: object
+    additionalProperties: false
+    required: [environment, mode, bundle_slot]
+    properties:
+      environment:
+        type: string
+        minLength: 1
+      mode:
+        type: string
+        minLength: 1
+      bundle_slot:
+        type: string
+        minLength: 1
+      tenant_id:
+        type: string
+  bundle_ref:
+    type: object
+    additionalProperties: false
+    required: [bundle_id, bundle_version, registry_ref]
+    properties:
+      bundle_id:
+        type: string
+        minLength: 1
+      bundle_version:
+        type: string
+        minLength: 1
+      registry_ref:
+        type: string
+        minLength: 1
+  actor:
+    type: object
+    additionalProperties: false
+    required: [actor_id, source_type]
+    properties:
+      actor_id:
+        type: string
+        minLength: 1
+      source_type:
+        type: string
+        enum: [SYSTEM, HUMAN]
+  ts_utc:
+    type: string
+    minLength: 1
+  evidence_refs:
+    type: array
+    items:
+      type: object
+      additionalProperties: false
+      required: [ref_type, ref_id]
+      properties:
+        ref_type:
+          type: string
+          minLength: 1
+        ref_id:
+          type: string
+          minLength: 1

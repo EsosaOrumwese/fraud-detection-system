@@ -227,3 +227,17 @@ label_store:
     stream_id: label_store.v0
     locator: ${LABEL_STORE_LOCATOR:-}
     poll_seconds: 2.0
+archive_writer:
+  policy:
+    policy_ref: config/platform/archive_writer/policy_v0.yaml
+  wiring:
+    stream_id: archive_writer.v0
+    ledger_dsn: ${ARCHIVE_WRITER_LEDGER_DSN:-}
+    event_bus_kind: kinesis
+    event_bus_stream: ${EVENT_BUS_STREAM}
+    event_bus_region: ${EVENT_BUS_REGION}
+    event_bus_endpoint_url: ${EVENT_BUS_ENDPOINT_URL}
+    event_bus_start_position: latest
+    topics_ref: config/platform/archive_writer/topics_v0.yaml
+    poll_max_records: 200
+    poll_sleep_seconds: 0.5

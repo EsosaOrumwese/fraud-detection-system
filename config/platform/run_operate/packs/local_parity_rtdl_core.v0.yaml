@@ -1,6 +1,6 @@
 version: 1
 pack_id: local_parity_rtdl_core_v0
-description: "RTDL live-capable worker pack (IEG/OFP/CSFB) for local parity."
+description: "RTDL live-capable worker pack (ArchiveWriter/IEG/OFP/CSFB) for local parity."
 active_run:
   required: true
   source_path: runs/fraud-platform/ACTIVE_RUN_ID
@@ -41,6 +41,7 @@ defaults:
     CSFB_HEALTH_RED_WATERMARK_AGE_SECONDS: ${CSFB_HEALTH_RED_WATERMARK_AGE_SECONDS:-800000000}
     CSFB_HEALTH_AMBER_CHECKPOINT_AGE_SECONDS: ${CSFB_HEALTH_AMBER_CHECKPOINT_AGE_SECONDS:-86400}
     CSFB_HEALTH_RED_CHECKPOINT_AGE_SECONDS: ${CSFB_HEALTH_RED_CHECKPOINT_AGE_SECONDS:-172800}
+    ARCHIVE_WRITER_LEDGER_DSN: ${PARITY_ARCHIVE_WRITER_LEDGER_DSN}
     AWS_ACCESS_KEY_ID: ${PARITY_MINIO_ACCESS_KEY}
     AWS_SECRET_ACCESS_KEY: ${PARITY_MINIO_SECRET_KEY}
     AWS_EC2_METADATA_DISABLED: ${PARITY_AWS_EC2_METADATA_DISABLED}
@@ -82,5 +83,16 @@ processes:
       CSFB_REQUIRED_PLATFORM_RUN_ID: ${ACTIVE_PLATFORM_RUN_ID}
       CSFB_PROJECTION_DSN: ${PARITY_CSFB_PROJECTION_DSN}
       CSFB_EVENT_BUS_START_POSITION: ${CSFB_EVENT_BUS_START_POSITION:-trim_horizon}
+    readiness:
+      type: process_alive
+  - id: archive_writer_worker
+    command:
+      - ${RUN_OPERATE_PYTHON}
+      - -m
+      - fraud_detection.archive_writer.worker
+      - --profile
+      - config/platform/profiles/local_parity.yaml
+    env:
+      ARCHIVE_WRITER_REQUIRED_PLATFORM_RUN_ID: ${ACTIVE_PLATFORM_RUN_ID}
     readiness:
       type: process_alive

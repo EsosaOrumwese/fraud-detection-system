@@ -1,7 +1,7 @@
-# Platform Parity Walkthrough (v0) — Oracle Store → SR → WSP → IG → EB → IEG/OFP/CSFB/DF/DL/AL/DLA/CaseTrigger/CM/LS + Platform Reporter/Conformance
+# Platform Parity Walkthrough (v0) — Oracle Store → SR → WSP → IG → EB → ArchiveWriter/IEG/OFP/CSFB/DF/DL/AL/DLA/CaseTrigger/CM/LS + Platform Reporter/Conformance
 _As of 2026-02-10_
 
-This runbook executes a **local_parity** end‑to‑end flow capped to **500,000 events**, then validates the implemented RTDL + Case/Label + Obs/Gov surfaces (**IEG/OFP/CSFB/DF/DL/AL/DLA/CaseTrigger/CM/LS + Platform Reporter/Conformance**) against admitted EB topics.
+This runbook executes a **local_parity** end‑to‑end flow capped to **500,000 events**, then validates the implemented RTDL + Case/Label + Obs/Gov surfaces (**ArchiveWriter/IEG/OFP/CSFB/DF/DL/AL/DLA/CaseTrigger/CM/LS + Platform Reporter/Conformance**) against admitted EB topics.
 It uses **MinIO (S3)** for the Oracle Store + platform artifacts, **LocalStack Kinesis** for control/event buses, and **Postgres** for IG/WSP/RTDL decision-lane/Case-Label primary state.
 
 ---
@@ -109,6 +109,7 @@ PARITY_CASE_TRIGGER_CHECKPOINT_DSN=<postgres_dsn>
 PARITY_CASE_TRIGGER_PUBLISH_STORE_DSN=<postgres_dsn>
 PARITY_CASE_MGMT_LOCATOR=<postgres_dsn>
 PARITY_LABEL_STORE_LOCATOR=<postgres_dsn>
+PARITY_ARCHIVE_WRITER_LEDGER_DSN=<postgres_dsn>
 
 OBJECT_STORE_ENDPOINT=http://localhost:9000
 OBJECT_STORE_REGION=us-east-1
@@ -1144,7 +1145,7 @@ make platform-rtdl-core-parity-live
 
 Scope note:
 - `control_ingress` pack covers `IG + WSP ready_consumer`.
-- `rtdl_core` pack covers `IEG/OFP/CSFB`.
+- `rtdl_core` pack covers `ArchiveWriter/IEG/OFP/CSFB`.
 - `rtdl_decision_lane` pack covers `DL/DF/AL/DLA`.
 - `case_labels` pack covers `CaseTrigger/CM/LS`.
 - `obs_gov` pack covers `platform_run_reporter + environment_conformance` daemon workers.

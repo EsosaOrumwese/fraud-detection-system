@@ -65,6 +65,12 @@ These live under:
 - `action_outcome.schema.yaml`
 - `audit_record.schema.yaml`
 
+## Platform-native contracts (Archive, v0)
+These live under:
+`docs/model_spec/platform/contracts/archive/`
+
+- `archive_event_record_v0.schema.yaml`
+
 ## Platform-native contracts (Case + Labels, v0)
 These live under:
 `docs/model_spec/platform/contracts/case_and_labels/`
@@ -72,3 +78,13 @@ These live under:
 - `case_trigger.schema.yaml`
 - `case_timeline_event.schema.yaml`
 - `label_assertion.schema.yaml`
+
+## Platform-native contracts (Learning + Registry, v0)
+These live under:
+`docs/model_spec/platform/contracts/learning_registry/`
+
+- `dataset_manifest_v0.schema.yaml`
+- `eval_report_v0.schema.yaml`
+- `bundle_publication_v0.schema.yaml`
+- `registry_lifecycle_event_v0.schema.yaml`
+- `df_bundle_resolution_v0.schema.yaml`

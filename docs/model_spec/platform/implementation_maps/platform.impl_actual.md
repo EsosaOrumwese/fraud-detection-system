@@ -9418,3 +9418,132 @@ Also aligned rolling status:
 ### Validation
 - Verified `6.0` appears before `6.1` and existing `6.1..6.8` structure remains intact.
 - Verified rolling status now points to `6.0`.
+
+## Entry: 2026-02-10 10:34AM - Pre-change implementation lock: execute Phase 6.0 and 6.1 (archive readiness + learning contracts)
+
+### Trigger
+User requested immediate implementation of both Phase `6.0` and `6.1` after adding the explicit archive readiness gate.
+
+### Problem
+Current platform has no dedicated archive-writer runtime service, and Learning contracts are not yet pinned as executable, authoritative artifacts in code/config. This leaves a gap between intended flow (archive-backed replay truth + pinned manifests/contracts) and implemented posture.
+
+### Scope for this execution
+1. **Phase 6.0**:
+   - Implement an `archive_writer` worker corridor that tails admitted EB topics and writes immutable archive records with origin-offset provenance.
+   - Enforce mismatch handling on replay-basis tuple collisions (same offset tuple + different payload hash => anomaly/fail-closed posture surfaced).
+   - Add run/operate onboarding in local parity process packs.
+   - Add obs/gov surfaces: run-scoped metrics, health snapshot, reconciliation artifact references in platform run reporter.
+2. **Phase 6.1**:
+   - Pin authoritative learning/registry contracts as versioned schema artifacts + typed contract loaders/validators.
+   - Pin ownership boundaries/config contract so future OFS/MF/MPR services share one authority source.
+
+### Authorities explicitly used
+- `docs/model_spec/platform/platform-wide/platform_blueprint_notes_v0.md` (J14/J15/J16, rails H1/H5)
+- `docs/model_spec/platform/platform-wide/deployment_tooling_notes_v0.md` (Archive RTA posture; OFS/MF/MPR runtime shape)
+- `docs/model_spec/platform/component-specific/flow-narrative-platform-design.md` (archive writer + replay mismatch fail-closed)
+- `docs/model_spec/platform/pre-design_decisions/run_and_operate.pre-design_decisions.md`
+- `docs/model_spec/platform/pre-design_decisions/observability_and_governance.pre-design_decisions.md`
+- `docs/model_spec/platform/implementation_maps/platform.build_plan.md` (`6.0`, `6.1` DoD)
+
+### Alternatives considered
+1. Implement only docs for `6.0` and `6.1`.
+   - Rejected: fails user request for implementation and keeps runtime drift risk.
+2. Implement contracts first and defer archive writer runtime.
+   - Rejected: violates new blocking order (`6.0` is precondition for `6.1` execution posture).
+3. Implement archive writer as ad-hoc script outside run/operate packs.
+   - Rejected: conflicts with meta-layer doctrine; must be orchestrated and observable.
+4. Implement archive writer as first-class worker + contract package + pack/reporter integration.
+   - Selected.
+
+### Concrete implementation plan (stepwise)
+1. Create new `archive_writer` component package:
+   - worker runtime (file/kinesis reader path),
+   - immutable archive record contract,
+   - ingestion ledger/checkpoint persistence,
+   - observability + reconciliation + governance anomaly emission hooks.
+2. Add `archive_writer` config surfaces:
+   - profile section in `config/platform/profiles/local_parity.yaml`,
+   - topics/policy refs under `config/platform/archive_writer/`.
+3. Onboard into run/operate:
+   - add `archive_writer_worker` process to local parity RTDL core pack,
+   - wire required env vars in pack/make defaults.
+4. Onboard into obs/gov:
+   - extend platform run reporter to include archive metrics summary,
+   - add archive reconciliation path candidates.
+5. Add Phase 6.1 contract authority artifacts:
+   - dataset manifest, eval report, bundle publication, registry lifecycle event, DF bundle resolution schemas,
+   - ownership boundary file,
+   - typed Python contract loaders/validators.
+6. Validation:
+   - targeted pytest for archive writer contract/ledger/worker path,
+   - targeted pytest for learning contract schema validation,
+   - syntax compile sweep for changed files.
+
+### Security/operational constraints
+- No secrets committed in config/docs; only env var references.
+- Archive payloads remain in run/object-store artifacts; no secret/token material logged in impl maps or logbook.
+- Keep ASCII-only edits unless existing files require otherwise.
+
+## Entry: 2026-02-10 10:52AM - Applied implementation closure for Phase 6.0 and 6.1
+
+### Trigger
+Execution of the user-directed implementation lock for `Phase 6.0` and `Phase 6.1`.
+
+### Applied scope and files
+1. Phase 6.0 archive readiness corridor:
+   - New runtime component package:
+     - `src/fraud_detection/archive_writer/contracts.py`
+     - `src/fraud_detection/archive_writer/store.py`
+     - `src/fraud_detection/archive_writer/observability.py`
+     - `src/fraud_detection/archive_writer/reconciliation.py`
+     - `src/fraud_detection/archive_writer/worker.py`
+   - New config authority/wiring:
+     - `config/platform/archive_writer/policy_v0.yaml`
+     - `config/platform/archive_writer/topics_v0.yaml`
+     - `config/platform/profiles/local_parity.yaml` (`archive_writer` section)
+     - `config/platform/run_operate/packs/local_parity_rtdl_core.v0.yaml` (`archive_writer_worker`)
+     - `makefile` + `.env.platform.local` (`PARITY_ARCHIVE_WRITER_LEDGER_DSN`)
+   - Obs/gov integration:
+     - `src/fraud_detection/platform_reporter/run_reporter.py` archive summary and reconciliation reference discovery.
+2. Phase 6.1 contract + ownership lock:
+   - Authoritative schema authorities:
+     - `docs/model_spec/platform/contracts/learning_registry/*.schema.yaml`
+     - `docs/model_spec/platform/contracts/archive/archive_event_record_v0.schema.yaml`
+     - `docs/model_spec/platform/contracts/archive/README.md`
+     - `docs/model_spec/platform/contracts/learning_registry/README.md`
+     - `docs/model_spec/platform/contracts/README.md` (index update)
+   - Executable validators/contracts:
+     - `src/fraud_detection/learning_registry/schemas.py`
+     - `src/fraud_detection/learning_registry/contracts.py`
+   - Ownership boundaries pin:
+     - `config/platform/learning_registry/ownership_boundaries_v0.yaml`
+
+### Runtime corrective decision captured during implementation
+- Encountered `psycopg` syntax failure due reserved SQL identifier `offset` in archive ledger table.
+- Corrective action: migrated ledger column name to `offset_value` across schema and query surfaces in `src/fraud_detection/archive_writer/store.py`.
+- Post-fix posture: archive writer worker starts and remains healthy in run/operate context.
+
+### Validation evidence
+- Syntax compile sweep:
+  - `python -m py_compile src/fraud_detection/archive_writer/contracts.py src/fraud_detection/archive_writer/store.py src/fraud_detection/archive_writer/observability.py src/fraud_detection/archive_writer/reconciliation.py src/fraud_detection/archive_writer/worker.py src/fraud_detection/learning_registry/schemas.py src/fraud_detection/learning_registry/contracts.py src/fraud_detection/platform_reporter/run_reporter.py` (`PASS`).
+- Targeted test matrix:
+  - `python -m pytest tests/services/archive_writer tests/services/learning_registry/test_phase61_contracts.py tests/services/platform_reporter/test_run_reporter.py -q --import-mode=importlib` (`10 passed`).
+- Platform reporter operational snapshot:
+  - `make platform-run-report` generated `runs/fraud-platform/platform_20260210T091951Z/obs/platform_run_report.json`,
+  - report contains `archive` section and includes `archive_writer_reconciliation.json` in component reconciliation references.
+
+### Drift sentinel assessment (explicit)
+- Intended graph alignment: preserved.
+  - Archive writer is now a first-class orchestrated service inside RTDL core pack, not an ad-hoc or matrix-only path.
+  - Learning/registry contracts and ownership boundaries are explicit and versioned.
+- Ownership boundary alignment: preserved.
+  - Archive writer remains a copier/provenance surface only; no truth-ownership transfer from EB/IG.
+- Noted runtime caveat:
+  - Current run report snapshot shows archive counters at `0` because no new live stream was executed after onboarding on the referenced run id.
+  - This does not block `6.0/6.1` readiness closure but should be re-demonstrated with fresh `20 -> 200` stream evidence before `6.8` integration closure.
+
+### Plan status alignment
+- Updated `docs/model_spec/platform/implementation_maps/platform.build_plan.md` implementation notes and rolling status:
+  - `Phase 6.0`: complete.
+  - `Phase 6.1`: complete.
+  - Next active gate: `Phase 6.2`.

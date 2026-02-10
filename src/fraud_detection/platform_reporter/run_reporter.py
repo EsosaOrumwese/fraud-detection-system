@@ -87,6 +87,7 @@ class PlatformRunReporter:
             }
         )
         rtdl = self._collect_rtdl(scenario_run_ids=scenario_run_ids, ingress=ingress)
+        archive = self._collect_archive()
         case_labels = self._collect_case_labels()
         reconciliation_refs = _component_reconciliation_refs(self.platform_run_id)
         evidence_refs = {
@@ -100,6 +101,7 @@ class PlatformRunReporter:
             "scenario_run_ids": scenario_run_ids,
             "ingress": ingress["counters"],
             "rtdl": rtdl,
+            "archive": archive,
             "case_labels": case_labels,
             "evidence_refs": evidence_refs,
             "basis": {
@@ -270,6 +272,26 @@ class PlatformRunReporter:
                 "ieg_events_seen": ieg_inlet_seen,
                 "ofp_events_seen": ofp_inlet_seen,
             },
+        }
+
+    def _collect_archive(self) -> dict[str, Any]:
+        run_root = RUNS_ROOT / self.platform_run_id
+        metrics_payload = _load_json_file(run_root / "archive_writer" / "metrics" / "last_metrics.json")
+        health_payload = _load_json_file(run_root / "archive_writer" / "health" / "last_health.json")
+        reconciliation_payload = _load_json_file(
+            run_root / "archive" / "reconciliation" / "archive_writer_reconciliation.json"
+        )
+        metrics = _mapping(metrics_payload.get("metrics"))
+        return {
+            "summary": {
+                "seen_total": int(metrics.get("seen_total", 0)),
+                "archived_total": int(metrics.get("archived_total", 0)),
+                "duplicate_total": int(metrics.get("duplicate_total", 0)),
+                "payload_mismatch_total": int(metrics.get("payload_mismatch_total", 0)),
+                "write_error_total": int(metrics.get("write_error_total", 0)),
+            },
+            "health_state": str(health_payload.get("health_state") or "UNKNOWN"),
+            "reconciliation_totals": _mapping(reconciliation_payload.get("totals")),
         }
 
     def _emit_evidence_resolution_events(self, payload: dict[str, Any]) -> None:
@@ -518,6 +540,7 @@ def _component_reconciliation_refs(platform_run_id: str) -> list[str]:
     candidates = [
         root / "identity_entity_graph" / "reconciliation" / "reconciliation.json",
         root / "context_store_flow_binding" / "reconciliation" / "last_reconciliation.json",
+        root / "archive" / "reconciliation" / "archive_writer_reconciliation.json",
         root / "decision_fabric" / "reconciliation" / "reconciliation.json",
         root / "case_trigger" / "reconciliation" / "reconciliation.json",
         root / "case_mgmt" / "reconciliation" / "last_reconciliation.json",

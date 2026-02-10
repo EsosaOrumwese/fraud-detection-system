@@ -1,0 +1,42 @@
+$schema: "https://json-schema.org/draft/2020-12/schema"
+title: EvalReport v0
+type: object
+additionalProperties: false
+required:
+  - schema_version
+  - eval_report_id
+  - dataset_manifest_ref
+  - gate_decision
+  - metrics
+  - provenance
+properties:
+  schema_version:
+    type: string
+    const: "learning.eval_report.v0"
+  eval_report_id:
+    type: string
+    minLength: 1
+  dataset_manifest_ref:
+    type: string
+    minLength: 1
+  gate_decision:
+    type: string
+    enum: [PASS, FAIL]
+  metrics:
+    type: object
+    additionalProperties: true
+  provenance:
+    type: object
+    additionalProperties: false
+    required:
+      - mf_code_release_id
+      - config_revision
+    properties:
+      mf_code_release_id:
+        type: string
+        minLength: 1
+      config_revision:
+        type: string
+        minLength: 1
+      run_config_digest:
+        type: string

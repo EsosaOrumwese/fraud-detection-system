@@ -1,0 +1,67 @@
+$schema: "https://json-schema.org/draft/2020-12/schema"
+title: BundlePublication v0
+type: object
+additionalProperties: false
+required:
+  - schema_version
+  - bundle_id
+  - bundle_version
+  - dataset_manifest_refs
+  - eval_report_ref
+  - compatibility
+  - provenance
+properties:
+  schema_version:
+    type: string
+    const: "learning.bundle_publication.v0"
+  bundle_id:
+    type: string
+    minLength: 1
+  bundle_version:
+    type: string
+    minLength: 1
+  dataset_manifest_refs:
+    type: array
+    minItems: 1
+    items:
+      type: string
+      minLength: 1
+  eval_report_ref:
+    type: string
+    minLength: 1
+  compatibility:
+    type: object
+    additionalProperties: false
+    required:
+      - feature_set_id
+      - feature_set_version
+      - input_contract_version
+    properties:
+      feature_set_id:
+        type: string
+        minLength: 1
+      feature_set_version:
+        type: string
+        minLength: 1
+      input_contract_version:
+        type: string
+        minLength: 1
+      required_capabilities:
+        type: array
+        items:
+          type: string
+  provenance:
+    type: object
+    additionalProperties: false
+    required:
+      - mf_code_release_id
+      - config_revision
+    properties:
+      mf_code_release_id:
+        type: string
+        minLength: 1
+      config_revision:
+        type: string
+        minLength: 1
+      run_config_digest:
+        type: string

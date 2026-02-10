@@ -1,0 +1,13 @@
+policy_id: archive_writer.v0
+revision: r1
+description: "Archive admitted EB events as immutable replay truth with offset-basis integrity checks."
+required_pins:
+  - platform_run_id
+  - scenario_run_id
+  - manifest_fingerprint
+  - parameter_hash
+  - scenario_id
+required_envelope_fields:
+  - event_id
+  - event_type
+  - ts_utc

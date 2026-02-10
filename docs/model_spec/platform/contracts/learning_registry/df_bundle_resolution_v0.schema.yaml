@@ -1,0 +1,59 @@
+$schema: "https://json-schema.org/draft/2020-12/schema"
+title: DF Bundle Resolution v0
+type: object
+additionalProperties: false
+required:
+  - schema_version
+  - scope_key
+  - resolution_outcome
+  - policy_rev
+properties:
+  schema_version:
+    type: string
+    const: "learning.df_bundle_resolution.v0"
+  scope_key:
+    type: object
+    additionalProperties: false
+    required: [environment, mode, bundle_slot]
+    properties:
+      environment:
+        type: string
+        minLength: 1
+      mode:
+        type: string
+        minLength: 1
+      bundle_slot:
+        type: string
+        minLength: 1
+      tenant_id:
+        type: string
+  resolution_outcome:
+    type: string
+    enum: [RESOLVED, SAFE_FALLBACK, FAIL_CLOSED]
+  bundle_ref:
+    type: object
+    additionalProperties: false
+    properties:
+      bundle_id:
+        type: string
+      bundle_version:
+        type: string
+      registry_ref:
+        type: string
+  reason_codes:
+    type: array
+    items:
+      type: string
+  policy_rev:
+    type: object
+    additionalProperties: false
+    required: [policy_id, revision]
+    properties:
+      policy_id:
+        type: string
+        minLength: 1
+      revision:
+        type: string
+        minLength: 1
+      content_digest:
+        type: string
