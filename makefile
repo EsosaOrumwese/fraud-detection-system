@@ -228,6 +228,24 @@ DEV_MIN_SKIP_CONFLUENT_API_PROBE ?=
 DEV_MIN_KAFKA_BOOTSTRAP ?=
 DEV_MIN_KAFKA_API_KEY ?=
 DEV_MIN_KAFKA_API_SECRET ?=
+DEV_MIN_TERRAFORM_DIR ?= infra/terraform/envs/dev_min
+DEV_MIN_TERRAFORM_WORKSPACE ?= dev_min_demo
+DEV_MIN_PHASE2_OUTPUT_ROOT ?= runs/fraud-platform/dev_substrate/phase2
+DEV_MIN_TF_AUTO_APPROVE ?= 1
+DEV_MIN_ALLOW_PAID_APPLY ?=
+DEV_MIN_ALLOW_PAID_DESTROY_ALL ?=
+DEV_MIN_NAME_PREFIX ?= fraud-platform-dev-min
+DEV_MIN_OWNER ?= fraud-dev
+DEV_MIN_EXPIRES_AT ?=
+DEV_MIN_ENABLE_BUDGET_ALERT ?=
+DEV_MIN_BUDGET_ALERT_EMAIL ?=
+DEV_MIN_BUDGET_LIMIT_USD ?= 40
+DEV_MIN_TF_STATE_BUCKET ?=
+DEV_MIN_CONTROL_TABLE ?=
+DEV_MIN_TF_LOCK_TABLE ?=
+DEV_MIN_ENABLE_DEMO ?=
+DEV_MIN_DEMO_RUN_ID ?= manual
+DEV_MIN_DEMO_LOG_RETENTION_DAYS ?= 7
 
 # ---------------------------------------------------------------------------
 # External paths (aligned to registries)
@@ -3274,7 +3292,7 @@ platform-run-report:
 platform-dev-min-phase1-preflight:
 	@env_file="$(DEV_MIN_ENV_FILE)"; \
 	if [ ! -f "$$env_file" ]; then \
-		echo "platform-dev-min-phase1-preflight requires $$env_file (copy from .env.dev_min.example)" >&2; \
+		echo "platform-dev-min-phase1-preflight requires $$env_file (create local .env.dev_min with DEV_MIN_* keys)" >&2; \
 		exit 1; \
 	fi; \
 	set -a; . "$$env_file"; set +a; \
@@ -3293,7 +3311,7 @@ platform-dev-min-phase1-preflight:
 platform-dev-min-phase1-seed-ssm:
 	@env_file="$(DEV_MIN_ENV_FILE)"; \
 	if [ ! -f "$$env_file" ]; then \
-		echo "platform-dev-min-phase1-seed-ssm requires $$env_file (copy from .env.dev_min.example)" >&2; \
+		echo "platform-dev-min-phase1-seed-ssm requires $$env_file (create local .env.dev_min with DEV_MIN_* keys)" >&2; \
 		exit 1; \
 	fi; \
 	set -a; . "$$env_file"; set +a; \
@@ -3305,6 +3323,148 @@ platform-dev-min-phase1-seed-ssm:
 	if [ -n "$$bootstrap" ]; then args+=(-Bootstrap "$$bootstrap"); fi; \
 	if [ -n "$$api_key" ]; then args+=(-ApiKey "$$api_key"); fi; \
 	if [ -n "$$api_secret" ]; then args+=(-ApiSecret "$$api_secret"); fi; \
+	MSYS_NO_PATHCONV=1 pwsh "$${args[@]}"
+
+.PHONY: platform-dev-min-phase2-plan
+platform-dev-min-phase2-plan:
+	@env_file="$(DEV_MIN_ENV_FILE)"; \
+	if [ ! -f "$$env_file" ]; then \
+		echo "platform-dev-min-phase2-plan requires $$env_file (create local .env.dev_min with DEV_MIN_* keys)" >&2; \
+		exit 1; \
+	fi; \
+	set -a; . "$$env_file"; set +a; \
+	export DEV_MIN_NAME_PREFIX="$${DEV_MIN_NAME_PREFIX:-$(DEV_MIN_NAME_PREFIX)}"; \
+	export DEV_MIN_OWNER="$${DEV_MIN_OWNER:-$(DEV_MIN_OWNER)}"; \
+	export DEV_MIN_EXPIRES_AT="$${DEV_MIN_EXPIRES_AT:-$(DEV_MIN_EXPIRES_AT)}"; \
+	export DEV_MIN_ENABLE_BUDGET_ALERT="$${DEV_MIN_ENABLE_BUDGET_ALERT:-$(DEV_MIN_ENABLE_BUDGET_ALERT)}"; \
+	export DEV_MIN_BUDGET_ALERT_EMAIL="$${DEV_MIN_BUDGET_ALERT_EMAIL:-$(DEV_MIN_BUDGET_ALERT_EMAIL)}"; \
+	export DEV_MIN_BUDGET_LIMIT_USD="$${DEV_MIN_BUDGET_LIMIT_USD:-$(DEV_MIN_BUDGET_LIMIT_USD)}"; \
+	export DEV_MIN_TF_STATE_BUCKET="$${DEV_MIN_TF_STATE_BUCKET:-$(DEV_MIN_TF_STATE_BUCKET)}"; \
+	export DEV_MIN_CONTROL_TABLE="$${DEV_MIN_CONTROL_TABLE:-$(DEV_MIN_CONTROL_TABLE)}"; \
+	export DEV_MIN_TF_LOCK_TABLE="$${DEV_MIN_TF_LOCK_TABLE:-$(DEV_MIN_TF_LOCK_TABLE)}"; \
+	export DEV_MIN_ENABLE_DEMO="$${DEV_MIN_ENABLE_DEMO:-$(DEV_MIN_ENABLE_DEMO)}"; \
+	export DEV_MIN_DEMO_RUN_ID="$${DEV_MIN_DEMO_RUN_ID:-$(DEV_MIN_DEMO_RUN_ID)}"; \
+	export DEV_MIN_DEMO_LOG_RETENTION_DAYS="$${DEV_MIN_DEMO_LOG_RETENTION_DAYS:-$(DEV_MIN_DEMO_LOG_RETENTION_DAYS)}"; \
+	args=(-NoProfile -File scripts/dev_substrate/phase2_terraform.ps1 \
+		-Action plan \
+		-TerraformDir "$(DEV_MIN_TERRAFORM_DIR)" \
+		-Workspace "$(DEV_MIN_TERRAFORM_WORKSPACE)" \
+		-OutputRoot "$(DEV_MIN_PHASE2_OUTPUT_ROOT)"); \
+	if [ "$(DEV_MIN_TF_AUTO_APPROVE)" = "1" ]; then args+=(-AutoApprove); fi; \
+	MSYS_NO_PATHCONV=1 pwsh "$${args[@]}"
+
+.PHONY: platform-dev-min-phase2-up
+platform-dev-min-phase2-up:
+	@env_file="$(DEV_MIN_ENV_FILE)"; \
+	if [ ! -f "$$env_file" ]; then \
+		echo "platform-dev-min-phase2-up requires $$env_file (create local .env.dev_min with DEV_MIN_* keys)" >&2; \
+		exit 1; \
+	fi; \
+	set -a; . "$$env_file"; set +a; \
+	export DEV_MIN_NAME_PREFIX="$${DEV_MIN_NAME_PREFIX:-$(DEV_MIN_NAME_PREFIX)}"; \
+	export DEV_MIN_OWNER="$${DEV_MIN_OWNER:-$(DEV_MIN_OWNER)}"; \
+	export DEV_MIN_EXPIRES_AT="$${DEV_MIN_EXPIRES_AT:-$(DEV_MIN_EXPIRES_AT)}"; \
+	export DEV_MIN_ENABLE_BUDGET_ALERT="$${DEV_MIN_ENABLE_BUDGET_ALERT:-$(DEV_MIN_ENABLE_BUDGET_ALERT)}"; \
+	export DEV_MIN_BUDGET_ALERT_EMAIL="$${DEV_MIN_BUDGET_ALERT_EMAIL:-$(DEV_MIN_BUDGET_ALERT_EMAIL)}"; \
+	export DEV_MIN_BUDGET_LIMIT_USD="$${DEV_MIN_BUDGET_LIMIT_USD:-$(DEV_MIN_BUDGET_LIMIT_USD)}"; \
+	export DEV_MIN_TF_STATE_BUCKET="$${DEV_MIN_TF_STATE_BUCKET:-$(DEV_MIN_TF_STATE_BUCKET)}"; \
+	export DEV_MIN_CONTROL_TABLE="$${DEV_MIN_CONTROL_TABLE:-$(DEV_MIN_CONTROL_TABLE)}"; \
+	export DEV_MIN_TF_LOCK_TABLE="$${DEV_MIN_TF_LOCK_TABLE:-$(DEV_MIN_TF_LOCK_TABLE)}"; \
+	export DEV_MIN_ENABLE_DEMO="$${DEV_MIN_ENABLE_DEMO:-$(DEV_MIN_ENABLE_DEMO)}"; \
+	export DEV_MIN_DEMO_RUN_ID="$${DEV_MIN_DEMO_RUN_ID:-$(DEV_MIN_DEMO_RUN_ID)}"; \
+	export DEV_MIN_DEMO_LOG_RETENTION_DAYS="$${DEV_MIN_DEMO_LOG_RETENTION_DAYS:-$(DEV_MIN_DEMO_LOG_RETENTION_DAYS)}"; \
+	args=(-NoProfile -File scripts/dev_substrate/phase2_terraform.ps1 \
+		-Action up \
+		-TerraformDir "$(DEV_MIN_TERRAFORM_DIR)" \
+		-Workspace "$(DEV_MIN_TERRAFORM_WORKSPACE)" \
+		-OutputRoot "$(DEV_MIN_PHASE2_OUTPUT_ROOT)"); \
+	if [ "$(DEV_MIN_TF_AUTO_APPROVE)" = "1" ]; then args+=(-AutoApprove); fi; \
+	if [ -n "$(DEV_MIN_ALLOW_PAID_APPLY)" ]; then args+=(-AllowPaidApply); fi; \
+	MSYS_NO_PATHCONV=1 pwsh "$${args[@]}"
+
+.PHONY: platform-dev-min-phase2-down
+platform-dev-min-phase2-down:
+	@env_file="$(DEV_MIN_ENV_FILE)"; \
+	if [ ! -f "$$env_file" ]; then \
+		echo "platform-dev-min-phase2-down requires $$env_file (create local .env.dev_min with DEV_MIN_* keys)" >&2; \
+		exit 1; \
+	fi; \
+	set -a; . "$$env_file"; set +a; \
+	export DEV_MIN_NAME_PREFIX="$${DEV_MIN_NAME_PREFIX:-$(DEV_MIN_NAME_PREFIX)}"; \
+	export DEV_MIN_OWNER="$${DEV_MIN_OWNER:-$(DEV_MIN_OWNER)}"; \
+	export DEV_MIN_EXPIRES_AT="$${DEV_MIN_EXPIRES_AT:-$(DEV_MIN_EXPIRES_AT)}"; \
+	export DEV_MIN_ENABLE_BUDGET_ALERT="$${DEV_MIN_ENABLE_BUDGET_ALERT:-$(DEV_MIN_ENABLE_BUDGET_ALERT)}"; \
+	export DEV_MIN_BUDGET_ALERT_EMAIL="$${DEV_MIN_BUDGET_ALERT_EMAIL:-$(DEV_MIN_BUDGET_ALERT_EMAIL)}"; \
+	export DEV_MIN_BUDGET_LIMIT_USD="$${DEV_MIN_BUDGET_LIMIT_USD:-$(DEV_MIN_BUDGET_LIMIT_USD)}"; \
+	export DEV_MIN_TF_STATE_BUCKET="$${DEV_MIN_TF_STATE_BUCKET:-$(DEV_MIN_TF_STATE_BUCKET)}"; \
+	export DEV_MIN_CONTROL_TABLE="$${DEV_MIN_CONTROL_TABLE:-$(DEV_MIN_CONTROL_TABLE)}"; \
+	export DEV_MIN_TF_LOCK_TABLE="$${DEV_MIN_TF_LOCK_TABLE:-$(DEV_MIN_TF_LOCK_TABLE)}"; \
+	export DEV_MIN_DEMO_RUN_ID="$${DEV_MIN_DEMO_RUN_ID:-$(DEV_MIN_DEMO_RUN_ID)}"; \
+	export DEV_MIN_DEMO_LOG_RETENTION_DAYS="$${DEV_MIN_DEMO_LOG_RETENTION_DAYS:-$(DEV_MIN_DEMO_LOG_RETENTION_DAYS)}"; \
+	args=(-NoProfile -File scripts/dev_substrate/phase2_terraform.ps1 \
+		-Action down \
+		-TerraformDir "$(DEV_MIN_TERRAFORM_DIR)" \
+		-Workspace "$(DEV_MIN_TERRAFORM_WORKSPACE)" \
+		-OutputRoot "$(DEV_MIN_PHASE2_OUTPUT_ROOT)"); \
+	if [ "$(DEV_MIN_TF_AUTO_APPROVE)" = "1" ]; then args+=(-AutoApprove); fi; \
+	MSYS_NO_PATHCONV=1 pwsh "$${args[@]}"
+
+.PHONY: platform-dev-min-phase2-down-all
+platform-dev-min-phase2-down-all:
+	@env_file="$(DEV_MIN_ENV_FILE)"; \
+	if [ ! -f "$$env_file" ]; then \
+		echo "platform-dev-min-phase2-down-all requires $$env_file (create local .env.dev_min with DEV_MIN_* keys)" >&2; \
+		exit 1; \
+	fi; \
+	set -a; . "$$env_file"; set +a; \
+	export DEV_MIN_NAME_PREFIX="$${DEV_MIN_NAME_PREFIX:-$(DEV_MIN_NAME_PREFIX)}"; \
+	export DEV_MIN_OWNER="$${DEV_MIN_OWNER:-$(DEV_MIN_OWNER)}"; \
+	export DEV_MIN_EXPIRES_AT="$${DEV_MIN_EXPIRES_AT:-$(DEV_MIN_EXPIRES_AT)}"; \
+	export DEV_MIN_ENABLE_BUDGET_ALERT="$${DEV_MIN_ENABLE_BUDGET_ALERT:-$(DEV_MIN_ENABLE_BUDGET_ALERT)}"; \
+	export DEV_MIN_BUDGET_ALERT_EMAIL="$${DEV_MIN_BUDGET_ALERT_EMAIL:-$(DEV_MIN_BUDGET_ALERT_EMAIL)}"; \
+	export DEV_MIN_BUDGET_LIMIT_USD="$${DEV_MIN_BUDGET_LIMIT_USD:-$(DEV_MIN_BUDGET_LIMIT_USD)}"; \
+	export DEV_MIN_TF_STATE_BUCKET="$${DEV_MIN_TF_STATE_BUCKET:-$(DEV_MIN_TF_STATE_BUCKET)}"; \
+	export DEV_MIN_CONTROL_TABLE="$${DEV_MIN_CONTROL_TABLE:-$(DEV_MIN_CONTROL_TABLE)}"; \
+	export DEV_MIN_TF_LOCK_TABLE="$${DEV_MIN_TF_LOCK_TABLE:-$(DEV_MIN_TF_LOCK_TABLE)}"; \
+	export DEV_MIN_DEMO_RUN_ID="$${DEV_MIN_DEMO_RUN_ID:-$(DEV_MIN_DEMO_RUN_ID)}"; \
+	export DEV_MIN_DEMO_LOG_RETENTION_DAYS="$${DEV_MIN_DEMO_LOG_RETENTION_DAYS:-$(DEV_MIN_DEMO_LOG_RETENTION_DAYS)}"; \
+	args=(-NoProfile -File scripts/dev_substrate/phase2_terraform.ps1 \
+		-Action down_all \
+		-TerraformDir "$(DEV_MIN_TERRAFORM_DIR)" \
+		-Workspace "$(DEV_MIN_TERRAFORM_WORKSPACE)" \
+		-OutputRoot "$(DEV_MIN_PHASE2_OUTPUT_ROOT)"); \
+	if [ "$(DEV_MIN_TF_AUTO_APPROVE)" = "1" ]; then args+=(-AutoApprove); fi; \
+	if [ -n "$(DEV_MIN_ALLOW_PAID_DESTROY_ALL)" ]; then args+=(-AllowPaidDestroyAll); fi; \
+	MSYS_NO_PATHCONV=1 pwsh "$${args[@]}"
+
+.PHONY: platform-dev-min-phase2-status
+platform-dev-min-phase2-status:
+	@env_file="$(DEV_MIN_ENV_FILE)"; \
+	if [ ! -f "$$env_file" ]; then \
+		echo "platform-dev-min-phase2-status requires $$env_file (create local .env.dev_min with DEV_MIN_* keys)" >&2; \
+		exit 1; \
+	fi; \
+	set -a; . "$$env_file"; set +a; \
+	args=(-NoProfile -File scripts/dev_substrate/phase2_terraform.ps1 \
+		-Action status \
+		-TerraformDir "$(DEV_MIN_TERRAFORM_DIR)" \
+		-Workspace "$(DEV_MIN_TERRAFORM_WORKSPACE)" \
+		-OutputRoot "$(DEV_MIN_PHASE2_OUTPUT_ROOT)"); \
+	MSYS_NO_PATHCONV=1 pwsh "$${args[@]}"
+
+.PHONY: platform-dev-min-phase2-post-destroy-check
+platform-dev-min-phase2-post-destroy-check:
+	@env_file="$(DEV_MIN_ENV_FILE)"; \
+	if [ ! -f "$$env_file" ]; then \
+		echo "platform-dev-min-phase2-post-destroy-check requires $$env_file (create local .env.dev_min with DEV_MIN_* keys)" >&2; \
+		exit 1; \
+	fi; \
+	set -a; . "$$env_file"; set +a; \
+	args=(-NoProfile -File scripts/dev_substrate/phase2_terraform.ps1 \
+		-Action post_destroy_check \
+		-TerraformDir "$(DEV_MIN_TERRAFORM_DIR)" \
+		-Workspace "$(DEV_MIN_TERRAFORM_WORKSPACE)" \
+		-OutputRoot "$(DEV_MIN_PHASE2_OUTPUT_ROOT)"); \
 	MSYS_NO_PATHCONV=1 pwsh "$${args[@]}"
 
 .PHONY: platform-governance-query

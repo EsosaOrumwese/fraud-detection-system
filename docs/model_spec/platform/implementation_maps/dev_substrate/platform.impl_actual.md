@@ -876,3 +876,234 @@ Updated `docs/model_spec/platform/implementation_maps/dev_substrate/platform.bui
 
 ### Drift sentinel checkpoint
 Planning-only update; no runtime or cost-surface changes were executed.
+
+## Entry: 2026-02-10 11:18PM - Pre-change lock: implement Phase 2 end-to-end (Terraform substrate + operator lifecycle + infra evidence)
+
+### Trigger
+USER requested: "Proceed with full implementation of phase 2".
+
+### Implementation objective
+Deliver executable Phase 2 surfaces for:
+1. Terraform topology (`core` persistent + `demo` ephemeral).
+2. Deterministic operator lifecycle commands (`plan/up/down/status/post_destroy_check`).
+3. Infra lifecycle evidence emission (run/operate + obs/gov hooks for infra actions).
+4. Failure/recovery drill path for idempotent destroy and residual detection.
+
+### Design choices
+1. Keep Phase 2 infra to low-cost primitives only:
+   - S3, DynamoDB, CloudWatch log group, and AWS Budget (optional via variable).
+   - no NAT/LB/always-on compute.
+2. Implement Terraform as composable modules:
+   - `infra/terraform/modules/core` for persistent substrate,
+   - `infra/terraform/modules/demo` for ephemeral substrate.
+3. Use env-level composition at:
+   - `infra/terraform/envs/dev_min`.
+4. Add PowerShell operator script:
+   - `scripts/dev_substrate/phase2_terraform.ps1`.
+5. Add Make targets that source dedicated env file (`.env.dev_min`) and call Phase 2 lifecycle actions.
+
+### Validation plan
+1. Static validation: `terraform fmt -check`, `terraform init`, `terraform validate`.
+2. Runtime command validation without silent drift:
+   - `phase2-plan` must PASS.
+   - `phase2-up` then `phase2-status` then `phase2-down`.
+   - `phase2-down` rerun for idempotency.
+   - `phase2-post-destroy-check` must PASS.
+3. Evidence:
+   - local infra lifecycle JSON artifacts written under `runs/fraud-platform/dev_substrate/phase2/`.
+   - logbook + impl notes capture sanitized outcomes.
+
+### Cost posture before implementation run
+- Editing and static terraform validation do not create paid resources.
+- `phase2-up` can create paid resources (low-cost only); if executed, immediate `phase2-down` follows in same session unless USER asks to keep running.
+
+### Drift sentinel checkpoint
+This pass builds infra lifecycle tooling only and preserves platform semantic laws/ownership boundaries.
+
+## Entry: 2026-02-10 11:30PM - Applied Phase 2 implementation (Terraform substrate + lifecycle operator surfaces)
+
+### Implemented artifacts
+1. Terraform module set:
+   - `infra/terraform/modules/core/variables.tf`
+   - `infra/terraform/modules/core/main.tf`
+   - `infra/terraform/modules/core/outputs.tf`
+   - `infra/terraform/modules/demo/variables.tf`
+   - `infra/terraform/modules/demo/main.tf`
+   - `infra/terraform/modules/demo/outputs.tf`
+2. Environment composition:
+   - `infra/terraform/envs/dev_min/versions.tf`
+   - `infra/terraform/envs/dev_min/variables.tf`
+   - `infra/terraform/envs/dev_min/main.tf`
+   - `infra/terraform/envs/dev_min/outputs.tf`
+   - `infra/terraform/envs/dev_min/README.md`
+   - `infra/terraform/envs/dev_min/terraform.tfvars.example`
+3. Operator lifecycle script:
+   - `scripts/dev_substrate/phase2_terraform.ps1`
+4. Make targets and defaults:
+   - added Phase 2 defaults and targets in `Makefile` for `plan/up/down/down-all/status/post-destroy-check`.
+5. Supporting docs:
+   - `infra/terraform/modules/README.md`
+   - `infra/terraform/envs/README.md`
+   - `.env.dev_min.example` updated/recreated with Phase 2 knobs.
+
+### Validation executed
+1. Static validation:
+   - `terraform fmt -recursive infra/terraform` -> PASS.
+   - `terraform -chdir=infra/terraform/envs/dev_min init -input=false -no-color` -> PASS.
+   - `terraform -chdir=infra/terraform/envs/dev_min validate -no-color` -> PASS.
+2. Lifecycle validation (managed resources touched):
+   - `make platform-dev-min-phase2-plan` -> PASS.
+   - `make platform-dev-min-phase2-up DEV_MIN_ALLOW_PAID_APPLY=1` -> PASS.
+   - `make platform-dev-min-phase2-status` -> PASS (`resources_in_state=25` during active phase).
+   - `make platform-dev-min-phase2-down` -> PASS.
+   - rerun `make platform-dev-min-phase2-down` (idempotency drill) -> PASS.
+   - `make platform-dev-min-phase2-post-destroy-check` initially FAIL due script array-shape bug; fixed and rerun -> PASS.
+   - `make platform-dev-min-phase2-down-all DEV_MIN_ALLOW_PAID_DESTROY_ALL=1` -> PASS.
+   - final `make platform-dev-min-phase2-status` -> PASS (`resources_in_state=0`).
+3. Evidence artifacts emitted under:
+   - `runs/fraud-platform/dev_substrate/phase2/infra_phase2_*`.
+
+### Corrective fix during implementation
+- `post_destroy_check` failed on JSON parse shape (`Count` lookup on non-array).
+- Applied robustness fix in `scripts/dev_substrate/phase2_terraform.ps1` to normalize parsed AWS result into array and then evaluate residual count.
+
+### Cost posture outcome
+- Active paid resources were created for validation and then fully torn down.
+- End-of-pass decision: `TURN OFF NOW` applied via `down-all`; final state count is `0`.
+
+### Remaining gate
+- Budget-alert activation test remains pending explicit `DEV_MIN_ENABLE_BUDGET_ALERT=1` configuration for this account.
+- Terraform wiring for this path is implemented; runtime activation is now an operator switch, not a coding gap.
+
+### Additional teardown drill
+- Re-ran `down-all` after full teardown:
+  - `make platform-dev-min-phase2-down-all DEV_MIN_ALLOW_PAID_DESTROY_ALL=1` -> PASS.
+- Confirms idempotent full-teardown behavior when state is already empty.
+
+### Validation note
+- A transient local-state file lock occurred when `plan` and `status` were executed concurrently during final verification.
+- Reran `status` sequentially and confirmed PASS with `resources_in_state=0`.
+- Operator guidance: run Phase 2 terraform actions sequentially against the same workspace/state path.
+
+### Final teardown confirmation
+- Queried AWS tagged resources for `fp_phase=phase2`:
+  - `aws resourcegroupstaggingapi get-resources --tag-filters Key=fp_phase,Values=phase2 ...`
+  - Result: empty list (`[]`).
+- Confirms no tagged Phase 2 resources remain active after `down-all`.
+
+## Entry: 2026-02-10 11:40PM - Pre-change lock: activate and verify budget-alert wiring (config-level, no synthetic spend)
+
+### Trigger
+USER requested budget-alert validation aligned with budget sentinel and suggested low budget threshold for later runtime confirmation.
+
+### Decision
+1. Execute config-level validation now:
+   - provision Phase 2 with budget alert enabled,
+   - verify budget existence and notification configuration via AWS API,
+   - do not generate synthetic spend to force an alert.
+2. Set `monthly_budget_limit_usd=1` for practical near-term runtime confirmation during upcoming platform tests.
+3. `DEV_MIN_BUDGET_ALERT_EMAIL` is missing in `.env.dev_min`; for this validation pass only, use operator fallback from local git identity email.
+
+### Planned run steps
+1. `phase2-up` with:
+   - `DEV_MIN_ENABLE_BUDGET_ALERT=1`
+   - `DEV_MIN_BUDGET_LIMIT_USD=1`
+   - fallback `DEV_MIN_BUDGET_ALERT_EMAIL` override.
+2. Verify budget via:
+   - Terraform outputs (`budget_name`),
+   - AWS Budgets API (`describe-budget`, `describe-notifications-for-budget`).
+3. Keep only core resources (`phase2-down`) so budget remains active for upcoming tests unless USER requests full teardown.
+
+### Cost posture
+- Paid surfaces touched: S3, DynamoDB, CloudWatch logs, SSM, and AWS Budget metadata.
+- Post-action decision target: `KEEP ON (core only)` to retain budget alert during immediate testing window.
+
+### Drift sentinel checkpoint
+No semantic/component-flow changes; this is governance-cost control closure for Phase 2 DoD.
+
+## Entry: 2026-02-10 11:42PM - Budget alert activated and config-verified (no synthetic spend)
+
+### Executed actions
+1. Enabled budget-alert path for this run via command overrides:
+   - `DEV_MIN_ENABLE_BUDGET_ALERT=1`
+   - `DEV_MIN_BUDGET_LIMIT_USD=1`
+   - subscriber email override from local operator git identity (because `.env.dev_min` lacked `DEV_MIN_BUDGET_ALERT_EMAIL`).
+2. Applied infrastructure:
+   - `make platform-dev-min-phase2-up DEV_MIN_ALLOW_PAID_APPLY=1 ...` -> PASS.
+3. Verified budget configuration using AWS API:
+   - Terraform output returned budget name.
+   - `aws budgets describe-budget` -> PASS.
+   - `aws budgets describe-notifications-for-budget` -> PASS.
+   - Observed: budget exists, monthly USD limit set to `1.0`, two ACTUAL notifications configured (80% and 100% thresholds).
+4. Minimized spend while retaining budget path for near-term tests:
+   - `make platform-dev-min-phase2-down ...` -> PASS (demo off, core retained).
+   - `make platform-dev-min-phase2-status` -> PASS (`resources_in_state=23`).
+   - `make platform-dev-min-phase2-post-destroy-check` -> PASS (no demo-tier residual resources).
+
+### Build-plan alignment
+- Updated Phase 2 DoD to reflect:
+  - budget/tagging active + config-verified (closed),
+  - explicit remaining gate: real notification delivery observation during platform runtime spend (open).
+
+### Cost posture decision
+- Post-action decision: `KEEP ON (core only)`.
+- Rationale: keep low-cost core + budget configuration active so upcoming platform tests can naturally confirm notification delivery without re-provisioning.
+- Demo-tier resources are off.
+
+### Operator follow-up
+- Add `DEV_MIN_BUDGET_ALERT_EMAIL=<operator-email>` to `.env.dev_min` so future runs do not rely on command override fallback.
+
+### Drift sentinel checkpoint
+No runtime semantic drift; this is a governance-cost control activation and verification pass.
+
+### Current posture snapshot
+- `phase2-status` PASS with `resources_in_state=23`.
+- Tag-scan snapshot:
+  - `fp_tier=demo`: `0` resources,
+  - `fp_tier=core`: `7` resources.
+- Budget-validation posture is active while spend-sensitive demo surfaces remain off.
+
+## Entry: 2026-02-10 11:45PM - Corrective policy shift: local-only `.env.dev_min` (no tracked `.env` example artifacts)
+
+### Trigger
+USER requested explicit workflow change: do not keep or commit `.env.*.example` artifacts for this migration track.
+
+### Decision
+1. Use only local untracked `.env.dev_min` for dev-substrate commands.
+2. Remove `.env.dev_min.example` from workspace.
+3. Update active Make target guidance and build-plan wording to avoid referencing example files.
+4. Keep historical log/impl entries intact (append-only), but pin this corrective policy as the current authority.
+
+### Planned edits
+- `Makefile`: change all error/help text from “copy from .env.dev_min.example” to local-only `.env.dev_min` instructions.
+- `docs/model_spec/platform/implementation_maps/dev_substrate/platform.build_plan.md`: remove template-file reference from dedicated env surface section.
+- delete `.env.dev_min.example`.
+
+### Cost posture
+- No cloud commands/resources touched for this correction.
+
+### Drift sentinel checkpoint
+Process/documentation correction only; no platform semantic/runtime behavior changes.
+
+## Entry: 2026-02-10 11:46PM - Applied local-only `.env.dev_min` policy (removed tracked example references)
+
+### Applied changes
+1. Deleted `.env.dev_min.example` from workspace.
+2. Updated `Makefile` messaging for Phase 1/2 targets:
+   - replaced “copy from .env.dev_min.example” with local-only guidance to create `.env.dev_min` with `DEV_MIN_*` keys.
+3. Updated active build-plan wording:
+   - `docs/model_spec/platform/implementation_maps/dev_substrate/platform.build_plan.md`
+   - dedicated env surface now pins only local `.env.dev_min` + `DEV_MIN_ENV_FILE` override.
+
+### Outcome
+- Current workflow no longer depends on or references tracked `.env` example files in active execution surfaces.
+- Existing historical entries mentioning `.env.dev_min.example` remain as immutable historical trail; this entry supersedes them for current posture.
+
+### Cost posture
+- No cloud/resource actions were executed.
+
+### Drift sentinel checkpoint
+Policy/documentation/tooling text correction only; no runtime semantic changes.
+
+### Drift sentinel checkpoint
+No semantic-law or ownership-boundary drift detected. Changes are substrate-lifecycle only and align with migration authority.

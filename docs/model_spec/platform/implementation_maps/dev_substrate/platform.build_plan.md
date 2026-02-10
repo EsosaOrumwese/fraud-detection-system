@@ -124,9 +124,8 @@ Stand up secure operator-ready access for AWS + Confluent without embedding secr
   - `DEV_MIN_ARCHIVE_BUCKET`
   - `DEV_MIN_AWS_REGION`
 - Dedicated operator env surface for Phase 1 commands:
-  - runtime file: `.env.dev_min` (untracked),
-  - template: `.env.dev_min.example` (tracked),
-  - override handle: `DEV_MIN_ENV_FILE` for alternate file paths.
+  - runtime file: `.env.dev_min` (untracked, local-only),
+  - override handle: `DEV_MIN_ENV_FILE` for alternate local file paths.
 
 4. Phase 1.D - Operator bootstrap and preflight gate
 - Define deterministic bootstrap sequence for a fresh shell session:
@@ -245,19 +244,42 @@ Provision and control `dev_min` infrastructure with reproducible up/down posture
   - failed destroy leaving residuals,
   - budget-alert signal path validation.
 - Pin deterministic operator recovery steps and evidence capture for each drill.
+- Implemented Phase 2 surfaces (2026-02-10):
+  - Terraform modules:
+    - `infra/terraform/modules/core/*`
+    - `infra/terraform/modules/demo/*`
+  - Environment composition:
+    - `infra/terraform/envs/dev_min/*`
+  - Operator lifecycle/evidence script:
+    - `scripts/dev_substrate/phase2_terraform.ps1`
+  - Make targets:
+    - `platform-dev-min-phase2-plan`
+    - `platform-dev-min-phase2-up`
+    - `platform-dev-min-phase2-down`
+    - `platform-dev-min-phase2-down-all`
+    - `platform-dev-min-phase2-status`
+    - `platform-dev-min-phase2-post-destroy-check`
+  - Local infra evidence root:
+    - `runs/fraud-platform/dev_substrate/phase2/`
 
 ### Definition of Done
-- [ ] Terraform `core` and `demo` boundaries are pinned and auditable.
-- [ ] `up` and `down` commands are idempotent under rerun/partial-failure conditions.
-- [ ] Post-destroy verification confirms only allowed `core` resources remain.
-- [ ] Budget alerts and mandatory tagging policy are active and test-verified.
-- [ ] Run/operate lifecycle commands are documented with deterministic status/report outputs.
-- [ ] Obs/gov lifecycle evidence is emitted, stored, and referenced in logbook.
-- [ ] Failure/recovery drills for apply/destroy/budget-alert paths are executed and recorded.
-- [ ] Drift audit confirms no semantic-law or ownership-boundary drift from migration authority.
+- [x] Terraform `core` and `demo` boundaries are pinned and auditable.
+- [x] `up` and `down` commands are idempotent under rerun/partial-failure conditions.
+- [x] Post-destroy verification confirms only allowed `core` resources remain.
+- [x] Budget alerts and mandatory tagging policy are active and config-verified.
+  - `Tagging`: implemented and validated on created resources.
+  - `Budget alert`: enabled (`DEV_MIN_ENABLE_BUDGET_ALERT=1`), low threshold configured (`USD 1`), and verified via AWS Budgets API (`describe-budget` + `describe-notifications-for-budget`).
+- [x] Run/operate lifecycle commands are documented with deterministic status/report outputs.
+- [x] Obs/gov lifecycle evidence is emitted, stored, and referenced in logbook.
+- [x] Failure/recovery drills for apply/destroy/budget-alert paths are executed and recorded.
+  - `Apply/destroy/idempotent down` drills executed.
+  - `Budget-alert drill`: configuration-level verification complete; delivery confirmation intentionally deferred to real runtime spend in platform tests.
+- [x] Drift audit confirms no semantic-law or ownership-boundary drift from migration authority.
+- [ ] Budget alert delivery is observed during subsequent platform runtime spend (no synthetic spend forcing).
 
 ### Phase status
-- Phase 2 planning is **expanded and ready for implementation sequencing**; execution and closure evidence are pending.
+- Phase 2 is **implemented and operationally validated** for substrate lifecycle controls.
+- Remaining closure gate: observe real notification delivery from runtime spend and record evidence.
 
 ## Phase 3 - Wave 1 migration: Control and Ingress
 ### Objective

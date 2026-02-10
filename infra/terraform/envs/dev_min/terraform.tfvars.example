@@ -1,0 +1,27 @@
+# Example values for manual terraform commands.
+# Make targets source `.env.dev_min` and export TF_VAR values automatically.
+
+aws_region              = "eu-west-2"
+name_prefix             = "fraud-platform-dev-min"
+project                 = "fraud-platform"
+environment             = "dev_min"
+owner                   = "fraud-dev"
+expires_at              = ""
+
+object_store_bucket_name = "replace-object-store-bucket"
+evidence_bucket_name     = "replace-evidence-bucket"
+quarantine_bucket_name   = "replace-quarantine-bucket"
+archive_bucket_name      = "replace-archive-bucket"
+
+tf_state_bucket_name    = ""
+control_table_name      = ""
+tf_lock_table_name      = ""
+
+enable_budget_alert     = false
+budget_alert_email      = ""
+monthly_budget_limit_usd = 40
+
+enable_core             = true
+enable_demo             = true
+demo_run_id             = "manual"
+demo_log_retention_days = 7
