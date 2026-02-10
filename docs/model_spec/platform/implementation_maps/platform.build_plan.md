@@ -1203,24 +1203,134 @@ Resolved and pinned in:
   - WSP retries in stream windows `0`, retry-exhausted `0`
 
 ### Phase 6 — Learning & Registry plane
-**Intent:** create deterministic learning loop with reproducible datasets and controlled deployment.
+**Intent:** implement reproducible learning and deterministic bundle lifecycle while keeping new services first-class citizens under run/operate + obs/gov meta layers from day one.
 
-**Definition of Done (DoD):**
-- Offline Feature Plane rebuilds feature snapshots from EB/archive using the same schemas.
-- DatasetManifest format pinned and used for training inputs (replay basis + label as-of).
-- Model Factory produces bundles with evidence (metrics + lineage) and publishes to Registry.
-- Registry resolves ACTIVE bundle deterministically and rejects incompatible bundles.
-- E2E: decision audit + labels -> dataset manifest -> model bundle -> registry resolution -> DF uses ref.
+#### Phase 6.1 — Contracts + ownership lock (Learning/Registry)
+**Goal:** pin cross-component learning/registry contracts and prevent authority drift before service implementation.
 
-### Phase 7 — P1 observability/governance and scale hardening
-**Intent:** extend the already-closed v0 meta-layer foundation with higher-cost production hardening and scale posture.
+**DoD checklist:**
+- Authoritative schemas/contracts are pinned for `DatasetManifest`, training/eval outputs, bundle publication, promotion events, and DF bundle-resolution response.
+- Ownership boundaries are explicit and enforced:
+  - OFS owns dataset manifests/featureset materialization.
+  - MF owns training/evaluation artifacts and bundle publication intent.
+  - MPR/Registry owns ACTIVE lifecycle and deterministic resolution truth.
+- Replay basis contract is pinned: EB/archive offsets + label as-of basis + feature definition version are mandatory; no `latest` lookup semantics.
+- Compatibility contract is pinned for DF resolution (`bundle_ref`, compatibility metadata, policy/bundle version gates, fail-closed behavior).
 
-**Definition of Done (DoD):**
-- Wider OTel tracing coverage with controlled sampling + retention at scale.
-- Golden-signal dashboards + SLO alerts tuned for sustained dev/prod traffic.
-- Automated corridor-compliance checks as code with periodic PASS/FAIL artifacts.
-- Stronger security posture automation (token/cert rotation, stricter egress controls, tenant isolation hardening).
-- DR/replay runbooks validated under fault-injection scenarios.
+#### Phase 6.2 — OFS dataset build corridor
+**Goal:** produce deterministic, rebuildable datasets with strict basis/provenance.
+
+**DoD checklist:**
+- OFS runs as explicit jobs with pinned inputs (manifest refs, label as-of, feature-def-set version, run scope).
+- DatasetManifest carries full provenance: replay basis, label basis, feature-def version, code release id, digests, and evidence refs.
+- OFS fails closed on missing/invalid basis inputs, replay mismatches, or label-basis violations.
+- Materialized dataset artifacts are by-ref in object store; manifests remain authoritative for rebuild.
+
+#### Phase 6.3 — MF train/eval/publish corridor
+**Goal:** make model training and publication evidence-first and reproducible.
+
+**DoD checklist:**
+- MF consumes only pinned DatasetManifest refs (no implicit dataset discovery).
+- Eval outputs are produced with metric schema/version and evidence refs suitable for promotion checks.
+- Bundle publication writes immutable bundle refs + manifests with compatibility metadata and lineage to dataset/eval artifacts.
+- Failure posture is explicit and fail-closed for missing evidence, incompatible feature definitions, or unresolved lineage refs.
+
+#### Phase 6.4 — Registry/MPR lifecycle + deterministic resolution
+**Goal:** enforce governed, deterministic ACTIVE lifecycle across environments/scopes.
+
+**DoD checklist:**
+- Registry lifecycle events are append-only and idempotent (`PUBLISHED`, `APPROVED`, `PROMOTED_ACTIVE`, `ROLLED_BACK`, `RETIRED`).
+- ScopeKey policy is enforced (`environment`, `mode`, `bundle_slot`, optional tenant) with exactly one ACTIVE per scope.
+- Resolution order is deterministic and fail-closed on incompatibility/ambiguity.
+- Promotion/rollback requires governance actor attribution + evidence refs; unsafe actions are rejected.
+
+#### Phase 6.5 — DF integration corridor (Registry -> runtime decisions)
+**Goal:** cut DF to registry-resolved bundles without provenance loss or silent fallback.
+
+**DoD checklist:**
+- DF resolves bundles via MPR/Registry API only; no local ad-hoc bundle selection.
+- Decision payloads retain full provenance (`bundle_ref`, snapshot/hash basis, graph/version basis, policy/bundle revs).
+- Incompatible or missing ACTIVE resolution causes explicit degrade/fail-closed behavior per pinned policy.
+- Replay of prior decision runs re-resolves deterministically to the expected historical bundle context.
+
+#### Phase 6.6 — Run/Operate meta-layer onboarding (Learning/Registry services)
+**Goal:** onboard all new Phase 6 services into orchestration packs and environment parity profiles before closure.
+
+**DoD checklist:**
+- Run/operate pack(s) include OFS/MF/MPR runtime units (worker/job launcher/scheduler wrappers as designed) with health/readiness probes.
+- Local parity wiring uses pinned stack classes from environment map (object store/event bus/postgres) with no silent filesystem fallback in parity mode.
+- Startup/sequence contracts are explicit (dependencies, backoff, bounded retry, restart semantics) and reflected in runbook commands.
+- Active-run scoping and config-digest stamping rules are enforced in orchestration surfaces.
+
+#### Phase 6.7 — Obs/Gov meta-layer onboarding (Learning/Registry services)
+**Goal:** make learning/registry lifecycle and anomalies auditable with low-overhead structured evidence.
+
+**DoD checklist:**
+- Required run-scoped counters are emitted for OFS/MF/MPR and included in platform reconciliation/report artifacts.
+- Governance lifecycle facts for dataset/build/train/eval/publish/promote/rollback are emitted with actor attribution and evidence refs.
+- Corridor anomalies are emitted as low-volume structured events with fail-closed behavior where policy requires.
+- Evidence-ref resolution audit is enforced for learning/registry evidence access paths.
+
+#### Phase 6.8 — Plane integration closure gate
+**Goal:** prove end-to-end learning loop continuity under orchestrated meta layers before moving to Phase 7.
+
+**DoD checklist:**
+- End-to-end continuity proof exists:
+  - `decision audit + labels -> dataset manifest -> train/eval -> bundle publish -> promotion -> DF resolution`.
+- Negative-path proof exists:
+  - missing label basis,
+  - replay basis mismatch,
+  - incompatible bundle promotion,
+  - unauthorized promotion/ref access attempts.
+- Monitored parity evidence includes run-scoped logs/artifacts for OFS/MF/MPR and updated platform report/conformance outputs.
+- Phase 7 start is blocked until this section is PASS, or explicit user-approved risk acceptance is recorded with rationale and expiry.
+
+### Phase 7 — Efficiency-first P1 hardening (throughput + scale + extended obs/gov)
+**Intent:** treat capacity and runtime efficiency as first-order gates before wider P1 hardening, so large-volume operation is engineered from measured evidence rather than assumption.
+
+#### Phase 7.1 — Efficiency + capacity envelope gate (blocking)
+**Goal:** establish measured throughput posture and close high-impact bottlenecks before broader P1 work.
+
+**DoD checklist:**
+- Two benchmark modes are pinned and reported:
+  - event-time fidelity mode (design-faithful pacing),
+  - throughput stress mode (minimal pacing for capacity measurement).
+- `20` and `200` validation slices in throughput mode complete in seconds (not minutes) under local parity targets, with run-scoped evidence.
+- Per-lane throughput/latency budget table exists (WSP/IG/EB/RTDL/Case/Label/Learning) with p50/p95 and saturation indicators.
+- Capacity projection is documented from measured throughput to large-run scenarios (including `132M` events) with explicit assumptions and bottleneck map.
+- Top bottlenecks are closed or explicitly accepted with quantified risk and follow-up owner/date.
+
+#### Phase 7.2 — Scaled observability posture
+**Goal:** raise observability depth at scale without violating hot-path budget.
+
+**DoD checklist:**
+- Wider OTel tracing coverage is enabled with controlled sampling/retention policy by environment.
+- Golden-signal dashboards + SLO alerts are defined and validated against sustained traffic profiles.
+- Run reporter/conformance/reconciliation jobs remain bounded-cost under scaled run counts.
+
+#### Phase 7.3 — Governance/compliance automation
+**Goal:** codify corridor checks and lifecycle controls into repeatable automated gates.
+
+**DoD checklist:**
+- Corridor-compliance checks-as-code execute periodically and emit PASS/FAIL artifacts.
+- Promotion and policy-change workflows enforce governance actor/evidence gates automatically.
+- Ref-resolution governance auditing is queryable and supports incident/review workflows.
+
+#### Phase 7.4 — Security and tenancy hardening
+**Goal:** harden runtime security posture for broader production exposure.
+
+**DoD checklist:**
+- Token/cert rotation workflows are automated and validated.
+- Egress controls and least-privilege boundaries are tightened and tested.
+- Tenant isolation hardening steps are implemented per environment roadmap.
+
+#### Phase 7.5 — DR/replay resilience gate
+**Goal:** validate replay/disaster-recovery posture under injected failures.
+
+**DoD checklist:**
+- DR/replay runbooks are validated via fault-injection scenarios with recorded outcomes.
+- Recovery objectives and replay correctness evidence are documented per environment profile.
+- Residual risk register is updated with explicit mitigations and owners.
 
 ## v1 expectations (beyond v0)
 - Multi-tenant and multi-world concurrency with stronger isolation.
@@ -1263,5 +1373,6 @@ Resolved and pinned in:
 - CM build-plan Phase 6 (CM->AL manual action boundary): complete (`6 passed` Phase 6 matrix; CM Phase1..6 `36 passed`; CaseTrigger/IG regression `45 passed`; deterministic manual ActionIntent emission + by-ref outcome attach lane landed in `src/fraud_detection/case_mgmt/action_handshake.py` with policy at `config/platform/case_mgmt/action_emission_policy_v0.yaml` and projection semantics updated in `src/fraud_detection/case_mgmt/intake.py`).
 - CM build-plan Phase 7 (observability, governance, reconciliation): complete (`4 passed` Phase 7 matrix; CM Phase1..7 `40 passed`; CaseTrigger/IG regression `45 passed`; platform reporter regression `2 passed`; CM run-scoped metrics/health/reconciliation and lifecycle governance emission landed in `src/fraud_detection/case_mgmt/observability.py`; Case+Labels reconciliation contribution now emits under `runs/<platform_run_id>/case_labels/reconciliation/{YYYY-MM-DD}.json` and `case_mgmt_reconciliation.json`).
 - CM build-plan Phase 8 (integration closure/parity proof): complete (`4 passed` Phase 8 matrix; CM Phase1..8 `44 passed`; CaseTrigger/IG regression `45 passed`; platform reporter regression `2 passed`; parity artifacts captured at `runs/fraud-platform/platform_20260209T210000Z/case_mgmt/reconciliation/phase8_parity_proof_{20,200}.json` and `phase8_negative_path_proof.json`).
-- Next active platform phase: Phase 6 (Learning & Registry).
+- Phase 6 (Learning & Registry plane): planning-active (`6.1` contract/ownership lock is the current gate; run/operate + obs/gov onboarding are explicit `6.6` and `6.7` closure requirements).
+- Next active platform phase: Phase 6.1 (Learning & Registry contracts + ownership lock).
 - SR v0: complete (see `docs/model_spec/platform/implementation_maps/scenario_runner.build_plan.md`).

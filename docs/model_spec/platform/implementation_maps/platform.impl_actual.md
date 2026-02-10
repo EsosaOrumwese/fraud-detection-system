@@ -9279,3 +9279,84 @@ User requested a strict confirmation that Phase 5.10 is complete and that the pl
 
 ### Plan/doc alignment update
 - Updated `platform.build_plan.md` Phase 5.10 implementation note and rolling status line to include post-fix reconfirmation run `platform_20260210T091951Z`, keeping closure evidence current and auditable.
+
+## Entry: 2026-02-10 10:19AM - Pre-change planning lock: Phase 6 expansion + Phase 7 efficiency-first reorder
+
+### Trigger
+User requested immediate planning progression for Phase 6 (Learning + Registry), explicitly including run/operate and obs/gov meta layers, and requested that Phase 7 be reordered to prioritize efficiency before broader hardening because future scale can be far above current 200-event validation slices.
+
+### Problem statement
+Current plan shape is too coarse at Phase 6 and can allow implementation drift:
+- Phase 6 is a single high-level DoD block without section-level closure gates.
+- Meta-layer onboarding requirements for new Phase 6 services are implied but not explicit.
+- Phase 7 wording emphasizes generic P1 hardening but does not make throughput/capacity closure a first-class precondition.
+
+This can recreate prior drift class where component code exists but orchestration/telemetry/governance onboarding lags.
+
+### Authorities used
+- `docs/model_spec/platform/component-specific/flow-narrative-platform-design.md`
+- `docs/model_spec/platform/pre-design_decisions/run_and_operate.pre-design_decisions.md`
+- `docs/model_spec/platform/pre-design_decisions/observability_and_governance.pre-design_decisions.md`
+- `docs/model_spec/platform/implementation_maps/platform.build_plan.md` (active sequencing and DoD posture)
+- AGENTS Drift Sentinel law + no-halfbaked phase rule.
+
+### Alternatives considered
+1. Keep Phase 6 as a single DoD block and start implementation directly.
+   - Rejected: insufficient granularity for strict gating; high risk of partial component onboarding to meta layers.
+2. Split Phase 6 by component only (OFS/MF/MPR) and leave meta layers as global implied work.
+   - Rejected: repeats historical drift where services pass matrix tests but are not fully live under orchestrated run/operate + obs/gov packs.
+3. Expand Phase 6 into sectioned closure gates including explicit meta-layer onboarding and E2E closure.
+   - Selected: preserves plane-level ownership and makes meta-layer obligations auditable at each step.
+
+### Decision
+Apply a build-plan update with:
+1. Phase 6 progressive-elaboration sections (`6.1..6.8`) with explicit DoD gates.
+2. Dedicated Phase 6 run/operate onboarding gate for all new Learning/Registry services.
+3. Dedicated Phase 6 obs/gov onboarding gate (counters, lifecycle facts, reconciliation/evidence refs, conformance).
+4. Phase 7 reordered as efficiency-first P1 hardening:
+   - first close throughput/capacity profiling and optimization gates,
+   - then proceed to broader observability/governance/security/DR hardening.
+5. Capacity-planning requirement pinned for large-run extrapolation (including explicit estimate method for very large event volumes).
+
+### Exact files to update
+- `docs/model_spec/platform/implementation_maps/platform.build_plan.md`:
+  - replace coarse Phase 6 block with detailed sectioned DoD.
+  - rewrite Phase 7 intent/DoD to efficiency-first sequencing and explicit capacity envelope gate.
+- `docs/logbook/02-2026/2026-02-10.md`:
+  - append action record with local-time stamp for this planning change.
+
+### Validation plan for this planning change
+- Structural validation:
+  - confirm phase numbering continuity and no duplicated/contradictory gates.
+  - confirm meta-layer obligations are explicit in both Phase 6 and Phase 7.
+- Drift-sentinel validation:
+  - ensure new wording disallows implementation of Learning/Registry services without run/operate + obs/gov onboarding and run-scoped evidence.
+
+## Entry: 2026-02-10 10:22AM - Applied plan update: detailed Phase 6 gates + Phase 7 efficiency-first sequence
+
+### What was changed
+Updated `docs/model_spec/platform/implementation_maps/platform.build_plan.md` to:
+1. Replace coarse Phase 6 single-block DoD with sectioned gates `6.1..6.8`:
+   - contracts/ownership lock,
+   - OFS dataset corridor,
+   - MF train/eval/publish corridor,
+   - Registry lifecycle + deterministic resolution,
+   - DF integration corridor,
+   - run/operate onboarding,
+   - obs/gov onboarding,
+   - E2E integration closure gate.
+2. Rewrite Phase 7 from generic P1 hardening to efficiency-first sequencing:
+   - new blocking `7.1` efficiency/capacity envelope gate,
+   - explicit requirement to model large-run behavior (including `132M`-scale projection) from measured throughput.
+3. Align rolling status:
+   - Phase 6 marked planning-active with explicit `6.1` current gate.
+   - next active phase set to `Phase 6.1`.
+
+### Why this resolves the planning gap
+- Prevents meta-layer onboarding drift by making run/operate and obs/gov explicit phase gates, not implied follow-ups.
+- Forces capacity engineering to happen before broad P1 expansion, reducing risk of late-stage scale surprises.
+- Keeps phase progression fail-closed: Phase 7 cannot start until Phase 6.8 PASS (or explicit user risk acceptance).
+
+### Validation of the document change
+- Verified numbering continuity (`6.1..6.8`, `7.1..7.5`) and preserved prior completed-phase records.
+- Verified no new contradictions with existing Phase 5.10 closure and current `Next active` status.
