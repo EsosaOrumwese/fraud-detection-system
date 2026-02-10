@@ -9547,3 +9547,54 @@ Execution of the user-directed implementation lock for `Phase 6.0` and `Phase 6.
   - `Phase 6.0`: complete.
   - `Phase 6.1`: complete.
   - Next active gate: `Phase 6.2`.
+
+## Entry: 2026-02-10 11:18AM - Pre-change planning lock for Phase 6.2 OFS component build plan
+
+### Trigger
+User requested immediate move from platform Phase `6.2` gate into component-scoped planning for Offline Feature Plane.
+
+### Platform-level planning problem
+Phase `6.2` existed only as a platform gate DoD without a dedicated OFS component build map. This creates a sequencing gap where implementation can proceed without explicit component-level closure gates or meta-layer onboarding detail.
+
+### Decision
+Create an OFS-specific component build plan and initialize its component implementation map, then link it from platform planning status.
+
+### Authorities and constraints considered
+- `platform.build_plan.md` Phase `6.2` scope and gating intent.
+- `offline_feature_plane.design-authority.md` outer contract pins (job posture, replay basis, label as-of, manifest authority).
+- `learning_and_evolution.pre-design_decisions.md` replay/label/manifest/maturity defaults.
+- Meta-layer pre-design decisions for run/operate and obs/gov onboarding.
+- Environment/tooling map for local_parity/dev/prod substrate alignment.
+
+### Selected planning posture
+- OFS plan must explicitly include:
+  - contract/identity pinning,
+  - replay and label corridors,
+  - manifest authority,
+  - run/operate gate,
+  - obs/gov gate,
+  - integration closure evidence gate.
+- This mirrors the project doctrine that meta layers are platform-wide and must cover newly introduced services from day one.
+
+## Entry: 2026-02-10 11:21AM - Applied Phase 6.2 planning initialization for OFS
+
+### Applied changes
+- Added component plan:
+  - `docs/model_spec/platform/implementation_maps/offline_feature_plane.build_plan.md`
+- Added component decision trail:
+  - `docs/model_spec/platform/implementation_maps/offline_feature_plane.impl_actual.md`
+- Updated platform plan Phase `6.2` section with planning status and component-plan reference:
+  - `docs/model_spec/platform/implementation_maps/platform.build_plan.md`
+
+### Planning outcome
+- OFS component now has a closure-grade phased plan (`Phase 1..10`) with explicit DoD for:
+  - deterministic replay basis and label as-of handling,
+  - dataset manifest authority and immutable publication,
+  - run/operate onboarding,
+  - obs/gov onboarding,
+  - integration closure proofs.
+- Platform rolling status remains on Phase `6.2`, now backed by a concrete OFS component execution map.
+
+### Drift sentinel assessment
+- This planning change reduces drift risk by converting a high-level plane gate into an auditable component gate sequence.
+- No design-intent mismatch detected against current flow narrative/pinned pre-design decisions.
