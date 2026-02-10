@@ -810,3 +810,69 @@ Process hardening only; no semantic/component/runtime-flow change.
 
 ### Drift sentinel checkpoint
 Governance/process hardening only; no platform logic/runtime ownership drift.
+
+## Entry: 2026-02-10 11:16PM - Pre-change lock: expand Phase 2 into execution-ready plan
+
+### Trigger
+USER requested planning for Phase 2 (after clarifying they meant Phase 2, not Phase 1).
+
+### Problem
+Phase 2 currently has only three coarse bullets and three coarse DoD lines. This is not sufficient for deterministic execution under migration + budget sentinel constraints.
+
+### Decision
+Expand Phase 2 in-place (no auxiliary docs) with componentized work sections, explicit meta-layer onboarding hooks, and auditable DoD checks.
+
+### Planned expansion scope
+1. Add Phase 2 authority anchors (migration authority + run/operate + obs/gov + tooling map).
+2. Break Phase 2 into explicit sections:
+   - Terraform topology/state boundaries,
+   - core persistent substrate,
+   - demo ephemeral substrate,
+   - cost/teardown controls,
+   - operator entrypoints and run surfaces,
+   - obs/gov + evidence wiring for infra actions,
+   - failure/recovery drills and destroy verification.
+3. Tighten DoD into concrete closure checks (idempotency, teardown verification, budget alarms/tags, evidence logging, drift confirmation).
+4. Add explicit phase status line for planning completion versus implementation start.
+
+### Constraints
+- Planning-only action; no paid service commands should run.
+- Keep this in the active build plan and matching logbook/impl trail.
+
+### Drift sentinel checkpoint
+Planning elaboration only; no semantic/runtime changes.
+
+## Entry: 2026-02-10 11:17PM - Applied Phase 2 planning expansion in active dev-substrate build plan
+
+### Implemented planning changes
+Updated `docs/model_spec/platform/implementation_maps/dev_substrate/platform.build_plan.md` Phase 2 from coarse outline to execution-ready plan.
+
+### What was added
+1. Phase 2 authority anchors:
+   - migration authority,
+   - run/operate and obs/gov pre-design decisions,
+   - environment/tooling map,
+   - impl trail reference.
+2. Sectioned Phase 2 work plan (`2.A` -> `2.G`):
+   - Terraform topology/state boundaries,
+   - core substrate,
+   - demo substrate,
+   - cost/teardown controls,
+   - run/operate onboarding,
+   - obs/gov onboarding,
+   - failure/recovery drills.
+3. Tightened DoD checklist with explicit closure gates for:
+   - idempotent lifecycle commands,
+   - residual-resource teardown checks,
+   - budget/tagging activation and verification,
+   - lifecycle evidence emission and logbook traceability,
+   - drift audit closure.
+4. Phase status line updated to:
+   - planning expanded and implementation-ready, with execution still pending.
+
+### Outcome
+- Phase 2 now has unambiguous execution and acceptance criteria.
+- Meta-layer requirements are explicitly built into infra lifecycle planning, not deferred.
+
+### Drift sentinel checkpoint
+Planning-only update; no runtime or cost-surface changes were executed.

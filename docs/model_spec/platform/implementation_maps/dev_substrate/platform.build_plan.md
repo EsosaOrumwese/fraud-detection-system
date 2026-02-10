@@ -185,22 +185,79 @@ Stand up secure operator-ready access for AWS + Confluent without embedding secr
 ### Objective
 Provision and control `dev_min` infrastructure with reproducible up/down posture and budget guardrails.
 
+### Authority anchors
+- `docs/model_spec/platform/pre-design_decisions/dev-min_managed-substrate_migration.design-authority.v0.md`
+- `docs/model_spec/platform/pre-design_decisions/run_and_operate.pre-design_decisions.md`
+- `docs/model_spec/platform/pre-design_decisions/observability_and_governance.pre-design_decisions.md`
+- `docs/model_spec/platform/platform-wide/v0_environment_resource_tooling_map.md`
+- `docs/model_spec/platform/implementation_maps/dev_substrate/platform.impl_actual.md`
+
 ### Work sections
-1. Core versus demo split
-- Implement `core` persistent resources (state, buckets/prefixes, minimal control tables, budget alarms).
-- Implement `demo` ephemeral resources (Kafka/topic provisioning and optional demo compute surfaces).
+1. Phase 2.A - Terraform topology and state boundaries
+- Pin `core` versus `demo` module boundaries and ownership:
+  - `core`: long-lived minimum substrate (state, evidence/archive buckets/prefixes, baseline control stores, budget alarms),
+  - `demo`: ephemeral, teardown-first surfaces used to execute migration waves.
+- Pin Terraform state location/locking semantics and workspace naming for `dev_min`.
+- Pin explicit dependency edges from `demo` to `core` outputs to avoid hidden console coupling.
 
-2. Cost and teardown guardrails
-- Enforce no-NAT, no always-on LB, no always-on compute fleet.
-- Enforce destroy-by-default path and post-destroy verification.
+2. Phase 2.B - Core substrate implementation plan
+- Define minimum persistent resource set and naming/tagging schema (`project`, `env`, `owner`, `expires_at`).
+- Pin bucket/prefix policy boundaries for:
+  - object store roots,
+  - evidence,
+  - quarantine,
+  - archive.
+- Pin least-privilege IAM boundaries for operator and automation principals on those resources.
 
-3. Operator entrypoints
-- Provide deterministic up/down/report commands for infra lifecycle.
+3. Phase 2.C - Demo substrate implementation plan
+- Define ephemeral resource set needed for wave execution:
+  - managed Kafka topic corridor and related ACL surfaces,
+  - optional transient compute/lambda surfaces only when required by wave implementation.
+- Enforce `destroy-by-default` for demo resources and explicit runtime TTL posture.
+- Pin acceptance that no always-on network-cost multipliers are allowed (no NAT, no always-on LB, no idle fleet).
+
+4. Phase 2.D - Cost and teardown controls
+- Implement explicit cost guardrails in Terraform and operator flows:
+  - mandatory tags on all billable resources,
+  - budget alert wiring + escalation path,
+  - teardown verification checklist after each demo run.
+- Pin `Budget Sentinel` integration:
+  - pre-action paid-surface declaration,
+  - post-action explicit `KEEP ON` vs `TURN OFF NOW`,
+  - immediate teardown when USER is away/no-work.
+
+5. Phase 2.E - Run/operate meta-layer onboarding (infra lifecycle)
+- Define deterministic operator commands for `up`, `down`, and `status/report`.
+- Pin command output contract (resource inventory + state summary + teardown residual check).
+- Ensure lifecycle commands can be rerun safely (idempotent retries and partial-failure recovery semantics).
+
+6. Phase 2.F - Observability/governance meta-layer onboarding (infra evidence)
+- Pin infra lifecycle evidence emissions:
+  - start/complete/fail events for apply/destroy,
+  - resource inventory snapshot after apply,
+  - residual-resource report after destroy.
+- Pin storage location for infra evidence artifacts and log references in logbook.
+- Require fail-closed posture on missing teardown evidence.
+
+7. Phase 2.G - Failure and recovery drills
+- Plan and execute at least one drill for each failure class:
+  - failed apply with partial resources,
+  - failed destroy leaving residuals,
+  - budget-alert signal path validation.
+- Pin deterministic operator recovery steps and evidence capture for each drill.
 
 ### Definition of Done
-- [ ] `up` and `down` are idempotent.
-- [ ] Post-destroy check confirms only allowed core resources remain.
-- [ ] Budget alerts and tagging policy are active.
+- [ ] Terraform `core` and `demo` boundaries are pinned and auditable.
+- [ ] `up` and `down` commands are idempotent under rerun/partial-failure conditions.
+- [ ] Post-destroy verification confirms only allowed `core` resources remain.
+- [ ] Budget alerts and mandatory tagging policy are active and test-verified.
+- [ ] Run/operate lifecycle commands are documented with deterministic status/report outputs.
+- [ ] Obs/gov lifecycle evidence is emitted, stored, and referenced in logbook.
+- [ ] Failure/recovery drills for apply/destroy/budget-alert paths are executed and recorded.
+- [ ] Drift audit confirms no semantic-law or ownership-boundary drift from migration authority.
+
+### Phase status
+- Phase 2 planning is **expanded and ready for implementation sequencing**; execution and closure evidence are pending.
 
 ## Phase 3 - Wave 1 migration: Control and Ingress
 ### Objective
