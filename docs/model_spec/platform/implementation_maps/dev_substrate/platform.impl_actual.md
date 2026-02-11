@@ -1121,3 +1121,96 @@ No cloud actions executed for this local file update.
 
 ### Drift sentinel checkpoint
 No semantic-law or ownership-boundary drift detected. Changes are substrate-lifecycle only and align with migration authority.
+
+## Entry: 2026-02-11 08:51AM - Post-return credential/posture reconfirmation (Phase 1 + Phase 2 status)
+
+### Trigger
+USER resumed work and requested immediate reconfirmation while keeping existing Confluent credentials.
+
+### Actions executed
+1. `make platform-dev-min-phase1-seed-ssm` -> PASS.
+   - canonical handles `/fraud-platform/dev_min/confluent/*` updated to version `4`.
+2. `make platform-dev-min-phase1-preflight` -> PASS.
+   - Kafka readiness probe PASS against bootstrap `pkc-41wq6.eu-west-2.aws.confluent.cloud:9092`.
+3. `make platform-dev-min-phase2-status` -> PASS.
+   - workspace `dev_min_demo`,
+   - `resources_in_state=23`,
+   - evidence written under `runs/fraud-platform/dev_substrate/phase2/`.
+
+### Outcome
+- Credential continuity confirmed (no forced rotation required).
+- Phase 1 strict gate remains green.
+- Phase 2 core posture remains active and healthy for continued migration work.
+
+### Cost posture decision
+- `KEEP ON (core only)` for active working session.
+- No `up` action run in this pass; no additional infra expansion performed.
+
+## Entry: 2026-02-11 09:08AM - Pre-change lock: expand Phase 3 (Control + Ingress) to settlement-first migration plan
+
+### Trigger
+USER requested expansion of Phase 3 so platform-level decisions are settled before component migration begins.
+
+### Problem
+Current Phase 3 section is too coarse (3 bullets + 3 DoD lines) and does not explicitly encode:
+- platform-level settlement gates,
+- run/operate + obs/gov growth at each integration step,
+- validation ladder and performance/cost checkpoints,
+- local-parity decision carry-forward protocol.
+
+### Decision
+Rewrite Phase 3 in-place as a settlement-first plan with explicit sections:
+1. Platform-level settlement gate (contracts, topics, ownership boundaries, SLO/budget guards).
+2. Infra readiness for C&I wave.
+3. Component migration sequence (SR -> WSP -> IG -> EB corridor) with coupling awareness.
+4. Meta-layer expansion at each migration step.
+5. Validation ladder (`20` smoke -> `200` acceptance -> `1000` stress) plus cost checkpoints.
+6. Drift sentinel audit and closure rules.
+
+### Constraints
+- Planning-only update; no resource provisioning commands.
+- Keep authority alignment with migration design authority + local-parity implementation notes.
+
+### Cost posture
+- No paid resources touched for this planning expansion.
+
+### Drift sentinel checkpoint
+Planning/process elaboration only; no runtime semantic changes.
+
+## Entry: 2026-02-11 09:09AM - Applied Phase 3 expansion (settlement-first Control+Ingress migration plan)
+
+### Implemented planning changes
+Updated `docs/model_spec/platform/implementation_maps/dev_substrate/platform.build_plan.md` Phase 3 from coarse outline to execution-ready, platform-settlement-first plan.
+
+### What was added
+1. Authority anchors for Phase 3:
+   - C&I pre-design decision,
+   - flow narrative,
+   - run/operate + obs/gov pre-design decisions,
+   - mandatory local-parity C&I + oracle implementation-note carry-forward set.
+2. Sectioned Phase 3 work plan (`3.A` -> `3.F`):
+   - platform-level settlement gate,
+   - infra readiness,
+   - component migration sequence,
+   - meta-layer expansion during integration,
+   - validation ladder + cost checkpoints,
+   - drift audit and closure.
+3. Validation ladder pinned exactly as discussed:
+   - `20` smoke -> `200` acceptance -> `1000` stress.
+4. DoD tightened to include:
+   - settlement gate closure before coding/migration,
+   - meta-layer saturation requirement for C&I services,
+   - per-rung cost decision logging (`KEEP ON` vs `TURN OFF NOW`),
+   - explicit drift-audit closure.
+5. Phase status updated to:
+   - planning expanded and execution pending.
+
+### Outcome
+- Phase 3 now explicitly settles platform-level constraints before service migration starts.
+- Prior gap (meta-layers lagging behind component integration) is now structurally prevented in the plan.
+
+### Cost posture
+- Planning-only update; no cloud/resource actions executed.
+
+### Drift sentinel checkpoint
+Planning/process elaboration only; no runtime semantic or ownership changes.

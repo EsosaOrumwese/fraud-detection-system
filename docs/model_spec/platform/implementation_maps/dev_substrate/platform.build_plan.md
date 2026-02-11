@@ -283,24 +283,96 @@ Provision and control `dev_min` infrastructure with reproducible up/down posture
 
 ## Phase 3 - Wave 1 migration: Control and Ingress
 ### Objective
-Migrate SR/WSP/IG/EB control path to managed substrate and prove stable event admission flow.
+Migrate Control + Ingress + Oracle Store (`SR/WSP/IG/EB + Oracle path`) to managed substrate with no semantic drift and with meta-layers expanding alongside integration.
+
+### Authority anchors
+- `docs/model_spec/platform/pre-design_decisions/control_and_ingress.pre-design_decision.md`
+- `docs/model_spec/platform/component-specific/flow-narrative-platform-design.md`
+- `docs/model_spec/platform/pre-design_decisions/run_and_operate.pre-design_decisions.md`
+- `docs/model_spec/platform/pre-design_decisions/observability_and_governance.pre-design_decisions.md`
+- Local-parity carry-forward (mandatory pre-read):
+  - `docs/model_spec/platform/implementation_maps/local_parity/platform.impl_actual.md`
+  - `docs/model_spec/platform/implementation_maps/local_parity/scenario_runner.impl_actual.md`
+  - `docs/model_spec/platform/implementation_maps/local_parity/world_streamer_producer.impl_actual.md`
+  - `docs/model_spec/platform/implementation_maps/local_parity/ingestion_gate.impl_actual.md`
+  - `docs/model_spec/platform/implementation_maps/local_parity/event_bus.impl_actual.md`
+  - `docs/model_spec/platform/implementation_maps/local_parity/oracle_store.impl_actual.md`
 
 ### Work sections
-1. Bus and topic wiring cutover
-- Route control and ingress topics to managed Kafka under pinned topic map.
-- Keep partitioning and event-class semantics unchanged.
+1. Phase 3.A - Platform-level settlement gate (before coding/migration)
+- Pin C&I wave scope boundaries and ownership:
+  - SR owns run readiness + join surface,
+  - IG owns admission decisions + receipts,
+  - EB owns offsets/replay anchors,
+  - Oracle Store owns sealed truth artifacts.
+- Pin managed topic/stream map and partitioning policy for C&I path.
+- Pin Oracle + evidence/quarantine/archive S3 prefix map and retention posture.
+- Pin auth/capability boundary for C&I services in `dev_min` (no implicit trust).
+- Pin validation ladder and acceptance budgets for this wave:
+  - `20` event smoke (fast fail wiring),
+  - `200` event acceptance (flow proof),
+  - `1000` event stress rung (phase-end robustness).
+- Pin explicit performance/cost acceptance targets before first integrated run (latency/throughput + run-cost envelope).
 
-2. Oracle and evidence path
-- Route run evidence outputs to S3 prefixes.
-- Preserve PASS-gate/no-pass-no-read behavior.
+2. Phase 3.B - Infrastructure readiness for C&I wave
+- Provision/verify only the C&I substrate surfaces needed for this wave:
+  - Kafka topics and ACL corridor for control + ingress/event classes,
+  - Oracle/evidence/quarantine/archive bucket/prefix readiness,
+  - IG admission-state and publish-state durability prerequisites.
+- Validate infra conformance against pinned naming/tagging/budget policy.
+- Keep demo posture destroyable and core posture minimal-cost.
 
-3. Wave validation
-- Execute component matrix, then integrated 20-event and 200-event runs.
+3. Phase 3.C - Component migration sequence (coupled, not parallel)
+- Migrate in platform-safe sequence:
+  - SR `dev_min` wiring,
+  - WSP `dev_min` wiring,
+  - IG `dev_min` wiring,
+  - EB managed Kafka corridor verification,
+  - Oracle Store path verification.
+- For each step:
+  - run component matrix,
+  - close gating defects before next component,
+  - record contract evidence refs in logbook/impl notes.
+
+4. Phase 3.D - Meta-layer expansion during integration (mandatory)
+- Run/Operate:
+  - onboard C&I services into `dev_min` pack lifecycle (startup/health/teardown/report).
+- Obs/Gov:
+  - emit lifecycle + anomaly + reconciliation surfaces for each onboarded C&I service.
+- Fail-closed rule:
+  - no component is accepted as “integrated” if run/operate or obs/gov coverage is partial.
+
+5. Phase 3.E - Wave validation ladder and cost checkpoints
+- Execute integrated validation in this order:
+  - `20` smoke -> `200` acceptance -> `1000` stress.
+- At each rung:
+  - confirm flow narrative alignment,
+  - capture run evidence bundle refs,
+  - capture cost posture snapshot and decide `KEEP ON` vs `TURN OFF NOW`.
+- If rung fails:
+  - stop progression, fix, and rerun same rung until green.
+
+6. Phase 3.F - Drift audit and closure
+- Perform explicit drift audit against:
+  - flow narrative,
+  - C&I pre-design decisions,
+  - pinned ownership boundaries and semantic laws.
+- Block phase closure on any matrix-only/orphaned runtime posture unless explicitly accepted by USER with rationale.
 
 ### Definition of Done
-- [ ] SR/WSP/IG/EB matrix is green on `dev_min` wiring.
-- [ ] 20-event and 200-event runs pass for Wave 1 scope.
+- [ ] Platform-level settlement gate (scope/contracts/SLO+cost targets) is pinned before component migration.
+- [ ] C&I infra readiness is validated and evidence-logged.
+- [ ] SR/WSP/IG/EB/Oracle component matrices are green on `dev_min`.
+- [ ] Run/operate and obs/gov coverage is complete for all C&I services.
+- [ ] Validation ladder passes:
+  - [ ] `20` smoke PASS,
+  - [ ] `200` acceptance PASS,
+  - [ ] `1000` stress PASS.
+- [ ] Per-rung cost snapshots and `KEEP ON`/`TURN OFF NOW` decisions are logged.
 - [ ] Drift audit confirms no C&I semantic or ownership drift.
+
+### Phase status
+- Phase 3 planning is **expanded and settlement-first ready**; execution is pending.
 
 ## Phase 4 - Wave 2 migration: RTDL plane
 ### Objective
