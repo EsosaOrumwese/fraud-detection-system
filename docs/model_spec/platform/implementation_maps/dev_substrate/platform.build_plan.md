@@ -360,8 +360,8 @@ Migrate Control + Ingress + Oracle Store (`SR/WSP/IG/EB + Oracle path`) to manag
 - Block phase closure on any matrix-only/orphaned runtime posture unless explicitly accepted by USER with rationale.
 
 ### Definition of Done
-- [ ] Platform-level settlement gate (scope/contracts/SLO+cost targets) is pinned before component migration.
-- [ ] C&I infra readiness is validated and evidence-logged.
+- [x] Platform-level settlement gate (scope/contracts/SLO+cost targets) is pinned before component migration.
+- [x] C&I infra readiness is validated and evidence-logged.
 - [ ] SR/WSP/IG/EB/Oracle component matrices are green on `dev_min`.
 - [ ] Run/operate and obs/gov coverage is complete for all C&I services.
 - [ ] Validation ladder passes:

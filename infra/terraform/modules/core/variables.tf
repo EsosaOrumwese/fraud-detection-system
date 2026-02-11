@@ -26,6 +26,14 @@ variable "control_table_name" {
   type = string
 }
 
+variable "ig_admission_table_name" {
+  type = string
+}
+
+variable "ig_publish_state_table_name" {
+  type = string
+}
+
 variable "tf_lock_table_name" {
   type = string
 }

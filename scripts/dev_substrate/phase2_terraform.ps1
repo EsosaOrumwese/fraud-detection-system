@@ -147,6 +147,14 @@ try {
     if (-not [string]::IsNullOrWhiteSpace($controlTable)) {
         $env:TF_VAR_control_table_name = $controlTable
     }
+    $igAdmissionTable = Optional-Env -Name "DEV_MIN_IG_ADMISSION_TABLE"
+    if (-not [string]::IsNullOrWhiteSpace($igAdmissionTable)) {
+        $env:TF_VAR_ig_admission_table_name = $igAdmissionTable
+    }
+    $igPublishStateTable = Optional-Env -Name "DEV_MIN_IG_PUBLISH_STATE_TABLE"
+    if (-not [string]::IsNullOrWhiteSpace($igPublishStateTable)) {
+        $env:TF_VAR_ig_publish_state_table_name = $igPublishStateTable
+    }
     $lockTable = Optional-Env -Name "DEV_MIN_TF_LOCK_TABLE"
     if (-not [string]::IsNullOrWhiteSpace($lockTable)) {
         $env:TF_VAR_tf_lock_table_name = $lockTable

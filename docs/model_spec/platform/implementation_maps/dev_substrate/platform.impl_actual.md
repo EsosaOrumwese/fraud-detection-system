@@ -1214,3 +1214,210 @@ Updated `docs/model_spec/platform/implementation_maps/dev_substrate/platform.bui
 
 ### Drift sentinel checkpoint
 Planning/process elaboration only; no runtime semantic or ownership changes.
+
+## Entry: 2026-02-11 09:25AM - Pre-change lock: implement Phase 3.A and 3.B execution surfaces
+
+### Trigger
+USER requested to proceed with implementation of Phase `3.A` then `3.B` with detailed decision trail.
+
+### Scope to implement now
+1. **Phase 3.A (platform-level settlement gate)**
+   - materialize settlement as an executable artifact (config),
+   - add a fail-closed settlement conformity check against `dev_min` profile wiring.
+2. **Phase 3.B (infra readiness)**
+   - add IG durability prerequisites in Terraform core substrate,
+   - implement C&I readiness checker for Kafka topics + S3 prefixes + DynamoDB prereqs,
+   - produce run-scoped readiness evidence under `runs/fraud-platform/dev_substrate/phase3/`.
+
+### Design choices
+1. Settlement will be stored as a versioned YAML under `config/platform/dev_substrate/phase3/`.
+2. Settlement check will be Python-based (`PyYAML` already available) and fail closed on schema/contract mismatches.
+3. Kafka topic readiness will be executed via Kafka admin protocol using `kafka-python`:
+   - supports explicit topic existence/create for Confluent bootstrap endpoint,
+   - avoids dependence on unavailable Confluent Cloud management credentials for this repo.
+4. ACL corridor in this rung will be encoded as credential-boundary posture evidence (single principal key in `dev_min`) with explicit note that fine-grained ACL inspection remains external to this checker.
+5. Terraform core will be extended with IG admission/publish-state tables and outputs.
+
+### Validation plan
+1. `terraform fmt/init/validate` for changed env/module files.
+2. Apply core update with existing phase2 lifecycle command (demo off).
+3. Run `phase3a` settlement check -> PASS.
+4. Run `phase3b` infra readiness check -> PASS.
+5. Update Phase 3 DoD line items for 3.A and 3.B.
+
+### Cost posture (before execution)
+- This pass can touch paid services when applying Terraform core updates and creating Kafka topics.
+- Post-action default: keep only core resources on; no demo surfaces.
+
+### Drift sentinel checkpoint
+This pass is C&I migration enablement only; no component behavior rewrite is introduced.
+
+## Entry: 2026-02-11 09:38AM - Phase 3.B decision correction: Kafka REST v3 readiness (no new Python deps)
+
+### Trigger
+During implementation review, the earlier pre-change note proposed `kafka-python` for topic readiness. Repository dependency posture and migration friction constraints favored avoiding a new dependency for this rung.
+
+### Decision update
+1. Replace `kafka-python` plan with **Confluent Kafka REST v3** checks using existing `requests` dependency.
+2. Keep topic management fail-closed and explicit:
+   - list/verify required topics,
+   - optionally create missing topics only under explicit operator flag.
+3. Keep ACL posture evidence at credential-boundary level for this rung:
+   - successful authenticated REST access is required,
+   - fine-grained ACL introspection remains external operator control (as pinned in settlement).
+
+### Rationale
+- Avoids dependency churn in `pyproject.toml`.
+- Uses existing env surface (`DEV_MIN_KAFKA_BOOTSTRAP`, API key/secret) and preserves rapid migration flow.
+- Maintains explicit, auditable readiness evidence without introducing additional client/runtime complexity.
+
+### Planned implementation impact
+- Add `scripts/dev_substrate/phase3b_ci_infra_readiness.py` (Kafka REST + S3 prefix probe + DynamoDB table checks).
+- Extend Terraform core for IG admission/publish-state tables and outputs.
+- Add Make targets for `phase3a` and `phase3b` execution.
+
+## Entry: 2026-02-11 09:50AM - Phase 3.A/3.B implementation pass: Terraform + tooling surfaces added
+
+### Applied changes (code)
+1. Terraform `core` module expanded with IG durability prerequisites:
+   - new DynamoDB tables:
+     - `ig_admission_state` (`pk`, `sk`),
+     - `ig_publish_state` (`pk`, `sk`).
+2. Terraform variable/output surfaces expanded to carry IG table names through:
+   - `infra/terraform/modules/core/variables.tf`,
+   - `infra/terraform/modules/core/outputs.tf`,
+   - `infra/terraform/envs/dev_min/main.tf`,
+   - `infra/terraform/envs/dev_min/variables.tf`,
+   - `infra/terraform/envs/dev_min/outputs.tf`.
+3. Phase-2 lifecycle script updated to pass optional env overrides for new IG table names:
+   - `scripts/dev_substrate/phase2_terraform.ps1`.
+4. Build command surface expanded:
+   - Makefile vars for IG table env keys + Phase 3 output root + topic-create control,
+   - new targets:
+     - `platform-dev-min-phase3a-check`,
+     - `platform-dev-min-phase3b-readiness`.
+5. New Phase 3.B readiness checker implemented:
+   - `scripts/dev_substrate/phase3b_ci_infra_readiness.py`
+   - capabilities:
+     - Kafka REST v3 cluster/topic readiness (optional topic create flag),
+     - S3 bucket/prefix marker write probes,
+     - DynamoDB prerequisite table readiness.
+
+### Design rationale
+- Keep migration friction low by using existing dependency set (`requests`, `boto3`, `PyYAML`).
+- Keep `3.B` fail-closed on missing prerequisites while allowing explicit operator-controlled topic creation.
+- Preserve budget posture by keeping actions scoped to C&I corridor only.
+
+### Next validation sequence
+1. `terraform fmt` + `terraform validate`.
+2. `phase3a` settlement check.
+3. Core apply path (`phase2-up`) to materialize new IG tables.
+4. `phase3b` readiness check with topic-create flag.
+5. Update build-plan `3.A` and `3.B` DoD items when evidence is green.
+
+## Entry: 2026-02-11 09:56AM - Phase 3.B corrective pivot after first execution failure
+
+### Failure evidence
+- `phase3b_ci_infra_readiness` failed with:
+  - Kafka corridor: `404` on `https://<bootstrap-host>:443/kafka/v3/clusters`.
+  - S3 stores: missing bucket env keys in local `.env.dev_min` for settlement-mapped names.
+
+### Root-cause assessment
+1. `DEV_MIN_KAFKA_BOOTSTRAP` points to broker bootstrap endpoint, not guaranteed Kafka REST admin endpoint.
+2. Active `.env.dev_min` currently carries Kafka credentials and region but not bucket env bindings required by settlement key names.
+
+### Corrective decision
+1. Use **Kafka admin protocol** for topic readiness (`kafka-python`) driven by bootstrap + SASL creds.
+2. Keep checker fail-closed but add deterministic fallback derivation for missing bucket/table env values from `DEV_MIN_NAME_PREFIX` so infra created via Terraform defaults is still verifiable.
+3. Keep explicit operator flag for topic creation (`--allow-topic-create`) unchanged.
+
+### Contract impact
+- No platform semantic changes.
+- Readiness mechanism changes only (tooling implementation detail), still aligned to Phase 3.B DoD.
+
+## Entry: 2026-02-11 10:00AM - Phase 3.A executed PASS; Phase 3.B partial PASS with Kafka auth blocker (fail-closed)
+
+### Execution summary
+1. **Phase 3.A settlement gate**
+   - Command: `make platform-dev-min-phase3a-check`
+   - Result: `PASS`.
+   - Evidence:
+     - `runs/fraud-platform/dev_substrate/phase3/phase3a_settlement_check_20260211T093206Z.json`
+     - `runs/fraud-platform/dev_substrate/phase3/phase3a_settlement_check_20260211T093752Z.json`
+2. **Terraform core update for IG durability prerequisites**
+   - Command: `make platform-dev-min-phase2-down` (core retained, demo disabled).
+   - Result: `PASS`.
+   - Outcome: state count moved to `25` resources (added IG tables).
+3. **Phase 3.B readiness checker**
+   - Command: `make platform-dev-min-phase3b-readiness DEV_MIN_PHASE3B_ALLOW_TOPIC_CREATE=1`
+   - Result: `FAIL_CLOSED`.
+   - Evidence:
+     - `runs/fraud-platform/dev_substrate/phase3/phase3b_ci_infra_readiness_20260211T093306Z.json`
+     - `runs/fraud-platform/dev_substrate/phase3/phase3b_ci_infra_readiness_20260211T093602Z.json`
+
+### Gate posture by sub-surface
+- Kafka corridor (topics/ACL-boundary via auth principal): **FAIL**
+  - first failure mode: REST path mismatch on broker bootstrap endpoint (corrected by implementation pivot),
+  - second/current failure mode: SASL authentication failure against broker during Kafka admin handshake.
+- S3 readiness (object/evidence/quarantine/archive): **PASS**
+  - marker write probes succeeded with deterministic bucket defaults.
+- DynamoDB readiness (control/admission/publish-state): **PASS**
+  - all three prerequisite tables are active.
+
+### Diagnostics and reasoning
+1. Bootstrap endpoint DNS/TCP is reachable (Phase 1 probe still green).
+2. Kafka protocol handshake reaches SASL auth stage, but credentials are rejected by broker.
+3. This is a credential-surface/operator-secret issue, not a Terraform substrate defect and not an ownership/semantic drift issue.
+
+### Drift sentinel checkpoint
+- No designed-flow drift introduced.
+- Phase 3.B is intentionally **not** marked closed because Kafka corridor readiness is mandatory and currently fail-closed.
+
+### Cost posture decision
+- `KEEP ON (core only)`.
+- Demo tier remains off; verified via `make platform-dev-min-phase2-post-destroy-check` PASS.
+
+### Required operator action to close 3.B
+- Refresh valid broker-scoped Confluent Kafka API key/secret in `.env.dev_min` (`DEV_MIN_KAFKA_API_KEY`, `DEV_MIN_KAFKA_API_SECRET`), then rerun:
+  - `make platform-dev-min-phase3b-readiness DEV_MIN_PHASE3B_ALLOW_TOPIC_CREATE=1`
+
+## Entry: 2026-02-11 10:03AM - Build-plan DoD state update after Phase 3.A/3.B execution
+
+### Update applied
+- `docs/model_spec/platform/implementation_maps/dev_substrate/platform.build_plan.md`
+  - Marked Phase 3 DoD item for settlement gate (`3.A`) as complete.
+  - Kept infra readiness (`3.B`) open with explicit blocker note:
+    - S3 + Dynamo green,
+    - Kafka corridor fail-closed pending valid broker-scoped credentials.
+
+### Reasoning
+- This preserves strict gate truth and prevents accidental progression into `3.C` while Kafka readiness is unresolved.
+
+## Entry: 2026-02-11 10:08AM - Phase 3.B closure after credential-port diagnosis and target hardening
+
+### What happened
+1. USER requested rerun after credential update.
+2. `phase3b` still failed in Kafka corridor while S3+Dynamo stayed green.
+3. Focused diagnostics identified bootstrap configuration drift in local env:
+   - `.env.dev_min` had `DEV_MIN_KAFKA_BOOTSTRAP=...:443`.
+   - Kafka admin protocol in this migration requires broker endpoint `:9092`.
+
+### Corrective actions
+1. Re-ran `phase3b` with broker bootstrap override `:9092` -> full `PASS`.
+2. Hardened Make target `platform-dev-min-phase3b-readiness` so explicit command-line overrides for
+   `DEV_MIN_KAFKA_BOOTSTRAP`, `DEV_MIN_KAFKA_API_KEY`, `DEV_MIN_KAFKA_API_SECRET`, `DEV_MIN_AWS_REGION`
+   reliably override `.env.dev_min` values.
+
+### Evidence
+- PASS evidence artifact:
+  - `runs/fraud-platform/dev_substrate/phase3/phase3b_ci_infra_readiness_20260211T094735Z.json`
+
+### Build-plan update
+- Marked Phase 3 DoD line `C&I infra readiness is validated and evidence-logged` as complete.
+
+### Drift sentinel checkpoint
+- No semantic/ownership drift detected.
+- Failure was configuration-level bootstrap-port mismatch in operator env, now diagnosed and controlled.
+
+### Cost posture decision
+- `KEEP ON (core only)`; demo-tier remains off.

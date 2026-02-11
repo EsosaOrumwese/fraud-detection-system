@@ -2,8 +2,10 @@ output "core" {
   value = var.enable_core ? {
     buckets = module.core[0].bucket_names
     tables = {
-      control = module.core[0].control_table_name
-      tf_lock = module.core[0].tf_lock_table_name
+      control          = module.core[0].control_table_name
+      ig_admission     = module.core[0].ig_admission_table_name
+      ig_publish_state = module.core[0].ig_publish_state_table_name
+      tf_lock          = module.core[0].tf_lock_table_name
     }
     budget_name = module.core[0].budget_name
   } : null

@@ -12,6 +12,14 @@ output "control_table_name" {
   value = aws_dynamodb_table.control_runs.name
 }
 
+output "ig_admission_table_name" {
+  value = aws_dynamodb_table.ig_admission_state.name
+}
+
+output "ig_publish_state_table_name" {
+  value = aws_dynamodb_table.ig_publish_state.name
+}
+
 output "tf_lock_table_name" {
   value = aws_dynamodb_table.tf_lock.name
 }

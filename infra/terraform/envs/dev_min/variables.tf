@@ -53,6 +53,16 @@ variable "control_table_name" {
   default = ""
 }
 
+variable "ig_admission_table_name" {
+  type    = string
+  default = ""
+}
+
+variable "ig_publish_state_table_name" {
+  type    = string
+  default = ""
+}
+
 variable "tf_lock_table_name" {
   type    = string
   default = ""

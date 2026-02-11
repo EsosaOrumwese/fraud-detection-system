@@ -63,6 +63,44 @@ resource "aws_dynamodb_table" "control_runs" {
   tags = merge(local.tags_core, { fp_table_role = "control_runs" })
 }
 
+resource "aws_dynamodb_table" "ig_admission_state" {
+  name         = var.ig_admission_table_name
+  billing_mode = "PAY_PER_REQUEST"
+  hash_key     = "pk"
+  range_key    = "sk"
+
+  attribute {
+    name = "pk"
+    type = "S"
+  }
+
+  attribute {
+    name = "sk"
+    type = "S"
+  }
+
+  tags = merge(local.tags_core, { fp_table_role = "ig_admission_state" })
+}
+
+resource "aws_dynamodb_table" "ig_publish_state" {
+  name         = var.ig_publish_state_table_name
+  billing_mode = "PAY_PER_REQUEST"
+  hash_key     = "pk"
+  range_key    = "sk"
+
+  attribute {
+    name = "pk"
+    type = "S"
+  }
+
+  attribute {
+    name = "sk"
+    type = "S"
+  }
+
+  tags = merge(local.tags_core, { fp_table_role = "ig_publish_state" })
+}
+
 resource "aws_dynamodb_table" "tf_lock" {
   name         = var.tf_lock_table_name
   billing_mode = "PAY_PER_REQUEST"

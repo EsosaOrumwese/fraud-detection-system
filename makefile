@@ -242,10 +242,14 @@ DEV_MIN_BUDGET_ALERT_EMAIL ?=
 DEV_MIN_BUDGET_LIMIT_USD ?= 40
 DEV_MIN_TF_STATE_BUCKET ?=
 DEV_MIN_CONTROL_TABLE ?=
+DEV_MIN_IG_ADMISSION_TABLE ?=
+DEV_MIN_IG_PUBLISH_STATE_TABLE ?=
 DEV_MIN_TF_LOCK_TABLE ?=
 DEV_MIN_ENABLE_DEMO ?=
 DEV_MIN_DEMO_RUN_ID ?= manual
 DEV_MIN_DEMO_LOG_RETENTION_DAYS ?= 7
+DEV_MIN_PHASE3_OUTPUT_ROOT ?= runs/fraud-platform/dev_substrate/phase3
+DEV_MIN_PHASE3B_ALLOW_TOPIC_CREATE ?=
 
 # ---------------------------------------------------------------------------
 # External paths (aligned to registries)
@@ -3341,6 +3345,8 @@ platform-dev-min-phase2-plan:
 	export DEV_MIN_BUDGET_LIMIT_USD="$${DEV_MIN_BUDGET_LIMIT_USD:-$(DEV_MIN_BUDGET_LIMIT_USD)}"; \
 	export DEV_MIN_TF_STATE_BUCKET="$${DEV_MIN_TF_STATE_BUCKET:-$(DEV_MIN_TF_STATE_BUCKET)}"; \
 	export DEV_MIN_CONTROL_TABLE="$${DEV_MIN_CONTROL_TABLE:-$(DEV_MIN_CONTROL_TABLE)}"; \
+	export DEV_MIN_IG_ADMISSION_TABLE="$${DEV_MIN_IG_ADMISSION_TABLE:-$(DEV_MIN_IG_ADMISSION_TABLE)}"; \
+	export DEV_MIN_IG_PUBLISH_STATE_TABLE="$${DEV_MIN_IG_PUBLISH_STATE_TABLE:-$(DEV_MIN_IG_PUBLISH_STATE_TABLE)}"; \
 	export DEV_MIN_TF_LOCK_TABLE="$${DEV_MIN_TF_LOCK_TABLE:-$(DEV_MIN_TF_LOCK_TABLE)}"; \
 	export DEV_MIN_ENABLE_DEMO="$${DEV_MIN_ENABLE_DEMO:-$(DEV_MIN_ENABLE_DEMO)}"; \
 	export DEV_MIN_DEMO_RUN_ID="$${DEV_MIN_DEMO_RUN_ID:-$(DEV_MIN_DEMO_RUN_ID)}"; \
@@ -3369,6 +3375,8 @@ platform-dev-min-phase2-up:
 	export DEV_MIN_BUDGET_LIMIT_USD="$${DEV_MIN_BUDGET_LIMIT_USD:-$(DEV_MIN_BUDGET_LIMIT_USD)}"; \
 	export DEV_MIN_TF_STATE_BUCKET="$${DEV_MIN_TF_STATE_BUCKET:-$(DEV_MIN_TF_STATE_BUCKET)}"; \
 	export DEV_MIN_CONTROL_TABLE="$${DEV_MIN_CONTROL_TABLE:-$(DEV_MIN_CONTROL_TABLE)}"; \
+	export DEV_MIN_IG_ADMISSION_TABLE="$${DEV_MIN_IG_ADMISSION_TABLE:-$(DEV_MIN_IG_ADMISSION_TABLE)}"; \
+	export DEV_MIN_IG_PUBLISH_STATE_TABLE="$${DEV_MIN_IG_PUBLISH_STATE_TABLE:-$(DEV_MIN_IG_PUBLISH_STATE_TABLE)}"; \
 	export DEV_MIN_TF_LOCK_TABLE="$${DEV_MIN_TF_LOCK_TABLE:-$(DEV_MIN_TF_LOCK_TABLE)}"; \
 	export DEV_MIN_ENABLE_DEMO="$${DEV_MIN_ENABLE_DEMO:-$(DEV_MIN_ENABLE_DEMO)}"; \
 	export DEV_MIN_DEMO_RUN_ID="$${DEV_MIN_DEMO_RUN_ID:-$(DEV_MIN_DEMO_RUN_ID)}"; \
@@ -3398,6 +3406,8 @@ platform-dev-min-phase2-down:
 	export DEV_MIN_BUDGET_LIMIT_USD="$${DEV_MIN_BUDGET_LIMIT_USD:-$(DEV_MIN_BUDGET_LIMIT_USD)}"; \
 	export DEV_MIN_TF_STATE_BUCKET="$${DEV_MIN_TF_STATE_BUCKET:-$(DEV_MIN_TF_STATE_BUCKET)}"; \
 	export DEV_MIN_CONTROL_TABLE="$${DEV_MIN_CONTROL_TABLE:-$(DEV_MIN_CONTROL_TABLE)}"; \
+	export DEV_MIN_IG_ADMISSION_TABLE="$${DEV_MIN_IG_ADMISSION_TABLE:-$(DEV_MIN_IG_ADMISSION_TABLE)}"; \
+	export DEV_MIN_IG_PUBLISH_STATE_TABLE="$${DEV_MIN_IG_PUBLISH_STATE_TABLE:-$(DEV_MIN_IG_PUBLISH_STATE_TABLE)}"; \
 	export DEV_MIN_TF_LOCK_TABLE="$${DEV_MIN_TF_LOCK_TABLE:-$(DEV_MIN_TF_LOCK_TABLE)}"; \
 	export DEV_MIN_DEMO_RUN_ID="$${DEV_MIN_DEMO_RUN_ID:-$(DEV_MIN_DEMO_RUN_ID)}"; \
 	export DEV_MIN_DEMO_LOG_RETENTION_DAYS="$${DEV_MIN_DEMO_LOG_RETENTION_DAYS:-$(DEV_MIN_DEMO_LOG_RETENTION_DAYS)}"; \
@@ -3425,6 +3435,8 @@ platform-dev-min-phase2-down-all:
 	export DEV_MIN_BUDGET_LIMIT_USD="$${DEV_MIN_BUDGET_LIMIT_USD:-$(DEV_MIN_BUDGET_LIMIT_USD)}"; \
 	export DEV_MIN_TF_STATE_BUCKET="$${DEV_MIN_TF_STATE_BUCKET:-$(DEV_MIN_TF_STATE_BUCKET)}"; \
 	export DEV_MIN_CONTROL_TABLE="$${DEV_MIN_CONTROL_TABLE:-$(DEV_MIN_CONTROL_TABLE)}"; \
+	export DEV_MIN_IG_ADMISSION_TABLE="$${DEV_MIN_IG_ADMISSION_TABLE:-$(DEV_MIN_IG_ADMISSION_TABLE)}"; \
+	export DEV_MIN_IG_PUBLISH_STATE_TABLE="$${DEV_MIN_IG_PUBLISH_STATE_TABLE:-$(DEV_MIN_IG_PUBLISH_STATE_TABLE)}"; \
 	export DEV_MIN_TF_LOCK_TABLE="$${DEV_MIN_TF_LOCK_TABLE:-$(DEV_MIN_TF_LOCK_TABLE)}"; \
 	export DEV_MIN_DEMO_RUN_ID="$${DEV_MIN_DEMO_RUN_ID:-$(DEV_MIN_DEMO_RUN_ID)}"; \
 	export DEV_MIN_DEMO_LOG_RETENTION_DAYS="$${DEV_MIN_DEMO_LOG_RETENTION_DAYS:-$(DEV_MIN_DEMO_LOG_RETENTION_DAYS)}"; \
@@ -3466,6 +3478,46 @@ platform-dev-min-phase2-post-destroy-check:
 		-Workspace "$(DEV_MIN_TERRAFORM_WORKSPACE)" \
 		-OutputRoot "$(DEV_MIN_PHASE2_OUTPUT_ROOT)"); \
 	MSYS_NO_PATHCONV=1 pwsh "$${args[@]}"
+
+.PHONY: platform-dev-min-phase3a-check
+platform-dev-min-phase3a-check:
+	@env_file="$(DEV_MIN_ENV_FILE)"; \
+	if [ ! -f "$$env_file" ]; then \
+		echo "platform-dev-min-phase3a-check requires $$env_file (create local .env.dev_min with DEV_MIN_* keys)" >&2; \
+		exit 1; \
+	fi; \
+	set -a; . "$$env_file"; set +a; \
+	$(PY_SCRIPT) scripts/dev_substrate/phase3a_settlement_check.py \
+		--settlement config/platform/dev_substrate/phase3/control_ingress_settlement_v0.yaml \
+		--profile config/platform/profiles/dev_min.yaml \
+		--output-root "$(DEV_MIN_PHASE3_OUTPUT_ROOT)"
+
+.PHONY: platform-dev-min-phase3b-readiness
+platform-dev-min-phase3b-readiness:
+	@env_file="$(DEV_MIN_ENV_FILE)"; \
+	if [ ! -f "$$env_file" ]; then \
+		echo "platform-dev-min-phase3b-readiness requires $$env_file (create local .env.dev_min with DEV_MIN_* keys)" >&2; \
+		exit 1; \
+	fi; \
+	set -a; . "$$env_file"; set +a; \
+	override_region="$(DEV_MIN_AWS_REGION)"; \
+	override_bootstrap="$(DEV_MIN_KAFKA_BOOTSTRAP)"; \
+	override_key="$(DEV_MIN_KAFKA_API_KEY)"; \
+	override_secret="$(DEV_MIN_KAFKA_API_SECRET)"; \
+	if [ -n "$$override_region" ]; then export DEV_MIN_AWS_REGION="$$override_region"; fi; \
+	if [ -n "$$override_bootstrap" ]; then export DEV_MIN_KAFKA_BOOTSTRAP="$$override_bootstrap"; fi; \
+	if [ -n "$$override_key" ]; then export DEV_MIN_KAFKA_API_KEY="$$override_key"; fi; \
+	if [ -n "$$override_secret" ]; then export DEV_MIN_KAFKA_API_SECRET="$$override_secret"; fi; \
+	export DEV_MIN_NAME_PREFIX="$${DEV_MIN_NAME_PREFIX:-$(DEV_MIN_NAME_PREFIX)}"; \
+	export DEV_MIN_CONTROL_TABLE="$${DEV_MIN_CONTROL_TABLE:-$(DEV_MIN_CONTROL_TABLE)}"; \
+	export DEV_MIN_IG_ADMISSION_TABLE="$${DEV_MIN_IG_ADMISSION_TABLE:-$(DEV_MIN_IG_ADMISSION_TABLE)}"; \
+	export DEV_MIN_IG_PUBLISH_STATE_TABLE="$${DEV_MIN_IG_PUBLISH_STATE_TABLE:-$(DEV_MIN_IG_PUBLISH_STATE_TABLE)}"; \
+	args=(scripts/dev_substrate/phase3b_ci_infra_readiness.py \
+		--settlement config/platform/dev_substrate/phase3/control_ingress_settlement_v0.yaml \
+		--profile config/platform/profiles/dev_min.yaml \
+		--output-root "$(DEV_MIN_PHASE3_OUTPUT_ROOT)"); \
+	if [ -n "$${DEV_MIN_PHASE3B_ALLOW_TOPIC_CREATE:-$(DEV_MIN_PHASE3B_ALLOW_TOPIC_CREATE)}" ]; then args+=(--allow-topic-create); fi; \
+	$(PY_SCRIPT) "$${args[@]}"
 
 .PHONY: platform-governance-query
 platform-governance-query:
