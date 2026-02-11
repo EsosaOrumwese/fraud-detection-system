@@ -323,16 +323,66 @@ Migrate Control + Ingress + Oracle Store (`SR/WSP/IG/EB + Oracle path`) to manag
 - Keep demo posture destroyable and core posture minimal-cost.
 
 3. Phase 3.C - Component migration sequence (coupled, not parallel)
-- Migrate in platform-safe sequence:
-  - SR `dev_min` wiring,
-  - WSP `dev_min` wiring,
-  - IG `dev_min` wiring,
-  - EB managed Kafka corridor verification,
-  - Oracle Store path verification.
-- For each step:
-  - run component matrix,
-  - close gating defects before next component,
-  - record contract evidence refs in logbook/impl notes.
+- Migration order is strict and fail-closed:
+  - `3.C.1 Oracle Store` -> `3.C.2 SR` -> `3.C.3 WSP` -> `3.C.4 IG` -> `3.C.5 EB` -> `3.C.6 coupled-chain closure`.
+- No step may proceed while the current step is partially green.
+
+3.C.1 Oracle Store migration gate (must be first)
+- Objective: prove `dev_min` Oracle Store path is authoritative before any live streaming.
+- Required checks:
+  - explicit `oracle_engine_run_root` + `scenario_id` resolved from S3 (no local fallback),
+  - required stream-view outputs exist and are readable at `stream_view/ts_utc/output_id=...`,
+  - run-identity and locator refs to Oracle artifacts are recorded by-ref in evidence.
+- Stop conditions:
+  - missing seal/manifest/stream-view receipts,
+  - ambiguous source root (local path inferred while `dev_min` profile is active).
+
+3.C.2 Scenario Runner migration gate
+- Objective: SR emits canonical `run_facts_view` + READY on managed control path with pinned identities.
+- Required checks:
+  - READY contains both `platform_run_id` + `scenario_run_id` + `run_config_digest`,
+  - READY idempotency key stability under re-emit,
+  - SR references Oracle by-ref artifacts only.
+- Stop conditions:
+  - run-id pin mismatch,
+  - READY published without committed run_facts_view evidence.
+
+3.C.3 World Streamer Producer migration gate
+- Objective: WSP consumes READY and streams Oracle stream-view outputs into IG ingress with bounded retry semantics.
+- Required checks:
+  - WSP consumes active-run READY from managed control topic,
+  - envelopes carry required pins and preserve canonical event-time posture,
+  - retry posture is bounded (retryable vs terminal classes explicit) and checkpoint scope is run-safe.
+- Stop conditions:
+  - WSP reads non-oracle/local source while in `dev_min`,
+  - repeated READY replay contamination or run-scope checkpoint drift.
+
+3.C.4 Ingestion Gate migration gate
+- Objective: IG remains sole admission boundary with dedupe/publish truth persisted to `dev_min` substrate.
+- Required checks:
+  - dedupe tuple + payload hash anomaly semantics hold,
+  - publish state machine transitions are durable (`IN_FLIGHT`/`ADMITTED`/`AMBIGUOUS`),
+  - receipts/quarantine refs are run-scoped and by-ref.
+- Stop conditions:
+  - admission success without EB ref,
+  - receipt run-scope mismatch or policy pin mismatch.
+
+3.C.5 Event Bus migration gate
+- Objective: EB proves durable admitted log semantics for all C&I topics in corridor scope.
+- Required checks:
+  - admitted events are readable from managed topics with stable offsets,
+  - receipt `eb_ref` values are resolvable to actual topic/partition/offset basis,
+  - replay/tail checks are deterministic for bounded windows.
+- Stop conditions:
+  - offsets not replayable/resolvable,
+  - topic routing contradicts settlement corridor map.
+
+3.C.6 Coupled-chain closure gate
+- Objective: prove `Oracle -> SR -> WSP -> IG -> EB` chain is green as one run-scoped corridor before entering `3.D`.
+- Required checks:
+  - one bounded chain run succeeds with all five component gates satisfied,
+  - component evidence refs are linked in one run-scoped matrix record,
+  - unresolved defects are either closed or explicitly blocked and accepted by USER.
 
 4. Phase 3.D - Meta-layer expansion during integration (mandatory)
 - Run/Operate:
@@ -363,6 +413,11 @@ Migrate Control + Ingress + Oracle Store (`SR/WSP/IG/EB + Oracle path`) to manag
 - [x] Platform-level settlement gate (scope/contracts/SLO+cost targets) is pinned before component migration.
 - [x] C&I infra readiness is validated and evidence-logged.
 - [ ] SR/WSP/IG/EB/Oracle component matrices are green on `dev_min`.
+  - [ ] Oracle Store matrix green (`dev_substrate/oracle_store.build_plan.md`).
+  - [ ] Scenario Runner matrix green (`dev_substrate/scenario_runner.build_plan.md`).
+  - [ ] World Streamer Producer matrix green (`dev_substrate/world_streamer_producer.build_plan.md`).
+  - [ ] Ingestion Gate matrix green (`dev_substrate/ingestion_gate.build_plan.md`).
+  - [ ] Event Bus matrix green (`dev_substrate/event_bus.build_plan.md`).
 - [ ] Run/operate and obs/gov coverage is complete for all C&I services.
 - [ ] Validation ladder passes:
   - [ ] `20` smoke PASS,
@@ -372,7 +427,7 @@ Migrate Control + Ingress + Oracle Store (`SR/WSP/IG/EB + Oracle path`) to manag
 - [ ] Drift audit confirms no C&I semantic or ownership drift.
 
 ### Phase status
-- Phase 3 planning is **expanded and settlement-first ready**; execution is pending.
+- Phase 3 planning is **expanded and settlement-first ready**; `3.A` + `3.B` are closed and `3.C` is now execution-detailed.
 
 ## Phase 4 - Wave 2 migration: RTDL plane
 ### Objective

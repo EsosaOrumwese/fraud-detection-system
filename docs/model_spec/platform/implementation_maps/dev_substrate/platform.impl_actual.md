@@ -1421,3 +1421,94 @@ During implementation review, the earlier pre-change note proposed `kafka-python
 
 ### Cost posture decision
 - `KEEP ON (core only)`; demo-tier remains off.
+
+## Entry: 2026-02-11 10:20AM - Pre-change lock: Phase 3.C planning expansion + component-focused dev_substrate build plans (C&I wave)
+
+### Trigger
+USER requested:
+1. read local-parity implementation notes for Oracle Store / Scenario Runner / WSP / Ingestion Gate / Event Bus plus platform local-parity implementation notes,
+2. expand `dev_substrate` Phase 3.C plan with explicit DoDs,
+3. create focused component build plans so migration is thorough and no loose ends remain.
+
+### Inputs reviewed
+- `docs/model_spec/platform/implementation_maps/local_parity/platform.impl_actual.md`
+- `docs/model_spec/platform/implementation_maps/local_parity/oracle_store.impl_actual.md`
+- `docs/model_spec/platform/implementation_maps/local_parity/scenario_runner.impl_actual.md`
+- `docs/model_spec/platform/implementation_maps/local_parity/world_streamer_producer.impl_actual.md`
+- `docs/model_spec/platform/implementation_maps/local_parity/ingestion_gate.impl_actual.md`
+- `docs/model_spec/platform/implementation_maps/local_parity/event_bus.impl_actual.md`
+- Supporting structure references:
+  - corresponding local-parity `*.build_plan.md` docs,
+  - active `docs/model_spec/platform/implementation_maps/dev_substrate/platform.build_plan.md`.
+
+### Observations distilled for 3.C planning
+1. Local parity repeatedly converged only when sequence was explicit and oracle stream-view identity was pinned before WSP/IG progression.
+2. Runtime drift risks observed historically in local parity were mostly wiring/order/startup-scope issues (run-id scope, bootstrap endpoint class, stale control messages), not core semantic laws.
+3. The strongest anti-drift posture for migration is a strict coupled sequence with per-step gate evidence before moving to the next component.
+
+### Planning decisions (locked)
+1. Phase 3.C will be expanded into a **strict, coupled migration order** with explicit component gates:
+   - `3.C.1 Oracle Store readiness` -> `3.C.2 SR` -> `3.C.3 WSP` -> `3.C.4 IG` -> `3.C.5 EB` -> `3.C.6 coupled-chain replay proof`.
+2. Each step will include:
+   - boundary ownership assertions,
+   - required evidence artifacts,
+   - fail-closed stop conditions,
+   - residual risk notes.
+3. Create dedicated dev_substrate component build plans for C&I wave:
+   - `oracle_store.build_plan.md`
+   - `scenario_runner.build_plan.md`
+   - `world_streamer_producer.build_plan.md`
+   - `ingestion_gate.build_plan.md`
+   - `event_bus.build_plan.md`
+4. Component plans will be migration-scoped (local_parity carry-forward + dev_min wiring + matrix + run/operate + obs/gov hooks), not full component redesign docs.
+
+### Planned edits in this pass
+- Expand Phase 3.C section + DoD granularity in:
+  - `docs/model_spec/platform/implementation_maps/dev_substrate/platform.build_plan.md`
+- Add focused component build plans listed above under:
+  - `docs/model_spec/platform/implementation_maps/dev_substrate/`
+- Update dev_substrate README index to list active build-plan files.
+
+### Cost posture
+- Documentation/planning edits only; no paid resources/services touched.
+
+### Drift sentinel checkpoint
+- This pass is planning elaboration only and strengthens drift-detection posture by forcing component-gated progression.
+
+## Entry: 2026-02-11 10:29AM - Applied Phase 3.C planning expansion + component-focused C&I build plans (dev_substrate)
+
+### Applied edits
+1. Expanded `Phase 3.C` in:
+   - `docs/model_spec/platform/implementation_maps/dev_substrate/platform.build_plan.md`
+2. Added strict coupled migration structure:
+   - `3.C.1 Oracle Store gate`
+   - `3.C.2 Scenario Runner gate`
+   - `3.C.3 WSP gate`
+   - `3.C.4 IG gate`
+   - `3.C.5 EB gate`
+   - `3.C.6 coupled-chain closure gate`
+3. Tightened DoD granularity in Phase 3:
+   - component-matrix closure now explicitly references focused component build plans.
+4. Added focused dev_substrate component build plans:
+   - `docs/model_spec/platform/implementation_maps/dev_substrate/oracle_store.build_plan.md`
+   - `docs/model_spec/platform/implementation_maps/dev_substrate/scenario_runner.build_plan.md`
+   - `docs/model_spec/platform/implementation_maps/dev_substrate/world_streamer_producer.build_plan.md`
+   - `docs/model_spec/platform/implementation_maps/dev_substrate/ingestion_gate.build_plan.md`
+   - `docs/model_spec/platform/implementation_maps/dev_substrate/event_bus.build_plan.md`
+5. Updated dev_substrate index file:
+   - `docs/model_spec/platform/implementation_maps/dev_substrate/README.md`
+
+### Why this closes the planning ask
+- Local-parity carry-forward lessons are now encoded as explicit `dev_min` gates:
+  - oracle identity lock before streaming,
+  - run-id pin coherence through SR/WSP/IG,
+  - publish/offset evidence before progression,
+  - no partial green movement across components.
+- Component plans now provide focused migration tracks so execution remains thorough and auditable, rather than implicit in platform-only notes.
+
+### Cost posture
+- Planning/docs only; no paid services touched.
+
+### Drift sentinel checkpoint
+- No runtime drift introduced.
+- Planning posture is stricter than prior state (more fail-closed progression control).
