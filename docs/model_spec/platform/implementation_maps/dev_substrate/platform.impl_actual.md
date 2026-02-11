@@ -1512,3 +1512,82 @@ USER requested:
 ### Drift sentinel checkpoint
 - No runtime drift introduced.
 - Planning posture is stricter than prior state (more fail-closed progression control).
+
+## Entry: 2026-02-11 10:14AM - Pre-change lock: harden Oracle Store Phase 3.C plan to strict managed substrate (non-local)
+
+### Trigger
+USER requested a proper Oracle Store build plan and explicitly clarified Oracle Store in `dev_substrate` must not be local.
+
+### Problem statement
+Current `dev_substrate/oracle_store.build_plan.md` was usable but still broad:
+1. It did not explicitly encode a managed-only substrate law for every phase.
+2. It did not define cost/governance/security gates at Oracle-component level with enough closure detail for production-oriented dev migration.
+3. It risked interpretation drift where local-parity semantics could leak into `dev_min` execution posture.
+
+### Authorities considered
+- `docs/model_spec/platform/implementation_maps/dev_substrate/platform.build_plan.md` (`3.C.1` Oracle first gate).
+- `docs/model_spec/platform/pre-design_decisions/control_and_ingress.pre-design_decision.md`.
+- `docs/model_spec/platform/component-specific/flow-narrative-platform-design.md`.
+- Local baseline records:
+  - `docs/model_spec/platform/implementation_maps/local_parity/oracle_store.impl_actual.md`
+  - `docs/model_spec/platform/implementation_maps/local_parity/oracle_store.build_plan.md`
+
+### Options considered
+1. Keep current C1..C5 structure and add one global non-local note.
+   - Rejected: too easy to pass a phase while ignoring managed-only requirements in practice.
+2. Rewrite Oracle plan into explicit managed-substrate gates with per-phase fail-closed conditions and evidence requirements.
+   - Selected: strongest anti-drift posture and aligns with USER ask.
+
+### Locked decision
+Rewrite `dev_substrate/oracle_store.build_plan.md` so each phase is explicitly managed-substrate-only and includes:
+1. S3 truth authority lock and local fallback prohibition.
+2. Stream-view readiness with evidence-by-ref closure.
+3. SR/WSP coupling checks against one oracle root identity.
+4. Run/operate + obs/gov onboarding requirements at Oracle boundary.
+5. Security + retention + cost sentinel controls.
+6. Matrix closure and objective exit criteria into downstream C&I migration.
+
+### Planned edits in this pass
+1. Update `docs/model_spec/platform/implementation_maps/dev_substrate/oracle_store.build_plan.md`.
+2. Add component-specific trail file `docs/model_spec/platform/implementation_maps/dev_substrate/oracle_store.impl_actual.md` (missing today) for Oracle decisions.
+3. Update `docs/model_spec/platform/implementation_maps/dev_substrate/README.md` to index Oracle component implementation map.
+
+### Cost posture
+- Docs/planning only in this pass; no paid resources touched.
+
+### Drift sentinel checkpoint
+- This change is meant to reduce design-intent drift risk by enforcing non-local semantics in Oracle planning gates.
+
+## Entry: 2026-02-11 10:15AM - Applied Oracle Store plan hardening for Phase 3.C.1 (managed-only)
+
+### What was changed
+1. Replaced `dev_substrate/oracle_store.build_plan.md` with a strict managed-substrate plan:
+   - Oracle authority lock,
+   - seal/manifest verification,
+   - stream-view readiness,
+   - SR/WSP contract coupling,
+   - run/operate onboarding,
+   - obs/gov onboarding,
+   - security/retention/cost sentinel checks,
+   - matrix closure gate.
+2. Added missing component-specific implementation map:
+   - `docs/model_spec/platform/implementation_maps/dev_substrate/oracle_store.impl_actual.md`
+3. Updated dev_substrate index:
+   - `docs/model_spec/platform/implementation_maps/dev_substrate/README.md`
+
+### Why this resolves the USER ask
+- Oracle Store plan is now explicitly non-local in every phase and fail-closed by default.
+- `3.C.1` execution now has clear, auditable gates that block SR/WSP progression until Oracle truth posture is proven on managed substrate.
+
+### Key invariants made explicit
+1. No local-path fallback in `dev_min`.
+2. No implicit/latest Oracle root selection.
+3. By-ref, run-scoped evidence required for Oracle readiness and downstream coupling.
+4. Oracle gate acceptance requires both run/operate and obs/gov surfaces.
+
+### Cost posture
+- Docs/planning edits only; no paid resources touched.
+
+### Drift sentinel checkpoint
+- No runtime behavior changed in this pass.
+- Planning drift risk reduced by converting ambiguous Oracle migration text into strict gate language.

@@ -8,6 +8,7 @@ Write all new platform-track planning/decision notes here.
 ## Active maps
 - `platform.build_plan.md`
 - `platform.impl_actual.md`
+- `oracle_store.impl_actual.md`
 
 ## Control + Ingress migration-focused build plans (Phase 3.C)
 - `oracle_store.build_plan.md`
