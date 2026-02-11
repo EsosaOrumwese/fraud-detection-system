@@ -326,16 +326,22 @@ Migrate Control + Ingress + Oracle Store (`SR/WSP/IG/EB + Oracle path`) to manag
 - Migration order is strict and fail-closed:
   - `3.C.1 Oracle Store` -> `3.C.2 SR` -> `3.C.3 WSP` -> `3.C.4 IG` -> `3.C.5 EB` -> `3.C.6 coupled-chain closure`.
 - No step may proceed while the current step is partially green.
+- Clarification for Oracle landing reality:
+  - while Oracle landing sync/backfill is running, SR/WSP/IG/EB component build/config work may continue;
+  - integrated coupled acceptance (`3.C.6`) remains blocked until Oracle `3.C.1` authority gate is fully green.
 
 3.C.1 Oracle Store migration gate (must be first)
-- Objective: prove `dev_min` Oracle Store path is authoritative before any live streaming.
+- Objective: prove the platform consumes one authoritative Oracle root in `dev_min`, with engine-owned artifacts landed to AWS S3 (direct engine write later, sync/backfill now).
 - Required checks:
-  - explicit `oracle_engine_run_root` + `scenario_id` resolved from S3 (no local fallback),
+  - explicit source->destination landing contract is pinned (`source_root`, `oracle_engine_run_root`, `scenario_id`, `oracle_stream_view_root`),
+  - destination root is managed `s3://...` under settlement oracle prefix (no local fallback),
+  - landing sync/backfill evidence is recorded (object count/sample and refs),
   - required stream-view outputs exist and are readable at `stream_view/ts_utc/output_id=...`,
   - run-identity and locator refs to Oracle artifacts are recorded by-ref in evidence.
 - Stop conditions:
-  - missing seal/manifest/stream-view receipts,
-  - ambiguous source root (local path inferred while `dev_min` profile is active).
+  - missing seal/manifest/stream-view receipts at destination root,
+  - ambiguous source or destination root,
+  - local-path inferred as authoritative root while `dev_min` profile is active.
 
 3.C.2 Scenario Runner migration gate
 - Objective: SR emits canonical `run_facts_view` + READY on managed control path with pinned identities.

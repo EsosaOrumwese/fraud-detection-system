@@ -1591,3 +1591,32 @@ Rewrite `dev_substrate/oracle_store.build_plan.md` so each phase is explicitly m
 ### Drift sentinel checkpoint
 - No runtime behavior changed in this pass.
 - Planning drift risk reduced by converting ambiguous Oracle migration text into strict gate language.
+
+## Entry: 2026-02-11 10:46AM - Corrected platform expectation for Oracle in Phase 3.C.1 (engine-owned truth + managed landing)
+
+### Trigger
+USER corrected Oracle interpretation and requested both:
+1. Oracle component build plan rewrite,
+2. platform-level Oracle expectation rewrite.
+
+### Correction summary
+1. Oracle artifacts are produced by Data Engine; platform consumes them.
+2. Current dev migration mode is controlled sync/backfill into AWS S3 Oracle root.
+3. Direct engine->S3 write is target mode and should not alter platform contract semantics.
+
+### Platform-level expectation changes applied
+1. `3.C` now explicitly allows parallel component build/config work while Oracle sync is in-flight.
+2. `3.C.1` now requires:
+   - pinned source->destination contract,
+   - managed destination root under oracle prefix,
+   - landing sync evidence,
+   - stream-view and receipt/seal/manifest verification at destination.
+3. Integrated coupled acceptance remains blocked until `3.C.1` is fully green.
+
+### Why this matters
+This prevents two drift classes:
+1. ownership drift (platform accidentally treated as Oracle producer),
+2. sequencing drift (acceptance run started before Oracle authority actually landed).
+
+### Cost posture
+- Docs-only pass; no paid services touched.

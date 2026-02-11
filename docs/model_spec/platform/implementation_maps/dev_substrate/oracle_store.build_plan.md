@@ -1,153 +1,124 @@
-# Oracle Store Build Plan (dev_substrate, managed substrate only)
+# Oracle Store Build Plan (dev_substrate, engine-owned truth)
 _As of 2026-02-11_
 
 ## Objective
-Close Phase `3.C.1` by migrating Oracle Store usage from local-parity assumptions to `dev_min` managed substrate semantics, with S3 as the only truth authority for Oracle artifacts in this plane.
+Close Phase `3.C.1` with the correct ownership posture:
+1. Data Engine is the producer/owner of Oracle artifacts.
+2. Platform is a consumer that must use explicit Oracle pins and fail closed when Oracle truth is missing/ambiguous.
+3. Until direct engine->AWS S3 write is configured, `dev_min` uses controlled landing sync/backfill into the managed Oracle root.
 
-## Scope
-- In scope:
-  - Oracle source authority lock for C&I migration wave.
-  - Stream-view readiness and by-ref evidence requirements consumed by SR/WSP.
-  - Oracle-specific run/operate and obs/gov onboarding requirements.
-- Out of scope:
-  - Data Engine implementation internals.
-  - SR/WSP/IG/EB migration steps beyond Oracle boundary contracts.
+## Ownership boundary (non-negotiable)
+- Data Engine owns:
+  - Oracle world artifact production,
+  - artifact structure and semantic truth.
+- Platform owns:
+  - selecting one explicit Oracle root for the run,
+  - validating availability/compatibility for downstream consumption,
+  - preserving by-ref provenance in SR/WSP/IG evidence.
+
+## Current migration mode and target mode
+- Mode A (current, transitional):
+  - source engine run artifacts are copied/synced into AWS S3 Oracle root.
+- Mode B (target):
+  - engine writes Oracle artifacts directly to the AWS S3 Oracle root.
+- Acceptance law:
+  - Platform contracts must be identical in both modes (only ingestion path changes).
 
 ## Authority anchors
 - `docs/model_spec/platform/pre-design_decisions/control_and_ingress.pre-design_decision.md`
 - `docs/model_spec/platform/component-specific/flow-narrative-platform-design.md`
 - `docs/model_spec/platform/implementation_maps/dev_substrate/platform.build_plan.md` (`3.C.1`)
-- `docs/model_spec/platform/implementation_maps/dev_substrate/platform.impl_actual.md`
 - Local baseline carry-forward:
   - `docs/model_spec/platform/implementation_maps/local_parity/oracle_store.impl_actual.md`
   - `docs/model_spec/platform/implementation_maps/local_parity/oracle_store.build_plan.md`
 
-## Non-negotiable migration laws
-1. Oracle truth for `dev_substrate` is managed only; local filesystem fallback is forbidden.
-2. All Oracle references consumed downstream must be by-ref and run-scoped.
-3. Unknown/missing compatibility evidence is fail-closed, not inferred.
-4. Oracle gate closes only when run/operate + obs/gov are wired for this boundary.
-
-## Phase plan (Phase 3.C.1 closure track)
-### O1. Oracle authority lock (managed source only)
-**Intent:** ensure one explicit Oracle root is selected and immutable for the run.
+## O1 phase plan (authority lock via managed landing)
+### O1.A Source pin and landing contract
+**Intent:** remove ambiguity before any copy/sync starts.
 
 **Implementation checklist:**
-- [ ] Resolve `oracle_engine_run_root` and `scenario_id` explicitly from managed substrate configuration.
-- [ ] Enforce hard reject when Oracle root resolves to local path semantics under `dev_min`.
-- [ ] Record selected Oracle root identity and digest refs in run evidence.
+- [ ] Pin source engine run artifact root (`source_root`) and scenario scope.
+- [ ] Pin managed Oracle destination root (`oracle_engine_run_root`) under settlement `oracle_prefix`.
+- [ ] Pin `oracle_stream_view_root` and scenario id expected by SR/WSP.
+- [ ] Record pinned refs in run-scoped evidence.
 
 **DoD:**
-- [ ] No implicit `latest` root selection.
-- [ ] No local-path fallback accepted.
-- [ ] Evidence artifact records exact Oracle root ref used for this run.
+- [ ] No implicit `latest` selection.
+- [ ] Root + scenario pins are explicit and non-empty.
+- [ ] Destination root is `s3://...` and not local-path derived.
 
-### O2. Seal + manifest fail-closed verification
-**Intent:** prove selected Oracle root is valid and complete enough for stream-view consumption.
+### O1.B Managed landing sync/backfill
+**Intent:** land Oracle artifacts in AWS S3 while preserving source fidelity.
 
 **Implementation checklist:**
-- [ ] Validate required seal/manifest artifacts exist for selected root.
-- [ ] Fail closed when mandatory compatibility/version fields are absent.
-- [ ] Emit explicit reason codes for each failure class.
+- [ ] Execute deterministic one-way sync from `source_root` -> `oracle_engine_run_root`.
+- [ ] Collect transfer evidence (source root, destination root, object count/sample).
+- [ ] Allow long-running sync to continue while other C&I component build work proceeds.
 
 **DoD:**
-- [ ] PASS result includes manifest/seal refs.
-- [ ] FAIL result includes stable reason code and locator.
-- [ ] No permissive/partial mode in `dev_min`.
+- [ ] Landing copy is complete enough for Oracle validation gates.
+- [ ] Sync evidence is emitted and linked.
+- [ ] No destructive mutation of source root occurs.
 
-### O3. Stream-view readiness gate
-**Intent:** guarantee WSP-consumable stream-view outputs exist with deterministic ordering keys.
+### O1.C Oracle authority validation (consumer-side)
+**Intent:** prove platform can safely consume the landed Oracle truth.
 
 **Implementation checklist:**
-- [ ] Verify required outputs under `stream_view/ts_utc/output_id=...`.
-- [ ] Verify stream-view locator refs resolve from managed substrate.
-- [ ] Ensure output set required by active scenario is complete before READY progression.
+- [ ] Validate required receipt/seal/manifest artifacts under destination root.
+- [ ] Validate required stream-view roots and output-id paths for active scenario.
+- [ ] Emit stable fail reasons on missing/ambiguous Oracle artifacts.
 
 **DoD:**
-- [ ] Required output IDs are present and resolvable.
-- [ ] Missing output ID fails gate before SR/WSP progression.
-- [ ] Evidence captures output-level refs/digests by-ref.
+- [ ] Validation PASS is evidenced by-ref.
+- [ ] Any missing required artifact is `FAIL_CLOSED`.
+- [ ] Local fallback is rejected under `dev_min`.
 
-### O4. SR/WSP boundary contract emission
-**Intent:** expose Oracle-derived refs in a single run-scoped contract basis consumed by SR/WSP.
+### O1.D Platform contract readiness for SR/WSP
+**Intent:** ensure downstream components consume a single authoritative Oracle identity.
 
 **Implementation checklist:**
-- [ ] Ensure SR run facts include Oracle refs pinned to the selected Oracle root.
-- [ ] Ensure WSP stream identity resolves to the same root/scope tuple.
-- [ ] Validate no mixed-root contract state in one run.
+- [ ] SR run facts and WSP source wiring resolve to the same pinned root/scenario.
+- [ ] Root/scope mismatch is blocked before integrated stream tests.
+- [ ] Contract refs are linkable in governance/report evidence.
 
 **DoD:**
-- [ ] SR and WSP contract refs point to identical Oracle root identity.
-- [ ] Root mismatch is fail-closed with explicit gate refusal.
-- [ ] Contract basis is recorded in matrix evidence.
+- [ ] SR/WSP Oracle root identity is consistent for the run.
+- [ ] Mixed-root posture is blocked.
+- [ ] Evidence graph preserves provenance by-ref.
 
-### O5. Run/operate onboarding for Oracle boundary
-**Intent:** prevent Oracle checks from being matrix-only by integrating into platform run lifecycle.
+### O1.E Closure and gating rule
+**Intent:** define exactly what is blocked vs allowed while sync is in-flight.
 
-**Implementation checklist:**
-- [ ] Add Oracle readiness step into `dev_min` run/operate workflow.
-- [ ] Add Oracle failure signatures and remediation hints to operator outputs.
-- [ ] Include Oracle gate status in phase snapshots/reporter surfaces.
+**Allowed while sync is in-flight:**
+- Build/config wiring for SR/WSP/IG/EB components.
+- Non-integrated component matrix prep that does not require live Oracle consumption.
 
-**DoD:**
-- [ ] Oracle gate is visible in run lifecycle output.
-- [ ] Oracle gate failures are diagnosable without source code lookup.
-- [ ] Oracle step blocks downstream C&I startup when not green.
-
-### O6. Obs/Gov onboarding for Oracle boundary
-**Intent:** ensure Oracle posture is auditable in governance/reporting planes.
-
-**Implementation checklist:**
-- [ ] Emit Oracle gate lifecycle events for PASS/FAIL transitions.
-- [ ] Emit evidence refs required for replay/audit of Oracle selection and readiness.
-- [ ] Preserve append-only governance reporting posture.
+**Blocked until O1 is green:**
+- Coupled C&I integrated run (`3.C.6` path).
+- Any acceptance claiming Oracle authority is ready.
 
 **DoD:**
-- [ ] Oracle PASS/FAIL appears in governance/report outputs.
-- [ ] Evidence refs are by-ref and run-scoped.
-- [ ] Oracle gate state can be reconstructed for audit.
+- [ ] O1 PASS evidence exists and is linked in impl/logbook notes.
+- [ ] Platform `3.C.1` may be marked complete only after O1 closure evidence.
 
-### O7. Security, retention, and cost sentinel checks
-**Intent:** enforce production-minded dev posture before accepting Oracle migration closure.
-
-**Implementation checklist:**
-- [ ] Confirm no sensitive tokens/secrets are written into impl maps/logbook artifacts.
-- [ ] Confirm retention/lifecycle expectations for Oracle evidence prefixes are documented.
-- [ ] Record keep-on/turn-off decision for resources used during Oracle gate runs.
-
-**DoD:**
-- [ ] Security handling posture recorded.
-- [ ] Cost sentinel decision recorded for each Oracle validation run.
-- [ ] Retention intent is explicit for Oracle evidence surfaces.
-
-### O8. Oracle matrix and closure gate
-**Intent:** mark Phase `3.C.1` complete with explicit evidence and residual-risk posture.
-
-**Implementation checklist:**
-- [ ] Run Oracle matrix checks on `dev_min` and collect evidence bundle refs.
-- [ ] Link evidence in `dev_substrate/platform.impl_actual.md` and logbook.
-- [ ] Record residual risks as remediated or explicitly accepted by USER.
-
-**DoD:**
-- [ ] Oracle matrix PASS is evidenced and linked.
-- [ ] `3.C.1` can be marked complete in platform build plan.
-- [ ] No unresolved Oracle drift remains silent.
-
-## Validation matrix expectations
-- Mandatory checks:
-  - managed-source authority lock PASS,
-  - manifest/seal PASS,
-  - stream-view readiness PASS,
-  - SR/WSP root-coupling PASS.
+## Validation matrix expectations for Oracle in dev_substrate
+- Mandatory PASS set:
+  - source/destination pin contract complete,
+  - landing sync evidence complete,
+  - receipt/seal/manifest checks complete,
+  - stream-view presence checks complete,
+  - SR/WSP root-coupling checks complete.
 - Failure policy:
-  - any unknown/missing Oracle contract evidence => `FAIL_CLOSED`.
+  - unknown/missing/ambiguous Oracle contract evidence => `FAIL_CLOSED`.
+
+## Security and cost posture
+- Never store credentials or secret values in docs/evidence/logbook.
+- Track S3 sync/list/head activity as paid-surface usage.
+- Record `KEEP ON` / `TURN OFF NOW` decision after each O1 execution step.
 
 ## Current status
-- O1: not started
-- O2: not started
-- O3: not started
-- O4: not started
-- O5: not started
-- O6: not started
-- O7: not started
-- O8: not started
+- O1.A: not started
+- O1.B: not started
+- O1.C: not started
+- O1.D: not started
+- O1.E: not started

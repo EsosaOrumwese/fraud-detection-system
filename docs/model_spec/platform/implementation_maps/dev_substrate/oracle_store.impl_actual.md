@@ -46,3 +46,35 @@ Oracle is the first C&I coupling boundary in `3.C`, so ambiguity here propagates
 
 ### Cost posture
 Docs-only pass; no cloud/resource operations executed.
+
+## Entry: 2026-02-11 10:46AM - Posture correction lock: Oracle Store is engine-owned truth, platform is consumer with managed landing
+
+### Trigger
+USER explicitly corrected Oracle posture to avoid implementation drift:
+1. Oracle Store is closer to Data Engine ownership than platform service ownership.
+2. Current practical step is managed landing sync/backfill into AWS S3 because direct engine write is not configured yet.
+3. Sync can run while other C&I component build work proceeds; integrated run acceptance must wait for Oracle authority closure.
+
+### Drift identified in previous plan wording
+Prior wording over-emphasized platform-driven Oracle lifecycle and could be interpreted as if Oracle truth was platform-produced instead of engine-produced.
+
+### Corrected decision
+Rewrite Oracle build plan to enforce:
+1. Engine-owned truth boundary.
+2. Transitional managed landing sync mode (now) and direct engine-write mode (target).
+3. O1 closure around source/destination pinning + sync evidence + consumer-side authority validation.
+4. Explicit allowed/blocked execution rule while sync is in-flight.
+
+### Files updated in this correction
+1. `docs/model_spec/platform/implementation_maps/dev_substrate/oracle_store.build_plan.md`
+   - rewritten with corrected ownership and O1.A..O1.E structure.
+2. `docs/model_spec/platform/implementation_maps/dev_substrate/platform.build_plan.md`
+   - updated `3.C` and `3.C.1` expectation language to match managed landing + consumer-only authority posture.
+
+### Why this is the correct expectation
+It keeps platform responsibilities in bounds:
+- platform does not claim artifact production ownership,
+- platform does enforce fail-closed consumption guarantees and provenance pins.
+
+### Cost posture
+Docs/planning only in this pass; no paid resource operations executed.
