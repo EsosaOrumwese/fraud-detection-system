@@ -1651,6 +1651,54 @@ USER requested retry after network recovery.
 - Paid surfaces touched: AWS S3 API + storage.
 - Post-action cost decision (`KEEP ON` / `TURN OFF NOW`) will be logged.
 
+## Entry: 2026-02-11 11:21AM - Sync attempt halted per user interruption; background process terminated
+
+### Runtime note
+1. Oracle sync command was running and remained active after user abort.
+2. Active `aws` process (`PID 9848`) was detected and terminated.
+3. No `aws` process is active now.
+
+### Cost posture
+- `TURN OFF NOW` applied for this attempt (no ongoing paid transfer process).
+
+## Entry: 2026-02-11 11:24AM - Bucket cleanup execution lock (prep for user-run Oracle sync/sort)
+
+### Trigger
+USER requested bucket cleanup first, then USER will run Oracle sync + stream-sort manually.
+
+### Planned action
+1. Clear `DEV_MIN_OBJECT_STORE_BUCKET` contents.
+2. Verify empty-state evidence.
+3. Hand off ordered sync/sort command sequence to USER.
+
+### Cost posture declaration (pre-action)
+- Paid surface: AWS S3 API delete/list/head operations.
+
+## Entry: 2026-02-11 11:25AM - Versioned-bucket correction for cleanup completeness
+
+### Finding
+`DEV_MIN_OBJECT_STORE_BUCKET` is versioned; recursive delete alone does not remove historical versions.
+
+### Decision
+Run full version purge so cleanup semantics match user intent ("clean out the bucket").
+
+### Cost posture declaration (pre-action)
+- Paid surfaces: S3 version-list + batch delete API calls.
+
+## Entry: 2026-02-11 11:34AM - Cleanup completion snapshot
+
+### Result
+1. `DEV_MIN_OBJECT_STORE_BUCKET` is fully empty including versioned history.
+2. No active `aws` cleanup process remains.
+
+### Verified counts
+- `current=0`
+- `versions=0`
+- `delete_markers=0`
+
+### Cost posture
+- `TURN OFF NOW` (no ongoing paid cleanup operation).
+
 ## Entry: 2026-02-11 10:51AM - Pre-change lock: enforce stream-sort contract in platform expectation for Oracle 3.C.1
 
 ### Trigger

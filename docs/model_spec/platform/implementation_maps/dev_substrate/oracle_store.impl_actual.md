@@ -154,6 +154,66 @@ This run touches paid AWS S3 surfaces:
 
 Post-run decision will be explicitly logged as `KEEP ON` or `TURN OFF NOW`.
 
+## Entry: 2026-02-11 11:21AM - Oracle sync run interrupted and process terminated on user stop
+
+### What happened
+1. AWS identity and destination bucket reachability checks passed.
+2. Landing sync (`aws s3 sync`) was started against the pinned source->destination roots.
+3. USER interrupted the run due long execution window.
+4. Follow-up process check showed `aws` process `PID 9848` still active.
+5. Process was force-stopped immediately.
+
+### Outcome
+- No `aws` sync process remains active after termination.
+- O1 execution is intentionally paused until USER approves restart.
+
+### Cost decision
+`TURN OFF NOW` for this sync attempt (process terminated; no background transfer left running).
+
+## Entry: 2026-02-11 11:24AM - Execution lock: user-directed bucket cleanup before manual sync/sort
+
+### Trigger
+USER instructed:
+1. clean out the bucket,
+2. USER will run sync and stream-sort manually afterward,
+3. AGENT should provide the exact ordered steps to sync up.
+
+### Decision
+Perform full cleanup of the configured dev Oracle object bucket (`DEV_MIN_OBJECT_STORE_BUCKET`) so the next sync is deterministic and free from stale artifacts.
+
+### Planned execution
+1. Load `.env.dev_min` into session.
+2. Verify AWS identity + target bucket.
+3. Remove all current objects from bucket.
+4. Verify bucket is empty.
+
+### Cost posture declaration (pre-action)
+Paid surface touched: AWS S3 API operations (delete/list/head).
+
+## Entry: 2026-02-11 11:25AM - Correction lock: bucket is versioned; full purge required for true clean state
+
+### Finding
+Post-clean verification revealed bucket versioning is enabled, so object versions and delete markers remained after recursive remove.
+
+### Decision
+Execute version-aware purge of all versions + delete markers until zero remain, so user starts sync/sort from a truly empty bucket.
+
+### Cost posture declaration (pre-action)
+Paid surfaces: additional S3 list-object-versions + delete-objects calls.
+
+## Entry: 2026-02-11 11:34AM - Versioned bucket cleanup confirmed complete
+
+### Runtime outcome
+1. Cleanup took longer because bucket versioning required removal of object versions + delete markers, not just current objects.
+2. Final checks confirm:
+   - current objects: `0`,
+   - object versions: `0`,
+   - delete markers: `0`.
+3. No `aws` process remains active.
+
+### Cost posture
+`TURN OFF NOW` for cleanup loop (no background cleanup process running).
+
 ## Entry: 2026-02-11 10:54AM - Corrective precision note: output-id source refs pinned for stream-sort selection
 
 ### Correction
