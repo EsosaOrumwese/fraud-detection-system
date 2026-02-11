@@ -2406,4 +2406,4 @@ Evidence:
 
 ---
 
-Next batch target (pending your direction): IDs `249-256` from budget-sentinel formalization and Phase 2 terraform lifecycle implementation/verification (including teardown and budget-alert gates).
+End of current mapped ID range: `1-248`.
