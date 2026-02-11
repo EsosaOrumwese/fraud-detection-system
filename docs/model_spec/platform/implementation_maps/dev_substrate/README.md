@@ -9,6 +9,7 @@ Write all new platform-track planning/decision notes here.
 - `platform.build_plan.md`
 - `platform.impl_actual.md`
 - `oracle_store.impl_actual.md`
+- `dev_min_migration_narrative.md`
 
 ## Control + Ingress migration-focused build plans (Phase 3.C)
 - `oracle_store.build_plan.md`

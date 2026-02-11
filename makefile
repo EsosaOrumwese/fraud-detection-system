@@ -250,6 +250,11 @@ DEV_MIN_DEMO_RUN_ID ?= manual
 DEV_MIN_DEMO_LOG_RETENTION_DAYS ?= 7
 DEV_MIN_PHASE3_OUTPUT_ROOT ?= runs/fraud-platform/dev_substrate/phase3
 DEV_MIN_PHASE3B_ALLOW_TOPIC_CREATE ?=
+DEV_MIN_PHASE3C1_OUTPUT_ROOT ?= $(DEV_MIN_PHASE3_OUTPUT_ROOT)
+DEV_MIN_PHASE3C1_CONTEXT_MODE ?= fraud
+DEV_MIN_PHASE3C1_PROGRESS_SECONDS ?= 15
+DEV_MIN_PHASE3C1_SYNC_EXTRA_ARGS ?=
+DEV_MIN_PHASE3C1_SKIP_AWS_HEAD ?=
 
 # ---------------------------------------------------------------------------
 # External paths (aligned to registries)
@@ -3517,6 +3522,128 @@ platform-dev-min-phase3b-readiness:
 		--profile config/platform/profiles/dev_min.yaml \
 		--output-root "$(DEV_MIN_PHASE3_OUTPUT_ROOT)"); \
 	if [ -n "$${DEV_MIN_PHASE3B_ALLOW_TOPIC_CREATE:-$(DEV_MIN_PHASE3B_ALLOW_TOPIC_CREATE)}" ]; then args+=(--allow-topic-create); fi; \
+	$(PY_SCRIPT) "$${args[@]}"
+
+.PHONY: platform-dev-min-phase3c1-preflight
+platform-dev-min-phase3c1-preflight:
+	@env_file="$(DEV_MIN_ENV_FILE)"; \
+	if [ ! -f "$$env_file" ]; then \
+		echo "platform-dev-min-phase3c1-preflight requires $$env_file (create local .env.dev_min with DEV_MIN_* pins)" >&2; \
+		exit 1; \
+	fi; \
+	set -a; . "$$env_file"; set +a; \
+	override_region="$(DEV_MIN_AWS_REGION)"; \
+	override_source="$(DEV_MIN_ORACLE_SYNC_SOURCE)"; \
+	override_engine_root="$(DEV_MIN_ORACLE_ENGINE_RUN_ROOT)"; \
+	override_scenario="$(DEV_MIN_ORACLE_SCENARIO_ID)"; \
+	override_stream_root="$(DEV_MIN_ORACLE_STREAM_VIEW_ROOT)"; \
+	override_oracle_root="$(DEV_MIN_ORACLE_ROOT)"; \
+	if [ -n "$$override_region" ]; then export DEV_MIN_AWS_REGION="$$override_region"; fi; \
+	if [ -n "$$override_source" ]; then export DEV_MIN_ORACLE_SYNC_SOURCE="$$override_source"; fi; \
+	if [ -n "$$override_engine_root" ]; then export DEV_MIN_ORACLE_ENGINE_RUN_ROOT="$$override_engine_root"; fi; \
+	if [ -n "$$override_scenario" ]; then export DEV_MIN_ORACLE_SCENARIO_ID="$$override_scenario"; fi; \
+	if [ -n "$$override_stream_root" ]; then export DEV_MIN_ORACLE_STREAM_VIEW_ROOT="$$override_stream_root"; fi; \
+	if [ -n "$$override_oracle_root" ]; then export DEV_MIN_ORACLE_ROOT="$$override_oracle_root"; fi; \
+	args=(scripts/dev_substrate/phase3c1_oracle_authority_lock.py preflight \
+		--profile config/platform/profiles/dev_min.yaml \
+		--output-root "$(DEV_MIN_PHASE3C1_OUTPUT_ROOT)" \
+		--context-mode "$(DEV_MIN_PHASE3C1_CONTEXT_MODE)"); \
+	if [ -n "$${DEV_MIN_PHASE3C1_SKIP_AWS_HEAD:-$(DEV_MIN_PHASE3C1_SKIP_AWS_HEAD)}" ]; then args+=(--skip-aws-head); fi; \
+	$(PY_SCRIPT) "$${args[@]}"
+
+.PHONY: platform-dev-min-phase3c1-sync
+platform-dev-min-phase3c1-sync:
+	@env_file="$(DEV_MIN_ENV_FILE)"; \
+	if [ ! -f "$$env_file" ]; then \
+		echo "platform-dev-min-phase3c1-sync requires $$env_file (create local .env.dev_min with DEV_MIN_* pins)" >&2; \
+		exit 1; \
+	fi; \
+	set -a; . "$$env_file"; set +a; \
+	override_region="$(DEV_MIN_AWS_REGION)"; \
+	override_source="$(DEV_MIN_ORACLE_SYNC_SOURCE)"; \
+	override_engine_root="$(DEV_MIN_ORACLE_ENGINE_RUN_ROOT)"; \
+	if [ -n "$$override_region" ]; then export DEV_MIN_AWS_REGION="$$override_region"; fi; \
+	if [ -n "$$override_source" ]; then export DEV_MIN_ORACLE_SYNC_SOURCE="$$override_source"; fi; \
+	if [ -n "$$override_engine_root" ]; then export DEV_MIN_ORACLE_ENGINE_RUN_ROOT="$$override_engine_root"; fi; \
+	args=(scripts/dev_substrate/phase3c1_oracle_authority_lock.py sync \
+		--profile config/platform/profiles/dev_min.yaml \
+		--output-root "$(DEV_MIN_PHASE3C1_OUTPUT_ROOT)" \
+		--context-mode "$(DEV_MIN_PHASE3C1_CONTEXT_MODE)" \
+		--progress-seconds "$(DEV_MIN_PHASE3C1_PROGRESS_SECONDS)"); \
+	extra="$${DEV_MIN_PHASE3C1_SYNC_EXTRA_ARGS:-$(DEV_MIN_PHASE3C1_SYNC_EXTRA_ARGS)}"; \
+	if [ -n "$$extra" ]; then args+=(--sync-extra-args "$$extra"); fi; \
+	$(PY_SCRIPT) "$${args[@]}"
+
+.PHONY: platform-dev-min-phase3c1-stream-sort
+platform-dev-min-phase3c1-stream-sort:
+	@env_file="$(DEV_MIN_ENV_FILE)"; \
+	if [ ! -f "$$env_file" ]; then \
+		echo "platform-dev-min-phase3c1-stream-sort requires $$env_file (create local .env.dev_min with DEV_MIN_* pins)" >&2; \
+		exit 1; \
+	fi; \
+	set -a; . "$$env_file"; set +a; \
+	override_region="$(DEV_MIN_AWS_REGION)"; \
+	override_engine_root="$(DEV_MIN_ORACLE_ENGINE_RUN_ROOT)"; \
+	override_scenario="$(DEV_MIN_ORACLE_SCENARIO_ID)"; \
+	override_stream_root="$(DEV_MIN_ORACLE_STREAM_VIEW_ROOT)"; \
+	if [ -n "$$override_region" ]; then export DEV_MIN_AWS_REGION="$$override_region"; fi; \
+	if [ -n "$$override_engine_root" ]; then export DEV_MIN_ORACLE_ENGINE_RUN_ROOT="$$override_engine_root"; fi; \
+	if [ -n "$$override_scenario" ]; then export DEV_MIN_ORACLE_SCENARIO_ID="$$override_scenario"; fi; \
+	if [ -n "$$override_stream_root" ]; then export DEV_MIN_ORACLE_STREAM_VIEW_ROOT="$$override_stream_root"; fi; \
+	$(PY_SCRIPT) scripts/dev_substrate/phase3c1_oracle_authority_lock.py stream-sort \
+		--profile config/platform/profiles/dev_min.yaml \
+		--output-root "$(DEV_MIN_PHASE3C1_OUTPUT_ROOT)" \
+		--context-mode "$(DEV_MIN_PHASE3C1_CONTEXT_MODE)"
+
+.PHONY: platform-dev-min-phase3c1-validate
+platform-dev-min-phase3c1-validate:
+	@env_file="$(DEV_MIN_ENV_FILE)"; \
+	if [ ! -f "$$env_file" ]; then \
+		echo "platform-dev-min-phase3c1-validate requires $$env_file (create local .env.dev_min with DEV_MIN_* pins)" >&2; \
+		exit 1; \
+	fi; \
+	set -a; . "$$env_file"; set +a; \
+	override_region="$(DEV_MIN_AWS_REGION)"; \
+	override_engine_root="$(DEV_MIN_ORACLE_ENGINE_RUN_ROOT)"; \
+	override_scenario="$(DEV_MIN_ORACLE_SCENARIO_ID)"; \
+	override_stream_root="$(DEV_MIN_ORACLE_STREAM_VIEW_ROOT)"; \
+	if [ -n "$$override_region" ]; then export DEV_MIN_AWS_REGION="$$override_region"; fi; \
+	if [ -n "$$override_engine_root" ]; then export DEV_MIN_ORACLE_ENGINE_RUN_ROOT="$$override_engine_root"; fi; \
+	if [ -n "$$override_scenario" ]; then export DEV_MIN_ORACLE_SCENARIO_ID="$$override_scenario"; fi; \
+	if [ -n "$$override_stream_root" ]; then export DEV_MIN_ORACLE_STREAM_VIEW_ROOT="$$override_stream_root"; fi; \
+	$(PY_SCRIPT) scripts/dev_substrate/phase3c1_oracle_authority_lock.py validate \
+		--profile config/platform/profiles/dev_min.yaml \
+		--output-root "$(DEV_MIN_PHASE3C1_OUTPUT_ROOT)" \
+		--context-mode "$(DEV_MIN_PHASE3C1_CONTEXT_MODE)"
+
+.PHONY: platform-dev-min-phase3c1-run
+platform-dev-min-phase3c1-run:
+	@env_file="$(DEV_MIN_ENV_FILE)"; \
+	if [ ! -f "$$env_file" ]; then \
+		echo "platform-dev-min-phase3c1-run requires $$env_file (create local .env.dev_min with DEV_MIN_* pins)" >&2; \
+		exit 1; \
+	fi; \
+	set -a; . "$$env_file"; set +a; \
+	override_region="$(DEV_MIN_AWS_REGION)"; \
+	override_source="$(DEV_MIN_ORACLE_SYNC_SOURCE)"; \
+	override_engine_root="$(DEV_MIN_ORACLE_ENGINE_RUN_ROOT)"; \
+	override_scenario="$(DEV_MIN_ORACLE_SCENARIO_ID)"; \
+	override_stream_root="$(DEV_MIN_ORACLE_STREAM_VIEW_ROOT)"; \
+	override_oracle_root="$(DEV_MIN_ORACLE_ROOT)"; \
+	if [ -n "$$override_region" ]; then export DEV_MIN_AWS_REGION="$$override_region"; fi; \
+	if [ -n "$$override_source" ]; then export DEV_MIN_ORACLE_SYNC_SOURCE="$$override_source"; fi; \
+	if [ -n "$$override_engine_root" ]; then export DEV_MIN_ORACLE_ENGINE_RUN_ROOT="$$override_engine_root"; fi; \
+	if [ -n "$$override_scenario" ]; then export DEV_MIN_ORACLE_SCENARIO_ID="$$override_scenario"; fi; \
+	if [ -n "$$override_stream_root" ]; then export DEV_MIN_ORACLE_STREAM_VIEW_ROOT="$$override_stream_root"; fi; \
+	if [ -n "$$override_oracle_root" ]; then export DEV_MIN_ORACLE_ROOT="$$override_oracle_root"; fi; \
+	args=(scripts/dev_substrate/phase3c1_oracle_authority_lock.py run \
+		--profile config/platform/profiles/dev_min.yaml \
+		--output-root "$(DEV_MIN_PHASE3C1_OUTPUT_ROOT)" \
+		--context-mode "$(DEV_MIN_PHASE3C1_CONTEXT_MODE)" \
+		--progress-seconds "$(DEV_MIN_PHASE3C1_PROGRESS_SECONDS)"); \
+	extra="$${DEV_MIN_PHASE3C1_SYNC_EXTRA_ARGS:-$(DEV_MIN_PHASE3C1_SYNC_EXTRA_ARGS)}"; \
+	if [ -n "$$extra" ]; then args+=(--sync-extra-args "$$extra"); fi; \
+	if [ -n "$${DEV_MIN_PHASE3C1_SKIP_AWS_HEAD:-$(DEV_MIN_PHASE3C1_SKIP_AWS_HEAD)}" ]; then args+=(--skip-aws-head); fi; \
 	$(PY_SCRIPT) "$${args[@]}"
 
 .PHONY: platform-governance-query

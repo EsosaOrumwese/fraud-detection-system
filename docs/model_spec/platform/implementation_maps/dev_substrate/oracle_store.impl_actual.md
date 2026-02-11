@@ -244,3 +244,105 @@ Landing sync alone is no longer sufficient for Oracle O1 closure; runtime-consum
 
 ### Cost posture
 Docs-only pass; no paid services touched.
+
+## Entry: 2026-02-11 12:08PM - Pre-change lock: implement Phase 3.C.1 operator framework (sync progress + stream-sort + strict validation)
+
+### Trigger
+USER requested implementation of a runnable framework so they can:
+1. run Oracle landing sync to a proper managed bucket with live terminal progress visibility,
+2. run stream-sort closure after sync,
+3. execute strict authority validation in a fail-closed sequence.
+
+### Problem framing
+Current repo posture has:
+1. existing generic Oracle commands (`platform-oracle-sync`, `platform-oracle-stream-sort`, `platform-oracle-check-strict`),
+2. no dedicated `dev_substrate` Phase `3.C.1` orchestration script that binds O1 pin checks, progress reporting, policy-ref output selection, and strict closure evidence in one lane.
+
+Resulting risk:
+- execution is possible but operator flow remains fragmented and easier to run out of order.
+
+### Options considered
+1. Keep only existing generic targets and provide command snippets.
+- Rejected: does not harden O1 sequencing or produce coherent phase-scoped evidence.
+2. Implement only a shell wrapper around existing targets.
+- Rejected: weak validation/reporting and brittle progress semantics.
+3. Implement a dedicated Python runner + explicit Make targets for `preflight -> sync -> stream-sort -> validate`.
+- Selected: strongest fail-closed posture while preserving existing Oracle service codepaths.
+
+### Decisions locked before code
+1. Create `scripts/dev_substrate/phase3c1_oracle_authority_lock.py` with explicit subcommands:
+- `preflight`, `sync`, `stream-sort`, `validate`, `run`.
+2. `sync` must show terminal-visible progress while uploading:
+- stream `aws s3 sync` output live,
+- emit periodic destination-prefix progress snapshots (`files/bytes`) against scanned source totals.
+3. `stream-sort` output selection must be profile-policy driven:
+- always include `traffic_output_ids_ref`,
+- include context outputs by explicit mode (`fraud` default, with baseline/both override).
+4. `validate` must include:
+- strict Oracle checker gate (`strict_seal`),
+- stream-view artifact presence checks per required output (`_stream_view_manifest.json`, `_stream_sort_receipt.json`, `part-*.parquet`),
+- fail-closed final decision.
+5. Add `Makefile` targets under the existing phase-3 dev_min family for each step and sequential run.
+
+### Planned file touchpoints
+1. `scripts/dev_substrate/phase3c1_oracle_authority_lock.py` (new).
+2. `Makefile` (new phase `3.C.1` targets and tunables).
+3. `docs/logbook/02-2026/2026-02-11.md` (decision/action logging).
+4. This implementation map file (pre + post entries).
+
+### Invariants to preserve
+1. Engine remains Oracle truth owner; platform remains consumer.
+2. No local fallback accepted in `dev_min` path.
+3. No secret material written to logs/evidence docs.
+4. O1 integrated acceptance remains blocked until validation PASS.
+
+### Validation plan
+1. Syntax/compile checks for new script.
+2. Dry execution checks of CLI surfaces (`--help` and preflight).
+3. Confirm Make targets resolve and invoke the correct subcommands.
+
+## Entry: 2026-02-11 12:13PM - Applied Oracle 3.C.1 operator framework (sync + stream-sort + strict validate)
+
+### What was implemented
+1. Added a new phase-scoped runner:
+- `scripts/dev_substrate/phase3c1_oracle_authority_lock.py`
+- Subcommands:
+  - `preflight` (pin and policy-ref checks),
+  - `sync` (AWS sync with live terminal output + periodic destination progress snapshots),
+  - `stream-sort` (policy-ref-driven traffic/context output sorting),
+  - `validate` (strict Oracle checker + stream-view artifact presence checks),
+  - `run` (sequential `preflight -> sync -> stream-sort -> validate`).
+2. Added Makefile execution surfaces:
+- `platform-dev-min-phase3c1-preflight`
+- `platform-dev-min-phase3c1-sync`
+- `platform-dev-min-phase3c1-stream-sort`
+- `platform-dev-min-phase3c1-validate`
+- `platform-dev-min-phase3c1-run`
+3. Added phase tunables in Make defaults:
+- `DEV_MIN_PHASE3C1_OUTPUT_ROOT`
+- `DEV_MIN_PHASE3C1_CONTEXT_MODE`
+- `DEV_MIN_PHASE3C1_PROGRESS_SECONDS`
+- `DEV_MIN_PHASE3C1_SYNC_EXTRA_ARGS`
+- `DEV_MIN_PHASE3C1_SKIP_AWS_HEAD`
+
+### Decision notes during implementation
+1. Kept Oracle migration as operator-led, fail-closed sequence rather than implicit side effects in existing generic targets.
+2. Reused existing Oracle service code paths (`oracle_store.cli`, `oracle_store.stream_sort_cli`) rather than introducing new business logic branches.
+3. Required output-id selection remains pinned to profile refs (`traffic_output_ids_ref` + context mode), not ad-hoc manual lists.
+4. Validation includes both strict seal checker and stream-view artifact presence assertions to enforce O1.C/O1.D closure signals.
+
+### Validation executed
+1. `python -m py_compile scripts/dev_substrate/phase3c1_oracle_authority_lock.py` (`PASS`).
+2. `python scripts/dev_substrate/phase3c1_oracle_authority_lock.py --help` (`PASS`).
+3. Dry preflight execution with explicit pins and `--skip-aws-head`:
+- `python scripts/dev_substrate/phase3c1_oracle_authority_lock.py preflight ... --skip-aws-head` (`PASS`, evidence emitted).
+4. Make target resolution checks:
+- `make -n platform-dev-min-phase3c1-{preflight,sync,stream-sort,validate,run}` (`PASS` render).
+5. Make preflight execution check:
+- `make platform-dev-min-phase3c1-preflight DEV_MIN_PHASE3C1_SKIP_AWS_HEAD=1` (`PASS`, evidence emitted).
+
+### Result
+Phase `3.C.1` now has a concrete operator framework for managed landing sync with terminal progress, policy-ref stream-sort, and strict validation sequencing. Execution closure remains pending actual user-run sync/sort/validate against live managed S3 roots.
+
+### Cost posture
+Implementation + dry checks only; no paid sync/sort execution performed in this pass.

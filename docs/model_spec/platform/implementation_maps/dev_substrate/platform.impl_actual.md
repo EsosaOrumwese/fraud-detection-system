@@ -1621,6 +1621,99 @@ This prevents two drift classes:
 ### Cost posture
 - Docs-only pass; no paid services touched.
 
+## Entry: 2026-02-11 12:25PM - Pre-change lock: append Flow Step 1 bootstrap prose to migration narrative
+
+### Trigger
+USER asked to append the drafted prose section that defines the first migration flow step (trust/control bootstrap before service swaps).
+
+### Decision
+Append this as the first substantive section in:
+`docs/model_spec/platform/implementation_maps/dev_substrate/dev_min_migration_narrative.md`.
+
+### Section intent
+1. Anchor migration start from fully green local-parity baseline.
+2. Make trust/control bootstrap explicit as first flow move.
+3. Enforce meta-layer-first posture (Run/Operate + Obs/Gov) before plane-by-plane swap.
+
+### Cost posture
+- Docs-only pass; no paid services touched.
+
+## Entry: 2026-02-11 12:27PM - Applied Section 1 prose in incremental migration narrative
+
+### Applied change
+Appended first substantive section to:
+`docs/model_spec/platform/implementation_maps/dev_substrate/dev_min_migration_narrative.md`
+
+### Section appended
+`Section 1: Bootstrap Before Swap (Flow Step 1)` now establishes:
+1. local-parity green baseline as migration start state,
+2. trust/control bootstrap as first migration gate,
+3. mandatory early onboarding of Run/Operate and Obs/Gov,
+4. incremental plane migration only after bootstrap gate is green.
+
+### Rationale
+This codifies the agreed sequencing posture in prose so later component-level plans remain anchored to the same flow law and do not drift into ad hoc service swapping.
+
+### Drift sentinel check
+No drift introduced. The new section reinforces pinned intent: meta-layer-first governance and controlled incremental migration.
+
+### Cost posture
+- Docs-only pass; no paid services touched.
+
+## Entry: 2026-02-11 12:16PM - Applied fresh incremental migration narrative scaffold
+
+### Trigger
+USER requested a fresh, empty narrative document so migration discussion can proceed incrementally by appended sections.
+
+### Applied changes
+1. Created `docs/model_spec/platform/implementation_maps/dev_substrate/dev_min_migration_narrative.md`.
+2. Indexed the new document in `docs/model_spec/platform/implementation_maps/dev_substrate/README.md`.
+
+### Content posture
+The document intentionally starts as a minimal scaffold and explicitly states that sections will be appended in discussion order from local-parity baseline into `dev_min`.
+
+### Drift sentinel check
+No design drift introduced; this is documentation scaffolding only to enforce incremental planning posture.
+
+### Cost posture
+- Docs-only pass; no paid services touched.
+
+## Entry: 2026-02-11 12:14PM - Applied creation of incremental migration narrative doc
+
+### Applied edits
+1. Added new narrative doc:
+   - `docs/model_spec/platform/implementation_maps/dev_substrate/dev_min_migration_narrative.md`
+2. Updated dev_substrate index:
+   - `docs/model_spec/platform/implementation_maps/dev_substrate/README.md`
+
+### Outcome
+There is now a dedicated, minimal narrative artifact ready for progressive section append as discussion proceeds, without forcing a top-down completed-platform narrative.
+
+### Cost posture
+- Docs-only pass; no paid services touched.
+
+## Entry: 2026-02-11 12:13PM - Pre-change lock: create incremental migration prose narrative document
+
+### Trigger
+USER requested a reset to incremental migration planning and asked for a fresh narrative doc that can be appended section-by-section during discussion.
+
+### Decision
+Create a dedicated dev_substrate narrative document with minimal starting content (no big upfront architecture dump), then progressively elaborate it as decisions are discussed.
+
+### File plan
+1. Add:
+   - `docs/model_spec/platform/implementation_maps/dev_substrate/dev_min_migration_narrative.md`
+2. Update index:
+   - `docs/model_spec/platform/implementation_maps/dev_substrate/README.md`
+
+### Authoring posture for this doc
+1. Incremental-first narrative only.
+2. Start from local-parity implemented baseline, then move gate-by-gate.
+3. No future-plane deep-detail unless the active gate requires it.
+
+### Cost posture
+- Docs-only pass; no paid services touched.
+
 ## Entry: 2026-02-11 11:00AM - Pre-change lock: operator env pinning for Oracle 3.C.1 kickoff
 
 ### Trigger
