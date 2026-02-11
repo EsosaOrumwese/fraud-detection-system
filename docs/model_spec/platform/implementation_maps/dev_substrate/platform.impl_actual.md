@@ -1621,6 +1621,36 @@ This prevents two drift classes:
 ### Cost posture
 - Docs-only pass; no paid services touched.
 
+## Entry: 2026-02-11 11:00AM - Pre-change lock: operator env pinning for Oracle 3.C.1 kickoff
+
+### Trigger
+USER asked that missing Oracle env values be set directly rather than left as suggestions.
+
+### Decision
+Apply explicit `.env.dev_min` pin values required to start Oracle `3.C.1`:
+1. managed object-store bucket name,
+2. Oracle root and engine-run root under settlement prefix,
+3. scenario id pin,
+4. stream-view root pin,
+5. local sync source pin.
+
+### Cost posture
+- Local env-file edit only; no paid services touched.
+
+## Entry: 2026-02-11 11:08AM - Execution lock for Oracle 3.C.1 retry (network restored)
+
+### Trigger
+USER requested retry after network recovery.
+
+### Planned execution
+1. AWS identity + bucket reachability checks.
+2. Oracle landing sync into pinned `DEV_MIN_ORACLE_ENGINE_RUN_ROOT`.
+3. Stream-sort closure and strict Oracle validation.
+
+### Cost posture declaration (pre-action)
+- Paid surfaces touched: AWS S3 API + storage.
+- Post-action cost decision (`KEEP ON` / `TURN OFF NOW`) will be logged.
+
 ## Entry: 2026-02-11 10:51AM - Pre-change lock: enforce stream-sort contract in platform expectation for Oracle 3.C.1
 
 ### Trigger

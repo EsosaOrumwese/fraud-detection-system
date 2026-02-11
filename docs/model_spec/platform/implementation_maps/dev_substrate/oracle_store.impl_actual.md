@@ -110,6 +110,50 @@ Update Oracle and platform build plans so `3.C.1` explicitly requires stream-sor
 ### Cost posture
 Docs-only pass; no paid services touched.
 
+## Entry: 2026-02-11 11:00AM - Pre-change lock: set dev_min Oracle pins in operator env
+
+### Trigger
+USER requested that missing Oracle env pins be set directly and asked for recommended values.
+
+### Decision
+Set deterministic `dev_min` Oracle env values in `.env.dev_min` using:
+1. managed object-store bucket naming aligned to current `dev_min` prefix convention,
+2. a known local engine run source path for sync/backfill,
+3. explicit run root + stream-view root + scenario pin for O1 execution.
+
+### Planned values
+1. `DEV_MIN_OBJECT_STORE_BUCKET=fraud-platform-dev-min-object-store`
+2. `DEV_MIN_ORACLE_ROOT=s3://fraud-platform-dev-min-object-store/dev_min/oracle`
+3. `DEV_MIN_ORACLE_ENGINE_RUN_ROOT=s3://fraud-platform-dev-min-object-store/dev_min/oracle/c25a2675fbfbacd952b13bb594880e92`
+4. `DEV_MIN_ORACLE_SCENARIO_ID=baseline_v1`
+5. `DEV_MIN_ORACLE_STREAM_VIEW_ROOT=s3://fraud-platform-dev-min-object-store/dev_min/oracle/c25a2675fbfbacd952b13bb594880e92/stream_view/ts_utc`
+6. `DEV_MIN_ORACLE_SYNC_SOURCE=runs/local_full_run-5/c25a2675fbfbacd952b13bb594880e92`
+
+### Validation check before edit
+Confirmed local sync source path exists.
+
+### Cost posture
+Local config edit only; no paid resource actions in this step.
+
+## Entry: 2026-02-11 11:08AM - Execution lock: retry Oracle O1 run now that network is restored
+
+### Trigger
+USER requested retry after network recovery.
+
+### Execution sequence (O1)
+1. Verify AWS connectivity and principal (`sts get-caller-identity`).
+2. Verify destination Oracle bucket reachability.
+3. Execute landing sync (`source_root` -> `oracle_engine_run_root`).
+4. Execute stream-sort closure for required output refs.
+5. Run strict Oracle check against pinned root/scope.
+
+### Cost posture declaration (pre-action)
+This run touches paid AWS S3 surfaces:
+1. list/head/copy/put during sync and sort.
+2. object storage growth at destination Oracle root.
+
+Post-run decision will be explicitly logged as `KEEP ON` or `TURN OFF NOW`.
+
 ## Entry: 2026-02-11 10:54AM - Corrective precision note: output-id source refs pinned for stream-sort selection
 
 ### Correction
