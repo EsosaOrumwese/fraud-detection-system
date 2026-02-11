@@ -429,7 +429,10 @@ def cmd_sync(args: argparse.Namespace) -> int:
     return 0 if decision == "PASS" else 2
 
 
-def _run_command(command: list[str], *, prefix: str = "") -> int:
+def _run_command(command: list[str], *, prefix: str = "", passthrough: bool = False) -> int:
+    if passthrough:
+        completed = subprocess.run(command, check=False)
+        return int(completed.returncode)
     process = subprocess.Popen(command, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, bufsize=1)
     out_thread = threading.Thread(target=_pump_stream, args=(process.stdout, prefix), daemon=True)
     err_thread = threading.Thread(target=_pump_stream, args=(process.stderr, f"{prefix}ERR: "), daemon=True)
@@ -494,7 +497,8 @@ def cmd_stream_sort(args: argparse.Namespace) -> int:
             "--output-ids-ref",
             ref.as_posix(),
         ]
-        code = _run_command(command, prefix="[stream-sort] ")
+        _print_progress("stream-sort running with passthrough terminal output (duckdb progress enabled if configured)")
+        code = _run_command(command, passthrough=True)
         all_ok &= _check(code == 0, f"stream_sort_{ref.as_posix()}", f"exit={code}", checks)
         if code != 0:
             break
@@ -506,6 +510,354 @@ def cmd_stream_sort(args: argparse.Namespace) -> int:
         decision=decision,
         output_root=Path(args.output_root),
         artifact_prefix="phase3c1_oracle_stream_sort",
+        details=details,
+    )
+    return 0 if decision == "PASS" else 2
+
+
+def _sanitize_job_name_fragment(value: str) -> str:
+    cleaned = "".join(ch.lower() if ch.isalnum() else "-" for ch in value)
+    while "--" in cleaned:
+        cleaned = cleaned.replace("--", "-")
+    return cleaned.strip("-")[:64] or "output"
+
+
+def _resolve_float_arg(value: float | None, env_name: str, default: float) -> float:
+    if value is not None:
+        return float(value)
+    raw = os.getenv(env_name, "").strip()
+    if not raw:
+        return float(default)
+    return float(raw)
+
+
+def _resolve_int_arg(value: int | None, env_name: str, default: int) -> int:
+    if value is not None:
+        return int(value)
+    raw = os.getenv(env_name, "").strip()
+    if not raw:
+        return int(default)
+    return int(raw)
+
+
+def _batch_tail_logs(
+    logs_client,
+    *,
+    log_group: str,
+    log_stream: str,
+    token: str | None,
+    prefix: str,
+) -> str | None:
+    kwargs: dict[str, Any] = {
+        "logGroupName": log_group,
+        "logStreamName": log_stream,
+        "startFromHead": True,
+    }
+    if token:
+        kwargs["nextToken"] = token
+    response = logs_client.get_log_events(**kwargs)
+    for event in response.get("events", []):
+        message = str(event.get("message", "")).rstrip()
+        if message:
+            print(f"{prefix}{message}", flush=True)
+    next_token = response.get("nextForwardToken")
+    if next_token == token:
+        return token
+    return next_token
+
+
+def _wait_for_batch_job(
+    *,
+    batch_client,
+    logs_client,
+    job_id: str,
+    job_name: str,
+    log_group: str,
+    stream_logs: bool,
+    poll_seconds: float,
+    timeout_seconds: int,
+) -> tuple[bool, dict[str, Any]]:
+    start_monotonic = time.monotonic()
+    seen_status: str | None = None
+    log_token: str | None = None
+    log_stream: str | None = None
+
+    while True:
+        response = batch_client.describe_jobs(jobs=[job_id])
+        jobs = response.get("jobs", [])
+        if not jobs:
+            return False, {"job_id": job_id, "status": "MISSING", "reason": "describe_jobs_empty"}
+        job = jobs[0]
+        status = str(job.get("status", "UNKNOWN"))
+        if status != seen_status:
+            _print_progress(f"batch job {job_name} status={status}")
+            seen_status = status
+
+        container = job.get("container") or {}
+        if not log_stream:
+            stream = container.get("logStreamName")
+            if stream:
+                log_stream = str(stream)
+        if stream_logs and log_stream:
+            try:
+                log_token = _batch_tail_logs(
+                    logs_client,
+                    log_group=log_group,
+                    log_stream=log_stream,
+                    token=log_token,
+                    prefix=f"[batch:{job_name}] ",
+                )
+            except Exception as exc:
+                _print_progress(f"batch log tail warning job={job_name}: {exc}")
+
+        if status in {"SUCCEEDED", "FAILED"}:
+            reason = str(job.get("statusReason") or container.get("reason") or "")
+            exit_code = container.get("exitCode")
+            return (
+                status == "SUCCEEDED",
+                {
+                    "job_id": job_id,
+                    "job_name": job_name,
+                    "status": status,
+                    "status_reason": reason,
+                    "exit_code": exit_code,
+                    "log_stream": log_stream,
+                },
+            )
+
+        if timeout_seconds > 0 and (time.monotonic() - start_monotonic) > float(timeout_seconds):
+            return False, {
+                "job_id": job_id,
+                "job_name": job_name,
+                "status": status,
+                "status_reason": f"timeout_after_seconds={timeout_seconds}",
+                "log_stream": log_stream,
+            }
+
+        time.sleep(max(2.0, poll_seconds))
+
+
+def cmd_stream_sort_managed(args: argparse.Namespace) -> int:
+    started = _now_utc()
+    checks: list[dict[str, str]] = []
+    details: dict[str, Any] = {}
+    all_ok = True
+
+    try:
+        profile = _load_yaml(Path(args.profile))
+        engine_run_root = _resolve_pin(args.engine_run_root, "DEV_MIN_ORACLE_ENGINE_RUN_ROOT")
+        scenario_id = _resolve_pin(args.scenario_id, "DEV_MIN_ORACLE_SCENARIO_ID")
+        stream_view_root = _resolve_pin(args.stream_view_root, "DEV_MIN_ORACLE_STREAM_VIEW_ROOT")
+        aws_region = _resolve_pin(args.aws_region, "DEV_MIN_AWS_REGION")
+        batch_job_queue = _resolve_pin(args.batch_job_queue, "DEV_MIN_PHASE3C1_BATCH_JOB_QUEUE")
+        batch_job_definition = _resolve_pin(
+            args.batch_job_definition, "DEV_MIN_PHASE3C1_BATCH_JOB_DEFINITION"
+        )
+        batch_job_name_prefix = (
+            _resolve_pin(
+                args.batch_job_name_prefix,
+                "DEV_MIN_PHASE3C1_BATCH_JOB_NAME_PREFIX",
+                required=False,
+            )
+            or "fraud-platform-dev-min-oracle-sort"
+        )
+        batch_log_group = (
+            _resolve_pin(args.batch_log_group, "DEV_MIN_PHASE3C1_BATCH_LOG_GROUP", required=False)
+            or "/aws/batch/job"
+        )
+        poll_seconds = _resolve_float_arg(
+            args.batch_poll_seconds, "DEV_MIN_PHASE3C1_BATCH_POLL_SECONDS", 15.0
+        )
+        timeout_seconds = _resolve_int_arg(
+            args.batch_timeout_seconds, "DEV_MIN_PHASE3C1_BATCH_TIMEOUT_SECONDS", 21600
+        )
+        refs = _required_refs(profile, args.context_mode)
+    except Exception as exc:
+        checks.append({"name": "inputs", "status": "FAIL", "detail": str(exc)})
+        _write_report(
+            started_at=started,
+            checks=checks,
+            decision="FAIL_CLOSED",
+            output_root=Path(args.output_root),
+            artifact_prefix="phase3c1_oracle_stream_sort_managed",
+        )
+        return 2
+
+    if poll_seconds <= 0:
+        poll_seconds = 15.0
+    if timeout_seconds < 0:
+        timeout_seconds = 21600
+
+    details["refs"] = [ref.as_posix() for ref in refs]
+    details["engine_run_root"] = engine_run_root
+    details["scenario_id"] = scenario_id
+    details["stream_view_root"] = stream_view_root
+    details["aws_region"] = aws_region
+    details["batch_job_queue"] = batch_job_queue
+    details["batch_job_definition"] = batch_job_definition
+    details["batch_job_name_prefix"] = batch_job_name_prefix
+    details["batch_log_group"] = batch_log_group
+    details["batch_poll_seconds"] = poll_seconds
+    details["batch_timeout_seconds"] = timeout_seconds
+    details["wait_for_jobs"] = not args.no_wait
+    details["stream_logs"] = not args.no_log_tail
+
+    output_ids: list[str] = []
+    for ref in refs:
+        if not ref.exists():
+            all_ok &= _check(False, f"ref_exists_{ref.as_posix()}", "missing", checks)
+            continue
+        ids = _load_output_ids(ref)
+        all_ok &= _check(bool(ids), f"ref_non_empty_{ref.as_posix()}", f"count={len(ids)}", checks)
+        output_ids.extend(ids)
+    output_ids = sorted(set(output_ids))
+    details["required_output_ids"] = output_ids
+    all_ok &= _check(bool(output_ids), "required_output_ids_non_empty", f"count={len(output_ids)}", checks)
+    if not all_ok:
+        _write_report(
+            started_at=started,
+            checks=checks,
+            decision="FAIL_CLOSED",
+            output_root=Path(args.output_root),
+            artifact_prefix="phase3c1_oracle_stream_sort_managed",
+            details=details,
+        )
+        return 2
+
+    batch_client = boto3.client("batch", region_name=aws_region)
+    logs_client = boto3.client("logs", region_name=aws_region)
+
+    try:
+        queue_probe = batch_client.describe_job_queues(jobQueues=[batch_job_queue])
+        queue_present = bool(queue_probe.get("jobQueues"))
+        all_ok &= _check(queue_present, "batch_job_queue_exists", batch_job_queue, checks)
+    except Exception as exc:
+        all_ok &= _check(False, "batch_job_queue_exists", str(exc), checks)
+    try:
+        definition_probe = batch_client.describe_job_definitions(
+            jobDefinitions=[batch_job_definition]
+        )
+        definition_present = bool(definition_probe.get("jobDefinitions"))
+        all_ok &= _check(definition_present, "batch_job_definition_exists", batch_job_definition, checks)
+    except Exception as exc:
+        all_ok &= _check(False, "batch_job_definition_exists", str(exc), checks)
+    if not all_ok:
+        _write_report(
+            started_at=started,
+            checks=checks,
+            decision="FAIL_CLOSED",
+            output_root=Path(args.output_root),
+            artifact_prefix="phase3c1_oracle_stream_sort_managed",
+            details=details,
+        )
+        return 2
+
+    passthrough_env = [
+        "STREAM_SORT_PROGRESS_SECONDS",
+        "STREAM_SORT_THREADS",
+        "STREAM_SORT_MEMORY_LIMIT",
+        "STREAM_SORT_TEMP_DIR",
+        "STREAM_SORT_MAX_TEMP_SIZE",
+        "STREAM_SORT_PRESERVE_ORDER",
+        "STREAM_SORT_CHUNK_DAYS",
+        "STREAM_SORT_STATS_RETRIES",
+        "STREAM_SORT_STATS_RETRY_DELAY",
+    ]
+    env_overrides: list[dict[str, str]] = [{"name": "PYTHONUNBUFFERED", "value": "1"}]
+    for key in passthrough_env:
+        value = os.getenv(key, "").strip()
+        if value:
+            env_overrides.append({"name": key, "value": value})
+
+    submitted_jobs: list[dict[str, Any]] = []
+    ts_stamp = datetime.now(timezone.utc).strftime("%Y%m%dt%H%M%Sz")
+    for output_id in output_ids:
+        fragment = _sanitize_job_name_fragment(output_id)
+        job_name = _sanitize_job_name_fragment(f"{batch_job_name_prefix}-{fragment}-{ts_stamp}")
+        command = [
+            args.container_python,
+            "-m",
+            "fraud_detection.oracle_store.stream_sort_cli",
+            "--profile",
+            args.container_profile_path,
+            "--engine-run-root",
+            engine_run_root,
+            "--scenario-id",
+            scenario_id,
+            "--stream-view-root",
+            stream_view_root,
+            "--output-id",
+            output_id,
+        ]
+        container_overrides: dict[str, Any] = {"command": command, "environment": env_overrides}
+        resource_requirements: list[dict[str, str]] = []
+        if args.batch_vcpu and int(args.batch_vcpu) > 0:
+            resource_requirements.append({"type": "VCPU", "value": str(int(args.batch_vcpu))})
+        if args.batch_memory_mib and int(args.batch_memory_mib) > 0:
+            resource_requirements.append({"type": "MEMORY", "value": str(int(args.batch_memory_mib))})
+        if resource_requirements:
+            container_overrides["resourceRequirements"] = resource_requirements
+
+        _print_progress(
+            f"batch submit output_id={output_id} queue={batch_job_queue} definition={batch_job_definition}"
+        )
+        try:
+            response = batch_client.submit_job(
+                jobName=job_name,
+                jobQueue=batch_job_queue,
+                jobDefinition=batch_job_definition,
+                containerOverrides=container_overrides,
+            )
+        except Exception as exc:
+            all_ok &= _check(False, f"batch_submit_{output_id}", str(exc), checks)
+            break
+        job_id = str(response.get("jobId", ""))
+        all_ok &= _check(bool(job_id), f"batch_submit_{output_id}", f"job_id={job_id}", checks)
+        submitted_jobs.append({"output_id": output_id, "job_id": job_id, "job_name": job_name})
+
+    details["submitted_jobs"] = submitted_jobs
+    if not all_ok:
+        _write_report(
+            started_at=started,
+            checks=checks,
+            decision="FAIL_CLOSED",
+            output_root=Path(args.output_root),
+            artifact_prefix="phase3c1_oracle_stream_sort_managed",
+            details=details,
+        )
+        return 2
+
+    if not args.no_wait:
+        completed: list[dict[str, Any]] = []
+        for job in submitted_jobs:
+            ok, result = _wait_for_batch_job(
+                batch_client=batch_client,
+                logs_client=logs_client,
+                job_id=str(job["job_id"]),
+                job_name=str(job["job_name"]),
+                log_group=batch_log_group,
+                stream_logs=not args.no_log_tail,
+                poll_seconds=poll_seconds,
+                timeout_seconds=timeout_seconds,
+            )
+            completed.append(result)
+            status = str(result.get("status", "UNKNOWN"))
+            detail = f"job_id={result.get('job_id')} status={status}"
+            reason = str(result.get("status_reason", "")).strip()
+            if reason:
+                detail += f" reason={reason}"
+            all_ok &= _check(ok, f"batch_complete_{job['output_id']}", detail, checks)
+            if not ok:
+                break
+        details["completed_jobs"] = completed
+
+    decision = "PASS" if all_ok else "FAIL_CLOSED"
+    _write_report(
+        started_at=started,
+        checks=checks,
+        decision=decision,
+        output_root=Path(args.output_root),
+        artifact_prefix="phase3c1_oracle_stream_sort_managed",
         details=details,
     )
     return 0 if decision == "PASS" else 2
@@ -715,6 +1067,69 @@ def main() -> int:
     sort_parser = subparsers.add_parser("stream-sort", help="Run stream sort for required output-id refs")
     _add_common_args(sort_parser)
     sort_parser.set_defaults(handler=cmd_stream_sort)
+
+    managed_sort_parser = subparsers.add_parser(
+        "stream-sort-managed",
+        help="Submit stream sort jobs to AWS Batch (managed compute lane)",
+    )
+    _add_common_args(managed_sort_parser)
+    managed_sort_parser.add_argument(
+        "--batch-job-queue",
+        help="AWS Batch job queue (default DEV_MIN_PHASE3C1_BATCH_JOB_QUEUE)",
+    )
+    managed_sort_parser.add_argument(
+        "--batch-job-definition",
+        help="AWS Batch job definition (default DEV_MIN_PHASE3C1_BATCH_JOB_DEFINITION)",
+    )
+    managed_sort_parser.add_argument(
+        "--batch-job-name-prefix",
+        help="Batch job name prefix (default DEV_MIN_PHASE3C1_BATCH_JOB_NAME_PREFIX)",
+    )
+    managed_sort_parser.add_argument(
+        "--batch-log-group",
+        help="CloudWatch Logs group for batch jobs (default DEV_MIN_PHASE3C1_BATCH_LOG_GROUP or /aws/batch/job)",
+    )
+    managed_sort_parser.add_argument(
+        "--batch-poll-seconds",
+        type=float,
+        help="Batch status/log polling interval seconds (default DEV_MIN_PHASE3C1_BATCH_POLL_SECONDS or 15)",
+    )
+    managed_sort_parser.add_argument(
+        "--batch-timeout-seconds",
+        type=int,
+        help="Per-job timeout seconds while waiting (default DEV_MIN_PHASE3C1_BATCH_TIMEOUT_SECONDS or 21600)",
+    )
+    managed_sort_parser.add_argument(
+        "--container-python",
+        default="python",
+        help="Python executable inside container image",
+    )
+    managed_sort_parser.add_argument(
+        "--container-profile-path",
+        default="config/platform/profiles/dev_min.yaml",
+        help="Profile path inside container image filesystem",
+    )
+    managed_sort_parser.add_argument(
+        "--batch-vcpu",
+        type=int,
+        help="Optional Batch container VCPU override",
+    )
+    managed_sort_parser.add_argument(
+        "--batch-memory-mib",
+        type=int,
+        help="Optional Batch container MEMORY (MiB) override",
+    )
+    managed_sort_parser.add_argument(
+        "--no-wait",
+        action="store_true",
+        help="Submit jobs and return without waiting for completion",
+    )
+    managed_sort_parser.add_argument(
+        "--no-log-tail",
+        action="store_true",
+        help="Disable CloudWatch log tail while waiting",
+    )
+    managed_sort_parser.set_defaults(handler=cmd_stream_sort_managed)
 
     validate_parser = subparsers.add_parser("validate", help="Run strict Oracle + stream-view validation")
     _add_common_args(validate_parser)

@@ -65,6 +65,7 @@ Close Phase `3.C.1` with the correct ownership posture:
 
 **Implementation checklist:**
 - [ ] Pin required output-id sets from policy refs (traffic/context) before sort execution.
+- [ ] Provide managed-compute execution lane for sort (AWS Batch/Fargate Spot class) with terminal-visible job/log monitoring.
 - [ ] Build per-output sorted stream views at `.../stream_view/ts_utc/output_id=<output_id>/part-*.parquet`.
 - [ ] For outputs with `ts_utc`, enforce deterministic ordering by `ts_utc`, then `filename`, then `file_row_number`.
 - [ ] For outputs without `ts_utc`, use pinned explicit fallback sort keys from policy (no runtime guesswork).
@@ -72,6 +73,7 @@ Close Phase `3.C.1` with the correct ownership posture:
 - [ ] Fail closed on partial state (`STREAM_VIEW_PARTIAL_EXISTS`) until cleaned and rebuilt.
 
 **DoD:**
+- [ ] Managed sort lane submits, monitors, and fail-closes on job failures with evidence artifacts.
 - [ ] Required traffic/context output_ids are sorted and present under the destination root.
 - [ ] Per-output manifest/receipt exists and references pinned root + scenario scope.
 - [ ] Raw vs sorted parity checks are recorded (no duplicate/drop evidence).
@@ -138,7 +140,7 @@ Close Phase `3.C.1` with the correct ownership posture:
 ## Current status
 - O1.A: not started
 - O1.B: not started
-- O1.C: not started
+- O1.C: in progress (managed execution lane added; live managed job wiring pending active queue/definition handles)
 - O1.D: not started
 - O1.E: not started
 - O1.F: not started

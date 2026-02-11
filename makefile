@@ -255,6 +255,17 @@ DEV_MIN_PHASE3C1_CONTEXT_MODE ?= fraud
 DEV_MIN_PHASE3C1_PROGRESS_SECONDS ?= 15
 DEV_MIN_PHASE3C1_SYNC_EXTRA_ARGS ?=
 DEV_MIN_PHASE3C1_SKIP_AWS_HEAD ?=
+DEV_MIN_PHASE3C1_STREAM_SORT_PROGRESS_SECONDS ?= 2
+DEV_MIN_PHASE3C1_BATCH_JOB_QUEUE ?=
+DEV_MIN_PHASE3C1_BATCH_JOB_DEFINITION ?=
+DEV_MIN_PHASE3C1_BATCH_JOB_NAME_PREFIX ?= fraud-platform-dev-min-oracle-sort
+DEV_MIN_PHASE3C1_BATCH_LOG_GROUP ?= /aws/batch/job
+DEV_MIN_PHASE3C1_BATCH_POLL_SECONDS ?= 15
+DEV_MIN_PHASE3C1_BATCH_TIMEOUT_SECONDS ?= 21600
+DEV_MIN_PHASE3C1_BATCH_VCPU ?=
+DEV_MIN_PHASE3C1_BATCH_MEMORY_MIB ?=
+DEV_MIN_PHASE3C1_BATCH_NO_WAIT ?=
+DEV_MIN_PHASE3C1_BATCH_NO_LOG_TAIL ?=
 DEV_MIN_PHASE3C2_OUTPUT_ROOT ?= $(DEV_MIN_PHASE3_OUTPUT_ROOT)
 DEV_MIN_PHASE3C2_SETTLEMENT ?= config/platform/dev_substrate/phase3/scenario_runner_settlement_v0.yaml
 DEV_MIN_PHASE3C2_SR_WIRING ?= config/platform/sr/wiring_dev_min.yaml
@@ -3589,14 +3600,61 @@ platform-dev-min-phase3c1-stream-sort:
 	override_engine_root="$(DEV_MIN_ORACLE_ENGINE_RUN_ROOT)"; \
 	override_scenario="$(DEV_MIN_ORACLE_SCENARIO_ID)"; \
 	override_stream_root="$(DEV_MIN_ORACLE_STREAM_VIEW_ROOT)"; \
+	sort_progress="$${DEV_MIN_PHASE3C1_STREAM_SORT_PROGRESS_SECONDS:-$(DEV_MIN_PHASE3C1_STREAM_SORT_PROGRESS_SECONDS)}"; \
 	if [ -n "$$override_region" ]; then export DEV_MIN_AWS_REGION="$$override_region"; fi; \
 	if [ -n "$$override_engine_root" ]; then export DEV_MIN_ORACLE_ENGINE_RUN_ROOT="$$override_engine_root"; fi; \
 	if [ -n "$$override_scenario" ]; then export DEV_MIN_ORACLE_SCENARIO_ID="$$override_scenario"; fi; \
 	if [ -n "$$override_stream_root" ]; then export DEV_MIN_ORACLE_STREAM_VIEW_ROOT="$$override_stream_root"; fi; \
+	if [ -n "$$sort_progress" ]; then export STREAM_SORT_PROGRESS_SECONDS="$$sort_progress"; fi; \
 	$(PY_SCRIPT) scripts/dev_substrate/phase3c1_oracle_authority_lock.py stream-sort \
 		--profile config/platform/profiles/dev_min.yaml \
 		--output-root "$(DEV_MIN_PHASE3C1_OUTPUT_ROOT)" \
 		--context-mode "$(DEV_MIN_PHASE3C1_CONTEXT_MODE)"
+
+.PHONY: platform-dev-min-phase3c1-stream-sort-managed
+platform-dev-min-phase3c1-stream-sort-managed:
+	@env_file="$(DEV_MIN_ENV_FILE)"; \
+	if [ ! -f "$$env_file" ]; then \
+		echo "platform-dev-min-phase3c1-stream-sort-managed requires $$env_file (create local .env.dev_min with DEV_MIN_* pins)" >&2; \
+		exit 1; \
+	fi; \
+	set -a; . "$$env_file"; set +a; \
+	override_region="$(DEV_MIN_AWS_REGION)"; \
+	override_engine_root="$(DEV_MIN_ORACLE_ENGINE_RUN_ROOT)"; \
+	override_scenario="$(DEV_MIN_ORACLE_SCENARIO_ID)"; \
+	override_stream_root="$(DEV_MIN_ORACLE_STREAM_VIEW_ROOT)"; \
+	sort_progress="$${DEV_MIN_PHASE3C1_STREAM_SORT_PROGRESS_SECONDS:-$(DEV_MIN_PHASE3C1_STREAM_SORT_PROGRESS_SECONDS)}"; \
+	if [ -n "$$override_region" ]; then export DEV_MIN_AWS_REGION="$$override_region"; fi; \
+	if [ -n "$$override_engine_root" ]; then export DEV_MIN_ORACLE_ENGINE_RUN_ROOT="$$override_engine_root"; fi; \
+	if [ -n "$$override_scenario" ]; then export DEV_MIN_ORACLE_SCENARIO_ID="$$override_scenario"; fi; \
+	if [ -n "$$override_stream_root" ]; then export DEV_MIN_ORACLE_STREAM_VIEW_ROOT="$$override_stream_root"; fi; \
+	if [ -n "$$sort_progress" ]; then export STREAM_SORT_PROGRESS_SECONDS="$$sort_progress"; fi; \
+	args=(scripts/dev_substrate/phase3c1_oracle_authority_lock.py stream-sort-managed \
+		--profile config/platform/profiles/dev_min.yaml \
+		--output-root "$(DEV_MIN_PHASE3C1_OUTPUT_ROOT)" \
+		--context-mode "$(DEV_MIN_PHASE3C1_CONTEXT_MODE)"); \
+	queue="$${DEV_MIN_PHASE3C1_BATCH_JOB_QUEUE:-$(DEV_MIN_PHASE3C1_BATCH_JOB_QUEUE)}"; \
+	defn="$${DEV_MIN_PHASE3C1_BATCH_JOB_DEFINITION:-$(DEV_MIN_PHASE3C1_BATCH_JOB_DEFINITION)}"; \
+	name_prefix="$${DEV_MIN_PHASE3C1_BATCH_JOB_NAME_PREFIX:-$(DEV_MIN_PHASE3C1_BATCH_JOB_NAME_PREFIX)}"; \
+	log_group="$${DEV_MIN_PHASE3C1_BATCH_LOG_GROUP:-$(DEV_MIN_PHASE3C1_BATCH_LOG_GROUP)}"; \
+	poll_seconds="$${DEV_MIN_PHASE3C1_BATCH_POLL_SECONDS:-$(DEV_MIN_PHASE3C1_BATCH_POLL_SECONDS)}"; \
+	timeout_seconds="$${DEV_MIN_PHASE3C1_BATCH_TIMEOUT_SECONDS:-$(DEV_MIN_PHASE3C1_BATCH_TIMEOUT_SECONDS)}"; \
+	vcpu="$${DEV_MIN_PHASE3C1_BATCH_VCPU:-$(DEV_MIN_PHASE3C1_BATCH_VCPU)}"; \
+	memory="$${DEV_MIN_PHASE3C1_BATCH_MEMORY_MIB:-$(DEV_MIN_PHASE3C1_BATCH_MEMORY_MIB)}"; \
+	if [ -n "$$queue" ]; then args+=(--batch-job-queue "$$queue"); fi; \
+	if [ -n "$$defn" ]; then args+=(--batch-job-definition "$$defn"); fi; \
+	if [ -n "$$name_prefix" ]; then args+=(--batch-job-name-prefix "$$name_prefix"); fi; \
+	if [ -n "$$log_group" ]; then args+=(--batch-log-group "$$log_group"); fi; \
+	if [ -n "$$poll_seconds" ]; then args+=(--batch-poll-seconds "$$poll_seconds"); fi; \
+	if [ -n "$$timeout_seconds" ]; then args+=(--batch-timeout-seconds "$$timeout_seconds"); fi; \
+	if [ -n "$$vcpu" ]; then args+=(--batch-vcpu "$$vcpu"); fi; \
+	if [ -n "$$memory" ]; then args+=(--batch-memory-mib "$$memory"); fi; \
+	if [ -n "$${DEV_MIN_PHASE3C1_BATCH_NO_WAIT:-$(DEV_MIN_PHASE3C1_BATCH_NO_WAIT)}" ]; then args+=(--no-wait); fi; \
+	if [ -n "$${DEV_MIN_PHASE3C1_BATCH_NO_LOG_TAIL:-$(DEV_MIN_PHASE3C1_BATCH_NO_LOG_TAIL)}" ]; then args+=(--no-log-tail); fi; \
+	$(PY_SCRIPT) "$${args[@]}"
+
+.PHONY: platform-dev-min-phase3c1-stream-sort-managed-validate
+platform-dev-min-phase3c1-stream-sort-managed-validate: platform-dev-min-phase3c1-stream-sort-managed platform-dev-min-phase3c1-validate
 
 .PHONY: platform-dev-min-phase3c1-validate
 platform-dev-min-phase3c1-validate:
@@ -3633,12 +3691,14 @@ platform-dev-min-phase3c1-run:
 	override_scenario="$(DEV_MIN_ORACLE_SCENARIO_ID)"; \
 	override_stream_root="$(DEV_MIN_ORACLE_STREAM_VIEW_ROOT)"; \
 	override_oracle_root="$(DEV_MIN_ORACLE_ROOT)"; \
+	sort_progress="$${DEV_MIN_PHASE3C1_STREAM_SORT_PROGRESS_SECONDS:-$(DEV_MIN_PHASE3C1_STREAM_SORT_PROGRESS_SECONDS)}"; \
 	if [ -n "$$override_region" ]; then export DEV_MIN_AWS_REGION="$$override_region"; fi; \
 	if [ -n "$$override_source" ]; then export DEV_MIN_ORACLE_SYNC_SOURCE="$$override_source"; fi; \
 	if [ -n "$$override_engine_root" ]; then export DEV_MIN_ORACLE_ENGINE_RUN_ROOT="$$override_engine_root"; fi; \
 	if [ -n "$$override_scenario" ]; then export DEV_MIN_ORACLE_SCENARIO_ID="$$override_scenario"; fi; \
 	if [ -n "$$override_stream_root" ]; then export DEV_MIN_ORACLE_STREAM_VIEW_ROOT="$$override_stream_root"; fi; \
 	if [ -n "$$override_oracle_root" ]; then export DEV_MIN_ORACLE_ROOT="$$override_oracle_root"; fi; \
+	if [ -n "$$sort_progress" ]; then export STREAM_SORT_PROGRESS_SECONDS="$$sort_progress"; fi; \
 	args=(scripts/dev_substrate/phase3c1_oracle_authority_lock.py run \
 		--profile config/platform/profiles/dev_min.yaml \
 		--output-root "$(DEV_MIN_PHASE3C1_OUTPUT_ROOT)" \

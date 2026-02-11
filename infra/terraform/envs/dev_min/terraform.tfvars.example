@@ -21,6 +21,14 @@ enable_budget_alert     = false
 budget_alert_email      = ""
 monthly_budget_limit_usd = 40
 
+bucket_versioning_status_by_role = {
+  object_store = "Suspended"
+  evidence     = "Enabled"
+  quarantine   = "Suspended"
+  archive      = "Enabled"
+  tf_state     = "Enabled"
+}
+
 enable_core             = true
 enable_demo             = true
 demo_run_id             = "manual"

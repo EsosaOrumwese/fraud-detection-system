@@ -442,3 +442,163 @@ Code + local tests only in this step; no paid sync operations are initiated by t
 
 ### Cost posture
 One read-only managed-S3 probe was executed (list/head/get class operations only). No background transfer/sync remains active. `TURN OFF NOW` for this debugging step.
+
+## Entry: 2026-02-11 02:04PM - Pre-change lock: add managed AWS compute lane for Phase 3.C.1 stream-sort
+
+### Trigger
+USER direction: move stream-sort compute off local workstation to a cheap AWS runtime because local network-bound sort/upload loop is too slow for full Oracle world size.
+
+### Current posture and gap
+1. Existing `phase3c1` stream-sort command executes locally (`python -m ...stream_sort_cli`) even though data roots are managed S3.
+2. This preserves data authority in S3 but leaves compute on user laptop.
+3. No existing repo script currently submits/monitors managed sort compute jobs.
+
+### Design intent alignment
+- Preserve Oracle ownership and fail-closed acceptance gates.
+- Keep output contracts unchanged (`stream_view/ts_utc/output_id=...` + manifest/receipt).
+- Add managed compute as execution substrate only; no contract/schema drift.
+
+### Options considered
+1. Replace local sort target entirely with managed sort.
+- Rejected for now: removes fallback lane and increases operator risk while managed substrate handles are being staged.
+2. Add a parallel managed stream-sort lane (AWS Batch) with terminal monitoring and explicit preflight checks.
+- Selected: enables migration immediately while preserving existing local lane for contingency.
+3. Replatform sort logic to Glue/EMR now.
+- Rejected for current step: larger redesign and slower time-to-value.
+
+### Decisions locked before code
+1. Implement new `stream-sort-managed` subcommand in `scripts/dev_substrate/phase3c1_oracle_authority_lock.py`.
+2. Managed lane will:
+- resolve required output_ids from policy refs locally,
+- submit one AWS Batch job per output_id,
+- tail CloudWatch logs and job status in terminal,
+- emit phase evidence JSON and fail closed on any failed job.
+3. New env/pin handles for managed lane:
+- `DEV_MIN_PHASE3C1_BATCH_JOB_QUEUE` (required)
+- `DEV_MIN_PHASE3C1_BATCH_JOB_DEFINITION` (required)
+- optional tunables (name prefix, poll seconds, timeout, log group, wait toggle, vcpu/memory overrides).
+4. Keep existing local `stream-sort` target untouched; add parallel Make target(s) for managed path.
+
+### Planned file touchpoints
+1. `scripts/dev_substrate/phase3c1_oracle_authority_lock.py`
+2. `makefile`
+3. `docs/model_spec/platform/implementation_maps/dev_substrate/oracle_store.build_plan.md`
+4. `docs/model_spec/platform/implementation_maps/dev_substrate/oracle_store.impl_actual.md`
+5. `docs/logbook/02-2026/2026-02-11.md`
+
+### Validation plan
+1. `py_compile` for updated script.
+2. `--help` coverage for new subcommand.
+3. `make -n` render checks for new managed targets.
+4. Optional managed preflight/submit dry validation depending on available Batch handles.
+
+### Cost posture declaration
+Implementation + local validations only in this step; no managed job submission will be performed unless explicitly invoked.
+
+## Entry: 2026-02-11 02:07PM - Applied Phase 3.C.1 managed stream-sort execution lane (AWS Batch)
+
+### Changes applied
+1. Extended `scripts/dev_substrate/phase3c1_oracle_authority_lock.py` with managed sort command:
+- new subcommand: `stream-sort-managed`.
+- behavior:
+  - resolves required output_ids from policy refs,
+  - validates Batch queue/definition presence,
+  - submits one Batch job per output_id running `fraud_detection.oracle_store.stream_sort_cli` in container,
+  - optional VCPU/MEM overrides,
+  - optional CloudWatch log tail and status polling,
+  - fail-closed evidence artifact: `phase3c1_oracle_stream_sort_managed_*.json`.
+2. Added Batch execution tunables in `makefile`:
+- `DEV_MIN_PHASE3C1_BATCH_JOB_QUEUE`
+- `DEV_MIN_PHASE3C1_BATCH_JOB_DEFINITION`
+- `DEV_MIN_PHASE3C1_BATCH_JOB_NAME_PREFIX`
+- `DEV_MIN_PHASE3C1_BATCH_LOG_GROUP`
+- `DEV_MIN_PHASE3C1_BATCH_POLL_SECONDS`
+- `DEV_MIN_PHASE3C1_BATCH_TIMEOUT_SECONDS`
+- `DEV_MIN_PHASE3C1_BATCH_VCPU`
+- `DEV_MIN_PHASE3C1_BATCH_MEMORY_MIB`
+- `DEV_MIN_PHASE3C1_BATCH_NO_WAIT`
+- `DEV_MIN_PHASE3C1_BATCH_NO_LOG_TAIL`
+3. Added Make targets:
+- `platform-dev-min-phase3c1-stream-sort-managed`
+- `platform-dev-min-phase3c1-stream-sort-managed-validate`.
+4. Updated build plan:
+- `docs/model_spec/platform/implementation_maps/dev_substrate/oracle_store.build_plan.md`
+  - O1.C now includes managed sort lane requirement and DoD.
+  - O1.C status moved to `in progress` (managed lane coded; live handles pending).
+
+### Validation executed
+1. `python -m py_compile scripts/dev_substrate/phase3c1_oracle_authority_lock.py` (`PASS`).
+2. CLI help checks:
+- `python scripts/dev_substrate/phase3c1_oracle_authority_lock.py --help` (`PASS`)
+- `python scripts/dev_substrate/phase3c1_oracle_authority_lock.py stream-sort-managed --help` (`PASS`).
+3. Make render check:
+- `make -n platform-dev-min-phase3c1-stream-sort-managed platform-dev-min-phase3c1-stream-sort-managed-validate` (`PASS` render).
+4. Fail-closed dry execution check with dummy handles:
+- `make platform-dev-min-phase3c1-stream-sort-managed DEV_MIN_PHASE3C1_BATCH_JOB_QUEUE=dummy DEV_MIN_PHASE3C1_BATCH_JOB_DEFINITION=dummy DEV_MIN_PHASE3C1_BATCH_NO_WAIT=1`
+- expected outcome observed: queue/definition checks `FAIL`, decision `FAIL_CLOSED`.
+
+### Drift assessment
+1. Ownership boundaries preserved:
+- Oracle artifact semantics unchanged; only compute substrate for sort execution expanded.
+2. Fail-closed law preserved:
+- missing/miswired Batch handles block execution with explicit failure evidence.
+3. Contract posture unchanged:
+- output layout + manifest/receipt expectations remain identical.
+
+### Cost posture
+Validation touched control-plane AWS Batch describe calls only; no managed sort job was submitted with active handles in this pass. `TURN OFF NOW` for this implementation step.
+
+## Entry: 2026-02-11 02:35PM - Pre-change lock: restore local stream-sort operator clarity with visible DuckDB progress
+
+### Trigger
+USER decided to continue with local sort lane for Oracle (`3.C.1`) and reported inability to monitor progress in terminal (`no DuckDB progress bar`).
+
+### Problem framing
+Current `cmd_stream_sort` runs child process output through `_run_command` with line-based stream pumps and prefix tagging.
+- DuckDB progress rendering often uses carriage-return updates rather than newline lines.
+- line-buffered `readline()` pumping can hide/reduce these updates.
+
+### Decision
+1. Preserve local lane as primary operator path for now.
+2. Change local stream-sort execution to terminal passthrough mode (no output piping) so DuckDB native progress can render.
+3. Add explicit Make toggle for sort progress interval that maps to `STREAM_SORT_PROGRESS_SECONDS`.
+4. Keep fail-closed reporting/evidence unchanged.
+
+### Planned file touchpoints
+1. `scripts/dev_substrate/phase3c1_oracle_authority_lock.py`
+2. `makefile`
+3. `docs/model_spec/platform/implementation_maps/dev_substrate/oracle_store.impl_actual.md`
+4. `docs/logbook/02-2026/2026-02-11.md`
+
+### Validation plan
+1. `py_compile` for script.
+2. `make -n platform-dev-min-phase3c1-stream-sort` to confirm env mapping.
+3. local stream-sort command help/smoke path unchanged.
+
+### Cost posture declaration
+Local code update + dry checks only; no paid service actions initiated in this change.
+
+## Entry: 2026-02-11 02:39PM - Applied local stream-sort observability fix (passthrough output + progress toggle)
+
+### Changes applied
+1. Updated `scripts/dev_substrate/phase3c1_oracle_authority_lock.py`:
+- `_run_command` now supports `passthrough=True` mode (direct terminal inheritance, no stdout/stderr piping).
+- `cmd_stream_sort` now executes stream-sort child process in passthrough mode so native DuckDB progress rendering is visible when enabled.
+- preserved fail-closed check/evidence path (`stream_sort_<ref>` gate unchanged).
+2. Updated `makefile`:
+- added `DEV_MIN_PHASE3C1_STREAM_SORT_PROGRESS_SECONDS` (default `2`).
+- `platform-dev-min-phase3c1-stream-sort` now exports `STREAM_SORT_PROGRESS_SECONDS` from that tunable.
+- `platform-dev-min-phase3c1-run` and `platform-dev-min-phase3c1-stream-sort-managed` also export this value for consistency.
+
+### Validation executed
+1. `python -m py_compile scripts/dev_substrate/phase3c1_oracle_authority_lock.py` (`PASS`).
+2. `python scripts/dev_substrate/phase3c1_oracle_authority_lock.py stream-sort --help` (`PASS`).
+3. `make -n platform-dev-min-phase3c1-stream-sort platform-dev-min-phase3c1-run platform-dev-min-phase3c1-stream-sort-managed` (`PASS` render), confirming env export wiring.
+
+### Operator outcome
+- Local sort lane remains primary and unchanged in semantics.
+- Terminal visibility improved: with `STREAM_SORT_PROGRESS_SECONDS` set (default now via make), DuckDB progress output can render directly.
+- Managed lane remains optional and does not interfere with local execution.
+
+### Cost posture
+Local code + dry checks only; no paid service activity initiated in this change. `TURN OFF NOW`.

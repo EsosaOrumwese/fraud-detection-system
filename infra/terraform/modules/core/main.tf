@@ -7,6 +7,18 @@ locals {
     tf_state     = var.tf_state_bucket
   }
 
+  bucket_versioning_defaults = {
+    object_store = "Enabled"
+    evidence     = "Enabled"
+    quarantine   = "Enabled"
+    archive      = "Enabled"
+    tf_state     = "Enabled"
+  }
+  bucket_versioning_status_by_role = merge(
+    local.bucket_versioning_defaults,
+    var.bucket_versioning_status_by_role,
+  )
+
   tags_core = merge(var.common_tags, {
     fp_phase = "phase2"
     fp_tier  = "core"
@@ -35,7 +47,7 @@ resource "aws_s3_bucket_versioning" "core" {
 
   bucket = each.value.id
   versioning_configuration {
-    status = "Enabled"
+    status = lookup(local.bucket_versioning_status_by_role, each.key, "Enabled")
   }
 }
 

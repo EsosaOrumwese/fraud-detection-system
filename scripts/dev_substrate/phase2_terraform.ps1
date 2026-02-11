@@ -58,6 +58,24 @@ function Optional-Env {
     return $value.Trim()
 }
 
+function Normalize-VersioningStatus {
+    param(
+        [string]$Value,
+        [string]$Name,
+        [string]$DefaultValue
+    )
+    $raw = $Value
+    if ([string]::IsNullOrWhiteSpace($raw)) {
+        $raw = $DefaultValue
+    }
+    $normalized = $raw.Trim().ToLowerInvariant()
+    switch ($normalized) {
+        "enabled" { return "Enabled" }
+        "suspended" { return "Suspended" }
+        default { throw "Invalid $Name value '$raw' (expected Enabled or Suspended)" }
+    }
+}
+
 function Invoke-Terraform {
     param([string[]]$Arguments)
     $output = & terraform @Arguments 2>&1
@@ -137,6 +155,15 @@ try {
         $env:TF_VAR_evidence_bucket_name = Optional-Env -Name "DEV_MIN_EVIDENCE_BUCKET" -DefaultValue ("{0}-evidence" -f $prefix)
         $env:TF_VAR_quarantine_bucket_name = Optional-Env -Name "DEV_MIN_QUARANTINE_BUCKET" -DefaultValue ("{0}-quarantine" -f $prefix)
         $env:TF_VAR_archive_bucket_name = Optional-Env -Name "DEV_MIN_ARCHIVE_BUCKET" -DefaultValue ("{0}-archive" -f $prefix)
+
+        $versioningByRole = [ordered]@{
+            object_store = Normalize-VersioningStatus -Value (Optional-Env -Name "DEV_MIN_OBJECT_STORE_VERSIONING_STATUS") -Name "DEV_MIN_OBJECT_STORE_VERSIONING_STATUS" -DefaultValue "Suspended"
+            evidence     = Normalize-VersioningStatus -Value (Optional-Env -Name "DEV_MIN_EVIDENCE_VERSIONING_STATUS") -Name "DEV_MIN_EVIDENCE_VERSIONING_STATUS" -DefaultValue "Enabled"
+            quarantine   = Normalize-VersioningStatus -Value (Optional-Env -Name "DEV_MIN_QUARANTINE_VERSIONING_STATUS") -Name "DEV_MIN_QUARANTINE_VERSIONING_STATUS" -DefaultValue "Suspended"
+            archive      = Normalize-VersioningStatus -Value (Optional-Env -Name "DEV_MIN_ARCHIVE_VERSIONING_STATUS") -Name "DEV_MIN_ARCHIVE_VERSIONING_STATUS" -DefaultValue "Enabled"
+            tf_state     = Normalize-VersioningStatus -Value (Optional-Env -Name "DEV_MIN_TF_STATE_VERSIONING_STATUS") -Name "DEV_MIN_TF_STATE_VERSIONING_STATUS" -DefaultValue "Enabled"
+        }
+        $env:TF_VAR_bucket_versioning_status_by_role = ($versioningByRole | ConvertTo-Json -Compress)
     }
 
     $tfStateBucket = Optional-Env -Name "DEV_MIN_TF_STATE_BUCKET"

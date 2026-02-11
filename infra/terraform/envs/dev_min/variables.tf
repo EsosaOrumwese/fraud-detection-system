@@ -102,3 +102,25 @@ variable "demo_log_retention_days" {
   type    = number
   default = 7
 }
+
+variable "bucket_versioning_status_by_role" {
+  type = map(string)
+  default = {
+    object_store = "Suspended"
+    evidence     = "Enabled"
+    quarantine   = "Suspended"
+    archive      = "Enabled"
+    tf_state     = "Enabled"
+  }
+
+  validation {
+    condition = alltrue([
+      for role in ["object_store", "evidence", "quarantine", "archive", "tf_state"] :
+      contains(keys(var.bucket_versioning_status_by_role), role)
+      ]) && alltrue([
+      for status in values(var.bucket_versioning_status_by_role) :
+      contains(["Enabled", "Suspended"], status)
+    ])
+    error_message = "bucket_versioning_status_by_role must include object_store,evidence,quarantine,archive,tf_state with values Enabled or Suspended."
+  }
+}

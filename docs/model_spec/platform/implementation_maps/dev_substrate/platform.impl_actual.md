@@ -1876,3 +1876,94 @@ It converts the user-approved "full migration, nothing local" direction into exp
 
 ### Cost posture
 - Docs-only pass; no paid services touched.
+
+## Entry: 2026-02-11 02:58PM - Pre-change lock: make dev_min S3 versioning policy role-aware (avoid object-store bloat)
+
+### Trigger
+USER asked to stop blanket bucket versioning behavior after discussing large (`~100GB`) Oracle/object-store payload growth and teardown friction.
+
+### Problem framing
+Current `core` module enables versioning for all buckets uniformly.
+- This is good for state/audit buckets, but expensive and operationally noisy for high-churn object-store data.
+- Versioned object-store also complicates teardown because versions/delete markers must be purged separately.
+
+### Decision
+Implement role-aware versioning policy with secure defaults:
+1. `object_store`: `Suspended` (default)
+2. `quarantine`: `Suspended` (default)
+3. `evidence`: `Enabled` (default)
+4. `archive`: `Enabled` (default)
+5. `tf_state`: `Enabled` (default)
+
+### Design details
+1. Add `bucket_versioning_status_by_role` map variable to core module with validation.
+2. Pass the map from `envs/dev_min` so environment defaults are explicit and reviewable.
+3. Keep override path from `phase2_terraform.ps1` via env-derived JSON map for operator control.
+4. Preserve existing bucket names, encryption, and public-access blocks unchanged.
+
+### Planned files
+1. `infra/terraform/modules/core/{variables.tf,main.tf}`
+2. `infra/terraform/envs/dev_min/{variables.tf,main.tf,terraform.tfvars.example}`
+3. `scripts/dev_substrate/phase2_terraform.ps1`
+4. `docs/model_spec/platform/implementation_maps/dev_substrate/platform.impl_actual.md`
+5. `docs/logbook/02-2026/2026-02-11.md`
+
+### Validation plan
+1. `terraform fmt` on touched terraform files.
+2. `terraform validate` under `infra/terraform/envs/dev_min`.
+3. `make -n platform-dev-min-phase2-{plan,up,down,down-all}` to ensure script wiring unchanged.
+
+### Cost posture declaration
+Local code + terraform static validation only; no apply/destroy execution in this step.
+
+## Entry: 2026-02-11 03:02PM - Applied role-aware bucket versioning policy for dev_min core buckets
+
+### Changes applied
+1. Core module versioning policy became role-aware:
+- `infra/terraform/modules/core/variables.tf`
+  - added `bucket_versioning_status_by_role` (map) with validation.
+- `infra/terraform/modules/core/main.tf`
+  - `aws_s3_bucket_versioning.core` now uses per-role status instead of hardcoded `Enabled`.
+2. `dev_min` environment now pins explicit defaults:
+- `infra/terraform/envs/dev_min/variables.tf`
+  - added `bucket_versioning_status_by_role` default:
+    - `object_store=Suspended`
+    - `quarantine=Suspended`
+    - `evidence=Enabled`
+    - `archive=Enabled`
+    - `tf_state=Enabled`
+- `infra/terraform/envs/dev_min/main.tf`
+  - passed map into `module.core`.
+- `infra/terraform/envs/dev_min/terraform.tfvars.example`
+  - documented the map explicitly.
+3. Phase2 operator script supports env-level override + fail-closed validation:
+- `scripts/dev_substrate/phase2_terraform.ps1`
+  - added `Normalize-VersioningStatus` helper,
+  - maps env vars into `TF_VAR_bucket_versioning_status_by_role`:
+    - `DEV_MIN_OBJECT_STORE_VERSIONING_STATUS`
+    - `DEV_MIN_EVIDENCE_VERSIONING_STATUS`
+    - `DEV_MIN_QUARANTINE_VERSIONING_STATUS`
+    - `DEV_MIN_ARCHIVE_VERSIONING_STATUS`
+    - `DEV_MIN_TF_STATE_VERSIONING_STATUS`.
+
+### Validation executed
+1. Formatting:
+- `terraform fmt` on touched `.tf` files (`PASS`).
+2. Terraform config validity:
+- `terraform -chdir=infra/terraform/envs/dev_min validate` (`PASS`).
+3. Phase2 toolchain checks:
+- `make -n platform-dev-min-phase2-{plan,up,down,down-all}` (`PASS` render).
+4. Runtime script checks:
+- `pwsh ... phase2_terraform.ps1 -Action plan` with `DEV_MIN_AWS_REGION` set (`PASS`).
+- same command with `DEV_MIN_OBJECT_STORE_VERSIONING_STATUS=bad` (`FAIL_CLOSED` as intended).
+
+### Drift assessment
+1. Ownership boundaries preserved:
+- no component truth-owner changes; this is infra durability/cost posture only.
+2. Fail-closed posture improved:
+- invalid versioning values now block before plan/apply.
+3. Security posture unchanged:
+- encryption/public-access blocks retained; no bucket ACL relaxation.
+
+### Cost posture
+Plan/validate operations only; no `apply` or `destroy` executed in this change. `TURN OFF NOW`.
