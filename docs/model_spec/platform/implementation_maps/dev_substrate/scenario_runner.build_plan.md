@@ -38,15 +38,15 @@ Deliver SR migration for `dev_min` under full-migration posture:
 **Intent:** freeze exactly what “managed-only SR acceptance” means for this wave.
 
 **Implementation checklist:**
-- [ ] Pin SR runtime surface for acceptance runs (managed execution identity + launch path).
-- [ ] Pin SR state backend(s) used for acceptance runs (managed only) and remove local acceptance ambiguity.
-- [ ] Pin SR run-config identity inputs (`platform_run_id`, `scenario_run_id`, `run_config_digest`) and where they are sourced.
-- [ ] Pin READY re-emit authorization policy and governance override evidence shape.
+- [x] Pin SR runtime surface for acceptance runs (managed execution identity + launch path).
+- [x] Pin SR state backend(s) used for acceptance runs (managed only) and remove local acceptance ambiguity.
+- [x] Pin SR run-config identity inputs (`platform_run_id`, `scenario_run_id`, `run_config_digest`) and where they are sourced.
+- [x] Pin READY re-emit authorization policy and governance override evidence shape.
 
 **DoD checklist:**
-- [ ] Acceptance-valid SR execution path is documented and excludes local fallback.
-- [ ] Acceptance-valid SR state path is documented and excludes local fallback.
-- [ ] Re-emit governance gate is explicit and testable.
+- [x] Acceptance-valid SR execution path is documented and excludes local fallback.
+- [x] Acceptance-valid SR state path is documented and excludes local fallback.
+- [x] Re-emit governance gate is explicit and testable.
 
 ### S2 - Oracle-coupled run-facts authority gate
 **Intent:** guarantee SR facts view is built from one pinned Oracle identity and by-ref evidence only.
@@ -130,7 +130,7 @@ Deliver SR migration for `dev_min` under full-migration posture:
   - each rung records `KEEP ON` / `TURN OFF NOW` posture for paid surfaces.
 
 ## Current status
-- S1: not started
+- S1: complete
 - S2: not started
 - S3: not started
 - S4: not started

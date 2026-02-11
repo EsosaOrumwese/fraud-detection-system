@@ -255,6 +255,9 @@ DEV_MIN_PHASE3C1_CONTEXT_MODE ?= fraud
 DEV_MIN_PHASE3C1_PROGRESS_SECONDS ?= 15
 DEV_MIN_PHASE3C1_SYNC_EXTRA_ARGS ?=
 DEV_MIN_PHASE3C1_SKIP_AWS_HEAD ?=
+DEV_MIN_PHASE3C2_OUTPUT_ROOT ?= $(DEV_MIN_PHASE3_OUTPUT_ROOT)
+DEV_MIN_PHASE3C2_SETTLEMENT ?= config/platform/dev_substrate/phase3/scenario_runner_settlement_v0.yaml
+DEV_MIN_PHASE3C2_SR_WIRING ?= config/platform/sr/wiring_dev_min.yaml
 
 # ---------------------------------------------------------------------------
 # External paths (aligned to registries)
@@ -3645,6 +3648,21 @@ platform-dev-min-phase3c1-run:
 	if [ -n "$$extra" ]; then args+=(--sync-extra-args "$$extra"); fi; \
 	if [ -n "$${DEV_MIN_PHASE3C1_SKIP_AWS_HEAD:-$(DEV_MIN_PHASE3C1_SKIP_AWS_HEAD)}" ]; then args+=(--skip-aws-head); fi; \
 	$(PY_SCRIPT) "$${args[@]}"
+
+.PHONY: platform-dev-min-phase3c2-s1-preflight
+platform-dev-min-phase3c2-s1-preflight:
+	@env_file="$(DEV_MIN_ENV_FILE)"; \
+	if [ ! -f "$$env_file" ]; then \
+		echo "platform-dev-min-phase3c2-s1-preflight requires $$env_file (create local .env.dev_min with DEV_MIN_* pins)" >&2; \
+		exit 1; \
+	fi; \
+	set -a; . "$$env_file"; set +a; \
+	override_region="$(DEV_MIN_AWS_REGION)"; \
+	if [ -n "$$override_region" ]; then export DEV_MIN_AWS_REGION="$$override_region"; fi; \
+	$(PY_SCRIPT) scripts/dev_substrate/phase3c2_sr_settlement_lock.py preflight \
+		--settlement "$(DEV_MIN_PHASE3C2_SETTLEMENT)" \
+		--wiring "$(DEV_MIN_PHASE3C2_SR_WIRING)" \
+		--output-root "$(DEV_MIN_PHASE3C2_OUTPUT_ROOT)"
 
 .PHONY: platform-governance-query
 platform-governance-query:

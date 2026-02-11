@@ -63,3 +63,156 @@ It makes SR component execution auditable and directly traceable to the platform
 
 ### Cost posture
 Docs-only pass; no paid services touched.
+
+## Entry: 2026-02-11 1:18PM - Pre-change lock: implement SR S1 managed execution/state settlement gate
+
+### Trigger
+USER requested immediate implementation of `S1` in `dev_substrate/scenario_runner.build_plan.md` with explicit decision documentation.
+
+### S1 closure target
+Lock and enforce (not just describe) four S1 requirements:
+1. acceptance-valid SR runtime surface is managed-only with explicit execution identity + launch ref,
+2. acceptance-valid SR state corridor is managed-only (no sqlite/local fs fallback),
+3. READY/run identity sources (`platform_run_id`, `scenario_run_id`, `run_config_digest`) are explicit and auditable,
+4. re-emit governance policy is explicit and testable for same-run default versus cross-run override.
+
+### Authorities and constraints used
+1. `docs/model_spec/platform/implementation_maps/dev_substrate/platform.build_plan.md` (`3.C.2` repins).
+2. `docs/model_spec/platform/implementation_maps/dev_substrate/scenario_runner.build_plan.md` (`S1` checklist + DoD).
+3. `docs/model_spec/platform/component-specific/scenario_runner.design-authority.md`.
+4. `docs/model_spec/platform/pre-design_decisions/control_and_ingress.pre-design_decision.md`.
+5. Existing SR runtime behavior in:
+- `src/fraud_detection/scenario_runner/config.py`
+- `src/fraud_detection/scenario_runner/runner.py`
+- `src/fraud_detection/scenario_runner/models.py`
+
+### Problem framing
+Current SR code allows ambiguous acceptance posture:
+1. no dedicated managed-only settlement mode in wiring,
+2. no explicit fail-closed gate for local runtime/state fallback under dev-min acceptance,
+3. re-emit model lacks explicit cross-run governance override shape,
+4. no auditable governance event that records identity source resolution for READY pins.
+
+### Options considered
+1. Do docs-only S1 closure with no runtime checks.
+- Rejected: does not satisfy "implementation" and leaves acceptance ambiguity in code paths.
+2. Implement full SR dev-min runtime orchestration (managed launcher + full component migration) in S1.
+- Rejected: too broad; that crosses into S4 and risks partial, drifting implementation.
+3. Implement settlement lock surfaces now (config/model/runtime enforcement + phase preflight tool), leaving deeper runtime orchestration to later gates.
+- Selected: closes S1 with auditable, testable guardrails and no S2/S3/S4 scope leakage.
+
+### Decisions locked before edits
+1. Add explicit SR settlement knobs in wiring profile (`acceptance_mode`, `execution_mode`, `state_mode`, identity/launch refs, re-emit policy controls).
+2. Add fail-closed runtime validation for `dev_min_managed` acceptance mode in `ScenarioRunner.__init__`.
+3. Extend re-emit request contract with explicit cross-run override evidence shape and optional target platform run override pin.
+4. Enforce same-platform-run re-emit default in code when configured; cross-run requires governance override evidence.
+5. Emit governance fact for READY identity source mapping (`platform_run_id`, `scenario_run_id`, `run_config_digest` sources).
+6. Add `3.C.2 S1` preflight checker script + settlement YAML + make target so operators can validate posture before acceptance runs.
+
+### Planned edits
+1. Runtime and contract surfaces:
+- `src/fraud_detection/scenario_runner/config.py`
+- `src/fraud_detection/scenario_runner/models.py`
+- `src/fraud_detection/scenario_runner/runner.py`
+- `src/fraud_detection/scenario_runner/cli.py`
+- `docs/model_spec/platform/contracts/scenario_runner/reemit_request.schema.yaml`
+2. Dev-substrate S1 preflight surfaces:
+- `config/platform/dev_substrate/phase3/scenario_runner_settlement_v0.yaml` (new)
+- `config/platform/sr/wiring_dev_min.yaml` (new)
+- `scripts/dev_substrate/phase3c2_sr_settlement_lock.py` (new)
+- `makefile` (new `platform-dev-min-phase3c2-s1-preflight` target + tunables)
+3. Validation/tests:
+- extend SR re-emit tests for cross-run override policy behavior.
+4. Documentation closure:
+- update `scenario_runner.build_plan.md` S1 checklist/status,
+- append applied implementation entry here,
+- append action entry in `docs/logbook/02-2026/2026-02-11.md`.
+
+### Cost posture
+Code/docs/test pass only; no paid cloud resources should be touched.
+
+## Entry: 2026-02-11 1:26PM - Applied S1 managed settlement lock implementation (runtime + preflight + tests)
+
+### Applied code and config changes
+1. SR wiring/config surface expanded for S1 settlement pins:
+- `src/fraud_detection/scenario_runner/config.py`
+  - added explicit settlement fields:
+    - `acceptance_mode`,
+    - `execution_mode`,
+    - `execution_launch_ref`,
+    - `execution_identity_env`,
+    - `state_mode`,
+    - `reemit_same_platform_run_only`,
+    - `reemit_cross_run_override_required`,
+    - `reemit_cross_run_reason_allowlist`.
+  - added `${ENV}` / `${ENV:-default}` expansion for `load_wiring` and `load_policy` so dev-min wiring can be env-driven without ad-hoc wrappers.
+
+2. Re-emit governance contract + model enforcement:
+- `src/fraud_detection/scenario_runner/models.py`
+  - added `ReemitGovernanceOverride` model.
+  - extended `ReemitRequest` with:
+    - `emit_platform_run_id`,
+    - `cross_run_override`.
+- `docs/model_spec/platform/contracts/scenario_runner/reemit_request.schema.yaml`
+  - added schema support for `emit_platform_run_id` and `cross_run_override` evidence object.
+- `src/fraud_detection/scenario_runner/cli.py`
+  - added re-emit args:
+    - `--emit-platform-run-id`,
+    - `--cross-run-override-json`.
+
+3. SR runtime fail-closed settlement enforcement:
+- `src/fraud_detection/scenario_runner/runner.py`
+  - added `_validate_settlement_lock()` in initializer.
+  - `dev_min_managed` mode now fails closed if:
+    - execution/state mode are not `managed`,
+    - execution launch ref/identity env are missing,
+    - execution identity env value is missing,
+    - object store is not `s3://`,
+    - control bus kind is `file`,
+    - authority store DSN is missing or sqlite.
+  - control-bus builder now fails closed on unknown kinds (no implicit fallback from unknown kind to file bus).
+  - added cross-run re-emit scope checks:
+    - same-platform-run default when configured,
+    - cross-run requires governance override evidence,
+    - optional reason-code allowlist enforcement.
+  - added governance event emission for approved cross-run override.
+  - added auditable READY identity-source governance fact:
+    - `GOV_RUN_IDENTITY_SOURCES` with source mapping for
+      `platform_run_id`, `scenario_run_id`, and `run_config_digest`.
+
+4. Dev-substrate S1 settlement artifacts:
+- added `config/platform/dev_substrate/phase3/scenario_runner_settlement_v0.yaml`.
+- added `config/platform/sr/wiring_dev_min.yaml`.
+- added `scripts/dev_substrate/phase3c2_sr_settlement_lock.py` with `preflight` command for S1 fail-closed validation.
+- `makefile` updates:
+  - new vars:
+    - `DEV_MIN_PHASE3C2_OUTPUT_ROOT`,
+    - `DEV_MIN_PHASE3C2_SETTLEMENT`,
+    - `DEV_MIN_PHASE3C2_SR_WIRING`.
+  - new target:
+    - `platform-dev-min-phase3c2-s1-preflight`.
+
+5. Test coverage updates:
+- `tests/services/scenario_runner/test_reemit.py`
+  - added cross-run blocked-without-override case,
+  - added cross-run allowed-with-override case.
+- added `tests/services/scenario_runner/test_settlement_lock.py`
+  - verifies `dev_min_managed` lock fails closed on local fallback posture.
+
+### Validation executed
+1. `python -m py_compile` on modified/new Python files (`PASS`).
+2. `.\.venv\Scripts\python.exe -m pytest tests/services/scenario_runner/test_reemit.py tests/services/scenario_runner/test_settlement_lock.py -q` (`PASS`, 10 passed).
+3. `python scripts/dev_substrate/phase3c2_sr_settlement_lock.py --help` (`PASS`).
+4. `make -n platform-dev-min-phase3c2-s1-preflight` render check (`PASS`).
+5. Preflight sample run with explicit local env overrides:
+- `python scripts/dev_substrate/phase3c2_sr_settlement_lock.py preflight --settlement ... --wiring ...` (`PASS`).
+- evidence written under `runs/fraud-platform/dev_substrate/phase3/phase3c2_sr_s1_preflight_*.json`.
+
+### S1 closure assessment
+`S1` checklists in `scenario_runner.build_plan.md` are now marked complete because:
+1. managed runtime/state posture is both documented and code-enforced (fail-closed),
+2. identity source mapping for READY pins is explicit and auditable,
+3. re-emit governance override gate is explicit, schema-backed, and test-covered.
+
+### Cost posture
+Implementation + local validation only; no paid cloud resources/services touched in this pass.

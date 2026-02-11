@@ -93,6 +93,8 @@ class ScenarioRunner:
         self.wiring = wiring
         self.policy = policy
         self.engine_invoker = engine_invoker
+        self.execution_identity: str | None = None
+        self._validate_settlement_lock()
         self.schemas = SchemaRegistry(Path(wiring.schema_root))
         self.engine_schemas = SchemaRegistry(Path(wiring.engine_contracts_root))
         self.oracle_schemas = SchemaRegistry(Path(wiring.schema_root).parent / "oracle_store")
@@ -499,6 +501,7 @@ class ScenarioRunner:
             "reemit_kind": request.reemit_kind.value,
             "reason": request.reason,
             "requested_by": request.requested_by,
+            "emit_platform_run_id": request.emit_platform_run_id,
         }
         request_event = self._event(
             "REEMIT_REQUESTED",
@@ -509,6 +512,25 @@ class ScenarioRunner:
 
         ready_allowed = request.reemit_kind in (ReemitKind.READY_ONLY, ReemitKind.BOTH)
         terminal_allowed = request.reemit_kind in (ReemitKind.TERMINAL_ONLY, ReemitKind.BOTH)
+        source_ready_platform_run_id: str | None = None
+        target_ready_platform_run_id: str | None = None
+        reemit_scope_reason: str | None = None
+        if ready_allowed and status.state == RunStatusState.READY and request.emit_platform_run_id:
+            source_ready_platform_run_id, target_ready_platform_run_id, reemit_scope_reason = self._resolve_reemit_platform_scope(
+                run_id,
+                request,
+            )
+            if reemit_scope_reason:
+                failure_event = self._event("REEMIT_FAILED", run_id, {"reason": reemit_scope_reason})
+                self.ledger.append_record(run_id, failure_event)
+                return ReemitResponse(
+                    run_id=run_id,
+                    status_state=status.state,
+                    published=[],
+                    message=self._reemit_scope_message(reemit_scope_reason),
+                )
+        if ready_allowed and status.state == RunStatusState.READY and not target_ready_platform_run_id:
+            target_ready_platform_run_id = request.emit_platform_run_id
 
         if request.dry_run:
             would_publish: list[str] = []
@@ -521,7 +543,12 @@ class ScenarioRunner:
                 self._event(
                     "REEMIT_DRY_RUN",
                     run_id,
-                    {"reemit_kind": request.reemit_kind.value, "would_publish": would_publish},
+                    {
+                        "reemit_kind": request.reemit_kind.value,
+                        "would_publish": would_publish,
+                        "source_platform_run_id": source_ready_platform_run_id,
+                        "target_platform_run_id": target_ready_platform_run_id,
+                    },
                 ),
             )
             message = "Dry-run complete; no publish performed."
@@ -539,11 +566,39 @@ class ScenarioRunner:
             self.ledger.append_record(run_id, failure_event)
             return ReemitResponse(run_id=run_id, status_state=status.state, message="Reemit rate limit exceeded.")
 
+        if (
+            ready_allowed
+            and status.state == RunStatusState.READY
+            and source_ready_platform_run_id
+            and target_ready_platform_run_id
+            and source_ready_platform_run_id != target_ready_platform_run_id
+            and request.cross_run_override
+        ):
+            override = request.cross_run_override
+            self._append_governance_fact(
+                run_id,
+                "GOV_REEMIT_OVERRIDE_APPROVED",
+                {
+                    "source_platform_run_id": source_ready_platform_run_id,
+                    "target_platform_run_id": target_ready_platform_run_id,
+                    "override_id": override.override_id,
+                    "reason_code": override.reason_code,
+                    "evidence_ref": override.evidence_ref,
+                    "approved_by": override.approved_by,
+                    "approved_at_utc": override.approved_at_utc.isoformat(),
+                    "ticket_ref": override.ticket_ref,
+                },
+            )
+
         published: list[str] = []
         attempted = False
         if ready_allowed and status.state == RunStatusState.READY:
             attempted = True
-            ready_key = self._reemit_ready(run_id, status)
+            ready_key = self._reemit_ready(
+                run_id,
+                status,
+                target_platform_run_id=target_ready_platform_run_id,
+            )
             if ready_key:
                 published.append(ready_key)
         if terminal_allowed and status.state in (RunStatusState.FAILED, RunStatusState.QUARANTINED):
@@ -585,6 +640,96 @@ class ScenarioRunner:
 
         return ReemitResponse(run_id=run_id, status_state=status.state, published=published, message="Reemit published.")
 
+    def _resolve_reemit_platform_scope(
+        self,
+        run_id: str,
+        request: ReemitRequest,
+    ) -> tuple[str | None, str | None, str | None]:
+        facts_view = self.ledger.read_facts_view(run_id)
+        if facts_view is None:
+            return None, request.emit_platform_run_id, "FACTS_VIEW_MISSING"
+        pins = facts_view.get("pins") or {}
+        source_platform_run_id = (
+            facts_view.get("platform_run_id")
+            or pins.get("platform_run_id")
+            or self.platform_run_id
+        )
+        target_platform_run_id = request.emit_platform_run_id or source_platform_run_id
+        if source_platform_run_id == target_platform_run_id:
+            return source_platform_run_id, target_platform_run_id, None
+        if not self.wiring.reemit_same_platform_run_only:
+            return source_platform_run_id, target_platform_run_id, None
+        if not self.wiring.reemit_cross_run_override_required:
+            return source_platform_run_id, target_platform_run_id, None
+        override = request.cross_run_override
+        if override is None:
+            return source_platform_run_id, target_platform_run_id, "CROSS_RUN_OVERRIDE_REQUIRED"
+        allowlist = {value.strip().upper() for value in self.wiring.reemit_cross_run_reason_allowlist if value.strip()}
+        if allowlist and override.reason_code.strip().upper() not in allowlist:
+            return source_platform_run_id, target_platform_run_id, "CROSS_RUN_OVERRIDE_REASON_NOT_ALLOWED"
+        return source_platform_run_id, target_platform_run_id, None
+
+    def _reemit_scope_message(self, reason: str) -> str:
+        if reason == "CROSS_RUN_OVERRIDE_REQUIRED":
+            return "Cross-run reemit blocked; governance override evidence required."
+        if reason == "CROSS_RUN_OVERRIDE_REASON_NOT_ALLOWED":
+            return "Cross-run reemit blocked; override reason is not allowlisted."
+        if reason == "FACTS_VIEW_MISSING":
+            return "Reemit failed."
+        return "Reemit failed."
+
+    def _resolve_run_config_digest(
+        self,
+        *,
+        plan: RunPlan | None = None,
+        facts_view: dict[str, Any] | None = None,
+    ) -> tuple[str, str]:
+        if plan is not None:
+            value = str(plan.policy_rev.get("content_digest") or "").strip()
+            if value:
+                return value, "run_plan.policy_rev.content_digest"
+        if facts_view is not None:
+            direct = str(facts_view.get("run_config_digest") or "").strip()
+            if direct:
+                return direct, "run_facts_view.run_config_digest"
+            policy_value = str((facts_view.get("policy_rev") or {}).get("content_digest") or "").strip()
+            if policy_value:
+                return policy_value, "run_facts_view.policy_rev.content_digest"
+        fallback = str(self.policy.content_digest or "").strip()
+        return fallback, "scenario_runner.policy.content_digest"
+
+    def _validate_settlement_lock(self) -> None:
+        acceptance_mode = str(self.wiring.acceptance_mode or "local_parity").strip().lower()
+        if acceptance_mode != "dev_min_managed":
+            return
+        violations: list[str] = []
+        if str(self.wiring.execution_mode or "").strip().lower() != "managed":
+            violations.append("execution_mode must be managed")
+        if str(self.wiring.state_mode or "").strip().lower() != "managed":
+            violations.append("state_mode must be managed")
+        if not str(self.wiring.execution_launch_ref or "").strip():
+            violations.append("execution_launch_ref is required")
+        identity_env = str(self.wiring.execution_identity_env or "").strip()
+        if not identity_env:
+            violations.append("execution_identity_env is required")
+        else:
+            identity_value = str(os.getenv(identity_env, "")).strip()
+            if not identity_value:
+                violations.append(f"{identity_env} must be set")
+            else:
+                self.execution_identity = identity_value
+        if not str(self.wiring.object_store_root or "").strip().startswith("s3://"):
+            violations.append("object_store_root must be s3:// for dev_min_managed")
+        if str(self.wiring.control_bus_kind or "file").strip().lower() == "file":
+            violations.append("control_bus_kind=file is not acceptance-valid for dev_min_managed")
+        authority_dsn = str(self.wiring.authority_store_dsn or "").strip().lower()
+        if not authority_dsn:
+            violations.append("authority_store_dsn is required for dev_min_managed")
+        elif authority_dsn.startswith("sqlite://"):
+            violations.append("authority_store_dsn sqlite is not acceptance-valid for dev_min_managed")
+        if violations:
+            raise RuntimeError("SR_SETTLEMENT_LOCK_FAIL_CLOSED: " + "; ".join(violations))
+
     def _build_control_bus(self, wiring: WiringProfile):
         kind = (wiring.control_bus_kind or "file").lower()
         if kind == "kinesis":
@@ -595,18 +740,26 @@ class ScenarioRunner:
                 region=wiring.control_bus_region,
                 endpoint_url=wiring.control_bus_endpoint_url,
             )
-        if not wiring.control_bus_root:
-            raise RuntimeError("control_bus_root required for file bus")
-        control_root = resolve_run_scoped_path(
-            wiring.control_bus_root,
-            suffix="control_bus",
-            create_if_missing=True,
-        )
-        if not control_root:
-            raise RuntimeError("control_bus_root resolution failed")
-        return FileControlBus(Path(control_root))
+        if kind == "file":
+            if not wiring.control_bus_root:
+                raise RuntimeError("control_bus_root required for file bus")
+            control_root = resolve_run_scoped_path(
+                wiring.control_bus_root,
+                suffix="control_bus",
+                create_if_missing=True,
+            )
+            if not control_root:
+                raise RuntimeError("control_bus_root resolution failed")
+            return FileControlBus(Path(control_root))
+        raise RuntimeError(f"unsupported control_bus_kind: {kind}")
 
-    def _reemit_ready(self, run_id: str, status) -> str | None:
+    def _reemit_ready(
+        self,
+        run_id: str,
+        status,
+        *,
+        target_platform_run_id: str | None = None,
+    ) -> str | None:
         facts_view = self.ledger.read_facts_view(run_id)
         if facts_view is None:
             failure_event = self._event("REEMIT_FAILED", run_id, {"reason": "FACTS_VIEW_MISSING"})
@@ -615,14 +768,11 @@ class ScenarioRunner:
         bundle_hash = facts_view.get("bundle_hash")
         facts_view_hash = bundle_hash or self._hash_payload(facts_view)
         pins = facts_view.get("pins") or {}
-        platform_run_id = facts_view.get("platform_run_id") or pins.get("platform_run_id") or self.platform_run_id
+        source_platform_run_id = facts_view.get("platform_run_id") or pins.get("platform_run_id") or self.platform_run_id
+        platform_run_id = target_platform_run_id or source_platform_run_id
         scenario_run_id = facts_view.get("scenario_run_id") or pins.get("scenario_run_id") or run_id
         reemit_key = hash_payload(f"ready|{platform_run_id}|{scenario_run_id}|{facts_view_hash}")
-        run_config_digest = (
-            facts_view.get("run_config_digest")
-            or (facts_view.get("policy_rev") or {}).get("content_digest")
-            or self.policy.content_digest
-        )
+        run_config_digest, _ = self._resolve_run_config_digest(facts_view=facts_view)
         ready_payload = {
             "run_id": run_id,
             "platform_run_id": platform_run_id,
@@ -1206,7 +1356,7 @@ class ScenarioRunner:
                 )
             )
             return self._response_from_status(plan.run_id, "Oracle pack invalid; run failed.")
-        run_config_digest = plan.policy_rev.get("content_digest") or self.policy.content_digest
+        run_config_digest, run_config_digest_source = self._resolve_run_config_digest(plan=plan)
         provenance = runtime_provenance(
             component="scenario_runner",
             environment=self.wiring.profile_id,
@@ -1270,6 +1420,18 @@ class ScenarioRunner:
                 "GOV_BUNDLE_HASH",
                 {"bundle_hash": bundle.bundle_hash},
             )
+        self._append_governance_fact(
+            plan.run_id,
+            "GOV_RUN_IDENTITY_SOURCES",
+            {
+                "platform_run_id_source": "scenario_runner.platform_run_id",
+                "scenario_run_id_source": "run_plan.run_id",
+                "run_config_digest_source": run_config_digest_source,
+                "acceptance_mode": self.wiring.acceptance_mode,
+                "execution_mode": self.wiring.execution_mode,
+                "state_mode": self.wiring.state_mode,
+            },
+        )
         publish_key = self._ready_publish_key(
             self.platform_run_id,
             plan.run_id,

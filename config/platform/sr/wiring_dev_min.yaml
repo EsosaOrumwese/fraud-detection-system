@@ -1,0 +1,24 @@
+profile_id: dev_min
+object_store_root: s3://${DEV_MIN_OBJECT_STORE_BUCKET}/fraud-platform
+control_bus_topic: fp.bus.control.v1
+control_bus_kind: kinesis
+control_bus_stream: ${DEV_MIN_CONTROL_BUS_STREAM}
+control_bus_region: ${DEV_MIN_AWS_REGION}
+control_bus_root: runs/fraud-platform/control_bus
+engine_catalogue_path: docs/model_spec/data-engine/interface_pack/engine_outputs.catalogue.yaml
+gate_map_path: docs/model_spec/data-engine/interface_pack/engine_gates.map.yaml
+schema_root: docs/model_spec/platform/contracts/scenario_runner
+engine_contracts_root: docs/model_spec/data-engine/interface_pack/contracts
+oracle_engine_run_root: ${DEV_MIN_ORACLE_ENGINE_RUN_ROOT}
+authority_store_dsn: ${DEV_MIN_SR_AUTHORITY_STORE_DSN}
+acceptance_mode: dev_min_managed
+execution_mode: managed
+execution_launch_ref: scripts/dev_substrate/phase3c2_sr_settlement_lock.py
+execution_identity_env: DEV_MIN_SR_EXECUTION_IDENTITY
+state_mode: managed
+reemit_same_platform_run_only: true
+reemit_cross_run_override_required: true
+reemit_cross_run_reason_allowlist:
+  - INCIDENT_RECOVERY
+  - AUDIT_REPLAY
+  - OPERATOR_BACKFILL

@@ -10,4 +10,5 @@ Compatibility notes:
     `fraud-platform/<platform_run_id>/sr/instance_receipts/output_id=<output_id>/<scope partitions>/instance_receipt.json`
 - Phase 5 additions:
   - `reemit_request.schema.yaml` defines the ops re-emit contract.
+    - includes optional `emit_platform_run_id` and `cross_run_override` evidence block for governed cross-run re-emit posture.
   - `run_terminal_signal.schema.yaml` defines terminal control signals for re-emit.
