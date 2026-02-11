@@ -78,3 +78,65 @@ It keeps platform responsibilities in bounds:
 
 ### Cost posture
 Docs/planning only in this pass; no paid resource operations executed.
+
+## Entry: 2026-02-11 10:51AM - Pre-change lock: carry stream-sort contract from local parity into dev_substrate Oracle plan
+
+### Trigger
+USER requested that Oracle build planning explicitly include the sorted-stream requirement from local parity because downstream runtime consumes sorted stream views, not raw landed artifacts.
+
+### Context reviewed
+1. `docs/runbooks/platform_parity_walkthrough_v0.md` section 4.3 stream sort contract:
+   - per-output stream view under `stream_view/ts_utc/output_id=<output_id>/part-*.parquet`,
+   - deterministic ordering and required receipts/manifests.
+2. `local_parity/oracle_store.impl_actual.md` and `local_parity/platform.impl_actual.md`:
+   - stable per-output sort contract,
+   - tie-breakers (`filename`, `file_row_number`) with `ts_utc`,
+   - explicit policy for non-`ts_utc` outputs,
+   - fail-closed on partial stream-view state.
+
+### Decision
+Update Oracle and platform build plans so `3.C.1` explicitly requires stream-sort closure after landing sync:
+1. landing sync alone is insufficient for acceptance,
+2. stream-view artifacts/receipts become mandatory Oracle authority evidence,
+3. non-`ts_utc` outputs must use explicit pinned fallback sort keys (no ad-hoc runtime choice),
+4. partial stream view must fail closed.
+
+### Planned edits
+1. `docs/model_spec/platform/implementation_maps/dev_substrate/oracle_store.build_plan.md`
+   - add stream-sort subphase and DoD under O1.
+2. `docs/model_spec/platform/implementation_maps/dev_substrate/platform.build_plan.md`
+   - extend `3.C.1` required checks/stop conditions to include sort-contract evidence.
+
+### Cost posture
+Docs-only pass; no paid services touched.
+
+## Entry: 2026-02-11 10:54AM - Corrective precision note: output-id source refs pinned for stream-sort selection
+
+### Correction
+Added an explicit checklist item in `oracle_store.build_plan.md` O1.C requiring output-id sets to be pinned from policy refs before executing stream-sort.
+
+### Why
+Prevents ambiguous operator selection of datasets and ensures sort coverage aligns with declared runtime traffic/context output contracts.
+
+### Cost posture
+Docs-only pass; no paid services touched.
+
+## Entry: 2026-02-11 10:53AM - Applied stream-sort contract into Oracle O1 plan
+
+### Applied changes
+1. Updated `dev_substrate/oracle_store.build_plan.md` to make sorted stream-view closure explicit in O1:
+   - added `O1.C Stream-view sort closure`,
+   - shifted downstream sections to `O1.D`/`O1.E`/`O1.F`.
+2. Added required sorting contract details:
+   - per-output path: `stream_view/ts_utc/output_id=<output_id>/part-*.parquet`,
+   - deterministic ordering for `ts_utc` outputs (`ts_utc`, `filename`, `file_row_number`),
+   - explicit pinned fallback sort keys for non-`ts_utc` outputs,
+   - per-output `_stream_view_manifest.json` + `_stream_sort_receipt.json`,
+   - fail-closed on partial view leftovers.
+3. Expanded Oracle validation matrix expectations to include stream-sort closure and manifest/receipt integrity.
+
+### Resulting posture
+Landing sync alone is no longer sufficient for Oracle O1 closure; runtime-consumable sorted stream views are now part of the non-negotiable acceptance gate.
+
+### Cost posture
+Docs-only pass; no paid services touched.

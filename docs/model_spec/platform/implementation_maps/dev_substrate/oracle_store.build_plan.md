@@ -60,12 +60,29 @@ Close Phase `3.C.1` with the correct ownership posture:
 - [ ] Sync evidence is emitted and linked.
 - [ ] No destructive mutation of source root occurs.
 
-### O1.C Oracle authority validation (consumer-side)
-**Intent:** prove platform can safely consume the landed Oracle truth.
+### O1.C Stream-view sort closure (runtime input contract)
+**Intent:** produce the exact sorted stream-view datasets consumed by downstream runtime.
+
+**Implementation checklist:**
+- [ ] Pin required output-id sets from policy refs (traffic/context) before sort execution.
+- [ ] Build per-output sorted stream views at `.../stream_view/ts_utc/output_id=<output_id>/part-*.parquet`.
+- [ ] For outputs with `ts_utc`, enforce deterministic ordering by `ts_utc`, then `filename`, then `file_row_number`.
+- [ ] For outputs without `ts_utc`, use pinned explicit fallback sort keys from policy (no runtime guesswork).
+- [ ] Emit `_stream_view_manifest.json` + `_stream_sort_receipt.json` for each output.
+- [ ] Fail closed on partial state (`STREAM_VIEW_PARTIAL_EXISTS`) until cleaned and rebuilt.
+
+**DoD:**
+- [ ] Required traffic/context output_ids are sorted and present under the destination root.
+- [ ] Per-output manifest/receipt exists and references pinned root + scenario scope.
+- [ ] Raw vs sorted parity checks are recorded (no duplicate/drop evidence).
+
+### O1.D Oracle authority validation (consumer-side)
+**Intent:** prove platform can safely consume the landed and sorted Oracle truth.
 
 **Implementation checklist:**
 - [ ] Validate required receipt/seal/manifest artifacts under destination root.
 - [ ] Validate required stream-view roots and output-id paths for active scenario.
+- [ ] Validate stream sort manifest/receipt integrity per required output.
 - [ ] Emit stable fail reasons on missing/ambiguous Oracle artifacts.
 
 **DoD:**
@@ -73,7 +90,7 @@ Close Phase `3.C.1` with the correct ownership posture:
 - [ ] Any missing required artifact is `FAIL_CLOSED`.
 - [ ] Local fallback is rejected under `dev_min`.
 
-### O1.D Platform contract readiness for SR/WSP
+### O1.E Platform contract readiness for SR/WSP
 **Intent:** ensure downstream components consume a single authoritative Oracle identity.
 
 **Implementation checklist:**
@@ -86,7 +103,7 @@ Close Phase `3.C.1` with the correct ownership posture:
 - [ ] Mixed-root posture is blocked.
 - [ ] Evidence graph preserves provenance by-ref.
 
-### O1.E Closure and gating rule
+### O1.F Closure and gating rule
 **Intent:** define exactly what is blocked vs allowed while sync is in-flight.
 
 **Allowed while sync is in-flight:**
@@ -105,6 +122,8 @@ Close Phase `3.C.1` with the correct ownership posture:
 - Mandatory PASS set:
   - source/destination pin contract complete,
   - landing sync evidence complete,
+  - per-output stream-sort closure complete,
+  - stream-view manifest/receipt integrity complete,
   - receipt/seal/manifest checks complete,
   - stream-view presence checks complete,
   - SR/WSP root-coupling checks complete.
@@ -122,3 +141,4 @@ Close Phase `3.C.1` with the correct ownership posture:
 - O1.C: not started
 - O1.D: not started
 - O1.E: not started
+- O1.F: not started

@@ -336,10 +336,15 @@ Migrate Control + Ingress + Oracle Store (`SR/WSP/IG/EB + Oracle path`) to manag
   - explicit source->destination landing contract is pinned (`source_root`, `oracle_engine_run_root`, `scenario_id`, `oracle_stream_view_root`),
   - destination root is managed `s3://...` under settlement oracle prefix (no local fallback),
   - landing sync/backfill evidence is recorded (object count/sample and refs),
+  - required output_ids are built as per-output sorted stream views under `stream_view/ts_utc/output_id=<output_id>/part-*.parquet`,
+  - stream-sort ordering contract is deterministic (`ts_utc`, then `filename`, then `file_row_number`) and explicit fallback sort keys are pinned for non-`ts_utc` outputs,
+  - per-output `_stream_view_manifest.json` and `_stream_sort_receipt.json` are present and integrity-checked,
   - required stream-view outputs exist and are readable at `stream_view/ts_utc/output_id=...`,
   - run-identity and locator refs to Oracle artifacts are recorded by-ref in evidence.
 - Stop conditions:
   - missing seal/manifest/stream-view receipts at destination root,
+  - unsorted or partially-sorted stream-view outputs for required output_ids,
+  - stream-view partial leftovers (`STREAM_VIEW_PARTIAL_EXISTS`) without cleanup/rebuild,
   - ambiguous source or destination root,
   - local-path inferred as authoritative root while `dev_min` profile is active.
 

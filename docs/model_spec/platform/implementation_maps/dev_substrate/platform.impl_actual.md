@@ -1620,3 +1620,42 @@ This prevents two drift classes:
 
 ### Cost posture
 - Docs-only pass; no paid services touched.
+
+## Entry: 2026-02-11 10:51AM - Pre-change lock: enforce stream-sort contract in platform expectation for Oracle 3.C.1
+
+### Trigger
+USER requested that Phase `3.C.1` planning include the fact that downstream C&I runtime uses sorted Oracle stream views, not unsorted raw landed datasets.
+
+### Decision
+Amend platform-level Oracle expectation so `3.C.1` is considered green only when:
+1. landed Oracle root is present,
+2. required per-output stream views are built and validated,
+3. sort receipts/manifests exist and match pinned root/scope.
+
+### Why
+Without this, C&I progression could falsely pass on landed-but-unsorted artifacts and fail later in WSP/SR integration.
+
+### Planned files
+1. `docs/model_spec/platform/implementation_maps/dev_substrate/platform.build_plan.md`
+2. `docs/model_spec/platform/implementation_maps/dev_substrate/oracle_store.build_plan.md`
+
+### Cost posture
+- Docs-only pass; no paid services touched.
+
+## Entry: 2026-02-11 10:53AM - Applied platform 3.C.1 expectation update for sorted Oracle runtime inputs
+
+### Applied changes
+Updated `dev_substrate/platform.build_plan.md` (`3.C.1`) to require:
+1. required output_ids are present as sorted per-output stream views,
+2. deterministic sort contract + fallback-key policy for non-`ts_utc` outputs,
+3. per-output stream-view manifest/receipt integrity checks.
+
+### Additional stop conditions added
+1. required outputs present but not sorted to contract,
+2. partial stream-view leftovers not reconciled (`STREAM_VIEW_PARTIAL_EXISTS`).
+
+### Why this closes the gap
+This aligns platform acceptance with actual downstream consumption behavior: WSP/SR rely on sorted stream views, not raw landed datasets.
+
+### Cost posture
+- Docs-only pass; no paid services touched.
