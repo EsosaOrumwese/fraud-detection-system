@@ -346,3 +346,99 @@ Phase `3.C.1` now has a concrete operator framework for managed landing sync wit
 
 ### Cost posture
 Implementation + dry checks only; no paid sync/sort execution performed in this pass.
+
+## Entry: 2026-02-11 01:53PM - Pre-change lock: fix DuckDB S3 credential bridge for Phase 3.C.1 stream-sort on managed Oracle roots
+
+### Trigger
+USER reported `phase3c1_oracle_stream_sort` failure immediately after successful managed sync:
+1. sync checks passed (`aws_sync_exit_code=0`, source/destination file+byte floors equal),
+2. stream-sort failed in DuckDB with `HTTP 403 Forbidden` and auth hint (`No credentials are provided`).
+
+### Runtime evidence reviewed
+1. Failure surfaced at `read_parquet('s3://...')` from `stream_sorter._duckdb_columns`.
+2. Process logs show `botocore.credentials` found credentials in shared credentials file (`~/.aws/credentials`).
+3. Existing `_duckdb_connect` only injects S3 creds when env vars `AWS_ACCESS_KEY_ID` and `AWS_SECRET_ACCESS_KEY` are present.
+4. Therefore credential resolution diverges:
+- boto3 path (used elsewhere) succeeds via shared profile chain,
+- DuckDB path fails because shared-profile creds are not bridged into DuckDB settings.
+
+### Problem statement
+Oracle stream-sort in dev_min must be S3-native and fail-closed, but it currently cannot consume the same credential source that AWS CLI/boto3 is using unless static env credentials are exported. This creates false failures during Phase 3.C.1 despite successful managed sync.
+
+### Options considered
+1. Require users to export static `AWS_ACCESS_KEY_ID/AWS_SECRET_ACCESS_KEY` before stream-sort.
+- Rejected: fragile operator UX; contradicts current workflow where AWS CLI and boto3 already resolve credentials from shared profile.
+2. Switch stream-sort reads from DuckDB S3 to local temporary pull first.
+- Rejected: violates managed-only migration posture and adds heavy copy overhead.
+3. Resolve credentials through boto3 session and bridge frozen credentials + region into DuckDB `httpfs` settings.
+- Selected: aligns DuckDB auth with existing AWS credential chain while preserving S3-native execution and fail-closed behavior.
+
+### Decisions locked before code
+1. Introduce explicit AWS runtime credential resolver in `stream_sorter.py` with precedence:
+- env static keys first,
+- then boto3 session/shared-profile chain,
+- capture region fallback from AWS env/session when profile wiring region is absent.
+2. Keep secrets out logs/evidence:
+- log only credential source (`env` vs `boto3_session` vs `none`), never values.
+3. Inject resolved credentials into DuckDB settings exactly once per connection.
+4. Add unit tests for resolver precedence/fallback to prevent regression.
+5. Keep fail-closed posture unchanged: if creds are still unavailable or unauthorized, stream-sort remains failed.
+
+### Planned file touchpoints
+1. `src/fraud_detection/oracle_store/stream_sorter.py`
+2. `tests/services/oracle_store/test_stream_sorter_credentials.py` (new)
+3. `docs/model_spec/platform/implementation_maps/dev_substrate/oracle_store.impl_actual.md` (this lock + applied entry)
+4. `docs/logbook/02-2026/2026-02-11.md` (action log)
+
+### Validation plan
+1. Run targeted pytest for new credential resolver tests.
+2. Re-run `phase3c1` stream-sort command path (or equivalent make target) to confirm credential bridge removes `No credentials are provided` class of failure.
+3. If bucket/policy denies remain, capture exact fail-closed reason post-auth-bridge.
+
+### Cost posture declaration
+Code + local tests only in this step; no paid sync operations are initiated by this patch itself.
+
+## Entry: 2026-02-11 02:00PM - Applied DuckDB credential bridge fix for managed Oracle stream-sort
+
+### Changes applied
+1. Updated `src/fraud_detection/oracle_store/stream_sorter.py`:
+- added `_resolve_aws_runtime_credentials(profile_region)` with precedence:
+  - env static creds (`AWS_ACCESS_KEY_ID/AWS_SECRET_ACCESS_KEY`),
+  - fallback to boto3 session/shared profile chain (`AWS_PROFILE` aware),
+  - region fallback from profile/env/session.
+- wired resolved credentials into `_duckdb_connect` via:
+  - `SET s3_access_key_id`,
+  - `SET s3_secret_access_key`,
+  - optional `SET s3_session_token`,
+  - `SET s3_region` from resolved value.
+- added SQL literal escaping helper for dynamically injected pragma/SET string values.
+- enriched duckdb config log with non-secret `credential_source` and final `s3_region`.
+2. Added regression tests:
+- `tests/services/oracle_store/test_stream_sorter_credentials.py`
+  - env creds precedence,
+  - boto3 session/shared-profile fallback,
+  - no-credential fallback behavior.
+
+### Validation executed
+1. Compile checks:
+- `python -m py_compile src/fraud_detection/oracle_store/stream_sorter.py tests/services/oracle_store/test_stream_sorter_credentials.py` (`PASS`).
+2. Targeted tests:
+- `python -m pytest tests/services/oracle_store/test_stream_sorter_credentials.py tests/services/oracle_store/test_checker.py tests/services/oracle_store/test_packer.py -q` (`PASS`, 9 passed).
+3. Runtime credential resolution probe in current shell:
+- `_resolve_aws_runtime_credentials(None)` returned `source=boto3_session`, credentials present, region `eu-west-2`.
+4. Real managed S3 read-path probe (same failing locator class) using DuckDB:
+- `_duckdb_columns(..., include_file_meta=True)` on `s3://.../part-*` returned columns successfully (`PASS`).
+- This confirms the prior `No credentials are provided` path is remediated.
+
+### Drift assessment
+1. Ownership boundary preserved:
+- Oracle remains engine-owned truth;
+- patch only changes consumer-side auth bridging inside stream-sort runtime.
+2. Fail-closed posture preserved:
+- missing/invalid credentials still fail stream-sort;
+- no local fallback introduced.
+3. Contract posture preserved:
+- stream-view output identity/layout and receipts/manifests unchanged.
+
+### Cost posture
+One read-only managed-S3 probe was executed (list/head/get class operations only). No background transfer/sync remains active. `TURN OFF NOW` for this debugging step.

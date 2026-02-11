@@ -131,7 +131,7 @@ Deliver SR migration for `dev_min` under full-migration posture:
 
 ## Current status
 - S1: complete
-- S2: not started
+- S2: in progress (code gate implemented; acceptance pending sorted Oracle artifacts)
 - S3: not started
 - S4: not started
 - S5: not started

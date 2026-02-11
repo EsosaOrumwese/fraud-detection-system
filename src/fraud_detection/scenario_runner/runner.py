@@ -199,6 +199,37 @@ class ScenarioRunner:
         )
         canonical = self._canonicalize(request)
         resolved_engine_root = self._resolve_engine_root(request.engine_run_root)
+        oracle_scope_reason = self._validate_oracle_scope(
+            request_root=request.engine_run_root,
+            resolved_engine_root=resolved_engine_root,
+            scenario_id=canonical.scenario_id,
+        )
+        if oracle_scope_reason:
+            run_id = run_id_from_equivalence_key(request.run_equivalence_key)
+            self.ledger.append_record(
+                run_id,
+                self._event(
+                    "ORACLE_SCOPE_REJECTED",
+                    run_id,
+                    {"reason": oracle_scope_reason},
+                ),
+            )
+            self._emit_obs(
+                ObsEvent.now(
+                    event_kind="ORACLE_SCOPE_REJECTED",
+                    phase=ObsPhase.INGRESS,
+                    outcome=ObsOutcome.FAIL,
+                    severity=ObsSeverity.ERROR,
+                    pins={"run_id": run_id, "scenario_id": canonical.scenario_id},
+                    details={"reason": oracle_scope_reason},
+                )
+            )
+            return RunResponse(
+                run_id=run_id,
+                state=RunStatusState.FAILED,
+                record_ref=f"{self.ledger.prefix}/run_record/{run_id}.jsonl",
+                message=f"Oracle scope rejected: {oracle_scope_reason}",
+            )
         if resolved_engine_root and resolved_engine_root != request.engine_run_root:
             self.logger.info(
                 "SR: oracle engine root enforced (request_root=%s, oracle_root=%s)",
@@ -698,6 +729,57 @@ class ScenarioRunner:
         fallback = str(self.policy.content_digest or "").strip()
         return fallback, "scenario_runner.policy.content_digest"
 
+    def _has_ambiguous_oracle_selector(self, value: str) -> bool:
+        lowered = value.strip().lower()
+        if not lowered:
+            return False
+        if "*" in lowered or "?" in lowered:
+            return True
+        ambiguous_tokens = ["/latest", "=latest", "/current", "=current"]
+        return any(token in lowered for token in ambiguous_tokens)
+
+    def _validate_oracle_scope(
+        self,
+        *,
+        request_root: str | None,
+        resolved_engine_root: str | None,
+        scenario_id: str,
+    ) -> str | None:
+        acceptance_mode = str(self.wiring.acceptance_mode or "local_parity").strip().lower()
+        if acceptance_mode != "dev_min_managed":
+            return None
+        pinned_engine_root = str(self.wiring.oracle_engine_run_root or "").strip()
+        pinned_scenario_id = str(self.wiring.oracle_scenario_id or "").strip()
+        pinned_stream_view_root = str(self.wiring.oracle_stream_view_root or "").strip()
+        if not pinned_engine_root:
+            return "ORACLE_ENGINE_RUN_ROOT_MISSING"
+        if not pinned_scenario_id:
+            return "ORACLE_SCENARIO_ID_MISSING"
+        if not pinned_stream_view_root:
+            return "ORACLE_STREAM_VIEW_ROOT_MISSING"
+        if self._has_ambiguous_oracle_selector(pinned_engine_root):
+            return "ORACLE_ENGINE_ROOT_AMBIGUOUS"
+        if self._has_ambiguous_oracle_selector(pinned_stream_view_root):
+            return "ORACLE_STREAM_VIEW_ROOT_AMBIGUOUS"
+        if not pinned_engine_root.startswith("s3://"):
+            return "ORACLE_ENGINE_ROOT_NOT_MANAGED"
+        if not pinned_stream_view_root.startswith("s3://"):
+            return "ORACLE_STREAM_VIEW_ROOT_NOT_MANAGED"
+        effective_root = str(resolved_engine_root or "").strip()
+        if not effective_root:
+            return "ORACLE_ENGINE_ROOT_UNRESOLVED"
+        if effective_root != pinned_engine_root:
+            return "ORACLE_ENGINE_ROOT_MISMATCH"
+        requested_root = str(request_root or "").strip()
+        if requested_root and requested_root != pinned_engine_root:
+            return "ORACLE_ENGINE_ROOT_REQUEST_MISMATCH"
+        if scenario_id.strip() != pinned_scenario_id:
+            return "ORACLE_SCENARIO_ID_MISMATCH"
+        stream_prefix = f"{pinned_engine_root.rstrip('/')}/stream_view/"
+        if not pinned_stream_view_root.startswith(stream_prefix):
+            return "ORACLE_STREAM_VIEW_SCOPE_MISMATCH"
+        return None
+
     def _validate_settlement_lock(self) -> None:
         acceptance_mode = str(self.wiring.acceptance_mode or "local_parity").strip().lower()
         if acceptance_mode != "dev_min_managed":
@@ -727,6 +809,29 @@ class ScenarioRunner:
             violations.append("authority_store_dsn is required for dev_min_managed")
         elif authority_dsn.startswith("sqlite://"):
             violations.append("authority_store_dsn sqlite is not acceptance-valid for dev_min_managed")
+        oracle_engine_run_root = str(self.wiring.oracle_engine_run_root or "").strip()
+        oracle_scenario_id = str(self.wiring.oracle_scenario_id or "").strip()
+        oracle_stream_view_root = str(self.wiring.oracle_stream_view_root or "").strip()
+        if not oracle_engine_run_root:
+            violations.append("oracle_engine_run_root is required for dev_min_managed")
+        if not oracle_scenario_id:
+            violations.append("oracle_scenario_id is required for dev_min_managed")
+        if not oracle_stream_view_root:
+            violations.append("oracle_stream_view_root is required for dev_min_managed")
+        if oracle_engine_run_root and not oracle_engine_run_root.startswith("s3://"):
+            violations.append("oracle_engine_run_root must be s3:// for dev_min_managed")
+        if oracle_stream_view_root and not oracle_stream_view_root.startswith("s3://"):
+            violations.append("oracle_stream_view_root must be s3:// for dev_min_managed")
+        if oracle_engine_run_root and self._has_ambiguous_oracle_selector(oracle_engine_run_root):
+            violations.append("oracle_engine_run_root cannot use latest/current/wildcard selectors")
+        if oracle_stream_view_root and self._has_ambiguous_oracle_selector(oracle_stream_view_root):
+            violations.append("oracle_stream_view_root cannot use latest/current/wildcard selectors")
+        if (
+            oracle_engine_run_root
+            and oracle_stream_view_root
+            and not oracle_stream_view_root.startswith(f"{oracle_engine_run_root.rstrip('/')}/stream_view/")
+        ):
+            violations.append("oracle_stream_view_root must be scoped under oracle_engine_run_root/stream_view/")
         if violations:
             raise RuntimeError("SR_SETTLEMENT_LOCK_FAIL_CLOSED: " + "; ".join(violations))
 
@@ -1332,7 +1437,11 @@ class ScenarioRunner:
         engine_run_root: str | None,
     ) -> RunResponse:
         self._ensure_lease(run_handle)
-        oracle_pack_ref, oracle_error = self._build_oracle_pack_ref(engine_run_root, intent)
+        oracle_pack_ref, oracle_error = self._build_oracle_pack_ref(
+            engine_run_root,
+            intent,
+            intended_outputs=plan.intended_outputs,
+        )
         if oracle_error:
             failure_bundle = EvidenceBundle(
                 status=EvidenceStatus.FAIL,
@@ -1503,11 +1612,32 @@ class ScenarioRunner:
         return self._response_from_status(plan.run_id, "READY committed")
 
     def _build_oracle_pack_ref(
-        self, engine_run_root: str | None, intent: CanonicalRunIntent
+        self,
+        engine_run_root: str | None,
+        intent: CanonicalRunIntent,
+        *,
+        intended_outputs: list[str] | None = None,
     ) -> tuple[dict[str, Any] | None, str | None]:
         if not engine_run_root:
             return None, None
         ref: dict[str, Any] = {"engine_run_root": engine_run_root}
+        pinned_scenario_id = str(self.wiring.oracle_scenario_id or intent.scenario_id).strip()
+        if pinned_scenario_id:
+            ref["scenario_id"] = pinned_scenario_id
+        stream_view_root = str(self.wiring.oracle_stream_view_root or "").strip()
+        if stream_view_root:
+            ref["stream_view_root"] = stream_view_root
+            if intended_outputs:
+                stream_refs: dict[str, str] = {}
+                for output_id in sorted(set(intended_outputs)):
+                    stream_refs[output_id] = f"{stream_view_root.rstrip('/')}/output_id={output_id}"
+                ref["stream_view_output_refs"] = stream_refs
+                stream_error = self._validate_stream_view_output_refs(
+                    stream_view_root=stream_view_root,
+                    output_ids=sorted(set(intended_outputs)),
+                )
+                if stream_error:
+                    return None, stream_error
         engine_store = self._build_engine_store(engine_run_root)
         manifest_path = "_oracle_pack_manifest.json"
         if engine_store is None or not engine_store.exists(manifest_path):
@@ -1535,6 +1665,33 @@ class ScenarioRunner:
             }
         )
         return ref, None
+
+    def _validate_stream_view_output_refs(self, *, stream_view_root: str, output_ids: list[str]) -> str | None:
+        acceptance_mode = str(self.wiring.acceptance_mode or "local_parity").strip().lower()
+        if acceptance_mode != "dev_min_managed":
+            return None
+        stream_store = self._build_engine_store(stream_view_root)
+        if stream_store is None:
+            return "ORACLE_STREAM_VIEW_STORE_UNRESOLVED"
+        for output_id in output_ids:
+            prefix = f"output_id={output_id}"
+            try:
+                files = stream_store.list_files(prefix)
+            except Exception:
+                return f"ORACLE_STREAM_VIEW_LIST_FAILED:{output_id}"
+            if not files:
+                return f"ORACLE_STREAM_VIEW_OUTPUT_MISSING:{output_id}"
+            normalized_files = [str(path).replace("\\", "/") for path in files]
+            has_manifest = any(path.endswith("/_stream_view_manifest.json") for path in normalized_files)
+            has_receipt = any(path.endswith("/_stream_sort_receipt.json") for path in normalized_files)
+            has_parquet = any(path.endswith(".parquet") for path in normalized_files)
+            if not has_manifest:
+                return f"ORACLE_STREAM_VIEW_MANIFEST_MISSING:{output_id}"
+            if not has_receipt:
+                return f"ORACLE_STREAM_VIEW_RECEIPT_MISSING:{output_id}"
+            if not has_parquet:
+                return f"ORACLE_STREAM_VIEW_PARTS_MISSING:{output_id}"
+        return None
 
     def _commit_waiting(self, run_handle: RunHandle, bundle: EvidenceBundle) -> None:
         self._ensure_lease(run_handle)

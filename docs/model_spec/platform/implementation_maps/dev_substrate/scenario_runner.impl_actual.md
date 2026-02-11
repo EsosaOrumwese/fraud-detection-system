@@ -216,3 +216,120 @@ Code/docs/test pass only; no paid cloud resources should be touched.
 
 ### Cost posture
 Implementation + local validation only; no paid cloud resources/services touched in this pass.
+
+## Entry: 2026-02-11 1:39PM - Corrective pre-change lock: start S2 Oracle-coupled authority implementation (partial closure)
+
+### Trigger
+USER requested proceeding with what can be implemented for SR `S2` before Oracle stream-sort completion.
+
+### Corrective note
+Initial code hooks for S2 were started immediately to maintain execution momentum. This entry captures the intended decision path explicitly so the implementation trail remains auditable.
+
+### S2 scope now (implementable before stream-sort complete)
+1. Enforce explicit Oracle pins in SR runtime posture for `dev_min_managed`:
+- `oracle_engine_run_root`,
+- `oracle_scenario_id`,
+- `oracle_stream_view_root`.
+2. Block implicit/ambiguous world selection:
+- reject `latest/current/wildcard` selectors,
+- reject request-root mismatch versus pinned Oracle root,
+- reject scenario mismatch versus pinned Oracle scenario.
+3. Ensure run facts include by-ref Oracle context needed downstream:
+- scenario id,
+- stream view root,
+- per-output stream-view refs.
+4. Preserve write-once drift behavior already owned by ledger:
+- `FACTS_VIEW_DRIFT`,
+- `READY_SIGNAL_DRIFT`.
+
+### Out-of-scope for this S2 pass
+1. Positive acceptance closure against real stream-view artifacts (requires completed sync + stream-sort).
+2. Coupled-chain acceptance progression into later `3.C.*` gates.
+
+### Planned implementation surfaces
+1. Runtime/config:
+- `src/fraud_detection/scenario_runner/config.py`
+- `src/fraud_detection/scenario_runner/runner.py`
+- `config/platform/sr/wiring_dev_min.yaml`
+2. Contract schema extension for Oracle by-ref context in facts/ready:
+- `docs/model_spec/platform/contracts/scenario_runner/run_facts_view.schema.yaml`
+- `docs/model_spec/platform/contracts/scenario_runner/run_ready_signal.schema.yaml`
+3. Tests:
+- add S2-focused tests for Oracle scope mismatch handling and Oracle ref enrichment.
+4. Documentation status:
+- update S2 status in build plan as implementation-in-progress if acceptance remains pending.
+
+### Cost posture
+Local implementation/testing only; no paid services should be touched in this pass.
+
+## Entry: 2026-02-11 1:44PM - Applied S2 implementable scope (Oracle pin gate + by-ref stream refs) with acceptance pending
+
+### What was implemented now
+1. Explicit Oracle pin surfaces in SR wiring profile:
+- `src/fraud_detection/scenario_runner/config.py`
+  - added:
+    - `oracle_scenario_id`,
+    - `oracle_stream_view_root`.
+- `config/platform/sr/wiring_dev_min.yaml`
+  - now wires:
+    - `oracle_scenario_id: ${DEV_MIN_ORACLE_SCENARIO_ID}`,
+    - `oracle_stream_view_root: ${DEV_MIN_ORACLE_STREAM_VIEW_ROOT}`.
+
+2. Fail-closed Oracle scope enforcement before SR run authority resolution:
+- `src/fraud_detection/scenario_runner/runner.py`
+  - `submit_run` now runs `_validate_oracle_scope(...)` and rejects fail-closed before planning/READY if:
+    - required Oracle pins are missing,
+    - pinned/request roots mismatch,
+    - scenario pin mismatches,
+    - root/scope selectors are ambiguous (`latest/current/wildcards`),
+    - stream-view root is outside pinned engine-root stream-view scope.
+  - rejection is persisted as `ORACLE_SCOPE_REJECTED` event with explicit reason code.
+
+3. Managed-settlement lock strengthened for Oracle pin posture:
+- `src/fraud_detection/scenario_runner/runner.py`
+  - `_validate_settlement_lock()` for `dev_min_managed` now also requires:
+    - `oracle_engine_run_root`,
+    - `oracle_scenario_id`,
+    - `oracle_stream_view_root`,
+    - managed `s3://` schemes,
+    - non-ambiguous selectors,
+    - stream-view scope under `oracle_engine_run_root/stream_view/`.
+
+4. Facts-view Oracle by-ref enrichment (S2 contract surface):
+- `src/fraud_detection/scenario_runner/runner.py`
+  - `_build_oracle_pack_ref(...)` now adds:
+    - `scenario_id`,
+    - `stream_view_root`,
+    - `stream_view_output_refs` (per intended output id).
+  - in `dev_min_managed`, `_validate_stream_view_output_refs(...)` fail-closes before READY if required output stream-view artifacts are missing:
+    - `_stream_view_manifest.json`,
+    - `_stream_sort_receipt.json`,
+    - `*.parquet` parts.
+
+5. Contract schema updates for new by-ref fields:
+- `docs/model_spec/platform/contracts/scenario_runner/run_facts_view.schema.yaml`
+- `docs/model_spec/platform/contracts/scenario_runner/run_ready_signal.schema.yaml`
+  - `oracle_pack_ref` now supports:
+    - `scenario_id`,
+    - `stream_view_root`,
+    - `stream_view_output_refs`.
+- `docs/model_spec/platform/contracts/scenario_runner/README.md`
+  - updated compatibility note for these refs.
+
+6. S2 test coverage added:
+- `tests/services/scenario_runner/test_oracle_authority_s2.py` (new)
+  - request-root mismatch fail-closed,
+  - scenario mismatch fail-closed,
+  - oracle pack ref enrichment with stream refs,
+  - fail-closed when stream-view output artifacts are missing,
+  - pass path when required artifacts are present.
+
+### Validation executed
+1. `py_compile` for changed S2 files (`PASS`).
+2. `.\.venv\Scripts\python.exe -m pytest tests/services/scenario_runner/test_reemit.py tests/services/scenario_runner/test_settlement_lock.py tests/services/scenario_runner/test_oracle_authority_s2.py -q` (`PASS`, 15 passed).
+
+### S2 status assessment
+S2 implementation surfaces are now in place and enforce fail-closed Oracle scope behavior. Gate acceptance remains pending real Oracle stream-sort completion and live-run positive proof against managed artifacts.
+
+### Cost posture
+Local implementation/testing only; no paid services touched.
