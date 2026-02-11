@@ -1105,5 +1105,19 @@ Process/documentation correction only; no platform semantic/runtime behavior cha
 ### Drift sentinel checkpoint
 Policy/documentation/tooling text correction only; no runtime semantic changes.
 
+## Entry: 2026-02-10 11:52PM - Local `.env.dev_min` updated with budget keys (sanitized)
+
+### Action
+Per USER direction to operate directly on local env file, updated `.env.dev_min` to persist budget controls:
+- `DEV_MIN_ENABLE_BUDGET_ALERT`
+- `DEV_MIN_BUDGET_LIMIT_USD`
+- `DEV_MIN_BUDGET_ALERT_EMAIL`
+
+### Verification
+Presence check confirms all three keys are set (values intentionally not logged).
+
+### Cost posture
+No cloud actions executed for this local file update.
+
 ### Drift sentinel checkpoint
 No semantic-law or ownership-boundary drift detected. Changes are substrate-lifecycle only and align with migration authority.
