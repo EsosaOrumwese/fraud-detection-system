@@ -1830,3 +1830,49 @@ This aligns platform acceptance with actual downstream consumption behavior: WSP
 
 ### Cost posture
 - Docs-only pass; no paid services touched.
+
+## Entry: 2026-02-11 1:07PM - Corrective pre-change lock: repin SR 3.C.2 to full-migration managed-only posture
+
+### Trigger
+USER directed explicit full-migration posture ("nothing stays local") and requested the decisions be locked in `platform.build_plan.md` at `3.C.2`.
+
+### Corrective note
+The `3.C.2` plan update was applied immediately to satisfy the direct lock request. This entry records the pre-change decision trail and scope explicitly for audit completeness.
+
+### Problem framing
+`3.C.2` previously specified identity and READY checks but did not explicitly forbid local runtime/state acceptance paths for SR, and did not lock re-emit/governance/ladder details under full migration.
+
+### Decisions to lock
+1. SR acceptance path in `dev_min` is managed-only runtime/state (no local fallback accepted).
+2. Gate strictness remains full parity semantics (no reduced bring-up subset).
+3. Re-emit defaults to same-run only; cross-run emit requires explicit governance override evidence.
+4. Fail-closed posture for Oracle pin mismatch/missing by-ref evidence.
+5. Mandatory SR component ladder before progression: `20 -> 200 -> 1000`.
+6. Traffic-mode closure proof requires `fraud` primary and `baseline` secondary run evidence.
+
+### Scope of edit
+- File: `docs/model_spec/platform/implementation_maps/dev_substrate/platform.build_plan.md`
+- Section: `3.C.2 Scenario Runner migration gate` only.
+
+### Drift sentinel checkpoint
+This is a planning repin/clarification pass; no runtime code behavior changed in this step.
+
+## Entry: 2026-02-11 1:07PM - Applied 3.C.2 SR full-migration repin in platform build plan
+
+### Changes applied
+Updated `3.C.2` in `dev_substrate/platform.build_plan.md` to encode full-migration SR posture:
+1. Objective now explicitly states managed-only acceptance (no local runtime/state fallback).
+2. Added locked repin bullets for:
+   - managed compute/state acceptance,
+   - full parity gate strictness,
+   - same-run re-emit default + governance override requirement for cross-run,
+   - fail-closed Oracle pin posture.
+3. Expanded required checks with managed-runtime identity/state evidence and local-fallback rejection.
+4. Added mandatory component ladder at this gate (`20`, `200`, `1000`) before progression.
+5. Expanded stop conditions for Oracle evidence mismatch, unauthorized cross-run emit, and local fallback observation.
+
+### Why this is the correct lock
+It converts the user-approved "full migration, nothing local" direction into explicit gate law in the active plan so later implementation/validation cannot claim green using mixed local/managed posture.
+
+### Cost posture
+- Docs-only pass; no paid services touched.

@@ -349,14 +349,30 @@ Migrate Control + Ingress + Oracle Store (`SR/WSP/IG/EB + Oracle path`) to manag
   - local-path inferred as authoritative root while `dev_min` profile is active.
 
 3.C.2 Scenario Runner migration gate
-- Objective: SR emits canonical `run_facts_view` + READY on managed control path with pinned identities.
+- Objective: SR emits canonical `run_facts_view` + READY on managed control path with pinned identities, under full-migration posture (no local runtime/state fallback).
+- Repin for this gate (user-directed, locked):
+  - SR accepted runtime for `dev_min` is managed compute only (ephemeral managed execution lane); local-process SR is not acceptance-valid.
+  - SR authority-state persistence is managed-substrate only for acceptance runs; local DB/filesystem state is not acceptance-valid.
+  - Gate strictness is full parity with local-parity semantic laws; no reduced bring-up gate subset is allowed for acceptance.
+  - READY re-emit policy defaults to same-run only; cross-run/manual replay emit is blocked unless explicit governance override is recorded.
+  - Failure posture is fail-closed for Oracle pin mismatch/missing refs/ambiguous scope; no soft operator bypass.
 - Required checks:
   - READY contains both `platform_run_id` + `scenario_run_id` + `run_config_digest`,
-  - READY idempotency key stability under re-emit,
-  - SR references Oracle by-ref artifacts only.
+  - READY idempotency key stability under same-run re-emit,
+  - SR references Oracle by-ref artifacts only,
+  - SR rejects local oracle/run-root inference while `dev_min` profile is active,
+  - SR is executed from managed runtime identity with managed state corridor (no local fallback path in acceptance evidence),
+  - traffic mode proof is run in `fraud` primary mode and `baseline` secondary mode before closure.
+- Component acceptance ladder (mandatory before `3.C.3` progression):
+  - `20` smoke PASS,
+  - `200` acceptance PASS,
+  - `1000` stress PASS.
 - Stop conditions:
   - run-id pin mismatch,
-  - READY published without committed run_facts_view evidence.
+  - READY published without committed run_facts_view evidence,
+  - Oracle root/scope pin mismatch or unresolved by-ref evidence,
+  - cross-run READY emit accepted without governance override evidence,
+  - any local runtime/state fallback observed in acceptance run evidence.
 
 3.C.3 World Streamer Producer migration gate
 - Objective: WSP consumes READY and streams Oracle stream-view outputs into IG ingress with bounded retry semantics.
