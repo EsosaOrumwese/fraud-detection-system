@@ -342,6 +342,24 @@ The following selections are **pinned** for v0 `dev_min`:
    * **MUST:** Produce a durable S3 evidence bundle per run.
    * **MAY:** Use CloudWatch and/or a minimal OTel export path; do not introduce heavy observability stacks in v0.
 
+7. **Ingress dedupe identity enforcement**
+
+   * **MUST:** IG dedupe/runtime identity use the canonical tuple `(platform_run_id, event_class, event_id)` in runtime persistence, lookup indexes, and duplicate checks.
+   * **MUST NOT:** Accept or ship any dedupe key variant that omits `platform_run_id`.
+   * **MUST:** Treat this as promotion-critical for `dev_min`; no green claim if this tuple is not enforced end-to-end.
+
+8. **Runtime state backend posture (IG/CM/LS)**
+
+   * **MUST:** Use managed runtime state backends for IG admission/receipt state, Case Manager state, and Label Store state in `dev_min`.
+   * **MUST NOT:** Use laptop-resident runtime databases for these components in `dev_min`.
+   * **MAY:** Choose exact managed engine/SKU per component (for example, managed Postgres vs DynamoDB) if semantic laws and evidence obligations remain unchanged.
+
+9. **Obs/Gov append writer discipline**
+
+   * **MUST:** Enforce single-writer governance append behavior for each `platform_run_id`.
+   * **MUST:** Reporter and manual closeout paths are mutually exclusive while a run is open.
+   * **MUST:** Concurrent-append contention fail closed with explicit conflict evidence (for example `S3_APPEND_CONFLICT`).
+
 ---
 
 ### 5.2 Cost posture (hard budget constraints)
@@ -555,7 +573,7 @@ Regardless of environment (`local_parity`, `dev_min`, later rungs), the followin
 
 **Implementer freedom:**
 
-* Whether CM/LS operational DB remains local vs moved to managed Postgres in v0 dev_min (allowed to remain local if evidence exports exist).
+* Exact managed DB engine/sizing for CM/LS runtime state (for example RDS/Aurora vs equivalent), provided runtime state is not laptop-resident and semantic/evidence laws are preserved.
 
 ---
 
@@ -596,11 +614,13 @@ Regardless of environment (`local_parity`, `dev_min`, later rungs), the followin
 
 * Evidence bundles are written to S3 and are the durable “proof artifacts.”
 * Operator run procedure is explicit and repeatable, with a teardown step.
+* Governance append writes are lock-guarded so only one append writer is active per run.
 
 **Pinned `dev_min` resources used by this plane:**
 
 * S3 prefix: `evidence/runs/<platform_run_id>/...`
 * CloudWatch logs/metrics (minimal posture)
+* Managed lock primitive for governance append writer (for example DynamoDB lock table keyed by `platform_run_id` + `writer_identity`)
 
 **Implementer freedom:**
 
@@ -964,7 +984,6 @@ Accordingly, `dev_min` MUST provide:
 ### 11.3 Minimal backends allowed in v0 dev_min (pinned)
 
 * **MAY:** Use CloudWatch Logs for any AWS-hosted demo compute.
-* **MAY:** Use local logs + evidence export if compute is local.
 * **MUST:** Regardless of backend, the run MUST emit a durable S3 evidence bundle (Section 11.4).
 
 ### 11.4 Evidence bundle (MUST produce per demo run)
@@ -1025,6 +1044,7 @@ Within that prefix, the run MUST produce at minimum:
    * reconciliation summary (json)
 
 **MUST:** Evidence outputs MUST be deterministic and reproducible given the same run inputs (run IDs and pins).
+**MUST:** Governance append writes in the run evidence path MUST be single-writer lock-guarded per `platform_run_id`; concurrent append attempts MUST fail closed with explicit conflict evidence.
 
 ### 11.5 Telemetry cost guardrails (pinned)
 
@@ -1466,6 +1486,11 @@ This section pins what must be true before `dev_min` is considered complete and 
 
 * **MUST:** Missing context drill results in explicit degrade with reason recorded into audit evidence.
 
+5. **Obs/Gov append writer law preserved**
+
+* **MUST:** Governance append for run evidence remains single-writer per `platform_run_id`.
+* **MUST:** If a second writer attempts to append concurrently, the run emits explicit conflict evidence and does not silently merge concurrent appends.
+
 ### 15.3 Operational gates (runbook + evidence)
 
 `dev_min` passes operational gates only if all are true:
@@ -1628,9 +1653,23 @@ This section records items that were previously open and are now pinned for v0 a
 
 8. **Budget enforcement mechanism**
    - **CLOSED (PINNED):** v0 uses a **manual hard-stop protocol** (no automation required):
-     - if any budget alert threshold at or above `£28` is triggered, operator MUST run `dev-min-down` immediately after active run closure,
-     - `dev-min-up` is blocked until operator records a budget-reset intent in logbook and confirms spend posture for the current month,
-     - no new automation dependency is introduced in v0.
+      - if any budget alert threshold at or above `£28` is triggered, operator MUST run `dev-min-down` immediately after active run closure,
+      - `dev-min-up` is blocked until operator records a budget-reset intent in logbook and confirms spend posture for the current month,
+      - no new automation dependency is introduced in v0.
+
+9. **IG dedupe identity key for migration**
+   - **CLOSED (PINNED):** `dev_min` IG dedupe identity is exactly `(platform_run_id, event_class, event_id)` across runtime checks and persistence/indexes.
+   - **PINNED:** key variants that omit `platform_run_id` are non-compliant and block green promotion.
+
+10. **Managed runtime state backend choices (IG/CM/LS)**
+   - **CLOSED (PINNED):** `dev_min` runtime state for IG admission/receipt state, Case Manager, and Label Store must run on managed state backends.
+   - **PINNED:** laptop-resident runtime DB backends for these planes are not allowed in `dev_min`.
+   - **IMPLEMENTER FREEDOM (bounded):** exact managed engine/SKU may vary by component if laws and evidence obligations are preserved.
+
+11. **Obs/Gov single-writer lock mechanism**
+   - **CLOSED (PINNED):** governance append path must enforce single active writer per `platform_run_id`.
+   - **PINNED:** reporter/manual closeout concurrent append attempts must fail closed with explicit conflict evidence (for example `S3_APPEND_CONFLICT`).
+   - **PINNED:** `dev_min` must include a managed lock primitive for this behavior.
 
 ### 17.3 Future upgrades (not pinned, direction only)
 

@@ -115,10 +115,14 @@ L4 SUBSTRATE RESET
     - Option A (dev/testing): L1 purge ONLY IG admission rows (so same event_ids can be re-admitted)
     - Option B (safer semantics): L3 run a new engine/oracle scenario so event_ids differ
     - Option C: accept duplicates (but then you don’t exercise downstream planes)
+    - Option D (migration closure): remediate IG dedupe identity to canonical tuple
+      (platform_run_id, event_class, event_id) and revalidate green.
   Do NOT:
     - assume “new platform_run_id” guarantees re-admission (it currently doesn’t)
+    - treat Option A purge as a dev_min control; it is a temporary local-parity workaround only
   Notes:
     - This is explicitly documented as a gap in Control & Ingress decisions.
+    - dev_min green/promotion is blocked until Option D is complete.
 
 (9) RTDL PROJECTORS: stuck / not advancing (IEG/OFP/CSFB)
   Symptom:

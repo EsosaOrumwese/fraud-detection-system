@@ -3641,3 +3641,164 @@ USER direction: remove laptop dependency; no platform runtime compute on laptop.
 
 ### Drift sentinel assessment
 This is a deliberate design-authority repin. Implementation must now target managed runtime compute for dev-min; local compute path is no longer acceptable for that rung.
+
+## Entry: 2026-02-12 1:49PM - Corrective pre-change lock for option-1 remaining decision pins
+
+### Trigger
+USER requested: "pin the remaining decisions (option 1 alone)".
+
+### Scope (remaining items)
+1. IG dedupe key enforcement for migration.
+2. Managed runtime DB/backend posture for IG/CM/LS.
+3. Obs/Gov single-writer append lock mechanism.
+
+### Problem framing
+After managed-compute-only repin, the authority doc still had residual ambiguity in these areas:
+- no explicit hard pin under primary stack selections for the three remaining decisions,
+- one stale implementer-freedom clause still allowed local CM/LS runtime DB posture,
+- semantic/evidence sections did not explicitly gate single-writer governance append behavior.
+
+### Decision
+Apply option-1 closure only (strict pinning path):
+- enforce canonical IG dedupe tuple as promotion-critical,
+- require managed runtime state backends for IG/CM/LS in dev_min,
+- require lock-guarded single-writer governance append behavior with fail-closed conflict evidence.
+
+### File targeted
+`docs/model_spec/platform/pre-design_decisions/dev-min_managed-substrate_migration.design-authority.v0.md`
+
+### Planned edits
+1. Add explicit pinned items in section 5.1 for dedupe, runtime-state backends, and Obs/Gov writer discipline.
+2. Replace stale CM/LS local-runtime freedom sentence with managed-backend-only freedom.
+3. Extend section 6.6 to include managed append lock primitive.
+4. Remove residual local-compute backend allowance in section 11.3.
+5. Add single-writer lock law in section 11.4 evidence requirements.
+6. Add semantic gate clause in section 15.2 for writer-lock preservation.
+7. Append decision-registry closures for these three decisions.
+
+### Validation plan
+- Marker scans for key phrases: `(platform_run_id, event_class, event_id)`, `laptop-resident`, `single-writer`, `S3_APPEND_CONFLICT`.
+- Confirm stale local-runtime allowance removed in touched sections.
+- Readability pass for numbered section continuity.
+
+### Drift sentinel checkpoint
+Docs are being aligned to implementation/runtime truth and pinned migration posture. This is documentation authority closure only; no runtime code changes in this step.
+
+## Entry: 2026-02-12 1:50PM - Applied closure for option-1 remaining decision pins
+
+### File updated
+`docs/model_spec/platform/pre-design_decisions/dev-min_managed-substrate_migration.design-authority.v0.md`
+
+### Changes applied
+1. Section 5.1 now explicitly pins three additional items:
+- IG dedupe identity enforcement on `(platform_run_id, event_class, event_id)` with promotion-critical status,
+- managed runtime state backends required for IG/CM/LS (no laptop-resident runtime DB),
+- Obs/Gov single-writer append discipline with fail-closed contention behavior.
+
+2. Section 6.4 implementer freedom corrected:
+- removed "CM/LS may remain local" allowance,
+- replaced with managed-engine/sizing freedom only.
+
+3. Section 6.6 (Meta Layers) strengthened:
+- added governance append lock-guard behavior in wiring changes,
+- pinned a managed lock primitive resource for writer exclusivity.
+
+4. Section 11.3 corrected:
+- removed the remaining local-compute logging allowance line.
+
+5. Section 11.4 strengthened:
+- added MUST-level single-writer lock requirement for governance append writes,
+- concurrent append attempts must fail closed with explicit conflict evidence.
+
+6. Section 15.2 semantic gates strengthened:
+- added explicit Obs/Gov append writer law gate.
+
+7. Section 17 decision registry extended:
+- added closed decisions for IG dedupe tuple enforcement,
+- managed runtime backend posture for IG/CM/LS,
+- Obs/Gov single-writer lock mechanism.
+
+### Validation
+- Marker scan confirms target pins are present.
+- Marker scan confirms stale local logging allowance is removed from section 11.3.
+- Readability pass complete for section numbering and continuity.
+
+### Drift sentinel assessment
+No platform runtime behavior changed in this step. This closes documentation ambiguity and prevents migration drift by making the three remaining decisions explicit and testable.
+
+## Entry: 2026-02-12 2:34PM - Pre-change lock for remaining local-parity doc drift cleanup
+
+### Trigger
+USER requested: "Patch the remaining drifts" after reviewing `scratch_files/scratch.md` against local-parity docs and pinned migration authority.
+
+### Drift set to close
+1. IG job-card output ownership contradiction in Addendum 2 (IG listing decision/case/audit topics as outputs).
+2. IG dedupe-gap phrasing in Addendum 2/3 that can be read as acceptable baseline rather than migration blocker.
+3. CM local sqlite checkpoint wording in Addendum 2 not explicitly bounded to local_parity-only posture.
+4. Main local run flow strict closeout section lacks explicit portability note that dev_min gates must bind to S3 evidence.
+
+### Design intent
+Preserve runtime-truth narration for local_parity while eliminating migration ambiguity:
+- local docs remain honest about current implementation,
+- pinned dev_min decisions remain non-negotiable,
+- no wording should imply conflicting ownership or green claims across contradictory semantics.
+
+### Files targeted
+1. `docs/design/platform/local-parity/addendum_2_process_job_cards.txt`
+2. `docs/design/platform/local-parity/addendum_3_rerun_cleanup_matrix.txt`
+3. `docs/design/platform/local-parity/spine_green_v0_run_process_flow.txt`
+
+### Planned edits
+1. Addendum 2 IG outputs: remove non-IG downstream topic lines and add explicit ownership note.
+2. Addendum 2 IG dedupe section: keep current-state note but add explicit dev_min required tuple and blocker wording.
+3. Addendum 2 CM checkpoint section: label sqlite checkpoint as local_parity implementation detail and add dev_min managed-checkpoint requirement note.
+4. Addendum 2 known-gaps heading/content: change from "do not block v0" to migration-critical closure language.
+5. Addendum 3 item (8): keep safe local rerun playbook but add explicit "not allowed for dev_min green" note.
+6. Main flow strict closeout: add portability note mapping local FS closeout to dev_min S3 evidence bundle requirement.
+
+### Validation plan
+- marker scans for removed contradictory IG outputs lines,
+- marker scans for new explicit dev_min blocker language,
+- marker scans for CM sqlite bounded-to-local wording,
+- readability pass to keep local run sequence unchanged.
+
+### Drift sentinel checkpoint
+Docs-only alignment work to prevent migration posture drift. No runtime behavior/code changes.
+
+## Entry: 2026-02-12 2:35PM - Applied closure for remaining local-parity doc drifts
+
+### Files updated
+1. `docs/design/platform/local-parity/addendum_2_process_job_cards.txt`
+2. `docs/design/platform/local-parity/addendum_3_rerun_cleanup_matrix.txt`
+3. `docs/design/platform/local-parity/spine_green_v0_run_process_flow.txt`
+
+### Changes applied
+1. **IG output ownership correction (Addendum 2)**
+- Removed misleading IG output lines that listed `fp.bus.rtdl.v1`, `fp.bus.case.v1`, and `fp.bus.audit.v1` as IG outputs.
+- Added explicit ownership note: IG only publishes admitted traffic/context; decision/case/audit lanes belong to downstream writers.
+
+2. **IG dedupe gap reframed as migration blocker (Addendum 2 + 3)**
+- Kept local-parity runtime-truth wording for current dedupe key implementation.
+- Added explicit dev_min requirement language: canonical dedupe tuple `(platform_run_id, event_class, event_id)` is required for promotion.
+- In rerun matrix item (8), added Option D remediation and explicit statement that Option A purge is local workaround only and not dev_min green-compatible.
+
+3. **CM checkpoint portability bounded (Addendum 2)**
+- Preserved current local sqlite checkpoint description as local_parity implementation detail.
+- Added explicit dev_min requirement to move checkpoint/state to managed runtime backend (no local filesystem dependency).
+
+4. **Known-gaps section hardened (Addendum 2)**
+- Retitled from soft “do not block” phrasing to migration-critical closure language.
+- Added explicit note that IG publish ambiguity must be modeled before dev_min green.
+
+5. **Strict closeout portability note (Main flow)**
+- Added explicit note that section 11.1 evidence list is local_parity closeout surface.
+- Added explicit dev_min promotion mapping to S3 evidence prefix `evidence/runs/<platform_run_id>/...`.
+
+### Validation
+- Marker scans confirm contradictory IG downstream-output lines are removed.
+- Marker scans confirm blocker language appears for IG dedupe and local workaround boundaries.
+- Marker scans confirm CM sqlite wording is bounded to local_parity and paired with managed-backend requirement.
+- Marker scans confirm strict-closeout portability note exists in the main flow file.
+
+### Drift sentinel assessment
+This pass is docs-only and aligns local narrative with pinned migration authority without rewriting current implementation truth.

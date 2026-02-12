@@ -387,6 +387,10 @@ REQUIRED EVIDENCE (run-scoped):
   - runs/fraud-platform/<platform_run_id>/case_mgmt/health/last_health.json
   - runs/fraud-platform/<platform_run_id>/label_store/health/last_health.json
   - runs/fraud-platform/<platform_run_id>/operate/local_parity_control_ingress_v0/logs/wsp_ready_consumer.log
+PORTABILITY NOTE:
+  - This section is the local_parity closeout surface (filesystem + local evidence topology).
+  - For dev_min migration, equivalent commit evidence MUST be materialized under
+    s3://<evidence_bucket>/evidence/runs/<platform_run_id>/... and used for promotion gates.
 PASS CONDITIONS:
   - environment_conformance status = PASS
   - ingress admit signal is positive for active run (platform_run_report ingress.admit > 0)

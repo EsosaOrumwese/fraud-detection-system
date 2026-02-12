@@ -3378,3 +3378,68 @@ Plan highlights (frozen for Wave-1 execution):
 
 Next step:
 - Start Phase 0 baseline lock under the new runs root and generate the first hard-gate fail matrix (no code/policy mutation during Phase 0).
+
+---
+
+### Entry: 2026-02-12 13:45
+
+Design element: Restructure Segment 1A remediation plan to be explicitly phase-first.
+Summary: Build plan was reorganized from mixed state/phase presentation into a strict phase-led structure so remediation approach is visually and operationally clear before implementation.
+
+Reason for change:
+- USER requested a phase-represented plan to track remediation progression clearly.
+- Previous version contained phase content, but state-first ordering made progression less obvious.
+
+Applied planning change:
+1) Rewrote `segment_1A.build_plan.md` into a phase-first format.
+2) For each phase (`P0..P4`), added:
+   - goal,
+   - states in play,
+   - implementation sections,
+   - definition-of-done checklist,
+   - explicit exit gate.
+3) Added a state responsibility matrix by phase and retained hard-gate contract, run-isolation rules, and fail-closed escalation.
+
+Result:
+- Build plan now reads as a progressive remediation program with explicit phase closure semantics, while preserving state-level accountability.
+
+---
+
+### Entry: 2026-02-12 13:55
+
+Design element: Re-pin Segment 1A build plan to sequential-run plus state-priority focus.
+Summary: USER requested explicit prioritization because full sequential runs are required but remediation should not appear to target every state.
+
+Decision:
+- Keep sequential run law (`S0->...->S9`) explicit.
+- Restrict remediation focus to data-causal states:
+  - primary: `S8`, `S3`, `S6`, `S2`
+  - conditional: `S1`
+  - check-only: `S4`, `S7`
+  - pass-through unless blocking: `S0`, `S5`, `S9`
+- Keep plan data-first, minimizing emphasis on pass-flag/process mechanics.
+
+Artifact update:
+- Rewrote `docs/model_spec/data-engine/implementation_maps/segment_1A.build_plan.md` to a state-priority model under mandatory sequential execution.
+
+---
+
+### Entry: 2026-02-12 14:36
+
+Design element: Adopt state-phased remediation plan and start Phase 0 baseline.
+Summary: USER requested a direct state-to-phase breakdown with DoD and immediate remediation start. Plan has been reset to this format and execution begins with Phase 0 baseline lock.
+
+Decision:
+- Active build plan is now:
+  - `docs/model_spec/data-engine/implementation_maps/segment_1A.build_plan.md`
+  - structured as Phase 0..5 with explicit focus states and DoD.
+- Begin remediation with Phase 0 only:
+  - full sequential run (`S0..S9`) under `runs/fix-data-engine/segment_1A`,
+  - no policy/code mutation in this phase,
+  - extract baseline fail matrix from resulting data outputs.
+
+Execution intent (Phase 0):
+1) run Segment 1A sequentially in remediation root;
+2) resolve produced `run_id`;
+3) compute baseline metrics for single-site share, candidate breadth, mismatch level/gradient, and phi spread;
+4) record baseline pass/fail against target gates.

@@ -274,18 +274,20 @@ CARD TEMPLATE (fields you must be able to answer in dev)
         fp.bus.context.arrival_events.v1
         fp.bus.context.arrival_entities.v1
         fp.bus.context.flow_anchor.{fraud|baseline}.v1
-        fp.bus.rtdl.v1 (downstream components)
-        fp.bus.case.v1 (downstream components)
-        fp.bus.audit.v1 (downstream components)
+    - IG does NOT publish decision/case/audit lanes; those are downstream component outputs
+      (DF/AL -> fp.bus.rtdl.v1, DLA -> fp.bus.audit.v1, CaseTrigger -> fp.bus.case.*)
     - Receipts written for ADMIT / DUPLICATE / QUARANTINE:
         s3://fraud-platform/<platform_run_id>/ig/receipts/<receipt_id>.json
     - QUARANTINE also writes quarantine_record (payload removed)
   Commit evidence:
     - receipt exists; for ADMIT it contains eb_ref with offset_kind:kinesis_sequence
-  Idempotency / dedupe (current posture):
+  Idempotency / dedupe:
     - admissions table PRIMARY KEY: dedupe_key
-    - CURRENT dedupe_key = sha256(event_type + ":" + event_id)
+    - CURRENT local_parity dedupe_key = sha256(event_type + ":" + event_id)
       (known gap: omits platform_run_id; cross-run event_id collisions can mark DUPLICATE)
+    - dev_min migration requirement (pinned):
+      dedupe identity MUST be exactly (platform_run_id, event_class, event_id) with payload_hash anomaly semantics;
+      until remediated, IG cannot claim dev_min green.
   Checkpoint/state:
     - admission index rows persist (no TTL/retention by default)
     - fields include receipt_ref + eb_topic/partition/offset/offset_kind/published_at_utc
@@ -497,7 +499,9 @@ CARD TEMPLATE (fields you must be able to answer in dev)
     - append-only timeline semantics + consumer replay discipline prevent duplicate timeline corruption
   Checkpoint/state:
     - run-scoped local checkpoint store: runs/fraud-platform/<platform_run_id>/case_mgmt/consumer_checkpoints.sqlite
+      (local_parity implementation detail only; not portable to managed runtime)
     - durable timeline/state in PARITY_CASE_MGMT_LOCATOR
+    - dev_min migration requirement (pinned): use managed runtime checkpoint/state backend; no local filesystem checkpoint dependency.
   Required config/env:
     - PARITY_CASE_MGMT_LOCATOR
     - CASE_MGMT_REQUIRED_PLATFORM_RUN_ID (pack-enforced run scope)
@@ -558,10 +562,12 @@ CARD TEMPLATE (fields you must be able to answer in dev)
     - S3_APPEND_CONFLICT indicates concurrent writers (stop one, rerun once)
 
 # ------------------------------------------------------------
-# SMALL BUT IMPORTANT “KNOWN GAPS” (do not block v0, but note for migration)
+# SMALL BUT IMPORTANT MIGRATION-CRITICAL ITEMS (must be closed before dev_min green)
 # ------------------------------------------------------------
-- IG dedupe_key currently omits platform_run_id; cross-run event_id collisions can mark DUPLICATE.
-- READY message_id derivation is scenario-centric; include platform_run_id in READY identity in a future pin if needed.
+- IG dedupe_key currently omits platform_run_id; this is a local_parity-known gap and MUST be remediated before dev_min promotion.
+- IG publish ambiguity must be modeled explicitly for dev_min (no implicit assume-success/assume-failure path).
+- CM local sqlite checkpoint path is local_parity-only and MUST be replaced by managed runtime checkpoint/state in dev_min.
+- READY message_id derivation is scenario-centric; if replay storms emerge in dev_min, include platform_run_id in READY identity under explicit repin.
 - Exact consumer-group / checkpoint-id strings live in pack YAML + component config; preserve them during migration
   (so your “restart-safe” claims stay true on Kafka).
 
