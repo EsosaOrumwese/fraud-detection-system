@@ -519,7 +519,33 @@ These are how tasks/services locate each other.
 
   * Reachable URL for WSP → IG calls (e.g., internal DNS, service discovery, or LB DNS if used).
 
-* `IG_HEALTHCHECK_PATH = "/health"` *(default; adjust if your IG uses different path)*
+* `IG_LISTEN_ADDR = "0.0.0.0"`
+
+  * Container bind address for IG service.
+
+* `IG_PORT = 8080`
+
+  * IG service listen port.
+
+* `IG_INGEST_PATH = "/v1/ingest/push"`
+
+  * Writer-boundary ingest endpoint path used by WSP.
+
+* `IG_HEALTHCHECK_PATH = "/v1/ops/health"`
+
+  * Operational health endpoint path for IG readiness checks.
+
+* `IG_AUTH_MODE = "api_key"`
+
+  * v0 writer-boundary auth posture.
+
+* `IG_AUTH_HEADER_NAME = "X-IG-Api-Key"`
+
+  * Required header for IG writer-boundary admission.
+
+* `SSM_IG_API_KEY_PATH = "/fraud-platform/dev_min/ig/api_key"`
+
+  * SSM SecureString path for the IG API key value.
 
 ### 7.6 Execution policies (v0 defaults)
 

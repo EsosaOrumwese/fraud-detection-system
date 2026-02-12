@@ -66,6 +66,7 @@ If any conflict appears, follow this precedence:
 ### 1.2 Canonical phase IDs and lifecycle
 
 * The **only** canonical identifiers for run phases are `P0..P11` (and `P12` teardown).
+* `P(-1)` is packaging preflight only and is not part of Spine Green v0 closure acceptance.
 * The phase order and retry loops are inherited from the local parity phase machine (e.g., P3 per-output rerun, P5 SR lease rules, P11 single-writer constraints).
 
 ### 1.3 No laptop dependency (runtime compute policy)
@@ -944,7 +945,7 @@ Optional:
 **ECS / runtime**
 
 * `ECS_CLUSTER_NAME`
-* `VPC_ID`, `SUBNET_IDS`, `SECURITY_GROUP_IDS` (no NAT posture)
+* `VPC_ID`, `SUBNET_IDS_PUBLIC`, `SECURITY_GROUP_ID_APP` (no NAT posture)
 * `CLOUDWATCH_LOG_GROUP_PREFIX`
 
 **Run scope**
@@ -1094,7 +1095,7 @@ P3 consists of three sub-steps that must succeed in order:
 1. **Oracle seed/sync (if needed)**
 
 * Ensure the oracle inputs required for this run exist in S3 under the pinned oracle prefix layout.
-* Dev_min allows seeding by copying from local (MinIO/local FS) until the engine writes directly to S3, but the *result* must match the canonical oracle layout.
+* Oracle seed/sync sources MUST be managed object-store locations only; copying from laptop-local paths, MinIO, or local filesystems is forbidden.
 
 2. **Stream-sort**
 
@@ -1153,10 +1154,10 @@ P3 consists of three sub-steps that must succeed in order:
 **Oracle S3**
 
 * `S3_ORACLE_BUCKET`
-* `S3_ORACLE_PREFIX_PATTERN` (includes `<platform_run_id>`)
+* `S3_ORACLE_RUN_PREFIX_PATTERN` (includes `<platform_run_id>`)
 * `S3_STREAM_VIEW_PREFIX_PATTERN`
-* `S3_STREAM_VIEW_MANIFEST_PATTERN`
-* `S3_STREAM_SORT_RECEIPT_PATTERN`
+* `S3_STREAM_VIEW_MANIFEST_KEY_PATTERN`
+* `S3_STREAM_SORT_RECEIPT_KEY_PATTERN`
 
 **Datasets / output IDs**
 
@@ -1201,7 +1202,8 @@ P3 is executed as **one-shot jobs**.
 
 **Purpose:** ensure oracle inputs exist in S3.
 
-* **MAY:** seed by copying from local store until engine writes directly to S3.
+* **MUST:** seed/sync from managed object-store sources only (for example, source S3 prefixes in the same or peered account).
+* **MUST NOT:** seed/sync from laptop-local paths, MinIO, or any local filesystem source.
 * **MUST:** preserve the canonical oracle layout (do not invent new structure).
 * **MUST:** seeding must be resumable and incremental (copy deltas), because oracle size is large.
 
@@ -1393,6 +1395,8 @@ P4 means:
 * `SVC_IG`
 * `IG_LISTEN_ADDR` (container bind)
 * `IG_PORT`
+* `IG_BASE_URL`
+* `IG_INGEST_PATH`
 * `IG_HEALTHCHECK_PATH`
 
 **Auth boundary**
@@ -1416,8 +1420,8 @@ P4 means:
 
 **S3 (receipts/quarantine)**
 
-* `S3_QUARANTINE_BUCKET`, `S3_QUARANTINE_PREFIX_PATTERN`
-* `S3_EVIDENCE_BUCKET`, `S3_EVIDENCE_PREFIX_PATTERN`
+* `S3_QUARANTINE_BUCKET`, `S3_QUARANTINE_RUN_PREFIX_PATTERN`
+* `S3_EVIDENCE_BUCKET`, `S3_EVIDENCE_RUN_ROOT_PATTERN`
 * (If receipts are materialized under oracle/quarantine buckets, those prefixes too)
 
 **Managed DB (if IG needs it)**
@@ -1429,7 +1433,7 @@ P4 means:
 
 **ECS runtime**
 
-* `ECS_CLUSTER_NAME`, `SUBNET_IDS`, `SECURITY_GROUP_IDS`
+* `ECS_CLUSTER_NAME`, `SUBNET_IDS_PUBLIC`, `SECURITY_GROUP_ID_APP`
 * `ROLE_IG_SERVICE` (least privilege: Kafka publish + S3 write + DB connect + logs)
 
 ---
@@ -1455,8 +1459,8 @@ P4 is executed as “deploy IG and prove it is ready before we stream.”
 
 3. **Auth check**
 
-* Send one unauthenticated request → MUST fail (401/403).
-* Send one authenticated “dry-run” or minimal request → MUST be accepted.
+* Send one unauthenticated request to `IG_INGEST_PATH` → MUST fail (401/403).
+* Send one authenticated “dry-run” or minimal request to `IG_INGEST_PATH` → MUST be accepted.
 
   * If you don’t have a “dry-run” endpoint, use a minimal synthetic event payload that conforms to existing contracts (do not invent a new schema).
 
@@ -1610,7 +1614,7 @@ SR must preserve the local parity semantics:
 **Oracle store**
 
 * `S3_ORACLE_BUCKET`
-* `S3_ORACLE_PREFIX_PATTERN` (includes `<platform_run_id>`)
+* `S3_ORACLE_RUN_PREFIX_PATTERN` (includes `<platform_run_id>`)
 * `S3_STREAM_VIEW_PREFIX_PATTERN` (SR may validate presence of stream_view outputs)
 
 **Kafka control**
@@ -1629,7 +1633,7 @@ SR must preserve the local parity semantics:
 **Evidence**
 
 * `S3_EVIDENCE_BUCKET`
-* `S3_EVIDENCE_PREFIX_PATTERN`
+* `S3_EVIDENCE_RUN_ROOT_PATTERN`
 
 ---
 
@@ -1800,13 +1804,14 @@ P6 means:
 **IG target**
 
 * `IG_BASE_URL` (reachable from WSP task networking)
+* `IG_INGEST_PATH`
 * `IG_AUTH_HEADER_NAME`
 * `SSM_IG_API_KEY_PATH`
 
 **Evidence**
 
 * `S3_EVIDENCE_BUCKET`
-* `S3_EVIDENCE_PREFIX_PATTERN`
+* `S3_EVIDENCE_RUN_ROOT_PATTERN`
 
 **WSP runtime knobs**
 
@@ -1983,8 +1988,8 @@ Local parity invariants preserved:
 
 **Receipts/quarantine**
 
-* `S3_EVIDENCE_BUCKET`, `S3_EVIDENCE_PREFIX_PATTERN`
-* `S3_QUARANTINE_BUCKET`, `S3_QUARANTINE_PREFIX_PATTERN`
+* `S3_EVIDENCE_BUCKET`, `S3_EVIDENCE_RUN_ROOT_PATTERN`
+* `S3_QUARANTINE_BUCKET`, `S3_QUARANTINE_RUN_PREFIX_PATTERN`
 * `RECEIPT_SUMMARY_PATH_PATTERN`
 * `QUARANTINE_INDEX_PATH_PATTERN` (if you write index summaries)
 
@@ -1995,7 +2000,7 @@ Local parity invariants preserved:
 
 **Evidence**
 
-* `EVIDENCE_RUN_ROOT_PATTERN` (canonical run root)
+* `S3_EVIDENCE_RUN_ROOT_PATTERN` (canonical run root)
 
 ---
 
@@ -2169,8 +2174,8 @@ P8 means:
 
 **Evidence**
 
-* `S3_EVIDENCE_BUCKET`, `S3_EVIDENCE_PREFIX_PATTERN`
-* `S3_ARCHIVE_BUCKET`, `S3_ARCHIVE_PREFIX_PATTERN` (if archive writer is part of RTDL core)
+* `S3_EVIDENCE_BUCKET`, `S3_EVIDENCE_RUN_ROOT_PATTERN`
+* `S3_ARCHIVE_BUCKET`, `S3_ARCHIVE_RUN_PREFIX_PATTERN` (if archive writer is part of RTDL core)
 * `OFFSETS_SNAPSHOT_PATH_PATTERN`
 
 **Lag thresholds**
@@ -2357,7 +2362,7 @@ P9 means:
 
 **Evidence**
 
-* `S3_EVIDENCE_BUCKET`, `S3_EVIDENCE_PREFIX_PATTERN`
+* `S3_EVIDENCE_BUCKET`, `S3_EVIDENCE_RUN_ROOT_PATTERN`
 * `DLA_EVIDENCE_PATH_PATTERN`
 
 **Idempotency**
@@ -2534,7 +2539,7 @@ P10 means:
 
 **Evidence**
 
-* `S3_EVIDENCE_BUCKET`, `S3_EVIDENCE_PREFIX_PATTERN`
+* `S3_EVIDENCE_BUCKET`, `S3_EVIDENCE_RUN_ROOT_PATTERN`
 * `CASE_EVIDENCE_PATH_PATTERN`
 * `LABEL_EVIDENCE_PATH_PATTERN`
 
@@ -2700,7 +2705,7 @@ This is a strict translation of your local parity “reporter / closure” behav
 
 **Evidence**
 
-* `S3_EVIDENCE_BUCKET`, `S3_EVIDENCE_PREFIX_PATTERN`
+* `S3_EVIDENCE_BUCKET`, `S3_EVIDENCE_RUN_ROOT_PATTERN`
 * `RUN_CLOSURE_MARKER_PATH_PATTERN`
 * `RUN_REPORT_PATH_PATTERN`
 * `REPLAY_ANCHORS_PATH_PATTERN`
