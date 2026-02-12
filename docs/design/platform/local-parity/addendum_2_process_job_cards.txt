@@ -237,6 +237,7 @@ CARD TEMPLATE (fields you must be able to answer in dev)
     - ORACLE_ENGINE_RUN_ROOT must match the stream view built (else STREAM_VIEW_ID_MISMATCH)
     - IG_INGEST_URL set (else Invalid URL '/v1/ingest/push')
     - IG auth profile exported (api_key mode in local_parity): WSP must send X-IG-Api-Key token expected by IG
+    - enforce on every ingest POST; ops-health auth checks do not substitute for ingest auth
   Resource envelope + knobs (behavior-changing):
     - WSP_READY_MAX_EVENTS (per output in concurrent mode)
     - WSP_MAX_EVENTS_PER_OUTPUT (explicit per-output cap)
@@ -285,6 +286,7 @@ CARD TEMPLATE (fields you must be able to answer in dev)
     - QUARANTINE also writes quarantine_record (payload removed)
   Commit evidence:
     - receipt exists; for ADMIT it contains eb_ref with offset_kind:kinesis_sequence
+    - ADMIT commit claim is valid only when receipt + admission-index eb_ref fields are durable
   Idempotency / dedupe:
     - admissions table PRIMARY KEY: dedupe_key
     - CURRENT local_parity dedupe_key = sha256(event_type + ":" + event_id)
@@ -303,6 +305,9 @@ CARD TEMPLATE (fields you must be able to answer in dev)
     - publish error => quarantines and does NOT record dedupe row
     - missing stream => hard fail until stream created
     - publish timeout/transport ambiguity => treat as PUBLISH_UNKNOWN (no ADMIT success claim until eb_ref commit is proven)
+    - PUBLISH_UNKNOWN => no successful ADMIT receipt semantics until reconciliation proves commit
+    - canonical runtime materialization for PUBLISH_UNKNOWN:
+      admission state=PUBLISH_AMBIGUOUS + quarantine artifact in ig/quarantine/ + quarantine receipt in ig/receipts/ (decision=QUARANTINE, reason_codes includes PUBLISH_AMBIGUOUS)
   Reset/retry:
     - receipts are evidence; do not delete to “fix” logic
     - prefer fresh platform_run_id if admission logic changes materially
@@ -523,13 +528,26 @@ CARD TEMPLATE (fields you must be able to answer in dev)
   Plane: Case + Labels
   Type: DAEMON WORKER (local_parity pack-managed)
   Entry point(s): pack-managed (case_labels pack): `fraud_detection.label_store.worker`
-  Inputs: label assertions submitted through LS writer boundary (primary local flow: CM -> LS)
+  Inputs:
+    - label assertions submitted through LS writer boundary (primary local flow: CM -> LS)
+    - boundary call shape (local_parity runtime): in-process CM handshake -> `LabelStoreWriterBoundary.write_label_assertion(assertion_payload)`
+  Writer boundary protocol (local_parity current posture):
+    - request payload basis: canonical LabelAssertion mapping (pins + label_subject_key + evidence_refs + deterministic ids/hashes)
+    - writer statuses: ACCEPTED | REJECTED (returned by LS boundary)
+    - ACCEPTED semantics are emitted only after durable append commit in PARITY_LABEL_STORE_LOCATOR
+    - CM handshake status mapping: EMISSION_ACCEPTED | EMISSION_REJECTED | EMISSION_PENDING
+      (PENDING is handshake-level on write exception; not a committed LS acceptance)
+    - reason-code families:
+      ACCEPTED => ASSERTION_COMMITTED_NEW or ASSERTION_REPLAY_MATCH
+      REJECTED => CONTRACT_INVALID / MISSING_EVIDENCE_REFS / DEDUPE_TUPLE_COLLISION / PAYLOAD_HASH_MISMATCH
   Outputs: append-only label assertions in Postgres (PARITY_LABEL_STORE_LOCATOR)
   Commit evidence:
     - runs/fraud-platform/<platform_run_id>/label_store/health/last_health.json is GREEN
     - runs/fraud-platform/<platform_run_id>/label_store/metrics/last_metrics.json shows accepted > 0
   Idempotency / dedupe:
-    - append-only label timeline with deterministic dedupe tuple handling
+    - append-only label timeline with deterministic assertion identity
+    - dedupe basis includes deterministic `label_assertion_id`
+    - canonical tuple exposed by contract: (platform_run_id, event_id, label_type, label_assertion_id)
   Checkpoint/state:
     - durable label timeline + governance markers in PARITY_LABEL_STORE_LOCATOR
   Required config/env:
@@ -539,8 +557,10 @@ CARD TEMPLATE (fields you must be able to answer in dev)
   Fail-closed + common failures:
     - contract_invalid / payload_hash_mismatch / missing_evidence_refs => reject path with no silent accept
     - DB write failure => fail processing and preserve append-only truth posture
+    - CM handshake write exception => EMISSION_PENDING; retry lane is bounded by label emission policy (no silent ACCEPTED fallback)
   Reset/retry:
     - restart case_labels pack (preferred)
+    - retry pending emissions through CM handshake path (bounded by policy max_retry_attempts)
     - for destructive scratch resets only, wipe LS tables explicitly and log action
 
 # ------------------------------------------------------------

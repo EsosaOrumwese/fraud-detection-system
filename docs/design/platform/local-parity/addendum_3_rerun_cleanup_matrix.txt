@@ -105,9 +105,15 @@ L4 SUBSTRATE RESET
   Symptom:
     - ingest call times out/transport fails and operator cannot prove whether publish committed
     - receipt is missing or ADMIT commit is uncertain
+    - canonical runtime evidence appears as:
+      admissions.state = PUBLISH_AMBIGUOUS and quarantine reason code includes PUBLISH_AMBIGUOUS
   Safe action:
+    - do not emit/accept ADMIT success evidence for ambiguous events while commit is unresolved
     - fail closed for run closure (do not claim ADMIT success for ambiguous events)
     - inspect IG admission index row + eb_ref fields + bus presence before any replay
+    - verify the two artifacts exist for the ambiguous event:
+      s3://fraud-platform/<platform_run_id>/ig/quarantine/<quarantine_id>.json
+      s3://fraud-platform/<platform_run_id>/ig/receipts/<receipt_id>.json (decision=QUARANTINE)
     - if ambiguity remains unresolved, quarantine the event path and rerun with explicit reconciliation record
   Do NOT:
     - assume timeout == publish failure

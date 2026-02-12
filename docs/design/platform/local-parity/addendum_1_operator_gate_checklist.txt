@@ -98,6 +98,9 @@
           Receipt(s) include eb_ref + offset_kind=kinesis_sequence
           admitted_count > 0 for active run (required; from IG summary/logs or platform_run_report ingress.admit)
           duplicate-only receipt outcomes are FAIL for Gate-200 closure
+          no unresolved ambiguity artifacts for this run:
+            admissions.state != PUBLISH_AMBIGUOUS for closure set
+            and no quarantine receipt with reason_codes containing PUBLISH_AMBIGUOUS
 
 11) EB HAS TRAFFIC + CONTEXT RECORDS (P7/P8)
     CMD:  kinesis stream get/list/describe (or platform helper)

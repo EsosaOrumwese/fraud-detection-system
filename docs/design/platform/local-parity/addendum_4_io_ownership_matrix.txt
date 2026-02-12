@@ -72,6 +72,7 @@ HTTP ENDPOINTS (writer boundaries)
   - IG health: http://127.0.0.1:8081/v1/ops/health  (401 unauthenticated, 200 with X-IG-Api-Key)
   - Local parity IG auth posture:
       auth_mode=api_key, header=X-IG-Api-Key, enforced on ingest + ops endpoints
+  - Ingest caller contract (WSP): include X-IG-Api-Key on every POST; health auth checks do not satisfy ingest auth
 
 # ------------------------------------------------------------
 # 1) TOP-LEVEL OWNERSHIP RULES (LEAST PRIVILEGE “LAWS”)
@@ -189,6 +190,9 @@ RULE 6: Governance append log is single-writer per run.
     - S3 (fraud-platform):
         <platform_run_id>/ig/receipts/*.json
         <platform_run_id>/ig/quarantine/*.json
+      publish-ambiguity evidence (as implemented):
+        `PUBLISH_UNKNOWN` operator state => admissions.state `PUBLISH_AMBIGUOUS`
+        with quarantine record in ig/quarantine and quarantine receipt in ig/receipts (decision=QUARANTINE, reason_codes include PUBLISH_AMBIGUOUS)
     - DB: PARITY_IG_ADMISSION_DSN (dedupe/admit rows, eb_ref)
     - FS (pack-managed): runs/fraud-platform/<platform_run_id>/operate/local_parity_control_ingress_v0/logs/ig_service.log
     - FS (service-native artifacts, if emitted): runs/fraud-platform/<platform_run_id>/ingestion_gate/**
@@ -198,6 +202,7 @@ RULE 6: Governance append log is single-writer per run.
     - write SR artifacts
     - write DLA audit truth
     - write governance append log directly (except via explicit governance emitter if pinned)
+    - claim ADMIT committed when publish outcome is ambiguous (PUBLISH_UNKNOWN) and eb_ref commit evidence is unresolved
 
 [COMPONENT] ArchiveWriter
   PRINCIPAL: archive_writer
@@ -211,6 +216,7 @@ RULE 6: Governance append log is single-writer per run.
     - Archive artifacts (LOCAL_PARITY run-scoped artifacts are present under):
         FS: runs/fraud-platform/<platform_run_id>/archive_writer/** (metrics/health)
         FS: runs/fraud-platform/<platform_run_id>/archive/reconciliation/** (reconciliation json)
+      (filesystem artifacts are observability-only; durable archive truth is the object-store record + ledger)
     - Commit evidence basis: archive object exists + PARITY_ARCHIVE_WRITER_LEDGER_DSN offset advanced
     - (DEV_MIN target) S3: archive/** and evidence/replay/** (prefix families pinned in dev_min doc)
   CALL: none
@@ -345,6 +351,8 @@ RULE 6: Governance append log is single-writer per run.
     - FS: runs/fraud-platform/<platform_run_id>/case_mgmt/** (if present)
   CALL:
     - LS writer boundary (local_parity runtime: `label_store_worker`) if CM submits labels downstream
+      call basis: in-process `LabelStoreWriterBoundary.write_label_assertion(assertion_payload)`
+      expected writer outcomes: ACCEPTED | REJECTED; write exceptions are treated by CM handshake as PENDING
   MUST NOT:
     - execute side effects (AL owns effects)
     - claim label truth until LS ack
@@ -353,14 +361,19 @@ RULE 6: Governance append log is single-writer per run.
   PRINCIPAL: label_store
   READ:
     - Label assertions submitted to LS writer boundary (served by `label_store_worker` in local_parity)
+      (CM handshake in-process call: `write_label_assertion(assertion_payload)`)
     - DB: PARITY_LABEL_STORE_LOCATOR
   WRITE:
     - DB: PARITY_LABEL_STORE_LOCATOR (append-only label timeline)
     - (optional) EB derived events (produce): fp.bus.labels.events.v1
     - (optional) S3 evidence/labels/** in dev_min (summary exports)
+    - idempotency identity surface:
+        deterministic label_assertion_id and tuple (platform_run_id, event_id, label_type, label_assertion_id)
   CALL: none
   MUST NOT:
     - accept label writes without durable commit/ack semantics
+    - emit ACCEPTED before durable append commit exists in PARITY_LABEL_STORE_LOCATOR
+    - emit ACCEPTED semantics when write path is unresolved/exceptional
 
 [COMPONENT] Platform Run Reporter (obs/gov)
   PRINCIPAL: platform_run_reporter

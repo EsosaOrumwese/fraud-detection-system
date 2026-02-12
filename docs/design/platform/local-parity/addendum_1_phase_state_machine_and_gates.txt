@@ -203,10 +203,15 @@ Exit gate:
   - Receipts include eb_ref with offsets (offset_kind=kinesis_sequence)
   - EB streams contain records for traffic + context (+ rtdl/case/audit later)
   - IG admission signal for active run is positive (admitted_count > 0)
+  - No unresolved publish ambiguity for closure set:
+      admissions.state != PUBLISH_AMBIGUOUS
+      and no quarantine receipt reason_codes containing PUBLISH_AMBIGUOUS
 
 Commit evidence:
   - Receipt files are the admission commit evidence (append-only)
   - eb_ref inside receipts is the replay pointer
+  - PUBLISH_UNKNOWN operator state is materialized as runtime `PUBLISH_AMBIGUOUS`:
+      quarantine artifact + quarantine receipt must exist and block green closure until reconciled
 
 Reset/retry:
   - Don’t delete receipts to “fix” problems — treat receipts as evidence

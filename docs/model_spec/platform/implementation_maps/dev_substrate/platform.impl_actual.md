@@ -3884,3 +3884,224 @@ Docs-only closure pass to align local process exposure with pinned migration sem
 
 ### Drift sentinel assessment
 Docs-only closure; no runtime code or contract implementation changed. This reduces migration blind spots while preserving local runtime truth.
+
+## Entry: 2026-02-12 3:27PM - Pre-change lock for LS writer-boundary protocol hardening
+
+### Trigger
+USER requested: "Fix up #5" after confirming remaining gap is LS writer-boundary protocol specificity in local-parity exposure docs.
+
+### Gap to close
+Local-parity docs mention CM -> LS writer boundary but do not fully pin:
+- boundary type/mechanics,
+- request/ack semantics,
+- idempotency/dedupe identity basis,
+- failure/retry posture.
+
+### Sources used for runtime-truth grounding
+- `src/fraud_detection/case_mgmt/worker.py`
+- `src/fraud_detection/case_mgmt/label_handshake.py`
+- `src/fraud_detection/label_store/writer_boundary.py`
+- `src/fraud_detection/label_store/contracts.py`
+- local-parity exposure docs in `docs/design/platform/local-parity/`.
+
+### Decision
+Patch docs only (no code/runtime changes) to explicitly expose current local-parity LS boundary behavior:
+- boundary type: in-process CM handshake calling `LabelStoreWriterBoundary.write_label_assertion`.
+- writer responses and semantics:
+  - `ACCEPTED` (new commit or replay-match),
+  - `REJECTED` (contract invalid/missing evidence/dedupe collision/payload mismatch),
+  - `PENDING` only at CM handshake layer when write exception occurs.
+- idempotency basis: deterministic `label_assertion_id` and dedupe tuple `(platform_run_id, event_id, label_type, label_assertion_id)`.
+- failure/retry: fail-closed with bounded retries (`max_retry_attempts` policy) and explicit terminal accepted/rejected states.
+
+### Files targeted
+1. `docs/design/platform/local-parity/addendum_2_process_job_cards.txt`
+2. `docs/design/platform/local-parity/addendum_4_io_ownership_matrix.txt`
+3. `docs/design/platform/local-parity/spine_green_v0_run_process_flow.txt`
+
+### Validation plan
+- marker scan for explicit LS protocol terms (`write_label_assertion`, ACCEPTED/REJECTED/PENDING, dedupe tuple, bounded retries).
+- readability check to keep local-parity flow chronology unchanged.
+
+### Drift sentinel checkpoint
+Docs-only hardening to remove remaining implicit boundary semantics; no implementation/runtime behavior change.
+
+## Entry: 2026-02-12 3:30PM - Applied closure for LS writer-boundary protocol hardening
+
+### Files updated
+1. `docs/design/platform/local-parity/spine_green_v0_run_process_flow.txt`
+2. `docs/design/platform/local-parity/addendum_2_process_job_cards.txt`
+3. `docs/design/platform/local-parity/addendum_4_io_ownership_matrix.txt`
+
+### Changes applied
+1. **Main flow protocol exposure added**
+- Added explicit `LS WRITER BOUNDARY PROTOCOL (LOCAL_PARITY)` section under Case+Labels in the canonical run flow.
+- Pinned boundary type, payload basis, writer outcomes, handshake status mapping, idempotency basis, and bounded retry posture.
+
+2. **Job card protocol semantics pinned**
+- Expanded LS job card with explicit local boundary call shape:
+  `LabelStoreWriterBoundary.write_label_assertion(assertion_payload)`.
+- Added writer status semantics (`ACCEPTED | REJECTED`) and CM handshake mapping
+  (`EMISSION_ACCEPTED | EMISSION_REJECTED | EMISSION_PENDING`).
+- Added reason-code families and retry-bound statement (`max_retry_attempts` policy bound).
+
+3. **IO ownership contract clarified**
+- Expanded CM `CALL` contract to specify expected LS outcomes and exception treatment.
+- Expanded LS `READ/WRITE/MUST NOT` rules with identity tuple and explicit prohibition on unresolved/exceptional ACCEPTED semantics.
+
+### Validation
+- Marker scans confirmed the protocol surfaces are present:
+  - `LS WRITER BOUNDARY PROTOCOL (LOCAL_PARITY)` in main flow,
+  - `write_label_assertion(assertion_payload)` in job cards + IO matrix,
+  - `EMISSION_ACCEPTED | EMISSION_REJECTED | EMISSION_PENDING` mapping,
+  - idempotency tuple `(platform_run_id, event_id, label_type, label_assertion_id)`,
+  - bounded retry note tied to policy.
+
+### Drift sentinel assessment
+Docs-only closure aligned to runtime truth from CM/LS current implementation boundary. No runtime code or behavior was changed in this pass.
+
+## Entry: 2026-02-12 3:37PM - Pre-change lock for A-E hardening pass after external review challenge
+
+### Trigger
+USER requested immediate correction pass after external reviewer challenged closure status and asked to "Fix the issues".
+
+### Objective
+Run one docs-only hardening pass that removes any residual ambiguity for the five contested items:
+1. IG ingest auth contract exposure,
+2. IG topic ownership consistency,
+3. ArchiveWriter object-store commit semantics in local_parity,
+4. explicit publish ambiguity (`PUBLISH_UNKNOWN`) semantics and run-closure effects,
+5. LS writer-boundary commit semantics.
+
+### Scope
+Patch only local-parity exposure docs:
+1. `docs/design/platform/local-parity/spine_green_v0_run_process_flow.txt`
+2. `docs/design/platform/local-parity/addendum_2_process_job_cards.txt`
+3. `docs/design/platform/local-parity/addendum_3_rerun_cleanup_matrix.txt`
+4. `docs/design/platform/local-parity/addendum_4_io_ownership_matrix.txt`
+
+### Decision rules
+- Preserve runtime truth; do not invent implementation behavior.
+- If wording is already present, strengthen it where ambiguity can still be inferred.
+- Ensure same semantics appear in main flow + job cards + rerun matrix + IO matrix (no single-doc truth).
+
+### Validation plan
+- marker scan for:
+  - ingest auth on `/v1/ingest/push` with `X-IG-Api-Key`,
+  - ownership split for `traffic/context` vs `rtdl/audit/case`,
+  - ArchiveWriter object-store key family + commit evidence basis,
+  - `PUBLISH_UNKNOWN` fail-closed run-closure handling,
+  - LS durable commit meaning for ACCEPTED.
+
+### Drift sentinel checkpoint
+Docs-only pass to de-risk migration misreads and close interpretation drift; no runtime behavior change intended.
+
+## Entry: 2026-02-12 3:38PM - Applied closure for A-E hardening pass (ambiguity-elimination)
+
+### Files updated
+1. `docs/design/platform/local-parity/spine_green_v0_run_process_flow.txt`
+2. `docs/design/platform/local-parity/addendum_2_process_job_cards.txt`
+3. `docs/design/platform/local-parity/addendum_3_rerun_cleanup_matrix.txt`
+4. `docs/design/platform/local-parity/addendum_4_io_ownership_matrix.txt`
+
+### Changes applied
+1. **IG ingest auth contract strengthened**
+- Added explicit WSP ingest-caller contract in main flow and IO matrix.
+- Clarified that health auth checks are not a substitute for ingest auth enforcement.
+
+2. **ADMIT commit semantics tightened**
+- Added explicit rule that ADMIT is only committed when receipt + admission-index `eb_ref` evidence are durable.
+- Added explicit `PUBLISH_UNKNOWN` fail-closed rule in IG job card and rerun matrix wording.
+
+3. **ArchiveWriter local parity durability semantics tightened**
+- Added exact local parity archive object key family in main flow.
+- Added explicit commit proof rule: object exists + archive ledger offset advanced.
+- Clarified that filesystem artifacts are observability-only, not archive durability truth.
+
+4. **Ownership clarity preserved and reasserted**
+- Confirmed job card and rerun matrix language preserves the split:
+  IG(traffic/context), DF/AL(rtdl), DLA(audit), CaseTrigger(case).
+
+5. **LS ACCEPTED durability semantics tightened**
+- Added explicit prohibition in IO matrix and job card language:
+  ACCEPTED cannot be emitted before durable append commit in `PARITY_LABEL_STORE_LOCATOR`.
+
+### Validation
+- Marker scans confirmed presence of:
+  - ingest auth contract language on `/v1/ingest/push`,
+  - ADMIT commit evidence language (`receipt + eb_ref` durable),
+  - `PUBLISH_UNKNOWN` fail-closed language,
+  - archive object key family + observability-only FS clarification,
+  - LS durable-commit ACCEPTED rule.
+- Marker scans confirmed ownership split wording remains consistent across job cards/rerun matrix.
+
+### Drift sentinel assessment
+This pass is docs-only and aligns local-parity exposure text to runtime-truth posture while removing interpretation gaps that could mislead migration execution.
+
+## Entry: 2026-02-12 3:47PM - Pre-change lock for PUBLISH_UNKNOWN observable-artifact pin
+
+### Trigger
+USER shared final external recommendation to make `PUBLISH_UNKNOWN` operator-visible as a named canonical artifact and requested issue closure without ambiguity.
+
+### Runtime-truth check performed
+Inspected IG implementation before doc edits:
+- `src/fraud_detection/ingestion_gate/admission.py`
+- `src/fraud_detection/ingestion_gate/index.py`
+- `src/fraud_detection/ingestion_gate/pg_index.py`
+- `src/fraud_detection/ingestion_gate/receipts.py`
+
+Observed behavior:
+- publish transport/timeout ambiguity is recorded as `PUBLISH_AMBIGUOUS` in admission index state (`record_ambiguous`),
+- the event path is quarantined with reason code `PUBLISH_AMBIGUOUS`,
+- IG writes both quarantine artifact and quarantine receipt (decision `QUARANTINE`) under existing IG prefixes.
+
+### Decision
+Do not invent new runtime artifact types.
+Pin canonical evidence contract in docs as:
+1. admission index state = `PUBLISH_AMBIGUOUS`,
+2. `s3://fraud-platform/<platform_run_id>/ig/quarantine/<quarantine_id>.json` with reason code `PUBLISH_AMBIGUOUS`,
+3. matching receipt under `ig/receipts/` with decision `QUARANTINE`.
+
+### Scope
+Docs-only hardening across local-parity pack:
+- main run flow,
+- job cards,
+- rerun/cleanup matrix,
+- phase/gate checklist,
+- phase state machine,
+- IO matrix.
+
+### Drift sentinel checkpoint
+This pass aligns operator-facing ambiguity semantics to implementation truth and eliminates state-name mismatch risk during migration.
+
+## Entry: 2026-02-12 3:49PM - Applied closure for PUBLISH_UNKNOWN observable-artifact pin
+
+### Files updated
+1. `docs/design/platform/local-parity/spine_green_v0_run_process_flow.txt`
+2. `docs/design/platform/local-parity/addendum_2_process_job_cards.txt`
+3. `docs/design/platform/local-parity/addendum_3_rerun_cleanup_matrix.txt`
+4. `docs/design/platform/local-parity/addendum_1_operator_gate_checklist.txt`
+5. `docs/design/platform/local-parity/addendum_1_phase_state_machine_and_gates.txt`
+6. `docs/design/platform/local-parity/addendum_4_io_ownership_matrix.txt`
+
+### Changes applied
+1. **Canonical mapping pinned**
+- Documented that `PUBLISH_UNKNOWN` (operator ambiguity state) is materialized by current runtime as:
+  - admissions state `PUBLISH_AMBIGUOUS`,
+  - quarantine artifact under `ig/quarantine/`,
+  - quarantine receipt under `ig/receipts/` with `decision=QUARANTINE` and reason code including `PUBLISH_AMBIGUOUS`.
+
+2. **Gate semantics tightened**
+- Added explicit P7 closure condition: no unresolved `PUBLISH_AMBIGUOUS` evidence for closure set.
+- Added operator checklist pass criterion reflecting the same rule.
+
+3. **Recovery playbook tightened**
+- Added explicit artifact checks in rerun matrix item `(6b)` for ambiguous publish triage.
+- Reasserted fail-closed behavior until ambiguity is reconciled.
+
+### Validation
+- Marker scans confirm all six docs now carry the same `PUBLISH_UNKNOWN -> PUBLISH_AMBIGUOUS evidence` mapping.
+- Verified no ownership regressions introduced in IG/RTDL/case lane wording.
+
+### Drift sentinel assessment
+Docs-only closure, strictly aligned to IG implementation behavior; no runtime code changes were made.

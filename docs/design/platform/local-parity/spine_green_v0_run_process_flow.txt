@@ -240,6 +240,7 @@ INPUTS:
   - reads stream view FROM MinIO:
       <ORACLE_STREAM_VIEW_ROOT>/output_id=<output_id>/part-*.parquet
   - emits HTTP POST to IG ingest endpoint (/v1/ingest/push)
+  - ingest caller contract (local_parity): each push carries X-IG-Api-Key; missing/invalid key must return 401 UNAUTHORIZED
 OUTPUTS:
   - WSP ready-consumer logs under:
       runs/fraud-platform/<platform_run_id>/operate/local_parity_control_ingress_v0/logs/wsp_ready_consumer.log
@@ -269,10 +270,15 @@ ON ADMIT:
   - writes receipt to object store:
       s3://fraud-platform/<platform_run_id>/ig/receipts/<receipt_id>.json
   - receipt includes eb_ref with offset_kind=kinesis_sequence
+  - ADMIT is considered committed only when receipt + eb_ref admission-index evidence are durable
 ON PUBLISH_UNKNOWN (publish outcome ambiguous):
   - do NOT claim ADMIT commit for that event until publish commit evidence is proven
   - hold run closure for affected event(s), reconcile IG admission row + eb_ref + bus presence
   - if unresolved, fail closed and record explicit ambiguity for operator remediation
+  - canonical runtime evidence (as implemented):
+      admission index state = PUBLISH_AMBIGUOUS
+      quarantine artifact = s3://fraud-platform/<platform_run_id>/ig/quarantine/<quarantine_id>.json
+      quarantine receipt = s3://fraud-platform/<platform_run_id>/ig/receipts/<receipt_id>.json with decision=QUARANTINE and reason_codes including PUBLISH_AMBIGUOUS
 ON QUARANTINE:
   - writes quarantine record (payload removed) + receipt
 SUCCESS:
@@ -298,7 +304,10 @@ CONSUMES (at minimum):
 COMPONENTS:
   ArchiveWriter:
     - reads EB topics
-    - writes durable archive (object store) for replay beyond EB retention
+    - writes durable archive records (object store) for replay beyond EB retention:
+        s3://fraud-platform/<platform_run_id>/archive/events/topic=<topic>/partition=<partition>/offset_kind=<offset_kind>/offset=<offset>.json
+    - archive durability commit proof: archive object exists + PARITY_ARCHIVE_WRITER_LEDGER_DSN offset advanced
+    - local filesystem archive artifacts are observability-only (not archive durability truth)
   IEG projector:
     - reads EB
     - updates identity/entity projection store (Postgres)
@@ -362,6 +371,18 @@ COMPONENTS:
   LS (label store; runtime in local parity = daemon worker `label_store_worker`):
     - writer boundary for label assertions (primary flow: CM -> LS)
     - append-only label timeline truth (Postgres) + optional emitted label events
+LS WRITER BOUNDARY PROTOCOL (LOCAL_PARITY):
+  - boundary type: in-process CM handshake call into `LabelStoreWriterBoundary.write_label_assertion(assertion_payload)`
+  - request basis: canonical label assertion payload with pins, subject key, evidence refs, and deterministic identity/hash fields
+  - writer outcomes:
+      ACCEPTED  => committed new assertion OR replay-match
+      REJECTED  => contract/missing-evidence/dedupe-collision/payload-mismatch reasons
+  - handshake outcome mapping:
+      EMISSION_ACCEPTED / EMISSION_REJECTED / EMISSION_PENDING
+      (PENDING is retry-needed due to write exception; not accepted truth)
+  - idempotency basis: deterministic `label_assertion_id` and tuple
+      (platform_run_id, event_id, label_type, label_assertion_id)
+  - retry posture: bounded retries via CM label emission policy before terminal reject path
 
 SUCCESS:
   - fp.bus.case.v1 has trigger events
