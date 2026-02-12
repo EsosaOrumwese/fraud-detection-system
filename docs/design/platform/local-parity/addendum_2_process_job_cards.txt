@@ -412,7 +412,7 @@ CARD TEMPLATE (fields you must be able to answer in dev)
     - stores: PARITY_DL_POSTURE_DSN, PARITY_DL_OUTBOX_DSN, PARITY_DL_OPS_DSN
     - traffic stream consumption basis (profile-driven)
   Outputs:
-    - posture state persisted + posture events to decision lane boundary (as implemented)
+    - posture state persisted + posture events emitted to the decision lane boundary
     - governance/metrics surfaces
   Commit evidence: posture state updated for run + outbox drained
   Idempotency: restart-safe via posture/outbox stores
@@ -472,7 +472,7 @@ CARD TEMPLATE (fields you must be able to answer in dev)
   Type: DAEMON WORKER
   Entry point(s): pack-managed (case_labels pack)
   Inputs:
-    - evidence basis from decision lane (df/dla/rtdl as implemented)
+    - evidence basis from decision lane outputs (DF decisions/intents + DLA evidence + fp.bus.rtdl.v1 events)
     - stores: PARITY_CASE_TRIGGER_REPLAY_DSN, PARITY_CASE_TRIGGER_CHECKPOINT_DSN, PARITY_CASE_TRIGGER_PUBLISH_STORE_DSN
   Outputs:
     - publishes triggers to fp.bus.case.v1
@@ -488,10 +488,11 @@ CARD TEMPLATE (fields you must be able to answer in dev)
   Outputs: case timeline updates (append-only posture) in Postgres
   Commit evidence: case timeline updated for run
 
-[JOBCARD] Label Store (LS) writer boundary (stateful)
+[JOBCARD] Label Store (LS) daemon worker + writer boundary (stateful)
   Plane: Case + Labels
-  Type: DAEMON SERVICE (or internal writer)
-  Inputs: label assertions (from CM workflow / explicit API)
+  Type: DAEMON WORKER (local_parity pack-managed)
+  Entry point(s): pack-managed (case_labels pack): `fraud_detection.label_store.worker`
+  Inputs: label assertions submitted through LS writer boundary (primary local flow: CM -> LS)
   Outputs: append-only label assertions in Postgres (PARITY_LABEL_STORE_LOCATOR)
   Commit evidence: label assertions present for run (when exercised)
 

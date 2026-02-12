@@ -2949,3 +2949,65 @@ Post-edit marker scan passed for all targeted anchors:
 
 ### Drift sentinel assessment
 Docs-only alignment pass; no runtime semantics changed.
+
+## Entry: 2026-02-12 12:18PM - Pre-change lock for LS runtime-role terminology clarification (migration readability)
+
+### Trigger
+USER asked to clarify ambiguous wording such as `LS writer boundary (as implemented)` so migration planning can distinguish authority role vs concrete runtime unit.
+
+### Problem framing
+Current wording can be read as if LS is not a concrete process type. In local parity, LS is both:
+1. an authority role (`writer boundary` for label truth semantics), and
+2. a concrete run-operate unit (`label_store_worker` daemon worker).
+
+Ambiguous phrases (`as implemented`, `daemon service or internal writer`) reduce migration clarity when mapping to dev packaging and ops ownership.
+
+### Decision
+Clarify docs by explicitly pairing role + runtime shape:
+- Role: Label Store writer boundary semantics.
+- Runtime (local parity): daemon worker `label_store_worker` under case_labels pack.
+
+### Planned edits
+1. `docs/design/platform/local-parity/spine_green_v0_run_process_flow.txt`
+- replace ambiguous LS phrase with explicit daemon worker wording.
+2. `docs/design/platform/local-parity/addendum_2_process_job_cards.txt`
+- set LS job card type to DAEMON WORKER (local parity) and keep writer-boundary role language explicit.
+3. `docs/design/platform/local-parity/addendum_4_io_ownership_matrix.txt`
+- annotate LS writer boundary references with local-parity runtime mapping to `label_store_worker`.
+
+### Validation plan
+Post-edit scan for:
+- `label_store_worker` references in the above files,
+- explicit distinction between writer-boundary role and daemon worker runtime.
+
+### Drift sentinel checkpoint
+Docs-only clarification; no runtime or ownership semantics change.
+
+## Entry: 2026-02-12 12:20PM - Applied terminology clarification for LS runtime role vs authority role
+
+### What was clarified
+Resolved ambiguity around phrases like `LS writer boundary (as implemented)` by explicitly separating:
+1. authority role: LS writer boundary semantics (idempotent append-only label truth),
+2. runtime shape in local parity: daemon worker `label_store_worker` in case_labels pack.
+
+### Files updated
+1. `docs/design/platform/local-parity/spine_green_v0_run_process_flow.txt`
+- case_labels pack process list now explicitly says LS is a daemon worker (`label_store_worker`) enforcing writer-boundary semantics.
+- case/labels component section now explicitly states LS runtime shape in local parity.
+
+2. `docs/design/platform/local-parity/addendum_2_process_job_cards.txt`
+- LS jobcard renamed to `daemon worker + writer boundary`.
+- Type set explicitly to `DAEMON WORKER (local_parity pack-managed)`.
+- Entry point set explicitly to `fraud_detection.label_store.worker`.
+- Inputs clarified to CM->LS writer-boundary submission flow.
+- additional non-LS ambiguous `as implemented` phrasing replaced with concrete wording where touched.
+
+3. `docs/design/platform/local-parity/addendum_4_io_ownership_matrix.txt`
+- LS writer-boundary references annotated with local-parity runtime mapping to `label_store_worker`.
+- remaining vague `as implemented` phrasing in touched section replaced with explicit evidence/artifact wording.
+
+### Validation
+Post-edit scan confirms explicit `label_store_worker` mapping and removal of ambiguous LS `as implemented` wording in the touched docs.
+
+### Drift sentinel assessment
+Docs-only clarity pass; no runtime behavior or ownership semantics changed.

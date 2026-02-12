@@ -123,7 +123,7 @@ EFFECT:
   rtdl_decision_lane pack runs:
     - DL worker, DF worker, AL worker, DLA worker (daemon workers)
   case_labels pack runs:
-    - CaseTrigger worker, CM worker, LS writer boundary (as implemented)
+    - CaseTrigger worker, CM worker, LS daemon worker (`label_store_worker`) enforcing writer-boundary semantics
   obs_gov pack runs:
     - platform_run_reporter daemon
     - environment_conformance daemon
@@ -341,8 +341,8 @@ COMPONENTS:
   CM (case management):
     - consumes fp.bus.case.v1
     - creates/updates append-only case timeline (Postgres)
-  LS (label store):
-    - writer boundary for label assertions (and/or consumes from CM workflow)
+  LS (label store; runtime in local parity = daemon worker `label_store_worker`):
+    - writer boundary for label assertions (primary flow: CM -> LS)
     - append-only label timeline truth (Postgres) + optional emitted label events
 
 SUCCESS:

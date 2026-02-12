@@ -245,7 +245,7 @@ RULE 6: Governance append log is single-writer per run.
     - DB: PARITY_CSFB_PROJECTION_DSN
   WRITE:
     - DB: PARITY_CSFB_PROJECTION_DSN (joinframes + flowbinding)
-    - FS: (metrics/health via reporter snippets / run-scoped artifacts as implemented)
+    - FS: run-scoped metrics/health artifacts under component paths
   CALL:
     - (optional) query service used by DF (library/service boundary depending on build)
   MUST NOT:
@@ -334,7 +334,7 @@ RULE 6: Governance append log is single-writer per run.
     - (optional) S3 evidence/cases/** in dev_min (summary exports)
     - FS: runs/fraud-platform/<run_id>/case_mgmt/** (if present)
   CALL:
-    - LS writer boundary (if CM submits labels downstream)
+    - LS writer boundary (local_parity runtime: `label_store_worker`) if CM submits labels downstream
   MUST NOT:
     - execute side effects (AL owns effects)
     - claim label truth until LS ack
@@ -342,7 +342,7 @@ RULE 6: Governance append log is single-writer per run.
 [COMPONENT] LS (Label Store)
   PRINCIPAL: label_store
   READ:
-    - Label assertions from CM writer boundary (HTTP/service boundary) OR internal API
+    - Label assertions submitted to LS writer boundary (served by `label_store_worker` in local_parity)
     - DB: PARITY_LABEL_STORE_LOCATOR
   WRITE:
     - DB: PARITY_LABEL_STORE_LOCATOR (append-only label timeline)
@@ -356,7 +356,7 @@ RULE 6: Governance append log is single-writer per run.
   PRINCIPAL: platform_run_reporter
   READ:
     - FS: runs/fraud-platform/<run_id>/** component metrics/health/reconciliation artifacts
-    - S3: may resolve by-ref evidence (receipts/audit) for reconciliation summaries (as implemented)
+    - S3: may resolve by-ref evidence (IG receipts + DLA audit refs) for reconciliation summaries
     - EB CONTROL (optional): consume run lifecycle facts
   WRITE:
     - FS: runs/fraud-platform/<run_id>/obs/platform_run_report.json
@@ -387,6 +387,6 @@ RULE 6: Governance append log is single-writer per run.
     - one Kafka service account (topic ACLs limited to its read/write set)
 - Only writer boundaries are internet-exposed in dev_min:
     - IG ingest (WSP->IG)
-    - LS writer boundary (CM->LS), if enabled
+    - LS writer boundary (CM->LS), if enabled (served by `label_store_worker` in local_parity)
   Everything else is internal-only.
 ```
