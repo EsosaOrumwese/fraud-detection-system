@@ -135,12 +135,13 @@ RUN/OPERATE ARTIFACTS:
   run-scoped logs/events:
     runs/fraud-platform/<platform_run_id>/operate/<pack_id>/events.jsonl
     runs/fraud-platform/<platform_run_id>/operate/<pack_id>/logs/<process>.log
-  canonical pack ids for Spine Green v0:
-    - local_parity_control_ingress_v0
-    - local_parity_rtdl_core_v0
-    - local_parity_rtdl_decision_lane_v0
-    - local_parity_case_labels_v0
-    - local_parity_obs_gov_v0
+
+IN-SCOPE PACK IDS (SPINE GREEN v0):
+  - local_parity_control_ingress_v0
+  - local_parity_rtdl_core_v0
+  - local_parity_rtdl_decision_lane_v0
+  - local_parity_case_labels_v0
+  - local_parity_obs_gov_v0
 
 SUCCESS:
   - pack status shows processes running
