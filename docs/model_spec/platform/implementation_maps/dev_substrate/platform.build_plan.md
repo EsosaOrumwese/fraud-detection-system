@@ -17,6 +17,70 @@ Execute a controlled migration from `local_parity` to `dev_min` managed substrat
 - At-least-once safety and idempotency remain mandatory.
 - Drift sentinel law applies at each substantial step and after every full run.
 
+## Local-to-Managed Compute Migration Playbook (binding across phases)
+### Challenge statement
+Migrating from "works on my local compute" to "runs on managed dev substrate anywhere" is not only infrastructure swap. It requires explicit compute portability law:
+- local runtime assumptions must be surfaced and removed,
+- managed execution contracts must be pinned before acceptance runs,
+- cutover must be evidence-backed and rollback-capable.
+
+### Objective
+Turn migration uncertainty into explicit, fail-closed progression gates so no service is accepted on matrix-only success while still coupled to local compute/state assumptions.
+
+### Work sections
+0. Local run process decomposition baseline (mandatory first)
+- Build a complete `Local Run Process Inventory Matrix` before managed acceptance work:
+  - enumerate every process/subprocess participating in local-parity run flow,
+  - assign stable process IDs and owning corridor/component,
+  - capture for each process: command/entrypoint, runtime location, dependencies, state store, credentials path, input/output refs, observability/evidence outputs, retry/failure posture.
+- Decomposition must go below surface labels (for example Oracle/SR/WSP/IG/EB) into concrete executable units.
+- No component migration gate may be accepted as green if this matrix is incomplete for that corridor.
+
+1. Compute and state coupling inventory (per service)
+- Identify current local couplings:
+  - runtime process location,
+  - dependency/install surface,
+  - state location (filesystem/sqlite/local cache),
+  - credential source and auth chain,
+  - operator invocation path.
+- Record target managed equivalents for each coupling before implementation.
+
+2. Managed execution package contract
+- Pin the managed runtime package for each service lane:
+  - execution substrate (`batch`/`container`/`lambda`/other),
+  - code artifact/image identity,
+  - entrypoint and arguments,
+  - environment variables and secret handles,
+  - IAM/ACL boundary.
+- Fail closed if package identity or required handles are missing.
+
+3. Managed-lane preflight gate (before cutover)
+- Require runnable preflight proofs for each service:
+  - compute handle existence (queue/job definition/service),
+  - artifact/image resolvability,
+  - secret/credential availability,
+  - data-plane reachability to pinned managed roots.
+- Local success is non-authoritative once this gate starts; managed-lane checks become acceptance authority.
+
+4. Cutover and rollback contract
+- Pin cutover criteria (what must be true to switch to managed acceptance).
+- Pin rollback criteria and command path (how to recover without semantic drift).
+- Require run-scoped evidence artifact for both cutover decision and rollback invocation (if used).
+
+5. Portability acceptance ("run anywhere") proof
+- Acceptance requires managed-lane evidence that execution is detached from operator laptop:
+  - run can be triggered without local compute dependency,
+  - outputs/evidence are written to managed roots,
+  - rerun/replay behavior remains deterministic and idempotent.
+
+### Definition of Done (cross-phase gate)
+- [ ] `Local Run Process Inventory Matrix` is complete for the active migration corridor.
+- [ ] Every migrated service has an explicit local-to-managed coupling inventory.
+- [ ] Every migrated service has a pinned managed execution package contract.
+- [ ] Preflight proves compute handles + credentials + data-plane reachability.
+- [ ] Cutover/rollback criteria are documented and evidence-backed.
+- [ ] Managed acceptance runs prove "no local compute/state dependency."
+
 ## Budget Sentinel (binding for all dev_substrate phases)
 ### Objective
 Prevent accidental spend escalation while preserving migration progress.
@@ -326,6 +390,7 @@ Migrate Control + Ingress + Oracle Store (`SR/WSP/IG/EB + Oracle path`) to manag
 - Migration order is strict and fail-closed:
   - `3.C.1 Oracle Store` -> `3.C.2 SR` -> `3.C.3 WSP` -> `3.C.4 IG` -> `3.C.5 EB` -> `3.C.6 coupled-chain closure`.
 - No step may proceed while the current step is partially green.
+- Each step must satisfy `Local-to-Managed Compute Migration Playbook` requirements before being marked acceptance-valid.
 - Clarification for Oracle landing reality:
   - while Oracle landing sync/backfill is running, SR/WSP/IG/EB component build/config work may continue;
   - integrated coupled acceptance (`3.C.6`) remains blocked until Oracle `3.C.1` authority gate is fully green.

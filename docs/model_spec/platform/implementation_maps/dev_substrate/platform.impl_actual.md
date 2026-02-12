@@ -1967,3 +1967,142 @@ Local code + terraform static validation only; no apply/destroy execution in thi
 
 ### Cost posture
 Plan/validate operations only; no `apply` or `destroy` executed in this change. `TURN OFF NOW`.
+
+## Entry: 2026-02-12 4:29AM - Pre-change lock: codify local-to-managed compute migration challenge and exact planning response
+
+### Trigger
+USER raised a critical migration concern: current roadmap may under-specify the practical transition from "service runs on local compute" to "service runs on managed dev substrate compute" and asked that this challenge + solution be captured in platform planning.
+
+### Problem framing
+Current `dev_substrate` plan is strong on rails/gates but the migration challenge needs explicit cross-phase structure for first-time operators:
+1. hidden local compute assumptions (runtime/dependency/state coupling),
+2. missing managed execution handles (queue/definition/runtime image/roles/secrets),
+3. unclear cutover law from local-run success to managed-run acceptance,
+4. risk of phase progression with matrix-only green while compute substrate is not actually portable.
+
+### Decision
+Add a binding cross-phase planning section to `platform.build_plan.md` that makes local-to-managed compute transition explicit and auditable.
+
+### Options considered
+1. Keep guidance implicit inside existing phase text only.
+- Rejected: too easy to miss and does not create a reusable operator checklist.
+2. Add a dedicated cross-phase migration playbook section with challenge statement, concrete work sections, and DoD.
+- Selected: directly captures user challenge and converts it into execution law.
+3. Create a separate new document and link from build plan.
+- Rejected for now: increases fragmentation and weakens day-to-day operational visibility.
+
+### Planned edits
+1. `docs/model_spec/platform/implementation_maps/dev_substrate/platform.build_plan.md`
+- Add `Local-to-Managed Compute Migration Playbook (binding)` section with:
+  - challenge statement,
+  - compute/state inventory requirement,
+  - execution package contract requirement,
+  - managed-lane preflight gate requirement,
+  - cutover+rollback requirement,
+  - portability acceptance definition (`run anywhere` evidence).
+- Add explicit coupling bullet under Phase `3.C` enforcing this playbook at each component gate.
+2. `docs/model_spec/platform/implementation_maps/dev_substrate/platform.impl_actual.md`
+- Record pre-change and applied closure entries.
+3. `docs/logbook/02-2026/2026-02-12.md`
+- Log the same decision/action timeline with local time.
+
+### Validation plan
+1. Structural validation: headings and section order in `platform.build_plan.md` remain coherent.
+2. Drift check: no ownership/semantic law changes introduced; this is planning-method hardening only.
+
+### Drift sentinel checkpoint
+No runtime behavior changes in this step. This is a planning-control hardening pass to reduce migration blocker risk and preserve fail-closed progression.
+
+### Cost posture
+Docs-only pass; no paid services touched.
+
+## Entry: 2026-02-12 4:30AM - Applied local-to-managed compute migration playbook in active platform build plan
+
+### Changes applied
+1. Updated `docs/model_spec/platform/implementation_maps/dev_substrate/platform.build_plan.md` with a new binding cross-phase section:
+- `## Local-to-Managed Compute Migration Playbook (binding across phases)`.
+2. New section includes:
+- challenge statement (local success does not equal managed portability),
+- objective (convert uncertainty into fail-closed gates),
+- five explicit work sections:
+  - compute/state coupling inventory,
+  - managed execution package contract,
+  - managed-lane preflight gate,
+  - cutover/rollback contract,
+  - portability acceptance proof.
+- cross-phase DoD checklist for migration portability.
+3. Strengthened Phase `3.C` progression law:
+- added explicit bullet requiring each component step to satisfy this playbook before acceptance-valid status.
+
+### Why this resolves the raised challenge
+1. Captures the exact blocker pattern encountered in Oracle stream-sort migration (local compute success vs missing managed execution handles).
+2. Makes substrate portability an explicit acceptance criterion instead of implicit assumption.
+3. Gives first-time operators a deterministic checklist from local implementation to managed dev substrate execution.
+
+### Validation performed
+1. Verified section insertion and discoverability:
+- `Local-to-Managed Compute Migration Playbook` present at top-level in `platform.build_plan.md`.
+2. Verified coupling into active migration path:
+- Phase `3.C` now explicitly references this playbook as mandatory for component acceptance progression.
+
+### Drift assessment
+1. No semantic law changes (contracts, idempotency, provenance, fail-closed doctrine unchanged).
+2. No ownership-boundary changes (SR/IG/EB/Engine/DLA/LS/Registry/AL truths unchanged).
+3. This is planning-method hardening to reduce migration execution drift and hidden compute-coupling risk.
+
+### Cost posture
+Docs-only pass; no paid services touched.
+
+## Entry: 2026-02-12 4:31AM - Pre-change lock: require full local run process decomposition as migration baseline
+
+### Trigger
+USER requested that migration planning start from a deep, complete understanding of what "it worked locally" means, including every single process inside each plane/corridor.
+
+### Problem framing
+Current playbook section includes coupling inventory per service, but does not yet explicitly force decomposition of the local run into process-level units (subprocesses/steps) with traceable IDs.
+
+### Decision
+Extend the `Local-to-Managed Compute Migration Playbook` with a mandatory process decomposition section and a binding artifact requirement (`Local Run Process Inventory Matrix`).
+
+### Planned edit
+- File: `docs/model_spec/platform/implementation_maps/dev_substrate/platform.build_plan.md`
+- Add explicit requirements:
+  1. enumerate every local process/subprocess that participates in a run,
+  2. assign stable process IDs and corridor ownership,
+  3. capture command/runtime/state/credentials/evidence/retry semantics per process,
+  4. require this matrix to be complete before managed acceptance progression.
+
+### Validation plan
+- Confirm section + DoD checklist updates are present and linked to progression law.
+
+### Drift sentinel checkpoint
+Planning hardening only; no runtime behavior changes.
+
+### Cost posture
+Docs-only pass; no paid services touched.
+
+## Entry: 2026-02-12 4:46AM - Applied mandatory local process-inventory baseline into migration playbook
+
+### Changes applied
+1. Updated `docs/model_spec/platform/implementation_maps/dev_substrate/platform.build_plan.md` under:
+- `Local-to-Managed Compute Migration Playbook (binding across phases)`.
+2. Added new mandatory-first work section:
+- `0. Local run process decomposition baseline (mandatory first)`.
+3. This section now locks a required artifact:
+- `Local Run Process Inventory Matrix` containing every local process/subprocess with process IDs and execution details (command/runtime/dependencies/state/credentials/IO/evidence/retry).
+4. Updated cross-phase DoD checklist:
+- added explicit item requiring matrix completion for the active corridor before acceptance progression.
+
+### Why this better matches USER direction
+1. USER asked for a deep full picture of what "it worked locally" means.
+2. This change makes that baseline explicit and non-optional, rather than implied by service-level coupling text.
+3. It reduces hidden-process migration risk and improves blocker discovery before managed cutover.
+
+### Validation
+- Verified new section and DoD lines are present in `platform.build_plan.md`.
+
+### Drift assessment
+- No ownership or semantic law change; this is migration planning-method hardening.
+
+### Cost posture
+Docs-only pass; no paid services touched.
