@@ -4601,3 +4601,33 @@ Docs-only migration hardening. No runtime code, infra state, or component behavi
 
 ### Drift sentinel assessment
 Patch tightened migration docs against implementation drift while preserving the just-in-time pinning posture (defaults + explicit phase-entry placeholders where premature hard pinning would be harmful).
+
+## Entry: 2026-02-12 10:49PM - Bridge sealed: local-parity to dev migration narrative is now implementation-safe
+
+### Context
+We had an explicit migration challenge: local-parity Spine Green v0 was proven, but the bridge to dev managed substrate risked drift if migration was attempted ad hoc.
+
+### Resolution status
+The bridge is now sealed through two paired authority docs:
+1. `docs/model_spec/platform/migration_to_dev/dev_min_spine_green_v0_run_process_flow.md`
+2. `docs/model_spec/platform/migration_to_dev/dev_min_handles.registry.v0.md`
+
+### How these docs seal the bridge
+- They translate local process semantics into dev execution with canonical phase gates, proof artifacts, rollback posture, and no-laptop-runtime constraints.
+- They eliminate handle/name ambiguity by making the handles registry the single wiring authority (runbook references resolved keys, not freeform names).
+- They pin migration-critical boundaries and failure posture (writer-boundary auth, dedupe/evidence discipline, explicit publish ambiguity handling, single-writer closure).
+- They lock substrate posture needed for safe dev implementation (S3 durability surfaces, Confluent topic map, DB backend mode, teardown/cost rails).
+
+### Counterfactual (if we skipped this and migrated carelessly)
+Without this documentation bridge, migration would likely have produced:
+- runtime ownership drift (wrong producer/consumer or topic ownership assumptions),
+- hidden laptop coupling reintroduced through bootstrap shortcuts,
+- inconsistent handles causing deployment churn and environment-specific breakage,
+- weak gate evidence leading to false-green claims,
+- teardown/cost control failures (resources left running, unclear cleanup scope).
+
+### Decision
+Treat the migration docs as the implementation bridge contract for dev: design intent from local parity is preserved, while implementation choices are pinned just-in-time per phase entry where appropriate.
+
+### Drift sentinel checkpoint
+This entry records milestone closure and migration posture hardening; no runtime code behavior changed in this step.
