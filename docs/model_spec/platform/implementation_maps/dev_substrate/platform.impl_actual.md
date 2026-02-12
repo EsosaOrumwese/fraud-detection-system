@@ -2834,3 +2834,58 @@ No ownership/contract drift introduced. This is runtime artifact topology harden
 
 ### Interpretation
 Implementation is functioning as intended for new process lifecycles. Historical pack-scoped event files may coexist until cleanup policy is explicitly applied; this is expected and non-breaking.
+
+## Entry: 2026-02-12 12:07PM - Pre-change lock for Addendum 1 state-machine/gates alignment
+
+### Trigger
+USER requested moving to Addendum 1 hardening after main narrative closure.
+
+### Problem framing
+`docs/design/platform/local-parity/addendum_1_phase_state_machine_and_gates.txt` still carries drift versus current canonical run posture in a few gate/evidence points:
+1. P6 evidence path still references legacy `runs/.../world_streamer_producer/...` style instead of run-operate run-scoped logs.
+2. P4 IG health gate does not explicitly encode current auth contract (`401` unauth, `200` authenticated health).
+3. P2 gate language should explicitly steer operators to Spine-safe status checks and clarify full parity status includes learning.
+4. P9/P11 closeout language can be tightened to reflect strict Spine 200-event closure posture (DLA unresolved lineage = 0, conformance PASS).
+5. Retry notes should explicitly classify duplicate READY skips as expected under replay history.
+
+### Planned edits
+- Update P2, P4, P5, P6, P9, P11 sections in Addendum 1 for path/gate/runtime correctness.
+- Keep phase topology unchanged (no phase additions/removals).
+- Keep scope lock unchanged (Learning/Registry still out of scope).
+
+### Validation plan
+1. line-by-line check for required canonical markers after edit:
+- Spine-safe status posture,
+- run-scoped operate log path in P6 evidence,
+- IG auth gate language,
+- DLA unresolved lineage closure criterion,
+- conformance PASS criterion.
+2. no code/runtime behavior changes in this pass (docs-only alignment).
+
+### Drift sentinel checkpoint
+Docs-only correction to reduce narrative drift; no ownership or runtime contract modifications.
+
+## Entry: 2026-02-12 12:08PM - Applied closure for Addendum 1 state-machine/gates alignment
+
+### What was updated
+Updated `docs/design/platform/local-parity/addendum_1_phase_state_machine_and_gates.txt` to align with current canonical runtime behavior.
+
+### Changes applied
+1. Retry loop note for P6 now classifies duplicate READY skips as expected under control-bus history replay.
+2. P2 gate/evidence tightened:
+- explicit Spine-safe status posture,
+- explicit note that full parity status includes learning-jobs,
+- evidence split clarified (pack-scoped control files + run-scoped process log paths).
+3. P4 gate/evidence aligned to IG auth contract:
+- unauthenticated health returns `401`,
+- authenticated health call is gate evidence.
+4. P5 exit gate wording corrected to SR run log source.
+5. P6 commit evidence path aligned to run-scoped operate log for WSP ready consumer.
+6. P9 exit gate tightened with DLA closure criterion (`health GREEN`, `lineage_unresolved_total = 0`).
+7. P11 conformance criterion made explicit (`environment_conformance.status = PASS`).
+
+### Validation
+Post-edit marker check passed for all targeted canonical anchors (Spine-safe status, IG auth gate, run-scoped log path, DLA unresolved lineage closure, conformance PASS).
+
+### Drift sentinel assessment
+Docs-only correction; no runtime semantics changed. This closes Addendum 1 drift against the canonical local Spine Green run posture.

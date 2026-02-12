@@ -30,7 +30,7 @@ P0 SUBSTRATE_READY
 Retry loops (allowed):
   - P3 (oracle) can be re-run per-output_id (delete only that output_id stream_view prefix)
   - P5 (SR) can be re-run with a new SR_RUN_EQUIVALENCE_KEY, or after lease TTL, or lease clear
-  - P6 (WSP) can be re-run with caps; guard against control bus replay (TRIM_HORIZON)
+  - P6 (WSP) can be re-run with caps; duplicate READY skips are expected when control-bus history is replayed
   - P11 (Obs/Gov) can be re-run ONLY if reporter daemon is not running (avoid append conflicts)
 
 # ------------------------------------------------------------
@@ -91,12 +91,18 @@ Entry actions (Spine Green v0 packs only):
 
 Exit gate:
   - Orchestrator status shows all expected processes RUNNING
+  - Preferred status checks for this baseline are Spine-safe pack checks:
+      control_ingress, rtdl_core, rtdl_decision_lane, case_labels, obs_gov
+  - If `platform-operate-parity-status` is used, treat it as full-parity status (includes learning-jobs)
   - Each pack enforces run scope via *_REQUIRED_PLATFORM_RUN_ID == ACTIVE_RUN_ID
   - No duplicate manual consumers are running in parallel for same components
 
 Commit evidence:
-  - runs/fraud-platform/operate/<pack_id>/state.json indicates RUNNING
-  - runs/fraud-platform/operate/<pack_id>/status/last_status.json is “healthy enough to run”
+  - pack-scoped control/state:
+      runs/fraud-platform/operate/<pack_id>/state.json indicates RUNNING
+      runs/fraud-platform/operate/<pack_id>/status/last_status.json is "healthy enough to run"
+  - status rows expose run-scoped process logs under:
+      runs/fraud-platform/<platform_run_id>/operate/<pack_id>/logs/<process>.log
 
 Reset/retry:
   - Restart packs (preferred) instead of manually killing individual processes
@@ -133,11 +139,13 @@ Entry actions:
   - Ensure IG service is running (or control_ingress pack is up)
 
 Exit gate:
-  - IG health endpoint responds
+  - IG ops health behaves per auth contract:
+      unauthenticated GET /v1/ops/health => 401 UNAUTHORIZED
+      authenticated GET /v1/ops/health (X-IG-Api-Key) => 200 with health payload
   - Kinesis streams required for publish exist (audit/rtdl/case included)
 
 Commit evidence:
-  - IG health responds (AMBER is acceptable pre-traffic; bus not exercised yet)
+  - authenticated IG health responds (AMBER is acceptable pre-traffic; bus not exercised yet)
 
 Reset/retry:
   - If ResourceNotFoundException for a stream: re-run bootstrap or create stream
@@ -151,7 +159,7 @@ Entry actions:
   - SR reads Oracle Store (MinIO) and builds READY bundle
 
 Exit gate:
-  - Platform log shows:
+  - SR run log shows:
       “READY committed”
       “READY published”
   - READY is present on sr-control-bus
@@ -176,11 +184,12 @@ Exit gate:
   - WSP emitted >0 records (unless intentionally testing “0”)
 
 Commit evidence:
-  - runs/.../world_streamer_producer/...log includes completion markers
+  - runs/fraud-platform/<platform_run_id>/operate/local_parity_control_ingress_v0/logs/wsp_ready_consumer.log
+    includes stream completion markers
   - IG begins producing receipts during this window
 
 Reset/retry (guardrails):
-  - If WSP keeps restarting: control bus replay (TRIM_HORIZON) — clear stream or cap READY consumption
+  - If duplicate READY records are observed, ensure dedupe/checkpoint path is healthy before manual cleanup
   - Ensure stream_view root matches the oracle root you sorted (avoid STREAM_VIEW_ID_MISMATCH)
 
 ------------------------------------------------------------
@@ -235,6 +244,7 @@ Exit gate:
   - fp.bus.rtdl.v1 contains decision/intent/outcome events
   - fp.bus.audit.v1 contains audit events
   - DLA reconciliation/artifacts exist under runs/.../decision_log_audit/...
+  - DLA health for active run is GREEN with lineage_unresolved_total = 0
 
 Commit evidence:
   - DLA append-only records + reconciliation outputs
@@ -274,7 +284,7 @@ Entry actions:
 Exit gate:
   - runs/.../obs/platform_run_report.json exists
   - s3://fraud-platform/<run_id>/obs/governance/events.jsonl appended
-  - runs/.../obs/environment_conformance.json exists and passes for local_parity expectations
+  - runs/.../obs/environment_conformance.json exists and status is PASS for local_parity expectations
 
 Commit evidence:
   - platform_run_report.json + environment_conformance.json + governance append log
