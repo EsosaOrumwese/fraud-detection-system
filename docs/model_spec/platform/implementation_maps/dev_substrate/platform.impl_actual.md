@@ -4526,3 +4526,78 @@ Docs-only alignment to preserve design intent and prevent laptop/runtime drift. 
 
 ### Drift sentinel assessment
 Patch removes ambiguity and laptop-seed escape hatches in migration docs while preserving local-parity semantics and dev_min managed-substrate posture.
+
+## Entry: 2026-02-12 10:39PM - Pre-change plan: close remaining migration-doc ambiguity rails (wildcards, missing handles, P3 seed source, DB backend)
+
+### Trigger
+USER requested proceeding with recommended cleanups and explicitly closing the four remaining ambiguity buckets:
+1. wildcard handle refs in runbook,
+2. referenced-but-undefined handles,
+3. P3 managed seed source handles,
+4. DB backend choice ambiguity.
+
+### Problem statement
+While core migration posture was already pinned, docs still had implementation-drift risk:
+- runbook referenced wildcard families (`SSM_CONFLUENT_*`, `RDS_*`, `SVC_*`) in phase-critical sections,
+- runbook referenced gate/evidence handles not yet present in handle registry,
+- P3 forbidden-local policy existed but source-handle contract for managed seed source was not pinned,
+- registry still presented RDS vs Aurora as open choice.
+
+### Decision
+Apply docs-only hardening in one pass:
+- make runbook handle references explicit (no wildcard families in phase requirements),
+- add missing runbook-referenced keys to registry (with defaults or phase-entry placeholders where appropriate),
+- add explicit P3 seed-source handles + operator pre-step wording,
+- pin DB backend to `rds_instance` for dev_min v0,
+- align tag-key naming and remove duplicated observability value declarations.
+
+### Planned verification
+- grep sweep for wildcard handle families in runbook,
+- grep sweep for newly added keys in registry,
+- compatibility pass: runbook handle-like tokens should all resolve to registry keys (excluding phase labels/outcome enums),
+- check DB section no longer presents parallel backend options.
+
+### Drift sentinel checkpoint
+Docs-only migration hardening. No runtime code, infra state, or component behavior changed.
+
+## Entry: 2026-02-12 10:39PM - Applied migration-doc ambiguity closure patch set
+
+### Files updated
+1. `docs/model_spec/platform/migration_to_dev/dev_min_spine_green_v0_run_process_flow.md`
+2. `docs/model_spec/platform/migration_to_dev/dev_min_handles.registry.v0.md`
+
+### Applied changes
+1. Wildcard handle removal in runbook (phase-critical sections)
+- Replaced wildcard families with explicit keys in P0/P1/P2/P8/P9/P10/P12 requirement blocks.
+- Replaced ambiguous service groups with concrete service/task handles.
+- Replaced wildcard topic/DB/confluent references with explicit handle sets.
+
+2. Missing referenced-handle closure in registry
+- Added run pinning controls: `CONFIG_DIGEST_ALGO`, `CONFIG_DIGEST_FIELD`, scenario derivation knobs.
+- Added runtime control knobs: READY filter, WSP retry/inflight, RTDL gate knobs.
+- Added reporter single-writer lock handles.
+- Added decision idempotency + case/label subject-key handles.
+- Added evidence path contracts for ingest/RTDL/decision/case/obs closure artifacts.
+
+3. P3 managed seed source contract closure
+- Added seed source handles:
+  - `ORACLE_SEED_SOURCE_MODE`, `ORACLE_SEED_SOURCE_BUCKET`, `ORACLE_SEED_SOURCE_PREFIX_PATTERN`, `ORACLE_SEED_OPERATOR_PRESTEP_REQUIRED`.
+- Added runbook line pinning that local parity upload is an operator pre-step outside `dev-min-run`; P3 seed jobs are S3-only.
+
+4. DB backend ambiguity closure
+- Pinned `DB_BACKEND_MODE = "rds_instance"`.
+- Kept active DB identifiers as `RDS_INSTANCE_ID` + `RDS_ENDPOINT`.
+- Marked Aurora explicitly out-of-scope for dev_min v0.
+
+5. Naming consistency + observability de-dup
+- Aligned P12 tagging handles to `TAG_*_KEY` names.
+- Removed duplicated observability values by referencing Section 7.1 handles from Section 12.
+
+### Verification summary
+- No wildcard handle family patterns remain in runbook phase requirement sections.
+- Previously missing keys now exist in registry.
+- Handle-like token diff shows runbook keys resolve to registry keys; only non-handle terms remaining are phase labels/outcome enum names.
+- DB section now contains a single pinned backend mode for v0.
+
+### Drift sentinel assessment
+Patch tightened migration docs against implementation drift while preserving the just-in-time pinning posture (defaults + explicit phase-entry placeholders where premature hard pinning would be harmful).

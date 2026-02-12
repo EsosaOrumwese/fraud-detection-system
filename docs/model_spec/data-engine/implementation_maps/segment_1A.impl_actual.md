@@ -4299,3 +4299,79 @@ Summary: Aligned Section `4.3` wording with implemented verifier/scorer behavior
 Changes in `segment_1A.build_plan.md`:
 1) `s3_integerised_counts` is now explicitly marked as required only when sealed `policy.s3.integerisation.yaml` has `emit_integerised_counts=true`.
 2) `rng_event_ztp_retry_exhausted` is now explicitly marked optional-presence diagnostic (zero-row posture valid).
+
+### Entry: 2026-02-12 22:24
+
+Design element: P2.3 pre-edit diagnosis (S4/S6 coupling constraints and first tuning hypothesis).
+Summary: Before applying any `P2.3` patch, I audited current `S4/S6` mechanics to identify a contract-safe first lever.
+
+Observed baseline facts from run `203d3c33f5fbe060184ad845a86b9e6c`:
+1) S4 is not the immediate bottleneck:
+- `ztp_final` rows: `4316`,
+- `K_target` median: `3`, p90: `7`,
+- `K_target=0` share: `~5.6%`.
+2) S6 realizes too little despite positive targets:
+- `K_target_sum=15334` vs `K_realized_sum=6486`,
+- `merchants_empty=2431`,
+- reasons: `ZERO_WEIGHT_DOMAIN=2189`, `NO_CANDIDATES=242`, `CAPPED_BY_MAX_CANDIDATES=1885`.
+3) Critical precedence detail in S6 implementation:
+- reason assignment checks `eligible_count==0` before `cap_applied`,
+- therefore many cap-induced empty domains are recorded as `ZERO_WEIGHT_DOMAIN`.
+
+Contract constraints respected:
+1) S6 spec explicitly defines domain as intersection of S3 foreign candidates and S5 currency weights; no ungated fallback weighting will be introduced in P2.3.
+2) S4/S6 must retain eligibility and PASS-gate posture (no bypass of `is_eligible` or S5 PASS).
+
+P2.3 tuning sequence decided:
+1) First lever (policy-only, low risk): relax S6 truncation pressure by setting `max_candidates_cap=0` (no cap) to test whether empty domains were cap-induced.
+2) Re-run `S0->S6` and re-score P2 metrics.
+3) Only if needed, second lever: adjust S4 ZTP theta intercept upward to increase realized `K_target` while monitoring rejection pathologies.
+
+Files planned for immediate touch:
+1) `config/layer1/1A/policy.s6.selection.yaml` (cap relaxation test).
+
+### Entry: 2026-02-12 22:39
+
+Design element: P2.3 trial-1 execution (S6 cap relaxation) and blocker analysis.
+Summary: Executed the first P2.3 policy-only patch (`max_candidates_cap -> 0`) and re-ran `S0->S6`. This improved C-R coupling but confirmed `rho` is blocked by upstream candidate-domain realism (P2.2 dependency).
+
+Policy patch applied:
+1) `config/layer1/1A/policy.s6.selection.yaml`:
+- `defaults.max_candidates_cap: 25 -> 0`
+- `per_currency.EUR.max_candidates_cap: 35 -> 0`
+
+Execution evidence:
+1) Command:
+- `make --no-print-directory segment1a-p2 RUNS_ROOT="runs/fix-data-engine/segment_1A"`
+2) Run-id:
+- `09e24520babd99de27b05d5c1b11ea7c`
+3) Scorecard:
+- `runs/fix-data-engine/segment_1A/reports/segment1a_p2_1_baseline_09e24520babd99de27b05d5c1b11ea7c.json`
+
+Measured movement vs previous baseline:
+1) Global metrics:
+- `median(C_m)`: `37.0 -> 37.0` (no movement; still fails B band),
+- `Spearman(C_m,R_m)`: `0.2977 -> 0.3129` (now passes `>=0.30`),
+- `median(rho_m)`: `0.0 -> 0.0` (still fail),
+- pathologies remain clean (`share_exhausted=0`, `share_high_reject_gt16=0`).
+2) S6 reason diagnostics:
+- `CAPPED_BY_MAX_CANDIDATES`: `1885 -> 0` (expected effect),
+- `ZERO_WEIGHT_DOMAIN`: `2189 -> 2139` (still dominant),
+- `merchants_selected`: `1885 -> 1886` (negligible movement),
+- `K_realized_sum`: `6486 -> 6483` (flat).
+
+Interpretation:
+1) Removing cap fixed truncation as designed and improved rank-coupling.
+2) The dominant non-realization mode is still S3/S5 intersection emptiness (`ZERO_WEIGHT_DOMAIN`), not S4 Poisson intensity.
+3) With current candidate breadth/domain posture, P2.3-only levers cannot materially raise `rho`; substantive movement now depends on P2.2 candidate shaping.
+
+Decision:
+1) Keep this cap-relaxation patch (it improved Spearman without pathology regression).
+2) Treat P2.3 as partially advanced but blocked on upstream P2.2 completion for `rho` closure.
+
+Storage hygiene:
+1) Pruned superseded prior baseline run folder:
+- removed `runs/fix-data-engine/segment_1A/203d3c33f5fbe060184ad845a86b9e6c`
+2) Retained:
+- active trial run `09e24520babd99de27b05d5c1b11ea7c`,
+- all scorecards under `runs/fix-data-engine/segment_1A/reports/`.

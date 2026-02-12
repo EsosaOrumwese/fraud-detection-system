@@ -563,8 +563,17 @@ P0 means:
 **Confluent**
 
 * `CONFLUENT_ENV_NAME`, `CONFLUENT_CLUSTER_NAME`, `CONFLUENT_CLUSTER_TYPE`
-* `SSM_CONFLUENT_*` paths
-* topic map keys (`FP_BUS_*`)
+* `SSM_CONFLUENT_BOOTSTRAP_PATH`, `SSM_CONFLUENT_API_KEY_PATH`, `SSM_CONFLUENT_API_SECRET_PATH`
+* Topic map keys:
+  * `FP_BUS_CONTROL_V1`
+  * `FP_BUS_TRAFFIC_FRAUD_V1`
+  * `FP_BUS_CONTEXT_ARRIVAL_EVENTS_V1`
+  * `FP_BUS_CONTEXT_ARRIVAL_ENTITIES_V1`
+  * `FP_BUS_CONTEXT_FLOW_ANCHOR_FRAUD_V1`
+  * `FP_BUS_RTDL_V1`
+  * `FP_BUS_AUDIT_V1`
+  * `FP_BUS_CASE_TRIGGERS_V1`
+  * `FP_BUS_LABELS_EVENTS_V1`
 
 **ECR/images**
 
@@ -577,11 +586,13 @@ P0 means:
 
 **Runtime DB**
 
-* `DB_ENGINE`, `DB_SCOPE`, `RDS_*`, `SSM_DB_*`
+* `DB_ENGINE`, `DB_SCOPE`, `DB_BACKEND_MODE`, `RDS_INSTANCE_ID`, `RDS_ENDPOINT`
+* `SSM_DB_USER_PATH`, `SSM_DB_PASSWORD_PATH`
 
 **Budgets**
 
-* `AWS_BUDGET_*` handles
+* `AWS_BUDGET_NAME`, `AWS_BUDGET_LIMIT_GBP`
+* `AWS_BUDGET_ALERT_1_GBP`, `AWS_BUDGET_ALERT_2_GBP`, `AWS_BUDGET_ALERT_3_GBP`
 
 ---
 
@@ -787,9 +798,9 @@ P1 means:
 
 **Substrate handles (referenced by key)**
 
-* All bucket handles: `S3_*_BUCKET`
-* All topic handles: `FP_BUS_*`
-* DB handles: `RDS_*`, `DB_NAME`
+* `S3_ORACLE_BUCKET`, `S3_ARCHIVE_BUCKET`, `S3_QUARANTINE_BUCKET`, `S3_EVIDENCE_BUCKET`
+* `FP_BUS_CONTROL_V1`, `FP_BUS_TRAFFIC_FRAUD_V1`, `FP_BUS_CONTEXT_ARRIVAL_EVENTS_V1`, `FP_BUS_CONTEXT_ARRIVAL_ENTITIES_V1`, `FP_BUS_CONTEXT_FLOW_ANCHOR_FRAUD_V1`, `FP_BUS_RTDL_V1`, `FP_BUS_AUDIT_V1`, `FP_BUS_CASE_TRIGGERS_V1`, `FP_BUS_LABELS_EVENTS_V1`
+* `DB_NAME`, `RDS_INSTANCE_ID`, `RDS_ENDPOINT`
 
 ---
 
@@ -957,17 +968,17 @@ Optional:
 **Service identifiers (by pack)**
 
 * `SVC_IG` (control_ingress)
-* `SVC_RTDL_CORE_*` (archivewriter, IEG, OFP, CSFB intake, etc.)
-* `SVC_DECISION_LANE_*` (DL/DF/AL/DLA workers)
-* `SVC_CASE_LABELS_*` (CaseTrigger/CM/LS)
-* `SVC_OBS_GOV_*` (environment conformance + reporter if daemonized)
+* `SVC_RTDL_CORE_ARCHIVE_WRITER`, `SVC_RTDL_CORE_IEG`, `SVC_RTDL_CORE_OFP`, `SVC_RTDL_CORE_CSFB`
+* `SVC_DECISION_LANE_DL`, `SVC_DECISION_LANE_DF`, `SVC_DECISION_LANE_AL`, `SVC_DECISION_LANE_DLA`
+* `SVC_CASE_TRIGGER`, `SVC_CM`, `SVC_LS`
+* `SVC_ENV_CONFORMANCE`, `TD_REPORTER`
 
 **Substrate**
 
-* `S3_*_BUCKET` handles
-* `SSM_CONFLUENT_*` handles
-* `KAFKA_TOPIC_MAP_*` handles
-* `RDS_*` handles (dev_min runtime DB; no laptop DB)
+* `S3_ORACLE_BUCKET`, `S3_ARCHIVE_BUCKET`, `S3_QUARANTINE_BUCKET`, `S3_EVIDENCE_BUCKET`
+* `SSM_CONFLUENT_BOOTSTRAP_PATH`, `SSM_CONFLUENT_API_KEY_PATH`, `SSM_CONFLUENT_API_SECRET_PATH`
+* `FP_BUS_CONTROL_V1`, `FP_BUS_TRAFFIC_FRAUD_V1`, `FP_BUS_CONTEXT_ARRIVAL_EVENTS_V1`, `FP_BUS_CONTEXT_ARRIVAL_ENTITIES_V1`, `FP_BUS_CONTEXT_FLOW_ANCHOR_FRAUD_V1`, `FP_BUS_RTDL_V1`, `FP_BUS_AUDIT_V1`, `FP_BUS_CASE_TRIGGERS_V1`, `FP_BUS_LABELS_EVENTS_V1`
+* `RDS_INSTANCE_ID`, `RDS_ENDPOINT`, `DB_NAME` (dev_min runtime DB; no laptop DB)
 
 ---
 
@@ -1158,6 +1169,10 @@ P3 consists of three sub-steps that must succeed in order:
 * `S3_STREAM_VIEW_PREFIX_PATTERN`
 * `S3_STREAM_VIEW_MANIFEST_KEY_PATTERN`
 * `S3_STREAM_SORT_RECEIPT_KEY_PATTERN`
+* `ORACLE_SEED_SOURCE_MODE`
+* `ORACLE_SEED_SOURCE_BUCKET`
+* `ORACLE_SEED_SOURCE_PREFIX_PATTERN`
+* `ORACLE_SEED_OPERATOR_PRESTEP_REQUIRED`
 
 **Datasets / output IDs**
 
@@ -1204,6 +1219,7 @@ P3 is executed as **one-shot jobs**.
 
 * **MUST:** seed/sync from managed object-store sources only (for example, source S3 prefixes in the same or peered account).
 * **MUST NOT:** seed/sync from laptop-local paths, MinIO, or any local filesystem source.
+* **MUST:** any first-time upload from non-S3 local parity artifacts is an operator pre-step outside `dev-min-run`; P3 seed jobs themselves read/write S3 only.
 * **MUST:** preserve the canonical oracle layout (do not invent new structure).
 * **MUST:** seeding must be resumable and incremental (copy deltas), because oracle size is large.
 
@@ -2151,7 +2167,10 @@ P8 means:
 
 **RTDL core services**
 
-* `SVC_RTDL_CORE_*` (one per worker type as you implement)
+* `SVC_RTDL_CORE_ARCHIVE_WRITER`
+* `SVC_RTDL_CORE_IEG`
+* `SVC_RTDL_CORE_OFP`
+* `SVC_RTDL_CORE_CSFB`
 * `ROLE_RTDL_CORE` (Kafka consume + DB/KV write + S3 evidence write + logs)
 
 **Kafka inputs**
@@ -2160,7 +2179,7 @@ P8 means:
 * `FP_BUS_CONTEXT_ARRIVAL_EVENTS_V1`
 * `FP_BUS_CONTEXT_ARRIVAL_ENTITIES_V1`
 * `FP_BUS_CONTEXT_FLOW_ANCHOR_FRAUD_V1`
-* `SSM_CONFLUENT_*` (bootstrap/key/secret)
+* `SSM_CONFLUENT_BOOTSTRAP_PATH`, `SSM_CONFLUENT_API_KEY_PATH`, `SSM_CONFLUENT_API_SECRET_PATH`
 
 **Consumer group identities**
 
@@ -2169,8 +2188,8 @@ P8 means:
 
 **State backends**
 
-* `RDS_*` (if using Postgres)
-* `CSFB_*` handles (if using a join KV; optional in some designs, but must be non-laptop if present)
+* `RDS_INSTANCE_ID`, `RDS_ENDPOINT`, `DB_NAME` (if using Postgres)
+* `CSFB_BACKEND_MODE`, `CSFB_STATE_TABLE_NAME` (if join KV is used; must remain non-laptop)
 
 **Evidence**
 
@@ -2353,11 +2372,11 @@ P9 means:
   * (Any action-intent/outcome topics if separate)
 * Confluent connection:
 
-  * `SSM_CONFLUENT_*`
+  * `SSM_CONFLUENT_BOOTSTRAP_PATH`, `SSM_CONFLUENT_API_KEY_PATH`, `SSM_CONFLUENT_API_SECRET_PATH`
 
 **State backends**
 
-* `RDS_*` (if decision lane persists outcomes/indices in Postgres)
+* `RDS_INSTANCE_ID`, `RDS_ENDPOINT`, `DB_NAME` (if decision lane persists outcomes/indices in Postgres)
 * Any policy/model bundle snapshot handles if used (registry snapshot for dev_min)
 
 **Evidence**
@@ -2526,7 +2545,7 @@ P10 means:
 
 * `FP_BUS_CASE_TRIGGERS_V1` (if CM consumes triggers)
 * `FP_BUS_AUDIT_V1` (if CM uses audit refs)
-* `SSM_CONFLUENT_*`
+* `SSM_CONFLUENT_BOOTSTRAP_PATH`, `SSM_CONFLUENT_API_KEY_PATH`, `SSM_CONFLUENT_API_SECRET_PATH`
 
 **Managed DB**
 
@@ -2891,14 +2910,14 @@ P12 is not “optional cleanup.” It is the formal close-out that prevents budg
 
 **Tagging**
 
-* `TAG_PROJECT`, `TAG_ENV`, `TAG_OWNER`, `TAG_EXPIRES_AT`
+* `TAG_PROJECT_KEY`, `TAG_ENV_KEY`, `TAG_OWNER_KEY`, `TAG_EXPIRES_AT_KEY`
   (used to locate and validate teardown)
 
 **Demo resources**
 
 * `CONFLUENT_ENV_NAME`, `CONFLUENT_CLUSTER_NAME`
-* ECS service names (`SVC_*`)
-* runtime DB identifiers (`RDS_INSTANCE_ID` / `RDS_CLUSTER_ID`)
+* ECS service/task handles: `SVC_IG`, `SVC_RTDL_CORE_ARCHIVE_WRITER`, `SVC_RTDL_CORE_IEG`, `SVC_RTDL_CORE_OFP`, `SVC_RTDL_CORE_CSFB`, `SVC_DECISION_LANE_DL`, `SVC_DECISION_LANE_DF`, `SVC_DECISION_LANE_AL`, `SVC_DECISION_LANE_DLA`, `SVC_CASE_TRIGGER`, `SVC_CM`, `SVC_LS`, `SVC_ENV_CONFORMANCE`, `TD_REPORTER`
+* runtime DB identifiers: `RDS_INSTANCE_ID`, `RDS_ENDPOINT`
 * demo SSM paths (Confluent + DB creds if demo-scoped)
 
 ---

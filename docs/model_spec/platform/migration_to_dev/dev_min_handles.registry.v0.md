@@ -102,9 +102,17 @@ These are the canonical field names used in config and evidence payloads:
 * `FIELD_PHASE_ID = "phase_id"`
 * `FIELD_WRITTEN_AT_UTC = "written_at_utc"`
 
-### 1.6 Runtime scope enforcement (no drift)
+### 1.6 Run pinning + scenario derivation controls
+
+* `CONFIG_DIGEST_ALGO = "sha256"`
+* `CONFIG_DIGEST_FIELD = "config_digest"`
+* `SCENARIO_EQUIVALENCE_KEY_INPUT = "<PIN_AT_P1_PHASE_ENTRY>"`
+* `SCENARIO_RUN_ID_DERIVATION_MODE = "deterministic_hash_v1"`
+
+### 1.7 Runtime scope enforcement (no drift)
 
 * `REQUIRED_PLATFORM_RUN_ID_ENV_KEY = "REQUIRED_PLATFORM_RUN_ID"`
+* `ACTIVE_RUN_ID_SOURCE = "env_required_platform_run_id"`
 
 (If you later add additional scope keys, they must be pinned here.)
 
@@ -248,12 +256,36 @@ Convenience patterns (must align with Section 6 evidence contract):
 * `EVIDENCE_RUN_JSON_KEY = "evidence/runs/{platform_run_id}/run.json"`
 * `EVIDENCE_RUN_COMPLETED_KEY = "evidence/runs/{platform_run_id}/run_completed.json"`
 
+### 3.6.1 Evidence path contracts by lane (pinned)
+
+* `RECEIPT_SUMMARY_PATH_PATTERN = "evidence/runs/{platform_run_id}/ingest/receipt_summary.json"`
+* `KAFKA_OFFSETS_SNAPSHOT_PATH_PATTERN = "evidence/runs/{platform_run_id}/ingest/kafka_offsets_snapshot.json"`
+* `QUARANTINE_INDEX_PATH_PATTERN = "evidence/runs/{platform_run_id}/ingest/quarantine_summary.json"`
+* `OFFSETS_SNAPSHOT_PATH_PATTERN = "evidence/runs/{platform_run_id}/rtdl_core/offsets_snapshot.json"`
+* `RTDL_CORE_EVIDENCE_PATH_PATTERN = "evidence/runs/{platform_run_id}/rtdl_core/"`
+* `DECISION_LANE_EVIDENCE_PATH_PATTERN = "evidence/runs/{platform_run_id}/decision_lane/"`
+* `DLA_EVIDENCE_PATH_PATTERN = "evidence/runs/{platform_run_id}/decision_lane/audit_summary.json"`
+* `CASE_EVIDENCE_PATH_PATTERN = "evidence/runs/{platform_run_id}/case_labels/case_summary.json"`
+* `LABEL_EVIDENCE_PATH_PATTERN = "evidence/runs/{platform_run_id}/case_labels/label_summary.json"`
+* `ENV_CONFORMANCE_PATH_PATTERN = "evidence/runs/{platform_run_id}/obs/environment_conformance.json"`
+* `RECONCILIATION_PATH_PATTERN = "evidence/runs/{platform_run_id}/obs/reconciliation.json"`
+* `REPLAY_ANCHORS_PATH_PATTERN = "evidence/runs/{platform_run_id}/obs/replay_anchors.json"`
+* `RUN_REPORT_PATH_PATTERN = "evidence/runs/{platform_run_id}/obs/run_report.json"`
+* `RUN_CLOSURE_MARKER_PATH_PATTERN = "evidence/runs/{platform_run_id}/run_completed.json"`
+
 ### 3.7 Lifecycle intent (pinned defaults; exact rules provisioned in core Terraform)
 
 * `S3_ORACLE_RETENTION_DAYS = 14`
 * `S3_QUARANTINE_RETENTION_DAYS = 30`
 * `S3_ARCHIVE_RETENTION_DAYS = 60`
 * `S3_EVIDENCE_RETENTION_DAYS = null` *(no automatic expiry by default)*
+
+### 3.8 Oracle seed source handles (P3 policy lock)
+
+* `ORACLE_SEED_SOURCE_MODE = "s3_to_s3_only"`
+* `ORACLE_SEED_SOURCE_BUCKET`
+* `ORACLE_SEED_SOURCE_PREFIX_PATTERN`
+* `ORACLE_SEED_OPERATOR_PRESTEP_REQUIRED = true`
 
 ---
 
@@ -443,6 +475,11 @@ The image must support these logical entrypoint modes (exact commands pinned lat
 * `ENTRYPOINT_LS_SERVICE`
 * `ENTRYPOINT_REPORTER`
 
+### 6.6 Oracle lane contract knobs (phase-entry pinning)
+
+* `ORACLE_REQUIRED_OUTPUT_IDS = "<PIN_AT_P3_PHASE_ENTRY>"`
+* `ORACLE_SORT_KEY_BY_OUTPUT_ID = "<PIN_AT_P3_PHASE_ENTRY>"`
+
 ---
 
 ## 7. ECS / Compute Handles
@@ -552,6 +589,39 @@ These are how tasks/services locate each other.
 * `ECS_SERVICE_DESIRED_COUNT_DEFAULT = 1`
 * `ECS_TASK_RETRY_MAX = 1` *(task retries controlled by operator; fail closed by default)*
 
+### 7.7 Runtime control knobs (v0 defaults)
+
+**WSP / READY**
+
+* `READY_MESSAGE_FILTER = "platform_run_id=={platform_run_id}"`
+* `WSP_MAX_INFLIGHT = 1`
+* `WSP_RETRY_MAX_ATTEMPTS = 5`
+* `WSP_RETRY_BACKOFF_MS = 500`
+* `WSP_STOP_ON_NONRETRYABLE = true`
+
+**RTDL gate**
+
+* `RTDL_CORE_CONSUMER_GROUP_ID = "fraud-platform-dev-min-rtdl-core-v0"`
+* `RTDL_CORE_OFFSET_COMMIT_POLICY = "commit_after_durable_write"`
+* `RTDL_CAUGHT_UP_LAG_MAX = 10`
+
+**Case/labels identity + decision idempotency**
+
+* `CASE_SUBJECT_KEY_FIELDS = "<PIN_AT_P10_PHASE_ENTRY>"`
+* `LABEL_SUBJECT_KEY_FIELDS = "<PIN_AT_P10_PHASE_ENTRY>"`
+* `ACTION_IDEMPOTENCY_KEY_FIELDS = "platform_run_id,event_id,action_type"`
+* `ACTION_OUTCOME_WRITE_POLICY = "append_only"`
+
+**Reporter single-writer lock**
+
+* `REPORTER_LOCK_BACKEND = "db_advisory_lock"`
+* `REPORTER_LOCK_KEY_PATTERN = "reporter:{platform_run_id}"`
+
+**Optional join-state backing**
+
+* `CSFB_BACKEND_MODE = "postgres_table"`
+* `CSFB_STATE_TABLE_NAME = "rtdl.csfb_state"`
+
 ---
 
 ## 8. Managed DB Handles (Pinned for “no laptop dependency”)
@@ -567,19 +637,14 @@ These handles pin the **runtime operational database** used by components that c
 
 ### 8.2 DB resource identifiers
 
-One of the following patterns must be chosen and pinned by Codex:
+Pinned for dev_min v0:
 
-**Option A: RDS instance**
+* `DB_BACKEND_MODE = "rds_instance"`
 
 * `RDS_INSTANCE_ID`
 * `RDS_ENDPOINT`
 
-**Option B: Aurora cluster**
-
-* `RDS_CLUSTER_ID`
-* `RDS_WRITER_ENDPOINT`
-
-(Choose one; do not keep both active.)
+Aurora is intentionally out-of-scope for this baseline and is not an active handle surface in v0.
 
 ### 8.3 Database name and schema namespaces
 
@@ -760,8 +825,9 @@ These handles pin minimal observability wiring for dev_min. v0 does not require 
 ### 12.1 Logging
 
 * `LOG_BACKEND = "cloudwatch"`
-* `CLOUDWATCH_LOG_GROUP_PREFIX = "/fraud-platform/dev_min"`
-* `LOG_RETENTION_DAYS = 7`
+* Logging group/retention handles are defined in Section 7.1:
+  * `CLOUDWATCH_LOG_GROUP_PREFIX`
+  * `LOG_RETENTION_DAYS`
 
 ### 12.2 Metrics (minimal)
 
