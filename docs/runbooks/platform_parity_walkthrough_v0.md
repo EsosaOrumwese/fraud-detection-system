@@ -4,6 +4,15 @@ _As of 2026-02-10_
 This runbook executes a **local_parity** end‑to‑end flow capped to **500,000 events**, then validates the implemented RTDL + Case/Label + Learning-job + Obs/Gov surfaces (**ArchiveWriter/IEG/OFP/CSFB/DF/DL/AL/DLA/CaseTrigger/CM/LS + OFS Worker + Platform Reporter/Conformance**) against admitted EB topics.
 It uses **MinIO (S3)** for the Oracle Store + platform artifacts, **LocalStack Kinesis** for control/event buses, and **Postgres** for IG/WSP/RTDL decision-lane/Case-Label primary state.
 
+## Scope and authority (important)
+
+- This runbook is a **full-parity superset** walkthrough. It includes Learning/Registry job flows and extended validation surfaces.
+- For migration baseline acceptance of **Spine Green v0** (Learning/Registry explicitly out-of-scope), authority is:
+  - `docs/design/platform/local-parity/spine_green_v0_run_process_flow.txt`
+  - `docs/design/platform/local-parity/addendum_1_phase_state_machine_and_gates.txt`
+  - `docs/design/platform/local-parity/addendum_1_operator_gate_checklist.txt`
+- If any acceptance-gate wording differs, use the local-parity docs above for Spine Green v0 declarations.
+
 ---
 
 ## 0) Preconditions
@@ -182,9 +191,9 @@ Pack and evidence surfaces:
   - `config/platform/run_operate/packs/local_parity_obs_gov.v0.yaml`
 - Orchestrator state/logs:
   - `runs/fraud-platform/operate/<pack_id>/state.json`
-  - `runs/fraud-platform/operate/<pack_id>/events.jsonl`
   - `runs/fraud-platform/operate/<pack_id>/status/last_status.json`
-  - `runs/fraud-platform/operate/<pack_id>/logs/<process>.log`
+  - `runs/fraud-platform/<platform_run_id>/operate/<pack_id>/events.jsonl`
+  - `runs/fraud-platform/<platform_run_id>/operate/<pack_id>/logs/<process>.log`
 
 Notes:
 - RTDL core pack enforces active run scope via `ACTIVE_RUN_ID` -> `*_REQUIRED_PLATFORM_RUN_ID`.
@@ -196,6 +205,10 @@ Notes:
 - Mode boundary:
   - If packs are running, treat them as source-of-truth daemons and avoid launching duplicate manual consumers for the same component.
   - Use manual component commands only for targeted diagnosis or matrix/boundary checks.
+
+Spine Green v0 scope note:
+- In this section, `learning_jobs` commands represent full-parity superset operation.
+- For Spine Green v0 baseline runs, start only in-scope packs (Control+Ingress, RTDL core/decision, Case+Labels, Obs/Gov).
 
 ### 3.2) Learning jobs launcher (OFS + MF explicit invocation and publish-only retry)
 

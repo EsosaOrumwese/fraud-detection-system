@@ -3506,3 +3506,57 @@ Docs-only acceptance-hardening aligned to observed runtime surfaces and scope lo
 
 ### Drift sentinel assessment
 No runtime behavior changed. This pass strictly hardens documentation acceptance criteria so declarations of Spine Green v0 cannot pass on partial/ambiguous evidence.
+
+## Entry: 2026-02-12 1:16PM - Pre-change lock for runbook scope-authority clarification
+
+### Trigger
+USER requested proceeding with the same scope-locked authority note in the primary runbook to remove baseline confusion.
+
+### File
+`docs/runbooks/platform_parity_walkthrough_v0.md`
+
+### Problem framing
+The runbook is written as full-parity walkthrough (includes learning jobs and broad closure surfaces), while Spine Green v0 is a scoped migration baseline.
+Without an explicit authority note, operators can treat full-parity instructions as baseline acceptance criteria and/or misread artifact topology expectations.
+
+### Decision
+Add explicit scope and authority note near the top:
+- this runbook is full-parity superset,
+- Spine Green v0 acceptance is governed by local-parity docs in `docs/design/platform/local-parity/`.
+Also add concise run-operate artifact topology note to avoid path confusion.
+
+### Planned edits
+1. Insert `Scope and authority` subsection after intro paragraph.
+2. Insert concise note in Run/Operate section clarifying hybrid artifact paths and deferral to local-parity docs for Spine Green acceptance.
+
+### Validation
+- Marker scan for `Scope and authority` note and local-parity doc references.
+- Readability pass to ensure no change to full-parity mechanics.
+
+### Drift sentinel checkpoint
+Docs-only clarification; no runtime or policy behavior changes.
+
+## Entry: 2026-02-12 1:18PM - Applied closure for runbook scope-authority and artifact-topology clarification
+
+### File updated
+`docs/runbooks/platform_parity_walkthrough_v0.md`
+
+### Changes applied
+1. Added explicit `Scope and authority` section near the runbook intro:
+- marks this runbook as full-parity superset,
+- points Spine Green v0 acceptance authority to local-parity docs under `docs/design/platform/local-parity/`.
+
+2. Corrected Run/Operate artifact topology in section 3.1 to match current implementation:
+- pack-scoped: `runs/fraud-platform/operate/<pack_id>/{state.json,status/last_status.json}`,
+- run-scoped: `runs/fraud-platform/<platform_run_id>/operate/<pack_id>/{events.jsonl,logs/<process>.log}`.
+
+3. Added explicit scope note in section 3.1:
+- `learning_jobs` commands are full-parity superset,
+- Spine Green v0 baseline should start only in-scope packs.
+
+### Validation
+- Marker scan confirms presence of scope-authority anchors and corrected run-scoped events/log paths.
+- Readability pass confirms no procedural full-parity steps were removed.
+
+### Drift sentinel assessment
+Docs-only clarification update; runtime behavior unchanged.
