@@ -2241,6 +2241,47 @@ This standard is binding for every new ID entry in this file.
 - Why this proves MLOps/Data Eng strength (explicit hiring signal):
   This shows correctness-first infrastructure thinking. You balanced performance with recovery correctness, protected replay integrity, and validated the fix with targeted tests. Recruiters see this as strong Data Eng rigor for log-based systems.
 
+## ID 49 - EB publish failure accounting lacked explicit degrade posture
+
+- Context (what was at stake):
+  At the IG->EB boundary, admission truth is only valid after durable EB ACK. If publish failures are not consistently accounted, health posture can stay artificially green and downstream systems lose an accurate view of bus reliability.
+
+- Problem (specific contradiction/failure):
+  Publish-failure accounting was incomplete across failure modes, and duplicate receipts did not consistently preserve `published_at_utc`. This contradicted deterministic admission evidence: repeated admissions should preserve the same EB position metadata, and health should degrade on real publish instability.
+
+- Options considered (2-3):
+  1. Keep current behavior and account only a subset of publish failures.
+     Rejected because health degradation would remain under-sensitive.
+  2. Add retries at EB layer to mask failures.
+     Rejected because retries here would hide failure semantics that belong at producer/IG policy layer.
+  3. Explicitly account publish failures for both handled and unhandled paths, and preserve ACK timestamp in duplicate flows.
+     Selected to strengthen deterministic receipts and observable degrade posture.
+
+- Decision (what you chose and why):
+  We chose option 3. Health must reflect all publish failure classes, and duplicate receipts must remain byte-stable on EB metadata (including `published_at_utc`) to preserve replay determinism.
+
+- Implementation (what you changed):
+  1. Updated IG publish boundary handling to record bus publish failures for explicit `IngestionError` and unexpected exceptions.
+  2. Persisted `eb_published_at_utc` in admission index schema and surfaced it for duplicate decisions.
+  3. Kept retry policy out of EB layer to avoid masking source failure semantics.
+  4. Ran targeted IG replay/load-recovery tests after hardening.
+
+- Result (observable outcome/evidence):
+  Health accounting now degrades deterministically on EB publish issues, and duplicate receipts preserve original EB timestamp metadata, improving audit/replay stability.
+  Truth posture: `Resolved`.
+  Evidence anchors:
+  - `docs/model_spec/platform/implementation_maps/local_parity/event_bus.impl_actual.md:345`
+  - `docs/model_spec/platform/implementation_maps/local_parity/event_bus.impl_actual.md:361`
+  Additional challenge context:
+  - `docs/model_spec/platform/implementation_maps/local_parity/event_bus.impl_actual.md:341`
+  - `docs/model_spec/platform/implementation_maps/local_parity/event_bus.impl_actual.md:346`
+  - `docs/model_spec/platform/implementation_maps/local_parity/event_bus.impl_actual.md:363`
+  - `docs/model_spec/platform/implementation_maps/local_parity/event_bus.impl_actual.md:367`
+  - `docs/model_spec/platform/implementation_maps/local_parity/event_bus.impl_actual.md:370`
+
+- Why this proves MLOps/Data Eng strength (explicit hiring signal):
+  This demonstrates strong reliability-surface engineering: you closed a subtle observability gap at the admission boundary, preserved deterministic receipt semantics, and ensured degradation signals reflect real publish risk rather than partial failure accounting.
+
 ## ID 50 - Oracle Store truth-ownership boundary drift risk
 
 - Context (what was at stake):
@@ -11377,6 +11418,57 @@ This standard is binding for every new ID entry in this file.
 
 - Why this proves MLOps/Data Eng strength (explicit hiring signal):
   This demonstrates strong secure-bootstrap planning discipline: you transformed an under-specified high-risk phase into an auditable execution program, reducing identity/secret ambiguity and improving migration reliability before code rollout.
+
+## ID 244 - Phase 1 needed executable guardrails, not just plan text
+
+- Context (what was at stake):
+  After Phase 1 planning expansion, migration still needed executable controls for identity/secrets bootstrap. Without runnable guardrails, Phase 1 closure would remain a documentation claim rather than an operationally provable readiness gate.
+
+- Problem (specific contradiction/failure):
+  Plan text alone could not enforce fail-closed behavior or produce auditable evidence for positive/negative bootstrap scenarios. This contradicted production-grade migration posture, where readiness must be validated through executable gates.
+
+- Options considered (2-3):
+  1. Keep Phase 1 as documentation-only and rely on operator manual checks.
+     Rejected because manual interpretation is inconsistent and weakly auditable.
+  2. Implement helper scripts but keep them warn-only.
+     Rejected because warn-only posture cannot enforce bootstrap gate discipline.
+  3. Implement executable fail-closed tooling with make targets and run positive/negative drills.
+     Selected to make Phase 1 readiness objectively testable.
+
+- Decision (what you chose and why):
+  We chose option 3. Phase 1 was turned into an executable gate: strict preflight checks, secure handle seeding, sanitized evidence capture, and explicit failure drills. This gave the team deterministic operator controls and auditable closure logic.
+
+- Implementation (what you changed):
+  1. Added `scripts/dev_substrate/phase1_preflight.ps1` with fail-closed checks for AWS identity/region, tool presence, required SSM handles, optional Confluent probe, S3 visibility, and secret-hygiene git checks.
+  2. Added `scripts/dev_substrate/phase1_seed_ssm.ps1` for secure Confluent handle seeding without secret-value logging.
+  3. Added make targets:
+     - `platform-dev-min-phase1-preflight`
+     - `platform-dev-min-phase1-seed-ssm`
+  4. Added Git-Bash path-conversion guards for SSM-style paths.
+  5. Ran positive/permissive baseline and targeted negative drills (missing handles, invalid AWS auth context, invalid Confluent credential path, missing seed material).
+  6. Updated Phase 1 status/DoD evidence in active build plan based on actual run outcomes.
+
+- Result (observable outcome/evidence):
+  Phase 1 moved from planning-only to executable control plane. Guardrails are now runnable, fail-closed by default, and evidenced with sanitized drill results, while clearly exposing remaining closure blockers.
+  Truth posture: `Resolved`.
+  Evidence anchors:
+  - `docs/model_spec/platform/implementation_maps/dev_substrate/platform.impl_actual.md:460`
+  - `docs/model_spec/platform/implementation_maps/dev_substrate/platform.impl_actual.md:475`
+  - `docs/model_spec/platform/implementation_maps/dev_substrate/platform.impl_actual.md:489`
+  - `docs/model_spec/platform/implementation_maps/dev_substrate/platform.impl_actual.md:492`
+  - `docs/model_spec/platform/implementation_maps/dev_substrate/platform.impl_actual.md:500`
+  - `docs/model_spec/platform/implementation_maps/dev_substrate/platform.impl_actual.md:517`
+  - `docs/model_spec/platform/implementation_maps/dev_substrate/platform.impl_actual.md:521`
+  - `docs/model_spec/platform/implementation_maps/dev_substrate/platform.impl_actual.md:530`
+  Additional challenge context:
+  - `docs/model_spec/platform/implementation_maps/dev_substrate/platform.impl_actual.md:482`
+  - `docs/model_spec/platform/implementation_maps/dev_substrate/platform.impl_actual.md:494`
+  - `docs/model_spec/platform/implementation_maps/dev_substrate/platform.impl_actual.md:503`
+  - `docs/model_spec/platform/implementation_maps/dev_substrate/platform.impl_actual.md:525`
+  - `docs/model_spec/platform/implementation_maps/dev_substrate/platform.impl_actual.md:532`
+
+- Why this proves MLOps/Data Eng strength (explicit hiring signal):
+  This demonstrates strong readiness-engineering execution: you translated a security-sensitive migration phase into enforceable, fail-closed tooling with drill-backed evidence, making bootstrap quality measurable rather than rhetorical.
 
 ## ID 247 - Strict preflight produced a false-negative by probing Confluent management-plane IAM instead of Kafka-plane readiness
 
