@@ -3736,3 +3736,39 @@ P1.1 DoD status impact:
 Notes:
 - Existing `segment1a-s*` targets were left unchanged.
 - No full-segment (`S3+`) invocation is required in the new P1 path.
+
+### Entry: 2026-02-12 19:46
+
+Design element: P1.2 closure check (hurdle coefficient calibration and branch-purity verification).
+Summary: Executed P1.2 against the state-scoped loop (`segment1a-p1`) and validated single-site realism + branch purity over three seeds. Result: P1.2 passes without additional hurdle coefficient edits; current hurdle bundle remains the locked candidate for onward P1 work.
+
+Execution performed:
+1) Confirmed active coefficient sources from sealed inputs for the P1 run path:
+- `hurdle_coefficients.yaml` from
+  `config/layer1/1A/models/hurdle/exports/version=2026-02-12/20260212T171900Z/hurdle_coefficients.yaml`.
+- `nb_dispersion_coefficients.yaml` from
+  `config/layer1/1A/models/hurdle/exports/version=2026-02-12/20260212T171900Z/nb_dispersion_coefficients.yaml`.
+
+2) Ran state-scoped P1 loop (S0->S2) with multi-seed check:
+- seed 42 -> run `e97b15d23d61dde3ae2c416721f271f2`
+- seed 43 -> run `bc3cd75be277994a13a8d435d249ee4b`
+- seed 44 -> run `099bce7800f7e53d88b5aaf368e22c06`
+
+3) Computed P1.2 metrics from S1/S2 authoritative streams:
+- single-site share from `rng_event_hurdle_bernoulli` (`is_multi=false` share),
+- branch purity using S1 gate vs S2 `nb_final` population.
+
+Measured results:
+- seed 42: single_share `0.4138`, branch violations `0`, missing-nb-for-true `0`.
+- seed 43: single_share `0.4166`, branch violations `0`, missing-nb-for-true `0`.
+- seed 44: single_share `0.4153`, branch violations `0`, missing-nb-for-true `0`.
+
+Decision:
+- P1.2 DoD is satisfied:
+  - single-site share is inside `B` and `B+` bands on all tested seeds,
+  - branch purity invariant holds (no S2 rows for hurdle-false merchants, full S2 coverage for hurdle-true merchants).
+- No additional hurdle coefficient edit is required at this stage.
+- Proceed to P1.3 (NB mean/dispersion count-shape calibration) using the same run loop.
+
+Evidence artifact:
+- `runs/fix-data-engine/segment_1A/reports/p1_2_hurdle_multiseed_scorecard.json`.

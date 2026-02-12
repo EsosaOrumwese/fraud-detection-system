@@ -100,8 +100,8 @@ Freeze the current baseline so post-fix movement is causal and auditable.
   - enforce state-scoped run profile that stops after `S2`;
   - keep failed-run pruning active before each new run id in `runs/fix-data-engine/...`.
 - DoD:
-  - [ ] one repeatable command/profile executes `S0,S1,S2` only.
-  - [ ] each run emits all four scoring surfaces listed in 3.3.
+  - [x] one repeatable command/profile executes `S0,S1,S2` only.
+  - [x] each run emits all four scoring surfaces listed in 3.3.
 
 #### P1.2 Hurdle calibration (`S1`)
 - Intent:
@@ -110,8 +110,8 @@ Freeze the current baseline so post-fix movement is causal and auditable.
 - Data checks:
   - derive merchant outlet regime from `hurdle_bernoulli` gate + `nb_final`.
 - DoD:
-  - [ ] single-site share reaches at least `B` band (`0.25 to 0.45`), target `B+` (`0.35 to 0.55`).
-  - [ ] branch purity holds: no `S2` outputs for merchants gated `is_multi=false`.
+  - [x] single-site share reaches at least `B` band (`0.25 to 0.45`), target `B+` (`0.35 to 0.55`).
+  - [x] branch purity holds: no `S2` outputs for merchants gated `is_multi=false`.
 
 #### P1.3 NB mean/dispersion calibration (`S2`)
 - Intent:
