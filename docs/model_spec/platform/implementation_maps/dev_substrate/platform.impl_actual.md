@@ -4604,30 +4604,49 @@ Patch tightened migration docs against implementation drift while preserving the
 
 ## Entry: 2026-02-12 10:49PM - Bridge sealed: local-parity to dev migration narrative is now implementation-safe
 
-### Context
-We had an explicit migration challenge: local-parity Spine Green v0 was proven, but the bridge to dev managed substrate risked drift if migration was attempted ad hoc.
+### Problem (previously observed)
+- A major blocker in this project was not “writing code”, but translating a working local_parity flow into a dev environment without drifting semantics or getting trapped in infra chaos.
+- The local build hides critical realities (managed compute wiring, IAM boundaries, runtime state backends, reproducible teardown), so the migration surface had many unseen decision points (e.g., oracle stream-sort compute, DB/state portability, evidence materialization).
 
-### Resolution status
-The bridge is now sealed through two paired authority docs:
-1. `docs/model_spec/platform/migration_to_dev/dev_min_spine_green_v0_run_process_flow.md`
-2. `docs/model_spec/platform/migration_to_dev/dev_min_handles.registry.v0.md`
+### What changed / what we shipped (bridge sealed)
+We sealed the local→dev_min bridge by producing two authoritative “migration spine” documents:
 
-### How these docs seal the bridge
-- They translate local process semantics into dev execution with canonical phase gates, proof artifacts, rollback posture, and no-laptop-runtime constraints.
-- They eliminate handle/name ambiguity by making the handles registry the single wiring authority (runbook references resolved keys, not freeform names).
-- They pin migration-critical boundaries and failure posture (writer-boundary auth, dedupe/evidence discipline, explicit publish ambiguity handling, single-writer closure).
-- They lock substrate posture needed for safe dev implementation (S3 durability surfaces, Confluent topic map, DB backend mode, teardown/cost rails).
+1) `docs/model_spec/platform/migration_to_dev/dev_min_spine_green_v0_run_process_flow.md`
+   - A phase-by-phase dev_min translation of the canonical local parity Spine Green v0 flow.
+   - Mirrors the same phase machine P(-1), P0..P12, preserving gates and meanings.
+   - Pins packaging targets (ECS task vs ECS service), operator procedure, PASS proofs, and rollback semantics per phase.
+   - Enforces non-negotiables: no laptop runtime dependency, CLI orchestration, demo→destroy, no NAT, no always-on LB, and scope lock (Learning/Registry out of baseline).
 
-### Counterfactual (if we skipped this and migrated carelessly)
-Without this documentation bridge, migration would likely have produced:
-- runtime ownership drift (wrong producer/consumer or topic ownership assumptions),
-- hidden laptop coupling reintroduced through bootstrap shortcuts,
-- inconsistent handles causing deployment churn and environment-specific breakage,
-- weak gate evidence leading to false-green claims,
-- teardown/cost control failures (resources left running, unclear cleanup scope).
+2) `docs/model_spec/platform/migration_to_dev/dev_min_handles.registry.v0.md`
+   - A single source of truth for all wiring handles used by Terraform and runtime:
+     - S3 buckets/prefix contracts (oracle/archive/quarantine/evidence),
+     - Confluent cluster + topic map + SSM secret paths,
+     - ECR image identity strategy,
+     - ECS task/service identities,
+     - managed DB handles,
+     - IAM role map,
+     - budgets/alerts and observability pins.
+   - Prevents name drift and stops the implementer from inventing new resources “because it seemed easier”.
 
-### Decision
-Treat the migration docs as the implementation bridge contract for dev: design intent from local parity is preserved, while implementation choices are pinned just-in-time per phase entry where appropriate.
+### Why these two docs seal the bridge
+- They convert “it works locally” (implicit laptop compute + local shims) into an explicit, reproducible dev_min execution plan where every phase has:
+  - declared substrate dependencies,
+  - declared compute packaging,
+  - pinned inputs/outputs,
+  - explicit gates,
+  - proof artifacts written durably (S3 evidence),
+  - and rollback strategy.
+- They force decision points to surface early (e.g., managed stream-sort lane, managed DB requirement for CM/LS, identity/role boundaries), rather than appearing mid-migration as hidden blockers.
 
-### Drift sentinel checkpoint
-This entry records milestone closure and migration posture hardening; no runtime code behavior changed in this step.
+### What would have happened without these docs (the failure mode)
+- The migration would have degenerated into ad hoc infrastructure changes with silent semantic drift:
+  - new schemas/contracts accidentally invented,
+  - misaligned naming of topics/buckets/paths across components,
+  - “temporary” laptop dependencies creeping back in,
+  - partial implementations that appear to run but cannot be proven/replayed,
+  - and expensive trial-and-error on managed services (cost leakage, teardown failures).
+- Worst case: “a working toy deployed to AWS” with no trustworthy gates, no evidence bundle, and no clean way to prove correctness or reproduce runs—making the platform impossible to sell as production-like.
+
+### Net result
+- We now have a pinned, operator-shaped migration roadmap (Spine Green v0 baseline) that Codex can implement safely without redesigning the platform.
+- Migration execution is now phase-by-phase, fail-closed, and evidence-backed rather than guesswork.
