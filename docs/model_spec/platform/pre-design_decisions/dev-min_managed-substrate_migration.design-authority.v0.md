@@ -2032,3 +2032,12 @@ This appendix is a practical “save time” list for `dev_min` demos. It’s **
 * Ensure you’re not doing expensive S3 LIST operations repeatedly.
 
 ---
+
+### Appendix E. Local-Parity Canonical Alignment Notes (2026-02-12)
+
+This appendix records two intentional interpretation choices so migration planning does not drift when comparing local-parity docs vs external review drafts.
+
+1. SR local-parity read root is pinned to `ORACLE_ENGINE_RUN_ROOT` (with optional `_oracle_pack_manifest.json` validation under that root), not `ORACLE_PACK_ROOT`-only.
+2. Case lane ownership remains `CaseTrigger -> fp.bus.case.v1` in local-parity runtime; it is not routed through an IG corridor in the canonical local flow.
+
+These notes are documentation-alignment decisions only; they do not change existing runtime implementation.

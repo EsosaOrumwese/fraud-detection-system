@@ -73,10 +73,16 @@
 
 7) IG SERVICE READY (P4)
    CMD:  make platform-operate-control-ingress-status
-         (or) curl IG health endpoint with/without API key
+         $igKey = "<configured_ig_api_key>"
+         curl -i http://127.0.0.1:8081/v1/ops/health
+         curl -i -H "X-IG-Api-Key: $igKey" http://127.0.0.1:8081/v1/ops/health
+         curl -i -X POST http://127.0.0.1:8081/v1/ingest/push -H "Content-Type: application/json" -d "{}"
+         curl -i -X POST http://127.0.0.1:8081/v1/ingest/push -H "X-IG-Api-Key: $igKey" -H "Content-Type: application/json" -d "{}"
    PASS: unauthenticated GET /v1/ops/health => 401 UNAUTHORIZED
-         authenticated GET /v1/ops/health => 200 health payload
-         AND IG can write receipts to object store
+          authenticated GET /v1/ops/health => 200 health payload
+          unauthenticated POST /v1/ingest/push => 401 UNAUTHORIZED
+          authenticated POST /v1/ingest/push is non-401 (payload may still be rejected by schema/policy)
+          AND IG can write receipts to object store
 
 8) SR READY COMMITTED + PUBLISHED (P5)
    CMD:  make platform-sr-run-reuse
@@ -93,25 +99,33 @@
          AND duplicate READY skips (if present) are explainable replay history, not active duplication faults
 
 10) IG ADMISSION COMMITTED (P7)
-    CMD:  list receipts prefix
+    CMD:  aws --endpoint-url http://localhost:4566 s3 ls s3://fraud-platform/<platform_run_id>/ig/receipts/ --recursive | Select-Object -First 20
+          aws --endpoint-url http://localhost:4566 s3 ls s3://fraud-platform/<platform_run_id>/ig/quarantine/ --recursive | Select-Object -First 20
+          $rkeys = (aws --endpoint-url http://localhost:4566 s3api list-objects-v2 --bucket fraud-platform --prefix "<platform_run_id>/ig/receipts/" --query "Contents[].Key" --output text)
+          foreach ($k in $rkeys) { aws --endpoint-url http://localhost:4566 s3 cp ("s3://fraud-platform/" + $k) - | Select-String "PUBLISH_AMBIGUOUS" }
     PASS: s3://fraud-platform/<platform_run_id>/ig/receipts/ contains receipts
           Receipt(s) include eb_ref + offset_kind=kinesis_sequence
           admitted_count > 0 for active run (required; from IG summary/logs or platform_run_report ingress.admit)
           duplicate-only receipt outcomes are FAIL for Gate-200 closure
           no unresolved ambiguity artifacts for this run:
-            admissions.state != PUBLISH_AMBIGUOUS for closure set
-            and no quarantine receipt with reason_codes containing PUBLISH_AMBIGUOUS
+            no quarantine receipt with reason_codes containing PUBLISH_AMBIGUOUS
+            (if any PUBLISH_AMBIGUOUS evidence exists, P7 is FAIL and run cannot close green)
 
 11) EB HAS TRAFFIC + CONTEXT RECORDS (P7/P8)
-    CMD:  kinesis stream get/list/describe (or platform helper)
+    CMD:  aws --endpoint-url http://localhost:4566 kinesis list-streams
+          (then run the shard-iterator/get-records sequence from runbook Section 8 for:
+           fp.bus.traffic.baseline.v1 / fp.bus.traffic.fraud.v1 / fp.bus.context.arrival_events.v1 / fp.bus.context.flow_anchor.fraud.v1)
     PASS: traffic + context streams show records (non-zero) for this run window
           and offsets advance during this run window (not historical-only leftovers)
 
 12) RTDL CORE CAUGHT UP (P8)
     CMD:  check run artifacts + projector health/metrics
+          aws --endpoint-url http://localhost:4566 s3 ls s3://fraud-platform/<platform_run_id>/archive/events/ --recursive | Select-Object -First 5
     PASS: ArchiveWriter health artifact exists and is GREEN with seen_total > 0:
             runs/fraud-platform/<platform_run_id>/archive_writer/health/last_health.json
             runs/fraud-platform/<platform_run_id>/archive_writer/metrics/last_metrics.json
+          ArchiveWriter durable archive prefix is non-empty:
+            s3://fraud-platform/<platform_run_id>/archive/events/
           IEG reconciliation artifact exists and health is GREEN:
             runs/fraud-platform/<platform_run_id>/identity_entity_graph/reconciliation/reconciliation.json
             runs/fraud-platform/<platform_run_id>/identity_entity_graph/health/last_health.json
@@ -124,7 +138,13 @@
             runs/fraud-platform/<platform_run_id>/context_store_flow_binding/reconciliation/last_reconciliation.json
 
 13) DECISION CHAIN COMMITTED (P9)
-    CMD:  inspect rtdl + audit streams and DLA artifacts
+    CMD:  aws --endpoint-url http://localhost:4566 kinesis list-streams
+          $rtdl = (aws --endpoint-url http://localhost:4566 kinesis get-shard-iterator --stream-name fp.bus.rtdl.v1 --shard-id shardId-000000000000 --shard-iterator-type TRIM_HORIZON --query ShardIterator --output text)
+          $audit = (aws --endpoint-url http://localhost:4566 kinesis get-shard-iterator --stream-name fp.bus.audit.v1 --shard-id shardId-000000000000 --shard-iterator-type TRIM_HORIZON --query ShardIterator --output text)
+          aws --endpoint-url http://localhost:4566 kinesis get-records --shard-iterator $rtdl --limit 5
+          aws --endpoint-url http://localhost:4566 kinesis get-records --shard-iterator $audit --limit 5
+          Get-Content runs/fraud-platform/<platform_run_id>/decision_log_audit/health/last_health.json
+          Get-Content runs/fraud-platform/<platform_run_id>/decision_log_audit/reconciliation/last_reconciliation.json
     PASS: fp.bus.rtdl.v1 contains decision/intent/outcome events
           fp.bus.audit.v1 contains audit events
           DLA reconciliation/artifacts exist under:
@@ -132,7 +152,11 @@
           DLA health is GREEN and lineage_unresolved_total=0 for active run
 
 14) CASE + LABELS COMMITTED (P10)
-    CMD:  inspect case stream + CaseTrigger/CM/LS health+metrics
+    CMD:  $case = (aws --endpoint-url http://localhost:4566 kinesis get-shard-iterator --stream-name fp.bus.case.v1 --shard-id shardId-000000000000 --shard-iterator-type TRIM_HORIZON --query ShardIterator --output text)
+          aws --endpoint-url http://localhost:4566 kinesis get-records --shard-iterator $case --limit 5
+          Get-Content runs/fraud-platform/<platform_run_id>/case_trigger/health/last_health.json
+          Get-Content runs/fraud-platform/<platform_run_id>/case_mgmt/health/last_health.json
+          Get-Content runs/fraud-platform/<platform_run_id>/label_store/health/last_health.json
     PASS: fp.bus.case.v1 has trigger events
           CaseTrigger health is GREEN and metrics.triggers_seen > 0
             runs/fraud-platform/<platform_run_id>/case_trigger/health/last_health.json

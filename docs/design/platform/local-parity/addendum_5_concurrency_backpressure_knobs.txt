@@ -9,7 +9,12 @@
 #   [SAFETY]   = prevents duplicates / replay storms / multi-writer corruption
 #   [PERF]     = should only change throughput/latency/cost (not outputs), if implemented correctly
 #
-# NOTE: Names shown match your run documents/profile intent; verify exact env-var keys in pack YAMLs.
+# AUTHORITY BOUNDARY:
+#   - This addendum is a semantic control matrix (what changes behavior/safety/perf), not the authoritative
+#     source for exact env-var names.
+#   - Exact key strings are owned by pack YAML/component config:
+#       config/platform/run_operate/packs/local_parity_*.v0.yaml
+#       config/platform/** (component-specific profile/config files)
 # ============================================================
 
 

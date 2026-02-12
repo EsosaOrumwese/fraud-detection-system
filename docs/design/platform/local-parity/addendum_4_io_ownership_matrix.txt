@@ -93,7 +93,7 @@ RULE 3: Decision-lane events are not “traffic”.
   - Audit: DLA publishes fp.bus.audit.v1
 
 RULE 4: Case triggers are their own lane.
-  - Producer: CaseTrigger (thin writer) OR RTDL/AL (if explicitly pinned)
+  - Producer: CaseTrigger (thin writer) only for Spine Green v0
   - Topic: fp.bus.case.v1 (local) / fp.bus.case.triggers.v1 (dev_min)
   - Consumer: CM
 
@@ -144,11 +144,18 @@ RULE 6: Governance append log is single-writer per run.
 [COMPONENT] SR (Scenario Runner)
   PRINCIPAL: sr
   READ:
-    - S3 (oracle-store): ORACLE_PACK_ROOT/** and/or ORACLE_ENGINE_RUN_ROOT/**
+    - S3 (oracle-store): ORACLE_ENGINE_RUN_ROOT/** (current local_parity SR read root)
+    - Optional manifest validation under the same root:
+        ORACLE_ENGINE_RUN_ROOT/**/_oracle_pack_manifest.json (if present, carried as oracle_pack_ref)
     - FS: runs/fraud-platform/ACTIVE_RUN_ID
     - DB: SR leases table (in Postgres; same physical DB as parity)
   WRITE:
-    - S3 (fraud-platform): <platform_run_id>/sr/** (run_facts_view + ledgers + READY bundle refs)
+    - S3 (fraud-platform) canonical SR artifacts:
+        <platform_run_id>/sr/run_plan/<run_id>.json
+        <platform_run_id>/sr/run_record/<run_id>.jsonl
+        <platform_run_id>/sr/run_status/<run_id>.json
+        <platform_run_id>/sr/run_facts_view/<run_id>.json
+        <platform_run_id>/sr/ready_signal/<run_id>.json
     - EB CONTROL:
         LOCAL_PARITY: sr-control-bus
         DEV_MIN: fp.bus.control.v1
@@ -283,6 +290,8 @@ RULE 6: Governance append log is single-writer per run.
   READ:
     - EB traffic topic (consume): fp.bus.traffic.{fraud|baseline}.v1
     - DB: PARITY_DF_REPLAY_DSN / PARITY_DF_CHECKPOINT_DSN
+    - DL posture store snapshot (as implemented):
+        DB: PARITY_DL_POSTURE_DSN via `dl_store_dsn` + `dl_stream_id` (no posture topic coupling)
     - Reads derived state from:
         DB: PARITY_OFP_PROJECTION_DSN
         DB: PARITY_IEG_PROJECTION_DSN
@@ -315,7 +324,8 @@ RULE 6: Governance append log is single-writer per run.
     - DB: PARITY_DLA_INDEX_DSN
   WRITE:
     - EB AUDIT (produce): fp.bus.audit.v1
-    - S3 evidence (LOCAL_PARITY shape is indexed in run artifacts; dev_min requires S3 evidence/audit/**)
+    - S3 append-only evidence (LOCAL_PARITY path family):
+        s3://fraud-platform/<platform_run_id>/decision_log_audit/records/<audit_id>.json
     - DB: PARITY_DLA_INDEX_DSN (index only; truth is append-only evidence)
     - FS: runs/fraud-platform/<platform_run_id>/decision_log_audit/{metrics,reconciliation}/**
   CALL: none
@@ -325,8 +335,8 @@ RULE 6: Governance append log is single-writer per run.
 [COMPONENT] CaseTrigger (thin trigger writer)
   PRINCIPAL: case_trigger
   READ:
-    - Evidence basis:
-        EB RTDL lane and/or DLA index (implementation choice)
+    - EB RTDL lane (consume): fp.bus.rtdl.v1
+      (event types decision_response + action_outcome in Spine Green v0)
     - DB: PARITY_CASE_TRIGGER_REPLAY_DSN / CHECKPOINT_DSN / PUBLISH_STORE_DSN
   WRITE:
     - EB CASE lane (produce):

@@ -215,10 +215,16 @@ CMD:
   set SR_RUN_EQUIVALENCE_KEY=parity_<timestamp>
   make platform-sr-run-reuse SR_WIRING=config/platform/sr/wiring_local_kinesis.yaml
 INPUTS:
-  - reads oracle pack + run facts from Oracle Store (MinIO)
+  - reads oracle_engine_run_root from Oracle Store (MinIO); this is the SR read root in local_parity
+  - if _oracle_pack_manifest.json exists under oracle_engine_run_root, SR validates and carries oracle_pack_ref in READY facts/signal
   - uses ACTIVE_RUN_ID to pin platform_run_id for this invocation
 OUTPUTS:
-  - SR artifacts under s3://fraud-platform/<platform_run_id>/sr/...
+  - SR canonical artifacts under s3://fraud-platform/<platform_run_id>/sr/:
+      run_plan/<run_id>.json
+      run_record/<run_id>.jsonl
+      run_status/<run_id>.json
+      run_facts_view/<run_id>.json
+      ready_signal/<run_id>.json
   - READY message published to sr-control-bus (Kinesis)
 SUCCESS:
   - SR log shows READY committed + READY published:
@@ -337,6 +343,8 @@ COMPONENTS:
     - determines degrade posture (policy profile)
     - persists posture + emits posture-related evidence/metrics
   DF:
+    - resolves active degrade posture from DL current-posture store (dl_store_dsn + dl_stream_id)
+      (no DL->DF posture topic in Spine Green v0 runtime path)
     - synthesizes decision_response + action_intent
     - publishes to fp.bus.rtdl.v1
   AL:
@@ -362,7 +370,7 @@ SUCCESS:
 TYPE: DAEMONS (case_labels pack)
 COMPONENTS:
   CaseTrigger:
-    - consumes DF/DLA evidence (and/or rtdl lane)
+    - consumes fp.bus.rtdl.v1 only (event types: decision_response, action_outcome) in Spine Green v0
     - emits case triggers to fp.bus.case.v1
     - checkpoints (duplicate-safe)
   CM (case management):
@@ -432,6 +440,7 @@ PORTABILITY NOTE:
 PASS CONDITIONS:
   - environment_conformance status = PASS
   - ingress admit signal is positive for active run (platform_run_report ingress.admit > 0)
+  - no unresolved PUBLISH_AMBIGUOUS receipt/evidence exists for active run closure set (fail closed)
   - ArchiveWriter health_state = GREEN and archive_writer.metrics.seen_total > 0
   - IEG health_state = GREEN
   - OFP health_state = GREEN

@@ -6,6 +6,64 @@ it. Do not delete prior entries.
 
 ---
 
+### Entry: 2026-02-12 16:25
+
+Design element: Segment 1A remediation execution kickoff (P0 baseline freeze on pinned run).
+Summary: Executed `P0` from the new `segment_1A.build_plan.md` against baseline run `7d5a4b519bb5bc68ee80b52b0a2eabeb`, produced a frozen metric bundle, and recorded hard-gate baseline status before any remediation changes.
+
+Context and reasoning:
+1) The remediation plan for 1A is now phase-driven (`P0`..`P5`) with explicit DoD and B/B+ certification criteria.
+2) Before touching S1/S2/S3/S4/S6 mechanics, we needed a causal baseline snapshot pinned to one run-id, manifest, parameter hash, and seed.
+3) This establishes a single audit surface for all later deltas and avoids “moving baseline” ambiguity.
+
+Pinned baseline identifiers:
+- run_id: `7d5a4b519bb5bc68ee80b52b0a2eabeb`
+- manifest_fingerprint: `ef344b90a93030e04dc0011c795ee9d19500239657b16e0ab3afa76b7b2f2b3d`
+- parameter_hash: `56d45126eaabedd083a1d8428a763e0278c89efec5023cfd6cf3cab7fc8dd2d7`
+- seed: `42`
+
+Implementation notes (what was executed):
+1) Loaded baseline outputs from run-scoped 1A datasets:
+   - `outlet_catalogue`
+   - `s3_candidate_set`
+   - `s6/membership`
+   - `hurdle_pi_probs`
+   - `sealed_inputs_1A` (for coefficient provenance)
+2) Recomputed the baseline metrics aligned with remediation report Section 2:
+   - merchant pyramid (single-site share, median outlets),
+   - concentration (top-10% share, Gini),
+   - geo/legal realism (home!=legal share + size-decile gradient),
+   - candidate vs realization coupling (median breadth, Spearman coupling, realization ratio),
+   - dispersion realism (`phi` CV, `phi` P95/P05 ratio using sealed `nb_dispersion_coefficients.yaml`).
+3) Performed required-output presence scan for:
+   - `s3_integerised_counts`,
+   - `s3_site_sequence`,
+   - `sparse_flag`,
+   - `merchant_abort_log`,
+   - `hurdle_stationarity_tests`.
+4) Materialized baseline artifacts:
+   - `runs/fix-data-engine/segment_1A/7d5a4b519bb5bc68ee80b52b0a2eabeb/reports/p0_baseline_metrics.json`
+   - `runs/fix-data-engine/segment_1A/7d5a4b519bb5bc68ee80b52b0a2eabeb/reports/p0_hard_gate_status.json`
+   - `docs/reports/eda/segment_1A/segment_1A_p0_baseline_freeze.md`
+5) Marked `P0` DoD as complete in:
+   - `docs/model_spec/data-engine/implementation_maps/segment_1A.build_plan.md`
+
+Observed baseline outcome (P0):
+- single-site share: `0.0000` (hard-gate fail),
+- foreign candidate median: `37.00` (hard-gate fail),
+- candidate->membership Spearman: `0.1044`,
+- realization ratio median: `0.0000`,
+- `phi` CV: `0.000530` (hard-gate fail),
+- `phi` P95/P05: `1.000042` (hard-gate fail),
+- required outputs present: none of 5 (hard-gate fail),
+- determinism replay gate: marked open/not assessed in P0 single-run baseline.
+
+Decision:
+- `P0` is complete and baseline-frozen.
+- Next phase is `P1` (S1/S2 merchant-pyramid + dispersion remediation), with this baseline as causal anchor.
+
+---
+
 ## S0 - Foundations (S0.1 to S0.10)
 
 ### Entry: 2026-01-14 12:26
@@ -3349,5 +3407,86 @@ Actions taken:
 Expected outcome:
 - Re-running the same run_id on a different day uses the same utc_day partition.
 - “Latest receipt” selection is stable under mtime changes while preserving fallback behavior.
+
+---
+
+### Entry: 2026-02-12 17:05
+
+Design element: P1 sequencing decision (S8 structural scope before coefficient tuning).
+Summary: While preparing P1 (S1/S2 remediation), I confirmed a structural blocker in `S8` that makes key P1 realism metrics non-identifiable if left unchanged. Decision: apply a minimal structural fix first so P1 coefficient changes are measurable and auditable.
+
+Reasoning trail:
+1) P1 target metrics include single-site share and merchant pyramid shape, but the current `S8` materialization scope is `set(candidate_map) & set(ztp_map)`.
+2) In current flow, this excludes merchants without `ztp_final` (notably single-site/ineligible paths), and then merchants with `n_outlets < 2` are also explicitly skipped in output row materialization.
+3) Result: `outlet_catalogue` under-represents the merchant universe and forces `single_vs_multi_flag=True` for emitted rows, which can mask upstream S1/S2 changes.
+4) If we tune hurdle/dispersion without fixing this, we risk false negatives (policy improved but not visible in egress) and invalid grade interpretation.
+
+Decision:
+- Keep P1 as the first remediation wave, but execute in this order:
+  1) `P1a` = structural scope correction in `S8` (no realism rescue logic; only faithful projection of upstream states),
+  2) `P1b` = S1/S2 coefficient and policy tuning.
+
+Boundaries:
+- No change to state order.
+- No downstream-only patching of counts; S8 remains a projection/validation layer.
+- Determinism envelope and schema conformance must remain intact.
+
+---
+
+### Entry: 2026-02-12 17:07
+
+Design element: S8 structural remediation option selection.
+Summary: Evaluated candidate ways to restore full merchant population representation in `outlet_catalogue` and selected the lowest-risk option aligned with existing contracts.
+
+Options considered:
+1) Option A (chosen): Expand S8 merchant scope to all merchants with `nb_final`, and branch materialization by eligibility:
+   - single-site (`n_outlets < 2`): emit one home-country row,
+   - multi-site but no `ztp_final`: emit home-country rows using `nb_final.n_outlets`,
+   - eligible multi-country (`ztp_final` present): current domain-count logic.
+2) Option B: Leave S8 unchanged and compute realism only from upstream tables (`hurdle_pi_probs`, `rng_event_nb_final`). Rejected because the certified segment egress (`outlet_catalogue`) remains structurally biased.
+3) Option C: Reconstruct missing ztp/membership events for ineligible paths. Rejected because this introduces synthetic event fabrication in a non-source state.
+
+Why Option A:
+- Matches expanded-state intent: every merchant should be representable in final outlet projection.
+- Uses already-authoritative upstream fields (`nb_final`, `candidate_set` home row) without inventing new events.
+- Minimal blast radius: no schema change needed, and existing multi-country path remains untouched.
+
+Chosen implementation boundaries:
+- `raw_nb_outlet_draw` remains sourced from `nb_final.n_outlets`.
+- `single_vs_multi_flag=False` for single-site projection path.
+- `site_id` semantics remain merchant-local sequence (`000001..`).
+- Sequence/overflow event checks continue only where applicable.
+
+---
+
+### Entry: 2026-02-12 17:10
+
+Design element: P1 coefficient initial calibration targets.
+Summary: Before writing coefficient bundles, I derived numeric candidate targets from baseline behavior so first-pass edits land inside B-band with controlled risk.
+
+Observed baseline anchors:
+- Mean hurdle probability (`pi`) is too low (~0.16), consistent with missing single-site share in certified egress.
+- Implied dispersion (`phi`) is near-degenerate (CV near zero), indicating over-flat `beta_phi` structure.
+
+Calibration decisions:
+1) Hurdle intercept shift:
+- Candidate shifts tested conceptually against current design matrix distribution:
+  - `+2.0` -> mean `pi` near ~0.54,
+  - `+2.2` -> mean `pi` near ~0.58,
+  - `+2.4` -> mean `pi` near ~0.62.
+- Selected first-pass target: `+2.2` on hurdle intercept to push single-site share into B-band while avoiding extreme collapse.
+
+2) Dispersion heterogeneity (`beta_phi`) reshaping:
+- Keep median implied `phi` near current scale (~12) to avoid wholesale count-regime reset.
+- Introduce controlled spread via MCC and channel contrasts plus non-zero GDP slope.
+- Initial candidate profile:
+  - MCC term scale around `0.12` (centered effect),
+  - channel gap around `0.14`,
+  - GDP slope around `0.04`.
+- Expected first-pass posture: `phi` CV moves into B/B+ corridor with moderate P95/P05 expansion, not extreme tails.
+
+Validation gating for this decision:
+- Accept coefficient bundle only if post-run keeps determinism and moves P1 hard gates in correct direction simultaneously (single-site share + phi heterogeneity).
+- Reject any coefficient set that improves one gate while materially regressing outlet median beyond B bounds.
 
 ---

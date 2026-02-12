@@ -26,6 +26,11 @@ CARD TEMPLATE (fields you must be able to answer in dev)
   Fail-closed behavior + common failures:
   Reset / retry rules:
 
+Completeness rule for this addendum:
+  - Where a thin card omits exact env var names or checkpoint-table keys, the authoritative source is:
+      config/platform/run_operate/packs/local_parity_*.v0.yaml + component profile/config files
+  - This document pins semantics and runtime ownership; pack/config files pin exact key strings.
+
 # ------------------------------------------------------------
 # META / RUN-OPERATE (ORCHESTRATION)
 # ------------------------------------------------------------
@@ -177,11 +182,17 @@ CARD TEMPLATE (fields you must be able to answer in dev)
     - platform_run_id is pinned from runs/fraud-platform/ACTIVE_RUN_ID for this invocation
     - scenario_run_id is derived via equivalence key registry/lease discipline
   Inputs:
-    - Oracle Store (MinIO): reads oracle_engine_run_root (s3://oracle-store/...)
+    - Oracle Store (MinIO): reads oracle_engine_run_root (s3://oracle-store/...) as SR runtime input root
+    - if _oracle_pack_manifest.json exists under oracle_engine_run_root, SR validates and carries oracle_pack_ref in READY artifacts
     - SR wiring profile (must point at oracle root)
     - Postgres SR lease store (enforces leader per scenario_run_id)
   Outputs:
-    - SR run ledger/artifacts under s3://fraud-platform/<platform_run_id>/sr/...
+    - SR canonical artifacts under s3://fraud-platform/<platform_run_id>/sr/:
+        run_plan/<run_id>.json
+        run_record/<run_id>.jsonl
+        run_status/<run_id>.json
+        run_facts_view/<run_id>.json
+        ready_signal/<run_id>.json
     - READY published to sr-control-bus (LocalStack Kinesis)
   Commit evidence:
     - platform.log contains “SR: READY committed” + “READY published”
@@ -407,7 +418,8 @@ CARD TEMPLATE (fields you must be able to answer in dev)
     - ledger/checkpoint store: PARITY_ARCHIVE_WRITER_LEDGER_DSN
     - topic selection pinned in config/platform/archive_writer/topics_v0.yaml
   Outputs:
-    - immutable archive records in object store (by-ref evidence for replay beyond EB retention)
+    - immutable archive records in object store (by-ref evidence for replay beyond EB retention):
+        s3://fraud-platform/<platform_run_id>/archive/events/topic=<topic>/partition=<partition>/offset_kind=<offset_kind>/offset=<offset>.json
     - run-scoped metrics/health/reconciliation surfaces (profile-driven)
   Commit evidence:
     - archive records exist for the run and ledger offsets advanced
@@ -429,8 +441,12 @@ CARD TEMPLATE (fields you must be able to answer in dev)
     - stores: PARITY_DL_POSTURE_DSN, PARITY_DL_OUTBOX_DSN, PARITY_DL_OPS_DSN
     - traffic stream consumption basis (profile-driven)
   Outputs:
-    - posture state persisted + posture events emitted to the decision lane boundary
+    - posture state persisted in PARITY_DL_POSTURE_DSN + outbox/ops surfaces updated
+    - control-event trail emitted by DL worker (not a DF-consumed posture topic contract)
     - governance/metrics surfaces
+  DF coupling contract (as implemented):
+    - DF resolves active posture from DL current-posture store via `dl_store_dsn` + `dl_stream_id`
+    - posture coupling is store-based (DlCurrentPostureService), not topic-based
   Commit evidence: posture state updated for run + outbox drained
   Idempotency: restart-safe via posture/outbox stores
 
@@ -441,6 +457,7 @@ CARD TEMPLATE (fields you must be able to answer in dev)
   Inputs:
     - admitted traffic stream
     - upstream surfaces (OFP/IEG/CSFB) as needed
+    - DL posture store read path: dl_store_dsn + dl_stream_id (current posture snapshot)
     - stores: PARITY_DF_REPLAY_DSN, PARITY_DF_CHECKPOINT_DSN
   Outputs:
     - publishes decision_response + action_intent to fp.bus.rtdl.v1
@@ -472,8 +489,10 @@ CARD TEMPLATE (fields you must be able to answer in dev)
     - fp.bus.rtdl.v1 (decision+intent+outcome chain)
     - index store: PARITY_DLA_INDEX_DSN
     - object store for append-only evidence
+      local_parity path family (from DLA storage layout):
+        s3://fraud-platform/<platform_run_id>/decision_log_audit/records/<audit_id>.json
   Outputs:
-    - append-only decision/audit records in object store
+    - append-only decision/audit records in object store (path family above)
     - publishes audit events to fp.bus.audit.v1
   Commit evidence:
     - audit events present on fp.bus.audit.v1 AND DLA evidence slices written
@@ -489,7 +508,8 @@ CARD TEMPLATE (fields you must be able to answer in dev)
   Type: DAEMON WORKER
   Entry point(s): pack-managed (case_labels pack)
   Inputs:
-    - evidence basis from decision lane outputs (DF decisions/intents + DLA evidence + fp.bus.rtdl.v1 events)
+    - fp.bus.rtdl.v1 only (event types decision_response + action_outcome) for Spine Green v0
+      (default admitted_topics in worker config is fp.bus.rtdl.v1)
     - stores: PARITY_CASE_TRIGGER_REPLAY_DSN, PARITY_CASE_TRIGGER_CHECKPOINT_DSN, PARITY_CASE_TRIGGER_PUBLISH_STORE_DSN
   Outputs:
     - publishes triggers to fp.bus.case.v1
@@ -593,24 +613,68 @@ CARD TEMPLATE (fields you must be able to answer in dev)
 - WSP READY consumer:
   - no checkpoint => can replay READY history from control bus; bounded by WSP_READY_MAX_MESSAGES + checkpoint identity + IG dedupe
   - checkpoint identity: (pack_key, output_id) in WSP_CHECKPOINT_DSN
-- IEG / OFP / CSFB projectors:
-  - profile start_position is latest on empty checkpoint
-  - restart resumes from projection/checkpoint stores (component DSNs)
+- ArchiveWriter worker:
+  - stream identity: archive_writer.v0::<platform_run_id> (default)
+  - checkpoint surface: archive_writer_checkpoints in PARITY_ARCHIVE_WRITER_LEDGER_DSN
+  - start position on empty checkpoint: profile default latest; run-scope gate drops non-target run_id
+- IEG projector:
+  - stream identity: ieg.v0::<platform_run_id> when run lock enabled (default lock)
+  - checkpoint surface: ieg_checkpoints in PARITY_IEG_PROJECTION_DSN
+  - start position on empty checkpoint: profile default latest
+- OFP projector:
+  - stream identity: ofp.v0::<platform_run_id> when required run_id is set
+  - checkpoint surface: ofp_checkpoints in PARITY_OFP_PROJECTION_DSN
+  - start position on empty checkpoint: profile config latest/trim_horizon
+- CSFB intake:
+  - stream identity: csfb.v0 (policy stream_id; run filter via required_platform_run_id)
+  - checkpoint surface: csfb_join_checkpoints in PARITY_CSFB_PROJECTION_DSN
+  - start position on empty checkpoint: profile default trim_horizon
 - DF worker:
-  - profile start_position is latest on empty checkpoint
-  - restart/resume basis: DF_REPLAY_DSN + DF_CHECKPOINT_DSN
-- AL / DLA workers:
-  - local run invariant: first intake with run-scope lock + no checkpoint may start from trim_horizon, then run-scope gate skips non-target runs
-  - restart/resume basis: AL_* ledger/replay/checkpoint stores and DLA index/store contracts
+  - stream identity: df.v0::<platform_run_id> (default)
+  - checkpoint surfaces:
+      consumer checkpoints = runs/fraud-platform/<platform_run_id>/decision_fabric/consumer_checkpoints.sqlite
+      decision checkpoint gate = PARITY_DF_CHECKPOINT_DSN
+      replay ledger = PARITY_DF_REPLAY_DSN
+  - posture source: DL store via dl_store_dsn + dl_stream_id (no posture topic)
+- AL worker:
+  - stream identity: al.v0::<platform_run_id> (default)
+  - checkpoint surfaces:
+      consumer checkpoints = runs/fraud-platform/<platform_run_id>/action_layer/consumer_checkpoints.sqlite
+      action checkpoint gate = PARITY_AL_CHECKPOINT_DSN
+      replay/ledger/outcomes = PARITY_AL_REPLAY_DSN + PARITY_AL_LEDGER_DSN + PARITY_AL_OUTCOMES_DSN
+  - local run invariant: no checkpoint + required run_id may start trim_horizon, then run-scope gate skips non-target runs
+- DLA worker:
+  - stream identity: dla.intake.v0::<platform_run_id> (default)
+  - checkpoint surface: dla_intake_checkpoints in PARITY_DLA_INDEX_DSN
+  - start position on empty checkpoint: default trim_horizon
 - CaseTrigger worker:
-  - profile start_position is latest on empty checkpoint
-  - restart/resume basis: CASE_TRIGGER_REPLAY_DSN + CASE_TRIGGER_CHECKPOINT_DSN + publish store
+  - stream identity: case_trigger.v0::<platform_run_id> (default)
+  - checkpoint surfaces:
+      consumer checkpoints = runs/fraud-platform/<platform_run_id>/case_trigger/consumer_checkpoints.sqlite
+      gate/replay/publish = PARITY_CASE_TRIGGER_CHECKPOINT_DSN + PARITY_CASE_TRIGGER_REPLAY_DSN + PARITY_CASE_TRIGGER_PUBLISH_STORE_DSN
+  - start position on empty checkpoint: default trim_horizon
 - CM service:
-  - profile start_position is latest on empty checkpoint
-  - restart/resume basis: local sqlite consumer checkpoint + PARITY_CASE_MGMT_LOCATOR timeline state
+  - stream identity: case_mgmt.v0::<platform_run_id> (default)
+  - checkpoint surface: runs/fraud-platform/<platform_run_id>/case_mgmt/consumer_checkpoints.sqlite (table case_mgmt_worker_consumer_checkpoints)
+  - start position on empty checkpoint: default trim_horizon
 - LS worker:
-  - consumes writer-boundary submissions (not direct EB lane in local_parity card)
-  - restart/resume basis: PARITY_LABEL_STORE_LOCATOR append-only timeline/governance markers
+  - stream identity: label_store.v0::<platform_run_id> (default) for observability worker scope
+  - no EB consumer checkpoint in local_parity writer-boundary flow; truth resumes from PARITY_LABEL_STORE_LOCATOR append-only timeline
+
+# ------------------------------------------------------------
+# RUN-SCOPE ENFORCEMENT MATRIX (LOCAL_PARITY, AS IMPLEMENTED)
+# ------------------------------------------------------------
+- WSP: no hard drop gate by REQUIRED_PLATFORM_RUN_ID in consumer; run scoping is carried by READY pins + IG admission checks.
+- ArchiveWriter: ARCHIVE_WRITER_REQUIRED_PLATFORM_RUN_ID drops non-target platform_run_id envelopes.
+- IEG: IEG_REQUIRED_PLATFORM_RUN_ID + IEG_LOCK_RUN_SCOPE=true bind stream scope and drop non-target run events.
+- OFP: OFP_REQUIRED_PLATFORM_RUN_ID drops non-target run events.
+- CSFB: CSFB_REQUIRED_PLATFORM_RUN_ID drops non-target run events.
+- DF: DF_REQUIRED_PLATFORM_RUN_ID drops non-target run events.
+- AL: AL_REQUIRED_PLATFORM_RUN_ID drops non-target run events.
+- DLA: DLA_REQUIRED_PLATFORM_RUN_ID enforced through intake policy/runtime config.
+- CaseTrigger: CASE_TRIGGER_REQUIRED_PLATFORM_RUN_ID drops non-target run events.
+- CM: CASE_MGMT_REQUIRED_PLATFORM_RUN_ID drops non-target run events.
+- LS: LABEL_STORE_REQUIRED_PLATFORM_RUN_ID gates observability worker export scope and LS writer boundary commit scope.
 
 # ------------------------------------------------------------
 # SMALL BUT IMPORTANT MIGRATION-CRITICAL ITEMS (must be closed before dev_min green)

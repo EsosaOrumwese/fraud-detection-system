@@ -142,7 +142,11 @@ Exit gate:
   - IG ops health behaves per auth contract:
       unauthenticated GET /v1/ops/health => 401 UNAUTHORIZED
       authenticated GET /v1/ops/health (X-IG-Api-Key) => 200 with health payload
-  - Kinesis streams required for publish exist (audit/rtdl/case included)
+  - IG ingest endpoint enforces auth contract:
+      POST /v1/ingest/push missing/invalid X-IG-Api-Key => 401 UNAUTHORIZED
+      POST /v1/ingest/push with valid X-IG-Api-Key reaches normal admission path (schema/policy outcome)
+  - Kinesis streams required by all in-scope producers exist
+      (IG traffic/context + DF/AL rtdl + DLA audit + CaseTrigger case)
 
 Commit evidence:
   - authenticated IG health responds (AMBER is acceptable pre-traffic; bus not exercised yet)
@@ -165,7 +169,12 @@ Exit gate:
   - READY is present on sr-control-bus
 
 Commit evidence:
-  - SR run ledger/artifacts under: s3://fraud-platform/<platform_run_id>/sr/...
+  - SR canonical artifacts exist under:
+      s3://fraud-platform/<platform_run_id>/sr/run_plan/<run_id>.json
+      s3://fraud-platform/<platform_run_id>/sr/run_record/<run_id>.jsonl
+      s3://fraud-platform/<platform_run_id>/sr/run_status/<run_id>.json
+      s3://fraud-platform/<platform_run_id>/sr/run_facts_view/<run_id>.json
+      s3://fraud-platform/<platform_run_id>/sr/ready_signal/<run_id>.json
   - Control bus contains READY for this platform_run_id
 
 Reset/retry:
@@ -206,6 +215,7 @@ Exit gate:
   - No unresolved publish ambiguity for closure set:
       admissions.state != PUBLISH_AMBIGUOUS
       and no quarantine receipt reason_codes containing PUBLISH_AMBIGUOUS
+      (if any ambiguity artifact exists, P7 is FAIL and run cannot close green)
 
 Commit evidence:
   - Receipt files are the admission commit evidence (append-only)
@@ -228,6 +238,8 @@ Exit gate (minimum Spine Green v0):
   - ArchiveWriter health artifact exists and is GREEN:
       runs/fraud-platform/<platform_run_id>/archive_writer/health/last_health.json
       with metrics.seen_total > 0
+  - ArchiveWriter durable archive objects exist under:
+      s3://fraud-platform/<platform_run_id>/archive/events/
   - IEG reconciliation artifact exists and health is GREEN:
       runs/fraud-platform/<platform_run_id>/identity_entity_graph/reconciliation/reconciliation.json
       runs/fraud-platform/<platform_run_id>/identity_entity_graph/health/last_health.json
@@ -239,6 +251,7 @@ Exit gate (minimum Spine Green v0):
 
 Commit evidence:
   - Per projector: run-scoped health/metrics/reconciliation artifacts for active run
+  - ArchiveWriter durable archive object prefix non-empty + ledger offsets advanced
   - ArchiveWriter/IEG/OFP/CSFB health artifacts all GREEN for active run
 
 Reset/retry:

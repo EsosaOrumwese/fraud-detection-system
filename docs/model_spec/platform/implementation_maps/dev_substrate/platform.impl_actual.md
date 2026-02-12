@@ -4105,3 +4105,146 @@ This pass aligns operator-facing ambiguity semantics to implementation truth and
 
 ### Drift sentinel assessment
 Docs-only closure, strictly aligned to IG implementation behavior; no runtime code changes were made.
+
+## Entry: 2026-02-12 4:44PM - Pre-change lock for remaining local-parity operationalization drifts
+
+### Trigger
+USER provided another external review listing remaining ambiguity/operationalization drifts and requested correction.
+
+### Runtime-truth checks completed before edits
+- CaseTrigger source ingestion basis:
+  - `src/fraud_detection/case_trigger/worker.py`
+  - default `admitted_topics` is `fp.bus.rtdl.v1`; worker consumes `decision_response` and `action_outcome` from RTDL lane.
+- DF posture integration basis:
+  - `src/fraud_detection/decision_fabric/worker.py`
+  - DF resolves posture via DL store (`dl_store_dsn`, `dl_stream_id`) through `DlCurrentPostureService`; no posture topic contract.
+- SR read/write surfaces:
+  - `src/fraud_detection/scenario_runner/runner.py`
+  - `src/fraud_detection/scenario_runner/ledger.py`
+  - SR reads resolved `oracle_engine_run_root`; canonical writes are `run_plan`, `run_record`, `run_status`, `run_facts_view`, `ready_signal`.
+- DLA object-store evidence layout:
+  - `src/fraud_detection/decision_log_audit/storage.py`
+  - canonical path family: `<object_store_prefix>/<platform_run_id>/decision_log_audit/records/<audit_id>.json`.
+- Daemon stream/checkpoint/run-scope surfaces:
+  - archive_writer/action_layer/case_trigger/case_mgmt/dla workers + OFP/IEG/CSFB configs/stores.
+
+### Drifts to close in docs
+1. Add ArchiveWriter durable object evidence check into P8 gate/checklist (not only health artifacts).
+2. Remove `and/or` ambiguity for CaseTrigger input basis; pin Spine Green v0 to RTDL lane intake.
+3. Pin DL -> DF coupling explicitly (DF reads posture from DL store/stream identity, not DL topic).
+4. Replace SR `and/or` read wording and expand SR canonical artifact surfaces.
+5. Pin DLA object-store path family in local-parity docs.
+6. Expand daemon checkpoint identity + run-scope enforcement matrix for all Spine Green v0 daemons.
+7. Replace checklist “inspect” phrasing with concrete executable command patterns.
+8. Tighten ambiguous topic-ownership wording in phase-state prechecks.
+9. Mark addendum 5 as advisory matrix (non-authoritative) and point to authoritative sources.
+
+### Files targeted
+1. `docs/design/platform/local-parity/spine_green_v0_run_process_flow.txt`
+2. `docs/design/platform/local-parity/addendum_1_phase_state_machine_and_gates.txt`
+3. `docs/design/platform/local-parity/addendum_1_operator_gate_checklist.txt`
+4. `docs/design/platform/local-parity/addendum_2_process_job_cards.txt`
+5. `docs/design/platform/local-parity/addendum_4_io_ownership_matrix.txt`
+6. `docs/design/platform/local-parity/addendum_5_concurrency_backpressure_knobs.txt`
+
+### Drift sentinel checkpoint
+Docs-only hardening pass; goal is operationally executable and unambiguous local-parity run exposure aligned to code/runtime truth.
+
+## Entry: 2026-02-12 4:47PM - Pre-change lock for residual local-parity drift closure (review 13-point pass)
+
+### Trigger
+USER supplied an external review with 13 remaining ambiguity/operationalization items and requested direct correction.
+
+### Re-assessment against current docs
+1. Already closed in latest docs:
+- P7/P10 gating includes publish-ambiguity fail-closed semantics.
+- ArchiveWriter durable object evidence is already present in P8 gate/checklist.
+- IG ingest auth and topic ownership split are already aligned in main flow + job cards.
+2. Still open and to be patched in this pass:
+- IO matrix still carries `and/or` ambiguity in SR read basis and CaseTrigger input basis.
+- IO matrix does not yet pin DF posture dependency on DL store path.
+- IO matrix still uses vague DLA object-store evidence wording and vague SR output surface wildcard.
+- Phase/checklist can be tightened with explicit operator-visible checks for `PUBLISH_AMBIGUOUS`.
+- Addendum 5 still appears half-authoritative (`verify exact env names`) without explicit authority boundary.
+- Addendum 2 has thin-card unevenness; add explicit fallback pointer to authoritative pack YAML/env sources.
+
+### Patch plan
+1. Update `addendum_4_io_ownership_matrix.txt` to pin:
+- SR read basis = `ORACLE_ENGINE_RUN_ROOT` (with optional manifest validation under same root),
+- SR write surface artifact families,
+- DF read posture coupling via DL store (`dl_store_dsn` + `dl_stream_id`),
+- DLA evidence object path family,
+- CaseTrigger read basis = RTDL lane only for Spine Green v0.
+2. Update `addendum_1_phase_state_machine_and_gates.txt`:
+- include ingest endpoint auth contract in P4 gate,
+- make P5 commit evidence list canonical SR artifacts,
+- tighten P7 ambiguity closure wording to explicit fail condition.
+3. Update `addendum_1_operator_gate_checklist.txt`:
+- make P4 ingest auth check explicit,
+- add concrete command pattern to verify no unresolved `PUBLISH_AMBIGUOUS` evidence during P7 closure.
+4. Update `addendum_2_process_job_cards.txt`:
+- add explicit thin-card authority pointer,
+- pin ArchiveWriter object path family in outputs.
+5. Update `addendum_5_concurrency_backpressure_knobs.txt`:
+- mark as conceptual control matrix (not authoritative env-key contract),
+- point exact key ownership to pack YAML/component config.
+
+### Drift sentinel checkpoint
+Docs-only correction pass; objective is to eliminate residual ambiguity without changing runtime implementation posture.
+
+## Entry: 2026-02-12 5:03PM - Applied residual drift closure patches (local-parity docs)
+
+### Files updated
+1. `docs/design/platform/local-parity/addendum_1_phase_state_machine_and_gates.txt`
+2. `docs/design/platform/local-parity/addendum_1_operator_gate_checklist.txt`
+3. `docs/design/platform/local-parity/addendum_2_process_job_cards.txt`
+4. `docs/design/platform/local-parity/addendum_4_io_ownership_matrix.txt`
+5. `docs/design/platform/local-parity/addendum_5_concurrency_backpressure_knobs.txt`
+
+### Applied changes
+1. P4/P5/P7 gate hardening:
+- P4 now explicitly gates ingest auth on `/v1/ingest/push` (not only ops health).
+- P5 commit evidence now enumerates canonical SR artifacts (`run_plan`, `run_record`, `run_status`, `run_facts_view`, `ready_signal`).
+- P7 now explicitly states unresolved `PUBLISH_AMBIGUOUS` evidence is a FAIL for green closure.
+
+2. Operator checklist executable bindings:
+- Added concrete curl commands for IG ops + ingest auth behavior checks.
+- Added concrete S3 commands to list receipts/quarantine prefixes and scan receipt payloads for `PUBLISH_AMBIGUOUS`.
+- Preserved archive durable prefix check in P8 and clarified P7 fail condition if ambiguity evidence exists.
+
+3. IO ownership closure:
+- SR read basis pinned to `ORACLE_ENGINE_RUN_ROOT` with optional `_oracle_pack_manifest.json` validation under same root.
+- SR write surface expanded from wildcard to canonical artifact families.
+- DF read dependency now explicitly includes DL store posture coupling (`dl_store_dsn` + `dl_stream_id`), no posture topic.
+- DLA evidence path pinned to concrete local-parity family:
+  `s3://fraud-platform/<platform_run_id>/decision_log_audit/records/<audit_id>.json`.
+- CaseTrigger input basis pinned to RTDL lane only (`fp.bus.rtdl.v1`, `decision_response` + `action_outcome`).
+- Rule 4 case lane producer pin tightened to CaseTrigger-only for Spine Green v0.
+
+4. Addendum authority posture cleanup:
+- Addendum 2 now states thin-card fallback authority for exact env/checkpoint key names (pack YAML + component config).
+- Addendum 5 now explicitly declares itself as semantic guidance, with exact key strings owned by pack/config files.
+
+### Drift sentinel assessment
+- This pass is docs-only and aligns process exposure to current runtime implementation.
+- No runtime code paths were modified; no ownership boundary regressions introduced.
+
+## Entry: 2026-02-12 5:02PM - Final micro-closeout for scratch diff alignment
+
+### Trigger
+USER asked to proceed with final recommendation: add explicit publish-ambiguity fail-closed line in main flow PASS CONDITIONS and record intentional non-adoptions in migration decision authority.
+
+### Files updated
+1. `docs/design/platform/local-parity/spine_green_v0_run_process_flow.txt`
+2. `docs/model_spec/platform/pre-design_decisions/dev-min_managed-substrate_migration.design-authority.v0.md`
+
+### Applied changes
+1. Main flow explicit closure rule:
+- Added PASS condition: no unresolved `PUBLISH_AMBIGUOUS` evidence/receipts for active-run closure set.
+2. Migration decision authority note:
+- Appended Local-Parity Canonical Alignment notes that intentionally preserve:
+  - SR read root pin to `ORACLE_ENGINE_RUN_ROOT` (+ optional manifest validation),
+  - CaseTrigger direct ownership of case lane output in local parity (no IG corridor route).
+
+### Drift sentinel assessment
+Docs-only closure note; runtime implementation posture unchanged.
