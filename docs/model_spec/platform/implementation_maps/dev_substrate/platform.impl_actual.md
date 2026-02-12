@@ -2889,3 +2889,63 @@ Post-edit marker check passed for all targeted canonical anchors (Spine-safe sta
 
 ### Drift sentinel assessment
 Docs-only correction; no runtime semantics changed. This closes Addendum 1 drift against the canonical local Spine Green run posture.
+
+## Entry: 2026-02-12 12:12PM - Pre-change lock for Addendum 1 operator checklist alignment
+
+### Trigger
+USER requested hardening `docs/design/platform/local-parity/addendum_1_operator_gate_checklist.txt` after Addendum 1 state-machine alignment.
+
+### Problem framing
+Checklist still contains a few operator-risk drifts relative to canonical Spine Green posture:
+1. P2 gate command uses full parity status without clarifying learning-inclusive semantics.
+2. P3c required output set uses abstract labels that can be misread as literal Oracle `output_id` values.
+3. P4/P5/P6 checks do not fully pin auth/log-path/runtime evidence details now used in canonical runs.
+4. P9/P11 checks can be tightened for strict closure criteria (`DLA lineage_unresolved_total=0`, conformance `status=PASS`, no reporter/manual race).
+5. bounded gate wording is approximate (`~20`, `~200`) instead of explicit operator env value posture.
+
+### Planned edits
+- Update checks 3, 6, 7, 8, 9, 12, 13, 15 and bounded-gate footer wording.
+- Keep the 0..15 checklist structure intact.
+- Keep scope lock unchanged (Learning/Registry out-of-scope for baseline).
+
+### Validation plan
+1. Marker scan for canonical anchors after edit:
+- Spine-safe status posture,
+- authenticated IG health gate,
+- run-scoped WSP log path,
+- explicit bounded `WSP_MAX_EVENTS_PER_OUTPUT=20/200`,
+- DLA unresolved lineage closure,
+- conformance PASS + no concurrent reporter/manual conflict note.
+
+### Drift sentinel checkpoint
+Docs-only correction to reduce operational ambiguity; no runtime behavior change.
+
+## Entry: 2026-02-12 12:13PM - Applied closure for Addendum 1 operator checklist alignment
+
+### What was updated
+Updated `docs/design/platform/local-parity/addendum_1_operator_gate_checklist.txt` so the checklist reflects canonical Spine Green local run behavior and reduces operator ambiguity.
+
+### Changes applied
+1. Check 3 (P2) now uses Spine-safe status commands and explicitly marks full parity status as learning-inclusive.
+2. Check 6 (P3c) distinguishes logical required surfaces from dataset-specific output_id examples.
+3. Check 7 (P4) pins IG auth-aware health contract (`401` unauth, `200` authenticated).
+4. Check 8 (P5) anchors READY evidence to SR run log path.
+5. Check 9 (P6) anchors WSP evidence to run-scoped operate log path and adds bounded Gate-200 completion expectation (`emitted=200`).
+6. Check 12 (P8) path tightened to exact IEG reconciliation location.
+7. Check 13 (P9) adds strict DLA closure (`health GREEN`, `lineage_unresolved_total=0`).
+8. Check 15 (P11) clarifies no manual report while obs_gov reporter is active and requires conformance `status=PASS`.
+9. Footer bounded gates now use explicit env values (`WSP_MAX_EVENTS_PER_OUTPUT=20/200`) rather than approximate caps.
+10. Minor indentation/readability cleanup for aligned checklist scanning.
+
+### Validation
+Post-edit marker scan passed for all targeted anchors:
+- Spine-safe status posture,
+- learning-inclusive parity status caveat,
+- IG auth gate,
+- run-scoped WSP log evidence,
+- DLA unresolved lineage closure,
+- conformance PASS,
+- explicit Gate-20/Gate-200 env values.
+
+### Drift sentinel assessment
+Docs-only alignment pass; no runtime semantics changed.
