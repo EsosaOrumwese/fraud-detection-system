@@ -10,6 +10,19 @@ Execute a controlled migration from `local_parity` to `dev_min` managed substrat
 - Migration is adapter/wiring and operational posture change, not component-logic redesign.
 - No plane is accepted if run/operate and obs/gov are partial for onboarded services.
 
+## Migration Baseline Gate (Spine Green v0)
+- Baseline green for this migration track is pinned to **Spine Green** from the local-parity freeze:
+  - Control & Ingress plane closed,
+  - RTDL plane closed,
+  - Case + Labels plane closed,
+  - Run/Operate + Obs/Gov meta-layer closure complete.
+- Migration baseline authority references:
+  - `docs/model_spec/platform/implementation_maps/local_parity/platform.build_plan.md`
+  - `docs/model_spec/platform/implementation_maps/local_parity/platform.impl_actual.md`
+- Explicit scope boundary for this dev_substrate phase:
+  - Learning & Registry full closure (`OFS/MF/MPR` lifecycle end-to-end closure) is **out of scope** for migration baseline acceptance.
+  - Learning-plane managed migration can proceed as a later phase after dev_substrate spine cutover is stable.
+
 ## Non-negotiable rails
 - No semantic drift: dedupe tuple + payload hash anomaly semantics, append-only truths, origin offsets, explicit degrade, provenance pins.
 - No ownership drift: SR/IG/EB/Engine/DLA/LS/Registry/AL boundaries remain intact.

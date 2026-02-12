@@ -3535,3 +3535,1040 @@ This standard is binding for every new ID entry in this file.
 
 - Why this proves MLOps/Data Eng strength (explicit hiring signal):
   This shows strong boundary-governance judgment: you didn’t suppress noisy evidence; you corrected stream ownership topology while preserving strict intake semantics and recorded residual validation debt explicitly instead of claiming premature closure.
+
+## ID 79 - Case Trigger deterministic collision + retry/checkpoint ambiguity hardening
+
+- Context (what was at stake):
+  Case Trigger sits on the boundary between decision-lane outputs and case creation flow. Under at-least-once delivery, retries and replay are normal, so Case Trigger must separate safe duplicates from unsafe payload drift and must not advance source progression before publish outcomes are durably safe.
+
+- Problem (specific contradiction/failure):
+  Three safety needs had to be closed together:
+  1. collision semantics for same deterministic trigger identity were not yet durably enforced at runtime,
+  2. retry/publish outcomes were not yet tightly coupled to checkpoint commit rules,
+  3. closure proof needed deterministic parity evidence (including negative paths), not only happy-path tests.
+  Without these, duplicate retries could be ambiguous, payload drift could hide behind shared IDs, and checkpoint progression could overrun unresolved publish states.
+
+- Options considered (2-3):
+  1. Keep identity validation only at contract parse and rely on downstream reconciliation.
+     Rejected because runtime replay/collision behavior must be enforced in durable storage paths.
+  2. Allow checkpoint progression on ambiguous/quarantine outcomes to reduce stalls.
+     Rejected because it violates fail-closed publish/commit doctrine.
+  3. Add explicit replay ledger states plus deterministic checkpoint gate rules, then prove behavior with matrix and negative-path evidence.
+     Selected because it closes retry safety and auditability together.
+
+- Decision (what you chose and why):
+  We chose option 3. Case Trigger was hardened with explicit replay collision states (`NEW`, `REPLAY_MATCH`, `PAYLOAD_MISMATCH`) and checkpoint gating that commits only when replay/publish outcomes are safely terminal.
+
+- Implementation (what you changed):
+  1. Added replay ledger semantics for deterministic trigger identity:
+     - `NEW` for first-seen trigger,
+     - `REPLAY_MATCH` for same trigger identity + same canonical payload hash,
+     - `PAYLOAD_MISMATCH` for same identity + different canonical payload hash (fail-closed collision anomaly).
+  2. Added deterministic checkpoint gate mechanics:
+     - token derived from source tuple and trigger identity,
+     - commit requires ledger + publish marks,
+     - `ADMIT`/`DUPLICATE` can commit, `QUARANTINE`/`AMBIGUOUS` remain blocked.
+  3. Added parity validation matrix with continuity and negative-path proofs:
+     - 20/200 monitored parity proofs,
+     - unsupported-source fail-closed proof,
+     - collision-mismatch proof (`PAYLOAD_MISMATCH`) with governance anomaly dedupe.
+
+- Result (observable outcome/evidence):
+  Case Trigger retry/replay behavior became deterministic and checkpoint-safe. Duplicate-safe retries remain committable, payload collisions fail closed explicitly, and parity matrix artifacts include both success-path and negative-path evidence.
+  Truth posture: `Resolved`.
+  Evidence anchors:
+  - `docs/model_spec/platform/implementation_maps/local_parity/case_trigger.impl_actual.md:241`
+  - `docs/model_spec/platform/implementation_maps/local_parity/case_trigger.impl_actual.md:423`
+  - `docs/model_spec/platform/implementation_maps/local_parity/case_trigger.impl_actual.md:757`
+  Additional challenge context:
+  - `docs/model_spec/platform/implementation_maps/local_parity/case_trigger.impl_actual.md:252`
+  - `docs/model_spec/platform/implementation_maps/local_parity/case_trigger.impl_actual.md:418`
+  - `docs/model_spec/platform/implementation_maps/local_parity/case_trigger.impl_actual.md:749`
+
+- Why this proves MLOps/Data Eng strength (explicit hiring signal):
+  This shows production-grade event-safety design: you implemented explicit replay/collision state machines, tied checkpoints to safe publish outcomes, and backed closure with deterministic matrix artifacts including adversarial negative-path evidence.
+
+## ID 80 - Case Mgmt SQLite nested-write hazard in CM->LS handshake
+
+- Context (what was at stake):
+  Case Mgmt (CM) owns timeline/workflow truth while Label Store (LS) owns label truth. The CM->LS handshake had to preserve pending-first semantics and fail-closed ambiguity handling under at-least-once conditions, including local-parity SQLite operation.
+
+- Problem (specific contradiction/failure):
+  The in-progress Phase 5 handshake path called CM timeline append operations inside an open label-emission DB transaction. On SQLite, this created a nested-write lock hazard (`database is locked`) and introduced rollback asymmetry risk where pending timeline rows could commit independently from handshake transaction failure.
+
+- Options considered (2-3):
+  1. Keep the current nested-write pattern and rely on retries.
+     Rejected because lock contention and partial-commit ambiguity remain.
+  2. Collapse all writes into one broader transaction boundary.
+     Rejected because it increases coupling and still risks cross-component write contention.
+  3. Redesign handshake sequencing into short isolated transactions, with timeline appends outside open emission transactions.
+     Selected because it removes lock risk and preserves clear truth ownership.
+
+- Decision (what you chose and why):
+  We chose option 3. CM handshake sequencing was reworked to avoid nested writes entirely while preserving rails: pending-first, append-only timeline semantics, and fail-closed handling when LS outcomes are unknown/exceptional.
+
+- Implementation (what you changed):
+  1. Reordered Phase 5 handshake flow:
+     - emission upsert/mismatch checks in short isolated transactions,
+     - timeline appends outside those transactions via CM intake ledger APIs,
+     - status updates in follow-on isolated transactions.
+  2. Preserved handshake semantics explicitly:
+     - `LABEL_PENDING` before LS write attempt,
+     - `LABEL_ACCEPTED`/`LABEL_REJECTED` only after LS durable outcome,
+     - unknown/exception LS outcomes remain `PENDING` (`LS_WRITE_EXCEPTION` path).
+  3. Hardened idempotency/collision behavior:
+     - same assertion + payload mismatch is fail-closed (`PAYLOAD_MISMATCH`) with durable mismatch evidence.
+  4. Added validation matrix coverage for accepted/rejected/pending transitions, duplicate-safe resubmit, payload-mismatch fail-closed path, and retry-limit rejection path.
+
+- Result (observable outcome/evidence):
+  CM->LS handshake moved to a lock-safe sequencing model that removes the SQLite nested-write deadlock hazard while keeping truth ownership boundaries and fail-closed ambiguity posture intact.
+  Truth posture: `Resolved`.
+  Evidence anchors:
+  - `docs/model_spec/platform/implementation_maps/local_parity/case_mgmt.impl_actual.md:474`
+  - `docs/model_spec/platform/implementation_maps/local_parity/case_mgmt.impl_actual.md:499`
+  - `docs/model_spec/platform/implementation_maps/local_parity/case_mgmt.impl_actual.md:502`
+  Additional challenge context:
+  - `docs/model_spec/platform/implementation_maps/local_parity/case_mgmt.impl_actual.md:478`
+  - `docs/model_spec/platform/implementation_maps/local_parity/case_mgmt.impl_actual.md:485`
+  - `docs/model_spec/platform/implementation_maps/local_parity/case_mgmt.impl_actual.md:533`
+
+- Why this proves MLOps/Data Eng strength (explicit hiring signal):
+  This shows strong transactional systems judgment: you identified a real backend-specific concurrency hazard, redesigned sequencing to preserve correctness under at-least-once operations, and kept ownership boundaries/fail-closed semantics intact instead of masking the issue with retries.
+
+## ID 81 - Case Mgmt post-closure robustness gap for JSON decode on lookup paths
+
+- Context (what was at stake):
+  Case Mgmt lookup paths are part of operational read reliability. Even after Phase 2 closure, lookup helpers still needed to be resilient to imperfect persisted data states (for example, corrupted or synthetic test-fixture rows) so read-path failures would not crash intake/query flows.
+
+- Problem (specific contradiction/failure):
+  Post-closure review found a robustness gap: JSON parsing in `case_mgmt/intake.py` lookup helpers did not guard decode failures. The contradiction was that core logic was functionally correct for valid rows, but malformed persisted JSON could still trigger avoidable read-path exceptions.
+
+- Options considered (2-3):
+  1. Leave behavior as-is and assume persisted JSON is always valid.
+     Rejected because it makes read reliability brittle under real-world corruption/test scenarios.
+  2. Fail hard on decode errors to force data cleanup.
+     Rejected because this can unnecessarily terminate workflows for non-critical malformed fragments.
+  3. Add defensive decode handling (`JSONDecodeError`) with safe fallback map.
+     Selected because it preserves continuity while keeping behavior explicit and bounded.
+
+- Decision (what you chose and why):
+  We chose option 3. Lookup-path decode failures now degrade safely to `{}` instead of raising, preventing avoidable crashes while preserving deterministic downstream behavior.
+
+- Implementation (what you changed):
+  1. Updated `src/fraud_detection/case_mgmt/intake.py` helper `_json_to_dict(...)`.
+  2. Added defensive `json.JSONDecodeError` handling with safe empty-dict fallback.
+  3. Revalidated CM phase suites and adjacent CaseTrigger/IG onboarding suites to ensure no regressions.
+
+- Result (observable outcome/evidence):
+  Case Mgmt lookup paths are now more robust against malformed persisted JSON, with no crash on decode failure and no regression across targeted CM and adjacent boundary tests.
+  Truth posture: `Resolved`.
+  Evidence anchors:
+  - `docs/model_spec/platform/implementation_maps/local_parity/case_mgmt.impl_actual.md:172`
+  - `docs/model_spec/platform/implementation_maps/local_parity/case_mgmt.impl_actual.md:177`
+  Additional challenge context:
+  - `docs/model_spec/platform/implementation_maps/local_parity/case_mgmt.impl_actual.md:169`
+  - `docs/model_spec/platform/implementation_maps/local_parity/case_mgmt.impl_actual.md:173`
+  - `docs/model_spec/platform/implementation_maps/local_parity/case_mgmt.impl_actual.md:180`
+
+- Why this proves MLOps/Data Eng strength (explicit hiring signal):
+  This shows production hardening discipline: you treated a small but real reliability gap seriously, added bounded defensive handling, and validated that robustness improvements did not regress surrounding system behavior.
+
+## ID 82 - Label Store strict idempotent writer + fail-closed mismatch + conflict timeline handling
+
+- Context (what was at stake):
+  Label Store (LS) is the single authority for label truth. It had to guarantee deterministic write outcomes under retries, preserve append-only history for corrections, and expose leakage-safe as-of resolution semantics for downstream training/governance surfaces.
+
+- Problem (specific contradiction/failure):
+  LS had foundational contracts but lacked a complete operational truth corridor:
+  1. no concrete writer boundary enforcing idempotency + payload-mismatch fail-closed outcomes,
+  2. no explicit append-only timeline surface separated from assertion-ledger mechanics,
+  3. no deterministic as-of resolution API with explicit conflict posture.
+  The contradiction was that ownership was conceptually clear, but runtime write/read semantics were not yet strict enough for production-grade replay/governance behavior.
+
+- Options considered (2-3):
+  1. Keep ad hoc writes through upstream components and treat LS as passive storage.
+     Rejected because it violates LS truth ownership and weakens idempotency discipline.
+  2. Use a single table for both idempotency ledger and timeline/read semantics.
+     Rejected because it conflates concerns and makes replay/rebuild and read semantics less explicit.
+  3. Build a dedicated LS writer corridor plus explicit append-only timeline and deterministic as-of conflict-aware reads.
+     Selected because it enforces truth boundaries and stable downstream semantics.
+
+- Decision (what you chose and why):
+  We chose option 3. LS was hardened as a full truth boundary:
+  writer-level idempotency/fail-closed mismatch handling, immutable timeline persistence for accepted assertions, and deterministic as-of resolution with explicit `RESOLVED`/`CONFLICT`/`NOT_FOUND` outcomes.
+
+- Implementation (what you changed):
+  1. Implemented LS writer boundary with deterministic outcomes:
+     - first write accepted,
+     - replay duplicate accepted safely,
+     - same assertion id + different payload hash rejected fail-closed with persisted mismatch evidence.
+  2. Added explicit append-only timeline persistence:
+     - timeline row appended only for committed-new assertions,
+     - deterministic ordering rules and rebuild-safe restore from assertion ledger truth.
+  3. Added leakage-safe as-of read surfaces:
+     - explicit observed-time eligibility (`observed_time <= T_asof`),
+     - deterministic precedence,
+     - conflict signaling when top-precedence candidates disagree (`CONFLICT`).
+
+- Result (observable outcome/evidence):
+  LS now behaves as a strict truth boundary across write and read planes: retries are deterministic, payload drift is fail-closed, history is append-only, and as-of consumers receive explicit deterministic resolution posture (`RESOLVED`/`CONFLICT`/`NOT_FOUND`).
+  Truth posture: `Resolved`.
+  Evidence anchors:
+  - `docs/model_spec/platform/implementation_maps/local_parity/label_store.impl_actual.md:91`
+  - `docs/model_spec/platform/implementation_maps/local_parity/label_store.impl_actual.md:223`
+  - `docs/model_spec/platform/implementation_maps/local_parity/label_store.impl_actual.md:345`
+  - `docs/model_spec/platform/implementation_maps/local_parity/label_store.impl_actual.md:373`
+  Additional challenge context:
+  - `docs/model_spec/platform/implementation_maps/local_parity/label_store.impl_actual.md:123`
+  - `docs/model_spec/platform/implementation_maps/local_parity/label_store.impl_actual.md:236`
+  - `docs/model_spec/platform/implementation_maps/local_parity/label_store.impl_actual.md:386`
+
+- Why this proves MLOps/Data Eng strength (explicit hiring signal):
+  This demonstrates core data-platform rigor: you enforced writer-boundary idempotency, made correction history explicitly append-only, and centralized as-of conflict semantics so downstream ML/training consumers inherit deterministic, auditable label truth rather than re-implementing fragile logic.
+
+## ID 83 - Action Layer semantic idempotency, mismatch quarantine, bounded retries, replay/checkpoint gates
+
+- Context (what was at stake):
+  Action Layer (AL) is where decisions become side-effect outcomes. Under at-least-once delivery, AL must guarantee no unsafe double-apply behavior, explicit mismatch quarantine, bounded retry semantics, and deterministic checkpoint/replay progression.
+
+- Problem (specific contradiction/failure):
+  AL capabilities existed in pieces, but safety boundaries were incomplete across phases:
+  1. no dedicated semantic idempotency gate with explicit mismatch disposition,
+  2. no explicit bounded retry/uncertain-commit execution posture,
+  3. no checkpoint commit gate tied to append+publish completion,
+  4. no replay ledger for deterministic drift detection on restarts/replays.
+  The contradiction was that AL could produce outcomes, but replay-safe side-effect governance was not fully closed.
+
+- Options considered (2-3):
+  1. Keep idempotency/retry/checkpoint logic implicit inside worker flows.
+     Rejected because safety posture would be hard to audit and easier to drift.
+  2. Relax checkpoint gating so ambiguous publish outcomes can still commit for throughput.
+     Rejected because ambiguity must remain non-committable in fail-closed posture.
+  3. Build explicit AL safety modules: semantic idempotency ledger, bounded retry execution semantics, checkpoint gate, and replay ledger.
+     Selected because it makes correctness rules explicit, testable, and deterministic.
+
+- Decision (what you chose and why):
+  We chose option 3. AL was hardened as a staged but coherent safety corridor: semantic intent classification (`EXECUTE`/`DROP_DUPLICATE`/`QUARANTINE`), bounded retry engine with explicit uncertain-commit outcomes, then checkpoint/replay modules that block unsafe commit paths.
+
+- Implementation (what you changed):
+  1. Added semantic idempotency gate + ledger:
+     - deterministic dispositions (`EXECUTE`, `DROP_DUPLICATE`, `QUARANTINE`),
+     - payload-hash mismatch treated as explicit quarantine path.
+  2. Added bounded execution/retry semantics:
+     - retry policy controls (`max_attempts`, backoff),
+     - explicit uncertain-commit terminal lane to avoid silent ambiguity.
+  3. Added checkpoint gate module:
+     - commit requires durable outcome append + publish result prerequisites,
+     - `PUBLISH_AMBIGUOUS` remains blocked.
+  4. Added replay ledger module:
+     - `NEW`, `REPLAY_MATCH`, `PAYLOAD_MISMATCH` outcomes on outcome identity/hash,
+     - deterministic identity-chain evidence for replay parity.
+
+- Result (observable outcome/evidence):
+  AL now has explicit, deterministic safety gates across execution lifecycle: semantic duplicates are dropped safely, mismatches are quarantined, retries are bounded/explicit, ambiguous publish blocks checkpoint commit, and replay drift is surfaced with machine-readable mismatch outcomes.
+  Truth posture: `Resolved`.
+  Evidence anchors:
+  - `docs/model_spec/platform/implementation_maps/local_parity/action_layer.impl_actual.md:166`
+  - `docs/model_spec/platform/implementation_maps/local_parity/action_layer.impl_actual.md:286`
+  - `docs/model_spec/platform/implementation_maps/local_parity/action_layer.impl_actual.md:538`
+  - `docs/model_spec/platform/implementation_maps/local_parity/action_layer.impl_actual.md:573`
+  Additional challenge context:
+  - `docs/model_spec/platform/implementation_maps/local_parity/action_layer.impl_actual.md:171`
+  - `docs/model_spec/platform/implementation_maps/local_parity/action_layer.impl_actual.md:547`
+  - `docs/model_spec/platform/implementation_maps/local_parity/action_layer.impl_actual.md:585`
+
+- Why this proves MLOps/Data Eng strength (explicit hiring signal):
+  This shows strong reliability engineering in a side-effect lane: you converted abstract at-least-once safety principles into explicit idempotency, retry, replay, and checkpoint controls with deterministic outcomes that are auditable and test-backed.
+
+## ID 84 - Degrade Ladder missing run-scoped observability exports (`4.6L-02`)
+
+- Context (what was at stake):
+  Degrade Ladder (DL) worker was already evaluating posture and draining control outbox, but platform closure gates also required run-scoped observability artifacts for operational verification. Without these artifacts, runtime behavior and matrix guardrails were out of sync.
+
+- Problem (specific contradiction/failure):
+  `DL` lacked expected run-scoped exports:
+  - `degrade_ladder/metrics/last_metrics.json`
+  - `degrade_ladder/health/last_health.json`
+  This left platform check `4.6L-02` open despite functional posture evaluation, creating a contradiction between component execution and closure evidence requirements.
+
+- Options considered (2-3):
+  1. Add a separate observability CLI process orchestrated alongside DL worker.
+     Rejected because it adds process coupling and freshness/order risk.
+  2. Emit observability artifacts directly from DL worker tick.
+     Selected because the worker is the single source of posture truth and can emit deterministic run-scoped snapshots each cycle.
+  3. Keep current behavior and rely on logs/tests only.
+     Rejected because closure gates explicitly required artifact outputs.
+
+- Decision (what you chose and why):
+  We chose option 2. `DegradeLadderWorker.run_once()` was extended to emit run-scoped metrics/health artifacts directly, preserving fail-closed evaluator behavior and existing control-event contracts.
+
+- Implementation (what you changed):
+  1. Updated `src/fraud_detection/degrade_ladder/worker.py`:
+     - worker tick now captures `ops_metrics` and writes deterministic run-scoped observability payloads,
+     - added `_emit_run_scoped_observability(...)` and stable `_write_json(...)` helper.
+  2. Added run-scoped artifact output under active run root:
+     - `runs/fraud-platform/<platform_run_id>/degrade_ladder/metrics/last_metrics.json`
+     - `runs/fraud-platform/<platform_run_id>/degrade_ladder/health/last_health.json`
+  3. Pinned deterministic health derivation (`GREEN`/`AMBER`/`RED`) from required signal state + outbox failure posture.
+  4. Added worker-focused tests validating artifact emission and missing-required-signal `RED` evidence path.
+
+- Result (observable outcome/evidence):
+  DL now exports the required run-scoped observability artifacts per worker tick, and platform closure item `4.6L-02` is closed with test-backed/runtime-smoke evidence.
+  Truth posture: `Resolved`.
+  Evidence anchors:
+  - `docs/model_spec/platform/implementation_maps/local_parity/degrade_ladder.impl_actual.md:1083`
+  - `docs/model_spec/platform/implementation_maps/local_parity/degrade_ladder.impl_actual.md:1111`
+  Additional challenge context:
+  - `docs/model_spec/platform/implementation_maps/local_parity/degrade_ladder.impl_actual.md:1095`
+  - `docs/model_spec/platform/implementation_maps/local_parity/degrade_ladder.impl_actual.md:1123`
+  - `docs/model_spec/platform/implementation_maps/local_parity/degrade_ladder.impl_actual.md:1139`
+
+- Why this proves MLOps/Data Eng strength (explicit hiring signal):
+  This demonstrates operational closure rigor: you identified evidence-plane drift, implemented deterministic run-scoped exports at the authoritative runtime point, and closed a platform gate without changing core decision semantics.
+
+## ID 85 - OFS drift risk from missing component build-plan authority
+
+- Context (what was at stake):
+  Platform Phase `6.2` moved into Offline Feature Plane (OFS) work, but OFS initially had no component-scoped build plan. Without a component plan, implementation could drift on replay authority, label leakage boundaries, feature-version ownership, and meta-layer onboarding (run/operate + obs/gov).
+
+- Problem (specific contradiction/failure):
+  Planning existed at platform level, but OFS lacked a closure-grade component execution map. The contradiction was that platform intent was active while component sequencing and authority locks were underdefined, creating high risk of partial or out-of-order implementation.
+
+- Options considered (2-3):
+  1. Keep OFS planning only in `platform.build_plan.md`.
+     Rejected because it lacks component-level execution granularity and auditable phase gates.
+  2. Create a short OFS plan that copies Phase `6.2` DoD headings.
+     Rejected because it misses critical authority blockers (replay/label/feature/meta layers).
+  3. Create a full OFS component build plan with explicit phased gates and blocking criteria.
+     Selected because it turns intent into enforceable sequencing.
+
+- Decision (what you chose and why):
+  We chose option 3. OFS received a dedicated component build plan with explicit phases and drift-blocking gates, including meta-layer onboarding as required closure steps rather than optional follow-up.
+
+- Implementation (what you changed):
+  1. Created `docs/model_spec/platform/implementation_maps/offline_feature_plane.build_plan.md`.
+  2. Structured phased execution to cover:
+     - contracts/identity,
+     - run ledger/idempotency,
+     - provenance + replay + label corridors,
+     - deterministic feature reconstruction + manifest authority,
+     - run/operate onboarding,
+     - obs/gov onboarding,
+     - integration closure evidence gate.
+  3. Embedded drift-sentinel posture directly in the plan:
+     - replay/label/feature authority locks are explicit blockers,
+     - meta-layer onboarding is treated as required closure, not deferred.
+
+- Result (observable outcome/evidence):
+  OFS moved from platform-level intent ambiguity to an auditable component execution sequence aligned to Phase `6.2`, with explicit authority locks and meta-layer gates in place before implementation proceeded.
+  Truth posture: `Resolved`.
+  Evidence anchors:
+  - `docs/model_spec/platform/implementation_maps/local_parity/offline_feature_plane.impl_actual.md:12`
+  - `docs/model_spec/platform/implementation_maps/local_parity/offline_feature_plane.impl_actual.md:52`
+  - `docs/model_spec/platform/implementation_maps/local_parity/offline_feature_plane.impl_actual.md:61`
+  Additional challenge context:
+  - `docs/model_spec/platform/implementation_maps/local_parity/offline_feature_plane.impl_actual.md:33`
+  - `docs/model_spec/platform/implementation_maps/local_parity/offline_feature_plane.impl_actual.md:39`
+  - `docs/model_spec/platform/implementation_maps/local_parity/offline_feature_plane.impl_actual.md:68`
+
+- Why this proves MLOps/Data Eng strength (explicit hiring signal):
+  This shows architectural execution discipline: you recognized planning authority as an engineering control, converted high-level platform goals into component-locked phases, and prevented design drift before code-level expansion started.
+
+## ID 86 - OFS run-control semantics initially underdefined
+
+- Context (what was at stake):
+  Offline Feature Plane (OFS) jobs are request-driven and replay-sensitive. After Phase 1 contracts/identity were in place, OFS still needed explicit run-control semantics so retries/restarts would not introduce hidden behavior drift (especially around publish-only retries versus full rebuild attempts).
+
+- Problem (specific contradiction/failure):
+  OFS lacked a durable run ledger and explicit state transitions. Publish retry behavior was underdefined, creating risk that publish-only retries could silently mutate full-run attempt semantics and simulate retrains without explicit intent. The contradiction was deterministic identity pins existed, but run lifecycle semantics were still ambiguous.
+
+- Options considered (2-3):
+  1. Keep minimal state and infer retries from external orchestration behavior.
+     Rejected because replay/restart semantics become non-auditable and drift-prone.
+  2. Implement a single attempt counter for both full runs and publish retries.
+     Rejected because it blurs semantic boundaries and can hide retrain drift.
+  3. Implement durable run ledger + explicit run-state machine + bounded publish-only retry path with separate attempt counters.
+     Selected because it makes intent and retry semantics explicit and auditable.
+
+- Decision (what you chose and why):
+  We chose option 3. OFS Phase 2 introduced explicit run-control primitives so publish-only retries are bounded and separated from full-run attempts, preserving deterministic lifecycle meaning under at-least-once operations.
+
+- Implementation (what you changed):
+  1. Added durable OFS run ledger (`run_ledger.py`) with sqlite/postgres support:
+     - deterministic `run_key` from `request_id`,
+     - request-id uniqueness + payload-hash mismatch fail-closed behavior,
+     - append-only run-event trail + state snapshot.
+  2. Added explicit run-state machine in run control:
+     - `QUEUED -> RUNNING -> DONE|FAILED|PUBLISH_PENDING`,
+     - `PUBLISH_PENDING -> RUNNING` only through publish-only retry path.
+  3. Added bounded publish-only retry policy and explicit exhaustion handling (`PUBLISH_RETRY_EXHAUSTED`).
+  4. Enforced separate counters:
+     - `full_run_attempts` distinct from `publish_retry_attempts` to prevent hidden retrain semantics drift.
+
+- Result (observable outcome/evidence):
+  OFS run-control semantics became deterministic and auditable. Publish-only retries are explicit and bounded, full-run attempt semantics remain stable, and no hidden full-run increment drift was observed after implementation.
+  Truth posture: `Resolved`.
+  Evidence anchors:
+  - `docs/model_spec/platform/implementation_maps/local_parity/offline_feature_plane.impl_actual.md:168`
+  - `docs/model_spec/platform/implementation_maps/local_parity/offline_feature_plane.impl_actual.md:200`
+  - `docs/model_spec/platform/implementation_maps/local_parity/offline_feature_plane.impl_actual.md:203`
+  Additional challenge context:
+  - `docs/model_spec/platform/implementation_maps/local_parity/offline_feature_plane.impl_actual.md:185`
+  - `docs/model_spec/platform/implementation_maps/local_parity/offline_feature_plane.impl_actual.md:221`
+  - `docs/model_spec/platform/implementation_maps/local_parity/offline_feature_plane.impl_actual.md:234`
+
+- Why this proves MLOps/Data Eng strength (explicit hiring signal):
+  This shows strong workflow-governance engineering: you encoded run intent into durable state transitions, separated retry classes to prevent semantic drift, and made offline pipeline control behavior reproducible under restart/replay pressure.
+
+## ID 87 - OFS fail-closed hardening for replay/feature-profile/immutability drift
+
+- Context (what was at stake):
+  OFS training/publication flows depend on deterministic replay basis, version-locked feature authority, and immutable artifact publication. Any drift in these rails can silently poison training datasets or overwrite authoritative artifacts.
+
+- Problem (specific contradiction/failure):
+  Three drift classes had to be closed across OFS phases:
+  1. replay basis could surface same offset tuple with conflicting payload hashes,
+  2. dataset drafting could proceed with feature-profile/version mismatch,
+  3. manifest/materialization publication required strict immutability enforcement to avoid silent overwrite drift.
+  The contradiction was that OFS could build/publish artifacts without fully hardened fail-closed guardrails for these mismatch cases.
+
+- Options considered (2-3):
+  1. Tolerate mismatches as warnings and rely on downstream review.
+     Rejected because training/publication safety cannot depend on manual forensics.
+  2. Allow mutable overwrite on existing manifest/materialization paths for convenience.
+     Rejected because it breaks immutable authority and replay auditability.
+  3. Enforce fail-closed guards at each corridor:
+     replay mismatch detection, feature-profile version lock, immutable publish paths with explicit violation codes.
+     Selected because it preserves deterministic correctness under replay and retries.
+
+- Decision (what you chose and why):
+  We chose option 3. OFS was hardened so mismatch cases become explicit blocking outcomes in training/publication posture, and all authoritative publication artifacts remain immutable.
+
+- Implementation (what you changed):
+  1. Phase 4 replay corridor hardening:
+     - conflicting hash on same replay tuple emits `REPLAY_BASIS_MISMATCH`,
+     - training-intent path fails closed on mismatch,
+     - completeness receipt is immutable (`COMPLETENESS_RECEIPT_IMMUTABILITY_VIOLATION` on drift).
+  2. Phase 6 feature provenance lock:
+     - BuildIntent feature set/version must match resolved feature profile,
+     - mismatch blocks build with `FEATURE_PROFILE_MISMATCH`.
+  3. Phase 7 publication immutability:
+     - manifest republish drift blocks with `MANIFEST_IMMUTABILITY_VIOLATION`,
+     - dataset artifact republish drift blocks with `DATASET_ARTIFACT_IMMUTABILITY_VIOLATION`.
+
+- Result (observable outcome/evidence):
+  OFS mismatch handling and publication authority are now fail-closed and explicit. Replay/feature-profile drift is blocked before unsafe dataset progression, and manifest/materialization outputs cannot be silently overwritten.
+  Truth posture: `Resolved`.
+  Evidence anchors:
+  - `docs/model_spec/platform/implementation_maps/local_parity/offline_feature_plane.impl_actual.md:434`
+  - `docs/model_spec/platform/implementation_maps/local_parity/offline_feature_plane.impl_actual.md:621`
+  - `docs/model_spec/platform/implementation_maps/local_parity/offline_feature_plane.impl_actual.md:666`
+  - `docs/model_spec/platform/implementation_maps/local_parity/offline_feature_plane.impl_actual.md:670`
+  Additional challenge context:
+  - `docs/model_spec/platform/implementation_maps/local_parity/offline_feature_plane.impl_actual.md:435`
+  - `docs/model_spec/platform/implementation_maps/local_parity/offline_feature_plane.impl_actual.md:440`
+  - `docs/model_spec/platform/implementation_maps/local_parity/offline_feature_plane.impl_actual.md:660`
+
+- Why this proves MLOps/Data Eng strength (explicit hiring signal):
+  This demonstrates serious ML data-governance engineering: you turned replay/version/immutability risk into explicit fail-closed controls with machine-readable violation reasons, preserving both training integrity and artifact authority under at-least-once operations.
+
+## ID 88 - OFS governance bypass risk in protected-ref enforcement
+
+- Context (what was at stake):
+  OFS consumes protected evidence references through a corridor that must remain fail-closed for governance integrity. If enforcement can be weakened by runtime configuration, protected-ref access policy becomes non-deterministic and potentially bypassable.
+
+- Problem (specific contradiction/failure):
+  Final review found that protected-ref denial handling in `worker.py` depended on configuration mode (`evidence_ref_strict=false`), meaning fail-closed behavior could be softened by toggle. The contradiction was that the corridor emitted audit events but enforcement posture was not uniformly hard.
+
+- Options considered (2-3):
+  1. Keep current toggle-dependent behavior and rely on deployment discipline.
+     Rejected because governance-critical controls should not depend on operator mode.
+  2. Force strict mode in profiles only.
+     Rejected because it still leaves a code-level bypass path.
+  3. Keep audit emission, but make enforcement unconditional: non-`RESOLVED` corridor result always raises `REF_ACCESS_DENIED`.
+     Selected because it removes bypass potential at source.
+
+- Decision (what you chose and why):
+  We chose option 3. Protected-ref enforcement was made unconditional fail-closed, independent of strict-mode toggle, while preserving existing corridor audit emission behavior.
+
+- Implementation (what you changed):
+  1. Updated `src/fraud_detection/offline_feature_plane/worker.py` protected-ref handling path.
+  2. Kept corridor audit/event emission unchanged for observability continuity.
+  3. Enforced hard denial:
+     - if corridor resolution is not `RESOLVED`, worker now raises `REF_ACCESS_DENIED`.
+  4. Revalidated Phase 9 observability and full OFS regression suites to ensure no drift/regression.
+
+- Result (observable outcome/evidence):
+  OFS protected-ref access now has no config-dependent bypass lane. Enforcement is fail-closed in all modes, and governance audit behavior remains intact.
+  Truth posture: `Resolved`.
+  Evidence anchors:
+  - `docs/model_spec/platform/implementation_maps/local_parity/offline_feature_plane.impl_actual.md:924`
+  - `docs/model_spec/platform/implementation_maps/local_parity/offline_feature_plane.impl_actual.md:927`
+  - `docs/model_spec/platform/implementation_maps/local_parity/offline_feature_plane.impl_actual.md:940`
+  Additional challenge context:
+  - `docs/model_spec/platform/implementation_maps/local_parity/offline_feature_plane.impl_actual.md:930`
+  - `docs/model_spec/platform/implementation_maps/local_parity/offline_feature_plane.impl_actual.md:931`
+  - `docs/model_spec/platform/implementation_maps/local_parity/offline_feature_plane.impl_actual.md:936`
+
+- Why this proves MLOps/Data Eng strength (explicit hiring signal):
+  This shows governance-control maturity: you identified a subtle policy-bypass seam, removed mode-dependent enforcement ambiguity at code level, and preserved auditable denial evidence instead of trading off security for convenience.
+
+## ID 89 - OFS Phase-8 fixture mismatches (`LABEL_TYPE_SCOPE_UNRESOLVED`, `RUN_NOT_FOUND` vs `RETRY_NOT_PENDING`)
+
+- Context (what was at stake):
+  OFS Phase-8 run/operate onboarding relied on a validation matrix to prove request-driven build and publish-retry behavior. If fixtures don’t reflect intended policy/state preconditions, tests can fail for the wrong reason and hide true closure posture.
+
+- Problem (specific contradiction/failure):
+  Two fixture-level mismatches distorted Phase-8 negative-path assertions:
+  1. build-request fixture omitted `filters.label_types`, causing expected fail-closed scope error (`LABEL_TYPE_SCOPE_UNRESOLVED`) unrelated to the targeted behavior.
+  2. publish-retry negative-path used a non-existent `run_key`, yielding `RUN_NOT_FOUND` instead of intended `RETRY_NOT_PENDING`.
+  The contradiction was that worker behavior was correct, but test setup did not target the intended contract branches.
+
+- Options considered (2-3):
+  1. Accept current failures as equivalent negative-path coverage.
+     Rejected because branch semantics (`RUN_NOT_FOUND` vs `RETRY_NOT_PENDING`) are materially different.
+  2. Relax assertions to allow either error outcome.
+     Rejected because it weakens test precision and masks regression signals.
+  3. Correct fixtures to match intended preconditions and assert exact branch outcomes.
+     Selected because it restores deterministic validation intent.
+
+- Decision (what you chose and why):
+  We chose option 3. Phase-8 matrix fixtures were corrected so each negative-path assertion exercises the exact intended fail-closed branch.
+
+- Implementation (what you changed):
+  1. Updated Phase-8 build-intent test fixture to include `filters.label_types`, aligning with Phase-5 policy resolution requirements.
+  2. Seeded valid non-pending ledger state (`DONE`) for publish-retry negative-path tests so retry semantics are evaluated against existing run state rather than missing-run path.
+  3. Kept assertions strict for expected branch outcomes (`RETRY_NOT_PENDING`) after fixture correction.
+
+- Result (observable outcome/evidence):
+  OFS Phase-8 validation now targets the correct contract branches with deterministic semantics. Negative-path tests distinguish configuration/scope errors from run-state retry errors, improving trust in closure evidence.
+  Truth posture: `Resolved`.
+  Evidence anchors:
+  - `docs/model_spec/platform/implementation_maps/local_parity/offline_feature_plane.impl_actual.md:799`
+  - `docs/model_spec/platform/implementation_maps/local_parity/offline_feature_plane.impl_actual.md:801`
+  Additional challenge context:
+  - `docs/model_spec/platform/implementation_maps/local_parity/offline_feature_plane.impl_actual.md:800`
+  - `docs/model_spec/platform/implementation_maps/local_parity/offline_feature_plane.impl_actual.md:802`
+  - `docs/model_spec/platform/implementation_maps/local_parity/offline_feature_plane.impl_actual.md:807`
+
+- Why this proves MLOps/Data Eng strength (explicit hiring signal):
+  This shows verification rigor: you didn’t dilute failing assertions or blur error classes, you corrected fixture preconditions so tests validate the intended safety branches and keep regression signals precise.
+
+## ID 90 - MF strict request-id mismatch fail-closed + bounded publish-only retry
+
+- Context (what was at stake):
+  Model Factory (MF) orchestrates training/build runs where retries and restarts are expected. Run control had to preserve deterministic intent so retries never mutate training meaning, and same request identity could not silently accept payload drift.
+
+- Problem (specific contradiction/failure):
+  Before Phase 2 run-control closure, MF risked two critical semantics gaps:
+  1. payload changes under the same request identity could be accepted, creating hidden meaning drift,
+  2. publish-only retries could accidentally increment full-run attempt semantics, blurring publish retry with retraining behavior.
+  The contradiction was that idempotent run identity was intended, but lifecycle control wasn’t yet strict enough to enforce it.
+
+- Options considered (2-3):
+  1. Keep simple request dedupe and tolerate payload drift with warning/last-write behavior.
+     Rejected because request identity must be immutable for replay/audit correctness.
+  2. Use one shared attempt counter across full runs and publish retries.
+     Rejected because it can mask retrain drift and distort run semantics.
+  3. Implement durable run ledger + explicit run-control policy:
+     fail-closed request-id payload mismatch and bounded publish-only retries with separate attempt semantics.
+     Selected because it preserves intent identity and replay-safe lifecycle meaning.
+
+- Decision (what you chose and why):
+  We chose option 3. MF Phase 2 hardened request admission and retry semantics so request identity is strict, and publish-only recovery paths remain bounded without mutating full-run attempt lineage.
+
+- Implementation (what you changed):
+  1. Added durable MF run ledger/state model with explicit lifecycle states and deterministic run identity convergence.
+  2. Enforced strict request-id collision policy:
+     - same request + same payload -> duplicate-safe convergence,
+     - same request + different payload -> fail-closed `REQUEST_ID_PAYLOAD_MISMATCH`.
+  3. Added explicit publish-only retry semantics:
+     - bounded retry budget,
+     - publish-only retries do not increment full-run attempts.
+  4. Persisted deterministic run receipts with pinned input/provenance summaries for auditability.
+
+- Result (observable outcome/evidence):
+  MF now enforces immutable request identity semantics and bounded publish-only recovery without hidden retrain drift. Submission/retry behavior is deterministic and test-backed under Phase-2 run-control closure.
+  Truth posture: `Resolved`.
+  Evidence anchors:
+  - `docs/model_spec/platform/implementation_maps/local_parity/model_factory.impl_actual.md:241`
+  - `docs/model_spec/platform/implementation_maps/local_parity/model_factory.impl_actual.md:259`
+  - `docs/model_spec/platform/implementation_maps/local_parity/model_factory.impl_actual.md:261`
+  Additional challenge context:
+  - `docs/model_spec/platform/implementation_maps/local_parity/model_factory.impl_actual.md:168`
+  - `docs/model_spec/platform/implementation_maps/local_parity/model_factory.impl_actual.md:200`
+  - `docs/model_spec/platform/implementation_maps/local_parity/model_factory.impl_actual.md:255`
+
+- Why this proves MLOps/Data Eng strength (explicit hiring signal):
+  This shows strong pipeline control engineering: you treated request identity as an immutable contract, separated retry classes to protect semantic correctness, and encoded fail-closed behavior in durable run-control primitives instead of relying on operator conventions.
+
+## ID 91 - MF unresolved refs/run-scope/schema incompatibility leakage risk
+
+- Context (what was at stake):
+  Model Factory Phase 3 sits on the critical boundary between "we received a training request" and "we are now allowed to consume datasets and execute train/eval." At this point, a single permissive assumption can poison the entire downstream model lifecycle: wrong dataset, wrong run scope, or incompatible feature/schema basis. If MF lets those pass, train/eval can still run, but the output model stops being trustworthy for replay, audit, and production promotion.
+
+- Problem (specific contradiction/failure):
+  MF needed to enforce three constraints simultaneously before execution:
+  1. each dataset manifest ref must be resolvable and contract-valid,
+  2. each manifest must belong to the same `platform_run_id` as the request,
+  3. manifest feature-definition/schema basis must match the selected training profile.
+  The contradiction was that MF wanted to move quickly into execution, but without a strict resolver corridor, unresolved refs or compatibility drift could leak into train/eval and produce formally "successful" but semantically invalid artifacts.
+
+- Options considered (2-3):
+  1. Resolve refs lazily in train/eval workers and treat incompatibility as runtime warning.
+     Rejected because failure would arrive too late, after expensive work and possible partial artifact writes.
+  2. Validate only run-scope and defer feature/schema checks to model code.
+     Rejected because compatibility is an orchestration contract, not a model-script convenience check.
+  3. Introduce a dedicated Phase-3 resolver that does by-ref contract resolution, run-scope lock, feature/schema compatibility guards, and immutable pre-execution plan publication.
+     Selected because it creates a hard gate: no compatible plan, no execution.
+
+- Decision (what you chose and why):
+  We chose option 3. MF now treats resolution and compatibility as first-class, fail-closed admission controls. The system must produce an immutable `resolved_train_plan` before any train/eval corridor can proceed, which makes the execution basis explicit, replayable, and auditable.
+
+- Implementation (what you changed):
+  1. Added Phase-3 resolver surfaces in `src/fraud_detection/model_factory/phase3.py` and exported them through `src/fraud_detection/model_factory/__init__.py`.
+  2. Implemented explicit by-ref DatasetManifest resolution with contract validation (`DatasetManifestContract`) and typed resolver errors.
+  3. Enforced fail-closed run-scope checks:
+     - manifest `platform_run_id` mismatch -> `RUN_SCOPE_INVALID`.
+  4. Enforced feature/schema compatibility guards before execution:
+     - schema drift or feature-set/version mismatch -> `FEATURE_SCHEMA_INCOMPATIBLE`.
+  5. Published immutable run-scoped resolver artifact:
+     - `<platform_run_id>/mf/resolved_train_plan/<run_key>.json`,
+     - re-emission drift -> `RESOLVED_TRAIN_PLAN_IMMUTABILITY_VIOLATION`.
+  6. Added targeted resolver tests in `tests/services/model_factory/test_phase3_resolver.py` covering unresolved refs, run-scope mismatch, feature/schema incompatibility, and immutability drift detection.
+
+- Result (observable outcome/evidence):
+  MF now blocks unresolved or incompatible training inputs before train/eval starts, and every admitted execution has a pinned immutable resolution artifact that captures the exact basis used. This removed a major leakage path where invalid dataset/profile combinations could have produced misleadingly "successful" training runs.
+  Truth posture: `Resolved`.
+  Evidence anchors:
+  - `docs/model_spec/platform/implementation_maps/local_parity/model_factory.impl_actual.md:340`
+  - `docs/model_spec/platform/implementation_maps/local_parity/model_factory.impl_actual.md:354`
+  - `docs/model_spec/platform/implementation_maps/local_parity/model_factory.impl_actual.md:361`
+  Additional challenge context:
+  - `docs/model_spec/platform/implementation_maps/local_parity/model_factory.impl_actual.md:353`
+  - `docs/model_spec/platform/implementation_maps/local_parity/model_factory.impl_actual.md:357`
+  - `docs/model_spec/platform/implementation_maps/local_parity/model_factory.impl_actual.md:369`
+
+- Why this proves MLOps/Data Eng strength (explicit hiring signal):
+  This is high-signal MLOps/Data Engineering work because it shows you can harden the handoff between data production and model execution with explicit compatibility contracts, immutable provenance artifacts, and fail-closed controls. That is exactly what prevents silent training-data drift from becoming production model risk.
+
+## ID 92 - MF publish handshake identity conflict semantics
+
+- Context (what was at stake):
+  MF Phase 6 is the publication boundary where a trained outcome becomes a registry-visible bundle. At this boundary, accidental identity reuse or mutable publication behavior can corrupt registry truth and make rollback, replay, and promotion decisions unreliable. The stakes were not just "can we publish," but "can we guarantee that bundle identity means exactly one payload forever."
+
+- Problem (specific contradiction/failure):
+  The publish corridor needed to support retries and reruns, but retries introduce a classic contradiction:
+  1. retried publish attempts should converge safely when nothing changed,
+  2. the same `(bundle_id, bundle_version)` must never accept different payload bytes.
+  Without an explicit handshake policy, MF could either over-reject healthy retries or silently permit identity/payload drift, both of which are operationally dangerous in a registry-driven MLOps system.
+
+- Options considered (2-3):
+  1. Generate a fresh bundle version on every retry.
+     Rejected because it destroys idempotency and makes retry behavior inflate version lineage without semantic change.
+  2. Allow overwrite for existing bundle identity if the new payload "looks close enough."
+     Rejected because "close enough" is not an auditable registry rule and opens silent corruption risk.
+  3. Enforce append-only publish handshake keyed by `(bundle_id, bundle_version)`:
+     - same identity + same payload -> idempotent convergence,
+     - same identity + different payload -> hard fail-closed conflict.
+     Selected because it preserves both retry safety and identity immutability.
+
+- Decision (what you chose and why):
+  We chose option 3. MF Phase 6 was designed so publish behavior is deterministic under retries but intolerant of payload drift under a reused identity. That gives operators retry resilience without weakening registry truth guarantees.
+
+- Implementation (what you changed):
+  1. Added Phase-6 publish module in `src/fraud_detection/model_factory/phase6.py` and wired exports through `src/fraud_detection/model_factory/__init__.py`.
+  2. Implemented bundle publication packaging with schema validation (`BundlePublicationContract`) and explicit compatibility/provenance metadata.
+  3. Implemented idempotent publish handshake semantics in registry write path:
+     - write-if-absent for `(bundle_id, bundle_version)`,
+     - existing identical payload -> `ALREADY_PUBLISHED` convergence,
+     - existing divergent payload -> `PUBLISH_CONFLICT`.
+  4. Added immutable receipt/event artifacts for publication evidence (`publish_handshake_receipt`, registry lifecycle event), preserving auditable publish outcomes.
+  5. Added targeted matrix tests in `tests/services/model_factory/test_phase6_bundle_publish.py` covering one-shot publish, idempotent replay, explicit conflict drift, ineligible publish rejection, and unresolved evidence rejection.
+
+- Result (observable outcome/evidence):
+  MF publication now behaves like a true append-only registry handshake: retries are safe and deterministic, while identity/payload drift is blocked immediately with typed failure. This closed the leakage path where bundle identity could have been reused with altered bytes.
+  Truth posture: `Resolved`.
+  Evidence anchors:
+  - `docs/model_spec/platform/implementation_maps/local_parity/model_factory.impl_actual.md:623`
+  - `docs/model_spec/platform/implementation_maps/local_parity/model_factory.impl_actual.md:642`
+  - `docs/model_spec/platform/implementation_maps/local_parity/model_factory.impl_actual.md:644`
+  Additional challenge context:
+  - `docs/model_spec/platform/implementation_maps/local_parity/model_factory.impl_actual.md:638`
+  - `docs/model_spec/platform/implementation_maps/local_parity/model_factory.impl_actual.md:646`
+  - `docs/model_spec/platform/implementation_maps/local_parity/model_factory.impl_actual.md:652`
+
+- Why this proves MLOps/Data Eng strength (explicit hiring signal):
+  This demonstrates production-grade release governance: you encoded immutable publication semantics, separated idempotent retry from identity drift, and backed it with contract-validated artifacts plus negative-path tests. That is exactly the level of rigor hiring managers look for in MLOps/Data Engineering ownership of model release rails.
+
+## ID 93 - Archive Writer Postgres reserved identifier crash (`offset`)
+
+- Context (what was at stake):
+  Archive Writer had just been integrated as a live worker in the local-parity run/operate pack, which meant it was no longer a design artifact; it was part of the platform runtime path. If this component failed at startup, the platform would lose archival durability posture for streaming evidence and break readiness confidence for downstream reconciliation/reporting.
+
+- Problem (specific contradiction/failure):
+  On initial daemon startup against Postgres, Archive Writer crashed with a SQL syntax error because the ledger schema/query layer used `offset` as an identifier. The contradiction was that the component was logically correct in data flow terms, but physically non-runnable in one of its target backends due to SQL reserved-word collision.
+
+- Options considered (2-3):
+  1. Quote `offset` everywhere in SQL statements.
+     Rejected because it is brittle, backend-sensitive, and easy to miss in future query evolution.
+  2. Keep `offset` internally and add backend-specific SQL branching for Postgres only.
+     Rejected because it adds avoidable dialect complexity and long-term maintenance risk.
+  3. Rename the ledger column contract from `offset` to `offset_value` consistently across schema and queries.
+     Selected because it is explicit, portable, and removes the reserved-word class of failure entirely.
+
+- Decision (what you chose and why):
+  We chose option 3. A full column-contract rename to `offset_value` was applied across Archive Writer ledger SQL surfaces so the runtime behavior is backend-safe by design, not by quoting workaround.
+
+- Implementation (what you changed):
+  1. Updated Archive Writer ledger SQL in `src/fraud_detection/archive_writer/store.py`:
+     - schema definitions use `offset_value`,
+     - SELECT/INSERT/UPDATE/DELETE predicates use `offset_value`,
+     - PK semantics remain anchored on stream/topic/partition/offset-kind/offset-value identity.
+  2. Re-ran component and integration validation for Archive Writer + reporter surfaces.
+  3. Revalidated run/operate onboarding posture so `local_parity_rtdl_core_v0` includes `archive_writer_worker` and keeps process status in running-ready state.
+  4. Confirmed run-scoped archive health/metrics/reconciliation artifacts are emitted after onboarding.
+
+- Result (observable outcome/evidence):
+  The startup blocker was eliminated: Archive Writer now starts in Postgres mode without SQL syntax failure, targeted tests are green, and run/operate readiness includes the archive worker in running-ready posture. This moved the component from "implemented on paper" to "actually runnable in platform execution."
+  Truth posture: `Resolved`.
+  Evidence anchors:
+  - `docs/model_spec/platform/implementation_maps/local_parity/archive_writer.impl_actual.md:61`
+  - `docs/model_spec/platform/implementation_maps/local_parity/archive_writer.impl_actual.md:64`
+  - `docs/model_spec/platform/implementation_maps/local_parity/archive_writer.impl_actual.md:73`
+  Additional challenge context:
+  - `docs/model_spec/platform/implementation_maps/local_parity/archive_writer.impl_actual.md:65`
+  - `docs/model_spec/platform/implementation_maps/local_parity/archive_writer.impl_actual.md:69`
+  - `docs/model_spec/platform/implementation_maps/local_parity/archive_writer.impl_actual.md:71`
+
+- Why this proves MLOps/Data Eng strength (explicit hiring signal):
+  This is a strong MLOps/Data Engineering signal because it shows operational hardening discipline: you caught a backend-specific runtime failure during real integration, chose a durable schema-level fix instead of a fragile patch, and closed the loop with run/operate readiness evidence rather than stopping at unit-level correctness.
+
+## ID 94 - Platform anti-drift closure pressure (evidence-first progression blockers)
+
+- Context (what was at stake):
+  By this stage, multiple learning-corridor components (especially OFS and MF) were moving quickly and producing many green test matrices. The risk was no longer only implementation defects; it was governance drift: declaring platform-phase closure based on partial evidence, interrupted turns, or matrix-only confidence while critical corridor obligations were still open.
+
+- Problem (specific contradiction/failure):
+  The platform needed delivery momentum, but phase progression had to remain truth-preserving. The contradiction was:
+  1. teams can produce green local tests for a subset of behavior,
+  2. platform closure requires explicit continuity + fail-closed proof across corridor boundaries and run/operate/meta-layer posture.
+  Without hard progression locks, "looks mostly done" could be mistaken for "closure-grade done," causing hidden drift to accumulate between OFS handoff, MF execution/publish semantics, and learning-plane run/operate readiness.
+
+- Options considered (2-3):
+  1. Treat passing component matrices as sufficient closure signal.
+     Rejected because matrix pass alone cannot prove boundary continuity, negative-path closure, or meta-layer onboarding completeness.
+  2. Let phase owners self-attest closure and backfill evidence later.
+     Rejected because retrospective evidence invites interpretation drift and weakens blocker discipline.
+  3. Codify platform-level pre-change locks, drift-sentinel checkpoints, and continuation locks that explicitly block progression until required evidence is present.
+     Selected because it keeps delivery fast but fail-closed against governance drift.
+
+- Decision (what you chose and why):
+  We chose option 3. Platform implementation flow was deliberately operated with explicit lock records at critical transitions, each with pinned decisions, expected closure evidence, and blocker-level drift criteria. This made "not enough evidence yet" a first-class engineering outcome instead of a soft warning.
+
+- Implementation (what you changed):
+  1. Added platform-level pre-change lock gates before major corridor transitions (OFS closure gate, MF entry boundary, publish identity collision controls), with explicit "what must be proven before we can proceed."
+  2. Embedded drift-sentinel checkpoints that declare specific blocker conditions, for example:
+     - no OFS closure claim without executable negative-path fail-closed evidence,
+     - no MF progression with ambiguous run identity semantics,
+     - no publish-handshake progression if identity collision accepts payload drift.
+  3. Added continuation locks when work was interrupted, so partial onboarding could not silently pass as closure.
+  4. Used platform-level implementation-map entries as operational control rails, not just historical notes, to enforce evidence-first progression across phases.
+
+- Result (observable outcome/evidence):
+  Phase progression became explicitly governed by evidence quality, not by optimism or checklist completion. The platform avoided silent cross-phase drift by repeatedly blocking advancement until closure-grade proof existed, including handling interrupted turns with explicit continuation criteria.
+  Truth posture: `Resolved` (operating governance posture).
+  Evidence anchors:
+  - `docs/model_spec/platform/implementation_maps/local_parity/platform.impl_actual.md:10029`
+  - `docs/model_spec/platform/implementation_maps/local_parity/platform.impl_actual.md:10148`
+  - `docs/model_spec/platform/implementation_maps/local_parity/platform.impl_actual.md:10424`
+  - `docs/model_spec/platform/implementation_maps/local_parity/platform.impl_actual.md:10524`
+  Additional challenge context:
+  - `docs/model_spec/platform/implementation_maps/local_parity/platform.impl_actual.md:10044`
+  - `docs/model_spec/platform/implementation_maps/local_parity/platform.impl_actual.md:10114`
+  - `docs/model_spec/platform/implementation_maps/local_parity/platform.impl_actual.md:10537`
+
+- Why this proves MLOps/Data Eng strength (explicit hiring signal):
+  This is a senior-level hiring signal because it shows platform governance ownership, not just feature implementation. You enforced fail-closed progression law, translated ambiguous "done-ness" into explicit acceptance gates, and protected multi-component ML delivery from silent operational drift under real execution pressure.
+
+## ID 95 - Segment remediation packages exist but remain execution-wave work
+
+- Context (what was at stake):
+  After statistical analysis exposed realism weaknesses across key engine segments (3A, 5B, 6A, 6B), the next risk was execution ambiguity. If remediation stayed at recommendation level, implementation could drift, teams could cherry-pick fixes out of order, and later grade claims (`B/B+`) would be hard to defend.
+
+- Problem (specific contradiction/failure):
+  You had high-quality diagnosis but needed production-credible remediation control. The contradiction was:
+  1. broad recommendations are easy to agree with,
+  2. realism recovery requires exact, auditable, ordered deltas with explicit promotion gates.
+  Without turning findings into implementation-grade specs, the project risked endless "analysis progress" with no deterministic execution path.
+
+- Options considered (2-3):
+  1. Keep reports purely analytical (findings + suggested ideas) and decide implementation ad hoc during coding.
+     Rejected because it invites inconsistency, sequencing mistakes, and unverifiable grade claims.
+  2. Write a single generic remediation checklist for all segments.
+     Rejected because each segment had different causal failure chains and needed segment-specific deltas and gates.
+  3. Publish segment-level remediation packages with exact file-level/policy-level changes, wave ordering, validation gates, artifacts, and grade-mapping rules.
+     Selected because it creates execution handbooks that can be audited and implemented deterministically.
+
+- Decision (what you chose and why):
+  We chose option 3. Each segment got a locked "Chosen Fix Spec" that defines concrete delta sets, sequencing rules, validation matrices, and promotion criteria. This turned remediation from narrative intent into an executable engineering backlog.
+
+- Implementation (what you changed):
+  1. Authored explicit remediation specs for `3A`, including core package (`B` target), conditional add-ons (`B+` path), and exact policy/code delta points for later wave execution.
+  2. Authored `5B` wave package design:
+     - Wave A correctness hardening,
+     - Wave B calibration uplift,
+     - Wave C contract hardening,
+     with line-by-line implementation and validation intent.
+  3. Authored `6A` phased delta plan:
+     - mandatory Phase-1 `B` blockers first,
+     - Phase-2 enhancements only after hard-gate pass,
+     including explicit file targets and invariant expectations.
+  4. Authored `6B` wave sequence:
+     - Wave A foundational correctness/realism recovery,
+     - Wave B campaign realism expansion,
+     - Wave C context/schema carry-through,
+     with strict gate promotion logic and required run artifacts.
+  5. Embedded grade logic and cross-seed stability framing so uplift claims are tied to gate attainment, not single-run optics.
+
+- Result (observable outcome/evidence):
+  The remediation program is now specification-complete: each segment has an auditable execution blueprint with ordered waves, exact deltas, gate criteria, and expected grade-lift logic. This materially reduced planning ambiguity and created a clean handoff into implementation waves.
+  Truth posture: `Planned` (specification complete; execution not yet applied in engine code here).
+  Evidence anchors:
+  - `docs/reports/eda/segment_3A/segment_3A_remediation_report.md:325`
+  - `docs/reports/eda/segment_5B/segment_5B_remediation_report.md:250`
+  - `docs/reports/eda/segment_6A/segment_6A_remediation_report.md:217`
+  - `docs/reports/eda/segment_6B/segment_6B_remediation_report.md:245`
+  Additional challenge context:
+  - `docs/reports/eda/segment_3A/segment_3A_remediation_report.md:329`
+  - `docs/reports/eda/segment_5B/segment_5B_remediation_report.md:254`
+  - `docs/reports/eda/segment_6A/segment_6A_remediation_report.md:221`
+  - `docs/reports/eda/segment_6B/segment_6B_remediation_report.md:247`
+
+- Why this proves MLOps/Data Eng strength (explicit hiring signal):
+  This shows strong data-platform execution leadership: you did not stop at diagnosing realism failures, you translated them into deterministic remediation architecture with sequencing, invariants, and measurable promotion gates. That is exactly how senior MLOps/Data Engineers de-risk complex model-data systems before touching production code.
+
+## ID 96 - Realism-governance challenge (prove uplift without regression)
+
+- Context (what was at stake):
+  After defining segment remediations, the program faced a second-order risk: even real improvements can be operationally unsafe if they regress previously fixed gaps, depend on one lucky seed, or cannot be causally attributed to the intended change bundle. The stakes were final realism credibility, not just incremental metric movement.
+
+- Problem (specific contradiction/failure):
+  The contradiction was:
+  1. remediation waves were expected to raise realism scores,
+  2. each new wave could silently break prior-wave guarantees or create ambiguous attribution.
+  Without strict wave-governance rules, the team could claim uplift that was either unstable across seeds, driven by accidental side-effects, or masking regression in previously closed critical surfaces.
+
+- Options considered (2-3):
+  1. Use simple per-wave pass criteria based on headline metrics only.
+     Rejected because headline gains can hide instability, regressions, and attribution ambiguity.
+  2. Allow wave promotion when most metrics improve, then backfill diagnostics later.
+     Rejected because delayed diagnostics weaken fail-closed control and make rollback decisions subjective.
+  3. Define explicit wave-execution runbook governance:
+     mandatory cross-seed stability guards, prior-wave regression guard packs, ablation attribution checks, hard stop/hold/go promotion policy, and fixed evidence artifact contracts.
+     Selected because it creates an auditable realism-promotion system rather than ad hoc judgment.
+
+- Decision (what you chose and why):
+  We chose option 3. The realism program was governed as a multi-wave controlled rollout with explicit statistical and operational guardrails before any promotion between Wave 0, Wave 1, and Wave 2.
+
+- Implementation (what you changed):
+  1. Authored Wave-0 execution runbook with:
+     - hard-fail conditions,
+     - cross-seed stability guard (`CV <= 0.25` unless near-zero by design),
+     - `PASS_WITH_RISK` hold semantics that block Wave-1 start.
+  2. Authored Wave-1 runbook with:
+     - mandatory Wave-0 regression guard pack,
+     - bundle-level and wave-level stop/go rules,
+     - ablation attribution requirements to verify causal effect of each bundle.
+  3. Authored Wave-2 runbook with:
+     - mandatory combined Wave-0 and Wave-1 regression guard packs,
+     - repeated cross-seed stability and attribution discipline,
+     - explicit promotion and hold semantics for final closure path.
+  4. Standardized evidence artifact contracts across waves (metrics, gate reports, seed stability, regression guard reports, ablation reports, run index) so promotion decisions are reproducible and reviewable.
+
+- Result (observable outcome/evidence):
+  A full realism-governance framework now exists for wave execution and promotion decisions. The framework is rigorous and auditable, but full closure still depends on running the waves and producing complete evidence packs under these rules.
+  Truth posture: `Partial` (governance framework authored; full wave execution evidence still required to close).
+  Evidence anchors:
+  - `docs/reports/eda/engine_realism_step5_wave0_execution_runbook.md:185`
+  - `docs/reports/eda/engine_realism_step6_wave1_execution_runbook.md:172`
+  - `docs/reports/eda/engine_realism_step7_wave2_execution_runbook.md:168`
+  Additional challenge context:
+  - `docs/reports/eda/engine_realism_step5_wave0_execution_runbook.md:188`
+  - `docs/reports/eda/engine_realism_step6_wave1_execution_runbook.md:224`
+  - `docs/reports/eda/engine_realism_step7_wave2_execution_runbook.md:220`
+
+- Why this proves MLOps/Data Eng strength (explicit hiring signal):
+  This is a strong senior signal because it shows you know that model/data quality improvement is a governed rollout problem, not just a coding task. You designed promotion discipline that protects against false uplift, seed luck, and regression leakage, which is core MLOps/Data Engineering leadership in high-stakes systems.
+
+## ID 97 - Full dev-completion runs not feasible on local hardware
+
+- Context (what was at stake):
+  The ingestion/control corridor needed two different assurances:
+  1. quick deterministic local smoke confidence for day-to-day iteration,
+  2. true completion validation for full ingestion semantics.
+  If both were forced into one local workflow, developer feedback loops would become slow and unreliable, and completion claims would be ambiguous.
+
+- Problem (specific contradiction/failure):
+  An uncapped dev-completion run attempted on local hardware did not finish within two hours. The contradiction was that the team needed full completion evidence, but the local environment could not practically deliver that within an acceptable engineering loop.
+
+- Options considered (2-3):
+  1. Keep forcing uncapped completion on local machines until it eventually finishes.
+     Rejected because it is operationally unreliable and destroys iteration speed.
+  2. Cap local runs and still call them completion.
+     Rejected because that dilutes semantic meaning of completion and risks false confidence.
+  3. Formalize an environment-ladder split:
+     local remains smoke-only; full completion runs move to stronger dev infrastructure (or future chunked local execution).
+     Selected because it preserves both correctness intent and practical delivery cadence.
+
+- Decision (what you chose and why):
+  We chose option 3. Completion semantics were kept strict, but mapped to the right environment. Local was explicitly framed as smoke posture, while completion moved to dev-grade infrastructure or chunked strategy when needed.
+
+- Implementation (what you changed):
+  1. Added profile separation:
+     - `local.yaml` remains time-budgeted smoke profile,
+     - `config/platform/profiles/dev_local.yaml` added for uncapped completion behavior.
+  2. Added Makefile support for explicit dev-completion execution path:
+     - `IG_PROFILE_DEV` default and dedicated target for one-shot completion run.
+  3. Updated documentation and planning surfaces to lock the policy:
+     - profile README,
+     - ingestion-gate README,
+     - platform build-plan phase note.
+  4. Recorded the local-hardware completion block as explicit operational evidence, preventing future misclassification of local smoke as full completion.
+
+- Result (observable outcome/evidence):
+  The team now has a clear, enforceable run policy: local is for fast deterministic smoke; full completion requires stronger dev infra (or future chunking work). This removed ambiguity around what a local pass means and protected completion claims from hardware-driven false negatives/positives.
+  Truth posture: `Resolved` (as explicit operating policy).
+  Evidence anchors:
+  - `docs/model_spec/platform/implementation_maps/local_parity/platform.impl_actual.md:527`
+  - `docs/model_spec/platform/implementation_maps/local_parity/platform.impl_actual.md:530`
+  Additional challenge context:
+  - `docs/model_spec/platform/implementation_maps/local_parity/platform.impl_actual.md:512`
+  - `docs/model_spec/platform/implementation_maps/local_parity/platform.impl_actual.md:516`
+  - `docs/model_spec/platform/implementation_maps/local_parity/platform.impl_actual.md:521`
+  - `docs/model_spec/platform/implementation_maps/local_parity/platform.impl_actual.md:533`
+
+- Why this proves MLOps/Data Eng strength (explicit hiring signal):
+  This shows production-minded MLOps judgment: you separated semantic correctness goals from hardware constraints, preserved strict completion meaning, and designed an environment ladder that improves both reliability and developer throughput instead of trading one off against the other.
+
+## ID 98 - Parity smoke IG process using stale installed code (PYTHONPATH drift)
+
+- Context (what was at stake):
+  Parity smoke was being used to validate live SR -> WSP -> IG -> EB behavior. During this phase, debugging accuracy depended on one critical assumption: services must execute the repo’s current source, not a stale installed package. If that assumption breaks, runtime failures become misleading and investigation effort gets wasted.
+
+- Problem (specific contradiction/failure):
+  IG crashed during parity smoke with `AttributeError` claiming `IngestionGate.authorize_request` was missing, while that method existed in repo source. The contradiction was that code inspection said the method was present, but runtime behavior said it was absent, indicating import-path drift between working tree and installed site-packages.
+
+- Options considered (2-3):
+  1. Keep current launch pattern and repeatedly reinstall/rebuild packages to sync environments.
+     Rejected because it is fragile and reintroduces drift on each iteration.
+  2. Patch only IG launch command with ad hoc path overrides.
+     Rejected because drift could still occur in other platform services and utilities.
+  3. Introduce one platform-wide runner wrapper that enforces `PYTHONPATH=src` and use it across all platform targets.
+     Selected because it removes ambiguity system-wide and makes local/parity execution consistently source-of-truth.
+
+- Decision (what you chose and why):
+  We chose option 3. A single execution contract (`PY_PLATFORM`) was introduced so platform commands always run against repo source. This turned a one-off debugging suspicion into a durable platform tooling guardrail.
+
+- Implementation (what you changed):
+  1. Added `PY_PLATFORM` wrapper in `makefile` with explicit `PYTHONPATH=src`.
+  2. Switched platform targets (SR/IG/WSP/Oracle and related utilities) from generic python runner usage to `PY_PLATFORM`.
+  3. Locked parity workflow to repo-source execution to eliminate stale-installed-code ambiguity before further runtime debugging.
+  4. Re-ran parity workflow under the new execution posture and continued root-cause isolation with source-consistent runtime.
+
+- Result (observable outcome/evidence):
+  The stale-module drift class was removed from platform execution posture: parity commands now execute current working-tree code by default. This gave reliable debugging semantics and prevented import-path ambiguity from contaminating subsequent parity fixes and validation runs.
+  Truth posture: `Resolved`.
+  Evidence anchors:
+  - `docs/model_spec/platform/implementation_maps/local_parity/platform.impl_actual.md:733`
+  - `docs/model_spec/platform/implementation_maps/local_parity/platform.impl_actual.md:742`
+  - `docs/model_spec/platform/implementation_maps/local_parity/platform.impl_actual.md:771`
+  Additional challenge context:
+  - `docs/model_spec/platform/implementation_maps/local_parity/platform.impl_actual.md:737`
+  - `docs/model_spec/platform/implementation_maps/local_parity/platform.impl_actual.md:739`
+  - `docs/model_spec/platform/implementation_maps/local_parity/platform.impl_actual.md:743`
+
+- Why this proves MLOps/Data Eng strength (explicit hiring signal):
+  This is a high-signal operational engineering move: you detected environment-path drift as a root cause candidate, enforced deterministic source execution across the platform, and reduced debugging entropy for distributed service validation. That is exactly the kind of tooling rigor strong MLOps/Data Engineers bring to real systems.
+
+## ID 99 - IG handler regression from methods nested under `_build_indices`
+
+- Context (what was at stake):
+  Ingestion Gate (IG) is the admission control backbone for parity smoke flow. If IG handler methods are unavailable at runtime, the SR -> WSP -> IG -> EB validation chain collapses and blocks evidence generation for receipts, offsets, and downstream control-loop confidence.
+
+- Problem (specific contradiction/failure):
+  During parity smoke debugging, IG was throwing 500-level failures with missing handler behavior. The specific contradiction was structural: class methods such as `authorize_request` were expected to exist but were effectively absent at runtime because methods had been accidentally nested under `_build_indices` through indentation/placement drift.
+
+- Options considered (2-3):
+  1. Continue debugging around symptoms (restart/retry/reinstall) and treat missing handlers as environment issue.
+     Rejected because structural code regressions cannot be fixed by process restarts.
+  2. Add temporary fallback shims to bypass missing handler calls.
+     Rejected because it hides correctness defects and risks admission-governance drift.
+  3. Restore IG class structure by moving `_build_indices` out of accidental nesting and reinstating missing runtime handlers before rerun.
+     Selected because it directly fixes the root cause with minimal semantic ambiguity.
+
+- Decision (what you chose and why):
+  We chose option 3. The fix was applied at source-structure level so IG class behavior matched intended contract again, then parity flow was revalidated rather than papered over.
+
+- Implementation (what you changed):
+  1. Inspected IG class layout and confirmed handler methods were incorrectly scoped under `_build_indices`.
+  2. Repositioned `_build_indices` after the class and restored missing handler methods to proper class scope.
+  3. Restarted IG runtime service after structural correction.
+  4. Continued parity smoke rerun path to validate receipts and offset evidence under corrected IG behavior.
+
+- Result (observable outcome/evidence):
+  The handler regression was removed at root-cause level, restoring IG runtime method availability and unblocking parity validation flow. This prevented prolonged misdiagnosis and ensured subsequent parity troubleshooting proceeded on a structurally valid IG service.
+  Truth posture: `Resolved`.
+  Evidence anchors:
+  - `docs/model_spec/platform/implementation_maps/local_parity/platform.impl_actual.md:756`
+  - `docs/model_spec/platform/implementation_maps/local_parity/platform.impl_actual.md:763`
+  Additional challenge context:
+  - `docs/model_spec/platform/implementation_maps/local_parity/platform.impl_actual.md:759`
+  - `docs/model_spec/platform/implementation_maps/local_parity/platform.impl_actual.md:760`
+  - `docs/model_spec/platform/implementation_maps/local_parity/platform.impl_actual.md:764`
+
+- Why this proves MLOps/Data Eng strength (explicit hiring signal):
+  This demonstrates strong incident-debugging discipline: you distinguished environment suspicion from code-structure reality, fixed the true failure mode instead of masking it, and restored a critical control-plane service with explicit rerun validation intent.
+
+## ID 100 - WSP READY failure from missing control-bus stream env propagation
+
+- Context (what was at stake):
+  WSP READY consumption is the bridge from control-plane readiness signals into live streaming behavior. In parity mode, if WSP cannot resolve control-bus wiring, the SR -> WSP -> IG chain stalls before admission and event-bus evidence can be produced.
+
+- Problem (specific contradiction/failure):
+  WSP READY consumer failed with `CONTROL_BUS_STREAM_MISSING`. The profile referenced `${CONTROL_BUS_STREAM}`, but parity Make targets did not export control-bus env values into the WSP process context. The contradiction was that control-bus intent existed in config, but runtime process wiring was incomplete.
+
+- Options considered (2-3):
+  1. Hardcode control-bus stream values directly in component code.
+     Rejected because it breaks environment-ladder portability and hides configuration ownership.
+  2. Keep manual per-run env export for operators.
+     Rejected because parity workflows should be non-interactive and repeatable.
+  3. Export `CONTROL_BUS_STREAM`, `CONTROL_BUS_REGION`, and `CONTROL_BUS_ENDPOINT_URL` from parity defaults in WSP ready-consumer targets, and document failure handling in runbook.
+     Selected because it preserves profile-driven behavior while making parity execution deterministic.
+
+- Decision (what you chose and why):
+  We chose option 3. Control-bus runtime wiring was made explicit at tooling level (Make targets + defaults) so WSP consumers always receive required env context in parity runs.
+
+- Implementation (what you changed):
+  1. Updated `makefile` parity defaults to include control-bus envs required by WSP READY consumers:
+     - `CONTROL_BUS_STREAM`
+     - `CONTROL_BUS_REGION`
+     - `CONTROL_BUS_ENDPOINT_URL`
+  2. Exported these envs in WSP ready-consumer targets so process launch inherits complete control-bus wiring.
+  3. Added troubleshooting guidance in `docs/runbooks/platform_parity_walkthrough_v0.md` for `CONTROL_BUS_STREAM_MISSING`.
+  4. Kept alignment with SR/IG env posture so control-bus integration semantics stay consistent across platform services.
+
+- Result (observable outcome/evidence):
+  The `CONTROL_BUS_STREAM_MISSING` blocker was removed by explicit env propagation. WSP READY consumer targets now launch with complete control-bus context, eliminating a recurring parity startup failure class and restoring deterministic control-plane consumption behavior.
+  Truth posture: `Resolved`.
+  Evidence anchors:
+  - `docs/model_spec/platform/implementation_maps/local_parity/platform.impl_actual.md:1058`
+  - `docs/model_spec/platform/implementation_maps/local_parity/platform.impl_actual.md:1065`
+  Additional challenge context:
+  - `docs/model_spec/platform/implementation_maps/local_parity/platform.impl_actual.md:1061`
+  - `docs/model_spec/platform/implementation_maps/local_parity/platform.impl_actual.md:1062`
+  - `docs/model_spec/platform/implementation_maps/local_parity/platform.impl_actual.md:1066`
+  - `docs/model_spec/platform/implementation_maps/local_parity/platform.impl_actual.md:1070`
+
+- Why this proves MLOps/Data Eng strength (explicit hiring signal):
+  This shows practical platform reliability engineering: you traced a distributed runtime failure to configuration propagation boundaries, fixed it at the orchestration layer (not with brittle code hacks), and converted a flaky manual dependency into reproducible infra-as-code behavior.

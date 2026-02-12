@@ -2189,3 +2189,130 @@ Docs-only pass; no paid services touched.
 
 ### Cost posture
 Docs-only pass; no paid services touched.
+
+## Entry: 2026-02-12 5:29AM - Pre-change lock: pin Spine Green baseline for dev_substrate migration scope
+
+### Trigger
+USER requested migration planning resume on `dev_substrate` and directed that baseline "green" be pinned to the local-parity freeze story as **Spine Green**, not full Learning/Registry closure.
+
+### Problem framing
+Current dev_substrate planning references local-parity as baseline but does not yet explicitly scope migration acceptance against a pinned freeze-level green definition. Without this pin, migration sequencing can drift back into requiring local Learning-plane completion before managed-substrate promotion.
+
+### Decision
+Add an explicit migration-baseline section to `dev_substrate/platform.build_plan.md` that defines:
+1. what is considered baseline green for migration,
+2. what is explicitly out of scope for this migration phase,
+3. which local-parity freeze authorities anchor that baseline.
+
+### Authority basis used
+- `docs/model_spec/platform/implementation_maps/local_parity/platform.build_plan.md`
+  - Phase 3 complete,
+  - Phase 4 + 4.6 complete,
+  - Phase 5 + 5.10 complete,
+  - Phase 6 active (not closed at freeze).
+- `docs/model_spec/platform/implementation_maps/local_parity/platform.impl_actual.md`
+  - user-directed freeze transition entry (`2026-02-10 4:15PM`).
+
+### Planned edit
+- File: `docs/model_spec/platform/implementation_maps/dev_substrate/platform.build_plan.md`
+- Add a top-level section that pins:
+  - `Spine Green v0 = C&I + RTDL + Case/Labels + Run/Operate/Obs/Gov`,
+  - `Learning/Registry (OFS/MF/MPR lifecycle closure)` out of scope for this migration phase.
+
+### Validation plan
+1. Verify the new baseline section is present and clear.
+2. Verify no rail/ownership doctrine changes were introduced.
+3. Log decision/action trail in `docs/logbook/02-2026/2026-02-12.md`.
+
+### Drift sentinel checkpoint
+Planning-only scope pin. No runtime/code behavior changes in this step.
+
+### Cost posture
+Docs-only pass; no paid services touched.
+
+## Entry: 2026-02-12 5:29AM - Applied Spine Green baseline pin for dev_substrate migration planning
+
+### Changes applied
+1. Updated `docs/model_spec/platform/implementation_maps/dev_substrate/platform.build_plan.md`.
+2. Added section:
+- `## Migration Baseline Gate (Spine Green v0)`.
+3. The section now explicitly pins:
+- baseline migration green = `C&I + RTDL + Case/Labels + Run/Operate/Obs/Gov`,
+- local-parity freeze docs as authority,
+- Learning/Registry full closure (`OFS/MF/MPR`) out of scope for this migration phase.
+
+### Why this resolves the ambiguity
+1. Removes mixed interpretation between runbook-wide "full stack" checks and freeze-time migration baseline.
+2. Aligns dev_substrate sequencing with user-approved freeze story from local parity.
+3. Preserves forward path: dev_substrate migration can proceed on spine semantics without requiring local Learning-plane closure first.
+
+### Validation
+1. Confirmed section present and discoverable near top-level scope/posture in build plan.
+2. Confirmed no changes to non-negotiable rails, ownership boundaries, or fail-closed doctrine.
+
+### Drift sentinel assessment
+No designed-flow/runtime drift introduced; this is a migration-scope clarification pin.
+
+### Cost posture
+Docs-only pass; no paid services touched.
+
+## Entry: 2026-02-12 5:45AM - Pre-change lock: capture ordered Spine Green local process flow list artifact
+
+### Trigger
+USER requested that the previously produced Spine Green local execution sequence be persisted "in a list somewhere" for continued migration planning.
+
+### Problem framing
+The process inventory matrix is intentionally broad and includes many rows (including non-Spine and dev-substrate operator rows). We need a concise, ordered, run-sequence artifact scoped strictly to Spine Green v0 that can be referenced without re-deriving process order from packs/runbook text.
+
+### Decision
+Create a dedicated implementation-map artifact that records the major Spine Green local process flow from start to finish, with each item including:
+1. process name,
+2. execution entry point (`make`, CLI, or run_operate step id),
+3. one-line inputs -> outputs,
+4. one concrete green-proof artifact path/topic/table.
+
+### Authority basis used
+- `docs/runbooks/platform_parity_walkthrough_v0.md`
+- `makefile` local parity run and run_operate targets
+- `config/platform/run_operate/packs/local_parity_*.v0.yaml`
+- existing run evidence under `runs/fraud-platform/platform_20260210T091951Z/`
+
+### Planned edits
+1. Add file:
+- `docs/model_spec/platform/implementation_maps/dev_substrate/local_run_spine_green_major_process_flow.md`
+2. Append action/evidence trail to:
+- `docs/logbook/02-2026/2026-02-12.md`
+
+### Validation plan
+1. Confirm file exists and is discoverable under dev_substrate implementation maps.
+2. Confirm ordering matches local parity operator flow and run_operate pack sequencing.
+3. Confirm Learning (`OFS/MF/MPR`) is excluded from scope.
+
+### Drift sentinel checkpoint
+Documentation-only operation; no runtime/component wiring changes.
+
+### Cost posture
+Docs-only pass; no paid services touched.
+
+## Entry: 2026-02-12 5:45AM - Applied ordered Spine Green local process flow list artifact
+
+### Changes applied
+1. Added:
+- `docs/model_spec/platform/implementation_maps/dev_substrate/local_run_spine_green_major_process_flow.md`
+2. Captured strict Spine Green v0 local run order from substrate bring-up through obs/gov closure:
+- CI (`SR -> WSP -> IG`),
+- RTDL core + decision lane,
+- Case/Labels,
+- Run/Operate + Obs/Gov.
+3. Explicitly excluded Learning-plane processes.
+
+### Validation
+1. Confirmed artifact is present in `docs/model_spec/platform/implementation_maps/dev_substrate/`.
+2. Confirmed each step includes required fields (name, entry point, inputs/outputs, proof artifact).
+3. Confirmed proof artifacts reference existing repo paths or configured parity topics/object-store paths already used in local parity authorities.
+
+### Drift sentinel assessment
+No designed-flow/runtime drift introduced. This improves migration planning clarity without changing execution semantics.
+
+### Cost posture
+Docs-only pass; no paid services touched.
