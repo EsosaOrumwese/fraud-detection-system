@@ -1,0 +1,18 @@
+{
+  "source_bundle": "config/layer1/1A/models/hurdle/exports/version=2026-02-12/20260212T171900Z",
+  "created_utc": "20260212T195125Z",
+  "remediation": {
+    "wave": "P1.3",
+    "change": "nb_mean_heterogeneity_compression",
+    "delta_intercept": 2.2,
+    "rationale": "reduce outlet concentration (gini/top10 share) while preserving hurdle posture",
+    "beta_mu_scale": 0.8,
+    "intercept_recenter_mean_log_mu": 2.405095,
+    "parent_bundle": "version=2026-02-12/20260212T171900Z"
+  },
+  "notes": [
+    "beta_mu compressed with non-intercept scale",
+    "hurdle beta unchanged from parent bundle",
+    "dispersion bundle copied unchanged from parent bundle"
+  ]
+}

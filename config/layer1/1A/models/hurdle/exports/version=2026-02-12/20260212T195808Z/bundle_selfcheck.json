@@ -1,0 +1,9 @@
+{
+  "source_bundle": "config/layer1/1A/models/hurdle/exports/version=2026-02-12/20260212T171900Z",
+  "created_utc": "20260212T195808Z",
+  "changes": {
+    "beta_mu": "source",
+    "beta_phi": "source"
+  },
+  "runtime_dependency": "S2 poisson inversion patch active"
+}

@@ -650,9 +650,10 @@ def _poisson_ptrs(lam: float, stream: Substream) -> tuple[int, int, int]:
 
 
 def _poisson_sample(lam: float, stream: Substream) -> tuple[int, int, int]:
-    if lam < 10.0:
-        return _poisson_inversion(lam, stream)
-    return _poisson_ptrs(lam, stream)
+    # P1.3 remediation: use inversion for all lambda values.
+    # The prior PTRS path produced pathological high-tail draws that distorted
+    # outlet concentration realism for 1A.
+    return _poisson_inversion(lam, stream)
 
 
 def _u128_diff(before_hi: int, before_lo: int, after_hi: int, after_lo: int) -> int:

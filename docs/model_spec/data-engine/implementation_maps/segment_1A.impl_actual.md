@@ -3772,3 +3772,215 @@ Decision:
 
 Evidence artifact:
 - `runs/fix-data-engine/segment_1A/reports/p1_2_hurdle_multiseed_scorecard.json`.
+
+### Entry: 2026-02-12 19:52
+
+Design element: P1.3 evaluation plan (NB mean/dispersion count-shape calibration).
+Summary: Start P1.3 by scoring the current locked P1 runs before editing coefficients again. If current posture already satisfies P1.3 DoD bands, we lock this state and move to P1.4; otherwise we open a targeted NB-only coefficient iteration.
+
+Reasoning trail:
+1) P1.2 is already closed and branch-pure across three seeds, so P1.3 should start with measurement of count-shape + dispersion outcomes under the same accepted run loop.
+2) Unnecessary coefficient rewrites increase churn and risk regressions; measure first, then edit only if a DoD gap is observed.
+3) P1.3 DoD in the build plan is explicit on median/concentration and phi heterogeneity bands, so this can be decided objectively.
+
+Planned evaluation method:
+1) Use the three accepted P1 runs:
+- `e97b15d23d61dde3ae2c416721f271f2` (seed 42)
+- `bc3cd75be277994a13a8d435d249ee4b` (seed 43)
+- `099bce7800f7e53d88b5aaf368e22c06` (seed 44)
+2) Build per-merchant outlet counts from S1/S2 authoritative streams:
+- if `S1.is_multi=false` -> `outlets=1`,
+- if `S1.is_multi=true` -> `outlets=S2.nb_final.n_outlets`.
+3) Compute P1.3 metrics per run:
+- outlet median,
+- top-10% outlet share,
+- Gini,
+- `phi` CV,
+- `phi` P95/P05 ratio.
+4) Persist scorecard under `runs/fix-data-engine/segment_1A/reports/p1_3_nb_multiseed_scorecard.json`.
+
+Decision rule:
+- If all runs satisfy P1.3 B bands and no branch-integrity issues appear, mark P1.3 complete and avoid further coeff edits now.
+- If any run fails a P1.3 DoD metric, open targeted coefficient tuning on NB mean/dispersion only.
+
+### Entry: 2026-02-12 19:57
+
+Design element: P1.3 remediation strategy selection after first NB scorecard.
+Summary: Initial P1.3 scorecard fails concentration realism (`gini` above B band across seeds, top-10 share unstable). Chosen remediation is NB mean heterogeneity compression (`beta_mu` shrink) while holding hurdle coefficients fixed.
+
+Observed P1.3 failure posture:
+- Composite outlet median is on-band (`6.0`) but concentration is too steep:
+  - `gini` around `0.678` to `0.745` (B cap `0.62`),
+  - top-10 share includes a high-seed breach (`0.618` vs B cap `0.55`).
+- Dispersion metrics already pass B/B+ and should not be destabilized.
+
+Options considered:
+1) Retune hurdle intercept/shape again.
+- Rejected: P1.2 is already closed and stable; this would risk reopening branch-share posture.
+2) Retune NB dispersion (`beta_phi`) first.
+- Rejected as primary lever: concentration issue is structural in count-level inequality; dispersion is already in target and not the main source of skew.
+3) Compress NB mean heterogeneity (`beta_mu`) with intercept recenter (chosen).
+- Chosen because it directly reduces high-tail concentration while preserving overall count level and leaving hurdle gating intact.
+
+Chosen implementation approach:
+1) Create a new hurdle export bundle version timestamp under `version=2026-02-12`.
+2) Keep hurdle `beta` unchanged.
+3) Apply controlled shrink to `beta_mu` non-intercept terms using scale `0.80` with intercept recenter around current mean log-mu proxy.
+4) Leave `nb_dispersion_coefficients.yaml` unchanged in this iteration.
+5) Re-run `segment1a-p1` for seeds `42/43/44` and re-score P1.3 metrics.
+
+Target outcome for this iteration:
+- Preserve median in B band.
+- Bring concentration into B band across seeds:
+  - top-10 share `0.35..0.55`,
+  - gini `0.45..0.62`.
+- Keep dispersion gates in band.
+
+### Entry: 2026-02-12 20:01
+
+Design element: P1.3 iteration-1 assessment and follow-up decision.
+Summary: First P1.3 coefficient iteration (`beta_mu` scale `0.80`) improved NB mean spread but did not close concentration gates. Decision: apply a second targeted adjustment on dispersion level (`beta_phi` intercept uplift) to damp extreme-count tails.
+
+Iteration-1 details:
+- Bundle tested: `version=2026-02-12/20260212T195125Z`.
+- Proof run (seed 42): `ff83dc6394ed1140af183a91f8f89499`.
+- Observed:
+  - `single_share=0.4225` (P1.2 still healthy),
+  - median `6.0` (on-band),
+  - top-10 share `0.550258` (borderline fail),
+  - gini `0.698884` (fail).
+- Diagnostic read:
+  - `mu` distribution compressed as intended (q95/q99 reduced vs prior bundle),
+  - residual concentration driven by stochastic high-tail realizations, suggesting dispersion level is still too permissive for stable concentration bands.
+
+Decision for iteration-2:
+- Keep current hurdle coefficients unchanged.
+- Keep `beta_mu` compression from iteration-1.
+- Increase `beta_phi` intercept (multiplicative uplift of `phi`) to reduce extreme-tail variance while preserving heterogeneity shape (CV/ratio invariants remain largely unchanged under intercept-only shift).
+
+Execution intent:
+1) author new bundle timestamp from current parent,
+2) rerun `segment1a-p1` (seed 42 sanity first),
+3) if concentration improves into B bands, execute seeds 43/44 and finalize P1.3 scorecard.
+
+### Entry: 2026-02-12 20:07
+
+Design element: P1.3 blocker root-cause escalation (S2 Poisson sampler tail pathology).
+Summary: P1.3 concentration failures are not explained by coefficient shape alone. Evidence from run logs shows impossible Poisson outcomes (example: `lambda≈11.38` with emitted `k=12808`), pointing to a sampler implementation defect in S2 PTRS branch.
+
+Evidence observed:
+- Run `719fb3da5c759d969136085493619557`:
+  - `nb_final`: `mu=13.223`, `dispersion_k=28.703`, `n_outlets=12808`.
+  - corresponding `poisson_component`: `lambda=11.383`, `k=12808`, attempt `1`.
+- Such outcomes are statistically implausible for the stated lambda and dominate concentration metrics (top10/gini instability).
+
+Technical diagnosis:
+- The S2 Poisson path currently uses `_poisson_ptrs` for `lambda>=10`.
+- Current quick-accept branch permits extreme `k` from ratio term `b*v/u` under small `u`, creating pathological spikes.
+
+Decision (fail-closed on realism):
+- Treat PTRS path as unsafe for current implementation.
+- Switch S2 Poisson sampling to inversion-only path for all lambdas in this remediation window.
+- Re-run P1.3 with unchanged coefficient bundle after sampler fix to separate algorithmic defect from coefficient calibration.
+
+Why this is the right move now:
+- Coefficient retunes cannot reliably correct algorithm-generated impossible tails.
+- Inversion sampler is deterministic, simpler, and numerically safe for observed lambda range in 1A (runtime overhead acceptable for P1 loops).
+
+Next steps after patch:
+1) run `segment1a-p1` seed 42 sanity,
+2) score P1.3 metrics,
+3) if improved, run seeds 43/44 and finalize P1.3 closure evidence.
+
+### Entry: 2026-02-12 20:12
+
+Design element: Post-sampler-fix recalibration decision for P1.3.
+Summary: After switching Poisson to inversion-only, concentration pathology from impossible tails disappeared (max outlets dropped from >10k to 34), but current compressed NB-mean bundle over-flattened concentration (`top10_share` fell below B lower bound). Decision: rollback NB-mean compression and retest with original P1.2 coefficients under the fixed sampler.
+
+Observed after sampler fix (run `e3618475a068178162bff54d6238ca78`):
+- top10 share `0.2746` (below B min `0.35`),
+- gini `0.4868` (in band),
+- median `7` (in band),
+- max outlets `34` (tail pathology resolved).
+
+Interpretation:
+- The dominant prior issue was sampler-generated tails.
+- With that fixed, the extra `beta_mu` compression (`scale=0.8`) is too strong and suppresses intended heavy-tail concentration.
+
+Decision:
+- Keep Poisson inversion patch in S2.
+- Create a fresh bundle from original `20260212T171900Z` coefficients (no `beta_mu` compression and no `beta_phi` uplift) so concentration can return to the intended realistic corridor.
+- Re-run P1.3 multi-seed scorecard using this bundle + sampler fix.
+
+### Entry: 2026-02-12 20:15
+
+Design element: P1.3 post-sampler baseline remeasure and next tuning lever selection.
+Summary: Re-ran the accepted P1 loop (`S0->S2`) on seeds `42/43/44` under the sampler fix and rollback bundle. Concentration is now stable but under-target: top-decile outlet share is below B lower bound on all seeds, while median/gini/phi bands are healthy. Decision: open a controlled NB-mean heterogeneity uplift iteration (`beta_mu` non-intercept scale-up) with hurdle and `beta_phi` held fixed.
+
+Baseline evidence (sampler fix + bundle `20260212T195808Z`):
+- seed 42 run `80051a088f94efb8ee21ab65cbcbd6ce`:
+  - median `6.0`,
+  - top10 share `0.2985`,
+  - gini `0.5115`,
+  - `phi_cv=0.1401`, `phi_p95/p05=1.5793`.
+- seed 43 run `2d6621e142e1fe8424f1ef8e9c672ff0`:
+  - median `6.0`,
+  - top10 share `0.2974`,
+  - gini `0.5097`,
+  - `phi_cv=0.1398`, `phi_p95/p05=1.5792`.
+- seed 44 run `871e986a5523bcc872d12e9fe0dd5b89`:
+  - median `6.0`,
+  - top10 share `0.2942`,
+  - gini `0.5059`,
+  - `phi_cv=0.1403`, `phi_p95/p05=1.5778`.
+- Branch integrity still clean (`hurdle=false` with S2 rows = `0`; missing S2 for `hurdle=true` = `0`).
+
+Interpretation:
+1) PTRS tail pathology is no longer dominating concentration.
+2) With tails stabilized, current `beta_mu` spread is insufficient to produce the required heavy-tail concentration corridor.
+3) `beta_phi` already sits inside band and should be held fixed to avoid unnecessary variance-side churn.
+
+Decision and execution plan:
+1) Author a new bundle timestamp under `version=2026-02-12`.
+2) Keep hurdle coefficients unchanged.
+3) Keep `beta_phi` unchanged.
+4) Increase `beta_mu` non-intercept magnitude by a controlled factor (first pass: modest uplift) and recenter intercept only if median drifts out of band.
+5) Run seed `42` sanity first; if top10 enters/approaches B band without gini overshoot, execute seeds `43/44` and finalize P1.3 scorecard.
+
+### Entry: 2026-02-12 20:24
+
+Design element: P1.3 NB-mean spread iteration sequence and closure.
+Summary: Executed staged `beta_mu` non-intercept uplift tests after sampler stabilization to recover concentration realism. Iterations `x1.15` and `x1.40` remained below B top-decile floor. Iteration `x2.00` reached stable three-seed B-band compliance for all P1.3 metrics.
+
+Iteration evidence (seed 42 sanity gate):
+1) Bundle `20260212T200543Z` (`beta_mu` non-intercept `x1.15`, no intercept recenter):
+- run `14cc0f88c9d10e56691356cbb307fa3a`,
+- median `6.0`, top10 `0.3056`, gini `0.5201`, `phi_cv=0.1383`, `phi_ratio=1.5709`.
+- Decision: insufficient concentration uplift; continue.
+2) Bundle `20260212T200704Z` (`beta_mu` non-intercept `x1.40`, no intercept recenter):
+- run `44e274d4056bf436caf4d99a39458f51`,
+- median `7.0`, top10 `0.3204`, gini `0.5368`, `phi_cv=0.1394`, `phi_ratio=1.5827`.
+- Decision: still below B top10 floor; continue.
+3) Bundle `20260212T200823Z` (`beta_mu` non-intercept `x2.00`, no intercept recenter):
+- run `292e136bd6b58beafe0d81755dac2fb2`,
+- median `9.0`, top10 `0.3819`, gini `0.5996`, `phi_cv=0.1399`, `phi_ratio=1.5845`.
+- Decision: passes all P1.3 B checks on sanity seed; proceed multi-seed.
+
+Multi-seed confirmation for selected bundle `20260212T200823Z`:
+- seed 42 -> `292e136bd6b58beafe0d81755dac2fb2`:
+  - median `9.0`, top10 `0.3819`, gini `0.5996`, `phi_cv=0.1399`, `phi_ratio=1.5845`.
+- seed 43 -> `e22f339fd496dfb2508ea33949907d54`:
+  - median `9.0`, top10 `0.3852`, gini `0.6019`, `phi_cv=0.1395`, `phi_ratio=1.5791`.
+- seed 44 -> `411b7f4e5466109e7007043180ed794b`:
+  - median `9.0`, top10 `0.3827`, gini `0.6001`, `phi_cv=0.1396`, `phi_ratio=1.5751`.
+- Branch integrity remained clean on all runs:
+  - no S2 rows for `hurdle=false`,
+  - no missing S2 rows for `hurdle=true`.
+
+P1.3 decision outcome:
+1) P1.3 DoD is satisfied at `B` level on all three seeds.
+2) `B+` miss remains on gini (`>0.58`) but this does not block P1.3 closure because DoD for this phase is B-band compliance.
+3) Candidate bundle for P1.4 reconciliation/lock: `version=2026-02-12/20260212T200823Z`.
+
+Evidence artifact:
+- `runs/fix-data-engine/segment_1A/reports/p1_3_nb_multiseed_scorecard.json`.

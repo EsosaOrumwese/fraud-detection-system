@@ -121,11 +121,11 @@ Freeze the current baseline so post-fix movement is causal and auditable.
   - outlet-count shape from `nb_final`;
   - dispersion realism from implied `phi` profile by merchant strata.
 - DoD:
-  - [ ] `outlets_per_merchant` median reaches `B` band (`6 to 20`), target `B+` (`8 to 18`).
-  - [ ] concentration metrics reach `B` bands:
+  - [x] `outlets_per_merchant` median reaches `B` band (`6 to 20`), target `B+` (`8 to 18`).
+  - [x] concentration metrics reach `B` bands:
     - top-10% outlet share (`0.35 to 0.55`),
     - Gini (`0.45 to 0.62`).
-  - [ ] dispersion heterogeneity reaches `B` bands:
+  - [x] dispersion heterogeneity reaches `B` bands:
     - `CV(phi)` (`0.05 to 0.20`),
     - `P95/P05(phi)` (`1.25 to 2.0`).
 
