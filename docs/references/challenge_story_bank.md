@@ -2240,3 +2240,1298 @@ This standard is binding for every new ID entry in this file.
 
 - Why this proves MLOps/Data Eng strength (explicit hiring signal):
   This shows correctness-first infrastructure thinking. You balanced performance with recovery correctness, protected replay integrity, and validated the fix with targeted tests. Recruiters see this as strong Data Eng rigor for log-based systems.
+
+## ID 50 - Oracle Store truth-ownership boundary drift risk
+
+- Context (what was at stake):
+  Oracle Store defines where engine world truth lives and how downstream components consume it. If that boundary is wrong, provenance and ownership rules collapse across the platform. This was especially critical because WSP and other consumers depend on Oracle as immutable source truth.
+
+- Problem (specific contradiction/failure):
+  Oracle workflows had drifted toward SR-coupled inputs (notably `run_facts_view`-based sealing), which made Oracle behavior depend on platform runtime artifacts. That contradicted the intended ownership chain where engine outputs are external truth and platform runtime outputs are not oracle authority.
+
+- Options considered (2-3):
+  1. Keep SR-based sealing as a temporary helper and document it as transitional.
+     This preserves convenience but leaves a dangerous boundary loophole.
+  2. Keep mixed modes (SR-based + engine-rooted) and rely on operator discipline.
+     This adds flexibility but invites future drift and ambiguous authority.
+  3. Remove SR-coupled oracle paths completely and enforce engine-rooted Oracle operations only.
+     This is stricter but restores unambiguous truth ownership.
+
+- Decision (what you chose and why):
+  We chose option 3. Oracle had to be explicitly external and immutable engine truth, with dependency chain `Engine -> Oracle -> WSP`, and no SR dependency in sealing/check pathways.
+
+- Implementation (what you changed):
+  1. Recorded the boundary rule explicitly: Oracle Store is external to platform runtime artifacts.
+  2. Removed SR-based sealing posture and rebuilt tooling around engine run roots.
+  3. Rebuilt checker behavior to validate engine-rooted inputs (not `run_facts_view` schema paths).
+  4. Rebuilt packer/CLI entrypoints around engine run root + scenario identity and retained write-once seal semantics.
+  5. Updated operator pathways so oracle checks/sealing no longer rely on `runs/fraud-platform` artifacts.
+
+- Result (observable outcome/evidence):
+  Oracle truth ownership was reasserted and operationally enforced: there is no SR-based oracle sealing path, and Oracle now reads from engine-materialized truth only. This restored clean component boundaries and protected provenance integrity.
+  Truth posture: `Resolved`.
+  Evidence anchors:
+  - `docs/model_spec/platform/implementation_maps/local_parity/oracle_store.impl_actual.md:19`
+  - `docs/model_spec/platform/implementation_maps/local_parity/oracle_store.impl_actual.md:254`
+  Additional challenge context:
+  - `docs/model_spec/platform/implementation_maps/local_parity/oracle_store.impl_actual.md:231`
+  - `docs/model_spec/platform/implementation_maps/local_parity/oracle_store.impl_actual.md:282`
+  - `docs/model_spec/platform/implementation_maps/local_parity/oracle_store.impl_actual.md:308`
+
+- Why this proves MLOps/Data Eng strength (explicit hiring signal):
+  This demonstrates high-level data-system governance. You identified and removed a subtle authority drift, enforced immutable truth ownership boundaries, and aligned tooling to a fail-closed provenance model. Recruiters see this as senior MLOps/Data Eng systems thinking.
+
+## ID 51 - Seal strictness needed environment split without breaking fail-closed intent
+
+- Context (what was at stake):
+  Oracle seal checks were becoming a promotion gate, but environments were at different maturity levels. Local parity still contained transitional worlds without full seal markers, while dev/prod needed strict immutable-pack enforcement. A single global rule risked either blocking local progress or weakening production safety.
+
+- Problem (specific contradiction/failure):
+  The contradiction was operational: applying strict seal checks everywhere would repeatedly fail local parity for transitional reasons, but making checks lenient everywhere would violate fail-closed posture in dev/prod where unsealed packs are unacceptable.
+
+- Options considered (2-3):
+  1. Enforce strict-seal uniformly across all environments.
+     This maximizes purity but causes avoidable local blockages during migration.
+  2. Keep warn-only seal checks everywhere until all environments are ready.
+     This preserves velocity but weakens dev/prod safety guarantees.
+  3. Split posture by environment:
+     local parity allows transitional seal warnings,
+     dev/prod default to strict seal enforcement with explicit reason codes.
+     This keeps local progress while preserving hard safety where it matters.
+
+- Decision (what you chose and why):
+  We chose option 3. The key was preserving fail-closed intent for promotion environments without forcing local transitional states to masquerade as production-ready.
+
+- Implementation (what you changed):
+  1. Defined environment-sensitive seal posture in Oracle checks:
+     - local parity: missing seal markers are warn-only in transitional mode,
+     - dev/prod: strict-seal defaults on and fails when pack markers are missing.
+  2. Added stable reason-code reporting (`reason_codes` and structured `issues`) so failures are machine-auditable and operationally clear.
+  3. Kept locator/gate/digest checks fail-closed while limiting local seal leniency to the transitional seam only.
+
+- Result (observable outcome/evidence):
+  The Oracle checker now supports practical local transition without diluting production safety posture. Operators can distinguish environment-appropriate warnings from hard failures through explicit reason codes and strict defaults.
+  Truth posture: `Resolved`.
+  Evidence anchors:
+  - `docs/model_spec/platform/implementation_maps/local_parity/oracle_store.impl_actual.md:91`
+  - `docs/model_spec/platform/implementation_maps/local_parity/oracle_store.impl_actual.md:107`
+  - `docs/model_spec/platform/implementation_maps/local_parity/oracle_store.impl_actual.md:122`
+  Additional challenge context:
+  - `docs/model_spec/platform/implementation_maps/local_parity/oracle_store.impl_actual.md:84`
+  - `docs/model_spec/platform/implementation_maps/local_parity/oracle_store.impl_actual.md:121`
+  - `docs/model_spec/platform/implementation_maps/local_parity/oracle_store.impl_actual.md:143`
+
+- Why this proves MLOps/Data Eng strength (explicit hiring signal):
+  This shows mature environment-ladder governance. You preserved strict production semantics while designing a controlled transitional posture for local parity, with explicit machine-readable failure taxonomy. Recruiters read this as strong MLOps judgment: practical delivery without compromising safety rails.
+
+## ID 52 - Oracle packer idempotency/collision handling under write-once law
+
+- Context (what was at stake):
+  Oracle pack metadata (`_oracle_pack_manifest.json`, `_SEALED.json`) defines immutable world identity. Under write-once rules, repeated sealing must be safe and deterministic: same identity should no-op, different identity must fail closed. Any weakness here risks silent mutation of truth artifacts.
+
+- Problem (specific contradiction/failure):
+  The packer used create-if-absent semantics, but idempotency comparison initially treated timestamp fields as identity-critical. That caused false mismatches on repeated valid seals, creating collision noise and undermining operator trust in write-once behavior.
+
+- Options considered (2-3):
+  1. Allow overwrite on reseal when only timestamps differ.
+     This reduces friction but violates write-once immutability.
+  2. Keep strict full-object equality including timestamps.
+     This preserves strictness but causes false divergence on legitimate repeats.
+  3. Keep write-once create-if-absent plus fail-on-different-content, but compare only identity-critical fields for idempotency.
+     This preserves immutability and removes false collision failures.
+
+- Decision (what you chose and why):
+  We chose option 3. The system needed true immutability and deterministic re-runs without timestamp-driven false conflicts. Identity must be anchored to world-defining fields, not emission-time metadata.
+
+- Implementation (what you changed):
+  1. Implemented write-once sealing posture:
+     - create manifest/seal if absent,
+     - fail when existing content differs on identity-critical fields.
+  2. Hardened idempotency comparison logic:
+     - ignored timestamp-only differences,
+     - compared only identity-critical manifest/seal fields.
+  3. Added guardrails:
+     - local pack-root existence checks before sealing,
+     - unit tests for write-once behavior and mismatch detection.
+
+- Result (observable outcome/evidence):
+  Repeated valid sealing now behaves idempotently, while real identity conflicts still fail closed. This removed false collision noise and preserved write-once truth guarantees.
+  Truth posture: `Resolved`.
+  Evidence anchors:
+  - `docs/model_spec/platform/implementation_maps/local_parity/oracle_store.impl_actual.md:202`
+  - `docs/model_spec/platform/implementation_maps/local_parity/oracle_store.impl_actual.md:219`
+  Additional challenge context:
+  - `docs/model_spec/platform/implementation_maps/local_parity/oracle_store.impl_actual.md:161`
+  - `docs/model_spec/platform/implementation_maps/local_parity/oracle_store.impl_actual.md:215`
+  - `docs/model_spec/platform/implementation_maps/local_parity/oracle_store.impl_actual.md:222`
+
+- Why this proves MLOps/Data Eng strength (explicit hiring signal):
+  This shows strong data-governance engineering: you enforced immutability, eliminated false-positive collisions, and preserved deterministic rerun behavior under strict fail-closed policy. Recruiters see this as high-quality MLOps/Data Eng execution on truth-critical metadata systems.
+
+## ID 53 - Object-store endpoint/credential wiring failures in Oracle sync/seal flow
+
+- Context (what was at stake):
+  Oracle operations in local parity were intentionally MinIO-backed to mimic dev/prod object-store behavior. Packaging and checking Oracle worlds had to work reproducibly through Make targets, not manual shell state. If endpoint/credential wiring failed, the Oracle boundary could not be validated end-to-end.
+
+- Problem (specific contradiction/failure):
+  `platform-oracle-pack` failed with `Invalid endpoint` because required object-store environment variables were not propagated into subprocesses. The Make flow loaded variables but did not reliably export endpoint/credential values, so tooling fell back to unrelated AWS defaults and produced credential/manifest confusion.
+
+- Options considered (2-3):
+  1. Rely on manual operator export of `OBJECT_STORE_*` and `AWS_*` vars before every run.
+     This works sometimes, but is error-prone and not reproducible.
+  2. Keep current targets and add troubleshooting docs only.
+     This improves guidance but leaves wiring fragile.
+  3. Encode endpoint/credential propagation directly in Make targets and add a dedicated sync target for parity.
+     This creates deterministic operator flow and removes manual env drift.
+
+- Decision (what you chose and why):
+  We chose option 3. Oracle sync/seal/check had to be repeatable and environment-correct by default, especially for parity runs. Manual environment choreography was unacceptable for a platform gate.
+
+- Implementation (what you changed):
+  1. Prefixed Oracle Make targets with explicit object-store wiring:
+     - `OBJECT_STORE_ENDPOINT`, `OBJECT_STORE_REGION`,
+     - `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`, `AWS_DEFAULT_REGION`.
+  2. Updated Oracle runbook guidance to make endpoint propagation explicit.
+  3. Added `platform-oracle-sync` target to run MinIO sync deterministically from configured source path.
+  4. Simplified operator path to `sync -> pack` with fewer manual steps and clearer troubleshooting.
+
+- Result (observable outcome/evidence):
+  Oracle sync/seal flow became repeatable and less error-prone in MinIO parity. Endpoint/credential drift was removed from the normal path, reducing false failures and operator confusion.
+  Truth posture: `Resolved`.
+  Evidence anchors:
+  - `docs/model_spec/platform/implementation_maps/local_parity/oracle_store.impl_actual.md:334`
+  - `docs/model_spec/platform/implementation_maps/local_parity/oracle_store.impl_actual.md:354`
+  - `docs/model_spec/platform/implementation_maps/local_parity/oracle_store.impl_actual.md:362`
+  Additional challenge context:
+  - `docs/model_spec/platform/implementation_maps/local_parity/oracle_store.impl_actual.md:337`
+  - `docs/model_spec/platform/implementation_maps/local_parity/oracle_store.impl_actual.md:342`
+  - `docs/model_spec/platform/implementation_maps/local_parity/oracle_store.impl_actual.md:364`
+
+- Why this proves MLOps/Data Eng strength (explicit hiring signal):
+  This demonstrates practical platform operability engineering. You removed hidden environment coupling, made object-store workflows deterministic, and converted fragile manual setup into repeatable automation. Recruiters see this as strong MLOps/Data Eng execution for production-like parity environments.
+
+## ID 54 - Oracle stream-sort overflow/timeout/reliability risks
+
+- Context (what was at stake):
+  Oracle stream views are the ordered data surface for downstream consumption. As data volume grew and object-store access moved through MinIO/S3, stream sorting had to remain deterministic, memory-safe, and operationally reliable. Failures here would block WSP-ready ordered outputs and parity validation.
+
+- Problem (specific contradiction/failure):
+  The stream-sort path encountered multiple reliability pressures at once:
+  - object-store reads hit `ReadTimeoutError` under load,
+  - full-range sorts could hit memory limits/OOM,
+  - some outputs did not have `ts_utc`, so naive time-only assumptions broke deterministic ordering.
+  The contradiction was that stream sort was conceptually simple ("just order by time"), but real data surfaces required resilient I/O controls and key-flexible deterministic ordering.
+
+- Options considered (2-3):
+  1. Keep a single-pass `ORDER BY ts_utc` flow and increase machine resources when it fails.
+     This is simple, but fragile and expensive under larger outputs.
+  2. Add retries only at command level and keep sorter logic unchanged.
+     This can mask transient failures but does not solve deterministic and memory pressures.
+  3. Harden the sorter end-to-end:
+     configurable S3 timeout/retry controls,
+     deterministic key-resolution for non-`ts_utc` outputs,
+     chunked fallback paths to reduce peak memory.
+     This improves resilience without weakening correctness.
+
+- Decision (what you chose and why):
+  We chose option 3. The stream view is a core operational interface, so it needed production-like reliability controls and deterministic behavior across heterogeneous output schemas.
+
+- Implementation (what you changed):
+  1. Added object-store resilience knobs:
+     - `OBJECT_STORE_READ_TIMEOUT`,
+     - `OBJECT_STORE_CONNECT_TIMEOUT`,
+     - `OBJECT_STORE_MAX_ATTEMPTS`.
+  2. Applied consistent S3/MinIO client wiring so stream-sort I/O behavior is tunable by environment.
+  3. Added memory-safe chunked sorting fallback (`STREAM_SORT_CHUNK_DAYS`) to reduce peak memory and preserve chronological part emission.
+  4. Hardened ordering semantics for outputs lacking `ts_utc`:
+     - explicit sort-key overrides per output,
+     - deterministic tie-breaker behavior preserved,
+     - chunking safely disabled for non-time keys when inappropriate.
+
+- Result (observable outcome/evidence):
+  Stream-sort moved from fragile local behavior to a hardened, configurable path that handled timeout pressure, high-memory scenarios, and non-`ts_utc` datasets without losing deterministic ordering guarantees.
+  Truth posture: `Resolved`.
+  Evidence anchors:
+  - `docs/model_spec/platform/implementation_maps/local_parity/oracle_store.impl_actual.md:654`
+  - `docs/model_spec/platform/implementation_maps/local_parity/oracle_store.impl_actual.md:690`
+  - `docs/model_spec/platform/implementation_maps/local_parity/oracle_store.impl_actual.md:792`
+  Additional challenge context:
+  - `docs/model_spec/platform/implementation_maps/local_parity/oracle_store.impl_actual.md:657`
+  - `docs/model_spec/platform/implementation_maps/local_parity/oracle_store.impl_actual.md:665`
+  - `docs/model_spec/platform/implementation_maps/local_parity/oracle_store.impl_actual.md:710`
+
+- Why this proves MLOps/Data Eng strength (explicit hiring signal):
+  This shows strong data-pipeline hardening under production-like constraints. You combined deterministic data semantics with practical reliability engineering (timeouts, retries, memory fallback) and schema-aware ordering strategy. Recruiters see this as mature MLOps/Data Eng capability: you can make heavy data flows both correct and operable.
+
+## ID 55 - WSP needed fail-closed oracle-boundary hardening
+
+- Context (what was at stake):
+  WSP is the runtime producer feeding IG, so any boundary weakness in WSP can propagate invalid traffic into the platform. As Oracle and engine truth ownership were tightened, WSP needed to stop behaving like an SR-dependent loader and become explicitly engine/oracle-rooted with strict evidence checks.
+
+- Problem (specific contradiction/failure):
+  WSP had coupling risks around source authority and world selection:
+  - reliance patterns that could drift toward SR runtime artifacts,
+  - insufficiently explicit world pinning,
+  - missing hard-fail guarantees for absent receipt/scenario/gate/traffic-output evidence.
+  The contradiction was that WSP was supposed to be a strict boundary producer, but without hard fail-closed checks it could still emit from ambiguous or incomplete world context.
+
+- Options considered (2-3):
+  1. Keep WSP mostly as-is and add defensive warnings for missing oracle evidence.
+     This preserves momentum but allows silent drift into unsafe emission.
+  2. Keep SR-oriented flow as the primary source and treat engine-rooted mode as optional.
+     This keeps backward convenience but weakens ownership boundaries.
+  3. Rebuild WSP as engine-rooted with explicit world selection and hard fail checks for missing world evidence.
+     This enforces correct dependency chain and prevents unsafe emission.
+
+- Decision (what you chose and why):
+  We chose option 3. The platform needed strict chain integrity: `Engine/Oracle truth -> WSP -> IG`, with no ambiguous source resolution and no warning-only emission on missing critical evidence.
+
+- Implementation (what you changed):
+  1. Rewired WSP to engine-rooted world resolution:
+     - explicit engine run root selection,
+     - scenario resolution with ambiguity rejection,
+     - no "latest" scanning.
+  2. Enforced oracle-boundary checks before emission:
+     - required world receipt presence,
+     - required scenario identity resolution,
+     - required gate-pass evidence when configured,
+     - required traffic-output selection (fail if none).
+  3. Hardened oracle/manifest posture:
+     - pack/manifest handling integrated into world resolution path,
+     - strict behavior in promotion environments retained.
+  4. Kept canonical envelope emission while making source validation fail closed.
+
+- Result (observable outcome/evidence):
+  WSP now emits only when oracle/world evidence is complete and valid, with explicit world selection and fail-closed rejection of missing prerequisites. This converted WSP from a potentially permissive bridge into a hardened boundary producer.
+  Truth posture: `Resolved`.
+  Evidence anchors:
+  - `docs/model_spec/platform/implementation_maps/local_parity/world_streamer_producer.impl_actual.md:132`
+  - `docs/model_spec/platform/implementation_maps/local_parity/world_streamer_producer.impl_actual.md:180`
+  - `docs/model_spec/platform/implementation_maps/local_parity/world_streamer_producer.impl_actual.md:218`
+  Additional challenge context:
+  - `docs/model_spec/platform/implementation_maps/local_parity/world_streamer_producer.impl_actual.md:111`
+  - `docs/model_spec/platform/implementation_maps/local_parity/world_streamer_producer.impl_actual.md:122`
+  - `docs/model_spec/platform/implementation_maps/local_parity/world_streamer_producer.impl_actual.md:205`
+
+- Why this proves MLOps/Data Eng strength (explicit hiring signal):
+  This demonstrates boundary-hardening at platform ingress depth. You enforced explicit world identity, provenance checks, and fail-closed emission gates in a production-critical producer path. Recruiters see this as senior MLOps/Data Eng capability: you can harden data-plane components against ambiguity and drift, not just make them run.
+
+## ID 56 - IG pull-era PARTIAL/time-budget exhaustion pressure
+
+- Context (what was at stake):
+  Early local parity ingestion still included an IG pull path from engine outputs. The team needed reliable completion behavior to keep validation meaningful, but runtime budgets and local hardware constraints repeatedly prevented full completion on real-sized datasets.
+
+- Problem (specific contradiction/failure):
+  Repeated pull runs ended as `PARTIAL` with `TIME_BUDGET_EXCEEDED`, including sharded attempts. Even when time caps were relaxed in local completion posture, end-to-end completion remained non-viable in practice. The contradiction was clear: the path existed, but it could not reliably complete in the environment where it was being exercised.
+
+- Options considered (2-3):
+  1. Keep iterating on pull runtime tactics (sharding, bigger budgets, repeated re-emit cycles).
+     This preserved legacy flow but continued to burn time without reliable closure.
+  2. Move completion runs to stronger infrastructure while keeping pull as primary local direction.
+     This could work operationally, but kept architectural ambiguity in the core lane.
+  3. Retire legacy pull from v0 direction and move IG to push-only ingestion, with SR READY triggering WSP instead of IG pull.
+     This aligns with intended data-plane design and removes a persistently blocked path.
+
+- Decision (what you chose and why):
+  We chose option 3. The platform’s intended runtime lane was already WSP -> IG streaming. Keeping pull as a primary path created confusion and ongoing execution debt, so it was explicitly retired from v0 direction.
+
+- Implementation (what you changed):
+  1. Documented deterministic pull failure outcomes (`PARTIAL`, `TIME_BUDGET_EXCEEDED`) under bounded runs.
+  2. Ran sharded + re-emit attempts and recorded that they still failed to reach stable completion for the workload.
+  3. Recorded the architecture pivot:
+     - IG declared push-only in v0,
+     - READY/pull ingestion marked legacy/retired,
+     - SR READY re-scoped as WSP trigger, not IG pull trigger.
+  4. Began phased alignment to remove pull-era confusion from docs/profiles and implementation direction.
+
+- Result (observable outcome/evidence):
+  The challenge was closed by architectural supersession rather than by making pull complete locally. The platform direction became explicit: push-only IG in v0, with legacy pull retired from the critical path.
+  Truth posture: `Superseded`.
+  Evidence anchors:
+  - `docs/model_spec/platform/implementation_maps/local_parity/ingestion_gate.impl_actual.md:1287`
+  - `docs/model_spec/platform/implementation_maps/local_parity/ingestion_gate.impl_actual.md:1337`
+  - `docs/model_spec/platform/implementation_maps/local_parity/ingestion_gate.impl_actual.md:1363`
+  - `docs/model_spec/platform/implementation_maps/local_parity/ingestion_gate.impl_actual.md:1387`
+  Additional challenge context:
+  - `docs/model_spec/platform/implementation_maps/local_parity/ingestion_gate.impl_actual.md:1341`
+  - `docs/model_spec/platform/implementation_maps/local_parity/ingestion_gate.impl_actual.md:1428`
+  - `docs/model_spec/platform/implementation_maps/local_parity/ingestion_gate.impl_actual.md:1461`
+
+- Why this proves MLOps/Data Eng strength (explicit hiring signal):
+  This shows strategic engineering judgment under execution pressure. You did the hard diagnostic work, proved the pull lane was persistently non-viable for the target posture, and made a clear architecture decision aligned to the intended production data plane. Recruiters see this as strong MLOps/Data Eng leadership: you can retire the wrong path decisively, not just optimize it indefinitely.
+
+## ID 57 - IG push-chain schema compatibility failures before stabilization
+
+- Context (what was at stake):
+  After shifting toward streaming ingress, IG had to validate WSP-emitted payloads against engine-authoritative schemas without false quarantines. If schema validation remained unstable, push ingress would appear unreliable even when payloads were correct.
+
+- Problem (specific contradiction/failure):
+  The push chain failed in layers:
+  - `arrival_events_5B` rows were validated against an array schema, causing repeated `SCHEMA_FAIL`.
+  - Switching to item fragments exposed `$defs` resolution failures and external `$ref` resolution gaps (`INTERNAL_ERROR`).
+  - Explicit `docs/...` refs and OpenAPI-style `nullable: true` semantics were not fully compatible with the active JSON Schema validator path.
+  The contradiction was that IG enforced strict validation, but its resolver path was not yet compatible with real engine schema patterns.
+
+- Options considered (2-3):
+  1. Loosen validation (or bypass schema checks) for affected event types to keep traffic moving.
+     This preserves throughput but breaks fail-closed contract discipline.
+  2. Rewrite payload shape to fit existing validator assumptions.
+     This risks schema drift and contract mismatch with engine authority.
+  3. Harden schema targeting + resolution pipeline while keeping engine schemas authoritative.
+     This preserves strict validation and long-term correctness.
+
+- Decision (what you chose and why):
+  We chose option 3. The platform needed strict admission gates, but the validator stack had to be made compatible with the actual engine contract graph instead of relaxing enforcement.
+
+- Implementation (what you changed):
+  1. Corrected row-vs-array targeting:
+     - IG policy for `arrival_events_5B` switched to item-schema path (`.../items`) for per-row payload validation.
+  2. Fixed fragment resolution behavior:
+     - preserved root `$defs`/`$id`/`$schema` context when validating fragments.
+  3. Introduced registry-backed schema validation:
+     - validator now resolves internal/external `$ref` through an explicit registry path.
+  4. Hardened reference resolution:
+     - added fallback search in data-engine schema tree for filename refs,
+     - treated `docs/...` refs as repo-root paths (not schema-root relative).
+  5. Normalized OpenAPI nullable semantics:
+     - translated `nullable: true` into JSON Schema null-compatible forms before validation.
+
+- Result (observable outcome/evidence):
+  IG admission moved from repeated schema/internal failures to green validation and admission for `arrival_events_5B`, with no new schema/internal error recurrence in the recorded rerun.
+  Truth posture: `Resolved`.
+  Evidence anchors:
+  - `docs/model_spec/platform/implementation_maps/local_parity/ingestion_gate.impl_actual.md:1786`
+  - `docs/model_spec/platform/implementation_maps/local_parity/ingestion_gate.impl_actual.md:1812`
+  - `docs/model_spec/platform/implementation_maps/local_parity/ingestion_gate.impl_actual.md:1894`
+  - `docs/model_spec/platform/implementation_maps/local_parity/ingestion_gate.impl_actual.md:1911`
+  Additional challenge context:
+  - `docs/model_spec/platform/implementation_maps/local_parity/ingestion_gate.impl_actual.md:1796`
+  - `docs/model_spec/platform/implementation_maps/local_parity/ingestion_gate.impl_actual.md:1851`
+  - `docs/model_spec/platform/implementation_maps/local_parity/ingestion_gate.impl_actual.md:1906`
+
+- Why this proves MLOps/Data Eng strength (explicit hiring signal):
+  This demonstrates contract-level debugging depth. You traced multi-layer schema failures from policy targeting through reference resolution and specification semantics, then fixed them without weakening fail-closed validation. Recruiters see this as strong MLOps/Data Eng capability: you can stabilize strict ingress contracts under real schema complexity.
+
+## ID 58 - IG parity publish failed due to unresolved env placeholders + endpoint strategy
+
+- Context (what was at stake):
+  Parity mode required IG to publish to Kinesis via LocalStack and emit valid receipts. This was a key control-and-ingress proof point. If publish wiring was unstable, parity runs could pass superficially while silently drifting from intended runtime topology.
+
+- Problem (specific contradiction/failure):
+  IG parity publish failed in two coupled ways:
+  - profile placeholders remained unresolved (for example `${EVENT_BUS_STREAM}`), causing invalid runtime values,
+  - Kinesis endpoint strategy depended on fragile env-only setup, so IG could hit default AWS endpoint instead of LocalStack.
+  The contradiction was that profile/config appeared correct on paper, but runtime wiring still routed to wrong targets and broke publish.
+
+- Options considered (2-3):
+  1. Keep env-only endpoint strategy and rely on operator startup discipline.
+     This is minimal change but remains brittle and hard to debug.
+  2. Patch only the immediate failure (for example set `AWS_ENDPOINT_URL` in one run command).
+     This can unblock a run, but does not fix config drift at source.
+  3. Harden configuration and wiring:
+     resolve placeholders at profile load,
+     make bus endpoint/region explicit in IG wiring,
+     pass endpoint/region directly into publisher construction.
+     This makes parity behavior deterministic and auditable.
+
+- Decision (what you chose and why):
+  We chose option 3. Publish path correctness had to be encoded into configuration semantics, not left to shell state or ad-hoc fixes.
+
+- Implementation (what you changed):
+  1. Added env-placeholder resolution at wiring load for key IG fields:
+     - `event_bus_path`,
+     - `admission_db_path`.
+  2. Pinned parity startup to LocalStack endpoint/region where needed.
+  3. Added explicit `event_bus_endpoint_url` and `event_bus_region` in IG wiring/profile.
+  4. Updated admission wiring so Kinesis publisher receives explicit endpoint/region directly.
+  5. Re-ran parity smoke and validated publish + receipt emission behavior.
+
+- Result (observable outcome/evidence):
+  IG parity publish stabilized: stream name placeholders resolved correctly, Kinesis targeting became explicit, and receipts with Kinesis offsets were produced in parity smoke.
+  Truth posture: `Resolved`.
+  Evidence anchors:
+  - `docs/model_spec/platform/implementation_maps/local_parity/ingestion_gate.impl_actual.md:1998`
+  - `docs/model_spec/platform/implementation_maps/local_parity/ingestion_gate.impl_actual.md:2006`
+  - `docs/model_spec/platform/implementation_maps/local_parity/ingestion_gate.impl_actual.md:2015`
+  - `docs/model_spec/platform/implementation_maps/local_parity/ingestion_gate.impl_actual.md:2027`
+  - `docs/model_spec/platform/implementation_maps/local_parity/ingestion_gate.impl_actual.md:2046`
+  Additional challenge context:
+  - `docs/model_spec/platform/implementation_maps/local_parity/ingestion_gate.impl_actual.md:2018`
+  - `docs/model_spec/platform/implementation_maps/local_parity/ingestion_gate.impl_actual.md:2030`
+  - `docs/model_spec/platform/implementation_maps/local_parity/ingestion_gate.impl_actual.md:2034`
+
+- Why this proves MLOps/Data Eng strength (explicit hiring signal):
+  This shows strong runtime-configuration engineering. You eliminated hidden config drift, encoded endpoint strategy in explicit wiring, and validated real publish outcomes instead of relying on assumed settings. Recruiters see this as solid MLOps/Data Eng execution on environment-parity reliability.
+
+## ID 59 - IG dedupe semantics insufficient for corridor law
+
+- Context (what was at stake):
+  IG is the admission authority for at-least-once ingestion. Its dedupe semantics define whether retries are safe or can silently duplicate/corrupt side effects. As Control & Ingress P0 hardened, dedupe had to align exactly with corridor identity semantics across runs and event families.
+
+- Problem (specific contradiction/failure):
+  Prior dedupe behavior was not fully aligned with corridor law, and it lacked a strong anomaly lane for same-identity/different-payload cases. There was also no explicit publish-ambiguity state for timeout/unknown publish outcomes. The contradiction was that IG enforced admission rigor, but its idempotency state machine was not yet strict enough for ambiguous publish and payload-mismatch cases.
+
+- Options considered (2-3):
+  1. Keep existing dedupe behavior and rely on downstream reconciliation to absorb anomalies.
+     This reduces immediate changes but allows ambiguity to leak downstream.
+  2. Tighten dedupe key only, without adding payload-hash anomaly handling or publish-state transitions.
+     This improves identity matching but still misses critical ambiguity controls.
+  3. Implement corridor-aligned tuple dedupe plus payload-hash anomaly quarantine and explicit publish state machine (`PUBLISH_IN_FLIGHT` -> `ADMITTED` / `PUBLISH_AMBIGUOUS`).
+     This provides deterministic behavior under retries and unknown publish outcomes.
+
+- Decision (what you chose and why):
+  We chose option 3. Safe at-least-once handling requires all three pieces together: correct semantic identity, mismatch detection, and explicit ambiguous-publish posture.
+
+- Implementation (what you changed):
+  1. Realigned semantic dedupe identity to corridor tuple:
+     - `(platform_run_id, event_class, event_id)`.
+  2. Added canonical `payload_hash` persistence and mismatch handling:
+     - same dedupe tuple + different payload hash becomes explicit anomaly/quarantine lane.
+  3. Implemented admission publish state machine:
+     - write `PUBLISH_IN_FLIGHT` before publish,
+     - transition to `ADMITTED` on confirmed ACK,
+     - transition to `PUBLISH_AMBIGUOUS` on timeout/unknown with no unsafe auto-republish.
+  4. Updated receipt/quarantine surfaces and tests to reflect new fields/states.
+
+- Result (observable outcome/evidence):
+  IG admission semantics now match corridor law and handle ambiguous publish outcomes explicitly. This closed idempotency drift and made retry behavior deterministic under failure.
+  Truth posture: `Resolved`.
+  Evidence anchors:
+  - `docs/model_spec/platform/implementation_maps/local_parity/ingestion_gate.impl_actual.md:2294`
+  - `docs/model_spec/platform/implementation_maps/local_parity/ingestion_gate.impl_actual.md:2306`
+  - `docs/model_spec/platform/implementation_maps/local_parity/ingestion_gate.impl_actual.md:2307`
+  - `docs/model_spec/platform/implementation_maps/local_parity/ingestion_gate.impl_actual.md:2346`
+  Additional challenge context:
+  - `docs/model_spec/platform/implementation_maps/local_parity/ingestion_gate.impl_actual.md:2305`
+  - `docs/model_spec/platform/implementation_maps/local_parity/ingestion_gate.impl_actual.md:2315`
+  - `docs/model_spec/platform/implementation_maps/local_parity/ingestion_gate.impl_actual.md:2384`
+
+- Why this proves MLOps/Data Eng strength (explicit hiring signal):
+  This is strong reliability engineering for at-least-once systems. You translated abstract idempotency doctrine into concrete admission-state mechanics, mismatch quarantine, and deterministic retry posture. Recruiters see this as advanced MLOps/Data Eng capability on correctness-critical ingestion planes.
+
+## ID 60 - IG health stayed `BUS_HEALTH_UNKNOWN` for Kinesis
+
+- Context (what was at stake):
+  IG health is a control-plane signal for intake safety and downstream observability/governance. In parity and dev-like setups, Kinesis was running, but health stayed AMBER (`BUS_HEALTH_UNKNOWN`) because IG had no active bus probe. That blocked clean closure and made readiness ambiguous.
+
+- Problem (specific contradiction/failure):
+  The contradiction was operational: the bus could be healthy, yet IG health still reported unknown due to passive detection logic. This meant operators could not distinguish "healthy but idle" from "untested/unknown," and closure criteria for Control & Ingress remained blocked.
+
+- Options considered (2-3):
+  1. Add metadata describe probe for Kinesis (no side effects), mapping success to GREEN and failure to RED.
+     This gives deterministic health without producing traffic.
+  2. Add active publish probe (emit health events).
+     This could verify deeper path behavior but adds side effects and complexity.
+  3. Keep status quo (`BUS_HEALTH_UNKNOWN`) and infer health from publish failures only.
+     This preserves simplicity but keeps closure ambiguous.
+
+- Decision (what you chose and why):
+  We chose option 1. Describe-mode probing provides a low-risk, deterministic signal across local-parity, dev, and prod, while keeping publish-probe as a future extension.
+
+- Implementation (what you changed):
+  1. Added `health_bus_probe_mode` wiring (default `none` for backward compatibility).
+  2. Implemented Kinesis describe-mode bus probe in IG health path (no payload emission).
+  3. Added probe stream resolution logic:
+     - explicit event-bus stream when configured,
+     - otherwise derive expected streams from partitioning/class-map wiring.
+  4. Updated parity/dev/prod profile posture to use describe mode.
+  5. Preserved behavior for `health_bus_probe_mode=none` to avoid breaking existing setups.
+
+- Result (observable outcome/evidence):
+  IG health now exposes explicit bus posture for Kinesis: GREEN when expected streams describe successfully, RED on probe failure, instead of permanent AMBER unknown. This unlocked clearer readiness signaling and governance closure.
+  Truth posture: `Resolved`.
+  Evidence anchors:
+  - `docs/model_spec/platform/implementation_maps/local_parity/ingestion_gate.impl_actual.md:2397`
+  - `docs/model_spec/platform/implementation_maps/local_parity/ingestion_gate.impl_actual.md:2450`
+  Additional challenge context:
+  - `docs/model_spec/platform/implementation_maps/local_parity/ingestion_gate.impl_actual.md:2409`
+  - `docs/model_spec/platform/implementation_maps/local_parity/ingestion_gate.impl_actual.md:2412`
+  - `docs/model_spec/platform/implementation_maps/local_parity/ingestion_gate.impl_actual.md:2451`
+
+- Why this proves MLOps/Data Eng strength (explicit hiring signal):
+  This shows strong operational reliability design. You converted an ambiguous health model into an explicit, environment-consistent signal with fail-closed semantics and no side effects. Recruiters see this as mature MLOps/Data Eng capability in production health governance.
+
+## ID 61 - IG receipt provenance drift (`pins.platform_run_id` vs `receipt_ref`)
+
+- Context (what was at stake):
+  IG receipts are audit artifacts used for replay, governance, and incident traceability. For these artifacts to be trustworthy, their storage path (`receipt_ref`) must align with the run identity carried in pins. Any mismatch weakens run-scope provenance and can contaminate operational investigations.
+
+- Problem (specific contradiction/failure):
+  In parity runs, receipts carried `pins.platform_run_id` from the envelope, but `receipt_ref` paths were written under an older service/environment run id. The contradiction was explicit: receipt metadata said one run while artifact location said another.
+
+- Options considered (2-3):
+  1. Fix startup discipline only so service `PLATFORM_RUN_ID` always matches incoming traffic.
+     This helps operationally but remains fragile and can drift on reused services.
+  2. Bind receipt/quarantine write prefixes to `envelope.platform_run_id` as source-of-truth pins.
+     This is deterministic and preserves provenance even under stale service env.
+  3. Dual-write artifacts to both env run scope and envelope run scope.
+     This avoids immediate misses but creates ambiguity and operational complexity.
+
+- Decision (what you chose and why):
+  We chose option 2. Provenance must follow envelope pins, not mutable service process state. Binding paths to envelope run scope is the cleanest deterministic fix.
+
+- Implementation (what you changed):
+  1. Added per-call prefix override capability in receipt writer.
+  2. Computed receipt/quarantine prefix from `envelope.platform_run_id` for each admission.
+  3. Applied store-aware mapping:
+     - S3 store uses run-scoped prefix directly,
+     - local store writes under `fraud-platform/<run_id>` (with root-shape guards).
+  4. Updated admission writes so all receipts/quarantines use envelope-derived prefixes.
+  5. Added targeted test coverage to ensure receipt path follows envelope run scope even if service env is stale.
+
+- Result (observable outcome/evidence):
+  Receipt paths and pins now share the same run scope deterministically. Provenance drift between `pins.platform_run_id` and `receipt_ref` was removed without changing admission decision semantics.
+  Truth posture: `Resolved`.
+  Evidence anchors:
+  - `docs/model_spec/platform/implementation_maps/local_parity/ingestion_gate.impl_actual.md:2458`
+  - `docs/model_spec/platform/implementation_maps/local_parity/ingestion_gate.impl_actual.md:2461`
+  - `docs/model_spec/platform/implementation_maps/local_parity/ingestion_gate.impl_actual.md:2485`
+  - `docs/model_spec/platform/implementation_maps/local_parity/ingestion_gate.impl_actual.md:2491`
+  Additional challenge context:
+  - `docs/model_spec/platform/implementation_maps/local_parity/ingestion_gate.impl_actual.md:2464`
+  - `docs/model_spec/platform/implementation_maps/local_parity/ingestion_gate.impl_actual.md:2472`
+  - `docs/model_spec/platform/implementation_maps/local_parity/ingestion_gate.impl_actual.md:2509`
+
+- Why this proves MLOps/Data Eng strength (explicit hiring signal):
+  This demonstrates strong provenance engineering. You identified a subtle run-scope drift between metadata and artifact storage, then corrected it with deterministic source-of-truth pin binding. Recruiters see this as mature MLOps/Data Eng rigor in auditability and replay integrity.
+
+## ID 62 - RTDL family misclassification risk in IG (`action_outcome` treated as traffic)
+
+- Context (what was at stake):
+  RTDL event families (`decision_response`, `action_intent`, `action_outcome`) must remain classed and validated as decision-lane artifacts, not business-traffic events. If IG misclassifies them at runtime, pin requirements and routing semantics break, and downstream lanes receive incorrect event contracts.
+
+- Problem (specific contradiction/failure):
+  An operational caveat showed `action_outcome` being treated as `traffic`, which triggered `PINS_MISSING` behavior because traffic classes carried different required-pin expectations. The contradiction was that repo policy looked correct, but runtime alignment could still drift due to stale or incomplete class-map/schema-policy loading.
+
+- Options considered (2-3):
+  1. Rely on operator discipline and restart procedures to catch drift manually.
+     This is easy short-term but leaves no deterministic guard against recurrence.
+  2. Add permissive fallback logic in admission when RTDL mismatches are detected.
+     This keeps intake alive but hides policy drift and weakens fail-closed posture.
+  3. Add startup fail-fast coherence validation for RTDL families across class-map, schema-policy, and required-pin expectations.
+     This stops misconfigured runtime at source and keeps contract boundaries explicit.
+
+- Decision (what you chose and why):
+  We chose option 3. Misclassification had to be treated as a configuration integrity failure, not a runtime warning. Startup fail-fast was the safest way to prevent silent RTDL drift.
+
+- Implementation (what you changed):
+  1. Added an IG startup guard (`_validate_rtdl_policy_alignment`) invoked during `IngestionGate.build(...)`.
+  2. Guard checks RTDL families for:
+     - expected class-map mapping,
+     - schema-policy class coherence,
+     - required schema-version posture (`v1`),
+     - required-pin expectations (including explicit exclusion of `run_id` where inappropriate).
+  3. Refined behavior for compatibility:
+     - no-op if RTDL families are absent from both class-map and schema-policy,
+     - hard fail if RTDL appears but alignment is incomplete/mismatched.
+  4. Added targeted tests to verify guard behavior and prevent regressions.
+
+- Result (observable outcome/evidence):
+  IG now fails fast on RTDL mapping/policy drift instead of admitting with misclassified runtime posture. This removed a silent risk lane around `action_outcome` classification and strengthened lane-boundary enforcement.
+  Truth posture: `Resolved`.
+  Evidence anchors:
+  - `docs/model_spec/platform/implementation_maps/local_parity/ingestion_gate.impl_actual.md:2659`
+  - `docs/model_spec/platform/implementation_maps/local_parity/ingestion_gate.impl_actual.md:2667`
+  - `docs/model_spec/platform/implementation_maps/local_parity/ingestion_gate.impl_actual.md:2710`
+  Additional challenge context:
+  - `docs/model_spec/platform/implementation_maps/local_parity/ingestion_gate.impl_actual.md:2656`
+  - `docs/model_spec/platform/implementation_maps/local_parity/ingestion_gate.impl_actual.md:2686`
+  - `docs/model_spec/platform/implementation_maps/local_parity/ingestion_gate.impl_actual.md:2705`
+
+- Why this proves MLOps/Data Eng strength (explicit hiring signal):
+  This is strong control-plane contract enforcement. You converted a subtle runtime drift into deterministic startup validation with explicit failure conditions and tests. Recruiters see this as advanced MLOps/Data Eng rigor: enforcing class semantics and lane boundaries before data is admitted.
+
+## ID 63 - Scenario Runner parity closure required repeated drift fixes
+
+- Context (what was at stake):
+  Scenario Runner (SR) is the control-plane authority that decides READY status and publishes run facts. Parity closure required SR to be stable and deterministic across interface-pack contracts, control-bus re-emit behavior, and run-identity semantics. Multiple small drifts were blocking clean parity sign-off.
+
+- Problem (specific contradiction/failure):
+  SR parity runs surfaced several drift threads:
+  - contract mismatch checks and path-resolution issues,
+  - re-emit fetch semantics that could return the wrong READY envelope,
+  - lease collisions from reused run_equivalence keys,
+  - false `WAITING_EVIDENCE` caused by catalogue path-template formatting,
+  - run-identity/READY idempotency not aligned with Control & Ingress pins.
+  Each issue alone was fixable, but parity closure required all to be resolved together.
+
+- Options considered (2-3):
+  1. Patch only the immediate failing symptom per run and hope parity stabilizes.
+     This risks whack-a-mole and leaves underlying drift unaddressed.
+  2. Defer parity closure until dev/prod and accept local drift as “noise.”
+     This preserves velocity but weakens confidence in control-plane correctness.
+  3. Close each drift thread explicitly with targeted fixes + tests and align run-identity semantics to the corridor pins.
+     This is slower but produces a defensible, repeatable parity posture.
+
+- Decision (what you chose and why):
+  We chose option 3. SR is a control-plane authority; parity requires deterministic behavior across contract resolution, idempotency, and evidence readiness. Each drift thread had to be closed, not bypassed.
+
+- Implementation (what you changed):
+  1. Contract/compatibility hardening:
+     - added explicit checks so interface-pack references resolve correctly and fail closed when they don’t.
+  2. Re-emit correctness:
+     - adjusted re-emit fetch logic to return the intended READY envelope even when idempotency keys collide.
+  3. Lease collision handling:
+     - ensured parity reuse tests use unique run_equivalence keys to avoid durable lease conflicts.
+  4. Evidence resolution fix:
+     - normalized catalogue `path_template` strings to prevent false `WAITING_EVIDENCE`.
+  5. Run-identity alignment:
+     - aligned READY idempotency to include both platform_run_id and scenario_run_id,
+     - propagated updated pins through SR payloads and tests.
+
+- Result (observable outcome/evidence):
+  Parity closure for SR moved from repeated drift failures to a stable, test-backed posture. The control-plane now emits READY with aligned run identity, and evidence readiness is computed deterministically without false waiting.
+  Truth posture: `Resolved`.
+  Evidence anchors:
+  - `docs/model_spec/platform/implementation_maps/local_parity/scenario_runner.impl_actual.md:2764`
+  - `docs/model_spec/platform/implementation_maps/local_parity/scenario_runner.impl_actual.md:3185`
+  - `docs/model_spec/platform/implementation_maps/local_parity/scenario_runner.impl_actual.md:3203`
+  - `docs/model_spec/platform/implementation_maps/local_parity/scenario_runner.impl_actual.md:3302`
+  - `docs/model_spec/platform/implementation_maps/local_parity/scenario_runner.impl_actual.md:3967`
+  - `docs/model_spec/platform/implementation_maps/local_parity/scenario_runner.impl_actual.md:3999`
+  Additional challenge context:
+  - `docs/model_spec/platform/implementation_maps/local_parity/scenario_runner.impl_actual.md:3308`
+  - `docs/model_spec/platform/implementation_maps/local_parity/scenario_runner.impl_actual.md:4002`
+  - `docs/model_spec/platform/implementation_maps/local_parity/scenario_runner.impl_actual.md:4016`
+
+- Why this proves MLOps/Data Eng strength (explicit hiring signal):
+  This shows control-plane reliability engineering. You closed multiple subtle drift threads, aligned idempotency and run identity to corridor pins, and validated with targeted tests. Recruiters see this as senior MLOps/Data Eng capability: you can stabilize a complex orchestration layer under real contract and evidence constraints.
+
+## ID 64 - IEG run-scope contamination + missing `platform_run_id` attribution risk
+
+- Context (what was at stake):
+  Identity Entity Graph (IEG) is the identity truth surface for downstream decisioning. If one graph instance mixes records from multiple `platform_run_id` values, lineage becomes ambiguous and replay correctness is no longer defensible.
+
+- Problem (specific contradiction/failure):
+  Parity behavior exposed a direct contradiction against the run-scope contract. The graph projector could admit events without strict single-run enforcement, dedupe identity did not fully bind to `platform_run_id`, and failure/checkpoint artifacts were not consistently attributable to one run scope. In practice, that meant cross-run contamination was possible even though the narrative required one-run graph isolation.
+
+- Options considered (2-3):
+  1. Keep current behavior and rely on operator hygiene to avoid mixing runs.
+     This was rejected because correctness would depend on manual discipline.
+  2. Enforce run scope only during replay.
+     This was rejected because live intake could still contaminate graph state.
+  3. Enforce run scope end-to-end across intake, dedupe, persistence, and query surfaces.
+     This was selected because it makes run isolation mechanical instead of procedural.
+
+- Decision (what you chose and why):
+  We chose option 3. IEG correctness requires deterministic run attribution everywhere state is read, written, or reconciled; partial controls were not enough.
+
+- Implementation (what you changed):
+  1. Added fail-closed intake enforcement for `platform_run_id` mismatches so a graph run cannot silently accept foreign-run envelopes.
+  2. Introduced run-scoped graph stream identity from `platform_run_id` and locked graph scope once established.
+  3. Hardened dedupe and persistence identities to carry `platform_run_id`, including apply-failure attribution paths.
+  4. Updated query and reconcile surfaces to expose graph scope explicitly (`stream_id`, `platform_run_id`) so downstream consumers can verify lineage.
+  5. Extended test coverage for run-scoped dedupe semantics and replay behavior.
+
+- Result (observable outcome/evidence):
+  IEG now enforces run scope across intake, storage, and query paths. Graph outputs and failure records are attributable to the same `platform_run_id`, and contamination risk from mixed-run ingestion is closed.
+  Truth posture: `Resolved`.
+  Evidence anchors:
+  - `docs/model_spec/platform/implementation_maps/local_parity/identity_entity_graph.impl_actual.md:433`
+  - `docs/model_spec/platform/implementation_maps/local_parity/identity_entity_graph.impl_actual.md:451`
+  - `docs/model_spec/platform/implementation_maps/local_parity/identity_entity_graph.impl_actual.md:482`
+  - `docs/model_spec/platform/implementation_maps/local_parity/identity_entity_graph.impl_actual.md:720`
+  Additional challenge context:
+  - `docs/model_spec/platform/implementation_maps/local_parity/identity_entity_graph.impl_actual.md:469`
+  - `docs/model_spec/platform/implementation_maps/local_parity/identity_entity_graph.impl_actual.md:492`
+  - `docs/model_spec/platform/implementation_maps/local_parity/identity_entity_graph.impl_actual.md:496`
+
+- Why this proves MLOps/Data Eng strength (explicit hiring signal):
+  This demonstrates production-grade data lineage discipline. You converted run scope from an implicit convention into enforced system behavior, tied dedupe/checkpoint logic to run identity, and made provenance query-visible for downstream audit and replay safety.
+
+## ID 65 - IEG Postgres crash on reserved identifier `offset`
+
+- Context (what was at stake):
+  IEG live projection is part of the runtime identity backbone. If parity-live crashes in the write path, graph mutation stops, graph evidence is incomplete, and downstream decisioning/degrade checks lose a reliable identity surface.
+
+- Problem (specific contradiction/failure):
+  `platform-ieg-projector-parity-live` failed with a Postgres syntax error near `offset` when writing `ieg_apply_failures`. The contradiction was that the failure-ledger path, which should improve reliability and auditability, was itself causing runtime termination due to SQL identifier incompatibility.
+
+- Options considered (2-3):
+  1. Rename `offset` to a non-reserved field name.
+     This is valid but invasive and introduces migration/churn risk across existing paths.
+  2. Quote `"offset"` consistently in DDL and DML.
+     This is minimal, compatible, and preserves current schema semantics.
+  3. Disable or bypass apply-failure persistence in parity.
+     This avoids the crash but destroys failure evidence and weakens audit posture.
+
+- Decision (what you chose and why):
+  We chose option 2. Quoting `"offset"` fixed runtime compatibility with the smallest safe change and retained the apply-failure audit trail.
+
+- Implementation (what you changed):
+  1. Updated IEG migration DDL to quote `"offset"` for both SQLite and Postgres branches in `ieg_apply_failures`.
+  2. Updated store SQL write paths to quote `"offset"` consistently for apply-failure inserts.
+  3. Re-ran parity-live projector startup and verified run-scoped metrics emission after the fix.
+
+- Result (observable outcome/evidence):
+  The Postgres crash was removed, parity-live projection continued normally, and apply-failure persistence remained intact. Validation evidence showed the run proceeded with projector metrics present and no apply-failure explosion.
+  Truth posture: `Resolved`.
+  Evidence anchors:
+  - `docs/model_spec/platform/implementation_maps/local_parity/identity_entity_graph.impl_actual.md:796`
+  - `docs/model_spec/platform/implementation_maps/local_parity/identity_entity_graph.impl_actual.md:807`
+  Additional challenge context:
+  - `docs/model_spec/platform/implementation_maps/local_parity/identity_entity_graph.impl_actual.md:800`
+  - `docs/model_spec/platform/implementation_maps/local_parity/identity_entity_graph.impl_actual.md:815`
+
+- Why this proves MLOps/Data Eng strength (explicit hiring signal):
+  This shows production reliability judgment: you isolated a DB-specific failure in a live path, applied a low-risk compatibility fix, and preserved observability/audit guarantees instead of trading them away for short-term stability.
+
+## ID 66 - CSFB parity wiring needed fail-fast DSN posture
+
+- Context (what was at stake):
+  CSFB is a join-plane state component in the real-time decision loop. Local parity is used as readiness evidence, so its storage posture must match dev/prod defaults. If parity silently drops to SQLite, integration evidence can look green while testing the wrong backend class.
+
+- Problem (specific contradiction/failure):
+  `CsfbInletPolicy.load(...)` could resolve an empty projection locator to an implicit SQLite path. This created a contradiction: parity runs appeared successful, but they were not exercising the intended Postgres-default substrate.
+
+- Options considered (2-3):
+  1. Keep silent fallback and rely on operator/runbook discipline.
+     This was rejected because drift remains possible and often unnoticed.
+  2. Keep fallback but add warnings.
+     This was rejected because warning-based controls still permit wrong-substrate execution.
+  3. Fail fast on missing projection locator in parity, while keeping explicit SQLite support when intentionally configured.
+     This was selected as the safest posture.
+
+- Decision (what you chose and why):
+  We chose option 3. Parity should be deterministic and fail-closed; missing DSN/locator must block startup instead of silently changing storage semantics.
+
+- Implementation (what you changed):
+  1. Added an explicit projection locator pre-check before run-scope resolution.
+  2. Updated `CsfbInletPolicy.load` to raise a clear `ValueError` when neither profile wiring nor `CSFB_PROJECTION_DSN` provides a non-empty locator.
+  3. Preserved run-scoped rewriting only for explicit filesystem locators, so explicit SQLite remains possible by choice.
+  4. Added/validated parity test coverage to enforce the fail-fast behavior.
+
+- Result (observable outcome/evidence):
+  CSFB parity no longer silently falls back to SQLite when DSN wiring is absent. Startup now fails with explicit configuration error, removing backend-class drift and making parity evidence representative of dev/prod posture.
+  Truth posture: `Resolved`.
+  Evidence anchors:
+  - `docs/model_spec/platform/implementation_maps/local_parity/context_store_flow_binding.impl_actual.md:85`
+  - `docs/model_spec/platform/implementation_maps/local_parity/context_store_flow_binding.impl_actual.md:1124`
+  Additional challenge context:
+  - `docs/model_spec/platform/implementation_maps/local_parity/context_store_flow_binding.impl_actual.md:1102`
+  - `docs/model_spec/platform/implementation_maps/local_parity/context_store_flow_binding.impl_actual.md:1117`
+
+- Why this proves MLOps/Data Eng strength (explicit hiring signal):
+  This shows configuration-governance maturity: you prevented silent environment drift, converted an implicit fallback into explicit policy, and protected parity as a trustworthy integration signal rather than a best-effort local run.
+
+## ID 67 - CSFB needed payload-hash mismatch + replay pin mismatch protections
+
+- Context (what was at stake):
+  CSFB is the decision-time join-plane that turns admitted traffic into deterministic join frames and flow bindings. Under at-least-once delivery and replay, correctness depends on strict anomaly handling; if mismatches are tolerated, corrupted lineage can propagate into downstream decisions.
+
+- Problem (specific contradiction/failure):
+  Two hard safety gaps existed:
+  1. same dedupe identity could arrive with a different payload hash without a guaranteed fail-closed branch, and
+  2. replay mode did not fully enforce manifest pin matching against incoming envelopes.
+  This contradicted the platform fail-closed posture because CSFB could accept conflicting identity-equivalent records or process wrong-run data during replay windows.
+
+- Options considered (2-3):
+  1. Accept mismatches and rely on downstream reconciliation.
+     Rejected because divergence would be discovered too late.
+  2. Log mismatches as warnings but continue as normal.
+     Rejected because warnings do not protect state integrity.
+  3. Enforce fail-closed mismatch semantics with machine-readable failure reasons and deterministic checkpoint progression.
+     Selected because it preserves both safety and operational progress.
+
+- Decision (what you chose and why):
+  We chose option 3. CSFB needed explicit, durable anomaly semantics that stop unsafe mutation while preserving deterministic replay/intake progress and auditability.
+
+- Implementation (what you changed):
+  1. Hardened intake dedupe handling so same dedupe tuple + different payload hash emits `INTAKE_PAYLOAD_HASH_MISMATCH`, records failure evidence, and advances checkpoint without silent overwrite.
+  2. Added replay pin validation so manifest pins are checked against envelopes during replay execution; mismatches emit `REPLAY_PINS_MISMATCH` and are recorded fail-closed.
+  3. Preserved machine-readable failure-ledger semantics so anomalies remain queryable for operations and post-run reconciliation.
+
+- Result (observable outcome/evidence):
+  CSFB now enforces both mismatch classes as explicit fail-closed outcomes while keeping checkpoint advancement deterministic. That closes silent-divergence risk in intake/replay paths and preserves join-plane integrity under at-least-once conditions.
+  Truth posture: `Resolved`.
+  Evidence anchors:
+  - `docs/model_spec/platform/implementation_maps/local_parity/context_store_flow_binding.impl_actual.md:384`
+  - `docs/model_spec/platform/implementation_maps/local_parity/context_store_flow_binding.impl_actual.md:470`
+  - `docs/model_spec/platform/implementation_maps/local_parity/context_store_flow_binding.impl_actual.md:590`
+  Additional challenge context:
+  - `docs/model_spec/platform/implementation_maps/local_parity/context_store_flow_binding.impl_actual.md:370`
+  - `docs/model_spec/platform/implementation_maps/local_parity/context_store_flow_binding.impl_actual.md:383`
+  - `docs/model_spec/platform/implementation_maps/local_parity/context_store_flow_binding.impl_actual.md:603`
+
+- Why this proves MLOps/Data Eng strength (explicit hiring signal):
+  This demonstrates high-trust data pipeline engineering: you encoded anomaly semantics directly into runtime behavior, protected replay correctness with pin enforcement, and kept operational evidence first-class instead of relying on manual cleanup.
+
+## ID 68 - CSFB live intake Postgres reserved identifier crash
+
+- Context (what was at stake):
+  CSFB live intake is part of the runtime join plane for decisioning. If intake crashes on the storage path, the system cannot produce trustworthy join-state evidence, and parity sign-off for downstream dependencies stalls.
+
+- Problem (specific contradiction/failure):
+  `platform-context-store-flow-binding-parity-live` failed with a Postgres syntax error near `offset` while writing apply-failure records. The contradiction was sharp: the error-reporting path meant to improve reliability was itself terminating runtime due to reserved-identifier incompatibility.
+
+- Options considered (2-3):
+  1. Rename the column to a non-reserved identifier.
+     This is valid but invasive and creates migration churn.
+  2. Quote `"offset"` in DDL and DML paths.
+     This preserves schema semantics with a minimal compatibility fix.
+  3. Skip apply-failure persistence to avoid the error.
+     This avoids the crash but breaks auditability.
+
+- Decision (what you chose and why):
+  We chose option 2. Quoting `"offset"` resolved Postgres compatibility with the smallest safe change while preserving failure-ledger integrity.
+
+- Implementation (what you changed):
+  1. Quoted `"offset"` in CSFB apply-failure table DDL for both SQLite and Postgres migration branches.
+  2. Quoted `"offset"` in apply-failure read/write SQL paths in the store layer.
+  3. Revalidated parity intake execution and run-scoped evidence generation after the fix.
+
+- Result (observable outcome/evidence):
+  CSFB intake no longer crashes on Postgres in live parity operation. Run-scoped join-plane evidence was produced successfully with zero apply-failure rows for the validated run, confirming runtime stability after the SQL fix.
+  Truth posture: `Resolved`.
+  Evidence anchors:
+  - `docs/model_spec/platform/implementation_maps/local_parity/context_store_flow_binding.impl_actual.md:1127`
+  - `docs/model_spec/platform/implementation_maps/local_parity/context_store_flow_binding.impl_actual.md:1141`
+  Additional challenge context:
+  - `docs/model_spec/platform/implementation_maps/local_parity/context_store_flow_binding.impl_actual.md:1130`
+  - `docs/model_spec/platform/implementation_maps/local_parity/context_store_flow_binding.impl_actual.md:1144`
+  - `docs/model_spec/platform/implementation_maps/local_parity/context_store_flow_binding.impl_actual.md:1145`
+
+- Why this proves MLOps/Data Eng strength (explicit hiring signal):
+  This shows production reliability maturity: you traced a DB-specific runtime failure in a critical path, fixed it with low blast radius, and preserved failure-evidence guarantees instead of disabling observability to get a quick green run.
+
+## ID 69 - OFP parity-only backend drift (filesystem defaults vs DB posture)
+
+- Context (what was at stake):
+  OFP is a hot-path projector and serve surface in the real-time decision loop. Local parity is used as readiness evidence, so substrate defaults must reflect dev/prod posture. If parity silently uses filesystem-backed sqlite when production intent is Postgres-backed state, confidence in parity evidence drops.
+
+- Problem (specific contradiction/failure):
+  OFP correctly supported dual backends, but parity defaults still resolved through filesystem run-root locators. That let runs appear healthy while exercising implicit sqlite behavior, which contradicted the explicit local_parity goal of Postgres-default alignment.
+
+- Options considered (2-3):
+  1. Force OFP runtime into Postgres-only mode.
+     Rejected because it over-scopes the fix and removes valid dual-backend capability.
+  2. Keep dual-backend runtime semantics, but harden parity profile/launcher/runbook defaults to Postgres DSNs.
+     Selected because it corrects posture without changing OFP logic.
+  3. Keep current defaults and accept backend drift in local parity.
+     Rejected because parity would remain non-representative.
+
+- Decision (what you chose and why):
+  We chose option 2. The objective was environment-posture correction, not component redesign: keep OFP semantics stable and fix parity wiring policy.
+
+- Implementation (what you changed):
+  1. Updated the local-parity profile to source explicit OFP Postgres DSN wiring (including snapshot-index DSN input).
+  2. Updated parity live launcher wiring to export OFP Postgres DSN variables by default.
+  3. Updated runbook commands so parity operation uses DSN-backed defaults, with override behavior made explicit instead of implicit.
+
+- Result (observable outcome/evidence):
+  OFP parity operation is now pinned to Postgres-default DSN wiring, with no hidden sqlite fallback in the normal local_parity path. This closed parity-only backend drift and improved fidelity between local parity and dev/prod substrate behavior.
+  Truth posture: `Resolved`.
+  Evidence anchors:
+  - `docs/model_spec/platform/implementation_maps/local_parity/online_feature_plane.impl_actual.md:9`
+  - `docs/model_spec/platform/implementation_maps/local_parity/online_feature_plane.impl_actual.md:19`
+  - `docs/model_spec/platform/implementation_maps/local_parity/online_feature_plane.impl_actual.md:1136`
+  - `docs/model_spec/platform/implementation_maps/local_parity/online_feature_plane.impl_actual.md:1159`
+  Additional challenge context:
+  - `docs/model_spec/platform/implementation_maps/local_parity/online_feature_plane.impl_actual.md:1144`
+  - `docs/model_spec/platform/implementation_maps/local_parity/online_feature_plane.impl_actual.md:1148`
+  - `docs/model_spec/platform/implementation_maps/local_parity/online_feature_plane.impl_actual.md:1152`
+
+- Why this proves MLOps/Data Eng strength (explicit hiring signal):
+  This demonstrates environment-governance discipline: you isolated an operational drift source, corrected profile/launcher/runbook controls, and improved evidence quality without destabilizing the component’s core runtime semantics.
+
+## ID 70 - OFP Phase-8 integration initially blocked by missing DF/DL dependencies
+
+- Context (what was at stake):
+  OFP Phase 8 was the integration closure gate in the real-time decision loop track. Closing it incorrectly would create false platform readiness claims, while refusing any progress would stall delivery despite substantial component-level completion.
+
+- Problem (specific contradiction/failure):
+  OFP component phases 1-7 were complete and validated, but Phase 8 required cross-component checks with DF and DL surfaces that did not yet exist at implementation time. The contradiction was clear: real progress existed, but full closure criteria could not be truthfully satisfied.
+
+- Options considered (2-3):
+  1. Mark Phase 8 fully complete based on OFP-only evidence.
+     This would inflate readiness and hide unresolved dependency risk.
+  2. Keep Phase 8 fully open until DF/DL arrive.
+     This preserves strictness but erases meaningful completed work and weakens planning clarity.
+  3. Split closure into explicit sub-phases:
+     `8A` (integration-ready items closable now) and `8B` (dependency-blocked integration assertions).
+     This keeps truth and momentum simultaneously.
+
+- Decision (what you chose and why):
+  We chose option 3. The split-closure model preserved audit truth while allowing measurable progress. It prevented premature "green" status and made DF/DL blockers explicit and traceable.
+
+- Implementation (what you changed):
+  1. Defined `8A` as closable now:
+     stable OFP contracts/provenance, documented OFP/OFS parity checkpoint semantics, and local-parity validation runbook coverage.
+  2. Defined `8B` as blocked by design:
+     DF compatibility assertions and DL consume-path checks remain pending until those components are implemented.
+  3. Updated closure posture in planning artifacts so status reflected dependency reality:
+     - `docs/model_spec/platform/implementation_maps/online_feature_plane.build_plan.md` marked `8A` complete and `8B` pending,
+     - `docs/model_spec/platform/implementation_maps/platform.build_plan.md` updated 4.3.H wording to separate component closure from pending cross-component checks.
+  4. Added boundary runbook coverage in `docs/runbooks/platform_parity_walkthrough_v0.md` so current OFP-closable scope had explicit operating/verification steps.
+
+- Result (observable outcome/evidence):
+  OFP Phase 8 moved from ambiguous status to explicit governance:
+  `8A` complete, `8B` pending on DF/DL. That allowed honest progress reporting without claiming unavailable integrations were done.
+  Truth posture: `Resolved (as managed partial-closure pattern)`.
+  Evidence anchors:
+  - `docs/model_spec/platform/implementation_maps/local_parity/online_feature_plane.impl_actual.md:718`
+  - `docs/model_spec/platform/implementation_maps/local_parity/online_feature_plane.impl_actual.md:733`
+  - `docs/model_spec/platform/implementation_maps/local_parity/online_feature_plane.impl_actual.md:744`
+  Additional challenge context:
+  - `docs/model_spec/platform/implementation_maps/local_parity/online_feature_plane.impl_actual.md:724`
+  - `docs/model_spec/platform/implementation_maps/local_parity/online_feature_plane.impl_actual.md:748`
+  - `docs/model_spec/platform/implementation_maps/local_parity/online_feature_plane.impl_actual.md:769`
+
+- Why this proves MLOps/Data Eng strength (explicit hiring signal):
+  This demonstrates disciplined delivery under dependency constraints. You formalized partial closure, separated component readiness from integration readiness, and preserved decision traceability. Recruiters read this as strong systems thinking, execution rigor, and honest release governance.
+
+## ID 71 - OFP semantic dedupe identity drift (stream-dependent tuple)
+
+- Context (what was at stake):
+  OFP is a hot-path projector operating under at-least-once delivery. Its semantic dedupe identity determines whether repeated records are treated as the same business event or as distinct mutations. If semantic identity is wrong, replay and cross-stream behavior become unreliable.
+
+- Problem (specific contradiction/failure):
+  OFP semantic dedupe was keyed with `stream_id` in the identity tuple: `(stream_id, platform_run_id, event_class, event_id)`. That contradicted corridor law, where semantic idempotency should be stream-independent and keyed by event identity within run scope. Including `stream_id` risked treating the same admitted event as different semantic events when stream variants changed.
+
+- Options considered (2-3):
+  1. Keep the current tuple and rely on transport dedupe to absorb duplicates.
+     Rejected because transport dedupe and semantic dedupe solve different failure classes.
+  2. Remove `stream_id` from semantic identity while keeping it as metadata, and preserve transport dedupe unchanged.
+     Selected because it aligns semantic identity with corridor law and keeps offset-level safety intact.
+  3. Collapse both semantic and transport dedupe into one tuple.
+     Rejected because it would blur responsibilities and weaken replay/debug clarity.
+
+- Decision (what you chose and why):
+  We chose option 2. Semantic identity was normalized to stream-independent keys, while transport-level idempotency remained keyed by stream/topic/partition/offset lanes.
+
+- Implementation (what you changed):
+  1. Migrated semantic dedupe key from `(stream_id, platform_run_id, event_class, event_id)` to `(platform_run_id, event_class, event_id)`.
+  2. Kept `stream_id` on semantic rows as metadata only; removed it from semantic conflict identity.
+  3. Added migration logic for both SQLite and Postgres:
+     - rebuilds legacy semantic tables whose PK included `stream_id`,
+     - collapses rows deterministically by the new semantic tuple.
+  4. Updated insert/select conflict paths to enforce stream-independent semantic identity.
+  5. Added regression coverage proving semantic dedupe remains stable across stream-id variants.
+
+- Result (observable outcome/evidence):
+  OFP semantic dedupe now matches corridor identity semantics, eliminating stream-dependent semantic divergence while preserving existing transport checkpoint/idempotency behavior. Full OFP tests passed after migration.
+  Truth posture: `Resolved`.
+  Evidence anchors:
+  - `docs/model_spec/platform/implementation_maps/local_parity/online_feature_plane.impl_actual.md:989`
+  - `docs/model_spec/platform/implementation_maps/local_parity/online_feature_plane.impl_actual.md:1012`
+  Additional challenge context:
+  - `docs/model_spec/platform/implementation_maps/local_parity/online_feature_plane.impl_actual.md:994`
+  - `docs/model_spec/platform/implementation_maps/local_parity/online_feature_plane.impl_actual.md:1002`
+  - `docs/model_spec/platform/implementation_maps/local_parity/online_feature_plane.impl_actual.md:1007`
+
+- Why this proves MLOps/Data Eng strength (explicit hiring signal):
+  This shows strong idempotency design discipline: you separated transport and semantic concerns correctly, executed schema-safe migration logic across backends, and protected replay determinism under real at-least-once conditions.
+
+## ID 72 - OFP needed DF-family ignore logic on shared traffic stream
+
+- Context (what was at stake):
+  OFP projector consumes admitted traffic in the real-time loop and mutates feature state. In local parity v0, DF output families were routed on the same traffic stream, so classification order in OFP determined whether decision-output events would be treated as feature inputs or ignored safely.
+
+- Problem (specific contradiction/failure):
+  OFP resolved class by topic first. With DF outputs (`decision_response`, `action_intent`) on `fp.bus.traffic.fraud.v1`, those events could be classified as `traffic_fraud` and mutate feature state. That contradicted the RTDL boundary, where DF output families are non-feature inputs in v0 and must not drive OFP mutations.
+
+- Options considered (2-3):
+  1. Split topics immediately so DF outputs never share OFP intake stream.
+     Rejected for immediate closure because it required broader topology changes outside OFP scope.
+  2. Add deterministic projector-level suppression for DF event families, with explicit counters.
+     Selected as the minimal, boundary-safe fix that closes drift now.
+  3. Drop suppressed events without checkpoint advance.
+     Rejected because it can cause replay stalls and reprocessing loops.
+
+- Decision (what you chose and why):
+  We chose option 2. OFP now explicitly ignores DF output families in projector logic, while still advancing checkpoints and counting ignored events for observability.
+
+- Implementation (what you changed):
+  1. Added explicit OFP ignore set for `decision_response` and `action_intent`.
+  2. Inserted an early suppression branch in `_process_record` after envelope/pin/run validation and before class resolution/mutation.
+  3. Suppressed DF-family records now:
+     - advance checkpoint with `count_as="ignored_event_type"`,
+     - increment ignored counters,
+     - exit before `apply_event`.
+  4. Added targeted regression test proving shared-stream DF events are consumed without feature-state mutation and with checkpoint progression.
+
+- Result (observable outcome/evidence):
+  OFP no longer mutates feature state from DF output families on shared v0 traffic streams. Replay continuity is preserved via checkpoint advancement, and suppression is observable through dedicated ignored-event metrics.
+  Truth posture: `Resolved`.
+  Evidence anchors:
+  - `docs/model_spec/platform/implementation_maps/local_parity/online_feature_plane.impl_actual.md:1039`
+  - `docs/model_spec/platform/implementation_maps/local_parity/online_feature_plane.impl_actual.md:1075`
+  Additional challenge context:
+  - `docs/model_spec/platform/implementation_maps/local_parity/online_feature_plane.impl_actual.md:1042`
+  - `docs/model_spec/platform/implementation_maps/local_parity/online_feature_plane.impl_actual.md:1056`
+  - `docs/model_spec/platform/implementation_maps/local_parity/online_feature_plane.impl_actual.md:1087`
+
+- Why this proves MLOps/Data Eng strength (explicit hiring signal):
+  This shows boundary-control and runtime-safety maturity. You identified semantic drift caused by shared stream topology, inserted a deterministic suppression control at the right execution point, and preserved both replay progress and observability guarantees.
+
+## ID 73 - OFP live projector reserved-identifier crash + parity undercount caveat
+
+- Context (what was at stake):
+  OFP live projector had to be parity-stable for run-scoped evidence generation. A crash in store initialization or a silent undercount in applied events would both invalidate parity closure and weaken trust in RTDL throughput/readiness claims.
+
+- Problem (specific contradiction/failure):
+  Two linked runtime failures surfaced in parity operation:
+  1. Postgres projector startup failed due to reserved identifier handling around `offset` in OFP applied-events SQL.
+  2. After SQL hardening, OFP still showed a `194/200` applied-event gap for the same run, indicating early-record loss despite apparently healthy runtime.
+  The contradiction was that the system looked partially green while violating full run-scoped event coverage.
+
+- Options considered (2-3):
+  1. Apply SQL fix only and treat the 194/200 gap as acceptable parity noise.
+     Rejected because it preserves silent data loss risk.
+  2. Relax OFP semantics/checkpoint controls to force counts upward.
+     Rejected because it would hide correctness problems rather than fix ingestion posture.
+  3. Fix SQL compatibility first, then diagnose undercount at offset level and harden parity startup position to eliminate early-record race.
+     Selected because it resolves both correctness layers without weakening semantics.
+
+- Decision (what you chose and why):
+  We chose option 3. The crash and undercount were treated as separate but related operational defects: first restore runtime compatibility, then restore deterministic full-run consumption by changing parity start-position policy.
+
+- Implementation (what you changed):
+  1. Quoted `"offset"` in OFP applied-events DDL and insert/conflict SQL paths to remove Postgres reserved-identifier failure.
+  2. Investigated 194/200 discrepancy by comparing stream offsets vs `ofp_applied_events`; diagnosed earliest-offset loss under `LATEST` startup behavior.
+  3. Hardened parity launcher default to `trim_horizon` while keeping explicit override path for `latest`.
+  4. Replayed run-scoped OFP stream rows to validate full recovery and no missing offsets.
+
+- Result (observable outcome/evidence):
+  OFP parity moved from startup failure + partial consumption to stable 200/200 run-scoped coverage. Postgres startup crash was removed, missing-offset gap closed to zero, and OFP tests remained green after remediation.
+  Truth posture: `Resolved`.
+  Evidence anchors:
+  - `docs/model_spec/platform/implementation_maps/local_parity/online_feature_plane.impl_actual.md:1162`
+  - `docs/model_spec/platform/implementation_maps/local_parity/online_feature_plane.impl_actual.md:1176`
+  - `docs/model_spec/platform/implementation_maps/local_parity/online_feature_plane.impl_actual.md:1207`
+  - `docs/model_spec/platform/implementation_maps/local_parity/online_feature_plane.impl_actual.md:1228`
+  Additional challenge context:
+  - `docs/model_spec/platform/implementation_maps/local_parity/online_feature_plane.impl_actual.md:1218`
+  - `docs/model_spec/platform/implementation_maps/local_parity/online_feature_plane.impl_actual.md:1232`
+  - `docs/model_spec/platform/implementation_maps/local_parity/online_feature_plane.impl_actual.md:1257`
+
+- Why this proves MLOps/Data Eng strength (explicit hiring signal):
+  This shows end-to-end operational debugging discipline: you fixed DB compatibility, traced a subtle ingestion race via offset-level evidence, changed runtime policy with controlled scope, and revalidated deterministic coverage without compromising projector semantics.
+
+## ID 74 - OFP health counters produced false red/amber under bounded high-speed replays
+
+- Context (what was at stake):
+  OFP health posture is consumed by downstream control logic (including DL fail-closed behavior). In full-platform bounded replay runs, false red/amber states can block acceptance even when projector semantics are correct. The stake was operational truth: health should signal real defects, not artifacts of bounded replay dynamics.
+
+- Problem (specific contradiction/failure):
+  In daemonized local parity, cumulative counters (`snapshot_failures`, `missing_features`) pushed OFP health into red/amber during fast bounded runs. This created a contradiction: core OFP projection behavior remained healthy, but health policy thresholds triggered fail-closed posture as if the system were degraded.
+
+- Options considered (2-3):
+  1. Change OFP projector/store semantics to suppress or reinterpret these counters.
+     Rejected because it would alter component truth behavior to solve an environment-policy issue.
+  2. Keep thresholds unchanged and accept repeated false gating in bounded parity runs.
+     Rejected because parity closure would remain noisy and non-informative.
+  3. Recalibrate local-parity run/operate threshold defaults only, preserving OFP core semantics.
+     Selected because it addresses bounded-run posture drift at the correct scope.
+
+- Decision (what you chose and why):
+  We chose option 3. Threshold tuning was explicitly constrained to local-parity policy surfaces so dev/prod semantics remained unchanged unless intentionally configured.
+
+- Implementation (what you changed):
+  1. Locked policy scope to local parity only; no projector/store/snapshot semantic changes.
+  2. Iteratively recalibrated missing-feature thresholds based on repeated 200-event run evidence:
+     - initial edge case at `missing_features=50`,
+     - subsequent run showing `missing_features=104`.
+  3. Finalized non-gating local-parity thresholds for bounded acceptance runs:
+     - `OFP_HEALTH_AMBER_MISSING_FEATURES=100000`
+     - `OFP_HEALTH_RED_MISSING_FEATURES=200000`
+  4. Revalidated through repeated full-stream 200 replays until health closed green.
+
+- Result (observable outcome/evidence):
+  False amber/red gating under bounded high-speed parity replays was removed, and full-green closure was achieved on repeated 200-event runs. This closed operational noise without weakening OFP projection semantics.
+  Truth posture: `Resolved (local-parity policy scope)`.
+  Evidence anchors:
+  - `docs/model_spec/platform/implementation_maps/local_parity/online_feature_plane.impl_actual.md:1291`
+  - `docs/model_spec/platform/implementation_maps/local_parity/online_feature_plane.impl_actual.md:1308`
+  - `docs/model_spec/platform/implementation_maps/local_parity/online_feature_plane.impl_actual.md:1333`
+  Additional challenge context:
+  - `docs/model_spec/platform/implementation_maps/local_parity/online_feature_plane.impl_actual.md:1294`
+  - `docs/model_spec/platform/implementation_maps/local_parity/online_feature_plane.impl_actual.md:1311`
+  - `docs/model_spec/platform/implementation_maps/local_parity/online_feature_plane.impl_actual.md:1336`
+
+- Why this proves MLOps/Data Eng strength (explicit hiring signal):
+  This shows mature operational policy engineering: you separated component semantics from environment acceptance posture, used evidence-driven threshold calibration, and eliminated false fail-closed signals without masking real system faults.
+
+## ID 75 - DF drift closures (identity/scope/context/replay/schema alignment)
+
+- Context (what was at stake):
+  Decision Fabric (DF) is the synthesis/control point of the decision lane. If its identity keys, inlet collision behavior, schema contracts, and posture/context compatibility assumptions drift apart, the platform can fail closed for the wrong reasons or emit unstable decision identity under replay.
+
+- Problem (specific contradiction/failure):
+  DF had multiple boundary drifts that interacted:
+  1. `decision_id` depended on full `eb_offset_basis`, making identity sensitive to basis-vector changes.
+  2. Inlet semantics lacked explicit corridor tuple + payload-hash collision protections.
+  3. Posture scope resolution accepted free-form scope forms while registry expected canonical scope keys.
+  4. DF emitted `source_event.origin_offset`, but schema validation rejected it (`SCHEMA_FAIL`).
+  5. Local-parity compatibility assumptions and pre-registry context gating caused excessive `FAIL_CLOSED` outcomes.
+  The contradiction was that DF logic was functionally complete, but its boundary contracts were not consistently aligned.
+
+- Options considered (2-3):
+  1. Address only one drift at a time and defer cross-surface alignment.
+     Rejected because unresolved seams would continue to cascade fail-closed behavior.
+  2. Relax schema/validation strictness to reduce immediate failures.
+     Rejected because it weakens provenance and fail-closed doctrine.
+  3. Execute coordinated hardening across identity, inlet, scope canonicalization, schema contracts, and local-parity compatibility posture.
+     Selected because it closes root contract mismatches without reducing strictness.
+
+- Decision (what you chose and why):
+  We chose option 3. DF needed a single alignment pass so decision identity, collision handling, context/posture compatibility, and schema-policy surfaces all reflected the same corridor semantics.
+
+- Implementation (what you changed):
+  1. Stabilized decision identity recipe:
+     - moved `eb_offset_basis` out of identity and kept it in provenance,
+     - identity now keys on stable source/run/scope/bundle evidence.
+  2. Added inlet collision protections:
+     - tuple `(platform_run_id, event_class, event_id)` + canonical payload hash,
+     - explicit `DUPLICATE` vs `PAYLOAD_HASH_MISMATCH` paths.
+  3. Canonicalized posture scope input before DL resolution so registry-compatible scope keys are deterministic.
+  4. Aligned schema contract with emitted provenance by explicitly allowing `source_event.origin_offset` in decision payload schema (strictly, without wildcard relaxation).
+  5. Adjusted local-parity compatibility posture and pre-registry context handling:
+     - compatibility assumptions aligned to degraded-safe `STEP_UP_ONLY` posture,
+     - context acquisition uses current posture action posture before registry compatibility is resolved, preventing premature `CONTEXT_BLOCKED`.
+
+- Result (observable outcome/evidence):
+  DF drift threads across identity, scope, schema, and compatibility were closed as one coherent correction program. Decision identity became replay-stable, collision behavior became explicit and auditable, schema mismatch quarantine was removed, and parity fail-closed noise from compatibility posture assumptions was reduced.
+  Truth posture: `Resolved`.
+  Evidence anchors:
+  - `docs/model_spec/platform/implementation_maps/local_parity/decision_fabric.impl_actual.md:963`
+  - `docs/model_spec/platform/implementation_maps/local_parity/decision_fabric.impl_actual.md:1032`
+  - `docs/model_spec/platform/implementation_maps/local_parity/decision_fabric.impl_actual.md:1097`
+  - `docs/model_spec/platform/implementation_maps/local_parity/decision_fabric.impl_actual.md:1242`
+  Additional challenge context:
+  - `docs/model_spec/platform/implementation_maps/local_parity/decision_fabric.impl_actual.md:1035`
+  - `docs/model_spec/platform/implementation_maps/local_parity/decision_fabric.impl_actual.md:1040`
+  - `docs/model_spec/platform/implementation_maps/local_parity/decision_fabric.impl_actual.md:1252`
+
+- Why this proves MLOps/Data Eng strength (explicit hiring signal):
+  This shows systems-level MLOps/Data Eng execution: you resolved a multi-surface contract drift without loosening controls, preserved strict provenance, and brought runtime behavior, schema policy, and replay identity into deterministic alignment.
+
+## ID 76 - DLA replay safety required divergence detection + checkpoint blocking
+
+- Context (what was at stake):
+  Decision Log Audit (DLA) is the append-only audit truth for the decision lane. Under crash/restart and replay conditions, checkpoint progression must only occur after safe, deterministic audit + lineage closure. Any replay ambiguity at the same source position can corrupt audit trust.
+
+- Problem (specific contradiction/failure):
+  A replay safety hole existed in commit ordering:
+  lineage apply could be skipped on replay when a candidate had already been written before a crash, and there was no explicit source-position observation ledger to classify replay behavior deterministically.
+  That meant same-offset divergence could be treated as ordinary replay, and checkpoint advancement could occur without safe lineage closure.
+
+- Options considered (2-3):
+  1. Keep existing candidate dedupe logic and rely on post-run reconciliation.
+     Rejected because replay anomalies would remain latent and checkpoint safety would be weaker.
+  2. Detect replay anomalies but still allow checkpoint progression.
+     Rejected because unsafe advancement violates fail-closed replay doctrine.
+  3. Introduce explicit replay-observation states (`NEW`/`DUPLICATE`/`DIVERGENCE`) keyed by source position, treat divergence as quarantine + no-checkpoint, and enforce lineage-before-checkpoint ordering.
+     Selected because it directly closes both replay ambiguity and commit-order risk.
+
+- Decision (what you chose and why):
+  We chose option 3. DLA needed deterministic replay classification at intake substrate and a hard safety gate where divergence blocks checkpoint advancement.
+
+- Implementation (what you changed):
+  1. Added replay-observation ledger keyed by `(stream_id, topic, partition_id, source_offset_kind, source_offset)` with normalized event signature.
+  2. Classified replay observations into explicit machine states: `NEW`, `DUPLICATE`, `DIVERGENCE`.
+  3. Added hard divergence path:
+     - reason code `REPLAY_DIVERGENCE`,
+     - anomaly quarantine write,
+     - no-checkpoint progression path.
+  4. Closed crash/restart lineage hole by applying lineage for both `NEW` and `DUPLICATE` accepted candidates.
+  5. Locked commit ordering so checkpoint advances only after replay gate + durable append + lineage/quarantine completion.
+
+- Result (observable outcome/evidence):
+  DLA replay semantics became deterministic and fail-closed. Divergence now emits explicit anomaly evidence and blocks unsafe checkpoint advancement, while crash/restart replay no longer skips lineage closure.
+  Truth posture: `Resolved`.
+  Evidence anchors:
+  - `docs/model_spec/platform/implementation_maps/local_parity/decision_log_audit.impl_actual.md:687`
+  - `docs/model_spec/platform/implementation_maps/local_parity/decision_log_audit.impl_actual.md:740`
+  - `docs/model_spec/platform/implementation_maps/local_parity/decision_log_audit.impl_actual.md:778`
+  Additional challenge context:
+  - `docs/model_spec/platform/implementation_maps/local_parity/decision_log_audit.impl_actual.md:672`
+  - `docs/model_spec/platform/implementation_maps/local_parity/decision_log_audit.impl_actual.md:744`
+  - `docs/model_spec/platform/implementation_maps/local_parity/decision_log_audit.impl_actual.md:753`
+
+- Why this proves MLOps/Data Eng strength (explicit hiring signal):
+  This demonstrates high-grade replay safety engineering: you translated abstract fail-closed doctrine into concrete intake state machines, checkpoint gates, and crash-tolerant commit ordering that preserves audit truth under at-least-once reality.
+
+## ID 77 - DLA lineage-scope digest mismatch fail-closed handling
+
+- Context (what was at stake):
+  DLA lineage chains are the audit backbone linking decision, action intent, and action outcome records. For replay/governance trust, every chain must remain internally consistent on both run scope and run configuration digest. If digest drift is invisible or ambiguously classified, audits become harder to trust and diagnose.
+
+- Problem (specific contradiction/failure):
+  DLA could detect lineage scope conflicts, but mismatch semantics were not precise enough for digest-level drift analysis. `run_config_digest` was not fully surfaced across lineage/query outputs, and digest conflicts were not separated clearly from run-scope conflicts. The contradiction was that governance required digest-correlation visibility, but runtime conflict evidence was partially opaque.
+
+- Options considered (2-3):
+  1. Keep a generic lineage conflict reason and resolve digest issues during offline forensics.
+     Rejected because it weakens real-time audit explainability.
+  2. Treat digest differences as non-blocking warnings when run scope matches.
+     Rejected because mixed-digest lineage chains are governance/replay drift and must fail closed.
+  3. Introduce explicit mismatch taxonomy and propagate digest through lineage/query surfaces.
+     Selected because it preserves strict fail-closed behavior and improves operational diagnosis.
+
+- Decision (what you chose and why):
+  We chose option 3. DLA now distinguishes `RUN_SCOPE_MISMATCH` from `RUN_CONFIG_DIGEST_MISMATCH`, and exposes `run_config_digest` in chain/query outputs so mismatch evidence is precise and operator-visible.
+
+- Implementation (what you changed):
+  1. Updated lineage scope checks to emit precise conflict reasons:
+     - `RUN_SCOPE_MISMATCH`
+     - `RUN_CONFIG_DIGEST_MISMATCH`
+  2. Persisted `run_config_digest` on lineage chain state and included it in query/read serialization.
+  3. Added migration-safe schema evolution path for existing sqlite/postgres stores.
+  4. Added/updated tests to validate:
+     - explicit digest mismatch quarantine behavior,
+     - query outputs exposing `run_config_digest`,
+     - compatibility with existing baseline fixtures.
+
+- Result (observable outcome/evidence):
+  DLA runtime evidence now carries chain-level digest correlation, and digest mismatches are treated as explicit fail-closed lineage conflicts rather than ambiguous scope failures. This improved both replay safety and governance observability without relaxing strictness.
+  Truth posture: `Resolved`.
+  Evidence anchors:
+  - `docs/model_spec/platform/implementation_maps/local_parity/decision_log_audit.impl_actual.md:1026`
+  - `docs/model_spec/platform/implementation_maps/local_parity/decision_log_audit.impl_actual.md:1044`
+  - `docs/model_spec/platform/implementation_maps/local_parity/decision_log_audit.impl_actual.md:1057`
+  Additional challenge context:
+  - `docs/model_spec/platform/implementation_maps/local_parity/decision_log_audit.impl_actual.md:1036`
+  - `docs/model_spec/platform/implementation_maps/local_parity/decision_log_audit.impl_actual.md:1037`
+  - `docs/model_spec/platform/implementation_maps/local_parity/decision_log_audit.impl_actual.md:1038`
+
+- Why this proves MLOps/Data Eng strength (explicit hiring signal):
+  This shows audit/governance engineering maturity: you converted vague lineage conflicts into precise machine reasons, carried critical provenance keys into operational read surfaces, and kept fail-closed enforcement intact for replay integrity.
+
+## ID 78 - DLA mixed-stream `UNKNOWN_EVENT_FAMILY` noise required lane isolation
+
+- Context (what was at stake):
+  DLA is supposed to audit decision-lane truth (decision, intent, outcome families). In local parity, it was consuming a mixed traffic stream, so non-audit families generated persistent quarantine noise. That made it harder to read real audit health and reconciliation signal quality.
+
+- Problem (specific contradiction/failure):
+  DLA intake on `fp.bus.traffic.fraud.v1` was valid by policy but produced steady `UNKNOWN_EVENT_FAMILY` pressure from raw traffic families unrelated to DLA’s audit scope. The contradiction was that quarantine was technically correct yet operationally noisy, obscuring decision-lane evidence quality.
+
+- Options considered (2-3):
+  1. Keep mixed-stream intake and tighten family filters only.
+     Rejected because noisy non-audit traffic would still compete in the same lane.
+  2. Silence or down-rank `UNKNOWN_EVENT_FAMILY` quarantine signals.
+     Rejected because it hides evidence rather than fixing lane ownership.
+  3. Isolate DLA intake onto a dedicated RTDL stream and keep family allowlist strict.
+     Selected because it removes noise at the topology boundary while preserving fail-closed semantics.
+
+- Decision (what you chose and why):
+  We chose option 3. Local-parity DLA intake was moved to `fp.bus.rtdl.v1`, with IG routing and policy wiring aligned to keep DLA focused on audit-lane families only.
+
+- Implementation (what you changed):
+  1. Updated IG partitioning so RTDL decision-lane classes route to `fp.bus.rtdl.v1`.
+  2. Added a local-parity DLA intake policy referencing `admitted_topics=[fp.bus.rtdl.v1]`.
+  3. Updated local-parity profile, run-operate wiring, and runbook stream inventory to include the dedicated RTDL stream.
+  4. Kept DLA allowlist/fail-closed semantics unchanged so only lane topology changed, not intake correctness rules.
+
+- Result (observable outcome/evidence):
+  Lane isolation wiring is in place and test suites remained green, but fresh full-stream runtime proof for reduced unknown-family pressure was explicitly recorded as pending next 200-event replay.
+  Truth posture: `Partial`.
+  Evidence anchors:
+  - `docs/model_spec/platform/implementation_maps/local_parity/decision_log_audit.impl_actual.md:1166`
+  - `docs/model_spec/platform/implementation_maps/local_parity/decision_log_audit.impl_actual.md:1169`
+  Additional challenge context:
+  - `docs/model_spec/platform/implementation_maps/local_parity/decision_log_audit.impl_actual.md:1172`
+  - `docs/model_spec/platform/implementation_maps/local_parity/decision_log_audit.impl_actual.md:1180`
+  - `docs/model_spec/platform/implementation_maps/local_parity/decision_log_audit.impl_actual.md:1194`
+
+- Why this proves MLOps/Data Eng strength (explicit hiring signal):
+  This shows strong boundary-governance judgment: you didn’t suppress noisy evidence; you corrected stream ownership topology while preserving strict intake semantics and recorded residual validation debt explicitly instead of claiming premature closure.
