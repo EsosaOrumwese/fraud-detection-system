@@ -4069,3 +4069,76 @@ Locked bundle recording (resolved from sealed inputs):
 P1.4 DoD outcome:
 1) Complete.
 2) Build-plan P1.4 checkboxes marked done.
+
+### Entry: 2026-02-12 20:57
+
+Design element: Post-P1 storage hygiene before P2.
+Summary: Cleaned the `runs/fix-data-engine/segment_1A` working root to prevent storage bloat before starting P2 while preserving P1 evidence provenance.
+
+Cleanup policy:
+1) Preserve run IDs referenced by active P1 evidence artifacts only:
+- `runs/fix-data-engine/segment_1A/reports/p1_2_hurdle_multiseed_scorecard.json`
+- `runs/fix-data-engine/segment_1A/reports/p1_3_nb_multiseed_scorecard.json`
+- `runs/fix-data-engine/segment_1A/reports/p1_4_lock_scorecard.json`
+2) Delete all other run-id directories under `runs/fix-data-engine/segment_1A`.
+
+Outcome:
+1) Run directories: `26 -> 12` (deleted `14` unnecessary runs).
+2) Storage footprint: `~0.934 GB -> ~0.344 GB` (reclaimed `~0.590 GB`).
+3) P1 evidence continuity preserved (all report-referenced run IDs retained).
+
+### Entry: 2026-02-12 21:02
+
+Design element: Secondary run-id-folder trim after user scope clarification.
+Summary: User clarified they want tighter cleanup of run-id folders before P2. Applied a stricter keep set (P1.3 + P1.4 evidence only), removing P1.2-only run directories.
+
+Decision:
+1) Keep run IDs referenced by:
+- `runs/fix-data-engine/segment_1A/reports/p1_3_nb_multiseed_scorecard.json`
+- `runs/fix-data-engine/segment_1A/reports/p1_4_lock_scorecard.json`
+2) Remove remaining run-id directories under `runs/fix-data-engine/segment_1A`.
+
+Outcome:
+1) Run directories: `12 -> 9` (deleted `3` additional run-id folders).
+2) Storage footprint: `~0.344 GB -> ~0.258 GB` (additional `~0.086 GB` reclaimed).
+
+### Entry: 2026-02-12 21:06
+
+Design element: Zero-run-id storage mode before P2.
+Summary: User requested maximal space protection. Switched Segment 1A runs root to reports-only mode by removing all remaining run-id directories.
+
+Action:
+1) Deleted the remaining `9` run-id folders under `runs/fix-data-engine/segment_1A`.
+2) Retained only report artifacts in `runs/fix-data-engine/segment_1A/reports/`:
+- `p1_2_hurdle_multiseed_scorecard.json`
+- `p1_3_nb_multiseed_scorecard.json`
+- `p1_4_lock_scorecard.json`
+
+Outcome:
+1) Run-id folders now `0`.
+2) Segment 1A runs root is effectively zero-footprint beyond reports.
+
+### Entry: 2026-02-12 21:12
+
+Design element: Phase-boundary freeze assumption (`P1 -> P2`).
+Summary: User confirmed the operating assumption that `P1` is already statistically realistic and must be treated as frozen while executing `P2+`. This is now explicitly pinned in the build plan and in this decision trail.
+
+Frozen baseline definition:
+1) `P1` accepted state is the realism baseline for `1A` (`B` standard achieved).
+2) Frozen surfaces:
+- `S1/S2` statistical posture evidenced by P1 scorecards,
+- locked coefficient bundle:
+  - `config/layer1/1A/models/hurdle/exports/version=2026-02-12/20260212T200823Z/hurdle_coefficients.yaml`
+  - `config/layer1/1A/models/hurdle/exports/version=2026-02-12/20260212T200823Z/nb_dispersion_coefficients.yaml`
+- accepted S2 sampler remediation in `packages/engine/src/engine/layers/l1/seg_1A/s2_nb_outlets/runner.py`.
+
+Execution constraint for `P2+`:
+1) Downstream remediation (`S3+`) must not alter frozen `S1/S2` artifacts/logic.
+2) Reopening `P1` is fail-closed and requires:
+- concrete hard contract/causal contradiction evidence, and
+- explicit user approval before touching frozen surfaces.
+
+Documentation updates performed:
+1) Added `P1 freeze contract` to:
+- `docs/model_spec/data-engine/implementation_maps/segment_1A.build_plan.md`
+2) Added `P2 precondition` explicitly inheriting the freeze contract in the same file.

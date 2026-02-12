@@ -4397,3 +4397,51 @@ Adopt a two-document migration control surface:
 
 ### Drift sentinel checkpoint
 This entry records challenge framing and accepted resolution approach only; no runtime implementation changes in this step.
+
+## Entry: 2026-02-12 9:07PM - Pre-change plan for migration_to_dev scaffold files
+
+### Trigger
+USER requested creation of empty files under `docs/model_spec/platform/migration_to_dev` and a README that explains file purpose + mapping to local-parity flow docs.
+
+### Problem
+The migration challenge has pinned two key dev-min control documents, but the target folder needs explicit scaffold files and an index note to anchor future authoring against local-parity canonical flow.
+
+### Decision
+Create a minimal scaffold now:
+1. `dev_min_spine_green_v0_run_process_flow.md` (empty)
+2. `dev_min_handles.registry.v0.md` (empty)
+3. `README.md` (non-empty index/intent document)
+
+### Planned implementation steps
+1. Ensure `docs/model_spec/platform/migration_to_dev` exists.
+2. Create the two empty markdown files listed above.
+3. Write `README.md` with:
+- purpose of this folder,
+- list of scaffold files,
+- explicit statement that these docs map/translate the flow in `docs/design/platform/local-parity`.
+4. Verify created files and sizes.
+
+### Drift sentinel checkpoint
+Docs-only scaffold; no runtime behavior or contracts changed in this step.
+
+## Entry: 2026-02-12 9:11PM - Applied migration_to_dev scaffold creation
+
+### Files created
+1. `docs/model_spec/platform/migration_to_dev/dev_min_spine_green_v0_run_process_flow.md` (empty)
+2. `docs/model_spec/platform/migration_to_dev/dev_min_handles.registry.v0.md` (empty)
+3. `docs/model_spec/platform/migration_to_dev/README.md` (index + mapping note)
+
+### README content summary
+- states folder purpose for Spine Green v0 migration scaffolding,
+- enumerates the two empty scaffold files and intended roles,
+- explicitly declares mapping source from `docs/design/platform/local-parity` canonical flow and addenda,
+- reiterates canonical phase-id convention `P0..P11` (+ `P12` teardown-only).
+
+### Verification
+Directory listing confirms:
+- `dev_min_spine_green_v0_run_process_flow.md` length `0`,
+- `dev_min_handles.registry.v0.md` length `0`,
+- `README.md` present and non-empty.
+
+### Drift sentinel assessment
+No behavioral/runtime edits. This is documentation scaffolding to enable controlled migration authoring.

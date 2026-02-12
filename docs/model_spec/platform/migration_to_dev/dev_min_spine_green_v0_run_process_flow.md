@@ -707,6 +707,188 @@ If you want, next we’ll draft **P1 RUN_PINNED** (platform_run_id creation, con
 
 ### P1 RUN_PINNED
 
+**Intent:** Create the run’s identity and provenance **once**, up front, and persist it durably so every subsequent phase can enforce **run-scope**. P1 is the “start of run” anchor: it creates `platform_run_id`, derives/records `scenario_run_id` inputs (equivalence key), writes the run config payload + digest, and creates the S3 evidence root for the run.
+
+---
+
+#### P1.1 Semantics (what this phase means)
+
+P1 means:
+
+* A new `platform_run_id` is created for the run session.
+* The run’s effective configuration is **pinned**:
+
+  * environment = `dev_min`
+  * topic map identity (handle keys)
+  * S3 bucket/prefix map (handle keys)
+  * runtime DB identity (handle keys)
+  * image identity (tag/digest from P(-1))
+  * any important runtime knobs (concurrency/backpressure)
+* A deterministic digest is computed over that config (so drift is detectable).
+* The run evidence root exists in S3 at:
+
+  * `evidence/runs/<platform_run_id>/`
+* This pinned run identity is then injected into all daemon/services (P2) as `REQUIRED_PLATFORM_RUN_ID`.
+
+> Note: `scenario_run_id` itself is authoritatively derived/confirmed in P5 (SR). In P1 we pin the *equivalence key input* and record it as provenance.
+
+---
+
+#### P1.2 Pinned decisions (non-negotiable)
+
+1. **Run-scope enforcement depends on P1**
+
+* **MUST:** every later phase references the `platform_run_id` produced here.
+* **MUST:** P2 daemons MUST use this value as required scope (fail closed if missing/mismatch).
+
+2. **Durable evidence-first**
+
+* **MUST:** P1 writes `run.json` to S3 evidence before starting heavy work.
+
+3. **No laptop runtime dependency**
+
+* **MUST:** P1 may be executed as an operator CLI action (operator-only is allowed), but it MUST NOT require any platform runtime services on the laptop.
+* **MAY:** implement P1 as a one-shot ECS task if you prefer strict “everything is a task.” Either is acceptable as long as results are identical.
+
+4. **Config digest is required**
+
+* **MUST:** compute a deterministic config digest and store it in `run.json`.
+* **MUST:** any config change requires a new run (no silent mid-run drift).
+
+---
+
+#### P1.3 Required handles (must exist in `dev_min_handles.registry.v0.md`)
+
+**Evidence root**
+
+* `S3_EVIDENCE_BUCKET`
+* `S3_EVIDENCE_RUN_ROOT_PATTERN`
+* `EVIDENCE_RUN_JSON_KEY`
+
+**Field names**
+
+* `FIELD_PLATFORM_RUN_ID`
+* `FIELD_SCENARIO_RUN_ID`
+* `FIELD_WRITTEN_AT_UTC`
+
+**Config digest**
+
+* `CONFIG_DIGEST_ALGO` *(pin later; e.g., sha256)*
+* `CONFIG_DIGEST_FIELD = "config_digest"`
+
+**Image provenance**
+
+* `ECR_REPO_URI`
+* `IMAGE_TAG_GIT_SHA_PATTERN`
+* `IMAGE_DIGEST_EVIDENCE_FIELD`
+* `IMAGE_TAG_EVIDENCE_FIELD`
+* `IMAGE_GIT_SHA_EVIDENCE_FIELD`
+
+**Substrate handles (referenced by key)**
+
+* All bucket handles: `S3_*_BUCKET`
+* All topic handles: `FP_BUS_*`
+* DB handles: `RDS_*`, `DB_NAME`
+
+---
+
+#### P1.4 Operator procedure (how to execute P1)
+
+1. **Generate `platform_run_id`**
+
+* Use UTC timestamped format consistent with your run naming (or your existing generator).
+* Record it as the authoritative run ID.
+
+2. **Assemble run config payload**
+   Include at minimum:
+
+* env = `dev_min`
+* `platform_run_id`
+* scenario equivalence key input (raw value or hashed pointer)
+* handle references:
+
+  * S3 buckets + prefix patterns
+  * topic map keys
+  * DB identifiers
+* runtime knobs:
+
+  * concurrency/backpressure knobs if used
+* image identity:
+
+  * immutable tag `git-<sha>`
+  * digest (if available)
+
+3. **Compute `config_digest`**
+
+* deterministic canonical JSON serialization + hash
+* store digest in payload
+
+4. **Write `run.json` to S3 evidence**
+
+* write to:
+
+  * `evidence/runs/<platform_run_id>/run.json`
+
+5. **(Optional) Write run-start marker**
+
+* `run_started.json` if you want explicit start marker separate from run.json.
+
+---
+
+#### P1.5 Gates / PASS criteria
+
+P1 is PASS only if all are true:
+
+1. **Evidence root created**
+
+* `evidence/runs/<platform_run_id>/` exists (at least one object written).
+
+2. **run.json exists and is complete**
+
+* Contains:
+
+  * `platform_run_id`
+  * env
+  * config payload
+  * config digest
+  * image provenance fields (tag at minimum)
+
+3. **Config digest stable**
+
+* Recomputing the digest over the same payload yields the same value.
+
+---
+
+#### P1.6 Commit evidence (dev_min durable proof)
+
+P1 MUST write:
+
+* `evidence/runs/<platform_run_id>/run.json`
+
+Optional:
+
+* `evidence/runs/<platform_run_id>/run_started.json`
+
+---
+
+#### P1.7 Rollback / rerun rules (safe)
+
+* If P1 was created incorrectly (wrong config/handles):
+
+  * delete the run evidence root:
+
+    * `evidence/runs/<platform_run_id>/`
+  * generate a new `platform_run_id` and rerun P1.
+* Do not reuse a `platform_run_id` for a different config digest.
+
+---
+
+#### P1.8 Cost notes
+
+* P1 is near-zero cost (S3 writes only).
+* It prevents expensive mistakes later by making run-scope and config drift explicit.
+
+
 ---
 
 ### P2 DAEMONS_READY

@@ -143,10 +143,27 @@ Freeze the current baseline so post-fix movement is causal and auditable.
 - No deep RNG-forensics work unless integrity rails fail.
 - No full-segment (`S0..S9`) run requirement for iterative P1 tuning.
 
+### 3.7 P1 freeze contract (binding for P2+)
+- `P1` is accepted as statistically realistic at `B` and is treated as frozen baseline for downstream phases.
+- Frozen `1A` surfaces:
+  - `S1/S2` behavioral posture from accepted P1 scorecards,
+  - locked coefficient bundle:
+    - `config/layer1/1A/models/hurdle/exports/version=2026-02-12/20260212T200823Z/hurdle_coefficients.yaml`
+    - `config/layer1/1A/models/hurdle/exports/version=2026-02-12/20260212T200823Z/nb_dispersion_coefficients.yaml`
+  - accepted S2 sampler remediation in `packages/engine/src/engine/layers/l1/seg_1A/s2_nb_outlets/runner.py`.
+- Rule for `P2+` execution:
+  - treat `S1/S2` as immutable and remediate downstream states only unless explicitly reopened.
+  - reopen of `P1` requires:
+    - demonstrated hard contract/causal contradiction, and
+    - explicit user approval before any `S1/S2` change.
+
 ## 4) Workstream B: cross-border candidate realism and realization coupling (Phase P2)
 
 ### 4.1 Why second
 Current posture is "open world then suppress." Candidate breadth is near-global while realized foreign membership is weakly coupled.
+
+### 4.1.a P2 precondition
+- P1 freeze contract in Section 3.7 is active; `P2` work must not mutate frozen `S1/S2` surfaces.
 
 ### 4.2 States in scope
 - `S3` cross-border candidate assembly,
