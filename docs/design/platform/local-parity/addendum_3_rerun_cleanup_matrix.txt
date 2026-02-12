@@ -87,13 +87,31 @@ L4 SUBSTRATE RESET
   Do NOT:
     - run multiple WSP consumers in parallel with the same checkpoint identity
 
-(6) IG: ResourceNotFoundException on fp.bus.* streams
+(6) PRODUCER: ResourceNotFoundException on fp.bus.* streams
   Symptom:
-    - IG publish fails because a stream doesn’t exist (audit/rtdl/case)
+    - publisher fails because a stream/topic does not exist
+  Ownership split (important):
+    - IG publishes traffic/context lanes only (fp.bus.traffic.* + fp.bus.context.*)
+    - DF/AL publish fp.bus.rtdl.v1
+    - DLA publishes fp.bus.audit.v1
+    - CaseTrigger publishes fp.bus.case.*
   Safe action:
-    - L1: run bootstrap again OR create the missing stream
+    - L1: run bootstrap again OR create the missing stream/topic, then restart only the affected producer
   Do NOT:
-    - change component logic; this is substrate wiring, not app logic
+    - reassign topic ownership to IG for rtdl/audit/case lanes
+    - change component logic when the root cause is substrate wiring
+
+(6b) IG ADMISSION: publish outcome ambiguity (PUBLISH_UNKNOWN)
+  Symptom:
+    - ingest call times out/transport fails and operator cannot prove whether publish committed
+    - receipt is missing or ADMIT commit is uncertain
+  Safe action:
+    - fail closed for run closure (do not claim ADMIT success for ambiguous events)
+    - inspect IG admission index row + eb_ref fields + bus presence before any replay
+    - if ambiguity remains unresolved, quarantine the event path and rerun with explicit reconciliation record
+  Do NOT:
+    - assume timeout == publish failure
+    - emit/accept a successful ADMIT receipt without confirmed eb_ref commit evidence
 
 (7) WSP: CHECKPOINT_DSN_MISSING or “want to re-stream from the beginning”
   Symptom:
@@ -152,6 +170,10 @@ L4 SUBSTRATE RESET
     - For scratch-only testing: L1 wipe ONLY CM/LS tables (explicitly destructive)
   Do NOT:
     - mix “prod-like” evidence retention with casual table wipes without logging it
+  Notes:
+    - local_parity CM uses run-scoped sqlite checkpoint state:
+      runs/fraud-platform/<platform_run_id>/case_mgmt/consumer_checkpoints.sqlite
+    - deleting this file can force replay from start-position behavior for CM intake; treat as targeted destructive action.
 
 (12) OBS/GOV: governance append conflicts / duplicate writers
   Symptom:

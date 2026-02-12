@@ -70,6 +70,8 @@ STATE STORES (Postgres DSNs; LOCAL_PARITY env vars)
 HTTP ENDPOINTS (writer boundaries)
   - IG ingest: http://127.0.0.1:8081/v1/ingest/push
   - IG health: http://127.0.0.1:8081/v1/ops/health  (401 unauthenticated, 200 with X-IG-Api-Key)
+  - Local parity IG auth posture:
+      auth_mode=api_key, header=X-IG-Api-Key, enforced on ingest + ops endpoints
 
 # ------------------------------------------------------------
 # 1) TOP-LEVEL OWNERSHIP RULES (LEAST PRIVILEGE “LAWS”)
@@ -168,6 +170,7 @@ RULE 6: Governance append log is single-writer per run.
     - FS (once-mode): runs/fraud-platform/<platform_run_id>/world_streamer_producer/** (logs)
   CALL:
     - HTTP POST -> IG ingest (/v1/ingest/push)
+      with X-IG-Api-Key header (local_parity api_key mode)
   MUST NOT:
     - publish directly to EB traffic/context topics (IG is admission authority)
 
@@ -203,9 +206,12 @@ RULE 6: Governance append log is single-writer per run.
         fp.bus.traffic.* + fp.bus.context.*  (exact list pinned in archive_writer/topics_v0.yaml)
     - DB: PARITY_ARCHIVE_WRITER_LEDGER_DSN (ledger/checkpoints)
   WRITE:
+    - Object store immutable archive records (LOCAL_PARITY runtime path family):
+        s3://fraud-platform/<platform_run_id>/archive/events/topic=<topic>/partition=<partition>/offset_kind=<offset_kind>/offset=<offset>.json
     - Archive artifacts (LOCAL_PARITY run-scoped artifacts are present under):
         FS: runs/fraud-platform/<platform_run_id>/archive_writer/** (metrics/health)
         FS: runs/fraud-platform/<platform_run_id>/archive/reconciliation/** (reconciliation json)
+    - Commit evidence basis: archive object exists + PARITY_ARCHIVE_WRITER_LEDGER_DSN offset advanced
     - (DEV_MIN target) S3: archive/** and evidence/replay/** (prefix families pinned in dev_min doc)
   CALL: none
   MUST NOT:
@@ -331,8 +337,10 @@ RULE 6: Governance append log is single-writer per run.
   READ:
     - EB CASE lane (consume): fp.bus.case.* (local fp.bus.case.v1; dev_min fp.bus.case.triggers.v1)
     - DB: PARITY_CASE_MGMT_LOCATOR
+    - FS (local_parity checkpoint state): runs/fraud-platform/<platform_run_id>/case_mgmt/consumer_checkpoints.sqlite
   WRITE:
     - DB: PARITY_CASE_MGMT_LOCATOR (append-only case timeline)
+    - FS (local_parity checkpoint state): runs/fraud-platform/<platform_run_id>/case_mgmt/consumer_checkpoints.sqlite
     - (optional) S3 evidence/cases/** in dev_min (summary exports)
     - FS: runs/fraud-platform/<platform_run_id>/case_mgmt/** (if present)
   CALL:

@@ -44,6 +44,16 @@ CANONICAL RUN ROOTS
   oracle engine run root (MinIO):  s3://oracle-store/<engine_run_root>
   oracle stream view root:         .../stream_view/ts_utc/
 
+IMPLICIT STATES THAT PERSIST ACROSS RESTARTS (DO NOT TREAT RUN AS STATELESS)
+  - SR lease rows (equivalence-key scoped)
+  - WSP checkpoint rows (pack_key/output_id scope)
+  - IG admission index rows (dedupe + receipt_ref + eb_ref fields)
+  - RTDL projector/worker checkpoint rows
+  - CM local consumer checkpoint file:
+      runs/fraud-platform/<platform_run_id>/case_mgmt/consumer_checkpoints.sqlite
+  - governance append writer discipline for:
+      s3://fraud-platform/<platform_run_id>/obs/governance/events.jsonl (single-writer)
+
 
 # ============================================================
 # L0 — OPERATOR TIMELINE (chronological, with “job vs daemon”)
@@ -259,6 +269,10 @@ ON ADMIT:
   - writes receipt to object store:
       s3://fraud-platform/<platform_run_id>/ig/receipts/<receipt_id>.json
   - receipt includes eb_ref with offset_kind=kinesis_sequence
+ON PUBLISH_UNKNOWN (publish outcome ambiguous):
+  - do NOT claim ADMIT commit for that event until publish commit evidence is proven
+  - hold run closure for affected event(s), reconcile IG admission row + eb_ref + bus presence
+  - if unresolved, fail closed and record explicit ambiguity for operator remediation
 ON QUARANTINE:
   - writes quarantine record (payload removed) + receipt
 SUCCESS:
@@ -269,6 +283,9 @@ SUCCESS:
 OPS HEALTH CONTRACT:
   - unauthenticated GET /v1/ops/health => 401 {"error":"UNAUTHORIZED"}
   - authenticated GET /v1/ops/health with X-IG-Api-Key => 200 {"state":"GREEN",...} once flow is healthy
+INGEST AUTH CONTRACT (LOCAL_PARITY):
+  - POST /v1/ingest/push uses api_key mode with header X-IG-Api-Key
+  - missing/invalid key => 401 UNAUTHORIZED
 
 # ----------------------------
 # 8) RTDL core plane consumes admitted EB topics

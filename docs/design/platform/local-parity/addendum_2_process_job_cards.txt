@@ -236,6 +236,7 @@ CARD TEMPLATE (fields you must be able to answer in dev)
     - PARITY_CONTROL_BUS_* exported correctly (else CONTROL_BUS_STREAM_MISSING)
     - ORACLE_ENGINE_RUN_ROOT must match the stream view built (else STREAM_VIEW_ID_MISMATCH)
     - IG_INGEST_URL set (else Invalid URL '/v1/ingest/push')
+    - IG auth profile exported (api_key mode in local_parity): WSP must send X-IG-Api-Key token expected by IG
   Resource envelope + knobs (behavior-changing):
     - WSP_READY_MAX_EVENTS (per output in concurrent mode)
     - WSP_MAX_EVENTS_PER_OUTPUT (explicit per-output cap)
@@ -245,6 +246,7 @@ CARD TEMPLATE (fields you must be able to answer in dev)
   Fail-closed + common failures:
     - STREAM_VIEW_MISSING => oracle sort not done
     - TRIM_HORIZON replay => WSP restarts/restreams; fix by limiting READY messages or clearing control bus
+    - IG returns 401 UNAUTHORIZED => missing/wrong X-IG-Api-Key header/token in WSP profile/env
   Reset/retry:
     - safest: cap run (20/200) then scale
     - never run duplicate WSP consumers with same checkpoint identity
@@ -260,6 +262,8 @@ CARD TEMPLATE (fields you must be able to answer in dev)
     - make platform-ig-service-parity
     - health: GET http://127.0.0.1:8081/v1/ops/health
       auth contract: unauthenticated -> 401 UNAUTHORIZED; authenticated (X-IG-Api-Key) -> 200 health payload
+    - ingest: POST /v1/ingest/push
+      auth contract (local_parity api_key mode): missing/invalid X-IG-Api-Key -> 401 UNAUTHORIZED
   Run pins carried:
     - admits events for all runs based on envelope pins (platform_run_id present)
   Inputs:
@@ -298,9 +302,11 @@ CARD TEMPLATE (fields you must be able to answer in dev)
   Fail-closed + common failures:
     - publish error => quarantines and does NOT record dedupe row
     - missing stream => hard fail until stream created
+    - publish timeout/transport ambiguity => treat as PUBLISH_UNKNOWN (no ADMIT success claim until eb_ref commit is proven)
   Reset/retry:
     - receipts are evidence; do not delete to “fix” logic
     - prefer fresh platform_run_id if admission logic changes materially
+    - if PUBLISH_UNKNOWN is suspected, pause run closure and reconcile dedupe row + eb_ref + bus presence before replaying
 
 # ------------------------------------------------------------
 # RTDL CORE (PROJECTORS + ARCHIVE) — PACK-MANAGED DAEMONS
@@ -560,6 +566,31 @@ CARD TEMPLATE (fields you must be able to answer in dev)
     - report generation is idempotent; governance append is NOT if multiple writers run
   Fail-closed:
     - S3_APPEND_CONFLICT indicates concurrent writers (stop one, rerun once)
+
+# ------------------------------------------------------------
+# CONSUMER START/CHECKPOINT BASIS (LOCAL_PARITY CURRENT POSTURE)
+# ------------------------------------------------------------
+- WSP READY consumer:
+  - no checkpoint => can replay READY history from control bus; bounded by WSP_READY_MAX_MESSAGES + checkpoint identity + IG dedupe
+  - checkpoint identity: (pack_key, output_id) in WSP_CHECKPOINT_DSN
+- IEG / OFP / CSFB projectors:
+  - profile start_position is latest on empty checkpoint
+  - restart resumes from projection/checkpoint stores (component DSNs)
+- DF worker:
+  - profile start_position is latest on empty checkpoint
+  - restart/resume basis: DF_REPLAY_DSN + DF_CHECKPOINT_DSN
+- AL / DLA workers:
+  - local run invariant: first intake with run-scope lock + no checkpoint may start from trim_horizon, then run-scope gate skips non-target runs
+  - restart/resume basis: AL_* ledger/replay/checkpoint stores and DLA index/store contracts
+- CaseTrigger worker:
+  - profile start_position is latest on empty checkpoint
+  - restart/resume basis: CASE_TRIGGER_REPLAY_DSN + CASE_TRIGGER_CHECKPOINT_DSN + publish store
+- CM service:
+  - profile start_position is latest on empty checkpoint
+  - restart/resume basis: local sqlite consumer checkpoint + PARITY_CASE_MGMT_LOCATOR timeline state
+- LS worker:
+  - consumes writer-boundary submissions (not direct EB lane in local_parity card)
+  - restart/resume basis: PARITY_LABEL_STORE_LOCATOR append-only timeline/governance markers
 
 # ------------------------------------------------------------
 # SMALL BUT IMPORTANT MIGRATION-CRITICAL ITEMS (must be closed before dev_min green)

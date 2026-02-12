@@ -3802,3 +3802,85 @@ Docs-only alignment work to prevent migration posture drift. No runtime behavior
 
 ### Drift sentinel assessment
 This pass is docs-only and aligns local narrative with pinned migration authority without rewriting current implementation truth.
+
+## Entry: 2026-02-12 2:52PM - Pre-change lock for final local-parity drift closure set
+
+### Trigger
+USER approved patch scope to close remaining local-parity doc drifts from fresh scratch review.
+
+### Approved scope
+1. Model IG publish ambiguity with explicit `PUBLISH_UNKNOWN` branch semantics.
+2. Pin ArchiveWriter local durable object-store path family + commit evidence in IO matrix.
+3. Add explicit consumer start/checkpoint/restart runtime-basis summary (cross-component).
+4. Add CM sqlite checkpoint as explicit IO surface + rerun handling.
+5. Pin IG ingest auth posture (not only ops health auth) in local-parity docs.
+6. Fix rerun matrix ownership misattribution for missing-stream publish failures.
+
+### Files targeted
+1. `docs/design/platform/local-parity/spine_green_v0_run_process_flow.txt`
+2. `docs/design/platform/local-parity/addendum_2_process_job_cards.txt`
+3. `docs/design/platform/local-parity/addendum_3_rerun_cleanup_matrix.txt`
+4. `docs/design/platform/local-parity/addendum_4_io_ownership_matrix.txt`
+
+### Constraints
+- Preserve local runtime truth; no fabricated behavior.
+- Use explicit migration-blocker language where behavior is not yet remediated.
+- Keep ownership boundaries aligned with IO matrix laws and pinned migration authority.
+
+### Validation plan
+- Marker scan for `PUBLISH_UNKNOWN` branches and recovery playbook notes.
+- Marker scan for ArchiveWriter object-store path family and commit evidence wording.
+- Marker scan for IG ingest auth posture (`X-IG-Api-Key`, `/v1/ingest/push`, 401 path).
+- Marker scan for CM sqlite checkpoint IO + rerun consequences.
+- Marker scan that missing-stream symptom no longer attributes `rtdl/audit/case` stream ownership to IG.
+
+### Drift sentinel checkpoint
+Docs-only closure pass to align local process exposure with pinned migration semantics. No runtime code change in this step.
+
+## Entry: 2026-02-12 2:56PM - Applied closure for final local-parity drift set
+
+### Files updated
+1. `docs/design/platform/local-parity/addendum_2_process_job_cards.txt`
+2. `docs/design/platform/local-parity/addendum_3_rerun_cleanup_matrix.txt`
+3. `docs/design/platform/local-parity/addendum_4_io_ownership_matrix.txt`
+4. `docs/design/platform/local-parity/spine_green_v0_run_process_flow.txt`
+
+### Changes applied
+1. **IG publish ambiguity modeled explicitly (docs/runtime posture)**
+- Added `PUBLISH_UNKNOWN` failure/ambiguity branch semantics in main flow and rerun matrix.
+- Added IG job-card fail-closed wording: no ADMIT success claim until eb_ref commit evidence is proven.
+
+2. **IG ingest auth posture pinned (local_parity)**
+- Added explicit ingest auth contract: `api_key` mode with `X-IG-Api-Key`; missing/invalid token returns 401.
+- Added WSP caller requirement to send header/token expected by IG.
+- Added IO matrix endpoint auth posture and WSP call header note.
+
+3. **ArchiveWriter durable object-store path + commit basis exposed**
+- Added local runtime archive object path family to IO matrix:
+  `s3://fraud-platform/<platform_run_id>/archive/events/topic=<topic>/partition=<partition>/offset_kind=<offset_kind>/offset=<offset>.json`.
+- Added explicit commit evidence basis: archive object exists + archive ledger offset advanced.
+
+4. **Consumer start/checkpoint behavior made explicit**
+- Added consolidated consumer start/checkpoint/restart summary in Addendum 2 for WSP, IEG/OFP/CSFB, DF, AL/DLA, CaseTrigger, CM, LS.
+
+5. **CM sqlite checkpoint surfaced as explicit IO + rerun implication**
+- Added CM sqlite checkpoint path as explicit read/write IO surface in IO matrix.
+- Added rerun matrix note that deleting checkpoint file can force replay-like intake behavior.
+
+6. **Missing-stream ownership misattribution corrected**
+- Replaced IG-only missing-stream wording with producer ownership split:
+  IG(traffic/context), DF/AL(rtdl), DLA(audit), CaseTrigger(case).
+
+7. **Main run flow process exposure strengthened**
+- Added `IMPLICIT STATES THAT PERSIST ACROSS RESTARTS` section (SR leases, WSP checkpoints, IG index, RTDL checkpoints, CM sqlite checkpoint, governance single-writer discipline).
+
+### Validation
+- Marker scans confirm:
+  - `PUBLISH_UNKNOWN` branch exists in both process flow and rerun matrix,
+  - IG ingest auth posture and header requirement are explicit,
+  - ArchiveWriter object-store path family + commit basis are present,
+  - CM sqlite checkpoint appears in IO matrix + rerun notes,
+  - old IG ownership misattribution for rtdl/audit/case streams is removed.
+
+### Drift sentinel assessment
+Docs-only closure; no runtime code or contract implementation changed. This reduces migration blind spots while preserving local runtime truth.
