@@ -17,7 +17,7 @@
 # 0) GLOBAL SEMANTICS KNOBS (apply across planes)
 # ------------------------------------------------------------
 - RUN CAP MODE (bounded vs unbounded) [BEHAVIOR]
-    - Example: WSP_MAX_EVENTS_PER_OUTPUT / READY_MAX_EVENTS
+    - Example: WSP_MAX_EVENTS_PER_OUTPUT / WSP_READY_MAX_EVENTS
     - Bounded runs are *different runs* (they intentionally truncate the world stream).
 
 - CONSUMER START POSITION (LATEST vs TRIM_HORIZON / earliest) [BEHAVIOR][SAFETY]
@@ -25,7 +25,7 @@
     - In dev, treat “earliest” as a special debug mode with explicit guardrails.
 
 - SINGLE-WRITER ENFORCEMENT (locks/leases) [SAFETY]
-    - Any append-only writer must guarantee one writer per (run_id, writer_identity).
+    - Any append-only writer must guarantee one writer per (platform_run_id, writer_identity).
     - Especially governance append + DLA append evidence.
 
 - CHECKPOINT IDENTITY / CONSUMER GROUP IDs [BEHAVIOR][SAFETY]

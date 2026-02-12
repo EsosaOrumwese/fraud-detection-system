@@ -69,7 +69,7 @@ STATE STORES (Postgres DSNs; LOCAL_PARITY env vars)
 
 HTTP ENDPOINTS (writer boundaries)
   - IG ingest: http://127.0.0.1:8081/v1/ingest/push
-  - IG health: http://127.0.0.1:8081/v1/ops/health
+  - IG health: http://127.0.0.1:8081/v1/ops/health  (401 unauthenticated, 200 with X-IG-Api-Key)
 
 # ------------------------------------------------------------
 # 1) TOP-LEVEL OWNERSHIP RULES (LEAST PRIVILEGE “LAWS”)
@@ -96,12 +96,12 @@ RULE 4: Case triggers are their own lane.
 
 RULE 5: Receipts/quarantine are IG-owned append-only evidence.
   - Only IG writes:
-      s3://fraud-platform/<run_id>/ig/receipts/*.json
-      s3://fraud-platform/<run_id>/ig/quarantine/*.json
+      s3://fraud-platform/<platform_run_id>/ig/receipts/*.json
+      s3://fraud-platform/<platform_run_id>/ig/quarantine/*.json
 
 RULE 6: Governance append log is single-writer per run.
   - Writer: platform_run_reporter (or manual closeout), never both concurrently
-  - Object store: s3://fraud-platform/<run_id>/obs/governance/events.jsonl
+  - Object store: s3://fraud-platform/<platform_run_id>/obs/governance/events.jsonl
 
 # ------------------------------------------------------------
 # 2) COMPONENT IO CARDS (READ / WRITE / CALL)
@@ -145,11 +145,11 @@ RULE 6: Governance append log is single-writer per run.
     - FS: runs/fraud-platform/ACTIVE_RUN_ID
     - DB: SR leases table (in Postgres; same physical DB as parity)
   WRITE:
-    - S3 (fraud-platform): <run_id>/sr/** (run_facts_view + ledgers + READY bundle refs)
+    - S3 (fraud-platform): <platform_run_id>/sr/** (run_facts_view + ledgers + READY bundle refs)
     - EB CONTROL:
         LOCAL_PARITY: sr-control-bus
         DEV_MIN: fp.bus.control.v1
-    - FS: runs/fraud-platform/<run_id>/scenario_runner/** (logs)
+    - FS: runs/fraud-platform/<platform_run_id>/scenario_runner/** (logs)
   CALL: none
   MUST NOT:
     - publish traffic/context/rtdl/case/audit topics
@@ -164,7 +164,8 @@ RULE 6: Governance append log is single-writer per run.
     - DB: PARITY_WSP_CHECKPOINT_DSN
   WRITE:
     - DB: PARITY_WSP_CHECKPOINT_DSN (checkpoint rows)
-    - FS: runs/fraud-platform/<run_id>/world_streamer_producer/** (logs)
+    - FS (pack-managed): runs/fraud-platform/<platform_run_id>/operate/local_parity_control_ingress_v0/logs/wsp_ready_consumer.log
+    - FS (once-mode): runs/fraud-platform/<platform_run_id>/world_streamer_producer/** (logs)
   CALL:
     - HTTP POST -> IG ingest (/v1/ingest/push)
   MUST NOT:
@@ -183,10 +184,11 @@ RULE 6: Governance append log is single-writer per run.
         fp.bus.context.arrival_entities.v1
         fp.bus.context.flow_anchor.{fraud|baseline}.v1
     - S3 (fraud-platform):
-        <run_id>/ig/receipts/*.json
-        <run_id>/ig/quarantine/*.json
+        <platform_run_id>/ig/receipts/*.json
+        <platform_run_id>/ig/quarantine/*.json
     - DB: PARITY_IG_ADMISSION_DSN (dedupe/admit rows, eb_ref)
-    - FS: runs/fraud-platform/<run_id>/ingestion_gate/** (logs)
+    - FS (pack-managed): runs/fraud-platform/<platform_run_id>/operate/local_parity_control_ingress_v0/logs/ig_service.log
+    - FS (service-native artifacts, if emitted): runs/fraud-platform/<platform_run_id>/ingestion_gate/**
   CALL:
     - EB publisher backend (Kinesis API) [library call, not a separate service]
   MUST NOT:
@@ -202,8 +204,8 @@ RULE 6: Governance append log is single-writer per run.
     - DB: PARITY_ARCHIVE_WRITER_LEDGER_DSN (ledger/checkpoints)
   WRITE:
     - Archive artifacts (LOCAL_PARITY run-scoped artifacts are present under):
-        FS: runs/fraud-platform/<run_id>/archive_writer/** (metrics/health)
-        FS: runs/fraud-platform/<run_id>/archive/reconciliation/** (reconciliation json)
+        FS: runs/fraud-platform/<platform_run_id>/archive_writer/** (metrics/health)
+        FS: runs/fraud-platform/<platform_run_id>/archive/reconciliation/** (reconciliation json)
     - (DEV_MIN target) S3: archive/** and evidence/replay/** (prefix families pinned in dev_min doc)
   CALL: none
   MUST NOT:
@@ -217,7 +219,7 @@ RULE 6: Governance append log is single-writer per run.
     - DB: PARITY_IEG_PROJECTION_DSN (projection store)
   WRITE:
     - DB: PARITY_IEG_PROJECTION_DSN (projection tables)
-    - FS: runs/fraud-platform/<run_id>/identity_entity_graph/{health,metrics,reconciliation}/**
+    - FS: runs/fraud-platform/<platform_run_id>/identity_entity_graph/{health,metrics,reconciliation}/**
   CALL:
     - (optional) exposes HTTP query service on port 8091
   MUST NOT:
@@ -230,7 +232,7 @@ RULE 6: Governance append log is single-writer per run.
     - DB: PARITY_OFP_PROJECTION_DSN
   WRITE:
     - DB: PARITY_OFP_PROJECTION_DSN (feature state)
-    - FS: runs/fraud-platform/<run_id>/online_feature_plane/{metrics,health}/**
+    - FS: runs/fraud-platform/<platform_run_id>/online_feature_plane/{metrics,health}/**
   CALL: none
   MUST NOT:
     - consume fp.bus.rtdl.v1 for state mutation (OFP is traffic-driven)
@@ -259,7 +261,7 @@ RULE 6: Governance append log is single-writer per run.
     - (optional) reads OFP/CSFB/IEG derived state depending on posture inputs (current build)
   WRITE:
     - DB: posture/outbox/ops
-    - FS: runs/fraud-platform/<run_id>/degrade_ladder/{metrics,health}/** and runtime_posture.json
+    - FS: runs/fraud-platform/<platform_run_id>/degrade_ladder/{metrics,health}/** and runtime_posture.json
   CALL: none
   MUST NOT:
     - publish audit truth (DLA owns audit stream)
@@ -276,7 +278,7 @@ RULE 6: Governance append log is single-writer per run.
   WRITE:
     - EB RTDL lane (produce): fp.bus.rtdl.v1   (decision_response + action_intent)
     - DB: replay/checkpoint
-    - FS: runs/fraud-platform/<run_id>/decision_fabric/{metrics,reconciliation}/**
+    - FS: runs/fraud-platform/<platform_run_id>/decision_fabric/{metrics,reconciliation}/**
   CALL: none
   MUST NOT:
     - write to traffic/context topics (only IG writes those)
@@ -289,7 +291,7 @@ RULE 6: Governance append log is single-writer per run.
   WRITE:
     - EB RTDL lane (produce): fp.bus.rtdl.v1 (action_outcome)
     - DB: ledger/outcomes/replay/checkpoint
-    - FS: runs/fraud-platform/<run_id>/action_layer/{observability,reconciliation}/**
+    - FS: runs/fraud-platform/<platform_run_id>/action_layer/{observability,reconciliation}/**
   CALL: none
   MUST NOT:
     - publish audit truth (DLA owns audit stream)
@@ -303,7 +305,7 @@ RULE 6: Governance append log is single-writer per run.
     - EB AUDIT (produce): fp.bus.audit.v1
     - S3 evidence (LOCAL_PARITY shape is indexed in run artifacts; dev_min requires S3 evidence/audit/**)
     - DB: PARITY_DLA_INDEX_DSN (index only; truth is append-only evidence)
-    - FS: runs/fraud-platform/<run_id>/decision_log_audit/{metrics,reconciliation}/**
+    - FS: runs/fraud-platform/<platform_run_id>/decision_log_audit/{metrics,reconciliation}/**
   CALL: none
   MUST NOT:
     - rewrite prior audit records (append-only)
@@ -319,7 +321,7 @@ RULE 6: Governance append log is single-writer per run.
         LOCAL_PARITY: fp.bus.case.v1
         DEV_MIN: fp.bus.case.triggers.v1
     - DB: replay/checkpoints/publish store
-    - FS: runs/fraud-platform/<run_id>/case_trigger/{reconciliation,metrics}/**
+    - FS: runs/fraud-platform/<platform_run_id>/case_trigger/{reconciliation,metrics}/**
   CALL: none
   MUST NOT:
     - mutate CM/LS truth directly; it emits triggers only
@@ -332,7 +334,7 @@ RULE 6: Governance append log is single-writer per run.
   WRITE:
     - DB: PARITY_CASE_MGMT_LOCATOR (append-only case timeline)
     - (optional) S3 evidence/cases/** in dev_min (summary exports)
-    - FS: runs/fraud-platform/<run_id>/case_mgmt/** (if present)
+    - FS: runs/fraud-platform/<platform_run_id>/case_mgmt/** (if present)
   CALL:
     - LS writer boundary (local_parity runtime: `label_store_worker`) if CM submits labels downstream
   MUST NOT:
@@ -355,13 +357,13 @@ RULE 6: Governance append log is single-writer per run.
 [COMPONENT] Platform Run Reporter (obs/gov)
   PRINCIPAL: platform_run_reporter
   READ:
-    - FS: runs/fraud-platform/<run_id>/** component metrics/health/reconciliation artifacts
+    - FS: runs/fraud-platform/<platform_run_id>/** component metrics/health/reconciliation artifacts
     - S3: may resolve by-ref evidence (IG receipts + DLA audit refs) for reconciliation summaries
     - EB CONTROL (optional): consume run lifecycle facts
   WRITE:
-    - FS: runs/fraud-platform/<run_id>/obs/platform_run_report.json
-    - S3 (fraud-platform): <run_id>/obs/governance/events.jsonl  (append-only; single writer!)
-    - (DEV_MIN target): S3 evidence/runs/<run_id>/** + evidence/reconciliation/**
+    - FS: runs/fraud-platform/<platform_run_id>/obs/platform_run_report.json
+    - S3 (fraud-platform): <platform_run_id>/obs/governance/events.jsonl  (append-only; single writer!)
+    - (DEV_MIN target): S3 evidence/runs/<platform_run_id>/** + evidence/reconciliation/**
     - EB CONTROL (optional): governance/anomaly facts (low volume; dev_min pin is fp.bus.control.v1)
   CALL: none
   MUST NOT:
@@ -372,8 +374,8 @@ RULE 6: Governance append log is single-writer per run.
   READ:
     - FS: run report + env profile expectations + pack status snapshots
   WRITE:
-    - FS: runs/fraud-platform/<run_id>/obs/environment_conformance.json
-    - (optional) S3 evidence/runs/<run_id>/** in dev_min
+    - FS: runs/fraud-platform/<platform_run_id>/obs/environment_conformance.json
+    - (optional) S3 evidence/runs/<platform_run_id>/** in dev_min
   CALL: none
 
 # ------------------------------------------------------------

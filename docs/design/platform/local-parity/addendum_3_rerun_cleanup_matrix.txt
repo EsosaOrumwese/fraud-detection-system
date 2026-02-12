@@ -69,7 +69,7 @@ L4 SUBSTRATE RESET
   Safe action (preferred):
     - L0: use a new SR_RUN_EQUIVALENCE_KEY and re-run
   Safe action (surgical):
-    - L1: wait TTL OR delete the single lease row in Postgres for that run_id
+    - L1: wait TTL OR delete the single lease row in Postgres for that scenario/equivalence-key identity
   Do NOT:
     - clear broad SR tables or wipe Postgres just to free one lease
   Notes:
@@ -144,7 +144,7 @@ L4 SUBSTRATE RESET
   Symptom:
     - case timeline already exists; labels already asserted; triggers may dedupe out
   Safe action:
-    - L2 new platform run_id (preferred)
+    - L2 new platform_run_id (preferred)
     - For scratch-only testing: L1 wipe ONLY CM/LS tables (explicitly destructive)
   Do NOT:
     - mix “prod-like” evidence retention with casual table wipes without logging it

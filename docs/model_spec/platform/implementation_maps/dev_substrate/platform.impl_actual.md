@@ -3069,3 +3069,336 @@ Normalized platform-run artifact references in Addendum 1 docs to `<platform_run
 
 ### Drift sentinel assessment
 Docs-only clarity/consistency closure. No runtime behavior changes.
+
+## Entry: 2026-02-12 12:44PM - Corrective closure for Addendum 1 phase-to-packaging namespace consistency
+
+### Trigger
+USER moved review scope to `docs/design/platform/local-parity/addendum_1_phase_to_packaging_map.txt`.
+
+### Blind spot found
+The packaging map still contained a legacy `<run_id>` placeholder in P11 (`OBS_GOV_CLOSED`) while the active local-parity docs had already been normalized to `<platform_run_id>`.
+
+### Decision
+Apply a minimal consistency correction only:
+- replace `<run_id>` with `<platform_run_id>` in the P11 reporter evidence path example.
+
+### File updated
+1. `docs/design/platform/local-parity/addendum_1_phase_to_packaging_map.txt`
+
+### Validation
+- Post-edit scan confirms no residual `<run_id>` placeholder in this file.
+- P11 now references `evidence/runs/<platform_run_id>/...` consistently with the other Addendum 1 docs.
+
+### Drift sentinel assessment
+Docs-only correction; no runtime behavior or packaging semantics changed.
+
+## Entry: 2026-02-12 12:45PM - Addendum phase map wording normalization (P1 identity term)
+
+### Additional clarity fix
+After namespace correction in P11, a second ambiguity remained in P1 wording:
+- `(run_id fixed for all processes)` could be misread as `scenario_run_id`.
+
+### Applied update
+In `docs/design/platform/local-parity/addendum_1_phase_to_packaging_map.txt`, P1 text is now:
+- `(platform_run_id fixed for all processes)`.
+
+### Validation
+Quick scan confirms P1 and P11 both use platform-run terminology consistently.
+
+### Drift sentinel assessment
+Docs-only wording normalization; no runtime semantics changed.
+
+## Entry: 2026-02-12 12:46PM - Pre-change plan for sequential hardening pass of remaining local-parity docs
+
+### Trigger
+USER directed: run through remaining local-parity files sequentially and fix them diligently.
+
+### Scope
+Target files in order:
+1. `docs/design/platform/local-parity/addendum_2_process_job_cards.txt`
+2. `docs/design/platform/local-parity/addendum_3_rerun_cleanup_matrix.txt`
+3. `docs/design/platform/local-parity/addendum_4_io_ownership_matrix.txt`
+4. `docs/design/platform/local-parity/addendum_5_concurrency_backpressure_knobs.txt`
+5. `docs/design/platform/local-parity/README.md`
+
+### Authorities and alignment targets
+- Canonical local run narrative in `spine_green_v0_run_process_flow.txt`.
+- Addendum 1 docs already normalized around `platform_run_id`, spine-safe status posture, IG auth gate, and DLA closure requirements.
+
+### Diligence checks per file
+- Identity namespace consistency:
+  - Use `platform_run_id` for platform-run scoped paths.
+  - Keep `scenario_run_id` only where scenario-scope is explicitly intended.
+- Path topology consistency:
+  - ensure run-operate hybrid log/event paths reflect current implementation where relevant.
+- Contract consistency:
+  - IG health auth posture, conformance expectations, and baseline scope lock (Learning/Registry out-of-scope).
+- Terminology clarity:
+  - remove or tighten ambiguous placeholders where they create migration/operator confusion.
+
+### Decision policy
+- Apply minimal, high-signal edits only.
+- Avoid structural rewrites unless a section materially conflicts with canonical runtime behavior.
+
+### Validation plan
+After each file edit:
+1. targeted marker scan for changed terms/paths,
+2. quick readability pass to avoid semantic drift,
+3. append outcome to logbook.
+
+### Drift sentinel checkpoint
+This is a docs-consistency hardening pass only. Any discovered semantic/runtime conflict with canonical run posture will be escalated instead of silently edited.
+
+## Entry: 2026-02-12 12:49PM - Pre-change lock for Addendum 2 (process job cards) consistency hardening
+
+### File
+`docs/design/platform/local-parity/addendum_2_process_job_cards.txt`
+
+### Issues identified
+1. Run/Operate orchestrator outputs still show old topology for logs/events under pack-scoped `runs/fraud-platform/operate/<pack_id>/...`.
+   - Current implementation is hybrid:
+     - pack-scoped control/state/status,
+     - run-scoped logs/events at `runs/fraud-platform/<platform_run_id>/operate/<pack_id>/...`.
+2. WSP job card log path examples only reference legacy direct component path and omit current pack-managed path.
+3. IG job card health endpoint omits auth behavior contract that operators rely on.
+4. Obs/Gov job card still uses legacy `<run_id>` placeholder for governance object path.
+
+### Decision
+Apply targeted corrections only in affected lines to preserve document structure while restoring canonical alignment.
+
+### Planned edits
+- Update Run/Operate output path block to hybrid topology.
+- Update WSP output path notes to include pack-managed run-scoped path (and keep once-mode distinction explicit).
+- Add IG health auth expectation (`401` unauth, `200` with API key).
+- Normalize Obs/Gov governance path to `<platform_run_id>`.
+
+### Validation
+- Marker scan for `<run_id>` removal in this file.
+- Marker scan for run-operate path references to ensure hybrid pattern present.
+- Readability pass around modified blocks.
+
+### Drift sentinel checkpoint
+Docs-only alignment to already-implemented behavior; no runtime semantics changes.
+
+## Entry: 2026-02-12 12:51PM - Applied closure for Addendum 2 job-card consistency
+
+### File updated
+`docs/design/platform/local-parity/addendum_2_process_job_cards.txt`
+
+### Changes applied
+1. Run/Operate orchestrator outputs updated to hybrid topology:
+- pack-scoped: `runs/fraud-platform/operate/<pack_id>/state.json`, `.../status/last_status.json`
+- run-scoped: `runs/fraud-platform/<platform_run_id>/operate/<pack_id>/events.jsonl`, `.../logs/<process>.log`
+2. WSP card output paths clarified by runtime mode:
+- pack-managed path under control_ingress operate logs,
+- once-mode path under world_streamer_producer run root.
+3. IG card now includes `/v1/ops/health` auth contract (`401` unauthenticated, `200` with API key).
+4. Obs/Gov governance object path normalized from `<run_id>` to `<platform_run_id>`.
+
+### Validation
+- Marker scan confirms no residual `<run_id>` in this file.
+- Readability pass on modified blocks completed.
+
+### Drift sentinel assessment
+Docs-only alignment to implemented local runtime behavior; no semantic/runtime changes.
+
+## Entry: 2026-02-12 12:52PM - Pre-change lock for Addendum 3 lease identity wording
+
+### File
+`docs/design/platform/local-parity/addendum_3_rerun_cleanup_matrix.txt`
+
+### Issue identified
+In section (4) `CONTROL BUS / SR: LEASE_BUSY`, wording says "delete the single lease row ... for that run_id".
+This is ambiguous against platform-run identity conventions and can be misread as `platform_run_id`, while SR lease contention is tied to scenario/equivalence identity discipline.
+
+### Decision
+Apply one wording clarification only to preserve document intent while removing namespace ambiguity.
+
+### Planned edit
+- Replace "for that run_id" with explicit "for that scenario/equivalence key identity" in section (4).
+
+### Validation
+- Readability pass on section (4) to confirm clear operator action semantics.
+
+### Drift sentinel checkpoint
+Docs-only clarity fix; no behavior or cleanup semantics changed.
+
+## Entry: 2026-02-12 12:53PM - Applied closure for Addendum 3 lease-identity clarification
+
+### File updated
+`docs/design/platform/local-parity/addendum_3_rerun_cleanup_matrix.txt`
+
+### Change applied
+- In section (4) `CONTROL BUS / SR: LEASE_BUSY`, clarified surgical cleanup wording:
+  - from "delete ... lease row ... for that run_id"
+  - to "delete ... lease row ... for that scenario/equivalence-key identity".
+
+### Why
+Prevents operator confusion between SR lease identity and `platform_run_id` naming used in other docs.
+
+### Validation
+- Post-edit marker scan confirms updated wording and no residual ambiguous phrase in that section.
+
+### Drift sentinel assessment
+Docs-only wording fix; cleanup semantics unchanged.
+
+## Entry: 2026-02-12 12:54PM - Addendum 3 minor namespace normalization
+
+### File updated
+`docs/design/platform/local-parity/addendum_3_rerun_cleanup_matrix.txt`
+
+### Change applied
+- Normalized `platform run_id` -> `platform_run_id` in section (11) safe action wording.
+
+### Validation
+- Marker scan confirms consistent `platform_run_id` spelling in the file.
+
+### Drift sentinel assessment
+Docs-only naming consistency correction; no semantic change.
+
+## Entry: 2026-02-12 12:55PM - Pre-change lock for Addendum 4 IO ownership namespace normalization
+
+### File
+`docs/design/platform/local-parity/addendum_4_io_ownership_matrix.txt`
+
+### Problem framing
+The IO ownership matrix is platform-run scoped (header already uses `runs/fraud-platform/<platform_run_id>/`), but many rows still use legacy `<run_id>` in filesystem and S3 path examples.
+This inconsistency creates migration/operator ambiguity and can conflict with `scenario_run_id` naming used elsewhere.
+
+### Decision
+Normalize platform-run path placeholders in this file from `<run_id>` to `<platform_run_id>` where the context is platform-run artifact ownership.
+No ownership semantics, writer boundaries, or component responsibilities will be changed.
+
+### Planned edits
+- Replace legacy `<run_id>` placeholders in path examples across matrix rows.
+- Preserve scenario-specific identifiers (for example `<scenario_run_id>`) where explicitly intended.
+
+### Validation
+- Marker scan: zero `<run_id>` placeholders remaining in this file.
+- Readability pass on representative sections (header, IG rows, RTDL rows, Obs/Gov rows).
+
+### Drift sentinel checkpoint
+Docs-only identity namespace correction; no runtime behavior change.
+
+## Entry: 2026-02-12 12:58PM - Applied closure for Addendum 4 IO ownership hardening
+
+### File updated
+`docs/design/platform/local-parity/addendum_4_io_ownership_matrix.txt`
+
+### Changes applied
+1. Normalized all platform-run path placeholders from `<run_id>` to `<platform_run_id>`.
+2. Added IG health auth contract note in endpoint registry:
+- `/v1/ops/health` => `401` unauthenticated, `200` with `X-IG-Api-Key`.
+3. Updated WSP write surface to reflect runtime modes:
+- pack-managed logs path under operate control_ingress pack,
+- once-mode logs path under world_streamer_producer run root.
+4. Updated IG write surface logs path to canonical pack-managed path, with optional service-native artifact path noted.
+
+### Validation
+- Marker scan confirms zero `<run_id>` tokens remain in this file.
+- Readability pass confirms WSP/IG path blocks align with active local run topology.
+
+### Drift sentinel assessment
+Docs-only consistency update; ownership boundaries and component responsibilities unchanged.
+
+## Entry: 2026-02-12 1:00PM - Pre-change lock for Addendum 5 knob-name and identity wording consistency
+
+### File
+`docs/design/platform/local-parity/addendum_5_concurrency_backpressure_knobs.txt`
+
+### Issues identified
+1. Global cap example uses `READY_MAX_EVENTS`, while the active docs use `WSP_READY_MAX_EVENTS`.
+2. Single-writer identity wording uses generic `(run_id, writer_identity)` and should be explicit as `(platform_run_id, writer_identity)` for this local-parity track.
+
+### Decision
+Apply minimal wording corrections only; no structural changes to the knob matrix.
+
+### Planned edits
+- Replace `READY_MAX_EVENTS` with `WSP_READY_MAX_EVENTS`.
+- Replace `(run_id, writer_identity)` with `(platform_run_id, writer_identity)`.
+
+### Validation
+- Marker scan for updated terms.
+- Readability pass on section 0.
+
+### Drift sentinel checkpoint
+Docs-only naming correction; no behavioral guidance change.
+
+## Entry: 2026-02-12 1:01PM - Applied closure for Addendum 5 consistency nits
+
+### File updated
+`docs/design/platform/local-parity/addendum_5_concurrency_backpressure_knobs.txt`
+
+### Changes applied
+1. Normalized global cap example to canonical knob names:
+- `WSP_MAX_EVENTS_PER_OUTPUT / WSP_READY_MAX_EVENTS`.
+2. Clarified single-writer identity tuple:
+- `(platform_run_id, writer_identity)`.
+
+### Validation
+- Marker scan confirms `READY_MAX_EVENTS` alias removed and updated terms present.
+
+### Drift sentinel assessment
+Docs-only terminology alignment; behavior guidance unchanged.
+
+## Entry: 2026-02-12 1:02PM - Pre-change lock for local-parity README consistency anchors
+
+### File
+`docs/design/platform/local-parity/README.md`
+
+### Opportunity identified
+README index is accurate but does not explicitly state two conventions now enforced in the addenda:
+1. `platform_run_id` vs `scenario_run_id` identity split,
+2. run-operate hybrid pathing (pack-scoped state/status; run-scoped logs/events).
+
+### Decision
+Add a concise conventions section to the README without changing document ordering or scope.
+
+### Planned edits
+- Add `Conventions` section with identity and artifact topology notes.
+
+### Validation
+- Quick readability check for index flow continuity.
+
+### Drift sentinel checkpoint
+Docs-only index enrichment; no runtime semantic change.
+
+## Entry: 2026-02-12 1:03PM - Applied closure for local-parity README conventions anchors
+
+### File updated
+`docs/design/platform/local-parity/README.md`
+
+### Change applied
+Added `Conventions` section to anchor cross-doc interpretation:
+1. `platform_run_id` vs `scenario_run_id` scope split,
+2. run-operate hybrid artifact topology (pack-scoped state/status, run-scoped logs/events).
+
+### Validation
+- Readability pass confirms document ordering and roles remain unchanged.
+- Index links continue to point to current `.txt` docs.
+
+### Drift sentinel assessment
+Docs-only index hardening; no runtime semantic change.
+
+## Entry: 2026-02-12 1:03PM - Sequential remaining-files pass closure
+
+### Scope completed (in order)
+1. `addendum_2_process_job_cards.txt`
+2. `addendum_3_rerun_cleanup_matrix.txt`
+3. `addendum_4_io_ownership_matrix.txt`
+4. `addendum_5_concurrency_backpressure_knobs.txt`
+5. `README.md`
+
+### Cross-file outcomes
+- Platform-run namespace normalized (`<platform_run_id>`).
+- Run-operate hybrid log/event topology reflected where relevant.
+- IG health auth contract consistently documented.
+- Knob names aligned to canonical env keys (`WSP_READY_MAX_EVENTS`).
+- SR lease wording clarified to avoid run-id scope confusion.
+
+### Final validation
+- Folder-level scan shows no residual legacy `<run_id>` placeholders in local-parity docs.
+- No runtime code changes introduced; docs-only pass.
+
+### Drift sentinel assessment
+No design-intent drift detected in this docs pass; changes reduce migration/operator ambiguity.

@@ -11,6 +11,14 @@ Scope in this baseline:
 Out of scope for this baseline:
 - Learning and Registry (OFS/MF/MPR)
 
+## Conventions
+
+- `platform_run_id` is the platform-run identity for run-scoped artifacts.
+- `scenario_run_id` is SR scenario identity; do not substitute it for platform artifact paths.
+- Run-operate uses hybrid artifacts:
+  - pack-scoped control/state/status under `runs/fraud-platform/operate/<pack_id>/...`
+  - run-scoped logs/events under `runs/fraud-platform/<platform_run_id>/operate/<pack_id>/...`
+
 ## Reading Order
 
 1. `spine_green_v0_run_process_flow.txt`

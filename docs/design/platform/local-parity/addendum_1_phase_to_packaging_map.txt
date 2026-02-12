@@ -16,7 +16,7 @@
 |       |                                          |                        |   - demo: Confluent cluster+topics+API keys -> SSM SecureString
 |       |                                          |                        | Teardown path exists: terraform destroy demo (keeps core intact)      |
 | P1    | RUN_PINNED                               | Operator activation    | Local CLI generates platform_run_id (+ optional run_manifest to S3)   |
-|       | (run_id fixed for all processes)         | (one-shot)             |                                                                        |
+|       | (platform_run_id fixed for all processes)| (one-shot)             |                                                                        |
 | P2    | DAEMONS_READY                            | Daemons (packs up)     | DEFAULT: run components locally (docker/venv) pointing to:
 |       | (services started, run-scope enforced)   | (long-running)         |   - Confluent Kafka (bootstrap+keys from SSM/env)
 |       |                                          |                        |   - AWS S3 evidence/oracle
@@ -45,7 +45,7 @@
 |       | (case triggers + CM/LS updated)          |                        |   - DEFAULT: local services + local Postgres acceptable IF S3 summaries
 |       |                                          |                        |   - OPTIONAL: managed Postgres later (not required for v0 dev_min)     |
 | P11   | OBS_GOV_CLOSED (report + conformance)    | Daemon OR one-shot     | Reporter as SINGLE-WRITER:
-|       | (run report + governance append complete)|                        |   - DEFAULT: local reporter; writes evidence/runs/<run_id>/… to S3
+|       | (run report + governance append complete)|                        |   - DEFAULT: local reporter; writes evidence/runs/<platform_run_id>/… to S3
 |       |                                          |                        |   - OPTIONAL: ECS task (demo) but enforce no concurrent writers        |
 | P12   | TEARDOWN (dev_min)                       | Operator teardown      | terraform destroy demo (Kafka + optional ECS + demo-only resources)
 |       | (core persists: evidence/oracle)         | (one-shot)             | Keep core buckets + TF state; evidence remains durable                 |

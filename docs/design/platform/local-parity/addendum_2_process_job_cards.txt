@@ -46,9 +46,9 @@ CARD TEMPLATE (fields you must be able to answer in dev)
     - ACTIVE_RUN_ID file
   Outputs:
     - runs/fraud-platform/operate/<pack_id>/state.json
-    - runs/fraud-platform/operate/<pack_id>/events.jsonl
     - runs/fraud-platform/operate/<pack_id>/status/last_status.json
-    - runs/fraud-platform/operate/<pack_id>/logs/<process>.log
+    - runs/fraud-platform/<platform_run_id>/operate/<pack_id>/events.jsonl
+    - runs/fraud-platform/<platform_run_id>/operate/<pack_id>/logs/<process>.log
   Commit evidence: last_status.json shows RUNNING for all expected processes
   Idempotency: “start if not running” semantics; pack restart is the clean reset
   Checkpoint/state: orchestrator state.json + per-process internal stores
@@ -221,7 +221,10 @@ CARD TEMPLATE (fields you must be able to answer in dev)
     - IG ingest endpoint: IG_INGEST_URL (expects /v1/ingest/push)
   Outputs:
     - HTTP POST to IG (/v1/ingest/push)
-    - WSP logs under runs/fraud-platform/<platform_run_id>/world_streamer_producer/...
+    - pack-managed logs under:
+        runs/fraud-platform/<platform_run_id>/operate/local_parity_control_ingress_v0/logs/wsp_ready_consumer.log
+    - once-mode logs under:
+        runs/fraud-platform/<platform_run_id>/world_streamer_producer/...
   Commit evidence:
     - WSP logs show “stream start” and “stream stop” for the run
   Idempotency / dedupe (current posture):
@@ -256,6 +259,7 @@ CARD TEMPLATE (fields you must be able to answer in dev)
   Entry point(s):
     - make platform-ig-service-parity
     - health: GET http://127.0.0.1:8081/v1/ops/health
+      auth contract: unauthenticated -> 401 UNAUTHORIZED; authenticated (X-IG-Api-Key) -> 200 health payload
   Run pins carried:
     - admits events for all runs based on envelope pins (platform_run_id present)
   Inputs:
@@ -512,7 +516,7 @@ CARD TEMPLATE (fields you must be able to answer in dev)
   Outputs (commit artifacts):
     - runs/.../obs/platform_run_report.json
     - runs/.../obs/environment_conformance.json
-    - s3://fraud-platform/<run_id>/obs/governance/events.jsonl (append-only)
+    - s3://fraud-platform/<platform_run_id>/obs/governance/events.jsonl (append-only)
   Commit evidence:
     - platform_run_report.json exists AND governance append succeeded
   Idempotency:
