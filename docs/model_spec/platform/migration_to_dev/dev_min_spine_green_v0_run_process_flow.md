@@ -44,15 +44,15 @@ If any conflict appears, follow this precedence:
 
 **Local parity “meaning” sources (Spine Green v0)**
 
-* `spine_green_v0_run_process_flow_final.txt` (canonical spine flow capture, scope lock)
-* `addendum_1_phase_state_machine_and_gates_final.txt` (phase machine + retry rules + commit evidence per phase)
-* `addendum_1_operator_gate_checklist_final.txt` (operator PASS checks per phase) 
-* `addendum_2_process_job_cards_final.txt` (process/job semantics, IO ownership notes, fail-closed behaviors) 
+* `spine_green_v0_run_process_flow.txt` (canonical spine flow capture, scope lock)
+* `addendum_1_phase_state_machine_and_gates.txt` (phase machine + retry rules + commit evidence per phase)
+* `addendum_1_operator_gate_checklist.txt` (operator PASS checks per phase) 
+* `addendum_2_process_job_cards.txt` (process/job semantics, IO ownership notes, fail-closed behaviors) 
 
 **Dev-min migration authority**
 
 * `dev-min_managed-substrate_migration.design-authority.v0.md` 
-* `addendum_1_phase_to_packaging_map_final.txt` (dev_min packaging target per phase; “no laptop compute”, “CLI-only”, “demo→destroy”) 
+* `addendum_1_phase_to_packaging_map.txt` (dev_min packaging target per phase; “no laptop compute”, “CLI-only”, “demo→destroy”) 
 
 ---
 
@@ -3289,31 +3289,31 @@ This appendix is a **traceability map**: it shows exactly which local parity doc
 
 #### A.1 Canonical phase flow (major process narrative)
 
-* **Local source:** `spine_green_v0_run_process_flow_final.txt`
+* **Local source:** `spine_green_v0_run_process_flow.txt`
 
   * Used for: the canonical ordered flow of Spine Green v0, what “green” means, and the phase narrative boundaries (Spine-only).
 
 #### A.2 Phase lifecycle + retry loops + commit evidence
 
-* **Local source:** `addendum_1_phase_state_machine_and_gates_final.txt`
+* **Local source:** `addendum_1_phase_state_machine_and_gates.txt`
 
   * Used for: phase IDs `P0..P11` (and teardown), allowed rerun loops (e.g., P3 per-output rerun), lease discipline, and what constitutes phase PASS at the state-machine level.
 
 #### A.3 Operator PASS checklist (what an operator checks)
 
-* **Local source:** `addendum_1_operator_gate_checklist_final.txt`
+* **Local source:** `addendum_1_operator_gate_checklist.txt`
 
   * Used for: the PASS/FAIL checks in dev_min phases (translated to managed substrate), and for defining proof artifacts required to proceed between phases. 
 
 #### A.4 Process/job semantics + IO expectations
 
-* **Local source:** `addendum_2_process_job_cards_final.txt`
+* **Local source:** `addendum_2_process_job_cards.txt`
 
   * Used for: what each process actually does, required IO, fail-closed behaviors, and highlighting migration-critical pitfalls (e.g., publish ambiguity, sqlite checkpoints, missing platform_run_id dedupe gap). 
 
 #### A.5 Dev-min packaging intent (job vs daemon translation)
 
-* **Local source:** `addendum_1_phase_to_packaging_map_final.txt`
+* **Local source:** `addendum_1_phase_to_packaging_map.txt`
 
   * Used for: dev_min packaging targets per phase, “no laptop compute” stance, CLI-only orchestration stance, and demo→destroy expectations. 
 

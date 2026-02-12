@@ -165,33 +165,133 @@ Current posture is "open world then suppress." Candidate breadth is near-global 
 ### 4.1.a P2 precondition
 - P1 freeze contract in Section 3.7 is active; `P2` work must not mutate frozen `S1/S2` surfaces.
 
+### 4.1.b P2 execution mode (strict)
+- Iterative tuning scope: `S0 -> S6` only.
+- Do not execute `S7+` during P2 calibration loops unless a specific diagnostic requires it.
+- Use deterministic seeds for scoring and replay (`42`, `43`, `44`).
+- Evaluate both global and stratified posture:
+  - `channel`,
+  - broad MCC groups,
+  - GDP bucket tiers.
+
 ### 4.2 States in scope
 - `S3` cross-border candidate assembly,
 - `S4` target sizing (`K_target`) behavior,
 - `S6` foreign membership realization.
 
-### 4.3 Primary files to touch
+### 4.3 P2 target datasets (authoritative scoring surfaces)
+- `s3_candidate_set`
+- `s3_integerised_counts`
+- `rng_event_ztp_final`
+- `rng_event_ztp_rejection`
+- `rng_event_ztp_retry_exhausted`
+- `rng_event_gumbel_key`
+- `s6_membership`
+- `s4_metrics_log`
+
+### 4.4 Statistical realism definition and formulas
+- Merchant-level variables:
+  - `C_m` = candidate breadth for merchant `m` (count from `s3_candidate_set`).
+  - `R_m` = realized foreign membership for merchant `m` (count from `s6_membership` or equivalent S6 authority).
+  - `rho_m` = realization ratio = `R_m / max(C_m, 1)`.
+- Core realism checks:
+  - candidate breadth level: `median(C_m)` in `B` band (`5 to 15`).
+  - coupling realism: `SpearmanCorr(C_m, R_m) >= 0.30`.
+  - realization intensity: `median(rho_m) >= 0.10`.
+- Pathology hard checks (fail-fast):
+  - retry exhaustion share:
+    - `share_exhausted = merchants_with_ztp_retry_exhausted / merchants_with_C_m>0`
+    - must remain low (`<= 0.02`).
+  - high-rejection concentration:
+    - `share_high_reject = merchants_with_ztp_rejections_gt16 / merchants_with_C_m>0`
+    - must remain low (`<= 0.10`).
+- Stratified realism rule:
+  - the three core checks above must not pass only in aggregate while materially failing across most strata.
+
+### 4.5 Tunable surfaces and ownership map
+- Allowed to tune in P2:
+  - `config/layer1/1A/policy/s3.rule_ladder.yaml`
+  - `config/layer1/1A/policy/s3.thresholds.yaml`
+  - `config/layer1/1A/policy/s3.base_weight.yaml`
+  - `config/layer1/1A/policy/s3.integerisation.yaml`
+  - `config/layer1/1A/policy/crossborder_hyperparams.yaml` (including `ztp` block)
+  - `config/layer1/1A/policy.s6.selection.yaml`
+  - `config/layer1/1A/models/allocation/dirichlet_alpha_policy.yaml` (only if needed after core tuning)
+- Prohibited in P2:
+  - any `S1/S2` coefficient or sampler logic change unless P1 reopen is explicitly approved.
+
+### 4.6 Primary files to touch
 - Policies:
   - `config/layer1/1A/policy/s3.rule_ladder.yaml`
   - `config/layer1/1A/policy/s3.thresholds.yaml`
   - `config/layer1/1A/policy/s3.base_weight.yaml`
+  - `config/layer1/1A/policy/s3.integerisation.yaml`
   - `config/layer1/1A/policy/crossborder_hyperparams.yaml`
   - `config/layer1/1A/policy.s6.selection.yaml`
+  - `config/layer1/1A/models/allocation/dirichlet_alpha_policy.yaml`
 - Runtime code:
   - `packages/engine/src/engine/layers/l1/seg_1A/s3_crossborder/runner.py`
   - `packages/engine/src/engine/layers/l1/seg_1A/s4_ztp/runner.py`
   - `packages/engine/src/engine/layers/l1/seg_1A/s6_foreign_set/runner.py`
 
-### 4.4 Implementation intent
+### 4.7 Implementation intent
 - Replace near-global default admission with profile-conditioned candidate breadth.
 - Tie realization probability to candidate quality/opportunity instead of weak independent suppression.
 - Ensure `K_target` and selected foreign set remain causally consistent with candidate universe.
 
-### 4.5 P2 definition of done
-- [ ] median foreign candidate count reaches at least `B` band (`5 to 15`).
-- [ ] candidate-to-membership correlation reaches at least `0.30`.
-- [ ] realization ratio median reaches at least `0.10`.
-- [ ] no state-level cap/retry pathology dominates selection behavior.
+### 4.8 P2 phased approach and DoD
+
+#### P2.1 Baseline and scoring harness
+- Intent:
+  - materialize deterministic P2 scorecard from P2 surfaces before policy edits.
+- DoD:
+  - [ ] one repeatable command/profile runs `S0..S6` and emits all P2 scoring surfaces.
+  - [ ] baseline P2 scorecard is written with global + stratified metrics.
+  - [ ] pathology hard checks are computed and visible in scorecard.
+
+#### P2.2 Candidate breadth shaping (`S3` first)
+- Intent:
+  - move `C_m` from near-global saturation to profile-conditioned realistic breadth.
+- DoD:
+  - [ ] `median(C_m)` reaches `B` band (`5 to 15`) in aggregate.
+  - [ ] candidate-shape movement is broad (not a single-stratum artifact).
+  - [ ] pathology checks remain below hard caps while tuning `S3`.
+
+#### P2.3 Realization coupling (`S4/S6`)
+- Intent:
+  - align `R_m` with candidate opportunity and remove weak independent suppression.
+- DoD:
+  - [ ] `SpearmanCorr(C_m, R_m) >= 0.30`.
+  - [ ] `median(rho_m) >= 0.10`.
+  - [ ] retry/rejection pathology remains below hard caps.
+
+#### P2.4 Joint reconciliation and lock
+- Intent:
+  - confirm the final P2 tuning is stable and replay-consistent before lock.
+- DoD:
+  - [ ] two consecutive P2 runs meet all P2 B checks without counter-tuning oscillation.
+  - [ ] same-seed replay preserves P2 metric posture (drift within tolerance).
+  - [ ] locked policy versions and hashes are recorded for S3/S4/S6 knobs.
+
+### 4.9 Calibration method (mathematical, non-forging)
+- Use staged constrained calibration with frozen `P1` baseline:
+  - Stage A: tune `S3` knobs to shape `C_m`.
+  - Stage B: tune `S4/S6` knobs to shape `Corr(C_m,R_m)` and `rho_m`.
+- Optimization form (for ranking candidate configs):
+  - `L(theta) = sum_i w_i * d_i(theta) + lambda * pathology_penalty(theta)`.
+  - `d_i(theta)` is band-distance:
+    - `0` when metric is inside target interval,
+    - quadratic penalty outside interval.
+- Selection rule:
+  - reject any candidate violating pathology hard caps,
+  - among valid candidates, pick smallest `L(theta)` with stable replay behavior.
+
+### 4.10 Storage retention during P2
+- To prevent run-root growth during iterative tuning:
+  - retain only latest successful baseline run-id set,
+  - retain only latest successful candidate run-id set,
+  - retain scorecards and lock artifacts,
+  - prune other run-id folders after each accepted iteration.
 
 ## 5) Workstream C: legal-country realism and identity semantics (Phase P3)
 

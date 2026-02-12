@@ -4142,3 +4142,42 @@ Documentation updates performed:
 1) Added `P1 freeze contract` to:
 - `docs/model_spec/data-engine/implementation_maps/segment_1A.build_plan.md`
 2) Added `P2 precondition` explicitly inheriting the freeze contract in the same file.
+
+### Entry: 2026-02-12 21:18
+
+Design element: P2 plan expansion (data-first realism protocol).
+Summary: Expanded Workstream `P2` in the build plan with explicit statistical definitions, staged DoD blocks, allowed-tuning ownership boundaries, and storage controls. This formalizes how P2 will improve realism without reopening P1 surfaces.
+
+Key planning decisions captured:
+1) Statistical realism variables are now explicit:
+- `C_m`: candidate breadth,
+- `R_m`: realized foreign membership,
+- `rho_m = R_m / max(C_m,1)`.
+2) Coupling metric fixed to Spearman correlation:
+- `SpearmanCorr(C_m, R_m)` as the primary dependence check.
+3) Pathology rails are now hard checks in P2:
+- retry-exhaustion share cap,
+- high-rejection concentration cap.
+4) P2 is staged into `P2.1 -> P2.4`:
+- baseline/scorer,
+- S3 candidate shaping,
+- S4/S6 coupling,
+- reconciliation + lock.
+5) Tune ownership is pinned:
+- only S3/S4/S6 policy/model surfaces are adjustable in P2,
+- S1/S2 remains frozen under the P1 freeze contract.
+6) Mathematical calibration posture is pinned:
+- constrained objective using band-distance plus pathology penalty,
+- fail-fast on pathology cap violation,
+- stability/replay required for accepted candidates.
+7) Storage hygiene is formalized for iterative P2 work:
+- keep only latest baseline + latest accepted candidate run sets and scorecards; prune the rest.
+
+Build-plan sections updated:
+1) `4.1.b` P2 execution mode (strict).
+2) `4.3` P2 target datasets.
+3) `4.4` statistical realism formulas and checks.
+4) `4.5` tunable ownership map.
+5) `4.8` phased P2 DoD (`P2.1` to `P2.4`).
+6) `4.9` mathematical calibration method.
+7) `4.10` storage retention policy for P2 loops.
