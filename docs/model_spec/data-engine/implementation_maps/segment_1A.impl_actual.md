@@ -3984,3 +3984,88 @@ P1.3 decision outcome:
 
 Evidence artifact:
 - `runs/fix-data-engine/segment_1A/reports/p1_3_nb_multiseed_scorecard.json`.
+
+### Entry: 2026-02-12 20:30
+
+Design element: P1.4 execution plan (joint reconciliation + lock).
+Summary: With P1.2 and P1.3 both passing B-band requirements, execute P1.4 as a stability and lock step without further coefficient edits. Goal is to prove there is no counter-tuning oscillation and that same-seed replay is stable under the selected bundle.
+
+Authorities and fixed inputs:
+1) Selected coefficient bundle from P1.3:
+- `config/layer1/1A/models/hurdle/exports/version=2026-02-12/20260212T200823Z/hurdle_coefficients.yaml`
+- `config/layer1/1A/models/hurdle/exports/version=2026-02-12/20260212T200823Z/nb_dispersion_coefficients.yaml`
+2) Fixed S2 sampler patch remains active (inversion-only Poisson path) as the accepted algorithmic remediation.
+3) P1 run scope remains `S0 -> S1 -> S2` via `make segment1a-p1`.
+
+P1.4 validation method:
+1) Run two consecutive multi-seed P1 passes with identical seeds (`42/43/44`) and no coefficient edits between passes.
+2) Compute per-run P1 metrics:
+- P1.2 surfaces: single-share, branch purity.
+- P1.3 surfaces: median outlets, top10 share, gini, phi CV, phi P95/P05.
+3) Evaluate:
+- each run must satisfy P1 B bands (no oscillation outside B),
+- same-seed pass-1 vs pass-2 metric deltas must be within replay tolerance.
+
+Replay tolerance policy for this phase:
+1) Primary expectation: deterministic equality per seed (same inputs/seed -> same metric values).
+2) Validation tolerance used for automated compare: absolute tolerance `1e-12` for float metrics (strict-equality practical proxy).
+3) Any seed-level mismatch beyond tolerance is a P1.4 failure and blocks lock.
+
+Lock recording output:
+1) Write P1.4 lock report with:
+- pass-1 and pass-2 run IDs,
+- per-seed metrics and B/B+ checks,
+- replay delta checks,
+- locked bundle file paths + SHA256 digests.
+2) Persist at:
+- `runs/fix-data-engine/segment_1A/reports/p1_4_lock_scorecard.json`.
+3) Mark P1.4 DoD checkboxes only after report confirms all pass conditions.
+
+### Entry: 2026-02-12 20:52
+
+Design element: P1.4 execution and lock closure.
+Summary: Completed two consecutive replay passes on the fixed P1 bundle and generated a lock scorecard that proves B-band stability, same-seed determinism, and resolved bundle lock recording.
+
+Execution performed:
+1) Consecutive pass runs (`S0->S2` only, no coefficient edits between passes):
+- pass1:
+  - seed 42 -> `e48afa8eb791c839f36d59c34020ca66`
+  - seed 43 -> `326d1abec0aeb9e9643ee541b5eb4334`
+  - seed 44 -> `95d192a8ae8cae271da7083108e583ab`
+- pass2:
+  - seed 42 -> `798476f5603c06f499be7ac76b13150b`
+  - seed 43 -> `45fd5a38414b705f64c3f7ee09bdbee4`
+  - seed 44 -> `1288cf0b8d4ee8e17a55a814a63260d7`
+
+2) Added scoring utility:
+- `tools/score_segment1a_p1_4_lock.py`
+- purpose:
+  - compute P1.2 + P1.3 metrics for both passes,
+  - enforce B-band checks per run,
+  - compare same-seed pass1 vs pass2 deltas under tolerance,
+  - resolve + record locked coefficient paths and SHA256 from sealed inputs.
+
+3) Generated lock artifact:
+- `runs/fix-data-engine/segment_1A/reports/p1_4_lock_scorecard.json`
+- summary outcomes:
+  - `two_consecutive_p1_runs_meet_all_p1_metrics = true`
+  - `same_seed_replay_preserves_metric_posture = true`
+  - `locked_bundle_versions_recorded = true`
+  - `consecutive_passes_all_B = true`
+  - `consecutive_passes_all_Bplus = false` (expected: B+ gini remains above tight cap).
+
+Replay findings:
+1) Same-seed metrics across pass1/pass2 were identical (`delta=0.0` for all tracked metrics on seeds 42/43/44).
+2) Parameter hash and manifest fingerprint matched per seed across both passes, confirming no hidden input drift.
+
+Locked bundle recording (resolved from sealed inputs):
+1) Hurdle coefficients:
+- path: `config/layer1/1A/models/hurdle/exports/version=2026-02-12/20260212T200823Z/hurdle_coefficients.yaml`
+- sha256: `89565cfd4821d271f31b31e25344e924cad99569cac4ca4925238ef72e4ffb63`
+2) NB dispersion coefficients:
+- path: `config/layer1/1A/models/hurdle/exports/version=2026-02-12/20260212T200823Z/nb_dispersion_coefficients.yaml`
+- sha256: `43fe3945f37ea2e958002c26de7b3f8b5ff0fc6be84f360b62b652a5124f0fc7`
+
+P1.4 DoD outcome:
+1) Complete.
+2) Build-plan P1.4 checkboxes marked done.

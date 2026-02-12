@@ -134,9 +134,9 @@ Freeze the current baseline so post-fix movement is causal and auditable.
   - reconcile cross-effects between S1 and S2 so gains are not metric-forging artifacts;
   - lock coefficient bundles once realism is stable.
 - DoD:
-  - [ ] two consecutive P1 runs meet all P1 metrics without counter-tuning oscillation.
-  - [ ] same-seed replay preserves metric posture (no drift beyond tolerance).
-  - [ ] locked bundle versions are recorded for hurdle + NB dispersion.
+  - [x] two consecutive P1 runs meet all P1 metrics without counter-tuning oscillation.
+  - [x] same-seed replay preserves metric posture (no drift beyond tolerance).
+  - [x] locked bundle versions are recorded for hurdle + NB dispersion.
 
 ### 3.6 P1 explicit non-goals
 - No `S8/S9`-level realism patching as a substitute for upstream S1/S2 fixes.
