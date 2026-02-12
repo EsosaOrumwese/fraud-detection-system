@@ -61,37 +61,87 @@ Freeze the current baseline so post-fix movement is causal and auditable.
 - [x] all Section 2 metrics from remediation report are materialized as baseline table.
 - [x] hard-gate status is explicitly marked pass/fail before any code or policy change.
 
-## 3) Workstream A: merchant pyramid and dispersion recovery (Phase P1)
+## 3) Workstream A: coefficient-first population/count realism (Phase P1)
 
 ### 3.1 Why first
-`1A` fails realism at foundation level (missing single-site tier, near-constant dispersion). If this is not fixed first, downstream topology fixes remain unstable.
+`1A` realism drift begins at the count-generating roots (`S1` hurdle + `S2` NB). If these are not corrected first, later states only mask upstream shape errors.
 
-### 3.2 States in scope
-- `S1` hurdle decision shape,
-- `S2` NB outlet counts and dispersion heterogeneity.
+### 3.2 P1 execution mode (strict)
+- Run only required upstream chain for P1: `S0 -> S1 -> S2`.
+- Do not execute `S3+` while calibrating P1 unless explicitly needed for a targeted diagnostic.
+- P1 scoring is data-shape first; RNG analysis is limited to integrity rails (cardinality/branch purity/counter sanity).
 
-### 3.3 Primary files to touch
-- Policies and coeffs:
+### 3.3 P1 target datasets (authoritative scoring surfaces)
+- `S1` branch gate:
+  - `logs/layer1/1A/rng/events/hurdle_bernoulli/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/part-*.jsonl`
+- `S2` accepted outlet count:
+  - `logs/layer1/1A/rng/events/nb_final/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/part-*.jsonl`
+- `S2` mixture diagnostics (for rejection/dispersion behavior sanity):
+  - `logs/layer1/1A/rng/events/gamma_component/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/part-*.jsonl`
+  - `logs/layer1/1A/rng/events/poisson_component/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/part-*.jsonl`
+- Coefficient/input context for calibration:
+  - `data/layer1/1A/hurdle_design_matrix/parameter_hash={parameter_hash}/`
+  - `data/layer1/1A/hurdle_pi_probs/parameter_hash={parameter_hash}/`
+
+### 3.4 Primary files to touch
+- Policies and coeff bundles:
   - `config/layer1/1A/models/hurdle/hurdle_simulation.priors.yaml`
-  - active export:
-    - `config/layer1/1A/models/hurdle/exports/version=*/**/hurdle_coefficients.yaml`
-    - `config/layer1/1A/models/hurdle/exports/version=*/**/nb_dispersion_coefficients.yaml`
+  - `config/layer1/1A/models/hurdle/exports/version=*/**/hurdle_coefficients.yaml`
+  - `config/layer1/1A/models/hurdle/exports/version=*/**/nb_dispersion_coefficients.yaml`
   - `config/layer1/1A/policy/channel_policy.1A.yaml`
-- Runtime code:
+- Runtime (only if policy/coeff updates are insufficient):
   - `packages/engine/src/engine/layers/l1/seg_1A/s1_hurdle/runner.py`
   - `packages/engine/src/engine/layers/l1/seg_1A/s2_nb_outlets/runner.py`
 
-### 3.4 Implementation intent
-- Introduce explicit path to material `outlet_count=1` mass.
-- Retain heavy-tail outlets without forcing all merchants into multi-site classes.
-- Re-author `beta_phi` so implied merchant-level `phi` has controlled but real spread.
-- Keep bounded behavior (avoid unstable extreme tails).
+### 3.5 P1 phased approach and DoD
 
-### 3.5 P1 definition of done
-- [ ] single-site share enters at least `B` band (`0.25 to 0.45`).
-- [ ] outlet median enters at least `B` band (`6 to 20`).
-- [ ] implied `phi` heterogeneity clears hard gate (`CV >= 0.05`, `P95/P05 >= 1.25`).
-- [ ] determinism check passes across repeated same-seed run.
+#### P1.1 Run-loop hardening (`S0->S2` only)
+- Intent:
+  - enforce state-scoped run profile that stops after `S2`;
+  - keep failed-run pruning active before each new run id in `runs/fix-data-engine/...`.
+- DoD:
+  - [ ] one repeatable command/profile executes `S0,S1,S2` only.
+  - [ ] each run emits all four scoring surfaces listed in 3.3.
+
+#### P1.2 Hurdle calibration (`S1`)
+- Intent:
+  - calibrate `hurdle_coefficients` to restore realistic single-site vs multi-site split by merchant strata;
+  - avoid degenerate saturation where most merchants collapse near `pi ~ 0` or `pi ~ 1`.
+- Data checks:
+  - derive merchant outlet regime from `hurdle_bernoulli` gate + `nb_final`.
+- DoD:
+  - [ ] single-site share reaches at least `B` band (`0.25 to 0.45`), target `B+` (`0.35 to 0.55`).
+  - [ ] branch purity holds: no `S2` outputs for merchants gated `is_multi=false`.
+
+#### P1.3 NB mean/dispersion calibration (`S2`)
+- Intent:
+  - calibrate count level via NB mean path and restore dispersion heterogeneity via `beta_phi`;
+  - preserve stable tails while removing near-constant `phi`.
+- Data checks:
+  - outlet-count shape from `nb_final`;
+  - dispersion realism from implied `phi` profile by merchant strata.
+- DoD:
+  - [ ] `outlets_per_merchant` median reaches `B` band (`6 to 20`), target `B+` (`8 to 18`).
+  - [ ] concentration metrics reach `B` bands:
+    - top-10% outlet share (`0.35 to 0.55`),
+    - Gini (`0.45 to 0.62`).
+  - [ ] dispersion heterogeneity reaches `B` bands:
+    - `CV(phi)` (`0.05 to 0.20`),
+    - `P95/P05(phi)` (`1.25 to 2.0`).
+
+#### P1.4 Joint reconciliation + lock
+- Intent:
+  - reconcile cross-effects between S1 and S2 so gains are not metric-forging artifacts;
+  - lock coefficient bundles once realism is stable.
+- DoD:
+  - [ ] two consecutive P1 runs meet all P1 metrics without counter-tuning oscillation.
+  - [ ] same-seed replay preserves metric posture (no drift beyond tolerance).
+  - [ ] locked bundle versions are recorded for hurdle + NB dispersion.
+
+### 3.6 P1 explicit non-goals
+- No `S8/S9`-level realism patching as a substitute for upstream S1/S2 fixes.
+- No deep RNG-forensics work unless integrity rails fail.
+- No full-segment (`S0..S9`) run requirement for iterative P1 tuning.
 
 ## 4) Workstream B: cross-border candidate realism and realization coupling (Phase P2)
 
@@ -222,12 +272,14 @@ Certification is impossible while required outputs are absent.
 ### 8.1 Phase order
 - Execute strictly: `P0 -> P1 -> P2 -> P3 -> P4 -> P5`.
 - Do not overlap phases if prior phase DoD is open.
+- Within `P1`, execute state progression strictly as `S0 -> S1 -> S2` for each iteration.
 
 ### 8.2 Stop rules
 - Stop immediately if:
   - determinism breaks,
   - hard-gate metric regresses by more than 10% relative to baseline in the wrong direction,
   - schema/registry drift appears without explicit contract update.
+  - P1 run profile unexpectedly emits `S3+` outputs (scope breach).
 
 ### 8.3 Rollback rule
 - Any failed phase reverts to last sealed passing manifest and re-runs from that boundary.

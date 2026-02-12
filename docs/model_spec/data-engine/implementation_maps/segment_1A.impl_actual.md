@@ -3633,3 +3633,27 @@ Decision:
 External dependency control decision:
 - For subsequent runs, enforce sealed-input diff checks against baseline and classify each changed external artifact as intended vs unintended before accepting any metric movement.
 - Any unplanned artifact drift (policy/coeff/reference) invalidates the run for remediation inference.
+
+### Entry: 2026-02-12 18:40
+
+Design element: P1 metric-authority correction before further code changes.
+Summary: Before applying any additional structural edits, I checked run `bb268f24c8eb5af10da973d5c0d54181` against state contracts and found that the prior P1 failure interpretation mixed incompatible surfaces: single-site share was read from `outlet_catalogue` even though S3/S8 are gated to multi-site merchants by contract.
+
+Reasoning trail:
+1) S1 hurdle events already carry the multi vs single decision for the full merchant population.
+2) S2 `nb_final` is defined for the S1 multi subset (`n_outlets >= 2`) by design.
+3) S3/S8 remain multi-site scoped in the current state-flow contracts, so `outlet_catalogue` cannot be used alone to infer global single-site prevalence.
+4) In run `bb268...`, S1 shows `single_share = 0.4119` and S1+S2 composite outlet median is `6`, which is inside the P1 B-band targets.
+5) Dispersion gates are already passing from the new coeff bundle (`phi_cv=0.13898`, `phi_p95/p05=1.56837`).
+
+Decision:
+- Continue P1 with deterministic replay validation and artifactized metric extraction using contract-aligned surfaces:
+  - single-site/pyramid metrics from `S1 + S2` composite,
+  - dispersion metrics from S2 coeff-implied profile checks,
+  - leave candidate breadth/realization to P2 scope.
+- Do not make further S8 semantic changes in P1 until determinism is proven and P1 metrics are frozen under the corrected authority mapping.
+
+Immediate next actions:
+1) Run same-seed replay (`make segment1a`) to produce a second post-fix run.
+2) Compare run-to-run outputs for determinism-critical surfaces (S1/S2/S3/S8 hashes + gate metrics).
+3) Write `runs/fix-data-engine/segment_1A/<run_id>/reports/p1_metrics.json` + `p1_determinism_check.json`.
