@@ -35,6 +35,8 @@ Turn migration uncertainty into explicit, fail-closed progression gates so no se
   - capture for each process: command/entrypoint, runtime location, dependencies, state store, credentials path, input/output refs, observability/evidence outputs, retry/failure posture.
 - Decomposition must go below surface labels (for example Oracle/SR/WSP/IG/EB) into concrete executable units.
 - No component migration gate may be accepted as green if this matrix is incomplete for that corridor.
+- Artifact path (active track):
+  - `docs/model_spec/platform/implementation_maps/dev_substrate/local_run_process_inventory_matrix.md`
 
 1. Compute and state coupling inventory (per service)
 - Identify current local couplings:

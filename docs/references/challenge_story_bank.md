@@ -1668,3 +1668,575 @@ This standard is binding for every new ID entry in this file.
 
 - Why this proves MLOps/Data Eng strength (explicit hiring signal):
   This demonstrates mature policy-and-operations engineering. You treated failures as envelope mismatches (not silent data fixes), introduced deterministic control mechanisms, and upheld immutability during policy evolution. Recruiters see this as strong platform execution: you can tune realism and performance under strict governance constraints.
+
+## ID 37 - Engine realism regraded to `D+` despite structural completion
+
+- Context (what was at stake):
+  The engine had reached structural completion and green technical runs, but the key question shifted from "does it run?" to "is the generated world behaviorally credible?" This was a high-stakes checkpoint because model training value depends on realism quality, not just pipeline correctness.
+
+- Problem (specific contradiction/failure):
+  A strict platform-weighted realism audit regraded the engine to `D+` overall, despite several segments having decent structural grades. The contradiction was clear: segment-level technical integrity existed, but cross-segment realism propagation was weak enough that final platform realism remained non-credible.
+
+- Options considered (2-3):
+  1. Continue ad-hoc per-segment tuning based on whichever metric fails next.
+     This risks local fixes that do not move platform-level realism.
+  2. Treat the `D+` result as a governed defect baseline and run a staged remediation program with explicit gates and dependency order.
+     This creates a controlled path from diagnosis to measurable uplift.
+  3. De-prioritize realism and proceed with platform migration as-is.
+     This would preserve momentum short-term but compound downstream quality debt.
+
+- Decision (what you chose and why):
+  We chose option 2. The right response to a platform-level realism downgrade was governance, not random tuning. The team formalized a stepwise program (`baseline lock -> root-cause trace -> execution backlog`) so each remediation can be measured against explicit acceptance gates.
+
+- Implementation (what you changed):
+  1. Locked a strict baseline ledger with a platform-weighted realism grade and explicit blocker stack.
+  2. Produced root-cause traces for critical/high gaps with policy/code anchors and falsification checks.
+  3. Converted hypotheses into an executable wave backlog:
+     - one work package per critical/high gap,
+     - explicit file-level targets,
+     - deterministic seed protocol and fail-closed wave gates,
+     - required per-wave artifacts (`change_set`, `metrics`, `gate_report`).
+  4. Enforced wave dependency discipline: no downstream wave starts until upstream gates pass.
+
+- Result (observable outcome/evidence):
+  The `D+` outcome became an auditable remediation program rather than an unstructured concern. You now have a governed realism improvement path with explicit sequencing, gate logic, and evidence artifacts.
+  Truth posture: `Partial` (program defined and operationalized; remediation implementation runs are pending).
+  Evidence anchors:
+  - `docs/reports/eda/engine_realism_baseline_gap_ledger.md:39`
+  - `docs/reports/eda/engine_realism_step2_root_cause_trace.md:1`
+  - `docs/reports/eda/engine_realism_step4_execution_backlog.md:11`
+  Additional challenge context:
+  - `docs/reports/eda/engine_realism_baseline_gap_ledger.md:40`
+  - `docs/reports/eda/engine_realism_step4_execution_backlog.md:19`
+  - `docs/reports/eda/engine_realism_step4_execution_backlog.md:39`
+
+- Why this proves MLOps/Data Eng strength (explicit hiring signal):
+  This is strong systems-level engineering leadership. You did not confuse green pipelines with credible data quality; you built a measurable, fail-closed remediation framework with explicit dependencies and acceptance gates. Recruiters see this as advanced MLOps/Data Eng maturity: you can govern quality at platform scale, not just fix isolated bugs.
+
+## ID 38 - Critical 6B truth/bank/timeline blockers
+
+- Context (what was at stake):
+  6B is the final truth surface that downstream evaluation depends on. Three realism defects were identified as critical blockers: truth-label collapse, bank-view stratification collapse, and invalid case timelines. If these remain unresolved, platform-level realism claims are not credible regardless of upstream improvements.
+
+- Problem (specific contradiction/failure):
+  The baseline ledger showed:
+  - truth labels collapsed (`is_fraud_truth=True` for ~100% of flows),
+  - bank-view outcomes near-uniform across strata,
+  - case timelines with negative gaps and rigid duration patterns.
+  The contradiction was that the pipeline could produce structurally complete outputs, but the final truth surface failed core realism checks and invalidated downstream risk modeling narratives.
+
+- Options considered (2-3):
+  1. Start broad multi-segment remediation immediately.
+     This risks attribution ambiguity and makes it hard to prove which changes fixed final-truth defects.
+  2. Isolate 6B critical defects into a strict Wave-0 scope (`WP-001..WP-003`) with fail-closed gates before any downstream wave.
+     This creates clean causality and protects execution discipline.
+  3. Defer 6B and improve upstream segments first.
+     This would produce movement in intermediate metrics but leave final truth realism invalid.
+
+- Decision (what you chose and why):
+  We chose option 2. Final truth defects are platform blockers; they must be fixed first in a tightly scoped wave. Scope lock to 6B truth/bank/case surfaces preserves attribution and prevents dilution of effort before core truth realism is repaired.
+
+- Implementation (what you changed):
+  1. Marked the three 6B defects as Critical-first blockers in the engine realism ledger.
+  2. Defined Wave-0 as exactly gaps `1.1`, `1.2`, `1.3` with work packages:
+     - `WP-001`: truth mapping key semantics,
+     - `WP-002`: bank-view conditionality,
+     - `WP-003`: case delay/timeline monotonicity.
+  3. Enforced scope lock in runbook:
+     - allowed changes restricted to 6B truth surfaces,
+     - explicit prohibition on non-6B segment modifications during Wave-0,
+     - fail/hold conditions that block Wave-1 start until Wave-0 gates pass.
+
+- Result (observable outcome/evidence):
+  The critical 6B blockers are now isolated in a controlled, fail-closed execution lane with explicit scope and gate rules. This established the necessary remediation posture, but implementation closure is still pending.
+  Truth posture: `Open`.
+  Evidence anchors:
+  - `docs/reports/eda/engine_realism_baseline_gap_ledger.md:75`
+  - `docs/reports/eda/engine_realism_baseline_gap_ledger.md:76`
+  - `docs/reports/eda/engine_realism_baseline_gap_ledger.md:77`
+  - `docs/reports/eda/engine_realism_step4_execution_backlog.md:35`
+  - `docs/reports/eda/engine_realism_step5_wave0_execution_runbook.md:46`
+  Additional challenge context:
+  - `docs/reports/eda/engine_realism_step4_execution_backlog.md:45`
+  - `docs/reports/eda/engine_realism_step5_wave0_execution_runbook.md:23`
+  - `docs/reports/eda/engine_realism_step5_wave0_execution_runbook.md:50`
+
+- Why this proves MLOps/Data Eng strength (explicit hiring signal):
+  This demonstrates strong remediation governance under complex system failure. You identified platform-critical truth blockers, imposed strict scope discipline, and designed fail-closed execution gates to preserve causal attribution. Recruiters see this as high-level MLOps/Data Eng leadership: you can run quality recovery like an engineering program, not just a list of patches.
+
+## ID 39 - Critical 3B substrate blockers (uniform edges, weak settlement coherence)
+
+- Context (what was at stake):
+  3B provides virtual edge substrate that propagates into later layers (notably 5B/6B behavior surfaces). If 3B is structurally flat, downstream segments inherit weak geography/routing realism and can only patch symptoms later. The stake was substrate credibility, not just local segment metrics.
+
+- Problem (specific contradiction/failure):
+  The baseline ledger identified two critical 3B defects:
+  - edge catalogue structural uniformity (fixed edge cardinality and near-uniform weighting),
+  - weak settlement coherence (very low settlement-country overlap, high anchor distance).
+  The contradiction was that 3B outputs were technically valid and deterministic, but behaviorally under-diverse in ways that directly degrade downstream realism.
+
+- Options considered (2-3):
+  1. Tune downstream segments first to compensate for 3B substrate weakness.
+     This risks treating propagated substrate defects as local downstream bugs.
+  2. Promote 3B blockers into explicit Wave-1 work packages with measurable acceptance gates and coupled execution.
+     This keeps root-cause remediation explicit and testable.
+  3. Merge 3B fixes into Wave-0 with 6B truth fixes.
+     This would blur attribution and violate the critical-first scope lock on final truth.
+
+- Decision (what you chose and why):
+  We chose option 2. 3B defects are critical but still downstream of Wave-0 final-truth blockers. So the team mapped them to Wave-1 with explicit packages (`WP-004`, `WP-005`) and acceptance movement targets, while intentionally blocking execution until Wave-0 closure.
+
+- Implementation (what you changed):
+  1. Captured the 3B defects in the frozen baseline ledger as critical substrate blockers.
+  2. Created explicit Wave-1 remediation packages:
+     - `WP-004`: merchant-conditioned edge count + non-uniform edge weighting,
+     - `WP-005`: settlement-country uplift + distance-aware reweighting.
+  3. Added dependency discipline:
+     - `WP-004` and `WP-005` should be executed together to avoid attribution ambiguity,
+     - Wave-1 start is blocked until Wave-0 gates pass.
+
+- Result (observable outcome/evidence):
+  The 3B realism issues are no longer vague concerns; they are formalized as high-propagation substrate work with explicit gate intent and sequencing constraints. Execution remains pending by design until Wave-0 completion.
+  Truth posture: `Open`.
+  Evidence anchors:
+  - `docs/reports/eda/engine_realism_baseline_gap_ledger.md:62`
+  - `docs/reports/eda/engine_realism_baseline_gap_ledger.md:63`
+  - `docs/reports/eda/engine_realism_step4_execution_backlog.md:55`
+  Additional challenge context:
+  - `docs/reports/eda/engine_realism_baseline_gap_ledger.md:85`
+  - `docs/reports/eda/engine_realism_step4_execution_backlog.md:56`
+  - `docs/reports/eda/engine_realism_step4_execution_backlog.md:88`
+  - `docs/reports/eda/engine_realism_step4_execution_backlog.md:39`
+
+- Why this proves MLOps/Data Eng strength (explicit hiring signal):
+  This shows strong substrate-level reasoning. You identified where realism debt originates, resisted downstream band-aids, and converted root defects into gated, dependency-aware work packages. Recruiters see this as advanced Data Eng/MLOps judgment: you can manage propagation risk across a multi-layer system, not just optimize local outputs.
+
+## ID 40 - Broad high-severity realism gaps across many segments
+
+- Context (what was at stake):
+  After the baseline lock, realism defects were spread across nearly every segment (`1A, 1B, 2A, 2B, 3A, 3B, 5B, 6A, 6B`), with multiple `Critical` and many `High` issues at once. The stake was execution control: if this was handled as isolated fixes, you could spend weeks making local improvements without lifting platform realism.
+
+- Problem (specific contradiction/failure):
+  The contradiction was that the engine was structurally complete and runnable, but realism quality remained weak at platform level because defects were distributed and coupled. There was no single execution object that:
+  1. ranked every issue by severity and propagation impact,
+  2. enforced a strict order of remediation,
+  3. prevented downstream work from starting before upstream blockers cleared.
+  Without that, the program risked turning into ad-hoc tuning with ambiguous causality and recurring regressions.
+
+- Options considered (2-3):
+  1. Let segment owners tune independently, then merge improvements at the end.
+     This maximizes parallel work, but makes causal attribution and gate ownership unclear.
+  2. Focus only on the most visible failures first (especially 6B), and defer broader governance until later.
+     This addresses urgent symptoms but leaves the multi-segment backlog unmanaged.
+  3. Convert all high-severity findings into one engine-wide severity ledger and an ordered execution backlog with per-gap gates and wave dependencies.
+     This reduces ambiguity and gives the team one fail-closed remediation system.
+
+- Decision (what you chose and why):
+  We chose option 3. The failure mode was not "one bad segment"; it was a distributed realism program-management problem. So the solution had to be programmatic: one canonical ledger, one ordered backlog, one gating protocol, and explicit dependencies.
+
+- Implementation (what you changed):
+  1. Locked an engine-wide gap ledger that made each defect operationally actionable:
+     - each row captured the symptom, metric anchor, severity, downstream impact, and suspected source.
+  2. Created a severity stack that forced prioritization:
+     - `Critical` blockers first,
+     - then `High`,
+     - then `Medium` polish.
+  3. Converted the severity stack into an executable Step-4 backlog:
+     - one work package per `Critical/High` gap (`26` total),
+     - explicit file-level targets and expected metric movement,
+     - strict wave ordering with dependency controls.
+  4. Added fail-closed execution protocol:
+     - sealed runs on fixed seed set `{42, 7, 101, 202}`,
+     - fail wave if any critical gate fails or if more than two high gates regress,
+     - mandatory wave evidence artifacts before progression.
+  5. Enforced progression discipline:
+     - no downstream wave can start until upstream wave gates pass.
+
+- Result (observable outcome/evidence):
+  The remediation effort moved from a scattered list of realism complaints to a controlled engineering program with explicit ordering, gates, and dependency rules. This created a credible path to uplift the platform from `D+` without losing attribution or governance.
+  Truth posture: `Partial` (framework and controls are implemented; full remediation closure is still pending execution).
+  Evidence anchors:
+  - `docs/reports/eda/engine_realism_baseline_gap_ledger.md:47`
+  - `docs/reports/eda/engine_realism_baseline_gap_ledger.md:54`
+  - `docs/reports/eda/engine_realism_baseline_gap_ledger.md:68`
+  - `docs/reports/eda/engine_realism_baseline_gap_ledger.md:71`
+  - `docs/reports/eda/engine_realism_baseline_gap_ledger.md:78`
+  - `docs/reports/eda/engine_realism_step4_execution_backlog.md:11`
+  Additional challenge context:
+  - `docs/reports/eda/engine_realism_baseline_gap_ledger.md:81`
+  - `docs/reports/eda/engine_realism_baseline_gap_ledger.md:87`
+  - `docs/reports/eda/engine_realism_step4_execution_backlog.md:19`
+  - `docs/reports/eda/engine_realism_step4_execution_backlog.md:35`
+  - `docs/reports/eda/engine_realism_step4_execution_backlog.md:39`
+
+- Why this proves MLOps/Data Eng strength (explicit hiring signal):
+  This is strong large-scale remediation orchestration. You translated multi-segment quality debt into a deterministic, gated execution system with measurable pass/fail criteria and dependency-aware sequencing. Recruiters read this as senior MLOps/Data Eng capability: you can run platform-quality recovery as a governed program, not just ship isolated fixes.
+
+## ID 41 - Need explicit root-cause trace (not ad-hoc fixes)
+
+- Context (what was at stake):
+  After the engine realism baseline showed many `Critical/High` defects, the next risk was execution chaos. Without a disciplined root-cause trace, any fixes would become guesswork, and improvement claims would be hard to defend in an interview or in production governance.
+
+- Problem (specific contradiction/failure):
+  The system had a long list of high-severity realism gaps, but no authoritative map from each gap to its policy and code cause. The contradiction was that the team could describe symptoms (e.g., 6B truth collapse, 3B uniform edges, DST defects) but could not yet prove where each defect originated or how to falsify competing hypotheses.
+
+- Options considered (2-3):
+  1. Start implementing fixes based on intuition and the segment reports alone.
+     This is fast but brittle; you risk fixing symptoms and misattributing causality.
+  2. Run a lightweight code review for each segment and document only the obvious issues.
+     Better than intuition, but still lacks falsification checks and explicit confidence.
+  3. Build a formal Step-2 root-cause trace: per-gap evidence, suspected root cause, policy and implementation anchors, confidence rating, and falsification check.
+     Slower up front, but provides defensible, testable causality before touching code.
+
+- Decision (what you chose and why):
+  We chose option 3. Given the breadth and severity of issues, correctness and attribution mattered more than speed. A formal trace makes fixes auditable and prevents rework from incorrect assumptions.
+
+- Implementation (what you changed):
+  1. Created a dedicated Step-2 root-cause document covering every `Critical/High` gap.
+  2. For each gap, documented:
+     - the exact symptom and metric evidence,
+     - the most likely root cause,
+     - explicit policy anchors (config artifacts),
+     - explicit implementation anchors (runner/code paths),
+     - an explicit confidence rating,
+     - a falsification check to prove or disprove the hypothesis.
+  3. Example traces in the document:
+     - 6B truth-label collapse traced to a mapping keyed only by `fraud_pattern_type`, overwriting `overlay_anomaly_any` distinctions.
+     - 3B uniform edge catalogue traced to fixed `edge_scale` and uniform weighting policy + implementation.
+     - 5B DST defect traced to conversion logic in arrival event kernel and validation path.
+
+- Result (observable outcome/evidence):
+  The program now has an authoritative, testable root-cause map for every `Critical/High` gap, which is the foundation for safe remediation. This removed ambiguity and enabled later Step-3 acceptance gates to be tied to known causes.
+  Truth posture: `Resolved` (diagnosis complete, with explicit falsification checks).
+  Evidence anchors:
+  - `docs/reports/eda/engine_realism_step2_root_cause_trace.md:1`
+  - `docs/reports/eda/engine_realism_step2_root_cause_trace.md:50`
+  - `docs/reports/eda/engine_realism_step2_root_cause_trace.md:158`
+  Additional challenge context:
+  - `docs/reports/eda/engine_realism_step2_root_cause_trace.md:21`
+  - `docs/reports/eda/engine_realism_step2_root_cause_trace.md:73`
+  - `docs/reports/eda/engine_realism_step2_root_cause_trace.md:118`
+
+- Why this proves MLOps/Data Eng strength (explicit hiring signal):
+  This shows you can run engineering-quality diagnosis, not just fix bugs. You established traceable causality with falsification checks and explicit policy/code anchors, which is exactly the kind of rigor expected in MLOps/Data Engineering roles that must defend data quality and model realism.
+
+## ID 42 - Need one-to-one hypotheses + acceptance tests with fail-closed gating
+
+- Context (what was at stake):
+  After Step-2 root-cause tracing, the next risk was uncontrolled remediation. Without explicit hypotheses and numeric acceptance gates, changes could "feel" right but still fail to improve realism or even regress it. The stake was a measurable, defensible path from diagnosis to verified uplift.
+
+- Problem (specific contradiction/failure):
+  There was no one-to-one mapping between each `Critical/High` gap and a remediation hypothesis with concrete, numeric acceptance tests. That meant you could not prove a fix worked, could not compare runs fairly, and could not fail-closed on regressions.
+
+- Options considered (2-3):
+  1. Use qualitative "looks better" judgments from segment reports after each change.
+     This is fast but non-defensible and prone to bias.
+  2. Define acceptance gates only for the most critical defects (6B), and handle others later.
+     This covers urgent risks but leaves the majority of the backlog without objective pass/fail criteria.
+  3. Build a complete Step-3 hypothesis/acceptance plan that covers every `Critical/High` gap, with numeric thresholds and a fail-closed run-gating protocol.
+     This is heavier upfront but creates a stable, auditable remediation program.
+
+- Decision (what you chose and why):
+  We chose option 3. The system needed a deterministic way to validate fixes across the entire realism stack, not just the obvious blockers. A full hypothesis-and-gate plan makes remediation measurable and prevents silent regressions.
+
+- Implementation (what you changed):
+  1. Created a Step-3 plan with one-to-one hypotheses for every `Critical/High` gap (`1.1..2.21`).
+  2. Defined numeric acceptance tests for each gap (rates, thresholds, distribution tests, association metrics).
+  3. Added explicit execution ordering (Wave 0/1/2) and gating protocol:
+     - fixed seeds for comparability (`42` baseline + `{7, 101, 202}`),
+     - fail the run if any `Critical` gate fails or more than `2` `High` gates fail,
+     - require directional improvement for all touched gaps.
+  4. Defined readiness criteria for claiming `B/B+` realism:
+     - all critical gates pass twice,
+     - >= `85%` high gates pass,
+     - no segment below calibrated `C+`,
+     - `6A/6B` at least `B-`.
+
+- Result (observable outcome/evidence):
+  The remediation program now has explicit, testable hypotheses and numeric gates for every high-severity realism defect. This makes progress measurable and defensible, and it allows fail-closed governance on regressions.
+  Truth posture: `Resolved` (plan and gates fully defined).
+  Evidence anchors:
+  - `docs/reports/eda/engine_realism_step3_hypothesis_acceptance_plan.md:21`
+  - `docs/reports/eda/engine_realism_step3_hypothesis_acceptance_plan.md:260`
+  - `docs/reports/eda/engine_realism_step3_hypothesis_acceptance_plan.md:272`
+  Additional challenge context:
+  - `docs/reports/eda/engine_realism_step3_hypothesis_acceptance_plan.md:1`
+  - `docs/reports/eda/engine_realism_step3_hypothesis_acceptance_plan.md:19`
+  - `docs/reports/eda/engine_realism_step3_hypothesis_acceptance_plan.md:240`
+
+- Why this proves MLOps/Data Eng strength (explicit hiring signal):
+  This is rigorous quality governance. You turned diagnosis into measurable hypotheses with pass/fail gates and explicit run protocols. Recruiters see this as advanced MLOps/Data Eng capability: you can define and enforce objective quality bars, not just ship changes.
+
+## ID 43 - Need executable remediation scope (not just analysis)
+
+- Context (what was at stake):
+  Step-3 produced hypotheses and gates, but without an execution plan it was still just analysis. The team needed a concrete, auditable remediation scope that translated gaps into specific edits, sequencing, and validation artifacts before any code changes could responsibly begin.
+
+- Problem (specific contradiction/failure):
+  There was no operational backlog that connected each `Critical/High` gap to:
+  - exact files to change,
+  - expected metric movements,
+  - explicit wave ordering and dependencies,
+  - required evidence artifacts.
+  That meant fixes could be implemented in inconsistent order, without clear proof of which changes caused which metric movements.
+
+- Options considered (2-3):
+  1. Move straight to Wave-0 implementation and decide Wave-1/2 details later.
+     This risks rework and blurs causality for downstream gaps.
+  2. Draft a loose list of "things to fix" without file-level targets or gates.
+     This is easy to write but weak for execution discipline and auditability.
+  3. Build a full Step-4 execution backlog: one work package per gap with explicit file targets, expected metric changes, and wave sequencing + dependencies.
+     This is heavier upfront but makes remediation controllable and auditable.
+
+- Decision (what you chose and why):
+  We chose option 3. Given the number of gaps and the need for deterministic gating, we needed a concrete execution map that the team could run like an engineering program, not a to-do list.
+
+- Implementation (what you changed):
+  1. Created the Step-4 execution backlog with one work package per `Critical/High` gap (`26` total).
+  2. For each WP, specified:
+     - the exact policy + code file targets,
+     - the planned change,
+     - the expected metric movement tied to Step-3 gates.
+  3. Defined strict wave ordering (`Wave 0/1/2`) with hard dependency rules and no downstream execution until upstream gates pass.
+  4. Added required wave evidence artifacts:
+     - `wave_{N}_change_set.md`,
+     - `wave_{N}_metrics.csv`,
+     - `wave_{N}_gate_report.md`.
+  5. Added a validation backlog and risk register to prevent silent regressions and identify over-correction risk early.
+
+- Result (observable outcome/evidence):
+  The remediation effort now has a concrete, file-level execution roadmap with explicit sequencing, dependencies, and evidence artifacts. This turned a conceptual plan into an executable program.
+  Truth posture: `Resolved` (backlog fully specified; actual fixes not yet executed).
+  Evidence anchors:
+  - `docs/reports/eda/engine_realism_step4_execution_backlog.md:11`
+  - `docs/reports/eda/engine_realism_step4_execution_backlog.md:35`
+  - `docs/reports/eda/engine_realism_step4_execution_backlog.md:39`
+  Additional challenge context:
+  - `docs/reports/eda/engine_realism_step4_execution_backlog.md:48`
+  - `docs/reports/eda/engine_realism_step4_execution_backlog.md:100`
+  - `docs/reports/eda/engine_realism_step4_execution_backlog.md:130`
+
+- Why this proves MLOps/Data Eng strength (explicit hiring signal):
+  This shows execution rigor. You didn’t just diagnose; you translated diagnosis into a structured, testable work program with explicit file targets, dependencies, and evidence artifacts. Recruiters see this as senior MLOps/Data Eng practice: controlled change management at platform scale.
+
+## ID 44 - Wave-0 must block all downstream work until critical truth gates clear
+
+- Context (what was at stake):
+  Wave-0 was designed to fix platform-blocking truth defects in 6B. If those defects remain, every downstream realism improvement is invalidated. The critical decision was whether to allow later waves to proceed while final truth was still broken.
+
+- Problem (specific contradiction/failure):
+  The system had a full remediation plan, but without a hard Wave-0 block, execution could proceed to Wave-1 and Wave-2 and still produce a "better-looking" platform while the truth labels remained invalid. That would create false confidence and an untrustworthy realism grade.
+
+- Options considered (2-3):
+  1. Allow Wave-1 to start once Wave-0 has "some improvement" even if critical gates are not fully clean.
+     This increases momentum but risks compounding errors and invalid realism claims.
+  2. Pause only if Wave-0 is a complete failure, but allow `PASS_WITH_RISK` to progress.
+     This tolerates instability and undermines the idea of fail-closed gating.
+  3. Lock Wave-0 as a hard platform gate: no Wave-1 start unless all critical gates pass and no `PASS_WITH_RISK` holds remain.
+     This is slower but preserves causality and data-truth integrity.
+
+- Decision (what you chose and why):
+  We chose option 3. Final truth validity is non-negotiable; the system must fail closed on any critical truth defects. This preserves integrity and ensures downstream improvements are meaningful.
+
+- Implementation (what you changed):
+  1. Wrote a Wave-0 execution runbook that explicitly blocks downstream waves.
+  2. Defined hard-fail conditions:
+     - any critical gate failure in any seed,
+     - truth collapse persists,
+     - negative case-gap rate remains non-zero.
+  3. Added `PASS_WITH_RISK` hold behavior:
+     - cross-seed instability or borderline gate movement is marked as `PASS_WITH_RISK`,
+     - any `PASS_WITH_RISK` blocks Wave-1 until resolved.
+  4. Enforced strict scope lock:
+     - Wave-0 changes limited to 6B truth/bank/case surfaces,
+     - no mixing of downstream changes until Wave-0 gates are clean.
+
+- Result (observable outcome/evidence):
+  Wave-0 now acts as a hard platform gate with explicit fail/hold/pass criteria, preventing the program from advancing while final truth is still invalid. This ensures any future realism gains are legitimate.
+  Truth posture: `Resolved` (governance lock defined).
+  Evidence anchors:
+  - `docs/reports/eda/engine_realism_step5_wave0_execution_runbook.md:23`
+  - `docs/reports/eda/engine_realism_step5_wave0_execution_runbook.md:46`
+  - `docs/reports/eda/engine_realism_step5_wave0_execution_runbook.md:175`
+  - `docs/reports/eda/engine_realism_step5_wave0_execution_runbook.md:188`
+  Additional challenge context:
+  - `docs/reports/eda/engine_realism_step5_wave0_execution_runbook.md:68`
+  - `docs/reports/eda/engine_realism_step5_wave0_execution_runbook.md:133`
+  - `docs/reports/eda/engine_realism_step5_wave0_execution_runbook.md:223`
+
+- Why this proves MLOps/Data Eng strength (explicit hiring signal):
+  This is strong governance under pressure. You designed a hard gate to prevent downstream progress while truth surfaces are invalid, enforced strict scope control, and added explicit hold semantics. Recruiters see this as senior MLOps/Data Eng maturity: you protect data integrity even when it slows velocity.
+
+## ID 45 - Wave progression blocked by unresolved risk holds/preconditions
+
+- Context (what was at stake):
+  After Wave-0, the plan included Wave-1 and Wave-2 improvements. The risk was that teams would treat wave progression as a linear schedule rather than a gated program. If waves progressed while unresolved `PASS_WITH_RISK` holds or missing evidence remained, the program could regress and lose credibility.
+
+- Problem (specific contradiction/failure):
+  Even with Wave-0 gating, there was no explicit enforcement that Wave-1 and Wave-2 required clean prior-wave passes and complete evidence artifacts. The contradiction was that you could technically run Wave-1/2 even while earlier waves had unresolved risk holds, undermining the fail-closed posture.
+
+- Options considered (2-3):
+  1. Treat Wave-1 and Wave-2 as independent efforts after Wave-0 is "mostly" green.
+     This risks carrying unresolved issues forward and muddles causality.
+  2. Require only a general "Wave-0 done" signoff, without explicit precondition gates.
+     This improves pace but leaves loopholes for incomplete evidence or unstable results.
+  3. Encode explicit preconditions in each downstream runbook: no execution unless prior waves are `PASS` with no unresolved `PASS_WITH_RISK`, and evidence artifacts are complete/immutable.
+     This enforces discipline and keeps the program defensible.
+
+- Decision (what you chose and why):
+  We chose option 3. If the aim is a credible realism uplift, wave progression must be gated by hard preconditions, not by optimism or schedule.
+
+- Implementation (what you changed):
+  1. Added precondition gates to the Wave-1 runbook:
+     - Step-5 status must be `PASS` with no unresolved `PASS_WITH_RISK`.
+     - Wave-0 critical gates must be green across all seeds.
+     - Wave-0 evidence artifacts must be complete and immutable.
+     - No unreviewed policy changes outside Wave-1 scope files.
+  2. Added equivalent precondition gates to the Wave-2 runbook:
+     - Step-6 status must be `PASS` with no unresolved `PASS_WITH_RISK`.
+     - Wave-0 and Wave-1 hard gates must be green across all seeds.
+     - Wave-0/1 evidence artifacts must be complete and immutable.
+     - No unreviewed edits outside Wave-2 scope files.
+  3. Stated explicit fallback: if any precondition fails, execution returns to the earlier failing wave.
+
+- Result (observable outcome/evidence):
+  Wave progression is now structurally blocked unless earlier waves are clean, stable, and fully evidenced. This removes ambiguity and prevents the program from running ahead of unresolved risk holds.
+  Truth posture: `Open` (precondition design defined; execution yet to prove it in practice).
+  Evidence anchors:
+  - `docs/reports/eda/engine_realism_step5_wave0_execution_runbook.md:188`
+  - `docs/reports/eda/engine_realism_step6_wave1_execution_runbook.md:25`
+  - `docs/reports/eda/engine_realism_step7_wave2_execution_runbook.md:28`
+  Additional challenge context:
+  - `docs/reports/eda/engine_realism_step6_wave1_execution_runbook.md:30`
+  - `docs/reports/eda/engine_realism_step7_wave2_execution_runbook.md:33`
+  - `docs/reports/eda/engine_realism_step6_wave1_execution_runbook.md:173`
+
+- Why this proves MLOps/Data Eng strength (explicit hiring signal):
+  This is disciplined program governance. You encoded explicit preconditions that prevent premature promotion and force evidence completeness. Recruiters see this as strong MLOps/Data Eng judgment: you protect quality and causality over speed.
+
+## ID 46 - Missing wave execution evidence directory
+
+- Context (what was at stake):
+  The wave runbooks require structured evidence artifacts to prove pass/fail and preserve replayable audit trails. Without the evidence directory, the program cannot produce or store the artifacts needed to legitimize any wave outcome.
+
+- Problem (specific contradiction/failure):
+  The runbooks mandated evidence outputs in `docs/reports/eda/engine_realism_wave_evidence/wave_0/1/2`, but the base path was missing in the repo. That meant the "evidence-first" execution model existed on paper but had no physical landing zone to store required artifacts.
+
+- Options considered (2-3):
+  1. Keep evidence in ad-hoc locations (e.g., run folders or temporary notes) and consolidate later.
+     This undermines traceability and makes audits fragile.
+  2. Delay evidence requirements until after the first execution wave.
+     This reduces friction but weakens governance precisely when it’s most needed.
+  3. Define a mandatory evidence directory structure up front and enforce it in the runbooks.
+     This enforces auditability and consistent storage for all wave runs.
+
+- Decision (what you chose and why):
+  We chose option 3. The whole remediation program depends on evidence artifacts; without a canonical evidence directory, pass/fail decisions are not defensible.
+
+- Implementation (what you changed):
+  1. Explicitly defined evidence artifact contracts in each wave runbook.
+  2. Standardized the directory path to `docs/reports/eda/engine_realism_wave_evidence/` with per-wave subfolders:
+     - `wave_0/`, `wave_1/`, `wave_2/`.
+  3. Enumerated required files per wave (change set, metrics, gate report, seed stability, regression guards, ablation report, run index).
+  4. Recorded that the base directory was missing to make the gap explicit and actionable.
+
+- Result (observable outcome/evidence):
+  The evidence storage contract is now explicit and consistent across waves, but the base directory itself is still missing, so execution evidence cannot yet be captured in the required location.
+  Truth posture: `Open`.
+  Evidence anchors:
+  - `docs/reports/eda/engine_realism_step5_wave0_execution_runbook.md:156`
+  - `docs/reports/eda/engine_realism_step6_wave1_execution_runbook.md:184`
+  - `docs/reports/eda/engine_realism_step7_wave2_execution_runbook.md:179`
+  - `docs/references/project_challenge_solution_map.md:412`
+  Additional challenge context:
+  - `docs/reports/eda/engine_realism_step5_wave0_execution_runbook.md:159`
+  - `docs/reports/eda/engine_realism_step6_wave1_execution_runbook.md:187`
+  - `docs/reports/eda/engine_realism_step7_wave2_execution_runbook.md:182`
+
+- Why this proves MLOps/Data Eng strength (explicit hiring signal):
+  This shows evidence-first thinking. You insisted on explicit, standardized artifacts and storage paths for validation, which is core to MLOps/Data Eng auditability. Recruiters see this as a strong signal that you understand governance and traceability, not just code changes.
+
+## ID 47 - Event Bus ownership boundary initially blurred
+
+- Context (what was at stake):
+  The platform graph treats Event Bus (EB) as its own component with a stable boundary, while Ingestion Gate (IG) is a client of EB. Early on, EB interface code lived inside IG, which blurred ownership and made future adapters (like Kinesis) harder to introduce cleanly.
+
+- Problem (specific contradiction/failure):
+  EB was conceptually a separate component, but in code it looked IG-owned. That violated the platform ownership boundaries and risked locking EB interface semantics to IG implementation details. It also made forward-compatibility with multiple EB adapters fragile.
+
+- Options considered (2-3):
+  1. Keep EB interface types inside IG and let other components import from IG.
+     This is quick but inverts ownership and creates tight coupling.
+  2. Copy EB interface types into each adapter or component as needed.
+     This avoids IG dependency but fragments the contract and invites drift.
+  3. Create a shared `event_bus` module that owns EB interface contracts, with IG as a consumer.
+     This aligns with the platform graph and enables adapter parity.
+
+- Decision (what you chose and why):
+  We chose option 3. EB needed a shared contract boundary to avoid IG-centric coupling and to preserve future adapter parity without breaking receipts.
+
+- Implementation (what you changed):
+  1. Documented the ownership risk and explicitly rejected keeping EB interface inside IG.
+  2. Moved `EbRef` and `EventBusPublisher` into a shared `src/fraud_detection/event_bus/` module.
+  3. Updated IG imports to use the shared EB interface.
+  4. Standardized receipt shape for cross-adapter compatibility:
+     - `eb_ref.offset` as string,
+     - `eb_ref.offset_kind` with `file_line | kinesis_sequence`.
+
+- Result (observable outcome/evidence):
+  EB is now a first-class shared component in the codebase, with IG consuming a shared interface and receipt shape that supports file-bus and Kinesis without future schema breaks.
+  Truth posture: `Resolved`.
+  Evidence anchors:
+  - `docs/model_spec/platform/implementation_maps/local_parity/event_bus.impl_actual.md:54`
+  - `docs/model_spec/platform/implementation_maps/local_parity/event_bus.impl_actual.md:63`
+  - `docs/model_spec/platform/implementation_maps/local_parity/event_bus.impl_actual.md:129`
+  - `docs/model_spec/platform/implementation_maps/local_parity/event_bus.impl_actual.md:131`
+  Additional challenge context:
+  - `docs/model_spec/platform/implementation_maps/local_parity/event_bus.impl_actual.md:38`
+  - `docs/model_spec/platform/implementation_maps/local_parity/event_bus.impl_actual.md:65`
+  - `docs/model_spec/platform/implementation_maps/local_parity/event_bus.impl_actual.md:132`
+
+- Why this proves MLOps/Data Eng strength (explicit hiring signal):
+  This shows systems-level boundary control. You preserved component ownership, reduced coupling, and designed a contract that supports multiple adapters without future schema breaks. Recruiters see this as strong platform engineering judgment.
+
+## ID 48 - EB offset recovery stale-head correctness risk
+
+- Context (what was at stake):
+  The local file-bus became the v0 Event Bus. Offsets are the canonical replay token, so incorrect recovery logic would corrupt offset continuity and make replay evidence untrustworthy. This directly affects IG receipts and downstream validation.
+
+- Problem (specific contradiction/failure):
+  The file-bus used a `head.json` to track `next_offset` for O(1) appends. But recovery logic could let a stale head override the actual log state. In a crash scenario where the log was missing or truncated, the head would resurrect non-existent offsets, producing invalid replay tokens.
+
+- Options considered (2-3):
+  1. Keep the head as source of truth for speed and accept occasional drift.
+     This is fast but invalidates correctness under crash recovery.
+  2. Remove the head file and recompute offsets from the log every append.
+     This is correct but too slow for repeated publishes.
+  3. Keep the head for speed, but make the log the source of truth during recovery.
+     This preserves performance while enforcing correctness after failures.
+
+- Decision (what you chose and why):
+  We chose option 3. Offsets must be correct above all else, but local smoke runs still needed O(1) append performance. So we preserved the head but forced recovery to trust the log.
+
+- Implementation (what you changed):
+  1. Implemented per-topic `head.json` with atomic updates for fast append.
+  2. Added recovery logic:
+     - missing/corrupt head rebuilds from log line count,
+     - missing log forces offset reset to `0` regardless of head.
+  3. Fixed `_load_next_offset` to check log existence before reading head, preventing stale head resurrection.
+  4. Added tests for monotonic offsets and crash recovery scenarios (missing head, missing log).
+
+- Result (observable outcome/evidence):
+  Offset recovery now prefers the append log as the source of truth, preventing stale head values from resurrecting invalid offsets. The file-bus maintains deterministic offsets with O(1) append performance and passes recovery tests.
+  Truth posture: `Resolved`.
+  Evidence anchors:
+  - `docs/model_spec/platform/implementation_maps/local_parity/event_bus.impl_actual.md:226`
+  - `docs/model_spec/platform/implementation_maps/local_parity/event_bus.impl_actual.md:231`
+  - `docs/model_spec/platform/implementation_maps/local_parity/event_bus.impl_actual.md:255`
+  Additional challenge context:
+  - `docs/model_spec/platform/implementation_maps/local_parity/event_bus.impl_actual.md:193`
+  - `docs/model_spec/platform/implementation_maps/local_parity/event_bus.impl_actual.md:203`
+  - `docs/model_spec/platform/implementation_maps/local_parity/event_bus.impl_actual.md:246`
+
+- Why this proves MLOps/Data Eng strength (explicit hiring signal):
+  This shows correctness-first infrastructure thinking. You balanced performance with recovery correctness, protected replay integrity, and validated the fix with targeted tests. Recruiters see this as strong Data Eng rigor for log-based systems.

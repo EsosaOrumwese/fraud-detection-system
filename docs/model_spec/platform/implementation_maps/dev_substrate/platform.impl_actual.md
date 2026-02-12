@@ -2106,3 +2106,86 @@ Docs-only pass; no paid services touched.
 
 ### Cost posture
 Docs-only pass; no paid services touched.
+
+## Entry: 2026-02-12 4:49AM - Pre-change lock: create Local Run Process Inventory Matrix artifact for migration baseline
+
+### Trigger
+USER requested immediate creation of the `Local Run Process Inventory Matrix` to capture every process/subprocess that currently constitutes "it worked locally" before managed cutover work.
+
+### Problem framing
+The playbook now mandates a matrix, but no concrete artifact file exists yet. Without a materialized matrix, migration planning remains abstract and blockers can stay hidden.
+
+### Decision
+Create a dedicated matrix file in active dev_substrate implementation maps and populate it with process-level inventory extracted from local parity authorities.
+
+### Inputs/authorities used
+1. `docs/runbooks/platform_parity_walkthrough_v0.md`
+2. `config/platform/run_operate/packs/local_parity_*.v0.yaml` (all six packs)
+3. `makefile` parity/dev-substrate orchestration targets
+4. `infra/local/docker-compose.platform-parity.yaml`
+5. `docs/model_spec/platform/implementation_maps/dev_substrate/platform.build_plan.md` (playbook requirement)
+
+### Planned outputs
+1. New artifact:
+- `docs/model_spec/platform/implementation_maps/dev_substrate/local_run_process_inventory_matrix.md`
+2. Build-plan reference update:
+- `docs/model_spec/platform/implementation_maps/dev_substrate/platform.build_plan.md` (explicit artifact path bullet under playbook section 0).
+3. Log trail update:
+- `docs/logbook/02-2026/2026-02-12.md`
+
+### Inventory scope for this pass
+1. Infrastructure daemons and bootstrap/init surfaces.
+2. Oracle sync/pack/sort/validate local execution lane.
+3. Control+Ingress chain (SR/WSP/IG/EB-backed flow).
+4. RTDL core + decision-lane workers.
+5. Case/Label workers.
+6. Learning jobs workers and request enqueue commands.
+7. Obs/Gov workers and report/conformance commands.
+
+### Validation plan
+1. Verify matrix file exists and contains stable process IDs with command/runtime/state/evidence fields.
+2. Verify build plan references artifact path.
+3. Confirm no semantic ownership changes (documentation-only inventory pass).
+
+### Drift sentinel checkpoint
+This pass is documentation and decomposition only. No runtime code or infrastructure behavior changes.
+
+### Cost posture
+Docs-only pass; no paid services touched.
+
+## Entry: 2026-02-12 4:50AM - Applied Local Run Process Inventory Matrix artifact (first concrete baseline)
+
+### Changes applied
+1. Created baseline matrix artifact:
+- `docs/model_spec/platform/implementation_maps/dev_substrate/local_run_process_inventory_matrix.md`
+2. Linked artifact explicitly in active build plan playbook section:
+- `docs/model_spec/platform/implementation_maps/dev_substrate/platform.build_plan.md`
+  - added artifact path under `0. Local run process decomposition baseline (mandatory first)`.
+
+### Matrix coverage delivered in this pass
+1. Infrastructure + bootstrap surfaces (compose daemons/init/bootstrap/run-id/orchestration launcher).
+2. Oracle local lane (sync/pack/check/sort variants).
+3. Control+Ingress chain (SR/WSP/IG + EB boundary), including key internal SR/WSP subprocess decomposition.
+4. RTDL core workers (IEG/OFP/CSFB/ArchiveWriter).
+5. RTDL decision-lane workers (DL/DF/AL/DLA).
+6. Case/Label workers (CaseTrigger/CM/LS).
+7. Learning jobs (OFS/MF workers + enqueue producers).
+8. Obs/Gov workers (run reporter + conformance + manual support commands).
+9. Current dev-substrate local-operator migration lane commands (`phase3a/3b/3c1/3c2`).
+
+### Inventory properties
+- Stable process ID scheme added by corridor (`LP-INF`, `LP-ORA`, `LP-CI`, `LP-RTDLC`, `LP-RTDLD`, `LP-CL`, `LP-LRN`, `LP-OG`, `LP-DM`).
+- Each entry includes command/entrypoint, local runtime substrate, touched state/evidence surfaces, and managed migration note.
+- Current process count in artifact snapshot: `65`.
+
+### Validation performed
+1. Verified artifact exists and is readable.
+2. Verified build-plan playbook references the artifact path.
+
+### Drift assessment
+1. No runtime behavior change; documentation/inventory only.
+2. Ownership boundaries and semantic rails unchanged.
+3. This converts migration ambiguity into a concrete process-level baseline for managed mapping.
+
+### Cost posture
+Docs-only pass; no paid services touched.
