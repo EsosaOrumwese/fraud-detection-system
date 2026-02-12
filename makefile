@@ -3170,22 +3170,30 @@ platform-operate-obs-gov-status:
 
 .PHONY: platform-operate-learning-jobs-up platform-operate-learning-jobs-down platform-operate-learning-jobs-restart platform-operate-learning-jobs-status
 platform-operate-learning-jobs-up:
-	@$(PY_PLATFORM) -m fraud_detection.run_operate.orchestrator \
+	@PARITY_OFS_RUN_LEDGER_DSN="$(PARITY_OFS_RUN_LEDGER_DSN)" \
+	PARITY_MF_RUN_LEDGER_DSN="$(PARITY_MF_RUN_LEDGER_DSN)" \
+	$(PY_PLATFORM) -m fraud_detection.run_operate.orchestrator \
 		--env-file "$(RUN_OPERATE_ENV_FILE)" \
 		--pack "$(RUN_OPERATE_PACK_LEARNING_JOBS)" up
 
 platform-operate-learning-jobs-down:
-	@$(PY_PLATFORM) -m fraud_detection.run_operate.orchestrator \
+	@PARITY_OFS_RUN_LEDGER_DSN="$(PARITY_OFS_RUN_LEDGER_DSN)" \
+	PARITY_MF_RUN_LEDGER_DSN="$(PARITY_MF_RUN_LEDGER_DSN)" \
+	$(PY_PLATFORM) -m fraud_detection.run_operate.orchestrator \
 		--env-file "$(RUN_OPERATE_ENV_FILE)" \
 		--pack "$(RUN_OPERATE_PACK_LEARNING_JOBS)" down
 
 platform-operate-learning-jobs-restart:
-	@$(PY_PLATFORM) -m fraud_detection.run_operate.orchestrator \
+	@PARITY_OFS_RUN_LEDGER_DSN="$(PARITY_OFS_RUN_LEDGER_DSN)" \
+	PARITY_MF_RUN_LEDGER_DSN="$(PARITY_MF_RUN_LEDGER_DSN)" \
+	$(PY_PLATFORM) -m fraud_detection.run_operate.orchestrator \
 		--env-file "$(RUN_OPERATE_ENV_FILE)" \
 		--pack "$(RUN_OPERATE_PACK_LEARNING_JOBS)" restart
 
 platform-operate-learning-jobs-status:
-	@$(PY_PLATFORM) -m fraud_detection.run_operate.orchestrator \
+	@PARITY_OFS_RUN_LEDGER_DSN="$(PARITY_OFS_RUN_LEDGER_DSN)" \
+	PARITY_MF_RUN_LEDGER_DSN="$(PARITY_MF_RUN_LEDGER_DSN)" \
+	$(PY_PLATFORM) -m fraud_detection.run_operate.orchestrator \
 		--env-file "$(RUN_OPERATE_ENV_FILE)" \
 		--pack "$(RUN_OPERATE_PACK_LEARNING_JOBS)" status
 

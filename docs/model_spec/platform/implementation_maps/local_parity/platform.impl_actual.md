@@ -10670,3 +10670,51 @@ Implementation-map files were restructured to separate baseline local-parity his
 
 ### Invariant
 No historical entries were rewritten; prior local-parity decision trail remains append-only in this folder.
+
+## Entry: 2026-02-12 7:59AM - Local parity runtime note from Spine Green v0 200-event execution (migration baseline check)
+
+### Context
+Active runtime verification executed for:
+- runbook: `docs/runbooks/platform_parity_walkthrough_v0.md`
+- run id: `platform_20260212T075128Z`
+- bounded stream: `WSP_MAX_EVENTS_PER_OUTPUT=200`
+- oracle root: `s3://oracle-store/local_full_run-5/c25a2675fbfbacd952b13bb594880e92`.
+
+### Observed closure state
+1. Control/Ingress flow completed with expected SR->WSP->IG->EB progression.
+2. RTDL + Case/Labels + Obs/Gov artifacts were produced under run scope.
+3. Stream outputs hit bounded stop at `200` for all expected fraud traffic/context outputs.
+
+### Notes requiring follow-up in local parity baseline
+1. `decision_log_audit` remained `AMBER` with `UNRESOLVED_AMBER` and `lineage_unresolved_total=1` for this run.
+2. `platform-operate-parity-status` currently hard-fails when Learning env vars are unset (`PARITY_OFS_RUN_LEDGER_DSN`), which conflicts with Spine-only migration checks where Learning is out of scope.
+3. IG `/v1/ops/health` without auth header currently returns `500` (unauthorized exception path), while authenticated health call reports `GREEN`.
+
+### Local parity remediation notes (for next pass)
+1. DLA health/reconciliation criterion should be reviewed for bounded-run posture where a single unresolved lineage currently keeps health AMBER indefinitely.
+2. Run/operate parity status command should tolerate Learning-plane omission for Spine Green v0 migration runs (status surface should be subset-safe or explicitly segmented).
+3. IG health endpoint unauthorized path should return proper auth status code (fail-closed) without internal error semantics.
+
+## Entry: 2026-02-12 9:01AM - Local parity remediation closure note for Spine Green v0 rerun
+
+### Context
+Follow-up remediation pass executed after the previous `platform_20260212T075128Z` note flagged:
+1. parity status env strictness against learning DSNs,
+2. DLA unresolved lineage amber.
+
+### What changed (local-parity relevant)
+1. Learning jobs pack env expansion now default-falls back to parity admission DSN when explicit OFS/MF ledger DSNs are absent.
+2. DLA startup intake behavior hardened for run-scoped kinesis replay window.
+3. AL startup intake behavior hardened similarly to prevent first-window intent loss that can cascade into DLA `MISSING_OUTCOME_LINK`.
+
+### Verification outcome on fresh run
+Run: `platform_20260212T085637Z`, bounded `WSP_MAX_EVENTS_PER_OUTPUT=200`.
+
+Observed:
+1. `platform-operate-parity-status` runs clean and reports all packs running/ready.
+2. DLA health is `GREEN` with `lineage_unresolved_total=0`.
+3. DF and AL health both `GREEN`; AL outcomes align with DF decisions for the run.
+4. Obs conformance artifact reports `PASS`.
+
+### Baseline continuity note
+This entry records local parity remediation closure while keeping active design track entries in `dev_substrate/platform.impl_actual.md`.

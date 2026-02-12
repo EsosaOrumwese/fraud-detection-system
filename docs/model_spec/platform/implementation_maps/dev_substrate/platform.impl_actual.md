@@ -2190,6 +2190,65 @@ Docs-only pass; no paid services touched.
 ### Cost posture
 Docs-only pass; no paid services touched.
 
+## Entry: 2026-02-12 7:59AM - Executed Spine Green v0 parity verification run (200-event bounded stream) and assessed closure state
+
+### Run identity and scope
+1. Platform run id: `platform_20260212T075128Z`.
+2. Scenario run id: `dcf42be5a84c65a95dfcb6f2108c10f8`.
+3. Engine root: `s3://oracle-store/local_full_run-5/c25a2675fbfbacd952b13bb594880e92`.
+4. Bounded stream scope executed: `WSP_MAX_EVENTS_PER_OUTPUT=200` with fraud traffic + fraud-context outputs.
+5. Scope enforced for this migration baseline check:
+- included: `Control/Ingress`, `RTDL`, `Case+Labels`, `Run/Operate+Obs/Gov`
+- excluded: `Learning/Registry (OFS/MF/MPR lifecycle closure)`.
+
+### Execution trail (major)
+1. Brought local parity substrate up (MinIO/LocalStack/Postgres) and validated required streams/buckets.
+2. Synced engine outputs into MinIO (`platform-oracle-sync`), sealed Oracle pack, and passed strict oracle check.
+3. Built stream views for:
+- `s3_event_stream_with_fraud_6B`
+- `arrival_events_5B`
+- `s1_arrival_entities_6B`
+- `s3_flow_anchor_with_fraud_6B`
+4. Started run/operate packs for spine-only lanes:
+- `control_ingress`, `rtdl_core`, `rtdl_decision_lane`, `case_labels`, `obs_gov`
+5. Published SR READY and executed WSP bounded pass.
+6. Confirmed WSP stop markers at exactly `emitted=200` for all four outputs (`800` sent total).
+7. Collected closure evidence from:
+- `runs/fraud-platform/platform_20260212T075128Z/*`
+- `runs/fraud-platform/operate/*/logs/*`
+- `s3://fraud-platform/platform_20260212T075128Z/*`
+- LocalStack Kinesis stream probes.
+
+### Evidence summary
+1. Control/Ingress:
+- `platform.log` shows `SR READY published`, `WSP stream start/stop`, and IG summary/admission progression.
+- IG receipts total: `1581`; sampled receipts include `eb_ref.offset_kind=kinesis_sequence`.
+- SR artifacts present under `s3://fraud-platform/platform_20260212T075128Z/sr/*`.
+2. RTDL:
+- Stream presence confirmed on `fp.bus.rtdl.v1`.
+- DF/AL/DL artifacts present and updating; DL converged to `health_state=GREEN` (`decision_mode=NORMAL` by 07:59:28Z).
+- DF reasons are deterministic fail-closed compatibility outcomes (`ACTIVE_BUNDLE_INCOMPATIBLE`, `FAIL_CLOSED_NO_COMPATIBLE_BUNDLE`, `REGISTRY_FAIL_CLOSED`) and remain explainable for local parity.
+3. Case+Labels:
+- `case_trigger`, `case_mgmt`, `label_store` health/reconciliation artifacts present with GREEN health surfaces.
+4. Run/Operate + Obs/Gov:
+- `obs/platform_run_report.json` and `obs/environment_conformance.json` emitted for active run.
+- Conformance status: `PASS`.
+- Governance stream includes `RUN_STARTED`, `RUN_READY_SEEN`, `RUN_ENDED`, `RUN_REPORT_GENERATED`, and evidence-resolution events.
+
+### Blocking findings against strict all-green declaration
+1. `decision_log_audit` remains `health_state=AMBER` with `health_reasons=["UNRESOLVED_AMBER"]` and `lineage_unresolved_total=1`.
+2. `make platform-operate-parity-status` is not spine-safe when Learning env vars are absent (`ENV_VAR_MISSING:PARITY_OFS_RUN_LEDGER_DSN`), even though Learning is explicitly out of migration scope.
+3. IG `/v1/ops/health` without API key currently throws `500` (unauthorized path raises unhandled `IngestionError`); with valid header (`X-IG-Api-Key: local-parity-wsp`) health reports `GREEN`.
+
+### Drift sentinel assessment
+1. Ownership boundaries remained intact in observed event flow (`SR -> WSP -> IG -> EB -> RTDL -> Case/Labels -> Obs/Gov`).
+2. No silent cross-plane ownership violations were observed.
+3. Strict Spine Green v0 PASS cannot be asserted for this run while DLA health is AMBER.
+4. This is classified as a material mismatch for migration green gate semantics and must be surfaced to USER prior to remediation.
+
+### Cost posture
+Local-only parity execution; no managed-cloud spend.
+
 ## Entry: 2026-02-12 5:29AM - Pre-change lock: pin Spine Green baseline for dev_substrate migration scope
 
 ### Trigger
@@ -2316,3 +2375,251 @@ No designed-flow/runtime drift introduced. This improves migration planning clar
 
 ### Cost posture
 Docs-only pass; no paid services touched.
+
+## Entry: 2026-02-12 5:55AM - Pre-run execution plan for Spine Green v0 parity verification (200-event target)
+
+### Trigger
+USER requested proof that current local parity run satisfies `Spine Green v0` for migration baseline using:
+- `docs/runbooks/platform_parity_walkthrough_v0.md`
+- active local engine dataset rooted at `c25a2675fbfbacd952b13bb594880e92`
+- bounded stream proof at `200` events.
+
+### Scope lock
+Verification scope in this run:
+1. Control & Ingress closure.
+2. RTDL closure.
+3. Case + Labels closure.
+4. Run/Operate + Obs/Gov closure.
+
+Explicitly out of scope for migration baseline in this run:
+1. Learning/Registry lifecycle closure (`OFS/MF/MPR`), except that any accidental activation will be treated as noise and excluded from pass/fail.
+
+### Authority basis reviewed
+1. `docs/model_spec/platform/platform-wide/platform_blueprint_notes_v0.md`
+2. `docs/model_spec/platform/platform-wide/deployment_tooling_notes_v0.md`
+3. `docs/model_spec/data-engine/interface_pack/*`
+4. Platform narratives (control/ingress, RTDL, label/case, learning/evolution, obs/gov)
+5. `docs/model_spec/platform/component-specific/world_streamer_producer.design-authority.md`
+6. `docs/model_spec/platform/component-specific/flow-narrative-platform-design.md`
+7. `docs/model_spec/platform/implementation_maps/dev_substrate/platform.build_plan.md`
+8. `docs/model_spec/platform/implementation_maps/dev_substrate/platform.impl_actual.md`
+9. `docs/model_spec/platform/implementation_maps/local_parity/platform.impl_actual.md`
+10. `docs/runbooks/platform_parity_walkthrough_v0.md`
+
+### Planned execution sequence
+1. Bring parity substrate up and bootstrap (`stack-up`, `bootstrap`, `status`).
+2. Refresh Oracle inputs for `c25...` into MinIO (`platform-oracle-sync`) and seal pack (`platform-oracle-pack`).
+3. Build/validate stream view sorting (`platform-oracle-stream-sort` and targeted context/traffic checks if needed).
+4. Create fresh `platform_run_id`.
+5. Start run/operate packs only for Spine Green v0:
+- `control_ingress`
+- `rtdl_core`
+- `rtdl_decision`
+- `case_labels`
+- `obs_gov`
+6. Execute SR READY publish for active run.
+7. Execute WSP bounded stream for `WSP_MAX_EVENTS_PER_OUTPUT=200` (single READY message).
+8. Collect closure evidence:
+- run-scoped logs and artifacts,
+- IG receipts with EB refs,
+- EB topic record presence across traffic/context/rtdl/case,
+- component health/metrics artifacts (IEG/DL and lane components),
+- obs/gov outputs (`platform_run_report`, governance log, env conformance).
+9. Run post-pass validation commands from runbook Section `14.1`.
+10. Assess drift sentinel criteria for ownership boundaries and fail-closed posture.
+
+### Risk/edge cases pre-identified
+1. `STREAM_VIEW_ID_MISMATCH` from stale/mismatched oracle root.
+2. LocalStack stream replay causing repeated READY reprocessing.
+3. Governance append conflict if manual run-report overlaps live reporter worker.
+4. Stale watermark warnings after bounded run; classify informational only per runbook closeout rule unless ingress still active.
+5. Sensitive tokens may appear in run artifacts/logs; do not copy secrets into docs.
+
+### Validation and acceptance criteria for this run
+1. Evidence supports all four in-scope Spine Green v0 corridors.
+2. `200` bounded pass completes with expected admissions and downstream processing.
+3. No unresolved fail-closed or ownership-boundary drift for in-scope planes.
+4. If drift is detected/suspected, stop and escalate to USER before continuing remediation.
+
+### Cost posture
+Local-only parity execution (MinIO/LocalStack/Postgres); no managed-cloud spend expected.
+
+## Entry: 2026-02-12 8:35AM - Pre-change lock for Spine Green remediation pass (parity-status env tolerance + DLA unresolved lineage)
+
+### Trigger
+USER directed: "proceed with both options" after prior 200-event Spine Green check surfaced:
+1. `platform-operate-parity-status` hard-fail from missing `PARITY_OFS_RUN_LEDGER_DSN` / `PARITY_MF_RUN_LEDGER_DSN` even for spine-only verification.
+2. `decision_log_audit` `UNRESOLVED_AMBER` caused by at least one chain with outcome present but decision/intent links absent.
+
+### Problem framing
+For migration baseline, Spine Green v0 is explicitly scoped to:
+1. Control + Ingress
+2. RTDL
+3. Case + Labels
+4. Run/Operate + Obs/Gov
+
+Learning/Registry lifecycle closure remains out of scope. The runtime should not require explicit learning DSNs to report parity status for spine checks. Separately, DLA unresolved lineage in bounded runs indicates early-event intake gaps that can block green closure even when downstream corridors are healthy.
+
+### Root-cause analysis captured
+1. Parity status path:
+- `make platform-operate-parity-status` unconditionally calls `platform-operate-learning-jobs-status`.
+- Learning pack env used strict token expansion for `OFS_RUN_LEDGER_DSN` and `MF_RUN_LEDGER_DSN` without default fallback.
+- Result: status command fails closed on missing env token before evaluating process state.
+2. DLA unresolved path:
+- Investigated unresolved chain had `outcome_count=1`, `intent_count=0`, `decision_event_id=NULL`.
+- Candidate table lacked corresponding decision event, meaning event was not ingested at all (not merely lineage conflict).
+- Local parity profile uses `event_bus_start_position: latest` for DLA; if worker starts after first run events are published, early decision/intent can be missed permanently while later outcomes are consumed.
+
+### Decision
+Apply two remediations:
+1. Learning pack env fallback:
+- make `OFS_RUN_LEDGER_DSN` and `MF_RUN_LEDGER_DSN` default-safe with fallback to `PARITY_IG_ADMISSION_DSN` (or empty as terminal fallback), so parity status remains evaluable in spine-only posture.
+2. DLA intake robustness for run-scoped local parity:
+- when inlet rejects event with `RUN_SCOPE_MISMATCH`, skip quarantine writes and only advance checkpoint (expected non-error while traversing non-target run records),
+- for kinesis intake with no checkpoint and required run pin active, force first-read start position to `trim_horizon` to avoid missing early run events.
+
+### Alternatives considered
+1. Make `platform-operate-parity-status` skip learning status call.
+- Rejected for now: alters command semantics and drifts from current parity operator surface.
+2. Relax DLA health threshold (`amber_unresolved_total`) for bounded runs.
+- Rejected: masks lineage incompleteness rather than fixing ingestion behavior.
+3. Add lineage repair/backfill utility.
+- Deferred: larger change than needed for immediate local parity remediation.
+
+### Planned edits
+1. `config/platform/run_operate/packs/local_parity_learning_jobs.v0.yaml`
+2. `src/fraud_detection/decision_log_audit/intake.py`
+3. `tests/services/decision_log_audit/test_dla_phase3_intake.py` (coverage updates)
+4. `docs/logbook/02-2026/2026-02-12.md` (action trail)
+5. Post-run notes append to:
+- `docs/model_spec/platform/implementation_maps/dev_substrate/platform.impl_actual.md`
+- `docs/model_spec/platform/implementation_maps/local_parity/platform.impl_actual.md`
+
+### Validation plan
+1. Targeted tests for DLA intake behavior changes.
+2. `make platform-operate-parity-status` should no longer crash from missing explicit learning DSNs.
+3. Fresh 200-event parity run should close spine evidence with DLA health green (no unresolved lineage for run scope).
+
+### Drift sentinel checkpoint
+No ownership boundary shift introduced:
+- run-scope mismatches remain fail-closed for target run data (not silently accepted), but non-target run records are treated as expected skip traffic during replay window traversal.
+- lineage completeness remains enforced; remediation targets intake completeness, not health masking.
+
+### Cost posture
+Local parity only; no managed-cloud spend expected.
+
+## Entry: 2026-02-12 9:00AM - Mid-pass decision update: unresolved DLA amber traced to AL initial-kinesis start gap
+
+### New evidence from first remediation rerun
+Run `platform_20260212T084037Z` after DLA/learning-pack changes produced:
+1. `platform-operate-parity-status` stable (env expansion issue resolved),
+2. DLA still `AMBER` with `lineage_unresolved_total=1`, but unresolved reason changed to:
+- `MISSING_OUTCOME_LINK` (not `MISSING_DECISION`/`MISSING_INTENT_LINK`).
+
+### Runtime forensics summary
+1. DLA unresolved chain had:
+- decision + intent present,
+- no outcome.
+2. Action Layer metrics for same run:
+- `intake_total=175`, `outcome_executed_total=175`.
+3. Decision Fabric metrics for same run:
+- `decisions_total=176`.
+4. AL backing stores contained no ledger/outcome row for the unresolved chain action id.
+
+Inference from above:
+AL missed one early action-intent event, which leaves DLA with one unresolved chain missing outcome.
+
+### Root cause at implementation level
+`src/fraud_detection/action_layer/worker.py::_read_kinesis` currently uses `event_bus_start_position` directly when no checkpoint exists.
+With `start_position=latest` and no checkpoint, repeatedly acquiring new `LATEST` iterators can skip records that arrived between poll cycles before the first checkpoint advances.
+
+### Decision
+Apply same hardening pattern used for DLA:
+1. For AL kinesis intake, when checkpoint is absent and `required_platform_run_id` is set, force first-read `start_position=trim_horizon`.
+2. Keep existing run-scope gate behavior (non-target run intents are checkpoint-advanced and ignored).
+
+This preserves fail-closed ownership while preventing initial-gap drops for run-scoped local parity.
+
+### Planned edit delta
+1. `src/fraud_detection/action_layer/worker.py` (`_read_kinesis` start-position selection).
+2. Optional targeted test coverage deferred if integration rerun is sufficient for this pass; full run validation is mandatory either way.
+
+### Drift sentinel checkpoint
+No ownership-boundary drift:
+- AL still only executes admitted `action_intent` under required run pin.
+- Change is intake completeness at startup, not policy relaxation.
+
+### Cost posture
+Local-only rerun cost (MinIO/LocalStack/Postgres).
+
+## Entry: 2026-02-12 9:01AM - Applied remediation set and validated Spine Green v0 on fresh 200-event run
+
+### Changes applied
+1. Learning-pack parity status env tolerance:
+- `config/platform/run_operate/packs/local_parity_learning_jobs.v0.yaml`
+  - `OFS_RUN_LEDGER_DSN` now defaults to `PARITY_OFS_RUN_LEDGER_DSN` then `PARITY_IG_ADMISSION_DSN`.
+  - `MF_RUN_LEDGER_DSN` now defaults to `PARITY_MF_RUN_LEDGER_DSN` then `PARITY_IG_ADMISSION_DSN`.
+2. DLA intake hardening:
+- `src/fraud_detection/decision_log_audit/intake.py`
+  - `RUN_SCOPE_MISMATCH` now checkpoint-skips without quarantine writes.
+  - first kinesis read with no checkpoint + required run pin forces `trim_horizon`.
+3. AL intake hardening (root-cause follow-on):
+- `src/fraud_detection/action_layer/worker.py`
+  - first kinesis read with no checkpoint + required run pin forces `trim_horizon`.
+4. Tests updated:
+- `tests/services/decision_log_audit/test_dla_phase3_intake.py`
+  - run-scope mismatch skip path coverage,
+  - kinesis first-read start-position behavior coverage.
+
+### Test and validation execution
+1. Unit tests:
+- `tests/services/decision_log_audit/test_dla_phase3_intake.py` -> pass (`12`).
+- `tests/services/decision_log_audit/test_dla_phase4_lineage.py` -> pass (`5`).
+- `tests/services/action_layer/test_phase8_validation_matrix.py` -> pass (`3`).
+2. Local parity rerun for closure (fresh run):
+- run id: `platform_20260212T085637Z`
+- bounded stream: `WSP_MAX_EVENTS_PER_OUTPUT=200`
+- WSP stop markers observed for four outputs with `emitted=200`.
+3. Post-run spine evidence:
+- `platform-operate-parity-status` all packs running/ready.
+- DLA health: `GREEN`, `lineage_unresolved_total=0`.
+- DF health: `GREEN`.
+- AL health: `GREEN` with `intake_total=195`, `outcome_executed_total=195`, matching DF decisions.
+- Case/Label states in run report: all component health `GREEN`.
+- Obs/Gov conformance: `obs/environment_conformance.json` status `PASS`.
+
+### Drift sentinel assessment
+No ownership-boundary drift detected in this pass:
+1. No fail-open behavior introduced; run-scope gating remains enforced.
+2. Intake hardening addresses startup completeness without relaxing contract checks.
+3. Spine Green v0 in-scope corridors close with green health and conformance evidence.
+
+### Cost posture
+Local-only parity verification; no managed-cloud spend.
+
+## Entry: 2026-02-12 9:01AM - Post-apply correction: avoid nested env token expansion in run-operate packs
+
+### Issue discovered
+Initial learning-pack fallback used nested token form:
+- `${PARITY_OFS_RUN_LEDGER_DSN:-${PARITY_IG_ADMISSION_DSN:-}}`
+- `${PARITY_MF_RUN_LEDGER_DSN:-${PARITY_IG_ADMISSION_DSN:-}}`
+
+Run-operate env resolver does not support nested token parsing; this produced malformed literal expansion side effects during worker startup.
+
+### Correction applied
+1. `config/platform/run_operate/packs/local_parity_learning_jobs.v0.yaml`
+- simplified to flat tokens:
+  - `OFS_RUN_LEDGER_DSN: ${PARITY_OFS_RUN_LEDGER_DSN:-}`
+  - `MF_RUN_LEDGER_DSN: ${PARITY_MF_RUN_LEDGER_DSN:-}`
+2. `makefile`
+- learning-jobs orchestrator targets now inject resolved vars explicitly from make defaults:
+  - `PARITY_OFS_RUN_LEDGER_DSN="$(PARITY_OFS_RUN_LEDGER_DSN)"`
+  - `PARITY_MF_RUN_LEDGER_DSN="$(PARITY_MF_RUN_LEDGER_DSN)"`
+  - applied to `platform-operate-learning-jobs-{up,down,restart,status}`.
+
+### Validation
+1. `make platform-operate-learning-jobs-status` returns clean status with active run.
+2. No malformed env-token side-effect artifact remains in repo root.
+
+### Drift sentinel assessment
+No semantic drift; this is a parser-compatibility correction preserving the intended fallback behavior.
