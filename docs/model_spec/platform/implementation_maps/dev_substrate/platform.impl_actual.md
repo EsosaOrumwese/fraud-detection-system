@@ -4445,3 +4445,84 @@ Directory listing confirms:
 
 ### Drift sentinel assessment
 No behavioral/runtime edits. This is documentation scaffolding to enable controlled migration authoring.
+
+## Entry: 2026-02-12 10:14PM - Pre-change plan: dev_min migration-doc drift closure (no-local P3 seed + handle alignment)
+
+### Trigger
+USER pinned a hard constraint: `P3` seeding from local sources is fully forbidden (including temporary bootstrap), and requested implementation of remaining migration-doc fixes.
+
+### Problem statement
+Current `migration_to_dev` docs contained drifts that can reintroduce laptop dependency or wiring ambiguity:
+1. P3 text still allowed local seed/bootstrap language.
+2. Runbook referenced several handle names that did not match the handle registry naming (`*_PREFIX_PATTERN` vs pinned `*_RUN_PREFIX_PATTERN` / `*_KEY_PATTERN`).
+3. Runbook required IG auth/path handles not yet pinned in the handle registry.
+4. IG health path default in registry (`/health`) drifted from local-parity contract posture (`/v1/ops/health`).
+5. Phase identity wording needed explicit statement that `P(-1)` is preflight-only and not a green closure phase.
+
+### Decision
+Apply docs-only patch to these two files:
+1. `docs/model_spec/platform/migration_to_dev/dev_min_spine_green_v0_run_process_flow.md`
+2. `docs/model_spec/platform/migration_to_dev/dev_min_handles.registry.v0.md`
+
+Decision rails:
+- remove all local-seeding allowance in `P3`; managed object-store source only,
+- align runbook handle names to current registry vocabulary,
+- add missing IG runtime/auth handles to registry,
+- pin IG health endpoint to `/v1/ops/health`,
+- keep `P(-1)` explicitly non-canonical for Spine Green closure.
+
+### Planned verification
+- grep/symbol sweep for old handle names and local-seeding language,
+- verify IG handle block in registry includes ingest path + auth header + SSM key,
+- verify runbook references those keys consistently.
+
+### Drift sentinel checkpoint
+Docs-only alignment to preserve design intent and prevent laptop/runtime drift. No runtime code or infra state changed in this step.
+
+## Entry: 2026-02-12 10:14PM - Applied dev_min migration-doc drift closure patch
+
+### Files updated
+1. `docs/model_spec/platform/migration_to_dev/dev_min_spine_green_v0_run_process_flow.md`
+2. `docs/model_spec/platform/migration_to_dev/dev_min_handles.registry.v0.md`
+
+### Applied changes
+1. P3 local-seed prohibition hardened
+- Replaced permissive seed text with strict managed-source-only policy.
+- Added explicit ban on laptop-local, MinIO, and local filesystem seeding in P3 semantics + P3.A sub-step.
+
+2. Canonical phase wording
+- Added explicit note: `P(-1)` is packaging preflight and not part of Spine Green v0 closure acceptance.
+
+3. Handle-name normalization in runbook
+- Replaced old names with registry-aligned names:
+  - `S3_ORACLE_RUN_PREFIX_PATTERN`
+  - `S3_STREAM_VIEW_MANIFEST_KEY_PATTERN`
+  - `S3_STREAM_SORT_RECEIPT_KEY_PATTERN`
+  - `S3_QUARANTINE_RUN_PREFIX_PATTERN`
+  - `S3_EVIDENCE_RUN_ROOT_PATTERN`
+  - `S3_ARCHIVE_RUN_PREFIX_PATTERN`
+- Updated networking handle refs in relevant sections:
+  - `SUBNET_IDS_PUBLIC`, `SECURITY_GROUP_ID_APP`.
+
+4. IG boundary clarity in runbook
+- Added `IG_BASE_URL` and `IG_INGEST_PATH` to P4 required handles.
+- Auth smoke check now explicitly targets `IG_INGEST_PATH`.
+- WSP IG target handles now include `IG_INGEST_PATH`.
+
+5. IG handle completeness in registry
+- Added and pinned:
+  - `IG_LISTEN_ADDR`
+  - `IG_PORT`
+  - `IG_INGEST_PATH = "/v1/ingest/push"`
+  - `IG_HEALTHCHECK_PATH = "/v1/ops/health"`
+  - `IG_AUTH_MODE = "api_key"`
+  - `IG_AUTH_HEADER_NAME = "X-IG-Api-Key"`
+  - `SSM_IG_API_KEY_PATH = "/fraud-platform/dev_min/ig/api_key"`
+
+### Verification summary
+- Old/ambiguous handle tokens removed from runbook.
+- P3 no longer permits local seeding bootstrap.
+- Registry now contains IG auth + ingest + health handles required by runbook.
+
+### Drift sentinel assessment
+Patch removes ambiguity and laptop-seed escape hatches in migration docs while preserving local-parity semantics and dev_min managed-substrate posture.

@@ -2220,6 +2220,30 @@ segment1a-p1-check:
 
 engine-seg1a-p1: segment1a-p1
 
+.PHONY: segment1a-p2 segment1a-p2-check engine-seg1a-p2
+segment1a-p2: segment1a-preclean-failed-runs
+	@echo "Running Segment 1A P2.1 loop (S0->S6 only)"
+	@$(SEG1A_S0_CMD)
+	@run_id="$$( $(PY_SCRIPT) -c "import pathlib; root=pathlib.Path('$(RUNS_ROOT)'); receipts=sorted(root.glob('*/run_receipt.json'), key=lambda p: p.stat().st_mtime); print(receipts[-1].parent.name if receipts else '')" )"; \
+	if [ -z "$$run_id" ]; then \
+		echo "No run_receipt.json found under $(RUNS_ROOT) after S0." >&2; \
+		exit 1; \
+	fi; \
+	echo "Segment 1A P2.1 run_id=$$run_id"; \
+	$(MAKE) --no-print-directory segment1a-s1 RUNS_ROOT="$(RUNS_ROOT)" SEG1A_S1_RUN_ID="$$run_id"; \
+	$(MAKE) --no-print-directory segment1a-s2 RUNS_ROOT="$(RUNS_ROOT)" SEG1A_S2_RUN_ID="$$run_id"; \
+	$(MAKE) --no-print-directory segment1a-s3 RUNS_ROOT="$(RUNS_ROOT)" SEG1A_S3_RUN_ID="$$run_id"; \
+	$(MAKE) --no-print-directory segment1a-s4 RUNS_ROOT="$(RUNS_ROOT)" SEG1A_S4_RUN_ID="$$run_id"; \
+	$(MAKE) --no-print-directory segment1a-s5 RUNS_ROOT="$(RUNS_ROOT)" SEG1A_S5_RUN_ID="$$run_id"; \
+	$(MAKE) --no-print-directory segment1a-s6 RUNS_ROOT="$(RUNS_ROOT)" SEG1A_S6_RUN_ID="$$run_id"; \
+	$(MAKE) --no-print-directory segment1a-p2-check RUNS_ROOT="$(RUNS_ROOT)" RUN_ID="$$run_id"; \
+	$(PY_SCRIPT) tools/score_segment1a_p2_1_baseline.py --runs-root "$(RUNS_ROOT)" --run-id "$$run_id" --out "$(RUNS_ROOT)/reports/segment1a_p2_1_baseline_$$run_id.json"
+
+segment1a-p2-check:
+	@$(PY_SCRIPT) tools/verify_segment1a_p2_outputs.py --runs-root "$(RUNS_ROOT)" $(if $(strip $(RUN_ID)),--run-id "$(RUN_ID)",)
+
+engine-seg1a-p2: segment1a-p2
+
 segment1a-s3:
 	@echo "Running Segment 1A S3 cross-border candidate set"
 	@$(SEG1A_S3_CMD)

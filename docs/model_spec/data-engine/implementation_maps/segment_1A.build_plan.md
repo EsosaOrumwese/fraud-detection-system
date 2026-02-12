@@ -181,10 +181,10 @@ Current posture is "open world then suppress." Candidate breadth is near-global 
 
 ### 4.3 P2 target datasets (authoritative scoring surfaces)
 - `s3_candidate_set`
-- `s3_integerised_counts`
+- `s3_integerised_counts` (required when `policy.s3.integerisation.yaml` has `emit_integerised_counts=true`; otherwise record intentional absence)
 - `rng_event_ztp_final`
 - `rng_event_ztp_rejection`
-- `rng_event_ztp_retry_exhausted`
+- `rng_event_ztp_retry_exhausted` (optional-presence diagnostic; zero-row posture is valid)
 - `rng_event_gumbel_key`
 - `s6_membership`
 - `s4_metrics_log`
@@ -245,9 +245,9 @@ Current posture is "open world then suppress." Candidate breadth is near-global 
 - Intent:
   - materialize deterministic P2 scorecard from P2 surfaces before policy edits.
 - DoD:
-  - [ ] one repeatable command/profile runs `S0..S6` and emits all P2 scoring surfaces.
-  - [ ] baseline P2 scorecard is written with global + stratified metrics.
-  - [ ] pathology hard checks are computed and visible in scorecard.
+  - [x] one repeatable command/profile runs `S0..S6` and emits all P2 scoring surfaces.
+  - [x] baseline P2 scorecard is written with global + stratified metrics.
+  - [x] pathology hard checks are computed and visible in scorecard.
 
 #### P2.2 Candidate breadth shaping (`S3` first)
 - Intent:

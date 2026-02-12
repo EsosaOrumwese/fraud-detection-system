@@ -4181,3 +4181,121 @@ Build-plan sections updated:
 5) `4.8` phased P2 DoD (`P2.1` to `P2.4`).
 6) `4.9` mathematical calibration method.
 7) `4.10` storage retention policy for P2 loops.
+
+### Entry: 2026-02-12 22:16
+
+Design element: P2.1 implementation plan (baseline runner + scoring harness).
+Summary: Capture the concrete mechanics for executing `P2.1` without reopening `P1` and with explicit handling for policy-gated `S3` optional outputs.
+
+Execution intent (P2.1):
+1) Add a single repeatable make target for `P2.1`:
+- run chain: `S0 -> S1 -> S2 -> S3 -> S4 -> S5 -> S6`,
+- no `S7+` invocation in the loop,
+- run-id handoff sourced from the latest `run_receipt.json` after `S0`,
+- post-run checks + baseline scorecard emission.
+2) Keep `P1` freeze intact:
+- no `S1/S2` policy or runtime edits,
+- no coefficient changes in this phase,
+- this phase is instrumentation/scoring only.
+
+Scoring-harness design decisions:
+1) Required P2 surfaces for baseline scoring:
+- `s3_candidate_set`,
+- `s6_membership`,
+- `rng_event_ztp_final`,
+- `rng_event_ztp_rejection`,
+- `rng_event_gumbel_key`,
+- `s4_metrics_log`.
+2) Conditional/diagnostic surfaces:
+- `rng_event_ztp_retry_exhausted` is treated as optional-presence diagnostic because runs may validly emit no exhaustion events.
+- `s3_integerised_counts` is treated as policy-gated:
+  - required only when `policy.s3.integerisation.yaml` sets `emit_integerised_counts: true`,
+  - otherwise reported as intentionally absent for Variant-B ownership posture.
+3) Merchant-level metrics:
+- `C_m` from foreign rows in `s3_candidate_set` (`is_home=false`),
+- `R_m` from `s6_membership` counts,
+- `rho_m = R_m / max(C_m,1)`.
+4) Global checks:
+- `median(C_m)` in B band (`5..15`),
+- `Spearman(C_m,R_m) >= 0.30`,
+- `median(rho_m) >= 0.10`,
+- pathology caps:
+  - `share_exhausted <= 0.02`,
+  - `share_high_reject(>16) <= 0.10`.
+5) Stratification inputs:
+- prefer run-scoped `hurdle_design_matrix` (`merchant_id, channel, mcc, gdp_bucket_id`) to avoid external drift,
+- derive broad MCC group as thousand-band (`floor(mcc/1000)*1000`).
+6) Scorecard output:
+- write JSON report under `runs/fix-data-engine/segment_1A/reports/`,
+- include surface presence/row counts + global + stratified metrics + check booleans.
+
+Planned files:
+1) `makefile`:
+- add `segment1a-p2`, `segment1a-p2-check`, `engine-seg1a-p2`.
+2) `tools/verify_segment1a_p2_outputs.py`:
+- run-level presence verifier with policy-aware optionality.
+3) `tools/score_segment1a_p2_1_baseline.py`:
+- deterministic baseline scorer for P2.1 DoD evidence.
+
+### Entry: 2026-02-12 22:22
+
+Design element: P2.1 implementation + first baseline execution.
+Summary: Implemented the P2.1 run harness and scorer, executed a fresh `S0->S6` run, produced the baseline scorecard, and applied run-folder retention cleanup.
+
+Code changes delivered:
+1) `makefile`:
+- added `segment1a-p2` target (preclean + `S0->S6` chain with single run-id handoff),
+- added `segment1a-p2-check`,
+- added `engine-seg1a-p2` alias.
+2) `tools/verify_segment1a_p2_outputs.py`:
+- validates required P2 surfaces for a run-id,
+- resolves `policy.s3.integerisation.yaml` from sealed inputs and enforces:
+  - require `s3_integerised_counts` only when `emit_integerised_counts=true`,
+  - otherwise report intentional absence,
+- treats `rng_event_ztp_retry_exhausted` as optional-presence diagnostic.
+3) `tools/score_segment1a_p2_1_baseline.py`:
+- computes merchant-level `C_m`, `R_m`, `rho_m`,
+- computes global and stratified (`channel`, `mcc_broad_group`, `gdp_bucket_id`) metrics,
+- computes pathology shares (`share_exhausted`, `share_high_reject_gt16`),
+- writes JSON scorecard with thresholds/check booleans and surface counts.
+
+Execution evidence:
+1) Command:
+- `make --no-print-directory segment1a-p2 RUNS_ROOT="runs/fix-data-engine/segment_1A"`
+2) New baseline run-id:
+- `203d3c33f5fbe060184ad845a86b9e6c`
+3) Scorecard output:
+- `runs/fix-data-engine/segment_1A/reports/segment1a_p2_1_baseline_203d3c33f5fbe060184ad845a86b9e6c.json`
+
+Baseline P2.1 result snapshot:
+1) Global core metrics:
+- `median(C_m)=37.0` (fails B band `5..15`),
+- `Spearman(C_m,R_m)=0.2977` (just below `0.30`),
+- `median(rho_m)=0.0` (fails `>=0.10`).
+2) Pathology rails:
+- `share_exhausted=0.0` (pass),
+- `share_high_reject_gt16=0.0` (pass).
+3) Stratified posture:
+- channel/mcc/gdp strata show `0` core-pass strata and full pathology-pass coverage.
+
+P2.1 DoD closure:
+1) Repeatable `S0->S6` command/profile exists and was executed.
+2) Baseline scorecard emitted with global + stratified metrics.
+3) Pathology hard checks computed and visible.
+4) Marked P2.1 DoD checkboxes complete in build plan.
+
+Storage hygiene action:
+1) Removed superseded pre-P2 run folder:
+- deleted `runs/fix-data-engine/segment_1A/54602dac43ab522a7100b47c66ea824b`
+2) Retained:
+- active baseline run `203d3c33f5fbe060184ad845a86b9e6c`,
+- report artifacts under `runs/fix-data-engine/segment_1A/reports/`.
+
+### Entry: 2026-02-12 22:23
+
+Design element: P2.1 build-plan alignment patch (surface optionality semantics).
+Summary: Aligned Section `4.3` wording with implemented verifier/scorer behavior so policy-gated and zero-row-valid surfaces are explicit in plan authority.
+
+Changes in `segment_1A.build_plan.md`:
+1) `s3_integerised_counts` is now explicitly marked as required only when sealed `policy.s3.integerisation.yaml` has `emit_integerised_counts=true`.
+2) `rng_event_ztp_retry_exhausted` is now explicitly marked optional-presence diagnostic (zero-row posture valid).
