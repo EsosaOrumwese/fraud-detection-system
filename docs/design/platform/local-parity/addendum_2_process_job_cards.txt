@@ -14,6 +14,7 @@ CARD TEMPLATE (fields you must be able to answer in dev)
   Name:
   Plane:
   Type: OPERATOR | BATCH JOB | ACTIVATION | DAEMON SERVICE | DAEMON WORKER
+  phase_id: P# (canonical run phase key; use P0..P11)
   Entry point(s): (pack target + optional manual cmd)
   Run pins carried: platform_run_id (+ scenario_run_id when relevant)
   Inputs (stores/topics):
@@ -38,6 +39,7 @@ Completeness rule for this addendum:
 [JOBCARD] Run/Operate Orchestrator (packs)
   Plane: Run/Operate
   Type: OPERATOR + DAEMON SUPERVISOR
+  phase_id: P2
   Entry point(s):
     - make platform-operate-control-ingress-up
     - make platform-operate-rtdl-core-up
@@ -67,6 +69,7 @@ Completeness rule for this addendum:
 [JOBCARD] New platform run id (“active run pin”)
   Plane: Run/Operate
   Type: OPERATOR
+  phase_id: P1
   Entry point(s): make platform-run-new
   Run pins carried: platform_run_id (authoritative for run-scoped paths)
   Inputs: local workspace (runs/fraud-platform)
@@ -84,6 +87,7 @@ Completeness rule for this addendum:
 [JOBCARD] Oracle sync (engine outputs -> MinIO)
   Plane: Oracle Store
   Type: BATCH JOB
+  phase_id: P3
   Entry point(s): make platform-oracle-sync
   Run pins carried: none (oracle pack is scenario-scoped; platform_run_id is downstream)
   Inputs:
@@ -103,6 +107,7 @@ Completeness rule for this addendum:
 [JOBCARD] Oracle pack + seal (manifest + _SEALED.json)
   Plane: Oracle Store
   Type: BATCH JOB
+  phase_id: P3
   Entry point(s):
     - make platform-oracle-pack ORACLE_PROFILE=... ORACLE_ENGINE_RUN_ROOT=... ORACLE_SCENARIO_ID=... ORACLE_ENGINE_RELEASE=...
     - (optional) make platform-oracle-check-strict ORACLE_PROFILE=... ORACLE_ENGINE_RUN_ROOT=...
@@ -129,6 +134,7 @@ Completeness rule for this addendum:
 [JOBCARD] Oracle stream view sort (ts_utc strict ordering)  **MIGRATION-CRITICAL**
   Plane: Oracle Store
   Type: BATCH JOB (CPU+RAM+DISK heavy)
+  phase_id: P3
   Entry point(s):
     - make platform-oracle-stream-sort ORACLE_PROFILE=... ORACLE_ENGINE_RUN_ROOT=... ORACLE_SCENARIO_ID=...
     - per-output: add ORACLE_STREAM_OUTPUT_ID=<output_id>
@@ -175,6 +181,7 @@ Completeness rule for this addendum:
 [JOBCARD] SR run-reuse (build + publish READY)
   Plane: Control
   Type: ACTIVATION (one-shot)
+  phase_id: P5
   Entry point(s):
     - set SR_RUN_EQUIVALENCE_KEY="parity_YYYYMMDDTHHMMSSZ"
     - make platform-sr-run-reuse SR_WIRING=config/platform/sr/wiring_local_kinesis.yaml
@@ -220,6 +227,7 @@ Completeness rule for this addendum:
 [JOBCARD] WSP READY consumer “run job” (stream view → IG push)
   Plane: Control+Ingress
   Type: BATCH-ish RUN JOB (bounded), or DAEMON when pack-managed
+  phase_id: P6
   Entry point(s):
     - once: make platform-wsp-ready-consumer-once WSP_PROFILE=config/platform/profiles/local_parity.yaml
     - pack-managed: included in control_ingress pack (do not run once in parallel)
@@ -270,6 +278,8 @@ Completeness rule for this addendum:
 [JOBCARD] IG HTTP service (admission + receipts + publish)
   Plane: Control+Ingress
   Type: DAEMON SERVICE (must run during WSP streaming)
+  phase_id: P7
+  Phase note: service readiness is checked in P4; admission commit semantics are enforced at P7.
   Entry point(s):
     - make platform-ig-service-parity
     - health: GET http://127.0.0.1:8081/v1/ops/health
@@ -331,6 +341,7 @@ Completeness rule for this addendum:
 [JOBCARD] IEG projector (identity/entity graph)
   Plane: RTDL Core
   Type: DAEMON WORKER (or once-mode)
+  phase_id: P8
   Entry point(s):
     - pack-managed (rtdl_core pack)
     - manual once: python -m fraud_detection.identity_entity_graph.projector --profile ... --once
@@ -360,6 +371,7 @@ Completeness rule for this addendum:
 [JOBCARD] OFP projector (online feature plane)
   Plane: RTDL Core
   Type: DAEMON WORKER (or once-mode)
+  phase_id: P8
   Entry point(s):
     - pack-managed (rtdl_core pack)
     - manual once: python -m fraud_detection.online_feature_plane.projector --profile ... --once
@@ -381,6 +393,7 @@ Completeness rule for this addendum:
 [JOBCARD] OFP snapshotter (materialize snapshot)  (optional in v0 run)
   Plane: RTDL Core
   Type: BATCH JOB
+  phase_id: P8
   Entry point(s):
     - python -m fraud_detection.online_feature_plane.snapshotter --profile ... --platform-run-id ... --scenario-run-id ...
   Inputs: OFP projection store
@@ -391,6 +404,7 @@ Completeness rule for this addendum:
 [JOBCARD] CSFB intake (Context Store + FlowBinding)
   Plane: RTDL Core (Join plane)
   Type: DAEMON WORKER (or once-mode)
+  phase_id: P8
   Entry point(s):
     - make platform-context-store-flow-binding-parity-once
     - make platform-context-store-flow-binding-parity-live
@@ -411,6 +425,7 @@ Completeness rule for this addendum:
 [JOBCARD] ArchiveWriter worker (immutable archive tail)  (pack-managed)
   Plane: RTDL Core
   Type: DAEMON WORKER
+  phase_id: P8
   Entry point(s):
     - pack-managed (rtdl_core pack; process name archive_writer_worker)
   Inputs:
@@ -435,6 +450,7 @@ Completeness rule for this addendum:
 [JOBCARD] DL worker (degrade posture authority)
   Plane: RTDL Decision Lane
   Type: DAEMON WORKER
+  phase_id: P9
   Entry point(s): pack-managed (rtdl_decision_lane pack)
   Inputs:
     - policy profile bundle (config/platform/dl/policy_profiles_v0.yaml)
@@ -453,6 +469,7 @@ Completeness rule for this addendum:
 [JOBCARD] DF worker (decision synthesis + rtdl publish)
   Plane: RTDL Decision Lane
   Type: DAEMON WORKER
+  phase_id: P9
   Entry point(s): pack-managed (rtdl_decision_lane pack)
   Inputs:
     - admitted traffic stream
@@ -470,6 +487,7 @@ Completeness rule for this addendum:
 [JOBCARD] AL worker (execute intents + emit outcomes)
   Plane: RTDL Decision Lane
   Type: DAEMON WORKER
+  phase_id: P9
   Entry point(s): pack-managed (rtdl_decision_lane pack)
   Inputs:
     - fp.bus.rtdl.v1 (action_intent)
@@ -484,6 +502,7 @@ Completeness rule for this addendum:
 [JOBCARD] DLA worker (append-only audit truth + audit publish)
   Plane: RTDL Decision Lane
   Type: DAEMON WORKER
+  phase_id: P9
   Entry point(s): pack-managed (rtdl_decision_lane pack)
   Inputs:
     - fp.bus.rtdl.v1 (decision+intent+outcome chain)
@@ -506,6 +525,7 @@ Completeness rule for this addendum:
 [JOBCARD] CaseTrigger worker (derive case triggers)
   Plane: Case + Labels
   Type: DAEMON WORKER
+  phase_id: P10
   Entry point(s): pack-managed (case_labels pack)
   Inputs:
     - fp.bus.rtdl.v1 only (event types decision_response + action_outcome) for Spine Green v0
@@ -520,6 +540,7 @@ Completeness rule for this addendum:
 [JOBCARD] Case Management (CM) service (stateful)
   Plane: Case + Labels
   Type: DAEMON SERVICE
+  phase_id: P10
   Entry point(s): pack-managed (case_labels pack)
   Inputs: fp.bus.case.v1 + CM locator (PARITY_CASE_MGMT_LOCATOR)
   Outputs: case timeline updates (append-only posture) in Postgres
@@ -547,6 +568,7 @@ Completeness rule for this addendum:
 [JOBCARD] Label Store (LS) daemon worker + writer boundary (stateful)
   Plane: Case + Labels
   Type: DAEMON WORKER (local_parity pack-managed)
+  phase_id: P10
   Entry point(s): pack-managed (case_labels pack): `fraud_detection.label_store.worker`
   Inputs:
     - label assertions submitted through LS writer boundary (primary local flow: CM -> LS)
@@ -590,6 +612,7 @@ Completeness rule for this addendum:
 [JOBCARD] Platform run reporter + environment conformance
   Plane: Obs/Gov
   Type: DAEMON WORKER (pack-managed) OR BATCH JOB (manual)
+  phase_id: P11
   Entry point(s):
     - pack-managed (obs_gov pack)
     - manual: make platform-run-report ; make platform-env-conformance ; make platform-governance-query

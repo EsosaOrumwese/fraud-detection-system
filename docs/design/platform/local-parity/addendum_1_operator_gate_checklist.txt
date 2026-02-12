@@ -4,6 +4,7 @@
 # Goal: 10–15 checks that declare each run phase PASS (local_parity)
 # NOTE: “CMD” lines use your make targets where available; otherwise “equivalent”.
 # ============================================================
+# Canonical reference key is phase_id=P# (P0..P11). Checklist numbers are execution order only.
 
 0) SUBSTRATE UP (P0)
    CMD:  make platform-parity-stack-status
@@ -44,17 +45,17 @@
          NOTE: platform-operate-parity-status includes learning-jobs by design
          AND you are NOT simultaneously running manual “once” consumers for the same lane
 
-4) ORACLE SYNC COMPLETE (P3a)
+4) ORACLE SYNC COMPLETE (P3)
    CMD:  make platform-oracle-sync
    PASS: Objects exist at s3://oracle-store/<engine_run_root>/... (non-empty)
 
-5) ORACLE SEALED (P3b)
+5) ORACLE SEALED (P3)
    CMD:  make platform-oracle-pack
          (optional) make platform-oracle-check-strict
    PASS: _SEALED.json exists under oracle pack root
          + strict check passes (or no errors)
 
-6) STREAM_VIEW COMPLETE FOR REQUIRED output_id(s) (P3c)  **CRITICAL**
+6) STREAM_VIEW COMPLETE FOR REQUIRED output_id(s) (P3)  **CRITICAL**
    CMD:  make platform-oracle-stream-sort
    PASS: For EACH required output_id:
             <ORACLE_STREAM_VIEW_ROOT>/output_id=<id>/part-*.parquet exists
@@ -111,7 +112,7 @@
             no quarantine receipt with reason_codes containing PUBLISH_AMBIGUOUS
             (if any PUBLISH_AMBIGUOUS evidence exists, P7 is FAIL and run cannot close green)
 
-11) EB HAS TRAFFIC + CONTEXT RECORDS (P7/P8)
+11) EB HAS TRAFFIC + CONTEXT RECORDS (P7 primary; supports P8)
     CMD:  aws --endpoint-url http://localhost:4566 kinesis list-streams
           (then run the shard-iterator/get-records sequence from runbook Section 8 for:
            fp.bus.traffic.baseline.v1 / fp.bus.traffic.fraud.v1 / fp.bus.context.arrival_events.v1 / fp.bus.context.flow_anchor.fraud.v1)

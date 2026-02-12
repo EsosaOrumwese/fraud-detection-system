@@ -7,6 +7,9 @@
 #   - No laptop compute for dev_min runtime
 #   - Managed compute uses ephemeral ECS tasks/services (demo → destroy)
 #   - Kafka = Confluent Cloud (demo stack); Evidence/Oracle = AWS S3 (core)
+# Canonical reference key:
+#   - Use phase_id=P# as the only cross-doc identifier for migration planning.
+#   - P0..P11 are Spine Green v0 lifecycle phases; P12 is teardown only.
 # ============================================================
 
 | Phase | What it “is” (run lifecycle)              | Local job type        | dev_min packaging target (what to deploy/run)                         |

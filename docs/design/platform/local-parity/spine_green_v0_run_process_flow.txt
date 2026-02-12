@@ -58,9 +58,11 @@ IMPLICIT STATES THAT PERSIST ACROSS RESTARTS (DO NOT TREAT RUN AS STATELESS)
 # ============================================================
 # L0 — OPERATOR TIMELINE (chronological, with “job vs daemon”)
 # ============================================================
+# Canonical reference key for migration/planning is phase_id=P# (P0..P11).
+# Numeric step labels in this section are operator timeline order only.
 
 # ----------------------------
-# 0) Bring up parity substrate
+# 0) Bring up parity substrate [phase_id: P0]
 # ----------------------------
 TYPE: OPERATOR (one-shot)
 CMD:
@@ -75,7 +77,7 @@ SUCCESS:
   - streams exist (sr-control-bus, traffic*, context*, rtdl, case, audit)
 
 # ----------------------------
-# 1) Verify parity env wiring
+# 1) Verify parity env wiring [phase_id: P0]
 # ----------------------------
 TYPE: OPERATOR (one-shot)
 INPUT: .env.platform.local (Make loads it)
@@ -90,7 +92,7 @@ SUCCESS:
   - ORACLE_STREAM_VIEW_ROOT ends with /stream_view/ts_utc
 
 # ----------------------------
-# 2) Create a new platform run id
+# 2) Create a new platform run id [phase_id: P1]
 # ----------------------------
 TYPE: OPERATOR (one-shot)
 CMD:
@@ -103,7 +105,7 @@ SUCCESS:
   - ACTIVE_RUN_ID exists and contains platform_<timestamp>Z
 
 # ----------------------------
-# 3) Start “always-on” packs (Run/Operate) for Spine Green v0
+# 3) Start “always-on” packs (Run/Operate) for Spine Green v0 [phase_id: P2]
 # ----------------------------
 TYPE: DAEMONS (start once; remain running)
 RECOMMENDED CMD (baseline, in-scope packs only):
@@ -159,7 +161,7 @@ SUCCESS:
   - component logs appear under runs/fraud-platform/<platform_run_id>/operate/<pack_id>/logs/
 
 # ------------------------------------------------------------
-# 4) Oracle Store preparation (THIS IS THE HEAVY BATCH COMPUTE)
+# 4) Oracle Store preparation (THIS IS THE HEAVY BATCH COMPUTE) [phase_id: P3]
 # ------------------------------------------------------------
 # This is the part that "works on laptop" but must be treated as a job for dev.
 # It is REQUIRED because WSP consumes the STREAM VIEW, not raw unsorted outputs.
@@ -208,7 +210,20 @@ SUCCESS:
       context (arrival_events, arrival_entities, flow_anchor for chosen mode)
 
 # ----------------------------
-# 5) SR publishes READY to control bus
+# 4.4) Ingest readiness gate before READY publish [phase_id: P4]
+# ----------------------------
+TYPE: DAEMON readiness check (IG service must be reachable)
+CMD:
+  make platform-operate-control-ingress-status
+  curl -i http://127.0.0.1:8081/v1/ops/health
+  curl -i -H "X-IG-Api-Key: <configured_ig_api_key>" http://127.0.0.1:8081/v1/ops/health
+SUCCESS:
+  - unauthenticated GET /v1/ops/health => 401 UNAUTHORIZED
+  - authenticated GET /v1/ops/health => 200 health payload
+  - required ingress/rtdl/case/audit streams exist for in-scope producers
+
+# ----------------------------
+# 5) SR publishes READY to control bus [phase_id: P5]
 # ----------------------------
 TYPE: ACTIVATION (one-shot)
 CMD:
@@ -231,7 +246,7 @@ SUCCESS:
       runs/fraud-platform/<platform_run_id>/scenario_runner/scenario_runner.log
 
 # ----------------------------
-# 6) WSP consumes READY and streams to IG
+# 6) WSP consumes READY and streams to IG [phase_id: P6]
 # ----------------------------
 TYPE: DAEMON (if pack running) or ACTIVATION (manual once)
 MANUAL ONCE CMD (if NOT using pack):
@@ -259,7 +274,7 @@ NOTE (EXPECTED IN PARITY):
   - "WSP READY duplicate skipped ..." is expected when dedupe/checkpointing is healthy.
 
 # ----------------------------
-# 7) IG admits + publishes to Event Bus
+# 7) IG admits + publishes to Event Bus [phase_id: P7]
 # ----------------------------
 TYPE: DAEMON (IG service; must be running during streaming)
 MANUAL CMD (if NOT using pack):
@@ -300,7 +315,7 @@ INGEST AUTH CONTRACT (LOCAL_PARITY):
   - missing/invalid key => 401 UNAUTHORIZED
 
 # ----------------------------
-# 8) RTDL core plane consumes admitted EB topics
+# 8) RTDL core plane consumes admitted EB topics [phase_id: P8]
 # ----------------------------
 TYPE: DAEMONS (rtdl_core pack) OR manual one-shots
 CONSUMES (at minimum):
@@ -333,7 +348,7 @@ SUCCESS (core):
   - ArchiveWriter produces run-scoped archive observability artifacts (required for Spine Green v0)
 
 # ----------------------------
-# 9) RTDL decision lane consumes + emits rtdl/audit
+# 9) RTDL decision lane consumes + emits rtdl/audit [phase_id: P9]
 # ----------------------------
 TYPE: DAEMONS (rtdl_decision_lane pack)
 CONSUMES:
@@ -365,7 +380,7 @@ SUCCESS:
   - DLA run-scoped reconciliation artifacts exist under runs/.../decision_log_audit/...
 
 # ----------------------------
-# 10) Case + Labels plane consumes decision evidence and writes human-truth stores
+# 10) Case + Labels plane consumes decision evidence and writes human-truth stores [phase_id: P10]
 # ----------------------------
 TYPE: DAEMONS (case_labels pack)
 COMPONENTS:
@@ -399,7 +414,7 @@ SUCCESS:
   - LS metrics show label assertion activity for active run (accepted > 0)
 
 # ----------------------------
-# 11) Obs/Gov closure (run report + conformance + governance log)
+# 11) Obs/Gov closure (run report + conformance + governance log) [phase_id: P11]
 # ----------------------------
 TYPE: DAEMONS (obs_gov pack) OR manual one-shots (NOT concurrently)
 MANUAL SPOT CHECK CMDS:
@@ -417,7 +432,7 @@ SUCCESS:
   - conformance gate passes for local_parity profile expectations
 
 # ----------------------------
-# 11.1) Spine Green v0 strict closeout (200-event baseline)
+# 11.1) Spine Green v0 strict closeout (200-event baseline) [phase_id: P11]
 # ----------------------------
 REQUIRED EVIDENCE (run-scoped):
   - runs/fraud-platform/<platform_run_id>/obs/platform_run_report.json
@@ -454,7 +469,7 @@ PASS CONDITIONS:
   - WSP bounded run shows emitted=200 for traffic + context outputs in scope
 
 # ----------------------------
-# 12) Shutdown (optional)
+# 12) Shutdown (optional) [phase_id: P12]
 # ----------------------------
 TYPE: OPERATOR
 CMD (packs first, then substrate):

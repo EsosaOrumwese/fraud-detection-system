@@ -15,9 +15,27 @@ Out of scope for this baseline:
 
 - `platform_run_id` is the platform-run identity for run-scoped artifacts.
 - `scenario_run_id` is SR scenario identity; do not substitute it for platform artifact paths.
+- Canonical phase reference key is `phase_id=P#` from `P0` to `P11`.
+- `P12` is optional teardown and is outside Spine Green v0 closure acceptance.
 - Run-operate uses hybrid artifacts:
   - pack-scoped control/state/status under `runs/fraud-platform/operate/<pack_id>/...`
   - run-scoped logs/events under `runs/fraud-platform/<platform_run_id>/operate/<pack_id>/...`
+
+## Canonical Phase IDs
+
+- `P0` substrate ready
+- `P1` run pinned
+- `P2` daemons ready
+- `P3` oracle ready
+- `P4` ingest ready
+- `P5` ready published
+- `P6` streaming active
+- `P7` ingest committed
+- `P8` RTDL caught up
+- `P9` decision chain committed
+- `P10` case + labels committed
+- `P11` obs/gov closed
+- `P12` optional teardown (non-closure phase)
 
 ## Reading Order
 
