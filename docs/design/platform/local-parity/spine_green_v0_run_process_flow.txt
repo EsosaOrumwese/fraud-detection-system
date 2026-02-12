@@ -1,7 +1,8 @@
 ```
 # ============================================================
 # LOCAL_PARITY “SPINE GREEN v0” — EXACT RUN PROCESS FLOW CAPTURE
-# Source-of-truth: platform_parity_walkthrough_v0.md (2026-02-10)
+# Source anchors: platform_parity_walkthrough_v0.md (2026-02-10, full-parity superset) + active local run artifacts
+# Spine Green v0 scope lock and acceptance gates in this file govern when runbook content is broader.
 # Scope INCLUDED (closed): Control+Ingress, RTDL, Case+Labels, Run/Operate+Obs/Gov
 # Scope EXCLUDED: Learning/Registry (OFS/MF/MPR) — DO NOT include in baseline
 # ============================================================
@@ -297,7 +298,7 @@ COMPONENTS:
 SUCCESS (core):
   - each component writes run-scoped health/metrics artifacts
   - CSFB join counters advance (join_hits etc)
-  - ArchiveWriter produces archive evidence (if enabled in pack)
+  - ArchiveWriter produces run-scoped archive observability artifacts (required for Spine Green v0)
 
 # ----------------------------
 # 9) RTDL decision lane consumes + emits rtdl/audit
@@ -347,8 +348,9 @@ COMPONENTS:
 
 SUCCESS:
   - fp.bus.case.v1 has trigger events
-  - CM has case timeline rows/events
-  - LS has label assertions (if exercised in run)
+  - CaseTrigger/CM/LS run-scoped health artifacts exist and are GREEN
+  - CM metrics show case timeline creation activity for active run (cases_created > 0)
+  - LS metrics show label assertion activity for active run (accepted > 0)
 
 # ----------------------------
 # 11) Obs/Gov closure (run report + conformance + governance log)
@@ -374,15 +376,30 @@ SUCCESS:
 REQUIRED EVIDENCE (run-scoped):
   - runs/fraud-platform/<platform_run_id>/obs/platform_run_report.json
   - runs/fraud-platform/<platform_run_id>/obs/environment_conformance.json
+  - runs/fraud-platform/<platform_run_id>/archive_writer/health/last_health.json
+  - runs/fraud-platform/<platform_run_id>/identity_entity_graph/health/last_health.json
+  - runs/fraud-platform/<platform_run_id>/online_feature_plane/health/last_health.json
+  - runs/fraud-platform/<platform_run_id>/context_store_flow_binding/health/last_health.json
   - runs/fraud-platform/<platform_run_id>/decision_fabric/health/last_health.json
   - runs/fraud-platform/<platform_run_id>/action_layer/health/last_health.json
   - runs/fraud-platform/<platform_run_id>/decision_log_audit/health/last_health.json
+  - runs/fraud-platform/<platform_run_id>/case_trigger/health/last_health.json
+  - runs/fraud-platform/<platform_run_id>/case_mgmt/health/last_health.json
+  - runs/fraud-platform/<platform_run_id>/label_store/health/last_health.json
   - runs/fraud-platform/<platform_run_id>/operate/local_parity_control_ingress_v0/logs/wsp_ready_consumer.log
 PASS CONDITIONS:
   - environment_conformance status = PASS
+  - ingress admit signal is positive for active run (platform_run_report ingress.admit > 0)
+  - ArchiveWriter health_state = GREEN and archive_writer.metrics.seen_total > 0
+  - IEG health_state = GREEN
+  - OFP health_state = GREEN
+  - CSFB health_state = GREEN
   - DF health_state = GREEN
   - AL health_state = GREEN with intake/outcome parity for the run
   - DLA health_state = GREEN and lineage_unresolved_total = 0
+  - CaseTrigger health_state = GREEN and metrics.triggers_seen > 0
+  - CM health_state = GREEN and metrics.cases_created > 0
+  - LS health_state = GREEN and metrics.accepted > 0
   - WSP bounded run shows emitted=200 for traffic + context outputs in scope
 
 # ----------------------------

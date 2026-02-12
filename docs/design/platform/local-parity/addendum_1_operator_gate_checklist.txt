@@ -96,17 +96,29 @@
     CMD:  list receipts prefix
     PASS: s3://fraud-platform/<platform_run_id>/ig/receipts/ contains receipts
           Receipt(s) include eb_ref + offset_kind=kinesis_sequence
-          (Optional sanity) admitted_count > 0
+          admitted_count > 0 for active run (required; from IG summary/logs or platform_run_report ingress.admit)
+          duplicate-only receipt outcomes are FAIL for Gate-200 closure
 
 11) EB HAS TRAFFIC + CONTEXT RECORDS (P7/P8)
     CMD:  kinesis stream get/list/describe (or platform helper)
     PASS: traffic + context streams show records (non-zero) for this run window
+          and offsets advance during this run window (not historical-only leftovers)
 
 12) RTDL CORE CAUGHT UP (P8)
-    CMD:  check run artifacts + projector checkpoints
-    PASS: IEG reconciliation artifact exists:
+    CMD:  check run artifacts + projector health/metrics
+    PASS: ArchiveWriter health artifact exists and is GREEN with seen_total > 0:
+            runs/fraud-platform/<platform_run_id>/archive_writer/health/last_health.json
+            runs/fraud-platform/<platform_run_id>/archive_writer/metrics/last_metrics.json
+          IEG reconciliation artifact exists and health is GREEN:
             runs/fraud-platform/<platform_run_id>/identity_entity_graph/reconciliation/reconciliation.json
-          OFP + CSFB show advanced checkpoints / non-stuck health counters
+            runs/fraud-platform/<platform_run_id>/identity_entity_graph/health/last_health.json
+          OFP health is GREEN with events_seen > 0:
+            runs/fraud-platform/<platform_run_id>/online_feature_plane/health/last_health.json
+            runs/fraud-platform/<platform_run_id>/online_feature_plane/metrics/last_metrics.json
+          CSFB health is GREEN with join_hits > 0:
+            runs/fraud-platform/<platform_run_id>/context_store_flow_binding/health/last_health.json
+            runs/fraud-platform/<platform_run_id>/context_store_flow_binding/metrics/last_metrics.json
+            runs/fraud-platform/<platform_run_id>/context_store_flow_binding/reconciliation/last_reconciliation.json
 
 13) DECISION CHAIN COMMITTED (P9)
     CMD:  inspect rtdl + audit streams and DLA artifacts
@@ -117,10 +129,17 @@
           DLA health is GREEN and lineage_unresolved_total=0 for active run
 
 14) CASE + LABELS COMMITTED (P10)
-    CMD:  inspect case stream + CM/LS stores/artifacts
+    CMD:  inspect case stream + CaseTrigger/CM/LS health+metrics
     PASS: fp.bus.case.v1 has trigger events
-          CM shows case timeline updates for the run
-          LS shows label assertions IF the run exercises labels
+          CaseTrigger health is GREEN and metrics.triggers_seen > 0
+            runs/fraud-platform/<platform_run_id>/case_trigger/health/last_health.json
+            runs/fraud-platform/<platform_run_id>/case_trigger/metrics/last_metrics.json
+          CM health is GREEN and metrics.cases_created > 0
+            runs/fraud-platform/<platform_run_id>/case_mgmt/health/last_health.json
+            runs/fraud-platform/<platform_run_id>/case_mgmt/metrics/last_metrics.json
+          LS health is GREEN and metrics.accepted > 0
+            runs/fraud-platform/<platform_run_id>/label_store/health/last_health.json
+            runs/fraud-platform/<platform_run_id>/label_store/metrics/last_metrics.json
 
 15) OBS/GOV CLOSED (P11)
    CMD:  make platform-run-report

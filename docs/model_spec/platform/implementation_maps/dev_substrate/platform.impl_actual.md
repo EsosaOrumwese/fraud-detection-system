@@ -3402,3 +3402,107 @@ Docs-only index hardening; no runtime semantic change.
 
 ### Drift sentinel assessment
 No design-intent drift detected in this docs pass; changes reduce migration/operator ambiguity.
+
+## Entry: 2026-02-12 1:11PM - Pre-change lock for comprehensive docs gate hardening (Spine Green v0)
+
+### Trigger
+USER requested patching all identified content issues so docs mirror runtime truth and prevent false-green declarations.
+
+### Scope (docs-only)
+1. `docs/design/platform/local-parity/spine_green_v0_run_process_flow.txt`
+2. `docs/design/platform/local-parity/addendum_1_phase_state_machine_and_gates.txt`
+3. `docs/design/platform/local-parity/addendum_1_operator_gate_checklist.txt`
+4. `docs/design/platform/local-parity/addendum_2_process_job_cards.txt`
+
+### Issues to resolve
+1. Strict closeout under-specifies in-scope plane closure (RTDL core + Case/Labels not hard-gated).
+2. IG admission gate can pass on weak evidence (receipts/stream non-zero only) without explicit admitted_count guard.
+3. ArchiveWriter treated as optional although RTDL core is in-scope.
+4. Case+Labels closure conditionalized as "if exercised" despite in-scope closure requirement.
+5. Main-doc authority statement implies runbook is direct source-of-truth even though runbook is a superset/full-parity narrative with different scope/path details.
+6. Addendum 2 template fields not fully populated for CM/LS job cards.
+7. RTDL core gate in checklist/state-machine lacks explicit artifact-level checks for OFP/CSFB/ArchiveWriter.
+
+### Decision
+Harden gates/evidence to artifact-first, run-scoped closure criteria matching active local run behavior.
+No runtime semantics are being changed; only documentation acceptance criteria and narrative authority are corrected.
+
+### Planned edits
+- Main process flow:
+  - clarify authority posture as Spine Green v0 derivative of full-parity runbook,
+  - make ArchiveWriter and Case+Labels closure explicit and required,
+  - expand strict closeout evidence and pass conditions to include RTDL core + Case/Labels artifact checks and IG admit signal.
+- Addendum 1 phase-state-machine:
+  - P7: require explicit admitted_count > 0 for run in addition to receipts/offset refs,
+  - P8: replace optional archive language with required artifact checks,
+  - P10: remove conditional LS closure and require concrete CaseTrigger/CM/LS artifacts + health,
+  - P11 strictness remains conformance PASS.
+- Addendum 1 operator checklist:
+  - strengthen checks 10/11/12/14 with run-scoped artifact and counter criteria,
+  - remove soft/optional wording where in-scope closure is required.
+- Addendum 2 job cards:
+  - complete CM and LS cards with checkpoint/state identity, required env, fail-closed behavior, reset/retry, idempotency details.
+
+### Validation plan
+1. Marker scan for removal of weak/optional closure phrasing in P8/P10 and checklist.
+2. Marker scan for explicit added artifacts/health checks (ArchiveWriter, OFP, CSFB, CaseTrigger, CM, LS).
+3. Ensure IG gates require run-scoped admitted_count signal.
+4. Readability pass so phase flow remains coherent and operator-usable.
+
+### Drift sentinel checkpoint
+Docs-only acceptance-hardening aligned to observed runtime surfaces and scope lock. If any criterion cannot be evidenced in active run, escalation required; no silent downgrade.
+
+## Entry: 2026-02-12 1:14PM - Applied closure: comprehensive Spine Green v0 docs gate hardening (runtime-truth alignment)
+
+### Files updated
+1. `docs/design/platform/local-parity/spine_green_v0_run_process_flow.txt`
+2. `docs/design/platform/local-parity/addendum_1_phase_state_machine_and_gates.txt`
+3. `docs/design/platform/local-parity/addendum_1_operator_gate_checklist.txt`
+4. `docs/design/platform/local-parity/addendum_2_process_job_cards.txt`
+
+### What was corrected
+1. **Authority posture in main narrative**
+- Replaced direct "runbook is source-of-truth" wording with explicit scoped authority:
+  - runbook is full-parity superset anchor,
+  - Spine Green v0 scope lock/gates in local-parity docs govern this baseline.
+
+2. **Strict closeout completeness (main narrative)**
+- Expanded `11.1 strict closeout` evidence and pass criteria from decision-lane-heavy checks to full in-scope plane closure:
+  - added required RTDL core health artifacts (ArchiveWriter/IEG/OFP/CSFB),
+  - added required Case+Labels health artifacts (CaseTrigger/CM/LS),
+  - added required positive ingress admit signal (`platform_run_report ingress.admit > 0`),
+  - retained DLA lineage closure and bounded WSP completion gates.
+
+3. **IG gate anti-false-green hardening**
+- In phase-state-machine P7 and operator checklist check 10:
+  - made `admitted_count > 0` a required gate signal,
+  - clarified duplicate-only outcomes are fail conditions for Gate-200 closure.
+
+4. **RTDL core closure hardening**
+- Removed optional/archive-soft language.
+- P8 and checklist now require explicit artifact paths and health/counter checks for:
+  - ArchiveWriter (`health GREEN`, `metrics.seen_total > 0`),
+  - IEG (`reconciliation + health GREEN`),
+  - OFP (`health GREEN`, `events_seen > 0`),
+  - CSFB (`health GREEN`, `join_hits > 0`, reconciliation artifact present).
+
+5. **Case+Labels closure hardening**
+- Removed conditional "if exercised" posture.
+- P10 and checklist now require explicit health+metrics closure for CaseTrigger/CM/LS:
+  - `triggers_seen > 0`, `cases_created > 0`, `accepted > 0`.
+
+6. **Addendum 2 completeness for CM/LS job cards**
+- Filled template-level missing mechanics for both cards:
+  - idempotency/dedupe posture,
+  - checkpoint/state identity,
+  - required env/run-scope pins,
+  - fail-closed behavior,
+  - reset/retry rules.
+
+### Validation
+- Marker scans confirm removal of weak optional closure wording and presence of required artifact/counter gates.
+- No legacy `<run_id>` placeholders introduced.
+- Updated paths and counters align with active run artifact surfaces (`platform_20260212T085637Z`).
+
+### Drift sentinel assessment
+No runtime behavior changed. This pass strictly hardens documentation acceptance criteria so declarations of Spine Green v0 cannot pass on partial/ambiguous evidence.

@@ -202,6 +202,7 @@ Exit gate:
   - Receipts exist under: s3://fraud-platform/<platform_run_id>/ig/receipts/
   - Receipts include eb_ref with offsets (offset_kind=kinesis_sequence)
   - EB streams contain records for traffic + context (+ rtdl/case/audit later)
+  - IG admission signal for active run is positive (admitted_count > 0)
 
 Commit evidence:
   - Receipt files are the admission commit evidence (append-only)
@@ -219,14 +220,21 @@ Entry actions:
       ArchiveWriter, IEG, OFP, CSFB
 
 Exit gate (minimum Spine Green v0):
-  - IEG reconciliation artifact exists:
-      runs/.../identity_entity_graph/reconciliation/reconciliation.json
-  - Projector checkpoints for this run advanced (no longer stuck at start)
-  - (If enabled) Archive evidence exists (optional but recommended)
+  - ArchiveWriter health artifact exists and is GREEN:
+      runs/fraud-platform/<platform_run_id>/archive_writer/health/last_health.json
+      with metrics.seen_total > 0
+  - IEG reconciliation artifact exists and health is GREEN:
+      runs/fraud-platform/<platform_run_id>/identity_entity_graph/reconciliation/reconciliation.json
+      runs/fraud-platform/<platform_run_id>/identity_entity_graph/health/last_health.json
+  - OFP health artifact exists and is GREEN with events_seen > 0:
+      runs/fraud-platform/<platform_run_id>/online_feature_plane/health/last_health.json
+  - CSFB health + reconciliation artifacts exist and health is GREEN with join_hits > 0:
+      runs/fraud-platform/<platform_run_id>/context_store_flow_binding/health/last_health.json
+      runs/fraud-platform/<platform_run_id>/context_store_flow_binding/reconciliation/last_reconciliation.json
 
 Commit evidence:
-  - Per projector: last_checkpoint/metrics/health artifacts for the active run
-  - IEG reconciliation.json is the strongest “caught up” signal in v0
+  - Per projector: run-scoped health/metrics/reconciliation artifacts for active run
+  - ArchiveWriter/IEG/OFP/CSFB health artifacts all GREEN for active run
 
 Reset/retry:
   - Restart pack if consumer stuck (prefer pack restart to ad-hoc process restarts)
@@ -260,15 +268,22 @@ Reset/retry:
 Entry actions:
   - CaseTrigger consumes evidence and publishes case triggers
   - CM consumes case triggers and updates case timeline
-  - LS writes append-only label assertions (if exercised)
+  - LS writes append-only label assertions through writer boundary
 
 Exit gate:
-  - fp.bus.case.v1 contains trigger records
-  - CM has case timeline updates for this run
-  - LS has label assertions (if the run exercises labels)
+  - fp.bus.case.v1 contains trigger records for active run window
+  - CaseTrigger health is GREEN and metrics.triggers_seen > 0:
+      runs/fraud-platform/<platform_run_id>/case_trigger/health/last_health.json
+      runs/fraud-platform/<platform_run_id>/case_trigger/metrics/last_metrics.json
+  - CM health is GREEN and metrics.cases_created > 0:
+      runs/fraud-platform/<platform_run_id>/case_mgmt/health/last_health.json
+      runs/fraud-platform/<platform_run_id>/case_mgmt/metrics/last_metrics.json
+  - LS health is GREEN and metrics.accepted > 0:
+      runs/fraud-platform/<platform_run_id>/label_store/health/last_health.json
+      runs/fraud-platform/<platform_run_id>/label_store/metrics/last_metrics.json
 
 Commit evidence:
-  - CaseTrigger checkpoints + CM/LS append evidence
+  - CaseTrigger/CM/LS health+metrics artifacts and append-only evidence for active run
 
 Reset/retry:
   - Re-run CaseTrigger safely only if idempotency/checkpoints are correct

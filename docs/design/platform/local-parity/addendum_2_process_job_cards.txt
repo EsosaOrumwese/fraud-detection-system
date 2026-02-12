@@ -490,7 +490,24 @@ CARD TEMPLATE (fields you must be able to answer in dev)
   Entry point(s): pack-managed (case_labels pack)
   Inputs: fp.bus.case.v1 + CM locator (PARITY_CASE_MGMT_LOCATOR)
   Outputs: case timeline updates (append-only posture) in Postgres
-  Commit evidence: case timeline updated for run
+  Commit evidence:
+    - runs/fraud-platform/<platform_run_id>/case_mgmt/health/last_health.json is GREEN
+    - runs/fraud-platform/<platform_run_id>/case_mgmt/metrics/last_metrics.json shows cases_created > 0
+  Idempotency / dedupe:
+    - append-only timeline semantics + consumer replay discipline prevent duplicate timeline corruption
+  Checkpoint/state:
+    - run-scoped local checkpoint store: runs/fraud-platform/<platform_run_id>/case_mgmt/consumer_checkpoints.sqlite
+    - durable timeline/state in PARITY_CASE_MGMT_LOCATOR
+  Required config/env:
+    - PARITY_CASE_MGMT_LOCATOR
+    - CASE_MGMT_REQUIRED_PLATFORM_RUN_ID (pack-enforced run scope)
+  Resource envelope: moderate (stateful DB writes; low external IO)
+  Fail-closed + common failures:
+    - run-scope mismatch or invalid case payload => reject/quarantine path; no silent timeline mutation
+    - DB connectivity failure => fail processing and preserve replay safety
+  Reset/retry:
+    - restart case_labels pack (preferred)
+    - for destructive scratch resets only, wipe CM tables explicitly and log action
 
 [JOBCARD] Label Store (LS) daemon worker + writer boundary (stateful)
   Plane: Case + Labels
@@ -498,7 +515,23 @@ CARD TEMPLATE (fields you must be able to answer in dev)
   Entry point(s): pack-managed (case_labels pack): `fraud_detection.label_store.worker`
   Inputs: label assertions submitted through LS writer boundary (primary local flow: CM -> LS)
   Outputs: append-only label assertions in Postgres (PARITY_LABEL_STORE_LOCATOR)
-  Commit evidence: label assertions present for run (when exercised)
+  Commit evidence:
+    - runs/fraud-platform/<platform_run_id>/label_store/health/last_health.json is GREEN
+    - runs/fraud-platform/<platform_run_id>/label_store/metrics/last_metrics.json shows accepted > 0
+  Idempotency / dedupe:
+    - append-only label timeline with deterministic dedupe tuple handling
+  Checkpoint/state:
+    - durable label timeline + governance markers in PARITY_LABEL_STORE_LOCATOR
+  Required config/env:
+    - PARITY_LABEL_STORE_LOCATOR
+    - LABEL_STORE_REQUIRED_PLATFORM_RUN_ID (pack-enforced run scope)
+  Resource envelope: moderate (DB-bound with low bus pressure)
+  Fail-closed + common failures:
+    - contract_invalid / payload_hash_mismatch / missing_evidence_refs => reject path with no silent accept
+    - DB write failure => fail processing and preserve append-only truth posture
+  Reset/retry:
+    - restart case_labels pack (preferred)
+    - for destructive scratch resets only, wipe LS tables explicitly and log action
 
 # ------------------------------------------------------------
 # OBSERVABILITY + GOVERNANCE (CLOSEOUT / EVIDENCE)
