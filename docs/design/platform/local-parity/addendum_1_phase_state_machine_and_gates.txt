@@ -72,7 +72,7 @@ Exit gate:
   - runs/fraud-platform/ACTIVE_RUN_ID exists and points to a new run folder
 
 Commit evidence:
-  - ACTIVE_RUN_ID file content is the run_id used everywhere else
+  - ACTIVE_RUN_ID file content is the platform_run_id used everywhere else
 
 Reset/retry:
   - Create a fresh run id (preferred) rather than reusing a “dirty” run scope
@@ -165,7 +165,7 @@ Exit gate:
   - READY is present on sr-control-bus
 
 Commit evidence:
-  - SR run ledger/artifacts under: s3://fraud-platform/<run_id>/sr/...
+  - SR run ledger/artifacts under: s3://fraud-platform/<platform_run_id>/sr/...
   - Control bus contains READY for this platform_run_id
 
 Reset/retry:
@@ -199,7 +199,7 @@ Entry actions:
   - IG validates/dedupes/quarantines and publishes admitted records to EB topics
 
 Exit gate:
-  - Receipts exist under: s3://fraud-platform/<run_id>/ig/receipts/
+  - Receipts exist under: s3://fraud-platform/<platform_run_id>/ig/receipts/
   - Receipts include eb_ref with offsets (offset_kind=kinesis_sequence)
   - EB streams contain records for traffic + context (+ rtdl/case/audit later)
 
@@ -209,7 +209,7 @@ Commit evidence:
 
 Reset/retry:
   - Don’t delete receipts to “fix” problems — treat receipts as evidence
-  - Prefer fresh run_id if admission logic changes materially
+  - Prefer fresh platform_run_id if admission logic changes materially
 
 ------------------------------------------------------------
 
@@ -283,7 +283,7 @@ Entry actions:
 
 Exit gate:
   - runs/.../obs/platform_run_report.json exists
-  - s3://fraud-platform/<run_id>/obs/governance/events.jsonl appended
+  - s3://fraud-platform/<platform_run_id>/obs/governance/events.jsonl appended
   - runs/.../obs/environment_conformance.json exists and status is PASS for local_parity expectations
 
 Commit evidence:

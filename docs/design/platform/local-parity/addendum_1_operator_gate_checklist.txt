@@ -80,13 +80,13 @@
 
 8) SR READY COMMITTED + PUBLISHED (P5)
    CMD:  make platform-sr-run-reuse
-   PASS: SR run log (runs/fraud-platform/<run_id>/scenario_runner/scenario_runner.log)
-         shows “READY committed” and “READY published”
-         AND control bus (sr-control-bus) contains READY for ACTIVE_RUN_ID
+   PASS: SR run log (runs/fraud-platform/<platform_run_id>/scenario_runner/scenario_runner.log)
+          shows “READY committed” and “READY published”
+          AND control bus (sr-control-bus) contains READY for ACTIVE_RUN_ID
 
 9) WSP STREAMING FINISHED (P6)
    CMD:  (pack running) observe WSP logs at:
-         runs/fraud-platform/<run_id>/operate/local_parity_control_ingress_v0/logs/wsp_ready_consumer.log
+         runs/fraud-platform/<platform_run_id>/operate/local_parity_control_ingress_v0/logs/wsp_ready_consumer.log
          (or once) make platform-wsp-ready-consumer-once
    PASS: WSP logs show “stream start” -> “stream stop”
          AND for bounded Gate-200, each required output reaches emitted=200
@@ -94,7 +94,7 @@
 
 10) IG ADMISSION COMMITTED (P7)
     CMD:  list receipts prefix
-    PASS: s3://fraud-platform/<run_id>/ig/receipts/ contains receipts
+    PASS: s3://fraud-platform/<platform_run_id>/ig/receipts/ contains receipts
           Receipt(s) include eb_ref + offset_kind=kinesis_sequence
           (Optional sanity) admitted_count > 0
 
@@ -105,7 +105,7 @@
 12) RTDL CORE CAUGHT UP (P8)
     CMD:  check run artifacts + projector checkpoints
     PASS: IEG reconciliation artifact exists:
-            runs/fraud-platform/<run_id>/identity_entity_graph/reconciliation/reconciliation.json
+            runs/fraud-platform/<platform_run_id>/identity_entity_graph/reconciliation/reconciliation.json
           OFP + CSFB show advanced checkpoints / non-stuck health counters
 
 13) DECISION CHAIN COMMITTED (P9)
@@ -113,7 +113,7 @@
     PASS: fp.bus.rtdl.v1 contains decision/intent/outcome events
           fp.bus.audit.v1 contains audit events
           DLA reconciliation/artifacts exist under:
-            runs/fraud-platform/<run_id>/decision_log_audit/...
+            runs/fraud-platform/<platform_run_id>/decision_log_audit/...
           DLA health is GREEN and lineage_unresolved_total=0 for active run
 
 14) CASE + LABELS COMMITTED (P10)
@@ -127,9 +127,9 @@
           make platform-env-conformance
           (optional) make platform-governance-query
           (if obs_gov pack is running, avoid manual report generation concurrently)
-   PASS: runs/fraud-platform/<run_id>/obs/platform_run_report.json exists
-          runs/fraud-platform/<run_id>/obs/environment_conformance.json exists (status=PASS)
-          s3://fraud-platform/<run_id>/obs/governance/events.jsonl appended
+   PASS: runs/fraud-platform/<platform_run_id>/obs/platform_run_report.json exists
+          runs/fraud-platform/<platform_run_id>/obs/environment_conformance.json exists (status=PASS)
+          s3://fraud-platform/<platform_run_id>/obs/governance/events.jsonl appended
           (No append conflicts => no concurrent writers)
 
 # RECOMMENDED SHORT-CIRCUIT VALIDATION (before full scale)

@@ -3011,3 +3011,61 @@ Post-edit scan confirms explicit `label_store_worker` mapping and removal of amb
 
 ### Drift sentinel assessment
 Docs-only clarity pass; no runtime behavior or ownership semantics changed.
+
+## Entry: 2026-02-12 12:22PM - Pre-change lock for run-id namespace clarity across main/addendum-1/checklist
+
+### Trigger
+USER requested a full blind-spot review of the three active migration docs to prevent future operator headaches.
+
+### Blind spot found
+Inconsistent identifier namespace in docs:
+- main narrative predominantly uses `<platform_run_id>`,
+- addendum state-machine and operator checklist still use `<run_id>` in multiple evidence paths.
+
+This is risky because run docs also carry `scenario_run_id`; operators can misread `<run_id>` as scenario-scoped ID and query wrong paths.
+
+### Decision
+Normalize run-scoped artifact and object-store path references to `<platform_run_id>` across the two Addendum 1 docs.
+Where text intends platform run identity (ACTIVE_RUN_ID), use explicit term `platform_run_id`.
+
+### Planned edits
+1. `docs/design/platform/local-parity/addendum_1_phase_state_machine_and_gates.txt`
+2. `docs/design/platform/local-parity/addendum_1_operator_gate_checklist.txt`
+
+### Validation plan
+- Post-edit scan: no residual `<run_id>` placeholders in those two docs where platform run scope is intended.
+- Quick readability pass to ensure no scenario-run references were accidentally overwritten.
+
+### Drift sentinel checkpoint
+Docs-only namespace clarification; no runtime semantic changes.
+
+## Entry: 2026-02-12 12:24PM - Applied closure after full three-doc blind-spot review (main + addendum state machine + operator checklist)
+
+### Review scope
+Performed full section-by-section read of:
+1. `docs/design/platform/local-parity/spine_green_v0_run_process_flow.txt`
+2. `docs/design/platform/local-parity/addendum_1_phase_state_machine_and_gates.txt`
+3. `docs/design/platform/local-parity/addendum_1_operator_gate_checklist.txt`
+
+### Blind spot found and resolved
+Identifier namespace inconsistency:
+- Addendum files used `<run_id>` while main doc used `<platform_run_id>`.
+- This can be confused with `scenario_run_id` and lead to wrong artifact path checks during migration.
+
+### Fix applied
+Normalized platform-run artifact references in Addendum 1 docs to `<platform_run_id>` and explicit `platform_run_id` wording where intended:
+- `docs/design/platform/local-parity/addendum_1_phase_state_machine_and_gates.txt`
+- `docs/design/platform/local-parity/addendum_1_operator_gate_checklist.txt`
+
+### Validation
+- Post-fix scan confirms no residual `<run_id>` placeholders in the two Addendum 1 docs.
+- Canonical marker scan across all three docs confirms retained alignment for:
+  - Spine-safe status posture,
+  - IG auth gate (401 unauth / authenticated health),
+  - bounded gate values (`WSP_MAX_EVENTS_PER_OUTPUT=20/200`),
+  - DLA closure criterion (`lineage_unresolved_total=0`),
+  - conformance `status=PASS`,
+  - LS runtime-role clarity (`label_store_worker`).
+
+### Drift sentinel assessment
+Docs-only clarity/consistency closure. No runtime behavior changes.
