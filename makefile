@@ -217,7 +217,9 @@ BUCKET_VERSION ?= 2024
 NUMERIC_POLICY_VERSION ?= 2025-12-31
 MATH_PROFILE_VERSION ?= openlibm-v0.8.7
 
-# ---------------------------------------------------------------------------`n# External paths (aligned to registries)`n# ---------------------------------------------------------------------------
+# ---------------------------------------------------------------------------
+# External paths (aligned to registries)
+# ---------------------------------------------------------------------------
 MERCHANT_TABLE ?= reference/layer1/transaction_schema_merchant_ids/$(MERCHANT_VERSION)/transaction_schema_merchant_ids.parquet
 ISO_TABLE ?= reference/iso/iso3166_canonical/$(ISO_VERSION)/iso3166.parquet
 GDP_TABLE ?= reference/economic/world_bank_gdp_per_capita/$(GDP_VERSION)/gdp.parquet

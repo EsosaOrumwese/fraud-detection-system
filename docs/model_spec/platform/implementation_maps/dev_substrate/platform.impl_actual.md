@@ -4694,3 +4694,30 @@ We sealed the local→dev_min bridge by producing two authoritative “migration
 
 ### Drift sentinel checkpoint
 This reset is intentional and user-directed. It removes migration drift vectors and forces phase-entry implementation to align strictly with the migration runbook + handles registry.
+
+## Entry: 2026-02-12 11:08PM - Legacy Makefile migration calls removed (fresh-start hardening)
+
+### Trigger
+USER requested confirmation that no legacy migration Make calls remain.
+
+### Findings before patch
+- `makefile` still contained a full legacy `platform-dev-min-phase*` target block and `DEV_MIN_*` defaults pointing to removed scripts/config/terraform paths.
+- This created a stale command surface that could reintroduce pre-reset migration flow.
+
+### Action applied
+- Removed legacy dev-substrate migration defaults block (`DEV_MIN_*`) from `makefile`.
+- Removed all legacy `platform-dev-min-phase*` targets from `makefile` (phase1/phase2/phase3 blocks).
+- Kept unrelated platform/local-parity command surfaces intact.
+
+### Verification
+- `makefile` now has no matches for:
+  - `platform-dev-min-phase`
+  - `DEV_MIN_`
+  - `scripts/dev_substrate/`
+  - `infra/terraform/envs/dev_min`
+  - `config/platform/dev_substrate`
+  - `config/platform/sr/wiring_dev_min.yaml`
+- Remaining occurrences of legacy make calls are historical text in documentation only (implementation notes/challenge archive), not executable make targets.
+
+### Drift sentinel checkpoint
+This change removes stale executable migration paths and reinforces the fresh-start authority posture.
