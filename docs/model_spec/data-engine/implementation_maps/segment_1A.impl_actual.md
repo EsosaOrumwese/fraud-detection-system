@@ -3657,3 +3657,82 @@ Immediate next actions:
 1) Run same-seed replay (`make segment1a`) to produce a second post-fix run.
 2) Compare run-to-run outputs for determinism-critical surfaces (S1/S2/S3/S8 hashes + gate metrics).
 3) Write `runs/fix-data-engine/segment_1A/<run_id>/reports/p1_metrics.json` + `p1_determinism_check.json`.
+
+### Entry: 2026-02-12 19:34
+
+Design element: P1.1 run-loop hardening (`S0 -> S1 -> S2` only) with explicit output-surface proof.
+Summary: Implement a dedicated Segment 1A P1 execution target that runs only `S0,S1,S2`, keeps failed-run pruning on the fix-data-engine root, and asserts the four required S1/S2 output datasets exist before considering a run valid for P1 tuning.
+
+Reasoning trail:
+1) Current `make segment1a` path executes `S0..S9`, which conflicts with P1 scope and creates avoidable runtime/storage overhead.
+2) Existing per-state targets are usable, but there is no single canonical command that guarantees ordered `S0 -> S1 -> S2` execution plus post-run surface checks.
+3) P1.1 DoD requires both operational scope control and proof that the required S1/S2 logs were actually emitted.
+
+Options considered:
+1) Reuse `segment1a` and gate states with flags.
+- Rejected: no built-in state skip controls for 1A in this Makefile path; would still bias toward full-segment habits.
+2) Ask operators to chain three commands manually each run.
+- Rejected: error-prone and weak for repeatability.
+3) Add a dedicated `segment1a-p1` target (chosen).
+- Chosen because it gives one canonical command, preserves existing per-state entrypoints, and cleanly wires P1 checks.
+
+Planned implementation (before code edits):
+1) Add a dedicated make target that:
+- runs `segment1a-preclean-failed-runs`,
+- executes `S0`,
+- resolves the just-created run_id,
+- executes `S1` and `S2` against that run_id,
+- runs a verifier for required P1 output datasets.
+2) Add a small tool script (`tools/verify_segment1a_p1_outputs.py`) to assert presence of:
+- `rng_event_hurdle_bernoulli`,
+- `rng_event_nb_final`,
+- `rng_event_gamma_component`,
+- `rng_event_poisson_component`.
+3) Wire PHONY aliases so this is easy to run repeatedly.
+4) Validate with `make -n` dry-run plus direct verifier invocation on latest available run.
+
+Invariants to preserve:
+- No behavior change for existing `segment1a-s*` targets.
+- No forced full-segment execution for P1.
+- Pre-clean remains non-destructive outside `runs/fix-data-engine` roots unless explicitly enabled.
+
+### Entry: 2026-02-12 19:37
+
+Design element: P1.1 implementation closure (`segment1a-p1` state-scoped execution + required-surface verifier).
+Summary: Implemented a canonical P1 command path that runs only `S0 -> S1 -> S2`, reuses pre-clean pruning, and fails fast if the required S1/S2 output surfaces are missing.
+
+Implementation actions:
+1) Added new make targets in `makefile`:
+- `segment1a-p1`:
+  - depends on `segment1a-preclean-failed-runs`,
+  - runs `S0`, resolves the newly produced `run_id` from latest `run_receipt.json` under `RUNS_ROOT`,
+  - runs `S1` and `S2` against that exact run id,
+  - executes post-run verification target.
+- `segment1a-p1-check`:
+  - runs a dedicated verifier script against `RUNS_ROOT` and optional `RUN_ID`.
+- `engine-seg1a-p1` alias for convenience.
+
+2) Added tool script `tools/verify_segment1a_p1_outputs.py`:
+- validates required P1 output surfaces for a run id:
+  - `rng_event_hurdle_bernoulli`,
+  - `rng_event_nb_final`,
+  - `rng_event_gamma_component`,
+  - `rng_event_poisson_component`.
+- supports explicit `--run-id` or latest-run auto-resolution.
+- exits non-zero on missing dataset surfaces.
+
+3) Verification executed:
+- `python -m py_compile tools/verify_segment1a_p1_outputs.py` (pass).
+- `python tools/verify_segment1a_p1_outputs.py --runs-root runs/fix-data-engine/segment_1A` (pass).
+- `make segment1a-p1 RUNS_ROOT=runs/fix-data-engine/segment_1A` (pass):
+  - pre-clean executed,
+  - state-scoped run produced `run_id=e97b15d23d61dde3ae2c416721f271f2`,
+  - verifier passed all four required output surfaces.
+
+P1.1 DoD status impact:
+- DoD(1) one repeatable command/profile executes `S0,S1,S2` only: satisfied via `make segment1a-p1`.
+- DoD(2) required scoring surfaces emitted each run: satisfied by `segment1a-p1-check` pass on run `e97b15d23d61dde3ae2c416721f271f2`.
+
+Notes:
+- Existing `segment1a-s*` targets were left unchanged.
+- No full-segment (`S3+`) invocation is required in the new P1 path.
