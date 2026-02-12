@@ -30,7 +30,7 @@
 **Implementer Freedom (Codex MAY choose)**
 
 * Exact Terraform module layout, naming (within pinned naming conventions), and internal resource composition (as long as constraints/guards are met).
-* Whether dev-min compute runs **locally** (recommended for budget) or as **ephemeral AWS tasks** (allowed only if destroy-by-default).
+* Managed compute implementation specifics for dev-min (service/task decomposition, ECS sizing, and teardown mechanics) as long as compute remains off-laptop and destroy-by-default.
 * Observability backend wiring details (as long as it meets the “minimal counters + rare anomalies” posture and writes run reconciliation/evidence to S3). 
 * Optional “AWS-native Kafka flex demo”: Codex may add a **feature-flagged** MSK Serverless module *only if* it is strictly ephemeral and does not compromise the £30/mo cap. (Not required for v0.)
 
@@ -327,8 +327,8 @@ The following selections are **pinned** for v0 `dev_min`:
 
 4. **Compute/runtime for `dev_min`**
 
-   * **MUST:** Default to **local compute** for platform services during day-to-day `dev_min` runs (budget posture).
-   * **MAY:** Add an **ephemeral AWS compute path** (ECS tasks/services) strictly for demo-day runs, provided it is destroy-by-default.
+   * **MUST:** Run platform services on **managed compute** for `dev_min` (no laptop compute path for platform services).
+   * **MUST:** Use **ephemeral ECS tasks/services** for v0 dev-min compute, destroy-by-default.
 
 5. **Orchestration**
 
@@ -470,9 +470,9 @@ Regardless of environment (`local_parity`, `dev_min`, later rungs), the followin
   * EB topics are real Kafka topics.
 * **Quarantine payload store:** MinIO/local → **AWS S3**
 * **Quarantine metadata index:** local DB/files → **AWS DynamoDB** (optional but recommended for dev_min)
-* **Receipts store:** local Postgres/files → **S3 evidence + (optional) managed Postgres**
+* **Receipts store:** local Postgres/files → **S3 evidence + managed runtime store (no laptop-resident DB for dev_min runtime)**
 
-  * v0 allows receipts to remain in Postgres if compute is local, but an evidence summary MUST land in S3.
+  * v0 requires receipts runtime state to live in managed backing services; an evidence summary MUST land in S3.
 
 **Pinned `dev_min` resources used by this plane:**
 
@@ -760,7 +760,7 @@ These invariants are **environment-agnostic**. The `dev_min` migration is permit
   * `evidence/`
   * Terraform state bucket
 * DynamoDB lock table for Terraform
-* IAM scaffolding required for local compute to read/write S3 + read SSM (least privilege)
+* IAM scaffolding for managed runtime principals to read/write S3 + read SSM (least privilege)
 * AWS Budgets/alerts for the £30 cap (threshold alerts) 
 * CloudWatch log groups (only if needed by demo; retention must be short)
 
@@ -795,17 +795,20 @@ This section pins a minimal networking posture that supports `dev_min` without i
 
 ### 9.1 Default networking stance (pinned)
 
-* **MUST:** `dev_min` assumes **local compute is the default** (services run on your machine) and connect outward to:
+* **MUST:** `dev_min` runs platform services on **ephemeral managed compute (ECS)** and connects to:
 
   * Confluent Cloud Kafka over the public internet,
   * AWS S3 / SSM / DynamoDB via AWS public endpoints.
-* **MUST:** Therefore, `dev_min` **does not require** any AWS VPC, subnets, NAT, or load balancers to function in the default path.
+* **MUST:** Networking for demo compute must remain minimal and budget-safe:
+  * no NAT Gateway,
+  * no always-on load balancers,
+  * no always-on compute fleets.
 
-This is the **budget-safe baseline**: pay for managed primitives only, avoid idle networking resources.
+This is the **budget-safe baseline**: managed substrate + managed compute during demo windows only.
 
-### 9.2 AWS VPC stance (only if demo compute moves into AWS)
+### 9.2 AWS VPC stance (for managed demo compute)
 
-If (and only if) we choose to run some demo compute inside AWS (ephemeral ECS tasks), then:
+For ephemeral ECS-based demo compute:
 
 * **MAY:** Create a minimal VPC inside the **demo stack** (ephemeral).
 * **MUST:** Keep it minimal:
@@ -881,8 +884,8 @@ This section pins how secrets and identity are handled in `dev_min`, and how con
   * read/write required S3 prefixes,
   * read/write required SSM paths,
   * access the DynamoDB lock table (and optionally quarantine index).
-* **MUST:** If compute runs locally, services use that operator identity (AWS profile/role) for AWS access.
-* **MAY:** If demo compute runs in AWS, each task/service must assume an IAM role with least privilege (scoped to required S3/SSM/Dynamo actions).
+* **MUST:** Runtime services in dev-min must assume IAM roles with least privilege (scoped to required S3/SSM/Dynamo actions).
+* **MUST NOT:** Use laptop operator AWS identity as the runtime principal for platform services.
 * **MUST:** Confluent access uses the Confluent service account API key/secret stored in SSM (no long-lived keys in repo).
 
 ### 10.3 Config: pinned per run, no silent drift (pinned)
@@ -1395,7 +1398,7 @@ After `dev-min-down`, the operator MUST verify:
 
 * Demo Confluent resources are gone (or deactivated per provider behavior)
 * SSM Confluent secret parameters are removed
-* No ECS services/tasks remain (if used)
+* No ECS services/tasks remain
 * No NAT Gateway exists
 * No ALB/NLB exists
 * Only core S3/Dynamo/IAM/Budgets remain
@@ -1598,11 +1601,11 @@ This section records items that were previously open and are now pinned for v0 a
    - **PINNED:** demo-scoped (destroy-by-default).
 
 3. **Compute placement for demos**
-   - **CLOSED (PINNED):** Phase 1 default is **local compute**.
-   - **PINNED:** AWS compute is optional and, if used, must be demo-only and respect “no NAT / no always-on LB”.
+   - **CLOSED (PINNED):** Phase 1 default is **managed compute only** (no laptop compute for platform services).
+   - **PINNED:** v0 dev-min compute lane is ephemeral ECS tasks/services, demo-only, respecting “no NAT / no always-on LB”.
 
-4. **Managed Postgres vs local Postgres in dev_min**
-   - **CLOSED (PINNED):** Phase 1 uses **local Postgres** (existing local runtime DB) for CM/LS/receipts.
+4. **Runtime state-store posture in dev_min**
+   - **CLOSED (PINNED):** Phase 1 uses **managed runtime state stores** for CM/LS/receipts (no laptop-resident Postgres for dev_min runtime).
    - **PINNED:** evidence bundle exports to S3 are mandatory regardless.
 
 5. **Join plane substrate in dev_min**
@@ -1647,20 +1650,20 @@ This table is **normative for dev_min direction**: it pins what dev_min is allow
 | Plane/Layer        | Component             | local_parity (reference harness) | dev_min (pinned target)                                    | dev_full (optional)                | prod_target (aspirational)         |
 | ------------------ | --------------------- | -------------------------------- | ---------------------------------------------------------- | ---------------------------------- | ---------------------------------- |
 | World Builder      | Oracle Store          | MinIO                            | **AWS S3**                                                 | S3 + tighter posture               | S3 + Object Lock/WORM + governance |
-| World Builder      | Scenario Runner (SR)  | Compose/local                    | **Local (default)** or ephemeral ECS                       | ECS/EKS + autoscale                | EKS + policy releases              |
+| World Builder      | Scenario Runner (SR)  | Compose/local                    | **Ephemeral ECS task/service (managed compute required)**  | ECS/EKS + autoscale                | EKS + policy releases              |
 | World Builder      | READY/control         | Local control bus                | **Kafka control topic** (Confluent; CLI-orchestrated)      | Kafka + orchestration signals      | Kafka + Temporal signaling         |
-| World Builder      | WSP                   | Compose/local                    | **Local (default)** or ephemeral ECS task                  | KStreams/Flink if needed           | Managed Flink/Spark Streaming      |
+| World Builder      | WSP                   | Compose/local                    | **Ephemeral ECS task/service (managed compute required)**  | KStreams/Flink if needed           | Managed Flink/Spark Streaming      |
 | Control/Ingress    | Event Bus (EB)        | Redpanda/LocalStack              | **Confluent Cloud Kafka (Basic; AWS eu-west-2)**           | Kafka tuned (retention/partitions) | Kafka multi-AZ + tiered storage    |
-| Control/Ingress    | IG                    | Compose/local                    | **Local (default)** or ephemeral ECS                       | ECS/EKS + autoscale                | EKS + strict mTLS/rate controls    |
+| Control/Ingress    | IG                    | Compose/local                    | **Ephemeral ECS service (managed compute required)**       | ECS/EKS + autoscale                | EKS + strict mTLS/rate controls    |
 | Control/Ingress    | Quarantine payloads   | Local/MinIO                      | **S3**                                                     | S3 + lifecycle + alarms            | S3 + compliance posture            |
 | Control/Ingress    | Quarantine index      | Local DB/files                   | **DynamoDB (recommended)**                                 | DynamoDB + TTL + alarms            | DynamoDB streams → workflows       |
-| Control/Ingress    | Receipts store        | Local Postgres/files             | **Evidence summary in S3 (MUST)**; internal store flexible | Postgres managed optional          | Evidence lake + query views        |
-| RTDL               | Projections (IEG/OFP) | Local workers                    | **Local (default)** using Kafka consumer groups            | KStreams scaled                    | Flink stateful jobs                |
-| RTDL               | Join plane (CSFB)     | Local/in-mem                     | **Optional** (may remain local)                            | Managed Redis                      | Redis Enterprise/Aerospike         |
-| RTDL               | DF/AL/DLA             | Local                            | **Local (default)** consuming Kafka + writing evidence     | ECS/EKS optional                   | EKS + stronger posture             |
+| Control/Ingress    | Receipts store        | Local Postgres/files             | **Evidence summary in S3 (MUST)** + managed runtime store (required) | Postgres managed optional    | Evidence lake + query views        |
+| RTDL               | Projections (IEG/OFP) | Local workers                    | **Ephemeral ECS workers/services (managed compute required)** | KStreams scaled                 | Flink stateful jobs                |
+| RTDL               | Join plane (CSFB)     | Local/in-mem                     | **Ephemeral ECS worker/service (managed compute required)** | Managed Redis                    | Redis Enterprise/Aerospike         |
+| RTDL               | DF/AL/DLA             | Local                            | **Ephemeral ECS workers/services (managed compute required)** | ECS/EKS optional               | EKS + stronger posture             |
 | RTDL               | Audit lake            | Local files                      | **S3 evidence slices/summaries (MUST)**                    | S3 Parquet/Iceberg                 | Iceberg/Delta + catalog            |
-| Label/Case         | Operational DB        | Local Postgres                   | **Optional** managed Postgres (may remain local)           | Managed Postgres recommended       | Aurora multi-AZ + PITR             |
-| Label/Case         | CM/LS services        | Local                            | **Local (default)** with evidence export                   | ECS/EKS optional                   | Enterprise auth + compliance       |
+| Label/Case         | Operational DB        | Local Postgres                   | **Managed Postgres/runtime DB required (no laptop DB)**    | Managed Postgres recommended       | Aurora multi-AZ + PITR             |
+| Label/Case         | CM/LS services        | Local                            | **Ephemeral ECS services (managed compute required)**      | ECS/EKS optional                   | Enterprise auth + compliance       |
 | Learning/Evolution | Archive               | Local                            | **S3 archive prefix (bounded)**                            | S3 Parquet/Iceberg                 | Iceberg/Delta lakehouse            |
 | Learning/Evolution | OFS                   | Local job                        | **Optional** (not required for dev_min)                    | Glue/EMR/Databricks                | Databricks/Snowflake pipelines     |
 | Learning/Evolution | MF orchestration      | Scripts                          | **CLI-only run flow (`run_operate` / Make) (PINNED)**      | Step/SageMaker/Temporal            | Kubeflow/SageMaker                 |
@@ -1670,8 +1673,8 @@ This table is **normative for dev_min direction**: it pins what dev_min is allow
 
 **Notes (pinned interpretation):**
 
-* “Local (default)” in dev_min means: compute runs on your machine, but uses **Confluent Kafka + AWS S3** as the managed substrate.
-* Any move of compute into AWS is allowed only as **ephemeral demo infra** (destroy-by-default) and must respect the “no NAT / no always-on LB” prohibitions.
+* Dev-min requires managed compute for platform services (no laptop compute lane).
+* Compute runs as ephemeral ECS tasks/services (destroy-by-default) and must respect the “no NAT / no always-on LB” prohibitions.
 
 ---
 
@@ -1713,7 +1716,7 @@ Only these are permitted to accumulate cost across months:
 **Demo (allowed to cost money only during demo windows)**
 
 * Confluent Cloud Kafka cluster + topics
-* Optional ECS tasks/services (only if you choose to run compute in AWS)
+* Ephemeral ECS tasks/services (required for dev-min runtime compute)
 * Optional load balancer (only if explicitly needed for a demo) 
 
 NOTE: Phase 1 `dev_min` is CLI-orchestrated; Step Functions is out of scope for v0.
@@ -1736,10 +1739,10 @@ NOTE: Phase 1 `dev_min` is CLI-orchestrated; Step Functions is out of scope for 
 
    * Not applicable in Phase 1 `dev_min` (CLI-only pinned).
    * If introduced in `dev_full`, keep state transitions per run bounded.
-4. **ECS/Compute (if used)**
+4. **ECS/Compute**
 
    * CPU/RAM hours (keep tasks short-lived)
-5. **Load balancers (if used)**
+5. **Load balancers (if used for specific demo exposure only)**
 
    * Hourly cost even when idle → avoid except for a specific demo need
 6. **Networking**
@@ -1788,7 +1791,7 @@ Then MUST verify:
 
 * Confluent cluster/topics destroyed (or deactivated per provider behavior)
 * SSM Confluent secret parameters removed
-* No ECS services/tasks remain (if used)
+* No ECS services/tasks remain
 * No ALB/NLB exists
 * No NAT Gateway exists 
 

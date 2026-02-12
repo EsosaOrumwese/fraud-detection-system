@@ -3560,3 +3560,84 @@ Docs-only clarification; no runtime or policy behavior changes.
 
 ### Drift sentinel assessment
 Docs-only clarification update; runtime behavior unchanged.
+
+## Entry: 2026-02-12 1:32PM - Pre-change lock for managed-compute-only repin (remove laptop dependency)
+
+### Trigger
+USER explicitly set new migration posture: no compute on laptop.
+
+### Conflict detected
+Current dev-min authority doc still pins local compute as default and AWS compute as optional.
+This conflicts with the new user direction and can cause implementation drift.
+
+### Decision
+Apply a superseding repin in the migration authority and aligned packaging map:
+1. `dev_min` compute is managed-only (no laptop compute) for platform services.
+2. Allowed lane for v0 remains ephemeral ECS tasks/services (destroy-by-default).
+3. `local_parity` remains local correctness harness and historical baseline only.
+
+### Files to update
+1. `docs/model_spec/platform/pre-design_decisions/dev-min_managed-substrate_migration.design-authority.v0.md`
+2. `docs/design/platform/local-parity/addendum_1_phase_to_packaging_map.txt`
+
+### Planned edits
+- Add superseding repin note near authority boundaries.
+- Replace local-default compute wording in pinned sections/table/appendix notes with managed-only posture.
+- Flip phase-to-packaging map defaults from local to ECS-managed for dev_min lanes.
+
+### Validation
+- Marker scan confirms no remaining normative "local default compute" posture in migrated sections.
+- Readability pass ensures dev-min budget/destroy posture remains explicit.
+
+### Drift sentinel checkpoint
+This is a design-authority repin documentation change. Implementation must follow new managed-compute-only lane for dev-min; no runtime code changes in this step.
+
+## Entry: 2026-02-12 1:36PM - Applied closure: managed-compute-only repin (no laptop runtime compute)
+
+### Trigger
+USER direction: remove laptop dependency; no platform runtime compute on laptop.
+
+### Files updated
+1. `docs/model_spec/platform/pre-design_decisions/dev-min_managed-substrate_migration.design-authority.v0.md`
+2. `docs/design/platform/local-parity/addendum_1_phase_to_packaging_map.txt`
+
+### Authority repin applied
+1. Dev-min compute posture changed from "local default + optional AWS" to:
+- managed compute only for platform services,
+- v0 lane pinned as ephemeral ECS tasks/services,
+- destroy-by-default remains mandatory.
+
+2. Networking/identity posture aligned:
+- runtime services must use IAM runtime roles,
+- laptop operator identity cannot be runtime principal for platform services.
+
+3. State-store posture aligned with no-laptop policy:
+- removed language allowing local runtime Postgres for dev-min runtime,
+- pinned managed runtime state stores for CM/LS/receipts,
+- S3 evidence export remains mandatory.
+
+4. Decision matrix/table rows aligned:
+- SR/WSP/IG/RTDL workers/CM-LS rows now indicate managed compute required,
+- notes removed "Local (default)" interpretation for dev-min.
+
+5. Cost/teardown appendix wording aligned:
+- ECS runtime is now required demo compute lane,
+- teardown checks retain mandatory "no ECS services/tasks remain".
+
+### Packaging map alignment applied
+`addendum_1_phase_to_packaging_map.txt` now reflects managed-compute-only dev-min path:
+- removed local-default compute language,
+- P2/P3/P4/P5/P6/P8/P9/P10/P11 defaults moved to ECS managed runtime,
+- explicit "no laptop compute" constraint added in header,
+- teardown path now references Kafka + ECS demo resources.
+
+### Validation
+- Marker scans show no remaining conflicting phrases such as:
+  - `local compute default`,
+  - `Local (default)` in dev-min columns,
+  - `if compute runs locally`,
+  - `No ECS services/tasks remain (if used)`.
+- Updated docs remain internally consistent with demo→destroy budget posture.
+
+### Drift sentinel assessment
+This is a deliberate design-authority repin. Implementation must now target managed runtime compute for dev-min; local compute path is no longer acceptable for that rung.

@@ -3349,3 +3349,32 @@ Actions taken:
 Expected outcome:
 - Re-running the same run_id on a different day uses the same utc_day partition.
 - “Latest receipt” selection is stable under mtime changes while preserving fallback behavior.
+
+---
+
+### Entry: 2026-02-12 13:30
+
+Design element: Segment 1A remediation planning before implementation (state-by-state).
+Summary: Locked a dedicated remediation build plan for Segment 1A so implementation can proceed with explicit phase gates and no ad-hoc edits.
+
+Decision:
+- Use a formal build-plan artifact for engine remediation, mirroring platform build-plan discipline, before touching policy/code.
+- Keep baseline evidence read-only; all remediation validation runs must execute under `runs/fix-data-engine/segment_1A/...`.
+- Enforce fail-closed progression: no phase advancement until all phase DoD gates are green.
+
+Artifact created:
+- `docs/model_spec/data-engine/implementation_maps/segment_1A.build_plan.md`
+
+Plan highlights (frozen for Wave-1 execution):
+1) Hard-gate-first posture for `B`, then uplift to `B+`.
+2) State-level remediation blueprint for `S0..S9`, with explicit file surfaces and validation expectations.
+3) Four-phase execution ladder:
+   - Phase 0 baseline lock
+   - Phase 1 structural realism recovery
+   - Phase 2 geo/legal realism recovery
+   - Phase 3 dispersion realism recovery
+   - Phase 4 artifact/governance closure + certification
+4) Determinism and artifact completeness are non-negotiable gates.
+
+Next step:
+- Start Phase 0 baseline lock under the new runs root and generate the first hard-gate fail matrix (no code/policy mutation during Phase 0).
