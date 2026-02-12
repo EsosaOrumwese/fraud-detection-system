@@ -1,20 +1,16 @@
 # Dev Substrate Track Maps
-_As of 2026-02-10_
+_As of 2026-02-12_
 
-This folder contains the active implementation maps for the `local_parity -> dev` substrate promotion track.
-
-Write all new platform-track planning/decision notes here.
+**FRESH START RESET:** this folder is now the authoritative planning notebook for a clean `local_parity -> dev` migration run from scratch. Prior dev_substrate implementation attempts are historical context only and must not be adapted forward.
 
 ## Active maps
 - `platform.build_plan.md`
 - `platform.impl_actual.md`
-- `oracle_store.impl_actual.md`
-- `scenario_runner.impl_actual.md`
-- `dev_min_migration_narrative.md`
 
-## Control + Ingress migration-focused build plans (Phase 3.C)
-- `oracle_store.build_plan.md`
-- `scenario_runner.build_plan.md`
-- `world_streamer_producer.build_plan.md`
-- `ingestion_gate.build_plan.md`
-- `event_bus.build_plan.md`
+## Working authority for migration execution
+- `docs/model_spec/platform/migration_to_dev/dev_min_spine_green_v0_run_process_flow.md`
+- `docs/model_spec/platform/migration_to_dev/dev_min_handles.registry.v0.md`
+
+## Rule
+- Do not recreate legacy dev_substrate wiring from memory or from removed files.
+- Phase-entry decisions must follow the migration runbook + handles registry and be logged in `platform.impl_actual.md`.

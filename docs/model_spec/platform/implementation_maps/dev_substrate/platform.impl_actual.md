@@ -4650,3 +4650,47 @@ We sealed the local→dev_min bridge by producing two authoritative “migration
 ### Net result
 - We now have a pinned, operator-shaped migration roadmap (Spine Green v0 baseline) that Codex can implement safely without redesigning the platform.
 - Migration execution is now phase-by-phase, fail-closed, and evidence-backed rather than guesswork.
+
+## Entry: 2026-02-12 11:05PM - **FRESH START RESET (AUTHORITATIVE)** for dev_substrate
+
+### **EMPHASIS: We are starting dev_substrate migration implementation from scratch.**
+
+### Why this reset was executed
+- USER directive: cleanse prior faulty dev_substrate implementation paths so we do not adapt to legacy drift.
+- Risk addressed: old partial wiring creates temptation to "build around" broken assumptions instead of following the migration runbook/handles authority.
+
+### What was purged (legacy implementation surfaces)
+1. Legacy dev_substrate scripts
+- Removed: `scripts/dev_substrate/*`
+
+2. Legacy dev_min Terraform environment implementation
+- Removed: `infra/terraform/envs/dev_min/*` (including lock/config files)
+- Removed local Terraform runtime residue directories under that env (`.terraform`, `terraform.tfstate.d`)
+
+3. Legacy dev wiring configs
+- Removed: `config/platform/dev_substrate/*`
+- Removed: `config/platform/profiles/dev_min.yaml`
+- Removed: `config/platform/sr/wiring_dev_min.yaml`
+
+4. Legacy component-level dev_substrate implementation maps/build plans
+- Removed component artifacts under `docs/model_spec/platform/implementation_maps/dev_substrate/` for event bus, ingestion gate, oracle store, scenario runner, and WSP, plus prior `platform.build_plan.md`.
+
+### New baseline after reset
+- Active dev_substrate maps are now only:
+  - `docs/model_spec/platform/implementation_maps/dev_substrate/platform.impl_actual.md`
+  - `docs/model_spec/platform/implementation_maps/dev_substrate/platform.build_plan.md` (fresh baseline)
+- Folder README was rewritten to mark the reset and to route all implementation work to migration authority docs.
+
+### Authority after reset (non-negotiable)
+- Execution authority:
+  - `docs/model_spec/platform/migration_to_dev/dev_min_spine_green_v0_run_process_flow.md`
+  - `docs/model_spec/platform/migration_to_dev/dev_min_handles.registry.v0.md`
+- Legacy removed paths are non-authoritative and must not be resurrected without explicit USER repin.
+
+### Counterfactual if reset was not done
+- High probability of reusing inconsistent naming/wiring and reintroducing laptop-coupled shortcuts.
+- Increased risk of false-green dev runs (gates appear to pass but semantics drift from migration authority).
+- Elevated teardown/cost drift due mixed-old/new substrate assumptions.
+
+### Drift sentinel checkpoint
+This reset is intentional and user-directed. It removes migration drift vectors and forces phase-entry implementation to align strictly with the migration runbook + handles registry.
