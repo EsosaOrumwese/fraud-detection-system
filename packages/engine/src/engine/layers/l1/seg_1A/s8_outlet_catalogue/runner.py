@@ -1399,11 +1399,24 @@ def run_s8(
         ztp_map = _load_ztp_final_events(ztp_paths, schema_layer1, seed, parameter_hash, run_id)
         timer.info(f"S8: loaded ztp_final events={len(ztp_map)}")
 
-        scope_merchants = sorted(set(candidate_map) & set(ztp_map))
-        missing_ztp = set(candidate_map) - set(ztp_map)
+        scope_merchants = sorted(set(candidate_map) & set(nb_map))
+        missing_nb = set(candidate_map) - set(nb_map)
+        if missing_nb:
+            raise EngineFailure(
+                "F4",
+                "E_SCHEMA_INVALID",
+                "S8",
+                MODULE_NAME,
+                {
+                    "detail": "missing_nb_final_for_candidate_merchants",
+                    "count": len(missing_nb),
+                },
+                dataset_id=DATASET_NB_FINAL,
+            )
+        missing_ztp = set(scope_merchants) - set(ztp_map)
         if missing_ztp:
             logger.info(
-                "S8: skipping merchants without ztp_final (ineligible or single-site) count=%d",
+                "S8: merchants without ztp_final will be projected as home-only count=%d",
                 len(missing_ztp),
             )
 
@@ -1655,6 +1668,7 @@ def run_s8(
         metrics = {
             "s8.merchants_in_scope": 0,
             "s8.merchants_single": 0,
+            "s8.merchants_without_ztp": 0,
             "s8.merchants_overflow": 0,
             "s8.events.sequence_finalize.rows": 0,
             "s8.events.site_sequence_overflow.rows": 0,
@@ -1726,47 +1740,13 @@ def run_s8(
                         dataset_id=DATASET_NB_FINAL,
                     )
                 n_outlets = int(nb_payload["n_outlets"])
-                if n_outlets < 2:
-                    metrics["s8.merchants_single"] += 1
-                    continue
-                ztp_payload = ztp_map.get(merchant_id)
-                if ztp_payload is None:
-                    raise EngineFailure(
-                        "F4",
-                        "E_SCHEMA_INVALID",
-                        "S8",
-                        MODULE_NAME,
-                        {"detail": "missing_ztp_final", "merchant_id": merchant_id},
-                        dataset_id=DATASET_ZTP_FINAL,
-                    )
-                k_target = int(ztp_payload["K_target"])
-                membership_set = membership_map.get(merchant_id, set())
-                if k_target == 0 and membership_set:
-                    raise EngineFailure(
-                        "F4",
-                        "E_UPSTREAM_GATE",
-                        "S8",
-                        MODULE_NAME,
-                        {"detail": "k_target_zero_but_membership", "merchant_id": merchant_id},
-                    )
-                if len(membership_set) > k_target:
-                    raise EngineFailure(
-                        "F4",
-                        "E_UPSTREAM_GATE",
-                        "S8",
-                        MODULE_NAME,
-                        {"detail": "membership_exceeds_k_target", "merchant_id": merchant_id},
-                    )
 
                 rows = candidate_map[merchant_id]
                 home_iso = None
-                domain_rows = []
                 for row in rows:
                     if row["is_home"]:
                         home_iso = row["country_iso"]
-                        domain_rows.append(row)
-                    elif row["country_iso"] in membership_set:
-                        domain_rows.append(row)
+                        break
                 if home_iso is None:
                     raise EngineFailure(
                         "F4",
@@ -1776,81 +1756,134 @@ def run_s8(
                         {"detail": "missing_home_row", "merchant_id": merchant_id},
                         dataset_id=DATASET_CANDIDATE_SET,
                     )
-                if not domain_rows:
-                    raise EngineFailure(
-                        "F4",
-                        "E_ORDER_AUTHORITY_DRIFT",
-                        "S8",
-                        MODULE_NAME,
-                        {"detail": "empty_domain", "merchant_id": merchant_id},
+
+                if n_outlets < 2:
+                    metrics["s8.merchants_single"] += 1
+                    outlet_rows.append(
+                        {
+                            "manifest_fingerprint": manifest_fingerprint,
+                            "merchant_id": merchant_id,
+                            "site_id": str(1).zfill(6),
+                            "home_country_iso": home_iso,
+                            "legal_country_iso": home_iso,
+                            "single_vs_multi_flag": False,
+                            "raw_nb_outlet_draw": n_outlets,
+                            "final_country_outlet_count": 1,
+                            "site_order": 1,
+                            "global_seed": seed,
+                        }
                     )
-                counts_for_merchant = counts_map.get(merchant_id)
-                if counts_for_merchant is None:
-                    raise EngineFailure(
-                        "F4",
-                        "E_COUNTS_SOURCE_MISSING",
-                        "S8",
-                        MODULE_NAME,
-                        {"detail": "counts_missing_merchant", "merchant_id": merchant_id},
-                        dataset_id=DATASET_COUNTS,
-                    )
-                domain_isos = {row["country_iso"] for row in domain_rows}
-                for country_iso, entry in counts_for_merchant.items():
-                    if country_iso in domain_isos:
-                        continue
-                    count = int(entry["count"])
-                    if count > 0:
+                    metrics["s8.outlet.rows"] += 1
+                    continue
+                ztp_payload = ztp_map.get(merchant_id)
+                if ztp_payload is None:
+                    metrics["s8.merchants_without_ztp"] += 1
+                    domain_counts = [
+                        {
+                            "country_iso": home_iso,
+                            "count": n_outlets,
+                            "candidate_rank": 0,
+                        }
+                    ]
+                else:
+                    k_target = int(ztp_payload["K_target"])
+                    membership_set = membership_map.get(merchant_id, set())
+                    if k_target == 0 and membership_set:
                         raise EngineFailure(
                             "F4",
-                "E_S3_MEMBERSHIP_MISSING",
+                            "E_UPSTREAM_GATE",
                             "S8",
                             MODULE_NAME,
-                            {
-                                "detail": "counts_outside_domain",
-                                "merchant_id": merchant_id,
-                                "country_iso": country_iso,
-                            },
-                            dataset_id=DATASET_COUNTS,
+                            {"detail": "k_target_zero_but_membership", "merchant_id": merchant_id},
+                        )
+                    if len(membership_set) > k_target:
+                        raise EngineFailure(
+                            "F4",
+                            "E_UPSTREAM_GATE",
+                            "S8",
+                            MODULE_NAME,
+                            {"detail": "membership_exceeds_k_target", "merchant_id": merchant_id},
                         )
 
-                domain_counts = []
-                total_count = 0
-                for row in domain_rows:
-                    country_iso = row["country_iso"]
-                    entry = counts_for_merchant.get(country_iso)
-                    if entry is None:
+                    domain_rows = []
+                    for row in rows:
+                        if row["is_home"] or row["country_iso"] in membership_set:
+                            domain_rows.append(row)
+                    if not domain_rows:
+                        raise EngineFailure(
+                            "F4",
+                            "E_ORDER_AUTHORITY_DRIFT",
+                            "S8",
+                            MODULE_NAME,
+                            {"detail": "empty_domain", "merchant_id": merchant_id},
+                        )
+                    counts_for_merchant = counts_map.get(merchant_id)
+                    if counts_for_merchant is None:
                         raise EngineFailure(
                             "F4",
                             "E_COUNTS_SOURCE_MISSING",
                             "S8",
                             MODULE_NAME,
-                            {"detail": "counts_missing_country", "merchant_id": merchant_id},
+                            {"detail": "counts_missing_merchant", "merchant_id": merchant_id},
                             dataset_id=DATASET_COUNTS,
                         )
-                    count = int(entry["count"])
-                    domain_counts.append(
-                        {
-                            "country_iso": country_iso,
-                            "count": count,
-                            "candidate_rank": row["candidate_rank"],
-                        }
-                    )
-                    total_count += count
+                    domain_isos = {row["country_iso"] for row in domain_rows}
+                    for country_iso, entry in counts_for_merchant.items():
+                        if country_iso in domain_isos:
+                            continue
+                        count = int(entry["count"])
+                        if count > 0:
+                            raise EngineFailure(
+                                "F4",
+                                "E_S3_MEMBERSHIP_MISSING",
+                                "S8",
+                                MODULE_NAME,
+                                {
+                                    "detail": "counts_outside_domain",
+                                    "merchant_id": merchant_id,
+                                    "country_iso": country_iso,
+                                },
+                                dataset_id=DATASET_COUNTS,
+                            )
 
-                if total_count != n_outlets:
-                    raise EngineFailure(
-                        "F4",
-                        "E_SUM_MISMATCH",
-                        "S8",
-                        MODULE_NAME,
-                        {
-                            "detail": "count_sum_mismatch",
-                            "merchant_id": merchant_id,
-                            "expected": n_outlets,
-                            "actual": total_count,
-                        },
-                        dataset_id=DATASET_COUNTS,
-                    )
+                    domain_counts = []
+                    total_count = 0
+                    for row in domain_rows:
+                        country_iso = row["country_iso"]
+                        entry = counts_for_merchant.get(country_iso)
+                        if entry is None:
+                            raise EngineFailure(
+                                "F4",
+                                "E_COUNTS_SOURCE_MISSING",
+                                "S8",
+                                MODULE_NAME,
+                                {"detail": "counts_missing_country", "merchant_id": merchant_id},
+                                dataset_id=DATASET_COUNTS,
+                            )
+                        count = int(entry["count"])
+                        domain_counts.append(
+                            {
+                                "country_iso": country_iso,
+                                "count": count,
+                                "candidate_rank": row["candidate_rank"],
+                            }
+                        )
+                        total_count += count
+
+                    if total_count != n_outlets:
+                        raise EngineFailure(
+                            "F4",
+                            "E_SUM_MISMATCH",
+                            "S8",
+                            MODULE_NAME,
+                            {
+                                "detail": "count_sum_mismatch",
+                                "merchant_id": merchant_id,
+                                "expected": n_outlets,
+                                "actual": total_count,
+                            },
+                            dataset_id=DATASET_COUNTS,
+                        )
 
                 overflow_countries = [
                     item for item in domain_counts if int(item["count"]) > 999999
@@ -2287,10 +2320,11 @@ def run_s8(
             logger.info("S8: validate-only mode; outlet_catalogue not written")
 
         logger.info(
-            "S8 summary: merchants_in_scope=%d single=%d overflow=%d "
+            "S8 summary: merchants_in_scope=%d single=%d missing_ztp=%d overflow=%d "
             "sequence_finalize_rows=%d overflow_rows=%d outlet_rows=%d",
             metrics["s8.merchants_in_scope"],
             metrics["s8.merchants_single"],
+            metrics["s8.merchants_without_ztp"],
             metrics["s8.merchants_overflow"],
             metrics["s8.events.sequence_finalize.rows"],
             metrics["s8.events.site_sequence_overflow.rows"],

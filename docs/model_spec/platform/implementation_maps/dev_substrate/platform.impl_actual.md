@@ -4248,3 +4248,152 @@ USER asked to proceed with final recommendation: add explicit publish-ambiguity 
 
 ### Drift sentinel assessment
 Docs-only closure note; runtime implementation posture unchanged.
+
+## Entry: 2026-02-12 5:13PM - Canonical phase-id normalization pass (P0-P11 as primary key)
+
+### Trigger
+USER supplied review identifying dual reference systems (timeline numbering vs P-phase ids) and requested unification to prevent migration drift.
+
+### Problem statement
+- `spine_green_v0_run_process_flow.txt` uses chronological numeric steps (`0..12`) without canonical P-id tags.
+- `addendum_1_operator_gate_checklist.txt` mixes P labels with subphase variants (`P3a/P3b/P3c`) and one mixed label (`P7/P8`).
+- `addendum_2_process_job_cards.txt` does not expose per-card `phase_id`.
+
+### Decision
+Adopt `P0-P11` as canonical phase identifiers across the local-parity exposure set. Keep chronology/checklist numbering as secondary human ordering, but every relevant section/card now carries explicit canonical `phase_id`.
+
+### Planned edits
+1. `spine_green_v0_run_process_flow.txt`
+- Add canonical phase-id policy note near the timeline header.
+- Annotate each major section header with its corresponding phase id.
+- Add explicit P4 readiness section before SR (align chronology with state machine order).
+
+2. `addendum_1_operator_gate_checklist.txt`
+- Add canonical phase-id policy note.
+- Normalize labels to canonical ids (`P3` instead of `P3a/b/c`, avoid ambiguous mixed labels by assigning a primary phase and noting support).
+
+3. `addendum_2_process_job_cards.txt`
+- Add `phase_id` field to template.
+- Add `phase_id:` line to each in-scope job card with explicit mapping.
+
+### Drift sentinel checkpoint
+Docs-only normalization; no runtime behavior, component ownership, or substrate contracts are changed.
+
+## Entry: 2026-02-12 5:21PM - Applied canonical phase-id normalization
+
+### Files updated
+1. `docs/design/platform/local-parity/spine_green_v0_run_process_flow.txt`
+2. `docs/design/platform/local-parity/addendum_1_operator_gate_checklist.txt`
+3. `docs/design/platform/local-parity/addendum_2_process_job_cards.txt`
+
+### Applied changes
+1. Main flow normalization
+- Added explicit canonical-key note: `phase_id=P#` is primary; numeric timeline labels are secondary.
+- Annotated major timeline steps with phase ids:
+  - step 0/1 -> `P0`
+  - step 2 -> `P1`
+  - step 3 -> `P2`
+  - step 4 -> `P3`
+  - inserted step `4.4` -> `P4` (IG readiness precondition before READY publish)
+  - step 5..11 -> `P5..P11`
+  - optional shutdown -> `P12`
+
+2. Checklist normalization
+- Added canonical-key note at top.
+- Replaced non-canonical labels `P3a/P3b/P3c` with `P3`.
+- Replaced mixed `P7/P8` label with explicit primary ownership (`P7 primary; supports P8`).
+
+3. Job card normalization
+- Added `phase_id` field to card template.
+- Added explicit `phase_id` to each in-scope job card.
+- IG card set to `phase_id: P7` with explicit note that readiness is checked at `P4`.
+
+### Drift sentinel assessment
+This is a naming/reference unification pass only. It does not alter implementation mechanics or runtime truth ownership boundaries.
+
+## Entry: 2026-02-12 5:18PM - Final polish for canonical phase-id references
+
+### Trigger
+USER requested final polish after phase-id normalization.
+
+### Scope
+1. `docs/design/platform/local-parity/README.md`
+2. `docs/design/platform/local-parity/addendum_1_phase_to_packaging_map.txt`
+
+### Planned polish
+- Add concise canonical phase-id policy statement in README with an explicit P0..P11/P12 interpretation.
+- Add matching policy statement in phase-to-packaging map so migration packaging references cannot drift back to alternate numbering.
+
+### Drift sentinel checkpoint
+Docs-only editorial consistency pass; no runtime or ownership semantics changed.
+
+## Entry: 2026-02-12 5:24PM - Applied canonical phase-id polish in index + packaging map
+
+### Files updated
+1. `docs/design/platform/local-parity/README.md`
+2. `docs/design/platform/local-parity/addendum_1_phase_to_packaging_map.txt`
+
+### Applied changes
+1. README polish
+- Added explicit canonical-id convention:
+  - `phase_id=P#` (`P0..P11`) is primary cross-doc reference key.
+  - `P12` is teardown-only and outside green closure acceptance.
+- Added concise `Canonical Phase IDs` section listing `P0..P12` meanings.
+
+2. Packaging map polish
+- Added canonical-id policy note directly under header constraints:
+  - use `phase_id=P#` as only cross-doc identifier for migration planning,
+  - `P0..P11` are lifecycle phases, `P12` is teardown-only.
+
+### Drift sentinel assessment
+Documentation consistency only; no mechanics, gates, ownership, or runtime contracts changed.
+
+## Entry: 2026-02-12 5:33PM - Milestone close: local-process canonicalization complete; migration-design focus opened
+
+### Milestone outcome (completed)
+We have completed the local-parity process discovery/canonicalization needed before migration planning:
+- end-to-end local process flow is explicitly documented and phase-gated (`P0..P11` canonical reference key),
+- operator checklist and job cards are aligned to the same phase ids,
+- major hidden-flow drifts were closed in docs (auth gates, publish ambiguity fail-closed posture, IO ownership, durable evidence surfaces, checkpoint/run-scope notes),
+- initial dev-environment pinned decisions were captured in pre-design decision authority notes.
+
+### Transition statement
+This closes the “understand and pin how it works on my laptop” stage for Spine Green v0 documentation.
+
+### Next design objective (opened)
+Design and execute migration lift from local-parity runtime to dev managed substrate with:
+- no local compute in the runtime path,
+- managed compute for all run-time processing,
+- preservation of canonical ownership boundaries, fail-closed gates, and append-only evidence semantics.
+
+### Drift sentinel checkpoint
+This entry is milestone accounting/planning only. No runtime code behavior changed in this step.
+
+## Entry: 2026-02-12 6:14PM - Migration challenge note (near-resolution): lifting laptop flow to dev with zero local compute
+
+### Challenge (active, near-resolved)
+How to migrate the proven local Spine Green v0 process into dev managed substrate without hidden coupling or local runtime compute, while preserving the same gate semantics and truth ownership.
+
+### Why this challenge matters
+- Local success currently proves semantics, but migration fails if phase wiring/handles are implicit.
+- Without a single per-phase mapping of compute + handles + gates + proof + rollback, implementation can drift and silently break green closure.
+
+### Proposed resolution (accepted direction)
+Adopt a two-document migration control surface:
+1. `dev_min_spine_green_v0_run_process_flow.md` (dev twin of local process)
+- Phase-canonical runbook (`P0..P11`, with optional preflight `P(-1)` and teardown `P12`),
+- each phase must specify: managed compute target, handles used, gate owner, proof artifacts, rollback/rerun posture,
+- explicit no-local-compute runtime rule across all phases.
+2. `dev_min_handles.registry.v0.md` (single source of truth for wiring)
+- authoritative names/IDs/paths for S3/Kafka/ECS/RDS/SSM/IAM/budgets,
+- all runtime/config/docs references must resolve through registry keys,
+- change-control rules for handle updates to prevent drift.
+
+### Closure criteria for this challenge
+- Both docs exist and are internally consistent with local-parity canonical phases and pinned dev-min decisions.
+- Every `P0..P11` phase in the dev runbook has complete fields: compute, handles, gates, proof, rollback.
+- No runtime step in the dev runbook depends on laptop compute.
+- Stop-line conditions remain fail-closed (especially publish ambiguity and append-only truth ownership).
+
+### Drift sentinel checkpoint
+This entry records challenge framing and accepted resolution approach only; no runtime implementation changes in this step.

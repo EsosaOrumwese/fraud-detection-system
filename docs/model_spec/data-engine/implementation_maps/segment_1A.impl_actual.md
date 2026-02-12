@@ -3490,3 +3490,146 @@ Validation gating for this decision:
 - Reject any coefficient set that improves one gate while materially regressing outlet median beyond B bounds.
 
 ---
+
+### Entry: 2026-02-12 17:18
+
+Design element: P1a implementation (S8 merchant-scope fidelity correction).
+Summary: Implemented the structural S8 fix so `outlet_catalogue` now reflects full upstream merchant scope from `nb_final` + `candidate_set`, instead of only merchants with `ztp_final`.
+
+Problem addressed:
+- Previous S8 scope (`candidate ∩ ztp`) excluded ineligible/single-site merchants from final egress.
+- This produced a structurally biased `outlet_catalogue` and made P1 single-site metrics non-diagnostic.
+
+Code decisions implemented:
+1) Scope authority changed from `candidate ∩ ztp` to `candidate ∩ nb`.
+   - Rationale: `nb_final` is the authoritative outlet-count source for all merchants.
+   - Added explicit failure if candidate merchants are missing in `nb_final`.
+
+2) Single-site materialization added (`n_outlets < 2`).
+   - Emit one home-country outlet row.
+   - Set `single_vs_multi_flag=False`, `final_country_outlet_count=1`, `site_order=1`.
+   - Keep `raw_nb_outlet_draw` equal to upstream NB draw.
+
+3) Ineligible multi-site path added (no `ztp_final`, `n_outlets >= 2`).
+   - Project as home-only with `count=n_outlets`.
+   - Preserve sequence/overflow event handling through standard domain-count path.
+   - Introduced metric `s8.merchants_without_ztp` for run-level auditability.
+
+4) Eligible multi-country path preserved.
+   - Existing `ztp + membership + counts` integrity checks retained.
+   - No contract/schema changes introduced.
+
+Validation executed:
+- `python -m py_compile packages/engine/src/engine/layers/l1/seg_1A/s8_outlet_catalogue/runner.py` passed.
+
+Expected impact:
+- `outlet_catalogue` can now express both single-site and ineligible home-only multi-site merchants.
+- P1 hurdle/dispersion coefficient tuning becomes measurable in certified egress metrics.
+
+
+### Entry: 2026-02-12 17:26
+
+Design element: P1b coefficient bundle authoring (first remediation candidate).
+Summary: Authored a new coefficient export bundle for Segment 1A to restore single-site mass and dispersion heterogeneity after the S8 scope fix.
+
+Decision and rationale:
+1) Hurdle `beta` intercept lift.
+- Applied `+2.2` to hurdle intercept in a new bundle.
+- Reason: baseline mean `pi` (~0.161) is materially low for B-band single-site posture once full egress scope is restored.
+- Quick design-matrix calibration indicated `+2.2` is a balanced first pass (not minimal, not saturation).
+
+2) Dispersion `beta_phi` rebuild.
+- Replaced near-constant `beta_phi` profile with controlled heterogeneous structure:
+  - MCC block: z-scored `beta_mu` MCC profile scaled by `0.12`.
+  - Channel block: `CP=-0.07`, `CNP=+0.07`.
+  - GDP slope: `0.03` on `ln(gdp_per_capita)`.
+- Calibrated intercept to preserve median implied `phi` near 12 (avoid full regime reset while adding spread).
+
+3) Why this shape (vs broader rewrite):
+- Keeps existing dictionary/cardinality unchanged (no schema or design-order break).
+- Introduces heterogeneity through interpretable axes already used in S2 sampling.
+- Targets B/B+ realism corridor while minimizing instability risk on first pass.
+
+Artifacts written:
+- `config/layer1/1A/models/hurdle/exports/version=2026-02-12/20260212T171900Z/hurdle_coefficients.yaml`
+- `config/layer1/1A/models/hurdle/exports/version=2026-02-12/20260212T171900Z/nb_dispersion_coefficients.yaml`
+- `config/layer1/1A/models/hurdle/exports/version=2026-02-12/20260212T171900Z/bundle_selfcheck.json`
+
+Sanity checks completed pre-run:
+- New hurdle implied mean `pi` from baseline logits moves to ~0.583 (from ~0.161).
+- Dispersion vector length preserved (`1 + |dict_mcc| + |dict_ch| + 1`).
+- Bundle metadata annotated with remediation provenance.
+
+Next execution decision:
+- Run a clean P1 candidate execution from baseline run-root and evaluate P1 DoD movement before any further coefficient edits.
+
+
+### Entry: 2026-02-12 17:31
+
+Design element: P1 execution strategy for first candidate run.
+Summary: Chosen execution path is a clean full Segment 1A run (S0..S9) under `runs/fix-data-engine/segment_1A` using the new coefficient bundle and S8 scope fix.
+
+Why full run (vs partial state replay):
+1) P1 changes affect both model coefficients and S8 final projection semantics.
+2) Partial replay against prior run-id risks mixed-lineage interpretation and stale-path collisions.
+3) Full run gives one coherent run receipt + manifest fingerprint for P1 gate assessment.
+
+Execution decision:
+- Run target: `make segment1a RUNS_ROOT=runs/fix-data-engine/segment_1A`
+- Keep seed/default operator settings unchanged for first comparison run.
+- Assess movement against P0 baseline immediately after run completion.
+
+Acceptance focus for this run:
+- single-site share and outlet median movement,
+- implied phi heterogeneity movement,
+- hard-gate status deltas and determinism-readiness for follow-up replay.
+
+
+### Entry: 2026-02-12 17:43
+
+Design element: P1 run-resume and coefficient resolution guard.
+Summary: Resuming P1 after interruption; before running, I verified S0 registry-resolution behavior to ensure the new coefficient bundle will actually be consumed by the run.
+
+Reasoning trail:
+1) P1 conclusions are only valid if S1/S2 load the new `2026-02-12` coefficient export.
+2) S0 resolves parameter artifacts via registry templates and `_resolve_registry_path(...)`.
+3) For `{version}` templates, resolver selects latest dated version directory, then resolves artifact file by name.
+4) Since new coefficients were authored under `version=2026-02-12`, resolution should prefer this bundle over older versions.
+
+Decision:
+- Proceed with full `make segment1a` run under `RUNS_ROOT=runs/fix-data-engine/segment_1A`.
+- After run completion, explicitly verify sealed input paths point to `version=2026-02-12/...` before interpreting metric deltas.
+
+Failure policy:
+- If sealed inputs do not reference the new bundle, mark run invalid for P1 assessment and correct registry/path resolution before any further tuning.
+
+### Entry: 2026-02-12 18:14
+
+Design element: P1 candidate run outcome assessment and root-cause correction.
+Summary: Completed first P1 candidate run (`bb268f24c8eb5af10da973d5c0d54181`) and evaluated deltas vs P0 baseline. Dispersion heterogeneity gates improved to pass, but single-site/candidate breadth surfaces did not improve. Root cause analysis shows current S8 scope correction is necessary but not sufficient because upstream states still exclude single-site merchants from the projected population.
+
+Observed outcomes (vs P0):
+1) Improved / passing:
+- `phi_cv`: `0.00053 -> 0.13898` (PASS vs `>=0.05`)
+- `phi_p95_p05_ratio`: `1.00004 -> 1.56837` (PASS vs `>=1.25`)
+
+2) Unchanged / failing:
+- `single_site_share`: `0.0 -> 0.0` (FAIL)
+- `candidate_foreign_median`: `37 -> 37` (FAIL)
+- `realization_ratio_median`: `0.0 -> 0.0` (FAIL)
+- required outputs presence: still FAIL
+
+Critical reasoning correction:
+- S8 now scopes `candidate ∩ nb`, but both `candidate_set` and `nb_final` are generated from the multi-site path only (`S1 is_multi=true`), so single-site merchants are still absent before S8 projection.
+- Therefore, expecting S8-only scope changes to recover single-site share was incorrect.
+
+Decision:
+- Treat P1 as partially successful (dispersion axis only).
+- Open next decision branch:
+  1) population-scope remediation to ensure single-site merchants are represented in egress (likely requiring S1/S2/S3/S8 contract-aligned handling, not S8 alone),
+  2) candidate breadth remediation via S3/S6 policy controls,
+  3) keep P1 coefficient bundle as the current best dispersion candidate unless downstream side-effects appear.
+
+External dependency control decision:
+- For subsequent runs, enforce sealed-input diff checks against baseline and classify each changed external artifact as intended vs unintended before accepting any metric movement.
+- Any unplanned artifact drift (policy/coeff/reference) invalidates the run for remediation inference.
