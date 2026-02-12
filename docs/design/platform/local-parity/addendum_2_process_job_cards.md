@@ -1,0 +1,530 @@
+```
+# ============================================================
+# ADDENDUM 2 — PER-PROCESS “JOB CARDS” (LOCAL_PARITY, SPINE GREEN v0)
+# Goal: make each step runnable as a packaged unit (job / activation / daemon)
+# so migration is “map cards to substrate”, not “copy/paste code”.
+#
+# In-scope (closed): Control+Ingress, RTDL, Case+Labels, Run/Operate, Obs/Gov
+# Out-of-scope: Learning/Registry (OFS/MF/MPR) — OMITTED HERE
+#
+# Source anchors: platform_parity_walkthrough_v0.md + control_and_ingress.pre-design_decision.md
+# ============================================================
+
+CARD TEMPLATE (fields you must be able to answer in dev)
+  Name:
+  Plane:
+  Type: OPERATOR | BATCH JOB | ACTIVATION | DAEMON SERVICE | DAEMON WORKER
+  Entry point(s): (pack target + optional manual cmd)
+  Run pins carried: platform_run_id (+ scenario_run_id when relevant)
+  Inputs (stores/topics):
+  Outputs (stores/topics/artifacts):
+  Commit evidence (single “done” proof):
+  Idempotency / dedupe key:
+  Checkpoint / state (where stored; identity key):
+  Required config/env (minimum):
+  Resource envelope + knobs:
+  Fail-closed behavior + common failures:
+  Reset / retry rules:
+
+# ------------------------------------------------------------
+# META / RUN-OPERATE (ORCHESTRATION)
+# ------------------------------------------------------------
+
+[JOBCARD] Run/Operate Orchestrator (packs)
+  Plane: Run/Operate
+  Type: OPERATOR + DAEMON SUPERVISOR
+  Entry point(s):
+    - make platform-operate-control-ingress-up
+    - make platform-operate-rtdl-core-up
+    - make platform-operate-rtdl-decision-up
+    - make platform-operate-case-labels-up
+    - make platform-operate-obs-gov-up
+    - (shorthand) make platform-operate-parity-up
+  Run pins carried: platform_run_id (enforced via *_REQUIRED_PLATFORM_RUN_ID)
+  Inputs:
+    - pack YAMLs under config/platform/run_operate/packs/local_parity_*.v0.yaml
+    - ACTIVE_RUN_ID file
+  Outputs:
+    - runs/fraud-platform/operate/<pack_id>/state.json
+    - runs/fraud-platform/operate/<pack_id>/events.jsonl
+    - runs/fraud-platform/operate/<pack_id>/status/last_status.json
+    - runs/fraud-platform/operate/<pack_id>/logs/<process>.log
+  Commit evidence: last_status.json shows RUNNING for all expected processes
+  Idempotency: “start if not running” semantics; pack restart is the clean reset
+  Checkpoint/state: orchestrator state.json + per-process internal stores
+  Required config/env:
+    - .env.platform.local loaded by Make
+    - ACTIVE_RUN_ID present
+  Resource envelope: low (supervision + spawn)
+  Fail-closed: pack treats missing env/DSNs as start failure; does not “half-run”
+  Reset/retry: use platform-operate-*-restart (avoid ad-hoc duplicate consumers)
+
+[JOBCARD] New platform run id (“active run pin”)
+  Plane: Run/Operate
+  Type: OPERATOR
+  Entry point(s): make platform-run-new
+  Run pins carried: platform_run_id (authoritative for run-scoped paths)
+  Inputs: local workspace (runs/fraud-platform)
+  Outputs:
+    - runs/fraud-platform/ACTIVE_RUN_ID
+    - runs/fraud-platform/<platform_run_id>/... (run root)
+  Commit evidence: ACTIVE_RUN_ID exists + run root created
+  Idempotency: NOT idempotent (creates new run); re-run -> new run_id
+  Reset/retry: prefer new run_id rather than “cleaning” a dirty run scope
+
+# ------------------------------------------------------------
+# ORACLE STORE (THE HEAVY BATCH PLANE)
+# ------------------------------------------------------------
+
+[JOBCARD] Oracle sync (engine outputs -> MinIO)
+  Plane: Oracle Store
+  Type: BATCH JOB
+  Entry point(s): make platform-oracle-sync
+  Run pins carried: none (oracle pack is scenario-scoped; platform_run_id is downstream)
+  Inputs:
+    - ORACLE_SYNC_SOURCE (local filesystem engine run path)
+  Outputs:
+    - ORACLE_ENGINE_RUN_ROOT (s3://oracle-store/... in MinIO) populated with datasets
+  Commit evidence: objects exist under ORACLE_ENGINE_RUN_ROOT (non-empty)
+  Idempotency: copy-style; safe to re-run if source/target unchanged
+  Required config/env (minimum):
+    - ORACLE_SYNC_SOURCE
+    - ORACLE_ENGINE_RUN_ROOT
+    - MinIO endpoint/creds via .env.platform.local
+  Resource envelope: disk + IO heavy (copies into MinIO volume)
+  Fail-closed: missing creds/endpoint => fails; do not proceed to pack/sort
+  Reset/retry: re-run sync; if wrong root, wipe the wrong prefix and resync
+
+[JOBCARD] Oracle pack + seal (manifest + _SEALED.json)
+  Plane: Oracle Store
+  Type: BATCH JOB
+  Entry point(s):
+    - make platform-oracle-pack ORACLE_PROFILE=... ORACLE_ENGINE_RUN_ROOT=... ORACLE_SCENARIO_ID=... ORACLE_ENGINE_RELEASE=...
+    - (optional) make platform-oracle-check-strict ORACLE_PROFILE=... ORACLE_ENGINE_RUN_ROOT=...
+  Run pins carried: scenario_run_id is derived downstream; pack is oracle truth boundary
+  Inputs:
+    - engine datasets in ORACLE_ENGINE_RUN_ROOT
+    - ORACLE_PACK_ROOT (s3://oracle-store/.../pack_current)
+  Outputs:
+    - oracle manifest files under ORACLE_PACK_ROOT
+    - _SEALED.json under ORACLE_PACK_ROOT (write-once boundary)
+  Commit evidence: _SEALED.json exists (+ strict check OK)
+  Idempotency:
+    - pack is idempotent only if inputs identical
+    - MANIFEST_MISMATCH => must use fresh pack root and re-pack
+  Required config/env:
+    - ORACLE_PROFILE=config/platform/profiles/local_parity.yaml
+    - ORACLE_ENGINE_RUN_ROOT, ORACLE_PACK_ROOT, ORACLE_SCENARIO_ID, ORACLE_ENGINE_RELEASE
+  Resource envelope: moderate
+  Fail-closed:
+    - MANIFEST_MISMATCH is a hard stop (forces new pack root)
+  Reset/retry:
+    - set a fresh ORACLE_PACK_ROOT (e.g., pack_YYYYMMDDTHHMMSSZ) then rerun
+
+[JOBCARD] Oracle stream view sort (ts_utc strict ordering)  **MIGRATION-CRITICAL**
+  Plane: Oracle Store
+  Type: BATCH JOB (CPU+RAM+DISK heavy)
+  Entry point(s):
+    - make platform-oracle-stream-sort ORACLE_PROFILE=... ORACLE_ENGINE_RUN_ROOT=... ORACLE_SCENARIO_ID=...
+    - per-output: add ORACLE_STREAM_OUTPUT_ID=<output_id>
+    - convenience targets:
+        make platform-oracle-stream-sort-traffic-both ...
+        make platform-oracle-stream-sort-context-fraud ...
+        make platform-oracle-stream-sort-context-baseline ...
+  Run pins carried: scenario scope (stream_view id derived from ORACLE_ENGINE_RUN_ROOT + ORACLE_SCENARIO_ID + output_id)
+  Inputs:
+    - raw engine outputs in ORACLE_ENGINE_RUN_ROOT (MinIO)
+    - output_id lists (traffic/context YAML refs) unless overridden
+  Outputs:
+    - ORACLE_STREAM_VIEW_ROOT/.../output_id=<output_id>/part-*.parquet
+    - per output_id:
+        _stream_view_manifest.json
+        _stream_sort_receipt.json
+    - ordering: ts_utc then filename then file_row_number
+  Commit evidence (single “done” proof):
+    - _stream_sort_receipt.json per output_id
+  Idempotency:
+    - idempotent per output_id if a VALID receipt exists (skip)
+    - receipt conflict => FAIL (no silent overwrite)
+  Checkpoint/state: receipt+manifest are the job’s state; no external checkpoint store needed
+  Required config/env:
+    - ORACLE_STREAM_VIEW_ROOT points to base .../stream_view/ts_utc
+    - ORACLE_ENGINE_RUN_ROOT must be the MinIO s3:// path (not local runs/... path)
+  Resource envelope + knobs:
+    - STREAM_SORT_THREADS
+    - STREAM_SORT_MEMORY_LIMIT
+    - STREAM_SORT_MAX_TEMP_SIZE
+    - STREAM_SORT_TEMP_DIR
+    - STREAM_SORT_CHUNK_DAYS (use 1 to reduce OOM; outputs multiple ordered parts)
+  Fail-closed + common failures:
+    - STREAM_VIEW_PARTIAL_EXISTS => delete that output_id prefix and rerun
+    - STREAM_VIEW_ID_MISMATCH => wrong ORACLE_ENGINE_RUN_ROOT (fix env, rerun)
+  Reset/retry:
+    - delete ONLY the output_id view prefix when partial/corrupt
+    - do NOT delete receipts unless you are intentionally re-materializing the view
+
+# ------------------------------------------------------------
+# CONTROL PLANE (READINESS / ACTIVATION)
+# ------------------------------------------------------------
+
+[JOBCARD] SR run-reuse (build + publish READY)
+  Plane: Control
+  Type: ACTIVATION (one-shot)
+  Entry point(s):
+    - set SR_RUN_EQUIVALENCE_KEY="parity_YYYYMMDDTHHMMSSZ"
+    - make platform-sr-run-reuse SR_WIRING=config/platform/sr/wiring_local_kinesis.yaml
+  Run pins carried:
+    - platform_run_id is pinned from runs/fraud-platform/ACTIVE_RUN_ID for this invocation
+    - scenario_run_id is derived via equivalence key registry/lease discipline
+  Inputs:
+    - Oracle Store (MinIO): reads oracle_engine_run_root (s3://oracle-store/...)
+    - SR wiring profile (must point at oracle root)
+    - Postgres SR lease store (enforces leader per scenario_run_id)
+  Outputs:
+    - SR run ledger/artifacts under s3://fraud-platform/<platform_run_id>/sr/...
+    - READY published to sr-control-bus (LocalStack Kinesis)
+  Commit evidence:
+    - platform.log contains “SR: READY committed” + “READY published”
+  Idempotency / dedupe (current posture):
+    - READY can be emitted multiple times; message_id is deterministic (scenario-based)
+    - SR uses leases; LEASE_BUSY means “same key already leased”
+  Checkpoint/state:
+    - SR lease row in Postgres (TTL default 300s)
+  Required config/env:
+    - ACTIVE_RUN_ID present
+    - SR_WIRING sets oracle_engine_run_root to MinIO s3:// path
+    - MinIO creds must allow SR writes to fraud-platform bucket
+  Resource envelope: moderate
+  Fail-closed + common failures:
+    - 403 => MinIO creds/endpoint wrong (fix before proceeding)
+    - LEASE_BUSY => new equivalence key OR wait TTL OR clear lease
+  Reset/retry:
+    - safest: new SR_RUN_EQUIVALENCE_KEY per attempt
+    - clearing lease is a last resort and must be recorded
+
+# ------------------------------------------------------------
+# WORLD STREAMING (WSP → IG)
+# ------------------------------------------------------------
+
+[JOBCARD] WSP READY consumer “run job” (stream view → IG push)
+  Plane: Control+Ingress
+  Type: BATCH-ish RUN JOB (bounded), or DAEMON when pack-managed
+  Entry point(s):
+    - once: make platform-wsp-ready-consumer-once WSP_PROFILE=config/platform/profiles/local_parity.yaml
+    - pack-managed: included in control_ingress pack (do not run once in parallel)
+  Run pins carried:
+    - consumes READY (scenario_run_id basis) and emits envelopes carrying platform_run_id pins
+  Inputs:
+    - Control bus: sr-control-bus (READY)
+    - Object store: ORACLE_STREAM_VIEW_ROOT/output_id=<id>/part-*.parquet
+    - Checkpoint store: PARITY_WSP_CHECKPOINT_DSN (exported as WSP_CHECKPOINT_DSN)
+    - IG ingest endpoint: IG_INGEST_URL (expects /v1/ingest/push)
+  Outputs:
+    - HTTP POST to IG (/v1/ingest/push)
+    - WSP logs under runs/fraud-platform/<platform_run_id>/world_streamer_producer/...
+  Commit evidence:
+    - WSP logs show “stream start” and “stream stop” for the run
+  Idempotency / dedupe (current posture):
+    - WSP dedupes READY by message_id and skips if prior status == STREAMED
+    - restart without checkpoints can replay; IG dedupe absorbs duplicates
+  Checkpoint/state (current posture):
+    - checkpoint per (pack_key, output_id) in Postgres (WSP_CHECKPOINT_DSN)
+  Required config/env:
+    - PARITY_CONTROL_BUS_* exported correctly (else CONTROL_BUS_STREAM_MISSING)
+    - ORACLE_ENGINE_RUN_ROOT must match the stream view built (else STREAM_VIEW_ID_MISMATCH)
+    - IG_INGEST_URL set (else Invalid URL '/v1/ingest/push')
+  Resource envelope + knobs (behavior-changing):
+    - WSP_READY_MAX_EVENTS (per output in concurrent mode)
+    - WSP_MAX_EVENTS_PER_OUTPUT (explicit per-output cap)
+    - WSP_OUTPUT_CONCURRENCY
+    - WSP_READY_MAX_MESSAGES (protect against TRIM_HORIZON replays)
+    - WSP_PROGRESS_EVERY / WSP_PROGRESS_SECONDS
+  Fail-closed + common failures:
+    - STREAM_VIEW_MISSING => oracle sort not done
+    - TRIM_HORIZON replay => WSP restarts/restreams; fix by limiting READY messages or clearing control bus
+  Reset/retry:
+    - safest: cap run (20/200) then scale
+    - never run duplicate WSP consumers with same checkpoint identity
+
+# ------------------------------------------------------------
+# INGESTION GATE (ADMISSION AUTHORITY)
+# ------------------------------------------------------------
+
+[JOBCARD] IG HTTP service (admission + receipts + publish)
+  Plane: Control+Ingress
+  Type: DAEMON SERVICE (must run during WSP streaming)
+  Entry point(s):
+    - make platform-ig-service-parity
+    - health: GET http://127.0.0.1:8081/v1/ops/health
+  Run pins carried:
+    - admits events for all runs based on envelope pins (platform_run_id present)
+  Inputs:
+    - HTTP push envelopes from WSP
+    - Schema/policy validation (profile-driven)
+    - Admission index store: PARITY_IG_ADMISSION_DSN (Postgres)
+    - Event bus publisher (LocalStack Kinesis streams)
+    - Object store (MinIO) for receipts/quarantine records
+  Outputs:
+    - EB publish to one of:
+        fp.bus.traffic.{fraud|baseline}.v1
+        fp.bus.context.arrival_events.v1
+        fp.bus.context.arrival_entities.v1
+        fp.bus.context.flow_anchor.{fraud|baseline}.v1
+        fp.bus.rtdl.v1 (downstream components)
+        fp.bus.case.v1 (downstream components)
+        fp.bus.audit.v1 (downstream components)
+    - Receipts written for ADMIT / DUPLICATE / QUARANTINE:
+        s3://fraud-platform/<platform_run_id>/ig/receipts/<receipt_id>.json
+    - QUARANTINE also writes quarantine_record (payload removed)
+  Commit evidence:
+    - receipt exists; for ADMIT it contains eb_ref with offset_kind:kinesis_sequence
+  Idempotency / dedupe (current posture):
+    - admissions table PRIMARY KEY: dedupe_key
+    - CURRENT dedupe_key = sha256(event_type + ":" + event_id)
+      (known gap: omits platform_run_id; cross-run event_id collisions can mark DUPLICATE)
+  Checkpoint/state:
+    - admission index rows persist (no TTL/retention by default)
+    - fields include receipt_ref + eb_topic/partition/offset/offset_kind/published_at_utc
+  Required config/env:
+    - parity event bus endpoint/creds
+    - required streams exist (else ResourceNotFoundException => bootstrap)
+  Resource envelope: moderate; scales with WSP push rate
+  Fail-closed + common failures:
+    - publish error => quarantines and does NOT record dedupe row
+    - missing stream => hard fail until stream created
+  Reset/retry:
+    - receipts are evidence; do not delete to “fix” logic
+    - prefer fresh platform_run_id if admission logic changes materially
+
+# ------------------------------------------------------------
+# RTDL CORE (PROJECTORS + ARCHIVE) — PACK-MANAGED DAEMONS
+# ------------------------------------------------------------
+
+[JOBCARD] IEG projector (identity/entity graph)
+  Plane: RTDL Core
+  Type: DAEMON WORKER (or once-mode)
+  Entry point(s):
+    - pack-managed (rtdl_core pack)
+    - manual once: python -m fraud_detection.identity_entity_graph.projector --profile ... --once
+    - manual live: python -m fraud_detection.identity_entity_graph.projector --profile ...
+      with locks:
+        IEG_REQUIRED_PLATFORM_RUN_ID=<ACTIVE_RUN_ID>
+        IEG_LOCK_RUN_SCOPE=true
+  Inputs:
+    - EB traffic+context streams (admitted)
+    - Projection store: PARITY_IEG_PROJECTION_DSN (Postgres)
+  Outputs (run-scoped evidence):
+    - runs/.../identity_entity_graph/health/last_health.json
+    - runs/.../identity_entity_graph/metrics/last_metrics.json
+    - runs/.../identity_entity_graph/reconciliation/reconciliation.json
+  Commit evidence:
+    - reconciliation.json exists for the run
+  Idempotency:
+    - uses checkpoints/offset discipline; safe to restart worker with same checkpoint identity
+  Checkpoint/state:
+    - stored in projection store / worker checkpoint tables (profile-driven)
+  Required config/env:
+    - IEG_REQUIRED_PLATFORM_RUN_ID + LOCK_RUN_SCOPE recommended in live mode
+  Resource envelope: moderate
+  Fail-closed: incompatible payload/schema => stops/apply_failures surfaced in metrics
+  Reset/retry: restart worker; if schema changed, prefer new run scope
+
+[JOBCARD] OFP projector (online feature plane)
+  Plane: RTDL Core
+  Type: DAEMON WORKER (or once-mode)
+  Entry point(s):
+    - pack-managed (rtdl_core pack)
+    - manual once: python -m fraud_detection.online_feature_plane.projector --profile ... --once
+  Inputs:
+    - EB traffic stream (admitted)
+    - Projection store: PARITY_OFP_PROJECTION_DSN
+    - Snapshot index: PARITY_OFP_SNAPSHOT_INDEX_DSN
+  Outputs:
+    - feature state in Postgres
+    - runs/.../online_feature_plane/metrics/last_metrics.json
+    - runs/.../online_feature_plane/health/last_health.json
+  Commit evidence:
+    - metrics/health updated AND feature_state rows exist for stream_id=ofp.v0::<platform_run_id>
+  Idempotency/checkpoints:
+    - checkpointed consumption; restart-safe
+  Resource envelope: moderate
+  Reset/retry: restart; snapshots are separate jobs (below)
+
+[JOBCARD] OFP snapshotter (materialize snapshot)  (optional in v0 run)
+  Plane: RTDL Core
+  Type: BATCH JOB
+  Entry point(s):
+    - python -m fraud_detection.online_feature_plane.snapshotter --profile ... --platform-run-id ... --scenario-run-id ...
+  Inputs: OFP projection store
+  Outputs:
+    - runs/.../online_feature_plane/snapshots/<scenario_run_id>/<snapshot_hash>.json
+  Commit evidence: snapshot file exists
+
+[JOBCARD] CSFB intake (Context Store + FlowBinding)
+  Plane: RTDL Core (Join plane)
+  Type: DAEMON WORKER (or once-mode)
+  Entry point(s):
+    - make platform-context-store-flow-binding-parity-once
+    - make platform-context-store-flow-binding-parity-live
+    - pack-managed (rtdl_core pack)
+  Inputs:
+    - EB context streams (arrival_events, arrival_entities, flow_anchor.<mode>)
+    - Projection store: PARITY_CSFB_PROJECTION_DSN
+  Outputs:
+    - JoinFrames + FlowBinding indices in Postgres
+    - metrics/health via reporter (join_hits, join_misses, apply_failures, lag_seconds)
+  Commit evidence:
+    - join_hits increases for the run; health_state non-divergent
+  Idempotency/checkpoints:
+    - restart-safe if checkpoint identity preserved
+  Resource envelope: moderate
+  Reset/retry: restart; if run_scope locks used, ensure they match ACTIVE_RUN_ID
+
+[JOBCARD] ArchiveWriter worker (immutable archive tail)  (pack-managed)
+  Plane: RTDL Core
+  Type: DAEMON WORKER
+  Entry point(s):
+    - pack-managed (rtdl_core pack; process name archive_writer_worker)
+  Inputs:
+    - admitted EB topics (traffic + context families)
+    - ledger/checkpoint store: PARITY_ARCHIVE_WRITER_LEDGER_DSN
+    - topic selection pinned in config/platform/archive_writer/topics_v0.yaml
+  Outputs:
+    - immutable archive records in object store (by-ref evidence for replay beyond EB retention)
+    - run-scoped metrics/health/reconciliation surfaces (profile-driven)
+  Commit evidence:
+    - archive records exist for the run and ledger offsets advanced
+  Idempotency/checkpoints:
+    - offset/ledger based; restart-safe
+  Resource envelope: IO heavy (write amplification); moderate CPU
+  Reset/retry: restart worker; never overwrite archive records silently
+
+# ------------------------------------------------------------
+# RTDL DECISION LANE (DL/DF/AL/DLA) — PACK-MANAGED DAEMONS
+# ------------------------------------------------------------
+
+[JOBCARD] DL worker (degrade posture authority)
+  Plane: RTDL Decision Lane
+  Type: DAEMON WORKER
+  Entry point(s): pack-managed (rtdl_decision_lane pack)
+  Inputs:
+    - policy profile bundle (config/platform/dl/policy_profiles_v0.yaml)
+    - stores: PARITY_DL_POSTURE_DSN, PARITY_DL_OUTBOX_DSN, PARITY_DL_OPS_DSN
+    - traffic stream consumption basis (profile-driven)
+  Outputs:
+    - posture state persisted + posture events to decision lane boundary (as implemented)
+    - governance/metrics surfaces
+  Commit evidence: posture state updated for run + outbox drained
+  Idempotency: restart-safe via posture/outbox stores
+
+[JOBCARD] DF worker (decision synthesis + rtdl publish)
+  Plane: RTDL Decision Lane
+  Type: DAEMON WORKER
+  Entry point(s): pack-managed (rtdl_decision_lane pack)
+  Inputs:
+    - admitted traffic stream
+    - upstream surfaces (OFP/IEG/CSFB) as needed
+    - stores: PARITY_DF_REPLAY_DSN, PARITY_DF_CHECKPOINT_DSN
+  Outputs:
+    - publishes decision_response + action_intent to fp.bus.rtdl.v1
+    - DF replay/counters/health artifacts
+  Commit evidence:
+    - fp.bus.rtdl.v1 contains decision_response + action_intent for the run
+  Idempotency/checkpoints:
+    - checkpointed consumption + deterministic decision_id anchored to origin_offset
+
+[JOBCARD] AL worker (execute intents + emit outcomes)
+  Plane: RTDL Decision Lane
+  Type: DAEMON WORKER
+  Entry point(s): pack-managed (rtdl_decision_lane pack)
+  Inputs:
+    - fp.bus.rtdl.v1 (action_intent)
+    - stores: PARITY_AL_LEDGER_DSN, PARITY_AL_OUTCOMES_DSN, PARITY_AL_REPLAY_DSN, PARITY_AL_CHECKPOINT_DSN
+  Outputs:
+    - publishes action_outcome to fp.bus.rtdl.v1
+    - persists outcomes/ledger
+  Commit evidence:
+    - fp.bus.rtdl.v1 contains action_outcome for the run
+  Idempotency: ledger + checkpoints prevent double-effects
+
+[JOBCARD] DLA worker (append-only audit truth + audit publish)
+  Plane: RTDL Decision Lane
+  Type: DAEMON WORKER
+  Entry point(s): pack-managed (rtdl_decision_lane pack)
+  Inputs:
+    - fp.bus.rtdl.v1 (decision+intent+outcome chain)
+    - index store: PARITY_DLA_INDEX_DSN
+    - object store for append-only evidence
+  Outputs:
+    - append-only decision/audit records in object store
+    - publishes audit events to fp.bus.audit.v1
+  Commit evidence:
+    - audit events present on fp.bus.audit.v1 AND DLA evidence slices written
+  Idempotency:
+    - append-only with deterministic keys; restart-safe if writer is single-instance per checkpoint identity
+
+# ------------------------------------------------------------
+# CASE + LABELS (HUMAN TRUTH LOOP) — PACK-MANAGED DAEMONS
+# ------------------------------------------------------------
+
+[JOBCARD] CaseTrigger worker (derive case triggers)
+  Plane: Case + Labels
+  Type: DAEMON WORKER
+  Entry point(s): pack-managed (case_labels pack)
+  Inputs:
+    - evidence basis from decision lane (df/dla/rtdl as implemented)
+    - stores: PARITY_CASE_TRIGGER_REPLAY_DSN, PARITY_CASE_TRIGGER_CHECKPOINT_DSN, PARITY_CASE_TRIGGER_PUBLISH_STORE_DSN
+  Outputs:
+    - publishes triggers to fp.bus.case.v1
+  Commit evidence:
+    - fp.bus.case.v1 has trigger events for the run + checkpoints advanced
+  Idempotency: replay+checkpoint discipline (restart-safe)
+
+[JOBCARD] Case Management (CM) service (stateful)
+  Plane: Case + Labels
+  Type: DAEMON SERVICE
+  Entry point(s): pack-managed (case_labels pack)
+  Inputs: fp.bus.case.v1 + CM locator (PARITY_CASE_MGMT_LOCATOR)
+  Outputs: case timeline updates (append-only posture) in Postgres
+  Commit evidence: case timeline updated for run
+
+[JOBCARD] Label Store (LS) writer boundary (stateful)
+  Plane: Case + Labels
+  Type: DAEMON SERVICE (or internal writer)
+  Inputs: label assertions (from CM workflow / explicit API)
+  Outputs: append-only label assertions in Postgres (PARITY_LABEL_STORE_LOCATOR)
+  Commit evidence: label assertions present for run (when exercised)
+
+# ------------------------------------------------------------
+# OBSERVABILITY + GOVERNANCE (CLOSEOUT / EVIDENCE)
+# ------------------------------------------------------------
+
+[JOBCARD] Platform run reporter + environment conformance
+  Plane: Obs/Gov
+  Type: DAEMON WORKER (pack-managed) OR BATCH JOB (manual)
+  Entry point(s):
+    - pack-managed (obs_gov pack)
+    - manual: make platform-run-report ; make platform-env-conformance ; make platform-governance-query
+  Inputs:
+    - run-scoped component metrics/health/reconciliation refs
+    - object store governance append log
+  Outputs (commit artifacts):
+    - runs/.../obs/platform_run_report.json
+    - runs/.../obs/environment_conformance.json
+    - s3://fraud-platform/<run_id>/obs/governance/events.jsonl (append-only)
+  Commit evidence:
+    - platform_run_report.json exists AND governance append succeeded
+  Idempotency:
+    - report generation is idempotent; governance append is NOT if multiple writers run
+  Fail-closed:
+    - S3_APPEND_CONFLICT indicates concurrent writers (stop one, rerun once)
+
+# ------------------------------------------------------------
+# SMALL BUT IMPORTANT “KNOWN GAPS” (do not block v0, but note for migration)
+# ------------------------------------------------------------
+- IG dedupe_key currently omits platform_run_id; cross-run event_id collisions can mark DUPLICATE.
+- READY message_id derivation is scenario-centric; include platform_run_id in READY identity in a future pin if needed.
+- Exact consumer-group / checkpoint-id strings live in pack YAML + component config; preserve them during migration
+  (so your “restart-safe” claims stay true on Kafka).
+
+```

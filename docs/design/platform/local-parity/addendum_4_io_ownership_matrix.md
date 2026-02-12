@@ -1,0 +1,392 @@
+```
+# ============================================================
+# ADDENDUM 4 — IO OWNERSHIP MATRIX (READS / WRITES / CALLS)
+# Target: local_parity “Spine Green v0” (Learning/Registry out-of-scope)
+# Purpose: make permissions + networking deterministic for migration planning.
+#
+# Convention:
+#   - “OWNER” = the component that is the authoritative writer for that IO surface.
+#   - “PRINCIPAL” = the service identity you’ll map to IAM role / Kafka service-account.
+#   - “LOCAL_PARITY” uses MinIO+LocalStack; “DEV_MIN” swaps to AWS S3 + Confluent Kafka.
+#   - Citations live outside this code block (tooling limitation).
+# ============================================================
+
+# ------------------------------------------------------------
+# 0) RESOURCE REGISTRY (LOCAL_PARITY)
+# ------------------------------------------------------------
+
+OBJECT STORE (MinIO S3)
+  BUCKET: oracle-store
+    - owns: engine outputs synced from local FS
+    - owns: oracle pack manifest + _SEALED.json
+    - owns: stream_view/ts_utc/output_id=<output_id>/part-*.parquet + receipts/manifests
+  BUCKET: fraud-platform
+    - owns: run-scoped platform artifacts (SR outputs, IG receipts/quarantine, etc.)
+    - owns: governance append log for the run (obs/governance/events.jsonl)
+
+LOCAL FS (workspace)
+  RUN ROOT: runs/fraud-platform/<platform_run_id>/
+    - owns: per-component logs, metrics, reconciliation artifacts, run report json, conformance json
+  META: runs/fraud-platform/ACTIVE_RUN_ID
+
+EVENT BUS (LocalStack Kinesis streams)
+  CONTROL:
+    - sr-control-bus                          (LOCAL_PARITY control bus)
+    - fp.bus.control.v1                       (PINNED naming in DEV_MIN; not LocalStack stream name today)
+  TRAFFIC:
+    - fp.bus.traffic.fraud.v1
+    - fp.bus.traffic.baseline.v1              [optional]
+  CONTEXT:
+    - fp.bus.context.arrival_events.v1
+    - fp.bus.context.arrival_entities.v1
+    - fp.bus.context.flow_anchor.fraud.v1
+    - fp.bus.context.flow_anchor.baseline.v1  [optional]
+  RTDL LANE:
+    - fp.bus.rtdl.v1
+  CASE LANE:
+    - fp.bus.case.v1                          (LOCAL_PARITY)
+    - fp.bus.case.triggers.v1                 (PINNED DEV_MIN)
+  AUDIT:
+    - fp.bus.audit.v1
+  LABEL DERIVED EVENTS:
+    - fp.bus.labels.events.v1                 [optional, derived only]
+
+STATE STORES (Postgres DSNs; LOCAL_PARITY env vars)
+  - PARITY_IG_ADMISSION_DSN
+  - PARITY_WSP_CHECKPOINT_DSN
+  - PARITY_IEG_PROJECTION_DSN
+  - PARITY_OFP_PROJECTION_DSN
+  - PARITY_OFP_SNAPSHOT_INDEX_DSN
+  - PARITY_CSFB_PROJECTION_DSN
+  - PARITY_DL_POSTURE_DSN / PARITY_DL_OUTBOX_DSN / PARITY_DL_OPS_DSN
+  - PARITY_DF_REPLAY_DSN / PARITY_DF_CHECKPOINT_DSN
+  - PARITY_AL_LEDGER_DSN / PARITY_AL_OUTCOMES_DSN / PARITY_AL_REPLAY_DSN / PARITY_AL_CHECKPOINT_DSN
+  - PARITY_DLA_INDEX_DSN
+  - PARITY_CASE_TRIGGER_REPLAY_DSN / PARITY_CASE_TRIGGER_CHECKPOINT_DSN / PARITY_CASE_TRIGGER_PUBLISH_STORE_DSN
+  - PARITY_CASE_MGMT_LOCATOR
+  - PARITY_LABEL_STORE_LOCATOR
+  - PARITY_ARCHIVE_WRITER_LEDGER_DSN
+
+HTTP ENDPOINTS (writer boundaries)
+  - IG ingest: http://127.0.0.1:8081/v1/ingest/push
+  - IG health: http://127.0.0.1:8081/v1/ops/health
+
+# ------------------------------------------------------------
+# 1) TOP-LEVEL OWNERSHIP RULES (LEAST PRIVILEGE “LAWS”)
+# ------------------------------------------------------------
+RULE 1: Only SR emits READY/control facts.
+  - Producer: SR
+  - Topic: sr-control-bus (local) / fp.bus.control.v1 (dev_min)
+  - Consumer: WSP READY consumer (+ reporter/governance low-volume emitters)
+
+RULE 2: Only IG publishes ADMITTED traffic+context into the EB “inputs”.
+  - Producers: IG only
+  - Topics: fp.bus.traffic.* + fp.bus.context.*
+  - Downstream consumers: ArchiveWriter, IEG, OFP, CSFB, DL/DF
+
+RULE 3: Decision-lane events are not “traffic”.
+  - Producers: DF/AL publish lane events to fp.bus.rtdl.v1
+  - Consumer: DLA (and AL/DF as needed)
+  - Audit: DLA publishes fp.bus.audit.v1
+
+RULE 4: Case triggers are their own lane.
+  - Producer: CaseTrigger (thin writer) OR RTDL/AL (if explicitly pinned)
+  - Topic: fp.bus.case.v1 (local) / fp.bus.case.triggers.v1 (dev_min)
+  - Consumer: CM
+
+RULE 5: Receipts/quarantine are IG-owned append-only evidence.
+  - Only IG writes:
+      s3://fraud-platform/<run_id>/ig/receipts/*.json
+      s3://fraud-platform/<run_id>/ig/quarantine/*.json
+
+RULE 6: Governance append log is single-writer per run.
+  - Writer: platform_run_reporter (or manual closeout), never both concurrently
+  - Object store: s3://fraud-platform/<run_id>/obs/governance/events.jsonl
+
+# ------------------------------------------------------------
+# 2) COMPONENT IO CARDS (READ / WRITE / CALL)
+# ------------------------------------------------------------
+
+[COMPONENT] ORACLE::sync
+  PRINCIPAL: oracle_sync_job
+  READ:
+    - FS: ORACLE_SYNC_SOURCE (local engine outputs)
+  WRITE:
+    - S3 (oracle-store): ORACLE_ENGINE_RUN_ROOT/** (raw engine outputs copied into MinIO)
+  CALL: none
+  MUST NOT:
+    - publish to EB topics
+    - write fraud-platform run evidence
+
+[COMPONENT] ORACLE::pack+seal
+  PRINCIPAL: oracle_packer_job
+  READ:
+    - S3 (oracle-store): ORACLE_ENGINE_RUN_ROOT/** (raw outputs)
+  WRITE:
+    - S3 (oracle-store): ORACLE_PACK_ROOT/** (manifest + _SEALED.json)
+  CALL: none
+  MUST NOT:
+    - publish to EB topics
+
+[COMPONENT] ORACLE::stream_sort (stream_view builder)
+  PRINCIPAL: oracle_stream_sort_job
+  READ:
+    - S3 (oracle-store): ORACLE_ENGINE_RUN_ROOT/** (raw outputs)
+  WRITE:
+    - S3 (oracle-store): ORACLE_STREAM_VIEW_ROOT/output_id=<id>/** (part-*.parquet + _stream_* json)
+  CALL: none
+  MUST NOT:
+    - publish to EB topics
+
+[COMPONENT] SR (Scenario Runner)
+  PRINCIPAL: sr
+  READ:
+    - S3 (oracle-store): ORACLE_PACK_ROOT/** and/or ORACLE_ENGINE_RUN_ROOT/**
+    - FS: runs/fraud-platform/ACTIVE_RUN_ID
+    - DB: SR leases table (in Postgres; same physical DB as parity)
+  WRITE:
+    - S3 (fraud-platform): <run_id>/sr/** (run_facts_view + ledgers + READY bundle refs)
+    - EB CONTROL:
+        LOCAL_PARITY: sr-control-bus
+        DEV_MIN: fp.bus.control.v1
+    - FS: runs/fraud-platform/<run_id>/scenario_runner/** (logs)
+  CALL: none
+  MUST NOT:
+    - publish traffic/context/rtdl/case/audit topics
+
+[COMPONENT] WSP (World Streamer Producer)
+  PRINCIPAL: wsp
+  READ:
+    - EB CONTROL (consume READY):
+        LOCAL_PARITY: sr-control-bus
+        DEV_MIN: fp.bus.control.v1
+    - S3 (oracle-store): ORACLE_STREAM_VIEW_ROOT/output_id=<id>/part-*.parquet
+    - DB: PARITY_WSP_CHECKPOINT_DSN
+  WRITE:
+    - DB: PARITY_WSP_CHECKPOINT_DSN (checkpoint rows)
+    - FS: runs/fraud-platform/<run_id>/world_streamer_producer/** (logs)
+  CALL:
+    - HTTP POST -> IG ingest (/v1/ingest/push)
+  MUST NOT:
+    - publish directly to EB traffic/context topics (IG is admission authority)
+
+[COMPONENT] IG (Ingestion Gate)
+  PRINCIPAL: ig
+  READ:
+    - HTTP ingest envelopes from WSP
+    - FS: wiring/policy config (schema_policy + class_map + partitioning profiles)
+    - DB: PARITY_IG_ADMISSION_DSN (dedupe/admission index)
+  WRITE:
+    - EB INPUT TOPICS (produce):
+        fp.bus.traffic.fraud.v1 (or baseline)
+        fp.bus.context.arrival_events.v1
+        fp.bus.context.arrival_entities.v1
+        fp.bus.context.flow_anchor.{fraud|baseline}.v1
+    - S3 (fraud-platform):
+        <run_id>/ig/receipts/*.json
+        <run_id>/ig/quarantine/*.json
+    - DB: PARITY_IG_ADMISSION_DSN (dedupe/admit rows, eb_ref)
+    - FS: runs/fraud-platform/<run_id>/ingestion_gate/** (logs)
+  CALL:
+    - EB publisher backend (Kinesis API) [library call, not a separate service]
+  MUST NOT:
+    - write SR artifacts
+    - write DLA audit truth
+    - write governance append log directly (except via explicit governance emitter if pinned)
+
+[COMPONENT] ArchiveWriter
+  PRINCIPAL: archive_writer
+  READ:
+    - EB INPUT TOPICS (consume):
+        fp.bus.traffic.* + fp.bus.context.*  (exact list pinned in archive_writer/topics_v0.yaml)
+    - DB: PARITY_ARCHIVE_WRITER_LEDGER_DSN (ledger/checkpoints)
+  WRITE:
+    - Archive artifacts (LOCAL_PARITY run-scoped artifacts are present under):
+        FS: runs/fraud-platform/<run_id>/archive_writer/** (metrics/health)
+        FS: runs/fraud-platform/<run_id>/archive/reconciliation/** (reconciliation json)
+    - (DEV_MIN target) S3: archive/** and evidence/replay/** (prefix families pinned in dev_min doc)
+  CALL: none
+  MUST NOT:
+    - mutate EB payloads
+    - act as a truth source over EB; it is a copier + provenance surface
+
+[COMPONENT] IEG (Identity/Entity Graph projector)
+  PRINCIPAL: ieg
+  READ:
+    - EB INPUT TOPICS (consume): traffic+context (as pinned by profile)
+    - DB: PARITY_IEG_PROJECTION_DSN (projection store)
+  WRITE:
+    - DB: PARITY_IEG_PROJECTION_DSN (projection tables)
+    - FS: runs/fraud-platform/<run_id>/identity_entity_graph/{health,metrics,reconciliation}/**
+  CALL:
+    - (optional) exposes HTTP query service on port 8091
+  MUST NOT:
+    - publish to EB (unless explicitly pinned for anomalies; prefer obs/gov emitter)
+
+[COMPONENT] OFP (Online Feature Plane projector)
+  PRINCIPAL: ofp
+  READ:
+    - EB traffic topic (consume): fp.bus.traffic.{fraud|baseline}.v1
+    - DB: PARITY_OFP_PROJECTION_DSN
+  WRITE:
+    - DB: PARITY_OFP_PROJECTION_DSN (feature state)
+    - FS: runs/fraud-platform/<run_id>/online_feature_plane/{metrics,health}/**
+  CALL: none
+  MUST NOT:
+    - consume fp.bus.rtdl.v1 for state mutation (OFP is traffic-driven)
+
+[COMPONENT] CSFB (Context Store + FlowBinding intake)
+  PRINCIPAL: csfb
+  READ:
+    - EB context topics (consume):
+        fp.bus.context.arrival_events.v1
+        fp.bus.context.arrival_entities.v1
+        fp.bus.context.flow_anchor.{fraud|baseline}.v1
+    - DB: PARITY_CSFB_PROJECTION_DSN
+  WRITE:
+    - DB: PARITY_CSFB_PROJECTION_DSN (joinframes + flowbinding)
+    - FS: (metrics/health via reporter snippets / run-scoped artifacts as implemented)
+  CALL:
+    - (optional) query service used by DF (library/service boundary depending on build)
+  MUST NOT:
+    - publish to EB (unless explicitly pinned for anomalies)
+
+[COMPONENT] DL (Degrade Ladder worker)
+  PRINCIPAL: dl
+  READ:
+    - EB traffic topic (consume): fp.bus.traffic.{fraud|baseline}.v1 (trigger basis)
+    - DB: PARITY_DL_POSTURE_DSN / OUTBOX_DSN / OPS_DSN
+    - (optional) reads OFP/CSFB/IEG derived state depending on posture inputs (current build)
+  WRITE:
+    - DB: posture/outbox/ops
+    - FS: runs/fraud-platform/<run_id>/degrade_ladder/{metrics,health}/** and runtime_posture.json
+  CALL: none
+  MUST NOT:
+    - publish audit truth (DLA owns audit stream)
+
+[COMPONENT] DF (Decision Fabric worker)
+  PRINCIPAL: df
+  READ:
+    - EB traffic topic (consume): fp.bus.traffic.{fraud|baseline}.v1
+    - DB: PARITY_DF_REPLAY_DSN / PARITY_DF_CHECKPOINT_DSN
+    - Reads derived state from:
+        DB: PARITY_OFP_PROJECTION_DSN
+        DB: PARITY_IEG_PROJECTION_DSN
+        DB: PARITY_CSFB_PROJECTION_DSN
+  WRITE:
+    - EB RTDL lane (produce): fp.bus.rtdl.v1   (decision_response + action_intent)
+    - DB: replay/checkpoint
+    - FS: runs/fraud-platform/<run_id>/decision_fabric/{metrics,reconciliation}/**
+  CALL: none
+  MUST NOT:
+    - write to traffic/context topics (only IG writes those)
+
+[COMPONENT] AL (Action Layer worker)
+  PRINCIPAL: al
+  READ:
+    - EB RTDL lane (consume): fp.bus.rtdl.v1 (action_intent)
+    - DB: PARITY_AL_LEDGER_DSN / OUTCOMES_DSN / REPLAY_DSN / CHECKPOINT_DSN
+  WRITE:
+    - EB RTDL lane (produce): fp.bus.rtdl.v1 (action_outcome)
+    - DB: ledger/outcomes/replay/checkpoint
+    - FS: runs/fraud-platform/<run_id>/action_layer/{observability,reconciliation}/**
+  CALL: none
+  MUST NOT:
+    - publish audit truth (DLA owns audit stream)
+
+[COMPONENT] DLA (Decision Log & Audit worker)
+  PRINCIPAL: dla
+  READ:
+    - EB RTDL lane (consume): fp.bus.rtdl.v1 (decision + intent + outcome chain)
+    - DB: PARITY_DLA_INDEX_DSN
+  WRITE:
+    - EB AUDIT (produce): fp.bus.audit.v1
+    - S3 evidence (LOCAL_PARITY shape is indexed in run artifacts; dev_min requires S3 evidence/audit/**)
+    - DB: PARITY_DLA_INDEX_DSN (index only; truth is append-only evidence)
+    - FS: runs/fraud-platform/<run_id>/decision_log_audit/{metrics,reconciliation}/**
+  CALL: none
+  MUST NOT:
+    - rewrite prior audit records (append-only)
+
+[COMPONENT] CaseTrigger (thin trigger writer)
+  PRINCIPAL: case_trigger
+  READ:
+    - Evidence basis:
+        EB RTDL lane and/or DLA index (implementation choice)
+    - DB: PARITY_CASE_TRIGGER_REPLAY_DSN / CHECKPOINT_DSN / PUBLISH_STORE_DSN
+  WRITE:
+    - EB CASE lane (produce):
+        LOCAL_PARITY: fp.bus.case.v1
+        DEV_MIN: fp.bus.case.triggers.v1
+    - DB: replay/checkpoints/publish store
+    - FS: runs/fraud-platform/<run_id>/case_trigger/{reconciliation,metrics}/**
+  CALL: none
+  MUST NOT:
+    - mutate CM/LS truth directly; it emits triggers only
+
+[COMPONENT] CM (Case Management)
+  PRINCIPAL: case_mgmt
+  READ:
+    - EB CASE lane (consume): fp.bus.case.* (local fp.bus.case.v1; dev_min fp.bus.case.triggers.v1)
+    - DB: PARITY_CASE_MGMT_LOCATOR
+  WRITE:
+    - DB: PARITY_CASE_MGMT_LOCATOR (append-only case timeline)
+    - (optional) S3 evidence/cases/** in dev_min (summary exports)
+    - FS: runs/fraud-platform/<run_id>/case_mgmt/** (if present)
+  CALL:
+    - LS writer boundary (if CM submits labels downstream)
+  MUST NOT:
+    - execute side effects (AL owns effects)
+    - claim label truth until LS ack
+
+[COMPONENT] LS (Label Store)
+  PRINCIPAL: label_store
+  READ:
+    - Label assertions from CM writer boundary (HTTP/service boundary) OR internal API
+    - DB: PARITY_LABEL_STORE_LOCATOR
+  WRITE:
+    - DB: PARITY_LABEL_STORE_LOCATOR (append-only label timeline)
+    - (optional) EB derived events (produce): fp.bus.labels.events.v1
+    - (optional) S3 evidence/labels/** in dev_min (summary exports)
+  CALL: none
+  MUST NOT:
+    - accept label writes without durable commit/ack semantics
+
+[COMPONENT] Platform Run Reporter (obs/gov)
+  PRINCIPAL: platform_run_reporter
+  READ:
+    - FS: runs/fraud-platform/<run_id>/** component metrics/health/reconciliation artifacts
+    - S3: may resolve by-ref evidence (receipts/audit) for reconciliation summaries (as implemented)
+    - EB CONTROL (optional): consume run lifecycle facts
+  WRITE:
+    - FS: runs/fraud-platform/<run_id>/obs/platform_run_report.json
+    - S3 (fraud-platform): <run_id>/obs/governance/events.jsonl  (append-only; single writer!)
+    - (DEV_MIN target): S3 evidence/runs/<run_id>/** + evidence/reconciliation/**
+    - EB CONTROL (optional): governance/anomaly facts (low volume; dev_min pin is fp.bus.control.v1)
+  CALL: none
+  MUST NOT:
+    - run concurrently with manual closeout that appends to governance log
+
+[COMPONENT] Environment Conformance (obs/gov)
+  PRINCIPAL: platform_conformance
+  READ:
+    - FS: run report + env profile expectations + pack status snapshots
+  WRITE:
+    - FS: runs/fraud-platform/<run_id>/obs/environment_conformance.json
+    - (optional) S3 evidence/runs/<run_id>/** in dev_min
+  CALL: none
+
+# ------------------------------------------------------------
+# 3) DEV_MIN TRANSLATION NOTES (what changes for IAM/ACL)
+# ------------------------------------------------------------
+- Replace LocalStack Kinesis permissions with Confluent Kafka ACLs for:
+    READ/WRITE/DESCRIBE per topic (see pinned topic map in dev_min appendix).
+- Replace MinIO bucket policies with AWS S3 IAM policies.
+- Treat each PRINCIPAL above as:
+    - one IAM role (S3 access limited to specific prefixes)
+    - one Kafka service account (topic ACLs limited to its read/write set)
+- Only writer boundaries are internet-exposed in dev_min:
+    - IG ingest (WSP->IG)
+    - LS writer boundary (CM->LS), if enabled
+  Everything else is internal-only.
+```

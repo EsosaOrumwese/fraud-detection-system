@@ -1,0 +1,304 @@
+```
+# ============================================================
+# ADDENDUM 1 — LOCAL_PARITY RUN PHASE STATE MACHINE + GATES
+# Target: “Spine Green v0” (Control+Ingress, RTDL, Case+Labels, Run/Operate+Obs/Gov)
+# Out of scope: Learning/Registry (OFS/MF/MPR) — ignore their phases/jobs for baseline
+#
+# Purpose:
+#   - Turn “works on laptop” into an ORCHESTRATABLE lifecycle.
+#   - Each phase has: (1) entry action, (2) exit gate, (3) single commit evidence,
+#     (4) allowed retries/reset.
+# ============================================================
+
+# ------------------------------------------------------------
+# PHASE GRAPH (linear with controlled retry loops)
+# ------------------------------------------------------------
+P0 SUBSTRATE_READY
+  -> P1 RUN_PINNED
+    -> P2 DAEMONS_READY
+      -> P3 ORACLE_READY
+        -> P4 INGEST_READY
+          -> P5 READY_PUBLISHED
+            -> P6 STREAMING_ACTIVE
+              -> P7 INGEST_COMMITTED
+                -> P8 RTDL_CAUGHT_UP
+                  -> P9 DECISION_CHAIN_COMMITTED
+                    -> P10 CASE_LABELS_COMMITTED
+                      -> P11 OBS_GOV_CLOSED
+                        -> P12 DONE (optional teardown)
+
+Retry loops (allowed):
+  - P3 (oracle) can be re-run per-output_id (delete only that output_id stream_view prefix)
+  - P5 (SR) can be re-run with a new SR_RUN_EQUIVALENCE_KEY, or after lease TTL, or lease clear
+  - P6 (WSP) can be re-run with caps; guard against control bus replay (TRIM_HORIZON)
+  - P11 (Obs/Gov) can be re-run ONLY if reporter daemon is not running (avoid append conflicts)
+
+# ------------------------------------------------------------
+# PHASE DEFINITIONS (entry -> exit gate + commit evidence + reset)
+# ------------------------------------------------------------
+
+[P0] SUBSTRATE_READY  (OPERATOR SETUP PHASE)
+Entry actions:
+  - Start parity substrate (MinIO + LocalStack Kinesis + Postgres)
+  - Run parity bootstrap (creates required streams + buckets)
+
+Exit gate (must be TRUE):
+  - Buckets exist: oracle-store, fraud-platform
+  - Streams exist (minimum Spine Green v0 set):
+      sr-control-bus
+      fp.bus.traffic.fraud.v1 (baseline optional)
+      fp.bus.context.arrival_events.v1
+      fp.bus.context.arrival_entities.v1
+      fp.bus.context.flow_anchor.fraud.v1 (baseline optional)
+      fp.bus.rtdl.v1
+      fp.bus.case.v1
+      fp.bus.audit.v1
+  - Postgres reachable (DSNs resolve)
+
+Commit evidence (single source of truth):
+  - “parity bootstrap succeeded” operator log + substrate status shows all up
+
+Reset/retry:
+  - Safe to re-run bootstrap idempotently
+  - If LocalStack state is dirty, restart localstack and re-bootstrap
+
+------------------------------------------------------------
+
+[P1] RUN_PINNED  (OPERATOR PIN PHASE)
+Entry actions:
+  - Create new platform run id (ACTIVE_RUN_ID)
+
+Exit gate:
+  - runs/fraud-platform/ACTIVE_RUN_ID exists and points to a new run folder
+
+Commit evidence:
+  - ACTIVE_RUN_ID file content is the run_id used everywhere else
+
+Reset/retry:
+  - Create a fresh run id (preferred) rather than reusing a “dirty” run scope
+
+------------------------------------------------------------
+
+[P2] DAEMONS_READY  (ALWAYS-ON PACKS STARTED, RUN-SCOPE ENFORCED)
+Entry actions (Spine Green v0 packs only):
+  - Start Run/Operate packs:
+      control_ingress
+      rtdl_core
+      rtdl_decision_lane
+      case_labels
+      obs_gov
+  - (Do NOT start learning_jobs for this baseline)
+
+Exit gate:
+  - Orchestrator status shows all expected processes RUNNING
+  - Each pack enforces run scope via *_REQUIRED_PLATFORM_RUN_ID == ACTIVE_RUN_ID
+  - No duplicate manual consumers are running in parallel for same components
+
+Commit evidence:
+  - runs/fraud-platform/operate/<pack_id>/state.json indicates RUNNING
+  - runs/fraud-platform/operate/<pack_id>/status/last_status.json is “healthy enough to run”
+
+Reset/retry:
+  - Restart packs (preferred) instead of manually killing individual processes
+  - Never run manual “once” commands concurrently with packs for the same consumer group
+
+------------------------------------------------------------
+
+[P3] ORACLE_READY  (BATCH COMPUTE PHASE — THE “SORT JOB” REALITY)
+Entry actions (3 substeps):
+  (a) Sync engine outputs into Oracle Store (MinIO)
+  (b) Seal Oracle pack (manifest + _SEALED.json)
+  (c) Build stream_view (ts_utc sorted per output_id) — REQUIRED
+
+Exit gate:
+  - Seal exists (pack is sealed)
+  - For every required output_id for the run:
+      <ORACLE_STREAM_VIEW_ROOT>/output_id=<output_id>/part-*.parquet exists
+      <...>/output_id=<output_id>/_stream_view_manifest.json exists
+      <...>/output_id=<output_id>/_stream_sort_receipt.json exists
+
+Commit evidence:
+  - Per output_id: _stream_sort_receipt.json is the “done” receipt
+  - _SEALED.json is the oracle seal boundary (write-once)
+
+Reset/retry (most important rules):
+  - If MANIFEST_MISMATCH: set a fresh pack root and re-pack
+  - If STREAM_VIEW_PARTIAL_EXISTS: delete ONLY the output_id stream_view prefix and re-run sort
+  - Sorting is idempotent per output_id if receipt is valid; conflict => fail closed
+
+------------------------------------------------------------
+
+[P4] INGEST_READY  (IG SERVICE READY + BUS PRECHECKS)
+Entry actions:
+  - Ensure IG service is running (or control_ingress pack is up)
+
+Exit gate:
+  - IG health endpoint responds
+  - Kinesis streams required for publish exist (audit/rtdl/case included)
+
+Commit evidence:
+  - IG health responds (AMBER is acceptable pre-traffic; bus not exercised yet)
+
+Reset/retry:
+  - If ResourceNotFoundException for a stream: re-run bootstrap or create stream
+  - If IG can’t reach object store: fix OBJECT_STORE_ENDPOINT/creds (don’t “push anyway”)
+
+------------------------------------------------------------
+
+[P5] READY_PUBLISHED  (ACTIVATION PHASE — SR IS READINESS AUTHORITY)
+Entry actions:
+  - Run SR “run-reuse” with a new equivalence key
+  - SR reads Oracle Store (MinIO) and builds READY bundle
+
+Exit gate:
+  - Platform log shows:
+      “READY committed”
+      “READY published”
+  - READY is present on sr-control-bus
+
+Commit evidence:
+  - SR run ledger/artifacts under: s3://fraud-platform/<run_id>/sr/...
+  - Control bus contains READY for this platform_run_id
+
+Reset/retry:
+  - If LEASE_BUSY: change equivalence key OR wait TTL OR clear lease in Postgres
+  - If 403 on write: fix MinIO creds; do not proceed
+
+------------------------------------------------------------
+
+[P6] STREAMING_ACTIVE  (RUN-TIME STREAM EMISSION — WSP -> IG)
+Entry actions:
+  - WSP consumes READY and streams events to IG from stream_view
+  - Apply caps for bounded runs (e.g., WSP_MAX_EVENTS_PER_OUTPUT)
+
+Exit gate:
+  - WSP logs show “stream start” then “stream stop”
+  - WSP emitted >0 records (unless intentionally testing “0”)
+
+Commit evidence:
+  - runs/.../world_streamer_producer/...log includes completion markers
+  - IG begins producing receipts during this window
+
+Reset/retry (guardrails):
+  - If WSP keeps restarting: control bus replay (TRIM_HORIZON) — clear stream or cap READY consumption
+  - Ensure stream_view root matches the oracle root you sorted (avoid STREAM_VIEW_ID_MISMATCH)
+
+------------------------------------------------------------
+
+[P7] INGEST_COMMITTED  (ADMISSION COMMIT POINT)
+Entry actions:
+  - IG validates/dedupes/quarantines and publishes admitted records to EB topics
+
+Exit gate:
+  - Receipts exist under: s3://fraud-platform/<run_id>/ig/receipts/
+  - Receipts include eb_ref with offsets (offset_kind=kinesis_sequence)
+  - EB streams contain records for traffic + context (+ rtdl/case/audit later)
+
+Commit evidence:
+  - Receipt files are the admission commit evidence (append-only)
+  - eb_ref inside receipts is the replay pointer
+
+Reset/retry:
+  - Don’t delete receipts to “fix” problems — treat receipts as evidence
+  - Prefer fresh run_id if admission logic changes materially
+
+------------------------------------------------------------
+
+[P8] RTDL_CAUGHT_UP  (CORE PROJECTORS CAUGHT UP TO INGEST)
+Entry actions:
+  - rtdl_core daemons consume EB and update stores:
+      ArchiveWriter, IEG, OFP, CSFB
+
+Exit gate (minimum Spine Green v0):
+  - IEG reconciliation artifact exists:
+      runs/.../identity_entity_graph/reconciliation/reconciliation.json
+  - Projector checkpoints for this run advanced (no longer stuck at start)
+  - (If enabled) Archive evidence exists (optional but recommended)
+
+Commit evidence:
+  - Per projector: last_checkpoint/metrics/health artifacts for the active run
+  - IEG reconciliation.json is the strongest “caught up” signal in v0
+
+Reset/retry:
+  - Restart pack if consumer stuck (prefer pack restart to ad-hoc process restarts)
+  - If you change schema/contracts, you likely need a fresh run scope (don’t “hot patch” state)
+
+------------------------------------------------------------
+
+[P9] DECISION_CHAIN_COMMITTED  (RTDL DECISION LANE COMPLETE)
+Entry actions:
+  - DL/DF/AL/DLA daemons consume traffic (+ surfaces) and publish:
+      fp.bus.rtdl.v1 (decision + intent + outcome)
+      fp.bus.audit.v1 (audit events)
+
+Exit gate:
+  - fp.bus.rtdl.v1 contains decision/intent/outcome events
+  - fp.bus.audit.v1 contains audit events
+  - DLA reconciliation/artifacts exist under runs/.../decision_log_audit/...
+
+Commit evidence:
+  - DLA append-only records + reconciliation outputs
+  - Audit stream offsets advancing
+
+Reset/retry:
+  - If DF is fail-closed for compatibility reasons, it must be explainable + recorded as acceptance note
+  - Prefer bounded runs (20/200) to validate lane before full scale
+
+------------------------------------------------------------
+
+[P10] CASE_LABELS_COMMITTED  (CASE TRIGGERS + HUMAN-TRUTH STORES)
+Entry actions:
+  - CaseTrigger consumes evidence and publishes case triggers
+  - CM consumes case triggers and updates case timeline
+  - LS writes append-only label assertions (if exercised)
+
+Exit gate:
+  - fp.bus.case.v1 contains trigger records
+  - CM has case timeline updates for this run
+  - LS has label assertions (if the run exercises labels)
+
+Commit evidence:
+  - CaseTrigger checkpoints + CM/LS append evidence
+
+Reset/retry:
+  - Re-run CaseTrigger safely only if idempotency/checkpoints are correct
+  - For migration, treat CM/LS as “stateful services” with explicit DB backing (not batch)
+
+------------------------------------------------------------
+
+[P11] OBS_GOV_CLOSED  (CLOSEOUT + GOVERNANCE APPEND)
+Entry actions:
+  - Generate run report + governance query + env conformance
+  - IMPORTANT: if obs_gov reporter daemon is running, do NOT run manual report concurrently
+
+Exit gate:
+  - runs/.../obs/platform_run_report.json exists
+  - s3://fraud-platform/<run_id>/obs/governance/events.jsonl appended
+  - runs/.../obs/environment_conformance.json exists and passes for local_parity expectations
+
+Commit evidence:
+  - platform_run_report.json + environment_conformance.json + governance append log
+
+Reset/retry:
+  - If you see S3_APPEND_CONFLICT, you had concurrent writers (stop reporter, then rerun once)
+
+------------------------------------------------------------
+
+[P12] DONE  (OPTIONAL TEARDOWN)
+Entry actions:
+  - Stop packs (down) and optionally stop substrate
+
+Exit gate:
+  - Packs stopped cleanly; no further writes to run scope
+
+Commit evidence:
+  - Orchestrator state shows STOPPED and last status captured
+
+# ------------------------------------------------------------
+# OPTIONAL ACCEPTANCE PATTERN (recommended bounded gates)
+# ------------------------------------------------------------
+Use bounded streaming gates before full run:
+  - Gate-20:  WSP_MAX_EVENTS_PER_OUTPUT=20  => require all planes green
+  - Gate-200: WSP_MAX_EVENTS_PER_OUTPUT=200 => require closure + throughput sanity
+  - Then full cap (e.g., 500k) once the two bounded gates pass.
+```

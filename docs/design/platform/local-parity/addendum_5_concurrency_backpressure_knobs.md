@@ -1,0 +1,217 @@
+```
+# ============================================================
+# ADDENDUM 5 — CONCURRENCY + BACKPRESSURE KNOBS (BEHAVIOR-CHANGING)
+# Target: local_parity “Spine Green v0”
+# Purpose: prevent semantic drift when moving from “one laptop” to Kafka/S3/managed compute.
+#
+# Markers:
+#   [BEHAVIOR] = can change which records are processed, ordering guarantees, or truth outputs
+#   [SAFETY]   = prevents duplicates / replay storms / multi-writer corruption
+#   [PERF]     = should only change throughput/latency/cost (not outputs), if implemented correctly
+#
+# NOTE: Names shown match your run documents/profile intent; verify exact env-var keys in pack YAMLs.
+# ============================================================
+
+
+# ------------------------------------------------------------
+# 0) GLOBAL SEMANTICS KNOBS (apply across planes)
+# ------------------------------------------------------------
+- RUN CAP MODE (bounded vs unbounded) [BEHAVIOR]
+    - Example: WSP_MAX_EVENTS_PER_OUTPUT / READY_MAX_EVENTS
+    - Bounded runs are *different runs* (they intentionally truncate the world stream).
+
+- CONSUMER START POSITION (LATEST vs TRIM_HORIZON / earliest) [BEHAVIOR][SAFETY]
+    - Control bus consumer set to earliest can replay old READY -> accidental re-stream.
+    - In dev, treat “earliest” as a special debug mode with explicit guardrails.
+
+- SINGLE-WRITER ENFORCEMENT (locks/leases) [SAFETY]
+    - Any append-only writer must guarantee one writer per (run_id, writer_identity).
+    - Especially governance append + DLA append evidence.
+
+- CHECKPOINT IDENTITY / CONSUMER GROUP IDs [BEHAVIOR][SAFETY]
+    - Changing group IDs makes a daemon “new” -> it replays.
+    - Preserve group IDs across migration unless replay is explicitly desired.
+
+- RETRIES + TIMEOUTS (network/backoff) [BEHAVIOR]
+    - Too aggressive retries can turn transient failures into duplicate floods.
+    - Too strict timeouts can drop events and silently bias your run if not fail-closed.
+
+
+# ------------------------------------------------------------
+# 1) ORACLE PLANE (Batch Jobs)
+# ------------------------------------------------------------
+
+ORACLE::sync
+  - MAX_COPY_CONCURRENCY [PERF]
+  - MAX_OBJECT_SIZE / MULTIPART_THRESHOLD [PERF]
+
+ORACLE::pack+seal
+  - STRICT_CHECK_ENABLED [SAFETY]
+  - MANIFEST_FAIL_ON_DRIFT [SAFETY]
+
+ORACLE::stream_sort (stream_view builder)  **most migration-sensitive**
+  - STREAM_SORT_CHUNK_DAYS [PERF] (file boundaries change; ordering must remain)
+  - STREAM_SORT_THREADS / WORKERS [PERF]
+  - STREAM_SORT_MEMORY_LIMIT [PERF -> can become [BEHAVIOR] if OOM causes partial outputs]
+  - STREAM_SORT_TEMP_DIR [PERF]
+  - STREAM_SORT_MAX_TEMP_SIZE [PERF -> can become [BEHAVIOR] if spills fail]
+  - FAIL_ON_PARTIAL_EXISTS [SAFETY]
+  - PER_OUTPUT_ID_MODE (sort one output_id at a time) [SAFETY][PERF]
+    - Recommended in dev: sort per-output_id to reduce blast radius.
+
+
+# ------------------------------------------------------------
+# 2) CONTROL PLANE (SR + Control Bus)
+# ------------------------------------------------------------
+
+SR (Scenario Runner)
+  - SR_RUN_EQUIVALENCE_KEY discipline [BEHAVIOR][SAFETY]
+    - New key => new scenario_run binding attempt (lease applies).
+  - SR_LEASE_TTL_SECONDS [SAFETY]
+  - SR_PUBLISH_RETRIES / BACKOFF [BEHAVIOR]
+  - CONTROL_PUBLISH_ACKS / TIMEOUT [BEHAVIOR]
+  - READY_BUNDLE_SIZE (if READY references are chunked) [PERF]
+
+
+# ------------------------------------------------------------
+# 3) WORLD STREAMING (WSP → IG)
+# ------------------------------------------------------------
+
+WSP (World Streamer Producer)
+  - WSP_READY_MAX_MESSAGES [BEHAVIOR][SAFETY]
+    - Prevents replay storms when control topic contains multiple READY records.
+  - WSP_MAX_EVENTS_PER_OUTPUT / WSP_READY_MAX_EVENTS [BEHAVIOR]
+    - Truncates the world stream (intentionally changes run output).
+  - WSP_OUTPUT_CONCURRENCY [PERF -> can become [BEHAVIOR] if it reorders across outputs]
+    - Rule: must preserve per-output ordering; concurrency should not scramble within output_id.
+  - STREAM_VIEW_READ_BATCH_SIZE / PREFETCH_ROWS [PERF]
+  - HTTP_MAX_INFLIGHT / HTTP_WORKERS [PERF -> can become [BEHAVIOR] if timeouts/retries create dup floods]
+  - HTTP_TIMEOUT_SECONDS / RETRY_MAX / RETRY_BACKOFF [BEHAVIOR]
+  - CHECKPOINT_COMMIT_EVERY_N / EVERY_SECONDS [SAFETY]
+    - Too infrequent => replay after crash; too frequent => DB pressure.
+
+
+# ------------------------------------------------------------
+# 4) INGESTION GATE (IG) — Admission boundary
+# ------------------------------------------------------------
+
+IG HTTP Service
+  - IG_HTTP_WORKERS / THREADS [PERF]
+  - IG_MAX_REQUEST_BYTES / MAX_BATCH_EVENTS [BEHAVIOR][SAFETY]
+    - Too small => rejects/partially ingests; must fail-closed with receipts.
+  - ADMISSION_COMMIT_BATCH_SIZE [PERF -> can become [BEHAVIOR] if partial commit semantics are wrong]
+  - DEDUPE_KEY_POLICY (e.g., includes platform_run_id or not) [BEHAVIOR][SAFETY]
+    - This is not “tuning”; it changes cross-run admission semantics.
+  - QUARANTINE_MODE (drop payload vs store payload) [BEHAVIOR][SAFETY]
+  - PUBLISH_RETRIES / ACKS / TIMEOUTS [BEHAVIOR]
+    - Must align with “receipt only after publish success”.
+
+EB producer tuning (IG -> traffic/context topics)
+  - PRODUCER_LINGER_MS / BATCH_BYTES [PERF]
+  - REQUIRED_ACKS (acks=all vs leader) [BEHAVIOR][SAFETY]
+  - RETRIES / IDEMPOTENT_PRODUCER (Kafka) [SAFETY]
+
+
+# ------------------------------------------------------------
+# 5) RTDL CORE (ArchiveWriter / IEG / OFP / CSFB)
+# ------------------------------------------------------------
+
+Common consumer knobs (projectors)
+  - CONSUMER_MAX_POLL_RECORDS / FETCH_BYTES [PERF]
+  - APPLY_BATCH_SIZE [PERF]
+  - DB_MAX_CONNECTIONS / POOL_SIZE [PERF -> can become [BEHAVIOR] if it causes timeouts/fail-open]
+  - CHECKPOINT_COMMIT_EVERY_N / EVERY_SECONDS [SAFETY]
+  - RUN_SCOPE_LOCKS (REQUIRED_PLATFORM_RUN_ID + LOCK_RUN_SCOPE) [SAFETY]
+
+ArchiveWriter
+  - TOPIC_INCLUDE_SET (which topics are archived) [BEHAVIOR]
+  - ARCHIVE_FLUSH_BYTES / FLUSH_SECONDS [PERF]
+  - LEDGER_COMMIT_EVERY_N [SAFETY]
+
+IEG
+  - ENTITY_RESOLUTION_BATCH_SIZE [PERF]
+  - RECONCILIATION_INTERVAL_SECONDS [PERF]
+  - APPLY_FAIL_FAST (fail-closed on schema drift) [SAFETY]
+
+OFP
+  - FEATURE_APPLY_BATCH_SIZE [PERF]
+  - SNAPSHOT_FREQUENCY (if enabled) [BEHAVIOR] (changes what “snapshot surface” exists)
+
+CSFB
+  - JOIN_CACHE_SIZE / LRU [PERF]
+  - FLOW_ANCHOR_WINDOW (how long anchors are considered valid) [BEHAVIOR]
+  - JOIN_TIMEOUT / MAX_LOOKBACK (if present) [BEHAVIOR]
+
+
+# ------------------------------------------------------------
+# 6) RTDL DECISION LANE (DL / DF / AL / DLA)
+# ------------------------------------------------------------
+
+DL (Degrade Ladder)
+  - POSTURE_EVAL_INTERVAL [BEHAVIOR] (timing affects posture sequence)
+  - POSTURE_EMIT_ON_CHANGE_ONLY [BEHAVIOR]
+  - POSTURE_MIN_HOLD_SECONDS [BEHAVIOR][SAFETY]
+
+DF (Decision Fabric)
+  - DECISION_CONCURRENCY [PERF -> can become [BEHAVIOR] if decisions are not order-stable]
+  - JOIN_FETCH_TIMEOUT / FEATURE_FETCH_TIMEOUT [BEHAVIOR]
+  - FAIL_CLOSED_ON_MISSING_SURFACES [SAFETY]
+  - PUBLISH_RETRIES / ACKS [BEHAVIOR][SAFETY]
+
+AL (Action Layer)
+  - INTENT_MAX_INFLIGHT [PERF -> can become [BEHAVIOR] if it reorders outcomes]
+  - OUTCOME_PUBLISH_RETRIES / ACKS [BEHAVIOR][SAFETY]
+  - EFFECT_SIM_LATENCY_MS (if sim) [BEHAVIOR] (changes timing surfaces)
+
+DLA (Decision Log & Audit)
+  - SINGLE_WRITER_GUARD (per run + writer id) [SAFETY]
+  - APPEND_CHUNK_BYTES / FLUSH_SECONDS [PERF]
+  - INDEX_COMMIT_EVERY_N [PERF]
+  - AUDIT_PUBLISH_RETRIES / ACKS [BEHAVIOR][SAFETY]
+
+
+# ------------------------------------------------------------
+# 7) CASE + LABELS
+# ------------------------------------------------------------
+
+CaseTrigger
+  - TRIGGER_RULESET_REV (which ruleset is active) [BEHAVIOR]
+  - EMIT_BATCH_SIZE [PERF]
+  - DEDUPE_WINDOW / CHECKPOINT_DISCIPLINE [SAFETY]
+
+CM (Case Management)
+  - CONSUMER_GROUP_ID stability [BEHAVIOR][SAFETY]
+  - DB_COMMIT_BATCH_SIZE [PERF]
+  - WORKFLOW_AUTOMATIONS_ENABLED (if any) [BEHAVIOR]
+
+LS (Label Store)
+  - WRITER_BOUNDARY_RATE_LIMIT [PERF]
+  - LABEL_EVENT_EMIT_ENABLED (derived events) [BEHAVIOR]
+  - APPEND_ONLY_ENFORCEMENT (no updates) [SAFETY]
+
+
+# ------------------------------------------------------------
+# 8) OBS/GOV (Closeout)
+# ------------------------------------------------------------
+
+Platform Run Reporter
+  - REPORT_INTERVAL_SECONDS (daemon mode) [BEHAVIOR] (when closure artifacts appear)
+  - GOVERNANCE_APPEND_SINGLE_WRITER_LOCK [SAFETY]
+  - GOVERNANCE_APPEND_BATCH_SIZE [PERF]
+  - CONFORMANCE_STRICTNESS (warn vs fail) [BEHAVIOR]
+
+Manual closeout (one-shot)
+  - MUST NOT run concurrently with reporter daemon [SAFETY]
+
+
+# ------------------------------------------------------------
+# 9) “SAFE DEFAULTS” FOR MIGRATION VALIDATION (recommended)
+# ------------------------------------------------------------
+- Start with bounded runs:
+    WSP_MAX_EVENTS_PER_OUTPUT=20  -> then 200 -> then full.
+- Force single READY consumption:
+    WSP_READY_MAX_MESSAGES=1
+- Preserve consumer group identities / checkpoint IDs across migration.
+- Prefer per-output_id stream_sort jobs (blast radius control).
+- Enforce fail-closed on schema drift for projectors and IG (don’t silently skip).
+```

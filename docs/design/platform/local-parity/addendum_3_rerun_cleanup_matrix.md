@@ -1,0 +1,186 @@
+```
+# ============================================================
+# ADDENDUM 3 — RERUN / CLEANUP MATRIX (LOCAL_PARITY, SPINE GREEN v0)
+# Goal: “what do I delete vs never delete” + “how to safely retry each phase”
+#
+# In-scope: Control+Ingress, RTDL, Case+Labels, Run/Operate, Obs/Gov
+# Out-of-scope: Learning/Registry (OFS/MF/MPR) — OMITTED
+#
+# IMPORTANT REALITY:
+#   You cannot treat the platform as “stateless” across runs because multiple components
+#   have durable state: Oracle pack + stream view receipts, SR leases, WSP checkpoints,
+#   IG admission index, RTDL projector checkpoints, CM/LS state, governance append logs.
+# ============================================================
+
+# ------------------------------------------------------------
+# RESET LEVELS (use the lowest level that solves the problem)
+# ------------------------------------------------------------
+L0 SOFT RETRY (no deletes)
+  - Rerun the same command; relies on idempotency receipts/checkpoints.
+L1 TARGETED CLEANUP (delete one prefix / clear one row / recreate one stream)
+  - Fix partial outputs or stuck leases without touching “evidence truth”.
+L2 FRESH PLATFORM RUN (new platform_run_id)
+  - Preferred “clean run” without erasing prior evidence.
+L3 FRESH SCENARIO/ORACLE ROOT (new ORACLE_PACK_ROOT or new ORACLE_ENGINE_RUN_ROOT / ORACLE_SCENARIO_ID)
+  - Used when oracle pack mismatches or you want event_ids to differ.
+L4 SUBSTRATE RESET
+  - Local: restart LocalStack/MinIO/Postgres and bootstrap again.
+  - dev_min: terraform destroy demo (Kafka + ephemeral compute), keep core S3 evidence.
+
+# ------------------------------------------------------------
+# MATRIX: SYMPTOM → WHAT TO DO (SAFE PATH) → WHAT NOT TO DO
+# ------------------------------------------------------------
+
+(1) ORACLE PACK: MANIFEST_MISMATCH during pack/seal
+  Symptom:
+    - platform-oracle-pack fails with MANIFEST_MISMATCH
+  Safe action:
+    - L3: set a fresh ORACLE_PACK_ROOT (pack_YYYYMMDDTHHMMSSZ) and re-run pack
+  Do NOT:
+    - overwrite an existing sealed pack root
+  Notes:
+    - This is explicitly called out in parity runbook. (Oracle pack is a boundary)
+
+(2) ORACLE STREAM VIEW: STREAM_VIEW_PARTIAL_EXISTS or corrupt parts
+  Symptom:
+    - stream-sort complains about partial existing view OR you see missing part files
+  Safe action:
+    - L1: delete ONLY:
+        <ORACLE_STREAM_VIEW_ROOT>/output_id=<output_id>/
+      then re-run stream-sort for that output_id
+  Do NOT:
+    - delete the entire ORACLE_ENGINE_RUN_ROOT (raw engine outputs) unless you intend a full re-sync
+  Notes:
+    - stream-sort is idempotent per output_id if receipt exists; conflict => fail.
+
+(3) ORACLE STREAM VIEW: STREAM_VIEW_ID_MISMATCH
+  Symptom:
+    - WSP says stream_view ID mismatch (wrong oracle root)
+  Safe action:
+    - L0: fix env (ORACLE_ENGINE_RUN_ROOT must be the MinIO/S3 path you sorted), rerun WSP
+  Do NOT:
+    - “fix” by deleting receipts or re-sorting unless the view truly is wrong
+  Notes:
+    - Stream view ID derives from ORACLE_ENGINE_RUN_ROOT + ORACLE_SCENARIO_ID + output_id.
+
+(4) CONTROL BUS / SR: LEASE_BUSY
+  Symptom:
+    - SR run-reuse reports LEASE_BUSY for the equivalence key
+  Safe action (preferred):
+    - L0: use a new SR_RUN_EQUIVALENCE_KEY and re-run
+  Safe action (surgical):
+    - L1: wait TTL OR delete the single lease row in Postgres for that run_id
+  Do NOT:
+    - clear broad SR tables or wipe Postgres just to free one lease
+  Notes:
+    - Runbook includes exact “clear lease” pattern; treat as last-resort, logged action.
+
+(5) CONTROL BUS: WSP “keeps restarting / re-streaming”
+  Symptom:
+    - WSP replays READY repeatedly; you see repeated stream-start cycles
+  Safe action:
+    - L0/L1: set WSP_READY_MAX_MESSAGES=1 AND ensure only the newest READY exists
+  Local parity hard reset:
+    - L4: restart LocalStack + re-bootstrap streams (clears control bus history)
+  dev_min analogue:
+    - L4: destroy demo Kafka (or reset consumer group offsets / recreate control topic)
+  Do NOT:
+    - run multiple WSP consumers in parallel with the same checkpoint identity
+
+(6) IG: ResourceNotFoundException on fp.bus.* streams
+  Symptom:
+    - IG publish fails because a stream doesn’t exist (audit/rtdl/case)
+  Safe action:
+    - L1: run bootstrap again OR create the missing stream
+  Do NOT:
+    - change component logic; this is substrate wiring, not app logic
+
+(7) WSP: CHECKPOINT_DSN_MISSING or “want to re-stream from the beginning”
+  Symptom:
+    - WSP cannot find checkpoint DSN OR you want to force re-stream
+  Safe action:
+    - Fix DSN (L0)
+    - To force full re-stream: L1 clear the WSP checkpoint rows for that pack_key/output_id
+  Do NOT:
+    - clear all platform DBs unless you accept losing other state
+  Notes:
+    - Re-streaming will generate duplicates; IG admission dedupe absorbs them (within its current limits).
+
+(8) IG ADMISSION “DUPLICATE across runs” (important current gap)
+  Symptom:
+    - You start a new platform_run_id but IG marks most events DUPLICATE (no EB flow)
+  Root cause (current posture):
+    - IG dedupe_key omits platform_run_id (dedupe_key=sha256(event_type + ":" + event_id))
+  Safe action options:
+    - Option A (dev/testing): L1 purge ONLY IG admission rows (so same event_ids can be re-admitted)
+    - Option B (safer semantics): L3 run a new engine/oracle scenario so event_ids differ
+    - Option C: accept duplicates (but then you don’t exercise downstream planes)
+  Do NOT:
+    - assume “new platform_run_id” guarantees re-admission (it currently doesn’t)
+  Notes:
+    - This is explicitly documented as a gap in Control & Ingress decisions.
+
+(9) RTDL PROJECTORS: stuck / not advancing (IEG/OFP/CSFB)
+  Symptom:
+    - checkpoints not advancing; health/metrics show lag; reconciliation absent
+  Safe action:
+    - L0: restart the relevant pack (preferred)
+    - L1: if you must, clear ONLY that component’s checkpoint rows (high caution)
+  Do NOT:
+    - run manual “--once” consumers while the pack daemon is active (duplicate consumers)
+  Notes:
+    - Use run-scope locks: *_REQUIRED_PLATFORM_RUN_ID + *_LOCK_RUN_SCOPE=true when in live mode.
+
+(10) DECISION LANE: DLA / audit duplication or missing chain
+  Symptom:
+    - audit stream present but DLA evidence missing OR duplicated outcomes
+  Safe action:
+    - L0: restart lane pack (single instance)
+    - If state corruption suspected: L2 new platform run (preferred)
+  Do NOT:
+    - delete DLA evidence for a run you care about; it’s the audit truth chain
+
+(11) CASE/LABELS: “dirty state” across reruns
+  Symptom:
+    - case timeline already exists; labels already asserted; triggers may dedupe out
+  Safe action:
+    - L2 new platform run_id (preferred)
+    - For scratch-only testing: L1 wipe ONLY CM/LS tables (explicitly destructive)
+  Do NOT:
+    - mix “prod-like” evidence retention with casual table wipes without logging it
+
+(12) OBS/GOV: governance append conflicts / duplicate writers
+  Symptom:
+    - append conflicts or duplicated governance events
+  Safe action:
+    - Ensure single writer:
+      - either obs_gov pack reporter OR manual run-report, never both concurrently
+    - L0: rerun report generation (idempotent) AFTER stopping duplicate writer
+  Do NOT:
+    - run reporter daemon and manual closeout simultaneously
+
+# ------------------------------------------------------------
+# “DEFAULT SAFE RETRY PLAYBOOK” (what you do 90% of the time)
+# ------------------------------------------------------------
+A) If something fails BEFORE READY published:
+   - Fix wiring, rerun the step (L0), only delete targeted oracle output_id views if partial (L1).
+
+B) If something fails AFTER READY published but BEFORE IG receipts exist:
+   - Fix IG/WSP/env, rerun WSP (L0) and/or clear only WSP checkpoint rows if needed (L1).
+
+C) If you need a truly clean run without erasing evidence:
+   - L2: create a fresh platform_run_id and run again.
+   - BUT: remember IG dedupe gap → you may still need admission purge or new scenario root.
+
+D) If you need a fully clean bus history:
+   - Local parity: L4 restart LocalStack + bootstrap.
+   - dev_min: L4 terraform destroy demo (Kafka cluster + ephemeral compute), keep core S3 evidence.
+
+# ------------------------------------------------------------
+# dev_min reminder (cleanup posture)
+# ------------------------------------------------------------
+- dev_min default is demo → destroy for ephemeral infra.
+- Core S3 evidence MUST remain durable; do not “clean” by deleting core evidence buckets.
+- Preferred: new platform_run_id + preserved evidence; destroy demo Kafka to clear topic history.
+
+```

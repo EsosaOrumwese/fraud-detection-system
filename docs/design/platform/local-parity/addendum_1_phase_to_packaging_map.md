@@ -1,0 +1,57 @@
+```
+# ============================================================
+# ONE-PAGE MAP — Phase → Job Type → Packaging Target (dev_min)
+# Scope: Spine Green v0 (Learning/Registry out-of-scope)
+# Pinned dev_min constraints:
+#   - CLI-orchestrated (NO Step Functions in v0)
+#   - Default compute stays LOCAL (budget-safe)
+#   - Optional AWS compute only as ephemeral ECS tasks/services (demo → destroy)
+#   - Kafka = Confluent Cloud (demo stack); Evidence/Oracle = AWS S3 (core)
+# ============================================================
+
+| Phase | What it “is” (run lifecycle)              | Local job type        | dev_min packaging target (what to deploy/run)                         |
+|------:|------------------------------------------|------------------------|------------------------------------------------------------------------|
+| P0    | SUBSTRATE_READY                          | Operator setup         | Terraform apply:
+|       | (buckets/streams/db reachable)           | (one-shot)             |   - core: S3 (oracle/archive/quarantine/evidence) + TF state + IAM
+|       |                                          |                        |   - demo: Confluent cluster+topics+API keys -> SSM SecureString
+|       |                                          |                        | Teardown path exists: terraform destroy demo (keeps core intact)      |
+| P1    | RUN_PINNED                               | Operator activation    | Local CLI generates platform_run_id (+ optional run_manifest to S3)   |
+|       | (run_id fixed for all processes)         | (one-shot)             |                                                                        |
+| P2    | DAEMONS_READY                            | Daemons (packs up)     | DEFAULT: run components locally (docker/venv) pointing to:
+|       | (services started, run-scope enforced)   | (long-running)         |   - Confluent Kafka (bootstrap+keys from SSM/env)
+|       |                                          |                        |   - AWS S3 evidence/oracle
+|       |                                          |                        | OPTIONAL: ECS *services* for demo window only (destroy-by-default)     |
+| P3    | ORACLE_READY                             | Batch jobs (heavy)     | Containerized batch jobs:
+|       | sync + seal + stream_view sort complete  | (one-shot, CPU/RAM)    |   - DEFAULT: run locally against S3 (oracle/ + stream_view prefixes)
+|       |                                          |                        |   - OPTIONAL: ECS run-task (demo) sized for RAM/disk for stream sort   |
+| P4    | INGEST_READY                             | Service health gate    | IG as a SERVICE:
+|       | (IG reachable; bus exists)               | (daemon)               |   - DEFAULT: local IG service publishing to Confluent + writing S3
+|       |                                          |                        |   - OPTIONAL: ECS service (demo) IF WSP co-located (avoid networking)  |
+| P5    | READY_PUBLISHED (SR is readiness auth)   | Activation             | SR as a ONE-SHOT job:
+|       | (READY committed + published)            | (one-shot)             |   - local CLI run OR ECS run-task
+|       |                                          |                        | Output: Kafka control topic + S3 evidence (sr/ bundle)                 |
+| P6    | STREAMING_ACTIVE (WSP reading streamview)| Batch/daemon-ish job   | WSP as ONE-SHOT “run job”:
+|       | (WSP -> IG push)                         | (bounded run)          |   - DEFAULT: local run reads S3 stream_view, pushes to IG
+|       |                                          |                        |   - OPTIONAL: ECS run-task (demo) (best if IG is also in AWS)          |
+| P7    | INGEST_COMMITTED (admission + receipts)  | Daemon (IG)            | IG publishes to Kafka topics + writes receipts/quarantine evidence to S3
+|       | (receipts are commit evidence)           |                        | Optional: DynamoDB quarantine index (dev_min recommends)              |
+| P8    | RTDL_CAUGHT_UP (IEG/OFP/CSFB/Archive)    | Daemons                | Projectors as SERVICES:
+|       | (consumer groups + checkpoints advance)  | (long-running)         |   - DEFAULT: local workers consuming Confluent + writing S3 evidence
+|       |                                          |                        |   - OPTIONAL: ECS services (demo window)                               |
+| P9    | DECISION_CHAIN_COMMITTED (DL/DF/AL/DLA)  | Daemons                | Decision lane as SERVICES:
+|       | (rtdl + audit produced; DLA slices)      |                        |   - DEFAULT: local workers; DLA MUST materialize S3 evidence slices
+|       |                                          |                        |   - OPTIONAL: ECS services (demo window)                               |
+| P10   | CASE_LABELS_COMMITTED (CaseTrigger/CM/LS)| Daemons + stateful DB  | Case/Labels as SERVICES:
+|       | (case triggers + CM/LS updated)          |                        |   - DEFAULT: local services + local Postgres acceptable IF S3 summaries
+|       |                                          |                        |   - OPTIONAL: managed Postgres later (not required for v0 dev_min)     |
+| P11   | OBS_GOV_CLOSED (report + conformance)    | Daemon OR one-shot     | Reporter as SINGLE-WRITER:
+|       | (run report + governance append complete)|                        |   - DEFAULT: local reporter; writes evidence/runs/<run_id>/… to S3
+|       |                                          |                        |   - OPTIONAL: ECS task (demo) but enforce no concurrent writers        |
+| P12   | TEARDOWN (dev_min)                       | Operator teardown      | terraform destroy demo (Kafka + optional ECS + demo-only resources)
+|       | (core persists: evidence/oracle)         | (one-shot)             | Keep core buckets + TF state; evidence remains durable                 |
+
+NOTES (so this table actually prevents the “copy/paste to AWS” trap):
+- Anything in P3 is a *packaged batch job* (container + explicit IO + idempotent receipts), not “some code”.
+- Anything in P2/P8/P9/P10 is a *service* (consumer groups + checkpoints + restart policy).
+- v0 dev_min orchestration is CLI-driven: you trigger jobs/services; no Step Functions.
+```
