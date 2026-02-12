@@ -101,11 +101,18 @@ RECOMMENDED CMD (baseline, in-scope packs only):
   make platform-operate-rtdl-decision-up
   make platform-operate-case-labels-up
   make platform-operate-obs-gov-up
-STATUS:
+STATUS (SPINE-SAFE):
+  make platform-operate-control-ingress-status
+  make platform-operate-rtdl-core-status
+  make platform-operate-rtdl-decision-status
+  make platform-operate-case-labels-status
+  make platform-operate-obs-gov-status
+OPTIONAL FULL PARITY STATUS (includes learning-jobs pack by design):
   make platform-operate-parity-status
 
 NOTE:
   - DO NOT start learning-jobs pack for Spine Green v0 baseline.
+  - `platform-operate-parity-status` includes learning-jobs status by Make contract.
 
 EFFECT:
   control_ingress pack runs:
@@ -122,13 +129,22 @@ EFFECT:
     - environment_conformance daemon
 
 RUN/OPERATE ARTIFACTS:
-  runs/fraud-platform/operate/<pack_id>/state.json
-  runs/fraud-platform/operate/<pack_id>/events.jsonl
-  runs/fraud-platform/operate/<pack_id>/logs/<process>.log
+  pack-scoped control/state:
+    runs/fraud-platform/operate/<pack_id>/state.json
+    runs/fraud-platform/operate/<pack_id>/status/last_status.json
+  run-scoped logs/events:
+    runs/fraud-platform/<platform_run_id>/operate/<pack_id>/events.jsonl
+    runs/fraud-platform/<platform_run_id>/operate/<pack_id>/logs/<process>.log
+  canonical pack ids for Spine Green v0:
+    - local_parity_control_ingress_v0
+    - local_parity_rtdl_core_v0
+    - local_parity_rtdl_decision_lane_v0
+    - local_parity_case_labels_v0
+    - local_parity_obs_gov_v0
 
 SUCCESS:
   - pack status shows processes running
-  - component logs appear under runs/fraud-platform/<platform_run_id>/...
+  - component logs appear under runs/fraud-platform/<platform_run_id>/operate/<pack_id>/logs/
 
 # ------------------------------------------------------------
 # 4) Oracle Store preparation (THIS IS THE HEAVY BATCH COMPUTE)
@@ -193,15 +209,18 @@ OUTPUTS:
   - SR artifacts under s3://fraud-platform/<platform_run_id>/sr/...
   - READY message published to sr-control-bus (Kinesis)
 SUCCESS:
-  - platform log shows SR READY committed + READY published
+  - SR log shows READY committed + READY published:
+      runs/fraud-platform/<platform_run_id>/scenario_runner/scenario_runner.log
 
 # ----------------------------
 # 6) WSP consumes READY and streams to IG
 # ----------------------------
 TYPE: DAEMON (if pack running) or ACTIVATION (manual once)
 MANUAL ONCE CMD (if NOT using pack):
-  set WSP_READY_MAX_EVENTS=500000
+  set WSP_MAX_EVENTS_PER_OUTPUT=200
   make platform-wsp-ready-consumer-once WSP_PROFILE=config/platform/profiles/local_parity.yaml
+OPTIONAL GATE PATTERN:
+  - run 20 first, then 200 for full bounded closure
 
 INPUTS:
   - reads READY from sr-control-bus (Kinesis)
@@ -210,10 +229,15 @@ INPUTS:
       <ORACLE_STREAM_VIEW_ROOT>/output_id=<output_id>/part-*.parquet
   - emits HTTP POST to IG ingest endpoint (/v1/ingest/push)
 OUTPUTS:
-  - WSP run logs + ready processing records under runs/fraud-platform/<platform_run_id>/world_streamer_producer/...
+  - WSP ready-consumer logs under:
+      runs/fraud-platform/<platform_run_id>/operate/local_parity_control_ingress_v0/logs/wsp_ready_consumer.log
 SUCCESS:
   - WSP stream start -> stream stop logged
+  - each expected output reaches emitted=200 for bounded run
   - IG begins producing receipts
+NOTE (EXPECTED IN PARITY):
+  - duplicate READY messages can be observed and skipped if control-bus history contains prior READY records.
+  - "WSP READY duplicate skipped ..." is expected when dedupe/checkpointing is healthy.
 
 # ----------------------------
 # 7) IG admits + publishes to Event Bus
@@ -238,6 +262,11 @@ ON QUARANTINE:
 SUCCESS:
   - receipts exist in object store
   - Kinesis streams show records (traffic + context)
+  - IG service log updates at:
+      runs/fraud-platform/<platform_run_id>/operate/local_parity_control_ingress_v0/logs/ig_service.log
+OPS HEALTH CONTRACT:
+  - unauthenticated GET /v1/ops/health => 401 {"error":"UNAUTHORIZED"}
+  - authenticated GET /v1/ops/health with X-IG-Api-Key => 200 {"state":"GREEN",...} once flow is healthy
 
 # ----------------------------
 # 8) RTDL core plane consumes admitted EB topics
@@ -290,6 +319,9 @@ COMPONENTS:
     - consumes fp.bus.rtdl.v1 (decision+intent+outcome chain)
     - writes append-only decision/audit records (object store + index in Postgres)
     - publishes audit events to fp.bus.audit.v1
+STARTUP INTAKE INVARIANT (RUN-SCOPED PARITY):
+  - AL and DLA first Kinesis read with no checkpoint and required_platform_run_id set must start from trim_horizon.
+  - non-target run records are checkpoint-skipped by run-scope gate; target-run events are preserved.
 
 SUCCESS:
   - fp.bus.rtdl.v1 contains decision+intent+outcome events
@@ -336,6 +368,23 @@ SUCCESS:
   - conformance gate passes for local_parity profile expectations
 
 # ----------------------------
+# 11.1) Spine Green v0 strict closeout (200-event baseline)
+# ----------------------------
+REQUIRED EVIDENCE (run-scoped):
+  - runs/fraud-platform/<platform_run_id>/obs/platform_run_report.json
+  - runs/fraud-platform/<platform_run_id>/obs/environment_conformance.json
+  - runs/fraud-platform/<platform_run_id>/decision_fabric/health/last_health.json
+  - runs/fraud-platform/<platform_run_id>/action_layer/health/last_health.json
+  - runs/fraud-platform/<platform_run_id>/decision_log_audit/health/last_health.json
+  - runs/fraud-platform/<platform_run_id>/operate/local_parity_control_ingress_v0/logs/wsp_ready_consumer.log
+PASS CONDITIONS:
+  - environment_conformance status = PASS
+  - DF health_state = GREEN
+  - AL health_state = GREEN with intake/outcome parity for the run
+  - DLA health_state = GREEN and lineage_unresolved_total = 0
+  - WSP bounded run shows emitted=200 for traffic + context outputs in scope
+
+# ----------------------------
 # 12) Shutdown (optional)
 # ----------------------------
 TYPE: OPERATOR
@@ -345,5 +394,7 @@ CMD (packs first, then substrate):
   make platform-operate-rtdl-decision-down
   make platform-operate-rtdl-core-down
   make platform-operate-control-ingress-down
+OPTIONAL SUBSTRATE TEARDOWN:
+  make platform-parity-stack-down
 
 ```

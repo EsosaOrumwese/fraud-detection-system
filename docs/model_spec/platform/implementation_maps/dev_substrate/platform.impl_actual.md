@@ -2683,3 +2683,154 @@ No interface or ownership changes; only correcting error-code mapping at HTTP bo
 ### Drift sentinel assessment
 No flow/ownership drift introduced.
 This closes an error-code correctness gap on auth failure paths while preserving fail-closed semantics.
+
+## Entry: 2026-02-12 11:44AM - Canonical narrative hardening for spine_green_v0_run_process_flow.txt (Spine Green v0)
+
+### Trigger
+USER requested closing runtime/documentation gaps so the main local-parity narrative exactly matches the executed Spine Green v0 200-event run posture.
+
+### Problem framing
+The main narrative file had drift against observed runtime behavior:
+1. bounded stream command did not encode the 200-event migration baseline,
+2. status command implied full parity status despite Spine-only learning scope exclusion,
+3. WSP/IG log locations and SR narrative log anchor were not aligned with run-operate reality,
+4. IG ops-health auth contract and expected duplicate READY behavior were not explicit,
+5. AL/DLA startup intake invariant used in remediation closure was undocumented,
+6. no strict closeout evidence packet was pinned in the main narrative,
+7. shutdown flow omitted optional substrate teardown.
+
+### Changes applied
+Updated docs/design/platform/local-parity/spine_green_v0_run_process_flow.txt to:
+1. add Spine-safe status commands and mark platform-operate-parity-status as full-parity (learning-inclusive),
+2. set bounded manual WSP command to WSP_MAX_EVENTS_PER_OUTPUT=200 and note optional 20 -> 200 gate pattern,
+3. align SR/WSP/IG log and artifact references to actual run paths under run-operate packs,
+4. pin IG ops-health auth expectations (401 unauth, 200 auth),
+5. add AL/DLA first-read 	rim_horizon run-scoped startup invariant,
+6. add strict Spine Green closeout evidence and pass conditions (DF/AL/DLA/Obs + bounded emitted=200),
+7. add optional substrate teardown command (make platform-parity-stack-down).
+
+### Drift sentinel assessment
+This pass reduces narrative/runtime drift and does not alter runtime semantics. Ownership boundaries and fail-closed posture are preserved; documentation now reflects the implemented run contract.
+
+## Entry: 2026-02-12 11:54AM - Pre-change lock for run-operate log/evidence path split (operator control vs run-scoped truth)
+
+### Trigger
+USER asked to implement the recommendation from discussion: avoid run-operate log conflation while preserving current control surface semantics.
+
+### Discussion captured (problem/challenge)
+1. USER concern: if operator logs stay under `runs/fraud-platform/operate/<pack_id>/logs`, repeated runs append into the same files and become conflated.
+2. Observed implementation confirms append posture:
+- process logs are opened with append mode in `src/fraud_detection/run_operate/orchestrator.py` (`open("a")`),
+- pack events are also append-only in `events.jsonl`.
+3. Current split intent exists but is partial:
+- `operate/<pack_id>` carries orchestration state/status/logs/events,
+- `<platform_run_id>/<component>` carries component truth artifacts.
+4. Migration challenge to solve:
+- keep operator control stable and simple,
+- prevent cross-run log blending,
+- maintain clear run-scoped evidence ownership for audit/replay and migration gates.
+
+### Recommendation selected (hybrid layout)
+Keep operator state/status pack-scoped, but move daemon logs/events to run-scoped operate paths.
+
+- Keep pack-scoped control files:
+  - `runs/fraud-platform/operate/<pack_id>/state.json`
+  - `runs/fraud-platform/operate/<pack_id>/status/last_status.json`
+- Move operational log streams to run scope:
+  - `runs/fraud-platform/<platform_run_id>/operate/<pack_id>/logs/<process>.log`
+  - `runs/fraud-platform/<platform_run_id>/operate/<pack_id>/events.jsonl`
+
+### Why this is selected
+1. Eliminates cross-run log conflation by construction.
+2. Preserves stable operator surface (`up/down/status`) and pack lifecycle controls.
+3. Aligns evidence with run-scoped migration closure and incident forensics.
+4. Avoids invasive changes to run-operate state machine.
+
+### Alternatives considered
+1. Keep everything under `operate/<pack_id>` and add rotation only.
+- Rejected: still intermixes run narratives and requires retention/rotation policy tuning to be reliable for audit.
+2. Move all run-operate files (including `state.json`/`status`) under run scope.
+- Rejected for now: weakens operator continuity and makes control-plane status discovery noisier across run transitions.
+
+### Planned edits
+1. `src/fraud_detection/run_operate/orchestrator.py`
+- introduce active-run-aware runtime root for logs/events,
+- retain pack-scoped `state.json` and `status/last_status.json`.
+2. run-operate tests (add/update) to assert:
+- state/status remain pack-scoped,
+- log/events resolve to run-scoped paths when active run id is present.
+3. `docs/design/platform/local-parity/spine_green_v0_run_process_flow.txt`
+- update run-operate artifact paths to reflect hybrid layout.
+
+### Validation plan
+1. targeted run-operate unit tests.
+2. `make platform-operate-*-status` sanity checks.
+3. verify status payload `log_path` values now point to `<platform_run_id>/operate/<pack_id>/logs/...`.
+
+### Drift sentinel checkpoint
+No ownership boundary change. This is path/topology hardening of run-operate evidence surfaces; contracts and component semantics remain unchanged.
+
+## Entry: 2026-02-12 11:56AM - Applied closure for hybrid run-operate path model (logs/events run-scoped, control state pack-scoped)
+
+### Challenge solved
+We needed to remove cross-run log conflation risk while preserving stable operator controls.
+- Prior behavior appended process logs/events at `runs/fraud-platform/operate/<pack_id>/...`, causing multi-run interleaving.
+- USER requested implementation plus explicit documentation of discussion/recommendation and the migration challenge being addressed.
+
+### Applied implementation
+1. `src/fraud_detection/run_operate/orchestrator.py`
+- kept control-plane files pack-scoped:
+  - `runs/fraud-platform/operate/<pack_id>/state.json`
+  - `runs/fraud-platform/operate/<pack_id>/status/last_status.json`
+- moved runtime logs/events to run-scoped runtime root when active run id is known:
+  - `runs/fraud-platform/<platform_run_id>/operate/<pack_id>/logs/<process>.log`
+  - `runs/fraud-platform/<platform_run_id>/operate/<pack_id>/events.jsonl`
+- added helper methods:
+  - `_runtime_root(active_run_id)`
+  - `_logs_root(active_run_id)`
+  - `_events_path(active_run_id)`
+- updated event appends to target run-scoped path when run id is available.
+- status rows now prefer persisted process `record.log_path` to avoid mismatched path display during run-id transition windows.
+
+2. `tests/services/run_operate/test_orchestrator.py`
+- added `test_logs_and_events_are_run_scoped_but_state_status_remain_pack_scoped`.
+- test asserts:
+  - log path resolves to run-scoped path,
+  - `state.json`/`status/last_status.json` remain pack-scoped,
+  - legacy pack-scoped `events.jsonl` is not created for active-run flow.
+
+3. `docs/design/platform/local-parity/spine_green_v0_run_process_flow.txt`
+- updated run-operate artifact section to explicitly describe hybrid layout,
+- updated WSP/IG log references and strict closeout log evidence path to run-scoped operate location.
+
+### Validation evidence
+- `.venv\Scripts\python.exe -m pytest tests/services/run_operate/test_orchestrator.py -q`
+- result: `6 passed`.
+
+### Recommendation carried forward
+Use hybrid pathing as canonical:
+- pack-scoped for orchestrator control state/status,
+- run-scoped for process logs/events and run evidence.
+This keeps operations simple while preserving clean per-run auditability and migration traceability.
+
+### Drift sentinel assessment
+No ownership/contract drift introduced. This is runtime artifact topology hardening only; component behavior and fail-closed semantics are unchanged.
+
+## Entry: 2026-02-12 11:57AM - Live sanity validation after hybrid run-operate path implementation
+
+### Runtime sanity actions
+1. Executed `make platform-operate-control-ingress-restart` to force fresh process spawn under active run id.
+2. Executed `make platform-operate-control-ingress-status`.
+3. Inspected `runs/fraud-platform/operate/local_parity_control_ingress_v0/status/last_status.json`.
+
+### Observed results
+1. Status remained green (IG tcp probe open, WSP process alive).
+2. Status `log_path` values now resolve to run-scoped paths:
+- `runs/fraud-platform/platform_20260212T085637Z/operate/local_parity_control_ingress_v0/logs/ig_service.log`
+- `runs/fraud-platform/platform_20260212T085637Z/operate/local_parity_control_ingress_v0/logs/wsp_ready_consumer.log`
+3. Run-scoped events file exists and receives new events:
+- `runs/fraud-platform/platform_20260212T085637Z/operate/local_parity_control_ingress_v0/events.jsonl`
+4. Legacy pack-scoped events file remains as historical artifact from pre-change runs.
+
+### Interpretation
+Implementation is functioning as intended for new process lifecycles. Historical pack-scoped event files may coexist until cleanup policy is explicitly applied; this is expected and non-breaking.

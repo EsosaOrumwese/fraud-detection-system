@@ -61,13 +61,14 @@ This standard is binding for every new ID entry in this file.
 
 - Result (observable outcome/evidence):
   The observable outcome was an architectural transition from a single dense execution path to a modular execution topology with explicit boundaries between entrypoint, CLI, config validation, and generation/writer mechanics. That created a cleaner platform for later replacement by the data engine contract/gate model.
+  Truth posture: `Superseded`. The modular correction materially improved the deprecated generator path, but long-term closure landed through the data-engine replacement boundary.
   Evidence anchors:
   - `docs/references/deprecated_[DATA-GEN]_issues_with_data_generator.md:84`
   - `docs/references/deprecated_[DATA-GEN]_issues_with_data_generator.md:86`
   - `docs/references/deprecated_[DATA-GEN]_issues_with_data_generator.md:88`
   - `docs/references/deprecated_[DATA-GEN]_high_level_arch_CURRENT_data_gen.md:6`
   - `docs/references/deprecated_[DATA-GEN]_high_level_arch_CURRENT_data_gen.md:17`
-  Supporting former-state context:
+  Additional challenge context:
   - `docs/references/deprecated_[DATA-GEN]_high_level_arch_former_data_gen.md:10`
   - `docs/references/deprecated_[DATA-GEN]_high_level_arch_former_data_gen.md:18`
 
@@ -107,6 +108,7 @@ This standard is binding for every new ID entry in this file.
 
 - Result (observable outcome/evidence):
   The observable result was a structural upgrade in how realism was handled: a dedicated catalog-prep path and a realism track were introduced, and the architecture reflected that shift. This improved controllability and reduced some of the original realism contradictions. At the same time, we were honest about closure: this deprecated track did not become the final production path, and remaining realism debt was one of the reasons the architecture was ultimately superseded by the Data Engine direction.
+  Truth posture: `Partial` in the deprecated generator track, then `Superseded` by the data-engine replacement path.
   Evidence anchors:
   - `docs/references/deprecated_[DATA-GEN]_issues_with_data_generator.md:122`
   - `docs/references/deprecated_[DATA-GEN]_issues_with_data_generator.md:124`
@@ -164,7 +166,7 @@ This standard is binding for every new ID entry in this file.
   - `docs/references/deprecated_[DATA-GEN]_high_level_arch_former_data_gen.md:448`
   - `docs/model_spec/data-engine/implementation_maps/segment_1A.impl_actual.md:3300`
   - `docs/model_spec/data-engine/implementation_maps/segment_2A.impl_actual.md:3129`
-  Additional context anchors:
+  Additional challenge context:
   - `docs/references/deprecated_[DATA-GEN]_issues_with_data_generator.md:34`
   - `docs/references/deprecated_[DATA-GEN]_issues_with_data_generator.md:35`
   - `docs/references/deprecated_[DATA-GEN]_high_level_arch_CURRENT_data_gen.md:265`
@@ -11470,103 +11472,6 @@ This standard is binding for every new ID entry in this file.
 - Why this proves MLOps/Data Eng strength (explicit hiring signal):
   This demonstrates strong readiness-engineering execution: you translated a security-sensitive migration phase into enforceable, fail-closed tooling with drill-backed evidence, making bootstrap quality measurable rather than rhetorical.
 
-## ID 247 - Strict preflight produced a false-negative by probing Confluent management-plane IAM instead of Kafka-plane readiness
-
-- Context (what was at stake):
-  Phase 1 strict preflight was the fail-closed gate for dev-min bootstrap readiness. At this stage, a false-negative gate is dangerous because it can block migration despite valid runtime posture and push teams toward unsafe manual bypasses.
-
-- Problem (specific contradiction/failure):
-  Strict preflight failed at `confluent_api_probe` (HTTP `401`) while other checks passed and secret material shape/handles were present. The probe was checking Confluent management-plane IAM listing, but Phase 1 design intent was Kafka/event-bus readiness. This created a design-intent mismatch and false-negative risk.
-
-- Options considered (2-3):
-  1. Treat `401` as definitive credential failure and keep management-plane probe unchanged.
-     Rejected because it can misclassify valid Kafka-plane credentials as bootstrap failure.
-  2. Relax strict gating temporarily to avoid blocker.
-     Rejected because it weakens fail-closed Phase 1 posture.
-  3. Diagnose and classify as probe-semantics mismatch, then realign strict gate to Kafka-plane readiness checks.
-     Selected to preserve strictness while fixing correctness of what is being tested.
-
-- Decision (what you chose and why):
-  We chose option 3. Diagnostics confirmed material presence and sane value shape, with failure isolated to management-plane IAM auth probing. This was treated as drift against event-bus readiness intent and escalated into a corrective gate realignment path.
-
-- Implementation (what you changed):
-  1. Ran strict preflight with dedicated env and captured sanitized PASS/FAIL breakdown.
-  2. Executed targeted diagnostics against Confluent IAM endpoint with HTTP-status-only capture.
-  3. Verified SSM material shape (length/boundary checks, quoted marker) without exposing secrets.
-  4. Recorded interpretation: likely key/plane mismatch for this probe type, not missing handles/materialization failure.
-  5. Opened corrective pre-change lock to replace management-plane dependency with Kafka-plane readiness semantics.
-
-- Result (observable outcome/evidence):
-  The failure was correctly reclassified from “bootstrap material missing/broken” to “probe semantics mismatch,” preventing a misleading closure verdict and enabling a precise drift fix path.
-  Truth posture: `Resolved`.
-  Evidence anchors:
-  - `docs/model_spec/platform/implementation_maps/dev_substrate/platform.impl_actual.md:643`
-  - `docs/model_spec/platform/implementation_maps/dev_substrate/platform.impl_actual.md:654`
-  - `docs/model_spec/platform/implementation_maps/dev_substrate/platform.impl_actual.md:666`
-  - `docs/model_spec/platform/implementation_maps/dev_substrate/platform.impl_actual.md:683`
-  - `docs/model_spec/platform/implementation_maps/dev_substrate/platform.impl_actual.md:698`
-  - `docs/model_spec/platform/implementation_maps/dev_substrate/platform.impl_actual.md:704`
-  - `docs/model_spec/platform/implementation_maps/dev_substrate/platform.impl_actual.md:710`
-  - `docs/model_spec/platform/implementation_maps/dev_substrate/platform.impl_actual.md:718`
-  Additional challenge context:
-  - `docs/model_spec/platform/implementation_maps/dev_substrate/platform.impl_actual.md:650`
-  - `docs/model_spec/platform/implementation_maps/dev_substrate/platform.impl_actual.md:662`
-  - `docs/model_spec/platform/implementation_maps/dev_substrate/platform.impl_actual.md:670`
-  - `docs/model_spec/platform/implementation_maps/dev_substrate/platform.impl_actual.md:705`
-  - `docs/model_spec/platform/implementation_maps/dev_substrate/platform.impl_actual.md:721`
-
-- Why this proves MLOps/Data Eng strength (explicit hiring signal):
-  This demonstrates strong gate-integrity engineering: you diagnosed a subtle false-negative at the validation-boundary level, distinguished probe semantics from actual runtime readiness, and protected strict fail-closed posture while steering toward a correct corrective action.
-
-## ID 248 - Credential gate needed realignment to event-bus readiness semantics
-
-- Context (what was at stake):
-  Phase 1 strict closure depended on a credential gate that was meant to prove event-bus readiness. After the false-negative diagnosis, the team needed to fix gate semantics without weakening fail-closed posture.
-
-- Problem (specific contradiction/failure):
-  Credential validation logic was bound to a management-plane IAM list-keys check, not Kafka-plane readiness. This meant the gate could fail for reasons unrelated to the actual event-bus path required by Phase 1, misaligning closure with design intent.
-
-- Options considered (2-3):
-  1. Keep IAM probe as strict dependency and document caveats.
-     Rejected because it preserves semantic mismatch and recurring false negatives.
-  2. Remove credential gate entirely and defer all checks to later phases.
-     Rejected because Phase 1 still requires fail-closed bootstrap readiness checks.
-  3. Replace IAM dependency with Kafka-plane readiness checks and defer full metadata auth to Phase 2 integration gates.
-     Selected to align Phase 1 gate with actual event-bus readiness requirements.
-
-- Decision (what you chose and why):
-  We chose option 3. The strict gate was realigned to validate Kafka-plane readiness directly: secret material present and parseable, endpoint resolvable, and TCP reachable. Full Kafka auth/topic metadata verification was explicitly deferred to the Phase 2 provisioning/integration gate where those tools belong.
-
-- Implementation (what you changed):
-  1. Updated `scripts/dev_substrate/phase1_preflight.ps1`:
-     - removed mandatory IAM list-keys dependency,
-     - implemented `confluent_kafka_probe` checks (material non-empty, quote rejection, host:port parse, DNS resolve, TCP reachability).
-  2. Updated `docs/model_spec/platform/implementation_maps/dev_substrate/platform.build_plan.md` Phase 1.D wording to match new semantics.
-  3. Updated Phase 1 DoD/status in the same build plan to reflect corrected strict gate logic.
-  4. Re-ran strict preflight on canonical handles and captured sanitized PASS evidence.
-
-- Result (observable outcome/evidence):
-  Phase 1 strict gate now measures the right thing for this phase (event-bus readiness semantics) and passed on canonical handles. The credential gate moved from misleading to design-aligned, fail-closed behavior.
-  Truth posture: `Resolved`.
-  Evidence anchors:
-  - `docs/model_spec/platform/implementation_maps/dev_substrate/platform.impl_actual.md:710`
-  - `docs/model_spec/platform/implementation_maps/dev_substrate/platform.impl_actual.md:721`
-  - `docs/model_spec/platform/implementation_maps/dev_substrate/platform.impl_actual.md:728`
-  - `docs/model_spec/platform/implementation_maps/dev_substrate/platform.impl_actual.md:739`
-  - `docs/model_spec/platform/implementation_maps/dev_substrate/platform.impl_actual.md:742`
-  - `docs/model_spec/platform/implementation_maps/dev_substrate/platform.impl_actual.md:751`
-  - `docs/model_spec/platform/implementation_maps/dev_substrate/platform.impl_actual.md:759`
-  - `docs/model_spec/platform/implementation_maps/dev_substrate/platform.impl_actual.md:763`
-  Additional challenge context:
-  - `docs/model_spec/platform/implementation_maps/dev_substrate/platform.impl_actual.md:717`
-  - `docs/model_spec/platform/implementation_maps/dev_substrate/platform.impl_actual.md:724`
-  - `docs/model_spec/platform/implementation_maps/dev_substrate/platform.impl_actual.md:725`
-  - `docs/model_spec/platform/implementation_maps/dev_substrate/platform.impl_actual.md:736`
-  - `docs/model_spec/platform/implementation_maps/dev_substrate/platform.impl_actual.md:768`
-
-- Why this proves MLOps/Data Eng strength (explicit hiring signal):
-  This demonstrates strong validation-surface engineering: you corrected a gate-to-intent mismatch, preserved strict fail-closed posture, and delivered a phase-appropriate readiness check that is technically coherent and operationally actionable.
-
 ## ID 245 - Strict Phase 1 closure blocked because required Kafka secret material was absent in execution context
 
 - Context (what was at stake):
@@ -11667,3 +11572,100 @@ This standard is binding for every new ID entry in this file.
 
 - Why this proves MLOps/Data Eng strength (explicit hiring signal):
   This demonstrates strong operational reproducibility engineering: you removed hidden environment coupling from a security-critical bootstrap path, encoded deterministic command behavior, and validated the new execution surface with isolated drills and cleanup discipline.
+## ID 247 - Strict preflight produced a false-negative by probing Confluent management-plane IAM instead of Kafka-plane readiness
+
+- Context (what was at stake):
+  Phase 1 strict preflight was the fail-closed gate for dev-min bootstrap readiness. At this stage, a false-negative gate is dangerous because it can block migration despite valid runtime posture and push teams toward unsafe manual bypasses.
+
+- Problem (specific contradiction/failure):
+  Strict preflight failed at `confluent_api_probe` (HTTP `401`) while other checks passed and secret material shape/handles were present. The probe was checking Confluent management-plane IAM listing, but Phase 1 design intent was Kafka/event-bus readiness. This created a design-intent mismatch and false-negative risk.
+
+- Options considered (2-3):
+  1. Treat `401` as definitive credential failure and keep management-plane probe unchanged.
+     Rejected because it can misclassify valid Kafka-plane credentials as bootstrap failure.
+  2. Relax strict gating temporarily to avoid blocker.
+     Rejected because it weakens fail-closed Phase 1 posture.
+  3. Diagnose and classify as probe-semantics mismatch, then realign strict gate to Kafka-plane readiness checks.
+     Selected to preserve strictness while fixing correctness of what is being tested.
+
+- Decision (what you chose and why):
+  We chose option 3. Diagnostics confirmed material presence and sane value shape, with failure isolated to management-plane IAM auth probing. This was treated as drift against event-bus readiness intent and escalated into a corrective gate realignment path.
+
+- Implementation (what you changed):
+  1. Ran strict preflight with dedicated env and captured sanitized PASS/FAIL breakdown.
+  2. Executed targeted diagnostics against Confluent IAM endpoint with HTTP-status-only capture.
+  3. Verified SSM material shape (length/boundary checks, quoted marker) without exposing secrets.
+  4. Recorded interpretation: likely key/plane mismatch for this probe type, not missing handles/materialization failure.
+  5. Opened corrective pre-change lock to replace management-plane dependency with Kafka-plane readiness semantics.
+
+- Result (observable outcome/evidence):
+  The failure was correctly reclassified from “bootstrap material missing/broken” to “probe semantics mismatch,” preventing a misleading closure verdict and enabling a precise drift fix path.
+  Truth posture: `Resolved`.
+  Evidence anchors:
+  - `docs/model_spec/platform/implementation_maps/dev_substrate/platform.impl_actual.md:643`
+  - `docs/model_spec/platform/implementation_maps/dev_substrate/platform.impl_actual.md:654`
+  - `docs/model_spec/platform/implementation_maps/dev_substrate/platform.impl_actual.md:666`
+  - `docs/model_spec/platform/implementation_maps/dev_substrate/platform.impl_actual.md:683`
+  - `docs/model_spec/platform/implementation_maps/dev_substrate/platform.impl_actual.md:698`
+  - `docs/model_spec/platform/implementation_maps/dev_substrate/platform.impl_actual.md:704`
+  - `docs/model_spec/platform/implementation_maps/dev_substrate/platform.impl_actual.md:710`
+  - `docs/model_spec/platform/implementation_maps/dev_substrate/platform.impl_actual.md:718`
+  Additional challenge context:
+  - `docs/model_spec/platform/implementation_maps/dev_substrate/platform.impl_actual.md:650`
+  - `docs/model_spec/platform/implementation_maps/dev_substrate/platform.impl_actual.md:662`
+  - `docs/model_spec/platform/implementation_maps/dev_substrate/platform.impl_actual.md:670`
+  - `docs/model_spec/platform/implementation_maps/dev_substrate/platform.impl_actual.md:705`
+  - `docs/model_spec/platform/implementation_maps/dev_substrate/platform.impl_actual.md:721`
+
+- Why this proves MLOps/Data Eng strength (explicit hiring signal):
+  This demonstrates strong gate-integrity engineering: you diagnosed a subtle false-negative at the validation-boundary level, distinguished probe semantics from actual runtime readiness, and protected strict fail-closed posture while steering toward a correct corrective action.
+
+## ID 248 - Credential gate needed realignment to event-bus readiness semantics
+
+- Context (what was at stake):
+  Phase 1 strict closure depended on a credential gate that was meant to prove event-bus readiness. After the false-negative diagnosis, the team needed to fix gate semantics without weakening fail-closed posture.
+
+- Problem (specific contradiction/failure):
+  Credential validation logic was bound to a management-plane IAM list-keys check, not Kafka-plane readiness. This meant the gate could fail for reasons unrelated to the actual event-bus path required by Phase 1, misaligning closure with design intent.
+
+- Options considered (2-3):
+  1. Keep IAM probe as strict dependency and document caveats.
+     Rejected because it preserves semantic mismatch and recurring false negatives.
+  2. Remove credential gate entirely and defer all checks to later phases.
+     Rejected because Phase 1 still requires fail-closed bootstrap readiness checks.
+  3. Replace IAM dependency with Kafka-plane readiness checks and defer full metadata auth to Phase 2 integration gates.
+     Selected to align Phase 1 gate with actual event-bus readiness requirements.
+
+- Decision (what you chose and why):
+  We chose option 3. The strict gate was realigned to validate Kafka-plane readiness directly: secret material present and parseable, endpoint resolvable, and TCP reachable. Full Kafka auth/topic metadata verification was explicitly deferred to the Phase 2 provisioning/integration gate where those tools belong.
+
+- Implementation (what you changed):
+  1. Updated `scripts/dev_substrate/phase1_preflight.ps1`:
+     - removed mandatory IAM list-keys dependency,
+     - implemented `confluent_kafka_probe` checks (material non-empty, quote rejection, host:port parse, DNS resolve, TCP reachability).
+  2. Updated `docs/model_spec/platform/implementation_maps/dev_substrate/platform.build_plan.md` Phase 1.D wording to match new semantics.
+  3. Updated Phase 1 DoD/status in the same build plan to reflect corrected strict gate logic.
+  4. Re-ran strict preflight on canonical handles and captured sanitized PASS evidence.
+
+- Result (observable outcome/evidence):
+  Phase 1 strict gate now measures the right thing for this phase (event-bus readiness semantics) and passed on canonical handles. The credential gate moved from misleading to design-aligned, fail-closed behavior.
+  Truth posture: `Resolved`.
+  Evidence anchors:
+  - `docs/model_spec/platform/implementation_maps/dev_substrate/platform.impl_actual.md:710`
+  - `docs/model_spec/platform/implementation_maps/dev_substrate/platform.impl_actual.md:721`
+  - `docs/model_spec/platform/implementation_maps/dev_substrate/platform.impl_actual.md:728`
+  - `docs/model_spec/platform/implementation_maps/dev_substrate/platform.impl_actual.md:739`
+  - `docs/model_spec/platform/implementation_maps/dev_substrate/platform.impl_actual.md:742`
+  - `docs/model_spec/platform/implementation_maps/dev_substrate/platform.impl_actual.md:751`
+  - `docs/model_spec/platform/implementation_maps/dev_substrate/platform.impl_actual.md:759`
+  - `docs/model_spec/platform/implementation_maps/dev_substrate/platform.impl_actual.md:763`
+  Additional challenge context:
+  - `docs/model_spec/platform/implementation_maps/dev_substrate/platform.impl_actual.md:717`
+  - `docs/model_spec/platform/implementation_maps/dev_substrate/platform.impl_actual.md:724`
+  - `docs/model_spec/platform/implementation_maps/dev_substrate/platform.impl_actual.md:725`
+  - `docs/model_spec/platform/implementation_maps/dev_substrate/platform.impl_actual.md:736`
+  - `docs/model_spec/platform/implementation_maps/dev_substrate/platform.impl_actual.md:768`
+
+- Why this proves MLOps/Data Eng strength (explicit hiring signal):
+  This demonstrates strong validation-surface engineering: you corrected a gate-to-intent mismatch, preserved strict fail-closed posture, and delivered a phase-appropriate readiness check that is technically coherent and operationally actionable.
+
