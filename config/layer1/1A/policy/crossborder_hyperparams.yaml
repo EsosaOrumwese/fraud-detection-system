@@ -108,8 +108,8 @@ ztp:
     - "theta1_log_n_sites"
     - "theta2_openness"
   theta:
-    theta0_intercept: -1.0
-    theta1_log_n_sites: 0.65
+    theta0_intercept: -0.45
+    theta1_log_n_sites: 0.78
     theta2_openness: 0.90
   feature_x:
     feature_id: "openness"

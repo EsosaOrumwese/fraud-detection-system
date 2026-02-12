@@ -4375,3 +4375,58 @@ Storage hygiene:
 2) Retained:
 - active trial run `09e24520babd99de27b05d5c1b11ea7c`,
 - all scorecards under `runs/fix-data-engine/segment_1A/reports/`.
+
+### Entry: 2026-02-12 22:41
+
+Design element: P2.2 execution plan (S3 candidate breadth shaping before further P2.3 tuning).
+Summary: After P2.3 trial-1, the dominant blocker is still S3/S5 domain mismatch (ZERO_WEIGHT_DOMAIN), so the next step is a strict P2.2 policy patch on S3 rule-ladder semantics.
+
+Diagnosis driving this step:
+1) Current S3 pattern is mostly binary:
+- many merchants get near-global foreign set (`~37` foreign candidates),
+- others get none.
+2) This comes from broad `ALLOW_CORE_MULTI` + large `GLOBAL_CORE` admit set, with little size-tier differentiation.
+3) P2.3 cap removal improved Spearman but did not materially change realization intensity, confirming upstream candidate-shape dependency.
+
+Planned P2.2 patch intent:
+1) Replace broad near-global default allow with size-tiered allow rules:
+- `large` merchants: broader admit set,
+- `mid` merchants: regional/core set,
+- `small` merchants: tighter local/core set.
+2) Keep deny rails intact (sanctioned and high-risk CNP).
+3) Ensure rule predicates are mutually constrained by `N_GE` ranges to avoid unintended union expansion.
+4) Keep all changes policy-only for this step (`config/layer1/1A/policy/s3.rule_ladder.yaml`).
+
+Expected movement:
+1) `median(C_m)` should contract materially toward target band.
+2) `ZERO_WEIGHT_DOMAIN` should reduce if candidate sets align better to realistic support.
+3) Re-run `S0->S6` and then evaluate whether a second P2.3 pass (S4 theta retune) is still needed.
+
+### Entry: 2026-02-12 22:58
+
+Design element: P2.2 result capture and transition to P2.3 retune.
+Summary: The S3 tiered policy patch delivered target candidate-breadth movement; now moving to S4 intensity tuning for realization lift.
+
+P2.2 run evidence:
+1) Run:
+- `726b32b705420828b6c5ca0d054117ab`
+2) Scorecard:
+- `runs/fix-data-engine/segment_1A/reports/segment1a_p2_1_baseline_726b32b705420828b6c5ca0d054117ab.json`
+3) Global movement:
+- `median(C_m): 37.0 -> 6.0` (B band achieved),
+- `Spearman(C_m,R_m): 0.3129 -> 0.4007` (passes),
+- `median(rho_m): 0.0 -> 0.0` (still blocked),
+- pathology caps remain pass.
+4) S6 diagnostics:
+- selected merchants reduced to `1649`,
+- empties still high (`2667`) with dominant `ZERO_WEIGHT_DOMAIN=2229`.
+
+Interpretation:
+1) Candidate over-breadth is corrected (P2.2 objective achieved materially).
+2) Remaining P2 gap is realization intensity/coverage (`rho`) under current S4/S6 coupling.
+
+P2.3 immediate plan:
+1) Tune `config/layer1/1A/policy/crossborder_hyperparams.yaml` ZTP theta terms upward (starting with intercept and site-slope) to increase `K_target` where admissible domain exists.
+2) Re-run `S0->S6` and compare:
+- `K_target_sum`, `K_realized_sum`, selected-merchant count,
+- `median(rho_m)` and pathology rails.
