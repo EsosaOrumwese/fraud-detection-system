@@ -2623,3 +2623,63 @@ Run-operate env resolver does not support nested token parsing; this produced ma
 
 ### Drift sentinel assessment
 No semantic drift; this is a parser-compatibility correction preserving the intended fallback behavior.
+
+## Entry: 2026-02-12 10:31AM - Pre-change lock for IG ops auth error mapping (unauth health path)
+
+### Trigger
+USER requested resolving IG `/v1/ops/health` behavior after confirming unauthenticated calls currently return HTTP `500`.
+
+### Problem framing
+For IG service security posture:
+1. unauthenticated ops endpoints should fail closed with auth status (`401`), not internal-error status.
+2. authenticated ops endpoints should return normal payload (`state/reasons` for health).
+
+Current implementation in `src/fraud_detection/ingestion_gate/service.py` calls `_require_auth` directly inside `ops_health` and `ops_lookup` without local `IngestionError` handling. `IngestionError("UNAUTHORIZED")` bubbles to Flask and becomes `500`.
+
+### Decision
+1. Wrap `ops_health` and `ops_lookup` route bodies in the same error mapping pattern already used by `ingest_push`:
+- `except IngestionError -> _error_status(exc)` (401 for unauthorized),
+- defensive `except Exception -> 500` with reason code.
+2. Add targeted service tests for unauthorized + authorized behavior on ops endpoints.
+
+### Planned edits
+1. `src/fraud_detection/ingestion_gate/service.py`
+2. `tests/services/ingestion_gate/test_phase5_auth_rate.py`
+3. Append action trail in `docs/logbook/02-2026/2026-02-12.md`
+
+### Validation plan
+1. Run targeted IG service tests (`test_phase5_auth_rate.py` and smoke check for service tests).
+2. Confirm unauthenticated `/v1/ops/health` now returns `401` in tests.
+3. Confirm authenticated `/v1/ops/health` still returns `200`.
+
+### Drift sentinel checkpoint
+No interface or ownership changes; only correcting error-code mapping at HTTP boundary for existing auth contract.
+
+## Entry: 2026-02-12 10:37AM - Applied IG ops auth error-mapping fix and validated runtime behavior
+
+### Changes applied
+1. `src/fraud_detection/ingestion_gate/service.py`
+- wrapped `ops_lookup` and `ops_health` route logic with:
+  - `except IngestionError -> _error_status(exc)` response mapping,
+  - defensive `except Exception -> 500`.
+- this aligns ops endpoints with `ingest_push` error handling semantics.
+2. `tests/services/ingestion_gate/test_phase5_auth_rate.py`
+- added:
+  - `test_ops_health_requires_api_key`
+  - `test_ops_lookup_requires_api_key`
+- asserts unauthenticated ops access returns `401` + `UNAUTHORIZED`, and authenticated health remains `200`.
+
+### Validation
+1. Tests:
+- `pytest tests/services/ingestion_gate/test_phase5_auth_rate.py tests/services/ingestion_gate/test_phase4_service.py -q`
+- result: `7 passed`.
+2. Runtime (local parity process):
+- restarted control/ingress pack to load patched service.
+- unauthenticated request:
+  - `GET http://127.0.0.1:8081/v1/ops/health` -> `401` with `{"error":"UNAUTHORIZED"}`.
+- authenticated request:
+  - with `X-IG-Api-Key: local-parity-wsp` -> `200` with `{"state":"GREEN","reasons":[]}`.
+
+### Drift sentinel assessment
+No flow/ownership drift introduced.
+This closes an error-code correctness gap on auth failure paths while preserving fail-closed semantics.

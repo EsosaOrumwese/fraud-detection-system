@@ -10718,3 +10718,17 @@ Observed:
 
 ### Baseline continuity note
 This entry records local parity remediation closure while keeping active design track entries in `dev_substrate/platform.impl_actual.md`.
+
+## Entry: 2026-02-12 10:37AM - Local parity closure note for IG ops-health unauthorized status path
+
+### Context
+Prior local parity note flagged:
+1. unauthenticated `IG /v1/ops/health` returned `500` while authenticated call returned `GREEN`.
+
+### Follow-up outcome
+After IG service route error-mapping fix and pack restart:
+1. unauthenticated `/v1/ops/health` now returns `401` with `UNAUTHORIZED`.
+2. authenticated `/v1/ops/health` returns `200` with health payload.
+
+### Continuity
+This closes local parity note item #3 from the earlier Spine Green runtime observations.

@@ -153,6 +153,50 @@ def test_push_requires_api_key(tmp_path: Path) -> None:
     assert actor["source_type"] == "SYSTEM"
 
 
+def test_ops_health_requires_api_key(tmp_path: Path) -> None:
+    allowlist = tmp_path / "allowlist.txt"
+    allowlist.write_text("key-1\n", encoding="utf-8")
+    profile_path = _write_profile(
+        tmp_path,
+        security={
+            "auth_mode": "api_key",
+            "api_key_header": "X-IG-Api-Key",
+            "auth_allowlist_ref": str(allowlist),
+        },
+    )
+    app = create_app(str(profile_path))
+    client = _test_client(app)
+
+    denied = client.get("/v1/ops/health")
+    assert denied.status_code == 401
+    assert denied.get_json()["error"] == "UNAUTHORIZED"
+
+    admitted = client.get("/v1/ops/health", headers={"X-IG-Api-Key": "key-1"})
+    assert admitted.status_code == 200
+    payload = admitted.get_json()
+    assert isinstance(payload.get("state"), str)
+    assert isinstance(payload.get("reasons"), list)
+
+
+def test_ops_lookup_requires_api_key(tmp_path: Path) -> None:
+    allowlist = tmp_path / "allowlist.txt"
+    allowlist.write_text("key-1\n", encoding="utf-8")
+    profile_path = _write_profile(
+        tmp_path,
+        security={
+            "auth_mode": "api_key",
+            "api_key_header": "X-IG-Api-Key",
+            "auth_allowlist_ref": str(allowlist),
+        },
+    )
+    app = create_app(str(profile_path))
+    client = _test_client(app)
+
+    denied = client.get("/v1/ops/lookup", query_string={"event_id": "evt-1"})
+    assert denied.status_code == 401
+    assert denied.get_json()["error"] == "UNAUTHORIZED"
+
+
 def test_push_accepts_service_token_mode(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setenv("IG_SERVICE_TOKEN_SECRETS", "test-secret-1")
     profile_path = _write_profile(
