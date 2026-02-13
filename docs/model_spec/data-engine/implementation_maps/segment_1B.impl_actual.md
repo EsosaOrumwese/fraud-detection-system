@@ -4031,3 +4031,44 @@ Decision:
    - run minimal required chain on a fresh run-id: `S5 -> S6 -> S7 -> S8 -> S9`,
    - rescore P3 and accept only if gates remain green.
 3) Storage posture: run on a new run-id and prune the superseded run-id folder if the new candidate fully supersedes it.
+
+---
+
+### Entry: 2026-02-13 20:40
+
+Design element: P3 closure execution after approved S4 reopen path.
+Summary: Executed the narrow contract-alignment pass (S6 mode restore to `mixture_v2`) on fresh run-ids from reopened S4 authority and closed P3 with reproducible green scorecards.
+
+Implementation + execution trail:
+1) Policy alignment edit:
+   - `config/layer1/1B/policy/policy.s6.jitter.yaml`
+   - changed `mode: uniform_v1 -> mixture_v2`, `policy_version: 2026-02-13-r4`.
+2) Fresh candidate bootstrap/run (`S5->S9`):
+   - candidate run: `979129e39a89446b942df9a463f09508`.
+   - state outcomes: `S5 PASS`, `S6 PASS`, `S7 PASS`, `S8 PASS`, `S9 PASS`.
+   - score artifact: `runs/fix-data-engine/segment_1B/reports/segment1b_p3_candidate_979129e39a89446b942df9a463f09508.json`.
+   - P3 result: `checks_all_pass=true`.
+3) Same-seed reproducibility witness (`S5->S9`):
+   - repro run: `81d1a2b5902146f08a693836eb852f85`.
+   - state outcomes: `S5 PASS`, `S6 PASS`, `S7 PASS`, `S8 PASS`, `S9 PASS`.
+   - score artifact: `runs/fix-data-engine/segment_1B/reports/segment1b_p3_candidate_81d1a2b5902146f08a693836eb852f85.json`.
+4) Repro check + lock artifacts:
+   - repro check: `runs/fix-data-engine/segment_1B/reports/segment1b_p3_repro_check_979129e39a89446b942df9a463f09508_81d1a2b5902146f08a693836eb852f85.json` (identical checks + candidate metrics).
+   - lock record: `runs/fix-data-engine/segment_1B/reports/segment1b_p3_lock_record.json`.
+5) Pointer updates:
+   - `runs/fix-data-engine/segment_1B/current_candidate/current_candidate_pointer.json`
+   - `runs/fix-data-engine/segment_1B/last_good/last_good_pointer.json`
+   - both now point to P3 accepted run `979129e39a89446b942df9a463f09508`.
+6) Storage hygiene:
+   - pruned superseded run-id folders:
+     - `a430c66a9cfa4ac1b70ed6566eb18d1c`
+     - `36d94ea5f4c64592a4938884cd3535a3`
+   - retained authority/freeze runs:
+     - `335c9a7eec04491a845abc2a049f959f` (P1 lock),
+     - `47ad6781ab9d4d92b311b068f51141f6` (P2 lock),
+     - `979129e39a89446b942df9a463f09508` (P3 lock),
+     - `81d1a2b5902146f08a693836eb852f85` (P3 repro witness).
+
+Result posture:
+- P3 is now closure-grade green under the approved reopen path.
+- Remaining progression moves to integrated `P4` with `P1/P2/P3` locked by default.

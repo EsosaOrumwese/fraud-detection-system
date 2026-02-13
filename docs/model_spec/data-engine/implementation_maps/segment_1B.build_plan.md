@@ -384,27 +384,27 @@ P3 success posture:
 Definition of done:
 - [x] P3 geometry baseline authority snapshot is recorded (P0 grade baseline + P2 lock posture).
 - [x] S6 jitter policy surface is active, contract-governed, and emitted in run diagnostics.
-- [ ] at least one candidate contracts NN tail ratio (`p99/p50`) versus baseline; target is `>=20%` contraction for `B` readiness.
-- [ ] top-volume country cohort shows no stripe/corridor collapse sentinel.
+- [x] at least one candidate contracts NN tail ratio (`p99/p50`) versus baseline; target is `>=20%` contraction for `B` readiness.
+- [x] top-volume country cohort shows no stripe/corridor collapse sentinel.
 - [x] coordinate validity remains `100%` and point-in-country checks remain intact.
-- [ ] accepted settings reproduce identical same-seed P3 score posture across two fresh run-ids.
-- [ ] P3 lock record is written (policy bundle, geometry metrics, reproducibility evidence, pointer and pruning updates).
+- [x] accepted settings reproduce identical same-seed P3 score posture across two fresh run-ids.
+- [x] P3 lock record is written (policy bundle, geometry metrics, reproducibility evidence, pointer and pruning updates).
 
 P3 execution status (2026-02-13):
-- Status: `BLOCKED` under frozen `P1/P2` assumptions (no lock promotion).
-- Best in-contract candidate under active P3 tuning:
-  - `run_id=36d94ea5f4c64592a4938884cd3535a3` (`S5->S9`, `S9 PASS`),
-  - score artifact: `runs/fix-data-engine/segment_1B/reports/segment1b_p3_candidate_36d94ea5f4c64592a4938884cd3535a3.json`,
-  - hard-gate result: `checks_all_pass=false` (fails NN contraction and collapse sentinel).
-- Feasibility evidence:
-  - `runs/fix-data-engine/segment_1B/reports/segment1b_p3_feasibility_47ad6781ab9d4d92b311b068f51141f6.json`.
-  - top-volume countries `DE, FR, GB, DK, CH, IT, ES, NO` have S5 support bands whose 4dp latitude-uniqueness upper bounds remain below the collapse threshold under locked P2 topology.
-- Attempted out-of-pixel S6 neighborhood displacement was rejected by S7 fail-closed check `E707_POINT_OUTSIDE_PIXEL`; this lane is invalid without explicit contract/runtime broadening.
-
-P3 reopen requirement:
-- To close P3 DoD, one of the following must be explicitly approved:
-  - reopen upstream support generation (`P2/S4` and potentially `S5`) to widen within-country support geometry, or
-  - broaden S7/S6 contract semantics to allow controlled beyond-pixel displacement with corresponding validator updates.
+- Status: `CLOSED` (lock promoted).
+- Accepted lock candidate:
+  - `run_id=979129e39a89446b942df9a463f09508` (`S5->S9`, `S9 PASS`),
+  - score artifact: `runs/fix-data-engine/segment_1B/reports/segment1b_p3_candidate_979129e39a89446b942df9a463f09508.json`,
+  - hard-gate result: `checks_all_pass=true`.
+- Reproducibility witness:
+  - `run_id=81d1a2b5902146f08a693836eb852f85` (`S5->S9`, `S9 PASS`),
+  - score artifact: `runs/fix-data-engine/segment_1B/reports/segment1b_p3_candidate_81d1a2b5902146f08a693836eb852f85.json`,
+  - repro check: `runs/fix-data-engine/segment_1B/reports/segment1b_p3_repro_check_979129e39a89446b942df9a463f09508_81d1a2b5902146f08a693836eb852f85.json`.
+- Lock record and pointers:
+  - lock record: `runs/fix-data-engine/segment_1B/reports/segment1b_p3_lock_record.json`,
+  - updated pointers: `runs/fix-data-engine/segment_1B/current_candidate/current_candidate_pointer.json`, `runs/fix-data-engine/segment_1B/last_good/last_good_pointer.json`.
+- Storage hygiene:
+  - superseded run folders pruned: `a430c66a9cfa4ac1b70ed6566eb18d1c`, `36d94ea5f4c64592a4938884cd3535a3`.
 
 ### P4 - Integrated closure run (B target, B+ attempt)
 Focus:

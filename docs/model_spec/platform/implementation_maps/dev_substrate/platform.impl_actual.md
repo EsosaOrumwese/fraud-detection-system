@@ -7736,3 +7736,80 @@ USER directed immediate progression to close `M2.F` after workflow secret mappin
 ### Outcome
 1. Dashboard message is now structured for clean rendering in CloudWatch UI.
 2. No impact on M2 runtime rails, evidence contracts, or infrastructure semantics.
+
+## Entry: 2026-02-13 8:38PM - Cost dashboard text widget simplified to single-line title
+
+### Trigger
+1. USER requested dashboard text be reduced to only `# Dev-Min Cost Guardrail` because multiline formatting was rendering poorly.
+
+### Change
+1. Updated `tools/dev_substrate/cost_guardrail_dashboard.json` text widget markdown to:
+   - `# Dev-Min Cost Guardrail`
+2. Reapplied dashboard:
+   - `aws cloudwatch put-dashboard --dashboard-name fraud-platform-dev-min-cost-guardrail --dashboard-body file://tools/dev_substrate/cost_guardrail_dashboard.json`
+3. Verified live dashboard body now returns the exact single-line markdown value.
+
+## Entry: 2026-02-13 8:41PM - Pre-change lock: expand M2.J planning to closure-grade handoff map
+
+### Trigger
+1. USER directed: "Let's start planning for M2.J".
+
+### Planning problem
+1. Current `M2.J` section is still high-level and does not yet pin:
+   - deterministic closure sequence,
+   - explicit M2 readiness verdict contract (`ADVANCE` vs `HOLD`),
+   - artifact-completeness checks against the M2 evidence contract,
+   - explicit blocker taxonomy for handoff failures.
+
+### Objective
+1. Expand `M2.J` into an executable plan surface (`M2.J-A..F`) before any M2 closeout command runs.
+2. Keep this pass planning-only; no infrastructure mutation.
+
+### Inputs reviewed
+1. `platform.M2.build_plan.md` current M2 completion/evidence sections.
+2. `platform.build_plan.md` M2 status + immediate next action.
+3. Current M2 closure evidence roots, including:
+   - `m2_20260213T195244Z` (M2.H),
+   - `m2_20260213T201427Z` (M2.I).
+
+### Planned outcome of this planning pass
+1. Add `M2.J Decision Pins`.
+2. Expand M2.J into:
+   - `M2.J-A` preconditions + blocker register lock,
+   - `M2.J-B` M2 evidence completeness/integrity index,
+   - `M2.J-C` M3 entry-handle snapshot and prerequisite checks,
+   - `M2.J-D` readiness verdict protocol,
+   - `M2.J-E` canonical handoff artifact publication (`m3_handoff_pack.json`),
+   - `M2.J-F` blocker/recovery model.
+3. Keep M2 exit criteria fail-closed: no M3 activation when any M2.J blocker remains open.
+
+## Entry: 2026-02-13 8:42PM - Post-change record: M2.J planning expanded to closure-grade handoff protocol
+
+### What changed
+1. Expanded `M2.J` in `platform.M2.build_plan.md` from high-level bullets to explicit sub-phases:
+   - `M2.J Decision Pins`
+   - `M2.J-A` Preconditions and blocker lock
+   - `M2.J-B` Evidence completeness/integrity index
+   - `M2.J-C` M3 entry prerequisites + handle snapshot
+   - `M2.J-D` Readiness verdict protocol
+   - `M2.J-E` Canonical handoff artifact publication
+   - `M2.J-F` Blockers/recovery/exit rule
+2. Extended M2 evidence contract to include:
+   - `m2_exit_readiness_snapshot.json` (local + durable counterpart in M2 execution root).
+3. Updated main build plan immediate next action to explicitly execute:
+   - `M2.J-A -> M2.J-F`.
+
+### Key planning decisions pinned
+1. M2 verdict is binary and fail-closed:
+   - `ADVANCE_TO_M3` or `HOLD_M2`.
+2. `m3_handoff_pack.json` is mandatory before M2 closeout can be claimed.
+3. M3 activation remains blocked unless:
+   - checklist complete,
+   - blockers empty,
+   - evidence complete,
+   - M3 prerequisite handles resolved,
+   - open-risk register empty.
+
+### Execution posture after this planning pass
+1. M2.J is now execution-ready from a plan-quality perspective.
+2. No runtime/infrastructure action was executed in this pass.
