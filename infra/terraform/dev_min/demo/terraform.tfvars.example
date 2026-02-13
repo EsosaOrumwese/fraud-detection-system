@@ -1,0 +1,11 @@
+aws_region   = "eu-west-2"
+name_prefix  = "fraud-platform-dev-min"
+project      = "fraud-platform"
+environment  = "dev_min"
+owner        = "esosa"
+expires_at   = ""
+
+demo_run_id          = "manual"
+evidence_bucket_name = "fraud-platform-dev-min-evidence"
+demo_log_retention_days = 7
+

@@ -163,7 +163,7 @@ DoD:
 | Verify ID | Command template | Purpose |
 | --- | --- | --- |
 | `V1_REGISTRY_KEY` | `rg -n "\\b<HANDLE_KEY>\\b" docs/model_spec/platform/migration_to_dev/dev_min_handles.registry.v0.md` | confirms handle key exists in authoritative registry |
-| `V2_TERRAFORM_BACKEND` | `terraform -chdir=infra/terraform/dev_min/<stack> init -reconfigure && terraform -chdir=infra/terraform/dev_min/<stack> validate` | validates Terraform stack command surface for core/demo |
+| `V2_TERRAFORM_BACKEND` | `terraform -chdir=infra/terraform/dev_min/<stack> init -reconfigure "-backend-config=backend.hcl" && terraform -chdir=infra/terraform/dev_min/<stack> validate` | validates Terraform stack command surface for core/demo |
 | `V3_TF_STATE_S3` | `aws s3api get-bucket-versioning --bucket <TF_STATE_BUCKET>` | validates state bucket control surface |
 | `V4_TF_LOCK_DDB` | `aws dynamodb describe-table --table-name <TF_LOCK_TABLE>` | validates lock-table surface |
 | `V5_SSM_PATH` | `aws ssm get-parameter --name <SSM_PATH> --with-decryption` | validates secret locator handles/readability surface |
@@ -249,8 +249,8 @@ Tasks:
    - versioning
 3. Verify lock table behavior and contention handling posture.
 4. Pin canonical non-interactive command surface for backend/state checks (execution to occur only after M2.A/M2.B closure):
-   - `terraform -chdir=infra/terraform/dev_min/core init -reconfigure`
-   - `terraform -chdir=infra/terraform/dev_min/demo init -reconfigure`
+   - `terraform -chdir=infra/terraform/dev_min/core init -reconfigure "-backend-config=backend.hcl"`
+   - `terraform -chdir=infra/terraform/dev_min/demo init -reconfigure "-backend-config=backend.hcl"`
    - `terraform -chdir=infra/terraform/dev_min/core validate`
    - `terraform -chdir=infra/terraform/dev_min/demo validate`
    - `aws s3api get-bucket-versioning --bucket <TF_STATE_BUCKET>`
@@ -258,9 +258,39 @@ Tasks:
    - `aws dynamodb describe-table --table-name <TF_LOCK_TABLE>`
 
 DoD:
-- [ ] Core/demo state keys are distinct and validated.
-- [ ] State bucket security controls are explicitly validated.
-- [ ] Lock-table readiness is evidenced.
+- [x] Core/demo state keys are distinct and validated.
+- [x] State bucket security controls are explicitly validated.
+- [x] Lock-table readiness is evidenced.
+
+### M2.B Closure Summary (Execution Record)
+1. Canonical stack roots were materialized and validated:
+   - `infra/terraform/dev_min/core`
+   - `infra/terraform/dev_min/demo`
+2. State key separation is explicit and validated from backend configs:
+   - core key: `dev_min/core/terraform.tfstate`
+   - demo key: `dev_min/demo/terraform.tfstate`
+   - distinctness: `true`
+3. State bucket control checks (live AWS) for `fraud-platform-dev-min-tfstate`:
+   - versioning: `Enabled`
+   - public access block: all four flags `true`
+   - encryption: `AES256`
+4. Lock-table readiness (live AWS) for `fraud-platform-dev-min-tf-locks`:
+   - status: `ACTIVE`
+   - billing: `PAY_PER_REQUEST`
+   - hash key: `LockID`
+5. Static Terraform command-surface checks:
+   - `terraform -chdir=infra/terraform/dev_min/core init -backend=false` -> `PASS`
+   - `terraform -chdir=infra/terraform/dev_min/core validate` -> `PASS`
+   - `terraform -chdir=infra/terraform/dev_min/demo init -backend=false` -> `PASS`
+   - `terraform -chdir=infra/terraform/dev_min/demo validate` -> `PASS`
+   - backend reconfigure checks with `backend.hcl.example` for both stacks -> `PASS`
+6. M2.B status: `CLOSED_EXEC`.
+
+### M2.B Evidence
+1. Local snapshot:
+   - `runs/dev_substrate/m2_b/20260213T125421Z/m2_b_backend_state_readiness_snapshot.json`
+2. Durable snapshot:
+   - `s3://fraud-platform-dev-min-evidence/evidence/dev_min/substrate/m2_20260213T125421Z/m2_b_backend_state_readiness_snapshot.json`
 
 ## M2.C Core Apply Closure Contract
 Goal:
@@ -433,6 +463,7 @@ Minimum evidence payloads to produce during M2 execution:
 7. `evidence/dev_min/substrate/<m2_execution_id>/teardown_viability_snapshot.json`
 8. `evidence/dev_min/substrate/<m2_execution_id>/budget_guardrail_snapshot.json`
 9. `evidence/dev_min/substrate/<m2_execution_id>/m3_handoff_pack.json`
+10. `evidence/dev_min/substrate/<m2_execution_id>/m2_b_backend_state_readiness_snapshot.json`
 
 Notes:
 1. Evidence must be non-secret.
@@ -440,7 +471,7 @@ Notes:
 
 ## 7) M2 Completion Checklist
 - [x] M2.A complete
-- [ ] M2.B complete
+- [x] M2.B complete
 - [ ] M2.C complete
 - [ ] M2.D complete
 - [ ] M2.E complete

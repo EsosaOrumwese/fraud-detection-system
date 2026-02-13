@@ -1,0 +1,22 @@
+aws_region   = "eu-west-2"
+name_prefix  = "fraud-platform-dev-min"
+project      = "fraud-platform"
+environment  = "dev_min"
+owner        = "esosa"
+expires_at   = ""
+
+object_store_bucket_name = "fraud-platform-dev-min-object-store"
+evidence_bucket_name     = "fraud-platform-dev-min-evidence"
+quarantine_bucket_name   = "fraud-platform-dev-min-quarantine"
+archive_bucket_name      = "fraud-platform-dev-min-archive"
+tf_state_bucket_name     = "fraud-platform-dev-min-tfstate"
+
+control_table_name          = "fraud-platform-dev-min-control-runs"
+ig_admission_table_name     = "fraud-platform-dev-min-ig-admission-state"
+ig_publish_state_table_name = "fraud-platform-dev-min-ig-publish-state"
+tf_lock_table_name          = "fraud-platform-dev-min-tf-locks"
+
+enable_budget_alert = true
+budget_alert_email  = "replace-me@example.com"
+monthly_budget_usd  = 40
+

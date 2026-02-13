@@ -6390,3 +6390,85 @@ USER requested that the anti-cram planning law be pinned in `AGENTS.md` as well 
 ### Drift sentinel checkpoint
 1. Documentation/policy change only.
 2. No platform runtime behavior or substrate mutation occurred.
+
+## Entry: 2026-02-13 12:47PM - Pre-change lock: execute M2.B backend/state partition readiness with live evidence
+
+### Trigger
+USER directed progression to `M2.B`.
+
+### Objective
+1. Validate Terraform backend/state partition readiness against real substrate controls.
+2. Remove any drift between pinned stack roots and filesystem reality.
+3. Produce objective evidence for:
+- distinct core/demo state keys,
+- state bucket security controls,
+- lock-table readiness.
+
+### Discovered blocker at phase entry
+1. Pinned stack roots (`infra/terraform/dev_min/core|demo`) were missing from filesystem.
+2. Existing Terraform module code existed under `infra/terraform/modules/*`, but no canonical root stacks were present.
+
+### Decision
+1. Materialize canonical stack roots at pinned paths now (M2.B scope), backed by existing modules.
+2. Keep this execution limited to readiness/validation; no apply/destroy mutation.
+
+### Boundaries
+1. Allowed:
+- add stack-root Terraform files,
+- run `init/validate`,
+- run read-only AWS checks,
+- write evidence artifact.
+2. Not allowed:
+- `terraform apply`,
+- `terraform destroy`,
+- manual console drift.
+
+## Entry: 2026-02-13 12:55PM - Post-change record: M2.B closed with live backend/security/lock evidence
+
+### What changed
+1. Added canonical stack roots:
+- `infra/terraform/dev_min/core/*`
+- `infra/terraform/dev_min/demo/*`
+2. Added backend config templates with distinct state keys:
+- core: `dev_min/core/terraform.tfstate`
+- demo: `dev_min/demo/terraform.tfstate`
+3. Added root READMEs + tfvars examples to formalize operator command surface.
+
+### Validation executed
+1. Static Terraform checks:
+- `terraform fmt -recursive infra/terraform/dev_min infra/terraform/modules`
+- `terraform -chdir=infra/terraform/dev_min/core init -backend=false` -> PASS
+- `terraform -chdir=infra/terraform/dev_min/core validate` -> PASS
+- `terraform -chdir=infra/terraform/dev_min/demo init -backend=false` -> PASS
+- `terraform -chdir=infra/terraform/dev_min/demo validate` -> PASS
+2. Backend command-surface checks:
+- `terraform -chdir=infra/terraform/dev_min/core init -reconfigure -backend-config=backend.hcl.example` -> PASS
+- `terraform -chdir=infra/terraform/dev_min/demo init -reconfigure -backend-config=backend.hcl.example` -> PASS
+3. Live AWS control checks:
+- tfstate bucket `fraud-platform-dev-min-tfstate`:
+  - versioning `Enabled`
+  - public-access-block all true
+  - encryption `AES256`
+- lock table `fraud-platform-dev-min-tf-locks`:
+  - status `ACTIVE`
+  - billing `PAY_PER_REQUEST`
+  - hash key `LockID`
+
+### Evidence artifacts
+1. Local:
+- `runs/dev_substrate/m2_b/20260213T125421Z/m2_b_backend_state_readiness_snapshot.json`
+2. Durable:
+- `s3://fraud-platform-dev-min-evidence/evidence/dev_min/substrate/m2_20260213T125421Z/m2_b_backend_state_readiness_snapshot.json`
+
+### Status sync
+1. `platform.M2.build_plan.md`:
+- M2.B DoD checklist marked complete,
+- M2.B closure summary + evidence references added,
+- M2 checklist marks `M2.B` complete.
+2. `platform.build_plan.md`:
+- M2 sub-phase tracker marks `M2.B` complete,
+- immediate next action advanced to `M2.C`.
+
+### Drift sentinel checkpoint
+1. No apply/destroy mutation occurred.
+2. M2.B closure is evidence-backed and consistent with pinned stack-root authority.
