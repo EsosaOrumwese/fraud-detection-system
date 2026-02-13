@@ -8338,3 +8338,70 @@ USER directed immediate progression to close `M2.F` after workflow secret mappin
 ### Outcome
 1. M3 is now formally closed in the main plan.
 2. M4 is now formally active for the next discussion/planning pass.
+
+## Entry: 2026-02-13 10:30PM - Pre-change lock: expand M4 in main plan and author deep M4 plan
+
+### Trigger
+1. USER directed: start M4 by expanding it in `platform.build_plan.md`, then fully plan M4 in `platform.M4.build_plan.md`.
+
+### Planning objective
+1. Promote M4 from gate-level summary to active-phase execution planning surface in the main plan.
+2. Create a closure-grade deep M4 plan doc with explicit sub-phases, DoDs, blocker model, evidence contract, and fail-closed transition rules.
+
+### Authority set used
+1. `docs/model_spec/platform/implementation_maps/dev_substrate/platform.build_plan.md`
+2. `docs/model_spec/platform/migration_to_dev/dev_min_spine_green_v0_run_process_flow.md` (P2 section)
+3. `docs/model_spec/platform/migration_to_dev/dev_min_handles.registry.v0.md`
+4. M3 closeout evidence bundle (`m3_20260213T221631Z`) as handoff anchor.
+
+### Design posture for M4 plan expansion
+1. Anti-cram coverage by capability lane for M4:
+   - authority/handles,
+   - identity/IAM,
+   - network/dependency reachability,
+   - service catalog and pack mapping,
+   - run-scope env injection,
+   - bring-up choreography,
+   - duplicate-consumer guard,
+   - observability/evidence,
+   - rollback/retry,
+   - cost/teardown awareness.
+2. Sequential sub-phase model for deterministic execution and blocker isolation before M5.
+3. Planning-only pass in this step (no M4 runtime execution commands).
+
+## Entry: 2026-02-13 10:36PM - Post-change record: M4 expanded in main plan + deep M4 plan authored
+
+### What changed
+1. Expanded M4 in `docs/model_spec/platform/implementation_maps/dev_substrate/platform.build_plan.md` from gate-level summary to active-phase planning surface.
+2. Added M4 execution-planning structure in main plan:
+   - objective/scope/failure posture,
+   - sub-phase progression model `M4.A -> M4.J`,
+   - M4 sub-phase checklist,
+   - M4 DoD checklist,
+   - immediate-next-action updated to start `M4.A` then progress sequentially.
+3. Updated deep-plan routing state in main plan:
+   - `platform.M4.build_plan.md` now marked present,
+   - deferred set narrowed to `M5..M10`.
+4. Created new deep-phase plan:
+   - `docs/model_spec/platform/implementation_maps/dev_substrate/platform.M4.build_plan.md`.
+
+### Deep M4 plan contents authored
+1. Authority/scope/deliverables/execution-gate sections for P2.
+2. Anti-cram capability-lane coverage matrix.
+3. Sequential closure sub-phases:
+   - `M4.A` authority + handle closure,
+   - `M4.B` service/pack map + singleton contract,
+   - `M4.C` IAM binding validation,
+   - `M4.D` dependency reachability,
+   - `M4.E` launch contract + run-scope injection,
+   - `M4.F` bring-up + stabilization,
+   - `M4.G` duplicate-consumer guard,
+   - `M4.H` daemon readiness evidence publication,
+   - `M4.I` verdict gate,
+   - `M4.J` M5 handoff publication.
+4. M4 evidence contract with run-scoped readiness evidence and control-plane artifacts.
+5. Completion checklist, risk controls, blocker register, and exit criteria.
+
+### Planning posture after this pass
+1. M4 is fully planned to closure-grade depth and ready for sequential execution start at `M4.A`.
+2. This pass was planning-only; no M4 runtime execution commands were run.

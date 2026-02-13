@@ -105,7 +105,8 @@ Current deep-plan file state:
 - `M1`: `docs/model_spec/platform/implementation_maps/dev_substrate/platform.M1.build_plan.md` (present)
 - `M2`: `docs/model_spec/platform/implementation_maps/dev_substrate/platform.M2.build_plan.md` (present)
 - `M3`: `docs/model_spec/platform/implementation_maps/dev_substrate/platform.M3.build_plan.md` (present)
-- `M4..M10`: deferred until phase activation is approved.
+- `M4`: `docs/model_spec/platform/implementation_maps/dev_substrate/platform.M4.build_plan.md` (present)
+- `M5..M10`: deferred until phase activation is approved.
 
 ---
 
@@ -357,17 +358,68 @@ M3 DoD checklist:
 
 ---
 
-## 9) Remaining Phases (Gate-Level Only Until Activation)
+## 9) M4 Active Phase + Remaining Phases
 
 ## M4 - P2 Daemon bring-up
 Status: `ACTIVE`
 Entry gate:
 - M3 is `DONE`.
-DoD summary:
-- required services/tasks run on ECS only.
-- run-scope enforcement active (`REQUIRED_PLATFORM_RUN_ID` semantics).
-- service replica posture is deterministic for v0 (single replica per daemon/service).
-- daemon readiness snapshot evidence is written.
+
+Objective:
+- Bring up Spine Green v0 daemon packs on ECS with strict run-scope enforcement and deterministic singleton replica posture, then publish durable readiness evidence for M5.
+
+Scope:
+- P2 pack bring-up for in-scope v0 packs:
+  - `control_ingress`
+  - `rtdl_core`
+  - `rtdl_decision_lane`
+  - `case_labels`
+  - `obs_gov` (daemonized parts only; P11 single-writer reporter rule remains).
+- ECS service/task health stabilization and crashloop detection.
+- Run-scope env enforcement (`REQUIRED_PLATFORM_RUN_ID`) across all started daemons.
+- Duplicate-consumer guard (no parallel once-off/manual consumers with daemon lanes).
+- Durable readiness evidence publication:
+  - run-scoped `operate/daemons_ready.json`,
+  - M4 control-plane snapshots and M5 handoff package.
+
+Failure posture:
+- fail closed on unresolved service handles, IAM/network/dependency failures, run-scope mismatch, duplicate-consumer risk, or missing readiness evidence.
+
+Active-phase planning posture:
+- Detailed M4 authority file:
+  - `docs/model_spec/platform/implementation_maps/dev_substrate/platform.M4.build_plan.md`.
+- M4 entry handoff anchor:
+  - `s3://fraud-platform-dev-min-evidence/evidence/dev_min/run_control/m3_20260213T221631Z/m4_handoff_pack.json`.
+- M4 sub-phase progression model:
+  - `M4.A` authority + handle closure for P2.
+  - `M4.B` service/pack map + singleton replica contract.
+  - `M4.C` IAM role binding + execution identity validation.
+  - `M4.D` network/dependency reachability validation.
+  - `M4.E` launch contract + run-scope injection surface.
+  - `M4.F` daemon bring-up choreography + stabilization checks.
+  - `M4.G` duplicate-consumer guard and singleton enforcement.
+  - `M4.H` daemon readiness evidence publication.
+  - `M4.I` pass gates + blocker model + verdict.
+  - `M4.J` M5 handoff artifact publication.
+- Sub-phase progress:
+  - [ ] `M4.A` authority + handle closure for P2.
+  - [ ] `M4.B` service/pack map + singleton replica contract.
+  - [ ] `M4.C` IAM role binding + execution identity validation.
+  - [ ] `M4.D` network/dependency reachability validation.
+  - [ ] `M4.E` launch contract + run-scope injection surface.
+  - [ ] `M4.F` daemon bring-up choreography + stabilization checks.
+  - [ ] `M4.G` duplicate-consumer guard and singleton enforcement.
+  - [ ] `M4.H` daemon readiness evidence publication.
+  - [ ] `M4.I` pass gates + blocker model + verdict.
+  - [ ] `M4.J` M5 handoff artifact publication.
+
+M4 DoD checklist:
+- [ ] required services/tasks run on ECS only.
+- [ ] run-scope enforcement active (`REQUIRED_PLATFORM_RUN_ID` semantics).
+- [ ] service replica posture is deterministic for v0 (single replica per daemon/service).
+- [ ] no duplicate-consumer conflict exists for in-scope lanes.
+- [ ] daemon readiness snapshot evidence is written and durable.
+- [ ] M4 verdict and M5 handoff package are published and non-secret.
 
 ## M5 - P3 Oracle lane
 Status: `NOT_STARTED`
@@ -529,6 +581,6 @@ Control: required P12 teardown proof and budget guardrails.
 ## 12) Immediate Next Action
 M4 is active for execution planning and bring-up preparation.
 Next action:
-- begin M4 execution planning deep-pass against the M3 handoff bundle `m3_20260213T221631Z`,
-- keep fail-closed posture: no daemon bring-up outside pinned run-scope contract from M3 artifacts,
-- surface any missing M4 decision inputs before execution commands.
+- execute `M4.A` authority + handle closure against M3 handoff bundle `m3_20260213T221631Z`,
+- then progress sequentially through `M4.B -> M4.J` under fail-closed blocker discipline,
+- maintain run-scope contract from M3 artifacts for all daemon bring-up operations.
