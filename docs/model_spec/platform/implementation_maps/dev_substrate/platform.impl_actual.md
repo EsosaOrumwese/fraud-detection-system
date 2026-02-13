@@ -6056,3 +6056,65 @@ This is planning/control closure only; no runtime build/push execution is perfor
 
 ### Drift sentinel assessment
 No runtime behavior was executed or changed. This closes M1 planning control gates and preserves explicit user-governed execution authority.
+
+## Entry: 2026-02-13 10:52AM - M1 build-go execution start (authoritative CI lane)
+
+### Trigger
+USER directed explicit build-go execution for M1 and instructed to ignore unrelated engine changes.
+
+### Objective
+Execute P(-1) packaging through the authoritative `github_actions` lane and produce required evidence artifacts:
+1. `packaging_provenance.json`
+2. `build_command_surface_receipt.json`
+3. `security_secret_injection_checks.json`
+
+### Execution lane and concrete inputs
+1. Build driver:
+- `github_actions` (authoritative).
+2. Workflow:
+- `.github/workflows/dev_min_m1_packaging.yml`
+3. Branch/ref:
+- `migrate-dev`
+4. Runtime inputs discovered from environment/substrate:
+- `aws_region = eu-west-2`
+- `aws_role_to_assume = arn:aws:iam::230372904534:role/GitHubAction-AssumeRoleWithAction`
+- `ecr_repo_name = fraud-platform-dev-min`
+- `ecr_repo_uri = 230372904534.dkr.ecr.eu-west-2.amazonaws.com/fraud-platform-dev-min`
+
+### Preflight findings before dispatch
+1. AWS CLI auth is active and `sts get-caller-identity` resolves to account `230372904534`.
+2. ECR repo exists and URI resolves.
+3. Local Dockerfile is currently missing while `IMAGE_DOCKERFILE_PATH` is pinned to `Dockerfile`.
+4. Expected first-run posture:
+- workflow dispatch is attempted first on authoritative lane,
+- if Dockerfile absence fails build step, patch Dockerfile/.dockerignore to pinned M1.A manifest and rerun.
+
+### Fail-closed posture
+No fallback to non-authoritative closure proofs. If authoritative CI lane cannot produce required artifacts, M1 remains active/not done.
+
+## Entry: 2026-02-13 10:56AM - Build-go execution blockers discovered and mitigations in progress
+
+### Actions executed
+1. Attempted authoritative workflow dispatch:
+- `gh workflow run dev_min_m1_packaging.yml --ref migrate-dev ...`
+2. Result:
+- HTTP 404: workflow file not found on default branch (`main`).
+3. Added missing pinned build artifacts locally:
+- `Dockerfile` (M1.A include-only copy surfaces, no `COPY . .`),
+- `.dockerignore` (allowlist context to enforce M1.A manifest boundary).
+4. Attempted local Docker preflight build:
+- failed due local Docker daemon availability (`dockerDesktopLinuxEngine/_ping` 500).
+
+### Material blocker
+GitHub `workflow_dispatch` requires the workflow file to exist on default branch. Current authoritative workflow exists in working tree/branch but is not present on remote default branch.
+
+### Proposed resolution options
+1. Recommended:
+- push authoritative workflow file to `main` (default branch),
+- push M1 build-go content (`Dockerfile`, `.dockerignore`, docs updates) to `migrate-dev`,
+- dispatch workflow with `--ref migrate-dev`.
+2. Alternative:
+- repin build driver away from `github_actions` (not recommended; requires explicit authority repin).
+
+### Drift sentinel stance
+Fail-closed maintained. No non-authoritative build evidence has been used for closure.
