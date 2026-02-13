@@ -1034,6 +1034,9 @@ def run_s9(
     counts_map: dict[int, dict[str, int]] = defaultdict(lambda: defaultdict(int))
     final_count_map: dict[int, dict[str, int]] = defaultdict(dict)
     site_orders: dict[int, dict[str, set[int]]] = defaultdict(lambda: defaultdict(set))
+    local_site_ids: dict[int, dict[str, set[str]]] = defaultdict(
+        lambda: defaultdict(set)
+    )
     egress_multi_flag: dict[int, bool] = {}
     egress_nb_draw: dict[int, int] = {}
     egress_files: list[Path] = []
@@ -1142,6 +1145,20 @@ def run_s9(
                         expected=str(site_order).zfill(6),
                         observed=site_id,
                     )
+                if site_id:
+                    seen_site_ids = local_site_ids[merchant_id][legal_iso]
+                    if site_id in seen_site_ids:
+                        record_failure(
+                            "E_S8_SEQUENCE_GAP",
+                            "MERCHANT",
+                            "duplicate_local_site_id",
+                            dataset_id=DATASET_OUTLET,
+                            merchant_id=merchant_id,
+                            country_iso=legal_iso,
+                            check_key="s1..s8_replay",
+                            observed=site_id,
+                        )
+                    seen_site_ids.add(site_id)
                 counts_map[merchant_id][legal_iso] += 1
                 site_orders[merchant_id][legal_iso].add(site_order)
                 if legal_iso in final_count_map[merchant_id]:

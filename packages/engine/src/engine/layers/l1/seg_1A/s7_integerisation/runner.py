@@ -1016,7 +1016,146 @@ def _load_existing_dirichlet_events(
 
 def _quantize_residual(value: float, dp: int) -> float:
     scale = 10 ** dp
-    return round(value * scale) / scale
+    quantized = round(value * scale) / scale
+    # Guard binary64 edge artifacts around 0 and 1 after decimal quantization.
+    if quantized < 0.0 and quantized > (-1.0 / scale):
+        quantized = 0.0
+    if quantized >= 1.0 and quantized < (1.0 + (1.0 / scale)):
+        quantized = (scale - 1) / scale
+    return quantized
+
+
+def _load_home_bias_tiers(policy: dict) -> tuple[bool, list[tuple[int, float]]]:
+    lane = policy.get("home_bias_lane") or {}
+    enabled = bool(lane.get("enabled", False))
+    if not enabled:
+        return False, []
+    raw_tiers = lane.get("tiers")
+    if not isinstance(raw_tiers, list) or not raw_tiers:
+        raise EngineFailure(
+            "F4",
+            "E_SCHEMA_INVALID",
+            "S7",
+            MODULE_NAME,
+            {"detail": "home_bias_tiers_missing"},
+            dataset_id="s7_integerisation_policy",
+        )
+    tiers: list[tuple[int, float]] = []
+    last_max = 0
+    for idx, item in enumerate(raw_tiers, start=1):
+        if not isinstance(item, dict):
+            raise EngineFailure(
+                "F4",
+                "E_SCHEMA_INVALID",
+                "S7",
+                MODULE_NAME,
+                {"detail": "home_bias_tier_not_object", "tier_index": idx},
+                dataset_id="s7_integerisation_policy",
+            )
+        max_n_outlets = int(item.get("max_n_outlets", 0))
+        home_share_min = float(item.get("home_share_min", float("nan")))
+        if max_n_outlets <= 0:
+            raise EngineFailure(
+                "F4",
+                "E_SCHEMA_INVALID",
+                "S7",
+                MODULE_NAME,
+                {"detail": "home_bias_max_n_outlets_invalid", "tier_index": idx},
+                dataset_id="s7_integerisation_policy",
+            )
+        if (
+            not math.isfinite(home_share_min)
+            or home_share_min < 0.0
+            or home_share_min > 1.0
+        ):
+            raise EngineFailure(
+                "F4",
+                "E_SCHEMA_INVALID",
+                "S7",
+                MODULE_NAME,
+                {"detail": "home_bias_home_share_min_invalid", "tier_index": idx},
+                dataset_id="s7_integerisation_policy",
+            )
+        if max_n_outlets <= last_max:
+            raise EngineFailure(
+                "F4",
+                "E_SCHEMA_INVALID",
+                "S7",
+                MODULE_NAME,
+                {"detail": "home_bias_tiers_not_strictly_increasing", "tier_index": idx},
+                dataset_id="s7_integerisation_policy",
+            )
+        tiers.append((max_n_outlets, home_share_min))
+        last_max = max_n_outlets
+    return True, tiers
+
+
+def _home_share_floor_for_n_outlets(
+    n_outlets: int, tiers: list[tuple[int, float]]
+) -> float:
+    for max_n_outlets, home_share_min in tiers:
+        if n_outlets <= max_n_outlets:
+            return home_share_min
+    return tiers[-1][1]
+
+
+def _apply_home_share_floor(
+    domain_rows: list[dict],
+    shares: list[float],
+    n_outlets: int,
+    tiers: list[tuple[int, float]],
+) -> tuple[list[float], float, bool]:
+    if not tiers or len(shares) <= 1:
+        return shares, 0.0, False
+    home_index = -1
+    for idx, row in enumerate(domain_rows):
+        if bool(row.get("is_home", False)):
+            home_index = idx
+            break
+    if home_index < 0:
+        raise EngineFailure(
+            "F4",
+            "E_UPSTREAM_MISSING",
+            "S7",
+            MODULE_NAME,
+            {"detail": "home_bias_missing_home"},
+            dataset_id=DATASET_CANDIDATE_SET,
+        )
+
+    target_home_share = _home_share_floor_for_n_outlets(n_outlets, tiers)
+    if target_home_share <= 0.0:
+        return shares, target_home_share, False
+
+    home_share = float(shares[home_index])
+    foreign_share = max(0.0, 1.0 - home_share)
+    if home_share >= target_home_share - 1e-12:
+        return shares, target_home_share, False
+    if foreign_share <= 1e-12:
+        return shares, target_home_share, False
+
+    target_home_share = min(target_home_share, 1.0)
+    target_foreign_share = max(0.0, 1.0 - target_home_share)
+    scale = target_foreign_share / foreign_share
+
+    adjusted = list(shares)
+    adjusted[home_index] = target_home_share
+    for idx, value in enumerate(adjusted):
+        if idx == home_index:
+            continue
+        adjusted[idx] = max(0.0, value * scale)
+
+    total = sum(adjusted)
+    if not math.isfinite(total) or total <= 0.0:
+        raise EngineFailure(
+            "F4",
+            "E_ZERO_SUPPORT",
+            "S7",
+            MODULE_NAME,
+            {"detail": "home_bias_sum_nonpositive"},
+        )
+    adjusted = [value / total for value in adjusted]
+    adjusted[home_index] += 1.0 - sum(adjusted)
+    return adjusted, target_home_share, True
 
 
 def run_s7(
@@ -1126,6 +1265,8 @@ def run_s7(
         alpha0: float | None = None
         lower_multiplier: float | None = None
         upper_multiplier: float | None = None
+        home_bias_enabled = False
+        home_bias_tiers: list[tuple[int, float]] = []
         if dp_resid != 8:
             raise EngineFailure(
                 "F4",
@@ -1170,12 +1311,14 @@ def run_s7(
                         "upper_multiplier": upper_multiplier,
                     },
                 )
+        home_bias_enabled, home_bias_tiers = _load_home_bias_tiers(policy)
         logger.info(
-            "S7: loaded policy %s (dp_resid=%d, dirichlet_lane=%s, bounds_lane=%s)",
+            "S7: loaded policy %s (dp_resid=%d, dirichlet_lane=%s, bounds_lane=%s, home_bias_lane=%s)",
             policy_path.as_posix(),
             dp_resid,
             dirichlet_enabled,
             bounds_enabled,
+            home_bias_enabled,
         )
         if dirichlet_enabled:
             logger.info("S7: dirichlet_lane enabled (alpha0=%.6f)", alpha0)
@@ -1185,6 +1328,8 @@ def run_s7(
                 lower_multiplier,
                 upper_multiplier,
             )
+        if home_bias_enabled:
+            logger.info("S7: home_bias_lane enabled tiers=%s", home_bias_tiers)
 
         s5_receipt_entry = find_dataset_entry(dictionary, DATASET_S5_RECEIPT).entry
         s5_passed_entry = find_dataset_entry(dictionary, DATASET_S5_PASSED).entry
@@ -1481,6 +1626,8 @@ def run_s7(
             "s7.trace.rows": 0,
             "s7.events.dirichlet_gamma_vector.rows": 0,
             "s7.bounds.enabled": 0,
+            "s7.home_bias.enabled": 0,
+            "s7.home_bias.applied_merchants": 0,
             "s7.failures.structural": 0,
             "s7.failures.integerisation": 0,
             "s7.failures.rng_accounting": 0,
@@ -1743,14 +1890,30 @@ def run_s7(
                     )
 
                 n_outlets = int(nb_map[merchant_id]["n_outlets"])
+                shares = [weight / total_weight for weight in domain_weights]
+                if home_bias_enabled:
+                    metrics["s7.home_bias.enabled"] += 1
+                    shares, target_home_share, home_bias_applied = _apply_home_share_floor(
+                        domain_rows,
+                        shares,
+                        n_outlets,
+                        home_bias_tiers,
+                    )
+                    if home_bias_applied:
+                        metrics["s7.home_bias.applied_merchants"] += 1
+                        logger.debug(
+                            "S7: home_bias applied merchant_id=%d n_outlets=%d target_home_share=%.4f",
+                            merchant_id,
+                            n_outlets,
+                            target_home_share,
+                        )
                 items: list[dict] = []
                 total_floor = 0
                 sum_lower = 0
                 sum_upper = 0
-                for stable_index, (row, weight) in enumerate(
-                    zip(domain_rows, domain_weights), start=0
+                for stable_index, (row, s_i) in enumerate(
+                    zip(domain_rows, shares), start=0
                 ):
-                    s_i = weight / total_weight
                     a_i = n_outlets * s_i
                     floor_a = int(math.floor(a_i))
                     residual = _quantize_residual(a_i - floor_a, dp_resid)
@@ -1814,8 +1977,6 @@ def run_s7(
                             "residual": residual,
                         }
                     )
-
-                shares = [item["share"] for item in items]
 
                 if bounds_enabled and (sum_lower > n_outlets or sum_upper < n_outlets):
                     raise EngineFailure(

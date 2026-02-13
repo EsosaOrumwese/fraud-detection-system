@@ -4900,3 +4900,126 @@ Validation:
 
 Design element: Post-cleanup scorer re-run.
 Summary: Re-ran `tools/score_segment1a_p3_1_baseline.py` on run `d94f908cd5715404af1bfb9792735147` to refresh the report after warning cleanup; output path unchanged.
+
+### Entry: 2026-02-13 06:22
+
+Design element: P3.2/P3.3 tuning kickoff from locked P3.1 baseline authority.
+Summary: Opened tuning pass for mismatch-level and size-gradient closure using baseline run `d94f908cd5715404af1bfb9792735147` as the quantitative authority.
+
+Baseline-led diagnosis:
+1) Baseline remains materially off target:
+- `home_legal_mismatch_rate = 0.3971` (target B: `0.10..0.25`),
+- `size_gradient_pp = +1.84pp` (target B: `>= +5pp`).
+2) Decile pattern from baseline run is broadly flat/high instead of enterprise-skewed:
+- decile mismatch sits around `~0.34..0.42` with no durable top-minus-bottom lift.
+3) Concentration source is S7 country-count allocation, not S8 row materialization:
+- S8 is a count materializer (uses S7 handoff when `emit_integerised_counts=false`, which is current posture),
+- merchants with many foreign members are receiving near-foreign-dominant counts under current S7 proportional allocation, driving broad mismatch inflation.
+
+Decision:
+1) Keep P1/P2 locked surfaces frozen.
+2) Execute P3.3 via the first approved minimal reopen surface in Section 5.8: `S7` count-allocation posture only.
+3) Introduce deterministic, size-conditioned home-share flooring in S7 policy/runner:
+- stronger home floor for small merchants,
+- progressively relaxed floor for larger merchants.
+4) Preserve hard invariants:
+- exact count sum to `N`,
+- residual-rank/event integrity,
+- deterministic replay,
+- no change to S3/S4/S6 membership topology.
+
+Implementation plan for this pass:
+1) Extend `s7_integerisation` policy schema and runtime parser with optional `home_bias_lane`.
+2) Apply home-share floor transform before integerisation (post domain restriction/renormalization, pre floor/residual ranking).
+3) Tune piecewise floors against baseline using `n_outlets` buckets.
+4) Run fresh `segment1a-p3`, score P3 metrics, and verify no P2 global-gate regression.
+
+### Entry: 2026-02-13 06:24
+
+Design element: P3.3 S7 home-bias implementation and first execution result.
+Summary: Implemented size-conditioned home-share flooring in S7 (`home_bias_lane`) and executed a first P3 run. The first run failed at S7 due a floating edge in residual quantization (`residual_out_of_range`) introduced by near-1.0 rounded residuals.
+
+Files changed:
+1) `packages/engine/src/engine/layers/l1/seg_1A/s7_integerisation/runner.py`
+2) `config/layer1/1A/allocation/s7_integerisation_policy.yaml`
+3) `docs/model_spec/data-engine/layer-1/specs/contracts/1A/schemas.layer1.yaml`
+
+Implemented mechanics:
+1) Added optional `home_bias_lane` to S7 policy parser + schema:
+- `enabled`,
+- ordered piecewise tiers `(max_n_outlets, home_share_min)`.
+2) Added deterministic share transform before integerisation:
+- enforce tiered minimum home share by `n_outlets`,
+- proportionally downscale foreign shares,
+- keep exact normalization and deterministic ordering intact.
+3) Added S7 metrics counters for home-bias usage.
+
+First run outcome:
+1) command: `make segment1a-p3 RUNS_ROOT=runs/fix-data-engine/segment_1A`
+2) run id: `66b5e575c89a1767eef8c5d600620ad4`
+3) failure:
+- `F4:E_RESIDUAL_QUANTISATION` / `detail=residual_out_of_range`.
+
+Corrective decision:
+1) Harden `_quantize_residual` to clamp binary64 edge artifacts only:
+- near-zero negative artifacts -> `0.0`,
+- near-one artifacts -> `0.99999999` at `dp=8`.
+2) Keep hard-fail behavior for genuine out-of-domain residuals.
+
+### Entry: 2026-02-13 06:32
+
+Design element: P3.3 closure run under frozen upstream.
+Summary: After residual quantization hardening, P3 run completed and closed P3.3 targets on the first valid tuned run.
+
+Execution evidence:
+1) command: `make segment1a-p3 RUNS_ROOT=runs/fix-data-engine/segment_1A`
+2) run id: `4ebfb92774e2db438989863f8f641162`
+3) scorecard:
+- `runs/fix-data-engine/segment_1A/reports/segment1a_p3_1_baseline_4ebfb92774e2db438989863f8f641162.json`
+
+P3 global outcomes:
+1) `home_legal_mismatch_rate = 0.118602` (B pass).
+2) `size_gradient_pp = +11.305` (B/B+ pass).
+3) unexplained duplicate anomalies = `0` (pass).
+
+P2 veto check (locked surfaces):
+1) report:
+- `runs/fix-data-engine/segment_1A/reports/segment1a_p2_regression_4ebfb92774e2db438989863f8f641162.json`
+2) global gates remained pass (`median_C`, `Spearman(C,R)`, `median_rho`, pathology caps).
+
+### Entry: 2026-02-13 06:33
+
+Design element: P3.2 identity semantics contract hardening.
+Summary: Hardened identity-contract language and fail-closed validator behavior for local `site_id` scope.
+
+Files changed:
+1) `docs/model_spec/data-engine/layer-1/specs/contracts/1A/schemas.1A.yaml`
+2) `docs/model_spec/data-engine/layer-1/specs/contracts/1A/dataset_dictionary.layer1.1A.yaml`
+3) `packages/engine/src/engine/layers/l1/seg_1A/s9_validation/runner.py`
+
+Implemented mechanics:
+1) Explicitly documented `site_id` as merchant-local sequence token scoped to `(merchant_id, legal_country_iso)` and non-global identity.
+2) Added explicit S9 rejection for `duplicate_local_site_id` within local scope.
+
+### Entry: 2026-02-13 06:44
+
+Design element: Authority-consistent rerun + P3.2/P3.3 evidence lock.
+Summary: Re-ran P3 after contract wording updates to align sealed lineage with current authority files; confirmed P3 metrics hold and S9 passes.
+
+Execution evidence:
+1) command:
+- `make segment1a-p3 RUNS_ROOT=runs/fix-data-engine/segment_1A`
+2) accepted run id:
+- `59cc9b7ed3a1ef84f3ce69a3511389ee`
+3) P3 report:
+- `runs/fix-data-engine/segment_1A/reports/segment1a_p3_1_baseline_59cc9b7ed3a1ef84f3ce69a3511389ee.json`
+4) P2 regression report:
+- `runs/fix-data-engine/segment_1A/reports/segment1a_p2_regression_59cc9b7ed3a1ef84f3ce69a3511389ee.json`
+5) S9 decision:
+- `make segment1a-s9 ... SEG1A_S9_RUN_ID=59cc9b7ed3a1ef84f3ce69a3511389ee` -> `PASS`.
+
+Locked outcomes on accepted run:
+1) `home_legal_mismatch_rate = 0.116997` (B pass).
+2) `size_gradient_pp = +11.660` (B/B+ pass).
+3) `no_unexplained_duplicate_anomalies = true`.
+4) P2 global gates non-regressed (all global checks pass).

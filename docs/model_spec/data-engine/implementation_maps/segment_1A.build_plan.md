@@ -385,17 +385,37 @@ Home/legal mismatch and site identity ambiguity damage interpretability downstre
 - Intent:
   - remove site-identity ambiguity while preserving declared S8 contract semantics.
 - DoD:
-  - [ ] schema/dictionary language explicitly binds `site_id` to local `(merchant_id, legal_country_iso)` scope.
-  - [ ] S9 validators fail closed for any duplicate behavior outside declared contract.
-  - [ ] unexplained duplicate anomalies are zero in baseline + post-change checks.
+  - [x] schema/dictionary language explicitly binds `site_id` to local `(merchant_id, legal_country_iso)` scope.
+  - [x] S9 validators fail closed for any duplicate behavior outside declared contract.
+  - [x] unexplained duplicate anomalies are zero in baseline + post-change checks.
+- Closure evidence (2026-02-13):
+  - contract wording tightened in:
+    - `schemas.1A.yaml#/egress/outlet_catalogue` (`site_id` scope explicit),
+    - `dataset_dictionary.layer1.1A.yaml` (`outlet_catalogue` description scope explicit).
+  - S9 fail-closed enforcement hardened in:
+    - `packages/engine/src/engine/layers/l1/seg_1A/s9_validation/runner.py` (`duplicate_local_site_id` rejection in local scope).
+  - S9 pass on updated contract authority:
+    - `make segment1a-s9 ... SEG1A_S9_RUN_ID=59cc9b7ed3a1ef84f3ce69a3511389ee` -> decision `PASS`.
 
 #### P3.3 Legal mismatch realism closure under frozen upstream
 - Intent:
   - achieve mismatch level and size-gradient realism without reopening locked upstream surfaces.
 - DoD:
-  - [ ] `home_legal_mismatch_rate` reaches at least `B` band.
-  - [ ] `size_gradient_pp` reaches at least `B` threshold.
-  - [ ] no regression of locked P2 global gates.
+  - [x] `home_legal_mismatch_rate` reaches at least `B` band.
+  - [x] `size_gradient_pp` reaches at least `B` threshold.
+  - [x] no regression of locked P2 global gates.
+- Closure evidence (2026-02-13):
+  - command: `make segment1a-p3 RUNS_ROOT=runs/fix-data-engine/segment_1A`
+  - accepted run id: `59cc9b7ed3a1ef84f3ce69a3511389ee`
+  - scorecard:
+    - `runs/fix-data-engine/segment_1A/reports/segment1a_p3_1_baseline_59cc9b7ed3a1ef84f3ce69a3511389ee.json`
+  - global P3 metrics:
+    - `home_legal_mismatch_rate = 0.116997` (B pass; B+ lower-bound miss only),
+    - `size_gradient_pp = +11.660` (B/B+ pass),
+    - `no_unexplained_duplicate_anomalies = true`.
+  - P2 regression guard:
+    - `runs/fix-data-engine/segment_1A/reports/segment1a_p2_regression_59cc9b7ed3a1ef84f3ce69a3511389ee.json`
+    - global checks remain pass (`median_C`, `Spearman(C,R)`, `median_rho`, pathology caps).
 
 #### P3.4 Joint reconciliation and lock
 - Intent:
