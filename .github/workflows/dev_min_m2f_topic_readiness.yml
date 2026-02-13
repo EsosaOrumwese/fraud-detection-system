@@ -138,10 +138,15 @@ jobs:
         run: |
           set -euo pipefail
           TF_DIR="infra/terraform/dev_min/confluent"
-          CLUSTER_ID="$(terraform -chdir="$TF_DIR" state show module.confluent.confluent_kafka_cluster.this 2>/dev/null | awk '/^[[:space:]]*id[[:space:]]*=/{print $3}' | tr -d '\"')"
+          STATE_CLUSTER="$(terraform -chdir="$TF_DIR" state show module.confluent.confluent_kafka_cluster.this 2>/dev/null || true)"
+          CLUSTER_ID="$(printf '%s\n' "$STATE_CLUSTER" | awk '/^[[:space:]]*id[[:space:]]*=/{print $3}' | tr -d '\"')"
+          REST_ENDPOINT="$(printf '%s\n' "$STATE_CLUSTER" | awk '/^[[:space:]]*rest_endpoint[[:space:]]*=/{print $3}' | tr -d '\"')"
           if [[ -z "$CLUSTER_ID" ]]; then
             echo "No existing cluster found in state; skipping topic import."
             exit 0
+          fi
+          if [[ -n "$REST_ENDPOINT" ]]; then
+            export IMPORT_KAFKA_REST_ENDPOINT="$REST_ENDPOINT"
           fi
 
           TOPICS=(
