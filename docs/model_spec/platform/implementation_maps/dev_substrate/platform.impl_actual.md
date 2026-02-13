@@ -8039,3 +8039,41 @@ USER directed immediate progression to close `M2.F` after workflow secret mappin
 ### Safety posture
 1. Planning-only update; no runtime execution command run for M3.B.
 2. M4 activation remains blocked until full M3 verdict closure.
+
+## Entry: 2026-02-13 9:43PM - M3.B execution closure (run-id generation + first snapshot evidence)
+
+### Trigger
+1. USER directed: execute the full `M3.B` lane and produce the first run-id generation snapshot evidence.
+
+### Execution summary
+1. Ran the full M3.B command lane with deterministic run-id policy and collision probe against durable evidence root.
+2. Authoritative execution id:
+   - `m3b_20260213T214223Z`
+3. Result:
+   - `overall_pass=true`
+   - `final_platform_run_id=platform_20260213T214223Z`
+   - `collision_detected=false`
+   - `collision_attempts=0`
+4. Contract checks that passed:
+   - run-id regex format check,
+   - scenario-equivalence handle-contract presence check,
+   - local seed/snapshot write,
+   - durable seed/snapshot publish.
+
+### Evidence
+1. Local:
+   - `runs/dev_substrate/m3_b/20260213T214223Z/m3_b_run_header_seed.json`
+   - `runs/dev_substrate/m3_b/20260213T214223Z/m3_b_run_id_generation_snapshot.json`
+2. Durable:
+   - `s3://fraud-platform-dev-min-evidence/evidence/dev_min/run_control/m3b_20260213T214223Z/m3_b_run_header_seed.json`
+   - `s3://fraud-platform-dev-min-evidence/evidence/dev_min/run_control/m3b_20260213T214223Z/m3_b_run_id_generation_snapshot.json`
+
+### Plan-state updates applied
+1. `docs/model_spec/platform/implementation_maps/dev_substrate/platform.M3.build_plan.md`:
+   - marked M3.B DoD complete,
+   - recorded authoritative M3.B execution result and evidence,
+   - marked `M3.B complete` in M3 checklist.
+2. `docs/model_spec/platform/implementation_maps/dev_substrate/platform.build_plan.md`:
+   - marked `M3.B` complete in sub-phase progress,
+   - marked M3 DoD item `platform_run_id generated and collision-checked` complete,
+   - advanced immediate next action to `M3.C` then `M3.D -> M3.G`.

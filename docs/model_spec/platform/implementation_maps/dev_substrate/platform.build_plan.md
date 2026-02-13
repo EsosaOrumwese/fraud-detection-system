@@ -314,10 +314,13 @@ Active-phase planning posture:
 - M3.B planning status:
   - expanded to closure-grade planning (decision pins, command catalog, blocker taxonomy, evidence contract),
   - pinned run-id format: `platform_<YYYYMMDDTHHMMSSZ>`,
-  - execution pending.
+  - authoritative execution run: `m3b_20260213T214223Z`,
+  - result: `overall_pass=true`,
+  - evidence:
+    - `s3://fraud-platform-dev-min-evidence/evidence/dev_min/run_control/m3b_20260213T214223Z/m3_b_run_id_generation_snapshot.json`.
 - Sub-phase progress:
   - [x] `M3.A` authority + handle closure matrix for P1.
-  - [ ] `M3.B` run identity generation contract (`platform_run_id` uniqueness).
+  - [x] `M3.B` run identity generation contract (`platform_run_id` uniqueness).
   - [ ] `M3.C` run config payload + deterministic digest contract.
   - [ ] `M3.D` durable run evidence publication (`run.json` + start marker).
   - [ ] `M3.E` runtime scope export handoff for M4.
@@ -325,7 +328,7 @@ Active-phase planning posture:
   - [ ] `M3.G` M4 handoff artifact publication + readiness verdict.
 
 M3 DoD checklist:
-- [ ] `platform_run_id` is generated and collision-checked.
+- [x] `platform_run_id` is generated and collision-checked.
 - [ ] run config payload is canonicalized and digest-complete.
 - [ ] `run.json` exists at run evidence root and is structurally complete.
 - [ ] runtime scope export (`REQUIRED_PLATFORM_RUN_ID`) is prepared for M4 consumers.
@@ -505,7 +508,6 @@ Control: required P12 teardown proof and budget guardrails.
 ## 12) Immediate Next Action
 M3 is active for deep planning and execution preparation.
 Next action:
-- execute `M3.B` run-identity generation contract with collision-safe evidence,
-- use deterministic collision policy (`_<nn>` suffix lane) and publish M3.B seed artifacts,
-- continue M3 deep-plan progression (`M3.C -> M3.G`) with explicit evidence artifacts,
+- execute `M3.C` config payload + deterministic digest lane and publish M3.C evidence,
+- then execute `M3.D -> M3.G` with explicit evidence artifacts and fail-closed verdicting,
 - maintain fail-closed posture: no M4 activation until M3 verdict is `ADVANCE_TO_M4` with durable handoff artifacts.

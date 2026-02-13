@@ -223,10 +223,10 @@ Tasks:
 6. Emit M3.B run-id generation evidence locally and durably.
 
 DoD:
-- [ ] `platform_run_id` format is pinned and deterministic.
-- [ ] Collision check is executed and evidenced.
-- [ ] Placeholder scenario-equivalence input cannot silently pass.
-- [ ] Run-id generation evidence is written locally and durably.
+- [x] `platform_run_id` format is pinned and deterministic.
+- [x] Collision check is executed and evidenced.
+- [x] Placeholder scenario-equivalence input cannot silently pass.
+- [x] Run-id generation evidence is written locally and durably.
 
 ### M3.B Decision Pins (Closed Before Execution)
 1. Format law:
@@ -277,8 +277,22 @@ DoD:
 
 ### M3.B Planning Status (Current)
 1. M3.B planning has been expanded to closure-grade detail.
-2. Execution has not started yet.
-3. No open M3.B blocker is currently registered at planning stage.
+2. Execution has completed with authoritative run:
+   - `m3b_20260213T214223Z`,
+   - result: `overall_pass=true`.
+3. Verification summary:
+   - `platform_run_id` candidate `platform_20260213T214223Z` passed format check,
+   - collision probe on `evidence/runs/platform_20260213T214223Z/` returned no collision (`collision_attempts=0`),
+   - scenario-equivalence contract presence checks passed,
+   - local and durable seed/snapshot publication passed.
+4. Evidence:
+   - local:
+     - `runs/dev_substrate/m3_b/20260213T214223Z/m3_b_run_header_seed.json`
+     - `runs/dev_substrate/m3_b/20260213T214223Z/m3_b_run_id_generation_snapshot.json`
+   - durable:
+     - `s3://fraud-platform-dev-min-evidence/evidence/dev_min/run_control/m3b_20260213T214223Z/m3_b_run_header_seed.json`
+     - `s3://fraud-platform-dev-min-evidence/evidence/dev_min/run_control/m3b_20260213T214223Z/m3_b_run_id_generation_snapshot.json`
+5. No open M3.B blocker is currently registered.
 
 ### M3.C Config Payload + Digest Contract
 Goal:
@@ -410,7 +424,7 @@ Notes:
 
 ## 7) M3 Completion Checklist
 - [x] M3.A complete
-- [ ] M3.B complete
+- [x] M3.B complete
 - [ ] M3.C complete
 - [ ] M3.D complete
 - [ ] M3.E complete
