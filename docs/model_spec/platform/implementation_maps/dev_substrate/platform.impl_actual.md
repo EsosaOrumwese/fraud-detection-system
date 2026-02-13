@@ -6549,3 +6549,57 @@ USER directed progression to `M2.C` implementation.
 ### Net effect
 1. Core stack is back in valid state.
 2. No substrate mutation (`apply`/`destroy`) occurred from this incident.
+
+## Entry: 2026-02-13 1:22PM - Post-change record: M2C-B1 resolved via controlled core state import/migration
+
+### Problem recap
+1. `M2C-B1` blocker:
+- backend key `dev_min/core/terraform.tfstate` was empty while core resources already existed in AWS.
+- direct first apply risked already-exists conflicts.
+
+### Root-cause detail uncovered during resolution
+1. Initial import attempts failed due an import-evaluation issue in `modules/core`:
+- dependent resources used `for_each = aws_s3_bucket.core`,
+- `terraform import` could not evaluate this deterministically for partial import graph.
+2. Additional import friction appeared from strict output indexing during partial bucket imports.
+
+### Technical fixes applied
+1. Import-safety fix in `infra/terraform/modules/core/main.tf`:
+- changed dependent resource loops to static key space:
+  - from `for_each = aws_s3_bucket.core`
+  - to `for_each = local.bucket_names`
+- bucket references now use `aws_s3_bucket.core[each.key].id`.
+2. Import-safety fix in `infra/terraform/modules/core/outputs.tf`:
+- changed `bucket_names` output to key-driven mapping with `try(...)` to avoid partial-import index failures.
+
+### Resolution actions executed
+1. Initialized backend on canonical core stack root with `backend.hcl.example`.
+2. Imported all core resources into state (24 total):
+- 4 DynamoDB tables,
+- 5 S3 buckets,
+- 5 S3 public-access-block resources,
+- 5 S3 SSE configuration resources,
+- 5 S3 versioning resources.
+3. Re-ran core plan post-import and confirmed:
+- `CREATE_COUNT=0`,
+- state inventory count = `24`.
+
+### Evidence
+1. Resolution snapshot (local):
+- `runs/dev_substrate/m2_c/20260213T132116Z/m2c_b1_resolution_snapshot.json`
+2. Resolution snapshot (durable):
+- `s3://fraud-platform-dev-min-evidence/evidence/dev_min/substrate/m2_20260213T132116Z/m2c_b1_resolution_snapshot.json`
+3. Contract snapshot remains:
+- `runs/dev_substrate/m2_c/20260213T130431Z/m2_c_core_apply_contract_snapshot.json`
+
+### Status synchronization
+1. `platform.M2.build_plan.md`:
+- unresolved blocker register now empty,
+- `M2C-B1` moved to resolved-blocker record with evidence refs,
+- M2.D entry precondition now explicitly satisfied.
+2. `platform.build_plan.md`:
+- immediate next action advanced from blocker closure to M2.D closure work.
+
+### Drift sentinel checkpoint
+1. No `terraform apply`/`destroy` mutation executed.
+2. Blocker was resolved with deterministic, auditable state migration rather than console patching.

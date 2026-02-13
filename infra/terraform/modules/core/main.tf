@@ -33,9 +33,9 @@ resource "aws_s3_bucket" "core" {
 }
 
 resource "aws_s3_bucket_public_access_block" "core" {
-  for_each = aws_s3_bucket.core
+  for_each = local.bucket_names
 
-  bucket                  = each.value.id
+  bucket                  = aws_s3_bucket.core[each.key].id
   block_public_acls       = true
   block_public_policy     = true
   ignore_public_acls      = true
@@ -43,18 +43,18 @@ resource "aws_s3_bucket_public_access_block" "core" {
 }
 
 resource "aws_s3_bucket_versioning" "core" {
-  for_each = aws_s3_bucket.core
+  for_each = local.bucket_names
 
-  bucket = each.value.id
+  bucket = aws_s3_bucket.core[each.key].id
   versioning_configuration {
     status = lookup(local.bucket_versioning_status_by_role, each.key, "Enabled")
   }
 }
 
 resource "aws_s3_bucket_server_side_encryption_configuration" "core" {
-  for_each = aws_s3_bucket.core
+  for_each = local.bucket_names
 
-  bucket = each.value.id
+  bucket = aws_s3_bucket.core[each.key].id
   rule {
     apply_server_side_encryption_by_default {
       sse_algorithm = "AES256"

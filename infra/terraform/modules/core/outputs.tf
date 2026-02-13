@@ -1,10 +1,7 @@
 output "bucket_names" {
   value = {
-    object_store = aws_s3_bucket.core["object_store"].bucket
-    evidence     = aws_s3_bucket.core["evidence"].bucket
-    quarantine   = aws_s3_bucket.core["quarantine"].bucket
-    archive      = aws_s3_bucket.core["archive"].bucket
-    tf_state     = aws_s3_bucket.core["tf_state"].bucket
+    for role, fallback_name in local.bucket_names :
+    role => try(aws_s3_bucket.core[role].bucket, fallback_name)
   }
 }
 

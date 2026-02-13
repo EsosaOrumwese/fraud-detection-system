@@ -457,4 +457,4 @@ Control: required P12 teardown proof and budget guardrails.
 ## 12) Immediate Next Action
 M2 is active for deep planning and closure-hardening.
 Next action:
-- close `M2C-B1` state-mismatch blocker (controlled core state import/migration), then proceed to `M2.D`.
+- proceed to `M2.D` closure (demo apply contract and evidence), with `M2C-B1` recorded as resolved.

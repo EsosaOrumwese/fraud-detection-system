@@ -378,7 +378,7 @@ Path contract:
    - `M2C-B1` (state mismatch/import required before first core apply).
 5. M2.C status:
    - contract closure complete (`CLOSED_CONTRACT`),
-   - first core apply remains blocked pending `M2C-B1` closure.
+   - first core apply unblocked after `M2C-B1` closure.
 
 ### M2.C Evidence
 1. Local:
@@ -391,7 +391,7 @@ Goal:
 1. Pin and verify demo apply sequence and acceptance outputs for Confluent/ECS/DB/SSM.
 
 Entry precondition:
-1. `M2C-B1` must be closed before first core/demo apply execution in this phase chain.
+1. `M2C-B1` must be closed before first core/demo apply execution in this phase chain (satisfied; see resolved blocker record).
 
 Tasks:
 1. Pin exact demo apply command surface.
@@ -543,6 +543,7 @@ Minimum evidence payloads to produce during M2 execution:
 9. `evidence/dev_min/substrate/<m2_execution_id>/m3_handoff_pack.json`
 10. `evidence/dev_min/substrate/<m2_execution_id>/m2_b_backend_state_readiness_snapshot.json`
 11. `evidence/dev_min/substrate/<m2_execution_id>/m2_c_core_apply_contract_snapshot.json`
+12. `evidence/dev_min/substrate/<m2_execution_id>/m2c_b1_resolution_snapshot.json`
 
 Notes:
 1. Evidence must be non-secret.
@@ -578,10 +579,17 @@ Control: explicit command-lane pinning in M2.B/M2.E/M2.F before execution.
 
 ## 8.1) Unresolved Blocker Register (Must Be Empty Before M2 Execution)
 Current blockers:
-1. `M2C-B1` (severity: high)
-   - summary: core backend state key `dev_min/core/terraform.tfstate` has no state object while core resources already exist in account.
-   - impact: direct core apply is likely to fail with already-exists conflicts.
-   - closure criteria: complete controlled state import/migration and rerun core plan until conflict-bearing create set is removed for existing resources.
+1. None pinned at this revision.
+
+Resolved blockers:
+1. `M2C-B1` (closed)
+   - closure summary:
+     - executed controlled state import for core resources,
+     - core state now contains 24 managed resources,
+     - post-import replan has `CREATE_COUNT=0` for core resources.
+   - evidence:
+     - local: `runs/dev_substrate/m2_c/20260213T132116Z/m2c_b1_resolution_snapshot.json`
+     - durable: `s3://fraud-platform-dev-min-evidence/evidence/dev_min/substrate/m2_20260213T132116Z/m2c_b1_resolution_snapshot.json`
 
 Rule:
 1. Any newly discovered blocker is appended here with owner, impacted sub-phase, and closure criteria.
