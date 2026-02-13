@@ -260,7 +260,7 @@ P2 freeze boundary (hard rule):
 
 P2 file surfaces:
 - Runtime:
-  - `packages/engine/src/engine/layers/l1/seg_1B/s4_allocation_plan/runner.py`
+  - `packages/engine/src/engine/layers/l1/seg_1B/s4_alloc_plan/runner.py`
 - Policy/config (if exposed in 1B policy surface):
   - `config/layer1/1B/policy/*` (S4-owned knobs only)
 - Contracts/diagnostics (only as needed to govern S4 diagnostics):

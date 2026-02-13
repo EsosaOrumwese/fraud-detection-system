@@ -9,11 +9,12 @@ import uuid
 from collections import OrderedDict
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Callable, Iterable, Optional
+from typing import Any, Callable, Iterable, Optional
 
 import numpy as np
 import polars as pl
 import psutil
+import yaml
 from jsonschema import Draft202012Validator
 
 try:  # Optional fast row-group scanning.
@@ -48,6 +49,21 @@ class S4Result:
     manifest_fingerprint: str
     alloc_plan_path: Path
     run_report_path: Path
+
+
+@dataclass(frozen=True)
+class S4AllocPolicy:
+    policy_version: str
+    enabled: bool
+    country_share_soft_guard: float
+    country_share_hard_guard: float
+    reroute_enabled: bool
+    reroute_mode: str
+    max_moves_per_pair: int
+    residual_enabled: bool
+    min_active_tile_fraction: float
+    max_steps_per_pair: int
+    deterministic_seed_namespace: str
 
 
 class _StepTimer:
@@ -117,6 +133,15 @@ def _load_json(path: Path) -> dict:
     if not path.exists():
         raise InputResolutionError(f"Missing JSON file: {path}")
     return json.loads(path.read_text(encoding="utf-8"))
+
+
+def _load_yaml(path: Path) -> dict:
+    if not path.exists():
+        raise InputResolutionError(f"Missing YAML file: {path}")
+    payload = yaml.safe_load(path.read_text(encoding="utf-8"))
+    if not isinstance(payload, dict):
+        raise InputResolutionError(f"YAML payload must be an object: {path}")
+    return payload
 
 
 def _write_json(path: Path, payload: dict) -> None:
@@ -245,6 +270,174 @@ def _validate_payload(schema_pack: dict, path: str, payload: dict) -> None:
     if errors:
         detail = errors[0].message if errors else "schema validation failed"
         raise SchemaValidationError(detail, [{"message": detail}])
+
+
+def _parse_s4_policy(policy_payload: dict) -> S4AllocPolicy:
+    reroute = policy_payload.get("reroute") or {}
+    residual = policy_payload.get("residual_redistribution") or {}
+    return S4AllocPolicy(
+        policy_version=str(policy_payload.get("policy_version") or "unknown"),
+        enabled=bool(policy_payload.get("enabled", False)),
+        country_share_soft_guard=float(policy_payload.get("country_share_soft_guard", 1.0)),
+        country_share_hard_guard=float(policy_payload.get("country_share_hard_guard", 1.0)),
+        reroute_enabled=bool(reroute.get("enabled", False)),
+        reroute_mode=str(reroute.get("mode") or "next_eligible"),
+        max_moves_per_pair=int(reroute.get("max_moves_per_pair", 0)),
+        residual_enabled=bool(residual.get("enabled", False)),
+        min_active_tile_fraction=float(residual.get("min_active_tile_fraction", 0.0)),
+        max_steps_per_pair=int(residual.get("max_steps_per_pair", 0)),
+        deterministic_seed_namespace=str(
+            policy_payload.get("deterministic_seed_namespace") or "1B.S4.ANTI_COLLAPSE"
+        ),
+    )
+
+
+def _summary_stats(values: list[float]) -> dict[str, float]:
+    if not values:
+        return {"p50": 0.0, "p90": 0.0, "p99": 0.0, "mean": 0.0}
+    arr = np.array(values, dtype=np.float64)
+    return {
+        "p50": float(np.quantile(arr, 0.50)),
+        "p90": float(np.quantile(arr, 0.90)),
+        "p99": float(np.quantile(arr, 0.99)),
+        "mean": float(arr.mean()),
+    }
+
+
+def _hhi_from_counts(counts: np.ndarray) -> float:
+    total = int(np.sum(counts))
+    if total <= 0:
+        return 0.0
+    shares = counts.astype(np.float64) / float(total)
+    return float(np.sum(shares * shares))
+
+
+def _top1_share_from_counts(counts: np.ndarray) -> float:
+    total = int(np.sum(counts))
+    if total <= 0:
+        return 0.0
+    return float(np.max(counts) / float(total))
+
+
+def _apply_anticollapse_controls(
+    counts_in: np.ndarray,
+    weight_fp: np.ndarray,
+    tile_ids: np.ndarray,
+    n_sites: int,
+    policy: S4AllocPolicy,
+) -> tuple[np.ndarray, dict[str, Any]]:
+    counts = counts_in.astype(np.int64, copy=True)
+    pair_total = int(n_sites)
+    pre_top1 = _top1_share_from_counts(counts)
+    pre_hhi = _hhi_from_counts(counts)
+    pre_active = int(np.count_nonzero(counts))
+    moves_soft = 0
+    moves_residual = 0
+
+    if (
+        policy.enabled
+        and pair_total > 1
+        and counts.size > 1
+        and policy.country_share_soft_guard < 1.0
+        and policy.reroute_enabled
+        and policy.max_moves_per_pair > 0
+    ):
+        max_soft = max(1, int(np.ceil(policy.country_share_soft_guard * pair_total)))
+        max_hard = max(max_soft, int(np.ceil(policy.country_share_hard_guard * pair_total)))
+        weight_i64 = weight_fp.astype(np.int64, copy=False)
+        rank = np.lexsort((tile_ids, -weight_i64))
+        rank_pos = np.empty(rank.size, dtype=np.int64)
+        rank_pos[rank] = np.arange(rank.size, dtype=np.int64)
+
+        while moves_soft < policy.max_moves_per_pair:
+            donors = np.flatnonzero(counts > max_soft)
+            if donors.size == 0:
+                break
+            donor = donors[
+                np.lexsort(
+                    (
+                        tile_ids[donors],
+                        -weight_i64[donors],
+                        -counts[donors],
+                    )
+                )[0]
+            ]
+            donor_rank = int(rank_pos[donor])
+            moved = False
+            for step in range(1, rank.size + 1):
+                receiver = int(rank[(donor_rank + step) % rank.size])
+                if receiver == donor:
+                    continue
+                if counts[receiver] + 1 > max_hard:
+                    continue
+                counts[donor] -= 1
+                counts[receiver] += 1
+                moves_soft += 1
+                moved = True
+                break
+            if not moved:
+                break
+
+    if (
+        policy.enabled
+        and pair_total > 1
+        and counts.size > 1
+        and policy.residual_enabled
+        and policy.min_active_tile_fraction > 0.0
+        and policy.max_steps_per_pair > 0
+    ):
+        max_active_possible = int(min(pair_total, counts.size))
+        target_active = int(
+            min(
+                max_active_possible,
+                max(
+                    1,
+                    np.ceil(policy.min_active_tile_fraction * max_active_possible),
+                ),
+            )
+        )
+        max_hard = max(1, int(np.ceil(policy.country_share_hard_guard * pair_total)))
+        weight_i64 = weight_fp.astype(np.int64, copy=False)
+        for _ in range(policy.max_steps_per_pair):
+            active_now = int(np.count_nonzero(counts))
+            if active_now >= target_active:
+                break
+            donor_candidates = np.flatnonzero(counts > 1)
+            receiver_candidates = np.flatnonzero(counts == 0)
+            if donor_candidates.size == 0 or receiver_candidates.size == 0:
+                break
+            donor = donor_candidates[
+                np.lexsort(
+                    (
+                        tile_ids[donor_candidates],
+                        -weight_i64[donor_candidates],
+                        -counts[donor_candidates],
+                    )
+                )[0]
+            ]
+            receiver = receiver_candidates[
+                np.lexsort((tile_ids[receiver_candidates], -weight_i64[receiver_candidates]))[0]
+            ]
+            if counts[receiver] + 1 > max_hard:
+                break
+            counts[donor] -= 1
+            counts[receiver] += 1
+            moves_residual += 1
+
+    post_top1 = _top1_share_from_counts(counts)
+    post_hhi = _hhi_from_counts(counts)
+    post_active = int(np.count_nonzero(counts))
+    diagnostics = {
+        "pair_top1_pre": float(pre_top1),
+        "pair_top1_post": float(post_top1),
+        "pair_hhi_pre": float(pre_hhi),
+        "pair_hhi_post": float(post_hhi),
+        "pair_active_tiles_pre": int(pre_active),
+        "pair_active_tiles_post": int(post_active),
+        "moves_soft": int(moves_soft),
+        "moves_residual": int(moves_residual),
+    }
+    return counts, diagnostics
 
 
 def _emit_failure_event(
@@ -526,6 +719,7 @@ def run_s4(config: EngineConfig, run_id: Optional[str] = None) -> S4Result:
 
     receipt_entry = find_dataset_entry(dictionary, "s0_gate_receipt_1B").entry
     s3_entry = find_dataset_entry(dictionary, "s3_requirements").entry
+    policy_entry = find_dataset_entry(dictionary, "s4_alloc_plan_policy").entry
     tile_weights_entry = find_dataset_entry(dictionary, "tile_weights").entry
     tile_index_entry = find_dataset_entry(dictionary, "tile_index").entry
     iso_entry = find_dataset_entry(dictionary, "iso3166_canonical_2024").entry
@@ -632,6 +826,20 @@ def run_s4(config: EngineConfig, run_id: Optional[str] = None) -> S4Result:
     iso_path = _resolve_dataset_path(iso_entry, run_paths, external_roots, {})
     alloc_plan_root = _resolve_dataset_path(alloc_plan_entry, run_paths, external_roots, tokens)
     run_report_path = _resolve_dataset_path(run_report_entry, run_paths, external_roots, tokens)
+    policy_path = _resolve_dataset_path(policy_entry, run_paths, external_roots, {})
+
+    policy_payload = _load_yaml(policy_path)
+    _validate_payload(schema_1b, "#/policy/s4_alloc_plan_policy", policy_payload)
+    s4_policy = _parse_s4_policy(policy_payload)
+    logger.info(
+        "S4: loaded anti-collapse policy enabled=%s soft_guard=%.4f hard_guard=%.4f reroute=%s residual=%s path=%s",
+        s4_policy.enabled,
+        s4_policy.country_share_soft_guard,
+        s4_policy.country_share_hard_guard,
+        s4_policy.reroute_enabled,
+        s4_policy.residual_enabled,
+        policy_path,
+    )
 
     if not s3_root.exists():
         _emit_failure_event(
@@ -706,6 +914,15 @@ def run_s4(config: EngineConfig, run_id: Optional[str] = None) -> S4Result:
     rows_emitted = 0
     ties_broken_total = 0
     alloc_sum_equals_requirements = True
+    guard_moves_soft_total = 0
+    guard_moves_residual_total = 0
+    pairs_guard_touched = 0
+    pre_top1_values: list[float] = []
+    post_top1_values: list[float] = []
+    pre_hhi_values: list[float] = []
+    post_hhi_values: list[float] = []
+    pre_active_tile_values: list[float] = []
+    post_active_tile_values: list[float] = []
 
     bytes_read_weights_total = 0
     bytes_read_index_total = 0
@@ -959,6 +1176,9 @@ def run_s4(config: EngineConfig, run_id: Optional[str] = None) -> S4Result:
         n_sites: int,
     ) -> None:
         nonlocal batch_rows, rows_emitted, ties_broken_total, alloc_sum_equals_requirements, last_key
+        nonlocal guard_moves_soft_total, guard_moves_residual_total, pairs_guard_touched
+        nonlocal pre_top1_values, post_top1_values, pre_hhi_values, post_hhi_values
+        nonlocal pre_active_tile_values, post_active_tile_values
 
         K = 10 ** int(dp_value)
         weight_fp_obj = weight_fp.astype(object)
@@ -995,6 +1215,26 @@ def run_s4(config: EngineConfig, run_id: Optional[str] = None) -> S4Result:
             ties_broken_total += int(shortfall)
         else:
             n_sites_tile = z
+
+        n_sites_tile_i64 = np.array(n_sites_tile, dtype=np.int64)
+        adjusted_i64, anti_diag = _apply_anticollapse_controls(
+            counts_in=n_sites_tile_i64,
+            weight_fp=weight_fp,
+            tile_ids=tile_ids,
+            n_sites=int(n_sites),
+            policy=s4_policy,
+        )
+        n_sites_tile = adjusted_i64.astype(object)
+        pre_top1_values.append(float(anti_diag["pair_top1_pre"]))
+        post_top1_values.append(float(anti_diag["pair_top1_post"]))
+        pre_hhi_values.append(float(anti_diag["pair_hhi_pre"]))
+        post_hhi_values.append(float(anti_diag["pair_hhi_post"]))
+        pre_active_tile_values.append(float(anti_diag["pair_active_tiles_pre"]))
+        post_active_tile_values.append(float(anti_diag["pair_active_tiles_post"]))
+        guard_moves_soft_total += int(anti_diag["moves_soft"])
+        guard_moves_residual_total += int(anti_diag["moves_residual"])
+        if int(anti_diag["moves_soft"]) > 0 or int(anti_diag["moves_residual"]) > 0:
+            pairs_guard_touched += 1
 
         total_alloc = int(np.sum(n_sites_tile))
         if total_alloc != int(n_sites):
@@ -1254,6 +1494,21 @@ def run_s4(config: EngineConfig, run_id: Optional[str] = None) -> S4Result:
     wall_total = time.monotonic() - wall_start
     cpu_total = time.process_time() - cpu_start
 
+    anti_collapse_summary = {
+        "enabled": bool(s4_policy.enabled),
+        "pairs_total": int(pairs_total),
+        "pairs_guard_touched": int(pairs_guard_touched),
+        "guard_touched_share": float(pairs_guard_touched / pairs_total) if pairs_total > 0 else 0.0,
+        "moves_soft_total": int(guard_moves_soft_total),
+        "moves_residual_total": int(guard_moves_residual_total),
+        "pair_top1_pre": _summary_stats(pre_top1_values),
+        "pair_top1_post": _summary_stats(post_top1_values),
+        "pair_hhi_pre": _summary_stats(pre_hhi_values),
+        "pair_hhi_post": _summary_stats(post_hhi_values),
+        "pair_active_tiles_pre": _summary_stats(pre_active_tile_values),
+        "pair_active_tiles_post": _summary_stats(post_active_tile_values),
+    }
+
     run_report = {
         "seed": seed,
         "manifest_fingerprint": manifest_fingerprint,
@@ -1264,6 +1519,24 @@ def run_s4(config: EngineConfig, run_id: Optional[str] = None) -> S4Result:
         "alloc_sum_equals_requirements": alloc_sum_equals_requirements,
         "ingress_versions": ingress_versions,
         "determinism_receipt": determinism_receipt,
+        "anti_collapse_policy": {
+            "policy_version": s4_policy.policy_version,
+            "enabled": s4_policy.enabled,
+            "country_share_soft_guard": s4_policy.country_share_soft_guard,
+            "country_share_hard_guard": s4_policy.country_share_hard_guard,
+            "reroute": {
+                "enabled": s4_policy.reroute_enabled,
+                "mode": s4_policy.reroute_mode,
+                "max_moves_per_pair": s4_policy.max_moves_per_pair,
+            },
+            "residual_redistribution": {
+                "enabled": s4_policy.residual_enabled,
+                "min_active_tile_fraction": s4_policy.min_active_tile_fraction,
+                "max_steps_per_pair": s4_policy.max_steps_per_pair,
+            },
+            "deterministic_seed_namespace": s4_policy.deterministic_seed_namespace,
+        },
+        "anti_collapse_diagnostics": anti_collapse_summary,
         "pat": {
             "bytes_read_s3_total": bytes_read_s3_total,
             "bytes_read_weights_total": bytes_read_weights_total,

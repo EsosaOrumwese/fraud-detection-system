@@ -3597,3 +3597,57 @@ Decisions captured:
 
 Expected outcome:
 - P2 execution can proceed without ambiguity while preserving causal attribution (`S4` changes only) and storage/run discipline.
+
+---
+
+### Entry: 2026-02-13 15:52
+
+Design element: P2 execution kickoff plan (implement S4 anti-collapse controls + scoring lane).
+Summary: Starting full P2 execution end-to-end. Current S4 runner only performs largest-remainder integerisation with no policy-governed anti-collapse controls and minimal diagnostics, so we will implement S4 policy governance, deterministic redistribution logic, and explicit S4/S8 scoring artifacts for lock decisions.
+
+Decisions before implementation:
+1) **Introduce governed S4 policy surface.**
+   - Add `config/layer1/1B/policy/policy.s4.alloc_plan.yaml`.
+   - Add schema anchor `#/policy/s4_alloc_plan_policy` in `schemas.1B.yaml`.
+   - Add dictionary entry `s4_alloc_plan_policy` in `dataset_dictionary.layer1.1B.yaml`.
+   - Keep backward-safe defaults: if policy disabled/missing controls, S4 preserves current allocation behavior.
+
+2) **Implement deterministic anti-collapse guard in S4 (no RNG).**
+   - File: `packages/engine/src/engine/layers/l1/seg_1B/s4_alloc_plan/runner.py`.
+   - After base largest-remainder allocation:
+     - enforce `country_share_soft_guard` as max per-tile share within each `(merchant_id, legal_country_iso)` allocation vector,
+     - reroute excess counts from donor tiles to deterministic receiver tiles,
+     - apply bounded residual redistribution to increase active-tile breadth where configured.
+   - Preserve hard invariants:
+     - per-pair sum exactly equals `n_sites`,
+     - no zero/negative emitted counts,
+     - deterministic tie-breaks and stable writer ordering remain intact.
+
+3) **Emit S4 diagnostics required for P2 DoD closure.**
+   - Add pre/post anti-collapse metrics in `s4_run_report`:
+     - pair-level top1-share and HHI summaries,
+     - active-tile breadth summaries,
+     - move/redistribution counters,
+     - policy snapshot in effect.
+   - Keep existing report keys unchanged for compatibility.
+
+4) **Add explicit P2 scorer artifact for baseline/candidate comparison.**
+   - New tool: `tools/score_segment1b_p2_candidate.py`.
+   - Inputs: locked P1 baseline run + candidate run.
+   - Outputs:
+     - S4 pre/post metric deltas,
+     - S8 no-regression checks,
+     - P2 candidate checklist in one JSON artifact under `runs/fix-data-engine/segment_1B/reports/`.
+
+5) **Run-lane and storage discipline for P2.**
+   - Fresh run-id per candidate iteration (bootstrap only required upstream inputs).
+   - Rerun chain from S4 only: `S4 -> S5 -> S6 -> S7 -> S8 -> S9`.
+   - After accepted candidate + reproducibility pass, update lock pointers and prune superseded run-id folders.
+
+Execution order:
+1) implement policy/schema/dictionary/runner/scorer surfaces,
+2) create P2 baseline artifact from locked P1 run,
+3) run first P2 candidate (`S4->S9`) and score,
+4) tune S4 policy if needed with bounded cycles,
+5) run same-seed reproducibility check on second fresh run-id,
+6) write P2 lock artifact, update pointers, prune superseded runs, and close P2 DoD/logbook.

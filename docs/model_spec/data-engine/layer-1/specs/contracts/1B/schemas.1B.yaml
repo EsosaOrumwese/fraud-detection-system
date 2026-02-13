@@ -179,6 +179,68 @@ policy:
         type: string
         description: "Optional free text."
 
+  s4_alloc_plan_policy:
+    type: object
+    description: "Governed S4 anti-collapse policy (deterministic integer allocation guards)."
+    required:
+      - policy_version
+      - enabled
+      - country_share_soft_guard
+      - country_share_hard_guard
+      - reroute
+      - residual_redistribution
+      - deterministic_seed_namespace
+    additionalProperties: false
+    properties:
+      policy_version:
+        type: string
+        description: "Human-readable or semver; part of parameter_hash inputs."
+      enabled:
+        type: boolean
+      country_share_soft_guard:
+        type: number
+        exclusiveMinimum: 0
+        maximum: 1
+      country_share_hard_guard:
+        type: number
+        exclusiveMinimum: 0
+        maximum: 1
+      reroute:
+        type: object
+        additionalProperties: false
+        required: [enabled, mode, max_moves_per_pair]
+        properties:
+          enabled:
+            type: boolean
+          mode:
+            type: string
+            enum: ["next_eligible"]
+          max_moves_per_pair:
+            type: integer
+            minimum: 0
+            maximum: 1000000
+      residual_redistribution:
+        type: object
+        additionalProperties: false
+        required: [enabled, min_active_tile_fraction, max_steps_per_pair]
+        properties:
+          enabled:
+            type: boolean
+          min_active_tile_fraction:
+            type: number
+            minimum: 0
+            maximum: 1
+          max_steps_per_pair:
+            type: integer
+            minimum: 0
+            maximum: 1000000
+      deterministic_seed_namespace:
+        type: string
+        minLength: 1
+      notes:
+        type: string
+        description: "Optional free text."
+
 control:
   s1_run_report:
     type: object

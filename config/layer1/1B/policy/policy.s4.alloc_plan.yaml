@@ -1,0 +1,23 @@
+policy_version: "2026-02-13"
+enabled: true
+notes: "P2 anti-collapse guardrails for S4 integer allocation; deterministic and RNG-free."
+
+# Max per-tile share inside each (merchant_id, legal_country_iso) assignment vector.
+# Example: 0.35 means no single tile should keep more than 35% of that pair's n_sites
+# after guard/redistribution unless constrained by tiny n_sites or tile cardinality.
+country_share_soft_guard: 0.35
+
+# Optional hard safety clamp for receiver saturation in redistribution.
+country_share_hard_guard: 0.60
+
+reroute:
+  enabled: true
+  mode: "next_eligible"
+  max_moves_per_pair: 2048
+
+residual_redistribution:
+  enabled: true
+  min_active_tile_fraction: 0.20
+  max_steps_per_pair: 256
+
+deterministic_seed_namespace: "1B.S4.ANTI_COLLAPSE_V1"

@@ -106,6 +106,24 @@ reference_data:
   pii: false
   licence: Proprietary-Internal
 
+- id: s4_alloc_plan_policy
+  status: approved
+  owner_subsegment: 1B
+  description: Governed S4 anti-collapse policy for deterministic integer allocation.
+  version: '2026-02-13'
+  format: yaml
+  path: config/layer1/1B/policy/policy.s4.alloc_plan.yaml
+  partitioning: []
+  ordering: []
+  schema_ref: schemas.1B.yaml#/policy/s4_alloc_plan_policy
+  lineage:
+    produced_by:
+    consumed_by: [1B]
+    final_in_layer: false
+  retention_days: 365
+  pii: false
+  licence: Proprietary-Internal
+
 - id: tz_world_2025a
   status: approved
   owner_subsegment: ingress
