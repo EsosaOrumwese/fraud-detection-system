@@ -259,7 +259,7 @@ Active-phase execution posture:
   - [x] `M2.B` Terraform backend/state partition readiness.
   - [x] `M2.C` core apply closure contract and evidence.
   - [x] `M2.D` demo apply closure contract and evidence.
-  - [ ] `M2.E` SSM secret materialization and access checks.
+  - [x] `M2.E` SSM secret materialization and access checks.
   - [ ] `M2.F` Kafka topic/ACL/access readiness.
   - [ ] `M2.G` network/no-NAT/no-always-on-LB verification.
   - [ ] `M2.H` runtime DB readiness + migrations posture.
@@ -457,4 +457,4 @@ Control: required P12 teardown proof and budget guardrails.
 ## 12) Immediate Next Action
 M2 is active for deep planning and closure-hardening.
 Next action:
-- resolve `M2E-B1..M2E-B2` (missing SSM paths + missing runtime roles), then rerun M2.E checks to close the phase.
+- execute `M2.F` and pin/validate the canonical topic verification lane (Confluent connectivity, topic existence, ACL readiness).

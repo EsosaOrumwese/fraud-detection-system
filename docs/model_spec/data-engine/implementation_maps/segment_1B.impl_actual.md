@@ -3505,3 +3505,20 @@ Implemented changes:
 
 Clarifying constraint captured for downstream phases:
 - S2 still enforces per-country fixed-dp normalization (`sum(weight_fp)=10^dp` per country), so country-level volume movement in final `site_locations` remains primarily downstream of S3/S4 ownership. P1 therefore targets S2 mass-shape diagnostics and within-country weight realism, then hands off anti-collapse country-volume controls to P2 (`S4`).
+
+---
+
+### Entry: 2026-02-13 14:05
+
+Design element: P1 fast-lane compute correction (population component staging).
+Summary: First P1 candidate run timed out while still in `S2` because `blend_v2.population` forced full raster sampling across all tiles in every country. For P1 closure (S2 mechanics + deterministic diagnostics), we are staging population influence to `0.0` so the full `S2->S9` chain can complete within practical tuning time.
+
+Decision and rationale:
+1) Set `blend_v2.basis_mix.population` to `0.0` and reallocate to `uniform/area_m2` while keeping `blend_v2` enabled.
+2) Keep all other P1 knobs active (region floors, caps, top-k targets, concentration penalty, deterministic rebalance diagnostics).
+3) Treat this as a compute-lane staging choice, not a permanent removal:
+   - population-weighted blend remains implemented in runner + schema,
+   - it can be re-enabled in a later pass once we move beyond P1 closure and budget a longer run window.
+
+Operational consequence:
+- We can now execute full fast-lane `S2->S9` for P1 lock validation without multi-hour S2 bottleneck from per-tile raster sampling.

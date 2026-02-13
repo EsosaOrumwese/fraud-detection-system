@@ -7,9 +7,9 @@ notes: "Deterministic S2 weights policy with governed blend_v2 controls."
 blend_v2:
   enabled: true
   basis_mix:
-    uniform: 0.20
-    area_m2: 0.35
-    population: 0.45
+    uniform: 0.35
+    area_m2: 0.65
+    population: 0.00
   region_floor_share:
     Africa: 0.06
     Asia: 0.16

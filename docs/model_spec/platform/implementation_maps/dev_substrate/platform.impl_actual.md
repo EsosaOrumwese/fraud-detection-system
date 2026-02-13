@@ -6820,3 +6820,65 @@ USER directed progression to M2.E implementation.
 ### Drift sentinel checkpoint
 1. No `terraform apply`/`destroy` executed.
 2. No console mutation executed.
+
+## Entry: 2026-02-13 2:03PM - Pre-change lock: resolve M2E-B1/M2E-B2 by materializing live demo resources
+
+### Trigger
+USER directed blocker resolution for `M2E-B1` and `M2E-B2`.
+
+### Resolution strategy
+1. Run full demo-stack apply (no targeted apply) to materialize missing SSM paths and runtime IAM roles.
+2. Protect existing Confluent credentials by supplying current live SSM values as Terraform inputs at apply time.
+3. Re-run M2.E secret/access checks and require `overall_pass=true` before closure.
+
+### Safety rules
+1. No placeholder Confluent values are allowed in apply input.
+2. Evidence outputs contain names/results only, never secret values.
+3. If apply or checks fail, M2.E remains fail-closed with explicit blocker update.
+
+## Entry: 2026-02-13 2:15PM - Post-change record: M2E-B1/M2E-B2 resolved and M2.E closed
+
+### Execution summary
+1. Performed demo-stack apply to materialize missing live secret/role surfaces required for M2.E.
+2. First apply attempt surfaced DB engine-version drift (`postgres 16.3` unavailable in `eu-west-2`) after partial resource creation.
+3. Corrected DB engine defaults from `16.3` -> `16.12` in Terraform demo/module variables and reran apply to completion.
+
+### Terraform changes for closure hardening
+1. Added app runtime least-privilege secret-read policy in demo module:
+- `aws_iam_role_policy.ecs_task_app_secret_read` with path-scoped SSM read permissions.
+2. Corrected DB engine version defaults:
+- `infra/terraform/modules/demo/variables.tf`
+- `infra/terraform/dev_min/demo/variables.tf`
+- `infra/terraform/dev_min/demo/terraform.tfvars.example`
+
+### Live materialization outcomes
+1. Required secret paths now exist/readable:
+- `/fraud-platform/dev_min/confluent/bootstrap`
+- `/fraud-platform/dev_min/confluent/api_key`
+- `/fraud-platform/dev_min/confluent/api_secret`
+- `/fraud-platform/dev_min/db/user`
+- `/fraud-platform/dev_min/db/password`
+- `/fraud-platform/dev_min/ig/api_key`
+2. Runtime roles now exist:
+- `fraud-platform-dev-min-ecs-task-execution`
+- `fraud-platform-dev-min-ecs-task-app`
+3. Demo DB now exists with endpoint output:
+- `fraud-platform-dev-min-db.c32cck04kkmn.eu-west-2.rds.amazonaws.com`
+
+### M2.E proof checks
+1. IAM simulation (`ssm:GetParameter` on pinned secret ARNs):
+- app role allowed count = `6/6`,
+- execution role allowed count = `0/6` (`implicitDeny`).
+2. Evidence snapshot:
+- local: `runs/dev_substrate/m2_e/20260213T141419Z/secret_surface_check.json`
+- durable: `s3://fraud-platform-dev-min-evidence/evidence/dev_min/substrate/m2_20260213T141419Z/secret_surface_check.json`
+- `overall_pass=true`.
+
+### Status synchronization
+1. `M2E-B1` and `M2E-B2` moved to resolved blocker list.
+2. `M2.E` marked `CLOSED_EXEC` in deep plan and completed in M2 checklist.
+3. Main plan next action advanced to `M2.F` execution.
+
+### Drift sentinel checkpoint
+1. Terraform mutation executed intentionally in this pass (`apply`) to resolve live materialization blockers.
+2. No console mutation executed.

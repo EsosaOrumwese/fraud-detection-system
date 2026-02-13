@@ -508,9 +508,9 @@ Tasks:
    - denial checks for non-authorized principal identities (where policy test is safe).
 
 DoD:
-- [ ] Required SSM paths exist and are readable by intended principals.
-- [ ] Least-privilege access is validated for runtime identities.
-- [ ] No secret material is emitted in evidence payloads.
+- [x] Required SSM paths exist and are readable by intended principals.
+- [x] Least-privilege access is validated for runtime identities.
+- [x] No secret material is emitted in evidence payloads.
 
 ### M2.E Canonical Command Surface (Pinned)
 1. Operator readability checks (non-secret output only):
@@ -530,21 +530,24 @@ DoD:
 1. Executed M2.E command-lane checks against live account and demo plan.
 2. Observed required-path status:
    - Confluent SSM paths: `PRESENT`,
-   - DB SSM paths (`/db/user`, `/db/password`): `MISSING`,
-   - IG SSM path (`/ig/api_key`): `MISSING`.
+   - DB SSM paths (`/db/user`, `/db/password`): `PRESENT`,
+   - IG SSM path (`/ig/api_key`): `PRESENT`.
 3. Observed runtime role status:
-   - `fraud-platform-dev-min-ecs-task-execution`: `MISSING`,
-   - `fraud-platform-dev-min-ecs-task-app`: `MISSING`.
+   - `fraud-platform-dev-min-ecs-task-execution`: `PRESENT`,
+   - `fraud-platform-dev-min-ecs-task-app`: `PRESENT`.
 4. Policy hardening status:
-   - app runtime secret-read policy is now codified in Terraform plan (`module.demo.aws_iam_role_policy.ecs_task_app_secret_read`).
+   - app runtime secret-read policy is codified and applied (`module.demo.aws_iam_role_policy.ecs_task_app_secret_read`),
+   - IAM simulation for `ssm:GetParameter` on pinned secret paths:
+     - app role allowed count: `6/6`,
+     - execution role allowed count: `0/6` (`implicitDeny` for all).
 5. M2.E status:
-   - `OPEN` (fail-closed), blocked by missing live secret paths and missing runtime roles.
+   - `CLOSED_EXEC`.
 
 ### M2.E Evidence
 1. Local:
-   - `runs/dev_substrate/m2_e/20260213T135629Z/secret_surface_check.json`
+   - `runs/dev_substrate/m2_e/20260213T141419Z/secret_surface_check.json`
 2. Durable:
-   - `s3://fraud-platform-dev-min-evidence/evidence/dev_min/substrate/m2_20260213T135629Z/secret_surface_check.json`
+   - `s3://fraud-platform-dev-min-evidence/evidence/dev_min/substrate/m2_20260213T141419Z/secret_surface_check.json`
 
 ## M2.F Kafka/Confluent Topic Readiness
 Goal:
@@ -667,7 +670,7 @@ Notes:
 - [x] M2.B complete
 - [x] M2.C complete
 - [x] M2.D complete
-- [ ] M2.E complete
+- [x] M2.E complete
 - [ ] M2.F complete
 - [ ] M2.G complete
 - [ ] M2.H complete
@@ -692,14 +695,7 @@ Control: explicit command-lane pinning in M2.B/M2.E/M2.F before execution.
 
 ## 8.1) Unresolved Blocker Register (Must Be Empty Before M2 Execution)
 Current blockers:
-1. `M2E-B1` (severity: high)
-   - summary: required SSM paths are missing (`/fraud-platform/dev_min/db/user`, `/fraud-platform/dev_min/db/password`, `/fraud-platform/dev_min/ig/api_key`).
-   - impact: M2.E cannot prove required secret materialization/readability.
-   - closure criteria: materialize missing required paths via demo apply and rerun M2.E checks.
-2. `M2E-B2` (severity: high)
-   - summary: runtime roles do not exist yet (`fraud-platform-dev-min-ecs-task-execution`, `fraud-platform-dev-min-ecs-task-app`).
-   - impact: least-privilege runtime secret-read boundary cannot be validated live.
-   - closure criteria: apply demo stack to materialize runtime roles and rerun M2.E IAM boundary checks.
+1. None.
 
 Resolved blockers:
 1. `M2C-B1` (closed)
@@ -734,6 +730,18 @@ Resolved blockers:
    - evidence:
      - local: `runs/dev_substrate/m2_d/20260213T134810Z/m2_d_demo_apply_contract_snapshot.json`
      - durable: `s3://fraud-platform-dev-min-evidence/evidence/dev_min/substrate/m2_20260213T134810Z/m2_d_demo_apply_contract_snapshot.json`
+6. `M2E-B1` (closed)
+   - closure summary:
+     - demo apply materialized required secret paths (`/db/user`, `/db/password`, `/ig/api_key`), and M2.E checks confirmed operator readability.
+   - evidence:
+     - local: `runs/dev_substrate/m2_e/20260213T141419Z/secret_surface_check.json`
+     - durable: `s3://fraud-platform-dev-min-evidence/evidence/dev_min/substrate/m2_20260213T141419Z/secret_surface_check.json`
+7. `M2E-B2` (closed)
+   - closure summary:
+     - demo apply materialized runtime roles and IAM simulation confirmed least-privilege boundary for pinned secret paths.
+   - evidence:
+     - local: `runs/dev_substrate/m2_e/20260213T141419Z/secret_surface_check.json`
+     - durable: `s3://fraud-platform-dev-min-evidence/evidence/dev_min/substrate/m2_20260213T141419Z/secret_surface_check.json`
 
 Rule:
 1. Any newly discovered blocker is appended here with owner, impacted sub-phase, and closure criteria.

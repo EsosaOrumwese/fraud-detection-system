@@ -159,7 +159,7 @@ variable "db_password" {
 
 variable "db_engine_version" {
   type    = string
-  default = "16.3"
+  default = "16.12"
 }
 
 variable "db_instance_class" {
