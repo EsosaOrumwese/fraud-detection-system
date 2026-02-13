@@ -5,7 +5,7 @@ Phase 2 implementation unlocked.
 
 ## Modules
 - `core/`: persistent dev_min substrate (S3 stores, DynamoDB control/lock tables, optional budget alert).
-- `demo/`: ephemeral demo surfaces (demo log group, manifest object, heartbeat parameter).
+- `demo/`: ephemeral demo substrate surfaces (Confluent contract materialization, ECS/network scaffolding, runtime DB, canonical SSM paths, manifests).
 
 ## Guardrails
 - No NAT, no always-on load balancer, no always-on compute fleet.
