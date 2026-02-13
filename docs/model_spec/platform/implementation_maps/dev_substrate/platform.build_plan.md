@@ -457,4 +457,4 @@ Control: required P12 teardown proof and budget guardrails.
 ## 12) Immediate Next Action
 M2 is active for deep planning and closure-hardening.
 Next action:
-- proceed to `M2.D` closure (demo apply contract and evidence), with `M2C-B1` recorded as resolved.
+- resolve `M2D-B1..M2D-B4` demo-substrate capability blockers, then close `M2.D`.

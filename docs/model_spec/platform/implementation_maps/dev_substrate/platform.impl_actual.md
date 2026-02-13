@@ -6603,3 +6603,90 @@ USER directed progression to `M2.C` implementation.
 ### Drift sentinel checkpoint
 1. No `terraform apply`/`destroy` mutation executed.
 2. Blocker was resolved with deterministic, auditable state migration rather than console patching.
+
+## Entry: 2026-02-13 1:26PM - Pre-change lock: execute M2.D demo-apply contract with fail-closed verification
+
+### Trigger
+USER directed progression to `M2.D`.
+
+### Objective
+1. Pin and execute M2.D contract verification against current demo stack reality.
+2. Produce M2.D demo contract evidence snapshot and durable copy.
+3. Fail closed if required demo surfaces (Confluent/ECS/DB/SSM) are not represented by current demo stack plan/resources.
+
+### Planned checks
+1. Terraform demo stack command surface:
+- init/validate/plan.
+2. Demo plan/resource classification against required categories:
+- Confluent cluster/topics,
+- SSM secret writes (Confluent + DB),
+- ECS cluster/scaffolding,
+- runtime DB.
+3. Record blockers in M2 unresolved blocker register if categories are missing.
+
+### Boundaries
+1. No `terraform apply`/`destroy` in this pass.
+2. No console mutation; evidence and contract closure only.
+
+## Entry: 2026-02-13 1:28PM - Post-change record: M2.D contract executed fail-closed with capability-gap blockers
+
+### What was executed
+1. Demo stack contract checks:
+- `terraform -chdir=infra/terraform/dev_min/demo init -reconfigure -backend-config=backend.hcl.example` -> PASS
+- `terraform -chdir=infra/terraform/dev_min/demo validate` -> PASS
+- `terraform -chdir=infra/terraform/dev_min/demo plan` + `show -json` -> PASS
+2. Generated M2.D snapshot:
+- local: `runs/dev_substrate/m2_d/20260213T132643Z/m2_d_demo_apply_contract_snapshot.json`
+- durable: `s3://fraud-platform-dev-min-evidence/evidence/dev_min/substrate/m2_20260213T132643Z/m2_d_demo_apply_contract_snapshot.json`
+
+### Material finding (drift surfaced)
+Current demo stack plan contains only:
+1. `aws_cloudwatch_log_group`
+2. `aws_s3_object`
+3. `aws_ssm_parameter` (heartbeat path)
+
+Missing required M2.D capability lanes:
+1. Confluent cluster/topics
+2. ECS scaffolding
+3. Runtime DB
+4. Required Confluent/DB SSM credential paths
+
+### Blockers registered
+1. `M2D-B1` Confluent resources missing
+2. `M2D-B2` ECS scaffolding missing
+3. `M2D-B3` runtime DB missing
+4. `M2D-B4` required Confluent/DB SSM writes missing
+
+### Status sync
+1. `platform.M2.build_plan.md`:
+- M2.D command-surface and fail-closed checks are now explicit,
+- M2.D remains open (`Required demo resource acceptance checks` unchecked),
+- unresolved blocker register updated with `M2D-B1..M2D-B4`.
+2. `platform.build_plan.md`:
+- immediate next action now requires resolving `M2D-B1..M2D-B4` before M2.D closure.
+
+### Drift sentinel checkpoint
+1. No apply/destroy mutation executed.
+2. Phase progression is explicitly fail-closed on capability gaps.
+
+## Entry: 2026-02-13 1:38PM - Migration learning note: IaC over UI-first setup posture
+
+### Trigger
+USER requested this phase-learning insight be captured in implementation notes.
+
+### Learning captured
+1. Prior assumption: dev migration would require mostly UI-driven, manual setup for each platform service.
+2. Current posture after M1/M2 execution: infrastructure should be created and torn down through IaC-first command lanes, with UI used only for validation or platform limitations.
+
+### Why this matters for migration
+1. Repeatability:
+- same inputs and pinned handles produce the same substrate shape.
+2. Teardown discipline:
+- resources can be destroyed cleanly without hidden leftovers.
+3. Drift reduction:
+- avoids console-only state that breaks deterministic reruns.
+4. Auditability:
+- apply/plan/evidence artifacts provide proof of what was built and when.
+
+### Fail-closed implication
+1. Any required substrate capability that cannot be represented in IaC is now treated as a surfaced decision/blocker, not an implicit manual step.

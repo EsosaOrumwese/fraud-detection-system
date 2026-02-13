@@ -408,9 +408,69 @@ Tasks:
    - ECS + DB endpoint handles produced by Terraform outputs.
 
 DoD:
-- [ ] Demo apply command surface is canonical and non-ambiguous.
+- [x] Demo apply command surface is canonical and non-ambiguous.
 - [ ] Required demo resource acceptance checks are explicit.
-- [ ] Partial apply failure posture is fail-closed.
+- [x] Partial apply failure posture is fail-closed.
+
+### M2.D Canonical Demo Command Surface (Pinned)
+1. Backend and static validation:
+   - `terraform -chdir=infra/terraform/dev_min/demo init -reconfigure "-backend-config=backend.hcl"`
+   - `terraform -chdir=infra/terraform/dev_min/demo validate`
+2. Pre-apply plan:
+   - `terraform -chdir=infra/terraform/dev_min/demo plan -input=false -detailed-exitcode -out <demo_plan_file>`
+3. Demo apply (gated; only when acceptance checks pass):
+   - `terraform -chdir=infra/terraform/dev_min/demo apply -input=false <demo_plan_file>`
+4. Post-apply verification surface:
+   - `terraform -chdir=infra/terraform/dev_min/demo output -json`
+   - `aws ssm get-parameter --name <SSM_CONFLUENT_BOOTSTRAP_PATH> --with-decryption`
+   - `aws ssm get-parameter --name <SSM_CONFLUENT_API_KEY_PATH> --with-decryption`
+   - `aws ssm get-parameter --name <SSM_CONFLUENT_API_SECRET_PATH> --with-decryption`
+   - `aws ssm get-parameter --name <SSM_DB_USER_PATH> --with-decryption`
+   - `aws ssm get-parameter --name <SSM_DB_PASSWORD_PATH> --with-decryption`
+
+### M2.D Acceptance Checks (Pinned)
+1. Command-surface acceptance:
+   - init/validate/plan commands must succeed.
+2. Required demo categories must be present in plan/resources:
+   - Confluent cluster + topics,
+   - SSM secret writes for Confluent and DB credentials,
+   - ECS cluster/scaffolding,
+   - runtime DB.
+3. Topic/secret/output acceptance:
+   - demo outputs must expose handles required by downstream phases,
+   - SSM path writes must align to handle registry paths (not surrogate heartbeat-only paths).
+4. No partial-pass allowed:
+   - if any required category is missing, M2.D remains open and blocker(s) are registered.
+
+### M2.D Fail-Closed Stop Criteria (Pinned)
+1. If required categories are missing from demo plan/resources, stop progression and register blocker.
+2. If demo plan writes non-canonical SSM paths without required Confluent/DB secret paths, stop progression.
+3. No advancement to M2.E while M2.D blockers remain unresolved.
+
+### M2.D Closure Summary (Execution Record)
+1. Executed demo contract checks:
+   - demo `init -reconfigure` -> `PASS`,
+   - demo `validate` -> `PASS`,
+   - demo `plan` -> `PASS` (3 planned creates).
+2. Observed resource types in current demo plan:
+   - `aws_cloudwatch_log_group`,
+   - `aws_s3_object`,
+   - `aws_ssm_parameter` (heartbeat path only).
+3. Required categories status:
+   - Confluent cluster/topics: `MISSING`,
+   - ECS scaffolding: `MISSING`,
+   - runtime DB: `MISSING`,
+   - required Confluent/DB SSM secret writes: `MISSING` (only heartbeat parameter present).
+4. M2.D status:
+   - contract command surface pinned,
+   - acceptance checks fail-closed due missing required demo capabilities,
+   - M2.D remains `OPEN` pending blocker closure.
+
+### M2.D Evidence
+1. Local:
+   - `runs/dev_substrate/m2_d/20260213T132643Z/m2_d_demo_apply_contract_snapshot.json`
+2. Durable:
+   - `s3://fraud-platform-dev-min-evidence/evidence/dev_min/substrate/m2_20260213T132643Z/m2_d_demo_apply_contract_snapshot.json`
 
 ## M2.E Secret Materialization and Access Checks (SSM)
 Goal:
@@ -544,6 +604,7 @@ Minimum evidence payloads to produce during M2 execution:
 10. `evidence/dev_min/substrate/<m2_execution_id>/m2_b_backend_state_readiness_snapshot.json`
 11. `evidence/dev_min/substrate/<m2_execution_id>/m2_c_core_apply_contract_snapshot.json`
 12. `evidence/dev_min/substrate/<m2_execution_id>/m2c_b1_resolution_snapshot.json`
+13. `evidence/dev_min/substrate/<m2_execution_id>/m2_d_demo_apply_contract_snapshot.json`
 
 Notes:
 1. Evidence must be non-secret.
@@ -579,7 +640,22 @@ Control: explicit command-lane pinning in M2.B/M2.E/M2.F before execution.
 
 ## 8.1) Unresolved Blocker Register (Must Be Empty Before M2 Execution)
 Current blockers:
-1. None pinned at this revision.
+1. `M2D-B1` (severity: high)
+   - summary: demo stack plan lacks Confluent resources (cluster/topics).
+   - impact: P0/P4/P7 Kafka substrate contract cannot be satisfied by demo apply.
+   - closure criteria: add Confluent env/cluster/topic provisioning and outputs to demo stack.
+2. `M2D-B2` (severity: high)
+   - summary: demo stack plan lacks ECS scaffolding resources.
+   - impact: no managed runtime placement surface for daemon/job phases.
+   - closure criteria: add ECS cluster/network/task/service scaffolding in demo stack outputs.
+3. `M2D-B3` (severity: high)
+   - summary: demo stack plan lacks runtime DB resources.
+   - impact: runtime state backends for IG/RTDL/CM/LS cannot be satisfied.
+   - closure criteria: add managed DB resource(s) and endpoint outputs.
+4. `M2D-B4` (severity: high)
+   - summary: demo stack writes only heartbeat SSM param and lacks required Confluent/DB credential paths.
+   - impact: runtime credentials contract is unsatisfied for downstream phases.
+   - closure criteria: write required SSM parameters for Confluent + DB paths from handles registry.
 
 Resolved blockers:
 1. `M2C-B1` (closed)
