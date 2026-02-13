@@ -3577,3 +3577,23 @@ Implementation actions completed:
 Lock statement:
 - P1 (`S2` macro-mass policy + diagnostics posture) is now locked.
 - Downstream phases (`P2+`) must treat P1 settings as frozen unless an explicit reopen decision is recorded.
+
+---
+
+### Entry: 2026-02-13 15:45
+
+Design element: P2 planning expansion (S4 anti-collapse closure plan).
+Summary: Expanded the build plan `P2` section into explicit work blocks so execution starts with a clear freeze boundary, S4-owned tuning surfaces, fast-lane iteration rules, acceptance/repro gates, and lock-handoff requirements.
+
+Decisions captured:
+1) Keep `P1` (`S2`) immutable throughout `P2`; no S2 knob drift is allowed during S4 closure.
+2) Start P2 with a locked-baseline authority snapshot from accepted P1 run `335c9a7eec04491a845abc2a049f959f`.
+3) Restrict tuning ownership to S4 anti-collapse controls:
+   - `country_share_soft_guard`,
+   - deterministic reroute ordering,
+   - bounded residual redistribution.
+4) Use fresh run-id per fast-lane cycle and rerun `S4->S9` to avoid immutable partition collisions.
+5) Require explicit reproducibility evidence (second same-seed run) before P2 lock promotion.
+
+Expected outcome:
+- P2 execution can proceed without ambiguity while preserving causal attribution (`S4` changes only) and storage/run discipline.

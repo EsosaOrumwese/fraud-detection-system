@@ -247,21 +247,61 @@ P1 closure record:
   - P1 (`S2`) is now locked; downstream phases (`P2+`) must treat this S2 policy/shape as immutable unless an explicit reopen decision is recorded.
 
 ### P2 - S4 anti-collapse integer allocation closure
-Focus:
-- prevent post-integerization reconcentration from undoing S2 improvements.
+Goal:
+- close integer-allocation reconcentration in `S4` so downstream `site_locations` concentration starts improving from the locked P1 posture.
 
-Primary tuning surfaces:
-- `S4` assignment-time guards (`country_share_soft_guard`, deterministic reroute, bounded residual redistribution).
+P2 freeze boundary (hard rule):
+- `P1` (`S2`) is immutable during P2.
+- No edits to:
+  - `config/layer1/1B/policy/policy.s2.tile_weights.yaml`
+  - `packages/engine/src/engine/layers/l1/seg_1B/s2_tile_weights/runner.py`
+  - `docs/model_spec/data-engine/layer-1/specs/contracts/1B/schemas.1B.yaml` (S2 policy surface)
+- If P2 fails and evidence points upstream, pause and request explicit P1 reopen approval.
 
-Data outputs under evaluation:
-- `s4_alloc_plan`
-- S4 aggregated country/region allocation scorecards
+P2 file surfaces:
+- Runtime:
+  - `packages/engine/src/engine/layers/l1/seg_1B/s4_allocation_plan/runner.py`
+- Policy/config (if exposed in 1B policy surface):
+  - `config/layer1/1B/policy/*` (S4-owned knobs only)
+- Contracts/diagnostics (only as needed to govern S4 diagnostics):
+  - `docs/model_spec/data-engine/layer-1/specs/contracts/1B/schemas.1B.yaml`
+  - `docs/model_spec/data-engine/layer-1/specs/contracts/1B/dataset_dictionary.layer1.1B.yaml`
+
+P2 tunable knobs (S4 only):
+- `country_share_soft_guard`
+- deterministic reroute priority/ordering
+- bounded residual redistribution controls
+
+P2 work blocks:
+- `P2-A` Baseline authority for P2:
+  - baseline run for comparison is locked P1 run `335c9a7eec04491a845abc2a049f959f`;
+  - materialize baseline snapshots for `S4` and `S8` concentration/coverage metrics before any S4 edits.
+- `P2-B` S4 control-surface hardening:
+  - expose/confirm governed S4 knobs for anti-collapse behavior;
+  - emit S4 diagnostics that separate pre-integer vs post-integer concentration posture.
+- `P2-C` Calibration loop (fast lane):
+  - iterate with fresh run-id per cycle and rerun `S4 -> S5 -> S6 -> S7 -> S8 -> S9`;
+  - tune one knob group at a time (`soft_guard` -> reroute -> residual redistribution);
+  - reject candidates that improve S4 but regress downstream S8 realism.
+- `P2-D` Candidate acceptance and reproducibility:
+  - pick one accepted candidate that clears all P2 gates;
+  - rerun same-seed reproducibility on a second fresh run-id and require matching S4 score posture.
+- `P2-E` P2 lock handoff:
+  - write P2 lock record (accepted run, knob values, metric deltas, reproducibility evidence);
+  - update `current_candidate`/`last_good` pointers and prune superseded run-id folders.
+
+P2 success posture:
+- S4 no longer reconcentrates relative to locked P1 shape intent.
+- downstream `site_locations` concentration moves in the right direction (not merely pass/no-pass structural gates).
+- deterministic behavior remains intact.
 
 Definition of done:
-- [ ] post-S4 concentration/coverage metrics improve versus pre-P2 posture.
-- [ ] no reconcentration breach introduced by integerization step.
-- [ ] deterministic replay holds for fixed seed/policy hash.
-- [ ] P2 lock recorded (S4 guard settings + expected score band).
+- [ ] P2 baseline authority snapshot is recorded from locked P1 run (`S4` and `S8` metrics).
+- [ ] S4 emits governed diagnostics sufficient to explain anti-collapse behavior (pre/post integerization posture).
+- [ ] at least one candidate shows post-S4 concentration/coverage improvement versus pre-P2 posture.
+- [ ] candidate introduces no new reconcentration breach at S4 and no downstream concentration regression at S8.
+- [ ] two consecutive same-seed fast-lane runs reproduce identical S4 score posture for accepted settings.
+- [ ] P2 lock record is written (S4 knob bundle, accepted metric snapshot, reproducibility evidence, run/pointer updates).
 
 ### P3 - S6 geometry realism closure (within-country shape)
 Focus:

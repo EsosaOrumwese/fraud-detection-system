@@ -270,6 +270,7 @@ M2 DoD checklist:
 - [ ] Terraform core/confluent/demo apply+destroy flow is pinned and reproducible.
 - [ ] Required handles resolve to reachable substrate resources.
 - [ ] Confluent bootstrap/key/secret and required topics are validated.
+  - Canonical command lane: `python tools/dev_substrate/verify_m2f_topic_readiness.py`.
 - [ ] No NAT and no forbidden always-on infra posture is proven.
 - [ ] runtime DB and migration readiness are validated.
 - [ ] Budget alerts and teardown viability are evidenced.

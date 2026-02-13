@@ -7132,3 +7132,50 @@ USER explicitly requested adding a Confluent provisioning lane because repeated 
 1. No secret values committed to repo.
 2. No console-only patching accepted.
 3. Existing unrelated worktree changes remain untouched.
+
+## Entry: 2026-02-13 3:44PM - M2.F deterministic rerun lane codified and executed (still fail-closed on auth)
+
+### Trigger
+USER asked to return to settling `M2.F` and close ambiguity in the verification process.
+
+### Problem statement
+1. `M2.F` had an open blocker (`M2F-B1`) and prior execution evidence, but the command lane was not yet codified as a reusable script in-repo.
+2. We needed a deterministic rerun surface that:
+   - resolves pinned SSM paths,
+   - performs Kafka metadata readiness checks,
+   - emits non-secret evidence,
+   - supports immediate durable upload.
+
+### Decision
+1. Add a dedicated M2.F verification utility:
+   - `tools/dev_substrate/verify_m2f_topic_readiness.py`.
+2. Pin this utility as the canonical M2.F execution command in `platform.M2.build_plan.md`.
+3. Execute the command immediately and persist fresh evidence locally and in S3.
+
+### Implementation
+1. Created `tools/dev_substrate/verify_m2f_topic_readiness.py` with:
+   - SSM resolution for bootstrap/key/secret paths,
+   - Confluent Kafka admin metadata check (primary lane),
+   - `kafka-python` fallback diagnostic lane,
+   - JSON snapshot output (`overall_pass` fail-closed),
+   - optional evidence upload support.
+2. Executed:
+   - `python tools/dev_substrate/verify_m2f_topic_readiness.py`
+   - `aws s3 cp runs/dev_substrate/m2_f/20260213T154433Z/topic_readiness_snapshot.json s3://fraud-platform-dev-min-evidence/evidence/dev_min/substrate/m2_20260213T154433Z/topic_readiness_snapshot.json`
+   - `terraform -chdir=infra/terraform/dev_min/confluent init -reconfigure -backend-config=\"bucket=fraud-platform-dev-min-tfstate\" -backend-config=\"key=dev_min/confluent/terraform.tfstate\" -backend-config=\"region=eu-west-2\" -backend-config=\"dynamodb_table=fraud-platform-dev-min-tf-locks\" -backend-config=\"encrypt=true\"`
+   - `terraform -chdir=infra/terraform/dev_min/confluent plan -input=false` (confirmed fail-closed on missing `TF_VAR_confluent_cloud_api_key` / `TF_VAR_confluent_cloud_api_secret`)
+3. Updated planning docs to reflect the pinned command lane and latest evidence paths.
+
+### Result
+1. Snapshot captured at:
+   - local: `runs/dev_substrate/m2_f/20260213T154433Z/topic_readiness_snapshot.json`
+   - durable: `s3://fraud-platform-dev-min-evidence/evidence/dev_min/substrate/m2_20260213T154433Z/topic_readiness_snapshot.json`
+2. Outcome remains fail-closed:
+   - `overall_pass=false`,
+   - connectivity/auth failure persists against bootstrap endpoint,
+   - `M2F-B1` remains open.
+
+### Closure path unchanged
+1. Apply `infra/terraform/dev_min/confluent` with valid Confluent Cloud management credentials.
+2. Confirm updated runtime key/secret are written to pinned SSM paths.
+3. Rerun the canonical command lane and require `overall_pass=true` before marking `M2.F` complete.
