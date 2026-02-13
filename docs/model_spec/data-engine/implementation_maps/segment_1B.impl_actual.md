@@ -3359,3 +3359,149 @@ Implementation actions completed:
 6) Closed P0 checklist in build plan and recorded phase closure/go decision:
    - `docs/model_spec/data-engine/implementation_maps/segment_1B.build_plan.md`
    - Decision: `GO` into `P1`.
+
+---
+
+### Entry: 2026-02-13 12:48
+
+Design element: P1 expansion planning request (no `P1.1` sub-numbering).
+Summary: User requested expanding `P1` and explicitly noted they do not want `P1.1` style breakdown. We will expand `P1` with work blocks using lettered sections and clear DoDs.
+
+Pre-edit decisions:
+1) Replace the current short `P1` stub with a full execution design that stays S2-centric.
+2) Use block labels (`P1-A`, `P1-B`, ...) instead of `P1.1`.
+3) Keep P1 data-focused:
+   - policy/config and deterministic weighting mechanics,
+   - concentration/breadth shape movement,
+   - replay stability and lock criteria.
+4) Keep P1 boundaries explicit:
+   - active remediation locus is `S2`,
+   - downstream spot-checks are only for shape confirmation, not full-phase closure in P1.
+5) Record concrete file surfaces and tuning knobs so implementation can start without ambiguous interpretation.
+
+---
+
+### Entry: 2026-02-13 12:48
+
+Design element: P1 build-plan expansion applied (block-based, no dotted subphase numbering).
+Summary: Expanded P1 in `segment_1B.build_plan.md` using `P1-A..P1-E` work blocks with explicit scope boundaries, file surfaces, knob map, and closure criteria.
+
+Applied changes:
+1) Replaced the short P1 stub with a full execution section.
+2) Added explicit P1 scope boundary:
+   - P1 is S2-centric,
+   - downstream checks in P1 are confirmation-only.
+3) Added concrete file surfaces (policy, contracts, runner) to avoid ambiguous implementation targeting.
+4) Added S2 tuning knob map:
+   - `basis_mix`, region floors, soft/hard caps, top-k targets, concentration penalty, deterministic namespace.
+5) Added block-based workflow:
+   - `P1-A` policy/contract enablement,
+   - `P1-B` deterministic rebalance implementation,
+   - `P1-C` diagnostics extraction,
+   - `P1-D` calibration loop,
+   - `P1-E` lock handoff.
+6) Expanded DoD checklist to include:
+   - governed diagnostics availability,
+   - measurable concentration improvement vs P0 baseline,
+   - reproducibility and lock-record requirements.
+
+Outcome:
+- P1 is now implementation-ready and aligned with the requested non-dotted subphase style.
+
+---
+
+### Entry: 2026-02-13 12:54
+
+Design element: P1 execution kickoff (S2 blend_v2 implementation + deterministic candidate-run lane).
+Summary: Proceeding with the full P1 execution (`P1-A..P1-E`) with S2-only tuning ownership. The immediate work is policy/schema/runtime enablement for `blend_v2`, deterministic diagnostics emission, and a fast-lane candidate run from `S2 -> S9` under `runs/fix-data-engine/segment_1B`.
+
+Decisions before implementation:
+1) **Implement `blend_v2` as governed policy, not hidden runtime knobs.**
+   - Update:
+     - `config/layer1/1B/policy/policy.s2.tile_weights.yaml`
+     - `docs/model_spec/data-engine/layer-1/specs/contracts/1B/schemas.1B.yaml`
+   - Keep legacy fallback active:
+     - if `blend_v2.enabled=false`, retain existing single-basis behavior.
+
+2) **Use deterministic two-pass rebalance in S2.**
+   - File:
+     - `packages/engine/src/engine/layers/l1/seg_1B/s2_tile_weights/runner.py`
+   - Pass A:
+     - compute raw mixed mass from `{uniform, area_m2, population}` per tile.
+   - Pass B:
+     - country-level scaling with deterministic tie-breaks for:
+       - region floor uplift,
+       - soft/hard country caps,
+       - concentration penalty pull toward uniform country mass.
+   - Preserve existing fixed-dp largest-remainder quantization semantics per country.
+
+3) **Emit governed diagnostics from S2 run report for P1 scoring.**
+   - Add:
+     - `country_share_topk` (`top1`, `top5`, `top10`),
+     - `country_gini_proxy`,
+     - `region_share_vector`,
+     - `blend_v2_diagnostics` (iterations, convergence delta, policy knobs in effect).
+   - Keep existing report fields for backward compatibility.
+
+4) **Run-lane discipline for P1 execution under fix-data-engine root.**
+   - Create one candidate run-id under:
+     - `runs/fix-data-engine/segment_1B/<candidate_run_id>/`
+   - Do not mutate baseline authority run.
+   - Seed/manifest/parameter lineage copied from baseline receipt, with run_id changed to candidate id.
+   - Copy only required upstream inputs into candidate run root (`S0/S1 + 1A outlet surface`) to allow `S2->S9` rerun chain.
+   - Before launching candidate reruns, execute prune script to avoid run-folder sprawl.
+
+5) **P1 scoring posture.**
+   - Add a dedicated P1 scorer artifact under:
+     - `runs/fix-data-engine/segment_1B/reports/`
+   - Evaluate:
+     - S2 diagnostics movement vs P0 baseline,
+     - downstream no-regression sentinel metrics from S4/S8.
+   - Record accepted P1 lock (policy snapshot + run_id + metric deltas) before declaring P1 complete.
+
+Execution order:
+1) implement policy/schema/runner changes,
+2) create P1 candidate run root and required upstream carry-forward inputs,
+3) run prune-before-run,
+4) execute `segment1b-s2` through `segment1b-s9`,
+5) score candidate and run reproducibility repeat,
+6) update build-plan DoD, impl notes, and daily log with lock/handoff details.
+
+---
+
+### Entry: 2026-02-13 13:00
+
+Design element: P1-A/P1-B applied (blend_v2 policy-governed S2 implementation).
+Summary: Implemented the S2-side remediation surfaces for `blend_v2` and deterministic rebalance diagnostics, while preserving existing fixed-dp quantization and legacy fallback behavior.
+
+Implemented changes:
+1) **Policy enablement (`P1-A`).**
+   - Updated `config/layer1/1B/policy/policy.s2.tile_weights.yaml`:
+     - policy version bumped to `2026-02-13`,
+     - added `fallback_mode: legacy_basis_only`,
+     - added `blend_v2` with governed knobs (`basis_mix`, `region_floor_share`, soft/hard caps, top-k caps, penalty strength, deterministic namespace, iteration controls).
+
+2) **Contract governance (`P1-A`).**
+   - Updated `docs/model_spec/data-engine/layer-1/specs/contracts/1B/schemas.1B.yaml`:
+     - extended `policy/s2_tile_weights_policy` to govern `fallback_mode` and full `blend_v2` surface,
+     - kept legacy required fields (`policy_version`, `basis`, `dp`) for backward compatibility.
+
+3) **Runtime implementation (`P1-B`).**
+   - Updated `packages/engine/src/engine/layers/l1/seg_1B/s2_tile_weights/runner.py`:
+     - parses/validates `blend_v2` policy,
+     - computes blended per-tile masses (`uniform`, `area_m2`, `population`) when enabled,
+     - retains legacy single-basis path when disabled,
+     - keeps deterministic per-country fixed-dp largest-remainder quantization unchanged,
+     - adds deterministic country-share rebalance diagnostics (region floors, soft/hard caps, top-k caps, concentration penalty),
+     - emits new S2 run-report diagnostics:
+       - `country_share_topk`,
+       - `country_gini_proxy`,
+       - `region_share_vector`,
+       - `blend_v2_diagnostics`.
+
+4) **Build sanity check.**
+   - Verified syntax compile:
+     - `python -m py_compile packages/engine/src/engine/layers/l1/seg_1B/s2_tile_weights/runner.py`.
+
+Clarifying constraint captured for downstream phases:
+- S2 still enforces per-country fixed-dp normalization (`sum(weight_fp)=10^dp` per country), so country-level volume movement in final `site_locations` remains primarily downstream of S3/S4 ownership. P1 therefore targets S2 mass-shape diagnostics and within-country weight realism, then hands off anti-collapse country-volume controls to P2 (`S4`).

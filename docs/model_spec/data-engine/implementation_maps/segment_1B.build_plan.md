@@ -168,22 +168,63 @@ P0 closure record:
 - Go/no-go decision to enter `P1`: `GO`.
 
 ### P1 - S2 macro-mass reshape (country and region balance priors)
-Focus:
-- implement `blend_v2` policy and constrained deterministic rebalance in `S2`.
+Goal:
+- reshape country/region mass at the source (`S2`) so concentration collapse is reduced before integer allocation and jitter stages.
 
-Primary tuning surfaces:
-- `policy.s2.tile_weights.yaml` (`basis_mix`, region floors, soft/hard caps, concentration penalty).
-- `s2_tile_weights` runner constrained rebalance loop and diagnostics.
+P1 scope boundary:
+- Primary state: `S2`.
+- Downstream use in P1: only targeted shape checks (`S2 -> S4 -> S8`) to confirm direction-of-movement.
+- No `S4` or `S6` tuning in P1; those belong to `P2` and `P3`.
 
-Data outputs under evaluation:
-- `tile_weights`
-- `s2_run_report` diagnostics (`country_share_topk`, `country_gini_proxy`, `region_share_vector`)
+P1 file surfaces:
+- Policy/config:
+  - `config/layer1/1B/policy/policy.s2.tile_weights.yaml`
+- Contract/schema (only as needed to govern new policy keys):
+  - `docs/model_spec/data-engine/layer-1/specs/contracts/1B/schemas.1B.yaml`
+  - `docs/model_spec/data-engine/layer-1/specs/contracts/1B/dataset_dictionary.layer1.1B.yaml`
+- Runtime:
+  - `packages/engine/src/engine/layers/l1/seg_1B/s2_tile_weights/runner.py`
+
+P1 tunable knobs (S2 only):
+- `basis_mix` weights (`uniform`, `area_m2`, `population`)
+- `region_floor_share` (region minimum mass floors)
+- `country_cap_share_soft`
+- `country_cap_share_hard`
+- `topk_cap_targets` (`top1`, `top5`, `top10`)
+- `concentration_penalty_strength`
+- deterministic namespace keying for rebalance loop
+
+P1 work blocks:
+- `P1-A` Policy and contract enablement:
+  - introduce/activate `blend_v2` policy block with legacy fallback path.
+  - ensure policy fields are contract-governed (no hidden runtime knobs).
+- `P1-B` Deterministic rebalance implementation in S2:
+  - pass A: build raw mixed mass.
+  - pass B: enforce floors/caps/penalty with deterministic tie-breaking.
+  - preserve replay invariants for fixed `{seed, parameter_hash}`.
+- `P1-C` Diagnostics surfaces and score extraction:
+  - emit/compute `country_share_topk`, `country_gini_proxy`, `region_share_vector`.
+  - compare against P0 baseline scorecard and record deltas.
+- `P1-D` Calibration loop:
+  - tune one knob group at a time (mix -> floors -> caps -> penalty).
+  - keep iteration changes small (max 2-3 related knobs per cycle).
+  - run fast-lane from `S2` onward using Section 2.1 rerun matrix.
+- `P1-E` P1 lock handoff:
+  - pin accepted S2 policy version + runner commit.
+  - declare S2 locked for downstream phases unless explicit reopen is approved.
+
+P1 success posture:
+- concentration and coverage must move in the right direction versus P0 baseline.
+- improvements must be reproducible on repeated same-seed runs.
+- no region-floor or deterministic replay regressions.
 
 Definition of done:
-- [ ] `blend_v2` policy path is active with deterministic replay preserved.
-- [ ] S2 diagnostics show measurable concentration relaxation without region-floor violations.
-- [ ] two consecutive fast-lane runs reproduce the same metric posture for fixed seed/policy hash.
-- [ ] P1 lock recorded (S2 policy version + runner commit pinned for downstream phases).
+- [ ] `blend_v2` policy path is active with legacy fallback retained.
+- [ ] S2 emits governed diagnostics needed for concentration and region-shape scoring.
+- [ ] at least one accepted P1 candidate shows concentration improvement versus P0 baseline on the authority metrics (`gini`, `top1`, `top5`, `top10`).
+- [ ] P1 candidate does not introduce new region-floor breaches in S2 diagnostics.
+- [ ] two consecutive same-seed fast-lane runs reproduce the same S2 score posture.
+- [ ] P1 lock record is written (policy bundle, commit refs, accepted metric snapshot).
 
 ### P2 - S4 anti-collapse integer allocation closure
 Focus:

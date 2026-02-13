@@ -85,7 +85,7 @@ policy:
 
   s2_tile_weights_policy:
     type: object
-    description: "Governed S2 weights policy (basis + fixed-dp precision)."
+    description: "Governed S2 weights policy (legacy basis + optional blend_v2 controls)."
     required: [policy_version, basis, dp]
     additionalProperties: false
     properties:
@@ -96,6 +96,85 @@ policy:
         $ref: '#/$defs/basis'
       dp:
         $ref: '#/$defs/dp_nonneg'
+      fallback_mode:
+        type: string
+        enum: ["legacy_basis_only"]
+        description: "Fallback behavior when blend_v2 is disabled."
+      blend_v2:
+        type: object
+        additionalProperties: false
+        required:
+          - enabled
+          - basis_mix
+          - region_floor_share
+          - country_cap_share_soft
+          - country_cap_share_hard
+          - topk_cap_targets
+          - concentration_penalty_strength
+          - deterministic_seed_namespace
+          - max_rebalance_iterations
+          - convergence_tolerance
+        properties:
+          enabled:
+            type: boolean
+          basis_mix:
+            type: object
+            additionalProperties: false
+            required: [uniform, area_m2, population]
+            properties:
+              uniform: {type: number, minimum: 0, maximum: 1}
+              area_m2: {type: number, minimum: 0, maximum: 1}
+              population: {type: number, minimum: 0, maximum: 1}
+          region_floor_share:
+            type: object
+            additionalProperties: false
+            required:
+              - Africa
+              - Asia
+              - Europe
+              - North America
+              - South America
+              - Oceania
+              - Other
+            properties:
+              Africa: {type: number, minimum: 0, maximum: 1}
+              Asia: {type: number, minimum: 0, maximum: 1}
+              Europe: {type: number, minimum: 0, maximum: 1}
+              North America: {type: number, minimum: 0, maximum: 1}
+              South America: {type: number, minimum: 0, maximum: 1}
+              Oceania: {type: number, minimum: 0, maximum: 1}
+              Other: {type: number, minimum: 0, maximum: 1}
+          country_cap_share_soft:
+            type: number
+            exclusiveMinimum: 0
+            maximum: 1
+          country_cap_share_hard:
+            type: number
+            exclusiveMinimum: 0
+            maximum: 1
+          topk_cap_targets:
+            type: object
+            additionalProperties: false
+            required: [top1, top5, top10]
+            properties:
+              top1: {type: number, exclusiveMinimum: 0, maximum: 1}
+              top5: {type: number, exclusiveMinimum: 0, maximum: 1}
+              top10: {type: number, exclusiveMinimum: 0, maximum: 1}
+          concentration_penalty_strength:
+            type: number
+            minimum: 0
+            maximum: 1
+          deterministic_seed_namespace:
+            type: string
+            minLength: 1
+          max_rebalance_iterations:
+            type: integer
+            minimum: 1
+            maximum: 512
+          convergence_tolerance:
+            type: number
+            exclusiveMinimum: 0
+            maximum: 1
       notes:
         type: string
         description: "Optional free text."
