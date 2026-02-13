@@ -109,199 +109,353 @@ Execution block:
 7. Fail-closed law:
    - any blocker at any sub-phase holds M4 (`HOLD_M4`).
 
+## 5.1) Sequential Closure Chain (A->J)
+1. `M4.A` closes handle and handoff authority surfaces.
+2. `M4.B` converts handles into executable service/pack singleton map.
+3. `M4.C` proves mapped services have valid execution identities and access posture.
+4. `M4.D` proves substrate reachability for mapped services.
+5. `M4.E` builds deterministic launch contract with run-scope injection.
+6. `M4.F` executes bring-up and stabilization against the launch contract.
+7. `M4.G` validates consumer uniqueness and singleton continuity.
+8. `M4.H` publishes canonical run-scoped daemon-readiness evidence.
+9. `M4.I` computes deterministic verdict using A-H predicates.
+10. `M4.J` publishes handoff artifact for M5 entry.
+
 ### M4.A Authority + Handle Closure (P2)
 Goal:
-1. Close all required P2 handles and M3->M4 handoff anchors before service actions.
+1. Close all required P2 handles and M3->M4 handoff anchors before any service action.
 
-Tasks:
-1. Validate M3 verdict and handoff preconditions:
+Entry conditions:
+1. `platform.build_plan.md` keeps M4 as `ACTIVE`.
+2. M3 verdict artifact is present and indicates `ADVANCE_TO_M4`.
+
+Inputs:
+1. `runs/dev_substrate/m3/20260213T221631Z/m3_f_verdict_snapshot.json`
+2. `runs/dev_substrate/m3/20260213T221631Z/m4_handoff_pack.json`
+3. `docs/model_spec/platform/migration_to_dev/dev_min_handles.registry.v0.md`
+4. `docs/model_spec/platform/migration_to_dev/dev_min_spine_green_v0_run_process_flow.md` (P2 required surfaces)
+
+Execution sequence:
+1. Validate M3 handoff preconditions:
    - `m3_f_verdict_snapshot.json` must be `ADVANCE_TO_M4`.
    - `m4_handoff_pack.json` must exist and be non-secret.
-2. Resolve required handle families:
+2. Build required-handle matrix by lane:
    - run-scope: `REQUIRED_PLATFORM_RUN_ID_ENV_KEY`, `ACTIVE_RUN_ID_SOURCE`
    - ECS identity surfaces: `ECS_CLUSTER_NAME`, `SVC_*`, `TD_*`
-   - dependency handles: S3 buckets, Kafka topic handles, DB identifiers
-   - network/logging handles: subnets/SG/log-group prefix.
-3. Emit closure snapshot.
+   - dependency handles: S3, Kafka, DB
+   - network/logging handles: subnets/SG/log group.
+3. Classify each required handle as `resolved` or `blocker`; no implied defaults allowed.
+4. Emit closure snapshot and matrix artifacts.
+
+Evidence artifacts:
+1. `m4_a_handle_closure_snapshot.json`
+2. `m4_a_handle_closure_matrix.json`
 
 DoD:
 - [ ] M3 handoff preconditions verified.
 - [ ] Required P2 handle set resolved or explicitly blocker-marked.
-- [ ] M4.A closure snapshot exists locally and durably.
+- [ ] M4.A closure artifacts exist locally and durably.
 
 Blockers:
 1. `M4A-B1`: M3 verdict/handoff precondition missing.
 2. `M4A-B2`: required P2 handles unresolved for execution.
-3. `M4A-B3`: M4.A closure snapshot write/upload failure.
+3. `M4A-B3`: M4.A artifact write/upload failure.
+
+Handoff rule:
+1. `M4.B` starts only if `M4A-B*` blockers are empty.
 
 ### M4.B Service/Pack Map + Singleton Contract
 Goal:
-1. Pin executable service/pack map and singleton policy for bring-up.
+1. Pin executable service/pack map and singleton policy for daemon bring-up.
 
-Tasks:
-1. Build M4 service map for in-scope packs:
+Entry conditions:
+1. M4.A closure snapshot is present with zero unresolved required handles.
+
+Inputs:
+1. `m4_a_handle_closure_snapshot.json`
+2. P2 in-scope pack definitions from runbook.
+3. Handle registry service/task-definition keys.
+
+Execution sequence:
+1. Build service map for in-scope packs:
    - `control_ingress`: `SVC_IG`
    - `rtdl_core`: `SVC_RTDL_CORE_ARCHIVE_WRITER`, `SVC_RTDL_CORE_IEG`, `SVC_RTDL_CORE_OFP`, `SVC_RTDL_CORE_CSFB` (if separate)
    - `rtdl_decision_lane`: `SVC_DECISION_LANE_DL`, `SVC_DECISION_LANE_DF`, `SVC_DECISION_LANE_AL`, `SVC_DECISION_LANE_DLA`
    - `case_labels`: `SVC_CASE_TRIGGER`, `SVC_CM`, `SVC_LS`
-   - `obs_gov`: `SVC_ENV_CONFORMANCE` (if daemonized for this run)
-2. Pin desired_count policy for each mapped service (`1`).
-3. Publish pack/service map artifact.
+   - `obs_gov`: `SVC_ENV_CONFORMANCE` (if daemonized for this run).
+2. Pin singleton policy:
+   - `desired_count=1` for every daemonized service in this phase.
+3. Record startup ordering plan per pack to reduce coupled failure blast radius.
+4. Publish service-map artifacts.
+
+Evidence artifacts:
+1. `m4_b_service_map_snapshot.json`
+2. `m4_b_singleton_contract.json`
 
 DoD:
 - [ ] M4 pack/service map is explicit and complete for in-scope packs.
-- [ ] Singleton desired_count policy is pinned for each started service.
-- [ ] M4.B service-map artifact exists locally and durably.
+- [ ] Singleton `desired_count` policy is pinned for each started service.
+- [ ] M4.B artifacts exist locally and durably.
 
 Blockers:
 1. `M4B-B1`: service map incomplete for in-scope packs.
 2. `M4B-B2`: singleton policy unresolved.
-3. `M4B-B3`: service-map artifact write/upload failure.
+3. `M4B-B3`: M4.B artifact write/upload failure.
+
+Handoff rule:
+1. `M4.C` starts only if every in-scope daemon has a mapped ECS service identity.
 
 ### M4.C Identity/IAM Binding Validation
 Goal:
 1. Validate role/task/service execution identities required to start daemons.
 
-Tasks:
-1. Verify ECS task execution/app roles exist and are attachable for mapped services.
-2. Validate minimum access posture for dependencies:
+Entry conditions:
+1. M4.B service map is complete and stable.
+
+Inputs:
+1. `m4_b_service_map_snapshot.json`
+2. Runtime role and policy handles from registry.
+
+Execution sequence:
+1. Verify each mapped service has valid task execution role and app role binding.
+2. Validate minimum access posture by daemon class:
    - SSM read for runtime secrets,
    - Kafka credentials retrieval path,
    - S3 read/write to required prefixes,
    - DB connectivity for DB-requiring services.
-3. Publish IAM binding snapshot.
+3. Mark least-privilege drift findings as blockers for this phase.
+4. Publish IAM binding snapshot.
+
+Evidence artifacts:
+1. `m4_c_iam_binding_snapshot.json`
+2. `m4_c_iam_gap_register.json` (empty when pass)
 
 DoD:
 - [ ] IAM execution identities for all mapped services are validated.
 - [ ] Missing/invalid role bindings are blocker-marked.
-- [ ] M4.C IAM snapshot exists locally and durably.
+- [ ] M4.C artifacts exist locally and durably.
 
 Blockers:
 1. `M4C-B1`: required role binding missing/invalid.
 2. `M4C-B2`: dependency access policy gap identified.
-3. `M4C-B3`: IAM snapshot write/upload failure.
+3. `M4C-B3`: M4.C artifact write/upload failure.
+
+Handoff rule:
+1. `M4.D` starts only when IAM gap register is empty.
 
 ### M4.D Network + Dependency Reachability Validation
 Goal:
 1. Validate daemon runtime can reach required substrates before bring-up.
 
-Tasks:
-1. Check runtime network posture aligns with demo constraints (no NAT expectations preserved).
-2. Validate reachability surface for:
-   - Kafka bootstrap endpoint,
-   - S3 buckets/prefixes,
-   - runtime DB endpoint,
+Entry conditions:
+1. M4.C passed with no unresolved IAM blockers.
+
+Inputs:
+1. `m4_b_service_map_snapshot.json`
+2. VPC/subnet/SG handles.
+3. Dependency endpoints and identifiers (Kafka/S3/DB/logging).
+
+Execution sequence:
+1. Build dependency matrix keyed by service:
+   - Kafka bootstrap endpoint
+   - S3 buckets/prefixes
+   - runtime DB endpoint
    - CloudWatch log-group write surface.
-3. Publish dependency snapshot.
+2. Validate runtime network posture aligns with pinned dev-min topology.
+3. Execute reachability checks by dependency class and record pass/fail per service.
+4. Publish dependency snapshot.
+
+Evidence artifacts:
+1. `m4_d_dependency_snapshot.json`
+2. `m4_d_dependency_matrix.json`
 
 DoD:
 - [ ] Dependency reachability checks pass for mapped services.
 - [ ] Any unreachable dependency is blocker-marked.
-- [ ] M4.D dependency snapshot exists locally and durably.
+- [ ] M4.D artifacts exist locally and durably.
 
 Blockers:
 1. `M4D-B1`: dependency reachability failure.
 2. `M4D-B2`: network posture mismatch vs expected runtime lane.
-3. `M4D-B3`: dependency snapshot write/upload failure.
+3. `M4D-B3`: M4.D artifact write/upload failure.
+
+Handoff rule:
+1. `M4.E` starts only with zero unresolved reachability blockers.
 
 ### M4.E Launch Contract + Run-Scope Injection
 Goal:
 1. Produce deterministic launch contract enforcing run-scope for all services.
 
-Tasks:
+Entry conditions:
+1. M4.D dependency checks are green.
+
+Inputs:
+1. `platform_run_id` from M3.
+2. `m4_b_service_map_snapshot.json`
+3. `m4_d_dependency_snapshot.json`
+4. image provenance anchors from M1/M3 artifacts.
+
+Execution sequence:
 1. Build launch contract for each mapped service with:
-   - `REQUIRED_PLATFORM_RUN_ID_ENV_KEY` and value from M3,
+   - `REQUIRED_PLATFORM_RUN_ID_ENV_KEY` and M3 run-id value,
    - dependency env/secret references by handle,
-   - image provenance references from M3/M1 anchors.
-2. Validate that launch contract is non-secret.
-3. Publish launch-contract snapshot.
+   - image provenance references.
+2. Validate run-scope key/value equality across all services.
+3. Validate contract is non-secret.
+4. Publish launch-contract snapshot.
+
+Evidence artifacts:
+1. `m4_e_launch_contract_snapshot.json`
+2. `m4_e_launch_contract_services.json`
 
 DoD:
 - [ ] Launch contract includes run-scope env mapping for all mapped services.
 - [ ] Run-scope value equals M3 `platform_run_id` for all services.
-- [ ] M4.E launch-contract snapshot exists locally and durably.
+- [ ] M4.E artifacts exist locally and durably.
 
 Blockers:
 1. `M4E-B1`: run-scope env key/value missing or mismatched.
 2. `M4E-B2`: launch contract missing required service entries.
 3. `M4E-B3`: secret leakage detected in launch-contract artifacts.
-4. `M4E-B4`: launch-contract snapshot write/upload failure.
+4. `M4E-B4`: M4.E artifact write/upload failure.
+
+Handoff rule:
+1. `M4.F` starts only when every mapped daemon has explicit run-scope injection.
 
 ### M4.F Daemon Bring-up + Stabilization
 Goal:
-1. Start mapped ECS services and validate stable running posture.
+1. Start mapped ECS services and validate stable singleton running posture.
 
-Tasks:
+Entry conditions:
+1. M4.E launch contract is complete and non-secret.
+
+Inputs:
+1. `m4_e_launch_contract_snapshot.json`
+2. `m4_b_singleton_contract.json`
+
+Execution sequence:
 1. Execute service start/update choreography by pack order:
-   - ingress first, then rtdl core/decision lanes, then case/labels, then obs_gov daemonized parts.
-2. Wait for service stabilization and collect:
+   - ingress first,
+   - then rtdl core and decision lanes,
+   - then case/labels,
+   - then obs_gov daemonized parts.
+2. Wait for service stabilization windows and collect:
    - desired/running counts,
    - task ARNs,
-   - health endpoint/log status.
-3. Validate no crashloops and run-scope mismatch logs.
+   - health/log status.
+3. Validate no crashloops and no run-scope mismatch signal in logs/events.
 4. Publish daemon-start snapshot.
+
+Evidence artifacts:
+1. `m4_f_daemon_start_snapshot.json`
+2. `m4_f_service_health_rollup.json`
 
 DoD:
 - [ ] All mapped services reach expected singleton running posture.
 - [ ] Crashloop-free stabilization checks pass.
-- [ ] M4.F daemon-start snapshot exists locally and durably.
+- [ ] M4.F artifacts exist locally and durably.
 
 Blockers:
 1. `M4F-B1`: service start/update failure.
 2. `M4F-B2`: service fails stabilization (desired/running mismatch).
 3. `M4F-B3`: crashloop or unhealthy state detected.
-4. `M4F-B4`: daemon-start snapshot write/upload failure.
+4. `M4F-B4`: M4.F artifact write/upload failure.
+
+Handoff rule:
+1. `M4.G` starts only when all mapped services stabilize to singleton.
 
 ### M4.G Duplicate-Consumer Guard + Singleton Enforcement
 Goal:
 1. Ensure consumer uniqueness and no conflicting lane consumers.
 
-Tasks:
-1. Check for duplicate/manual once-off consumer interference in mapped lanes.
-2. Validate singleton running posture is preserved after stabilization interval.
-3. Publish consumer-uniqueness snapshot.
+Entry conditions:
+1. M4.F stabilization pass is complete.
+
+Inputs:
+1. `m4_f_daemon_start_snapshot.json`
+2. lane-to-consumer ownership surfaces from runbook.
+
+Execution sequence:
+1. Check for duplicate/manual once-off consumer interference in in-scope lanes.
+2. Validate singleton running posture remains stable after guard interval.
+3. Record any cross-lane or parallel consumer conflict.
+4. Publish consumer-uniqueness snapshot.
+
+Evidence artifacts:
+1. `m4_g_consumer_uniqueness_snapshot.json`
+2. `m4_g_lane_consumer_map.json`
 
 DoD:
 - [ ] No duplicate consumer conflict exists for in-scope lanes.
 - [ ] Singleton posture remains stable.
-- [ ] M4.G uniqueness snapshot exists locally and durably.
+- [ ] M4.G artifacts exist locally and durably.
 
 Blockers:
 1. `M4G-B1`: duplicate consumer conflict detected.
 2. `M4G-B2`: singleton posture drift after stabilization.
-3. `M4G-B3`: uniqueness snapshot write/upload failure.
+3. `M4G-B3`: M4.G artifact write/upload failure.
+
+Handoff rule:
+1. `M4.H` starts only when uniqueness snapshot reports no conflicts.
 
 ### M4.H Daemon Readiness Evidence Publication
 Goal:
 1. Publish canonical run-scoped P2 readiness evidence.
 
-Tasks:
-1. Build readiness artifact:
-   - `evidence/runs/<platform_run_id>/operate/daemons_ready.json`
-   containing:
+Entry conditions:
+1. M4.F and M4.G passed with no unresolved blockers.
+
+Inputs:
+1. `m4_f_daemon_start_snapshot.json`
+2. `m4_g_consumer_uniqueness_snapshot.json`
+3. M3 `platform_run_id`.
+
+Execution sequence:
+1. Build readiness artifact `evidence/runs/<platform_run_id>/operate/daemons_ready.json` with:
    - pack IDs,
-   - service names/task ARNs,
+   - service names and task ARNs,
    - desired/running counts,
    - run-scope key/value used,
-   - timestamp.
+   - publication timestamp.
 2. Publish local mirror and durable run-scoped object.
+3. Publish publication snapshot.
+
+Evidence artifacts:
+1. `evidence/runs/<platform_run_id>/operate/daemons_ready.json`
+2. `m4_h_readiness_publication_snapshot.json`
 
 DoD:
 - [ ] `operate/daemons_ready.json` exists and is complete.
 - [ ] Run-scoped durable evidence publication passes.
-- [ ] M4.H publication snapshot exists locally and durably.
+- [ ] M4.H artifacts exist locally and durably.
 
 Blockers:
 1. `M4H-B1`: readiness artifact missing required fields.
 2. `M4H-B2`: durable run-scoped publication failure.
-3. `M4H-B3`: publication snapshot write/upload failure.
+3. `M4H-B3`: M4.H artifact write/upload failure.
+
+Handoff rule:
+1. `M4.I` starts only after durable run-scoped readiness evidence is confirmed.
 
 ### M4.I Pass Gates + Blocker Rollup + Verdict
 Goal:
 1. Compute deterministic M4 verdict from explicit gate predicates.
 
-Tasks:
-1. Evaluate predicates:
+Entry conditions:
+1. Sub-phases M4.A through M4.H have published snapshots.
+
+Inputs:
+1. `m4_a_handle_closure_snapshot.json`
+2. `m4_b_service_map_snapshot.json`
+3. `m4_c_iam_binding_snapshot.json`
+4. `m4_d_dependency_snapshot.json`
+5. `m4_e_launch_contract_snapshot.json`
+6. `m4_f_daemon_start_snapshot.json`
+7. `m4_g_consumer_uniqueness_snapshot.json`
+8. `m4_h_readiness_publication_snapshot.json`
+
+Execution sequence:
+1. Evaluate gate predicates:
    - `handles_closed`
    - `service_map_complete`
    - `iam_binding_valid`
@@ -309,37 +463,56 @@ Tasks:
    - `run_scope_enforced`
    - `services_stable`
    - `no_duplicate_consumers`
-   - `readiness_evidence_durable`
+   - `readiness_evidence_durable`.
 2. Roll up blockers from M4.A..M4.H.
 3. Compute verdict:
    - all predicates true and blockers empty => `ADVANCE_TO_M5`
    - otherwise => `HOLD_M4`.
 4. Publish verdict snapshot.
 
+Evidence artifacts:
+1. `m4_i_verdict_snapshot.json`
+2. `m4_i_gate_predicates_snapshot.json`
+
 DoD:
 - [ ] M4 gate predicates are explicit and reproducible.
 - [ ] Blocker rollup is complete and fail-closed.
-- [ ] Verdict snapshot exists locally and durably.
+- [ ] M4.I artifacts exist locally and durably.
 
 Blockers:
 1. `M4I-B1`: missing/unreadable prerequisite snapshot from A-H lanes.
 2. `M4I-B2`: predicate evaluation incomplete/invalid.
 3. `M4I-B3`: blocker rollup non-empty.
-4. `M4I-B4`: verdict snapshot write/upload failure.
+4. `M4I-B4`: M4.I artifact write/upload failure.
+
+Handoff rule:
+1. `M4.J` starts only when verdict is `ADVANCE_TO_M5`.
 
 ### M4.J M5 Handoff Artifact Publication
 Goal:
 1. Publish canonical handoff surface for M5 entry.
 
-Tasks:
+Entry conditions:
+1. M4.I verdict is `ADVANCE_TO_M5`.
+
+Inputs:
+1. `m4_i_verdict_snapshot.json`
+2. `evidence/runs/<platform_run_id>/operate/daemons_ready.json`
+3. service map and launch contract snapshots.
+
+Execution sequence:
 1. Build `m5_handoff_pack.json` with:
    - `platform_run_id`
    - M4 verdict
    - readiness evidence URI
    - runtime service map snapshot URI
-   - source execution IDs (`m3*`, `m4*`)
-2. Ensure non-secret payload.
+   - source execution IDs (`m3*`, `m4*`).
+2. Validate non-secret contract.
 3. Publish local + durable handoff artifact.
+
+Evidence artifacts:
+1. `m5_handoff_pack.json`
+2. `m4_j_handoff_publication_snapshot.json`
 
 DoD:
 - [ ] `m5_handoff_pack.json` is complete and non-secret.
@@ -350,7 +523,7 @@ Blockers:
 1. `M4J-B1`: M4 verdict is not `ADVANCE_TO_M5`.
 2. `M4J-B2`: handoff pack missing required fields/URIs.
 3. `M4J-B3`: non-secret policy violation in handoff artifact.
-4. `M4J-B4`: handoff artifact write/upload failure.
+4. `M4J-B4`: M4.J artifact write/upload failure.
 
 ## 6) M4 Evidence Contract (Pinned for Execution)
 Evidence roots:
@@ -364,16 +537,25 @@ Evidence roots:
 Minimum M4 evidence payloads:
 1. `evidence/runs/<platform_run_id>/operate/daemons_ready.json`
 2. `evidence/dev_min/run_control/<m4_execution_id>/m4_a_handle_closure_snapshot.json`
-3. `evidence/dev_min/run_control/<m4_execution_id>/m4_b_service_map_snapshot.json`
-4. `evidence/dev_min/run_control/<m4_execution_id>/m4_c_iam_binding_snapshot.json`
-5. `evidence/dev_min/run_control/<m4_execution_id>/m4_d_dependency_snapshot.json`
-6. `evidence/dev_min/run_control/<m4_execution_id>/m4_e_launch_contract_snapshot.json`
-7. `evidence/dev_min/run_control/<m4_execution_id>/m4_f_daemon_start_snapshot.json`
-8. `evidence/dev_min/run_control/<m4_execution_id>/m4_g_consumer_uniqueness_snapshot.json`
-9. `evidence/dev_min/run_control/<m4_execution_id>/m4_h_readiness_publication_snapshot.json`
-10. `evidence/dev_min/run_control/<m4_execution_id>/m4_i_verdict_snapshot.json`
-11. `evidence/dev_min/run_control/<m4_execution_id>/m5_handoff_pack.json`
-12. local mirrors under:
+3. `evidence/dev_min/run_control/<m4_execution_id>/m4_a_handle_closure_matrix.json`
+4. `evidence/dev_min/run_control/<m4_execution_id>/m4_b_service_map_snapshot.json`
+5. `evidence/dev_min/run_control/<m4_execution_id>/m4_b_singleton_contract.json`
+6. `evidence/dev_min/run_control/<m4_execution_id>/m4_c_iam_binding_snapshot.json`
+7. `evidence/dev_min/run_control/<m4_execution_id>/m4_c_iam_gap_register.json`
+8. `evidence/dev_min/run_control/<m4_execution_id>/m4_d_dependency_snapshot.json`
+9. `evidence/dev_min/run_control/<m4_execution_id>/m4_d_dependency_matrix.json`
+10. `evidence/dev_min/run_control/<m4_execution_id>/m4_e_launch_contract_snapshot.json`
+11. `evidence/dev_min/run_control/<m4_execution_id>/m4_e_launch_contract_services.json`
+12. `evidence/dev_min/run_control/<m4_execution_id>/m4_f_daemon_start_snapshot.json`
+13. `evidence/dev_min/run_control/<m4_execution_id>/m4_f_service_health_rollup.json`
+14. `evidence/dev_min/run_control/<m4_execution_id>/m4_g_consumer_uniqueness_snapshot.json`
+15. `evidence/dev_min/run_control/<m4_execution_id>/m4_g_lane_consumer_map.json`
+16. `evidence/dev_min/run_control/<m4_execution_id>/m4_h_readiness_publication_snapshot.json`
+17. `evidence/dev_min/run_control/<m4_execution_id>/m4_i_verdict_snapshot.json`
+18. `evidence/dev_min/run_control/<m4_execution_id>/m4_i_gate_predicates_snapshot.json`
+19. `evidence/dev_min/run_control/<m4_execution_id>/m5_handoff_pack.json`
+20. `evidence/dev_min/run_control/<m4_execution_id>/m4_j_handoff_publication_snapshot.json`
+21. local mirrors under:
    - `runs/dev_substrate/m4/<timestamp>/...`
 
 Notes:

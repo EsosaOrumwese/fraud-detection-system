@@ -8405,3 +8405,31 @@ USER directed immediate progression to close `M2.F` after workflow secret mappin
 ### Planning posture after this pass
 1. M4 is fully planned to closure-grade depth and ready for sequential execution start at `M4.A`.
 2. This pass was planning-only; no M4 runtime execution commands were run.
+
+## Entry: 2026-02-13 10:38PM - M4 deep-plan expansion pass (A->J planned at once, sequentially)
+
+### Trigger
+1. USER directed a one-pass planning expansion for all M4 sub-phases (`M4.A -> M4.J`), preserving sequential progression while planning all lanes now.
+
+### Decision posture
+1. Keep phase status unchanged (`M4` remains `ACTIVE` in main plan).
+2. Increase sub-phase depth rather than adding new phases.
+3. Expand each M4 sub-phase using a consistent execution template:
+   - entry conditions,
+   - required inputs,
+   - execution sequence,
+   - evidence artifacts,
+   - blocker taxonomy,
+   - handoff rule to next sub-phase.
+
+### Changes applied
+1. Updated `docs/model_spec/platform/implementation_maps/dev_substrate/platform.M4.build_plan.md`:
+   - expanded `M4.A` through `M4.J` with sequential execution-grade detail,
+   - added `5.1) Sequential Closure Chain (A->J)`,
+   - aligned evidence contract to include newly pinned artifacts across all sub-phases.
+2. Updated `docs/model_spec/platform/implementation_maps/dev_substrate/platform.build_plan.md`:
+   - added explicit M4 expansion-state note confirming deep-plan completeness for `M4.A -> M4.J`.
+
+### Outcome
+1. M4 planning is now closure-grade for all A->J lanes in one pass.
+2. Next execution step remains unchanged: start runtime work at `M4.A` and proceed fail-closed through `M4.J`.

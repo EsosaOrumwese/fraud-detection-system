@@ -401,6 +401,8 @@ Active-phase planning posture:
   - `M4.H` daemon readiness evidence publication.
   - `M4.I` pass gates + blocker model + verdict.
   - `M4.J` M5 handoff artifact publication.
+- M4 expansion state:
+  - `M4.A -> M4.J` are fully expanded in the deep plan with entry conditions, required inputs, execution sequence, evidence artifacts, blocker taxonomy, and handoff rules.
 - Sub-phase progress:
   - [ ] `M4.A` authority + handle closure for P2.
   - [ ] `M4.B` service/pack map + singleton replica contract.
