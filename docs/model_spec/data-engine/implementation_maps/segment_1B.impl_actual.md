@@ -3696,3 +3696,84 @@ Decision and rationale before code edits:
 
 Expected result:
 - P2 closure remains data-truthful: we do not claim fake movement where math disallows it, and we still veto any regression.
+
+---
+
+### Entry: 2026-02-13 18:43
+
+Design element: P2 execution closure (bound-aware scoring + lock handoff).
+Summary: Implemented and exercised floor-aware P2 scoring, then completed candidate/repro runs and locked P2 with non-regressive floor-hold evidence.
+
+Implementation outcomes:
+1) **Scorer upgraded for feasibility-aware gates.**
+   - File updated: `tools/score_segment1b_p2_candidate.py`.
+   - Added per-country tile-capacity extraction from `tile_weights`.
+   - Added per-pair theoretical lower bounds for `top1` and `HHI` from `(pair_total, tile_capacity)`.
+   - Added aggregated `theoretical_floor` and `theoretical_headroom` in `s4_pair_metrics`.
+   - Updated P2 gate semantics:
+     - if baseline headroom exists, require strict improvement;
+     - if baseline headroom is zero, require floor-hold + non-regression.
+   - Added explicit `feasibility` block in score output for auditability.
+
+2) **Candidate and reproducibility evidence.**
+   - Accepted candidate run: `47ad6781ab9d4d92b311b068f51141f6`.
+   - Repro run: `57cc24a38a4646f3867b7f815063d26f` (fresh run-id; full chain `S4->S9`).
+   - Score artifacts:
+     - `segment1b_p2_candidate_47ad6781ab9d4d92b311b068f51141f6.json`
+     - `segment1b_p2_candidate_57cc24a38a4646f3867b7f815063d26f.json`
+   - Both scorecards report `checks_all_pass=true` with zero S8 regression and zero baseline headroom.
+   - Repro comparison artifact written:
+     - `segment1b_p2_repro_check_47ad6781ab9d4d92b311b068f51141f6_57cc24a38a4646f3867b7f815063d26f.json`.
+
+3) **P2 lock and storage discipline.**
+   - Wrote lock artifact:
+     - `runs/fix-data-engine/segment_1B/reports/segment1b_p2_lock_record.json`.
+   - Updated pointers:
+     - `runs/fix-data-engine/segment_1B/current_candidate/current_candidate_pointer.json`
+     - `runs/fix-data-engine/segment_1B/last_good/last_good_pointer.json`
+   - Pruned superseded run folders:
+     - `923332139abd4f588a7770513f6f40a0`,
+     - `57cc24a38a4646f3867b7f815063d26f`.
+
+Decision statement:
+- P2 is closed with a mathematically justified floor-hold posture under locked P1 inputs.
+- Downstream phases can proceed with P1/P2 both treated as immutable unless explicit reopen is approved.
+
+---
+
+### Entry: 2026-02-13 18:52
+
+Design element: P3 planning expansion (S6 geometry closure under P1/P2 freeze).
+Summary: Expanded P3 from a high-level note into execution-grade blocks (`P3-A..P3-E`) with explicit freeze boundaries, governed file surfaces, and measurable DoDs tied to geometry realism without reopening P1/P2.
+
+Planning decisions captured:
+1) **Freeze discipline remains strict.**
+   - P3 may only tune S6 surfaces.
+   - P1 (S2) and P2 (S4) are hard-locked unless explicit reopen approval is recorded.
+
+2) **P3 authority stack is two-layered.**
+   - Grade reference remains P0 baseline metrics.
+   - No-regression reference for downstream posture is P2 lock run.
+   - This prevents fake gain claims from swapping baselines mid-phase.
+
+3) **S6 control surfaces must be policy-governed first.**
+   - Add `policy.s6.jitter.yaml` and activate governed schema/dictionary mapping.
+   - No hidden tuning constants in runner logic.
+
+4) **Implementation lane remains deterministic and fail-closed.**
+   - Mixture jitter (`core`, `secondary`, `sparse_tail`) must preserve deterministic namespace semantics.
+   - Point-in-country, coordinate bounds, and immutable partition laws remain non-negotiable.
+
+5) **Calibration and acceptance protocol mirrors P2 rigor.**
+   - Fresh run-id per cycle.
+   - Fast-lane rerun limited to `S6->S9`.
+   - Same-seed reproducibility required before lock.
+   - Prune superseded run-id folders at handoff.
+
+6) **P3 DoD is grade-oriented but scoped.**
+   - Primary objective: NN-tail contraction toward B threshold (`>=20%` vs baseline target).
+   - Secondary objective: stripe/corridor sentinel removal in top-volume countries.
+   - Hard veto: no concentration/coverage regression against P2 lock posture.
+
+Implementation intent for next step:
+- execute `P3-A` baseline snapshot + scorer lane prep, then proceed to policy/schema activation (`P3-B`) before touching S6 runtime logic (`P3-C`).

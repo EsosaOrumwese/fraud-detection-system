@@ -292,34 +292,103 @@ P2 work blocks:
 
 P2 success posture:
 - S4 no longer reconcentrates relative to locked P1 shape intent.
-- downstream `site_locations` concentration moves in the right direction (not merely pass/no-pass structural gates).
+- downstream `site_locations` concentration is non-regressive; when S4 is proven at theoretical floor, floor-hold is accepted over forced synthetic movement.
 - deterministic behavior remains intact.
 
 Definition of done:
-- [ ] P2 baseline authority snapshot is recorded from locked P1 run (`S4` and `S8` metrics).
-- [ ] S4 emits governed diagnostics sufficient to explain anti-collapse behavior (pre/post integerization posture).
-- [ ] at least one candidate shows post-S4 concentration/coverage improvement versus pre-P2 posture.
-- [ ] candidate introduces no new reconcentration breach at S4 and no downstream concentration regression at S8.
-- [ ] two consecutive same-seed fast-lane runs reproduce identical S4 score posture for accepted settings.
-- [ ] P2 lock record is written (S4 knob bundle, accepted metric snapshot, reproducibility evidence, run/pointer updates).
+- [x] P2 baseline authority snapshot is recorded from locked P1 run (`S4` and `S8` metrics).
+- [x] S4 emits governed diagnostics sufficient to explain anti-collapse behavior (pre/post integerization posture).
+- [x] candidate either improves post-S4 concentration/coverage or proves zero feasible headroom (theoretical-floor hold) versus pre-P2 posture.
+- [x] candidate introduces no new reconcentration breach at S4 and no downstream concentration regression at S8.
+- [x] two consecutive same-seed fast-lane runs reproduce identical S4 score posture for accepted settings.
+- [x] P2 lock record is written (S4 knob bundle, accepted metric snapshot, reproducibility evidence, run/pointer updates).
+
+P2 closure record:
+- Date/time: `2026-02-13 18:43` local.
+- Accepted run:
+  - `run_id=47ad6781ab9d4d92b311b068f51141f6`
+  - `seed=42`
+  - `manifest_fingerprint=c8fd43cd60ce0ede0c63d2ceb4610f167c9b107e1d59b9b8c7d7b8d0028b05c8`
+  - `parameter_hash=56d45126eaabedd083a1d8428a763e0278c89efec5023cfd6cf3cab7fc8dd2d7`
+- Repro run:
+  - `run_id=57cc24a38a4646f3867b7f815063d26f`
+- Feasibility outcome:
+  - baseline `S4` pair-top1 and pair-HHI mean headroom are both `0.0` versus theoretical floor under locked `P1` inputs;
+  - scorer is now floor-aware: strict improvement is required only when headroom exists; otherwise floor-hold + non-regression is required.
+- Evidence artifacts:
+  - `runs/fix-data-engine/segment_1B/reports/segment1b_p2_candidate_47ad6781ab9d4d92b311b068f51141f6.json`
+  - `runs/fix-data-engine/segment_1B/reports/segment1b_p2_candidate_57cc24a38a4646f3867b7f815063d26f.json`
+  - `runs/fix-data-engine/segment_1B/reports/segment1b_p2_repro_check_47ad6781ab9d4d92b311b068f51141f6_57cc24a38a4646f3867b7f815063d26f.json`
+  - `runs/fix-data-engine/segment_1B/reports/segment1b_p2_lock_record.json`
+- Lock/pointer updates:
+  - `runs/fix-data-engine/segment_1B/current_candidate/current_candidate_pointer.json`
+  - `runs/fix-data-engine/segment_1B/last_good/last_good_pointer.json`
+- Storage discipline:
+  - superseded run-id folders pruned after lock (`923332139abd4f588a7770513f6f40a0`, `57cc24a38a4646f3867b7f815063d26f`);
+  - retained active run-ids for downstream handoff: `335c9a7eec04491a845abc2a049f959f` (P1 lock), `47ad6781ab9d4d92b311b068f51141f6` (P2 lock).
 
 ### P3 - S6 geometry realism closure (within-country shape)
-Focus:
-- replace rigid uniform-in-cell posture with policy-driven mixture jitter while keeping geographic validity strict.
+Goal:
+- close within-country geometry realism in `S6` by replacing pure uniform jitter with governed deterministic mixture jitter while preserving strict spatial validity and no upstream drift.
 
-Primary tuning surfaces:
-- `policy.s6.jitter.yaml` (`core_cluster`, `secondary_cluster`, `sparse_tail`, tail clamp).
-- `S6` jitter mode selection and mixture parameterization.
+P3 freeze boundary (hard rule):
+- `P1` (`S2`) and `P2` (`S4`) are immutable during P3.
+- No edits to:
+  - `config/layer1/1B/policy/policy.s2.tile_weights.yaml`
+  - `config/layer1/1B/policy/policy.s4.alloc_plan.yaml`
+  - `packages/engine/src/engine/layers/l1/seg_1B/s2_tile_weights/runner.py`
+  - `packages/engine/src/engine/layers/l1/seg_1B/s4_alloc_plan/runner.py`
+- If P3 evidence indicates required reopen upstream, pause and request explicit reopen approval before changing locked phases.
 
-Data outputs under evaluation:
-- `s6_site_jitter`
-- `site_locations` (via downstream `S7/S8` synthesis and egress)
+P3 file surfaces:
+- Runtime:
+  - `packages/engine/src/engine/layers/l1/seg_1B/s6_site_jitter/runner.py`
+- Policy/config:
+  - `config/layer1/1B/policy/policy.s6.jitter.yaml` (new governed policy surface)
+- Contracts/governance:
+  - `docs/model_spec/data-engine/layer-1/specs/contracts/1B/schemas.1B.yaml` (promote `jitter_policy` from reserved to active governed surface)
+  - `docs/model_spec/data-engine/layer-1/specs/contracts/1B/dataset_dictionary.layer1.1B.yaml` (ensure policy path + schema anchoring are active and explicit)
+
+P3 tunable knobs (S6 only):
+- jitter mode switch (`uniform_v1` vs `mixture_v2`)
+- `core_cluster_component` weight/spread
+- `secondary_cluster_component` weight/spread
+- `sparse_tail_component` bounded mass and tail clamp
+- deterministic seed namespace and retry/attempt ceilings
+
+P3 work blocks:
+- `P3-A` Geometry baseline authority:
+  - baseline anchor remains P0 metrics for grade gates and P2 lock run for no-regression posture;
+  - materialize geometry baseline snapshots from locked P2 run (`NN` quantiles, top-volume-country local-shape sentinels).
+- `P3-B` S6 policy-governance activation:
+  - add `policy.s6.jitter.yaml` with explicit `policy_version` and deterministic namespace;
+  - update schema/dictionary so every S6 tuning knob is contract-governed (no hidden runtime knobs).
+- `P3-C` Deterministic mixture jitter implementation:
+  - implement `mixture_v2` lane in S6 with deterministic component selection and bounded offsets;
+  - retain strict point-in-country checks, coordinate bounds checks, replay determinism, and immutable publish behavior.
+- `P3-D` Calibration loop (fast lane):
+  - fresh run-id per cycle and rerun `S6 -> S7 -> S8 -> S9`;
+  - tune one knob group at a time (`core -> secondary -> sparse_tail/clamp`);
+  - apply hard vetoes: no S8 concentration/coverage regression versus locked P2 posture.
+- `P3-E` Candidate acceptance and lock handoff:
+  - accept one P3 candidate that passes geometry gates and no-regression vetoes;
+  - run second same-seed reproducibility run from fresh run-id;
+  - write P3 lock record, update pointers, and prune superseded run-id folders.
+
+P3 success posture:
+- nearest-neighbor tail contracts materially toward `B` gate.
+- stripe/corridor sentinel pressure is reduced in top-volume countries.
+- concentration/coverage posture from P2 is preserved (no backslide).
+- deterministic replay and spatial validity remain intact.
 
 Definition of done:
-- [ ] nearest-neighbor tail ratio contracts by at least `20%` vs baseline (`B` floor).
+- [ ] P3 geometry baseline authority snapshot is recorded (P0 grade baseline + P2 lock posture).
+- [ ] S6 jitter policy surface is active, contract-governed, and emitted in run diagnostics.
+- [ ] at least one candidate contracts NN tail ratio (`p99/p50`) versus baseline; target is `>=20%` contraction for `B` readiness.
 - [ ] top-volume country cohort shows no stripe/corridor collapse sentinel.
 - [ ] coordinate validity remains `100%` and point-in-country checks remain intact.
-- [ ] P3 lock recorded (S6 jitter profile + expected local-geometry band).
+- [ ] accepted settings reproduce identical same-seed P3 score posture across two fresh run-ids.
+- [ ] P3 lock record is written (policy bundle, geometry metrics, reproducibility evidence, pointer and pruning updates).
 
 ### P4 - Integrated closure run (B target, B+ attempt)
 Focus:
