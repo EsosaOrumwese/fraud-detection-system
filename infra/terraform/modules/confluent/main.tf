@@ -162,8 +162,8 @@ resource "confluent_kafka_topic" "topics" {
   }
 
   credentials {
-    key    = confluent_api_key.topic_manager_kafka_api_key.id
-    secret = confluent_api_key.topic_manager_kafka_api_key.secret
+    key    = local.supports_resource_roles ? confluent_api_key.topic_manager_kafka_api_key.id : confluent_api_key.operator_kafka_api_key[0].id
+    secret = local.supports_resource_roles ? confluent_api_key.topic_manager_kafka_api_key.secret : confluent_api_key.operator_kafka_api_key[0].secret
   }
 
   depends_on = [
