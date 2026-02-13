@@ -221,9 +221,63 @@ Tasks:
 3. Define guard checks for secret leakage in build-go pass.
 
 DoD:
-- [ ] No-baked-secrets policy is explicit and testable.
-- [ ] Runtime secret source contract is pinned.
-- [ ] Leakage check requirements are documented for execution pass.
+- [x] No-baked-secrets policy is explicit and testable.
+- [x] Runtime secret source contract is pinned.
+- [x] Leakage check requirements are documented for execution pass.
+
+M1.D no-baked-secrets policy (frozen):
+1. Secrets prohibited from image content:
+   - Confluent credentials,
+   - IG API key,
+   - DB credentials/DSN,
+   - any runtime token/capability secret.
+2. Prohibited image-layer patterns:
+   - `ARG`/`ENV` with secret values baked during build,
+   - copying `.env*`, ad hoc secret files, or credential exports into image layers,
+   - writing secret values to build logs that become persisted CI artifacts.
+3. Packaging smoke posture:
+   - P(-1) image smoke checks must run without runtime secret injection.
+   - any image contract that requires secret presence for `--help`/import smoke is invalid.
+
+M1.D runtime secret source contract (pinned handles + ownership):
+1. Secret source of truth (runtime):
+   - `SSM_CONFLUENT_BOOTSTRAP_PATH`
+   - `SSM_CONFLUENT_API_KEY_PATH`
+   - `SSM_CONFLUENT_API_SECRET_PATH`
+   - `SSM_IG_API_KEY_PATH`
+   - `SSM_DB_USER_PATH`
+   - `SSM_DB_PASSWORD_PATH`
+   - optional: `SSM_DB_DSN_PATH` when DSN mode is explicitly selected.
+2. Ownership split:
+   - Provision ownership: Terraform/demo apply creates demo-scoped parameters.
+   - Runtime ownership: ECS task roles consume only required secret paths.
+   - Execution-role boundary: `ROLE_ECS_TASK_EXECUTION` is pull/log role only and must not be used for app secret reads.
+3. Injection posture:
+   - secrets are resolved at runtime via SSM->task env injection path.
+   - no secret value is committed into repo config, evidence payloads, or long-lived logs.
+
+M1.D leakage and fail-closed checks (build-go pass):
+1. Build-context checks (pre-build):
+   - fail if Docker context includes committed secret files intended for runtime injection.
+   - fail if Dockerfile uses non-placeholder `ARG/ENV` secret literals.
+2. Built-image checks (post-build):
+   - inspect image metadata/history for secret literal leakage patterns.
+   - inspect effective container env defaults for injected secret values (must be absent).
+3. Runtime wiring checks (pre-P2):
+   - for each required secret handle, verify parameter exists/readable at pinned path.
+   - verify app roles have only least-privilege read to required paths.
+4. Fail-closed startup checks:
+   - tasks/services must fail startup when required secret handle is missing/unreadable.
+   - no silent fallback to default credentials or empty values is allowed.
+5. Evidence contract for this sub-phase:
+   - write `security_secret_injection_checks.json` under:
+     - `s3://<S3_EVIDENCE_BUCKET>/evidence/runs/<platform_run_id>/P(-1)/security_secret_injection_checks.json`
+   - include check results, actor, timestamp, and PASS/FAIL verdict.
+
+M1.D completion notes:
+1. Secret-handling posture is now explicit and testable before any infra/runtime execution.
+2. Handle-level secret surfaces are pinned to the registry with ownership boundaries.
+3. Any missing SSM parameter, excess IAM scope, or baked-secret evidence is a hard blocker for M1 closure.
 
 ## M1.E Build Command Surface and Reproducibility
 Goal:
@@ -257,7 +311,7 @@ DoD:
 - [x] M1.A complete
 - [x] M1.B complete
 - [x] M1.C complete
-- [ ] M1.D complete
+- [x] M1.D complete
 - [ ] M1.E complete
 - [ ] M1.F complete
 

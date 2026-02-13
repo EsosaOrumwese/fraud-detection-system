@@ -205,7 +205,8 @@ Active-phase execution posture:
   - [x] `M1.A` image contract freeze complete.
   - [x] `M1.B` entrypoint matrix completion complete.
   - [x] `M1.C` provenance/evidence contract freeze complete.
-  - [ ] `M1.D`..`M1.F` pending.
+  - [x] `M1.D` security/secret-injection contract freeze complete.
+  - [ ] `M1.E`..`M1.F` pending.
 
 M1 DoD checklist:
 - [ ] Packaging contract finalized in `platform.M1.build_plan.md` (image, entrypoints, provenance, security).

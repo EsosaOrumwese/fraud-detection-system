@@ -5369,3 +5369,66 @@ Documentation-contract closure only; no runtime or infrastructure execution chan
 
 ### Drift sentinel assessment
 No semantic drift introduced. This closes provenance/evidence ambiguity and tightens fail-closed posture before build execution.
+
+## Entry: 2026-02-13 8:55AM - Pre-change lock: implement M1.D security and secret-injection contract
+
+### Trigger
+USER directed: move to `M1.D`.
+
+### Objective
+Close M1.D by pinning an explicit no-baked-secrets policy, runtime secret source/ownership model, and fail-closed leakage checks for the M1 build-go pass.
+
+### Scope
+1. `docs/model_spec/platform/implementation_maps/dev_substrate/platform.M1.build_plan.md`
+   - complete M1.D DoD,
+   - pin security/secret contract content,
+   - define execution-time checks and evidence.
+2. `docs/model_spec/platform/implementation_maps/dev_substrate/platform.build_plan.md`
+   - update M1 sub-phase progress for M1.D completion.
+
+### Key decisions (before patch)
+1. Secret handle contract must reuse existing registry keys only (`SSM_CONFLUENT_*`, `SSM_IG_API_KEY_PATH`, `SSM_DB_*`), not wildcard placeholders.
+2. Enforce strict role boundary: execution role is non-secret; app roles get least-privilege path reads only.
+3. Treat any secret leakage or missing runtime secret path as fail-closed blocker for M1 closure.
+4. Keep this pass planning-only (no image build, no runtime rollout).
+
+### Validation plan
+- Confirm M1.D DoD checkboxes are `[x]`.
+- Confirm M1 completion checklist marks `M1.D complete`.
+- Confirm main plan sub-phase progress reflects M1.D completion with M1 still ACTIVE.
+
+### Drift sentinel checkpoint
+Documentation-contract hardening only; no runtime or infrastructure behavior execution changes.
+
+## Entry: 2026-02-13 8:56AM - Applied M1.D security and secret-injection contract freeze
+
+### Files updated
+1. `docs/model_spec/platform/implementation_maps/dev_substrate/platform.M1.build_plan.md`
+2. `docs/model_spec/platform/implementation_maps/dev_substrate/platform.build_plan.md`
+
+### What was implemented
+1. Completed M1.D DoD in deep plan:
+- pinned no-baked-secrets policy with explicit prohibited surfaces (Confluent/IG/DB secrets).
+- pinned runtime secret source handles and ownership split (provision vs runtime role consumption).
+- pinned execution-role boundary: `ROLE_ECS_TASK_EXECUTION` is not an app secret-read role.
+
+2. Pinned leakage and fail-closed checks for build-go pass:
+- pre-build context checks,
+- post-build image metadata/history checks,
+- runtime secret-path existence/readability checks,
+- fail-closed startup behavior when secret inputs are missing.
+
+3. Pinned evidence artifact for security checks:
+- `s3://<S3_EVIDENCE_BUCKET>/evidence/runs/<platform_run_id>/P(-1)/security_secret_injection_checks.json`.
+
+4. Updated checklist/progress:
+- marked `M1.D complete` in M1 deep-plan checklist.
+- updated main-plan sub-phase progress to show M1.A/M1.B/M1.C/M1.D complete and M1.E..M1.F pending.
+
+### Validation
+- M1.D DoD is fully checked.
+- M1 completion checklist now includes M1.D as complete.
+- Main plan remains `M1 ACTIVE` with later sub-phases pending.
+
+### Drift sentinel assessment
+No semantic or ownership-boundary drift introduced. This reduces packaging-time secret-risk ambiguity before execution.
