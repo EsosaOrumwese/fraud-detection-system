@@ -4986,3 +4986,67 @@ No runtime/code changes; this is planning quality hardening to prevent underpowe
 
 ### Effect on execution
 Before M10 execution, scale thresholds must be explicitly pinned and logged; no ad hoc acceptance at runtime.
+
+## Entry: 2026-02-13 5:16AM - Pre-change lock: introduce per-phase deep build-plan docs with main-plan status ownership
+
+### Trigger
+USER requested phase-specific planning docs under `platform.M*.md` while keeping the main platform plan as the central execution map.
+
+### Decision
+Adopt two-layer planning structure:
+1. `platform.build_plan.md` remains control hub for:
+   - phase statuses,
+   - entry/exit transitions,
+   - cross-phase DoD/evidence policy.
+2. `platform.M*.md` holds deep planning for each phase.
+   - Start with `platform.M0.build_plan.md` only.
+   - Additional phase docs created only when phase activation is approved.
+
+### Scope for this pass
+- Expand `platform.build_plan.md` with explicit deep-plan routing and status-ownership rules.
+- Create `platform.M0.build_plan.md` with detailed M0 plan and DoD checklists.
+- Keep this pass planning-only (no runtime/infrastructure implementation).
+
+### Validation plan
+- confirm main plan contains deep-plan index and status ownership rule.
+- confirm M0 deep plan file exists with objective, tasks, evidence, and exit gates.
+
+### Drift sentinel checkpoint
+This improves planning depth while preventing control fragmentation by centralizing status in main plan.
+
+## Entry: 2026-02-13 5:17AM - Applied two-layer planning structure (main plan + M0 deep plan)
+
+### Files updated
+1. `docs/model_spec/platform/implementation_maps/dev_substrate/platform.build_plan.md`
+2. `docs/model_spec/platform/implementation_maps/dev_substrate/platform.M0.build_plan.md` (new)
+3. `docs/model_spec/platform/implementation_maps/dev_substrate/README.md`
+
+### What changed
+1. Main plan expansion
+- Added `6.1 Deep Phase Plan Routing` with:
+  - `platform.M*.build_plan.md` naming pattern,
+  - explicit rule that `platform.build_plan.md` is the only status owner,
+  - current file-state note (`M0` present, `M1..M10` deferred).
+- Expanded M0 section to include deep-plan drafting/alignment task and DoD checks.
+
+2. Deep M0 phase plan created
+- New `platform.M0.build_plan.md` includes:
+  - authority inputs,
+  - scope boundaries,
+  - deliverables,
+  - deep work breakdown (`M0.A`..`M0.E`),
+  - risk controls,
+  - completion checklist and exit criteria.
+- Explicitly states it cannot change phase status.
+
+3. README routing update
+- Added active mention of `platform.M0.build_plan.md`.
+- Added phase deep-plan pattern guidance and status ownership reminder.
+
+### Validation
+- Main plan now contains deep-plan routing and status ownership text.
+- `platform.M0.build_plan.md` exists and is aligned to main-plan M0 objectives.
+- README reflects the adopted structure.
+
+### Drift sentinel assessment
+This improves planning depth while preserving deterministic control flow by preventing status fragmentation across docs.

@@ -89,6 +89,23 @@ Canonical lifecycle key: `phase_id=P#` from migration runbook.
 
 ---
 
+## 6.1) Deep Phase Plan Routing
+Per-phase deep planning docs follow this naming pattern:
+- `docs/model_spec/platform/implementation_maps/dev_substrate/platform.M0.build_plan.md`
+- `docs/model_spec/platform/implementation_maps/dev_substrate/platform.M1.build_plan.md`
+- ...
+- `docs/model_spec/platform/implementation_maps/dev_substrate/platform.M10.build_plan.md`
+
+Control rule:
+- `platform.build_plan.md` is the only file allowed to change phase status (`ACTIVE/DONE/BLOCKED`).
+- `platform.M*.build_plan.md` documents deep plan detail, but cannot independently advance status.
+
+Current deep-plan file state:
+- `M0`: `docs/model_spec/platform/implementation_maps/dev_substrate/platform.M0.build_plan.md` (present)
+- `M1..M10`: deferred until phase activation is approved.
+
+---
+
 ## 7) Active Phase Detail
 
 ## M0 - Mobilization + Authority Lock
@@ -109,12 +126,16 @@ Implementation tasks:
 5. Prepare execution log discipline:
    - append implementation decisions in `platform.impl_actual.md`,
    - append action logs in `docs/logbook/02-2026/2026-02-13.md`.
+6. Draft and approve deep-phase planning structure starting with:
+   - `docs/model_spec/platform/implementation_maps/dev_substrate/platform.M0.build_plan.md`.
 
 DoD checklist:
 - [ ] Build plan exists with canonical roadmap and progressive-elaboration rules.
 - [ ] Active phase is explicitly declared.
 - [ ] No legacy migration path is treated as executable authority.
 - [ ] Phase transition and evidence policy are pinned in this file.
+- [ ] Deep-phase routing/status-ownership rule is pinned.
+- [ ] M0 deep plan exists and is aligned to this section.
 
 Rollback posture:
 - Documentation-only rollback is allowed before M1 begins.
@@ -122,6 +143,7 @@ Rollback posture:
 Evidence outputs:
 - This file committed/updated with active status and gates.
 - Matching implementation-map/logbook entries.
+- M0 deep plan document committed and cross-linked.
 
 Phase exit:
 - Move M0 -> `DONE`, set M1 -> `ACTIVE`.

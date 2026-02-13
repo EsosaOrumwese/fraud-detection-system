@@ -4754,3 +4754,82 @@ What was added:
 
 Outcome:
 - P3 plan now provides a concrete execution map that can be run phase-by-phase without reopening locked P1/P2 surfaces by accident.
+### Entry: 2026-02-13 04:39
+
+Design element: P3.1 baseline/scoring harness implementation plan (pre-edit decision trail).
+Summary: Starting Phase P3.1 with locked P1/P2 posture. The objective is to add a repeatable execution/scoring harness for `S0->S8` that computes P3 metrics and uncertainty without changing engine behavior yet.
+
+Authorities read before implementation:
+1) `docs/model_spec/data-engine/layer-1/specs/state-flow/1A/state.1A.s8.expanded.md`
+2) `docs/model_spec/data-engine/layer-1/specs/state-flow/1A/state.1A.s9.expanded.md`
+3) `docs/model_spec/data-engine/layer-1/specs/contracts/1A/schemas.1A.yaml`
+4) `docs/model_spec/data-engine/layer-1/specs/contracts/1A/schemas.layer1.yaml`
+5) `docs/model_spec/data-engine/layer-1/specs/contracts/1A/dataset_dictionary.layer1.1A.yaml`
+6) `docs/reports/eda/segment_1A/segment_1A_remediation_report.md`
+7) `docs/model_spec/data-engine/implementation_maps/segment_1A.build_plan.md` (P3 section)
+
+Decisions:
+1) Implement P3.1 as tooling + orchestration only (`Makefile` + `tools/*`) so upstream locked surfaces remain untouched.
+2) Add `segment1a-p3` pipeline target running `S0->S8`, then output verification, then baseline scorecard write.
+3) Add `verify_segment1a_p3_outputs.py` to assert required P3 surfaces exist for the scored run:
+- `outlet_catalogue`,
+- `rng_event_nb_final`,
+- `s3_candidate_set`,
+- `s6_membership`,
+- `rng_event_sequence_finalize`.
+4) Add `score_segment1a_p3_1_baseline.py` with deterministic metrics:
+- global mismatch rate,
+- top-vs-bottom size gradient using merchant size deciles from `rng_event_nb_final.n_outlets` (fallback `raw_nb_outlet_draw` if needed),
+- Wilson 95% CI for mismatch rates,
+- bootstrap CI for size gradient,
+- stratified outputs by `channel`, broad `MCC`, and `GDP bucket`,
+- duplicate diagnostics aligned to local `site_id` semantics (flag only unexplained anomalies under `(merchant_id, legal_country_iso)` contract).
+5) Keep scorer deterministic by exposing `--bootstrap-seed` and fixed defaults.
+
+Planned execution/validation:
+1) Run `make segment1a-p3 RUNS_ROOT=runs/fix-data-engine/segment_1A`.
+2) Capture produced baseline report under `runs/fix-data-engine/segment_1A/reports`.
+3) Update build-plan checkboxes and log outcomes.
+### Entry: 2026-02-13 04:48
+
+Design element: P3.1 blocker triage for S7 dirichlet diagnostics lane.
+Summary: `segment1a-p3` run failed before S8 with `F4:E_DIRICHLET_NONPOS` in `S7` (`alpha0 * share` produced zero alpha for at least one domain element). This prevents any P3.1 baseline scorecard generation.
+
+Evidence:
+1) Failure record:
+- `runs/fix-data-engine/segment_1A/659bb74ad86a3edf37f8a376a13fb550/.../failure.json`
+- code `E_DIRICHLET_NONPOS`, detail `alpha_nonpositive`, `alpha: 0.0`.
+2) Code path:
+- `packages/engine/src/engine/layers/l1/seg_1A/s7_integerisation/runner.py`
+- `_expected_dirichlet_payload(...)` raises hard failure whenever `alpha_i <= 0`.
+3) Causality:
+- `share` can be zero for some domain entries (still valid for deterministic integerisation lane),
+- dirichlet event lane is diagnostic and must not block core S7/S8 publication when deterministic lane is otherwise valid.
+
+Decision:
+1) Apply minimal robustness patch in `S7` dirichlet event generation only:
+- keep fail-closed for non-finite or negative alpha,
+- floor exact/near-zero alpha to a tiny positive constant to keep Gamma/Dirichlet event generation valid.
+2) Do not change S3/S4/S5/S6 locked knobs or P2 surfaces.
+3) Re-run `segment1a-p3` after patch and continue P3.1 baseline scoring.
+### Entry: 2026-02-13 04:48
+
+Design element: S7 dirichlet alpha-floor robustness patch (blocker resolution for P3.1 execution).
+Summary: Implemented the minimal patch to prevent `E_DIRICHLET_NONPOS` when a domain share is exactly zero.
+
+File changed:
+- `packages/engine/src/engine/layers/l1/seg_1A/s7_integerisation/runner.py`
+
+Mechanics:
+1) Added `_DIRICHLET_ALPHA_FLOOR = 1e-12`.
+2) In `_expected_dirichlet_payload(...)`:
+- keep hard-fail for non-finite or negative alpha,
+- floor `alpha_i <= 0` to `_DIRICHLET_ALPHA_FLOOR` instead of raising.
+
+Reasoning:
+1) The dirichlet lane in S7 is diagnostic and should not abort the run on zero-share entries while deterministic integerisation remains valid.
+2) This patch is localized to dirichlet event generation and does not alter locked P1/P2 surfaces or S3/S4/S5/S6 policy posture.
+
+Validation:
+1) `python -m py_compile packages/engine/src/engine/layers/l1/seg_1A/s7_integerisation/runner.py` (pass).
+2) Next: rerun `segment1a-p3` and confirm S7->S8 completion plus scorecard emission.
