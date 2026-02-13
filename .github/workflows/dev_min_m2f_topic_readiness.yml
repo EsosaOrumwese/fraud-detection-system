@@ -138,7 +138,7 @@ jobs:
         run: |
           set -euo pipefail
           TF_DIR="infra/terraform/dev_min/confluent"
-          CLUSTER_ID="$(terraform -chdir="$TF_DIR" state show module.confluent.confluent_kafka_cluster.this 2>/dev/null | awk '/^id[[:space:]]*=/{print $3}' | tr -d '\"')"
+          CLUSTER_ID="$(terraform -chdir="$TF_DIR" state show module.confluent.confluent_kafka_cluster.this 2>/dev/null | awk '/^[[:space:]]*id[[:space:]]*=/{print $3}' | tr -d '\"')"
           if [[ -z "$CLUSTER_ID" ]]; then
             echo "No existing cluster found in state; skipping topic import."
             exit 0
