@@ -23,12 +23,23 @@ resource "confluent_kafka_cluster" "this" {
   }
 }
 
+locals {
+  supports_resource_roles = var.confluent_cluster_type != "Basic"
+  high_volume_topics      = toset(var.high_volume_topic_names)
+  topic_profile = {
+    for topic_name in var.kafka_topics :
+    topic_name => (contains(local.high_volume_topics, topic_name) ? "high" : "low")
+  }
+}
+
 resource "confluent_service_account" "topic_manager" {
   display_name = var.topic_manager_service_account_name
   description  = "Service account that manages topic lifecycle for dev_min spine."
 }
 
 resource "confluent_role_binding" "topic_manager_cluster_admin" {
+  count = local.supports_resource_roles ? 1 : 0
+
   principal   = "User:${confluent_service_account.topic_manager.id}"
   role_name   = "CloudClusterAdmin"
   crn_pattern = confluent_kafka_cluster.this.rbac_crn
@@ -58,14 +69,6 @@ resource "confluent_api_key" "topic_manager_kafka_api_key" {
   ]
 }
 
-locals {
-  high_volume_topics = toset(var.high_volume_topic_names)
-  topic_profile = {
-    for topic_name in var.kafka_topics :
-    topic_name => (contains(local.high_volume_topics, topic_name) ? "high" : "low")
-  }
-}
-
 resource "confluent_kafka_topic" "topics" {
   for_each = toset(var.kafka_topics)
 
@@ -93,7 +96,7 @@ resource "confluent_service_account" "runtime" {
 }
 
 resource "confluent_role_binding" "runtime_read_topic" {
-  for_each = toset(var.kafka_topics)
+  for_each = local.supports_resource_roles ? toset(var.kafka_topics) : toset([])
 
   principal   = "User:${confluent_service_account.runtime.id}"
   role_name   = "DeveloperRead"
@@ -101,7 +104,7 @@ resource "confluent_role_binding" "runtime_read_topic" {
 }
 
 resource "confluent_role_binding" "runtime_write_topic" {
-  for_each = toset(var.kafka_topics)
+  for_each = local.supports_resource_roles ? toset(var.kafka_topics) : toset([])
 
   principal   = "User:${confluent_service_account.runtime.id}"
   role_name   = "DeveloperWrite"
