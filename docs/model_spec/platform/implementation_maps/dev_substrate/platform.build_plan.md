@@ -305,6 +305,9 @@ Failure posture:
 
 Active-phase planning posture:
 - Detailed M3 authority file: `docs/model_spec/platform/implementation_maps/dev_substrate/platform.M3.build_plan.md`.
+- M3.A planning status:
+  - closure matrix + verification catalog drafted,
+  - open blocker: `M3A-B1` (`SCENARIO_EQUIVALENCE_KEY_INPUT` still placeholder and must be pinned before execution).
 - Sub-phase progress:
   - [ ] `M3.A` authority + handle closure matrix for P1.
   - [ ] `M3.B` run identity generation contract (`platform_run_id` uniqueness).
@@ -495,6 +498,6 @@ Control: required P12 teardown proof and budget guardrails.
 ## 12) Immediate Next Action
 M3 is active for deep planning and execution preparation.
 Next action:
-- complete M3 deep-plan closure in `platform.M3.build_plan.md` (`M3.A -> M3.G`) with explicit blockers and evidence contract,
-- close M3 entry decisions before runtime execution (especially `SCENARIO_EQUIVALENCE_KEY_INPUT` pin + collision-safe run-id generation),
+- close `M3A-B1` by pinning `SCENARIO_EQUIVALENCE_KEY_INPUT` at M3 entry, then complete M3.A closure checks,
+- after M3.A blocker closure, continue M3 deep-plan progression (`M3.B -> M3.G`) with explicit evidence artifacts,
 - maintain fail-closed posture: no M4 activation until M3 verdict is `ADVANCE_TO_M4` with durable handoff artifacts.

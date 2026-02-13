@@ -7898,3 +7898,40 @@ USER directed immediate progression to close `M2.F` after workflow secret mappin
 1. Planning-only pass: no runtime infra mutation and no phase execution commands.
 2. Fail-closed decision noted in M3 plan:
    - `SCENARIO_EQUIVALENCE_KEY_INPUT` must be explicitly pinned at M3 execution entry.
+
+## Entry: 2026-02-13 9:18PM - M3.A planning expansion and blocker surfacing
+
+### Trigger
+1. USER directed: move to `M3.A` and begin planning it.
+
+### What was expanded
+1. Upgraded `M3.A` from lightweight bullets to closure-grade planning content in:
+   - `docs/model_spec/platform/implementation_maps/dev_substrate/platform.M3.build_plan.md`.
+2. Added:
+   - `M3.A Decision Pins (Closed Before Execution)`,
+   - `M3.A Verification Command Catalog`,
+   - `M3.A Handle Closure Matrix (Planning Snapshot)`,
+   - `M3.A Planning Status (Current)`.
+3. Extended M3 unresolved blocker register with concrete active blocker:
+   - `M3A-B1`: `SCENARIO_EQUIVALENCE_KEY_INPUT` still placeholder.
+
+### Key planning findings (M3.A)
+1. Handle closure matrix now tracks 18 required rows for M3.A authority closure.
+2. Source model is explicit per handle:
+   - registry literals,
+   - M2 handoff artifact,
+   - AWS control-plane lookup (`ECR_REPO_URI` via ECR describe),
+   - immutable M1 packaging evidence for image provenance.
+3. `SCENARIO_EQUIVALENCE_KEY_INPUT` is the only currently open blocker for M3 execution entry.
+
+### Main-plan alignment updates
+1. `platform.build_plan.md` M3 section now explicitly references:
+   - M3.A planning-in-progress,
+   - open blocker `M3A-B1`.
+2. Immediate-next-action block now prioritizes:
+   - close `M3A-B1`, then complete M3.A closure before progressing to `M3.B+`.
+
+### Safety posture
+1. Planning-only change; no runtime execution command run for M3.
+2. Fail-closed enforcement strengthened:
+   - no M3 execution while `M3A-B1` is open.

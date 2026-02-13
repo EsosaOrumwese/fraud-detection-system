@@ -125,6 +125,61 @@ DoD:
 - [ ] Every required handle has a verification method.
 - [ ] Unresolved handles are either zero or explicitly blocker-marked.
 
+### M3.A Decision Pins (Closed Before Execution)
+1. Handle-source law:
+   - every required P1 handle must be mapped to one authoritative source class:
+     - registry literal,
+     - M2 handoff artifact,
+     - AWS control-plane lookup,
+     - M1 packaging evidence artifact.
+2. Provenance-source law:
+   - image provenance fields in `run.json` must come from immutable P(-1) evidence (`git-<sha>` + digest), not mutable tags.
+3. Placeholder law:
+   - if any required handle value remains placeholder at execution entry, `M3.A` is blocked.
+4. Non-secret law:
+   - M3.A closure artifacts may include handle names and non-secret resolved values only.
+
+### M3.A Verification Command Catalog (Pinned)
+| Verify ID | Command template | Purpose |
+| --- | --- | --- |
+| `M3A_V1_HANDLE_KEY` | `rg -n "\\b<HANDLE_KEY>\\b" docs/model_spec/platform/migration_to_dev/dev_min_handles.registry.v0.md` | confirms handle exists in authoritative registry |
+| `M3A_V2_M2_HANDOFF` | `Test-Path runs/dev_substrate/m2_j/20260213T205715Z/m3_handoff_pack.json` | confirms M2->M3 handoff artifact availability |
+| `M3A_V3_ECR_URI` | `aws ecr describe-repositories --repository-names <ECR_REPO_NAME> --region <AWS_REGION>` | resolves/validates `ECR_REPO_URI` from control plane |
+| `M3A_V4_P1_EVIDENCE_ROOT` | `aws s3api head-bucket --bucket <S3_EVIDENCE_BUCKET>` | validates run evidence bucket reachability |
+| `M3A_V5_M1_PROVENANCE` | `aws s3 ls s3://<S3_EVIDENCE_BUCKET>/evidence/runs/<m1_platform_run_id>/P(-1)/` | validates immutable packaging evidence source for image provenance |
+| `M3A_V6_PLACEHOLDER_GUARD` | `rg -n \"SCENARIO_EQUIVALENCE_KEY_INPUT\\s*=\\s*\\\"<PIN_AT_P1_PHASE_ENTRY>\\\"\" docs/model_spec/platform/migration_to_dev/dev_min_handles.registry.v0.md` | fail-closed check for unresolved scenario-equivalence key |
+
+### M3.A Handle Closure Matrix (Planning Snapshot)
+| Handle key / prerequisite | Source class | Resolution source | Verification | Secret class | Status | Blocker |
+| --- | --- | --- | --- | --- | --- | --- |
+| `FIELD_PLATFORM_RUN_ID` | registry literal | handles registry | `M3A_V1_HANDLE_KEY` | `non_secret` | `CLOSED_SPEC` | `none` |
+| `FIELD_SCENARIO_RUN_ID` | registry literal | handles registry | `M3A_V1_HANDLE_KEY` | `non_secret` | `CLOSED_SPEC` | `none` |
+| `FIELD_WRITTEN_AT_UTC` | registry literal | handles registry | `M3A_V1_HANDLE_KEY` | `non_secret` | `CLOSED_SPEC` | `none` |
+| `CONFIG_DIGEST_ALGO` | registry literal | handles registry | `M3A_V1_HANDLE_KEY` | `non_secret` | `CLOSED_SPEC` | `none` |
+| `CONFIG_DIGEST_FIELD` | registry literal | handles registry | `M3A_V1_HANDLE_KEY` | `non_secret` | `CLOSED_SPEC` | `none` |
+| `SCENARIO_EQUIVALENCE_KEY_INPUT` | registry placeholder | handles registry (phase-entry pin pending) | `M3A_V6_PLACEHOLDER_GUARD` | `non_secret` | `BLOCKED` | `M3A-B1` |
+| `SCENARIO_RUN_ID_DERIVATION_MODE` | registry literal | handles registry | `M3A_V1_HANDLE_KEY` | `non_secret` | `CLOSED_SPEC` | `none` |
+| `S3_EVIDENCE_BUCKET` | M2 handoff output | `m3_handoff_pack.json` -> `core_outputs.s3_bucket_names.evidence` | `M3A_V2_M2_HANDOFF` + `M3A_V4_P1_EVIDENCE_ROOT` | `non_secret` | `CLOSED_SPEC` | `none` |
+| `S3_EVIDENCE_RUN_ROOT_PATTERN` | registry literal | handles registry | `M3A_V1_HANDLE_KEY` | `non_secret` | `CLOSED_SPEC` | `none` |
+| `EVIDENCE_RUN_JSON_KEY` | registry literal | handles registry | `M3A_V1_HANDLE_KEY` | `non_secret` | `CLOSED_SPEC` | `none` |
+| `ECR_REPO_URI` | AWS control-plane lookup | ECR repo describe result (`fraud-platform-dev-min`) | `M3A_V3_ECR_URI` | `non_secret` | `CLOSED_SPEC` | `none` |
+| `IMAGE_TAG_GIT_SHA_PATTERN` | registry literal | handles registry | `M3A_V1_HANDLE_KEY` | `non_secret` | `CLOSED_SPEC` | `none` |
+| `IMAGE_TAG_EVIDENCE_FIELD` | registry literal | handles registry | `M3A_V1_HANDLE_KEY` | `non_secret` | `CLOSED_SPEC` | `none` |
+| `IMAGE_DIGEST_EVIDENCE_FIELD` | registry literal | handles registry | `M3A_V1_HANDLE_KEY` | `non_secret` | `CLOSED_SPEC` | `none` |
+| `IMAGE_GIT_SHA_EVIDENCE_FIELD` | registry literal | handles registry | `M3A_V1_HANDLE_KEY` | `non_secret` | `CLOSED_SPEC` | `none` |
+| `REQUIRED_PLATFORM_RUN_ID_ENV_KEY` | registry literal | handles registry | `M3A_V1_HANDLE_KEY` | `non_secret` | `CLOSED_SPEC` | `none` |
+| M2->M3 handoff artifact | M2 durable artifact | `runs/dev_substrate/m2_j/20260213T205715Z/m3_handoff_pack.json` | `M3A_V2_M2_HANDOFF` | `non_secret` | `CLOSED_SPEC` | `none` |
+| Immutable image provenance source | M1 durable artifact | `s3://fraud-platform-dev-min-evidence/evidence/runs/platform_20260213T114002Z/P(-1)/` | `M3A_V5_M1_PROVENANCE` | `non_secret` | `CLOSED_SPEC` | `none` |
+
+### M3.A Planning Status (Current)
+1. Required-handle coverage:
+   - 18 required rows tracked in closure matrix.
+2. Current blockers:
+   - `M3A-B1`: `SCENARIO_EQUIVALENCE_KEY_INPUT` remains placeholder (`<PIN_AT_P1_PHASE_ENTRY>`).
+3. M3.A execution posture:
+   - planning is in progress,
+   - runtime execution for M3 remains blocked until `M3A-B1` is closed.
+
 ### M3.B Run Identity Generation Contract
 Goal:
 1. Generate collision-safe run identity and record run header skeleton.
@@ -294,6 +349,18 @@ Control: non-secret artifact policy + explicit blocker `M3-B6`.
 
 ## 8.1) Unresolved Blocker Register (Must Be Empty Before M3 Execution)
 Current blockers:
+1. `M3A-B1` (open)
+   - impacted sub-phase:
+     - `M3.A`
+   - summary:
+     - `SCENARIO_EQUIVALENCE_KEY_INPUT` is still placeholder (`<PIN_AT_P1_PHASE_ENTRY>`) in handles registry.
+   - runtime impact:
+     - scenario-equivalence provenance cannot be pinned deterministically at P1, so run pinning cannot proceed fail-closed.
+   - closure criteria:
+     - pin explicit value/reference for `SCENARIO_EQUIVALENCE_KEY_INPUT` at M3 entry,
+     - rerun M3.A handle closure and confirm placeholder guard no longer matches.
+
+Resolved blockers:
 1. None.
 
 Rule:
