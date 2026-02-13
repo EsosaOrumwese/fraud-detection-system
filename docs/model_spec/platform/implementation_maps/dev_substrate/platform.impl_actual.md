@@ -5114,3 +5114,65 @@ Planning/governance only; no runtime/infra implementation in this pass.
 
 ### Drift sentinel assessment
 M0 is now fully implemented as a governance phase. No runtime/infra build execution was performed; execution remains blocked until explicit USER activation of M1.
+
+## Entry: 2026-02-13 5:38AM - Pre-change lock: activate M1 phase and author deep M1 plan (planning-only)
+
+### Trigger
+USER approved proceeding to the next step after M0 closure.
+
+### Decision
+1. Activate `M1` in the main plan (`platform.build_plan.md`).
+2. Create `platform.M1.build_plan.md` with deep, execution-ready planning detail for P(-1) packaging readiness.
+3. Keep this pass planning-only; no runtime/infra/image build execution occurs in this step.
+
+### Files to update
+- `docs/model_spec/platform/implementation_maps/dev_substrate/platform.build_plan.md`
+- `docs/model_spec/platform/implementation_maps/dev_substrate/platform.M1.build_plan.md` (new)
+- `docs/model_spec/platform/implementation_maps/dev_substrate/README.md`
+
+### Validation plan
+- Confirm roadmap and current-phase posture show `M1 = ACTIVE`.
+- Confirm deep-plan index includes M1 file.
+- Confirm M1 deep plan includes objective, scope, work breakdown, DoD, evidence, risks, and exit criteria.
+
+### Drift sentinel checkpoint
+This phase activation is document-controlled and user-approved. No build/runtime execution is performed.
+
+## Entry: 2026-02-13 5:39AM - Applied M1 activation + deep M1 planning baseline (planning-only)
+
+### Files updated
+1. `docs/model_spec/platform/implementation_maps/dev_substrate/platform.build_plan.md`
+2. `docs/model_spec/platform/implementation_maps/dev_substrate/platform.M1.build_plan.md` (new)
+3. `docs/model_spec/platform/implementation_maps/dev_substrate/README.md`
+
+### What changed
+1. Main plan activation
+- Set roadmap status `M1 = ACTIVE` and kept `M2..` as `NOT_STARTED`.
+- Updated current-phase posture to show `M1` active.
+- Updated deep-plan index state to include M1 deep plan file.
+- Converted Section 8 into current active-phase framing.
+- Added active-phase execution note: this pass is planning/contract-finalization; build/push requires explicit USER build-go.
+- Added M1 checklist in main plan for closure control.
+- Updated immediate-next-action text to execution posture for M1 build-go pass.
+
+2. Deep M1 plan authoring
+- Created `platform.M1.build_plan.md` with:
+  - authority inputs,
+  - scope boundaries,
+  - deliverables,
+  - execution-gate rule,
+  - deep work breakdown (`M1.A`..`M1.F`),
+  - phase completion checklist,
+  - risk controls,
+  - exit criteria.
+
+3. README alignment
+- Added M1 deep-plan file to active map list and clarified M0 is closed.
+
+### Validation
+- Main plan now indicates `M1` as active phase.
+- M1 deep plan exists and is cross-aligned with main-plan M1 scope/DoD.
+- No build/runtime execution was performed in this pass.
+
+### Drift sentinel assessment
+This advances migration planning governance to the next phase without violating user control over build execution.

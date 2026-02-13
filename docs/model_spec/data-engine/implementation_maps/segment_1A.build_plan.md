@@ -373,9 +373,13 @@ Home/legal mismatch and site identity ambiguity damage interpretability downstre
 - Intent:
   - materialize deterministic P3 baseline from locked P2 posture before edits.
 - DoD:
-  - [ ] one repeatable command/profile computes P3 scorecard metrics + CIs.
-  - [ ] scorecard reports global + stratified posture (`channel`, broad `MCC`, GDP bucket).
-  - [ ] baseline includes duplicate-semantics diagnostics under current `site_id` contract.
+  - [x] one repeatable command/profile computes P3 scorecard metrics + CIs.
+  - [x] scorecard reports global + stratified posture (`channel`, broad `MCC`, GDP bucket).
+  - [x] baseline includes duplicate-semantics diagnostics under current `site_id` contract.
+- Baseline evidence (2026-02-13):
+  - command: `make segment1a-p3 RUNS_ROOT=runs/fix-data-engine/segment_1A`
+  - run id: `d94f908cd5715404af1bfb9792735147`
+  - scorecard: `runs/fix-data-engine/segment_1A/reports/segment1a_p3_1_baseline_d94f908cd5715404af1bfb9792735147.json`
 
 #### P3.2 Identity semantics hardening
 - Intent:

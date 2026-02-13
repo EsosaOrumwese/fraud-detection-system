@@ -4833,3 +4833,70 @@ Reasoning:
 Validation:
 1) `python -m py_compile packages/engine/src/engine/layers/l1/seg_1A/s7_integerisation/runner.py` (pass).
 2) Next: rerun `segment1a-p3` and confirm S7->S8 completion plus scorecard emission.
+### Entry: 2026-02-13 05:52
+
+Design element: Corrective adjustment to S7 dirichlet blocker fix.
+Summary: The alpha-floor patch (`1e-12`) prevented immediate failure but caused pathological Gamma sampling time for at least one merchant during S7, stalling the run. Replaced with a skip-on-nonpositive-share strategy for dirichlet diagnostics emission.
+
+Corrective changes:
+1) `packages/engine/src/engine/layers/l1/seg_1A/s7_integerisation/runner.py`
+- Removed alpha-floor behavior.
+- Restored strict alpha check (`alpha_i <= 0` remains invalid for payload generation).
+- Added merchant-local gating:
+  - when any `share <= 0`, do not construct/write dirichlet payload for that merchant,
+  - continue deterministic integerisation and residual-rank events.
+- Updated replay/write branches to treat dirichlet payload as optional per merchant under this gate.
+
+Operational action:
+1) Terminated stuck `segment1a-p3` process chain for run `ddc8e46d9e25fe160800ad878d1fa8c9` (make/bash/python) to prevent runaway runtime and unblock rerun.
+
+Validation:
+1) `py_compile` pass for patched S7 runner.
+2) Next: rerun `segment1a-p3` and capture baseline scorecard.
+### Entry: 2026-02-13 05:56
+
+Design element: P3.1 execution closure and baseline evidence.
+Summary: After corrective S7 dirichlet handling, `segment1a-p3` completed end-to-end (`S0->S8`) and emitted the first P3.1 baseline scorecard.
+
+Execution evidence:
+1) Command:
+- `make segment1a-p3 RUNS_ROOT=runs/fix-data-engine/segment_1A`
+2) Accepted run:
+- `run_id=d94f908cd5715404af1bfb9792735147`
+3) Scorecard:
+- `runs/fix-data-engine/segment_1A/reports/segment1a_p3_1_baseline_d94f908cd5715404af1bfb9792735147.json`
+
+P3.1 baseline outcomes (global):
+1) `home_legal_mismatch_rate=0.3971` (95% Wilson CI `[0.3946, 0.3996]`) -> fails B/B+ band.
+2) `size_gradient_pp=+1.84pp` (bootstrap 95% CI `[-2.44, +6.28]`) -> fails B/B+ threshold.
+3) Identity semantics diagnostics:
+- unexplained duplicate anomalies = `0` (pass),
+- expected cross-country site_id reuse present (contract-consistent).
+
+Interpretation for next phase:
+1) P3.1 harness is now operational and deterministic.
+2) Baseline confirms mismatch-level and size-gradient realism gaps remain the active P3 closure blockers.
+3) P3.2/P3.3 can proceed with this scorecard as quantitative authority.
+
+Storage hygiene action:
+1) Removed interrupted run folder `ddc8e46d9e25fe160800ad878d1fa8c9`.
+2) Retained run folders:
+- `c83b1c5110b3d1c2803b7f01de959d5d`,
+- `9901b537de3a5a146f79365931bd514c`,
+- `d6e04d5dc57b9dc3f41ac59508cafd3f`,
+- `d94f908cd5715404af1bfb9792735147`.
+
+Documentation updates:
+1) Marked P3.1 DoD checkboxes complete in `segment_1A.build_plan.md`.
+2) Added baseline run/report evidence line under P3.1 section.
+### Entry: 2026-02-13 05:57
+
+Design element: P3 scorecard script warning cleanup.
+Summary: Replaced deprecated Polars call in `tools/score_segment1a_p3_1_baseline.py` from `with_row_count` to `with_row_index` to remove runtime warning noise in baseline execution output.
+
+Validation:
+1) `python -m py_compile tools/score_segment1a_p3_1_baseline.py` (pass).
+### Entry: 2026-02-13 05:58
+
+Design element: Post-cleanup scorer re-run.
+Summary: Re-ran `tools/score_segment1a_p3_1_baseline.py` on run `d94f908cd5715404af1bfb9792735147` to refresh the report after warning cleanup; output path unchanged.

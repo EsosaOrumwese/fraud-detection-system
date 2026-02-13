@@ -76,7 +76,7 @@ Canonical lifecycle key: `phase_id=P#` from migration runbook.
 | Plan Phase | Canonical phase_id | Name | Status |
 | --- | --- | --- | --- |
 | M0 | pre-P(-1) | Mobilization + authority lock | DONE |
-| M1 | P(-1) | Packaging readiness (image + entrypoints + provenance) | NOT_STARTED |
+| M1 | P(-1) | Packaging readiness (image + entrypoints + provenance) | ACTIVE |
 | M2 | P0 | Substrate readiness (Terraform core+demo) | NOT_STARTED |
 | M3 | P1 | Run pinning + run manifest evidence | NOT_STARTED |
 | M4 | P2 | Daemon bring-up on ECS with run-scope controls | NOT_STARTED |
@@ -102,7 +102,8 @@ Control rule:
 
 Current deep-plan file state:
 - `M0`: `docs/model_spec/platform/implementation_maps/dev_substrate/platform.M0.build_plan.md` (present)
-- `M1..M10`: deferred until phase activation is approved.
+- `M1`: `docs/model_spec/platform/implementation_maps/dev_substrate/platform.M1.build_plan.md` (present)
+- `M2..M10`: deferred until phase activation is approved.
 
 ---
 
@@ -127,9 +128,9 @@ Template usage:
 
 ## 7) Phase Detail (Current State)
 Current phase posture:
-- no phase is `ACTIVE` at this moment,
+- `M1` is `ACTIVE`,
 - `M0` is closed,
-- `M1` is pending explicit USER activation.
+- `M2` remains `NOT_STARTED`.
 
 ## M0 - Mobilization + Authority Lock
 Status: `DONE`
@@ -175,10 +176,10 @@ Phase exit:
 
 ---
 
-## 8) Next Phase (Prepared, Not Yet Active)
+## 8) Current Active Phase
 
 ## M1 - P(-1) Packaging readiness
-Status: `NOT_STARTED`
+Status: `ACTIVE`
 
 Entry gate:
 - M0 is `DONE`.
@@ -196,6 +197,17 @@ DoD (summary):
 
 Failure posture:
 - fail closed on missing entrypoint/provenance mismatch.
+
+Active-phase execution posture:
+- This activation pass is planning and contract finalization.
+- Image build/push execution starts only on explicit USER build-go for M1 execution.
+
+M1 DoD checklist:
+- [ ] Packaging contract finalized in `platform.M1.build_plan.md` (image, entrypoints, provenance, security).
+- [ ] Build command surface and inputs are pinned (no ad hoc build path).
+- [ ] Evidence write contract for P(-1) is pinned and testable.
+- [ ] Runtime secret-handling rules are pinned (no secret baked into image).
+- [ ] M1 execution handoff statement is prepared for build-go pass.
 
 ---
 
@@ -376,7 +388,7 @@ R4: Cost leakage after demos
 Control: required P12 teardown proof and budget guardrails.
 
 ## 12) Immediate Next Action
-On explicit USER approval to start M1:
-- set M1 -> `ACTIVE`
-- create `docs/model_spec/platform/implementation_maps/dev_substrate/platform.M1.build_plan.md`
-- expand M1 into execution-level tasks (task-by-task run sequence and validation commands).
+On explicit USER build-go for M1 execution:
+- run M1 packaging/build steps from `platform.M1.build_plan.md`,
+- collect P(-1) evidence artifacts per phase evidence template,
+- close M1 only after checklist + evidence pass.

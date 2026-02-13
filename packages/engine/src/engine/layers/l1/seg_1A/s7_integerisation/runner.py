@@ -1933,7 +1933,19 @@ def run_s7(
                         counts_written += 1
 
                 dirichlet_payload: dict | None = None
+                dirichlet_expected = False
                 if dirichlet_enabled:
+                    zero_share_count = sum(1 for share in shares if share <= 0.0)
+                    if zero_share_count > 0:
+                        logger.debug(
+                            "S7: skipping dirichlet event due nonpositive shares "
+                            "(merchant_id=%d, zero_share_count=%d)",
+                            merchant_id,
+                            zero_share_count,
+                        )
+                    else:
+                        dirichlet_expected = True
+                if dirichlet_expected:
                     dirichlet_payload = _expected_dirichlet_payload(
                         merchant_id,
                         domain_isos,
@@ -2005,47 +2017,57 @@ def run_s7(
                                 )
                     if dirichlet_enabled:
                         if existing_dirichlet_map is None:
-                            raise EngineFailure(
-                                "F4",
-                                "E_EVENT_COVERAGE",
-                                "S7",
-                                MODULE_DIRICHLET,
-                                {"detail": "missing_dirichlet_events"},
-                                dataset_id=DATASET_DIRICHLET,
-                            )
-                        payload = existing_dirichlet_map.get(merchant_id)
-                        if payload is None:
-                            raise EngineFailure(
-                                "F4",
-                                "E_EVENT_COVERAGE",
-                                "S7",
-                                MODULE_DIRICHLET,
-                                {"detail": "missing_dirichlet_event", "merchant_id": merchant_id},
-                                dataset_id=DATASET_DIRICHLET,
-                            )
-                        if dirichlet_payload is None:
-                            raise EngineFailure(
-                                "F4",
-                                "E_OUTPUT_MISMATCH",
-                                "S7",
-                                MODULE_DIRICHLET,
-                                {"detail": "dirichlet_payload_missing", "merchant_id": merchant_id},
-                                dataset_id=DATASET_DIRICHLET,
-                            )
-                        for key, value in dirichlet_payload.items():
-                            if payload.get(key) != value:
+                            if dirichlet_payload is not None:
+                                raise EngineFailure(
+                                    "F4",
+                                    "E_EVENT_COVERAGE",
+                                    "S7",
+                                    MODULE_DIRICHLET,
+                                    {"detail": "missing_dirichlet_events"},
+                                    dataset_id=DATASET_DIRICHLET,
+                                )
+                        elif dirichlet_payload is None:
+                            payload = existing_dirichlet_map.get(merchant_id)
+                            if payload is not None:
                                 raise EngineFailure(
                                     "F4",
                                     "E_OUTPUT_MISMATCH",
                                     "S7",
                                     MODULE_DIRICHLET,
                                     {
-                                        "detail": "dirichlet_field_mismatch",
+                                        "detail": "unexpected_dirichlet_event",
                                         "merchant_id": merchant_id,
-                                        "field": key,
                                     },
                                     dataset_id=DATASET_DIRICHLET,
                                 )
+                        else:
+                            payload = existing_dirichlet_map.get(merchant_id)
+                            if payload is None:
+                                raise EngineFailure(
+                                    "F4",
+                                    "E_EVENT_COVERAGE",
+                                    "S7",
+                                    MODULE_DIRICHLET,
+                                    {
+                                        "detail": "missing_dirichlet_event",
+                                        "merchant_id": merchant_id,
+                                    },
+                                    dataset_id=DATASET_DIRICHLET,
+                                )
+                            for key, value in dirichlet_payload.items():
+                                if payload.get(key) != value:
+                                    raise EngineFailure(
+                                        "F4",
+                                        "E_OUTPUT_MISMATCH",
+                                        "S7",
+                                        MODULE_DIRICHLET,
+                                        {
+                                            "detail": "dirichlet_field_mismatch",
+                                            "merchant_id": merchant_id,
+                                            "field": key,
+                                        },
+                                        dataset_id=DATASET_DIRICHLET,
+                                    )
                     continue
 
                 if event_handle is None or trace_handle is None:
@@ -2093,7 +2115,7 @@ def run_s7(
                     events_written += 1
                     trace_written += 1
 
-                if dirichlet_enabled:
+                if dirichlet_enabled and dirichlet_payload is not None:
                     if dirichlet_handle is None or trace_handle is None:
                         raise EngineFailure(
                             "F4",
@@ -2101,15 +2123,6 @@ def run_s7(
                             "S7",
                             MODULE_DIRICHLET,
                             {"detail": "dirichlet_handle_missing", "merchant_id": merchant_id},
-                        )
-                    if dirichlet_payload is None:
-                        raise EngineFailure(
-                            "F4",
-                            "E_OUTPUT_MISMATCH",
-                            "S7",
-                            MODULE_DIRICHLET,
-                            {"detail": "dirichlet_payload_missing", "merchant_id": merchant_id},
-                            dataset_id=DATASET_DIRICHLET,
                         )
                     payload = dict(dirichlet_payload)
                     payload["ts_utc"] = utc_now_rfc3339_micro()

@@ -6,6 +6,13 @@ _As of 2026-02-12_
 ## Active maps
 - `platform.build_plan.md`
 - `platform.impl_actual.md`
+- `platform.M0.build_plan.md` (deep-plan detail for closed phase M0)
+- `platform.M1.build_plan.md` (deep-plan detail for active phase M1)
+
+## Phase deep-plan pattern
+- `platform.M*.build_plan.md` stores deep planning for individual phases.
+- Status ownership remains in `platform.build_plan.md` only.
+- Create new phase deep-plan files when phase activation is approved.
 
 ## Working authority for migration execution
 - `docs/model_spec/platform/migration_to_dev/dev_min_spine_green_v0_run_process_flow.md`
