@@ -11,6 +11,11 @@ on:
         description: "OIDC role ARN used by GitHub Actions"
         required: true
         type: string
+      checkout_ref:
+        description: "Git ref to checkout for Terraform stack/code execution"
+        required: false
+        default: "migrate-dev"
+        type: string
       tf_state_bucket:
         description: "Terraform backend bucket"
         required: false
@@ -57,6 +62,8 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.checkout_ref }}
 
       - name: Reject static AWS credential posture
         shell: bash
@@ -101,7 +108,7 @@ jobs:
         run: |
           set -euo pipefail
           python -m pip install --upgrade pip
-          python -m pip install kafka-python confluent-kafka
+          python -m pip install confluent-kafka
 
       - name: Compute execution metadata
         id: run_meta
@@ -139,14 +146,140 @@ jobs:
           set -euo pipefail
           terraform -chdir=infra/terraform/dev_min/confluent apply -input=false -auto-approve
 
-      - name: Run canonical M2.F verifier
+      - name: Run canonical M2.F verifier (inline)
         shell: bash
         run: |
           set -euo pipefail
-          python tools/dev_substrate/verify_m2f_topic_readiness.py \
-            --aws-region "${{ inputs.aws_region }}" \
-            --output "${{ steps.run_meta.outputs.output_path }}" \
-            --evidence-s3-uri "${{ steps.run_meta.outputs.evidence_s3_uri }}"
+          export M2F_AWS_REGION="${{ inputs.aws_region }}"
+          export M2F_OUTPUT_PATH="${{ steps.run_meta.outputs.output_path }}"
+          export M2F_EVIDENCE_S3_URI="${{ steps.run_meta.outputs.evidence_s3_uri }}"
+          python - <<'PY'
+          import json
+          import os
+          import pathlib
+          import subprocess
+          import sys
+          from datetime import datetime, timezone
+          from confluent_kafka import admin
+
+          required_topics = [
+              "fp.bus.control.v1",
+              "fp.bus.traffic.fraud.v1",
+              "fp.bus.context.arrival_events.v1",
+              "fp.bus.context.arrival_entities.v1",
+              "fp.bus.context.flow_anchor.fraud.v1",
+              "fp.bus.rtdl.v1",
+              "fp.bus.audit.v1",
+              "fp.bus.case.triggers.v1",
+              "fp.bus.labels.events.v1",
+          ]
+
+          region = os.environ["M2F_AWS_REGION"]
+          output_path = pathlib.Path(os.environ["M2F_OUTPUT_PATH"])
+          output_path.parent.mkdir(parents=True, exist_ok=True)
+
+          def ssm_get(path: str):
+              proc = subprocess.run(
+                  [
+                      "aws",
+                      "ssm",
+                      "get-parameter",
+                      "--name",
+                      path,
+                      "--with-decryption",
+                      "--region",
+                      region,
+                      "--output",
+                      "json",
+                  ],
+                  capture_output=True,
+                  text=True,
+              )
+              if proc.returncode != 0:
+                  raise RuntimeError(proc.stderr.strip() or f"ssm_get_failed:{path}")
+              payload = json.loads(proc.stdout)
+              param = payload.get("Parameter", {})
+              value = str(param.get("Value", "")).strip()
+              version = int(param.get("Version", 0))
+              if not value:
+                  raise RuntimeError(f"ssm_empty:{path}")
+              return value, version
+
+          snapshot = {
+              "phase": "M2.F",
+              "captured_at_utc": datetime.now(timezone.utc).isoformat(),
+              "lane": "github_actions_inline_confluent_kafka_admin",
+              "ssm_paths": {
+                  "bootstrap": "/fraud-platform/dev_min/confluent/bootstrap",
+                  "api_key": "/fraud-platform/dev_min/confluent/api_key",
+                  "api_secret": "/fraud-platform/dev_min/confluent/api_secret",
+              },
+              "ssm_versions": {},
+              "bootstrap_present": False,
+              "auth_present": False,
+              "connectivity_pass": False,
+              "topics_required": required_topics,
+              "topics_present": [],
+              "topics_missing": [],
+              "acl_readiness_mode": "metadata_visibility_via_authenticated_admin_client",
+              "errors": [],
+              "overall_pass": False,
+          }
+
+          try:
+              bootstrap, v_boot = ssm_get(snapshot["ssm_paths"]["bootstrap"])
+              api_key, v_key = ssm_get(snapshot["ssm_paths"]["api_key"])
+              api_secret, v_secret = ssm_get(snapshot["ssm_paths"]["api_secret"])
+              snapshot["ssm_versions"] = {
+                  "bootstrap": v_boot,
+                  "api_key": v_key,
+                  "api_secret": v_secret,
+              }
+              snapshot["bootstrap_present"] = True
+              snapshot["auth_present"] = True
+          except Exception as exc:
+              snapshot["errors"].append(f"ssm_resolution_failed: {exc}")
+              output_path.write_text(json.dumps(snapshot, indent=2), encoding="utf-8")
+              print(json.dumps({"overall_pass": False, "error": str(exc)}))
+              sys.exit(2)
+
+          try:
+              client = admin.AdminClient(
+                  {
+                      "bootstrap.servers": bootstrap,
+                      "security.protocol": "SASL_SSL",
+                      "sasl.mechanism": "PLAIN",
+                      "sasl.username": api_key,
+                      "sasl.password": api_secret,
+                      "socket.timeout.ms": 10000,
+                  }
+              )
+              md = client.list_topics(timeout=10)
+              topic_names = set(md.topics.keys())
+              snapshot["connectivity_pass"] = True
+              snapshot["topics_present"] = [t for t in required_topics if t in topic_names]
+              snapshot["topics_missing"] = [t for t in required_topics if t not in topic_names]
+          except Exception as exc:
+              snapshot["errors"].append(f"kafka_metadata_failed: {exc}")
+
+          snapshot["overall_pass"] = bool(
+              snapshot["bootstrap_present"]
+              and snapshot["auth_present"]
+              and snapshot["connectivity_pass"]
+              and not snapshot["topics_missing"]
+          )
+          output_path.write_text(json.dumps(snapshot, indent=2), encoding="utf-8")
+          print(json.dumps({"overall_pass": snapshot["overall_pass"], "output_path": str(output_path)}))
+          sys.exit(0 if snapshot["overall_pass"] else 1)
+          PY
+          VERIFY_EXIT=$?
+          if [[ -f "${M2F_OUTPUT_PATH}" ]]; then
+            aws s3 cp "${M2F_OUTPUT_PATH}" "${M2F_EVIDENCE_S3_URI}"
+          else
+            echo "Expected snapshot file not found: ${M2F_OUTPUT_PATH}"
+            exit 4
+          fi
+          exit "${VERIFY_EXIT}"
 
       - name: Upload M2.F CI evidence artifact
         if: always()
