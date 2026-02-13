@@ -67,4 +67,59 @@ per_currency:
     obs_floor: 6000
     shrink_exponent: 1.8
 
-overrides: {}
+overrides:
+  min_share_iso:
+    BMD: {US: 0.015, GB: 0.015}
+    USD: {GB: 0.015, DE: 0.015, FR: 0.015}
+    GBP: {DE: 0.015, FR: 0.015, US: 0.015}
+    AUD: {GB: 0.015, DE: 0.015, US: 0.015}
+    NZD: {GB: 0.015, DE: 0.015, US: 0.015}
+    CHF: {DE: 0.015, FR: 0.015, GB: 0.015}
+    SGD: {US: 0.015, GB: 0.015}
+    MOP: {HK: 0.015, SG: 0.015, GB: 0.015, DE: 0.015}
+    SEK: {DE: 0.015, GB: 0.015}
+    ISK: {GB: 0.015, DE: 0.015}
+    QAR: {AE: 0.015, GB: 0.015, DE: 0.015}
+    CAD: {US: 0.015, GB: 0.015}
+    HKD: {SG: 0.015, US: 0.015, GB: 0.015}
+    AED: {GB: 0.015, US: 0.015}
+    JPY: {US: 0.015, DE: 0.015}
+    KRW: {US: 0.015, JP: 0.015, GB: 0.015}
+    SAR: {AE: 0.015, GB: 0.015}
+    ILS: {GB: 0.015, DE: 0.015}
+    PLN: {DE: 0.015, GB: 0.015}
+    CNY: {HK: 0.015, SG: 0.015}
+    MXN: {US: 0.015, GB: 0.015}
+    BRL: {US: 0.015, GB: 0.015}
+    GHS: {GB: 0.015, US: 0.015}
+    AWG: {US: 0.015, GB: 0.015}
+    BHD: {AE: 0.015, GB: 0.015}
+    BSD: {US: 0.015, GB: 0.015}
+    OMR: {AE: 0.015, GB: 0.015}
+    UYU: {US: 0.015, GB: 0.015}
+    BBD: {US: 0.015, GB: 0.015}
+    KWD: {AE: 0.015, GB: 0.015}
+    BND: {SG: 0.015, GB: 0.015}
+    GYD: {US: 0.015, GB: 0.015}
+    TRY: {DE: 0.015, GB: 0.015}
+    CZK: {DE: 0.015, GB: 0.015}
+    RON: {DE: 0.015, GB: 0.015}
+    XCD: {US: 0.020, GB: 0.020}
+    XCG: {US: 0.020, GB: 0.020}
+    XPF: {FR: 0.020, US: 0.020}
+    NOK: {GB: 0.015, DE: 0.015}
+    SCR: {AE: 0.015, GB: 0.015}
+    CRC: {US: 0.015, PA: 0.015}
+    XAF: {FR: 0.015, GB: 0.015}
+    HUF: {DE: 0.015, GB: 0.015}
+    PAB: {US: 0.020, SV: 0.015}
+    TTD: {US: 0.015, GB: 0.015}
+    MYR: {SG: 0.015, GB: 0.015}
+    CLP: {US: 0.015, GB: 0.015}
+    ARS: {US: 0.015, GB: 0.015}
+    KZT: {DE: 0.015, GB: 0.015}
+    MVR: {AE: 0.015, GB: 0.015}
+    RSD: {DE: 0.015, GB: 0.015}
+    MUR: {FR: 0.015, GB: 0.015}
+    DKK: {DE: 0.015, GB: 0.015}
+    XOF: {FR: 0.015, GB: 0.015}

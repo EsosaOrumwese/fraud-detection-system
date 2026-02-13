@@ -4430,3 +4430,292 @@ P2.3 immediate plan:
 2) Re-run `S0->S6` and compare:
 - `K_target_sum`, `K_realized_sum`, selected-merchant count,
 - `median(rho_m)` and pathology rails.
+
+### Entry: 2026-02-12 23:15
+
+Design element: P2.2 bridge pass planning (recoverable zero-support domains without reopening S1/S2).
+Summary: Diagnostics on run `50e974a99ee544735a6a09942923c447` show that most remaining `S6` empties are `ZERO_WEIGHT_DOMAIN` from S3 set coverage mismatch against S5 support, with a hard irreducible block from singleton-currency supports.
+
+Evidence captured before edit:
+1) `S6` reason counts: `ZERO_WEIGHT_DOMAIN=2223`, `NO_CANDIDATES=453`, `CAPPED_BY_MAX_CANDIDATES=0`.
+2) `ZERO_WEIGHT_DOMAIN` split by S3 rule:
+- `ALLOW_GLOBAL_LARGE=1146`,
+- `ALLOW_REGIONAL_MID=955`,
+- `ALLOW_LOCAL_SMALL_HUB=114`,
+- `ALLOW_LOCAL_SMALL_EUR=8`.
+3) High-impact missing support countries for zero-domain merchants are concentrated in small bridge groups:
+- alpine/nordic bridge: `LI`, `BV`, `SJ`, `FO`, `GL`,
+- USD support territories: `PR`, `PA`, `EC`, `SV`, `HT`,
+- commonwealth/oceania bridge: `GG`, `IM`, `JE`, `CX`, `CK`.
+4) Structural limit identified in current S5 support posture:
+- many currencies are singleton support only (home-only mass), so a subset of zero domains is irreducible under S3-only tuning.
+
+Decision for immediate next step:
+1) Apply a constrained S3 bridge-set patch in `config/layer1/1A/policy/s3.rule_ladder.yaml` only.
+2) Keep size-tier predicates unchanged; only add small bridge country-sets and attach them to existing allow rules.
+3) Re-run `S0->S6` and re-score to measure recoverable movement.
+4) If `median(rho_m)` remains pinned at `0.0`, escalate as a scope dependency: P2 requires S5 support broadening policy/code path for singleton-currency foreign support.
+
+### Entry: 2026-02-12 23:22
+
+Design element: P2.2 bridge execution result (S3 recoverable-domain pass) and blocker qualification.
+Summary: Applied constrained bridge sets to S3 admit surfaces and re-ran `S0->S6`. This materially reduced recoverable S6 empties and lifted coupling, but `median(rho_m)` remains pinned at `0.0`; remaining blocker is now dominated by S5 support sparsity.
+
+Patch applied:
+1) `config/layer1/1A/policy/s3.rule_ladder.yaml`
+- added bridge sets:
+  - `FX_BRIDGE_GLOBAL`: `LI,BV,SJ,FO,GL,PR,PA,EC,SV,HT,GG,CX,CK`
+  - `FX_BRIDGE_REGIONAL`: `LI,BV,FO,GL,PR,PA,SV,GG,CX`
+  - `FX_BRIDGE_LOCAL`: `LI,FO,PR,GG,CX,CK`
+- attached bridge sets to allow rules:
+  - `ALLOW_GLOBAL_LARGE`: `GLOBAL_CORE + FX_BRIDGE_GLOBAL`
+  - `ALLOW_REGIONAL_MID`: `REGIONAL_CORE + FX_BRIDGE_REGIONAL`
+  - `ALLOW_LOCAL_SMALL_HUB`: `LOCAL_CORE + FX_BRIDGE_LOCAL`
+
+Execution evidence:
+1) Run-id: `fd7a0b9d3b9b2b8b7fa9bcd2e9d355cd`
+2) Scorecard:
+- `runs/fix-data-engine/segment_1A/reports/segment1a_p2_1_baseline_fd7a0b9d3b9b2b8b7fa9bcd2e9d355cd.json`
+3) Global movement vs prior run (`50e974a99ee544735a6a09942923c447`):
+- `median(C_m): 6.0 -> 12.0` (still B-band),
+- `Spearman(C_m,R_m): 0.4123 -> 0.4805` (improved),
+- `median(rho_m): 0.0 -> 0.0` (no gate movement),
+- pathologies unchanged green.
+4) S6 diagnostics movement:
+- `selected`: `1670 -> 2424` (+754),
+- `empty`: `2676 -> 1888` (-788),
+- `ZERO_WEIGHT_DOMAIN`: `2223 -> 1436` (-787),
+- `NO_CANDIDATES`: `453 -> 452` (flat).
+
+Post-run ceiling diagnostics (same run):
+1) `merchants_with_C_gt_0 = 5036`.
+2) `merchants_with_R_gt_0 = 2424`.
+3) In S3 scope (`5826` merchants), only `3434` have any foreign support in current S5 weights (`foreign_possible=true`).
+4) Eligible subset (`4312`) has `2791` foreign-possible and `1521` foreign-impossible merchants.
+
+Interpretation:
+1) The bridge patch successfully captured most recoverable overlap loss attributable to S3 set coverage.
+2) Remaining `rho` blocker is upstream support sparsity: many merchants cannot realize foreign membership because S5 support for their assigned currency is effectively home-only.
+3) Additional S3/S4/S6-only tuning can still move selected counts incrementally, but cannot guarantee closure of `median(rho_m)` under current S5 support ceiling.
+
+Decision:
+1) Mark P2.2 bridge step as complete.
+2) Next remediation step should explicitly include S5 support broadening (policy or code path in `ccy_smoothing_params` / S5 runner) to lift foreign-support feasibility for singleton/home-only currencies.
+
+### Entry: 2026-02-12 23:30
+
+Design element: P2 scope extension decision - S5 support broadening lever.
+Summary: After confirming S3 bridge gains, `rho` remains blocked by foreign-support feasibility. Proceeding with a constrained S5 support extension that uses existing policy override channels (`min_share_iso`) and a minimal S5 runner change.
+
+Why extension is now justified:
+1) P2 bridge run improved `S6` materially (`selected +754`, `ZERO_WEIGHT_DOMAIN -787`) without touching S1/S2.
+2) Residual ceiling remains tight: in S3 scope, only `3434/5826` merchants are foreign-possible under current S5 support.
+3) P2 `rho` target cannot be closed robustly while a large merchant block is structurally home-only in S5 support.
+
+Chosen implementation path:
+1) S5 runner: extend `iso_union` to include policy override ISO keys (`alpha_iso`/`min_share_iso`) so policy can inject small foreign-support mass for selected currencies.
+2) S5 policy: add `overrides.min_share_iso` for the highest-impact singleton/home-only currencies with tiny foreign spillover shares (two-country bridge per currency).
+3) Keep changes deterministic and policy-bounded; no random fallback or ungated S6 behavior change.
+
+Guardrails:
+1) Keep added foreign mass small (`sum min_share_iso` per currency << 1.0).
+2) Do not alter S6 selection law; only improve S5 support domain realism.
+3) Re-run `S0->S6` and verify candidate band/pathology rails remain stable.
+
+### Entry: 2026-02-12 23:31
+
+Design element: P2.3 gating lever plan (eligibility expansion test after S5 support recovery).
+Summary: Latest run (`90545f47fb3a3993080b6483eab1bdd8`) now has strong support overlap (`ZERO_WEIGHT_DOMAIN=248`) and stable candidate band (`median(C_m)=12`), but `S6` gated-in merchants remain `4333/5863`, which caps selected merchants below the global `rho` median requirement.
+
+Decision:
+1) Run a policy-only eligibility expansion test by changing `crossborder_hyperparams.yaml` `eligibility.default_decision` from `deny` to `allow`.
+2) Keep explicit deny rules unchanged (`deny_sanctioned_home`, `deny_high_risk_cnp`) so hard-risk exclusions remain intact.
+3) Re-run `S0->S6` and inspect whether selected merchant count crosses the practical threshold needed for non-zero global median `rho`.
+
+### Entry: 2026-02-12 23:33
+
+Design element: P2.2/P2.3 joint fallback plan under expanded eligibility.
+Summary: `default_decision=allow` lifted S6 gated merchants strongly (`5734`) but also surfaced large `NO_CANDIDATES` (`666`) from S3 default-deny posture. Next step is a constrained S3 fallback allow for non-denied merchants.
+
+Planned patch:
+1) Add a low-priority S3 allow rule (`fallback general`) that admits a small local+bridge set.
+2) Keep deny rails untouched and higher precedence.
+3) Retain default deny as terminal guard but expect it to trigger rarely.
+
+Expected effect:
+1) Reduce `NO_CANDIDATES` materially.
+2) Increase selected merchants without exploding candidate breadth beyond B-band.
+3) Re-test whether global `median(rho_m)` can move off zero under high gated-in posture.
+
+### Entry: 2026-02-12 23:35
+
+Design element: Targeted tail-currency support pass after near-threshold run.
+Summary: Run `aac21c227858f925c5dcdddb42902e96` reached `selected=4922` with `NO_CANDIDATES=0`; remaining blocker is `ZERO_WEIGHT_DOMAIN=814`, concentrated in a small currency tail.
+
+Top remaining zero-domain currencies:
+- `XCD (90)`, `XCG (74)`, `MOP (58)`, `XPF (31)`, `NOK (27)`, `SCR (23)`, `CRC (22)`, `XAF (21)`, `HUF (20)`, `PAB (20)`.
+
+Decision:
+1) Apply targeted `min_share_iso` additions for these tail currencies in `ccy_smoothing_params.yaml` using existing local/global bridge countries.
+2) Re-run `S0->S6` and test if selected merchants cross the global median-rho tipping point.
+
+### Entry: 2026-02-12 23:38
+
+Design element: Final P2 shape-ratio pass (denominator control after support closure).
+Summary: Run `0c6ab3ebd659c7176d65dceef3f39109` crossed the structural threshold (`selected=5299`, `ZERO_WEIGHT_DOMAIN=349`, `NO_CANDIDATES=0`) and moved `median(rho_m)` above zero (`0.0435`), but still below B target (`0.10`).
+
+Interpretation:
+1) Remaining gap is denominator-heavy (candidate breadth too large relative to realized picks), not empty-domain collapse.
+2) Next lever is S3 bridge-set cardinality reduction to bring `C_m` down while keeping overlap support intact.
+
+Planned patch:
+1) Reduce `FX_BRIDGE_*` set sizes in `s3.rule_ladder.yaml` to only high-value support bridge countries.
+2) Keep fallback allow and deny rails unchanged.
+3) Re-run `S0->S6` and check whether `median(rho_m)` rises toward threshold without regressing Spearman/pathology rails.
+
+### Entry: 2026-02-12 23:42
+
+Design element: P2 deep-iteration result bundle (S3+S5+eligibility co-tuning).
+Summary: Executed iterative co-tuning to close the P2 realization gap. Best current run is `c83b1c5110b3d1c2803b7f01de959d5d`: candidate band and coupling are strong, empties are greatly reduced, and realization ratio moved materially, but global `median(rho_m)` still remains below B threshold.
+
+Implemented changes across the iteration:
+1) `packages/engine/src/engine/layers/l1/seg_1A/s5_currency_weights/runner.py`
+- Expanded S5 support union to include override ISO keys (`alpha_iso`/`min_share_iso`) so policy can add controlled foreign support to sparse currencies.
+2) `config/layer1/1A/allocation/ccy_smoothing_params.yaml`
+- Added broad `overrides.min_share_iso` coverage for singleton/home-only and tail currencies (progressively expanded to 49 currency override blocks).
+3) `config/layer1/1A/policy/s3.rule_ladder.yaml`
+- Added micro-hub and fallback-general allow rails,
+- Added bridge set scaffolding then tightened bridge set cardinalities,
+- Kept deny precedence and S6 caps/rails unchanged.
+4) `config/layer1/1A/policy/crossborder_hyperparams.yaml`
+- Set `eligibility.default_decision=allow` for high-gate realization pass (explicit deny rules still active).
+
+Latest best-run evidence (`c83b1c5110b3d1c2803b7f01de959d5d`):
+1) Scorecard:
+- `runs/fix-data-engine/segment_1A/reports/segment1a_p2_1_baseline_c83b1c5110b3d1c2803b7f01de959d5d.json`
+2) Global P2 metrics:
+- `merchant_count=10000`,
+- `merchants_with_C_gt_0=5683`,
+- `median(C_m)=10.0` (B-band pass),
+- `Spearman(C_m,R_m)=0.7846` (pass),
+- `median(rho_m)=0.0417` (still below 0.10),
+- pathologies remain pass.
+3) S6 mechanics (from `S6_VALIDATION.json`):
+- `gated_in=5682`, `selected=5167`, `empty=515`,
+- `NO_CANDIDATES=0`, `ZERO_WEIGHT_DOMAIN=515`.
+
+Important interpretation:
+1) The remediation mechanics are now functioning causally: candidate empties collapsed, selected merchants rose above 5k, and global rho moved from strict zero to a positive value.
+2) On the meaningful denominator (`C_m>0` merchants), the same run gives:
+- `median(rho | C>0)=0.1053` (meets B threshold),
+- `share(rho>=0.1 | C>0)=0.6069`.
+3) Remaining global-rho shortfall is dominated by denominator definition with large structural `C=0` mass inherited from upstream S1/S2 scope; further P2-only tuning has diminishing returns and high risk of realism drift.
+
+Decision trail conclusion:
+1) P2 candidate realism and coupling are materially remediated.
+2) Global `median(rho_m)` hard-gate (computed over all merchants) is now the singular blocker.
+3) Next decision requires governance choice:
+- either accept realization-ratio evaluation on `C_m>0` cohort (statistically meaningful for candidate-realization coherence),
+- or reopen upstream scope (P1/S1-S2 population support) to shrink structural `C=0` share.
+
+### Entry: 2026-02-12 23:47
+
+Design element: P2.2/P2.3 continuation - S3 large-tier denominator compression based on run-level diagnostics.
+Summary: The latest run (`c83b1c5110b3d1c2803b7f01de959d5d`) shows that `rho` shortfall is concentrated in the `ALLOW_GLOBAL_LARGE` branch, not in S4 target generation. Next step is a policy-only S3 compression pass to reduce over-wide candidate denominators for large/mid merchants while preserving overlap and coupling rails.
+
+Evidence captured before this edit:
+1) Global blocker remains ratio-density, not empties:
+- `median(C_m)=10.0` (pass), `Spearman=0.7846` (pass), `median(rho_m)=0.0417` (fail).
+- `rho>=0.1` count is `3449/10000` (needs `>=5000` for global median closure).
+2) S4 is not the active constraint:
+- `K_target_sum=119680` vs `K_realized_sum=18135`, with `shortfall_merchants=4078`.
+- Interpretation: S4 already emits high targets; realized ratio is constrained by candidate denominator/support alignment.
+3) Dominant low-rho bucket is S3 `ALLOW_GLOBAL_LARGE`:
+- merchant count `2676`, `median(C)=25`, `median(R)=2`, `median(rho)=0.0833`, `share(rho>=0.1)=0.417`.
+- By contrast `ALLOW_REGIONAL_MID` already performs materially better (`median(rho)=0.1053`).
+
+Decision:
+1) Run a strict S3 policy pass first (no S4/S6 code changes):
+- tighten large-tier entry from `N_GE 20` to `N_GE 35`;
+- keep mid-tier as `8 <= N < 35`;
+- compress admit-set cardinalities (`GLOBAL_CORE`, `REGIONAL_CORE`, `FX_BRIDGE_*`) to realistic, support-aligned subsets.
+2) Keep deny precedence, fallback allow rail, and eligibility posture unchanged.
+3) Re-run `S0->S6` and evaluate closure against the same P2 scorecard + S6 diagnostics.
+
+Acceptance criteria for this pass:
+1) Preserve `median(C_m)` in B band (`5..15`) and `Spearman>=0.30`.
+2) Improve global `median(rho_m)` materially toward `>=0.10`.
+3) Avoid regression in pathology rails and avoid large `NO_CANDIDATES` rebound.
+
+### Entry: 2026-02-12 23:52
+
+Design element: P2.3 targeted support-density lift after S3 compression pass.
+Summary: S3 compression improved global `rho` materially (`0.0417 -> 0.0625`) but still misses B threshold. Post-run diagnostics show the remaining gap is concentrated in specific settlement-currency cohorts with `A_filtered<=1` and/or `ZERO_WEIGHT_DOMAIN`, not in S4 intensity.
+
+Evidence from run `ecfbd48ee04ccf5d965556bbf8c9266c`:
+1) Global posture:
+- `median(C_m)=8.0` (pass), `Spearman=0.7453` (pass), `median(rho_m)=0.0625` (fail), `rho>=0.1 count=4290` (needs +710).
+2) S6 mechanics:
+- `selected=5055`, `ZERO_WEIGHT_DOMAIN=625`, `A_filtered_sum=19115`, `shortfall_merchants=3958`.
+3) Currency cohorts with highest residual failure burden (fail-rho / zero-domain):
+- `CHF (164 / 0)`, `USD (132 / 0)`, `MOP (132 / 102)`, `AUD (123 / 119)`, `NZD (75 / 75)`, `GBP (74 / 16)`, `QAR (69 / 0)`, `HKD (60 / 0)`, `KRW (41 / 0)`.
+- Interpretation: many merchants are stuck at `R=1` under current support density; pushing foreign support breadth for these currencies should move a large block above `rho>=0.1`.
+
+Decision:
+1) Apply targeted S5 policy widening only (`ccy_smoothing_params.yaml`):
+- add/expand `overrides.min_share_iso` for the high-impact currencies above using countries that intersect current S3 admit sets (GB/DE/FR/US/AE/SG/HK).
+2) Keep S3 rules, S4 theta, and S6 selection law unchanged for this pass.
+3) Re-run `S0->S6` and measure:
+- global `median(rho_m)` movement,
+- `ZERO_WEIGHT_DOMAIN` reduction,
+- `rho>=0.1` count delta.
+
+### Entry: 2026-02-12 23:58
+
+Design element: P2.3 closure pass result + replay stability check.
+Summary: Applied targeted S5 `min_share_iso` expansions for high-impact sparse currencies and reran `S0->S6` twice. This closed the remaining global realization-ratio hard gate while preserving candidate-band and pathology rails.
+
+Patch applied:
+1) `config/layer1/1A/allocation/ccy_smoothing_params.yaml`
+- added/expanded overrides for:
+  - `USD`, `GBP`, `AUD`, `NZD`, `CHF`,
+  - `MOP` (expanded), `QAR` (expanded), `HKD` (expanded), `KRW` (expanded).
+- intent: increase support density on countries already present in current S3 admit sets (mainly `GB/DE/FR/US/AE/SG/HK`) so `A_filtered` and realized `R_m` are no longer pinned near 1 for these cohorts.
+
+Primary run evidence:
+1) Run `9901b537de3a5a146f79365931bd514c`
+- `median(C_m)=8.0` (pass),
+- `Spearman(C_m,R_m)=0.7891` (pass),
+- `median(rho_m)=0.1176` (pass; first global closure above `0.10`),
+- pathology rails pass.
+2) S6 diagnostics moved in the right direction:
+- `selected: 5055 -> 5415`,
+- `ZERO_WEIGHT_DOMAIN: 625 -> 271`,
+- `membership rows: 16832 -> 19443`.
+
+Replay stability evidence:
+1) Replay run `d6e04d5dc57b9dc3f41ac59508cafd3f` (same seed/config)
+2) Scorecard metrics are byte-identical at key P2 gates:
+- `median(C_m)=8.0`, `Spearman=0.7891`, `median(rho_m)=0.1176`, pathology rails unchanged.
+3) S6 summary is identical (`selected=5415`, `ZERO_WEIGHT_DOMAIN=271`, `shortfall=4221`).
+
+Interpretation and decision:
+1) P2 core B checks are now met globally and stable across two consecutive same-seed runs.
+2) Remaining stratified softness is concentrated in `card_not_present` median surfaces (still zero-dominant), but this no longer blocks global P2 closure criteria as defined for this phase.
+3) Proceed to mark P2.3 complete and advance P2.4 lock posture with this policy bundle.
+
+### Entry: 2026-02-12 23:59
+
+Design element: P2 storage retention enforcement after closure runs.
+Summary: Applied retention rule from Build Plan Section 4.10 to prevent run-root growth during iterative remediation.
+
+Action:
+1) Pruned superseded run-id folders under `runs/fix-data-engine/segment_1A`.
+2) Kept only:
+- `c83b1c5110b3d1c2803b7f01de959d5d` (pre-closure anchor),
+- `9901b537de3a5a146f79365931bd514c` (closure run),
+- `d6e04d5dc57b9dc3f41ac59508cafd3f` (same-seed stability replay).
+
+Rationale:
+1) Preserve enough evidence for causal comparison + lock verification.
+2) Avoid unnecessary disk growth from superseded exploratory runs.

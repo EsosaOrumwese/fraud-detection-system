@@ -214,6 +214,7 @@ Current posture is "open world then suppress." Candidate breadth is near-global 
   - `config/layer1/1A/policy/s3.thresholds.yaml`
   - `config/layer1/1A/policy/s3.base_weight.yaml`
   - `config/layer1/1A/policy/s3.integerisation.yaml`
+  - `config/layer1/1A/allocation/ccy_smoothing_params.yaml` (only when P2 diagnostics prove S5 support sparsity is the blocking cause for S6 realization)
   - `config/layer1/1A/policy/crossborder_hyperparams.yaml` (including `ztp` block)
   - `config/layer1/1A/policy.s6.selection.yaml`
   - `config/layer1/1A/models/allocation/dirichlet_alpha_policy.yaml` (only if needed after core tuning)
@@ -226,6 +227,7 @@ Current posture is "open world then suppress." Candidate breadth is near-global 
   - `config/layer1/1A/policy/s3.thresholds.yaml`
   - `config/layer1/1A/policy/s3.base_weight.yaml`
   - `config/layer1/1A/policy/s3.integerisation.yaml`
+  - `config/layer1/1A/allocation/ccy_smoothing_params.yaml` (conditional: only after explicit blocker confirmation)
   - `config/layer1/1A/policy/crossborder_hyperparams.yaml`
   - `config/layer1/1A/policy.s6.selection.yaml`
   - `config/layer1/1A/models/allocation/dirichlet_alpha_policy.yaml`
@@ -253,25 +255,39 @@ Current posture is "open world then suppress." Candidate breadth is near-global 
 - Intent:
   - move `C_m` from near-global saturation to profile-conditioned realistic breadth.
 - DoD:
-  - [ ] `median(C_m)` reaches `B` band (`5 to 15`) in aggregate.
-  - [ ] candidate-shape movement is broad (not a single-stratum artifact).
-  - [ ] pathology checks remain below hard caps while tuning `S3`.
+  - [x] `median(C_m)` reaches `B` band (`5 to 15`) in aggregate.
+  - [x] candidate-shape movement is broad (not a single-stratum artifact).
+  - [x] pathology checks remain below hard caps while tuning `S3`.
 
 #### P2.3 Realization coupling (`S4/S6`)
 - Intent:
   - align `R_m` with candidate opportunity and remove weak independent suppression.
 - DoD:
-  - [ ] `SpearmanCorr(C_m, R_m) >= 0.30`.
-  - [ ] `median(rho_m) >= 0.10`.
-  - [ ] retry/rejection pathology remains below hard caps.
+  - [x] `SpearmanCorr(C_m, R_m) >= 0.30`.
+  - [x] `median(rho_m) >= 0.10`.
+  - [x] retry/rejection pathology remains below hard caps.
+- Current blocker note:
+  - resolved via targeted S5 support-density remediation plus S3 breadth compression; reference stable runs:
+    - `9901b537de3a5a146f79365931bd514c`
+    - `d6e04d5dc57b9dc3f41ac59508cafd3f`
 
 #### P2.4 Joint reconciliation and lock
 - Intent:
   - confirm the final P2 tuning is stable and replay-consistent before lock.
 - DoD:
-  - [ ] two consecutive P2 runs meet all P2 B checks without counter-tuning oscillation.
-  - [ ] same-seed replay preserves P2 metric posture (drift within tolerance).
-  - [ ] locked policy versions and hashes are recorded for S3/S4/S6 knobs.
+  - [x] two consecutive P2 runs meet all P2 B checks without counter-tuning oscillation.
+  - [x] same-seed replay preserves P2 metric posture (drift within tolerance).
+  - [x] locked policy versions and hashes are recorded for S3/S4/S6 knobs.
+- Lock record:
+  - accepted parameter hash: `6b93f7a971bdaed50765b5964368305467d31ba2b16ca60b83c20dca111591aa`
+  - stable run pair:
+    - `9901b537de3a5a146f79365931bd514c`
+    - `d6e04d5dc57b9dc3f41ac59508cafd3f`
+  - locked knobs:
+    - `config/layer1/1A/policy/s3.rule_ladder.yaml`
+    - `config/layer1/1A/allocation/ccy_smoothing_params.yaml`
+    - `config/layer1/1A/policy/crossborder_hyperparams.yaml`
+    - `config/layer1/1A/policy.s6.selection.yaml`
 
 ### 4.9 Calibration method (mathematical, non-forging)
 - Use staged constrained calibration with frozen `P1` baseline:

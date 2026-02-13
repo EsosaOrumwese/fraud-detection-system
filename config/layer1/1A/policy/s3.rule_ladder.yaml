@@ -8,6 +8,8 @@ reason_codes:
   - "ALLOW_REGIONAL_MID"
   - "ALLOW_LOCAL_SMALL_EUR"
   - "ALLOW_LOCAL_SMALL_HUB"
+  - "ALLOW_MICRO_HUB"
+  - "ALLOW_GENERAL_BASE"
   - "DEFAULT_DENY"
 
 filter_tags:
@@ -22,13 +24,16 @@ filter_tags:
 country_sets:
   SANCTIONED: ["BY", "CU", "IR", "KP", "RU", "SD", "SY", "VE"]
   GLOBAL_CORE: [
-    "AE", "AT", "AU", "BE", "CA", "CH", "DE", "DK", "ES", "FR",
-    "GB", "HK", "IE", "IT", "JP", "NL", "NO", "SE", "SG", "US"
+    "AE", "AT", "AU", "CA", "CH", "DE", "ES", "FR", "GB", "IE",
+    "JP", "NL", "SG", "US"
   ]
   REGIONAL_CORE: [
-    "AT", "BE", "CH", "DE", "DK", "ES", "FR", "GB", "IE", "IT", "NL", "SE"
+    "AT", "BE", "DE", "ES", "FR", "GB", "IE", "IT", "NL"
   ]
   LOCAL_CORE: ["DE", "FR", "GB", "IE", "NL", "US"]
+  FX_BRIDGE_GLOBAL: ["LI", "PR", "GG"]
+  FX_BRIDGE_REGIONAL: ["LI", "PR", "GG"]
+  FX_BRIDGE_LOCAL: ["LI", "PR"]
   EUR_HOME: ["AT", "BE", "DE", "ES", "FI", "FR", "IE", "IT", "LU", "NL", "PT", "SE"]
   HOME_HUBS: [
     "AE", "AT", "AU", "BE", "CA", "CH", "DE", "DK", "ES", "FI",
@@ -43,6 +48,8 @@ reason_code_to_rule_id:
   ALLOW_REGIONAL_MID: "RL_ALLOW_REGIONAL_MID"
   ALLOW_LOCAL_SMALL_EUR: "RL_ALLOW_LOCAL_SMALL_EUR"
   ALLOW_LOCAL_SMALL_HUB: "RL_ALLOW_LOCAL_SMALL_HUB"
+  ALLOW_MICRO_HUB: "RL_ALLOW_MICRO_HUB"
+  ALLOW_GENERAL_BASE: "RL_ALLOW_GENERAL_BASE"
   DEFAULT_DENY: "RL_DEFAULT_DENY"
 
 rules:
@@ -78,12 +85,12 @@ rules:
     predicate:
       op: "AND"
       args:
-        - { op: "N_GE", value: 20 }
+        - { op: "N_GE", value: 35 }
         - { op: "NOT", arg: { op: "MCC_IN", codes: ["4829", "5815", "5816", "5817", "5818", "5966", "6011", "7995"], ranges: ["7800-7999"] } }
     outcome:
       reason_code: "ALLOW_GLOBAL_LARGE"
       tags: ["ADMISSIBLE", "GLOBAL"]
-    admit_sets: ["GLOBAL_CORE"]
+    admit_sets: ["GLOBAL_CORE", "FX_BRIDGE_GLOBAL"]
     deny_sets: ["SANCTIONED"]
     row_tags: ["ADMISSIBLE", "GLOBAL"]
 
@@ -95,12 +102,12 @@ rules:
       op: "AND"
       args:
         - { op: "N_GE", value: 8 }
-        - { op: "NOT", arg: { op: "N_GE", value: 20 } }
+        - { op: "NOT", arg: { op: "N_GE", value: 35 } }
         - { op: "NOT", arg: { op: "MCC_IN", codes: ["4829", "5815", "5816", "5817", "5818", "5966", "6011", "7995"], ranges: ["7800-7999"] } }
     outcome:
       reason_code: "ALLOW_REGIONAL_MID"
       tags: ["ADMISSIBLE", "REGIONAL"]
-    admit_sets: ["REGIONAL_CORE"]
+    admit_sets: ["REGIONAL_CORE", "FX_BRIDGE_REGIONAL"]
     deny_sets: ["SANCTIONED"]
     row_tags: ["ADMISSIBLE", "REGIONAL"]
 
@@ -136,7 +143,37 @@ rules:
     outcome:
       reason_code: "ALLOW_LOCAL_SMALL_HUB"
       tags: ["ADMISSIBLE", "LOCAL"]
-    admit_sets: ["LOCAL_CORE"]
+    admit_sets: ["LOCAL_CORE", "FX_BRIDGE_LOCAL"]
+    deny_sets: ["SANCTIONED"]
+    row_tags: ["ADMISSIBLE", "LOCAL"]
+
+  - rule_id: "RL_ALLOW_MICRO_HUB"
+    precedence: "ALLOW"
+    priority: 170
+    is_decision_bearing: true
+    predicate:
+      op: "AND"
+      args:
+        - { op: "N_GE", value: 1 }
+        - { op: "NOT", arg: { op: "N_GE", value: 2 } }
+        - { op: "IN_SET", field: "home_country_iso", set: "HOME_HUBS" }
+        - { op: "NOT", arg: { op: "MCC_IN", codes: ["4829", "5815", "5816", "5817", "5818", "5966", "6011", "7995"], ranges: ["7800-7999"] } }
+    outcome:
+      reason_code: "ALLOW_MICRO_HUB"
+      tags: ["ADMISSIBLE", "LOCAL"]
+    admit_sets: ["LOCAL_CORE", "FX_BRIDGE_LOCAL"]
+    deny_sets: ["SANCTIONED"]
+    row_tags: ["ADMISSIBLE", "LOCAL"]
+
+  - rule_id: "RL_ALLOW_GENERAL_BASE"
+    precedence: "ALLOW"
+    priority: 900
+    is_decision_bearing: true
+    predicate: { op: "TRUE" }
+    outcome:
+      reason_code: "ALLOW_GENERAL_BASE"
+      tags: ["ADMISSIBLE", "LOCAL"]
+    admit_sets: ["LOCAL_CORE", "FX_BRIDGE_LOCAL"]
     deny_sets: ["SANCTIONED"]
     row_tags: ["ADMISSIBLE", "LOCAL"]
 

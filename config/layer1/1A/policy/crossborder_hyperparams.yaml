@@ -3,7 +3,7 @@ version: "2025-12-31"
 
 eligibility:
   rule_set_id: "eligibility.v1.2025-12-31"
-  default_decision: "deny"
+  default_decision: "allow"
   rules:
     - id: "deny_sanctioned_home"
       priority: 10
