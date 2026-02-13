@@ -4899,3 +4899,90 @@ The build plan now makes sense for dev expectations and captures migration-runbo
 
 ### Drift sentinel assessment
 This closes a docs-specification gap that could have allowed interpretation drift during migration execution.
+
+## Entry: 2026-02-13 5:06AM - Pre-change lock: strengthen dev validation model beyond 20/200 event counts
+
+### Trigger
+USER challenged validation strength: 20/200 events is too weak for dev expectations and risks building a managed toy.
+
+### Problem framing
+Current build plan uses M10 certification wording centered on 20/200 event runs. That is useful for semantic smoke but insufficient for throughput/operational confidence.
+
+### Decision
+Refactor M10 into a two-layer certification model:
+1. Semantic Green (retain 20/200 as gate-law smoke checks).
+2. Scale Green (add representative-window, burst, soak, and recovery-under-load validations).
+
+Add explicit rule that 20/200 alone cannot close migration certification.
+
+### Planned edits
+- Update Global Success Criteria and M10 roadmap text.
+- Expand M10 DoD into semantic + scale gate bullets.
+- Add high-level scale threshold pinning rule at M10 entry (to avoid ad hoc interpretations).
+- Update evidence-fidelity map row for M10 to include scale/recovery evidence families.
+
+### File to patch
+- `docs/model_spec/platform/implementation_maps/dev_substrate/platform.build_plan.md`
+
+### Validation plan
+- grep for "Semantic Green", "Scale Green", "representative window", "burst", "soak", "recovery" markers.
+- confirm no wording implies 20/200 is sufficient by itself.
+
+### Drift sentinel checkpoint
+This is a planning hardening change to align dev validation with production-like expectations while preserving canonical semantic gates.
+
+## Entry: 2026-02-13 5:06AM - Applied certification model upgrade: Semantic Green + Scale Green
+
+### File updated
+- `docs/model_spec/platform/implementation_maps/dev_substrate/platform.build_plan.md`
+
+### Changes applied
+1. Global program DoD upgraded:
+- replaced count-only validation posture with two-layer requirement:
+  - Semantic Green (`20` + `200`),
+  - Scale Green (representative-window + burst + soak + recovery-under-load).
+
+2. Roadmap normalization:
+- M10 label changed from "20-event then 200-event" to "Semantic Green + Scale Green certification".
+
+3. M10 section hardening:
+- renamed to `Certification (Semantic + Scale)`.
+- added phase-entry requirement that scale thresholds must be pinned before execution.
+- split DoD into explicit Semantic Green and Scale Green bullets.
+- preserved drill + evidence + replay narrative obligations.
+
+4. Evidence map update:
+- M10 evidence family now includes both semantic and scale run bundles.
+
+5. Added `9.2 Scale-Green Threshold Pinning Rule`:
+- requires explicit threshold pinning for representative-window, burst, soak, recovery dimensions.
+- states 20/200 alone cannot close M10.
+
+### Validation
+- diff check confirms M10 + global DoD updates are present.
+- plan now explicitly prevents closing certification using 20/200 only.
+
+### Assessment
+This aligns dev validation expectations with production-like behavior without abandoning canonical semantic smoke gates.
+
+### Drift sentinel assessment
+No runtime/code changes; this is planning quality hardening to prevent underpowered dev certification claims.
+
+## Entry: 2026-02-13 5:10AM - User-pinned validation posture note (dev certification strength)
+
+### User decision recorded
+`20/200` event runs are not sufficient as standalone dev certification.
+
+### Pinned interpretation
+- `20/200` remains mandatory as Semantic Green smoke for law/gate fidelity.
+- Dev certification requires additional Scale Green validation (representative-window + burst + soak + recovery-under-load).
+- Migration cannot be claimed green-for-dev if only count-capped smoke runs were executed.
+
+### Where enforced
+- `docs/model_spec/platform/implementation_maps/dev_substrate/platform.build_plan.md`
+  - Global Success Criteria
+  - M10 Certification (Semantic + Scale)
+  - 9.2 Scale-Green Threshold Pinning Rule
+
+### Effect on execution
+Before M10 execution, scale thresholds must be explicitly pinned and logged; no ad hoc acceptance at runtime.

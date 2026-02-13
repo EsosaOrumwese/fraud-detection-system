@@ -37,7 +37,8 @@ If drift appears:
 ## 3) Global Success Criteria (Program DoD)
 Migration program is complete only when all are true:
 - P0..P11 are green in `dev_min` using managed substrates.
-- Run is proven at 200 events with phase evidence complete.
+- Semantic Green is proven (20-event + 200-event law/gate validation).
+- Scale Green is proven (representative-window, burst, soak, and recovery-under-load validation).
 - At least one scripted incident drill is evidenced and fail-closed behavior is demonstrated.
 - No local/laptop runtime compute is used for platform services/jobs.
 - P12 teardown leaves no demo cost-bearing resources.
@@ -84,7 +85,7 @@ Canonical lifecycle key: `phase_id=P#` from migration runbook.
 | M7 | P8-P10 | RTDL + Case/Labels closure | NOT_STARTED |
 | M8 | P11 | Obs/Gov closure | NOT_STARTED |
 | M9 | P12 | Teardown proof + cost guardrails | NOT_STARTED |
-| M10 | certification | 20-event then 200-event green certification | NOT_STARTED |
+| M10 | certification | Semantic Green + Scale Green certification | NOT_STARTED |
 
 ---
 
@@ -235,14 +236,21 @@ DoD summary:
 - demo-scoped secrets/credentials are removed from SSM.
 - teardown proof artifact exists.
 
-## M10 - Certification (20 -> 200)
+## M10 - Certification (Semantic + Scale)
 Status: `NOT_STARTED`
 Entry gate:
 - M9 is `DONE` for dry cycle OR explicit rerun approved.
+- Scale thresholds are pinned before execution (no ad hoc pass criteria during run).
 DoD summary:
-- 20-event shakedown run green end-to-end.
-- 200-event run green end-to-end.
-- at least one incident drill is executed with expected fail-closed evidence.
+- Semantic Green:
+  - 20-event shakedown run green end-to-end.
+  - 200-event run green end-to-end.
+  - at least one incident drill is executed with expected fail-closed evidence.
+- Scale Green:
+  - representative-window run passes on contiguous event-time slice (not sub-second toy slice).
+  - burst run passes at elevated ingest pressure without semantic drift.
+  - soak run passes under sustained load with stable lag/checkpoint behavior.
+  - recovery run passes after controlled restart under load with idempotent outcomes.
 - evidence bundle supports portfolio-grade claim.
 - replay-anchor narrative is demonstrable from evidence artifacts.
 
@@ -262,7 +270,32 @@ This map keeps high-level planning aligned to runbook evidence obligations.
 | M7 | P8-P10 | `rtdl_core/*`, `decision_lane/*`, `case_labels/*` evidence summaries |
 | M8 | P11 | `obs/run_report.json`, `obs/reconciliation.json`, `obs/environment_conformance.json`, replay anchors, `run_completed.json` |
 | M9 | P12 | teardown proof artifact + post-destroy resource check snapshot |
-| M10 | certification | 20-event + 200-event run bundles and drill evidence bundle refs |
+| M10 | certification | semantic run bundles (20/200) + scale-run bundles (window/burst/soak/recovery) + drill refs |
+
+---
+
+## 9.2) Scale-Green Threshold Pinning Rule
+Scale validation thresholds must be pinned at M10 phase entry and recorded in:
+- `docs/model_spec/platform/implementation_maps/dev_substrate/platform.impl_actual.md`
+- daily logbook entry for the execution day.
+
+Minimum threshold dimensions to pin:
+- representative window:
+  - contiguous event-time duration,
+  - minimum admitted-event count.
+- burst:
+  - target ingest multiplier versus representative baseline,
+  - burst duration.
+- soak:
+  - sustained runtime duration,
+  - lag stability boundary (aligned to runbook lag gates).
+- recovery:
+  - restart target component(s),
+  - recovery time objective and replay/idempotency acceptance checks.
+
+Rule:
+- M10 cannot be marked `DONE` if only 20/200 runs are executed.
+- 20/200 is mandatory for semantic smoke, but insufficient for dev certification on its own.
 
 ---
 
