@@ -119,6 +119,8 @@ class IntegerisationPolicy:
     version: str
     emit_integerised_counts: bool
     emit_site_sequence: bool
+    consume_integerised_counts_in_s8: bool
+    consume_site_sequence_in_s8: bool
 
 
 class _StepTimer:
@@ -840,6 +842,12 @@ def _load_integerisation_policy(
         version=str(payload.get("version")),
         emit_integerised_counts=bool(payload.get("emit_integerised_counts")),
         emit_site_sequence=bool(payload.get("emit_site_sequence")),
+        consume_integerised_counts_in_s8=bool(
+            payload.get("consume_integerised_counts_in_s8", False)
+        ),
+        consume_site_sequence_in_s8=bool(
+            payload.get("consume_site_sequence_in_s8", False)
+        ),
     )
 
 
@@ -1414,7 +1422,9 @@ def run_s3(config: EngineConfig, run_id: Optional[str] = None) -> S3RunResult:
             )
         timer.info(
             f"S3: integerisation_policy emit_counts={emit_counts} "
-            f"emit_site_sequence={emit_site_sequence}"
+            f"emit_site_sequence={emit_site_sequence} "
+            f"consume_counts_in_s8={integerisation_policy.consume_integerised_counts_in_s8} "
+            f"consume_sequence_in_s8={integerisation_policy.consume_site_sequence_in_s8}"
         )
 
         merchant_path = _sealed_path(sealed_inputs, "transaction_schema_merchant_ids")

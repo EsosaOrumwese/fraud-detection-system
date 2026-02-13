@@ -2,11 +2,15 @@
 
 from __future__ import annotations
 
+import os
+import re
 from pathlib import Path
 from typing import Any
 
 import yaml
 from pydantic import BaseModel
+
+_VAR_PATTERN = re.compile(r"\$\{([^}]+)\}")
 
 
 class WiringProfile(BaseModel):
@@ -23,6 +27,8 @@ class WiringProfile(BaseModel):
     schema_root: str
     engine_contracts_root: str
     oracle_engine_run_root: str | None = None
+    oracle_scenario_id: str | None = None
+    oracle_stream_view_root: str | None = None
     engine_command: list[str] | None = None
     engine_command_cwd: str | None = None
     engine_command_timeout_seconds: int | None = None
@@ -35,6 +41,14 @@ class WiringProfile(BaseModel):
     reemit_allowlist: list[str] = []
     reemit_rate_limit_max: int | None = None
     reemit_rate_limit_window_seconds: int = 3600
+    acceptance_mode: str = "local_parity"
+    execution_mode: str = "local"
+    execution_launch_ref: str | None = None
+    execution_identity_env: str | None = None
+    state_mode: str = "local"
+    reemit_same_platform_run_only: bool = False
+    reemit_cross_run_override_required: bool = True
+    reemit_cross_run_reason_allowlist: list[str] = []
 
 
 class PolicyProfile(BaseModel):
@@ -54,11 +68,38 @@ class PolicyProfile(BaseModel):
         }
 
 
+def _expand_str(value: str) -> str:
+    def replacer(match: re.Match[str]) -> str:
+        token = match.group(1)
+        if ":-" in token:
+            key, default = token.split(":-", 1)
+            actual = os.getenv(key, "")
+            return actual if actual.strip() else default
+        actual = os.getenv(token, "")
+        if not actual.strip():
+            raise ValueError(f"missing environment variable: {token}")
+        return actual
+
+    return _VAR_PATTERN.sub(replacer, value)
+
+
+def _expand_payload(value: Any) -> Any:
+    if isinstance(value, str):
+        return _expand_str(value)
+    if isinstance(value, list):
+        return [_expand_payload(item) for item in value]
+    if isinstance(value, dict):
+        return {str(key): _expand_payload(item) for key, item in value.items()}
+    return value
+
+
 def load_wiring(path: Path) -> WiringProfile:
     data = yaml.safe_load(path.read_text(encoding="utf-8"))
-    return WiringProfile(**data)
+    expanded = _expand_payload(data)
+    return WiringProfile(**expanded)
 
 
 def load_policy(path: Path) -> PolicyProfile:
     data = yaml.safe_load(path.read_text(encoding="utf-8"))
-    return PolicyProfile(**data)
+    expanded = _expand_payload(data)
+    return PolicyProfile(**expanded)

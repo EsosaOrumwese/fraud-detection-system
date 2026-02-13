@@ -14,9 +14,12 @@ from fraud_detection.decision_log_audit.inlet import (
     DecisionLogAuditInlet,
 )
 from fraud_detection.decision_log_audit.intake import (
+    DLA_INTAKE_RUN_SCOPE_SKIPPED,
     DLA_INTAKE_PAYLOAD_HASH_MISMATCH,
     DLA_INTAKE_WRITE_FAILED,
+    DecisionLogAuditBusConsumer,
     DecisionLogAuditIntakeProcessor,
+    DecisionLogAuditIntakeRuntimeConfig,
 )
 from fraud_detection.decision_log_audit.storage import DecisionLogAuditIntakeStore
 
@@ -241,6 +244,38 @@ def test_phase3_processor_advances_checkpoint_for_quarantine_path(tmp_path: Path
     assert checkpoint.next_offset == "1"
 
 
+def test_phase3_processor_run_scope_mismatch_skips_quarantine_and_advances_checkpoint(tmp_path: Path) -> None:
+    locator = str(tmp_path / "dla_intake.sqlite")
+    store = DecisionLogAuditIntakeStore(locator=locator)
+    policy = replace(_policy(), required_platform_run_id="platform_20260207T102701Z")
+    processor = DecisionLogAuditIntakeProcessor(policy, store)
+
+    result = processor.process_record(
+        DlaBusInput(
+            topic="fp.bus.traffic.fraud.v1",
+            partition=0,
+            offset="0",
+            offset_kind="file_line",
+            payload=_decision_envelope(),
+        )
+    )
+
+    assert result.accepted is False
+    assert result.reason_code == DLA_INLET_RUN_SCOPE_MISMATCH
+    assert result.write_status == DLA_INTAKE_RUN_SCOPE_SKIPPED
+    assert result.checkpoint_advanced is True
+
+    checkpoint = store.get_checkpoint(topic="fp.bus.traffic.fraud.v1", partition=0)
+    assert checkpoint is not None
+    assert checkpoint.next_offset == "1"
+
+    conn = sqlite3.connect(locator)
+    quarantine_count = conn.execute("SELECT COUNT(*) FROM dla_intake_quarantine").fetchone()
+    conn.close()
+    assert quarantine_count is not None
+    assert int(quarantine_count[0]) == 0
+
+
 def test_phase3_processor_routes_hash_mismatch_to_quarantine_and_advances_checkpoint(tmp_path: Path) -> None:
     locator = str(tmp_path / "dla_intake.sqlite")
     store = DecisionLogAuditIntakeStore(locator=locator)
@@ -327,3 +362,57 @@ def test_phase3_intake_metrics_snapshot_counts_accepted_attempts(tmp_path: Path)
     )
     assert metrics["accepted_total"] == 1
     assert metrics["rejected_total"] == 1
+
+
+def test_phase3_kinesis_consumer_uses_trim_horizon_for_initial_run_scoped_read(tmp_path: Path, monkeypatch) -> None:
+    class _FakeKinesisReader:
+        def __init__(self, *, stream_name: str | None, region: str | None = None, endpoint_url: str | None = None) -> None:
+            self.calls: list[dict[str, object]] = []
+
+        def list_shards(self, stream_name: str) -> list[str]:
+            return ["shardId-000000000000"]
+
+        def read(
+            self,
+            *,
+            stream_name: str,
+            shard_id: str,
+            from_sequence: str | None,
+            limit: int,
+            start_position: str = "trim_horizon",
+        ) -> list[dict[str, object]]:
+            self.calls.append(
+                {
+                    "stream_name": stream_name,
+                    "shard_id": shard_id,
+                    "from_sequence": from_sequence,
+                    "limit": limit,
+                    "start_position": start_position,
+                }
+            )
+            return []
+
+    monkeypatch.setattr("fraud_detection.event_bus.kinesis.KinesisEventBusReader", _FakeKinesisReader)
+
+    locator = str(tmp_path / "dla_intake.sqlite")
+    store = DecisionLogAuditIntakeStore(locator=locator)
+    policy = replace(_policy(), required_platform_run_id="platform_20260207T102701Z")
+    consumer = DecisionLogAuditBusConsumer(
+        policy=policy,
+        store=store,
+        runtime=DecisionLogAuditIntakeRuntimeConfig(
+            event_bus_kind="kinesis",
+            event_bus_stream="auto",
+            event_bus_region="us-east-1",
+            event_bus_endpoint_url="http://localhost:4566",
+            event_bus_start_position="latest",
+            poll_max_records=10,
+            poll_sleep_seconds=0.1,
+        ),
+    )
+
+    processed = consumer.run_once()
+    assert processed == 0
+    assert consumer._kinesis_reader is not None
+    assert len(consumer._kinesis_reader.calls) == 1
+    assert consumer._kinesis_reader.calls[0]["start_position"] == "trim_horizon"

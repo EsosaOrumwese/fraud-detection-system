@@ -1,0 +1,187 @@
+```
+# ============================================================
+# SPINE GREEN v0 — MINIMUM GATE CHECKS (OPERATOR CHECKLIST)
+# Goal: 10–15 checks that declare each run phase PASS (local_parity)
+# NOTE: “CMD” lines use your make targets where available; otherwise “equivalent”.
+# ============================================================
+# Canonical reference key is phase_id=P# (P0..P11). Checklist numbers are execution order only.
+
+0) SUBSTRATE UP (P0)
+   CMD:  make platform-parity-stack-status
+   PASS: MinIO + LocalStack + Postgres all healthy/up
+
+1) SUBSTRATE BOOTSTRAPPED (P0)
+   CMD:  make platform-parity-bootstrap
+         (or equivalent: list buckets + list streams)
+   PASS: Buckets exist: oracle-store, fraud-platform
+         Streams exist (min set):
+           sr-control-bus
+           fp.bus.traffic.fraud.v1
+           fp.bus.context.arrival_events.v1
+           fp.bus.context.arrival_entities.v1
+           fp.bus.context.flow_anchor.fraud.v1
+           fp.bus.rtdl.v1
+           fp.bus.case.v1
+           fp.bus.audit.v1
+
+2) RUN ID PINNED (P1)
+   CMD:  make platform-run-new
+   PASS: runs/fraud-platform/ACTIVE_RUN_ID exists
+         + run root folder created for that ID
+
+3) PACKS RUNNING (P2)
+   CMD:  make platform-operate-control-ingress-status
+         make platform-operate-rtdl-core-status
+         make platform-operate-rtdl-decision-status
+         make platform-operate-case-labels-status
+         make platform-operate-obs-gov-status
+         (optional full parity check) make platform-operate-parity-status
+   PASS: In-scope packs show RUNNING:
+            control_ingress
+            rtdl_core
+            rtdl_decision_lane
+            case_labels
+            obs_gov
+         NOTE: platform-operate-parity-status includes learning-jobs by design
+         AND you are NOT simultaneously running manual “once” consumers for the same lane
+
+4) ORACLE SYNC COMPLETE (P3)
+   CMD:  make platform-oracle-sync
+   PASS: Objects exist at s3://oracle-store/<engine_run_root>/... (non-empty)
+
+5) ORACLE SEALED (P3)
+   CMD:  make platform-oracle-pack
+         (optional) make platform-oracle-check-strict
+   PASS: _SEALED.json exists under oracle pack root
+         + strict check passes (or no errors)
+
+6) STREAM_VIEW COMPLETE FOR REQUIRED output_id(s) (P3)  **CRITICAL**
+   CMD:  make platform-oracle-stream-sort
+   PASS: For EACH required output_id:
+            <ORACLE_STREAM_VIEW_ROOT>/output_id=<id>/part-*.parquet exists
+            <...>/output_id=<id>/_stream_view_manifest.json exists
+            <...>/output_id=<id>/_stream_sort_receipt.json exists
+         Required logical surfaces (fraud-mode):
+           traffic.fraud
+           context.arrival_events
+           context.arrival_entities
+           context.flow_anchor.fraud
+         Local run output_id examples (current dataset):
+           s3_event_stream_with_fraud_6B
+           arrival_events_5B
+           s1_arrival_entities_6B
+           s3_flow_anchor_with_fraud_6B
+
+7) IG SERVICE READY (P4)
+   CMD:  make platform-operate-control-ingress-status
+         $igKey = "<configured_ig_api_key>"
+         curl -i http://127.0.0.1:8081/v1/ops/health
+         curl -i -H "X-IG-Api-Key: $igKey" http://127.0.0.1:8081/v1/ops/health
+         curl -i -X POST http://127.0.0.1:8081/v1/ingest/push -H "Content-Type: application/json" -d "{}"
+         curl -i -X POST http://127.0.0.1:8081/v1/ingest/push -H "X-IG-Api-Key: $igKey" -H "Content-Type: application/json" -d "{}"
+   PASS: unauthenticated GET /v1/ops/health => 401 UNAUTHORIZED
+          authenticated GET /v1/ops/health => 200 health payload
+          unauthenticated POST /v1/ingest/push => 401 UNAUTHORIZED
+          authenticated POST /v1/ingest/push is non-401 (payload may still be rejected by schema/policy)
+          AND IG can write receipts to object store
+
+8) SR READY COMMITTED + PUBLISHED (P5)
+   CMD:  make platform-sr-run-reuse
+   PASS: SR run log (runs/fraud-platform/<platform_run_id>/scenario_runner/scenario_runner.log)
+          shows “READY committed” and “READY published”
+          AND control bus (sr-control-bus) contains READY for ACTIVE_RUN_ID
+
+9) WSP STREAMING FINISHED (P6)
+   CMD:  (pack running) observe WSP logs at:
+         runs/fraud-platform/<platform_run_id>/operate/local_parity_control_ingress_v0/logs/wsp_ready_consumer.log
+         (or once) make platform-wsp-ready-consumer-once
+   PASS: WSP logs show “stream start” -> “stream stop”
+         AND for bounded Gate-200, each required output reaches emitted=200
+         AND duplicate READY skips (if present) are explainable replay history, not active duplication faults
+
+10) IG ADMISSION COMMITTED (P7)
+    CMD:  aws --endpoint-url http://localhost:4566 s3 ls s3://fraud-platform/<platform_run_id>/ig/receipts/ --recursive | Select-Object -First 20
+          aws --endpoint-url http://localhost:4566 s3 ls s3://fraud-platform/<platform_run_id>/ig/quarantine/ --recursive | Select-Object -First 20
+          $rkeys = (aws --endpoint-url http://localhost:4566 s3api list-objects-v2 --bucket fraud-platform --prefix "<platform_run_id>/ig/receipts/" --query "Contents[].Key" --output text)
+          foreach ($k in $rkeys) { aws --endpoint-url http://localhost:4566 s3 cp ("s3://fraud-platform/" + $k) - | Select-String "PUBLISH_AMBIGUOUS" }
+    PASS: s3://fraud-platform/<platform_run_id>/ig/receipts/ contains receipts
+          Receipt(s) include eb_ref + offset_kind=kinesis_sequence
+          admitted_count > 0 for active run (required; from IG summary/logs or platform_run_report ingress.admit)
+          duplicate-only receipt outcomes are FAIL for Gate-200 closure
+          no unresolved ambiguity artifacts for this run:
+            no quarantine receipt with reason_codes containing PUBLISH_AMBIGUOUS
+            (if any PUBLISH_AMBIGUOUS evidence exists, P7 is FAIL and run cannot close green)
+
+11) EB HAS TRAFFIC + CONTEXT RECORDS (P7 primary; supports P8)
+    CMD:  aws --endpoint-url http://localhost:4566 kinesis list-streams
+          (then run the shard-iterator/get-records sequence from runbook Section 8 for:
+           fp.bus.traffic.baseline.v1 / fp.bus.traffic.fraud.v1 / fp.bus.context.arrival_events.v1 / fp.bus.context.flow_anchor.fraud.v1)
+    PASS: traffic + context streams show records (non-zero) for this run window
+          and offsets advance during this run window (not historical-only leftovers)
+
+12) RTDL CORE CAUGHT UP (P8)
+    CMD:  check run artifacts + projector health/metrics
+          aws --endpoint-url http://localhost:4566 s3 ls s3://fraud-platform/<platform_run_id>/archive/events/ --recursive | Select-Object -First 5
+    PASS: ArchiveWriter health artifact exists and is GREEN with seen_total > 0:
+            runs/fraud-platform/<platform_run_id>/archive_writer/health/last_health.json
+            runs/fraud-platform/<platform_run_id>/archive_writer/metrics/last_metrics.json
+          ArchiveWriter durable archive prefix is non-empty:
+            s3://fraud-platform/<platform_run_id>/archive/events/
+          IEG reconciliation artifact exists and health is GREEN:
+            runs/fraud-platform/<platform_run_id>/identity_entity_graph/reconciliation/reconciliation.json
+            runs/fraud-platform/<platform_run_id>/identity_entity_graph/health/last_health.json
+          OFP health is GREEN with events_seen > 0:
+            runs/fraud-platform/<platform_run_id>/online_feature_plane/health/last_health.json
+            runs/fraud-platform/<platform_run_id>/online_feature_plane/metrics/last_metrics.json
+          CSFB health is GREEN with join_hits > 0:
+            runs/fraud-platform/<platform_run_id>/context_store_flow_binding/health/last_health.json
+            runs/fraud-platform/<platform_run_id>/context_store_flow_binding/metrics/last_metrics.json
+            runs/fraud-platform/<platform_run_id>/context_store_flow_binding/reconciliation/last_reconciliation.json
+
+13) DECISION CHAIN COMMITTED (P9)
+    CMD:  aws --endpoint-url http://localhost:4566 kinesis list-streams
+          $rtdl = (aws --endpoint-url http://localhost:4566 kinesis get-shard-iterator --stream-name fp.bus.rtdl.v1 --shard-id shardId-000000000000 --shard-iterator-type TRIM_HORIZON --query ShardIterator --output text)
+          $audit = (aws --endpoint-url http://localhost:4566 kinesis get-shard-iterator --stream-name fp.bus.audit.v1 --shard-id shardId-000000000000 --shard-iterator-type TRIM_HORIZON --query ShardIterator --output text)
+          aws --endpoint-url http://localhost:4566 kinesis get-records --shard-iterator $rtdl --limit 5
+          aws --endpoint-url http://localhost:4566 kinesis get-records --shard-iterator $audit --limit 5
+          Get-Content runs/fraud-platform/<platform_run_id>/decision_log_audit/health/last_health.json
+          Get-Content runs/fraud-platform/<platform_run_id>/decision_log_audit/reconciliation/last_reconciliation.json
+    PASS: fp.bus.rtdl.v1 contains decision/intent/outcome events
+          fp.bus.audit.v1 contains audit events
+          DLA reconciliation/artifacts exist under:
+            runs/fraud-platform/<platform_run_id>/decision_log_audit/...
+          DLA health is GREEN and lineage_unresolved_total=0 for active run
+
+14) CASE + LABELS COMMITTED (P10)
+    CMD:  $case = (aws --endpoint-url http://localhost:4566 kinesis get-shard-iterator --stream-name fp.bus.case.v1 --shard-id shardId-000000000000 --shard-iterator-type TRIM_HORIZON --query ShardIterator --output text)
+          aws --endpoint-url http://localhost:4566 kinesis get-records --shard-iterator $case --limit 5
+          Get-Content runs/fraud-platform/<platform_run_id>/case_trigger/health/last_health.json
+          Get-Content runs/fraud-platform/<platform_run_id>/case_mgmt/health/last_health.json
+          Get-Content runs/fraud-platform/<platform_run_id>/label_store/health/last_health.json
+    PASS: fp.bus.case.v1 has trigger events
+          CaseTrigger health is GREEN and metrics.triggers_seen > 0
+            runs/fraud-platform/<platform_run_id>/case_trigger/health/last_health.json
+            runs/fraud-platform/<platform_run_id>/case_trigger/metrics/last_metrics.json
+          CM health is GREEN and metrics.cases_created > 0
+            runs/fraud-platform/<platform_run_id>/case_mgmt/health/last_health.json
+            runs/fraud-platform/<platform_run_id>/case_mgmt/metrics/last_metrics.json
+          LS health is GREEN and metrics.accepted > 0
+            runs/fraud-platform/<platform_run_id>/label_store/health/last_health.json
+            runs/fraud-platform/<platform_run_id>/label_store/metrics/last_metrics.json
+
+15) OBS/GOV CLOSED (P11)
+   CMD:  make platform-run-report
+          make platform-env-conformance
+          (optional) make platform-governance-query
+          (if obs_gov pack is running, avoid manual report generation concurrently)
+   PASS: runs/fraud-platform/<platform_run_id>/obs/platform_run_report.json exists
+          runs/fraud-platform/<platform_run_id>/obs/environment_conformance.json exists (status=PASS)
+          s3://fraud-platform/<platform_run_id>/obs/governance/events.jsonl appended
+          (No append conflicts => no concurrent writers)
+
+# RECOMMENDED SHORT-CIRCUIT VALIDATION (before full scale)
+- Gate-20:  set WSP_MAX_EVENTS_PER_OUTPUT=20, require checks 0–15 pass
+- Gate-200: set WSP_MAX_EVENTS_PER_OUTPUT=200, require checks 0–15 pass
+- Then full cap (e.g., 500k) once both bounded gates pass
+
+```

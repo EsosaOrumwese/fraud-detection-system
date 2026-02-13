@@ -42,25 +42,35 @@ def create_app(profile_path: str) -> Flask:
 
     @app.get("/v1/ops/lookup")
     def ops_lookup() -> Any:
-        _require_auth(gate, request)
-        event_id = request.args.get("event_id")
-        receipt_id = request.args.get("receipt_id")
-        dedupe_key = request.args.get("dedupe_key")
-        if event_id:
-            result = gate.ops_index.lookup_event(event_id)
-        elif receipt_id:
-            result = gate.ops_index.lookup_receipt(receipt_id)
-        elif dedupe_key:
-            result = gate.ops_index.lookup_dedupe(dedupe_key)
-        else:
-            return jsonify({"error": "MISSING_QUERY"}), 400
-        return jsonify(result or {})
+        try:
+            _require_auth(gate, request)
+            event_id = request.args.get("event_id")
+            receipt_id = request.args.get("receipt_id")
+            dedupe_key = request.args.get("dedupe_key")
+            if event_id:
+                result = gate.ops_index.lookup_event(event_id)
+            elif receipt_id:
+                result = gate.ops_index.lookup_receipt(receipt_id)
+            elif dedupe_key:
+                result = gate.ops_index.lookup_dedupe(dedupe_key)
+            else:
+                return jsonify({"error": "MISSING_QUERY"}), 400
+            return jsonify(result or {})
+        except IngestionError as exc:
+            return jsonify({"error": exc.code, "detail": exc.detail}), _error_status(exc)
+        except Exception as exc:  # pragma: no cover - defensive
+            return jsonify({"error": reason_code(exc)}), 500
 
     @app.get("/v1/ops/health")
     def ops_health() -> Any:
-        _require_auth(gate, request)
-        result = gate.health.check()
-        return jsonify({"state": result.state.value, "reasons": result.reasons})
+        try:
+            _require_auth(gate, request)
+            result = gate.health.check()
+            return jsonify({"state": result.state.value, "reasons": result.reasons})
+        except IngestionError as exc:
+            return jsonify({"error": exc.code, "detail": exc.detail}), _error_status(exc)
+        except Exception as exc:  # pragma: no cover - defensive
+            return jsonify({"error": reason_code(exc)}), 500
 
     return app
 

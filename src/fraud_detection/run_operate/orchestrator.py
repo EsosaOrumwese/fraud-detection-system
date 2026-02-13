@@ -226,9 +226,7 @@ class ProcessOrchestrator:
         self.pack = pack
         self.env = env
         self.operate_root = RUNS_ROOT / "operate" / pack.pack_id
-        self.logs_root = self.operate_root / "logs"
         self.status_root = self.operate_root / "status"
-        self.events_path = self.operate_root / "events.jsonl"
         self.state_path = self.operate_root / "state.json"
 
     def up(self, process_filter: set[str] | None = None) -> dict[str, Any]:
@@ -309,7 +307,8 @@ class ProcessOrchestrator:
                     "process_id": proc.spec.process_id,
                     "pid": process.pid,
                     "active_platform_run_id": active_run_id,
-                }
+                },
+                active_run_id=active_run_id,
             )
         self._write_state(state)
         return {
@@ -321,6 +320,7 @@ class ProcessOrchestrator:
 
     def down(self, process_filter: set[str] | None = None, timeout_seconds: float = 15.0) -> dict[str, Any]:
         state = self._load_state()
+        active_run_id = str(state.get("active_platform_run_id") or "").strip() or None
         records = state.get("processes", {})
         selected = set(records.keys()) if not process_filter else set(process_filter)
         stopped: list[str] = []
@@ -345,7 +345,8 @@ class ProcessOrchestrator:
                     "event": "process_stopped",
                     "process_id": process_id,
                     "pid": pid,
-                }
+                },
+                active_run_id=active_run_id,
             )
         self._write_state(state)
         return {
@@ -369,13 +370,14 @@ class ProcessOrchestrator:
             record = state.get("processes", {}).get(proc.spec.process_id, {})
             running = _is_alive(record)
             readiness = self._evaluate_readiness(proc=proc, running=running)
+            log_path = str(record.get("log_path") or proc.log_path)
             rows.append(
                 {
                     "process_id": proc.spec.process_id,
                     "running": running,
                     "pid": record.get("pid"),
                     "pid_create_time": record.get("pid_create_time"),
-                    "log_path": str(proc.log_path),
+                    "log_path": log_path,
                     "readiness": readiness,
                 }
             )
@@ -392,7 +394,10 @@ class ProcessOrchestrator:
             json.dumps(payload, sort_keys=True, ensure_ascii=True, indent=2) + "\n",
             encoding="utf-8",
         )
-        self._append_event({"event": "status_written", "process_count": len(rows)})
+        self._append_event(
+            {"event": "status_written", "process_count": len(rows), "active_platform_run_id": active_run_id},
+            active_run_id=active_run_id,
+        )
         return payload
 
     def _evaluate_readiness(self, *, proc: ResolvedProcess, running: bool) -> dict[str, Any]:
@@ -491,7 +496,7 @@ class ProcessOrchestrator:
             env.update(_expand_mapping(spec.env, env))
             cwd_token = spec.cwd or self.pack.default_cwd or "."
             cwd = Path(_expand_vars(cwd_token, env))
-            log_path = self.logs_root / f"{spec.process_id}.log"
+            log_path = self._logs_root(active_run_id=active_run_id) / f"{spec.process_id}.log"
             readiness = _resolve_probe(spec.readiness, env)
             command = [_expand_vars(token, env) for token in spec.command]
             resolved.append(
@@ -531,14 +536,31 @@ class ProcessOrchestrator:
             encoding="utf-8",
         )
 
-    def _append_event(self, payload: dict[str, Any]) -> None:
-        self.operate_root.mkdir(parents=True, exist_ok=True)
+    def _runtime_root(self, *, active_run_id: str | None) -> Path:
+        if active_run_id:
+            return RUNS_ROOT / active_run_id / "operate" / self.pack.pack_id
+        return self.operate_root
+
+    def _logs_root(self, *, active_run_id: str | None) -> Path:
+        return self._runtime_root(active_run_id=active_run_id) / "logs"
+
+    def _events_path(self, *, active_run_id: str | None) -> Path:
+        return self._runtime_root(active_run_id=active_run_id) / "events.jsonl"
+
+    def _append_event(self, payload: dict[str, Any], *, active_run_id: str | None = None) -> None:
+        resolved_run_id = active_run_id
+        if resolved_run_id is None:
+            candidate = payload.get("active_platform_run_id")
+            if isinstance(candidate, str) and candidate.strip():
+                resolved_run_id = candidate.strip()
+        events_path = self._events_path(active_run_id=resolved_run_id)
+        events_path.parent.mkdir(parents=True, exist_ok=True)
         record = {
             "ts_utc": _utc_now(),
             "pack_id": self.pack.pack_id,
             **payload,
         }
-        with self.events_path.open("a", encoding="utf-8") as handle:
+        with events_path.open("a", encoding="utf-8") as handle:
             handle.write(json.dumps(record, sort_keys=True, ensure_ascii=True) + "\n")
 
 

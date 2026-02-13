@@ -6,6 +6,64 @@ it. Do not delete prior entries.
 
 ---
 
+### Entry: 2026-02-12 16:25
+
+Design element: Segment 1A remediation execution kickoff (P0 baseline freeze on pinned run).
+Summary: Executed `P0` from the new `segment_1A.build_plan.md` against baseline run `7d5a4b519bb5bc68ee80b52b0a2eabeb`, produced a frozen metric bundle, and recorded hard-gate baseline status before any remediation changes.
+
+Context and reasoning:
+1) The remediation plan for 1A is now phase-driven (`P0`..`P5`) with explicit DoD and B/B+ certification criteria.
+2) Before touching S1/S2/S3/S4/S6 mechanics, we needed a causal baseline snapshot pinned to one run-id, manifest, parameter hash, and seed.
+3) This establishes a single audit surface for all later deltas and avoids “moving baseline” ambiguity.
+
+Pinned baseline identifiers:
+- run_id: `7d5a4b519bb5bc68ee80b52b0a2eabeb`
+- manifest_fingerprint: `ef344b90a93030e04dc0011c795ee9d19500239657b16e0ab3afa76b7b2f2b3d`
+- parameter_hash: `56d45126eaabedd083a1d8428a763e0278c89efec5023cfd6cf3cab7fc8dd2d7`
+- seed: `42`
+
+Implementation notes (what was executed):
+1) Loaded baseline outputs from run-scoped 1A datasets:
+   - `outlet_catalogue`
+   - `s3_candidate_set`
+   - `s6/membership`
+   - `hurdle_pi_probs`
+   - `sealed_inputs_1A` (for coefficient provenance)
+2) Recomputed the baseline metrics aligned with remediation report Section 2:
+   - merchant pyramid (single-site share, median outlets),
+   - concentration (top-10% share, Gini),
+   - geo/legal realism (home!=legal share + size-decile gradient),
+   - candidate vs realization coupling (median breadth, Spearman coupling, realization ratio),
+   - dispersion realism (`phi` CV, `phi` P95/P05 ratio using sealed `nb_dispersion_coefficients.yaml`).
+3) Performed required-output presence scan for:
+   - `s3_integerised_counts`,
+   - `s3_site_sequence`,
+   - `sparse_flag`,
+   - `merchant_abort_log`,
+   - `hurdle_stationarity_tests`.
+4) Materialized baseline artifacts:
+   - `runs/fix-data-engine/segment_1A/7d5a4b519bb5bc68ee80b52b0a2eabeb/reports/p0_baseline_metrics.json`
+   - `runs/fix-data-engine/segment_1A/7d5a4b519bb5bc68ee80b52b0a2eabeb/reports/p0_hard_gate_status.json`
+   - `docs/reports/eda/segment_1A/segment_1A_p0_baseline_freeze.md`
+5) Marked `P0` DoD as complete in:
+   - `docs/model_spec/data-engine/implementation_maps/segment_1A.build_plan.md`
+
+Observed baseline outcome (P0):
+- single-site share: `0.0000` (hard-gate fail),
+- foreign candidate median: `37.00` (hard-gate fail),
+- candidate->membership Spearman: `0.1044`,
+- realization ratio median: `0.0000`,
+- `phi` CV: `0.000530` (hard-gate fail),
+- `phi` P95/P05: `1.000042` (hard-gate fail),
+- required outputs present: none of 5 (hard-gate fail),
+- determinism replay gate: marked open/not assessed in P0 single-run baseline.
+
+Decision:
+- `P0` is complete and baseline-frozen.
+- Next phase is `P1` (S1/S2 merchant-pyramid + dispersion remediation), with this baseline as causal anchor.
+
+---
+
 ## S0 - Foundations (S0.1 to S0.10)
 
 ### Entry: 2026-01-14 12:26
@@ -3349,3 +3407,2112 @@ Actions taken:
 Expected outcome:
 - Re-running the same run_id on a different day uses the same utc_day partition.
 - “Latest receipt” selection is stable under mtime changes while preserving fallback behavior.
+
+---
+
+### Entry: 2026-02-12 17:05
+
+Design element: P1 sequencing decision (S8 structural scope before coefficient tuning).
+Summary: While preparing P1 (S1/S2 remediation), I confirmed a structural blocker in `S8` that makes key P1 realism metrics non-identifiable if left unchanged. Decision: apply a minimal structural fix first so P1 coefficient changes are measurable and auditable.
+
+Reasoning trail:
+1) P1 target metrics include single-site share and merchant pyramid shape, but the current `S8` materialization scope is `set(candidate_map) & set(ztp_map)`.
+2) In current flow, this excludes merchants without `ztp_final` (notably single-site/ineligible paths), and then merchants with `n_outlets < 2` are also explicitly skipped in output row materialization.
+3) Result: `outlet_catalogue` under-represents the merchant universe and forces `single_vs_multi_flag=True` for emitted rows, which can mask upstream S1/S2 changes.
+4) If we tune hurdle/dispersion without fixing this, we risk false negatives (policy improved but not visible in egress) and invalid grade interpretation.
+
+Decision:
+- Keep P1 as the first remediation wave, but execute in this order:
+  1) `P1a` = structural scope correction in `S8` (no realism rescue logic; only faithful projection of upstream states),
+  2) `P1b` = S1/S2 coefficient and policy tuning.
+
+Boundaries:
+- No change to state order.
+- No downstream-only patching of counts; S8 remains a projection/validation layer.
+- Determinism envelope and schema conformance must remain intact.
+
+---
+
+### Entry: 2026-02-12 17:07
+
+Design element: S8 structural remediation option selection.
+Summary: Evaluated candidate ways to restore full merchant population representation in `outlet_catalogue` and selected the lowest-risk option aligned with existing contracts.
+
+Options considered:
+1) Option A (chosen): Expand S8 merchant scope to all merchants with `nb_final`, and branch materialization by eligibility:
+   - single-site (`n_outlets < 2`): emit one home-country row,
+   - multi-site but no `ztp_final`: emit home-country rows using `nb_final.n_outlets`,
+   - eligible multi-country (`ztp_final` present): current domain-count logic.
+2) Option B: Leave S8 unchanged and compute realism only from upstream tables (`hurdle_pi_probs`, `rng_event_nb_final`). Rejected because the certified segment egress (`outlet_catalogue`) remains structurally biased.
+3) Option C: Reconstruct missing ztp/membership events for ineligible paths. Rejected because this introduces synthetic event fabrication in a non-source state.
+
+Why Option A:
+- Matches expanded-state intent: every merchant should be representable in final outlet projection.
+- Uses already-authoritative upstream fields (`nb_final`, `candidate_set` home row) without inventing new events.
+- Minimal blast radius: no schema change needed, and existing multi-country path remains untouched.
+
+Chosen implementation boundaries:
+- `raw_nb_outlet_draw` remains sourced from `nb_final.n_outlets`.
+- `single_vs_multi_flag=False` for single-site projection path.
+- `site_id` semantics remain merchant-local sequence (`000001..`).
+- Sequence/overflow event checks continue only where applicable.
+
+---
+
+### Entry: 2026-02-12 17:10
+
+Design element: P1 coefficient initial calibration targets.
+Summary: Before writing coefficient bundles, I derived numeric candidate targets from baseline behavior so first-pass edits land inside B-band with controlled risk.
+
+Observed baseline anchors:
+- Mean hurdle probability (`pi`) is too low (~0.16), consistent with missing single-site share in certified egress.
+- Implied dispersion (`phi`) is near-degenerate (CV near zero), indicating over-flat `beta_phi` structure.
+
+Calibration decisions:
+1) Hurdle intercept shift:
+- Candidate shifts tested conceptually against current design matrix distribution:
+  - `+2.0` -> mean `pi` near ~0.54,
+  - `+2.2` -> mean `pi` near ~0.58,
+  - `+2.4` -> mean `pi` near ~0.62.
+- Selected first-pass target: `+2.2` on hurdle intercept to push single-site share into B-band while avoiding extreme collapse.
+
+2) Dispersion heterogeneity (`beta_phi`) reshaping:
+- Keep median implied `phi` near current scale (~12) to avoid wholesale count-regime reset.
+- Introduce controlled spread via MCC and channel contrasts plus non-zero GDP slope.
+- Initial candidate profile:
+  - MCC term scale around `0.12` (centered effect),
+  - channel gap around `0.14`,
+  - GDP slope around `0.04`.
+- Expected first-pass posture: `phi` CV moves into B/B+ corridor with moderate P95/P05 expansion, not extreme tails.
+
+Validation gating for this decision:
+- Accept coefficient bundle only if post-run keeps determinism and moves P1 hard gates in correct direction simultaneously (single-site share + phi heterogeneity).
+- Reject any coefficient set that improves one gate while materially regressing outlet median beyond B bounds.
+
+---
+
+### Entry: 2026-02-12 17:18
+
+Design element: P1a implementation (S8 merchant-scope fidelity correction).
+Summary: Implemented the structural S8 fix so `outlet_catalogue` now reflects full upstream merchant scope from `nb_final` + `candidate_set`, instead of only merchants with `ztp_final`.
+
+Problem addressed:
+- Previous S8 scope (`candidate ∩ ztp`) excluded ineligible/single-site merchants from final egress.
+- This produced a structurally biased `outlet_catalogue` and made P1 single-site metrics non-diagnostic.
+
+Code decisions implemented:
+1) Scope authority changed from `candidate ∩ ztp` to `candidate ∩ nb`.
+   - Rationale: `nb_final` is the authoritative outlet-count source for all merchants.
+   - Added explicit failure if candidate merchants are missing in `nb_final`.
+
+2) Single-site materialization added (`n_outlets < 2`).
+   - Emit one home-country outlet row.
+   - Set `single_vs_multi_flag=False`, `final_country_outlet_count=1`, `site_order=1`.
+   - Keep `raw_nb_outlet_draw` equal to upstream NB draw.
+
+3) Ineligible multi-site path added (no `ztp_final`, `n_outlets >= 2`).
+   - Project as home-only with `count=n_outlets`.
+   - Preserve sequence/overflow event handling through standard domain-count path.
+   - Introduced metric `s8.merchants_without_ztp` for run-level auditability.
+
+4) Eligible multi-country path preserved.
+   - Existing `ztp + membership + counts` integrity checks retained.
+   - No contract/schema changes introduced.
+
+Validation executed:
+- `python -m py_compile packages/engine/src/engine/layers/l1/seg_1A/s8_outlet_catalogue/runner.py` passed.
+
+Expected impact:
+- `outlet_catalogue` can now express both single-site and ineligible home-only multi-site merchants.
+- P1 hurdle/dispersion coefficient tuning becomes measurable in certified egress metrics.
+
+
+### Entry: 2026-02-12 17:26
+
+Design element: P1b coefficient bundle authoring (first remediation candidate).
+Summary: Authored a new coefficient export bundle for Segment 1A to restore single-site mass and dispersion heterogeneity after the S8 scope fix.
+
+Decision and rationale:
+1) Hurdle `beta` intercept lift.
+- Applied `+2.2` to hurdle intercept in a new bundle.
+- Reason: baseline mean `pi` (~0.161) is materially low for B-band single-site posture once full egress scope is restored.
+- Quick design-matrix calibration indicated `+2.2` is a balanced first pass (not minimal, not saturation).
+
+2) Dispersion `beta_phi` rebuild.
+- Replaced near-constant `beta_phi` profile with controlled heterogeneous structure:
+  - MCC block: z-scored `beta_mu` MCC profile scaled by `0.12`.
+  - Channel block: `CP=-0.07`, `CNP=+0.07`.
+  - GDP slope: `0.03` on `ln(gdp_per_capita)`.
+- Calibrated intercept to preserve median implied `phi` near 12 (avoid full regime reset while adding spread).
+
+3) Why this shape (vs broader rewrite):
+- Keeps existing dictionary/cardinality unchanged (no schema or design-order break).
+- Introduces heterogeneity through interpretable axes already used in S2 sampling.
+- Targets B/B+ realism corridor while minimizing instability risk on first pass.
+
+Artifacts written:
+- `config/layer1/1A/models/hurdle/exports/version=2026-02-12/20260212T171900Z/hurdle_coefficients.yaml`
+- `config/layer1/1A/models/hurdle/exports/version=2026-02-12/20260212T171900Z/nb_dispersion_coefficients.yaml`
+- `config/layer1/1A/models/hurdle/exports/version=2026-02-12/20260212T171900Z/bundle_selfcheck.json`
+
+Sanity checks completed pre-run:
+- New hurdle implied mean `pi` from baseline logits moves to ~0.583 (from ~0.161).
+- Dispersion vector length preserved (`1 + |dict_mcc| + |dict_ch| + 1`).
+- Bundle metadata annotated with remediation provenance.
+
+Next execution decision:
+- Run a clean P1 candidate execution from baseline run-root and evaluate P1 DoD movement before any further coefficient edits.
+
+
+### Entry: 2026-02-12 17:31
+
+Design element: P1 execution strategy for first candidate run.
+Summary: Chosen execution path is a clean full Segment 1A run (S0..S9) under `runs/fix-data-engine/segment_1A` using the new coefficient bundle and S8 scope fix.
+
+Why full run (vs partial state replay):
+1) P1 changes affect both model coefficients and S8 final projection semantics.
+2) Partial replay against prior run-id risks mixed-lineage interpretation and stale-path collisions.
+3) Full run gives one coherent run receipt + manifest fingerprint for P1 gate assessment.
+
+Execution decision:
+- Run target: `make segment1a RUNS_ROOT=runs/fix-data-engine/segment_1A`
+- Keep seed/default operator settings unchanged for first comparison run.
+- Assess movement against P0 baseline immediately after run completion.
+
+Acceptance focus for this run:
+- single-site share and outlet median movement,
+- implied phi heterogeneity movement,
+- hard-gate status deltas and determinism-readiness for follow-up replay.
+
+
+### Entry: 2026-02-12 17:43
+
+Design element: P1 run-resume and coefficient resolution guard.
+Summary: Resuming P1 after interruption; before running, I verified S0 registry-resolution behavior to ensure the new coefficient bundle will actually be consumed by the run.
+
+Reasoning trail:
+1) P1 conclusions are only valid if S1/S2 load the new `2026-02-12` coefficient export.
+2) S0 resolves parameter artifacts via registry templates and `_resolve_registry_path(...)`.
+3) For `{version}` templates, resolver selects latest dated version directory, then resolves artifact file by name.
+4) Since new coefficients were authored under `version=2026-02-12`, resolution should prefer this bundle over older versions.
+
+Decision:
+- Proceed with full `make segment1a` run under `RUNS_ROOT=runs/fix-data-engine/segment_1A`.
+- After run completion, explicitly verify sealed input paths point to `version=2026-02-12/...` before interpreting metric deltas.
+
+Failure policy:
+- If sealed inputs do not reference the new bundle, mark run invalid for P1 assessment and correct registry/path resolution before any further tuning.
+
+### Entry: 2026-02-12 18:14
+
+Design element: P1 candidate run outcome assessment and root-cause correction.
+Summary: Completed first P1 candidate run (`bb268f24c8eb5af10da973d5c0d54181`) and evaluated deltas vs P0 baseline. Dispersion heterogeneity gates improved to pass, but single-site/candidate breadth surfaces did not improve. Root cause analysis shows current S8 scope correction is necessary but not sufficient because upstream states still exclude single-site merchants from the projected population.
+
+Observed outcomes (vs P0):
+1) Improved / passing:
+- `phi_cv`: `0.00053 -> 0.13898` (PASS vs `>=0.05`)
+- `phi_p95_p05_ratio`: `1.00004 -> 1.56837` (PASS vs `>=1.25`)
+
+2) Unchanged / failing:
+- `single_site_share`: `0.0 -> 0.0` (FAIL)
+- `candidate_foreign_median`: `37 -> 37` (FAIL)
+- `realization_ratio_median`: `0.0 -> 0.0` (FAIL)
+- required outputs presence: still FAIL
+
+Critical reasoning correction:
+- S8 now scopes `candidate ∩ nb`, but both `candidate_set` and `nb_final` are generated from the multi-site path only (`S1 is_multi=true`), so single-site merchants are still absent before S8 projection.
+- Therefore, expecting S8-only scope changes to recover single-site share was incorrect.
+
+Decision:
+- Treat P1 as partially successful (dispersion axis only).
+- Open next decision branch:
+  1) population-scope remediation to ensure single-site merchants are represented in egress (likely requiring S1/S2/S3/S8 contract-aligned handling, not S8 alone),
+  2) candidate breadth remediation via S3/S6 policy controls,
+  3) keep P1 coefficient bundle as the current best dispersion candidate unless downstream side-effects appear.
+
+External dependency control decision:
+- For subsequent runs, enforce sealed-input diff checks against baseline and classify each changed external artifact as intended vs unintended before accepting any metric movement.
+- Any unplanned artifact drift (policy/coeff/reference) invalidates the run for remediation inference.
+
+### Entry: 2026-02-12 18:40
+
+Design element: P1 metric-authority correction before further code changes.
+Summary: Before applying any additional structural edits, I checked run `bb268f24c8eb5af10da973d5c0d54181` against state contracts and found that the prior P1 failure interpretation mixed incompatible surfaces: single-site share was read from `outlet_catalogue` even though S3/S8 are gated to multi-site merchants by contract.
+
+Reasoning trail:
+1) S1 hurdle events already carry the multi vs single decision for the full merchant population.
+2) S2 `nb_final` is defined for the S1 multi subset (`n_outlets >= 2`) by design.
+3) S3/S8 remain multi-site scoped in the current state-flow contracts, so `outlet_catalogue` cannot be used alone to infer global single-site prevalence.
+4) In run `bb268...`, S1 shows `single_share = 0.4119` and S1+S2 composite outlet median is `6`, which is inside the P1 B-band targets.
+5) Dispersion gates are already passing from the new coeff bundle (`phi_cv=0.13898`, `phi_p95/p05=1.56837`).
+
+Decision:
+- Continue P1 with deterministic replay validation and artifactized metric extraction using contract-aligned surfaces:
+  - single-site/pyramid metrics from `S1 + S2` composite,
+  - dispersion metrics from S2 coeff-implied profile checks,
+  - leave candidate breadth/realization to P2 scope.
+- Do not make further S8 semantic changes in P1 until determinism is proven and P1 metrics are frozen under the corrected authority mapping.
+
+Immediate next actions:
+1) Run same-seed replay (`make segment1a`) to produce a second post-fix run.
+2) Compare run-to-run outputs for determinism-critical surfaces (S1/S2/S3/S8 hashes + gate metrics).
+3) Write `runs/fix-data-engine/segment_1A/<run_id>/reports/p1_metrics.json` + `p1_determinism_check.json`.
+
+### Entry: 2026-02-12 19:34
+
+Design element: P1.1 run-loop hardening (`S0 -> S1 -> S2` only) with explicit output-surface proof.
+Summary: Implement a dedicated Segment 1A P1 execution target that runs only `S0,S1,S2`, keeps failed-run pruning on the fix-data-engine root, and asserts the four required S1/S2 output datasets exist before considering a run valid for P1 tuning.
+
+Reasoning trail:
+1) Current `make segment1a` path executes `S0..S9`, which conflicts with P1 scope and creates avoidable runtime/storage overhead.
+2) Existing per-state targets are usable, but there is no single canonical command that guarantees ordered `S0 -> S1 -> S2` execution plus post-run surface checks.
+3) P1.1 DoD requires both operational scope control and proof that the required S1/S2 logs were actually emitted.
+
+Options considered:
+1) Reuse `segment1a` and gate states with flags.
+- Rejected: no built-in state skip controls for 1A in this Makefile path; would still bias toward full-segment habits.
+2) Ask operators to chain three commands manually each run.
+- Rejected: error-prone and weak for repeatability.
+3) Add a dedicated `segment1a-p1` target (chosen).
+- Chosen because it gives one canonical command, preserves existing per-state entrypoints, and cleanly wires P1 checks.
+
+Planned implementation (before code edits):
+1) Add a dedicated make target that:
+- runs `segment1a-preclean-failed-runs`,
+- executes `S0`,
+- resolves the just-created run_id,
+- executes `S1` and `S2` against that run_id,
+- runs a verifier for required P1 output datasets.
+2) Add a small tool script (`tools/verify_segment1a_p1_outputs.py`) to assert presence of:
+- `rng_event_hurdle_bernoulli`,
+- `rng_event_nb_final`,
+- `rng_event_gamma_component`,
+- `rng_event_poisson_component`.
+3) Wire PHONY aliases so this is easy to run repeatedly.
+4) Validate with `make -n` dry-run plus direct verifier invocation on latest available run.
+
+Invariants to preserve:
+- No behavior change for existing `segment1a-s*` targets.
+- No forced full-segment execution for P1.
+- Pre-clean remains non-destructive outside `runs/fix-data-engine` roots unless explicitly enabled.
+
+### Entry: 2026-02-12 19:37
+
+Design element: P1.1 implementation closure (`segment1a-p1` state-scoped execution + required-surface verifier).
+Summary: Implemented a canonical P1 command path that runs only `S0 -> S1 -> S2`, reuses pre-clean pruning, and fails fast if the required S1/S2 output surfaces are missing.
+
+Implementation actions:
+1) Added new make targets in `makefile`:
+- `segment1a-p1`:
+  - depends on `segment1a-preclean-failed-runs`,
+  - runs `S0`, resolves the newly produced `run_id` from latest `run_receipt.json` under `RUNS_ROOT`,
+  - runs `S1` and `S2` against that exact run id,
+  - executes post-run verification target.
+- `segment1a-p1-check`:
+  - runs a dedicated verifier script against `RUNS_ROOT` and optional `RUN_ID`.
+- `engine-seg1a-p1` alias for convenience.
+
+2) Added tool script `tools/verify_segment1a_p1_outputs.py`:
+- validates required P1 output surfaces for a run id:
+  - `rng_event_hurdle_bernoulli`,
+  - `rng_event_nb_final`,
+  - `rng_event_gamma_component`,
+  - `rng_event_poisson_component`.
+- supports explicit `--run-id` or latest-run auto-resolution.
+- exits non-zero on missing dataset surfaces.
+
+3) Verification executed:
+- `python -m py_compile tools/verify_segment1a_p1_outputs.py` (pass).
+- `python tools/verify_segment1a_p1_outputs.py --runs-root runs/fix-data-engine/segment_1A` (pass).
+- `make segment1a-p1 RUNS_ROOT=runs/fix-data-engine/segment_1A` (pass):
+  - pre-clean executed,
+  - state-scoped run produced `run_id=e97b15d23d61dde3ae2c416721f271f2`,
+  - verifier passed all four required output surfaces.
+
+P1.1 DoD status impact:
+- DoD(1) one repeatable command/profile executes `S0,S1,S2` only: satisfied via `make segment1a-p1`.
+- DoD(2) required scoring surfaces emitted each run: satisfied by `segment1a-p1-check` pass on run `e97b15d23d61dde3ae2c416721f271f2`.
+
+Notes:
+- Existing `segment1a-s*` targets were left unchanged.
+- No full-segment (`S3+`) invocation is required in the new P1 path.
+
+### Entry: 2026-02-12 19:46
+
+Design element: P1.2 closure check (hurdle coefficient calibration and branch-purity verification).
+Summary: Executed P1.2 against the state-scoped loop (`segment1a-p1`) and validated single-site realism + branch purity over three seeds. Result: P1.2 passes without additional hurdle coefficient edits; current hurdle bundle remains the locked candidate for onward P1 work.
+
+Execution performed:
+1) Confirmed active coefficient sources from sealed inputs for the P1 run path:
+- `hurdle_coefficients.yaml` from
+  `config/layer1/1A/models/hurdle/exports/version=2026-02-12/20260212T171900Z/hurdle_coefficients.yaml`.
+- `nb_dispersion_coefficients.yaml` from
+  `config/layer1/1A/models/hurdle/exports/version=2026-02-12/20260212T171900Z/nb_dispersion_coefficients.yaml`.
+
+2) Ran state-scoped P1 loop (S0->S2) with multi-seed check:
+- seed 42 -> run `e97b15d23d61dde3ae2c416721f271f2`
+- seed 43 -> run `bc3cd75be277994a13a8d435d249ee4b`
+- seed 44 -> run `099bce7800f7e53d88b5aaf368e22c06`
+
+3) Computed P1.2 metrics from S1/S2 authoritative streams:
+- single-site share from `rng_event_hurdle_bernoulli` (`is_multi=false` share),
+- branch purity using S1 gate vs S2 `nb_final` population.
+
+Measured results:
+- seed 42: single_share `0.4138`, branch violations `0`, missing-nb-for-true `0`.
+- seed 43: single_share `0.4166`, branch violations `0`, missing-nb-for-true `0`.
+- seed 44: single_share `0.4153`, branch violations `0`, missing-nb-for-true `0`.
+
+Decision:
+- P1.2 DoD is satisfied:
+  - single-site share is inside `B` and `B+` bands on all tested seeds,
+  - branch purity invariant holds (no S2 rows for hurdle-false merchants, full S2 coverage for hurdle-true merchants).
+- No additional hurdle coefficient edit is required at this stage.
+- Proceed to P1.3 (NB mean/dispersion count-shape calibration) using the same run loop.
+
+Evidence artifact:
+- `runs/fix-data-engine/segment_1A/reports/p1_2_hurdle_multiseed_scorecard.json`.
+
+### Entry: 2026-02-12 19:52
+
+Design element: P1.3 evaluation plan (NB mean/dispersion count-shape calibration).
+Summary: Start P1.3 by scoring the current locked P1 runs before editing coefficients again. If current posture already satisfies P1.3 DoD bands, we lock this state and move to P1.4; otherwise we open a targeted NB-only coefficient iteration.
+
+Reasoning trail:
+1) P1.2 is already closed and branch-pure across three seeds, so P1.3 should start with measurement of count-shape + dispersion outcomes under the same accepted run loop.
+2) Unnecessary coefficient rewrites increase churn and risk regressions; measure first, then edit only if a DoD gap is observed.
+3) P1.3 DoD in the build plan is explicit on median/concentration and phi heterogeneity bands, so this can be decided objectively.
+
+Planned evaluation method:
+1) Use the three accepted P1 runs:
+- `e97b15d23d61dde3ae2c416721f271f2` (seed 42)
+- `bc3cd75be277994a13a8d435d249ee4b` (seed 43)
+- `099bce7800f7e53d88b5aaf368e22c06` (seed 44)
+2) Build per-merchant outlet counts from S1/S2 authoritative streams:
+- if `S1.is_multi=false` -> `outlets=1`,
+- if `S1.is_multi=true` -> `outlets=S2.nb_final.n_outlets`.
+3) Compute P1.3 metrics per run:
+- outlet median,
+- top-10% outlet share,
+- Gini,
+- `phi` CV,
+- `phi` P95/P05 ratio.
+4) Persist scorecard under `runs/fix-data-engine/segment_1A/reports/p1_3_nb_multiseed_scorecard.json`.
+
+Decision rule:
+- If all runs satisfy P1.3 B bands and no branch-integrity issues appear, mark P1.3 complete and avoid further coeff edits now.
+- If any run fails a P1.3 DoD metric, open targeted coefficient tuning on NB mean/dispersion only.
+
+### Entry: 2026-02-12 19:57
+
+Design element: P1.3 remediation strategy selection after first NB scorecard.
+Summary: Initial P1.3 scorecard fails concentration realism (`gini` above B band across seeds, top-10 share unstable). Chosen remediation is NB mean heterogeneity compression (`beta_mu` shrink) while holding hurdle coefficients fixed.
+
+Observed P1.3 failure posture:
+- Composite outlet median is on-band (`6.0`) but concentration is too steep:
+  - `gini` around `0.678` to `0.745` (B cap `0.62`),
+  - top-10 share includes a high-seed breach (`0.618` vs B cap `0.55`).
+- Dispersion metrics already pass B/B+ and should not be destabilized.
+
+Options considered:
+1) Retune hurdle intercept/shape again.
+- Rejected: P1.2 is already closed and stable; this would risk reopening branch-share posture.
+2) Retune NB dispersion (`beta_phi`) first.
+- Rejected as primary lever: concentration issue is structural in count-level inequality; dispersion is already in target and not the main source of skew.
+3) Compress NB mean heterogeneity (`beta_mu`) with intercept recenter (chosen).
+- Chosen because it directly reduces high-tail concentration while preserving overall count level and leaving hurdle gating intact.
+
+Chosen implementation approach:
+1) Create a new hurdle export bundle version timestamp under `version=2026-02-12`.
+2) Keep hurdle `beta` unchanged.
+3) Apply controlled shrink to `beta_mu` non-intercept terms using scale `0.80` with intercept recenter around current mean log-mu proxy.
+4) Leave `nb_dispersion_coefficients.yaml` unchanged in this iteration.
+5) Re-run `segment1a-p1` for seeds `42/43/44` and re-score P1.3 metrics.
+
+Target outcome for this iteration:
+- Preserve median in B band.
+- Bring concentration into B band across seeds:
+  - top-10 share `0.35..0.55`,
+  - gini `0.45..0.62`.
+- Keep dispersion gates in band.
+
+### Entry: 2026-02-12 20:01
+
+Design element: P1.3 iteration-1 assessment and follow-up decision.
+Summary: First P1.3 coefficient iteration (`beta_mu` scale `0.80`) improved NB mean spread but did not close concentration gates. Decision: apply a second targeted adjustment on dispersion level (`beta_phi` intercept uplift) to damp extreme-count tails.
+
+Iteration-1 details:
+- Bundle tested: `version=2026-02-12/20260212T195125Z`.
+- Proof run (seed 42): `ff83dc6394ed1140af183a91f8f89499`.
+- Observed:
+  - `single_share=0.4225` (P1.2 still healthy),
+  - median `6.0` (on-band),
+  - top-10 share `0.550258` (borderline fail),
+  - gini `0.698884` (fail).
+- Diagnostic read:
+  - `mu` distribution compressed as intended (q95/q99 reduced vs prior bundle),
+  - residual concentration driven by stochastic high-tail realizations, suggesting dispersion level is still too permissive for stable concentration bands.
+
+Decision for iteration-2:
+- Keep current hurdle coefficients unchanged.
+- Keep `beta_mu` compression from iteration-1.
+- Increase `beta_phi` intercept (multiplicative uplift of `phi`) to reduce extreme-tail variance while preserving heterogeneity shape (CV/ratio invariants remain largely unchanged under intercept-only shift).
+
+Execution intent:
+1) author new bundle timestamp from current parent,
+2) rerun `segment1a-p1` (seed 42 sanity first),
+3) if concentration improves into B bands, execute seeds 43/44 and finalize P1.3 scorecard.
+
+### Entry: 2026-02-12 20:07
+
+Design element: P1.3 blocker root-cause escalation (S2 Poisson sampler tail pathology).
+Summary: P1.3 concentration failures are not explained by coefficient shape alone. Evidence from run logs shows impossible Poisson outcomes (example: `lambda≈11.38` with emitted `k=12808`), pointing to a sampler implementation defect in S2 PTRS branch.
+
+Evidence observed:
+- Run `719fb3da5c759d969136085493619557`:
+  - `nb_final`: `mu=13.223`, `dispersion_k=28.703`, `n_outlets=12808`.
+  - corresponding `poisson_component`: `lambda=11.383`, `k=12808`, attempt `1`.
+- Such outcomes are statistically implausible for the stated lambda and dominate concentration metrics (top10/gini instability).
+
+Technical diagnosis:
+- The S2 Poisson path currently uses `_poisson_ptrs` for `lambda>=10`.
+- Current quick-accept branch permits extreme `k` from ratio term `b*v/u` under small `u`, creating pathological spikes.
+
+Decision (fail-closed on realism):
+- Treat PTRS path as unsafe for current implementation.
+- Switch S2 Poisson sampling to inversion-only path for all lambdas in this remediation window.
+- Re-run P1.3 with unchanged coefficient bundle after sampler fix to separate algorithmic defect from coefficient calibration.
+
+Why this is the right move now:
+- Coefficient retunes cannot reliably correct algorithm-generated impossible tails.
+- Inversion sampler is deterministic, simpler, and numerically safe for observed lambda range in 1A (runtime overhead acceptable for P1 loops).
+
+Next steps after patch:
+1) run `segment1a-p1` seed 42 sanity,
+2) score P1.3 metrics,
+3) if improved, run seeds 43/44 and finalize P1.3 closure evidence.
+
+### Entry: 2026-02-12 20:12
+
+Design element: Post-sampler-fix recalibration decision for P1.3.
+Summary: After switching Poisson to inversion-only, concentration pathology from impossible tails disappeared (max outlets dropped from >10k to 34), but current compressed NB-mean bundle over-flattened concentration (`top10_share` fell below B lower bound). Decision: rollback NB-mean compression and retest with original P1.2 coefficients under the fixed sampler.
+
+Observed after sampler fix (run `e3618475a068178162bff54d6238ca78`):
+- top10 share `0.2746` (below B min `0.35`),
+- gini `0.4868` (in band),
+- median `7` (in band),
+- max outlets `34` (tail pathology resolved).
+
+Interpretation:
+- The dominant prior issue was sampler-generated tails.
+- With that fixed, the extra `beta_mu` compression (`scale=0.8`) is too strong and suppresses intended heavy-tail concentration.
+
+Decision:
+- Keep Poisson inversion patch in S2.
+- Create a fresh bundle from original `20260212T171900Z` coefficients (no `beta_mu` compression and no `beta_phi` uplift) so concentration can return to the intended realistic corridor.
+- Re-run P1.3 multi-seed scorecard using this bundle + sampler fix.
+
+### Entry: 2026-02-12 20:15
+
+Design element: P1.3 post-sampler baseline remeasure and next tuning lever selection.
+Summary: Re-ran the accepted P1 loop (`S0->S2`) on seeds `42/43/44` under the sampler fix and rollback bundle. Concentration is now stable but under-target: top-decile outlet share is below B lower bound on all seeds, while median/gini/phi bands are healthy. Decision: open a controlled NB-mean heterogeneity uplift iteration (`beta_mu` non-intercept scale-up) with hurdle and `beta_phi` held fixed.
+
+Baseline evidence (sampler fix + bundle `20260212T195808Z`):
+- seed 42 run `80051a088f94efb8ee21ab65cbcbd6ce`:
+  - median `6.0`,
+  - top10 share `0.2985`,
+  - gini `0.5115`,
+  - `phi_cv=0.1401`, `phi_p95/p05=1.5793`.
+- seed 43 run `2d6621e142e1fe8424f1ef8e9c672ff0`:
+  - median `6.0`,
+  - top10 share `0.2974`,
+  - gini `0.5097`,
+  - `phi_cv=0.1398`, `phi_p95/p05=1.5792`.
+- seed 44 run `871e986a5523bcc872d12e9fe0dd5b89`:
+  - median `6.0`,
+  - top10 share `0.2942`,
+  - gini `0.5059`,
+  - `phi_cv=0.1403`, `phi_p95/p05=1.5778`.
+- Branch integrity still clean (`hurdle=false` with S2 rows = `0`; missing S2 for `hurdle=true` = `0`).
+
+Interpretation:
+1) PTRS tail pathology is no longer dominating concentration.
+2) With tails stabilized, current `beta_mu` spread is insufficient to produce the required heavy-tail concentration corridor.
+3) `beta_phi` already sits inside band and should be held fixed to avoid unnecessary variance-side churn.
+
+Decision and execution plan:
+1) Author a new bundle timestamp under `version=2026-02-12`.
+2) Keep hurdle coefficients unchanged.
+3) Keep `beta_phi` unchanged.
+4) Increase `beta_mu` non-intercept magnitude by a controlled factor (first pass: modest uplift) and recenter intercept only if median drifts out of band.
+5) Run seed `42` sanity first; if top10 enters/approaches B band without gini overshoot, execute seeds `43/44` and finalize P1.3 scorecard.
+
+### Entry: 2026-02-12 20:24
+
+Design element: P1.3 NB-mean spread iteration sequence and closure.
+Summary: Executed staged `beta_mu` non-intercept uplift tests after sampler stabilization to recover concentration realism. Iterations `x1.15` and `x1.40` remained below B top-decile floor. Iteration `x2.00` reached stable three-seed B-band compliance for all P1.3 metrics.
+
+Iteration evidence (seed 42 sanity gate):
+1) Bundle `20260212T200543Z` (`beta_mu` non-intercept `x1.15`, no intercept recenter):
+- run `14cc0f88c9d10e56691356cbb307fa3a`,
+- median `6.0`, top10 `0.3056`, gini `0.5201`, `phi_cv=0.1383`, `phi_ratio=1.5709`.
+- Decision: insufficient concentration uplift; continue.
+2) Bundle `20260212T200704Z` (`beta_mu` non-intercept `x1.40`, no intercept recenter):
+- run `44e274d4056bf436caf4d99a39458f51`,
+- median `7.0`, top10 `0.3204`, gini `0.5368`, `phi_cv=0.1394`, `phi_ratio=1.5827`.
+- Decision: still below B top10 floor; continue.
+3) Bundle `20260212T200823Z` (`beta_mu` non-intercept `x2.00`, no intercept recenter):
+- run `292e136bd6b58beafe0d81755dac2fb2`,
+- median `9.0`, top10 `0.3819`, gini `0.5996`, `phi_cv=0.1399`, `phi_ratio=1.5845`.
+- Decision: passes all P1.3 B checks on sanity seed; proceed multi-seed.
+
+Multi-seed confirmation for selected bundle `20260212T200823Z`:
+- seed 42 -> `292e136bd6b58beafe0d81755dac2fb2`:
+  - median `9.0`, top10 `0.3819`, gini `0.5996`, `phi_cv=0.1399`, `phi_ratio=1.5845`.
+- seed 43 -> `e22f339fd496dfb2508ea33949907d54`:
+  - median `9.0`, top10 `0.3852`, gini `0.6019`, `phi_cv=0.1395`, `phi_ratio=1.5791`.
+- seed 44 -> `411b7f4e5466109e7007043180ed794b`:
+  - median `9.0`, top10 `0.3827`, gini `0.6001`, `phi_cv=0.1396`, `phi_ratio=1.5751`.
+- Branch integrity remained clean on all runs:
+  - no S2 rows for `hurdle=false`,
+  - no missing S2 rows for `hurdle=true`.
+
+P1.3 decision outcome:
+1) P1.3 DoD is satisfied at `B` level on all three seeds.
+2) `B+` miss remains on gini (`>0.58`) but this does not block P1.3 closure because DoD for this phase is B-band compliance.
+3) Candidate bundle for P1.4 reconciliation/lock: `version=2026-02-12/20260212T200823Z`.
+
+Evidence artifact:
+- `runs/fix-data-engine/segment_1A/reports/p1_3_nb_multiseed_scorecard.json`.
+
+### Entry: 2026-02-12 20:30
+
+Design element: P1.4 execution plan (joint reconciliation + lock).
+Summary: With P1.2 and P1.3 both passing B-band requirements, execute P1.4 as a stability and lock step without further coefficient edits. Goal is to prove there is no counter-tuning oscillation and that same-seed replay is stable under the selected bundle.
+
+Authorities and fixed inputs:
+1) Selected coefficient bundle from P1.3:
+- `config/layer1/1A/models/hurdle/exports/version=2026-02-12/20260212T200823Z/hurdle_coefficients.yaml`
+- `config/layer1/1A/models/hurdle/exports/version=2026-02-12/20260212T200823Z/nb_dispersion_coefficients.yaml`
+2) Fixed S2 sampler patch remains active (inversion-only Poisson path) as the accepted algorithmic remediation.
+3) P1 run scope remains `S0 -> S1 -> S2` via `make segment1a-p1`.
+
+P1.4 validation method:
+1) Run two consecutive multi-seed P1 passes with identical seeds (`42/43/44`) and no coefficient edits between passes.
+2) Compute per-run P1 metrics:
+- P1.2 surfaces: single-share, branch purity.
+- P1.3 surfaces: median outlets, top10 share, gini, phi CV, phi P95/P05.
+3) Evaluate:
+- each run must satisfy P1 B bands (no oscillation outside B),
+- same-seed pass-1 vs pass-2 metric deltas must be within replay tolerance.
+
+Replay tolerance policy for this phase:
+1) Primary expectation: deterministic equality per seed (same inputs/seed -> same metric values).
+2) Validation tolerance used for automated compare: absolute tolerance `1e-12` for float metrics (strict-equality practical proxy).
+3) Any seed-level mismatch beyond tolerance is a P1.4 failure and blocks lock.
+
+Lock recording output:
+1) Write P1.4 lock report with:
+- pass-1 and pass-2 run IDs,
+- per-seed metrics and B/B+ checks,
+- replay delta checks,
+- locked bundle file paths + SHA256 digests.
+2) Persist at:
+- `runs/fix-data-engine/segment_1A/reports/p1_4_lock_scorecard.json`.
+3) Mark P1.4 DoD checkboxes only after report confirms all pass conditions.
+
+### Entry: 2026-02-12 20:52
+
+Design element: P1.4 execution and lock closure.
+Summary: Completed two consecutive replay passes on the fixed P1 bundle and generated a lock scorecard that proves B-band stability, same-seed determinism, and resolved bundle lock recording.
+
+Execution performed:
+1) Consecutive pass runs (`S0->S2` only, no coefficient edits between passes):
+- pass1:
+  - seed 42 -> `e48afa8eb791c839f36d59c34020ca66`
+  - seed 43 -> `326d1abec0aeb9e9643ee541b5eb4334`
+  - seed 44 -> `95d192a8ae8cae271da7083108e583ab`
+- pass2:
+  - seed 42 -> `798476f5603c06f499be7ac76b13150b`
+  - seed 43 -> `45fd5a38414b705f64c3f7ee09bdbee4`
+  - seed 44 -> `1288cf0b8d4ee8e17a55a814a63260d7`
+
+2) Added scoring utility:
+- `tools/score_segment1a_p1_4_lock.py`
+- purpose:
+  - compute P1.2 + P1.3 metrics for both passes,
+  - enforce B-band checks per run,
+  - compare same-seed pass1 vs pass2 deltas under tolerance,
+  - resolve + record locked coefficient paths and SHA256 from sealed inputs.
+
+3) Generated lock artifact:
+- `runs/fix-data-engine/segment_1A/reports/p1_4_lock_scorecard.json`
+- summary outcomes:
+  - `two_consecutive_p1_runs_meet_all_p1_metrics = true`
+  - `same_seed_replay_preserves_metric_posture = true`
+  - `locked_bundle_versions_recorded = true`
+  - `consecutive_passes_all_B = true`
+  - `consecutive_passes_all_Bplus = false` (expected: B+ gini remains above tight cap).
+
+Replay findings:
+1) Same-seed metrics across pass1/pass2 were identical (`delta=0.0` for all tracked metrics on seeds 42/43/44).
+2) Parameter hash and manifest fingerprint matched per seed across both passes, confirming no hidden input drift.
+
+Locked bundle recording (resolved from sealed inputs):
+1) Hurdle coefficients:
+- path: `config/layer1/1A/models/hurdle/exports/version=2026-02-12/20260212T200823Z/hurdle_coefficients.yaml`
+- sha256: `89565cfd4821d271f31b31e25344e924cad99569cac4ca4925238ef72e4ffb63`
+2) NB dispersion coefficients:
+- path: `config/layer1/1A/models/hurdle/exports/version=2026-02-12/20260212T200823Z/nb_dispersion_coefficients.yaml`
+- sha256: `43fe3945f37ea2e958002c26de7b3f8b5ff0fc6be84f360b62b652a5124f0fc7`
+
+P1.4 DoD outcome:
+1) Complete.
+2) Build-plan P1.4 checkboxes marked done.
+
+### Entry: 2026-02-12 20:57
+
+Design element: Post-P1 storage hygiene before P2.
+Summary: Cleaned the `runs/fix-data-engine/segment_1A` working root to prevent storage bloat before starting P2 while preserving P1 evidence provenance.
+
+Cleanup policy:
+1) Preserve run IDs referenced by active P1 evidence artifacts only:
+- `runs/fix-data-engine/segment_1A/reports/p1_2_hurdle_multiseed_scorecard.json`
+- `runs/fix-data-engine/segment_1A/reports/p1_3_nb_multiseed_scorecard.json`
+- `runs/fix-data-engine/segment_1A/reports/p1_4_lock_scorecard.json`
+2) Delete all other run-id directories under `runs/fix-data-engine/segment_1A`.
+
+Outcome:
+1) Run directories: `26 -> 12` (deleted `14` unnecessary runs).
+2) Storage footprint: `~0.934 GB -> ~0.344 GB` (reclaimed `~0.590 GB`).
+3) P1 evidence continuity preserved (all report-referenced run IDs retained).
+
+### Entry: 2026-02-12 21:02
+
+Design element: Secondary run-id-folder trim after user scope clarification.
+Summary: User clarified they want tighter cleanup of run-id folders before P2. Applied a stricter keep set (P1.3 + P1.4 evidence only), removing P1.2-only run directories.
+
+Decision:
+1) Keep run IDs referenced by:
+- `runs/fix-data-engine/segment_1A/reports/p1_3_nb_multiseed_scorecard.json`
+- `runs/fix-data-engine/segment_1A/reports/p1_4_lock_scorecard.json`
+2) Remove remaining run-id directories under `runs/fix-data-engine/segment_1A`.
+
+Outcome:
+1) Run directories: `12 -> 9` (deleted `3` additional run-id folders).
+2) Storage footprint: `~0.344 GB -> ~0.258 GB` (additional `~0.086 GB` reclaimed).
+
+### Entry: 2026-02-12 21:06
+
+Design element: Zero-run-id storage mode before P2.
+Summary: User requested maximal space protection. Switched Segment 1A runs root to reports-only mode by removing all remaining run-id directories.
+
+Action:
+1) Deleted the remaining `9` run-id folders under `runs/fix-data-engine/segment_1A`.
+2) Retained only report artifacts in `runs/fix-data-engine/segment_1A/reports/`:
+- `p1_2_hurdle_multiseed_scorecard.json`
+- `p1_3_nb_multiseed_scorecard.json`
+- `p1_4_lock_scorecard.json`
+
+Outcome:
+1) Run-id folders now `0`.
+2) Segment 1A runs root is effectively zero-footprint beyond reports.
+
+### Entry: 2026-02-12 21:12
+
+Design element: Phase-boundary freeze assumption (`P1 -> P2`).
+Summary: User confirmed the operating assumption that `P1` is already statistically realistic and must be treated as frozen while executing `P2+`. This is now explicitly pinned in the build plan and in this decision trail.
+
+Frozen baseline definition:
+1) `P1` accepted state is the realism baseline for `1A` (`B` standard achieved).
+2) Frozen surfaces:
+- `S1/S2` statistical posture evidenced by P1 scorecards,
+- locked coefficient bundle:
+  - `config/layer1/1A/models/hurdle/exports/version=2026-02-12/20260212T200823Z/hurdle_coefficients.yaml`
+  - `config/layer1/1A/models/hurdle/exports/version=2026-02-12/20260212T200823Z/nb_dispersion_coefficients.yaml`
+- accepted S2 sampler remediation in `packages/engine/src/engine/layers/l1/seg_1A/s2_nb_outlets/runner.py`.
+
+Execution constraint for `P2+`:
+1) Downstream remediation (`S3+`) must not alter frozen `S1/S2` artifacts/logic.
+2) Reopening `P1` is fail-closed and requires:
+- concrete hard contract/causal contradiction evidence, and
+- explicit user approval before touching frozen surfaces.
+
+Documentation updates performed:
+1) Added `P1 freeze contract` to:
+- `docs/model_spec/data-engine/implementation_maps/segment_1A.build_plan.md`
+2) Added `P2 precondition` explicitly inheriting the freeze contract in the same file.
+
+### Entry: 2026-02-12 21:18
+
+Design element: P2 plan expansion (data-first realism protocol).
+Summary: Expanded Workstream `P2` in the build plan with explicit statistical definitions, staged DoD blocks, allowed-tuning ownership boundaries, and storage controls. This formalizes how P2 will improve realism without reopening P1 surfaces.
+
+Key planning decisions captured:
+1) Statistical realism variables are now explicit:
+- `C_m`: candidate breadth,
+- `R_m`: realized foreign membership,
+- `rho_m = R_m / max(C_m,1)`.
+2) Coupling metric fixed to Spearman correlation:
+- `SpearmanCorr(C_m, R_m)` as the primary dependence check.
+3) Pathology rails are now hard checks in P2:
+- retry-exhaustion share cap,
+- high-rejection concentration cap.
+4) P2 is staged into `P2.1 -> P2.4`:
+- baseline/scorer,
+- S3 candidate shaping,
+- S4/S6 coupling,
+- reconciliation + lock.
+5) Tune ownership is pinned:
+- only S3/S4/S6 policy/model surfaces are adjustable in P2,
+- S1/S2 remains frozen under the P1 freeze contract.
+6) Mathematical calibration posture is pinned:
+- constrained objective using band-distance plus pathology penalty,
+- fail-fast on pathology cap violation,
+- stability/replay required for accepted candidates.
+7) Storage hygiene is formalized for iterative P2 work:
+- keep only latest baseline + latest accepted candidate run sets and scorecards; prune the rest.
+
+Build-plan sections updated:
+1) `4.1.b` P2 execution mode (strict).
+2) `4.3` P2 target datasets.
+3) `4.4` statistical realism formulas and checks.
+4) `4.5` tunable ownership map.
+5) `4.8` phased P2 DoD (`P2.1` to `P2.4`).
+6) `4.9` mathematical calibration method.
+7) `4.10` storage retention policy for P2 loops.
+
+### Entry: 2026-02-12 22:16
+
+Design element: P2.1 implementation plan (baseline runner + scoring harness).
+Summary: Capture the concrete mechanics for executing `P2.1` without reopening `P1` and with explicit handling for policy-gated `S3` optional outputs.
+
+Execution intent (P2.1):
+1) Add a single repeatable make target for `P2.1`:
+- run chain: `S0 -> S1 -> S2 -> S3 -> S4 -> S5 -> S6`,
+- no `S7+` invocation in the loop,
+- run-id handoff sourced from the latest `run_receipt.json` after `S0`,
+- post-run checks + baseline scorecard emission.
+2) Keep `P1` freeze intact:
+- no `S1/S2` policy or runtime edits,
+- no coefficient changes in this phase,
+- this phase is instrumentation/scoring only.
+
+Scoring-harness design decisions:
+1) Required P2 surfaces for baseline scoring:
+- `s3_candidate_set`,
+- `s6_membership`,
+- `rng_event_ztp_final`,
+- `rng_event_ztp_rejection`,
+- `rng_event_gumbel_key`,
+- `s4_metrics_log`.
+2) Conditional/diagnostic surfaces:
+- `rng_event_ztp_retry_exhausted` is treated as optional-presence diagnostic because runs may validly emit no exhaustion events.
+- `s3_integerised_counts` is treated as policy-gated:
+  - required only when `policy.s3.integerisation.yaml` sets `emit_integerised_counts: true`,
+  - otherwise reported as intentionally absent for Variant-B ownership posture.
+3) Merchant-level metrics:
+- `C_m` from foreign rows in `s3_candidate_set` (`is_home=false`),
+- `R_m` from `s6_membership` counts,
+- `rho_m = R_m / max(C_m,1)`.
+4) Global checks:
+- `median(C_m)` in B band (`5..15`),
+- `Spearman(C_m,R_m) >= 0.30`,
+- `median(rho_m) >= 0.10`,
+- pathology caps:
+  - `share_exhausted <= 0.02`,
+  - `share_high_reject(>16) <= 0.10`.
+5) Stratification inputs:
+- prefer run-scoped `hurdle_design_matrix` (`merchant_id, channel, mcc, gdp_bucket_id`) to avoid external drift,
+- derive broad MCC group as thousand-band (`floor(mcc/1000)*1000`).
+6) Scorecard output:
+- write JSON report under `runs/fix-data-engine/segment_1A/reports/`,
+- include surface presence/row counts + global + stratified metrics + check booleans.
+
+Planned files:
+1) `makefile`:
+- add `segment1a-p2`, `segment1a-p2-check`, `engine-seg1a-p2`.
+2) `tools/verify_segment1a_p2_outputs.py`:
+- run-level presence verifier with policy-aware optionality.
+3) `tools/score_segment1a_p2_1_baseline.py`:
+- deterministic baseline scorer for P2.1 DoD evidence.
+
+### Entry: 2026-02-12 22:22
+
+Design element: P2.1 implementation + first baseline execution.
+Summary: Implemented the P2.1 run harness and scorer, executed a fresh `S0->S6` run, produced the baseline scorecard, and applied run-folder retention cleanup.
+
+Code changes delivered:
+1) `makefile`:
+- added `segment1a-p2` target (preclean + `S0->S6` chain with single run-id handoff),
+- added `segment1a-p2-check`,
+- added `engine-seg1a-p2` alias.
+2) `tools/verify_segment1a_p2_outputs.py`:
+- validates required P2 surfaces for a run-id,
+- resolves `policy.s3.integerisation.yaml` from sealed inputs and enforces:
+  - require `s3_integerised_counts` only when `emit_integerised_counts=true`,
+  - otherwise report intentional absence,
+- treats `rng_event_ztp_retry_exhausted` as optional-presence diagnostic.
+3) `tools/score_segment1a_p2_1_baseline.py`:
+- computes merchant-level `C_m`, `R_m`, `rho_m`,
+- computes global and stratified (`channel`, `mcc_broad_group`, `gdp_bucket_id`) metrics,
+- computes pathology shares (`share_exhausted`, `share_high_reject_gt16`),
+- writes JSON scorecard with thresholds/check booleans and surface counts.
+
+Execution evidence:
+1) Command:
+- `make --no-print-directory segment1a-p2 RUNS_ROOT="runs/fix-data-engine/segment_1A"`
+2) New baseline run-id:
+- `203d3c33f5fbe060184ad845a86b9e6c`
+3) Scorecard output:
+- `runs/fix-data-engine/segment_1A/reports/segment1a_p2_1_baseline_203d3c33f5fbe060184ad845a86b9e6c.json`
+
+Baseline P2.1 result snapshot:
+1) Global core metrics:
+- `median(C_m)=37.0` (fails B band `5..15`),
+- `Spearman(C_m,R_m)=0.2977` (just below `0.30`),
+- `median(rho_m)=0.0` (fails `>=0.10`).
+2) Pathology rails:
+- `share_exhausted=0.0` (pass),
+- `share_high_reject_gt16=0.0` (pass).
+3) Stratified posture:
+- channel/mcc/gdp strata show `0` core-pass strata and full pathology-pass coverage.
+
+P2.1 DoD closure:
+1) Repeatable `S0->S6` command/profile exists and was executed.
+2) Baseline scorecard emitted with global + stratified metrics.
+3) Pathology hard checks computed and visible.
+4) Marked P2.1 DoD checkboxes complete in build plan.
+
+Storage hygiene action:
+1) Removed superseded pre-P2 run folder:
+- deleted `runs/fix-data-engine/segment_1A/54602dac43ab522a7100b47c66ea824b`
+2) Retained:
+- active baseline run `203d3c33f5fbe060184ad845a86b9e6c`,
+- report artifacts under `runs/fix-data-engine/segment_1A/reports/`.
+
+### Entry: 2026-02-12 22:23
+
+Design element: P2.1 build-plan alignment patch (surface optionality semantics).
+Summary: Aligned Section `4.3` wording with implemented verifier/scorer behavior so policy-gated and zero-row-valid surfaces are explicit in plan authority.
+
+Changes in `segment_1A.build_plan.md`:
+1) `s3_integerised_counts` is now explicitly marked as required only when sealed `policy.s3.integerisation.yaml` has `emit_integerised_counts=true`.
+2) `rng_event_ztp_retry_exhausted` is now explicitly marked optional-presence diagnostic (zero-row posture valid).
+
+### Entry: 2026-02-12 22:24
+
+Design element: P2.3 pre-edit diagnosis (S4/S6 coupling constraints and first tuning hypothesis).
+Summary: Before applying any `P2.3` patch, I audited current `S4/S6` mechanics to identify a contract-safe first lever.
+
+Observed baseline facts from run `203d3c33f5fbe060184ad845a86b9e6c`:
+1) S4 is not the immediate bottleneck:
+- `ztp_final` rows: `4316`,
+- `K_target` median: `3`, p90: `7`,
+- `K_target=0` share: `~5.6%`.
+2) S6 realizes too little despite positive targets:
+- `K_target_sum=15334` vs `K_realized_sum=6486`,
+- `merchants_empty=2431`,
+- reasons: `ZERO_WEIGHT_DOMAIN=2189`, `NO_CANDIDATES=242`, `CAPPED_BY_MAX_CANDIDATES=1885`.
+3) Critical precedence detail in S6 implementation:
+- reason assignment checks `eligible_count==0` before `cap_applied`,
+- therefore many cap-induced empty domains are recorded as `ZERO_WEIGHT_DOMAIN`.
+
+Contract constraints respected:
+1) S6 spec explicitly defines domain as intersection of S3 foreign candidates and S5 currency weights; no ungated fallback weighting will be introduced in P2.3.
+2) S4/S6 must retain eligibility and PASS-gate posture (no bypass of `is_eligible` or S5 PASS).
+
+P2.3 tuning sequence decided:
+1) First lever (policy-only, low risk): relax S6 truncation pressure by setting `max_candidates_cap=0` (no cap) to test whether empty domains were cap-induced.
+2) Re-run `S0->S6` and re-score P2 metrics.
+3) Only if needed, second lever: adjust S4 ZTP theta intercept upward to increase realized `K_target` while monitoring rejection pathologies.
+
+Files planned for immediate touch:
+1) `config/layer1/1A/policy.s6.selection.yaml` (cap relaxation test).
+
+### Entry: 2026-02-12 22:39
+
+Design element: P2.3 trial-1 execution (S6 cap relaxation) and blocker analysis.
+Summary: Executed the first P2.3 policy-only patch (`max_candidates_cap -> 0`) and re-ran `S0->S6`. This improved C-R coupling but confirmed `rho` is blocked by upstream candidate-domain realism (P2.2 dependency).
+
+Policy patch applied:
+1) `config/layer1/1A/policy.s6.selection.yaml`:
+- `defaults.max_candidates_cap: 25 -> 0`
+- `per_currency.EUR.max_candidates_cap: 35 -> 0`
+
+Execution evidence:
+1) Command:
+- `make --no-print-directory segment1a-p2 RUNS_ROOT="runs/fix-data-engine/segment_1A"`
+2) Run-id:
+- `09e24520babd99de27b05d5c1b11ea7c`
+3) Scorecard:
+- `runs/fix-data-engine/segment_1A/reports/segment1a_p2_1_baseline_09e24520babd99de27b05d5c1b11ea7c.json`
+
+Measured movement vs previous baseline:
+1) Global metrics:
+- `median(C_m)`: `37.0 -> 37.0` (no movement; still fails B band),
+- `Spearman(C_m,R_m)`: `0.2977 -> 0.3129` (now passes `>=0.30`),
+- `median(rho_m)`: `0.0 -> 0.0` (still fail),
+- pathologies remain clean (`share_exhausted=0`, `share_high_reject_gt16=0`).
+2) S6 reason diagnostics:
+- `CAPPED_BY_MAX_CANDIDATES`: `1885 -> 0` (expected effect),
+- `ZERO_WEIGHT_DOMAIN`: `2189 -> 2139` (still dominant),
+- `merchants_selected`: `1885 -> 1886` (negligible movement),
+- `K_realized_sum`: `6486 -> 6483` (flat).
+
+Interpretation:
+1) Removing cap fixed truncation as designed and improved rank-coupling.
+2) The dominant non-realization mode is still S3/S5 intersection emptiness (`ZERO_WEIGHT_DOMAIN`), not S4 Poisson intensity.
+3) With current candidate breadth/domain posture, P2.3-only levers cannot materially raise `rho`; substantive movement now depends on P2.2 candidate shaping.
+
+Decision:
+1) Keep this cap-relaxation patch (it improved Spearman without pathology regression).
+2) Treat P2.3 as partially advanced but blocked on upstream P2.2 completion for `rho` closure.
+
+Storage hygiene:
+1) Pruned superseded prior baseline run folder:
+- removed `runs/fix-data-engine/segment_1A/203d3c33f5fbe060184ad845a86b9e6c`
+2) Retained:
+- active trial run `09e24520babd99de27b05d5c1b11ea7c`,
+- all scorecards under `runs/fix-data-engine/segment_1A/reports/`.
+
+### Entry: 2026-02-12 22:41
+
+Design element: P2.2 execution plan (S3 candidate breadth shaping before further P2.3 tuning).
+Summary: After P2.3 trial-1, the dominant blocker is still S3/S5 domain mismatch (ZERO_WEIGHT_DOMAIN), so the next step is a strict P2.2 policy patch on S3 rule-ladder semantics.
+
+Diagnosis driving this step:
+1) Current S3 pattern is mostly binary:
+- many merchants get near-global foreign set (`~37` foreign candidates),
+- others get none.
+2) This comes from broad `ALLOW_CORE_MULTI` + large `GLOBAL_CORE` admit set, with little size-tier differentiation.
+3) P2.3 cap removal improved Spearman but did not materially change realization intensity, confirming upstream candidate-shape dependency.
+
+Planned P2.2 patch intent:
+1) Replace broad near-global default allow with size-tiered allow rules:
+- `large` merchants: broader admit set,
+- `mid` merchants: regional/core set,
+- `small` merchants: tighter local/core set.
+2) Keep deny rails intact (sanctioned and high-risk CNP).
+3) Ensure rule predicates are mutually constrained by `N_GE` ranges to avoid unintended union expansion.
+4) Keep all changes policy-only for this step (`config/layer1/1A/policy/s3.rule_ladder.yaml`).
+
+Expected movement:
+1) `median(C_m)` should contract materially toward target band.
+2) `ZERO_WEIGHT_DOMAIN` should reduce if candidate sets align better to realistic support.
+3) Re-run `S0->S6` and then evaluate whether a second P2.3 pass (S4 theta retune) is still needed.
+
+### Entry: 2026-02-12 22:58
+
+Design element: P2.2 result capture and transition to P2.3 retune.
+Summary: The S3 tiered policy patch delivered target candidate-breadth movement; now moving to S4 intensity tuning for realization lift.
+
+P2.2 run evidence:
+1) Run:
+- `726b32b705420828b6c5ca0d054117ab`
+2) Scorecard:
+- `runs/fix-data-engine/segment_1A/reports/segment1a_p2_1_baseline_726b32b705420828b6c5ca0d054117ab.json`
+3) Global movement:
+- `median(C_m): 37.0 -> 6.0` (B band achieved),
+- `Spearman(C_m,R_m): 0.3129 -> 0.4007` (passes),
+- `median(rho_m): 0.0 -> 0.0` (still blocked),
+- pathology caps remain pass.
+4) S6 diagnostics:
+- selected merchants reduced to `1649`,
+- empties still high (`2667`) with dominant `ZERO_WEIGHT_DOMAIN=2229`.
+
+Interpretation:
+1) Candidate over-breadth is corrected (P2.2 objective achieved materially).
+2) Remaining P2 gap is realization intensity/coverage (`rho`) under current S4/S6 coupling.
+
+P2.3 immediate plan:
+1) Tune `config/layer1/1A/policy/crossborder_hyperparams.yaml` ZTP theta terms upward (starting with intercept and site-slope) to increase `K_target` where admissible domain exists.
+2) Re-run `S0->S6` and compare:
+- `K_target_sum`, `K_realized_sum`, selected-merchant count,
+- `median(rho_m)` and pathology rails.
+
+### Entry: 2026-02-12 23:15
+
+Design element: P2.2 bridge pass planning (recoverable zero-support domains without reopening S1/S2).
+Summary: Diagnostics on run `50e974a99ee544735a6a09942923c447` show that most remaining `S6` empties are `ZERO_WEIGHT_DOMAIN` from S3 set coverage mismatch against S5 support, with a hard irreducible block from singleton-currency supports.
+
+Evidence captured before edit:
+1) `S6` reason counts: `ZERO_WEIGHT_DOMAIN=2223`, `NO_CANDIDATES=453`, `CAPPED_BY_MAX_CANDIDATES=0`.
+2) `ZERO_WEIGHT_DOMAIN` split by S3 rule:
+- `ALLOW_GLOBAL_LARGE=1146`,
+- `ALLOW_REGIONAL_MID=955`,
+- `ALLOW_LOCAL_SMALL_HUB=114`,
+- `ALLOW_LOCAL_SMALL_EUR=8`.
+3) High-impact missing support countries for zero-domain merchants are concentrated in small bridge groups:
+- alpine/nordic bridge: `LI`, `BV`, `SJ`, `FO`, `GL`,
+- USD support territories: `PR`, `PA`, `EC`, `SV`, `HT`,
+- commonwealth/oceania bridge: `GG`, `IM`, `JE`, `CX`, `CK`.
+4) Structural limit identified in current S5 support posture:
+- many currencies are singleton support only (home-only mass), so a subset of zero domains is irreducible under S3-only tuning.
+
+Decision for immediate next step:
+1) Apply a constrained S3 bridge-set patch in `config/layer1/1A/policy/s3.rule_ladder.yaml` only.
+2) Keep size-tier predicates unchanged; only add small bridge country-sets and attach them to existing allow rules.
+3) Re-run `S0->S6` and re-score to measure recoverable movement.
+4) If `median(rho_m)` remains pinned at `0.0`, escalate as a scope dependency: P2 requires S5 support broadening policy/code path for singleton-currency foreign support.
+
+### Entry: 2026-02-12 23:22
+
+Design element: P2.2 bridge execution result (S3 recoverable-domain pass) and blocker qualification.
+Summary: Applied constrained bridge sets to S3 admit surfaces and re-ran `S0->S6`. This materially reduced recoverable S6 empties and lifted coupling, but `median(rho_m)` remains pinned at `0.0`; remaining blocker is now dominated by S5 support sparsity.
+
+Patch applied:
+1) `config/layer1/1A/policy/s3.rule_ladder.yaml`
+- added bridge sets:
+  - `FX_BRIDGE_GLOBAL`: `LI,BV,SJ,FO,GL,PR,PA,EC,SV,HT,GG,CX,CK`
+  - `FX_BRIDGE_REGIONAL`: `LI,BV,FO,GL,PR,PA,SV,GG,CX`
+  - `FX_BRIDGE_LOCAL`: `LI,FO,PR,GG,CX,CK`
+- attached bridge sets to allow rules:
+  - `ALLOW_GLOBAL_LARGE`: `GLOBAL_CORE + FX_BRIDGE_GLOBAL`
+  - `ALLOW_REGIONAL_MID`: `REGIONAL_CORE + FX_BRIDGE_REGIONAL`
+  - `ALLOW_LOCAL_SMALL_HUB`: `LOCAL_CORE + FX_BRIDGE_LOCAL`
+
+Execution evidence:
+1) Run-id: `fd7a0b9d3b9b2b8b7fa9bcd2e9d355cd`
+2) Scorecard:
+- `runs/fix-data-engine/segment_1A/reports/segment1a_p2_1_baseline_fd7a0b9d3b9b2b8b7fa9bcd2e9d355cd.json`
+3) Global movement vs prior run (`50e974a99ee544735a6a09942923c447`):
+- `median(C_m): 6.0 -> 12.0` (still B-band),
+- `Spearman(C_m,R_m): 0.4123 -> 0.4805` (improved),
+- `median(rho_m): 0.0 -> 0.0` (no gate movement),
+- pathologies unchanged green.
+4) S6 diagnostics movement:
+- `selected`: `1670 -> 2424` (+754),
+- `empty`: `2676 -> 1888` (-788),
+- `ZERO_WEIGHT_DOMAIN`: `2223 -> 1436` (-787),
+- `NO_CANDIDATES`: `453 -> 452` (flat).
+
+Post-run ceiling diagnostics (same run):
+1) `merchants_with_C_gt_0 = 5036`.
+2) `merchants_with_R_gt_0 = 2424`.
+3) In S3 scope (`5826` merchants), only `3434` have any foreign support in current S5 weights (`foreign_possible=true`).
+4) Eligible subset (`4312`) has `2791` foreign-possible and `1521` foreign-impossible merchants.
+
+Interpretation:
+1) The bridge patch successfully captured most recoverable overlap loss attributable to S3 set coverage.
+2) Remaining `rho` blocker is upstream support sparsity: many merchants cannot realize foreign membership because S5 support for their assigned currency is effectively home-only.
+3) Additional S3/S4/S6-only tuning can still move selected counts incrementally, but cannot guarantee closure of `median(rho_m)` under current S5 support ceiling.
+
+Decision:
+1) Mark P2.2 bridge step as complete.
+2) Next remediation step should explicitly include S5 support broadening (policy or code path in `ccy_smoothing_params` / S5 runner) to lift foreign-support feasibility for singleton/home-only currencies.
+
+### Entry: 2026-02-12 23:30
+
+Design element: P2 scope extension decision - S5 support broadening lever.
+Summary: After confirming S3 bridge gains, `rho` remains blocked by foreign-support feasibility. Proceeding with a constrained S5 support extension that uses existing policy override channels (`min_share_iso`) and a minimal S5 runner change.
+
+Why extension is now justified:
+1) P2 bridge run improved `S6` materially (`selected +754`, `ZERO_WEIGHT_DOMAIN -787`) without touching S1/S2.
+2) Residual ceiling remains tight: in S3 scope, only `3434/5826` merchants are foreign-possible under current S5 support.
+3) P2 `rho` target cannot be closed robustly while a large merchant block is structurally home-only in S5 support.
+
+Chosen implementation path:
+1) S5 runner: extend `iso_union` to include policy override ISO keys (`alpha_iso`/`min_share_iso`) so policy can inject small foreign-support mass for selected currencies.
+2) S5 policy: add `overrides.min_share_iso` for the highest-impact singleton/home-only currencies with tiny foreign spillover shares (two-country bridge per currency).
+3) Keep changes deterministic and policy-bounded; no random fallback or ungated S6 behavior change.
+
+Guardrails:
+1) Keep added foreign mass small (`sum min_share_iso` per currency << 1.0).
+2) Do not alter S6 selection law; only improve S5 support domain realism.
+3) Re-run `S0->S6` and verify candidate band/pathology rails remain stable.
+
+### Entry: 2026-02-12 23:31
+
+Design element: P2.3 gating lever plan (eligibility expansion test after S5 support recovery).
+Summary: Latest run (`90545f47fb3a3993080b6483eab1bdd8`) now has strong support overlap (`ZERO_WEIGHT_DOMAIN=248`) and stable candidate band (`median(C_m)=12`), but `S6` gated-in merchants remain `4333/5863`, which caps selected merchants below the global `rho` median requirement.
+
+Decision:
+1) Run a policy-only eligibility expansion test by changing `crossborder_hyperparams.yaml` `eligibility.default_decision` from `deny` to `allow`.
+2) Keep explicit deny rules unchanged (`deny_sanctioned_home`, `deny_high_risk_cnp`) so hard-risk exclusions remain intact.
+3) Re-run `S0->S6` and inspect whether selected merchant count crosses the practical threshold needed for non-zero global median `rho`.
+
+### Entry: 2026-02-12 23:33
+
+Design element: P2.2/P2.3 joint fallback plan under expanded eligibility.
+Summary: `default_decision=allow` lifted S6 gated merchants strongly (`5734`) but also surfaced large `NO_CANDIDATES` (`666`) from S3 default-deny posture. Next step is a constrained S3 fallback allow for non-denied merchants.
+
+Planned patch:
+1) Add a low-priority S3 allow rule (`fallback general`) that admits a small local+bridge set.
+2) Keep deny rails untouched and higher precedence.
+3) Retain default deny as terminal guard but expect it to trigger rarely.
+
+Expected effect:
+1) Reduce `NO_CANDIDATES` materially.
+2) Increase selected merchants without exploding candidate breadth beyond B-band.
+3) Re-test whether global `median(rho_m)` can move off zero under high gated-in posture.
+
+### Entry: 2026-02-12 23:35
+
+Design element: Targeted tail-currency support pass after near-threshold run.
+Summary: Run `aac21c227858f925c5dcdddb42902e96` reached `selected=4922` with `NO_CANDIDATES=0`; remaining blocker is `ZERO_WEIGHT_DOMAIN=814`, concentrated in a small currency tail.
+
+Top remaining zero-domain currencies:
+- `XCD (90)`, `XCG (74)`, `MOP (58)`, `XPF (31)`, `NOK (27)`, `SCR (23)`, `CRC (22)`, `XAF (21)`, `HUF (20)`, `PAB (20)`.
+
+Decision:
+1) Apply targeted `min_share_iso` additions for these tail currencies in `ccy_smoothing_params.yaml` using existing local/global bridge countries.
+2) Re-run `S0->S6` and test if selected merchants cross the global median-rho tipping point.
+
+### Entry: 2026-02-12 23:38
+
+Design element: Final P2 shape-ratio pass (denominator control after support closure).
+Summary: Run `0c6ab3ebd659c7176d65dceef3f39109` crossed the structural threshold (`selected=5299`, `ZERO_WEIGHT_DOMAIN=349`, `NO_CANDIDATES=0`) and moved `median(rho_m)` above zero (`0.0435`), but still below B target (`0.10`).
+
+Interpretation:
+1) Remaining gap is denominator-heavy (candidate breadth too large relative to realized picks), not empty-domain collapse.
+2) Next lever is S3 bridge-set cardinality reduction to bring `C_m` down while keeping overlap support intact.
+
+Planned patch:
+1) Reduce `FX_BRIDGE_*` set sizes in `s3.rule_ladder.yaml` to only high-value support bridge countries.
+2) Keep fallback allow and deny rails unchanged.
+3) Re-run `S0->S6` and check whether `median(rho_m)` rises toward threshold without regressing Spearman/pathology rails.
+
+### Entry: 2026-02-12 23:42
+
+Design element: P2 deep-iteration result bundle (S3+S5+eligibility co-tuning).
+Summary: Executed iterative co-tuning to close the P2 realization gap. Best current run is `c83b1c5110b3d1c2803b7f01de959d5d`: candidate band and coupling are strong, empties are greatly reduced, and realization ratio moved materially, but global `median(rho_m)` still remains below B threshold.
+
+Implemented changes across the iteration:
+1) `packages/engine/src/engine/layers/l1/seg_1A/s5_currency_weights/runner.py`
+- Expanded S5 support union to include override ISO keys (`alpha_iso`/`min_share_iso`) so policy can add controlled foreign support to sparse currencies.
+2) `config/layer1/1A/allocation/ccy_smoothing_params.yaml`
+- Added broad `overrides.min_share_iso` coverage for singleton/home-only and tail currencies (progressively expanded to 49 currency override blocks).
+3) `config/layer1/1A/policy/s3.rule_ladder.yaml`
+- Added micro-hub and fallback-general allow rails,
+- Added bridge set scaffolding then tightened bridge set cardinalities,
+- Kept deny precedence and S6 caps/rails unchanged.
+4) `config/layer1/1A/policy/crossborder_hyperparams.yaml`
+- Set `eligibility.default_decision=allow` for high-gate realization pass (explicit deny rules still active).
+
+Latest best-run evidence (`c83b1c5110b3d1c2803b7f01de959d5d`):
+1) Scorecard:
+- `runs/fix-data-engine/segment_1A/reports/segment1a_p2_1_baseline_c83b1c5110b3d1c2803b7f01de959d5d.json`
+2) Global P2 metrics:
+- `merchant_count=10000`,
+- `merchants_with_C_gt_0=5683`,
+- `median(C_m)=10.0` (B-band pass),
+- `Spearman(C_m,R_m)=0.7846` (pass),
+- `median(rho_m)=0.0417` (still below 0.10),
+- pathologies remain pass.
+3) S6 mechanics (from `S6_VALIDATION.json`):
+- `gated_in=5682`, `selected=5167`, `empty=515`,
+- `NO_CANDIDATES=0`, `ZERO_WEIGHT_DOMAIN=515`.
+
+Important interpretation:
+1) The remediation mechanics are now functioning causally: candidate empties collapsed, selected merchants rose above 5k, and global rho moved from strict zero to a positive value.
+2) On the meaningful denominator (`C_m>0` merchants), the same run gives:
+- `median(rho | C>0)=0.1053` (meets B threshold),
+- `share(rho>=0.1 | C>0)=0.6069`.
+3) Remaining global-rho shortfall is dominated by denominator definition with large structural `C=0` mass inherited from upstream S1/S2 scope; further P2-only tuning has diminishing returns and high risk of realism drift.
+
+Decision trail conclusion:
+1) P2 candidate realism and coupling are materially remediated.
+2) Global `median(rho_m)` hard-gate (computed over all merchants) is now the singular blocker.
+3) Next decision requires governance choice:
+- either accept realization-ratio evaluation on `C_m>0` cohort (statistically meaningful for candidate-realization coherence),
+- or reopen upstream scope (P1/S1-S2 population support) to shrink structural `C=0` share.
+
+### Entry: 2026-02-12 23:47
+
+Design element: P2.2/P2.3 continuation - S3 large-tier denominator compression based on run-level diagnostics.
+Summary: The latest run (`c83b1c5110b3d1c2803b7f01de959d5d`) shows that `rho` shortfall is concentrated in the `ALLOW_GLOBAL_LARGE` branch, not in S4 target generation. Next step is a policy-only S3 compression pass to reduce over-wide candidate denominators for large/mid merchants while preserving overlap and coupling rails.
+
+Evidence captured before this edit:
+1) Global blocker remains ratio-density, not empties:
+- `median(C_m)=10.0` (pass), `Spearman=0.7846` (pass), `median(rho_m)=0.0417` (fail).
+- `rho>=0.1` count is `3449/10000` (needs `>=5000` for global median closure).
+2) S4 is not the active constraint:
+- `K_target_sum=119680` vs `K_realized_sum=18135`, with `shortfall_merchants=4078`.
+- Interpretation: S4 already emits high targets; realized ratio is constrained by candidate denominator/support alignment.
+3) Dominant low-rho bucket is S3 `ALLOW_GLOBAL_LARGE`:
+- merchant count `2676`, `median(C)=25`, `median(R)=2`, `median(rho)=0.0833`, `share(rho>=0.1)=0.417`.
+- By contrast `ALLOW_REGIONAL_MID` already performs materially better (`median(rho)=0.1053`).
+
+Decision:
+1) Run a strict S3 policy pass first (no S4/S6 code changes):
+- tighten large-tier entry from `N_GE 20` to `N_GE 35`;
+- keep mid-tier as `8 <= N < 35`;
+- compress admit-set cardinalities (`GLOBAL_CORE`, `REGIONAL_CORE`, `FX_BRIDGE_*`) to realistic, support-aligned subsets.
+2) Keep deny precedence, fallback allow rail, and eligibility posture unchanged.
+3) Re-run `S0->S6` and evaluate closure against the same P2 scorecard + S6 diagnostics.
+
+Acceptance criteria for this pass:
+1) Preserve `median(C_m)` in B band (`5..15`) and `Spearman>=0.30`.
+2) Improve global `median(rho_m)` materially toward `>=0.10`.
+3) Avoid regression in pathology rails and avoid large `NO_CANDIDATES` rebound.
+
+### Entry: 2026-02-12 23:52
+
+Design element: P2.3 targeted support-density lift after S3 compression pass.
+Summary: S3 compression improved global `rho` materially (`0.0417 -> 0.0625`) but still misses B threshold. Post-run diagnostics show the remaining gap is concentrated in specific settlement-currency cohorts with `A_filtered<=1` and/or `ZERO_WEIGHT_DOMAIN`, not in S4 intensity.
+
+Evidence from run `ecfbd48ee04ccf5d965556bbf8c9266c`:
+1) Global posture:
+- `median(C_m)=8.0` (pass), `Spearman=0.7453` (pass), `median(rho_m)=0.0625` (fail), `rho>=0.1 count=4290` (needs +710).
+2) S6 mechanics:
+- `selected=5055`, `ZERO_WEIGHT_DOMAIN=625`, `A_filtered_sum=19115`, `shortfall_merchants=3958`.
+3) Currency cohorts with highest residual failure burden (fail-rho / zero-domain):
+- `CHF (164 / 0)`, `USD (132 / 0)`, `MOP (132 / 102)`, `AUD (123 / 119)`, `NZD (75 / 75)`, `GBP (74 / 16)`, `QAR (69 / 0)`, `HKD (60 / 0)`, `KRW (41 / 0)`.
+- Interpretation: many merchants are stuck at `R=1` under current support density; pushing foreign support breadth for these currencies should move a large block above `rho>=0.1`.
+
+Decision:
+1) Apply targeted S5 policy widening only (`ccy_smoothing_params.yaml`):
+- add/expand `overrides.min_share_iso` for the high-impact currencies above using countries that intersect current S3 admit sets (GB/DE/FR/US/AE/SG/HK).
+2) Keep S3 rules, S4 theta, and S6 selection law unchanged for this pass.
+3) Re-run `S0->S6` and measure:
+- global `median(rho_m)` movement,
+- `ZERO_WEIGHT_DOMAIN` reduction,
+- `rho>=0.1` count delta.
+
+### Entry: 2026-02-12 23:58
+
+Design element: P2.3 closure pass result + replay stability check.
+Summary: Applied targeted S5 `min_share_iso` expansions for high-impact sparse currencies and reran `S0->S6` twice. This closed the remaining global realization-ratio hard gate while preserving candidate-band and pathology rails.
+
+Patch applied:
+1) `config/layer1/1A/allocation/ccy_smoothing_params.yaml`
+- added/expanded overrides for:
+  - `USD`, `GBP`, `AUD`, `NZD`, `CHF`,
+  - `MOP` (expanded), `QAR` (expanded), `HKD` (expanded), `KRW` (expanded).
+- intent: increase support density on countries already present in current S3 admit sets (mainly `GB/DE/FR/US/AE/SG/HK`) so `A_filtered` and realized `R_m` are no longer pinned near 1 for these cohorts.
+
+Primary run evidence:
+1) Run `9901b537de3a5a146f79365931bd514c`
+- `median(C_m)=8.0` (pass),
+- `Spearman(C_m,R_m)=0.7891` (pass),
+- `median(rho_m)=0.1176` (pass; first global closure above `0.10`),
+- pathology rails pass.
+2) S6 diagnostics moved in the right direction:
+- `selected: 5055 -> 5415`,
+- `ZERO_WEIGHT_DOMAIN: 625 -> 271`,
+- `membership rows: 16832 -> 19443`.
+
+Replay stability evidence:
+1) Replay run `d6e04d5dc57b9dc3f41ac59508cafd3f` (same seed/config)
+2) Scorecard metrics are byte-identical at key P2 gates:
+- `median(C_m)=8.0`, `Spearman=0.7891`, `median(rho_m)=0.1176`, pathology rails unchanged.
+3) S6 summary is identical (`selected=5415`, `ZERO_WEIGHT_DOMAIN=271`, `shortfall=4221`).
+
+Interpretation and decision:
+1) P2 core B checks are now met globally and stable across two consecutive same-seed runs.
+2) Remaining stratified softness is concentrated in `card_not_present` median surfaces (still zero-dominant), but this no longer blocks global P2 closure criteria as defined for this phase.
+3) Proceed to mark P2.3 complete and advance P2.4 lock posture with this policy bundle.
+
+### Entry: 2026-02-12 23:59
+
+Design element: P2 storage retention enforcement after closure runs.
+Summary: Applied retention rule from Build Plan Section 4.10 to prevent run-root growth during iterative remediation.
+
+Action:
+1) Pruned superseded run-id folders under `runs/fix-data-engine/segment_1A`.
+2) Kept only:
+- `c83b1c5110b3d1c2803b7f01de959d5d` (pre-closure anchor),
+- `9901b537de3a5a146f79365931bd514c` (closure run),
+- `d6e04d5dc57b9dc3f41ac59508cafd3f` (same-seed stability replay).
+
+Rationale:
+1) Preserve enough evidence for causal comparison + lock verification.
+2) Avoid unnecessary disk growth from superseded exploratory runs.
+
+### Entry: 2026-02-13 04:33
+
+Design element: P3 build-plan expansion structure (pre-edit planning note).
+Summary: User requested P3 plan expansion. I will refactor Phase P3 into explicit sub-phases with clear DoDs, while preserving P1/P2 freeze boundaries and introducing conditional reopen protocol only if P3-local levers cannot achieve target mismatch realism.
+
+Decisions to encode in plan:
+1) Freeze guardrails first: keep P1/P2 upstream surfaces immutable by default.
+2) Baseline + uncertainty-aware scorer before tuning.
+3) Identity semantics hardening as first execution block in P3.
+4) Legal mismatch closure attempt under frozen upstream.
+5) Conditional minimal reopen (explicit approval required) if mismatch metrics remain out-of-band.
+6) P3 lock + replay stability criteria aligned to two-run same-seed checks.
+
+### Entry: 2026-02-13 04:34
+
+Design element: P3 build-plan expansion committed.
+Summary: Rewrote the P3 section in `segment_1A.build_plan.md` into explicit sub-phases with DoDs and fail-closed reopen protocol.
+
+What was added:
+1) Binding freeze guardrails for P3 execution (P1/P2 immutable by default).
+2) Fixed scoring authority choices:
+- size metric = `n_outlets` deciles,
+- identity contract = merchant-local `site_id` semantics.
+3) Explicit P3 target definitions:
+- mismatch rate bands,
+- size-gradient thresholds,
+- duplicate-semantics quality,
+- CI requirement for acceptance.
+4) P3.1..P3.4 phase decomposition with stepwise DoDs.
+5) Calibration/anti-forging method and hard-veto behavior.
+6) Conditional minimal reopen protocol with explicit approval requirement and ordered blast-radius control.
+
+Outcome:
+- P3 plan now provides a concrete execution map that can be run phase-by-phase without reopening locked P1/P2 surfaces by accident.
+### Entry: 2026-02-13 04:39
+
+Design element: P3.1 baseline/scoring harness implementation plan (pre-edit decision trail).
+Summary: Starting Phase P3.1 with locked P1/P2 posture. The objective is to add a repeatable execution/scoring harness for `S0->S8` that computes P3 metrics and uncertainty without changing engine behavior yet.
+
+Authorities read before implementation:
+1) `docs/model_spec/data-engine/layer-1/specs/state-flow/1A/state.1A.s8.expanded.md`
+2) `docs/model_spec/data-engine/layer-1/specs/state-flow/1A/state.1A.s9.expanded.md`
+3) `docs/model_spec/data-engine/layer-1/specs/contracts/1A/schemas.1A.yaml`
+4) `docs/model_spec/data-engine/layer-1/specs/contracts/1A/schemas.layer1.yaml`
+5) `docs/model_spec/data-engine/layer-1/specs/contracts/1A/dataset_dictionary.layer1.1A.yaml`
+6) `docs/reports/eda/segment_1A/segment_1A_remediation_report.md`
+7) `docs/model_spec/data-engine/implementation_maps/segment_1A.build_plan.md` (P3 section)
+
+Decisions:
+1) Implement P3.1 as tooling + orchestration only (`Makefile` + `tools/*`) so upstream locked surfaces remain untouched.
+2) Add `segment1a-p3` pipeline target running `S0->S8`, then output verification, then baseline scorecard write.
+3) Add `verify_segment1a_p3_outputs.py` to assert required P3 surfaces exist for the scored run:
+- `outlet_catalogue`,
+- `rng_event_nb_final`,
+- `s3_candidate_set`,
+- `s6_membership`,
+- `rng_event_sequence_finalize`.
+4) Add `score_segment1a_p3_1_baseline.py` with deterministic metrics:
+- global mismatch rate,
+- top-vs-bottom size gradient using merchant size deciles from `rng_event_nb_final.n_outlets` (fallback `raw_nb_outlet_draw` if needed),
+- Wilson 95% CI for mismatch rates,
+- bootstrap CI for size gradient,
+- stratified outputs by `channel`, broad `MCC`, and `GDP bucket`,
+- duplicate diagnostics aligned to local `site_id` semantics (flag only unexplained anomalies under `(merchant_id, legal_country_iso)` contract).
+5) Keep scorer deterministic by exposing `--bootstrap-seed` and fixed defaults.
+
+Planned execution/validation:
+1) Run `make segment1a-p3 RUNS_ROOT=runs/fix-data-engine/segment_1A`.
+2) Capture produced baseline report under `runs/fix-data-engine/segment_1A/reports`.
+3) Update build-plan checkboxes and log outcomes.
+### Entry: 2026-02-13 04:48
+
+Design element: P3.1 blocker triage for S7 dirichlet diagnostics lane.
+Summary: `segment1a-p3` run failed before S8 with `F4:E_DIRICHLET_NONPOS` in `S7` (`alpha0 * share` produced zero alpha for at least one domain element). This prevents any P3.1 baseline scorecard generation.
+
+Evidence:
+1) Failure record:
+- `runs/fix-data-engine/segment_1A/659bb74ad86a3edf37f8a376a13fb550/.../failure.json`
+- code `E_DIRICHLET_NONPOS`, detail `alpha_nonpositive`, `alpha: 0.0`.
+2) Code path:
+- `packages/engine/src/engine/layers/l1/seg_1A/s7_integerisation/runner.py`
+- `_expected_dirichlet_payload(...)` raises hard failure whenever `alpha_i <= 0`.
+3) Causality:
+- `share` can be zero for some domain entries (still valid for deterministic integerisation lane),
+- dirichlet event lane is diagnostic and must not block core S7/S8 publication when deterministic lane is otherwise valid.
+
+Decision:
+1) Apply minimal robustness patch in `S7` dirichlet event generation only:
+- keep fail-closed for non-finite or negative alpha,
+- floor exact/near-zero alpha to a tiny positive constant to keep Gamma/Dirichlet event generation valid.
+2) Do not change S3/S4/S5/S6 locked knobs or P2 surfaces.
+3) Re-run `segment1a-p3` after patch and continue P3.1 baseline scoring.
+### Entry: 2026-02-13 04:48
+
+Design element: S7 dirichlet alpha-floor robustness patch (blocker resolution for P3.1 execution).
+Summary: Implemented the minimal patch to prevent `E_DIRICHLET_NONPOS` when a domain share is exactly zero.
+
+File changed:
+- `packages/engine/src/engine/layers/l1/seg_1A/s7_integerisation/runner.py`
+
+Mechanics:
+1) Added `_DIRICHLET_ALPHA_FLOOR = 1e-12`.
+2) In `_expected_dirichlet_payload(...)`:
+- keep hard-fail for non-finite or negative alpha,
+- floor `alpha_i <= 0` to `_DIRICHLET_ALPHA_FLOOR` instead of raising.
+
+Reasoning:
+1) The dirichlet lane in S7 is diagnostic and should not abort the run on zero-share entries while deterministic integerisation remains valid.
+2) This patch is localized to dirichlet event generation and does not alter locked P1/P2 surfaces or S3/S4/S5/S6 policy posture.
+
+Validation:
+1) `python -m py_compile packages/engine/src/engine/layers/l1/seg_1A/s7_integerisation/runner.py` (pass).
+2) Next: rerun `segment1a-p3` and confirm S7->S8 completion plus scorecard emission.
+### Entry: 2026-02-13 05:52
+
+Design element: Corrective adjustment to S7 dirichlet blocker fix.
+Summary: The alpha-floor patch (`1e-12`) prevented immediate failure but caused pathological Gamma sampling time for at least one merchant during S7, stalling the run. Replaced with a skip-on-nonpositive-share strategy for dirichlet diagnostics emission.
+
+Corrective changes:
+1) `packages/engine/src/engine/layers/l1/seg_1A/s7_integerisation/runner.py`
+- Removed alpha-floor behavior.
+- Restored strict alpha check (`alpha_i <= 0` remains invalid for payload generation).
+- Added merchant-local gating:
+  - when any `share <= 0`, do not construct/write dirichlet payload for that merchant,
+  - continue deterministic integerisation and residual-rank events.
+- Updated replay/write branches to treat dirichlet payload as optional per merchant under this gate.
+
+Operational action:
+1) Terminated stuck `segment1a-p3` process chain for run `ddc8e46d9e25fe160800ad878d1fa8c9` (make/bash/python) to prevent runaway runtime and unblock rerun.
+
+Validation:
+1) `py_compile` pass for patched S7 runner.
+2) Next: rerun `segment1a-p3` and capture baseline scorecard.
+### Entry: 2026-02-13 05:56
+
+Design element: P3.1 execution closure and baseline evidence.
+Summary: After corrective S7 dirichlet handling, `segment1a-p3` completed end-to-end (`S0->S8`) and emitted the first P3.1 baseline scorecard.
+
+Execution evidence:
+1) Command:
+- `make segment1a-p3 RUNS_ROOT=runs/fix-data-engine/segment_1A`
+2) Accepted run:
+- `run_id=d94f908cd5715404af1bfb9792735147`
+3) Scorecard:
+- `runs/fix-data-engine/segment_1A/reports/segment1a_p3_1_baseline_d94f908cd5715404af1bfb9792735147.json`
+
+P3.1 baseline outcomes (global):
+1) `home_legal_mismatch_rate=0.3971` (95% Wilson CI `[0.3946, 0.3996]`) -> fails B/B+ band.
+2) `size_gradient_pp=+1.84pp` (bootstrap 95% CI `[-2.44, +6.28]`) -> fails B/B+ threshold.
+3) Identity semantics diagnostics:
+- unexplained duplicate anomalies = `0` (pass),
+- expected cross-country site_id reuse present (contract-consistent).
+
+Interpretation for next phase:
+1) P3.1 harness is now operational and deterministic.
+2) Baseline confirms mismatch-level and size-gradient realism gaps remain the active P3 closure blockers.
+3) P3.2/P3.3 can proceed with this scorecard as quantitative authority.
+
+Storage hygiene action:
+1) Removed interrupted run folder `ddc8e46d9e25fe160800ad878d1fa8c9`.
+2) Retained run folders:
+- `c83b1c5110b3d1c2803b7f01de959d5d`,
+- `9901b537de3a5a146f79365931bd514c`,
+- `d6e04d5dc57b9dc3f41ac59508cafd3f`,
+- `d94f908cd5715404af1bfb9792735147`.
+
+Documentation updates:
+1) Marked P3.1 DoD checkboxes complete in `segment_1A.build_plan.md`.
+2) Added baseline run/report evidence line under P3.1 section.
+### Entry: 2026-02-13 05:57
+
+Design element: P3 scorecard script warning cleanup.
+Summary: Replaced deprecated Polars call in `tools/score_segment1a_p3_1_baseline.py` from `with_row_count` to `with_row_index` to remove runtime warning noise in baseline execution output.
+
+Validation:
+1) `python -m py_compile tools/score_segment1a_p3_1_baseline.py` (pass).
+### Entry: 2026-02-13 05:58
+
+Design element: Post-cleanup scorer re-run.
+Summary: Re-ran `tools/score_segment1a_p3_1_baseline.py` on run `d94f908cd5715404af1bfb9792735147` to refresh the report after warning cleanup; output path unchanged.
+
+### Entry: 2026-02-13 06:22
+
+Design element: P3.2/P3.3 tuning kickoff from locked P3.1 baseline authority.
+Summary: Opened tuning pass for mismatch-level and size-gradient closure using baseline run `d94f908cd5715404af1bfb9792735147` as the quantitative authority.
+
+Baseline-led diagnosis:
+1) Baseline remains materially off target:
+- `home_legal_mismatch_rate = 0.3971` (target B: `0.10..0.25`),
+- `size_gradient_pp = +1.84pp` (target B: `>= +5pp`).
+2) Decile pattern from baseline run is broadly flat/high instead of enterprise-skewed:
+- decile mismatch sits around `~0.34..0.42` with no durable top-minus-bottom lift.
+3) Concentration source is S7 country-count allocation, not S8 row materialization:
+- S8 is a count materializer (uses S7 handoff when `emit_integerised_counts=false`, which is current posture),
+- merchants with many foreign members are receiving near-foreign-dominant counts under current S7 proportional allocation, driving broad mismatch inflation.
+
+Decision:
+1) Keep P1/P2 locked surfaces frozen.
+2) Execute P3.3 via the first approved minimal reopen surface in Section 5.8: `S7` count-allocation posture only.
+3) Introduce deterministic, size-conditioned home-share flooring in S7 policy/runner:
+- stronger home floor for small merchants,
+- progressively relaxed floor for larger merchants.
+4) Preserve hard invariants:
+- exact count sum to `N`,
+- residual-rank/event integrity,
+- deterministic replay,
+- no change to S3/S4/S6 membership topology.
+
+Implementation plan for this pass:
+1) Extend `s7_integerisation` policy schema and runtime parser with optional `home_bias_lane`.
+2) Apply home-share floor transform before integerisation (post domain restriction/renormalization, pre floor/residual ranking).
+3) Tune piecewise floors against baseline using `n_outlets` buckets.
+4) Run fresh `segment1a-p3`, score P3 metrics, and verify no P2 global-gate regression.
+
+### Entry: 2026-02-13 06:24
+
+Design element: P3.3 S7 home-bias implementation and first execution result.
+Summary: Implemented size-conditioned home-share flooring in S7 (`home_bias_lane`) and executed a first P3 run. The first run failed at S7 due a floating edge in residual quantization (`residual_out_of_range`) introduced by near-1.0 rounded residuals.
+
+Files changed:
+1) `packages/engine/src/engine/layers/l1/seg_1A/s7_integerisation/runner.py`
+2) `config/layer1/1A/allocation/s7_integerisation_policy.yaml`
+3) `docs/model_spec/data-engine/layer-1/specs/contracts/1A/schemas.layer1.yaml`
+
+Implemented mechanics:
+1) Added optional `home_bias_lane` to S7 policy parser + schema:
+- `enabled`,
+- ordered piecewise tiers `(max_n_outlets, home_share_min)`.
+2) Added deterministic share transform before integerisation:
+- enforce tiered minimum home share by `n_outlets`,
+- proportionally downscale foreign shares,
+- keep exact normalization and deterministic ordering intact.
+3) Added S7 metrics counters for home-bias usage.
+
+First run outcome:
+1) command: `make segment1a-p3 RUNS_ROOT=runs/fix-data-engine/segment_1A`
+2) run id: `66b5e575c89a1767eef8c5d600620ad4`
+3) failure:
+- `F4:E_RESIDUAL_QUANTISATION` / `detail=residual_out_of_range`.
+
+Corrective decision:
+1) Harden `_quantize_residual` to clamp binary64 edge artifacts only:
+- near-zero negative artifacts -> `0.0`,
+- near-one artifacts -> `0.99999999` at `dp=8`.
+2) Keep hard-fail behavior for genuine out-of-domain residuals.
+
+### Entry: 2026-02-13 06:32
+
+Design element: P3.3 closure run under frozen upstream.
+Summary: After residual quantization hardening, P3 run completed and closed P3.3 targets on the first valid tuned run.
+
+Execution evidence:
+1) command: `make segment1a-p3 RUNS_ROOT=runs/fix-data-engine/segment_1A`
+2) run id: `4ebfb92774e2db438989863f8f641162`
+3) scorecard:
+- `runs/fix-data-engine/segment_1A/reports/segment1a_p3_1_baseline_4ebfb92774e2db438989863f8f641162.json`
+
+P3 global outcomes:
+1) `home_legal_mismatch_rate = 0.118602` (B pass).
+2) `size_gradient_pp = +11.305` (B/B+ pass).
+3) unexplained duplicate anomalies = `0` (pass).
+
+P2 veto check (locked surfaces):
+1) report:
+- `runs/fix-data-engine/segment_1A/reports/segment1a_p2_regression_4ebfb92774e2db438989863f8f641162.json`
+2) global gates remained pass (`median_C`, `Spearman(C,R)`, `median_rho`, pathology caps).
+
+### Entry: 2026-02-13 06:33
+
+Design element: P3.2 identity semantics contract hardening.
+Summary: Hardened identity-contract language and fail-closed validator behavior for local `site_id` scope.
+
+Files changed:
+1) `docs/model_spec/data-engine/layer-1/specs/contracts/1A/schemas.1A.yaml`
+2) `docs/model_spec/data-engine/layer-1/specs/contracts/1A/dataset_dictionary.layer1.1A.yaml`
+3) `packages/engine/src/engine/layers/l1/seg_1A/s9_validation/runner.py`
+
+Implemented mechanics:
+1) Explicitly documented `site_id` as merchant-local sequence token scoped to `(merchant_id, legal_country_iso)` and non-global identity.
+2) Added explicit S9 rejection for `duplicate_local_site_id` within local scope.
+
+### Entry: 2026-02-13 06:44
+
+Design element: Authority-consistent rerun + P3.2/P3.3 evidence lock.
+Summary: Re-ran P3 after contract wording updates to align sealed lineage with current authority files; confirmed P3 metrics hold and S9 passes.
+
+Execution evidence:
+1) command:
+- `make segment1a-p3 RUNS_ROOT=runs/fix-data-engine/segment_1A`
+2) accepted run id:
+- `59cc9b7ed3a1ef84f3ce69a3511389ee`
+3) P3 report:
+- `runs/fix-data-engine/segment_1A/reports/segment1a_p3_1_baseline_59cc9b7ed3a1ef84f3ce69a3511389ee.json`
+4) P2 regression report:
+- `runs/fix-data-engine/segment_1A/reports/segment1a_p2_regression_59cc9b7ed3a1ef84f3ce69a3511389ee.json`
+5) S9 decision:
+- `make segment1a-s9 ... SEG1A_S9_RUN_ID=59cc9b7ed3a1ef84f3ce69a3511389ee` -> `PASS`.
+
+Locked outcomes on accepted run:
+1) `home_legal_mismatch_rate = 0.116997` (B pass).
+2) `size_gradient_pp = +11.660` (B/B+ pass).
+3) `no_unexplained_duplicate_anomalies = true`.
+4) P2 global gates non-regressed (all global checks pass).
+
+### Entry: 2026-02-13 06:45
+
+Design element: B+ mismatch targeting pass before P3.4 lock.
+Summary: Opened a constrained retune pass to move `home_legal_mismatch_rate` from B-only (`~0.117`) into B+ band (`>=0.12`) while preserving the already-closed size gradient and identity checks.
+
+Decision:
+1) Keep the existing S7 home-bias mechanism and avoid widening blast radius.
+2) Tune only the largest-merchant tier first (final `home_bias_lane` tier) to raise mismatch mostly in top decile, minimizing bottom-decile inflation risk.
+3) Re-run `segment1a-p3`, check:
+- P3 B+ mismatch gate,
+- P3 gradient + identity gates,
+- P2 global non-regression veto.
+4) If still below B+ lower bound, apply one more small tier adjustment and repeat once.
+
+### Entry: 2026-02-13 07:35
+
+Design element: P3.3 B+ mismatch retune iteration A (largest-tier only).
+Summary: Applied first constrained adjustment on `home_bias_lane` largest tier to raise mismatch into B+ without reopening frozen upstream surfaces.
+
+Change:
+1) `config/layer1/1A/allocation/s7_integerisation_policy.yaml`
+- final tier `home_share_min`: `0.65 -> 0.62`.
+
+Execution evidence:
+1) command:
+- `make segment1a-p3 RUNS_ROOT=runs/fix-data-engine/segment_1A`
+2) run id:
+- `b717147dacb3830324cc8ff32a018588`
+3) scorecard:
+- `runs/fix-data-engine/segment_1A/reports/segment1a_p3_1_baseline_b717147dacb3830324cc8ff32a018588.json`
+
+Outcome:
+1) `home_legal_mismatch_rate = 0.119680` (still below B+ lower bound `0.12`).
+2) `size_gradient_pp = +12.330` (B/B+ pass).
+3) identity anomalies remain `0`.
+
+Decision:
+1) Keep blast radius fixed (S7 final tier only).
+2) Apply one smaller follow-up step to avoid overshoot.
+
+### Entry: 2026-02-13 07:40
+
+Design element: P3.3 B+ mismatch retune iteration B and acceptance.
+Summary: Applied second minimal S7 tier adjustment; reached B+ mismatch while preserving gradient and identity posture.
+
+Change:
+1) `config/layer1/1A/allocation/s7_integerisation_policy.yaml`
+- final tier `home_share_min`: `0.62 -> 0.61`.
+
+Execution evidence:
+1) command:
+- `make segment1a-p3 RUNS_ROOT=runs/fix-data-engine/segment_1A`
+2) accepted run id:
+- `da3e57e73e733b990a5aa3a46705f987`
+3) scorecard:
+- `runs/fix-data-engine/segment_1A/reports/segment1a_p3_1_baseline_da3e57e73e733b990a5aa3a46705f987.json`
+4) P2 guard:
+- `runs/fix-data-engine/segment_1A/reports/segment1a_p2_regression_da3e57e73e733b990a5aa3a46705f987.json`
+
+Accepted outcomes:
+1) `home_legal_mismatch_rate = 0.122534` (B+ pass).
+2) `size_gradient_pp = +13.076` (B/B+ pass).
+3) `no_unexplained_duplicate_anomalies = true`.
+4) P2 global gates remain pass (`median_C`, `Spearman(C,R)`, `median_rho`, pathology caps).
+
+### Entry: 2026-02-13 07:49
+
+Design element: P3.4 same-seed replay stability and lock evidence.
+Summary: Executed one replay run under unchanged knobs to validate determinism/stability before lock.
+
+Execution evidence:
+1) command:
+- `make segment1a-p3 RUNS_ROOT=runs/fix-data-engine/segment_1A`
+2) replay run id:
+- `a212735023c748a710e4b851046849f8`
+3) replay scorecard:
+- `runs/fix-data-engine/segment_1A/reports/segment1a_p3_1_baseline_a212735023c748a710e4b851046849f8.json`
+4) replay P2 guard:
+- `runs/fix-data-engine/segment_1A/reports/segment1a_p2_regression_a212735023c748a710e4b851046849f8.json`
+
+Replay verification against accepted run `da3e57e73e733b990a5aa3a46705f987`:
+1) same `seed=42`.
+2) same `parameter_hash=79d755e7132bdcc9915b5db695a42a0ab5261b14b3d72e84c38ed4c725d874dd`.
+3) metric deltas are exactly zero:
+- `home_legal_mismatch_rate`,
+- `size_gradient_pp_top_minus_bottom`,
+- `top_decile_mismatch_rate`,
+- `bottom_deciles_mismatch_rate`.
+
+Decision:
+1) P3.4 DoD is satisfied under deterministic replay (no seed-luck evidence).
+2) Lock record for P3 accepts run pair `da3...` and `a212...` with final S7 knob posture (`home_share_min=0.61` on largest tier).
+
+### Entry: 2026-02-13 08:01
+
+Design element: P3.4 handoff closure + storage hygiene.
+Summary: Executed requested prune of the superseded P3 tuning run and captured explicit P3 handoff closure posture in the build plan.
+
+Execution:
+1) removed run folder:
+- `runs/fix-data-engine/segment_1A/b717147dacb3830324cc8ff32a018588`.
+2) verified retained run-id folders:
+- `59cc9b7ed3a1ef84f3ce69a3511389ee`,
+- `9901b537de3a5a146f79365931bd514c`,
+- `a212735023c748a710e4b851046849f8`,
+- `c83b1c5110b3d1c2803b7f01de959d5d`,
+- `d6e04d5dc57b9dc3f41ac59508cafd3f`,
+- `d94f908cd5715404af1bfb9792735147`,
+- `da3e57e73e733b990a5aa3a46705f987`.
+
+Documentation closure:
+1) Added `P3.4 Handoff closure record` section in `segment_1A.build_plan.md` with:
+- authority run ids for acceptance and replay,
+- explicit prune record,
+- retained run list,
+- frozen-for-P4 assumption.
+
+Decision:
+1) P3 is now handoff-closed for progression to P4 with explicit lock posture and leaner storage footprint.
+
+### Entry: 2026-02-13 08:13
+
+Design element: P4 planning expansion (artifact completeness + auditability).
+Summary: Expanded P4 from a high-level placeholder into a concrete phase ladder (`P4.1` to `P4.5`) with explicit no-regression invariants, state-aligned order, and closure DoDs.
+
+Planning authority checked:
+1) `docs/reports/eda/segment_1A/segment_1A_remediation_report.md` (missing-artifact closure intent + hard gate posture).
+2) `docs/model_spec/data-engine/layer-1/specs/contracts/1A/artefact_registry_1A.yaml`.
+3) `docs/model_spec/data-engine/layer-1/specs/contracts/1A/dataset_dictionary.layer1.1A.yaml`.
+4) Current accepted lock run presence audit:
+- `run_id=da3e57e73e733b990a5aa3a46705f987`.
+
+Observed baseline gap snapshot (from lock run):
+1) `s3_integerised_counts`: absent.
+2) `s3_site_sequence`: absent.
+3) `sparse_flag`: absent.
+4) `merchant_abort_log`: absent.
+5) `hurdle_stationarity_tests`: absent.
+
+Design decisions captured in plan:
+1) P4 must preserve P1/P2/P3 statistical lock posture.
+2) P4 must avoid silent S8 authority drift while adding `s3_integerised_counts`/`s3_site_sequence`.
+3) Missing diagnostics artifacts should use explicit zero-row schema-valid emission when no events exist, not omission.
+4) Closure requires deterministic replay proof plus non-regression against locked P1/P2/P3 metrics.
+
+Documentation changes:
+1) `docs/model_spec/data-engine/implementation_maps/segment_1A.build_plan.md`
+- added:
+  - `6.6 Baseline gap snapshot`,
+  - `6.7 P4 invariants`,
+  - `6.8 P4 phased approach and DoD` (`P4.1`..`P4.5`),
+  - `6.9 Planned execution order`.
+
+Execution status:
+1) Planning-only update completed.
+2) No runtime/state code changed in this step.
+
+### Entry: 2026-02-13 08:23
+
+Design element: P4 one-pass implementation plan (execution start).
+Summary: Opened implementation pass to close all five missing P4 artifacts in one run while preserving locked P1/P2/P3 statistical posture.
+
+Pinned implementation strategy before edits:
+1) Keep S8 count authority on the locked `s7_counts_handoff` path.
+2) Enable S3 artifact emission (`s3_integerised_counts`, `s3_site_sequence`) for audit completeness without forcing S8 to consume them.
+3) Enable S5 `sparse_flag` emission in standard segment run profile.
+4) Emit `merchant_abort_log` as schema-valid zero-row artifact from S0 when no soft abort events exist.
+5) Emit `hurdle_stationarity_tests` from S9 as deterministic diagnostics derived from active hurdle/NB coefficient bundles.
+6) Extend S9 to fail-closed on missing required P4 artifacts (presence + schema validity), then run full `segment1a-p4`.
+
+Reasoning:
+1) This closes artifact completeness and auditability with minimal blast radius.
+2) It avoids hidden behavioral reopen of already-accepted P1/P2/P3 realism posture.
+3) It keeps deterministic replay posture testable under one command profile for P4 closure.
+
+### Entry: 2026-02-13 08:38
+
+Design element: P4 execution non-regression corrective micro-step.
+Summary: First P4 full run closed artifact completeness but produced a slight P3 mismatch regression just below B+ (`0.11985` vs B+ lower bound `0.12`) under the new sealed hash surface. Opened one minimal S7 retune step to restore B+ before finalizing P4 closure evidence.
+
+Observed on run `19e251361b0b1bfb185f315e91ee07fa`:
+1) P4 artifact check: pass (`all 5 required artifacts present`).
+2) P2 global checks: pass.
+3) P3:
+- `home_legal_mismatch_rate = 0.119848` (B pass, B+ miss by ~0.000152),
+- `size_gradient_pp = +12.320` (B/B+ pass),
+- identity anomalies = `0`.
+
+Corrective decision:
+1) Keep P4 artifact wiring untouched.
+2) Apply smallest possible S7 home-bias adjustment on largest tier only:
+- `home_share_min: 0.610 -> 0.609`.
+3) Re-run `segment1a-p4` once and re-check P2/P3 scorecards.
+
+### Entry: 2026-02-13 09:02
+
+Design element: P4 closure record (full run + same-seed replay + storage hygiene).
+Summary: Completed P4 one-pass closure with required artifact completeness, preserved locked S8 authority path, maintained B+ realism posture on replay, and pruned superseded P4 run folders.
+
+Execution evidence:
+1) full sealed run:
+- command: `make segment1a-p4 RUNS_ROOT=runs/fix-data-engine/segment_1A`
+- run id: `8ea58c10713dab97b1234fba99c0138e`
+- result: `segment1a-p4-check PASS` (all 5 required artifacts present).
+2) same-seed replay:
+- command: `make segment1a-p4 RUNS_ROOT=runs/fix-data-engine/segment_1A`
+- run id: `b97f71bf357ffc8a28d80ea14894d6c4`
+- result: `segment1a-p4-check PASS` (all 5 required artifacts present).
+3) guard checks on both runs:
+- `make segment1a-p2-check ... RUN_ID=<run_id>` -> PASS.
+- `make segment1a-p3-check ... RUN_ID=<run_id>` -> PASS.
+4) scorecards:
+- `runs/fix-data-engine/segment_1A/reports/segment1a_p2_1_baseline_8ea58c10713dab97b1234fba99c0138e.json`
+- `runs/fix-data-engine/segment_1A/reports/segment1a_p2_1_baseline_b97f71bf357ffc8a28d80ea14894d6c4.json`
+- `runs/fix-data-engine/segment_1A/reports/segment1a_p3_1_baseline_8ea58c10713dab97b1234fba99c0138e.json`
+- `runs/fix-data-engine/segment_1A/reports/segment1a_p3_1_baseline_b97f71bf357ffc8a28d80ea14894d6c4.json`
+
+Observed replay posture:
+1) shared lock inputs:
+- `seed=42`,
+- `parameter_hash=59ca6719a623f6f024806b79344926c5941841789f2f92264bccad187f710f72`.
+2) both runs satisfy P3 B+ posture:
+- mismatch rates: `0.12502` and `0.12195`,
+- size gradients: `14.3198` and `13.4246`,
+- unexplained duplicate anomalies: `false` in both runs.
+3) replay did not reproduce exact row counts (`candidate_set/outlet rows drifted slightly`) but remained in the same accepted score/gate regime.
+
+Storage hygiene action:
+1) pruned superseded P4 intermediate run folders:
+- `runs/fix-data-engine/segment_1A/19e251361b0b1bfb185f315e91ee07fa`
+- `runs/fix-data-engine/segment_1A/88f25773570789073bcf8413225b1dda`
+2) retained P4 authority pair:
+- `runs/fix-data-engine/segment_1A/8ea58c10713dab97b1234fba99c0138e`
+- `runs/fix-data-engine/segment_1A/b97f71bf357ffc8a28d80ea14894d6c4`
+
+Decision:
+1) P4 is accepted for artifact-completeness closure with preserved P1/P2/P3 realism posture.
+2) Replay is grade-stable (B+) under same seed/hash, but exact row-equality is not currently enforced; treat this as a hardening item for P5 determinism tightening.
+
+### Entry: 2026-02-13 09:12
+
+Design element: replay determinism hardening mini-pass (post-P4 closure).
+Summary: Opened targeted hardening pass to remove same-seed replay drift discovered after P4 closure. Root cause isolated to RNG master-material derivation using `manifest_fingerprint` (which changes when git commit changes), violating the expected `seed + parameter_hash` replay posture.
+
+Root-cause evidence:
+1) Accepted P4 runs had identical `seed=42` and identical `parameter_hash`, but different `manifest_fingerprint`.
+2) Validation manifests show identical sealed input digests and parameter digests, while `git_commit_hex` differs between runs:
+- run `8ea58c...` git commit suffix: `ff679070...`,
+- run `b97f71...` git commit suffix: `1ef4e2f2...`.
+3) Replay drift starts at S1 stochastic surface (`rng_event_hurdle_bernoulli`) and propagates downstream:
+- `is_multi` flips observed across >4k merchants between the two runs.
+
+Determinism-hardening decision:
+1) Re-key all Segment 1A Philox master-material calls to `bytes.fromhex(parameter_hash)` instead of `bytes.fromhex(manifest_fingerprint)`.
+2) Keep envelope provenance fields unchanged (`manifest_fingerprint` still written/logged for audit).
+3) Restrict blast radius to RNG-key derivation call sites in stochastic states (`S1`, `S2`, `S4`, `S6`, `S7`, `S8`) and validators using the same derivation.
+4) Re-run P4 and replay-check with explicit evidence; confirm:
+- artifact completeness remains pass,
+- P2/P3 non-regression remains pass,
+- same-seed replay row-count posture stabilizes under unchanged parameter hash.
+
+### Entry: 2026-02-13 09:48
+
+Design element: determinism hardening execution + forced-manifest replay proof.
+Summary: Implemented and validated the RNG re-key hardening. Replay drift is closed at the data surface under forced manifest drift.
+
+Code changes applied:
+1) `packages/engine/src/engine/layers/l1/seg_1A/s1_hurdle/rng.py`
+- generalized `derive_master_material` input from `manifest_fingerprint_bytes` to `seed_material_bytes` (still 32-byte contract).
+2) Runner call-sites switched to `bytes.fromhex(parameter_hash)`:
+- `packages/engine/src/engine/layers/l1/seg_1A/s1_hurdle/runner.py` (validator + emitter paths),
+- `packages/engine/src/engine/layers/l1/seg_1A/s2_nb_outlets/runner.py`,
+- `packages/engine/src/engine/layers/l1/seg_1A/s4_ztp/runner.py`,
+- `packages/engine/src/engine/layers/l1/seg_1A/s6_foreign_set/runner.py`,
+- `packages/engine/src/engine/layers/l1/seg_1A/s7_integerisation/runner.py`,
+- `packages/engine/src/engine/layers/l1/seg_1A/s8_outlet_catalogue/runner.py`.
+
+Compilation guard:
+1) `python -m py_compile` passed for all touched modules.
+
+Replay validation (forced manifest drift):
+1) Run A:
+- command: `ENGINE_GIT_COMMIT=111111... make segment1a-p4 RUNS_ROOT=runs/fix-data-engine/segment_1A`
+- run id: `29bdb537f5aac75aa48479272fc18161`
+- `manifest_fingerprint=f5f04c50...`
+2) Run B:
+- command: `ENGINE_GIT_COMMIT=222222... make segment1a-p4 RUNS_ROOT=runs/fix-data-engine/segment_1A`
+- run id: `a1753dc8ed8fb1703b336bd4a869f361`
+- `manifest_fingerprint=c1230ff...`
+3) both runs:
+- `segment1a-p4-check` PASS,
+- `segment1a-p2-check` PASS,
+- `segment1a-p3-check` PASS.
+
+Determinism evidence:
+1) S1 Bernoulli surface:
+- merchant outcome flips across A/B: `0`,
+- `sum(is_multi)`: `5878` for both runs.
+2) Key surfaces identical across A/B (rows and key sets):
+- `s3_candidate_set` (`79682`),
+- `s3_integerised_counts` (`79682`),
+- `s6_membership` (`19358`),
+- `s3_site_sequence` (`142447`),
+- `outlet_catalogue` (`142447`).
+3) Scorecards:
+- P2 global metrics exactly equal across A/B,
+- P3 global mismatch/gradient exactly equal across A/B.
+
+Decision:
+1) Determinism hardening objective is satisfied for Segment `1A` replay posture under seed+parameter lock.
+2) Promote (`29bd...`, `a175...`) as hardened P4 authority pair for onward P5 certification.
+
+### Entry: 2026-02-13 10:04
+
+Design element: post-hardening operational P4 authority run (real commit provenance).
+Summary: Executed one additional P4 run without `ENGINE_GIT_COMMIT` override so onward work has a normal provenance authority run while retaining the forced-manifest pair as determinism proof.
+
+Execution evidence:
+1) command:
+- `make segment1a-p4 RUNS_ROOT=runs/fix-data-engine/segment_1A`
+2) run id:
+- `416afa430db3f5bf87180f8514329fe8`
+3) checks:
+- `segment1a-p4-check` PASS,
+- `segment1a-p2-check` PASS,
+- `segment1a-p3-check` PASS.
+4) scorecards:
+- `runs/fix-data-engine/segment_1A/reports/segment1a_p2_1_baseline_416afa430db3f5bf87180f8514329fe8.json`
+- `runs/fix-data-engine/segment_1A/reports/segment1a_p3_1_baseline_416afa430db3f5bf87180f8514329fe8.json`
+
+Outcome:
+1) P2 globals remain pass and match hardened replay-proof runs.
+2) P3 global metrics remain in B+ posture:
+- `home_legal_mismatch_rate = 0.12012186988844974`,
+- `size_gradient_pp_top_minus_bottom = 12.464219959390816`,
+- unexplained duplicate anomalies remain absent.
+
+Decision:
+1) Keep (`29bd...`, `a175...`) as determinism proof pair.
+2) Use `416afa...` as normal-provenance operational authority for moving into P5.
+
+### Entry: 2026-02-13 10:06
+
+Design element: P5 certification execution plan (grade decision pass).
+Summary: Opened P5 implementation pass to produce a reproducible certification artifact with hard-gate decisions, B/B+ band coverage, determinism proof, workstream ablation evidence, and alternate-seed sensitivity evidence.
+
+Execution plan:
+1) Build a deterministic certification scorer/report generator to aggregate:
+- P1 lock scorecard (`p1_4_lock_scorecard.json`),
+- P2 baseline scorecard (`segment1a_p2_1_baseline_*`),
+- P3 baseline scorecard (`segment1a_p3_1_baseline_*`),
+- P4 artifact presence check on accepted authority run.
+2) Use accepted authority run lineage:
+- P1 lock authority from `p1_4_lock_scorecard` (seed 42 representative row),
+- P2 closure authority `9901b537de3a5a146f79365931bd514c`,
+- P3 lock authority `da3e57e73e733b990a5aa3a46705f987`,
+- P4 operational authority `416afa430db3f5bf87180f8514329fe8`.
+3) Run alternate-seed sensitivity as a full `segment1a-p4` execution by temporarily setting `config/layer1/1A/rng/run_seed.yaml` to `43`, then restoring it to `42` immediately after run completion.
+4) Re-score P2/P3 for the alternate-seed run and compare against seed-42 authority posture.
+5) Emit certification output under `runs/fix-data-engine/segment_1A/reports/` with:
+- hard-gate table,
+- band-coverage summary (`B`, `B+`),
+- pass/fail grade decision,
+- explicit veto notes if any gate fails,
+- ablation and sensitivity evidence refs.
+6) Update `segment_1A.build_plan.md` P5 DoD checkboxes and append closure evidence in logbook.
+
+Risk controls:
+1) Treat `run_seed.yaml` edit as transactional:
+- write `43` only for the alternate-seed run,
+- restore `42` in the same execution pass.
+2) Keep P4 determinism pair and operational run folders intact; prune only superseded intermediate runs after certification if requested.
+
+### Entry: 2026-02-13 10:32
+
+Design element: P5 scorer authority-run wiring correction.
+Summary: While executing P5, I found the new scorer was binding P3 authority metrics from `p4_authority_run` instead of `p3_authority_run`. This can silently misreport certification if the two runs diverge.
+
+Decision:
+1) Patch `tools/score_segment1a_p5_certification.py` so P3 report resolution uses `args.p3_authority_run`.
+2) Re-run compile guard and regenerate P5 certification output.
+3) Keep all authority run IDs unchanged from plan unless scorer output indicates an explicit gating issue.
+
+### Entry: 2026-02-13 10:35
+
+Design element: P5 scorer identity-semantics check compatibility.
+Summary: P3 baseline reports in use expose identity semantics via `metrics.global.checks.no_unexplained_duplicate_anomalies` and/or `metrics.identity_semantics_diagnostics.has_unexplained_duplicate_anomalies`. The scorer currently relied on older key paths and can emit a false negative.
+
+Decision:
+1) Normalize identity-semantics extraction order to:
+- `metrics.global.checks.no_unexplained_duplicate_anomalies` (primary),
+- `metrics.identity_semantics.checks.no_unexplained_duplicate_anomalies` (fallback),
+- `metrics.identity_semantics_diagnostics.has_unexplained_duplicate_anomalies` inverted (fallback),
+- legacy top-level `identity_semantics.has_unexplained_duplicate_anomalies` inverted (final fallback).
+2) Recompile and regenerate P5 certification artifact so grade evidence reflects actual report semantics.
+
+### Entry: 2026-02-13 10:36
+
+Design element: P5 execution closure (certification artifact + grade decision).
+Summary: Completed P5 execution end-to-end with alternate-seed sensitivity evidence and finalized grade decision artifact.
+
+Execution actions:
+1) Alternate-seed full-run evidence:
+- temporarily changed `config/layer1/1A/rng/run_seed.yaml` to `seed: 43`,
+- executed `make segment1a-p4 RUNS_ROOT=runs/fix-data-engine/segment_1A`,
+- run id: `651fa96a4dc46cbcf6e3cfee8434180f`,
+- restored `config/layer1/1A/rng/run_seed.yaml` to `seed: 42` immediately after run.
+2) Alternate-seed scorecards:
+- `segment1a_p2_1_baseline_651fa96a4dc46cbcf6e3cfee8434180f.json`,
+- `segment1a_p3_1_baseline_651fa96a4dc46cbcf6e3cfee8434180f.json`.
+3) P5 scorer implementation and corrections:
+- added `tools/score_segment1a_p5_certification.py`,
+- corrected P3 authority lookup to use `--p3-authority-run`,
+- normalized identity-semantics pass extraction for current/legacy P3 scorecard shapes.
+4) Final certification artifact emitted:
+- `runs/fix-data-engine/segment_1A/reports/segment1a_p5_certification.json`.
+
+Certification result:
+1) hard gates pass: `4/4`.
+2) band coverage:
+- `B`: `13/14` (`0.9286`),
+- `B+`: `10/14` (`0.7143`).
+3) final grade decision:
+- `B` (`eligible_B=true`, `eligible_B_plus=false`).
+
+Evidence posture:
+1) determinism pair remains stable:
+- `29bdb537f5aac75aa48479272fc18161` vs `a1753dc8ed8fb1703b336bd4a869f361` (`p2_global_equal=true`, `p3_global_equal=true`).
+2) alternate-seed sensitivity run remains within B+ mismatch/gradient bands.
+3) B+ shortfall metrics are concentrated in:
+- `top10_outlet_share`,
+- `gini_outlets_per_merchant`,
+- `multi_country_legal_spread`,
+- `realization_ratio_median`.
+
+Decision:
+1) Mark P5 closed at grade `B` with reproducible evidence.
+2) Segment `1A` is certification-closed for `B` target and not yet at `B+`.
+
+### Entry: 2026-02-13 10:44
+
+Design element: P5 B+ recovery mini-pass (focused on four misses with fail-safe rollback).
+Summary: User requested B+ recovery but with strict safety: if score degrades, gently revert and accept current B. I validated current misses and mapped control knobs.
+
+Observed misses from `segment1a_p5_certification.json`:
+1) `top10_outlet_share` (near miss),
+2) `gini_outlets_per_merchant` (material miss),
+3) `multi_country_legal_spread` (large miss),
+4) `realization_ratio_median` (large miss).
+
+Control-map:
+1) `top10` + `gini` are controlled upstream by S1/S2 hurdle+NB bundle (`hurdle_coefficients.yaml`, `nb_dispersion_coefficients.yaml`).
+2) `realization_ratio_median` comes from S3/S6 (`rho_m = R_m/C_m`), mostly influenced by S4 `K_target` shape via `crossborder_hyperparams.yaml` and S6 selection policy.
+3) `multi_country_legal_spread` is downstream in S8 and is strongly impacted by S7 home-bias allocation policy.
+
+Recovery strategy (risk-prioritized):
+1) First chase two additional B+ passes via P1-only concentration tuning (`top10` + `gini`) because that can reach 12/14 without destabilizing P2/P3 topology.
+2) Leave S4/S6/S7 untouched in first recovery pass to avoid collateral drift in mismatch/gradient and hard gates.
+3) Implement as a new hurdle bundle under a later timestamp (do not overwrite existing locked bundle), then run `segment1a-p1` loop for quick metric feedback.
+4) Promote to full P4+P5 only if P1 concentration targets are met or clearly improved without violating P1 B gates.
+5) Fail-safe rollback rule: if full certification grade or hard-gate posture regresses vs current authority, revert to existing bundle (`version=2026-02-12/20260212T200823Z`) and keep current B closure.
+
+Immediate execution plan:
+1) Create experimental bundle `version=2026-02-13/<timestamp>` cloned from current lock.
+2) Run controlled coefficient compression variants on `beta_mu` non-intercept terms with intercept recentering to preserve median posture.
+3) Evaluate each candidate with `make segment1a-p1` + `verify_segment1a_p1_outputs.py` + run-metric extraction.
+4) If no variant reaches `gini<=0.58` with `top10>=0.38`, stop and retain current B (no downstream policy churn).
+
+### Entry: 2026-02-13 10:56
+
+Design element: P5 B+ recovery mini-pass outcome + rollback decision.
+Summary: Completed constrained P1 concentration tuning sweep for `top10`/`gini` and found no candidate satisfying both B+ conditions simultaneously. Per user rollback directive, decided to revert experimental bundle changes and retain current certified B posture.
+
+Empirical results (seed 42, P1 loop):
+1) non-intercept scale sweep from current bundle:
+- scale `1.0`: `top10=0.3758`, `gini=0.5932`.
+- scale `0.9`: `top10=0.3668`, `gini=0.5842`.
+- scale `0.8`: `top10=0.3469`, `gini=0.5635`.
+- scale `0.7`: `top10=0.3272`, `gini=0.5459`.
+- scale `0.6`: `top10=0.3134`, `gini=0.5303`.
+2) scale+intercept sweeps (positive and negative intercept shifts) also failed joint criterion:
+- improving `gini` reliably reduced `top10` further below `0.38`,
+- attempts to recover `top10` increased concentration and/or failed B+ concentration bands elsewhere.
+
+Conclusion:
+1) Under current engine posture and deterministic keying, this local coefficient family does not yield a feasible joint `top10>=0.38` and `gini<=0.58` point in the tested neighborhood.
+2) Proceeding to broader S4/S6/S7 tuning would increase blast radius and risk regressing already-closed P3 realism bands.
+
+Decision:
+1) execute rollback of experimental hurdle bundle edits,
+2) prune exploratory run folders created during sweep,
+3) keep Segment `1A` at current certified `B` closure with existing P5 authority artifact.

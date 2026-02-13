@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import argparse
+import json
 from datetime import datetime
 from pathlib import Path
 
@@ -42,6 +43,12 @@ def parse_args() -> argparse.Namespace:
     reemit_parser.add_argument("--reason", default=None)
     reemit_parser.add_argument("--requested-by", default=None)
     reemit_parser.add_argument("--dry-run", action="store_true")
+    reemit_parser.add_argument("--emit-platform-run-id", default=None)
+    reemit_parser.add_argument(
+        "--cross-run-override-json",
+        default=None,
+        help="Path to JSON file with cross-run governance override payload.",
+    )
 
     quarantine_parser = subparsers.add_parser("quarantine", parents=[base], help="Inspect quarantined runs")
     q_sub = quarantine_parser.add_subparsers(dest="q_action")
@@ -94,12 +101,17 @@ def main() -> None:
             return
         raise SystemExit("Quarantine command requires list or show action.")
     if args.command == "reemit":
+        override_payload = None
+        if args.cross_run_override_json:
+            override_payload = json.loads(Path(args.cross_run_override_json).read_text(encoding="utf-8"))
         reemit_request = ReemitRequest(
             run_id=args.run_id,
             reemit_kind=ReemitKind(args.kind),
             reason=args.reason,
             requested_by=args.requested_by,
             dry_run=args.dry_run,
+            emit_platform_run_id=args.emit_platform_run_id,
+            cross_run_override=override_payload,
         )
         response = runner.reemit(reemit_request)
         append_session_event(

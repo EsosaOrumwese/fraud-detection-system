@@ -1,0 +1,11 @@
+{
+  "semver": "1.0.0",
+  "version": "2026-02-12",
+  "created_utc": "20260212T171900Z",
+  "source_bundle": "c:\\Users\\LEGION\\Documents\\Data Science\\Python & R Scripts\\fraud-detection-system\\config\\layer1\\1A\\models\\hurdle\\exports\\version=2026-01-03\\20260103T184840Z",
+  "artifacts": [
+    "hurdle_coefficients.yaml",
+    "nb_dispersion_coefficients.yaml"
+  ],
+  "notes": "Manual remediation bundle for Segment 1A P1b tuning"
+}

@@ -134,12 +134,24 @@ class ReemitKind(str, Enum):
     BOTH = "BOTH"
 
 
+class ReemitGovernanceOverride(BaseModel):
+    override_id: str = Field(..., min_length=1, max_length=128)
+    reason_code: str = Field(..., min_length=1, max_length=128)
+    evidence_ref: str = Field(..., min_length=1, max_length=2048)
+    approved_by: str = Field(..., min_length=1, max_length=256)
+    approved_at_utc: datetime
+    ticket_ref: Optional[str] = Field(default=None, min_length=1, max_length=512)
+    notes: Optional[str] = Field(default=None, min_length=1, max_length=2048)
+
+
 class ReemitRequest(BaseModel):
     run_id: str
     reemit_kind: ReemitKind = ReemitKind.BOTH
     reason: Optional[str] = None
     requested_by: Optional[str] = None
     dry_run: bool = False
+    emit_platform_run_id: Optional[str] = None
+    cross_run_override: Optional[ReemitGovernanceOverride] = None
 
 
 class ReemitResponse(BaseModel):

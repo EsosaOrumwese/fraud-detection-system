@@ -321,6 +321,20 @@ $defs:
         type: string
         minLength: 1
         maxLength: 2048
+      scenario_id:
+        type: string
+        minLength: 1
+        maxLength: 256
+      stream_view_root:
+        type: string
+        minLength: 1
+        maxLength: 2048
+      stream_view_output_refs:
+        type: object
+        additionalProperties:
+          type: string
+          minLength: 1
+          maxLength: 2048
       oracle_root:
         type: string
         minLength: 1

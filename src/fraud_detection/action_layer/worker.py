@@ -344,12 +344,15 @@ class ActionLayerWorker:
                 partition = _partition_from_shard(shard_id)
                 checkpoint = self.consumer_checkpoints.next_offset(topic=topic, partition=partition)
                 from_sequence = checkpoint[0] if checkpoint else None
+                start_position = self.config.event_bus_start_position
+                if checkpoint is None and self.config.required_platform_run_id:
+                    start_position = "trim_horizon"
                 for row in self._kinesis_reader.read(
                     stream_name=stream,
                     shard_id=shard_id,
                     from_sequence=from_sequence,
                     limit=self.config.poll_max_records,
-                    start_position=self.config.event_bus_start_position,
+                    start_position=start_position,
                 ):
                     rows.append(
                         {

@@ -1,24 +1,21 @@
 # Platform Implementation Maps
-_As of 2026-01-23_
+_As of 2026-02-10_
 
-Use this folder to capture **component-specific implementation plans and decision logs** for platform components (non-engine).
+This folder is now organized by implementation track to keep baseline history separate from active substrate-promotion work.
 
-## File naming
-- One file per component: `{COMP}.impl_actual.md`
-- One build plan per component: `{COMP}.build_plan.md`
-- Examples:
-  - `scenario_runner.impl_actual.md`
-  - `ingestion_gate.impl_actual.md`
-  - `event_bus.impl_actual.md`
-  - `decision_fabric.impl_actual.md`
-  - `action_layer.impl_actual.md`
-  - `context_store_flow_binding.impl_actual.md`
-  - `context_store_flow_binding.build_plan.md`
+## Tracks
+- `local_parity/`:
+  - Historical and baseline implementation maps for the completed local-parity track.
+  - Includes all prior component `*.build_plan.md`, `*.impl_actual.md`, and platform validation matrix artifacts.
+- `dev_substrate/`:
+  - Active implementation maps for dev substrate promotion work.
+  - New planning and decision entries for this phase must be written here.
 
-## Required discipline
-- Append-only, never rewrite prior entries.
-- Add a detailed plan **before** coding and log each decision as it happens.
-- Reference the matching entry in `docs/logbook` with local time.
+## Active writing rule
+- For current platform work, append entries under:
+  - `docs/model_spec/platform/implementation_maps/dev_substrate/{COMP}.build_plan.md`
+  - `docs/model_spec/platform/implementation_maps/dev_substrate/{COMP}.impl_actual.md`
 
-The data engine keeps its own implementation maps under:
-`docs/model_spec/data-engine/implementation_maps/`.
+## Continuity rule
+- Do not edit historical rationale in `local_parity/` except append-only routing notes.
+- Keep daily action logs in `docs/logbook/` and reference the matching track file paths.

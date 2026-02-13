@@ -53,6 +53,7 @@ SEG1A_S1_RUN_ID ?= $(RUN_ID)
 SEG1A_S2_RUN_ID ?= $(RUN_ID)
 SEG1A_S3_RUN_ID ?= $(RUN_ID)
 SEG1A_S4_RUN_ID ?= $(RUN_ID)
+SEG1A_S5_EMIT_SPARSE_FLAG ?= 1
 SEG1A_S9_RUN_ID ?= $(RUN_ID)
 SEG1B_S0_RUN_ID ?= $(RUN_ID)
 SEG1B_S1_RUN_ID ?= $(RUN_ID)
@@ -112,6 +113,7 @@ SEG1B_S1_PREDICATE ?= center
 # Run defaults
 # ---------------------------------------------------------------------------
 RUNS_ROOT ?= runs/local_full_run-5
+ENGINE_PRUNE_FAILED_RUNS ?= $(if $(findstring runs/fix-data-engine,$(RUNS_ROOT)),1,0)
 RUN_ID ?=
 RUN_ROOT ?= $(if $(strip $(RUN_ID)),$(RUNS_ROOT)/$(RUN_ID),$(RUNS_ROOT))
 SUMMARY_DIR ?= $(RUN_ROOT)/summaries
@@ -1972,7 +1974,7 @@ PELIAS_CACHED_CMD = $(PY_SCRIPT) scripts/build_pelias_cached_sqlite_3b.py --peli
 VIRTUAL_SETTLEMENT_CMD = $(PY_SCRIPT) scripts/build_virtual_settlement_coords_3b.py
 
 
-.PHONY: all preflight-seg1a segment1a segment1a-s0 segment1a-s1 segment1a-s2 segment1a-s3 segment1a-s4 segment1a-s5 segment1a-s6 segment1a-s7 segment1a-s8 segment1a-s9 segment1a-s9-archive segment1b segment1b-s0 segment1b-s1 segment1b-s2 segment1b-s3 segment1b-s4 segment1b-s5 segment1b-s6 segment1b-s7 segment1b-s8 segment1b-s9 segment1b-s9-archive segment2a-s0 segment2a-s1 segment2a-s2 segment2a-s3 segment2a-s4 segment2a-s5 segment2b segment2b-s0 segment2b-s1 segment2b-s2 segment2b-s3 segment2b-s4 segment2b-s5 segment2b-s6 segment2b-s7 segment2b-s8 segment2b-arrival-roster segment3a segment3a-s0 segment3a-s1 segment3a-s2 segment3a-s3 segment3a-s4 segment3a-s5 segment3a-s6 segment3a-s7 segment3b-s0 segment3b-s1 segment3b-s2 segment3b-s3 segment3b-s4 segment3b-s5 segment5a segment5a-s0 segment5a-s1 segment5a-s2 segment5a-s3 segment5a-s4 segment5a-s5 segment5b-s0 segment5b-s1 segment5b-s2 segment5b-s3 segment5b-s4 segment5b-s5 segment6a-s0 segment6a-s1 segment6a-s2 segment6a-s3 segment6a-s4 segment6a-s5 segment6b-s0 segment6b-s1 segment6b-s2 segment6b-s3 segment6b-s4 segment6b-s5 segment6b merchant_ids hurdle_exports refresh_merchant_deps currency_refs virtual_edge_policy zone_floor_policy country_zone_alphas crossborder_features merchant_class_policy_5a demand_scale_policy_5a shape_library_5a scenario_calendar_5a policies_5a cdn_weights_ext mcc_channel_rules cdn_country_weights virtual_validation cdn_key_digest hrsl_raster pelias_cached virtual_settlement_coords profile-all profile-seg1b clean-results
+.PHONY: all preflight-seg1a segment1a-preclean-failed-runs segment1a segment1a-s0 segment1a-s1 segment1a-s2 segment1a-s3 segment1a-s4 segment1a-s5 segment1a-s6 segment1a-s7 segment1a-s8 segment1a-s9 segment1a-s9-archive segment1b segment1b-s0 segment1b-s1 segment1b-s2 segment1b-s3 segment1b-s4 segment1b-s5 segment1b-s6 segment1b-s7 segment1b-s8 segment1b-s9 segment1b-s9-archive segment2a-s0 segment2a-s1 segment2a-s2 segment2a-s3 segment2a-s4 segment2a-s5 segment2b segment2b-s0 segment2b-s1 segment2b-s2 segment2b-s3 segment2b-s4 segment2b-s5 segment2b-s6 segment2b-s7 segment2b-s8 segment2b-arrival-roster segment3a segment3a-s0 segment3a-s1 segment3a-s2 segment3a-s3 segment3a-s4 segment3a-s5 segment3a-s6 segment3a-s7 segment3b-s0 segment3b-s1 segment3b-s2 segment3b-s3 segment3b-s4 segment3b-s5 segment5a segment5a-s0 segment5a-s1 segment5a-s2 segment5a-s3 segment5a-s4 segment5a-s5 segment5b-s0 segment5b-s1 segment5b-s2 segment5b-s3 segment5b-s4 segment5b-s5 segment6a-s0 segment6a-s1 segment6a-s2 segment6a-s3 segment6a-s4 segment6a-s5 segment6b-s0 segment6b-s1 segment6b-s2 segment6b-s3 segment6b-s4 segment6b-s5 segment6b merchant_ids hurdle_exports refresh_merchant_deps currency_refs virtual_edge_policy zone_floor_policy country_zone_alphas crossborder_features merchant_class_policy_5a demand_scale_policy_5a shape_library_5a scenario_calendar_5a policies_5a cdn_weights_ext mcc_channel_rules cdn_country_weights virtual_validation cdn_key_digest hrsl_raster pelias_cached virtual_settlement_coords profile-all profile-seg1b clean-results
 .ONESHELL: segment1a segment1b 
 
 all: segment1a segment1b segment2a segment2b segment3a segment3b segment5a segment5b segment6a
@@ -2120,8 +2122,15 @@ preflight-seg1a:
 
 segment1a: segment1a-s0 segment1a-s1 segment1a-s2 segment1a-s3 segment1a-s4 segment1a-s5 segment1a-s6 segment1a-s7 segment1a-s8 segment1a-s9
 
+segment1a-preclean-failed-runs:
+	@if [ "$(ENGINE_PRUNE_FAILED_RUNS)" != "1" ]; then \
+		echo "Segment 1A pre-clean disabled (ENGINE_PRUNE_FAILED_RUNS=$(ENGINE_PRUNE_FAILED_RUNS))."; \
+	else \
+		echo "Segment 1A pre-clean: pruning failed run-id folders under $(RUNS_ROOT)"; \
+		$(PY_SCRIPT) tools/prune_failed_runs.py --runs-root "$(RUNS_ROOT)"; \
+	fi
 
-segment1a-s0:
+segment1a-s0: segment1a-preclean-failed-runs
 	@echo "Running Segment 1A S0 foundations"
 	@$(SEG1A_S0_CMD)
 
@@ -2138,6 +2147,101 @@ segment1a-s2:
 	@$(SEG1A_S2_CMD)
 
 engine-s2: segment1a-s2
+
+.PHONY: segment1a-p1 segment1a-p1-check engine-seg1a-p1
+segment1a-p1: segment1a-preclean-failed-runs
+	@echo "Running Segment 1A P1 loop (S0->S2 only)"
+	@$(SEG1A_S0_CMD)
+	@run_id="$$( $(PY_SCRIPT) -c "import pathlib; root=pathlib.Path('$(RUNS_ROOT)'); receipts=sorted(root.glob('*/run_receipt.json'), key=lambda p: p.stat().st_mtime); print(receipts[-1].parent.name if receipts else '')" )"; \
+	if [ -z "$$run_id" ]; then \
+		echo "No run_receipt.json found under $(RUNS_ROOT) after S0." >&2; \
+		exit 1; \
+	fi; \
+	echo "Segment 1A P1 run_id=$$run_id"; \
+	$(MAKE) --no-print-directory segment1a-s1 RUNS_ROOT="$(RUNS_ROOT)" SEG1A_S1_RUN_ID="$$run_id"; \
+	$(MAKE) --no-print-directory segment1a-s2 RUNS_ROOT="$(RUNS_ROOT)" SEG1A_S2_RUN_ID="$$run_id"; \
+	$(MAKE) --no-print-directory segment1a-p1-check RUNS_ROOT="$(RUNS_ROOT)" RUN_ID="$$run_id"
+
+segment1a-p1-check:
+	@$(PY_SCRIPT) tools/verify_segment1a_p1_outputs.py --runs-root "$(RUNS_ROOT)" $(if $(strip $(RUN_ID)),--run-id "$(RUN_ID)",)
+
+engine-seg1a-p1: segment1a-p1
+
+.PHONY: segment1a-p2 segment1a-p2-check engine-seg1a-p2
+segment1a-p2: segment1a-preclean-failed-runs
+	@echo "Running Segment 1A P2.1 loop (S0->S6 only)"
+	@$(SEG1A_S0_CMD)
+	@run_id="$$( $(PY_SCRIPT) -c "import pathlib; root=pathlib.Path('$(RUNS_ROOT)'); receipts=sorted(root.glob('*/run_receipt.json'), key=lambda p: p.stat().st_mtime); print(receipts[-1].parent.name if receipts else '')" )"; \
+	if [ -z "$$run_id" ]; then \
+		echo "No run_receipt.json found under $(RUNS_ROOT) after S0." >&2; \
+		exit 1; \
+	fi; \
+	echo "Segment 1A P2.1 run_id=$$run_id"; \
+	$(MAKE) --no-print-directory segment1a-s1 RUNS_ROOT="$(RUNS_ROOT)" SEG1A_S1_RUN_ID="$$run_id"; \
+	$(MAKE) --no-print-directory segment1a-s2 RUNS_ROOT="$(RUNS_ROOT)" SEG1A_S2_RUN_ID="$$run_id"; \
+	$(MAKE) --no-print-directory segment1a-s3 RUNS_ROOT="$(RUNS_ROOT)" SEG1A_S3_RUN_ID="$$run_id"; \
+	$(MAKE) --no-print-directory segment1a-s4 RUNS_ROOT="$(RUNS_ROOT)" SEG1A_S4_RUN_ID="$$run_id"; \
+	$(MAKE) --no-print-directory segment1a-s5 RUNS_ROOT="$(RUNS_ROOT)" SEG1A_S5_RUN_ID="$$run_id"; \
+	$(MAKE) --no-print-directory segment1a-s6 RUNS_ROOT="$(RUNS_ROOT)" SEG1A_S6_RUN_ID="$$run_id"; \
+	$(MAKE) --no-print-directory segment1a-p2-check RUNS_ROOT="$(RUNS_ROOT)" RUN_ID="$$run_id"; \
+	$(PY_SCRIPT) tools/score_segment1a_p2_1_baseline.py --runs-root "$(RUNS_ROOT)" --run-id "$$run_id" --out "$(RUNS_ROOT)/reports/segment1a_p2_1_baseline_$$run_id.json"
+
+segment1a-p2-check:
+	@$(PY_SCRIPT) tools/verify_segment1a_p2_outputs.py --runs-root "$(RUNS_ROOT)" $(if $(strip $(RUN_ID)),--run-id "$(RUN_ID)",)
+
+engine-seg1a-p2: segment1a-p2
+
+.PHONY: segment1a-p3 segment1a-p3-check engine-seg1a-p3
+segment1a-p3: segment1a-preclean-failed-runs
+	@echo "Running Segment 1A P3.1 loop (S0->S8 only)"
+	@$(SEG1A_S0_CMD)
+	@run_id="$$( $(PY_SCRIPT) -c "import pathlib; root=pathlib.Path('$(RUNS_ROOT)'); receipts=sorted(root.glob('*/run_receipt.json'), key=lambda p: p.stat().st_mtime); print(receipts[-1].parent.name if receipts else '')" )"; \
+	if [ -z "$$run_id" ]; then \
+		echo "No run_receipt.json found under $(RUNS_ROOT) after S0." >&2; \
+		exit 1; \
+	fi; \
+	echo "Segment 1A P3.1 run_id=$$run_id"; \
+	$(MAKE) --no-print-directory segment1a-s1 RUNS_ROOT="$(RUNS_ROOT)" SEG1A_S1_RUN_ID="$$run_id"; \
+	$(MAKE) --no-print-directory segment1a-s2 RUNS_ROOT="$(RUNS_ROOT)" SEG1A_S2_RUN_ID="$$run_id"; \
+	$(MAKE) --no-print-directory segment1a-s3 RUNS_ROOT="$(RUNS_ROOT)" SEG1A_S3_RUN_ID="$$run_id"; \
+	$(MAKE) --no-print-directory segment1a-s4 RUNS_ROOT="$(RUNS_ROOT)" SEG1A_S4_RUN_ID="$$run_id"; \
+	$(MAKE) --no-print-directory segment1a-s5 RUNS_ROOT="$(RUNS_ROOT)" SEG1A_S5_RUN_ID="$$run_id"; \
+	$(MAKE) --no-print-directory segment1a-s6 RUNS_ROOT="$(RUNS_ROOT)" SEG1A_S6_RUN_ID="$$run_id"; \
+	$(MAKE) --no-print-directory segment1a-s7 RUNS_ROOT="$(RUNS_ROOT)" SEG1A_S7_RUN_ID="$$run_id"; \
+	$(MAKE) --no-print-directory segment1a-s8 RUNS_ROOT="$(RUNS_ROOT)" SEG1A_S8_RUN_ID="$$run_id"; \
+	$(MAKE) --no-print-directory segment1a-p3-check RUNS_ROOT="$(RUNS_ROOT)" RUN_ID="$$run_id"; \
+	$(PY_SCRIPT) tools/score_segment1a_p3_1_baseline.py --runs-root "$(RUNS_ROOT)" --run-id "$$run_id" --out "$(RUNS_ROOT)/reports/segment1a_p3_1_baseline_$$run_id.json"
+
+segment1a-p3-check:
+	@$(PY_SCRIPT) tools/verify_segment1a_p3_outputs.py --runs-root "$(RUNS_ROOT)" $(if $(strip $(RUN_ID)),--run-id "$(RUN_ID)",)
+
+engine-seg1a-p3: segment1a-p3
+
+.PHONY: segment1a-p4 segment1a-p4-check engine-seg1a-p4
+segment1a-p4: segment1a-preclean-failed-runs
+	@echo "Running Segment 1A P4 loop (S0->S9 with required artifact closure)"
+	@$(SEG1A_S0_CMD)
+	@run_id="$$( $(PY_SCRIPT) -c "import pathlib; root=pathlib.Path('$(RUNS_ROOT)'); receipts=sorted(root.glob('*/run_receipt.json'), key=lambda p: p.stat().st_mtime); print(receipts[-1].parent.name if receipts else '')" )"; \
+	if [ -z "$$run_id" ]; then \
+		echo "No run_receipt.json found under $(RUNS_ROOT) after S0." >&2; \
+		exit 1; \
+	fi; \
+	echo "Segment 1A P4 run_id=$$run_id"; \
+	$(MAKE) --no-print-directory segment1a-s1 RUNS_ROOT="$(RUNS_ROOT)" SEG1A_S1_RUN_ID="$$run_id"; \
+	$(MAKE) --no-print-directory segment1a-s2 RUNS_ROOT="$(RUNS_ROOT)" SEG1A_S2_RUN_ID="$$run_id"; \
+	$(MAKE) --no-print-directory segment1a-s3 RUNS_ROOT="$(RUNS_ROOT)" SEG1A_S3_RUN_ID="$$run_id"; \
+	$(MAKE) --no-print-directory segment1a-s4 RUNS_ROOT="$(RUNS_ROOT)" SEG1A_S4_RUN_ID="$$run_id"; \
+	$(MAKE) --no-print-directory segment1a-s5 RUNS_ROOT="$(RUNS_ROOT)" SEG1A_S5_RUN_ID="$$run_id"; \
+	$(MAKE) --no-print-directory segment1a-s6 RUNS_ROOT="$(RUNS_ROOT)" SEG1A_S6_RUN_ID="$$run_id"; \
+	$(MAKE) --no-print-directory segment1a-s7 RUNS_ROOT="$(RUNS_ROOT)" SEG1A_S7_RUN_ID="$$run_id"; \
+	$(MAKE) --no-print-directory segment1a-s8 RUNS_ROOT="$(RUNS_ROOT)" SEG1A_S8_RUN_ID="$$run_id"; \
+	$(MAKE) --no-print-directory segment1a-s9 RUNS_ROOT="$(RUNS_ROOT)" SEG1A_S9_RUN_ID="$$run_id"; \
+	$(MAKE) --no-print-directory segment1a-p4-check RUNS_ROOT="$(RUNS_ROOT)" RUN_ID="$$run_id"
+
+segment1a-p4-check:
+	@$(PY_SCRIPT) tools/verify_segment1a_p4_outputs.py --runs-root "$(RUNS_ROOT)" $(if $(strip $(RUN_ID)),--run-id "$(RUN_ID)",)
+
+engine-seg1a-p4: segment1a-p4
 
 segment1a-s3:
 	@echo "Running Segment 1A S3 cross-border candidate set"
@@ -3116,22 +3220,30 @@ platform-operate-obs-gov-status:
 
 .PHONY: platform-operate-learning-jobs-up platform-operate-learning-jobs-down platform-operate-learning-jobs-restart platform-operate-learning-jobs-status
 platform-operate-learning-jobs-up:
-	@$(PY_PLATFORM) -m fraud_detection.run_operate.orchestrator \
+	@PARITY_OFS_RUN_LEDGER_DSN="$(PARITY_OFS_RUN_LEDGER_DSN)" \
+	PARITY_MF_RUN_LEDGER_DSN="$(PARITY_MF_RUN_LEDGER_DSN)" \
+	$(PY_PLATFORM) -m fraud_detection.run_operate.orchestrator \
 		--env-file "$(RUN_OPERATE_ENV_FILE)" \
 		--pack "$(RUN_OPERATE_PACK_LEARNING_JOBS)" up
 
 platform-operate-learning-jobs-down:
-	@$(PY_PLATFORM) -m fraud_detection.run_operate.orchestrator \
+	@PARITY_OFS_RUN_LEDGER_DSN="$(PARITY_OFS_RUN_LEDGER_DSN)" \
+	PARITY_MF_RUN_LEDGER_DSN="$(PARITY_MF_RUN_LEDGER_DSN)" \
+	$(PY_PLATFORM) -m fraud_detection.run_operate.orchestrator \
 		--env-file "$(RUN_OPERATE_ENV_FILE)" \
 		--pack "$(RUN_OPERATE_PACK_LEARNING_JOBS)" down
 
 platform-operate-learning-jobs-restart:
-	@$(PY_PLATFORM) -m fraud_detection.run_operate.orchestrator \
+	@PARITY_OFS_RUN_LEDGER_DSN="$(PARITY_OFS_RUN_LEDGER_DSN)" \
+	PARITY_MF_RUN_LEDGER_DSN="$(PARITY_MF_RUN_LEDGER_DSN)" \
+	$(PY_PLATFORM) -m fraud_detection.run_operate.orchestrator \
 		--env-file "$(RUN_OPERATE_ENV_FILE)" \
 		--pack "$(RUN_OPERATE_PACK_LEARNING_JOBS)" restart
 
 platform-operate-learning-jobs-status:
-	@$(PY_PLATFORM) -m fraud_detection.run_operate.orchestrator \
+	@PARITY_OFS_RUN_LEDGER_DSN="$(PARITY_OFS_RUN_LEDGER_DSN)" \
+	PARITY_MF_RUN_LEDGER_DSN="$(PARITY_MF_RUN_LEDGER_DSN)" \
+	$(PY_PLATFORM) -m fraud_detection.run_operate.orchestrator \
 		--env-file "$(RUN_OPERATE_ENV_FILE)" \
 		--pack "$(RUN_OPERATE_PACK_LEARNING_JOBS)" status
 
@@ -3508,4 +3620,5 @@ localstack-down:
 
 localstack-logs:
 	@docker logs -f localstack
+
 

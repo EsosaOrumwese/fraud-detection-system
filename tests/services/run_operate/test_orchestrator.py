@@ -131,3 +131,48 @@ def test_up_requires_restart_when_active_run_changes_with_live_process(
         orch.up()
 
     orch.down(timeout_seconds=2.0)
+
+
+def test_logs_and_events_are_run_scoped_but_state_status_remain_pack_scoped(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    runs_root = tmp_path / "runs" / "fraud-platform"
+    monkeypatch.setattr(ro, "RUNS_ROOT", runs_root)
+    pack_path = tmp_path / "pack_required.yaml"
+    active_run_path = tmp_path / "ACTIVE_RUN_ID"
+    active_run_path.write_text("platform_run_scoped\n", encoding="utf-8")
+    _write_pack(pack_path, required_run=True, source_path=active_run_path)
+
+    env = dict(os.environ)
+    env.pop("PLATFORM_RUN_ID", None)
+    pack = ro.PackSpec.load(pack_path)
+    orch = ro.ProcessOrchestrator(pack=pack, env=env)
+
+    try:
+        up_payload = orch.up()
+        assert up_payload["active_platform_run_id"] == "platform_run_scoped"
+
+        status_payload = orch.status()
+        row = status_payload["processes"][0]
+        log_path = Path(row["log_path"])
+        assert log_path == (
+            runs_root
+            / "platform_run_scoped"
+            / "operate"
+            / "test_pack_v0"
+            / "logs"
+            / "sleeper.log"
+        )
+        assert log_path.exists()
+
+        # Operator control surfaces stay pack-scoped.
+        assert (runs_root / "operate" / "test_pack_v0" / "state.json").exists()
+        assert (runs_root / "operate" / "test_pack_v0" / "status" / "last_status.json").exists()
+
+        # Events move to run scope with active run id.
+        run_events = runs_root / "platform_run_scoped" / "operate" / "test_pack_v0" / "events.jsonl"
+        assert run_events.exists()
+        legacy_events = runs_root / "operate" / "test_pack_v0" / "events.jsonl"
+        assert not legacy_events.exists()
+    finally:
+        orch.down(timeout_seconds=2.0)

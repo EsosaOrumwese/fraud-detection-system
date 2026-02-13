@@ -1,0 +1,217 @@
+name: dev-min-m1-packaging
+
+on:
+  workflow_dispatch:
+    inputs:
+      platform_run_id:
+        description: "Run scope for P(-1) evidence layout"
+        required: true
+        type: string
+      aws_region:
+        description: "AWS region for ECR operations"
+        required: true
+        type: string
+      aws_role_to_assume:
+        description: "OIDC role ARN used by GitHub Actions"
+        required: true
+        type: string
+      ecr_repo_name:
+        description: "ECR repository name (for digest resolution)"
+        required: true
+        type: string
+      ecr_repo_uri:
+        description: "ECR repository URI (for build/push tag)"
+        required: true
+        type: string
+      image_build_path:
+        description: "Docker build context path"
+        required: false
+        default: "."
+        type: string
+      image_dockerfile_path:
+        description: "Dockerfile path"
+        required: false
+        default: "Dockerfile"
+        type: string
+      push_dev_min_latest:
+        description: "Also push non-authoritative dev-min-latest convenience tag"
+        required: false
+        default: false
+        type: boolean
+
+permissions:
+  contents: read
+  id-token: write
+
+concurrency:
+  group: dev-min-m1-packaging-${{ github.ref_name }}
+  cancel-in-progress: false
+
+jobs:
+  build_and_push:
+    name: Build and push immutable platform image
+    runs-on: ubuntu-latest
+    outputs:
+      image_tag: ${{ steps.meta.outputs.image_tag }}
+      image_digest: ${{ steps.digest.outputs.image_digest }}
+      git_sha: ${{ steps.meta.outputs.git_sha }}
+      ci_run_id: ${{ steps.run_meta.outputs.ci_run_id }}
+      build_actor: ${{ steps.run_meta.outputs.build_actor }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Reject static AWS credential posture
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [[ -n "${AWS_ACCESS_KEY_ID:-}" || -n "${AWS_SECRET_ACCESS_KEY:-}" ]]; then
+            echo "Static AWS credentials are forbidden; use OIDC role assumption."
+            exit 1
+          fi
+
+      - name: Configure AWS credentials via OIDC
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-region: ${{ inputs.aws_region }}
+          role-to-assume: ${{ inputs.aws_role_to_assume }}
+
+      - name: Login to ECR
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - name: Compute immutable image metadata
+        id: meta
+        shell: bash
+        run: |
+          set -euo pipefail
+          GIT_SHA="${GITHUB_SHA}"
+          IMAGE_TAG="git-${GIT_SHA}"
+          IMAGE_REF="${{ inputs.ecr_repo_uri }}:${IMAGE_TAG}"
+          echo "git_sha=${GIT_SHA}" >> "$GITHUB_OUTPUT"
+          echo "image_tag=${IMAGE_TAG}" >> "$GITHUB_OUTPUT"
+          echo "image_ref=${IMAGE_REF}" >> "$GITHUB_OUTPUT"
+
+      - name: Record CI run metadata
+        id: run_meta
+        shell: bash
+        run: |
+          set -euo pipefail
+          echo "ci_run_id=${GITHUB_RUN_ID}" >> "$GITHUB_OUTPUT"
+          echo "build_actor=${GITHUB_ACTOR}" >> "$GITHUB_OUTPUT"
+
+      - name: Build immutable image
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [[ ! -f "${{ inputs.image_dockerfile_path }}" ]]; then
+            echo "Pinned Dockerfile not found: ${{ inputs.image_dockerfile_path }}"
+            exit 1
+          fi
+          docker build \
+            --file "${{ inputs.image_dockerfile_path }}" \
+            --tag "${{ steps.meta.outputs.image_ref }}" \
+            "${{ inputs.image_build_path }}"
+
+      - name: Push immutable image
+        shell: bash
+        run: |
+          set -euo pipefail
+          docker push "${{ steps.meta.outputs.image_ref }}"
+
+      - name: Push non-authoritative convenience tag
+        if: ${{ inputs.push_dev_min_latest }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          docker tag "${{ steps.meta.outputs.image_ref }}" "${{ inputs.ecr_repo_uri }}:dev-min-latest"
+          docker push "${{ inputs.ecr_repo_uri }}:dev-min-latest"
+
+      - name: Resolve immutable image digest
+        id: digest
+        shell: bash
+        run: |
+          set -euo pipefail
+          DIGEST="$(aws ecr describe-images \
+            --repository-name "${{ inputs.ecr_repo_name }}" \
+            --image-ids imageTag="${{ steps.meta.outputs.image_tag }}" \
+            --region "${{ inputs.aws_region }}" \
+            --query 'imageDetails[0].imageDigest' \
+            --output text)"
+          if [[ -z "${DIGEST}" || "${DIGEST}" == "None" || "${DIGEST}" == "null" ]]; then
+            echo "Unable to resolve immutable digest from ECR."
+            exit 1
+          fi
+          echo "image_digest=${DIGEST}" >> "$GITHUB_OUTPUT"
+
+      - name: Emit M1 evidence artifacts (CI-local)
+        shell: bash
+        run: |
+          set -euo pipefail
+          WRITTEN_AT_UTC="$(date -u +'%Y-%m-%dT%H:%M:%SZ')"
+          EVIDENCE_DIR="evidence/runs/${{ inputs.platform_run_id }}/P(-1)"
+          mkdir -p "${EVIDENCE_DIR}"
+
+          cat > "${EVIDENCE_DIR}/build_command_surface_receipt.json" <<JSON
+          {
+            "selected_build_driver": "github_actions",
+            "command_family_id": "github_actions_v0",
+            "immutable_tag": "${{ steps.meta.outputs.image_tag }}",
+            "resolved_digest": "${{ steps.digest.outputs.image_digest }}",
+            "build_actor": "${{ steps.run_meta.outputs.build_actor }}",
+            "ci_run_id": "${{ steps.run_meta.outputs.ci_run_id }}",
+            "written_at_utc": "${WRITTEN_AT_UTC}",
+            "verdict": "PASS",
+            "failure_reason": ""
+          }
+          JSON
+
+          cat > "${EVIDENCE_DIR}/packaging_provenance.json" <<JSON
+          {
+            "phase_id": "P(-1)",
+            "platform_run_id": "${{ inputs.platform_run_id }}",
+            "written_at_utc": "${WRITTEN_AT_UTC}",
+            "image_tag": "${{ steps.meta.outputs.image_tag }}",
+            "image_digest": "${{ steps.digest.outputs.image_digest }}",
+            "git_sha": "${{ steps.meta.outputs.git_sha }}",
+            "build_completed_at_utc": "${WRITTEN_AT_UTC}",
+            "build_actor": "${{ steps.run_meta.outputs.build_actor }}",
+            "ecr_repo_uri": "${{ inputs.ecr_repo_uri }}",
+            "image_reference_mode": "immutable_preferred",
+            "dockerfile_path": "${{ inputs.image_dockerfile_path }}",
+            "build_path": "${{ inputs.image_build_path }}",
+            "oci_digest_algo": "sha256",
+            "oci_digest_value": "${{ steps.digest.outputs.image_digest }}"
+          }
+          JSON
+
+          cat > "${EVIDENCE_DIR}/ci_m1_outputs.json" <<JSON
+          {
+            "image_tag": "${{ steps.meta.outputs.image_tag }}",
+            "image_digest": "${{ steps.digest.outputs.image_digest }}",
+            "git_sha": "${{ steps.meta.outputs.git_sha }}",
+            "ci_run_id": "${{ steps.run_meta.outputs.ci_run_id }}",
+            "build_actor": "${{ steps.run_meta.outputs.build_actor }}"
+          }
+          JSON
+
+          cat > "${EVIDENCE_DIR}/security_secret_injection_checks.json" <<JSON
+          {
+            "phase_id": "P(-1)",
+            "platform_run_id": "${{ inputs.platform_run_id }}",
+            "written_at_utc": "${WRITTEN_AT_UTC}",
+            "checks": {
+              "static_aws_credentials_rejected": true,
+              "dockerfile_existence_precheck_present": true,
+              "digest_resolution_fail_closed_present": true
+            },
+            "verdict": "PASS",
+            "failure_reason": ""
+          }
+          JSON
+
+      - name: Upload CI evidence artifact pack
+        uses: actions/upload-artifact@v4
+        with:
+          name: m1-p-1-packaging-ci-evidence
+          path: evidence/runs/${{ inputs.platform_run_id }}/P(-1)/
+          if-no-files-found: error

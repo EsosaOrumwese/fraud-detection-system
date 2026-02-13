@@ -779,7 +779,14 @@ def run_s5(
             if any(overrides_applied.values()):
                 overrides_applied_count += 1
 
-            iso_union = sorted(settlement_rows.keys() | ccy_rows.keys())
+            # Allow policy overrides to extend support explicitly for currencies
+            # that would otherwise remain home-only under sparse observed shares.
+            iso_union = sorted(
+                settlement_rows.keys()
+                | ccy_rows.keys()
+                | alpha_map.keys()
+                | min_share_map.keys()
+            )
             sum_n_ccy = float(sum(value[1] for value in ccy_rows.values()))
             sum_n_settle = float(sum(value[1] for value in settlement_rows.values()))
             n0 = blend_weight * sum_n_ccy + (1.0 - blend_weight) * sum_n_settle

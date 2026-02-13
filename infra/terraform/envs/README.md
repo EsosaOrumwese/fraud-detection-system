@@ -1,6 +1,11 @@
 # IaC environments
-Status: LOCKED (conceptual).
-Purpose: Compose modules per env.
-Owns: naming/tags/policies
-Boundaries: no secrets in code
-When we unlock this: add remote state + locking
+
+## Status
+Phase 2 implementation unlocked for `dev_min`.
+
+## Environments
+- `dev_min/`: composes `core` + `demo` modules for managed-substrate migration.
+
+## Notes
+- State backend is local during bootstrap.
+- Core module provisions tf-state bucket + lock table for remote-backend migration in later phases.

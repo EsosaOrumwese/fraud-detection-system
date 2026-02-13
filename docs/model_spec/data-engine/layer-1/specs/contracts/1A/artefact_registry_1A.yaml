@@ -1356,7 +1356,7 @@ subsegments:
     environment: [runtime]
     schema: schemas.1A.yaml#/s3/integerised_counts
     cross_layer: false
-    notes: Optional; only if S3 owns integerisation.
+    notes: Emitted for audit completeness; downstream S8 consumption is policy-controlled.
 
   - name: s3_site_sequence
     path: data/layer1/1A/s3_site_sequence/parameter_hash={parameter_hash}/
@@ -1375,7 +1375,7 @@ subsegments:
     environment: [runtime]
     schema: schemas.1A.yaml#/s3/site_sequence
     cross_layer: false
-    notes: Optional; only if S3 owns sequencing.
+    notes: Emitted for audit completeness; downstream S8 consumption is policy-controlled.
 
   - name: merchant_abort_log
     path: data/layer1/1A/prep/merchant_abort_log/parameter_hash={parameter_hash}/part-*.parquet

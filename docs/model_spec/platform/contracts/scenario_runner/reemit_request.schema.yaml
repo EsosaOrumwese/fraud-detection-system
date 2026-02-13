@@ -22,6 +22,10 @@ properties:
     maxLength: 256
   dry_run:
     type: boolean
+  emit_platform_run_id:
+    $ref: "#/$defs/platform_run_id"
+  cross_run_override:
+    $ref: "#/$defs/cross_run_override"
   requested_at_utc:
     type: string
     format: date-time
@@ -29,3 +33,43 @@ $defs:
   hex32:
     type: string
     pattern: "^[0-9a-f]{32}$"
+  platform_run_id:
+    type: string
+    pattern: "^platform_[0-9]{8}T[0-9]{6}Z$"
+  cross_run_override:
+    type: object
+    additionalProperties: false
+    required:
+      - override_id
+      - reason_code
+      - evidence_ref
+      - approved_by
+      - approved_at_utc
+    properties:
+      override_id:
+        type: string
+        minLength: 1
+        maxLength: 128
+      reason_code:
+        type: string
+        minLength: 1
+        maxLength: 128
+      evidence_ref:
+        type: string
+        minLength: 1
+        maxLength: 2048
+      approved_by:
+        type: string
+        minLength: 1
+        maxLength: 256
+      approved_at_utc:
+        type: string
+        format: date-time
+      ticket_ref:
+        type: string
+        minLength: 1
+        maxLength: 512
+      notes:
+        type: string
+        minLength: 1
+        maxLength: 2048

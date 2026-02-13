@@ -1,0 +1,8 @@
+{
+  "source_bundle": "config/layer1/1A/models/hurdle/exports/version=2026-02-12/20260212T195125Z",
+  "created_utc": "20260212T195349Z",
+  "changes": {
+    "beta_mu_scale": 0.8,
+    "beta_phi_intercept_delta": 0.8
+  }
+}

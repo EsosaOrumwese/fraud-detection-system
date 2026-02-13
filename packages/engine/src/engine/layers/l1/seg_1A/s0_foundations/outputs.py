@@ -24,6 +24,7 @@ class S0Outputs:
     crossborder_features_root: Path | None = None
     crossborder_flags_root: Path | None = None
     hurdle_pi_probs_root: Path | None = None
+    merchant_abort_log_root: Path | None = None
     validation_bundle_root: Path | None = None
     segment_state_runs_path: Path | None = None
 

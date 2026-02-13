@@ -1,0 +1,484 @@
+```
+# ============================================================
+# LOCAL_PARITY “SPINE GREEN v0” — EXACT RUN PROCESS FLOW CAPTURE
+# Source anchors: platform_parity_walkthrough_v0.md (2026-02-10, full-parity superset) + active local run artifacts
+# Spine Green v0 scope lock and acceptance gates in this file govern when runbook content is broader.
+# Scope INCLUDED (closed): Control+Ingress, RTDL, Case+Labels, Run/Operate+Obs/Gov
+# Scope EXCLUDED: Learning/Registry (OFS/MF/MPR) — DO NOT include in baseline
+# ============================================================
+
+# ------------------------------------------------------------
+# GLOBAL RUN PINS + SUBSTRATES (carry through everything)
+# ------------------------------------------------------------
+RUN PINS
+  platform_run_id      = runs/fraud-platform/ACTIVE_RUN_ID (session scope)
+  scenario_run_id      = deterministic SR id for a run_equivalence_key (scenario scope)
+
+LOCAL PARITY SUBSTRATES
+  Object Store backend = MinIO (S3-compatible)
+    buckets:
+      - oracle-store       (Oracle Store component)
+      - fraud-platform     (platform artifacts + receipts + evidence)
+  Event/Control Bus backend = LocalStack Kinesis
+    streams:
+      - sr-control-bus
+      - fp.bus.traffic.baseline.v1          [optional baseline mode]
+      - fp.bus.traffic.fraud.v1             [default]
+      - fp.bus.context.arrival_events.v1
+      - fp.bus.context.arrival_entities.v1
+      - fp.bus.context.flow_anchor.baseline.v1  [optional baseline mode]
+      - fp.bus.context.flow_anchor.fraud.v1     [default fraud mode]
+      - fp.bus.rtdl.v1
+      - fp.bus.case.v1
+      - fp.bus.audit.v1
+  Primary state backend = Postgres
+    used by:
+      - IG admission + ops index
+      - WSP checkpoints
+      - RTDL state stores (IEG/OFP/CSFB/DL/DF/AL/DLA)
+      - Case/Label stores (CaseTrigger/CM/LS)
+
+CANONICAL RUN ROOTS
+  local workspace run root:        runs/fraud-platform/<platform_run_id>/
+  object-store run root:           s3://fraud-platform/<platform_run_id>/
+  oracle engine run root (MinIO):  s3://oracle-store/<engine_run_root>
+  oracle stream view root:         .../stream_view/ts_utc/
+
+IMPLICIT STATES THAT PERSIST ACROSS RESTARTS (DO NOT TREAT RUN AS STATELESS)
+  - SR lease rows (equivalence-key scoped)
+  - WSP checkpoint rows (pack_key/output_id scope)
+  - IG admission index rows (dedupe + receipt_ref + eb_ref fields)
+  - RTDL projector/worker checkpoint rows
+  - CM local consumer checkpoint file:
+      runs/fraud-platform/<platform_run_id>/case_mgmt/consumer_checkpoints.sqlite
+  - governance append writer discipline for:
+      s3://fraud-platform/<platform_run_id>/obs/governance/events.jsonl (single-writer)
+
+
+# ============================================================
+# L0 — OPERATOR TIMELINE (chronological, with “job vs daemon”)
+# ============================================================
+# Canonical reference key for migration/planning is phase_id=P# (P0..P11).
+# Numeric step labels in this section are operator timeline order only.
+
+# ----------------------------
+# 0) Bring up parity substrate [phase_id: P0]
+# ----------------------------
+TYPE: OPERATOR (one-shot)
+CMD:
+  make platform-parity-stack-up
+  make platform-parity-bootstrap
+  make platform-parity-stack-status
+EFFECT:
+  - starts MinIO + LocalStack + Postgres
+  - creates buckets + creates Kinesis streams (the full topic set)
+SUCCESS:
+  - buckets oracle-store + fraud-platform exist
+  - streams exist (sr-control-bus, traffic*, context*, rtdl, case, audit)
+
+# ----------------------------
+# 1) Verify parity env wiring [phase_id: P0]
+# ----------------------------
+TYPE: OPERATOR (one-shot)
+INPUT: .env.platform.local (Make loads it)
+MUST HAVE:
+  - endpoints/creds for MinIO + LocalStack
+  - DSNs for all Postgres-backed stores
+  - ORACLE_* envs point to MinIO S3 paths (not local filesystem paths)
+SUCCESS:
+  - OBJECT_STORE_ENDPOINT points at MinIO
+  - PARITY_*_ENDPOINT_URL points at LocalStack
+  - ORACLE_ENGINE_RUN_ROOT is s3://oracle-store/...
+  - ORACLE_STREAM_VIEW_ROOT ends with /stream_view/ts_utc
+
+# ----------------------------
+# 2) Create a new platform run id [phase_id: P1]
+# ----------------------------
+TYPE: OPERATOR (one-shot)
+CMD:
+  make platform-run-new
+OUTPUT:
+  runs/fraud-platform/ACTIVE_RUN_ID
+EFFECT:
+  - establishes run-scoped local log/artifact folders under runs/fraud-platform/<platform_run_id>/
+SUCCESS:
+  - ACTIVE_RUN_ID exists and contains platform_<timestamp>Z
+
+# ----------------------------
+# 3) Start “always-on” packs (Run/Operate) for Spine Green v0 [phase_id: P2]
+# ----------------------------
+TYPE: DAEMONS (start once; remain running)
+RECOMMENDED CMD (baseline, in-scope packs only):
+  make platform-operate-control-ingress-up
+  make platform-operate-rtdl-core-up
+  make platform-operate-rtdl-decision-up
+  make platform-operate-case-labels-up
+  make platform-operate-obs-gov-up
+STATUS (SPINE-SAFE):
+  make platform-operate-control-ingress-status
+  make platform-operate-rtdl-core-status
+  make platform-operate-rtdl-decision-status
+  make platform-operate-case-labels-status
+  make platform-operate-obs-gov-status
+OPTIONAL FULL PARITY STATUS (includes learning-jobs pack by design):
+  make platform-operate-parity-status
+
+NOTE:
+  - DO NOT start learning-jobs pack for Spine Green v0 baseline.
+  - `platform-operate-parity-status` includes learning-jobs status by Make contract.
+
+EFFECT:
+  control_ingress pack runs:
+    - IG service daemon
+    - WSP READY consumer daemon (or equivalent run trigger consumer)
+  rtdl_core pack runs:
+    - ArchiveWriter, IEG projector, OFP projector, CSFB intake (daemon workers)
+  rtdl_decision_lane pack runs:
+    - DL worker, DF worker, AL worker, DLA worker (daemon workers)
+  case_labels pack runs:
+    - CaseTrigger worker, CM worker, LS daemon worker (`label_store_worker`) enforcing writer-boundary semantics
+  obs_gov pack runs:
+    - platform_run_reporter daemon
+    - environment_conformance daemon
+
+RUN/OPERATE ARTIFACTS:
+  pack-scoped control/state:
+    runs/fraud-platform/operate/<pack_id>/state.json
+    runs/fraud-platform/operate/<pack_id>/status/last_status.json
+  run-scoped logs/events:
+    runs/fraud-platform/<platform_run_id>/operate/<pack_id>/events.jsonl
+    runs/fraud-platform/<platform_run_id>/operate/<pack_id>/logs/<process>.log
+
+IN-SCOPE PACK IDS (SPINE GREEN v0):
+  - local_parity_control_ingress_v0
+  - local_parity_rtdl_core_v0
+  - local_parity_rtdl_decision_lane_v0
+  - local_parity_case_labels_v0
+  - local_parity_obs_gov_v0
+
+SUCCESS:
+  - pack status shows processes running
+  - component logs appear under runs/fraud-platform/<platform_run_id>/operate/<pack_id>/logs/
+
+# ------------------------------------------------------------
+# 4) Oracle Store preparation (THIS IS THE HEAVY BATCH COMPUTE) [phase_id: P3]
+# ------------------------------------------------------------
+# This is the part that "works on laptop" but must be treated as a job for dev.
+# It is REQUIRED because WSP consumes the STREAM VIEW, not raw unsorted outputs.
+
+4.1) Sync engine outputs into MinIO (Oracle Store backend)
+TYPE: BATCH JOB (one-shot)
+CMD:
+  make platform-oracle-sync
+INPUTS:
+  ORACLE_SYNC_SOURCE      = local engine run path (filesystem)
+  ORACLE_ENGINE_RUN_ROOT  = s3://oracle-store/... (MinIO)
+OUTPUTS:
+  - copies engine run datasets into MinIO under ORACLE_ENGINE_RUN_ROOT
+SUCCESS:
+  - objects exist at s3://oracle-store/... for the engine outputs
+
+4.2) Seal Oracle pack (manifest + _SEALED.json)
+TYPE: BATCH JOB (one-shot)
+CMD:
+  make platform-oracle-pack ORACLE_PROFILE=... ORACLE_ENGINE_RUN_ROOT=... ORACLE_SCENARIO_ID=... ORACLE_ENGINE_RELEASE=...
+OPTIONAL STRICT CHECK:
+  make platform-oracle-check-strict ORACLE_PROFILE=... ORACLE_ENGINE_RUN_ROOT=...
+OUTPUTS:
+  - pack manifest files
+  - _SEALED.json (write-once, seal boundary)
+SUCCESS:
+  - strict check passes OR no errors reported
+  - seal files exist under ORACLE_PACK_ROOT
+
+4.3) Build stream view (per-output strict ts_utc ordering)
+TYPE: BATCH JOB (one-shot; CPU+RAM+disk heavy)
+CMD:
+  make platform-oracle-stream-sort ORACLE_PROFILE=... ORACLE_ENGINE_RUN_ROOT=... ORACLE_SCENARIO_ID=...
+BEHAVIOR:
+  - reads raw engine outputs FROM MinIO
+  - writes sorted view TO MinIO under:
+      <ORACLE_STREAM_VIEW_ROOT>/output_id=<output_id>/part-*.parquet
+  - ordering: ts_utc, then filename, then file_row_number
+  - writes per-output:
+      _stream_view_manifest.json
+      _stream_sort_receipt.json
+  - idempotent per output_id (valid receipt => skip; conflict => fail)
+SUCCESS:
+  - stream view parts exist for ALL output_ids needed for the run:
+      traffic (fraud or baseline)
+      context (arrival_events, arrival_entities, flow_anchor for chosen mode)
+
+# ----------------------------
+# 4.4) Ingest readiness gate before READY publish [phase_id: P4]
+# ----------------------------
+TYPE: DAEMON readiness check (IG service must be reachable)
+CMD:
+  make platform-operate-control-ingress-status
+  curl -i http://127.0.0.1:8081/v1/ops/health
+  curl -i -H "X-IG-Api-Key: <configured_ig_api_key>" http://127.0.0.1:8081/v1/ops/health
+SUCCESS:
+  - unauthenticated GET /v1/ops/health => 401 UNAUTHORIZED
+  - authenticated GET /v1/ops/health => 200 health payload
+  - required ingress/rtdl/case/audit streams exist for in-scope producers
+
+# ----------------------------
+# 5) SR publishes READY to control bus [phase_id: P5]
+# ----------------------------
+TYPE: ACTIVATION (one-shot)
+CMD:
+  set SR_RUN_EQUIVALENCE_KEY=parity_<timestamp>
+  make platform-sr-run-reuse SR_WIRING=config/platform/sr/wiring_local_kinesis.yaml
+INPUTS:
+  - reads oracle_engine_run_root from Oracle Store (MinIO); this is the SR read root in local_parity
+  - if _oracle_pack_manifest.json exists under oracle_engine_run_root, SR validates and carries oracle_pack_ref in READY facts/signal
+  - uses ACTIVE_RUN_ID to pin platform_run_id for this invocation
+OUTPUTS:
+  - SR canonical artifacts under s3://fraud-platform/<platform_run_id>/sr/:
+      run_plan/<run_id>.json
+      run_record/<run_id>.jsonl
+      run_status/<run_id>.json
+      run_facts_view/<run_id>.json
+      ready_signal/<run_id>.json
+  - READY message published to sr-control-bus (Kinesis)
+SUCCESS:
+  - SR log shows READY committed + READY published:
+      runs/fraud-platform/<platform_run_id>/scenario_runner/scenario_runner.log
+
+# ----------------------------
+# 6) WSP consumes READY and streams to IG [phase_id: P6]
+# ----------------------------
+TYPE: DAEMON (if pack running) or ACTIVATION (manual once)
+MANUAL ONCE CMD (if NOT using pack):
+  set WSP_MAX_EVENTS_PER_OUTPUT=200
+  make platform-wsp-ready-consumer-once WSP_PROFILE=config/platform/profiles/local_parity.yaml
+OPTIONAL GATE PATTERN:
+  - run 20 first, then 200 for full bounded closure
+
+INPUTS:
+  - reads READY from sr-control-bus (Kinesis)
+  - resolves run_facts_view refs
+  - reads stream view FROM MinIO:
+      <ORACLE_STREAM_VIEW_ROOT>/output_id=<output_id>/part-*.parquet
+  - emits HTTP POST to IG ingest endpoint (/v1/ingest/push)
+  - ingest caller contract (local_parity): each push carries X-IG-Api-Key; missing/invalid key must return 401 UNAUTHORIZED
+OUTPUTS:
+  - WSP ready-consumer logs under:
+      runs/fraud-platform/<platform_run_id>/operate/local_parity_control_ingress_v0/logs/wsp_ready_consumer.log
+SUCCESS:
+  - WSP stream start -> stream stop logged
+  - each expected output reaches emitted=200 for bounded run
+  - IG begins producing receipts
+NOTE (EXPECTED IN PARITY):
+  - duplicate READY messages can be observed and skipped if control-bus history contains prior READY records.
+  - "WSP READY duplicate skipped ..." is expected when dedupe/checkpointing is healthy.
+
+# ----------------------------
+# 7) IG admits + publishes to Event Bus [phase_id: P7]
+# ----------------------------
+TYPE: DAEMON (IG service; must be running during streaming)
+MANUAL CMD (if NOT using pack):
+  make platform-ig-service-parity
+
+INPUTS:
+  - receives HTTP push envelopes from WSP
+  - validates envelope + schema policy + pins
+  - dedupes + decides ADMIT/DUPLICATE/QUARANTINE
+ON ADMIT:
+  - publishes to Event Bus (LocalStack Kinesis) into correct stream:
+      traffic.fraud or traffic.baseline
+      arrival_events / arrival_entities / flow_anchor.{mode}
+  - writes receipt to object store:
+      s3://fraud-platform/<platform_run_id>/ig/receipts/<receipt_id>.json
+  - receipt includes eb_ref with offset_kind=kinesis_sequence
+  - ADMIT is considered committed only when receipt + eb_ref admission-index evidence are durable
+ON PUBLISH_UNKNOWN (publish outcome ambiguous):
+  - do NOT claim ADMIT commit for that event until publish commit evidence is proven
+  - hold run closure for affected event(s), reconcile IG admission row + eb_ref + bus presence
+  - if unresolved, fail closed and record explicit ambiguity for operator remediation
+  - canonical runtime evidence (as implemented):
+      admission index state = PUBLISH_AMBIGUOUS
+      quarantine artifact = s3://fraud-platform/<platform_run_id>/ig/quarantine/<quarantine_id>.json
+      quarantine receipt = s3://fraud-platform/<platform_run_id>/ig/receipts/<receipt_id>.json with decision=QUARANTINE and reason_codes including PUBLISH_AMBIGUOUS
+ON QUARANTINE:
+  - writes quarantine record (payload removed) + receipt
+SUCCESS:
+  - receipts exist in object store
+  - Kinesis streams show records (traffic + context)
+  - IG service log updates at:
+      runs/fraud-platform/<platform_run_id>/operate/local_parity_control_ingress_v0/logs/ig_service.log
+OPS HEALTH CONTRACT:
+  - unauthenticated GET /v1/ops/health => 401 {"error":"UNAUTHORIZED"}
+  - authenticated GET /v1/ops/health with X-IG-Api-Key => 200 {"state":"GREEN",...} once flow is healthy
+INGEST AUTH CONTRACT (LOCAL_PARITY):
+  - POST /v1/ingest/push uses api_key mode with header X-IG-Api-Key
+  - missing/invalid key => 401 UNAUTHORIZED
+
+# ----------------------------
+# 8) RTDL core plane consumes admitted EB topics [phase_id: P8]
+# ----------------------------
+TYPE: DAEMONS (rtdl_core pack) OR manual one-shots
+CONSUMES (at minimum):
+  - traffic stream (mode-selected)
+  - context streams (arrival_events, arrival_entities, flow_anchor.<mode>)
+
+COMPONENTS:
+  ArchiveWriter:
+    - reads EB topics
+    - writes durable archive records (object store) for replay beyond EB retention:
+        s3://fraud-platform/<platform_run_id>/archive/events/topic=<topic>/partition=<partition>/offset_kind=<offset_kind>/offset=<offset>.json
+    - archive durability commit proof: archive object exists + PARITY_ARCHIVE_WRITER_LEDGER_DSN offset advanced
+    - local filesystem archive artifacts are observability-only (not archive durability truth)
+  IEG projector:
+    - reads EB
+    - updates identity/entity projection store (Postgres)
+    - emits health/metrics/reconciliation under runs/fraud-platform/<platform_run_id>/identity_entity_graph/...
+  OFP projector:
+    - reads traffic EB
+    - updates feature state (Postgres)
+    - emits health/metrics under runs/fraud-platform/<platform_run_id>/online_feature_plane/...
+  CSFB intake:
+    - reads context EB
+    - updates JoinFrames + FlowBinding index (Postgres)
+    - supports query service resolve_flow_binding + join readiness
+
+SUCCESS (core):
+  - each component writes run-scoped health/metrics artifacts
+  - CSFB join counters advance (join_hits etc)
+  - ArchiveWriter produces run-scoped archive observability artifacts (required for Spine Green v0)
+
+# ----------------------------
+# 9) RTDL decision lane consumes + emits rtdl/audit [phase_id: P9]
+# ----------------------------
+TYPE: DAEMONS (rtdl_decision_lane pack)
+CONSUMES:
+  - traffic EB (and any needed context surfaces via stores)
+COMPONENTS:
+  DL:
+    - determines degrade posture (policy profile)
+    - persists posture + emits posture-related evidence/metrics
+  DF:
+    - resolves active degrade posture from DL current-posture store (dl_store_dsn + dl_stream_id)
+      (no DL->DF posture topic in Spine Green v0 runtime path)
+    - synthesizes decision_response + action_intent
+    - publishes to fp.bus.rtdl.v1
+  AL:
+    - consumes fp.bus.rtdl.v1 intents
+    - executes simulated effects
+    - publishes action_outcome to fp.bus.rtdl.v1
+  DLA:
+    - consumes fp.bus.rtdl.v1 (decision+intent+outcome chain)
+    - writes append-only decision/audit records (object store + index in Postgres)
+    - publishes audit events to fp.bus.audit.v1
+STARTUP INTAKE INVARIANT (RUN-SCOPED PARITY):
+  - AL and DLA first Kinesis read with no checkpoint and required_platform_run_id set must start from trim_horizon.
+  - non-target run records are checkpoint-skipped by run-scope gate; target-run events are preserved.
+
+SUCCESS:
+  - fp.bus.rtdl.v1 contains decision+intent+outcome events
+  - fp.bus.audit.v1 contains audit events
+  - DLA run-scoped reconciliation artifacts exist under runs/.../decision_log_audit/...
+
+# ----------------------------
+# 10) Case + Labels plane consumes decision evidence and writes human-truth stores [phase_id: P10]
+# ----------------------------
+TYPE: DAEMONS (case_labels pack)
+COMPONENTS:
+  CaseTrigger:
+    - consumes fp.bus.rtdl.v1 only (event types: decision_response, action_outcome) in Spine Green v0
+    - emits case triggers to fp.bus.case.v1
+    - checkpoints (duplicate-safe)
+  CM (case management):
+    - consumes fp.bus.case.v1
+    - creates/updates append-only case timeline (Postgres)
+  LS (label store; runtime in local parity = daemon worker `label_store_worker`):
+    - writer boundary for label assertions (primary flow: CM -> LS)
+    - append-only label timeline truth (Postgres) + optional emitted label events
+LS WRITER BOUNDARY PROTOCOL (LOCAL_PARITY):
+  - boundary type: in-process CM handshake call into `LabelStoreWriterBoundary.write_label_assertion(assertion_payload)`
+  - request basis: canonical label assertion payload with pins, subject key, evidence refs, and deterministic identity/hash fields
+  - writer outcomes:
+      ACCEPTED  => committed new assertion OR replay-match
+      REJECTED  => contract/missing-evidence/dedupe-collision/payload-mismatch reasons
+  - handshake outcome mapping:
+      EMISSION_ACCEPTED / EMISSION_REJECTED / EMISSION_PENDING
+      (PENDING is retry-needed due to write exception; not accepted truth)
+  - idempotency basis: deterministic `label_assertion_id` and tuple
+      (platform_run_id, event_id, label_type, label_assertion_id)
+  - retry posture: bounded retries via CM label emission policy before terminal reject path
+
+SUCCESS:
+  - fp.bus.case.v1 has trigger events
+  - CaseTrigger/CM/LS run-scoped health artifacts exist and are GREEN
+  - CM metrics show case timeline creation activity for active run (cases_created > 0)
+  - LS metrics show label assertion activity for active run (accepted > 0)
+
+# ----------------------------
+# 11) Obs/Gov closure (run report + conformance + governance log) [phase_id: P11]
+# ----------------------------
+TYPE: DAEMONS (obs_gov pack) OR manual one-shots (NOT concurrently)
+MANUAL SPOT CHECK CMDS:
+  make platform-run-report
+  make platform-governance-query GOVERNANCE_QUERY_LIMIT=20
+  make platform-env-conformance
+
+OUTPUTS:
+  - runs/fraud-platform/<platform_run_id>/obs/platform_run_report.json
+  - runs/fraud-platform/<platform_run_id>/obs/environment_conformance.json
+  - s3://fraud-platform/<platform_run_id>/obs/governance/events.jsonl
+SUCCESS:
+  - run report generated
+  - governance events appended (no append conflicts)
+  - conformance gate passes for local_parity profile expectations
+
+# ----------------------------
+# 11.1) Spine Green v0 strict closeout (200-event baseline) [phase_id: P11]
+# ----------------------------
+REQUIRED EVIDENCE (run-scoped):
+  - runs/fraud-platform/<platform_run_id>/obs/platform_run_report.json
+  - runs/fraud-platform/<platform_run_id>/obs/environment_conformance.json
+  - runs/fraud-platform/<platform_run_id>/archive_writer/health/last_health.json
+  - runs/fraud-platform/<platform_run_id>/identity_entity_graph/health/last_health.json
+  - runs/fraud-platform/<platform_run_id>/online_feature_plane/health/last_health.json
+  - runs/fraud-platform/<platform_run_id>/context_store_flow_binding/health/last_health.json
+  - runs/fraud-platform/<platform_run_id>/decision_fabric/health/last_health.json
+  - runs/fraud-platform/<platform_run_id>/action_layer/health/last_health.json
+  - runs/fraud-platform/<platform_run_id>/decision_log_audit/health/last_health.json
+  - runs/fraud-platform/<platform_run_id>/case_trigger/health/last_health.json
+  - runs/fraud-platform/<platform_run_id>/case_mgmt/health/last_health.json
+  - runs/fraud-platform/<platform_run_id>/label_store/health/last_health.json
+  - runs/fraud-platform/<platform_run_id>/operate/local_parity_control_ingress_v0/logs/wsp_ready_consumer.log
+PORTABILITY NOTE:
+  - This section is the local_parity closeout surface (filesystem + local evidence topology).
+  - For dev_min migration, equivalent commit evidence MUST be materialized under
+    s3://<evidence_bucket>/evidence/runs/<platform_run_id>/... and used for promotion gates.
+PASS CONDITIONS:
+  - environment_conformance status = PASS
+  - ingress admit signal is positive for active run (platform_run_report ingress.admit > 0)
+  - no unresolved PUBLISH_AMBIGUOUS receipt/evidence exists for active run closure set (fail closed)
+  - ArchiveWriter health_state = GREEN and archive_writer.metrics.seen_total > 0
+  - IEG health_state = GREEN
+  - OFP health_state = GREEN
+  - CSFB health_state = GREEN
+  - DF health_state = GREEN
+  - AL health_state = GREEN with intake/outcome parity for the run
+  - DLA health_state = GREEN and lineage_unresolved_total = 0
+  - CaseTrigger health_state = GREEN and metrics.triggers_seen > 0
+  - CM health_state = GREEN and metrics.cases_created > 0
+  - LS health_state = GREEN and metrics.accepted > 0
+  - WSP bounded run shows emitted=200 for traffic + context outputs in scope
+
+# ----------------------------
+# 12) Shutdown (optional) [phase_id: P12]
+# ----------------------------
+TYPE: OPERATOR
+CMD (packs first, then substrate):
+  make platform-operate-obs-gov-down
+  make platform-operate-case-labels-down
+  make platform-operate-rtdl-decision-down
+  make platform-operate-rtdl-core-down
+  make platform-operate-control-ingress-down
+OPTIONAL SUBSTRATE TEARDOWN:
+  make platform-parity-stack-down
+
+```

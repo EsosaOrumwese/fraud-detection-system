@@ -181,3 +181,4 @@ runs/fraud-platform/
 runs/fraud-platform/**
 .env.example
 .env.platform.local
+.env.dev_min

@@ -34,12 +34,12 @@ def low64(digest: bytes) -> int:
     return int.from_bytes(digest[24:32], "little", signed=False)
 
 
-def derive_master_material(manifest_fingerprint_bytes: bytes, seed: int) -> bytes:
-    if len(manifest_fingerprint_bytes) != 32:
-        raise ValueError("manifest_fingerprint_bytes must be 32 bytes.")
+def derive_master_material(seed_material_bytes: bytes, seed: int) -> bytes:
+    if len(seed_material_bytes) != 32:
+        raise ValueError("seed_material_bytes must be 32 bytes.")
     payload = (
         uer_string("mlr:1A.master")
-        + manifest_fingerprint_bytes
+        + seed_material_bytes
         + struct.pack("<Q", seed)
     )
     return hashlib.sha256(payload).digest()

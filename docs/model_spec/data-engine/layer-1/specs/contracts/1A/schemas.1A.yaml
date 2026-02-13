@@ -235,7 +235,7 @@ alloc:
 egress:
   outlet_catalogue:
     type: table
-    description: 'Immutable outlet stubs per merchant and legal country. NOTE: Inter-country order is NOT encoded here; consumers must join `s3_candidate_set.candidate_rank` (authoritative order from S3).'
+    description: 'Immutable outlet stubs per merchant and legal country. `site_id` is a merchant-local sequence token scoped to `(merchant_id, legal_country_iso)` and is not a global physical-site identifier. NOTE: Inter-country order is NOT encoded here; consumers must join `s3_candidate_set.candidate_rank` (authoritative order from S3).'
     primary_key: [merchant_id, legal_country_iso, site_order]
     unique_keys:
     - [merchant_id, legal_country_iso, site_order]
@@ -247,7 +247,7 @@ egress:
     - name: site_id
       type: string
       nullable: false
-      description: 6-digit zero-padded per-(merchant,legal_country) sequence.
+      description: 6-digit zero-padded per-(merchant,legal_country) sequence; uniqueness scope is exactly `(merchant_id, legal_country_iso)`.
       pattern: ^[0-9]{6}$
     - name: home_country_iso
       $ref: '#/$defs/iso2'

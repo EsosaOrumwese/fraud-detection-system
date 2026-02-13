@@ -12,6 +12,7 @@ from fraud_detection.event_bus import EventBusReader
 
 from .config import DecisionLogAuditIntakePolicy
 from .inlet import (
+    DLA_INLET_RUN_SCOPE_MISMATCH,
     DlaBusInput,
     DecisionLogAuditInlet,
 )
@@ -24,6 +25,7 @@ DLA_INTAKE_WRITE_FAILED = "WRITE_FAILED"
 DLA_INTAKE_PAYLOAD_HASH_MISMATCH = "PAYLOAD_HASH_MISMATCH"
 DLA_INTAKE_LINEAGE_CONFLICT = "LINEAGE_CONFLICT"
 DLA_INTAKE_REPLAY_DIVERGENCE = "REPLAY_DIVERGENCE"
+DLA_INTAKE_RUN_SCOPE_SKIPPED = "RUN_SCOPE_SKIPPED"
 
 
 @dataclass(frozen=True)
@@ -69,6 +71,21 @@ class DecisionLogAuditIntakeProcessor:
 
         result = self.inlet.evaluate(record)
         if not result.accepted:
+            if result.reason_code == DLA_INLET_RUN_SCOPE_MISMATCH:
+                return self._finalize_result(
+                    record=record,
+                    platform_run_id=platform_run_id,
+                    scenario_run_id=scenario_run_id,
+                    event_type=event_type,
+                    event_id=event_id,
+                    result=self._skip_and_checkpoint(
+                        record=record,
+                        reason_code=result.reason_code,
+                        detail=result.detail,
+                        event_type=str(_unwrap_record_event_type(record.payload) or ""),
+                        event_id=str(_unwrap_record_event_id(record.payload) or ""),
+                    ),
+                )
             return self._finalize_result(
                 record=record,
                 platform_run_id=platform_run_id,
@@ -334,6 +351,30 @@ class DecisionLogAuditIntakeProcessor:
             write_status=write.status,
         )
 
+    def _skip_and_checkpoint(
+        self,
+        *,
+        record: DlaBusInput,
+        reason_code: str,
+        detail: str | None,
+        event_type: str,
+        event_id: str,
+    ) -> DecisionLogAuditIntakeResult:
+        checkpoint_advanced = self._advance_checkpoint_safely(
+            topic=record.topic,
+            partition=record.partition,
+            offset=record.offset,
+            offset_kind=record.offset_kind,
+            event_ts_utc=None,
+        )
+        return DecisionLogAuditIntakeResult(
+            accepted=False,
+            reason_code=reason_code or DLA_INTAKE_RUN_SCOPE_SKIPPED,
+            detail=detail,
+            checkpoint_advanced=checkpoint_advanced,
+            write_status=DLA_INTAKE_RUN_SCOPE_SKIPPED,
+        )
+
     def _quarantine_and_checkpoint(
         self,
         *,
@@ -490,12 +531,15 @@ class DecisionLogAuditBusConsumer:
                 partition = _partition_id_from_shard(shard_id)
                 checkpoint = self.store.get_checkpoint(topic=topic, partition=partition)
                 from_sequence = checkpoint.next_offset if checkpoint else None
+                start_position = self.runtime.event_bus_start_position
+                if checkpoint is None and self.policy.required_platform_run_id:
+                    start_position = "trim_horizon"
                 records = self._kinesis_reader.read(
                     stream_name=stream,
                     shard_id=shard_id,
                     from_sequence=from_sequence,
                     limit=self.runtime.poll_max_records,
-                    start_position=self.runtime.event_bus_start_position,
+                    start_position=start_position,
                 )
                 for record in records:
                     payload = record.get("payload") if isinstance(record.get("payload"), dict) else {}

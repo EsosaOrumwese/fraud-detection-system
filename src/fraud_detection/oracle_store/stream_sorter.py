@@ -57,6 +57,81 @@ class StreamSortError(RuntimeError):
     pass
 
 
+@dataclass(frozen=True)
+class _AwsRuntimeCredentials:
+    access_key_id: str | None
+    secret_access_key: str | None
+    session_token: str | None
+    region: str | None
+    source: str
+
+
+def _normalize_optional(value: str | None) -> str | None:
+    if value is None:
+        return None
+    stripped = value.strip()
+    return stripped or None
+
+
+def _sql_literal(value: str) -> str:
+    return value.replace("'", "''")
+
+
+def _resolve_aws_runtime_credentials(profile_region: str | None) -> _AwsRuntimeCredentials:
+    access_key = _normalize_optional(os.getenv("AWS_ACCESS_KEY_ID"))
+    secret_key = _normalize_optional(os.getenv("AWS_SECRET_ACCESS_KEY"))
+    session_token = _normalize_optional(os.getenv("AWS_SESSION_TOKEN"))
+    env_region = _normalize_optional(os.getenv("AWS_REGION")) or _normalize_optional(
+        os.getenv("AWS_DEFAULT_REGION")
+    )
+    resolved_region = _normalize_optional(profile_region) or env_region
+
+    if access_key and secret_key:
+        return _AwsRuntimeCredentials(
+            access_key_id=access_key,
+            secret_access_key=secret_key,
+            session_token=session_token,
+            region=resolved_region,
+            source="env",
+        )
+
+    try:
+        import boto3
+
+        session_kwargs: dict[str, Any] = {}
+        profile_name = _normalize_optional(os.getenv("AWS_PROFILE"))
+        if profile_name:
+            session_kwargs["profile_name"] = profile_name
+        session = boto3.session.Session(**session_kwargs)
+        credentials = session.get_credentials()
+        if credentials is not None:
+            frozen = credentials.get_frozen_credentials()
+            access_key = _normalize_optional(getattr(frozen, "access_key", None))
+            secret_key = _normalize_optional(getattr(frozen, "secret_key", None))
+            session_token = _normalize_optional(getattr(frozen, "token", None))
+            if access_key and secret_key:
+                resolved_region = resolved_region or _normalize_optional(session.region_name)
+                return _AwsRuntimeCredentials(
+                    access_key_id=access_key,
+                    secret_access_key=secret_key,
+                    session_token=session_token,
+                    region=resolved_region,
+                    source="boto3_session",
+                )
+        if not resolved_region:
+            resolved_region = _normalize_optional(session.region_name)
+    except Exception as exc:
+        logger.debug("Oracle stream view boto3 credential resolution failed: %s", exc)
+
+    return _AwsRuntimeCredentials(
+        access_key_id=None,
+        secret_access_key=None,
+        session_token=None,
+        region=resolved_region,
+        source="none",
+    )
+
+
 def compute_stream_view_id(
     *,
     engine_run_root: str,
@@ -470,6 +545,7 @@ def _expand_paths(path: str, profile: OracleProfile) -> list[str]:
 def _duckdb_connect(profile: OracleProfile) -> "duckdb.DuckDBPyConnection":
     import duckdb
 
+    aws_runtime = _resolve_aws_runtime_credentials(profile.wiring.object_store_region)
     con = duckdb.connect()
     con.execute("INSTALL httpfs")
     con.execute("LOAD httpfs")
@@ -479,33 +555,30 @@ def _duckdb_connect(profile: OracleProfile) -> "duckdb.DuckDBPyConnection":
         con.execute(f"PRAGMA progress_bar_time={float(progress_time)}")
     memory_limit = os.getenv("STREAM_SORT_MEMORY_LIMIT")
     if memory_limit:
-        con.execute(f"PRAGMA memory_limit='{memory_limit}'")
+        con.execute(f"PRAGMA memory_limit='{_sql_literal(memory_limit)}'")
     temp_dir = os.getenv("STREAM_SORT_TEMP_DIR")
     if temp_dir:
-        con.execute(f"PRAGMA temp_directory='{temp_dir}'")
+        con.execute(f"PRAGMA temp_directory='{_sql_literal(temp_dir)}'")
     max_temp = os.getenv("STREAM_SORT_MAX_TEMP_SIZE")
     if max_temp:
-        con.execute(f"PRAGMA max_temp_directory_size='{max_temp}'")
+        con.execute(f"PRAGMA max_temp_directory_size='{_sql_literal(max_temp)}'")
     if profile.wiring.object_store_endpoint:
         endpoint = profile.wiring.object_store_endpoint
         if "://" in endpoint:
             parsed = urlparse(endpoint)
             endpoint_host = parsed.netloc or endpoint.split("://", 1)[1]
-            con.execute(f"SET s3_endpoint='{endpoint_host}'")
+            con.execute(f"SET s3_endpoint='{_sql_literal(endpoint_host)}'")
             if parsed.scheme == "http":
                 con.execute("SET s3_use_ssl=false")
         else:
-            con.execute(f"SET s3_endpoint='{endpoint}'")
-    if profile.wiring.object_store_region:
-        con.execute(f"SET s3_region='{profile.wiring.object_store_region}'")
-    access_key = os.getenv("AWS_ACCESS_KEY_ID") or ""
-    secret_key = os.getenv("AWS_SECRET_ACCESS_KEY") or ""
-    if access_key and secret_key:
-        con.execute(f"SET s3_access_key_id='{access_key}'")
-        con.execute(f"SET s3_secret_access_key='{secret_key}'")
-    session_token = os.getenv("AWS_SESSION_TOKEN") or ""
-    if session_token:
-        con.execute(f"SET s3_session_token='{session_token}'")
+            con.execute(f"SET s3_endpoint='{_sql_literal(endpoint)}'")
+    if aws_runtime.region:
+        con.execute(f"SET s3_region='{_sql_literal(aws_runtime.region)}'")
+    if aws_runtime.access_key_id and aws_runtime.secret_access_key:
+        con.execute(f"SET s3_access_key_id='{_sql_literal(aws_runtime.access_key_id)}'")
+        con.execute(f"SET s3_secret_access_key='{_sql_literal(aws_runtime.secret_access_key)}'")
+    if aws_runtime.session_token:
+        con.execute(f"SET s3_session_token='{_sql_literal(aws_runtime.session_token)}'")
     if profile.wiring.object_store_path_style:
         con.execute("SET s3_url_style='path'")
     threads = os.getenv("STREAM_SORT_THREADS")
@@ -522,13 +595,15 @@ def _duckdb_connect(profile: OracleProfile) -> "duckdb.DuckDBPyConnection":
         except Exception:
             current_threads = threads or "default"
         logger.info(
-            "Oracle stream view duckdb_config threads=%s progress_bar=%s memory_limit=%s temp_dir=%s max_temp=%s preserve_order=%s",
+            "Oracle stream view duckdb_config threads=%s progress_bar=%s memory_limit=%s temp_dir=%s max_temp=%s preserve_order=%s s3_region=%s credential_source=%s",
             current_threads,
             "on" if progress_time else "off",
             os.getenv("STREAM_SORT_MEMORY_LIMIT") or "default",
             os.getenv("STREAM_SORT_TEMP_DIR") or "default",
             os.getenv("STREAM_SORT_MAX_TEMP_SIZE") or "default",
             os.getenv("STREAM_SORT_PRESERVE_ORDER") or "false",
+            aws_runtime.region or "unset",
+            aws_runtime.source,
         )
     return con
 

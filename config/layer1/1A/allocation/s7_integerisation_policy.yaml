@@ -10,3 +10,15 @@ bounds_lane:
   enabled: true
   lower_multiplier: 1.0
   upper_multiplier: 1.0
+
+home_bias_lane:
+  enabled: true
+  tiers:
+    - max_n_outlets: 10
+      home_share_min: 0.92
+    - max_n_outlets: 20
+      home_share_min: 0.85
+    - max_n_outlets: 40
+      home_share_min: 0.75
+    - max_n_outlets: 1000000
+      home_share_min: 0.609

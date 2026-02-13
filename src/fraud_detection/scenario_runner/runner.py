@@ -93,6 +93,8 @@ class ScenarioRunner:
         self.wiring = wiring
         self.policy = policy
         self.engine_invoker = engine_invoker
+        self.execution_identity: str | None = None
+        self._validate_settlement_lock()
         self.schemas = SchemaRegistry(Path(wiring.schema_root))
         self.engine_schemas = SchemaRegistry(Path(wiring.engine_contracts_root))
         self.oracle_schemas = SchemaRegistry(Path(wiring.schema_root).parent / "oracle_store")
@@ -197,6 +199,37 @@ class ScenarioRunner:
         )
         canonical = self._canonicalize(request)
         resolved_engine_root = self._resolve_engine_root(request.engine_run_root)
+        oracle_scope_reason = self._validate_oracle_scope(
+            request_root=request.engine_run_root,
+            resolved_engine_root=resolved_engine_root,
+            scenario_id=canonical.scenario_id,
+        )
+        if oracle_scope_reason:
+            run_id = run_id_from_equivalence_key(request.run_equivalence_key)
+            self.ledger.append_record(
+                run_id,
+                self._event(
+                    "ORACLE_SCOPE_REJECTED",
+                    run_id,
+                    {"reason": oracle_scope_reason},
+                ),
+            )
+            self._emit_obs(
+                ObsEvent.now(
+                    event_kind="ORACLE_SCOPE_REJECTED",
+                    phase=ObsPhase.INGRESS,
+                    outcome=ObsOutcome.FAIL,
+                    severity=ObsSeverity.ERROR,
+                    pins={"run_id": run_id, "scenario_id": canonical.scenario_id},
+                    details={"reason": oracle_scope_reason},
+                )
+            )
+            return RunResponse(
+                run_id=run_id,
+                state=RunStatusState.FAILED,
+                record_ref=f"{self.ledger.prefix}/run_record/{run_id}.jsonl",
+                message=f"Oracle scope rejected: {oracle_scope_reason}",
+            )
         if resolved_engine_root and resolved_engine_root != request.engine_run_root:
             self.logger.info(
                 "SR: oracle engine root enforced (request_root=%s, oracle_root=%s)",
@@ -499,6 +532,7 @@ class ScenarioRunner:
             "reemit_kind": request.reemit_kind.value,
             "reason": request.reason,
             "requested_by": request.requested_by,
+            "emit_platform_run_id": request.emit_platform_run_id,
         }
         request_event = self._event(
             "REEMIT_REQUESTED",
@@ -509,6 +543,25 @@ class ScenarioRunner:
 
         ready_allowed = request.reemit_kind in (ReemitKind.READY_ONLY, ReemitKind.BOTH)
         terminal_allowed = request.reemit_kind in (ReemitKind.TERMINAL_ONLY, ReemitKind.BOTH)
+        source_ready_platform_run_id: str | None = None
+        target_ready_platform_run_id: str | None = None
+        reemit_scope_reason: str | None = None
+        if ready_allowed and status.state == RunStatusState.READY and request.emit_platform_run_id:
+            source_ready_platform_run_id, target_ready_platform_run_id, reemit_scope_reason = self._resolve_reemit_platform_scope(
+                run_id,
+                request,
+            )
+            if reemit_scope_reason:
+                failure_event = self._event("REEMIT_FAILED", run_id, {"reason": reemit_scope_reason})
+                self.ledger.append_record(run_id, failure_event)
+                return ReemitResponse(
+                    run_id=run_id,
+                    status_state=status.state,
+                    published=[],
+                    message=self._reemit_scope_message(reemit_scope_reason),
+                )
+        if ready_allowed and status.state == RunStatusState.READY and not target_ready_platform_run_id:
+            target_ready_platform_run_id = request.emit_platform_run_id
 
         if request.dry_run:
             would_publish: list[str] = []
@@ -521,7 +574,12 @@ class ScenarioRunner:
                 self._event(
                     "REEMIT_DRY_RUN",
                     run_id,
-                    {"reemit_kind": request.reemit_kind.value, "would_publish": would_publish},
+                    {
+                        "reemit_kind": request.reemit_kind.value,
+                        "would_publish": would_publish,
+                        "source_platform_run_id": source_ready_platform_run_id,
+                        "target_platform_run_id": target_ready_platform_run_id,
+                    },
                 ),
             )
             message = "Dry-run complete; no publish performed."
@@ -539,11 +597,39 @@ class ScenarioRunner:
             self.ledger.append_record(run_id, failure_event)
             return ReemitResponse(run_id=run_id, status_state=status.state, message="Reemit rate limit exceeded.")
 
+        if (
+            ready_allowed
+            and status.state == RunStatusState.READY
+            and source_ready_platform_run_id
+            and target_ready_platform_run_id
+            and source_ready_platform_run_id != target_ready_platform_run_id
+            and request.cross_run_override
+        ):
+            override = request.cross_run_override
+            self._append_governance_fact(
+                run_id,
+                "GOV_REEMIT_OVERRIDE_APPROVED",
+                {
+                    "source_platform_run_id": source_ready_platform_run_id,
+                    "target_platform_run_id": target_ready_platform_run_id,
+                    "override_id": override.override_id,
+                    "reason_code": override.reason_code,
+                    "evidence_ref": override.evidence_ref,
+                    "approved_by": override.approved_by,
+                    "approved_at_utc": override.approved_at_utc.isoformat(),
+                    "ticket_ref": override.ticket_ref,
+                },
+            )
+
         published: list[str] = []
         attempted = False
         if ready_allowed and status.state == RunStatusState.READY:
             attempted = True
-            ready_key = self._reemit_ready(run_id, status)
+            ready_key = self._reemit_ready(
+                run_id,
+                status,
+                target_platform_run_id=target_ready_platform_run_id,
+            )
             if ready_key:
                 published.append(ready_key)
         if terminal_allowed and status.state in (RunStatusState.FAILED, RunStatusState.QUARANTINED):
@@ -585,6 +671,170 @@ class ScenarioRunner:
 
         return ReemitResponse(run_id=run_id, status_state=status.state, published=published, message="Reemit published.")
 
+    def _resolve_reemit_platform_scope(
+        self,
+        run_id: str,
+        request: ReemitRequest,
+    ) -> tuple[str | None, str | None, str | None]:
+        facts_view = self.ledger.read_facts_view(run_id)
+        if facts_view is None:
+            return None, request.emit_platform_run_id, "FACTS_VIEW_MISSING"
+        pins = facts_view.get("pins") or {}
+        source_platform_run_id = (
+            facts_view.get("platform_run_id")
+            or pins.get("platform_run_id")
+            or self.platform_run_id
+        )
+        target_platform_run_id = request.emit_platform_run_id or source_platform_run_id
+        if source_platform_run_id == target_platform_run_id:
+            return source_platform_run_id, target_platform_run_id, None
+        if not self.wiring.reemit_same_platform_run_only:
+            return source_platform_run_id, target_platform_run_id, None
+        if not self.wiring.reemit_cross_run_override_required:
+            return source_platform_run_id, target_platform_run_id, None
+        override = request.cross_run_override
+        if override is None:
+            return source_platform_run_id, target_platform_run_id, "CROSS_RUN_OVERRIDE_REQUIRED"
+        allowlist = {value.strip().upper() for value in self.wiring.reemit_cross_run_reason_allowlist if value.strip()}
+        if allowlist and override.reason_code.strip().upper() not in allowlist:
+            return source_platform_run_id, target_platform_run_id, "CROSS_RUN_OVERRIDE_REASON_NOT_ALLOWED"
+        return source_platform_run_id, target_platform_run_id, None
+
+    def _reemit_scope_message(self, reason: str) -> str:
+        if reason == "CROSS_RUN_OVERRIDE_REQUIRED":
+            return "Cross-run reemit blocked; governance override evidence required."
+        if reason == "CROSS_RUN_OVERRIDE_REASON_NOT_ALLOWED":
+            return "Cross-run reemit blocked; override reason is not allowlisted."
+        if reason == "FACTS_VIEW_MISSING":
+            return "Reemit failed."
+        return "Reemit failed."
+
+    def _resolve_run_config_digest(
+        self,
+        *,
+        plan: RunPlan | None = None,
+        facts_view: dict[str, Any] | None = None,
+    ) -> tuple[str, str]:
+        if plan is not None:
+            value = str(plan.policy_rev.get("content_digest") or "").strip()
+            if value:
+                return value, "run_plan.policy_rev.content_digest"
+        if facts_view is not None:
+            direct = str(facts_view.get("run_config_digest") or "").strip()
+            if direct:
+                return direct, "run_facts_view.run_config_digest"
+            policy_value = str((facts_view.get("policy_rev") or {}).get("content_digest") or "").strip()
+            if policy_value:
+                return policy_value, "run_facts_view.policy_rev.content_digest"
+        fallback = str(self.policy.content_digest or "").strip()
+        return fallback, "scenario_runner.policy.content_digest"
+
+    def _has_ambiguous_oracle_selector(self, value: str) -> bool:
+        lowered = value.strip().lower()
+        if not lowered:
+            return False
+        if "*" in lowered or "?" in lowered:
+            return True
+        ambiguous_tokens = ["/latest", "=latest", "/current", "=current"]
+        return any(token in lowered for token in ambiguous_tokens)
+
+    def _validate_oracle_scope(
+        self,
+        *,
+        request_root: str | None,
+        resolved_engine_root: str | None,
+        scenario_id: str,
+    ) -> str | None:
+        acceptance_mode = str(self.wiring.acceptance_mode or "local_parity").strip().lower()
+        if acceptance_mode != "dev_min_managed":
+            return None
+        pinned_engine_root = str(self.wiring.oracle_engine_run_root or "").strip()
+        pinned_scenario_id = str(self.wiring.oracle_scenario_id or "").strip()
+        pinned_stream_view_root = str(self.wiring.oracle_stream_view_root or "").strip()
+        if not pinned_engine_root:
+            return "ORACLE_ENGINE_RUN_ROOT_MISSING"
+        if not pinned_scenario_id:
+            return "ORACLE_SCENARIO_ID_MISSING"
+        if not pinned_stream_view_root:
+            return "ORACLE_STREAM_VIEW_ROOT_MISSING"
+        if self._has_ambiguous_oracle_selector(pinned_engine_root):
+            return "ORACLE_ENGINE_ROOT_AMBIGUOUS"
+        if self._has_ambiguous_oracle_selector(pinned_stream_view_root):
+            return "ORACLE_STREAM_VIEW_ROOT_AMBIGUOUS"
+        if not pinned_engine_root.startswith("s3://"):
+            return "ORACLE_ENGINE_ROOT_NOT_MANAGED"
+        if not pinned_stream_view_root.startswith("s3://"):
+            return "ORACLE_STREAM_VIEW_ROOT_NOT_MANAGED"
+        effective_root = str(resolved_engine_root or "").strip()
+        if not effective_root:
+            return "ORACLE_ENGINE_ROOT_UNRESOLVED"
+        if effective_root != pinned_engine_root:
+            return "ORACLE_ENGINE_ROOT_MISMATCH"
+        requested_root = str(request_root or "").strip()
+        if requested_root and requested_root != pinned_engine_root:
+            return "ORACLE_ENGINE_ROOT_REQUEST_MISMATCH"
+        if scenario_id.strip() != pinned_scenario_id:
+            return "ORACLE_SCENARIO_ID_MISMATCH"
+        stream_prefix = f"{pinned_engine_root.rstrip('/')}/stream_view/"
+        if not pinned_stream_view_root.startswith(stream_prefix):
+            return "ORACLE_STREAM_VIEW_SCOPE_MISMATCH"
+        return None
+
+    def _validate_settlement_lock(self) -> None:
+        acceptance_mode = str(self.wiring.acceptance_mode or "local_parity").strip().lower()
+        if acceptance_mode != "dev_min_managed":
+            return
+        violations: list[str] = []
+        if str(self.wiring.execution_mode or "").strip().lower() != "managed":
+            violations.append("execution_mode must be managed")
+        if str(self.wiring.state_mode or "").strip().lower() != "managed":
+            violations.append("state_mode must be managed")
+        if not str(self.wiring.execution_launch_ref or "").strip():
+            violations.append("execution_launch_ref is required")
+        identity_env = str(self.wiring.execution_identity_env or "").strip()
+        if not identity_env:
+            violations.append("execution_identity_env is required")
+        else:
+            identity_value = str(os.getenv(identity_env, "")).strip()
+            if not identity_value:
+                violations.append(f"{identity_env} must be set")
+            else:
+                self.execution_identity = identity_value
+        if not str(self.wiring.object_store_root or "").strip().startswith("s3://"):
+            violations.append("object_store_root must be s3:// for dev_min_managed")
+        if str(self.wiring.control_bus_kind or "file").strip().lower() == "file":
+            violations.append("control_bus_kind=file is not acceptance-valid for dev_min_managed")
+        authority_dsn = str(self.wiring.authority_store_dsn or "").strip().lower()
+        if not authority_dsn:
+            violations.append("authority_store_dsn is required for dev_min_managed")
+        elif authority_dsn.startswith("sqlite://"):
+            violations.append("authority_store_dsn sqlite is not acceptance-valid for dev_min_managed")
+        oracle_engine_run_root = str(self.wiring.oracle_engine_run_root or "").strip()
+        oracle_scenario_id = str(self.wiring.oracle_scenario_id or "").strip()
+        oracle_stream_view_root = str(self.wiring.oracle_stream_view_root or "").strip()
+        if not oracle_engine_run_root:
+            violations.append("oracle_engine_run_root is required for dev_min_managed")
+        if not oracle_scenario_id:
+            violations.append("oracle_scenario_id is required for dev_min_managed")
+        if not oracle_stream_view_root:
+            violations.append("oracle_stream_view_root is required for dev_min_managed")
+        if oracle_engine_run_root and not oracle_engine_run_root.startswith("s3://"):
+            violations.append("oracle_engine_run_root must be s3:// for dev_min_managed")
+        if oracle_stream_view_root and not oracle_stream_view_root.startswith("s3://"):
+            violations.append("oracle_stream_view_root must be s3:// for dev_min_managed")
+        if oracle_engine_run_root and self._has_ambiguous_oracle_selector(oracle_engine_run_root):
+            violations.append("oracle_engine_run_root cannot use latest/current/wildcard selectors")
+        if oracle_stream_view_root and self._has_ambiguous_oracle_selector(oracle_stream_view_root):
+            violations.append("oracle_stream_view_root cannot use latest/current/wildcard selectors")
+        if (
+            oracle_engine_run_root
+            and oracle_stream_view_root
+            and not oracle_stream_view_root.startswith(f"{oracle_engine_run_root.rstrip('/')}/stream_view/")
+        ):
+            violations.append("oracle_stream_view_root must be scoped under oracle_engine_run_root/stream_view/")
+        if violations:
+            raise RuntimeError("SR_SETTLEMENT_LOCK_FAIL_CLOSED: " + "; ".join(violations))
+
     def _build_control_bus(self, wiring: WiringProfile):
         kind = (wiring.control_bus_kind or "file").lower()
         if kind == "kinesis":
@@ -595,18 +845,26 @@ class ScenarioRunner:
                 region=wiring.control_bus_region,
                 endpoint_url=wiring.control_bus_endpoint_url,
             )
-        if not wiring.control_bus_root:
-            raise RuntimeError("control_bus_root required for file bus")
-        control_root = resolve_run_scoped_path(
-            wiring.control_bus_root,
-            suffix="control_bus",
-            create_if_missing=True,
-        )
-        if not control_root:
-            raise RuntimeError("control_bus_root resolution failed")
-        return FileControlBus(Path(control_root))
+        if kind == "file":
+            if not wiring.control_bus_root:
+                raise RuntimeError("control_bus_root required for file bus")
+            control_root = resolve_run_scoped_path(
+                wiring.control_bus_root,
+                suffix="control_bus",
+                create_if_missing=True,
+            )
+            if not control_root:
+                raise RuntimeError("control_bus_root resolution failed")
+            return FileControlBus(Path(control_root))
+        raise RuntimeError(f"unsupported control_bus_kind: {kind}")
 
-    def _reemit_ready(self, run_id: str, status) -> str | None:
+    def _reemit_ready(
+        self,
+        run_id: str,
+        status,
+        *,
+        target_platform_run_id: str | None = None,
+    ) -> str | None:
         facts_view = self.ledger.read_facts_view(run_id)
         if facts_view is None:
             failure_event = self._event("REEMIT_FAILED", run_id, {"reason": "FACTS_VIEW_MISSING"})
@@ -615,14 +873,11 @@ class ScenarioRunner:
         bundle_hash = facts_view.get("bundle_hash")
         facts_view_hash = bundle_hash or self._hash_payload(facts_view)
         pins = facts_view.get("pins") or {}
-        platform_run_id = facts_view.get("platform_run_id") or pins.get("platform_run_id") or self.platform_run_id
+        source_platform_run_id = facts_view.get("platform_run_id") or pins.get("platform_run_id") or self.platform_run_id
+        platform_run_id = target_platform_run_id or source_platform_run_id
         scenario_run_id = facts_view.get("scenario_run_id") or pins.get("scenario_run_id") or run_id
         reemit_key = hash_payload(f"ready|{platform_run_id}|{scenario_run_id}|{facts_view_hash}")
-        run_config_digest = (
-            facts_view.get("run_config_digest")
-            or (facts_view.get("policy_rev") or {}).get("content_digest")
-            or self.policy.content_digest
-        )
+        run_config_digest, _ = self._resolve_run_config_digest(facts_view=facts_view)
         ready_payload = {
             "run_id": run_id,
             "platform_run_id": platform_run_id,
@@ -1182,7 +1437,11 @@ class ScenarioRunner:
         engine_run_root: str | None,
     ) -> RunResponse:
         self._ensure_lease(run_handle)
-        oracle_pack_ref, oracle_error = self._build_oracle_pack_ref(engine_run_root, intent)
+        oracle_pack_ref, oracle_error = self._build_oracle_pack_ref(
+            engine_run_root,
+            intent,
+            intended_outputs=plan.intended_outputs,
+        )
         if oracle_error:
             failure_bundle = EvidenceBundle(
                 status=EvidenceStatus.FAIL,
@@ -1206,7 +1465,7 @@ class ScenarioRunner:
                 )
             )
             return self._response_from_status(plan.run_id, "Oracle pack invalid; run failed.")
-        run_config_digest = plan.policy_rev.get("content_digest") or self.policy.content_digest
+        run_config_digest, run_config_digest_source = self._resolve_run_config_digest(plan=plan)
         provenance = runtime_provenance(
             component="scenario_runner",
             environment=self.wiring.profile_id,
@@ -1270,6 +1529,18 @@ class ScenarioRunner:
                 "GOV_BUNDLE_HASH",
                 {"bundle_hash": bundle.bundle_hash},
             )
+        self._append_governance_fact(
+            plan.run_id,
+            "GOV_RUN_IDENTITY_SOURCES",
+            {
+                "platform_run_id_source": "scenario_runner.platform_run_id",
+                "scenario_run_id_source": "run_plan.run_id",
+                "run_config_digest_source": run_config_digest_source,
+                "acceptance_mode": self.wiring.acceptance_mode,
+                "execution_mode": self.wiring.execution_mode,
+                "state_mode": self.wiring.state_mode,
+            },
+        )
         publish_key = self._ready_publish_key(
             self.platform_run_id,
             plan.run_id,
@@ -1341,11 +1612,32 @@ class ScenarioRunner:
         return self._response_from_status(plan.run_id, "READY committed")
 
     def _build_oracle_pack_ref(
-        self, engine_run_root: str | None, intent: CanonicalRunIntent
+        self,
+        engine_run_root: str | None,
+        intent: CanonicalRunIntent,
+        *,
+        intended_outputs: list[str] | None = None,
     ) -> tuple[dict[str, Any] | None, str | None]:
         if not engine_run_root:
             return None, None
         ref: dict[str, Any] = {"engine_run_root": engine_run_root}
+        pinned_scenario_id = str(self.wiring.oracle_scenario_id or intent.scenario_id).strip()
+        if pinned_scenario_id:
+            ref["scenario_id"] = pinned_scenario_id
+        stream_view_root = str(self.wiring.oracle_stream_view_root or "").strip()
+        if stream_view_root:
+            ref["stream_view_root"] = stream_view_root
+            if intended_outputs:
+                stream_refs: dict[str, str] = {}
+                for output_id in sorted(set(intended_outputs)):
+                    stream_refs[output_id] = f"{stream_view_root.rstrip('/')}/output_id={output_id}"
+                ref["stream_view_output_refs"] = stream_refs
+                stream_error = self._validate_stream_view_output_refs(
+                    stream_view_root=stream_view_root,
+                    output_ids=sorted(set(intended_outputs)),
+                )
+                if stream_error:
+                    return None, stream_error
         engine_store = self._build_engine_store(engine_run_root)
         manifest_path = "_oracle_pack_manifest.json"
         if engine_store is None or not engine_store.exists(manifest_path):
@@ -1373,6 +1665,33 @@ class ScenarioRunner:
             }
         )
         return ref, None
+
+    def _validate_stream_view_output_refs(self, *, stream_view_root: str, output_ids: list[str]) -> str | None:
+        acceptance_mode = str(self.wiring.acceptance_mode or "local_parity").strip().lower()
+        if acceptance_mode != "dev_min_managed":
+            return None
+        stream_store = self._build_engine_store(stream_view_root)
+        if stream_store is None:
+            return "ORACLE_STREAM_VIEW_STORE_UNRESOLVED"
+        for output_id in output_ids:
+            prefix = f"output_id={output_id}"
+            try:
+                files = stream_store.list_files(prefix)
+            except Exception:
+                return f"ORACLE_STREAM_VIEW_LIST_FAILED:{output_id}"
+            if not files:
+                return f"ORACLE_STREAM_VIEW_OUTPUT_MISSING:{output_id}"
+            normalized_files = [str(path).replace("\\", "/") for path in files]
+            has_manifest = any(path.endswith("/_stream_view_manifest.json") for path in normalized_files)
+            has_receipt = any(path.endswith("/_stream_sort_receipt.json") for path in normalized_files)
+            has_parquet = any(path.endswith(".parquet") for path in normalized_files)
+            if not has_manifest:
+                return f"ORACLE_STREAM_VIEW_MANIFEST_MISSING:{output_id}"
+            if not has_receipt:
+                return f"ORACLE_STREAM_VIEW_RECEIPT_MISSING:{output_id}"
+            if not has_parquet:
+                return f"ORACLE_STREAM_VIEW_PARTS_MISSING:{output_id}"
+        return None
 
     def _commit_waiting(self, run_handle: RunHandle, bundle: EvidenceBundle) -> None:
         self._ensure_lease(run_handle)

@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import math
 import os
 import re
 import shutil
@@ -65,6 +66,9 @@ DATASET_SITE_SEQUENCE = "s3_site_sequence"
 DATASET_MEMBERSHIP = "s6_membership"
 DATASET_S6_RECEIPT = "s6_validation_receipt"
 DATASET_ELIGIBILITY = "crossborder_eligibility_flags"
+DATASET_SPARSE = "sparse_flag"
+DATASET_MERCHANT_ABORT = "merchant_abort_log"
+DATASET_HURDLE_STATIONARITY = "hurdle_stationarity_tests_2024Q4"
 DATASET_TRACE = "rng_trace_log"
 DATASET_AUDIT = "rng_audit_log"
 DATASET_ANCHOR = "rng_event_anchor"
@@ -114,6 +118,8 @@ class S3IntegerisationPolicy:
     version: str
     emit_integerised_counts: bool
     emit_site_sequence: bool
+    consume_integerised_counts_in_s8: bool
+    consume_site_sequence_in_s8: bool
 
 
 class _StepTimer:
@@ -295,6 +301,18 @@ def _dataset_has_parquet(root: Path) -> bool:
     if root.is_dir():
         return any(root.glob("*.parquet"))
     return False
+
+
+def _write_parquet_partition(
+    df: pl.DataFrame, target_root: Path, dataset_id: str
+) -> None:
+    tmp_dir = target_root.parent / f"_tmp.{dataset_id}.{uuid.uuid4().hex}"
+    if tmp_dir.exists():
+        shutil.rmtree(tmp_dir)
+    tmp_dir.mkdir(parents=True, exist_ok=True)
+    tmp_file = tmp_dir / "part-00000.parquet"
+    df.write_parquet(tmp_file)
+    _atomic_publish_dir(tmp_dir, target_root, get_logger(MODULE_NAME), dataset_id)
 
 
 def _iter_jsonl_files(paths: Iterable[Path]):
@@ -556,6 +574,12 @@ def _load_s3_integerisation_policy(path: Path, schema_layer1: dict) -> S3Integer
         version=str(payload.get("version")),
         emit_integerised_counts=bool(payload.get("emit_integerised_counts")),
         emit_site_sequence=bool(payload.get("emit_site_sequence")),
+        consume_integerised_counts_in_s8=bool(
+            payload.get("consume_integerised_counts_in_s8", False)
+        ),
+        consume_site_sequence_in_s8=bool(
+            payload.get("consume_site_sequence_in_s8", False)
+        ),
     )
 
 
@@ -660,6 +684,168 @@ def _atomic_publish_dir(tmp_root: Path, final_root: Path, logger, label: str) ->
     final_root.parent.mkdir(parents=True, exist_ok=True)
     tmp_root.replace(final_root)
 
+
+def _safe_float_list(values: object) -> list[float]:
+    if not isinstance(values, list):
+        return []
+    result: list[float] = []
+    for value in values:
+        try:
+            result.append(float(value))
+        except (TypeError, ValueError):
+            continue
+    return result
+
+
+def _mean(values: list[float]) -> float:
+    if not values:
+        return float("nan")
+    return sum(values) / float(len(values))
+
+
+def _std(values: list[float], mean_value: float) -> float:
+    if not values:
+        return float("nan")
+    variance = sum((value - mean_value) ** 2 for value in values) / float(len(values))
+    return math.sqrt(variance)
+
+
+def _quantile(values: list[float], q: float) -> float:
+    if not values:
+        return float("nan")
+    if q <= 0.0:
+        return min(values)
+    if q >= 1.0:
+        return max(values)
+    sorted_values = sorted(values)
+    if len(sorted_values) == 1:
+        return sorted_values[0]
+    pos = q * (len(sorted_values) - 1)
+    lo = int(math.floor(pos))
+    hi = int(math.ceil(pos))
+    if lo == hi:
+        return sorted_values[lo]
+    w_hi = pos - lo
+    w_lo = 1.0 - w_hi
+    return (sorted_values[lo] * w_lo) + (sorted_values[hi] * w_hi)
+
+
+def _build_hurdle_stationarity_rows(
+    hurdle_payload: dict, nb_payload: dict
+) -> list[dict]:
+    theta = _safe_float_list(hurdle_payload.get("theta"))
+    beta_phi = _safe_float_list(nb_payload.get("beta_phi"))
+    theta_finite = [value for value in theta if math.isfinite(value)]
+    beta_phi_finite = [value for value in beta_phi if math.isfinite(value)]
+
+    exp_phi: list[float] = []
+    for value in beta_phi_finite:
+        try:
+            exp_value = math.exp(value)
+        except OverflowError:
+            exp_value = float("inf")
+        if math.isfinite(exp_value):
+            exp_phi.append(exp_value)
+
+    exp_phi_mean = _mean(exp_phi)
+    exp_phi_std = _std(exp_phi, exp_phi_mean) if math.isfinite(exp_phi_mean) else float("nan")
+    exp_phi_cv = (
+        exp_phi_std / exp_phi_mean
+        if math.isfinite(exp_phi_std) and math.isfinite(exp_phi_mean) and exp_phi_mean > 0.0
+        else float("nan")
+    )
+    exp_phi_p95 = _quantile(exp_phi, 0.95)
+    exp_phi_p05 = _quantile(exp_phi, 0.05)
+    exp_phi_p95_p05 = (
+        exp_phi_p95 / exp_phi_p05
+        if math.isfinite(exp_phi_p95)
+        and math.isfinite(exp_phi_p05)
+        and exp_phi_p05 > 0.0
+        else float("nan")
+    )
+
+    hurdle_mcc = hurdle_payload.get("dict_mcc")
+    nb_mcc = nb_payload.get("dict_mcc")
+    hurdle_ch = hurdle_payload.get("dict_ch")
+    nb_ch = nb_payload.get("dict_ch")
+    mcc_aligned = isinstance(hurdle_mcc, list) and isinstance(nb_mcc, list) and hurdle_mcc == nb_mcc
+    ch_aligned = isinstance(hurdle_ch, list) and isinstance(nb_ch, list) and hurdle_ch == nb_ch
+
+    return [
+        {
+            "test_id": "theta.count",
+            "subject": "hurdle_theta",
+            "metric": "count",
+            "value": float(len(theta)),
+            "threshold": 1.0,
+            "passed": len(theta) >= 1,
+            "notes": "Expected non-empty hurdle theta vector.",
+        },
+        {
+            "test_id": "theta.finite_share",
+            "subject": "hurdle_theta",
+            "metric": "finite_share",
+            "value": (float(len(theta_finite)) / float(len(theta))) if theta else 0.0,
+            "threshold": 1.0,
+            "passed": bool(theta) and len(theta_finite) == len(theta),
+            "notes": "All hurdle theta coefficients must be finite.",
+        },
+        {
+            "test_id": "beta_phi.count",
+            "subject": "nb_beta_phi",
+            "metric": "count",
+            "value": float(len(beta_phi)),
+            "threshold": 1.0,
+            "passed": len(beta_phi) >= 1,
+            "notes": "Expected non-empty NB beta_phi vector.",
+        },
+        {
+            "test_id": "beta_phi.finite_share",
+            "subject": "nb_beta_phi",
+            "metric": "finite_share",
+            "value": (float(len(beta_phi_finite)) / float(len(beta_phi))) if beta_phi else 0.0,
+            "threshold": 1.0,
+            "passed": bool(beta_phi) and len(beta_phi_finite) == len(beta_phi),
+            "notes": "All NB beta_phi coefficients must be finite.",
+        },
+        {
+            "test_id": "beta_phi.exp_cv",
+            "subject": "nb_beta_phi",
+            "metric": "exp_cv",
+            "value": exp_phi_cv if math.isfinite(exp_phi_cv) else 0.0,
+            "threshold": 0.0,
+            "passed": math.isfinite(exp_phi_cv) and exp_phi_cv >= 0.0,
+            "notes": "CV of exp(beta_phi) diagnostic surface.",
+        },
+        {
+            "test_id": "beta_phi.exp_p95_p05",
+            "subject": "nb_beta_phi",
+            "metric": "exp_p95_p05",
+            "value": exp_phi_p95_p05 if math.isfinite(exp_phi_p95_p05) else 0.0,
+            "threshold": 1.0,
+            "passed": math.isfinite(exp_phi_p95_p05) and exp_phi_p95_p05 >= 1.0,
+            "notes": "Tail-spread diagnostic on exp(beta_phi).",
+        },
+        {
+            "test_id": "dict_mcc.aligned",
+            "subject": "design_dict",
+            "metric": "mcc_alignment",
+            "value": 1.0 if mcc_aligned else 0.0,
+            "threshold": 1.0,
+            "passed": mcc_aligned,
+            "notes": "hurdle and nb dict_mcc vectors must match exactly.",
+        },
+        {
+            "test_id": "dict_ch.aligned",
+            "subject": "design_dict",
+            "metric": "channel_alignment",
+            "value": 1.0 if ch_aligned else 0.0,
+            "threshold": 1.0,
+            "passed": ch_aligned,
+            "notes": "hurdle and nb dict_ch vectors must match exactly.",
+        },
+    ]
+
 def run_s9(
     config: EngineConfig, run_id: Optional[str] = None, validate_only: bool = False
 ) -> S9RunResult:
@@ -704,6 +890,7 @@ def run_s9(
         "rng_trace_coverage": True,
         "s1..s8_replay": True,
         "egress_writer_sort": True,
+        "artifact_completeness": True,
     }
 
     def mark_check_false(key: str) -> None:
@@ -794,9 +981,11 @@ def run_s9(
 
     # Parameter hash recompute
     param_digests: list[NamedDigest] = []
+    param_path_map: dict[str, Path] = {}
     parameter_hash_recomputed = parameter_hash
     try:
         param_files, _param_name_map = _resolve_param_files(registry, config.repo_root)
+        param_path_map = {item.name: item.path for item in param_files}
         parameter_hash_recomputed, parameter_hash_bytes, param_digests = compute_parameter_hash(
             param_files
         )
@@ -939,7 +1128,177 @@ def run_s9(
         policy_entry["path"], config.repo_root, "policy.s3.integerisation.yaml"
     )
     policy = _load_s3_integerisation_policy(policy_path, schema_layer1)
-    counts_source = "s3_integerised_counts" if policy.emit_integerised_counts else "residual_rank"
+    consume_s3_counts = (
+        policy.emit_integerised_counts and policy.consume_integerised_counts_in_s8
+    )
+    consume_s3_site_sequence = (
+        policy.emit_site_sequence and policy.consume_site_sequence_in_s8
+    )
+    if policy.consume_integerised_counts_in_s8 and not policy.emit_integerised_counts:
+        record_failure(
+            "E_SCHEMA_INVALID",
+            "RUN",
+            "consume_counts_in_s8_requires_emit_integerised_counts",
+            dataset_id=DATASET_S3_INTEGERISATION_POLICY,
+            check_key="schema_pk_fk",
+        )
+    if policy.consume_site_sequence_in_s8 and not policy.emit_site_sequence:
+        record_failure(
+            "E_SCHEMA_INVALID",
+            "RUN",
+            "consume_site_sequence_in_s8_requires_emit_site_sequence",
+            dataset_id=DATASET_S3_INTEGERISATION_POLICY,
+            check_key="schema_pk_fk",
+        )
+    if consume_s3_site_sequence and not consume_s3_counts:
+        record_failure(
+            "E_SCHEMA_INVALID",
+            "RUN",
+            "consume_site_sequence_in_s8_requires_consume_counts_in_s8",
+            dataset_id=DATASET_S3_INTEGERISATION_POLICY,
+            check_key="schema_pk_fk",
+        )
+    counts_source = "s3_integerised_counts" if consume_s3_counts else "residual_rank"
+
+    # Required P4 artifacts: sparse_flag
+    try:
+        sparse_entry = find_dataset_entry(dictionary, DATASET_SPARSE).entry
+        sparse_root = _resolve_run_path(run_paths, sparse_entry["path"], tokens)
+        if not _dataset_has_parquet(sparse_root):
+            record_failure(
+                "E_SCHEMA_INVALID",
+                "RUN",
+                "sparse_flag_missing",
+                dataset_id=DATASET_SPARSE,
+                check_key="artifact_completeness",
+            )
+        else:
+            sparse_df = pl.read_parquet(_select_dataset_file(DATASET_SPARSE, sparse_root))
+            sparse_pack, sparse_table = _table_pack(schema_1a, "prep/sparse_flag")
+            validate_dataframe(
+                sparse_df.iter_rows(named=True),
+                sparse_pack,
+                sparse_table,
+            )
+    except Exception as exc:
+        record_failure(
+            "E_SCHEMA_INVALID",
+            "RUN",
+            f"sparse_flag_check_failed: {exc}",
+            dataset_id=DATASET_SPARSE,
+            check_key="artifact_completeness",
+        )
+
+    # Required P4 artifacts: merchant_abort_log (may be empty but must exist and be schema-valid)
+    try:
+        abort_entry = find_dataset_entry(dictionary, DATASET_MERCHANT_ABORT).entry
+        abort_path = _resolve_run_path(run_paths, abort_entry["path"], tokens)
+        abort_root = abort_path.parent if "*" in str(abort_entry["path"]) else abort_path
+        if not _dataset_has_parquet(abort_root):
+            record_failure(
+                "E_SCHEMA_INVALID",
+                "RUN",
+                "merchant_abort_log_missing",
+                dataset_id=DATASET_MERCHANT_ABORT,
+                check_key="artifact_completeness",
+            )
+        else:
+            abort_df = pl.read_parquet(
+                _select_dataset_file(DATASET_MERCHANT_ABORT, abort_root)
+            )
+            abort_pack, abort_table = _table_pack(schema_1a, "prep/merchant_abort_log")
+            validate_dataframe(
+                abort_df.iter_rows(named=True),
+                abort_pack,
+                abort_table,
+            )
+    except Exception as exc:
+        record_failure(
+            "E_SCHEMA_INVALID",
+            "RUN",
+            f"merchant_abort_log_check_failed: {exc}",
+            dataset_id=DATASET_MERCHANT_ABORT,
+            check_key="artifact_completeness",
+        )
+
+    # Required P4 artifacts: hurdle_stationarity_tests_2024Q4
+    try:
+        stationarity_entry = find_dataset_entry(
+            dictionary, DATASET_HURDLE_STATIONARITY
+        ).entry
+        stationarity_root = _resolve_run_path(
+            run_paths, stationarity_entry["path"], tokens
+        )
+        if not validate_only:
+            hurdle_coeff_path = param_path_map.get("hurdle_coefficients.yaml")
+            nb_disp_path = param_path_map.get("nb_dispersion_coefficients.yaml")
+            if hurdle_coeff_path is None or nb_disp_path is None:
+                record_failure(
+                    "E_SCHEMA_INVALID",
+                    "RUN",
+                    "stationarity_source_coefficients_unresolved",
+                    dataset_id=DATASET_HURDLE_STATIONARITY,
+                    check_key="artifact_completeness",
+                )
+            else:
+                hurdle_payload = _load_yaml(hurdle_coeff_path)
+                nb_payload = _load_yaml(nb_disp_path)
+                stationarity_rows = _build_hurdle_stationarity_rows(
+                    hurdle_payload, nb_payload
+                )
+                stationarity_df = pl.DataFrame(
+                    stationarity_rows,
+                    schema={
+                        "test_id": pl.Utf8,
+                        "subject": pl.Utf8,
+                        "metric": pl.Utf8,
+                        "value": pl.Float64,
+                        "threshold": pl.Float64,
+                        "passed": pl.Boolean,
+                        "notes": pl.Utf8,
+                    },
+                )
+                stationarity_pack, stationarity_table = _table_pack(
+                    schema_1a, "validation/hurdle_stationarity_tests"
+                )
+                validate_dataframe(
+                    stationarity_df.iter_rows(named=True),
+                    stationarity_pack,
+                    stationarity_table,
+                )
+                _write_parquet_partition(
+                    stationarity_df,
+                    stationarity_root,
+                    DATASET_HURDLE_STATIONARITY,
+                )
+        if not _dataset_has_parquet(stationarity_root):
+            record_failure(
+                "E_SCHEMA_INVALID",
+                "RUN",
+                "hurdle_stationarity_tests_missing",
+                dataset_id=DATASET_HURDLE_STATIONARITY,
+                check_key="artifact_completeness",
+            )
+        else:
+            stationarity_df = pl.read_parquet(
+                _select_dataset_file(DATASET_HURDLE_STATIONARITY, stationarity_root)
+            )
+            stationarity_pack, stationarity_table = _table_pack(
+                schema_1a, "validation/hurdle_stationarity_tests"
+            )
+            validate_dataframe(
+                stationarity_df.iter_rows(named=True),
+                stationarity_pack,
+                stationarity_table,
+            )
+    except Exception as exc:
+        record_failure(
+            "E_SCHEMA_INVALID",
+            "RUN",
+            f"hurdle_stationarity_tests_check_failed: {exc}",
+            dataset_id=DATASET_HURDLE_STATIONARITY,
+            check_key="artifact_completeness",
+        )
 
     # Candidate set
     candidate_map: dict[int, dict[str, int]] = {}
@@ -1034,6 +1393,9 @@ def run_s9(
     counts_map: dict[int, dict[str, int]] = defaultdict(lambda: defaultdict(int))
     final_count_map: dict[int, dict[str, int]] = defaultdict(dict)
     site_orders: dict[int, dict[str, set[int]]] = defaultdict(lambda: defaultdict(set))
+    local_site_ids: dict[int, dict[str, set[str]]] = defaultdict(
+        lambda: defaultdict(set)
+    )
     egress_multi_flag: dict[int, bool] = {}
     egress_nb_draw: dict[int, int] = {}
     egress_files: list[Path] = []
@@ -1142,6 +1504,20 @@ def run_s9(
                         expected=str(site_order).zfill(6),
                         observed=site_id,
                     )
+                if site_id:
+                    seen_site_ids = local_site_ids[merchant_id][legal_iso]
+                    if site_id in seen_site_ids:
+                        record_failure(
+                            "E_S8_SEQUENCE_GAP",
+                            "MERCHANT",
+                            "duplicate_local_site_id",
+                            dataset_id=DATASET_OUTLET,
+                            merchant_id=merchant_id,
+                            country_iso=legal_iso,
+                            check_key="s1..s8_replay",
+                            observed=site_id,
+                        )
+                    seen_site_ids.add(site_id)
                 counts_map[merchant_id][legal_iso] += 1
                 site_orders[merchant_id][legal_iso].add(site_order)
                 if legal_iso in final_count_map[merchant_id]:
@@ -1973,6 +2349,7 @@ def run_s9(
 
     merchants = sorted(candidate_map.keys())
     merchants_total = len(merchants)
+    use_s3_counts_for_replay = consume_s3_counts and s3_counts_present
 
     for merchant_id in merchants:
         home_iso = candidate_home.get(merchant_id)
@@ -2172,18 +2549,18 @@ def run_s9(
             domain.add(home_iso)
         domain.update(membership_map.get(merchant_id, set()))
 
-        counts_source_map = s3_counts_map if s3_counts_present else counts_map
+        counts_source_map = s3_counts_map if use_s3_counts_for_replay else counts_map
         counts_for_mid = counts_source_map.get(merchant_id, {})
 
         if domain:
             missing = domain - set(counts_for_mid)
             extra = set(counts_for_mid) - domain
-            if missing and s3_counts_present:
+            if missing and use_s3_counts_for_replay:
                 record_failure(
                     "E_S7_PARITY",
                     "MERCHANT",
                     "counts_missing_domain",
-                    dataset_id=DATASET_COUNTS if s3_counts_present else DATASET_OUTLET,
+                    dataset_id=DATASET_COUNTS if use_s3_counts_for_replay else DATASET_OUTLET,
                     merchant_id=merchant_id,
                     check_key="s1..s8_replay",
                     expected=sorted(domain),
@@ -2194,7 +2571,7 @@ def run_s9(
                     "E_S7_PARITY",
                     "MERCHANT",
                     "counts_extra_domain",
-                    dataset_id=DATASET_COUNTS if s3_counts_present else DATASET_OUTLET,
+                    dataset_id=DATASET_COUNTS if use_s3_counts_for_replay else DATASET_OUTLET,
                     merchant_id=merchant_id,
                     check_key="s1..s8_replay",
                     expected=sorted(domain),
@@ -2214,7 +2591,7 @@ def run_s9(
                     "E_SUM_MISMATCH",
                     "MERCHANT",
                     "sum_counts_mismatch",
-                    dataset_id=DATASET_COUNTS if s3_counts_present else DATASET_OUTLET,
+                    dataset_id=DATASET_COUNTS if use_s3_counts_for_replay else DATASET_OUTLET,
                     merchant_id=merchant_id,
                     check_key="s1..s8_replay",
                     expected=expected_n,
@@ -2223,10 +2600,10 @@ def run_s9(
 
         residual_list = residual_events.get(merchant_id, [])
         if domain and len(residual_list) != len(domain):
-            record_failure(
-                "E_S7_PARITY",
-                "MERCHANT",
-                "residual_rank_missing",
+                record_failure(
+                    "E_S7_PARITY",
+                    "MERCHANT",
+                    "residual_rank_missing",
                 dataset_id=DATASET_RESIDUAL,
                 merchant_id=merchant_id,
                 check_key="s1..s8_replay",
@@ -2307,7 +2684,7 @@ def run_s9(
                     )
                 continue
 
-            if s3_counts_present and counts_map.get(merchant_id, {}).get(country_iso, 0) != count:
+            if use_s3_counts_for_replay and counts_map.get(merchant_id, {}).get(country_iso, 0) != count:
                 record_failure(
                     "E_S7_PARITY",
                     "MERCHANT",

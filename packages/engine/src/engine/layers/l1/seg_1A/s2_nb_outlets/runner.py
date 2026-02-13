@@ -650,9 +650,10 @@ def _poisson_ptrs(lam: float, stream: Substream) -> tuple[int, int, int]:
 
 
 def _poisson_sample(lam: float, stream: Substream) -> tuple[int, int, int]:
-    if lam < 10.0:
-        return _poisson_inversion(lam, stream)
-    return _poisson_ptrs(lam, stream)
+    # P1.3 remediation: use inversion for all lambda values.
+    # The prior PTRS path produced pathological high-tail draws that distorted
+    # outlet concentration realism for 1A.
+    return _poisson_inversion(lam, stream)
 
 
 def _u128_diff(before_hi: int, before_lo: int, after_hi: int, after_lo: int) -> int:
@@ -1418,7 +1419,7 @@ def run_s2(config: EngineConfig, run_id: Optional[str] = None) -> S2RunResult:
         }
         beta_phi_gdp = beta_phi[-1]
 
-        master_material = derive_master_material(bytes.fromhex(manifest_fingerprint), seed)
+        master_material = derive_master_material(bytes.fromhex(parameter_hash), seed)
 
         merchant_df = merchant_df.sort("merchant_id")
         multi_count = len(multi_merchants)
