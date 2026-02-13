@@ -6690,3 +6690,77 @@ USER requested this phase-learning insight be captured in implementation notes.
 
 ### Fail-closed implication
 1. Any required substrate capability that cannot be represented in IaC is now treated as a surfaced decision/blocker, not an implicit manual step.
+
+## Entry: 2026-02-13 1:43PM - Pre-change lock: close M2D-B1..B4 via demo-stack capability expansion
+
+### Trigger
+USER directed: "let's close out the blockers".
+
+### Problem statement
+Current `infra/terraform/dev_min/demo` plan exposes only log-group + manifest + heartbeat SSM and fails M2.D required categories for:
+1. Confluent lane (`M2D-B1`)
+2. ECS scaffolding (`M2D-B2`)
+3. Runtime DB (`M2D-B3`)
+4. Required Confluent/DB SSM paths (`M2D-B4`)
+
+### Decision and rationale
+1. Implement missing demo capability lanes directly in Terraform demo module so M2.D plan is lane-complete.
+2. Keep no-NAT/no-always-on-LB posture intact.
+3. Materialize canonical SSM path surfaces for Confluent + DB credentials in demo stack.
+4. Materialize Confluent contract surfaces in demo stack (cluster/env/topic map handles + outputs) and carry live-topic verification to M2.F command checks.
+
+### Planned implementation scope
+1. Expand `infra/terraform/modules/demo/*`:
+- VPC/public-subnet/security-group scaffolding,
+- ECS cluster + minimal task/service scaffolding (desired count 0),
+- runtime Postgres RDS instance,
+- canonical SSM parameter writes for Confluent/DB/IG paths,
+- Confluent topic-catalog artifact for deterministic runtime wiring.
+2. Expand `infra/terraform/dev_min/demo/*` root variables/module wiring/outputs to expose required handles.
+3. Run `terraform fmt`, `init -reconfigure`, `validate`, `plan`, `show -json` for demo stack.
+4. Regenerate M2.D evidence snapshot and update blockers/status in M2 docs + logbook.
+
+### Boundaries
+1. No `terraform apply` or `terraform destroy` in this pass.
+2. No console mutation.
+3. Evidence remains non-secret (only paths/ids, not decrypted secret values).
+
+## Entry: 2026-02-13 1:49PM - Post-change record: M2D-B1..B4 closed via demo-stack capability expansion
+
+### What was implemented
+1. Expanded Terraform demo module/root from minimal stub to capability-complete M2.D substrate surfaces:
+- network scaffold: VPC + public subnets + IGW + route table + SGs,
+- ECS scaffold: cluster + task execution/app roles + Fargate task definition + desired-count-zero service,
+- runtime DB: Postgres RDS instance + DB subnet group,
+- canonical SSM writes: Confluent bootstrap/api key/api secret, DB user/password, IG API key,
+- Confluent contract artifact: topic catalog S3 object + output surfaces.
+2. Updated demo root outputs to expose required handle surfaces for downstream phases.
+3. Updated demo documentation/variables/tfvars examples to align with new command surface and handle map.
+
+### Validation executed
+1. `terraform fmt -recursive infra/terraform/dev_min/demo infra/terraform/modules/demo` -> PASS.
+2. `terraform -chdir=infra/terraform/dev_min/demo init -reconfigure "-backend-config=backend.hcl.example"` -> PASS.
+3. `terraform -chdir=infra/terraform/dev_min/demo validate` -> PASS.
+4. `terraform -chdir=infra/terraform/dev_min/demo plan -input=false -out <plan>` -> PASS.
+5. `terraform -chdir=infra/terraform/dev_min/demo show -json <plan>` -> PASS.
+
+### M2.D evidence and closure
+1. New M2.D snapshot:
+- local: `runs/dev_substrate/m2_d/20260213T134810Z/m2_d_demo_apply_contract_snapshot.json`
+- durable: `s3://fraud-platform-dev-min-evidence/evidence/dev_min/substrate/m2_20260213T134810Z/m2_d_demo_apply_contract_snapshot.json`
+2. Snapshot result:
+- `required_demo_categories`: all true (`confluent_cluster_topics`, `ecs_scaffolding`, `runtime_db`, `ssm_secret_writes`),
+- `overall_pass=true`.
+3. Blocker resolution:
+- `M2D-B1..M2D-B4` moved to resolved in M2 deep plan.
+4. Status sync:
+- `platform.M2.build_plan.md`: `M2.D` marked complete, unresolved blocker register cleared.
+- `platform.build_plan.md`: M2 sub-phase tracker marks `M2.D` complete; immediate next action moved to `M2.E`.
+
+### Confluent lane boundary (explicit)
+1. M2.D closure mode is `contract_materialized_in_demo_stack`.
+2. Live Confluent topic existence/connectivity/ACL checks remain enforced in `M2.F` command-lane verification.
+
+### Drift sentinel checkpoint
+1. No `terraform apply`/`destroy` executed in this pass.
+2. No console mutation executed.

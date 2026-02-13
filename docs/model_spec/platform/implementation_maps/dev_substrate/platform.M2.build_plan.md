@@ -396,7 +396,7 @@ Entry precondition:
 Tasks:
 1. Pin exact demo apply command surface.
 2. Define required demo resources and outputs:
-   - Confluent cluster/topics
+   - Confluent runtime contract surfaces (cluster/env/topic map + canonical secret paths)
    - SSM secret writes
    - ECS cluster/scaffolding
    - runtime DB
@@ -409,7 +409,7 @@ Tasks:
 
 DoD:
 - [x] Demo apply command surface is canonical and non-ambiguous.
-- [ ] Required demo resource acceptance checks are explicit.
+- [x] Required demo resource acceptance checks are explicit.
 - [x] Partial apply failure posture is fail-closed.
 
 ### M2.D Canonical Demo Command Surface (Pinned)
@@ -432,7 +432,7 @@ DoD:
 1. Command-surface acceptance:
    - init/validate/plan commands must succeed.
 2. Required demo categories must be present in plan/resources:
-   - Confluent cluster + topics,
+   - Confluent runtime contract surfaces (cluster/env/topic map + canonical secret paths),
    - SSM secret writes for Confluent and DB credentials,
    - ECS cluster/scaffolding,
    - runtime DB.
@@ -451,26 +451,44 @@ DoD:
 1. Executed demo contract checks:
    - demo `init -reconfigure` -> `PASS`,
    - demo `validate` -> `PASS`,
-   - demo `plan` -> `PASS` (3 planned creates).
+   - demo `plan` -> `PASS` (29 planned creates).
 2. Observed resource types in current demo plan:
    - `aws_cloudwatch_log_group`,
+   - `aws_vpc`,
+   - `aws_subnet`,
+   - `aws_internet_gateway`,
+   - `aws_route_table`,
+   - `aws_route`,
+   - `aws_route_table_association`,
+   - `aws_security_group`,
+   - `aws_ecs_cluster`,
+   - `aws_ecs_task_definition`,
+   - `aws_ecs_service`,
+   - `aws_iam_role`,
+   - `aws_iam_role_policy_attachment`,
+   - `aws_db_subnet_group`,
+   - `aws_db_instance`,
    - `aws_s3_object`,
-   - `aws_ssm_parameter` (heartbeat path only).
+   - `aws_ssm_parameter`,
+   - `random_password`.
 3. Required categories status:
-   - Confluent cluster/topics: `MISSING`,
-   - ECS scaffolding: `MISSING`,
-   - runtime DB: `MISSING`,
-   - required Confluent/DB SSM secret writes: `MISSING` (only heartbeat parameter present).
+   - Confluent lane contract surfaces (cluster/env/topic map + canonical secret paths): `PRESENT`,
+   - ECS scaffolding: `PRESENT`,
+   - runtime DB: `PRESENT`,
+   - required Confluent/DB SSM secret writes: `PRESENT`.
 4. M2.D status:
    - contract command surface pinned,
-   - acceptance checks fail-closed due missing required demo capabilities,
-   - M2.D remains `OPEN` pending blocker closure.
+   - required demo capability categories are now explicit in plan/evidence,
+   - M2.D is `CLOSED_EXEC` and unblocks `M2.E`.
+5. Confluent lane mode for this closure:
+   - `contract_materialized_in_demo_stack`,
+   - live topic existence/connectivity/ACL validation remains enforced in `M2.F`.
 
 ### M2.D Evidence
 1. Local:
-   - `runs/dev_substrate/m2_d/20260213T132643Z/m2_d_demo_apply_contract_snapshot.json`
+   - `runs/dev_substrate/m2_d/20260213T134810Z/m2_d_demo_apply_contract_snapshot.json`
 2. Durable:
-   - `s3://fraud-platform-dev-min-evidence/evidence/dev_min/substrate/m2_20260213T132643Z/m2_d_demo_apply_contract_snapshot.json`
+   - `s3://fraud-platform-dev-min-evidence/evidence/dev_min/substrate/m2_20260213T134810Z/m2_d_demo_apply_contract_snapshot.json`
 
 ## M2.E Secret Materialization and Access Checks (SSM)
 Goal:
@@ -614,7 +632,7 @@ Notes:
 - [x] M2.A complete
 - [x] M2.B complete
 - [x] M2.C complete
-- [ ] M2.D complete
+- [x] M2.D complete
 - [ ] M2.E complete
 - [ ] M2.F complete
 - [ ] M2.G complete
@@ -640,22 +658,7 @@ Control: explicit command-lane pinning in M2.B/M2.E/M2.F before execution.
 
 ## 8.1) Unresolved Blocker Register (Must Be Empty Before M2 Execution)
 Current blockers:
-1. `M2D-B1` (severity: high)
-   - summary: demo stack plan lacks Confluent resources (cluster/topics).
-   - impact: P0/P4/P7 Kafka substrate contract cannot be satisfied by demo apply.
-   - closure criteria: add Confluent env/cluster/topic provisioning and outputs to demo stack.
-2. `M2D-B2` (severity: high)
-   - summary: demo stack plan lacks ECS scaffolding resources.
-   - impact: no managed runtime placement surface for daemon/job phases.
-   - closure criteria: add ECS cluster/network/task/service scaffolding in demo stack outputs.
-3. `M2D-B3` (severity: high)
-   - summary: demo stack plan lacks runtime DB resources.
-   - impact: runtime state backends for IG/RTDL/CM/LS cannot be satisfied.
-   - closure criteria: add managed DB resource(s) and endpoint outputs.
-4. `M2D-B4` (severity: high)
-   - summary: demo stack writes only heartbeat SSM param and lacks required Confluent/DB credential paths.
-   - impact: runtime credentials contract is unsatisfied for downstream phases.
-   - closure criteria: write required SSM parameters for Confluent + DB paths from handles registry.
+1. None.
 
 Resolved blockers:
 1. `M2C-B1` (closed)
@@ -666,6 +669,30 @@ Resolved blockers:
    - evidence:
      - local: `runs/dev_substrate/m2_c/20260213T132116Z/m2c_b1_resolution_snapshot.json`
      - durable: `s3://fraud-platform-dev-min-evidence/evidence/dev_min/substrate/m2_20260213T132116Z/m2c_b1_resolution_snapshot.json`
+2. `M2D-B1` (closed)
+   - closure summary:
+     - demo stack now materializes Confluent runtime contract surfaces (cluster/env/topic map + canonical secret paths) and exposes required outputs.
+   - evidence:
+     - local: `runs/dev_substrate/m2_d/20260213T134810Z/m2_d_demo_apply_contract_snapshot.json`
+     - durable: `s3://fraud-platform-dev-min-evidence/evidence/dev_min/substrate/m2_20260213T134810Z/m2_d_demo_apply_contract_snapshot.json`
+3. `M2D-B2` (closed)
+   - closure summary:
+     - demo stack now includes ECS cluster, IAM execution/app roles, task definition, and desired-count-zero service scaffolding.
+   - evidence:
+     - local: `runs/dev_substrate/m2_d/20260213T134810Z/m2_d_demo_apply_contract_snapshot.json`
+     - durable: `s3://fraud-platform-dev-min-evidence/evidence/dev_min/substrate/m2_20260213T134810Z/m2_d_demo_apply_contract_snapshot.json`
+4. `M2D-B3` (closed)
+   - closure summary:
+     - demo stack now includes managed Postgres runtime DB resources and endpoint outputs.
+   - evidence:
+     - local: `runs/dev_substrate/m2_d/20260213T134810Z/m2_d_demo_apply_contract_snapshot.json`
+     - durable: `s3://fraud-platform-dev-min-evidence/evidence/dev_min/substrate/m2_20260213T134810Z/m2_d_demo_apply_contract_snapshot.json`
+5. `M2D-B4` (closed)
+   - closure summary:
+     - demo stack now writes canonical SSM parameter paths for Confluent and DB credentials.
+   - evidence:
+     - local: `runs/dev_substrate/m2_d/20260213T134810Z/m2_d_demo_apply_contract_snapshot.json`
+     - durable: `s3://fraud-platform-dev-min-evidence/evidence/dev_min/substrate/m2_20260213T134810Z/m2_d_demo_apply_contract_snapshot.json`
 
 Rule:
 1. Any newly discovered blocker is appended here with owner, impacted sub-phase, and closure criteria.
