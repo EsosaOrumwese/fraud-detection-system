@@ -318,10 +318,18 @@ Active-phase planning posture:
   - result: `overall_pass=true`,
   - evidence:
     - `s3://fraud-platform-dev-min-evidence/evidence/dev_min/run_control/m3b_20260213T214223Z/m3_b_run_id_generation_snapshot.json`.
+- M3.C planning status:
+  - expanded to closure-grade planning (decision pins, command catalog, blocker taxonomy, evidence contract),
+  - input anchor pinned to accepted M3.B run-id source,
+  - authoritative execution run: `m3c_20260213T215336Z`,
+  - result: `overall_pass=true`,
+  - note: `ORACLE_REQUIRED_OUTPUT_IDS` and `ORACLE_SORT_KEY_BY_OUTPUT_ID` remain pinned placeholders for P3 entry, so scenario surface is explicitly marked provisional until P5/SR confirmation in the payload,
+  - evidence:
+    - `s3://fraud-platform-dev-min-evidence/evidence/dev_min/run_control/m3c_20260213T215336Z/m3_c_digest_snapshot.json`.
 - Sub-phase progress:
   - [x] `M3.A` authority + handle closure matrix for P1.
   - [x] `M3.B` run identity generation contract (`platform_run_id` uniqueness).
-  - [ ] `M3.C` run config payload + deterministic digest contract.
+  - [x] `M3.C` run config payload + deterministic digest contract.
   - [ ] `M3.D` durable run evidence publication (`run.json` + start marker).
   - [ ] `M3.E` runtime scope export handoff for M4.
   - [ ] `M3.F` pass gates + blocker model closure.
@@ -329,7 +337,7 @@ Active-phase planning posture:
 
 M3 DoD checklist:
 - [x] `platform_run_id` is generated and collision-checked.
-- [ ] run config payload is canonicalized and digest-complete.
+- [x] run config payload is canonicalized and digest-complete.
 - [ ] `run.json` exists at run evidence root and is structurally complete.
 - [ ] runtime scope export (`REQUIRED_PLATFORM_RUN_ID`) is prepared for M4 consumers.
 - [ ] M3 closeout verdict + handoff artifact are published and non-secret.
@@ -508,6 +516,6 @@ Control: required P12 teardown proof and budget guardrails.
 ## 12) Immediate Next Action
 M3 is active for deep planning and execution preparation.
 Next action:
-- execute `M3.C` config payload + deterministic digest lane and publish M3.C evidence,
-- then execute `M3.D -> M3.G` with explicit evidence artifacts and fail-closed verdicting,
+- execute `M3.D` durable run evidence publication (`run.json` + `run_started.json`) using the M3.C digest payload,
+- then execute `M3.E -> M3.G` with explicit evidence artifacts and fail-closed verdicting,
 - maintain fail-closed posture: no M4 activation until M3 verdict is `ADVANCE_TO_M4` with durable handoff artifacts.

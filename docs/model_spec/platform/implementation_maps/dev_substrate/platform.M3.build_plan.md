@@ -300,19 +300,116 @@ Goal:
 
 Tasks:
 1. Assemble run config payload from:
-   - M2 handoff substrate handles,
-   - registry literals,
-   - image provenance fields from M1,
-   - runtime scope contract key.
-2. Canonicalize payload serialization (deterministic field ordering).
-3. Compute digest using `CONFIG_DIGEST_ALGO`.
-4. Verify digest reproducibility by recomputing and comparing value.
-5. Ensure no secret values are embedded in payload evidence.
+   - M2 handoff substrate handles (S3/topic/DB/runtime identifiers),
+   - registry literals required for P1 identity/provenance,
+   - image provenance fields from immutable M1 packaging evidence,
+   - M3.B accepted run identity (`platform_run_id`).
+2. Build payload structure using pinned field names:
+   - `FIELD_PLATFORM_RUN_ID`
+   - `FIELD_SCENARIO_RUN_ID`
+   - `FIELD_WRITTEN_AT_UTC`
+   - `CONFIG_DIGEST_FIELD`
+3. Canonicalize payload serialization with deterministic ordering (`json_sorted_keys_v1` posture).
+4. Compute digest using `CONFIG_DIGEST_ALGO`.
+5. Verify digest reproducibility by recomputing and comparing value.
+6. Ensure no secret values are embedded in payload evidence.
+7. Publish M3.C payload/digest evidence locally and durably.
 
 DoD:
-- [ ] Payload covers required P1 identity/provenance fields.
-- [ ] Digest is reproducible and stored under `CONFIG_DIGEST_FIELD`.
-- [ ] Payload evidence is non-secret.
+- [x] Payload covers required P1 identity/provenance fields.
+- [x] Digest is reproducible and stored under `CONFIG_DIGEST_FIELD`.
+- [x] Payload evidence is non-secret.
+- [x] M3.C payload/digest evidence exists locally and durably.
+
+### M3.C Decision Pins (Closed Before Execution)
+1. Input-anchor law:
+   - M3.C must consume the M3.B accepted run identity as immutable input for this run (`platform_20260213T214223Z`).
+2. Envelope law:
+   - payload must include, at minimum:
+     - `env=dev_min`,
+     - `phase_id=P1`,
+     - `platform_run_id`,
+     - `written_at_utc`,
+     - scenario-equivalence contract fields,
+     - referenced substrate-handle map,
+     - image provenance fields (`image_tag`, `image_digest`, `git_sha`).
+3. Provenance law:
+   - image fields must come from immutable M1 evidence sources; mutable pointers cannot be authoritative.
+4. Canonicalization law:
+   - digest input is canonical JSON only (sorted keys, stable separators) under pinned mode.
+5. Digest law:
+   - digest algorithm is taken from `CONFIG_DIGEST_ALGO` and result is written at `CONFIG_DIGEST_FIELD`.
+6. Reproducibility law:
+   - two independent digest computations over the same canonical payload must match exactly.
+7. Non-secret law:
+   - no plaintext secrets/tokens/passwords in M3.C payload or digest artifacts.
+
+### M3.C Verification Command Catalog (Pinned)
+| Verify ID | Command template | Purpose |
+| --- | --- | --- |
+| `M3C_V1_M3B_INPUT` | `Test-Path runs/dev_substrate/m3_b/20260213T214223Z/m3_b_run_id_generation_snapshot.json` | verifies M3.B accepted run-id input anchor exists |
+| `M3C_V2_HANDLES_PRESENT` | `rg -n \"FIELD_PLATFORM_RUN_ID|FIELD_SCENARIO_RUN_ID|FIELD_WRITTEN_AT_UTC|CONFIG_DIGEST_ALGO|CONFIG_DIGEST_FIELD|SCENARIO_EQUIVALENCE_KEY_INPUT|IMAGE_TAG_EVIDENCE_FIELD|IMAGE_DIGEST_EVIDENCE_FIELD|IMAGE_GIT_SHA_EVIDENCE_FIELD\" docs/model_spec/platform/migration_to_dev/dev_min_handles.registry.v0.md` | verifies required M3.C handle keys exist |
+| `M3C_V3_M2_HANDOFF` | `Test-Path runs/dev_substrate/m2_j/20260213T205715Z/m3_handoff_pack.json` | verifies substrate handle source for payload assembly |
+| `M3C_V4_PAYLOAD_WRITE_LOCAL` | write `m3_c_config_payload.json` under local M3.C run dir | proves payload assembly succeeded |
+| `M3C_V5_CANONICAL_PAYLOAD` | write canonical payload (`m3_c_config_payload.canonical.json`) using sorted-key JSON mode | proves canonical digest input is explicit |
+| `M3C_V6_DIGEST_COMPUTE` | compute digest from canonical payload using `CONFIG_DIGEST_ALGO`; write `m3_c_digest_snapshot.json` | proves deterministic digest production |
+| `M3C_V7_DIGEST_REPRO` | recompute digest and compare with first digest | proves reproducibility predicate |
+| `M3C_V8_SECRET_SCAN` | `rg -n -i \"password|secret|token|apikey|api_key\" runs/dev_substrate/m3_c/<timestamp>/m3_c_config_payload*.json` | fail-closed check for obvious secret leakage |
+| `M3C_V9_DURABLE_UPLOAD` | `aws s3 cp <local_m3c_artifact> s3://<S3_EVIDENCE_BUCKET>/evidence/dev_min/run_control/<m3c_execution_id>/` | proves durable M3.C evidence publication |
+
+### M3.C Blocker Taxonomy (Fail-Closed)
+1. `M3C-B1`: required payload field or handle reference missing.
+2. `M3C-B2`: canonicalization mode unresolved or canonical payload generation failed.
+3. `M3C-B3`: digest algorithm missing/unsupported for configured policy.
+4. `M3C-B4`: digest reproducibility mismatch.
+5. `M3C-B5`: image provenance fields unresolved or sourced from mutable pointer only.
+6. `M3C-B6`: non-secret policy violation in payload/digest artifacts.
+7. `M3C-B7`: local M3.C artifact write failure.
+8. `M3C-B8`: durable M3.C evidence upload failure.
+
+### M3.C Evidence Contract (Execution)
+1. Local:
+   - `runs/dev_substrate/m3_c/<timestamp>/m3_c_config_payload.json`
+   - `runs/dev_substrate/m3_c/<timestamp>/m3_c_config_payload.canonical.json`
+   - `runs/dev_substrate/m3_c/<timestamp>/m3_c_digest_snapshot.json`
+2. Durable:
+   - `evidence/dev_min/run_control/<m3c_execution_id>/m3_c_config_payload.json`
+   - `evidence/dev_min/run_control/<m3c_execution_id>/m3_c_config_payload.canonical.json`
+   - `evidence/dev_min/run_control/<m3c_execution_id>/m3_c_digest_snapshot.json`
+3. Snapshot minimum fields (`m3_c_digest_snapshot.json`):
+   - `m3c_execution_id`
+   - `platform_run_id`
+   - `config_digest_algo`
+   - `config_digest`
+   - `digest_reproducible`
+   - `non_secret_policy_pass`
+   - `blockers`
+   - `overall_pass`
+
+### M3.C Planning Status (Current)
+1. M3.C planning has been expanded to closure-grade detail.
+2. Input anchor is explicit:
+   - accepted M3.B run-id source:
+     - `runs/dev_substrate/m3_b/20260213T214223Z/m3_b_run_id_generation_snapshot.json`
+3. Execution has completed with authoritative run:
+   - `m3c_20260213T215336Z`,
+   - result: `overall_pass=true`.
+4. Verification summary:
+   - payload includes required P1 identity/provenance fields,
+   - digest computed with `sha256` and written to `config_digest`,
+   - digest recomputation matched exactly (`digest_reproducible=true`),
+   - non-secret policy check passed,
+   - local and durable payload/canonical/digest artifacts published successfully.
+5. Evidence:
+   - local:
+     - `runs/dev_substrate/m3_c/20260213T215336Z/m3_c_config_payload.json`
+     - `runs/dev_substrate/m3_c/20260213T215336Z/m3_c_config_payload.canonical.json`
+     - `runs/dev_substrate/m3_c/20260213T215336Z/m3_c_digest_snapshot.json`
+   - durable:
+     - `s3://fraud-platform-dev-min-evidence/evidence/dev_min/run_control/m3c_20260213T215336Z/m3_c_config_payload.json`
+     - `s3://fraud-platform-dev-min-evidence/evidence/dev_min/run_control/m3c_20260213T215336Z/m3_c_config_payload.canonical.json`
+     - `s3://fraud-platform-dev-min-evidence/evidence/dev_min/run_control/m3c_20260213T215336Z/m3_c_digest_snapshot.json`
+6. No open M3.C blocker is currently registered.
 
 ### M3.D Durable Run Evidence Publication
 Goal:
@@ -413,9 +510,13 @@ Minimum evidence payloads:
 4. `evidence/dev_min/run_control/<m3_execution_id>/m4_handoff_pack.json`
 5. `evidence/dev_min/run_control/<m3b_execution_id>/m3_b_run_id_generation_snapshot.json`
 6. `evidence/dev_min/run_control/<m3b_execution_id>/m3_b_run_header_seed.json`
-7. local mirrors under:
+7. `evidence/dev_min/run_control/<m3c_execution_id>/m3_c_config_payload.json`
+8. `evidence/dev_min/run_control/<m3c_execution_id>/m3_c_config_payload.canonical.json`
+9. `evidence/dev_min/run_control/<m3c_execution_id>/m3_c_digest_snapshot.json`
+10. local mirrors under:
    - `runs/dev_substrate/m3/<timestamp>/...`
    - `runs/dev_substrate/m3_b/<timestamp>/...`
+   - `runs/dev_substrate/m3_c/<timestamp>/...`
 
 Notes:
 1. Evidence must be non-secret.
@@ -425,7 +526,7 @@ Notes:
 ## 7) M3 Completion Checklist
 - [x] M3.A complete
 - [x] M3.B complete
-- [ ] M3.C complete
+- [x] M3.C complete
 - [ ] M3.D complete
 - [ ] M3.E complete
 - [ ] M3.F complete

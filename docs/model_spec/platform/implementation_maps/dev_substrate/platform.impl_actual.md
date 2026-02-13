@@ -8077,3 +8077,107 @@ USER directed immediate progression to close `M2.F` after workflow secret mappin
    - marked `M3.B` complete in sub-phase progress,
    - marked M3 DoD item `platform_run_id generated and collision-checked` complete,
    - advanced immediate next action to `M3.C` then `M3.D -> M3.G`.
+
+## Entry: 2026-02-13 9:50PM - M3.C planning expansion to closure-grade contract
+
+### Trigger
+1. USER directed: "Let's now plan for M3.C".
+
+### Planning objective
+1. Expand M3.C from high-level bullets to execution-ready planning with explicit decision completeness and fail-closed blocker posture.
+2. Keep this pass planning-only (no M3.C execution command run yet).
+
+### What was expanded
+1. In `docs/model_spec/platform/implementation_maps/dev_substrate/platform.M3.build_plan.md`:
+   - expanded M3.C tasks to include:
+     - pinned field-name envelope,
+     - canonical payload materialization,
+     - reproducibility check,
+     - non-secret validation,
+     - local+durable M3.C evidence publication.
+   - added `M3.C Decision Pins (Closed Before Execution)`.
+   - added `M3.C Verification Command Catalog` (`M3C_V1..V9`).
+   - added `M3.C Blocker Taxonomy` (`M3C-B1..B8`).
+   - added `M3.C Evidence Contract` with required local/durable artifacts and minimum snapshot fields.
+   - added `M3.C Planning Status (Current)` with explicit input anchor to accepted M3.B output.
+   - extended Section 6 evidence list to include M3.C artifacts.
+2. In `docs/model_spec/platform/implementation_maps/dev_substrate/platform.build_plan.md`:
+   - added M3.C planning-status summary in the active M3 posture,
+   - kept M3.C sub-phase unchecked (planning-only),
+   - refined immediate-next-action line to execute M3.C with explicit evidence artifact set.
+
+### Key planning pins captured
+1. M3.C input anchor is immutable M3.B output (`platform_run_id` from accepted M3.B snapshot).
+2. Payload envelope must include P1 identity/provenance and scenario-equivalence contract fields.
+3. Digest must use pinned `CONFIG_DIGEST_ALGO` and write to `CONFIG_DIGEST_FIELD`.
+4. Digest reproducibility is a hard gate.
+5. M3.C artifacts must remain non-secret and be published locally + durably.
+
+### Execution posture after this pass
+1. M3.C is now planning-closed and execution-ready.
+2. Next runtime action is M3.C execution (then M3.D->M3.G).
+
+## Entry: 2026-02-13 9:56PM - M3.C execution closure (config payload + deterministic digest)
+
+### Trigger
+1. USER directed: proceed with M3.C in its entirety.
+
+### Execution lane performed
+1. Executed full M3.C lane using the accepted M3.B run-id anchor:
+   - input run-id source: `runs/dev_substrate/m3_b/20260213T214223Z/m3_b_run_id_generation_snapshot.json`
+   - `platform_run_id=platform_20260213T214223Z`
+2. Assembled run config payload from:
+   - M2 handoff resolved handles (`m3_handoff_pack.json`),
+   - handles-registry literals for P1 identity/digest/scenario keys,
+   - immutable M1 packaging provenance (`packaging_provenance.json`).
+3. Canonicalized payload (`json_sorted_keys_v1` posture) and computed digest with pinned algo `sha256`.
+4. Recomputed digest over identical canonical input and verified exact equality.
+5. Derived provisional scenario identity surface from pinned scenario-equivalence input contract.
+6. Ran non-secret content checks and published local+durable evidence artifacts.
+
+### Authoritative execution result
+1. `m3c_execution_id`: `m3c_20260213T215336Z`
+2. `overall_pass`: `true`
+3. `config_digest`: `17c71c1445fd31474bb6c2d4be47e655f9c2ea8e1c82b4a25cace5f9bbdc40ee`
+4. `scenario_run_id`: `scenario_04c8e0f3297e58a7c232b97d2b72685e`
+5. `digest_reproducible`: `true`
+6. `non_secret_policy_pass`: `true`
+7. blockers: none.
+
+### Evidence
+1. Local:
+   - `runs/dev_substrate/m3_c/20260213T215336Z/m3_c_config_payload.json`
+   - `runs/dev_substrate/m3_c/20260213T215336Z/m3_c_config_payload.canonical.json`
+   - `runs/dev_substrate/m3_c/20260213T215336Z/m3_c_digest_snapshot.json`
+2. Durable:
+   - `s3://fraud-platform-dev-min-evidence/evidence/dev_min/run_control/m3c_20260213T215336Z/m3_c_config_payload.json`
+   - `s3://fraud-platform-dev-min-evidence/evidence/dev_min/run_control/m3c_20260213T215336Z/m3_c_config_payload.canonical.json`
+   - `s3://fraud-platform-dev-min-evidence/evidence/dev_min/run_control/m3c_20260213T215336Z/m3_c_digest_snapshot.json`
+
+### Important runtime note
+1. `ORACLE_REQUIRED_OUTPUT_IDS` and `ORACLE_SORT_KEY_BY_OUTPUT_ID` remain registry placeholders (`<PIN_AT_P3_PHASE_ENTRY>`), so M3.C records a provisional scenario-equivalence surface and marks scenario status as provisional until P5/SR confirmation.
+2. This is documented in `m3_c_config_payload.json` under `scenario.status`.
+
+### Plan-state updates applied
+1. `docs/model_spec/platform/implementation_maps/dev_substrate/platform.M3.build_plan.md`:
+   - marked M3.C DoD complete,
+   - recorded authoritative execution result + evidence,
+   - marked `M3.C complete` in M3 completion checklist.
+2. `docs/model_spec/platform/implementation_maps/dev_substrate/platform.build_plan.md`:
+   - marked `M3.C` complete in sub-phase progress,
+   - marked M3 DoD item `run config payload canonicalized and digest-complete` complete,
+   - advanced immediate next action to `M3.D` then `M3.E -> M3.G`.
+
+## Entry: 2026-02-13 9:57PM - Main build-plan note pin for M3.C provisional scenario surface
+
+### Trigger
+1. USER requested that the M3.C provisional-scenario note be captured in the main platform build plan.
+
+### Change applied
+1. Updated `docs/model_spec/platform/implementation_maps/dev_substrate/platform.build_plan.md` under active M3 posture (`M3.C planning status`) to explicitly state:
+   - `ORACLE_REQUIRED_OUTPUT_IDS` and `ORACLE_SORT_KEY_BY_OUTPUT_ID` remain P3-entry placeholders,
+   - scenario surface in M3.C payload is provisional until P5/SR confirmation.
+
+### Purpose
+1. Keep main plan semantics aligned with executed M3.C artifact posture.
+2. Prevent accidental over-claim of finalized scenario identity before P3/P5 closure.
