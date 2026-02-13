@@ -7276,3 +7276,29 @@ USER directed immediate progression to close `M2.F` after workflow secret mappin
 2. New explicit blocker identified and pinned:
    - `M2F-B2`: OIDC role policy lacks required backend/SSM/evidence permissions for Confluent Terraform lane.
 3. M2.F remains fail-closed until IAM permission gap is remediated and CI rerun yields `overall_pass=true`.
+
+## Entry: 2026-02-13 6:43PM - Pre-change lock for M2.F closure: import adoption lane hardening
+
+### Trigger
+1. USER directed immediate resolution now that valid Confluent credentials are available.
+2. Latest CI run (`21998530514`) still fails in Terraform apply because Confluent topics already exist but are missing from Terraform state.
+
+### Problem diagnosis
+1. Existing workflow import step has two deterministic defects:
+   - cluster ID extraction uses broad `awk` matching on `terraform state show`, producing malformed import IDs,
+   - topic import does not set required import-time Kafka credentials (`IMPORT_KAFKA_API_KEY`, `IMPORT_KAFKA_API_SECRET`), so provider import fails and topic adoption is skipped.
+2. Skipped adoption leaves `confluent_kafka_topic.topics[*]` absent from state, so apply re-creates and fails on `Topic already exists`.
+
+### Decision
+1. Harden `.github/workflows/dev_min_m2f_topic_readiness.yml` import lane to:
+   - resolve `confluent_cluster_id` and `kafka_rest_endpoint` from Terraform outputs (not brittle state text parsing),
+   - resolve import Kafka credentials from Terraform outputs first (`runtime_kafka_api_key`, `runtime_kafka_api_secret`), with fallback to state-held API keys for Basic-cluster recovery,
+   - fail closed before apply if cluster exists but import credentials are unavailable,
+   - classify import results explicitly (`imported`, `already-managed`, `failed`) and fail on non-recoverable import errors.
+2. Keep branch posture unchanged (`migrate-dev` only) and avoid branch-history operations.
+
+### Execution plan
+1. Patch workflow import step only.
+2. Commit and push to `origin/migrate-dev`.
+3. Dispatch fresh `dev_min_m2f_topic_readiness` run on `migrate-dev`.
+4. Require end-to-end pass (`Terraform apply` + `overall_pass=true`) before marking `M2.F` complete.

@@ -138,16 +138,42 @@ jobs:
         run: |
           set -euo pipefail
           TF_DIR="infra/terraform/dev_min/confluent"
-          STATE_CLUSTER="$(terraform -chdir="$TF_DIR" state show module.confluent.confluent_kafka_cluster.this 2>/dev/null || true)"
-          CLUSTER_ID="$(printf '%s\n' "$STATE_CLUSTER" | awk '/^[[:space:]]*id[[:space:]]*=/{print $3}' | tr -d '\"')"
-          REST_ENDPOINT="$(printf '%s\n' "$STATE_CLUSTER" | awk '/^[[:space:]]*rest_endpoint[[:space:]]*=/{print $3}' | tr -d '\"')"
+
+          tf_output_raw() {
+            terraform -chdir="$TF_DIR" output -raw "$1" 2>/dev/null || true
+          }
+
+          CLUSTER_ID="$(tf_output_raw confluent_cluster_id)"
+          REST_ENDPOINT="$(tf_output_raw kafka_rest_endpoint)"
+          IMPORT_API_KEY="$(tf_output_raw runtime_kafka_api_key)"
+          IMPORT_API_SECRET="$(tf_output_raw runtime_kafka_api_secret)"
+
           if [[ -z "$CLUSTER_ID" ]]; then
             echo "No existing cluster found in state; skipping topic import."
             exit 0
           fi
+
           if [[ -n "$REST_ENDPOINT" ]]; then
             export IMPORT_KAFKA_REST_ENDPOINT="$REST_ENDPOINT"
           fi
+
+          if [[ -z "$IMPORT_API_KEY" || -z "$IMPORT_API_SECRET" ]]; then
+            KEY_PATH="$(tf_output_raw ssm_confluent_api_key_path)"
+            SECRET_PATH="$(tf_output_raw ssm_confluent_api_secret_path)"
+            if [[ -n "$KEY_PATH" && -n "$SECRET_PATH" ]]; then
+              IMPORT_API_KEY="$(aws ssm get-parameter --name "$KEY_PATH" --with-decryption --query 'Parameter.Value' --output text 2>/dev/null || true)"
+              IMPORT_API_SECRET="$(aws ssm get-parameter --name "$SECRET_PATH" --with-decryption --query 'Parameter.Value' --output text 2>/dev/null || true)"
+            fi
+          fi
+
+          if [[ -z "$IMPORT_API_KEY" || -z "$IMPORT_API_SECRET" ]]; then
+            echo "Cluster exists (${CLUSTER_ID}) but import Kafka credentials are unavailable."
+            echo "Required: runtime Kafka key/secret from Terraform outputs or SSM."
+            exit 1
+          fi
+
+          export IMPORT_KAFKA_API_KEY="$IMPORT_API_KEY"
+          export IMPORT_KAFKA_API_SECRET="$IMPORT_API_SECRET"
 
           TOPICS=(
             "fp.bus.control.v1"
@@ -161,15 +187,27 @@ jobs:
             "fp.bus.labels.events.v1"
           )
 
+          IMPORT_FAILURE=0
           for topic in "${TOPICS[@]}"; do
-            if terraform -chdir="$TF_DIR" import \
-              "module.confluent.confluent_kafka_topic.topics[\"${topic}\"]" \
-              "${CLUSTER_ID}/${topic}"; then
+            IMPORT_ADDR="module.confluent.confluent_kafka_topic.topics[\"${topic}\"]"
+            IMPORT_ID="${CLUSTER_ID}/${topic}"
+            if IMPORT_OUTPUT="$(terraform -chdir="$TF_DIR" import "$IMPORT_ADDR" "$IMPORT_ID" 2>&1)"; then
               echo "Imported topic into state: ${topic}"
+            elif printf '%s\n' "$IMPORT_OUTPUT" | grep -qi "already managed by Terraform"; then
+              echo "Topic already managed in state: ${topic}"
+            elif printf '%s\n' "$IMPORT_OUTPUT" | grep -qi "Cannot import non-existent remote object"; then
+              echo "Topic does not exist yet (will be created by apply): ${topic}"
             else
-              echo "Import skipped/failed for topic: ${topic}"
+              echo "Import failed for topic: ${topic}"
+              printf '%s\n' "$IMPORT_OUTPUT"
+              IMPORT_FAILURE=1
             fi
           done
+
+          if [[ "$IMPORT_FAILURE" -ne 0 ]]; then
+            echo "One or more Kafka topic imports failed unexpectedly."
+            exit 1
+          fi
 
       - name: Terraform apply (Confluent stack)
         shell: bash
