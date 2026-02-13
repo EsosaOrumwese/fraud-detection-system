@@ -5991,3 +5991,68 @@ Re-ran validator:
 
 ### Outcome
 Confirms M1.H remains closed with stable validation results after all associated doc updates.
+
+## Entry: 2026-02-13 10:45AM - Pre-change lock: M1.I exit-readiness review closure
+
+### Trigger
+USER directed: proceed with `M1.I`.
+
+### Objective
+Close M1 planning-phase readiness by:
+1. completing explicit exit-readiness review,
+2. confirming no unresolved contract ambiguity remains,
+3. finalizing authoritative build-go handoff posture.
+
+### Review basis
+1. Deep plan:
+- `docs/model_spec/platform/implementation_maps/dev_substrate/platform.M1.build_plan.md`
+2. Main plan:
+- `docs/model_spec/platform/implementation_maps/dev_substrate/platform.build_plan.md`
+3. CI validation evidence:
+- `runs/dev_substrate/m1_h_validation/20260213T104213Z/ci_gate_validation_report.json`
+
+### Pre-closure findings
+1. M1.A..M1.H are complete and evidenced.
+2. No contract ambiguity remains in build-driver authority, output/evidence fields, or fail-closed posture.
+3. Known build-go preflight prerequisites are explicit (not ambiguous):
+- pinned Dockerfile path must exist (`IMAGE_DOCKERFILE_PATH = Dockerfile`),
+- workflow_dispatch inputs must be supplied at execution time,
+- OIDC role/permissions must be valid.
+
+### Planned updates
+1. Mark `M1.I` DoD checks complete with a pinned readiness verdict.
+2. Mark `M1.I` completion in deep and main M1 progress checklists.
+3. Update immediate-next-action text to reflect transition from planning closure to awaiting explicit USER build-go.
+
+### Drift sentinel checkpoint
+This is planning/control closure only; no runtime build/push execution is performed in this step.
+
+## Entry: 2026-02-13 10:47AM - Applied M1.I closure: M1 planning gates complete
+
+### Files updated
+1. `docs/model_spec/platform/implementation_maps/dev_substrate/platform.M1.build_plan.md`
+2. `docs/model_spec/platform/implementation_maps/dev_substrate/platform.build_plan.md`
+
+### M1.I closure outcome
+1. M1.I DoD checklist marked complete:
+- deliverables checklist complete,
+- no unresolved contract ambiguity remains,
+- build-go handoff statement prepared.
+2. M1.I readiness verdict pinned as:
+- `READY_FOR_BUILD_GO` (planning/control closure only).
+3. Build-go handoff statement transitioned from provisional to authoritative for M1 execution.
+
+### Explicit preflight prerequisites retained in handoff
+1. Pinned Dockerfile path must exist at execution time (`IMAGE_DOCKERFILE_PATH = Dockerfile`).
+2. Required `workflow_dispatch` inputs must be supplied.
+3. OIDC role assumption + ECR access must be valid for execution principal.
+
+### Main-plan synchronization
+1. Marked `M1.I` complete in active M1 sub-phase progress.
+2. Marked M1 execution-handoff checklist item complete.
+3. Updated immediate-next-action section:
+- planning gates closed,
+- execution proceeds only on explicit USER build-go.
+
+### Drift sentinel assessment
+No runtime behavior was executed or changed. This closes M1 planning control gates and preserves explicit user-governed execution authority.

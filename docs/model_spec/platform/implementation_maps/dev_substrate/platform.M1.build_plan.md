@@ -473,7 +473,7 @@ M1.G realization record (pinned):
 
 M1.G execution block:
 1. `M1.G` closure condition is now satisfied by pinned workflow realization.
-2. Build-go remains blocked by `M1.I` until exit-readiness closure completes.
+2. Planning-gate dependency on `M1.I` is now cleared.
 
 ## M1.H Authoritative CI Gate Validation
 Goal:
@@ -508,7 +508,7 @@ M1.H validation record (pinned):
 
 M1.H execution block:
 1. `M1.H` closure condition is now satisfied by validator PASS evidence.
-2. Build-go remains blocked by `M1.I` until exit-readiness closure completes.
+2. Planning-gate dependency on `M1.I` is now cleared.
 
 ## M1.I Exit Readiness Review
 Goal:
@@ -520,15 +520,25 @@ Tasks:
 3. Prepare execution handoff statement for M1 build-go pass.
 
 DoD:
-- [ ] M1 deliverables checklist complete.
-- [ ] No unresolved contract ambiguity remains.
-- [ ] Build-go handoff statement prepared.
+- [x] M1 deliverables checklist complete.
+- [x] No unresolved contract ambiguity remains.
+- [x] Build-go handoff statement prepared.
 
 M1.I readiness review posture (reopened):
 1. Reopened due newly explicit pre-build-go phases (`M1.G`, `M1.H`) that were previously implicit.
-2. `M1.G` and `M1.H` are now closed; `M1.I` is the remaining pre-build-go closure gate.
+2. `M1.G` and `M1.H` are closed; this review closes the pre-build-go planning gate set.
 
-M1 build-go handoff statement (execution pack, provisional until M1.I closes):
+M1.I readiness verdict (pinned):
+1. Verdict:
+   - `READY_FOR_BUILD_GO` (planning/control closure).
+2. Contract ambiguity status:
+   - no unresolved M1 contract ambiguity remains.
+3. Execution preflight prerequisites (explicit, fail-closed):
+   - pinned Dockerfile path must exist at execution time (`IMAGE_DOCKERFILE_PATH = Dockerfile`),
+   - `workflow_dispatch` required inputs must be supplied (`platform_run_id`, `aws_region`, `aws_role_to_assume`, `ecr_repo_name`, `ecr_repo_uri`),
+   - OIDC role assumption and ECR access must be valid for the selected AWS principal.
+
+M1 build-go handoff statement (execution pack, authoritative for M1 execution):
 1. Build-go trigger:
    - explicit USER direction authorizing M1 execution run.
 2. Execution authority:
@@ -556,6 +566,10 @@ M1 build-go handoff statement (execution pack, provisional until M1.I closes):
 6. Closure condition:
    - only after evidence is produced/validated and user confirms progression can M1 status transition to `DONE` and M2 become activatable.
 
+M1.I execution block:
+1. `M1.I` closure condition is now satisfied.
+2. M1 planning closure is complete; M1 execution build-go remains user-governed and explicit.
+
 ## 6) M1 Completion Checklist
 - [x] M1.A complete
 - [x] M1.B complete
@@ -565,7 +579,7 @@ M1 build-go handoff statement (execution pack, provisional until M1.I closes):
 - [x] M1.F complete
 - [x] M1.G complete
 - [x] M1.H complete
-- [ ] M1.I complete
+- [x] M1.I complete
 
 ## 7) Risks and Controls
 R1: image/entrypoint mismatch discovered late  

@@ -5462,3 +5462,32 @@ Evidence posture:
 Decision:
 1) Mark P5 closed at grade `B` with reproducible evidence.
 2) Segment `1A` is certification-closed for `B` target and not yet at `B+`.
+
+### Entry: 2026-02-13 10:44
+
+Design element: P5 B+ recovery mini-pass (focused on four misses with fail-safe rollback).
+Summary: User requested B+ recovery but with strict safety: if score degrades, gently revert and accept current B. I validated current misses and mapped control knobs.
+
+Observed misses from `segment1a_p5_certification.json`:
+1) `top10_outlet_share` (near miss),
+2) `gini_outlets_per_merchant` (material miss),
+3) `multi_country_legal_spread` (large miss),
+4) `realization_ratio_median` (large miss).
+
+Control-map:
+1) `top10` + `gini` are controlled upstream by S1/S2 hurdle+NB bundle (`hurdle_coefficients.yaml`, `nb_dispersion_coefficients.yaml`).
+2) `realization_ratio_median` comes from S3/S6 (`rho_m = R_m/C_m`), mostly influenced by S4 `K_target` shape via `crossborder_hyperparams.yaml` and S6 selection policy.
+3) `multi_country_legal_spread` is downstream in S8 and is strongly impacted by S7 home-bias allocation policy.
+
+Recovery strategy (risk-prioritized):
+1) First chase two additional B+ passes via P1-only concentration tuning (`top10` + `gini`) because that can reach 12/14 without destabilizing P2/P3 topology.
+2) Leave S4/S6/S7 untouched in first recovery pass to avoid collateral drift in mismatch/gradient and hard gates.
+3) Implement as a new hurdle bundle under a later timestamp (do not overwrite existing locked bundle), then run `segment1a-p1` loop for quick metric feedback.
+4) Promote to full P4+P5 only if P1 concentration targets are met or clearly improved without violating P1 B gates.
+5) Fail-safe rollback rule: if full certification grade or hard-gate posture regresses vs current authority, revert to existing bundle (`version=2026-02-12/20260212T200823Z`) and keep current B closure.
+
+Immediate execution plan:
+1) Create experimental bundle `version=2026-02-13/<timestamp>` cloned from current lock.
+2) Run controlled coefficient compression variants on `beta_mu` non-intercept terms with intercept recentering to preserve median posture.
+3) Evaluate each candidate with `make segment1a-p1` + `verify_segment1a_p1_outputs.py` + run-metric extraction.
+4) If no variant reaches `gini<=0.58` with `top10>=0.38`, stop and retain current B (no downstream policy churn).
