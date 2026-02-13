@@ -5491,3 +5491,28 @@ Immediate execution plan:
 2) Run controlled coefficient compression variants on `beta_mu` non-intercept terms with intercept recentering to preserve median posture.
 3) Evaluate each candidate with `make segment1a-p1` + `verify_segment1a_p1_outputs.py` + run-metric extraction.
 4) If no variant reaches `gini<=0.58` with `top10>=0.38`, stop and retain current B (no downstream policy churn).
+
+### Entry: 2026-02-13 10:56
+
+Design element: P5 B+ recovery mini-pass outcome + rollback decision.
+Summary: Completed constrained P1 concentration tuning sweep for `top10`/`gini` and found no candidate satisfying both B+ conditions simultaneously. Per user rollback directive, decided to revert experimental bundle changes and retain current certified B posture.
+
+Empirical results (seed 42, P1 loop):
+1) non-intercept scale sweep from current bundle:
+- scale `1.0`: `top10=0.3758`, `gini=0.5932`.
+- scale `0.9`: `top10=0.3668`, `gini=0.5842`.
+- scale `0.8`: `top10=0.3469`, `gini=0.5635`.
+- scale `0.7`: `top10=0.3272`, `gini=0.5459`.
+- scale `0.6`: `top10=0.3134`, `gini=0.5303`.
+2) scale+intercept sweeps (positive and negative intercept shifts) also failed joint criterion:
+- improving `gini` reliably reduced `top10` further below `0.38`,
+- attempts to recover `top10` increased concentration and/or failed B+ concentration bands elsewhere.
+
+Conclusion:
+1) Under current engine posture and deterministic keying, this local coefficient family does not yield a feasible joint `top10>=0.38` and `gini<=0.58` point in the tested neighborhood.
+2) Proceeding to broader S4/S6/S7 tuning would increase blast radius and risk regressing already-closed P3 realism bands.
+
+Decision:
+1) execute rollback of experimental hurdle bundle edits,
+2) prune exploratory run folders created during sweep,
+3) keep Segment `1A` at current certified `B` closure with existing P5 authority artifact.
