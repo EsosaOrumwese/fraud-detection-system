@@ -257,7 +257,7 @@ Active-phase execution posture:
 - Sub-phase progress:
   - [x] `M2.A` substrate authority and handle-closure matrix.
   - [x] `M2.B` Terraform backend/state partition readiness.
-  - [ ] `M2.C` core apply closure contract and evidence.
+  - [x] `M2.C` core apply closure contract and evidence.
   - [ ] `M2.D` demo apply closure contract and evidence.
   - [ ] `M2.E` SSM secret materialization and access checks.
   - [ ] `M2.F` Kafka topic/ACL/access readiness.
@@ -457,4 +457,4 @@ Control: required P12 teardown proof and budget guardrails.
 ## 12) Immediate Next Action
 M2 is active for deep planning and closure-hardening.
 Next action:
-- close `M2.C` in `platform.M2.build_plan.md` before core apply execution.
+- close `M2C-B1` state-mismatch blocker (controlled core state import/migration), then proceed to `M2.D`.

@@ -6472,3 +6472,80 @@ USER directed progression to `M2.B`.
 ### Drift sentinel checkpoint
 1. No apply/destroy mutation occurred.
 2. M2.B closure is evidence-backed and consistent with pinned stack-root authority.
+
+## Entry: 2026-02-13 1:00PM - Pre-change lock: execute M2.C core-apply contract closure
+
+### Trigger
+USER directed progression to `M2.C` implementation.
+
+### Objective
+1. Pin the canonical core apply command surface (no ambiguity, no demo drift).
+2. Define and validate core acceptance checks tied to module outputs/resources.
+3. Produce an M2.C evidence snapshot with:
+- backend/state identity,
+- plan metadata,
+- output-handle contract,
+- rollback posture.
+4. Sync M2.C status in deep/main plans only if DoD is objectively satisfied.
+
+### Boundaries
+1. Allowed:
+- static Terraform checks,
+- Terraform plan/read-only metadata collection,
+- read-only AWS checks,
+- evidence artifact generation.
+2. Not allowed in this pass:
+- `terraform apply`,
+- `terraform destroy`,
+- manual console mutation.
+
+## Entry: 2026-02-13 1:05PM - Post-change record: M2.C contract closed with explicit state-mismatch blocker
+
+### What was implemented
+1. Expanded M2.C into an execution-grade contract in `platform.M2.build_plan.md`:
+- canonical core command surface (`init/validate/plan/apply/output`),
+- explicit acceptance checks and required output-key contract,
+- pinned evidence schema and path contract,
+- rollback/correction posture,
+- closure summary and evidence references.
+2. Produced M2.C evidence snapshot from live checks:
+- local: `runs/dev_substrate/m2_c/20260213T130431Z/m2_c_core_apply_contract_snapshot.json`
+- durable: `s3://fraud-platform-dev-min-evidence/evidence/dev_min/substrate/m2_20260213T130431Z/m2_c_core_apply_contract_snapshot.json`
+3. Synced phase status:
+- `platform.M2.build_plan.md`: M2.C DoD and M2 checklist marked complete.
+- `platform.build_plan.md`: M2 sub-phase tracker marks `M2.C` complete.
+
+### Material finding (fail-closed)
+1. Blocker `M2C-B1` discovered and pinned in unresolved blocker register:
+- core backend key `dev_min/core/terraform.tfstate` has no state object,
+- core resources already exist in account,
+- direct apply is likely to hit already-exists conflicts.
+2. Closure rule pinned:
+- perform controlled state import/migration and re-plan until conflict-bearing create set is removed.
+
+### Command/evidence highlights
+1. `terraform -chdir=infra/terraform/dev_min/core init -reconfigure ...` -> PASS.
+2. `terraform -chdir=infra/terraform/dev_min/core validate` -> PASS.
+3. `terraform -chdir=infra/terraform/dev_min/core plan -detailed-exitcode` -> exit `2` with create set, confirming state-mismatch risk.
+4. Lock table readiness check remains PASS (`ACTIVE`, hash key `LockID`).
+
+### Drift sentinel checkpoint
+1. No apply/destroy mutation executed.
+2. M2.C is closed as contract/evidence work, while execution progression is fail-closed behind `M2C-B1`.
+
+## Entry: 2026-02-13 1:09PM - Corrective note: core stack file restoration during M2.C pass
+
+### What happened
+1. While removing an accidental artifact file named `$plan`, a shell command expanded unexpectedly and removed files under `infra/terraform/dev_min/core`.
+
+### Immediate correction
+1. Restored the canonical core stack files to pinned content:
+- `versions.tf`, `variables.tf`, `main.tf`, `outputs.tf`,
+- `backend.hcl.example`, `terraform.tfvars.example`, `README.md`.
+2. Re-ran validation:
+- `terraform -chdir=infra/terraform/dev_min/core init -backend=false` -> PASS,
+- `terraform -chdir=infra/terraform/dev_min/core validate` -> PASS.
+
+### Net effect
+1. Core stack is back in valid state.
+2. No substrate mutation (`apply`/`destroy`) occurred from this incident.

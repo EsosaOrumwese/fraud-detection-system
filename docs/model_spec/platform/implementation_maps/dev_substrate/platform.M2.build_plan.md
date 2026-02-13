@@ -307,13 +307,91 @@ Tasks:
    - resolved output handle set required by demo stack.
 
 DoD:
-- [ ] Core apply command surface is canonical and non-ambiguous.
-- [ ] Core output acceptance checks are explicit.
-- [ ] Core evidence payload schema is pinned.
+- [x] Core apply command surface is canonical and non-ambiguous.
+- [x] Core output acceptance checks are explicit.
+- [x] Core evidence payload schema is pinned.
+
+### M2.C Canonical Core Command Surface (Pinned)
+1. Backend and static validation:
+   - `terraform -chdir=infra/terraform/dev_min/core init -reconfigure "-backend-config=backend.hcl"`
+   - `terraform -chdir=infra/terraform/dev_min/core validate`
+2. Pre-apply plan (must run before apply):
+   - `terraform -chdir=infra/terraform/dev_min/core plan -input=false -detailed-exitcode -out <core_plan_file>`
+3. Core apply (only after plan acceptance and blocker closure):
+   - `terraform -chdir=infra/terraform/dev_min/core apply -input=false <core_plan_file>`
+4. Post-apply verification:
+   - `terraform -chdir=infra/terraform/dev_min/core output -json`
+   - `aws s3api get-bucket-versioning --bucket <TF_STATE_BUCKET>`
+   - `aws dynamodb describe-table --table-name <TF_LOCK_TABLE>`
+
+### M2.C Acceptance Checks (Pinned)
+1. Command-surface acceptance:
+   - init/validate commands must return exit `0`.
+2. Plan acceptance:
+   - a plan artifact must exist and be JSON-renderable via `terraform show -json`.
+3. Output acceptance set (required for downstream demo stack):
+   - output keys present: `s3_bucket_names`, `dynamodb_table_names`, `budget_name`.
+   - output-to-handle coverage includes:
+     - `S3_ORACLE_BUCKET`
+     - `S3_ARCHIVE_BUCKET`
+     - `S3_QUARANTINE_BUCKET`
+     - `S3_EVIDENCE_BUCKET`
+     - `TF_STATE_BUCKET`
+     - `TF_LOCK_TABLE`
+4. No-demo-drift guard:
+   - M2.C commands run only under `infra/terraform/dev_min/core`.
+
+### M2.C Evidence Schema (Pinned)
+Core contract snapshot must include:
+1. command receipt (exit codes + command mode),
+2. backend/state identity (`bucket`, `key`, `region`, `dynamodb_table`, `encrypt`),
+3. plan metadata (`resource_changes_count`, action counts),
+4. expected-output contract key set,
+5. rollback posture,
+6. blocker register status.
+
+Path contract:
+1. local: `runs/dev_substrate/m2_c/<timestamp>/m2_c_core_apply_contract_snapshot.json`
+2. durable: `s3://<S3_EVIDENCE_BUCKET>/evidence/dev_min/substrate/<m2_execution_id>/m2_c_core_apply_contract_snapshot.json`
+
+### M2.C Rollback / Correction Posture (Pinned)
+1. If apply fails:
+   - fix configuration/state alignment,
+   - rerun plan,
+   - rerun apply (no manual console patch unless codified in Terraform).
+2. If state mismatch is detected:
+   - execute controlled state import/migration first,
+   - rerun plan until expected create-conflict risk is removed.
+3. No demo-stack mutation is allowed from M2.C corrective operations.
+
+### M2.C Closure Summary (Execution Record)
+1. Commands executed (read-only/contract validation):
+   - core `init -reconfigure` with backend config -> `PASS`,
+   - core `validate` -> `PASS`,
+   - core `plan -detailed-exitcode` -> exit `2` (24 creates planned),
+   - core plan JSON render -> `PASS`.
+2. Lock table readiness:
+   - `fraud-platform-dev-min-tf-locks` -> `ACTIVE`, hash key `LockID`.
+3. State observation:
+   - backend key `dev_min/core/terraform.tfstate` currently has no state object.
+4. Material blocker discovered and pinned:
+   - `M2C-B1` (state mismatch/import required before first core apply).
+5. M2.C status:
+   - contract closure complete (`CLOSED_CONTRACT`),
+   - first core apply remains blocked pending `M2C-B1` closure.
+
+### M2.C Evidence
+1. Local:
+   - `runs/dev_substrate/m2_c/20260213T130431Z/m2_c_core_apply_contract_snapshot.json`
+2. Durable:
+   - `s3://fraud-platform-dev-min-evidence/evidence/dev_min/substrate/m2_20260213T130431Z/m2_c_core_apply_contract_snapshot.json`
 
 ## M2.D Demo Apply Closure Contract
 Goal:
 1. Pin and verify demo apply sequence and acceptance outputs for Confluent/ECS/DB/SSM.
+
+Entry precondition:
+1. `M2C-B1` must be closed before first core/demo apply execution in this phase chain.
 
 Tasks:
 1. Pin exact demo apply command surface.
@@ -464,6 +542,7 @@ Minimum evidence payloads to produce during M2 execution:
 8. `evidence/dev_min/substrate/<m2_execution_id>/budget_guardrail_snapshot.json`
 9. `evidence/dev_min/substrate/<m2_execution_id>/m3_handoff_pack.json`
 10. `evidence/dev_min/substrate/<m2_execution_id>/m2_b_backend_state_readiness_snapshot.json`
+11. `evidence/dev_min/substrate/<m2_execution_id>/m2_c_core_apply_contract_snapshot.json`
 
 Notes:
 1. Evidence must be non-secret.
@@ -472,7 +551,7 @@ Notes:
 ## 7) M2 Completion Checklist
 - [x] M2.A complete
 - [x] M2.B complete
-- [ ] M2.C complete
+- [x] M2.C complete
 - [ ] M2.D complete
 - [ ] M2.E complete
 - [ ] M2.F complete
@@ -499,7 +578,10 @@ Control: explicit command-lane pinning in M2.B/M2.E/M2.F before execution.
 
 ## 8.1) Unresolved Blocker Register (Must Be Empty Before M2 Execution)
 Current blockers:
-1. None pinned at this planning revision.
+1. `M2C-B1` (severity: high)
+   - summary: core backend state key `dev_min/core/terraform.tfstate` has no state object while core resources already exist in account.
+   - impact: direct core apply is likely to fail with already-exists conflicts.
+   - closure criteria: complete controlled state import/migration and rerun core plan until conflict-bearing create set is removed for existing resources.
 
 Rule:
 1. Any newly discovered blocker is appended here with owner, impacted sub-phase, and closure criteria.
