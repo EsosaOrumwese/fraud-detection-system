@@ -5304,3 +5304,68 @@ Documentation-contract closure only; no runtime semantic or ownership-boundary c
 
 ### Drift sentinel assessment
 No drift against migration authority or local-parity semantics. This closes a packaging-contract ambiguity surface only.
+
+## Entry: 2026-02-13 8:53AM - Pre-change lock: implement M1.C provenance and evidence contract
+
+### Trigger
+USER directed: move to `M1.C`.
+
+### Objective
+Close M1.C by pinning the packaging provenance field contract, run-scoped evidence paths, and fail-closed mismatch handling.
+
+### Scope
+1. `docs/model_spec/platform/implementation_maps/dev_substrate/platform.M1.build_plan.md`
+   - complete M1.C DoD,
+   - freeze provenance field set and required keys,
+   - pin run-scoped evidence object contract,
+   - define fail-closed mismatch criteria.
+2. `docs/model_spec/platform/implementation_maps/dev_substrate/platform.build_plan.md`
+   - update active-phase sub-progress to reflect M1.C closure.
+
+### Key decisions (before patch)
+1. Keep evidence contract aligned to existing registry handles; no ad hoc handle invention.
+2. Pin canonical packaging evidence under run-scoped phase prefix using `EVIDENCE_PHASE_PREFIX_PATTERN` with `phase_id="P(-1)"`.
+3. Require image provenance mirror in `run.json` (`EVIDENCE_RUN_JSON_KEY`) so P(-1) and P1 remain consistent.
+4. Treat any provenance mismatch (ECR vs artifact vs run header) as fail-closed blocker.
+
+### Validation plan
+- Confirm M1.C DoD checkboxes are all `[x]`.
+- Confirm M1 completion checklist marks `M1.C complete`.
+- Confirm main plan sub-phase progress marks M1.C complete while M1 stays ACTIVE.
+
+### Drift sentinel checkpoint
+Documentation-contract closure only; no runtime or infrastructure execution changes.
+
+## Entry: 2026-02-13 8:54AM - Applied M1.C provenance and evidence contract freeze
+
+### Files updated
+1. `docs/model_spec/platform/implementation_maps/dev_substrate/platform.M1.build_plan.md`
+2. `docs/model_spec/platform/implementation_maps/dev_substrate/platform.build_plan.md`
+
+### What was implemented
+1. Completed M1.C DoD in deep plan:
+- pinned provenance fields for P(-1): `phase_id`, `platform_run_id`, `written_at_utc`, image tag/digest/git fields, build timestamp, and build actor.
+- pinned deterministic source pointers (`ECR_REPO_URI`, `IMAGE_REFERENCE_MODE`, `IMAGE_DOCKERFILE_PATH`, `IMAGE_BUILD_PATH`).
+- pinned digest integrity anchors (`oci_digest_algo`, `oci_digest_value`).
+
+2. Pinned run-scoped evidence path contract:
+- canonical object: `s3://<S3_EVIDENCE_BUCKET>/evidence/runs/<platform_run_id>/P(-1)/packaging_provenance.json`.
+- mirror requirement in `EVIDENCE_RUN_JSON_KEY` (`run.json`) for image provenance consistency.
+
+3. Pinned fail-closed mismatch handling:
+- ECR tag->digest mismatch blocks P(-1).
+- packaging artifact vs `run.json` provenance mismatch blocks progression.
+- git SHA mismatch against immutable tag payload blocks P(-1).
+- missing packaging provenance object means packaging is not committed.
+
+4. Updated checklist progress:
+- marked `M1.C complete` in M1 deep-plan checklist.
+- updated main-plan active sub-phase progress to show M1.A/M1.B/M1.C complete and M1.D..M1.F pending.
+
+### Validation
+- M1.C DoD checkboxes are all checked.
+- M1 completion checklist now marks M1.C complete.
+- Main plan still shows M1 as ACTIVE with later sub-phases pending.
+
+### Drift sentinel assessment
+No semantic drift introduced. This closes provenance/evidence ambiguity and tightens fail-closed posture before build execution.

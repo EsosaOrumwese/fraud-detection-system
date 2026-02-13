@@ -160,9 +160,56 @@ Tasks:
 3. Define acceptance criteria for provenance consistency checks.
 
 DoD:
-- [ ] Provenance field set is complete.
-- [ ] Evidence path contract is pinned and run-scoped.
-- [ ] Mismatch handling is fail-closed.
+- [x] Provenance field set is complete.
+- [x] Evidence path contract is pinned and run-scoped.
+- [x] Mismatch handling is fail-closed.
+
+M1.C provenance contract freeze:
+1. P(-1) provenance required fields are pinned:
+   - `phase_id = "P(-1)"`
+   - `platform_run_id` (same value that is later used in P1 run header)
+   - `written_at_utc` (field name aligned to `FIELD_WRITTEN_AT_UTC`)
+   - `image_tag` field name aligned to handle `IMAGE_TAG_EVIDENCE_FIELD`
+   - `image_digest` field name aligned to handle `IMAGE_DIGEST_EVIDENCE_FIELD`
+   - `git_sha` field name aligned to handle `IMAGE_GIT_SHA_EVIDENCE_FIELD`
+   - `build_completed_at_utc`
+   - `build_actor`
+2. P(-1) provenance must include deterministic source pointers:
+   - `ecr_repo_uri` (aligned to `ECR_REPO_URI`)
+   - `image_reference_mode` (aligned to `IMAGE_REFERENCE_MODE`)
+   - `dockerfile_path` (aligned to `IMAGE_DOCKERFILE_PATH`)
+   - `build_path` (aligned to `IMAGE_BUILD_PATH`)
+3. P(-1) provenance must include digest integrity anchors:
+   - `oci_digest_algo` (expected `sha256`)
+   - `oci_digest_value` (same value as `image_digest`)
+
+M1.C evidence path contract (run-scoped):
+1. Canonical run-scoped packaging provenance object:
+   - `s3://<S3_EVIDENCE_BUCKET>/evidence/runs/<platform_run_id>/P(-1)/packaging_provenance.json`
+   - pattern alignment: `EVIDENCE_PHASE_PREFIX_PATTERN` with `phase_id="P(-1)"`.
+2. Run-header mirror requirement:
+   - `s3://<S3_EVIDENCE_BUCKET>/evidence/runs/<platform_run_id>/run.json` (aligned to `EVIDENCE_RUN_JSON_KEY`) must contain:
+     - image provenance fields (`image_tag`, `image_digest`, `git_sha`),
+     - config digest field name aligned to `CONFIG_DIGEST_FIELD` once P1 writes run pinning payload.
+3. P(-1) PASS evidence is not complete unless both are true:
+   - packaging provenance object exists under phase prefix,
+   - `run.json` carries matching image provenance values after P1 commit.
+
+M1.C mismatch handling (fail-closed):
+1. ECR mismatch:
+   - if `image_tag` does not resolve to recorded `image_digest`, fail P(-1) and block M1 closure.
+2. Provenance mismatch:
+   - if `packaging_provenance.json` and `run.json` image fields differ, fail P1 gate progression until reconciled.
+3. Git mismatch:
+   - if `git_sha` in provenance does not match immutable tag pattern payload, fail P(-1).
+4. Missing evidence:
+   - if phase provenance object is missing from run-scoped path, treat packaging as not committed (no green progression).
+
+M1.C validation method (build-go pass):
+1. Resolve immutable image ref in ECR and capture digest.
+2. Write `packaging_provenance.json` under `P(-1)` phase prefix for the intended `platform_run_id`.
+3. During P1 run-header write, enforce exact image provenance field equality against packaging artifact.
+4. Record PASS only when equality and path-existence checks pass.
 
 ## M1.D Security and Secret Injection Contract
 Goal:
@@ -209,7 +256,7 @@ DoD:
 ## 6) M1 Completion Checklist
 - [x] M1.A complete
 - [x] M1.B complete
-- [ ] M1.C complete
+- [x] M1.C complete
 - [ ] M1.D complete
 - [ ] M1.E complete
 - [ ] M1.F complete
