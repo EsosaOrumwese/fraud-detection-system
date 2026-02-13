@@ -42,6 +42,18 @@ output "ecs_probe_task_definition_arn" {
   value = module.demo.ecs_probe_task_definition_arn
 }
 
+output "ecs_db_migrations_task_definition_arn" {
+  value = module.demo.ecs_db_migrations_task_definition_arn
+}
+
+output "td_db_migrations" {
+  value = module.demo.ecs_db_migrations_task_definition_family
+}
+
+output "role_db_migrations_name" {
+  value = module.demo.role_db_migrations_name
+}
+
 output "ecs_probe_service_name" {
   value = module.demo.ecs_probe_service_name
 }

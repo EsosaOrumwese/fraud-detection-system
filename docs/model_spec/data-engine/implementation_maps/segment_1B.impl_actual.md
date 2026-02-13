@@ -3876,3 +3876,52 @@ Next execution step:
 - bootstrap a fresh candidate run-id from locked P2 authority,
 - run `S5->S9` (required chain for trace consistency),
 - score with `tools/score_segment1b_p3_candidate.py` and decide lock vs further bounded retune.
+
+---
+
+### Entry: 2026-02-13 19:38
+
+Design element: P3 out-of-pixel experiment verdict + rollback to in-contract lane.
+Summary: The neighborhood-displacement experiment was executed on run `ca19edb80ba4441f99a66ab194b38dd1` and failed fail-closed at S7 (`E707_POINT_OUTSIDE_PIXEL`). This confirms S7 contract semantics currently require S6 realizations to remain in pixel support; the experimental lane is invalid without explicit S7/contract broadening.
+
+Actions taken:
+1) Reverted S6 runner back to in-pixel-safe mixture implementation (kept existing policy-governance framework intact).
+2) Kept P1/P2 frozen and moved back to in-contract P3 calibration.
+3) Preserved failure evidence in run logs; did not promote the experimental lane.
+
+Decision:
+- Do not pursue out-of-pixel displacement inside P3 under current freeze/contract posture.
+- Continue with in-contract candidate scoring to determine feasibility-limited closure versus lock promotion.
+
+---
+
+### Entry: 2026-02-13 19:40
+
+Design element: P3 final calibration outcome under frozen P1/P2 (blocked closure).
+Summary: Executed fresh in-contract candidate `run_id=36d94ea5f4c64592a4938884cd3535a3` with full required chain `S5->S9` (`S9 PASS`) and scored against P0 baseline + P2 lock. P3 hard geometry gates remain unsatisfied.
+
+Observed outcomes:
+1) Candidate score artifact:
+   - `runs/fix-data-engine/segment_1B/reports/segment1b_p3_candidate_36d94ea5f4c64592a4938884cd3535a3.json`.
+2) Hard-gate status:
+   - `nn_tail_contraction_b_target=false` (`nn_p99/p50=35.5577`, severe regression),
+   - `top_country_no_collapse=false` (same 8 flagged top countries).
+3) No-regression rails that still hold:
+   - concentration/coverage not worse than P2,
+   - coordinate bounds valid,
+   - S8 parity OK.
+
+Feasibility evidence recorded:
+- `runs/fix-data-engine/segment_1B/reports/segment1b_p3_feasibility_47ad6781ab9d4d92b311b068f51141f6.json`.
+- Under locked P2 support, top countries `DE, FR, GB, DK, CH, IT, ES, NO` have 4dp latitude-uniqueness upper bounds below collapse threshold from S5 centroid support bands, so collapse sentinel clearance is unreachable without upstream support widening.
+
+Phase decision:
+- P3 cannot be lock-closed under current freeze assumptions.
+- Required explicit reopen/contract decision is now pinned in the build plan before further P3 work.
+
+Storage discipline after P3 attempts:
+- Pruned superseded run folders: `ca19edb80ba4441f99a66ab194b38dd1`, `2e12e1049a5c4862bf7a8d6774556e28`, `2fc45e1204bd417abc272521c8a0de06`, `3490add55cc84da78de1347fec92753e`.
+- Retained run-id folders:
+  - `335c9a7eec04491a845abc2a049f959f` (P1 lock),
+  - `47ad6781ab9d4d92b311b068f51141f6` (P2 lock / no-regression authority),
+  - `36d94ea5f4c64592a4938884cd3535a3` (latest P3 evidence run).

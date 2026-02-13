@@ -7470,3 +7470,42 @@ USER directed immediate progression to close `M2.F` after workflow secret mappin
 2. Updated main platform build plan immediate next action:
    - close `M2H-B1` first,
    - then execute `M2.H-A -> M2.H-F`.
+
+## Entry: 2026-02-13 7:41PM - M2H-B1 resolved (TD_DB_MIGRATIONS materialized)
+
+### Trigger
+1. USER directed: resolve `M2H-B1` first.
+
+### Implementation
+1. Materialized DB migration task definition in Terraform demo module:
+   - added `aws_ecs_task_definition.db_migrations` in `infra/terraform/modules/demo/main.tf`.
+2. Exposed concrete migration handles in outputs:
+   - module outputs:
+     - `ecs_db_migrations_task_definition_arn`
+     - `ecs_db_migrations_task_definition_family`
+     - `role_db_migrations_name`
+   - dev_min stack outputs:
+     - `ecs_db_migrations_task_definition_arn`
+     - `td_db_migrations`
+     - `role_db_migrations_name`
+3. Updated handles registry to bind `TD_DB_MIGRATIONS` to these materialized outputs.
+
+### Runtime materialization and verification
+1. Applied targeted Terraform change:
+   - `terraform -chdir=infra/terraform/dev_min/demo apply -input=false -auto-approve -target='module.demo.aws_ecs_task_definition.db_migrations'`
+2. Verified handles resolve from live state:
+   - `td_db_migrations = fraud-platform-dev-min-db-migrations`
+   - `ecs_db_migrations_task_definition_arn = arn:aws:ecs:eu-west-2:230372904534:task-definition/fraud-platform-dev-min-db-migrations:1`
+   - `role_db_migrations_name = fraud-platform-dev-min-ecs-task-app`
+3. Verified ECS control plane:
+   - task definition status `ACTIVE`.
+
+### Evidence
+1. Local:
+   - `runs/dev_substrate/m2_h/20260213T194120Z/m2h_b1_resolution_snapshot.json`
+2. Durable:
+   - `s3://fraud-platform-dev-min-evidence/evidence/dev_min/substrate/m2_20260213T194120Z/m2h_b1_resolution_snapshot.json`
+
+### Notes
+1. Post-targeted-apply `terraform plan -detailed-exitcode` returned `2` (unrelated pending drift), recorded in evidence but not blocking `M2H-B1` closure.
+2. `M2H-B1` moved from open blockers to resolved blockers in `platform.M2.build_plan.md`.

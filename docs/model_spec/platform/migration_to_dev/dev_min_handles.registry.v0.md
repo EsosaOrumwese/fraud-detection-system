@@ -689,6 +689,9 @@ Optional:
 * `TD_DB_MIGRATIONS`
 
   * ECS one-shot task definition used to apply migrations for dev_min DB.
+  * Materialized via demo Terraform outputs:
+    - `td_db_migrations` (family handle)
+    - `ecs_db_migrations_task_definition_arn` (concrete ARN)
 
 ### 8.7 DB cleanup policy (demo posture)
 

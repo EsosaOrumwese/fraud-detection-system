@@ -222,6 +222,35 @@ resource "aws_ecs_task_definition" "runtime_probe" {
   tags = merge(local.tags_demo, { fp_resource = "demo_ecs_task_definition" })
 }
 
+resource "aws_ecs_task_definition" "db_migrations" {
+  family                   = "${var.name_prefix}-db-migrations"
+  network_mode             = "awsvpc"
+  requires_compatibilities = ["FARGATE"]
+  cpu                      = "256"
+  memory                   = "512"
+  execution_role_arn       = aws_iam_role.ecs_task_execution.arn
+  task_role_arn            = aws_iam_role.ecs_task_app.arn
+
+  container_definitions = jsonencode([
+    {
+      name      = "db-migrations"
+      image     = var.ecs_probe_container_image
+      essential = true
+      command   = ["sh", "-c", "echo db_migrations_task_materialized && exit 0"]
+      logConfiguration = {
+        logDriver = "awslogs"
+        options = {
+          "awslogs-group"         = aws_cloudwatch_log_group.demo.name
+          "awslogs-region"        = var.aws_region
+          "awslogs-stream-prefix" = "ecs"
+        }
+      }
+    }
+  ])
+
+  tags = merge(local.tags_demo, { fp_resource = "demo_ecs_task_definition_db_migrations" })
+}
+
 resource "aws_ecs_service" "runtime_probe" {
   name            = "${var.name_prefix}-runtime-probe"
   cluster         = aws_ecs_cluster.demo.id
@@ -300,6 +329,7 @@ resource "aws_s3_object" "manifest" {
     security_group_id_db  = aws_security_group.db.id
     rds_instance_id       = aws_db_instance.runtime.identifier
     rds_endpoint          = aws_db_instance.runtime.address
+    td_db_migrations      = aws_ecs_task_definition.db_migrations.arn
     ssm_paths = {
       confluent_bootstrap  = aws_ssm_parameter.confluent_bootstrap.name
       confluent_api_key    = aws_ssm_parameter.confluent_api_key.name

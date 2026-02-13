@@ -42,6 +42,14 @@ output "ecs_probe_task_definition_arn" {
   value = aws_ecs_task_definition.runtime_probe.arn
 }
 
+output "ecs_db_migrations_task_definition_arn" {
+  value = aws_ecs_task_definition.db_migrations.arn
+}
+
+output "ecs_db_migrations_task_definition_family" {
+  value = aws_ecs_task_definition.db_migrations.family
+}
+
 output "ecs_probe_service_name" {
   value = aws_ecs_service.runtime_probe.name
 }
@@ -96,4 +104,8 @@ output "ssm_db_dsn_path" {
 
 output "ssm_ig_api_key_path" {
   value = aws_ssm_parameter.ig_api_key.name
+}
+
+output "role_db_migrations_name" {
+  value = aws_iam_role.ecs_task_app.name
 }

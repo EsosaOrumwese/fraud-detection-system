@@ -367,7 +367,7 @@ P3 work blocks:
   - implement `mixture_v2` lane in S6 with deterministic component selection and bounded offsets;
   - retain strict point-in-country checks, coordinate bounds checks, replay determinism, and immutable publish behavior.
 - `P3-D` Calibration loop (fast lane):
-  - fresh run-id per cycle and rerun `S6 -> S7 -> S8 -> S9`;
+  - fresh run-id per cycle and rerun `S5 -> S6 -> S7 -> S8 -> S9` (S9 trace coverage depends on fresh S5 lineage for the run-id);
   - tune one knob group at a time (`core -> secondary -> sparse_tail/clamp`);
   - apply hard vetoes: no S8 concentration/coverage regression versus locked P2 posture.
 - `P3-E` Candidate acceptance and lock handoff:
@@ -382,13 +382,29 @@ P3 success posture:
 - deterministic replay and spatial validity remain intact.
 
 Definition of done:
-- [ ] P3 geometry baseline authority snapshot is recorded (P0 grade baseline + P2 lock posture).
-- [ ] S6 jitter policy surface is active, contract-governed, and emitted in run diagnostics.
+- [x] P3 geometry baseline authority snapshot is recorded (P0 grade baseline + P2 lock posture).
+- [x] S6 jitter policy surface is active, contract-governed, and emitted in run diagnostics.
 - [ ] at least one candidate contracts NN tail ratio (`p99/p50`) versus baseline; target is `>=20%` contraction for `B` readiness.
 - [ ] top-volume country cohort shows no stripe/corridor collapse sentinel.
-- [ ] coordinate validity remains `100%` and point-in-country checks remain intact.
+- [x] coordinate validity remains `100%` and point-in-country checks remain intact.
 - [ ] accepted settings reproduce identical same-seed P3 score posture across two fresh run-ids.
 - [ ] P3 lock record is written (policy bundle, geometry metrics, reproducibility evidence, pointer and pruning updates).
+
+P3 execution status (2026-02-13):
+- Status: `BLOCKED` under frozen `P1/P2` assumptions (no lock promotion).
+- Best in-contract candidate under active P3 tuning:
+  - `run_id=36d94ea5f4c64592a4938884cd3535a3` (`S5->S9`, `S9 PASS`),
+  - score artifact: `runs/fix-data-engine/segment_1B/reports/segment1b_p3_candidate_36d94ea5f4c64592a4938884cd3535a3.json`,
+  - hard-gate result: `checks_all_pass=false` (fails NN contraction and collapse sentinel).
+- Feasibility evidence:
+  - `runs/fix-data-engine/segment_1B/reports/segment1b_p3_feasibility_47ad6781ab9d4d92b311b068f51141f6.json`.
+  - top-volume countries `DE, FR, GB, DK, CH, IT, ES, NO` have S5 support bands whose 4dp latitude-uniqueness upper bounds remain below the collapse threshold under locked P2 topology.
+- Attempted out-of-pixel S6 neighborhood displacement was rejected by S7 fail-closed check `E707_POINT_OUTSIDE_PIXEL`; this lane is invalid without explicit contract/runtime broadening.
+
+P3 reopen requirement:
+- To close P3 DoD, one of the following must be explicitly approved:
+  - reopen upstream support generation (`P2/S4` and potentially `S5`) to widen within-country support geometry, or
+  - broaden S7/S6 contract semantics to allow controlled beyond-pixel displacement with corresponding validator updates.
 
 ### P4 - Integrated closure run (B target, B+ attempt)
 Focus:
