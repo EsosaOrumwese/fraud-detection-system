@@ -406,24 +406,48 @@ Home/legal mismatch and site identity ambiguity damage interpretability downstre
   - [x] no regression of locked P2 global gates.
 - Closure evidence (2026-02-13):
   - command: `make segment1a-p3 RUNS_ROOT=runs/fix-data-engine/segment_1A`
-  - accepted run id: `59cc9b7ed3a1ef84f3ce69a3511389ee`
+  - accepted run id (B+ mismatch retune): `da3e57e73e733b990a5aa3a46705f987`
   - scorecard:
-    - `runs/fix-data-engine/segment_1A/reports/segment1a_p3_1_baseline_59cc9b7ed3a1ef84f3ce69a3511389ee.json`
+    - `runs/fix-data-engine/segment_1A/reports/segment1a_p3_1_baseline_da3e57e73e733b990a5aa3a46705f987.json`
   - global P3 metrics:
-    - `home_legal_mismatch_rate = 0.116997` (B pass; B+ lower-bound miss only),
-    - `size_gradient_pp = +11.660` (B/B+ pass),
+    - `home_legal_mismatch_rate = 0.122534` (B+ pass),
+    - `size_gradient_pp = +13.076` (B/B+ pass),
     - `no_unexplained_duplicate_anomalies = true`.
   - P2 regression guard:
-    - `runs/fix-data-engine/segment_1A/reports/segment1a_p2_regression_59cc9b7ed3a1ef84f3ce69a3511389ee.json`
+    - `runs/fix-data-engine/segment_1A/reports/segment1a_p2_regression_da3e57e73e733b990a5aa3a46705f987.json`
     - global checks remain pass (`median_C`, `Spearman(C,R)`, `median_rho`, pathology caps).
 
 #### P3.4 Joint reconciliation and lock
 - Intent:
   - verify P3 posture is stable and not seed-luck or scorer artifact.
 - DoD:
-  - [ ] two consecutive same-seed P3 runs meet all P3 B checks.
-  - [ ] replay preserves P3 metric posture within tolerance.
-  - [ ] lock record captures accepted run ids, parameter hash, and touched knobs/files.
+  - [x] two consecutive same-seed P3 runs meet all P3 B checks.
+  - [x] replay preserves P3 metric posture within tolerance.
+  - [x] lock record captures accepted run ids, parameter hash, and touched knobs/files.
+- Closure evidence (2026-02-13):
+  - same-seed consecutive runs:
+    - `da3e57e73e733b990a5aa3a46705f987`,
+    - `a212735023c748a710e4b851046849f8`.
+  - both runs show:
+    - `seed=42`,
+    - `parameter_hash=79d755e7132bdcc9915b5db695a42a0ab5261b14b3d72e84c38ed4c725d874dd`,
+    - P3 checks all true (including B+ mismatch and B+ gradient).
+  - replay metric drift (`a212... - da3...`):
+    - `home_legal_mismatch_rate delta = 0.0`,
+    - `size_gradient_pp delta = 0.0`,
+    - `top_decile_mismatch_rate delta = 0.0`,
+    - `bottom_deciles_mismatch_rate delta = 0.0`.
+  - scorecards:
+    - `runs/fix-data-engine/segment_1A/reports/segment1a_p3_1_baseline_da3e57e73e733b990a5aa3a46705f987.json`,
+    - `runs/fix-data-engine/segment_1A/reports/segment1a_p3_1_baseline_a212735023c748a710e4b851046849f8.json`.
+  - P2 non-regression confirmations:
+    - `runs/fix-data-engine/segment_1A/reports/segment1a_p2_regression_da3e57e73e733b990a5aa3a46705f987.json`,
+    - `runs/fix-data-engine/segment_1A/reports/segment1a_p2_regression_a212735023c748a710e4b851046849f8.json`.
+  - lock record:
+    - final tuned knob: `config/layer1/1A/allocation/s7_integerisation_policy.yaml` (`home_bias_lane` final tier `max_n_outlets=1000000`, `home_share_min=0.61`),
+    - touched runtime from P3 closure track remains:
+      - `packages/engine/src/engine/layers/l1/seg_1A/s7_integerisation/runner.py`,
+      - `packages/engine/src/engine/layers/l1/seg_1A/s9_validation/runner.py`.
 
 ### 5.7 Calibration and anti-forging method
 - Candidate ranking objective:

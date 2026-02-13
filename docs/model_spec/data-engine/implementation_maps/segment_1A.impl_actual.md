@@ -5023,3 +5023,96 @@ Locked outcomes on accepted run:
 2) `size_gradient_pp = +11.660` (B/B+ pass).
 3) `no_unexplained_duplicate_anomalies = true`.
 4) P2 global gates non-regressed (all global checks pass).
+
+### Entry: 2026-02-13 06:45
+
+Design element: B+ mismatch targeting pass before P3.4 lock.
+Summary: Opened a constrained retune pass to move `home_legal_mismatch_rate` from B-only (`~0.117`) into B+ band (`>=0.12`) while preserving the already-closed size gradient and identity checks.
+
+Decision:
+1) Keep the existing S7 home-bias mechanism and avoid widening blast radius.
+2) Tune only the largest-merchant tier first (final `home_bias_lane` tier) to raise mismatch mostly in top decile, minimizing bottom-decile inflation risk.
+3) Re-run `segment1a-p3`, check:
+- P3 B+ mismatch gate,
+- P3 gradient + identity gates,
+- P2 global non-regression veto.
+4) If still below B+ lower bound, apply one more small tier adjustment and repeat once.
+
+### Entry: 2026-02-13 07:35
+
+Design element: P3.3 B+ mismatch retune iteration A (largest-tier only).
+Summary: Applied first constrained adjustment on `home_bias_lane` largest tier to raise mismatch into B+ without reopening frozen upstream surfaces.
+
+Change:
+1) `config/layer1/1A/allocation/s7_integerisation_policy.yaml`
+- final tier `home_share_min`: `0.65 -> 0.62`.
+
+Execution evidence:
+1) command:
+- `make segment1a-p3 RUNS_ROOT=runs/fix-data-engine/segment_1A`
+2) run id:
+- `b717147dacb3830324cc8ff32a018588`
+3) scorecard:
+- `runs/fix-data-engine/segment_1A/reports/segment1a_p3_1_baseline_b717147dacb3830324cc8ff32a018588.json`
+
+Outcome:
+1) `home_legal_mismatch_rate = 0.119680` (still below B+ lower bound `0.12`).
+2) `size_gradient_pp = +12.330` (B/B+ pass).
+3) identity anomalies remain `0`.
+
+Decision:
+1) Keep blast radius fixed (S7 final tier only).
+2) Apply one smaller follow-up step to avoid overshoot.
+
+### Entry: 2026-02-13 07:40
+
+Design element: P3.3 B+ mismatch retune iteration B and acceptance.
+Summary: Applied second minimal S7 tier adjustment; reached B+ mismatch while preserving gradient and identity posture.
+
+Change:
+1) `config/layer1/1A/allocation/s7_integerisation_policy.yaml`
+- final tier `home_share_min`: `0.62 -> 0.61`.
+
+Execution evidence:
+1) command:
+- `make segment1a-p3 RUNS_ROOT=runs/fix-data-engine/segment_1A`
+2) accepted run id:
+- `da3e57e73e733b990a5aa3a46705f987`
+3) scorecard:
+- `runs/fix-data-engine/segment_1A/reports/segment1a_p3_1_baseline_da3e57e73e733b990a5aa3a46705f987.json`
+4) P2 guard:
+- `runs/fix-data-engine/segment_1A/reports/segment1a_p2_regression_da3e57e73e733b990a5aa3a46705f987.json`
+
+Accepted outcomes:
+1) `home_legal_mismatch_rate = 0.122534` (B+ pass).
+2) `size_gradient_pp = +13.076` (B/B+ pass).
+3) `no_unexplained_duplicate_anomalies = true`.
+4) P2 global gates remain pass (`median_C`, `Spearman(C,R)`, `median_rho`, pathology caps).
+
+### Entry: 2026-02-13 07:49
+
+Design element: P3.4 same-seed replay stability and lock evidence.
+Summary: Executed one replay run under unchanged knobs to validate determinism/stability before lock.
+
+Execution evidence:
+1) command:
+- `make segment1a-p3 RUNS_ROOT=runs/fix-data-engine/segment_1A`
+2) replay run id:
+- `a212735023c748a710e4b851046849f8`
+3) replay scorecard:
+- `runs/fix-data-engine/segment_1A/reports/segment1a_p3_1_baseline_a212735023c748a710e4b851046849f8.json`
+4) replay P2 guard:
+- `runs/fix-data-engine/segment_1A/reports/segment1a_p2_regression_a212735023c748a710e4b851046849f8.json`
+
+Replay verification against accepted run `da3e57e73e733b990a5aa3a46705f987`:
+1) same `seed=42`.
+2) same `parameter_hash=79d755e7132bdcc9915b5db695a42a0ab5261b14b3d72e84c38ed4c725d874dd`.
+3) metric deltas are exactly zero:
+- `home_legal_mismatch_rate`,
+- `size_gradient_pp_top_minus_bottom`,
+- `top_decile_mismatch_rate`,
+- `bottom_deciles_mismatch_rate`.
+
+Decision:
+1) P3.4 DoD is satisfied under deterministic replay (no seed-luck evidence).
+2) Lock record for P3 accepts run pair `da3...` and `a212...` with final S7 knob posture (`home_share_min=0.61` on largest tier).
