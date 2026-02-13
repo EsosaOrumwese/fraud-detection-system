@@ -277,6 +277,25 @@ policy:
             type: integer
             minimum: 0
             maximum: 1000000
+      support_diversification:
+        type: object
+        additionalProperties: false
+        required: [enabled, apply_n_sites_max, candidate_window_fraction, candidate_window_min]
+        properties:
+          enabled:
+            type: boolean
+          apply_n_sites_max:
+            type: integer
+            minimum: 1
+            maximum: 1000000
+          candidate_window_fraction:
+            type: number
+            exclusiveMinimum: 0
+            maximum: 1
+          candidate_window_min:
+            type: integer
+            minimum: 1
+            maximum: 1000000
       deterministic_seed_namespace:
         type: string
         minLength: 1

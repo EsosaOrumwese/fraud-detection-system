@@ -824,9 +824,9 @@ Tasks:
 6. Pin canonical command lane and non-secret evidence artifacts for M2.H closure.
 
 DoD:
-- [ ] DB readiness checks are explicit and pass criteria are pinned.
-- [ ] Migration readiness contract is pinned.
-- [ ] DB rollback/recovery path is explicit.
+- [x] DB readiness checks are explicit and pass criteria are pinned.
+- [x] Migration readiness contract is pinned.
+- [x] DB rollback/recovery path is explicit.
 
 ### M2.H Decision Pins (Closed Before Execution)
 1. DB scope:
@@ -850,9 +850,9 @@ Tasks:
 3. Validate `ROLE_DB_MIGRATIONS` exists and is mapped for migration task use.
 
 DoD:
-- [ ] Required DB/migration handles are resolvable.
-- [ ] `TD_DB_MIGRATIONS` is present and mapped to a concrete task definition.
-- [ ] No unresolved DB handle remains before execution.
+- [x] Required DB/migration handles are resolvable.
+- [x] `TD_DB_MIGRATIONS` is present and mapped to a concrete task definition.
+- [x] No unresolved DB handle remains before execution.
 
 ### M2.H-B RDS Control-Plane Readiness
 Goal:
@@ -869,9 +869,9 @@ Tasks:
 3. Validate DB SG posture is consistent with M2.G outcome.
 
 DoD:
-- [ ] RDS instance is `available`.
-- [ ] Endpoint and port are present and match handle contract.
-- [ ] SG alignment with M2.G is confirmed.
+- [x] RDS instance is `available`.
+- [x] Endpoint and port are present and match handle contract.
+- [x] SG alignment with M2.G is confirmed.
 
 ### M2.H-C Secret Surface and Auth Material Checks
 Goal:
@@ -888,9 +888,9 @@ Tasks:
 3. (Optional) if `SSM_DB_DSN_PATH` is used, validate path exists and matches chosen migration invocation pattern.
 
 DoD:
-- [ ] DB SSM paths resolve and decrypt for authorized principal.
-- [ ] Non-empty auth material is confirmed without leaking secrets.
-- [ ] Optional DSN path usage is explicitly pinned (used or not used).
+- [x] DB SSM paths resolve and decrypt for authorized principal.
+- [x] Non-empty auth material is confirmed without leaking secrets.
+- [x] Optional DSN path usage is explicitly pinned (used or not used).
 
 ### M2.H-D Migration Task Readiness Contract
 Goal:
@@ -908,9 +908,9 @@ Tasks:
    - schema/version post-check passes.
 
 DoD:
-- [ ] `TD_DB_MIGRATIONS` maps to a concrete task definition.
-- [ ] Invocation contract is explicit and repeatable.
-- [ ] Success/failure semantics are fail-closed and auditable.
+- [x] `TD_DB_MIGRATIONS` maps to a concrete task definition.
+- [x] Invocation contract is explicit and repeatable.
+- [x] Success/failure semantics are fail-closed and auditable.
 
 ### M2.H-E Canonical Command Lane and Evidence
 Goal:
@@ -934,9 +934,9 @@ Tasks:
      - `evidence/dev_min/substrate/<m2_execution_id>/db_migration_run_snapshot.json`
 
 DoD:
-- [ ] Canonical command lane is pinned and executable.
-- [ ] Required M2.H artifacts are produced locally and durably.
-- [ ] Evidence shows migration success semantics explicitly.
+- [x] Canonical command lane is pinned and executable.
+- [x] Required M2.H artifacts are produced locally and durably.
+- [x] Evidence shows migration success semantics explicitly.
 
 ### M2.H-F Rollback and Blocker Model
 Goal:
@@ -954,9 +954,29 @@ Tasks:
    - M2 progression remains blocked until all `M2H-B*` are closed with evidence.
 
 DoD:
-- [ ] Blocker model is explicit and fail-closed.
-- [ ] Rollback path is actionable and documented.
-- [ ] M2.H cannot be marked complete while any `M2H-B*` is open.
+- [x] Blocker model is explicit and fail-closed.
+- [x] Rollback path is actionable and documented.
+- [x] M2.H cannot be marked complete while any `M2H-B*` is open.
+
+Execution result (authoritative):
+1. `M2.H` execution id:
+   - `m2_20260213T195244Z`
+2. Pass summary:
+   - RDS readiness checks passed (`status=available`, endpoint/port contract matched, DB SG not open-world),
+   - DB SSM auth surface checks passed (user/password paths decrypted + non-empty, no secret leakage),
+   - migration task readiness checks passed (`TD_DB_MIGRATIONS` active, `awsvpc`, role binding matched),
+   - migration run contract passed (ECS task exit `0` + completion marker found in logs).
+3. Optional DSN posture:
+   - `SSM_DB_DSN_PATH` not used in this run lane; user/password path pair is the canonical auth surface for M2.H closure.
+4. Evidence:
+   - local:
+     - `runs/dev_substrate/m2_h/20260213T195244Z/db_readiness_snapshot.json`
+     - `runs/dev_substrate/m2_h/20260213T195244Z/db_migration_readiness_snapshot.json`
+     - `runs/dev_substrate/m2_h/20260213T195244Z/db_migration_run_snapshot.json`
+   - durable:
+     - `s3://fraud-platform-dev-min-evidence/evidence/dev_min/substrate/m2_20260213T195244Z/db_readiness_snapshot.json`
+     - `s3://fraud-platform-dev-min-evidence/evidence/dev_min/substrate/m2_20260213T195244Z/db_migration_readiness_snapshot.json`
+     - `s3://fraud-platform-dev-min-evidence/evidence/dev_min/substrate/m2_20260213T195244Z/db_migration_run_snapshot.json`
 
 ## M2.I Budget Guardrails and Teardown Viability
 Goal:
@@ -1038,7 +1058,7 @@ Notes:
 - [x] M2.E complete
 - [x] M2.F complete
 - [x] M2.G complete
-- [ ] M2.H complete
+- [x] M2.H complete
 - [ ] M2.I complete
 - [ ] M2.J complete
 

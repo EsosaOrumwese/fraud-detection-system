@@ -3925,3 +3925,85 @@ Storage discipline after P3 attempts:
   - `335c9a7eec04491a845abc2a049f959f` (P1 lock),
   - `47ad6781ab9d4d92b311b068f51141f6` (P2 lock / no-regression authority),
   - `36d94ea5f4c64592a4938884cd3535a3` (latest P3 evidence run).
+
+---
+
+### Entry: 2026-02-13 19:53
+
+Design element: Preferred-path reopen approved (`P2/S4`) for P3 blockage.
+Summary: USER approved upstream reopen path. We are reopening S4 support-shaping (while keeping S2 fixed unless evidence later requires S2 reopen) to break repeated top-tile reuse across merchant-country pairs that causes country-level corridor collapse under locked support.
+
+Problem statement for this reopen pass:
+1) Under locked P2, S4 allocates many small pairs using deterministic highest-residue picks on the same tile subset repeatedly.
+2) This preserves macro concentration but collapses within-country support diversity, leaving P3 collapse sentinels unresolved.
+3) S6-only tuning proved insufficient and out-of-pixel S6 lane is invalid under current S7 contract checks.
+
+Decision for implementation:
+1) Add a governed S4 policy block for **deterministic support diversification** (phase rotation over high-residue candidate window), not random noise.
+2) Keep conservation invariants intact:
+   - per-pair `sum(n_sites_tile)=n_sites`,
+   - no negative/zero emitted counts,
+   - tile universe remains S1/S2 constrained,
+   - deterministic replay preserved.
+3) Apply diversification only in the shortfall bump lane so base quota math remains aligned with fixed-dp weight authority.
+4) Emit explicit diagnostics in S4 run report to measure diversification activity and avoid hidden behavior.
+
+Planned file surfaces for this reopen pass:
+- `docs/model_spec/data-engine/layer-1/specs/contracts/1B/schemas.1B.yaml` (governed S4 policy surface extension)
+- `config/layer1/1B/policy/policy.s4.alloc_plan.yaml` (S4 reopen policy values)
+- `packages/engine/src/engine/layers/l1/seg_1B/s4_alloc_plan/runner.py` (deterministic diversification implementation)
+
+Execution plan after code edits:
+1) compile checks,
+2) fresh run-id bootstrap from locked upstream,
+3) run `S4->S9` (with required state continuity),
+4) score P2 non-regression and P3 candidate,
+5) decide keep/revert based on metrics.
+
+---
+
+### Entry: 2026-02-13 19:57
+
+Design element: S4 reopen implementation (`policy.s4.alloc_plan` + runner + contract governance).
+Summary: Implemented governed deterministic support-diversification in S4 shortfall bump selection to reduce repeated top-tile reuse across many small merchant-country pairs while preserving strict conservation and deterministic replay invariants.
+
+Implemented changes:
+1) Contract surface extension:
+   - `docs/model_spec/data-engine/layer-1/specs/contracts/1B/schemas.1B.yaml`
+   - Added optional `policy/s4_alloc_plan_policy/support_diversification` object with governed fields:
+     - `enabled`
+     - `apply_n_sites_max`
+     - `candidate_window_fraction`
+     - `candidate_window_min`
+
+2) Policy activation:
+   - `config/layer1/1B/policy/policy.s4.alloc_plan.yaml`
+   - Bumped to `policy_version=2026-02-13-r3`.
+   - Enabled `support_diversification` with small-pair scope (`apply_n_sites_max=24`) and top-window controls.
+
+3) Runtime implementation:
+   - `packages/engine/src/engine/layers/l1/seg_1B/s4_alloc_plan/runner.py`
+   - Added policy fields and parsing for support diversification.
+   - Added deterministic rotation helper keyed by `deterministic_seed_namespace|merchant_id|legal_country_iso`.
+   - Replaced fixed `order[:shortfall]` bump selection with governed selector:
+     - base order remains highest-residue with tile-id tie-break,
+     - when enabled and within small-pair bound, bumps are chosen from a rotated high-residue candidate window.
+   - Added diagnostics counters:
+     - `pairs_diversified_touched`,
+     - `diversification_bumps_total`,
+     - `diversified_touched_share`.
+   - Added policy echo for `support_diversification` in `anti_collapse_policy` run-report snapshot.
+
+Invariant checks preserved:
+- per-pair `sum(n_sites_tile)=n_sites`;
+- no zero/negative emitted allocations;
+- tile-universe constraints unchanged;
+- deterministic, RNG-free S4 behavior preserved.
+
+Verification:
+- `python -m py_compile packages/engine/src/engine/layers/l1/seg_1B/s4_alloc_plan/runner.py` passed.
+
+Next step:
+- execute fresh `S4->S9` candidate run from locked upstream,
+- score P2 no-regression and P3 geometry gates,
+- accept/revert based on evidence.

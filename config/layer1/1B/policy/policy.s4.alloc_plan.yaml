@@ -1,6 +1,6 @@
-policy_version: "2026-02-13-r2"
+policy_version: "2026-02-13-r3"
 enabled: true
-notes: "P2 anti-collapse guardrails for S4 integer allocation; wave-1 retune for measurable movement."
+notes: "P3-reopen support widening: deterministic diversification across high-residue tiles for small pairs."
 
 # Max per-tile share inside each (merchant_id, legal_country_iso) assignment vector.
 # Example: 0.35 means no single tile should keep more than 35% of that pair's n_sites
@@ -19,5 +19,11 @@ residual_redistribution:
   enabled: true
   min_active_tile_fraction: 0.35
   max_steps_per_pair: 1024
+
+support_diversification:
+  enabled: true
+  apply_n_sites_max: 24
+  candidate_window_fraction: 0.35
+  candidate_window_min: 24
 
 deterministic_seed_namespace: "1B.S4.ANTI_COLLAPSE_V1"

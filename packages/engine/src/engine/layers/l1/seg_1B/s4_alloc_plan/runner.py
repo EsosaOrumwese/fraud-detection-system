@@ -63,6 +63,10 @@ class S4AllocPolicy:
     residual_enabled: bool
     min_active_tile_fraction: float
     max_steps_per_pair: int
+    diversify_enabled: bool
+    diversify_apply_n_sites_max: int
+    diversify_candidate_window_fraction: float
+    diversify_candidate_window_min: int
     deterministic_seed_namespace: str
 
 
@@ -275,6 +279,7 @@ def _validate_payload(schema_pack: dict, path: str, payload: dict) -> None:
 def _parse_s4_policy(policy_payload: dict) -> S4AllocPolicy:
     reroute = policy_payload.get("reroute") or {}
     residual = policy_payload.get("residual_redistribution") or {}
+    diversify = policy_payload.get("support_diversification") or {}
     return S4AllocPolicy(
         policy_version=str(policy_payload.get("policy_version") or "unknown"),
         enabled=bool(policy_payload.get("enabled", False)),
@@ -286,6 +291,10 @@ def _parse_s4_policy(policy_payload: dict) -> S4AllocPolicy:
         residual_enabled=bool(residual.get("enabled", False)),
         min_active_tile_fraction=float(residual.get("min_active_tile_fraction", 0.0)),
         max_steps_per_pair=int(residual.get("max_steps_per_pair", 0)),
+        diversify_enabled=bool(diversify.get("enabled", False)),
+        diversify_apply_n_sites_max=int(diversify.get("apply_n_sites_max", 0)),
+        diversify_candidate_window_fraction=float(diversify.get("candidate_window_fraction", 0.0)),
+        diversify_candidate_window_min=int(diversify.get("candidate_window_min", 0)),
         deterministic_seed_namespace=str(
             policy_payload.get("deterministic_seed_namespace") or "1B.S4.ANTI_COLLAPSE"
         ),
@@ -438,6 +447,55 @@ def _apply_anticollapse_controls(
         "moves_residual": int(moves_residual),
     }
     return counts, diagnostics
+
+
+def _rotation_offset(namespace: str, merchant_id: int, legal_country_iso: str, modulo: int) -> int:
+    if modulo <= 1:
+        return 0
+    material = f"{namespace}|{merchant_id}|{legal_country_iso}".encode("utf-8")
+    digest = hashlib.sha256(material).digest()
+    return int.from_bytes(digest[:8], byteorder="big", signed=False) % modulo
+
+
+def _select_shortfall_bump_indices(
+    *,
+    tile_ids: np.ndarray,
+    residues_i64: np.ndarray,
+    shortfall: int,
+    n_sites: int,
+    merchant_id: int,
+    legal_country_iso: str,
+    policy: S4AllocPolicy,
+) -> tuple[np.ndarray, bool]:
+    base_order = np.lexsort((tile_ids, -residues_i64))
+    if shortfall <= 0:
+        return base_order[:0], False
+    if (
+        not policy.enabled
+        or not policy.diversify_enabled
+        or policy.diversify_apply_n_sites_max <= 0
+        or n_sites > policy.diversify_apply_n_sites_max
+    ):
+        return base_order[:shortfall], False
+
+    window_min = max(shortfall, policy.diversify_candidate_window_min)
+    window_frac = int(np.ceil(policy.diversify_candidate_window_fraction * float(base_order.size)))
+    window = max(window_min, window_frac)
+    window = min(window, int(base_order.size))
+    if window <= shortfall:
+        return base_order[:shortfall], False
+
+    candidates = base_order[:window]
+    offset = _rotation_offset(
+        policy.deterministic_seed_namespace,
+        merchant_id,
+        legal_country_iso,
+        window,
+    )
+    if offset == 0:
+        return candidates[:shortfall], True
+    rotated = np.concatenate((candidates[offset:], candidates[:offset]))
+    return rotated[:shortfall], True
 
 
 def _emit_failure_event(
@@ -832,12 +890,13 @@ def run_s4(config: EngineConfig, run_id: Optional[str] = None) -> S4Result:
     _validate_payload(schema_1b, "#/policy/s4_alloc_plan_policy", policy_payload)
     s4_policy = _parse_s4_policy(policy_payload)
     logger.info(
-        "S4: loaded anti-collapse policy enabled=%s soft_guard=%.4f hard_guard=%.4f reroute=%s residual=%s path=%s",
+        "S4: loaded anti-collapse policy enabled=%s soft_guard=%.4f hard_guard=%.4f reroute=%s residual=%s diversify=%s path=%s",
         s4_policy.enabled,
         s4_policy.country_share_soft_guard,
         s4_policy.country_share_hard_guard,
         s4_policy.reroute_enabled,
         s4_policy.residual_enabled,
+        s4_policy.diversify_enabled,
         policy_path,
     )
 
@@ -917,6 +976,8 @@ def run_s4(config: EngineConfig, run_id: Optional[str] = None) -> S4Result:
     guard_moves_soft_total = 0
     guard_moves_residual_total = 0
     pairs_guard_touched = 0
+    diversify_pairs_touched = 0
+    diversify_bumps_total = 0
     pre_top1_values: list[float] = []
     post_top1_values: list[float] = []
     pre_hhi_values: list[float] = []
@@ -1177,6 +1238,7 @@ def run_s4(config: EngineConfig, run_id: Optional[str] = None) -> S4Result:
     ) -> None:
         nonlocal batch_rows, rows_emitted, ties_broken_total, alloc_sum_equals_requirements, last_key
         nonlocal guard_moves_soft_total, guard_moves_residual_total, pairs_guard_touched
+        nonlocal diversify_pairs_touched, diversify_bumps_total
         nonlocal pre_top1_values, post_top1_values, pre_hhi_values, post_hhi_values
         nonlocal pre_active_tile_values, post_active_tile_values
 
@@ -1207,12 +1269,22 @@ def run_s4(config: EngineConfig, run_id: Optional[str] = None) -> S4Result:
 
         if shortfall > 0:
             rnum_int = np.array(rnum, dtype=np.int64)
-            order = np.lexsort((tile_ids, -rnum_int))
-            bump_idx = order[:shortfall]
+            bump_idx, diversified = _select_shortfall_bump_indices(
+                tile_ids=tile_ids,
+                residues_i64=rnum_int,
+                shortfall=int(shortfall),
+                n_sites=int(n_sites),
+                merchant_id=int(merchant_id),
+                legal_country_iso=str(legal_country_iso),
+                policy=s4_policy,
+            )
             bump = np.zeros(tile_ids.size, dtype=object)
             bump[bump_idx] = 1
             n_sites_tile = z + bump
             ties_broken_total += int(shortfall)
+            if diversified:
+                diversify_pairs_touched += 1
+                diversify_bumps_total += int(shortfall)
         else:
             n_sites_tile = z
 
@@ -1499,6 +1571,11 @@ def run_s4(config: EngineConfig, run_id: Optional[str] = None) -> S4Result:
         "pairs_total": int(pairs_total),
         "pairs_guard_touched": int(pairs_guard_touched),
         "guard_touched_share": float(pairs_guard_touched / pairs_total) if pairs_total > 0 else 0.0,
+        "pairs_diversified_touched": int(diversify_pairs_touched),
+        "diversified_touched_share": (
+            float(diversify_pairs_touched / pairs_total) if pairs_total > 0 else 0.0
+        ),
+        "diversification_bumps_total": int(diversify_bumps_total),
         "moves_soft_total": int(guard_moves_soft_total),
         "moves_residual_total": int(guard_moves_residual_total),
         "pair_top1_pre": _summary_stats(pre_top1_values),
@@ -1533,6 +1610,12 @@ def run_s4(config: EngineConfig, run_id: Optional[str] = None) -> S4Result:
                 "enabled": s4_policy.residual_enabled,
                 "min_active_tile_fraction": s4_policy.min_active_tile_fraction,
                 "max_steps_per_pair": s4_policy.max_steps_per_pair,
+            },
+            "support_diversification": {
+                "enabled": s4_policy.diversify_enabled,
+                "apply_n_sites_max": s4_policy.diversify_apply_n_sites_max,
+                "candidate_window_fraction": s4_policy.diversify_candidate_window_fraction,
+                "candidate_window_min": s4_policy.diversify_candidate_window_min,
             },
             "deterministic_seed_namespace": s4_policy.deterministic_seed_namespace,
         },

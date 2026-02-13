@@ -7509,3 +7509,45 @@ USER directed immediate progression to close `M2.F` after workflow secret mappin
 ### Notes
 1. Post-targeted-apply `terraform plan -detailed-exitcode` returned `2` (unrelated pending drift), recorded in evidence but not blocking `M2H-B1` closure.
 2. `M2H-B1` moved from open blockers to resolved blockers in `platform.M2.build_plan.md`.
+
+## Entry: 2026-02-13 8:00PM - M2.H fully executed and closed with managed migration proof
+
+### Trigger
+1. USER directed: proceed with the entirety of `M2.H`.
+
+### Execution scope
+1. Ran full `M2.H-A -> M2.H-F` lane fail-closed from local CLI as control plane only:
+   - resolved runtime handles from Terraform state,
+   - validated RDS control-plane readiness + SG posture,
+   - validated DB auth SSM paths (redacted checks only),
+   - validated migration task definition readiness contract,
+   - executed canonical ECS one-shot migration task and validated success semantics.
+
+### Runtime result
+1. Authoritative execution id:
+   - `m2_20260213T195244Z`
+2. Gate outcomes:
+   - `M2.H-A`: pass (all required DB/migration handles resolvable),
+   - `M2.H-B`: pass (`RDS available`, endpoint/port contract matched, DB SG not open-world),
+   - `M2.H-C`: pass (user/password SSM material decryptable + non-empty; secret-safe evidence only),
+   - `M2.H-D`: pass (`TD_DB_MIGRATIONS` active, `awsvpc`, role binding matched),
+   - `M2.H-E`: pass (ECS run-task exit `0` and completion marker found in CloudWatch logs),
+   - `M2.H-F`: pass (no open `M2H-B*` blockers).
+3. Optional DSN posture:
+   - `SSM_DB_DSN_PATH` is not required/used for this closure lane; canonical auth surface remains `SSM_DB_USER_PATH` + `SSM_DB_PASSWORD_PATH`.
+
+### Evidence
+1. Local:
+   - `runs/dev_substrate/m2_h/20260213T195244Z/db_readiness_snapshot.json`
+   - `runs/dev_substrate/m2_h/20260213T195244Z/db_migration_readiness_snapshot.json`
+   - `runs/dev_substrate/m2_h/20260213T195244Z/db_migration_run_snapshot.json`
+2. Durable:
+   - `s3://fraud-platform-dev-min-evidence/evidence/dev_min/substrate/m2_20260213T195244Z/db_readiness_snapshot.json`
+   - `s3://fraud-platform-dev-min-evidence/evidence/dev_min/substrate/m2_20260213T195244Z/db_migration_readiness_snapshot.json`
+   - `s3://fraud-platform-dev-min-evidence/evidence/dev_min/substrate/m2_20260213T195244Z/db_migration_run_snapshot.json`
+
+### Plan-state updates
+1. Marked `M2.H` complete in:
+   - `docs/model_spec/platform/implementation_maps/dev_substrate/platform.M2.build_plan.md`
+   - `docs/model_spec/platform/implementation_maps/dev_substrate/platform.build_plan.md`
+2. Shifted immediate next action to `M2.I` budget/teardown guardrail lane.
