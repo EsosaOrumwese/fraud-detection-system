@@ -57,31 +57,74 @@ model: {}
 policy:
   jitter_policy:
     type: object
-    description: "RESERVED (VNext). Deterministic per-latitude σ policy (degrees) for a future Gaussian jitter lane. Not used by 1B v1 uniform lane."
-    required: [policy_version, bands]
+    description: "Governed S6 jitter policy. Supports legacy uniform lane and deterministic mixture-v2 lane."
+    required:
+      - policy_version
+      - mode
+      - deterministic_seed_namespace
+      - max_attempts
+      - selection_blend
+      - component_weights
+      - components
     additionalProperties: false
     properties:
       policy_version:
         type: string
-        description: "Human-readable or semver; not part of dataset identity."
+        description: "Human-readable or semver; included in parameter-hash inputs."
+      mode:
+        type: string
+        enum: ["uniform_v1", "mixture_v2"]
+      deterministic_seed_namespace:
+        type: string
+        minLength: 1
+      max_attempts:
+        type: integer
+        minimum: 1
+        maximum: 256
+      selection_blend:
+        type: number
+        minimum: 0
+        maximum: 1
+      component_weights:
+        type: object
+        additionalProperties: false
+        required: [core_cluster, secondary_cluster, sparse_tail]
+        properties:
+          core_cluster: { type: number, minimum: 0, maximum: 1 }
+          secondary_cluster: { type: number, minimum: 0, maximum: 1 }
+          sparse_tail: { type: number, minimum: 0, maximum: 1 }
+      components:
+        type: object
+        additionalProperties: false
+        required: [core_cluster, secondary_cluster, sparse_tail]
+        properties:
+          core_cluster:
+            $ref: "#/$defs/component"
+          secondary_cluster:
+            $ref: "#/$defs/component"
+          sparse_tail:
+            $ref: "#/$defs/component"
       notes:
         type: string
         description: "Optional free text."
-      bands:
-        type: array
-        minItems: 1
-        items:
-          type: object
-          required: [lat_lo_deg, lat_hi_deg, sigma_lat_deg, sigma_lon_deg]
-          additionalProperties: false
-          properties:
-            lat_lo_deg: { $ref: '#/$defs/lat' }
-            lat_hi_deg: { $ref: '#/$defs/lat' }
-            sigma_lat_deg: { type: number, exclusiveMinimum: 0 }
-            sigma_lon_deg: { type: number, exclusiveMinimum: 0 }
-            merchant_class:
-              type: string
-              description: "Optional merchant class key if you differentiate by class."
+    $defs:
+      component:
+        type: object
+        additionalProperties: false
+        required: [lat_shape_exp, lon_shape_exp, max_abs_offset_fraction]
+        properties:
+          lat_shape_exp:
+            type: number
+            minimum: 0.2
+            maximum: 8.0
+          lon_shape_exp:
+            type: number
+            minimum: 0.2
+            maximum: 8.0
+          max_abs_offset_fraction:
+            type: number
+            minimum: 0
+            maximum: 1
 
   s2_tile_weights_policy:
     type: object

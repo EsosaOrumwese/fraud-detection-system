@@ -7336,3 +7336,49 @@ USER directed immediate progression to close `M2.F` after workflow secret mappin
 1. `M2.F` marked complete in:
    - `docs/model_spec/platform/implementation_maps/dev_substrate/platform.M2.build_plan.md`
    - `docs/model_spec/platform/implementation_maps/dev_substrate/platform.build_plan.md`
+
+## Entry: 2026-02-13 7:01PM - M2.G planning expansion (network posture lane, fail-closed)
+
+### Trigger
+1. USER directed progression to `M2.G` and requested planning expansion before execution.
+
+### Planning problem
+1. Existing `M2.G` section was too coarse (3 checklist bullets) and did not pin:
+   - concrete command lane,
+   - explicit blocker taxonomy,
+   - evidence schema + pass predicates,
+   - deterministic handle-resolution sequence.
+2. That gap risks reintroducing anti-cram drift during execution (`M2.G` appearing "done" without closure-grade proof).
+
+### Authority reviewed for expansion
+1. `docs/model_spec/platform/pre-design_decisions/dev-min_managed-substrate_migration.design-authority.v0.md`:
+   - hard no-NAT/no-always-on-LB/no-always-on-fleets posture.
+2. `docs/model_spec/platform/migration_to_dev/dev_min_handles.registry.v0.md`:
+   - policy constants and network handles (`VPC_ID`, `SUBNET_IDS_PUBLIC`, SG handles, ECS cluster handle).
+3. Current Terraform runtime truth:
+   - `infra/terraform/modules/demo/main.tf` and outputs show public-subnet + IGW route posture, SG resources, ECS service scaffolding (`desired_count=0`), and no LB/NAT resources in the module.
+
+### Decisions pinned in plan
+1. `M2.G` is decomposed into `M2.G-A..M2.G-E`:
+   - A: handle resolution and preflight,
+   - B: forbidden-resource checks (NAT/LB/fleet),
+   - C: SG/subnet/route posture checks,
+   - D: evidence + pass contract,
+   - E: blocker model.
+2. LB rule for v0 M2:
+   - hard fail if any LB exists in demo VPC during M2 (no exception lane pinned yet).
+3. Fleet rule for v0 M2:
+   - hard fail if any ECS service has `desiredCount > 0` during M2 substrate phase.
+4. Evidence contract expanded:
+   - adds `network_posture_snapshot.json` while retaining `no_nat_check.json` compatibility artifact.
+
+### Files updated for planning alignment
+1. `docs/model_spec/platform/implementation_maps/dev_substrate/platform.M2.build_plan.md`
+   - expanded M2.G into closure-grade sub-phases, command templates, blockers, and DoD.
+   - capability matrix/evidence list updated for `network_posture_snapshot.json`.
+2. `docs/model_spec/platform/implementation_maps/dev_substrate/platform.build_plan.md`
+   - immediate next action now points to executing `M2.G-A -> M2.G-E` with required M2.G evidence gates.
+
+### Execution posture after planning
+1. `M2.G` is now execution-ready from a planning perspective.
+2. No runtime mutation executed in this step; this update is planning-only and fail-closed.

@@ -256,7 +256,7 @@ subsegments:
     notes:
 
   - name: jitter_policy
-    path: config/layer1/1B/policy/1B.jitter.yaml
+    path: config/layer1/1B/policy/policy.s6.jitter.yaml
     type: policy
     category: policy
     semver: '{semver}'
@@ -264,7 +264,7 @@ subsegments:
     digest: '{sha256}'
     manifest_key: mlr.1B.policy.jitter
     license: Proprietary-Internal
-    role: RESERVED (VNext). Gaussian jitter σ (deg) policy by latitude band / merchant class; not consumed by 1B v1 uniform lane.
+    role: Governed S6 jitter policy (uniform_v1 + mixture_v2).
     dependencies: []
     source: internal
     owner: {owner_team: "mlr-1b-core"}

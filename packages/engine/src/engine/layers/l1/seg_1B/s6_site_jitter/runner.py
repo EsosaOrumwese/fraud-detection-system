@@ -20,6 +20,7 @@ import numpy as np
 import polars as pl
 import psutil
 import shapely
+import yaml
 from jsonschema import Draft202012Validator
 from shapely.errors import GEOSException
 from shapely.geometry import MultiPolygon, Point, Polygon, box
@@ -68,7 +69,7 @@ DATASET_ID = "rng_event_in_cell_jitter"
 TRACE_DATASET_ID = "rng_trace_log"
 AUDIT_DATASET_ID = "rng_audit_log"
 
-MAX_ATTEMPTS = 64
+DEFAULT_MAX_ATTEMPTS = 64
 BATCH_SIZE = 200_000
 CACHE_COUNTRIES_MAX = 6
 
@@ -83,6 +84,28 @@ class S6Result:
     event_root: Path
     trace_path: Path
     audit_path: Path
+
+
+@dataclass(frozen=True)
+class _JitterComponentPolicy:
+    lat_shape_exp: float
+    lon_shape_exp: float
+    max_abs_offset_fraction: float
+
+
+@dataclass(frozen=True)
+class _S6JitterPolicy:
+    policy_version: str
+    mode: str
+    deterministic_seed_namespace: str
+    max_attempts: int
+    selection_blend: float
+    weight_core: float
+    weight_secondary: float
+    weight_sparse: float
+    core_component: _JitterComponentPolicy
+    secondary_component: _JitterComponentPolicy
+    sparse_component: _JitterComponentPolicy
 
 
 @dataclass
@@ -164,6 +187,15 @@ def _load_json(path: Path) -> dict:
     if not path.exists():
         raise InputResolutionError(f"Missing JSON file: {path}")
     return json.loads(path.read_text(encoding="utf-8"))
+
+
+def _load_yaml(path: Path) -> dict:
+    if not path.exists():
+        raise InputResolutionError(f"Missing YAML file: {path}")
+    payload = yaml.safe_load(path.read_text(encoding="utf-8"))
+    if not isinstance(payload, dict):
+        raise InputResolutionError(f"YAML payload must be an object: {path}")
+    return payload
 
 
 def _write_json(path: Path, payload: dict) -> None:
@@ -727,6 +759,138 @@ def _normalize_lon(value: float) -> float:
     return value
 
 
+def _clip01(value: float) -> float:
+    return min(1.0, max(0.0, float(value)))
+
+
+def _shape_fraction(u: float, shape_exp: float, max_abs_offset_fraction: float) -> float:
+    centered = (2.0 * _clip01(u)) - 1.0
+    shaped = np.sign(centered) * (abs(centered) ** max(float(shape_exp), 1.0e-12))
+    frac = 0.5 + 0.5 * shaped * _clip01(max_abs_offset_fraction)
+    return _clip01(frac)
+
+
+def _sample_lon_from_fraction(min_lon: float, max_lon: float, frac: float) -> float:
+    span_lon = max_lon - min_lon
+    if span_lon < 0.0:
+        span_lon += 360.0
+    lon = min_lon + _clip01(frac) * span_lon
+    return _normalize_lon(lon)
+
+
+def _sample_lat_from_fraction(min_lat: float, max_lat: float, frac: float) -> float:
+    return float(min_lat + _clip01(frac) * (max_lat - min_lat))
+
+
+def _select_component(u_lon: float, u_lat: float, policy: _S6JitterPolicy) -> tuple[str, _JitterComponentPolicy]:
+    selector = ((1.0 - policy.selection_blend) * _clip01(u_lon)) + (
+        policy.selection_blend * _clip01(u_lat)
+    )
+    if selector < policy.weight_core:
+        return "core_cluster", policy.core_component
+    if selector < policy.weight_core + policy.weight_secondary:
+        return "secondary_cluster", policy.secondary_component
+    return "sparse_tail", policy.sparse_component
+
+
+def _sample_in_tile(
+    policy: _S6JitterPolicy,
+    u_lon: float,
+    u_lat: float,
+    min_lon: float,
+    max_lon: float,
+    min_lat: float,
+    max_lat: float,
+) -> tuple[float, float, str, float, float]:
+    if policy.mode == "uniform_v1":
+        lon = _sample_lon_from_fraction(min_lon, max_lon, u_lon)
+        lat = _sample_lat_from_fraction(min_lat, max_lat, u_lat)
+        return lon, lat, "uniform_v1", 1.0, 1.0
+
+    component_name, component = _select_component(u_lon, u_lat, policy)
+    lon_frac = _shape_fraction(u_lon, component.lon_shape_exp, component.max_abs_offset_fraction)
+    lat_frac = _shape_fraction(u_lat, component.lat_shape_exp, component.max_abs_offset_fraction)
+    lon = _sample_lon_from_fraction(min_lon, max_lon, lon_frac)
+    lat = _sample_lat_from_fraction(min_lat, max_lat, lat_frac)
+    return (
+        lon,
+        lat,
+        component_name,
+        float(component.max_abs_offset_fraction),
+        float(component.max_abs_offset_fraction),
+    )
+
+
+def _parse_component(payload: dict, key: str) -> _JitterComponentPolicy:
+    node = payload.get(key) or {}
+    return _JitterComponentPolicy(
+        lat_shape_exp=float(node.get("lat_shape_exp", 1.0)),
+        lon_shape_exp=float(node.get("lon_shape_exp", 1.0)),
+        max_abs_offset_fraction=float(node.get("max_abs_offset_fraction", 1.0)),
+    )
+
+
+def _load_s6_jitter_policy(
+    dictionary: dict,
+    schema_1b: dict,
+    run_paths: RunPaths,
+    external_roots: Iterable[Path],
+    logger,
+) -> tuple[_S6JitterPolicy, Path]:
+    default = _S6JitterPolicy(
+        policy_version="default-uniform-v1",
+        mode="uniform_v1",
+        deterministic_seed_namespace="1B.S6.JITTER_V1",
+        max_attempts=DEFAULT_MAX_ATTEMPTS,
+        selection_blend=0.5,
+        weight_core=0.0,
+        weight_secondary=0.0,
+        weight_sparse=1.0,
+        core_component=_JitterComponentPolicy(1.0, 1.0, 1.0),
+        secondary_component=_JitterComponentPolicy(1.0, 1.0, 1.0),
+        sparse_component=_JitterComponentPolicy(1.0, 1.0, 1.0),
+    )
+    try:
+        entry = find_dataset_entry(dictionary, "jitter_policy").entry
+    except Exception:
+        logger.info("S6: jitter_policy entry missing; using default uniform_v1 policy")
+        return default, Path("<default>")
+
+    policy_path = _resolve_dataset_path(entry, run_paths, external_roots, {})
+    payload = _load_yaml(policy_path)
+    _validate_payload(schema_1b, "#/policy/jitter_policy", payload)
+    components = payload.get("components") or {}
+    weights = payload.get("component_weights") or {}
+    weight_core = float(weights.get("core_cluster", 0.0))
+    weight_secondary = float(weights.get("secondary_cluster", 0.0))
+    weight_sparse = float(weights.get("sparse_tail", 0.0))
+    weight_sum = weight_core + weight_secondary + weight_sparse
+    if weight_sum <= 0.0:
+        raise InputResolutionError("jitter_policy component_weights must sum to > 0.")
+    weight_core /= weight_sum
+    weight_secondary /= weight_sum
+    weight_sparse /= weight_sum
+
+    policy = _S6JitterPolicy(
+        policy_version=str(payload.get("policy_version") or "unknown"),
+        mode=str(payload.get("mode") or "uniform_v1"),
+        deterministic_seed_namespace=str(payload.get("deterministic_seed_namespace") or "1B.S6.JITTER_V1"),
+        max_attempts=int(payload.get("max_attempts", DEFAULT_MAX_ATTEMPTS)),
+        selection_blend=float(payload.get("selection_blend", 0.5)),
+        weight_core=weight_core,
+        weight_secondary=weight_secondary,
+        weight_sparse=weight_sparse,
+        core_component=_parse_component(components, "core_cluster"),
+        secondary_component=_parse_component(components, "secondary_cluster"),
+        sparse_component=_parse_component(components, "sparse_tail"),
+    )
+    if policy.max_attempts < 1:
+        raise InputResolutionError("jitter_policy max_attempts must be >= 1.")
+    if not (0.0 <= policy.selection_blend <= 1.0):
+        raise InputResolutionError("jitter_policy selection_blend must be in [0,1].")
+    return policy, policy_path
+
+
 def _load_world_countries(world_path: Path) -> dict[str, _CountryGeometry]:
     world_gdf = gpd.read_parquet(world_path)
     if "country_iso" not in world_gdf.columns or "geom" not in world_gdf.columns:
@@ -886,6 +1050,13 @@ def run_s6(config: EngineConfig, run_id: Optional[str] = None) -> S6Result:
     tile_bounds_entry = find_dataset_entry(dictionary, "tile_bounds").entry
     jitter_entry = find_dataset_entry(dictionary, "s6_site_jitter").entry
     report_entry = find_dataset_entry(dictionary, "s6_run_report").entry
+    jitter_policy, jitter_policy_path = _load_s6_jitter_policy(
+        dictionary=dictionary,
+        schema_1b=schema_1b,
+        run_paths=run_paths,
+        external_roots=config.external_roots,
+        logger=logger,
+    )
     event_entry = find_dataset_entry(dictionary, DATASET_ID).entry
     trace_entry = find_dataset_entry(dictionary, TRACE_DATASET_ID).entry
     audit_entry = find_dataset_entry(dictionary, AUDIT_DATASET_ID).entry
@@ -914,7 +1085,19 @@ def run_s6(config: EngineConfig, run_id: Optional[str] = None) -> S6Result:
     logger.info("S6: loading world_countries geometry (path=%s)", world_path)
     world_geometry = _load_world_countries(world_path)
     logger.info("S6: world_countries loaded (countries=%d)", len(world_geometry))
-    logger.info("S6: jitter sampling uses uniform-in-tile bounds with point-in-country check (max_attempts=%d)", MAX_ATTEMPTS)
+    logger.info(
+        "S6: loaded jitter policy mode=%s policy_version=%s max_attempts=%d selection_blend=%.3f path=%s",
+        jitter_policy.mode,
+        jitter_policy.policy_version,
+        jitter_policy.max_attempts,
+        jitter_policy.selection_blend,
+        jitter_policy_path,
+    )
+    logger.info(
+        "S6: jitter sampling uses %s with point-in-country check (max_attempts=%d)",
+        jitter_policy.mode,
+        jitter_policy.max_attempts,
+    )
 
     s5_files = _list_parquet_files(s5_root)
     total_sites = _count_parquet_rows(s5_files)
@@ -988,6 +1171,7 @@ def run_s6(config: EngineConfig, run_id: Optional[str] = None) -> S6Result:
     _validate_payload(schema_layer1, "#/rng/core/rng_audit_log/record", audit_entry_payload)
 
     master_material = _derive_master_material(str(manifest_fingerprint), int(seed))
+    substream_material_label = f"{SUBSTREAM_LABEL}:{jitter_policy.deterministic_seed_namespace}"
     cache: OrderedDict[str, _TileIndexEntry] = OrderedDict()
     cache_hits = 0
     cache_misses = 0
@@ -1000,6 +1184,7 @@ def run_s6(config: EngineConfig, run_id: Optional[str] = None) -> S6Result:
     rng_events_emitted = 0
     resamples_total = 0
     attempts_hist: dict[int, int] = {}
+    component_hist: dict[str, int] = {"uniform_v1": 0, "core_cluster": 0, "secondary_cluster": 0, "sparse_tail": 0}
     by_country: dict[str, dict[str, int]] = {}
 
     last_output_key: Optional[tuple[int, str, int]] = None
@@ -1171,7 +1356,7 @@ def run_s6(config: EngineConfig, run_id: Optional[str] = None) -> S6Result:
                 min_lon, max_lon, min_lat, max_lat, centroid_lon, centroid_lat = bounds
                 key, counter_hi, counter_lo = _derive_site_substream(
                     master_material,
-                    SUBSTREAM_LABEL,
+                    substream_material_label,
                     merchant_id,
                     legal_country_iso,
                     site_order,
@@ -1181,7 +1366,10 @@ def run_s6(config: EngineConfig, run_id: Optional[str] = None) -> S6Result:
                 accepted = False
                 delta_lat = 0.0
                 delta_lon = 0.0
-                for _ in range(MAX_ATTEMPTS):
+                component_name = "uniform_v1"
+                sigma_lat_deg = 1.0
+                sigma_lon_deg = 1.0
+                for _ in range(jitter_policy.max_attempts):
                     attempts += 1
                     before_hi = counter_hi
                     before_lo = counter_lo
@@ -1190,12 +1378,19 @@ def run_s6(config: EngineConfig, run_id: Optional[str] = None) -> S6Result:
                     u_lon = u01(out0)
                     u_lat = u01(out1)
 
+                    lon, lat, component_name, sigma_lat_deg, sigma_lon_deg = _sample_in_tile(
+                        policy=jitter_policy,
+                        u_lon=u_lon,
+                        u_lat=u_lat,
+                        min_lon=min_lon,
+                        max_lon=max_lon,
+                        min_lat=min_lat,
+                        max_lat=max_lat,
+                    )
+
                     span_lon = max_lon - min_lon
                     if span_lon < 0.0:
                         span_lon += 360.0
-                    lon = min_lon + u_lon * span_lon
-                    lon = _normalize_lon(lon)
-                    lat = min_lat + u_lat * (max_lat - min_lat)
 
                     if not (min_lat - 1e-9 <= lat <= max_lat + 1e-9):
                         _emit_failure_event(
@@ -1254,8 +1449,8 @@ def run_s6(config: EngineConfig, run_id: Optional[str] = None) -> S6Result:
                         "merchant_id": merchant_id,
                         "legal_country_iso": legal_country_iso,
                         "site_order": site_order,
-                        "sigma_lat_deg": 0.0,
-                        "sigma_lon_deg": 0.0,
+                        "sigma_lat_deg": float(sigma_lat_deg),
+                        "sigma_lon_deg": float(sigma_lon_deg),
                         "delta_lat_deg": float(delta_lat),
                         "delta_lon_deg": float(delta_lon),
                     }
@@ -1270,6 +1465,7 @@ def run_s6(config: EngineConfig, run_id: Optional[str] = None) -> S6Result:
                     rng_events_emitted += 1
 
                     if _point_in_country(world_geometry[legal_country_iso], lon, lat):
+                        component_hist[component_name] = component_hist.get(component_name, 0) + 1
                         accepted = True
                         break
 
@@ -1406,11 +1602,45 @@ def run_s6(config: EngineConfig, run_id: Optional[str] = None) -> S6Result:
     cpu_total = time.process_time() - start_cpu
 
     rng_draws_total = rng_events_emitted * 2
+    component_total = int(sum(component_hist.values()))
+    component_share = {
+        key: (float(value) / float(component_total) if component_total > 0 else 0.0)
+        for key, value in component_hist.items()
+    }
     run_report = {
         "seed": int(seed),
         "manifest_fingerprint": str(manifest_fingerprint),
         "parameter_hash": str(parameter_hash),
         "run_id": str(run_id),
+        "jitter_policy": {
+            "policy_version": jitter_policy.policy_version,
+            "mode": jitter_policy.mode,
+            "deterministic_seed_namespace": jitter_policy.deterministic_seed_namespace,
+            "max_attempts": jitter_policy.max_attempts,
+            "selection_blend": jitter_policy.selection_blend,
+            "component_weights": {
+                "core_cluster": jitter_policy.weight_core,
+                "secondary_cluster": jitter_policy.weight_secondary,
+                "sparse_tail": jitter_policy.weight_sparse,
+            },
+            "components": {
+                "core_cluster": {
+                    "lat_shape_exp": jitter_policy.core_component.lat_shape_exp,
+                    "lon_shape_exp": jitter_policy.core_component.lon_shape_exp,
+                    "max_abs_offset_fraction": jitter_policy.core_component.max_abs_offset_fraction,
+                },
+                "secondary_cluster": {
+                    "lat_shape_exp": jitter_policy.secondary_component.lat_shape_exp,
+                    "lon_shape_exp": jitter_policy.secondary_component.lon_shape_exp,
+                    "max_abs_offset_fraction": jitter_policy.secondary_component.max_abs_offset_fraction,
+                },
+                "sparse_tail": {
+                    "lat_shape_exp": jitter_policy.sparse_component.lat_shape_exp,
+                    "lon_shape_exp": jitter_policy.sparse_component.lon_shape_exp,
+                    "max_abs_offset_fraction": jitter_policy.sparse_component.max_abs_offset_fraction,
+                },
+            },
+        },
         "counts": {
             "sites_total": rows_emitted,
             "rng": {
@@ -1421,6 +1651,8 @@ def run_s6(config: EngineConfig, run_id: Optional[str] = None) -> S6Result:
             "resamples_total": resamples_total,
         },
         "attempt_histogram": {str(k): int(v) for k, v in sorted(attempts_hist.items())},
+        "component_histogram": {str(k): int(v) for k, v in sorted(component_hist.items())},
+        "component_share": component_share,
         "by_country": by_country,
         "determinism_receipt": determinism_receipt,
         "pat": {

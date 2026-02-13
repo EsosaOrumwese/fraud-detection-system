@@ -71,7 +71,7 @@ Execution block:
 | Authority + handles | M2.A | M2.C, M2.D | `handle_resolution_snapshot.json` complete, no unknown required keys |
 | Terraform state/backend/locking | M2.B | M2.C, M2.D | backend + lock checks in evidence; distinct core/confluent/demo state keys proven |
 | Identity/IAM | M2.E | M2.C, M2.D, M2.F | principal access checks for SSM/ECR/ECS/DB/Kafka control plane |
-| Network posture (no NAT/no always-on LB) | M2.G | M2.D | `no_nat_check.json` plus forbidden-infra checks |
+| Network posture (no NAT/no always-on LB) | M2.G | M2.D | `network_posture_snapshot.json` + `no_nat_check.json` with forbidden-infra checks |
 | Data stores (S3 + runtime DB) | M2.C | M2.D, M2.H | bucket writable, DB reachable, migration surface pinned |
 | Messaging (Confluent topics + access) | M2.F | M2.D | topic existence/auth/ACL checks pass |
 | Secrets (SSM) | M2.E | M2.D, M2.H | secret paths exist + readable by intended principals only |
@@ -626,19 +626,148 @@ Goal:
 1. Prove network posture adheres to dev_min constraints and does not introduce hidden cost/risk.
 
 Tasks:
-1. Verify no NAT gateways exist.
-2. Verify no always-on load balancer dependency for normal operation.
-3. Verify ECS and DB security groups and subnet posture align with policy.
-4. Pin verification command surfaces and evidence fields.
-5. Include explicit forbidden-resource checks:
-   - NAT Gateways must be zero,
-   - always-on load balancer dependency must be absent,
-   - always-on fleets must be absent for dev_min posture.
+1. Resolve required handles from authoritative outputs/registry before any check runs:
+   - `VPC_ID`
+   - `SUBNET_IDS_PUBLIC`
+   - `SECURITY_GROUP_ID_APP`
+   - `SECURITY_GROUP_ID_DB`
+   - `ECS_CLUSTER_NAME`
+   - `FORBID_NAT_GATEWAY`
+   - `FORBID_ALWAYS_ON_LOAD_BALANCER`
+   - `FORBID_ALWAYS_ON_FLEETS`
+2. Verify forbidden-resource posture (fail-closed):
+   - NAT gateways in VPC must be zero (`pending|available|deleting` all forbidden),
+   - load balancers in demo VPC must be zero during M2 (no exception lane pinned in v0),
+   - ECS services in demo cluster must have `desiredCount == 0` for M2 readiness posture.
+3. Verify subnet/route/SG posture aligns with pinned dev_min network stance:
+   - all `SUBNET_IDS_PUBLIC` have `MapPublicIpOnLaunch=true`,
+   - each public subnet has route-table association with `0.0.0.0/0 -> igw-*`,
+   - app SG has no inbound open world rule (`0.0.0.0/0`),
+   - DB SG inbound is restricted to app SG on DB port only (no open world ingress).
+4. Pin a canonical command lane and artifact schema (non-secret) for repeatable checks.
+5. Persist M2.G evidence under the M2 substrate prefix and wire its pass/fail into M2.J gate.
 
 DoD:
 - [ ] No NAT gateways verified.
 - [ ] No forbidden always-on infra dependency verified.
 - [ ] SG/subnet posture checks are explicit and evidenced.
+
+### M2.G Decision Pins (Closed Before Execution)
+1. NAT posture:
+   - hard fail if any NAT gateway exists in any non-deleted state for demo VPC.
+2. LB posture:
+   - hard fail if any ALB/NLB/CLB exists in demo VPC during M2.
+   - exception path is out-of-scope for v0; if needed later it must be explicitly pinned before execution.
+3. Fleet posture:
+   - hard fail if any ECS service in demo cluster has `desiredCount > 0` during M2.G.
+4. SG/subnet posture:
+   - hard fail on any public-open DB SG ingress or missing IGW route from declared public subnets.
+5. Evidence posture:
+   - artifacts must be non-secret JSON only; no raw credentials or decrypted SSM values.
+
+### M2.G-A Handle Resolution and Preflight
+Goal:
+1. Bind all network check inputs deterministically from Terraform outputs + handles registry.
+
+Tasks:
+1. Resolve `VPC_ID`, `SUBNET_IDS_PUBLIC`, `SECURITY_GROUP_ID_APP`, `SECURITY_GROUP_ID_DB`, `ECS_CLUSTER_NAME` via:
+   - `terraform -chdir=infra/terraform/dev_min/demo output -raw <key>`
+   - `terraform -chdir=infra/terraform/dev_min/demo output -json subnet_ids_public`
+2. Validate handle constants from registry:
+   - `FORBID_NAT_GATEWAY=true`
+   - `FORBID_ALWAYS_ON_LOAD_BALANCER=true`
+   - `FORBID_ALWAYS_ON_FLEETS=true`
+3. Fail closed if any required handle is unresolved.
+
+DoD:
+- [ ] Required M2.G handles are resolved from authoritative sources.
+- [ ] Policy constants are confirmed from handles registry.
+- [ ] No unresolved handle remains before command execution.
+
+### M2.G-B Forbidden Resource Checks
+Goal:
+1. Prove cost-footgun resources are absent in the active demo substrate.
+
+Tasks:
+1. NAT check:
+   - `aws ec2 describe-nat-gateways --filter Name=vpc-id,Values=<VPC_ID> --query "NatGateways[?State!='deleted'].{id:NatGatewayId,state:State}" --output json`
+2. ALB/NLB check:
+   - `aws elbv2 describe-load-balancers --query "LoadBalancers[?VpcId=='<VPC_ID>'].{arn:LoadBalancerArn,type:Type,scheme:Scheme,state:State.Code}" --output json`
+3. Classic ELB check:
+   - `aws elb describe-load-balancers --query "LoadBalancerDescriptions[?VPCId=='<VPC_ID>'].{name:LoadBalancerName,scheme:Scheme}" --output json`
+4. ECS fleet check:
+   - `aws ecs list-services --cluster <ECS_CLUSTER_NAME>`
+   - if non-empty, `aws ecs describe-services --cluster <ECS_CLUSTER_NAME> --services <service_arns> --query "services[].{name:serviceName,desired:desiredCount,running:runningCount,pending:pendingCount}"`
+
+DoD:
+- [ ] NAT result set is empty.
+- [ ] LB result sets are empty.
+- [ ] ECS service desired counts are all zero.
+
+### M2.G-C SG/Subnet/Route Posture Checks
+Goal:
+1. Prove demo networking matches v0 public-subnet/no-NAT topology safely.
+
+Tasks:
+1. Subnet checks:
+   - `aws ec2 describe-subnets --subnet-ids <SUBNET_IDS_PUBLIC> --query "Subnets[].{id:SubnetId,map_public_ip:MapPublicIpOnLaunch,az:AvailabilityZone,cidr:CidrBlock}"`
+2. Route checks:
+   - `aws ec2 describe-route-tables --filters Name=association.subnet-id,Values=<SUBNET_IDS_PUBLIC> --query "RouteTables[].{id:RouteTableId,routes:Routes[].{dst:DestinationCidrBlock,gateway:GatewayId,state:State}}"`
+3. SG checks:
+   - `aws ec2 describe-security-groups --group-ids <SECURITY_GROUP_ID_APP> <SECURITY_GROUP_ID_DB>`
+4. Evaluate:
+   - app SG has no inbound `0.0.0.0/0`,
+   - DB SG has no inbound `0.0.0.0/0`,
+   - DB SG inbound source is app SG on DB port only,
+   - each declared public subnet has IGW default route.
+
+DoD:
+- [ ] Public subnet mapping is explicit and valid.
+- [ ] Route table posture confirms IGW path for declared public subnets.
+- [ ] SG posture confirms no public-open ingress on app/db SGs.
+
+### M2.G-D Evidence and PASS Contract
+Goal:
+1. Emit deterministic non-secret artifacts proving M2.G outcome.
+
+Tasks:
+1. Produce local snapshot:
+   - `runs/dev_substrate/m2_g/<timestamp>/network_posture_snapshot.json`
+2. Upload durable snapshot:
+   - `s3://<S3_EVIDENCE_BUCKET>/evidence/dev_min/substrate/<m2_execution_id>/network_posture_snapshot.json`
+3. Keep existing compatibility artifact:
+   - `.../no_nat_check.json` (retain for legacy references in M2 evidence contract).
+4. PASS predicate:
+   - `nat_gateways_non_deleted_count == 0`
+   - `load_balancers_count == 0`
+   - `ecs_services_desired_gt_zero_count == 0`
+   - `sg_subnet_route_checks_pass == true`
+
+DoD:
+- [ ] Local and durable M2.G artifacts exist.
+- [ ] PASS predicate fields are explicit and true.
+- [ ] Artifact contains no secret values.
+
+### M2.G-E Blocker Model (Fail-Closed)
+Goal:
+1. Standardize failure classification so M2 cannot drift past network risk.
+
+Tasks:
+1. Use blocker IDs:
+   - `M2G-B1`: NAT gateway present.
+   - `M2G-B2`: LB present in demo VPC.
+   - `M2G-B3`: ECS desired count above zero during M2.
+   - `M2G-B4`: SG/subnet/route policy violation.
+2. For each blocker capture:
+   - failing resource identifiers,
+   - closure action,
+   - closure evidence path.
+3. Keep M2 progression blocked until all M2G blockers are closed.
+
+DoD:
+- [ ] M2G blocker taxonomy is pinned.
+- [ ] Fail-closed rule is explicit.
+- [ ] M2.J entry remains blocked unless M2.G PASS is evidenced.
 
 ## M2.H Runtime DB and Migration Readiness
 Goal:
@@ -712,15 +841,16 @@ Minimum evidence payloads to produce during M2 execution:
 2. `evidence/dev_min/substrate/<m2_execution_id>/demo_apply_snapshot.json`
 3. `evidence/dev_min/substrate/<m2_execution_id>/handle_resolution_snapshot.json`
 4. `evidence/dev_min/substrate/<m2_execution_id>/no_nat_check.json`
-5. `evidence/dev_min/substrate/<m2_execution_id>/topic_readiness_snapshot.json`
-6. `evidence/dev_min/substrate/<m2_execution_id>/secret_surface_check.json`
-7. `evidence/dev_min/substrate/<m2_execution_id>/teardown_viability_snapshot.json`
-8. `evidence/dev_min/substrate/<m2_execution_id>/budget_guardrail_snapshot.json`
-9. `evidence/dev_min/substrate/<m2_execution_id>/m3_handoff_pack.json`
-10. `evidence/dev_min/substrate/<m2_execution_id>/m2_b_backend_state_readiness_snapshot.json`
-11. `evidence/dev_min/substrate/<m2_execution_id>/m2_c_core_apply_contract_snapshot.json`
-12. `evidence/dev_min/substrate/<m2_execution_id>/m2c_b1_resolution_snapshot.json`
-13. `evidence/dev_min/substrate/<m2_execution_id>/m2_d_demo_apply_contract_snapshot.json`
+5. `evidence/dev_min/substrate/<m2_execution_id>/network_posture_snapshot.json`
+6. `evidence/dev_min/substrate/<m2_execution_id>/topic_readiness_snapshot.json`
+7. `evidence/dev_min/substrate/<m2_execution_id>/secret_surface_check.json`
+8. `evidence/dev_min/substrate/<m2_execution_id>/teardown_viability_snapshot.json`
+9. `evidence/dev_min/substrate/<m2_execution_id>/budget_guardrail_snapshot.json`
+10. `evidence/dev_min/substrate/<m2_execution_id>/m3_handoff_pack.json`
+11. `evidence/dev_min/substrate/<m2_execution_id>/m2_b_backend_state_readiness_snapshot.json`
+12. `evidence/dev_min/substrate/<m2_execution_id>/m2_c_core_apply_contract_snapshot.json`
+13. `evidence/dev_min/substrate/<m2_execution_id>/m2c_b1_resolution_snapshot.json`
+14. `evidence/dev_min/substrate/<m2_execution_id>/m2_d_demo_apply_contract_snapshot.json`
 
 Notes:
 1. Evidence must be non-secret.

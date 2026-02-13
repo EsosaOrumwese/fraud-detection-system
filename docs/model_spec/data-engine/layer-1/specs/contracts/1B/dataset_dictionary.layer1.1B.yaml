@@ -618,16 +618,16 @@ policies:
 - id: jitter_policy
   status: approved
   owner_subsegment: 1B
-  description: RESERVED (VNext). Gaussian jitter σ (deg) policy by latitude band / merchant class. Not consumed by 1B v1 uniform lane.
+  description: Governed S6 jitter policy (legacy uniform lane + deterministic mixture-v2 lane).
   version: '{policy_version}'
   format: yaml
-  path: config/layer1/1B/policy/1B.jitter.yaml
+  path: config/layer1/1B/policy/policy.s6.jitter.yaml
   partitioning: []
   ordering: []
   schema_ref: schemas.1B.yaml#/policy/jitter_policy
   lineage:
     produced_by: 1B.policy
-    consumed_by: []
+    consumed_by: [1B]
     final_in_layer: false
   retention_days: 30
   pii: false

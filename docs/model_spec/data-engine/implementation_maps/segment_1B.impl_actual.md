@@ -3777,3 +3777,38 @@ Planning decisions captured:
 
 Implementation intent for next step:
 - execute `P3-A` baseline snapshot + scorer lane prep, then proceed to policy/schema activation (`P3-B`) before touching S6 runtime logic (`P3-C`).
+
+---
+
+### Entry: 2026-02-13 18:55
+
+Design element: P3 implementation strategy before code edits (S6-only lane).
+Summary: Finalised the concrete implementation route for P3 to avoid hand-wavy tuning: first activate a governed S6 policy surface, then implement deterministic mixture jitter with fixed RNG budget per event, then score and calibrate via `S6->S9` fast-lane cycles.
+
+Pre-edit decisions:
+1) **Policy governance first, runtime second.**
+   - `jitter_policy` in contracts/dictionary is still marked reserved and path-misaligned (`config/layer1/1B/policy/1B.jitter.yaml`).
+   - We will activate it as an S6-consumed policy at `config/layer1/1B/policy/policy.s6.jitter.yaml`.
+
+2) **RNG envelope must remain stable.**
+   - Existing S6 event schema requires `blocks=1` and `draws=\"2\"` per attempt/event.
+   - Mixture jitter must therefore be implemented using exactly the same two uniforms per attempt (no extra RNG draws), preserving determinism and trace compatibility.
+
+3) **Mixture implementation form (deterministic, bounded).**
+   - Introduce `uniform_v1` (legacy) and `mixture_v2` modes.
+   - `mixture_v2` uses component weights (`core`, `secondary`, `sparse_tail`) with component-specific center-shape exponents and max offset fractions.
+   - Component selection will be deterministic from existing uniforms; lat/lon fractions remain bounded to tile limits before country check.
+
+4) **P3 scoring is missing and must be added.**
+   - Add `tools/score_segment1b_p3_candidate.py` to evaluate:
+     - NN tail contraction vs P0 baseline (`p99/p50`),
+     - S8 concentration no-regression vs P2 lock,
+     - stripe/corridor sentinel across top-volume countries,
+     - parity and structural checks.
+
+5) **Fast-lane execution and lock discipline.**
+   - Candidate cycles will use fresh run-id bootstraps from locked P2 run and rerun only `S6->S9`.
+   - After acceptance, run one same-seed reproducibility cycle, write P3 lock record, update pointers, prune superseded runs.
+
+Risk noted upfront:
+- Given current 1B posture, NN-tail may have limited S6 headroom because much of spacing is inherited from upstream tile assignment (`S5`/`S4`). If contraction target remains unreachable after bounded tuning, we will produce explicit feasibility evidence rather than claim synthetic gains.

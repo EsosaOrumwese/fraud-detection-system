@@ -1,0 +1,23 @@
+policy_version: "2026-02-13-r1"
+mode: "mixture_v2"
+deterministic_seed_namespace: "1B.S6.JITTER_V2"
+max_attempts: 64
+selection_blend: 0.35
+component_weights:
+  core_cluster: 0.55
+  secondary_cluster: 0.30
+  sparse_tail: 0.15
+components:
+  core_cluster:
+    lat_shape_exp: 2.40
+    lon_shape_exp: 2.40
+    max_abs_offset_fraction: 0.60
+  secondary_cluster:
+    lat_shape_exp: 1.40
+    lon_shape_exp: 1.40
+    max_abs_offset_fraction: 0.85
+  sparse_tail:
+    lat_shape_exp: 0.70
+    lon_shape_exp: 0.70
+    max_abs_offset_fraction: 1.00
+notes: "P3 initial S6 mixture profile; deterministic two-uniform envelope."

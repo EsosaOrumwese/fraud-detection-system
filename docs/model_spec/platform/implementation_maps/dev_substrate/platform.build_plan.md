@@ -458,6 +458,7 @@ Control: required P12 teardown proof and budget guardrails.
 ## 12) Immediate Next Action
 M2 is active for deep planning and closure-hardening.
 Next action:
-- execute `M2.G` network/no-NAT/no-always-on-LB verification lane with pinned evidence artifacts,
+- execute `M2.G-A -> M2.G-E` network verification sequence from `platform.M2.build_plan.md`,
+- require `network_posture_snapshot.json` + `no_nat_check.json` PASS evidence before closing `M2.G`,
 - keep `M2.H`/`M2.I` sequencing strict (DB readiness before budget/teardown closure),
 - maintain fail-closed posture: no `M2.J` handoff until `M2.G` + `M2.H` + `M2.I` are all green.
