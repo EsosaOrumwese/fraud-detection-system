@@ -139,6 +139,11 @@ variable "runtime_service_account_name" {
   default = "fp-dev-min-runtime"
 }
 
+variable "operator_service_account_display_name" {
+  type    = string
+  default = "fraud_detection_dev"
+}
+
 variable "ssm_confluent_bootstrap_path" {
   type    = string
   default = "/fraud-platform/dev_min/confluent/bootstrap"

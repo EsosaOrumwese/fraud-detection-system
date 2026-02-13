@@ -21,20 +21,21 @@ locals {
 module "confluent" {
   source = "../../modules/confluent"
 
-  confluent_env_name                 = var.confluent_env_name
-  confluent_cluster_name             = var.confluent_cluster_name
-  confluent_cluster_type             = var.confluent_cluster_type
-  confluent_cluster_availability     = var.confluent_cluster_availability
-  confluent_cluster_cloud            = var.confluent_cluster_cloud
-  confluent_cluster_region           = var.confluent_cluster_region
-  kafka_topics                       = var.kafka_topics
-  high_volume_topic_names            = var.high_volume_topic_names
-  high_volume_partitions             = var.high_volume_partitions
-  low_volume_partitions              = var.low_volume_partitions
-  high_volume_retention_ms           = var.high_volume_retention_ms
-  low_volume_retention_ms            = var.low_volume_retention_ms
-  topic_manager_service_account_name = var.topic_manager_service_account_name
-  runtime_service_account_name       = var.runtime_service_account_name
+  confluent_env_name                    = var.confluent_env_name
+  confluent_cluster_name                = var.confluent_cluster_name
+  confluent_cluster_type                = var.confluent_cluster_type
+  confluent_cluster_availability        = var.confluent_cluster_availability
+  confluent_cluster_cloud               = var.confluent_cluster_cloud
+  confluent_cluster_region              = var.confluent_cluster_region
+  kafka_topics                          = var.kafka_topics
+  high_volume_topic_names               = var.high_volume_topic_names
+  high_volume_partitions                = var.high_volume_partitions
+  low_volume_partitions                 = var.low_volume_partitions
+  high_volume_retention_ms              = var.high_volume_retention_ms
+  low_volume_retention_ms               = var.low_volume_retention_ms
+  topic_manager_service_account_name    = var.topic_manager_service_account_name
+  runtime_service_account_name          = var.runtime_service_account_name
+  operator_service_account_display_name = var.operator_service_account_display_name
 }
 
 resource "aws_ssm_parameter" "confluent_bootstrap" {

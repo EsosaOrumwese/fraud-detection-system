@@ -3,6 +3,9 @@ resource "confluent_environment" "this" {
 }
 
 data "confluent_organization" "this" {}
+data "confluent_service_account" "operator" {
+  display_name = var.operator_service_account_display_name
+}
 
 resource "confluent_kafka_cluster" "this" {
   display_name = var.confluent_cluster_name
@@ -56,6 +59,68 @@ resource "confluent_role_binding" "topic_manager_environment_admin" {
   crn_pattern = local.environment_crn
 }
 
+resource "confluent_api_key" "operator_kafka_api_key" {
+  count = local.supports_resource_roles ? 0 : 1
+
+  display_name = "${var.operator_service_account_display_name}-kafka-api-key"
+  description  = "Kafka API key for ACL bootstrap on Basic clusters."
+
+  owner {
+    id          = data.confluent_service_account.operator.id
+    api_version = data.confluent_service_account.operator.api_version
+    kind        = data.confluent_service_account.operator.kind
+  }
+
+  managed_resource {
+    id          = confluent_kafka_cluster.this.id
+    api_version = confluent_kafka_cluster.this.api_version
+    kind        = confluent_kafka_cluster.this.kind
+    environment {
+      id = confluent_environment.this.id
+    }
+  }
+}
+
+resource "confluent_kafka_acl" "topic_manager_cluster_all" {
+  count = local.supports_resource_roles ? 0 : 1
+
+  kafka_cluster {
+    id = confluent_kafka_cluster.this.id
+  }
+  rest_endpoint = confluent_kafka_cluster.this.rest_endpoint
+  resource_type = "CLUSTER"
+  resource_name = "kafka-cluster"
+  pattern_type  = "LITERAL"
+  principal     = "User:${confluent_service_account.topic_manager.id}"
+  host          = "*"
+  operation     = "ALL"
+  permission    = "ALLOW"
+  credentials {
+    key    = confluent_api_key.operator_kafka_api_key[0].id
+    secret = confluent_api_key.operator_kafka_api_key[0].secret
+  }
+}
+
+resource "confluent_kafka_acl" "topic_manager_topic_all" {
+  count = local.supports_resource_roles ? 0 : 1
+
+  kafka_cluster {
+    id = confluent_kafka_cluster.this.id
+  }
+  rest_endpoint = confluent_kafka_cluster.this.rest_endpoint
+  resource_type = "TOPIC"
+  resource_name = "*"
+  pattern_type  = "LITERAL"
+  principal     = "User:${confluent_service_account.topic_manager.id}"
+  host          = "*"
+  operation     = "ALL"
+  permission    = "ALLOW"
+  credentials {
+    key    = confluent_api_key.operator_kafka_api_key[0].id
+    secret = confluent_api_key.operator_kafka_api_key[0].secret
+  }
+}
+
 resource "confluent_api_key" "topic_manager_kafka_api_key" {
   display_name = "${var.topic_manager_service_account_name}-kafka-api-key"
   description  = "Kafka API key for topic manager service account."
@@ -100,6 +165,11 @@ resource "confluent_kafka_topic" "topics" {
     key    = confluent_api_key.topic_manager_kafka_api_key.id
     secret = confluent_api_key.topic_manager_kafka_api_key.secret
   }
+
+  depends_on = [
+    confluent_kafka_acl.topic_manager_cluster_all,
+    confluent_kafka_acl.topic_manager_topic_all,
+  ]
 }
 
 resource "confluent_service_account" "runtime" {
@@ -131,6 +201,46 @@ resource "confluent_role_binding" "runtime_environment_admin" {
   crn_pattern = local.environment_crn
 }
 
+resource "confluent_kafka_acl" "runtime_cluster_all" {
+  count = local.supports_resource_roles ? 0 : 1
+
+  kafka_cluster {
+    id = confluent_kafka_cluster.this.id
+  }
+  rest_endpoint = confluent_kafka_cluster.this.rest_endpoint
+  resource_type = "CLUSTER"
+  resource_name = "kafka-cluster"
+  pattern_type  = "LITERAL"
+  principal     = "User:${confluent_service_account.runtime.id}"
+  host          = "*"
+  operation     = "ALL"
+  permission    = "ALLOW"
+  credentials {
+    key    = confluent_api_key.operator_kafka_api_key[0].id
+    secret = confluent_api_key.operator_kafka_api_key[0].secret
+  }
+}
+
+resource "confluent_kafka_acl" "runtime_topic_all" {
+  count = local.supports_resource_roles ? 0 : 1
+
+  kafka_cluster {
+    id = confluent_kafka_cluster.this.id
+  }
+  rest_endpoint = confluent_kafka_cluster.this.rest_endpoint
+  resource_type = "TOPIC"
+  resource_name = "*"
+  pattern_type  = "LITERAL"
+  principal     = "User:${confluent_service_account.runtime.id}"
+  host          = "*"
+  operation     = "ALL"
+  permission    = "ALLOW"
+  credentials {
+    key    = confluent_api_key.operator_kafka_api_key[0].id
+    secret = confluent_api_key.operator_kafka_api_key[0].secret
+  }
+}
+
 resource "confluent_api_key" "runtime_kafka_api_key" {
   display_name = "${var.runtime_service_account_name}-kafka-api-key"
   description  = "Kafka API key for runtime service account."
@@ -154,5 +264,7 @@ resource "confluent_api_key" "runtime_kafka_api_key" {
     confluent_role_binding.runtime_read_topic,
     confluent_role_binding.runtime_write_topic,
     confluent_role_binding.runtime_environment_admin,
+    confluent_kafka_acl.runtime_cluster_all,
+    confluent_kafka_acl.runtime_topic_all,
   ]
 }
