@@ -1419,7 +1419,7 @@ def run_s2(config: EngineConfig, run_id: Optional[str] = None) -> S2RunResult:
         }
         beta_phi_gdp = beta_phi[-1]
 
-        master_material = derive_master_material(bytes.fromhex(manifest_fingerprint), seed)
+        master_material = derive_master_material(bytes.fromhex(parameter_hash), seed)
 
         merchant_df = merchant_df.sort("merchant_id")
         multi_count = len(multi_merchants)

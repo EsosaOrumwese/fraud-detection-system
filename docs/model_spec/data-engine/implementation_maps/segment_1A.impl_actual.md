@@ -5262,3 +5262,105 @@ Storage hygiene action:
 Decision:
 1) P4 is accepted for artifact-completeness closure with preserved P1/P2/P3 realism posture.
 2) Replay is grade-stable (B+) under same seed/hash, but exact row-equality is not currently enforced; treat this as a hardening item for P5 determinism tightening.
+
+### Entry: 2026-02-13 09:12
+
+Design element: replay determinism hardening mini-pass (post-P4 closure).
+Summary: Opened targeted hardening pass to remove same-seed replay drift discovered after P4 closure. Root cause isolated to RNG master-material derivation using `manifest_fingerprint` (which changes when git commit changes), violating the expected `seed + parameter_hash` replay posture.
+
+Root-cause evidence:
+1) Accepted P4 runs had identical `seed=42` and identical `parameter_hash`, but different `manifest_fingerprint`.
+2) Validation manifests show identical sealed input digests and parameter digests, while `git_commit_hex` differs between runs:
+- run `8ea58c...` git commit suffix: `ff679070...`,
+- run `b97f71...` git commit suffix: `1ef4e2f2...`.
+3) Replay drift starts at S1 stochastic surface (`rng_event_hurdle_bernoulli`) and propagates downstream:
+- `is_multi` flips observed across >4k merchants between the two runs.
+
+Determinism-hardening decision:
+1) Re-key all Segment 1A Philox master-material calls to `bytes.fromhex(parameter_hash)` instead of `bytes.fromhex(manifest_fingerprint)`.
+2) Keep envelope provenance fields unchanged (`manifest_fingerprint` still written/logged for audit).
+3) Restrict blast radius to RNG-key derivation call sites in stochastic states (`S1`, `S2`, `S4`, `S6`, `S7`, `S8`) and validators using the same derivation.
+4) Re-run P4 and replay-check with explicit evidence; confirm:
+- artifact completeness remains pass,
+- P2/P3 non-regression remains pass,
+- same-seed replay row-count posture stabilizes under unchanged parameter hash.
+
+### Entry: 2026-02-13 09:48
+
+Design element: determinism hardening execution + forced-manifest replay proof.
+Summary: Implemented and validated the RNG re-key hardening. Replay drift is closed at the data surface under forced manifest drift.
+
+Code changes applied:
+1) `packages/engine/src/engine/layers/l1/seg_1A/s1_hurdle/rng.py`
+- generalized `derive_master_material` input from `manifest_fingerprint_bytes` to `seed_material_bytes` (still 32-byte contract).
+2) Runner call-sites switched to `bytes.fromhex(parameter_hash)`:
+- `packages/engine/src/engine/layers/l1/seg_1A/s1_hurdle/runner.py` (validator + emitter paths),
+- `packages/engine/src/engine/layers/l1/seg_1A/s2_nb_outlets/runner.py`,
+- `packages/engine/src/engine/layers/l1/seg_1A/s4_ztp/runner.py`,
+- `packages/engine/src/engine/layers/l1/seg_1A/s6_foreign_set/runner.py`,
+- `packages/engine/src/engine/layers/l1/seg_1A/s7_integerisation/runner.py`,
+- `packages/engine/src/engine/layers/l1/seg_1A/s8_outlet_catalogue/runner.py`.
+
+Compilation guard:
+1) `python -m py_compile` passed for all touched modules.
+
+Replay validation (forced manifest drift):
+1) Run A:
+- command: `ENGINE_GIT_COMMIT=111111... make segment1a-p4 RUNS_ROOT=runs/fix-data-engine/segment_1A`
+- run id: `29bdb537f5aac75aa48479272fc18161`
+- `manifest_fingerprint=f5f04c50...`
+2) Run B:
+- command: `ENGINE_GIT_COMMIT=222222... make segment1a-p4 RUNS_ROOT=runs/fix-data-engine/segment_1A`
+- run id: `a1753dc8ed8fb1703b336bd4a869f361`
+- `manifest_fingerprint=c1230ff...`
+3) both runs:
+- `segment1a-p4-check` PASS,
+- `segment1a-p2-check` PASS,
+- `segment1a-p3-check` PASS.
+
+Determinism evidence:
+1) S1 Bernoulli surface:
+- merchant outcome flips across A/B: `0`,
+- `sum(is_multi)`: `5878` for both runs.
+2) Key surfaces identical across A/B (rows and key sets):
+- `s3_candidate_set` (`79682`),
+- `s3_integerised_counts` (`79682`),
+- `s6_membership` (`19358`),
+- `s3_site_sequence` (`142447`),
+- `outlet_catalogue` (`142447`).
+3) Scorecards:
+- P2 global metrics exactly equal across A/B,
+- P3 global mismatch/gradient exactly equal across A/B.
+
+Decision:
+1) Determinism hardening objective is satisfied for Segment `1A` replay posture under seed+parameter lock.
+2) Promote (`29bd...`, `a175...`) as hardened P4 authority pair for onward P5 certification.
+
+### Entry: 2026-02-13 10:04
+
+Design element: post-hardening operational P4 authority run (real commit provenance).
+Summary: Executed one additional P4 run without `ENGINE_GIT_COMMIT` override so onward work has a normal provenance authority run while retaining the forced-manifest pair as determinism proof.
+
+Execution evidence:
+1) command:
+- `make segment1a-p4 RUNS_ROOT=runs/fix-data-engine/segment_1A`
+2) run id:
+- `416afa430db3f5bf87180f8514329fe8`
+3) checks:
+- `segment1a-p4-check` PASS,
+- `segment1a-p2-check` PASS,
+- `segment1a-p3-check` PASS.
+4) scorecards:
+- `runs/fix-data-engine/segment_1A/reports/segment1a_p2_1_baseline_416afa430db3f5bf87180f8514329fe8.json`
+- `runs/fix-data-engine/segment_1A/reports/segment1a_p3_1_baseline_416afa430db3f5bf87180f8514329fe8.json`
+
+Outcome:
+1) P2 globals remain pass and match hardened replay-proof runs.
+2) P3 global metrics remain in B+ posture:
+- `home_legal_mismatch_rate = 0.12012186988844974`,
+- `size_gradient_pp_top_minus_bottom = 12.464219959390816`,
+- unexplained duplicate anomalies remain absent.
+
+Decision:
+1) Keep (`29bd...`, `a175...`) as determinism proof pair.
+2) Use `416afa...` as normal-provenance operational authority for moving into P5.

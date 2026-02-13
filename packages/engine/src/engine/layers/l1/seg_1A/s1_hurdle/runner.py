@@ -500,7 +500,7 @@ def _validate_s1_outputs(
     beta_mcc = {value: beta[offset_mcc + idx] for idx, value in enumerate(dict_mcc)}
     beta_ch = {value: beta[offset_ch + idx] for idx, value in enumerate(dict_ch)}
     beta_dev = {value: beta[offset_dev + idx] for idx, value in enumerate(dict_dev5)}
-    master_material = derive_master_material(bytes.fromhex(manifest_fingerprint), seed)
+    master_material = derive_master_material(bytes.fromhex(parameter_hash), seed)
 
     merchant_seen: set[int] = set()
     merchant_multi: set[int] = set()
@@ -1291,7 +1291,7 @@ def run_s1(config: EngineConfig, run_id: Optional[str] = None) -> S1RunResult:
         _ensure_trace_clear(trace_path)
         _ensure_event_path_clear(event_path)
 
-        master_material = derive_master_material(bytes.fromhex(manifest_fingerprint), seed)
+        master_material = derive_master_material(bytes.fromhex(parameter_hash), seed)
 
         tmp_dir = run_paths.tmp_root / "s1_hurdle"
         tmp_dir.mkdir(parents=True, exist_ok=True)

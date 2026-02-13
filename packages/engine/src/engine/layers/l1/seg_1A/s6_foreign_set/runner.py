@@ -1253,7 +1253,7 @@ def run_s6(
         progress_every = max(1, min(10_000, total_merchants // 10))
         start_time = time.monotonic()
 
-        master_material = derive_master_material(bytes.fromhex(manifest_fingerprint), seed)
+        master_material = derive_master_material(bytes.fromhex(parameter_hash), seed)
 
         metrics = {
             "s6.run.merchants_total": 0,

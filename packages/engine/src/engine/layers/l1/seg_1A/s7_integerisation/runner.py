@@ -1653,9 +1653,7 @@ def run_s7(
         expected_dirichlet_blocks = 0
         expected_dirichlet_draws = 0
 
-        master_material = derive_master_material(
-            bytes.fromhex(manifest_fingerprint), seed
-        )
+        master_material = derive_master_material(bytes.fromhex(parameter_hash), seed)
 
         def _expected_event_payload(
             merchant_id: int,

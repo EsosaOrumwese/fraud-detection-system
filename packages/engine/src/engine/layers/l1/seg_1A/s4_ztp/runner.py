@@ -1038,7 +1038,7 @@ def run_s4(config: EngineConfig, run_id: Optional[str] = None) -> S4RunResult:
                 ztp_final_path=final_path,
             )
 
-        master_material = derive_master_material(bytes.fromhex(manifest_fingerprint), seed)
+        master_material = derive_master_material(bytes.fromhex(parameter_hash), seed)
 
         tmp_dir = run_paths.tmp_root / "s4_ztp"
         tmp_dir.mkdir(parents=True, exist_ok=True)

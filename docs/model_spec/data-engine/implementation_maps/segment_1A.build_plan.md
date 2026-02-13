@@ -634,6 +634,56 @@ Storage hygiene:
 - `8ea58c10713dab97b1234fba99c0138e`,
 - `b97f71bf357ffc8a28d80ea14894d6c4`.
 
+### 6.11 P4 determinism hardening addendum (post-closure mini-pass)
+Observed issue:
+1. The prior P4 authority pair showed same `seed + parameter_hash` but slight replay row drift.
+2. Root cause was RNG master-material derivation keyed by `manifest_fingerprint`, which changes when `git_commit_hex` changes.
+
+Hardening change:
+1. Re-keyed Segment `1A` stochastic states to derive Philox master-material from `parameter_hash` (32-byte hex) with seed, not `manifest_fingerprint`.
+2. Kept envelope provenance unchanged (`manifest_fingerprint` remains logged/emitted for audit).
+3. States touched:
+- `S1`, `S2`, `S4`, `S6`, `S7`, `S8`.
+
+Validation method:
+1. Forced git-commit drift between two P4 runs using different `ENGINE_GIT_COMMIT` values while keeping seed and params fixed.
+2. Compared stochastic and downstream surfaces across runs.
+
+Hardened authority pair:
+1. run A:
+- `run_id=29bdb537f5aac75aa48479272fc18161`
+2. run B:
+- `run_id=a1753dc8ed8fb1703b336bd4a869f361`
+3. both runs:
+- `segment1a-p4-check` PASS,
+- `segment1a-p2-check` PASS,
+- `segment1a-p3-check` PASS.
+
+Determinism evidence:
+1. `rng_event_hurdle_bernoulli` merchant outcomes stable across A/B:
+- `is_multi` flips: `0`,
+- `sum(is_multi)`: `5878` in both runs.
+2. key surfaces identical in rows and key sets across A/B:
+- `s3_candidate_set`,
+- `s3_integerised_counts`,
+- `s6_membership`,
+- `s3_site_sequence`,
+- `outlet_catalogue`.
+3. scorecard posture matched:
+- P2 global metrics identical across A/B,
+- P3 global mismatch/gradient identical across A/B (bootstrap CI minor sampling jitter only).
+
+Lock update:
+1. P4 authority is promoted to the hardened pair (`29bd...`, `a175...`).
+2. Prior P4 pair (`8ea...`, `b97...`) is superseded for replay determinism authority.
+3. Storage hygiene applied:
+- pruned `8ea58c10713dab97b1234fba99c0138e`,
+- pruned `b97f71bf357ffc8a28d80ea14894d6c4`.
+4. Real-commit operational authority run (no forced git override):
+- `run_id=416afa430db3f5bf87180f8514329fe8`,
+- `segment1a-p4-check`/`segment1a-p2-check`/`segment1a-p3-check` pass,
+- P3 mismatch/gradient remain in B+ band.
+
 ## 7) Certification and grade decision (Phase P5)
 
 ### 7.1 Validation matrix

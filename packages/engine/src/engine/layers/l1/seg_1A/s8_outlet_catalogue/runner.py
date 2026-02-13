@@ -1643,9 +1643,7 @@ def run_s8(
                 overflow_paths, overflow_validator, seed, parameter_hash, run_id
             )
 
-        master_material = derive_master_material(
-            bytes.fromhex(manifest_fingerprint), seed
-        )
+        master_material = derive_master_material(bytes.fromhex(parameter_hash), seed)
         def _expected_sequence_payload(
             merchant_id: int,
             country_iso: str,
