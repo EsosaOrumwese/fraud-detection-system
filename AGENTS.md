@@ -81,6 +81,13 @@ These are the intended design flow of the platform as well as pinned decisions. 
 - **Rigorously inspect the full platform run:** Once the USER asks for a full live stream run, once done, we should evaluate every aspect of it to make sure there's no silent drift whatsoever
 - **Decision-completeness law (fail-closed):** when the USER says "proceed" to a phase/option/command, the AGENT MUST first verify that all required decisions/inputs for that scope are explicitly pinned. If any hole remains, the AGENT MUST stop execution and report the unresolved items to the USER (no defaults, no assumptions, no improvisation). The AGENT must keep doing this until the unresolved set is closed and only then proceed.
 - **Phase-coverage law (anti-cram, fail-closed):** before execution starts for any phase, the AGENT MUST explicitly expose all required capability lanes for that phase (authority/handles, identity/IAM, network, data stores, messaging, secrets, observability/evidence, rollback/rerun, teardown, budget as applicable). The AGENT MUST NOT force work into an assumed fixed number of sections/sub-phases; the plan must expand until closure-grade coverage is achieved. If any missing lane/hole is discovered at any point, execution MUST pause and the AGENT must report unresolved items to the USER and continue only after explicit closure.
+- **Branch-governance law (user-controlled, binding):**
+  - Before any branch-history operation, the AGENT MUST stop and obtain explicit USER go-ahead. Covered operations include: branch create/switch/delete, merge, rebase, cherry-pick, reset, cross-branch push, PR create/merge, and any workflow dispatch that depends on a branch other than the active one.
+  - The AGENT MUST request the USER's branch method first (or ask the USER to confirm the existing method), then restate the exact planned sequence using concrete branch names and expected outcomes.
+  - After restating the plan, the AGENT MUST wait for explicit USER confirmation before executing any covered operation.
+  - If confirmation is not explicit, execution remains blocked (fail-closed). No improvisation, no branch hopping, and no "best-effort" recovery is allowed.
+  - If the USER is actively working with another agent/project, the AGENT MUST assume cross-branch operations are unsafe and remain blocked until USER confirms a safe sequence.
+  - Default posture: stay on the active branch and avoid cross-branch operations unless the above protocol is completed.
 ---
 
 ## Platform implementation maps (mandatory, detail-first)

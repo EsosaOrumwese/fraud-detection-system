@@ -756,7 +756,21 @@ Control: explicit command-lane pinning in M2.B/M2.E/M2.F before execution.
 
 ## 8.1) Unresolved Blocker Register (Must Be Empty Before M2 Execution)
 Current blockers:
-1. `M2F-B1` (open)
+1. `M2F-B2` (open)
+   - blocker summary:
+     - CI M2.F workflow (`dev_min_m2f_topic_readiness`) can assume OIDC role on trusted branch refs, but Terraform backend init fails with `403 Forbidden` on `s3://fraud-platform-dev-min-tfstate/dev_min/confluent/terraform.tfstate`.
+     - active OIDC role (`GitHubAction-AssumeRoleWithAction`) currently has ECR/billing-oriented permissions and lacks Terraform backend/state access required for M2.F Confluent lane.
+   - closure criteria:
+     - extend CI OIDC role policy to allow:
+       - S3 state bucket/object access for `fraud-platform-dev-min-tfstate` key prefix `dev_min/confluent/*`,
+       - DynamoDB lock table operations on `fraud-platform-dev-min-tf-locks`,
+       - SSM read/write for `/fraud-platform/dev_min/confluent/*`,
+       - evidence bucket object writes for M2.F snapshots.
+     - rerun workflow `dev_min_m2f_topic_readiness` on trusted ref (`main`) with `checkout_ref=migrate-dev`,
+     - require successful Terraform init/apply before verifier step.
+   - evidence:
+     - CI run failed: `https://github.com/EsosaOrumwese/fraud-detection-system/actions/runs/21994243860`
+2. `M2F-B1` (open)
    - blocker summary:
      - M2.F Kafka admin verification failed at SASL auth handshake for bootstrap `pkc-41wq6.eu-west-2.aws.confluent.cloud:9092`,
      - SSM credential paths exist but current values are not valid for runtime Kafka authentication.

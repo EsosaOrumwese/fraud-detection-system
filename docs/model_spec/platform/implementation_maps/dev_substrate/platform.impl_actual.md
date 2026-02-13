@@ -7253,3 +7253,26 @@ USER directed immediate progression to close `M2.F` after workflow secret mappin
 
 ### Current phase status
 1. `M2.F` remains open until a successful workflow/local execution produces `overall_pass=true`.
+
+## Entry: 2026-02-13 4:25PM - M2.F CI lane hardened after feedback; new IAM blocker exposed (`M2F-B2`)
+
+### Trigger
+1. USER challenged the workflow design for depending on repository-local verifier tooling.
+2. USER requested continuation toward M2.F closure.
+
+### Actions performed
+1. Published CI workflow lane to default branch via PR:
+   - PR `#46` (merged): adds `dev_min_m2f_topic_readiness` workflow and Confluent secret mapping.
+2. Initial CI execution attempts:
+   - run `21993925506` (`migrate-dev`) failed at OIDC assume-role because role trust allowed only `main`/`dev`.
+   - run `21994101734` (`main`) failed because Confluent stack path did not exist on `main` checkout.
+3. Refactored workflow to avoid local script dependency and bridge trusted ref constraint:
+   - PR `#48` (merged): workflow now runs verifier inline and supports `checkout_ref` (default `migrate-dev`) while dispatching from trusted `main`.
+4. Re-ran CI:
+   - run `21994243860` (`main`) reached OIDC successfully, but Terraform backend init failed with `403` on state object access.
+
+### Decision and implications
+1. USER feedback accepted: M2.F workflow no longer requires `tools/dev_substrate/verify_m2f_topic_readiness.py` for CI execution.
+2. New explicit blocker identified and pinned:
+   - `M2F-B2`: OIDC role policy lacks required backend/SSM/evidence permissions for Confluent Terraform lane.
+3. M2.F remains fail-closed until IAM permission gap is remediated and CI rerun yields `overall_pass=true`.
