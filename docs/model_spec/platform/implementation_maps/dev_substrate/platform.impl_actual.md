@@ -7382,3 +7382,53 @@ USER directed immediate progression to close `M2.F` after workflow secret mappin
 ### Execution posture after planning
 1. `M2.G` is now execution-ready from a planning perspective.
 2. No runtime mutation executed in this step; this update is planning-only and fail-closed.
+
+## Entry: 2026-02-13 7:09PM - M2.G executed end-to-end and closed green
+
+### Trigger
+1. USER directed: proceed with entirety of `M2.G`.
+
+### Execution summary
+1. Resolved handles from Terraform outputs:
+   - `VPC_ID`, `SUBNET_IDS_PUBLIC`, `SECURITY_GROUP_ID_APP`, `SECURITY_GROUP_ID_DB`, `ECS_CLUSTER_NAME`.
+2. Confirmed policy constants from handles registry:
+   - `FORBID_NAT_GATEWAY=true`
+   - `FORBID_ALWAYS_ON_LOAD_BALANCER=true`
+   - `FORBID_ALWAYS_ON_FLEETS=true`
+3. Ran M2.G checks:
+   - NAT gateways in VPC,
+   - ALB/NLB + Classic ELB in VPC,
+   - ECS services desired counts,
+   - subnet public-IP mapping + IGW default routes,
+   - app/db SG ingress posture.
+
+### Correction applied during execution
+1. First artifact attempt used a subnet argument join form that can mask command failure in PowerShell.
+2. Re-ran the full lane with strict exit-code assertions after every external command.
+3. Marked first attempt as superseded and removed its durable artifacts from S3.
+
+### Final result (authoritative run)
+1. M2 execution id:
+   - `m2_20260213T190819Z`
+2. PASS predicates:
+   - `nat_gateways_non_deleted_count=0`
+   - `load_balancers_count=0`
+   - `ecs_services_desired_gt_zero_count=0`
+   - `sg_subnet_route_checks_pass=true`
+   - `overall_pass=true`
+3. Blockers:
+   - none (`M2G-B1..B4` not triggered).
+
+### Evidence
+1. Local:
+   - `runs/dev_substrate/m2_g/20260213T190819Z/network_posture_snapshot.json`
+   - `runs/dev_substrate/m2_g/20260213T190819Z/no_nat_check.json`
+2. Durable:
+   - `s3://fraud-platform-dev-min-evidence/evidence/dev_min/substrate/m2_20260213T190819Z/network_posture_snapshot.json`
+   - `s3://fraud-platform-dev-min-evidence/evidence/dev_min/substrate/m2_20260213T190819Z/no_nat_check.json`
+
+### Planning status updates applied
+1. Marked `M2.G` complete in:
+   - `docs/model_spec/platform/implementation_maps/dev_substrate/platform.M2.build_plan.md`
+   - `docs/model_spec/platform/implementation_maps/dev_substrate/platform.build_plan.md`
+2. Shifted immediate next action to `M2.H` DB/migrations readiness lane.

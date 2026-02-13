@@ -648,9 +648,9 @@ Tasks:
 5. Persist M2.G evidence under the M2 substrate prefix and wire its pass/fail into M2.J gate.
 
 DoD:
-- [ ] No NAT gateways verified.
-- [ ] No forbidden always-on infra dependency verified.
-- [ ] SG/subnet posture checks are explicit and evidenced.
+- [x] No NAT gateways verified.
+- [x] No forbidden always-on infra dependency verified.
+- [x] SG/subnet posture checks are explicit and evidenced.
 
 ### M2.G Decision Pins (Closed Before Execution)
 1. NAT posture:
@@ -680,9 +680,9 @@ Tasks:
 3. Fail closed if any required handle is unresolved.
 
 DoD:
-- [ ] Required M2.G handles are resolved from authoritative sources.
-- [ ] Policy constants are confirmed from handles registry.
-- [ ] No unresolved handle remains before command execution.
+- [x] Required M2.G handles are resolved from authoritative sources.
+- [x] Policy constants are confirmed from handles registry.
+- [x] No unresolved handle remains before command execution.
 
 ### M2.G-B Forbidden Resource Checks
 Goal:
@@ -700,9 +700,9 @@ Tasks:
    - if non-empty, `aws ecs describe-services --cluster <ECS_CLUSTER_NAME> --services <service_arns> --query "services[].{name:serviceName,desired:desiredCount,running:runningCount,pending:pendingCount}"`
 
 DoD:
-- [ ] NAT result set is empty.
-- [ ] LB result sets are empty.
-- [ ] ECS service desired counts are all zero.
+- [x] NAT result set is empty.
+- [x] LB result sets are empty.
+- [x] ECS service desired counts are all zero.
 
 ### M2.G-C SG/Subnet/Route Posture Checks
 Goal:
@@ -722,9 +722,9 @@ Tasks:
    - each declared public subnet has IGW default route.
 
 DoD:
-- [ ] Public subnet mapping is explicit and valid.
-- [ ] Route table posture confirms IGW path for declared public subnets.
-- [ ] SG posture confirms no public-open ingress on app/db SGs.
+- [x] Public subnet mapping is explicit and valid.
+- [x] Route table posture confirms IGW path for declared public subnets.
+- [x] SG posture confirms no public-open ingress on app/db SGs.
 
 ### M2.G-D Evidence and PASS Contract
 Goal:
@@ -744,9 +744,9 @@ Tasks:
    - `sg_subnet_route_checks_pass == true`
 
 DoD:
-- [ ] Local and durable M2.G artifacts exist.
-- [ ] PASS predicate fields are explicit and true.
-- [ ] Artifact contains no secret values.
+- [x] Local and durable M2.G artifacts exist.
+- [x] PASS predicate fields are explicit and true.
+- [x] Artifact contains no secret values.
 
 ### M2.G-E Blocker Model (Fail-Closed)
 Goal:
@@ -765,9 +765,32 @@ Tasks:
 3. Keep M2 progression blocked until all M2G blockers are closed.
 
 DoD:
-- [ ] M2G blocker taxonomy is pinned.
-- [ ] Fail-closed rule is explicit.
-- [ ] M2.J entry remains blocked unless M2.G PASS is evidenced.
+- [x] M2G blocker taxonomy is pinned.
+- [x] Fail-closed rule is explicit.
+- [x] M2.J entry remains blocked unless M2.G PASS is evidenced.
+
+### M2.G Execution Summary (Current)
+1. Executed full `M2.G-A -> M2.G-E` lane with authoritative handles from Terraform outputs and policy constants from registry.
+2. Runtime result:
+   - `nat_gateways_non_deleted_count=0`
+   - `load_balancers_count=0`
+   - `ecs_services_desired_gt_zero_count=0`
+   - `sg_subnet_route_checks_pass=true`
+   - `overall_pass=true`
+3. M2.G status:
+   - `DONE` (green).
+4. Blockers:
+   - none (`M2G-B1..B4` not triggered).
+
+### M2.G Evidence
+1. Local:
+   - `runs/dev_substrate/m2_g/20260213T190819Z/network_posture_snapshot.json`
+   - `runs/dev_substrate/m2_g/20260213T190819Z/no_nat_check.json`
+2. Durable:
+   - `s3://fraud-platform-dev-min-evidence/evidence/dev_min/substrate/m2_20260213T190819Z/network_posture_snapshot.json`
+   - `s3://fraud-platform-dev-min-evidence/evidence/dev_min/substrate/m2_20260213T190819Z/no_nat_check.json`
+3. Notes:
+   - superseded initial attempt `m2_20260213T190451Z` was removed from S3 after strict exit-code enforcement was added for subnet checks.
 
 ## M2.H Runtime DB and Migration Readiness
 Goal:
@@ -863,7 +886,7 @@ Notes:
 - [x] M2.D complete
 - [x] M2.E complete
 - [x] M2.F complete
-- [ ] M2.G complete
+- [x] M2.G complete
 - [ ] M2.H complete
 - [ ] M2.I complete
 - [ ] M2.J complete

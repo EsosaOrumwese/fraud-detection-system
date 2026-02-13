@@ -261,7 +261,7 @@ Active-phase execution posture:
   - [x] `M2.D` demo apply closure contract and evidence.
   - [x] `M2.E` SSM secret materialization and access checks.
   - [x] `M2.F` Kafka topic/ACL/access readiness.
-  - [ ] `M2.G` network/no-NAT/no-always-on-LB verification.
+  - [x] `M2.G` network/no-NAT/no-always-on-LB verification.
   - [ ] `M2.H` runtime DB readiness + migrations posture.
   - [ ] `M2.I` budget and teardown-viability proof.
   - [ ] `M2.J` exit-readiness and M3 handoff.
@@ -458,7 +458,6 @@ Control: required P12 teardown proof and budget guardrails.
 ## 12) Immediate Next Action
 M2 is active for deep planning and closure-hardening.
 Next action:
-- execute `M2.G-A -> M2.G-E` network verification sequence from `platform.M2.build_plan.md`,
-- require `network_posture_snapshot.json` + `no_nat_check.json` PASS evidence before closing `M2.G`,
-- keep `M2.H`/`M2.I` sequencing strict (DB readiness before budget/teardown closure),
+- execute `M2.H` DB/migrations readiness lane with pinned handles and fail-closed evidence,
+- keep `M2.I` sequencing strict after `M2.H` closure (budget/teardown guardrails before M2.J),
 - maintain fail-closed posture: no `M2.J` handoff until `M2.G` + `M2.H` + `M2.I` are all green.
