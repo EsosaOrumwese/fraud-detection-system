@@ -266,15 +266,16 @@ def _top_fraction_share(values: np.ndarray, fraction: float) -> float:
 def _macro_region(region: Optional[str], subregion: Optional[str]) -> str:
     region_s = (region or "").strip()
     subregion_s = (subregion or "").strip()
+    lower_subregion = subregion_s.lower()
     if region_s in {"Africa", "Asia", "Europe", "Oceania"}:
         return region_s
     if region_s == "Americas":
-        if "south" in subregion_s.lower():
+        if "south" in lower_subregion or "latin america" in lower_subregion:
             return "South America"
         return "North America"
-    if "south america" in subregion_s.lower():
+    if "south america" in lower_subregion or "latin america" in lower_subregion:
         return "South America"
-    if "north america" in subregion_s.lower() or "caribbean" in subregion_s.lower():
+    if "north america" in lower_subregion or "caribbean" in lower_subregion:
         return "North America"
     return "Other"
 

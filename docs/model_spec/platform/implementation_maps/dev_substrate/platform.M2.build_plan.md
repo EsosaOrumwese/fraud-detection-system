@@ -559,14 +559,40 @@ Tasks:
 3. Pin topic verification command set and expected outputs.
 4. Pin ACL verification posture (at least minimum producer/consumer rights per lane).
 5. Pin one canonical verification lane before execution:
-   - `confluent` CLI, or
-   - Kafka admin client script executed from managed runner image.
+   - `confluent` CLI (if Cloud-compatible command lane is available), or
+   - Kafka admin client script executed from managed runner image/local CLI.
 6. If verification lane is not pinned, M2.F stays blocked.
 
 DoD:
 - [ ] All required topic handles are resolvable and present.
 - [ ] Connectivity/auth verification passes with pinned checks.
 - [ ] ACL readiness checks are explicit and repeatable.
+
+### M2.F Canonical Verification Lane (Pinned)
+1. Lane selected: `kafka_admin_protocol_python_confluent_kafka`.
+2. Why this lane:
+   - Confluent CLI topic commands in current installed version are Confluent Platform REST-proxy commands and reject Confluent Cloud URL usage.
+3. Command posture:
+   - resolve bootstrap/api key/api secret from pinned SSM paths,
+   - run non-interactive Kafka metadata check against required topics,
+   - emit non-secret snapshot artifact (`topic_readiness_snapshot.json`) and upload to evidence bucket.
+
+### M2.F Execution Summary (Current)
+1. Confluent CLI lane was exercised and rejected at runtime for Confluent Cloud URL usage.
+2. Selected fallback lane executed with `confluent-kafka` admin client against bootstrap endpoint.
+3. Runtime result:
+   - authentication/connectivity check failed with SASL auth failure at broker handshake,
+   - required topic existence and ACL-readiness checks could not be completed.
+4. M2.F status:
+   - `OPEN_BLOCKED` (fail-closed).
+5. Active blocker:
+   - `M2F-B1`: Confluent Kafka credentials in SSM do not authenticate against pinned bootstrap endpoint.
+
+### M2.F Evidence
+1. Local:
+   - `runs/dev_substrate/m2_f/20260213T145630Z/topic_readiness_snapshot.json`
+2. Durable:
+   - `s3://fraud-platform-dev-min-evidence/evidence/dev_min/substrate/m2_20260213T145630Z/topic_readiness_snapshot.json`
 
 ## M2.G Network, No-NAT, and Forbidden Infra Checks
 Goal:
@@ -703,7 +729,16 @@ Control: explicit command-lane pinning in M2.B/M2.E/M2.F before execution.
 
 ## 8.1) Unresolved Blocker Register (Must Be Empty Before M2 Execution)
 Current blockers:
-1. None.
+1. `M2F-B1` (open)
+   - blocker summary:
+     - M2.F Kafka admin verification failed at SASL auth handshake for bootstrap `pkc-41wq6.eu-west-2.aws.confluent.cloud:9092`,
+     - SSM credential paths exist but current values are not valid for runtime Kafka authentication.
+   - closure criteria:
+     - rotate/fix Confluent Kafka API key/secret at pinned SSM paths,
+     - rerun M2.F command lane and produce `overall_pass=true` in `topic_readiness_snapshot.json`.
+   - evidence:
+     - local: `runs/dev_substrate/m2_f/20260213T145630Z/topic_readiness_snapshot.json`
+     - durable: `s3://fraud-platform-dev-min-evidence/evidence/dev_min/substrate/m2_20260213T145630Z/topic_readiness_snapshot.json`
 
 Resolved blockers:
 1. `M2C-B1` (closed)

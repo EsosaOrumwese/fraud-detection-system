@@ -457,4 +457,4 @@ Control: required P12 teardown proof and budget guardrails.
 ## 12) Immediate Next Action
 M2 is active for deep planning and closure-hardening.
 Next action:
-- execute `M2.F` and pin/validate the canonical topic verification lane (Confluent connectivity, topic existence, ACL readiness).
+- resolve `M2F-B1` (invalid Kafka auth at pinned bootstrap/SSM creds), then rerun `M2.F` to full PASS evidence (`topic_readiness_snapshot.json` with `overall_pass=true`).

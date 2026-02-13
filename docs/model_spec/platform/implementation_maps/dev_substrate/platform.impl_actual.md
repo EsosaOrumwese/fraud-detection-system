@@ -6969,3 +6969,73 @@ Close the loop on cost-guardrail hardening by converting tooling from "defined" 
 ### Drift sentinel checkpoint
 1. No platform flow or truth-owner semantics changed.
 2. This is observability/governance hardening for cost control only.
+
+## Entry: 2026-02-13 2:50PM - Pre-change lock: M2.F Kafka topic readiness execution with fail-closed lane selection
+
+### Trigger
+USER approved moving forward with `M2.F` implementation and accepted the recommended verification approach.
+
+### Problem surfaced during execution planning
+1. `confluent` CLI is now installed and available, but topic commands in this release are Confluent Platform REST-proxy commands.
+2. Running `confluent kafka topic list --url <Confluent Cloud endpoint>` returns explicit warning that Confluent Cloud URLs are not supported in that command path.
+3. This creates a command-lane mismatch if we insist on CLI-only closure for M2.F.
+
+### Decision (fail-closed, no handwaving)
+1. Keep M2.F objective unchanged: prove topic existence, auth connectivity, and minimum access posture for required Spine Green v0 topics.
+2. Pivot execution lane to the already allowed alternative in M2.F:
+- Kafka admin protocol/script lane (non-interactive),
+- backed by SSM-resolved bootstrap + Kafka API key/secret.
+3. Record CLI mismatch as an explicit execution constraint, not as hidden drift.
+
+### Implementation plan for this pass
+1. Resolve required topic handles from registry (required set only).
+2. Resolve Kafka bootstrap/API creds from pinned SSM paths (do not persist secrets).
+3. Execute Kafka topic metadata checks for each required topic via scripted admin path.
+4. Emit non-secret evidence artifact:
+- local: `runs/dev_substrate/m2_f/<timestamp>/topic_readiness_snapshot.json`
+- durable: `s3://fraud-platform-dev-min-evidence/evidence/dev_min/substrate/m2_<timestamp>/topic_readiness_snapshot.json`
+5. Update M2 deep plan and main plan status:
+- mark `M2.F` complete only on full PASS,
+- otherwise register blocker and keep M2.F open.
+
+### Boundaries
+1. No Terraform mutation in this pass.
+2. No secret value persistence.
+3. No ownership/plane semantic change; this is substrate verification only.
+
+## Entry: 2026-02-13 2:57PM - Post-change record: M2.F executed fail-closed, blocker registered
+
+### What was executed
+1. Installed/validated `confluent` CLI and attempted CLI topic lane.
+2. Confirmed runtime mismatch:
+   - CLI topic command path rejected Confluent Cloud URL usage in this context.
+3. Executed Kafka admin script lane using `confluent-kafka` metadata checks with SSM-resolved bootstrap/key/secret.
+4. Persisted M2.F evidence:
+   - local: `runs/dev_substrate/m2_f/20260213T145630Z/topic_readiness_snapshot.json`
+   - durable: `s3://fraud-platform-dev-min-evidence/evidence/dev_min/substrate/m2_20260213T145630Z/topic_readiness_snapshot.json`
+
+### Runtime result
+1. Kafka auth/connectivity failed at SASL handshake (`overall_pass=false`).
+2. Because auth failed, required-topic existence and ACL-readiness checks cannot be marked PASS.
+3. M2.F was not force-closed; fail-closed posture retained.
+
+### Documentation/state updates made
+1. Updated `platform.M2.build_plan.md`:
+   - pinned canonical M2.F verification lane as Kafka admin protocol script,
+   - recorded execution summary and evidence paths,
+   - registered open blocker `M2F-B1`.
+2. Updated `platform.build_plan.md` immediate next action:
+   - resolve `M2F-B1`, then rerun M2.F to `overall_pass=true`.
+
+### Blocker closure path
+1. Rotate/fix Confluent Kafka credentials at pinned SSM paths:
+   - `/fraud-platform/dev_min/confluent/api_key`
+   - `/fraud-platform/dev_min/confluent/api_secret`
+2. Rerun M2.F command lane and verify:
+   - auth PASS,
+   - all required topics present,
+   - `topic_readiness_snapshot.json` reports `overall_pass=true`.
+
+### Drift sentinel checkpoint
+1. No platform semantic drift introduced.
+2. This is substrate truth exposure and blocker registration only.
