@@ -289,9 +289,79 @@ Tasks:
 3. Pin retry/failure posture for build and push failures.
 
 DoD:
-- [ ] Canonical command surface is defined (no alternative ad hoc path).
-- [ ] Required inputs are explicitly listed.
-- [ ] Failure handling is fail-closed and documented.
+- [x] Canonical command surface is defined (no alternative ad hoc path).
+- [x] Required inputs are explicitly listed.
+- [x] Failure handling is fail-closed and documented.
+
+M1.E canonical build command surface (frozen):
+1. Driver selection is explicit and recorded:
+   - selected by `IMAGE_BUILD_DRIVER` (`github_actions` or `local_cli`),
+   - selected driver must be written into packaging provenance evidence.
+2. Canonical command family for `local_cli`:
+   - auth/login:
+     - `aws ecr get-login-password --region "$AWS_REGION" | docker login --username AWS --password-stdin "$ECR_REPO_URI"`
+   - build immutable image:
+     - `docker build --file "$IMAGE_DOCKERFILE_PATH" --tag "$ECR_REPO_URI:$IMAGE_TAG_IMMUTABLE" "$IMAGE_BUILD_PATH"`
+   - push immutable image:
+     - `docker push "$ECR_REPO_URI:$IMAGE_TAG_IMMUTABLE"`
+   - resolve digest:
+     - `aws ecr describe-images --repository-name "$ECR_REPO_NAME" --image-ids imageTag="$IMAGE_TAG_IMMUTABLE" --region "$AWS_REGION" --query "imageDetails[0].imageDigest" --output text`
+   - optional convenience tag push (non-authoritative):
+     - `docker tag "$ECR_REPO_URI:$IMAGE_TAG_IMMUTABLE" "$ECR_REPO_URI:$IMAGE_TAG_DEV_MIN_LATEST"`
+     - `docker push "$ECR_REPO_URI:$IMAGE_TAG_DEV_MIN_LATEST"`
+3. Canonical command family for `github_actions`:
+   - workflow must execute the same logical sequence (auth -> build -> push immutable -> resolve digest -> optional convenience tag),
+   - workflow output must emit immutable tag and resolved digest in machine-readable form for evidence write.
+4. No ad hoc alternates:
+   - no other command families are allowed for M1 build-go execution.
+   - any deviation requires explicit repin in this plan and the handles registry/runbook if key surfaces change.
+
+M1.E required inputs (pinned):
+1. Handles:
+   - `AWS_REGION`
+   - `ECR_REPO_NAME`
+   - `ECR_REPO_URI`
+   - `IMAGE_BUILD_DRIVER`
+   - `IMAGE_BUILD_PATH`
+   - `IMAGE_DOCKERFILE_PATH`
+   - `IMAGE_TAG_GIT_SHA_PATTERN`
+   - `IMAGE_TAG_DEV_MIN_LATEST` (optional non-authoritative tag)
+   - `IMAGE_REFERENCE_MODE`
+2. Source metadata:
+   - `git_sha` (used to materialize immutable tag per `IMAGE_TAG_GIT_SHA_PATTERN`).
+3. Execution identity:
+   - build actor identity (`operator` or CI principal) must be captured in provenance evidence.
+
+M1.E failure/retry posture (fail-closed):
+1. Build failure:
+   - any non-zero build exit is terminal for that attempt; no progression to push.
+2. Push or digest lookup failure:
+   - allow one bounded retry for transient transport/registry errors.
+   - if retry fails, mark P(-1) as FAIL and stop M1 execution.
+3. Immutable integrity failure:
+   - if resolved digest is empty/unreadable/mismatched, fail P(-1).
+   - immutable tag reuse for a different digest is forbidden; treat as blocker.
+4. Provenance failure:
+   - if immutable tag + digest cannot be written to evidence contract surfaces, do not mark packaging PASS.
+5. Mutable tag failure:
+   - convenience tag push failure does not override immutable success but must be recorded as non-authoritative warning.
+
+M1.E execution evidence requirement:
+1. Build command-surface receipt artifact:
+   - `s3://<S3_EVIDENCE_BUCKET>/evidence/runs/<platform_run_id>/P(-1)/build_command_surface_receipt.json`
+2. Minimum receipt fields:
+   - selected `IMAGE_BUILD_DRIVER`,
+   - canonical command family id (`local_cli_v0` or `github_actions_v0`),
+   - immutable tag,
+   - resolved digest,
+   - build actor,
+   - UTC timestamp,
+   - PASS/FAIL verdict and failure reason (if any).
+
+M1.E completion notes:
+1. Build/push behavior is now deterministic and non-ad hoc for M1 execution.
+2. Required handle/input set is explicit and tied to registry keys.
+3. Failure/retry posture is pinned fail-closed with bounded retry scope.
 
 ## M1.F Exit Readiness Review
 Goal:
@@ -312,7 +382,7 @@ DoD:
 - [x] M1.B complete
 - [x] M1.C complete
 - [x] M1.D complete
-- [ ] M1.E complete
+- [x] M1.E complete
 - [ ] M1.F complete
 
 ## 7) Risks and Controls

@@ -201,18 +201,20 @@ Failure posture:
 Active-phase execution posture:
 - This activation pass is planning and contract finalization.
 - Image build/push execution starts only on explicit USER build-go for M1 execution.
+- Detailed M1 execution authority is `docs/model_spec/platform/implementation_maps/dev_substrate/platform.M1.build_plan.md` (contains pinned decisions required during build-go).
 - Sub-phase progress:
   - [x] `M1.A` image contract freeze complete.
   - [x] `M1.B` entrypoint matrix completion complete.
   - [x] `M1.C` provenance/evidence contract freeze complete.
   - [x] `M1.D` security/secret-injection contract freeze complete.
-  - [ ] `M1.E`..`M1.F` pending.
+  - [x] `M1.E` build command surface/reproducibility contract freeze complete.
+  - [ ] `M1.F` pending.
 
 M1 DoD checklist:
-- [ ] Packaging contract finalized in `platform.M1.build_plan.md` (image, entrypoints, provenance, security).
-- [ ] Build command surface and inputs are pinned (no ad hoc build path).
-- [ ] Evidence write contract for P(-1) is pinned and testable.
-- [ ] Runtime secret-handling rules are pinned (no secret baked into image).
+- [x] Packaging contract finalized in `platform.M1.build_plan.md` (image, entrypoints, provenance, security).
+- [x] Build command surface and inputs are pinned (no ad hoc build path).
+- [x] Evidence write contract for P(-1) is pinned and testable.
+- [x] Runtime secret-handling rules are pinned (no secret baked into image).
 - [ ] M1 execution handoff statement is prepared for build-go pass.
 
 ---

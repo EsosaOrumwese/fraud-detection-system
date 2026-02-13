@@ -5432,3 +5432,77 @@ Documentation-contract hardening only; no runtime or infrastructure behavior exe
 
 ### Drift sentinel assessment
 No semantic or ownership-boundary drift introduced. This reduces packaging-time secret-risk ambiguity before execution.
+
+## Entry: 2026-02-13 8:59AM - Pre-change lock: add explicit M1 deep-plan reference in main plan and implement M1.E
+
+### Trigger
+USER requested two actions in sequence:
+1. Add explicit reference in `platform.build_plan.md` that detailed M1 decisions are in `platform.M1.build_plan.md`.
+2. Move to and implement `M1.E`.
+
+### Objective
+Close documentation drift between main-plan active phase and deep-plan authority, then close M1.E by pinning canonical build command surface and reproducibility/failure posture.
+
+### Scope
+1. `docs/model_spec/platform/implementation_maps/dev_substrate/platform.build_plan.md`
+   - add explicit M1 deep-plan reference in active M1 section,
+   - update sub-phase progress for M1.E completion,
+   - update applicable M1 checklist items that become objectively satisfied.
+2. `docs/model_spec/platform/implementation_maps/dev_substrate/platform.M1.build_plan.md`
+   - complete M1.E DoD,
+   - pin canonical build/push command surface,
+   - pin required inputs/handles,
+   - pin fail-closed retry/failure posture.
+
+### Key decisions (before patch)
+1. Main plan must explicitly route implementers to `platform.M1.build_plan.md` during M1 execution because it holds pinned command/provenance/security decisions.
+2. M1.E will pin one canonical command surface family with deterministic command templates and required handles; no ad hoc command variants allowed.
+3. Any build/push/provenance mismatch remains fail-closed blocker for M1 execution closure.
+4. This pass remains planning-only; no image build/push execution starts yet.
+
+### Validation plan
+- confirm M1.E DoD checkboxes are all checked.
+- confirm M1 completion checklist marks M1.E complete.
+- confirm main plan includes explicit M1 deep-plan reference and updated sub-phase progress.
+
+### Drift sentinel checkpoint
+Documentation-contract closure only; no runtime/infrastructure execution changes.
+
+## Entry: 2026-02-13 9:00AM - Applied M1 main-plan reference update and M1.E build command-surface closure
+
+### Files updated
+1. `docs/model_spec/platform/implementation_maps/dev_substrate/platform.build_plan.md`
+2. `docs/model_spec/platform/implementation_maps/dev_substrate/platform.M1.build_plan.md`
+
+### What was implemented
+1. Main-plan reference hardening (per USER request)
+- Added explicit active-phase reference that M1 execution authority lives in:
+  - `docs/model_spec/platform/implementation_maps/dev_substrate/platform.M1.build_plan.md`
+- Clarified that this deep plan contains pinned decisions required during build-go execution.
+
+2. M1.E closure in deep plan
+- Completed M1.E DoD and added pinned command-surface contract:
+  - deterministic command family for `local_cli` and `github_actions`,
+  - explicit required handles/inputs,
+  - fail-closed retry/failure posture,
+  - build command-surface evidence receipt artifact contract.
+- Marked `M1.E complete` in M1 completion checklist.
+
+3. Main-plan progress alignment
+- Updated M1 sub-phase progress:
+  - `M1.A..M1.E` complete,
+  - `M1.F` pending.
+- Updated M1 DoD checklist to mark objectively satisfied items complete:
+  - packaging contract finalized,
+  - build command surface pinned,
+  - evidence contract pinned,
+  - secret-handling rules pinned.
+- Left handoff statement item pending for M1.F.
+
+### Validation
+- Confirmed explicit M1 deep-plan reference exists in active M1 section.
+- Confirmed M1.E DoD and checklist are checked in deep plan.
+- Confirmed main-plan M1 progress and DoD checkboxes align with M1.A..M1.E completion state.
+
+### Drift sentinel assessment
+No runtime or infrastructure execution changes were made. This is planning/control-surface hardening and phase progression closure for M1.E.
