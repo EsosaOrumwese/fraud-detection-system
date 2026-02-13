@@ -416,10 +416,52 @@ Data outputs under evaluation:
 - `s6_site_jitter`
 - `site_locations`
 
+P4 execution blocks:
+- `P4.1` Lock envelope and authority pin:
+  - pin exact authority inputs for this phase:
+    - `P1` lock (`run_id=335c9a7eec04491a845abc2a049f959f`),
+    - `P2` lock (`run_id=47ad6781ab9d4d92b311b068f51141f6`),
+    - `P3` lock (`run_id=979129e39a89446b942df9a463f09508`),
+    - active policy versions and scorer paths used for integrated scoring.
+  - freeze boundary for `P4`:
+    - no upstream reopen in `P1/P2/P3` unless integrated evidence proves contradiction.
+  - emit a single `P4 authority envelope` artifact in `runs/fix-data-engine/segment_1B/reports`.
+
+- `P4.2` Integrated baseline pass:
+  - run one integrated candidate from the locked envelope.
+  - produce one integrated scorecard with all B-gates in one table:
+    - concentration posture,
+    - geometry posture,
+    - coverage posture,
+    - no-regression deltas vs locked `P3`.
+  - classify status:
+    - `GREEN_B` (all B hard gates pass),
+    - `AMBER_NEAR_BPLUS` (B passes, only stretch metrics remain),
+    - `RED_REOPEN_REQUIRED` (contradiction against locked upstream posture).
+
+- `P4.3` B/B+ bounded recovery mini-loop:
+  - only enters if `P4.2` is `AMBER_NEAR_BPLUS`.
+  - bounded loop discipline:
+    - one knob group at a time,
+    - one fresh run-id per attempt,
+    - strict veto if any B hard gate regresses.
+  - stop conditions:
+    - `B+` reached and stable, or
+    - no further safe movement after bounded attempts (accept best `B`).
+
+- `P4.4` Acceptance and handoff:
+  - run same-seed repro witness for accepted integrated candidate.
+  - write P4 lock record + update pointers.
+  - prune superseded P4 attempt run folders and keep only authority/accepted/repro runs.
+  - mark phase complete and hand off to `P5`.
+
 Definition of done:
-- [ ] all `B` hard realism gates pass on integrated candidate.
-- [ ] no locked upstream phase (`P1/P2/P3`) needs reopening for data-shape contradictions.
-- [ ] if near-threshold, execute bounded B+ retune loop without breaking B posture.
+- [ ] `P4.1` authority envelope is written and references exact lock inputs (`P1/P2/P3`) with no ambiguity.
+- [ ] `P4.2` integrated baseline scorecard is produced and classified (`GREEN_B`, `AMBER_NEAR_BPLUS`, or `RED_REOPEN_REQUIRED`).
+- [ ] if `AMBER_NEAR_BPLUS`, `P4.3` executes bounded recovery with no B hard-gate regression.
+- [ ] accepted integrated candidate has reproducibility witness (`P4.4`) with matching score posture.
+- [ ] P4 lock record and pointer updates are written; superseded run-id folders are pruned and retained set is explicit.
+- [ ] if contradiction is detected, phase is fail-closed and explicit reopen approval is requested before any upstream edits.
 
 ### P5 - Certification and freeze
 Focus:

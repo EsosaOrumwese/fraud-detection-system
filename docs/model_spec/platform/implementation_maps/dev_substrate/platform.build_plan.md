@@ -458,6 +458,6 @@ Control: required P12 teardown proof and budget guardrails.
 ## 12) Immediate Next Action
 M2 is active for deep planning and closure-hardening.
 Next action:
-- execute `M2.J` exit-readiness and M3 handoff lane with pinned evidence artifacts,
+- execute `M2.J-A -> M2.J-F` exit-readiness and M3 handoff lane with pinned evidence artifacts,
 - keep M3 sequencing strict after `M2.J` closure (no M3 activation without explicit M2 readiness verdict and handoff pack),
 - maintain fail-closed posture: no `M2.J` handoff until `M2.G` + `M2.H` + `M2.I` are all green.

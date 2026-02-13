@@ -4072,3 +4072,27 @@ Implementation + execution trail:
 Result posture:
 - P3 is now closure-grade green under the approved reopen path.
 - Remaining progression moves to integrated `P4` with `P1/P2/P3` locked by default.
+
+---
+
+### Entry: 2026-02-13 20:44
+
+Design element: P4 plan expansion from coarse block to execution-grade phased structure.
+Summary: Expanded P4 into `P4.1 -> P4.4` so integrated closure is run under explicit lock authority, bounded recovery rules, and deterministic handoff evidence.
+
+Why expansion was required:
+1) Prior P4 block stated intent only and was under-specified for execution control.
+2) We need explicit fail-closed classification (`GREEN_B`, `AMBER_NEAR_BPLUS`, `RED_REOPEN_REQUIRED`) before any tuning loop.
+3) We need storage-safe and causality-safe execution boundaries so integrated work does not silently reopen locked upstream phases.
+
+What was added to build plan:
+1) `P4.1` authority envelope pinning (`P1/P2/P3` locks + scorer/policy authority).
+2) `P4.2` integrated baseline pass with single scorecard and status classifier.
+3) `P4.3` bounded B/B+ recovery mini-loop (one knob-group-at-a-time, strict veto).
+4) `P4.4` acceptance/handoff (repro witness, lock record, pointers, prune set).
+5) Updated P4 DoD checklist aligned to those four blocks.
+
+Execution posture after this planning update:
+- No runtime state was executed in this step.
+- No policy/runner code was changed in this step.
+- Next actionable step is `P4.1` authority envelope materialization.
