@@ -8181,3 +8181,83 @@ USER directed immediate progression to close `M2.F` after workflow secret mappin
 ### Purpose
 1. Keep main plan semantics aligned with executed M3.C artifact posture.
 2. Prevent accidental over-claim of finalized scenario identity before P3/P5 closure.
+
+## Entry: 2026-02-13 10:00PM - Pre-change lock: expand M3.D -> M3.G planning sequentially
+
+### Trigger
+1. USER requested full planning expansion for the remainder of M3 in one pass, opening each sub-phase sequentially (`M3.D`, `M3.E`, `M3.F`, `M3.G`).
+
+### Planning scope for this pass
+1. Expand each sub-phase from high-level bullets to closure-grade planning blocks:
+   - Decision Pins
+   - Verification Command Catalog
+   - Blocker Taxonomy
+   - Evidence Contract
+   - Planning Status
+2. Keep this pass planning-only (no runtime command execution for D/E/F/G).
+3. Preserve phase-order semantics and fail-closed posture for M3 completion.
+
+### Sequential expansion intent
+1. `M3.D`: durable publication of `run.json` + `run_started.json` anchored to M3.C digest.
+2. `M3.E`: runtime-scope export bundle for M4 (`REQUIRED_PLATFORM_RUN_ID` contract).
+3. `M3.F`: deterministic pass-gates and binary verdict (`ADVANCE_TO_M4` / `HOLD_M3`).
+4. `M3.G`: canonical M3 closeout + M4 handoff artifact publication.
+
+### Expected doc updates
+1. `docs/model_spec/platform/implementation_maps/dev_substrate/platform.M3.build_plan.md`
+2. `docs/model_spec/platform/implementation_maps/dev_substrate/platform.build_plan.md` (active M3 summary alignment)
+
+## Entry: 2026-02-13 10:05PM - Post-change record: M3.D -> M3.G planning expanded sequentially
+
+### What was expanded
+1. `docs/model_spec/platform/implementation_maps/dev_substrate/platform.M3.build_plan.md`:
+   - Expanded `M3.D` with:
+     - Decision Pins,
+     - Verification Command Catalog (`M3D_V1..V7`),
+     - Blocker Taxonomy (`M3D-B1..B8`),
+     - planning status.
+   - Expanded `M3.E` with:
+     - Decision Pins,
+     - Verification Command Catalog (`M3E_V1..V6`),
+     - Blocker Taxonomy (`M3E-B1..B7`),
+     - planning status.
+   - Expanded `M3.F` with:
+     - Decision Pins,
+     - Verification Command Catalog (`M3F_V1..V5`),
+     - Blocker Taxonomy (`M3F-B1..B5`),
+     - planning status.
+   - Expanded `M3.G` with:
+     - Decision Pins,
+     - Verification Command Catalog (`M3G_V1..V6`),
+     - Blocker Taxonomy (`M3G-B1..B5`),
+     - planning status.
+   - Extended M3 evidence contract payload list to include D/E/F/G control-plane artifacts.
+2. `docs/model_spec/platform/implementation_maps/dev_substrate/platform.build_plan.md`:
+   - Added active M3 summary line noting D->G sequential planning expansion and ordered fail-closed execution requirement.
+   - Refined immediate-next-action to execute `M3.D`, then `M3.E -> M3.G` sequentially in one controlled closure lane.
+
+### Design intent preserved
+1. Sequential closure law is explicit: D then E then F then G with fail-closed checks between steps.
+2. M4 activation remains blocked until M3.G publishes closeout/handoff with `ADVANCE_TO_M4` verdict.
+3. No runtime execution was performed in this pass; planning-only hardening.
+
+## Entry: 2026-02-13 10:10PM - Pre-execution lock: run M3.D -> M3.G sequential closure lane
+
+### Trigger
+1. USER directed execution of `M3.D -> M3.G` sequentially in one pass with blocker watch/resolution.
+
+### Execution scope
+1. Run D->E->F->G in strict order and fail-closed between steps.
+2. Publish all local and durable artifacts required by the expanded M3 evidence contract.
+3. Capture blockers per sub-phase (`M3D-*`, `M3E-*`, `M3F-*`, `M3G-*`) and apply best-available deterministic resolution where safe.
+
+### Deterministic execution approach
+1. Single `m3_execution_id` for D->G closure lane.
+2. Input anchors:
+   - M3.A pass snapshot (`m3a_20260213T213547Z`),
+   - M3.B pass snapshot (`m3b_20260213T214223Z`),
+   - M3.C pass snapshot (`m3c_20260213T215336Z`).
+3. D-lane will enforce run.json immutability/conflict guard before durable publication.
+4. E-lane will export single authoritative runtime-scope bundle with required env key map.
+5. F-lane will compute binary verdict from explicit predicates and blocker rollup.
+6. G-lane will publish final handoff artifacts only if verdict is `ADVANCE_TO_M4`.

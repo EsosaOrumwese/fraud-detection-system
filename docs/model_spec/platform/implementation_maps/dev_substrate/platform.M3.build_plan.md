@@ -416,19 +416,75 @@ Goal:
 1. Persist the run anchor to S3 and verify durability.
 
 Tasks:
-1. Write local artifacts:
+1. Create canonical M3 execution root for the D->G closure lane:
+   - `m3_execution_id = m3_<YYYYMMDDTHHmmssZ>`,
+   - local root: `runs/dev_substrate/m3/<timestamp>/`.
+2. Materialize local run anchor artifacts from M3.C outputs:
    - `runs/dev_substrate/m3/<timestamp>/run.json`
    - `runs/dev_substrate/m3/<timestamp>/run_started.json`
-2. Upload durable artifacts:
+3. Upload durable run anchor artifacts:
    - `evidence/runs/<platform_run_id>/run.json`
    - `evidence/runs/<platform_run_id>/run_started.json`
-3. Verify object existence via S3 head/list checks.
-4. Record write receipts and object URIs for M3 evidence.
+4. Verify durable existence via S3 head/list checks.
+5. Publish D-lane publication snapshot:
+   - local: `runs/dev_substrate/m3/<timestamp>/m3_d_run_publication_snapshot.json`
+   - durable: `evidence/dev_min/run_control/<m3_execution_id>/m3_d_run_publication_snapshot.json`
+6. Record write receipts and object URIs for M3 evidence.
 
 DoD:
 - [ ] `run.json` and `run_started.json` exist locally and durably.
 - [ ] Durable object verification succeeds.
 - [ ] `run.json` references the correct `platform_run_id`.
+- [ ] M3.D publication snapshot exists locally and durably.
+
+### M3.D Decision Pins (Closed Before Execution)
+1. Input-anchor law:
+   - M3.D consumes M3.C as its single input anchor and must fail closed unless M3.C `overall_pass=true`.
+2. Manifest law:
+   - `run.json` must include at minimum:
+     - `platform_run_id`,
+     - `scenario_run_id`,
+     - `env`,
+     - `written_at_utc`,
+     - `config_digest`,
+     - image provenance fields.
+3. Start-marker law:
+   - this track requires explicit `run_started.json` (even though optional in runbook) for deterministic evidence symmetry.
+4. Write-order law:
+   - local `run.json` and `run_started.json` must be written before durable upload attempts.
+5. Immutability law:
+   - if durable `run.json` already exists for `platform_run_id` with conflicting digest/provenance, fail closed and open blocker.
+6. Non-secret law:
+   - run anchor artifacts must remain non-secret.
+
+### M3.D Verification Command Catalog (Pinned)
+| Verify ID | Command template | Purpose |
+| --- | --- | --- |
+| `M3D_V1_M3C_PASS` | `Get-Content runs/dev_substrate/m3_c/<timestamp>/m3_c_digest_snapshot.json | ConvertFrom-Json` | verifies M3.C pass anchor and digest availability |
+| `M3D_V2_LOCAL_RUN_JSON` | write `run.json` under `runs/dev_substrate/m3/<timestamp>/` | proves local run anchor generation |
+| `M3D_V3_LOCAL_RUN_STARTED` | write `run_started.json` under `runs/dev_substrate/m3/<timestamp>/` | proves explicit start-marker generation |
+| `M3D_V4_DURABLE_UPLOAD_RUN_JSON` | `aws s3 cp run.json s3://<S3_EVIDENCE_BUCKET>/evidence/runs/<platform_run_id>/run.json` | publishes canonical run anchor |
+| `M3D_V5_DURABLE_UPLOAD_RUN_STARTED` | `aws s3 cp run_started.json s3://<S3_EVIDENCE_BUCKET>/evidence/runs/<platform_run_id>/run_started.json` | publishes run start marker |
+| `M3D_V6_DURABLE_HEAD_CHECK` | `aws s3api head-object --bucket <S3_EVIDENCE_BUCKET> --key evidence/runs/<platform_run_id>/{run.json|run_started.json}` | verifies durable object existence |
+| `M3D_V7_PUBLICATION_SNAPSHOT` | write/upload `m3_d_run_publication_snapshot.json` | captures deterministic D-lane closure verdict |
+
+### M3.D Blocker Taxonomy (Fail-Closed)
+1. `M3D-B1`: M3.C pass anchor missing or non-pass.
+2. `M3D-B2`: `run.json` missing required fields or invalid shape.
+3. `M3D-B3`: local run anchor artifact write failure.
+4. `M3D-B4`: pre-existing durable `run.json` conflicts with M3.C digest/provenance.
+5. `M3D-B5`: durable upload failure for `run.json`.
+6. `M3D-B6`: durable upload/head verification failure for `run_started.json`.
+7. `M3D-B7`: non-secret policy violation in D-lane artifacts.
+8. `M3D-B8`: D-lane publication snapshot missing.
+
+### M3.D Planning Status (Current)
+1. M3.D planning has been expanded to closure-grade detail.
+2. Input anchors are explicit:
+   - M3.C digest snapshot (`m3c_20260213T215336Z`),
+   - M3.B run-id anchor (`platform_20260213T214223Z`).
+3. Execution has not started yet.
+4. No open M3.D blocker is currently registered at planning stage.
 
 ### M3.E Runtime Scope Export Contract for M4
 Goal:
@@ -438,16 +494,61 @@ Tasks:
 1. Build M4 runtime scope bundle with:
    - `platform_run_id`
    - `REQUIRED_PLATFORM_RUN_ID_ENV_KEY`
+   - env-key/value map (`REQUIRED_PLATFORM_RUN_ID=<platform_run_id>`)
    - run evidence root URI
-   - M3 manifest URI references.
-2. Ensure bundle is non-secret.
-3. Publish local and durable handoff helper artifact:
-   - `m4_runtime_scope_bundle.json`.
+   - M3 manifest URI references (`run.json`, `run_started.json`, M3.C digest snapshot).
+2. Include deterministic service family scope coverage for P2 bring-up:
+   - WSP, IG, IEG, OFP, CSFB, ArchiveWriter, DL, DF, AL, DLA, CaseTrigger, CM, LS, reporter lane.
+3. Ensure bundle is non-secret.
+4. Publish local and durable handoff artifacts:
+   - `runs/dev_substrate/m3/<timestamp>/m4_runtime_scope_bundle.json`
+   - `runs/dev_substrate/m3/<timestamp>/m3_e_runtime_scope_snapshot.json`
+   - `evidence/dev_min/run_control/<m3_execution_id>/m4_runtime_scope_bundle.json`
+   - `evidence/dev_min/run_control/<m3_execution_id>/m3_e_runtime_scope_snapshot.json`
 
 DoD:
 - [ ] Runtime scope bundle is complete and non-secret.
 - [ ] M4 consumers can read a single authoritative scope surface.
 - [ ] Missing run-scope keys are fail-closed.
+- [ ] Runtime-scope snapshot exists locally and durably.
+
+### M3.E Decision Pins (Closed Before Execution)
+1. Scope-source law:
+   - M3.E must source `platform_run_id` and run evidence URIs from M3.D-published artifacts only.
+2. Env-key law:
+   - runtime env key must be taken from `REQUIRED_PLATFORM_RUN_ID_ENV_KEY` and not hardcoded ad hoc.
+3. Single-surface law:
+   - M4 consumers must use only `m4_runtime_scope_bundle.json` as the authoritative run-scope surface.
+4. Coverage law:
+   - all in-scope P2 daemon families must be represented in the runtime-scope export map.
+5. Non-secret law:
+   - no secret values are allowed in runtime scope bundle/snapshot artifacts.
+6. Fail-closed law:
+   - missing scope key/value for any required family blocks M3 progression.
+
+### M3.E Verification Command Catalog (Pinned)
+| Verify ID | Command template | Purpose |
+| --- | --- | --- |
+| `M3E_V1_DURABLE_RUN_ANCHOR` | `aws s3api head-object --bucket <S3_EVIDENCE_BUCKET> --key evidence/runs/<platform_run_id>/{run.json|run_started.json}` | verifies D-lane durable anchors exist |
+| `M3E_V2_SCOPE_KEY_HANDLE` | `rg -n \"REQUIRED_PLATFORM_RUN_ID_ENV_KEY\" docs/model_spec/platform/migration_to_dev/dev_min_handles.registry.v0.md` | verifies env-key source pin exists |
+| `M3E_V3_LOCAL_SCOPE_BUNDLE` | write `m4_runtime_scope_bundle.json` locally | proves scope bundle materialization |
+| `M3E_V4_SCOPE_COMPLETENESS` | validate bundle includes required daemon family map + env key/value + URIs | proves coverage and schema completeness |
+| `M3E_V5_SECRET_SCAN` | scan `m4_runtime_scope_bundle.json` / `m3_e_runtime_scope_snapshot.json` for secret markers | enforces non-secret policy |
+| `M3E_V6_DURABLE_UPLOAD` | `aws s3 cp` bundle/snapshot to `evidence/dev_min/run_control/<m3_execution_id>/` | proves durable publication |
+
+### M3.E Blocker Taxonomy (Fail-Closed)
+1. `M3E-B1`: M3.D durable run anchor artifacts missing.
+2. `M3E-B2`: `REQUIRED_PLATFORM_RUN_ID_ENV_KEY` unresolved/missing.
+3. `M3E-B3`: runtime-scope bundle missing required fields/families.
+4. `M3E-B4`: run-scope env map mismatch (`value != platform_run_id`).
+5. `M3E-B5`: local bundle/snapshot write failure.
+6. `M3E-B6`: durable bundle/snapshot upload failure.
+7. `M3E-B7`: non-secret policy violation in E-lane artifacts.
+
+### M3.E Planning Status (Current)
+1. M3.E planning has been expanded to closure-grade detail.
+2. Execution has not started yet.
+3. No open M3.E blocker is currently registered at planning stage.
 
 ### M3.F Pass Gates, Blockers, and Verdict
 Goal:
@@ -463,18 +564,48 @@ Tasks:
 2. Compute verdict:
    - all true => `ADVANCE_TO_M4`
    - otherwise => `HOLD_M3`.
-3. Blocker taxonomy:
-   - `M3-B1`: unresolved/placeholder scenario equivalence key input.
-   - `M3-B2`: run-id collision or invalid run-id format.
-   - `M3-B3`: digest mismatch/non-reproducible payload.
-   - `M3-B4`: run evidence publication failure/incomplete run.json.
-   - `M3-B5`: runtime scope export incomplete for M4.
-   - `M3-B6`: secret leakage detected in M3 artifacts.
+3. Compile explicit blocker set from sub-phase outputs (`M3A-*`, `M3B-*`, `M3C-*`, `M3D-*`, `M3E-*`).
+4. Publish F-lane verdict artifact:
+   - `runs/dev_substrate/m3/<timestamp>/m3_f_verdict_snapshot.json`
+   - `evidence/dev_min/run_control/<m3_execution_id>/m3_f_verdict_snapshot.json`
 
 DoD:
 - [ ] Verdict predicates are explicit and reproducible.
 - [ ] Blocker taxonomy is fail-closed and actionable.
 - [ ] Verdict is persisted in M3 closeout artifacts.
+
+### M3.F Decision Pins (Closed Before Execution)
+1. Predicate law:
+   - only the five pinned predicates are used for binary verdicting.
+2. Source law:
+   - predicates must be derived from authoritative sub-phase snapshots, not operator memory/manual interpretation.
+3. Binary verdict law:
+   - `ADVANCE_TO_M4` only when all predicates are true and blocker set is empty.
+4. Hold law:
+   - any false predicate or any blocker forces `HOLD_M3`.
+5. Trace law:
+   - verdict snapshot must include predicate map + blocker register + source execution IDs.
+
+### M3.F Verification Command Catalog (Pinned)
+| Verify ID | Command template | Purpose |
+| --- | --- | --- |
+| `M3F_V1_LOAD_PHASE_SNAPSHOTS` | load A/B/C/D/E snapshot artifacts (`ConvertFrom-Json`) | ensures verdicting inputs are authoritative and machine-readable |
+| `M3F_V2_PREDICATE_EVAL` | evaluate `handles_closed`, `run_id_collision_free`, `digest_reproducible`, `run_json_durable`, `runtime_scope_export_ready` | computes deterministic predicate truth map |
+| `M3F_V3_BLOCKER_ROLLUP` | merge blocker arrays across A-E snapshots | enforces fail-closed blocker propagation |
+| `M3F_V4_VERDICT_WRITE_LOCAL` | write `m3_f_verdict_snapshot.json` locally | persists binary verdict and rationale |
+| `M3F_V5_VERDICT_UPLOAD_DURABLE` | `aws s3 cp` verdict snapshot to run-control prefix | proves durable verdict publication |
+
+### M3.F Blocker Taxonomy (Fail-Closed)
+1. `M3F-B1`: missing/unreadable prerequisite snapshot from A-E lanes.
+2. `M3F-B2`: predicate evaluation error or incomplete predicate map.
+3. `M3F-B3`: non-empty blocker rollup from prior lanes.
+4. `M3F-B4`: verdict snapshot write failure (local).
+5. `M3F-B5`: verdict snapshot upload failure (durable).
+
+### M3.F Planning Status (Current)
+1. M3.F planning has been expanded to closure-grade detail.
+2. Execution has not started yet.
+3. No open M3.F blocker is currently registered at planning stage.
 
 ### M3.G M4 Handoff Artifact Publication
 Goal:
@@ -487,12 +618,52 @@ Tasks:
 2. Upload durable artifacts:
    - `evidence/dev_min/run_control/<m3_execution_id>/m3_run_pinning_snapshot.json`
    - `evidence/dev_min/run_control/<m3_execution_id>/m4_handoff_pack.json`
-3. Record artifact URIs in execution notes.
+3. Ensure handoff pack includes:
+   - `platform_run_id`
+   - `scenario_run_id`
+   - `config_digest`
+   - `m3_verdict`
+   - `runtime_scope_bundle_uri`
+   - run evidence root and anchor artifact URIs
+   - source execution IDs (`m3a`, `m3b`, `m3c`, `m3d`, `m3e`, `m3f`)
+4. Record artifact URIs in execution notes.
 
 DoD:
 - [ ] Handoff artifacts exist locally and durably.
 - [ ] `m4_handoff_pack.json` is structurally complete and non-secret.
 - [ ] Artifact URI list is captured for M4 entry.
+
+### M3.G Decision Pins (Closed Before Execution)
+1. Precondition law:
+   - M3.G can run only when M3.F verdict is `ADVANCE_TO_M4`.
+2. Handoff completeness law:
+   - `m4_handoff_pack.json` must include all required M4 activation handles and URIs listed above.
+3. Non-secret law:
+   - handoff artifacts must not contain secrets; only handles/URIs/IDs.
+4. Finalization law:
+   - M3 phase closure claim is valid only after durable `m3_run_pinning_snapshot.json` and `m4_handoff_pack.json` publication.
+
+### M3.G Verification Command Catalog (Pinned)
+| Verify ID | Command template | Purpose |
+| --- | --- | --- |
+| `M3G_V1_REQUIRE_ADVANCE_VERDICT` | read `m3_f_verdict_snapshot.json` and assert `verdict=ADVANCE_TO_M4` | enforces precondition law |
+| `M3G_V2_BUILD_HANDOFF_LOCAL` | write `m3_run_pinning_snapshot.json` and `m4_handoff_pack.json` locally | materializes final M3 closure/handoff package |
+| `M3G_V3_HANDOFF_SCHEMA_CHECK` | validate required keys/URIs exist in `m4_handoff_pack.json` | enforces completeness law |
+| `M3G_V4_SECRET_SCAN` | scan handoff artifacts for secret markers | enforces non-secret law |
+| `M3G_V5_DURABLE_UPLOAD` | `aws s3 cp` both artifacts to `evidence/dev_min/run_control/<m3_execution_id>/` | proves durable closeout publication |
+| `M3G_V6_URI_CAPTURE` | append published URIs to execution note/logbook | provides operator-ready M4 entry references |
+
+### M3.G Blocker Taxonomy (Fail-Closed)
+1. `M3G-B1`: M3.F verdict is not `ADVANCE_TO_M4`.
+2. `M3G-B2`: handoff pack missing required fields or URIs.
+3. `M3G-B3`: local closeout artifact write failure.
+4. `M3G-B4`: durable closeout artifact upload failure.
+5. `M3G-B5`: non-secret policy violation in handoff artifacts.
+
+### M3.G Planning Status (Current)
+1. M3.G planning has been expanded to closure-grade detail.
+2. Execution has not started yet.
+3. No open M3.G blocker is currently registered at planning stage.
 
 ## 6) M3 Evidence Contract (Pinned for Execution)
 Evidence roots:
@@ -506,14 +677,18 @@ Evidence roots:
 Minimum evidence payloads:
 1. `evidence/runs/<platform_run_id>/run.json`
 2. `evidence/runs/<platform_run_id>/run_started.json`
-3. `evidence/dev_min/run_control/<m3_execution_id>/m3_run_pinning_snapshot.json`
-4. `evidence/dev_min/run_control/<m3_execution_id>/m4_handoff_pack.json`
-5. `evidence/dev_min/run_control/<m3b_execution_id>/m3_b_run_id_generation_snapshot.json`
-6. `evidence/dev_min/run_control/<m3b_execution_id>/m3_b_run_header_seed.json`
-7. `evidence/dev_min/run_control/<m3c_execution_id>/m3_c_config_payload.json`
-8. `evidence/dev_min/run_control/<m3c_execution_id>/m3_c_config_payload.canonical.json`
-9. `evidence/dev_min/run_control/<m3c_execution_id>/m3_c_digest_snapshot.json`
-10. local mirrors under:
+3. `evidence/dev_min/run_control/<m3_execution_id>/m3_d_run_publication_snapshot.json`
+4. `evidence/dev_min/run_control/<m3_execution_id>/m4_runtime_scope_bundle.json`
+5. `evidence/dev_min/run_control/<m3_execution_id>/m3_e_runtime_scope_snapshot.json`
+6. `evidence/dev_min/run_control/<m3_execution_id>/m3_f_verdict_snapshot.json`
+7. `evidence/dev_min/run_control/<m3_execution_id>/m3_run_pinning_snapshot.json`
+8. `evidence/dev_min/run_control/<m3_execution_id>/m4_handoff_pack.json`
+9. `evidence/dev_min/run_control/<m3b_execution_id>/m3_b_run_id_generation_snapshot.json`
+10. `evidence/dev_min/run_control/<m3b_execution_id>/m3_b_run_header_seed.json`
+11. `evidence/dev_min/run_control/<m3c_execution_id>/m3_c_config_payload.json`
+12. `evidence/dev_min/run_control/<m3c_execution_id>/m3_c_config_payload.canonical.json`
+13. `evidence/dev_min/run_control/<m3c_execution_id>/m3_c_digest_snapshot.json`
+14. local mirrors under:
    - `runs/dev_substrate/m3/<timestamp>/...`
    - `runs/dev_substrate/m3_b/<timestamp>/...`
    - `runs/dev_substrate/m3_c/<timestamp>/...`

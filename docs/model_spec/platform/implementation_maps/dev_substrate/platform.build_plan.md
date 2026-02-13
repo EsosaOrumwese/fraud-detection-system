@@ -326,6 +326,9 @@ Active-phase planning posture:
   - note: `ORACLE_REQUIRED_OUTPUT_IDS` and `ORACLE_SORT_KEY_BY_OUTPUT_ID` remain pinned placeholders for P3 entry, so scenario surface is explicitly marked provisional until P5/SR confirmation in the payload,
   - evidence:
     - `s3://fraud-platform-dev-min-evidence/evidence/dev_min/run_control/m3c_20260213T215336Z/m3_c_digest_snapshot.json`.
+- M3.D->M3.G planning status:
+  - expanded sequentially to closure-grade planning in `platform.M3.build_plan.md` (decision pins, command catalogs, blocker taxonomies, and evidence contracts for each of D/E/F/G),
+  - execution remains pending and must run fail-closed in order (`M3.D -> M3.E -> M3.F -> M3.G`).
 - Sub-phase progress:
   - [x] `M3.A` authority + handle closure matrix for P1.
   - [x] `M3.B` run identity generation contract (`platform_run_id` uniqueness).
@@ -517,5 +520,5 @@ Control: required P12 teardown proof and budget guardrails.
 M3 is active for deep planning and execution preparation.
 Next action:
 - execute `M3.D` durable run evidence publication (`run.json` + `run_started.json`) using the M3.C digest payload,
-- then execute `M3.E -> M3.G` with explicit evidence artifacts and fail-closed verdicting,
+- execute `M3.E`, `M3.F`, and `M3.G` sequentially in one controlled closure lane (fail-closed between each step),
 - maintain fail-closed posture: no M4 activation until M3 verdict is `ADVANCE_TO_M4` with durable handoff artifacts.
