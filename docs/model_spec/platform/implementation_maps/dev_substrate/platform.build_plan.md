@@ -78,8 +78,8 @@ Canonical lifecycle key: `phase_id=P#` from migration runbook.
 | M0 | pre-P(-1) | Mobilization + authority lock | DONE |
 | M1 | P(-1) | Packaging readiness (image + entrypoints + provenance) | DONE |
 | M2 | P0 | Substrate readiness (Terraform core+confluent+demo) | DONE |
-| M3 | P1 | Run pinning + run manifest evidence | ACTIVE |
-| M4 | P2 | Daemon bring-up on ECS with run-scope controls | NOT_STARTED |
+| M3 | P1 | Run pinning + run manifest evidence | DONE |
+| M4 | P2 | Daemon bring-up on ECS with run-scope controls | ACTIVE |
 | M5 | P3 | Oracle lane (seed/sort/checker) | NOT_STARTED |
 | M6 | P4-P7 | Control+Ingress closure | NOT_STARTED |
 | M7 | P8-P10 | RTDL + Case/Labels closure | NOT_STARTED |
@@ -133,7 +133,8 @@ Current phase posture:
 - `M1` is closed,
 - `M0` is closed,
 - `M2` is `DONE`,
-- `M3` is `ACTIVE` for deep planning and closure-hardening.
+- `M3` is `DONE`,
+- `M4` is `ACTIVE` for execution planning/bring-up preparation.
 
 ## M0 - Mobilization + Authority Lock
 Status: `DONE`
@@ -285,7 +286,7 @@ M2 DoD checklist:
 ---
 
 ## M3 - P1 Run pinning
-Status: `ACTIVE`
+Status: `DONE`
 
 Entry gate:
 - M2 is `DONE`.
@@ -303,7 +304,7 @@ Scope:
 Failure posture:
 - fail closed on unresolved run identity inputs, digest mismatch, incomplete run manifest, or non-durable evidence publication.
 
-Active-phase planning posture:
+Phase closure posture:
 - Detailed M3 authority file: `docs/model_spec/platform/implementation_maps/dev_substrate/platform.M3.build_plan.md`.
 - M3.A planning status:
   - closure matrix + verification catalog executed,
@@ -352,14 +353,14 @@ M3 DoD checklist:
 - [x] `run.json` exists at run evidence root and is structurally complete.
 - [x] runtime scope export (`REQUIRED_PLATFORM_RUN_ID`) is prepared for M4 consumers.
 - [x] M3 closeout verdict + handoff artifact are published and non-secret.
-- [ ] phase-transition confirmation to M4 activation is pending USER go-ahead.
+- [x] phase-transition confirmation to M4 activation is USER-approved.
 
 ---
 
 ## 9) Remaining Phases (Gate-Level Only Until Activation)
 
 ## M4 - P2 Daemon bring-up
-Status: `NOT_STARTED`
+Status: `ACTIVE`
 Entry gate:
 - M3 is `DONE`.
 DoD summary:
@@ -526,8 +527,8 @@ R4: Cost leakage after demos
 Control: required P12 teardown proof and budget guardrails.
 
 ## 12) Immediate Next Action
-M3 is active for deep planning and execution preparation.
+M4 is active for execution planning and bring-up preparation.
 Next action:
-- review M3 closeout evidence bundle from `m3_20260213T221631Z` and confirm phase-transition go-ahead,
-- on USER confirmation, mark M3 `DONE` and activate `M4` for execution planning/bring-up,
-- maintain fail-closed posture: no M4 activation until M3 verdict is `ADVANCE_TO_M4` with durable handoff artifacts.
+- begin M4 execution planning deep-pass against the M3 handoff bundle `m3_20260213T221631Z`,
+- keep fail-closed posture: no daemon bring-up outside pinned run-scope contract from M3 artifacts,
+- surface any missing M4 decision inputs before execution commands.

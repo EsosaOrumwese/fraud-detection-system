@@ -8314,3 +8314,27 @@ USER directed immediate progression to close `M2.F` after workflow secret mappin
    - marked M3 sub-phase progress D->G complete,
    - marked remaining M3 DoD items complete,
    - kept M3 transition to M4 as user-governed confirmation step.
+
+## Entry: 2026-02-13 10:24PM - M3 transition marked complete; M4 activated by USER go-ahead
+
+### Trigger
+1. USER explicitly granted phase-transition go-ahead and requested that it be marked out first.
+
+### Plan-state updates applied
+1. Updated `docs/model_spec/platform/implementation_maps/dev_substrate/platform.build_plan.md`:
+   - roadmap statuses:
+     - `M3: ACTIVE -> DONE`
+     - `M4: NOT_STARTED -> ACTIVE`
+   - current phase posture:
+     - marked `M3 DONE`, `M4 ACTIVE`.
+   - M3 section:
+     - status set to `DONE`,
+     - user-governed transition checkbox marked complete.
+   - M4 section:
+     - status set to `ACTIVE`.
+   - immediate-next-action block:
+     - retargeted to M4 execution-planning/bring-up prep under fail-closed run-scope controls.
+
+### Outcome
+1. M3 is now formally closed in the main plan.
+2. M4 is now formally active for the next discussion/planning pass.
