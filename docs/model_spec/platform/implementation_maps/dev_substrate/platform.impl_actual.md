@@ -4721,3 +4721,78 @@ USER requested confirmation that no legacy migration Make calls remain.
 
 ### Drift sentinel checkpoint
 This change removes stale executable migration paths and reinforces the fresh-start authority posture.
+
+## Entry: 2026-02-13 4:38AM - Pre-change lock: migration_to_dev drift cleanup (handle naming, stale pins, P3 seed policy, README posture)
+
+### Trigger
+USER instructed: "patch them up" for the four identified drifts after full migration-doc review.
+
+### Drifts to close
+1. Runbook/registry handle mismatch for optional mutable image tag key (`IMAGE_TAG_LATEST_OPTIONAL` vs `IMAGE_TAG_DEV_MIN_LATEST`).
+2. Stale "pin later" wording where keys are already pinned (`CONFIG_DIGEST_ALGO`, `REPORTER_LOCK_BACKEND`) and stale open-items framing in Section 1.10.
+3. P3 seed contradiction: hard ban on local source plus allowance for local-parity bootstrap pre-step.
+4. `migration_to_dev/README.md` still written as scaffold/to-be-authored despite populated authoritative docs.
+
+### Decision
+- Treat `dev_min_handles.registry.v0.md` as naming authority and align runbook references to registry key names.
+- Convert stale future-tense pin notes into current-tense pinned language.
+- Enforce strict no-local-source P3 posture end-to-end (no local parity bootstrap pre-step for dev_min runtime path).
+- Rewrite migration README to authoritative index posture (not scaffold language).
+
+### Files to patch
+1. `docs/model_spec/platform/migration_to_dev/dev_min_spine_green_v0_run_process_flow.md`
+2. `docs/model_spec/platform/migration_to_dev/dev_min_handles.registry.v0.md`
+3. `docs/model_spec/platform/migration_to_dev/README.md`
+
+### Validation plan
+- `rg` checks for target strings:
+  - remove `IMAGE_TAG_LATEST_OPTIONAL` reference from runbook,
+  - remove stale "pin later" on `CONFIG_DIGEST_ALGO` and `REPORTER_LOCK_BACKEND`,
+  - remove local-parity pre-step allowance sentence,
+  - confirm README no longer says scaffold/to-be-authored.
+- confirm replacement keys/wording present in patched files.
+
+### Drift sentinel checkpoint
+This is docs-alignment only; semantics are unchanged except making P3 local-source prohibition explicit and unambiguous (already user-directed policy).
+
+## Entry: 2026-02-13 4:39AM - Applied migration_to_dev drift cleanup patch (4-item closure set)
+
+### Files updated
+1. `docs/model_spec/platform/migration_to_dev/dev_min_spine_green_v0_run_process_flow.md`
+2. `docs/model_spec/platform/migration_to_dev/dev_min_handles.registry.v0.md`
+3. `docs/model_spec/platform/migration_to_dev/README.md`
+
+### Changes applied
+1. Handle naming alignment (runbook -> registry)
+- Replaced `IMAGE_TAG_LATEST_OPTIONAL` with `IMAGE_TAG_DEV_MIN_LATEST` in P(-1) required handles.
+
+2. Stale future-tense pin wording removed where already pinned
+- Rewrote Section 1.10 from "Open-but-required" into a closure-status section pointing to pinned handles registry authority.
+- Updated `CONFIG_DIGEST_ALGO` note to explicit pinned value (`sha256`).
+- Updated `REPORTER_LOCK_BACKEND` note to explicit pinned registry/default posture (`db_advisory_lock`).
+
+3. P3 no-local-source policy made fully consistent
+- Removed allowance for local-parity bootstrap pre-step in P3 seed semantics.
+- Kept strict managed object-store-only seed policy in runbook.
+- Repinned registry key `ORACLE_SEED_OPERATOR_PRESTEP_REQUIRED = false` and added note explaining anti-regression intent.
+
+4. `migration_to_dev` README promoted from scaffold to authority index
+- Removed "to be authored" language.
+- Declared the two migration docs authoritative and expanded mapping source list to addenda 3-5.
+- Added working-rule statement for process-flow vs handles registry responsibilities.
+
+### Validation
+- Negative grep checks confirmed removed targets are absent in patched files:
+  - `IMAGE_TAG_LATEST_OPTIONAL`
+  - stale `pin later` notes on `CONFIG_DIGEST_ALGO` and `REPORTER_LOCK_BACKEND`
+  - local-parity pre-step allowance sentence
+  - README scaffold/to-be-authored text
+- Positive grep checks confirmed replacement strings exist:
+  - `IMAGE_TAG_DEV_MIN_LATEST`
+  - `CONFIG_DIGEST_ALGO = "sha256"`
+  - `REPORTER_LOCK_BACKEND = "db_advisory_lock"`
+  - `ORACLE_SEED_OPERATOR_PRESTEP_REQUIRED = false`
+  - README title `Migration To Dev - Authority Index`
+
+### Drift sentinel assessment
+Patch is documentation-alignment only and tightens migration safety posture by eliminating contradictory P3 bootstrap semantics and stale wording that could cause implementation drift.

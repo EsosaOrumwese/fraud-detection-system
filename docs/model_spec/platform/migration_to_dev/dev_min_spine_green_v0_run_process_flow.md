@@ -119,16 +119,15 @@ Dev_min is a substrate + packaging translation only. The following invariants re
 * A phase is “green” only if its **exit gate** is satisfied and the **commit evidence** exists. Dev_min must re-materialize these gates against managed substrate outputs.
 * Dev_min “Spine Green v0” means **P0..P11 PASS** using the dev_min equivalents of the operator checklist checks.
 
-### 1.10 Open-but-required items (must be pinned in the handles registry before implementation)
+### 1.10 Pinned-Handle Closure Status
 
-These are not “optional”; they are simply not pinned in Sections 0–1 yet:
+The formerly open wiring items for dev_min v0 are now pinned in
+`dev_min_handles.registry.v0.md` and are implementation-authoritative:
 
-* Exact AWS resource names (S3 buckets, prefixes), Confluent cluster identifiers, topic parameters (partitions/retention), SSM parameter paths.
-* Exact managed DB choice(s) for IG admission state, RTDL state, CM/LS timelines.
-* ECR repo name(s) and image tag/digest recording policy.
-* ECS cluster/network identifiers (subnets/SGs) consistent with “no NAT” and “demo→destroy”.
-
-(We pin these in `dev_min_handles.registry.v0.md` next, so Codex can implement without inventing names.)
+* AWS resource names and S3 prefix contracts.
+* Confluent cluster identity, topic map, and SSM secret paths.
+* Managed DB backend posture and runtime identifiers.
+* ECR image identity policy and ECS compute/network handles.
 
 ---
 
@@ -377,7 +376,7 @@ This runbook phase references the following handle keys (names only; values pinn
 * `AWS_REGION`
 * `ECR_REPO_NAME`
 * `IMAGE_TAG_GIT_SHA_PATTERN`
-* `IMAGE_TAG_LATEST_OPTIONAL`
+* `IMAGE_TAG_DEV_MIN_LATEST`
 * `IMAGE_DIGEST_EVIDENCE_FIELD` (where the digest is recorded in run evidence)
 * `CLOUDWATCH_LOG_GROUP_PREFIX` (for ECS logs later)
 
@@ -785,7 +784,7 @@ P1 means:
 
 **Config digest**
 
-* `CONFIG_DIGEST_ALGO` *(pin later; e.g., sha256)*
+* `CONFIG_DIGEST_ALGO` *(pinned: `sha256`)*
 * `CONFIG_DIGEST_FIELD = "config_digest"`
 
 **Image provenance**
@@ -1219,7 +1218,7 @@ P3 is executed as **one-shot jobs**.
 
 * **MUST:** seed/sync from managed object-store sources only (for example, source S3 prefixes in the same or peered account).
 * **MUST NOT:** seed/sync from laptop-local paths, MinIO, or any local filesystem source.
-* **MUST:** any first-time upload from non-S3 local parity artifacts is an operator pre-step outside `dev-min-run`; P3 seed jobs themselves read/write S3 only.
+* **MUST NOT:** bootstrap P3 from local-parity artifacts, even as a temporary operator pre-step.
 * **MUST:** preserve the canonical oracle layout (do not invent new structure).
 * **MUST:** seeding must be resumable and incremental (copy deltas), because oracle size is large.
 
@@ -2742,7 +2741,7 @@ This is a strict translation of your local parity “reporter / closure” behav
 
 **Single-writer lock**
 
-* `REPORTER_LOCK_BACKEND` (DB table or S3 object lock pattern; pinned later)
+* `REPORTER_LOCK_BACKEND` *(pinned in registry; v0 default `db_advisory_lock`)*
 * `REPORTER_LOCK_KEY_PATTERN`
 
 ---

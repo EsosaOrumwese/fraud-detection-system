@@ -285,7 +285,11 @@ Convenience patterns (must align with Section 6 evidence contract):
 * `ORACLE_SEED_SOURCE_MODE = "s3_to_s3_only"`
 * `ORACLE_SEED_SOURCE_BUCKET`
 * `ORACLE_SEED_SOURCE_PREFIX_PATTERN`
-* `ORACLE_SEED_OPERATOR_PRESTEP_REQUIRED = true`
+* `ORACLE_SEED_OPERATOR_PRESTEP_REQUIRED = false`
+
+`ORACLE_SEED_OPERATOR_PRESTEP_REQUIRED` remains explicit so automation cannot
+quietly reintroduce local bootstrap behavior. Dev_min v0 policy is managed
+object-store-only for P3 seed/sync.
 
 ---
 
