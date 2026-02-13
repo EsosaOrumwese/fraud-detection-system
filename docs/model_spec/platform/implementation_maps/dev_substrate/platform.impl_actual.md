@@ -7302,3 +7302,37 @@ USER directed immediate progression to close `M2.F` after workflow secret mappin
 2. Commit and push to `origin/migrate-dev`.
 3. Dispatch fresh `dev_min_m2f_topic_readiness` run on `migrate-dev`.
 4. Require end-to-end pass (`Terraform apply` + `overall_pass=true`) before marking `M2.F` complete.
+
+## Entry: 2026-02-13 6:52PM - Post-change record: M2.F closed green on CI
+
+### Implementation delivered
+1. Patched `.github/workflows/dev_min_m2f_topic_readiness.yml` import lane:
+   - switched cluster/REST resolution to Terraform outputs (`confluent_cluster_id`, `kafka_rest_endpoint`),
+   - added deterministic import credential resolution (`runtime_kafka_api_key` / `runtime_kafka_api_secret`) with SSM fallback,
+   - fail-closed guard when cluster exists but import credentials are unavailable,
+   - explicit import outcome handling (`imported`, `already-managed`, `non-existent remote object`, hard-fail on unexpected errors).
+2. Pushed workflow patch to `migrate-dev`:
+   - commit `30756555`.
+3. Applied IAM policy correction on role `GitHubAction-AssumeRoleWithAction` (`GitHubActionsTerraformConfluentStateDevMin`):
+   - added evidence object/list permissions for `evidence/dev_min/*` prefix in `fraud-platform-dev-min-evidence`.
+
+### Validation runs
+1. Run `21998686793`:
+   - topic adoption + Terraform apply succeeded,
+   - verifier failed only on evidence upload `AccessDenied` (`s3:PutObject` on `evidence/dev_min/substrate/...`).
+2. Run `21998790226`:
+   - full workflow succeeded end-to-end,
+   - verifier reported `overall_pass=true`.
+
+### Evidence
+1. CI run:
+   - `https://github.com/EsosaOrumwese/fraud-detection-system/actions/runs/21998790226`
+2. Local artifact download:
+   - `runs/dev_substrate/m2_f/ci_artifacts_21998790226/m2f-topic-readiness-20260213T184917Z/topic_readiness_snapshot.json`
+3. Durable evidence:
+   - `s3://fraud-platform-dev-min-evidence/evidence/dev_min/substrate/m2_20260213T184917Z/topic_readiness_snapshot.json`
+
+### Phase status update
+1. `M2.F` marked complete in:
+   - `docs/model_spec/platform/implementation_maps/dev_substrate/platform.M2.build_plan.md`
+   - `docs/model_spec/platform/implementation_maps/dev_substrate/platform.build_plan.md`

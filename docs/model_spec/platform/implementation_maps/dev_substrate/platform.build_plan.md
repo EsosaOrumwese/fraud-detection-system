@@ -260,7 +260,7 @@ Active-phase execution posture:
   - [x] `M2.C` core apply closure contract and evidence.
   - [x] `M2.D` demo apply closure contract and evidence.
   - [x] `M2.E` SSM secret materialization and access checks.
-  - [ ] `M2.F` Kafka topic/ACL/access readiness.
+  - [x] `M2.F` Kafka topic/ACL/access readiness.
   - [ ] `M2.G` network/no-NAT/no-always-on-LB verification.
   - [ ] `M2.H` runtime DB readiness + migrations posture.
   - [ ] `M2.I` budget and teardown-viability proof.
@@ -458,6 +458,6 @@ Control: required P12 teardown proof and budget guardrails.
 ## 12) Immediate Next Action
 M2 is active for deep planning and closure-hardening.
 Next action:
-- resolve CI OIDC role backend access gap (`M2F-B2`) for Terraform state/lock + SSM/evidence writes,
-- rerun CI lane `.github/workflows/dev_min_m2f_topic_readiness.yml` on trusted `main` with `checkout_ref=migrate-dev`,
-- require full PASS evidence (`topic_readiness_snapshot.json` with `overall_pass=true`) to close `M2.F`.
+- execute `M2.G` network/no-NAT/no-always-on-LB verification lane with pinned evidence artifacts,
+- keep `M2.H`/`M2.I` sequencing strict (DB readiness before budget/teardown closure),
+- maintain fail-closed posture: no `M2.J` handoff until `M2.G` + `M2.H` + `M2.I` are all green.

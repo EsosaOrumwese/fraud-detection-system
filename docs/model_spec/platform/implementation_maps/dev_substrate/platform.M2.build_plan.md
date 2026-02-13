@@ -580,9 +580,9 @@ Tasks:
    - posture: OIDC AWS auth + Confluent Terraform apply + canonical verifier script + artifact upload.
 
 DoD:
-- [ ] All required topic handles are resolvable and present.
-- [ ] Connectivity/auth verification passes with pinned checks.
-- [ ] ACL readiness checks are explicit and repeatable.
+- [x] All required topic handles are resolvable and present.
+- [x] Connectivity/auth verification passes with pinned checks.
+- [x] ACL readiness checks are explicit and repeatable.
 
 ### M2.F Canonical Verification Lane (Pinned)
 1. Lane selected: `kafka_admin_protocol_python_confluent_kafka` (with `kafka-python` fallback for diagnostics only).
@@ -601,25 +601,25 @@ DoD:
      - `TF_VAR_confluent_cloud_api_secret <- TF_VAR_CONFLUENT_CLOUD_API_SECRET`
 
 ### M2.F Execution Summary (Current)
-1. Confluent CLI lane was exercised and rejected at runtime for Confluent Cloud URL usage.
-2. Selected fallback lane executed with `confluent-kafka` admin client against bootstrap endpoint.
-3. Runtime result:
-   - authentication/connectivity check failed with SASL auth failure at broker handshake,
-   - required topic existence and ACL-readiness checks could not be completed.
+1. Confluent Terraform apply lane now completes on CI for `migrate-dev`, including deterministic adoption of pre-existing topics into Terraform state before apply.
+2. Selected canonical verifier lane (`confluent-kafka` admin client) passes against pinned SSM bootstrap/auth surfaces.
+3. Runtime result (latest run `21998790226`):
+   - `connectivity_pass=true`,
+   - `topics_missing=[]`,
+   - `overall_pass=true`.
 4. M2.F status:
-   - `OPEN_BLOCKED` (fail-closed).
-5. Active blocker:
-   - `M2F-B1`: Confluent Kafka credentials in SSM do not authenticate against pinned bootstrap endpoint.
-6. Latest rerun (`20260213T154433Z`) using pinned script lane:
-   - bootstrap/api_key/api_secret were resolvable from pinned SSM paths,
-   - connectivity/auth still failed (`overall_pass=false`),
-   - blocker remains unchanged.
+   - `DONE` (green).
+5. Closure notes:
+   - prior auth blocker was resolved by regenerating valid runtime Kafka credentials through Confluent apply and updating pinned SSM paths,
+   - prior CI evidence upload deny was resolved by extending OIDC role object permissions to `evidence/dev_min/*` prefix.
 
 ### M2.F Evidence
 1. Local:
-   - `runs/dev_substrate/m2_f/20260213T154433Z/topic_readiness_snapshot.json`
+   - `runs/dev_substrate/m2_f/ci_artifacts_21998790226/m2f-topic-readiness-20260213T184917Z/topic_readiness_snapshot.json`
 2. Durable:
-   - `s3://fraud-platform-dev-min-evidence/evidence/dev_min/substrate/m2_20260213T154433Z/topic_readiness_snapshot.json`
+   - `s3://fraud-platform-dev-min-evidence/evidence/dev_min/substrate/m2_20260213T184917Z/topic_readiness_snapshot.json`
+3. CI run:
+   - `https://github.com/EsosaOrumwese/fraud-detection-system/actions/runs/21998790226`
 
 ## M2.G Network, No-NAT, and Forbidden Infra Checks
 Goal:
@@ -732,7 +732,7 @@ Notes:
 - [x] M2.C complete
 - [x] M2.D complete
 - [x] M2.E complete
-- [ ] M2.F complete
+- [x] M2.F complete
 - [ ] M2.G complete
 - [ ] M2.H complete
 - [ ] M2.I complete
@@ -756,37 +756,28 @@ Control: explicit command-lane pinning in M2.B/M2.E/M2.F before execution.
 
 ## 8.1) Unresolved Blocker Register (Must Be Empty Before M2 Execution)
 Current blockers:
-1. `M2F-B2` (open)
-   - blocker summary:
-     - CI M2.F workflow (`dev_min_m2f_topic_readiness`) can assume OIDC role on trusted branch refs, but Terraform backend init fails with `403 Forbidden` on `s3://fraud-platform-dev-min-tfstate/dev_min/confluent/terraform.tfstate`.
-     - active OIDC role (`GitHubAction-AssumeRoleWithAction`) currently has ECR/billing-oriented permissions and lacks Terraform backend/state access required for M2.F Confluent lane.
-   - closure criteria:
-     - extend CI OIDC role policy to allow:
-       - S3 state bucket/object access for `fraud-platform-dev-min-tfstate` key prefix `dev_min/confluent/*`,
-       - DynamoDB lock table operations on `fraud-platform-dev-min-tf-locks`,
-       - SSM read/write for `/fraud-platform/dev_min/confluent/*`,
-       - evidence bucket object writes for M2.F snapshots.
-     - rerun workflow `dev_min_m2f_topic_readiness` on trusted ref (`main`) with `checkout_ref=migrate-dev`,
-     - require successful Terraform init/apply before verifier step.
-   - evidence:
-     - CI run failed: `https://github.com/EsosaOrumwese/fraud-detection-system/actions/runs/21994243860`
-2. `M2F-B1` (open)
-   - blocker summary:
-     - M2.F Kafka admin verification failed at SASL auth handshake for bootstrap `pkc-41wq6.eu-west-2.aws.confluent.cloud:9092`,
-     - SSM credential paths exist but current values are not valid for runtime Kafka authentication.
-   - closure criteria:
-     - export required Confluent Cloud management credentials in execution shell:
-       - `TF_VAR_confluent_cloud_api_key`
-       - `TF_VAR_confluent_cloud_api_secret`
-     - apply `infra/terraform/dev_min/confluent` with valid Confluent Cloud management credentials to regenerate runtime Kafka API key/secret,
-     - confirm pinned SSM paths were updated from Confluent stack outputs,
-     - rerun M2.F command lane (local or CI workflow) and produce `overall_pass=true` in `topic_readiness_snapshot.json`.
-   - evidence:
-     - local: `runs/dev_substrate/m2_f/20260213T154433Z/topic_readiness_snapshot.json`
-     - durable: `s3://fraud-platform-dev-min-evidence/evidence/dev_min/substrate/m2_20260213T154433Z/topic_readiness_snapshot.json`
+1. None.
 
 Resolved blockers:
-1. `M2C-B1` (closed)
+1. `M2F-B2` (closed)
+   - closure summary:
+     - CI OIDC role policy now includes Terraform backend/state, Dynamo lock, Confluent SSM path, and evidence bucket permissions required for M2.F lane.
+   - evidence:
+     - failed run: `https://github.com/EsosaOrumwese/fraud-detection-system/actions/runs/21994243860`
+     - passing run: `https://github.com/EsosaOrumwese/fraud-detection-system/actions/runs/21998790226`
+2. `M2F-B1` (closed)
+   - closure summary:
+     - Confluent apply regenerated valid runtime Kafka credentials and verifier confirms bootstrap/auth/topic readiness with `overall_pass=true`.
+   - evidence:
+     - local: `runs/dev_substrate/m2_f/ci_artifacts_21998790226/m2f-topic-readiness-20260213T184917Z/topic_readiness_snapshot.json`
+     - durable: `s3://fraud-platform-dev-min-evidence/evidence/dev_min/substrate/m2_20260213T184917Z/topic_readiness_snapshot.json`
+3. `M2F-B3` (closed)
+   - closure summary:
+     - evidence upload deny on `evidence/dev_min/*` prefix resolved by adding object-level permissions for the verifier upload path.
+   - evidence:
+     - failed run: `https://github.com/EsosaOrumwese/fraud-detection-system/actions/runs/21998686793`
+     - passing run: `https://github.com/EsosaOrumwese/fraud-detection-system/actions/runs/21998790226`
+4. `M2C-B1` (closed)
    - closure summary:
      - executed controlled state import for core resources,
      - core state now contains 24 managed resources,
@@ -794,37 +785,37 @@ Resolved blockers:
    - evidence:
      - local: `runs/dev_substrate/m2_c/20260213T132116Z/m2c_b1_resolution_snapshot.json`
      - durable: `s3://fraud-platform-dev-min-evidence/evidence/dev_min/substrate/m2_20260213T132116Z/m2c_b1_resolution_snapshot.json`
-2. `M2D-B1` (closed)
+5. `M2D-B1` (closed)
    - closure summary:
      - demo stack now materializes Confluent runtime contract surfaces (cluster/env/topic map + canonical secret paths) and exposes required outputs.
    - evidence:
      - local: `runs/dev_substrate/m2_d/20260213T134810Z/m2_d_demo_apply_contract_snapshot.json`
      - durable: `s3://fraud-platform-dev-min-evidence/evidence/dev_min/substrate/m2_20260213T134810Z/m2_d_demo_apply_contract_snapshot.json`
-3. `M2D-B2` (closed)
+6. `M2D-B2` (closed)
    - closure summary:
      - demo stack now includes ECS cluster, IAM execution/app roles, task definition, and desired-count-zero service scaffolding.
    - evidence:
      - local: `runs/dev_substrate/m2_d/20260213T134810Z/m2_d_demo_apply_contract_snapshot.json`
      - durable: `s3://fraud-platform-dev-min-evidence/evidence/dev_min/substrate/m2_20260213T134810Z/m2_d_demo_apply_contract_snapshot.json`
-4. `M2D-B3` (closed)
+7. `M2D-B3` (closed)
    - closure summary:
      - demo stack now includes managed Postgres runtime DB resources and endpoint outputs.
    - evidence:
      - local: `runs/dev_substrate/m2_d/20260213T134810Z/m2_d_demo_apply_contract_snapshot.json`
      - durable: `s3://fraud-platform-dev-min-evidence/evidence/dev_min/substrate/m2_20260213T134810Z/m2_d_demo_apply_contract_snapshot.json`
-5. `M2D-B4` (closed)
+8. `M2D-B4` (closed)
    - closure summary:
      - demo stack now writes canonical SSM parameter paths for Confluent and DB credentials.
    - evidence:
      - local: `runs/dev_substrate/m2_d/20260213T134810Z/m2_d_demo_apply_contract_snapshot.json`
      - durable: `s3://fraud-platform-dev-min-evidence/evidence/dev_min/substrate/m2_20260213T134810Z/m2_d_demo_apply_contract_snapshot.json`
-6. `M2E-B1` (closed)
+9. `M2E-B1` (closed)
    - closure summary:
      - demo apply materialized required secret paths (`/db/user`, `/db/password`, `/ig/api_key`), and M2.E checks confirmed operator readability.
    - evidence:
      - local: `runs/dev_substrate/m2_e/20260213T141419Z/secret_surface_check.json`
      - durable: `s3://fraud-platform-dev-min-evidence/evidence/dev_min/substrate/m2_20260213T141419Z/secret_surface_check.json`
-7. `M2E-B2` (closed)
+10. `M2E-B2` (closed)
    - closure summary:
      - demo apply materialized runtime roles and IAM simulation confirmed least-privilege boundary for pinned secret paths.
    - evidence:
