@@ -3812,3 +3812,67 @@ Pre-edit decisions:
 
 Risk noted upfront:
 - Given current 1B posture, NN-tail may have limited S6 headroom because much of spacing is inherited from upstream tile assignment (`S5`/`S4`). If contraction target remains unreachable after bounded tuning, we will produce explicit feasibility evidence rather than claim synthetic gains.
+
+---
+
+### Entry: 2026-02-13 19:25
+
+Design element: P3 feasibility diagnosis + S6 algorithm correction plan (no P1/P2 reopen).
+Summary: P3 candidate scoring shows persistent failure on `nn_tail_contraction_b_target` and `top_country_no_collapse` even after activating `mixture_v2`. A direct diagnostic on locked P2 topology confirms several top countries are effectively single-latitude corridors already at S5/tile-centroid support, so bounded in-cell jitter cannot clear collapse sentinels.
+
+Evidence captured before edits:
+1) Latest candidate `2fc45e1204bd417abc272521c8a0de06`:
+   - `nn_p99/p50 = 13.555` (worse than baseline),
+   - collapse sentinel still flags `DE, FR, GB, DK, CH, IT, ES, NO`.
+2) S5/tile centroid support is lat-collapsed for key countries under locked P2:
+   - `DE`: 4269 sites across 215 tiles but centroid lat range is constant (`51.279167..51.279167`),
+   - `FR`: constant (`49.937500..49.937500`),
+   - `ES`: constant (`39.020834..39.020834`),
+   - `NO`: constant (`78.629167..78.629167`).
+3) This proves P3 failure is not just knob tuning; it is a geometry-support ceiling under strict in-pixel jitter.
+
+Decision and implementation plan:
+1) Keep P1/P2 frozen (no reopen in this pass).
+2) Upgrade S6 `mixture_v2` sampling from strict in-pixel fractions to deterministic **tile-neighborhood displacement** around tile centroids with component-specific floor spans.
+3) Preserve non-negotiables:
+   - RNG budget remains `blocks=1`, `draws="2"` per attempt/event,
+   - deterministic seed namespace behavior unchanged,
+   - point-in-country acceptance remains mandatory,
+   - coordinate bounds and immutable publish laws remain fail-closed.
+4) Keep `uniform_v1` lane behavior unchanged for backward compatibility.
+5) Retune S6 policy weights toward dense-core realism with bounded sparse tail, then rerun fresh candidate with required chain `S5->S9` and rescore.
+
+Planned file surfaces:
+- `packages/engine/src/engine/layers/l1/seg_1B/s6_site_jitter/runner.py`
+- `config/layer1/1B/policy/policy.s6.jitter.yaml`
+- (no P1/P2 file touches)
+
+---
+
+### Entry: 2026-02-13 19:29
+
+Design element: P3-C S6 runtime correction implemented (neighborhood mixture lane).
+Summary: Implemented the S6 algorithm change required by the 19:25 diagnosis: `mixture_v2` is no longer restricted to strict in-pixel fractions and now supports deterministic tile-neighborhood displacement around tile centroids with component-specific floor spans.
+
+What changed:
+1) `packages/engine/src/engine/layers/l1/seg_1B/s6_site_jitter/runner.py`
+   - Added deterministic component floor spans:
+     - `core=0.015 deg half-span`,
+     - `secondary=0.035 deg half-span`,
+     - `sparse=0.080 deg half-span`.
+   - Added centered-shape sampler for mixture mode and switched `mixture_v2` sampling to centroid-based displacement with bounded component scale.
+   - Kept `uniform_v1` lane unchanged (strict in-pixel behavior preserved).
+   - Kept RNG envelope invariant: still one Philox block/two uniforms per attempt event.
+   - Pixel-bound checks remain enforced for `uniform_v1`; `mixture_v2` now relies on point-in-country + global coordinate bounds.
+   - `sigma_lat_deg`/`sigma_lon_deg` now emit effective displacement scale in degrees for diagnostics.
+2) `config/layer1/1B/policy/policy.s6.jitter.yaml`
+   - bumped to `policy_version=2026-02-13-r3`.
+   - moved to core-heavy mixture profile (`core=0.72`, `secondary=0.24`, `sparse=0.04`) with tighter core spread and bounded secondary lane.
+
+Verification completed:
+- `python -m py_compile packages/engine/src/engine/layers/l1/seg_1B/s6_site_jitter/runner.py` passed.
+
+Next execution step:
+- bootstrap a fresh candidate run-id from locked P2 authority,
+- run `S5->S9` (required chain for trace consistency),
+- score with `tools/score_segment1b_p3_candidate.py` and decide lock vs further bounded retune.

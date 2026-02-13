@@ -797,18 +797,166 @@ Goal:
 1. Verify runtime DB substrate is reachable, scoped correctly, and migration-ready.
 
 Tasks:
-1. Validate DB handles and endpoint reachability.
-2. Validate DB credentials resolution via SSM.
-3. Pin migration task readiness:
-   - task definition handle presence
-   - migration invocation contract
-4. Define DB failure rollback posture (demo destroy/reapply path).
-5. Pin migration invocation command surface for `TD_DB_MIGRATIONS` and success/failure evidence fields.
+1. Resolve DB readiness handles from authoritative sources:
+   - `DB_BACKEND_MODE`
+   - `RDS_INSTANCE_ID`
+   - `RDS_ENDPOINT`
+   - `DB_NAME`
+   - `DB_PORT`
+   - `SSM_DB_USER_PATH`
+   - `SSM_DB_PASSWORD_PATH`
+   - `DB_MIGRATIONS_REQUIRED`
+   - `TD_DB_MIGRATIONS`
+   - `ROLE_DB_MIGRATIONS`
+2. Validate DB control-plane readiness:
+   - RDS instance is `available`,
+   - endpoint address + port are present,
+   - DB subnet/SG posture aligns with M2.G network policy (no open-world DB ingress).
+3. Validate DB credential surface:
+   - SSM paths resolve and are decryptable by authorized principal,
+   - values are non-empty (never persisted in evidence).
+4. Pin migration readiness:
+   - task definition for `TD_DB_MIGRATIONS` is materialized and executable,
+   - migration role binding and network placement are explicit,
+   - migration command/entrypoint and success contract are pinned.
+5. Define DB rollback posture and failure handling:
+   - migration failure => no progression; perform demo DB destroy/reapply or targeted reset path.
+6. Pin canonical command lane and non-secret evidence artifacts for M2.H closure.
 
 DoD:
 - [ ] DB readiness checks are explicit and pass criteria are pinned.
 - [ ] Migration readiness contract is pinned.
 - [ ] DB rollback/recovery path is explicit.
+
+### M2.H Decision Pins (Closed Before Execution)
+1. DB scope:
+   - `DB_BACKEND_MODE` remains `rds_instance` for dev_min v0.
+2. Migration requirement:
+   - `DB_MIGRATIONS_REQUIRED=true` means M2.H cannot close until migration lane is proven.
+3. Connectivity proof posture:
+   - authoritative proof must come from managed compute migration/probe task execution, not laptop-local DB client only.
+4. Secret handling:
+   - decrypted DB secret values must never appear in artifacts; only path names, versions, and redacted state are allowed.
+5. Fail-closed:
+   - any missing `TD_DB_MIGRATIONS` materialization is a blocker for M2.H execution closure.
+
+### M2.H-A Handle Resolution and Preconditions
+Goal:
+1. Ensure all DB and migration handles are resolvable before runtime checks.
+
+Tasks:
+1. Resolve runtime DB handles from Terraform outputs + registry.
+2. Confirm `DB_MIGRATIONS_REQUIRED` and `TD_DB_MIGRATIONS` are pinned and internally consistent.
+3. Validate `ROLE_DB_MIGRATIONS` exists and is mapped for migration task use.
+
+DoD:
+- [ ] Required DB/migration handles are resolvable.
+- [ ] `TD_DB_MIGRATIONS` is present and mapped to a concrete task definition.
+- [ ] No unresolved DB handle remains before execution.
+
+### M2.H-B RDS Control-Plane Readiness
+Goal:
+1. Prove RDS instance is healthy and reachable by design posture.
+
+Tasks:
+1. Execute:
+   - `aws rds describe-db-instances --db-instance-identifier <RDS_INSTANCE_ID>`
+2. Validate fields:
+   - `DBInstanceStatus=available`
+   - endpoint address present
+   - expected port (`DB_PORT`)
+   - VPC SG references include `SECURITY_GROUP_ID_DB`.
+3. Validate DB SG posture is consistent with M2.G outcome.
+
+DoD:
+- [ ] RDS instance is `available`.
+- [ ] Endpoint and port are present and match handle contract.
+- [ ] SG alignment with M2.G is confirmed.
+
+### M2.H-C Secret Surface and Auth Material Checks
+Goal:
+1. Prove DB auth material exists in SSM and is consumable by intended principals.
+
+Tasks:
+1. Execute:
+   - `aws ssm get-parameter --name <SSM_DB_USER_PATH> --with-decryption`
+   - `aws ssm get-parameter --name <SSM_DB_PASSWORD_PATH> --with-decryption`
+2. Confirm parameter metadata:
+   - path exists,
+   - current version available,
+   - value non-empty (redacted in evidence).
+3. (Optional) if `SSM_DB_DSN_PATH` is used, validate path exists and matches chosen migration invocation pattern.
+
+DoD:
+- [ ] DB SSM paths resolve and decrypt for authorized principal.
+- [ ] Non-empty auth material is confirmed without leaking secrets.
+- [ ] Optional DSN path usage is explicitly pinned (used or not used).
+
+### M2.H-D Migration Task Readiness Contract
+Goal:
+1. Pin and validate migration execution surface before any M2.H runtime invocation.
+
+Tasks:
+1. Confirm ECS task-definition materialization for `TD_DB_MIGRATIONS` (ARN/name resolvable).
+2. Confirm runtime requirements:
+   - execution/task roles pinned,
+   - network config (`awsvpc`, subnets, SGs) pinned,
+   - migration command/entrypoint pinned.
+3. Confirm success semantics:
+   - task exits `0`,
+   - migration logs include completion marker,
+   - schema/version post-check passes.
+
+DoD:
+- [ ] `TD_DB_MIGRATIONS` maps to a concrete task definition.
+- [ ] Invocation contract is explicit and repeatable.
+- [ ] Success/failure semantics are fail-closed and auditable.
+
+### M2.H-E Canonical Command Lane and Evidence
+Goal:
+1. Define exactly how M2.H is executed and proven.
+
+Tasks:
+1. Migration invocation command lane (canonical):
+   - `aws ecs run-task --cluster <ECS_CLUSTER_NAME> --task-definition <TD_DB_MIGRATIONS> --launch-type FARGATE --network-configuration ...`
+   - `aws ecs wait tasks-stopped --cluster <ECS_CLUSTER_NAME> --tasks <task_arn>`
+   - `aws ecs describe-tasks ...` (extract exit code and stop reason)
+2. Post-migration checks:
+   - DB metadata check command (schema/version sentinel) from managed lane.
+3. Emit artifacts:
+   - local:
+     - `runs/dev_substrate/m2_h/<timestamp>/db_readiness_snapshot.json`
+     - `runs/dev_substrate/m2_h/<timestamp>/db_migration_readiness_snapshot.json`
+     - `runs/dev_substrate/m2_h/<timestamp>/db_migration_run_snapshot.json`
+   - durable:
+     - `evidence/dev_min/substrate/<m2_execution_id>/db_readiness_snapshot.json`
+     - `evidence/dev_min/substrate/<m2_execution_id>/db_migration_readiness_snapshot.json`
+     - `evidence/dev_min/substrate/<m2_execution_id>/db_migration_run_snapshot.json`
+
+DoD:
+- [ ] Canonical command lane is pinned and executable.
+- [ ] Required M2.H artifacts are produced locally and durably.
+- [ ] Evidence shows migration success semantics explicitly.
+
+### M2.H-F Rollback and Blocker Model
+Goal:
+1. Ensure deterministic stop/recover behavior for DB/migration failures.
+
+Tasks:
+1. Blocker taxonomy:
+   - `M2H-B1`: `TD_DB_MIGRATIONS` not materialized or unresolved.
+   - `M2H-B2`: RDS not `available` or endpoint contract invalid.
+   - `M2H-B3`: DB SSM auth material missing/unreadable.
+   - `M2H-B4`: migration run failed (non-zero exit / stop reason / missing completion marker).
+2. Rollback posture:
+   - migration failure path defaults to demo DB destroy/reapply; no partial-unknown acceptance.
+3. Gate rule:
+   - M2 progression remains blocked until all `M2H-B*` are closed with evidence.
+
+DoD:
+- [ ] Blocker model is explicit and fail-closed.
+- [ ] Rollback path is actionable and documented.
+- [ ] M2.H cannot be marked complete while any `M2H-B*` is open.
 
 ## M2.I Budget Guardrails and Teardown Viability
 Goal:
@@ -874,6 +1022,9 @@ Minimum evidence payloads to produce during M2 execution:
 12. `evidence/dev_min/substrate/<m2_execution_id>/m2_c_core_apply_contract_snapshot.json`
 13. `evidence/dev_min/substrate/<m2_execution_id>/m2c_b1_resolution_snapshot.json`
 14. `evidence/dev_min/substrate/<m2_execution_id>/m2_d_demo_apply_contract_snapshot.json`
+15. `evidence/dev_min/substrate/<m2_execution_id>/db_readiness_snapshot.json`
+16. `evidence/dev_min/substrate/<m2_execution_id>/db_migration_readiness_snapshot.json`
+17. `evidence/dev_min/substrate/<m2_execution_id>/db_migration_run_snapshot.json`
 
 Notes:
 1. Evidence must be non-secret.
@@ -909,7 +1060,17 @@ Control: explicit command-lane pinning in M2.B/M2.E/M2.F before execution.
 
 ## 8.1) Unresolved Blocker Register (Must Be Empty Before M2 Execution)
 Current blockers:
-1. None.
+1. `M2H-B1` (open)
+   - blocker summary:
+     - `DB_MIGRATIONS_REQUIRED=true` is pinned, but `TD_DB_MIGRATIONS` is not yet materialized as a concrete ECS task-definition handle in current demo Terraform outputs.
+     - without a concrete migration task surface, M2.H cannot produce managed connectivity/migration proof and remains fail-closed.
+   - closure criteria:
+     - materialize and expose `TD_DB_MIGRATIONS` in dev_min demo stack (task definition + output/handle mapping),
+     - pin migration invocation command and success semantics,
+     - execute M2.H lane and produce required M2.H evidence artifacts with PASS outcome.
+   - evidence:
+     - handle pin exists conceptually in registry: `docs/model_spec/platform/migration_to_dev/dev_min_handles.registry.v0.md` (`TD_DB_MIGRATIONS`),
+     - current demo outputs expose only probe task definition and no migration task output.
 
 Resolved blockers:
 1. `M2F-B2` (closed)
