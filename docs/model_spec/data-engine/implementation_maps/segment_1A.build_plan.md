@@ -747,6 +747,16 @@ B+ gap metrics:
 3. `multi_country_legal_spread`,
 4. `realization_ratio_median`.
 
+### 7.6 Downstream reopen veto contract (Path-1 support)
+- If downstream remediation (for example Segment `1B`) requests upstream reopen of `1A`, candidate acceptance is fail-closed on:
+  - `tools/score_segment1a_freeze_guard.py`,
+  - authority certification artifact `runs/fix-data-engine/segment_1A/reports/segment1a_p5_certification.json`.
+- Guard must report `PASS` before any downstream promotion run can consume the reopened 1A candidate.
+- Minimum preservation requirement:
+  - `eligible_B=true`,
+  - no regression of authority hard-gates,
+  - no regression of authority B-pass metrics.
+
 ## 8) Sequencing and stop rules
 
 ### 8.1 Phase order

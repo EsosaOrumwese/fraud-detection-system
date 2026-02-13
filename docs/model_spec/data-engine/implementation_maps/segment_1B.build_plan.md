@@ -30,13 +30,26 @@ _As of 2026-02-13_
 - `docs/model_spec/data-engine/layer-1/specs/contracts/1B/dataset_dictionary.layer1.1B.yaml`
 - `docs/model_spec/data-engine/layer-1/specs/contracts/1B/artefact_registry_1B.yaml`
 
-## 2) Upstream lock and remediation scope
-- Upstream lock: Segment `1A` is frozen and treated as immutable input during 1B remediation.
+## 2) Upstream scope and remediation scope
+- Default upstream posture: Segment `1A` remains frozen.
+- Approved exception (path-1): upstream reopen is allowed, but only with a fail-closed `1A` freeze guard.
 - Active remediation states: `S2`, `S4`, `S6`, `S9`.
 - Support states (rerun-only unless breakage): `S0`, `S1`, `S3`, `S5`, `S7`, `S8`.
 - This follows the remediation report chosen fix bundle (`S2 + S4 + S6 + S9`) and keeps state-order causality intact.
 
+### 2.0 Path-1 freeze-veto contract (mandatory when upstream is reopened)
+- Guard authority: `runs/fix-data-engine/segment_1A/reports/segment1a_p5_certification.json`.
+- Candidate guard scorer:
+  - `tools/score_segment1a_freeze_guard.py`.
+- Path-1 acceptance gate for every reopened 1A candidate run-id:
+  - guard status must be `PASS`,
+  - candidate must remain `eligible_B=true`,
+  - authority hard-gates must not regress,
+  - authority B-pass metrics must not regress.
+- If guard status is `FAIL`, candidate is rejected and no 1B promotion run is allowed.
+
 ### 2.1 Progressive rerun matrix (mandatory)
+- If `1A` is reopened and candidate is accepted by freeze guard: rerun `1B` from `S0 -> S1 -> S2 -> S3 -> S4 -> S5 -> S6 -> S7 -> S8 -> S9`.
 - If `S2` changes: rerun `S2 -> S3 -> S4 -> S5 -> S6 -> S7 -> S8 -> S9`.
 - If `S4` changes: rerun `S4 -> S5 -> S6 -> S7 -> S8 -> S9`.
 - If `S6` changes: rerun `S6 -> S7 -> S8 -> S9`.
@@ -477,6 +490,13 @@ P4 execution status (2026-02-13):
   - `runs/fix-data-engine/segment_1B/reports/segment1b_p4_red_reopen_625644d528a44f148bbf44339a41a044.json`.
 - Reopen requirement:
   - explicit approval required before any upstream edits; recommended reopen lanes are `P1/S2` and `P2/S4`.
+
+Path-1 activation note (2026-02-13):
+- USER approved path-1 with hard condition that Segment `1A` frozen grade must not be spoiled.
+- Effective execution order for reopened candidates:
+  1) run/select 1A candidate,
+  2) run `score_segment1a_freeze_guard.py` and require `PASS`,
+  3) only then run 1B integrated chain and score P4/P5 gates.
 
 ### P5 - Certification and freeze
 Focus:

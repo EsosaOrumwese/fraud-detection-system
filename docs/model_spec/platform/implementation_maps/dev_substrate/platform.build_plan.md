@@ -307,7 +307,10 @@ Active-phase planning posture:
 - Detailed M3 authority file: `docs/model_spec/platform/implementation_maps/dev_substrate/platform.M3.build_plan.md`.
 - M3.A planning status:
   - closure matrix + verification catalog drafted,
-  - open blocker: `M3A-B1` (`SCENARIO_EQUIVALENCE_KEY_INPUT` still placeholder and must be pinned before execution).
+  - authoritative run: `m3a_20260213T212724Z`,
+  - open blocker: `M3A-B1` (`SCENARIO_EQUIVALENCE_KEY_INPUT` still placeholder and must be pinned before execution),
+  - evidence:
+    - `s3://fraud-platform-dev-min-evidence/evidence/dev_min/run_control/m3a_20260213T212724Z/m3_a_handle_closure_snapshot.json`.
 - Sub-phase progress:
   - [ ] `M3.A` authority + handle closure matrix for P1.
   - [ ] `M3.B` run identity generation contract (`platform_run_id` uniqueness).

@@ -7935,3 +7935,47 @@ USER directed immediate progression to close `M2.F` after workflow secret mappin
 1. Planning-only change; no runtime execution command run for M3.
 2. Fail-closed enforcement strengthened:
    - no M3 execution while `M3A-B1` is open.
+
+## Entry: 2026-02-13 9:27PM - M3.A execution lane run with fail-closed blocker verdict
+
+### Trigger
+1. USER directed: proceed with entirety of `M3.A`.
+
+### Execution performed
+1. Ran full M3.A verification catalog against live authority surfaces:
+   - registry-key presence checks,
+   - M2 handoff artifact availability,
+   - ECR repo/URI resolution,
+   - evidence bucket reachability,
+   - M1 immutable provenance prefix existence,
+   - placeholder guard for `SCENARIO_EQUIVALENCE_KEY_INPUT`.
+2. Produced M3.A closure snapshot:
+   - local: `runs/dev_substrate/m3_a/20260213T212724Z/m3_a_handle_closure_snapshot.json`
+   - durable: `s3://fraud-platform-dev-min-evidence/evidence/dev_min/run_control/m3a_20260213T212724Z/m3_a_handle_closure_snapshot.json`
+
+### Outcome
+1. Authoritative M3.A execution id:
+   - `m3a_20260213T212724Z`
+2. Verdict:
+   - `overall_pass=false` (expected fail-closed)
+3. Open blockers:
+   - `M3A-B1` only (`SCENARIO_EQUIVALENCE_KEY_INPUT` still placeholder).
+4. All other M3.A surfaces verified:
+   - M2 handoff artifact exists,
+   - ECR URI resolvable,
+   - evidence bucket reachable,
+   - M1 immutable provenance source present,
+   - required handle keys present in registry.
+
+### Documentation updates applied
+1. `platform.M3.build_plan.md`:
+   - marked M3.A DoD checks complete (closure matrix + verification + blocker marking),
+   - added authoritative execution result block for M3.A,
+   - attached latest evidence references to blocker `M3A-B1`.
+2. `platform.build_plan.md`:
+   - updated M3.A planning status with execution id and durable evidence URI.
+
+### Safety posture
+1. No progression to M3.B execution while `M3A-B1` remains open.
+2. Required closure action is unchanged:
+   - explicitly pin `SCENARIO_EQUIVALENCE_KEY_INPUT`, then rerun M3.A verification.

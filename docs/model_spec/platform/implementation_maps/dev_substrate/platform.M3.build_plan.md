@@ -121,9 +121,9 @@ Tasks:
 3. Mark unresolved handles as blockers.
 
 DoD:
-- [ ] Required M3 handle set is explicit and complete.
-- [ ] Every required handle has a verification method.
-- [ ] Unresolved handles are either zero or explicitly blocker-marked.
+- [x] Required M3 handle set is explicit and complete.
+- [x] Every required handle has a verification method.
+- [x] Unresolved handles are either zero or explicitly blocker-marked.
 
 ### M3.A Decision Pins (Closed Before Execution)
 1. Handle-source law:
@@ -179,6 +179,26 @@ DoD:
 3. M3.A execution posture:
    - planning is in progress,
    - runtime execution for M3 remains blocked until `M3A-B1` is closed.
+
+Execution result (authoritative):
+1. `M3.A` execution id:
+   - `m3a_20260213T212724Z`
+2. Result:
+   - `overall_pass=false` (fail-closed as designed)
+3. Open blockers:
+   - `M3A-B1` only.
+4. Verification summary:
+   - registry handle presence checks executed for all required keys,
+   - M2 handoff artifact is present and readable,
+   - ECR repository URI resolved (`fraud-platform-dev-min`),
+   - evidence bucket reachability check passed,
+   - immutable M1 provenance source exists under P(-1) evidence prefix,
+   - placeholder guard for `SCENARIO_EQUIVALENCE_KEY_INPUT` fired (expected blocker).
+5. Evidence:
+   - local:
+     - `runs/dev_substrate/m3_a/20260213T212724Z/m3_a_handle_closure_snapshot.json`
+   - durable:
+     - `s3://fraud-platform-dev-min-evidence/evidence/dev_min/run_control/m3a_20260213T212724Z/m3_a_handle_closure_snapshot.json`
 
 ### M3.B Run Identity Generation Contract
 Goal:
@@ -359,6 +379,9 @@ Current blockers:
    - closure criteria:
      - pin explicit value/reference for `SCENARIO_EQUIVALENCE_KEY_INPUT` at M3 entry,
      - rerun M3.A handle closure and confirm placeholder guard no longer matches.
+   - latest evidence:
+     - local: `runs/dev_substrate/m3_a/20260213T212724Z/m3_a_handle_closure_snapshot.json`
+     - durable: `s3://fraud-platform-dev-min-evidence/evidence/dev_min/run_control/m3a_20260213T212724Z/m3_a_handle_closure_snapshot.json`
 
 Resolved blockers:
 1. None.

@@ -2243,6 +2243,10 @@ segment1a-p4-check:
 
 engine-seg1a-p4: segment1a-p4
 
+.PHONY: segment1a-freeze-guard
+segment1a-freeze-guard:
+	@$(PY_SCRIPT) tools/score_segment1a_freeze_guard.py --runs-root "$(RUNS_ROOT)" $(if $(strip $(RUN_ID)),--run-id "$(RUN_ID)",)
+
 segment1a-s3:
 	@echo "Running Segment 1A S3 cross-border candidate set"
 	@$(SEG1A_S3_CMD)

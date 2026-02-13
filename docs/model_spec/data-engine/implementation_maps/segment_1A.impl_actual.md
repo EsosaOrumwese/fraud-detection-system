@@ -5516,3 +5516,46 @@ Decision:
 1) execute rollback of experimental hurdle bundle edits,
 2) prune exploratory run folders created during sweep,
 3) keep Segment `1A` at current certified `B` closure with existing P5 authority artifact.
+
+### Entry: 2026-02-13 21:29
+
+Design element: Segment 1A freeze-guard contract for downstream (1B path-1) upstream reopen.
+Summary: 1B path-1 requires reopening upstream posture, but USER explicitly constrained that 1A frozen grade cannot be spoiled. We are introducing a dedicated guard scorer so every candidate run-id is vetoed unless it preserves frozen `B` authority posture.
+
+Pinned guard contract before tooling edits:
+1) 1A candidate run must remain `eligible_B=true` against certification metrics.
+2) No regression allowed on previously-passing authority B checks.
+3) Hard gates from frozen certification remain mandatory.
+4) Concentration guardrail (`top10_outlet_share`, `gini_outlets_per_merchant`) must not worsen vs authority snapshot.
+5) Guard result is machine artifact-based (`segment1a_freeze_guard_<run_id>.json`), not manual judgment.
+
+Implementation surfaces to be added:
+1) `tools/score_segment1a_freeze_guard.py` (new).
+2) optional invocation lane in run workflow docs/build plan for path-1 acceptance.
+
+### Entry: 2026-02-13 21:35
+
+Design element: 1A freeze-guard tooling implementation and authority sanity check.
+Summary: Implemented the no-regression guard scorer and validated it on known 1A authority run-id to ensure it can act as an executable veto gate for path-1 upstream reopen.
+
+Implemented artifacts:
+1) New tool:
+   - `tools/score_segment1a_freeze_guard.py`.
+2) Make invocation lane:
+   - `Makefile` target `segment1a-freeze-guard`.
+3) Build-plan contract pin:
+   - `segment_1A.build_plan.md` section `7.6` (downstream reopen veto contract).
+
+Guard logic pinned in implementation:
+1) Candidate must remain `eligible_B=true`.
+2) Authority hard-gates must not regress.
+3) Authority B-pass metrics must remain B-pass.
+4) B pass-count must not drop below authority.
+5) Concentration drift budget is bounded (`top10`/`gini` absolute regression allowance default `0.01`) to avoid false veto from representative-run mismatch noise.
+
+Verification:
+1) `python -m py_compile tools/score_segment1a_freeze_guard.py` passed.
+2) Authority run check:
+   - `python tools/score_segment1a_freeze_guard.py --runs-root runs/fix-data-engine/segment_1A --run-id 416afa430db3f5bf87180f8514329fe8`
+   - output: `runs/fix-data-engine/segment_1A/reports/segment1a_freeze_guard_416afa430db3f5bf87180f8514329fe8.json`
+   - result: `status=PASS`.

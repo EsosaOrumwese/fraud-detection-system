@@ -4161,3 +4161,51 @@ Fail-closed output:
   - block `P4.3` (bounded B+ recovery) because status is RED,
   - explicit reopen approval required before any upstream edits,
   - recommended reopen lanes: `P1/S2`, then `P2/S4`.
+
+---
+
+### Entry: 2026-02-13 21:28
+
+Design element: Path-1 upstream reopen approval with 1A freeze-veto contract.
+Summary: USER approved path-1 (upstream reopen) with a strict boundary: any resulting change must not spoil Segment `1A` frozen grade posture. Before touching any 1A/1B runtime lane, we are pinning a hard no-regression guard.
+
+Pinned decisions before implementation:
+1) Upstream posture changes from "1A immutable" to "1A reopen allowed only under guard".
+2) Reopen acceptance is fail-closed on a new **1A freeze guard**:
+   - candidate must remain `eligible_B=true` at minimum,
+   - no regression on authority-hard-gates,
+   - no regression on authority B-pass metrics,
+   - concentration (`top10`, `gini`) cannot worsen versus frozen certification authority.
+3) We will materialize this as a dedicated scorer artifact (tooling) so every path-1 candidate has machine-checkable evidence before 1B promotion.
+4) 1B integrated scoring remains unchanged; this new guard is an upstream veto gate, not a replacement for P4/P5 B/B+ gates.
+
+Planned implementation surfaces:
+1) New scorer tool:
+   - `tools/score_segment1a_freeze_guard.py`.
+2) Build plan updates:
+   - `docs/model_spec/data-engine/implementation_maps/segment_1B.build_plan.md` (upstream scope and rerun matrix now include guarded 1A reopen).
+3) Logbook evidence append:
+   - `docs/logbook/02-2026/2026-02-13.md`.
+
+---
+
+### Entry: 2026-02-13 21:36
+
+Design element: Path-1 plan activation wiring (1A freeze-guard gated reopen).
+Summary: Updated Segment `1B` build planning authority to move from strict 1A immutability to guarded path-1 reopen, with explicit ordering that blocks any 1B promotion if 1A freeze guard fails.
+
+Changes applied:
+1) `segment_1B.build_plan.md` section updates:
+   - upstream scope now states: default frozen + approved guarded exception (`path-1`),
+   - added `2.0 Path-1 freeze-veto contract`,
+   - updated rerun matrix with upstream-reopen lane (`1A accepted candidate -> rerun 1B S0->S9`),
+   - added P4 execution status activation note for path-1 order of operations.
+2) Guard tool reference pinned in plan:
+   - `tools/score_segment1a_freeze_guard.py`,
+   - authority artifact `segment1a_p5_certification.json`.
+
+Execution implication:
+1) For every upstream candidate cycle:
+   - run 1A guard first,
+   - continue to 1B integrated run only if guard is `PASS`.
+2) This enforces USER constraint that 1A frozen grade cannot be spoiled while attempting 1B recovery.
