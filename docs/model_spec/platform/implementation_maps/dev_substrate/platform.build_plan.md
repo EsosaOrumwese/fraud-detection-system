@@ -328,22 +328,31 @@ Active-phase planning posture:
     - `s3://fraud-platform-dev-min-evidence/evidence/dev_min/run_control/m3c_20260213T215336Z/m3_c_digest_snapshot.json`.
 - M3.D->M3.G planning status:
   - expanded sequentially to closure-grade planning in `platform.M3.build_plan.md` (decision pins, command catalogs, blocker taxonomies, and evidence contracts for each of D/E/F/G),
-  - execution remains pending and must run fail-closed in order (`M3.D -> M3.E -> M3.F -> M3.G`).
+  - authoritative execution run: `m3_20260213T221631Z`,
+  - all sub-phases passed in fail-closed order (`M3.D -> M3.E -> M3.F -> M3.G`),
+  - final M3 verdict: `ADVANCE_TO_M4`,
+  - blocker handling summary:
+    - resolved `M3D-B4` false-positive preexistence detection in D-lane,
+    - resolved `M3E-B3/M3E-B6` scope completeness/publish hold in E-lane,
+  - durable evidence:
+    - `s3://fraud-platform-dev-min-evidence/evidence/dev_min/run_control/m3_20260213T221631Z/m3_f_verdict_snapshot.json`
+    - `s3://fraud-platform-dev-min-evidence/evidence/dev_min/run_control/m3_20260213T221631Z/m4_handoff_pack.json`.
 - Sub-phase progress:
   - [x] `M3.A` authority + handle closure matrix for P1.
   - [x] `M3.B` run identity generation contract (`platform_run_id` uniqueness).
   - [x] `M3.C` run config payload + deterministic digest contract.
-  - [ ] `M3.D` durable run evidence publication (`run.json` + start marker).
-  - [ ] `M3.E` runtime scope export handoff for M4.
-  - [ ] `M3.F` pass gates + blocker model closure.
-  - [ ] `M3.G` M4 handoff artifact publication + readiness verdict.
+  - [x] `M3.D` durable run evidence publication (`run.json` + start marker).
+  - [x] `M3.E` runtime scope export handoff for M4.
+  - [x] `M3.F` pass gates + blocker model closure.
+  - [x] `M3.G` M4 handoff artifact publication + readiness verdict.
 
 M3 DoD checklist:
 - [x] `platform_run_id` is generated and collision-checked.
 - [x] run config payload is canonicalized and digest-complete.
-- [ ] `run.json` exists at run evidence root and is structurally complete.
-- [ ] runtime scope export (`REQUIRED_PLATFORM_RUN_ID`) is prepared for M4 consumers.
-- [ ] M3 closeout verdict + handoff artifact are published and non-secret.
+- [x] `run.json` exists at run evidence root and is structurally complete.
+- [x] runtime scope export (`REQUIRED_PLATFORM_RUN_ID`) is prepared for M4 consumers.
+- [x] M3 closeout verdict + handoff artifact are published and non-secret.
+- [ ] phase-transition confirmation to M4 activation is pending USER go-ahead.
 
 ---
 
@@ -519,6 +528,6 @@ Control: required P12 teardown proof and budget guardrails.
 ## 12) Immediate Next Action
 M3 is active for deep planning and execution preparation.
 Next action:
-- execute `M3.D` durable run evidence publication (`run.json` + `run_started.json`) using the M3.C digest payload,
-- execute `M3.E`, `M3.F`, and `M3.G` sequentially in one controlled closure lane (fail-closed between each step),
+- review M3 closeout evidence bundle from `m3_20260213T221631Z` and confirm phase-transition go-ahead,
+- on USER confirmation, mark M3 `DONE` and activate `M4` for execution planning/bring-up,
 - maintain fail-closed posture: no M4 activation until M3 verdict is `ADVANCE_TO_M4` with durable handoff artifacts.

@@ -8261,3 +8261,56 @@ USER directed immediate progression to close `M2.F` after workflow secret mappin
 4. E-lane will export single authoritative runtime-scope bundle with required env key map.
 5. F-lane will compute binary verdict from explicit predicates and blocker rollup.
 6. G-lane will publish final handoff artifacts only if verdict is `ADVANCE_TO_M4`.
+
+## Entry: 2026-02-13 10:20PM - M3.D -> M3.G execution closure with blocker handling
+
+### Trigger
+1. USER directed: execute `M3.D -> M3.G` sequentially; watch blockers, note them, and resolve with best recommended approach.
+
+### Authoritative closure run
+1. Final successful execution id:
+   - `m3_20260213T221631Z`
+2. Run identity anchor:
+   - `platform_run_id=platform_20260213T214223Z`
+3. Sub-phase outcomes:
+   - `M3.D overall_pass=true`
+   - `M3.E overall_pass=true`
+   - `M3.F overall_pass=true`, verdict `ADVANCE_TO_M4`
+   - `M3.G overall_pass=true`
+
+### Blockers observed and resolved
+1. `M3D-B4` observed on first D-lane attempt:
+   - cause: false-positive preexistence/conflict due head-object detection helper behavior,
+   - resolution: switched to AWS CLI exit-code truth for durable existence checks,
+   - outcome: rerun accepted existing compatible `run.json` and preserved immutability law (`resolution=reused_existing_compatible_run_json`).
+2. `M3E-B3` + `M3E-B6` observed on first E-lane attempt:
+   - cause: scope completeness predicate mismatch on ordered env-map shape, which then held durable publish lane,
+   - resolution: changed completeness predicate to deterministic env-map count check,
+   - outcome: rerun passed and durable scope artifacts published.
+
+### Key evidence published (successful run)
+1. Run evidence root:
+   - `s3://fraud-platform-dev-min-evidence/evidence/runs/platform_20260213T214223Z/`
+   - includes `run.json` and `run_started.json`.
+2. M3 control evidence root:
+   - `s3://fraud-platform-dev-min-evidence/evidence/dev_min/run_control/m3_20260213T221631Z/`
+   - includes:
+     - `m3_d_run_publication_snapshot.json`
+     - `m4_runtime_scope_bundle.json`
+     - `m3_e_runtime_scope_snapshot.json`
+     - `m3_f_verdict_snapshot.json`
+     - `m3_run_pinning_snapshot.json`
+     - `m4_handoff_pack.json`
+     - `m3_g_handoff_snapshot.json`.
+
+### Plan-state updates applied
+1. `platform.M3.build_plan.md`:
+   - marked DoDs complete for `M3.D`, `M3.E`, `M3.F`, `M3.G`,
+   - marked M3 completion checklist D->G complete,
+   - recorded authoritative execution status per sub-phase,
+   - recorded resolved blocker entries (`M3D-B4`, `M3E-B3/B6`).
+2. `platform.build_plan.md`:
+   - updated active M3 summary with execution id + verdict + blocker handling,
+   - marked M3 sub-phase progress D->G complete,
+   - marked remaining M3 DoD items complete,
+   - kept M3 transition to M4 as user-governed confirmation step.

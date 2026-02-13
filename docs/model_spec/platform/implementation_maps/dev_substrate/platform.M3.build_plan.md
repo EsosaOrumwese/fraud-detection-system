@@ -432,10 +432,10 @@ Tasks:
 6. Record write receipts and object URIs for M3 evidence.
 
 DoD:
-- [ ] `run.json` and `run_started.json` exist locally and durably.
-- [ ] Durable object verification succeeds.
-- [ ] `run.json` references the correct `platform_run_id`.
-- [ ] M3.D publication snapshot exists locally and durably.
+- [x] `run.json` and `run_started.json` exist locally and durably.
+- [x] Durable object verification succeeds.
+- [x] `run.json` references the correct `platform_run_id`.
+- [x] M3.D publication snapshot exists locally and durably.
 
 ### M3.D Decision Pins (Closed Before Execution)
 1. Input-anchor law:
@@ -483,8 +483,28 @@ DoD:
 2. Input anchors are explicit:
    - M3.C digest snapshot (`m3c_20260213T215336Z`),
    - M3.B run-id anchor (`platform_20260213T214223Z`).
-3. Execution has not started yet.
-4. No open M3.D blocker is currently registered at planning stage.
+3. Execution has completed with authoritative run:
+   - `m3_20260213T221631Z`,
+   - result: `overall_pass=true`.
+4. Verification summary:
+   - M3.C pass anchor check passed,
+   - local `run.json` + `run_started.json` writes passed,
+   - durable run anchor objects exist under `evidence/runs/platform_20260213T214223Z/`,
+   - non-secret policy check passed.
+5. Blocker handling during execution:
+   - first D-lane attempt surfaced `M3D-B4` due false-positive preexistence detection in head-object helper,
+   - resolution: corrected preexistence detection to use AWS CLI exit-code truth; rerun accepted existing compatible `run.json`,
+   - final D-lane resolution mode: `reused_existing_compatible_run_json`.
+6. Evidence:
+   - local:
+     - `runs/dev_substrate/m3/20260213T221631Z/run.json`
+     - `runs/dev_substrate/m3/20260213T221631Z/run_started.json`
+     - `runs/dev_substrate/m3/20260213T221631Z/m3_d_run_publication_snapshot.json`
+   - durable:
+     - `s3://fraud-platform-dev-min-evidence/evidence/runs/platform_20260213T214223Z/run.json`
+     - `s3://fraud-platform-dev-min-evidence/evidence/runs/platform_20260213T214223Z/run_started.json`
+     - `s3://fraud-platform-dev-min-evidence/evidence/dev_min/run_control/m3_20260213T221631Z/m3_d_run_publication_snapshot.json`
+7. No open M3.D blocker is currently registered.
 
 ### M3.E Runtime Scope Export Contract for M4
 Goal:
@@ -507,10 +527,10 @@ Tasks:
    - `evidence/dev_min/run_control/<m3_execution_id>/m3_e_runtime_scope_snapshot.json`
 
 DoD:
-- [ ] Runtime scope bundle is complete and non-secret.
-- [ ] M4 consumers can read a single authoritative scope surface.
-- [ ] Missing run-scope keys are fail-closed.
-- [ ] Runtime-scope snapshot exists locally and durably.
+- [x] Runtime scope bundle is complete and non-secret.
+- [x] M4 consumers can read a single authoritative scope surface.
+- [x] Missing run-scope keys are fail-closed.
+- [x] Runtime-scope snapshot exists locally and durably.
 
 ### M3.E Decision Pins (Closed Before Execution)
 1. Scope-source law:
@@ -547,8 +567,25 @@ DoD:
 
 ### M3.E Planning Status (Current)
 1. M3.E planning has been expanded to closure-grade detail.
-2. Execution has not started yet.
-3. No open M3.E blocker is currently registered at planning stage.
+2. Execution has completed with authoritative run:
+   - `m3_20260213T221631Z`,
+   - result: `overall_pass=true`.
+3. Verification summary:
+   - durable run anchor precondition passed,
+   - runtime scope key/value map is complete and valid for required families,
+   - non-secret policy check passed,
+   - durable bundle/snapshot publication checks passed.
+4. Blocker handling during execution:
+   - first E-lane attempt surfaced `M3E-B3` and `M3E-B6` due scope completeness predicate mismatch on ordered map shape,
+   - resolution: corrected completeness validation to deterministic map-count check (`envMap.Count`), then reran the lane.
+5. Evidence:
+   - local:
+     - `runs/dev_substrate/m3/20260213T221631Z/m4_runtime_scope_bundle.json`
+     - `runs/dev_substrate/m3/20260213T221631Z/m3_e_runtime_scope_snapshot.json`
+   - durable:
+     - `s3://fraud-platform-dev-min-evidence/evidence/dev_min/run_control/m3_20260213T221631Z/m4_runtime_scope_bundle.json`
+     - `s3://fraud-platform-dev-min-evidence/evidence/dev_min/run_control/m3_20260213T221631Z/m3_e_runtime_scope_snapshot.json`
+6. No open M3.E blocker is currently registered.
 
 ### M3.F Pass Gates, Blockers, and Verdict
 Goal:
@@ -570,9 +607,9 @@ Tasks:
    - `evidence/dev_min/run_control/<m3_execution_id>/m3_f_verdict_snapshot.json`
 
 DoD:
-- [ ] Verdict predicates are explicit and reproducible.
-- [ ] Blocker taxonomy is fail-closed and actionable.
-- [ ] Verdict is persisted in M3 closeout artifacts.
+- [x] Verdict predicates are explicit and reproducible.
+- [x] Blocker taxonomy is fail-closed and actionable.
+- [x] Verdict is persisted in M3 closeout artifacts.
 
 ### M3.F Decision Pins (Closed Before Execution)
 1. Predicate law:
@@ -604,8 +641,22 @@ DoD:
 
 ### M3.F Planning Status (Current)
 1. M3.F planning has been expanded to closure-grade detail.
-2. Execution has not started yet.
-3. No open M3.F blocker is currently registered at planning stage.
+2. Execution has completed with authoritative run:
+   - `m3_20260213T221631Z`,
+   - result: `overall_pass=true`,
+   - verdict: `ADVANCE_TO_M4`.
+3. Predicate summary:
+   - `handles_closed=true`
+   - `run_id_collision_free=true`
+   - `digest_reproducible=true`
+   - `run_json_durable=true`
+   - `runtime_scope_export_ready=true`
+4. Evidence:
+   - local:
+     - `runs/dev_substrate/m3/20260213T221631Z/m3_f_verdict_snapshot.json`
+   - durable:
+     - `s3://fraud-platform-dev-min-evidence/evidence/dev_min/run_control/m3_20260213T221631Z/m3_f_verdict_snapshot.json`
+5. No open M3.F blocker is currently registered.
 
 ### M3.G M4 Handoff Artifact Publication
 Goal:
@@ -629,9 +680,9 @@ Tasks:
 4. Record artifact URIs in execution notes.
 
 DoD:
-- [ ] Handoff artifacts exist locally and durably.
-- [ ] `m4_handoff_pack.json` is structurally complete and non-secret.
-- [ ] Artifact URI list is captured for M4 entry.
+- [x] Handoff artifacts exist locally and durably.
+- [x] `m4_handoff_pack.json` is structurally complete and non-secret.
+- [x] Artifact URI list is captured for M4 entry.
 
 ### M3.G Decision Pins (Closed Before Execution)
 1. Precondition law:
@@ -662,8 +713,24 @@ DoD:
 
 ### M3.G Planning Status (Current)
 1. M3.G planning has been expanded to closure-grade detail.
-2. Execution has not started yet.
-3. No open M3.G blocker is currently registered at planning stage.
+2. Execution has completed with authoritative run:
+   - `m3_20260213T221631Z`,
+   - result: `overall_pass=true`.
+3. Verification summary:
+   - `M3.F` verdict precondition passed (`ADVANCE_TO_M4`),
+   - handoff keys and required URIs are complete,
+   - non-secret policy check passed,
+   - durable publication checks for closeout artifacts passed.
+4. Evidence:
+   - local:
+     - `runs/dev_substrate/m3/20260213T221631Z/m3_run_pinning_snapshot.json`
+     - `runs/dev_substrate/m3/20260213T221631Z/m4_handoff_pack.json`
+     - `runs/dev_substrate/m3/20260213T221631Z/m3_g_handoff_snapshot.json`
+   - durable:
+     - `s3://fraud-platform-dev-min-evidence/evidence/dev_min/run_control/m3_20260213T221631Z/m3_run_pinning_snapshot.json`
+     - `s3://fraud-platform-dev-min-evidence/evidence/dev_min/run_control/m3_20260213T221631Z/m4_handoff_pack.json`
+     - `s3://fraud-platform-dev-min-evidence/evidence/dev_min/run_control/m3_20260213T221631Z/m3_g_handoff_snapshot.json`
+5. No open M3.G blocker is currently registered.
 
 ## 6) M3 Evidence Contract (Pinned for Execution)
 Evidence roots:
@@ -702,10 +769,10 @@ Notes:
 - [x] M3.A complete
 - [x] M3.B complete
 - [x] M3.C complete
-- [ ] M3.D complete
-- [ ] M3.E complete
-- [ ] M3.F complete
-- [ ] M3.G complete
+- [x] M3.D complete
+- [x] M3.E complete
+- [x] M3.F complete
+- [x] M3.G complete
 
 ## 8) Risks and Controls
 R1: Reused or colliding run id can contaminate run scope.  
@@ -735,6 +802,25 @@ Resolved blockers:
    - closure evidence:
      - local: `runs/dev_substrate/m3_a/20260213T213547Z/m3_a_handle_closure_snapshot.json`
      - durable: `s3://fraud-platform-dev-min-evidence/evidence/dev_min/run_control/m3a_20260213T213547Z/m3_a_handle_closure_snapshot.json`
+2. `M3D-B4` (resolved)
+   - impacted sub-phase:
+     - `M3.D`
+   - resolution summary:
+     - first execution surfaced false-positive preexistence conflict due head-object detection helper,
+     - corrected detection to AWS CLI exit-code truth and reran D-lane,
+     - accepted existing compatible `run.json` and preserved immutability law.
+   - closure evidence:
+     - local: `runs/dev_substrate/m3/20260213T221631Z/m3_d_run_publication_snapshot.json`
+     - durable: `s3://fraud-platform-dev-min-evidence/evidence/dev_min/run_control/m3_20260213T221631Z/m3_d_run_publication_snapshot.json`
+3. `M3E-B3` and `M3E-B6` (resolved)
+   - impacted sub-phase:
+     - `M3.E`
+   - resolution summary:
+     - first execution had scope-completeness predicate mismatch on ordered map shape, causing publish hold,
+     - corrected completeness predicate to deterministic env-map count check and reran E-lane.
+   - closure evidence:
+     - local: `runs/dev_substrate/m3/20260213T221631Z/m3_e_runtime_scope_snapshot.json`
+     - durable: `s3://fraud-platform-dev-min-evidence/evidence/dev_min/run_control/m3_20260213T221631Z/m3_e_runtime_scope_snapshot.json`
 
 Rule:
 1. Any newly discovered blocker is appended here with closure criteria.
