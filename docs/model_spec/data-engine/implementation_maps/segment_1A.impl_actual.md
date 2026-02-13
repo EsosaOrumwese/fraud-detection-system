@@ -4719,3 +4719,38 @@ Action:
 Rationale:
 1) Preserve enough evidence for causal comparison + lock verification.
 2) Avoid unnecessary disk growth from superseded exploratory runs.
+
+### Entry: 2026-02-13 04:33
+
+Design element: P3 build-plan expansion structure (pre-edit planning note).
+Summary: User requested P3 plan expansion. I will refactor Phase P3 into explicit sub-phases with clear DoDs, while preserving P1/P2 freeze boundaries and introducing conditional reopen protocol only if P3-local levers cannot achieve target mismatch realism.
+
+Decisions to encode in plan:
+1) Freeze guardrails first: keep P1/P2 upstream surfaces immutable by default.
+2) Baseline + uncertainty-aware scorer before tuning.
+3) Identity semantics hardening as first execution block in P3.
+4) Legal mismatch closure attempt under frozen upstream.
+5) Conditional minimal reopen (explicit approval required) if mismatch metrics remain out-of-band.
+6) P3 lock + replay stability criteria aligned to two-run same-seed checks.
+
+### Entry: 2026-02-13 04:34
+
+Design element: P3 build-plan expansion committed.
+Summary: Rewrote the P3 section in `segment_1A.build_plan.md` into explicit sub-phases with DoDs and fail-closed reopen protocol.
+
+What was added:
+1) Binding freeze guardrails for P3 execution (P1/P2 immutable by default).
+2) Fixed scoring authority choices:
+- size metric = `n_outlets` deciles,
+- identity contract = merchant-local `site_id` semantics.
+3) Explicit P3 target definitions:
+- mismatch rate bands,
+- size-gradient thresholds,
+- duplicate-semantics quality,
+- CI requirement for acceptance.
+4) P3.1..P3.4 phase decomposition with stepwise DoDs.
+5) Calibration/anti-forging method and hard-veto behavior.
+6) Conditional minimal reopen protocol with explicit approval requirement and ordered blast-radius control.
+
+Outcome:
+- P3 plan now provides a concrete execution map that can be run phase-by-phase without reopening locked P1/P2 surfaces by accident.

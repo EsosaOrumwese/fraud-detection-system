@@ -314,32 +314,117 @@ Current posture is "open world then suppress." Candidate breadth is near-global 
 ### 5.1 Why third
 Home/legal mismatch and site identity ambiguity damage interpretability downstream even when count/topology metrics improve.
 
-### 5.2 States in scope
-- legal-country assignment surfaces affecting `S8` projection,
-- identity semantics enforcement for emitted outlet rows.
+### 5.2 P3 freeze guardrails (binding)
+- `P1/P2` locked surfaces remain immutable by default during `P3`:
+  - `S1/S2` posture and coefficient bundles from Section `3.7`,
+  - `S3/S4/S6` locked knobs from Section `4.8` lock record,
+  - `S5` support-density posture as accepted in `P2` lock runs.
+- P3 scoring authority for size gradient:
+  - merchant size is `n_outlets` deciles from `rng_event_nb_final` / `raw_nb_outlet_draw`.
+- P3 identity contract (fixed choice):
+  - `site_id` is merchant-local sequence semantics scoped to `(merchant_id, legal_country_iso)`,
+  - `site_id` is **not** a globally unique physical-site identifier.
+- Hard veto during `P3`:
+  - reject any candidate change that regresses locked P2 global gates below B thresholds.
 
-### 5.3 Primary files to touch
-- Policies:
-  - `config/layer1/1A/policy/merchant_allocation.1A.yaml`
-  - `config/layer1/1A/policy/legal_tender_2024Q4.yaml`
-- Runtime and outputs:
+### 5.3 States and datasets in scope
+- Primary state focus:
+  - `S8` outlet materialisation semantics and validation handoff.
+- Upstream read-only dependency surfaces for P3 scoring:
+  - `s3_candidate_set`,
+  - `s6_membership`,
+  - `rng_event_nb_final`,
+  - `s7` integer count handoff / `s3_integerised_counts` (owner-dependent),
+  - `outlet_catalogue` (primary P3 scoring surface).
+
+### 5.4 Primary files to touch
+- Runtime and validation:
   - `packages/engine/src/engine/layers/l1/seg_1A/s8_outlet_catalogue/runner.py`
-  - `packages/engine/src/engine/layers/l1/seg_1A/s0_foundations/outputs.py`
-- Contract docs (if semantic contract update is required):
+  - `packages/engine/src/engine/layers/l1/seg_1A/s9_validation/runner.py`
+- Contract docs:
   - `docs/model_spec/data-engine/layer-1/specs/contracts/1A/dataset_dictionary.layer1.1A.yaml`
   - `docs/model_spec/data-engine/layer-1/specs/contracts/1A/schemas.1A.yaml`
+- Conditional reopen surfaces (only if Section 5.8 trigger is met and approval is granted):
+  - `config/layer1/1A/policy/merchant_allocation.1A.yaml`
+  - `config/layer1/1A/policy/legal_tender_2024Q4.yaml`
+  - additional minimal upstream knobs in `S3/S6/S7` as explicitly approved.
 
-### 5.4 Implementation intent
-- Make home vs legal mismatch explicitly size/profile-conditioned.
-- Enforce one clear `site_id` contract:
-  - either merchant-local index semantics, or
-  - globally unique physical-site semantics.
-- Add validator checks so ambiguous duplicate interpretation is impossible.
+### 5.5 P3 statistical targets and definitions
+- `home_legal_mismatch_rate`:
+  - `mean(home_country_iso != legal_country_iso)` on `outlet_catalogue`,
+  - target bands:
+    - `B`: `0.10 to 0.25`,
+    - `B+`: `0.12 to 0.20`.
+- `size_gradient_pp`:
+  - mismatch rate in top merchant size decile minus bottom deciles,
+  - target bands:
+    - `B`: at least `+5pp`,
+    - `B+`: at least `+8pp`.
+- `identity_semantics_quality`:
+  - unexplained duplicate exposure under declared `site_id` contract,
+  - target:
+    - no unexplained duplicate anomalies.
+- uncertainty requirement:
+  - compute Wilson/Bootstrap CIs for key rates and gradient before acceptance.
 
-### 5.5 P3 definition of done
-- [ ] `home != legal` share reaches at least `B` band (`0.10 to 0.25`).
-- [ ] size gradient is positive and material (top decile at least +5pp vs bottom).
-- [ ] duplicate behaviors are fully explained by declared identity contract.
+### 5.6 P3 phased approach and DoD
+
+#### P3.1 Baseline and scoring harness
+- Intent:
+  - materialize deterministic P3 baseline from locked P2 posture before edits.
+- DoD:
+  - [ ] one repeatable command/profile computes P3 scorecard metrics + CIs.
+  - [ ] scorecard reports global + stratified posture (`channel`, broad `MCC`, GDP bucket).
+  - [ ] baseline includes duplicate-semantics diagnostics under current `site_id` contract.
+
+#### P3.2 Identity semantics hardening
+- Intent:
+  - remove site-identity ambiguity while preserving declared S8 contract semantics.
+- DoD:
+  - [ ] schema/dictionary language explicitly binds `site_id` to local `(merchant_id, legal_country_iso)` scope.
+  - [ ] S9 validators fail closed for any duplicate behavior outside declared contract.
+  - [ ] unexplained duplicate anomalies are zero in baseline + post-change checks.
+
+#### P3.3 Legal mismatch realism closure under frozen upstream
+- Intent:
+  - achieve mismatch level and size-gradient realism without reopening locked upstream surfaces.
+- DoD:
+  - [ ] `home_legal_mismatch_rate` reaches at least `B` band.
+  - [ ] `size_gradient_pp` reaches at least `B` threshold.
+  - [ ] no regression of locked P2 global gates.
+
+#### P3.4 Joint reconciliation and lock
+- Intent:
+  - verify P3 posture is stable and not seed-luck or scorer artifact.
+- DoD:
+  - [ ] two consecutive same-seed P3 runs meet all P3 B checks.
+  - [ ] replay preserves P3 metric posture within tolerance.
+  - [ ] lock record captures accepted run ids, parameter hash, and touched knobs/files.
+
+### 5.7 Calibration and anti-forging method
+- Candidate ranking objective:
+  - `L(theta) = sum_i w_i * d_i(theta) + lambda * veto_penalty(theta)`.
+- `d_i(theta)`:
+  - `0` inside target bands; quadratic penalty outside.
+- `veto_penalty(theta)`:
+  - hard reject any candidate violating P2 locked gates or contract integrity checks.
+- Execution posture:
+  - tune one knob family at a time, reconcile jointly only after single-family movement is causal.
+
+### 5.8 Conditional reopen protocol (fail-closed)
+- Trigger:
+  - if P3.3 cannot meet mismatch-level/gradient targets under frozen upstream.
+- Required before reopen:
+  - explicit causal evidence that P3-local levers are insufficient, and
+  - explicit user approval naming allowed reopen surfaces.
+- Minimal reopen order:
+  - `S7` count-allocation posture,
+  - `S6` legal-membership gating posture,
+  - `S3` candidate/legal breadth posture,
+  - broader policy/config surfaces only if prior steps fail.
+- Reopen DoD:
+  - [ ] target movement achieved with smallest approved blast radius.
+  - [ ] P1/P2 realism posture remains non-regressed.
 
 ## 6) Workstream D: artifact completeness and state auditability (Phase P4)
 
