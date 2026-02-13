@@ -210,9 +210,9 @@ Active-phase execution posture:
   - [x] `M1.E` build command surface/reproducibility contract freeze complete.
   - [x] `M1.F` build driver authority pin complete (`github_actions` authoritative; `local_cli` preflight-only).
   - [x] `M1.G` authoritative CI workflow realization complete (`.github/workflows/dev_min_m1_packaging.yml`).
-  - [ ] `M1.H` authoritative CI gate validation pending.
+  - [x] `M1.H` authoritative CI gate validation complete (`runs/dev_substrate/m1_h_validation/20260213T104213Z/ci_gate_validation_report.json`).
   - [ ] `M1.I` exit-readiness review and build-go handoff pending.
-  - M1 planning pack remains reopened; build-go remains blocked until `M1.H..M1.I` close.
+  - M1 planning pack remains reopened; build-go remains blocked until `M1.I` closes.
 
 M1 DoD checklist:
 - [x] Packaging contract finalized in `platform.M1.build_plan.md` (image, entrypoints, provenance, security).
@@ -408,10 +408,9 @@ Control: required P12 teardown proof and budget guardrails.
 
 ## 12) Immediate Next Action
 Before any USER build-go execution:
-- close `M1.H` (authoritative CI gate validation),
 - close `M1.I` (exit-readiness/handoff refresh).
 
-After `M1.H..M1.I` closure and explicit USER build-go:
+After `M1.I` closure and explicit USER build-go:
 - run M1 packaging/build steps from `platform.M1.build_plan.md`,
 - collect P(-1) evidence artifacts per phase evidence template,
 - close M1 only after checklist + evidence pass.

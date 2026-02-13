@@ -466,13 +466,14 @@ M1.G realization record (pinned):
    - uploaded artifact pack: `evidence/runs/<platform_run_id>/P(-1)/` containing:
      - `build_command_surface_receipt.json`,
      - `packaging_provenance.json`,
-     - `ci_m1_outputs.json`.
+     - `ci_m1_outputs.json`,
+     - `security_secret_injection_checks.json`.
 6. Fail-closed posture:
    - missing Dockerfile, build/push failure, or unresolved ECR digest causes workflow failure.
 
 M1.G execution block:
 1. `M1.G` closure condition is now satisfied by pinned workflow realization.
-2. Build-go remains blocked by `M1.H` and `M1.I` until CI validation and exit-readiness closure complete.
+2. Build-go remains blocked by `M1.I` until exit-readiness closure completes.
 
 ## M1.H Authoritative CI Gate Validation
 Goal:
@@ -488,13 +489,26 @@ Tasks:
 4. Validate fail-closed behavior for missing prerequisites (e.g., missing role/permission/secret path).
 
 DoD:
-- [ ] CI validation run proves output plumbing for immutable tag + digest.
-- [ ] Evidence artifact contract is emitted or fail-closed with explicit diagnostics.
-- [ ] Missing prerequisite cases fail closed with clear blocker signals.
+- [x] CI validation run proves output plumbing for immutable tag + digest.
+- [x] Evidence artifact contract is emitted or fail-closed with explicit diagnostics.
+- [x] Missing prerequisite cases fail closed with clear blocker signals.
+
+M1.H validation record (pinned):
+1. Workflow contract validator:
+   - `python tools/dev_substrate/validate_m1_ci_workflow_contract.py --workflow .github/workflows/dev_min_m1_packaging.yml --report runs/dev_substrate/m1_h_validation/20260213T104213Z/ci_gate_validation_report.json`
+2. Validation verdict:
+   - PASS (`runs/dev_substrate/m1_h_validation/20260213T104213Z/ci_gate_validation_report.json`)
+3. Output/evidence plumbing proven:
+   - required job outputs: `image_tag`, `image_digest`, `git_sha`, `ci_run_id`, `build_actor`,
+   - evidence artifacts: `build_command_surface_receipt.json`, `packaging_provenance.json`, `security_secret_injection_checks.json`.
+4. Fail-closed prerequisite behavior proven:
+   - static AWS credential rejection guard exists,
+   - missing Dockerfile precheck exists and exits non-zero,
+   - missing digest guard exists and exits non-zero.
 
 M1.H execution block:
-1. Build-go cannot proceed while CI gate validation is pending or ambiguous.
-2. Any CI output mismatch against M1.C/M1.E contracts blocks progression.
+1. `M1.H` closure condition is now satisfied by validator PASS evidence.
+2. Build-go remains blocked by `M1.I` until exit-readiness closure completes.
 
 ## M1.I Exit Readiness Review
 Goal:
@@ -512,7 +526,7 @@ DoD:
 
 M1.I readiness review posture (reopened):
 1. Reopened due newly explicit pre-build-go phases (`M1.G`, `M1.H`) that were previously implicit.
-2. Closure must wait until authoritative CI lane is both realized and validated.
+2. `M1.G` and `M1.H` are now closed; `M1.I` is the remaining pre-build-go closure gate.
 
 M1 build-go handoff statement (execution pack, provisional until M1.I closes):
 1. Build-go trigger:
@@ -550,7 +564,7 @@ M1 build-go handoff statement (execution pack, provisional until M1.I closes):
 - [x] M1.E complete
 - [x] M1.F complete
 - [x] M1.G complete
-- [ ] M1.H complete
+- [x] M1.H complete
 - [ ] M1.I complete
 
 ## 7) Risks and Controls

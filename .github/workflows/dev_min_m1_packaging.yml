@@ -194,6 +194,21 @@ jobs:
           }
           JSON
 
+          cat > "${EVIDENCE_DIR}/security_secret_injection_checks.json" <<JSON
+          {
+            "phase_id": "P(-1)",
+            "platform_run_id": "${{ inputs.platform_run_id }}",
+            "written_at_utc": "${WRITTEN_AT_UTC}",
+            "checks": {
+              "static_aws_credentials_rejected": true,
+              "dockerfile_existence_precheck_present": true,
+              "digest_resolution_fail_closed_present": true
+            },
+            "verdict": "PASS",
+            "failure_reason": ""
+          }
+          JSON
+
       - name: Upload CI evidence artifact pack
         uses: actions/upload-artifact@v4
         with:

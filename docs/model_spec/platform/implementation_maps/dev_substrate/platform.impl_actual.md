@@ -5904,3 +5904,90 @@ This change is contract realization for M1 only and does not execute build-go ru
 
 ### Drift sentinel assessment
 No runtime semantic drift introduced. This is execution-control hardening that removes CI-lane ambiguity and makes build-go prerequisites auditable.
+
+## Entry: 2026-02-13 10:40AM - Pre-change lock: M1.H authoritative CI gate validation
+
+### Trigger
+USER directed: proceed to `M1.H`.
+
+### Objective
+Close `M1.H` by producing objective validation evidence that the authoritative CI workflow satisfies output plumbing, evidence-artifact obligations, and fail-closed prerequisite behavior.
+
+### Gap discovered before execution
+`M1.H` requires validation of three evidence artifacts:
+1. `build_command_surface_receipt.json`
+2. `packaging_provenance.json`
+3. `security_secret_injection_checks.json`
+
+Current workflow emitted only (1) and (2) plus `ci_m1_outputs.json`; therefore `M1.H` cannot close without patching that drift.
+
+### Planned corrective actions
+1. Patch `.github/workflows/dev_min_m1_packaging.yml` to emit `security_secret_injection_checks.json`.
+2. Add a deterministic local validator script to statically validate CI contract obligations:
+- workflow syntax/loadability,
+- required outputs wiring,
+- evidence file coverage,
+- fail-closed guard presence (AWS creds, Dockerfile precheck, digest resolution check).
+3. Run validator and record PASS/FAIL evidence.
+4. Update:
+- `platform.M1.build_plan.md` (`M1.H` closure record + checklist),
+- `platform.build_plan.md` (M1 sub-phase progress),
+- logbook entry.
+
+### Drift sentinel checkpoint
+This is control-surface validation for migration readiness, not runtime flow execution.
+
+## Entry: 2026-02-13 10:41AM - Applied M1.H closure: CI gate validation evidence pinned
+
+### Files updated
+1. `.github/workflows/dev_min_m1_packaging.yml`
+2. `tools/dev_substrate/validate_m1_ci_workflow_contract.py` (new)
+3. `docs/model_spec/platform/implementation_maps/dev_substrate/platform.M1.build_plan.md`
+4. `docs/model_spec/platform/implementation_maps/dev_substrate/platform.build_plan.md`
+
+### Corrective action for discovered gap
+1. Patched workflow evidence emission to include:
+- `security_secret_injection_checks.json`
+This closes the M1.H evidence-artifact contract drift against M1.D/M1.H requirements.
+
+### Validation mechanics implemented
+1. Added deterministic local validator:
+- `tools/dev_substrate/validate_m1_ci_workflow_contract.py`
+2. Validator checks:
+- workflow_dispatch required inputs,
+- least-privilege permissions posture,
+- required job output wiring,
+- fail-closed guards (static AWS creds, missing Dockerfile, missing digest),
+- evidence artifact coverage,
+- artifact upload path contract.
+
+### Validation runs
+1. Initial run:
+- report: `runs/dev_substrate/m1_h_validation/20260213T104041Z/ci_gate_validation_report.json`
+- verdict: FAIL (YAML `on` key normalization issue in validator, corrected immediately).
+2. Final run:
+- report: `runs/dev_substrate/m1_h_validation/20260213T104101Z/ci_gate_validation_report.json`
+- verdict: PASS.
+
+### Plan-state synchronization
+1. Marked `M1.H` complete in deep plan with pinned validation record and report path.
+2. Marked `M1.H` complete in main plan sub-phase progress.
+3. Updated build-go blocker wording: only `M1.I` remains before M1 execution build-go.
+
+### Drift sentinel assessment
+No semantic runtime behavior changed. This closes an execution-readiness control gap and improves pre-build-go determinism.
+
+## Entry: 2026-02-13 10:42AM - M1.H revalidation pass after documentation synchronization
+
+### Trigger
+Post-sync confidence check after updating plan/log files for M1.H closure.
+
+### Action
+Re-ran validator:
+- `python tools/dev_substrate/validate_m1_ci_workflow_contract.py --workflow .github/workflows/dev_min_m1_packaging.yml --report runs/dev_substrate/m1_h_validation/20260213T104213Z/ci_gate_validation_report.json`
+
+### Result
+- PASS (`runs/dev_substrate/m1_h_validation/20260213T104213Z/ci_gate_validation_report.json`)
+
+### Outcome
+Confirms M1.H remains closed with stable validation results after all associated doc updates.
