@@ -373,9 +373,48 @@ Tasks:
 3. Prepare execution handoff statement for M1 build-go pass.
 
 DoD:
-- [ ] M1 deliverables checklist complete.
-- [ ] No unresolved contract ambiguity remains.
-- [ ] Build-go handoff statement prepared.
+- [x] M1 deliverables checklist complete.
+- [x] No unresolved contract ambiguity remains.
+- [x] Build-go handoff statement prepared.
+
+M1.F readiness review verdict:
+1. Deliverables completeness:
+   - image contract: complete (M1.A),
+   - entrypoint matrix: complete (M1.B),
+   - provenance/evidence contract: complete (M1.C),
+   - security/secret injection contract: complete (M1.D),
+   - build command-surface/reproducibility contract: complete (M1.E).
+2. Ambiguity review:
+   - no unresolved contract ambiguity remains inside M1 planning scope.
+   - remaining work is execution-only (build/push/check/evidence generation under explicit build-go).
+3. Phase status implication:
+   - M1.F closure completes planning/handoff readiness, not M1 runtime closure.
+   - M1 overall remains open until execution evidence satisfies Section 8 exit criteria.
+
+M1 build-go handoff statement (execution pack):
+1. Build-go trigger:
+   - explicit USER direction authorizing M1 execution run.
+2. Execution authority:
+   - run only the pinned contracts in this file (`M1.A..M1.E`) and main plan M1 section.
+3. Execution sequence:
+   - execute canonical build command surface (M1.E),
+   - validate entrypoint callability in image context (M1.B validation method),
+   - record immutable tag + digest + git provenance (M1.C),
+   - run secret-leakage and runtime-secret wiring checks (M1.D),
+   - write required P(-1) evidence artifacts under run-scoped paths.
+4. Required P(-1) evidence outputs (minimum):
+   - `P(-1)/packaging_provenance.json`,
+   - `P(-1)/build_command_surface_receipt.json`,
+   - `P(-1)/security_secret_injection_checks.json`,
+   - `run.json` image provenance mirror fields aligned to registry handles.
+5. Fail-closed blockers (no progression to M2):
+   - build/push failure,
+   - immutable tag->digest mismatch,
+   - missing/failed entrypoint validation,
+   - missing/mismatched provenance artifacts,
+   - any baked-secret/leakage finding or missing required runtime secret path.
+6. Closure condition:
+   - only after evidence is produced/validated and user confirms progression can M1 status transition to `DONE` and M2 become activatable.
 
 ## 6) M1 Completion Checklist
 - [x] M1.A complete
@@ -383,7 +422,7 @@ DoD:
 - [x] M1.C complete
 - [x] M1.D complete
 - [x] M1.E complete
-- [ ] M1.F complete
+- [x] M1.F complete
 
 ## 7) Risks and Controls
 R1: image/entrypoint mismatch discovered late  

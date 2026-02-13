@@ -5506,3 +5506,66 @@ Documentation-contract closure only; no runtime/infrastructure execution changes
 
 ### Drift sentinel assessment
 No runtime or infrastructure execution changes were made. This is planning/control-surface hardening and phase progression closure for M1.E.
+
+## Entry: 2026-02-13 9:03AM - Pre-change lock: implement M1.F exit-readiness review and handoff
+
+### Trigger
+USER directed: proceed to `M1.F`.
+
+### Objective
+Close M1.F by completing the M1 exit-readiness review and preparing the explicit build-go execution handoff statement, without prematurely closing M1 phase status.
+
+### Scope
+1. `docs/model_spec/platform/implementation_maps/dev_substrate/platform.M1.build_plan.md`
+   - complete M1.F DoD,
+   - add readiness verdict and execution handoff statement,
+   - mark M1.F checklist complete.
+2. `docs/model_spec/platform/implementation_maps/dev_substrate/platform.build_plan.md`
+   - update active-phase sub-progress,
+   - mark M1 handoff checklist item complete,
+   - keep M1 status `ACTIVE` pending execution evidence.
+
+### Key decisions (before patch)
+1. M1.F completion means planning/handoff pack is complete, not that P(-1) runtime execution is done.
+2. M1 must stay `ACTIVE` until build-go execution artifacts are produced and validated per M1 exit criteria.
+3. Handoff statement must enumerate execution sequence, required artifacts, and fail-closed blockers.
+
+### Validation plan
+- M1.F DoD all `[x]` in deep plan.
+- M1 completion checklist shows `M1.F complete`.
+- Main plan shows all M1 sub-phases complete but explicitly states M1 remains active pending execution evidence.
+
+### Drift sentinel checkpoint
+Documentation-control closure only; no runtime/infra execution changes.
+
+## Entry: 2026-02-13 9:04AM - Applied M1.F exit-readiness review and build-go handoff closure
+
+### Files updated
+1. `docs/model_spec/platform/implementation_maps/dev_substrate/platform.M1.build_plan.md`
+2. `docs/model_spec/platform/implementation_maps/dev_substrate/platform.build_plan.md`
+
+### What was implemented
+1. M1.F completion in deep plan:
+- completed all M1.F DoD checkboxes,
+- added readiness review verdict (deliverables complete + ambiguity closed within planning scope),
+- added explicit build-go handoff statement with:
+  - trigger,
+  - execution authority,
+  - ordered execution sequence,
+  - required P(-1) evidence outputs,
+  - fail-closed blockers,
+  - closure condition for M1->M2 transition.
+- marked `M1.F complete` in section 6 checklist.
+
+2. Main plan alignment:
+- updated M1 sub-phase progress to mark M1.F complete,
+- added explicit note that M1 planning pack is complete but phase remains `ACTIVE` until execution evidence is produced/validated,
+- marked the final M1 checklist item (`execution handoff statement prepared`) complete.
+
+### Validation
+- M1 deep plan now shows M1.A..M1.F complete.
+- Main plan M1 checklist is fully checked.
+- M1 phase status remains `ACTIVE` as intended because execution evidence has not been produced yet.
+
+### Drift sentinel assessment
+No semantic/runtime drift introduced. This closes planning readiness and cleanly separates planning completion from execution closure.

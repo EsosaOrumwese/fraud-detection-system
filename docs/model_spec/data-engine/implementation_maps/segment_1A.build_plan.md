@@ -518,9 +518,9 @@ Certification is impossible while required outputs are absent.
   - `docs/model_spec/data-engine/layer-1/specs/contracts/1A/dataset_dictionary.layer1.1A.yaml`
 
 ### 6.5 P4 definition of done
-- [ ] all required outputs are emitted in sealed run paths.
-- [ ] schema and registry references resolve without manual patching.
-- [ ] S9 can certify gates directly from emitted artifacts.
+- [x] all required outputs are emitted in sealed run paths.
+- [x] schema and registry references resolve without manual patching.
+- [x] S9 can certify gates directly from emitted artifacts.
 
 ### 6.6 Baseline gap snapshot (authority run `da3e57e73e733b990a5aa3a46705f987`)
 - Presence audit against required P4 outputs on the accepted P3 lock run:
@@ -548,25 +548,25 @@ Certification is impossible while required outputs are absent.
 - Intent:
   - produce an explicit ownership map for each missing artifact before code changes.
 - DoD:
-  - [ ] artifact-to-producer map is pinned (`state`, dataset id, schema ref, registry key, path template).
-  - [ ] optional-vs-required ambiguities are resolved in contract docs/notes.
-  - [ ] non-regression strategy is pinned for `s3_integerised_counts`/`s3_site_sequence` (emit without changing locked S8 authority path).
+  - [x] artifact-to-producer map is pinned (`state`, dataset id, schema ref, registry key, path template).
+  - [x] optional-vs-required ambiguities are resolved in contract docs/notes.
+  - [x] non-regression strategy is pinned for `s3_integerised_counts`/`s3_site_sequence` (emit without changing locked S8 authority path).
 
 #### P4.2 S5 sparse diagnostic emission closure
 - Intent:
   - activate deterministic `sparse_flag` emission from S5 in the standard Segment 1A run profile.
 - DoD:
-  - [ ] S5 emits `sparse_flag` at the declared contract path for sealed runs.
-  - [ ] emitted dataset validates against `schemas.1A.yaml#/prep/sparse_flag`.
-  - [ ] no behavioral drift in S5 core outputs (`ccy_country_weights_cache`, `merchant_currency`) under fixed seed/hash.
+  - [x] S5 emits `sparse_flag` at the declared contract path for sealed runs.
+  - [x] emitted dataset validates against `schemas.1A.yaml#/prep/sparse_flag`.
+  - [x] no behavioral drift in S5 core outputs (`ccy_country_weights_cache`, `merchant_currency`) under fixed seed/hash.
 
 #### P4.3 S3/S8 allocation-audit artifact closure without authority drift
 - Intent:
   - emit `s3_integerised_counts` and `s3_site_sequence` while preserving locked downstream posture.
 - DoD:
-  - [ ] both artifacts are emitted and schema-valid on sealed runs.
-  - [ ] S8 remains on the locked count authority path used for P3 closure unless an explicit reopen decision is recorded.
-  - [ ] consistency checks pass:
+  - [x] both artifacts are emitted and schema-valid on sealed runs.
+  - [x] S8 remains on the locked count authority path used for P3 closure unless an explicit reopen decision is recorded.
+  - [x] consistency checks pass:
     - per-merchant sums align with `n_outlets`,
     - sequence/site-order coherence holds against `outlet_catalogue`.
 
@@ -574,18 +574,18 @@ Certification is impossible while required outputs are absent.
 - Intent:
   - close remaining auditability gaps for failure and stationarity diagnostics.
 - DoD:
-  - [ ] `merchant_abort_log` is emitted each run (schema-valid; zero-row allowed when no abort events exist).
-  - [ ] `hurdle_stationarity_tests` is emitted each run (schema-valid; deterministic for fixed seed/hash).
-  - [ ] S9 fail-closed checks require both artifacts and provide clear reason codes on absence/schema mismatch.
+  - [x] `merchant_abort_log` is emitted each run (schema-valid; zero-row allowed when no abort events exist).
+  - [x] `hurdle_stationarity_tests` is emitted each run (schema-valid; deterministic for fixed seed/hash).
+  - [x] S9 fail-closed checks require both artifacts and provide clear reason codes on absence/schema mismatch.
 
 #### P4.5 P4 closure and lock
 - Intent:
   - certify artifact completeness without reopening statistical realism work.
 - DoD:
-  - [ ] all five required outputs are present on a full sealed run.
-  - [ ] P1/P2/P3 lock metrics remain non-regressed versus accepted lock authority.
-  - [ ] same-seed replay preserves artifact payload/hash posture and locked scorecard posture.
-  - [ ] lock record captures accepted P4 run ids, parameter hash, and touched files/knobs.
+  - [x] all five required outputs are present on a full sealed run.
+  - [x] P1/P2/P3 lock metrics remain non-regressed versus accepted lock authority.
+  - [x] same-seed replay preserves artifact payload/hash posture and locked scorecard posture.
+  - [x] lock record captures accepted P4 run ids, parameter hash, and touched files/knobs.
 
 ### 6.9 Planned execution order (state-aligned)
 1. `P4.1` reconciliation map and no-regression design.
@@ -593,6 +593,46 @@ Certification is impossible while required outputs are absent.
 3. `P4.3` S3/S8 audit artifact emission under locked authority posture.
 4. `P4.4` diagnostics artifact closure and S9 fail-closed enforcement.
 5. `P4.5` full-run closure, replay proof, and lock record.
+
+### 6.10 P4 closure record
+Accepted authority pair:
+1. full sealed run:
+- `run_id=8ea58c10713dab97b1234fba99c0138e`
+2. same-seed replay:
+- `run_id=b97f71bf357ffc8a28d80ea14894d6c4`
+
+Shared lock posture:
+1. `seed=42`.
+2. `parameter_hash=59ca6719a623f6f024806b79344926c5941841789f2f92264bccad187f710f72`.
+3. S8 authority path remains locked to `s7_counts_handoff` with S3 consume flags disabled.
+
+Artifact completeness evidence:
+1. `segment1a-p4-check` passed on both accepted runs with all required outputs present:
+- `s3_integerised_counts`,
+- `s3_site_sequence`,
+- `sparse_flag`,
+- `merchant_abort_log`,
+- `hurdle_stationarity_tests`.
+
+Non-regression evidence:
+1. P2 checks pass on both runs:
+- `make segment1a-p2-check ... RUN_ID=8ea58c10713dab97b1234fba99c0138e`,
+- `make segment1a-p2-check ... RUN_ID=b97f71bf357ffc8a28d80ea14894d6c4`.
+2. P3 checks pass on both runs:
+- `make segment1a-p3-check ... RUN_ID=8ea58c10713dab97b1234fba99c0138e`,
+- `make segment1a-p3-check ... RUN_ID=b97f71bf357ffc8a28d80ea14894d6c4`.
+3. P3 score posture remains B+ on both runs:
+- mismatch in `[0.12195, 0.12502]`,
+- size gradient in `[13.4246, 14.3198]`,
+- duplicate-anomaly checks remain clear.
+
+Storage hygiene:
+1. pruned superseded P4 intermediate runs:
+- `19e251361b0b1bfb185f315e91ee07fa`,
+- `88f25773570789073bcf8413225b1dda`.
+2. retained P4 authority pair:
+- `8ea58c10713dab97b1234fba99c0138e`,
+- `b97f71bf357ffc8a28d80ea14894d6c4`.
 
 ## 7) Certification and grade decision (Phase P5)
 

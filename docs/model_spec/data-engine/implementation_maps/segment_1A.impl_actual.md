@@ -5217,3 +5217,48 @@ Corrective decision:
 2) Apply smallest possible S7 home-bias adjustment on largest tier only:
 - `home_share_min: 0.610 -> 0.609`.
 3) Re-run `segment1a-p4` once and re-check P2/P3 scorecards.
+
+### Entry: 2026-02-13 09:02
+
+Design element: P4 closure record (full run + same-seed replay + storage hygiene).
+Summary: Completed P4 one-pass closure with required artifact completeness, preserved locked S8 authority path, maintained B+ realism posture on replay, and pruned superseded P4 run folders.
+
+Execution evidence:
+1) full sealed run:
+- command: `make segment1a-p4 RUNS_ROOT=runs/fix-data-engine/segment_1A`
+- run id: `8ea58c10713dab97b1234fba99c0138e`
+- result: `segment1a-p4-check PASS` (all 5 required artifacts present).
+2) same-seed replay:
+- command: `make segment1a-p4 RUNS_ROOT=runs/fix-data-engine/segment_1A`
+- run id: `b97f71bf357ffc8a28d80ea14894d6c4`
+- result: `segment1a-p4-check PASS` (all 5 required artifacts present).
+3) guard checks on both runs:
+- `make segment1a-p2-check ... RUN_ID=<run_id>` -> PASS.
+- `make segment1a-p3-check ... RUN_ID=<run_id>` -> PASS.
+4) scorecards:
+- `runs/fix-data-engine/segment_1A/reports/segment1a_p2_1_baseline_8ea58c10713dab97b1234fba99c0138e.json`
+- `runs/fix-data-engine/segment_1A/reports/segment1a_p2_1_baseline_b97f71bf357ffc8a28d80ea14894d6c4.json`
+- `runs/fix-data-engine/segment_1A/reports/segment1a_p3_1_baseline_8ea58c10713dab97b1234fba99c0138e.json`
+- `runs/fix-data-engine/segment_1A/reports/segment1a_p3_1_baseline_b97f71bf357ffc8a28d80ea14894d6c4.json`
+
+Observed replay posture:
+1) shared lock inputs:
+- `seed=42`,
+- `parameter_hash=59ca6719a623f6f024806b79344926c5941841789f2f92264bccad187f710f72`.
+2) both runs satisfy P3 B+ posture:
+- mismatch rates: `0.12502` and `0.12195`,
+- size gradients: `14.3198` and `13.4246`,
+- unexplained duplicate anomalies: `false` in both runs.
+3) replay did not reproduce exact row counts (`candidate_set/outlet rows drifted slightly`) but remained in the same accepted score/gate regime.
+
+Storage hygiene action:
+1) pruned superseded P4 intermediate run folders:
+- `runs/fix-data-engine/segment_1A/19e251361b0b1bfb185f315e91ee07fa`
+- `runs/fix-data-engine/segment_1A/88f25773570789073bcf8413225b1dda`
+2) retained P4 authority pair:
+- `runs/fix-data-engine/segment_1A/8ea58c10713dab97b1234fba99c0138e`
+- `runs/fix-data-engine/segment_1A/b97f71bf357ffc8a28d80ea14894d6c4`
+
+Decision:
+1) P4 is accepted for artifact-completeness closure with preserved P1/P2/P3 realism posture.
+2) Replay is grade-stable (B+) under same seed/hash, but exact row-equality is not currently enforced; treat this as a hardening item for P5 determinism tightening.
