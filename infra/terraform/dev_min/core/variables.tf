@@ -83,9 +83,24 @@ variable "budget_alert_email" {
   default = ""
 }
 
-variable "monthly_budget_usd" {
+variable "budget_name" {
+  type    = string
+  default = "fraud-platform-dev-min-budget"
+}
+
+variable "budget_limit_amount" {
   type    = number
-  default = 40
+  default = 30
+}
+
+variable "budget_limit_unit" {
+  type    = string
+  default = "USD"
+}
+
+variable "budget_alert_thresholds" {
+  type    = list(number)
+  default = [10, 20, 28]
 }
 
 variable "bucket_versioning_status_by_role" {
@@ -98,4 +113,3 @@ variable "bucket_versioning_status_by_role" {
     tf_state     = "Enabled"
   }
 }
-

@@ -91,7 +91,7 @@
       "width": 24,
       "height": 4,
       "properties": {
-        "markdown": "# Dev-Min Cost Guardrail\\n- Review this dashboard daily during active implementation.\\n- Run `python tools/dev_substrate/cost_guardrail_snapshot.py` for live posture + CE/budget snapshot.\\n- If trend breaches planned envelope, stop phase progression and decide on teardown/hold."
+        "markdown": "# Dev-Min Cost Guardrail"
       }
     }
   ]

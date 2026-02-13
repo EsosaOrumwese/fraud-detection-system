@@ -48,9 +48,29 @@ variable "budget_alert_email" {
   default = ""
 }
 
-variable "monthly_budget_usd" {
+variable "budget_name" {
+  type    = string
+  default = ""
+}
+
+variable "budget_limit_amount" {
   type    = number
-  default = 40
+  default = 30
+}
+
+variable "budget_limit_unit" {
+  type    = string
+  default = "USD"
+}
+
+variable "budget_alert_thresholds" {
+  type    = list(number)
+  default = [10, 20, 28]
+
+  validation {
+    condition     = length(var.budget_alert_thresholds) > 0
+    error_message = "budget_alert_thresholds must include at least one threshold value."
+  }
 }
 
 variable "common_tags" {

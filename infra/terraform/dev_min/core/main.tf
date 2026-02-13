@@ -37,8 +37,10 @@ module "core" {
   tf_lock_table_name               = local.tf_lock_table_name
   enable_budget_alert              = var.enable_budget_alert
   budget_alert_email               = var.budget_alert_email
-  monthly_budget_usd               = var.monthly_budget_usd
+  budget_name                      = var.budget_name
+  budget_limit_amount              = var.budget_limit_amount
+  budget_limit_unit                = var.budget_limit_unit
+  budget_alert_thresholds          = var.budget_alert_thresholds
   common_tags                      = local.common_tags
   bucket_versioning_status_by_role = var.bucket_versioning_status_by_role
 }
-

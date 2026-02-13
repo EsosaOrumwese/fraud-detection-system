@@ -80,7 +80,8 @@ These constants apply to **all** dev_min infrastructure and runtime wiring. They
 
 ### 1.3 Cost posture constants
 
-* `MONTHLY_BUDGET_GBP = 30`
+* `MONTHLY_BUDGET_AMOUNT = 30`
+* `MONTHLY_BUDGET_UNIT = "USD"` *(AWS Budgets provider/account constraint)*
 * `DEMO_DESTROY_DEFAULT = true`
 * `FORBID_NAT_GATEWAY = true`
 * `FORBID_ALWAYS_ON_LOAD_BALANCER = true`
@@ -796,13 +797,17 @@ These handles pin the AWS budget guardrails required for dev_min.
 ### 11.1 Budget identity
 
 * `AWS_BUDGET_NAME = "fraud-platform-dev-min-budget"`
-* `AWS_BUDGET_LIMIT_GBP = 30`
+* `AWS_BUDGET_LIMIT_AMOUNT = 30`
+* `AWS_BUDGET_LIMIT_UNIT = "USD"`
 
 ### 11.2 Alert thresholds (pinned)
 
-* `AWS_BUDGET_ALERT_1_GBP = 10`
-* `AWS_BUDGET_ALERT_2_GBP = 20`
-* `AWS_BUDGET_ALERT_3_GBP = 28`
+* `AWS_BUDGET_ALERT_1_AMOUNT = 10`
+* `AWS_BUDGET_ALERT_2_AMOUNT = 20`
+* `AWS_BUDGET_ALERT_3_AMOUNT = 28`
+
+Note:
+* Authority cost posture remains "~£30/month" at policy level; AWS Budgets enforcement in this account/provider is pinned in `USD`.
 
 ### 11.3 Alert delivery
 

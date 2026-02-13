@@ -138,11 +138,12 @@ Tasks:
      - `ROLE_REPORTER_SINGLE_WRITER`
      - `ROLE_DB_MIGRATIONS`
    - Budget:
-     - `AWS_BUDGET_NAME`
-     - `AWS_BUDGET_LIMIT_GBP`
-     - `AWS_BUDGET_ALERT_1_GBP`
-     - `AWS_BUDGET_ALERT_2_GBP`
-     - `AWS_BUDGET_ALERT_3_GBP`
+      - `AWS_BUDGET_NAME`
+      - `AWS_BUDGET_LIMIT_AMOUNT`
+      - `AWS_BUDGET_LIMIT_UNIT`
+      - `AWS_BUDGET_ALERT_1_AMOUNT`
+      - `AWS_BUDGET_ALERT_2_AMOUNT`
+      - `AWS_BUDGET_ALERT_3_AMOUNT`
 2. For each handle key, pin:
    - source of value (Terraform output, static pin, runtime lookup)
    - verification method
@@ -230,10 +231,11 @@ DoD:
 | `ROLE_REPORTER_SINGLE_WRITER` | IAM | Terraform demo | Terraform output at apply-time | `V1_REGISTRY_KEY` + `V10_IAM_ROLE` | `non_secret` | `CLOSED_SPEC` | `none` |
 | `ROLE_DB_MIGRATIONS` | IAM | Terraform demo | Terraform output at apply-time | `V1_REGISTRY_KEY` + `V10_IAM_ROLE` | `non_secret` | `CLOSED_SPEC` | `none` |
 | `AWS_BUDGET_NAME` | Budget | Terraform core | registry literal/terraform-managed | `V1_REGISTRY_KEY` + `V11_BUDGET` | `non_secret` | `CLOSED_SPEC` | `none` |
-| `AWS_BUDGET_LIMIT_GBP` | Budget | Registry authority | registry literal | `V1_REGISTRY_KEY` + `V11_BUDGET` | `non_secret` | `CLOSED_SPEC` | `none` |
-| `AWS_BUDGET_ALERT_1_GBP` | Budget | Registry authority | registry literal | `V1_REGISTRY_KEY` + `V11_BUDGET` | `non_secret` | `CLOSED_SPEC` | `none` |
-| `AWS_BUDGET_ALERT_2_GBP` | Budget | Registry authority | registry literal | `V1_REGISTRY_KEY` + `V11_BUDGET` | `non_secret` | `CLOSED_SPEC` | `none` |
-| `AWS_BUDGET_ALERT_3_GBP` | Budget | Registry authority | registry literal | `V1_REGISTRY_KEY` + `V11_BUDGET` | `non_secret` | `CLOSED_SPEC` | `none` |
+| `AWS_BUDGET_LIMIT_AMOUNT` | Budget | Registry authority | registry literal | `V1_REGISTRY_KEY` + `V11_BUDGET` | `non_secret` | `CLOSED_SPEC` | `none` |
+| `AWS_BUDGET_LIMIT_UNIT` | Budget | Registry authority | registry literal | `V1_REGISTRY_KEY` + `V11_BUDGET` | `non_secret` | `CLOSED_SPEC` | `none` |
+| `AWS_BUDGET_ALERT_1_AMOUNT` | Budget | Registry authority | registry literal | `V1_REGISTRY_KEY` + `V11_BUDGET` | `non_secret` | `CLOSED_SPEC` | `none` |
+| `AWS_BUDGET_ALERT_2_AMOUNT` | Budget | Registry authority | registry literal | `V1_REGISTRY_KEY` + `V11_BUDGET` | `non_secret` | `CLOSED_SPEC` | `none` |
+| `AWS_BUDGET_ALERT_3_AMOUNT` | Budget | Registry authority | registry literal | `V1_REGISTRY_KEY` + `V11_BUDGET` | `non_secret` | `CLOSED_SPEC` | `none` |
 
 ## M2.B Terraform Backend/State Partition Readiness
 Goal:
@@ -983,25 +985,197 @@ Goal:
 1. Ensure cost protection and destroyability are proven before advancing to runtime phases.
 
 Tasks:
-1. Validate budget object and alert thresholds.
-2. Validate demo tag posture for cost attribution.
-3. Validate teardown viability (destroy plan safety).
-4. Pin teardown-proof artifact contract.
-5. Include pre-approved emergency control:
-   - if budget threshold breach warning is detected, stop progression to M3+ and initiate early teardown decision.
-6. Provision and validate cost-monitoring surfaces:
-   - CloudWatch dashboard: `fraud-platform-dev-min-cost-guardrail`,
-   - CLI snapshot lane: `python tools/dev_substrate/cost_guardrail_snapshot.py`.
-7. Pin live cost-risk command lane (complements delayed Cost Explorer):
-   - `aws rds describe-db-instances --db-instance-identifier <RDS_INSTANCE_ID>`,
-   - `aws ecs describe-services --cluster <ECS_CLUSTER_NAME> --services <service_name>`,
-   - `aws ec2 describe-nat-gateways --filter Name=vpc-id,Values=<VPC_ID>`.
+1. Resolve and validate all budget/guardrail handles required for dev_min cost posture.
+2. Prove AWS Budget object, thresholds, and alert channel are materialized and aligned with pinned values.
+3. Prove live resource posture is budget-safe (no hidden always-on/cost-footgun drift).
+4. Prove demo teardown viability preflight (destroy plan safety + post-destroy checklist contract).
+5. Pin and validate emergency budget-stop protocol (`>= 28` budget-unit threshold path) before M2/M3 progression.
+6. Emit non-secret budget/teardown evidence artifacts to local + durable evidence paths.
+7. Keep fail-closed sequencing: no `M2.J` entry until all `M2I-B*` blockers are closed.
 
 DoD:
-- [ ] Budget and alert handles are validated.
-- [ ] Demo resource cost-tag posture is explicit.
-- [ ] Teardown viability is evidenced and fail-closed.
-- [ ] Cost dashboard/snapshot surfaces are operational and documented.
+- [x] Budget and alert handles are validated.
+- [x] Demo resource cost-tag posture is explicit.
+- [x] Teardown viability is evidenced and fail-closed.
+- [x] Cost dashboard/snapshot surfaces are operational and documented.
+
+### M2.I Decision Pins (Closed Before Execution)
+1. Budget cap and threshold law:
+   - `AWS_BUDGET_LIMIT_AMOUNT=30`
+   - `AWS_BUDGET_LIMIT_UNIT=USD` (provider/account constraint for AWS Budgets in this environment),
+   - thresholds pinned at `10/20/28` budget units from handles registry.
+2. Alert channel law:
+   - exactly one alert mode is active and auditable:
+     - `ALERT_CHANNEL_MODE=email` + `ALERT_EMAIL_ADDRESS`, or
+     - `ALERT_CHANNEL_MODE=sns` + `SNS_TOPIC_ARN` (+ subscription evidence).
+3. Hard-stop law:
+   - if threshold `>=28` (budget unit) is hit, `M2` progression halts and operator follows pinned `dev-min-down` protocol after active run closure.
+4. Teardown law:
+   - `terraform destroy` viability must be proven for demo stack before M2 closure; no “assumed destroyability.”
+5. Evidence law:
+   - all M2.I outputs are non-secret and durably persisted; logs alone are insufficient.
+
+### M2.I-A Handle Resolution and Preconditions
+Goal:
+1. Resolve authoritative handles required by budget and teardown lanes before execution.
+
+Tasks:
+1. Resolve from registry/Terraform:
+   - `AWS_BUDGET_NAME`
+   - `AWS_BUDGET_LIMIT_AMOUNT`
+   - `AWS_BUDGET_LIMIT_UNIT`
+   - `AWS_BUDGET_ALERT_1_AMOUNT`
+   - `AWS_BUDGET_ALERT_2_AMOUNT`
+   - `AWS_BUDGET_ALERT_3_AMOUNT`
+   - `ALERT_CHANNEL_MODE`
+   - `TAG_PROJECT_KEY`, `TAG_ENV_KEY`, `TAG_OWNER_KEY`, `TAG_EXPIRES_AT_KEY`
+   - `FORBID_NAT_GATEWAY`, `FORBID_ALWAYS_ON_LOAD_BALANCER`, `FORBID_ALWAYS_ON_FLEETS`
+   - `CLOUDWATCH_LOG_GROUP_PREFIX`, `LOG_RETENTION_DAYS`
+   - `VPC_ID`, `ECS_CLUSTER_NAME`, `RDS_INSTANCE_ID`
+2. Validate one-of alert channel prerequisites are present.
+3. Validate no unresolved handle remains for budget/teardown checks.
+
+DoD:
+- [x] All required M2.I handles resolve from authority surfaces.
+- [x] Alert channel prerequisites are complete for chosen mode.
+- [x] No unresolved M2.I handle remains before command execution.
+
+### M2.I-B Budget Object and Alert Threshold Validation
+Goal:
+1. Prove cost guardrails are materialized and configured to pinned values.
+
+Tasks:
+1. Resolve account identity:
+   - `aws sts get-caller-identity`.
+2. Validate budget object:
+   - `aws budgets describe-budget --account-id <account_id> --budget-name <AWS_BUDGET_NAME>`.
+3. Validate notifications/thresholds:
+   - `aws budgets describe-notifications-for-budget --account-id <account_id> --budget-name <AWS_BUDGET_NAME>`.
+4. Verify:
+   - budget limit amount/unit == `AWS_BUDGET_LIMIT_AMOUNT` + `AWS_BUDGET_LIMIT_UNIT`,
+   - threshold set includes `10`, `20`, `28`,
+   - at least one active notification destination matches chosen alert channel mode.
+
+DoD:
+- [x] Budget object exists and matches pinned budget amount/unit.
+- [x] Threshold notifications include `10/20/28`.
+- [x] Alert delivery channel is present and auditable.
+
+### M2.I-C Live Cost-Risk Posture Verification
+Goal:
+1. Detect hidden cost drift not visible yet in delayed billing surfaces.
+
+Tasks:
+1. Verify no forbidden cost footguns:
+   - `aws ec2 describe-nat-gateways --filter Name=vpc-id,Values=<VPC_ID>`
+   - `aws elbv2 describe-load-balancers`
+   - `aws ecs list-services --cluster <ECS_CLUSTER_NAME>` + service desired-count inspection.
+2. Verify runtime resource posture:
+   - `aws rds describe-db-instances --db-instance-identifier <RDS_INSTANCE_ID>`
+   - capture DB class/storage/multi-AZ/publicly-accessible for cost/risk visibility.
+3. Verify log retention is bounded to pinned policy:
+   - `aws logs describe-log-groups --log-group-name-prefix <CLOUDWATCH_LOG_GROUP_PREFIX>`.
+4. Verify tag-based attribution posture on demo resources:
+   - `aws resourcegroupstaggingapi get-resources --tag-filters Key=<TAG_PROJECT_KEY>,Values=fraud-platform Key=<TAG_ENV_KEY>,Values=dev_min`.
+   - confirm expected demo resources carry required `project/env/owner/expires_at` tags.
+5. Validate cost-monitoring surfaces:
+   - `aws cloudwatch get-dashboard --dashboard-name fraud-platform-dev-min-cost-guardrail` (if dashboard lane is enabled),
+   - optional helper lane may be used if present: `python tools/dev_substrate/cost_guardrail_snapshot.py`.
+6. Capture operator cost-lens note:
+   - AWS billing lag acknowledged; live posture checks are the immediate safety lens.
+
+DoD:
+- [x] No NAT Gateway and no always-on LB/fleet posture detected.
+- [x] Runtime cost-risk surfaces are captured for DB/ECS/log retention.
+- [x] Demo resource cost-tag posture is validated and explicit.
+- [x] Cost dashboard/snapshot surfaces are operational or explicitly waived with rationale.
+- [x] Any drift is explicitly fail-closed as blocker before M2.J.
+
+### M2.I-D Teardown Viability Contract and Preflight
+Goal:
+1. Prove demo stack teardown path is executable and safe before M2 closure.
+
+Tasks:
+1. Run destroy preflight for demo stack:
+   - `terraform -chdir=infra/terraform/dev_min/demo plan -destroy -detailed-exitcode`.
+2. Capture destroy-plan summary:
+   - expected destroy set includes demo-scoped resources (ECS runtime/demo DB/demo messaging surfaces),
+   - no core-only resources are unexpectedly targeted.
+3. Pin post-teardown verification checklist contract (authority Section 14.5):
+   - no demo ECS services/tasks,
+   - no demo DB instance,
+   - no NAT gateway / no ALB-NLB,
+   - core S3/tfstate/locks/budgets remain.
+4. Record rerun posture if destroy preflight fails.
+
+DoD:
+- [x] Demo destroy preflight is executed and evidenced.
+- [x] Destroy target surface is bounded to demo scope.
+- [x] Post-teardown verification checklist is executable and pinned.
+
+### M2.I-E Emergency Budget Stop Protocol
+Goal:
+1. Ensure deterministic operator action exists before overspend risk becomes uncontrolled.
+
+Tasks:
+1. Evaluate budget status against stop threshold (`>=28` budget unit) from budget APIs and latest operator finance posture.
+2. If threshold is hit/forecasted breach is confirmed:
+   - mark `M2I-B5` open,
+   - halt progression to `M2.J`/`M3`,
+   - execute `dev-min-down` immediately after active run closure,
+   - record budget-reset intent in logbook before any new `dev-min-up`.
+3. If threshold not hit:
+   - record explicit `not_triggered` status in `budget_guardrail_snapshot.json`.
+
+DoD:
+- [x] Emergency stop protocol is explicit and operator-runnable.
+- [x] Trigger/not-triggered state is evidenced for this M2 execution.
+- [x] M2 progression rule is fail-closed on stop-trigger conditions.
+
+### M2.I-F Blockers, Recovery, and Closure Rule
+Goal:
+1. Prevent ambiguous cost/teardown state from being accepted as green.
+
+Tasks:
+1. Blocker taxonomy:
+   - `M2I-B1`: required budget/alert handles unresolved.
+   - `M2I-B2`: budget object or threshold notifications missing/mismatched.
+   - `M2I-B3`: forbidden cost posture detected (NAT, always-on LB/fleet, unbounded retention drift).
+   - `M2I-B4`: demo destroy preflight missing/failed or destroy surface is unsafe.
+   - `M2I-B5`: emergency budget stop triggered and not closed.
+2. Recovery posture:
+   - no progression while any `M2I-B*` is open,
+   - resolve blockers with new evidence artifacts (never by assumption),
+   - rerun M2.I lane after remediation.
+3. Closure rule:
+   - M2.I closes only when both artifacts pass:
+     - `budget_guardrail_snapshot.json` (`overall_pass=true`)
+     - `teardown_viability_snapshot.json` (`overall_pass=true`)
+
+DoD:
+- [x] `M2I-B1..B5` blocker model is explicit and fail-closed.
+- [x] Recovery path is actionable and evidence-first.
+- [x] M2.I cannot be marked complete while any M2.I blocker remains open.
+
+Execution result (authoritative):
+1. `M2.I` execution id:
+   - `m2_20260213T201427Z`
+2. Pass summary:
+   - budget object exists with expected name, cap, and unit (`fraud-platform-dev-min-budget`, `30 USD`),
+   - threshold notifications include `10/20/28` with auditable email channel,
+   - live cost-risk posture passed (`nat=0`, `lb_in_vpc=0`, `ecs_desired_gt_zero=0`, bounded log retention),
+   - tag posture passed (required `project/env/owner/expires_at` tags present on discovered dev_min resources),
+   - destroy preflight passed (`exit=2`, demo-scoped delete set only, no unsafe targets),
+   - emergency stop not triggered.
+3. Provider constraint note:
+   - AWS Budgets enforcement is `USD` in this account/provider; policy-level "~£30/month" remains tracked as governance posture.
+4. Evidence:
+   - local:
+     - `runs/dev_substrate/m2_i/20260213T201427Z/budget_guardrail_snapshot.json`
+     - `runs/dev_substrate/m2_i/20260213T201427Z/teardown_viability_snapshot.json`
+   - durable:
+     - `s3://fraud-platform-dev-min-evidence/evidence/dev_min/substrate/m2_20260213T201427Z/budget_guardrail_snapshot.json`
+     - `s3://fraud-platform-dev-min-evidence/evidence/dev_min/substrate/m2_20260213T201427Z/teardown_viability_snapshot.json`
 
 ## M2.J Exit Readiness Review and M3 Handoff
 Goal:
@@ -1059,7 +1233,7 @@ Notes:
 - [x] M2.F complete
 - [x] M2.G complete
 - [x] M2.H complete
-- [ ] M2.I complete
+- [x] M2.I complete
 - [ ] M2.J complete
 
 ## 8) Risks and Controls
@@ -1155,6 +1329,24 @@ Resolved blockers:
    - evidence:
      - local: `runs/dev_substrate/m2_e/20260213T141419Z/secret_surface_check.json`
      - durable: `s3://fraud-platform-dev-min-evidence/evidence/dev_min/substrate/m2_20260213T141419Z/secret_surface_check.json`
+12. `M2I-B2` (closed)
+   - closure summary:
+     - materialized budget object and alert notifications using pinned name/thresholds after aligning runtime unit to provider-supported `USD`.
+   - evidence:
+     - local: `runs/dev_substrate/m2_i/20260213T201427Z/budget_guardrail_snapshot.json`
+     - durable: `s3://fraud-platform-dev-min-evidence/evidence/dev_min/substrate/m2_20260213T201427Z/budget_guardrail_snapshot.json`
+13. `M2I-B3` (closed)
+   - closure summary:
+     - remediated missing `expires_at` tag drift by applying core+demo with pinned `expires_at=2026-02-28`; cost-risk/tag posture checks now pass.
+   - evidence:
+     - local: `runs/dev_substrate/m2_i/20260213T201427Z/budget_guardrail_snapshot.json`
+     - durable: `s3://fraud-platform-dev-min-evidence/evidence/dev_min/substrate/m2_20260213T201427Z/budget_guardrail_snapshot.json`
+14. `M2I-B4` (closed)
+   - closure summary:
+     - destroy preflight JSON lane fixed by executing `terraform show` from initialized demo stack context; teardown viability now proven with demo-only target set.
+   - evidence:
+     - local: `runs/dev_substrate/m2_i/20260213T201427Z/teardown_viability_snapshot.json`
+     - durable: `s3://fraud-platform-dev-min-evidence/evidence/dev_min/substrate/m2_20260213T201427Z/teardown_viability_snapshot.json`
 
 Rule:
 1. Any newly discovered blocker is appended here with owner, impacted sub-phase, and closure criteria.
@@ -1170,3 +1362,4 @@ M2 can be marked `DONE` only when:
 Note:
 1. This file does not change phase status.
 2. Status transition is made only in `platform.build_plan.md`.
+

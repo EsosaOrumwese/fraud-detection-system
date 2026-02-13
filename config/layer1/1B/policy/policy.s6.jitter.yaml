@@ -1,5 +1,5 @@
-policy_version: "2026-02-13-hold-uniform"
-mode: "uniform_v1"
+policy_version: "2026-02-13-r4"
+mode: "mixture_v2"
 deterministic_seed_namespace: "1B.S6.JITTER_V2"
 max_attempts: 64
 selection_blend: 0.50
@@ -20,4 +20,4 @@ components:
     lat_shape_exp: 0.55
     lon_shape_exp: 0.55
     max_abs_offset_fraction: 1.00
-notes: "P3 hold posture: uniform_v1 retained because mixture_v2 under locked upstream support regressed NN-tail and did not clear collapse sentinels."
+notes: "P3 reopen posture: restore governed mixture_v2 lane after S4 support-diversification authority; keep weights/exponents fixed for first contract-alignment pass."

@@ -252,7 +252,7 @@ Failure posture:
 - fail closed on any unresolved substrate handle, forbidden infra, missing secret/topic, or teardown-risk ambiguity.
 
 Active-phase execution posture:
-- M2 is in expansion/planning-hardening mode before execution.
+- M2 is in active execution/closure mode.
 - Detailed M2 authority file: `docs/model_spec/platform/implementation_maps/dev_substrate/platform.M2.build_plan.md`.
 - Sub-phase progress:
   - [x] `M2.A` substrate authority and handle-closure matrix.
@@ -263,7 +263,7 @@ Active-phase execution posture:
   - [x] `M2.F` Kafka topic/ACL/access readiness.
   - [x] `M2.G` network/no-NAT/no-always-on-LB verification.
   - [x] `M2.H` runtime DB readiness + migrations posture.
-  - [ ] `M2.I` budget and teardown-viability proof.
+  - [x] `M2.I` budget and teardown-viability proof.
   - [ ] `M2.J` exit-readiness and M3 handoff.
 
 M2 DoD checklist:
@@ -273,7 +273,7 @@ M2 DoD checklist:
   - Canonical command lane: `python tools/dev_substrate/verify_m2f_topic_readiness.py`.
 - [ ] No NAT and no forbidden always-on infra posture is proven.
 - [x] runtime DB and migration readiness are validated.
-- [ ] Budget alerts and teardown viability are evidenced.
+- [x] Budget alerts and teardown viability are evidenced.
 
 ---
 
@@ -458,6 +458,6 @@ Control: required P12 teardown proof and budget guardrails.
 ## 12) Immediate Next Action
 M2 is active for deep planning and closure-hardening.
 Next action:
-- execute `M2.I` budget/teardown guardrail lane with pinned evidence artifacts,
-- keep `M2.J` sequencing strict after `M2.I` closure (M2 exit/handoff only after budget + teardown controls are proven),
+- execute `M2.J` exit-readiness and M3 handoff lane with pinned evidence artifacts,
+- keep M3 sequencing strict after `M2.J` closure (no M3 activation without explicit M2 readiness verdict and handoff pack),
 - maintain fail-closed posture: no `M2.J` handoff until `M2.G` + `M2.H` + `M2.I` are all green.

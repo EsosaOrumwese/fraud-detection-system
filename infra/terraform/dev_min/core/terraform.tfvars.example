@@ -18,5 +18,7 @@ tf_lock_table_name          = "fraud-platform-dev-min-tf-locks"
 
 enable_budget_alert = true
 budget_alert_email  = "replace-me@example.com"
-monthly_budget_usd  = 40
-
+budget_name         = "fraud-platform-dev-min-budget"
+budget_limit_amount = 30
+budget_limit_unit   = "USD"
+budget_alert_thresholds = [10, 20, 28]

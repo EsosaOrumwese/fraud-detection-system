@@ -7551,3 +7551,188 @@ USER directed immediate progression to close `M2.F` after workflow secret mappin
    - `docs/model_spec/platform/implementation_maps/dev_substrate/platform.M2.build_plan.md`
    - `docs/model_spec/platform/implementation_maps/dev_substrate/platform.build_plan.md`
 2. Shifted immediate next action to `M2.I` budget/teardown guardrail lane.
+
+## Entry: 2026-02-13 8:01PM - Pre-change lock: expand M2.I planning to closure-grade depth before execution
+
+### Trigger
+1. USER directed: "Let's go to M2.I planning".
+
+### Problem statement
+1. `M2.I` currently has only top-level tasks and DoD bullets, but lacks:
+   - explicit decision pins to close ambiguity before execution,
+   - sub-phase decomposition with lane-by-lane DoDs (`A..F` style),
+   - blocker taxonomy and fail-closed halt criteria,
+   - fully explicit command/evidence contract mapped to pinned handles.
+2. Without this expansion, M2.I execution risks the same anti-cram drift that earlier phases exposed.
+
+### Planning objective
+1. Convert M2.I into a closure-grade execution blueprint that is:
+   - handle-driven (`dev_min_handles.registry.v0.md`),
+   - authority-aligned (`dev-min_managed-substrate_migration.design-authority.v0.md`),
+   - evidence-first and fail-closed.
+2. Keep this pass planning-only (no infrastructure mutation).
+
+### Design references reviewed for this planning pass
+1. `docs/model_spec/platform/implementation_maps/dev_substrate/platform.M2.build_plan.md`
+2. `docs/model_spec/platform/implementation_maps/dev_substrate/platform.build_plan.md`
+3. `docs/model_spec/platform/migration_to_dev/dev_min_handles.registry.v0.md`
+4. `docs/model_spec/platform/pre-design_decisions/dev-min_managed-substrate_migration.design-authority.v0.md`
+5. `docs/model_spec/platform/migration_to_dev/dev_min_spine_green_v0_run_process_flow.md`
+
+### Planned documentation changes
+1. Expand `M2.I` section in deep plan into:
+   - `M2.I Decision Pins`
+   - `M2.I-A` handle resolution/preconditions
+   - `M2.I-B` budget object + threshold + alert-channel validation
+   - `M2.I-C` live cost-risk posture checks (resource-state lens)
+   - `M2.I-D` teardown viability contract + destroy preflight evidence
+   - `M2.I-E` emergency budget-stop protocol and run-lock posture
+   - `M2.I-F` blocker taxonomy + rollback/recovery model
+2. Keep canonical command lane primarily AWS/Terraform CLI so closure does not depend on optional local helper scripts.
+3. Update main platform build plan immediate-next-action wording to reference execution of `M2.I-A -> M2.I-F` after planning closure.
+
+### Fail-closed posture for this planning pass
+1. If any required budget/teardown handle is unresolved or contradictory in authority docs, M2.I execution remains blocked until pinned.
+2. No progression to `M2.J` is allowed until M2.I artifacts and blockers are fully closed.
+
+## Entry: 2026-02-13 8:04PM - Post-change record: M2.I planning expanded to closure-grade execution map
+
+### What changed
+1. Expanded `M2.I` in deep plan (`platform.M2.build_plan.md`) from top-level bullets into explicit execution map:
+   - `M2.I Decision Pins`
+   - `M2.I-A` handle resolution/preconditions
+   - `M2.I-B` budget object + threshold + alert-channel validation
+   - `M2.I-C` live cost-risk posture checks
+   - `M2.I-D` teardown viability preflight + checklist contract
+   - `M2.I-E` emergency budget-stop protocol
+   - `M2.I-F` blocker taxonomy + recovery/closure rule
+2. Updated main platform build plan immediate-next-action to explicitly execute `M2.I-A -> M2.I-F`.
+
+### Key decisions pinned in this planning pass
+1. M2.I command lane is CLI-first (`aws` + `terraform`) so closure does not depend on optional local helper scripts.
+2. Budget guardrail validation must prove both:
+   - budget object/thresholds/notification channel correctness,
+   - live resource posture safety (NAT/LB/fleet and runtime risk checks).
+3. Teardown viability must be evidenced via destroy preflight + explicit post-teardown checklist contract (not assumed).
+4. Emergency threshold (`>=£28`) is fail-closed:
+   - progression to `M2.J/M3` blocked until operator stop protocol is satisfied.
+
+### Why this closes prior planning holes
+1. Removes ambiguity on what constitutes M2.I pass/fail and what evidence is mandatory.
+2. Prevents anti-cram drift by exposing budget, live-risk, teardown, and emergency-control lanes separately.
+3. Gives a deterministic blocker model (`M2I-B1..B5`) before execution begins.
+
+## Entry: 2026-02-13 8:09PM - Pre-change lock: close M2.I budget materialization drift before rerun
+
+### Trigger
+1. During M2.I execution, budget validation failed with `NotFoundException` for `fraud-platform-dev-min-budget`.
+
+### Runtime diagnosis
+1. `infra/terraform/dev_min/core output -json` shows `budget_name=""` (no materialized budget object).
+2. Core Terraform budget resource is currently gated by:
+   - `enable_budget_alert=true` and
+   - non-empty `budget_alert_email`.
+3. Active defaults leave `budget_alert_email` empty, so budget resource count is `0`.
+4. Current core budget semantics also drift from pinned handles:
+   - name pattern currently `${name_prefix}-monthly-cost` rather than `fraud-platform-dev-min-budget`,
+   - threshold model currently percentage `80/100` instead of pinned absolute `10/20/28`.
+
+### Decision and scope for this correction
+1. Patch core Terraform budget lane to align with pinned dev_min handles:
+   - budget name to `${name_prefix}-budget`,
+   - absolute threshold notifications `10/20/28`,
+   - budget amount default aligned to `30`.
+2. Materialize budget by applying core with operator email from local git identity (`git config user.email`) for this environment.
+3. Then rerun full M2.I lane with corrected command argument handling and publish authoritative artifacts.
+
+### Safety constraints
+1. Limit infrastructure mutation to core budget lane required for M2.I closure.
+2. No secret values persisted in evidence.
+3. Keep fail-closed posture: if budget still cannot be materialized/validated, `M2I-B2` remains open and M2.I does not close.
+
+## Entry: 2026-02-13 8:15PM - M2.I execution closure with budget/tag/teardown blocker remediation
+
+### Trigger
+1. USER directed: proceed with entirety of `M2.I`.
+
+### Runtime blocker chain observed and resolved
+1. Initial M2.I run surfaced:
+   - `M2I-B2`: budget object missing (`fraud-platform-dev-min-budget` not materialized),
+   - `M2I-B3`: tag posture failed (`expires_at` missing on discovered dev_min resources),
+   - `M2I-B4`: teardown preflight JSON parse lane failed (`terraform show` provider-schema context issue).
+2. Root-cause findings:
+   - core budget resource was gated on non-empty `budget_alert_email`, but none was pinned in active runtime vars,
+   - budget lane semantic drift existed vs handles (name/threshold model),
+   - teardown parser was executed outside initialized demo context in first attempt.
+
+### Infrastructure/documentation corrections applied
+1. Budget Terraform alignment:
+   - updated core module + dev_min/core variable surface to explicit budget handles:
+     - `budget_name`,
+     - `budget_limit_amount`,
+     - `budget_limit_unit`,
+     - `budget_alert_thresholds`.
+   - pinned runtime budget to:
+     - name: `fraud-platform-dev-min-budget`,
+     - amount: `30`,
+     - thresholds: `10/20/28`,
+     - alert channel: email via operator address.
+2. Provider constraint closure:
+   - attempted `GBP` unit failed (`InvalidParameterException: supported unit set [USD]`),
+   - repinned runtime enforcement unit to `USD` and documented this explicitly in handles/M2 docs as provider/account constraint.
+3. Tag posture remediation:
+   - applied core and demo with `expires_at=2026-02-28`,
+   - this removed tag-surface drift for required cost-attribution keys.
+4. Teardown parser remediation:
+   - reran destroy preflight and `terraform show` from initialized demo stack context, eliminating schema-load failure.
+
+### M2.I authoritative execution result
+1. Final execution id:
+   - `m2_20260213T201427Z`
+2. Outcome:
+   - `budget_guardrail_pass=true`
+   - `teardown_viability_pass=true`
+   - `overall_pass=true`
+   - blockers: none.
+3. Key validated facts:
+   - budget object exists with `30 USD` cap and threshold notifications `10/20/28`,
+   - alert channel is auditable (email subscriber materialized),
+   - no NAT / no LB in demo VPC / no desired>0 ECS services,
+   - tag posture for discovered dev_min resources includes `project/env/owner/expires_at`,
+   - destroy preflight is valid with demo-scoped delete set only.
+
+### Evidence
+1. Local:
+   - `runs/dev_substrate/m2_i/20260213T201427Z/budget_guardrail_snapshot.json`
+   - `runs/dev_substrate/m2_i/20260213T201427Z/teardown_viability_snapshot.json`
+2. Durable:
+   - `s3://fraud-platform-dev-min-evidence/evidence/dev_min/substrate/m2_20260213T201427Z/budget_guardrail_snapshot.json`
+   - `s3://fraud-platform-dev-min-evidence/evidence/dev_min/substrate/m2_20260213T201427Z/teardown_viability_snapshot.json`
+
+### Plan-state updates
+1. Marked `M2.I` complete in:
+   - `docs/model_spec/platform/implementation_maps/dev_substrate/platform.M2.build_plan.md`
+   - `docs/model_spec/platform/implementation_maps/dev_substrate/platform.build_plan.md`
+2. Advanced immediate-next-action to `M2.J` exit-readiness/handoff.
+
+## Entry: 2026-02-13 8:34PM - Cost dashboard text widget rendering fix (markdown escape cleanup)
+
+### Trigger
+1. USER reported CloudWatch dashboard `fraud-platform-dev-min-cost-guardrail` text widget rendering raw escape content (visible `\"...\\n...\"` form).
+
+### Diagnosis
+1. Pulled live dashboard body via `aws cloudwatch get-dashboard`.
+2. Confirmed text widget markdown payload was being rendered as escaped line-break text in UI context.
+3. Verified no semantic issue in metrics widgets; issue isolated to text markdown formatting surface.
+
+### Change applied
+1. Updated text widget markdown in:
+   - `tools/dev_substrate/cost_guardrail_dashboard.json`
+2. Replaced newline-escape dependent formatting with explicit `<br/>` separators to avoid raw escape rendering in CloudWatch text widget surface.
+3. Re-applied dashboard:
+   - `aws cloudwatch put-dashboard --dashboard-name fraud-platform-dev-min-cost-guardrail --dashboard-body file://tools/dev_substrate/cost_guardrail_dashboard.json`
+4. Verified live dashboard payload reflects updated markdown content (no quoted/escaped wrapper artifact in body).
+
+### Outcome
+1. Dashboard message is now structured for clean rendering in CloudWatch UI.
+2. No impact on M2 runtime rails, evidence contracts, or infrastructure semantics.

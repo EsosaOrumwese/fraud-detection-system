@@ -129,10 +129,10 @@ resource "aws_dynamodb_table" "tf_lock" {
 resource "aws_budgets_budget" "dev_min_monthly" {
   count = var.enable_budget_alert && trimspace(var.budget_alert_email) != "" ? 1 : 0
 
-  name         = "${var.name_prefix}-monthly-cost"
+  name         = trimspace(var.budget_name) != "" ? var.budget_name : "${var.name_prefix}-budget"
   budget_type  = "COST"
-  limit_amount = tostring(var.monthly_budget_usd)
-  limit_unit   = "USD"
+  limit_amount = tostring(var.budget_limit_amount)
+  limit_unit   = var.budget_limit_unit
   time_unit    = "MONTHLY"
 
   cost_filter {
@@ -140,19 +140,14 @@ resource "aws_budgets_budget" "dev_min_monthly" {
     values = ["project$${var.common_tags[\"project\"]}"]
   }
 
-  notification {
-    comparison_operator        = "GREATER_THAN"
-    threshold                  = 80
-    threshold_type             = "PERCENTAGE"
-    notification_type          = "ACTUAL"
-    subscriber_email_addresses = [var.budget_alert_email]
-  }
-
-  notification {
-    comparison_operator        = "GREATER_THAN"
-    threshold                  = 100
-    threshold_type             = "PERCENTAGE"
-    notification_type          = "ACTUAL"
-    subscriber_email_addresses = [var.budget_alert_email]
+  dynamic "notification" {
+    for_each = var.budget_alert_thresholds
+    content {
+      comparison_operator        = "GREATER_THAN"
+      threshold                  = notification.value
+      threshold_type             = "ABSOLUTE_VALUE"
+      notification_type          = "ACTUAL"
+      subscriber_email_addresses = [var.budget_alert_email]
+    }
   }
 }

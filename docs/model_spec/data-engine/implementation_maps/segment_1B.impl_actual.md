@@ -4007,3 +4007,27 @@ Next step:
 - execute fresh `S4->S9` candidate run from locked upstream,
 - score P2 no-regression and P3 geometry gates,
 - accept/revert based on evidence.
+
+---
+
+### Entry: 2026-02-13 20:24
+
+Design element: P3 reopen candidate diagnosis after S4 diversification run `a430c66a9cfa4ac1b70ed6566eb18d1c`.
+Summary: Fresh reopen candidate improved NN-tail strongly and kept all concentration/coverage/parity gates green, but P3 still fails one contractual gate because S6 policy mode remained `uniform_v1` (`policy_version=2026-02-13-hold-uniform`).
+
+Observed scorer outcome (`segment1b_p3_candidate_a430c66a9cfa4ac1b70ed6566eb18d1c.json`):
+1) `checks_all_pass=false`.
+2) Only failing check is `s6_mode_mixture_v2=false`.
+3) Statistical gates are green:
+   - `nn_tail_contraction_b_target=true` (65.74% contraction vs P0 baseline),
+   - `top_country_no_collapse=true`,
+   - concentration and coverage non-regression gates true.
+
+Decision:
+1) Do not reopen additional upstream states for this step.
+2) Execute a narrow contract-alignment pass:
+   - switch S6 policy `mode` from `uniform_v1` to `mixture_v2` (governed existing lane),
+   - keep all other S6 knobs unchanged first,
+   - run minimal required chain on a fresh run-id: `S5 -> S6 -> S7 -> S8 -> S9`,
+   - rescore P3 and accept only if gates remain green.
+3) Storage posture: run on a new run-id and prune the superseded run-id folder if the new candidate fully supersedes it.
