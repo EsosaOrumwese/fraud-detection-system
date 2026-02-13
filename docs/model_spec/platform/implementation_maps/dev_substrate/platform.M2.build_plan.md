@@ -1189,9 +1189,9 @@ Tasks:
 5. Publish M3 handoff artifacts with resolved handles, evidence index, and risk posture.
 
 DoD:
-- [ ] M2 deliverables checklist is complete.
-- [ ] No unresolved substrate ambiguity remains.
-- [ ] M3 handoff prerequisites are explicit and validated.
+- [x] M2 deliverables checklist is complete.
+- [x] No unresolved substrate ambiguity remains.
+- [x] M3 handoff prerequisites are explicit and validated.
 
 ### M2.J Decision Pins (Closed Before Execution)
 1. Closure gate law:
@@ -1220,9 +1220,9 @@ Tasks:
    - `teardown_viability_snapshot.json` (`overall_pass=true`).
 
 DoD:
-- [ ] `M2.A..M2.I` status checks are complete.
-- [ ] Current blocker register is empty at M2.J entry.
-- [ ] Predecessor pass artifacts are confirmed and referenced.
+- [x] `M2.A..M2.I` status checks are complete.
+- [x] Current blocker register is empty at M2.J entry.
+- [x] Predecessor pass artifacts are confirmed and referenced.
 
 ### M2.J-B Evidence Completeness and Integrity Index
 Goal:
@@ -1242,9 +1242,9 @@ Tasks:
    containing completeness summary + missing list (if any).
 
 DoD:
-- [ ] Evidence index exists and references all required artifact families.
-- [ ] Missing/unverifiable artifacts are zero or explicitly blocker-marked.
-- [ ] `m2_exit_readiness_snapshot.json` is produced locally.
+- [x] Evidence index exists and references all required artifact families.
+- [x] Missing/unverifiable artifacts are zero or explicitly blocker-marked.
+- [x] `m2_exit_readiness_snapshot.json` is produced locally.
 
 ### M2.J-C M3 Entry Prerequisites and Handle Snapshot
 Goal:
@@ -1266,9 +1266,9 @@ Tasks:
    - budget unit note (provider-enforced `USD` runtime lane).
 
 DoD:
-- [ ] M3 prerequisite snapshot is complete and non-secret.
-- [ ] Required handle families are resolved and auditable.
-- [ ] Any unresolved prerequisite is surfaced as M2.J blocker.
+- [x] M3 prerequisite snapshot is complete and non-secret.
+- [x] Required handle families are resolved and auditable.
+- [x] Any unresolved prerequisite is surfaced as M2.J blocker.
 
 ### M2.J-D Readiness Verdict Protocol
 Goal:
@@ -1287,9 +1287,9 @@ Tasks:
 3. Record hold reasons in structured list when verdict is hold.
 
 DoD:
-- [ ] Verdict computation rules are explicit and reproducible.
-- [ ] Hold reasons are explicit when `HOLD_M2`.
-- [ ] Verdict is persisted in M2.J artifacts.
+- [x] Verdict computation rules are explicit and reproducible.
+- [x] Hold reasons are explicit when `HOLD_M2`.
+- [x] Verdict is persisted in M2.J artifacts.
 
 ### M2.J-E Canonical Handoff Artifact Publication
 Goal:
@@ -1310,9 +1310,9 @@ Tasks:
    - `evidence/dev_min/substrate/<m2_execution_id>/m3_handoff_pack.json`
 
 DoD:
-- [ ] Handoff artifacts are produced locally and durably.
-- [ ] `m3_handoff_pack.json` is structurally complete and non-secret.
-- [ ] Artifact URIs are recorded in M2.J execution notes.
+- [x] Handoff artifacts are produced locally and durably.
+- [x] `m3_handoff_pack.json` is structurally complete and non-secret.
+- [x] Artifact URIs are recorded in M2.J execution notes.
 
 ### M2.J-F Blockers, Recovery, and M2 Exit Rule
 Goal:
@@ -1332,9 +1332,37 @@ Tasks:
    - `M2` may be marked done only when `M2.J` verdict is `ADVANCE_TO_M3` and no M2/M2J blockers remain.
 
 DoD:
-- [ ] `M2J-B1..B5` blocker model is explicit and fail-closed.
-- [ ] Recovery flow is actionable and evidence-first.
-- [ ] M2 exit rule is explicit and blocks unsafe M3 activation.
+- [x] `M2J-B1..B5` blocker model is explicit and fail-closed.
+- [x] Recovery flow is actionable and evidence-first.
+- [x] M2 exit rule is explicit and blocks unsafe M3 activation.
+
+Execution result (authoritative):
+1. `M2.J` execution id:
+   - `m2_20260213T205715Z`
+2. Verdict:
+   - `ADVANCE_TO_M3`
+3. Predicate summary:
+   - `checklist_complete=true`
+   - `blockers_empty=true`
+   - `evidence_complete=true`
+   - `m3_prereqs_ready=true`
+   - `open_risk_register_empty=true`
+4. Closure details:
+   - M2 evidence index resolved all 18 required families with `missing_count=0` and `failing_pass_indicator_count=0`.
+   - compatibility artifacts were synthesized to close legacy naming drift in evidence contract:
+     - `core_apply_snapshot.json`
+     - `demo_apply_snapshot.json`
+     - `handle_resolution_snapshot.json`
+   - `m2_b_backend_state_readiness_snapshot.json` was refreshed in M2.J with current backend/static validation posture (`overall_pass=true`).
+5. Evidence:
+   - local:
+     - `runs/dev_substrate/m2_j/20260213T205715Z/m2_exit_readiness_snapshot.json`
+     - `runs/dev_substrate/m2_j/20260213T205715Z/m3_handoff_pack.json`
+     - `runs/dev_substrate/m2_j/20260213T205715Z/m2_b_backend_state_readiness_snapshot.json`
+   - durable:
+     - `s3://fraud-platform-dev-min-evidence/evidence/dev_min/substrate/m2_20260213T205715Z/m2_exit_readiness_snapshot.json`
+     - `s3://fraud-platform-dev-min-evidence/evidence/dev_min/substrate/m2_20260213T205715Z/m3_handoff_pack.json`
+     - `s3://fraud-platform-dev-min-evidence/evidence/dev_min/substrate/m2_20260213T205715Z/m2_b_backend_state_readiness_snapshot.json`
 
 ## 6) M2 Evidence Contract (Pinned for Execution)
 Evidence root contract:
@@ -1364,6 +1392,8 @@ Minimum evidence payloads to produce during M2 execution:
 Notes:
 1. Evidence must be non-secret.
 2. Any command output containing credentials must be redacted before persistence.
+3. For M2 closeout, each required artifact family may resolve from a selected authoritative source execution id; the binding index is `m2_exit_readiness_snapshot.json -> evidence_index`.
+4. Compatibility artifacts synthesized in M2.J are allowed only to close naming drift and must reference canonical source artifacts.
 
 ## 7) M2 Completion Checklist
 - [x] M2.A complete
@@ -1375,7 +1405,7 @@ Notes:
 - [x] M2.G complete
 - [x] M2.H complete
 - [x] M2.I complete
-- [ ] M2.J complete
+- [x] M2.J complete
 
 ## 8) Risks and Controls
 R1: Hidden substrate gap discovered late in P2+  

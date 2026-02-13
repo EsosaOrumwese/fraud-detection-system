@@ -77,7 +77,7 @@ Canonical lifecycle key: `phase_id=P#` from migration runbook.
 | --- | --- | --- | --- |
 | M0 | pre-P(-1) | Mobilization + authority lock | DONE |
 | M1 | P(-1) | Packaging readiness (image + entrypoints + provenance) | DONE |
-| M2 | P0 | Substrate readiness (Terraform core+confluent+demo) | ACTIVE |
+| M2 | P0 | Substrate readiness (Terraform core+confluent+demo) | DONE |
 | M3 | P1 | Run pinning + run manifest evidence | NOT_STARTED |
 | M4 | P2 | Daemon bring-up on ECS with run-scope controls | NOT_STARTED |
 | M5 | P3 | Oracle lane (seed/sort/checker) | NOT_STARTED |
@@ -131,7 +131,8 @@ Template usage:
 Current phase posture:
 - `M1` is closed,
 - `M0` is closed,
-- `M2` is `ACTIVE`.
+- `M2` is `DONE`,
+- `M3` remains `NOT_STARTED` pending explicit USER activation.
 
 ## M0 - Mobilization + Authority Lock
 Status: `DONE`
@@ -231,7 +232,7 @@ Phase exit:
 ---
 
 ## M2 - P0 Substrate readiness
-Status: `ACTIVE`
+Status: `DONE`
 
 Entry gate:
 - M1 is `DONE`.
@@ -251,8 +252,7 @@ Scope:
 Failure posture:
 - fail closed on any unresolved substrate handle, forbidden infra, missing secret/topic, or teardown-risk ambiguity.
 
-Active-phase execution posture:
-- M2 is in active execution/closure mode.
+Phase closure snapshot:
 - Detailed M2 authority file: `docs/model_spec/platform/implementation_maps/dev_substrate/platform.M2.build_plan.md`.
 - Sub-phase progress:
   - [x] `M2.A` substrate authority and handle-closure matrix.
@@ -264,14 +264,20 @@ Active-phase execution posture:
   - [x] `M2.G` network/no-NAT/no-always-on-LB verification.
   - [x] `M2.H` runtime DB readiness + migrations posture.
   - [x] `M2.I` budget and teardown-viability proof.
-  - [ ] `M2.J` exit-readiness and M3 handoff.
+  - [x] `M2.J` exit-readiness and M3 handoff.
+  - authoritative closeout execution:
+    - `m2_execution_id=m2_20260213T205715Z`
+    - verdict: `ADVANCE_TO_M3`
+    - handoff artifacts:
+      - `s3://fraud-platform-dev-min-evidence/evidence/dev_min/substrate/m2_20260213T205715Z/m2_exit_readiness_snapshot.json`
+      - `s3://fraud-platform-dev-min-evidence/evidence/dev_min/substrate/m2_20260213T205715Z/m3_handoff_pack.json`
 
 M2 DoD checklist:
-- [ ] Terraform core/confluent/demo apply+destroy flow is pinned and reproducible.
-- [ ] Required handles resolve to reachable substrate resources.
-- [ ] Confluent bootstrap/key/secret and required topics are validated.
+- [x] Terraform core/confluent/demo apply+destroy flow is pinned and reproducible.
+- [x] Required handles resolve to reachable substrate resources.
+- [x] Confluent bootstrap/key/secret and required topics are validated.
   - Canonical command lane: `python tools/dev_substrate/verify_m2f_topic_readiness.py`.
-- [ ] No NAT and no forbidden always-on infra posture is proven.
+- [x] No NAT and no forbidden always-on infra posture is proven.
 - [x] runtime DB and migration readiness are validated.
 - [x] Budget alerts and teardown viability are evidenced.
 
@@ -456,8 +462,8 @@ R4: Cost leakage after demos
 Control: required P12 teardown proof and budget guardrails.
 
 ## 12) Immediate Next Action
-M2 is active for deep planning and closure-hardening.
+M2 closure is complete with a published M3 handoff pack.
 Next action:
-- execute `M2.J-A -> M2.J-F` exit-readiness and M3 handoff lane with pinned evidence artifacts,
-- keep M3 sequencing strict after `M2.J` closure (no M3 activation without explicit M2 readiness verdict and handoff pack),
-- maintain fail-closed posture: no `M2.J` handoff until `M2.G` + `M2.H` + `M2.I` are all green.
+- keep M3 sequencing strict (no M3 runtime execution until USER explicitly activates M3),
+- use `m3_handoff_pack.json` as the only authoritative M2->M3 substrate handoff surface,
+- maintain fail-closed posture: if any M2 evidence drift appears during M3 activation prep, reopen M2.J before proceeding.

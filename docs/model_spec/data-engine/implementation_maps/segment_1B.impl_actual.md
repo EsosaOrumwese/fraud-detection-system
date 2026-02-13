@@ -4096,3 +4096,28 @@ Execution posture after this planning update:
 - No runtime state was executed in this step.
 - No policy/runner code was changed in this step.
 - Next actionable step is `P4.1` authority envelope materialization.
+
+---
+
+### Entry: 2026-02-13 20:47
+
+Design element: P4 full execution plan (P4.1->P4.4) under locked `P1/P2/P3`.
+Summary: Execute one integrated candidate from `S2->S9` using frozen authorities, then classify against B/B+ hard gates with explicit fail-closed status (`GREEN_B`, `AMBER_NEAR_BPLUS`, `RED_REOPEN_REQUIRED`).
+
+Execution decisions pinned before implementation:
+1) Integrated run scope:
+   - use fresh run-id bootstrapped from locked P3 authority inputs,
+   - rerun `S2->S9` to include all active remediation states (`S2/S4/S6`) in one coherent pass.
+2) P4 scoring surface:
+   - create dedicated P4 integrated scorer artifact (`segment1b_p4_integrated_*.json`) to avoid ad-hoc manual interpretation.
+   - score against the pinned B/B+ thresholds from build plan section 3.
+3) P4 classification semantics:
+   - `GREEN_B`: all B hard gates pass (B+ may or may not pass; reported separately),
+   - `AMBER_NEAR_BPLUS`: B passes but B+ not yet fully met,
+   - `RED_REOPEN_REQUIRED`: B hard gates fail under locked posture, implying reopen is required for further movement.
+4) Fail-closed behavior:
+   - `P4.3` bounded retune runs only if `AMBER_NEAR_BPLUS`.
+   - `RED_REOPEN_REQUIRED` blocks tuning and requires explicit upstream reopen approval.
+5) Storage posture:
+   - keep only authority + accepted + repro run folders after closure attempt,
+   - prune superseded integrated attempt runs.

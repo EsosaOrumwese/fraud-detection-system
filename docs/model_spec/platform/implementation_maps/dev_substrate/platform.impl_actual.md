@@ -7813,3 +7813,53 @@ USER directed immediate progression to close `M2.F` after workflow secret mappin
 ### Execution posture after this planning pass
 1. M2.J is now execution-ready from a plan-quality perspective.
 2. No runtime/infrastructure action was executed in this pass.
+
+## Entry: 2026-02-13 9:00PM - M2.J execution closure and M2 DONE transition
+
+### Trigger
+1. USER directed: proceed with full `M2.J`.
+
+### Execution summary
+1. Executed full `M2.J-A -> M2.J-F` closeout lane and published canonical artifacts.
+2. Authoritative M2.J execution id:
+   - `m2_20260213T205715Z`
+3. Final verdict:
+   - `ADVANCE_TO_M3`
+4. Final predicate state:
+   - `checklist_complete=true`
+   - `blockers_empty=true`
+   - `evidence_complete=true`
+   - `m3_prereqs_ready=true`
+   - `open_risk_register_empty=true`
+
+### Notable closure actions
+1. Built deterministic 18-family M2 evidence index with local + durable URI checks.
+2. Closed legacy evidence naming drift by synthesizing compatibility artifacts in M2.J:
+   - `core_apply_snapshot.json`
+   - `demo_apply_snapshot.json`
+   - `handle_resolution_snapshot.json`
+3. Refreshed M2.B backend snapshot in current execution context:
+   - `m2_b_backend_state_readiness_snapshot.json` now reports `overall_pass=true`.
+4. Generated M3 handoff surface with non-secret handle snapshot from:
+   - Terraform core outputs,
+   - Terraform confluent outputs (runtime credentials redacted),
+   - Terraform demo outputs,
+   - pinned registry literals required at M3 entry.
+
+### Evidence
+1. Local:
+   - `runs/dev_substrate/m2_j/20260213T205715Z/m2_exit_readiness_snapshot.json`
+   - `runs/dev_substrate/m2_j/20260213T205715Z/m3_handoff_pack.json`
+2. Durable:
+   - `s3://fraud-platform-dev-min-evidence/evidence/dev_min/substrate/m2_20260213T205715Z/m2_exit_readiness_snapshot.json`
+   - `s3://fraud-platform-dev-min-evidence/evidence/dev_min/substrate/m2_20260213T205715Z/m3_handoff_pack.json`
+
+### Planning state transition applied
+1. `platform.M2.build_plan.md`:
+   - marked all M2.J DoDs complete,
+   - recorded authoritative M2.J execution result block,
+   - marked M2 completion checklist item `M2.J complete`.
+2. `platform.build_plan.md`:
+   - transitioned M2 status `ACTIVE -> DONE`,
+   - left M3 as `NOT_STARTED` pending explicit USER activation,
+   - updated immediate next action to M3 activation gating via handoff artifact.
