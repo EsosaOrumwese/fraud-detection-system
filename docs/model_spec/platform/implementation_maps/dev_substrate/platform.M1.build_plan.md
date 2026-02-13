@@ -431,42 +431,77 @@ M1.F driver authority decision (pinned):
 4. Execution block:
    - no M1 build-go execution may proceed on any driver unless this M1.F pin remains satisfied and unchanged.
 
-## M1.G Exit Readiness Review
+## M1.G Authoritative CI Workflow Realization
+Goal:
+- realize the authoritative `github_actions` build driver as an executable workflow contract before build-go.
+
+Tasks:
+1. Create/pin workflow file for authoritative image build/push.
+2. Pin workflow trigger posture (manual and/or branch-scoped) for safe execution.
+3. Pin workflow outputs needed by M1.C/M1.E evidence contracts:
+   - immutable tag,
+   - resolved digest,
+   - CI run identifier,
+   - build actor.
+4. Pin workflow permission posture (least privilege; no baked secrets).
+
+DoD:
+- [ ] Workflow exists and is path-pinned in repository.
+- [ ] Workflow outputs cover required M1.C/M1.E provenance fields.
+- [ ] Workflow permissions and secret posture are explicitly fail-closed.
+
+M1.G execution block:
+1. Until M1.G is complete, `github_actions` cannot be treated as executable build-go lane.
+2. No phase closure may rely on assumed CI behavior not represented in the pinned workflow file.
+
+## M1.H Authoritative CI Gate Validation
+Goal:
+- validate that the authoritative CI workflow can produce required gate evidence before build-go execution.
+
+Tasks:
+1. Run non-destructive CI gate checks (lint/resolve/auth sanity) for the workflow.
+2. Validate that immutable tag + digest output plumbing is functioning.
+3. Validate evidence artifact production contract for:
+   - `build_command_surface_receipt.json`,
+   - `packaging_provenance.json`,
+   - `security_secret_injection_checks.json`.
+4. Validate fail-closed behavior for missing prerequisites (e.g., missing role/permission/secret path).
+
+DoD:
+- [ ] CI validation run proves output plumbing for immutable tag + digest.
+- [ ] Evidence artifact contract is emitted or fail-closed with explicit diagnostics.
+- [ ] Missing prerequisite cases fail closed with clear blocker signals.
+
+M1.H execution block:
+1. Build-go cannot proceed while CI gate validation is pending or ambiguous.
+2. Any CI output mismatch against M1.C/M1.E contracts blocks progression.
+
+## M1.I Exit Readiness Review
 Goal:
 - confirm M1 is ready to execute and close when build-go is granted.
 
 Tasks:
-1. Review M1 checklist completeness.
-2. Confirm no unresolved ambiguity remains in packaging, entrypoints, provenance, or secrets.
+1. Review M1 checklist completeness including CI realization/validation phases.
+2. Confirm no unresolved ambiguity remains in packaging, entrypoints, provenance, secrets, or build-driver execution behavior.
 3. Prepare execution handoff statement for M1 build-go pass.
 
 DoD:
-- [x] M1 deliverables checklist complete.
-- [x] No unresolved contract ambiguity remains.
-- [x] Build-go handoff statement prepared.
+- [ ] M1 deliverables checklist complete.
+- [ ] No unresolved contract ambiguity remains.
+- [ ] Build-go handoff statement prepared.
 
-M1.G readiness review verdict:
-1. Deliverables completeness:
-   - image contract: complete (M1.A),
-   - entrypoint matrix: complete (M1.B),
-   - provenance/evidence contract: complete (M1.C),
-   - security/secret injection contract: complete (M1.D),
-   - build command-surface/reproducibility contract: complete (M1.E),
-   - build driver authority pin: complete (M1.F).
-2. Ambiguity review:
-   - no unresolved contract ambiguity remains inside M1 planning scope.
-   - remaining work is execution-only (build/push/check/evidence generation under explicit build-go).
-3. Phase status implication:
-   - M1.G closure completes planning/handoff readiness, not M1 runtime closure.
-   - M1 overall remains open until execution evidence satisfies Section 8 exit criteria.
+M1.I readiness review posture (reopened):
+1. Reopened due newly explicit pre-build-go phases (`M1.G`, `M1.H`) that were previously implicit.
+2. Closure must wait until authoritative CI lane is both realized and validated.
 
-M1 build-go handoff statement (execution pack):
+M1 build-go handoff statement (execution pack, provisional until M1.I closes):
 1. Build-go trigger:
    - explicit USER direction authorizing M1 execution run.
 2. Execution authority:
-   - run only the pinned contracts in this file (`M1.A..M1.F`) and main plan M1 section.
+   - run only the pinned contracts in this file (`M1.A..M1.H`) and main plan M1 section.
 3. Execution sequence:
-   - execute canonical build command surface (M1.E),
+   - run authoritative CI workflow contract (M1.G),
+   - validate CI outputs/evidence plumbing (M1.H),
    - validate entrypoint callability in image context (M1.B validation method),
    - record immutable tag + digest + git provenance (M1.C),
    - run secret-leakage and runtime-secret wiring checks (M1.D),
@@ -477,6 +512,8 @@ M1 build-go handoff statement (execution pack):
    - `P(-1)/security_secret_injection_checks.json`,
    - `run.json` image provenance mirror fields aligned to registry handles.
 5. Fail-closed blockers (no progression to M2):
+   - CI workflow missing/unpinned,
+   - CI output mismatch or missing immutable tag->digest evidence,
    - build/push failure,
    - immutable tag->digest mismatch,
    - missing/failed entrypoint validation,
@@ -492,7 +529,9 @@ M1 build-go handoff statement (execution pack):
 - [x] M1.D complete
 - [x] M1.E complete
 - [x] M1.F complete
-- [x] M1.G complete
+- [ ] M1.G complete
+- [ ] M1.H complete
+- [ ] M1.I complete
 
 ## 7) Risks and Controls
 R1: image/entrypoint mismatch discovered late  

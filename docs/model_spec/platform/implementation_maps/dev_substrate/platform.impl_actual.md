@@ -5754,3 +5754,78 @@ USER requested restructuring:
 
 ### Outcome
 Build-driver selection is now an explicit gate before handoff completion, eliminating the prior implicit assumption.
+
+## Entry: 2026-02-13 10:25AM - Pre-change lock: M1 replan to add missing pre-build-go readiness phases
+
+### Trigger
+USER requested a full replan update after identifying that M1 lacked explicit readiness phases before build-go execution.
+
+### Problem
+Current M1 sequence closes planning handoff without explicit CI realization/validation phases, despite `github_actions` being authoritative. This leaves execution readiness under-specified.
+
+### Decision
+Replan M1 with additional explicit pre-build-go phases and reopen readiness closure:
+1. Insert `M1.G` for authoritative CI workflow realization (workflow exists + pinned contract).
+2. Insert `M1.H` for authoritative CI gate validation (dry-run/provenance/evidence plumbing checks).
+3. Shift exit readiness/handoff to `M1.I` and mark it pending until G/H close.
+4. Align checklists/progress in main plan so build-go remains blocked.
+
+### Files to update
+- `docs/model_spec/platform/implementation_maps/dev_substrate/platform.M1.build_plan.md`
+- `docs/model_spec/platform/implementation_maps/dev_substrate/platform.build_plan.md`
+
+### Validation plan
+- New G/H/I sections exist with clear goals/tasks/DoDs.
+- M1 completion checklist includes A..I with G/H/I pending.
+- Main plan sub-phase progress and M1 checklist reflect reopened readiness (not execution-ready).
+
+### Drift sentinel checkpoint
+This is control-surface hardening and does not execute runtime/build actions.
+
+## Entry: 2026-02-13 10:26AM - Applied M1 replan: inserted explicit pre-build-go CI phases and reopened readiness
+
+### Files updated
+1. `docs/model_spec/platform/implementation_maps/dev_substrate/platform.M1.build_plan.md`
+2. `docs/model_spec/platform/implementation_maps/dev_substrate/platform.build_plan.md`
+
+### Structural changes
+1. Added new explicit pre-build-go phases:
+- `M1.G Authoritative CI Workflow Realization`
+- `M1.H Authoritative CI Gate Validation`
+2. Shifted exit readiness/handoff from prior `M1.G` to `M1.I Exit Readiness Review`.
+3. Reopened M1 readiness closure by marking `M1.G..M1.I` pending.
+
+### Control impact
+- Build-go is now explicitly blocked until:
+  - CI workflow exists and is pinned (`M1.G`),
+  - CI output/evidence plumbing is validated (`M1.H`),
+  - exit readiness/handoff is refreshed and closed (`M1.I`).
+- Main plan M1 checklist reflects reopened handoff readiness (unchecked until `M1.I` closure).
+
+### Rationale
+This closes the previously implicit assumption that CI execution behavior was already realized/validated before build-go, aligning phase structure to actual readiness requirements.
+
+## Entry: 2026-02-13 10:31AM - Learning capture: build-driver confusion resolution (`github_actions` vs `local_cli`)
+
+### Context
+During M1 packaging planning/execution, there was understandable confusion about what `github_actions` and `local_cli` each mean in this migration track.
+
+### Clarified understanding (pinned)
+1. Both lanes execute Docker-based packaging, but they serve different authority roles.
+2. `github_actions` is the authoritative build driver for M1 closure evidence.
+3. `local_cli` is non-authoritative and limited to local preflight/debug support.
+4. Build-go means execution authorization after preconditions are closed; it is not the same thing as planning completion.
+
+### Lessons learned
+1. Build-driver authority must be explicit before any build attempts (`M1.F`).
+2. CI realization + CI gate validation must be explicit pre-build-go phases (`M1.G`, `M1.H`) and not implicit assumptions.
+3. Exit-readiness/handoff must happen after these are closed (`M1.I`).
+4. In large repositories, image content manifest must be path-explicit and fail-closed to avoid bloat and accidental scope leakage.
+
+### Preventive controls now in place
+- Decision-completeness fail-closed law in `AGENTS.md`.
+- Decision-completeness execution gate in `platform.build_plan.md`.
+- Explicit M1 phase sequencing with pre-build-go CI phases and blocked build-go until closure.
+
+### Why this note exists
+This captures user/operator learning value so the same confusion does not recur and can be reflected later in `docs/references/challenge_story_bank.md` if desired.
