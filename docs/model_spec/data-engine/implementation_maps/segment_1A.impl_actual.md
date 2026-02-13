@@ -5143,3 +5143,40 @@ Documentation closure:
 
 Decision:
 1) P3 is now handoff-closed for progression to P4 with explicit lock posture and leaner storage footprint.
+
+### Entry: 2026-02-13 08:13
+
+Design element: P4 planning expansion (artifact completeness + auditability).
+Summary: Expanded P4 from a high-level placeholder into a concrete phase ladder (`P4.1` to `P4.5`) with explicit no-regression invariants, state-aligned order, and closure DoDs.
+
+Planning authority checked:
+1) `docs/reports/eda/segment_1A/segment_1A_remediation_report.md` (missing-artifact closure intent + hard gate posture).
+2) `docs/model_spec/data-engine/layer-1/specs/contracts/1A/artefact_registry_1A.yaml`.
+3) `docs/model_spec/data-engine/layer-1/specs/contracts/1A/dataset_dictionary.layer1.1A.yaml`.
+4) Current accepted lock run presence audit:
+- `run_id=da3e57e73e733b990a5aa3a46705f987`.
+
+Observed baseline gap snapshot (from lock run):
+1) `s3_integerised_counts`: absent.
+2) `s3_site_sequence`: absent.
+3) `sparse_flag`: absent.
+4) `merchant_abort_log`: absent.
+5) `hurdle_stationarity_tests`: absent.
+
+Design decisions captured in plan:
+1) P4 must preserve P1/P2/P3 statistical lock posture.
+2) P4 must avoid silent S8 authority drift while adding `s3_integerised_counts`/`s3_site_sequence`.
+3) Missing diagnostics artifacts should use explicit zero-row schema-valid emission when no events exist, not omission.
+4) Closure requires deterministic replay proof plus non-regression against locked P1/P2/P3 metrics.
+
+Documentation changes:
+1) `docs/model_spec/data-engine/implementation_maps/segment_1A.build_plan.md`
+- added:
+  - `6.6 Baseline gap snapshot`,
+  - `6.7 P4 invariants`,
+  - `6.8 P4 phased approach and DoD` (`P4.1`..`P4.5`),
+  - `6.9 Planned execution order`.
+
+Execution status:
+1) Planning-only update completed.
+2) No runtime/state code changed in this step.

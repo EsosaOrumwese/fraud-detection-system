@@ -201,6 +201,9 @@ Failure posture:
 Active-phase execution posture:
 - This activation pass is planning and contract finalization.
 - Image build/push execution starts only on explicit USER build-go for M1 execution.
+- Sub-phase progress:
+  - [x] `M1.A` image contract freeze complete.
+  - [ ] `M1.B`..`M1.F` pending.
 
 M1 DoD checklist:
 - [ ] Packaging contract finalized in `platform.M1.build_plan.md` (image, entrypoints, provenance, security).

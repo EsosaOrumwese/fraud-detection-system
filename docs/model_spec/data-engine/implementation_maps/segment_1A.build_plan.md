@@ -522,6 +522,78 @@ Certification is impossible while required outputs are absent.
 - [ ] schema and registry references resolve without manual patching.
 - [ ] S9 can certify gates directly from emitted artifacts.
 
+### 6.6 Baseline gap snapshot (authority run `da3e57e73e733b990a5aa3a46705f987`)
+- Presence audit against required P4 outputs on the accepted P3 lock run:
+  - `s3_integerised_counts`: `0` files,
+  - `s3_site_sequence`: `0` files,
+  - `sparse_flag`: `0` files,
+  - `merchant_abort_log`: `0` files,
+  - `hurdle_stationarity_tests`: `0` files.
+- Interpretation:
+  - P4 remains a true implementation-completeness phase; contracts declare these artifacts but runtime output set does not yet emit them.
+
+### 6.7 P4 invariants (binding)
+- Preserve P1/P2/P3 locked behavior:
+  - no intended change to count-shape, candidate/membership topology, or legal-mismatch posture accepted in earlier phases.
+- No implicit ownership flip:
+  - adding `s3_integerised_counts` and `s3_site_sequence` must not silently switch S8 count authority away from the locked path unless explicitly approved.
+- Deterministic emission:
+  - all newly emitted artifacts must remain deterministic for fixed seed + `parameter_hash`.
+- Explicit zero-row semantics:
+  - if no events exist (for example no aborts), emit schema-valid empty datasets instead of omission.
+
+### 6.8 P4 phased approach and DoD
+
+#### P4.1 Contract-runtime reconciliation and emit design
+- Intent:
+  - produce an explicit ownership map for each missing artifact before code changes.
+- DoD:
+  - [ ] artifact-to-producer map is pinned (`state`, dataset id, schema ref, registry key, path template).
+  - [ ] optional-vs-required ambiguities are resolved in contract docs/notes.
+  - [ ] non-regression strategy is pinned for `s3_integerised_counts`/`s3_site_sequence` (emit without changing locked S8 authority path).
+
+#### P4.2 S5 sparse diagnostic emission closure
+- Intent:
+  - activate deterministic `sparse_flag` emission from S5 in the standard Segment 1A run profile.
+- DoD:
+  - [ ] S5 emits `sparse_flag` at the declared contract path for sealed runs.
+  - [ ] emitted dataset validates against `schemas.1A.yaml#/prep/sparse_flag`.
+  - [ ] no behavioral drift in S5 core outputs (`ccy_country_weights_cache`, `merchant_currency`) under fixed seed/hash.
+
+#### P4.3 S3/S8 allocation-audit artifact closure without authority drift
+- Intent:
+  - emit `s3_integerised_counts` and `s3_site_sequence` while preserving locked downstream posture.
+- DoD:
+  - [ ] both artifacts are emitted and schema-valid on sealed runs.
+  - [ ] S8 remains on the locked count authority path used for P3 closure unless an explicit reopen decision is recorded.
+  - [ ] consistency checks pass:
+    - per-merchant sums align with `n_outlets`,
+    - sequence/site-order coherence holds against `outlet_catalogue`.
+
+#### P4.4 Diagnostics surface closure (`merchant_abort_log`, `hurdle_stationarity_tests`)
+- Intent:
+  - close remaining auditability gaps for failure and stationarity diagnostics.
+- DoD:
+  - [ ] `merchant_abort_log` is emitted each run (schema-valid; zero-row allowed when no abort events exist).
+  - [ ] `hurdle_stationarity_tests` is emitted each run (schema-valid; deterministic for fixed seed/hash).
+  - [ ] S9 fail-closed checks require both artifacts and provide clear reason codes on absence/schema mismatch.
+
+#### P4.5 P4 closure and lock
+- Intent:
+  - certify artifact completeness without reopening statistical realism work.
+- DoD:
+  - [ ] all five required outputs are present on a full sealed run.
+  - [ ] P1/P2/P3 lock metrics remain non-regressed versus accepted lock authority.
+  - [ ] same-seed replay preserves artifact payload/hash posture and locked scorecard posture.
+  - [ ] lock record captures accepted P4 run ids, parameter hash, and touched files/knobs.
+
+### 6.9 Planned execution order (state-aligned)
+1. `P4.1` reconciliation map and no-regression design.
+2. `P4.2` S5 sparse diagnostics enablement.
+3. `P4.3` S3/S8 audit artifact emission under locked authority posture.
+4. `P4.4` diagnostics artifact closure and S9 fail-closed enforcement.
+5. `P4.5` full-run closure, replay proof, and lock record.
+
 ## 7) Certification and grade decision (Phase P5)
 
 ### 7.1 Validation matrix

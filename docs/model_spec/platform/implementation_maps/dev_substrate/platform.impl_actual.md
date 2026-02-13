@@ -5176,3 +5176,63 @@ This phase activation is document-controlled and user-approved. No build/runtime
 
 ### Drift sentinel assessment
 This advances migration planning governance to the next phase without violating user control over build execution.
+
+## Entry: 2026-02-13 8:14AM - Pre-change lock: implement M1.A image contract freeze
+
+### Trigger
+USER directed: proceed with `M1.A`.
+
+### Objective
+Close M1.A as a completed planning sub-phase by freezing the image identity contract with explicit handle mapping and acceptance posture.
+
+### Planned updates
+1. `platform.M1.build_plan.md`
+   - add explicit M1.A contract decisions (single-image, immutable tag, mutable-tag posture, reference mode),
+   - add handle key mapping for image contract,
+   - add M1.A closure evidence notes,
+   - mark M1.A DoD and completion checklist item as complete.
+2. `platform.build_plan.md`
+   - add active-phase progress note reflecting M1.A completion while keeping overall M1 active.
+
+### Constraints
+- planning-only; do not run image build/push.
+- do not mark full M1 as complete.
+
+### Validation plan
+- confirm M1.A DoD checkboxes are all `[x]`.
+- confirm `M1.A complete` is checked in section 6 of M1 deep plan.
+- confirm main plan shows M1 still active with explicit M1.A progress note.
+
+### Drift sentinel checkpoint
+This is contract-freeze planning work only and remains within M1 scope.
+
+## Entry: 2026-02-13 8:15AM - Applied M1.A image contract freeze
+
+### Files updated
+1. `docs/model_spec/platform/implementation_maps/dev_substrate/platform.M1.build_plan.md`
+2. `docs/model_spec/platform/implementation_maps/dev_substrate/platform.build_plan.md`
+
+### What was implemented
+1. M1.A contract freeze completed in deep plan:
+- Marked M1.A DoD checklist items complete.
+- Added explicit frozen contract decisions:
+  - single-image strategy,
+  - immutable tag authority,
+  - mutable tag non-authoritative posture,
+  - immutable-preferred reference mode,
+  - repin requirement for future multi-image split.
+- Added handle-key mapping for each decision:
+  - `ECR_REPO_NAME`, `ECR_REPO_URI`, `IMAGE_TAG_GIT_SHA_PATTERN`, `IMAGE_TAG_DEV_MIN_LATEST`, `IMAGE_REFERENCE_MODE`.
+- Added M1.A planning evidence note tying freeze decisions to registry/runbook sections.
+
+2. Main plan progress marker updated:
+- Added active-phase progress note indicating `M1.A` complete while `M1.B..M1.F` remain pending.
+
+### Validation
+- `platform.M1.build_plan.md` now has:
+  - M1.A DoD all `[x]`,
+  - Section 6 checklist with `M1.A complete` as `[x]`.
+- `platform.build_plan.md` still shows `M1` as active and reflects sub-phase progress.
+
+### Drift sentinel assessment
+M1 remains active and incomplete overall. This pass only closed M1.A contract planning and did not execute image build/push.

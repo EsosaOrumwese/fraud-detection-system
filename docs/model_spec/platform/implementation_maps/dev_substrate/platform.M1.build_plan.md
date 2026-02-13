@@ -58,9 +58,32 @@ Tasks:
 3. Define image reference mode for ECS task/service consumption.
 
 DoD:
-- [ ] Single-image contract is explicitly documented.
-- [ ] Immutable tag contract is pinned and maps to handles registry keys.
-- [ ] Mutable convenience tag posture is clearly non-authoritative.
+- [x] Single-image contract is explicitly documented.
+- [x] Immutable tag contract is pinned and maps to handles registry keys.
+- [x] Mutable convenience tag posture is clearly non-authoritative.
+
+M1.A contract freeze record:
+1. Single-image strategy is pinned for v0.
+   - Handle mapping: `ECR_REPO_NAME`, `ECR_REPO_URI`.
+   - Posture: one platform image must serve all Spine Green v0 entrypoint modes.
+2. Immutable tag strategy is pinned.
+   - Handle mapping: `IMAGE_TAG_GIT_SHA_PATTERN`.
+   - Posture: immutable `git-<sha>` tag is authoritative for reproducibility.
+3. Mutable tag strategy is pinned as convenience-only.
+   - Handle mapping: `IMAGE_TAG_DEV_MIN_LATEST`.
+   - Posture: optional operator convenience tag is non-authoritative and cannot be used as closure proof.
+4. Runtime reference mode is pinned.
+   - Handle mapping: `IMAGE_REFERENCE_MODE = "immutable_preferred"`.
+   - Posture: ECS task/service definitions must be able to pin immutable tag references.
+5. Future split policy is pinned.
+   - Multi-image decomposition is out-of-scope for M1 and requires explicit repin in authority docs.
+
+M1.A planning evidence:
+- Registry authority source reviewed:
+  - `docs/model_spec/platform/migration_to_dev/dev_min_handles.registry.v0.md` (Section 6).
+- Runbook alignment source reviewed:
+  - `docs/model_spec/platform/migration_to_dev/dev_min_spine_green_v0_run_process_flow.md` (P(-1) pinned decisions).
+- This phase is contract-finalization only; build/push evidence is deferred to M1 execution build-go pass.
 
 ## M1.B Entrypoint Matrix Completion
 Goal:
@@ -146,7 +169,7 @@ DoD:
 - [ ] Build-go handoff statement prepared.
 
 ## 6) M1 Completion Checklist
-- [ ] M1.A complete
+- [x] M1.A complete
 - [ ] M1.B complete
 - [ ] M1.C complete
 - [ ] M1.D complete
