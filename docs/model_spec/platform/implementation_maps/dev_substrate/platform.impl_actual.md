@@ -6227,3 +6227,75 @@ Capture an explicit, reusable explanation of what happened during M1 build-go so
 1. The laptop orchestrated and inspected; it did not perform build-plane compute.
 2. Build identity is immutable (`git-<sha>` + digest) and registry-verifiable.
 3. Evidence is both human-traceable (GitHub run) and machine-durable (S3 run-scoped path).
+
+## Entry: 2026-02-13 12:09PM - Pre-change lock: M2 expansion with anti-cram planning law
+
+### Trigger
+USER directed expansion of M2 in main plan + creation of detailed `platform.M2.build_plan.md`, and explicitly required a binding law to prevent phase under-specification drift seen in M1.
+
+### Objective
+1. Promote plan posture from M1 execution-complete to M2 planning-active.
+2. Expand M2 in `platform.build_plan.md` beyond gate-level summary into explicit sub-phase coverage.
+3. Create deep M2 planning authority file `platform.M2.build_plan.md` with exhaustive P0 substrate lanes and DoDs.
+4. Add a binding anti-cram planning law so phase decomposition is not constrained by arbitrary subphase counts.
+
+### Authority reviewed for M2 expansion
+1. `dev_min_spine_green_v0_run_process_flow.md`:
+- P0 semantics, pinned decisions, required handles, operator procedure, PASS gates, commit evidence, rollback, cost notes.
+2. `dev_min_handles.registry.v0.md`:
+- Terraform/state, S3, Confluent/SSM, topic map, ECS/network/no-NAT, DB, IAM roles, budgets/alerts, observability handles.
+3. Existing main plan controls:
+- transition authority, decision-completeness gate, evidence template, single-active-phase rule.
+
+### Planned M2 decomposition (coverage-first)
+M2 will be split into explicit planning sub-phases:
+1. M2.A substrate authority + handle closure matrix
+2. M2.B Terraform core state/backend readiness
+3. M2.C Terraform core apply closure contract
+4. M2.D Terraform demo apply closure contract
+5. M2.E secret/SSM materialization checks
+6. M2.F Kafka topic/ACL/access checks
+7. M2.G network/no-NAT/egress posture checks
+8. M2.H runtime DB readiness and migration readiness
+9. M2.I budget and teardown-viability proof
+10. M2.J exit readiness + M3 handoff
+
+### New law to add
+Binding anti-cram law: no active phase may execute until all required capability lanes for that phase are explicitly represented and checklisted, and sub-phases may be expanded without fixed upper bound until closure-grade coverage is achieved.
+
+### Drift sentinel checkpoint
+This is planning-surface expansion and governance hardening only; no M2 runtime execution or infra mutation is performed in this patch set.
+
+## Entry: 2026-02-13 12:33PM - Post-change record: M2 expanded to lane-complete planning baseline
+
+### What was changed
+1. Main platform build plan (`platform.build_plan.md`) was promoted to M2-active posture with explicit M2 sub-phase decomposition (`M2.A..M2.J`) and M2 DoD checklist.
+2. A binding anti-cram law was pinned in the main plan (`10.3 Phase-Coverage Law`) to block execution when any capability lane is implicit.
+3. Deep M2 plan file (`platform.M2.build_plan.md`) was created/expanded into execution-grade structure:
+- capability-lane coverage matrix (authority/handles, IAM, network, data stores, messaging, secrets, evidence, rollback, teardown, budget),
+- explicit M2 sub-phases with goals/tasks/DoD,
+- runbook-aligned handle families and concrete handle keys for closure in M2.A,
+- command-surface pinning requirements for M2.B/M2.E/M2.F (without executing commands),
+- explicit M2 evidence root + artifact contract,
+- unresolved-blocker register with fail-closed rule.
+
+### Why this change was required
+1. USER identified M1 under-planning drift risk: missing decision surfaces were discovered only when execution started.
+2. M2 is substrate-critical; hidden gaps here cascade into all downstream phases (P1+), so planning had to become lane-complete before mutation.
+3. The anti-cram law creates a hard stop condition against fixed-phase-count bias and forces dynamic expansion when new lanes are discovered.
+
+### Design constraints enforced
+1. No infra/runtime commands were executed in this pass.
+2. No phase status ownership was delegated to deep-plan files; status remains controlled only by `platform.build_plan.md`.
+3. Handle naming in M2 deep plan was reconciled against `dev_min_handles.registry.v0.md` to avoid introducing new naming drift.
+
+### Residual open items after this planning pass
+1. M2 execution has not started; all M2 sub-phases remain unchecked by design.
+2. Immediate next closure target is still:
+- `M2.A` handle-closure matrix completion,
+- `M2.B` backend/state readiness completion,
+before any Terraform mutation command.
+
+### Drift sentinel checkpoint
+No designed runtime flow was altered and no substrate mutation occurred.
+This change improves process-governance fidelity and reduces planning ambiguity before M2 execution begins.

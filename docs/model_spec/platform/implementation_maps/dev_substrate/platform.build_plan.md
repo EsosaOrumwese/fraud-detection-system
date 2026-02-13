@@ -76,8 +76,8 @@ Canonical lifecycle key: `phase_id=P#` from migration runbook.
 | Plan Phase | Canonical phase_id | Name | Status |
 | --- | --- | --- | --- |
 | M0 | pre-P(-1) | Mobilization + authority lock | DONE |
-| M1 | P(-1) | Packaging readiness (image + entrypoints + provenance) | ACTIVE |
-| M2 | P0 | Substrate readiness (Terraform core+demo) | NOT_STARTED |
+| M1 | P(-1) | Packaging readiness (image + entrypoints + provenance) | DONE |
+| M2 | P0 | Substrate readiness (Terraform core+demo) | ACTIVE |
 | M3 | P1 | Run pinning + run manifest evidence | NOT_STARTED |
 | M4 | P2 | Daemon bring-up on ECS with run-scope controls | NOT_STARTED |
 | M5 | P3 | Oracle lane (seed/sort/checker) | NOT_STARTED |
@@ -103,7 +103,8 @@ Control rule:
 Current deep-plan file state:
 - `M0`: `docs/model_spec/platform/implementation_maps/dev_substrate/platform.M0.build_plan.md` (present)
 - `M1`: `docs/model_spec/platform/implementation_maps/dev_substrate/platform.M1.build_plan.md` (present)
-- `M2..M10`: deferred until phase activation is approved.
+- `M2`: `docs/model_spec/platform/implementation_maps/dev_substrate/platform.M2.build_plan.md` (present)
+- `M3..M10`: deferred until phase activation is approved.
 
 ---
 
@@ -128,9 +129,9 @@ Template usage:
 
 ## 7) Phase Detail (Current State)
 Current phase posture:
-- `M1` is `ACTIVE`,
+- `M1` is closed,
 - `M0` is closed,
-- `M2` remains `NOT_STARTED`.
+- `M2` is `ACTIVE`.
 
 ## M0 - Mobilization + Authority Lock
 Status: `DONE`
@@ -179,7 +180,7 @@ Phase exit:
 ## 8) Current Active Phase
 
 ## M1 - P(-1) Packaging readiness
-Status: `ACTIVE`
+Status: `DONE`
 
 Entry gate:
 - M0 is `DONE`.
@@ -198,9 +199,8 @@ DoD (summary):
 Failure posture:
 - fail closed on missing entrypoint/provenance mismatch.
 
-Active-phase execution posture:
-- This activation pass is planning and contract finalization.
-- Image build/push execution starts only on explicit USER build-go for M1 execution.
+Phase closure snapshot:
+- This phase completed planning + execution with authoritative CI evidence.
 - Detailed M1 execution authority is `docs/model_spec/platform/implementation_maps/dev_substrate/platform.M1.build_plan.md` (contains pinned decisions required during build-go).
 - Sub-phase progress:
   - [x] `M1.A` image contract freeze complete (reopened + reclosed with exact image content manifest).
@@ -224,21 +224,59 @@ M1 DoD checklist:
 - [x] Runtime secret-handling rules are pinned (no secret baked into image).
 - [x] M1 execution handoff statement is prepared for build-go pass.
 
+Phase exit:
+- M1 is closed as `DONE`.
+- M2 is activated as the current planning/execution phase by explicit USER direction.
+
+---
+
+## M2 - P0 Substrate readiness
+Status: `ACTIVE`
+
+Entry gate:
+- M1 is `DONE`.
+- USER has explicitly activated M2 expansion/planning.
+
+Objective:
+- Prove the managed substrate is ready and reproducible (core+demo infra, handles, secrets, topics, DB, network, budget, teardown viability) before any P1/P2 runtime progression.
+
+Scope:
+- Terraform core/demo posture and state separation.
+- Handle-resolution completeness for all P0 dependencies.
+- Confluent/SSM/topic readiness.
+- ECS/network/no-NAT posture.
+- runtime DB readiness and migration readiness.
+- budget and teardown viability controls.
+
+Failure posture:
+- fail closed on any unresolved substrate handle, forbidden infra, missing secret/topic, or teardown-risk ambiguity.
+
+Active-phase execution posture:
+- M2 is in expansion/planning-hardening mode before execution.
+- Detailed M2 authority file: `docs/model_spec/platform/implementation_maps/dev_substrate/platform.M2.build_plan.md`.
+- Sub-phase progress:
+  - [ ] `M2.A` substrate authority and handle-closure matrix.
+  - [ ] `M2.B` Terraform backend/state partition readiness.
+  - [ ] `M2.C` core apply closure contract and evidence.
+  - [ ] `M2.D` demo apply closure contract and evidence.
+  - [ ] `M2.E` SSM secret materialization and access checks.
+  - [ ] `M2.F` Kafka topic/ACL/access readiness.
+  - [ ] `M2.G` network/no-NAT/no-always-on-LB verification.
+  - [ ] `M2.H` runtime DB readiness + migrations posture.
+  - [ ] `M2.I` budget and teardown-viability proof.
+  - [ ] `M2.J` exit-readiness and M3 handoff.
+
+M2 DoD checklist:
+- [ ] Terraform core/demo apply+destroy flow is pinned and reproducible.
+- [ ] Required handles resolve to reachable substrate resources.
+- [ ] Confluent bootstrap/key/secret and required topics are validated.
+- [ ] No NAT and no forbidden always-on infra posture is proven.
+- [ ] runtime DB and migration readiness are validated.
+- [ ] Budget alerts and teardown viability are evidenced.
+
 ---
 
 ## 9) Remaining Phases (Gate-Level Only Until Activation)
-
-## M2 - P0 Substrate readiness
-Status: `NOT_STARTED`
-Entry gate:
-- M1 is `DONE`.
-DoD summary:
-- Terraform core/demo apply + destroy paths are reproducible.
-- S3/SSM/Kafka/ECS/DB handles resolve to pinned registry values.
-- Confluent bootstrap/key/secret surfaces are readable from pinned SSM paths.
-- Required Kafka topics exist with pinned naming/classes.
-- No NAT dependency is introduced in runtime path.
-- cost guardrails are present.
 
 ## M3 - P1 Run pinning
 Status: `NOT_STARTED`
@@ -396,6 +434,13 @@ Before marking any phase `DONE`:
 - No defaulting, assumption-filling, or ad hoc expansion is allowed while unresolved items exist.
 - Execution can resume only after the unresolved set is explicitly closed by USER direction and recorded in implementation notes/logbook.
 
+## 10.3) Phase-Coverage Law (Anti-Cram, Binding)
+- A phase plan MUST expose every required capability lane for that phase before execution starts.
+- Capability lanes include, at minimum where applicable: authority/handles, identity/IAM, network, data stores, messaging, secrets, observability/evidence, rollback/rerun, teardown, and budget.
+- No phase may be considered execution-ready if any capability lane is only implicit, assumed, or deferred without a pinned closure rule.
+- Sub-phase count is not fixed; the plan MUST be expanded until closure-grade coverage is achieved.
+- If new blockers reveal an unplanned lane, phase execution pauses and the phase plan is expanded before continuing.
+
 ## 11) Risks and Controls (Pinned)
 R1: Semantic drift under delivery pressure  
 Control: fail-closed drift sentinel + no phase advance without evidence.
@@ -410,8 +455,6 @@ R4: Cost leakage after demos
 Control: required P12 teardown proof and budget guardrails.
 
 ## 12) Immediate Next Action
-Planning gates are closed for M1.
-On explicit USER build-go:
-- run M1 packaging/build steps from `platform.M1.build_plan.md`,
-- collect P(-1) evidence artifacts per phase evidence template,
-- close M1 only after checklist + evidence pass.
+M2 is active for deep planning and closure-hardening.
+Next action:
+- close `M2.A` and `M2.B` in `platform.M2.build_plan.md` before any substrate mutation commands.
