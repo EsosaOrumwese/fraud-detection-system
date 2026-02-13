@@ -449,6 +449,24 @@ Home/legal mismatch and site identity ambiguity damage interpretability downstre
       - `packages/engine/src/engine/layers/l1/seg_1A/s7_integerisation/runner.py`,
       - `packages/engine/src/engine/layers/l1/seg_1A/s9_validation/runner.py`.
 
+#### P3.4 Handoff closure record
+- handoff authority run ids:
+  - acceptance run: `da3e57e73e733b990a5aa3a46705f987`,
+  - deterministic replay run: `a212735023c748a710e4b851046849f8`.
+- superseded run pruned:
+  - `b717147dacb3830324cc8ff32a018588` removed from `runs/fix-data-engine/segment_1A`.
+- retained segment run-id folders after prune:
+  - `59cc9b7ed3a1ef84f3ce69a3511389ee`,
+  - `9901b537de3a5a146f79365931bd514c`,
+  - `a212735023c748a710e4b851046849f8`,
+  - `c83b1c5110b3d1c2803b7f01de959d5d`,
+  - `d6e04d5dc57b9dc3f41ac59508cafd3f`,
+  - `d94f908cd5715404af1bfb9792735147`,
+  - `da3e57e73e733b990a5aa3a46705f987`.
+- frozen-for-P4 assumption (explicit):
+  - P1 and P2 locked surfaces remain immutable,
+  - P3-closed knob posture is treated as locked unless an explicit fail-closed reopen trigger is met per Section 5.8.
+
 ### 5.7 Calibration and anti-forging method
 - Candidate ranking objective:
   - `L(theta) = sum_i w_i * d_i(theta) + lambda * veto_penalty(theta)`.

@@ -5116,3 +5116,30 @@ Replay verification against accepted run `da3e57e73e733b990a5aa3a46705f987`:
 Decision:
 1) P3.4 DoD is satisfied under deterministic replay (no seed-luck evidence).
 2) Lock record for P3 accepts run pair `da3...` and `a212...` with final S7 knob posture (`home_share_min=0.61` on largest tier).
+
+### Entry: 2026-02-13 08:01
+
+Design element: P3.4 handoff closure + storage hygiene.
+Summary: Executed requested prune of the superseded P3 tuning run and captured explicit P3 handoff closure posture in the build plan.
+
+Execution:
+1) removed run folder:
+- `runs/fix-data-engine/segment_1A/b717147dacb3830324cc8ff32a018588`.
+2) verified retained run-id folders:
+- `59cc9b7ed3a1ef84f3ce69a3511389ee`,
+- `9901b537de3a5a146f79365931bd514c`,
+- `a212735023c748a710e4b851046849f8`,
+- `c83b1c5110b3d1c2803b7f01de959d5d`,
+- `d6e04d5dc57b9dc3f41ac59508cafd3f`,
+- `d94f908cd5715404af1bfb9792735147`,
+- `da3e57e73e733b990a5aa3a46705f987`.
+
+Documentation closure:
+1) Added `P3.4 Handoff closure record` section in `segment_1A.build_plan.md` with:
+- authority run ids for acceptance and replay,
+- explicit prune record,
+- retained run list,
+- frozen-for-P4 assumption.
+
+Decision:
+1) P3 is now handoff-closed for progression to P4 with explicit lock posture and leaner storage footprint.
